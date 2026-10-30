@@ -85,7 +85,23 @@ NEIGHBOURHOOD, and neighbourhoods are a geocity graph's nodes (each one's `ports
   dice, a layout's `bike` lines always), kerb, parking, bike lane, travel. Painted: a local street's dashed yellow
   centre, a serious street's double yellow and its dashed white lane lines, the travel lanes' edge lines, a bike
   lane's green and its marks.
-- **Houseplants from the plant library** (`pattern.houseplants`): read by the seventh generation, a yard's garden and
+- **Fences of more materials** (`yards.js` FENCES, `pattern.fences` their weights): a stained board fence (its boards'
+  tile), a board fence under a band of lattice, horizontal slats, chain-link on its posts and rail, an iron railing, a
+  low brick wall under its coping (brick's tile), a fieldstone wall (rubble's tile), a picket, a hedge; each its own
+  paint, stain or brick.
+- **Shared entries and rear garages** (`pattern.access`): each houses segment's access by its dice: a rear LANE, its
+  houses backing onto it and most keeping a garage off it; MUTUAL drives, a shared drive straddling two buildings'
+  side yards (never within a semi pair), from the walk across their front yards and down between them to a garage at
+  each one's back corner, no fence down it, the yard laid beside it; or none. The garages count in `parking`; a
+  house's coverage is read less its half of the drive and a corner's flank.
+- **Back doors and walkouts**: every house's back wall its door to the yard: a walkout onto its deck or patio
+  (sliding glass doors; a mansion's french doors), else a door over a stoop and its steps; a split house's lower
+  flat's under its stair's landing.
+- **The street's own furniture** (the fractal city's kit at the micro scale): a local street's lamps hung on wooden
+  hydro poles, their crossarms and three sagging wires on to the next pole; a blue street-name sign at each crossing;
+  a hydrant on each block face; a main street's bins, post-and-ring bike stands and a post box (`pattern.furniture`);
+  a bus shelter on each block face of a major street. A segment's face budget 13.5k for its streets' paint and kit.
+ (`pattern.houseplants`): read by the seventh generation, a yard's garden and
   kitchen beds grow hostas, ferns and heather, a deck's planters box, the front hedges and the hedge fences are rows of
   box, and a share of front yards keep foundation plantings by the porch (forsythia, juniper, box, a flowering shrub in
   bloom): the library's bushes and shrubs (`form/bush-form.js` habits, grown by the form's plants), their ground

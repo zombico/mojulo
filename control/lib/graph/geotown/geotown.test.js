@@ -390,3 +390,36 @@ describe('streets by their lanes', () => {
   });
 });
 
+describe('shared entries and the street\'s own furniture', () => {
+  it('gives its houses segments their access: a rear lane with garages off it, or mutual drives to garages at the back', () => {
+    let lanes = 0, mutuals = 0;
+    for (const seed of [1, 2, 3]) {
+      const d = designGeotown({ evoke: 'neighbourhood', neighbourhood: 'quiet-streets' }, { seed, field: plane });
+      expect(d.laws.filter((l) => !l.ok)).toEqual([]);
+      lanes += d.blocks.filter((b) => b.lane && b.use === 'houses').length;
+      for (const pl of d.plots.filter((q) => q.mutual)) {
+        mutuals++;
+        // (never within a semi pair; the drive straddles the line its neighbour shares, each half the drive's)
+        const row = d.plots.filter((q) => q.block === pl.block && q.side === pl.side), nb = row.find((q) => q.k === pl.k + (pl.mutual.side === 'R' ? 1 : -1));
+        expect(nb.mutual.side).toBe(pl.mutual.side === 'R' ? 'L' : 'R');
+        expect(!(pl.pair && pl.pair === nb.pair)).toBe(true);
+        expect(d.surfaces.some((s) => s.plot === pl.id && s.cls === 'drive')).toBe(true);
+        if (pl.mutual.garage) expect(d.surfaces.some((s) => s.plot === pl.id && s.kind === 'garage')).toBe(true);
+      }
+    }
+    expect(lanes).toBeGreaterThan(0);
+    expect(mutuals).toBeGreaterThan(0);
+  });
+
+  it('furnishes its streets: a sign at each crossing, a hydrant each block face, a main street\'s bins, rings and post box', () => {
+    const d = designGeotown({ segment: 'main-street' }, { seed: 2, field: plane }), T = d.traffic;
+    expect(T.signs.length).toBeGreaterThan(0);
+    expect(T.hydrants.length).toBeGreaterThanOrEqual(4);
+    for (const k of ['bins', 'rings', 'posts']) expect(T[k].length).toBeGreaterThan(0);
+    // (a local street's lights on hydro poles, a serious street's on steel)
+    for (const Lt of T.lights) expect(Lt.kind).toBe(d.streets.find((s) => s.id === Lt.street).rank === 'street' ? 'hydro' : 'standard');
+    const E = designGeotown({ evoke: 'neighbourhood', neighbourhood: 'edges' }, { seed: 2, field: plane });
+    expect(E.traffic.shelters.length).toBeGreaterThan(0);
+  });
+});
+

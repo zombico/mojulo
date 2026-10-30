@@ -66,7 +66,10 @@ export function geotownLaws(d) {
   law('back-yard', !backs.length || least >= P.back - 1e-6, backs.length ? `the shallowest back yard ${r2(least)} m (least ${P.back})` : 'no plots');
   // (an evoked row run deeper than it needs, to fill its cell, keeps its house: its rail's low end by that depth)
   const deepOf = (pl) => Math.max(1, d.evoked?.fits.find((f) => f.block === pl.block && f.side === pl.side)?.deep ?? 1);
-  const cov = H.map((pl) => houseA(pl) / (pl.w * pl.d)), outCov = H.filter((pl, i) => cov[i] < P.coverage[0] / deepOf(pl) - 1e-9 || cov[i] > P.coverage[1]).length;
+  // (a house's share of its plot less its half of a mutual drive, that strip the two houses' common ground, and less a
+  // corner's flank, the side yard the corner gives to the cross street)
+  const flank = (pl) => (pl.corner === 'both' ? 2 : pl.corner ? 1 : 0) * P.plot.corner;
+  const cov = H.map((pl) => houseA(pl) / ((pl.w - (pl.mutual?.w ?? 0) - flank(pl)) * pl.d)), outCov = H.filter((pl, i) => cov[i] < P.coverage[0] / deepOf(pl) - 1e-9 || cov[i] > P.coverage[1]).length;
   law('coverage', outCov === 0, cov.length ? `${r2(Math.min(...cov))}–${r2(Math.max(...cov))} of a plot (rail ${P.coverage.join('–')}${d.evoked ? `, its low end over a row's depth stretch to ${r2(Math.max(...H.map(deepOf)))}` : ''}); ${outCov} outside` : 'no plots');
   const offRail = d.plots.filter((pl) => { const K = (pl.kind ?? 'houses') === 'houses' ? { rail: P.plot[pl.form], corner: P.plot.corner } : { rail: P.rows[pl.kind].frontage, corner: P.rows[pl.kind].corner }, [lo, hi] = K.rail, extra = pl.corner === 'both' ? 2 * K.corner : pl.corner ? K.corner : 0;
     // (an evocation's frontages spread inside its stretch to fill the cell it is tuned to)
@@ -113,8 +116,8 @@ export function geotownLaws(d) {
   // (a split house two households, its two flats)
   const PK = P.parking, homes = d.plots.filter((pl) => (pl.kind ?? 'houses') === 'houses').length + d.plots.filter((pl) => pl.duplex).length;
   if (d.parking && PK?.least > 0 && homes) {
-    const room = d.parking.stalls + d.parking.pads + 2 * d.parking.garages + (d.parking.laneGarages ?? 0);
-    law('parking', room / homes >= PK.least - 1e-9, `${r2(room / homes)} stalls a household (least ${PK.least}): ${d.parking.stalls} on the street (${d.parking.sides}), ${d.parking.pads} front pads, ${d.parking.garages + (d.parking.laneGarages ?? 0)} garages, for ${homes} households`);
+    const room = d.parking.stalls + d.parking.pads + 2 * d.parking.garages + (d.parking.laneGarages ?? 0) + (d.parking.mutualGarages ?? 0);
+    law('parking', room / homes >= PK.least - 1e-9, `${r2(room / homes)} stalls a household (least ${PK.least}): ${d.parking.stalls} on the street (${d.parking.sides}), ${d.parking.pads} front pads, ${d.parking.garages + (d.parking.laneGarages ?? 0) + (d.parking.mutualGarages ?? 0)} garages, for ${homes} households`);
   }
   if (d.beside && d.sites?.length > 1) law('apart', d.beside.length === 0, d.beside.length ? `side by side: ${d.beside.map(([a, b]) => `${a} and ${b}`).join(', ')}` : `${d.sites.length} fields, none side by side`);
   if (d.sites?.length) {

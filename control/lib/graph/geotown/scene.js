@@ -52,7 +52,7 @@ import { SPECIES } from '../vegetation/species.js';
 import { streamOf } from '../city/plan/dice.js';
 import { buildingKits } from './houses.js';
 import { frontOf, FRONT, box } from './fronts.js';
-import { yardOf, fenceOf, serviceOf, garageOf, balconyOf, stairOf, carOf, CAR_PAINTS, ZONES, FENCES } from './yards.js';
+import { yardOf, fenceOf, serviceOf, garageOf, balconyOf, stairOf, backDoorOf, carOf, CAR_PAINTS, ZONES, FENCES } from './yards.js';
 import { gatesOf } from './gates.js';
 import { pitchOf, trackOf, diamondOf, courtsOf, hoopsOf, lotOf, fieldhouseOf, bleachersOf, lightsOf, flagOf, playgroundOf, pavilionOf, benchOf } from './sites.js';
 import { backTouch } from './laws.js';
@@ -63,7 +63,7 @@ export const GEOTOWN_KEYS = Object.freeze(['kind', 'cube', 'show', 'title', 'see
 // the faces a geotown draws at most (its trees are repeats, budgeted apart): a law, advice. The town to scale's is one
 // budget; an evocation spends its own on each segment's buildings, so its budget is a segment's times its segments,
 // or a building's times its buildings where a dense streetscape stands more
-export const GEOTOWN_FACES = 60000, SEGMENT_FACES = 12000;   // (a main-street segment's shopfronts and its houses' zoned yards, 10.1k)
+export const GEOTOWN_FACES = 60000, SEGMENT_FACES = 13500;   // (a main-street segment's shopfronts and its houses' zoned yards, 10.1k; its streets' paint and furniture, ~0.6k more)
 // (a denser streetscape puts more buildings in a segment: an evocation's budget at least this a building it stands)
 export const BUILDING_FACES = 1200;
 // the trees' faces, summed over their instances: each starts at its least detail and the trees the views see largest
@@ -72,7 +72,9 @@ const TREE_FACES = 400000, TREE_EYE = 0.05;
 // a street cell's longest side (m); the park's and the margin's lattice (m)
 const CELL = 6, PARK_CELL = 6, MARGIN_CELL = 6;
 // the seeds the ground's finishes are laid with, a surface each
-const FINISH_SEEDS = { road: 151, walk: 141, furnish: 143, path: 145, side: 147, service: 149, 'park-path': 153, step: 155, kerb: 157, drive: 161 };
+// the finishes laid on a face standing up (a kerb's, a fence's) rather than on the ground
+const UPRIGHT = new Set(['kerb', 'fence-board', 'fence-brick', 'fence-stone']);
+const FINISH_SEEDS = { 'fence-board': 163, 'fence-brick': 165, 'fence-stone': 167, road: 151, walk: 141, furnish: 143, path: 145, side: 147, service: 149, 'park-path': 153, step: 155, kerb: 157, drive: 161 };
 // a building's kit family: a mansion's its own
 const familyOf = (pl) => (pl.form === 'mansion' ? 'mansions' : pl.kind);
 /** A rect less some rects inside it, as rects (u0, v0, u1, v1). */
@@ -101,6 +103,8 @@ export const TREE_CLEAR = 2 * WALK.body, TREE_RAISE = 0.42;
 const TREE_LEAST = TREE_CLEAR / TREE_RAISE, TREE_GAP = 0.6;
 // a bike lane's marks: the metres between them
 const BIKE_MARK = 26;
+// a wooden hydro pole: its height, its crossarm's width, the longest span its wires take and their sag (m)
+const HYDRO = { h: 10.5, arm: 1.8, span: 60, sag: 0.45 };
 // (read by the seventh generation) the town's soft ground the form's land draws and grows its grass on (a lawn, a
 // boulevard, a back yard, a park, a site's lawn and its fields, the border), as the form's own ground; and the things on
 // it whose ground is claimed from the grass (their tops: a patio, a deck, a shed, a pool, beds, chips, a pavilion's slab)
@@ -152,7 +156,9 @@ function coloursOf(cube) {
     // a yard's things: a trampoline's mat, a grill, mulch round a tree, a compost bin, a balcony's rail
     mat: '#24262a', grill: '#2b2b2d', mulch: mix('#5b4232', C.floor, 0.2), compost: '#4f5a3c', rail: mix('#ece8de', C.trim, 0.2),
     // a gated front: its iron, its low wall's brick, its piers' stone
-    yellow: '#e2bd3c', bike: '#3f8a52', lane: mix('#55585c', C.floor, 0.12), steel: '#3c4044', pole: '#55595e', lamp: '#ece8d8', signal: '#1d2023', red: '#d8342c', amber: '#e8a523', green: '#2fb35e', stop: '#c62d26',
+    'fence-board': mix('#7a5a3c', C.floor, 0.2), slat: '#4a3a2e', lattice: '#d8cdb8', mesh: '#8c9298', 'fence-brick': '#8f4c3a', 'fence-stone': '#8f877a',
+    hydro: '#5a4f44', wire: '#1e2022', blade: '#1f4e8c', hydrant: '#c0302a', streetbin: '#3a3d40', postbox: '#c8102e', shelter: '#3c4044', seat: '#6a7078',
+    trim: mix('#ece8de', C.trim, 0.2), yellow: '#e2bd3c', bike: '#3f8a52', lane: mix('#55585c', C.floor, 0.12), steel: '#3c4044', pole: '#55595e', lamp: '#ece8d8', signal: '#1d2023', red: '#d8342c', amber: '#e8a523', green: '#2fb35e', stop: '#c62d26',
     iron: '#24282c', brick: mix('#8f4c3a', C.stone, 0.15), pier: mix('#cfc6b4', C.stone, 0.3),
     // a site's ground and its things: lawn, turf and its mown stripes, the lines, a court, a track, a diamond's dirt, the
     // chips under a playground; goals, nets, fences, a field house's block walls, lamps, a flag, seats
@@ -181,7 +187,8 @@ function finishesOf(P, cube) {
   const X = materialContext(cube), out = {};
   for (const [surface, word] of Object.entries(P.finishes ?? {})) {
     const T = wordTile(word, X, FINISH_SEEDS[surface] ?? 159);
-    if (T) out[`geotown:${surface}`] = { spec: T.spec, metres: T.metres, ...(surface === 'kerb' ? {} : { floor: true }) };
+    // (a kerb's and a fence's face is upright: its tile on its sides)
+    if (T) out[`geotown:${surface}`] = { spec: T.spec, metres: T.metres, ...(UPRIGHT.has(surface) ? {} : { floor: true }) };
   }
   return out;
 }
@@ -326,12 +333,14 @@ export function assembleGeotownScene(m, ctx = {}) {
     const R = streamOf(seed, 'yard', pl.id), lawn = mix(col.lawn, R() < 0.5 ? col.hedge : '#ffffff', 0.04 + 0.08 * R());
     // the path to the door (or the envelope's middle), inside the front yard
     // (beside a parking pad, never across it)
-    const pw = pl.path.w, Pk = pl.park, lo0 = Pk && Pk[0] === 0 ? Pk[1] + 0.1 : 0, hi0 = Pk && Pk[0] > 0 ? Pk[0] - 0.1 : w;
+    // (its front's openings: a parking pad, its half of a mutual drive; its path beside them, never across)
+    const pw = pl.path.w, Pk = pl.park, Mu = pl.mutual, opens = [Pk, Mu?.strip].filter(Boolean);
+    const lo0 = Math.max(0, ...opens.filter((o) => o[0] === 0).map((o) => o[1] + 0.1)), hi0 = Math.min(w, ...opens.filter((o) => o[0] > 0).map((o) => o[0] - 0.1));
     const pu = Math.max(lo0 + pw / 2 + 0.05, Math.min(hi0 - pw / 2 - 0.05, house ? house.doorU : pl.path.u)), a = pu - pw / 2, b = pu + pw / 2;
     if (F > 0) {
       // the front bank: the walk's back edge up (or down) to the pad at the setback line, in strips about the path (and a
       // mansion's drive); a mansion's wider lawn on its pad behind it, to its house
-      const Mn = pl.mansion, F1 = env[1], cuts = [[a, b, 'path', col.path], ...(Mn ? [[Mn.drive[0], Mn.drive[1], 'drive', col.drive]] : []), ...(Pk ? [[Pk[0], Pk[1], 'drive', col.drive]] : [])].sort((p, q) => p[0] - q[0]);
+      const Mn = pl.mansion, F1 = env[1], cuts = [[a, b, 'path', col.path], ...(Mn ? [[Mn.drive[0], Mn.drive[1], 'drive', col.drive]] : []), ...(Pk ? [[Pk[0], Pk[1], 'drive', col.drive]] : []), ...(Mu ? [[Mu.strip[0], Mu.strip[1], 'drive', col.drive]] : [])].sort((p, q) => p[0] - q[0]);
       const strips = [];
       let u = 0;
       for (const [c0, c1, grp, hex] of cuts) { if (c0 > u) strips.push([u, c0, 'front', lawn]); strips.push([c0, c1, grp, hex]); u = c1; }
@@ -374,20 +383,22 @@ export function assembleGeotownScene(m, ctx = {}) {
     }
     // the pad: the side yards (a mansion's drive-side its drive), the building's ground, the back yard or the service
     // yard (round a mansion's apron and garage), one level quad each
-    const [sL, sR] = pl.house.sides, Mn = pl.mansion, [, F1, , F3] = env;
+    const [sL, sR] = pl.house.sides, Mn = pl.mansion, [, F1, , F3] = env, dL = Mn?.left || Mu?.side === 'L', dR = (Mn && !Mn.left) || Mu?.side === 'R';
     const quadAt = (u0, v0, u1, v1, grp, hex) => { if (u1 - u0 > 1e-3 && v1 - v0 > 1e-3) put([W(pl, u0, v0, pad), W(pl, u1, v0, pad), W(pl, u1, v1, pad), W(pl, u0, v1, pad)], `geotown:${grp}`, hex); };
-    quadAt(0, F1, sL, F3, Mn?.left ? 'drive' : 'side', Mn?.left ? col.drive : col.side); quadAt(w - sR, F1, w, F3, Mn && !Mn.left ? 'drive' : 'side', Mn && !Mn.left ? col.drive : col.side);
+    quadAt(0, F1, sL, F3, dL ? 'drive' : 'side', dL ? col.drive : col.side); quadAt(w - sR, F1, w, F3, dR ? 'drive' : 'side', dR ? col.drive : col.side);
     quadAt(sL, F1, w - sR, F3, 'house', col.house);
-    const apron = Mn?.garage ? [Mn.drive[0], F3, Mn.drive[1], Mn.garage[1]] : null;
-    for (const q of lessRects([0, F3, w, dep], [apron, Mn?.garage].filter(Boolean))) quadAt(...q, pl.rear, pl.rear === 'back' ? lawn : col.service);
+    // (a mansion's or a mutual drive's apron past the house to its garage, the garage's ground)
+    const apron = Mn?.garage ? [Mn.drive[0], F3, Mn.drive[1], Mn.garage[1]] : null, mApron = Mu?.garage ? [Mu.strip[0], F3, Mu.strip[1], Mu.garage[1]] : null;
+    for (const q of lessRects([0, F3, w, dep], [apron, Mn?.garage, mApron, Mu?.garage].filter(Boolean))) quadAt(...q, pl.rear, pl.rear === 'back' ? lawn : col.service);
     if (apron) { quadAt(...apron, 'drive', col.drive); quadAt(...Mn.garage, 'drive', col.drive); for (const f of garageOf(Mn.garage)) yardFace(pl, f); }
+    if (mApron) { quadAt(...mApron, 'drive', col.drive); quadAt(...Mu.garage, 'drive', col.drive); if (pl.built) for (const f of garageOf(Mu.garage)) yardFace(pl, f); }
     if (pl.laneGarage && pl.built) for (const f of garageOf(pl.laneGarage, 'v1')) yardFace(pl, f);
     // a hedge along a house's front line, a share of the households keep one (not across the path)
     if (pl.kind === 'houses' && F > 1.5 && R() < P.grow.front) {
       hedges++;
       for (const [h0, h1] of [[HEDGE.in, a - 0.3], [b + 0.3, w - HEDGE.in]]) {
-        // (never across a parking pad)
-        const u0 = Pk && Pk[0] === 0 ? Math.max(h0, Pk[1] + 0.3) : h0, u1 = Pk && Pk[0] > 0 ? Math.min(h1, Pk[0] - 0.3) : h1;
+        // (never across a parking pad or a drive)
+        const u0 = Math.max(h0, ...opens.filter((o) => o[0] === 0).map((o) => o[1] + 0.3)), u1 = Math.min(h1, ...opens.filter((o) => o[0] > 0).map((o) => o[0] - 0.3));
         if (u1 - u0 < 0.8) continue;
         const v0 = HEDGE.in, v1 = HEDGE.in + HEDGE.d, z0 = Math.min(wkAt(u0), wkAt(u1)) - 0.05, zt = z0 + HEDGE.h + Math.max(0, (pad - wkAt((u0 + u1) / 2)) * (v1 / F));
         // (read by the seventh generation: a row of the library's box on the bank, in the painted hedge's place)
@@ -406,7 +417,7 @@ export function assembleGeotownScene(m, ctx = {}) {
       if (Rf() < HP.foundation.share) {
         const v = vF, zAt = (u) => (env[1] > F + 1e-3 && v > F ? pad : wkAt(u) + (pad - wkAt(u)) * (v / F));
         for (const u of [env[0] + 0.9, env[2] - 0.9]) {
-          if (Math.abs(u - pu) < pw / 2 + 0.9 || (Pk && u > Pk[0] - 0.6 && u < Pk[1] + 0.6)) continue;
+          if (Math.abs(u - pu) < pw / 2 + 0.9 || opens.some((o) => u > o[0] - 0.6 && u < o[1] + 0.6)) continue;
           const [x, y] = W(pl, u, v, 0);
           if (Rf() < HP.foundation.bloom) { shrubs.push({ x: r5(x), y: r5(y), z: r5(zAt(u)), h: r5(0.8 + 0.5 * Rf()), state: 'bloom' }); claims.push([r5(x), r5(y), 0.8]); }
           else { const k = pickOf(HP.foundation.kinds, Rf), K = HP.kinds[k]; bush(x, y, zAt(u), K.height[0] + (K.height[1] - K.height[0]) * Rf(), k); }
@@ -425,7 +436,7 @@ export function assembleGeotownScene(m, ctx = {}) {
       const Rg = streamOf(seed, 'gates', pl.id);
       if (Rg() < (pl.mansion ? Math.sqrt(P.gates.share) : P.gates.share)) {
         const kind = pickWeighted(Rg, P.gates.kinds), z0 = Math.min(wkAt(0), wkAt(w)) - 0.03;
-        const open = [[a, b, 'path'], ...(Pk ? [[...Pk, 'pad']] : []), ...(pl.mansion ? [[...pl.mansion.drive, 'drive']] : [])];
+        const open = [[a, b, 'path'], ...(Pk ? [[...Pk, 'pad']] : []), ...(Mu ? [[...Mu.strip, 'pad']] : []), ...(pl.mansion ? [[...pl.mansion.drive, 'drive']] : [])];
         for (const f of gatesOf(kind, { w, open, mansion: !!pl.mansion })) yardFace(pl, { ...f, corners: f.corners.map(([u, v, z]) => [u, v, z + z0 - pad]) });
         gated++; pl.gate = kind;
       }
@@ -474,8 +485,12 @@ export function assembleGeotownScene(m, ctx = {}) {
           // (a split house's back door is the upper flat's stair's: its yard by the house left to it)
           if (pl.duplex) want.near = 'lawn';
           pl.fence = Mn ? 'hedge' : pickWeighted(Ry, P.fences);
+          // (its fence's own paint, stain or brick)
+          { const ps = FENCES[pl.fence].paints; pl.fenceHex = ps.length ? ps[Math.floor(Ry() * ps.length)] : null; }
           const busy = Mn?.garage ? [Math.min(Mn.drive[0], Mn.garage[0]) - 0.5, Math.max(Mn.drive[1], Mn.garage[2]) + 0.5] : null;
-          const [ua, ub] = busy ? (Mn.left ? [busy[1], w] : [0, busy[0]]) : [0, w];
+          // (a mutual drive's strip and garage at one side: the yard beside them)
+          const [ua0, ub0] = busy ? (Mn.left ? [busy[1], w] : [0, busy[0]]) : [0, w];
+          const ua = Mu?.side === 'L' ? Math.max(ua0, (Mu.garage ? Math.max(Mu.strip[1], Mu.garage[2]) : Mu.strip[1]) + 0.3) : ua0, ub = Mu?.side === 'R' ? Math.min(ub0, (Mu.garage ? Math.min(Mu.strip[0], Mu.garage[0]) : Mu.strip[0]) - 0.3) : ub0;
           const Y = yardOf(want, { w: ub - ua, v0, v1: pl.laneGarage ? pl.laneGarage[1] - 0.6 : dep, R: Ry }), shedHex = SHEDS[Math.floor(Ry() * SHEDS.length)];
           // (read by the seventh generation: its beds' and planters' plants the library's, in their painted leaves' place)
           if (form && HP) { const Rp = streamOf(seed, 'houseplants', `yard:${pl.id}`); for (const q of Y.plants) { const [x, y] = W(pl, q.u + ua, q.v, 0); bush(x, y, pad + q.z, Math.max(0.3, q.h + 0.15), pickOf(q.in === 'planter' ? HP.planters : HP.beds, Rp)); } }
@@ -499,6 +514,15 @@ export function assembleGeotownScene(m, ctx = {}) {
           }
           // a split house's steel stair from its yard to the upper flat's landing and door, at its outer side
           if (pl.duplex && dz.dims.n >= 2) { for (const f of stairOf({ w, v0, z: dz.dims.storeyH, outer: pl.half === 'R' ? 'u1' : 'u0' })) yardFace(pl, f); drawn.push('stair'); }
+          // its BACK DOOR: a walkout onto its deck or its patio (sliding glass doors; a mansion's french doors), else a door
+          // over a stoop and its steps; a split house's lower flat's under its stair's landing
+          {
+            const kind = Y.plan.near === 'deck' ? 'deck' : Y.plan.near === 'patio' ? 'patio' : 'stoop', dw = Mn ? 2.4 : kind === 'stoop' ? 0.95 : 1.8;
+            const want = pl.duplex ? (pl.half === 'R' ? w - 1 : 1) : pl.half === 'L' ? env[2] - dw / 2 - 0.8 : pl.half === 'R' ? env[0] + dw / 2 + 0.8 : (env[0] + env[2]) / 2 + 1.1;
+            const ud = Math.max(Math.max(env[0], ua) + dw / 2 + 0.25, Math.min(Math.min(env[2], ub) - dw / 2 - 0.25, want));
+            for (const f of backDoorOf({ u: ud, v: v0, w: dw, kind })) yardFace(pl, f);
+            drawn.push(kind === 'stoop' ? 'back door' : 'walkout');
+          }
           pl.yard = drawn.length ? drawn.join(', ') : 'lawn';
         } else {
           pl.fence = 'board';
@@ -568,11 +592,65 @@ export function assembleGeotownScene(m, ctx = {}) {
   // at a signal, two lines at a stop), its stop lines, a stop sign on each stopped approach's right, a signal at each
   // corner facing its approach (a mast arm over a main or major street's road) ──
   const fx = (fs) => { for (const f of fs) put(f.corners, `geotown:${f.role}`, col[f.role] ?? col.metal, f.out); };
+  // (a local street's lamp on a wooden hydro pole: the pole to its crossarm, the crossarm across the street's line, its
+  // lamp's arm out over the road; three wires on from each crossarm to the next pole's along the walk, sagging between)
+  const hydro = new Map();
   for (const Lt of d.traffic?.lights ?? []) {
-    const [x, y] = Lt.at, z = wk(x, y), [tx, ty] = Lt.toward, ax = x + tx * 1.9, ay = y + ty * 1.9, hl = tx ? [0.4, 0.17] : [0.17, 0.4];
-    fx(box(x - 0.08, y - 0.08, x + 0.08, y + 0.08, z, z + Lt.h, 'pole'));
+    const [x, y] = Lt.at, z = wk(x, y), [tx, ty] = Lt.toward, ax = x + tx * 1.9, ay = y + ty * 1.9, hl = tx ? [0.4, 0.17] : [0.17, 0.4], wood = Lt.kind === 'hydro';
+    const top = wood ? HYDRO.h : Lt.h;
+    fx(box(x - (wood ? 0.13 : 0.08), y - (wood ? 0.13 : 0.08), x + (wood ? 0.13 : 0.08), y + (wood ? 0.13 : 0.08), z, z + top, wood ? 'hydro' : 'pole'));
     fx(box(Math.min(x, ax) - 0.05, Math.min(y, ay) - 0.05, Math.max(x, ax) + 0.05, Math.max(y, ay) + 0.05, z + Lt.h - 0.12, z + Lt.h, 'pole'));
     fx(box(ax - hl[0], ay - hl[1], ax + hl[0], ay + hl[1], z + Lt.h - 0.3, z + Lt.h - 0.1, 'lamp'));
+    if (wood) {
+      const c = HYDRO.arm / 2;
+      fx(box(x - (tx ? c : 0.06), y - (ty ? c : 0.06), x + (tx ? c : 0.06), y + (ty ? c : 0.06), z + top - 0.5, z + top - 0.38, 'hydro'));
+      (hydro.get(Lt.run) ?? hydro.set(Lt.run, []).get(Lt.run)).push({ x, y, z: z + top - 0.36, tx, ty, s: Lt.s });
+    }
+  }
+  for (const run of hydro.values()) {
+    run.sort((p, q) => p.s - q.s);
+    for (let i = 0; i + 1 < run.length; i++) {
+      const p = run[i], q = run[i + 1];
+      if (q.s - p.s > HYDRO.span) continue;
+      for (const o of [-HYDRO.arm / 2 + 0.1, 0, HYDRO.arm / 2 - 0.1]) {
+        const a = [p.x + p.tx * o, p.y + p.ty * o, p.z], b = [q.x + q.tx * o, q.y + q.ty * o, q.z], m = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2, (a[2] + b[2]) / 2 - HYDRO.sag];
+        for (const [u, v] of [[a, m], [m, b]]) put([[u[0], u[1], u[2]], [v[0], v[1], v[2]], [v[0], v[1], v[2] + 0.035], [u[0], u[1], u[2] + 0.035]], 'geotown:wire', col.wire, [p.ty ? 1 : 0, p.tx ? 1 : 0, 0]);
+      }
+    }
+  }
+  // ── the street's own furniture: street-name signs, hydrants, a main street's bins, bike rings and post box, a major
+  // street's bus shelters ──
+  const T9 = d.traffic ?? {};
+  for (const Sg of T9.signs ?? []) {
+    const [x, y] = Sg.at, z = wk(x, y);
+    fx(box(x - 0.04, y - 0.04, x + 0.04, y + 0.04, z, z + 2.95, 'pole'));
+    fx(box(x - 0.45, y - 0.02, x + 0.45, y + 0.02, z + 2.55, z + 2.75, 'blade'));
+    fx(box(x - 0.02, y - 0.45, x + 0.02, y + 0.45, z + 2.78, z + 2.98, 'blade'));
+  }
+  for (const H of T9.hydrants ?? []) {
+    const [x, y] = H.at, z = wk(x, y);
+    fx(box(x - 0.13, y - 0.13, x + 0.13, y + 0.13, z, z + 0.62, 'hydrant'));
+    fx(box(x - 0.1, y - 0.1, x + 0.1, y + 0.1, z + 0.62, z + 0.76, 'yellow'));
+    fx(box(x - (H.toward[0] ? 0.2 : 0.05), y - (H.toward[1] ? 0.2 : 0.05), x + (H.toward[0] ? 0.2 : 0.05), y + (H.toward[1] ? 0.2 : 0.05), z + 0.38, z + 0.48, 'hydrant'));
+  }
+  for (const Bn of T9.bins ?? []) { const [x, y] = Bn.at, z = wk(x, y); fx(box(x - 0.28, y - 0.28, x + 0.28, y + 0.28, z, z + 0.95, 'streetbin')); fx(box(x - 0.3, y - 0.3, x + 0.3, y + 0.3, z + 0.95, z + 1.02, 'pole')); }
+  for (const Rg of T9.rings ?? []) {
+    // (the city's post and ring: a post, a ring round it across the walk's line)
+    const [x, y] = Rg.at, z = wk(x, y), al = Rg.along === 'x';
+    fx(box(x - 0.03, y - 0.03, x + 0.03, y + 0.03, z, z + 0.95, 'steel'));
+    const R = 0.24, n = 8, ring = Array.from({ length: n + 1 }, (_, i) => [R * Math.cos((2 * Math.PI * i) / n), z + 0.72 + R * Math.sin((2 * Math.PI * i) / n)]);
+    for (let i = 0; i < n; i++) { const [a, za] = ring[i], [b, zb] = ring[i + 1]; put(al ? [[x + a, y, za], [x + b, y, zb], [x + b, y, zb + 0.04], [x + a, y, za + 0.04]] : [[x, y + a, za], [x, y + b, zb], [x, y + b, zb + 0.04], [x, y + a, za + 0.04]], 'geotown:steel', col.steel, al ? [0, 1, 0] : [1, 0, 0]); }
+  }
+  for (const Pb of T9.posts ?? []) { const [x, y] = Pb.at, z = wk(x, y); fx(box(x - 0.26, y - 0.24, x + 0.26, y + 0.24, z, z + 1.15, 'postbox')); fx(box(x - 0.28, y - 0.26, x + 0.28, y + 0.26, z + 1.15, z + 1.22, 'postbox')); }
+  for (const Sh of T9.shelters ?? []) {
+    // (a bus shelter on the walk, its glass back to the houses and its sides, its roof, its bench, a stop's post by it)
+    const [x, y] = Sh.at, z = wk(x, y), al = Sh.along === 'x', L = 1.9, Dp = 0.7, [bx, by] = Sh.toward, back = al ? y - by * Dp : x - bx * Dp;
+    const rect = al ? [x - L, Math.min(y - by * Dp, y + by * Dp), x + L, Math.max(y - by * Dp, y + by * Dp)] : [Math.min(x - bx * Dp, x + bx * Dp), y - L, Math.max(x - bx * Dp, x + bx * Dp), y + L];
+    for (const [px, py] of [[rect[0], rect[1]], [rect[2], rect[1]], [rect[2], rect[3]], [rect[0], rect[3]]]) fx(box(px - 0.04, py - 0.04, px + 0.04, py + 0.04, z, z + 2.4, 'shelter'));
+    fx(box(rect[0] - 0.1, rect[1] - 0.1, rect[2] + 0.1, rect[3] + 0.1, z + 2.4, z + 2.5, 'shelter'));
+    put(al ? [[rect[0], back, z + 0.1], [rect[2], back, z + 0.1], [rect[2], back, z + 2.3], [rect[0], back, z + 2.3]] : [[back, rect[1], z + 0.1], [back, rect[3], z + 0.1], [back, rect[3], z + 2.3], [back, rect[1], z + 2.3]], 'geotown:glass', col.glass, al ? [0, by, 0] : [bx, 0, 0]);
+    for (const e of al ? [rect[0], rect[2]] : [rect[1], rect[3]]) put(al ? [[e, rect[1], z + 0.1], [e, rect[3], z + 0.1], [e, rect[3], z + 2.3], [e, rect[1], z + 2.3]] : [[rect[0], e, z + 0.1], [rect[2], e, z + 0.1], [rect[2], e, z + 2.3], [rect[0], e, z + 2.3]], 'geotown:glass', col.glass, al ? [1, 0, 0] : [0, 1, 0]);
+    fx(al ? box(rect[0] + 0.3, Math.min(back, back + by * 0.45), rect[2] - 0.3, Math.max(back, back + by * 0.45), z + 0.42, z + 0.48, 'seat') : box(Math.min(back, back + bx * 0.45), rect[1] + 0.3, Math.max(back, back + bx * 0.45), rect[3] - 0.3, z + 0.42, z + 0.48, 'seat'));
   }
   for (const Xc of d.traffic?.crossings ?? []) {
     if (Xc.control === 'none') continue;
@@ -628,10 +706,11 @@ export function assembleGeotownScene(m, ctx = {}) {
   if (evoked) for (const B of d.blocks) rowsOf(B).forEach((rowP0, ri) => {
     const rowP = rowP0.filter((pl) => pl.fence);
     // (read by the seventh generation, a hedge is a row of the library's box)
-    const fenceAt = (p, a, b, z0) => { if (form && HP && p.fence === 'hedge') hedgeRow(W(p, a[0], a[1], 0), W(p, b[0], b[1], 0), () => p.pad + z0, FENCES.hedge.h); else for (const f of fenceOf(p.fence, a, b, z0)) yardFace(p, f); };
+    const fenceAt = (p, a, b, z0) => { if (form && HP && p.fence === 'hedge') hedgeRow(W(p, a[0], a[1], 0), W(p, b[0], b[1], 0), () => p.pad + z0, FENCES.hedge.h); else for (const f of fenceOf(p.fence, a, b, z0, p.fenceHex ?? null)) yardFace(p, f); };
     rowP.forEach((p, k) => {
       const q = rowP[k + 1], vb = (pl) => pl.house.env[3];
-      if (q) fenceAt(p, [p.w, Math.max(vb(p), vb(q))], [p.w, p.d], Math.max(0, q.pad - p.pad));
+      // (no fence down a mutual drive: the two households' common ground)
+      if (q && p.mutual?.side !== 'R' && q.mutual?.side !== 'L') fenceAt(p, [p.w, Math.max(vb(p), vb(q))], [p.w, p.d], Math.max(0, q.pad - p.pad));
       if (k === 0) fenceAt(p, [0, vb(p)], [0, p.d], 0);
       if (!q) fenceAt(p, [p.w, vb(p)], [p.w, p.d], 0);
       if (ri === 0 || B.lane) for (const [u0, u1] of p.laneGarage ? [[0, p.laneGarage[0]], [p.laneGarage[2], p.w]] : [[0, p.w]]) if (u1 - u0 > 0.2) fenceAt(p, [u0, p.d], [u1, p.d], 0);

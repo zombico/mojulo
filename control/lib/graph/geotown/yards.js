@@ -10,11 +10,15 @@
  *   ZONES        the zones a plan names, in order from the house: near, mid, back
  *   yardOf({ near, mid, back }, { w, v0, v1, R }) → { faces: [{ corners, out, role, hex? }], trees: [{ u, v, large? }],
  *       plan, plants: [{ u, v, z, h, in: 'bed' | 'planter' }] (its beds' and planters' plants, for a read that grows them
- *       from the plant library in its boxes' place) }: the yard from the house's back wall (v0) to the plot's back line (v1), each zone given its depth in
- *       order (a feature without the room is lawn: `plan` the one drawn); R its dice
+ *       from the plant library in its boxes' place) }: the yard from the house's back wall (v0) to the plot's back line
+ *       (v1), each zone given its depth in order (a feature without the room is lawn: `plan` the one drawn); R its dice
  *   balconyOf({ u0, u1, v, z, R }) → faces: a balcony off the house's back wall (at v) at an upper floor (z)
  *   stairOf({ w, v0, z, outer }) → faces: a split house's steel stair up the back wall to its upper flat's landing
- *   fenceOf(fence, [u0, v0], [u1, v1], z0) → the fence's faces along a line (a thin box, or a hedge's thick one)
+ *   backDoorOf({ u, v, w, kind }) → faces: a house's back door: a walkout onto its deck or patio, or a door over a stoop
+ *   FENCES       { <fence>: { read, h, t, role, paints } }: board, picket, lattice, slat, chainlink, iron, brick, stone,
+ *                hedge, each its own make and its paints (a stain, a paint, a brick's)
+ *   fenceOf(fence, [u0, v0], [u1, v1], z0, hex?) → the fence's faces along a line: its boards, its slats, its mesh and
+ *                posts, its bars, its brick under its coping, its stones, a hedge's thick box; `hex` its paint
  *   carOf(u, v, along, hex) → a car's faces standing at (u, v), its length along 'u' or 'v', its body painted `hex`
  *   CAR_PAINTS   the cars' paints
  *   garageOf(rect, door?) → a garage's faces, its door at v0 (a mansion's drive) or v1 (a lane behind)
@@ -45,9 +49,15 @@ export const YARDS = Object.freeze({
 export const YARD_IDS = Object.freeze(Object.keys(YARDS));
 export const ZONES = Object.freeze(['near', 'mid', 'back']);
 export const FENCES = Object.freeze({
-  board: Object.freeze({ read: 'a board fence, head high', h: 1.8, t: 0.05, role: 'timber' }),
-  picket: Object.freeze({ read: 'a painted picket fence, waist high', h: 1.1, t: 0.06, role: 'picket' }),
-  hedge: Object.freeze({ read: 'a clipped hedge', h: 1.5, t: 0.7, role: 'leaf' }),
+  board: Object.freeze({ read: 'a board fence, head high, its boards stained', h: 1.8, t: 0.05, role: 'fence-board', paints: Object.freeze(['#7a5a3c', '#9a7a54', '#5e5a52', '#8a6a4a', '#6b4a36']) }),
+  picket: Object.freeze({ read: 'a painted picket fence, waist high', h: 1.1, t: 0.06, role: 'picket', paints: Object.freeze(['#ece7dc', '#3f5a48', '#8a9aa2', '#e8dcc0']) }),
+  lattice: Object.freeze({ read: 'a board fence under a band of lattice', h: 1.85, t: 0.05, role: 'fence-board', lattice: 0.35, paints: Object.freeze(['#8a6a4a', '#9a7a54', '#e6dfd0']) }),
+  slat: Object.freeze({ read: 'horizontal slats with gaps between, a modern fence', h: 1.7, t: 0.05, role: 'slat', slats: 8, paints: Object.freeze(['#4a3a2e', '#3c3c3a', '#8a6a4a', '#a08060']) }),
+  chainlink: Object.freeze({ read: 'a chain-link fence on its posts and top rail', h: 1.2, t: 0.03, role: 'mesh', post: 2.4, paints: Object.freeze(['#8c9298', '#4a5a4a']) }),
+  iron: Object.freeze({ read: 'an iron railing, black bars between posts', h: 1.2, t: 0.04, role: 'iron', post: 2.4, bar: 0.16, paints: Object.freeze(['#24282c', '#2f3a32']) }),
+  brick: Object.freeze({ read: 'a low brick wall under its coping', h: 1.1, t: 0.24, role: 'fence-brick', paints: Object.freeze(['#8f4c3a', '#a05a42', '#7a4434']) }),
+  stone: Object.freeze({ read: 'a fieldstone wall, dry-laid, knee to waist high', h: 0.9, t: 0.4, role: 'fence-stone', paints: Object.freeze(['#8f877a', '#a09484', '#7c766c']) }),
+  hedge: Object.freeze({ read: 'a clipped hedge', h: 1.5, t: 0.7, role: 'leaf', paints: Object.freeze([]) }),
 });
 export const FENCE_IDS = Object.freeze(Object.keys(FENCES));
 
@@ -223,6 +233,25 @@ export function stairOf({ w, v0, z, outer }) {
   return out;
 }
 
+/** A house's back door on its back wall (at v, facing +v) at u, `w` wide: a WALKOUT onto its deck (`deck`, at the
+ *  deck's height) or its patio (`patio`, a sill step down), sliding glass doors in their frame; else (`stoop`) a door
+ *  over a stoop and its steps down to the yard. */
+export function backDoorOf({ u, v, w, kind }) {
+  const out = [], a = u - w / 2, b = u + w / 2, z0 = kind === 'deck' ? 0.6 : kind === 'patio' ? 0.1 : 0.45, h = 2.1, f = 0.07;
+  out.push({ corners: [P(a - f, v + 0.02, z0), P(b + f, v + 0.02, z0), P(b + f, v + 0.02, z0 + h + f), P(a - f, v + 0.02, z0 + h + f)], out: [0, 1, 0], role: 'trim' });
+  if (kind === 'stoop') {
+    out.push({ corners: [P(a, v + 0.04, z0), P(b, v + 0.04, z0), P(b, v + 0.04, z0 + h - 0.45), P(a, v + 0.04, z0 + h - 0.45)], out: [0, 1, 0], role: 'door' });
+    out.push({ corners: [P(a, v + 0.04, z0 + h - 0.4), P(b, v + 0.04, z0 + h - 0.4), P(b, v + 0.04, z0 + h), P(a, v + 0.04, z0 + h)], out: [0, 1, 0], role: 'glass' });
+    out.push(...box(a - 0.35, v, b + 0.35, v + 1.1, 0, z0, 'step'), ...box(a - 0.25, v + 1.1, b + 0.25, v + 1.4, 0, z0 / 2, 'step'));
+    return out;
+  }
+  // (two panes, the one sliding before the other; their meeting stile)
+  for (const [p0, p1] of [[a, u], [u, b]]) out.push({ corners: [P(p0 + 0.03, v + 0.04, z0 + 0.03), P(p1 - 0.03, v + 0.04, z0 + 0.03), P(p1 - 0.03, v + 0.04, z0 + h - 0.03), P(p0 + 0.03, v + 0.04, z0 + h - 0.03)], out: [0, 1, 0], role: 'glass' });
+  out.push({ corners: [P(u - 0.035, v + 0.05, z0), P(u + 0.035, v + 0.05, z0), P(u + 0.035, v + 0.05, z0 + h), P(u - 0.035, v + 0.05, z0 + h)], out: [0, 1, 0], role: 'trim' });
+  if (kind === 'patio') out.push(...box(a - 0.2, v, b + 0.2, v + 0.4, 0, z0, 'step'));
+  return out;
+}
+
 /** A balcony off the house's back wall (at v, facing +v) over [u0, u1], its floor at z: its slab, its rail and
  *  balusters on its three open sides, its glazed door, the brackets under it. */
 export function balconyOf({ u0, u1, v, z, R }) {
@@ -237,9 +266,32 @@ export function balconyOf({ u0, u1, v, z, R }) {
   return out;
 }
 /** A fence along a line in the plot's frame, standing on `z0`. */
-export function fenceOf(fence, [u0, v0], [u1, v1], z0 = 0) {
-  const F = FENCES[fence], t = F.t / 2;
-  return box(Math.min(u0, u1) - (u0 === u1 ? t : 0), Math.min(v0, v1) - (v0 === v1 ? t : 0), Math.max(u0, u1) + (u0 === u1 ? t : 0), Math.max(v0, v1) + (v0 === v1 ? t : 0), z0, z0 + F.h, F.role);
+export function fenceOf(fence, [u0, v0], [u1, v1], z0 = 0, hex = null) {
+  const F = FENCES[fence], t = F.t / 2, alongU = v0 === v1, paint = hex ? { hex } : {};
+  // (a box along the line, `t` thick, from z0 + a to z0 + b; a plane down the line from z0 + a to z0 + b; a post)
+  const slab = (a, b, th, role, extra = paint) => box(Math.min(u0, u1) - (alongU ? 0 : th), Math.min(v0, v1) - (alongU ? th : 0), Math.max(u0, u1) + (alongU ? 0 : th), Math.max(v0, v1) + (alongU ? th : 0), z0 + a, z0 + b, role, extra);
+  const plane = (a, b, role, extra = paint) => ({ corners: [P(u0, v0, z0 + a), P(u1, v1, z0 + a), P(u1, v1, z0 + b), P(u0, v0, z0 + b)], out: alongU ? [0, 1, 0] : [1, 0, 0], role, ...extra });
+  const L = Math.hypot(u1 - u0, v1 - v0), at = (s) => [u0 + ((u1 - u0) * s) / L, v0 + ((v1 - v0) * s) / L];
+  const posts = (every, w, h, role, extra = paint) => { const n = Math.max(1, Math.round(L / every)), out = []; for (let k = 0; k <= n; k++) { const [u, v] = at((L * k) / n); out.push(...box(u - w, v - w, u + w, v + w, z0, z0 + h, role, extra).slice(0, 5)); } return out; };
+  if (fence === 'lattice') {
+    // (boards to the lattice's foot; the lattice a lighter band over them, its top rail)
+    const lb = F.h - F.lattice;
+    return [...slab(0, lb, t, F.role), plane(lb, F.h - 0.05, 'lattice'), ...slab(F.h - 0.05, F.h, t + 0.01, F.role)];
+  }
+  if (fence === 'slat') {
+    // (its slats with a gap between each, its posts)
+    const out = [], gap = 0.04, sh = (F.h - gap * (F.slats - 1)) / F.slats;
+    for (let k = 0; k < F.slats; k++) out.push(plane(k * (sh + gap), k * (sh + gap) + sh, F.role));
+    return [...out, ...posts(2.4, 0.05, F.h, F.role)];
+  }
+  if (fence === 'chainlink') return [plane(0.02, F.h - 0.04, 'mesh'), ...slab(F.h - 0.05, F.h, 0.02, 'steel', {}), ...posts(F.post, 0.03, F.h + 0.05, 'steel', {})];
+  if (fence === 'iron') {
+    const out = [...slab(F.h - 0.06, F.h, 0.02, 'iron'), ...slab(0.08, 0.13, 0.02, 'iron')], n = Math.max(1, Math.round(L / F.bar));
+    for (let k = 0; k < n; k++) { const [u, v] = at((L * (k + 0.5)) / n); out.push({ corners: [P(u - (alongU ? 0.012 : 0), v - (alongU ? 0 : 0.012), z0 + 0.13), P(u + (alongU ? 0.012 : 0), v + (alongU ? 0 : 0.012), z0 + 0.13), P(u + (alongU ? 0.012 : 0), v + (alongU ? 0 : 0.012), z0 + F.h - 0.06), P(u - (alongU ? 0.012 : 0), v - (alongU ? 0 : 0.012), z0 + F.h - 0.06)], out: alongU ? [0, 1, 0] : [1, 0, 0], role: 'iron', ...paint }); }
+    return [...out, ...posts(F.post, 0.035, F.h + 0.06, 'iron')];
+  }
+  if (fence === 'brick') return [...slab(0, F.h - 0.06, t, F.role), ...slab(F.h - 0.06, F.h, t + 0.03, 'coping', {})];
+  return slab(0, F.h, t, F.role);
 }
 
 // a car's paint, one a car

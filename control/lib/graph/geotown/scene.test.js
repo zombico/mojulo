@@ -250,4 +250,20 @@ describe('the geotown built: its map stood on the cube\'s land, levelled', () =>
     for (const g of ['geotown:paint', 'geotown:bike']) expect(groups.has(g)).toBe(true);
     expect(p.geotown.laws.filter((l) => !l.ok)).toEqual([]);
   });
+
+  it('builds its fences of their materials, its back doors and walkouts, its hydro poles and wires, its street furniture', () => {
+    const at = (geotown) => assembleGeotownScene({ kind: 'geocube', cube: 'valley-morning', show: 'geotown', seed: 2, geotown: { hills: { height: 6 }, ...geotown } });
+    const N = at({ evoke: 'neighbourhood', neighbourhood: 'quiet-streets' }), groups = new Set(N.faces.map((f) => f.group));
+    expect(N.geotown.laws.filter((l) => !l.ok)).toEqual([]);
+    // (more than one make of fence among its yards; a board fence wears its boards' tile)
+    expect(['geotown:fence-board', 'geotown:slat', 'geotown:mesh', 'geotown:iron', 'geotown:fence-brick', 'geotown:fence-stone', 'geotown:picket', 'geotown:lattice'].filter((g) => groups.has(g)).length).toBeGreaterThan(2);
+    if (groups.has('geotown:fence-board')) expect(N.faces.some((f) => f.group === 'geotown:fence-board' && f.texture)).toBe(true);
+    // every house's back yard has its back door or its walkout
+    const yards = Object.values(N.geotown.yards);
+    expect(yards.every((y) => y.includes('walkout') || y.includes('back door'))).toBe(true);
+    expect(yards.some((y) => y.includes('walkout'))).toBe(true);
+    for (const g of ['geotown:hydro', 'geotown:wire', 'geotown:hydrant', 'geotown:blade']) expect(groups.has(g)).toBe(true);
+    const M = new Set(at({ segment: 'main-street' }).faces.map((f) => f.group));
+    for (const g of ['geotown:streetbin', 'geotown:postbox', 'geotown:steel']) expect(M.has(g)).toBe(true);
+  });
 });

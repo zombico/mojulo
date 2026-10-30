@@ -87,8 +87,12 @@ export const PATTERNS = Object.freeze({
     lane: { w: 5, garages: 0.45, garage: { w: 3.4, d: 6 } },
     // the narrow alley behind a main street's shops (their bins by their back doors, no parking yard)
     alley: { w: 3.4 },
+    // a houses segment's ACCESS by its dice: a rear LANE (its houses' garages off it, the lane's), MUTUAL drives (a
+    // shared drive straddling two buildings' side yards, `drive` m of each, from the walk past them to their garages at
+    // the back, the share of the gaps between buildings that take one), or none
+    access: { lane: 0.3, mutual: 0.4, drives: 0.6, drive: 1.3, garage: { w: 3.2, d: 5.8 }, garages: 0.85 },
     // what its ground is finished in (era/arch-style.js MATERIAL_WORDS), laid as each word's tiles
-    finishes: { road: 'asphalt', walk: 'pavement', furnish: 'brick-paving', path: 'brick-paving', side: 'gravel', service: 'asphalt', 'park-path': 'gravel', step: 'pavement', kerb: 'sawn-stone', drive: 'brick-paving', lane: 'asphalt' },
+    finishes: { road: 'asphalt', walk: 'pavement', furnish: 'brick-paving', path: 'brick-paving', side: 'gravel', service: 'asphalt', 'park-path': 'gravel', step: 'pavement', kerb: 'sawn-stone', drive: 'brick-paving', lane: 'asphalt', 'fence-board': 'boards', 'fence-brick': 'hand-brick', 'fence-stone': 'rubble' },
     // a block's length along its houses' street (one per row of blocks), and each row of plots' depth (one per town: the
     // streets run straight); a block is two rows deep, back to back
     block: { long: [150, 210], depth: [34, 40] },
@@ -137,9 +141,10 @@ export const PATTERNS = Object.freeze({
     },
     // an evocation's back yards, each its own: a feature a zone (yards.js YARDS), `near` the back door, the yard's `mid`,
     // its `back` fence, each feature's weight its share, never its row neighbour's in that zone; `balcony` the share of
-    // houses with one off an upper floor; and the fences between them (yards.js FENCES: board, picket, hedge)
+    // houses with one off an upper floor; and the fences between them (yards.js FENCES: board, lattice, slat, chainlink,
+    // picket, iron, brick, stone, hedge), each its own paint
     yards: { near: { patio: 2, deck: 2, lawn: 1 }, mid: { lawn: 2, garden: 1, play: 2, trampoline: 2 }, back: { shed: 2, beds: 1, tree: 2, lawn: 1 }, balcony: 0.4 },
-    fences: { board: 3, picket: 1, hedge: 1 },
+    fences: { board: 4, lattice: 2, slat: 1, chainlink: 2, picket: 1, iron: 1, brick: 1, stone: 1, hedge: 1 },
     // THE ROWS a segment is made of, besides its houses (whose numbers are the pattern's own, above): each its frontage,
     // its plots' depth, its building's depth, its setback, side yards, storeys, its style and its front (fronts.js), what
     // its rear is (`service`: hard), its pad over its walk
@@ -209,6 +214,9 @@ export const PATTERNS = Object.freeze({
       sports: { read: 'a local sports field: a ball diamond, a pitch under its lights and its bleachers, tennis courts, a field house and its lot', site: { long: [120, 150], deep: [80, 100] }, front: 0.14, parking: 0.2, house: { w: 12, d: 8 }, margin: 3, courts: { from: 110, w: 36, d: 18, most: 3 } },
       park: { read: 'a neighbourhood park: two paths across it, a playground on its chips, a pavilion and its picnic tables, benches along the paths', path: 2.4, playground: { w: 16, d: 12 }, pavilion: { w: 9, d: 6 }, bench: 16 },
     },
+    // THE STREET'S FURNITURE (the fractal city's kit at the micro scale): a main street's bins and bike rings, the metres
+    // between them; a bus shelter on each block face of a major street
+    furniture: { bins: 32, rings: 18, shelter: true },
     // THE HOUSEPLANTS, read by the seventh generation (form/bush-form.js habits through the form's plants, in the painted
     // boxes' place): each `kinds` a bush of the library (a leaf form's habit, its heights m); what grows in a yard's
     // `beds` and its `planters`, by weight; the `hedge`'s bush and its stride (m); and the FOUNDATION plantings by a
