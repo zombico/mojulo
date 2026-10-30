@@ -36,10 +36,12 @@ export const ANIME_STYLES = Object.freeze({
       bands: Object.freeze({ eyeWidth: [0.17, 0.21], lid: [0.3, 0.45], mouthWidth: [0.25, 0.34], browGap: [0.3, 0.75] }),
     }),
     female: Object.freeze({
-      face: Object.freeze({ width: 0.95, lower: 1.06, cheekVolume: 0.9, lowerCheekVolume: 0.88, chin: 0.86, chinProjection: 1.04, browDepth: 1.15, eyeHeight: 0.82, eyeWidth: 0.97, iris: 0.88, tilt: 0.05, nose: 1.05 }),
-      sculpt: Object.freeze({ lidWeight: 1.2, lidCover: 1.25, lidAngle: 10, lidTail: 1.15, browThick: 0.75, browGap: 0.5, browAngle: 12, browArch: -0.03, pupil: 0.8, fissureHeight: 0.9, bridgeRoot: 0.04 }),
+      // (after Nobara's figure: the male's structure feminized, a narrow oval tapering to a small pointed chin over a
+      // soft jaw, larger almond eyes under a heavy lash line flicked at its tail, thin straight brows clear of the eye)
+      face: Object.freeze({ width: 0.92, lower: 1.06, cheekVolume: 0.855, lowerCheekVolume: 0.81, chin: 0.73, chinProjection: 1.04, jaw: 0.97, jawAngle: 0.95, browDepth: 1.15, eyeHeight: 0.9, eyeWidth: 1, iris: 0.94, tilt: 0.05, nose: 1.05 }),
+      sculpt: Object.freeze({ lidWeight: 1.32, lidCover: 1.25, lidAngle: 10, lidTail: 1.15, lidFlick: 10, browThick: 0.64, browGap: 0.575, browAngle: 12, browArch: -0.03, pupil: 0.88, fissureHeight: 0.9, bridgeRoot: 0.04, jawHollow: -0.01, napeLift: 0.1, earBack: 0.03 }),
       tune: Object.freeze({ ...LEAN_LONG, head: 0.95, stature: 1.02, hips: 0.95 }),
-      bands: Object.freeze({ eyeWidth: [0.19, 0.24], fissure: [0.45, 0.7], browThick: [0.11, 0.2], browGap: [0.3, 0.7], lid: [0.18, 0.3] }),
+      bands: Object.freeze({ eyeWidth: [0.19, 0.25], fissure: [0.5, 0.75], browThick: [0.09, 0.2], browGap: [0.3, 0.75], lid: [0.18, 0.32], mouthWidth: [0.2, 0.27] }),
     }),
   }),
 });
