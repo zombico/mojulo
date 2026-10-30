@@ -28,7 +28,8 @@
  *
  *   GEOTOWN_KEYS                 the settings of the geocube kind's geotown
  *   GEOTOWN_FACES                the face budget a geotown is held to (a law, advice)
- *   assembleGeotownScene(m, ctx) → the payload: faces, repeats, colliders, anchors, cameras, sky, the walk and a route
+ *   assembleGeotownScene(m, ctx) → the payload (ctx.field: the natural ground in the town's frame, in place of its hills:
+ *                                  a geocity's land under a geotown composed into it): faces, repeats, colliders, anchors, cameras, sky, the walk and a route
  *                                  round the first block (the dummy's), and `geotown`: the ledger, the laws, the counts,
  *                                  the segments, the ports (its perimeter streets: a geocity graph's joins)
  *
@@ -223,7 +224,9 @@ export function assembleGeotownScene(m, ctx = {}) {
   for (const k of Object.keys(m)) if (!GEOTOWN_KEYS.includes(k)) no(`'${k}' is not a setting of the geocube kind's geotown (cube, seed, hour, clouds, style, geotown)`);
   if (m.seed !== undefined && !Number.isInteger(m.seed)) no('seed is an integer');
   if (m.cube === undefined || m.cube === null) no('cube is a preset id or a document');
-  const cube = readGeocube(m.cube), seed = m.seed ?? 1, d = designGeotown(m.geotown ?? {}, { seed }), P = d.pattern, row = d.row;
+  // (a geotown composed into a geocity's neighbourhood stands on the metro's land: ctx.field, its natural ground in the
+  // town's frame, geocity/scene.js; absent, the town's own hills)
+  const cube = readGeocube(m.cube), seed = m.seed ?? 1, d = designGeotown(m.geotown ?? {}, { seed, ...(ctx.field ? { field: ctx.field } : {}) }), P = d.pattern, row = d.row;
   const { S, N } = d.land, wk = (x, y) => S(x, y) + row.kerb, [C, Rn] = d.spec.grid;
   // ── the light: the cube's at its hour, under its clouds (city/plan/look.js: as it lights a city) ──
   const paint = readPaint({ geocube: m.cube, amount: 1, ...(m.hour !== undefined ? { hour: m.hour } : {}), ...(m.clouds !== undefined ? { clouds: m.clouds } : {}) });

@@ -189,6 +189,29 @@ A cube that names no domains offers one per terrain and one per interior.
   Toronto Annex; `{ from, …changes }`), `hills` the land (`{ height, span }` or false), `style` over the pattern's
   houses'. The answer's `geotown` carries the ledger (every surface's square metres, the buildings' by use), the
   segments, the ports and the laws;
+  `show: 'geocity'` a METRO on the cube's own land, its major streets first (geocity/): a spine through its core's
+  seat and arterials stepped out from it, tight at the core and looser outward, carving its neighbourhoods; each in a
+  ring (the core's towers, the frame's mid-rise, the outskirts at four storeys and lower, a geotown's own blocks), a
+  park in each, secondary nodes on the spine, mid-rise lining the arterials; its land falling to its water (a shore,
+  or water all round: an island). Built as massing: every block's buildings by its segment on terraces that keep the
+  streets' grade, lit windows past dusk. `geocity: { metro?, extent?, water?, core?, fall?, hills?, heights?, green?,
+  streets?, segments?, roads?, grammar?, outskirts?, evoke?, at?, along?, play? }`: `roads` each arterial's section
+  (`{ lane, parking, bike, lanes, median: { share, w }, oneway: { pairs, lanes }, streetcar: { spine, share, gauge,
+  row } }`: four lanes, a spacer on some, one-way pairs of three by the core, streetcars on the spines and some, the
+  metro's round lamps, signals, signs, crosswalks, paint, rails and overhead drawn near the camera, with its benches,
+  bins, hydrants, hydro poles, street trees and tiled ground); `lively` the share of each ring's blocks going up
+  (scaffolding, a crane, hoarding, barriers), parked or vacant; `geotowns` the geotown composed in at any grain, anywhere:
+  `{ 'D3': true | { neighbourhood: 'annex' } }` a neighbourhood laid by it (fitted by its ring), `{ 'D3.2.1': true |
+  { segment: 'main-street' } }` one block laid by its segment, filled and cropped to the block, all on the metro's land;
+  `metro` a card (`lakeshore`, a Toronto by
+  its lake; `harbour-island`; `{ from, …changes }`), the rest its settings over it. `evoke` how it is told: `metro`
+  (the default, every block to scale), `skyline` (its tall buildings and its water), `neighbourhood` (`at` one, by
+  default the core's nearest the seat), `corridor` (`along` an arterial, by default the spine from the shore) or
+  `segment` (`at` one block, by default a tower block by the seat): the evoked blocks wear facades (curtainwall,
+  punched stone, brick, a tower's shape, lit windows at night), the neighbourhoods round them massing, the rest the
+  skyline; `play` `game` (an evocation's default: what a walker covers compressed, never a storey) or `real`. The
+  answer's `geocity` carries the counts, the ledger, the neighbourhoods (ring, storeys, park, the beyond where a
+  geotown joins later), the region graph and the laws (an evocation's `evokes`: the metro to scale's measures);
 - a `stage`: `{ geocube, domain }` alone is the whole level: an island, a street on a trail (a domain with a town), or
   a room. Your `meru`, `trail`, `rooms`, `hour` or `town` win over the domain's;
 - a level: `{ geocube, domain, nodes }` paints every section, and lays a domain's street on its first trail;
