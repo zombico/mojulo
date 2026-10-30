@@ -9,7 +9,7 @@
 //   --shots  a list of { variant?, label?, take?, view?: 'vFace'|'vBust'|'vBody'|'vSide'|'vBodySide'|'vBack'|'vMouth', phase?: 0 … 1,
 //            hold?: { morph: w }, look?: { bone, from?: [x, y, z], dist?, fov?, off?: [x, y, z] } (a closeup on a bone's head
 //            as posed, `off` metres from it in the world: foreArmR the elbow) | { az, el, dist, at, fov } (a free camera: az
-//            degrees round from the front, el up), wire?: bool, bones?: bool }; default, per variant, the first take at
+//            degrees round from the front, el up), wire?: bool, bones?: bool, clay?: bool (the form alone, one grey) }; default, per variant, the first take at
 //            mid-phase, face and full body
 //   --cols   frames per row of the sheet (default 4)
 //
@@ -59,7 +59,7 @@ try {
     const label = await page.evaluate(async (S) => {
       const H = window.heroLive;
       if (S.variant) await H.variant(S.variant);
-      H.set({ wire: !!S.wire, bones: !!S.bones });
+      H.set({ wire: !!S.wire, bones: !!S.bones, clay: !!S.clay });
       if (S.take) H.take(S.take);
       if (S.look && !S.look.bone) H.look(S.look); else H.view(S.view ?? 'vFace');
       H.seek(S.phase ?? 0.5);

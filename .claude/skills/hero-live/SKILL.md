@@ -55,7 +55,7 @@ the same take is lowered to the four channels. To read a drawing, shoot the take
 first frame.
 
 The page: variants (switching keeps the take and the moment), takes, play and pause, a scrubber, the speed, the Face,
-Bust, Full body, Side and Mouth views (Mouth: from the front ¾ and a little below, into an open mouth), the ambient blink layered as an engine would, wireframe, bones, every morph target as a meter
+Bust, Full body, Side and Mouth views (Mouth: from the front ¾ and a little below, into an open mouth), the ambient blink layered as an engine would, wireframe, clay (the form alone in one grey under the same light, a shot's `clay: true`: how a head cast is read before it is painted), bones, every morph target as a meter
 (or a slider under **Hold by hand**), and the mint's read per variant. `window.heroLive` drives it from a script.
 
 ## The adornment loop on it

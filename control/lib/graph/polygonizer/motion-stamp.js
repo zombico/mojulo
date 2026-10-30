@@ -11,6 +11,7 @@
 import { stampMotion } from './figure-posing.js';
 import { stampHeroMotion } from './hero-motion.js';
 import { HERO_LAWS_VERSION, readsHeroLaws, castOf } from './hero-form.js';
+import { ANIME_STYLE_DEFAULT } from './anime-styles.js';
 
 const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
@@ -46,13 +47,20 @@ export function withDefaultWalk(spec) {
  * A hero being MINTED is built on the game body, the tiered form (tiered-form.js), unless it names a form (`'realistic'`, or
  * the deprecated `'classic'`, the body before it) or the deprecated streamlined core, which only the classic body carries.
  * A chibi or a child minted on it wears the anime head (`head: 'anime'`) unless it names a head or says a word only the landmark
- * head reads (`face`, `hair`, `expression`, `headPreset`, a clip's `face`). Only the mint calls this: a hero stored
- * without a form keeps the classic body it was made with, and one stored without a head the landmark head.
+ * head reads (`face`, `hair`, `expression`, `headPreset`, a clip's `face`). An adult on the anime head that wears its form
+ * (hero laws 19, not the studio's face) and names no head cast wears the default cast (anime-styles.js
+ * ANIME_STYLE_DEFAULT, Shonen High); `animeStyle: null` is the form's bare head. Only the mint calls this: a hero stored
+ * without a form keeps the classic body it was made with, one stored without a head the landmark head, and one stored
+ * without a head cast none.
  */
 export function withDefaultForm(spec) {
   if (!isObj(spec)) return spec;
   const formed = (spec.form !== undefined && spec.form !== null) || spec.core === 'streamlined' ? spec : { ...spec, form: 'tiered' };
-  return chibiHead(formed);
+  return castHead(chibiHead(formed));
+}
+function castHead(spec) {
+  if (spec.head !== 'anime' || spec.animeStyle !== undefined || spec.sculpt === false || isChibi(spec.cast)) return spec;
+  return (spec.laws ?? (readsHeroLaws(spec) ? HERO_LAWS_VERSION : 1)) >= 19 ? { ...spec, animeStyle: ANIME_STYLE_DEFAULT } : spec;
 }
 const isChibi = (cast) => cast === 'chibi' || cast === 'child' || (isObj(cast) && (cast.build === 'chibi' || cast.build === 'child'));
 const LANDMARK_WORDS = ['face', 'hair', 'expression', 'headPreset'];

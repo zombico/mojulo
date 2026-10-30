@@ -534,9 +534,14 @@ describe('the hero door wears a face', () => {
 
 // anime-form: `head: 'anime'` wears the Anime Form Studio's head; `face`, `hair` (families, controls, per-clump locks)
 // and `expression` are its words, stored resolved; a patch under /hero regenerates the head, the plan and the recipe.
+// (the door's mechanics on the anime head's form, its bare head: `animeStyle: null`, off the default head cast)
 describe('the hero door wears the anime head', () => {
+  it('mints an adult in the default head cast, Shonen High', async () => {
+    const minted = await mintSolidHandler({ kind: 'layered', via: 'hero', ref: 'hero-anime-cast', spec: { cast: 'female', head: 'anime' } });
+    expect(minted.hero.animeStyle).toBe('shonen-high'); expect(SketchRepository.getByRef('hero-anime-cast').manifest.hero.animeStyleResolved.word).toBe('shonen-high');
+  });
   it("head: 'anime' mints by the studio's words; /hero/face, /hero/hair/locks/<clump>, /hero/expression regenerate", async () => {
-    const minted = await mintSolidHandler({ kind: 'layered', via: 'hero', ref: 'hero-anime', spec: { cast: 'female', head: 'anime', face: { eyeHeight: 1.05, tilt: 0.03 }, hair: ['long', { fringe: 0.9 }], expression: 'smile' } });
+    const minted = await mintSolidHandler({ kind: 'layered', via: 'hero', ref: 'hero-anime', spec: { cast: 'female', head: 'anime', animeStyle: null, face: { eyeHeight: 1.05, tilt: 0.03 }, hair: ['long', { fringe: 0.9 }], expression: 'smile' } });
     // the anime hero stands in its default gesture (hero-gesture.js): a one-key `gesture` clip listed first
     expect(minted.ok).toBe(true); expect(minted.stats.closed).toBe(true); expect(minted.stats.layered.rig.clips).toEqual(['gesture', 'idle', 'walk', 'wave']);
     expect(minted.hero.head).toBe('anime'); expect(minted.hero.base).toBe('female');
@@ -591,7 +596,7 @@ describe('the hero door: the anime head\'s graphic face', () => {
     expect(heroRecord({ cast: 'female', head: 'anime' }).sculpt).toBeUndefined();
     expect(heroRecord({ cast: 'female', head: 'anime', sculpt: { lidWeight: 1, eyeLevel: 0 } }).sculpt).toBeUndefined();   // neutral words strip away
     expect(heroRecord({ cast: 'female', head: 'anime', sculpt: false }).sculpt).toBe(false);
-    const minted = await mintSolidHandler({ kind: 'layered', via: 'hero', ref: 'hero-sculpt', spec: { cast: 'male', head: 'anime', gesture: 'rest', sculpt: ['heavy-lid', { lidWeight: 0.8, browThick: 1, fissureShape: 'tri' }] } });
+    const minted = await mintSolidHandler({ kind: 'layered', via: 'hero', ref: 'hero-sculpt', spec: { cast: 'male', head: 'anime', animeStyle: null, gesture: 'rest', sculpt: ['heavy-lid', { lidWeight: 0.8, browThick: 1, fissureShape: 'tri' }] } });
     expect(minted.ok).toBe(true); expect(minted.stats.closed).toBe(true);
     const stored = SketchRepository.getByRef('hero-sculpt');
     expect(stored.manifest.hero.sculpt).toEqual({ lidCover: 1.3, fissureShape: 'tri' });   // heavy-lid's 1.25 × 0.8 is the base's lid again: stripped; browThick 1 too
@@ -890,7 +895,7 @@ describe('the hero door: readouts and the character light fields', () => {
 // stored as its words beside a resolved stamp; the own face / hair / expression / tune compose on top.
 describe('the hero door composes anime looks', () => {
   it('mint by a look, add and peel words by /hero/look, the own layer on top; the stamp holds until the list changes', async () => {
-    const minted = await mintSolidHandler({ kind: 'layered', via: 'hero', ref: 'hero-look', spec: { cast: 'female', head: 'anime', look: ['heroine', 'tsurime'] } });
+    const minted = await mintSolidHandler({ kind: 'layered', via: 'hero', ref: 'hero-look', spec: { cast: 'female', head: 'anime', animeStyle: null, look: ['heroine', 'tsurime'] } });
     expect(minted.ok).toBe(true); expect(minted.stats.closed).toBe(true); expect(minted.hero.warnings).toBeUndefined();
     expect(minted.hero.look).toEqual(['heroine', 'tsurime']); expect(minted.hero.lookFrom).toBe('heroine+tsurime');
     expect(minted.hero.hair.style).toBe('long'); expect(minted.hero.expression.smile).toBe(1); expect(minted.hero.tune.head).toBe(1); expect(minted.hero.proportions).toBe('anime');
@@ -923,7 +928,7 @@ describe('the hero door composes anime looks', () => {
   it('refuses by name; the looks are the anime head\'s', async () => {
     await expect(mintSolidHandler({ kind: 'layered', via: 'hero', spec: { head: 'anime', look: ['heroine', 'mohawk'] } })).rejects.toThrow(/unknown look word 'mohawk'/);
     await expect(mintSolidHandler({ kind: 'layered', via: 'hero', spec: { look: 'heroine' } })).rejects.toThrow(/look: the looks are the anime head's/);
-    const kid = await mintSolidHandler({ kind: 'layered', via: 'hero', ref: 'hero-kid', spec: { cast: 'male', head: 'anime', look: 'kid' } });
+    const kid = await mintSolidHandler({ kind: 'layered', via: 'hero', ref: 'hero-kid', spec: { cast: 'male', head: 'anime', animeStyle: null, look: 'kid' } });
     expect(kid.stats.closed).toBe(true); expect(kid.hero.tune).toMatchObject({ head: 1.15, stature: 0.85 }); expect(kid.hero.expression.blink).toBe(1);
   });
 });

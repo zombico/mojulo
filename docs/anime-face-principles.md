@@ -24,3 +24,7 @@ that takes one off is the operator's call. A principle a test holds names the te
    the mouth never leaves its opening.
 6. **Drawings snap.** A take is read as drawings held on twos, keyed STEP (`face-acting/anime-read.js`): a brow or a mouth
    changes from one drawing to the next without morphing through the ones between, as the timing of anime draws it.
+7. **Casts are lit alike.** A head cast (`anime-styles.js`: Shonen High, the default, and its siblings) is a figure's
+   scale and theme, sculpted as an action figure is, the head first and the body after it; never a kind of game. Every
+   cast is read in clay under the same light, so any game can field any cast and no game type tags a face. A cast's
+   default face is advised nothing by its own bands (`anime-styles.deep.test.js`).

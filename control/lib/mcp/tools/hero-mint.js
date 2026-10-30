@@ -7,7 +7,8 @@
  *                             spreads only the spec (a `toon` beside it was dropped, and the anime hero lost its light)
  *   heroRemakeOps(order, prev) the update_sketch ops that remake a stored hero from its order: the hero record whole, the
  *                             walk it was stored with carried over when the order names none (a remake used to drop
- *                             it and fall back to the stock four keys), and the character light
+ *                             it and fall back to the stock four keys), the anime head's cast it was stored with
+ *                             when the order names none, and the character light
  */
 import { heroRecord, withRolledFace, withFaceFit } from './layered.js';
 import { stampHero, withDefaultWalk, withDefaultForm } from '@/lib/graph/polygonizer/motion-stamp';
@@ -31,7 +32,9 @@ export function heroRemakeOps(order, prev = null) {
   // (an undead or a beast-kin walks its own walk, laid before the calibrated one: undead/tiered.js, beast/tiered.js)
   const walked = keep ? { ...order.spec, motion: was.motion } : withDefaultWalk(beastWords(undeadWords(order.spec)));
   // (the body it was stored on, unless the order names one: a hero stored without a form stays on the classic body)
-  const spec = was && (walked?.form === undefined || walked?.form === null) ? (was.form !== undefined ? { ...walked, form: was.form } : walked) : withDefaultForm(walked);
+  const formed = was && (walked?.form === undefined || walked?.form === null) ? (was.form !== undefined ? { ...walked, form: was.form } : walked) : withDefaultForm(walked);
+  // (and the head cast it was stored with, unless the order names one: one stored without a cast stays without)
+  const spec = was && was.head === 'anime' && walked?.animeStyle === undefined ? { ...formed, animeStyle: was.animeStyle ?? null } : formed;
   // (a realistic hero's face: kept from the stored hero unless the order names one, else rolled: layered.js withRolledFace)
   // (and its own fit, solved once and stamped: layered.js withFaceFit)
   const ops = [{ op: 'set', path: '/hero', value: heroRecord(stampHero(withFaceFit(withRolledFace(spec, was)), was)) }];

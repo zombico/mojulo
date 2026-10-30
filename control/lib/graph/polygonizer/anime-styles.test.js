@@ -1,13 +1,17 @@
-// anime-styles: the style pole (a family of anime faces for a kind of game). The concepts: the anime head's only, a known
-// word; absent, every hero as before; a style sits under the hero's own words (they compose on it) and is the base they
-// move off; stored as its word beside a stamp that keeps the row when the table moves; each base's styled default
-// advised nothing by its style's bands; the body skinnier, its neck slim, under a smaller head.
+// anime-styles: the head casts (the style poles: a figure's scale and theme, lit alike, for any game). The concepts: the
+// anime head's only, a known word; absent from a record, every hero as before; a minted adult on the formed head wears
+// the default cast, and a child, a chibi, the studio's face, an older law or `null` none; a remake keeps the cast stored;
+// a cast sits under the hero's own words (they compose on it) and is the base they move off; stored as its word beside a
+// stamp that keeps the row when the table moves; each base's cast default advised nothing by its cast's bands (every
+// cast swept in anime-styles.deep.test.js); the body skinnier, its neck slim, under a smaller head.
 import { describe, it, expect } from 'vitest';
 import { heroRecord, heroPlanOf, normalizeHero, validateHeroSpec, expandLayeredManifest } from '../../mcp/tools/layered.js';
 import { compileLayered } from './station-loft.js';
 import { heroFaceRig } from './anime-face-rig.js';
 import { animeHeroEffective, animeFaceBase, heroFeatureAdvice, heroHeadPole, heroHairPole } from './anime-looks.js';
-import { ANIME_STYLES, ANIME_STYLE_NAMES, animeStyleOf, resolveAnimeStyle } from './anime-styles.js';
+import { ANIME_STYLES, ANIME_STYLE_NAMES, ANIME_STYLE_DEFAULT, animeStyleOf, resolveAnimeStyle } from './anime-styles.js';
+import { withDefaultForm } from './motion-stamp.js';
+import { heroRemakeOps } from '../../mcp/tools/hero-mint.js';
 import { headOf } from './anime-drawings.fixture.js';
 
 const STYLE = ANIME_STYLE_NAMES[0];
@@ -30,6 +34,22 @@ describe('the style pole', () => {
     expect(Object.entries(own.face).filter(([k, v]) => Math.abs(v - base[k]) > 1e-9).map(([k]) => k)).toEqual(['width']);
     // (the body: a smaller head on a leaner frame)
     expect(styled().tune.head).toBeLessThan(animeHeroEffective(plain).tune.head); expect(styled().tune.neckGirth).toBeLessThan(1); expect(styled().tune.upperArm).toBeLessThan(1);
+  });
+  it('is the minted adult\'s by default: Shonen High; none for a child, a chibi, the studio\'s face, an older law or null', () => {
+    expect(ANIME_STYLE_DEFAULT).toBe('shonen-high');
+    const minted = (spec) => heroRecord(withDefaultForm({ head: 'anime', ...spec }));
+    expect(minted({ cast: 'female' }).animeStyleResolved).toEqual(resolveAnimeStyle(ANIME_STYLE_DEFAULT));
+    // (a cast named is kept; null is the form's bare head)
+    expect(minted({ cast: 'male', animeStyle: ANIME_STYLE_NAMES[1] }).animeStyle).toBe(ANIME_STYLE_NAMES[1]);
+    for (const spec of [{ cast: 'male', animeStyle: null }, { cast: { pole: 'female', build: 'child' } }, { cast: 'chibi' }, { cast: 'male', sculpt: false }, { cast: 'male', laws: 18 }]) expect(minted(spec), JSON.stringify(spec)).not.toHaveProperty('animeStyle');
+    // (the landmark head takes no cast)
+    expect(withDefaultForm({ cast: 'male' })).not.toHaveProperty('animeStyle');
+  });
+  it('a remake keeps the cast stored when the order names none, and none when none was stored', () => {
+    const remade = (order, was) => heroRemakeOps({ spec: { head: 'anime', cast: 'male', ...order } }, { hero: was })[0].value;
+    expect(remade({}, heroRecord({ cast: 'male', head: 'anime', animeStyle: ANIME_STYLE_NAMES[1] })).animeStyle).toBe(ANIME_STYLE_NAMES[1]);
+    expect(remade({}, heroRecord({ cast: 'male', head: 'anime' }))).not.toHaveProperty('animeStyle');
+    expect(remade({ animeStyle: ANIME_STYLE_NAMES[2] }, heroRecord({ cast: 'male', head: 'anime' })).animeStyle).toBe(ANIME_STYLE_NAMES[2]);
   });
   it('is stored as its word beside a stamp: kept on the same word, renewed on another, dropped with it', () => {
     const hero = heroRecord({ cast: 'male', head: 'anime', animeStyle: STYLE });

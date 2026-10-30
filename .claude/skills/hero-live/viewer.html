@@ -98,6 +98,7 @@
         <label><input id="blink" type="checkbox" checked> Ambient blink</label>
         <label><input id="sound" type="checkbox" checked> Sound</label>
         <label><input id="wire" type="checkbox"> Wireframe</label>
+        <label><input id="clay" type="checkbox"> Clay</label>
         <label><input id="bones" type="checkbox"> Bones</label>
       </div>
       <div>
@@ -175,7 +176,7 @@ async function load(v) {
     // (the body the largest skinned mesh: a held prop, a pose's pistol, is skinned to the hand too, and framed alone)
     if (o.isSkinnedMesh) { if (!body || o.geometry.attributes.position.count > body.geometry.attributes.position.count) body = o; o.castShadow = true; o.receiveShadow = true; o.frustumCulled = false; }
   });
-  for (const m of [body?.material].flat().filter(Boolean)) { m.roughness = 0.62; m.metalness = 0; m.needsUpdate = true; }
+  for (const m of [body?.material].flat().filter(Boolean)) { m.roughness = 0.62; m.metalness = 0; m.needsUpdate = true; m.userData.paint = { color: m.color.clone(), map: m.map, vertexColors: m.vertexColors }; }
   root.updateMatrixWorld(true);
   const box = new THREE.Box3().setFromObject(body ?? root);
   const mixer = new THREE.AnimationMixer(root), actions = {};
@@ -273,7 +274,7 @@ async function selectVariant(id) {
   let L; try { L = await load(v); } catch (e) { status.textContent = `${v.label} could not be loaded: ${e.message}`; console.error(e); return; }
   const old = cur(); if (old) { old.root.visible = false; old.bones.visible = false; old.mixer.stopAllAction(); S.under = null; }
   S.variant = id; L.root.visible = true; L.bones.visible = $('bones').checked;
-  setWire($('wire').checked);
+  setWire($('wire').checked); setClay($('clay').checked);
   renderTakes(L); renderMeters(L); renderRead(v);
   const first = !old; S.take = null;
   play(take && L.actions[take] ? take : (M.firstTake && L.actions[M.firstTake] ? M.firstTake : Object.keys(L.actions)[0]), { phase, fade: 0 });
@@ -283,6 +284,12 @@ async function selectVariant(id) {
 }
 
 function setWire(on) { const L = cur(); for (const m of [L?.body?.material].flat().filter(Boolean)) m.wireframe = on; }
+// (clay: the form alone under the same light, one warm grey and no paint, as a maquette is read before it is painted)
+const CLAY = new THREE.Color(0xb9aea3);
+function setClay(on) {
+  const L = cur();
+  for (const m of [L?.body?.material].flat().filter(Boolean)) { const P = m.userData.paint; if (!P) continue; m.color.copy(on ? CLAY : P.color); m.map = on ? null : P.map; m.vertexColors = on ? false : P.vertexColors; m.needsUpdate = true; }
+}
 
 // ─── the transport and the toggles ──────────────────────────────────────────
 function setPaused(p) {
@@ -301,6 +308,7 @@ $('speed').addEventListener('input', (e) => {
   const L = cur(); if (L) for (const T of Object.values(L.actions)) T.action.timeScale = (T.action.getClip().duration / T.seconds) * S.speed;
 });
 $('wire').addEventListener('change', (e) => setWire(e.target.checked));
+$('clay').addEventListener('change', (e) => setClay(e.target.checked));
 $('bones').addEventListener('change', (e) => { const L = cur(); if (L) L.bones.visible = e.target.checked; });
 $('hold').addEventListener('change', (e) => {
   S.hold = e.target.checked; const L = cur();

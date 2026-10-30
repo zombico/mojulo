@@ -1,15 +1,19 @@
-/** anime-styles.js — STYLE POLES: a family of faces for a kind of game, so the games made from the anime head need not
- * share one face. A style sits between the head's base (its design base and, under hero laws 19, its form) and the
- * character: the child's face, a look, the operator's own words and genki compose on top of it (anime-looks.js
- * composeAnime), so a Shonen High rival and a Shonen High heroine are both Shonen High.
+/** anime-styles.js — HEAD CASTS (the style poles): the anime head sculpted as an action figure is, the relations between
+ * the face's structures tuned in clay, the head first and the body after it. A cast is named for its figure's scale and
+ * theme (Shonen High: high-school-sized, action-themed), never for a kind of game: every cast is lit the same way, so
+ * any game can field any of them and no game type tags a face. The casts are siblings: each a layer over the head's
+ * base (its design base and, under hero laws 19, its form) and under the character: the child's face, a look, the
+ * operator's own words and genki compose on top of it (anime-looks.js composeAnime), so a Shonen High rival and a Shonen
+ * High heroine are both Shonen High. A minted adult on the formed head wears ANIME_STYLE_DEFAULT unless it names a cast
+ * (motion-stamp.js withDefaultForm); `null` is the form's bare head.
  *
- * A style names, per design base, its face (the studio's controls), its sculpt (the graphic face's words) and its body
+ * A cast names, per design base, its face (the studio's controls), its sculpt (the graphic face's words) and its body
  * tune, all as the door's own words; the head it wears (`head`: another base's, its face and sculpt under its own, so
- * Shonen High's female wears the male's head tuned); and its FEATURE BANDS: a style is a canon of its own, so a styled hero is advised
- * against its style's bands (each one it names in place of the base's), never against the base it departs from.
+ * Shonen High's female wears the male's head tuned); and its FEATURE BANDS: a cast is a canon of its own, so a styled hero is advised
+ * against its cast's bands (each one it names in place of the base's), never against the base it departs from.
  *
  * The door stores the word beside a RESOLVED stamp (`animeStyleResolved`, as a look's `lookResolved`): a later re-tuning
- * of a style here never moves a stored row until its word is set again. Pure data and resolvers; no dice.
+ * of a cast here never moves a stored row until its word is set again. Pure data and resolvers; no dice.
  */
 import { resolveAnimeFace } from './anime-head.js';
 import { resolveAnimeSculpt } from './anime-sculpt.js';
@@ -18,9 +22,14 @@ import { resolveTune } from './hero-form.js';
 /** the bodies of a style: a high-schooler's, a smaller head on a longer, skinnier frame, the neck slim under the jaw
  * (relative to the anime proportions the head wears) */
 const LEAN_LONG = Object.freeze({ head: 0.94, stature: 1.03, legs: 1.03, neck: 1.04, neckGirth: 0.82, shoulders: 0.96, depth: 0.92, waist: 0.93, upperArm: 0.88, forearm: 0.9, thigh: 0.88, calf: 0.9 });
+/** a grown martial hero's: a small head on a tall, heavy frame, the neck short and thick into the trapezius */
+const HEAVY_HERO = Object.freeze({ head: 0.88, stature: 1.05, neck: 0.92, neckGirth: 1.25, shoulders: 1.14, depth: 1.08, waist: 1.02, upperArm: 1.25, forearm: 1.18, thigh: 1.15, calf: 1.12 });
+/** a schoolkid's: a big head on a short, slight frame, the neck thin */
+const SCHOOL_KID = Object.freeze({ head: 1.1, stature: 0.88, legs: 0.95, torso: 0.96, neck: 0.94, neckGirth: 0.78, shoulders: 0.9, depth: 0.88, waist: 0.92, upperArm: 0.84, forearm: 0.86, thigh: 0.85, calf: 0.87 });
 
 export const ANIME_STYLES = Object.freeze({
-  // SHONEN HIGH, after Bleach and JJK: teen to early-20s leads, lean and long faces; cool, aura, hype. The face longer
+  // SHONEN HIGH, high-school-sized and action-themed (first cast after Bleach and JJK): teen to early-20s leads, lean
+  // and long faces; cool, aura, hype. The face longer
   // and narrower, the cheeks flat, the chin a narrow V set forward; the eyes smaller in the face, a hard upper lid
   // angled up to its tail, small irises and pupils; thin brows set low and angled (the female's straight, not arched);
   // in profile, the brow's ridge forward over the eye and the bridge rising from between the brows nearly straight to
@@ -30,7 +39,7 @@ export const ANIME_STYLES = Object.freeze({
   // chin forward (the female's the same, on his head); the body
   // a high-schooler's, skinnier, its neck slim under the jaw, with a smaller head
   'shonen-high': Object.freeze({
-    note: 'Bleach and JJK: teen to early-20s leads, lean and long faces, hard angled eyes under low straight brows; cool, aura, hype',
+    note: 'high-school-sized, action-themed (after Bleach and JJK): teen to early-20s leads, lean and long faces, hard angled eyes under low straight brows',
     male: Object.freeze({
       face: Object.freeze({ width: 0.94, lower: 1.08, cheekVolume: 0.88, lowerCheekVolume: 0.96, chin: 0.72, chinProjection: 1.11, jaw: 1.12, jawAngle: 0.9, browDepth: 1.3, eyeHeight: 0.93, eyeWidth: 0.98, iris: 0.95, tilt: 0.04, nose: 1.05 }),
       sculpt: Object.freeze({ lidWeight: 1.15, lidAngle: 8, lidTail: 1.2, browThick: 0.95, browGap: 0.55, browAngle: 9, pupil: 0.85, fissureHeight: 0.96, bridgeRoot: 0.06, jawHollow: 0.01, napeLift: 0.15, earBack: 0.04, jawLine: 1 }),
@@ -52,13 +61,58 @@ export const ANIME_STYLES = Object.freeze({
       bands: Object.freeze({ browThick: [0.2, 0.45], noseProjection: [0.06, 0.12] }),
     }),
   }),
+  // Z-FIGHTER, grown-hero-sized and martial-arts-themed (after a maquette of Goku): an adult fighter's head, small on a
+  // heavy frame. The face broad at the cheekbones over flat cheeks, the jaw square and wide to a corner level with the
+  // mouth, then running in to a narrow chin set forward; the brow's ridge heavy and forward; the eyes wide and low under
+  // a heavy, straight upper lid angled down to the nose, small irises; the brows thick blocks set low on the eye and
+  // angled hard down to the bridge; the nose small and pointed off a raised bridge; the mouth wide and low. The female
+  // (after a maquette of Android 18) her own base's head: the cool grown fighter, almond eyes under a level lid, the
+  // brows straight, the jaw clean to a small chin
+  'z-fighter': Object.freeze({
+    note: 'grown-hero-sized, martial-arts-themed (after a Goku maquette): a small, square-jawed head on a heavy frame, wide low eyes under thick brows angled hard to the bridge',
+    male: Object.freeze({
+      face: Object.freeze({ width: 1.05, lower: 1.0, cheekVolume: 0.84, lowerCheekVolume: 1.0, jaw: 1.22, jawAngle: 1.12, chin: 0.92, chinProjection: 1.08, browDepth: 1.3, eyeWidth: 1.06, eyeHeight: 0.9, iris: 0.9, tilt: 0.02, nose: 1.1 }),
+      sculpt: Object.freeze({ lidWeight: 1.3, lidAngle: 10, lidTail: 1.1, browThick: 1.4, browGap: 0.4, browAngle: 12, pupil: 0.8, fissureHeight: 0.92, bridgeRoot: 0.05, mouthWidth: 1.1, stomion: -0.01, napeLift: 0.12, earBack: 0.03, jawLine: 1 }),
+      tune: HEAVY_HERO,
+      bands: Object.freeze({ fissure: [0.3, 0.5], lid: [0.3, 0.5], stomion: [0.15, 0.19] }),
+    }),
+    female: Object.freeze({
+      face: Object.freeze({ width: 0.97, lower: 1.03, cheekVolume: 0.94, jaw: 0.96, chin: 0.8, chinProjection: 1.02, browDepth: 1.12, eyeWidth: 1.02, eyeHeight: 0.86, iris: 0.86, tilt: 0.03 }),
+      sculpt: Object.freeze({ lidWeight: 1.25, lidAngle: 7, lidFlick: 6, fissureHeight: 0.88, browThick: 0.85, browAngle: 6, pupil: 0.85, bridgeRoot: 0.03, napeLift: 0.06, jawLine: 0.5 }),
+      tune: Object.freeze({ ...HEAVY_HERO, head: 0.92, stature: 1.03, neckGirth: 0.95, shoulders: 1.03, depth: 1, waist: 0.96, upperArm: 1.02, forearm: 1.02, thigh: 1.04, calf: 1.03 }),
+      bands: Object.freeze({ lid: [0.18, 0.32] }),
+    }),
+  }),
+  // SCHOOL-KID HERO, schoolkid-sized and action-themed (after a Kishimoto-baseline figure, a twelve-year-old genin): a big
+  // head on a short, slight frame. The skull round and the face wide at the cheeks, full and round down to a short lower
+  // face and a small pointed chin; the eyes large and tall under a crisp upper lid lifted to its tail, the irises large;
+  // the brows thin and a little angled; the nose small. The female (after the same figure's heroine) wears the male's
+  // head, as Shonen High's does: her features softer, her brow broader, her eyes a little larger, her chin as small
+  'school-kid-hero': Object.freeze({
+    note: 'schoolkid-sized, action-themed (after a Kishimoto-baseline genin figure): a big round head on a short, slight frame, full cheeks to a small pointed chin, large crisp eyes',
+    male: Object.freeze({
+      face: Object.freeze({ width: 1.06, lower: 0.9, cheekVolume: 1.06, lowerCheekVolume: 1.12, jaw: 0.94, jawAngle: 1.05, chin: 0.72, chinHeight: 0.92, browDepth: 1.05, eyeWidth: 1.06, eyeHeight: 1.08, iris: 1.04, tilt: 0.03, nose: 0.85 }),
+      sculpt: Object.freeze({ lidWeight: 1.1, lidAngle: 6, lidTail: 1.1, browThick: 0.85, browGap: 0.8, browAngle: 6, fissureHeight: 1.05, mouthWidth: 1.04, jawLine: 0.4 }),
+      tune: SCHOOL_KID,
+      bands: Object.freeze({ eyeLevel: [0.4, 0.45], pronasale: [0.23, 0.3], stomion: [0.12, 0.17], browThick: [0.3, 0.6] }),
+    }),
+    female: Object.freeze({
+      head: 'male',
+      face: Object.freeze({ foreheadDepth: 1.08, eyeHeight: 1.03, eyeWidth: 1.03, iris: 1.05, jaw: 0.88, chin: 0.86, cheekVolume: 1.04, lowerCheekVolume: 0.96, browDepth: 0.82, nose: 0.85 }),
+      sculpt: Object.freeze({ lidWeight: 1.1, lidFlick: 10, lidAngle: -2, browThick: 0.7, browAngle: -3, tipProjection: 0.85, mouthWidth: 0.9, seatBack: 0.04 }),
+      tune: Object.freeze({ ...SCHOOL_KID, head: 1.08, stature: 0.87, hips: 0.95 }),
+      bands: Object.freeze({ eyeWidth: [0.19, 0.23], browThick: [0.2, 0.45], lid: [0.3, 0.45], mouthWidth: [0.22, 0.34] }),
+    }),
+  }),
 });
 export const ANIME_STYLE_NAMES = Object.freeze(Object.keys(ANIME_STYLES));
+/** the cast a minted adult on the formed head wears when it names none (motion-stamp.js withDefaultForm) */
+export const ANIME_STYLE_DEFAULT = 'shonen-high';
 
 /** Error strings (empty = valid): a style is one of ANIME_STYLE_NAMES */
 export function validateAnimeStyle(spec, label = 'animeStyle') {
   if (spec === undefined || spec === null) return [];
-  return typeof spec === 'string' && ANIME_STYLES[spec] ? [] : [`${label}: one of ${ANIME_STYLE_NAMES.join(', ')} (a family of anime faces for a kind of game; ${ANIME_STYLE_NAMES.map((n) => `${n}: ${ANIME_STYLES[n].note}`).join('; ')})`];
+  return typeof spec === 'string' && ANIME_STYLES[spec] ? [] : [`${label}: one of ${ANIME_STYLE_NAMES.join(', ')} (a head cast, lit like every other, for any game; ${ANIME_STYLE_NAMES.map((n) => `${n}: ${ANIME_STYLES[n].note}`).join('; ')})`];
 }
 /** The stamp the door stores beside the word: each design base's face, sculpt and tune resolved, and its bands */
 export function resolveAnimeStyle(word) {
