@@ -126,6 +126,8 @@ through `create_character({ as: 'hero', spec: { cast, register, tune } })`; its 
             mentor / kid / stoic; face and hair traits; poses), then add or peel ONE word with
             `set /hero/look`, and fine-tune on top with `/hero/face/<control>`. For a shonen lead's energy set `/hero/genki` (0 … 1):
             one amount over the body, the face, the hair, the expression and the stand (the layered manual: GENKI).
+            For a kind of game's faces set `animeStyle` (`shonen-high`: lean, long, hard-eyed teen leads) under the
+            look and the own words (the layered manual: ANIME STYLE).
             The anime head wears its GRAPHIC FACE by default (`sculpt`: the eye level, the nose tip
             and a nose line on its shade side, the lip line, the fissure's shape, the upper-lid band,
             the lid covering the iris, one catchlight, the brow as a block, the ear spanning the eye

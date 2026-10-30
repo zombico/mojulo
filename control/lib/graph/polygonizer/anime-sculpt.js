@@ -239,12 +239,18 @@ export function sculptFeatures(meshes, pole, { carriage } = {}) {
   // the eye level to the nose tip)
   if (meshes.earR) { const ear = pts(meshes.earR); out.earLevel = r3((mean(ear, 2) - chin) / H); if (tip) out.ear = r3((mean(ear, 2) - (eyeZ + tip[2]) / 2) / H); }
   if (meshes.irisR) { const iris = pts(meshes.irisR); out.irisOfEye = r3(ext(iris, 0) / openW); if (meshes.pupilR) out.pupilOfIris = r3(ext(pts(meshes.pupilR), 0) / ext(iris, 0)); }
-  const B = FEATURE_BANDS[pole] || {};
+  out.advice = featureAdvice(out, pole);
+  return out;
+}
+/** The advice on a feature table: each ratio outside its band, and the word that moves it. The bands are the design
+ * base's (FEATURE_BANDS[pole]); a style's (anime-styles.js) stand in for those it names, and `label` names the canon. */
+export function featureAdvice(features, pole, { bands = null, label = pole } = {}) {
+  const B = { ...(FEATURE_BANDS[pole] || {}), ...(bands || {}) };
   // the pointer names the word the way the door takes it: the stored sculpt is sparse (absent on a default hero), so a
   // sculpt word is set as `/hero/sculpt` { word: … } first, then `/hero/sculpt/<word>`
   const pointer = (w) => (w.startsWith('/') ? `${w} moves it` : `/hero/sculpt { ${w.split(' or ').map((k) => `${k}: …`).join(' } or { ')} } moves it (then /hero/sculpt/<word>)`);
-  out.advice = Object.entries(B).filter(([k, [lo, hi]]) => out[k] !== null && out[k] !== undefined && (out[k] < lo - 1e-9 || out[k] > hi + 1e-9))
-    .map(([k, [lo, hi]]) => `face: ${FEATURE_WORDS[k]} is ${out[k]}, outside the ${pole} band [${lo}, ${hi}]: ${pointer(FEATURE_WORD_OF[k])}`);
-  if (!tip) out.advice.push(`face: the nose tip could not be measured (no midline point between the lip line and the eye level): /hero/sculpt { stomion: … } or { pronasale: … } moves it (then /hero/sculpt/<word>)`);
-  return out;
+  const advice = Object.entries(B).filter(([k, [lo, hi]]) => features[k] !== null && features[k] !== undefined && (features[k] < lo - 1e-9 || features[k] > hi + 1e-9))
+    .map(([k, [lo, hi]]) => `face: ${FEATURE_WORDS[k]} is ${features[k]}, outside the ${label} band [${lo}, ${hi}]: ${pointer(FEATURE_WORD_OF[k])}`);
+  if (features.pronasale === null) advice.push(`face: the nose tip could not be measured (no midline point between the lip line and the eye level): /hero/sculpt { stomion: … } or { pronasale: … } moves it (then /hero/sculpt/<word>)`);
+  return advice;
 }

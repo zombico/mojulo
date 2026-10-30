@@ -50,7 +50,9 @@ describe('the painted face', () => {
 
   it('the features sit where the slab face puts them: the eyes, the mouth\'s width and the head the same (the nose dials move only the depth and the jaw)', () => {
     const fm = (x) => x.m.plan.include.find((i) => i.name === 'head').faceMeasures, a = fm(female), b = fm(slab);
-    for (const k of ['crown_z', 'face_m', 'pupils_m', 'eye_m', 'eyeWidth_m']) expect(a[k], k).toBe(b[k]);
+    // (to the millimetre, as the readout rounds them: under hero laws 19 the female's shorter chin moves her rows, so the
+    // painted face's thinned lattice may round a width a millimetre off the slab face's, 0.215 m to 0.216 m)
+    for (const k of ['crown_z', 'face_m', 'pupils_m', 'eye_m', 'eyeWidth_m']) expect(Math.abs(a[k] - b[k]), k).toBeLessThanOrEqual(0.001 + 1e-9);
     // (the head is registered as before the jaw lifts its underside, so the crown stands where it stood; the head's height
     // is now to the chin itself, the studio's flat keel no longer hanging below it)
     expect(a.head_m).toBeLessThan(b.head_m); expect(a.head_m).toBeGreaterThan(b.head_m - 0.015);

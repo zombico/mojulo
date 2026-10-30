@@ -73,7 +73,7 @@ const DIRECTION_KEYS = ['tradition', 'from', 'motif', 'primary', 'secondary', 'p
 /** The hero's looks: each element its own page, each the hero-door fields it decides. */
 export const LOOKS_ELEMENTS = Object.freeze({
   body: { read: 'the silhouette: its cast, build and register', fields: ['cast', 'register', 'tune', 'body', 'girth', 'headScale', 'scale', 'core'] },
-  head: { read: 'the head and face', fields: ['headPreset', 'face', 'sculpt', 'expression', 'look', 'genki'] },
+  head: { read: 'the head and face', fields: ['headPreset', 'animeStyle', 'face', 'sculpt', 'expression', 'look', 'genki'] },
   hair: { read: 'the hair', fields: ['hair'] },
   colour: { read: 'the colour: the hero\'s palette', fields: ['palette'] },
 });

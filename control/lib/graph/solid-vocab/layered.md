@@ -502,6 +502,15 @@ GLB's baked ink (`bake: true`) cannot stencil: it leaves out only the outline of
   nothing. It composes with every other word (the dress, the gear and the clips fit the body it makes; read the
   clearance warnings as for any tune). The readout says `genki`.
 <!-- /section -->
+<!-- section: hero-anime-style | Anime style poles | a family of anime faces for a kind of game -->
+  ANIME STYLE (the anime head only). `animeStyle: 'shonen-high'` gives the head a STYLE POLE, a family of faces for a
+  kind of game, so two games need not share one face (`anime-styles.js`). It sits under the child's face, the look, the
+  hero's own words and genki, which all compose on it, and is the base `/hero/face/<control>` moves off. `shonen-high`
+  (Bleach, JJK: teen to early-20s leads): a longer, narrower face, flat cheeks, a narrow V chin set forward; smaller
+  eyes under a hard upper lid angled to its tail, small irises; thin brows set low and angled; a lean body under a
+  smaller head. The feature advice reads the style's bands. Stored as the word beside its resolved stamp (a re-tuned
+  style never moves the row); `/hero/animeStyle null` takes it off. The readout says `animeStyle`.
+<!-- /section -->
 <!-- section: hero-dress | The dress and second skin | detail and adorn passes, and paint: skintight garments as colour -->
   THE DRESS. `detail` and `adorn` put the dragon's BODY DETAIL and ADORNMENT passes on the hero, the same operators with
   the hero's parameters (`hero-dress.js`). `detail: 'clothed'` is a garment read: elbows and knees refined, the masses a

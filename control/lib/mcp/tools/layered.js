@@ -80,8 +80,9 @@ import { fitEvidence } from '@/lib/graph/polygonizer/humanoid-head-fit';
 import { ANIME_FACE, ANIME_HAIR, ANIME_FACE_KEYS, ANIME_HAIR_KEYS, ANIME_POSES, ANIME_PRESETS, resolveAnimeFace, validateAnimeFace, animeFaceWarnings, resolveAnimeHair, validateAnimeHair, animeHairWarnings, resolveAnimeExpression, validateAnimeExpression, animeExpressionWarnings, animeCoverageWarnings, animeFaceZoneWarnings, ANIME_HAIR_BASE, ANIME_HAIR_FORM_WORDS } from '@/lib/graph/polygonizer/anime-head';
 import { ANIME_HAIR_STYLES } from '@/lib/graph/polygonizer/anime-head';
 import { validateGenki, genkiStand } from '@/lib/graph/polygonizer/anime-genki';
+import { ANIME_STYLE_NAMES, validateAnimeStyle, resolveAnimeStyle, animeStyleOf } from '@/lib/graph/polygonizer/anime-styles';
 import { LOOK_TABLES, validateLook, resolveLook, composeAnime, heroHeadPole as headPoleOf, animeHeroEffective as animeEffective, animeFaceBase } from '@/lib/graph/polygonizer/anime-looks';
-import { ANIME_SCULPT, ANIME_SCULPT_KEYS, SCULPT_SHAPE_KEYS, validateAnimeSculpt, resolveAnimeSculpt, sparseSculpt, animeSculptWarnings, describeAnimeSculpt } from '@/lib/graph/polygonizer/anime-sculpt';
+import { ANIME_SCULPT, ANIME_SCULPT_KEYS, SCULPT_SHAPE_KEYS, validateAnimeSculpt, resolveAnimeSculpt, sparseSculpt, animeSculptWarnings, describeAnimeSculpt, featureAdvice } from '@/lib/graph/polygonizer/anime-sculpt';
 import { layeredStats, persistedLayeredLedger } from '@/lib/graph/polygonizer/station-loft-faces';
 import { validateBake } from '@/lib/graph/polygonizer/surface-bake';
 import { validateFieldPaint, fieldPaintReadout } from '@/lib/graph/polygonizer/field-paint';
@@ -752,6 +753,10 @@ export function normalizeHero(hero) {
   if (hero.sculpt !== undefined) { const sc = hero.sculpt === null ? null : sparseSculpt(resolveAnimeSculpt(hero.sculpt)); const { sculpt: _s, ...rest } = hero; hero = sc === null ? rest : { ...hero, sculpt: sc }; }
   // the hair form words stay sparse after a patch under /hero/hair (a word set to null drops out: the base's stands)
   if (hero.hair && typeof hero.hair === 'object' && ANIME_HAIR_FORM_WORDS.some((k) => hero.hair[k] === null)) hero = { ...hero, hair: Object.fromEntries(Object.entries(hero.hair).filter(([k, v]) => !(ANIME_HAIR_FORM_WORDS.includes(k) && v === null))) };
+  // the style pole after a patch: a word set to null drops it and its stamp, a new word stamps anew, the same word keeps
+  // its stamp (so a re-tuned style never moves this row)
+  if (hero.animeStyle === undefined || hero.animeStyle === null) { if (hero.animeStyle !== undefined || hero.animeStyleResolved !== undefined) { const { animeStyle: _a, animeStyleResolved: _b, ...rest } = hero; hero = rest; } }
+  else if (hero.animeStyleResolved?.word !== hero.animeStyle) hero = { ...hero, animeStyleResolved: resolveAnimeStyle(hero.animeStyle) };
   const words = hero.look === undefined || hero.look === null ? [] : Array.isArray(hero.look) ? hero.look : [hero.look];
   if (!words.length) { if (hero.look === undefined && hero.lookResolved === undefined) return hero; const { look: _l, lookResolved: _r, ...rest } = hero; return rest; }
   if (hero.lookResolved && JSON.stringify(hero.lookResolved.words) === JSON.stringify(words)) return Array.isArray(hero.look) ? hero : { ...hero, look: words };
@@ -802,7 +807,7 @@ export const STREAMLINED_DEPRECATED = "the streamlined core (core: 'streamlined'
  * its tongue behind the lips in an open cup, the lips' corners bound half to the jaw), where laws 2 to 11 closed a bag
  * behind the lips, bound each lip wholly to its bone to the corner, and an open mouth was a box onto the bag's dark front */
 export const REALISTIC_LAWS_VERSION = 12;
-export const HERO_FIELDS = ['cast', 'register', 'tune', 'body', 'girth', 'headScale', 'scale', 'palette', 'head', 'face', 'hair', 'expression', 'headPreset', 'look', 'proportions', 'detail', 'adorn', 'paint', 'outfit', 'gesture', 'sculpt', 'clips', 'blink', 'gear', 'core', 'statue', 'genki', 'motion', 'target', 'geocube', 'form', 'physique', 'skin', 'painterly', 'stylism', 'laws', 'kit', 'name', 'emblem', 'undead', 'beast', 'perform', 'acting'];
+export const HERO_FIELDS = ['cast', 'register', 'tune', 'body', 'girth', 'headScale', 'scale', 'palette', 'head', 'face', 'hair', 'expression', 'headPreset', 'look', 'proportions', 'detail', 'adorn', 'paint', 'outfit', 'gesture', 'sculpt', 'clips', 'blink', 'gear', 'core', 'statue', 'genki', 'motion', 'target', 'geocube', 'form', 'physique', 'skin', 'painterly', 'stylism', 'laws', 'kit', 'name', 'emblem', 'undead', 'beast', 'perform', 'acting', 'animeStyle'];
 /** what the hero door takes beside a hero's own words: the mint's (the layered kind's top-level keys) and `vibe` */
 /** A named hero's name is its own on this machine: refused when another hero (any ref but `ref`) holds it, as names are
  * compared (case and spacing aside), naming the hero that holds it. */
@@ -995,6 +1000,11 @@ export function validateHeroSpec(spec, { staleScale = false } = {}) {
   if (spec.acting !== undefined && spec.acting !== null) {
     if (spec.head !== 'anime') errs.push(`acting: the anime head's (head: 'anime'): 'full' draws its 7G drawings, 'basic' its four channels`);
     else if (!['full', 'basic'].includes(spec.acting)) errs.push(`acting: 'full' (the 7G drawings, at any target) | 'basic' (the four channels, at any target); unset, a take on a T3 or higher target draws the 7G`);
+  }
+  // THE STYLE POLE (anime-styles.js): a family of anime faces for a kind of game, on the anime head
+  if (spec.animeStyle !== undefined && spec.animeStyle !== null) {
+    if (spec.head !== 'anime') errs.push(`animeStyle: the anime head's (head: 'anime'): ${ANIME_STYLE_NAMES.join(', ')}`);
+    else errs.push(...validateAnimeStyle(spec.animeStyle));
   }
   errs.push(...validateGear(spec.gear));
   if (spec.statue !== undefined && spec.statue !== null) errs.push(...validateStatueBuild(spec.statue, spec));
@@ -1198,6 +1208,8 @@ export function heroRecord(spec, { staleScale = false } = {}) {
     Object.assign(hero, { face, ...(faceFrom ? { faceFrom } : {}), hair, ...(spec.expression !== undefined ? { expression: resolveAnimeExpression(spec.expression) } : {}) });
     const words = spec.look === undefined || spec.look === null ? [] : Array.isArray(spec.look) ? spec.look : [spec.look];
     if (words.length) Object.assign(hero, { look: [...words], lookResolved: resolveLook(words) });
+    // the style pole: its word beside its stamp (anime-styles.js), so a re-tuned style never moves this row
+    if (spec.animeStyle) Object.assign(hero, { animeStyle: spec.animeStyle, animeStyleResolved: resolveAnimeStyle(spec.animeStyle) });
     // the graphic face: SPARSE (the words that differ from the base; absent when none, so the default is read at plan
     // time and never stored); `false` (the studio's face) is stored
     if (spec.sculpt !== undefined && spec.sculpt !== null) { const sc = sparseSculpt(resolveAnimeSculpt(spec.sculpt)); if (sc !== null) hero.sculpt = sc; }
@@ -1603,7 +1615,7 @@ export function heroReadout(hero, plan, stats, extraWarnings = [], { mesh, recip
   // the anime head's feature spacing is advised against its base's bands (anime-sculpt.js FEATURE_BANDS) unless a look
   // names another character; the table itself rides faceMeasures either way
   const warnings = [...(hero.core === 'streamlined' ? [STREAMLINED_DEPRECATED] : onClassic(hero) ? [CLASSIC_DEPRECATED] : []), ...(recipe?.statue?.warnings ?? []), ...tuneWarnings(tune), ...(landmark ? [...faceWarnings(hero.face), ...hairWarnings(hair)] : []),
-    ...(anime ? [...animeFaceWarnings(animeFace, headPoleOf(hero), { sculpt: eff.sculpt }), ...animeSculptWarnings(eff.sculpt), ...(hero.look?.length ? [] : inc?.faceMeasures?.features?.advice ?? []), ...(hair.style === 'none' ? [] : animeHairWarnings(hair, { words: eff.hairWords })), ...animeExpressionWarnings(animeExpression), ...animeCoverageWarnings(inc?.hairCoverage), ...animeFaceZoneWarnings(inc?.hairCoverage, { veil: hair.veil })] : []), ...extraWarnings];
+    ...(anime ? [...animeFaceWarnings(animeFace, headPoleOf(hero), { sculpt: eff.sculpt }), ...animeSculptWarnings(eff.sculpt), ...(hero.look?.length ? [] : ((St) => (St && inc?.faceMeasures?.features ? featureAdvice(inc.faceMeasures.features, headPoleOf(hero), { bands: St.bands, label: `${St.word} ${headPoleOf(hero)}` }) : inc?.faceMeasures?.features?.advice ?? []))(animeStyleOf(hero, headPoleOf(hero)))), ...(hair.style === 'none' ? [] : animeHairWarnings(hair, { words: eff.hairWords })), ...animeExpressionWarnings(animeExpression), ...animeCoverageWarnings(inc?.hairCoverage), ...animeFaceZoneWarnings(inc?.hairCoverage, { veil: hair.veil })] : []), ...extraWarnings];
   const dress = dressReadout(styledHero(hero), plan, dressMesh, recipe);
   // the stylism's notes, and the outline read back off the dressed figure (the arms left out)
   if (dress && hero.stylism) { const L = stylismLedger(hero);
@@ -1634,7 +1646,7 @@ export function heroReadout(hero, plan, stats, extraWarnings = [], { mesh, recip
     ...(anime && hero.look?.length ? { look: hero.look, lookFrom: hero.look.join('+'), own: { face: ownMoved(hero.face), hair: hero.hair === 'none' ? 'none' : { ...(hero.hair?.style ? { style: hero.hair.style } : {}), ...ownMoved(hero.hair), ...(Object.keys(hero.hair?.locks || {}).length ? { locks: Object.keys(hero.hair.locks) } : {}) }, ...(hero.expression ? { expression: hero.expression } : {}), ...(hero.sculpt !== undefined ? { sculpt: hero.sculpt } : {}), tune: movedOf(hero.tune) } } : {}),
     head: landmark ? 'landmark' : typeof hero.head === 'string' ? hero.head : 'include', ...(hero.genki ? { genki: hero.genki } : {}),
     ...((F) => (F ? { realisticFace: F } : {}))(faceReadout(hero)),
-    ...(anime ? { base: headPoleOf(hero), proportions: hero.proportions ?? 'anime', ...(inc?.faceMeasures ? (() => { const fm = faceMeasures(hero, plan); return { headsTall: Math.round((inc.shift[2] + fm.crown_z) / fm.head_m * 100) / 100 }; })() : {}), face: animeFace, ...(hero.faceFrom ? { faceFrom: hero.faceFrom } : {}), faceMoved: ((B) => Object.fromEntries(Object.entries(animeFace).filter(([k, v]) => v !== B[k])))(animeFaceBase(hero)),
+    ...(anime ? { base: headPoleOf(hero), ...(hero.animeStyle ? { animeStyle: hero.animeStyle } : {}), proportions: hero.proportions ?? 'anime', ...(inc?.faceMeasures ? (() => { const fm = faceMeasures(hero, plan); return { headsTall: Math.round((inc.shift[2] + fm.crown_z) / fm.head_m * 100) / 100 }; })() : {}), face: animeFace, ...(hero.faceFrom ? { faceFrom: hero.faceFrom } : {}), faceMoved: ((B) => Object.fromEntries(Object.entries(animeFace).filter(([k, v]) => v !== B[k])))(animeFaceBase(hero)),
       sculpt: eff.sculpt === false ? false : sparseSculpt(eff.sculpt) ?? {},
       // hairMoved: what moved off the hair base the door applied (its form, and its cut when worn), the look's moves included
       hair, hairMoved: hair.style === 'none' ? {} : (() => { const B = animeHairBaseOf(hero, eff); const lockMoved = Object.keys(hair.locks || {}).filter((n) => JSON.stringify(hair.locks[n]) !== JSON.stringify(B.locks[n])); return { ...Object.fromEntries(ANIME_HAIR_KEYS.filter((k) => hair[k] !== B[k]).map((k) => [k, hair[k]])), ...(lockMoved.length ? { locks: lockMoved } : {}) }; })(),
