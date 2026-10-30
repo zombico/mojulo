@@ -55,6 +55,8 @@ const PAIR = 13.6, GAP = 1.4, HOUSE_D = 12, SETBACK = 5, STOREY = 3, SHOP_D = 14
 // the street's kit: drawn within NEAR metres of the camera (the page's near repeats), a lamp every LAMP metres along a
 // kerb (the metro's stride, fractal-city.js METRO_LAMP_STEP), a streetcar's poles every POLE
 const NEAR = 320, LAMP = 31, POLE = 35;
+// the furniture's strides (m): a hydrant, a bench and its bike rings, a residential street's hydro poles
+const HYDRANT = 90, BENCH = 70, HYDRO = 38;
 const FAR_CELL = 160, TALL = Object.freeze(['tower', 'podium', 'midrise', 'slab']), DETAILED = Object.freeze(['tower', 'podium', 'midrise', 'slab']);
 
 const r5 = (v) => Math.round(v * 1e5) / 1e5 + 0;
@@ -173,7 +175,6 @@ export function assembleGeocityScene(m, ctx = {}) {
       }
     }
   }
-  street();
 
   // ── each neighbourhood: its ground (its streets), a walk round each block, each block's terraced pad and buildings ──
   const glass = G.skin.glass, stone = G.skin.stone, brick = G.skin.brick, roofs = G.skin.roof, office = G.floorH.office, resid = G.floorH.residential;
@@ -263,6 +264,20 @@ export function assembleGeocityScene(m, ctx = {}) {
         const [x, yy] = at(l, side * (l.road / 2 + 0.5), s0);
         stamp(`lamp:${facing(l, -side)}`, [x, yy, S(x, yy) + KERB], 0);
       }
+      // its furniture: a bin by each crossing at each kerb, a hydrant along one, and where the city is close-built
+      // (the core, the frame) benches, bike rings and, at a corner, newspaper boxes
+      const kerb = (side, o, s0, key, rot = 0) => { const [x, yy] = at(l, side * (l.road / 2 + o), s0); stamp(key, [x, yy, S(x, yy) + KERB], rot); };
+      const dense = (s0) => { const [x, yy] = at(l, 0, s0); return d.heights.storeysAt(x, yy).ring !== 'outskirts'; };
+      for (const [p, q] of runs) {
+        if (q - p < 30) continue;
+        for (const side of [-1, 1]) { kerb(side, 1.4, p + 12, 'bin'); kerb(side, 1.4, q - 12, 'bin'); }
+        for (let s0 = p + 25; s0 <= q - 20; s0 += HYDRANT) kerb(1, 0.9, s0, 'hydrant');
+        for (let s0 = p + 40; s0 <= q - 30; s0 += BENCH) if (dense(s0)) for (const side of [-1, 1]) {
+          kerb(side, l.half - l.road / 2 - 1.1, s0, `bench:${facing(l, -side)}`);
+          for (let k = 0; k < 3; k++) kerb(side, 1.6, s0 + 9 + k * 1.3, 'ring', l.axis === 'ns' ? Math.PI / 2 : 0);
+        }
+        if (dense(p + 6)) kerb(-1, l.half - l.road / 2 - 0.7, p + 6, `papers:${facing(l, 1)}`);
+      }
     }
     // the crossings
     for (const a of NS) for (const b of EW) {
@@ -291,8 +306,53 @@ export function assembleGeocityScene(m, ctx = {}) {
           } else {
             const [px, py] = at(l, side * (l.road / 2 + 0.8), s0);
             stamp(`stop:${facing(l, -side)}`, [px, py, S(px, py) + KERB], 0);
+            const [bx2, by2] = at(l, side * (l.road / 2 + 2.6), s0 + t.dir * 6);
+            stamp(`bench:${facing(l, -side)}`, [bx2, by2, S(bx2, by2) + KERB], 0);
           }
         }
+      }
+    }
+  }
+  /** Each built neighbourhood's own streets, near: in the outskirts a wooden hydro pole every HYDRO metres along one
+   *  side (its crossarm, three wires on to the next, a lamp hung off it over the road), a hydrant along the other; in
+   *  the core and the frame the metro's kerb lamps at both kerbs and a bin at each end; round a square benches facing
+   *  its planting, bins at its corners, bollards along its edges. The skyline's neighbourhoods none. */
+  function streetsNear() {
+    for (const r of d.regions) {
+      if (r.park || (massed && !massed.has(r.id))) continue;
+      const low = r.builds === 'outskirts';
+      for (const st of r.streets) {
+        const ns = st.axis === 'ns', kerbOff = st.w / 2 - WALK + 0.4, pt = (side, s0, o = kerbOff) => (ns ? [st.at + side * o, s0] : [s0, st.at + side * o]);
+        const side = streamOf(seed, 'scene', `hydro:${st.id}`)() < 0.5 ? -1 : 1;
+        const face = (sd) => (ns ? (sd > 0 ? 'w' : 'e') : (sd > 0 ? 's' : 'n'));
+        for (const [a, b] of st.runs) {
+          if (b - a < 20) continue;
+          if (low) {
+            let prev = null;
+            for (let s0 = a + 6; s0 <= b - 6; s0 += HYDRO) {
+              const [x, yy] = pt(side, s0), z = S(x, yy) + KERB;
+              stamp(`hydro:${face(side)}`, [x, yy, z], 0);
+              if (prev) for (const o of [-0.9, 0, 0.9]) {
+                const p0 = ns ? [prev[0] + o, prev[1]] : [prev[0], prev[1] + o];
+                stamp('wire', [p0[0], p0[1], (prev[2] + z) / 2 + 10.05], ns ? Math.PI / 2 : 0, [HYDRO, 1, 1]);
+              }
+              prev = [x, yy, z];
+            }
+            for (let s0 = a + 30; s0 <= b - 10; s0 += HYDRANT) { const [x, yy] = pt(-side, s0); stamp('hydrant', [x, yy, S(x, yy) + KERB], 0); }
+          } else {
+            for (const sd of [-1, 1]) for (let s0 = a + 8 + (sd > 0 ? LAMP / 2 : 0); s0 <= b - 8; s0 += LAMP) { const [x, yy] = pt(sd, s0); stamp(`lamp:${face(sd)}`, [x, yy, S(x, yy) + KERB], 0); }
+            for (const s0 of [a + 6, b - 6]) { const [x, yy] = pt(1, s0, kerbOff + 0.8); stamp('bin', [x, yy, S(x, yy) + KERB], 0); }
+          }
+        }
+      }
+      for (const b of r.blocks.filter((x) => x.kind === 'square')) {
+        const [x0, y0, x1, y1] = b.rect, e = Math.min(x1 - x0, y1 - y0) * 0.18, z = S((x0 + x1) / 2, (y0 + y1) / 2) + KERB;
+        for (const [k, f] of [[[x0 + e - 1.2, null], 'e'], [[x1 - e + 1.2, null], 'w'], [[null, y0 + e - 1.2], 'n'], [[null, y1 - e + 1.2], 's']]) for (let t = 0.2; t < 0.81; t += 0.2) {
+          const px = k[0] ?? x0 + e + (x1 - x0 - 2 * e) * t, py = k[1] ?? y0 + e + (y1 - y0 - 2 * e) * t;
+          stamp(`bench:${f}`, [px, py, z], 0);
+        }
+        for (const [cx, cy] of [[x0 + 2, y0 + 2], [x1 - 2, y0 + 2], [x1 - 2, y1 - 2], [x0 + 2, y1 - 2]]) stamp('bin', [cx, cy, z], 0);
+        for (let x = x0 + 2; x <= x1 - 2; x += 4) for (const yy of [y0 + 0.5, y1 - 0.5]) stamp('bollard', [x, yy, z], 0);
       }
     }
   }
@@ -430,6 +490,9 @@ export function assembleGeocityScene(m, ctx = {}) {
       put([[fq[0], fq[1], zAt(fq[0], fq[1]) + 0.03], [fq[2], fq[1], zAt(fq[0], fq[1]) + 0.03], [fq[2], fq[3], zAt(fq[0], fq[1]) + 0.03], [fq[0], fq[3], zAt(fq[0], fq[1]) + 0.03]], 'geocity:field', col.field);
     } else { houses(sides[0], 2, L - 2); houses(sides[1], 2, L - 2); }
   }
+
+  street();
+  streetsNear();
 
   // ── the blocks at a building's detail: their masses through the facade pipeline (its units), back to metres; at
   // night its windows lit on the facades' own grids (city/plan/night.js) ──
