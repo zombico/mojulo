@@ -41,3 +41,13 @@ lean, long faces. The eyes gate is the operator's.
   narrowed to the row it comes down to so the jaw keeps its V from the front; the underside behind the chin is raised
   onto the line from the chin's bottom to the corner by a smooth max. The male's lower cheeks fuller, rounding the
   face's side down to that edge.
+- **The jaw's line, cleaned** (round two): the corner's lift taken off the sides narrows each point as the row twice as
+  far below it, so from the front the jaw keeps the V the lift gave it and its lower rim no longer flares out; the
+  line holds the face's side at the seam as well as the underside, the same from both, so the jaw's edge lies on it
+  with no lip left below; the raise eased in behind the chin. Shonen High's chins a fifth narrower, his jaw's side
+  curved in harder toward its edge (`jawHollow`), his female's with it.
+- **A head seated back on the neck** (sculpt `seatBack`, of the head's height; the neck stays where it is): the head's
+  registration moved back along its depth, the hair's body fit with it. Shonen High's female at 0.08: the male's head
+  sat forward on her slimmer neck; seated back, her face stands as far before her neck as his before his. A piece the
+  views under the chin still show: a small dark facet at the chin's tip from below, where the underside's keel meets
+  the raised floor.

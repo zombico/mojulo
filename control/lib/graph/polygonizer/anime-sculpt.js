@@ -94,13 +94,13 @@ export const ANIME_SCULPT = ratioControls({
   groups: {
     placement: ['eyeLevel', 'pronasale', 'dorsumStart', 'stomion'], mouth: ['mouthWidth'], lips: ['flatLips'],
     nose: ['tipProjection', 'dorsumProjection', 'noseLine'], bridge: ['bridgeRoot'],
-    ear: ['earLevel'], earBack: ['earBack'], napeLift: ['napeLift'], jawLine: ['jawLine'], fissure: ['fissureHeight', 'canthusSetback'], orbit: ['orbit'], jaw: ['jawHollow'], lid: ['lidWeight', 'lidTail', 'lidCover'], lidAngle: ['lidAngle'], lidFlick: ['lidFlick'],
+    ear: ['earLevel'], earBack: ['earBack'], napeLift: ['napeLift'], jawLine: ['jawLine'], seatBack: ['seatBack'], fissure: ['fissureHeight', 'canthusSetback'], orbit: ['orbit'], jaw: ['jawHollow'], lid: ['lidWeight', 'lidTail', 'lidCover'], lidAngle: ['lidAngle'], lidFlick: ['lidFlick'],
     iris: ['irisSize', 'irisOval', 'pupil', 'catchlight'],
     brow: ['browThick', 'browGap', 'browLength'], browClear: ['browClear'], browAngle: ['browAngle'], browArch: ['browArch'],
   },
-  ranges: { orbit: [0, 0.03], jawHollow: [0, 0.03], flatLips: [0, 1], browClear: [0, 0.5], bridgeRoot: [0, 0.06], earBack: [0, 0.06], napeLift: [0, 0.15], jawLine: [0, 1], eyeLevel: [-0.03, 0.03], earLevel: [-0.04, 0.04], pronasale: [-0.04, 0.04], dorsumStart: [-0.05, 0.05], stomion: [-0.03, 0.03], lidAngle: [-20, 20], lidFlick: [-30, 60], browAngle: [-25, 25], browArch: [-0.03, 0.05],
+  ranges: { orbit: [0, 0.03], jawHollow: [0, 0.03], flatLips: [0, 1], browClear: [0, 0.5], bridgeRoot: [0, 0.06], earBack: [0, 0.06], napeLift: [0, 0.15], jawLine: [0, 1], seatBack: [0, 0.12], eyeLevel: [-0.03, 0.03], earLevel: [-0.04, 0.04], pronasale: [-0.04, 0.04], dorsumStart: [-0.05, 0.05], stomion: [-0.03, 0.03], lidAngle: [-20, 20], lidFlick: [-30, 60], browAngle: [-25, 25], browArch: [-0.03, 0.05],
     lidWeight: [0.6, 1.5], lidCover: [0, 1.6], browGap: [0, 2.5], browThick: [0.5, 1.6], catchlight: [0, 1.6], noseLine: [0, 1.5], canthusSetback: [0, 2] },
-  offsets: ['orbit', 'jawHollow', 'flatLips', 'browClear', 'bridgeRoot', 'earBack', 'napeLift', 'jawLine', 'eyeLevel', 'earLevel', 'pronasale', 'dorsumStart', 'stomion', 'lidAngle', 'lidFlick', 'browAngle', 'browArch'],
+  offsets: ['orbit', 'jawHollow', 'flatLips', 'browClear', 'bridgeRoot', 'earBack', 'napeLift', 'jawLine', 'seatBack', 'eyeLevel', 'earLevel', 'pronasale', 'dorsumStart', 'stomion', 'lidAngle', 'lidFlick', 'browAngle', 'browArch'],
   zero: ['lidCover', 'browGap', 'catchlight', 'noseLine', 'canthusSetback', 'lidTail'],
   moves: ANIME_SCULPT_MOVES,
 });
@@ -180,6 +180,8 @@ export function sculptBuild(pole, resolved) {
   // (the jaw's line squared: the edge back from the chin to a corner low under the ear, nothing hanging below it; a share,
   // absent at 0)
   if (R.jawLine > 0) out.jawLine = r6(Math.min(1, R.jawLine));
+  // (the head seated back on the neck, of the head's height, the neck where it is; absent at 0)
+  if (R.seatBack > 0) out.seatBack = r6(R.seatBack);
   // (the lips flat: the mouth's rim no longer raised round the opening, its share flattened; absent at 0)
   if (R.flatLips > 0) out.flatLips = r6(Math.min(1, R.flatLips));
   // (the brow held clear of the eye, of the opening; absent at 0)

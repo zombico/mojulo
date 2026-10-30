@@ -32,8 +32,8 @@ export const ANIME_STYLES = Object.freeze({
   'shonen-high': Object.freeze({
     note: 'Bleach and JJK: teen to early-20s leads, lean and long faces, hard angled eyes under low straight brows; cool, aura, hype',
     male: Object.freeze({
-      face: Object.freeze({ width: 0.94, lower: 1.08, cheekVolume: 0.88, lowerCheekVolume: 0.96, chin: 0.9, chinProjection: 1.11, jaw: 1.12, jawAngle: 0.9, browDepth: 1.3, eyeHeight: 0.93, eyeWidth: 0.98, iris: 0.95, tilt: 0.04, nose: 1.05 }),
-      sculpt: Object.freeze({ lidWeight: 1.15, lidAngle: 8, lidTail: 1.2, browThick: 0.95, browGap: 0.55, browAngle: 9, pupil: 0.85, fissureHeight: 0.96, bridgeRoot: 0.06, jawHollow: -0.01, napeLift: 0.15, earBack: 0.04, jawLine: 1 }),
+      face: Object.freeze({ width: 0.94, lower: 1.08, cheekVolume: 0.88, lowerCheekVolume: 0.96, chin: 0.72, chinProjection: 1.11, jaw: 1.12, jawAngle: 0.9, browDepth: 1.3, eyeHeight: 0.93, eyeWidth: 0.98, iris: 0.95, tilt: 0.04, nose: 1.05 }),
+      sculpt: Object.freeze({ lidWeight: 1.15, lidAngle: 8, lidTail: 1.2, browThick: 0.95, browGap: 0.55, browAngle: 9, pupil: 0.85, fissureHeight: 0.96, bridgeRoot: 0.06, jawHollow: 0.01, napeLift: 0.15, earBack: 0.04, jawLine: 1 }),
       tune: Object.freeze({ ...LEAN_LONG }),
       bands: Object.freeze({ eyeWidth: [0.17, 0.21], lid: [0.3, 0.45], mouthWidth: [0.25, 0.34], browGap: [0.3, 0.75] }),
     }),
@@ -41,11 +41,13 @@ export const ANIME_STYLES = Object.freeze({
     // over his face and sculpt her own layer, after Nobara's figure: her head smaller than his; her features softer (her
     // brow's ridge, her bridge and her nose lighter, her jaw narrower, softer and turned under into a small pointed chin,
     // her lids and brows less angled); her cheeks fuller; her eyes a little larger than his, almond under a heavier lash
-    // flicked at its tail; her brows thinner; her mouth smaller. Her body and her hair are her cast's own
+    // flicked at its tail; her brows thinner; her mouth smaller; her head seated back on her neck (`seatBack`: his head
+    // sits forward on her slimmer neck; back, her face stands as far before her neck as his before his). Her body and
+    // her hair are her cast's own
     female: Object.freeze({
       head: 'male',
       face: Object.freeze({ eyeHeight: 1.06, eyeWidth: 1.02, iris: 1.03, jaw: 0.88, chin: 0.84, chinProjection: 0.94, cheekVolume: 1.08, lowerCheekVolume: 1.04, browDepth: 0.85, nose: 0.92 }),
-      sculpt: Object.freeze({ lidWeight: 1.12, lidTail: 1.04, lidFlick: 10, lidAngle: -3, browThick: 0.65, browAngle: -3, bridgeRoot: -0.035, tipProjection: 0.8, mouthWidth: 0.9, jawHollow: 0.01, napeLift: -0.03 }),
+      sculpt: Object.freeze({ lidWeight: 1.12, lidTail: 1.04, lidFlick: 10, lidAngle: -3, browThick: 0.65, browAngle: -3, bridgeRoot: -0.035, tipProjection: 0.8, mouthWidth: 0.9, napeLift: -0.03, seatBack: 0.08 }),
       tune: Object.freeze({ ...LEAN_LONG, head: 0.9, stature: 1.02, hips: 0.95 }),
       bands: Object.freeze({ browThick: [0.2, 0.45], noseProjection: [0.06, 0.12] }),
     }),

@@ -53,6 +53,8 @@ import { surfaceLocalOffset } from './surface-pin.js';
 import { r6 } from './station-loft-plan.js';
 import { ratioControls } from './ratio-controls.js';
 import { REGISTRATION } from './humanoid-head-fit.js';
+/** the hero frame's backward sense along its depth (sculpt `seatBack`) */
+const SEAT_DIR = -1;
 import { buildAnime, drawingOf, animeFresh, animeFaceDefs, ANIME_FACE_DEFS, ANIME_HAIR_DEFS, ANIME_EXPRESSION_DEFS, ANIME_HAIR_STYLES as STUDIO_FAMILIES, ANIME_LOCK_RE as STUDIO_LOCK_RE, ANIME_LOCK_KEYS } from './anime-form.js';
 import { rasterDepth, viewCamera } from '../scene/depth-raster.js';
 import { GRAPHIC_BASE, resolveAnimeSculpt, validateAnimeSculpt, sculptBuild, sculptFeatures } from './anime-sculpt.js';
@@ -923,6 +925,8 @@ export function animeHead({ preset = 'female', face = {}, hair, expression = 'ne
   if (H.style === null) H.style = animeDefaultStyle(preset);
   const recipe = animeRecipe({ preset, face: F, hair: H, expression: E, sculpt });
   const SCULPT = !!recipe.sculpt;
+  // the pole's registration, the head seated back on the neck by sculpt `seatBack` (of the head's height; the neck stays)
+  const REG = recipe.sculpt?.seatBack ? { ...REGISTRATION[preset], midY: REGISTRATION[preset].midY + SEAT_DIR * recipe.sculpt.seatBack * REGISTRATION[preset].height } : REGISTRATION[preset];
   // (a 7G drawing is drawn on the graphic face: its lids, lenses and brow block)
   if (drawingOf(drawing) && !SCULPT) throw new Error('anime head: a drawing is drawn on the graphic face (sculpt), not the studio\'s own');
   // the hair seats on the head it grows on (anime-form `fitHair`); `hairFit: false` is the studio's own cap and clumps
@@ -930,7 +934,7 @@ export function animeHead({ preset = 'female', face = {}, hair, expression = 'ne
   // studio's separate clumps; the graphic face's lenses take the game budget on the lowpoly register
   // the hair form (the lift, the section, the cut's words) rides as its own option, never in the studio recipe
   const HAIR_FORM = bald ? null : animeHairForm(H);
-  const model = buildAnime(recipe, { coarse: register === 'lowpoly', weld: true, fitHair: hairFit, forms: !(H.strands > 0), ...(SCULPT ? { sculpt: recipe.sculpt, ...(register === 'lowpoly' ? { budget: 'game' } : {}) } : {}), ...(HAIR_FORM ? { hairForm: HAIR_FORM } : {}), ...(body && HAIR_FORM ? { body: { registration: REGISTRATION[preset], rings: body } } : {}), sideburnPatch: true, ...(paint ? { paint: typeof paint === 'object' ? paint : {} } : {}), ...(nose ? { nose } : {}), ...(drawing ? { drawing } : {}) });
+  const model = buildAnime(recipe, { coarse: register === 'lowpoly', weld: true, fitHair: hairFit, forms: !(H.strands > 0), ...(SCULPT ? { sculpt: recipe.sculpt, ...(register === 'lowpoly' ? { budget: 'game' } : {}) } : {}), ...(HAIR_FORM ? { hairForm: HAIR_FORM } : {}), ...(body && HAIR_FORM ? { body: { registration: REG, rings: body } } : {}), sideburnPatch: true, ...(paint ? { paint: typeof paint === 'object' ? paint : {} } : {}), ...(nose ? { nose } : {}), ...(drawing ? { drawing } : {}) });
 
   // registration: the studio's pitched head → hero metres, by the fitted heads' numbers for this pole
   const skinFlat = model.parts.skin, faceEnd = model.ears.start;
@@ -938,7 +942,7 @@ export function animeHead({ preset = 'female', face = {}, hair, expression = 'ne
   for (let i = 0; i < faceEnd; i += 3) { const y = skinFlat[i + 1], z = skinFlat[i + 2]; if (y < yLo) yLo = y; if (y > yHi) yHi = y; if (z < zLo) zLo = z; if (z > zHi) zHi = z; }
   // (under the nose dials the jaw lifts the underside: the head is registered by the studio's extent, before the dials)
   if (model.nose && Number.isFinite(model.nose.floorY)) yLo = model.nose.floorY;
-  const R = REGISTRATION[preset], S = R.height / (yHi - yLo), TZ = R.menton - S * yLo, TY = R.midY - S * (-zLo + -zHi) / 2;
+  const R = REG, S = R.height / (yHi - yLo), TZ = R.menton - S * yLo, TY = R.midY - S * (-zLo + -zHi) / 2;
   const toM = (p) => [p[0] * S, -p[2] * S + TY, p[1] * S + TZ];
   const meshOf = (tris, labels) => { const m = weld(tris, labels); m.points = m.points.map(toM); return m; };
 

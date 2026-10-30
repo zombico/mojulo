@@ -63,6 +63,13 @@ describe('the style pole', () => {
     expect(headOf({ cast: 'female', sculpt: { jawLine: 0 } }).vertices).toEqual(headOf({ cast: 'female' }).vertices);
     expect(lowBehind({ cast: 'female', sculpt: { jawLine: 1 } })).toBeGreaterThan(lowBehind({ cast: 'female' }) + 0.008);
   });
+  it('seats a head back on its neck (sculpt `seatBack`): the head moves back along its depth, the neck stays', () => {
+    const at = (sculpt) => { const P = heroPlanOf(heroRecord({ cast: 'female', head: 'anime', hair: 'none', ...(sculpt ? { sculpt } : {}) })), m = compileLayered({ parts: P.include[0].parts, dials: {}, creases: {} }), ys = m.vertices.filter((_, i) => m.provenance[i].part === 'face').map((p) => p[1]); return { neck: P.joints.neckHub, lo: Math.min(...ys), hi: Math.max(...ys) }; };
+    const A = at(null), B = at({ seatBack: 0.08 });
+    expect(B.neck).toEqual(A.neck);
+    // (the whole head the same distance back: the hero's forward is +y)
+    expect(B.hi - A.hi).toBeLessThan(-0.005); expect(B.lo - A.lo).toBeCloseTo(B.hi - A.hi, 4);
+  });
   it('advises each base\'s styled default nothing, by its style\'s bands over the form\'s', () => {
     for (const cast of ['male', 'female']) {
       const hero = heroRecord({ cast, head: 'anime', animeStyle: STYLE }), f = heroPlanOf(hero).include[0].faceMeasures.features;
