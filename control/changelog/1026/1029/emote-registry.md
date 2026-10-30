@@ -166,7 +166,7 @@ gives the mouth's articulation to whatever drives it. The eyes gate is the opera
   `cheekBack`). The cheek's balloon (the buccal fat and the malar pad as one mass) stood forward of the face from 3/4 and
   below, a heavy cheek over a jaw's side too slight, a lump beside the mouth. Now offsets over the face's own relations
   (or its pole's) take volume off the cheek's front and give it to the jaw's side: the balloon 0.15 less full and its
-  bulge set 0.06 back, the cheekbone's front and the brow's outer end each 0.02 back (`malarDepth`, `orbitRim`), its
+  bulge set 0.06 back, her cheekbone's front 0.02 back (`malarDepth`), its
   lower arm 0.3 fuller over the jaw's body, the jaw's corners wider (0.08 female, 0.05 male, of the cheekbones' width), the
   masseter heavier, and the ear 0.015 forward (the new relation `earForward`, its hinge and the probe that finds the skin
   under it). The front's silhouette keeps its top and widens at its foot, narrowing from the temple to the jaw and never
@@ -193,3 +193,16 @@ gives the mouth's articulation to whatever drives it. The eyes gate is the opera
   its own surface, over the front either side of the midline and eased out beyond: her front runs 56, 59, 64, 69, 73,
   77, 81, 84, 88 mm down to the chest, his tent 92 → 77, male and female alike. Held by a principle (the midline's front
   within 2.5 mm of the line from the throat to the chest), not a pin. Laws 12 and before keep their necks.
+- **The globe covered, every head** (realistic laws 13, `head-relational-eye.js` `cover`, `COVER_DEEP`; `SEAT.forwardOut`
+  per sex). With the eye brought forward and the cheekbone set back, the man's globe showed bare beside his cheekbone,
+  under his lower lid and in a slit beside the nose's bridge. Now the face's skin about an eye never lies inside the lids'
+  shell (the globe and a lid's thickness, about the globe's own centre, so no look moves it) but where the opening is
+  cut, and past 55° from straight ahead the opening's cut is covered again (its wedge into the inner corner had reached
+  the globe's side, where the caruncle fills it). His eye comes out less than hers (a third further behind the glabella
+  than hers, all but laws 12's), and his cheekbone keeps its front. Under the eye's outer corner the cover is fuller
+  and joins the face wider (`COVER_RIM`): the cheekbone's top and the lateral orbital rim, the profile's >, rise into
+  the lower lid over the globe's lower outer side, so the seam where the lid meets the globe there is hidden (a lift
+  alone stood a ledge with a hollow under it); and the even face no longer sets the brow's outer end back, which had
+  bared that corner. Held by a principle (`hero-face-even.test.js`, the
+  field read for each sex: every point of the globe below it, past its outer corner and in toward the nose lies under
+  the skin).

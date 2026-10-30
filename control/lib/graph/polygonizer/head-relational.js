@@ -146,16 +146,17 @@ export const EAR_RAISE = Object.freeze({ male: Object.freeze({ earTop: 0.25, ear
 export const raisedEar = (rel = null, sex = 'male') => { const E = EAR_RAISE[sex] ?? EAR_RAISE.male; return { ...(rel || {}), earTop: (rel?.earTop ?? RELATIONS.earTop) + E.earTop, earBottom: (rel?.earBottom ?? RELATIONS.earBottom) + E.earBottom }; };
 /**
  * THE EVEN FACE (realistic laws 13): the cheek's volume taken off its front and given to the jaw's side, offsets over the
- * face's relations (or its pole's): the cheek's balloon a little smaller and its bulge set back (`cheekBack`), the
- * cheekbone's front (`malarDepth`) and the brow's outer end (`orbitRim`) set back, the lower arm fuller over the jaw's
+ * face's relations (or its pole's): the cheek's balloon a little smaller and its bulge set back (`cheekBack`), her
+ * cheekbone's front (`malarDepth`) set back, the lower arm fuller over the jaw's
  * body, the jaw's corners wider and its masseter heavier, and the ear a little forward (`earForward`), so the front's
  * silhouette keeps its top and widens at its foot, never past the vault's own width, and the profile runs even from 3/4
  * and below (the balloon at the pole's fullness stood forward of the face there over a jaw's side too slight, a heavy
  * cheek over a gaunt one, and the cheekbone and the brow's outer corner stood as bumps). Laws 1–12 keep the face they had.
  */
 export const EVEN_FACE = Object.freeze({
-  female: Object.freeze({ cheeks: -0.15, cheekBack: 0.06, malarDepth: 0.02, orbitRim: 0.02, lowerCheek: 0.3, jaw: 0.08, masseter: 0.3, earForward: 0.015 }),
-  male: Object.freeze({ cheeks: -0.15, cheekBack: 0.06, malarDepth: 0.02, orbitRim: 0.02, lowerCheek: 0.3, jaw: 0.05, masseter: 0.2, earForward: 0.015 }),
+  female: Object.freeze({ cheeks: -0.15, cheekBack: 0.06, malarDepth: 0.02, lowerCheek: 0.3, jaw: 0.08, masseter: 0.3, earForward: 0.015 }),
+  // (his cheekbone kept forward, its front not set back: with his eye set deeper it is what covers the globe's flank)
+  male: Object.freeze({ cheeks: -0.15, cheekBack: 0.06, lowerCheek: 0.3, jaw: 0.05, masseter: 0.2, earForward: 0.015 }),
 });
 export const evenFace = (rel = null, sex = 'male') => { const E = EVEN_FACE[sex] ?? EVEN_FACE.male, P = RELATION_POLES[sex] ?? {}; return { ...(rel || {}), ...Object.fromEntries(Object.entries(E).map(([k, d]) => [k, (rel?.[k] ?? P[k] ?? RELATIONS[k]) + d])) }; };
 export const RELATION_NAMES = Object.freeze(Object.keys(RELATIONS));
@@ -1222,7 +1223,7 @@ export function relationalHead({ sex = 'male', relations = {}, layer = 'skin', t
   // (seated, the eyes come `SEAT.forward` of the way from the cornea to the nose's tip, their corneas kept behind the
   // glabella: their globes, lids and lashes, not the socket or the skin about it, which the seat cuts back to the lids)
   const Pe = seat ? { ...Pt, ...Object.fromEntries(['L', 'R'].flatMap((s) => {
-    const [share, behind] = seat === 2 ? SEAT.forwardOut : SEAT.forward, y = Pt[`eye${s}`].y, dy = Math.max(0, Math.min(share * (Pt.prn.y - y), Pt.g.y - behind - y));
+    const [share, behind] = seat === 2 ? SEAT.forwardOut[sex] ?? SEAT.forwardOut.male : SEAT.forward, y = Pt[`eye${s}`].y, dy = Math.max(0, Math.min(share * (Pt.prn.y - y), Pt.g.y - behind - y));
     return ['eye', 'en', 'ex'].map((k) => [`${k}${s}`, { ...Pt[`${k}${s}`], y: Pt[`${k}${s}`].y + dy }]);
   })) } : Pt;
   const bridge = skin ? browBridge(Pe, { med: shift('c'), L: shift('a'), R: shift('b') }, { seat }) : null;
@@ -1250,7 +1251,7 @@ export function relationalHead({ sex = 'male', relations = {}, layer = 'skin', t
     const V = (p) => ({ x: p.x / sc, y: p.y / sc, z: p.z / sc });
     const near = (p) => Math.hypot(p.x / sc - r.bound.c.x, p.y / sc - r.bound.c.y, p.z / sc - r.bound.c.z) < r.bound.r;
     return { side: s, near, channels: c, gaze: r.gaze, margins: r.margins, globeV: r.globe, lids: (p) => r.lids(V(p)) * sc,
-      lidSpace: (p) => r.lidSpace(V(p)) * sc, seat: r.seat && ((p) => r.seat(V(p)) * sc), opening: r.opening && ((p) => r.opening(V(p)) * sc), rims: (p) => r.rims(V(p)) * sc,
+      lidSpace: (p) => r.lidSpace(V(p)) * sc, cover: r.cover && ((p) => r.cover(V(p)) * sc), coverBlend: r.coverBlend && ((p) => r.coverBlend(V(p))), coverEnds: r.coverEnds && ((p) => r.coverEnds(V(p)) * sc), seat: r.seat && ((p) => r.seat(V(p)) * sc), opening: r.opening && ((p) => r.opening(V(p)) * sc), rims: (p) => r.rims(V(p)) * sc,
       crease: r.crease && ((p) => r.crease(V(p)) * sc), globe: (p) => r.globe(V(p)) * sc, paint: (p) => r.paint(V(p)), irisTone: (p) => r.irisTone(V(p)) };
   }) : [];
   // THE FURROWS (`furrows`, an old forehead's deep folds as shape, so an engine's light casts them and the profile shows
@@ -1309,7 +1310,10 @@ export function relationalHead({ sex = 'male', relations = {}, layer = 'skin', t
       d = smax(d, -e.lidSpace(p), 0.005 * sc);
       if (e.seat) d = smax(d, -e.seat(p), SEAT.blend * sc);
       d = smin(d, e.lids(p), 0.008 * sc);
+      // (the globe covered by the skin all round, but through the opening: realistic laws 13, head-relational-eye.js)
+      if (e.cover) d = smin(d, e.cover(p), (0.002 + e.coverBlend(p)) * sc);
       if (e.opening) d = smax(d, -e.opening(p), 0.0025 * sc);
+      if (e.coverEnds) d = smin(d, e.coverEnds(p), 0.002 * sc);
       d = smin(d, e.rims(p), 0.004 * sc);
       if (e.crease) d = smax(d, -e.crease(p), 0.002 * sc);
       if (withGlobes) d = smin(d, e.globe(p), 0.0015 * sc);

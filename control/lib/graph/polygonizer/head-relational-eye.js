@@ -42,11 +42,17 @@ export const GLOBE = Object.freeze({ r: 0.052, back: 0.063, cornea: 0.034, iris:
  * `forward` [a share of the way from the cornea toward the nose's tip, the least its cornea stays behind the glabella]
  * out of a socket that set it deep behind the brow (a deep-set eye comes forward; one already near the brow's line stays,
  * where the share alone stood it proud of the face). Seated as ONE SECTION (`seat` 2, realistic laws 13) the eye comes
- * out by `forwardOut` (its cornea a third as far behind the glabella: set deep, the lid sat in a cove the brow shadowed),
+ * out by `forwardOut`, per sex (hers a third as far behind the glabella: set deep, the lid sat in a cove the brow
+ * shadowed; his a little less out, the globe's flank bare beside his cheekbone when brought as far),
  * the fold leans out of the knee by `section` instead, a third as steep, and no crease is cut: the lid runs up into the
  * brow as one surface (the steep pad hooked out over a cut crease, the lid's top, the crease and the fold's underside three dark bands
  * stacked under the brow, and a blink stretched the lid across them) */
-export const SEAT = Object.freeze({ reach: 0.045, lie: 0.0005, rise: [0.4, 60], blend: 0.012, fold: [0.9, 80, 0.03, 0.012], section: [0.3, 80, 0.03, 0.012], side: [0.3, 20, 0.12, 0.05], brow: [0.016, 0.012], forward: [1 / 3, 0.026], forwardOut: [1 / 3, 0.008], shelf: [0.03, 0.005] });
+/** how far from straight ahead (degrees) the opening may bare the globe: past it the skin covers the globe again */
+export const COVER_DEEP = 55;
+/** the cover's fullness under the eye's outer corner (V): its lift and its blend into the face at the middle of the sector
+ * `toward` [out, forward, up] from the globe's centre, eased to none `spread` degrees off it */
+export const COVER_RIM = Object.freeze({ lift: 0.003, blend: 0.014, toward: [0.6, 0.35, -0.7], spread: 50 });
+export const SEAT = Object.freeze({ reach: 0.045, lie: 0.0005, rise: [0.4, 60], blend: 0.012, fold: [0.9, 80, 0.03, 0.012], section: [0.3, 80, 0.03, 0.012], side: [0.3, 20, 0.12, 0.05], brow: [0.016, 0.012], forward: [1 / 3, 0.026], forwardOut: Object.freeze({ female: [1 / 3, 0.008], male: [1 / 3, 0.024] }), shelf: [0.03, 0.005] });
 
 /** the channels, [rest, min, max]; the gaze in degrees (+yaw toward the figure's right, +pitch up) */
 export const EYE_CHANNELS = Object.freeze({
@@ -413,5 +419,20 @@ export function eyeRig(P, s, c, fissure, arc = browBridge(P).arcs[s], split = 0.
     return (u < uc ? 1.14 : 1) * (0.72 + 0.5 * fibres) * (1 + 0.22 * collarette) * (1 - 0.45 * crypt) * (1 - 0.5 * limbal * limbal) * (1 - 0.35 * ruff);
   };
   const bound = { c: { x: e.x, y: e.y, z: e.z }, r: 0.16 };
-  return { opening, lidSpace, seat: seatSpace, lids, rims, crease, globe, paint, irisTone, bound, gaze: d, margins };
+  // THE GLOBE COVERED (`seat` 2, realistic laws 13): the face's skin about the eye never lies inside the lids' shell (the
+  // globe and a lid's thickness, about its own centre, so no look moves it), but where the opening is carved through it:
+  // with the eye brought forward the cheekbone, the socket's floor and the nose's side had left the globe's flank bare
+  // between them and the lower lid, the sclera seen from below and beside
+  // (and past `COVER_DEEP` from straight ahead laid over the opening's cut again (`coverEnds`): the opening's wedge into the
+  // inner corner cut to the globe's side, a slit to it beside the nose's bridge, where the caruncle fills it)
+  // (fuller under the eye's outer corner, `COVER_RIM`: the cheekbone's top and the lateral orbital rim, the profile's >,
+  // stand forward over the globe's lower outer side, so the seam where the lower lid meets the globe there is hidden)
+  const sgx = Math.sign(ex.x - en.x) || 1, rimD = (() => { const [a, b, c] = COVER_RIM.toward, l = Math.hypot(a, b, c); return [sgx * a / l, b / l, c / l]; })(), rimC = Math.cos((COVER_RIM.spread * Math.PI) / 180);
+  const rimW = (p, r) => { const t = Math.min(1, Math.max(0, (((p.x - gc.x) * rimD[0] + (p.y - gc.y) * rimD[1] + (p.z - gc.z) * rimD[2]) / (r || 1e-9) - rimC) / (1 - rimC))); return t * t * (3 - 2 * t); };
+  const rim = (p, r) => COVER_RIM.lift * rimW(p, r);
+  const cover = seat === 2 ? (p) => { const r = Math.hypot(p.x - gc.x, p.y - gc.y, p.z - gc.z); return r - lidR - rim(p, r); } : null, cd = Math.cos((COVER_DEEP * Math.PI) / 180);
+  const coverEnds = cover ? (p) => { const r = Math.hypot(p.x - gc.x, p.y - gc.y, p.z - gc.z) || 1e-9; return Math.max(cover(p), ((p.y - gc.y) / r - cd) * lidR); } : null;
+  // (and joined to the face the wider there, `COVER_RIM.blend`: the cheekbone's top rising into it, never a ledge)
+  const coverBlend = cover ? (p) => COVER_RIM.blend * rimW(p, Math.hypot(p.x - gc.x, p.y - gc.y, p.z - gc.z)) : null;
+  return { opening, lidSpace, seat: seatSpace, lids, rims, crease, globe, paint, irisTone, bound, gaze: d, margins, ...(cover ? { cover, coverEnds, coverBlend } : {}) };
 }
