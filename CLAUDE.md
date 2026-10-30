@@ -102,6 +102,7 @@ npm run test:e2e             # whole worlds through the real handlers, games who
 node scripts/mcp-stdio.mjs orient|tools|packs|help <tool>|call <tool> --json '{…}'   # CLI over the registry; orient = initialize for a shell
 node scripts/reindex-embeddings.js   # text-only without the recall group; vectors with it
 node scripts/mcp-stdio.mjs install recall   # the embedding runtime, opt-in, lands in ~/.mojulo/recall
+node scripts/runnability.mjs <page.html> --cams cams.json   # what a World page asks of Chrome: docs/runnability.md
 ```
 
 No lint, formatter, or types. CI runs `node --check` and the locale validator. Always run from `control/`:
@@ -219,6 +220,13 @@ Pointers only; each target carries its own design notes.
   by [motion/glyph-carver.js](control/lib/motion/glyph-carver.js) into the glyph atlas the page plays, slam | rise | stamp,
   in the juice register's look; words by key in the world's `locale` from `control/messages/`: `game/title-words.js`);
   manual: the `hud-title` card. A host that cannot carve shows the banner.
+- Walled-core dungeons: [docs/walled-core-dungeon.md](docs/walled-core-dungeon.md) (layers on a critical path toward a
+  core, a `design_game` world's `wcd`; its principles as laws; a space builds its level; a military base's buildings,
+  stocked by `era/stocking.js`).
+- Quest open worlds: [docs/quest-open-world.md](docs/quest-open-world.md) (the WCD's opposite pole: a geocity's regions
+  joined sideways, never gated on the way on; a `design_game` world's `qow`; its principles as laws). The metro it is
+  laid on: [geocity/](control/lib/graph/geocity/) (the geocube's `show: 'geocity'`: major streets first, rings, roads,
+  evocations at game scale, the street's kit near the camera only).
 - Foes: [docs/foes.md](docs/foes.md) (layer 0, the skeleton under every foe, and the shelves over it: behaviour, skin,
   modes, states, death; a new thing on a shelf is a row, never a foe special-cased).
 - Effects: [playscape/elements/](control/lib/graph/playscape/elements/) (attacks, blasts, puffs, looks), raised to the style

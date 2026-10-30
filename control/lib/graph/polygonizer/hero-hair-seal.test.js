@@ -1,9 +1,9 @@
-// The realistic hair SEALED against the neck and the body (realistic laws 13, hero-head-layers.js HAIR_SEAL): on one
+// The realistic hair SEALED against the neck and the body (realistic laws 14, hero-head-layers.js HAIR_SEAL): on one
 // realistic hero with hair that falls past the jaw, no hair point lies inside the neck, the trunk, the upper arms or the
 // head's skin below its base, at rest and with the head turned and tilted as the face's head layer turns it
 // (face-acting/head.js headBones, an engine's additive layer from the rest pose); the hair near the skin rides the skin's
 // own bones (never the jaw's), and a stroke that runs into the body stops there, never wrapped round the throat. A hero
-// stamped with laws 12 keeps the hair it had.
+// stamped with laws 13 keeps the hair it had.
 import { describe, it, expect } from 'vitest';
 import { expandLayeredManifest, heroRecord } from '../../mcp/tools/layered.js';
 import { compileLayered } from './station-loft.js';
@@ -37,8 +37,8 @@ function inside(recipe, turn) {
   return count;
 }
 
-describe('the realistic hair sealed against the neck and the body (laws 13)', () => {
-  const sealed = recipeAt(13), before = recipeAt(12);
+describe('the realistic hair sealed against the neck and the body (laws 14)', () => {
+  const sealed = recipeAt(14), before = recipeAt(13);
   it('lies outside the neck, the trunk and the upper neck at rest, and as the head turns and tilts', () => {
     // (a single point at the neck's buried foot reads as inside it: a few, never a sheet)
     for (const turn of [null, { yaw: -25 }, { yaw: 25 }, { roll: 12 }, { pitch: -15 }]) expect(inside(sealed, turn)).toBeLessThan(4);
@@ -53,7 +53,7 @@ describe('the realistic hair sealed against the neck and the body (laws 13)', ()
     const ahead = mesh.vertices.filter((v, i) => HAIR.has(mesh.provenance[i].part) && v[1] > 0.045 && v[2] < 1.37 && Math.abs(v[0]) < 0.09);
     expect(ahead).toEqual([]);
   });
-  it('keeps a hero stamped with laws 12 as it was: its hair falls by the height\'s rule alone', () => {
+  it('keeps a hero stamped with laws 13 as it was: its hair falls by the height\'s rule alone', () => {
     const W = Object.values(before.parts.hair.boneWeights ?? {});
     expect(W.every((w) => w.every(([b]) => ['head', 'neck', 'torso'].includes(b)))).toBe(true);
   });

@@ -178,7 +178,7 @@ export function bodyField(R, build, { extra = [] } = {}) {
     for (const h of dimples) d = smaxp(d, -(len(sub(q, h.c)) - h.r), h.k);
     return d - fatAt(q0);
   };
-  // THE THROAT LINE (`throat`, realistic laws 13): the front from the throat to the chest no further forward than the
+  // THE THROAT LINE (`throat`, realistic laws 14): the front from the throat to the chest no further forward than the
   // chord between them, on the body's own surface: the neck's front `top` (W) under the head's base, under the chin, the
   // chest's at `chest` up the torso bone; the chord's half-space cut off the front over `x0` of W either side of the
   // midline, eased out over `x1` beyond it and past the chord's ends, blended `k` (W). The neck's root and the blend

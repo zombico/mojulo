@@ -89,7 +89,7 @@ const smooth = (t) => { const x = Math.max(0, Math.min(1, t)); return x * x * (3
  * edge, `arch` lifting it. A spine runs through them, rising convex to the peak and falling to the tail. Its width is
  * broad at the head and narrows past the peak to a fine tail. `side` is the bridge's for this side (pulled by the
  * brow's action: the strings carry the brow with the fold); at rest when absent. Returns { spine(u) → {x, z},
- * slope(u), width(u), span, sg, uK } for u ∈ [0, 1] medial → lateral, in V. `round` (realistic laws 13, the seat's level
+ * slope(u), width(u), span, sg, uK } for u ∈ [0, 1] medial → lateral, in V. `round` (realistic laws 14, the seat's level
  * 2): the arch lower, `BROW_ROUND.arch` of its rise, and its fall to the tail a quarter sine like its rise, so the peak
  * is a curve, not a point (the fall's power pinched it, an angular brow).
  */

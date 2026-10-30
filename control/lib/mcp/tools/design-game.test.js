@@ -312,16 +312,17 @@ describe('design_game: party battles on the book path (battles)', () => {
     const level = SketchRepository.getByRef('gc-level-meadow-ascent-0');
     expect(level.manifest.play.party).toContainEqual({ who: 'party-1' });
     const { payload } = await resolveWorldScene(level);
-    const fig = payload.figures['party-1'];
-    expect(fig.clips.topple).toEqual(fig.clips.knockedOutDown);
-    expect(fig.clips.getup).toEqual(fig.clips.knockedOutUp);
-    expect(fig.clips.stagger).toBeTruthy();
-    // the mascot, the beast-kin on the creature loop's rig and the wolf walk beside them on their own clips, no library
+    // (the beast-kin on the tiered body plays a person's moves as the party member does: casting.js beastOnTiered)
+    for (const id of ['party-1', 'kin']) {
+      const fig = payload.figures[id];
+      expect(fig.clips.topple).toEqual(fig.clips.knockedOutDown);
+      expect(fig.clips.getup).toEqual(fig.clips.knockedOutUp);
+      expect(fig.clips.stagger).toBeTruthy();
+    }
+    // the mascot and the wolf walk beside them on their own clips, no library
     expect(level.manifest.play.party).toEqual(expect.arrayContaining([{ who: 'sprite' }, { who: 'kin' }, { who: 'pet' }]));
     const own = (id) => payload.figures[id].clips;
     expect(own('sprite').forward).toEqual(own('sprite').run);
-    expect(own('kin').forward).toEqual(own('kin').jog);
-    expect(own('kin').topple).toEqual(own('kin').knockedOutDown);
     expect(own('pet').forward).toEqual(own('pet').trot);
     expect([own('pet').stagger, own('pet').topple, own('pet').getup]).toEqual([own('pet').flinch, own('pet').fall, own('pet').rise]);
     expect([own('sprite').stagger, own('sprite').topple, own('sprite').getup]).toEqual([own('sprite').flinch, own('sprite').fall, own('sprite').rise]);

@@ -165,7 +165,7 @@ describe('the realistic hero at the door', () => {
     const HEAD = /^(headSkin|globe[RL]|mouth|ear[RL]|hair\w*|jewel\w*)$/;
     expect(m.recipe.headFit.skinFaces).toBe(ONE_SKIN_RUNGS.L0.faces); expect(bare.recipe.headFit.skinFaces).toBeUndefined();
     // (realistic laws 11: the lids seated on the globes, kept by the fit so the bake, the hair and the face rig rebuild it;
-    // laws 13 seats them under a brow of one section, the seat's level 2)
+    // laws 14 seats them under a brow of one section, the seat's level 2)
     expect(m.recipe.headFit.seat).toBe(2); expect(bare.recipe.headFit.seat).toBe(2);
     expect(faces(m, /^headSkin$/)).toBeLessThan(ONE_SKIN_RUNGS.L0.faces * 1.15);
     expect(faces(m, HEAD)).toBeLessThan(faces(bare, HEAD) / 2);
@@ -195,7 +195,7 @@ describe('the realistic hero at the door', () => {
     const at = (face, extra = {}) => expandLayeredManifest({ kind: 'layered', hero: heroRecord({ form: 'realistic', cast: 'male', ...(face ? { face } : {}), ...extra }) }).recipe;
     const plain = at(null), a = at({ seed: 1, ethnicity: 'african' }), b = at({ seed: 2, ethnicity: 'african' });
     expect(a.parts.headSkin).not.toEqual(plain.parts.headSkin); expect(a.parts.headSkin).not.toEqual(b.parts.headSkin);
-    // (a hero with no face carries only its raised ear, realistic laws 10, and its even face, laws 13, so whatever rebuilds
+    // (a hero with no face carries only its raised ear, realistic laws 10, and its even face, laws 14, so whatever rebuilds
     // its head rebuilds them)
     expect(a.headFit.relations).toBeTruthy(); expect(plain.headFit.relations).toEqual(evenFace(raisedEar(null, 'male'), 'male'));
     // (the ancestry's deep tone, unless the hero's skin or palette names one)

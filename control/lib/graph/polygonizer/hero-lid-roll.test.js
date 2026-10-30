@@ -1,8 +1,8 @@
 // The realistic lid ROLLS shut (hero-relational-head.js SKIN_FOLLOW `roll`, `cornerCap`) over a brow that is one section
-// (realistic laws 13, head-relational-eye.js SEAT `section`): on one realistic hero's one skin, a blink spreads the shut
+// (realistic laws 14, head-relational-eye.js SEAT `section`): on one realistic hero's one skin, a blink spreads the shut
 // lid's length over the whole strip from the margin to the fold's lip (the skin under the fold unrolled), so no band of
 // it stretches past twice and tears into a sawtooth, and the inner corner is not swung through its ill-posed turn; the
-// brow's section cuts no crease, where the seat of laws 11 and 12 still does.
+// brow's section cuts no crease, where the seat of laws 11 to 13 still does.
 import { describe, it, expect } from 'vitest';
 import { expandLayeredManifest, heroRecord } from '../../mcp/tools/layered.js';
 import { oneSkinFollow } from './hero-relational-head.js';
@@ -26,7 +26,7 @@ function stretch(recipe) {
   return out;
 }
 
-describe('the realistic lid rolls shut over a brow of one section (laws 13)', () => {
+describe('the realistic lid rolls shut over a brow of one section (laws 14)', () => {
   const recipe = expandLayeredManifest({ kind: 'layered', hero: heroRecord(SPEC) }).recipe;
   it('spreads the shut lid over its whole strip: no band stretched past twice, the inner corner unswung', () => {
     expect(recipe.headFit.seat).toBe(2);
@@ -36,7 +36,7 @@ describe('the realistic lid rolls shut over a brow of one section (laws 13)', ()
     expect(S.filter((x) => x > 2).length).toBeLessThan(100);
     expect(Math.max(...S)).toBeLessThan(4);
   });
-  it('cuts no crease under the brow at seat 2; the seat of laws 11 and 12 keeps its crease', () => {
+  it('cuts no crease under the brow at seat 2; the seat of laws 11 to 13 keeps its crease', () => {
     const H = relationalHead({ sex: 'female', seat: true }), P = H.relational.points, arcs = browBridge(P, {}, { seat: true }).arcs;
     const at = (seat) => H.relational.eyeRigs.map((e) => eyeRig(P, e.side, e.channels, H.relations.fissure, arcs[e.side], H.relations.lidSplit, { seat }).crease);
     expect(at(2).every((c) => !c)).toBe(true);

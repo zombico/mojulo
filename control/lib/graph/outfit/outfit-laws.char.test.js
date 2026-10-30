@@ -20,14 +20,25 @@ import { heroRecord, expandLayeredManifest } from '../../mcp/tools/layered.js';
 // (rings re-pinned for the hero laws 2, a body change: the hero minted now lifts its neck's root, hero-form.js
 // SHOULDER_LINE, and the garments that reach the shoulders follow it; the expansions, the laws hashes, unchanged; and
 // again for the hero laws 3, hero-form.js LEG_SET, the leg turned back about the ankle: every garment on the legs or
-// the seat follows the hip's joint)
+// the seat follows the hip's joint; and laws and rings rewritten in place for the waistband (1029, unreleased, at the
+// operator's word: outfit law 2, a waistband has no ease, body-garment.js `waistband` on the trousers' seat; the dress
+// has no seat and keeps its bytes); and the rings again for the game body's construction (1029, unreleased): a sleeve
+// that starts on the arm's first ring takes its cap out past the skin's at the shoulder (authored-jacket.js sleeveSeams:
+// every case with a sleeve but the trousers worn out), the outer layer fitted onto what it is worn over (fitJacket), and
+// the shirt's collar stood on its neckline (standCollar: the tucked shirt's); the laws unchanged; and the tucked shirt's
+// laws and rings rewritten in place (1029, unreleased, at the operator's word: "restructure shirt collars") for the
+// collar as one construction, its kind and its front carried on its stand and its fall made over it (outfit/collar.js,
+// polygonizer/shirt-collar.js: `collar: true` a shirt collar, closed); and the tucked case's laws and rings
+// rewritten in place (1029, unreleased, at the operator's word: "are the chest fits too wide … the corrected method"):
+// a collared woven shirt worn outermost is fitted as a jacket is (the expander's `tailoring.shirt`, authored-jacket.js
+// fitShirt)
 const PINS = {
   1: {
-    'out': { laws: '6b63e2d4125c3c4d', rings: 'b0b17af3f724b51d' },
-    'tucked': { laws: '2699679ced951074', rings: '93b7fe6a8f127edd' },
-    'dress': { laws: 'bb1fe989040c0422', rings: '2653063e545832d6' },
-    'outer': { laws: '537daebbd9973246', rings: 'b1531c36edba8029' },
-    'panels': { laws: '157d53eaabdb1ce6', rings: 'a66206304b231551' },
+    'out': { laws: 'c3f82aeccde0da38', rings: 'a9f475582083f731' },
+    'tucked': { laws: '073a4630d0cf5381', rings: 'c0c778e90ca68f5c' },
+    'dress': { laws: 'bb1fe989040c0422', rings: '3788f9213ce322f3' },
+    'outer': { laws: '127769bbfdd8e767', rings: '2404c186875fb4d7' },
+    'panels': { laws: 'd114d51d72f13d3b', rings: '8d4abf177cd7aa55' },
   },
 };
 

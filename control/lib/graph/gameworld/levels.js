@@ -87,7 +87,7 @@ export function gameStages(world) {
     const R = resolveLevel(G, level);
     if (R.style?.hour !== undefined) hours[level] = R.style.hour;
     // a building level is one stage: its rooms laid from its program (or the building already made, by ref)
-    if (R.building) { out.push({ level, node: 'building', section: 'building', index: 0, building: R.building, manifest: R.building.ref ? null : inPalette(buildingStage(R.building), R.style?.palette ?? G.style?.palette, `${level}/building`) }); continue; }
+    if (R.building) { out.push({ level, node: 'building', section: 'building', index: 0, building: R.building, manifest: levelBuildingStage(G, R, level) }); continue; }
     // a city level is its segments: a line of them from its way in to its way out in a linear world, all of them in a map
     if (R.city) { out.push(...cityStages(level, R.city, G.topology === 'interconnected')); continue; }
     // a runner level is one stage: the run (worlds/controllable/runner.js), its ground a floor, its rows laid in play
@@ -902,10 +902,19 @@ function inPalette(manifest, P, at) {
   return { ...manifest, art: { seed, ...rollArt(manifest.kit, seed), palette: { seed: K.spec.seed, from: K.spec, ...artPalette(K) }, status } };
 }
 
+/** The stage a building level is built as (its program on its kit, in its palette): what a run makes and what the book
+ *  shows its finishes from (finishes.js); null for a building by ref, played as it was made. */
+export const levelBuildingStage = (G, R, level) => (R.building.ref ? null : inPalette(buildingStage(R.building), R.style?.palette ?? G.style?.palette, `${level}/building`));
+
 /** The inside of a building entered by its door: its program on its room kit, played from its door `out` (which
  *  leads back out) to its goal room. */
 export function interiorStage(inside) {
   const anchor = typeof inside.civilization === 'string' ? inside.civilization : undefined;
+  // (a base's building, or one given a look, is composed as a building level is: its bay kit, its rooms stocked)
+  if (PROGRAMS[inside.use]?.base || inside.look !== undefined) {
+    const { level: _l, ...S } = buildingStage({ use: inside.use, seed: inside.seed ?? 1, rooms: inside.rooms, add: inside.add, kit: inside.kit, anchor, look: inside.look, tone: inside.tone });
+    return { ...S, level: { door: 'out' } };
+  }
   return {
     kind: 'stage', kit: inside.kit ?? roomKitFor(anchor),
     program: { use: inside.use, seed: inside.seed ?? 1, ...(inside.rooms ? { rooms: inside.rooms } : {}), ...(inside.add ? { add: inside.add } : {}), ...(inside.civilization !== undefined ? { civilization: inside.civilization } : {}) },
@@ -927,7 +936,10 @@ const roomKitFor = (anchor) => (anchor === 'shell' ? 'research-lab' : 'gothic-st
 
 /** A building level's stage recipe: its program in its civilization's language, dressed by its kit or cube. */
 export function buildingStage(B) {
-  const { use, seed, rooms, add, kit, geocube, goal, from, anchor } = B;
+  const { use, seed, rooms, add, kit, geocube, goal, from, anchor, look, tone } = B;
+  // (a military base's building is composed, so its rooms are stocked by their uses (era/stocking.js): by the look of the
+  // walled-core dungeon's space it is, else by its kit's own register; its space's tone colours it)
+  const composed = look || PROGRAMS[use]?.base ? { compose: look ? { construction: look.construction, palette: look.palette } : {} } : {};
   // (a building's use names its bay kit, whatever the world's language, and takes its plan's settings: era/programs.js)
   const plan = Object.fromEntries(['storeys', 'wings', 'loading', 'bays'].filter((k) => B[k] !== undefined).map((k) => [k, B[k]]));
   return {
@@ -935,6 +947,7 @@ export function buildingStage(B) {
     ...(geocube !== undefined ? { geocube } : { kit: kit ?? PROGRAMS[use]?.kit ?? roomKitFor(anchor) }),
     program: { use, seed, ...(rooms ? { rooms } : {}), ...(add ? { add } : {}), ...(anchor !== undefined ? { civilization: anchor } : {}), ...plan },
     level: { ...(goal !== undefined ? { goal } : {}), ...(from !== undefined ? { from } : {}) },
+    ...composed, ...(tone !== undefined ? { tone } : {}),
   };
 }
 

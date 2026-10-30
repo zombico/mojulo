@@ -185,7 +185,7 @@ function bodyColliders(recipe, toChart, seal = null) {
   if (seal) out.push({ vertices: seal.vertices.map(toChart), normals: seal.normals, samples: seal.keep.map((k, i) => k && seal.under[i]) });
   return out;
 }
-/** THE SEAL (realistic laws 13): hair lying on the body moves as the skin under it moves. A hanging point within `near`
+/** THE SEAL (realistic laws 14): hair lying on the body moves as the skin under it moves. A hanging point within `near`
  * (m) of the neck, the trunk, the upper arms or the head's skin below its base takes that skin's own bones (the jaw's share
  * the head's: hair by the jaw never opens with the mouth), eased out to the height's rule by `far`; the head's skin below
  * its base (the upper neck under the jaw, the head's one skin's) is a collider the hair falls outside, as the neck is; and
@@ -256,7 +256,7 @@ export function heroLockHair(recipe, dermis, scalp, { level = 'L1', budget = fal
   const head = relationalHead({ sex, tune: fit.tune ?? HEAD_TUNES[sex], ...(relations ? { relations } : {}), ...(eyes ? { eyes } : {}) });
   const centre = [0, head.landmarks.eyeR.y * STAND_M * 0.3, head.landmarks.eyeR.z * STAND_M];
   const sc = k / STAND_M, toHero = (q) => [q[0] * sc, q[1] * sc + ty, q[2] * sc + men], toChart = (p) => [p[0] / sc, (p[1] - ty) / sc, (p[2] - men) / sc];
-  // (realistic laws 13: the hair SEALED against the neck and the body, HAIR_SEAL)
+  // (realistic laws 14: the hair SEALED against the neck and the body, HAIR_SEAL)
   const sealed = seal ? sealSkin(recipe) : null;
   const H = lockHair(relationalHeadChart(head, { cells: CELLS }), D, S, { level, centre, stylize, colliders: bodyColliders(recipe, toChart, sealed), seal: !!sealed });
   const cap = budget ? leanCoat(H.cap, HEAD_BUDGET[level]?.coat) : H.cap;

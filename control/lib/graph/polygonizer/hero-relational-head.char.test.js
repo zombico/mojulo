@@ -100,7 +100,7 @@ describe('the relational head, pinned', () => {
     expect(r.headFit.seat).toBe(true); expect(r.parts.teethUpper).toBeUndefined();
     expect(pinOf(r, ONE_PARTS)).toBe(pin);
   });
-  // (laws 12: the mouth with teeth; laws 13's brow of one section is the lid roll's, hero-lid-roll.test.js)
+  // (laws 12: the mouth with teeth; laws 14's brow of one section is the lid roll's, hero-lid-roll.test.js)
   for (const [cast, pin] of Object.entries(TEETH_PINS)) it(`${cast}, one skin, the lids seated, the mouth with teeth`, { timeout: 240000 }, () => {
     const r = expandLayeredManifest({ kind: 'layered', hero: heroRecord({ cast, form: 'realistic', head: 'relational', physique: { laws: 12 } }) }).recipe;
     expect(r.headFit.seat).toBe(true);

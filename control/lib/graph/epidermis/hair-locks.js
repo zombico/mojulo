@@ -488,7 +488,7 @@ export function lockHair(chart, D, S, { level = 'L1', centre = [0, 0, 0], styliz
       if (!tied && !stand && !ride) { const N0 = spine.length - 1, tEnd = unit(sub(spine[N0], spine[N0 - 1])), end = toEdge(spine[N0], scl(tEnd, -1), (q) => !grows[skin.nearest(q)] || exempt(q)); if (end) { spine = [...spine, end]; cutEnd = true; } }
       // (a flow that reaches the cut's line keeps its width to it, cut there: only a free end draws to its tip)
       const along = (u) => (cutEnd ? Math.min(u, LOCK_EDGE.held) : u);
-      // (`seal`, realistic laws 13: a stroke STOPS where it meets the body, as it does on the head. Where its spine runs into
+      // (`seal`, realistic laws 14: a stroke STOPS where it meets the body, as it does on the head. Where its spine runs into
       // a collider (the neck, the trunk, the upper arms, the upper neck under the jaw) it is cut there and tapers to its end;
       // one cut back to its root is dropped. A guide falls past the body, which it never meets; pushed out point by point,
       // a spine through the neck came out the far side, wrapped round the throat and down the chest)

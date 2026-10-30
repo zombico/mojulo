@@ -117,7 +117,7 @@ gives the mouth's articulation to whatever drives it. The eyes gate is the opera
   additive layer as the breath is. `/hero-live` plays it with the breath, and `face.mjs` writes it. And `/hero-live`'s
   tuned clips no longer shake the body: they were bound to their joints by uuid where the loader binds by name, two
   mixers writing one joint (`heroLive.probe` reads the playback and found it).
-- **The hair sealed against the neck and the body** (realistic laws 13, `hero-head-layers.js` `HAIR_SEAL`): the head's
+- **The hair sealed against the neck and the body** (realistic laws 14, `hero-head-layers.js` `HAIR_SEAL`): the head's
   skin below its base (the upper neck under the jaw, which the head's one skin covers) is now a collider the hair falls
   outside, as the neck part is; and a hanging point within a few centimetres of the skin takes that skin's own bones (the
   neck's, the trunk's, the clavicles', the shoulder blades'; the jaw's share the head's, so hair by the jaw never opens
@@ -128,10 +128,10 @@ gives the mouth's articulation to whatever drives it. The eyes gate is the opera
   throat and down the chest (two strokes from the temples crossing under the jaw, four from the nape); now it is cut
   where it runs in and tapers there, and one cut back to its root is dropped. On one long-haired hero: 236 hair points
   inside the upper neck at rest (to 26 mm), up to 360 inside the back with the head turned (to 30 mm) and six strokes
-  across the throat under laws 12; none of any under 13, at rest, turned, tilted or nodding. A hero stamped with laws 12
+  across the throat under laws 13; none of any under 14, at rest, turned, tilted or nodding. A hero stamped with laws 13
   or before keeps its hair.
 - **The lid ROLLS shut, and the space under the brow is one section** (`hero-relational-head.js` `SKIN_FOLLOW` `roll`,
-  realistic laws 13 `head-relational-eye.js` `SEAT.section`). A blink stretched the upper lid in one band: the lid
+  realistic laws 14 `head-relational-eye.js` `SEAT.section`). A blink stretched the upper lid in one band: the lid
   turned whole only up to a fifth of its height and less and less above, so a band from a fifth to seven tenths of the
   way to the crease stretched past twice and tore into a sawtooth. Now the lid's skin is a STRIP from the margin to the
   fold's lip, measured along the skin, and shut, each point lies as far along the shut lid as it lay along the open
@@ -141,15 +141,15 @@ gives the mouth's articulation to whatever drives it. The eyes gate is the opera
   the middle's 33°, which swung the skin beside the corner through all of it (streaks down the inner corner). The blink
   also lifts the lower lid a touch, so the lids meet a little below the middle, and the rolled skin is drawn taut (a few
   rounds of Taubin's smoothing: turned whole, each point kept its rest's small creases, lumps across the shut lid). Under
-  laws 13 the rest shape helps: the fold rises out of the lid a third as steeply and no crease is cut, where laws 11 and 12
+  laws 14 the rest shape helps: the fold rises out of the lid a third as steeply and no crease is cut, where laws 11 to 13
   stacked the lid's top, a cut crease and the fold's hooked underside under the brow (three dark bands, and three layers a
   closing lid had to cross); and the skin's baked occlusion is read with the lids shut as well as open, each point the
   more open of the two, so the skin a blink brings out of the cove under the brow carries no shadow onto the shut lid. On
   one hero's right eye, shut against open: edges stretched past twice 201 → 39, the worst 7.1× → 3.3×, folds sharper than
   45° between neighbours 223 → 55 (62 open). Every realistic hero's face rig rebuilds on its next export (face store v8); a
-  hero stamped with laws 12 or before keeps its brow and its paint. (The smoky stain round a shut eye in `/hero-live` is
+  hero stamped with laws 13 or before keeps its brow and its paint. (The smoky stain round a shut eye in `/hero-live` is
   the viewer's own soft shadow, the brow's, at its shadow map's millimetre and a half a texel.)
-- **The eye out of its cove, one arc over it, a rounder brow** (realistic laws 13, `head-relational-eye.js` SEAT
+- **The eye out of its cove, one arc over it, a rounder brow** (realistic laws 14, `head-relational-eye.js` SEAT
   `forwardOut`, `shelf`; `epidermis.js` `BROW_ROUND`). The eye comes out until its cornea is a third as far behind the
   glabella (the lid about 4 mm forward), so the brow no longer shadows a cove over the lid; the fold steps forward out of
   the crease as a near-level SHELF as far as the brow's own face, so from the front the brow's skin runs down to one arc
@@ -162,7 +162,7 @@ gives the mouth's articulation to whatever drives it. The eyes gate is the opera
   Face store v9 (the corner's cap and the taut pass changed the actions under keys that did not see them). A face lock
   of one guide (`hair-locks.js` `lockStrands`) takes the default spacing: with no neighbour it was infinite and every point
   of its flow NaN, which a jaw's beard of one guide hit once the eye came forward.
-- **The face even from 3/4 and below** (realistic laws 13, `head-relational.js` `EVEN_FACE`, `evenFace`; the new relation
+- **The face even from 3/4 and below** (realistic laws 14, `head-relational.js` `EVEN_FACE`, `evenFace`; the new relation
   `cheekBack`). The cheek's balloon (the buccal fat and the malar pad as one mass) stood forward of the face from 3/4 and
   below, a heavy cheek over a jaw's side too slight, a lump beside the mouth. Now offsets over the face's own relations
   (or its pole's) take volume off the cheek's front and give it to the jaw's side: the balloon 0.15 less full and its
@@ -171,7 +171,7 @@ gives the mouth's articulation to whatever drives it. The eyes gate is the opera
   masseter heavier, and the ear 0.015 forward (the new relation `earForward`, its hinge and the probe that finds the skin
   under it). The front's silhouette keeps its top and widens at its foot, narrowing from the temple to the jaw and never
   wider than the vault behind it (held by `hero-face-even.test.js`, a principle and not a pin); never the hollowed, gaunt
-  cheek. Kept in the head's fit, so the bake, the hair and the face rig rebuild the same head. Laws 12
+  cheek. Kept in the head's fit, so the bake, the hair and the face rig rebuild the same head. Laws 13
   and before keep the cheeks they had.
 - **`/hero-live`'s emotes no longer shift the jaw.** A face sidecar (`face.mjs`) solved on an earlier mint of the hero
   kept its head layers' joint positions over that mint's rest, so where the jaw's joint had since moved (3.3 mm), every
@@ -185,15 +185,15 @@ gives the mouth's articulation to whatever drives it. The eyes gate is the opera
   outer; laws 12 2.0, 1.8, 1.8) and the worried brow its inner end 1.6 mm, its tail kept. Face store v10. The face rig's
   test now reads the worried brow by its thirds, as its principle says: the inner end as far as the raise's, the tail
   kept.
-- **The throat in one slope** (realistic laws 13, `body-relational-builds.js` `THROAT_LINE`, `body-relational-field.js`
+- **The throat in one slope** (realistic laws 14, `body-relational-builds.js` `THROAT_LINE`, `body-relational-field.js`
   `throat`). From the side the front from under the chin to the chest bulged: the neck's root, the collarbones' heads and
   the sternocleidomastoids' feet, blended wide, tented forward at the neck's base into a ledge under the chin (on one
   heroine 77 mm forward 10 cm under the chin where the throat stood at 57 and the chest at 88; on one hero 92 against
   62 and 102). The body's field is now cut back to the chord from the throat (under the head's base) to the chest, on
   its own surface, over the front either side of the midline and eased out beyond: her front runs 56, 59, 64, 69, 73,
   77, 81, 84, 88 mm down to the chest, his tent 92 → 77, male and female alike. Held by a principle (the midline's front
-  within 2.5 mm of the line from the throat to the chest), not a pin. Laws 12 and before keep their necks.
-- **The globe covered, every head** (realistic laws 13, `head-relational-eye.js` `cover`, `COVER_DEEP`; `SEAT.forwardOut`
+  within 2.5 mm of the line from the throat to the chest), not a pin. Laws 13 and before keep their necks.
+- **The globe covered, every head** (realistic laws 14, `head-relational-eye.js` `cover`, `COVER_DEEP`; `SEAT.forwardOut`
   per sex). With the eye brought forward and the cheekbone set back, the man's globe showed bare beside his cheekbone,
   under his lower lid and in a slit beside the nose's bridge. Now the face's skin about an eye never lies inside the lids'
   shell (the globe and a lid's thickness, about the globe's own centre, so no look moves it) but where the opening is

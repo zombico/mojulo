@@ -264,7 +264,7 @@ export function cervicalNeck(build, name) {
 }
 
 /**
- * THE THROAT LINE (realistic laws 13): the front from under the jaw to the chest one slope. The neck's root, the
+ * THE THROAT LINE (realistic laws 14): the front from under the jaw to the chest one slope. The neck's root, the
  * collarbones' medial heads and the sternocleidomastoids' feet, blended wide, tented forward at the neck's base into a
  * ledge under the chin, the throat bulging forward of the line from the jaw to the chest (17 mm of it, on one hero): the
  * build's field is cut back to the chord from the neck's top to the chest (body-relational-field.js `throat`), each

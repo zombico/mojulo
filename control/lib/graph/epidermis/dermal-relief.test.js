@@ -63,7 +63,7 @@ describe('the realistic head\'s relief', () => {
     const mean = (a) => a.reduce((s, x) => s + x, 0) / a.length;
     expect(acc.fold.length).toBeGreaterThan(40); expect(acc.cheek.length).toBeGreaterThan(5);
     expect(mean(acc.fold)).toBeGreaterThan(4 * mean(acc.cheek));
-    // (flat on the cheek: well under a degree; the even face's cheek, realistic laws 13, is rounder where it is read)
+    // (flat on the cheek: well under a degree; the even face's cheek, realistic laws 14, is rounder where it is read)
     expect(mean(acc.cheek)).toBeLessThan(0.8);
   });
 

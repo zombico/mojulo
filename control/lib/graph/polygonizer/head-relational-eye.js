@@ -41,7 +41,7 @@ export const GLOBE = Object.freeze({ r: 0.052, back: 0.063, cornea: 0.034, iris:
  * the brow's head and tail] (the fold's arch was a tall cove over the lid); and the eye (its globe, lids and lashes) sits
  * `forward` [a share of the way from the cornea toward the nose's tip, the least its cornea stays behind the glabella]
  * out of a socket that set it deep behind the brow (a deep-set eye comes forward; one already near the brow's line stays,
- * where the share alone stood it proud of the face). Seated as ONE SECTION (`seat` 2, realistic laws 13) the eye comes
+ * where the share alone stood it proud of the face). Seated as ONE SECTION (`seat` 2, realistic laws 14) the eye comes
  * out by `forwardOut`, per sex (hers a third as far behind the glabella: set deep, the lid sat in a cove the brow
  * shadowed; his a little less out, the globe's flank bare beside his cheekbone when brought as far),
  * the fold leans out of the knee by `section` instead, a third as steep, and no crease is cut: the lid runs up into the
@@ -419,7 +419,7 @@ export function eyeRig(P, s, c, fissure, arc = browBridge(P).arcs[s], split = 0.
     return (u < uc ? 1.14 : 1) * (0.72 + 0.5 * fibres) * (1 + 0.22 * collarette) * (1 - 0.45 * crypt) * (1 - 0.5 * limbal * limbal) * (1 - 0.35 * ruff);
   };
   const bound = { c: { x: e.x, y: e.y, z: e.z }, r: 0.16 };
-  // THE GLOBE COVERED (`seat` 2, realistic laws 13): the face's skin about the eye never lies inside the lids' shell (the
+  // THE GLOBE COVERED (`seat` 2, realistic laws 14): the face's skin about the eye never lies inside the lids' shell (the
   // globe and a lid's thickness, about its own centre, so no look moves it), but where the opening is carved through it:
   // with the eye brought forward the cheekbone, the socket's floor and the nose's side had left the globe's flank bare
   // between them and the lower lid, the sclera seen from below and beside

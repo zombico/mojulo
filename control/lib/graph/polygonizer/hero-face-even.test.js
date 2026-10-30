@@ -1,4 +1,4 @@
-// The realistic face EVEN (realistic laws 13, head-relational.js EVEN_FACE): held by its principles, not its bytes. On
+// The realistic face EVEN (realistic laws 14, head-relational.js EVEN_FACE): held by its principles, not its bytes. On
 // one realistic hero, from the front the face narrows from the temple to the jaw and nothing ahead of the ear stands
 // wider than the vault behind it; the even face is offsets over the face's own relations, kept in the head's fit.
 import { describe, it, expect } from 'vitest';
@@ -8,7 +8,7 @@ import { compileLayered } from './station-loft.js';
 
 const SPEC = { cast: 'female', form: 'realistic', face: { seed: 11, ethnicity: 'western' } };
 
-describe('the realistic face even (laws 13)', () => {
+describe('the realistic face even (laws 14)', () => {
   const recipe = expandLayeredManifest({ kind: 'layered', hero: heroRecord(SPEC) }).recipe;
   it('narrows from the temple to the jaw, and stands no wider than its vault', () => {
     const P = Object.values(recipe.parts.headSkin.mesh.points), G = Object.values(recipe.parts.globeR.mesh.points);
@@ -40,7 +40,7 @@ describe('the realistic face even (laws 13)', () => {
   });
 });
 
-describe('the globe covered (laws 13, head-relational-eye.js `cover`)', () => {
+describe('the globe covered (laws 14, head-relational-eye.js `cover`)', () => {
   // (the skin all round the eye's globe but through the opening, whatever the face and the sex: every point of the globe's
   // surface below it, out past its outer corner and in toward the nose lies under the skin; the field read, nothing minted)
   for (const sex of ['female', 'male']) it(`${sex}: the globe's flank never bare`, () => {

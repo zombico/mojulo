@@ -145,13 +145,13 @@ export const RELATIONS = Object.freeze({
 export const EAR_RAISE = Object.freeze({ male: Object.freeze({ earTop: 0.25, earBottom: 0.01 }), female: Object.freeze({ earTop: 0.5, earBottom: 0 }) });
 export const raisedEar = (rel = null, sex = 'male') => { const E = EAR_RAISE[sex] ?? EAR_RAISE.male; return { ...(rel || {}), earTop: (rel?.earTop ?? RELATIONS.earTop) + E.earTop, earBottom: (rel?.earBottom ?? RELATIONS.earBottom) + E.earBottom }; };
 /**
- * THE EVEN FACE (realistic laws 13): the cheek's volume taken off its front and given to the jaw's side, offsets over the
+ * THE EVEN FACE (realistic laws 14): the cheek's volume taken off its front and given to the jaw's side, offsets over the
  * face's relations (or its pole's): the cheek's balloon a little smaller and its bulge set back (`cheekBack`), her
  * cheekbone's front (`malarDepth`) set back, the lower arm fuller over the jaw's
  * body, the jaw's corners wider and its masseter heavier, and the ear a little forward (`earForward`), so the front's
  * silhouette keeps its top and widens at its foot, never past the vault's own width, and the profile runs even from 3/4
  * and below (the balloon at the pole's fullness stood forward of the face there over a jaw's side too slight, a heavy
- * cheek over a gaunt one, and the cheekbone and the brow's outer corner stood as bumps). Laws 1–12 keep the face they had.
+ * cheek over a gaunt one, and the cheekbone and the brow's outer corner stood as bumps). Laws 1–13 keep the face they had.
  */
 export const EVEN_FACE = Object.freeze({
   female: Object.freeze({ cheeks: -0.15, cheekBack: 0.06, malarDepth: 0.02, lowerCheek: 0.3, jaw: 0.08, masseter: 0.3, earForward: 0.015 }),
@@ -1051,7 +1051,7 @@ export const HEAD_LAYERS = Object.freeze(['skin', 'skull']);
  * globe's own field and paint, to be built as its own part (hero-relational-head.js's one skin). `seat: true` rests
  * the lids on the globes (head-relational-eye.js `SEAT`): the skin about each opening cut back to the lid shell, so no
  * tunnel stands between the lids' margins and the eye (realistic laws 11); `seat: 2` also runs the space under the brow as
- * one section (`SEAT.section`, realistic laws 13).
+ * one section (`SEAT.section`, realistic laws 14).
  */
 export function relationalHead({ sex = 'male', relations = {}, layer = 'skin', tune = null, actions = null, eyes = null, ears: withEars = true, globes: withGlobes = true, seat = false } = {}) {
   const rel = { ...RELATIONS, ...RELATION_POLES[sex], ...relations };
@@ -1310,7 +1310,7 @@ export function relationalHead({ sex = 'male', relations = {}, layer = 'skin', t
       d = smax(d, -e.lidSpace(p), 0.005 * sc);
       if (e.seat) d = smax(d, -e.seat(p), SEAT.blend * sc);
       d = smin(d, e.lids(p), 0.008 * sc);
-      // (the globe covered by the skin all round, but through the opening: realistic laws 13, head-relational-eye.js)
+      // (the globe covered by the skin all round, but through the opening: realistic laws 14, head-relational-eye.js)
       if (e.cover) d = smin(d, e.cover(p), (0.002 + e.coverBlend(p)) * sc);
       if (e.opening) d = smax(d, -e.opening(p), 0.0025 * sc);
       if (e.coverEnds) d = smin(d, e.coverEnds(p), 0.002 * sc);
@@ -1356,7 +1356,7 @@ export function relationalHead({ sex = 'male', relations = {}, layer = 'skin', t
     V: sc, points: Pt, rest: byName(rest), moved: byName(vajras), eyes: eyeRigs.map((e) => e.channels),
     // the brow's bridge, strings and arcs (V), and the eye rigs' lash lines and globes, for the lashes
     bridge,
-    // (the seat's level: 2 the brow of one section, realistic laws 13, whose brow's arch is the rounder, epidermis.js browLine)
+    // (the seat's level: 2 the brow of one section, realistic laws 14, whose brow's arch is the rounder, epidermis.js browLine)
     ...(seat ? { seat } : {}),
     eyeRigs: eyeRigs.map((e) => ({ side: e.side, channels: e.channels, margins: e.margins, globe: e.globeV, ...(e.seat ? { seated: true } : {}) })),
   };

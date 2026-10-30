@@ -25,6 +25,50 @@ it, in the cube's style. A different style is a different cube (`{ from: <preset
   cube with `cliff: false` has none to fall from). `side` 'open' or 'far'; the coast takes the open side. A trail's own
   form wins, its `water: false` refuses the cube's; each body is an anchor and a water hazard, and adds a still
   (`lake`, `shore`, `river`, `falls`).
+- **Dunes** (`outside.dunes: true | { height?, spacing?, wind?, repose?, supply?, sinuous? }`): the land of every
+  trail the cube paints laid in wind-blown sand dunes (a trail's `ground.dunes`): a crest's metres over its trough (2.8),
+  crest to crest (26), the wind's way in degrees (0 across the trail, 90 along it), the slip face's angle (32°, dry sand's
+  angle of repose: a taller dune's face is longer), how much sand (0.75; low, crescents in patches), how far a crest wanders
+  (0.35). The walk keeps a firm street through them; their sand is cut into the ground, no grass on it. A trail's own
+  wins, its `dunes: false` refuses the cube's.
+- **Caves** (a trail's `ground.caves: [{ y, depth?, width?, height?, along?, mouth?, light? }]`): cut into the far cliff of the
+  cube's rock, its mouth in the cliff's foot at station `y`, `depth` metres in (10), then `along` metres behind the face
+  (a gallery); `width` (8) and `height` (5) its size, `mouth` a taller entrance flaring down to it (a mouth taller than
+  the rock over it opens as a cleft). Its walls are the cliff's rock and its ceiling a lid of the same rock under the
+  land, worn as the meru's rock is (strata and joints near the eye); its floor the land's soil, rock at the walls' feet,
+  nothing growing on it. It is lit by what it sees: the sky through its mouth, the sunlit land before it, the light its
+  walls carry in and round a bend; deep in it is dark. Past its daylight it is lit by its `light`, the register that
+  makes one rock a base's or a temple's: `fluorescent` (tubes along its crown, cold white; high-bay floods in a hall),
+  `torch` (sconces on both walls, warm; braziers in a hall) or `bio` (glowing growth at the walls' feet and from the
+  ceiling, cyan-green, faint); each lamp drawn bright and laying its light on the rock it can see, the same at any hour,
+  a register scaled with the cave. Each cave is an anchor (`kind: 'cave'`: its path, size, mouth, light, lamps).
+  Its walls, far end and ceiling are lined with the land's own boulders (two rows up each wall, slabs hung across the
+  ceiling), its mouth the cliff's own rock. A gargantuan cave wants a taller cliff and more rock behind it:
+  `ground.cliff.height` (to 40 m) and `ground.behind` (0 to 80 m of rock behind the cliff); `ground.room` (0 to 80 m)
+  widens a trail's site past its far side.
+- **A cavern** (a trail's `ground.cavern: true | { height?, skylight?, formations?, light?, cracks?, ends?, set? }`): the
+  whole trail underground, the same geocube land closed in by its cliffs (a wall raised along the open side and across
+  the ends) under a pretend ceiling of their rock, a dome its `height` (18 m) over the cliff tops. No grass, no trees;
+  its ground soil (the walk packed earth, the floor off it a darker dirt), scree round its rocks (its walls' feet, its
+  formations and boulders), the walk broken by stretches of its rock (worn bedrock, flagstones, plates) and patched with
+  gravel, its edges strewn with stones so no line shows, small rocks heaped along every wall's foot, each in the cube's
+  soil or rock; its walls in the meru's rock (strata and joints near the eye); water as a trail's (`ground.water`); stalagmites, stalactites and columns off the walk
+  (`formations` 0 to 1). It is lit by what it lets in and what it lights: `cracks` (0 to 1) jagged slits of day in the
+  ceiling, their light falling to the floor; a `skylight: { y, r? }`, a hole over the walk, a shaft of day; and its
+  register (`light`: torch, the default, fluorescent, bio, or daylight for none), its lamps along the walk; all of it
+  bouncing round the hall. `ends: 'open'` leaves a passage out under a lintel where the walk runs out of each end, the day
+  beyond it; closed by default. An anchor (`kind: 'cavern'`). Its COLOUR KEY is the colour theorist's, solved from the
+  cube's own palette and the register (the anchor's `key`, its laws read out): the world turns the register's light inside
+  its family (a torch toward the cube's soil, a tube toward its sky, a glow toward its accent), the dark and the bounce
+  take the opposite temperature (a warm key, a cool shade), the formations are paler than the walls, a crack the cube's
+  daylight. `set` dresses it as a walk's rooms (the scene composer's roles over the trail's beats): `true` (the register's
+  use: fluorescent a base, torch a temple, bio a grotto), a use (`'base' | 'temple' | 'grotto'`) or `{ use, mood }` (mood
+  even | drama, the default, | noir). Each beat's set piece stands at its focus off the walk (a generator, an altar or a
+  geode at the landmark, a prize or a reliquary at the exit, a find in a pocket, a barrier or standards at the way in),
+  on a plinth where the land falls; crates, drums, urns, braziers, crystals or fungus beside the walk, a passage left
+  clear; every piece in the key (its accent on a set piece), lit by the cavern, its fires and glows lamps of their own;
+  a key light over each focus brings it to the mood's ratio over the walk round it (a shaft of day in a warm or glowing
+  cave, a sodium in a cold one). Its pieces are prop anchors; the cavern's anchor reads the set out (`set`: its plot and its laws).
 - **Interiors** (`inside.interiors: { <name>: { reads?, bones?, size?, accentWall? } }`): rooms, over the cube's own
   (`inside.interior`, `room` unless named). Terrains and interiors share one set of names.
 - **Structures** (`structures: { <name>: [<structure>…] }`): fractal structures (`get_view_vocab({ id: 'structures' })`),
@@ -44,7 +88,7 @@ it, in the cube's style. A different style is a different cube (`{ from: <preset
   trail goes trodden snow, the grass thins under a cover and is gone under deep snow, leaves turned up carry it, and
   the walker leaves footprints. A bare season is the biocube's (`trees.season`).
 - **Styles** (`style`, era/arch-style.js): what the builders build, so no two places need look alike. A starter's id
-  (`STYLE_STARTERS`, e.g. `whitewashed-island`, `tudor-market`, `adobe-pueblo`, `art-deco`, `brutalist`), `{ from:
+  (`STYLE_STARTERS`, e.g. `whitewashed-island`, `tudor-market`, `adobe-pueblo`, `art-deco`, `brutalist`, `bay-and-gable`, `main-street`, `walk-up`), `{ from:
   <starter>, …changes }`, or your own: `{ read, class: 'ancient' | 'modern', language, materials, palette?, city? }`.
   `language` is an anchor or its elements on their rails (`{ from: 'timber-hall', elements: { roof: { pitch: 50 },
   quoins: null } }`: a whole element with its `kind` replaces, null drops). Openings are built where the language
@@ -83,11 +127,13 @@ A cube that names no domains offers one per terrain and one per interior.
   the stand-in and seen from its overlook: a place to walk, not a game (`seed`, `biocube`, `path`, `hour`, `clouds`
   as the other shows; the cube's `snow`; its own `trail` recipe: dials, ground, rocks). A scene asked in words: `words`
   ('a colorful grassy field in the daytime') read at mint into `cube`, `show: 'path'`, `hour`, `clouds`, `trail` and
-  `camera` by the game's own word table (gameworld/scene-words.js: lake, beach, river, waterfall the water; desert,
+  `camera` by the game's own word table (gameworld/scene-words.js: lake, beach, river, waterfall the water; dunes, erg the dunes; desert,
   alpine, coast a biome, its flora, ground and palette's character; the painted landscape's glyph words, each card's
   numbers read onto the cube, a splatch as the palette's axes, never its colours), each key written beside them kept;
   `camera` the still it is first seen from (`low`, `overhead`, `wide`, `close`); `brief` says what each word
-  decided; `hour` and `clouds` set an outside's sky (the city's too: past dusk its windows lit). A gritty
+  decided; a new scene (`show: 'path'` or `'trail'`, no seed yet) is drawn in gen-7, its cube's `era` stamped `gen-7`
+  at mint (the land, its stones and grass, its trees, bamboo and bushes as form, lit by the cube's light; a blossom
+  card's trees keep their painted look), `cube.era: 'gen-6'` for the painted render, a minted row keeping its own; `hour` and `clouds` set an outside's sky (the city's too: past dusk its windows lit). A gritty
   cube's street and city are painted from relief as its rock is: stone walls ashlar, plaster a lime render broken to the
   stone, roofs in courses, timber in boards; a city's walls between its windows and its sidewalks the same. `style`
   on the micro-town or micro-city builds it in that style, over the settlement's own; `path` dresses the trail its
@@ -97,6 +143,75 @@ A cube that names no domains offers one per terrain and one per interior.
   `show: 'hall'` its interior (its room, or an inside domain) walked as a HALL, rooms strung on a walk from the seed
   (era/in-hall.js: squeeze, reveal, landmark, pocket, rest; the kit's set piece in the landmark's room), `hall` its
   recipe (`run`, `heartbeat`, `beats`, `height`, `mouth`, `exit`), its laws on the answer;
+  `show: 'geotown'` a town on the cube's own land, its map first and LEVELLED: its streets keep the land's grade,
+  each building a level pad over its walk, a front bank and its steps between, a retaining wall where pads meet
+  (geotown/). `geotown: { evoke?, segment?, neighbourhood?, pattern?, streetscape?, grid?, hills?, blocks?, margin? }`: `evoke` how
+  it is told: `segment` (the default) one BLOCK SEGMENT, a few buildings back to back, each its own (`segment`: `houses`
+  six or eight, mostly semis, a share of the pairs split into two flats each (`pattern.duplex`: two doors at the porch,
+  a porch over the porch, a steel stair up the back), each a type of its pattern with a bay, a porch, its own roof,
+  walls and material tiles, each back yard
+  its own plan behind its own fence, a feature by its back door, in its middle and by its back fence (patio, deck;
+  lawn, beds, swing and slide, trampoline, pool; shed, kitchen garden, a large shade tree), a balcony over some, the
+  pattern's `yards` their weights; `main-street` shops built to a main street's walk under their signs and
+  awnings, each its own front (`pattern.shopfronts`: a sign band, a board, a blade, lettering on the glass or none; a
+  canvas, a flat canopy, a rounded awning or none; its own paint), a narrow alley behind them, houses backing onto it; `apartments` a walk-up and its lot among houses;
+  `lowrise` two rows of four-storey low-rises, balconies over their fronts, their lots behind; `park` (a
+  playground, a pavilion, benches); `school` (its building, schoolyard, staff lot, a field round a track) and `sports`
+  (a diamond, a pitch under lights, tennis courts, a field house), each two segments' ground, one block, proportioned
+  to its cells (the `sites` law; `apart`: never two fields side by side); `edge` a neighbourhood's edge on a MAJOR
+  street (four lanes, sparse trees in pits): two-storey shops, offices, a forecourt plaza and converted houses facing
+  it, each its type, a public lane behind them with garages off it, houses behind the lane;
+  a houses segment off the main and major streets may hold a MIDTOWN MANSION or two, `evoke.mansions`, each on a plot at least twice a house's, set
+  back on its lawn, its drive to a garage, a pool in its yard, a revival of its pattern's `mansion.types`);
+  `neighbourhood` four or more segments composed (the pattern's `annex`, `main-street`, `quiet-streets`,
+  `school-and-field`, `edges`, or `{ layout: ['EEE', 'HPH', 'EEE'], main?, major?: ['ew-0', 'ew-3'] }`: rows of
+  letters north to south, H houses, M main-street, A apartments, L lowrise, P park, S school, F sports, E edge, a wide letter side
+  by side one block; `main` the streets that are main, wider, their walks paved to the kerb; `major` the arterials an
+  edge faces; `bike` the streets with bike lanes; a local street two lanes and a parked side each way, a main or major
+  street four lanes and parking each side, bike lanes on some, all painted; a houses segment's access a rear lane with
+  garages or mutual drives to garages at the back; hydro poles and wires, street-name signs, hydrants, a main street's
+  bins, bike rings and post box, a major street's bus shelters), each segment tuned to its cell (its rows recut and spread, its `fits`
+  law), its `ports` its perimeter streets (a geocity's graph joins neighbourhoods at
+  them); `metro` every plot to scale (`grid` its blocks, up to 4 × 4). An evocation keeps the town to scale's measures
+  (`evokes`) on a window of its land. `streetscape` how close to the city, read from its sidewalk: `leafy` (the
+  default; a wide boulevard of maples, deep lawns, one side parked), `snug` (a grass strip and a tree here and there,
+  narrow lots a few steps from the walk, both sides parked, most fronts gated), `urban` (the walk paved to the kerb, no
+  street trees, row-tight lots of three storeys behind railings), or `{ from, setback: [least, most] m, gates: none |
+  some | most | all, parking: none | one | both, trees: share, lights: m, signals: n, stops: share }`; its parking
+  lanes are surface (the ledger's `parking`, the `parking` law), its fronts fitted to their setback; its STREET FURNITURE
+  streetlights at `lights` metres, a signal every `signals` crossings along a main or major street (stops on the minor
+  street between), all-way stops at `stops` of the local crossings, crosswalks and stop lines where controlled. Its
+  ground wears its pattern's `finishes` (the walk's scored concrete, the road's asphalt, brick paths, a stone kerb);
+  trees stand only in the town, each crown raised to start twice a person's height up, each held to its room so no
+  crown reaches a building (`room`); its border is bare. Read in the seventh generation its lawns grow the form's mown
+  grass, its trees grow as form (their litter round their feet), its hedges, beds, planters and foundation plantings
+  are the plant library's bushes and shrubs (`pattern.houseplants`), no trail's rubble or patches. `pattern` a block pattern (`bay-and-gable`, a
+  Toronto Annex; `{ from, …changes }`), `hills` the land (`{ height, span }` or false), `style` over the pattern's
+  houses'. The answer's `geotown` carries the ledger (every surface's square metres, the buildings' by use), the
+  segments, the ports and the laws;
+  `show: 'geocity'` a METRO on the cube's own land, its major streets first (geocity/): a spine through its core's
+  seat and arterials stepped out from it, tight at the core and looser outward, carving its neighbourhoods; each in a
+  ring (the core's towers, the frame's mid-rise, the outskirts at four storeys and lower, a geotown's own blocks), a
+  park in each, secondary nodes on the spine, mid-rise lining the arterials; its land falling to its water (a shore,
+  or water all round: an island). Built as massing: every block's buildings by its segment on terraces that keep the
+  streets' grade, lit windows past dusk. `geocity: { metro?, extent?, water?, core?, fall?, hills?, heights?, green?,
+  streets?, segments?, roads?, grammar?, outskirts?, evoke?, at?, along?, play? }`: `roads` each arterial's section
+  (`{ lane, parking, bike, lanes, median: { share, w }, oneway: { pairs, lanes }, streetcar: { spine, share, gauge,
+  row } }`: four lanes, a spacer on some, one-way pairs of three by the core, streetcars on the spines and some, the
+  metro's round lamps, signals, signs, crosswalks, paint, rails and overhead drawn near the camera, with its benches,
+  bins, hydrants, hydro poles, street trees and tiled ground); `lively` the share of each ring's blocks going up
+  (scaffolding, a crane, hoarding, barriers), parked or vacant; `geotowns` the geotown composed in at any grain, anywhere:
+  `{ 'D3': true | { neighbourhood: 'annex' } }` a neighbourhood laid by it (fitted by its ring), `{ 'D3.2.1': true |
+  { segment: 'main-street' } }` one block laid by its segment, filled and cropped to the block, all on the metro's land;
+  `metro` a card (`lakeshore`, a Toronto by
+  its lake; `harbour-island`; `{ from, …changes }`), the rest its settings over it. `evoke` how it is told: `metro`
+  (the default, every block to scale), `skyline` (its tall buildings and its water), `neighbourhood` (`at` one, by
+  default the core's nearest the seat), `corridor` (`along` an arterial, by default the spine from the shore) or
+  `segment` (`at` one block, by default a tower block by the seat): the evoked blocks wear facades (curtainwall,
+  punched stone, brick, a tower's shape, lit windows at night), the neighbourhoods round them massing, the rest the
+  skyline; `play` `game` (an evocation's default: what a walker covers compressed, never a storey) or `real`. The
+  answer's `geocity` carries the counts, the ledger, the neighbourhoods (ring, storeys, park, the beyond where a
+  geotown joins later), the region graph and the laws (an evocation's `evokes`: the metro to scale's measures);
 - a `stage`: `{ geocube, domain }` alone is the whole level: an island, a street on a trail (a domain with a town), or
   a room. Your `meru`, `trail`, `rooms`, `hour` or `town` win over the domain's;
 - a level: `{ geocube, domain, nodes }` paints every section, and lays a domain's street on its first trail;

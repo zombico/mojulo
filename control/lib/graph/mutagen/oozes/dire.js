@@ -13,6 +13,7 @@ export const ooze = {
     limbs: { fore: 1.35, hind: 0.8, paws: 1.5 },
     ears: { height: 1.15, sweep: 0.6 },
     head: { skull: { width: 1.15, height: 0.9 }, muzzle: { width: 1.15, height: 1.15 }, brow: 1.8, eye: 1.5, pace: 0.7 },
+    cover: { length: 'shaggy' },
     fangs: 2.8,
     hackles: { count: 6, height: 0.65, lean: 0.7 },
     coat: 0.35,
