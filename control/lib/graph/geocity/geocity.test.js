@@ -198,3 +198,74 @@ describe('the heights\' reader', () => {
     expect(() => readGeocity({ heights: { frame: { median: [2, 3] } } })).toThrow(/inside its rail/);
   });
 });
+
+describe('its blocks', () => {
+  const d = designGeocity({ metro: SHORE }, { seed: 3 }), M = d.metro;
+  const lots = d.regions.flatMap((r) => r.blocks).filter((b) => b.kind !== 'park');
+
+  it('shares out each neighbourhood once (its streets, blocks and park) and each block\'s ground once', () => {
+    expect(law(d, 'blocks').ok).toBe(true);
+    for (const r of d.regions) expect(r.ledger.streets + r.ledger.blocks + r.ledger.park).toBeCloseTo(r.area, 0);
+    for (const b of lots) expect(Object.values(b.surfaces).reduce((a, v) => a + v, 0)).toBeCloseTo(b.area, 2);
+  });
+
+  it('gives every block a segment of its ring, an edge and a main street their street along their long side', () => {
+    const OF = { core: ['tower', 'podium', 'square'], frame: ['midrise', 'slab'], outskirts: ['houses', 'main-street', 'edge', 'lowrise', 'apartments', 'school'] };
+    for (const b of lots) expect(OF[b.ring]).toContain(b.kind);
+    const longSides = (b) => (b.rect[3] - b.rect[1] >= b.rect[2] - b.rect[0] ? ['w', 'e'] : ['s', 'n']);
+    for (const b of lots.filter((x) => x.kind === 'edge')) expect(longSides(b).some((k) => b.sides[k].kind === 'arterial')).toBe(true);
+    for (const b of lots.filter((x) => x.kind === 'main-street')) expect(longSides(b).some((k) => b.sides[k].rank === 'collector')).toBe(true);
+    expect(law(d, 'segments').ok).toBe(true);
+  });
+
+  it('lays its outskirts\' ground as the geotown does: a houses block its houses, yards and paths, no street', () => {
+    const b = lots.find((x) => x.kind === 'houses');
+    for (const s of ['house', 'front', 'back']) expect(b.surfaces[s]).toBeGreaterThan(0);
+    for (const s of ['road', 'verge', 'walk', 'parking']) expect(b.surfaces[s]).toBeUndefined();
+    expect(b.surfaces.back).toBeGreaterThan(b.surfaces.front);
+  });
+
+  it('runs collectors across a wide neighbourhood and none across a narrow one', () => {
+    const wide = d.regions.find((r) => !r.park && r.rect[2] - r.rect[0] > M.streets.collector + 200 && r.rect[3] - r.rect[1] > M.streets.collector + 200);
+    expect(wide.streets.filter((s) => s.rank === 'collector').map((s) => s.axis).sort()).toEqual(['ew', 'ns']);
+    const narrow = d.regions.find((r) => !r.park && r.rect[2] - r.rect[0] < M.streets.collector && r.rect[3] - r.rect[1] < M.streets.collector);
+    expect(narrow.streets.filter((s) => s.rank === 'collector')).toHaveLength(0);
+  });
+
+  it('takes its streets round its park, never through it', () => {
+    const r = d.regions.find((x) => x.parkRect?.along === 'inland'), pk = r.parkRect.rect;
+    expect(r.blocks.find((b) => b.kind === 'park').rect).toEqual(pk);
+    for (const s of r.streets) for (const [a, b] of s.runs) {
+      const seg = s.axis === 'ns' ? [s.at - s.w / 2, a, s.at + s.w / 2, b] : [a, s.at - s.w / 2, b, s.at + s.w / 2];
+      const overlap = Math.max(0, Math.min(seg[2], pk[2]) - Math.max(seg[0], pk[0])) * Math.max(0, Math.min(seg[3], pk[3]) - Math.max(seg[1], pk[1]));
+      expect(overlap).toBeLessThan(1e-6);
+    }
+  });
+
+  it('stands its towers past their podiums, inside their rail, only on tower blocks, the tallest in the core', () => {
+    const towered = lots.filter((b) => b.towers);
+    expect(towered.length).toBeGreaterThan(0);
+    expect(towered.every((b) => b.kind === 'tower' && b.ring === 'core')).toBe(true);
+    for (const b of towered) for (const t of b.towers) { expect(t.storeys).toBeGreaterThan(b.podium); expect(t.storeys).toBeLessThanOrEqual(b.storeys.rail[1]); }
+    expect(law(d, 'towers').ok).toBe(true);
+  });
+
+  it('grows its green ground: a neighbourhood\'s soft ground its park and more', () => {
+    expect(law(d, 'soft').ok).toBe(true);
+    for (const r of d.regions.filter((x) => x.parkRect)) expect(r.soft).toBeGreaterThanOrEqual(r.parkRect.area);
+  });
+
+  it('rolls a neighbourhood\'s blocks on its own dice: the outskirts\' weights moved, the core stands as it was', () => {
+    const q = designGeocity({ metro: SHORE, segments: { outskirts: { houses: 1, apartments: 5, lowrise: 5 } } }, { seed: 3 });
+    const core = (x) => JSON.stringify(x.regions.filter((r) => r.builds === 'core').map((r) => r.blocks));
+    expect(core(q)).toBe(core(d));
+    const kinds = (x) => x.regions.filter((r) => r.builds === 'outskirts').flatMap((r) => r.blocks.map((b) => b.kind)).join();
+    expect(kinds(q)).not.toBe(kinds(d));
+  });
+
+  it('draws its blocks, cropped round a focus', () => {
+    const svg = geocitySheet(d, { view: 'blocks', focus: [d.regions[0].id], px: 1 });
+    expect(svg).toContain('tower');
+    expect(Number(/width="(\d+)"/.exec(svg)[1])).toBeLessThan(d.frame.W);
+  });
+});

@@ -5,12 +5,13 @@ its neighbourhoods, each in a ring out from its core, on land that rises and fal
 metro as `city/plan/` reads it into metres (its grammars: sections, towers, skins); the discipline is the geotown's
 (every square metre once, laws that advise, a sheet before a scene). Built toward its games: city hunter, and the
 Quest Open World (the walled-core dungeon's opposite pole: a map that opens sideways, connected and loaded as it is
-passed, a city or an island). Not wired to a kind yet: the map alone.
+passed, a city or an island). Not wired to a kind yet: the map and its blocks.
 
 - **A metro is a card** (`geocity/metro.js` METROS): its extent, its water (a shore along a side; all four an island),
   its core's seat, its land's FALL (metres toward a side: downtown down its spine to the lake) and the hills over it
   (a painted landscape's), its arterials' spacing (tight at the seat, looser past `reach`), its rings' reaches, its
-  heights, its green budget, its city grammar (`city/plan` grammars) and its outskirts' geotown pattern. Two starters:
+  heights, its green budget, its streets inside a neighbourhood (`streets`: the collector's span, the civic block's
+  least) and its segments' weights by ring, its city grammar (`city/plan` grammars) and its outskirts' geotown pattern. Two starters:
   `lakeshore` (a Toronto: the core by the lake, the land falling to the shore, the grid loosening northward) and
   `harbour-island` (the core on a harbour at the west shore, hills inland, water all round). A recipe's settings lay
   over its metro's (an object merged all the way down); anything off the card is refused by name.
@@ -39,14 +40,35 @@ passed, a city or an island). Not wired to a kind yet: the map alone.
   - each neighbourhood's own PARK (`geocity/parks.js`, the card's `green.park`) out of its quota by its ring's share,
     laid before its streets so they go round it: a band along the shore on the water (a lakeshore park), else a rect
     inside its interior clear of its frontages, its aspect rolled; under the least none, the quota left to its segments;
-  - the LEDGER: water, the arterials (each crossing once), parks and neighbourhoods, by ring; the green budget,
-    reserved, given out as quotas and placed as the neighbourhoods' parks.
+  - the BLOCKS inside each neighbourhood (`geocity/blocks.js`), each its own dice: COLLECTORS across a neighbourhood
+    wider than the card's span (a geotown main street's section), moved off its park to run along it; a street round
+    the park (a strip under a block's least between it and an edge the park's, so it may take a strip of frontage);
+    LOCALS between those, each gap cut into whole blocks of its ring's length (the grammar's square pitch in the core
+    and the frame, in its minor section; the geotown's long blocks running north and south in the outskirts, in its
+    street's section), cut where they would cross the park. Each block a BLOCK SEGMENT by ring (`geocity/segments.js`):
+    the core's `tower` (a podium, a tower or two on its corners rising past the block's median, the core's tail; a
+    plaza, a laneway, a ramp) and `podium` by weight, its `square` at its middle; the frame's `midrise` (round a planted
+    court) on an arterial and `slab` (on its lawn, the lower tall) by weight; the outskirts the geotown's own segments:
+    an `edge` where an arterial runs along a block's long side, a `main-street` where a collector does (a short end on
+    either is its houses' corners), a `school` at its middle, `houses`, `apartments` and `lowrise` by weight. The civic
+    block (the square, the school) the one nearest the middle, off the arterials where one is. Each block's storeys off
+    the field inside its ring's rail (on an arterial its frontage's), and its GROUND its segment's shares of its area:
+    the geocity's own surfaces (podium, building, plaza, planting, court, lawn, laneway, ramp, lot) in the core and the
+    frame, and in the outskirts the geotown's, read from the geotown's own design of each segment with its streets left
+    out, so an outskirts block keeps a geotown's measures;
+  - the LEDGER: water, the arterials (each crossing once), parks and neighbourhoods, by ring; inside each neighbourhood
+    its streets, blocks and park, and every block's ground by surface, summed for the metro; the green budget,
+    reserved, given out as quotas, placed as the neighbourhoods' parks and grown as soft ground.
 - **The laws** (`geocity/laws.js`), advice only: `closes`, `grade`, `rings`, `green`, `holds` (every outskirts
   neighbourhood holds a geotown neighbourhood of its pattern, two blocks by two), `ports`, and the Quest Open World's
   `open` (one part) and `sideways` (no bridge in the region graph: always two ways round); the heights' `skyline` (each
   ring's builders lower on the whole than the ring inside), `caps` (every interior and frontage inside its rail) and
-  `interior` (a neighbourhood keeps ground behind its frontages); `parks` (placed as the quotas ask, inside, clear).
-- **The sheet** (`geocity/sheet.js`), two views of one map: `rings` (each neighbourhood by the ring it builds as,
-  shaded by its ground's height) and `heights` (each by its median storeys, each arterial frontage band by its own);
-  the spine darker, the parks, the nodes, the portals, the crossings' heights, the ledger and the laws.
-  `scripts/spikes/geocity/geocity.mjs` writes both.
+  `interior` (a neighbourhood keeps ground behind its frontages); `parks` (placed as the quotas ask, inside); the
+  blocks' `blocks` (each neighbourhood's ground once, each block's surfaces its area), `pitch` (blocks inside their
+  ring's length), `segments` (each its ring's, the civic blocks), `soft` (each neighbourhood's green ground most of its
+  quota) and `towers` (past their podiums, inside their rail, the tallest in the core).
+- **The sheet** (`geocity/sheet.js`), three views of one map: `rings` (each neighbourhood by the ring it builds as,
+  shaded by its ground's height), `heights` (each by its median storeys, each arterial frontage band by its own) and
+  `blocks` (its streets, the collectors darker, its blocks by segment, the towers on them); `focus` crops it round a
+  few neighbourhoods; the spine darker, the parks, the nodes, the portals, the crossings' heights, the ledger and the
+  laws. `scripts/spikes/geocity/geocity.mjs` writes each, and the blocks cropped round the core.

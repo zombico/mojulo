@@ -35,6 +35,11 @@
  *                   area times weight), and each neighbourhood's own PARK: the share of its quota it takes by ring, the
  *                   least park (m²; less is left to its segments: parkettes, plazas, verges, yards), its longest side
  *                   over its shortest
+ *     streets       { collector, civic, school }: a neighbourhood wider than `collector` metres gets a collector across it
+ *                   that way; one of `civic` blocks or more gets its civic block (the core's square, the outskirts'
+ *                   school), a school's block at least `school` m²
+ *     segments      { core: { tower, podium }, frame: { midrise, slab }, outskirts: { houses, apartments, lowrise } }:
+ *                   the weights a block off its arterials and collectors is given to each segment by (blocks.js)
  *     grade         the steepest arterial (rise over run): steeper is advice
  *     grammar       its city grammar (city/plan/grammars.js: an Earth flavour or a world grammar): its streets' sections,
  *                   its towers, its skins
@@ -75,6 +80,8 @@ export const METROS = Object.freeze({
       nodes: { every: 2, reach: 320 },
     },
     green: { share: 0.12, parks: 1, most: 0.3, weights: { core: 0.4, frame: 1, outskirts: 1.3 }, park: { share: { core: 0.35, frame: 0.5, outskirts: 0.6 }, least: 4000, aspect: 2 } },
+    streets: { collector: 600, civic: 6, school: 9000 },
+    segments: { core: { tower: 3, podium: 2 }, frame: { midrise: 3, slab: 2 }, outskirts: { houses: 7, apartments: 1, lowrise: 1 } },
     grade: 0.06,
     grammar: 'north-american',
     outskirts: 'bay-and-gable',
@@ -96,6 +103,8 @@ export const METROS = Object.freeze({
       nodes: { every: 3, reach: 260 },
     },
     green: { share: 0.16, parks: 1, most: 0.35, weights: { core: 0.4, frame: 1, outskirts: 1.4 }, park: { share: { core: 0.35, frame: 0.5, outskirts: 0.6 }, least: 3000, aspect: 2 } },
+    streets: { collector: 560, civic: 6, school: 8000 },
+    segments: { core: { tower: 2, podium: 3 }, frame: { midrise: 4, slab: 1 }, outskirts: { houses: 8, apartments: 2, lowrise: 0 } },
     grade: 0.08,
     grammar: 'mediterranean',
     outskirts: 'bay-and-gable',
@@ -104,7 +113,7 @@ export const METROS = Object.freeze({
 export const METRO_IDS = Object.freeze(Object.keys(METROS));
 export const DEFAULT_METRO = 'lakeshore';
 // what a recipe may say beside its metro: each a card's setting laid over the card's
-const KEYS = Object.freeze(['metro', 'extent', 'water', 'core', 'fall', 'hills', 'heights', 'green', 'grammar', 'outskirts']);
+const KEYS = Object.freeze(['metro', 'extent', 'water', 'core', 'fall', 'hills', 'heights', 'green', 'streets', 'segments', 'grammar', 'outskirts']);
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const no = (msg) => { throw new Error(`geocity: ${msg}`); };
@@ -130,7 +139,7 @@ function readMetro(v) {
 
 /** The recipe's `geocity`, checked → the metro as the design reads it. */
 export function readGeocity(spec = {}) {
-  if (!isObj(spec)) no('geocity is { metro?, extent?, water?, core?, fall?, hills?, heights?, green?, grammar?, outskirts? }');
+  if (!isObj(spec)) no(`geocity is { ${KEYS.map((k) => `${k}?`).join(', ')} }`);
   for (const k of Object.keys(spec)) if (!KEYS.includes(k)) no(`'${k}' is not a setting of a geocity (${KEYS.join(', ')})`);
   const M = readMetro(spec.metro);
   // a recipe's own settings over its metro's (an object merged all the way down)
@@ -170,6 +179,14 @@ export function readGeocity(spec = {}) {
   if (!isObj(Gr) || !num(Gr.share, 0, 0.6) || !(Number.isInteger(Gr.parks) && Gr.parks >= 0 && Gr.parks <= 6) || !num(Gr.most, 0, 1) || !isObj(Gr.weights) || !RING_IDS.every((r) => num(Gr.weights[r], 0, 10))) no('green is { share: 0–0.6, parks: 0–6, most: 0–1, weights: { core, frame, outskirts }, park }');
   const Pk = Gr.park;
   if (!isObj(Pk) || !isObj(Pk.share) || !RING_IDS.every((r) => num(Pk.share[r], 0, 1)) || !num(Pk.least, 0, 1e6) || !num(Pk.aspect, 1, 6)) no('green.park is { share: { core, frame, outskirts } 0–1, least: m², aspect: 1–6 }');
+  const St = M.streets;
+  if (!isObj(St) || !num(St.collector, 100, 12000) || !(Number.isInteger(St.civic) && St.civic >= 1) || !num(St.school, 0, 1e6)) no('streets is { collector: metres, civic: blocks (a whole number), school: m² }');
+  const SEG = { core: ['tower', 'podium'], frame: ['midrise', 'slab'], outskirts: ['houses', 'apartments', 'lowrise'] };
+  if (!isObj(M.segments)) no('segments is { core, frame, outskirts }, each its segments\' weights');
+  for (const [ring, ids] of Object.entries(SEG)) {
+    const w = M.segments[ring];
+    if (!isObj(w) || Object.keys(w).some((k) => !ids.includes(k)) || !Object.values(w).every((v) => num(v, 0, 100)) || !Object.values(w).some((v) => v > 0)) no(`segments.${ring} is weights over ${ids.join(', ')}, one of them above 0`);
+  }
   if (!num(M.grade, 0.01, 0.3)) no('grade is the steepest arterial, rise over run, 0.01 to 0.3');
   const grammar = resolveGrammar(M.grammar, 'geocity.grammar');
   if (!PATTERNS[M.outskirts]) no(`outskirts is a geotown pattern (${PATTERN_IDS.join(', ')})`);

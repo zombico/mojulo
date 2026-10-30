@@ -24,7 +24,12 @@ export const GEOCITY_LAWS = Object.freeze({
   skyline: 'the skyline falls outward: the core\'s neighbourhoods build higher on the whole than the frame\'s, the frame\'s than the outskirts\'',
   caps: 'every neighbourhood\'s interior inside the rail of the ring it builds as, its frontages inside theirs',
   interior: 'every neighbourhood keeps an interior behind its arterial frontages',
-  parks: 'each neighbourhood\'s park placed as its quota asks, inside it and clear of its frontages',
+  parks: 'each neighbourhood\'s park placed as its quota asks, inside it (fitted to its streets, it may take a strip of its frontage)',
+  blocks: 'inside every neighbourhood its streets, blocks and park are its ground once, and every block\'s surfaces its area',
+  pitch: 'every block inside its ring\'s block length (half its least to half again its most)',
+  segments: 'every block given to a segment of its ring, and a neighbourhood large enough its civic block (the core\'s square, the outskirts\' school)',
+  soft: 'each neighbourhood\'s green ground (its park, its yards, lawns, courts and plantings) at least most of its green quota',
+  towers: 'the core\'s towers rise past their podiums and stand inside their rail, the tallest in the core',
 });
 
 /** The least neighbourhood a geotown of this pattern lays two blocks by two in: along its long blocks, and across their
@@ -115,7 +120,27 @@ export function geocityLaws(d) {
   out.push({ law: 'interior', ok: !thin.length, value: thin.length ? thin.map((r) => r.id).join(', ') : 'every one', want: `> ${depth} m frontages` });
   const P = M.green.park, asked = built.filter((r) => r.green * P.share[r.ring] >= P.least), want = asked.reduce((s, r) => s + r.green * P.share[r.ring], 0);
   const placed = built.reduce((s, r) => s + (r.parkRect?.area ?? 0), 0);
-  const stray = built.filter((r) => r.parkRect && !within(r.parkRect.rect, interiorOf(r, depth)));
+  const stray = built.filter((r) => r.parkRect && !within(r.parkRect.rect, r.rect));
   out.push({ law: 'parks', ok: !stray.length && placed >= 0.9 * want - 1, value: `${built.filter((r) => r.parkRect).length} parks, ${Math.round(placed / 1e4)} of ${Math.round(want / 1e4)} ha asked${stray.length ? `; ${stray.map((r) => r.id).join(', ')} astray` : ''}`, want: '≥ 90%, inside' });
+  if (!d.regions.every((r) => r.blocks)) return out;
+  // the blocks: each neighbourhood's ground once, each block's surfaces its area
+  const open_ = d.regions.filter((r) => r.ledger.streets < -1 || Math.abs(r.ledger.streets + r.ledger.blocks + r.ledger.park - r.area) > 1
+    || r.blocks.some((b) => Math.abs(Object.values(b.surfaces).reduce((a, v) => a + v, 0) - b.area) > 0.01));
+  const all = d.regions.flatMap((r) => r.blocks), lots = all.filter((b) => b.kind !== 'park');
+  out.push({ law: 'blocks', ok: !open_.length, value: open_.length ? open_.map((r) => r.id).join(', ') : `${lots.length} blocks, ${Math.round(L.streets / 1e4)} ha of their streets`, want: 'each neighbourhood' });
+  const G = d.grammar, TP = d.spec.pattern;
+  const rail = (ring) => (ring === 'outskirts' ? [[2 * TP.block.depth[0], 2 * TP.block.depth[1]], TP.block.long] : [G.block.pitch, G.block.pitch]);
+  const offPitch = lots.filter((b) => { const [rx, ry] = rail(b.ring), w = b.rect[2] - b.rect[0], h = b.rect[3] - b.rect[1]; return w < 0.5 * rx[0] || w > 1.5 * rx[1] || h < 0.5 * ry[0] || h > 1.5 * ry[1]; });
+  out.push({ law: 'pitch', ok: offPitch.length <= 0.1 * lots.length, value: `${offPitch.length} of ${lots.length} off their ring's length`, want: '≤ 10%' });
+  const OF = { core: ['tower', 'podium', 'square'], frame: ['midrise', 'slab'], outskirts: ['houses', 'main-street', 'edge', 'lowrise', 'apartments', 'school'] };
+  const wrong = lots.filter((b) => !OF[b.ring].includes(b.kind));
+  const civicLess = built.filter((r) => r.builds !== 'frame' && r.blocks.filter((b) => b.kind !== 'park').length >= M.streets.civic && !r.blocks.some((b) => b.kind === 'square' || b.kind === 'school'));
+  out.push({ law: 'segments', ok: !wrong.length && civicLess.length <= Math.ceil(0.2 * built.length), value: `${Object.entries(lots.reduce((m, b) => ({ ...m, [b.kind]: (m[b.kind] ?? 0) + 1 }), {})).map(([k, n]) => `${k} ${n}`).join(', ')}${wrong.length ? `; ${wrong.length} off their ring` : ''}${civicLess.length ? `; no civic block in ${civicLess.map((r) => r.id).join(', ')}` : ''}`, want: 'each its ring\'s' });
+  const short = built.filter((r) => r.soft < 0.9 * r.green);
+  out.push({ law: 'soft', ok: short.length <= Math.ceil(0.2 * built.length), value: `${Math.round(L.green.soft / 1e4)} ha green ground${short.length ? `; ${short.length} short of their quota (${short.slice(0, 5).map((r) => r.id).join(', ')}${short.length > 5 ? '…' : ''})` : ''}`, want: '≥ 90% each, most of them' });
+  const towers = lots.flatMap((b) => (b.towers ?? []).map((t) => ({ ...t, b })));
+  const badT = towers.filter((t) => t.storeys <= t.b.podium || t.storeys > t.b.storeys.rail[1]);
+  const tallest = (k) => Math.max(0, ...lots.filter((b) => b.ring === k).map((b) => Math.max(b.storeys.median, ...(b.towers ?? []).map((t) => t.storeys))));
+  out.push({ law: 'towers', ok: !badT.length && tallest('core') >= tallest('frame'), value: `${towers.length} towers, the tallest ${tallest('core')} storeys${badT.length ? `; ${badT.length} off their rail` : ''}`, want: 'past their podiums, inside their rail' });
   return out;
 }
