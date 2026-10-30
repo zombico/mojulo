@@ -71,3 +71,7 @@ lean, long faces. The eyes gate is the operator's.
   tip raised by the same amount under a root that stays, so the nose is shorter and steeper and the gap from it to
   the mouth is kept. All the way up, the mouth line sank into the nose's shadow and the nose all but flattened;
   three-quarters of the way reads.
+- **Shonen High's bodies, proportioned** (on a proportion sheet: both casts at one scale, a line every head height):
+  the male an athletic lead's, 7.65 heads (the torso shorter and the legs longer, the shoulders broader over a narrow
+  waist, a V); the female long-legged and slim, 7.26 heads (the torso shorter, the legs longer, the waist narrow, the
+  shoulders narrower).
