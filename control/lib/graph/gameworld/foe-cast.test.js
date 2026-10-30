@@ -194,7 +194,7 @@ describe('the sheet', () => {
     const count = Object.keys(STAT_WORDS).find((f) => !STAT_WORDS[f].health);
     expect(foeCastOf({ ...W, juice: { flavor: count } }).foes.find((x) => x.id === 'grunt').costs).toMatch(new RegExp(`^1 ${STAT_WORDS[count].blow[0]} to down`));
     const html = foeCastHtml(W);
-    expect(html).toContain('<dt>How to beat it</dt>');
+    expect(html).toContain('<dt>Beat it</dt>');
     expect(html).toContain('<details class="designer">');
   });
 
@@ -202,10 +202,10 @@ describe('the sheet', () => {
     const html = gameworldBibleHtml(W);
     expect(html).toContain('id="foes"');
     expect(html).toContain('href="?book=foes#foe-caller"');
-    expect(html).toContain('<h4>Who stands here</h4>');
+    expect(html).toMatch(/<h4>Foes<\/h4><div class="lineup">/);
     expect(html).toContain('<a href="#foes">Foes</a>');
     // (a world that fields none: not a byte of it)
-    expect(gameworldBibleHtml(world())).not.toMatch(/id="foes"|Who stands here|class="tile"/);
+    expect(gameworldBibleHtml(world())).not.toMatch(/id="foes"|<h4>Foes<\/h4>|class="tile"/);
   });
   it('is drawn in its world\'s colours: the page\'s accent one of its kit\'s own', () => {
     const kit = MEADOWMARK_HERO.style.kit, html = foeCastHtml({ ...MEADOWMARK_HERO, intent: { from: 'metroidvania' } });

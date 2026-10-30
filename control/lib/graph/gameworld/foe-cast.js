@@ -70,8 +70,8 @@ function costsOf(f, W) {
 }
 /** How a register names the sheet and the ranks it tiers the cast by (mind/vocab.js RANKS, least first). */
 export const REGISTER_WORDS = Object.freeze({
-  anime: { title: 'Enemy roster', lede: 'who stands against the hero, by tier', tiers: { minion: 'Mobs', elite: 'Elites', miniboss: 'Mid-bosses', boss: 'Bosses' } },
-  western: { title: 'Bestiary', lede: 'what the hero will meet, field guide first', tiers: { minion: 'Rank and file', elite: 'Veterans', miniboss: 'Lieutenants', boss: 'The big bad' } },
+  anime: { title: 'Enemy roster', tiers: { minion: 'Mobs', elite: 'Elites', miniboss: 'Mid-bosses', boss: 'Bosses' } },
+  western: { title: 'Bestiary', tiers: { minion: 'Rank and file', elite: 'Veterans', miniboss: 'Lieutenants', boss: 'The big bad' } },
 });
 for (const k of Object.keys(JUICE_FLAVORS)) if (!STAT_WORDS[k]) throw new Error(`foe-cast: no stat words for the flavor '${k}'`);
 for (const k of Object.keys(JUICE_REGISTERS)) if (!REGISTER_WORDS[k]) throw new Error(`foe-cast: no sheet words for the register '${k}'`);
