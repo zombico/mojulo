@@ -145,6 +145,9 @@ export function heroFeatureAdvice(hero, features) {
 }
 /** the face this hero's own words move off: the studio's default under its form's face and its style's (a word the
  * form or the style set is the base's or the game's, not the hero's own) */
+/** and its sculpt base (the form's sculpt under its style's): the words a hero's own move off, which the comfortable
+ * ranges are not read against (a style is its own canon, its words checked closed by its own tests) */
+export const animeSculptBase = (hero) => resolveAnimeSculpt([animeFormOf(hero), animeStyleOf(hero, castHeadPole(hero))?.sculpt].filter((x) => x !== undefined && x !== null));
 export const animeFaceBase = (hero) => { const { from: _f, ...B } = resolveAnimeFace([animeFormFaceOf(hero), animeStyleOf(hero, castHeadPole(hero))?.face].filter(Boolean)); return B; };
 /** does this hero wear the anime head's form (ANIME_FORM): minted under laws 19, its face not the child's */
 export const animeFormed = (hero) => (hero.laws ?? 1) >= 19 && !childFaced(hero);

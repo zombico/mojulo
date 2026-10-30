@@ -55,3 +55,12 @@ lean, long faces. The eyes gate is the operator's.
   middle (the chin and the jaw's edge at the seam kept), so what shows from below is one smaller, rounded piece.
 - **Shonen High's female, her lower face rounder**: her lower cheeks fuller and her jaw's side curved in less, so her
   face rounds out from the cheekbone down to the chin, the chin as pointed as before.
+- **Shonen High's female toward Nobara's figure's proportions**: her eyes, as drawn (the lid band and lashes in
+  them), about a quarter of her face's width and one eye's width apart, a little larger than his; her lower face
+  shorter (her eye line lower in her head), her nose's tip and her lips lower, her nose smaller and lower in
+  projection, her mouth narrower; her style's bands are the figure's measures, not the male's. A styled hero's sculpt
+  words are read against their comfortable ranges only where the hero's own words move them off its form and style
+  (`animeSculptBase`), as the hair's are: a style is its own canon.
+- **Her cheeks taken back in**: the fuller lower cheeks of the round before read as chipmunk cheeks at three-quarter;
+  her lower cheeks are now slimmer than his and her jaw's side curved in a little, so from the front and at
+  three-quarter her face is one clean line from the cheekbone down to the pointed chin.

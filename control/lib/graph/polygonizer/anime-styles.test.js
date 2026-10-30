@@ -44,10 +44,11 @@ describe('the style pole', () => {
   it('lends a cast another base\'s head: Shonen High\'s female wears the male head, tuned; her hair and her body her own', () => {
     const her = heroRecord({ cast: 'female', head: 'anime', animeStyle: STYLE }), him = heroRecord({ cast: 'male', head: 'anime', animeStyle: STYLE });
     expect(heroHeadPole(her)).toBe('male'); expect(heroHairPole(her)).toBe('female'); expect(heroHeadPole(heroRecord({ cast: 'female', head: 'anime' }))).toBe('female');
-    // (her face is his with her layer on it: her eyes a little taller than his, her chin narrower)
+    // (her face is his with her layer on it: her eyes larger than his, after her figure's, her lower face shorter, so
+    // her eye line lower in her head, her chin narrower)
     const F = animeHeroEffective(her).face, M = animeHeroEffective(him).face;
-    expect(F.eyeHeight).toBeGreaterThan(M.eyeHeight); expect(F.eyeHeight).toBeLessThan(M.eyeHeight * 1.1); expect(F.chin).toBeLessThan(M.chin);
-    expect(heroPlanOf(her).include[0].faceMeasures.features.eyeLevel).toBeCloseTo(heroPlanOf(him).include[0].faceMeasures.features.eyeLevel, 1);
+    expect(F.eyeHeight).toBeGreaterThan(M.eyeHeight); expect(F.eyeHeight).toBeLessThan(M.eyeHeight * 1.3); expect(F.chin).toBeLessThan(M.chin);
+    expect(heroPlanOf(her).include[0].faceMeasures.features.eyeLevel).toBeLessThan(heroPlanOf(him).include[0].faceMeasures.features.eyeLevel);
     // (and her face rig is built on the head she wears: its targets, and 7G's at acting full)
     const rigOf = (spec) => { const M = expandLayeredManifest({ kind: 'layered', hero: heroRecord(spec) }); return heroFaceRig(M, compileLayered(M.recipe, M.dials)); };
     const R = rigOf({ cast: 'female', head: 'anime', animeStyle: STYLE, acting: 'full', register: 'lowpoly' });
