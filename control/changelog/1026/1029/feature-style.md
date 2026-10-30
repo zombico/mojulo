@@ -47,6 +47,17 @@ follow.
   smooth form on the page and in the lit export (absent, one shade per face as before); the plan takes a `mesh` part,
   given whole.
 
+- **The principles are a converter.** `feature-grammar.js` holds them as numbers and applies them to any animal in the
+  fauna roster: a species' mascot card in, a build out (docs/feature-style.md). Every build has STRUCTURE (the masses:
+  the proportions and the silhouette, rigged) and DECORATION (the tufts, the crown, the markings, horns, spines, a mane,
+  fins), each kind of decoration on a dial (`FEATURE_DECOR`: 1 the designed amount, 0 the structure bare) that never
+  moves a mass. The 34 families fall into five BODY PLANS, each solving where the principles break: a stander (the
+  raccoon's), hoofed (hooves for hands, a long face, horns as pointy details), bird (a beak, wings ending in a fan of
+  primaries, feather crests), reptile (a dorsal row of spines in the tufts' rhythm, a heavy tail), orb (the head is the
+  body; fins). A species' kit picks shared modules (ears, muzzle, tail, pattern, horns, mane, fin, shell, neck, eyes,
+  feet), and its own measures from the roster size its ears, so a mouse's are big and round. The raccoon is one of its
+  outputs. A roster sheet (`scripts/spikes/feature-roster.mjs`) mints one species per family for the eyes gate.
+
 The aim is a good default game model: one smooth skin, a few layers and parts, and a silhouette and markings that read
 at a distance, within a triangle budget (the raccoon is about 17,000 triangles, skin, coat and face together). The
 mascot's clips play on it, each arm splayed out of the belly it would otherwise sink into.

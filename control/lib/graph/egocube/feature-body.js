@@ -22,8 +22,7 @@
  *   eggSkin(eggs, { cell, faces, zones })   → a layer-1 mesh part (closed), each point bound by its weights (`st0.<id>`),
  *                     the coat's ZONES cut into it along their exact edges (feature-coat.js cutSkin), with its points and
  *                     faces as arrays (V, F) for the coat's layers; kept by key (a few seconds a body)
- *   FEATURE_BUILDS      the builds by family: relations in head units (h) → the eggs (the right side and the midline;
- *                     the left mirrored), the rig's joints, the head's ellipsoid (the face is placed on it) and the muzzle
+ *   FEATURE_BUILDS      the raccoon's build (the grammar's: feature-grammar.js featureBuild makes every animal's)
  *   featurePlan(sheet, { title?, reactions? }) → { plan, H, height }   the creature plan: the skin, the face's parts
  *                     (feature-face.js: globes, lids and brows about each globe's centre), the mascot's rig and clips
  *                     (mascot-form.js rigOf)
@@ -36,6 +35,8 @@ import { PLAN_SCHEMA } from '../polygonizer/station-loft-plan.js';
 import { featureFace } from './feature-face.js';
 import { cutSkin, coatLayers, stroke, band } from './feature-coat.js';
 import { measuresOf, rigOf, coatPalette } from './mascot-form.js';
+import { featureBuild } from './feature-grammar.js';
+import { animalCard } from './mascot-animals.js';
 
 const r4 = (x) => Math.round(x * 1e4) / 1e4 + 0;
 const r6 = (x) => Math.round(x * 1e6) / 1e6 + 0;
@@ -157,120 +158,9 @@ export function eggSkin(eggs, { cell = FEATURE_SKIN.cell, faces = FEATURE_SKIN.f
   return out;
 }
 
-/**
- * THE BUILDS. Relations in head units (h, the head's height, crown to chin; z up from the soles, y to the front, the right
- * side +x), read off the operator's reference for the raccoon (cartoon realism: the animal's own body, one pear-shaped
- * mass, the head sunk into it with no neck, big haunches, short limbs, the forelimbs resting out from the body so the skin
- * does not web them to it; the clips pose them).
- *   heads   the figure's height to the crown in heads
- *   eggs    { name, c, u, r, e?, hint?, bone, group?, join } (r and join in h; a name ending R is mirrored to its L twin)
- *   joints  the rig's (mascot-form.js rigOf), right side: hip knee ankle toeBase toeTip shoulder elbow wrist knuckles
- *   hipZ, neckZ, top   the pelvis's hub, the torso's top, the crown
- *   head    the egg the face is placed on (the cranium: its centre and radii as an ellipsoid), muzzle the mouth's
- */
-const ARM = unit([0.86, 0.12, -0.5]), SPREAD = unit(cross(ARM, [0, 1, 0]));
-const at = (p, d, s) => add(p, mul(d, s));
-export const FEATURE_BUILDS = Object.freeze({
-  procyonid: (() => {
-    const sh = [0.84, 0.1, 1.95], el = at(sh, ARM, 0.42), wr = at(el, ARM, 0.38), kn = at(wr, ARM, 0.22);
-    return Object.freeze({
-      heads: 3.3,
-      // the arms' least outward share in a clip: round the belly, never closer to the body than this
-      splay: 0.62,
-      // the head's separation from the body: a head shape meets a body shape no softer than this (h)
-      seam: 0.05,
-      // the head raised over a short neck (h): the silhouette's hourglass, the wide body, the neck pinched, the wide head
-      headLift: 0.12,
-      eggs: [
-        // the head: a wedge (the cranium's fat end down into the jowls), the cheek ruffs flaring out at the face's widest
-        // (the head wider than the body), the muzzle short and pale, its nose ball, the ears
-        // (the cranium a FOOTBALL: long front to back, a little pointed toward the muzzle, its underside one round curve so
-        // the head reads apart from the neck in profile)
-        { name: 'cranium', c: [0, 0.02, 2.82], u: [0, 1, -0.1], r: [0.63, 0.72, 0.6], e: 0.15, hint: [1, 0, 0], bone: 'head', join: 0.18 },
-        // (the head's lower volume: the jaw and the cheeks filled out round, so the head is a ball whose underside curves
-        // into the body: in profile a figure eight, not a neck; from the front a football lying across, the jowls carrying
-        // its points out and a little up, never drooping)
-        { name: 'jaw', c: [0, 0.14, 2.57], u: [0, 1, -0.1], r: [0.48, 0.7, 0.36], e: 0.1, hint: [1, 0, 0], bone: 'head', join: 0.2 },
-        { name: 'ruffR', c: [0.5, 0.08, 2.53], u: [0.84, 0.05, -0.48], r: [0.34, 0.3, 0.26], e: 0.85, hint: [0, 1, 0], bone: 'head', join: 0.2 },
-        { name: 'jowlR', c: [0.38, 0.26, 2.55], u: [0.86, 0.35, -0.12], r: [0.25, 0.21, 0.19], e: 0.45, hint: [0, 1, 0], bone: 'head', group: 'Belly', join: 0.14 },
-        { name: 'muzzle', c: [0, 0.48, 2.54], u: [0, 1, -0.12], r: [0.3, 0.22, 0.18], e: 0.45, bone: 'head', group: 'Belly', join: 0.12 },
-        { name: 'chin', c: [0, 0.38, 2.42], u: [0, 1, 0], r: [0.14, 0.15, 0.1], bone: 'head', group: 'Belly', join: 0.1 },
-        { name: 'nose', c: [0, 0.79, 2.58], u: [0, 1, 0.2], r: [0.09, 0.11, 0.08], bone: 'head', group: 'Nose', join: 0.03 },
-        { name: 'earR', c: [0.46, -0.1, 3.24], u: [0.38, -0.1, 1], r: [0.27, 0.21, 0.08], e: 0.75, hint: [1, 0, 0], bone: 'head', join: 0.08 },
-        // the body, the dominant mass (the reference's: wider than the head, about 2.4 heads across and 2.2 tall, nearly on
-        // the ground): the chest under the head and the belly low, round and forward, its pale front most of it, the
-        // haunches wide, the legs all but hidden under it, the feet small and turned a little out
-        // the neck: no more than the pinch where the head's ball meets the body's (the waist of the figure eight), on the
-        // rig's neck bone, soft into the chest, the jaw's seam above it
-        { name: 'neck', c: [0, -0.02, 2.36], u: [0, 0.1, 1], r: [0.16, 0.5, 0.36], bone: 'neck', join: 0.14 },
-        { name: 'chest', c: [0, 0.05, 1.86], u: [0, 0, 1], r: [0.46, 0.88, 0.78], e: 0.25, bone: 'torso', join: 0.35 },
-        { name: 'belly', c: [0, 0.12, 1.12], u: [0, 0, 1], r: [0.95, 1.2, 1.02], e: 0.25, bone: 'pelvis', join: 0.35 },
-        { name: 'front', c: [0, 0.5, 1.2], u: [0, 0, 1], r: [0.85, 0.85, 0.62], e: 0.15, bone: 'pelvis', group: 'Belly', join: 0.3 },
-        { name: 'haunchR', c: [0.62, 0.0, 0.5], u: [0, 0, 1], r: [0.4, 0.42, 0.45], e: 0.2, bone: 'thighR', join: 0.28 },
-        { name: 'shinR', c: [0.55, 0.08, 0.18], u: [0, 0, 1], r: [0.14, 0.15, 0.15], bone: 'shinR', join: 0.1 },
-        { name: 'footR', c: [0.56, 0.28, 0.07], u: [0.2, 1, 0], r: [0.24, 0.16, 0.075], e: 0.25, hint: [1, 0, 0], bone: 'metaR', group: 'Patch', join: 0.07 },
-        // the palm: a flat egg, the hand's paddle facing front (the fingers fan across it: `digits`)
-        { name: 'pawR', c: at(wr, ARM, 0.09), u: ARM, r: [0.13, 0.13, 0.075], e: 0.15, hint: SPREAD, bone: 'handR', group: 'Patch', join: 0.04 },
-        // the tail: out from the lower back, rising, thick (the brush), its eggs overlapping so it reads as one
-        { name: 'tail0', c: [0, -1.05, 0.62], u: [0, -1, 0.3], r: [0.4, 0.36, 0.36], bone: 'pelvis', join: 0.3 },
-        { name: 'tail1', c: [0, -1.55, 0.84], u: [0, -0.9, 0.45], r: [0.5, 0.5, 0.48], bone: 'pelvis', join: 0.3 },
-        { name: 'tail2', c: [0, -1.95, 1.22], u: [0, -0.6, 0.8], r: [0.5, 0.5, 0.48], bone: 'pelvis', join: 0.3 },
-        { name: 'tail3', c: [0, -2.12, 1.72], u: [0, -0.15, 1], r: [0.42, 0.4, 0.38], e: 0.5, bone: 'pelvis', join: 0.3 },
-      ],
-      // the fur's pointed details on the round masses (round blobs, pointy fur): the cheeks end in a fan of locks out,
-      // down and back; the tail's brush ends in a point
-      tufts: [
-        { name: 'cheekAR', root: [0.66, 0.04, 2.5], aim: [0.92, -0.1, -0.38], len: 0.44, r: 0.17, curl: 22, bend: [0, -0.3, -1], bone: 'head', join: 0.07 },
-        { name: 'cheekBR', root: [0.62, 0.0, 2.4], aim: [0.78, -0.35, -0.52], len: 0.36, r: 0.15, curl: 18, bend: [0, -1, -0.2], bone: 'head', join: 0.07 },
-        { name: 'cheekCR', root: [0.64, 0.06, 2.64], aim: [0.97, -0.15, 0.1], len: 0.34, r: 0.14, curl: 28, bend: [0, -0.4, -1], bone: 'head', join: 0.07 },
-        // the dome's spikes: the cheeks' rhythm again, smaller, and NOT mirrored: three locks of falling length, their roots
-        // staggered so each overlaps the next, all swept one way (to the right and a little forward, their tips curling
-        // down), a combed swoosh
-        { name: 'crownA', root: [-0.14, 0.16, 3.3], aim: [0.42, 0.28, 1], len: 0.4, r: 0.12, curl: 24, bend: [1, 0.1, -0.4], bone: 'head', join: 0.05 },
-        { name: 'crownB', root: [-0.01, 0.06, 3.34], aim: [0.5, 0.2, 1], len: 0.33, r: 0.11, curl: 22, bend: [1, 0.1, -0.4], bone: 'head', join: 0.05 },
-        { name: 'crownC', root: [0.12, -0.04, 3.32], aim: [0.6, 0.12, 1], len: 0.26, r: 0.095, curl: 20, bend: [1, 0.1, -0.4], bone: 'head', join: 0.05 },
-        { name: 'tailTip', root: [0, -2.16, 2.02], aim: [0, -0.35, 1], len: 0.34, r: 0.2, curl: 30, bend: [0, -1, 0], bone: 'pelvis', join: 0.1 },
-      ],
-      // the forelimbs, streamlined: two cones each, shoulder to elbow to wrist, resting out from the body
-      limbs: [
-        { name: 'upperArmR', a: sh, b: el, ra: 0.2, rb: 0.16, bone: 'upperArmR', join: 0.05 },
-        { name: 'foreArmR', a: el, b: wr, ra: 0.16, rb: 0.13, bone: 'foreArmR', join: 0.04 },
-      ],
-      // the raccoon's hands: five long fingers fanned across the palm (the thumb shortest and set back, on the upper
-      // edge), each two links on two bones from its knuckle; rounded tips, not points (fingers are not fur)
-      digits: { from: wr, along: ARM, across: SPREAD, at: [0.13, 0.15, 0.16, 0.15, 0.1], offset: [-0.085, -0.04, 0.005, 0.05, 0.09],
-        fan: [-48, -22, 2, 26, 56], len: [0.12, 0.15, 0.16, 0.14, 0.1], r: [0.036, 0.031, 0.022], join: 0.01 },
-      // THE COAT (feature-coat.js): harmonious shapes, not ink blots, in few strokes. ZONES (territories of the eggs) cut
-      // into the skin: the pale muzzle, the nose, the pale belly and chest, the dark paws and feet, the tail's dark tip.
-      // LAYERS over it: the mask sweeping out and down to a point aimed as the cheek's lock is, the forehead's stripe
-      // tapering to the crown, the inner ears, the tail's notched rings. (The pale brows are the face's own, attached to
-      // the eye: feature-face.js.) A stroke `both` is drawn on each side.
-      marks: [
-        { name: 'muzzle', group: 'Belly', eggs: ['muzzle', 'chin', 'jowlR', 'jowlL'] },
-        { name: 'nose', group: 'Nose', eggs: ['nose'] },
-        { name: 'belly', group: 'Belly', regions: [{ c: [0, 0.9, 1.32], u: [0, -0.1, 1], r: [1.02, 0.82, 0.55], e: 0.3 }] },
-        { name: 'paws', group: 'Patch', eggs: ['pawR', 'pawL', 'footR', 'footL', ...[1, 2, 3, 4, 5].flatMap((i) => ['a', 'b'].flatMap((l) => [`digit${i}${l}R`, `digit${i}${l}L`]))] },
-        { name: 'tailTip', group: 'Patch', eggs: ['tailTip'] },
-        { name: 'mask', group: 'Patch', on: 'head', strokes: [{ both: true, points: [[0.04, 0.68, 2.8], [0.3, 0.56, 2.79], [0.5, 0.38, 2.62], [0.66, 0.22, 2.44]], r: [0.1, 0.19, 0.13, 0.025] }] },
-        { name: 'stripe', group: 'Patch', on: 'head', strokes: [{ points: [[0, 0.7, 2.92], [0, 0.55, 3.18], [0, 0.2, 3.36]], r: [0.05, 0.08, 0.02] }] },
-        { name: 'ears', group: 'EarInner', on: 'head', strokes: [{ both: true, points: [[0.44, 0.0, 3.08], [0.5, -0.02, 3.3], [0.55, -0.05, 3.48]], r: [0.1, 0.08, 0.02] }] },
-        { name: 'rings', group: 'Patch', levels: 0, bands: [
-          { c: [0, -1.5, 0.82], axis: [0, -0.9, 0.45], w: 0.09, R: 0.65, teeth: 9, depth: 0.035 },
-          { c: [0, -1.92, 1.2], axis: [0, -0.6, 0.8], w: 0.09, R: 0.65, teeth: 9, depth: 0.035 },
-          { c: [0, -2.12, 1.68], axis: [0, -0.2, 1], w: 0.08, R: 0.55, teeth: 9, depth: 0.035 },
-        ] },
-      ],
-      eye: { az: 24, el: 0, r: 0.15, proud: 0.42 },
-      // the mouth on the muzzle: the nose's foot, the line's middle and right corner, the pivot it opens about; a full
-      // smile raises a corner `rise`, the line sags `sag` between
-      mouth: { nose: [0, 0.82, 2.48], centre: [0, 0.77, 2.41], corner: [0.17, 0.63, 2.42], pivot: [0, 0.42, 2.52], rise: 0.05, sag: 0.012 },
-      joints: { hip: [0.58, 0, 0.55], knee: [0.56, 0.08, 0.32], ankle: [0.55, 0.05, 0.1], toeBase: [0.57, 0.32, 0.05], toeTip: [0.59, 0.48, 0.03], shoulder: sh, elbow: el, wrist: wr, knuckles: kn },
-      hipZ: 0.55, neckZ: 2.3, top: 3.42,
-      head: { C: [0, 0.02, 2.8], rx: 0.72, ry: 0.6, rz: 0.55 },
-      muzzle: { C: [0, 0.54, 2.52], rx: 0.22, ry: 0.3, rz: 0.18 },
-    });
-  })(),
-});
+/** the builds come from the grammar (feature-grammar.js featureBuild: a species' card in, a build out); the raccoon's,
+ *  for a law that wants one */
+export const FEATURE_BUILDS = Object.freeze({ get procyonid() { return featureBuild(animalCard('raccoon')); } });
 
 /** a build's relations at a height: the eggs mirrored and scaled to metres, the joints, the head and the muzzle */
 function laidOut(build, height) {
@@ -340,17 +230,17 @@ function coatOf(skin, F, eggs, layers) {
 /** the feature style's height: the mascot's scale (a sprout's), its head a third of it */
 export const FEATURE_HEIGHT = 0.96;
 
-export function featurePlan(sheet, { title = 'a feature animal', reactions = false } = {}) {
+export function featurePlan(sheet, { title = 'a feature animal', reactions = false, decor = {} } = {}) {
   const f = sheet.facets, A = sheet.animal ?? null, K = A?.kit ?? {}, { k } = measuresOf(sheet);
   if (!A) throw new Error('mascot: the feature style draws an animal (a species in the brief or `facets.animal`)');
-  const build = FEATURE_BUILDS[A.family] ?? FEATURE_BUILDS.procyonid;
+  const build = featureBuild(A, { decor });
   const L = laidOut(build, FEATURE_HEIGHT), H = L.H;
   const zones = L.marks.filter((m) => !m.strokes && !m.bands), layers = L.marks.filter((m) => m.strokes || m.bands);
   const skin = eggSkin(L.eggs, { zones, seam: L.seam }), F = eggField(L.eggs, { seam: L.seam });
   const coat = coatOf(skin, F, L.eggs, layers);
   // the face: globes seated on the skin, lids as shells about them, the brows on the eye, the mouth in the muzzle
   const face = featureFace({ field: F.field, H, eye: L.eye, rest: f.expression, mouth: L.mouth,
-    groups: { lid: K.pattern === 'mask' ? 'Patch' : 'Body', lip: 'Belly', brow: 'Belly' } });
+    groups: { lid: ['mask', 'patches'].includes(K.pattern) ? 'Patch' : 'Body', lip: 'Belly', brow: 'Belly' } });
   const segments = [
     { name: 'skin', kind: 'mesh', group: 'Body', mesh: skin.mesh, bind: { bone: 'pelvis', blend: skin.blend } },
     ...coat,
