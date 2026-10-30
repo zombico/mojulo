@@ -149,3 +149,16 @@ gives the mouth's articulation to whatever drives it. The eyes gate is the opera
   45° between neighbours 223 → 55 (62 open). Every realistic hero's face rig rebuilds on its next export (face store v8); a
   hero stamped with laws 12 or before keeps its brow and its paint. (The smoky stain round a shut eye in `/hero-live` is
   the viewer's own soft shadow, the brow's, at its shadow map's millimetre and a half a texel.)
+- **The eye out of its cove, one arc over it, a rounder brow** (realistic laws 13, `head-relational-eye.js` SEAT
+  `forwardOut`, `shelf`; `epidermis.js` `BROW_ROUND`). The eye comes out until its cornea is a third as far behind the
+  glabella (the lid about 4 mm forward), so the brow no longer shadows a cove over the lid; the fold steps forward out of
+  the crease as a near-level SHELF as far as the brow's own face, so from the front the brow's skin runs down to one arc
+  at the crease and the lid's top tucks back under it, hidden, the skin a blink unrolls (rising out of the crease, the
+  fold left a recess whose brow overhang drew a second dark curve above the first). The brow's arch rises three fifths
+  as high and falls to its tail as it rises, a quarter sine (the fall's power pinched its peak to a point, an angular
+  brow). And a face target's NORMAL, where the shape turns a normal far (`scene-gltf.js` `MORPH_NORMAL`), arrives at the
+  shape's own normal rather than the rest's plus the net's turn (where a coarse net's normals and the field's differ, the
+  sum was neither; the shut lid's GLB normals now match its shape's, a median 0.3°).
+  Face store v9 (the corner's cap and the taut pass changed the actions under keys that did not see them). A face lock
+  of one guide (`hair-locks.js` `lockStrands`) takes the default spacing: with no neighbour it was infinite and every point
+  of its flow NaN, which a jaw's beard of one guide hit once the eye came forward.

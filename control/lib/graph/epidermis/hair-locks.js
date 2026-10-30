@@ -683,7 +683,8 @@ export function lockStrands(guides, chart, { kind = 'beard', centre = [0, 0, 0],
   const live = guides.filter((g) => g.pts.length > 1 && arcOf(g.pts).at(-1) >= F.min && !(F.hang && tipOff(g) < F.hang));
   if (!live.length) return null;
   // (the guides' spacing: each root's nearest other's distance, the median)
-  const roots = live.map((g) => g.pts[0]), near = roots.map((p, i) => Math.min(...roots.map((q, j) => (i === j ? Infinity : len(sub(p, q)))))).sort((a, b) => a - b);
+  // (a lone guide has no neighbour: the spacing's default, never an infinite one that made every point of its flow NaN)
+  const roots = live.map((g) => g.pts[0]), near = roots.map((p, i) => Math.min(...roots.map((q, j) => (i === j ? Infinity : len(sub(p, q)))))).filter(Number.isFinite).sort((a, b) => a - b);
   const spacing = Math.max(0.0005, near[Math.floor(near.length / 2)] ?? 0.002);
   // (a band over what is under it; a beard's hang off the skin alone, its root inside the coat)
   const clear = banded ? (p) => skin.out(p, under(p) + HAIR_CLEAR.gap) : (p) => skin.out(p, HAIR_CLEAR.gap);

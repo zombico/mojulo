@@ -1206,7 +1206,7 @@ export function relationalHead({ sex = 'male', relations = {}, layer = 'skin', t
   // (seated, the eyes come `SEAT.forward` of the way from the cornea to the nose's tip, their corneas kept behind the
   // glabella: their globes, lids and lashes, not the socket or the skin about it, which the seat cuts back to the lids)
   const Pe = seat ? { ...Pt, ...Object.fromEntries(['L', 'R'].flatMap((s) => {
-    const [share, behind] = SEAT.forward, y = Pt[`eye${s}`].y, dy = Math.max(0, Math.min(share * (Pt.prn.y - y), Pt.g.y - behind - y));
+    const [share, behind] = seat === 2 ? SEAT.forwardOut : SEAT.forward, y = Pt[`eye${s}`].y, dy = Math.max(0, Math.min(share * (Pt.prn.y - y), Pt.g.y - behind - y));
     return ['eye', 'en', 'ex'].map((k) => [`${k}${s}`, { ...Pt[`${k}${s}`], y: Pt[`${k}${s}`].y + dy }]);
   })) } : Pt;
   const bridge = skin ? browBridge(Pe, { med: shift('c'), L: shift('a'), R: shift('b') }, { seat }) : null;
@@ -1336,6 +1336,8 @@ export function relationalHead({ sex = 'male', relations = {}, layer = 'skin', t
     V: sc, points: Pt, rest: byName(rest), moved: byName(vajras), eyes: eyeRigs.map((e) => e.channels),
     // the brow's bridge, strings and arcs (V), and the eye rigs' lash lines and globes, for the lashes
     bridge,
+    // (the seat's level: 2 the brow of one section, realistic laws 13, whose brow's arch is the rounder, epidermis.js browLine)
+    ...(seat ? { seat } : {}),
     eyeRigs: eyeRigs.map((e) => ({ side: e.side, channels: e.channels, margins: e.margins, globe: e.globeV, ...(e.seat ? { seated: true } : {}) })),
   };
   // the skin wave alone (no nose, lips, lip line, eyes or ears: what a head sampled feature by feature lies over), and

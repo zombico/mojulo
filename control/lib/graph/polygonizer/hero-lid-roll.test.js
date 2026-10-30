@@ -11,7 +11,7 @@ import { eyeRig, browBridge } from './head-relational-eye.js';
 
 const SPEC = { cast: 'female', form: 'realistic', face: { seed: 11, ethnicity: 'western' } };
 
-/** each edge of the right eye's skin a blink moves: its length shut over open */
+/** each edge of the right eye's skin a blink moves (at least 0.2 mm long: the shelf's edge nets slivers): its length shut over open */
 function stretch(recipe) {
   const P = recipe.parts, fit = recipe.headFit, skin = P.headSkin.mesh;
   const words = { sex: fit.sex, ...(fit.relations ? { relations: fit.relations } : {}), ...(fit.eyes ? { eyes: fit.eyes } : {}), ...(fit.tune ? { tune: fit.tune } : {}), ...(fit.seat ? { seat: fit.seat } : {}) };
@@ -21,7 +21,7 @@ function stretch(recipe) {
   const out = [], seen = new Set();
   for (const t of Object.values(skin.faces)) {
     if (!t.every((id) => open[id] && shut[id]) || !t.some(moved) || open[t[0]][0] <= 0) continue;
-    for (let e = 0; e < 3; e++) { const a = t[e], b = t[(e + 1) % 3], k = a < b ? `${a}|${b}` : `${b}|${a}`; if (seen.has(k)) continue; seen.add(k); const l0 = L(open, a, b); if (l0 > 1e-5) out.push(L(shut, a, b) / l0); }
+    for (let e = 0; e < 3; e++) { const a = t[e], b = t[(e + 1) % 3], k = a < b ? `${a}|${b}` : `${b}|${a}`; if (seen.has(k)) continue; seen.add(k); const l0 = L(open, a, b); if (l0 > 2e-4) out.push(L(shut, a, b) / l0); }
   }
   return out;
 }

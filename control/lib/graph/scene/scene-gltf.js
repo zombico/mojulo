@@ -124,6 +124,11 @@ const b64ToF32 = (s) => new Float32Array(b64ToBytes(s).buffer);
 const b64ToU16 = (s) => new Uint16Array(b64ToBytes(s).buffer);
 const b64ToU32 = (s) => new Uint32Array(b64ToBytes(s).buffer);
 
+/** a face target's NORMAL: a vertex whose net normal the shape turns past `turn[0]` radians arrives, by `turn[1]`, at the
+ * shape's own normal instead of the rest's plus the net's turn (glTF adds a target's NORMAL to the rest's) */
+export const MORPH_NORMAL = Object.freeze({ turn: [0.35, 0.9] });
+const smoothTurn = (a) => { const t = Math.max(0, Math.min(1, (a - MORPH_NORMAL.turn[0]) / (MORPH_NORMAL.turn[1] - MORPH_NORMAL.turn[0]))); return t * t * (3 - 2 * t); };
+
 // smooth vertex normals for an indexed mesh: each triangle's (area-weighted) normal summed into its corners, normalized;
 // a vertex no triangle touches points up the figure (+z, the rig's frame)
 function restNormals(pos, idx) {
@@ -970,7 +975,15 @@ class GlbBuilder {
       const normalOf = (ids, vals) => {
         const P = Float32Array.from(A.P); ids.forEach((v, k) => { for (let c = 0; c < 3; c++) P[v * 3 + c] += vals[k * 3 + c]; });
         const N1 = restNormals(P, I), nid = [], nv = [];
-        for (let v = 0; v < n; v++) { const d0 = N1[v * 3] - N0[v * 3], d1 = N1[v * 3 + 1] - N0[v * 3 + 1], d2 = N1[v * 3 + 2] - N0[v * 3 + 2]; if (Math.hypot(d0, d1, d2) > 1e-4) { nid.push(v); nv.push(d0, d1, d2); } }
+        for (let v = 0; v < n; v++) {
+          let d0 = N1[v * 3] - N0[v * 3], d1 = N1[v * 3 + 1] - N0[v * 3 + 1], d2 = N1[v * 3 + 2] - N0[v * 3 + 2];
+          // (a normal the shape turns far, `MORPH_NORMAL.turn` [from, to] radians, arrives at the shape's own: the rest's
+          // carry the field's smooth normals, the difference the net's, and where a coarse net's differ from the field's
+          // (a lid's fold) the sum lit the shut lid in blotches, flames along its top)
+          const c = N0[v * 3] * N1[v * 3] + N0[v * 3 + 1] * N1[v * 3 + 1] + N0[v * 3 + 2] * N1[v * 3 + 2], k = smoothTurn(Math.acos(Math.max(-1, Math.min(1, c))));
+          if (k > 0) { d0 += k * (N0[v * 3] - A.N[v * 3]); d1 += k * (N0[v * 3 + 1] - A.N[v * 3 + 1]); d2 += k * (N0[v * 3 + 2] - A.N[v * 3 + 2]); }
+          if (Math.hypot(d0, d1, d2) > 1e-4) { nid.push(v); nv.push(d0, d1, d2); }
+        }
         return this.morphAccessor(n, Uint32Array.from(nid), Float32Array.from(nv));
       };
       // (welded: a row once per vertex, the vertices ascending)

@@ -41,11 +41,12 @@ export const GLOBE = Object.freeze({ r: 0.052, back: 0.063, cornea: 0.034, iris:
  * the brow's head and tail] (the fold's arch was a tall cove over the lid); and the eye (its globe, lids and lashes) sits
  * `forward` [a share of the way from the cornea toward the nose's tip, the least its cornea stays behind the glabella]
  * out of a socket that set it deep behind the brow (a deep-set eye comes forward; one already near the brow's line stays,
- * where the share alone stood it proud of the face). Seated as ONE SECTION (`seat` 2, realistic laws 13) the fold leans
- * out of the knee by `section` instead, a third as steep, and no crease is cut: the lid runs up into the brow as one
- * surface (the steep pad hooked out over a cut crease, the lid's top, the crease and the fold's underside three dark bands
+ * where the share alone stood it proud of the face). Seated as ONE SECTION (`seat` 2, realistic laws 13) the eye comes
+ * out by `forwardOut` (its cornea a third as far behind the glabella: set deep, the lid sat in a cove the brow shadowed),
+ * the fold leans out of the knee by `section` instead, a third as steep, and no crease is cut: the lid runs up into the
+ * brow as one surface (the steep pad hooked out over a cut crease, the lid's top, the crease and the fold's underside three dark bands
  * stacked under the brow, and a blink stretched the lid across them) */
-export const SEAT = Object.freeze({ reach: 0.045, lie: 0.0005, rise: [0.4, 60], blend: 0.012, fold: [0.9, 80, 0.03, 0.012], section: [0.3, 80, 0.03, 0.012], side: [0.3, 20, 0.12, 0.05], brow: [0.016, 0.012], forward: [1 / 3, 0.026] });
+export const SEAT = Object.freeze({ reach: 0.045, lie: 0.0005, rise: [0.4, 60], blend: 0.012, fold: [0.9, 80, 0.03, 0.012], section: [0.3, 80, 0.03, 0.012], side: [0.3, 20, 0.12, 0.05], brow: [0.016, 0.012], forward: [1 / 3, 0.026], forwardOut: [1 / 3, 0.008], shelf: [0.03, 0.005] });
 
 /** the channels, [rest, min, max]; the gaze in degrees (+yaw toward the figure's right, +pitch up) */
 export const EYE_CHANNELS = Object.freeze({
@@ -310,8 +311,11 @@ export function eyeRig(P, s, c, fissure, arc = browBridge(P).arcs[s], split = 0.
     if (seat) {
       // (the sides' lean grows from nothing at the knee to its whole over the fold's height)
       const dz = p.z - F.zk, u = Math.min(1, dz / F.h), over = Math.max(0, dz - F.h), [lean, curl, past, cap] = seat === 2 ? SEAT.section : SEAT.fold, sw = smooth01(dz / F.h);
-      const slope = 2 * lean * (1 - u) + 2 * curl * over;
-      return smax(p.z - F.za - past, (F.yk + lean * F.h * (1 - (1 - u) * (1 - u)) + curl * over * over + F.side * sw - p.y) / Math.hypot(1, slope), cap);
+      // (one section's SHELF, `shelf` [forward, over the height]: the fold steps forward out of the knee near level, so
+      // from the front its edge is the one arc and the lid's top tucks back under it, hidden: the skin a blink unrolls)
+      const [sd, sh] = seat === 2 ? SEAT.shelf : [0, 1], ds = sd * smooth01(F.h / (4 * sh)), st = Math.min(1, dz / sh);
+      const slope = 2 * lean * (1 - u) + 2 * curl * over + (ds * 6 * st * (1 - st)) / sh;
+      return smax(p.z - F.za - past, (F.yk + ds * smooth01(st) + lean * F.h * (1 - (1 - u) * (1 - u)) + curl * over * over + F.side * sw - p.y) / Math.hypot(1, slope), cap);
     }
     // the fold rolls out of the knee and rises into the arc (a square's ease: gentle at the crease, steep at the brow)
     const u = Math.min(1, (p.z - F.zk) / F.h), rise = yArc - F.yk, slope = (2 * rise * u) / F.h;
