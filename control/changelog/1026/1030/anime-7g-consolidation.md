@@ -17,7 +17,9 @@ game: every cast is lit the same way, so any game can field any of them. The eye
   Android 18 maquette): almond eyes under a level, heavy lid, straight brows, a clean jaw to a small chin, on an
   athletic frame.
 - **School-Kid Hero** (`school-kid-hero`, schoolkid-sized and action-themed, after a Kishimoto-baseline genin figure): a
-  big round head, the face wide and full at the cheeks to a short lower face and a small pointed chin; large, tall eyes
+  big round head and a moon face, round from its outline (the head wider, the jaw broad, its corner high) to a short
+  lower face and a small pointed chin, with no pouch on the lower cheek (the first cut's chipmunking) and less bevel than
+  its siblings (no squared jaw line, the jaw not curved in, shallower socket planes); large, tall eyes
   under a crisp lid lifted to its tail, large irises; thin brows; a small nose; on a short, slight frame. Its bands put
   the eye level, the nose tip and the lip line lower on the head, as a child's are. Her head is the male's, as Shonen
   High's female's is, her brow broader, her eyes and irises a little larger, her jaw and chin smaller.
@@ -25,5 +27,6 @@ game: every cast is lit the same way, so any game can field any of them. The eye
   by its own bands, and every word it sets inside the studio's ranges; the brow-over-the-eye sweep already reads every
   cast.
 - **Clay** on hero-live: a viewer toggle (and a shot's `clay: true`) that shows the form alone in one warm grey under the
-  same light, as a maquette is read before it is painted. The two new casts were tuned over three rounds in clay; the
+  same light, as a maquette is read before it is painted; it casts no shadow on itself there (the key's shadow map laid
+  a straight edge across every face that read as a crease). The two new casts were tuned over three rounds in clay; the
   eyes gate is the operator's.

@@ -84,21 +84,23 @@ export const ANIME_STYLES = Object.freeze({
     }),
   }),
   // SCHOOL-KID HERO, schoolkid-sized and action-themed (after a Kishimoto-baseline figure, a twelve-year-old genin): a big
-  // head on a short, slight frame. The skull round and the face wide at the cheeks, full and round down to a short lower
-  // face and a small pointed chin; the eyes large and tall under a crisp upper lid lifted to its tail, the irises large;
-  // the brows thin and a little angled; the nose small. The female (after the same figure's heroine) wears the male's
+  // head on a short, slight frame. The skull round and the face MOON-round: its roundness from the outline (the head
+  // wider, the jaw broad, its corner high) curving in to a small pointed chin, never from a pouch
+  // on the cheek (the lower cheek left at the base's, so no chipmunk) nor a shelf under the cheekbone; less bevelled
+  // than its siblings (no squared jaw line, the jaw not curved in, the socket's planes shallower); the eyes large and
+  // tall under a crisp upper lid lifted to its tail, the irises large; the brows thin and a little angled; the nose small. The female (after the same figure's heroine) wears the male's
   // head, as Shonen High's does: her features softer, her brow broader, her eyes a little larger, her chin as small
   'school-kid-hero': Object.freeze({
-    note: 'schoolkid-sized, action-themed (after a Kishimoto-baseline genin figure): a big round head on a short, slight frame, full cheeks to a small pointed chin, large crisp eyes',
+    note: 'schoolkid-sized, action-themed (after a Kishimoto-baseline genin figure): a big round head on a short, slight frame, a moon face to a small pointed chin, large crisp eyes',
     male: Object.freeze({
-      face: Object.freeze({ width: 1.06, lower: 0.9, cheekVolume: 1.06, lowerCheekVolume: 1.12, jaw: 0.94, jawAngle: 1.05, chin: 0.72, chinHeight: 0.92, browDepth: 1.05, eyeWidth: 1.06, eyeHeight: 1.08, iris: 1.04, tilt: 0.03, nose: 0.85 }),
-      sculpt: Object.freeze({ lidWeight: 1.1, lidAngle: 6, lidTail: 1.1, browThick: 0.85, browGap: 0.8, browAngle: 6, fissureHeight: 1.05, mouthWidth: 1.04, jawLine: 0.4 }),
+      face: Object.freeze({ width: 1.12, lower: 0.9, cheekVolume: 1.02, jaw: 1.12, jawAngle: 1.2, chin: 0.66, chinHeight: 0.92, chinProjection: 1.04, browDepth: 1, eyeWidth: 1.06, eyeHeight: 1.08, iris: 1.04, tilt: 0.03, nose: 0.85 }),
+      sculpt: Object.freeze({ lidWeight: 1.1, lidAngle: 6, lidTail: 1.1, browThick: 0.85, browGap: 0.8, browAngle: 6, fissureHeight: 1.05, mouthWidth: 1.04, orbit: -0.01, jawHollow: -0.01 }),
       tune: SCHOOL_KID,
       bands: Object.freeze({ eyeLevel: [0.4, 0.45], pronasale: [0.23, 0.3], stomion: [0.12, 0.17], browThick: [0.3, 0.6] }),
     }),
     female: Object.freeze({
       head: 'male',
-      face: Object.freeze({ foreheadDepth: 1.08, eyeHeight: 1.03, eyeWidth: 1.03, iris: 1.05, jaw: 0.88, chin: 0.86, cheekVolume: 1.04, lowerCheekVolume: 0.96, browDepth: 0.82, nose: 0.85 }),
+      face: Object.freeze({ foreheadDepth: 1.08, eyeHeight: 1.03, eyeWidth: 1.03, iris: 1.05, jaw: 0.94, chin: 0.86, cheekVolume: 1.02, browDepth: 0.85, nose: 0.85 }),
       sculpt: Object.freeze({ lidWeight: 1.1, lidFlick: 10, lidAngle: -2, browThick: 0.7, browAngle: -3, tipProjection: 0.85, mouthWidth: 0.9, seatBack: 0.04 }),
       tune: Object.freeze({ ...SCHOOL_KID, head: 1.08, stature: 0.87, hips: 0.95 }),
       bands: Object.freeze({ eyeWidth: [0.19, 0.23], browThick: [0.2, 0.45], lid: [0.3, 0.45], mouthWidth: [0.22, 0.34] }),

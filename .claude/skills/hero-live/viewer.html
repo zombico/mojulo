@@ -289,6 +289,8 @@ const CLAY = new THREE.Color(0xb9aea3);
 function setClay(on) {
   const L = cur();
   for (const m of [L?.body?.material].flat().filter(Boolean)) { const P = m.userData.paint; if (!P) continue; m.color.copy(on ? CLAY : P.color); m.map = on ? null : P.map; m.vertexColors = on ? false : P.vertexColors; m.needsUpdate = true; }
+  // (and no shadow cast on itself: the key's shadow map lays a straight edge across the face that reads as a crease)
+  if (L?.body) L.body.receiveShadow = !on;
 }
 
 // ─── the transport and the toggles ──────────────────────────────────────────
