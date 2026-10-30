@@ -56,7 +56,21 @@ follow.
   primaries, feather crests), reptile (a dorsal row of spines in the tufts' rhythm, a heavy tail), orb (the head is the
   body; fins). A species' kit picks shared modules (ears, muzzle, tail, pattern, horns, mane, fin, shell, neck, eyes,
   feet), and its own measures from the roster size its ears, so a mouse's are big and round. The raccoon is one of its
-  outputs. A roster sheet (`scripts/spikes/feature-roster.mjs`) mints one species per family for the eyes gate.
+  outputs. A roster sheet (`scripts/spikes/feature-roster.mjs`) mints one species per family, or a `--cast`, for the eyes
+  gate.
+- **Silhouettes vary across a cast, read from each species' body.** The fauna roster's realistic animal says how long
+  its body is against its girth, whether the girth peaks in front or behind, how long its legs and neck are, and
+  whether it has legs: from these a species is a pear (the raccoon), a wedge (a gorilla), a barrel (a bear), a noodle
+  (an otter, a rat), leggy (a fox, a deer), a teardrop (an owl, a penguin), squat (a frog), a perch or a wader (a pigeon, a
+  flamingo), an orb (a fish) or a coil (a snake rising from its loops), each its own masses, neck, legs and arms
+  (docs/feature-style.md).
+- **A belly is the species' own, never a default.** Where the roster's belly is the coat's colour there is none; where
+  it is darker it is the same shape in its own colour; a family may name one the roster lacks (the raccoon's oval, a
+  fox's bib). Its shape is the silhouette's: an oval, a bib, an underside strip, a bird's breast, a fish's
+  countershading, a reptile's scutes, a penguin's tuxedo.
+- **Birds stand as birds**: the wings folded on the sides as flat panels with the primaries fanned back along them,
+  thin legs, three toes forward and one back, a smooth head unless the kit names a crest; in the clips the wings stay
+  folded, stirring with the acting.
 
 The aim is a good default game model: one smooth skin, a few layers and parts, and a silhouette and markings that read
 at a distance, within a triangle budget (the raccoon is about 17,000 triangles, skin, coat and face together). The

@@ -219,6 +219,16 @@ function splayed(clips, out) {
   return Object.fromEntries(Object.entries(clips).map(([n, c]) => [n, Array.isArray(c) ? c.map(key) : c && Array.isArray(c.keys) ? { ...c, keys: c.keys.map(key) } : c]));
 }
 
+/** clips with every wing held folded: each arm's direction mostly the fold's (`fold`, the right's), the clip's own a
+ *  share (`play`), so a wing stirs with the acting and never swings out as an arm */
+function folded(clips, fold, play = 0.2) {
+  const fix = (a, sx) => { if (!a || typeof a !== 'object' || !['x', 'y', 'z'].every((k) => Number.isFinite(a[k]))) return a;
+    const l = Math.hypot(a.x, a.y, a.z) || 1, d = [sx * fold[0] * (1 - play) + (a.x / l) * play, fold[1] * (1 - play) + (a.y / l) * play, fold[2] * (1 - play) + (a.z / l) * play];
+    const m = Math.hypot(...d) || 1; return { x: r4(d[0] / m), y: r4(d[1] / m), z: r4(d[2] / m) }; };
+  const key = (K) => (K && typeof K === 'object' ? { ...K, ...(K.armL ? { armL: fix(K.armL, -1) } : {}), ...(K.armR ? { armR: fix(K.armR, 1) } : {}) } : K);
+  return Object.fromEntries(Object.entries(clips).map(([n, c]) => [n, Array.isArray(c) ? c.map(key) : c && Array.isArray(c.keys) ? { ...c, keys: c.keys.map(key) } : c]));
+}
+
 /** the coat's layers over a skin, kept by key */
 const COATS = new Map();
 function coatOf(skin, F, eggs, layers) {
@@ -250,7 +260,8 @@ export function featurePlan(sheet, { title = 'a feature animal', reactions = fal
   const { rig, clips: clips0 } = rigOf(f, { J: L.J, H, hipZ: L.hipZ, neckZ: L.neckZ, top: L.top, orb: false, k, face, reactions, headParts: faceNames, upper: [] });
   // (the mascot's clips hang the arms close to the body; round this belly they would sink into it: each arm is splayed
   // out to clear it, its direction's outward share at least the build's)
-  const clips = splayed(clips0, build.splay ?? 0);
+  // (a bird's wings are held folded instead)
+  const clips = build.fold ? folded(clips0, build.fold) : splayed(clips0, build.splay ?? 0);
   // the fingers' bones: two links a finger from its knuckle (each tail riding its bone's parent, as the knuckles do)
   for (const d of L.digits) for (const [S0, m] of [['R', (p) => p], ['L', mirrorX]]) {
     const n = (x) => `digit${d.i}${x}${S0}`;
