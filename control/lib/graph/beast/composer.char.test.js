@@ -27,10 +27,11 @@ const CASES = {
   frame: { cast: 'male', beast: { kin: kinWith((c) => c.abdomen === 'gaster'), arms: 4 } },
   winged: { cast: 'female', beast: { kin: kinWith((c) => c.keel > 0.5), legs: 'digitigrade', wings: 'arms' } },
 };
+// (records re-pinned for the hero laws 20, anime-sockets.js: each record carries the new laws; no plan moves)
 const PINS = {
-  plantigrade: ['4555b9f5f29f57f6', 'd7f91ee2a0c8ebed'], digitigrade: ['8bee6732a5c56dd3', '075b0200012951a1'],
-  coil: ['2d8a836fc154014d', '3f1e7c335efbfed4'], ridged: ['f27e78116cd65c40', '21c75f71c17b6632'],
-  frame: ['26edaabbcb2dab21', 'e2804beb1c150914'], winged: ['dd6162ee1751c6b6', '4f1319463ecd6e2f'],
+  plantigrade: ['ac163167619acf6a', 'd7f91ee2a0c8ebed'], digitigrade: ['327de9f399432a83', '075b0200012951a1'],
+  coil: ['b897897b3277503c', '3f1e7c335efbfed4'], ridged: ['5a74af9a9e2ff4a8', '21c75f71c17b6632'],
+  frame: ['bfb059312f76450a', 'e2804beb1c150914'], winged: ['d0f204f6469b6182', '4f1319463ecd6e2f'],
 };
 
 describe('the kin presets compose what their cards made', () => {

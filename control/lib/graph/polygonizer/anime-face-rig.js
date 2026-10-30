@@ -35,6 +35,7 @@ import { animeHeadAt } from './humanoid-plan.js';
 import { animeHeroEffective, heroHeadPole, heroHairPole } from './anime-looks.js';
 import { ANIME_POSES, resolveAnimeExpression } from './anime-head.js';
 import { DRAWINGS } from './anime-drawings.js';
+import { socketsOn, withSocket } from './anime-sockets.js';
 import { tierOf, DENSE_TIERS } from '../era/cast-spend.js';
 import { readTarget, DEFAULT_TARGET } from '../era/target.js';
 
@@ -165,39 +166,44 @@ export const SEVEN_G = Object.freeze({
 });
 const splits = (name) => PER_SIDE.has(DRAWINGS[name].layer) || !!DRAWINGS[name].sided;
 const MOVED7 = 'a 7G drawing moves the head\'s pin or its layout: the face is drawn in its four channels';
-/** the 7G targets of a head (kept on its rig, T.g7): each drawing's (split per side where it is drawn per side), each
- * pair's corrective (the build of both less the neutral and each alone, per side) → { names, D, bytes } or { skipped } */
-function g7Targets(T, recipe, opts, X, C) {
-  if (T.g7 !== undefined) return T.g7;
+/** the 7G targets of a head (kept on its rig, T.g7, one set per `sockets`): each drawing's (split per side where it is
+ * drawn per side), each pair's corrective (the build of both less the neutral and each alone, per side) → { names, D,
+ * bytes } or { skipped }. `sockets` (anime-sockets.js, hero laws 20): each brow drawing built with its socket, so its
+ * target and its correctives carry it */
+function g7Targets(T, recipe, opts, X, C, sockets = false) {
+  T.g7 ??= {};
+  const at = sockets ? 'sockets' : 'plain';
+  if (T.g7[at] !== undefined) return T.g7[at];
+  const W = (name) => withSocket(name, DRAWINGS[name].words, sockets);
   const V0 = T.V0, D = {}, names = [], whole = {};
   const vOf = (E, words) => { const b = headBuild(opts, E, X, C, words); if (!sameLayout(b, T.check)) throw new Error(MOVED7); return subVertices(recipe, X, b.parts); };
   const put = (n, d) => { D[n] = d; names.push(n); };
   try {
     for (const name of SEVEN_G.drawings) {
-      const d = diffOf(vOf({}, DRAWINGS[name].words), V0); whole[name] = d;
+      const d = diffOf(vOf({}, W(name)), V0); whole[name] = d;
       if (splits(name)) for (const s of ['L', 'R']) put(drawTarget(name, s), sideOf(d, V0, s)); else put(drawTarget(name), d);
     }
     const fix = (a, b, d) => { for (const s of ['L', 'R']) put(fixTarget(a, b, s), sideOf(d, V0, s)); };
     for (const lid of SEVEN_G.lids) for (const gz of SEVEN_G.gazes) {
-      const d = diffOf(vOf({}, { ...DRAWINGS[lid].words, ...DRAWINGS[gz].words }), V0);
+      const d = diffOf(vOf({}, { ...W(lid), ...W(gz) }), V0);
       for (let i = 0; i < d.length; i++) d[i] -= whole[lid][i] + whole[gz][i];
       fix(lid, gz, d);
     }
     // (a brow over a lid: the socket's rim warps with the brow over the rings the lid moves, anime-form.js BROW_RIM)
     for (const brow of SEVEN_G.brows) for (const lid of SEVEN_G.lids) {
-      const d = diffOf(vOf({}, { ...DRAWINGS[brow].words, ...DRAWINGS[lid].words }), V0);
+      const d = diffOf(vOf({}, { ...W(brow), ...W(lid) }), V0);
       for (let i = 0; i < d.length; i++) d[i] -= whole[brow][i] + whole[lid][i];
       fix(brow, lid, d);
     }
     for (const brow of SEVEN_G.brows) {
-      const d = diffOf(vOf({ blink: 1 }, DRAWINGS[brow].words), V0);
+      const d = diffOf(vOf({ blink: 1 }, W(brow)), V0);
       for (let i = 0; i < d.length; i++) d[i] -= whole[brow][i] + T.D.blink[i];
       fix(brow, 'shut', d);
     }
-  } catch (e) { if (e.message !== MOVED7) throw e; return (T.g7 = { skipped: MOVED7 }); }
+  } catch (e) { if (e.message !== MOVED7) throw e; return (T.g7[at] = { skipped: MOVED7 }); }
   // (the export's cost: a sparse target, 16 bytes a moved vertex)
   const bytes = names.reduce((t, n) => { let k = 0; const d = D[n]; for (let i = 0; i < d.length; i += 3) if (d[i] || d[i + 1] || d[i + 2]) k++; return t + 16 * k; }, 0);
-  return (T.g7 = { names, D, bytes });
+  return (T.g7[at] = { names, D, bytes });
 }
 /**
  * A 7G face → its weights in the targets' order (`K` the rig's knots, its targets with the 7G names appended). The face:
@@ -244,7 +250,7 @@ export function heroFaceRig(m, mesh) {
   const want = new Set(['cranium', ...X]), idx = [];
   for (let i = 0; i < mesh.vertices.length; i++) if (want.has(mesh.provenance[i].part)) idx.push(i);
   // 7G (sevenG): the drawings' targets and their correctives after the channels' (none else: the face as before)
-  const G7 = sevenG(hero) ? g7Targets(T, m.recipe, opts, X, C) : null, g7 = G7 && !G7.skipped ? G7 : null;
+  const G7 = sevenG(hero) ? g7Targets(T, m.recipe, opts, X, C, socketsOn(hero)) : null, g7 = G7 && !G7.skipped ? G7 : null;
   const KK = g7 ? { ...K, targets: [...K.targets, ...g7.names] } : K;
   const { V0 } = T, own = K.own === null ? null : T.own.get(K.own);
   const D0 = own ? { ...T.D, [fixName(K.own, 'L')]: own.L, [fixName(K.own, 'R')]: own.R } : T.D, D = g7 ? { ...D0, ...g7.D } : D0, W = (1 + KK.targets.length) * 3;

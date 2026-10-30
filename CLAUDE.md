@@ -188,7 +188,8 @@ Pointers only; each target carries its own design notes.
   principles a silhouette is read by in [docs/garment-principles.md](docs/garment-principles.md); skill: `/garment-design`.
   Played as an engine gets it (the skinned GLB, its clips and face morphs, variants bare and armoured): `/hero-live`.
 - The anime face's principles (the brow never covers the eye, no line where the form carries it, drawings snap):
-  [docs/anime-face-principles.md](docs/anime-face-principles.md); its head casts (Shonen High the default; siblings by figure and theme, never by game type): `anime-styles.js`.
+  [docs/anime-face-principles.md](docs/anime-face-principles.md); its head casts (Shonen High the default; siblings by figure and theme, never by game type): `anime-styles.js`; the
+  socket each brow drawing carries: `anime-sockets.js`.
 - What it wears: the wearable libraries [footwear/](control/lib/graph/footwear/), [handwear/](control/lib/graph/handwear/) and
   [plating/](control/lib/graph/plating/) (card → passes → laws → adapter; a new look is a card): [docs/plating.md](docs/plating.md).
 - Solids: [polygonizer/](control/lib/graph/polygonizer/) (`field-terms.js`, `code-realm.js`,

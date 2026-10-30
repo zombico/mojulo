@@ -341,8 +341,13 @@ export const HERO_BUILD_NAMES = Object.freeze(Object.keys(HERO_BUILDS));
  * cheekbones' blocks in profile, turns its jaw from a side light and draws its mouth on the face with no rim; laws 1 to
  * 18 drew the studio's front, one surface from the brow to the jaw, a raised rim round the mouth. Not
  * on the child's face (laws 13 and 14: its round face is its own), nor on the studio's own face (`sculpt: false`).
+ * Laws 20 GIVES EACH BROW DRAWING ITS SOCKET (anime-sockets.js SOCKETS, a base table for every anime head): the 7G brow
+ * drawings are built with their own eye socket (the ridge over the eye, the socket's upper plane, its inner and outer
+ * ends, above the widest lid's lash band only), so a brow's target and its correctives carry it and the socket is
+ * drawn with the brow, frame by frame; laws 1 to 19 drew every brow over the head's one socket, its rim only tied to
+ * the brow's middle. Only on the anime head's form (laws 19).
  */
-export const HERO_LAWS_VERSION = 19;
+export const HERO_LAWS_VERSION = 20;
 /** Does this spec read a table the hero laws cover? (the structured core's shoulder line, laws 2, leg set, laws 3, leg length, laws 4, and arm length, laws 5:
  * every hero on the default core) */
 export const readsHeroLaws = (spec) => (spec.core ?? DEFAULT_CORE) === 'structured' || spec.form === 'tiered' || (spec.painterly !== undefined && spec.painterly !== null && spec.painterly !== false) || isBuiltCast(spec.cast) || (spec.geocube !== undefined && spec.geocube !== null);

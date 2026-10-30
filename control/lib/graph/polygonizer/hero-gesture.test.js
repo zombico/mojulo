@@ -255,6 +255,8 @@ describe('the anime wave', () => {
 // every record carries the new laws; no plan or recipe here moves (none wears a trunk plate on the tiered form).
 // Re-pinned for the hero laws 19 (anime-looks.js ANIME_FORM: the anime head's socket, pyramid nose and jaw): every record
 // carries the new laws; no plan or recipe here moves (none wears the anime head).
+// Re-pinned for the hero laws 20 (anime-sockets.js: each brow drawing its socket): every record carries the new laws; no
+// plan or recipe here moves (the socket rides in the 7G face rig's brow targets, never in a plan).
 // from the door BEFORE the gesture existed (sha256(JSON.stringify(x)), first 16 hex digits); the anime hero at
 // `gesture: 'rest'` keeps the plan and recipe it had (its record says 'rest').
 // Re-pinned for the hero's `wave` clip (hero-form.js): the upper arm level and the forearm up, the elbow never over
@@ -295,11 +297,11 @@ describe('the anime wave', () => {
 // record, plan and recipe pinned before it (LAWS_3 below); then for the hero laws 5 (hero-form.js ARM_LENGTH: the
 // adult humerus and forearm shortened), the same again, each at laws 4 as pinned before it (LAWS_4 below)
 const PINS = {
-  landmarkMale: [{ cast: 'male' }, ['f11c6e099019d555', '41bd60ab3623a06d', '8255963574361639'], ['83486ddf925dd1e5', '061c177f4a0b9175']],
-  landmarkFemaleLowpoly: [{ cast: 'female', register: 'lowpoly' }, ['523006f400664707', 'c927544d60f2d254', '52faad4125c59d09'], ['a1abb4fbc8d78a61', '7f67633ae270e296']],
-  headNone: [{ cast: 'female', head: 'none' }, ['0cfa9342cebc21db', '41b706da8526b86c', '03fb84eabe1c07d8'], ['3501097320b96707', 'cd26a720b2420d48']],
-  ranger: [{ cast: 'male', hair: 'crop', detail: 'clothed', adorn: 'ranger' }, ['de59b89dfdb0e26e', '6a79f98126fbc1dc', 'f4ee8b82d0e9ccae'], ['e09eb3fc01c74335', '7510f5dc97a29248']],
-  chibiFaced: [{ cast: 'chibi', headScale: 1.3, face: 'broad-jaw' }, ['0a1dfb0c9c4ae16d', '29e55dfcd666d970', '0234d75e92dcbaf9'], ['031f46caafd139ae', '1c2adc75891c5cf2']],
+  landmarkMale: [{ cast: 'male' }, ['1456bd1db5d418ce', '41bd60ab3623a06d', '8255963574361639'], ['83486ddf925dd1e5', '061c177f4a0b9175']],
+  landmarkFemaleLowpoly: [{ cast: 'female', register: 'lowpoly' }, ['cecdca18cb1d4b68', 'c927544d60f2d254', '52faad4125c59d09'], ['a1abb4fbc8d78a61', '7f67633ae270e296']],
+  headNone: [{ cast: 'female', head: 'none' }, ['e5b62d6d817bf837', '41b706da8526b86c', '03fb84eabe1c07d8'], ['3501097320b96707', 'cd26a720b2420d48']],
+  ranger: [{ cast: 'male', hair: 'crop', detail: 'clothed', adorn: 'ranger' }, ['818eb466474572fd', '6a79f98126fbc1dc', 'f4ee8b82d0e9ccae'], ['e09eb3fc01c74335', '7510f5dc97a29248']],
+  chibiFaced: [{ cast: 'chibi', headScale: 1.3, face: 'broad-jaw' }, ['63d68f97c60a1b1d', '29e55dfcd666d970', '0234d75e92dcbaf9'], ['031f46caafd139ae', '1c2adc75891c5cf2']],
 };
 /** the structured heroes as minted before the hero laws 2: their record without the stamp, and the plan and recipe a
  * row stamped laws 1 (or unstamped) still builds */

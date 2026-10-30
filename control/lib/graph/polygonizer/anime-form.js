@@ -171,8 +171,9 @@ export function buildAnime(r, options = {}) {
   const EYE0 = EYE && D?.lid ? eyeShapeOf(S, f, null) : EYE;
   const BROW_RIM = S?.orbit && S?.brow && EYE ? Object.fromEntries([-1, 1].map((side) => {
     const R = browLine(side, true), A = browLine(side), mid = (L, i) => L.bot[i][1] + 0.5 * L.bt[i];
-    // per column: [u, the rest middle, the drawn middle, the lash band's top (nothing warps below it), the rest bottom]
-    const P = R.bot.map(([u, y], i) => [u, mid(R, i), mid(A, i), R.floor[i], y]);
+    // per column: [u, the rest middle, the drawn middle, the lash band's top (nothing warps below it), the rest bottom,
+    // the drawn bottom]
+    const P = R.bot.map(([u, y], i) => [u, mid(R, i), mid(A, i), R.floor[i], y, A.bot[i][1]]);
     if (P[0][0] > P.at(-1)[0]) P.reverse();
     return [side, P];
   })) : null;
@@ -217,6 +218,23 @@ export function buildAnime(r, options = {}) {
       const wu = fillet((au - O.bridge) / O.medial) * (1 - smoother((au - O.lateral[0]) / O.lateral[1]));
       const wy = y >= ya ? orbitUpper(u, y, ya) : fillet(1 - (ya - y) / down);
       z += S.orbit.depth * wu * wy;
+      // the drawing's SOCKET (`socket`, anime-sockets.js: each brow drawing carries its own): above the top of the widest
+      // lid's lash band only, faded in from it to the bottom of the brow as drawn (the gap the brow's clearance of the
+      // eye leaves, SOCKET.ease at least; so the eye, its lenses and its lash band never move with a socket, the brow
+      // block moves whole, and the strip under it is the ridge's overhang: an ease longer than the gap left the brow's
+      // bottom behind its top and tipped it forward like a visor) and out above the brow's middle (SOCKET.reach, eased
+      // over SOCKET.fade): the ridge brought forward over the eye (`ridge`, construction units; back when negative), the
+      // socket's upper plane cut deeper (`deep`; shallower when negative), its inner end bunched forward toward the nose
+      // (`pinch`: a scowl; eased back when negative: worry) and its outer end hooded forward (`outer`; lifted back when
+      // negative), each fading out to the temple as the socket does
+      if (D?.socket && BROW_RIM) {
+        const K = D.socket, [, T0, T, F, , Bd] = rimAt(u), vy = smoother((y - F) / Math.max(SOCKET.ease, Bd - F)) * (1 - smoother((y - Math.max(T, T0) - SOCKET.reach) / SOCKET.fade));
+        if (vy > 0) {
+          const lat = clamp((au - O.bridge) / (O.lateral[0] - O.bridge)), wl = (1 - smoother((au - O.lateral[0]) / O.lateral[1])) * vy;
+          z -= ((K.ridge ?? 0) + (K.pinch ?? 0) * dmath.pow(1 - lat, 1.5) + (K.outer ?? 0) * dmath.pow(lat, 1.5)) * wl;
+          if (y >= ya) z += (K.deep ?? 0) * wu * wy * vy;
+        }
+      }
     }
     // Independent forehead and supraorbital depth; blend to the temple seam.
     if (!back) { const sideFade = Math.max(0, 1 - u * u); z -= 0.28 * ((f.foreheadDepth ?? 1) - 1) * g(y, 0.70, 0.28) * sideFade; z -= 0.22 * ((f.browDepth ?? 1) - 1) * g(y, 0.34, 0.14) * sideFade; }
@@ -978,9 +996,12 @@ const fillet = (t) => { const x = clamp(t), k = ORBIT.fillet; return (x < k ? (x
 const smoother = (t) => { const x = clamp(t); return x * x * x * (x * (6 * x - 15) + 10); };
 export const GAZE = Object.freeze({ x: 0.3, y: 0.25 });
 export const BROW = Object.freeze({ lift: 0.6, inner: 0.9, knit: 0.9, knitIn: 0.12, clearEase: 0.3, clearReach: 0.2, warpEase: 0.03 });
+/** the drawing's socket (anime-sockets.js): its least ease in over the lash band's top, how far above the brow's middle it
+ * reaches, and the ease out above that */
+export const SOCKET = Object.freeze({ ease: 0.004, reach: 0.06, fade: 0.14 });
 export const LID = Object.freeze({ floor: 0.15, ease: 1.5, wide: 0.3 });   // (`wide`: the widest lid a drawing draws, anime-drawings.js DRAWING_RANGES)
 /** the drawing's neutral words: a word at its neutral is dropped, so a neutral drawing is no drawing */
-const DRAWING_NEUTRAL = Object.freeze({ brow: { lift: 0, inner: 0, knit: 0 }, lid: { inner: 0, outer: 0, wide: 0 }, gaze: { x: 0, y: 0 }, mouth: { wide: 1, corner: 0, box: 0, omega: 0, wave: 0 } });
+const DRAWING_NEUTRAL = Object.freeze({ brow: { lift: 0, inner: 0, knit: 0 }, socket: { ridge: 0, deep: 0, pinch: 0, outer: 0 }, lid: { inner: 0, outer: 0, wide: 0 }, gaze: { x: 0, y: 0 }, mouth: { wide: 1, corner: 0, box: 0, omega: 0, wave: 0 } });
 /** a drawing with its neutral words dropped (`pupil` 1 dropped), or null when nothing is left */
 export function drawingOf(d) {
   if (!d || typeof d !== 'object') return null;

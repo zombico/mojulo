@@ -2,13 +2,15 @@
 // take on a target of T3 or higher, never the painted face, never `acting: 'basic'`. A 7G rig keeps the four channels'
 // targets and rows as they were and appends the drawings' and the correctives'. A face drawn per layer, weighed onto the
 // targets, IS the exact build of its drawings: the layers that add, and the pairs that do not through their correctives
-// (a lid's shape over a turned gaze, a brow over a lid's shape, whose socket rim warps with it, and over its shut eye).
+// (a lid's shape over a turned gaze, a brow over a lid's shape, whose socket rim warps with it, and over its shut eye),
+// each brow drawn with its own socket under hero laws 20 (anime-sockets.js).
 import { describe, it, expect } from 'vitest';
 import { heroRecord, expandLayeredManifest } from '../../mcp/tools/layered.js';
 import { compileLayered } from './station-loft.js';
 import { animeHeadAt } from './humanoid-plan.js';
 import { heroFaceRig, faceRigOptions, sevenG, drawingWeights, drawTarget, fixTarget, SEVEN_G, FACE_TARGETS } from './anime-face-rig.js';
 import { DRAWINGS, drawingWords } from './anime-drawings.js';
+import { socketsOn, withSocket } from './anime-sockets.js';
 
 const mint = (spec) => { const M = expandLayeredManifest({ kind: 'layered', hero: heroRecord(spec) }); return { M, mesh: compileLayered(M.recipe, M.dials) }; };
 const SPEC = { cast: 'male', head: 'anime', register: 'lowpoly' };
@@ -43,7 +45,8 @@ describe('a 7G rig', () => {
     const W = (1 + F.targets.length) * 3;
     // (the face the rig's targets draw at weights w, against the head built at those words)
     const check = (state, E = {}) => {
-      const words = drawingWords({ brows: state.brows?.L, lids: state.lids?.L, gaze: state.gaze, mouth: state.mouth }), w = drawingWeights({ eyeL: E.blink ?? 0, eyeR: E.blink ?? 0, smile: 0, open: 0, brow: 0, ...state }, F.K);
+      // (each brow with its socket, as the hero reads it: anime-sockets.js, hero laws 20)
+      const words = withSocket(state.brows?.L, drawingWords({ brows: state.brows?.L, lids: state.lids?.L, gaze: state.gaze, mouth: state.mouth }), socketsOn(full.M.hero)), w = drawingWeights({ eyeL: E.blink ?? 0, eyeR: E.blink ?? 0, smile: 0, open: 0, brow: 0, ...state }, F.K);
       const exact = compileLayered({ ...full.M.recipe, parts: { ...full.M.recipe.parts, ...animeHeadAt(opts, E, X, words) } }, full.M.dials).vertices;
       let worst = 0;
       for (let i = 0; i < full.mesh.vertices.length; i++) {
