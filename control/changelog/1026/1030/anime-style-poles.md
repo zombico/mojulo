@@ -64,3 +64,6 @@ lean, long faces. The eyes gate is the operator's.
 - **Her cheeks taken back in**: the fuller lower cheeks of the round before read as chipmunk cheeks at three-quarter;
   her lower cheeks are now slimmer than his and her jaw's side curved in a little, so from the front and at
   three-quarter her face is one clean line from the cheekbone down to the pointed chin.
+- **Her jaw from the front, one convex arc** (after the operator's drawn line): fuller along the jaw's edge from the
+  nose's level down and narrowing into a narrower chin, so the outline is one curve from under the ear to the chin
+  instead of a straight V meeting the cheek at a corner; at three-quarter it stays one smooth line.
