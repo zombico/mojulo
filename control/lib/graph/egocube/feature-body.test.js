@@ -47,11 +47,12 @@ describe('the feature body', () => {
     // (a zone cut into the skin: the nose's faces are the nose's, its edge a line of points on the skin)
     expect(Object.values(S.mesh.groups)).toContain('Nose');
     expect(eggField(eggs).weights(eggs[0].c)).toEqual({ head: 1 });
-    // (the SEAM: where a head shape meets a body shape the blend is tighter, so the surface there sinks into a crease)
-    const head = eggs.find((E) => E.name === 'chin'), body = eggs.find((E) => E.name === 'chest'), at = (t) => head.c.map((x, i) => x + (body.c[i] - x) * t);
-    let lo = 0, hi = 1; for (let i = 0; i < 50; i++) { const m = (lo + hi) / 2; (eggDistance(head, at(m)) < eggDistance(body, at(m)) ? (lo = m) : (hi = m)); }
-    const q = at(lo), P = { x: q[0], y: q[1], z: q[2] };
-    expect(eggField(eggs, { seam: 0.005 }).field(P)).toBeGreaterThan(eggField(eggs).field(P) + 1e-4);
+    // (the SEAM: where a head shape meets a body shape the blend is tighter, so the surface there sinks into a crease; two
+    // body shapes blend as their joins say)
+    const pair = (bone) => [egg({ c: [0, 0, 0.3], u: [0, 0, 1], r: [0.2, 0.2, 0.2], bone: 'head', join: 0.1 }), egg({ c: [0, 0, 0], u: [0, 0, 1], r: [0.2, 0.2, 0.2], bone, join: 0.1 })];
+    const P = { x: 0.15, y: 0, z: 0.15 };
+    expect(eggField(pair('torso'), { seam: 0.01 }).field(P)).toBeGreaterThan(eggField(pair('torso')).field(P) + 1e-3);
+    expect(eggField(pair('head'), { seam: 0.01 }).field(P)).toBeCloseTo(eggField(pair('head')).field(P), 9);
   });
 
   it('a feature-style sheet compiles to the skin on the mascot\'s rig, shaded smooth; any other style as it did', () => {
