@@ -286,7 +286,7 @@ export function relationalFaceRig(m, mesh) {
   // the head's parts and everything pinned to them, in the recipe's order (the figure's vertex order)
   // (and the one skin's GLOBES, their own parts: still but for the gaze's turn and the blink's sink)
   const X = Object.keys(P).filter((n) => HEAD.test(n) || (P[n]?.layer === 2 && HEAD.test(P[n].pin?.parent ?? '')) || (skin && GLOBE_PART.test(n) && P[n]?.mesh));
-  const words = { sex: fit.sex, ...(fit.relations ? { relations: fit.relations } : {}), ...(fit.eyes ? { eyes: fit.eyes } : {}), ...(fit.tune ? { tune: fit.tune } : {}), ...(fit.seat ? { seat: true } : {}) };
+  const words = { sex: fit.sex, ...(fit.relations ? { relations: fit.relations } : {}), ...(fit.eyes ? { eyes: fit.eyes } : {}), ...(fit.tune ? { tune: fit.tune } : {}), ...(fit.seat ? { seat: fit.seat } : {}) };
   const key = JSON.stringify([words, fit.k, fit.ty, fit.men, X, X.map((n) => layoutOf(P[n]))]);
   let T = RIGS.get(key);
   if (T === undefined) {

@@ -164,8 +164,9 @@ describe('the realistic hero at the door', () => {
     const faces = (r, re) => { const C = compileLayered(r.recipe, r.dials); return C.faces.filter((t) => re.test(C.provenance[t[0]].part)).length; };
     const HEAD = /^(headSkin|globe[RL]|mouth|ear[RL]|hair\w*|jewel\w*)$/;
     expect(m.recipe.headFit.skinFaces).toBe(ONE_SKIN_RUNGS.L0.faces); expect(bare.recipe.headFit.skinFaces).toBeUndefined();
-    // (realistic laws 11: the lids seated on the globes, kept by the fit so the bake, the hair and the face rig rebuild it)
-    expect(m.recipe.headFit.seat).toBe(true); expect(bare.recipe.headFit.seat).toBe(true);
+    // (realistic laws 11: the lids seated on the globes, kept by the fit so the bake, the hair and the face rig rebuild it;
+    // laws 13 seats them under a brow of one section, the seat's level 2)
+    expect(m.recipe.headFit.seat).toBe(2); expect(bare.recipe.headFit.seat).toBe(2);
     expect(faces(m, /^headSkin$/)).toBeLessThan(ONE_SKIN_RUNGS.L0.faces * 1.15);
     expect(faces(m, HEAD)).toBeLessThan(faces(bare, HEAD) / 2);
   }, 300_000);

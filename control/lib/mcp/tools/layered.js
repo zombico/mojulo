@@ -293,7 +293,7 @@ function realisticRecipe(recipe, hero) {
   const laws = (hero.physique && typeof hero.physique === 'object' ? hero.physique.laws : undefined) ?? 1, one = laws >= 2;
   // (and under laws 5 its fit keeps the neck's column, so the normal bake can rebuild the skin's own field; under laws 10
   // the ear raised to the canon; under laws 11 the lids rest on the globes: head-relational-eye.js SEAT)
-  const face = realisticFaceOf(hero), H = relationalHeadOn(S, femaleOf(hero) ? 'female' : 'male', face, { oneSkin: one, rung: one && hero.target ? heroHairLevel(hero) : null, column: one && laws >= 5, ear: laws >= 10, seat: one && laws >= 11, teeth: one && laws >= 12 });
+  const face = realisticFaceOf(hero), H = relationalHeadOn(S, femaleOf(hero) ? 'female' : 'male', face, { oneSkin: one, rung: one && hero.target ? heroHairLevel(hero) : null, column: one && laws >= 5, ear: laws >= 10, seat: one && laws >= 11 && (laws >= 13 ? 2 : true), teeth: one && laws >= 12 });
   // THE FACE'S PIERCINGS on its head (hero-head-layers.js): the composed face's, pinned to the visage, their metals'
   // colours under the palette's own
   if (!face || !H.headFit) return H;
@@ -389,12 +389,12 @@ function jewelleryOf(S, piercings) {
 function relationalHeadOn(S, sex, face = null, { oneSkin = false, rung = null, column = false, ear = false, seat = false, teeth = false } = {}) {
   // (`ear`, realistic laws 10: the ear raised to the canon, head-relational.js EAR_RAISE, over the face's own relations)
   const own0 = face ? { relations: face.relations, eyes: face.eyes, ...(face.tune ? { tune: face.tune } : {}) } : {}, own = ear ? { ...own0, relations: raisedEar(own0.relations, sex) } : own0;
-  const key = JSON.stringify([S.parts.neck, S.parts.cranium, S.parts.jaw, S.rig.joints, sex, own, oneSkin, rung, ...(column ? ['column'] : []), ...(seat ? ['seat'] : []), ...(teeth ? ['teeth'] : [])]);
+  const key = JSON.stringify([S.parts.neck, S.parts.cranium, S.parts.jaw, S.rig.joints, sex, own, oneSkin, rung, ...(column ? ['column'] : []), ...(seat ? [seat === true ? 'seat' : `seat${seat}`] : []), ...(teeth ? ['teeth'] : [])]);
   let d = HEADS.get(key);
   if (d) { HEADS.delete(key); HEADS.set(key, d); }
   else {
     const opts = { ...(rung ? { oneSkin: ONE_SKIN_RUNGS[rung] } : {}), ...(column ? { column: true } : {}) };
-    const r = relationalHeadRecipe(S, { sex, ...own, oneSkin, ...(seat ? { seat: true } : {}), ...(teeth ? { teeth: true } : {}), ...(Object.keys(opts).length ? { opts } : {}) });
+    const r = relationalHeadRecipe(S, { sex, ...own, oneSkin, ...(seat ? { seat } : {}), ...(teeth ? { teeth: true } : {}), ...(Object.keys(opts).length ? { opts } : {}) });
     d = {
       parts: Object.fromEntries(Object.entries(r.parts).filter(([k, p]) => JSON.stringify(p) !== JSON.stringify(S.parts[k]))),
       removed: Object.keys(S.parts).filter((k) => !r.parts[k]), creases: r.creases, dropped: Object.keys(S.dials || {}).filter((k) => !r.dials?.[k]), joints: r.rig.joints, headFit: r.headFit,
@@ -798,7 +798,10 @@ export const STREAMLINED_DEPRECATED = "the streamlined core (core: 'streamlined'
  * collider the hair falls outside, a hanging point near the skin taking the skin's own bones (the jaw's the head's), so it
  * moves as what it lies on moves, and a stroke that runs into the body stopping there, hair-locks.js `seal`), where laws
  * 10 to 12 let hair beside the jaw sit inside the upper neck, swept a long lock's foot through the back as the head
- * turned, and wrapped strokes that fell through the neck round the throat and down the chest */
+ * turned, and wrapped strokes that fell through the neck round the throat and down the chest; and the space under the
+ * brow ONE SECTION (head-relational-eye.js SEAT `brow`: no crease cut, the fold rising out of the lid gently), where laws
+ * 11 and 12 stacked the lid's top, the crease and the fold's hooked underside there, three dark bands, and a blink had to
+ * stretch the lid across them */
 export const REALISTIC_LAWS_VERSION = 13;
 export const HERO_FIELDS = ['cast', 'register', 'tune', 'body', 'girth', 'headScale', 'scale', 'palette', 'head', 'face', 'hair', 'expression', 'headPreset', 'look', 'proportions', 'detail', 'adorn', 'paint', 'outfit', 'gesture', 'sculpt', 'clips', 'blink', 'gear', 'core', 'statue', 'genki', 'motion', 'target', 'geocube', 'form', 'physique', 'skin', 'painterly', 'stylism', 'laws', 'kit', 'name', 'emblem', 'undead', 'perform', 'emote'];
 /** what the hero door takes beside a hero's own words: the mint's (the layered kind's top-level keys) and `vibe` */

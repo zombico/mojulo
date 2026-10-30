@@ -41,8 +41,11 @@ export const GLOBE = Object.freeze({ r: 0.052, back: 0.063, cornea: 0.034, iris:
  * the brow's head and tail] (the fold's arch was a tall cove over the lid); and the eye (its globe, lids and lashes) sits
  * `forward` [a share of the way from the cornea toward the nose's tip, the least its cornea stays behind the glabella]
  * out of a socket that set it deep behind the brow (a deep-set eye comes forward; one already near the brow's line stays,
- * where the share alone stood it proud of the face) */
-export const SEAT = Object.freeze({ reach: 0.045, lie: 0.0005, rise: [0.4, 60], blend: 0.012, fold: [0.9, 80, 0.03, 0.012], side: [0.3, 20, 0.12, 0.05], brow: [0.016, 0.012], forward: [1 / 3, 0.026] });
+ * where the share alone stood it proud of the face). Seated as ONE SECTION (`seat` 2, realistic laws 13) the fold leans
+ * out of the knee by `section` instead, a third as steep, and no crease is cut: the lid runs up into the brow as one
+ * surface (the steep pad hooked out over a cut crease, the lid's top, the crease and the fold's underside three dark bands
+ * stacked under the brow, and a blink stretched the lid across them) */
+export const SEAT = Object.freeze({ reach: 0.045, lie: 0.0005, rise: [0.4, 60], blend: 0.012, fold: [0.9, 80, 0.03, 0.012], section: [0.3, 80, 0.03, 0.012], side: [0.3, 20, 0.12, 0.05], brow: [0.016, 0.012], forward: [1 / 3, 0.026] });
 
 /** the channels, [rest, min, max]; the gaze in degrees (+yaw toward the figure's right, +pitch up) */
 export const EYE_CHANNELS = Object.freeze({
@@ -306,7 +309,7 @@ export function eyeRig(P, s, c, fissure, arc = browBridge(P).arcs[s], split = 0.
     // facing down, dark under any key)
     if (seat) {
       // (the sides' lean grows from nothing at the knee to its whole over the fold's height)
-      const dz = p.z - F.zk, u = Math.min(1, dz / F.h), over = Math.max(0, dz - F.h), [lean, curl, past, cap] = SEAT.fold, sw = smooth01(dz / F.h);
+      const dz = p.z - F.zk, u = Math.min(1, dz / F.h), over = Math.max(0, dz - F.h), [lean, curl, past, cap] = seat === 2 ? SEAT.section : SEAT.fold, sw = smooth01(dz / F.h);
       const slope = 2 * lean * (1 - u) + 2 * curl * over;
       return smax(p.z - F.za - past, (F.yk + lean * F.h * (1 - (1 - u) * (1 - u)) + curl * over * over + F.side * sw - p.y) / Math.hypot(1, slope), cap);
     }
@@ -315,6 +318,8 @@ export function eyeRig(P, s, c, fissure, arc = browBridge(P).arcs[s], split = 0.
     return Math.max(p.z - F.za, (F.yk + rise * u * u - p.y) / Math.hypot(1, slope));
   };
   // the crease: a groove along the knee
+  // (seated as one section under the brow, `seat` 2: no groove cut along the knee)
+  if (seat === 2) c = { ...c, crease: 0 };
   const crease = c.crease > 0.02 ? chainF(ts.map((t) => {
     const x = xAt(t), F = foldAt(x, t);
     const z = F ? F.zk : kneeZ(t);

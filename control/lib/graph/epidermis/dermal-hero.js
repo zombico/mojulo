@@ -17,7 +17,7 @@
  * `mesh` the compiled hero (station-loft.js `compileLayered`), `recipe` its recipe. Pure and deterministic.
  */
 import { relationalHead } from '../polygonizer/head-relational.js';
-import { HEAD_TUNES } from '../polygonizer/hero-relational-head.js';
+import { HEAD_TUNES, oneSkinFollow } from '../polygonizer/hero-relational-head.js';
 import { readDermis, skinBase, toSrgb, hairColourOf } from './dermal-map.js';
 import { vertexNormals } from './dermal-chart.js';
 import { headChartOf, STAND_M } from './dermal-head.js';
@@ -122,7 +122,7 @@ export function coveredSkin(mesh, recipe, { reach = 0.08, cell = 0.03 } = {}) {
  * `stand` a hero point in the head's frame, and `shown(v)`: a head point on its surface (an ear on the ear's), not let
  * down inside it under another part */
 function headFrame(mesh, recipe) {
-  const { sex, k, ty, men, relations, eyes } = recipe.headFit, own = { ...(relations ? { relations } : {}), ...(eyes ? { eyes } : {}), ...(recipe.headFit.seat ? { seat: true } : {}) };
+  const { sex, k, ty, men, relations, eyes } = recipe.headFit, own = { ...(relations ? { relations } : {}), ...(eyes ? { eyes } : {}), ...(recipe.headFit.seat ? { seat: recipe.headFit.seat } : {}) };
   const tune = recipe.headFit.tune ?? HEAD_TUNES[sex];
   const H = relationalHead({ sex, tune, ...own });
   const plain = relationalHead({ sex, tune, ears: false, ...own });
@@ -148,6 +148,15 @@ export function heroHidden(mesh, recipe) {
 /** the eye's globe's groups */
 export const GLOBE = /^(Sclera|Iris|Pupil)$/;
 
+/** a mesh vertex's point id in its part's mesh (`<part>.st0.<id>` → `<id>`) */
+const pointOf = (mesh, v) => { const id = mesh.pointIds[v], part = mesh.provenance[v].part; return part === 'headSkin' ? id.slice(id.lastIndexOf('.') + 1) : null; };
+/** the one skin's points with both lids shut (hero-relational-head.js oneSkinFollow, a blink), the hero's frame */
+function lidsShut(recipe) {
+  const fit = recipe.headFit, skin = recipe.parts.headSkin?.mesh;
+  if (!skin) return null;
+  const blend = recipe.parts.headSkin.bind?.blend, jawShare = blend ? Object.fromEntries(Object.keys(skin.points).map((id) => [id, blend[`st0.${id}`]?.jaw ?? 0])) : null;
+  return oneSkinFollow({ sex: fit.sex, ...(fit.relations ? { relations: fit.relations } : {}), ...(fit.eyes ? { eyes: fit.eyes } : {}), ...(fit.tune ? { tune: fit.tune } : {}), seat: fit.seat, fit: { k: fit.k, ty: fit.ty, men: fit.men }, actions: { blink: 1 }, points: skin.points, normals: skin.normals, faces: skin.faces, jawShare });
+}
 /** the grid head's chart, layout and maps, its faces indexed locally (`local`: mesh face → chart face) */
 function headSkin(mesh, recipe, D, page) {
   const { H, stand, k, shown: shownAt } = headFrame(mesh, recipe);
@@ -175,7 +184,12 @@ function headSkin(mesh, recipe, D, page) {
   // (realistic laws 10, the ear raised: the ear its own parts, never the box about it, whose top now reaches the skull's
   // side above it and painted the skin there as ear; the recipe's `hairClip` is laws 10's)
   const earPart = recipe.hairClip ? src.map((v) => /^ear[RL]$/.test(mesh.provenance[v].part)) : null;
-  const chart = headChartOf(H, { vertices, faces, normals }, (vi) => skin[vi], undefined, { shownAt: (vi) => shown[vi], ...(earPart ? { earAt: (vi) => earPart[vi] } : {}) });
+  // (realistic laws 13, the brow one section, `seat` 2: the skin's occlusion also read with the lids shut, each point the
+  // more open of the two; read at rest alone, the lid's skin from the cove under the brow carried its shadow onto the shut
+  // lid, a dark smudge)
+  const shut = one && recipe.headFit.seat === 2 ? lidsShut(recipe) : null;
+  const moved = shut ? src.map((v, i) => { const q = shut[pointOf(mesh, v)]; if (!q) return vertices[i]; const s = stand(q); return [s.x * STAND_M, s.y * STAND_M, s.z * STAND_M]; }) : null;
+  const chart = headChartOf(H, { vertices, faces, normals }, (vi) => skin[vi], undefined, { shownAt: (vi) => shown[vi], ...(earPart ? { earAt: (vi) => earPart[vi] } : {}), ...(moved ? { moved } : {}) });
   const fiOf = [...local.keys()], skinFace = faces.map((t, l) => t.every((vi) => skin[vi]) && (!one || mesh.groups[fiOf[l]] === 'Skin'));
   const layout = layoutDermis(chart, { page }), maps = paintDermis(chart, D, layout, recipe.hairClip ? { clip: recipe.hairClip } : {});
   return { chart, layout, maps, local, skinFace };

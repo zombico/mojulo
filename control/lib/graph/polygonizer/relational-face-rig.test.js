@@ -92,10 +92,10 @@ describe('the realistic face rig', () => {
     const tb = F.targets.indexOf('blink'), eyes = ['globeR', 'globeL'].map((g) => { const ps = Object.values(m.recipe.parts[g].mesh.points); return [0, 1, 2].map((a) => ps.reduce((t, q) => t + q[a], 0) / ps.length); });
     let far = 0; mesh.vertices.forEach((v, i) => { const k = F.sub[i]; if (k < 0 || mesh.provenance[i].part !== 'headSkin' || eyes.some((e) => Math.hypot(v[0] - e[0], v[1] - e[1], v[2] - e[2]) < 0.04)) return; const o = k * W + 3 + tb * 3; far = Math.max(far, Math.hypot(F.rows[o], F.rows[o + 1], F.rows[o + 2])); });
     expect(far).toBeLessThan(1e-4);
-    // (nor the fold over the lid and the brow: the lid slides down under them; above the eye's centre by more than the
-    // globe's radius, the skin is still)
-    let fold = 0; mesh.vertices.forEach((v, i) => { const k = F.sub[i]; if (k < 0 || mesh.provenance[i].part !== 'headSkin' || !eyes.some((e) => v[2] - e[2] > 0.015 && Math.hypot(v[0] - e[0], v[1] - e[1], v[2] - e[2]) < 0.04)) return; const o = k * W + 3 + tb * 3; fold = Math.max(fold, Math.hypot(F.rows[o], F.rows[o + 1], F.rows[o + 2])); });
-    expect(fold).toBeLessThan(3e-4);
+    // (the fold over the lid only a little, its lip let down as the lid rolls out from under it (hero-relational-head.js
+    // SKIN_FOLLOW `rollDrop`), and the brow not at all: above the eye's centre by 18 mm the skin is still)
+    const fold = (h) => { let mx = 0; mesh.vertices.forEach((v, i) => { const k = F.sub[i]; if (k < 0 || mesh.provenance[i].part !== 'headSkin' || !eyes.some((e) => v[2] - e[2] > h && Math.hypot(v[0] - e[0], v[1] - e[1], v[2] - e[2]) < 0.04)) return; const o = k * W + 3 + tb * 3; mx = Math.max(mx, Math.hypot(F.rows[o], F.rows[o + 1], F.rows[o + 2])); }); return mx; };
+    expect(fold(0.015)).toBeLessThan(0.002); expect(fold(0.018)).toBeLessThan(3e-4);
     // (one eye: the left's target leaves the right's side still)
     const ti = F.targets.indexOf('blinkLeft'); let right = 0;
     mesh.vertices.forEach((v, i) => { const k = F.sub[i]; if (k < 0 || v[0] < 0.01) return; const o = k * W + 3 + ti * 3; right = Math.max(right, Math.hypot(F.rows[o], F.rows[o + 1], F.rows[o + 2])); });

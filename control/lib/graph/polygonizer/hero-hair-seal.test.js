@@ -38,7 +38,7 @@ function inside(recipe, turn) {
 }
 
 describe('the realistic hair sealed against the neck and the body (laws 13)', () => {
-  const sealed = recipeAt(13);
+  const sealed = recipeAt(13), before = recipeAt(12);
   it('lies outside the neck, the trunk and the upper neck at rest, and as the head turns and tilts', () => {
     // (a single point at the neck's buried foot reads as inside it: a few, never a sheet)
     for (const turn of [null, { yaw: -25 }, { yaw: 25 }, { roll: 12 }, { pitch: -15 }]) expect(inside(sealed, turn)).toBeLessThan(4);
@@ -54,7 +54,7 @@ describe('the realistic hair sealed against the neck and the body (laws 13)', ()
     expect(ahead).toEqual([]);
   });
   it('keeps a hero stamped with laws 12 as it was: its hair falls by the height\'s rule alone', () => {
-    const W = Object.values(recipeAt(12).parts.hair.boneWeights ?? {});
+    const W = Object.values(before.parts.hair.boneWeights ?? {});
     expect(W.every((w) => w.every(([b]) => ['head', 'neck', 'torso'].includes(b)))).toBe(true);
   });
 });

@@ -57,7 +57,7 @@ export function heroJewellery(recipe, piercings) {
   const fit = recipe.headFit;
   if (!fit || !piercings?.length || !faceSkinOf(recipe)[0]) return { parts: {}, palette: {} };
   const { sex, k, ty, men, relations, eyes } = fit;
-  const head = relationalHead({ sex, tune: fit.tune ?? HEAD_TUNES[sex], ...(relations ? { relations } : {}), ...(eyes ? { eyes } : {}), ...(fit.seat ? { seat: true } : {}) });
+  const head = relationalHead({ sex, tune: fit.tune ?? HEAD_TUNES[sex], ...(relations ? { relations } : {}), ...(eyes ? { eyes } : {}), ...(fit.seat ? { seat: fit.seat } : {}) });
   const J = pierce(relationalHeadChart(head, { cells: CELLS }), head, piercings);
   if (!J.mesh.faces.length) return { parts: {}, palette: {} };
   const s = k / STAND_M, toHero = (q) => [q[0] * s, q[1] * s + ty, q[2] * s + men];
@@ -149,7 +149,7 @@ export function heroHair(recipe, dermis, scalp, { level = 'L1', budget = false, 
   const fit = recipe.headFit;
   if (!fit || !scalp || !faceSkinOf(recipe)[0]) return { parts: {}, palette: {}, counts: null };
   const { sex, k, ty, men, relations, eyes } = fit, D = readDermis(dermis), S = readScalp(scalp);
-  const head = relationalHead({ sex, tune: fit.tune ?? HEAD_TUNES[sex], ...(relations ? { relations } : {}), ...(eyes ? { eyes } : {}), ...(fit.seat ? { seat: true } : {}) });
+  const head = relationalHead({ sex, tune: fit.tune ?? HEAD_TUNES[sex], ...(relations ? { relations } : {}), ...(eyes ? { eyes } : {}), ...(fit.seat ? { seat: fit.seat } : {}) });
   // THE GRASS HAT: the scalp a lawn of blades, combed, cut and hung, its coat under them (epidermis/hair-depict.js)
   const centre = [0, head.landmarks.eyeR.y * STAND_M * 0.3, head.landmarks.eyeR.z * STAND_M];
   // (`cards`, realistic laws 7: the blades as alpha cards, each point's place on its card kept for the strand texture)
@@ -338,7 +338,7 @@ export function heroFaceHair(recipe, dermis, { type = 'straight', epidermis = nu
   const fit = recipe.headFit;
   if (!fit || !faceSkinOf(recipe)[0]) return { parts: {}, palette: {} };
   const { sex, k, ty, men, relations, eyes } = fit, D = readDermis(dermis);
-  const head = relationalHead({ sex, tune: fit.tune ?? HEAD_TUNES[sex], ...(relations ? { relations } : {}), ...(eyes ? { eyes } : {}), ...(fit.seat ? { seat: true } : {}) });
+  const head = relationalHead({ sex, tune: fit.tune ?? HEAD_TUNES[sex], ...(relations ? { relations } : {}), ...(eyes ? { eyes } : {}), ...(fit.seat ? { seat: fit.seat } : {}) });
   const sc = k / STAND_M, toHero = (q) => [q[0] * sc, q[1] * sc + ty, q[2] * sc + men], L = head.landmarks, at = (p) => [p.x * k, p.y * k + ty, p.z * k + men];
   const [skinName, visage] = faceSkinOf(recipe), compiled = compileLayered({ parts: { [skinName]: visage }, dials: {}, creases: {} }).parts[skinName];
   const centre = [0, L.eyeR.y * STAND_M * 0.3, L.eyeR.z * STAND_M], parts = {}, palette = {}, volume = volumeOf(skinName), Bg = budget ? HEAD_BUDGET[level] ?? HEAD_BUDGET.L1 : null;

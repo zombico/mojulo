@@ -1033,7 +1033,8 @@ export const HEAD_LAYERS = Object.freeze(['skin', 'skull']);
  * otherwise join each lid's margin to the globe it rests on in one surface, and pinch there; `globes` hands each
  * globe's own field and paint, to be built as its own part (hero-relational-head.js's one skin). `seat: true` rests
  * the lids on the globes (head-relational-eye.js `SEAT`): the skin about each opening cut back to the lid shell, so no
- * tunnel stands between the lids' margins and the eye (realistic laws 11).
+ * tunnel stands between the lids' margins and the eye (realistic laws 11); `seat: 2` also runs the space under the brow as
+ * one section (`SEAT.section`, realistic laws 13).
  */
 export function relationalHead({ sex = 'male', relations = {}, layer = 'skin', tune = null, actions = null, eyes = null, ears: withEars = true, globes: withGlobes = true, seat = false } = {}) {
   const rel = { ...RELATIONS, ...RELATION_POLES[sex], ...relations };
@@ -1224,7 +1225,9 @@ export function relationalHead({ sex = 'male', relations = {}, layer = 'skin', t
     // brow draws the upper lid's peak in, the worried lid)
     // (a side's own: `wideL` the left alone; the cheek raiser pushes the lower lid up from below, rounded)
     const per = (k) => Math.min(1, act(k) + act(`${k}${s}`)), wd = per('wide'), sq = per('squint'), bi = act('browInner'), bl0 = per('browLower'), cr = per('cheekRaise'), bo = per('browOuter');
-    const c = resolveEye(spec, s, { lower: 0.6 * sm + 0.35 * sq + 0.3 * cr, lowerShape: 0.3 * sm - 0.4 * sq + 0.2 * cr, open: 0.25 * act('browRaise') - 0.12 * bl0 + 0.5 * wd - 0.06 * sq + 0.08 * bi + 0.1 * bo - 0.05 * cr,
+    // (a blink lifts the lower lid a little, `0.12`: the lids meet a touch below the eye's middle, the lower travelling a
+    // millimetre or so of the upper's ten, so the upper has that much less to roll)
+    const c = resolveEye(spec, s, { lower: 0.6 * sm + 0.35 * sq + 0.3 * cr + 0.12 * bl, lowerShape: 0.3 * sm - 0.4 * sq + 0.2 * cr, open: 0.25 * act('browRaise') - 0.12 * bl0 + 0.5 * wd - 0.06 * sq + 0.08 * bi + 0.1 * bo - 0.05 * cr,
       upperShape: -0.3 * bl0 - 0.2 * sq, upperPeak: -0.45 * bi + 0.25 * bo, crease: 0.3 * wd });
     c.open *= 1 - bl;
     const r = eyeRig(Pe, s, c, rel.fissure, bridge.arcs[s], rel.lidSplit, { seat });

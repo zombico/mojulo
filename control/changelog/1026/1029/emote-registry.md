@@ -130,3 +130,22 @@ gives the mouth's articulation to whatever drives it. The eyes gate is the opera
   inside the upper neck at rest (to 26 mm), up to 360 inside the back with the head turned (to 30 mm) and six strokes
   across the throat under laws 12; none of any under 13, at rest, turned, tilted or nodding. A hero stamped with laws 12
   or before keeps its hair.
+- **The lid ROLLS shut, and the space under the brow is one section** (`hero-relational-head.js` `SKIN_FOLLOW` `roll`,
+  realistic laws 13 `head-relational-eye.js` `SEAT.section`). A blink stretched the upper lid in one band: the lid
+  turned whole only up to a fifth of its height and less and less above, so a band from a fifth to seven tenths of the
+  way to the crease stretched past twice and tore into a sawtooth. Now the lid's skin is a STRIP from the margin to the
+  fold's lip, measured along the skin, and shut, each point lies as far along the shut lid as it lay along the open
+  strip: the skin stored under the fold unrolls forward and the stretch is spread over all of it. The strip lies on the
+  globe for its lower part and rises to the fold's lip, which comes down a little with it. A column's turn is capped at
+  the most the eye's middle turns: at the inner corner the margin lies near the turn's axis and read a 129° turn against
+  the middle's 33°, which swung the skin beside the corner through all of it (streaks down the inner corner). The blink
+  also lifts the lower lid a touch, so the lids meet a little below the middle, and the rolled skin is drawn taut (a few
+  rounds of Taubin's smoothing: turned whole, each point kept its rest's small creases, lumps across the shut lid). Under
+  laws 13 the rest shape helps: the fold rises out of the lid a third as steeply and no crease is cut, where laws 11 and 12
+  stacked the lid's top, a cut crease and the fold's hooked underside under the brow (three dark bands, and three layers a
+  closing lid had to cross); and the skin's baked occlusion is read with the lids shut as well as open, each point the
+  more open of the two, so the skin a blink brings out of the cove under the brow carries no shadow onto the shut lid. On
+  one hero's right eye, shut against open: edges stretched past twice 201 → 39, the worst 7.1× → 3.3×, folds sharper than
+  45° between neighbours 223 → 55 (62 open). Every realistic hero's face rig rebuilds on its next export (face store v8); a
+  hero stamped with laws 12 or before keeps its brow and its paint. (The smoky stain round a shut eye in `/hero-live` is
+  the viewer's own soft shadow, the brow's, at its shadow map's millimetre and a half a texel.)
