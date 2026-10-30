@@ -5,7 +5,7 @@ its neighbourhoods, each in a ring out from its core, on land that rises and fal
 metro as `city/plan/` reads it into metres (its grammars: sections, towers, skins); the discipline is the geotown's
 (every square metre once, laws that advise, a sheet before a scene). Built toward its games: city hunter, and the
 Quest Open World (the walled-core dungeon's opposite pole: a map that opens sideways, connected and loaded as it is
-passed, a city or an island). Not wired to a kind yet: the map and its blocks.
+passed, a city or an island). Built as the geocube kind's `show: 'geocity'`, the whole metro as massing.
 
 - **A metro is a card** (`geocity/metro.js` METROS): its extent, its water (a shore along a side; all four an island),
   its core's seat, its land's FALL (metres toward a side: downtown down its spine to the lake) and the hills over it
@@ -67,6 +67,21 @@ passed, a city or an island). Not wired to a kind yet: the map and its blocks.
   blocks' `blocks` (each neighbourhood's ground once, each block's surfaces its area), `pitch` (blocks inside their
   ring's length), `segments` (each its ring's, the civic blocks), `soft` (each neighbourhood's green ground most of its
   quota) and `towers` (past their podiums, inside their rail, the tallest in the core).
+- **Built** (`geocity/scene.js`, the geocube kind's `show: 'geocity'`, `geocity: { … }` its recipe): the metro stood
+  on the cube's land at its hour, in metres, as MASSING, under a face budget (`faces`, advice): the water a plane along
+  each shore carried out to the horizon (a shore looks over open water, an island stands in it); the arterials a road
+  between two walks over a kerb, each neighbourhood's ground its streets, a walk round every block, all draped on the
+  streets' ground in cells; each block a pad in TERRACES along its long side, each level over its walk at its highest
+  corner, retaining faces down to the walk and the terrace below; the buildings by segment on their terraces (a tower
+  block's podium and towers, a podium block, a square's planting and kiosk, a mid-rise ring round its court, a slab on
+  its lawn and its lot; in the outskirts semi pairs under gables to the street in two rows back to back, an edge's two
+  storeys and a main street's three of shops along their street, low-rises, a walk-up, a school and its field), glass
+  in the core, stone and brick outward from its grammar's skins; past dusk each tall wall's floors lit in runs (the
+  grammar's share and palette), panes no light shades, none by day. Lit and hazed by the cube at its hour (the city's
+  haze per metre); seen from its water (the skyline), over it, its core and up its spine, walked from the seat, the
+  dummy round the block nearest it. The answer's `geocity`: the counts, the ledger, the neighbourhoods, the region
+  graph, the laws. `scripts/spikes/geocity/geocity.mjs --hours noon,night` captures it. Lakeshore: 8,019 buildings,
+  131 towers, 87.7k faces by day, 12.5k lit panes at night.
 - **The sheet** (`geocity/sheet.js`), three views of one map: `rings` (each neighbourhood by the ring it builds as,
   shaded by its ground's height), `heights` (each by its median storeys, each arterial frontage band by its own) and
   `blocks` (its streets, the collectors darker, its blocks by segment, the towers on them); `focus` crops it round a

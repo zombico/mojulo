@@ -80,8 +80,9 @@
  *                              the terrain; the outside at `hour`: geocube-hours.js; under `clouds`, painted round the
  *                              dome: matte-paint/sky.js)
  *   assembleGeocubeScene(m)    the `geocube` world kind: { cube, show: 'room' | 'land' | 'trail' | 'path' | 'town', domain? }
- *                              (`city`, the micro-city, and `geotown`, a neighbourhood on the cube's land, are resolved
- *                              by the kind: era/geocube-city.js, geotown/scene.js)
+ *                              (`city`, the micro-city, `geotown`, a neighbourhood on the cube's land, and `geocity`, a
+ *                              metro on it, are resolved by the kind: era/geocube-city.js, geotown/scene.js,
+ *                              geocity/scene.js)
  *                              → its specimen (`path`: the way through the cube's land, a trail stage with no town and
  *                              nobody on it, walked by the dummy: a place to walk, not a game; `town`: a micro-town's
  *                              street walked by the dummy; `path` (the key) the dress of the
@@ -1009,7 +1010,7 @@ export function geocubeContrastOf(manifest, { value = false } = {}) {
   if (!readContrast(cube.contrast)) return null;
   // a stage's or a specimen's domain says its side, its terrain and its hour (the recipe's own hour over it)
   const D = (m.kind === 'stage' || m.kind === 'geocube') && m.domain !== undefined ? readDomainAsk(cube, m.domain).domain : null;
-  const side = D ? D.side : m.kind === 'geocube' ? (['land', 'trail', 'town', 'city', 'geotown'].includes(m.show) ? 'outside' : 'inside') : m.kind === 'city' || m.meru !== undefined || m.trail !== undefined ? 'outside' : 'inside';
+  const side = D ? D.side : m.kind === 'geocube' ? (['land', 'trail', 'town', 'city', 'geotown', 'geocity'].includes(m.show) ? 'outside' : 'inside') : m.kind === 'city' || m.meru !== undefined || m.trail !== undefined ? 'outside' : 'inside';
   const terrain = D ? D.terrain : side === 'outside' && m.kind === 'stage' && m.terrain !== undefined ? readTerrainAsk(cube, m.terrain).name : undefined;
   const hour = m.hour ?? D?.hour;
   return cubeContrast(cube, side, { terrain, value, ...(hour !== undefined && side === 'outside' ? { hour: readHour(hour) } : {}) });
@@ -1284,6 +1285,7 @@ export function assembleGeocubeScene(manifest, ctx, assemble) {
   const show = manifest.show ?? (D ? (D.side === 'inside' ? 'room' : 'land') : 'room');
   if (show === 'city') no('show \'city\' is the kind\'s micro-city, built by the city plan: resolve it through the geocube kind (era/geocube-city.js)');
   if (show === 'geotown') no('show \'geotown\' is the kind\'s neighbourhood on its land, built from its map: resolve it through the geocube kind (geotown/scene.js)');
+  if (show === 'geocity') no('show \'geocity\' is the kind\'s metro on its land, built from its map: resolve it through the geocube kind (geocity/scene.js)');
   if (!SHOW.includes(show)) no(`show is ${SHOW.slice(0, -1).map((s) => `'${s}'`).join(', ')} or '${SHOW[SHOW.length - 1]}'`);
   // (inside: the cube's room, or a hall walked through its interior: in-hall.js)
   const inside = show === 'room' || show === 'hall';

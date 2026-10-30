@@ -189,6 +189,15 @@ A cube that names no domains offers one per terrain and one per interior.
   Toronto Annex; `{ from, …changes }`), `hills` the land (`{ height, span }` or false), `style` over the pattern's
   houses'. The answer's `geotown` carries the ledger (every surface's square metres, the buildings' by use), the
   segments, the ports and the laws;
+  `show: 'geocity'` a METRO on the cube's own land, its major streets first (geocity/): a spine through its core's
+  seat and arterials stepped out from it, tight at the core and looser outward, carving its neighbourhoods; each in a
+  ring (the core's towers, the frame's mid-rise, the outskirts at four storeys and lower, a geotown's own blocks), a
+  park in each, secondary nodes on the spine, mid-rise lining the arterials; its land falling to its water (a shore,
+  or water all round: an island). Built as massing: every block's buildings by its segment on terraces that keep the
+  streets' grade, lit windows past dusk. `geocity: { metro?, extent?, water?, core?, fall?, hills?, heights?, green?,
+  streets?, segments?, grammar?, outskirts? }`: `metro` a card (`lakeshore`, a Toronto by its lake; `harbour-island`;
+  `{ from, …changes }`), the rest its settings over it. The answer's `geocity` carries the counts, the ledger, the
+  neighbourhoods (ring, storeys, park, the beyond where a geotown joins later), the region graph and the laws;
 - a `stage`: `{ geocube, domain }` alone is the whole level: an island, a street on a trail (a domain with a town), or
   a room. Your `meru`, `trail`, `rooms`, `hour` or `town` win over the domain's;
 - a level: `{ geocube, domain, nodes }` paints every section, and lays a domain's street on its first trail;
