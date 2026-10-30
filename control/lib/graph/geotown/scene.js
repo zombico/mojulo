@@ -52,7 +52,7 @@ import { SPECIES } from '../vegetation/species.js';
 import { streamOf } from '../city/plan/dice.js';
 import { buildingKits } from './houses.js';
 import { frontOf, FRONT, box } from './fronts.js';
-import { yardOf, fenceOf, serviceOf, garageOf, balconyOf, stairOf, carOf, CAR_PAINTS, ZONES } from './yards.js';
+import { yardOf, fenceOf, serviceOf, garageOf, balconyOf, stairOf, carOf, CAR_PAINTS, ZONES, FENCES } from './yards.js';
 import { gatesOf } from './gates.js';
 import { pitchOf, trackOf, diamondOf, courtsOf, hoopsOf, lotOf, fieldhouseOf, bleachersOf, lightsOf, flagOf, playgroundOf, pavilionOf, benchOf } from './sites.js';
 import { backTouch } from './laws.js';
@@ -268,7 +268,13 @@ export function assembleGeotownScene(m, ctx = {}) {
   }
   // (read by the seventh generation, ctx.form: its lawns are the form's ground and grow its grass; the ground under a
   // yard's or a park's things is claimed from it, circles along each thing's top, so no blade grows through a patio)
-  const form = !!ctx.form, claims = [];
+  const form = !!ctx.form, claims = [], bushes = [], shrubs = [];
+  // (the houseplants, pattern.houseplants: each a bush of the library at a kind's index, its ground claimed from the grass)
+  const HP = P.houseplants, HPK = HP ? Object.keys(HP.kinds) : [];
+  const bush = (x, y, z, h, kind) => { bushes.push({ x: r5(x), y: r5(y), z: r5(z), h: r5(h), kind: HPK.indexOf(kind) }); claims.push([r5(x), r5(y), r5(h * 0.45 + 0.2)]); };
+  const pickOf = (table, R) => { const ks = Object.keys(table), sum = ks.reduce((a, k) => a + table[k], 0); let t = R() * sum; for (const k of ks) { t -= table[k]; if (t <= 0) return k; } return ks[ks.length - 1]; };
+  // (a row of the hedge's bush along a line, from p to q (world, metres) standing on z(t), t 0..1 along it)
+  const hedgeRow = (p, q, z, h) => { const L = Math.hypot(q[0] - p[0], q[1] - p[1]), n = Math.max(1, Math.round(L / HP.stride)); for (let k = 0; k < n; k++) { const t = (k + 0.5) / n; bush(p[0] + (q[0] - p[0]) * t, p[1] + (q[1] - p[1]) * t, z(t), h, HP.hedge); } };
   const claim = (cs, role, o) => {
     if (!form || !CLAIMED.has(role) || o[2] < 0.5) return;
     const xs = cs.map((c) => c[0]), ys = cs.map((c) => c[1]), x0 = Math.min(...xs), x1 = Math.max(...xs), y0 = Math.min(...ys), y1 = Math.max(...ys), w = x1 - x0, h = y1 - y0, s = Math.min(w, h);
@@ -285,6 +291,8 @@ export function assembleGeotownScene(m, ctx = {}) {
   // a yard's or a fence's face, in its plot's frame (u, v, z over its pad), painted by its role (or its own paint)
   const yardPrev = new Map(), yardsOf = {};
   const yardFace = (pl, f, shedHex = col.shed) => {
+    // (read by the seventh generation, a planter's or a bed's painted leaves are its plants, grown from the library)
+    if (form && HP && f.role === 'leaf') return;
     const cs = f.corners.map(([u, v, z]) => W(pl, u, v, pl.pad + z)), o = f.out, want = unit([pl.ex[0] * o[0] + pl.ey[0] * o[1], pl.ex[1] * o[0] + pl.ey[1] * o[1], o[2]]);
     put(cs, `geotown:${f.role}`, f.hex ?? (f.role === 'shed' ? shedHex : col[f.role] ?? col.timber), want);
     claim(cs, f.role, o);
@@ -380,9 +388,27 @@ export function assembleGeotownScene(m, ctx = {}) {
         const u0 = Pk && Pk[0] === 0 ? Math.max(h0, Pk[1] + 0.3) : h0, u1 = Pk && Pk[0] > 0 ? Math.min(h1, Pk[0] - 0.3) : h1;
         if (u1 - u0 < 0.8) continue;
         const v0 = HEDGE.in, v1 = HEDGE.in + HEDGE.d, z0 = Math.min(wkAt(u0), wkAt(u1)) - 0.05, zt = z0 + HEDGE.h + Math.max(0, (pad - wkAt((u0 + u1) / 2)) * (v1 / F));
+        // (read by the seventh generation: a row of the library's box on the bank, in the painted hedge's place)
+        if (form && HP) { const vm = (v0 + v1) / 2, bank = (u) => wkAt(u) + (pad - wkAt(u)) * (vm / F); hedgeRow(W(pl, u0, vm, 0), W(pl, u1, vm, 0), (t) => bank(u0 + (u1 - u0) * t), HEDGE.h + 0.25); continue; }
         const c = [W(pl, u0, v0, 0), W(pl, u1, v0, 0), W(pl, u1, v1, 0), W(pl, u0, v1, 0)];
         put(c.map((p) => [p[0], p[1], zt]), 'geotown:hedge', col.hedge);
         for (let k = 0; k < 4; k++) { const p = c[k], q = c[(k + 1) % 4], o = unit([...cross(sub3(q, p), [0, 0, 1]).slice(0, 2), 0]); put([[p[0], p[1], z0], [q[0], q[1], z0], [q[0], q[1], zt], [p[0], p[1], zt]], 'geotown:hedge', col.hedge, o); }
+      }
+    }
+    // (read by the seventh generation) FOUNDATION plantings by a house's front, a share of the front yards: a bush or a
+    // flowering shrub at each end of the house, clear of its path, its bay and its porch (past the porch's depth), on the
+    // bank where they stand; none where the front yard is too shallow to hold them there
+    const vF = env[1] - Math.max(FRONT.bay.proj, house?.porch ?? 0) - 0.7;
+    if (form && HP && house && pl.kind === 'houses' && vF >= 0.6) {
+      const Rf = streamOf(seed, 'houseplants', pl.id);
+      if (Rf() < HP.foundation.share) {
+        const v = vF, zAt = (u) => (env[1] > F + 1e-3 && v > F ? pad : wkAt(u) + (pad - wkAt(u)) * (v / F));
+        for (const u of [env[0] + 0.9, env[2] - 0.9]) {
+          if (Math.abs(u - pu) < pw / 2 + 0.9 || (Pk && u > Pk[0] - 0.6 && u < Pk[1] + 0.6)) continue;
+          const [x, y] = W(pl, u, v, 0);
+          if (Rf() < HP.foundation.bloom) { shrubs.push({ x: r5(x), y: r5(y), z: r5(zAt(u)), h: r5(0.8 + 0.5 * Rf()), state: 'bloom' }); claims.push([r5(x), r5(y), 0.8]); }
+          else { const k = pickOf(HP.foundation.kinds, Rf), K = HP.kinds[k]; bush(x, y, zAt(u), K.height[0] + (K.height[1] - K.height[0]) * Rf(), k); }
+        }
       }
     }
     // a parking pad's car, now and then, nose to the house on the pad's gentle slope
@@ -449,6 +475,8 @@ export function assembleGeotownScene(m, ctx = {}) {
           const busy = Mn?.garage ? [Math.min(Mn.drive[0], Mn.garage[0]) - 0.5, Math.max(Mn.drive[1], Mn.garage[2]) + 0.5] : null;
           const [ua, ub] = busy ? (Mn.left ? [busy[1], w] : [0, busy[0]]) : [0, w];
           const Y = yardOf(want, { w: ub - ua, v0, v1: pl.laneGarage ? pl.laneGarage[1] - 0.6 : dep, R: Ry }), shedHex = SHEDS[Math.floor(Ry() * SHEDS.length)];
+          // (read by the seventh generation: its beds' and planters' plants the library's, in their painted leaves' place)
+          if (form && HP) { const Rp = streamOf(seed, 'houseplants', `yard:${pl.id}`); for (const q of Y.plants) { const [x, y] = W(pl, q.u + ua, q.v, 0); bush(x, y, pad + q.z, Math.max(0.3, q.h + 0.15), pickOf(q.in === 'planter' ? HP.planters : HP.beds, Rp)); } }
           if (!Mn) yardPrev.set(key, Y.plan);
           const drawn = ZONES.map((z) => Y.plan[z]).filter((x) => x !== 'lawn');
           for (const x of drawn) yardsOf[x] = (yardsOf[x] ?? 0) + 1;
@@ -570,12 +598,14 @@ export function assembleGeotownScene(m, ctx = {}) {
   // the back line (the first row's), each plot's own kind, standing on the higher of the two pads ──
   if (evoked) for (const B of d.blocks) rowsOf(B).forEach((rowP0, ri) => {
     const rowP = rowP0.filter((pl) => pl.fence);
+    // (read by the seventh generation, a hedge is a row of the library's box)
+    const fenceAt = (p, a, b, z0) => { if (form && HP && p.fence === 'hedge') hedgeRow(W(p, a[0], a[1], 0), W(p, b[0], b[1], 0), () => p.pad + z0, FENCES.hedge.h); else for (const f of fenceOf(p.fence, a, b, z0)) yardFace(p, f); };
     rowP.forEach((p, k) => {
       const q = rowP[k + 1], vb = (pl) => pl.house.env[3];
-      if (q) for (const f of fenceOf(p.fence, [p.w, Math.max(vb(p), vb(q))], [p.w, p.d], Math.max(0, q.pad - p.pad))) yardFace(p, f);
-      if (k === 0) for (const f of fenceOf(p.fence, [0, vb(p)], [0, p.d], 0)) yardFace(p, f);
-      if (!q) for (const f of fenceOf(p.fence, [p.w, vb(p)], [p.w, p.d], 0)) yardFace(p, f);
-      if (ri === 0 || B.lane) for (const [u0, u1] of p.laneGarage ? [[0, p.laneGarage[0]], [p.laneGarage[2], p.w]] : [[0, p.w]]) if (u1 - u0 > 0.2) for (const f of fenceOf(p.fence, [u0, p.d], [u1, p.d], 0)) yardFace(p, f);
+      if (q) fenceAt(p, [p.w, Math.max(vb(p), vb(q))], [p.w, p.d], Math.max(0, q.pad - p.pad));
+      if (k === 0) fenceAt(p, [0, vb(p)], [0, p.d], 0);
+      if (!q) fenceAt(p, [p.w, vb(p)], [p.w, p.d], 0);
+      if (ri === 0 || B.lane) for (const [u0, u1] of p.laneGarage ? [[0, p.laneGarage[0]], [p.laneGarage[2], p.w]] : [[0, p.w]]) if (u1 - u0 > 0.2) fenceAt(p, [u0, p.d], [u1, p.d], 0);
     });
   });
   // ── the parks: the land as it lies, eased to the walks round it; their paths on the same lattice ──
@@ -817,7 +847,7 @@ export function assembleGeotownScene(m, ctx = {}) {
       if (keep.length === all.length) break;
       crowded += all.length - keep.length; all = keep;
     }
-    plants = plantsOf(all);
+    plants = { ...plantsOf(all), ...(HP ? { bushKinds: HPK.map((k) => HP.kinds[k]), bushes, shrubs } : {}) };
     const sizes = treeSizes(plants);
     all.forEach(({ sp, it }, i) => { (kept[sp] ||= []).push({ ...it, height: sizes[i].h }); nearest = Math.min(nearest, roomAt(it.x, it.y) - sizes[i].r); });
     // (the ground the trunks and the yard's things claim: no grass there)

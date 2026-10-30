@@ -231,6 +231,13 @@ describe('the geotown built: its map stood on the cube\'s land, levelled', () =>
     expect(new Set(p.plants.trees.map((t) => t.species)).size).toBeGreaterThan(1);
     for (const t of p.plants.trees) expect(PATTERNS[DEFAULT_PATTERN].grow.trees.concat(PATTERNS[DEFAULT_PATTERN].grow.street, PATTERNS[DEFAULT_PATTERN].grow.parkTrees, [PATTERNS[DEFAULT_PATTERN].grow.shade])).toContain(t.species);
     expect(p.plants.clear.length).toBeGreaterThan(p.plants.trees.length);
+    // its houseplants the plant library's: its hedges, beds and planters bushes of the pattern's kinds, no painted leaves
+    expect(p.plants.bushes.length).toBeGreaterThan(0);
+    expect(p.plants.bushKinds.map((k) => k.form)).toEqual(Object.values(PATTERNS[DEFAULT_PATTERN].houseplants.kinds).map((k) => k.form));
+    for (const b of p.plants.bushes) expect(b.kind).toBeGreaterThanOrEqual(0);
+    expect(p.faces.some((f) => f.group === 'geotown:leaf' || f.group === 'geotown:hedge')).toBe(false);
+    // (each one's ground claimed from the grass)
+    for (const b of p.plants.bushes.slice(0, 20)) expect(p.plants.clear.some(([x, y]) => x === b.x && y === b.y)).toBe(true);
     // read by any other generation: its own painted lawns and its trees as repeats, as before
     const g6 = assembleGeotownScene(E);
     expect(g6.plants).toBeUndefined();

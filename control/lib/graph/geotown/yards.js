@@ -9,7 +9,8 @@
  *                it keeps (a `large` one a shade tree)
  *   ZONES        the zones a plan names, in order from the house: near, mid, back
  *   yardOf({ near, mid, back }, { w, v0, v1, R }) → { faces: [{ corners, out, role, hex? }], trees: [{ u, v, large? }],
- *       plan }: the yard from the house's back wall (v0) to the plot's back line (v1), each zone given its depth in
+ *       plan, plants: [{ u, v, z, h, in: 'bed' | 'planter' }] (its beds' and planters' plants, for a read that grows them
+ *       from the plant library in its boxes' place) }: the yard from the house's back wall (v0) to the plot's back line (v1), each zone given its depth in
  *       order (a feature without the room is lawn: `plan` the one drawn); R its dice
  *   balconyOf({ u0, u1, v, z, R }) → faces: a balcony off the house's back wall (at v) at an upper floor (z)
  *   stairOf({ w, v0, z, outer }) → faces: a split house's steel stair up the back wall to its upper flat's landing
@@ -73,7 +74,7 @@ function gable(x0, y0, x1, y1, ze, rise, o, role) {
 
 /** A back yard's plan, built: each zone given its depth in order from the house, a feature without its room lawn. */
 export function yardOf(plan, { w, v0, v1, R }) {
-  const out = [], trees = [], depth = v1 - v0, inset = 0.6, fit = { near: 'lawn', mid: 'lawn', back: 'lawn' };
+  const out = [], trees = [], plants = [], depth = v1 - v0, inset = 0.6, fit = { near: 'lawn', mid: 'lawn', back: 'lawn' };
   const wide = (id) => w >= (YARDS[id]?.wide ?? 3) - 1e-9;
   // a tree where the zone leaves open ground, clear of the yard's sides
   const tree = (vLo, vHi, large = false) => { if (vHi - vLo > 0.5 && w > 3) trees.push({ u: r4(roll(R, 1.4, w - 1.4)), v: r4(roll(R, vLo, vHi)), ...(large ? { large } : {}) }); };
@@ -120,7 +121,9 @@ export function yardOf(plan, { w, v0, v1, R }) {
     for (let k = 0; k < 3; k++) out.push(...box(cu - 0.55, v0 + dv + k * 0.28, cu + 0.55, v0 + dv + (k + 1) * 0.28, 0, z - (k + 1) * 0.2, 'deck'));
     for (const u of R() < 0.6 ? [u0 + 0.25, u1 - 0.85] : [u1 - 0.85]) {
       const v = v0 + dv - 0.85;
-      out.push(...box(u, v, u + 0.6, v + 0.6, z, z + 0.45, 'timber'), ...box(u + 0.08, v + 0.08, u + 0.52, v + 0.52, z + 0.45, z + 0.45 + 0.3 + 0.4 * R(), 'leaf'));
+      const h = 0.3 + 0.4 * R();
+      out.push(...box(u, v, u + 0.6, v + 0.6, z, z + 0.45, 'timber'), ...box(u + 0.08, v + 0.08, u + 0.52, v + 0.52, z + 0.45, z + 0.45 + h, 'leaf'));
+      plants.push({ u: r4(u + 0.3), v: r4(v + 0.3), z: z + 0.45, h: r4(h), in: 'planter' });
     }
   }
 
@@ -132,7 +135,7 @@ export function yardOf(plan, { w, v0, v1, R }) {
       const a = m0 + i * 1.8, u0 = inset + 0.3, u1 = w - inset - 0.3;
       out.push(...box(u0, a, u1, a + 1, 0, 0.3, 'timber'));
       out.push(quad(u0 + 0.05, a + 0.05, u1 - 0.05, a + 0.95, 0.31, 'soil'));
-      for (let u = u0 + 0.4; u < u1 - 0.3; u += 0.7 + 0.4 * R()) { const s = 0.25 + 0.25 * R(); out.push(...box(u - s / 2, a + 0.5 - s / 2, u + s / 2, a + 0.5 + s / 2, 0.31, 0.31 + s * (0.8 + R()), 'leaf')); }
+      for (let u = u0 + 0.4; u < u1 - 0.3; u += 0.7 + 0.4 * R()) { const s = 0.25 + 0.25 * R(), h = s * (0.8 + R()); out.push(...box(u - s / 2, a + 0.5 - s / 2, u + s / 2, a + 0.5 + s / 2, 0.31, 0.31 + h, 'leaf')); plants.push({ u: r4(u), v: r4(a + 0.5), z: 0.31, h: r4(h), in: 'bed' }); }
     }
   } else if (fit.mid === 'play') {
     // a swing on its A-frames (its beam across the yard, its seats swinging along it), and a sandbox or a slide beside
@@ -190,7 +193,7 @@ export function yardOf(plan, { w, v0, v1, R }) {
     // a long bed along the back fence, things growing in it, a compost bin in its corner
     const cb = w >= 4.2, u0 = 0.5, u1 = cb ? w - 1.7 : w - 0.5, a = v1 - 1.6;
     out.push(...box(u0, a, u1, a + 1, 0, 0.35, 'timber'), quad(u0 + 0.05, a + 0.05, u1 - 0.05, a + 0.95, 0.36, 'soil'));
-    for (let u = u0 + 0.35; u < u1 - 0.25; u += 0.55 + 0.35 * R()) { const s = 0.3 + 0.3 * R(), v = a + 0.3 + 0.4 * R(); out.push(...box(u - s / 2, v - s / 2, u + s / 2, v + s / 2, 0.36, 0.36 + s * (1 + 1.4 * R()), 'leaf')); }
+    for (let u = u0 + 0.35; u < u1 - 0.25; u += 0.55 + 0.35 * R()) { const s = 0.3 + 0.3 * R(), v = a + 0.3 + 0.4 * R(), h = s * (1 + 1.4 * R()); out.push(...box(u - s / 2, v - s / 2, u + s / 2, v + s / 2, 0.36, 0.36 + h, 'leaf')); plants.push({ u: r4(u), v: r4(v), z: 0.36, h: r4(h), in: 'bed' }); }
     if (cb) out.push(...box(w - 1.4, a + 0.05, w - 0.5, a + 0.95, 0, 0.95, 'compost'), ...box(w - 1.43, a + 0.02, w - 0.47, a + 0.98, 0.95, 1.0, 'timber'));
   } else if (fit.back === 'tree') {
     // a large shade tree, a ring of mulch round it, and now and then a bench under it
@@ -199,7 +202,7 @@ export function yardOf(plan, { w, v0, v1, R }) {
     if (R() < 0.6) out.push(...box(tu - 0.75, tv - 1.5, tu + 0.75, tv - 1.1, 0.4, 0.46, 'timber'), ...box(tu - 0.7, tv - 1.45, tu - 0.6, tv - 1.15, 0, 0.4, 'timber').slice(1), ...box(tu + 0.6, tv - 1.45, tu + 0.7, tv - 1.15, 0, 0.4, 'timber').slice(1));
     trees.push({ u: r4(tu), v: r4(tv), large: true });
   }
-  return { faces: out, trees, plan: fit };
+  return { faces: out, trees, plan: fit, plants };
 }
 
 /** A split house's stair: a landing at the upper flat's floor (`z`) against the back wall (at v0, facing +v) at the

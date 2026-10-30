@@ -203,6 +203,16 @@ export const PATTERNS = Object.freeze({
       sports: { read: 'a local sports field: a ball diamond, a pitch under its lights and its bleachers, tennis courts, a field house and its lot', site: { long: [120, 150], deep: [80, 100] }, front: 0.14, parking: 0.2, house: { w: 12, d: 8 }, margin: 3, courts: { from: 110, w: 36, d: 18, most: 3 } },
       park: { read: 'a neighbourhood park: two paths across it, a playground on its chips, a pavilion and its picnic tables, benches along the paths', path: 2.4, playground: { w: 16, d: 12 }, pavilion: { w: 9, d: 6 }, bench: 16 },
     },
+    // THE HOUSEPLANTS, read by the seventh generation (form/bush-form.js habits through the form's plants, in the painted
+    // boxes' place): each `kinds` a bush of the library (a leaf form's habit, its heights m); what grows in a yard's
+    // `beds` and its `planters`, by weight; the `hedge`'s bush and its stride (m); and the FOUNDATION plantings by a
+    // house's front, the `share` of front yards with them, their kinds, and the share that are a flowering shrub in bloom
+    houseplants: {
+      kinds: { box: { form: 'spray', height: [0.9, 1.5] }, hosta: { form: 'whorl', height: [0.3, 0.6] }, fern: { form: 'whorl', height: [0.45, 0.8] }, heather: { form: 'tuft', height: [0.35, 0.7] }, forsythia: { form: 'weep', height: [1, 1.6] }, juniper: { form: 'plate', height: [0.4, 0.7] } },
+      beds: { hosta: 2, fern: 1, heather: 1 }, planters: { box: 1, heather: 1 },
+      hedge: 'box', stride: 0.75,
+      foundation: { share: 0.55, kinds: { forsythia: 1, juniper: 1, box: 1 }, bloom: 0.4 },
+    },
     // THE STREETSCAPES: how close the neighbourhood is to the city, read from its sidewalk (the first the default). Each
     // changes the pattern a level deep: its street section, its plots, mix, block, house and setback (how far a house
     // stands from its walk), its back yard's least, its evocation's counts; and says its street TREES (`stride` m between

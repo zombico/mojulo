@@ -79,6 +79,11 @@ NEIGHBOURHOOD, and neighbourhoods are a geocity graph's nodes (each one's `ports
   grows each at), each held to its room by the form's own crown, a tree without room not planted. No trail's dress: no
   rubble, dust, clay or patches, no moss, and no tree held for a raised view. The ground under a yard's or a park's
   things (a patio, a deck, a shed, a pool, beds, chips) is claimed from the grass. Any other generation: as it was.
+- **Houseplants from the plant library** (`pattern.houseplants`): read by the seventh generation, a yard's garden and
+  kitchen beds grow hostas, ferns and heather, a deck's planters box, the front hedges and the hedge fences are rows of
+  box, and a share of front yards keep foundation plantings by the porch (forsythia, juniper, box, a flowering shrub in
+  bloom): the library's bushes and shrubs (`form/bush-form.js` habits, grown by the form's plants), their ground
+  claimed from the grass, the trees' litter on the lawns under them. Any other generation keeps its painted boxes.
 - **Split duplex semis**: more of the houses semis (the pattern's mix), and a share of the pairs (`pattern.duplex`)
   split into two flats each: two doors side by side at the porch, a porch over a porch (the upper flat's, its own door
   onto it), a steel stair at the back from the yard to the upper flat's landing and door, the yard by the back door
