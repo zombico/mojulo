@@ -280,11 +280,12 @@ export function buildAnime(r, options = {}) {
     // (the full lattice's points, so a thinned painted lattice keeps the features' own outline sampling)
     const outer = [...xs0.filter((x) => x >= x0 && x < x1).map((x) => [x, y0]), ...ys0.filter((y) => y >= y0 && y < y1).map((y) => [x1, y]), ...xs0.filter((x) => x > x0 && x <= x1).reverse().map((x) => [x, y1]), ...ys0.filter((y) => y > y0 && y <= y1).reverse().map((y) => [x0, y])];
     const ts = outer.map(([u, y]) => dmath.atan2((y - (y0 + y1) / 2) / ((y1 - y0) / 2), (u - (x0 + x1) / 2) / ((x1 - x0) / 2))), uv = (t) => (hole.kind === 'eye' ? eyeUV(side, t) : mouthUV(t)), inner = ts.map(uv), rings = [];
-    // (the rings from the outline out to the hole's box: three, the studio's, raised a little between the two; an eye in a
+    // (the rings from the outline out to the hole's box: three, the studio's, raised a little between the two (round the
+    // mouth that raise is the lips' rim, flattened by sculpt `flatLips`, so the mouth reads drawn on the face); an eye in a
     // socket (`orbit`) takes ORBIT.rings on the surface itself, so the skin follows the socket's curve, no chord stands in
     // front of the brow block or the lid band laid on it, and no raised frame rims the box)
     const RK = hole.kind === 'eye' && S?.orbit ? ORBIT.rings : 3;
-    for (let k = 0; k <= RK; k++) { const t = k / RK; rings.push(outer.map((p, i) => { const u = mix(inner[i][0], p[0], t), y = mix(inner[i][1], p[1], t), v = surface(u, y); if (RK === 3) v[2] -= 0.009 * dmath.sin(Math.PI * t); return v; })); }
+    for (let k = 0; k <= RK; k++) { const t = k / RK; rings.push(outer.map((p, i) => { const u = mix(inner[i][0], p[0], t), y = mix(inner[i][1], p[1], t), v = surface(u, y); if (RK === 3) v[2] -= (hole.kind === 'mouth' && S?.flatLips ? 1 - S.flatLips : 1) * 0.009 * dmath.sin(Math.PI * t); return v; })); }
     if (!options.paint) for (let k = 0; k < RK; k++) for (let i = 0; i < outer.length; i++) quad('skin', rings[k][i], rings[k + 1][i], rings[k + 1][(i + 1) % outer.length], rings[k][(i + 1) % outer.length], true);
     const centerUV = hole.kind === 'eye' ? eyeUV(side, 0, 0) : mouthUV(0, 0), center = surface(...centerUV); center[2] += hole.kind === 'eye' ? -0.025 : 0.035;
     for (let i = 0; i < outer.length; i++) {

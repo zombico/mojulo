@@ -336,9 +336,10 @@ export const HERO_BUILD_NAMES = Object.freeze(Object.keys(HERO_BUILDS));
  * standing off the balls; laws 1 to 17 stood every torso plate off them, so a breastplate reaching the shoulder line
  * wrapped the shoulder in a yoke.
  * Laws 19 GIVES THE ANIME HEAD ITS FORM (anime-looks.js ANIME_FORM, under every other sculpt layer): the eye's socket
- * cut as planes (sculpt `orbit`), the pyramid nose rooted at the eye's line (`noseShape: 'pyramid'`) and the jaw curved
- * in toward its edge (`jawHollow`), so the face breaks into the brow's, the nose's and the cheekbones' blocks in profile
- * and turns its jaw from a side light; laws 1 to 18 drew the studio's front, one surface from the brow to the jaw. Not
+ * cut as planes (sculpt `orbit`), the pyramid nose rooted at the eye's line (`noseShape: 'pyramid'`), the jaw curved
+ * in toward its edge (`jawHollow`) and the lips flat (`flatLips`), so the face breaks into the brow's, the nose's and the
+ * cheekbones' blocks in profile, turns its jaw from a side light and draws its mouth on the face with no rim; laws 1 to
+ * 18 drew the studio's front, one surface from the brow to the jaw, a raised rim round the mouth. Not
  * on the child's face (laws 13 and 14: its round face is its own), nor on the studio's own face (`sculpt: false`).
  */
 export const HERO_LAWS_VERSION = 19;

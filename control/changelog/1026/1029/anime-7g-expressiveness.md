@@ -33,9 +33,12 @@ hero with no take and no setting is today's head, byte for byte. The eyes gate i
   narrows toward the jaw's edge and on through its underside, gently at first and more toward the edge, every point by
   its own distance from the middle, so the jaw's side turns down and away from a side light instead of rounding out
   into it, and its edge turns under with no lip. The centre line, the chin's point and the cheekbones keep their place.
+- **The lips flat** (sculpt `flatLips`, 0 to 1; none at 0): the rim the studio raised round the mouth, which read as
+  lips, laid flat on the face, so the mouth reads drawn, shut or open, in every drawing. The skin round it and the
+  mouth's own outline stay where they were.
 - **The anime head's form by default** (hero laws 19, `anime-looks.js` `ANIME_FORM`): an anime hero minted now wears the
-  socket (`orbit` 0.025), the pyramid nose and the jaw curved in (`jawHollow` 0.02), under every other sculpt layer, so
-  its own words move or undo each. Each base keeps its feature bands under it (`ANIME_FORM_POLE`): the male's opening a
+  socket (`orbit` 0.025), the pyramid nose, the jaw curved in (`jawHollow` 0.02) and the lips flat (`flatLips` 1), under
+  every other sculpt layer, so its own words move or undo each (`flatLips: -1` the studio's rim again). Each base keeps its feature bands under it (`ANIME_FORM_POLE`): the male's opening a
   hair taller, since the socket reads his lid band a hair heavier, and the female's tip a hair further out, since the
   pyramid sets it nearer the face; so the default hero is advised nothing. A hero minted before keeps its head, byte for
   byte; the child's round face and the studio's own face (`sculpt: false`) do not wear it.

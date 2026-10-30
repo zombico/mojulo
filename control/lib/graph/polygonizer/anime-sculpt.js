@@ -90,15 +90,15 @@ export const ANIME_SCULPT_MOVES = Object.freeze({
 export const ANIME_SCULPT = ratioControls({
   label: 'sculpt',
   groups: {
-    placement: ['eyeLevel', 'pronasale', 'dorsumStart', 'stomion'], mouth: ['mouthWidth'],
+    placement: ['eyeLevel', 'pronasale', 'dorsumStart', 'stomion'], mouth: ['mouthWidth'], lips: ['flatLips'],
     nose: ['tipProjection', 'dorsumProjection', 'noseLine'],
     ear: ['earLevel'], fissure: ['fissureHeight', 'canthusSetback'], orbit: ['orbit'], jaw: ['jawHollow'], lid: ['lidWeight', 'lidTail', 'lidCover'], lidAngle: ['lidAngle'], lidFlick: ['lidFlick'],
     iris: ['irisSize', 'irisOval', 'pupil', 'catchlight'],
     brow: ['browThick', 'browGap', 'browLength'], browAngle: ['browAngle'], browArch: ['browArch'],
   },
-  ranges: { orbit: [0, 0.03], jawHollow: [0, 0.03], eyeLevel: [-0.03, 0.03], earLevel: [-0.04, 0.04], pronasale: [-0.04, 0.04], dorsumStart: [-0.05, 0.05], stomion: [-0.03, 0.03], lidAngle: [-20, 20], lidFlick: [-30, 60], browAngle: [-25, 25], browArch: [-0.03, 0.05],
+  ranges: { orbit: [0, 0.03], jawHollow: [0, 0.03], flatLips: [0, 1], eyeLevel: [-0.03, 0.03], earLevel: [-0.04, 0.04], pronasale: [-0.04, 0.04], dorsumStart: [-0.05, 0.05], stomion: [-0.03, 0.03], lidAngle: [-20, 20], lidFlick: [-30, 60], browAngle: [-25, 25], browArch: [-0.03, 0.05],
     lidWeight: [0.6, 1.5], lidCover: [0, 1.6], browGap: [0, 2.5], browThick: [0.5, 1.6], catchlight: [0, 1.6], noseLine: [0, 1.5], canthusSetback: [0, 2] },
-  offsets: ['orbit', 'jawHollow', 'eyeLevel', 'earLevel', 'pronasale', 'dorsumStart', 'stomion', 'lidAngle', 'lidFlick', 'browAngle', 'browArch'],
+  offsets: ['orbit', 'jawHollow', 'flatLips', 'eyeLevel', 'earLevel', 'pronasale', 'dorsumStart', 'stomion', 'lidAngle', 'lidFlick', 'browAngle', 'browArch'],
   zero: ['lidCover', 'browGap', 'catchlight', 'noseLine', 'canthusSetback', 'lidTail'],
   moves: ANIME_SCULPT_MOVES,
 });
@@ -170,6 +170,8 @@ export function sculptBuild(pole, resolved) {
   // (the orbit, an offset of H: absent at 0, so a head without it keeps its build)
   if (R.orbit > 0) out.orbit = { depth: r6(h(R.orbit)) };
   if (R.jawHollow > 0) out.jawHollow = { depth: r6(h(R.jawHollow)) };
+  // (the lips flat: the mouth's rim no longer raised round the opening, its share flattened; absent at 0)
+  if (R.flatLips > 0) out.flatLips = r6(Math.min(1, R.flatLips));
   if (B.ear) out.ear = { ...B.ear, lift: r6(B.ear.lift + h(R.earLevel)) };
   out.brow = { ...B.brow, ...(R.browShape ? { shape: R.browShape } : {}), thick: r6(B.brow.thick * R.browThick), gap: r6(B.brow.gap * R.browGap), angle: r6(B.brow.angle + R.browAngle), inner: r6(B.brow.inner * R.browLength), outer: r6(B.brow.outer * R.browLength), arch: r6(B.brow.arch + R.browArch) };
   return out;

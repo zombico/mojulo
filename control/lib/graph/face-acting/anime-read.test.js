@@ -52,6 +52,15 @@ describe('a take read as drawings', () => {
     expect(lowerFrame({ eyeL: 0, eyeR: 1, brows: { L: 'brows.angry', R: 'brows.angry' }, lids: { L: 'lids.angry', R: 'lids.open' }, mouth: 'mouth.a', smile: 0 }))
       .toEqual({ eyeL: 0.12, eyeR: 1, smile: 0, open: 0.8, brow: 1 });
   });
+  it('drawn, a spoken vowel is the whole mouth: no smile under it, the smile kept off the vowels; lowered, it rides them', () => {
+    const K = faceKnots({}), vowels = ['mouth.a', 'mouth.i', 'mouth.u', 'mouth.e', 'mouth.o'], K7 = { ...K, targets: [...FACE_TARGETS, ...vowels.map((v) => drawTarget(v))] };
+    const happy = perform({ beats: [{ at: 0, face: 'happiness', say: 'Maybe we should move before the moon is up.' }], seed: 4 }), s = FACE_TARGETS.indexOf('smile');
+    const drawn = animePerformanceTrack(happy, K7, { sevenG: true }), on = (w) => vowels.some((v) => w[K7.targets.indexOf(drawTarget(v))] > 0);
+    expect(drawn.w.some(on)).toBe(true);
+    for (const w of drawn.w) if (on(w)) expect(w[s]).toBe(0);
+    expect(drawn.w.some((w) => !on(w) && w[s] > 0)).toBe(true);
+    expect(animePerformanceTrack(happy, K, { sevenG: false }).w.some((w) => w[s] > 0 && w[FACE_TARGETS.indexOf('mouthOpen')] > 0)).toBe(true);
+  });
   it('plays as a STEP track keyed half a frame early, its recording carried', () => {
     const K = faceKnots({}), K7 = { ...K, targets: [...FACE_TARGETS, drawTarget('mouth.a'), drawTarget('brows.angry', 'L'), drawTarget('brows.angry', 'R')] };
     const P = { beats: [{ at: 0.2, face: 'anger', say: { recording: 'aaaaaaaaaaaaaaaa', seconds: 0.8, timing: 'engine', phonemes: [{ p: 'AA1', t: 0.1, dur: 0.3 }] } }], seconds: 2, seed: 2 };

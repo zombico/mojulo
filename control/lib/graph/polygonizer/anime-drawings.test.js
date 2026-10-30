@@ -69,7 +69,7 @@ describe('the drawings, built', () => {
   });
 }, 120000);
 
-describe('the head in a socket (sculpt orbit), its pyramid nose (sculpt noseShape) and its jaw curved in (sculpt jawHollow)', () => {
+describe('the head in a socket (sculpt orbit), its pyramid nose (sculpt noseShape), its jaw curved in (sculpt jawHollow) and its lips flat (sculpt flatLips)', () => {
   const head = (sculpt) => { const h = animeHead({ preset: 'male', hair: 'none', hairFit: false, ...(sculpt ? { sculpt } : {}) }); return compileLayered({ parts: h.parts, dials: {}, creases: {} }); };
   const of = (m, part) => m.vertices.filter((_, i) => m.provenance[i].part === part);
   it('none at 0: the head byte for byte', () => {
@@ -96,6 +96,16 @@ describe('the head in a socket (sculpt orbit), its pyramid nose (sculpt noseShap
     expect(Math.max(...FB.map((p) => p[1]))).toBeLessThanOrEqual(tip[1] + 0.002 * H);
     // (the chin and the crown kept, to the micrometre: the pin's frame moves with the face's front and each offset rounds anew)
     for (const [k, f] of [[2, Math.min], [2, Math.max]]) expect(f(...FB.map((p) => p[k]))).toBeCloseTo(f(...FA.map((p) => p[k])), 6);
+  });
+  it('the lips flat: the rim round the mouth laid on the face, the skin elsewhere and the mouth\'s outline kept; none at 0', () => {
+    expect(sculptBuild('male', resolveAnimeSculpt({ flatLips: 0 }))).not.toHaveProperty('flatLips');
+    const A = head(null), B = head({ flatLips: 1 }), FA = of(A, 'face'), FB = of(B, 'face');
+    // (the rim's points move straight back by up to the studio's raise, 9 mm of the studio head; nothing moves sideways or
+    // forward, and the mouth's own outline, the opening, stays put)
+    const moved = FA.map((p, i) => [p, FB[i]]).filter(([p, q]) => q[1] < p[1] - 1e-6);
+    expect(moved.length).toBeGreaterThan(0);
+    for (const [p, q] of FA.map((p, i) => [p, FB[i]])) { expect(Math.abs(q[0] - p[0])).toBeLessThan(1e-4); expect(Math.abs(q[2] - p[2])).toBeLessThan(1e-4); expect(q[1]).toBeGreaterThan(p[1] - 0.0092); expect(q[1]).toBeLessThan(p[1] + 1e-4); }
+    expect(of(B, 'face').length).toBe(FA.length);
   });
   it('the jaw curved in: narrower toward its edge, its side turned down, the chin and the cheekbones kept; none at 0', () => {
     expect(sculptBuild('male', resolveAnimeSculpt({ jawHollow: 0 }))).not.toHaveProperty('jawHollow');

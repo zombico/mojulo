@@ -114,9 +114,10 @@ export const CHILD_FACE = Object.freeze({
 });
 /** THE ANIME HEAD'S FORM (hero laws 19): the sculpt layer under every other (the child's, a look's, the hero's own,
  * genki's): the eye's socket cut as planes, the pyramid nose rooted at the eye's line, the jaw curved in toward its edge
- * (anime-form.js ORBIT, PYRAMID, JAW). A hero's own words move or undo each (`orbit: 0`, `noseShape: 'round'`,
- * `jawHollow: 0`). */
-export const ANIME_FORM = Object.freeze({ orbit: 0.025, noseShape: 'pyramid', jawHollow: 0.02 });
+ * (anime-form.js ORBIT, PYRAMID, JAW), and the lips flat (no rim raised round the mouth: it reads drawn on the face, shut
+ * or open). A hero's own words move or undo each (`orbit: -0.025`, `noseShape: 'round'`, `jawHollow: -0.02`,
+ * `flatLips: -1`). */
+export const ANIME_FORM = Object.freeze({ orbit: 0.025, noseShape: 'pyramid', jawHollow: 0.02, flatLips: 1 });
 /** and per design base, what keeps the formed head in its base's feature bands (anime-sculpt.js FEATURE_BANDS): the
  * socket reads the male's lid band a hair heavier (his opening a hair taller answers it) and the pyramid sets the
  * female's tip a hair nearer the face */

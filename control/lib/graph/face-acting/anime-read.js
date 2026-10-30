@@ -9,7 +9,9 @@
  *     in shock), the MOUTH: over a spoken line KUCHIPAKU (each phoneme its vowel's shape, A I U E O; m, b and p shut, f and
  *     v the narrow i, any other consonant its vowel's, the next one in the word's reach, else the last), elsewhere the
  *     face's own mouth (the jaw open: the shout in anger, the o rounded, else the a; the smile, one-sided a smirk; the
- *     frown; the pucker's u; the pressed mouth small; else shut). A smile rides over the vowels as the smile channel.
+ *     frown; the pucker's u; the pressed mouth small; else shut). Lowered, a smile rides over the vowels as the smile
+ *     channel; drawn (7G), a vowel is the whole mouth, spoken or the face's own, and takes no smile (the two do not add: summed, the corner folds),
+ *     the smile showing in the eyes and the brows, and a closure under a smile is the smile's own closed mouth.
  *   • THE TIMING (anime's, as anime-face-tracks.js draws the clips): every layer HELD on twos (a drawing shorter than
  *     `HOLD` frames gives way to the one before it), but a spoken closure, which stays drawn (two frames, taken from the
  *     next); the eyes drawn every frame (a blink's in-betweens are its own); the thought leading the mouth is the take's.
@@ -125,10 +127,14 @@ export function lowerFrame(F) {
 /** A take as the anime face's STEP weights track (`K` the rig's: its knots and targets; `sevenG` the rig draws the 7G):
  * a drawing per frame, keyed half a frame early (the first at 0), equal neighbours merged, the last held to the take's
  * end; a line's recording rides from its beat (recordings.js), as the realistic face's does. */
+/** the vowels' drawings (kuchipaku's A I U E O), each the whole mouth */
+const VOWELS = new Set(['mouth.a', 'mouth.i', 'mouth.u', 'mouth.e', 'mouth.o']);
 export function animePerformanceTrack(take, K, { sevenG = false } = {}) {
   const { fps, frames } = animeRead(take), t = [], w = [];
   frames.forEach((F, f) => {
-    const weights = sevenG ? drawingWeights(F.mouth === 'mouth.smile' ? { ...F, smile: 1, mouth: null } : F, K) : faceWeights(lowerFrame(F), K);
+    // (drawn: the smile its own mouth, a vowel without it, a closure under a smile the smile's)
+    const drawn = F.mouth === 'mouth.smile' ? { ...F, smile: 1, mouth: null } : VOWELS.has(F.mouth) ? { ...F, smile: 0 } : F.mouth === 'mouth.shut' && F.smile ? { ...F, mouth: null } : F;
+    const weights = sevenG ? drawingWeights(drawn, K) : faceWeights(lowerFrame(F), K);
     if (w.length && weights.every((x, j) => x === w.at(-1)[j])) return;
     t.push(f === 0 ? 0 : +((f - 0.5) / fps).toFixed(6)); w.push(weights);
   });
