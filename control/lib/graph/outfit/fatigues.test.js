@@ -8,6 +8,7 @@ import { validateFootwear } from '../footwear/expand.js';
 import { SEEDED_OUTFITS, validateOutfitCard } from './styles.js';
 import { expandOutfit } from './expand.js';
 import { heroRecord, expandLayeredManifest } from '../../mcp/tools/layered.js';
+import { withDefaultForm } from '../polygonizer/motion-stamp.js';
 
 const STRUCT = new Set(['torso', 'pelvis', 'neck', 'upperArm', 'foreArm', 'thigh', 'shank', 'foot', 'hallux', 'pectoral']);
 const MILITARY = Object.entries(FOOTWEAR).filter(([, C]) => C.family === 'military').map(([w]) => w);
@@ -17,7 +18,8 @@ const WRAPPED = MILITARY.find((w) => (cardOf(w).adorn || []).some((a) => a.prim 
 const SHAFTED = MILITARY.find((w) => w !== WRAPPED && cardOf(w).sock?.height === 'boot');
 const card = (bottom, feet = 'boots') => ({ ...SEEDED_OUTFITS.fatigues, language: { ...SEEDED_OUTFITS.fatigues.language, feet, bottom: { family: 'woven', leg: 'long', cut: 'straight', ...bottom } } });
 const pieces = (bottom, feet) => Object.fromEntries(expandOutfit({ type: 'outfit', style: card(bottom, feet) }, { have: STRUCT, scale: 1 }).garments.map((g) => [g.id, g]));
-const recipeOf = (bottom, feet) => expandLayeredManifest({ kind: 'layered', hero: heroRecord({ cast: 'male', outfit: { type: 'outfit', style: card(bottom, feet) } }) }).recipe;
+// (the hero as the door mints it: the tiered game body)
+const recipeOf = (bottom, feet) => expandLayeredManifest({ kind: 'layered', hero: heroRecord(withDefaultForm({ cast: 'male', outfit: { type: 'outfit', style: card(bottom, feet) } })) }).recipe;
 const mid = (st) => [0, 1, 2].map((k) => Object.values(st.points).reduce((s, p) => s + p[k], 0) / Object.values(st.points).length);
 /** a piece's mean radius about its own axis at its ring nearest `z` */
 const radiusAt = (P, z) => { const st = P.stations.reduce((b, x) => (Math.abs(mid(x)[2] - z) < Math.abs(mid(b)[2] - z) ? x : b)), c = mid(st); return Object.values(st.points).reduce((s, p) => s + Math.hypot(p[0] - c[0], p[1] - c[1]), 0) / Object.values(st.points).length; };

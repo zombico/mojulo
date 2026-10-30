@@ -12,6 +12,8 @@
 //             waistcoat one of PATTERN_WORDS or { kind, scale?, contrast? } (herringbone, houndstooth, plaid, pinstripe …:
 //             on the realistic body's lit export its relief and its colour; or a camouflage, CAMO_WORDS: woodland,
 //             dpm, tiger, flecktarn …, its marks painted on either body: outfit/camouflage.js)
+//             head:   a helmet (headgear/helmets.js HELMETS: m1, stahlhelm, brodie, ssh40, adrian, pasgt, ach, highcut) or
+//             { helmet, cover?: true | a camouflage, band?, net?, nvg? }: worn on the head, the hair dropped under it
 //             bottom: { family, leg, cut?: skinny | tapered (default) | straight | wide | breeches (full at the thigh, close from
 //             the knee: the riding and the soldier's galife), into?: 'boots' (tucked: the leg ends at the top of the boot's
 //             shaft or its puttees, bloused over it), pockets?: 'cargo' (a flapped pocket on each thigh) } | { kind: 'skirt', family, leg: micro | mini | knee | midi | maxi, cut: pencil | aline |
@@ -53,6 +55,7 @@ import { rigidityErrors } from '../polygonizer/rigidity.js';
 import { GIRTH_LANDMARKS } from '../polygonizer/body-garment.js';
 import { FOOTWEAR } from '../footwear/styles.js';
 import { CAMOS } from './camouflage.js';
+import { validateHead } from '../headgear/helmets.js';
 
 export const SEEDED_OUTFITS = Object.freeze({
   casual: {
@@ -236,49 +239,49 @@ export const SEEDED_OUTFITS = Object.freeze({
     "id": "jungle",
     "dials": { "stylize": 0.15, "fit": 0.6, "coverage": 1, "ornament": 2 },
     "language": { "top": { "family": "woven", "sleeve": "long", "hem": "hip", "collar": true }, "bottom": { "family": "woven", "leg": "long", "cut": "straight", "into": "boots", "pockets": "cargo" },
-      "feet": "jungleBoots", "tuck": false, "focal": "placket" },
+      "head": { "helmet": "m1", "band": true }, "feet": "jungleBoots", "tuck": false, "focal": "placket" },
     "tones": { "Top": "#4f5735", "Bottom": "#454c2f", "Button": "#2f3322", "Leather": "#2b2622", "Buckle": "#5c5c58" }
   },
   bdu: {
     "id": "bdu",
     "dials": { "stylize": 0.15, "fit": 0.6, "coverage": 1, "ornament": 2 },
     "language": { "top": { "family": "woven", "sleeve": "long", "hem": "hip", "collar": true, "pattern": "woodland" }, "bottom": { "family": "woven", "leg": "long", "cut": "straight", "into": "boots", "pockets": "cargo", "pattern": "woodland" },
-      "feet": "combatBoots", "tuck": false, "focal": "placket" },
+      "head": { "helmet": "pasgt", "cover": true }, "feet": "combatBoots", "tuck": false, "focal": "placket" },
     "tones": { "Button": "#2f3322", "Leather": "#1e1c19", "Buckle": "#4a4a46" }
   },
   desertbdu: {
     "id": "desertbdu",
     "dials": { "stylize": 0.15, "fit": 0.6, "coverage": 1, "ornament": 2 },
     "language": { "top": { "family": "woven", "sleeve": "long", "hem": "hip", "collar": true, "pattern": "desert" }, "bottom": { "family": "woven", "leg": "long", "cut": "straight", "into": "boots", "pockets": "cargo", "pattern": "desert" },
-      "feet": "desertBoots", "tuck": false, "focal": "placket" },
+      "head": { "helmet": "pasgt", "cover": true }, "feet": "desertBoots", "tuck": false, "focal": "placket" },
     "tones": { "Button": "#8d7d5c", "Leather": "#7a6446", "Buckle": "#6b6656" }
   },
   dpm: {
     "id": "dpm",
     "dials": { "stylize": 0.15, "fit": 0.6, "coverage": 1, "ornament": 2 },
     "language": { "top": { "family": "woven", "sleeve": "long", "hem": "hip", "collar": true, "pattern": "dpm" }, "bottom": { "family": "woven", "leg": "long", "cut": "straight", "into": "boots", "pockets": "cargo", "pattern": "dpm" },
-      "feet": "combatBoots", "tuck": false, "focal": "placket" },
+      "head": { "helmet": "pasgt", "cover": true }, "feet": "combatBoots", "tuck": false, "focal": "placket" },
     "tones": { "Button": "#3a3d2a", "Leather": "#1e1c19", "Buckle": "#4a4a46" }
   },
   galife: {
     "id": "galife",
     "dials": { "stylize": 0.15, "fit": 0.6, "coverage": 1, "ornament": 2 },
     "language": { "top": { "family": "woven", "sleeve": "long", "hem": "hip", "collar": { "kind": "band", "open": false }}, "bottom": { "family": "woven", "leg": "long", "cut": "breeches", "into": "boots" },
-      "feet": "kirzaBoots", "tuck": false, "focal": "belt" },
+      "head": "ssh40", "feet": "kirzaBoots", "tuck": false, "focal": "belt" },
     "tones": { "Top": "#8a8257", "Bottom": "#5d5838", "Button": "#6f6a40", "Leather": "#4a3423", "Buckle": "#a08a4e" }
   },
   feldgrau: {
     "id": "feldgrau",
     "dials": { "stylize": 0.15, "fit": 0.6, "coverage": 1, "ornament": 2 },
     "language": { "top": { "family": "woven", "sleeve": "long", "hem": "hip", "collar": true }, "bottom": { "family": "woven", "leg": "long", "cut": "straight", "into": "boots" },
-      "feet": "jackboots", "tuck": false, "focal": "belt" },
+      "head": "stahlhelm", "feet": "jackboots", "tuck": false, "focal": "belt" },
     "tones": { "Top": "#6a6e5d", "Bottom": "#4d5046", "Button": "#7c7c74", "Leather": "#1b1a18", "Buckle": "#77776f" }
   },
   battledress: {
     "id": "battledress",
     "dials": { "stylize": 0.15, "fit": 0.6, "coverage": 1, "ornament": 2 },
     "language": { "top": { "family": "woven", "sleeve": "long", "hem": "waist", "collar": true }, "bottom": { "family": "woven", "leg": "long", "cut": "straight", "into": "boots" },
-      "feet": "putteeBoots", "tuck": true, "focal": "belt" },
+      "head": { "helmet": "brodie", "net": true }, "feet": "putteeBoots", "tuck": true, "focal": "belt" },
     "tones": { "Top": "#79683f", "Bottom": "#655733", "Button": "#4c4126", "Leather": "#3b2c1f", "Buckle": "#9a8a5a" }
   }
 });
@@ -364,6 +367,7 @@ export function validateOutfitCard(card, at = 'outfit.style') {
   if (L.dress && L.bottom?.kind !== 'skirt') errs.push(`${at}.language.dress: a dress is a top and a skirt (bottom.kind 'skirt')`);
   // (feet: the plain words, or a footwear library card by its name: footwear/styles.js FOOTWEAR, combatBoots, jungleBoots …)
   errs.push(...(L.feet === undefined || FEET.includes(L.feet) || FOOTWEAR[L.feet] ? [] : [`${at}.language.feet: '${L.feet}' — one of ${FEET.join(', ')}, or a footwear card (${Object.keys(FOOTWEAR).filter((w) => !FEET.includes(w)).slice(0, 8).join(', ')} …)`]), ...one(L.focal, FOCAL, `${at}.language.focal`));
+  errs.push(...validateHead(L.head, `${at}.language.head`, Object.keys(CAMOS)));
   if (L.tuck !== undefined && typeof L.tuck !== 'boolean') errs.push(`${at}.language.tuck: true or false`);
   if (L.tie !== undefined && typeof L.tie !== 'boolean') errs.push(`${at}.language.tie: true or false (a tie on the shirt)`);
   if (L.waistcoat !== undefined && typeof L.waistcoat !== 'boolean') {

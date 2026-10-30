@@ -28,11 +28,14 @@ import { heroRecord, expandLayeredManifest } from '../../mcp/tools/layered.js';
 // the shirt's collar stood on its neckline (standCollar: the tucked shirt's); the laws unchanged; and the tucked shirt's
 // laws and rings rewritten in place (1029, unreleased, at the operator's word: "restructure shirt collars") for the
 // collar as one construction, its kind and its front carried on its stand and its fall made over it (outfit/collar.js,
-// polygonizer/shirt-collar.js: `collar: true` a shirt collar, closed)
+// polygonizer/shirt-collar.js: `collar: true` a shirt collar, closed); and the tucked case's laws and rings
+// rewritten in place (1029, unreleased, at the operator's word: "are the chest fits too wide … the corrected method"):
+// a collared woven shirt worn outermost is fitted as a jacket is (the expander's `tailoring.shirt`, authored-jacket.js
+// fitShirt)
 const PINS = {
   1: {
     'out': { laws: 'c3f82aeccde0da38', rings: 'a9f475582083f731' },
-    'tucked': { laws: '17d9449352502ef6', rings: '2d8387b9cb8bf744' },
+    'tucked': { laws: '073a4630d0cf5381', rings: 'c0c778e90ca68f5c' },
     'dress': { laws: 'bb1fe989040c0422', rings: '3788f9213ce322f3' },
     'outer': { laws: '127769bbfdd8e767', rings: '2404c186875fb4d7' },
     'panels': { laws: 'd114d51d72f13d3b', rings: '8d4abf177cd7aa55' },

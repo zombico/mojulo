@@ -654,10 +654,11 @@ function castMouthpiece(fig, S) {
 //   earpiece { r, h, cap?, out }  a disc at the temple, `out` (m) past the cast (over the hair);  antenna { len, r, back, up }  a spike off the cast, back and up
 //   scope { r, len, lensGroup }  a tube standing forward with a lens at its end (night vision)
 //   lens { r, h }  a small domed lens (`group` default MaskLens);  arm { to, r }  a rigid bar standing off the cast to `to`
-//   brim { th, len, tilt, t, lift, drop, taper }  a flange round the head (a cowl's only: it needs the head's frame)
+//   brim { th, len, tilt, t, lift, drop, taper, edge, up }  a flange round the head (a cowl's only: it needs the head's frame);
+//         `edge` along the cowl's own edge (`up` eye units over it): a helmet's rolled brim, its flared skirt
 //   peak { span, len, t, tilt, curl, droop }  a brim curved across the shell's front (a motocross helmet's peak); without
 //         `span` { w, len, t, tilt, taper } a flat board
-function castFittings(S, { on, nOf, hz, d, th, thE = 0.45 }) {
+function castFittings(S, { on, nOf, hz, d, th, thE = 0.45, edgeAt = null }) {
   const out = [], Z = hz;
   // (a fitting's disc FLAT on top, its edge bevelled to `bevel` of its radius: a lens, a cap, a scope's glass, never the
   // shared disc's pointed centre)
@@ -685,7 +686,8 @@ function castFittings(S, { on, nOf, hz, d, th, thE = 0.45 }) {
     // (the whole way round by default; behind only, a neck guard), `len` (m) out, sloping down `tilt`, `t` thick, its
     // front `lift`ed (eye units, the brim swept up over the face), its back `drop`ped)
     if (F.kind === 'brim') { const [a0, a1] = F.th ?? [-Math.PI, Math.PI], full = a1 - a0 >= 2 * Math.PI - 1e-6, K = full ? 48 : Math.max(8, Math.round(24 * (a1 - a0) / Math.PI)), len = F.len ?? 0.03, tl = F.tilt ?? 0.25, t = F.t ?? 0.003;
-      const rows = []; for (let i = 0; i <= K; i++) { const a = a0 + ((a1 - a0) * i) / K, fr = (1 + dmath.cos(a)) / 2, zz = fz + (F.lift ?? 0) * fr ** 2 - (F.drop ?? 0) * (1 - fr) ** 2, p = on(a / thE, zz, -0.002); if (!p) continue;
+      // (`edge`: along the cowl's own edge round the head, `up` eye units over it, so a helmet's brim or skirt follows its rim)
+      const rows = []; for (let i = 0; i <= K; i++) { const a = a0 + ((a1 - a0) * i) / K, fr = (1 + dmath.cos(a)) / 2, zz = F.edge && edgeAt ? edgeAt(a) + (F.up ?? 0.12) : fz + (F.lift ?? 0) * fr ** 2 - (F.drop ?? 0) * (1 - fr) ** 2, p = on(a / thE, zz, -0.002); if (!p) continue;
         const n0 = nOf(a / thE, zz), h = unit([n0[0], n0[1], 0]), fw = unit(add(mul(h, dmath.cos(tl)), [0, 0, -dmath.sin(tl)])), L = len * (F.taper ? 1 - F.taper * fr : 1), q = add(p, mul(fw, L));
         rows.push([p, q, add(q, [0, 0, -t * 0.6]), add(p, [0, 0, -t])]); }
       if (rows.length > 2) { const pts = {}, faces = [], n = rows.length, M = full ? n : n - 1; rows.forEach((R, i) => R.forEach((v, k) => { pts[`${i}.${k}`] = v.map((x) => Math.round(x * 1e6) / 1e6); }));
@@ -822,7 +824,7 @@ function castCowl(fig, S) {
   if (S.fittings?.length && out.length) { const top = (Sg.lift ?? 0.0025) + (S.thick ?? 0.003) + (S.shell ? 0.004 : 0);
     const on = (X, Z, off = 0) => { const th = X * thE, D = dir(th, rhoAt(th, c0[2] + Z * d)), r = rAt(D); return r === null ? null : add(C, mul(D, r + top + off)); };
     const nOf = (X, Z) => { const a = on(X, Z), b = on(X + 0.05, Z), c = on(X, Z + 0.05); if (!a || !b || !c) return [0, 1, 0]; const cr = cross(sub(b, a), sub(c, a)); if (Math.hypot(...cr) < 1e-12) return unit(sub(a, C)); let n = unit(cr); if (dot(n, sub(a, C)) < 0) n = mul(n, -1); return n; };
-    out.push(...castFittings(S, { on, nOf, hz, d, th: S.thick ?? 0.003, thE })); }
+    out.push(...castFittings(S, { on, nOf, hz, d, th: S.thick ?? 0.003, thE, edgeAt: (a) => (edgeZ(a) - c0[2]) / d })); }
   return out;
 }
 // ─── the COWL'S ORNAMENTS (SIGNATURES.cowl `ornaments`): spikes and lines on the cowl, along the FACE'S PATHS ───

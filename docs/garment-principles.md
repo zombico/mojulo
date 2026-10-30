@@ -267,6 +267,13 @@ Fatigues are dressed from the boots up, each layer reading off the one under it:
 - **Cargo pockets** (`pockets: 'cargo'`) are bellows patches wrapped round the side of each thigh on the trousers, their
   rows arcs of the leg's outermost surface, swelling at the middle and flush at the edges, under a flap with its button
   (`body-relational-kit.js` `pocketOn`), riding the leg. A pocket is cloth on cloth: never a box hung off the leg.
+- **The helmet** (`language.head`: `headgear/helmets.js`) is a hard shell cast over the head on the game body, its edge
+  by height round the head (over the brow in front, over or under the ears at the sides, the nape behind), its brim or
+  skirt along that edge. It takes its cover in the outfit's camouflage, a band, a net, a night-vision mount, and the hair
+  goes under it. The realistic head wears none yet.
+- **The outermost shirt is fitted as a jacket is**: a collared woven top with nothing over it is brought in onto the body
+  and what is under it, a little roomier than a jacket, never let out. The silhouette is the cut's and the belt's, not
+  the ease's; `fit: 'loose'` keeps it loose, and a collarless tunic or blouse hangs as it is cut.
 - **Camouflage** is a `pattern` like the weaves (`outfit/camouflage.js`: woodland, desert, DPM, tiger stripe, flecktarn,
   digital, splinter, multicam, urban, snow). Its ground is the layer's tone, and its marks are field paint cut into the
   faces, so it shows on both bodies, on the World page and in every export. Every layer printed in the same pattern shares

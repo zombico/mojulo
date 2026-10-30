@@ -52,7 +52,8 @@ import { humanoidPlan, PALETTE as HUMANOID_PALETTE } from '@/lib/graph/polygoniz
 import { humanoidAnchors, EXPRESSIONS, westernExpressionErrors, HEAD_PRESETS, FACE_KEYS, FACE_AGGREGATE_KEYS, FACE_MOVE_NAMES, resolveFace, validateFace, faceWarnings } from '@/lib/graph/polygonizer/humanoid-head';
 import { HAIR_KEYS, HAIR_STYLE_NAMES, resolveHair, validateHair, hairWarnings, withGrownFall } from '@/lib/graph/polygonizer/humanoid-hair';
 import { validateCast, resolveCast, CAST_KEYS, CAST_PRESET_NAMES } from '@/lib/graph/polygonizer/figure-cast';
-import { isOutfitBuild, outfitReadout, outfitTones, OUTFIT_LAWS_VERSION } from '@/lib/graph/outfit/expand';
+import { isOutfitBuild, outfitReadout, outfitTones, outfitLanguage, OUTFIT_LAWS_VERSION } from '@/lib/graph/outfit/expand';
+import { headOf as helmetOf } from '@/lib/graph/headgear/helmets';
 import { DETAIL_WORDS, KIT_WORDS, validateDress, validateDressPaint, PAINT_WORDS, validateOutfit, OUTFIT_WORDS, dressPlan, kitPalette, dressContext, libraryFeet } from '@/lib/graph/polygonizer/hero-dress';
 import { isArmorBuild, armorReadout, armorFamily, armorMaterials, armorLanguage, ARMOR_LAWS_VERSION } from '@/lib/graph/armor/expand';
 import { validateStatueBuild, normalizeStatue, statueHero, statueHair, statueRecipe, STATUE_LAWS_VERSION, STATUE_STYLES } from '@/lib/graph/statue/expand';
@@ -525,6 +526,9 @@ function realisticExpand(plan, hero) {
     Object.assign(wear.parts, K.parts);
     plan = { ...plan, adorn: plan.adorn.filter((A) => !K.taken.has(A.id)) };
   }
+  // (a piece on the landmark head's cranium, an outfit's helmet: the relational head has no cranium to cast it on, so it
+  // is left off, said in the readout's `gameOnly`)
+  if (plan.adorn?.some((A) => A.part === 'cranium') && !S.parts.cranium) plan = { ...plan, adorn: plan.adorn.filter((A) => A.part !== 'cranium') };
   if (!DRESS_KEYS.some((k) => has(plan[k])) && !fieldWords.length && !footWords.length && !suitWords.length && !handWords.length && !looseWords.length && !(wear && Object.keys(wear.parts).length)) return S;
   // (an adornment or a garment stood off `over` parts the slice removed, the pectorals and the bust: the torso's field
   // carries the chest now, so they stand off the torso alone; the tailor's cloth stays, which a cape hangs over)
@@ -1318,8 +1322,10 @@ function tieredBust(hero) {
  *  worn over the armour); a cowl's `ears: false` leaves them. */
 export function cowlPressesEars(hero) {
   const kit = Array.isArray(hero?.adorn) ? hero.adorn : Array.isArray(hero?.adorn?.with) ? hero.adorn.with : [];
-  return kit.some((A) => A?.signature?.kind === 'cowl' && A.signature.ears !== false);
+  return kit.some((A) => A?.signature?.kind === 'cowl' && A.signature.ears !== false) || helmeted(hero);
 }
+/** the hero's outfit wears a helmet (its language's `head`: headgear/helmets.js): the ears pressed under it, the hair dropped */
+export const helmeted = (hero) => isOutfitBuild(hero?.outfit) && !!helmetOf(outfitLanguage(hero.outfit));
 
 function heroFormPlan(hero) {
   if (hero.form !== 'tiered') return heroFormPlanOf(hero);
@@ -1354,7 +1360,7 @@ function heroFormPlanOf(hero) {
     // lift, so the cowl passes close over them; its `ears: false` leaves them as they are. No cowl: the ears as before)
     const cowled = cowlPressesEars(hero);
     const features = cowled ? { ...(hero.faceFeatures ?? {}), earAngle: 0.03, earLift: 0 } : hero.faceFeatures;
-    return humanoidPlan({ preset: cast, ...common, face: hero.face ?? {}, hair: hero.hair ?? 'swept', expression: hero.expression ?? 'neutral', palette: hero.palette ?? {}, ...(features ? { features } : {}), ...(hero.undead ? { bare: true } : {}), ...(hero.headPreset ? { headPreset: hero.headPreset } : {}), ...(hero.proportions ? { proportions: hero.proportions } : {}), ...dress });
+    return humanoidPlan({ preset: cast, ...common, face: hero.face ?? {}, hair: helmeted(hero) ? 'none' : hero.hair ?? 'swept', expression: hero.expression ?? 'neutral', palette: hero.palette ?? {}, ...(features ? { features } : {}), ...(hero.undead ? { bare: true } : {}), ...(hero.headPreset ? { headPreset: hero.headPreset } : {}), ...(hero.proportions ? { proportions: hero.proportions } : {}), ...dress });
   }
   if (hero.head === 'anime') {
     const eff = animeEffective(hero);   // the look's stamp, the own layer on top, the hair base under them
@@ -1415,6 +1421,8 @@ export function dressReadout(hero, plan, mesh, recipe) {
     const shoes = hero.core === 'streamlined' ? libraryFeet(words) : []; if (shoes.length) only.push(`${shoes.join(', ')}: worn as plain boots, shoes or sandals on the streamlined core; the card's cut, sole and adornment need the structured core's foot`);
     if (only.length) out.realisticOnly = only;
   }
+  // (and what the REALISTIC BODY leaves off: a helmet, cast on the landmark head's cranium)
+  if (hero.form === 'realistic' && helmeted(hero)) out.gameOnly = ['a helmet (the outfit\'s `head`): worn on the game body; the realistic head wears none yet'];
   // (GHOST thread lies in the cloth it is worked on: sinking into its own carrier alone is the stitch, not a fault)
   const stitched = (id, a) => { const A = plan.adorn.find((x) => x.id === id); return !!A?.ghost && (a.worst.into || []).every((n) => n === A.part); };
   if (recipe && plan.adorn?.length) { const C = layeredClearance(recipe); out.clearance = { sinking: C.sinking.filter((id) => !C.adornments[id] || !stitched(id, C.adornments[id])), worst: Object.fromEntries(Object.entries(C.adornments).map(([id, a]) => [id, { at: a.worst.dial ? `${a.worst.dial} ${a.worst.value}` : 'rest', share: a.worst.share, ...(a.worst.into?.length ? { into: a.worst.into } : {}) }])) }; }

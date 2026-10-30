@@ -15,7 +15,7 @@
 //   isCamo(word)               a pattern word that is a camouflage
 //   camoTone(L)                { <group>: ground } for each layer the language prints in one (its tone)
 //   camoFieldPaint(L, recipe)  the field paint entries: every layer printed in the same pattern shares them, over one
-//                              box round all their parts, from each side (front, back, left, right: projection charts,
+//                              box round all their parts, from each side (front, back, left, right, top: projection charts,
 //                              linear in metres, so a mark is its size on any piece and runs on across the pieces)
 //
 // Pure and deterministic: the dice seeded by the pattern, the colour and the side (city/plan/dice.js).
@@ -69,17 +69,21 @@ const LAYERS = Object.freeze([
   { slot: 'bottom', group: 'Bottom', parts: ['bottom*', 'cargo*', 'skirt*'] },
   { slot: 'outer', group: 'Outer', parts: ['outer*'] },
   { slot: 'waistcoat', group: 'Waistcoat', parts: ['vest*'] },
+  // (a helmet's baked pieces lie at offsets from the head: its window the cranium's under it, `pad` out to the shell)
+  { slot: 'head', group: 'Helmet', parts: ['adorn.helmet*'], box: ['cranium', 'jaw'], pad: 0.04 },
 ]);
-const SIDES = Object.freeze(['front', 'back', 'left', 'right']);
+const SIDES = Object.freeze(['front', 'back', 'left', 'right', 'top']);
 
-const wordOf = (layer) => { const w = layer && typeof layer === 'object' ? layer.pattern : null; return typeof w === 'string' ? w : w && typeof w === 'object' ? w.kind : null; };
+const patternOf = (layer) => { const w = layer && typeof layer === 'object' ? layer.pattern : null; return typeof w === 'string' ? w : w && typeof w === 'object' ? w.kind : null; };
+/** a slot's pattern word: a layer's `pattern`; the head's its helmet's `cover` (true: the top's) */
+const wordOf = (L, slot) => { if (slot !== 'head') return patternOf(L?.[slot]); const h = L?.head, c = h && typeof h === 'object' ? h.cover : null; return c === true ? patternOf(L.top) : typeof c === 'string' ? c : null; };
 /** a pattern word that is a camouflage */
 export const isCamo = (word) => !!CAMOS[word];
 
 /** { <group>: its camouflage's ground } for each layer the language prints in one */
 export function camoTone(L) {
   const out = {};
-  for (const { slot, group } of LAYERS) { const w = wordOf(L?.[slot]); if (CAMOS[w]) out[group] = CAMOS[w].ground; }
+  for (const { slot, group } of LAYERS) { const w = wordOf(L, slot); if (CAMOS[w]) out[group] = CAMOS[w].ground; }
   return out;
 }
 
@@ -156,7 +160,7 @@ const partsNamed = (parts, names) => Object.entries(parts).filter(([k]) => names
 export function camoFieldPaint(L, recipe) {
   if (!L || !recipe?.parts) return null;
   const byCamo = new Map();
-  for (const ly of LAYERS) { const w = wordOf(L[ly.slot]); if (!CAMOS[w]) continue; if (!byCamo.has(w)) byCamo.set(w, []); byCamo.get(w).push(ly); }
+  for (const ly of LAYERS) { const w = wordOf(L, ly.slot); if (!CAMOS[w]) continue; if (!byCamo.has(w)) byCamo.set(w, []); byCamo.get(w).push(ly); }
   if (!byCamo.size) return null;
   const out = [];
   for (const [w, layers] of byCamo) {
@@ -164,9 +168,12 @@ export function camoFieldPaint(L, recipe) {
     // over it, the shirt's chest its pectorals)
     const C = CAMOS[w], groups = layers.map((ly) => ly.group), names = [...new Set([...partsNamed(recipe.parts, layers.flatMap((ly) => ly.parts)).map(([k]) => k), ...Object.keys(recipe.parts).filter((k) => groups.includes(recipe.parts[k]?.group))])].sort();
     if (!names.length) continue;
-    const pts = names.map((k) => recipe.parts[k]).filter((P) => Array.isArray(P?.stations)).flatMap((P) => P.stations.flatMap((st) => Object.values(st.points)));
+    // (a piece's points: a tube's rings, or a baked piece's own points, a helmet's)
+    const ptsOf = (P) => (Array.isArray(P?.stations) ? P.stations.flatMap((st) => Object.values(st.points)) : P?.points ? Object.values(P.points) : []);
+    const pts = [...names.map((k) => recipe.parts[k]), ...layers.flatMap((ly) => (ly.box || []).map((k) => recipe.parts[k]))].flatMap(ptsOf);
     if (!pts.length) continue;
-    const span = (k) => Math.max(1e-3, Math.max(...pts.map((p) => p[k])) - Math.min(...pts.map((p) => p[k])));
+    const pad = Math.max(0, ...layers.map((ly) => (names.some((k) => k.startsWith('adorn.')) ? ly.pad ?? 0 : 0)));
+    const span = (k) => Math.max(1e-3, Math.max(...pts.map((p) => p[k])) - Math.min(...pts.map((p) => p[k])) + 2 * pad);
     const [Wx, Wy, Hz] = [span(0), span(1), span(2)];
     // (each colour over the ground and the colours before it: a later mark lies on an earlier one, woodland's black on its
     // brown)
@@ -174,10 +181,11 @@ export function camoFieldPaint(L, recipe) {
     C.colours.forEach((M, ci) => {
       const only = [...groups, ...C.colours.slice(0, ci).map((_, j) => camoGroup(j))];
       for (const side of SIDES) {
-        const W = side === 'front' || side === 'back' ? Wx : Wy, polys = marks(M, W, Hz, streamOf('camo', w, `${ci}|${side}`));
+        // (from above, the window across and deep: the shoulders' tops, a helmet's crown)
+        const W = side === 'front' || side === 'back' || side === 'top' ? Wx : Wy, Hh = side === 'top' ? Wy : Hz, polys = marks(M, W, Hh, streamOf('camo', w, `${ci}|${side}`));
         if (!polys.length) continue;
         // (each piece from the window's metres into the shape's box, −1 … 1 over the whole chart)
-        const cut = polys.map((pl) => clipBox(pl.map(([x, y]) => [(2 * x) / W - 1, (2 * y) / Hz - 1]))).filter(Boolean);
+        const cut = polys.map((pl) => clipBox(pl.map(([x, y]) => [(2 * x) / W - 1, (2 * y) / Hh - 1]))).filter(Boolean);
         if (!cut.length) continue;
         out.push({ id: `camo-${w}-${ci}-${side}`, part: names, chart: side, at: [0.5, 0.5], size: [1, 1], shape: { polys: cut },
           group: camoGroup(ci), color: M.color, only });

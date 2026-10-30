@@ -29,6 +29,8 @@ export const ARC = 10;
 /** the jacket's own pieces on the game body, by their role: the trunk (top to bottom: the body, then its tail), the
  * sleeves (the upper arm's, the forearm's), the collar */
 const BODY = ['outer_torso', 'outerTail_pelvis'], SLEEVE = (S) => [`outerSleeve_upperArm${S}`, `outerCuff_foreArm${S}`], COLLAR = 'outerCollar_neck';
+/** a shirt's pieces, fitted as a jacket's when it is worn outermost (fitShirt) */
+const SHIRT_BODY = ['top_torso', 'topTail_pelvis'], SHIRT_SLEEVE = (S) => [`topSleeve_upperArm${S}`, `topCuff_foreArm${S}`];
 
 const mean = (ps) => [0, 1, 2].map((k) => ps.reduce((s, p) => s + p[k], 0) / ps.length);
 const middle = (st) => mean(Object.values(st.points));
@@ -79,7 +81,7 @@ export function authoredJacket(recipe, cloth, J, { read = (P) => P } = {}) {
 
 /** THE FIT of a jacket on the game body: its ease over what it is worn over (m): a layer's step and a tailored jacket's
  * wearing ease, about 2.5 cm of girth over the shirt */
-export const FIT = Object.freeze({ trunk: 0.0075, sleeve: 0.006 });
+export const FIT = Object.freeze({ trunk: 0.0075, sleeve: 0.006, shirt: { trunk: 0.009, sleeve: 0.007 } });
 const pointsOf = (P) => P.stations.flatMap((st) => Object.values(st.points));
 const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]], dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
 /** a SLEEVE brought onto what it is worn over, in place: each ring's points along their own radial (square to the arm),
@@ -105,20 +107,24 @@ function fitSleeve(P, under, gap) {
  * arm, each `FIT` past the garments worn before it there and the skin, read densified; never let out. The silhouette is the
  * cut's, the belt's and the layers', not the ease's (docs/garment-principles.md). → { name: piece }, the pieces refitted
  */
-export function fitJacket(recipe, cloth) {
+export function fitJacket(recipe, cloth, { body = BODY, sleeve = SLEEVE, gap = FIT } = {}) {
   const out = {}, names = Object.keys(cloth), order = (k) => names.indexOf(k);
   const before = (k, re) => names.filter((n) => order(n) < order(k) && re.test(n)).map((n) => cloth[n]);
   const skin = (ks) => ks.map((k) => recipe.parts[k]).filter(Boolean);
-  for (const k of BODY.filter((n) => cloth[n])) {
+  for (const k of body.filter((n) => cloth[n])) {
     const under = [...before(k, /_(torso|pelvis)$/), ...skin(['torso', 'pelvis'])].map(denseRead).flatMap(pointsOf);
-    out[k] = cinchWaist(structuredClone(cloth[k]), under, { zw: -1e9, zb: -1e9, zt: 1e9 }, { gap: FIT.trunk, band: 0.012 });
+    out[k] = cinchWaist(structuredClone(cloth[k]), under, { zw: -1e9, zb: -1e9, zt: 1e9 }, { gap: gap.trunk, band: 0.012 });
   }
-  for (const S of ['R', 'L']) for (const k of SLEEVE(S).filter((n) => cloth[n])) {
+  for (const S of ['R', 'L']) for (const k of sleeve(S).filter((n) => cloth[n])) {
     const under = [...before(k, new RegExp(`_(upperArm|foreArm)${S}$`)), ...skin([`upperArm${S}`, `foreArm${S}`])].map(denseRead).flatMap(pointsOf);
-    out[k] = fitSleeve(structuredClone(cloth[k]), under, FIT.sleeve);
+    out[k] = fitSleeve(structuredClone(cloth[k]), under, gap.sleeve);
   }
   return out;
 }
+/** THE SHIRT FITTED as a jacket is, when it is the outermost layer on the trunk (the expander's `tailoring.shirt`: a woven
+ * top with no jacket over it): its body and its sleeves brought in onto the skin and what is worn under them, a little
+ * roomier than a jacket (`FIT.shirt`); never let out. → { name: piece } */
+export const fitShirt = (recipe, cloth) => fitJacket(recipe, cloth, { body: SHIRT_BODY, sleeve: SHIRT_SLEEVE, gap: FIT.shirt });
 
 /** THE SLEEVES' SEAM at the shoulder (on copies → { name: piece }). Each tube is closed at the shoulder by a cap pinched
  * past its first ring, and the skin's reached farther over the shoulder's dome than any sleeve's: the dome showed through

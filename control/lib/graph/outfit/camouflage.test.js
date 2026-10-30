@@ -10,6 +10,7 @@ import { outfitTones } from './expand.js';
 import { validateFieldPaint, fieldPaintOf } from '../polygonizer/field-paint.js';
 import { heroFieldPaint } from '../polygonizer/hero-emblem.js';
 import { heroRecord, expandLayeredManifest } from '../../mcp/tools/layered.js';
+import { withDefaultForm } from '../polygonizer/motion-stamp.js';
 import { compileLayered } from '../polygonizer/station-loft.js';
 
 /** a stub piece: a tube `r` round, from z0 to z1, about x */
@@ -34,7 +35,7 @@ describe('camouflage', () => {
     expect(camoTone(lang(w))).toEqual({ Top: CAMOS[w].ground, Bottom: CAMOS[w].ground });
     expect(outfitTones(fatigues(w))).toMatchObject({ Top: CAMOS[w].ground, Bottom: CAMOS[w].ground });
     expect(outfitTones(fatigues(WEAVE_WORDS[0])).Top).toBe(SEEDED_OUTFITS.fatigues.tones.Top);
-    const R = expandLayeredManifest({ kind: 'layered', hero: heroRecord({ cast: 'male', outfit: fatigues(w), palette: { Top: '#112233' } }) }).recipe;
+    const R = expandLayeredManifest({ kind: 'layered', hero: heroRecord(withDefaultForm({ cast: 'male', outfit: fatigues(w), palette: { Top: '#112233' } })) }).recipe;
     expect(R.palette.Top).toBe('#112233');
     expect(R.palette.Bottom).toBe(CAMOS[w].ground);
   });
@@ -46,7 +47,7 @@ describe('camouflage', () => {
       const E = camoFieldPaint(lang(w), STUB);
       expect(validateFieldPaint(E)).toEqual([]);
       expect(camoFieldPaint(lang(w), STUB)).toEqual(E);
-      expect(E.length).toBe(CAMOS[w].colours.length * 4);
+      expect(E.length).toBe(CAMOS[w].colours.length * 5);
       for (const e of E) {
         // (its parts the layers' and their groups' (the pectoral painted as the shirt), never the shoes)
         expect(e.part).toEqual(['bottomLeg_thighR', 'pectoralR', 'top_torso']);
@@ -59,12 +60,12 @@ describe('camouflage', () => {
   it('a language with no camouflage paints nothing; a manifest\'s own field paint is kept as it is', () => {
     expect(camoFieldPaint(lang(WEAVE_WORDS[0]), STUB)).toBeNull();
     expect(camoFieldPaint(null, STUB)).toBeNull();
-    const m = expandLayeredManifest({ kind: 'layered', hero: heroRecord({ cast: 'male', outfit: fatigues(WEAVE_WORDS[0]) }) });
+    const m = expandLayeredManifest({ kind: 'layered', hero: heroRecord(withDefaultForm({ cast: 'male', outfit: fatigues(WEAVE_WORDS[0]) })) });
     expect(heroFieldPaint(m)).toBe(m.fieldPaint);
   });
 
   it('on the game body, the cloth and the skin painted as cloth cut into its colours, the shoes left', () => {
-    const w = CAMO_WORDS[0], m = expandLayeredManifest({ kind: 'layered', hero: heroRecord({ cast: 'male', outfit: fatigues(w) }) });
+    const w = CAMO_WORDS[0], m = expandLayeredManifest({ kind: 'layered', hero: heroRecord(withDefaultForm({ cast: 'male', outfit: fatigues(w) })) });
     const E = heroFieldPaint(m), mesh = compileLayered(m.recipe, m.dials || {}), F = fieldPaintOf(mesh, E), parts = new Set(), colours = new Set();
     for (let fi = 0; fi < mesh.faces.length; fi++) for (const c of F.cut(fi) ?? []) if (c.group.startsWith('Camo')) { parts.add(mesh.provenance[mesh.faces[fi][0]].part); colours.add(c.group); }
     expect([...parts].some((k) => k.startsWith('top'))).toBe(true);

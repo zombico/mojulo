@@ -26,7 +26,8 @@
 // belt (an adornment) are built like any other. Pure and deterministic: no dice, fixed order.
 import { collarSpec, collarRun } from './collar.js';
 import { FOOTWEAR } from '../footwear/styles.js';
-import { camoTone } from './camouflage.js';
+import { camoTone, isCamo } from './camouflage.js';
+import { headOf, helmetKit, helmetTones } from '../headgear/helmets.js';
 import { OUTFIT_LAWS_VERSION, FAMILIES, SKIRT_CUTS, TROUSER_CUTS, BREECHES, BREECHES_SWELL, outfitProportion, stepLength } from './principles.js';
 import { SEEDED_OUTFITS, validateOutfitCard } from './styles.js';
 import { MOTIFS } from '../polygonizer/station-loft-adorn.js';
@@ -245,6 +246,8 @@ export function expandOutfit(build, { have, scale: k = 1, drawn = null }, palett
   // CARGO POCKETS (`pockets: 'cargo'`, trousers to the knee or longer): a bellows pocket on each thigh's outer side under a
   // flap, in the trousers' cloth, WRAPPED round the leg on the trousers (body-relational-kit.js pocketOn, its `pocket` word;
   // the pack signature what the adornment kernel makes of it where the kit's pieces are not made)
+  // THE HEAD (`head`: a helmet by tradition, headgear/helmets.js): a cowl on the cranium, its cover, band, net and mount
+  const head = headOf(lang, isCamo); kit.push(...helmetKit(head));
   if (bottom && !skirt && bottom.pockets === 'cargo' && worn.has('bottomLeg') && (lengths.leg === 'knee' || lengths.leg === 'capri' || lengths.leg === 'long'))
     for (const S of ['R', 'L']) kit.push({ id: `cargo${S}`, mode: 'shell', part: `thigh${S}`, side: S, share: true, s: [0.42, 0.66], t: [0.3, 0.62], nt: 3, ns: 2, mugen: r6(0.008 * k), thick: r6(0.004 * k), group: 'Bottom',
       signature: { kind: 'pack', w: r6(0.15 * k), h: r6(0.17 * k), d: r6(0.022 * k), lift: 0, chamfer: r6(0.01 * k), soft: true, flap: 0.28, group: 'Bottom' }, pocket: { flap: 0.28, bellows: r6(0.011 * k) } });
@@ -370,11 +373,17 @@ export function expandOutfit(build, { have, scale: k = 1, drawn = null }, palett
   const shaped = outer && worn.has('outer') && (outer.shoulder !== undefined || outer.waist !== undefined), shape = shaped ? { ...(outer.shoulder ? { shoulder: outer.shoulder } : {}), ...(outer.waist ? { waist: outer.waist } : {}) } : {};
   // (and a waistcoat's front, its V and its buttons, made before the jacket's over it)
   const vestFront = worn.has('vest') ? { front: vest.front ?? 'single', buttons: vest.buttons ?? (vest.front === 'double' ? 3 : 5) } : null;
-  const tailoring = tailored || shaped || tie || vestFront || jacket ? { ...(jacket ? { jacket } : {}), ...(vestFront ? { vest: vestFront } : {}), ...(tailored || shaped ? { outer: { ...(tailored ? { front: outer.front ?? 'single', lapel: outer.lapel ?? (outer.front === 'double' ? 'peak' : 'notch'), buttons: outer.buttons ?? (outer.front === 'double' ? 3 : 2), open: !!outer.open } : {}), ...shape } } : {}), ...(tie ? { tie: { group: 'Tie' } } : {}) } : null;
+  // (a SHIRT, a collared woven top, worn outermost, no jacket over it and no `fit: 'loose'`, FITTED as a jacket is on the
+  // game body: authored-jacket.js fitShirt; the silhouette the cut's, not the ease's. A collarless woven top, a tunic or a
+  // blouse, hangs as it is cut)
+  const shirtFit = wovenTop && !!top.collar && worn.has('top') && !dress && !(outer && worn.has('outer')) && (top.fit ?? 'eased') !== 'loose';
+  const tailoring = tailored || shaped || tie || vestFront || jacket || shirtFit ? { ...(shirtFit ? { shirt: { fit: true } } : {}), ...(jacket ? { jacket } : {}), ...(vestFront ? { vest: vestFront } : {}), ...(tailored || shaped ? { outer: { ...(tailored ? { front: outer.front ?? 'single', lapel: outer.lapel ?? (outer.front === 'double' ? 'peak' : 'notch'), buttons: outer.buttons ?? (outer.front === 'double' ? 3 : 2), open: !!outer.open } : {}), ...shape } } : {}), ...(tie ? { tie: { group: 'Tie' } } : {}) } : null;
   if (tailored) tones.Lapel = card.tones?.Lapel ?? shade(T.Outer ?? tones.Outer ?? '#444444', 1.12);
   // (a jacket's knit rib, the card's `Rib` tone, else a deep shade off the jacket's own)
   if (jacket?.rib) tones.Rib = card.tones?.Rib ?? shade(T.Outer ?? tones.Outer ?? '#444444', 0.55);
   if (tie) tones.Tie = card.tones?.Tie ?? '#5b1f2b';
+  // (a helmet's colours, the card's over them; a camouflaged cover's ground over its shell: outfitTones)
+  for (const [g, c] of Object.entries(helmetTones(head))) tones[g] = card.tones?.[g] ?? c;
   return { garments, paint, rows, kit, tones, trace, ...(tailoring ? { tailoring } : {}) };
 }
 
