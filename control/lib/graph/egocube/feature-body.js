@@ -180,15 +180,18 @@ export const FEATURE_BUILDS = Object.freeze({
       // the head's separation from the body: a head shape meets a body shape no softer than this (h)
       seam: 0.05,
       // the head raised over a short neck (h): the silhouette's hourglass, the wide body, the neck pinched, the wide head
-      headLift: 0.22,
+      headLift: 0.12,
       eggs: [
         // the head: a wedge (the cranium's fat end down into the jowls), the cheek ruffs flaring out at the face's widest
         // (the head wider than the body), the muzzle short and pale, its nose ball, the ears
         // (the cranium a FOOTBALL: long front to back, a little pointed toward the muzzle, its underside one round curve so
         // the head reads apart from the neck in profile)
-        { name: 'cranium', c: [0, 0.02, 2.8], u: [0, 1, -0.1], r: [0.63, 0.72, 0.56], e: 0.2, hint: [1, 0, 0], bone: 'head', join: 0.18 },
+        { name: 'cranium', c: [0, 0.02, 2.82], u: [0, 1, -0.1], r: [0.63, 0.72, 0.6], e: 0.15, hint: [1, 0, 0], bone: 'head', join: 0.18 },
+        // (the head's lower volume: the jaw and the cheeks filled out round, so the head is a ball whose underside curves
+        // into the body: in profile a figure eight, not a neck)
+        { name: 'jaw', c: [0, 0.14, 2.56], u: [0, 1, -0.1], r: [0.48, 0.62, 0.4], e: 0.1, hint: [1, 0, 0], bone: 'head', join: 0.2 },
         { name: 'ruffR', c: [0.5, 0.08, 2.5], u: [0.78, 0.05, -0.62], r: [0.34, 0.3, 0.26], e: 0.85, hint: [0, 1, 0], bone: 'head', join: 0.2 },
-        { name: 'jowlR', c: [0.34, 0.26, 2.52], u: [0.7, 0.35, -0.45], r: [0.21, 0.2, 0.18], e: 0.5, hint: [0, 1, 0], bone: 'head', group: 'Belly', join: 0.14 },
+        { name: 'jowlR', c: [0.36, 0.26, 2.5], u: [0.7, 0.35, -0.45], r: [0.24, 0.23, 0.21], e: 0.4, hint: [0, 1, 0], bone: 'head', group: 'Belly', join: 0.14 },
         { name: 'muzzle', c: [0, 0.48, 2.54], u: [0, 1, -0.12], r: [0.3, 0.22, 0.18], e: 0.45, bone: 'head', group: 'Belly', join: 0.12 },
         { name: 'chin', c: [0, 0.38, 2.42], u: [0, 1, 0], r: [0.14, 0.15, 0.1], bone: 'head', group: 'Belly', join: 0.1 },
         { name: 'nose', c: [0, 0.79, 2.58], u: [0, 1, 0.2], r: [0.09, 0.11, 0.08], bone: 'head', group: 'Nose', join: 0.03 },
@@ -196,10 +199,9 @@ export const FEATURE_BUILDS = Object.freeze({
         // the body, the dominant mass (the reference's: wider than the head, about 2.4 heads across and 2.2 tall, nearly on
         // the ground): the chest under the head and the belly low, round and forward, its pale front most of it, the
         // haunches wide, the legs all but hidden under it, the feet small and turned a little out
-        // the neck: short and narrower than the head and the body, set back under it (in profile the throat stands well
-        // behind the chin, under the head's round underside), on the rig's neck bone (soft into the chest, the jaw's seam
-        // above it)
-        { name: 'neck', c: [0, -0.08, 2.42], u: [0, 0.1, 1], r: [0.28, 0.5, 0.34], bone: 'neck', join: 0.16 },
+        // the neck: no more than the pinch where the head's ball meets the body's (the waist of the figure eight), on the
+        // rig's neck bone, soft into the chest, the jaw's seam above it
+        { name: 'neck', c: [0, -0.02, 2.36], u: [0, 0.1, 1], r: [0.16, 0.5, 0.36], bone: 'neck', join: 0.14 },
         { name: 'chest', c: [0, 0.05, 1.86], u: [0, 0, 1], r: [0.46, 0.88, 0.78], e: 0.25, bone: 'torso', join: 0.35 },
         { name: 'belly', c: [0, 0.12, 1.12], u: [0, 0, 1], r: [0.95, 1.2, 1.02], e: 0.25, bone: 'pelvis', join: 0.35 },
         { name: 'front', c: [0, 0.5, 1.2], u: [0, 0, 1], r: [0.85, 0.85, 0.62], e: 0.15, bone: 'pelvis', group: 'Belly', join: 0.3 },
