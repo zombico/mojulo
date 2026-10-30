@@ -180,23 +180,26 @@ export const FEATURE_BUILDS = Object.freeze({
       // the head's separation from the body: a head shape meets a body shape no softer than this (h)
       seam: 0.05,
       // the head raised over a short neck (h): the silhouette's hourglass, the wide body, the neck pinched, the wide head
-      headLift: 0.17,
+      headLift: 0.22,
       eggs: [
         // the head: a wedge (the cranium's fat end down into the jowls), the cheek ruffs flaring out at the face's widest
         // (the head wider than the body), the muzzle short and pale, its nose ball, the ears
-        { name: 'cranium', c: [0, 0.02, 2.8], u: [0, -0.12, 1], r: [0.55, 0.72, 0.6], e: 0.3, bone: 'head', join: 0.18 },
+        // (the cranium a FOOTBALL: long front to back, a little pointed toward the muzzle, its underside one round curve so
+        // the head reads apart from the neck in profile)
+        { name: 'cranium', c: [0, 0.02, 2.8], u: [0, 1, -0.1], r: [0.63, 0.72, 0.56], e: 0.2, hint: [1, 0, 0], bone: 'head', join: 0.18 },
         { name: 'ruffR', c: [0.5, 0.08, 2.5], u: [0.78, 0.05, -0.62], r: [0.34, 0.3, 0.26], e: 0.85, hint: [0, 1, 0], bone: 'head', join: 0.2 },
-        { name: 'jowlR', c: [0.34, 0.24, 2.44], u: [0.6, 0.3, -0.75], r: [0.24, 0.22, 0.2], e: 0.5, hint: [0, 1, 0], bone: 'head', group: 'Belly', join: 0.14 },
+        { name: 'jowlR', c: [0.34, 0.26, 2.52], u: [0.7, 0.35, -0.45], r: [0.21, 0.2, 0.18], e: 0.5, hint: [0, 1, 0], bone: 'head', group: 'Belly', join: 0.14 },
         { name: 'muzzle', c: [0, 0.48, 2.54], u: [0, 1, -0.12], r: [0.3, 0.22, 0.18], e: 0.45, bone: 'head', group: 'Belly', join: 0.12 },
-        { name: 'chin', c: [0, 0.36, 2.37], u: [0, 1, 0], r: [0.15, 0.16, 0.12], bone: 'head', group: 'Belly', join: 0.1 },
+        { name: 'chin', c: [0, 0.38, 2.42], u: [0, 1, 0], r: [0.14, 0.15, 0.1], bone: 'head', group: 'Belly', join: 0.1 },
         { name: 'nose', c: [0, 0.79, 2.58], u: [0, 1, 0.2], r: [0.09, 0.11, 0.08], bone: 'head', group: 'Nose', join: 0.03 },
         { name: 'earR', c: [0.46, -0.1, 3.24], u: [0.38, -0.1, 1], r: [0.27, 0.21, 0.08], e: 0.75, hint: [1, 0, 0], bone: 'head', join: 0.08 },
         // the body, the dominant mass (the reference's: wider than the head, about 2.4 heads across and 2.2 tall, nearly on
         // the ground): the chest under the head and the belly low, round and forward, its pale front most of it, the
         // haunches wide, the legs all but hidden under it, the feet small and turned a little out
-        // the neck: short and narrower than the head and the body, on the rig's neck bone (soft into the chest, the jaw's
-        // seam above it)
-        { name: 'neck', c: [0, 0.08, 2.4], u: [0, 0.1, 1], r: [0.26, 0.56, 0.5], bone: 'neck', join: 0.16 },
+        // the neck: short and narrower than the head and the body, set back under it (in profile the throat stands well
+        // behind the chin, under the head's round underside), on the rig's neck bone (soft into the chest, the jaw's seam
+        // above it)
+        { name: 'neck', c: [0, -0.08, 2.42], u: [0, 0.1, 1], r: [0.28, 0.5, 0.34], bone: 'neck', join: 0.16 },
         { name: 'chest', c: [0, 0.05, 1.86], u: [0, 0, 1], r: [0.46, 0.88, 0.78], e: 0.25, bone: 'torso', join: 0.35 },
         { name: 'belly', c: [0, 0.12, 1.12], u: [0, 0, 1], r: [0.95, 1.2, 1.02], e: 0.25, bone: 'pelvis', join: 0.35 },
         { name: 'front', c: [0, 0.5, 1.2], u: [0, 0, 1], r: [0.85, 0.85, 0.62], e: 0.15, bone: 'pelvis', group: 'Belly', join: 0.3 },
@@ -215,7 +218,7 @@ export const FEATURE_BUILDS = Object.freeze({
       // down and back; the tail's brush ends in a point
       tufts: [
         { name: 'cheekAR', root: [0.66, 0.04, 2.5], aim: [0.92, -0.1, -0.38], len: 0.44, r: 0.17, curl: 22, bend: [0, -0.3, -1], bone: 'head', join: 0.07 },
-        { name: 'cheekBR', root: [0.6, 0.0, 2.36], aim: [0.62, -0.15, -0.78], len: 0.38, r: 0.15, curl: 18, bend: [0, -1, -0.4], bone: 'head', join: 0.07 },
+        { name: 'cheekBR', root: [0.62, 0.0, 2.4], aim: [0.78, -0.35, -0.52], len: 0.36, r: 0.15, curl: 18, bend: [0, -1, -0.2], bone: 'head', join: 0.07 },
         { name: 'cheekCR', root: [0.64, 0.06, 2.64], aim: [0.97, -0.15, 0.1], len: 0.34, r: 0.14, curl: 28, bend: [0, -0.4, -1], bone: 'head', join: 0.07 },
         // the dome's spikes: the cheeks' rhythm again, smaller, and NOT mirrored: three locks of falling length, their roots
         // staggered so each overlaps the next, all swept one way (to the right and a little forward, their tips curling
