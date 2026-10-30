@@ -562,6 +562,10 @@ function foesCard() {
     `        sever?, inside? } names its own. DESTRUCTION: a dismantle comes apart at its joints (sever: ${Object.keys(SEVERS).join(' | ')}),`,
     '        a cleave is cut through its trunk (inside: its colour); a destroy lets the killing blow choose (a strike',
     '        cleaves, a round knocks some off, a burst tears it apart): the undead\'s default, layer 0 under every foe.',
+    'CAST    the cast sheet, /bible?book=foes: the lineup at stature beside the hero, a tile per foe by tier, a card each',
+    '        (its lesson, its numbers in the flavor\'s words, its mind, its shelves); foes:cast and foes:<id> are parts to',
+    '        approve. A world that fights and keeps none: design_game\'s `foes` step proposes a cast from the intent\'s',
+    '        Mind values, its combat, its flavor and its era (a casting call), with the patch that writes it. Never written.',
     'A world or level without foes is laid as it was.',
   );
 }
@@ -706,6 +710,8 @@ function nextCard() {
     '  feel       no feel written: `suggest` is the template its brief, shooter pole or genre points at (`why`, `from`):',
   '             write it (feel: …) or leave the hero its own rule. Written, `lost` are card fields the runtime does not',
   '             carry yet: advice (gameworld-feel). Keep it, pick a template closer to what the runtime plays, or wait.',
+  '  foes       it fights and keeps no bestiary: `suggest` is the cast a casting call proposes (`why`); show the',
+  '             creator its cast sheet (foeBook), then write `patch` or any of it (gameworld-foes). Never written for you.',
   '  advice     read `advice`: a choice the brief does not explain, or one that reads as a fixture or a sample, is the',
     '             creator\'s to confirm.',
   );
@@ -781,7 +787,7 @@ const CARDS = [
   ['gameworld-foes', 'The foes', 'hostile classes on the trails: how each moves, hurts and decides, at any rank, on any body that fits', 'enemies in my level, goombas, monsters to fight, a wolf pack, a boss beast, dire wolves, foot soldiers, a turret, things that chase me, a swarm of rats', foesCard],
   ['gameworld-story', 'The cast and the story', 'other people, and the moments they are in, bound to the world as it is built', 'a mayor who greets you, a story written first, characters in my levels, what happens where, dialogue choices, quests, a journal, a companion, a party member who joins, a cast rolled for my game, a party, a rival, a villain and his lieutenant, a familiar or summon, beastfolk or a mascot in the party', storyCard],
   ['gameworld-folk', 'The town\'s people', 'NPCs grown from a town\'s houses: their houses and faces, their talk, their sidequests, their day', 'villagers to talk to, a shopkeeper, townsfolk, NPCs with errands, side quests, the same nurse in every town', folkCard],
-  ['gameworld-next', 'The next moves', "design_game's readout steps: review, play, share, run, rerun, intent, target, feel, wait, advice", 'what do I do next, approve the parts, is it playable', nextCard],
+  ['gameworld-next', 'The next moves', "design_game's readout steps: review, play, share, run, rerun, intent, target, feel, foes, wait, advice", 'what do I do next, approve the parts, is it playable', nextCard],
 ];
 export const GAMEWORLD_CARD_IDS = Object.freeze(CARDS.map(([id]) => id));
 export { SAMPLE_PAGES };

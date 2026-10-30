@@ -120,6 +120,45 @@ of the head and limbs off, a burst tears every joint apart, a crush lets every j
 own `by`. `dismantle` cuts the relations between its bones; `cleave` cuts it through by part, its cut capped in its
 `inside`. The page plays the pieces (`scene/channels/wreck-channel.js`).
 
+## The cast sheet: the world's foes on one page
+
+A world's foes are read onto one book, the cast sheet (`/bible?book=foes`, `gameworld/foe-cast-html.js`), beside the
+world, character and feel books. It reads only what the shelves already say (`gameworld/foe-cast.js` `foeCastOf`):
+
+- **The lineup.** Every foe drawn at the stature it reads at in the game (its class's presence grown by its rank; a
+  person at its height), beside the hero, on a metre rule. A flier is held off the ground.
+- **The tiers.** A tile per foe by rank: its portrait once a run has made its figure (`made['foes-<id>']`), else its
+  lineup silhouette, its threat, its element, its modes and relations, the levels it stands on.
+- **The cards.** One per foe: the class's `reads` (the lesson it teaches the player) first, then its numbers, its
+  attack's timing (the startup is the telegraph), its mind as the Mind facet resolves it on its body (motivation,
+  aggressiveness, rank, skill, how it sees, what it does in each situation, how a duelist switches), its shelves, and
+  what each engine keeps of it.
+
+Two tables adapt it to the game, rows rather than code: `STAT_WORDS` says the numbers the way the game's flavor does
+(a platformer counts the bops to down a foe and the hearts a touch costs; a realistic game shows health and damage),
+and `REGISTER_WORDS` names the sheet and its tiers in the game's register (anime or western). The flavor and register
+are the juice's (`gameworld/juice.js`), written or what `juice: 'auto'` would lay.
+
+The sheet is a gate like the other books: `foes:cast` and `foes:<id>` are parts with prints, approved through
+`design_game`. They never hold a run back.
+
+### The casting call: a cast proposed, never written
+
+A world that fights and keeps no bestiary is proposed one (`gameworld/foe-casting.js` `castingCall`). The cast is
+roles (`ROLES`): a grunt, a harrier that hurts from where the grunt cannot, an elite and a boss. Each role takes the
+class that scores best against the world:
+
+- its mind against the intent cube's Mind values (motivation, aggressiveness, perception, pathing, a pack's squad);
+- its attack against the cube's combat;
+- its toll against the flavor (a platformer's foe is touched and stomped; a realistic game's is not a touch);
+- whether the world's people can play it, and what the intent's target engine carries.
+
+A class the cube's own `mind.foes` names is cast before any other. The world's era rolls one people for the whole cast
+(`ERA_PEOPLES`, seeded by the world), worn by every class that stands on two legs; a platformer's and a pinball table's
+cast stays on the stand-in beasts. The grunt and harrier stand on every walk, the elite from the middle on, and the
+boss alone on the last walk, won by clearing it. `design_game`'s `foes` step carries the proposal and the patch that
+writes it; the agent writes it only once the creator has seen the sheet.
+
 ## Precedence
 
 - An entry's own word beats its form's default (the undead's destruction by form), which beats the world's (the game
@@ -188,5 +227,8 @@ name none. The discipline for adding one:
   the swap and the return; absent, no code.
 - `worlds/controllable/summon.test.js`: the call (near, capped, its wind-up broken by a blow), the slack while it reels,
   the strings cut on its fall and the uncalled dropped, an unbound summons fighting on; absent, no code.
+- `gameworld/foe-cast.test.js`: the cast read for a beast, a people, a model, a mode chain and a summoner; the numbers in a
+  counting flavor and a health flavor; the gate's parts going stale; the casting call adopted as written, the intent's
+  own classes first, a people's era and a platformer's beasts; absent, nothing.
 - `scene/rig-import.test.js`: a model's bones by each convention's names, its frame its body's whatever the file's, each
   triangle on its bone, and the cuts and the shed taking it as our own.
