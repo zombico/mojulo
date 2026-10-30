@@ -16,7 +16,7 @@
  *   cone({ a, b, ra, rb, bone, group, join })   one round cone on a bone: a streamlined limb is two, shoulder to elbow to
  *                     wrist, their radii meeting at the elbow (no egg's bulge there); a finger is two, knuckle to tip
  *   eggDistance(E, p)   an approximate signed distance (negative inside), an egg's or a tuft's
- *   eggField(eggs)      → { field(p), nearest(p), weights(p) }: the superposition (the nearest three folded by a polynomial
+ *   eggField(eggs, { seam })   → { field(p), nearest(p), weights(p) }: the superposition (the nearest three folded by a polynomial
  *                     smooth-min) and the skin's WEIGHTS from it: a point belongs to the bones of the eggs it is made of,
  *                     each by how near it is against the nearest, over the softness of their join; at most four bones
  *   eggSkin(eggs, { cell, faces, zones })   → a layer-1 mesh part (closed), each point bound by its weights (`st0.<id>`),
@@ -87,7 +87,10 @@ export function eggDistance(E, p) {
   return k1 > 1e-12 ? (k0 * (k0 - 1)) / k1 : -Math.min(ra, rb, rc);
 }
 
-export function eggField(eggs, { near = FEATURE_SKIN.near, bones = FEATURE_SKIN.bones, floor = FEATURE_SKIN.floor } = {}) {
+export function eggField(eggs, { near = FEATURE_SKIN.near, bones = FEATURE_SKIN.bones, floor = FEATURE_SKIN.floor, seam = 0 } = {}) {
+  // (the SEAM: a pair where one rides the head and the other does not blends no softer than `seam`, so the head stands
+  // off the body with a crease under the jaw; the head's own and the body's own blend as their joins say)
+  const onHead = eggs.map((E) => E.bone === 'head'), pairK = (i, j, k) => (seam > 0 && onHead[i] !== onHead[j] ? Math.min(k, seam) : k);
   const n = eggs.length, D = new Float64Array(n), order = Array.from({ length: n }, (_, i) => i);
   const measure = (p) => { for (let i = 0; i < n; i++) D[i] = eggDistance(eggs[i], p); order.sort((i, j) => D[i] - D[j] || i - j); };
   // (the field reads the nearest three alone, picked without sorting, an egg measured only when its bounding ball could
@@ -109,7 +112,7 @@ export function eggField(eggs, { near = FEATURE_SKIN.near, bones = FEATURE_SKIN.
       if (a < 0 || d < D[a]) { c = b; b = a; a = i; } else if (b < 0 || d < D[b]) { c = b; b = i; } else if (c < 0 || d < D[c]) c = i;
     }
     let d = D[a], k = eggs[a].join;
-    for (const j of near >= 3 ? [b, c] : near === 2 ? [b] : []) { if (j < 0) continue; d = smin(d, D[j], Math.min(k, eggs[j].join)); k = Math.max(k, eggs[j].join); }
+    for (const j of near >= 3 ? [b, c] : near === 2 ? [b] : []) { if (j < 0) continue; d = smin(d, D[j], pairK(a, j, Math.min(k, eggs[j].join))); k = Math.max(k, eggs[j].join); }
     return d;
   };
   const nearest = (p) => { measure(p); return order[0]; };
@@ -133,10 +136,10 @@ export function eggField(eggs, { near = FEATURE_SKIN.near, bones = FEATURE_SKIN.
 }
 
 const SKINS = new Map();
-export function eggSkin(eggs, { cell = FEATURE_SKIN.cell, faces = FEATURE_SKIN.faces, group = 'Body', zones = [] } = {}) {
-  const key = JSON.stringify([eggs, cell, faces, group, zones]);
+export function eggSkin(eggs, { cell = FEATURE_SKIN.cell, faces = FEATURE_SKIN.faces, group = 'Body', zones = [], seam = 0 } = {}) {
+  const key = JSON.stringify([eggs, cell, faces, group, zones, seam]);
   if (SKINS.has(key)) return SKINS.get(key);
-  const F = eggField(eggs), f = F.field, lo = [Infinity, Infinity, Infinity], hi = [-Infinity, -Infinity, -Infinity];
+  const F = eggField(eggs, { seam }), f = F.field, lo = [Infinity, Infinity, Infinity], hi = [-Infinity, -Infinity, -Infinity];
   for (const E of eggs) { const R = reachOf(E) + E.join; for (let k = 0; k < 3; k++) { lo[k] = Math.min(lo[k], E.c[k] - R); hi[k] = Math.max(hi[k], E.c[k] + R); } }
   const box = { min: { x: lo[0], y: lo[1], z: lo[2] }, max: { x: hi[0], y: hi[1], z: hi[2] } };
   const net = netSkin(f, box, { cell, project: 2 });
@@ -169,11 +172,13 @@ const ARM = unit([0.86, 0.12, -0.5]), SPREAD = unit(cross(ARM, [0, 1, 0]));
 const at = (p, d, s) => add(p, mul(d, s));
 export const FEATURE_BUILDS = Object.freeze({
   procyonid: (() => {
-    const sh = [0.88, 0.1, 2.0], el = at(sh, ARM, 0.42), wr = at(el, ARM, 0.38), kn = at(wr, ARM, 0.22);
+    const sh = [0.84, 0.1, 1.95], el = at(sh, ARM, 0.42), wr = at(el, ARM, 0.38), kn = at(wr, ARM, 0.22);
     return Object.freeze({
       heads: 3.3,
       // the arms' least outward share in a clip: round the belly, never closer to the body than this
       splay: 0.62,
+      // the head's separation from the body: a head shape meets a body shape no softer than this (h)
+      seam: 0.05,
       eggs: [
         // the head: a wedge (the cranium's fat end down into the jowls), the cheek ruffs flaring out at the face's widest
         // (the head wider than the body), the muzzle short and pale, its nose ball, the ears
@@ -187,7 +192,7 @@ export const FEATURE_BUILDS = Object.freeze({
         // the body, the dominant mass (the reference's: wider than the head, about 2.4 heads across and 2.2 tall, nearly on
         // the ground): the chest under the head and the belly low, round and forward, its pale front most of it, the
         // haunches wide, the legs all but hidden under it, the feet small and turned a little out
-        { name: 'chest', c: [0, 0.05, 1.95], u: [0, 0, 1], r: [0.5, 0.95, 0.8], e: 0.2, bone: 'torso', join: 0.35 },
+        { name: 'chest', c: [0, 0.05, 1.86], u: [0, 0, 1], r: [0.46, 0.88, 0.78], e: 0.25, bone: 'torso', join: 0.35 },
         { name: 'belly', c: [0, 0.12, 1.12], u: [0, 0, 1], r: [0.95, 1.2, 1.02], e: 0.25, bone: 'pelvis', join: 0.35 },
         { name: 'front', c: [0, 0.5, 1.2], u: [0, 0, 1], r: [0.85, 0.85, 0.62], e: 0.15, bone: 'pelvis', group: 'Belly', join: 0.3 },
         { name: 'haunchR', c: [0.62, 0.0, 0.5], u: [0, 0, 1], r: [0.4, 0.42, 0.45], e: 0.2, bone: 'thighR', join: 0.28 },
@@ -297,7 +302,7 @@ function laidOut(build, height) {
     ...(m.bands ? { bands: m.bands.map((B) => band({ c: S(B.c), axis: B.axis, w: B.w * h, R: B.R * h, teeth: B.teeth, depth: (B.depth ?? 0) * h })) } : {}) }));
   const ell = (E) => ({ C: S(E.C), rx: r4(E.rx * h), ry: r4(E.ry * h), rz: r4(E.rz * h) });
   const mouth = build.mouth && { nose: S(build.mouth.nose), centre: S(build.mouth.centre), corner: S(build.mouth.corner), pivot: S(build.mouth.pivot), rise: build.mouth.rise * h, sag: build.mouth.sag * h };
-  return { h, eggs, marks, mouth, digits: digits.map((d) => ({ i: d.i, base: S(d.base), mid: S(d.mid), tip: S(d.tip) })), eye: { ...build.eye, r: build.eye.r * h }, J: Object.fromEntries(Object.entries(build.joints).map(([k, p]) => [k, S(p)])), hipZ: r4(build.hipZ * h), neckZ: r4(build.neckZ * h), top: r4(build.top * h), H: ell(build.head), muzzle: ell(build.muzzle) };
+  return { h, eggs, marks, mouth, seam: (build.seam ?? 0) * h, digits: digits.map((d) => ({ i: d.i, base: S(d.base), mid: S(d.mid), tip: S(d.tip) })), eye: { ...build.eye, r: build.eye.r * h }, J: Object.fromEntries(Object.entries(build.joints).map(([k, p]) => [k, S(p)])), hipZ: r4(build.hipZ * h), neckZ: r4(build.neckZ * h), top: r4(build.top * h), H: ell(build.head), muzzle: ell(build.muzzle) };
 }
 
 /** clips with every arm direction (`armL`, `armR`: { x, y, z }) turned out until its outward share is at least `out` */
@@ -327,7 +332,7 @@ export function featurePlan(sheet, { title = 'a feature animal', reactions = fal
   const build = FEATURE_BUILDS[A.family] ?? FEATURE_BUILDS.procyonid;
   const L = laidOut(build, FEATURE_HEIGHT), H = L.H;
   const zones = L.marks.filter((m) => !m.strokes && !m.bands), layers = L.marks.filter((m) => m.strokes || m.bands);
-  const skin = eggSkin(L.eggs, { zones }), F = eggField(L.eggs);
+  const skin = eggSkin(L.eggs, { zones, seam: L.seam }), F = eggField(L.eggs, { seam: L.seam });
   const coat = coatOf(skin, F, L.eggs, layers);
   // the face: globes seated on the skin, lids as shells about them, the brows on the eye, the mouth in the muzzle
   const face = featureFace({ field: F.field, H, eye: L.eye, rest: f.expression, mouth: L.mouth,
