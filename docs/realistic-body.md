@@ -87,8 +87,46 @@ ear its own. The map's size follows the skin's rung (512 texels across the head'
 the head (`headSkin`, `earR`, `earL`) is baked: every other texel is flat, so the body, the hands and what the hero
 wears shade by their vertex normals as before. A hero minted under laws 4 or earlier, an unlit export and the World
 page carry none (the page's fills are unlit). Godot, Unity's glTFast and Blender read the map as they import the GLB;
-the Unreal importer binds it to its lit master (`M_MojuloLitRelief`); a Unity world pack ships figures as rigid parts,
-so the map stays behind there and its ledger says so.
+the Unreal importer binds it to its lit master (`M_MojuloLitCloth`; an import before it made `M_MojuloLitRelief`, left
+as it was); a Unity world pack ships figures as rigid parts, so the map stays behind there and its ledger says so.
+
+## The clothes' relief (realistic laws 13)
+
+A hero minted under realistic laws 13 carries its clothes' surface to an engine too (`epidermis/cloth-relief.js`). On
+the same lit skinned export each garment's tube is unrolled onto a cloth page of the skin's atlas, under the strands
+(around it by its rings' own arc, from its back so the wrap is out of sight, along it by its middles' path, in metres),
+and a height baked there: creases where the body bends (an elbow's crook, behind the knee, the hip's lap, the armpit, the
+cloth stacked at a wrist and broken at an ankle), seams (a limb's inner seam and a leg's outseam, a trunk's side seams,
+an outer layer's centre back), hems, leather's wear, the cloth's grain and a knit's rib, each its cloth's (`CLOTHS`: the
+cloth the outer names, else the outfit's language by its layer, else the group's: leather shoes and belts, rubber soles,
+steel buckles, brass, horn buttons, a silk tie). It is read into the figure's normal map beside the head's, the faces'
+tangents from their own UVs, and into an ORM map (occlusion, roughness, metalness: the GLB's `metallicRoughnessTexture`
+and `occlusionTexture`, the skin's texels the export's own roughness), so leather is satin over its creases, wool dull,
+a buckle metal. The hard goods too small to chart lie on their cloth's swatch, flat, carrying its ORM alone. Every
+feature is at least a texel and a half wide at the skin's rung (a texel 2 mm at L2, 4 at L1, 8 at L0). The recipe is
+laws 12's: a hero minted before, an unlit export and the page carry none, byte-identical. Godot binds the ORM as it
+imports the GLB; the Unreal master takes it as its `OrmTex`.
+
+The clothes have depth too: a PARALLAX depth map (white the surface, black `CLOTH_DEPTH` under it, every texel no
+cloth's white, so the skin never shifts) rides the GLB as a texture its figure material's extras name (`mojulo.relief`:
+its index, its depth, the UVs a metre spans across and along the atlas, which is not square), and each engine marches
+the figure's map UVs into it along the view: Godot's kernel (`level.gd` `_fix_parallax`, `figure_parallax.gdshader` in
+place of the imported material; the map written beside the GLB as `figure_depth.png`, named in `score.figure_parallax`),
+Unreal's master (`HeightTex`, `ParallaxDepth`, `ParallaxPerM`, a custom `ParallaxUV` node), and `/hero-live`'s viewer. A
+reader that knows none of it draws the normal map alone.
+
+A layer names what it is made of and worked in (the outfit language's `cloth` and `pattern`, on the top, the bottom, the
+outer and the waistcoat). A knit (`cloth: 'knit'`) is stockinette: its stitches in columns down the garment (a sweater's
+lines), each a V of two legs of round yarn with a ply's twist; a cable knit (`cable`) ropes crossing down it between purl
+channels; a knit's island is baked at half the page's texel so a stitch reads. A pattern (`herringbone`, `houndstooth`,
+`plaid`, `gingham`, `pinstripe`, `chalkstripe`, `corduroy`, `quilted`, `waffle`, `tweed`, each `{ kind, scale, contrast }`
+too) is laid round and along the tube: its relief into the normal map and the depth, its colour into the base colour's
+cloth page as a grey the cloth's own colour is multiplied by (a motif can only darken its ground: the ground is the
+palette's), a colour weave made as it is woven (warp and weft coloured by their order, the 2/2 twill showing one or the
+other). The tube is unrolled from the point of each ring that faces straight back, found between its slots, and each
+slot's share of the turn eased along the tube, so a stripe runs straight down past the folds the tailor laid in the
+rings. Lapels, ties and belts are charted as ribbons (their cloth and their pattern, no seams). A garment painted on the
+skin (`fit: 'skin'`) is the skin's page's, and carries none of it yet; nor does a hat, which the outfit has no word for.
 
 ## Not yet
 
@@ -129,7 +167,13 @@ between a margin and the eye. Above the crease the fold rises to the brow as a p
 upright under the brow, so a light from above reaches it; the brow's arc and its ties hang lower; a deep-set eye (its
 globe, lids and lashes) comes forward a share of the way toward the nose's tip, short of the glabella; the lower
 lashes root on the margin's front, shorter. Everything that rebuilds the head from its fit (the bake, the hair, the
-face rig) reads the same seated head. Under laws 1 the head
+face rig) reads the same seated head. Under laws 12 the mouth has TEETH (`hero-one-skin.js` `teeth`): the bag behind the
+lips is cut open at its front into a cup facing in, and in it the head's own dentition (`head-relational.js` `DENTITION`,
+each crown a tube along its vajra, the front ones blades) on the head bone above and the jaw's below, and the tongue on
+the jaw's; their colours are the palette's `Teeth`, `TeethShade` and `Tongue`. Toward each corner the lips' share of the
+jaw eases to a half (`lens`): shut, the cut's two sides are one point, and bound wholly to their bones they tore apart
+along the whole cut, the mouth opening as a box; now the corner moves half the jaw's way, down and back along its arc,
+and the mouth opens as an almond. Under laws 1 the head
 is in pieces, each sampled from the direction that sees it: `cranium` and `jaw` (rays from one centre inside the head, on the head's
 bare field, three head slots to a neck slot, sharing the mouth's ring; the neck ends on their seam ring), let down
 under the face; over them `visage` (rings about the mouth cast along the face's look: the lips, the cheeks, the chin,

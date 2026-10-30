@@ -219,7 +219,7 @@ describe('footwear on a foot adapter', () => {
     expect(validateFootwear({ from: 'runners', colour: 'red' })[0]).toMatch(/not 'colour'/);
     expect(validateFootwear({ sock: { height: 'shoe' }, adorn: [{ prim: 'flare' }, { prim: 'jewel', at: 'knee' }] })).toEqual(['footwear.adorn[0]: a flare is a boot\'s; this card\'s sock is no boot', 'footwear.adorn[1].at: toe, instep or ankle']);
     expect(validateFootwear({ sock: { height: 'shoe' }, heels: { height: 0.05, toe: 0.06 } })).toContain('footwear.heels: the heel must stand at least as high as the toes\' sole');
-    expect(validateFootwear({ family: 'clog', sole: { thick: 0.01, layers: [{ thick: 0 }] } })).toEqual(['footwear.family: one of shoe, boot, sandal, sneaker, dress, historic, fantasy',
+    expect(validateFootwear({ family: 'clog', sole: { thick: 0.01, layers: [{ thick: 0 }] } })).toEqual(['footwear.family: one of shoe, boot, sandal, sneaker, dress, historic, fantasy, military',
       'footwear.sole.layers[0].thick: metres, over 0 and at most 0.1', 'footwear.sole: layers, or thick and welt (one layer), not both']);
     expect(validateFootwear('clogs')[0]).toMatch(/'clogs' is not a footwear word/);
     expect(validateFootwear({ sock: false, adorn: [{ prim: 'cuff' }] })[0]).toMatch(/worn on the sock; this card has none/);

@@ -447,6 +447,7 @@ func _ready() -> void:
 \tif not (extras is Dictionary and extras.get("face") is Dictionary):
 \t\treturn
 \tvar face: Dictionary = extras["face"]
+\t_voice(face)
 \tvar names: Array = extras.get("targetNames", [])
 \tvar authored: Array = (face.get("words", {}) as Dictionary).get("authored", [])
 \tfor i in mini(names.size(), authored.size()):
@@ -512,6 +513,63 @@ func _layer_ambient(p: AnimationPlayer, mi: MeshInstance3D, body: String, amb: S
 \ttree.root_node = tree.get_path_to(track_root)
 \ttree.set("parameters/layer/blend_amount", 1.0)
 \ttree.active = true
+
+# THE TAKES' RECORDED LINES (face.performances[].audio, face-acting/recordings.js): each WAV
+# the pack ships at res://voice/<recording>.wav keyed on its take's own animation at its
+# start, an audio track on a Voice player at the head, so the line plays with the take
+func _voice(face: Dictionary) -> void:
+\tvar perfs = face.get("performances", [])
+\tvar p := _imported_player()
+\tif not (perfs is Array) or p == null:
+\t\treturn
+\tvar track_root: Node = p.get_node(p.root_node)
+\tvar voice: AudioStreamPlayer3D = null
+\tfor take in perfs:
+\t\tif not (take is Dictionary):
+\t\t\tcontinue
+\t\tvar clip_name := _anim_name(p, str(take.get("clip", "")))
+\t\tif clip_name == "":
+\t\t\tcontinue
+\t\tvar anim := p.get_animation(clip_name)
+\t\tfor line in take.get("audio", []):
+\t\t\tif not (line is Dictionary):
+\t\t\t\tcontinue
+\t\t\tvar file := "res://voice/%s.wav" % str(line.get("recording", ""))
+\t\t\tif not ResourceLoader.exists(file):
+\t\t\t\tcontinue
+\t\t\tif voice == null:
+\t\t\t\tvoice = _voice_player()
+\t\t\tvar t := anim.add_track(Animation.TYPE_AUDIO)
+\t\t\tanim.track_set_path(t, track_root.get_path_to(voice))
+\t\t\tanim.audio_track_insert_key(t, float(line.get("at", 0.0)), load(file))
+
+
+# the Voice player, at the head bone (a BoneAttachment3D on the skeleton) when the
+# skeleton has one, else at the figure
+func _voice_player() -> AudioStreamPlayer3D:
+\tvar voice := AudioStreamPlayer3D.new()
+\tvoice.name = "Voice"
+\tvar world := get_node_or_null("World")
+\tvar sk: Skeleton3D = null
+\tif world != null:
+\t\tfor n in world.find_children("*", "Skeleton3D", true, false):
+\t\t\tsk = n as Skeleton3D
+\t\t\tbreak
+\tvar head := -1
+\tif sk != null:
+\t\tfor i in sk.get_bone_count():
+\t\t\tvar b := str(sk.get_bone_name(i))
+\t\t\tif b == "head" or b.ends_with(":head") or b.ends_with("_head"):
+\t\t\t\thead = i
+\t\t\t\tbreak
+\tif head >= 0:
+\t\tvar attach := BoneAttachment3D.new()
+\t\tattach.bone_name = sk.get_bone_name(head)
+\t\tsk.add_child(attach)
+\t\tattach.add_child(voice)
+\telse:
+\t\tadd_child(voice)
+\treturn voice
 `;
 
 /** The figure's ledger rows: what the skinned figure carries and plays, and what it does not carry yet. The ANIME hero's
@@ -543,8 +601,10 @@ const figureLedger = (f) => (f.anime ? {
     note: `one skinned mesh (${f.joints} joints) carrying its ${f.clips.length} clips, each at its own length — the GLB export_model { clips: '_all', skinned: true } writes (lit: true under --lit); level.tscn plays '${f.clip}' on a loop under the authored ${f.viewName} view, which frames the figure at rest, with no walker (figure.gd extends the kernel's level); model.glb.import turns LOD generation off (and mesh compression, which Godot never puts on a skinned surface) and, when Godot's default 30 fps would cut across the clips' keys, bakes them at the rate their keys land on (animation/fps)`,
   },
   // (a figure carrying its relief, the realistic hero's under --lit: epidermis/dermal-relief.js)
+  // (a realistic hero's recorded lines: face-acting/recordings.js)
+  ...(f.voice ? { figure_voice: { note: `${f.voice} recorded line${f.voice === 1 ? '' : 's'} of the figure's takes, each its WAV at voice/<recording>.wav (the GLB embeds them too); figure_face.gd keys each on its take's own animation at the line's start, an audio track on a Voice player at the head bone, so the line plays with the take${f.voiceMissing ? `; ${f.voiceMissing} line${f.voiceMissing === 1 ? '' : 's'} named a recording this machine does not hold and travel silent` : ''}` } } : {}),
   figure_normals: f.relief
-    ? { note: 'under --lit the skinned mesh carries the skin\'s own shading normals and its relief: a normal map baked from the figure\'s field on its skin\'s atlas (TEXCOORD_0, the base colour\'s), each vertex\'s TANGENT beside its NORMAL; Godot\'s glTF import puts the map on the figure\'s StandardMaterial3D (normal_enabled) and keeps the tangents, and the kernel leaves a figure\'s material as imported (_fix_materials sets its vertex colour only; the tone skips figures). The default export travels unlit, with neither' }
+    ? { note: 'under --lit the skinned mesh carries the skin\'s own shading normals and its relief: a normal map baked from the figure\'s field on its skin\'s atlas (TEXCOORD_0, the base colour\'s), each vertex\'s TANGENT beside its NORMAL; Godot\'s glTF import puts the map on the figure\'s StandardMaterial3D (normal_enabled) and keeps the tangents, and the kernel leaves a figure\'s material as imported (_fix_materials sets its vertex colour only; the tone skips figures)' + (f.cloth ? '; its clothes\' relief rides the same map, and their ORM (occlusion, roughness, metalness on the same UVs) the material\'s ao and metallic/roughness textures, as glTF import binds them' : '') + (f.parallax ? '; their depth map rides beside the GLB (figure_depth.png), and the kernel marches the figure\'s UVs into it along the view (level.gd _fix_parallax: figure_parallax.gdshader in place of the imported material, its textures carried across)' : '') + '. The default export travels unlit, with neither' }
     : { note: 'the default export travels as its baked look, unlit, with no NORMAL; under --lit the skinned mesh carries smooth rest normals (area-weighted from its triangles, no TANGENT), so an engine light shades it' },
   ...humanoidLedger(f),
 });
@@ -586,7 +646,12 @@ rest (a clip that reaches overhead can leave the frame).${f.clips.includes('gest
 imported AnimationPlayer as \`${f.name}_<clip>\`, each at its own length (the World
 page plays a clip over three seconds): set \`clip\` (\`${f.name}:<clip>\`) and \`view\`
 (an index into the score's cameras) on the \`Level\` node of \`level.tscn\` to
-play another. \`model.glb.import\` imports it with LOD generation off.`);
+play another. \`model.glb.import\` imports it with LOD generation off.${f.voice ? `
+
+Its takes carry ${f.voice} recorded line${f.voice === 1 ? '' : 's'} (\`voice/\`, one WAV a recording; the GLB embeds them too):
+\`figure_face.gd\` keys each on its take's own animation at the line's start (an audio
+track on a \`Voice\` player at the head bone), so set \`clip\` to a take
+(\`face:<take>\`) and the line plays with it.` : ''}`);
 
 /**
  * emitGodotProject — a standalone world pack: stub + shell + README.

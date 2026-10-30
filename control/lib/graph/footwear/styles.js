@@ -5,7 +5,8 @@
 //   from    a card it extends (a word or a card): its sock merged, its sole, adorn and family replaced where given,
 //           `adornPlus` appended to its adornment, its tones merged. So a variety is a few keys over its kin
 //   skin    a COLOURWAY (SKINS, or { <group>: '#hex' }) over the card's tones: any card in any colours
-//   family  what kind of footwear it is (expand.js FOOTWEAR_FAMILIES: shoe, boot, sandal, sneaker, dress, historic, fantasy)
+//   family  what kind of footwear it is (expand.js FOOTWEAR_FAMILIES: shoe, boot, sandal, sneaker, dress, historic, fantasy,
+//           military)
 //   sock    { height: 'shoe' | 'boot', collar? (a share of the foot, a shoe's), shaft? (a share of the shank from the
 //           ankle, a boot's), thick? (m, how far the leather stands off the foot; 0.004) }, or false: none (a sandal)
 //   heels   { height (m the heel stands), toe? (m of sole under the toes: a platform), shank?, kind? (stiletto, kitten, block,
@@ -141,6 +142,38 @@ export const FOOTWEAR = Object.freeze({
   ridingBoots: { family: 'boot', sock: { height: 'boot', shaft: 0.78, thick: 0.0035 }, sole: { welt: 0.003 }, heels: { height: 0.03, toe: 0.008, kind: 'block' },
     adorn: [{ prim: 'panel', region: 'counter', lift: 0.0012 }, { prim: 'toeCap', lift: 0.0016, room: 0.012, group: 'Shoes' }],
     tones: { Shoes: '#161414', Counter: LEATHER(0.04), Heel: LEATHER(0.05), Sole: '#2a2220' } },
+  // ── MILITARY: the soldier's boots, each a tradition's (worn from an outfit card by name: `feet: 'jungleBoots'`) ──
+  // the jungle boot (Vietnam, the 1960s): a black leather foot, its vamp and toe, its sides to the ankle and its heel
+  // counter, under a tall olive canvas shaft laced to the top; the deep lugged sole of the panama tread
+  jungleBoots: { family: 'military', sock: { height: 'boot', shaft: 0.45, thick: 0.004 },
+    sole: { layers: [{ thick: 0.009, welt: 0.005, group: 'Outsole', lugs: { every: 2, size: 0.008 } }, { thick: 0.008, welt: 0.004, group: 'Midsole' }] },
+    adorn: [{ prim: 'panel', region: 'vamp', lift: 0.0035, group: 'Hide' }, { prim: 'panel', region: { along: [0.3, 0.86], around: [0.3, 0.75], sides: 'both' }, lift: 0.0034, group: 'Hide' },
+      { prim: 'panel', region: 'counter', lift: 0.0036, group: 'Hide' }, { prim: 'panel', region: 'tongue', lift: 0.003, rise: 0.008 },
+      { prim: 'panel', region: 'eyestay', lift: 0.004, group: 'Hide' }, { prim: 'laces', rows: 4, shaftRows: 9, lift: 0.0055 }, { prim: 'toeCap', lift: 0.0032, group: 'Hide' }],
+    tones: { Shoes: '#4d5232', Hide: '#161514', Tongue: '#4d5232', Lace: '#14140f', Midsole: '#1a1a1a', Outsole: '#121212' } },
+  // the desert combat boot: the combat boot in rough tan suede, a tan sole
+  desertBoots: { from: 'combatBoots', family: 'military',
+    tones: { Shoes: '#a8865a', Overlay: LEATHER(-0.06), Eyestay: LEATHER(-0.1), Counter: LEATHER(-0.06), Tongue: LEATHER(0.04), Lace: '#7a5e3c', Midsole: '#9a7a50', Outsole: '#6e5536' } },
+  // the paratrooper's jump boot: a shorter combat boot in polished brown, laced to its top, a capped toe
+  jumpBoots: { from: 'combatBoots', family: 'military', sock: { shaft: 0.36 },
+    tones: { Shoes: '#4e2c1a', Overlay: LEATHER(0.05), Eyestay: LEATHER(0.08), Counter: LEATHER(0.05), Tongue: LEATHER(0.03), Lace: '#24150c', Midsole: '#2a1a12', Outsole: '#1c120c' } },
+  // the jackboot (the marching boot of the world wars): a tall plain black shaft to below the knee, no laces, a low heel
+  // and a hobnailed sole
+  jackboots: { family: 'military', sock: { height: 'boot', shaft: 0.66, thick: 0.0055 }, heels: { height: 0.025, toe: 0.012, kind: 'block' },
+    sole: { layers: [{ thick: 0.013, welt: 0.004, lugs: { every: 2, size: 0.0035, group: 'Steel' } }] },
+    adorn: [{ prim: 'panel', region: 'counter', lift: 0.0015 }, { prim: 'toeCap', lift: 0.0016, room: 0.01, group: 'Shoes' }],
+    tones: { Shoes: '#141212', Counter: LEATHER(0.05), Heel: LEATHER(0.03), Sole: '#1e1a18', Steel: '#7a7a7e' } },
+  // the kirza boot (the Soviet soldier's sapogi): the jackboot's cut a little shorter and wider at its top, in the
+  // pebbled pressed leather it was named for, its brown-black
+  kirzaBoots: { from: 'jackboots', sock: { shaft: 0.6, thick: 0.0065 }, tones: { Shoes: '#221d18', Counter: LEATHER(0.08), Heel: LEATHER(0.05) } },
+  // the ankle boot and PUTTEES (the British and the Japanese infantry of the world wars): a hobnailed ankle boot laced
+  // low, a long band of wool wound round the shin from its top to below the knee, tied off with a tape
+  putteeBoots: { family: 'military', sock: { height: 'boot', shaft: 0.13, thick: 0.005 },
+    sole: { layers: [{ thick: 0.012, welt: 0.004, lugs: { every: 2, size: 0.003, group: 'Steel' } }] },
+    adorn: [{ prim: 'panel', region: 'counter', lift: 0.002 }, { prim: 'panel', region: 'eyestay', lift: 0.0035 }, { prim: 'laces', rows: 5, shaftRows: 2, lift: 0.005 },
+      { prim: 'toeCap', lift: 0.002, group: 'Shoes' }, { prim: 'wrap', from: 0.25, to: 0.88, turns: 9, w: 0.05, lift: 0.004, group: 'Puttee' },
+      { prim: 'strap', on: 'shank', at: 0.25, width: 0.006, lift: 0.007, group: 'Tape' }],
+    tones: { Shoes: '#3a2416', Counter: LEATHER(-0.1), Eyestay: LEATHER(-0.08), Lace: '#1e140c', Puttee: '#7a6c48', Tape: '#6a5c3a', Steel: '#7a7a7e', Sole: '#2a1c12' } },
   // ── HISTORIC, FANTASY, DRAMA: the cobbler's pieces and fantasy.js's ──
   // the poulaine (crakow): a medieval shoe whose toe runs on far past the foot to a point
   poulaines: { family: 'historic', sock: { height: 'shoe', collar: 0.14, thick: 0.003 }, sole: { thick: 0.004, welt: 0.002 },

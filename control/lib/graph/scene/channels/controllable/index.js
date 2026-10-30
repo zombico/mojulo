@@ -52,7 +52,7 @@ function poolFigureBuffers(figures) {
   return { fig: rewrite(figures), pool: [...idx.keys()] };
 }
 
-/** The page's seats (pilots.plan.md; a world's `seats: { bodies, max?, join?, drop? }`): seat 1 is the player the world
+/** The page's seats (a world's `seats: { bodies, max?, join?, drop? }`): seat 1 is the player the world
  * already has, read through its own controller once it has one; seats 2 to N each a compact read of their own controller
  * through the pilot scheme, riding the frame's input as `input.seats` (worlds/controllable/core.js). A controller sits down
  * with any press (start is the shell's pause): the first to press is seat 1. A ring in the seat's colour stands under each
@@ -60,7 +60,7 @@ function poolFigureBuffers(figures) {
 function seatsScript(seats) {
   const bodies = Array.isArray(seats.bodies) ? seats.bodies.slice(0, 3) : [];
   const max = Math.max(1, Math.min(4, seats.max ?? bodies.length + 1, bodies.length + 1));
-  return `// ── SEATS (pilots.plan.md) ──
+  return `// ── SEATS ──
 const __SK = (${buildSeatsKernel.toString()})();
 let __SEATS = __SK.newSeats({ max: ${max}, join: ${safeJson(seats.join === 'lobby' ? 'lobby' : 'drop-in')} });
 const __SEAT_BODY = ${safeJson(bodies)};   // seat n's body: __SEAT_BODY[n - 2]; seat 1's is the world's pilot

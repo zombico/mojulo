@@ -163,7 +163,8 @@ function shapeErrors(S, at) {
   }
   if (S.motif !== undefined) { const e = []; if (!Object.hasOwn(MOTIFS, S.motif)) e.push(`${at}.motif: '${S.motif}' is not a motif (${Object.keys(MOTIFS).join(', ')})`); if (S.w !== undefined && !(isNum(S.w) && S.w > 0 && S.w <= 1)) e.push(`${at}.w: a number over 0, up to 1`); return e; }
   const polys = S.poly !== undefined ? [S.poly] : S.polys;
-  if (!Array.isArray(polys) || !polys.length || polys.length > 64) return [`${at}: { poly: [[x, y], …] } or { polys: [ … ] } (1–64 convex polygons in −1…1)`];
+  // (as many pieces as a path's mark may cut to: a camouflage's marks, outfit/camouflage.js, are hundreds)
+  if (!Array.isArray(polys) || !polys.length || polys.length > MAX_POLYS) return [`${at}: { poly: [[x, y], …] } or { polys: [ … ] } (1–${MAX_POLYS} convex polygons in −1…1)`];
   return polys.flatMap((P, i) => (Array.isArray(P) && P.length <= 64 && P.every((p) => isPt(p) && Math.abs(p[0]) <= 1 && Math.abs(p[1]) <= 1) && convex(P) ? [] : [`${at}${S.poly ? '.poly' : `.polys[${i}]`}: a convex polygon of 3–64 points in −1…1`]));
 }
 

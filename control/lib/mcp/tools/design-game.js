@@ -269,6 +269,17 @@ const landGapsOf = (world) => {
   if (!world.style?.land && !Object.values(world.levels ?? {}).some((l) => l?.style?.land)) return [];
   try { return landAdvice(world); } catch { return []; }
 };
+// the walled-core dungeon's principles that do not hold (wcd/wcd.js): advice, never refused; a world the reader refuses
+// says so elsewhere
+const wcdAdviceOf = (world) => {
+  if (!world.wcd) return [];
+  try { return (readGameworld(world).wcd?.laws ?? []).filter((l) => !l.holds).map((l) => `${l.law}: ${l.says}`); } catch { return []; }
+};
+// the quest open world's principles that do not hold (qow/qow.js): advice, never refused
+const qowAdviceOf = (world) => {
+  if (!world.qow) return [];
+  try { return (readGameworld(world).qow?.laws ?? []).filter((l) => !l.holds).map((l) => `${l.law}: ${l.says}`); } catch { return []; }
+};
 function readout(ref, world, context = {}) {
   const lookup = world.characters ? heroLookup(heroRefOf(world, ref)) : undefined;
   // a hero edited by hand since the run has moved past its pinned base: said on the base's part, never refused
@@ -350,7 +361,9 @@ function readout(ref, world, context = {}) {
   const same = sameness(world), questions = grounding(world), own = authorship(world);
   // the land its levels cannot draw (gameworld/nature.js landToLevel): each gap, and the levels it is one on
   const landGaps = landGapsOf(world);
-  const advice = { authorship: own.line, ...(same.length ? { sameness: same } : {}), ...(questions.length ? { questions } : {}), ...(landGaps.length ? { land: landGaps } : {}) };
+  const wcdGaps = wcdAdviceOf(world);
+  const qowGaps = qowAdviceOf(world);
+  const advice = { authorship: own.line, ...(same.length ? { sameness: same } : {}), ...(questions.length ? { questions } : {}), ...(landGaps.length ? { land: landGaps } : {}), ...(wcdGaps.length ? { wcd: wcdGaps } : {}), ...(qowGaps.length ? { qow: qowGaps } : {}) };
   if (same.length || questions.length) next.push({ step: 'advice', card: 'gameworld-next' });
   return { ref, url: `/sketches/${encodeURIComponent(ref)}`, ...(Array.isArray(world.brief?.read) ? { composed: composedOf(world.brief) } : {}), ...(world.quick?.concept !== undefined ? { concept: sportConceptOf(world.quick) } : {}), intent, ...(feel ? { feel } : {}), ...(juice ? { juice: { ...juice.fxStyle, from: juice.from } } : {}), advice, ...(numbers ? { numbers } : {}), bible: `/api/sketches/${encodeURIComponent(ref)}/bible`, ...(world.characters ? { characterBible: `/api/sketches/${encodeURIComponent(ref)}/bible?book=characters` } : {}), ...(feel ? { feelBook: `/api/sketches/${encodeURIComponent(ref)}/bible?book=feel` } : {}), ...(foeStamps.length || call ? { foeBook: `/api/sketches/${encodeURIComponent(ref)}/bible?book=foes` } : {}), mode, parts, ...(steps ? { steps: Object.fromEntries(Object.entries(steps).map(([k, s]) => [k, s.ready ? 'ready' : 'waiting'])) } : {}), ...(Object.keys(made).length ? { made } : {}), ...(told ? { story: { bound: told.bound.length, unplaced: told.unplaced.length, ...(told.unset?.length ? { unset: told.unset } : {}) } } : {}), next };
 }

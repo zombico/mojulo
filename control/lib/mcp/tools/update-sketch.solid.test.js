@@ -849,7 +849,7 @@ describe('the hero door: readouts and the character light fields', () => {
     const keys = {
       landmark: [{ cast: 'male' }, ['cast', 'evidence', 'expression', 'face', 'faceMeasures', 'faceMoved', 'hair', 'hairMeasures', 'hairMoved', 'head', 'measures', 'moved', 'register', 'tune']],
       none: [{ cast: 'female', head: 'none' }, ['cast', 'evidence', 'head', 'measures', 'moved', 'register', 'tune']],
-      ranger: [{ cast: 'male', register: 'round', hair: 'crop', detail: 'clothed', adorn: 'ranger' }, ['cast', 'dress', 'evidence', 'expression', 'face', 'faceMeasures', 'faceMoved', 'hair', 'hairMeasures', 'hairMoved', 'head', 'measures', 'moved', 'register', 'tune', 'warnings']],
+      ranger: [{ cast: 'male', register: 'round', hair: 'crop', detail: 'clothed', adorn: 'ranger' }, ['cast', 'dress', 'evidence', 'expression', 'face', 'faceMeasures', 'faceMoved', 'hair', 'hairMeasures', 'hairMoved', 'head', 'measures', 'moved', 'register', 'tune']],
     };
     for (const [k, [spec, before]] of Object.entries(keys)) {
       const out = await mintSolidHandler({ kind: 'layered', via: 'hero', ref: `keys-${k}`, spec });
@@ -932,13 +932,17 @@ describe('a hero dressed through the door', () => {
     const minted = await mintSolidHandler({ kind: 'layered', via: 'hero', ref: 'hero-ranger', spec: { cast: 'male', register: 'round', hair: 'crop', detail: 'clothed', adorn: 'ranger' } });
     expect(minted.ok).toBe(true); expect(minted.stats.closed).toBe(true); expect(minted.stats.layered.rig.clips).toEqual(['idle', 'walk', 'wave']);
     expect(minted.hero.dress).toMatchObject({ detail: 'clothed', adorn: 'ranger' });
-    expect(minted.hero.dress.parts.detail).toBeGreaterThan(40); expect(minted.hero.dress.parts.adorn).toBeGreaterThanOrEqual(8);
-    expect(minted.hero.dress.adornments.map((a) => [a.id, a.verdict])).toEqual([['belt', 'justified'], ['baldric', 'justified'], ['bracer', 'justified'], ['pauldron', 'justified']]);
-    // the clearance ledger: the dress FOLLOWS the dials (bulk widens the baldric with the chest), and the one thing it
-    // cannot follow is named: the belt is pinned to the torso's hem, and on the structured core `bulk` narrows the hem over
-    // the pelvis (a dial blends by station across its parts); on the streamlined core it was `stance` swinging the thighs
-    expect(minted.hero.dress.clearance.sinking).toEqual(['belt']); expect(minted.hero.dress.clearance.worst.baldric.at).toBe('rest');
-    expect(minted.hero.warnings).toEqual([expect.stringMatching(/^adornment belt sinks into pelvis at bulk 0\.8/)]);
+    // (the belt and the baldric are the kit's, made as the things they are on the cloth: a band and its frame buckle, the
+    // webbing fastened to the belt by a ladder lock and a tab (authored-kit.js); the plated adornments are the bracer and
+    // the pauldron)
+    expect(minted.hero.dress.parts.detail).toBeGreaterThan(40); expect(minted.hero.dress.parts.adorn).toBeGreaterThanOrEqual(4); expect(minted.hero.dress.parts.kit).toBe(11);
+    expect(minted.hero.dress.adornments.map((a) => [a.id, a.verdict])).toEqual([['bracer', 'justified'], ['pauldron', 'justified']]);
+    expect(minted.hero.dress.unworn).toBeUndefined();
+    // the clearance ledger: the dress FOLLOWS the dials (bulk widens the pauldron's carrier with the chest); the belt,
+    // pinned to the torso's hem, sank into the pelvis at bulk 0.8 (a dial blends by station across its parts) until it was
+    // made as a piece following the dials by its own height (authored-kit.js followDials)
+    expect(minted.hero.dress.clearance.sinking).toEqual([]); expect(minted.hero.dress.clearance.worst.pauldron.at).toBe('rest');
+    expect(minted.hero.warnings).toBeUndefined();
     expect(minted.hero.dress.legibility.families.find((f) => f.family === 'adorn.pauldron.sig').readsFrom).toBe(64);   // the focal accent reads at the smallest size
     expect(minted.hero.evidence.head).toMatchObject({ fit: 'male', inferred: ['front'], face: 'as fitted' });
     expect(minted.next.reason).toMatch(/\/hero\/adorn \(ranger, none\)/);

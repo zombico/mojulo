@@ -2,7 +2,7 @@
 // faces its regions cover, the rest on a white tile; the character light's step falls over it. One scaled roll.
 import { describe, expect, it } from 'vitest';
 import { rollEgocube } from '../egocube/egocube.js';
-import { planFromSheet, PALE_COAT } from '../egocube/plan.js';
+import { planFromSheet as planFromSheetOf, PALE_COAT } from '../egocube/plan.js';
 import { hexLch } from './station-loft-shade.js';
 import { compileOutfit } from './outfit-plan.js';
 import { expandPlan } from './station-loft-plan.js';
@@ -10,6 +10,9 @@ import { compileLayered } from './station-loft.js';
 import { drawnPlan } from './creature-drawn.js';
 import { skinPaintOf, validateSkin, SKIN_MIN_PX } from './skin-paint.js';
 
+// (the hide atlas is the creature biped's, the sixth generation's: plan.js `gen: 6`; the seventh carries its coat as a
+// material, beast/cover.js)
+const planFromSheet = (sheet, opts = {}) => planFromSheetOf(sheet, { gen: 6, ...opts });
 const plan = planFromSheet(rollEgocube({ seed: 3, facets: { ancestry: 'draconic' } }), { dress: 'designed' }).create.spec.plan;
 const mesh = compileLayered(expandPlan(drawnPlan(compileOutfit(plan))), {});
 const partOf = (fi) => mesh.provenance[mesh.faces[fi][0]].part;

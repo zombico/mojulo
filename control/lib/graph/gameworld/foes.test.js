@@ -157,7 +157,7 @@ describe('the run', () => {
     expect(made.order).toEqual({ egocube: sheet.ref, title: made.order.title });
     expect(made.order.animal).toBeUndefined();
   });
-  it('a people plays its own moves on the field, on the door its humanity takes, at a person\'s body', () => {
+  it('a people plays its own moves on the field, below the hero door as on the tiered body, at a person\'s body', () => {
     // (a people whose roll falls below the hero door, and one above it: chosen by rolling, not by name)
     const doorOf = (people) => rollEgocube(peopleRollOf(readGameworld(world({ a: { class: SOLO.id, skin: { people } } }, true)), 'a', { class: SOLO.id, skin: { people } })).ancestry.door;
     const below = PEOPLE.find((x) => doorOf(x) === 'creature'), above = PEOPLE.find((x) => doorOf(x) === 'hero');
@@ -166,7 +166,8 @@ describe('the run', () => {
       const fig = X.figures['foe-a'], e = X.entities[0];
       expect(fig.heroRef).toBe('w-foes-a');
       expect(fig.moves).toMatchObject({ topple: expect.any(String), swing_neutral: expect.any(String) });
-      if (people === below) expect(fig.walker).toBe(true); else expect(fig.library).toBeTruthy();
+      // (a beast-kin below the door stands on the tiered body, egocube/plan.js beastOnTiered: a person's library, as above it)
+      expect(fig.library).toBeTruthy(); expect(fig.walker).toBeUndefined();
       expect(e.rule.collideHeight).toBeGreaterThan(1.5);
       expect(e.body.vanish).toBeTruthy();
     }

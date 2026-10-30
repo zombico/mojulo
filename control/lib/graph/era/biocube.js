@@ -20,10 +20,21 @@
  *                  grass by place, { fringe, meadow, cliff, scatter } of vegetation/grass.js GRASSES; `field` the sea
  *                  of blades along the trail, { reach m, every m, height } or null; `live` the carpet of grown blades
  *                  round the walker, { kind, density /m², height }, the card's `live`, laid wherever the grass grows,
- *                  or null for none). null: no grass
+ *                  or null for none); `sward` how long the grass is, a mood's choice: 'tall' (a meadow, the default:
+ *                  long, with stretches of it medium), 'short' (a lawn, a pasture) or { short?, medium? } each 0–1
+ *                  (those shares of it laid as short and as medium areas, the rest tall, each area wholly one; read by
+ *                  the form render, gen-7); `drifts` other grasses standing in areas of their own,
+ *                  { <grass kind>: share 0–1 } (wheat, chaff, any of GRASSES; at most three; the form render's, gen-7).
+ *                  null: no grass
  *   flora.shrubs   { count, bloom, fruit } | null: bushes by the trail (era/shrubs.js, a recipe's own `shrubs`)
  *   flora.flowers  { share, mix } | null: wildflowers in the live grass (vegetation/wildflowers.js; a recipe's
  *                  `grass.flowers`)
+ *   flora.moss     0–1 | absent: moss on the rock (a cliff's ledges, a boulder's top: where the rock faces up, in
+ *                  patches), as much as it says; read by the form render (gen-7), where the gen-6 grass fringes and caps
+ *                  are not drawn
+ *   flora.autumn   0–1 | absent: how far into the fall (0 summer, a half the colour at its height, 1 late): each
+ *                  deciduous tree turns its own way toward its species' fall colour, and its fallen leaves lie thicker
+ *                  and wider round it; read by the form render (gen-7)
  *   flora.bushes   { kinds, sections? } | absent: bushes and shrubs composed in SECTIONS (era/thickets.js), each kind a
  *                  leaf form with its trunk taken away, blocking a walker or walked through
  *
@@ -100,6 +111,8 @@ export const BIOCUBE_PRESETS = fz({
 export const BIOCUBE_IDS = fz(Object.keys(BIOCUBE_PRESETS));
 
 const GRASS_IDS = Object.keys(GRASSES);
+/** The sward's words: the grass of a level, or of its areas, long or kept short (the form render's, gen-7). */
+export const SWARDS = Object.freeze(['tall', 'short']);
 const num = (v, lo, hi, at) => { if (!(typeof v === 'number' && Number.isFinite(v) && v >= lo && v <= hi)) no(`${at} is a number ${lo} to ${hi}`); };
 const int = (v, lo, hi, at) => { if (!(Number.isInteger(v) && v >= lo && v <= hi)) no(`${at} is an integer ${lo} to ${hi}`); };
 const range = (v, lo, hi, at, whole = false) => { if (!(Array.isArray(v) && v.length === 2 && v.every((x) => (whole ? Number.isInteger(x) : Number.isFinite(x)) && x >= lo && x <= hi) && v[0] <= v[1])) no(`${at} is [lo, hi], ${whole ? 'whole numbers ' : ''}${lo} to ${hi}, lo ≤ hi`); };
@@ -185,7 +198,11 @@ function checkTrees(t) {
 function checkGrass(g) {
   if (g === null) return;
   if (!isObj(g)) no('flora.grass is null (none) or { clusters, perCluster, spacing, scatter, fringeEvery, height, kinds?, field? }');
-  keys(g, ['clusters', 'perCluster', 'spacing', 'scatter', 'fringeEvery', 'height', 'kinds', 'field', 'live'], 'flora.grass');
+  keys(g, ['clusters', 'perCluster', 'spacing', 'scatter', 'fringeEvery', 'height', 'kinds', 'field', 'live', 'sward', 'drifts'], 'flora.grass');
+  if (g.drifts !== undefined && !(isObj(g.drifts) && Object.keys(g.drifts).length <= 3 && Object.entries(g.drifts).every(([k, v]) => GRASS_IDS.includes(k) && Number.isFinite(v) && v >= 0 && v <= 1))) no(`flora.grass.drifts is { <grass kind>: share 0–1 }, at most three, the kinds of ${GRASS_IDS.join(', ')} (that share of the land's grass in drifts of the kind)`);
+  // (a share by name: { short, medium }, each 0–1, the land's grass laid as short and as medium areas, the rest tall)
+  const shares = (o) => isObj(o) && Object.keys(o).length >= 1 && Object.entries(o).every(([k, v]) => (k === 'short' || k === 'medium') && Number.isFinite(v) && v >= 0 && v <= 1);
+  if (g.sward !== undefined && !SWARDS.includes(g.sward) && !shares(g.sward)) no(`flora.grass.sward is ${SWARDS.map((w) => `'${w}'`).join(' or ')}, or { short?, medium? } each 0–1 (those shares of the land's grass laid as short and as medium areas, the rest tall)`);
   int(g.clusters, 0, 200, 'flora.grass.clusters'); range(g.perCluster, 1, 40, 'flora.grass.perCluster', true); num(g.spacing, 0.1, 2, 'flora.grass.spacing');
   num(g.scatter, 0, 1, 'flora.grass.scatter'); num(g.fringeEvery, 0.2, 5, 'flora.grass.fringeEvery'); range(g.height, 0.1, 3, 'flora.grass.height');
   if (g.kinds !== undefined) {
@@ -223,13 +240,16 @@ export function readBiocube(spec) {
   const base = spec.from === undefined ? null : BIOCUBE_PRESETS[spec.from] ?? no(`from '${spec.from}' is not a biocube (${BIOCUBE_IDS.join(', ')})`);
   if (faunaOnly) return { id: spec.id ?? 'biocube', title: spec.title ?? 'Biocube', reads: spec.reads ?? '', flora: null, fauna: readFauna(spec.fauna) };
   const F0 = base ? base.flora : {}, F1 = spec.flora ?? {};
-  if (!isObj(F1)) no('flora is { trees?, grass?, shrubs?, flowers?, bushes? }');
-  keys(F1, ['trees', 'grass', 'shrubs', 'flowers', 'bushes'], 'flora');
+  if (!isObj(F1)) no('flora is { trees?, grass?, shrubs?, flowers?, moss?, autumn?, bushes? }');
+  keys(F1, ['trees', 'grass', 'shrubs', 'flowers', 'moss', 'autumn', 'bushes'], 'flora');
   // (each block over the preset's: an object merged, null or a whole block in its place)
   const over = (k) => (F1[k] === undefined ? F0[k] : F1[k] === null || !isObj(F0[k]) ? F1[k] : { ...F0[k], ...F1[k] });
   // (bushes composed in sections, era/thickets.js: only where a document names them, so a preset reads as it did)
-  const bu = over('bushes') ?? null;
-  const flora = { trees: over('trees'), grass: over('grass') ?? null, shrubs: over('shrubs') ?? null, flowers: over('flowers') ?? null, ...(bu ? { bushes: bu } : {}) };
+  const bu = over('bushes') ?? null, mo = over('moss') ?? null, au = over('autumn') ?? null;
+  // (moss on the rock: only where a document names it, so a preset reads as it did)
+  if (mo !== null && !(typeof mo === 'number' && mo >= 0 && mo <= 1)) no('flora.moss is how much moss the rock wears, 0 to 1 (null: none)');
+  if (au !== null && !(typeof au === 'number' && au >= 0 && au <= 1)) no('flora.autumn is how far into the fall, 0 (summer) to 1 (late), null: none');
+  const flora = { trees: over('trees'), grass: over('grass') ?? null, shrubs: over('shrubs') ?? null, flowers: over('flowers') ?? null, ...(mo ? { moss: mo } : {}), ...(au ? { autumn: au } : {}), ...(bu ? { bushes: bu } : {}) };
   if (flora.trees === undefined) no('flora.trees is wanted (a document names its trees, or builds from a preset)');
   checkTrees(flora.trees); checkGrass(flora.grass); checkFlowers(flora.flowers);
   if (flora.bushes) checkBushes(flora.bushes, { no, num, int, range, keys, isObj, LEAF_OFFER, BARK_OFFER, BARK_FORM_IDS });
@@ -250,7 +270,8 @@ export function withFlora(card, cube) {
   const trees = { ...card.trees, ...T, ...(T.crown ? { crown: { ...card.trees?.crown, ...T.crown } } : {}), ...(kinds ? { leafKinds: kinds } : {}),
     ...(clump ? { leafClump: clump } : {}), ...(harmony ? { leafHarmony: harmony } : {}) };
   if (T.hero === null) trees.hero = null;
-  const { live: GL, ...G0 } = G ?? {};
+  // (the sward and the drifts are the form render's, gen-7: the card's grass is as it was)
+  const { live: GL, sward: _sw, drifts: _dr, ...G0 } = G ?? {};
   const grass = G === null || !card.grass ? null : { ...card.grass, ...G0, kinds: { ...card.grass.kinds, ...(G.kinds ?? {}) }, ...(G.field === undefined ? {} : { field: G.field }) };
   // (the live carpet: the card's, its kind, density and height the cube's)
   const live = GL && card.live ? { ...card.live, ...GL } : card.live;

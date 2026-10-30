@@ -9,7 +9,8 @@
  * It is the APPROVAL GATE as the other books are: the cast and each foe carry a stamp (foe-cast.js foeState). What the
  * machine measured is stated per foe; whether a foe reads right is the creator's.
  *
- * It is drawn in its WORLD's colours, as the world's bible is: the lineup stands on the world's own sky and ground (its
+ * It is drawn in its WORLD's colours, as the world's bible is, and wears the world's book skin over them when it names one
+ * (book-skin.js `book`): the lineup stands on the world's own sky and ground (its
  * kit's colour key: nature.js colorKey), the page's accent the kit's paint, and its parts are the bible's own blocks (the
  * cover and its strip of levels in the order they are played, a civilization's article for each role the casting call
  * would cast, the ledger of what it read).
@@ -23,6 +24,7 @@ import { castingCall } from './foe-casting.js';
 import { readGameworld } from './world.js';
 import { MODES, STAMPS, FOE_CAST_PART } from './review.js';
 import { esc, plate, CSS } from './bible-html.js';
+import { skinHead } from './book-skin.js';
 import { resolveFoe } from '../foes/resolve.js';
 import { bestiaryOf, readLevelFoes } from './foes.js';
 import { playOrder } from './graph.js';
@@ -237,6 +239,8 @@ export function foeCastHtml(world, { portraits = {} } = {}) {
   const title = W?.title ?? 'Enemy roster';
   // (the page's accent the world's paint, its trail colour the world's grass)
   const theme = `:root{${T.accent ? `--local:${T.accent};` : ''}${T.grass ? `--c-trail:${T.grass};` : ''}}`;
+  // (and the world's book skin over it, as its bible wears it: book-skin.js; absent, nothing)
+  const skin = skinHead(G.book);
 
   let body = '';
   if (C) {
@@ -276,8 +280,8 @@ ${machine(id)}</details></article>`;
   const tabs = C ? `<a href="#cover">Cast</a><a href="#gate">Gate</a><a href="#lineup">Lineup</a><a href="#roster">Tiers</a><a href="#cards">Cards</a>${proposal ? '<a href="#casting-call">Casting call</a>' : ''}` : `<a href="#cover">Cast</a><a href="#casting-call">Casting call</a>${P.roles.map((r) => `<a href="#role-${esc(r.id)}">${esc(r.id)}</a>`).join('')}`;
 
   return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(G.name)} · ${esc(title)}</title>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@600;800&family=IBM+Plex+Mono:wght@400;500&family=Public+Sans:wght@400;500;600&display=swap">
-<style>${CSS}${EXTRA_CSS}${theme}</style></head><body><div class="wrap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@600;800&family=IBM+Plex+Mono:wght@400;500&family=Public+Sans:wght@400;500;600&display=swap">${skin.link}
+<style>${CSS}${EXTRA_CSS}${theme}${skin.css ? `\n${skin.css}` : ''}</style></head><body><div class="wrap">
 <div class="mast"><div class="t">${esc(title)}</div><div class="eyebrow">${esc(G.id)} · seed ${G.seed}</div></div>
 <nav class="tabs" aria-label="Sections">${tabs}</nav>
 ${body}

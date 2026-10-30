@@ -582,7 +582,16 @@ GLB's baked ink (`bake: true`) cannot stencil: it leaves out only the outline of
   | sideR | sideL, length: micro … maxi, width: 0–1 of the half turn, split: 1 | 2, cut, rigidity }]` — DRAPE PANELS,
   open cloth hung from the waist over everything (coattails, a tabard's apron, tassets, a loincloth), under the belt,
   flowing as a strand (`soft` by default) while the body stays close: the flow is in pieces cut to hang, never in loose
-  tubes; `feet`, `tuck`, `focal`. `rigidity` (`shell` locked; `stiff`, `crisp`, `soft`, `flowing` or 0 … 1) on a skirt
+  tubes; `feet` (a word, or a footwear card by name: the military boots `jungleBoots`, `desertBoots`, `jumpBoots`,
+  `jackboots`, `kirzaBoots`, `putteeBoots`), `tuck`, `focal`. A soldier's trousers: `into: 'boots'` (ended at the boot's
+  shaft or the puttees' top, bloused over it), `cut: 'breeches'` (full down the thigh, close from the knee), `pockets:
+  'cargo'` (a bellows pocket and its flap wrapped round each thigh); `pattern` on any layer a weave or a camouflage
+  (`woodland`, `desert`, `dpm`, `tiger`, `flecktarn`, `digital`, `splinter`, `multicam`, `urban`, `snow`: its ground the
+  layer's tone, its marks painted on either body, shared by every layer in the same pattern); `head` a helmet (`m1`,
+  `stahlhelm`, `brodie`, `ssh40`, `adrian`, `pasgt`, `ach`, `highcut`) or `{ helmet, cover?, band?, net?, nvg?, headset? }`, its cover
+  a camouflage or `true` (the top's), the hair under it (the game body's; the realistic head wears none yet). The progression's cards: `guard`, `security`, `mercenary`,
+  `pmc`, the soldier's (`bdu` …), `specops`, each carrying its gear (`pieces`; a vest's `cut: 'plate'` a plate carrier,
+  `elbowpads`). `rigidity` (`shell` locked; `stiff`, `crisp`, `soft`, `flowing` or 0 … 1) on a skirt
   or a panel swings it with the stride and the wind against the locked body (the motion card's `--hair`, `--wind`).
   Expanded on every read by its passes: CUT, FIT, LAYER, CONSTRUCTION, ORNAMENT (from the focal out: collar or rib,
   buttons, belt; cuffs, hems, waistband, panel hems; seams), TONE (`Panel` with the rest), LEDGER (the readout's
@@ -860,7 +869,8 @@ GLB's baked ink (`bake: true`) cannot stencil: it leaves out only the outline of
   `hero.realisticFace` says what was rolled (the picks, the character, the ancestry). It shapes the head and its skin
   (the ancestry's tone, undertone and hair colour, the hairline, marks, a beard, the years) under the hero's own `skin`;
   its HAIR is the composed cut (or its ancestry's; `scalp` names one instead: a style such as `long`, `ponytail`, `crop`,
-  `{ style, …its groom }`, or `'none'`) grown as LOCKS in one colour over a solid shell (realistic laws 10; `stylize`
+  `{ style, …its groom }`, or `'none'`; the door's landmark `hair`, absent a `scalp`, is read as the nearest cut, its
+  `wave` the curl; the door's `expression` is the face rig's rest) grown as LOCKS in one colour over a solid shell (realistic laws 10; `stylize`
   0 … 1 its register: 0 a realistic game's many fine locks with soft cards at the hairline and the tips, 1 a stylised
   game's few dozen chunky sculpted locks, 0.5 the default; a crop a shell, an afro a sculpted volume, a ponytail's tail a
   mass of its own, locs ropes; the scalp shows only in the splits between locks), its PIERCINGS the face's, each piece

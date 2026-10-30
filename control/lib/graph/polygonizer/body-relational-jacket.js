@@ -148,7 +148,11 @@ export function patchOn(P, { z0, z1, cx, width, lift = 0.0006, t = 0.0025, cols 
     const v = r / (rows - 1), z = z0 + (z1 - z0) * v, w = Math.max(0.002, width(v)), x0 = cx(v);
     const inner = [], outer = [];
     for (let k = 0; k < cols; k++) { const x = x0 - w / 2 + (w * k) / (cols - 1), F = faceAt(P, x, z); if (!F) return null; const q = add(F.p, scl(F.n, lift)); inner.push(q); outer.push(add(q, scl(F.n, t))); }
-    rings.push([...inner, ...outer.reverse()]);
+    // (the ring starts at its outer face's middle: the compiler turns a part out by its first band face, which must stand
+    // square out from the ring's centre; at the section's end, 2.5 mm thick and a pocket wide, it read either way, and a
+    // pocket, a flap or a collar's point drew inside out, dark)
+    const ring = [...inner, ...outer.reverse()], o = cols + Math.floor((cols - 1) / 2);
+    rings.push([...ring.slice(o), ...ring.slice(0, o)]);
   }
   return tubeOf(rings);
 }
@@ -181,9 +185,11 @@ export const JACKET_PIECES = Object.freeze({ rib: 0.06, ribTuck: 0.012, pocket: 
  * THE JACKET'S PIECES, after its front is opened (`parts[bodyName]` the opened body, `J` the construction words, `recipe`
  * the body's skin): its rib waistband and cuffs (`rib`), its flapped patch pockets (`pockets`), its epaulettes, its
  * shirt collar's points (`collar: 'shirt'`), each lying on the jacket's own face and carried by its weights; `gapAt(z)` the
- * opening at a height, `gathered` filled with the band the body is gathered into (for the folds). → { name: part }
+ * opening at a height, `gathered` filled with the band the body is gathered into (for the folds); `rings` the body's
+ * weights read by ring and `around` the rib band sampled so many ways round (the game body's: authored-jacket.js).
+ * → { name: part }
  */
-export function jacketPieces(parts, bodyName, J, recipe, { gapAt, gathered }) {
+export function jacketPieces(parts, bodyName, J, recipe, { gapAt, gathered, rings = false, around = null }) {
   const B = parts[bodyName], out = {}, X = JACKET_PIECES, group = B.group ?? 'Outer';
   const zs = B.stations.slice(1, -1).map((st) => mean(Object.values(st.points))[2]), zHem = Math.min(...zs), zTop = Math.max(...zs);
   const pts = (P) => P.stations.flatMap((st) => Object.values(st.points));
@@ -193,14 +199,16 @@ export function jacketPieces(parts, bodyName, J, recipe, { gapAt, gathered }) {
   // jacket is; the body gathered into it
   if (J.rib === 'waist' || J.rib === 'both') {
     const under = Object.entries(parts).filter(([k, P]) => P.garment && k !== bodyName && /_(body|torso|pelvis)$/.test(k)).map(([, P]) => P);
-    const on = under.find((P) => P.stations.some((st) => Math.abs(mean(Object.values(st.points))[2] - zHem) < 0.04)) ?? recipe.parts.torso;
-    const z = zHem - X.rib / 2 + X.ribTuck, band = beltOn(on, [...under, recipe.parts.torso, recipe.parts.pelvis].filter(Boolean).flatMap(pts), z, { width: X.rib, thick: 0.0045 });
+    // (on the first garment under it with a ring at the band's own height: a game body's shirt is in pieces, its body's
+    // lowest ring above the band and its tail's at it)
+    const z = zHem - X.rib / 2 + X.ribTuck, on = under.find((P) => P.stations.some((st) => Math.abs(mean(Object.values(st.points))[2] - z) < 0.04)) ?? recipe.parts.torso;
+    const band = beltOn(on, [...under, recipe.parts.torso, recipe.parts.pelvis].filter(Boolean).flatMap(pts), z, { width: X.rib, thick: 0.0045, rings, around });
     if (band) { out.outerRib_waist = { ...ribbed(band, { gap: gapAt }), group: 'Rib', bind: band.bind }; gathered[bodyName] = [[z - X.rib / 2, z + X.rib / 2]]; }
   }
   // THE RIB CUFFS past the sleeves' ends, round the wrists
   if (J.rib === 'cuffs' || J.rib === 'both') for (const S of ['R', 'L']) {
     const sleeve = parts[`outer_arm${S}`], fore = recipe.parts[`foreArm${S}`]; if (!sleeve || !fore) continue;
-    const C = cuffOn(sleeve, pts(fore)); out[`outerRib_cuff${S}`] = { ...C, group: 'Rib', bind: bindNearest(C, fore) };
+    const C = cuffOn(sleeve, pts(fore)); out[`outerRib_cuff${S}`] = { ...C, group: 'Rib', bind: bindNearest(C, fore, { rings }) };
   }
   // THE POCKETS: a patch low on each front, clear of the opening, under a flap with its snap
   if (J.pockets === 'flap') for (const [S, sx] of [['R', 1], ['L', -1]]) {

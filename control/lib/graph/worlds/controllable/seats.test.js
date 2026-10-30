@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { createWorld, stepWorld } from '@/lib/graph/worlds/controllable-world';
 
-// SEATS (pilots.plan.md; opt-in `spec.seats`): the bodies seats 2 to 4 take, each on its pilot rule and its own input
+// SEATS (opt-in `spec.seats`): the bodies seats 2 to 4 take, each on its pilot rule and its own input
 // (`input.seats[n]`); seat 1 is the world's pilot. A seat with no player leaves its body to its AI (`drop: 'ai'`) or holds
 // it (`'pause'`). Without `spec.seats` a world steps as it always did.
 

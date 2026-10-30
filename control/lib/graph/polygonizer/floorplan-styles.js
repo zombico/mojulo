@@ -357,6 +357,11 @@ export function readLook(v) {
   return v;
 }
 
+// a house's look (`houseLook`), tradition and form for its style roll (HOME_WINDOWS, FAMILY_BY): absent, look 1, as
+// before. One reading for the render (floorplan-structure.js) and the mint's roof check (sketch-mint.js), so the family
+// the mint judges a roof by is the one the render draws.
+export const homeLook = (input, opts = {}) => ({ look: opts.houseLook ?? input.houseLook ?? 1, tradition: (opts.design ?? input.design)?.tradition ?? null, form: opts.form ?? input.form ?? null });
+
 /**
  * `style` (a family name, 'auto', or absent) → the finish knobs it supplies, plus the resolved
  * `styleName`. Absent ⇒ {} (the house is untouched). An unknown name fails loudly, naming the

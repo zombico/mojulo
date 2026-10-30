@@ -11,6 +11,8 @@
 //
 //   --hero      the hero spec every variant starts from (the door's own); default a realistic female, seed 11, framed
 //               close at 1080p (the one-skin head's top rung)
+//   --as        the door every variant mints through (create_character's `as`; default hero): a mascot plays here too
+//               (--as mascot --hero '{"brief":"raccoon"}' --clips none: its own clips); a variant's `as` overrides it
 //   --armour    armour styles (lib/graph/armor/styles.js SEEDED_ARMOR: knight, aka, kuro-kon, shiro …): one variant each,
 //               adorn: { type: 'armor', style }, after the bare hero
 //   --variants  more variants, a list of { "id"?, "label", "spec": { … } }: each spec merged over --hero (an armour
@@ -26,7 +28,7 @@
 //   --serve     serve the out dir on 127.0.0.1 (default port 8765) after writing it
 //   --reuse     keep a variant whose <id>.glb and <id>.read.json are already in --out (iterate on the page alone)
 //
-// Drive it from a script through window.heroLive (shot.mjs does): variant(id), take(name), view('vFace'|'vBust'|'vBody'|'vSide'),
+// Drive it from a script through window.heroLive (shot.mjs does): variant(id), take(name), view('vFace'|'vBust'|'vBody'|'vSide'|'vBodySide'|'vBack'),
 // seek(phase), pause(bool), hold({ morph: weight }), state().
 import { spawn } from 'node:child_process';
 import { copyFileSync, existsSync, mkdirSync, readFileSync, statSync, writeFileSync, createReadStream } from 'node:fs';
@@ -73,7 +75,7 @@ const KEY_SECONDS = 0.7;
 
 // ─── the worker: one variant minted and exported (a process of its own, so variants mint side by side) ─────────────
 if (process.argv[2] === '--worker') {
-  const { spec, id, out } = JSON.parse(process.argv[3]);
+  const { spec, id, out, as = 'hero' } = JSON.parse(process.argv[3]);
   register(pathToFileURL(path.join(CONTROL, 'scripts/mcp-stdio-loader.mjs')).href);
   process.chdir(CONTROL);
   process.env.SQLITE_PATH = ':memory:'; process.env.MOJULO_SEMANTIC_INDEX_DISABLED = '1';
@@ -82,7 +84,7 @@ if (process.argv[2] === '--worker') {
   const { createCharacterHandler } = await import('@/lib/mcp/tools/create-character.js');
   const { exportModelHandler } = await import('@/lib/mcp/tools/sketch-model-export.js');
   const t0 = Date.now();
-  const minted = await createCharacterHandler({ as: 'hero', spec });
+  const minted = await createCharacterHandler({ as, spec });
   if (!minted.ok) { console.error(`${id}: the door refused: ${JSON.stringify(minted.error ?? minted).slice(0, 1200)}`); process.exit(1); }
   const glb = await exportModelHandler({ ref: minted.ref, format: 'glb', clips: '_all', skinned: true, lit: true });
   if (!glb.ok) { console.error(`${id}: the export refused: ${JSON.stringify(glb.error ?? glb).slice(0, 1200)}`); process.exit(1); }
@@ -102,16 +104,17 @@ for (let i = 0; i < argv.length; i++) {
   const k = a.slice(2), v = argv[i + 1];
   if (['publish', 'reuse'].includes(k)) opt[k] = true;
   else if (k === 'serve') { opt.serve = v && /^\d+$/.test(v) ? Number(argv[++i]) : 8765; }
-  else if (['hero', 'armour', 'armor', 'variants', 'clips', 'out', 'jobs'].includes(k)) { if (v === undefined) throw new Error(`hero-live: --${k} takes a value`); opt[k === 'armor' ? 'armour' : k] = v; i++; }
+  else if (['hero', 'as', 'armour', 'armor', 'variants', 'clips', 'out', 'jobs'].includes(k)) { if (v === undefined) throw new Error(`hero-live: --${k} takes a value`); opt[k === 'armor' ? 'armour' : k] = v; i++; }
   else throw new Error(`hero-live: unknown option --${k}`);
 }
 const out = path.resolve(opt.out ?? path.join(os.tmpdir(), 'hero-live'));
 const hero = opt.hero ? JSON.parse(opt.hero) : DEFAULT_HERO;
 const clips = opt.clips === 'none' ? null : opt.clips ? JSON.parse(opt.clips) : DEFAULT_CLIPS;
 const slug = (s) => String(s).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'v';
-const variants = [{ id: 'bare', label: 'Bare', spec: hero }];
+const as = opt.as ?? 'hero';
+const variants = [{ id: 'bare', label: 'Bare', spec: hero, as }];
 for (const style of (opt.armour ?? '').split(',').map((s) => s.trim()).filter(Boolean)) variants.push({ id: slug(style), label: `${style} armour`, spec: { ...hero, adorn: { type: 'armor', style } } });
-for (const v of opt.variants ? JSON.parse(opt.variants) : []) variants.push({ id: slug(v.id ?? v.label), label: v.label ?? v.id, spec: { ...hero, ...v.spec } });
+for (const v of opt.variants ? JSON.parse(opt.variants) : []) variants.push({ id: slug(v.id ?? v.label), label: v.label ?? v.id, as: v.as ?? as, spec: { ...(v.as && v.as !== as ? {} : hero), ...v.spec } });
 if (new Set(variants.map((v) => v.id)).size !== variants.length) throw new Error(`hero-live: two variants share an id (${variants.map((v) => v.id).join(', ')})`);
 for (const v of variants) if (clips) v.spec = { ...v.spec, clips: { ...clips, ...(v.spec.clips || {}) } };
 mkdirSync(out, { recursive: true });
@@ -122,7 +125,7 @@ const todo = variants.filter((v) => !(opt.reuse && existsSync(path.join(out, `${
 const failed = [];
 const runOne = (v) => new Promise((resolve) => {
   console.log(`minting ${v.label} …`);
-  const p = spawn(process.execPath, [fileURLToPath(import.meta.url), '--worker', JSON.stringify({ spec: v.spec, id: v.id, out })], { stdio: ['ignore', 'ignore', 'pipe'] });
+  const p = spawn(process.execPath, [fileURLToPath(import.meta.url), '--worker', JSON.stringify({ spec: v.spec, id: v.id, out, as: v.as ?? 'hero' })], { stdio: ['ignore', 'ignore', 'pipe'] });
   let err = ''; p.stderr.on('data', (d) => { err += d; });
   p.on('close', (code) => { if (code) { failed.push(v.id); console.error(err.trim().split('\n').filter((l) => !/ExperimentalWarning|--trace-warnings/.test(l)).slice(-6).join('\n')); } resolve(); });
 });
@@ -161,7 +164,7 @@ const manifest = { packed: !!opt.publish, firstTake: clips ? Object.keys(clips)[
 const importmap = opt.publish
   ? { imports: { three: `https://cdn.jsdelivr.net/npm/three@${THREE_CDN}/build/three.module.min.js`, 'three/addons/': `https://cdn.jsdelivr.net/npm/three@${THREE_CDN}/examples/jsm/` } }
   : { imports: { three: './vendor/three/three.module.min.js', 'three/addons/': './vendor/three/addons/' } };
-const title = `${hero.form === 'realistic' ? 'Realistic' : 'The'} Hero, Live`;
+const title = as !== 'hero' ? `The ${as[0].toUpperCase()}${as.slice(1)}, Live` : `${hero.form === 'realistic' ? 'Realistic' : 'The'} Hero, Live`;
 const page = readFileSync(path.join(HERE, 'viewer.html'), 'utf8')
   .replaceAll('@TITLE@', title)
   .replace('@IMPORTMAP@', JSON.stringify(importmap))
@@ -172,7 +175,7 @@ if (opt.publish) console.log(`publish: the page, with files ${JSON.stringify(Obj
 
 // ─── serve (loopback only) ──────────────────────────────────────────────────
 if (opt.serve) {
-  const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.json': 'application/json', '.glb': 'model/gltf-binary' };
+  const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.json': 'application/json', '.glb': 'model/gltf-binary', '.wav': 'audio/wav', '.mp3': 'audio/mpeg', '.ogg': 'audio/ogg', '.m4a': 'audio/mp4' };
   createServer((req, res) => {
     const rel = decodeURIComponent(new URL(req.url, 'http://x').pathname).replace(/^\/+/, '') || 'index.html', file = path.resolve(out, rel);
     if (!file.startsWith(out + path.sep) || !existsSync(file) || !statSync(file).isFile()) { res.writeHead(404).end(); return; }

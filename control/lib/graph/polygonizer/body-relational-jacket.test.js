@@ -47,7 +47,7 @@ describe('the jacket\'s words', () => {
   it('takes its construction on the outer garment, a zip without lapels or buttons, naming what it refuses', () => {
     const card = (outer) => ({ language: { top: { family: 'knit', sleeve: 'short', hem: 'hip' }, outer: { family: 'woven', sleeve: 'long', hem: 'hip', ...outer } } });
     expect(validateOutfitCard(card({ front: 'zip', collar: 'shirt', rib: 'both', pockets: 'flap', epaulettes: true, cloth: 'leather', open: true }))).toEqual([]);
-    const errs = validateOutfitCard(card({ front: 'zip', lapel: 'notch', rib: 'sleeves', pockets: 'patch', collar: 'mandarin', cloth: 'silk' })).join('\n');
+    const errs = validateOutfitCard(card({ front: 'zip', lapel: 'notch', rib: 'sleeves', pockets: 'patch', collar: 'mandarin', cloth: 'chainmail' })).join('\n');
     for (const want of ["front: 'zip' closes without lapels or buttons", 'outer.rib', 'outer.pockets', 'outer.collar', 'outer.cloth']) expect(errs).toContain(want);
   });
 });

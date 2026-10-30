@@ -412,6 +412,8 @@ export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 11
       // the textured-instances block below with the same transforms; the key is absent without them
       ...(Object.keys(gm.textureGroups || {}).length ? { tex: Object.entries(gm.textureGroups).map(([key, g]) => ({ key, pos: b64(g.positions), uv: b64(g.uvs), col: b64(g.colors), lit: !!g.lit })) } : {}),
       ...(creasesCfg && creaseOf(r.template) ? { crease: creaseOf(r.template) } : {}),
+      // drawn only NEAR the camera (`near` world units): a street's kit and its paint, a far block needing none
+      ...(Number.isFinite(r.near) && r.near > 0 ? { near: r.near } : {}),
     };
   });
   // widen the camera-framing bound so a mostly-instanced world still frames fully
@@ -513,6 +515,7 @@ export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 11
   });
   const hasRepeatTextures = packedRepeats.some((r) => r.tex);
   const hasAxisScale = packedRepeats.some((r) => r.t.some((t) => t.length > 5));   // absent: the uniform line, byte-identical
+  const hasNear = packedRepeats.some((r) => r.near);   // absent: no near tiles, not one byte
   const hasTextures = groups.some((g) => g.tex.length) || hasRepeatTextures || blendLayers.length > 0;
   // the resampler (channels/resample.js): the plans for the textures this page draws; none, nothing emitted
   const resampled = resample && hasTextures ? (() => { const r = Object.fromEntries(Object.entries(resample).filter(([k]) => textures[k]).sort(([a], [b]) => (a < b ? -1 : 1))); return Object.keys(r).length ? r : null; })() : null;
@@ -696,7 +699,7 @@ export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 11
   // a stage's tone (channels/tone.js): each surface lit first, coloured off its ramp after; none → not one byte
   const toneBlock = tone && Array.isArray(tone.ramps) && tone.ramps.length ? toneScript(tone) : '';
   // the FORM render's land (gen-7, form/land-read.js formPayload): drawn last, in place of the painted land; absent, nothing
-  const formLandBlock = form && form.land ? formLandScript(form.land) : '';
+  const formLandBlock = form && form.land ? formLandScript(form.land, form.flora || null) : '';
   // a gritty style's rock fabric (channels/fabric.js): the near rock drawn from its own joints and beds; none → not one byte
   const fabricBlock = fabric && Array.isArray(fabric.sets) && fabric.sets.length && Array.isArray(fabric.groups) ? fabricScript(fabric) : '';
   // a stage's live grass and swaying crowns (channels/stage-grass.js); absent ⇒ zero bytes
@@ -1201,12 +1204,42 @@ for (const grp of GROUPS) {
 // Pushed into solids: walk collision + pick occlusion + the wireframe toggle see instances
 // exactly like expanded geometry (three raycasts InstancedMesh per instance).
 const REPEATS = ${safeJson(packedRepeats)};
-for (const r of REPEATS) {
+${hasNear ? `// NEAR repeats: an entry with \`near\` is cut into square tiles of its instances, each its own InstancedMesh on the
+// shared geometry, shown only while the camera stands within \`near\` of the tile (checked before each render, so a
+// capture, a frozen frame and the live loop agree): a street's kit and paint drawn where they are seen, none far off;
+// a textured template's faces (a tree's bark) tiled the same, on their own material
+const __nearTiles = [];
+const __nearRepeat = (r, geo, material = null) => {
+  const T = Math.max(16, r.near / 2), tiles = new Map();
+  r.t.forEach((t, i) => { const k = Math.floor(t[0] / T) + ':' + Math.floor(t[1] / T); if (!tiles.has(k)) tiles.set(k, []); tiles.get(k).push(i); });
+  const mat = material || new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide });
+  const M = new THREE.Matrix4(), Q = new THREE.Quaternion(), UP = new THREE.Vector3(0, 0, 1), P = new THREE.Vector3(), S = new THREE.Vector3();
+  for (const [k, ids] of tiles) {
+    const im = new THREE.InstancedMesh(geo, mat, ids.length);
+    let cx = 0, cy = 0;
+    ids.forEach((i, j) => {
+      const t = r.t[i]; cx += t[0] / ids.length; cy += t[1] / ids.length;
+      Q.setFromAxisAngle(UP, t[3]); P.set(t[0], t[1], t[2]); ${hasAxisScale ? 'S.set(t[4], t[5] ?? t[4], t[6] ?? t[4]);' : 'S.set(t[4], t[4], t[4]);'} M.compose(P, Q, S); im.setMatrixAt(j, M);
+      if (r.tint) im.setColorAt(j, new THREE.Color(r.tint[i][0], r.tint[i][1], r.tint[i][2]));
+    });
+    im.instanceMatrix.needsUpdate = true; if (im.instanceColor) im.instanceColor.needsUpdate = true;
+    im.userData.g = r.name; im.visible = false;
+    scene.add(im); solids.push(im); if (!meshes[r.name]) meshes[r.name] = im;
+    __nearTiles.push({ im, x: cx, y: cy, r: r.near + T * 0.75 });
+  }
+};
+const __nearBR = scene.onBeforeRender;
+scene.onBeforeRender = function (rd, sc, cam, rt) {
+  __nearBR.call(this, rd, sc, cam, rt);
+  const p = cam.position;
+  for (const n of __nearTiles) n.im.visible = (n.x - p.x) * (n.x - p.x) + (n.y - p.y) * (n.y - p.y) < n.r * n.r;
+};
+` : ''}for (const r of REPEATS) {
   const geo = new THREE.BufferGeometry();
   geo.setAttribute('position', new THREE.BufferAttribute(decodeF32(r.pos), 3));
   geo.setAttribute('color', new THREE.BufferAttribute(decodeF32(r.col), 3));
   geo.computeBoundingSphere();
-  const im = new THREE.InstancedMesh(geo, new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide }), r.t.length);
+  ${hasNear ? 'if (r.near) { __nearRepeat(r, geo); continue; }\n  ' : ''}const im = new THREE.InstancedMesh(geo, new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide }), r.t.length);
   const M = new THREE.Matrix4(), Q = new THREE.Quaternion(), UP = new THREE.Vector3(0, 0, 1), P = new THREE.Vector3(), S = new THREE.Vector3();
   r.t.forEach((t, i) => {
     Q.setFromAxisAngle(UP, t[3]);
@@ -1232,7 +1265,7 @@ for (const r of REPEATS) for (const t of (r.tex || [])) {
   g.computeBoundingSphere();
   let tex = REP_TEX[t.key];
   if (!tex) { tex = REP_TEX[t.key] = new THREE.TextureLoader().load(url); tex.colorSpace = THREE.SRGBColorSpace; tex.wrapS = tex.wrapT = THREE.RepeatWrapping; tex.anisotropy = 8; }
-  const im = new THREE.InstancedMesh(g, new THREE.MeshBasicMaterial({ map: tex, vertexColors: !!t.lit, side: THREE.DoubleSide${cutOpt} }), r.t.length);
+  ${hasNear ? 'if (r.near) { __nearRepeat(r, g, new THREE.MeshBasicMaterial({ map: tex, vertexColors: !!t.lit, side: THREE.DoubleSide' + cutOpt + ' })); continue; }\n  ' : ''}const im = new THREE.InstancedMesh(g, new THREE.MeshBasicMaterial({ map: tex, vertexColors: !!t.lit, side: THREE.DoubleSide${cutOpt} }), r.t.length);
   const M = new THREE.Matrix4(), Q = new THREE.Quaternion(), UP = new THREE.Vector3(0, 0, 1), P = new THREE.Vector3(), S = new THREE.Vector3();
   r.t.forEach((q, i) => {
     Q.setFromAxisAngle(UP, q[3]); P.set(q[0], q[1], q[2]); S.set(q[4], q[4], q[4]); M.compose(P, Q, S); im.setMatrixAt(i, M);

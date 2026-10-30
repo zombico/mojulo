@@ -7,6 +7,7 @@ import { foeCastOf, castable, foeParts, foeState, approveFoe, STAT_WORDS, REGIST
 import { castingCall, ROLES, ERA_DRESS, ERA_OOZES, BOSS_OOZE } from './foe-casting.js';
 import { ERA_OF_KIT } from './cast-setting.js';
 import { colorKey } from './nature.js';
+import { BOOK_SKINS, skinHead } from './book-skin.js';
 import { GRUNT_STYLES } from '../cosmos/packs/comic-hero/grunts.js';
 import { ITEMS } from '../cosmos/packs/comic-hero/items.js';
 import { isGroundKit } from '../era/stage.js';
@@ -212,6 +213,14 @@ describe('the sheet', () => {
     const accent = html.match(/:root\{--local:(#[0-9a-f]{6});/)?.[1];
     expect(colorKey(kit).ramps.flatMap((r) => r.stops)).toContain(accent);
     expect(html).toContain(kit);
+  });
+
+  it('wears the world\'s book skin as its bible does; a world without one, none', () => {
+    const id = Object.keys(BOOK_SKINS)[0], { link, css } = skinHead(BOOK_SKINS[id]);
+    const skinned = foeCastHtml({ ...W, book: { skin: id } });
+    expect(skinned).toContain(css);
+    expect(skinned).toContain(link);
+    expect(skinned.replace(link, '').replace(`\n${css}`, '')).toBe(foeCastHtml(W));
   });
 
   it('a world that fights and keeps no bestiary shows the casting call, proposed and not written, a role an article', () => {

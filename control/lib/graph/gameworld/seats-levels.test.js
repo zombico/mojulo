@@ -6,7 +6,7 @@ import { gameStages, stageLevelOrder } from './levels.js';
 import { createWorld, stepWorld } from '../worlds/controllable-world.js';
 import { readSeats } from '../worlds/world-scene.js';
 
-// SEATS, LOWERED (pilots.plan.md phase 4): a gameworld whose cube says soul.seats two or four lays a body per extra seat
+// SEATS, LOWERED: a gameworld whose cube says soul.seats two or four lays a body per extra seat
 // beside the hero (the hero itself, on its rule; while its seat is empty, after the hero on the escort motive) and names
 // them in the level's `seats`. One seat, or none said, lays the level as it was.
 const W = (cube, quick = {}) => ({ ...quickWorld({ id: 'coop', quick: { goal: 'collect', pickup: 'coin', camera: 'side', ...quick }, style: { kit: 'trail-valley' } }), ...(cube ? { intent: { cube } } : {}) });

@@ -1,10 +1,13 @@
 import { describe, it, expect } from 'vitest';
 import { rollEgocube } from './egocube.js';
 import { outfitFromSheet, adornFromSheet, outfitPalette } from './outfit.js';
-import { planFromSheet, CLOTHED_H } from './plan.js';
+import { planFromSheet as planFromSheetOf, CLOTHED_H } from './plan.js';
 import { compileOutfit, outfitLaws, OUTFIT_KIND_NAMES } from '../polygonizer/outfit-plan.js';
 import { expandPlan } from '../polygonizer/station-loft-plan.js';
 import { hexLch } from '../polygonizer/station-loft-shade.js';
+// (these read the sixth generation's procedures: a beast-kin sheet asks for the creature biped, plan.js `gen: 6`; the
+// seventh, on the tiered body, is beast/route.test.js's)
+const planFromSheet = (sheet, opts = {}) => planFromSheetOf(sheet, { gen: 6, ...opts });
 
 const LINEAGES = ['ursine', 'lupine', 'feline', 'avian', 'draconic', 'insectoid'];
 
