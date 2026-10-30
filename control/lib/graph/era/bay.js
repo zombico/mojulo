@@ -141,9 +141,11 @@ export function bayRoom(out, r, ri, kit, surf, rooms = []) {
       wz = tall ? [zc0 - Gr.below - Gr.h, zc0 - Gr.below] : G.low === 'punched' ? [Math.max(Gp.sill, Ba.h + 0.1), Math.min(Gp.head, zc0 - 0.15)] : [zc0 - Gs.below - Gs.h, zc0 - Gs.below];
       if (tall && (s === cwSide ? wz[0] < B.catwalk.z + B.catwalk.rail + Gr.over : wz[0] < Dr.frame + kit.door.height + 0.3)) wz = null;
       if (wz && wz[1] - wz[0] < 0.4) wz = null;
+      // (a building set into its slope, `B.ground`: no window where the land outside stands over its sill)
+      const Gd = B.ground, buried = Gd && wz ? (a, b) => [a, b].some((u) => { const y = onWall(F, u, 0, 0)[1], t = Math.max(0, Math.min(1, (y - Gd.y0) / (Gd.y1 - Gd.y0))); return (Gd.lift ?? 0) + wz[0] < Gd.z0 + (Gd.z1 - Gd.z0) * t + 0.15; }) : null;
       if (wz) for (let k = 0; k < n; k++) {
         const mid = (lines[k] + lines[k + 1]) / 2, a = !tall && G.low === 'punched' ? mid - Gp.w / 2 : lines[k] + Pl.w / 2 + (tall ? Gr.margin : Gs.margin), b = !tall && G.low === 'punched' ? mid + Gp.w / 2 : lines[k + 1] - Pl.w / 2 - (tall ? Gr.margin : Gs.margin);
-        if (b - a < 0.6 || !outside.some(([p, q]) => a >= p + 0.2 && b <= q - 0.2) || framed.some(([fa, fb, top]) => b > fa - 0.4 && a < fb + 0.4 && top > wz[0] - 0.3)) continue;
+        if (b - a < 0.6 || !outside.some(([p, q]) => a >= p + 0.2 && b <= q - 0.2) || framed.some(([fa, fb, top]) => b > fa - 0.4 && a < fb + 0.4 && top > wz[0] - 0.3) || (buried && buried(a, b))) continue;
         wins.push([a, b]);
       }
       if (!wins.length) wz = null;

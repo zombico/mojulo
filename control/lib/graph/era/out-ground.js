@@ -17,6 +17,8 @@
 import { JOINT_PATTERNS } from '../polygonizer/landform.js';
 import { readWater } from './out-water.js';
 import { readDunes } from './out-dunes.js';
+import { readCaves } from './cave.js';
+import { readCavern } from './cavern.js';
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const smooth = (a, b, v) => { const t = Math.max(0, Math.min(1, (v - a) / (b - a))); return t * t * (3 - 2 * t); };
@@ -33,6 +35,10 @@ export const GROUND_DIALS = Object.freeze({
   cliff: '{ height?, face?, bed?, dip?, joint?, pattern? } | false: the kit\'s cliff down the far side (false: none, the land open on both sides of the trail): metres of throw, the face in degrees, its beds\' thickness in metres and their tilt in degrees, its joints\' spacing in metres and their pattern (blocky, columnar, slabby)',
   edits: 'the ground shaped by hand: a list of raise, lower, flatten, cliff, gorge, ridge',
   water: '{ lake?, coast?, river?, falls? } | false: the water cut into the land (era/out-water.js): a lake beside the walk, the open side falling to the sea, a river beside the walk, water off the far cliff; false: none',
+  caves: 'a list of caves cut into the far cliff, each { y, depth?, width?, height?, along? } (era/cave.js): its mouth at station y in the cliff\'s foot, metres into the rock, then along behind the face; its walls the cliff\'s rock, its floor scree, a ceiling under the land',
+  cavern: 'true | { height?, skylight?, formations?, light?, cracks?, ends?, set? } (era/cavern.js): the whole trail underground: closed in by its cliffs under a ceiling of their rock, no grass or trees, stalagmites and stalactites, lit by cracks in its ceiling (`cracks` 0 to 1), a skylight (`skylight: { y, r? }`) and its register (`light`: torch, fluorescent, bio or daylight), all in one colour key from the world\'s palette; `ends: \'open\'` a passage out at each end; `set` its beats dressed as a walk\'s rooms (true, \'base\', \'temple\', \'grotto\' or { use, mood }: era/cavern-set.js)',
+  behind: 'metres of rock added behind the far cliff, 0 to 80 (a deep cave\'s, a mountain\'s base): the land over the cliff that much deeper',
+  room: 'metres of open ground added past the trail\'s far side, 0 to 80 (an outpost\'s ground, a camp\'s): the site that much wider, the trail where it was',
   dunes: 'true | { height?, spacing?, wind?, repose?, supply?, sinuous? }: the land laid in wind-blown sand dunes (era/out-dunes.js): a crest\'s metres over its trough (2.8), crest to crest (26), the way the wind blows in degrees (0 across the trail), the slip face\'s angle in degrees (32, sand at rest), how much sand (0.75: crescents where it thins), how far a crest wanders (0.35); the walk keeps a firm street through them',
 });
 /** Each beat's shape on the heartbeat: its share of the amplitude (a crest) or the depth (a dip), and its reach (m).
@@ -83,6 +89,9 @@ export function readGround(g, at = 'trail.ground') {
   num(g, 'depth', 0, 40, at, 'metres the heartbeat falls, 0 to 40');
   num(g, 'grade', 0.1, 0.6, at, 'the steepest walk, rise over run, 0.1 to 0.6');
   num(g, 'drift', 0, 1, at, 'a share of the amplitude, 0 to 1');
+  num(g, 'room', 0, 80, at, 'metres of open ground past the trail\'s far side, 0 to 80');
+  num(g, 'behind', 0, 80, at, 'metres of rock behind the far cliff, 0 to 80');
+  if (g.behind && g.cliff === false) throw new Error(`stage: ${at}.behind is rock behind the far cliff: a trail with no cliff (cliff: false) has none`);
   const sub = (k, keys) => {
     if (g[k] === undefined) return;
     if (!isObj(g[k])) throw new Error(`stage: ${at}.${k} is { ${keys.join(', ')} }`);
@@ -116,6 +125,9 @@ export function readGround(g, at = 'trail.ground') {
   const edits = g.edits === undefined ? undefined : readEdits(g.edits, `${at}.edits`);
   // (the water, era/out-water.js: a fall wants the far cliff it falls from)
   const water = readWater(g.water, `${at}.water`);
+  if (g.cavern !== undefined && g.cavern !== false) { if (g.cliff === false) throw new Error(`stage: ${at}.cavern is closed in by the far cliff: a trail with no cliff (cliff: false) has none`); readCavern(g.cavern, `${at}.cavern`); }
+  if (g.caves !== undefined) { if (g.cliff === false) throw new Error(`stage: ${at}.caves are cut into the far cliff: a trail with no cliff (cliff: false) has none`); readCaves(g.caves, `${at}.caves`); }
+  if (water?.coast && g.room) throw new Error(`stage: ${at}.room: the coast runs the open side on to the sea; a coast takes no room`);
   if (water?.falls && g.cliff === false) throw new Error(`stage: ${at}.water.falls drop off the far cliff: a trail with no cliff (cliff: false) has none to fall from`);
   readDunes(g.dunes, `${at}.dunes`);
   return { ...g, ...(edits ? { edits } : {}) };
@@ -196,6 +208,14 @@ export function groundOf(T, C) {
     // (false: no far cliff, the land open on both sides; out-trail.js siteOf)
     cliff: g.cliff === false ? false : g.cliff || {},
     edits: g.edits || [],
+    // (the whole trail underground, era/cavern.js)
+    ...(g.cavern ? { cavern: readCavern(g.cavern) } : {}),
+    // (the caves cut into the far cliff, era/cave.js)
+    ...(g.caves ? { caves: readCaves(g.caves) } : {}),
+    // (open ground past the trail's far side: the site that much wider)
+    ...(g.room ? { room: g.room } : {}),
+    // (rock behind the far cliff: the land over it that much deeper)
+    ...(g.behind ? { behind: g.behind } : {}),
     // (the water cut into the land, era/out-water.js: none when absent or false)
     ...(g.water ? { water: readWater(g.water) } : {}),
     // (the land laid in dunes, era/out-dunes.js: none when absent or false)
