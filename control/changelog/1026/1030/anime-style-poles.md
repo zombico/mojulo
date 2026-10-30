@@ -67,3 +67,7 @@ lean, long faces. The eyes gate is the operator's.
 - **Her jaw from the front, one convex arc** (after the operator's drawn line): fuller along the jaw's edge from the
   nose's level down and narrowing into a narrower chin, so the outline is one curve from under the ear to the chin
   instead of a straight V meeting the cheek at a corner; at three-quarter it stays one smooth line.
+- **Her nose and mouth raised**: her mouth moved up most of the way to where her nose's bottom was, and her nose's
+  tip raised by the same amount under a root that stays, so the nose is shorter and steeper and the gap from it to
+  the mouth is kept. All the way up, the mouth line sank into the nose's shadow and the nose all but flattened;
+  three-quarters of the way reads.
