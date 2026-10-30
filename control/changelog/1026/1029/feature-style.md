@@ -18,7 +18,8 @@ follow.
   a REGION egg, which colours a zone and does not shape the body. The head stands a little apart from the body for its
   silhouette: its cranium is a football, long front to back, and its lower volume (the jaw and the cheeks) is filled out
   round, so the head is a ball whose underside curves into the body: in profile a figure eight, the neck no more than
-  the pinch where the two balls meet, and from the front an hourglass; where a head shape meets the rest they blend no softer than a SEAM, a crease under
+  the pinch where the two balls meet, and from the front an hourglass whose head's underside is a football lying across,
+  the jowls carrying its points out and a little up, never drooping; where a head shape meets the rest they blend no softer than a SEAM, a crease under
   the jaw; the shoulders sit low and narrow enough for the cheeks' tufts to hang over them.
 - **Round blobs, pointy fur details.** The masses are round, and where fur stands off them it ends in tufts: locks drawn
   as the realistic hair draws one, a rounded body tapering to a rounded point along a bending spine, melted into the

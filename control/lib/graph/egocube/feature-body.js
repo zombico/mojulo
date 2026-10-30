@@ -188,10 +188,11 @@ export const FEATURE_BUILDS = Object.freeze({
         // the head reads apart from the neck in profile)
         { name: 'cranium', c: [0, 0.02, 2.82], u: [0, 1, -0.1], r: [0.63, 0.72, 0.6], e: 0.15, hint: [1, 0, 0], bone: 'head', join: 0.18 },
         // (the head's lower volume: the jaw and the cheeks filled out round, so the head is a ball whose underside curves
-        // into the body: in profile a figure eight, not a neck)
-        { name: 'jaw', c: [0, 0.14, 2.56], u: [0, 1, -0.1], r: [0.48, 0.62, 0.4], e: 0.1, hint: [1, 0, 0], bone: 'head', join: 0.2 },
-        { name: 'ruffR', c: [0.5, 0.08, 2.5], u: [0.78, 0.05, -0.62], r: [0.34, 0.3, 0.26], e: 0.85, hint: [0, 1, 0], bone: 'head', join: 0.2 },
-        { name: 'jowlR', c: [0.36, 0.26, 2.5], u: [0.7, 0.35, -0.45], r: [0.24, 0.23, 0.21], e: 0.4, hint: [0, 1, 0], bone: 'head', group: 'Belly', join: 0.14 },
+        // into the body: in profile a figure eight, not a neck; from the front a football lying across, the jowls carrying
+        // its points out and a little up, never drooping)
+        { name: 'jaw', c: [0, 0.14, 2.57], u: [0, 1, -0.1], r: [0.48, 0.7, 0.36], e: 0.1, hint: [1, 0, 0], bone: 'head', join: 0.2 },
+        { name: 'ruffR', c: [0.5, 0.08, 2.53], u: [0.84, 0.05, -0.48], r: [0.34, 0.3, 0.26], e: 0.85, hint: [0, 1, 0], bone: 'head', join: 0.2 },
+        { name: 'jowlR', c: [0.38, 0.26, 2.55], u: [0.86, 0.35, -0.12], r: [0.25, 0.21, 0.19], e: 0.45, hint: [0, 1, 0], bone: 'head', group: 'Belly', join: 0.14 },
         { name: 'muzzle', c: [0, 0.48, 2.54], u: [0, 1, -0.12], r: [0.3, 0.22, 0.18], e: 0.45, bone: 'head', group: 'Belly', join: 0.12 },
         { name: 'chin', c: [0, 0.38, 2.42], u: [0, 1, 0], r: [0.14, 0.15, 0.1], bone: 'head', group: 'Belly', join: 0.1 },
         { name: 'nose', c: [0, 0.79, 2.58], u: [0, 1, 0.2], r: [0.09, 0.11, 0.08], bone: 'head', group: 'Nose', join: 0.03 },
