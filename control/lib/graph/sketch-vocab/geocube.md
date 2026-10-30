@@ -88,7 +88,7 @@ it, in the cube's style. A different style is a different cube (`{ from: <preset
   trail goes trodden snow, the grass thins under a cover and is gone under deep snow, leaves turned up carry it, and
   the walker leaves footprints. A bare season is the biocube's (`trees.season`).
 - **Styles** (`style`, era/arch-style.js): what the builders build, so no two places need look alike. A starter's id
-  (`STYLE_STARTERS`, e.g. `whitewashed-island`, `tudor-market`, `adobe-pueblo`, `art-deco`, `brutalist`), `{ from:
+  (`STYLE_STARTERS`, e.g. `whitewashed-island`, `tudor-market`, `adobe-pueblo`, `art-deco`, `brutalist`, `bay-and-gable`, `main-street`, `walk-up`), `{ from:
   <starter>, …changes }`, or your own: `{ read, class: 'ancient' | 'modern', language, materials, palette?, city? }`.
   `language` is an anchor or its elements on their rails (`{ from: 'timber-hall', elements: { roof: { pitch: 50 },
   quoins: null } }`: a whole element with its `kind` replaces, null drops). Openings are built where the language
@@ -143,6 +143,52 @@ A cube that names no domains offers one per terrain and one per interior.
   `show: 'hall'` its interior (its room, or an inside domain) walked as a HALL, rooms strung on a walk from the seed
   (era/in-hall.js: squeeze, reveal, landmark, pocket, rest; the kit's set piece in the landmark's room), `hall` its
   recipe (`run`, `heartbeat`, `beats`, `height`, `mouth`, `exit`), its laws on the answer;
+  `show: 'geotown'` a town on the cube's own land, its map first and LEVELLED: its streets keep the land's grade,
+  each building a level pad over its walk, a front bank and its steps between, a retaining wall where pads meet
+  (geotown/). `geotown: { evoke?, segment?, neighbourhood?, pattern?, streetscape?, grid?, hills?, blocks?, margin? }`: `evoke` how
+  it is told: `segment` (the default) one BLOCK SEGMENT, a few buildings back to back, each its own (`segment`: `houses`
+  six or eight, mostly semis, a share of the pairs split into two flats each (`pattern.duplex`: two doors at the porch,
+  a porch over the porch, a steel stair up the back), each a type of its pattern with a bay, a porch, its own roof,
+  walls and material tiles, each back yard
+  its own plan behind its own fence, a feature by its back door, in its middle and by its back fence (patio, deck;
+  lawn, beds, swing and slide, trampoline, pool; shed, kitchen garden, a large shade tree), a balcony over some, the
+  pattern's `yards` their weights; `main-street` shops built to a main street's walk under their signs and
+  awnings, each its own front (`pattern.shopfronts`: a sign band, a board, a blade, lettering on the glass or none; a
+  canvas, a flat canopy, a rounded awning or none; its own paint), a narrow alley behind them, houses backing onto it; `apartments` a walk-up and its lot among houses;
+  `lowrise` two rows of four-storey low-rises, balconies over their fronts, their lots behind; `park` (a
+  playground, a pavilion, benches); `school` (its building, schoolyard, staff lot, a field round a track) and `sports`
+  (a diamond, a pitch under lights, tennis courts, a field house), each two segments' ground, one block, proportioned
+  to its cells (the `sites` law; `apart`: never two fields side by side); `edge` a neighbourhood's edge on a MAJOR
+  street (four lanes, sparse trees in pits): two-storey shops, offices, a forecourt plaza and converted houses facing
+  it, each its type, a public lane behind them with garages off it, houses behind the lane;
+  a houses segment off the main and major streets may hold a MIDTOWN MANSION or two, `evoke.mansions`, each on a plot at least twice a house's, set
+  back on its lawn, its drive to a garage, a pool in its yard, a revival of its pattern's `mansion.types`);
+  `neighbourhood` four or more segments composed (the pattern's `annex`, `main-street`, `quiet-streets`,
+  `school-and-field`, `edges`, or `{ layout: ['EEE', 'HPH', 'EEE'], main?, major?: ['ew-0', 'ew-3'] }`: rows of
+  letters north to south, H houses, M main-street, A apartments, L lowrise, P park, S school, F sports, E edge, a wide letter side
+  by side one block; `main` the streets that are main, wider, their walks paved to the kerb; `major` the arterials an
+  edge faces; `bike` the streets with bike lanes; a local street two lanes and a parked side each way, a main or major
+  street four lanes and parking each side, bike lanes on some, all painted; a houses segment's access a rear lane with
+  garages or mutual drives to garages at the back; hydro poles and wires, street-name signs, hydrants, a main street's
+  bins, bike rings and post box, a major street's bus shelters), each segment tuned to its cell (its rows recut and spread, its `fits`
+  law), its `ports` its perimeter streets (a geocity's graph joins neighbourhoods at
+  them); `metro` every plot to scale (`grid` its blocks, up to 4 × 4). An evocation keeps the town to scale's measures
+  (`evokes`) on a window of its land. `streetscape` how close to the city, read from its sidewalk: `leafy` (the
+  default; a wide boulevard of maples, deep lawns, one side parked), `snug` (a grass strip and a tree here and there,
+  narrow lots a few steps from the walk, both sides parked, most fronts gated), `urban` (the walk paved to the kerb, no
+  street trees, row-tight lots of three storeys behind railings), or `{ from, setback: [least, most] m, gates: none |
+  some | most | all, parking: none | one | both, trees: share, lights: m, signals: n, stops: share }`; its parking
+  lanes are surface (the ledger's `parking`, the `parking` law), its fronts fitted to their setback; its STREET FURNITURE
+  streetlights at `lights` metres, a signal every `signals` crossings along a main or major street (stops on the minor
+  street between), all-way stops at `stops` of the local crossings, crosswalks and stop lines where controlled. Its
+  ground wears its pattern's `finishes` (the walk's scored concrete, the road's asphalt, brick paths, a stone kerb);
+  trees stand only in the town, each crown raised to start twice a person's height up, each held to its room so no
+  crown reaches a building (`room`); its border is bare. Read in the seventh generation its lawns grow the form's mown
+  grass, its trees grow as form (their litter round their feet), its hedges, beds, planters and foundation plantings
+  are the plant library's bushes and shrubs (`pattern.houseplants`), no trail's rubble or patches. `pattern` a block pattern (`bay-and-gable`, a
+  Toronto Annex; `{ from, …changes }`), `hills` the land (`{ height, span }` or false), `style` over the pattern's
+  houses'. The answer's `geotown` carries the ledger (every surface's square metres, the buildings' by use), the
+  segments, the ports and the laws;
 - a `stage`: `{ geocube, domain }` alone is the whole level: an island, a street on a trail (a domain with a town), or
   a room. Your `meru`, `trail`, `rooms`, `hour` or `town` win over the domain's;
 - a level: `{ geocube, domain, nodes }` paints every section, and lays a domain's street on its first trail;

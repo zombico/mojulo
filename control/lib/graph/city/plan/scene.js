@@ -28,9 +28,8 @@ import { cityTraffic, readCars } from './traffic.js';
 import { cityPedestrians, readPeople, blockRing } from './pedestrians.js';
 import { buildSignals } from '../../scene/channels/traffic-model.js';
 import './level.js';   // registers the city's level lowering (structure/level.js registerLevelKind)
-import { readCityLook, readPaint, lookLight, paintGround, paintSkin, cubeLookSpec, CITY_HAZE } from './look.js';
+import { readCityLook, readPaint, lookLight, paintGround, paintSkin, cubeLookSpec, hourSky, CITY_HAZE } from './look.js';
 import { stalkerEye, skylineFaces } from './eye.js';
-import { cloudBand } from '../../matte-paint/sky.js';
 import { dressCity } from './dress.js';
 import { rgbToHex } from '../../polygonizer/vexar.js';
 import { makeLight, litFactor, scaleHex } from '../../polygonizer/vexar.js';
@@ -238,18 +237,6 @@ export function assembleCityScene(manifest, ctx = {}) {
   const ox = seg ? seg.rect.x0 : 0, oy = seg ? seg.rect.y0 : 0;
   const crop = seg ? { x0: seg.rect.x0 - ring, y0: seg.rect.y0 - ring, x1: seg.rect.x1 + ring, y1: seg.rect.y1 + ring } : null;
   try { return assembleIn(d, G, W, D, { paint, spec, lit, own: !d.plan.look && !!spec, ox, oy, crop, eyePlan, farLots, whole: d0 }, { title, walkFlag, ctx }); } finally { LIT = CITY_LIGHT; }
-}
-
-/** A cube's hour on the city's dome (look.js cubeLookSpec): the stars out as far as the night has come, the moon where its
- *  key is, the clouds painted round it (matte-paint/sky.js). */
-function hourSky(A) {
-  const H = A.H, out = {};
-  if (H.moonlit) {
-    const a = (H.key.azimuth * Math.PI) / 180, az = Math.atan2(Math.sin(a), Math.cos(a));
-    Object.assign(out, { day: +Math.min(1, Math.max(0, 1.25 * (1 - H.night))).toFixed(3), stars: 1, moon: { u: +((az + Math.PI / 2) / Math.PI + 0.5).toFixed(5), h: +(H.key.elevation / 90).toFixed(5), phase: 0.62, size: 1.3 } });
-  }
-  if (A.band) out.clouds = cloudBand(A.band);
-  return out;
 }
 
 function assembleIn(d, G, W, D, { paint, spec, lit, own, ox, oy, crop, eyePlan = null, farLots = [], whole = d }, { title, walkFlag, ctx }) {
