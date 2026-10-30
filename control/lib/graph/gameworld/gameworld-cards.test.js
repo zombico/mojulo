@@ -33,8 +33,9 @@ describe('the rail\'s cards', () => {
     // kits beside the city's stalker words, 4157 bytes); 4288 since 2026-10-28 (1027-building-program: the building line
     // names the four building uses, office | lab-building | warehouse | clinic, 4265 bytes)
     // the foes card too (2026-10-28): its row per class (the guard, the hunter and the summoner joined) beside the
-    // relations' words (summons, pair) and the win; a growing family, due to become an index and a card per member
-    const CEIL = { 'gameworld-guide': 4224, 'gameworld-world': 4288, 'gameworld-foes': 4608 };
+    // relations' words (summons, pair) and the win; a growing family, due to become an index and a card per member;
+    // 4736 since 2026-10-30 (1030-foe-casting-call: one line naming the cast sheet and the casting call's step, 4657 bytes)
+    const CEIL = { 'gameworld-guide': 4224, 'gameworld-world': 4288, 'gameworld-foes': 4736 };
     for (const c of cards.values()) expect(Buffer.byteLength(c.body), c.id).toBeLessThan(CEIL[c.id] ?? 4096);
   });
 

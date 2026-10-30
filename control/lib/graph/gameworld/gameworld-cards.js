@@ -562,10 +562,7 @@ function foesCard() {
     `        sever?, inside? } names its own. DESTRUCTION: a dismantle comes apart at its joints (sever: ${Object.keys(SEVERS).join(' | ')}),`,
     '        a cleave is cut through its trunk (inside: its colour); a destroy lets the killing blow choose (a strike',
     '        cleaves, a round knocks some off, a burst tears it apart): the undead\'s default, layer 0 under every foe.',
-    'CAST    the cast sheet, /bible?book=foes: the lineup at stature beside the hero, a tile per foe by tier, a card each',
-    '        (its lesson, its numbers in the flavor\'s words, its mind, its shelves); foes:cast and foes:<id> are parts to',
-    '        approve. A world that fights and keeps none: design_game\'s `foes` step proposes a cast from the intent\'s',
-    '        Mind values, its combat, its flavor and its era (a casting call), with the patch that writes it. Never written.',
+    'CAST    /bible?book=foes, the cast sheet: parts foes:cast, foes:<id>. None kept: design_game\'s `foes` step proposes one.',
     'A world or level without foes is laid as it was.',
   );
 }
