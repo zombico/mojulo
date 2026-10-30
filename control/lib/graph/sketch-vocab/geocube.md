@@ -195,9 +195,15 @@ A cube that names no domains offers one per terrain and one per interior.
   park in each, secondary nodes on the spine, mid-rise lining the arterials; its land falling to its water (a shore,
   or water all round: an island). Built as massing: every block's buildings by its segment on terraces that keep the
   streets' grade, lit windows past dusk. `geocity: { metro?, extent?, water?, core?, fall?, hills?, heights?, green?,
-  streets?, segments?, grammar?, outskirts? }`: `metro` a card (`lakeshore`, a Toronto by its lake; `harbour-island`;
-  `{ from, …changes }`), the rest its settings over it. The answer's `geocity` carries the counts, the ledger, the
-  neighbourhoods (ring, storeys, park, the beyond where a geotown joins later), the region graph and the laws;
+  streets?, segments?, grammar?, outskirts?, evoke?, at?, along?, play? }`: `metro` a card (`lakeshore`, a Toronto by
+  its lake; `harbour-island`; `{ from, …changes }`), the rest its settings over it. `evoke` how it is told: `metro`
+  (the default, every block to scale), `skyline` (its tall buildings and its water), `neighbourhood` (`at` one, by
+  default the core's nearest the seat), `corridor` (`along` an arterial, by default the spine from the shore) or
+  `segment` (`at` one block, by default a tower block by the seat): the evoked blocks wear facades (curtainwall,
+  punched stone, brick, a tower's shape, lit windows at night), the neighbourhoods round them massing, the rest the
+  skyline; `play` `game` (an evocation's default: what a walker covers compressed, never a storey) or `real`. The
+  answer's `geocity` carries the counts, the ledger, the neighbourhoods (ring, storeys, park, the beyond where a
+  geotown joins later), the region graph and the laws (an evocation's `evokes`: the metro to scale's measures);
 - a `stage`: `{ geocube, domain }` alone is the whole level: an island, a street on a trail (a domain with a town), or
   a room. Your `meru`, `trail`, `rooms`, `hour` or `town` win over the domain's;
 - a level: `{ geocube, domain, nodes }` paints every section, and lays a domain's street on its first trail;

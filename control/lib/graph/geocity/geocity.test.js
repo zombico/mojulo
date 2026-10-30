@@ -5,7 +5,7 @@
 import { describe, it, expect } from 'vitest';
 import { designGeocity, columnName } from './design.js';
 import { readGeocity, METROS, METRO_IDS } from './metro.js';
-import { bridgesOf, partsOf, geotownLeast } from './laws.js';
+import { bridgesOf, partsOf, geotownLeast, evokesLaw } from './laws.js';
 import { geocitySheet } from './sheet.js';
 import { PATTERNS } from '../geotown/pattern.js';
 
@@ -267,5 +267,49 @@ describe('its blocks', () => {
     const svg = geocitySheet(d, { view: 'blocks', focus: [d.regions[0].id], px: 1 });
     expect(svg).toContain('tower');
     expect(Number(/width="(\d+)"/.exec(svg)[1])).toBeLessThan(d.frame.W);
+  });
+});
+
+describe('an evocation, at game scale', () => {
+  const real = designGeocity({ metro: SHORE }, { seed: 3 });
+
+  it('is told by its reader: an evocation at game scale unless it says, the metro to scale', () => {
+    expect(readGeocity({}).play).toBe('real');
+    expect(readGeocity({ evoke: 'corridor' }).play).toBe('game');
+    expect(readGeocity({ evoke: 'corridor', play: 'real' }).play).toBe('real');
+    expect(() => readGeocity({ evoke: 'district' })).toThrow(/evoke is/);
+    expect(() => readGeocity({ evoke: 'corridor', at: 'D3' })).toThrow(/at is what a neighbourhood or a segment/);
+    expect(() => readGeocity({ evoke: 'segment', along: 'ns-1' })).toThrow(/along is the arterial a corridor/);
+  });
+
+  it('compresses what a walker covers and never a storey', () => {
+    const g = designGeocity({ metro: SHORE, evoke: 'neighbourhood' }, { seed: 3 });
+    expect(g.frame.W).toBeCloseTo(real.frame.W * 0.6, 0);
+    expect(g.grammar.block.pitch[1]).toBeLessThan(real.grammar.block.pitch[1]);
+    expect(g.grammar.floorH).toEqual(real.grammar.floorH);
+    expect(g.metro.heights.core.rail).toEqual(real.metro.heights.core.rail);
+    expect(g.metro.rings.frame).toBeCloseTo(real.metro.rings.frame * 0.6, 0);
+  });
+
+  it('centres on the core: a neighbourhood the core\'s nearest the seat, a segment its tower block, a corridor the spine from the shore', () => {
+    const n = designGeocity({ metro: SHORE, evoke: 'neighbourhood' }, { seed: 3 }), r = n.regions.find((x) => x.id === n.evoked.at);
+    expect(r.builds).toBe('core');
+    expect(n.evoked.blocks).toEqual(r.blocks.map((b) => b.id));
+    expect(n.evoked.regions).toContain(r.id);
+    const s = designGeocity({ metro: SHORE, evoke: 'segment' }, { seed: 3 }), b = s.regions.flatMap((x) => x.blocks).find((x) => x.id === s.evoked.at);
+    expect(b.kind).toBe('tower');
+    const c = designGeocity({ metro: SHORE, evoke: 'corridor' }, { seed: 3 }), line = c.lines.find((l) => l.id === c.evoked.along);
+    expect(line.rank).toBe('spine');
+    const blocks = c.regions.flatMap((x) => x.blocks).filter((x) => c.evoked.blocks.includes(x.id));
+    expect(blocks.length).toBeGreaterThan(4);
+    for (const x of blocks) expect(Object.values(x.sides).some((v) => v.street === line.id)).toBe(true);
+    expect(() => designGeocity({ metro: SHORE, evoke: 'neighbourhood', at: 'Z9' }, { seed: 3 })).toThrow(/is not a neighbourhood/);
+  });
+
+  it('keeps the metro to scale\'s measures, and the law says when it does not', () => {
+    for (const evoke of ['skyline', 'neighbourhood', 'corridor', 'segment']) expect(law(designGeocity({ metro: SHORE, evoke }, { seed: 3 }), 'evokes').ok).toBe(true);
+    const g = designGeocity({ metro: SHORE, evoke: 'segment' }, { seed: 3 }), other = designGeocity({ metro: SHORE, heights: { core: { median: [8, 12] } } }, { seed: 3 });
+    expect(evokesLaw(g, other).ok).toBe(false);
+    expect(law(real, 'evokes')).toBeUndefined();
   });
 });

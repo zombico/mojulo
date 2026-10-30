@@ -82,6 +82,21 @@ passed, a city or an island). Built as the geocube kind's `show: 'geocity'`, the
   dummy round the block nearest it. The answer's `geocity`: the counts, the ledger, the neighbourhoods, the region
   graph, the laws. `scripts/spikes/geocity/geocity.mjs --hours noon,night` captures it. Lakeshore: 8,019 buildings,
   131 towers, 87.7k faces by day, 12.5k lit panes at night.
+- **Evoked at game scale** (`geocity.evoke`, metro.js EVOKES; design.js `evoked`): a game does not take the metro to
+  scale, it evokes a piece of it. `skyline` the whole metro's tall buildings and water; `neighbourhood` one (`at`, by
+  default the core's nearest the seat); `corridor` an arterial's frontage end to end (`along`, by default the spine
+  from the shore inland: a Yonge); `segment` one block (`at`, by default a tower block by the seat); `metro` every block
+  to scale. An evocation is at GAME scale unless it says (`play: 'game' | 'real'`, metro.js PLAY): what a walker covers
+  compressed as city/plan's game scale does (the map, the arterials' spacing, the rings, a node's reach, the
+  collector's span ×0.6; a frontage's and a block's rows' depth ×0.8; the grammar at its game play; the outskirts'
+  geotown blocks), never a storey, a lane or a door. Built in three tiers: the evoked blocks at a building's DETAIL,
+  each core and frame mass a lot the facade pipeline wears (city/plan/facades.js: curtainwall, punched stone, brick,
+  a tower's shape; its windows lit at night on the facades' own grids) brought from its units back to metres; the
+  neighbourhoods round them as massing; the rest its skyline (one coarse drape a neighbourhood, its tall buildings, its
+  low fabric a flat mass along each long side). Seen first from over what it evokes and from its own street, where
+  its walk starts. Its `evokes` law (advice) holds it to the metro to scale designed beside it on the same seed: each
+  ring's mix of segments and its storeys, its green share, its towers a core block. An outskirts block keeps its
+  massing at detail until it is a geotown's.
 - **The sheet** (`geocity/sheet.js`), three views of one map: `rings` (each neighbourhood by the ring it builds as,
   shaded by its ground's height), `heights` (each by its median storeys, each arterial frontage band by its own) and
   `blocks` (its streets, the collectors darker, its blocks by segment, the towers on them); `focus` crops it round a

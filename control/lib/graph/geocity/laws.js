@@ -30,7 +30,42 @@ export const GEOCITY_LAWS = Object.freeze({
   segments: 'every block given to a segment of its ring, and a neighbourhood large enough its civic block (the core\'s square, the outskirts\' school)',
   soft: 'each neighbourhood\'s green ground (its park, its yards, lawns, courts and plantings) at least most of its green quota',
   towers: 'the core\'s towers rise past their podiums and stand inside their rail, the tallest in the core',
+  evokes: 'an evocation keeps the metro to scale\'s measures: each ring\'s mix of segments and its storeys, its green share, its towers a core block',
 });
+// how far an evocation's measures may stand from the metro to scale's before the law advises
+export const EVOKE_TOLERANCE = Object.freeze({ mix: 0.25, storeys: [0.8, 1.25], green: 0.05, towers: [0.6, 1.6] });
+
+/** A design's measures the evokes law compares: each ring's segments' shares and its mean storeys, its green share of
+ *  the land, its towers a core block. */
+export function measuresOf(d) {
+  const lots = d.regions.flatMap((r) => r.blocks).filter((b) => b.kind !== 'park'), out = { mix: {}, storeys: {} };
+  for (const k of ['core', 'frame', 'outskirts']) {
+    const ring = lots.filter((b) => b.ring === k);
+    if (!ring.length) continue;
+    out.mix[k] = ring.reduce((m, b) => ({ ...m, [b.kind]: (m[b.kind] ?? 0) + 1 / ring.length }), {});
+    out.storeys[k] = ring.reduce((a, b) => a + b.storeys.median, 0) / ring.length;
+  }
+  out.green = d.ledger.green.soft / (d.ledger.land || 1);
+  const core = lots.filter((b) => b.ring === 'core');
+  out.towers = core.length ? core.reduce((a, b) => a + (b.towers?.length ?? 0), 0) / core.length : 0;
+  return out;
+}
+
+/** The evokes law: an evocation's measures beside the metro to scale's. */
+export function evokesLaw(d, ref) {
+  const a = measuresOf(d), b = measuresOf(ref), T = EVOKE_TOLERANCE, off = [];
+  for (const k of Object.keys(b.mix)) {
+    if (!a.mix[k]) { off.push(`no ${k}`); continue; }
+    const kinds = new Set([...Object.keys(a.mix[k]), ...Object.keys(b.mix[k])]), tv = [...kinds].reduce((s, x) => s + Math.abs((a.mix[k][x] ?? 0) - (b.mix[k][x] ?? 0)), 0) / 2;
+    if (tv > T.mix) off.push(`${k}'s mix ${r2(tv)} apart`);
+    const ratio = a.storeys[k] / b.storeys[k];
+    if (ratio < T.storeys[0] || ratio > T.storeys[1]) off.push(`${k}'s storeys ×${r2(ratio)}`);
+  }
+  if (Math.abs(a.green - b.green) > T.green) off.push(`green ${r2(a.green * 100)}% for ${r2(b.green * 100)}%`);
+  const tr = b.towers ? a.towers / b.towers : 1;
+  if (b.towers && (tr < T.towers[0] || tr > T.towers[1])) off.push(`towers ×${r2(tr)}`);
+  return { law: 'evokes', ok: !off.length, value: off.length ? off.join('; ') : `rings ${Object.keys(a.mix).join(', ')}, green ${r2(a.green * 100)}% for ${r2(b.green * 100)}%, ${r2(a.towers)} towers a core block for ${r2(b.towers)}`, want: 'the metro to scale\'s' };
+}
 
 /** The least neighbourhood a geotown of this pattern lays two blocks by two in: along its long blocks, and across their
  *  two rows back to back, a local street between them each way (the arterials round it are the geocity's). */

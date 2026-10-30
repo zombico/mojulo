@@ -45,11 +45,22 @@
  *                   its towers, its skins
  *     outskirts     the geotown pattern its outskirts are made of (geotown/pattern.js PATTERNS)
  *
- *   readGeocity(spec) → { metro: { id, …card }, grammar, pattern, hills, seat? }
+ *   the recipe beside its metro's settings: how it is TOLD, and at what scale
+ *     evoke         'metro' (the default: every block to scale), 'skyline' (the whole metro, its tall buildings and its
+ *                   water only), 'neighbourhood' (one at a building's detail, `at` its id), 'corridor' (an arterial's
+ *                   frontage at detail, `along` its id), 'segment' (one block at detail, `at` its id): EVOKES
+ *     at, along     what an evocation centres on (by default the core's neighbourhood or tower block nearest the seat,
+ *                   the spine that runs from the shore inland)
+ *     play          'real' (lengths to scale: a metro you could drive for an hour) or 'game' (what a walker covers
+ *                   compressed: the map, the arterials' spacing, the rings, the blocks, the streets; never a storey, a
+ *                   lane or a door): PLAY. An evocation is 'game' unless it says, the metro 'real'
+ *
+ *   readGeocity(spec) → { metro: { id, …card }, grammar, pattern, hills, evoke, at, along, play }
  *
  * Metres throughout. Anything off the card is refused by name; nothing here rolls a die.
  */
 import { resolveGrammar } from '../city/plan/grammars.js';
+import { grammarAtPlay } from '../city/plan/grammar.js';
 import { PATTERNS, PATTERN_IDS } from '../geotown/pattern.js';
 
 export const SIDES = Object.freeze(['n', 'e', 's', 'w']);
@@ -111,9 +122,22 @@ export const METROS = Object.freeze({
   }),
 });
 export const METRO_IDS = Object.freeze(Object.keys(METROS));
+export const EVOKES = Object.freeze({
+  metro: 'every block to scale, the whole metro as massing',
+  skyline: 'the whole metro seen from afar: its tall buildings, its water and its land, nothing low drawn',
+  neighbourhood: 'one neighbourhood at a building\'s detail, the eight round it as massing, the rest its skyline',
+  corridor: 'an arterial\'s frontage at a building\'s detail from end to end, the neighbourhoods along it as massing, the rest its skyline',
+  segment: 'one block at a building\'s detail, its neighbourhood and the ones round it as massing, the rest its skyline',
+});
+export const EVOKE_IDS = Object.freeze(Object.keys(EVOKES));
+/** PLAY SCALES: what `game` multiplies (city/plan's game scale's numbers): the lengths a walker covers, the depth of a
+ *  frontage and of a block's rows, a park's least area by both; never a storey, a lane or a door. */
+export const PLAY = Object.freeze({ real: null, game: Object.freeze({ pitch: 0.6, depth: 0.8 }) });
 export const DEFAULT_METRO = 'lakeshore';
 // what a recipe may say beside its metro: each a card's setting laid over the card's
-const KEYS = Object.freeze(['metro', 'extent', 'water', 'core', 'fall', 'hills', 'heights', 'green', 'streets', 'segments', 'grammar', 'outskirts']);
+const KEYS = Object.freeze(['metro', 'extent', 'water', 'core', 'fall', 'hills', 'heights', 'green', 'streets', 'segments', 'grammar', 'outskirts', 'evoke', 'at', 'along', 'play']);
+// (how the recipe is told, not a setting of its metro)
+const TOLD = Object.freeze(['evoke', 'at', 'along', 'play']);
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const no = (msg) => { throw new Error(`geocity: ${msg}`); };
@@ -143,7 +167,15 @@ export function readGeocity(spec = {}) {
   for (const k of Object.keys(spec)) if (!KEYS.includes(k)) no(`'${k}' is not a setting of a geocity (${KEYS.join(', ')})`);
   const M = readMetro(spec.metro);
   // a recipe's own settings over its metro's (an object merged all the way down)
-  for (const k of KEYS.slice(1)) if (spec[k] !== undefined) M[k] = merge(M[k], spec[k]);
+  for (const k of KEYS.slice(1)) if (spec[k] !== undefined && !TOLD.includes(k)) M[k] = merge(M[k], spec[k]);
+  const evoke = spec.evoke ?? 'metro';
+  if (!EVOKES[evoke]) no(`evoke is ${EVOKE_IDS.join(', ')}`);
+  const play = spec.play ?? (evoke === 'metro' ? 'real' : 'game');
+  if (!(play in PLAY)) no(`play is ${Object.keys(PLAY).join(' or ')}`);
+  if (spec.at !== undefined && !['neighbourhood', 'segment'].includes(evoke)) no('at is what a neighbourhood or a segment evocation centres on');
+  if (spec.along !== undefined && evoke !== 'corridor') no('along is the arterial a corridor evocation runs along');
+  if (spec.at !== undefined && typeof spec.at !== 'string') no('at is a neighbourhood\'s id (\'D3\') or a block\'s (\'D3.2.1\')');
+  if (spec.along !== undefined && typeof spec.along !== 'string') no('along is an arterial\'s id (\'ns-3\')');
 
   if (!pair(M.extent, 600, 12000)) no('extent is [W, D], metres east and north, each 600 to 12000');
   const [W, D] = M.extent;
@@ -188,7 +220,22 @@ export function readGeocity(spec = {}) {
     if (!isObj(w) || Object.keys(w).some((k) => !ids.includes(k)) || !Object.values(w).every((v) => num(v, 0, 100)) || !Object.values(w).some((v) => v > 0)) no(`segments.${ring} is weights over ${ids.join(', ')}, one of them above 0`);
   }
   if (!num(M.grade, 0.01, 0.3)) no('grade is the steepest arterial, rise over run, 0.01 to 0.3');
-  const grammar = resolveGrammar(M.grammar, 'geocity.grammar');
   if (!PATTERNS[M.outskirts]) no(`outskirts is a geotown pattern (${PATTERN_IDS.join(', ')})`);
-  return { metro: M, grammar, pattern: { id: M.outskirts, ...PATTERNS[M.outskirts] }, hills };
+  let grammar = resolveGrammar(M.grammar, 'geocity.grammar'), pattern = { id: M.outskirts, ...PATTERNS[M.outskirts] };
+  // at game scale what a walker covers is compressed (checked to scale above, so a card holds either way)
+  const k = PLAY[play];
+  if (k) {
+    const p = (v) => Math.round(v * k.pitch * 100) / 100, q = (v) => Math.round(v * k.depth * 100) / 100;
+    M.extent = M.extent.map(p);
+    M.water = { ...M.water, depth: p(M.water.depth) };
+    M.arterials = { core: M.arterials.core.map(p), outer: M.arterials.outer.map(p), reach: p(M.arterials.reach) };
+    M.rings = { core: p(M.rings.core), frame: p(M.rings.frame) };
+    M.heights = { ...M.heights, corridor: { ...M.heights.corridor, depth: q(M.heights.corridor.depth) }, nodes: { ...M.heights.nodes, reach: p(M.heights.nodes.reach) } };
+    M.green = { ...M.green, park: { ...M.green.park, least: Math.round(M.green.park.least * k.pitch * k.depth) } };
+    M.streets = { ...M.streets, collector: p(M.streets.collector), school: Math.round(M.streets.school * k.pitch * k.depth) };
+    if (hills) hills = { ...hills, span: p(hills.span) };
+    grammar = grammarAtPlay(grammar, 'game');
+    pattern = { ...pattern, block: { long: pattern.block.long.map(p), depth: pattern.block.depth.map(q) } };
+  }
+  return { metro: M, grammar, pattern, hills, evoke, play, ...(spec.at !== undefined ? { at: spec.at } : {}), ...(spec.along !== undefined ? { along: spec.along } : {}) };
 }

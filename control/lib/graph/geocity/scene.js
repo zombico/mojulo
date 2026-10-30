@@ -16,6 +16,12 @@
  *              the street in two rows back to back, an edge's or a main street's shops along its street, low-rises, a
  *              walk-up, a school and its field. Glass in the core, stone and brick outward (its grammar's skins)
  *   night      past dusk each tall wall's floors lit in runs (the grammar's share), panes no light shades: the room's own
+ *   evoked     an evocation (metro.js EVOKES, design.js `evoked`): its blocks at a building's detail, each core and frame
+ *              mass a lot the facade pipeline wears (city/plan/facades.js skinLot: curtainwall, punched stone, brick,
+ *              a tower's shape; its windows lit at night on the facades' own grids, night.js), brought back from its
+ *              units to metres; the neighbourhoods round them as massing; the rest of the metro its skyline (each
+ *              neighbourhood one coarse drape, its tall buildings, its low fabric a flat mass along each long side).
+ *              Seen first from over what it evokes and from its own street, where its walk starts
  *
  *   GEOCITY_KEYS              the settings of the geocube kind's geocity
  *   GEOCITY_FACES             the face budget a geocity is held to (a law, advice)
@@ -31,6 +37,10 @@ import { readPaint, cubeLookSpec, lookLight, hourSky, CITY_HAZE } from '../city/
 import { shadeHex, hexToRgb, rgbToHex } from '../polygonizer/vexar.js';
 import { streamOf, strHash } from '../city/plan/dice.js';
 import { CITY_METERS_PER_UNIT } from '../city/fractal-city.js';
+import { skinLot } from '../city/plan/facades.js';
+import { nightFaces } from '../city/plan/night.js';
+import { ORGANIC_SHAPES } from '../city/plan/organic.js';
+import { assembleBoxCityScene } from '../scene/scene-css3d.js';
 
 export const GEOCITY_KEYS = Object.freeze(['kind', 'cube', 'show', 'title', 'seed', 'hour', 'clouds', 'geocity', 'walk', 'shadows', 'occlusion', 'light']);
 export const GEOCITY_FACES = 200000;
@@ -39,6 +49,9 @@ export const GEOCITY_FACES = 200000;
 const CELL = 40, KERB = 0.15, WALK = 2.4, STEP = 1.2;
 // an outskirts house: a semi pair's frontage, the gap between pairs, its depth, its front yard; a storey; a shop's depth
 const PAIR = 13.6, GAP = 1.4, HOUSE_D = 12, SETBACK = 5, STOREY = 3, SHOP_D = 14;
+// the skyline's ground cells (m); what it draws of a neighbourhood (its tall buildings); what a block at detail wears
+// facades on (the core's and the frame's: an outskirts block keeps its massing until it is a geotown's)
+const FAR_CELL = 160, TALL = Object.freeze(['tower', 'podium', 'midrise', 'slab']), DETAILED = Object.freeze(['tower', 'podium', 'midrise', 'slab']);
 
 const r5 = (v) => Math.round(v * 1e5) / 1e5 + 0;
 const P3 = (p) => p.map(r5);
@@ -70,7 +83,7 @@ export function assembleGeocityScene(m, ctx = {}) {
   // ── the light: the cube's at its hour, under its clouds (city/plan/look.js: as it lights a city) ──
   const paint = readPaint({ geocube: m.cube, amount: 1, ...(m.hour !== undefined ? { hour: m.hour } : {}), ...(m.clouds !== undefined ? { clouds: m.clouds } : {}) });
   const spec = cubeLookSpec(paint), lit = lookLight(spec, paint), LIGHT = lit.light, sun = LIGHT.toLight, air = spec.air ?? spec.ref.air, night = lit.night;
-  const col = coloursOf(cube), faces = [], counts = { towers: 0, buildings: 0, houses: 0, panes: 0 };
+  const col = coloursOf(cube), faces = [], counts = { towers: 0, buildings: 0, houses: 0, panes: 0, detailed: 0 };
   const put = (corners, group, hex, want = null) => {
     let c = corners, n = newell(c);
     if (want && n[0] * want[0] + n[1] * want[1] + n[2] * want[2] < 0) { c = c.slice().reverse(); n = n.map((x) => -x); }
@@ -81,8 +94,8 @@ export function assembleGeocityScene(m, ctx = {}) {
   // a pane no light shades (a lit room at night)
   const pane = (corners, n, hex) => { faces.push({ corners: corners.map(P3), normal: P3(n), outNormal: P3(n), group: 'geocity:night-window', fill: hex, cornerFills: corners.map(() => hex) }); counts.panes++; };
   // a rect draped on the land at `lift` over it, in cells
-  const drape = (r, group, hex, lift = 0) => {
-    const xs = cuts(r[0], r[2], CELL), ys = cuts(r[1], r[3], CELL);
+  const drape = (r, group, hex, lift = 0, cell = CELL) => {
+    const xs = cuts(r[0], r[2], cell), ys = cuts(r[1], r[3], cell);
     for (let j = 0; j + 1 < ys.length; j++) for (let i = 0; i + 1 < xs.length; i++) put([[xs[i], ys[j]], [xs[i + 1], ys[j]], [xs[i + 1], ys[j + 1]], [xs[i], ys[j + 1]]].map(([x, y]) => [x, y, S(x, y) + lift]), group, hex);
   };
   const box = (x0, y0, x1, y1, z0, z1, wall, roof, group) => {
@@ -153,7 +166,11 @@ export function assembleGeocityScene(m, ctx = {}) {
   const glass = G.skin.glass, stone = G.skin.stone, brick = G.skin.brick, roofs = G.skin.roof, office = G.floorH.office, resid = G.floorH.residential;
   const famOf = (fams, id) => fams[strHash(id) % fams.length];
   let firstBlock = null;
+  // an evocation's tiers: its blocks at a building's detail, the neighbourhoods round them as massing, the rest its
+  // skyline (each neighbourhood's ground one coarse drape, its tall buildings on it, nothing low)
+  const E = d.evoked, detail = new Set(E?.blocks ?? []), massed = E ? new Set(E.regions) : null, lots = [];
   for (const r of d.regions) {
+    if (massed && !massed.has(r.id)) { backdrop(r); continue; }
     if (r.park) { drape(r.rect, 'geocity:park', col.park); continue; }
     drape(r.rect, 'geocity:road', col.road);
     for (const b of r.blocks) {
@@ -190,8 +207,51 @@ export function assembleGeocityScene(m, ctx = {}) {
       });
       if (b.kind === 'park') continue;
       if (!firstBlock || Math.hypot((x0 + x1) / 2 - d.seat[0], (y0 + y1) / 2 - d.seat[1]) < Math.hypot((firstBlock.rect[0] + firstBlock.rect[2]) / 2 - d.seat[0], (firstBlock.rect[1] + firstBlock.rect[3]) / 2 - d.seat[1])) firstBlock = b;
-      building(b, { x0, y0, x1, y1, longY, zAt, Rb });
+      if (detail.has(b.id) && DETAILED.includes(b.kind)) detailed(b, { x0, y0, x1, y1, zAt, Rb });
+      else building(b, { x0, y0, x1, y1, longY, zAt, Rb });
     }
+  }
+
+  /** A neighbourhood as the skyline sees it: its ground one coarse drape, its tall buildings standing on it. */
+  function backdrop(r) {
+    if (r.park) { drape(r.rect, 'geocity:park', col.park, 0, FAR_CELL); return; }
+    drape(r.rect, 'geocity:ground', r.builds === 'outskirts' ? mix(col.lawn, col.road, 0.35) : mix(col.plaza, col.road, 0.5), 0, FAR_CELL);
+    for (const b of r.blocks) {
+      if (b.kind === 'park') continue;
+      const [x0, y0, x1, y1] = b.rect, cx = (x0 + x1) / 2, cy = (y0 + y1) / 2, z = S(cx, cy) + KERB, longY = y1 - y0 >= x1 - x0;
+      if (TALL.includes(b.kind)) { building(b, { x0, y0, x1, y1, longY, zAt: () => z, Rb: streamOf(seed, 'scene', b.id) }); continue; }
+      // the low fabric as the skyline sees it: a flat mass along each long side, at the block's storeys
+      const dp = Math.min(HOUSE_D + SETBACK, (longY ? x1 - x0 : y1 - y0) / 2 - 3), zt = z + Math.max(1, b.storeys.median) * STOREY + 1.5, hex = mix(HOUSE_BRICK[strHash(b.id) % HOUSE_BRICK.length], col.road, 0.25);
+      if (dp < 6) continue;
+      for (const q of longY ? [[x0 + SETBACK, y0 + 2, x0 + dp, y1 - 2], [x1 - dp, y0 + 2, x1 - SETBACK, y1 - 2]] : [[x0 + 2, y0 + SETBACK, x1 - 2, y0 + dp], [x0 + 2, y1 - dp, x1 - 2, y1 - SETBACK]]) box(q[0], q[1], q[2], q[3], z, zt, hex, ROOFS[0], 'geocity:low');
+    }
+  }
+
+  /** A block at a building's detail: its masses as lots the facade pipeline wears (city/plan/facades.js), on their
+   *  terraces; drawn together after, in the pipeline's units, and brought back to metres. */
+  function detailed(b, { x0, y0, x1, y1, zAt, Rb }) {
+    const w = x1 - x0, h = y1 - y0, cx = (x0 + x1) / 2, cy = (y0 + y1) / 2, med = b.storeys.median, zc = zAt(cx, cy);
+    const inset = (share) => { const e = ((w + h) - Math.sqrt((w + h) ** 2 - 4 * w * h * (1 - share))) / 4; return [x0 + e, y0 + e, x1 - e, y1 - e]; };
+    // the face it fronts: an arterial's side first, else its south
+    const fs = ['s', 'n', 'w', 'e'].find((k) => b.sides[k]?.kind === 'arterial') ?? 's', front = { n: '+y', s: '-y', e: '+x', w: '-x' }[fs];
+    const lot = (id, [a0, b0, a1, b1], z0, floors, floorH, skin, use, extra = {}) => lots.push({ id, x0: a0, y0: b0, x1: a1, y1: b1, z0, h: floors * floorH, floors, floorH, skin, use, front, shopfront: use !== 'residential', ...extra });
+    if (b.kind === 'tower') {
+      lot(`${b.id}:podium`, inset(0.62), zc, b.podium, office, 'stone', 'mixed');
+      b.towers.forEach((t, k) => {
+        const sh = Rb(), [s1, s2, s3] = G.tower.shapes, shape = sh < s1 ? 'setback' : sh < s2 ? 'box' : sh < s3 ? 'podium' : 'cylinder';
+        lot(`${b.id}:t${k}`, t.rect, zAt((t.rect[0] + t.rect[2]) / 2, (t.rect[1] + t.rect[3]) / 2), t.storeys, office, Rb() < G.skin.towerGlass ? 'glass' : 'stone', 'office', { tower: true, shape, shopfront: false });
+        counts.towers++;
+      });
+    } else if (b.kind === 'podium') lot(`${b.id}:podium`, inset(0.8), zc, Math.max(1, Math.round(med)), office, Rb() < 0.5 ? 'stone' : 'glass', 'office');
+    else if (b.kind === 'midrise') {
+      const dp = Math.min(14, w / 3, h / 3);
+      put([[x0 + dp, y0 + dp, zc + 0.02], [x1 - dp, y0 + dp, zc + 0.02], [x1 - dp, y1 - dp, zc + 0.02], [x0 + dp, y1 - dp, zc + 0.02]], 'geocity:court', col.court);
+      [[x0, y0, x1, y0 + dp], [x0, y1 - dp, x1, y1], [x0, y0 + dp, x0 + dp, y1 - dp], [x1 - dp, y0 + dp, x1, y1 - dp]].forEach((q, k) => lot(`${b.id}:m${k}`, q, zc, Math.max(1, Math.round(med)), resid, 'brick', 'residential'));
+    } else if (b.kind === 'slab') {
+      const long = Math.max(w, h) * 0.72, dp = Math.min(15, Math.min(w, h) * 0.35), longY = h >= w;
+      lot(`${b.id}:slab`, longY ? [cx - dp / 2, cy - long / 2, cx + dp / 2, cy + long / 2] : [cx - long / 2, cy - dp / 2, cx + long / 2, cy + dp / 2], zc, Math.max(1, Math.round(med)), resid, 'stone', 'residential');
+    }
+    counts.detailed++;
   }
 
   /** A block's buildings, by its segment, on its terraces. */
@@ -284,21 +344,71 @@ export function assembleGeocityScene(m, ctx = {}) {
     } else { houses(sides[0], 2, L - 2); houses(sides[1], 2, L - 2); }
   }
 
+  // ── the blocks at a building's detail: their masses through the facade pipeline (its units), back to metres; at
+  // night its windows lit on the facades' own grids (city/plan/night.js) ──
+  let textures = null;
+  if (lots.length) {
+    const U = CITY_METERS_PER_UNIT, u = (v) => Math.round((v / U) * 1000) / 1000;
+    const boxes = lots.map((l) => {
+      const { skin, shape } = skinLot(l, G, seed);
+      return { x: u(l.x0), y: u(l.y0), w: u(l.x1 - l.x0), d: u(l.y1 - l.y0), z0: u(l.z0), z1: u(l.z0 + l.h), kind: 'building', metro: true, floors: l.floors, floorH: u(l.floorH),
+        skin, shape: ORGANIC_SHAPES.includes(shape) ? 'box' : shape, front: l.front, roadFaces: [l.front], ...(l.tower ? { tower: true } : {}), lot: l.id };
+    });
+    const sc = assembleBoxCityScene({ boxes, faces: [], cameras: [], viewBox: { width: 1280, height: 720 }, title: '', light: LIGHT });
+    const fs = night ? nightFaces(sc.faces, boxes, new Map(lots.map((l) => [l.id, l])), G.night, seed) : sc.faces;
+    for (const f of fs) {
+      if (f.group === 'city:night-window' || f.group === 'city:night-shop') counts.panes++;
+      // (a facade's own faces come untagged: they are the detail's)
+      faces.push({ ...f, group: f.group ?? 'geocity:facade', corners: f.corners.map((c) => c.map((v) => r5(v * U))) });
+    }
+    if (sc.textures && Object.keys(sc.textures).length) textures = sc.textures;
+    counts.buildings += lots.length;
+  }
+
   // ── the cameras: the skyline from its water (or from past its land's edge), over the metro, the core, up its spine ──
   const [sx, sy] = d.seat, zs = S(sx, sy), toward = d.metro.fall.toward, out = { s: [0, -1], n: [0, 1], w: [-1, 0], e: [1, 0] }[toward];
   const top = Math.max(60, ...d.regions.flatMap((r) => r.blocks.flatMap((b) => (b.towers ?? []).map((t) => t.storeys * office))));
   const W = d.frame.W, D = d.frame.D, far = Math.max(W, D);
   const spine = NS.find((l) => l.rank === 'spine'), up = toward === 's' ? 1 : -1, ex = spine.at + sec.half - sec.walk / 2;
-  const eye = [ex, sy + up * (sec.half + 30), 0];
+  let eye = [ex, sy + up * (sec.half + 30), 0];
   eye[2] = S(eye[0], eye[1]) + KERB + 1.7;
-  const cameras = [
+  let cameras = [
     { name: 'skyline', worldFraming: { cameraPosition: P3([sx + out[0] * far * 0.42 + out[1] * 120, sy + out[1] * far * 0.42 + out[0] * 120, zs + 40]), lookAt: P3([sx, sy, zs + top * 0.35]), horizontalFov: 55 } },
     { name: 'over', worldFraming: { cameraPosition: P3([W * 1.05, -D * 0.25, far * 0.55]), lookAt: P3([W / 2, D / 2, 0]), horizontalFov: 55 } },
     { name: 'core', worldFraming: { cameraPosition: P3([sx + 520, sy + out[1] * 380 + 260, zs + 260]), lookAt: P3([sx, sy, zs + 40]), horizontalFov: 55 } },
     { name: 'street', worldFraming: { cameraPosition: P3(eye), lookAt: P3([ex, eye[1] + up * 120, eye[2] + 8]), horizontalFov: 75 } },
   ];
-  // ── the route round the block nearest the seat (the dummy's), on its walk ──
-  const fb = firstBlock?.rect ?? [sx + 20, sy + 20, sx + 60, sy + 60], o = WALK / 2;
+  // an evocation is seen first where it is: from over it and from its own street (where its walk starts), then as the
+  // metro is
+  let fb = firstBlock?.rect ?? [sx + 20, sy + 20, sx + 60, sy + 60];
+  if (E && E.evoke !== 'skyline') {
+    const blocks = d.regions.flatMap((r) => r.blocks), byId = new Map(blocks.map((b) => [b.id, b]));
+    const shown = E.blocks.map((id) => byId.get(id)), hull = [Math.min(...shown.map((b) => b.rect[0])), Math.min(...shown.map((b) => b.rect[1])), Math.max(...shown.map((b) => b.rect[2])), Math.max(...shown.map((b) => b.rect[3]))];
+    const mid = [(hull[0] + hull[2]) / 2, (hull[1] + hull[3]) / 2], span = Math.max(hull[2] - hull[0], hull[3] - hull[1], 240), zm = S(mid[0], mid[1]);
+    const tall = Math.max(30, ...shown.flatMap((b) => [b.storeys.median * office, ...(b.towers ?? []).map((t) => t.storeys * office)]));
+    // its street: along the evoked block nearest its middle (a corridor's: along its arterial, from the seat's end)
+    let st, look;
+    if (E.evoke === 'corridor') {
+      const l = d.lines.find((x) => x.id === E.along), ns = l.axis === 'ns', a = ns ? sy : sx, lo = ns ? hull[1] : hull[0], hi = ns ? hull[3] : hull[2], dir = Math.abs(a - lo) <= Math.abs(a - hi) ? 1 : -1, from = Math.max(lo, Math.min(hi, a));
+      const off = l.at + sec.half - sec.walk / 2;
+      st = ns ? [off, from + dir * 30] : [from + dir * 30, off];
+      look = ns ? [off, st[1] + dir * 160] : [st[0] + dir * 160, off];
+    } else {
+      const b = shown.slice().sort((p, q) => Math.hypot((p.rect[0] + p.rect[2]) / 2 - mid[0], (p.rect[1] + p.rect[3]) / 2 - mid[1]) - Math.hypot((q.rect[0] + q.rect[2]) / 2 - mid[0], (q.rect[1] + q.rect[3]) / 2 - mid[1]))[0];
+      st = [b.rect[0] - WALK / 2, b.rect[1] - WALK / 2];
+      look = [b.rect[2], b.rect[1] - WALK / 2];
+      fb = b.rect;
+    }
+    eye = [st[0], st[1], S(st[0], st[1]) + KERB + 1.7];
+    cameras = [
+      // (over it: higher than its tallest, so a neighbour's tower never stands between)
+      { name: 'evoked', worldFraming: { cameraPosition: P3([mid[0] + span * 0.75, mid[1] - span * 0.95, zm + Math.max(span * 0.55 + tall * 0.6, top * 1.1)]), lookAt: P3([mid[0], mid[1], zm + tall * 0.25]), horizontalFov: 55 } },
+      { name: 'street', worldFraming: { cameraPosition: P3(eye), lookAt: P3([look[0], look[1], eye[2] + 10]), horizontalFov: 75 } },
+      ...cameras.filter((c) => c.name === 'skyline' || c.name === 'over'),
+    ];
+  } else if (E) cameras = cameras.filter((c) => c.name === 'skyline' || c.name === 'over');
+  // ── the route round the block nearest the seat (the dummy's), or the evoked block's, on its walk ──
+  const o = WALK / 2;
   const ring = [[fb[0] - o, fb[1] - o], [fb[2] + o, fb[1] - o], [fb[2] + o, fb[3] + o], [fb[0] - o, fb[3] + o]], route = [];
   for (let k = 0; k < 4; k++) { const p = ring[k], q = ring[(k + 1) % 4], nn = Math.max(1, Math.ceil(Math.hypot(q[0] - p[0], q[1] - p[1]) / 2)); for (let i = 0; i < nn; i++) { const x = p[0] + ((q[0] - p[0]) * i) / nn, yy = p[1] + ((q[1] - p[1]) * i) / nn; route.push(P3([x, yy, S(x, yy) + KERB])); } }
   route.push(route[0]);
@@ -308,7 +418,7 @@ export function assembleGeocityScene(m, ctx = {}) {
   const bg = night ? air.fog.color : rgbToHex(air.dome.horizon);
   const kinds = d.regions.flatMap((r) => r.blocks).reduce((acc, b) => ({ ...acc, [b.kind]: (acc[b.kind] ?? 0) + 1 }), {});
   return {
-    faces, cameras, viewBox: { width: 1280, height: 720 }, title: ctx.title || `${cube.title} · geocity`,
+    faces, ...(textures ? { textures } : {}), cameras, viewBox: { width: 1280, height: 720 }, title: ctx.title || `${cube.title} · geocity`,
     // (the city's haze is laid per its world unit, city/plan/scene.js; this world's unit is the metre)
     bg, haze: { color: air.fog.color, density: r5((air.fog.density * CITY_HAZE) / CITY_METERS_PER_UNIT) },
     sky: { zenith: air.dome.zenith, horizon: air.dome.horizon, day: night ? 0 : 1, stars: 0, seed: 1, ...(night ? {} : { sun: { dir: P3(sun), size: 1.4, glow: 1.3 } }), ...(spec.air ? hourSky(spec.air) : {}) },
@@ -316,7 +426,8 @@ export function assembleGeocityScene(m, ctx = {}) {
     route,
     geocube: geocubeReadout(cube, 'geocity', null, m),
     geocity: {
-      metro: d.metro.id, grammar: G.label, frame: d.frame, land: d.land.range, seat: d.seat,
+      metro: d.metro.id, grammar: G.label, frame: d.frame, land: d.land.range, seat: d.seat, evoke: d.spec.evoke, play: d.spec.play,
+      ...(E ? { evoked: { ...(E.at ? { at: E.at } : {}), ...(E.along ? { along: E.along } : {}), detail: E.blocks.length, massing: E.regions.length } } : {}),
       counts: { neighbourhoods: d.regions.length, blocks: Object.values(kinds).reduce((a, n) => a + n, 0), segments: kinds, ...counts, faces: faces.length },
       neighbourhoods: d.regions.map((r) => ({ id: r.id, ring: r.ring, builds: r.builds, storeys: r.storeys.median, blocks: r.blocks.length, park: r.park || !!r.parkRect, ...(r.node ? { node: r.node } : {}), ...(r.beyond.length ? { beyond: r.beyond } : {}) })),
       graph: { nodes: d.graph.nodes.length, edges: d.graph.edges.length, beyond: d.graph.beyond },

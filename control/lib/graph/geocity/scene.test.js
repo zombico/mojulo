@@ -61,3 +61,25 @@ describe('the geocity built: its map stood on the cube\'s land as massing', () =
     expect(() => assembleGeocityScene({ ...M, domain: 'x' })).toThrow(/'domain' is not a setting of the geocube kind's geocity/);
   });
 });
+
+describe('an evocation built', () => {
+  const N = assembleGeocityScene({ ...M, geocity: { ...geocity, evoke: 'neighbourhood' } });
+  const K = assembleGeocityScene({ ...M, geocity: { ...geocity, evoke: 'skyline' } });
+
+  it('wears facades on its evoked blocks only, from over it and its own street', () => {
+    expect(N.geocity.evoked.detail).toBeGreaterThan(0);
+    expect(N.geocity.counts.detailed).toBeGreaterThan(0);
+    expect(N.faces.filter((f) => f.group === 'geocity:facade').length).toBeGreaterThan(100);
+    expect(P.faces.some((f) => f.group === 'geocity:facade')).toBe(false);
+    expect(N.cameras.map((c) => c.name)).toEqual(['evoked', 'street', 'skyline', 'over']);
+    expect(N.walk.spawn).toEqual(N.cameras[1].worldFraming.cameraPosition);
+    expect(N.geocity.play).toBe('game');
+  });
+
+  it('draws the skyline as its tall buildings on coarse ground: no pad, no house', () => {
+    expect(K.faces.filter((f) => f.group === 'geocity:pad' || f.group === 'geocity:house')).toHaveLength(0);
+    expect(K.faces.some((f) => f.group === 'geocity:tower')).toBe(true);
+    expect(K.cameras.map((c) => c.name)).toEqual(['skyline', 'over']);
+    expect(K.faces.length).toBeLessThan(P.faces.length);
+  });
+});

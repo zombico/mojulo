@@ -30,15 +30,19 @@
  *                 square metre once; inside each neighbourhood its streets, blocks and park, every block's ground by
  *                 surface; the green budget, reserved, given out as quotas, placed as parks and grown as soft ground
  *
+ *  10 evoked      an EVOCATION's (metro.js EVOKES, at game scale unless it says): what it is centred on and what it draws
+ *                 at a building's detail (`blocks`), as massing round it (`regions`), and the rest its skyline; the
+ *                 `evokes` law holding it to the metro to scale (designed beside it, the same seed)
+ *
  *   designGeocity(spec, { seed, field? }) → { spec, seed, metro, grammar, frame, land, seat, section, lines, crossings,
- *     regions (each its `streets`, `blocks`, `ledger`), graph, heights: { reach, nodes, storeysAt }, ledger, laws }
+ *     regions (each its `streets`, `blocks`, `ledger`), graph, heights: { reach, nodes, storeysAt }, ledger, evoked?, laws }
  *     (`field`: (x, y) → metres, the natural ground in place of fall and hills)
  *   geocityLand(read, land, seed, field?) → { N, S, range }
  *
  * Metres, x east, y north, z up, the map's south-west corner the origin. Every rect is [x0, y0, x1, y1].
  */
 import { readGeocity } from './metro.js';
-import { geocityLaws } from './laws.js';
+import { geocityLaws, evokesLaw } from './laws.js';
 import { heightsOf } from './heights.js';
 import { parksOf } from './parks.js';
 import { blocksOf } from './blocks.js';
@@ -241,5 +245,40 @@ export function designGeocity(spec = {}, { seed = 1, field = null } = {}) {
   const d = { spec: T, seed, metro: M, grammar: G, frame: { W, D }, land: { rect: land, ...L }, water, seat, section, lines, crossings, regions, graph,
     heights: { reach: Hs.reach, nodes: Hs.nodes, storeysAt: Hs.storeysAt }, ledger };
   d.laws = geocityLaws(d);
+  // 10 an evocation: what it centres on and draws at detail, and the metro to scale it is held to
+  if (T.evoke !== 'metro') {
+    d.evoked = evokedOf(d, T);
+    const told = ['evoke', 'at', 'along', 'play'];
+    const ref = designGeocity(Object.fromEntries(Object.entries(spec).filter(([k]) => !told.includes(k))), { seed, field });
+    d.laws.push(evokesLaw(d, ref));
+  }
   return d;
+}
+
+/** What an evocation centres on, the blocks it draws at a building's detail and the neighbourhoods round them it draws
+ *  as massing (the rest of the metro is its skyline). */
+function evokedOf(d, T) {
+  const no = (msg) => { throw new Error(`geocity: ${msg}`); };
+  const near = (p) => Math.hypot(p[0] - d.seat[0], p[1] - d.seat[1]), mid = (r) => [(r[0] + r[2]) / 2, (r[1] + r[3]) / 2];
+  const built = d.regions.filter((r) => !r.park), byId = new Map(d.regions.map((r) => [r.id, r]));
+  const round = (rs) => { const keys = new Set(rs.flatMap((r) => [-1, 0, 1].flatMap((a) => [-1, 0, 1].map((b) => `${r.i + a}:${r.j + b}`)))); return d.regions.filter((r) => keys.has(`${r.i}:${r.j}`)).map((r) => r.id); };
+  const out = { evoke: T.evoke, play: T.play };
+  if (T.evoke === 'skyline') return { ...out, blocks: [], regions: [] };
+  if (T.evoke === 'neighbourhood') {
+    const at = T.at ?? built.filter((r) => r.builds === 'core').sort((p, q) => near(p.mid) - near(q.mid))[0]?.id ?? built[0].id;
+    const r = byId.get(at) ?? no(`at '${at}' is not a neighbourhood (${d.regions.map((x) => x.id).join(', ')})`);
+    return { ...out, at, blocks: r.blocks.map((b) => b.id), regions: round([r]) };
+  }
+  if (T.evoke === 'segment') {
+    const lots = built.flatMap((r) => r.blocks.filter((b) => b.kind !== 'park').map((b) => ({ r, b })));
+    const pick = T.at ? lots.find((x) => x.b.id === T.at) ?? no(`at '${T.at}' is not a block (a neighbourhood's id, its column and row: 'D3.2.1')`) : lots.filter((x) => x.b.kind === 'tower').sort((p, q) => near(mid(p.b.rect)) - near(mid(q.b.rect)))[0] ?? lots[0];
+    return { ...out, at: pick.b.id, blocks: [pick.b.id], regions: round([pick.r]) };
+  }
+  // a corridor: the arterial from the shore inland by default, its frontage blocks at detail end to end
+  const toward = d.metro.fall.toward, axis = toward === 's' || toward === 'n' ? 'ns' : 'ew';
+  const along = T.along ?? d.lines.find((l) => l.rank === 'spine' && l.axis === axis).id;
+  if (!d.lines.some((l) => l.id === along)) no(`along '${along}' is not an arterial (${d.lines.map((l) => l.id).join(', ')})`);
+  const on = built.filter((r) => Object.values(r.sides).some((s) => s.street === along));
+  const blocks = on.flatMap((r) => r.blocks.filter((b) => b.kind !== 'park' && Object.values(b.sides).some((s) => s.street === along)).map((b) => b.id));
+  return { ...out, along, blocks, regions: on.map((r) => r.id) };
 }
