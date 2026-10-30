@@ -12,11 +12,13 @@
  *                         `foes:<id>` for each foe (its words and its death), each with its print
  *   foeState(world, { cast? })   → each part's stamp, the machine gate the resolver's advisories on each foe
  *   approveFoe(world, part, note?)   → the review entry to write for the creator's approval of a part
+ *   COUNSEL             how to beat a foe, said to a player: a line per word it carries (a card's `beat`)
  *   STAT_WORDS          per flavor (juice-style.js JUICE_FLAVORS): how a foe's toll is said in that game type
  *   REGISTER_WORDS      per register (anime | western): the sheet's title and each rank's tier
  *
  * A card: { id, name, class, reads, rank, skill, tier, skin: { kind, says, species?, oozes?, stylism?, dress? }, element?,
- *   stats, attack, mind, modes, states, death, relations, levels, fielded, status, marks, advisories, figure, variantOf? }:
+ *   stats, attack, mind, modes, states, death, relations, levels, fielded, status, marks, advisories, figure, variantOf?,
+ *   beat, costs }: `beat` how to beat it (COUNSEL), `costs` what it takes and what it costs, in the flavor's words;
  *   a beast grown by oozes is a VARIANT of one of the same class on the same species grown by none (a relation each way).
  *   An ooze grows the body's shape, never its stature: that is its class's presence and its rank's. `figure` the step a run makes its figure at
  *   (`foes-<id>`, runner.js), or a model's own ref; null for a mode or a relation a level never reaches.
@@ -52,11 +54,20 @@ const specOf = ({ class: c, rank, skill, skin }) => ({ class: c, ...(rank !== un
  * numbers themselves (a realistic game's health and damage), false where it counts.
  */
 export const STAT_WORDS = Object.freeze({
-  realistic: { downs: 'health', harm: 'damage a hit', health: true, pace: 'speed', telegraph: 'wind-up' },
-  action: { downs: 'blows to down', harm: 'hits it lands', health: false, pace: 'speed', telegraph: 'tell' },
-  platformer: { downs: 'bops to down', harm: 'hearts a touch costs', health: false, pace: 'pace', telegraph: 'tell' },
-  pinball: { downs: 'hits to pop', harm: 'knocks it deals', health: false, pace: 'pace', telegraph: 'tell' },
+  realistic: { downs: 'health', harm: 'damage a hit', health: true, pace: 'speed', telegraph: 'wind-up', blow: ['hit', 'hits'], cost: ['health', 'health'] },
+  action: { downs: 'blows to down', harm: 'hits it lands', health: false, pace: 'speed', telegraph: 'tell', blow: ['blow', 'blows'], cost: ['hit', 'hits'] },
+  platformer: { downs: 'bops to down', harm: 'hearts a touch costs', health: false, pace: 'pace', telegraph: 'tell', blow: ['bop', 'bops'], cost: ['heart', 'hearts'] },
+  pinball: { downs: 'hits to pop', harm: 'knocks it deals', health: false, pace: 'pace', telegraph: 'tell', blow: ['hit', 'hits'], cost: ['knock', 'knocks'] },
 });
+const n = (k, [one, many]) => `${k} ${k === 1 ? one : many}`;
+// what a foe takes and what it costs, as a sentence in the flavor's words: its blow by how it hurts (a touch, a shot)
+const HURTS_BY = Object.freeze({ contact: 'a touch', charge: 'its charge', strike: 'its blow', shot: 'a shot', lob: 'a lob', spray: 'its spray' });
+function costsOf(f, W) {
+  const takes = W.health ? `${f.toll.hp} health to down` : `${n(f.toll.downs, W.blow)} to down`;
+  const by = HURTS_BY[f.attack.kind];
+  if (!by || !f.toll.harm) return `${takes}; it does not hurt you itself`;
+  return `${takes}; ${by} costs you ${W.health ? `${f.toll.damage} health` : n(f.toll.harm, W.cost)}`;
+}
 /** How a register names the sheet and the ranks it tiers the cast by (mind/vocab.js RANKS, least first). */
 export const REGISTER_WORDS = Object.freeze({
   anime: { title: 'Enemy roster', lede: 'who stands against the hero, by tier', tiers: { minion: 'Mobs', elite: 'Elites', miniboss: 'Mid-bosses', boss: 'Bosses' } },
@@ -64,6 +75,51 @@ export const REGISTER_WORDS = Object.freeze({
 });
 for (const k of Object.keys(JUICE_FLAVORS)) if (!STAT_WORDS[k]) throw new Error(`foe-cast: no stat words for the flavor '${k}'`);
 for (const k of Object.keys(JUICE_REGISTERS)) if (!REGISTER_WORDS[k]) throw new Error(`foe-cast: no sheet words for the register '${k}'`);
+
+/**
+ * HOW TO BEAT IT, said to a player: one line per word a foe carries that the player can answer, rows rather than a foe's
+ * own (docs/foes.md: every default tells the player something). Its class's `reads` says what it does; these say what
+ * to do about it. A word with no row says nothing.
+ */
+export const COUNSEL = Object.freeze({
+  stomp: { blow: 'jump on it: a stomp is one of your blows', hurts: 'never stomp it: its back hurts', bounce: 'a stomp only bounces off it: fight it on the ground' },
+  attack: {
+    contact: 'keep off it: a touch costs you', strike: 'its wind-up is the tell: step out of its reach, then punish the recovery',
+    shot: 'break its line of sight, and close in between its shots', lob: 'keep moving: it lobs at where you stood',
+    spray: 'stay out of the cone in front of it', charge: 'step aside as it braces: a wall it runs into stuns it',
+    call: 'go for it first: it is what calls the others',
+  },
+  sight: { narrow: 'stay out of its narrow beam', wide: 'it sees a fair way, wide: use cover', keen: 'it sees far: keep low and keep out of the open' },
+  gaze: { sweep: 'time its sweep: it looks either side of its heading' },
+  perception: { memory: 'once it has seen you it searches where you were: do not wait there' },
+  cover: 'under fire it takes cover: flank it or flush it out',
+  pack: 'a pack rings you and closes a few at a time: keep your back clear',
+  switches: 'it changes its tactics as it is hurt: do not settle into one answer',
+  modes: (n) => `beat it ${n} times: each form has its own bar, and only the last falls`,
+  summons: { bound: 'down it and the ones it called fall with it', free: 'the ones it calls fight on when it falls' },
+  pair: { enrage: 'down one and the other enrages: split them, or end them close together', revive: 'they keep each other up: only both felled together finishes them' },
+  flaming: 'it burns: it carries fire into its blows',
+});
+
+function counselOf(B, id, e, f, c, words) {
+  const out = [], M = MOVES[c.move];
+  if (COUNSEL.attack[f.attack.kind]) out.push(COUNSEL.attack[f.attack.kind]);
+  if (f.attack.timing?.startup) out.push(`its ${words.telegraph} lasts ${r2(f.attack.timing.startup / FPS)} s`);
+  if (COUNSEL.stomp[f.stomp] && c.move !== 'hold') out.push(COUNSEL.stomp[f.stomp]);
+  const own = c.mind ?? {};
+  if (own.sight && COUNSEL.sight[own.sight]) out.push(COUNSEL.sight[own.sight]);
+  if (own.gaze && COUNSEL.gaze[own.gaze]) out.push(COUNSEL.gaze[own.gaze]);
+  if (own.perception && COUNSEL.perception[own.perception]) out.push(COUNSEL.perception[own.perception]);
+  if (own.cover) out.push(COUNSEL.cover);
+  if (M.group) out.push(COUNSEL.pack);
+  if ((f.mind.switches ?? []).length) out.push(COUNSEL.switches);
+  const chain = modeChain(B, id);
+  if (chain.length > 1) out.push(COUNSEL.modes(chain.length));
+  if (e.summons) out.push(COUNSEL.summons[e.summons.bound === false ? 'free' : 'bound']);
+  if (e.pair) out.push(COUNSEL.pair[e.pair.down ?? 'enrage']);
+  if (e.states?.flaming) out.push(COUNSEL.flaming);
+  return out;
+}
 
 /** The world keeps a bestiary, or a level stands foes. */
 export function castable(world) {
@@ -167,6 +223,8 @@ export function foeCastOf(world) {
       modes: chain.length > 1 ? chain : [], states,
       death: { is: V.is, die: V.die, says: `${V.die === 'launch' ? 'thrown back along the blow' : V.die === 'fall' ? 'falls' : V.die === 'dismantle' ? 'comes apart at its joints' : V.die === 'cleave' ? 'is cut through' : 'is destroyed as the blow chooses'}, then ${VANISHES[V.is]}` },
       relations: relationsOf(B, id, e), levels: levelsOf(id), fielded: fielded.includes(id),
+      beat: counselOf(B, id, e, f, c, W),
+      costs: costsOf(f, W),
       status: f.status, marks: f.marks, advisories: f.advisories,
       figure: isModel(e) ? e.skin.meshRef : made[`foes-${id}`]?.ref ?? null,
     };

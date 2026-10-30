@@ -21,7 +21,7 @@
  * to the class's order. A role's people is rolled once for the world from its era's peoples (one force, not a zoo), on
  * a class that stands on two legs; a platformer's and a pinball table's cast stays the stand-in beasts. A person cast is
  * dressed as one crew (ERA_DRESS: its faction by era, a soldier's for a game whose minds are soldiers', its colourway
- * rolled), each role a kind of it. A beast cast is grown by the world's oozes (ELEMENT_OOZE, ERA_OOZES): a variant of each
+ * rolled), each role the kind its class reads as by what the kind carries. A beast cast is grown by the world's oozes (ELEMENT_OOZE, ERA_OOZES): a variant of each
  * beast role per ooze, and its boss grown dire.
  *
  * Pure and deterministic: the people, the crew and its colours are the world's seed's (mulberry32), nothing else is rolled.
@@ -39,6 +39,7 @@ import { fitOfPeople } from '../foes/fit.js';
 import { AGGRESSIVENESS } from '../mind/vocab.js';
 import { mulberry32 } from '../vegetation/grow.js';
 import { GRUNT_STYLES } from '../cosmos/packs/comic-hero/grunts.js';
+import { ITEMS } from '../cosmos/packs/comic-hero/items.js';
 
 /** The cast's roles, in the order they are cast: the rank each stands at and what it is for. */
 export const ROLES = Object.freeze({
@@ -124,9 +125,24 @@ export function castingCall(world) {
   const faction = factions ? (MILITARY.includes(genre) ? factions[0] : factions[Math.floor(rnd() * factions.length)]) : null;
   const F = faction ? GRUNT_STYLES[faction] : null, colourways = F ? Object.keys(F.colourways) : [];
   const colourway = F ? colourways[Math.floor(rnd() * colourways.length)] : null;
-  // (its kinds by weight, the cast's roles taking them in turn; the boss the heaviest build's)
+  // (each role the kind its class reads as, by what the kind carries: a class on watch the kind whose arms are stowed, one
+  // that fires the kind with a long gun at the ready in its hands, the boss or a heavy class the heaviest build; the rest,
+  // and any match taken, the faction's kinds by weight)
   const kinds = F ? Object.entries(F.kinds).sort((a, b) => b[1].weight - a[1].weight).map(([k]) => k) : [];
-  const kindOf = (role, k) => (role === 'boss' ? kinds.find((x) => F.kinds[x].builds.includes('brute')) ?? kinds[0] : kinds[k % kinds.length]);
+  const held = (kind) => F.kinds[kind].items.map((set) => set.filter((i) => ITEMS[i]?.slot === 'right'));
+  const KIND_READS = {
+    watch: (kind) => held(kind)[0].length === 0,
+    fire: (kind) => held(kind).some((set) => set.some((i) => ITEMS[i]?.family === 'longGun')),
+    heavy: (kind) => F.kinds[kind].builds.includes('brute'),
+  };
+  const usedKinds = [];
+  const kindOf = (role, c) => {
+    const read = role === 'boss' || c.toll.downs >= 3 ? 'heavy' : (c.mind.motivation ?? MOVES[c.move].mind?.motivation) === 'guard' ? 'watch' : reachOf(c) === 'far' ? 'fire' : null;
+    const fits = read ? kinds.filter(KIND_READS[read]) : [];
+    const k = fits.find((x) => !usedKinds.includes(x)) ?? fits[0] ?? kinds.find((x) => !usedKinds.includes(x)) ?? kinds[0];
+    usedKinds.push(k);
+    return k;
+  };
   const ctx = { mind: { ...mind, foes: named }, combat, flavor: style.flavor, target, people };
   const scored = Object.values(FOE_CLASSES).map((c, k) => ({ c, k, ...scoreOf(c, ctx) }));
 
@@ -141,9 +157,9 @@ export function castingCall(world) {
   const bossRank = ['miniboss', 'boss'].includes(mind.rank) ? mind.rank : 'boss';
   const skill = mind.skill && mind.skill !== 'regular' ? mind.skill : null;
   const foes = {}, roles = [];
-  for (const [k, [role, x]] of Object.entries(cast).entries()) {
+  for (const [role, x] of Object.entries(cast)) {
     const rank = role === 'boss' ? bossRank : ROLES[role].rank;
-    const skin = people && fitOfPeople(x.c.id, { people }).ok ? { people, ...(F ? { dress: { faction, kind: kindOf(role, k), colourway } } : {}) } : null;
+    const skin = people && fitOfPeople(x.c.id, { people }).ok ? { people, ...(F ? { dress: { faction, kind: kindOf(role, x.c), colourway } } : {}) } : null;
     const entry = { class: x.c.id, ...(rank !== 'minion' ? { rank } : {}), ...(skill ? { skill } : {}), ...(skin ? { skin } : {}) };
     // (a summoner calls the grunt; a grunt that is itself a summoner never stands, so it always has one to call)
     if (x.c.id === 'summoner') entry.summons = { foe: 'grunt' };
@@ -195,7 +211,7 @@ export function castingCall(world) {
     genre ? `a ${genre} (the intent's cube), its minds ${Object.entries(mind).filter(([k]) => k !== 'foes').map(([k, v]) => `${k} ${v}`).join(', ') || 'unsaid'}` : 'no genre: the cube\'s own values',
     `a ${style.flavor} game in the ${style.register} register (${style.from})`,
     people ? `set in the ${era} era: the cast is ${people === 'human' ? 'people' : `${people} folk`} where a class stands on two legs` : `${era ? `the ${era} era names no people for a ${style.flavor} cast` : 'no era'}: every foe on its class's stand-in beast`,
-    ...(F ? [`dressed as one crew, ${F.name.toLowerCase()} in ${F.colourways[colourway].reads}${MILITARY.includes(genre) ? `: a ${genre}'s soldiers` : ''}; each role a kind of it, the boss the heaviest`] : []),
+    ...(F ? [`dressed as one crew, ${F.name.toLowerCase()} in ${F.colourways[colourway].reads}${MILITARY.includes(genre) ? `: a ${genre}'s soldiers` : ''}; each role the kind its class reads as (on watch, arms stowed; firing, a long gun at the ready; the boss the heaviest)`] : []),
     ...(variants.length || foes.boss?.skin?.ooze ? [`its beasts grown by the world's oozes (${oozes.map((o) => `${o}${Object.values([D.primary, D.secondary]).some((w) => ELEMENT_OOZE[w] === o) ? ', its element' : `, the ${era} era`}`).join('; ') || 'none'}): ${variants.length ? `a variant of each beast role per ooze, met deeper in (from the second level, or the first of two)` : 'no variant fits'}${foes.boss?.skin?.ooze ? `; the boss grown ${foes.boss.skin.ooze.join(' and ')}` : ''}`] : []),
     ...(unfit.length ? [`left ungrown, the grown body no longer fitting its class: ${unfit.join(', ')}`] : []),
     ...(bossRank !== 'boss' ? [`the boss stands as a ${bossRank}, the cube's rank`] : []),

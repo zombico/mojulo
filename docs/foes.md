@@ -147,10 +147,20 @@ world, character and feel books. It reads only what the shelves already say (`ga
   in to the goal, and the walker or the hero in it takes their hits as on a trail.
 - **The tiers.** A tile per foe by rank: its portrait once a run has made its figure (`made['foes-<id>']`), else its
   lineup silhouette, its threat, its element, its modes and relations, the levels it stands on.
-- **The cards.** One per foe: the class's `reads` (the lesson it teaches the player) first, then its numbers, its
-  attack's timing (the startup is the telegraph), its mind as the Mind facet resolves it on its body (motivation,
-  aggressiveness, rank, skill, how it sees, what it does in each situation, how a duelist switches), its shelves, and
-  what each engine keeps of it.
+- **The cards.** One per foe, said to a player first: what it does (its class's `reads`), how to beat it, and what it
+  costs. "How to beat it" is rows (`COUNSEL` in `gameworld/foe-cast.js`): a line for each word the foe carries that a
+  player can answer (its attack, its tell's seconds, its stomp, its sight and gaze, its memory, cover, a pack, a
+  duelist's switches, its modes, its summons or its pair, a state), never a line written for one foe. Then who it is,
+  its numbers and its attack, its shelves and where it stands; its mind as the Mind facet resolves it (each situation),
+  what each engine keeps and its gate are folded away, for the designer.
+- **The photographs.** A foe a run has made is photographed as the table game's book photographs its cast (its World
+  page in headless Chromium, a figure and a bust framed by its own body, kept per its revision:
+  `lib/mcp/tools/foe-portraits.js`), and shown on its tile and its card, a downloaded sheet included. A foe not made yet,
+  or with no browser at hand, keeps its silhouette, which also stands in for a photograph that fails to load. The lineup
+  and the level strips stay silhouettes: they are a scale drawing, each foe at its height in the game.
+- **In the world's bible.** The world bible carries the cast too: a Foes section (the lineup and the tiles, each linking
+  to its card on the cast sheet) and, on each level, who stands on it. A world that fields none carries none of it. The
+  dashboard's rail for the world has a Foes outcome (the cast sheet's parts to approve) and a way to the cast sheet.
 
 It is drawn in its world's colours, as the world's bible is: the lineup stands on the world's own sky and ground (its
 kit's colour key), the page's accent is the kit's paint, and its parts are the bible's own blocks: the cover with its
@@ -179,8 +189,9 @@ class that scores best against the world:
 A class the cube's own `mind.foes` names is cast before any other. The world's era rolls one people for the whole cast
 (`ERA_PEOPLES`, seeded by the world), worn by every class that stands on two legs; a platformer's and a pinball table's
 cast stays on the stand-in beasts. A cast of people is dressed as one crew (`ERA_DRESS`): its faction by era (a
-soldier's for a game whose minds are soldiers': a shooter, a stealth game), its colourway rolled, each role a kind of it
-in turn and the boss the heaviest. The grunt and harrier stand on every walk or building, the elite from the middle
+soldier's for a game whose minds are soldiers': a shooter, a stealth game), its colourway rolled, each role the kind its
+class reads as by what the kind carries (a class on watch, a kind whose arms are stowed; one that fires, a long gun at
+the ready; the boss or a heavy class, the heaviest build). The grunt and harrier stand on every walk or building, the elite from the middle
 on, and one boss alone on the last, won by clearing it. `design_game`'s `foes` step carries the proposal and the patch that
 writes it; the agent writes it only once the creator has seen the sheet.
 

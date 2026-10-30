@@ -4,7 +4,7 @@
  * `book=characters` when the world has a character book, the feel book with `book=feel` when it writes a feel (the stick
  * view of its controls to sample, lib/graph/gameworld/feel/book.js; `cast=female` for the other body), the cast sheet
  * with `book=foes` when it fields foes or fights something a casting call could cast for (lib/graph/gameworld/
- * foe-cast-html.js: each made foe's figure its sketch's PNG, none in a download). All are drawn
+ * foe-cast-html.js: each made foe photographed, lib/mcp/tools/foe-portraits.js, a download included). All are drawn
  * from the recipe and kept in memory per revision (lib/sheet-cache.js), never stored. `?download=1` flips the
  * Content-Disposition.
  *
@@ -80,11 +80,13 @@ export async function GET(request, { params }) {
       if (book === 'foes' && !castable(world) && !castingCall(world)) {
         return NextResponse.json({ eligible: false, reason: 'this world fields no foe and fights nothing a casting call could cast for (foes: { <id>: { class, … } }, levels.<id>.foes, or an intent that fights)' }, { status: 422 });
       }
-      // (a made foe's figure, by its sketch's PNG while served; a download carries none, its page points back here)
-      const portrait = (r) => (!download && SketchRepository.getByRef(r) ? `/api/sketches/${encodeURIComponent(r)}/png?inline=1` : null);
+      // (each made foe photographed for the cast sheet and the world bible's Foes section, a download included: the
+      // photographs are data; none without a browser, each foe its silhouette)
+      const { foePortraits } = await import('@/lib/mcp/tools/foe-portraits');
+      const shots = (book === 'foes' || book === 'world') && castable(world) ? await foePortraits(world) : { portraits: {}, key: '' };
       const cast = request.nextUrl.searchParams.get('cast') ?? 'male';
       if (book === 'feel' && !BOOK_CASTS.includes(cast)) return NextResponse.json({ error: `cast is one of ${BOOK_CASTS.join(', ')}` }, { status: 400 });
-      html = await cachedPage(`bible:${ref}:${sketch.updatedAt}:${book}${book === 'feel' ? `:${cast}` : ''}${book === 'foes' && download ? ':download' : ''}`, () => (book === 'characters' ? characterBibleHtml(world) : book === 'feel' ? feelBookHtml(world, { cast }) : book === 'foes' ? foeCastHtml(world, { portrait }) : gameworldBibleHtml(world)));
+      html = await cachedPage(`bible:${ref}:${sketch.updatedAt}:${book}${book === 'feel' ? `:${cast}` : ''}${shots.key ? `:${shots.key}` : ''}`, () => (book === 'characters' ? characterBibleHtml(world) : book === 'feel' ? feelBookHtml(world, { cast }) : book === 'foes' ? foeCastHtml(world, { portraits: shots.portraits }) : gameworldBibleHtml(world, { foePortraits: shots.portraits })));
       base = `${(sketch.title || world.name || ref).trim().replace(/[^a-z0-9._-]+/gi, '-').replace(/^-+|-+$/g, '') || 'gameworld'}${book === 'world' ? '' : `-${book}`}`;
     } else {
       return NextResponse.json({

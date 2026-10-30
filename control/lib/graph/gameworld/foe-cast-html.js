@@ -14,9 +14,9 @@
  * cover and its strip of levels in the order they are played, a civilization's article for each role the casting call
  * would cast, the ledger of what it read).
  *
- * `foeCastHtml(world, { portrait })` is pure (the same world, the same page). `portrait(ref)` → an image's URL for a
- * figure's sketch, or null (the route's: the sketch's PNG while served; none in a download); without one a foe is shown by
- * its lineup silhouette. The lineup plate is fenced `<!--plate:lineup-->…<!--/plate-->`.
+ * `foeCastHtml(world, { portraits })` is pure (the same world, the same page). `portraits` `{ <foe id>: { figure, bust } }` the
+ * photographs of the foes a run has made (image URIs: the route's, taken in headless Chromium when one is at hand); a foe
+ * without one is shown by its silhouette, which also stands in for one that fails to load. The lineup plate is fenced `<!--plate:lineup-->…<!--/plate-->`.
  */
 import { foeCastOf, foeState } from './foe-cast.js';
 import { castingCall } from './foe-casting.js';
@@ -57,6 +57,9 @@ const EXTRA_CSS = `
 .foe{border-top:4px solid var(--tier)}.foe .lesson{font:500 17px var(--body);max-width:70ch}
 .sit{width:100%;border-collapse:collapse;font-size:13px}.sit td,.sit th{border-bottom:1px solid var(--rule);padding:5px 8px;text-align:left;vertical-align:top}.sit th{font:10.5px var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-weight:400}
 .marks{display:flex;gap:6px;flex-wrap:wrap}.mk{font:10.5px var(--mono);padding:2px 6px;border-radius:3px;border:1px solid var(--rule)}.mk-absent{color:var(--local)}.mk-approximated{color:var(--c-meru)}.mk-built{color:var(--c-trail)}
+.foe-h{display:grid;grid-template-columns:110px 1fr;gap:14px;align-items:end}.foe-h .por{height:110px}.foe-h .por svg{height:96px}
+.counsel{display:grid;grid-template-columns:max-content 1fr;margin:0;gap:0;border-top:2px solid var(--tier);font-size:14.5px}.counsel dt{font:500 10.5px var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--muted);padding:9px 12px 0 0}.counsel dd{margin:0;padding:6px 0;border-bottom:1px solid var(--rule)}.counsel dd.lesson{font:500 16px var(--body)}.counsel ul{margin:0;padding-left:18px;display:grid;gap:3px}
+details.designer{margin-top:6px}
 .chip.ooze{border-color:var(--local);color:var(--local)}.chip.var{border-style:dashed}
 .fort-im{background:var(--sheet);border:1px solid var(--rule);border-radius:3px;padding:6px;overflow-x:auto}.fort-im svg{max-width:none}
 .stop .im svg{width:100%;height:100%}.stop .im .none{font:11px var(--mono);color:var(--muted);text-transform:uppercase;letter-spacing:.08em}
@@ -137,6 +140,58 @@ const pips = (n) => `<div class="pips">${Array.from({ length: Math.min(n, 12) },
 const chipEl = (x) => (x.element ? `<span class="chip el" style="background:${ELEMENT_INK[x.element] ?? 'var(--ink)'}">${esc(x.element)}</span>` : '');
 const statLine = (x, W) => `${x.stats.downs} ${esc(W.downs)} · ${x.stats.harm} ${esc(W.harm)}`;
 
+// A foe's chips: its element, its oozes (each in its colour), its stylism, its dress, its modes, its relations
+const chipsOf = (x) => [
+  chipEl(x),
+  ...(x.skin.oozes ?? []).map((o) => `<span class="chip ooze"${oozeInk(o.id) ? ` style="border-color:${oozeInk(o.id)}"` : ''} title="${esc(OOZES[o.id]?.about ?? o.id)}">${esc(o.id)}${o.strength !== 1 ? ` ×${o.strength}` : ''}</span>`),
+  x.skin.stylism !== undefined ? `<span class="chip">${esc(typeof x.skin.stylism === 'string' ? x.skin.stylism : 'stylism')}</span>` : '',
+  x.skin.dress ? `<span class="chip">${esc(x.skin.dress.kind ?? x.skin.dress.faction)}</span>` : '',
+  x.modes.length ? `<span class="chip">${x.modes.length} modes</span>` : '',
+  ...x.relations.filter((r) => r.kind !== 'mode-of').map((r) => `<span class="chip${r.kind.startsWith('variant') ? ' var' : ''}">${esc(r.kind === 'variant-of' ? 'variant of' : r.kind)} ${esc(r.foe)}</span>`),
+].join('');
+
+/**
+ * The cast drawn as both books draw it: each foe's shape, its lineup item, its tile (its photograph where `portraits`
+ * holds one, `{ <id>: { figure, bust } }` image URIs; else its silhouette, which also stands in for a photograph that
+ * fails to load), the tiers of tiles, and who stands on a level. `href(id)` where a foe's card is (the sheet's own
+ * anchor; the world bible's, on the cast sheet).
+ */
+function castKit(G, C, { stamp = () => '', portraits = {}, href = (id) => `#foe-${id}` } = {}) {
+  const B = bestiaryOf(G), shapes = Object.fromEntries(C.foes.map((x) => [x.id, shapeOf(B[x.id])])), W = C.words;
+  const byId = Object.fromEntries(C.foes.map((x) => [x.id, x]));
+  const item = (x) => ({ id: x.id, shape: shapes[x.id], ink: inkOf(x), edge: edgeOf(x), label: x.name, sub: `${x.stats.stature} m · ${x.class}`, href: href(x.id) });
+  const face = (x, which = 'figure') => {
+    const src = portraits[x.id]?.[which], solo = soloSvg(x, shapes[x.id]);
+    return src ? `<img alt="${esc(x.name)}" src="${esc(src)}" loading="lazy" onerror="this.hidden=true;this.nextElementSibling.hidden=false"><span hidden>${solo}</span>` : solo;
+  };
+  const tile = (x) => `<a class="tile" href="${esc(href(x.id))}" style="--tier:${TIER_INK[x.rank]}"><div class="por">${face(x)}</div><h4>${esc(x.name)}</h4><span class="eyebrow">${esc(x.class)} · ${esc(x.rank)}${stamp(`foes:${x.id}`)}</span>${pips(x.stats.threat)}<p class="statline">${esc(x.costs)}</p><div class="chips">${chipsOf(x)}</div><p class="muted">${x.levels.length ? `on ${list(x.levels)}` : x.fielded ? 'stood by another' : 'kept, not stood'}</p></a>`;
+  // (a variant follows the foe it is a variant of, within its tier)
+  const ordered = (ids) => ids.filter((id) => !byId[id].variantOf || !ids.includes(byId[id].variantOf)).flatMap((id) => [id, ...ids.filter((v) => byId[v].variantOf === id)]);
+  const tiers = () => C.tiers.map((t) => `<div class="tier"><div class="tier-h"><h3>${esc(t.name)}</h3><span class="eyebrow">${esc(t.rank)} · ${t.ids.length}</span></div><div class="tiles">${ordered(t.ids).map((id) => tile(byId[id])).join('')}</div></div>`).join('');
+  const standsOn = (id) => (G.levels[id].foes !== undefined ? readLevelFoes(G.levels[id].foes, G.foes, `levels.${id}`).from.map((f) => byId[f]).filter(Boolean) : []);
+  return { shapes, item, byId, face, tile, tiers, standsOn };
+}
+
+/**
+ * The cast as the WORLD's bible carries it (bible-html.js), for a world that fields foes: its section (the lineup, the
+ * tiers of tiles, each linking to its card on the cast sheet), each level's strip of who stands on it, and the styles
+ * and theme they need. Null for a world that fields none, so its bible keeps every byte.
+ *   foeBiblePart(world, { href?, portraits? }) → { css, section, onLevel(levelId) → html | '' } | null
+ */
+export function foeBiblePart(world, { href = (id) => `?book=foes#foe-${id}`, portraits = {} } = {}) {
+  const G = readGameworld(world), C = foeCastOf(world);
+  if (!C) return null;
+  const T = themeOf(G), K = castKit(G, C, { href, portraits });
+  const section = `<section class="part" id="foes"><div class="part-h"><span class="eyebrow">Foes · ${esc(C.words.title)}</span><h2>Who stands against the hero</h2><p class="muted">${C.foes.length} in the cast, said as a ${esc(C.flavor)} game says them. Each foe's card, what it does and how to beat it, is on the <a href="${esc(href('').replace(/#foe-$/, ''))}">cast sheet</a>.</p></div>
+<div class="lineup">${plate('foes-lineup', lineupSvg(C.foes.filter((x) => x.fielded).map(K.item), T))}</div>
+${K.tiers()}</section>`;
+  const onLevel = (id) => {
+    const who = K.standsOn(id);
+    return who.length ? `<h4>Who stands here</h4><div class="lineup">${plate(`foes-${id}`, lineupSvg(who.map(K.item), T, { minW: 56 }))}</div>` : '';
+  };
+  return { css: EXTRA_CSS, section, onLevel };
+}
+
 // a dress or a beast's growth, in words
 const skinWords = (skin) => {
   if (!skin) return 'its class\'s stand-in beast';
@@ -169,7 +224,7 @@ ${roles}
 <details><summary>The patch that writes it</summary><pre>${esc(JSON.stringify(P.patch, null, 2))}</pre></details></section>`;
 }
 
-export function foeCastHtml(world, { portrait = () => null } = {}) {
+export function foeCastHtml(world, { portraits = {} } = {}) {
   const G = readGameworld(world), C = foeCastOf(world), P = castingCall(world), T = themeOf(G);
   if (!C && !P) throw new Error('foes: the world fields no foe and fights nothing a casting call could cast for (foes: { <id>: { class, … } }, levels.<id>.foes)');
   const W = C?.words, state = C ? foeState(world, { cast: C }) : [];
@@ -185,48 +240,34 @@ export function foeCastHtml(world, { portrait = () => null } = {}) {
 
   let body = '';
   if (C) {
-    const B = bestiaryOf(G), shapes = Object.fromEntries(C.foes.map((x) => [x.id, shapeOf(B[x.id])]));
-    const item = (x) => ({ id: x.id, shape: shapes[x.id], ink: inkOf(x), edge: edgeOf(x), label: x.name, sub: `${x.stats.stature} m · ${x.class}`, href: `#foe-${x.id}` });
-    const byId = Object.fromEntries(C.foes.map((x) => [x.id, x]));
+    const K = castKit(G, C, { stamp, portraits }), { shapes, item, byId } = K;
     const gate = `<div class="gate" id="gate"><div class="gate-h"><span class="eyebrow">The gate</span><span class="mode mode-${esc(mode)}">${esc(mode)}</span><p class="muted">${esc(MODES[mode])}.</p></div>
 <ol class="parts">${state.map((s) => `<li><a href="${anchor(s.id)}">${esc(s.name)}</a>${stamp(s.id)}<code>${esc(s.print)}</code>${s.note ? `<p class="muted">${esc(s.note)}</p>` : ''}</li>`).join('')}</ol>
 <p class="muted">${waiting.length ? `Next to look at: ${waiting.map((s) => `<a href="${anchor(s.id)}">${esc(s.name)}</a>`).join(', ')}.` : 'Nothing is waiting on you.'}</p>
 <p class="muted">The machine gate is measured; whether each foe reads right is yours to judge.</p></div>`;
     const fielded = C.foes.filter((x) => x.fielded).length;
-    const standsOn = (id) => (G.levels[id].foes !== undefined ? readLevelFoes(G.levels[id].foes, G.foes, `levels.${id}`).from.map((f) => byId[f]).filter(Boolean) : []);
+    const standsOn = K.standsOn;
     const cover = `<section class="part" id="cover"><div class="cover"><div><h1>${esc(G.name)}</h1><p class="lede">${esc(W.lede)} · ${C.foes.length} in the cast${fielded < C.foes.length ? `, ${fielded} stood on a level` : ''} · ${esc(C.register)} · ${esc(C.flavor)}${T.kit ? ` · ${esc(T.kit)}` : ''}</p><p class="muted" style="margin-top:12px">Its stats are said as a ${esc(C.flavor)} game says them (${esc(W.downs)}, ${esc(W.harm)}), its tiers in the ${esc(C.register)} register: ${esc(C.from)}.</p></div><figure class="hero">${plate('cover', lineupSvg(C.foes.filter((x) => x.fielded).map(item), T, { labels: false, minW: 50 }))}</figure></div>
 ${gate}<div class="eyebrow">Who stands where, in the order the levels are played</div><div class="strip">${levelStrip(G, standsOn, item)}</div></section>`;
     const lineup = `<section class="part" id="lineup"><div class="part-h"><span class="eyebrow">The lineup ${stamp(FOE_CAST_PART)}</span><h2>At the size each reads at</h2><p class="muted">Every foe drawn at its stature in the game (its class's presence grown by its rank; a person at its height), beside the hero, on a metre rule, on the world's own ground. A flier is held off the ground; an ooze grows a beast's shape, never its stature. Coloured by its element, else its tier.</p></div>${note(FOE_CAST_PART)}<div class="lineup">${plate('lineup', lineupSvg(C.foes.map(item), T))}</div>${machine(FOE_CAST_PART)}</section>`;
-    const chips = (x) => [
-      chipEl(x),
-      ...(x.skin.oozes ?? []).map((o) => `<span class="chip ooze"${oozeInk(o.id) ? ` style="border-color:${oozeInk(o.id)}"` : ''} title="${esc(OOZES[o.id]?.about ?? o.id)}">${esc(o.id)}${o.strength !== 1 ? ` ×${o.strength}` : ''}</span>`),
-      x.skin.stylism !== undefined ? `<span class="chip">${esc(typeof x.skin.stylism === 'string' ? x.skin.stylism : 'stylism')}</span>` : '',
-      x.skin.dress ? `<span class="chip">${esc(x.skin.dress.kind ?? x.skin.dress.faction)}</span>` : '',
-      x.modes.length ? `<span class="chip">${x.modes.length} modes</span>` : '',
-      ...x.relations.filter((r) => r.kind !== 'mode-of').map((r) => `<span class="chip${r.kind.startsWith('variant') ? ' var' : ''}">${esc(r.kind === 'variant-of' ? 'variant of' : r.kind)} ${esc(r.foe)}</span>`),
-    ].join('');
-    const tile = (x) => {
-      const src = x.figure ? portrait(x.figure) : null;
-      return `<a class="tile" href="#foe-${esc(x.id)}" style="--tier:${TIER_INK[x.rank]}"><div class="por">${src ? `<img alt="${esc(x.name)}" src="${esc(src)}" loading="lazy">` : soloSvg(x, shapes[x.id])}</div><h4>${esc(x.name)}</h4><span class="eyebrow">${esc(x.class)} · ${esc(x.rank)}${stamp(`foes:${x.id}`)}</span>${pips(x.stats.threat)}<p class="statline">${statLine(x, W)}</p><div class="chips">${chips(x)}</div><p class="muted">${x.levels.length ? `on ${list(x.levels)}` : x.fielded ? 'stood by another' : 'kept, not stood'}</p></a>`;
-    };
-    // (a variant follows the foe it is a variant of, within its tier)
-    const ordered = (ids) => ids.filter((id) => !byId[id].variantOf || !ids.includes(byId[id].variantOf)).flatMap((id) => [id, ...ids.filter((v) => byId[v].variantOf === id)]);
-    const roster = `<section class="part" id="roster"><div class="part-h"><span class="eyebrow">${esc(W.title)}</span><h2>By tier</h2></div>${C.tiers.map((t) => `<div class="tier"><div class="tier-h"><h3>${esc(t.name)}</h3><span class="eyebrow">${esc(t.rank)} · ${t.ids.length}</span></div><div class="tiles">${ordered(t.ids).map((id) => tile(byId[id])).join('')}</div></div>`).join('')}</section>`;
+    const roster = `<section class="part" id="roster"><div class="part-h"><span class="eyebrow">${esc(W.title)}</span><h2>By tier</h2></div>${K.tiers()}</section>`;
     const card = (x) => {
       const id = `foes:${x.id}`, A = x.attack, M = x.mind, S = x.skin;
       const sitRows = M.situations.map((s) => `<tr><td><b>${esc(s.situation)}</b><br><span class="muted">${esc(s.asks)}</span></td><td>${list(s.does)}</td><td><span class="mk mk-${esc(s.status)}">${esc(s.status)}</span></td></tr>`).join('');
-      return `<article class="card foe" id="foe-${esc(x.id)}" style="--tier:${TIER_INK[x.rank]}"><div class="card-h"><span class="eyebrow">${esc(x.tier)} · ${esc(x.class)} ${stamp(id)}</span><h3>${esc(x.name)}</h3></div>${note(id)}
-<p class="lesson">${esc(x.reads)}</p>
+      return `<article class="card foe" id="foe-${esc(x.id)}" style="--tier:${TIER_INK[x.rank]}"><div class="foe-h"><div class="por">${K.face(x, portraits[x.id]?.bust ? 'bust' : 'figure')}</div><div class="card-h"><span class="eyebrow">${esc(x.tier)} · ${esc(x.class)} ${stamp(id)}</span><h3>${esc(x.name)}</h3></div></div>${note(id)}
+<dl class="counsel"><dt>What it does</dt><dd class="lesson">${esc(x.reads)}</dd><dt>How to beat it</dt><dd><ul>${x.beat.map((b) => `<li>${esc(b)}</li>`).join('')}</ul></dd><dt>What it costs</dt><dd>${esc(x.costs)}</dd></dl>
 <h4>Who it is</h4>${dl([['skin', `${esc(S.says)} <span class="muted">(${esc(S.kind)})</span>`], ['grown by', S.oozes ? `${S.oozes.map((o) => `<b>${esc(o.id)}</b> at ${o.strength}`).join(', ')} <span class="muted">(its shape and its look; its stature is its class's and its rank's)</span>` : undefined], ['stylism', S.stylism !== undefined ? esc(typeof S.stylism === 'string' ? S.stylism : JSON.stringify(S.stylism)) : undefined], ['dressed', S.dress ? `${esc(GRUNT_STYLES[S.dress.faction].name)}${S.dress.kind ? ` · ${esc(S.dress.kind)}` : ''} · ${esc(S.dress.colourway)}${S.dress.body ? ` · ${esc(S.dress.body)} body` : ''}` : undefined], ['rank', `<b>${esc(M.rank.word)}</b>: ${esc(M.rank.line)}`], ['skill', esc(x.skill)], ['element', x.element ? esc(x.element) : undefined]])}
 <h4>Its numbers</h4>${dl([[W.downs, `${x.stats.downs}${W.health ? ` <span class="muted">(${x.stats.downs / 20} of the hero's blows)</span>` : ` <span class="muted">(${x.stats.hp} health)</span>`}`], [W.harm, `${x.stats.harm}${W.health ? '' : ` <span class="muted">(${x.stats.damage} of the hero's ${C.hero.hp})</span>`}`], [W.pace, x.stats.speed ? `${esc(x.stats.pace)} · ${x.stats.speed} m/s` : 'never moves'], ['stature', `${x.stats.stature} m`], ['threat', `${x.stats.threat}`], ['stomp', `<b>${esc(x.stats.stomp.word)}</b>: ${esc(x.stats.stomp.says)}`]])}
 <h4>Its attack</h4>${dl([['kind', `<b>${esc(A.kind)}</b>: ${esc(A.line)}`], [W.telegraph, A.telegraph !== undefined ? `${A.telegraph} s` : undefined], ['active', A.active !== undefined ? `${A.active} s` : undefined], ['recovery', A.recovery !== undefined ? `${A.recovery} s` : undefined], ['reach', A.reach !== undefined ? `${A.reach} m` : undefined], ['pattern', A.pattern ? esc(A.pattern) : undefined], ['zone', A.zone ? esc(A.zone) : undefined]])}
+<h4>Its shelves</h4>${shelvesOf(x)}
+<h4>Where it stands</h4><p class="muted">${x.levels.length ? list(x.levels) : x.fielded ? 'on the levels its relations stand on' : 'kept in the bestiary; no level stands it'}</p>
+<details class="designer"><summary>For the designer: its mind, its engines, its gate</summary>
 <h4>Its mind</h4>${dl([['motivation', `<b>${esc(M.motivation.word)}</b>: ${esc(M.motivation.line)}`], ['aggressiveness', `<b>${esc(M.aggressiveness.word)}</b>: ${esc(M.aggressiveness.line)}`], ...M.senses.map((s) => [s.axis, `<b>${esc(s.word)}</b>: ${esc(s.line)}`]), ['switches', M.switches.length ? M.switches.map((s) => `<b>${esc(s.word)}</b> ${esc(s.line)}`).join('; ') : undefined]])}
 <table class="sit"><tr><th>when</th><th>it does</th><th>runs</th></tr>${sitRows}</table>
-<h4>Its shelves</h4>${dl([['modes', x.modes.length ? x.modes.map((m) => (m === x.id ? `<b>${esc(m)}</b>` : `<a href="#foe-${esc(m)}">${esc(m)}</a>`)).join(' → ') : undefined], ['states', x.states.length ? x.states.map((s) => `<b>${esc(s.name)}</b>${s.color ? ` (${esc(s.color)})` : ''}: ${esc(s.reads)}`).join('; ') : undefined], ['death', esc(x.death.says)], ...x.relations.map((r) => [r.kind === 'variant-of' ? 'variant of' : r.kind, `<a href="#foe-${esc(r.foe)}">${esc(r.foe)}</a>: ${esc(r.says)}`])])}
-<h4>Where it stands</h4><p class="muted">${x.levels.length ? list(x.levels) : x.fielded ? 'on the levels its relations stand on' : 'kept in the bestiary; no level stands it'}</p>
 <h4>What an engine keeps</h4><div class="marks">${Object.entries(x.marks ?? {}).map(([e, m]) => `<span class="mk mk-${esc(m)}">${esc(e)} ${esc(m)}</span>`).join('')}</div>
-${machine(id)}</article>`;
+${machine(id)}</details></article>`;
     };
+    const shelvesOf = (x) => `${dl([['modes', x.modes.length ? x.modes.map((m) => (m === x.id ? `<b>${esc(m)}</b>` : `<a href="#foe-${esc(m)}">${esc(m)}</a>`)).join(' → ') : undefined], ['states', x.states.length ? x.states.map((s) => `<b>${esc(s.name)}</b>${s.color ? ` (${esc(s.color)})` : ''}: ${esc(s.reads)}`).join('; ') : undefined], ['death', esc(x.death.says)], ...x.relations.map((r) => [r.kind === 'variant-of' ? 'variant of' : r.kind, `<a href="#foe-${esc(r.foe)}">${esc(r.foe)}</a>: ${esc(r.says)}`])])}`;
     const cards = `<section class="part" id="cards"><div class="part-h"><span class="eyebrow">The cards</span><h2>Each foe</h2><p class="muted">The lesson it teaches the player first; then its numbers in the hero's frame, its mind as the Mind gem resolves it on its body, and the shelves over it.</p></div><div class="cards">${C.foes.map(card).join('')}</div></section>`;
     body = `${cover}\n${lineup}\n${roster}\n${cards}`;
   } else {

@@ -60,6 +60,26 @@ and keeps none.
   - The casting call is the bible's own blocks: the ledger of what it read, a civilization's article for each role (its
     plate beside the hero, why this class, its variants, its dress), and the strip of who would stand where.
   - The play order moved from the world bible into `gameworld/graph.js` (`playOrder`), shared by both.
+- **Cards said to a player.** Each card leads with what the foe does, how to beat it and what it costs.
+  - "How to beat it" is rows (`COUNSEL`): a line for each word the foe carries that a player can answer (its attack,
+    its tell's seconds, its stomp, its sight, its memory, cover, a pack, a duelist's switches, its modes, its summons
+    or pair, a state).
+  - "What it costs" is a sentence in the flavor's words ("2 bops to down; a touch costs you 1 heart").
+  - The mind's situations, the engine marks and the gate fold into "For the designer".
+- **Real figures.** A foe a run has made is photographed as the table game's book photographs its cast
+  (`lib/mcp/tools/foe-portraits.js` over `photographCharacter`, now exported from `table-rpg-portraits.js`). Its tile
+  shows the figure and its card the bust, in the cast sheet and the world bible, a download included. A foe not made,
+  or with no browser, keeps its silhouette, which also stands in for a photograph that fails to load. The lineup and
+  the level strips stay a scale drawing. Seen in this container: a frost wolf made through the animal door, photographed
+  in about 6 s, shown on its tile and card through the route.
+- **The cast in the world's bible and on the dashboard.**
+  - The world bible has a Foes section (the lineup and the tiles, each linked to its card on the cast sheet) and, on
+    each level, who stands on it. A world that fields none carries not a byte of it.
+  - The world's rail has a Foes outcome (the cast sheet's parts, read on the cast sheet) and a Foes exit. A world
+    without foes keeps its outcomes as they were.
+- **Kinds by what they carry.** A dressed role takes the kind its class reads as: a class on watch a kind whose arms are
+  stowed (the sentry), one that fires a long gun at the ready (the rifleman), the boss or a heavy class the heaviest
+  build (the breacher). The stealth outpost's guard on post is now its sentry.
 - The `gameworld-foes` card names the dress and a building's rooms and gains the patrol's row. Its ceiling is re-pinned
   at 5120 bytes (4916), with the reason beside the pin.
 - `node scripts/out-sheet.mjs foes [--genre <id>] [--propose]` writes the sheet for the example world.
@@ -70,5 +90,6 @@ Machine gate: `gameworld/foe-cast.test.js`, `foes/dress.test.js`, the building a
 beast, a people, a model, a mode chain, a summoner, a counting flavor and a health flavor, the gate going stale, a
 dressed person, a building's rooms, a patrol seen and unseen, a variant and its oozes), plus the casting call adopted
 as written, the intent's classes first, a people's era, a platformer's beasts, a dressed crew, ooze variants met deeper
-in, the sheet in its world's colours, and absence. Eyes gate: not run. The operator
+in, the sheet in its world's colours, a card's counsel and cost, photographs with their fallback, the world bible's Foes
+section (and none without foes), kinds by what they carry, the rail's Foes outcome, and absence. Eyes gate: not run. The operator
 looks at a platformer world's sheet and a shooter world's, and at a dressed soldier made through the door.

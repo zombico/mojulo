@@ -3,13 +3,15 @@
 // keeps no bestiary is proposed. One case per procedure: a beast, a people, a model, a mode chain, a summoner; one flavor
 // that counts and one that shows health; absence costs nothing.
 import { describe, it, expect } from 'vitest';
-import { foeCastOf, castable, foeParts, foeState, approveFoe, STAT_WORDS, REGISTER_WORDS } from './foe-cast.js';
+import { foeCastOf, castable, foeParts, foeState, approveFoe, STAT_WORDS, REGISTER_WORDS, COUNSEL } from './foe-cast.js';
 import { castingCall, ROLES, ERA_DRESS, ERA_OOZES, BOSS_OOZE } from './foe-casting.js';
 import { ERA_OF_KIT } from './cast-setting.js';
 import { colorKey } from './nature.js';
+import { GRUNT_STYLES } from '../cosmos/packs/comic-hero/grunts.js';
+import { ITEMS } from '../cosmos/packs/comic-hero/items.js';
 import { isGroundKit } from '../era/stage.js';
 import { foeCastHtml } from './foe-cast-html.js';
-import { readGameworld, MEADOWMARK_HERO } from './index.js';
+import { readGameworld, MEADOWMARK_HERO, gameworldBibleHtml } from './index.js';
 import { readReview, FOE_CAST_PART } from './review.js';
 import { FOE_CLASSES } from '../foes/index.js';
 import { MOVES } from '../foes/vocab.js';
@@ -122,6 +124,9 @@ describe('the casting call', () => {
     expect(dressed.length).toBeGreaterThan(0);
     expect(new Set(dressed.map((r) => `${r.skin.dress.faction}/${r.skin.dress.colourway}`)).size).toBe(1);
     expect(dressed[0].skin.dress.faction).toBe(ERA_DRESS[era][0]);
+    // (a class on watch wears a kind whose arms are stowed: nothing held at the ready in its hands)
+    const F = GRUNT_STYLES[ERA_DRESS[era][0]], watch = dressed.find((r) => FOE_CLASSES[r.class].mind.motivation === 'guard');
+    if (watch) expect(F.kinds[watch.skin.dress.kind].items[0].some((i) => ITEMS[i]?.slot === 'right')).toBe(false);
     expect(P.levels.hq).toEqual({ from: ['boss'], count: 1, win: 'clear' });
     expect(() => readGameworld({ ...W, foes: P.foes, levels: { one: { ...walk, foes: P.levels.one }, hq: { building: { use: 'office' }, foes: P.levels.hq } } })).not.toThrow();
     expect(foeCastOf({ ...W, foes: P.foes, levels: { one: { ...walk, foes: P.levels.one }, hq: { building: { use: 'office' } } } }).foes.find((x) => x.skin.dress).skin.says).toMatch(/dressed as/);
@@ -165,14 +170,42 @@ describe('the casting call', () => {
 });
 
 describe('the sheet', () => {
-  it('draws the lineup, a tile and a card a foe; a made figure is its portrait, the rest their silhouette', () => {
-    const html = foeCastHtml({ ...W, made: { 'foes-grunt': { ref: 'w-foes-grunt', order: '0000000a', stored: '0000000b' } } }, { portrait: (r) => `/png/${r}` });
+  it('draws the lineup, a tile and a card a foe; a photographed foe its photograph, its silhouette standing in for it', () => {
+    const shot = { figure: 'data:image/jpeg;base64,FIG', bust: 'data:image/jpeg;base64,BUST' };
+    const html = foeCastHtml(W, { portraits: { grunt: shot } });
     expect(html).toMatch(/<!--plate:lineup--><svg[\s\S]*<!--\/plate-->/);
     for (const x of foeCastOf(W).foes) expect(html).toContain(`id="foe-${x.id}"`);
-    expect(html).toContain('src="/png/w-foes-grunt"');
-    expect(html).toContain('src="/png/sk-model"');
+    // (the tile its figure, the card its bust; each with its silhouette hidden behind, for a photograph that fails)
+    expect(html).toContain(`src="${shot.figure}"`);
+    expect(html).toContain(`src="${shot.bust}"`);
+    expect(html).toMatch(/onerror="this\.hidden=true;this\.nextElementSibling\.hidden=false"><span hidden><svg/);
+    expect(foeCastHtml(W)).not.toContain('<img');
     expect(html).not.toContain('casting-call');
     expect(foeCastHtml(W)).toBe(foeCastHtml(W));
+  });
+
+  it('each card leads with what it does, how to beat it and what it costs, the designer\'s detail folded', () => {
+    const C = foeCastOf(W), by = Object.fromEntries(C.foes.map((x) => [x.id, x]));
+    // (the counsel is rows: a stomp's, the modes', a summoner's bond, each said where the foe carries it)
+    expect(by.grunt.beat).toContain(COUNSEL.stomp[FOE_CLASSES[SOLO.id].stomp]);
+    expect(by.armour.beat).toContain(COUNSEL.modes(2));
+    expect(by.caller.beat).toContain(COUNSEL.summons.bound);
+    expect(by.caller.costs).toMatch(/does not hurt you itself/);
+    const count = Object.keys(STAT_WORDS).find((f) => !STAT_WORDS[f].health);
+    expect(foeCastOf({ ...W, juice: { flavor: count } }).foes.find((x) => x.id === 'grunt').costs).toMatch(new RegExp(`^1 ${STAT_WORDS[count].blow[0]} to down`));
+    const html = foeCastHtml(W);
+    expect(html).toContain('<dt>How to beat it</dt>');
+    expect(html).toContain('<details class="designer">');
+  });
+
+  it('the world\'s bible carries its foes: a section of tiles linked to the cast sheet, and who stands on each level', () => {
+    const html = gameworldBibleHtml(W);
+    expect(html).toContain('id="foes"');
+    expect(html).toContain('href="?book=foes#foe-caller"');
+    expect(html).toContain('<h4>Who stands here</h4>');
+    expect(html).toContain('<a href="#foes">Foes</a>');
+    // (a world that fields none: not a byte of it)
+    expect(gameworldBibleHtml(world())).not.toMatch(/id="foes"|Who stands here|class="tile"/);
   });
   it('is drawn in its world\'s colours: the page\'s accent one of its kit\'s own', () => {
     const kit = MEADOWMARK_HERO.style.kit, html = foeCastHtml({ ...MEADOWMARK_HERO, intent: { from: 'metroidvania' } });
