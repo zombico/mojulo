@@ -187,8 +187,12 @@ const modelFileName = (format, { cdn = false } = {}) => (format === 'html' ? (cd
 // there; the handoff note tells the agent on that host to ask for it. 2.0.9 through 2.1 made the
 // CDN build the default; 2.2 restored the self-contained one, so a page fetches from a third
 // party only when that was asked for.
+/** The exported page's walk: the scene's own when it tunes one (its spawn, eye and speed), as the /world route keeps
+ *  it; else on for a walk kind. A bare `true` takes the walk's defaults off the whole scene's bounds: over a meadow
+ *  whose sky and hills are wide, an eye of 15 m. */
+export const htmlWalk = (payload, kind) => (payload.walk && typeof payload.walk === 'object' ? payload.walk : Boolean(payload.walk || WALK_KINDS.has(kind)));
 function htmlExport(payload, { kind, cdn = false }) {
-  const walk = Boolean(payload.walk || WALK_KINDS.has(kind));
+  const walk = htmlWalk(payload, kind);
   const html = emitThreeWorld({ ...payload, walk, inline: !cdn, cdn });
   const bytes = Buffer.from(html, 'utf8');
   return { bytes, byteLength: bytes.length, vertexCount: null, triangleCount: null, walk, cdn };

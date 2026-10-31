@@ -55,3 +55,7 @@
   pixels at its distance) and its lower bound (where the far field begins).
   Its contour scan (`contourScan`: from a point of view, on each bearing of a full turn, where the ground peaks against
   the sky or ground well past it) is kept for what stands past the reach, trees, rocks and buildings, not the grass.
+- **An exported page walks at the scene's eye** (`mcp/tools/sketch-model-export.js` `htmlWalk`): `export_model format:
+  'html'` turned a scene's own walk (its spawn, eye and speed) into a bare `true`, so the page took the walk's defaults
+  off the whole scene's bounds: over a gen-7 meadow, whose sky and hills are wide, an eye of 15 m, a 6 m stride and walls
+  a body could not pass. It keeps the scene's walk now, as the /world route always did.
