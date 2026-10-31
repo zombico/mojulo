@@ -71,6 +71,27 @@ export const FLORA_STRIDE = 13, BARK_SIZE = 128, HEIGHT_STEP = 3, VARIANTS = 2;
 /** A crossed broadleaf on a trail stands `FLORA_TALL` × its species' heights (vegetation/species.js), a grown tree over
  *  the walker: its first limbs past two people's heights at the level's middle tree. */
 export const FLORA_TALL = 1.25;
+/** THE PLANTS' BUDGET: a plant placed on a form page spends at most `perM2` triangles a square metre of its side's
+ *  silhouette (its crown's width × its height), and never under `floor`: a half-metre bush is not drawn with a house's
+ *  triangles, a tall tree keeps its own. Over it, a plant gives up, in turn, its sprays (the crown holds the outline),
+ *  its leaves' outlines (a leaf one width, four triangles), and clumps by their rank (at least `least`), each kept
+ *  clump grown to hold the crown's cover, the kept ranked again. Every template carries what it spends (`budget`). */
+export const FLORA_BUDGET = Object.freeze({ perM2: 300, floor: 120, least: 3 });
+
+/** A plant's form within the budget: { clumps, sites, lean, budget: { area, cap, tris, kept } }; `tris` its triangles
+ *  as drawn near (wood, clumps, sprays). */
+export function budgeted(form, { clumpTris, leanTris, sprayTris, woodTris, canLean = true }) {
+  const R = Math.max(0.25, ...form.clumps.map((c) => Math.hypot(c.p[0], c.p[1]))), area = 2 * R * form.height;
+  const cap = Math.max(FLORA_BUDGET.floor, FLORA_BUDGET.perM2 * area), n = form.clumps.length;
+  const cost = (k, lean, sprays) => woodTris + k * (lean ? leanTris : clumpTris) + (sprays ? form.sites.length * sprayTris : 0);
+  if (cost(n, false, true) <= cap) return { clumps: form.clumps, sites: form.sites, lean: false, budget: { area: r4(area), cap: Math.round(cap), tris: cost(n, false, true), kept: n } };
+  if (cost(n, false, false) <= cap) return { clumps: form.clumps, sites: [], lean: false, budget: { area: r4(area), cap: Math.round(cap), tris: cost(n, false, false), kept: n } };
+  const lean = canLean, per = lean ? leanTris : clumpTris;
+  const k = Math.min(n, Math.max(FLORA_BUDGET.least, Math.floor((cap - woodTris) / Math.max(1, per))));
+  const kept = [...form.clumps].sort((a, b) => a.r - b.r).slice(0, k), grow = Math.sqrt(n / kept.length);
+  return { clumps: kept.map((c, i) => ({ ...c, s: r4(c.s * grow), r: r4(i / kept.length) })), sites: [], lean,
+    budget: { area: r4(area), cap: Math.round(cap), tris: cost(kept.length, lean, false), kept: kept.length } };
+}
 export const FLORA_LOD = Object.freeze({ detail: Object.freeze([6, 16]), mid: 25, keep: 0.4, grow: 1.5, sprayed: 6, half: 0.5 });
 
 const CACHE = new Map();
@@ -122,7 +143,10 @@ function treeTemplate(species, height) {
     if (!crossed) CACHE.set(key, { ...template('tree', species, F, species), ...(F.sleeve ? { sleeve: packSleeve(F.sleeve) } : {}) });
     else {
       const B = { ...CROSS.bundle, ...(CROSS.byShape[leafOutlineOf(species)] || {}) }, far = { count: Math.max(3, Math.round(B.count * FLORA_LOD.half)), scale: r4(B.scale / Math.sqrt(FLORA_LOD.half)) };
-      const T = template('tree', species, { ...F, clumps: crossClumps(F), sites: [] }, species);
+      // (within the plants' budget, FLORA_BUDGET: its bundles by rank, each grown)
+      const C0 = crossClumps(F), xt = leafCross(species, { seed: 17 }).tris.length;
+      const Q = budgeted({ ...F, clumps: C0, sites: [] }, { clumpTris: xt, leanTris: xt, sprayTris: 0, woodTris: (F.wood.idx || []).length / 3, canLean: false });
+      const T = { ...template('tree', species, { ...F, clumps: Q.clumps, sites: [] }, species), budget: Q.budget };
       // (far off the same wood as near: no limb drops and the trunk holds as the tree switches level)
       CACHE.set(key, { ...T, cross: true, woodFar: T.wood,
         clumpGeo: Array.from({ length: VARIANTS }, (_, k) => packGeo(leafCross(species, { seed: 17 + k }).tris)),
@@ -144,9 +168,13 @@ function bambooTemplate(species, height, v) {
 function bushTemplate(kind, height, adorn, name) {
   const key = `bush:${JSON.stringify(kind)}:${height}:${adorn}`;
   if (!CACHE.has(key)) {
-    const B = bushForm(kind, { seed: 1, height, adorn });
+    const B0 = bushForm(kind, { seed: 1, height, adorn });
+    // (within the plants' budget, FLORA_BUDGET)
+    const Q = budgeted(B0, { clumpTris: leafClump(B0.leaf, { seed: 17 }).tris.length, leanTris: leafClump(B0.leaf, { seed: 17, lean: true }).tris.length,
+      sprayTris: leafSpray(B0.leaf, { seed: 31 }).tris.length, woodTris: (B0.wood.idx || []).length / 3 });
+    const B = { ...B0, clumps: Q.clumps, sites: Q.sites };
     const extra = adorn ? { adorn: { kind: adorn, list: adorn === 'bloom' ? packBlooms(B.blooms) : packBerries(B.berries), geo: adorn === 'bloom' ? [packGeo(bushBlossom(B.look))] : Array.from({ length: ADORN.berries[1] - ADORN.berries[0] + 1 }, (_, k) => packGeo(bushBerries(B.look, ADORN.berries[0] + k, 1 + k))), lo: ADORN.berries[0] } } : {};
-    CACHE.set(key, template('bush', name, B, B.leaf, extra));
+    CACHE.set(key, { ...template('bush', name, B, B.leaf, extra), budget: Q.budget, ...(Q.lean ? { clumpGeo: Array.from({ length: VARIANTS }, (_, k) => packGeo(leafClump(B.leaf, { seed: 17 + k, lean: true }).tris)) } : {}) });
   }
   return CACHE.get(key);
 }

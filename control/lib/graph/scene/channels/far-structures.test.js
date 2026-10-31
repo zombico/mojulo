@@ -18,9 +18,9 @@ describe('the far structures', () => {
     expect(FAR_STRUCTURES.tall).toBeGreaterThan(FAR_STRUCTURES.ground);
   });
 
-  it('cards a tile only past the reach and where its texel is under a pixel; the aerial camera draws it live', () => {
+  it('cards a tile only past the reach and where its texel is under the cone\'s grain; the aerial camera draws it live', () => {
     const src = farStructuresScript();
-    expect(src).toContain('card = pov && d > CO.reach && t.texel / (CO.px * Math.max(d, 0.1)) < FS.px');
+    expect(src).toContain('card = pov && d > CO.reach && t.texel / (CO.px * Math.max(d, 0.1)) < (CO.grain || FS.px)');
     expect(FAR_STRUCTURES.px).toBeLessThanOrEqual(1);
   });
 

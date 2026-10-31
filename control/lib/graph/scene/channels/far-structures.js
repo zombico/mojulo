@@ -116,7 +116,7 @@ export function farStructuresScript() {
     const ladder = (pov) => {
       nCards = 0;
       for (const t of L) {
-        const d = Math.hypot(t.cx - CO.eye.x, t.cy - CO.eye.y) - t.R, card = pov && d > CO.reach && t.texel / (CO.px * Math.max(d, 0.1)) < FS.px;
+        const d = Math.hypot(t.cx - CO.eye.x, t.cy - CO.eye.y) - t.R, card = pov && d > CO.reach && t.texel / (CO.px * Math.max(d, 0.1)) < (CO.grain || FS.px);
         if (card !== t.card) { t.card = card; for (const [B, id] of t.ids) B.setVisibleAt(id, !card); }
         if (card) { aT.set([t.cx, t.cy, t.lo, 0], nCards * 4); aS.set([t.R, t.H, t.row], nCards * 3); nCards++; }
       }

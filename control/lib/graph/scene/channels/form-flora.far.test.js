@@ -22,10 +22,10 @@ describe('the far trees', () => {
     expect(src).not.toContain('Math.sqrt(rr - dd)');
   });
 
-  it('climbs the ladder: whole inside the cone\'s reach, its own far form past it, its card where its texel is under a pixel', () => {
+  it('climbs the ladder: whole inside the cone\'s reach, its own far form past it, its card where its texel is under the cone\'s grain', () => {
     const src = page();
     expect(src).toContain('const mid = pov ? CO.reach : LOD.mid;');
-    expect(src).toContain('card = pov && impOf[ti] && d >= Math.max(mid, (tpl[ti].w * sc) / (FF0.px * CO.px))');
+    expect(src).toContain('card = pov && impOf[ti] && d >= Math.max(mid, (tpl[ti].w * sc) / ((CO.grain || FF0.px) * CO.px))');
     // (a needled crown and a culm keep their own far form)
     expect(src).toContain('!t.sleeve && !t.culm && t.nClumps > 0');
   });

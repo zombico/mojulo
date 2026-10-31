@@ -10,15 +10,18 @@
 //   when    set in scene.onBeforeRender by every perspective camera that renders the scene, before the render list is
 //           built, so a channel that reads it in its own hook (installed after this one) culls the same frame
 //
-// `window.__mojCone`: { reach (m), px (a pixel's size at a metre), eye, frustum, fixed (the set reach, or null),
+// `window.__mojCone`: { reach (m), px (a pixel's size at a metre), grain (the impression's, px a texel), eye, frustum, fixed (the set reach, or null),
 // set(m | null), sees(sphere) }. A page without the form channel carries none of it.
 import { GRASS_TIERS } from './form-grass.js';
 
 const tall = GRASS_TIERS.find((t) => t.sward === 'tall');
 /** The cone's ruler: real detail while a tall blade's mean width (`blade`, m) covers `px` pixels; a reach is kept within
- *  `range` (m), and a key press scales it by `step`. */
+ *  `range` (m), and a key press scales it by `step`. Past the reach everything is its impression (the grass its colour,
+ *  a tree its card, a tile of buildings its card), at an impression's GRAIN of at most `grain` pixels a texel: one rule
+ *  for the whole world. */
 export const VIEW_CONE = Object.freeze({
   px: 0.75,
+  grain: 3,
   blade: Math.round(tall.scale * ((tall.clump.width[0] + tall.clump.width[1]) / 2) * 1e4) / 1e4,
   range: Object.freeze([4, 600]),
   step: 1.25,
@@ -43,7 +46,7 @@ export function viewConeScript(cone = null) {
     const VC = ${JSON.stringify(VIEW_CONE)}, F = new THREE.Frustum(), PM = new THREE.Matrix4(), buf = new THREE.Vector2();
     const clamp = (m) => Math.min(VC.range[1], Math.max(VC.range[0], m));
     let fixed = ${cone && Number.isFinite(cone.reach) ? JSON.stringify(cone.reach) : 'null'};
-    const K = { reach: fixed ?? 30, px: 0.001, eye: new THREE.Vector3(), frustum: F,
+    const K = { reach: fixed ?? 30, px: 0.001, grain: VC.grain, eye: new THREE.Vector3(), frustum: F,
       get fixed() { return fixed; },
       set: (m) => { fixed = m === null || m === undefined ? null : clamp(m); return fixed; },
       sees: (s) => F.intersectsSphere(s) };

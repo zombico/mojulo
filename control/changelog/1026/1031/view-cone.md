@@ -77,3 +77,14 @@
   facets lit as the land is: the trail's own grass low on it rising into its stone toward the peaks, each facet a shade
   its own, under the sky's air (the new sky's, where the far land stands), more of it the farther its layer. What the
   read cannot class otherwise (a town's own buildings) stays painted.
+- **The plants' budget** (`form/flora-read.js` `FLORA_BUDGET`): a plant on a gen-7 page spends at most 300 triangles a
+  square metre of its side's silhouette (its crown's width × its height). Over it, it gives up its sprays (the crown
+  holds the outline), then its leaves' outlines (a leaf one width, four triangles: `leafClump` `lean`), then clumps by
+  rank, each kept clump grown to hold the crown's cover; every template carries what it spends (`budget`). A garden's
+  spray bush, 1.2 m tall, drew about 3,800 triangles a crown and 192 sprays near: it draws 516 now. In a town's garden
+  bed the plants drawn near fell from about 261k triangles to 102k (the bushes from about 200k to 30k); the trees keep
+  their own, well within theirs.
+- **One grain past the reach** (`scene/channels/view-cone.js` `VIEW_CONE.grain`): everything past the cone's reach is its
+  impression at one grain, at most three pixels a texel: a tree its card, a tile of buildings its card, as the grass is
+  its colour there; a tree turns to its card where its card's texel is under that grain, so a meadow's trees show their
+  leaf-built cards from about 40 m.

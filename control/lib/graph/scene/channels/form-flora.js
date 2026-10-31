@@ -424,7 +424,7 @@ ${snow ? `    // (under snow, era/snow.js capOf: a leaf turned up past its cap c
         for (const i of list) {
           const b = i * STRIDE, sc = P[b + 3], d = Math.hypot(P[b] - camera.position.x, P[b + 1] - camera.position.y, P[b + 2] + t.height * sc * 0.5 - camera.position.z);
           q.setFromAxisAngle(AXZ, P[b + 4]); m4.compose(pv.set(P[b], P[b + 1], P[b + 2]), q, sv.set(sc, sc, sc));
-          const isNear = d < mid, card = pov && impOf[ti] && d >= Math.max(mid, (tpl[ti].w * sc) / (FF0.px * CO.px)), put = (k, col) => { const X = parts[k]; if (!X) return; X.im.setMatrixAt(c[k], m4); if (col) X.im.setColorAt(c[k], col); X.slot[c[k]] = i; c[k]++; };
+          const isNear = d < mid, card = pov && impOf[ti] && d >= Math.max(mid, (tpl[ti].w * sc) / ((CO.grain || FF0.px) * CO.px)), put = (k, col) => { const X = parts[k]; if (!X) return; X.im.setMatrixAt(c[k], m4); if (col) X.im.setColorAt(c[k], col); X.slot[c[k]] = i; c[k]++; };
           const leafC = cv.setRGB(P[b + 5], P[b + 6], P[b + 7], THREE.LinearSRGBColorSpace).clone(), barkC = new THREE.Color().setRGB(P[b + 8], P[b + 9], P[b + 10], THREE.LinearSRGBColorSpace);
           if (isNear) { put('wood', barkC); put('crown', leafC); if (parts.adorn) put('adorn', new THREE.Color(1, 1, 1)); near++; }
           else if (card) { const bm = FL.barks[t.bark] ? FL.barks[t.bark].mean : [0.1, 0.07, 0.05]; iPos.set([P[b], P[b + 1], P[b + 2], sc], imps * 4); iTR.set([P[b + 4], ti], imps * 2); iLeaf.set([leafC.r, leafC.g, leafC.b], imps * 3); iBark.set([barkC.r * bm[0], barkC.g * bm[1], barkC.b * bm[2]], imps * 3); imps++; far++; }
