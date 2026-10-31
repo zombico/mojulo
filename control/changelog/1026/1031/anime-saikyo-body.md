@@ -80,6 +80,9 @@ fractal articulation of the big groups. The eyes gate is the operator's.
   onto a mass in a ramp, each point's move raised (never lowered) to its neighbours' less `SLOPE` (0.8) times their
   distance, a point held at the cap raising none. The elbow's and the knee's correctives leave the shoulder's domes
   alone (the elbow's biceps, slid toward its origin, had grazed the arm's dome and lifted it 7 cm).
+- **The shoulder's cap without its rim**: the shoulder's drum and web, under the arm's skin, are tucked 2.5 cm (1 cm
+  had let their domes stand through the top of the arm's dome at rest, a crisp rim round the deltoid's crown); raised,
+  they still bridge the armpit as before.
 - **The shoulder in a raise** (the operator's: overhead the shoulder's top opened in holes and the armpit frayed):
   measured as folded faces (a face turned past a right angle from its neighbours), the shirt's skin never folded; its
   faults were the bridging shells passing through the arm and a few grazing rays. A dome's rings ride as its end ring
