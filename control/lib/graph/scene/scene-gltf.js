@@ -659,6 +659,23 @@ class GlbBuilder {
     return meshIdx;
   }
 
+  // The engine handoff's instances (scene/handoff.js): one template mesh, its outward normals, and a node per instance with
+  // a FULL TRS (a quaternion and a per-axis scale, in the pre-root z-up frame), where addInstancedNodes turns about +Z and
+  // scales evenly. Used only by a handoff; no other export reaches it.
+  addFormInstances(name, positions, normals, materialIndex, transforms) {
+    const attributes = { POSITION: this.floatAccessor(positions, 3, bounds3(positions)) };
+    if (normals && normals.length) attributes.NORMAL = this.floatAccessor(normals, 3);
+    this.json.meshes.push({ name, primitives: [{ attributes, mode: MODE_TRIANGLES, material: materialIndex }] });
+    const mesh = this.json.meshes.length - 1;
+    transforms.forEach((t, i) => {
+      const node = { name: `${name}:${i}`, mesh, translation: t.translation };
+      if (t.rotation) node.rotation = t.rotation;
+      if (t.scale) node.scale = t.scale;
+      this.children.push(this.json.nodes.push(node) - 1);
+    });
+    return { vertices: positions.length / 3, triangles: positions.length / 9 };
+  }
+
   // One packed rig figure (rig-bake.js / unit-rig.js / vehicle-rig.js — all three families share
   // the shape by construction) → one wrapper node under the y-up root, one bone-local mesh node
   // per non-empty part, and one glTF animation per requested clip. The rigs are rigid parts under
@@ -1413,7 +1430,7 @@ class GlbBuilder {
  */
 /** a vault's extras in the export's units (metres × mpu): the box, the take-off and landing distances, the run */
 const vaultExtras = (v, mpu) => { const m = (x) => Math.round(x * mpu * 1e4) / 1e4; return { ...v, box: { h: m(v.box.h), d: m(v.box.d), w: m(v.box.w) }, entry: { ...v.entry, takeoff: m(v.entry.takeoff) }, exit: { ...v.exit, landing: m(v.exit.landing) }, travel: m(v.travel) }; };
-export function facesToGlb(payload = {}, { generator, clips = null, skinned = false, quantize = false, humanoid = false, lit = false, roughness = 0.85 } = {}) {
+export function facesToGlb(payload = {}, { generator, clips = null, skinned = false, quantize = false, humanoid = false, lit = false, roughness = 0.85, instances = null, handoff = false } = {}) {
   const { faces = [], textures = {}, light = null, ao = null, vertexContrast = null, repeats = [], figures = null } = payload || {};
   const repeatList = (Array.isArray(repeats) ? repeats : []).filter((r) => r && Array.isArray(r.template) && r.template.length && Array.isArray(r.transforms) && r.transforms.length);
   // rig-figure selection: only packed rigs qualify (figure-frames stacks / polygomer statics have
@@ -1679,7 +1696,8 @@ export function facesToGlb(payload = {}, { generator, clips = null, skinned = fa
   const liquidBody = waterBodies.find((w) => w.sheet);
   const water = waterRaw.length ? collectWaterMesh(liquidBody ? waterRaw.filter((f) => !f.liquid) : waterRaw) : null;
   if (water && water.positions.length) {
-    const mat = b.unlitMaterial({ alpha: 1, name: 'water' });
+    // (the engine handoff, scene/handoff.js: the water lit too, a smooth translucent dielectric the engine shades)
+    const mat = handoff ? b.pbrMaterial({ metallic: 0, roughness: 0.08, alpha: 1, name: 'water' }) : b.unlitMaterial({ alpha: 1, name: 'water' });
     tally(b.addNode('water', water.positions, water.colors, 4, mat));
   }
   for (const body of waterBodies) {
@@ -1839,6 +1857,17 @@ export function facesToGlb(payload = {}, { generator, clips = null, skinned = fa
       b.children.push(b.json.nodes.push(node) - 1);
     }
   }
+  // The engine handoff's instances (scene/handoff.js `instances`: the form render's scree stones, its plants): each set its
+  // template under a lit dielectric material of its own colour, a node per instance. Absent, as every other export: no
+  // bytes.
+  for (const set of Array.isArray(instances) ? instances : []) {
+    if (!set || !set.positions?.length || !set.transforms?.length) continue;
+    const mat = b.pbrMaterial({ metallic: 0, roughness: set.roughness ?? 0.85, baseColor: set.color, name: set.name });
+    const r = b.addFormInstances(set.name, set.positions, set.normals, mat, set.transforms);
+    vertexCount += r.vertices * set.transforms.length;
+    triangleCount += r.triangles * set.transforms.length;
+  }
+
   // Scene-level extras: spawn point, collider boxes, game-contract summary.
   const sceneExtras = levelSceneExtras(payload);
   if (sceneExtras && unitScale) {

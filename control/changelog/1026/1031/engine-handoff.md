@@ -22,3 +22,9 @@ Built so far:
 - **The form data is pinned.** The land read's payload (a small meru island with its grass map) is hashed painted fresh
   and memoized, the two must agree, and the hash is held on every reference leg, so a run, a process or a CPU that paints
   a different byte fails before anything is handed off from it.
+- **The handoff's contract, first slice.** `scene/handoff.js` reads a world unshaded in the form render (gen-7) and hands
+  it off lit: every surface a glTF metal-rough material in its own colour with no light baked in, the water a smooth
+  translucent one, and the form render's scree stones as instances, each standing on its ground's normal as the page
+  stands it. A ledger says what was carried and what stays the web's for now (the land's layers, the stones' skin, the
+  plants and grass, the light). Every other export is byte for byte as it was.
+

@@ -1,6 +1,6 @@
 ### Engine handoff plan (temporary: the working plan, parked here; delete before release)
 
-**Status:** phase 0 built, its Godot job awaiting its first CI run (1031). Branch `1031-gen7-export`, cut from `1026-consolidated`. Theme file
+**Status:** phase 0 built (its Godot job awaiting its first CI run); phase 1's first slice built (1031). Branch `1031-gen7-export`, cut from `1026-consolidated`. Theme file
 `control/changelog/1026/1031/engine-handoff.md`. No release has carried the engine game runtimes this plan removes, so
 nothing here needs a deprecation path.
 
@@ -231,4 +231,41 @@ developer would want to wire. Never claimed by a machine.
     here (Node 22, x86_64). The pin runs on every reference leg, so the macOS leg is the cross-CPU check.
   - Open question 1 answered in part: Godot 4.7.2 from the builds repository; a literal checksum pin can replace the
     sums-file check once the first run prints it.
+- 1031, phase 1, first slice (the contract, the albedo floor, the stones):
+  - `scene/handoff.js`: `resolveHandoff(sketch, { what })` reads the world unshaded in gen-7 with `handoff: true` (a new
+    view option: `worlds/world-scene.js` lets the form render's land read run under the unshaded read only for it; absent,
+    every byte as before), writes the GLB lit (glTF metal-rough; the water lit too, a smooth translucent dielectric, under
+    `facesToGlb`'s new `handoff` flag), and returns `{ kind, payload, exported, instances, ledger }`. The ledger: the
+    version (`handoff/0`), the era, what was handed off, what it carried (faces, instances by set), and what stays the
+    web's (the land's layers, the stones' skin, the plants and grass, the light).
+  - The scree's stones as instances: `stoneInstances(payload.form.land.stones)`, one set per shape, size (near or far,
+    the page's `CAST_R` split) and tone (to 0.1), each stone a node standing +Z onto its ground's normal and yawed by its
+    index, as wide and as deep as `channels/form-land.js` draws it (the page's own jitter hash). `facesToGlb`'s new
+    `instances` option writes them (`GlbBuilder.addFormInstances`: a template with its normals and a node per instance
+    with a full TRS); absent, no bytes.
+  - `scene/handoff.test.js`: a gen-7 trail (`island-noon`, `show: 'trail'`) hands off lit, every material metal-rough,
+    its stones as instance nodes equal to the land's count, the same bytes twice; a stone stands on its normal; a
+    workbench piece hands off its albedo with no instances.
+  - Found on the way: `island-noon`'s default read is a room (`form.room`); its island is `show: 'land'` (about 30 s to
+    read), its trail `show: 'trail'` (about 8 s). Of 32 materials in the trail's handoff, only the water was unlit before
+    the `handoff` flag.
+  - The jitter hash is the page's `Math.sin` hash: deterministic per runtime, but V8's `Math.sin` may round its last bit
+    differently by CPU; if the macOS leg disagrees with a pin of a stone's scale, move the jitter into the land read's
+    stone pack (both the page and the handoff then read it).
+- Next slice, the plants (mapped, not built): a forest path (`{ kind: 'geocube', cube: 'limestone-crags', biocube: {
+  from: 'forest' }, show: 'path', seed: 1 }`, about 130 s to read: test the plants from `floraRead` directly, not through
+  a whole world) carries `payload.form.flora` = `{ templates, barks, trees, n, lod, leafRef }`:
+  - A template: `wood` and `woodFar` as `{ pos, nrm, uv, idx }` (metres; uv in bark tiles, u round the trunk, v up it),
+    `clumps` (b64 transforms of `clumpGeo`'s variants), `sites` and `sprayGeo` (sprays near the eye), `farGeo`, `bark`
+    (a key into `barks`), `trunk`, `cross`, `litter`.
+  - `barks[key]` = `{ metres, depth, base, normal, orm, … }`: PNG data URLs, glTF's metal-rough set already
+    (`form/bark-material.js`); the wood's uv is in tiles, so a repeating sampler takes it as it is, the height and depth
+    to `extras.mojulo` for parallax.
+  - `trees`: b64 Float32, `FLORA_STRIDE` (13) per plant (its template, place, turn, scale and tint: read the layout off
+    `channels/form-flora.js` before writing it).
+  - Plan: per template one wood mesh on its bark's textured PBR material and one foliage mesh (the clumps baked into the
+    template, its leaf tint as the material's colour), each tree a node referencing both. The sprays near the eye stay the
+    web's (a level of detail an engine makes its own).
+- After the plants: the dressed faces' relief (`matte-paint/dressed.js` already calls `reliefMaterial`) as textured PBR,
+  then phase 2.
 

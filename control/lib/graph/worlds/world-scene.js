@@ -727,8 +727,9 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
   // (form/land-read.js: the cube's light solved for its palette, the layers, the trail's dress, the scree's stones, the
   // biocube's moss), drawn
   // on the page in the painted land's place (scene/channels/form-land.js). The trail's dress its words: rubble on or off,
-  // its patches. Any other read, and the unshaded export: none, every byte as it was
-  if (payload && !unshaded && viewOpts.paint !== true && sketch.manifest.kind === 'geocube' && ERAS[era]?.surface === 'form') {
+  // its patches. Any other read, and the unshaded export: none, every byte as it was. The engine handoff (scene/handoff.js,
+  // `handoff: true`) reads it unshaded: its land's data is what an engine is handed, its light the engine's own
+  if (payload && (!unshaded || viewOpts.handoff === true) && viewOpts.paint !== true && sketch.manifest.kind === 'geocube' && ERAS[era]?.surface === 'form') {
     const M = sketch.manifest, path = M.path && typeof M.path === 'object' ? M.path : {}, town = M.show === 'geotown';
     // (a town, geotown: its land a lawn's, no trail's rubble, dust, clay or patches)
     const dress = town ? { ...DRESS_DEFAULT, rubble: 0, dust: 0, clay: 0, patches: [] } : { ...DRESS_DEFAULT, ...(path.rubble === false ? { rubble: 0 } : {}), ...(path.patches === false ? { patches: [] } : Array.isArray(path.patches) ? { patches: path.patches } : {}) };
