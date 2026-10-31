@@ -68,6 +68,9 @@
   through their own depth with a silver edge toward it and by the sky from below, passing over as the eye walks and
   drifting with the page's wind. The haze takes the air where the far land stands, and the stage's painted far land
   takes it too. All through the land's own tone curve; a night's stars and moon stay.
+  A gen-7 geocube page without the form render (a geocity) carries the same sky (`formSky`), its light the cube's own
+  sky colours and its sun the page's; a recipe naming no clouds over a stage that painted none has a few fair-weather
+  clouds, not an empty sky.
 - **The far land** (`scene/channels/form-land.js` `FAR_LAND`, `form/land-read.js` `FAR_GROUPS`): the stage's far ring, its
   ridges past the level (standing curtains, layer behind layer, up to a skyline), was left painted on a gen-7 page, a
   pale backdrop shimmering with its tiles. The read gives it its own range (`far`) and the form draws it as land, in

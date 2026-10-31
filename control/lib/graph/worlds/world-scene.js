@@ -773,6 +773,13 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     // (and its blade cards, never walked on: gone from the page, not only hidden)
     if (read) payload.faces = payload.faces.filter((f) => f.group !== GRASS_CARDS);
   }
+  // (a gen-7 geocube page without the form render, a geocity: the form's sky over it, channels/form-sky.js, its light the
+  // cube's own sky colours, its sun the page's, its clouds the recipe's)
+  if (payload && !payload.form && sketch.manifest.kind === 'geocube' && ERAS[era]?.surface === 'form' && payload.sky && !payload.sky.space && Array.isArray(payload.sky.zenith) && Array.isArray(payload.sky.sun?.dir)) {
+    const Mc = sketch.manifest.clouds;
+    payload.formSky = { sun: payload.sky.sun.dir, zenith: payload.sky.zenith, horizon: payload.sky.horizon,
+      ...(Mc !== undefined ? { clouds: Mc === 'weather' ? { kind: CLOUDS_OF_WEATHER[sketch.manifest.weather] || 'fair', cover: 0.5, seed: 1 } : readClouds(Mc) } : {}) };
+  }
   // (a page without the form render carries the view cone and its far structures only when its world asks: `cone`)
   if (payload && !payload.form && sketch.manifest.cone !== undefined && sketch.manifest.cone !== null) payload.cone = readCone(sketch.manifest.cone);
   // (where the plants stand is the form render's read alone: never on a page)

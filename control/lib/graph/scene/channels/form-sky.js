@@ -8,8 +8,8 @@
 //                (Rayleigh, `rayleigh`) and the forward glow at it (Mie, Henyey-Greenstein `mie.g`, × the solved sun)
 //   the sun      a disc where the solved sun stands (D.sun), at the solved sun's light × `sun.disc`, darker at its limb
 //   the clouds   a layer at `clouds.alt` m, its cover the recipe's weather (a geocube's `clouds`: clear, fair, overcast,
-//                storm, haze, high, and its cover; absent, fair where the stage painted clouds and clear where it
-//                painted none), each cloud its noise over the plane under the eye's own position (so it passes over
+//                storm, haze, high, and its cover; absent, fair where the stage painted clouds and clear (a few
+//                fair-weather clouds) where it painted none), each cloud its noise over the plane under the eye's own position (so it passes over
 //                as the eye walks), lit by the solved sun through its own depth toward the sun (a step `clouds.step`
 //                along it) with a silver edge facing the sun, and by the sky light from below; past `clouds.fade` m
 //                of its plane, the horizon's air over it. Drifting with the page's wind when it has one
@@ -17,19 +17,21 @@
 //                deeper: `haze.depth`), so the far land fades into the sky just over it; the stage's painted far land
 //                takes the haze too
 //
-// Drawn through the land's own tone curve. It replaces what the stage painted for the sky (its painted clouds, its
+// A gen-7 geocube page without the form render (a geocity) carries it too (formSkyInput: its light the cube's own sky
+// colours). Drawn through the land's own tone curve. It replaces what the stage painted for the sky (its painted clouds, its
 // cloud band, its painted sun), its painted clouds' cut-out cards with them; the stars and the moon of a night sky stay. `window.__formSky` { cover, kind, A }.
 export const FORM_SKY = Object.freeze({
   radius: 3000,
   horizon: Object.freeze({ lift: 0.6, sharp: 8 }),
   rayleigh: 0.45,
+  painted: Object.freeze({ sun: 2.6, warm: Object.freeze([1, 0.96, 0.88]) }),
   haze: Object.freeze({ h: 0.04, depth: 0.92 }),
   mie: Object.freeze({ g: 0.8, gain: 0.35 }),
   sun: Object.freeze({ radius: 0.6, disc: 60 }),
   clouds: Object.freeze({
     alt: 1500, scale: 900, fade: 9000, step: 0.06, albedo: 0.9, drift: 4,
     kinds: Object.freeze({
-      clear: Object.freeze({ cover: [0.06, 0.18], dark: 0, veil: 0, stretch: 1 }),
+      clear: Object.freeze({ cover: [0.22, 0.34], dark: 0, veil: 0, stretch: 1 }),
       fair: Object.freeze({ cover: [0.25, 0.6], dark: 0.1, veil: 0, stretch: 1 }),
       overcast: Object.freeze({ cover: [0.82, 0.95], dark: 0.45, veil: 0.2, stretch: 1.4 }),
       storm: Object.freeze({ cover: [0.9, 1], dark: 0.7, veil: 0.3, stretch: 1.6 }),
@@ -89,6 +91,15 @@ void main() {
 }
 `;
 
+/** The sky's input on a page without the form render (a gen-7 geocity, scene-three.js `formSky`): no solved light there,
+ *  so its sky light is the cube's own sky colours (linear, their mean) and its sun that light's level × `painted.sun`, warm. */
+export function formSkyInput({ sun, zenith, horizon, clouds }) {
+  const lin = (c) => { c /= 255; return c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); };
+  const amb = [0, 1, 2].map((c) => (lin(zenith[c]) + lin(horizon[c])) / 2), L = 0.2126 * amb[0] + 0.7152 * amb[1] + 0.0722 * amb[2];
+  const r4 = (v) => Math.round(v * 1e4) / 1e4;
+  return { sun, sky: { zenith, horizon }, light: { ambient: amb.map(r4), sun: C.painted.warm.map((w) => r4(w * L * C.painted.sun)) }, ...(clouds ? { clouds } : {}) };
+}
+
 /** The sky's page source, in the form channel's scope (THREE, scene, D: the form input, its `sky`, `sun`, `light` and
  *  `clouds`, meshes: the page's painted groups). */
 export function formSkyScript() {
@@ -110,7 +121,7 @@ export function formSkyScript() {
     const lum = (c) => 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2], a = lum(amb) / Math.max(1e-6, lum(shape) / wsum), A = [a, a, a];
     // (the clouds: the recipe's weather and cover; absent, fair where the stage painted clouds, clear where it painted none)
     const painted = !!meshes['isekai:cloud'], W = D.clouds || { kind: painted ? 'fair' : 'clear', cover: 0.5, seed: 1 }, K = CK[W.kind] || CK.fair;
-    const cover = W.kind === 'clear' && !D.clouds ? 0 : K.cover[0] + (K.cover[1] - K.cover[0]) * (W.cover ?? 0.5);
+    const cover = K.cover[0] + (K.cover[1] - K.cover[0]) * (W.cover ?? 0.5);
     const U = { uSun: { value: sun }, uSunL: { value: new THREE.Vector3(...sunL) }, uAmb: { value: new THREE.Vector3(...amb) }, uZen: { value: new THREE.Vector3(...zen) }, uHor: { value: new THREE.Vector3(...hor) },
       uA: { value: new THREE.Vector3(...A) }, uCover: { value: cover }, uDark: { value: K.dark }, uVeil: { value: K.veil }, uStretch: { value: K.stretch }, uThin: { value: K.thin ?? 1 },
       uAlt: { value: K.alt ?? FSK.clouds.alt }, uTime: { value: 0 }, uSeed: { value: W.seed ?? 1 }, uDrift: { value: new THREE.Vector2(FSK.clouds.drift / FSK.clouds.scale, 0) } };
