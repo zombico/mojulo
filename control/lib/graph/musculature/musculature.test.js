@@ -131,6 +131,13 @@ describe('the skin between the masses', () => {
     const K = keptInOrder(B0, B, [{ A0, A, gap: 0.002 }]);
     for (const sl of P.slots) expect(r(K, i, sl)).toBeLessThan(r(A, i, sl) - 0.001);
   });
+  it('only ever pulls a hidden shell in: where the shell over it was carried out, the one under stays where it was', () => {
+    const A0 = P, B0 = { ...P, stations: P.stations.map((x) => ({ ...x, points: Object.fromEntries(P.slots.map((sl) => [sl, x.points[sl].map((v, k) => v + (c[k] - v) * 0.03)])) })) };
+    const A = displace(A0, [egg([0.06, 0.06, 0.035])], 1).part;
+    // (the middle ring's front, over the mass: the shell over it carried 2 cm and more out, the hidden one not after it)
+    const i = P.stations.indexOf(mid), j = P.slots.find((sl) => mid.points[sl] === front);
+    expect(keptInOrder(B0, B0, [{ A0, A, gap: 0.002 }]).stations[i].points[j]).toEqual(B0.stations[i].points[j]);
+  });
   it('welds a joint\'s bridge to the shells it meets, ring to ring, and tapers the wrist to the hand', () => {
     const P = AT1.recipe.parts, cen = (X, i) => X.slots.reduce((a, sl) => a.map((v, k) => v + X.stations[i].points[sl][k] / X.slots.length), [0, 0, 0]);
     // (each ring's mean reach from its centre: the bridge's and its neighbour's rings sample one curve at different points)

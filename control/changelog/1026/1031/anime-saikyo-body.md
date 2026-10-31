@@ -113,6 +113,17 @@ fractal articulation of the big groups. The eyes gate is the operator's.
   slanting down and out as the gluteus maximus's does, with a lower cheek (`gluteLower`) that holds the fullest point just
   over the fold and turns the surface under into it: 4.6 cm past the lower back at the detail end, curving under over
   6 cm to the fold; the form end's one seat shape narrower and further out, so the two cheeks keep their cleft.
+- **Posed: classical poses and wide stances** (the operator's): the front and back double biceps, most muscular, hands on
+  hips, arms behind the head, side chest and contrapposto read clean at full figure; so do the athletic ready stance,
+  the horse stance, the sumo squat, a fighting stance and a side lunge. Where the wide stances broke: the thigh's top,
+  hidden under the pelvis, sheared out through the crotch and under the seat. The hidden shell had been set at the
+  shell over it's offset both ways, so where the pelvis's own muscles carried it out, the thigh's top followed it out
+  and, posed, came through the pelvis's hem. Now a hidden shell is only ever pulled IN (`keptInOrder`): a point the shirt
+  left under the shell over it stays where it was; and away from that shell's open end it lies a further 6 mm under
+  (`KEEP_DEEP`, eased in over 3 cm). Tried and set aside: giving the hidden points the outer shell's bind share
+  (fewer points escaped by count, but those left tore in long shards across the groin) and fading the hold at the
+  outer shell's open end (no better). Thigh points escaping the pelvis in the horse stance: about 280 → 180; the plain
+  body has its own shards there, being two boxes at the crotch.
 - **The shoulder's cap without its rim**: the shoulder's drum and web, under the arm's skin, are tucked 2.5 cm (1 cm
   had let their domes stand through the top of the arm's dome at rest, a crisp rim round the deltoid's crown); raised,
   they still bridge the armpit as before.
@@ -134,7 +145,7 @@ fractal articulation of the big groups. The eyes gate is the operator's.
   joints scaled about the wrist; the soles on the ground as the feet grow; the nipples only when asked; a bend driver none straight and
   whole at full; a corrective a side per acting joint, the left the right's mirror, nothing at rest, each joint its own;
   the biceps' front bunched; none with the activity off; raised overhead, held out and forward, the shoulder's
-  shells folding no more than the flat body's; the cone as it was; the nipples on the mid-clavicular line; a mass meeting the skin square on climbed in a ramp; a point past the cap held at it; a limb's shells worn by its own groups only; a hidden shell kept under the one over it; a joint's bridge welded ring to ring and the wrist most of the hand's width; deterministic; the door stores the word and refuses it by name.
+  shells folding no more than the flat body's; the cone as it was; the nipples on the mid-clavicular line; a mass meeting the skin square on climbed in a ramp; a point past the cap held at it; a limb's shells worn by its own groups only; a hidden shell kept under the one over it, only ever pulled in; a joint's bridge welded ring to ring and the wrist most of the hand's width; deterministic; the door stores the word and refuses it by name.
 
 #### The anime frame (hero laws 21): the wrist, the shoe's heel and the clavicle
 

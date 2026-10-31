@@ -393,12 +393,19 @@ export function welded(B, rings) {
 
 /** the least a hidden shell lies under the one that shows over it (m), past their tucks' difference */
 export const UNDER_GAP = 0.002;
+/** how much deeper (m) a hidden shell lies under the one over it away from that one's open edge, reached DEEP_BAND (m) in:
+ * at the gap alone, the thigh under the pelvis came through it over a broad patch as the leg moved (the two shells' skins
+ * move a few millimetres apart in a pose), torn edges round the hem */
+export const KEEP_DEEP = 0.006, DEEP_BAND = 0.03;
 /** how near the shell over it (m, along the ray from its axis, on the flat body) a hidden shell's point keeps its ORDER */
 export const KEEP_NEAR = 0.02;
 /** a displaced part `B` (from its flat dense `B0`) KEPT IN ORDER with the shells that show over it (`owners`: [{ A0, A,
  * gap }], each's flat dense and displaced): each point of B that lay within KEEP_NEAR of an owner's skin on the flat body
- * keeps its offset along the owner's normal from the same place on the owner (its nearest face and the place in it), as
- * the shirt carried the owner, less `gap`; eased to its own displacement as it lay further off, or off the face's edge.
+ * is held at least its offset along the owner's normal from the same place on the owner (its nearest face and the place in
+ * it), as the shirt carried the owner, less `gap` (deeper, KEEP_DEEP, away from the owner's open ends); eased to its own
+ * displacement as it lay further off, or off the face's edge. Only ever IN: a point the shirt left under the owner stays
+ * where it was (moved out to the owner's offset, the thigh's hidden top followed the pelvis's muscles out and sheared
+ * through the crotch in a wide stance).
  * Two shells the shirt carried onto one surface from two axes had flickered through each other (the thigh's top in strips
  * over the pelvis at the hip, a jagged waist); the flat body's own order keeps the line where one passes out of the other
  * (the pelvis's brief over the thigh) where it was, and a hidden shell its gap under the other */
@@ -410,6 +417,11 @@ export function keptInOrder(B0, B, owners) {
       T.push([k[0], k[1], k[2]], [k[0], k[2], k[3]]);
     }
     const at = (P, [i, j]) => P.stations[i].points[P.slots[j]];
+    // (each row's run from the owner's nearer open end: the hidden shell held deeper the further in, KEEP_DEEP)
+    const C = A0.stations.map((x) => scl(A0.slots.reduce((a, s) => add(a, x.points[s]), [0, 0, 0]), 1 / n));
+    const run = [0]; for (let i = 1; i < C.length; i++) run.push(run[i - 1] + len(sub(C[i], C[i - 1])));
+    const total = run[run.length - 1], domed = [ORIGIN.has(A0.stations[0]), ORIGIN.has(A0.stations[A0.stations.length - 1])];
+    const deep = C.map((_, i) => { const r = i + 1 < C.length ? (run[i] + run[i + 1]) / 2 : run[i], x = Math.min(domed[0] ? Infinity : r, domed[1] ? Infinity : total - r) / DEEP_BAND; return x >= 1 ? KEEP_DEEP : KEEP_DEEP * x * x * (3 - 2 * x); });
     // (the faces' winding read outward from the shell's middle ring's centre)
     const mid = A0.stations[Math.floor(A0.stations.length / 2)], mc = scl(A0.slots.reduce((a, s) => add(a, mid.points[s]), [0, 0, 0]), 1 / n);
     let sgn = 0;
@@ -418,7 +430,7 @@ export function keptInOrder(B0, B, owners) {
     // (a grid of the faces by their centres, 4 cm cells)
     const cell = 0.04, grid = new Map(), key = (p) => p.map((v) => Math.floor(v / cell)).join(',');
     T.forEach((t, f) => { const c = scl(t.reduce((a, v) => add(a, at(A0, v)), [0, 0, 0]), 1 / 3), k = key(c); if (!grid.has(k)) grid.set(k, []); grid.get(k).push(f); });
-    return { A0, A, gap, T, at, out, grid, cell };
+    return { A0, A, gap, T, at, out, grid, cell, deep };
   });
   // (the nearest place on a triangle to p: its barycentrics, clamped onto the triangle)
   const nearest = (p, a, b, c) => {
@@ -440,7 +452,7 @@ export function keptInOrder(B0, B, owners) {
     for (const sl of B.slots) {
       const p0 = B0.stations[bi].points[sl];
       let p = x.points[sl];
-      for (const { A0, A, gap, T, at, out, grid, cell } of O) {
+      for (const { A0, A, gap, T, at, out, grid, cell, deep } of O) {
         const g = p0.map((v) => Math.floor(v / cell));
         let best = null;
         for (let dx = -1; dx <= 1; dx++) for (let dy = -1; dy <= 1; dy++) for (let dz = -1; dz <= 1; dz++) {
@@ -455,8 +467,10 @@ export function keptInOrder(B0, B, owners) {
         const wt = ease(Math.abs(d0) / KEEP_NEAR * 2 - 1) * ease(off / 0.01);
         if (wt <= 0) continue;
         const [a1, b1, c1] = T[best.f].map((v) => at(A, v)), n1 = scl(unit(cross(sub(b1, a1), sub(c1, a1))), out);
-        const target = add(mix(a1, b1, c1, best.w), scl(n1, Math.min(d0, 0) - gap));
-        p = [0, 1, 2].map((k) => r6(p[k] + (target[k] - p[k]) * wt)); changed = true;
+        const target = add(mix(a1, b1, c1, best.w), scl(n1, Math.min(d0, 0) - gap - deep[T[best.f][0][0]]));
+        // (only ever IN: a point the shirt left under the owner already stays where it is; moved out to the owner's
+        // offset, the thigh's hidden top followed the pelvis's muscles out and sheared through the crotch in a stance)
+        if (dot(sub(p, target), n1) > 0) { p = [0, 1, 2].map((k) => r6(p[k] + (target[k] - p[k]) * wt)); changed = true; }
         break;
       }
       points[sl] = p;
