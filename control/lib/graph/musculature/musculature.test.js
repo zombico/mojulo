@@ -8,7 +8,7 @@ import { muscleShirt, validateMuscleShirt, MUSCLE_CARDS, presence, articulation 
 import { validateRig, rigNodesAt, correctiveWeight, bindLayered, boneFrames, skinLayered } from '../polygonizer/station-loft-rig.js';
 import { correctiveRest } from '../polygonizer/body-relational-correctives.js';
 import { blendOf, smin } from './principles.js';
-import { densify, grainOf, displace, frames, nipplesOn } from './passes.js';
+import { densify, grainOf, displace, frames, nipplesOn, MOST_MOVE, SLOPE } from './passes.js';
 import { NIPPLE } from './principles.js';
 import { compileLayered } from '../polygonizer/station-loft.js';
 import { heroRecord, expandLayeredManifest } from '../../mcp/tools/layered.js';
@@ -89,6 +89,43 @@ describe('the shirt put on a flat body', () => {
   it('is deterministic, and the dial moves the surface', () => {
     expect(JSON.stringify(worn(1).recipe)).toBe(JSON.stringify(AT1.recipe));
     expect(JSON.stringify(worn(0).recipe.parts.torso)).not.toBe(JSON.stringify(AT1.recipe.parts.torso));
+  });
+});
+
+describe('the skin between the masses', () => {
+  // a thigh's dense skin and one mass on its front: an egg whose centre lies on the skin meets it square on
+  const P = densify(flat.parts.thighR, grainOf(flat.parts.thighR, 0.012)), mid = P.stations[Math.floor(P.stations.length / 2)];
+  const c = P.slots.reduce((a, sl) => a.map((v, k) => v + mid.points[sl][k] / P.slots.length), [0, 0, 0]);
+  const front = P.slots.map((sl) => mid.points[sl]).reduce((a, p) => (p[1] > a[1] ? p : a));
+  const n = [front[0] - c[0], front[1] - c[1], front[2] - c[2]], nl = Math.hypot(...n), ax = [[0, 0, 1], [1, 0, 0], n.map((v) => v / nl)];
+  const egg = (r) => ({ id: 'm', group: 'g', level: 0, c: front, ax, r });
+  // each point's move along its ray, and its distance to its neighbours on the grid
+  const steps = (S) => {
+    const mv = P.stations.map((x, i) => P.slots.map((sl) => Math.hypot(...S.stations[i].points[sl].map((v, k) => v - x.points[sl][k]))));
+    let worst = 0;
+    P.stations.forEach((x, i) => P.slots.forEach((sl, j) => {
+      const nb = P.slots[(j + 1) % P.slots.length], d = Math.hypot(...x.points[sl].map((v, k) => v - x.points[nb][k]));
+      worst = Math.max(worst, Math.abs(mv[i][j] - mv[i][(j + 1) % P.slots.length]) - SLOPE * d);
+    }));
+    return { mv, worst };
+  };
+  it('climbs onto a mass that meets the skin square on in a ramp, never a step', () => {
+    const { mv, worst } = steps(displace(P, [egg([0.06, 0.06, 0.035])], 0).part);
+    expect(Math.max(...mv.flat())).toBeGreaterThan(0.02);
+    expect(worst).toBeLessThan(0.002);
+  });
+  it('holds a point carried past the most the shirt moves AT the most, never back on the skin', () => {
+    const D = displace(P, [egg([0.09, 0.09, 0.12])], 0), { mv } = steps(D.part);
+    expect(D.capped.size).toBeGreaterThan(0);
+    expect(Math.max(...mv.flat())).toBeLessThanOrEqual(MOST_MOVE + 1e-6);
+    const j = P.slots.indexOf(P.slots.find((sl) => mid.points[sl] === front)), i = P.stations.indexOf(mid);
+    expect(mv[i][j]).toBeCloseTo(MOST_MOVE, 4);
+  });
+  it('wears a limb\'s shells by the limb\'s groups only: the chest taken off the card leaves the arm as it was', () => {
+    const card = { ...MUSCLE_CARDS.saikyo, groups: MUSCLE_CARDS.saikyo.groups.filter((g) => g.id !== 'chest') };
+    const without = muscleShirt(flat, { card, definition: 1 });
+    expect(without.recipe.parts.upperArmR.stations).toEqual(AT1.recipe.parts.upperArmR.stations);
+    expect(without.recipe.parts.torso.stations).not.toEqual(AT1.recipe.parts.torso.stations);
   });
 });
 

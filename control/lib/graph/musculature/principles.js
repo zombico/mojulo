@@ -53,11 +53,13 @@ export const ACTIVITY = Object.freeze({
  * trunk's down; `from` where the activity begins and `full` where it is whole (degrees). A joint at rest drives nothing.
  * `revert` (the shoulder's): near the joint the skin eased back to the wearer's own as it closes, wholly within `near`
  * of the half biacromial and none past `far` (the deltoid's bulk at the arm's root, on weights shared across the joint,
- * folded into holes raised overhead; the flat body's shoulder raises clean) */
+ * folded into holes raised overhead; the flat body's shoulder raises clean). `domes` (the shoulder's): its corrective
+ * moves the domes that close the shoulder's shells; another joint's leaves them (the elbow's biceps, slid toward its
+ * origin, grazed the arm's dome and lifted it 7 cm) */
 export const ACTIVITY_JOINTS = Object.freeze({
   elbow: Object.freeze({ joint: 'elbowR', to: 'wristR', bend: 'shoulderR', from: 15, full: 135 }),
   knee: Object.freeze({ joint: 'kneeR', to: 'ankleR', bend: 'hipR', from: 15, full: 135 }),
-  shoulder: Object.freeze({ joint: 'shoulderR', to: 'elbowR', from: 20, full: 120, revert: Object.freeze({ near: 0.5, far: 1.1 }) }),
+  shoulder: Object.freeze({ joint: 'shoulderR', to: 'elbowR', from: 20, full: 120, revert: Object.freeze({ near: 0.5, far: 1.1 }), domes: true }),
 });
 
 /** each level's blend `k` in metres, [at the form end, at the detail end]: the masses of one level summed by it, then

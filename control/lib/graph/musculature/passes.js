@@ -228,7 +228,7 @@ export function unionOf(masses, d, k = null) {
  * (the torso's over the pelvis, the arm's over the elbow's bridge), a step at every joint */
 export const END_TUCK = 0.004, END_BAND = 0.018;
 /** the most the shirt carries a point (m): past every muscle's stand off the skin */
-export const MOST_MOVE = 0.045;
+export const MOST_MOVE = 0.065;
 /** the most the shirt carries a dome's point on a shell that shows (m): the deltoid's crown lifts the arm's top about 5 cm,
  * and a dome's inner ray grazing along it toward the torso had run out 10 cm in a fin */
 export const DOME_MOST = 0.07;
@@ -238,7 +238,7 @@ export const DOME_MOST = 0.07;
  * tuck (each never more than the point moved). A point no mass reaches keeps its place. `k` one blend for every level
  * and the skin (a mark's: the nipples'), its march finer. `whole`: the tuck taken whole, moved or not (adapters/loft.js UNDER) */
 export function displace(P, masses, d, tuck = 0, k = null, whole = false) {
-  if (!masses.length) return { part: P, moved: 0 };
+  if (!masses.length) return { part: P, moved: 0, capped: new Set() };
   const M = unionOf(masses, d, k), kS = k ?? skinBlendOf(d), STEP = k ? 0.0005 : 0.002, REACH = k ? 0.03 : 0.16;
   const centres = P.stations.map((x) => scl(P.slots.reduce((a, s) => add(a, x.points[s]), [0, 0, 0]), 1 / P.slots.length));
   // (each ring's run from the part's nearer end, along its rings' centres)
@@ -246,7 +246,8 @@ export function displace(P, masses, d, tuck = 0, k = null, whole = false) {
   // (an end closed in a dome is no end: the dome runs on over it, and a tuck there cut a groove round the arm under it)
   const domedBack = ORIGIN.has(P.stations[0]), domedTip = ORIGIN.has(P.stations[P.stations.length - 1]);
   const total = run[run.length - 1], endOf = (i) => { const x = Math.min(domedBack ? Infinity : run[i], domedTip ? Infinity : total - run[i]) / END_BAND; if (x >= 1) return 0; const y = 1 - x; return END_TUCK * y * y * (3 - 2 * y); };
-  let moved = 0;
+  let moved = 0, held = false;
+  const capped = new Set();
   // (a point carried out along its ray from `c` onto the union, less its tuck; unmoved where no mass reaches)
   // (a DOME's point, the shirt's own surface and none of the wearer's, takes its tuck whole: the shoulder web's dome lay on
   // the arm's, the two shells showing through each other in patches)
@@ -255,28 +256,65 @@ export function displace(P, masses, d, tuck = 0, k = null, whole = false) {
     const f = (s) => smin(s - t0, M(add(c, scl(dir, s))), kS);
     if (f(t0) >= 0) return dome && tk ? add(c, scl(dir, t0 - tk)).map(r6) : p0;
     let lo = t0, hi = t0 + STEP; while (hi < t0 + REACH && f(hi) < 0) { lo = hi; hi += STEP; }
-    // (a ray that leaves no surface within its reach, one a long mass engulfs along it, keeps its point; and so does one
-    // carried past MOST_MOVE, a ray that grazed along a mass: hidden in another shell at rest, posed it stood out in shards)
+    // (a ray that leaves no surface within its reach, one a long mass engulfs along it, or one carried past MOST_MOVE, a
+    // ray that grazed along a mass, is held AT the cap: one that kept its point had sunk patches of the skin flat under
+    // the muscles round them, plates, most at the form end, where the level-0 shapes stand furthest out; the posed
+    // shards these rays made are kept out of a corrective by `capped`)
     // (a dome's ray, from its end ring's centre over the end, is the shirt's own and carries its point further, DOME_MOST,
     // on a shell that shows; a dome under another shell's, `whole`, carried far had swung out in flaps as the arm rose)
-    if (f(hi) < 0 || lo - t0 > (dome && !whole ? DOME_MOST : MOST_MOVE)) return p0;
+    const most = dome && !whole ? DOME_MOST : MOST_MOVE;
+    if (f(hi) < 0 || lo - t0 > most) { held = true; moved++; return add(c, scl(dir, t0 + most - (dome ? tk : Math.min(tk, most)))).map(r6); }
     for (let it = 0; it < 30 && hi - lo > 1e-7; it++) { const m = (lo + hi) / 2; if (f(m) < 0) lo = m; else hi = m; }
     // (a shell that should not show tucked in by as much as it moved, up to its tuck: adapters/loft.js TUCK)
     const s = (lo + hi) / 2; moved++;
     return add(c, scl(dir, s - (dome ? tk : Math.min(tk, s - t0)))).map(r6);
   };
-  const stations = P.stations.map((x, i) => {
+  const origins = P.stations.map((x, i) => ORIGIN.get(x) ?? centres[i]);
+  const carried = P.stations.map((x, i) => {
     // (a dome ring casts from its end ring's centre, so its rays leave over the end, not across it)
-    const dome = ORIGIN.has(x), c = ORIGIN.get(x) ?? centres[i], points = {}, tk = dome ? tuck : Math.max(tuck, endOf(i));
-    for (const sl of P.slots) points[sl] = carry(x.points[sl], c, tk, dome || whole);
+    const dome = ORIGIN.has(x), c = origins[i], points = {}, tk = dome ? tuck : Math.max(tuck, endOf(i));
+    for (const sl of P.slots) { held = false; points[sl] = carry(x.points[sl], c, tk, dome || whole); if (held) capped.add(`${x.id}.${sl}`); }
     return { ...x, points };
   });
+  const stations = sloped(P, carried, origins, capped);
   // (a point carried far past its neighbours on the grid takes their mean: rays that grazed along a mass stood a column
   // of the arm's inner side out as a fin, hidden in the torso at rest, swung out as the arm rose)
   const smoothed = unfinned(P, stations);
   const from = ORIGIN.get(P) ?? {}, caps = P.caps ? Object.fromEntries(Object.entries(P.caps).map(([k, q]) => [k, from[k] ? carry(q, from[k], tuck, true) : q])) : P.caps;
-  return { part: { ...P, stations: smoothed, ...(caps ? { caps } : {}) }, moved };
+  return { part: { ...P, stations: smoothed, ...(caps ? { caps } : {}) }, moved, capped };
 }
+
+/** the steepest the shirt's skin climbs from one grid point to the next (its move's rise over their distance): a mass
+ * meeting the skin square on, or a ray slanting past a mass's edge, left a step of centimetres between two neighbours
+ * (34 mm over one slot on the back at the form end, read as plates); a lower point is raised along its ray to the ramp */
+export const SLOPE = 0.8;
+/** a displaced grid's steps eased to SLOPE: each point's move along its ray raised (never lowered) to its neighbours'
+ * less SLOPE times their distance, swept until it holds; a point `capped` (its ray grazed a mass) raises none */
+function sloped(P, S, C, capped) {
+  const n = P.slots.length, rows = S.length;
+  const dir = P.stations.map((x, i) => P.slots.map((sl) => unit(sub(x.points[sl], C[i]))));
+  const m = S.map((x, i) => P.slots.map((sl, j) => dot(sub(x.points[sl], P.stations[i].points[sl]), dir[i][j])));
+  const src = P.stations.map((x) => P.slots.map((sl) => !capped.has(`${x.id}.${sl}`)));
+  const dist = (i, j, a, b) => len(sub(P.stations[i].points[P.slots[j]], P.stations[a].points[P.slots[b]]));
+  const up = new Set();
+  for (let pass = 0, changed = true; changed && pass < 16; pass++) {
+    changed = false;
+    const order = pass % 2 ? [...Array(rows).keys()].reverse() : [...Array(rows).keys()];
+    for (const i of order) for (let jj = 0; jj < n; jj++) {
+      const j = pass % 2 ? n - 1 - jj : jj;
+      for (const [a, b] of [[i - 1, j], [i + 1, j], [i, (j + 1) % n], [i, (j + n - 1) % n]]) {
+        if (a < 0 || a >= rows || !src[a][b]) continue;
+        const v = m[a][b] - SLOPE * dist(i, j, a, b);
+        if (v > m[i][j] + 1e-6) { m[i][j] = v; up.add(i * n + j); changed = true; }
+      }
+    }
+  }
+  if (!up.size) return S;
+  return S.map((x, i) => ({ ...x, points: Object.fromEntries(P.slots.map((sl, j) => [sl, up.has(i * n + j) ? add(P.stations[i].points[sl], scl(dir[i][j], m[i][j])).map(r6) : x.points[sl]])) }));
+}
+
+/** the points of a dense part's DOMES (densify's rings closing an end), as `<station>.<slot>` */
+export const domeKeys = (P) => new Set(P.stations.filter((x) => ORIGIN.has(x)).flatMap((x) => P.slots.map((sl) => `${x.id}.${sl}`)));
 
 /** a displaced grid with its FINS taken out: each point's move (from `P`'s point to `S`'s) set to its grid neighbours'
  * mean where it is more than twice their median and FIN more, twice over; a point that did not move stays exactly */
@@ -390,9 +428,10 @@ export const SPIKE = 0.004;
 
 /** a corrective's offsets, a side each: { R, L } by point id: each point of `active` less the same point of `rest` (a
  * part, its stations' slots and its caps) on the right (`name`), and their mirror on the left (`L`: the left part's
- * name, or a midline part's own, its slots swapped); a point that did not move, or moved past ACT_MOST, is left out */
-export function offsetsOf(name, rest, active, L) {
-  const R = {}, Lf = {}, put = (id, idL, o) => { const l = len(o); if (l > 1e-6 && l <= ACT_MOST) { R[id] = o.map(r6); Lf[idL] = [-o[0], o[1], o[2]].map(r6); } };
+ * name, or a midline part's own, its slots swapped); a point that did not move, or moved past ACT_MOST, or one `capped`
+ * (its `<station>.<slot>`: held at the move's cap at rest or active, its ray grazing a mass) is left out */
+export function offsetsOf(name, rest, active, L, capped = null) {
+  const R = {}, Lf = {}, put = (id, idL, o) => { const l = len(o); if (l > 1e-6 && l <= ACT_MOST && !capped?.has(id.slice(name.length + 1))) { R[id] = o.map(r6); Lf[idL] = [-o[0], o[1], o[2]].map(r6); } };
   // (a point moved far past its neighbours on the grid, a ray that found another surface, takes their mean: more than
   // twice their median, and SPIKE more)
   const n = rest.slots.length, O = rest.stations.map((x, i) => rest.slots.map((sl) => sub(active.stations[i].points[sl], x.points[sl])));

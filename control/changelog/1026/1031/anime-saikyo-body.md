@@ -65,10 +65,21 @@ fractal articulation of the big groups. The eyes gate is the operator's.
   `body-relational-correctives.js` `correctiveRest`, the pack's driver joints): its weight the joint's flexion, the
   angle between the bone into it and the bone out of it, 0 straight. A driver without one reads the raise as before;
   the glTF's corrective note says how an engine reads it only where a target names it.
-- **The skin's guards** (they came out of the raised arm): a ray that leaves no surface within its reach keeps its point,
-  and so does one carried past 4.5 cm (a ray grazing along a mass, hidden in another shell at rest, swung out in shards
-  as the arm rose), a dome on a shell that shows excepted; the shoulder's cone and web wear only the arm's groups; a
-  corrective's point past 4 cm, or far past its neighbours, left out or eased to them.
+- **The skin's guards** (they came out of the raised arm): a ray that leaves no surface within its reach, or one carried
+  past 6.5 cm (a ray grazing along a mass), is held at that cap (7 cm for a dome on a shell that shows); such a point
+  takes no part in the elbow's or the knee's corrective (hidden in another shell at rest, posed it swung out in
+  shards); the shoulder's cone and web wear only the arm's groups; a corrective's point past 8 cm, or far past its
+  neighbours, left out or eased to them.
+- **The form end without plates** (definition 0 had shown flat plates on the back, the thighs, the arms and the hips):
+  three faults. A point carried past the cap had been put back on the skin, a patch sunk flat under the muscles round
+  it, about 1,400 points at the form end, where the level-0 shapes stand furthest out; it is now held at the cap, and the
+  cap is 6.5 cm, not 4.5 (the torso's, the thigh's and the shank's muscles stand a smooth 5 to 6 cm out there; the
+  stray rays run on to 16). A right limb's shells had worn every group's masses, the chest's and the back's among
+  them, where its squash and stretch wore only its own; they wear only their own. And where a mass meets the skin
+  square on, two neighbouring points had stood centimetres apart (34 mm over one slot on the back): the skin now climbs
+  onto a mass in a ramp, each point's move raised (never lowered) to its neighbours' less `SLOPE` (0.8) times their
+  distance, a point held at the cap raising none. The elbow's and the knee's correctives leave the shoulder's domes
+  alone (the elbow's biceps, slid toward its origin, had grazed the arm's dome and lifted it 7 cm).
 - **The shoulder in a raise** (the operator's: overhead the shoulder's top opened in holes and the armpit frayed):
   measured as folded faces (a face turned past a right angle from its neighbours), the shirt's skin never folded; its
   faults were the bridging shells passing through the arm and a few grazing rays. A dome's rings ride as its end ring
@@ -87,7 +98,7 @@ fractal articulation of the big groups. The eyes gate is the operator's.
   joints scaled about the wrist; the soles on the ground as the feet grow; the nipples only when asked; a bend driver none straight and
   whole at full; a corrective a side per acting joint, the left the right's mirror, nothing at rest, each joint its own;
   the biceps' front bunched; none with the activity off; raised overhead, held out and forward, the shoulder's
-  shells folding no more than the flat body's; the cone as it was; the nipples on the mid-clavicular line; deterministic; the door stores the word and refuses it by name.
+  shells folding no more than the flat body's; the cone as it was; the nipples on the mid-clavicular line; a mass meeting the skin square on climbed in a ramp; a point past the cap held at it; a limb's shells worn by its own groups only; deterministic; the door stores the word and refuses it by name.
 
 #### The anime frame (hero laws 21): the wrist, the shoe's heel and the clavicle
 
