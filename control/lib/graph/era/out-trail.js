@@ -577,6 +577,9 @@ export function outTrailPayload(site) {
       stairs: P.stairs, laws: outTrailLaws(site).map(({ law, ok, value }) => ({ law, ok, value })),
       // a trail that follows another: which, and where its site sits beside it (the followed one's frame, metres)
       ...(P.join ? { after: `out-trail:${P.join.from}`, origin: [0, site.origin, 0] } : {}) },
+    // (its water's plan, out-water.js: what a render may draw live, era/water-live.js; read off the payload there, never
+    // a page's. None under a cavern: its water keeps its painted look)
+    ...(site.water?.plan?.length && !site.cavern ? { waterworks: site.water.plan } : {}),
   };
 }
 

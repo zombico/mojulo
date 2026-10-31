@@ -90,6 +90,37 @@ describe('a trail\'s water, cut into its land', () => {
   });
 });
 
+describe('the water\'s plan: what moves, as data for a render to draw it live (water-live.js)', () => {
+  it('a river: its line downstream every metre, its water never climbing down it, its sheets carrying its id', () => {
+    const W = trail({ water: { river: true } }).site.water, [P] = W.plan;
+    expect(P).toMatchObject({ id: 'river-1', form: 'river', half: WATER.river.width / 2, fill: expect.stringMatching(/^#/) });
+    for (let k = 1; k < P.line.length; k++) expect(P.line[k][2]).toBeLessThanOrEqual(P.line[k - 1][2] + WATER.river.step + 1e-6);
+    expect(P.line[0][2]).toBeGreaterThanOrEqual(P.line.at(-1)[2]);
+    expect(P.fall).toBeCloseTo(P.line[0][2] - P.line.at(-1)[2], 3);
+    // (its painted sheets, and only they, carry it)
+    const tagged = W.faces.filter((f) => f.waterBody);
+    expect(tagged.length).toBe(W.faces.filter((f) => f.water).length);
+    expect(new Set(tagged.map((f) => f.waterBody))).toEqual(new Set(['river-1']));
+  });
+
+  it('the falls: its lip, its drop, the brook to it, its pool\'s carved bed (wet in it, bank past it)', () => {
+    const W = trail({ water: { falls: true } }).site.water, [P] = W.plan, B = P.pool.bed;
+    expect(P).toMatchObject({ id: 'falls-1', form: 'falls', dir: [1, 0, 0], width: WATER.falls.width });
+    expect(P.drop).toBeCloseTo(P.lip[2] - P.pool.at[2], 4);
+    expect(P.brook.line.at(-1)[0]).toBeLessThan(P.lip[0]);
+    const at = (x, y) => B.depth[Math.round((y - B.y0) / B.dy) * B.nx + Math.round((x - B.x0) / B.dx)];
+    expect(at(P.pool.at[0], P.pool.at[1])).toBeGreaterThan(0);
+    expect(at(B.x0, B.y0)).toBeLessThan(0);
+    expect(new Set(W.faces.filter((f) => f.waterBody).map((f) => f.waterBody))).toEqual(new Set(['falls-1']));
+  });
+
+  it('a pool on a river takes the river\'s level there: the fall drops into it, no rim stands between', () => {
+    const W = trail({ water: { falls: true, river: true } }).site.water, R = W.plan.find((p) => p.form === 'river'), F = W.plan.find((p) => p.form === 'falls');
+    const y = F.pool.at[1], k = R.line.reduce((b, p, i) => (Math.abs(p[1] - y) < Math.abs(R.line[b][1] - y) ? i : b), 0);
+    expect(F.pool.at[2]).toBeCloseTo(R.line[k][2], 1);
+  });
+});
+
 describe('the water underground, under a cavern (cavern.js)', () => {
   const luma = (h) => { const c = [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16)); return 0.3 * c[0] + 0.59 * c[1] + 0.11 * c[2]; };
   it('a river runs between the end walls, rising out of the rock and sinking into it, a mouth at each end', () => {

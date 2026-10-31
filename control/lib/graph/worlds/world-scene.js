@@ -48,6 +48,7 @@ import { readWeather } from '@/lib/graph/weather/weather';
 const SEASON_CLIMATES = ['spring-blossom', 'temperate', 'autumn', 'alpine'];
 import { airCard } from '@/lib/graph/era/air';
 import { geocubeContrastOf, geocubeRegisterOf, geocubeStructures, geocubeEraOf, readGeocube } from '@/lib/graph/era/geocube';
+import { lowerWaterworks } from '@/lib/graph/era/water-live';
 import { readBiocube } from '@/lib/graph/era/biocube';
 import { readHour } from '@/lib/graph/era/geocube-hours';
 import { landRead, formPayload, DRESS_DEFAULT, GRASS_CARDS } from '@/lib/graph/form/land-read';
@@ -723,6 +724,21 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
   if (payload && liveL && liveL.tier) payload.lightTier = liveL.tier;
   // (a read in another era than its cube's says so where the cube's look is read back)
   if (payload && payload.geocube && viewOpts.era !== undefined && payload.geocube.era !== era) payload.geocube = { ...payload.geocube, era };
+  // THE WATER, LIVE (era/water-live.js): a 'form' era's read on the page draws a trail's river and falls as they move,
+  // the landscape views' own water (the surface channel's river, a sheet jet into a shallows pond), in the place of the
+  // painted sheets it leaves out of the faces (so the form render never reads them). Any other read, a still's paint and
+  // the exports: the painted water. Either way the plan and its tags are the builder's, never a page's
+  if (payload && payload.waterworks) {
+    const W = !unshaded && viewOpts.paint !== true && ERAS[era]?.surface === 'form' ? lowerWaterworks(payload.waterworks, { sky: payload.sky, bg: payload.bg }) : null;
+    const drawn = new Set(W ? W.drawn : []);
+    payload.faces = payload.faces.filter((f) => !(f.waterBody && drawn.has(f.waterBody))).map((f) => { if (!f.waterBody) return f; const { waterBody: _w, ...rest } = f; return rest; });
+    if (W) {
+      payload.surfaces = [...(payload.surfaces || []), ...W.surfaces];
+      if (W.shallows) payload.shallows = { bodies: [...(payload.shallows?.bodies || []), ...W.shallows.bodies], floaters: [...(payload.shallows?.floaters || []), ...W.shallows.floaters] };
+      if (W.jets) payload.jets = [...(payload.jets || []), ...W.jets];
+    }
+    delete payload.waterworks;
+  }
   // THE FORM RENDER'S LAND (gen-7): a 'form' era's read of a geocube's island or trail carries its land as material
   // (form/land-read.js: the cube's light solved for its palette, the layers, the trail's dress, the scree's stones, the
   // biocube's moss), drawn
