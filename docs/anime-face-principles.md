@@ -8,7 +8,9 @@ that takes one off is the operator's call. A principle a test holds names the te
 1. **The brow never covers the eye.** Over each eye the brow's bottom stays above the top of its lash band, as the widest
    lid any drawing draws would set it, by sculpt `browClear` of the opening (the head's form wears 0.05). Clearing the
    widest lid, not the lid drawn, keeps a lid's drawing from moving the brow, so the 7G layers still add exactly. Past
-   the eye's corners the brow is free. Held by `anime-drawings.test.js` (the principles) and swept over every brow, every
+   the eye's corners the brow is free. One exception, by design: a drawing whose socket slides the brow (`socket.rise`,
+   the squint's squeeze, hero laws 20) brings the brow down with the eye, and clears the lid as it draws it instead; the
+   brow still never covers the eye, and the rig's correctives keep every pair's sum exact. Held by `anime-drawings.test.js` (the principles) and swept over every brow, every
    lid, both bases and every style in `anime-drawings.deep.test.js`.
 2. **The socket follows the brow.** The eye's recess (sculpt `orbit`) rises from its apex to the middle of the brow as it
    sits at rest, so the brow sits on the socket's rim whatever a style sets its gap to; and as the brow acts (each brow

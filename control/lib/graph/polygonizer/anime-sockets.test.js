@@ -2,8 +2,8 @@
 // family's strongest entry (chosen in code): the table in range and keyed by brow and lid drawings; read under hero laws
 // 20 on the head's form only; a neutral socket adds nothing; a brow's socket moves the brow and the face's skin, never the
 // eye (its white, lenses, lid band and lashes), the brow block whole (no visor), its clearance of the eye kept; a lid's
-// moves the cheek under the eye alone, forward; the skull's word squeezes the orbit (the brow's mass slid down, the brow
-// riding it), never the eye; the face rig's brow and lid targets carry it under laws 20, and a
+// moves the cheek under the eye alone, forward; the skull's word squeezes the orbit (the brow's mass slid down and the
+// brow with it, onto the squinting lid and never over it); the face rig's brow and lid targets carry it under laws 20, and a
 // drawing the table names not never changes. Every brow over every lid on every cast: anime-drawings.deep.test.js.
 import { describe, it, expect } from 'vitest';
 import { SOCKETS, SOCKET_RANGES, SOCKET_LAWS, socketsOn, withSocket, socketErrors } from './anime-sockets.js';
@@ -57,18 +57,17 @@ describe('the socket library', () => {
     expect(pushed.length).toBeGreaterThan(0);
     for (const [p, q] of pushed) { expect(p[2]).toBeLessThan(white); expect(q[1]).toBeGreaterThan(p[1] - 1e-9); }
   });
-  it('squeezes the orbit (the skull\'s word, a squint\'s): the brow\'s mass slid down onto the eye, the brow riding it; never the eye or its lashes; nothing folded', () => {
+  it('squeezes the orbit (the skull\'s word, a squint\'s): the brow\'s mass slid down onto the eye and the brow with it, still clear of the eye; never the eye or its lashes; nothing folded', () => {
     const A = build(socketed(SQUEEZE)), P = build(DRAWINGS[SQUEEZE].words), M = moved(A, P);
     expect(Object.keys(M).sort()).toEqual(['browL', 'browR', 'face']);
     for (const n of Object.keys(A)) expect(A[n].faces, n).toEqual(P[n].faces);
     expect(folds(A, P)).toEqual([]);
-    // (over the eye's middle column the mass moved down: the skin at the brow comes forward, the forehead above it goes
-    // back; the head frame's +y is forward, +z up. The brow block keeps the height its drawing gives it, so a lid's
-    // drawing never moves it up or down, and rides the mass)
+    // (the brow brought down onto the squinting lid, the head frame's +z up, and held clear of it as drawn: the squint's
+    // brow moves with the eye by design, never over it)
     const spec = { cast: 'male', animeStyle: 'shonen-high' }, H = headOf(spec, DRAWINGS[SQUEEZE].words), S = headOf(spec, socketed(SQUEEZE));
-    const white = H.faces.flatMap((f, i) => (H.groups[i] === 'Sclera' ? f.map((v) => H.vertices[v]) : [])), xc = white.reduce((t, p) => t + p[0], 0) / white.length, top = Math.max(...white.map((p) => p[2]));
-    const fwd = (lo, hi) => { let t = 0, k = 0; H.vertices.forEach((p, i) => { if (H.provenance[i].part === 'face' && Math.abs(p[0] - xc) < 0.003 && p[2] > top + lo && p[2] < top + hi) { t += S.vertices[i][1] - p[1]; k++; } }); return t / k; };
-    expect(fwd(0, 0.025)).toBeGreaterThan(0); expect(fwd(0.03, 0.08)).toBeLessThan(0);
+    const browZ = (m) => { const zs = m.vertices.filter((_, i) => m.provenance[i].part === 'browL').map((p) => p[2]); return zs.reduce((a, b) => a + b, 0) / zs.length; };
+    expect(browZ(S)).toBeLessThan(browZ(H) - 0.001);
+    expect(browClearance(S)).toBeGreaterThan(0); expect(browClearance(S)).toBeLessThan(browClearance(H));
   });
   it('moves the brow block whole (its bottom row with its top), and keeps its clearance of the eye', () => {
     const spec = { cast: 'male', animeStyle: 'shonen-high' }, w = DRAWINGS[FORWARD].words;

@@ -511,14 +511,22 @@ export function buildAnime(r, options = {}) {
       const W = D.brow;
       bot.forEach((p, i) => { const s = i / NW, k = dmath.pow(1 - s, 1.5); p[0] -= side * BROW.knitIn * (W.knit ?? 0) * a * k; p[1] += (BROW.lift * (W.lift ?? 0) + (BROW.inner * (W.inner ?? 0) - BROW.knit * (W.knit ?? 0)) * k) * openP; });
     }
+    // the drawing's socket that slides the skull's mass over the eye (`socket.rise`, anime-sockets.js): the brow rides it,
+    // brought down onto the eye in a squint (or up), so the orbit squeezes at the brow too; the rim follows the brow
+    const RISE = !rest && D?.socket?.rise ? D.socket.rise : 0;
+    if (RISE) for (const p of bot) p[1] += RISE;
     // THE BROW NEVER COVERS THE EYE (sculpt `browClear`, of the opening): over the eye its bottom is held that far above
     // the top of the lash band as the widest lid any drawing draws would set it (LID.wide: so a lid's drawing never moves
     // the brow, and the layers still add), eased by a smooth max so the brow bends rather than kinks; past the eye's
-    // corners it is free
+    // corners it is free. A drawing whose socket slides the brow (`socket.rise`: the squint) holds it above its own lid
+    // instead, as drawn: that brow moves with the eye by design, and the rig's correctives keep the layers' sum exact
     const floor = [];
     {
       const [r0, rSpan] = S.lidRamp ?? [0.3, 0.45], lw = (S.lidWeight ?? 0) * openP, k = BROW.clearEase * openP;
-      const top = (lat) => { const m = Math.min(1, (lat + 1) / rSpan), u = centerU + a * lat * side; return cy + EYE0.bUp * EYE0.Yup(lat) * (1 + LID.wide) + f.tilt * (Math.abs(u) - Math.abs(centerU)) + lw * (r0 + (1 - r0) * m * m * (3 - 2 * m)); };
+      // (a drawing whose socket slides the brow, `socket.rise`, clears the lid as it draws it: its brow is meant to move
+      // with the eye, and never covers it)
+      const E0 = RISE ? EYE : EYE0, wide = RISE ? 0 : LID.wide;
+      const top = (lat) => { const m = Math.min(1, (lat + 1) / rSpan), u = centerU + a * lat * side; return cy + E0.bUp * E0.Yup(lat) * (1 + wide) + f.tilt * (Math.abs(u) - Math.abs(centerU)) + lw * (r0 + (1 - r0) * m * m * (3 - 2 * m)); };
       const smax = (p, q) => { const h = clamp(0.5 + 0.5 * (p - q) / k); return q + (p - q) * h + k * h * (1 - h); };
       // (the band leans toward the lateral canthus, so its top over a column is drawn from a little either side of it: the
       // highest within BROW.clearReach, held a little past the corners)

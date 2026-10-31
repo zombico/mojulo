@@ -49,7 +49,12 @@ laws 20: a row minted before keeps the drawings it had. The eyes gate is the ope
   skull's shape terms there read from that far below or above (from the top of the widest lid's lash band, eased in to
   the drawn brow's bottom, up through the forehead, gone before the side seam). The squint's socket slides it down onto
   the eye beside its cheek pushed up: the skin at the brow comes forward and the forehead above it goes back. The eye,
-  its lenses and lash bands, the socket's cut and the brow block's height keep their place (a lid's drawing never moves
-  the brow up or down); the brow rides the mass. A word both of two drawings name adds when they are drawn together.
+  its lenses and lash bands and the socket's cut keep their place. A word both of two drawings name adds when they are
+  drawn together.
+- **The brows with it**: the brow block rides the slid mass too, brought down onto the squinting lid, so the orbit
+  squeezes at the brow as well as round the eye (on Shonen High's male about 4 mm, its rim following it). A drawing
+  that slides the brow clears the lid as it draws it, not the widest lid any drawing draws (principle 1's one
+  exception): the brow still never covers the eye (at the strong slide, 0.6 mm over the squinting lid at its least),
+  and the rig's correctives keep a scowl over a squint the exact sum of its drawings.
   Tried and set aside: a matching slide of the cheekbone's mass up toward the eye, which moved nothing where a style's
   cheek is flat under the eye (Shonen High's); the cheek's push forward carries the squeeze's lower half instead.
