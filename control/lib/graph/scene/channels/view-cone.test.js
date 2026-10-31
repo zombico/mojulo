@@ -33,6 +33,11 @@ describe('view cone', () => {
     for (const bad of [0, VIEW_CONE.range[1] + 1, 'far', [40], { reach: 'x' }, NaN]) expect(() => readCone(bad)).toThrow(/cone is the view cone/);
   });
 
+  it('true asks for the screen\'s reach, on a page without the form render too', () => {
+    expect(readCone(true)).toEqual({ reach: null });
+    expect(viewConeScript({ reach: null })).toContain('let fixed = null;');
+  });
+
   it('the page\'s block parses, carries the fixed reach only when there is one, and adjusts live', () => {
     const screen = viewConeScript(), fixed = viewConeScript({ reach: 40 });
     for (const src of [screen, fixed]) expect(() => new Function('THREE', 'scene', src)).not.toThrow();

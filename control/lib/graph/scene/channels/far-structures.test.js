@@ -24,6 +24,14 @@ describe('the far structures', () => {
     expect(FAR_STRUCTURES.px).toBeLessThanOrEqual(1);
   });
 
+  it('leaves a level whose standing plan holds more tiles than its budget as it was, and says so', () => {
+    const src = farStructuresScript();
+    expect(FAR_STRUCTURES.most).toBeGreaterThan(0);
+    expect(src).toContain("if (seen.size > FS.most) { window.__formStructures = () => ({ skipped:");
+    // (a page without the form render: the land's height its lowest surface in each cell)
+    expect(src).toContain('const pick = POS ? Math.max : Math.min');
+  });
+
   it('stands the merged mesh in for a pass with its own material, and keeps the cards out of it', () => {
     const src = farStructuresScript();
     expect(src).toContain('if (P[1].material !== P[2] && P[1].visible)');

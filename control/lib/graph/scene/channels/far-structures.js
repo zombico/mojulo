@@ -8,31 +8,43 @@
 // card carries it), turned to the eye about the tile's foot and casting from the sun's side.
 //
 //   what stands   a triangle whose middle stands more than `ground` m over the land there (the form's own land, a
-//                 heightfield of it at `cell` m) and less than `tall` m: the land, its roads, kerbs and pads stay live
+//                 heightfield of it at `cell` m; on a page without the form render, a world that asks for its `cone`,
+//                 the lowest surface in each cell, a city's roads, walks and ground floors) and less than `tall` m: the land, its roads, kerbs and pads stay live
 //                 everywhere, and so does what is higher than anything that stands (the clouds)
+//   its budget    at most `most` tiles carry a card (each its atlas, `bearings` × `texels`): a level whose standing
+//                 plan holds more (a metro) is left as it was, its meshes untouched, and says so
+//                 (`window.__formStructures().skipped`): a card for a tile that large would be too coarse to stand in
+//                 inside the level, and its finer cards wait for baking ahead of the eye
 //   the ladder    a tile is live while any of it is inside the cone's reach, or its card's texel (its width over
 //                 `texels`) is over `px` pixels at its distance; past both, its card. The aerial camera draws all of it
 //                 live, as before
 //
 // `window.__formStructures()` → { tiles, cards, batches } what is drawn now.
-export const FAR_STRUCTURES = Object.freeze({ tile: 16, cell: 2, ground: 0.5, tall: 60, bearings: 8, texels: Object.freeze([64, 96]), px: 1, step: 0.5 });
+export const FAR_STRUCTURES = Object.freeze({ tile: 16, most: 128, cell: 2, ground: 0.5, tall: 60, bearings: 8, texels: Object.freeze([64, 96]), px: 1, step: 0.5 });
 
 /** The far structures' page source, after the form's land (its POS, the land's triangles) in the form channel's scope
- *  (THREE, scene, POS, __formMeshes). */
+ *  (THREE, scene, POS, __formMeshes); on a page without the form render, POS null and no form meshes (scene-three.js). */
 export function farStructuresScript() {
   return `
   // --- the far structures: what stands, in tiles, each its card past the view cone's reach (channels/far-structures.js) ---
   (function () {
     const FS = ${JSON.stringify(FAR_STRUCTURES)}, CO = window.__mojCone; if (!CO) return;
-    // (the land's own height at a point: the highest of its triangles' corners in each cell of a coarse heightfield)
-    let lx0 = Infinity, ly0 = Infinity, lx1 = -Infinity, ly1 = -Infinity;
-    for (let i = 0; i < POS.length; i += 3) { lx0 = Math.min(lx0, POS[i]); lx1 = Math.max(lx1, POS[i]); ly0 = Math.min(ly0, POS[i + 1]); ly1 = Math.max(ly1, POS[i + 1]); }
-    const hn = [Math.max(1, Math.ceil((lx1 - lx0) / FS.cell) + 1), Math.max(1, Math.ceil((ly1 - ly0) / FS.cell) + 1)], HF = new Float32Array(hn[0] * hn[1]).fill(-Infinity);
-    for (let i = 0; i < POS.length; i += 3) { const k = Math.round((POS[i + 1] - ly0) / FS.cell) * hn[0] + Math.round((POS[i] - lx0) / FS.cell); HF[k] = Math.max(HF[k], POS[i + 2]); }
-    const landAt = (x, y) => { const i = Math.round((x - lx0) / FS.cell), j = Math.round((y - ly0) / FS.cell); if (i < 0 || j < 0 || i >= hn[0] || j >= hn[1]) return -Infinity; for (let r = 0; r <= 2; r++) { let m = -Infinity; for (let b = -r; b <= r; b++) for (let a = -r; a <= r; a++) { const ii = i + a, jj = j + b; if (ii >= 0 && jj >= 0 && ii < hn[0] && jj < hn[1]) m = Math.max(m, HF[jj * hn[0] + ii]); } if (m > -Infinity) return m; } return -Infinity; };
     // (the painted groups that stand: plain meshes of the page's groups, opaque and shown, not the form's own)
     const formOwn = new Set(__formMeshes), cands = [];
     scene.traverse((o) => { if (o.isMesh && !o.isInstancedMesh && !o.isBatchedMesh && !o.geometry.isInstancedBufferGeometry && o.visible && o.userData.g !== undefined && !formOwn.has(o) && o.material && o.material.isMeshBasicMaterial && !o.material.transparent && !String(o.userData.g).startsWith('shell:')) cands.push(o); });
+    // (the land's own height at a point, a coarse heightfield: the highest of the form land's corners in each cell; a
+    // page without the form render, its lowest surface there, the ground a city's roads, walks and ground floors stand on)
+    const LP = POS || (() => { let n = 0; for (const m of cands) n += m.geometry.getAttribute('position').count; const a = new Float32Array(n * 3); let o = 0; for (const m of cands) { const A = m.geometry.getAttribute('position'); for (let v = 0; v < A.count; v++, o += 3) { a[o] = A.getX(v); a[o + 1] = A.getY(v); a[o + 2] = A.getZ(v); } } return a; })();
+    const pick = POS ? Math.max : Math.min, none = POS ? -Infinity : Infinity;
+    let lx0 = Infinity, ly0 = Infinity, lx1 = -Infinity, ly1 = -Infinity;
+    for (let i = 0; i < LP.length; i += 3) { lx0 = Math.min(lx0, LP[i]); lx1 = Math.max(lx1, LP[i]); ly0 = Math.min(ly0, LP[i + 1]); ly1 = Math.max(ly1, LP[i + 1]); }
+    const hn = [Math.max(1, Math.ceil((lx1 - lx0) / FS.cell) + 1), Math.max(1, Math.ceil((ly1 - ly0) / FS.cell) + 1)], HF = new Float32Array(hn[0] * hn[1]).fill(none);
+    for (let i = 0; i < LP.length; i += 3) { const k = Math.round((LP[i + 1] - ly0) / FS.cell) * hn[0] + Math.round((LP[i] - lx0) / FS.cell); HF[k] = pick(HF[k], LP[i + 2]); }
+    const landAt = (x, y) => { const i = Math.round((x - lx0) / FS.cell), j = Math.round((y - ly0) / FS.cell); if (i < 0 || j < 0 || i >= hn[0] || j >= hn[1]) return -Infinity; for (let r = 0; r <= 2; r++) { let m = -Infinity; for (let b = -r; b <= r; b++) for (let a = -r; a <= r; a++) { const ii = i + a, jj = j + b; if (ii >= 0 && jj >= 0 && ii < hn[0] && jj < hn[1] && HF[jj * hn[0] + ii] !== none) m = Math.max(m, HF[jj * hn[0] + ii]); } if (m > -Infinity) return m; } return -Infinity; };
+    // (the budget: count the tiles what stands would fill before splitting anything)
+    { const seen = new Set();
+      for (const m of cands) { const A = m.geometry.getAttribute('position'); for (let v = 0; v < A.count; v += 3) { const x = A.getX(v), y = A.getY(v), h = A.getZ(v) - landAt(x, y); if (h > FS.ground && h < FS.tall) seen.add(Math.floor(x / FS.tile) + ',' + Math.floor(y / FS.tile)); } if (seen.size > FS.most) break; }
+      if (seen.size > FS.most) { window.__formStructures = () => ({ skipped: 'more than ' + FS.most + ' tiles of what stands: left as it was' }); return; } }
     const tileOf = (x, y) => Math.floor(x / FS.tile) + ',' + Math.floor(y / FS.tile), tiles = new Map(), batches = [], pairs = [];
     const tileRec = (k) => { let t = tiles.get(k); if (!t) { const [i, j] = k.split(',').map(Number); t = { i, j, tris: [], lo: Infinity, hi: -Infinity, x0: Infinity, x1: -Infinity, y0: Infinity, y1: -Infinity, ids: [], card: false }; tiles.set(k, t); } return t; };
     for (const m of cands) {

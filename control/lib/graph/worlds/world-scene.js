@@ -769,6 +769,8 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     // (and its blade cards, never walked on: gone from the page, not only hidden)
     if (read) payload.faces = payload.faces.filter((f) => f.group !== GRASS_CARDS);
   }
+  // (a page without the form render carries the view cone and its far structures only when its world asks: `cone`)
+  if (payload && !payload.form && sketch.manifest.cone !== undefined && sketch.manifest.cone !== null) payload.cone = readCone(sketch.manifest.cone);
   // (where the plants stand is the form render's read alone: never on a page)
   if (payload && payload.plants) delete payload.plants;
   if (payload && payload.dunes) delete payload.dunes;

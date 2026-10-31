@@ -31,6 +31,7 @@
  *
  * Metres, the design's frame (x east, y north, z up). Pure; seeded dice only.
  */
+import { readCone } from '../scene/channels/view-cone.js';
 import { designGeocity } from './design.js';
 import { readGeocube, geocubeReadout } from '../era/geocube.js';
 import { readPaint, cubeLookSpec, lookLight, hourSky, CITY_HAZE } from '../city/plan/look.js';
@@ -48,7 +49,7 @@ import { dressTownFace } from '../era/town-dress.js';
 import { plantPool, plantRepeats } from '../vegetation/pool.js';
 import { litFactor } from '../polygonizer/vexar.js';
 
-export const GEOCITY_KEYS = Object.freeze(['kind', 'cube', 'show', 'title', 'seed', 'hour', 'clouds', 'geocity', 'walk', 'shadows', 'occlusion', 'light']);
+export const GEOCITY_KEYS = Object.freeze(['kind', 'cube', 'show', 'title', 'seed', 'hour', 'clouds', 'geocity', 'walk', 'shadows', 'occlusion', 'light', 'cone']);
 export const GEOCITY_FACES = 200000;
 // the cells streets and grounds are draped on the land in (m), a kerb's height, a sidewalk round a block, a terrace's
 // most step to the next
@@ -103,7 +104,9 @@ function coloursOf(cube) {
 }
 
 export function assembleGeocityScene(m, ctx = {}) {
-  for (const k of Object.keys(m)) if (!GEOCITY_KEYS.includes(k)) no(`'${k}' is not a setting of the geocube kind's geocity (cube, seed, hour, clouds, geocity)`);
+  for (const k of Object.keys(m)) if (!GEOCITY_KEYS.includes(k)) no(`'${k}' is not a setting of the geocube kind's geocity (cube, seed, hour, clouds, geocity, cone)`);
+  // (`cone`: gameplay's view cone, its far structures past it: scene/channels/view-cone.js, far-structures.js)
+  if (m.cone !== undefined) readCone(m.cone);
   if (m.seed !== undefined && !Number.isInteger(m.seed)) no('seed is an integer');
   if (m.cube === undefined || m.cube === null) no('cube is a preset id or a document');
   const cube = readGeocube(m.cube), seed = m.seed ?? 1, d = designGeocity(m.geocity ?? {}, { seed }), G = d.grammar, S = d.land.S;

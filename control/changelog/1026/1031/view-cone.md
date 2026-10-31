@@ -39,6 +39,10 @@
   roads, kerbs, terrain and clouds stay live. A pass that swaps its own material onto each mesh (the creases' and the
   occlusion's prepass) draws the merged mesh in its place; the cards, the trees' too, sit it out.
   `scripts/runnability.mjs` counts a multi-draw's triangles.
+  A page without the form render (a geocity) carries the view cone and its far structures when its world asks
+  (`cone: true` for the screen's reach, or metres), the land's height there its lowest surface in each cell. A level
+  whose standing plan holds more than 128 tiles is left as it was and says so (`window.__formStructures().skipped`): at
+  a metro's size a tile's card is too coarse to stand in inside it, and its finer cards wait for baking ahead of the eye.
 - **No strands past the reach** (`scene/channels/form-grass.js`): the 0.45 m strand rows and their meshes are gone; a
   far map, one strand a cell of the grass map (its height, colour slot and dice), is what the far field paints from
   (`window.__formFar`).

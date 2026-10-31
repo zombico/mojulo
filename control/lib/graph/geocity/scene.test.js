@@ -59,6 +59,8 @@ describe('the geocity built: its map stood on the cube\'s land as massing', () =
     expect(p.walkers?.length).toBe(1);
     expect(p.geocube.show).toBe('geocity');
     expect(() => assembleGeocityScene({ ...M, domain: 'x' })).toThrow(/'domain' is not a setting of the geocube kind's geocity/);
+    // (its view cone, asked: the screen's reach, or metres in range)
+    expect(() => assembleGeocityScene({ ...M, cone: 'far' })).toThrow(/cone is the view cone/);
   });
 });
 

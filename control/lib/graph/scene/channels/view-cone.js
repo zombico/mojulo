@@ -24,12 +24,14 @@ export const VIEW_CONE = Object.freeze({
   step: 1.25,
 });
 
-/** A world's `cone`, read: a reach in metres (a number, or { reach }) → { reach }; absent → null (the screen's). */
+/** A world's `cone`, read: a reach in metres (a number, or { reach }) → { reach }; `true` the screen's reach, asked for
+ *  (a page without the form render carries the cone only when its world asks) → { reach: null }; absent → null. */
 export function readCone(v) {
   if (v === undefined || v === null) return null;
+  if (v === true) return { reach: null };
   const reach = typeof v === 'number' ? v : v && typeof v === 'object' && !Array.isArray(v) ? v.reach : NaN;
   const [lo, hi] = VIEW_CONE.range;
-  if (!Number.isFinite(reach) || reach < lo || reach > hi) throw new Error(`cone is the view cone's reach in metres (${lo} to ${hi}; or { reach }): full detail inside it, an impression past it. Absent, the screen's: where a grass blade covers ${VIEW_CONE.px} px`);
+  if (!Number.isFinite(reach) || reach < lo || reach > hi) throw new Error(`cone is the view cone's reach in metres (${lo} to ${hi}; or { reach }), or true for the screen's: full detail inside it, an impression past it. Absent, the screen's on a form page, none on another`);
   return { reach };
 }
 
@@ -40,7 +42,7 @@ export function viewConeScript(cone = null) {
   (function () {
     const VC = ${JSON.stringify(VIEW_CONE)}, F = new THREE.Frustum(), PM = new THREE.Matrix4(), buf = new THREE.Vector2();
     const clamp = (m) => Math.min(VC.range[1], Math.max(VC.range[0], m));
-    let fixed = ${cone ? JSON.stringify(cone.reach) : 'null'};
+    let fixed = ${cone && Number.isFinite(cone.reach) ? JSON.stringify(cone.reach) : 'null'};
     const K = { reach: fixed ?? 30, px: 0.001, eye: new THREE.Vector3(), frustum: F,
       get fixed() { return fixed; },
       set: (m) => { fixed = m === null || m === undefined ? null : clamp(m); return fixed; },
