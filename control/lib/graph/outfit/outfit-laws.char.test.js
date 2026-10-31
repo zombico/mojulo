@@ -20,14 +20,15 @@ import { heroRecord, expandLayeredManifest } from '../../mcp/tools/layered.js';
 // (rings re-pinned for the hero laws 2, a body change: the hero minted now lifts its neck's root, hero-form.js
 // SHOULDER_LINE, and the garments that reach the shoulders follow it; the expansions, the laws hashes, unchanged; and
 // again for the hero laws 3, hero-form.js LEG_SET, the leg turned back about the ankle: every garment on the legs or
-// the seat follows the hip's joint)
+// the seat follows the hip's joint; and for the hero laws 20, the anime form's rounded body: a garment over it eases out by
+// the rounding, outfit-plan.js ROUND_EASE, so every piece but the plain out-shirt's moves a few millimetres off the skin)
 const PINS = {
   1: {
     'out': { laws: '6b63e2d4125c3c4d', rings: 'b0b17af3f724b51d' },
-    'tucked': { laws: '2699679ced951074', rings: '93b7fe6a8f127edd' },
-    'dress': { laws: 'bb1fe989040c0422', rings: '2653063e545832d6' },
-    'outer': { laws: '537daebbd9973246', rings: 'b1531c36edba8029' },
-    'panels': { laws: '157d53eaabdb1ce6', rings: 'a66206304b231551' },
+    'tucked': { laws: '2699679ced951074', rings: 'c1947c4fb07d6e45' },
+    'dress': { laws: 'bb1fe989040c0422', rings: '4e46c22d329f5e8f' },
+    'outer': { laws: '537daebbd9973246', rings: 'a5fa0db82033b048' },
+    'panels': { laws: '157d53eaabdb1ce6', rings: 'c1146b898f38bfdb' },
   },
 };
 

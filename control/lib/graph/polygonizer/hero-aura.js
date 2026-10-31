@@ -399,10 +399,11 @@ function restArm(S, W, prev) {
  *   face (the anime channels: blink, smile, open, brow).
  */
 /** the hand words a pose reuses: a hand on its hip (palm on the waist, fingers forward and down, elbow out), a fist on
- * it, a hand in its pocket, a fist chambered at the hip */
+ * it, a hand in its pocket (its wrist and forearm against the hip it hangs by: a rounded flank meets them), a fist
+ * chambered at the hip */
 const ONHIP = (S) => ({ at: `waist${S}`, along: 0.8, round: 90, by: 'palm', gap: 0.02, shape: 'flat', palm: 'surface', fingers: ['fwd', 'down'], elbow: 'out', rests: ['pelvis'] });
 const FISTHIP = (S) => ({ at: `waist${S}`, by: 'fist', shape: 'fist', elbow: 'out', gap: 0.025 });
-const POCKET = (S) => ({ at: `pocket${S}`, by: 'fingers', gap: -0.01, tuck: 0.045, shape: 'relaxed', palm: 'surface' });
+const POCKET = (S) => ({ at: `pocket${S}`, by: 'fingers', gap: -0.01, tuck: 0.045, shape: 'relaxed', palm: 'surface', rests: ['pelvis'] });
 const CHAMBER = (S) => ({ at: `hip${S}`, off: [0.02, 0.1, 0.05], by: 'fist', shape: 'fist', palm: 'up', elbow: 'back', touch: false, rests: ['pelvis', 'lumbar'] });
 export const AURAS = Object.freeze({
   // ── AURA: the haughty, the stoic, the cool ──

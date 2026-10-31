@@ -345,7 +345,10 @@ export const HERO_BUILD_NAMES = Object.freeze(Object.keys(HERO_BUILDS));
  * drawings are built with their own eye socket (the ridge over the eye, the socket's upper plane, its inner and outer
  * ends, above the widest lid's lash band only), so a brow's target and its correctives carry it and the socket is
  * drawn with the brow, frame by frame; laws 1 to 19 drew every brow over the head's one socket, its rim only tied to
- * the brow's middle. Only on the anime head's form (laws 19).
+ * the brow's middle. Only on the anime head's form (laws 19). And it GIVES THE ANIME ADULT ITS FORM'S BODY (anime-looks.js
+ * ANIME_FORM_BODY): the body rounded (its skin split once on the curved patch, body-smooth.js) and, as the rounded body
+ * asks, the rib cage narrower under the shoulders and the male's pectoral layer gone; laws 1 to 19 built the anime body
+ * as its rings, faceted, with the chest as it was. Not on a child or a chibi (its build's own body).
  */
 export const HERO_LAWS_VERSION = 20;
 /** Does this spec read a table the hero laws cover? (the structured core's shoulder line, laws 2, leg set, laws 3, leg length, laws 4, and arm length, laws 5:

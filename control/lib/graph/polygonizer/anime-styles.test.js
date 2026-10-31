@@ -9,7 +9,7 @@ import { heroRecord, heroPlanOf, normalizeHero, validateHeroSpec, expandLayeredM
 import { compileLayered } from './station-loft.js';
 import { heroPlan } from './hero-form.js';
 import { heroFaceRig } from './anime-face-rig.js';
-import { animeHeroEffective, animeFaceBase, heroFeatureAdvice, heroHeadPole, heroHairPole } from './anime-looks.js';
+import { animeHeroEffective, animeFaceBase, heroFeatureAdvice, heroHeadPole, heroHairPole, ANIME_FORM_BODY } from './anime-looks.js';
 import { ANIME_STYLES, ANIME_STYLE_NAMES, ANIME_STYLE_DEFAULT, animeStyleOf, resolveAnimeStyle } from './anime-styles.js';
 import { withDefaultForm } from './motion-stamp.js';
 import { heroRemakeOps } from '../../mcp/tools/hero-mint.js';
@@ -99,7 +99,9 @@ describe('the style pole', () => {
     const pec = (chest) => seg(heroPlan({ cast: 'male', ...(chest ? { chest } : {}) }), 'pectoralR').stations.map((st) => Math.max(...Object.values(st.points).map((p) => p[1])));
     expect(pec({ pec: { rise: 0.45 } })[0]).toBeLessThan(pec(null)[0]);
     expect(seg(heroPlanOf(heroRecord({ cast: 'male', head: 'anime', animeStyle: STYLE })), 'pectoralR')).toBeUndefined();
-    expect(seg(heroPlanOf(heroRecord({ cast: 'male', head: 'anime' })), 'pectoralR')).toBeDefined();
+    // (an unstyled anime male: the anime form's body takes the pectoral layer off under laws 20, a laws-19 row keeps it)
+    expect(seg(heroPlanOf(heroRecord({ cast: 'male', head: 'anime', laws: 19 })), 'pectoralR')).toBeDefined();
+    expect(seg(heroPlanOf(heroRecord({ cast: 'male', head: 'anime' })), 'pectoralR')).toBeUndefined();
     // (the bust's reach across: its widest section, styled against the form's at the same chest)
     const span = (chest) => { const B = seg(heroPlan({ cast: 'female', ...(chest ? { chest } : {}) }), 'bustR'); return Math.max(...B.stations.flatMap((st) => Object.values(st.points).map((p) => p[1]))); };
     expect(span({ bust: { size: 0.8 } })).toBeLessThan(span(null));
@@ -113,6 +115,19 @@ describe('the style pole', () => {
       expect(coreAdvice(m, pole), pole).toHaveLength(1);
       expect(coreAdvice(m, pole, bands), pole).toEqual([]);
     }
+  });
+  it('gives every anime adult the form\'s body under laws 20 (rounded, its chest narrowed): a cast\'s own over it; a child, a chibi or an older row as it was', () => {
+    const body = (spec) => { const h = heroRecord({ head: 'anime', ...spec }); return { smooth: expandLayeredManifest({ kind: 'layered', hero: h }).recipe.smoothBody?.rounds ?? null, chest: animeHeroEffective(h).chest ?? null }; };
+    // (unstyled, either base: rounded once, the rib cage at the form's width, the male's pectorals off)
+    expect(body({ cast: 'male', animeStyle: null })).toEqual({ smooth: ANIME_FORM_BODY.smooth, chest: ANIME_FORM_BODY.chest.male });
+    expect(body({ cast: 'female', animeStyle: null }).chest).toEqual(ANIME_FORM_BODY.chest.female);
+    // (a cast's own chest over the form's: Shonen High's female keeps her smaller bust on the form's narrowed chest)
+    expect(body({ cast: 'female', animeStyle: STYLE }).chest).toEqual({ ...ANIME_FORM_BODY.chest.female, ...ANIME_STYLES[STYLE].female.chest });
+    for (const spec of [{ cast: 'male', laws: 19 }, { cast: 'chibi' }, { cast: { pole: 'female', build: 'child' } }]) expect(body(spec), JSON.stringify(spec)).toEqual({ smooth: null, chest: null });
+    // (rounded, the body's skin split: more points than as built, its corners where they were)
+    const M = expandLayeredManifest({ kind: 'layered', hero: heroRecord({ cast: 'male', head: 'anime', animeStyle: null }) }), plain = compileLayered({ ...M.recipe, smoothBody: undefined }, M.dials), round = compileLayered(M.recipe, M.dials);
+    expect(round.vertices.length).toBeGreaterThan(plain.vertices.length);
+    expect(round.vertices.slice(0, plain.vertices.length)).toEqual(plain.vertices);
   });
   it('advises each base\'s styled default nothing, by its style\'s bands over the form\'s', () => {
     for (const cast of ['male', 'female']) {

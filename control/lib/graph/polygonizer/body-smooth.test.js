@@ -37,6 +37,9 @@ describe('the body rounded', () => {
     const skin = bindLayered(m, M.recipe), i = m.provenance.findIndex((p) => p.mix), [a, b] = m.provenance[i].mix;
     const w = (v) => { const o = {}; skin.joints[v].forEach((j, k) => { if (skin.weights[v][k]) o[j] = (o[j] ?? 0) + skin.weights[v][k]; }); return o; }, A = w(a), B = w(b), I = w(i);
     for (const bi of Object.keys(I)) expect(I[bi]).toBeCloseTo(((A[bi] ?? 0) + (B[bi] ?? 0)) / 2, 6);
-    expect(expandLayeredManifest({ kind: 'layered', hero: heroRecord({ cast: 'male', head: 'anime' }) }).recipe.smoothBody).toBeUndefined();
+    // (a hero whose body is not rounded: a row stamped before the anime form's body, hero laws 20, anime-looks.js
+    // ANIME_FORM_BODY, and the landmark head's)
+    expect(expandLayeredManifest({ kind: 'layered', hero: heroRecord({ cast: 'male', head: 'anime', laws: 19 }) }).recipe.smoothBody).toBeUndefined();
+    expect(expandLayeredManifest({ kind: 'layered', hero: heroRecord({ cast: 'male' }) }).recipe.smoothBody).toBeUndefined();
   });
 }, 300000);

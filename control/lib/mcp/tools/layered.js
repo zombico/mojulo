@@ -81,7 +81,7 @@ import { ANIME_FACE, ANIME_HAIR, ANIME_FACE_KEYS, ANIME_HAIR_KEYS, ANIME_POSES, 
 import { ANIME_HAIR_STYLES } from '@/lib/graph/polygonizer/anime-head';
 import { validateGenki, genkiStand } from '@/lib/graph/polygonizer/anime-genki';
 import { ANIME_STYLE_NAMES, validateAnimeStyle, resolveAnimeStyle, animeStyleOf } from '@/lib/graph/polygonizer/anime-styles';
-import { LOOK_TABLES, validateLook, resolveLook, composeAnime, heroHeadPole as headPoleOf, animeHeroEffective as animeEffective, animeFaceBase, animeSculptBase, castHeadPole as castHeadPoleOf, heroFeatureAdvice, heroHairPole } from '@/lib/graph/polygonizer/anime-looks';
+import { LOOK_TABLES, validateLook, resolveLook, composeAnime, heroHeadPole as headPoleOf, animeHeroEffective as animeEffective, animeFaceBase, animeSculptBase, animeBodySmooth, castHeadPole as castHeadPoleOf, heroFeatureAdvice, heroHairPole } from '@/lib/graph/polygonizer/anime-looks';
 import { ANIME_SCULPT, ANIME_SCULPT_KEYS, SCULPT_SHAPE_KEYS, validateAnimeSculpt, resolveAnimeSculpt, sparseSculpt, animeSculptWarnings, describeAnimeSculpt } from '@/lib/graph/polygonizer/anime-sculpt';
 import { layeredStats, persistedLayeredLedger } from '@/lib/graph/polygonizer/station-loft-faces';
 import { validateBake } from '@/lib/graph/polygonizer/surface-bake';
@@ -255,10 +255,13 @@ function expandHeroAwarePlan(plan, hero, geocube = null) {
   // (an undead's heavy arm, its bared flesh and its loss on their sides, undead/tiered-layers.js; absent, the recipe as it was)
   return withBodySmooth(withLegGirths(withDressMaterials(hero?.undead ? undeadRecipe(expandAware(plan, hero), hero) : expandAware(plan, hero), hero, plan, geocube)), hero);
 }
-/** An anime hero whose style rounds its body (anime-styles.js `smooth`): the recipe names the rounds and compileLayered
- * splits its body's skin on the curved patch (body-smooth.js). Any other recipe: as it was. */
+/** An anime hero whose body is rounded (its cast's `smooth`, else the anime form's body under laws 20: anime-looks.js
+ * animeBodySmooth): the recipe names the rounds and compileLayered splits its body's skin on the curved patch
+ * (body-smooth.js). Any other recipe: as it was. */
+/** the rounds a hero's body is split (anime-looks.js animeBodySmooth), or none: the anime head's only, for now */
+const bodyRoundsOf = (hero) => (hero?.head === 'anime' ? animeBodySmooth(hero) : null);
 function withBodySmooth(recipe, hero) {
-  const rounds = hero?.head === 'anime' ? animeStyleOf(hero, castHeadPoleOf(hero))?.smooth : null;
+  const rounds = bodyRoundsOf(hero);
   return rounds ? { ...recipe, smoothBody: { rounds } } : recipe;
 }
 /** The realistic form's build (body-relational.js): the cast's pole's (male: norrin, female: shalla) under the record's
@@ -732,7 +735,7 @@ function wearFeet(R, hero, W, id) {
 function expandAware(plan, hero) {
   // a creature drawn for its target (creature-drawn.js: `style.drawn`): bridged and densified first; absent, the plan itself
   // an OUTFIT designed for the whole body (outfit-plan.js) compiles first, in layer order; absent, the plan itself
-  try { const full = drawnPlan(compileOutfit(plan)); return hero?.form === 'realistic' ? withSkin(realisticExpand(full, hero), hero) : authoredWear(creatureHeadOn(expandPlan(full), plan?.creatureHead), hero); } catch (err) {
+  try { const full = drawnPlan(compileOutfit(plan, { rounds: bodyRoundsOf(hero) })); return hero?.form === 'realistic' ? withSkin(realisticExpand(full, hero), hero) : authoredWear(creatureHeadOn(expandPlan(full), plan?.creatureHead), hero); } catch (err) {
     if (hero?.head === 'anime' && isArmorBuild(hero.adorn) && /off cranium/.test(err.message)) {
       throw new Error("hero refused: adorn: this armour's head piece (a helm, a kabuto, or a theme's helm) is not fitted to the anime head yet; wear it with head 'landmark' or 'none', or choose a plate style with no head piece");
     }
@@ -1299,7 +1302,7 @@ function designedPieces(plan, hero) {
   const O = isOutfitBuild(hero.outfit) && Array.isArray(hero.outfit.pieces) && hero.outfit.pieces.length ? hero.outfit : null;
   if (!O) return plan;
   const { worn } = sortPieces(plan, O);
-  return worn.length ? compileOutfit({ ...plan, outfit: { intent: O.intent ?? {}, pieces: worn } }) : plan;
+  return worn.length ? compileOutfit({ ...plan, outfit: { intent: O.intent ?? {}, pieces: worn } }, { rounds: bodyRoundsOf(hero) }) : plan;
 }
 /** Which designed pieces sit on this body: each compiled alone, kept when every place it reads is a number on its part
  * (a piece built for a creature's landmarks may find none on a person's: a necklace's pin on a layered chest); the

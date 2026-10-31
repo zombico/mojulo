@@ -415,10 +415,13 @@ function hoodOf(p, B, G, id, around, ease) {
  * `fit: 'cape'`, one hull round the trunk, the arms and the legs, so it is round over the shoulders and the arms where a
  * board was flat, draping on the arms. It flows as a curtain (`rigidity`, soft by default). `hood: true` (or
  * `{ open }`, the face's opening in degrees each side of the front) raises a `fit: 'hood'` over the head. */
+/** the ease a loose layer takes over a rounded body, a round (of the body's scale): the bulge between rings that the
+ * close cloth under it gains */
+const ROUND_EASE = 0.006;
 function cloakOf(p, B, G) {
   const to = p.tailClear && B.tail ? hemAt(B, null, B.tail + 0.05 * B.k) : hemAt(B, p.hem ?? 'calf');
   const arc = 360 * Math.max(0.2, Math.min(0.95, p.wrap ?? 0.6)), part = ['torso', 'upperArm', ...legsTo(B, to)].filter((n) => B.names.has(n)), id = p.id ?? 'cloak';
-  const around = [r3(180 - arc / 2), r3(180 + arc / 2)], ease = r3((p.ease ?? 0.02) * B.k), thick = r3(0.006 * B.k);
+  const around = [r3(180 - arc / 2), r3(180 + arc / 2)], ease = r3(((p.ease ?? 0.02) + (B.round ?? 0)) * B.k), thick = r3(0.006 * B.k);
   return { garments: [{ id, fit: 'cape', part, from: { part: 'torso', run: 1 }, to, around, ease, flare: [0, r3(p.flare ?? 0.12)], thick, group: G(p), rigidity: p.rigidity ?? 'soft' },
     ...hoodOf(p, B, G, id, around, r3(ease * 1.2))], ...trimOf(p, B, G, { hem: `${id}_cape` }) };
 }
@@ -476,9 +479,11 @@ function armourMotif(p, B, G) {
     : { kind: 'motif', name, mode: 'emblem', size: r3(0.06 * B.k), w: r3(0.0025 * B.k), lift: r3(0.0004 * B.k), group: G({ colour: 'shade' }) };
 }
 
-export function compileOutfit(plan) {
+export function compileOutfit(plan, { rounds = 0 } = {}) {
   const O = plan.outfit; if (!O) return plan;
-  const B = bodyMap(plan), I = { symmetry: 'symmetric', side: 'R', ...(O.intent || {}) }, pal = I.palette || {};
+  // (`rounds`: the body rounded after it is built, body-smooth.js; its skin and the close cloth over it bulge out between
+  // their rings, so the loose layers over them take ROUND_EASE more ease a round)
+  const B = { ...bodyMap(plan), round: rounds ? r3(ROUND_EASE * rounds) : 0 }, I = { symmetry: 'symmetric', side: 'R', ...(O.intent || {}) }, pal = I.palette || {};
   const G = (p) => { const role = p.colour ?? OUTFIT_KINDS[p.kind]?.colour ?? 'base'; return /^#/.test(role) ? role : COLOUR_GROUPS[role] ?? COLOUR_GROUPS.base; };
   const pieces = [...O.pieces].map((p, i) => ({ p, i, layer: OUTFIT_KINDS[p.kind]?.layer ?? 9 })).sort((a, b) => a.layer - b.layer || a.i - b.i);
   const garments = [...(plan.garments || [])], adorn = [...(plan.adorn || [])], segments = [...plan.segments], piecePaint = [];
