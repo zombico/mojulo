@@ -8,6 +8,7 @@
  *
  *   formLandScript(form, flora?) → the channel's page source (one block, after the page's own; absent `form`, the page has
  *     none); `flora`, a form read's plants (channels/form-flora.js), grown inside it under its light
+ *     `form.cone`, a world's fixed view-cone reach (channels/view-cone.js readCone): the cone is the form's, read by its grass
  *
  * It hides the painted groups it draws in their place (`form.hides`) and the painted water sheet under its sea; every
  * other painted thing is left unlit as it was (the renderer's tone curve is set, those materials marked untouched by
@@ -16,6 +17,7 @@
  */
 import { safeJson } from '../emit-util.js';
 import { formGrassScript } from './form-grass.js';
+import { viewConeScript } from './view-cone.js';
 import { formFloraScript } from './form-flora.js';
 
 /** THE GROUND'S OWN PARALLAX KINDS, procedural (a Voronoi field, no texture): `pebbles` (domes strewn `cell` m apart over the soil, a cell in four bare,
@@ -420,7 +422,7 @@ ${form.dunes ? `      sh.fragmentShader = DUNE_HEAD + sh.fragmentShader.replace(
       }
     }
   }
-${formGrassScript()}${flora ? formFloraScript(flora, { snow: !!form.snow }) : ''}
+${viewConeScript(form.cone || null)}${formGrassScript()}${flora ? formFloraScript(flora, { snow: !!form.snow }) : ''}
   // open sea: deep water's colour under it, where the recipe lays no floor (the shallows' floor fades into the same colour)
   if (D.seabed) { const B = D.seabed, g = new THREE.PlaneGeometry(B.x[1] - B.x[0], B.y[1] - B.y[0]); g.translate((B.x[0] + B.x[1]) / 2, (B.y[0] + B.y[1]) / 2, B.z);
     scene.add(new THREE.Mesh(g, new THREE.MeshStandardMaterial({ color: rgb(D.deep), roughness: 1, metalness: 0 }))); }

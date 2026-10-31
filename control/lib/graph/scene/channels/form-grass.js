@@ -15,8 +15,8 @@
 //           plants, their colours carried into the cube's light, a channel each of a second map), placed once on grids
 //           of their own, grown full, one plant a cell picked by its dice and its form's weight; a kind that stands
 //           (wheat) takes the blades' place, a low one (chaff, the flowers) stands among them
-//   views   by the camera's mode (POV_GRASS): AERIAL, a cutscene's, the whole field; POV, gameplay's, real grass to a
-//           share of the map, thinning, and STRANDS past it
+//   views   by the camera's mode (POV_GRASS): AERIAL, a cutscene's, the whole field; POV, gameplay's, real grass in the
+//           VIEW CONE (channels/view-cone.js: the frustum to its reach), thinning, and STRANDS past its reach
 //   wind    the page's one gust field (channels/terrain-wind.js, the gen-6 live grass's wind kept on a form page with its
 //           blades off: the trees' crowns sway in it): every blade, strand and plant bends downwind by the gust at its
 //           root, its top the most, with a quiver of its own, and a gust's band reads a shade brighter as it passes, so
@@ -42,12 +42,14 @@ export const GRASS_TIERS = Object.freeze([
  *  tiles of `tile` m, so what is out of view is culled. */
 export const STILL_FIELD = Object.freeze({ spread: Object.freeze({ tall: 1, medium: 1, short: 1 }), tile: 24 });
 /** The field as the eye sees it, by the CAMERA'S MODE: AERIAL (a cutscene's camera) the whole field; POV (gameplay, the
- *  walker's eye, the default) real grass only out to `share` of the map's length, thinning past `thin` of that, each
+ *  walker's eye, the default) real grass only out to the VIEW CONE's reach (channels/view-cone.js `window.__mojCone`: the
+ *  screen's, or a world's `cone`, adjustable live), thinning past `thin` of it, each
  *  clump going whole at a distance of its own, and past it STRANDS: one sliver a strand, `spacing` m apart over all the
  *  grass, kept `px` pixels wide whatever its distance (the perspective's own measure), shaded root to tip as the blades
- *  are and swaying in the same wind, each coming in at its own distance as the grass thins.
- *  `window.__formGrassView('aerial' | 'pov')` sets it; V toggles it on a walkable page. */
-export const POV_GRASS = Object.freeze({ share: 1 / 3, thin: 0.5, strands: Object.freeze({ spacing: 0.45, px: 1.6, height: Object.freeze([0.55, 1]) }) });
+ *  are and swaying in the same wind, each coming in at its own distance as the grass thins. In either mode a tile the
+ *  cone's frustum does not see is not drawn. `window.__formGrassView('aerial' | 'pov')` sets it; V toggles it on a
+ *  walkable page. */
+export const POV_GRASS = Object.freeze({ thin: 0.5, strands: Object.freeze({ spacing: 0.45, px: 1.6, height: Object.freeze([0.55, 1]) }) });
 /** How the grass's height wanders: a slow field over the land (`cell` m), taller and shorter stretches between `range`
  *  × the sward's own, and each clump its own share more or less (± `clump`). */
 export const GRASS_HEIGHT = Object.freeze({ cell: 6, range: Object.freeze([0.72, 1.28]), clump: 0.2 });
@@ -145,11 +147,11 @@ export function formGrassScript() {
       const tall = (x, y) => GH.range[0] + (GH.range[1] - GH.range[0]) * vn(x / GH.cell, y / GH.cell);
       // (the tips of the grass where the sward is a length: a clump's tallest blade at its mean rise)
       const tipAt = (sw) => { const q = GTIERS.find((t) => t.sward === (sw < 0.25 ? 'tall' : sw < 0.75 ? 'medium' : 'short')); return q.scale * q.clump.height[1] * (BR[q.sward][0] + BR[q.sward][1] * 0.5); };
-      // (the camera's mode: POV draws real grass out to R and strands past it, AERIAL all the grass; a tile wholly past
-      // what its mode draws is not drawn at all)
-      const RP = PG.share * Math.max(nx, ny) * Gm.cell, PV = { uPovR: { value: RP }, uPx: { value: new THREE.Vector2(PG.strands.px, 0.001) } }, TILES = [];
+      // (the camera's mode: POV draws real grass out to the view cone's reach and strands past it, AERIAL all the grass;
+      // a tile wholly past what its mode draws, or out of the cone's frustum, is not drawn at all)
+      const CONE = window.__mojCone, PV = { uPovR: { value: CONE.reach }, uPx: { value: new THREE.Vector2(PG.strands.px, 0.001) } }, TILES = [];
       let view = 'pov';
-      window.__formGrassView = (v) => { view = v === 'aerial' ? 'aerial' : 'pov'; PV.uPovR.value = view === 'pov' ? RP : 1e6; return view; };
+      window.__formGrassView = (v) => { view = v === 'aerial' ? 'aerial' : 'pov'; return view; };
       window.addEventListener('keydown', (e) => { if (e.key === 'v' || e.key === 'V') console.log('grass view', window.__formGrassView(view === 'pov' ? 'aerial' : 'pov')); });
       // (every cell of a grid sp apart over the map: its point, a little off its place by its dice, and the map there)
       const each = (sp, salt, fn) => { for (let j = Math.floor(y0 / sp); j * sp <= Y1; j++) for (let i = Math.floor(x0 / sp); i * sp <= X1; i++) {
@@ -303,14 +305,15 @@ export function formGrassScript() {
         sm0.customProgramCacheKey = () => 'form-grass-strands' + (windU() ? '-wind' : '');
         window.__formStrands = stand(tg, R, sm0, 'strands');
       })();
-      // (each frame: the eye's pixel at a metre, for the strands; and the tiles its mode does not reach left undrawn)
-      const hook = new THREE.Mesh(new THREE.BufferGeometry().setAttribute('position', new THREE.Float32BufferAttribute([0, 0, 0, 0, 0, 0, 0, 0, 0], 3)), new THREE.MeshBasicMaterial({ colorWrite: false, depthWrite: false }));
-      hook.frustumCulled = false; scene.add(hook);
-      const bufV = new THREE.Vector2();
-      hook.onBeforeRender = (r, sc, cam) => {
-        if (cam.isPerspectiveCamera) PV.uPx.value.y = 2 * Math.tan(cam.fov * Math.PI / 360) / Math.max(1, r.getDrawingBufferSize(bufV).y);
-        const cx = cam.position.x, cy = cam.position.y, pov = view === 'pov';
-        for (const T of TILES) { const d = Math.hypot(T.s.center.x - cx, T.s.center.y - cy); T.m.visible = T.kind === 'strands' ? pov && d + T.s.radius > RP * PG.thin : !pov || d - T.s.radius < RP; }
+      // (each frame, after the cone has its camera and before the render list is built: the eye's pixel at a metre, for
+      // the strands, the cone's reach, and the tiles its mode does not reach or its frustum does not see left undrawn)
+      const prevBR = scene.onBeforeRender;
+      scene.onBeforeRender = function (r, sc, cam, rt) {
+        if (prevBR) prevBR.call(this, r, sc, cam, rt);
+        if (!cam.isPerspectiveCamera) return;
+        const pov = view === 'pov', RP = CONE.reach, cx = CONE.eye.x, cy = CONE.eye.y;
+        PV.uPx.value.y = CONE.px; PV.uPovR.value = pov ? RP : 1e6;
+        for (const T of TILES) { const d = Math.hypot(T.s.center.x - cx, T.s.center.y - cy); T.m.visible = (T.kind === 'strands' ? pov && d + T.s.radius > RP * PG.thin : !pov || d - T.s.radius < RP) && CONE.sees(T.s); }
       };
     })();
   }

@@ -51,10 +51,13 @@ describe('form grass', () => {
     expect(GRASS_TIERS.some((t) => t.sward === 'any')).toBe(false);
   });
 
-  it('by the camera\'s mode: POV real grass to a share of the map, thinning, strands past it; aerial all of it', () => {
+  it('by the camera\'s mode: POV real grass to the view cone\'s reach, thinning, strands past it; aerial all of it', () => {
     const src = formGrassScript();
-    expect(POV_GRASS.share).toBeGreaterThan(0);
-    expect(POV_GRASS.share).toBeLessThan(1);
+    // (no share of the map: the reach is the cone's, and a tile its frustum does not see is not drawn)
+    expect(POV_GRASS.share).toBeUndefined();
+    expect(src).toContain('const CONE = window.__mojCone');
+    expect(src).toContain('PV.uPovR.value = pov ? RP : 1e6');
+    expect(src).toContain('&& CONE.sees(T.s)');
     expect(POV_GRASS.thin).toBeLessThan(1);
     expect(POV_GRASS.strands.px).toBeGreaterThan(0);
     expect(src).toContain('window.__formGrassView = (v) =>');

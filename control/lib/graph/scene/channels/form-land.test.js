@@ -25,6 +25,14 @@ describe('the ground\'s parallax kinds', () => {
     expect(page).toContain('uStoneBase * tone');
   });
 
+  it('carries the view cone before its grass, the reach fixed only when the world fixes it', () => {
+    const page = formLandScript(land), cone = page.indexOf('window.__mojCone = K;');
+    expect(cone).toBeGreaterThan(-1);
+    expect(cone).toBeLessThan(page.indexOf('const CONE = window.__mojCone'));
+    expect(page).toContain('let fixed = null;');
+    expect(formLandScript({ ...land, cone: { reach: 40 } })).toContain('let fixed = 40;');
+  });
+
   it('reads the same page twice', () => {
     expect(formLandScript(land)).toBe(formLandScript(land));
   });

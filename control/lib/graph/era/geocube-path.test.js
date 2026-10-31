@@ -85,5 +85,8 @@ describe('the geocube kind shows the path: a place to walk, not a game', () => {
 
   it('teaches what is wrong', () => {
     expect(() => assembleGeocubeScene({ kind: 'geocube', cube: 'island-noon', show: 'room', biocube: 'meadow' }, {}, assembleStageScene)).toThrow(/show 'path' or 'town'/);
+    // (the view cone is the outside's, its reach a number of metres in range)
+    expect(() => assembleGeocubeScene({ kind: 'geocube', cube: 'island-noon', show: 'room', cone: 40 }, {}, assembleStageScene)).toThrow(/cone is the view cone over the outside/);
+    expect(() => assembleGeocubeScene({ kind: 'geocube', cube: 'island-noon', show: 'path', cone: 'far' }, {}, assembleStageScene)).toThrow(/cone is the view cone's reach in metres/);
   });
 });
