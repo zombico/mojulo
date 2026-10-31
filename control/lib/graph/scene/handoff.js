@@ -32,13 +32,23 @@
  *     its flame is, its solved key as its colour and, in a renderer's units, its strength (π × the key's level: out =
  *     base × light, form/room-light.js), its reach its radius. With them its surfaces leave as their solved bases, so the
  *     engine's lamps light them as the page's bake does
+ *   levelRecord(sketch, payload) → the LEVEL a developer wires (the GLB's scene extras `moj:handoff`, and the handoff's
+ *     `level`): its environment (the sky, the sun at the level's hour, the ambient, the hour itself), its markers (the
+ *     spawn, every entity as the node `entity:<id>` carries it, with its part in the loop: the pilot, a seat's body, a
+ *     foe with its mind's rank and skill, a thing; the anchors; the cameras), its CONTRACT (the level's game channel,
+ *     synthesized from its mechanics as the game resolves it: what it produces, consumes and audits, its doors), its SEATS
+ *     (a couch level: each seat's number, label, colour, body and spawn, the screen they share, their lives) and its
+ *     REFERENCE (the web build and the bible pages of the same recipe). Every name derives from the recipe (an entity's
+ *     id, an anchor's id, a camera's name), never from an order, so a re-handoff of a changed recipe names what did not
+ *     change as it was
  *   floraInstances(flora) → [instance set]: the form render's plants (form/flora-read.js), per template its wood on its
  *     bark (base, normal, ORM, the height in the extras) and its crown (its clumps merged in its own space as the page
  *     merges them, each leaf's normal bent toward the crown's outside, as the page's shader bends it), each plant a node
  *     of each, turned about +Z and scaled to its height
  *
  * Built so far: the albedo floor, the scree's stones, the plants, the dressed faces, the land as form, its rock's relief
- * as geometry and a room's lamps over its solved bases. The environment and the markers join as their phases land.
+ * as geometry, a room's lamps over its solved bases, and the level record. Colliders as meshes and the files beside the
+ * handoff (the web build, the sound) join as their phases land.
  */
 import { resolveWorldScene } from '../worlds/world-scene.js';
 import { facesToGlb } from './scene-gltf.js';
@@ -46,6 +56,10 @@ import { stoneForms } from '../form/land-stones.js';
 import { dressedMaterial } from '../matte-paint/dressed.js';
 import { FORM_ROUGH } from '../form/room-form.js';
 import { generatedSpecOf, encodePng, encodePngGrey } from '../landscape/surface-textures.js';
+import { levelSceneExtras, levelCameras } from './scene-gltf-level.js';
+import { synthesizeLevel } from '../game/level-synth.js';
+import { normalizeLevelContract } from '../game/level-contract.js';
+import { buildSeatsKernel } from '../controls/seats-kernel.js';
 
 export const HANDOFF_VERSION = 'handoff/0';
 export const HANDOFF_WHATS = Object.freeze(['level', 'asset']);
@@ -60,7 +74,7 @@ const STAYS = Object.freeze([
   'a tile painted other than from relief (its light painted in): it leaves as its paint',
   'the grass and its drifts',
   'a room\'s baked bounce and ambient (its lamps leave as lights, its surfaces as their solved bases)',
-  'the light: the sun at the level\'s hour, the sky, fog and occlusion',
+  'a level\'s rules (its cues, its HUD, its minds\' decisions): its contract, markers and seats are carried as data for a developer to wire',
 ]);
 
 // (the page's per-stone jitter, channels/form-land.js: the same hash, so a stone stands as wide and as deep as on the page)
@@ -241,6 +255,67 @@ export function roomLamps(room) {
   });
 }
 
+// --- the level a developer wires ---
+
+export const HANDOFF_LEVEL = 'handoff-level/0';
+const { SEAT_COLORS, SEAT_LABELS } = (() => { const K = buildSeatsKernel(); return { SEAT_COLORS: K.SEAT_COLORS, SEAT_LABELS: K.SEAT_LABELS }; })();
+const v3 = (v) => (Array.isArray(v) && v.length >= 3 ? [r5(v[0]), r5(v[1]), r5(v[2])] : null);
+
+function environmentOf(sketch, payload) {
+  const land = payload.form?.land, room = payload.form?.room, M = sketch?.manifest ?? {};
+  const sky = land?.sky ?? payload.sky ?? null, sun = land?.sun ?? null, sunL = land?.light?.sun ?? null;
+  const env = {};
+  if (M.hour !== undefined) env.hour = M.hour;
+  if (typeof payload.bg === 'string') env.background = payload.bg;
+  if (sky && (sky.zenith || sky.horizon)) env.sky = { ...(sky.zenith ? { zenith: sky.zenith } : {}), ...(sky.horizon ? { horizon: sky.horizon } : {}) };
+  // (the sun's light in the solve's units, out = base × light: a renderer's directional light is π × its level, as a lamp's)
+  if (sun && sunL) { const m = Math.max(...sunL, 1e-9); env.sun = { direction: v3(sun), color: sunL.map((v) => r5(v / m)), intensity: r5(Math.PI * m) }; }
+  const amb = land?.light?.ambient ?? room?.ambient ?? null;
+  if (Array.isArray(amb)) env.ambient = amb.map(r5);
+  if (payload.haze) env.haze = payload.haze;
+  if (payload.weather) env.weather = true;
+  return env;
+}
+
+function contractOf(sketch) {
+  const M = sketch?.manifest;
+  if (!M || !M.game || typeof M.game !== 'object') return null;
+  try { return normalizeLevelContract(synthesizeLevel(M).game); } catch { return { unsynthesized: true, game: M.game }; }
+}
+
+export function levelRecord(sketch, payload) {
+  const list = (Array.isArray(payload.entities) ? payload.entities : []).filter((e) => e && typeof e === 'object');
+  const pilot = payload.pilot ?? list.find((e) => e.pilotable)?.id ?? null, seats = payload.seats ?? null;
+  const seatOf = (id) => (id === pilot ? 1 : seats && seats.bodies.includes(id) ? seats.bodies.indexOf(id) + 2 : null);
+  const entities = list.map((e, i) => {
+    const id = String(e.id ?? i), seat = seatOf(id), mind = e.rule?.mind && typeof e.rule.mind === 'object' ? e.rule.mind : null;
+    const role = seat === 1 ? 'pilot' : seat ? 'seat' : mind || e.rule?.type === 'ai' ? 'foe' : 'thing';
+    return { name: `entity:${id}`, role, ...(seat ? { seat } : {}), ...(e.rule?.type ? { rule: e.rule.type } : {}),
+      at: v3(e.transform?.pos) ?? [0, 0, 0], ...(Number.isFinite(e.transform?.heading) ? { heading: r5(e.transform.heading) } : {}),
+      ...(mind ? { mind: Object.fromEntries(['rank', 'skill', 'group', 'motivation'].filter((k) => mind[k] !== undefined).map((k) => [k, mind[k]])) } : {}),
+      ...(e.rule?.foe ? { attack: e.rule.foe } : {}) };
+  });
+  const ex = levelSceneExtras(payload) ?? {};
+  const markers = [
+    ...(ex['moj:spawn'] ? [{ name: 'spawn', kind: 'spawn', at: v3(ex['moj:spawn']) }] : []),
+    ...entities.map((e) => ({ kind: 'entity', ...e })),
+    ...(ex['moj:anchors'] ?? []).map((a) => ({ ...a, name: `anchor:${a.id}`, kind: 'anchor', anchor: a.kind })),
+    ...(levelCameras(payload) ?? []).map((c) => ({ name: `camera:${c.name}`, kind: 'camera', at: v3(c.translation) })),
+  ];
+  const seatRows = seats ? Array.from({ length: seats.max }, (_, k) => {
+    const n = k + 1, body = n === 1 ? pilot : seats.bodies[n - 2] ?? null, e = body ? entities.find((x) => x.name === `entity:${body}`) : null;
+    return { n, label: SEAT_LABELS[k], color: SEAT_COLORS[k], ...(body ? { body: `entity:${body}`, spawn: e?.at ?? null } : {}) };
+  }) : null;
+  return {
+    version: HANDOFF_LEVEL, ref: sketch?.ref ?? null, title: payload.title ?? sketch?.title ?? null, frame: 'z-up', units: 'metres',
+    environment: environmentOf(sketch, payload),
+    markers,
+    contract: contractOf(sketch),
+    ...(seatRows ? { seats: { rows: seatRows, screen: 'shared', lives: seats.lives ?? null, pool: seats.pool ?? null, join: seats.join ?? 'drop-in', drop: seats.drop ?? null } } : {}),
+    ...(sketch?.ref ? { reference: { web: `/api/sketches/${sketch.ref}/world`, play: `/api/sketches/${sketch.ref}/play`, bible: `/api/sketches/${sketch.ref}/bible` } } : {}),
+  };
+}
+
 // --- the plants (the page's channels/form-flora.js, its merge and placement, without three) ---
 
 const f32 = (s) => { const b = Buffer.from(s, 'base64'); return new Float32Array(b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength)); };
@@ -348,7 +423,9 @@ export async function resolveHandoff(sketch, { what = 'level' } = {}) {
     ...(lamps.length ? { lights: lamps } : {}) } : payload;
   const keys = (handed.faces || []).map((f) => f && f.texture).filter((k) => typeof k === 'string');
   const materials = dressedMaterials(keys);
-  const exported = facesToGlb(handed, { generator: `mojulo handoff ${sketch?.ref ?? ''}`.trim(), lit: true, handoff: true, instances, materials });
+  const level = what === 'level' ? levelRecord(sketch, handed) : null;
+  const exported = facesToGlb(handed, { generator: `mojulo handoff ${sketch?.ref ?? ''}`.trim(), lit: true, handoff: true, instances, materials,
+    ...(level ? { sceneExtras: { 'moj:handoff': level } } : {}) });
   if (!exported) throw new Error(`handoff: '${sketch?.ref ?? sketch?.title ?? '?'}' has nothing to hand off`);
   const counts = {};
   // (a plant counts once, though its wood and its crown are two sets)
@@ -357,8 +434,9 @@ export async function resolveHandoff(sketch, { what = 'level' } = {}) {
   const ledger = {
     version: HANDOFF_VERSION, era: HANDOFF_ERA, what,
     carried: { faces: Array.isArray(handed.faces) ? handed.faces.length : 0, instances: counts, ...(lamps.length ? { lamps: lamps.length } : {}),
+      ...(level ? { level: { markers: level.markers.length, contract: !!level.contract, seats: level.seats ? level.seats.rows.length : 0, environment: Object.keys(level.environment) } } : {}),
       ...(landSets.length ? { land: { parts: landSets.length, layered: landSets.filter((s) => s.terrain).length, vertices: landSets.reduce((a, s) => a + s.positions.length / 3, 0), reliefCut: landSets.reduce((a, s) => a + (s.relief ?? 0), 0) } } : {}), materials: { dressed: Object.keys(materials).length, painted: new Set(keys).size - Object.keys(materials).length } },
     stays: [...STAYS],
   };
-  return { kind, payload, exported, instances, materials, ledger };
+  return { kind, payload, exported, instances, materials, level, ledger };
 }

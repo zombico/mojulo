@@ -44,4 +44,11 @@ Built so far:
   round it without a gap.
 - **A room's lamps.** A room under the form render leaves with its surfaces in their solved colours under no light and
   its lamps as point lights at the levels the solve gives them, so the engine's lamps light it as the page's bake does.
+- **The level a developer wires.** A level's handoff carries a record of what its web prototype validated: its
+  environment (the sky, the sun at its hour, the ambient), its markers (the spawn, every entity by its node's name with
+  its part in the loop: the pilot, a seat's body, a foe with its rank and skill, a thing; the anchors; the cameras), its
+  contract (what it produces, consumes and audits, synthesized from its mechanics as the game resolves it), its seats
+  (each seat's number, colour, body and spawn, the screen they share, their lives) and its reference (the web build and
+  the bible pages of the same recipe). Every name comes from the recipe, so handing off a changed level keeps the names
+  of what did not change, and an engine can take the new version without losing a developer's own wiring.
 

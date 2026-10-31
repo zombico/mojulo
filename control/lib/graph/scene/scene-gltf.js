@@ -1438,7 +1438,7 @@ class GlbBuilder {
  */
 /** a vault's extras in the export's units (metres × mpu): the box, the take-off and landing distances, the run */
 const vaultExtras = (v, mpu) => { const m = (x) => Math.round(x * mpu * 1e4) / 1e4; return { ...v, box: { h: m(v.box.h), d: m(v.box.d), w: m(v.box.w) }, entry: { ...v.entry, takeoff: m(v.entry.takeoff) }, exit: { ...v.exit, landing: m(v.exit.landing) }, travel: m(v.travel) }; };
-export function facesToGlb(payload = {}, { generator, clips = null, skinned = false, quantize = false, humanoid = false, lit = false, roughness = 0.85, instances = null, handoff = false, materials = null } = {}) {
+export function facesToGlb(payload = {}, { generator, clips = null, skinned = false, quantize = false, humanoid = false, lit = false, roughness = 0.85, instances = null, handoff = false, materials = null, sceneExtras: extraScene = null } = {}) {
   const { faces = [], textures = {}, light = null, ao = null, vertexContrast = null, repeats = [], figures = null } = payload || {};
   const repeatList = (Array.isArray(repeats) ? repeats : []).filter((r) => r && Array.isArray(r.template) && r.template.length && Array.isArray(r.transforms) && r.transforms.length);
   // rig-figure selection: only packed rigs qualify (figure-frames stacks / polygomer statics have
@@ -1910,6 +1910,8 @@ export function facesToGlb(payload = {}, { generator, clips = null, skinned = fa
     if (addr.anchors) sceneExtras['moj:anchors'] = addr.anchors;
   }
   if (sceneExtras) b.json.scenes[0].extras = sceneExtras;
+  // (the engine handoff's level record, scene/handoff.js: beside the level's own extras; absent, no bytes)
+  if (extraScene) b.json.scenes[0].extras = { ...(b.json.scenes[0].extras || {}), ...extraScene };
 
   const bytes = b.build();
   const out = {

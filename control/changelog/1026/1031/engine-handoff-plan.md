@@ -1,6 +1,6 @@
 ### Engine handoff plan (temporary: the working plan, parked here; delete before release)
 
-**Status:** phase 0 built (its Godot job awaiting its first CI run); phases 1 and 2 built; the outcomes tuned to two audiences; phase 3 (the levels: environment, colliders, markers, the loop, seats, stable names) next (1031). Branch `1031-gen7-export`, cut from `1026-consolidated`. Theme file
+**Status:** phase 0 built (its Godot job awaiting its first CI run); phases 1 and 2 built; phase 3's level record built (colliders as meshes and the files beside the handoff wait on the pack, phase 4); the Godot adapter next (1031).
 `control/changelog/1026/1031/engine-handoff.md`. No release has carried the engine game runtimes this plan removes, so
 nothing here needs a deprecation path.
 
@@ -403,4 +403,29 @@ developer would want to wire. Never claimed by a machine.
   (contract, markers, a pointer to the web build and the bible), couch levels carry a spawn, colour and screen share per
   seat, re-handoff is safe (stable names from the recipe; a test that changes one thing and diffs the names), and the
   web build is the reference beside the handoff. Phase 3 builds the first three.
+- 1031, phase 3 (the level record):
+  - `levelRecord(sketch, payload)` (version `handoff-level/0`), carried whole in the GLB's scene extras as `moj:handoff`
+    (`facesToGlb`'s new `sceneExtras` option, merged beside the level's own `moj:spawn`, `moj:colliders`, `moj:rooms`,
+    `moj:anchors` and `moj:game`; absent, no bytes) and returned as the handoff's `level`:
+    - `environment`: the hour, the background, the sky (zenith, horizon), the sun at the cube's hour (its direction, its
+      colour, and π × its level as a renderer's strength, the room lamps' convention), the ambient (the land's or the
+      room's), the haze, whether the level has weather. A world without the form render's land (a controllable stage)
+      carries what it has.
+    - `markers`: the spawn; every entity by the name its GLB node already carries (`entity:<id>`, written by
+      `levelEntityNodes`), with its part in the loop (`pilot`, `seat` and its number, `foe` (a mind or an `ai` rule) with
+      its mind's rank, skill, group and motivation and its attack's timing, or `thing`), its rule and where it stands;
+      the anchors (`anchor:<id>`, era/anchors.js's doorways, doors, items, things, torches, niches); the cameras.
+    - `contract`: the level's game channel synthesized from its mechanics and normalized as `game/game-resolve.js` does
+      (`synthesizeLevel`, `normalizeLevelContract`): what it produces (its results and events), consumes, audits; a
+      manifest whose game cannot be synthesized carries it raw, marked `unsynthesized`.
+    - `seats` (a couch level): a row per seat (its number, `P1`…, its colour from the seats kernel's four-port
+      convention, its body's node and where it spawns: seat 1 the pilot), the screen (`shared`: the page's cameras hold
+      every seat; split is not built), lives, pool, join, drop.
+    - `reference`: the same recipe's web build (`/world`, `/play`) and bible (`/bible`), as routes of the sketch.
+  - Every name derives from the recipe. The re-handoff test hands off a couch level, adds one entity, hands off again,
+    and holds that every node, material and marker name of the first survives and that what is new is the added one's
+    alone.
+  - Still to come with the pack (phase 4): colliders as meshes (today the boxes ride `moj:colliders`, and an engine
+    builds the walkable ground's collision from its meshes), and the files beside the handoff (the web build, the
+    soundtrack and the sound effects).
 

@@ -6,7 +6,7 @@
  */
 import { describe, expect, it } from 'vitest';
 
-import { resolveHandoff, stoneInstances, floraInstances, mergeClumps, dressedMaterials, landParts, HANDOFF_VERSION } from './handoff.js';
+import { resolveHandoff, stoneInstances, floraInstances, mergeClumps, dressedMaterials, landParts, HANDOFF_VERSION, HANDOFF_LEVEL } from './handoff.js';
 import { resolveWorldScene } from '../worlds/world-scene.js';
 import { generatedSpecOf } from '../landscape/surface-textures.js';
 import { decodePng } from '../era/tone.js';
@@ -26,6 +26,16 @@ const bases = { foliage: [0.11, 0.33, 0.07], floor: [0.4, 0.2, 0.1] };
 const needled = Object.keys(FLORA_SPECIES).find((f) => FLORA_SPECIES[f] === 'pine');
 const plants = { form: 'blob', kinds: [needled], bushKinds: null, trees: [{ x: 0, y: 0, z: 0, h: 9, kind: 0, cluster: 0 }, { x: 10, y: 2, z: 1, h: 11, kind: 0, cluster: 0 }],
   bushes: [], shrubs: [{ x: 4, y: 4, z: 0, h: 1.2 }, { x: 6, y: 5, z: 0, h: 1 }] };
+
+// (a couch level: two seated walkers, a foe, an exit to reach; small, no land)
+const floorFace = { corners: [[-10, -10, 0], [10, -10, 0], [10, 10, 0], [-10, 10, 0]], fill: '#a0b0c0', group: 'floor' };
+const crateBody = { type: 'mesh', shape: 'box' };
+const couch = (extra = []) => ({ ref: 'sk_couch', title: 'couch', manifest: { kind: 'controllable', title: 'couch', faces: [floorFace],
+  entities: [{ id: 'p1', pilotable: true, rule: { type: 'walk' }, body: crateBody, transform: { pos: [0, 0, 0.5] } },
+    { id: 'p2', pilotable: true, rule: { type: 'walk' }, body: crateBody, transform: { pos: [3, 0, 0.5] } },
+    { id: 'grunt', rule: { type: 'ai' }, body: crateBody, transform: { pos: [6, 2, 0.5] } }, ...extra],
+  seats: { bodies: ['p2'], lives: 3 }, camera: { rule: 'side', target: 'p1', dist: 11 },
+  game: { levelRef: 'couch', mechanics: [{ kind: 'reach-exit', at: [8, 0, 0] }] } } });
 
 const TRAIL = { title: 'trail', manifest: { kind: 'geocube', cube: 'island-noon', show: 'trail', seed: 1 } };
 
@@ -59,6 +69,13 @@ describe('the engine handoff', () => {
     }
     // (a trail's cliff under its relief: cut and pushed as the page pushes it)
     if (a.payload.form.land.relief && a.payload.form.land.ranges.some((R) => R.key === 'cliff')) expect(a.ledger.carried.land.reliefCut).toBeGreaterThan(0);
+    // (the environment: the sky, the sun at the cube's hour as a direction, a colour and a renderer's strength, the ambient)
+    const E = a.level.environment;
+    expect(E.sky.zenith).toBeTruthy();
+    expect(Math.hypot(...E.sun.direction)).toBeCloseTo(1, 2);
+    expect(Math.max(...E.sun.color)).toBeCloseTo(1, 4);
+    expect(E.sun.intensity).toBeGreaterThan(0);
+    expect(E.ambient.length).toBe(3);
     // (the atlases written once, however many parts point at them)
     const atlasTex = new Set(layered.map((m) => j.materials[m.primitives[0].material].extras.mojulo.terrain.layers.base.index));
     expect(atlasTex.size).toBe(1);
@@ -193,6 +210,43 @@ describe('the engine handoff', () => {
     expect(plain.form?.room).toBeUndefined();
     expect(h.payload.faces.filter((f) => f.fill).map((f) => f.fill)).not.toEqual(plain.faces.filter((f) => f.fill).map((f) => f.fill));
   }, 300_000);
+
+  it('a couch level: its loop travels with it (its markers, its contract), its seats each a spawn and a colour, its reference', async () => {
+    const h = await resolveHandoff(couch()), L = h.level, j = glbJson(h.exported.bytes);
+    expect(L.version).toBe(HANDOFF_LEVEL);
+    // (the record rides the GLB's scene extras whole)
+    expect(j.scenes[0].extras['moj:handoff']).toEqual(JSON.parse(JSON.stringify(L)));
+    const by = Object.fromEntries(L.markers.filter((m) => m.kind === 'entity').map((m) => [m.name, m]));
+    expect(by['entity:p1']).toMatchObject({ role: 'pilot', seat: 1, at: [0, 0, 0.5] });
+    expect(by['entity:p2']).toMatchObject({ role: 'seat', seat: 2, at: [3, 0, 0.5] });
+    expect(by['entity:grunt']).toMatchObject({ role: 'foe', rule: 'ai' });
+    // (each marker an entity names is the GLB's node of that name)
+    const nodes = new Set(j.nodes.map((n) => n.name));
+    for (const name of Object.keys(by)) expect(nodes.has(name), name).toBe(true);
+    // (the contract: the level's game channel synthesized from its mechanics, as the game resolves it)
+    expect(L.contract).toBeTruthy();
+    expect(L.contract.produces.results.length).toBeGreaterThan(0);
+    // (the seats: P1 red on the pilot, P2 blue on its body, each spawning where its body stands; one screen; their lives)
+    expect(L.seats.rows).toEqual([
+      { n: 1, label: 'P1', color: '#e5483b', body: 'entity:p1', spawn: [0, 0, 0.5] },
+      { n: 2, label: 'P2', color: '#3b7be5', body: 'entity:p2', spawn: [3, 0, 0.5] },
+    ]);
+    expect(L.seats).toMatchObject({ screen: 'shared', lives: 3 });
+    expect(L.reference).toEqual({ web: '/api/sketches/sk_couch/world', play: '/api/sketches/sk_couch/play', bible: '/api/sketches/sk_couch/bible' });
+    expect(h.ledger.carried.level).toMatchObject({ seats: 2, contract: true });
+  }, 120_000);
+
+  it('a re-handoff is safe: change one thing, and every name of what did not change holds', async () => {
+    const names = (h) => { const j = glbJson(h.exported.bytes); return { nodes: new Set(j.nodes.map((n) => n.name)), materials: new Set(j.materials.map((m) => m.name)), markers: new Set(h.level.markers.map((m) => m.name)) }; };
+    const a = names(await resolveHandoff(couch()));
+    const b = names(await resolveHandoff(couch([{ id: 'crate', rule: { type: 'ai' }, body: crateBody, transform: { pos: [-4, 4, 0.5] } }])));
+    for (const k of ['nodes', 'materials', 'markers']) {
+      for (const n of a[k]) expect(b[k].has(n), `${k}: ${n}`).toBe(true);
+      // (what is new is the crate's alone)
+      for (const n of b[k]) if (!a[k].has(n)) expect(n, k).toMatch(/crate/);
+    }
+    expect(b.markers.has('entity:crate')).toBe(true);
+  }, 120_000);
 
   it('a thing that is no world hands off its albedo, with no instances', async () => {
     const h = await resolveHandoff({ title: 'box', manifest: { kind: 'workbench', units: 'mm', frames: [{ id: 'box', unit: 'mm', build: { type: 'table', w: 600, d: 400, h: 450, species: 'oak' } }] } }, { what: 'asset' });
