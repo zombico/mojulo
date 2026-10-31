@@ -152,6 +152,17 @@ describe('the skin between the masses', () => {
     expect(Object.keys(Pv.bind.blend[`${x.id}.${side}`])).toContain('hipFoldR');
     expect(Pv.bind.blend[`${x.id}.front`]).toEqual({ pelvis: 1 });
   });
+  it('spreads the cheeks as the hip flexes: a hip corrective a side, the right seat carried away from the midline', () => {
+    const byId = Object.fromEntries(AT1.recipe.correctives.map((c) => [c.id, c]));
+    expect(byId.muscleHipR && byId.muscleHipL).toBeTruthy();
+    expect(byId.muscleHipR.driver).toMatchObject({ joint: 'hipR', to: 'kneeR' });
+    // (the pelvis's back, over the right cheek: carried out to the right on the mean)
+    const seat = Object.entries(byId.muscleHipR.d).filter(([k]) => k.startsWith('pelvis/')).map(([, o]) => o);
+    expect(seat.length).toBeGreaterThan(20);
+    expect(seat.reduce((a, o) => a + o[0], 0) / seat.length).toBeGreaterThan(0.001);
+    const off = muscleShirt(flat, { card: 'saikyo', definition: 1, activity: false });
+    expect(off.recipe.correctives?.some((c) => c.id === 'muscleHipR')).toBeFalsy();
+  });
   it('welds a joint\'s bridge to the shells it meets, ring to ring, and tapers the wrist to the hand', () => {
     const P = AT1.recipe.parts, cen = (X, i) => X.slots.reduce((a, sl) => a.map((v, k) => v + X.stations[i].points[sl][k] / X.slots.length), [0, 0, 0]);
     // (each ring's mean reach from its centre: the bridge's and its neighbour's rings sample one curve at different points)
@@ -182,7 +193,7 @@ describe('squash and stretch', () => {
     expect(correctiveWeight(raise, { ...bent, navel: [0, 0, 0], neckHub: [0, 0, 1] })).toBe(correctiveWeight(raise, { ...straight, b: [0, 0, 1], c: [0, 1, 1], navel: [0, 0, 0], neckHub: [0, 0, 1] }));
   });
   it('wears a corrective a side per joint its groups act at, the left the right\'s mirror', () => {
-    expect(Object.keys(byId).sort()).toEqual(['muscleElbowL', 'muscleElbowR', 'muscleKneeL', 'muscleKneeR', 'muscleShoulderL', 'muscleShoulderR']);
+    expect(Object.keys(byId).sort()).toEqual(['muscleElbowL', 'muscleElbowR', 'muscleHipL', 'muscleHipR', 'muscleKneeL', 'muscleKneeR', 'muscleShoulderL', 'muscleShoulderR']);
     const [id, o] = Object.entries(byId.muscleElbowR.d).find(([k]) => k.startsWith('upperArmR/'));
     const sw = id.replace('upperArmR/', 'upperArmL/').replace(/([RL])$/, (m) => (m === 'R' ? 'L' : 'R'));
     expect(byId.muscleElbowL.d[sw]).toEqual([-o[0], o[1], o[2]]);

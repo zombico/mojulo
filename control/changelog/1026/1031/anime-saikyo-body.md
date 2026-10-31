@@ -140,6 +140,14 @@ fractal articulation of the big groups. The eyes gate is the operator's.
   thigh is no longer kept under the pelvis (`OVER`), the wrap does that. At rest the hip reads as one surface: the
   cheeks round under into the gluteal fold, a thin line where the shells meet; the ready, horse and sumo stances, the
   fighting stance and the side lunge hold at the crotch at both ends of the dial.
+- **The glutes in a squat** (the operator's): squash and stretch at the HIP (`principles.js` `ACTIVITY_JOINTS.hip`, driven
+  by the thigh's raise from the trunk's down, from 10° to whole at 75°: a squat, a wide stance, a high knee). The seat is
+  a hip extensor, so as the hip flexes the cheeks are drawn long (1.15) and a little flatter, their fibre turned 18°
+  more across, and each carried away from the midline (13 % of the half biacromial) and a little down toward the femur:
+  the cheeks spread and the cleft opens into a valley between two masses, each turned toward the thigh it rides with.
+  A group's `act` may carry its own factors over its role's, and three more (`ACT_KEYS`: `spread`, `drop`, `turn`). The
+  hip's corrective carries its points held at the move's cap with it (`held: false`): left at rest, the pelvis's over
+  the cheek's side stayed while the thigh's top under them was carried out, and came through in flat patches.
 - **The shoulder's cap without its rim**: the shoulder's drum and web, under the arm's skin, are tucked 2.5 cm (1 cm
   had let their domes stand through the top of the arm's dome at rest, a crisp rim round the deltoid's crown); raised,
   they still bridge the armpit as before.
@@ -161,7 +169,7 @@ fractal articulation of the big groups. The eyes gate is the operator's.
   joints scaled about the wrist; the soles on the ground as the feet grow; the nipples only when asked; a bend driver none straight and
   whole at full; a corrective a side per acting joint, the left the right's mirror, nothing at rest, each joint its own;
   the biceps' front bunched; none with the activity off; raised overhead, held out and forward, the shoulder's
-  shells folding no more than the flat body's; the cone as it was; the nipples on the mid-clavicular line; a mass meeting the skin square on climbed in a ramp; a point past the cap held at it; a limb's shells worn by its own groups only; a hidden shell kept under the one over it, only ever pulled in; the hip joined, the pelvis wrapping both thighs to the level, its sides bound as the thighs are; a joint's bridge welded ring to ring and the wrist most of the hand's width; deterministic; the door stores the word and refuses it by name.
+  shells folding no more than the flat body's; the cone as it was; the nipples on the mid-clavicular line; a mass meeting the skin square on climbed in a ramp; a point past the cap held at it; a limb's shells worn by its own groups only; a hidden shell kept under the one over it, only ever pulled in; the hip joined, the pelvis wrapping both thighs to the level, its sides bound as the thighs are; a hip corrective a side, the cheeks spread from the midline; a joint's bridge welded ring to ring and the wrist most of the hand's width; deterministic; the door stores the word and refuses it by name.
 
 #### The anime frame (hero laws 21): the wrist, the shoe's heel and the clavicle
 

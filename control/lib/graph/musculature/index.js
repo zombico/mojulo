@@ -135,7 +135,7 @@ export function muscleShirt(recipe, spec) {
   };
   for (const [joint, driver] of activity ? Object.entries(ACTIVITY_JOINTS) : []) {
     const swap = new Map();
-    for (const e of masses) { const a = actOf[e.group].find((x) => x.joint === joint); if (a) swap.set(e, activeMass(e, a.role)); }
+    for (const e of masses) { const a = actOf[e.group].find((x) => x.joint === joint); if (a) swap.set(e, activeMass(e, a.role, a, F.W)); }
     if (!swap.size) continue;
     const touched = [...new Set([...swap.keys()].flatMap((e) => e.parts))].flatMap((b) => [b, `${b}R`]).filter((n) => dense[n] && !/^wristBridge/.test(n));
     const right = {}, left = {}, cap = joint[0].toUpperCase() + joint.slice(1);
@@ -155,12 +155,12 @@ export function muscleShirt(recipe, spec) {
       let act = weldOf(n, underOwners(n, acts[n].part, shape), shape);
       // (the hip joined on the active shapes as on the rest: the pelvis round the active right thigh, the thigh under it)
       if (n === 'pelvis' || n === 'thighR') { const j = hip(n === 'pelvis' ? act : (acts.pelvis?.part ?? raw.pelvis), n === 'thighR' ? act : (acts.thighR?.part ?? hipFree.thighR), hipFree.thighR); act = n === 'pelvis' ? j.pelvis : j.thighR; }
-      const keep = driver.revert ? [] : [...held[n], ...capped, ...(driver.domes ? [] : domeKeys(dense[n]))];
+      const keep = driver.revert ? [] : [...(driver.held === false ? [] : [...held[n], ...capped]), ...(driver.domes ? [] : domeKeys(dense[n]))];
       const o = offsetsOf(n, raw[n], driver.revert ? reverted(act, dense[n], driver.revert) : act, side ? `${base}L` : n, new Set(keep));
       Object.assign(right, o.R); Object.assign(left, o.L);
     }
     const swapD = (D) => ({ ...D, joint: D.joint.replace(/R$/, 'L'), to: D.to.replace(/R$/, 'L'), ...(D.bend ? { bend: D.bend.replace(/R$/, 'L') } : {}) });
-    const { revert: _r, domes: _d, ...drv } = driver;
+    const { revert: _r, domes: _d, held: _h, ...drv } = driver;
     if (Object.keys(right).length) correctives.push({ id: `muscle${cap}R`, driver: drv, d: right });
     if (Object.keys(left).length) correctives.push({ id: `muscle${cap}L`, driver: swapD(drv), d: left });
   }

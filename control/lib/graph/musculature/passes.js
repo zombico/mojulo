@@ -723,10 +723,15 @@ export function nipplesOn(P, F, on, N) {
 /** a seated mass IN ACTIVITY (principles.js ACTIVITY[role], at the joint's full drive): its radii along, across and
  * deep scaled, standing prouder or nearer the bone on the skin it was seated on, and slid toward its origin along its
  * fibre (`slide` of its bone) */
-export function activeMass(e, role) {
-  const A = ACTIVITY[role], [a, , n] = e.ax, r = [e.r[0] * A.along, e.r[1] * A.across, e.r[2] * A.depth];
+export function activeMass(e, role, own = {}, W = 0) {
+  const A = { ...ACTIVITY[role], ...Object.fromEntries(Object.entries(own).filter(([k, v]) => k !== 'joint' && k !== 'role' && Number.isFinite(v))) };
+  const [a0, b0, n] = e.ax, r = [e.r[0] * A.along, e.r[1] * A.across, e.r[2] * A.depth];
   const lift = e.proud * (A.proud - 1) - (r[2] - e.r[2]), slide = -A.slide * (e.bone ?? 0);
-  return { ...e, r, c: add(add(e.c, scl(n, lift)), scl(a, slide)) };
+  // (its fibre turned about the skin's normal, outward on the right: the mirror turns it on the left)
+  let a = a0, b = b0;
+  if (A.turn) { const t = (A.turn * Math.PI) / 180 * (e.c[0] < 0 ? -1 : 1), cs = Math.cos(t), sn = Math.sin(t); a = add(scl(a0, cs), scl(b0, sn)); b = cross(n, a); }
+  const side = e.c[0] < 0 ? -1 : 1, carry = [side * (A.spread ?? 0) * W, 0, -(A.drop ?? 0) * W];
+  return { ...e, r, ax: [a, b, n], c: add(add(add(e.c, scl(n, lift)), scl(a0, slide)), carry) };
 }
 
 /** the most a corrective moves a point (m): past it a ray found another surface, not the muscle's squash or a revert

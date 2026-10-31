@@ -47,6 +47,11 @@ export const NIPPLE = Object.freeze({
  * (shorter along its fibre, fuller across and deeper, prouder, its belly sliding `slide` of its bone toward its origin:
  * the biceps' peak rising as the elbow closes) and its EXTENSOR stretches (longer, narrower, flatter, nearer the bone:
  * the triceps drawn long), each about as much muscle as it was. Factors at the joint's full drive */
+/** a group's act may carry its own factors over its role's (along, across, depth, proud, slide) and three more, each at
+ * the joint's full drive: `spread` (W) the mass carried away from the midline, `drop` (W) down the trunk, `turn`
+ * (degrees) its fibre turned about the skin's normal, outward and down on the right (the glutes in a squat: drawn long
+ * and flat over the flexed hip, the cheeks spreading apart and their bulk dropping toward the femur) */
+export const ACT_KEYS = Object.freeze(['along', 'across', 'depth', 'proud', 'slide', 'spread', 'drop', 'turn']);
 export const ACTIVITY = Object.freeze({
   flexor: Object.freeze({ along: 0.8, across: 1.04, depth: 1.25, proud: 1.5, slide: 0.05 }),
   extensor: Object.freeze({ along: 1.12, across: 0.96, depth: 0.85, proud: 0.72, slide: 0 }),
@@ -63,6 +68,10 @@ export const ACTIVITY_JOINTS = Object.freeze({
   elbow: Object.freeze({ joint: 'elbowR', to: 'wristR', bend: 'shoulderR', from: 15, full: 135 }),
   knee: Object.freeze({ joint: 'kneeR', to: 'ankleR', bend: 'hipR', from: 15, full: 135 }),
   shoulder: Object.freeze({ joint: 'shoulderR', to: 'elbowR', from: 20, full: 120, revert: Object.freeze({ near: 0.5, far: 1.1 }), domes: true }),
+  // (the hip's by the thigh's raise from the trunk's down: a squat, a high knee, a wide stance's abduction)
+  // (`held: false`: its points held at the move's cap move with it too; left at rest, the pelvis's at the cheek's side
+  // stayed put while the thigh's top under them was carried out, and came through in flat patches)
+  hip: Object.freeze({ joint: 'hipR', to: 'kneeR', from: 10, full: 75, held: false }),
 });
 
 /** each level's blend `k` in metres, [at the form end, at the detail end]: the masses of one level summed by it, then

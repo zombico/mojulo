@@ -22,6 +22,8 @@
  *
  * Pure data and its checks; no dice. */
 
+import { ACT_KEYS } from './principles.js';
+
 const egg = (id, level, on, r, proud, more = {}) => Object.freeze({ id, level, on: Object.freeze(on), r: Object.freeze(r), proud, ...more });
 
 /** THE SAIKYO BODY: hulking but lean on the anime frame — big biceps and a horseshoe triceps, a deltoid cap, a full chest
@@ -86,7 +88,9 @@ const SAIKYO = {
       egg('trapMiddleHead', 2, { t: 0.72, az: 168 }, [0.28, 0.22, 0.065], 0.0325, { along: [1, 0, 0] }),
       egg('trapLower', 2, { t: 0.4, az: 172 }, [0.36, 0.16, 0.05], 0.0228, { along: [0.45, 0, 1] }),
     ] },
-    { id: 'seat', frame: 'trunk', parts: ['pelvis', 'thigh'], masses: [
+    // (a hip extensor: as the hip flexes the cheeks are drawn long, wider and flatter over it, their fibre turned more
+    // across, spreading apart from the cleft and their bulk dropping toward the femur)
+    { id: 'seat', frame: 'trunk', parts: ['pelvis', 'thigh'], act: [{ joint: 'hip', role: 'extensor', along: 1.15, across: 1.0, depth: 0.9, proud: 0.85, spread: 0.13, drop: 0.03, turn: 18 }], masses: [
       // (the cheek a round mass, deep as it is broad, its fibre slanting down and out as the gluteus maximus's does, its
       // fullest point low, just over the fold, where the lower cheek turns under into it; the medius filling the hip's
       // side under the crest)
@@ -198,7 +202,10 @@ export function validateMuscleCard(card, label = 'card') {
     const gl = `${label}.${g.id}`;
     if (!MUSCLE_FRAMES.includes(g.frame)) errs.push(`${gl}: frame is one of ${MUSCLE_FRAMES.join(', ')}`);
     if (!Array.isArray(g.parts) || !g.parts.length) errs.push(`${gl}: parts names the wearer's parts it is worn on`);
-    for (const a of g.act ?? []) if (!['elbow', 'knee', 'shoulder'].includes(a.joint) || !['flexor', 'extensor'].includes(a.role)) errs.push(`${gl}.act: { joint: elbow | knee | shoulder, role: flexor | extensor }`);
+    for (const a of g.act ?? []) {
+      if (!['elbow', 'knee', 'shoulder', 'hip'].includes(a.joint) || !['flexor', 'extensor'].includes(a.role)) errs.push(`${gl}.act: { joint: elbow | knee | shoulder | hip, role: flexor | extensor }`);
+      for (const [k, v] of Object.entries(a)) if (k !== 'joint' && k !== 'role' && (!ACT_KEYS.includes(k) || !Number.isFinite(v))) errs.push(`${gl}.act.${k}: one of ${ACT_KEYS.join(', ')}, a number`);
+    }
     for (const m of g.masses || []) {
       const ml = `${gl}.${m.id}`;
       if (ids.has(m.id)) errs.push(`${ml}: a mass id is unique in a card`); ids.add(m.id);
