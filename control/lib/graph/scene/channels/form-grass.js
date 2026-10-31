@@ -17,8 +17,8 @@
 //           (wheat) takes the blades' place, a low one (chaff, the flowers) stands among them
 //   views   by the camera's mode (POV_GRASS): AERIAL, a cutscene's, the whole field; POV, gameplay's, real grass in the
 //           VIEW CONE (channels/view-cone.js: the frustum to its reach), thinning, and past its reach an impression:
-//           no geometry, the far field (channels/far-field.js): the ground's blanket and its contour, from the FAR
-//           MAP this block builds once (`window.__formFar`)
+//           no geometry, the far field (channels/far-field.js): the grass's colour on the ground, speckled, from the
+//           FAR MAP this block builds once (`window.__formFar`)
 //   wind    the page's one gust field (channels/terrain-wind.js, the gen-6 live grass's wind kept on a form page with its
 //           blades off: the trees' crowns sway in it): every blade, strand and plant bends downwind by the gust at its
 //           root, its top the most, with a quiver of its own, and a gust's band reads a shade brighter as it passes, so
@@ -46,8 +46,8 @@ export const STILL_FIELD = Object.freeze({ spread: Object.freeze({ tall: 1, medi
 /** The field as the eye sees it, by the CAMERA'S MODE: AERIAL (a cutscene's camera) the whole field; POV (gameplay, the
  *  walker's eye, the default) real grass only out to the VIEW CONE's reach (channels/view-cone.js `window.__mojCone`: the
  *  screen's, or a world's `cone`, adjustable live), thinning past `thin` of it, each clump going whole at a distance of
- *  its own, and past it an IMPRESSION (channels/far-field.js: a blanket on the ground and strands on its contour, from
- *  the FAR MAP: each cell's strand height, colour slot, dice and ground). No geometry. In either
+ *  its own, and past it an IMPRESSION (channels/far-field.js: the grass's colour on the ground, speckled, from the FAR
+ *  MAP: each cell's strand height, colour slot and dice). No geometry. In either
  *  mode a tile the cone's frustum does not see is not drawn. `window.__formGrassView('aerial' | 'pov')` sets it; V toggles it on a walkable
  *  page. */
 export const POV_GRASS = Object.freeze({ thin: 0.5, strands: Object.freeze({ height: Object.freeze([0.55, 1]) }) });
@@ -262,8 +262,8 @@ export function formGrassScript() {
         window.__formWeeds = (window.__formWeeds || 0) + stand(tg, R, plantMat()) * Fm.p.length / 9;
       }); }
       // the STRANDS (POV, past the real grass): the FAR MAP, a strand a cell of the grass map, its height its section's
-      // tips' (a standing drift's its own), its colour slot, its dice and the ground's height there, read by the far
-      // field (channels/far-field.js), no geometry. A strand is the colour of what grows where it stands: the grass's, a standing
+      // tips' (a standing drift's its own), its colour slot and its dice, read by the far field (channels/far-field.js),
+      // no geometry. A strand is the colour of what grows where it stands: the grass's, a standing
       // drift's (wheat) whole, one that lies among the blades (chaff) on a share of them, a flower's at its tip on a share
       // of them (each form's colour its tip's, a slot of its own)
       (function () {
@@ -288,15 +288,16 @@ export function formGrassScript() {
           H[k] = ht * tall(x, y) * (PG.strands.height[0] + (PG.strands.height[1] - PG.strands.height[0]) * h(0.37, 0.91)) * sm(0.08, 0.6, m.cov);
           hMax = Math.max(hMax, H[k]); FG[k * 4 + 1] = si; FG[k * 4 + 3] = Math.round(h(7.7, 0.3) * 255);
         }
-        // (the ground's height in the third channel, over the map's range: the painter's test that a pixel is the ground)
-        for (let k = 0; k < nx * ny; k++) FG[k * 4 + 2] = Math.round(((zT(k * 4) - Gm.z[0]) / Math.max(1e-6, Gm.z[1])) * 255);
         for (let k = 0; k < nx * ny; k++) FG[k * 4] = H[k] > 0 ? Math.max(1, Math.round((H[k] / hMax) * 255)) : 0;
         while (SFL.length < 16) { SC.push(0, 0, 0); SFL.push(0); }
         const ft = new THREE.DataTexture(FG, nx, ny, THREE.RGBAFormat); ft.magFilter = ft.minFilter = THREE.NearestFilter; ft.needsUpdate = true;
-        // (and the same as arrays, for the far field's contour scan: the ground's height, what stands, its slot and its dice)
-        const zs = Float32Array.from({ length: nx * ny }, (_, k) => zT(k * 4)), slots = new Uint8Array(nx * ny), tones = new Uint8Array(nx * ny);
-        for (let k = 0; k < nx * ny; k++) { slots[k] = FG[k * 4 + 1]; tones[k] = FG[k * 4 + 3]; }
-        window.__formFar = { tex: ft, origin: [x0 - Gm.cell / 2, y0 - Gm.cell / 2], centre: [x0, y0], n: [nx, ny], cell: Gm.cell, hMax, z: Gm.z, thin: PG.thin, zs, hs: H, slots, tones,
+        // (the weeds' heads, the far field's specks in their patches: each form's colour at its top, the heaviest four)
+        const Wf = Gm.weeds ? [...Gm.weeds.forms].sort((a, b) => b.w - a.w).slice(0, 4).map((Fm) => {
+          const P = Fm.p, C = Fm.c; let top = 0; for (let i = 2; i < P.length; i += 3) top = Math.max(top, P[i]);
+          const c = [0, 0, 0]; let n = 0; for (let i = 2; i < P.length; i += 3) if (P[i] > top * 0.6) { for (let q = 0; q < 3; q++) c[q] += C[i - 2 + q]; n++; }
+          return new THREE.Vector3(...c.map((v) => v / Math.max(1, n))); }) : [];
+        window.__formFar = { tex: ft, origin: [x0 - Gm.cell / 2, y0 - Gm.cell / 2], n: [nx, ny], cell: Gm.cell, hMax, z: Gm.z, thin: PG.thin,
+          weeds: Wf, weedShare: Gm.weeds ? Math.min(1, Gm.weeds.share * 3) : 0, weedCell: Gm.weeds ? Gm.weeds.cell : 1,
           cols: Array.from({ length: 16 }, (_, i) => new THREE.Vector3(SC[i * 3], SC[i * 3 + 1], SC[i * 3 + 2])), flowers: SFL, pov: () => view === 'pov' };
         window.__formStrands = H.reduce((n, v) => n + (v > 0 ? 1 : 0), 0);
       })();
