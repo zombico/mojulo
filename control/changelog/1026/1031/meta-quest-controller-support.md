@@ -20,6 +20,11 @@ rather than the player's head.
   - Turns on the right stick about the head: smooth by default (`turnSpeed`, 120°/s), or `turn: 'snap'` (`snap`
     degrees; `{ snap }` alone still means snap turning).
   - `?xr=` takes the mode words for an A/B in a headset without a re-mint: `?xr=snap`, `?xr=smooth,hand`, `?xr=head`.
+    The live route applies them, and the page reads them itself too, so a downloaded or statically hosted copy takes them.
+- **Test pages for a headset** (`scripts/xr-test-pages.mjs <out-dir>`): a Quest browser opens a WebXR session only over
+  https, so the script writes static pages (three from the pinned CDN) for a host such as GitHub Pages: a course (a
+  straight lane down +X with a post every 5 m and a goal at its end, the opening view standing on it) and the walkable
+  fractal city, with an index linking each mode.
 - **The xr rows of the other schemes**: the action game (left stick moves and its click sprints, right trigger attacks,
   left guards, A jumps, B dodges, X shoots, Y switches, the left grip dashes, the right stick's click locks), the grid
   puzzle and the tactics board (the left stick moves the cursor, the right turns and zooms the view), with their legend

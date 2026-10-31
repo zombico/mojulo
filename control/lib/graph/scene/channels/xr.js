@@ -84,6 +84,8 @@ export function xrModeScript(cfg) {
   return `
 // --- WebXR immersive-vr (opt-in): the z-up rig carries the y-up XR space through the same scene ---
 const XR = ${safeJson(cfg)};
+// a static copy (a download, a page on a static host) takes the mode words the live route does: ?xr=snap,hand
+try { for (const w of (new URLSearchParams(location.search).get('xr') || '').toLowerCase().split(',')) { if (w === 'smooth' || w === 'snap') XR.turn = w; else if (w === 'latch' || w === 'head' || w === 'hand') XR.move = w; } } catch (e) { /* no location */ }
 const __XRK = (${buildControlsKernel.toString()})();
 const __XRV = (${buildXrDriver.toString()})();
 const __XRD = ${safeJson({ xr: DEVICES.xr })};
