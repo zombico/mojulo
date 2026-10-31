@@ -27,4 +27,8 @@ Built so far:
   translucent one, and the form render's scree stones as instances, each standing on its ground's normal as the page
   stands it. A ledger says what was carried and what stays the web's for now (the land's layers, the stones' skin, the
   plants and grass, the light). Every other export is byte for byte as it was.
+- **The plants.** Each plant leaves as a copy of its template: its wood on its bark (the bark's own colour, its relief's
+  normal, occlusion and roughness, and its height for parallax) and its crown, its leaf clumps merged as the page merges
+  them, each leaf's normal bent toward the crown's outside so the crown takes the sun as one volume. Each plant's own
+  tint, the wind, the sprays near the eye, the far levels of detail and a conifer's needles stay the web's for now.
 

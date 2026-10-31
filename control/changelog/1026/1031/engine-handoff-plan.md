@@ -1,6 +1,6 @@
 ### Engine handoff plan (temporary: the working plan, parked here; delete before release)
 
-**Status:** phase 0 built (its Godot job awaiting its first CI run); phase 1's first slice built (1031). Branch `1031-gen7-export`, cut from `1026-consolidated`. Theme file
+**Status:** phase 0 built (its Godot job awaiting its first CI run); phase 1's stones and plants built, the dressed faces' relief next (1031). Branch `1031-gen7-export`, cut from `1026-consolidated`. Theme file
 `control/changelog/1026/1031/engine-handoff.md`. No release has carried the engine game runtimes this plan removes, so
 nothing here needs a deprecation path.
 
@@ -268,4 +268,20 @@ developer would want to wire. Never claimed by a machine.
     web's (a level of detail an engine makes its own).
 - After the plants: the dressed faces' relief (`matte-paint/dressed.js` already calls `reliefMaterial`) as textured PBR,
   then phase 2.
+- 1031, phase 1, the plants:
+  - `floraInstances(payload.form.flora)`: per template its wood (the template's tubes: positions, normals, uv in bark
+    tiles, indices; a culm's own colours) on its bark (`barks[key]`'s base, normal and ORM as glTF's metal-rough set, its
+    height and depth in `extras.mojulo` for parallax) and its crown (`mergeClumps`: the page's `merged`, without three:
+    each clump's variant turned to its facing (a pad level along its branch, a cross card by its basis, any other +Z onto
+    its facing then rolled by its rank), scaled, each vertex its tone over its leaf; each triangle's normal bent toward
+    the clump's outside by the page's shader's 0.65). Each plant a node of each, turned about +Z by its yaw and scaled to
+    its height. A template's plants share one material: their mean leaf colour (a vertex's tone over it moved into the
+    material where it passes one) and their mean bark colour over the bark.
+  - `facesToGlb`: `addFormInstances` takes uv (v flipped as `addNode` flips it), colours and indices; a textured set
+    binds base, normal and ORM and puts the height in the material's extras; instances alone make a GLB.
+  - Left the web's (the ledger says so): each plant's own tint, the wind, the sprays near the eye, the far levels of
+    detail (an engine makes its own), a needled crown's needles (its sleeve, drawn by the page's shader), a shrub's
+    blossoms and berries.
+  - Tested from `floraRead` directly (a needled tree and a shrub's dome, as `form/flora-read.test.js` grows them), not
+    through a whole forest.
 

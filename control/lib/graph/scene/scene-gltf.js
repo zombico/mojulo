@@ -659,13 +659,18 @@ class GlbBuilder {
     return meshIdx;
   }
 
-  // The engine handoff's instances (scene/handoff.js): one template mesh, its outward normals, and a node per instance with
-  // a FULL TRS (a quaternion and a per-axis scale, in the pre-root z-up frame), where addInstancedNodes turns about +Z and
-  // scales evenly. Used only by a handoff; no other export reaches it.
-  addFormInstances(name, positions, normals, materialIndex, transforms) {
+  // The engine handoff's instances (scene/handoff.js): one template mesh (its outward normals, and when it has them its
+  // texture coordinates, its colours and its indices) and a node per instance with a FULL TRS (a quaternion and a per-axis
+  // scale, in the pre-root z-up frame), where addInstancedNodes turns about +Z and scales evenly. Used only by a handoff.
+  addFormInstances(name, { positions, normals = null, uvs = null, colors = null, indices = null }, materialIndex, transforms) {
     const attributes = { POSITION: this.floatAccessor(positions, 3, bounds3(positions)) };
     if (normals && normals.length) attributes.NORMAL = this.floatAccessor(normals, 3);
-    this.json.meshes.push({ name, primitives: [{ attributes, mode: MODE_TRIANGLES, material: materialIndex }] });
+    // (glTF's texture origin is the image's top-left: v flipped on the way out, as addNode flips it)
+    if (uvs && uvs.length) attributes.TEXCOORD_0 = this.floatAccessor(Float32Array.from(uvs, (x, i) => (i % 2 ? 1 - x : x)), 2);
+    if (colors && colors.length) attributes.COLOR_0 = this.floatAccessor(colors, 3);
+    const prim = { attributes, mode: MODE_TRIANGLES, material: materialIndex };
+    if (indices && indices.length) prim.indices = this.indexAccessor(indices);
+    this.json.meshes.push({ name, primitives: [prim] });
     const mesh = this.json.meshes.length - 1;
     transforms.forEach((t, i) => {
       const node = { name: `${name}:${i}`, mesh, translation: t.translation };
@@ -673,7 +678,8 @@ class GlbBuilder {
       if (t.scale) node.scale = t.scale;
       this.children.push(this.json.nodes.push(node) - 1);
     });
-    return { vertices: positions.length / 3, triangles: positions.length / 9 };
+    const tris = indices && indices.length ? indices.length / 3 : positions.length / 9;
+    return { vertices: positions.length / 3, triangles: tris };
   }
 
   // One packed rig figure (rig-bake.js / unit-rig.js / vehicle-rig.js — all three families share
@@ -1442,7 +1448,7 @@ export function facesToGlb(payload = {}, { generator, clips = null, skinned = fa
   // water (aqua look): liquid sheets and frozen aqua surfaces leave as their own `water:<kind>` nodes. A scene that is
   // only an animated sea (the ocean view: no faces) exports when it has an aqua surface; otherwise as before.
   const waterBodies = aquaWaterBodies(payload);
-  if ((!Array.isArray(faces) || !faces.length) && !repeatList.length && !rigFigs.length && !waterBodies.some((w) => w.frame)) return null;
+  if ((!Array.isArray(faces) || !faces.length) && !repeatList.length && !rigFigs.length && !waterBodies.some((w) => w.frame) && !(Array.isArray(instances) && instances.length)) return null;
 
   // A rig may declare `embodies: '<group>'` (interchange.plan.md I2 — the figure kind):
   // the payload's static faces of that group depict the SAME body at rest, so when this
@@ -1789,6 +1795,24 @@ export function facesToGlb(payload = {}, { generator, clips = null, skinned = fa
     triangleCount += added.triangles;
   }
 
+  // The engine handoff's instances (scene/handoff.js `instances`: the form render's scree stones, its plants): each set its
+  // template under a lit dielectric material of its own colour, a node per instance. Absent, as every other export: no
+  // bytes.
+  for (const set of Array.isArray(instances) ? instances : []) {
+    if (!set || !set.positions?.length || !set.transforms?.length) continue;
+    // (a textured set, a plant's bark: its own colour, its relief's normal, occlusion and roughness as glTF's metal-rough
+    // set, and its height for parallax in the extras, for an engine's importer to bind)
+    const T = set.textures, tex = (k) => (T && T[k] ? b.imageFromDataUrl(T[k]) : null);
+    const [base, normal, orm, height] = ['base', 'normal', 'orm', 'height'].map(tex);
+    const mat = b.pbrMaterial({ metallic: 0, roughness: set.roughness ?? 0.85, baseColor: set.color, name: set.name,
+      ...(base != null ? { baseColorTexture: base } : {}), ...(normal != null ? { normalTexture: normal } : {}), ...(orm != null ? { ormTexture: orm } : {}),
+      ...(height != null ? { extras: { mojulo: { height: { index: height }, depth: set.depth, metres: set.metres } } } : {}) });
+    if (orm != null) b.json.materials[mat].pbrMetallicRoughness.metallicFactor = 0;
+    const r = b.addFormInstances(set.name, set, mat, set.transforms);
+    vertexCount += r.vertices * set.transforms.length;
+    triangleCount += r.triangles * set.transforms.length;
+  }
+
   if (!b.children.length && !b.sceneRoots.length) return null; // expansion produced nothing exportable
 
   // ── level-as-layout semantics (interchange.plan.md I4) — default-on ──────────────────────
@@ -1857,17 +1881,6 @@ export function facesToGlb(payload = {}, { generator, clips = null, skinned = fa
       b.children.push(b.json.nodes.push(node) - 1);
     }
   }
-  // The engine handoff's instances (scene/handoff.js `instances`: the form render's scree stones, its plants): each set its
-  // template under a lit dielectric material of its own colour, a node per instance. Absent, as every other export: no
-  // bytes.
-  for (const set of Array.isArray(instances) ? instances : []) {
-    if (!set || !set.positions?.length || !set.transforms?.length) continue;
-    const mat = b.pbrMaterial({ metallic: 0, roughness: set.roughness ?? 0.85, baseColor: set.color, name: set.name });
-    const r = b.addFormInstances(set.name, set.positions, set.normals, mat, set.transforms);
-    vertexCount += r.vertices * set.transforms.length;
-    triangleCount += r.triangles * set.transforms.length;
-  }
-
   // Scene-level extras: spawn point, collider boxes, game-contract summary.
   const sceneExtras = levelSceneExtras(payload);
   if (sceneExtras && unitScale) {
