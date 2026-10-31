@@ -77,7 +77,7 @@ const ORIGIN = new WeakMap();
  * each end the adapter names (`domes`: an end that shows, the shoulder's top) CLOSED IN A DOME of rings toward its pole (a quarter ellipse from the end ring to the pole, run to
  * DOME_REACH), so the
  * shirt can be worn over an end as over the sides (the shoulder's drum and the arm's top had ended in flat fans the
- * shirt never moved). A dome ring's shares ease from the end ring's to the pole's; its `u` just past the end */
+ * shirt never moved). A dome ring and its pole ride as the end ring does; its `u` just past the end */
 export function densify(P0, { around, rings, grain = 0.011, domes = [] }) {
   const P = bindOf(P0), Q = resamplePart(P, () => 1, { around, rings }), cage = smoothCage(P);
   let stations = Q.stations.map((x) => ({ ...x, points: Object.fromEntries(Q.slots.map((sl, j) => [sl, cage(x.u, j / around).map(r6)])) }));
@@ -96,11 +96,13 @@ export function densify(P0, { around, rings, grain = 0.011, domes = [] }) {
     for (let k = 1; k <= K; k++) {
       const th = (k / K) * DOME_REACH, co = dmath.cos(th), si = dmath.sin(th), id = `${E.id}_${end}${k}`, w = k / (K + 1);
       const points = Object.fromEntries(Q.slots.map((sl) => [sl, add(C, add(scl(sub(E.points[sl], C), co), scl(up, si))).map(r6)]));
-      for (const sl of Q.slots) { const a = blend[`${E.id}.${sl}`] ?? blend[E.id] ?? own; blend[`${id}.${sl}`] = mixW(a, blend[end] ?? own, w); }
+      // (a dome's ring rides as its end ring does: eased toward the cap's shares, the collarbone's fifth on the arm's top,
+      // its points, carried out by the deltoid, sheared into flaps and holes as the arm rose)
+      for (const sl of Q.slots) { const a = blend[`${E.id}.${sl}`] ?? blend[E.id] ?? own; blend[`${id}.${sl}`] = mixW(a, a, w); }
       const x = { id, u: r6(E.u + (end === 'back' ? -1 : 1) * 0.001 * k), points }; ORIGIN.set(x, C); dome.push(x);
     }
     // (the pole at the dome's apex: a flat cap's, on its ring's centre, would fold the fan back down under the dome)
-    caps[end] = add(C, up).map(r6); origins[end] = C;
+    caps[end] = add(C, up).map(r6); origins[end] = C; blend[end] = blend[E.id] ?? own;
     stations = end === 'back' ? [...dome.reverse(), ...stations] : [...stations, ...dome];
   }
   const out = { ...Q, stations, ...(Q.caps ? { caps } : {}), bind: { ...Q.bind, blend } };
@@ -227,6 +229,9 @@ export function unionOf(masses, d, k = null) {
 export const END_TUCK = 0.004, END_BAND = 0.018;
 /** the most the shirt carries a point (m): past every muscle's stand off the skin */
 export const MOST_MOVE = 0.045;
+/** the most the shirt carries a dome's point on a shell that shows (m): the deltoid's crown lifts the arm's top about 5 cm,
+ * and a dome's inner ray grazing along it toward the torso had run out 10 cm in a fin */
+export const DOME_MOST = 0.07;
 
 /** a dense part DISPLACED onto the union of the skin and `masses`: each point carried out along its ring's ray to the
  * union's surface (the skin a plane through the point, square to the ray), less its `tuck` and, near its ends, its end
@@ -252,9 +257,9 @@ export function displace(P, masses, d, tuck = 0, k = null, whole = false) {
     let lo = t0, hi = t0 + STEP; while (hi < t0 + REACH && f(hi) < 0) { lo = hi; hi += STEP; }
     // (a ray that leaves no surface within its reach, one a long mass engulfs along it, keeps its point; and so does one
     // carried past MOST_MOVE, a ray that grazed along a mass: hidden in another shell at rest, posed it stood out in shards)
-    // (a dome's ray, from its end ring's centre over the end, is the shirt's own and carries its point as far as its muscle,
+    // (a dome's ray, from its end ring's centre over the end, is the shirt's own and carries its point further, DOME_MOST,
     // on a shell that shows; a dome under another shell's, `whole`, carried far had swung out in flaps as the arm rose)
-    if (f(hi) < 0 || (!(dome && !whole) && lo - t0 > MOST_MOVE)) return p0;
+    if (f(hi) < 0 || lo - t0 > (dome && !whole ? DOME_MOST : MOST_MOVE)) return p0;
     for (let it = 0; it < 30 && hi - lo > 1e-7; it++) { const m = (lo + hi) / 2; if (f(m) < 0) lo = m; else hi = m; }
     // (a shell that should not show tucked in by as much as it moved, up to its tuck: adapters/loft.js TUCK)
     const s = (lo + hi) / 2; moved++;
@@ -266,8 +271,28 @@ export function displace(P, masses, d, tuck = 0, k = null, whole = false) {
     for (const sl of P.slots) points[sl] = carry(x.points[sl], c, tk, dome || whole);
     return { ...x, points };
   });
+  // (a point carried far past its neighbours on the grid takes their mean: rays that grazed along a mass stood a column
+  // of the arm's inner side out as a fin, hidden in the torso at rest, swung out as the arm rose)
+  const smoothed = unfinned(P, stations);
   const from = ORIGIN.get(P) ?? {}, caps = P.caps ? Object.fromEntries(Object.entries(P.caps).map(([k, q]) => [k, from[k] ? carry(q, from[k], tuck, true) : q])) : P.caps;
-  return { part: { ...P, stations, ...(caps ? { caps } : {}) }, moved };
+  return { part: { ...P, stations: smoothed, ...(caps ? { caps } : {}) }, moved };
+}
+
+/** a displaced grid with its FINS taken out: each point's move (from `P`'s point to `S`'s) set to its grid neighbours'
+ * mean where it is more than twice their median and FIN more, twice over; a point that did not move stays exactly */
+export const FIN = 0.004;
+function unfinned(P, S) {
+  const n = P.slots.length, rows = S.length;
+  let D = S.map((x, i) => P.slots.map((sl) => sub(x.points[sl], P.stations[i].points[sl])));
+  for (let pass = 0; pass < 2; pass++) {
+    D = D.map((row, i) => row.map((o, j) => {
+      const lo = len(o); if (lo < 1e-9) return o;
+      const nb = [[i - 1, j], [i + 1, j], [i, (j + 1) % n], [i, (j + n - 1) % n]].filter(([a]) => a >= 0 && a < rows).map(([a, b]) => D[a][b]);
+      const m = nb.map(len).sort((a, b) => a - b)[Math.floor(nb.length / 2)];
+      return lo > 2 * m + FIN ? scl(nb.reduce((a, q) => add(a, q), [0, 0, 0]), 1 / nb.length) : o;
+    }));
+  }
+  return S.map((x, i) => ({ ...x, points: Object.fromEntries(P.slots.map((sl, j) => [sl, len(D[i][j]) < 1e-9 ? P.stations[i].points[sl] : add(P.stations[i].points[sl], D[i][j]).map(r6)])) }));
 }
 /** a midline part made exactly symmetric: each left slot the mirror of its right partner, the midline slots on x = 0 */
 export function symmetrize(P) {
@@ -332,10 +357,13 @@ export function scaledAbout(parts, rig, f, centreOf, partsOf, jointsOf, ramp = (
 
 // ─── 6. MARKS ON THE SKIN ──────────────────────────────────────────────────────────────────────────────────────────
 
-/** the NIPPLES seated on a displaced trunk part (the right; the left its mirror): where a ray from the trunk's axis at
- * `on` leaves it, the areola and the papilla (principles.js NIPPLE) laid square to its skin, each standing proud of it */
+/** the NIPPLES seated on a displaced trunk part (the right; the left its mirror): where a ray forward from `on` (its
+ * `x` of the half biacromial out, `t` up the torso bone) leaves it, the areola and the papilla (principles.js NIPPLE) laid square to its skin, each standing proud of it */
 export function nipplesOn(P, F, on, N) {
-  const rad = (deg) => (deg * Math.PI) / 180, o = [0, 0, F.trunk.z0 + on.t * F.trunk.T], dir = [dmath.sin(rad(on.az)), dmath.cos(rad(on.az)), 0];
+  // (on the mid-clavicular line: `x` of the half biacromial out, the ray cast straight forward from there; an `az` from
+  // the axis landed them by the sternum, 7 cm apart)
+  const rad = (deg) => (deg * Math.PI) / 180, z = F.trunk.z0 + on.t * F.trunk.T;
+  const o = on.x !== undefined ? [on.x * F.W, 0, z] : [0, 0, z], dir = on.x !== undefined ? [0, 1, 0] : [dmath.sin(rad(on.az)), dmath.cos(rad(on.az)), 0];
   const hit = rayHit(P, o, dir); if (!hit) return [];
   const n = hit.n, a = unit(sub([0, 0, 1], scl(n, n[2]))), b = cross(n, a);
   const egg = (id, m) => { const r = m.r.map((x) => x * F.W); return { id, group: 'nipple', level: 0, c: add(hit.p, scl(n, m.proud * F.W - r[2])), ax: [a, b, n], r }; };
@@ -354,8 +382,9 @@ export function activeMass(e, role) {
   return { ...e, r, c: add(add(e.c, scl(n, lift)), scl(a, slide)) };
 }
 
-/** the most a corrective moves a point (m): past it a ray found another surface, not the muscle's squash */
-export const ACT_MOST = 0.04;
+/** the most a corrective moves a point (m): past it a ray found another surface, not the muscle's squash or a revert
+ * (the move caps, MOST_MOVE and DOME_MOST, hold the rays themselves) */
+export const ACT_MOST = 0.08;
 /** how far past twice its neighbours' median a corrective's point may move before it takes their mean (m) */
 export const SPIKE = 0.004;
 

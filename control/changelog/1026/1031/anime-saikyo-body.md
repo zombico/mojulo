@@ -69,11 +69,25 @@ fractal articulation of the big groups. The eyes gate is the operator's.
   and so does one carried past 4.5 cm (a ray grazing along a mass, hidden in another shell at rest, swung out in shards
   as the arm rose), a dome on a shell that shows excepted; the shoulder's cone and web wear only the arm's groups; a
   corrective's point past 4 cm, or far past its neighbours, left out or eased to them.
+- **The shoulder in a raise** (the operator's: overhead the shoulder's top opened in holes and the armpit frayed):
+  measured as folded faces (a face turned past a right angle from its neighbours), the shirt's skin never folded; its
+  faults were the bridging shells passing through the arm and a few grazing rays. A dome's rings ride as its end ring
+  does (eased toward the cap's shares, the collarbone's fifth, they sheared into flaps); a dome's point is carried at
+  most 7 cm (`DOME_MOST`: an inner ray grazing the deltoid's crown had run 10 cm out in a fin); a point carried far past
+  its grid neighbours takes their mean (`FIN`); a shell no group wears keeps its authored rings (the cone, folded by
+  the smooth cage over its turning rings); and the shoulder's raise REVERTS (`ACTIVITY_JOINTS.shoulder.revert`): near
+  the joint its corrective eases the skin back to the wearer's own, wholly within half the half biacromial and none
+  past 1.1 of it, so raised overhead, held out or forward, the shoulder bridges as the flat body's does, the deltoid's
+  bunch kept further down the arm. The shoulder's driver from 20° to whole at 120°, so a raise to the side takes most
+  of it.
+- **The nipples on the mid-clavicular line** (the operator's: from the front they sat by the sternum, 7 cm apart): seated
+  by a ray forward from 0.47 of the half biacromial out, low on the chest (`NIPPLE.on`).
 - **Held** (`musculature.test.js`): the dial's laws; absence adds nothing (a skin no mass reaches keeps every point);
   every mass seated; the skin carried out; the left the right's mirror; every shell wound outward; the hands and their
   joints scaled about the wrist; the soles on the ground as the feet grow; the nipples only when asked; a bend driver none straight and
   whole at full; a corrective a side per acting joint, the left the right's mirror, nothing at rest, each joint its own;
-  the biceps' front bunched; none with the activity off; deterministic; the door stores the word and refuses it by name.
+  the biceps' front bunched; none with the activity off; raised overhead, held out and forward, the shoulder's
+  shells folding no more than the flat body's; the cone as it was; the nipples on the mid-clavicular line; deterministic; the door stores the word and refuses it by name.
 
 #### The anime frame (hero laws 21): the wrist, the shoe's heel and the clavicle
 

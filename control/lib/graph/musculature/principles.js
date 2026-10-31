@@ -27,11 +27,14 @@ export const HAND_SHARE = 0.75;
  * shank's growth in girth; a card's `feet` (a number) names its own */
 export const FOOT_SHARE = 0.6;
 
-/** THE NIPPLES (the shirt's `nipples: true`): a mark on the muscle's skin, worn after the muscles, seated where a ray from
- * the trunk's axis leaves the displaced chest: the areola a low disc and the papilla a small bump on it (each [across,
+/** THE NIPPLES (the shirt's `nipples: true`): a mark on the muscle's skin, worn after the muscles, seated `on` the
+ * displaced chest (a card's `nipple` names its own): the areola a low disc and the papilla a small bump on it (each [across,
  * across, depth] and proud, in W, sized to read at the shirt's grain: a papilla under it barely moved a point), under
  * their own tight blend `k` (m), so the pectoral's blend never washes them out */
 export const NIPPLE = Object.freeze({
+  // (where: on the mid-clavicular line, about half the shoulder joint's distance out, low on the pectoral, over its
+  // lower border's rise)
+  on: Object.freeze({ x: 0.47, t: 0.45 }),
   areola: Object.freeze({ r: [0.1, 0.1, 0.03], proud: 0.012 }),
   papilla: Object.freeze({ r: [0.042, 0.042, 0.03], proud: 0.032 }),
   k: 0.002,
@@ -47,11 +50,14 @@ export const ACTIVITY = Object.freeze({
 });
 /** the JOINTS a muscle acts at, and the driver that reads each (the right side's; the left swaps the side): the elbow's
  * and the knee's by their flexion (`bend` the joint before, 0 straight), the shoulder's by the arm's raise from the
- * trunk's down; `from` where the activity begins and `full` where it is whole (degrees). A joint at rest drives nothing */
+ * trunk's down; `from` where the activity begins and `full` where it is whole (degrees). A joint at rest drives nothing.
+ * `revert` (the shoulder's): near the joint the skin eased back to the wearer's own as it closes, wholly within `near`
+ * of the half biacromial and none past `far` (the deltoid's bulk at the arm's root, on weights shared across the joint,
+ * folded into holes raised overhead; the flat body's shoulder raises clean) */
 export const ACTIVITY_JOINTS = Object.freeze({
   elbow: Object.freeze({ joint: 'elbowR', to: 'wristR', bend: 'shoulderR', from: 15, full: 135 }),
   knee: Object.freeze({ joint: 'kneeR', to: 'ankleR', bend: 'hipR', from: 15, full: 135 }),
-  shoulder: Object.freeze({ joint: 'shoulderR', to: 'elbowR', from: 35, full: 160 }),
+  shoulder: Object.freeze({ joint: 'shoulderR', to: 'elbowR', from: 20, full: 120, revert: Object.freeze({ near: 0.5, far: 1.1 }) }),
 });
 
 /** each level's blend `k` in metres, [at the form end, at the detail end]: the masses of one level summed by it, then

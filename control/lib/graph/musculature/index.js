@@ -61,7 +61,10 @@ export function muscleShirt(recipe, spec) {
   const F = frames(recipe.rig), skin = skinOf(recipe), grain = card.grain ?? 0.011;
   // 1. DENSIFY the midline parts and the right limbs (their left partners mirrored at the end)
   const dense = {};
-  for (const n of [...skin.mid, ...skin.right]) dense[n] = densify(recipe.parts[n], { ...grainOf(recipe.parts[n], grain), grain, domes: DOMES[sideOf(n).base] ?? [] });
+  // (only the shells a group wears: one no muscle reaches keeps its authored rings, the shoulder's cone among them, which
+  // the smooth cage folded in places over its turning rings)
+  const wornParts = new Set(card.groups.flatMap((g) => g.parts));
+  for (const n of [...skin.mid, ...skin.right]) if (wornParts.has(sideOf(n).base)) dense[n] = densify(recipe.parts[n], { ...grainOf(recipe.parts[n], grain), grain, domes: DOMES[sideOf(n).base] ?? [] });
   // 2 + 3. SEAT each mass on the dense skin, articulated at its group's definition
   const masses = [], missed = [];
   for (const g of card.groups) {
@@ -91,6 +94,15 @@ export function muscleShirt(recipe, spec) {
   // after are not in it
   const correctives = [];
   const actOf = Object.fromEntries(card.groups.map((g) => [g.id, g.act ?? []]));
+  // (a joint that REVERTS, `revert`: near it the active skin eased back to the wearer's own, wholly within `near` of the
+  // half biacromial of the joint and none past `far`: the arm raised overhead folded the deltoid's bulk at its root, on
+  // weights shared across the joint, into holes, where the flat body's own shoulder raises clean)
+  const reverted = (A, D, { near, far }) => {
+    const J = (F.limb.upperArm?.h) ?? [0, 0, 0], a = near * F.W, b = far * F.W;
+    const ease = (p) => { const x = (Math.hypot(p[0] - J[0], p[1] - J[1], p[2] - J[2]) - a) / (b - a); const y = x <= 0 ? 0 : x >= 1 ? 1 : x * x * (3 - 2 * x); return 1 - y; };
+    const lerp = (p, q, w) => (w <= 0 ? p : [0, 1, 2].map((k) => r6(p[k] + (q[k] - p[k]) * w)));
+    return { ...A, stations: A.stations.map((x, i) => ({ ...x, points: Object.fromEntries(A.slots.map((sl) => { const q = D.stations[i].points[sl]; return [sl, lerp(x.points[sl], q, ease(q))]; })) })), ...(A.caps ? { caps: Object.fromEntries(Object.entries(A.caps).map(([k, p]) => [k, D.caps?.[k] ? lerp(p, D.caps[k], ease(D.caps[k])) : p])) } : {}) };
+  };
   for (const [joint, driver] of activity ? Object.entries(ACTIVITY_JOINTS) : []) {
     const swap = new Map();
     for (const e of masses) { const a = actOf[e.group].find((x) => x.joint === joint); if (a) swap.set(e, activeMass(e, a.role)); }
@@ -101,17 +113,18 @@ export function muscleShirt(recipe, spec) {
       // (the right side's masses active, the left's as they were: a midline part takes the right arm's or leg's alone)
       const { base, side } = sideOf(n);
       const set = masses.map((e) => swap.get(e) ?? e), worn = (side ? set : [...set, ...masses.filter((e) => !e.mid).map(mirrorEgg)]).filter((e) => e.parts.includes(base));
-      const o = offsetsOf(n, raw[n], displaced(n, worn).part, side ? `${base}L` : n);
+      const act = displaced(n, worn).part, o = offsetsOf(n, raw[n], driver.revert ? reverted(act, dense[n], driver.revert) : act, side ? `${base}L` : n);
       Object.assign(right, o.R); Object.assign(left, o.L);
     }
     const swapD = (D) => ({ ...D, joint: D.joint.replace(/R$/, 'L'), to: D.to.replace(/R$/, 'L'), ...(D.bend ? { bend: D.bend.replace(/R$/, 'L') } : {}) });
-    if (Object.keys(right).length) correctives.push({ id: `muscle${cap}R`, driver: { ...driver }, d: right });
-    if (Object.keys(left).length) correctives.push({ id: `muscle${cap}L`, driver: swapD(driver), d: left });
+    const { revert: _r, ...drv } = driver;
+    if (Object.keys(right).length) correctives.push({ id: `muscle${cap}R`, driver: drv, d: right });
+    if (Object.keys(left).length) correctives.push({ id: `muscle${cap}L`, driver: swapD(drv), d: left });
   }
   // the NIPPLES (`nipples: true`): marks on the chest the muscles made, seated on it and worn after them under their own
   // tight blend (the chest group's definition)
   if (nipples && out.torso) {
-    const marks = nipplesOn(out.torso, F, card.nipple ?? { t: 0.47, az: 25 }, NIPPLE), dc = own.chest ?? definition;
+    const marks = nipplesOn(out.torso, F, card.nipple ?? NIPPLE.on, NIPPLE), dc = own.chest ?? definition;
     if (marks.length) { out.torso = symmetrize(displace(out.torso, marks, dc, 0, NIPPLE.k).part); moved.nipples = marks.length / 2; }   // (the marks a side: the areola and the papilla)
   }
   for (const [rn, ln] of Object.entries(skin.left)) if (out[rn]) out[ln] = mirrorPart(out[rn], typeof recipe.parts[ln].bind === 'string' ? { ...recipe.parts[ln], bind: { bone: recipe.parts[ln].bind } } : recipe.parts[ln]);

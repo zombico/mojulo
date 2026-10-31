@@ -5,10 +5,11 @@
 // the dial moves the surface; the door stores it, refuses it on the realistic body and refuses a bad word by name.
 import { describe, it, expect } from 'vitest';
 import { muscleShirt, validateMuscleShirt, MUSCLE_CARDS, presence, articulation } from './index.js';
-import { validateRig, rigNodesAt, correctiveWeight } from '../polygonizer/station-loft-rig.js';
+import { validateRig, rigNodesAt, correctiveWeight, bindLayered, boneFrames, skinLayered } from '../polygonizer/station-loft-rig.js';
 import { correctiveRest } from '../polygonizer/body-relational-correctives.js';
 import { blendOf, smin } from './principles.js';
-import { densify, grainOf, displace } from './passes.js';
+import { densify, grainOf, displace, frames, nipplesOn } from './passes.js';
+import { NIPPLE } from './principles.js';
 import { compileLayered } from '../polygonizer/station-loft.js';
 import { heroRecord, expandLayeredManifest } from '../../mcp/tools/layered.js';
 import { withDefaultForm } from '../polygonizer/motion-stamp.js';
@@ -123,6 +124,30 @@ describe('squash and stretch', () => {
   });
   it('holds the muscles as at rest when the activity is off', () => {
     expect(muscleShirt(flat, { card: 'saikyo', definition: 1, activity: false }).recipe.correctives).toBeUndefined();
+  });
+});
+
+describe('the shirt in a pose', () => {
+  // (a face folded: its posed normal more than a right angle from its edge neighbours' mean)
+  const folds = (recipe, pose) => {
+    const R = validateRig(recipe.rig), mesh = compileLayered(recipe, {}), skin = bindLayered(mesh, recipe, R), { nodes } = rigNodesAt(R, pose);
+    const V = skinLayered({ ...mesh, vertices: correctiveRest(mesh, recipe, nodes) }, skin, boneFrames(R, R.joints, nodes));
+    const fi = mesh.faces.map((_, i) => i).filter((i) => /^(torso|upperArmR|shoulder(Ball|Web|Cone)R)$/.test(mesh.provenance[mesh.faces[i][0]].part));
+    const N = new Map(fi.map((i) => { const [a, b, c] = mesh.faces[i].map((k) => V[k]), e1 = b.map((x, k) => x - a[k]), e2 = c.map((x, k) => x - a[k]); return [i, [e1[1] * e2[2] - e1[2] * e2[1], e1[2] * e2[0] - e1[0] * e2[2], e1[0] * e2[1] - e1[1] * e2[0]]]; }));
+    const edge = new Map(); for (const i of fi) { const f = mesh.faces[i]; for (let k = 0; k < 3; k++) { const a = f[k], b = f[(k + 1) % 3], key = a < b ? `${a},${b}` : `${b},${a}`; (edge.get(key) ?? edge.set(key, []).get(key)).push(i); } }
+    const avg = new Map(); for (const L of edge.values()) for (const i of L) for (const j of L) if (i !== j) { const q = avg.get(i) ?? [0, 0, 0], n = N.get(j), l = Math.hypot(...n) || 1; avg.set(i, [q[0] + n[0] / l, q[1] + n[1] / l, q[2] + n[2] / l]); }
+    return fi.filter((i) => { const n = N.get(i), q = avg.get(i); return q && n[0] * q[0] + n[1] * q[1] + n[2] * q[2] < 0; }).length;
+  };
+  it('folds the shoulder\'s shells no more than the flat body does, the arm raised overhead, held out and forward', () => {
+    for (const pose of [{ armR: 'up' }, { armR: 'outward' }, { armR: 'forward' }]) expect(folds(AT1.recipe, pose), JSON.stringify(pose)).toBeLessThanOrEqual(folds(flat, pose) + 3);
+  }, 120000);
+  it('leaves a shell no group wears as it was: the shoulder\'s cone', () => {
+    expect(AT1.recipe.parts.shoulderConeR).toEqual(flat.parts.shoulderConeR);
+  });
+  it('seats the nipples on the mid-clavicular line, low on the chest', () => {
+    const F = frames(flat.rig), [areola] = nipplesOn(AT1.recipe.parts.torso, F, NIPPLE.on, NIPPLE);
+    expect(Math.abs(areola.c[0] / F.W - NIPPLE.on.x)).toBeLessThan(0.05);
+    expect(areola.c[2]).toBeLessThan((flat.rig.joints.shoulderR.at ?? flat.rig.joints.shoulderR)[2] - 0.08);
   });
 });
 
