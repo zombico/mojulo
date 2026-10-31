@@ -4,7 +4,8 @@
 // the right's mirror, the shells wound outward, the hands grown with the arms (their joints with them), deterministic;
 // the dial moves the surface; the door stores it, refuses it on the realistic body and refuses a bad word by name.
 import { describe, it, expect } from 'vitest';
-import { muscleShirt, validateMuscleShirt, MUSCLE_CARDS, presence, articulation } from './index.js';
+import { muscleShirt, validateMuscleShirt, resolveMuscleShirt, MUSCLE_CARDS, presence, articulation } from './index.js';
+import { validateMuscleCard } from './cards.js';
 import { validateRig, rigNodesAt, correctiveWeight, bindLayered, boneFrames, skinLayered } from '../polygonizer/station-loft-rig.js';
 import { correctiveRest } from '../polygonizer/body-relational-correctives.js';
 import { blendOf, smin } from './principles.js';
@@ -181,6 +182,34 @@ describe('the skin between the masses', () => {
     const without = muscleShirt(flat, { card, definition: 1 });
     expect(without.recipe.parts.upperArmR.stations).toEqual(AT1.recipe.parts.upperArmR.stations);
     expect(without.recipe.parts.torso.stations).not.toEqual(AT1.recipe.parts.torso.stations);
+  });
+});
+
+describe('the female card', () => {
+  const HER = { head: 'anime', animeStyle: 'z-fighter', cast: 'female' };
+  const her = expandLayeredManifest({ kind: 'layered', hero: heroRecord(withDefaultForm(HER)) }).recipe;
+  it('is a valid card, and the word names it on a female wearer, the male\'s on any other', () => {
+    expect(validateMuscleCard(MUSCLE_CARDS['saikyo-female'])).toEqual([]);
+    expect(resolveMuscleShirt('saikyo', 'female').card).toBe(MUSCLE_CARDS['saikyo-female']);
+    expect(resolveMuscleShirt('saikyo', 'male').card).toBe(MUSCLE_CARDS.saikyo);
+    expect(resolveMuscleShirt('saikyo').card).toBe(MUSCLE_CARDS.saikyo);
+    expect(validateMuscleShirt({ card: 'saikyo', groups: { bust: 0.5 } })).toEqual([]);
+  });
+  it('wears her bust as a group of one level, over a pectoral seated above it, none of the male\'s fans under it', () => {
+    const groups = Object.fromEntries(MUSCLE_CARDS['saikyo-female'].groups.map((g) => [g.id, g]));
+    expect(groups.bust.masses.every((m) => m.level === 0)).toBe(true);
+    const ids = groups.chest.masses.map((m) => m.id);
+    for (const id of ['pecBelly', 'pecLowerBorder', 'pecSternal']) expect(ids).not.toContain(id);
+    expect(Math.min(...groups.chest.masses.map((m) => m.on.t))).toBeGreaterThan(Math.max(...groups.bust.masses.map((m) => m.on.t)));
+  });
+  it('holds her bust at both ends of the dial, and the door picks her card from the hero\'s cast', () => {
+    const at = (d) => muscleShirt(her, { card: 'saikyo', definition: d }, { cast: 'female' });
+    const front = (r) => Math.max(...r.recipe.parts.torso.stations.flatMap((x) => r.recipe.parts.torso.slots.map((sl) => x.points[sl][1])));
+    const a = front(at(0)), b = front(at(1)), flatFront = Math.max(...her.parts.torso.stations.flatMap((x) => her.parts.torso.slots.map((sl) => x.points[sl][1])));
+    expect(a).toBeGreaterThan(flatFront + 0.02);
+    expect(Math.abs(a - b)).toBeLessThan(0.012);
+    const door = expandLayeredManifest({ kind: 'layered', hero: heroRecord(withDefaultForm({ ...HER, muscleShirt: { card: 'saikyo', definition: 1 } })) }).recipe;
+    expect(door.parts.torso.stations).toEqual(at(1).recipe.parts.torso.stations);
   });
 });
 

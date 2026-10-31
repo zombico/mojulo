@@ -189,7 +189,64 @@ const SAIKYO = {
   ],
 };
 
-export const MUSCLE_CARDS = Object.freeze({ saikyo: SAIKYO });
+/** a card's group RESTYLED: each mass's proud × `proud`, its radii × `r` ([along, across, depth] or one number), and the
+ * masses named in `drop` left out; a group of the card left as it is where none is given */
+const restyled = (g, { proud = 1, r = 1, drop = [], act, each = {}, shift = {} } = {}) => {
+  const vec = (x) => (Array.isArray(x) ? x : [x, x, x]), R = vec(r);
+  // (`each`: a mass's own { proud, r, on } over the group's; `on` its seat's fields replaced; `shift` { t } or { s } added
+  // to every seat of the group)
+  return { ...g, ...(act ? { act } : {}), masses: g.masses.filter((m) => !drop.includes(m.id)).map((m) => { const e = each[m.id] ?? {}, Re = vec(e.r ?? 1), on = { ...m.on, ...Object.fromEntries(Object.entries(shift).map(([k, v]) => [k, (m.on[k] ?? 0) + v])), ...(e.on ?? {}) }; return egg(m.id, m.level, on, m.r.map((x, k) => x * R[k] * Re[k]), m.proud * proud * (e.proud ?? 1), Object.fromEntries(Object.entries(m).filter(([k]) => !['id', 'level', 'on', 'r', 'proud'].includes(k)))); }) };
+};
+
+/** THE SAIKYO BODY'S FEMALE: muscular and athletic on the anime frame's female, read off a heroic female in a
+ * superhero brawler's art from behind: a broad, capped shoulder over sweeping lats and a deep erector channel, the waist
+ * held narrow (the obliques and the core's blocks lower, flatter), the seat full, round and high with a shelf of the
+ * medius at the hip's side, the hamstrings and the adductors filling the thigh's back and inside, the vastus's sweep,
+ * diamond calves, a full triceps over a leaner biceps. Her bust is a group of its own, one level (it holds at every
+ * definition, as the elbow's landmarks do), over a pectoral seated high and out above it: the male's pectoral fans,
+ * worn under her bust, had stood through it as a man's chest. The male's masses in her own half biacromial (each about
+ * 0.69 of his), retuned group by group */
+const SAIKYO_FEMALE = (() => {
+  const by = Object.fromEntries(SAIKYO.groups.map((g) => [g.id, g]));
+  const chest = { id: 'chest', frame: 'trunk', parts: ['torso'], act: by.chest.act, masses: [
+    egg('pecSlab', 0, { t: 0.78, az: 38 }, [0.36, 0.26, 0.1], 0.04, { along: [1, 0, 0.3] }),
+    egg('pecUpper', 1, { t: 0.8, az: 34 }, [0.3, 0.18, 0.08], 0.035, { along: [1, 0, 0.1] }),
+    egg('pecOuter', 1, { t: 0.7, az: 46 }, [0.2, 0.16, 0.08], 0.035, { along: [1, 0, 0.6] }),
+    egg('pecClavicularHead', 2, { t: 0.84, az: 32 }, [0.28, 0.11, 0.07], 0.034, { along: [1, 0, -0.1] }),
+    egg('pecOuterHead', 2, { t: 0.7, az: 47 }, [0.18, 0.14, 0.075], 0.038, { along: [1, 0, 0.6] }),
+  ] };
+  // (the bust a round mass, its lower pole fuller, the apex a little out from the middle of the mass and down: one level)
+  const bust = { id: 'bust', frame: 'trunk', parts: ['torso'], masses: [
+    // (broad and deep, its centre near the skin, so it rounds out of the chest rather than standing on it as a cone)
+    egg('breast', 0, { t: 0.62, az: 30 }, [0.4, 0.42, 0.3], 0.24),
+    egg('breastLower', 0, { t: 0.5, az: 28 }, [0.26, 0.36, 0.24], 0.2, { along: [0.3, 0, 1] }),
+  ] };
+  const groups = [
+    chest, bust,
+    // (her trunk shorter: the male's lowest row and the lower rectus's mass landed on her lower belly as a pair of
+    // blocks under the six-pack; left out. Raised, the rows fell across the waist's seam and read as blocks there too)
+    restyled(by.core, { proud: 0.7, r: [1, 0.9, 0.85], drop: ['abs4', 'absLower'], each: { rectusSheet: { r: [0.75, 1, 1] } } }),
+    restyled(by.flank, { proud: 0.55, r: [1, 0.85, 0.8] }),
+    restyled(by.back, { proud: 1.05, r: [1, 1.1, 1] }),
+    restyled(by.trapezius, { proud: 0.8, r: 0.9 }),
+    // (the seat full, round and HIGH: each cheek's fullest point raised toward the hip joint, its lower cheek with it, so
+    // it rounds under rather than hanging over a ledge; the medius's shelf under the crest the fuller)
+    restyled(by.seat, { proud: 1.25, r: [1.1, 1.12, 1.1], shift: { t: 0.12 }, each: { gluteMed: { proud: 1.3, r: 1.1 }, gluteMedHead: { proud: 1.3, r: 1.1 } } }),
+    restyled(by.deltoid, { proud: 0.95 }),
+    restyled(by.biceps, { proud: 0.8, r: [1, 0.9, 0.9] }),
+    restyled(by.triceps, { proud: 1, r: [1, 1, 1] }),
+    restyled(by.forearm, { proud: 0.85, r: [1, 0.9, 0.9] }),
+    by.elbow,
+    // (her knee slimmer than his under masses in her half biacromial: the teardrop and the calf's mass held in, so the
+    // knee reads as a joint, not a ball; the form end's leg shapes narrower)
+    restyled(by.quadriceps, { proud: 1.0, r: [1, 1, 1], each: { vastusMedialis: { proud: 0.7, r: 0.85 }, vastusMedialisHead: { proud: 0.7, r: 0.85 }, quadMass: { r: [1, 0.85, 1] } } }),
+    restyled(by.hamstrings, { proud: 1.15, r: [1, 1.08, 1.05] }),
+    restyled(by.calf, { proud: 1.0, r: [1, 0.95, 1], each: { calfMass: { proud: 0.85, r: [1, 0.8, 1] }, gastrocMedial: { r: [0.95, 0.9, 1] }, gastrocMedialHead: { r: [0.95, 0.9, 1] } } }),
+  ];
+  return { note: 'the Saikyo body\'s female: muscular and athletic on the anime frame\'s female (a broad capped shoulder, sweeping lats, a narrow waist, a full high round seat, strong hamstrings and diamond calves, her bust its own one-level group)', grain: SAIKYO.grain, groups };
+})();
+
+export const MUSCLE_CARDS = Object.freeze({ saikyo: Object.freeze({ ...SAIKYO, casts: Object.freeze({ female: SAIKYO_FEMALE }) }), 'saikyo-female': SAIKYO_FEMALE });
 export const MUSCLE_CARD_NAMES = Object.freeze(Object.keys(MUSCLE_CARDS));
 export const MUSCLE_FRAMES = Object.freeze(['trunk', 'upperArm', 'foreArm', 'thigh', 'shank']);
 

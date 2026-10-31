@@ -19,10 +19,11 @@ export { FORM_GAIN, DETAIL_GAIN, BLEND, presence, articulation } from './princip
 const r6 = (x) => Math.round(x * 1e6) / 1e6;
 
 /** the spec resolved: { card, word, definition, groups, nipples, activity } (a word, or an object of SPEC_KEYS) */
-export function resolveMuscleShirt(spec) {
+export function resolveMuscleShirt(spec, cast = null) {
   const s = typeof spec === 'string' ? { card: spec } : spec ?? {};
   const word = typeof s.card === 'string' || s.card === undefined ? (s.card ?? 'saikyo') : null;
-  const card = word ? MUSCLE_CARDS[word] : s.card;
+  // (a card word names the cast's own card where the card carries one: 'saikyo' on a female wearer, her card)
+  const named = word ? MUSCLE_CARDS[word] : s.card, card = (cast && named?.casts?.[cast]) || named;
   return { card, word, definition: s.definition ?? 0.5, groups: s.groups ?? {}, nipples: s.nipples === true, activity: s.activity !== false };
 }
 
@@ -42,7 +43,8 @@ export function validateMuscleShirt(spec, label = 'muscleShirt') {
   else if (spec.card !== undefined && typeof spec.card !== 'string') errs.push(...validateMuscleCard(spec.card, `${label}.card`));
   const inUnit = (x) => Number.isFinite(x) && x >= 0 && x <= 1;
   if (spec.definition !== undefined && !inUnit(spec.definition)) errs.push(`${label}.definition: 0 (form: a few key shapes, exaggerated) … 1 (detail: every muscle separated)`);
-  const { card } = resolveMuscleShirt(spec), gids = (card?.groups ?? []).map((g) => g.id);
+  // (a group of the card or of a cast's card: 'saikyo' names her bust)
+  const { card } = resolveMuscleShirt(spec), gids = [...new Set([card, ...Object.values(card?.casts ?? {})].flatMap((c) => (c?.groups ?? []).map((g) => g.id)))];
   if (spec.groups !== undefined) {
     if (typeof spec.groups !== 'object' || Array.isArray(spec.groups)) errs.push(`${label}.groups: { <group>: definition } (${gids.join(', ')})`);
     else for (const [g, v] of Object.entries(spec.groups)) {
@@ -55,9 +57,9 @@ export function validateMuscleShirt(spec, label = 'muscleShirt') {
 
 /** THE MUSCLE SHIRT PUT ON: `recipe` a lofted hero's (its rig's joints, its body's closed lofts), `spec` as above.
  * Returns { recipe, report: { card, definition, masses, missed, moved, points } } */
-export function muscleShirt(recipe, spec) {
+export function muscleShirt(recipe, spec, { cast = null } = {}) {
   const errs = validateMuscleShirt(spec); if (errs.length) throw new Error(`musculature: ${errs.join('; ')}`);
-  const { card, word, definition, groups: own, nipples, activity } = resolveMuscleShirt(spec);
+  const { card, word, definition, groups: own, nipples, activity } = resolveMuscleShirt(spec, cast);
   const F = frames(recipe.rig), skin = skinOf(recipe), grain = card.grain ?? 0.011;
   // 1. DENSIFY the midline parts and the right limbs (their left partners mirrored at the end)
   const dense = {};

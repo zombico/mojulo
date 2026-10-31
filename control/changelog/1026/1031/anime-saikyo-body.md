@@ -140,6 +140,23 @@ fractal articulation of the big groups. The eyes gate is the operator's.
   thigh is no longer kept under the pelvis (`OVER`), the wrap does that. At rest the hip reads as one surface: the
   cheeks round under into the gluteal fold, a thin line where the shells meet; the ready, horse and sumo stances, the
   fighting stance and the side lunge hold at the crotch at both ends of the dial.
+- **The Saikyo body's female** (the operator's; `cards.js` `saikyo-female`, and `saikyo` on a female wearer): muscular
+  and athletic on the anime frame's female, its silhouette and definition read off a heroic female in a superhero
+  brawler's art seen from behind: a broad, capped shoulder over sweeping lats and a deep erector channel, the waist held
+  narrow (the obliques and the core lower and flatter), the seat full, round and high with the medius's shelf at the
+  hip's side, the hamstrings and the adductors filling the thigh's back and inside, the vastus's sweep, diamond calves, a
+  full triceps over a leaner biceps. Built from the male's card group by group (`restyled`: a group's proud and radii
+  scaled, masses left out or retuned, `each` and `shift` for one mass or the whole group's seats), its masses in her own
+  half biacromial (about 0.69 of his). Her BUST is a group of its own (`bust`), one level, so it holds at every
+  definition, broad and deep so it rounds out of the chest; her pectoral is seated high and out above it. The shirt takes
+  the authored pectoral layer off, and the male's fans worn in its place had stood as a man's chest. Her lower ab row
+  and lower rectus are left out (on her shorter trunk they landed on the lower belly as a pair of blocks); her knee's
+  teardrop and the calf's form-end mass are held in (her knee is slimmer than his, and they ballooned into a ball). The
+  door passes the hero's cast (`muscleShirt(recipe, spec, { cast })`; a card may carry `casts`), and a spec's `groups`
+  may name a cast's groups (`bust`).
+- **The hip wrap over high thighs**: the wrap re-lays the pelvis's rings up to the hip joint, or past it to over the
+  thighs' tops where they rise higher (the anime female's): her thigh's top, carried out by the hip's muscles, had come
+  through the pelvis above the wrap in bars at each hip.
 - **The hip's side in an abducted stance** (the operator's): the handover rises toward the outer hip (`HIP_RISE`,
   `hipLevelAt`): a smooth diagonal from the crotch out to the side, up to 0.6 of the way to the hip joint, where the
   thigh is the skin toward the greater trochanter and the wrap's lower outer rings lie under it. Level all round, those
@@ -175,7 +192,7 @@ fractal articulation of the big groups. The eyes gate is the operator's.
   joints scaled about the wrist; the soles on the ground as the feet grow; the nipples only when asked; a bend driver none straight and
   whole at full; a corrective a side per acting joint, the left the right's mirror, nothing at rest, each joint its own;
   the biceps' front bunched; none with the activity off; raised overhead, held out and forward, the shoulder's
-  shells folding no more than the flat body's; the cone as it was; the nipples on the mid-clavicular line; a mass meeting the skin square on climbed in a ramp; a point past the cap held at it; a limb's shells worn by its own groups only; a hidden shell kept under the one over it, only ever pulled in; the hip joined, the pelvis wrapping both thighs to the level, its sides bound as the thighs are; a hip corrective a side, the cheeks spread from the midline; a joint's bridge welded ring to ring and the wrist most of the hand's width; deterministic; the door stores the word and refuses it by name.
+  shells folding no more than the flat body's; the cone as it was; the nipples on the mid-clavicular line; a mass meeting the skin square on climbed in a ramp; a point past the cap held at it; a limb's shells worn by its own groups only; a hidden shell kept under the one over it, only ever pulled in; the hip joined, the pelvis wrapping both thighs to the level, its sides bound as the thighs are; a hip corrective a side, the cheeks spread from the midline; the female card valid and named by the cast, her bust one level and held across the dial, no male fans under it; a joint's bridge welded ring to ring and the wrist most of the hand's width; deterministic; the door stores the word and refuses it by name.
 
 #### The anime frame (hero laws 21): the wrist, the shoe's heel and the clavicle
 

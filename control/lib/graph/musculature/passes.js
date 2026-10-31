@@ -543,11 +543,15 @@ function farthestHit(o, d, T) {
  * or { part: P } where it has too few rings under the hip */
 export function hipWrapped(P, thighs, hipZ) {
   const zc = P.stations.map((x) => ringCentre(P, x)[2]);
-  const k = zc.findIndex((z) => z >= hipZ); if (k < 3) return { part: P };
+  // (the wrap re-lays the rings up to the hip joint, or past it to over the thighs' tops where they rise higher, the
+  // anime female's: the thigh's top carried out by the hip's muscles had come through the pelvis over the wrap in bars)
+  const top = Math.max(...[thighs.R, thighs.L].flatMap((X) => X.stations.flatMap((x) => X.slots.map((sl) => x.points[sl][2]))));
+  const kHip = zc.findIndex((z) => z >= hipZ); if (kHip < 3) return { part: P };
+  const kTop = zc.findIndex((z) => z >= top + 0.005), k = kTop < 0 ? zc.length - 1 : Math.max(kHip, kTop);
   let crotch = Infinity; for (const sl of P.slots) { const q = P.stations[0].points[sl]; if (Math.abs(q[0]) < 0.03) crotch = Math.min(crotch, q[2]); }
   if (!Number.isFinite(crotch)) return { part: P };
-  const level = crotch + HIP_ABOVE, K = P.stations[k], cK = ringCentre(P, K);
-  if (zc[k] - level < 0.02) return { part: P };
+  const level = crotch + HIP_ABOVE, K = P.stations[kHip], cK = ringCentre(P, K);
+  if (zc[kHip] - level < 0.02) return { part: P };
   const th = P.slots.map((sl) => { const q = K.points[sl]; return Math.atan2(q[0], q[1] - cK[1]); });
   const tagged = (X, tag) => trisOf(X).map((t) => ({ ...t, tag }));
   const all = [...tagged(P, 'pelvis'), ...tagged(thighs.R, 'R'), ...tagged(thighs.L, 'L')].filter((t) => t.lo <= zc[k] + 0.01 && t.hi >= crotch - 0.01);
@@ -563,7 +567,7 @@ export function hipWrapped(P, thighs, hipZ) {
   const c0 = ringCentre(P, P.stations[0]), cr = [0, c0[1], crotch];
   rings[0] = rings[0].map((q) => { if (!q) return null; const v = [q[0], q[1] - cK[1]], r = Math.hypot(v[0], v[1]) || 1, g = Math.max(0, r - 2 * HIP_DEEP) / r; return [q[0] * g, cK[1] + v[1] * g, crotch]; });
   // (out at the side, under the risen handover, the wrap drawn in under the thigh, as the thigh is drawn in over it)
-  const L = { level, rise: HIP_RISE * (zc[k] - level), hipX: Math.max(...P.slots.map((sl) => Math.abs(K.points[sl][0]))), cy: cK[1] };
+  const L = { level, rise: HIP_RISE * (zc[kHip] - level), hipX: Math.max(...P.slots.map((sl) => Math.abs(K.points[sl][0]))), cy: cK[1] };
   for (let i = 1; i < k; i++) rings[i] = rings[i].map((q) => {
     if (!q) return q; const y = (hipLevelAt(L, q) - q[2]) / HIP_BAND; if (y <= 0) return q;
     const w = y >= 1 ? 1 : y * y * (3 - 2 * y), v = [q[0], q[1] - L.cy], r = Math.hypot(v[0], v[1]) || 1, g = Math.max(0, r - HIP_DEEP * w) / r;

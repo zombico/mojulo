@@ -265,7 +265,7 @@ function withBodySmooth(recipe, hero) {
 /** A hero wearing the MUSCLE SHIRT (`muscleShirt`, musculature/: a flat body puts it on and its muscles show up): its
  * body's skin re-sampled at the shirt's grain and carried out to the card's muscles. Without one: as it was. */
 function withMuscleShirt(recipe, hero) {
-  return hero?.muscleShirt ? muscleShirt(recipe, hero.muscleShirt).recipe : recipe;
+  return hero?.muscleShirt ? muscleShirt(recipe, hero.muscleShirt, { cast: hero.cast ?? null }).recipe : recipe;
 }
 /** The realistic form's build (body-relational.js): the cast's pole's (male: norrin, female: shalla) under the record's
  * physique (its laws aside) */
