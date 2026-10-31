@@ -82,3 +82,12 @@ lean, long faces. The eyes gate is the operator's.
   after every point the mesh had and binds as its two corners' mean; a part's open rim splits on its straight line.
   Absent, the mesh as built. One round: the parts are still separate shells, so the seams where they meet (the chest's
   plates on the torso, the torso over the pelvis) still read; fusing them is the next step.
+- **A style's chest** (`chest`: its pectorals' and its bust's own words over the form's, hero-form.js heroPlan `chest`):
+  a pectoral's `rise` lifts the dome off its lower border over that share of the run instead of standing its full
+  height there, so the muscle grows out of the chest rather than lying on it as a panel; a bust's `size`, its field's
+  words and `within` (held inside a share of the torso's half-width), each absent as it was. Shonen High's male: thinner pectorals rising
+  over 0.45 of the run (once the body was rounded they read as separate panels).
+- **A chest's width** (`chest.width`: the rib cage's ring, the shoulders' span left as the tune sets it; the tune has no
+  key for it, `shoulders` moves the arms' span alone). Shonen High's both at 0.82, their chests' depth a little less: the
+  rounded body stood too broad under the arms, its sides flaring out past the armpit; they now fall nearly straight to
+  the waist.

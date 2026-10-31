@@ -5,6 +5,7 @@
 import { describe, it, expect } from 'vitest';
 import { heroRecord, heroPlanOf, normalizeHero, validateHeroSpec, expandLayeredManifest } from '../../mcp/tools/layered.js';
 import { compileLayered } from './station-loft.js';
+import { heroPlan } from './hero-form.js';
 import { heroFaceRig } from './anime-face-rig.js';
 import { animeHeroEffective, animeFaceBase, heroFeatureAdvice, heroHeadPole, heroHairPole } from './anime-looks.js';
 import { ANIME_STYLES, ANIME_STYLE_NAMES, animeStyleOf, resolveAnimeStyle } from './anime-styles.js';
@@ -70,6 +71,12 @@ describe('the style pole', () => {
     expect(B.neck).toEqual(A.neck);
     // (the whole head the same distance back: the hero's forward is +y)
     expect(B.hi - A.hi).toBeLessThan(-0.005); expect(B.lo - A.lo).toBeCloseTo(B.hi - A.hi, 4);
+  });
+  it('lends its chest: Shonen High\'s pectorals rising out of the chest from their lower border, not standing there as a panel', () => {
+    // (the pectoral's lowest section stands off the chest less under a `rise` than without one; its top as it was)
+    const pec = (chest) => { const P = heroPlan({ cast: 'male', ...(chest ? { chest } : {}) }); const seg = [...(P.segments ?? []), ...Object.values(P.parts ?? {})].find((x) => x?.name === 'pectoralR'); return seg.stations.map((st) => Math.max(...Object.values(st.points).map((p) => p[1]))); };
+    const A = pec(null), B = pec(ANIME_STYLES[STYLE].male.chest);
+    expect(B[0]).toBeLessThan(A[0]); expect(B.at(-1)).toBeLessThanOrEqual(A.at(-1));
   });
   it('advises each base\'s styled default nothing, by its style\'s bands over the form\'s', () => {
     for (const cast of ['male', 'female']) {

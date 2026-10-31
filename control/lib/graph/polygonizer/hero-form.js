@@ -583,7 +583,7 @@ const R = (v) => (Array.isArray(v) ? v.map(r6) : r6(v));
  *              pelvis part, converged legs) or 'streamlined' (the hero before it)
  *   bare       the torso shown bare (the swimsuit's, hero-dress.js): the structured core adds the navel (CHEST_FORM)
  */
-export function heroPlan({ cast = 'canonical', register = 'round', girth = 1, headScale, palette = PALETTE, head = null, body = {}, scale, tune, proportions = 'hero', neckForm = null, core = DEFAULT_CORE, bare = false, feet = null, laws = 1, seat = true } = {}) {
+export function heroPlan({ cast = 'canonical', register = 'round', girth = 1, headScale, palette = PALETTE, head = null, body = {}, scale, tune, proportions = 'hero', neckForm = null, core = DEFAULT_CORE, bare = false, feet = null, laws = 1, seat = true, chest = null } = {}) {
   const reg = typeof register === 'string' ? REGISTERS[register] : register;
   if (!HERO_CORES.includes(core)) throw new Error(`hero.plan: unknown core '${core}' (have ${HERO_CORES.join(', ')})`);
   const structured = core === 'structured';
@@ -622,6 +622,9 @@ export function heroPlan({ cast = 'canonical', register = 'round', girth = 1, he
   // lab's contract: one control, one axis). Multiplying by 1 is exact in IEEE 754, so an untouched key changes no bytes.
   const forearmBase = b.forearm ?? b.arm, armBase = b.arm, thighBase = b.thigh;   // the thigh's muscles sit on the untuned thigh: a thickness stays radial
   const hipDepthBase = b.hipDepth ?? b.hip + 0.013;
+  // (a chest's own `width`: the rib cage's ring narrowed or widened, the shoulders' span as the tune sets it; the bust's
+  // default sized on the chest before it)
+  const chestBase = b.chest; if (chest?.width) b.chest *= chest.width;
   b.waist *= TN.waist; b.hip *= TN.hips; b.chestDepth *= TN.depth; b.arm *= TN.upperArm; b.forearm = forearmBase * TN.forearm; b.thigh *= TN.thigh; b.calf *= TN.calf; b.neck *= TN.neckGirth;
   const D = TN.depth;
   const S = planScale({ cast, scale, tune, proportions });
@@ -807,8 +810,8 @@ export function heroPlan({ cast = 'canonical', register = 'round', girth = 1, he
   // round rings and the underside reads as a W. Rings in the torso's family; the torso bone carries them.
   // The structured core gives the adult female cast a bust unless her body names one (BUST_FORM.size of the chest; the
   // door says 0 for a child-coded figure), and re-cuts the mounds on its chest ring: see below.
-  if (structured && femaleMass && !preset?.child && body.bust === undefined) b.bust = r6(BUST_FORM.size * b.chest);
-  const zc = zn + 0.55 * T, yFront = 0.006 + g(b.chestDepth), xb = 0.42 * g(b.chest), rb = g(b.bust);
+  if (structured && femaleMass && !preset?.child && body.bust === undefined) b.bust = r6(BUST_FORM.size * chestBase);
+  const zc = zn + 0.55 * T, yFront = 0.006 + g(b.chestDepth), xb = 0.42 * g(b.chest), rb = g(b.bust) * (chest?.bust?.size ?? 1);
   const bustJoints = {};
   const bust = structured ? (CF && !(rb > 0) ? [] : chestLayers()) : rb > 0 ? [{ name: 'bustR', kind: 'loft', slots: reg.slots, stations: [
     { at: R([xb, yFront - 0.06, zc + 0.01]), r: r6(rb * 1.02) }, { at: R([xb * 1.05, yFront - 0.02, zc]), r: r6(rb) },
@@ -841,7 +844,7 @@ export function heroPlan({ cast = 'canonical', register = 'round', girth = 1, he
       stations: zs.map((z) => { const [xi, xo] = span(typeof z === 'function' ? z.low : z); return { points: section(z, xi, xo, (sv, x, zz) => lift(zz, sv, x), fam) }; }),
       caps: { back: (() => { const [xi, xo] = span(zs[0]); const x = (xi + xo) / 2; return R([x, surf(x, zs[0]) - SINK, zs[0] - 0.004]); })(), tip: (() => { const z = zs[zs.length - 1], [xi, xo] = span(z), x = (xi + xo) / 2; return R([x, surf(x, z) - SINK, z + 0.004]); })() } });
     const C = S.find((x) => x.id === 'st2'), A = S.find((x) => x.id === 'st2_st3_50') ?? C, Sh = S.find((x) => x.id === 'st3'), a = fronts[S.indexOf(C)].arc.at(-1)[0];
-    const Pf = CHEST_FORM.pec[femaleMass ? 'female' : 'male'], [x0, x1] = Pf.x.map((f) => f * a);
+    const Pf = { ...CHEST_FORM.pec[femaleMass ? 'female' : 'male'], ...(chest?.pec ?? {}) }, [x0, x1] = Pf.x.map((f) => f * a);
     const zLo = C.z + g(Pf.lo), zAx = A.z, zUp = C.z + Pf.hi * (Sh.z - C.z), Tm = g(Pf.thick);
     const pecZ = [0.06, 0.22, 0.4, 0.58, 0.76, 0.94].map((t) => r6(zLo + t * (zUp - zLo)));
     // the CLAVICLE: the muscle's top edge rises from the sternum to the shoulder as the clavicle does (its medial top
@@ -852,7 +855,10 @@ export function heroPlan({ cast = 'canonical', register = 'round', girth = 1, he
     const pecBind = { bone: 'torso', blend: Object.fromEntries(pecZ.flatMap((z, i) => (z >= zAx ? ['sideR', 'backR'].map((sl) => [`st${i}.${sl}`, { torso: 0.75, upperArmR: 0.25 }]) : []))) };
     // the dome: up the muscle it rises off the lower border and falls to the top; across it, fullest a third out from the
     // sternum, still thick at the sternum (the pair meets there) and thin at the armpit
-    const pecT = (z) => { const t = (z - zLo) / (zUp - zLo); return Tm * (Pf.top + (1 - Pf.top) * dmath.pow(1 - t, 1.6)); };
+    // (`rise`, a chest's own: the dome rising off the lower border over that share of the run instead of standing its
+    // full height there, so the muscle grows out of the chest rather than lying on it as a panel; absent, as it was)
+    const riseOf = (t) => { if (!Pf.rise) return 1; const q = Math.min(1, Math.max(0, t / Pf.rise)); return q * q * (3 - 2 * q); };
+    const pecT = (z) => { const t = (z - zLo) / (zUp - zLo); return Tm * (Pf.top + (1 - Pf.top) * dmath.pow(1 - t, 1.6)) * riseOf(t); };
     const pecBump = (s) => (0.55 + 0.45 * dmath.sin(Math.PI * Math.min(1, s / 0.66) / 2)) * (s > 0.66 ? 1 - 0.75 * ((s - 0.66) / 0.34) ** 2 : 1);
     // its top medial corner thins to nothing over the sternal notch (NECK_ROOT): the pair melts into the notch instead of
     // standing proud over the hollow (at full thickness there, their corners inked a V)
@@ -869,11 +875,15 @@ export function heroPlan({ cast = 'canonical', register = 'round', girth = 1, he
       // each runs CLEFT_PAST (bust radii) past the midline, under its partner (higher there): the pair meets where the
       // two surfaces cross, the valley, and no two walls lie on the midline (cut there, their coincident faces and inked
       // hulls flecked the cleft's top in the World)
-      const B = CHEST_FORM.bust, F = BREAST_FIELD, cx = -F.cleft * rb, za = C.z + g(B.z), CLEFT_PAST = 0.25;
+      // (a chest's own `bust`: its FIELD's words over the field's, `field: { proj, reach: { … }, … }`; and `within`, the
+      // breast held inside that share of the torso's half-width at every level, never past the trunk's side)
+      const CB = chest?.bust ?? {}, F = CB.field ? { ...BREAST_FIELD, ...CB.field, reach: { ...BREAST_FIELD.reach, ...(CB.field.reach ?? {}) } } : BREAST_FIELD;
+      const B = CHEST_FORM.bust, cx = -F.cleft * rb, za = C.z + g(B.z), CLEFT_PAST = 0.25;
+      const sideOf = (z) => { let i = fronts.findIndex((f) => f.z > z); if (i <= 0) i = i < 0 ? fronts.length - 1 : 1; const A0 = fronts[i - 1], B0 = fronts[i], t = Math.min(1, Math.max(0, (z - A0.z) / (B0.z - A0.z))); return A0.arc.at(-1)[0] + t * (B0.arc.at(-1)[0] - A0.arc.at(-1)[0]); };
       // sixteen levels, closer toward the fold (its wall) and the apex (its rounding)
       const V = [-0.985, -0.95, -0.9, -0.82, -0.7, -0.55, -0.38, -0.2, -0.06, 0.08, 0.24, 0.42, 0.6, 0.76, 0.88, 0.96].map((k) => k * (k < 0 ? F.reach.down : F.reach.up));
       const vOf = (z) => (z - za) / rb;
-      const bSpan = (z) => { const sp = breastSpan(vOf(z), F) ?? [-0.05, 0.05]; return [cx + Math.max(sp[0], F.cleft - CLEFT_PAST) * rb, cx + Math.max(sp[1], F.cleft + 0.1) * rb]; };
+      const bSpan = (z) => { const sp = breastSpan(vOf(z), F) ?? [-0.05, 0.05], xi = cx + Math.max(sp[0], F.cleft - CLEFT_PAST) * rb, xo = cx + Math.max(sp[1], F.cleft + 0.1) * rb; return [xi, CB.within ? Math.max(xi + 0.004, Math.min(xo, CB.within * sideOf(z))) : xo]; };
       // on a bare figure (the swimsuit's) the cup's top edge is a ring of the breast itself (CHEST_FORM.bust.edge): the
       // station `at` bent into a SWEETHEART line, high over the apex and dipping `dip` (bust radii) toward both ends, the
       // stations under it bent less (`fade` of them) so no two cross; the surface is the field's wherever its points
