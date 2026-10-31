@@ -15,6 +15,8 @@
  *
  * Pure and deterministic; triangles are binned on a grid of `BIN` m so a ray walks only the bins under it.
  */
+import { GRASS_TIERS, BLADE_RISE } from '../scene/channels/form-grass.js';
+
 const BIN = 4;
 
 function landOf(land) {
@@ -69,13 +71,20 @@ const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
 const norm = (a) => { const l = Math.hypot(...a) || 1; return a.map((v) => v / l); };
 const cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
 
-/** The grass map's reading at a world point: whether the map holds it, and the cover there (0..1). */
+/** The grass map's reading at a world point: whether the map holds it, the cover there (0..1) and its sward's length
+ *  (0 tall, a half medium, 1 short). */
 function grassAt(G, px, x, y) {
   if (!G) return { map: 'out', cover: 0 };
   const i = Math.round((x - G.origin[0]) / G.cell), j = Math.round((y - G.origin[1]) / G.cell);
   if (i < 0 || j < 0 || i >= G.size[0] || j >= G.size[1]) return { map: 'out', cover: 0 };
-  return { map: 'in', cover: px[(j * G.size[0] + i) * 4 + 2] / 255 };
+  const q = (j * G.size[0] + i) * 4;
+  return { map: 'in', cover: px[q + 2] / 255, sward: px[q + 3] / 255 };
 }
+/** How tall the grass stands where its sward is a length: its tier's tallest blade at its mean rise (m), as the page
+ *  grows it (scene/channels/form-grass.js). */
+const grassTip = (sw) => { const q = GRASS_TIERS.find((t) => t.sward === (sw < 0.25 ? 'tall' : sw < 0.75 ? 'medium' : 'short')); return q.scale * q.clump.height[1] * (BLADE_RISE[q.sward][0] + BLADE_RISE[q.sward][1] * 0.5); };
+/** What a sample is made of: grass where the map covers it, else its land class. */
+const substanceOf = (s) => (s.map === 'in' && s.cover > 0 ? 'grass' : s.cls === 'ground' ? 'bare' : s.cls);
 
 export function surveyView(land, { eye, target, vfov = 50, aspect = 16 / 9, cols = 96, rows = 40, reach = 25, edge = 1.2, far = 4000 } = {}) {
   const L = landOf(land), G = land.grass, gpx = G ? Buffer.from(G.px, 'base64') : null;
@@ -117,4 +126,41 @@ export function surveyChart({ samples }, reach) {
     if (s.contour) return '^';
     return s.map === 'out' ? 'o' : s.cover > 0 ? (s.cls === 'ground' ? 'G' : 'g') : 'n';
   }).join('')).join('\n');
+}
+
+/** WHAT THE ART IS HANDED: the far field (past `reach`) as REGIONS of one substance, each with its bounds on the image.
+ *  A column's far samples of one substance in a vertical run are a segment; segments of one substance that overlap in
+ *  neighbouring columns are a region. Rows count from the image's top, as fractions of its height (0 top, 1 bottom);
+ *  columns as fractions of its width.
+ *    substance  'grass' (where the grass map covers it), 'bare', or the land's class (cliff, crown, rock, trail, unread)
+ *    colour     its main colour, linear: the grass's (land.grass.base); another class's none here (the page's own)
+ *    x          [left, right]: its horizontal boundaries
+ *    columns    for each column it holds: { x, top, bottom, standsPx, d }: `top` the land's top in it from the eye (the
+ *               upper boundary is `top` less what stands on it: `standsPx` the grass's height there, at its distance, in
+ *               pixels of an image `height` tall); `bottom` its lower boundary, where the far field begins (the reach
+ *               crossed, or another substance under it); `d` the distance (m) at its top
+ *  surveyRegions(survey, { reach, height, vfov }) → [region] */
+export function surveyRegions({ cols, rows, samples }, { reach, height = 720, vfov = 50 } = {}) {
+  const pxm = (2 * Math.tan((vfov * Math.PI) / 360)) / height, regions = [], open = [];
+  for (let c = 0; c < cols; c++) {
+    const segs = [];
+    for (let r = rows - 1; r >= 0; r--) {
+      const s = samples[r][c];
+      if (!s || s.d < reach) continue;
+      const sub = substanceOf(s), last = segs[segs.length - 1];
+      if (last && last.sub === sub && last.top === r + 1) { last.top = r; last.d = s.d; last.sw = s.sward; }
+      else segs.push({ sub, bottom: r, top: r, d: s.d, sw: s.sward });
+    }
+    const next = [];
+    for (const g of segs) {
+      const col = { x: (c + 0.5) / cols, top: g.top / rows, bottom: (g.bottom + 1) / rows, d: Math.round(g.d * 10) / 10,
+        standsPx: g.sub === 'grass' ? Math.round((grassTip(g.sw ?? 0) / (pxm * g.d)) * 10) / 10 : 0 };
+      const R = open.find((o) => o.sub === g.sub && o.top <= g.bottom + 1 && o.bottom + 1 >= g.top);
+      const reg = R ? R.reg : (regions.push({ substance: g.sub, x: [c / cols, (c + 1) / cols], columns: [] }), regions[regions.length - 1]);
+      reg.x[1] = (c + 1) / cols; reg.columns.push(col);
+      next.push({ sub: g.sub, top: g.top, bottom: g.bottom, reg });
+    }
+    open.length = 0; open.push(...next);
+  }
+  return regions;
 }

@@ -20,7 +20,7 @@ if (!ref) { console.error('usage: node scripts/far-survey.mjs <ref> [--cams cams
 
 const { SketchRepository } = await import('@/lib/db/repositories/sketches');
 const { resolveWorldScene } = await import('@/lib/graph/worlds/world-scene');
-const { surveyView, surveyChart } = await import('@/lib/graph/form/survey.js');
+const { surveyView, surveyChart, surveyRegions } = await import('@/lib/graph/form/survey.js');
 const { VIEW_CONE } = await import('@/lib/graph/scene/channels/view-cone.js');
 
 const sketch = SketchRepository.getByRef(ref);
@@ -39,5 +39,11 @@ for (const c of cams) {
   console.log(`\n== ${c.name}: reach ${reach.toFixed(1)} m · ${Object.entries(S.counts).map(([k, v]) => `${k} ${v}`).join(' · ')}`);
   console.log(`   far by class: ${Object.entries(S.byClass).map(([k, v]) => `${k} ${v.far} (grass ${v.grass})`).join(' · ')}`);
   console.log(surveyChart(S, reach));
+  // (what the art is handed: each far region's substance and colour, its horizontal bounds, its upper and lower bounds)
+  const pct = (v) => `${Math.round(v * 100)}%`, span = (a) => (Math.min(...a) === Math.max(...a) ? `${Math.min(...a)}` : `${Math.min(...a)}..${Math.max(...a)}`);
+  for (const R of surveyRegions(S, { reach, height, vfov: c.vfov ?? 50 }).filter((R) => R.columns.length > 1)) {
+    const col = R.substance === 'grass' && G ? ` colour ${G.base.map((v) => v.toFixed(3)).join(',')}` : '';
+    console.log(`   ${R.substance.padEnd(7)}${col} · x ${pct(R.x[0])}..${pct(R.x[1])} · top ${span(R.columns.map((k) => Math.round(k.top * height)))} px · bottom ${span(R.columns.map((k) => Math.round(k.bottom * height)))} px · stands ${span(R.columns.map((k) => k.standsPx))} px · d ${span(R.columns.map((k) => k.d))} m`);
+  }
 }
 console.log("\n' ' sky · '.' inside the reach · past it: '^' grass contour · 'G' grass on ground · 'g' grass on another class · 'o' outside the grass map · 'n' no grass");

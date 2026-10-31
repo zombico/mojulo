@@ -5,7 +5,7 @@
  */
 import { describe, expect, it } from 'vitest';
 
-import { surveyView, surveyChart } from './survey.js';
+import { surveyView, surveyChart, surveyRegions } from './survey.js';
 
 const b64 = (a) => Buffer.from(new Float32Array(a).buffer).toString('base64');
 // (a flat square 0..100 m at z 0, its grass map over x < 50 only, full cover)
@@ -27,5 +27,18 @@ describe('the surveyor', () => {
     expect(far.some((s) => s.map === 'in' && s.cover > 0)).toBe(true);
     expect(far.some((s) => s.map === 'out')).toBe(true);
     expect(S.byClass.ground.far).toBe(far.length);
+  });
+
+  it('hands the art its regions: the grass as one, its bounds left to right, its top over its bottom, what stands on it', () => {
+    const S = surveyView(land, { eye: [25, 2, 1.7], target: [25, 60, 1.7], vfov: 40, cols: 8, rows: 24, reach: 10 });
+    const grass = surveyRegions(S, { reach: 10, height: 720, vfov: 40 }).filter((R) => R.substance === 'grass');
+    expect(grass).toHaveLength(1);
+    const [R] = grass;
+    expect(R.x[0]).toBeLessThan(R.x[1]);
+    for (const k of R.columns) {
+      expect(k.top).toBeLessThan(k.bottom);
+      expect(k.standsPx).toBeGreaterThan(0);
+      expect(k.d).toBeGreaterThanOrEqual(10);
+    }
   });
 });

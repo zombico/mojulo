@@ -23,4 +23,7 @@
 - **The surveyor** (`form/survey.js`, `scripts/far-survey.mjs`): what an eye sees of a sketch's form land, solved from
   its recipe rather than rendered. Each sample of the image is a ray over the land's triangles, read against the grass
   map: sky, inside the reach, or past it as grass, bare, outside the grass map, or the contour, counted by land class and
-  charted as text, camera by camera.
+  charted as text, camera by camera. And what it hands the art (`surveyRegions`): the far field as regions of one
+  substance (grass where the map covers it, else the land's class), each with its main colour, its horizontal bounds,
+  and column by column its upper bound (the land's top from the eye, less what stands on it: the grass's height there in
+  pixels at its distance) and its lower bound (where the far field begins).
