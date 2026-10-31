@@ -1,19 +1,21 @@
 /**
- * THE COMIC HERO PACK'S HEADGEAR (a spike): masks, visors and helmets from the hero door's own words, per BODY, because
- * the two heads differ. The tiered body's landmark head takes a second-skin `paint` band across the eyes (a domino), an
- * `adorn` kit on the cranium (a visor band, the armour's `helm` signature: a trooper's, a faceplate, an open face), and
- * the cloak's hood drawn close (a cowl). The realistic body's relational head takes the dermis's war paint (`skin.paint`
- * pattern `mask`, a domino per texel) and the cowl; the armour fit leaves every head piece off it (body-relational-armour.js
- * wornPieces), so a card with no realistic side says so (`fitted(id, body)`), and the spike's findings are the plan's.
- * A helmet drops the hair (the helm is sized off the head's bounds, not the hair's, which would poke through).
+ * headgear/cards — the HEADGEAR CARDS: masks, cowls, eyegear, mouthpieces, helmets, respirators and visors from the hero
+ * door's own words, per BODY, because the two heads differ (grown in the comic hero pack, a library since 1030). The
+ * tiered body's landmark head takes a second-skin `paint` band across the eyes (a domino), an `adorn` kit on the cranium
+ * (a cast, a cowl, the armour's `helm` signature: a trooper's, a faceplate, an open face), and the cloak's hood drawn
+ * close (a cowl). The realistic body's relational head takes the dermis's war paint (`skin.paint` pattern `mask`, a
+ * domino per texel) and the cowl; the armour fit leaves every head piece off it (body-relational-armour.js wornPieces), so
+ * a card with no realistic side says so (`fitted(id, body)`). A helmet drops the hair (the helm is sized off the head's
+ * bounds, not the hair's, which would poke through). Worn by word from the hero door's `headgear` (headgear/wear.js); the
+ * helmets by tradition worn from an outfit's `language.head` are helmets.js.
  *
- *   HEADGEAR                     { <id>: { reads, family: 'mask' | 'visor' | 'helmet' | 'cowl' | 'respirator', at: { tiered?: (spec) => spec, realistic?: (spec) => spec } } }
+ *   HEADGEAR                     { <id>: { reads, family: 'mask' | 'eyegear' | 'face' | 'mouthpiece' | 'cowl' | 'helmet' | 'respirator' | 'visor', at: { tiered?: (spec) => spec, realistic?: (spec) => spec } } }
  *   HEADGEAR_IDS, fitted(id, body)
  *   withHeadgear(spec, body, id) → the spec wearing it, or throws naming the bodies it fits
  *   withKit(spec, kit)           → the spec with a cranium kit added (over an armour build, its `with`), its kit colours
- *                                filled (the accessory cards' goggles pushed up ride it: accessories.js)
+ *                                filled (the comic hero pack's goggles pushed up ride it: its accessories.js)
  */
-import { isArmorBuild } from '../../../armor/expand.js';
+import { isArmorBuild } from '../armor/expand.js';
 const MASK_GROUP = 'Mask';
 // the landmark head's cranium: rows 4 the eyes, 5 the brow; a paint's t in shares of the ring half (0 the front, 1 the back): the bridge is 1 slot of 8 in, the side 6
 const EYE_ROWS = [3.6, 5.3];
@@ -28,7 +30,7 @@ const kitPalette = (P = {}) => ({ ...P, Helm: P.Helm ?? P.OutfitSecond ?? '#2c33
 // (over an ARMOUR BUILD the kit rides its `with`, so the suit stays and the head piece takes the helm's place)
 export const withKit = (spec, kit, { hair = true } = {}) => ({ ...spec, adorn: isArmorBuild(spec.adorn) ? { ...spec.adorn, with: [...(spec.adorn.with || []), ...kit] } : [...(Array.isArray(spec.adorn) ? spec.adorn : []), ...kit], ...(hair ? {} : { hair: 'none' }), palette: kitPalette(spec.palette) });
 const withHelm = (spec, kit) => withKit(spec, kit, { hair: false });
-const withPiece = (spec, piece) => { const O = spec.outfit; if (!O || O.type !== 'outfit') throw new Error('comic-hero: a cowl rides an outfit build\'s cloak'); return { ...spec, outfit: { ...O, pieces: [...(O.pieces || []).filter((p) => p.kind !== 'cloak'), piece] } }; };
+const withPiece = (spec, piece) => { const O = spec.outfit; if (!O || O.type !== 'outfit') throw new Error('headgear: a cowl rides an outfit build\'s cloak'); return { ...spec, outfit: { ...O, pieces: [...(O.pieces || []).filter((p) => p.kind !== 'cloak'), piece] } }; };
 const COWL_HOOD = { kind: 'cloak', hood: { open: 28 }, wrap: 0.5, hem: 'hip' };
 
 // a COWL: the helm fitted close (a small pad, no flare), closed over the crown and the eyes, its face window turned the
@@ -79,7 +81,7 @@ const MASK_PLATES = Object.freeze({
  * the eyes are too large and too drawn to frame, so the default is OPAQUE: no eyes named, the opaque covers; open eyes
  * named, covers in their shape; open holes there only when the eyes say `anime: 'open'` */
 export function maskKit({ outline = 'domino', eyes = null, detail = 'plain', plate = null, id = 'mask', head = 'landmark', lift = null, group = 'Mask' } = {}) {
-  const pick = (T, w, what) => { if (w && typeof w === 'object') return w; if (!T[w]) throw new Error(`comic-hero: no mask ${what} '${w}' (known: ${Object.keys(T).join(', ')})`); return T[w]; };
+  const pick = (T, w, what) => { if (w && typeof w === 'object') return w; if (!T[w]) throw new Error(`headgear: no mask ${what} '${w}' (known: ${Object.keys(T).join(', ')})`); return T[w]; };
   const anime = head === 'anime', E0 = pick(MASK_EYES, eyes ?? (anime ? 'opaque' : 'open'), 'eyes');
   const E = anime && (E0.treat ?? 'open') === 'open' && E0.anime !== 'open' ? { ...E0, treat: 'lens', group: E0.group ?? 'MaskLens', size: E0.size ?? MASK_EYES.opaque.size } : E0;
   const O = pick(MASK_OUTLINES, outline, 'outline'), D = pick(MASK_DETAIL, detail, 'detail');
@@ -123,8 +125,8 @@ export const COWL_DRESS = Object.freeze({
 });
 const FLOW = { long: 0.32, wavy: 0.3, layers: 0.3, ponytail: 0.34, braid: 0.34, curtains: 0.16, bob: 0.14, bun: 0.1 };
 export function cowlKit({ hair = 'cover', mouth = 'show', domino = 'domino', eyes = null, detail = 'plain', dress = null, ornaments = null, head = 'landmark', heroHair = null, id = 'cowl' } = {}) {
-  if (!['cover', 'flow'].includes(hair)) throw new Error(`comic-hero: cowl hair '${hair}' (cover, flow)`);
-  if (!['show', 'cover', 'none'].includes(mouth)) throw new Error(`comic-hero: cowl mouth '${mouth}' (show, cover, none)`);
+  if (!['cover', 'flow'].includes(hair)) throw new Error(`headgear: cowl hair '${hair}' (cover, flow)`);
+  if (!['show', 'cover', 'none'].includes(mouth)) throw new Error(`headgear: cowl mouth '${mouth}' (show, cover, none)`);
   const words = domino === false ? null : typeof domino === 'string' ? { outline: domino } : domino;
   // (the eyes the cowl and its domino share: the domino's own when it names them, else the cowl's, else the head's default)
   const mk = maskKit({ ...(words || {}), eyes: eyes ?? words?.eyes ?? null, head, id: `${id}Domino`, lift: 0.0048, group: 'MaskDomino' })[0], E = mk.signature.eyes;
@@ -132,8 +134,8 @@ export function cowlKit({ hair = 'cover', mouth = 'show', domino = 'domino', eye
   if (!mk.signature.rim) mk.signature.rim = { w: 0.16, h: 0.0016 };
   const style = typeof heroHair === 'string' ? heroHair : heroHair?.style, len = FLOW[style] ?? 0.2;
   // (the ornaments: a composition's words (`dress`), then words or entries of their own (`ornaments`), aligned to the domino)
-  const words2 = [...(dress ? (Array.isArray(dress) ? dress : [dress]).flatMap((w) => { if (!COWL_DRESS[w]) throw new Error(`comic-hero: no cowl dress '${w}' (known: ${Object.keys(COWL_DRESS).join(', ')})`); return COWL_DRESS[w]; }) : []), ...(ornaments || [])];
-  const orn = words2.flatMap((w) => (typeof w === 'string' ? (COWL_ORNAMENTS[w] ?? (() => { throw new Error(`comic-hero: no cowl ornament '${w}' (known: ${Object.keys(COWL_ORNAMENTS).join(', ')})`); })()) : [w]));
+  const words2 = [...(dress ? (Array.isArray(dress) ? dress : [dress]).flatMap((w) => { if (!COWL_DRESS[w]) throw new Error(`headgear: no cowl dress '${w}' (known: ${Object.keys(COWL_DRESS).join(', ')})`); return COWL_DRESS[w]; }) : []), ...(ornaments || [])];
+  const orn = words2.flatMap((w) => (typeof w === 'string' ? (COWL_ORNAMENTS[w] ?? (() => { throw new Error(`headgear: no cowl ornament '${w}' (known: ${Object.keys(COWL_ORNAMENTS).join(', ')})`); })()) : [w]));
   const D = typeof detail === 'object' ? detail : MASK_DETAIL[detail] ?? MASK_DETAIL.plain;
   const cowl = { id, mode: 'shell', part: 'cranium', share: true, s: [0.8, 0.98], t: 'wrap', nt: 8, ns: 1, mugen: 0.002, thick: 0.004, rad: 0.01, group: 'Mask', rigid: true, stack: false, ghost: true,
     // (close to the skin, a thin cloth: the cowl's silhouette the head's own)
@@ -178,7 +180,7 @@ export const PANELLED = Object.freeze({
 });
 /** a panelled mouthpiece's kit: its centre and its two sides (the right's outline mirrored for the left) */
 export function panelledKit(word = 'kombat', { lift = null, group = 'Mask' } = {}) {
-  const P = PANELLED[word]; if (!P) throw new Error(`comic-hero: no panelled mouthpiece '${word}' (known: ${Object.keys(PANELLED).join(', ')})`);
+  const P = PANELLED[word]; if (!P) throw new Error(`headgear: no panelled mouthpiece '${word}' (known: ${Object.keys(PANELLED).join(', ')})`);
   const left = { ...P.side, outline: { poly: P.side.outline.poly.map(([x, z]) => [-x, z]) } };
   // (a thin dark BACKING under the panels, the whole piece's outline, so the gaps between them read as dark panel lines)
   const R = P.side.outline.poly, backing = { taut: P.centre.taut, thick: 0.0008, lift: 0.0012, hang: P.centre.hang, maw: false,
@@ -188,7 +190,7 @@ export function panelledKit(word = 'kombat', { lift = null, group = 'Mask' } = {
 /** a mouthpiece's kit from its word (MOUTHPIECES) or its own data, `over` its words' changes; `lift` over a domino or a cowl */
 export function mouthpieceKit(word = 'ninja', { over = {}, lift = null, id = 'mouthpiece', group = 'Mask' } = {}) {
   const W = typeof word === 'object' ? word : MOUTHPIECES[word];
-  if (!W) throw new Error(`comic-hero: no mouthpiece '${word}' (known: ${Object.keys(MOUTHPIECES).join(', ')})`);
+  if (!W) throw new Error(`headgear: no mouthpiece '${word}' (known: ${Object.keys(MOUTHPIECES).join(', ')})`);
   return [{ id, mode: 'shell', part: 'cranium', share: true, s: [0.8, 0.98], t: 'wrap', nt: 8, ns: 1, mugen: 0.002, thick: 0.004, rad: 0.01, group, rigid: true, stack: false, ghost: true,
     signature: { kind: 'mouthpiece', group, ...W, ...over, ...(lift !== null ? { lift } : {}) } }];
 }
@@ -239,7 +241,7 @@ const MOTO = ({ peak = {}, window = {}, vents = null, visor = false, crest = nul
   fittings: [...(peak === false ? [] : [{ kind: 'peak', at: [0, (window.top ?? 1.1) + 0.32], span: 1.7, len: 0.055, tilt: 0.38, curl: 0.006, droop: 0.15, group: 'HelmetTrim', ...peak }]),
     ...(vents ? [{ kind: 'grille', at: [0, 'mouth-0.15'], rows: vents, w: 0.55, step: 0.2, bar: 0.0028, group: 'HelmetTrim' }] : [])],
   ...(stripe ? { ornaments: STRIPE } : {}) });
-export const HELMETS = Object.freeze({
+export const HELMET_SHELLS = Object.freeze({
   fullFace: { mouth: 'cover', jaw: 0.95, nape: 0.05, pad: 0.018, shell: 24, thick: 0.004, window: { shape: 'shield', w: 2.35, top: 1.15, bottom: -0.95, notch: 0.15 }, eyes: VISOR(), rim: { w: 0.08, h: 0.002, group: 'HelmetTrim' }, ornaments: STRIPE },
   motocross: MOTO(),
   enduro: MOTO({ peak: { len: 0.045, span: 1.5 }, vents: 3 }),                                                     // a shorter peak, a vented chin bar
@@ -253,10 +255,10 @@ export const HELMETS = Object.freeze({
     fittings: [{ kind: 'earpiece', at: [0, 2.35], r: 0.014, h: 0.008, group: 'HelmetTrim', capGroup: 'HelmetTrim' }, { kind: 'earpiece', at: [2.9, 0.9], r: 0.012, h: 0.006, group: 'HelmetTrim', capGroup: 'HelmetTrim' }, { kind: 'earpiece', at: [-2.9, 0.9], r: 0.012, h: 0.006, group: 'HelmetTrim', capGroup: 'HelmetTrim' }] },
   astronaut: { mouth: 'cover', jaw: 1.0, nape: 0.15, pad: 0.045, shell: 40, thick: 0.004, window: { shape: 'shield', w: 3.0, top: 2.1, bottom: -2.3, notch: 0 }, eyes: VISOR({ dome: 0 }), rim: { w: 0.1, h: 0.003, group: 'HelmetTrim' } },
 });
-/** a helmet's kit from its word (HELMETS) or its own data, `over` its words' changes */
+/** a helmet's kit from its word (HELMET_SHELLS) or its own data, `over` its words' changes */
 export function helmetKit(word, { id = 'helmet', over = {} } = {}) {
-  const W = typeof word === 'object' ? word : HELMETS[word];
-  if (!W) throw new Error(`comic-hero: no helmet '${word}' (known: ${Object.keys(HELMETS).join(', ')})`);
+  const W = typeof word === 'object' ? word : HELMET_SHELLS[word];
+  if (!W) throw new Error(`headgear: no helmet '${word}' (known: ${Object.keys(HELMET_SHELLS).join(', ')})`);
   return [{ id, mode: 'shell', part: 'cranium', share: true, s: [0.8, 0.98], t: 'wrap', nt: 8, ns: 1, mugen: 0.002, thick: 0.004, rad: 0.01, group: 'Helmet', rigid: true, stack: false, ghost: true, signature: { kind: 'cowl', group: 'Helmet', ...W, ...over } }];
 }
 // THE JET PILOT family: an open-face shell, a visor HOUSING standing off over the forehead, the visor DOWN over the eyes or
@@ -391,7 +393,7 @@ export const FACELESS = Object.freeze({
     cracks: [{ ...STROKE([[0.2, 2.4], [0.45, 1.7], [0.2, 1.2], [0.6, 0.7]], 0.0022, 'MaskSeam'), side: 'R' }, { ...STROKE([[-1.7, 1.6], [-1.3, 1.1], [-1.45, 0.7]], 0.0022, 'MaskSeam'), side: 'R' }] },
 });
 // a library's words as one fragment: the list words merged (spikes and strokes into ornaments, cuts into decals)
-const fragment = (lib, words, as) => (words || []).map((w) => { const v = typeof w === 'string' ? FACELESS[lib][w] : w; if (v === undefined) throw new Error(`comic-hero: no ${lib} '${w}' (known: ${Object.keys(FACELESS[lib]).join(', ')})`); return Array.isArray(v) ? { [as]: v } : v; })
+const fragment = (lib, words, as) => (words || []).map((w) => { const v = typeof w === 'string' ? FACELESS[lib][w] : w; if (v === undefined) throw new Error(`headgear: no ${lib} '${w}' (known: ${Object.keys(FACELESS[lib]).join(', ')})`); return Array.isArray(v) ? { [as]: v } : v; })
   .reduce((A, F) => { for (const [k, v] of Object.entries(F)) A[k] = Array.isArray(v) ? [...(A[k] || []), ...v] : v; return A; }, {});
 export function facelessKit({ face = { shape: 'shield', w: 2.4, top: 1.1, bottom: -2.2, notch: 0 }, faceGroup = 'Faceplate', faceTreat = 'lens', eyes = null, panels = ['ribbed'], adorn = [], details = [], cuts = [], sculpt = [], paint = [], pad = 0.016, blank = true, over = {} } = {}) {
   // (the face: a FACEPLATE window set in its line, or `face` null and painted EYES on the blank (a porcelain mask's), or
@@ -417,7 +419,7 @@ const HELMETED = (reads, kit, palette) => ({ reads, family: 'helmet', palette, a
 /** an eyegear's kit from its word (EYEGEAR) or its own data: the cast carried by a ghost shell on the cranium */
 export function eyegearKit(word, { id = 'eyegear', over = {} } = {}) {
   const W = typeof word === 'object' ? word : EYEGEAR[word];
-  if (!W) throw new Error(`comic-hero: no eyegear '${word}' (known: ${Object.keys(EYEGEAR).join(', ')})`);
+  if (!W) throw new Error(`headgear: no eyegear '${word}' (known: ${Object.keys(EYEGEAR).join(', ')})`);
   return [{ id, mode: 'shell', part: 'cranium', share: true, s: [0.8, 0.98], t: 'wrap', nt: 8, ns: 1, mugen: 0.002, thick: 0.004, rad: 0.01, group: W.group ?? 'Mask', rigid: true, stack: false, ghost: true, signature: { kind: 'cast', group: 'Mask', ...W, ...over } }];
 }
 const EYEWEAR = (reads, word, palette) => ({ reads, family: 'eyegear', words: { eyegear: word }, at: { tiered: (spec) => withKit({ ...spec, palette: { ...(spec.palette || {}), ...palette } }, eyegearKit(word)) } });
@@ -609,7 +611,7 @@ export const fitted = (id, body) => typeof HEADGEAR[id]?.at[body] === 'function'
 export function withHeadgear(spec, body, id) {
   if (!id) return spec;
   const H = HEADGEAR[id];
-  if (!H) throw new Error(`comic-hero: no headgear '${id}' (known: ${HEADGEAR_IDS.join(', ')})`);
-  if (typeof H.at[body] !== 'function') throw new Error(`comic-hero: headgear '${id}' is not fitted to the ${body} body (fits: ${Object.keys(H.at).filter((b) => typeof H.at[b] === 'function').join(', ')})`);
+  if (!H) throw new Error(`headgear: no headgear '${id}' (known: ${HEADGEAR_IDS.join(', ')})`);
+  if (typeof H.at[body] !== 'function') throw new Error(`headgear: headgear '${id}' is not fitted to the ${body} body (fits: ${Object.keys(H.at).filter((b) => typeof H.at[b] === 'function').join(', ')})`);
   return H.at[body](spec);
 }

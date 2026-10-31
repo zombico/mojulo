@@ -202,6 +202,8 @@ Pointers only; each target carries its own design notes.
   Played as an engine gets it (the skinned GLB, its clips and face morphs, variants bare and armoured): `/hero-live`.
 - What it wears: the wearable libraries [footwear/](control/lib/graph/footwear/), [handwear/](control/lib/graph/handwear/) and
   [plating/](control/lib/graph/plating/) (card → passes → laws → adapter; a new look is a card): [docs/plating.md](docs/plating.md).
+  On the head, [headgear/](control/lib/graph/headgear/): the cards (masks, cowls, eyegear, helmets) worn by the hero door's
+  `headgear` word, and the helmets by tradition an outfit's `language.head` wears; a new look is a card.
 - Solids: [polygonizer/](control/lib/graph/polygonizer/) (`field-terms.js`, `code-realm.js`,
   `field-exact.js` for `exact: true` through Manifold), [worlds/workbench.js](control/lib/graph/worlds/workbench.js);
   manuals are the `solid-vocab/` cards. OpenSCAD both ways: [scad/scad-render.js](control/lib/graph/scad/scad-render.js)

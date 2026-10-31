@@ -815,6 +815,16 @@ GLB's baked ink (`bake: true`) cannot stencil: it leaves out only the outline of
   cock. The readout's `hero.gear.<hand>.swing` gives the impact's phase, the contact `window`, `reachM` and `cone` for
   a game's hit test. No bow draw yet: the hand has no wrist, so a bow raised to draw would point at the archer.
 <!-- /section -->
+<!-- section: hero-headgear | Headgear | headgear: a mask, a cowl, eyegear, a helmet by word, swapped in place -->
+  THE HEADGEAR. `headgear: '<word>'`: a mask, a cowl, eyegear, a mouthpiece, a helmet, a respirator or a visor, each a
+  word from the headgear library; the words, by family, with the bodies each fits: get_solid_vocab({ id: 'headgear' }).
+  The word is kept on the hero and lowered on every read, so `update_character { spec: { headgear: '<another>' } }`
+  swaps it in place and `null` takes it off. Every word fits the game body; the realistic body wears the domino and the
+  cowl, and refuses another by name. A helmet drops the hair; a cowl rides an outfit build's cloak. The card's colours
+  sit beneath `palette`: name a group (Helmet, HelmetVisor, HelmetTrim, Mask, MaskLens, EyeLens, EyeGlow …) to recolour
+  it. A helmet by tradition (the steel pot, the K-pot …) is the outfit build's `language.head`, by word here too.
+  Comic-book characters wearing them, by name: get_solid_vocab({ id: 'comic-hero' }).
+<!-- /section -->
   THE BUDGET. `hero.budget`, on every hero's readout: triangles and vertices per palette group, the plan and recipe in
   bytes.
   THE TARGET. `target` (`'720p'` … `'4k'`, or `{ resolution, framing: close | third-person | wide | top-down, error }`)
