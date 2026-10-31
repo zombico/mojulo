@@ -50,7 +50,7 @@ import { validateStylism, styledHero, stylismLedger, STYLISM_LAWS_VERSION } from
 import { readKit, kitDress } from '@/lib/graph/sportswear/kits.js';
 import { headgearErrors, wearHeadgear } from '@/lib/graph/headgear/wear.js';
 import { readSilhouette, silhouetteAdvice, cohesionAdvice } from '@/lib/graph/stylism/silhouette';
-import { heroPlan, planScale, castOf, lawCast, bustCeilingError, isBuiltCast, HERO_LAWS_VERSION, readsHeroLaws, takesLegSet, takesArmLength, castPole, castLabel, validateBuiltCast, HERO_BUILD_NAMES, HERO_BUILDS, PROPORTION_WORDS, HERO_CASTS, HERO_CORES, DEFAULT_CORE, REGISTERS, BODY_DEFAULTS, PALETTE as HERO_PALETTE, TUNE_KEYS, TUNE_AGGREGATE_KEYS, HERO_MOVE_NAMES, resolveTune, storedTune, validateTune, tuneWarnings } from '@/lib/graph/polygonizer/hero-form';
+import { heroPlan, planScale, castOf, lawCast, FORM_BODY, formBodied, formBodyPole, bustCeilingError, isBuiltCast, HERO_LAWS_VERSION, readsHeroLaws, takesLegSet, takesArmLength, castPole, castLabel, validateBuiltCast, HERO_BUILD_NAMES, HERO_BUILDS, PROPORTION_WORDS, HERO_CASTS, HERO_CORES, DEFAULT_CORE, REGISTERS, BODY_DEFAULTS, PALETTE as HERO_PALETTE, TUNE_KEYS, TUNE_AGGREGATE_KEYS, HERO_MOVE_NAMES, resolveTune, storedTune, validateTune, tuneWarnings } from '@/lib/graph/polygonizer/hero-form';
 import { humanoidPlan, PALETTE as HUMANOID_PALETTE } from '@/lib/graph/polygonizer/humanoid-plan';
 import { humanoidAnchors, EXPRESSIONS, westernExpressionErrors, HEAD_PRESETS, FACE_KEYS, FACE_AGGREGATE_KEYS, FACE_MOVE_NAMES, resolveFace, validateFace, faceWarnings } from '@/lib/graph/polygonizer/humanoid-head';
 import { HAIR_KEYS, HAIR_STYLE_NAMES, resolveHair, validateHair, hairWarnings, withGrownFall } from '@/lib/graph/polygonizer/humanoid-hair';
@@ -262,11 +262,11 @@ function expandHeroAwarePlan(plan, hero, geocube = null) {
   // (an undead's heavy arm, its bared flesh and its loss on their sides, undead/tiered-layers.js; absent, the recipe as it was)
   return withBodySmooth(withLegGirths(withDressMaterials(hero?.undead ? undeadRecipe(expandAware(plan, hero), hero) : expandAware(plan, hero), hero, plan, geocube)), hero);
 }
-/** An anime hero whose body is rounded (its cast's `smooth`, else the anime form's body under laws 20: anime-looks.js
- * animeBodySmooth): the recipe names the rounds and compileLayered splits its body's skin on the curved patch
- * (body-smooth.js). Any other recipe: as it was. */
-/** the rounds a hero's body is split (anime-looks.js animeBodySmooth), or none: the anime head's only, for now */
-const bodyRoundsOf = (hero) => (hero?.head === 'anime' ? animeBodySmooth(hero) : null);
+/** A hero whose body is rounded (an anime cast's `smooth`, else the form body, hero-form.js FORM_BODY, under its head's
+ * laws: anime-looks.js animeBodySmooth, formBodied): the recipe names the rounds and compileLayered splits its body's
+ * skin on the curved patch (body-smooth.js). Any other recipe: as it was. */
+/** the rounds a hero's body is split, or none; never in the lowpoly register, faceted by design */
+const bodyRoundsOf = (hero) => (hero?.head === 'anime' ? animeBodySmooth(hero) : hero?.register !== 'lowpoly' && formBodied(hero) ? FORM_BODY.smooth : null);
 function withBodySmooth(recipe, hero) {
   const rounds = bodyRoundsOf(hero);
   return rounds ? { ...recipe, smoothBody: { rounds } } : recipe;
@@ -1468,7 +1468,7 @@ function heroFormPlanOf(hero) {
     // lift, so the cowl passes close over them; its `ears: false` leaves them as they are. No cowl: the ears as before)
     const cowled = cowlPressesEars(hero);
     const features = cowled ? { ...(hero.faceFeatures ?? {}), earAngle: 0.03, earLift: 0 } : hero.faceFeatures;
-    return humanoidPlan({ preset: cast, ...common, face: hero.face ?? {}, hair: helmeted(hero) ? 'none' : hero.hair ?? 'swept', expression: hero.expression ?? 'neutral', palette: hero.palette ?? {}, ...(features ? { features } : {}), ...(hero.undead || hero.beast ? { bare: true } : {}), ...(hero.headPreset ? { headPreset: hero.headPreset } : {}), ...(hero.proportions ? { proportions: hero.proportions } : {}), ...dress });
+    return humanoidPlan({ preset: cast, ...common, ...(formBodied(hero) ? { chest: FORM_BODY.chest[formBodyPole(hero.cast)] } : {}), face: hero.face ?? {}, hair: helmeted(hero) ? 'none' : hero.hair ?? 'swept', expression: hero.expression ?? 'neutral', palette: hero.palette ?? {}, ...(features ? { features } : {}), ...(hero.undead || hero.beast ? { bare: true } : {}), ...(hero.headPreset ? { headPreset: hero.headPreset } : {}), ...(hero.proportions ? { proportions: hero.proportions } : {}), ...dress });
   }
   if (hero.head === 'anime') {
     const eff = animeEffective(hero);   // the look's stamp, the own layer on top, the hair base under them

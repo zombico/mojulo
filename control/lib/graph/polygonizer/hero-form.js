@@ -422,6 +422,34 @@ export const castOf = (cast, proportions = 'hero') => {
   return { ...builtCast(pole, cast.build ?? 'canonical'), pole: castPole(cast) };
 };
 
+/** THE FORM BODY: one body for every tiered hero, whatever head it wears. Only the head makes a difference; the body
+ * differs by its cast's sizes and proportions alone. The body rounded (`smooth`: its skin split once on the curved patch,
+ * body-smooth.js, so it reads as one form rather than its rings' facets) and, as the rounded body asks, its chest
+ * (heroPlan `chest`): the rib cage narrower under the shoulders, so the rounded sides fall nearly straight from the
+ * armpit instead of flaring past it, and on the male no pectoral layer (rounded, it read as an imprint on the chest).
+ * First tuned on Shonen High's pair and worn by the anime adult under laws 20 (anime-looks.js ANIME_FORM_BODY, a cast's
+ * own `smooth` and `chest` over it), by the landmark head's adult under laws 21 (FORM_BODY_LAWS). Not on a child or a
+ * chibi (its build's own body), and for the landmark head not yet on a hero robot's toy body, an undead's or a
+ * beast-kin's, nor on the realistic form (its own body). */
+export const FORM_BODY = Object.freeze({
+  smooth: 1,
+  chest: Object.freeze({ male: Object.freeze({ width: 0.82, pec: false }), female: Object.freeze({ width: 0.82 }) }),
+});
+/** the hero laws each head first wears the form body under (the landmark head's prepared: stamped when HERO_LAWS_VERSION
+ * reaches it, so until then no landmark hero wears it) */
+export const FORM_BODY_LAWS = Object.freeze({ anime: 20, landmark: 21 });
+/** does this hero wear the form body: its head's laws, an adult's build (the anime head's as laws 20 read it) */
+export function formBodied(hero) {
+  if (!hero) return false;
+  const head = hero.head ?? 'landmark', gate = FORM_BODY_LAWS[head], laws = hero.laws ?? 1;
+  if (gate === undefined || laws < gate) return false;
+  if (head === 'anime') return !castOf(lawCast(hero.cast, laws).cast)?.child;
+  const props = hero.proportions ?? 'hero';
+  return hero.form !== 'realistic' && !hero.undead && !hero.beast && props !== 'herobot' && !castOf(lawCast(hero.cast, laws, props).cast, props)?.child;
+}
+/** the form body's pole for a cast: its female's, else its male's */
+export const formBodyPole = (cast) => (castPole(cast) === 'female' ? 'female' : 'male');
+
 /** THE NECK ROOT on the structured core: the neck rises out of the chest. `notch` the sternal notch under the neck hub
  * (m: the top ring's front; the canon's T2 against C7, about 2.5 cm), falling off round the ring by `cos^fall` of the
  * slot's angle (none at the side and back: C7 and the trapezius keep their height), the mid ring held `step` under it,

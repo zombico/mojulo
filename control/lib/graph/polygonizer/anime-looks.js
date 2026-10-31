@@ -17,7 +17,7 @@
 import { ANIME_FACE, ANIME_FACE_MOVES, ANIME_HAIR_MOVES, ANIME_POSES, resolveAnimeFace, resolveAnimeHair, resolveAnimeExpression, animeDefaultStyle, ANIME_HAIR_BASE } from './anime-head.js';
 import { ANIME_HAIR_STYLES } from './anime-head.js';
 import { HEAD_PRESETS } from './humanoid-head.js';
-import { resolveTune, castPole, castOf, lawCast } from './hero-form.js';
+import { resolveTune, castPole, castOf, lawCast, FORM_BODY, formBodied } from './hero-form.js';
 import { ANIME_SCULPT_MOVES, resolveAnimeSculpt, featureAdvice } from './anime-sculpt.js';
 import { genkiLayers, genkiExpression } from './anime-genki.js';
 import { animeStyleOf } from './anime-styles.js';
@@ -130,19 +130,13 @@ export const ANIME_FORM_POLE = Object.freeze({
   female: Object.freeze({ sculpt: Object.freeze({ tipProjection: 1.08, pronasale: 0.02, stomion: 0.004 }), face: Object.freeze({ chinHeight: 0.9 }),
     bands: Object.freeze({ noseProjection: [0.05, 0.09], pronasale: [0.27, 0.33], noseToMouth: [0.09, 0.15], browGap: [0.4, 0.9] }) }),
 });
-/** THE ANIME FORM'S BODY (hero laws 20): the body every anime adult wears under its cast, as the head wears ANIME_FORM:
- * the body rounded (`smooth`: its skin split once on the curved patch, body-smooth.js, so it reads as one form rather
- * than its rings' facets) and, as the rounded body asks, its chest (hero-form.js heroPlan `chest`): the rib cage
- * narrower under the shoulders, so the rounded sides fall nearly straight from the armpit instead of flaring past it,
- * and on the male no pectoral layer (rounded, it read as an imprint on the chest). A cast's own `smooth` and `chest`
- * go over it (anime-styles.js); a child or a chibi keeps its own body (its build's), and a row stamped before laws 20
- * the body it had. First tuned on Shonen High's pair. */
-export const ANIME_FORM_BODY = Object.freeze({
-  smooth: 1,
-  chest: Object.freeze({ male: Object.freeze({ width: 0.82, pec: false }), female: Object.freeze({ width: 0.82 }) }),
-});
+/** THE ANIME FORM'S BODY (hero laws 20): the form body (hero-form.js FORM_BODY, one body for every tiered hero) as the
+ * anime adult wears it under its cast, as the head wears ANIME_FORM. A cast's own `smooth` and `chest` go over it
+ * (anime-styles.js); a child or a chibi keeps its own body (its build's), and a row stamped before laws 20 the body it
+ * had. */
+export const ANIME_FORM_BODY = FORM_BODY;
 /** does this hero wear the anime form's body (ANIME_FORM_BODY): the anime head under laws 20, an adult's build */
-export const animeBodyFormed = (hero) => hero?.head === 'anime' && (hero.laws ?? 1) >= 20 && !castOf(lawCast(hero.cast, hero.laws).cast)?.child;
+export const animeBodyFormed = (hero) => hero?.head === 'anime' && formBodied(hero);
 /** the rounds this hero's body is split (body-smooth.js): its cast's `smooth`, else the form's body's, else none; never
  * in the lowpoly register, faceted by design */
 export const animeBodySmooth = (hero) => (hero?.register === 'lowpoly' ? null : animeStyleOf(hero, castHeadPole(hero))?.smooth ?? (animeBodyFormed(hero) ? ANIME_FORM_BODY.smooth : null));

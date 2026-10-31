@@ -75,6 +75,7 @@ import { relationalFaceRig, performanceTrack, mouthTargets } from '@/lib/graph/p
 import { perform } from '@/lib/graph/face-acting/perform';
 import { animePerformanceTrack } from '@/lib/graph/face-acting/anime-read';
 import { animeFormed } from '@/lib/graph/polygonizer/anime-looks';
+import { formBodied } from '@/lib/graph/polygonizer/hero-form';
 import { emoteTake, emoteClips } from '@/lib/graph/face-acting/emotes';
 /** a packed face part's rows (`morph: { i, d }`, f32) as 16-bit steps of their largest offset (`{ i, q, s }`): the page's
  * players read `q × s` (rig-preview.js, controllable) */
@@ -954,8 +955,8 @@ export const WORLD_KINDS = {
         // (and a beast-kin on the tiered body, beast/tiered.js: its coat lit by the engine over its cover's maps, below; and a
         // creature that asks to be one smooth form, `smooth: true`; and the ANIME hero minted under hero laws 19, anime-looks.js
         // animeFormed: its face one smooth form, as a painted figure's, not its triangles; a row before keeps its export, byte
-        // for byte)
-        const engineLit = light.flat && (m.hero?.form === 'realistic' || m.hero?.beast || m.smooth === true || (m.hero?.head === 'anime' && animeFormed(m.hero))) && !character ? layeredShadingNormals(mesh, m.recipe, { crease, proxy: false, ellipsoid }) : null;
+        // for byte; and the landmark hero on the form body, hero-form.js formBodied: one smooth body whatever its head)
+        const engineLit = light.flat && (m.hero?.form === 'realistic' || m.hero?.beast || m.smooth === true || (m.hero?.head === 'anime' && animeFormed(m.hero)) || ((m.hero?.head ?? 'landmark') === 'landmark' && formBodied(m.hero))) && !character ? layeredShadingNormals(mesh, m.recipe, { crease, proxy: false, ellipsoid }) : null;
         // THE RELIEF (epidermis/dermal-relief.js), on a realistic hero minted under realistic laws 5, lit by its engine and
         // exported skinned (ctx.face: the export that asks for the figure's blend shapes): the one skin's relief baked from
         // its own field into a normal map on the skin's atlas, each corner's tangent beside it (the GLB's normalTexture and
