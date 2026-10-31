@@ -6,7 +6,8 @@
  */
 import { describe, expect, it } from 'vitest';
 
-import { resolveHandoff, stoneInstances, floraInstances, mergeClumps, dressedMaterials, HANDOFF_VERSION } from './handoff.js';
+import { resolveHandoff, stoneInstances, floraInstances, mergeClumps, dressedMaterials, landParts, HANDOFF_VERSION } from './handoff.js';
+import { resolveWorldScene } from '../worlds/world-scene.js';
 import { generatedSpecOf } from '../landscape/surface-textures.js';
 import { decodePng } from '../era/tone.js';
 import { facesToGlb } from './scene-gltf.js';
@@ -39,9 +40,31 @@ describe('the engine handoff', () => {
     expect(n).toBeGreaterThan(0);
     expect(a.ledger).toMatchObject({ version: HANDOFF_VERSION, era: 'gen-7', what: 'level', carried: { instances: { stones: n } } });
     expect(j.nodes.filter((x) => String(x.name).startsWith('form:stones:') && x.mesh !== undefined).length).toBe(n);
+    // (the land as form: its parts meshes of their own, the layered ground carrying its layers' weights and atlases; the
+    // painted land it stands for gone, the sea still the painted one)
+    const land = a.instances.filter((s) => s.name.startsWith('form:land:'));
+    expect(land.length).toBeGreaterThan(0);
+    expect(a.ledger.carried.land.parts).toBe(land.length);
+    const groups = new Set(a.payload.form.land.hides);
+    const meshNames = new Set(j.meshes.map((m) => m.name));
+    for (const g of groups) if (!g.endsWith(':water')) expect(meshNames.has(g), g).toBe(false);
+    const layered = j.meshes.filter((m) => m.primitives[0].attributes._SPLAT);
+    expect(layered.length).toBe(a.ledger.carried.land.layered);
+    expect(layered.length).toBeGreaterThan(0);
+    for (const m of layered) {
+      const t = j.materials[m.primitives[0].material].extras.mojulo.terrain;
+      expect(t.splat).toBe('_SPLAT');
+      expect(t.keys).toEqual(a.payload.form.land.layers.keys);
+      expect(t.layers.base.index).toBeGreaterThanOrEqual(0);
+    }
+    // (a trail's cliff under its relief: cut and pushed as the page pushes it)
+    if (a.payload.form.land.relief && a.payload.form.land.ranges.some((R) => R.key === 'cliff')) expect(a.ledger.carried.land.reliefCut).toBeGreaterThan(0);
+    // (the atlases written once, however many parts point at them)
+    const atlasTex = new Set(layered.map((m) => j.materials[m.primitives[0].material].extras.mojulo.terrain.layers.base.index));
+    expect(atlasTex.size).toBe(1);
     // (each stone set its own lit material in its solved colour)
     const stoneMats = j.materials.filter((m) => String(m.name).startsWith('form:stones:'));
-    expect(stoneMats.length).toBe(a.instances.length);
+    expect(stoneMats.length).toBe(a.instances.filter((x) => x.name.startsWith('form:stones:')).length);
     for (const m of stoneMats) expect(m.pbrMetallicRoughness.baseColorFactor.slice(0, 3).some((v) => v > 0 && v < 1)).toBe(true);
   }, 300_000);
 
@@ -125,6 +148,50 @@ describe('the engine handoff', () => {
     expect(metal).toBe(0);
     // (a key the painter did not paint is no material)
     expect(dressedMaterials(['asphalt', 'no-such-tile'])).toEqual({});
+  }, 300_000);
+
+  it('a cliff under a relief leaves as geometry: its triangles cut finer and pushed along their normal; a shared corner stays', () => {
+    const b64 = (a) => Buffer.from(a.buffer).toString('base64');
+    // (one standing triangle facing +x; a relief whose every height is its range's floor, -0.2 m: the face pushed back by it)
+    const tri = [[0, 0, 0], [0, 1, 0], [0, 0, 1]];
+    const land = (shared) => ({
+      ranges: [{ key: 'cliff', start: 0, count: 3, rough: 0.9 }, ...(shared ? [{ key: 'soil', start: 3, count: 3, rough: 0.9 }] : [])],
+      pos: b64(new Float32Array([...tri.flat(), ...(shared ? [0, 0, 0, 1, 0, 0, 0, -1, 0] : [])])),
+      c7: b64(new Uint8Array(Array.from({ length: shared ? 6 : 3 }, () => [128, 128, 128, 255]).flat())),
+      spl: b64(new Uint8Array(Array.from({ length: shared ? 6 : 3 }, () => [255, 0, 0, 0]).flat())),
+      nrm: b64(new Int8Array(Array.from({ length: shared ? 6 : 3 }, () => [127, 0, 0]).flat())),
+      relief: { px: b64(new Uint16Array(4)), size: 2, tile: 1, lo: 0, hi: 0.2 },
+      layers: null,
+    });
+    const [cliff] = landParts(land(false));
+    expect(cliff.relief).toBe(36);
+    expect(cliff.positions.length / 9).toBe(36);
+    for (let k = 0; k < cliff.positions.length; k += 3) expect(cliff.positions[k]).toBeCloseTo(-0.2, 5);
+    // (the corner it shares with the soil stays put; the far edge moves)
+    const [c2] = landParts(land(true));
+    const at = (P, q) => { for (let k = 0; k < P.length; k += 3) if (Math.abs(P[k + 1] - q[1]) < 1e-6 && Math.abs(P[k + 2] - q[2]) < 1e-6) return P[k]; return null; };
+    expect(at(c2.positions, [0, 0, 0])).toBeCloseTo(0, 6);
+    expect(at(c2.positions, [0, 1, 0])).toBeCloseTo(-0.2, 5);
+  });
+
+  it('a room under the form render: its surfaces their solved bases, its lamps the solve\'s lights, the stage\'s own gone', async () => {
+    const S = { title: 'room', manifest: { kind: 'geocube', cube: 'island-noon' } };
+    const h = await resolveHandoff(S), j = glbJson(h.exported.bytes);
+    const room = h.payload.form.room;
+    expect(room.lights.length).toBeGreaterThan(0);
+    expect(h.ledger.carried.lamps).toBe(room.lights.length);
+    const L = j.extensions.KHR_lights_punctual.lights;
+    expect(L.map((l) => l.name)).toEqual(room.lights.map((_, i) => `form:lamp:${i}`));
+    for (const [i, l] of L.entries()) {
+      expect(l.type).toBe('point');
+      expect(Math.max(...l.color)).toBeCloseTo(1, 5);
+      expect(l.intensity).toBeCloseTo(Math.PI * Math.max(...room.lights[i].key), 4);
+      expect(l.range).toBe(room.lights[i].radius);
+    }
+    // (the solve's bases are not the paint: the same room read plainly unshaded paints other colours)
+    const plain = (await resolveWorldScene(S, { unshaded: true, era: 'gen-7' })).payload;
+    expect(plain.form?.room).toBeUndefined();
+    expect(h.payload.faces.filter((f) => f.fill).map((f) => f.fill)).not.toEqual(plain.faces.filter((f) => f.fill).map((f) => f.fill));
   }, 300_000);
 
   it('a thing that is no world hands off its albedo, with no instances', async () => {

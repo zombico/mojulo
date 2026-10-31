@@ -1,6 +1,6 @@
 ### Engine handoff plan (temporary: the working plan, parked here; delete before release)
 
-**Status:** phase 0 built (its Godot job awaiting its first CI run); phase 1 built (the albedo floor, the stones, the plants, the dressed faces); phase 2 next (1031). Branch `1031-gen7-export`, cut from `1026-consolidated`. Theme file
+**Status:** phase 0 built (its Godot job awaiting its first CI run); phases 1 and 2 built; phase 3 (the levels: environment, colliders, markers) next (1031). Branch `1031-gen7-export`, cut from `1026-consolidated`. Theme file
 `control/changelog/1026/1031/engine-handoff.md`. No release has carried the engine game runtimes this plan removes, so
 nothing here needs a deprecation path.
 
@@ -322,4 +322,40 @@ developer would want to wire. Never claimed by a machine.
     height) could give those a normal and an ORM too; an approximation that says so, a later step if wanted.
   - Phase 1 is done. Phase 2 next: the land's layered ground baked into textures, the rock relief as geometry, and the
     rooms' lamps and baked indirect light.
+- 1031, phase 2 (the land and the rooms):
+  - **Decided against bake-first** (open question 2). The page lays each layer in world space along a face's dominant
+    axis (`channels/form-land.js`), so a baked texture needs a unique UV chart for every cliff and slope, and its blend
+    reads the path mask, the trail's dress, the moss, the undergrowth's grass map and the scree's thinning, about two
+    hundred lines of fragment shader. Instead the land leaves as FLOOR plus DATA:
+    - The floor: each part of the form land (`landParts`: a range of `formPayload`, a ground class) a mesh of its own,
+      shaded smooth as the page shades it, each corner its palette-solved base colour (the shader's layers multiply
+      their texture, normalised to a mean of one, by it, so it is the albedo a plain glTF reader shows; linear). The
+      shallows' floor faces straight up, as on the page.
+    - The data: on the layered ground, each corner's four layers' weights as `_SPLAT` (glTF's application attribute,
+      floats) and the material's `extras.mojulo.terrain` (its part, the attribute's name, the layers' base, normal and
+      ORM atlases as textures written once for every part, each layer's tile in metres, its mean, the layer keys, the
+      atlas's grid, and `ormBlue: 'height'`: the land's own ORM keeps its height in the blue, not glTF's metal). An
+      engine's terrain shader blends them as the page does; the Godot adapter ports the page's fragment in phase 4,
+      held to it in Chrome by recoup's harness, and the other adapters follow it.
+    - The painted faces the form's land stands for (`form.land.hides`) leave the export, but the water: the sea stays the
+      painted one (the page draws it as a plane over the depth; an engine as its own water). What the read could not
+      class (`unread`) stays painted.
+  - **The rock's relief as geometry:** the page's `reliefPart` ported (`reliefCut`): a cliff's triangles cut six a side,
+    each point pushed along its normal by the relief read along the face's two side axes, by how steep it stands; a
+    corner shared with another part stays put; the cut faces' normals their own, blended back where nothing moved. The
+    trail's cliff cuts to about 189,000 triangles.
+  - **A room's lamps:** the form render's room light now solves under the handoff though the read is unshaded
+    (`world-scene.js` sets `formLit` and passes `handoff`; `world-kinds.js` forwards it to the stage and the geocube;
+    `era/stage.js` solves when `ctx.handoff` and keeps the solve's faces), so a room's surfaces leave as their solved
+    bases (under no light) and its lamps (`roomLamps`) as glTF point lights: each at its flame, its solved key as colour
+    and π × its level as intensity (`out = base × light`, `form/room-light.js`), its radius as range. The stage's own
+    lights are dropped where the solve's stand (the same flames at the paint's levels). Absent the flag, every byte as
+    before.
+  - Left the web's (in the ledger): the layered ground's blend itself (carried as data), a room's baked bounce and
+    ambient (`cornerLight` per corner and `room.ambient`: phase 3's environment record takes the ambient; the bounce could
+    ride as an attribute or be left to an engine's own lightmapper), a room's painted tiles read back as relief
+    (`room.maps`, `form/room-form.js`'s luminance read; its ORM keeps height in the blue too).
+  - Size: the trail's handoff is about 48 MB: the land and its cut cliff leave as unwelded triangle soup with float
+    colours, normals and weights (about 716,000 vertices). Welding and indexing the land parts, and quantizing the
+    weights to bytes, is the obvious next saving.
 

@@ -662,12 +662,14 @@ class GlbBuilder {
   // The engine handoff's instances (scene/handoff.js): one template mesh (its outward normals, and when it has them its
   // texture coordinates, its colours and its indices) and a node per instance with a FULL TRS (a quaternion and a per-axis
   // scale, in the pre-root z-up frame), where addInstancedNodes turns about +Z and scales evenly. Used only by a handoff.
-  addFormInstances(name, { positions, normals = null, uvs = null, colors = null, indices = null }, materialIndex, transforms) {
+  addFormInstances(name, { positions, normals = null, uvs = null, colors = null, indices = null, splat = null }, materialIndex, transforms) {
     const attributes = { POSITION: this.floatAccessor(positions, 3, bounds3(positions)) };
     if (normals && normals.length) attributes.NORMAL = this.floatAccessor(normals, 3);
     // (glTF's texture origin is the image's top-left: v flipped on the way out, as addNode flips it)
     if (uvs && uvs.length) attributes.TEXCOORD_0 = this.floatAccessor(Float32Array.from(uvs, (x, i) => (i % 2 ? 1 - x : x)), 2);
     if (colors && colors.length) attributes.COLOR_0 = this.floatAccessor(colors, 3);
+    // (a layered ground's four layers' weights a corner, glTF's application attribute: an engine's terrain shader reads it)
+    if (splat && splat.length) attributes._SPLAT = this.floatAccessor(splat, 4);
     const prim = { attributes, mode: MODE_TRIANGLES, material: materialIndex };
     if (indices && indices.length) prim.indices = this.indexAccessor(indices);
     this.json.meshes.push({ name, primitives: [prim] });
@@ -1808,6 +1810,7 @@ export function facesToGlb(payload = {}, { generator, clips = null, skinned = fa
   // The engine handoff's instances (scene/handoff.js `instances`: the form render's scree stones, its plants): each set its
   // template under a lit dielectric material of its own colour, a node per instance. Absent, as every other export: no
   // bytes.
+  let terrainTex = null;
   for (const set of Array.isArray(instances) ? instances : []) {
     if (!set || !set.positions?.length || !set.transforms?.length) continue;
     // (a textured set, a plant's bark: its own colour, its relief's normal, occlusion and roughness as glTF's metal-rough
@@ -1818,6 +1821,11 @@ export function facesToGlb(payload = {}, { generator, clips = null, skinned = fa
       ...(base != null ? { baseColorTexture: base } : {}), ...(normal != null ? { normalTexture: normal } : {}), ...(orm != null ? { ormTexture: orm } : {}),
       ...(height != null ? { extras: { mojulo: { height: { index: height }, depth: set.depth, metres: set.metres } } } : {}) });
     if (orm != null) b.json.materials[mat].pbrMetallicRoughness.metallicFactor = 0;
+    // (a layered ground: its terrain's layer atlases written once, every ground part's material pointing at them)
+    if (set.terrain) {
+      const t = (terrainTex ??= Object.fromEntries(['base', 'normal', 'orm'].map((k) => [k, b.imageFromDataUrl(set.terrain.atlases[k])])));
+      b.json.materials[mat].extras = { mojulo: { terrain: { part: set.terrain.part, splat: '_SPLAT', layers: { base: { index: t.base }, normal: { index: t.normal }, orm: { index: t.orm } }, ...set.terrain.read } } };
+    }
     const r = b.addFormInstances(set.name, set, mat, set.transforms);
     vertexCount += r.vertices * set.transforms.length;
     triangleCount += r.triangles * set.transforms.length;

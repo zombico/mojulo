@@ -21,13 +21,24 @@
  *     its relief's tangent-space normal, glTF's ORM (occlusion red, roughness green, no metal) and its height as its own
  *     grey map over `depth` metres, for an engine's parallax. A tile painted any other way keeps its paint (its light
  *     painted in, the ledger says so)
+ *   landParts(land) → [instance set]: the form render's land (form/land-read.js formPayload), each part of it (a ground
+ *     class: rock, scree, soil, sand, the trail's, the shallows' floor) a mesh of its own, shaded smooth as the page
+ *     shades it, each corner its palette-solved base colour (the albedo a plain glTF reader shows) and, on the layered
+ *     ground, its four layers' weights (`_SPLAT`) with the layers' atlases, their tiles and their means in its material's
+ *     `extras.mojulo.terrain`: what an engine's terrain shader blends (each layer along the face's dominant axis, by
+ *     weight and by its own height, as the page does). The painted faces it stands for leave the export; the sea stays
+ *     the painted one
+ *   roomLamps(room) → [glTF point light]: a room's lamps under the form render's solve (form/room-light.js): each where
+ *     its flame is, its solved key as its colour and, in a renderer's units, its strength (π × the key's level: out =
+ *     base × light, form/room-light.js), its reach its radius. With them its surfaces leave as their solved bases, so the
+ *     engine's lamps light them as the page's bake does
  *   floraInstances(flora) → [instance set]: the form render's plants (form/flora-read.js), per template its wood on its
  *     bark (base, normal, ORM, the height in the extras) and its crown (its clumps merged in its own space as the page
  *     merges them, each leaf's normal bent toward the crown's outside, as the page's shader bends it), each plant a node
  *     of each, turned about +Z and scaled to its height
  *
- * Built so far: the albedo floor, the scree's stones, the plants and the dressed faces. The land's layers, the rooms'
- * light, the environment and the markers join as their phases land.
+ * Built so far: the albedo floor, the scree's stones, the plants, the dressed faces, the land as form, its rock's relief
+ * as geometry and a room's lamps over its solved bases. The environment and the markers join as their phases land.
  */
 import { resolveWorldScene } from '../worlds/world-scene.js';
 import { facesToGlb } from './scene-gltf.js';
@@ -43,11 +54,12 @@ export const HANDOFF_ERA = 'gen-7';
 
 // (what the page draws that the handoff does not carry yet: each leaves the ledger as the phase that adds it lands)
 const STAYS = Object.freeze([
-  'the land\'s layered ground (its layers, their relief and parallax): the land leaves as its painted faces\' albedo',
+  'the layered ground\'s blend: its layers\' weights and atlases are carried for an engine\'s terrain shader, the path, the trail\'s dress, the moss, the undergrowth and the scree\'s thinning are the page\'s; a plain reader sees each corner\'s solved colour',
   'the stones\' skin (the rock layer\'s tile over them): each stone leaves in its solved colour',
   'each plant\'s own tint (a template\'s plants leave in their mean leaf and bark colour), the wind, the sprays near the eye, the far levels of detail (an engine makes its own), a needled crown\'s needles, a shrub\'s blossoms and berries',
   'a tile painted other than from relief (its light painted in): it leaves as its paint',
   'the grass and its drifts',
+  'a room\'s baked bounce and ambient (its lamps leave as lights, its surfaces as their solved bases)',
   'the light: the sun at the level\'s hour, the sky, fog and occlusion',
 ]);
 
@@ -113,6 +125,120 @@ export function dressedMaterials(keys) {
     if (dressedCache.get(key)) out[key] = dressedCache.get(key);
   }
   return out;
+}
+
+// --- the land as form (the page's channels/form-land.js parts, without three) ---
+
+const LIN8 = Float32Array.from({ length: 256 }, (_, v) => { const c = v / 255; return c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4; });
+const i8 = (s) => { const b = Buffer.from(s, 'base64'); return new Int8Array(b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength)); };
+/** The painted groups the form's land stands for, but its water: the sea leaves painted (the page draws it as a plane
+ *  over the depth, an engine as its own water). */
+export const landHides = (land) => (land?.hides ?? []).filter((g) => !/:water$/.test(g));
+
+// THE ROCK'S RELIEF AS GEOMETRY (the page's reliefPart, channels/form-land.js): a cliff's triangles cut into a finer
+// grid (NS a side) and every point pushed along its normal by the relief (form/rock-relief.js, read along the face's two
+// side axes as the page reads it), by how steep it stands; a corner shared with another part stays where it is, so the
+// cliff meets the land round it without a gap; the cut faces' normals their own, blended back to the land's where
+// nothing moved
+const sst = (a, b, v) => { const t = Math.max(0, Math.min(1, (v - a) / (b - a))); return t * t * (3 - 2 * t); };
+const steepOf = (nz) => 1 - sst(0.5, 0.8, Math.abs(nz));
+function reliefField(relief) {
+  const b = Buffer.from(relief.px, 'base64'), q = new Uint16Array(b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength)), sp = relief.hi - relief.lo;
+  return { N: relief.size, T: relief.tile, h: Float32Array.from(q, (v) => (v / 65535 - 1) * sp) };
+}
+function reliefAt(RF, x, y, z, nx, ny, nz) {
+  const st = steepOf(nz); if (st <= 0) return 0;
+  const { N, T, h } = RF, samp = (u, v) => {
+    const fx = (((u / T) % 1) + 1) % 1 * N - 0.5, fy = (((v / T) % 1) + 1) % 1 * N - 0.5, i = Math.floor(fx), j = Math.floor(fy), ax = fx - i, ay = fy - j;
+    const at = (a, bb) => h[(((bb % N) + N) % N) * N + (((a % N) + N) % N)];
+    return (at(i, j) * (1 - ax) + at(i + 1, j) * ax) * (1 - ay) + (at(i, j + 1) * (1 - ax) + at(i + 1, j + 1) * ax) * ay;
+  };
+  const aX = Math.abs(nx), aY = Math.abs(ny), bx = aX / Math.max(1e-4, aX + aY);
+  const [u1, u2, w2] = aX >= aY ? [y * Math.sign(nx), -x * Math.sign(ny), 0.5 * (1 - sst(0, 0.12, bx - 0.5))] : [-x * Math.sign(ny), y * Math.sign(nx), 0.5 * (1 - sst(0, 0.12, 0.5 - bx))];
+  return st * ((1 - w2) * samp(u1, z) + w2 * samp(u2, z));
+}
+const RELIEF_NS = 6;
+function reliefCut(R, ranges, POS, COL, SPLF, NRMF, RF) {
+  const key = (x, y, z) => Math.round(x * 500) + ',' + Math.round(y * 500) + ',' + Math.round(z * 500), NS = RELIEF_NS;
+  const others = new Set(); for (const Q of ranges) if (Q !== R) for (let v = Q.start; v < Q.start + Q.count; v++) others.add(key(POS[v * 3], POS[v * 3 + 1], POS[v * 3 + 2]));
+  const P = [], CO = [], SP = [], NI = [], WK = [], cut = [];
+  const push = (p, c, sp, n, w, k) => { P.push(p[0], p[1], p[2]); CO.push(c[0], c[1], c[2]); SP.push(sp[0], sp[1], sp[2], sp[3]); NI.push(n[0], n[1], n[2]); WK.push(w); cut.push(k); };
+  const corner = (v) => ({ p: [POS[v * 3], POS[v * 3 + 1], POS[v * 3 + 2]], c: [COL[v * 3], COL[v * 3 + 1], COL[v * 3 + 2]], s: [SPLF[v * 4], SPLF[v * 4 + 1], SPLF[v * 4 + 2], SPLF[v * 4 + 3]], n: [NRMF[v * 3], NRMF[v * 3 + 1], NRMF[v * 3 + 2]] });
+  const mix3 = (A, B, Cc, a, b, c) => A.map((_, k) => A[k] * c + B[k] * a + Cc[k] * b);
+  for (let v = R.start; v < R.start + R.count; v += 3) {
+    const K = [corner(v), corner(v + 1), corner(v + 2)], free = K.map((q) => (others.has(key(...q.p)) ? 0 : 1));
+    if (free.every((f) => !f) || K.every((q) => steepOf(q.n[2]) <= 0)) { for (const q of K) push(q.p, q.c, q.s, q.n, 0, 0); continue; }
+    const idx = (i, j) => i * (NS + 1) - (i * (i - 1)) / 2 + j, pts = [];
+    for (let i = 0; i <= NS; i++) for (let j = 0; j <= NS - i; j++) {
+      const a = i / NS, b = j / NS, c = 1 - a - b, p = mix3(K[0].p, K[1].p, K[2].p, a, b, c), nr = mix3(K[0].n, K[1].n, K[2].n, a, b, c), l = Math.hypot(...nr) || 1, n = nr.map((x) => x / l);
+      const w = free[0] * c + free[1] * a + free[2] * b, d = w * reliefAt(RF, p[0], p[1], p[2], n[0], n[1], n[2]);
+      pts.push([p.map((x, k) => x + n[k] * d), mix3(K[0].c, K[1].c, K[2].c, a, b, c), mix3(K[0].s, K[1].s, K[2].s, a, b, c), n, w * steepOf(n[2])]);
+    }
+    const tri = (q0, q1, q2) => { for (const q of [q0, q1, q2]) { const t = pts[q]; push(t[0], t[1], t[2], t[3], t[4], 1); } };
+    for (let i = 0; i < NS; i++) for (let j = 0; j < NS - i; j++) {
+      tri(idx(i, j), idx(i + 1, j), idx(i, j + 1));
+      if (j < NS - i - 1) tri(idx(i + 1, j), idx(i + 1, j + 1), idx(i, j + 1));
+    }
+  }
+  const n = P.length / 3, acc = new Map(), fn = new Float32Array(n * 3);
+  for (let t = 0; t < n; t += 3) {
+    if (!cut[t]) continue;
+    const a = t * 3, e1 = [P[a + 3] - P[a], P[a + 4] - P[a + 1], P[a + 5] - P[a + 2]], e2 = [P[a + 6] - P[a], P[a + 7] - P[a + 1], P[a + 8] - P[a + 2]];
+    const cr = [e1[1] * e2[2] - e1[2] * e2[1], e1[2] * e2[0] - e1[0] * e2[2], e1[0] * e2[1] - e1[1] * e2[0]];
+    for (let k = 0; k < 3; k++) { const q = key(P[(t + k) * 3], P[(t + k) * 3 + 1], P[(t + k) * 3 + 2]), sm = acc.get(q) ?? [0, 0, 0]; sm[0] += cr[0]; sm[1] += cr[1]; sm[2] += cr[2]; acc.set(q, sm); }
+  }
+  for (let v = 0; v < n; v++) {
+    let nx = NI[v * 3], ny = NI[v * 3 + 1], nz = NI[v * 3 + 2];
+    if (cut[v]) {
+      const sm = acc.get(key(P[v * 3], P[v * 3 + 1], P[v * 3 + 2])), l = Math.hypot(...sm) || 1, k = sst(0, 0.25, WK[v]);
+      nx += (sm[0] / l - nx) * k; ny += (sm[1] / l - ny) * k; nz += (sm[2] / l - nz) * k;
+    }
+    const l = Math.hypot(nx, ny, nz) || 1; fn[v * 3] = nx / l; fn[v * 3 + 1] = ny / l; fn[v * 3 + 2] = nz / l;
+  }
+  return { positions: Float32Array.from(P), colors: Float32Array.from(CO), splat: Float32Array.from(SP), normals: fn, cut: cut.filter(Boolean).length / 3 };
+}
+
+export function landParts(land) {
+  if (!land || !land.ranges?.length) return [];
+  const POS = f32(land.pos), C7 = u8(land.c7), SPL = u8(land.spl), NRM = i8(land.nrm), keys = land.layers?.keys ?? [];
+  const RF = land.relief ? reliefField(land.relief) : null;
+  const L = land.layers, atlases = L ? { base: L.base, normal: L.normal, orm: L.orm } : null;
+  const read = L ? { tile: L.tile, mean: L.mean, keys, atlas: { cells: keys.length, grid: 3, size: L.size }, ormBlue: 'height' } : null;
+  const sets = [];
+  for (const R of land.ranges) {
+    // (the sea: the painted one stays; what the read could not class stays painted)
+    if (R.key === 'water' || R.key === 'unread' || !R.count) continue;
+    const a = R.start, n = R.count, ground = keys.includes(R.key.split(':')[0]), floor = R.key === 'sand:under';
+    const positions = POS.slice(a * 3, (a + n) * 3), colors = new Float32Array(n * 3), normals = new Float32Array(n * 3);
+    for (let v = 0; v < n; v++) for (let c = 0; c < 3; c++) {
+      colors[v * 3 + c] = LIN8[C7[(a + v) * 4 + c]];
+      normals[v * 3 + c] = floor ? (c === 2 ? 1 : 0) : Math.max(-1, NRM[(a + v) * 3 + c] / 127);
+    }
+    let splat = ground ? Float32Array.from(SPL.subarray(a * 4, (a + n) * 4), (x) => x / 255) : null;
+    // (a cliff under a relief: its rock as geometry, cut and pushed as the page pushes it)
+    let geo = { positions, normals, colors }, cut = 0;
+    if (RF && R.key === 'cliff') {
+      const all = { POS, COL: new Float32Array(POS.length), SPLF: new Float32Array(SPL.length), NRMF: new Float32Array(NRM.length) };
+      for (let k = 0; k < POS.length; k++) { all.COL[k] = LIN8[C7[Math.floor(k / 3) * 4 + (k % 3)]]; all.NRMF[k] = Math.max(-1, NRM[k] / 127); }
+      for (let k = 0; k < SPL.length; k++) all.SPLF[k] = SPL[k] / 255;
+      const C = reliefCut(R, land.ranges, POS, all.COL, all.SPLF, all.NRMF, RF);
+      geo = { positions: C.positions, normals: C.normals, colors: C.colors }; cut = C.cut;
+      if (ground) splat = C.splat;
+    }
+    sets.push({ name: `form:land:${R.key.replace(/[^A-Za-z0-9_-]/g, '_')}`, ...geo, ...(splat ? { splat } : {}), ...(cut ? { relief: cut } : {}),
+      transforms: [{ translation: [0, 0, 0] }], color: [1, 1, 1], roughness: R.rough ?? 0.9,
+      ...(ground && atlases ? { terrain: { part: R.key, atlases, read } } : {}) });
+  }
+  return sets;
+}
+
+// --- a room's lamps ---
+
+export function roomLamps(room) {
+  return (room?.lights ?? []).map((l, i) => {
+    const m = Math.max(...l.key, 1e-9);
+    return { name: `form:lamp:${i}`, type: 'point', position: l.at, color: l.key.map((v) => r5(v / m)), intensity: r5(Math.PI * m), range: l.radius };
+  });
 }
 
 // --- the plants (the page's channels/form-flora.js, its merge and placement, without three) ---
@@ -213,17 +339,25 @@ export async function resolveHandoff(sketch, { what = 'level' } = {}) {
   if (!HANDOFF_WHATS.includes(what)) throw new Error(`handoff: what is ${HANDOFF_WHATS.join(' | ')} (got '${what}')`);
   const { payload, kind } = await resolveWorldScene(sketch, { unshaded: true, era: HANDOFF_ERA, handoff: true });
   if (!payload) throw new Error(`handoff: '${sketch?.ref ?? sketch?.title ?? '?'}' resolves to no scene`);
-  const instances = [...stoneInstances(payload.form?.land?.stones), ...floraInstances(payload.form?.flora)];
-  const keys = (payload.faces || []).map((f) => f && f.texture).filter((k) => typeof k === 'string');
+  const land = payload.form?.land ?? null, hides = new Set(landHides(land));
+  const instances = [...landParts(land), ...stoneInstances(land?.stones), ...floraInstances(payload.form?.flora)];
+  // (the painted faces the form's land stands for leave: the land is its parts above)
+  const lamps = roomLamps(payload.form?.room);
+  const handed = hides.size || lamps.length ? { ...payload, ...(hides.size ? { faces: (payload.faces || []).filter((f) => !(f && hides.has(f.group))) } : {}),
+    // (a room under the solve: its lamps are the solve's, the stage's own lights the same flames at the paint's levels)
+    ...(lamps.length ? { lights: lamps } : {}) } : payload;
+  const keys = (handed.faces || []).map((f) => f && f.texture).filter((k) => typeof k === 'string');
   const materials = dressedMaterials(keys);
-  const exported = facesToGlb(payload, { generator: `mojulo handoff ${sketch?.ref ?? ''}`.trim(), lit: true, handoff: true, instances, materials });
+  const exported = facesToGlb(handed, { generator: `mojulo handoff ${sketch?.ref ?? ''}`.trim(), lit: true, handoff: true, instances, materials });
   if (!exported) throw new Error(`handoff: '${sketch?.ref ?? sketch?.title ?? '?'}' has nothing to hand off`);
   const counts = {};
   // (a plant counts once, though its wood and its crown are two sets)
-  for (const s of instances) { if (s.name.endsWith(':crown')) continue; const k = s.name.split(':')[1]; counts[k] = (counts[k] ?? 0) + s.transforms.length; }
+  for (const s of instances) { if (s.name.endsWith(':crown') || s.name.startsWith('form:land:')) continue; const k = s.name.split(':')[1]; counts[k] = (counts[k] ?? 0) + s.transforms.length; }
+  const landSets = instances.filter((s) => s.name.startsWith('form:land:'));
   const ledger = {
     version: HANDOFF_VERSION, era: HANDOFF_ERA, what,
-    carried: { faces: Array.isArray(payload.faces) ? payload.faces.length : 0, instances: counts, materials: { dressed: Object.keys(materials).length, painted: new Set(keys).size - Object.keys(materials).length } },
+    carried: { faces: Array.isArray(handed.faces) ? handed.faces.length : 0, instances: counts, ...(lamps.length ? { lamps: lamps.length } : {}),
+      ...(landSets.length ? { land: { parts: landSets.length, layered: landSets.filter((s) => s.terrain).length, vertices: landSets.reduce((a, s) => a + s.positions.length / 3, 0), reliefCut: landSets.reduce((a, s) => a + (s.relief ?? 0), 0) } } : {}), materials: { dressed: Object.keys(materials).length, painted: new Set(keys).size - Object.keys(materials).length } },
     stays: [...STAYS],
   };
   return { kind, payload, exported, instances, materials, ledger };

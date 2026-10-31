@@ -35,4 +35,11 @@ Built so far:
   soffits, a crypt's ashlar, a house's render and tiles) leaves as the material it was painted from: its colour under no
   light, its relief's normal, its occlusion and roughness, and its height for parallax, instead of the tile with the
   light painted in. A tile painted any other way leaves as its paint, and the ledger counts both.
+- **The land as form.** The island's and the trail's ground leaves as the form render draws it, in place of its painted
+  faces: each ground class a mesh of its own, shaded smooth, each corner its palette-solved colour, and on the layered
+  ground each corner's four layers' weights with the layers' textures alongside, for an engine's terrain shader to blend
+  as the page does. The cliff's rock relief leaves as geometry, cut and pushed as the page pushes it, meeting the land
+  round it without a gap.
+- **A room's lamps.** A room under the form render leaves with its surfaces in their solved colours under no light and
+  its lamps as point lights at the levels the solve gives them, so the engine's lamps light it as the page's bake does.
 

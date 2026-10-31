@@ -317,7 +317,10 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     // (formLit: a room under no sun drawn by the form render, its colour and its light baked apart by its palette's solve
     // and its relief lit on the page: era/stage.js, form/room-light.js; a page's read only: the unshaded export bakes none of it, and `paint: true` (an
     // engine or file export, which carries its surfaces as paint until it carries materials) keeps the paint)
-    ...(ERAS[era]?.surface === 'form' && !unshaded && viewOpts.paint !== true ? { formLit: true } : {}),
+    ...(ERAS[era]?.surface === 'form' && (!unshaded || viewOpts.handoff === true) && viewOpts.paint !== true ? { formLit: true } : {}),
+    // (the engine handoff, scene/handoff.js: a room's light solved apart from its colour though the read is unshaded, so
+    // its surfaces leave as their solved bases and its lamps as lights an engine casts)
+    ...(viewOpts.handoff === true ? { handoff: true } : {}),
     // the live /world page (not an export or a still): a kind that meshes itself in the page may skip its bake
     live: !!viewOpts.live,
     // FLAT_LIGHT when unshaded, else undefined → each object-kind assembler falls back to
