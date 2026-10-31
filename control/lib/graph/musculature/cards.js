@@ -250,7 +250,23 @@ const SAIKYO_FEMALE = (() => {
   return { legs: SAIKYO.legs, note: 'the Saikyo body\'s female: muscular and athletic on the anime frame\'s female (a broad capped shoulder, sweeping lats, a narrow waist, a full high round seat, strong hamstrings and diamond calves, her bust its own one-level group)', grain: SAIKYO.grain, groups };
 })();
 
-export const MUSCLE_CARDS = Object.freeze({ saikyo: Object.freeze({ ...SAIKYO, casts: Object.freeze({ female: SAIKYO_FEMALE }) }), 'saikyo-female': SAIKYO_FEMALE });
+/** a card SLIMMED: every group restyled by the same proud and radii (a group's own over it, `groups`), its legs its own.
+ * The slim bodies' cards: the same muscles, leaner and drier, on a frame whose half biacromial already scales them */
+const slimmed = (card, { proud = 1, r = 1, legs = card.legs, groups = {}, note }) => ({
+  ...card, note, legs, groups: card.groups.map((g) => restyled(g, { proud: proud * (groups[g.id]?.proud ?? 1), r: [0, 1, 2].map((k) => (Array.isArray(r) ? r[k] : r) * (Array.isArray(groups[g.id]?.r) ? groups[g.id].r[k] : groups[g.id]?.r ?? 1)) })),
+});
+/** SATORU's (the slim male's): the base's muscles lean and dry, every mass lower and a little slimmer, the arms and the
+ * chest the leanest (a swimmer's, not a bodybuilder's), the lats and the shoulder's cap kept fuller for his V */
+const SATORU = slimmed(SAIKYO, { proud: 0.62, r: 0.92, legs: 1.03, note: 'Satoru\'s: the slim male\'s muscles, lean and dry, a swimmer\'s V (the lats and the shoulder\'s cap fuller, the arms and the chest the leanest)',
+  groups: { back: { proud: 1.2, r: [1, 1.05, 1] }, deltoid: { proud: 1.1 }, biceps: { proud: 0.85 }, triceps: { proud: 0.9 }, chest: { proud: 0.85 }, core: { proud: 1.1 } } });
+/** MAKI's (the slim female's): Mizuki's muscles lean, her seat and her legs an athlete's still, her bust held */
+const MAKI = slimmed(SAIKYO_FEMALE, { proud: 0.65, r: 0.93, legs: 1.03, note: 'Maki\'s: the slim female\'s muscles, an athlete\'s, lean (her seat, her hamstrings and her calves kept fuller, her bust held)',
+  groups: { bust: { proud: 1 / 0.65, r: [1 / 0.93, 1 / 0.93, 1 / 0.93] }, seat: { proud: 1.15 }, hamstrings: { proud: 1.1 }, calf: { proud: 1.1 }, core: { proud: 1.1 } } });
+
+/** the cards by word: each body codename's (anime-bodies.js: toji, mizuki, satoru, maki), and `saikyo`, the base's by
+ * its old name, Toji's or, on a female wearer, Mizuki's */
+const TOJI = Object.freeze({ ...SAIKYO, casts: Object.freeze({ female: SAIKYO_FEMALE }) });
+export const MUSCLE_CARDS = Object.freeze({ saikyo: TOJI, 'saikyo-female': SAIKYO_FEMALE, toji: TOJI, mizuki: SAIKYO_FEMALE, satoru: SATORU, maki: MAKI });
 export const MUSCLE_CARD_NAMES = Object.freeze(Object.keys(MUSCLE_CARDS));
 export const MUSCLE_FRAMES = Object.freeze(['trunk', 'upperArm', 'foreArm', 'thigh', 'shank']);
 

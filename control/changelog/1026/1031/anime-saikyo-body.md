@@ -154,6 +154,20 @@ fractal articulation of the big groups. The eyes gate is the operator's.
   teardrop and the calf's form-end mass are held in (her knee is slimmer than his, and they ballooned into a ball). The
   door passes the hero's cast (`muscleShirt(recipe, spec, { cast })`; a card may carry `casts`), and a spec's `groups`
   may name a cast's groups (`bust`).
+- **Body codenames, each a dyad** (the operator's: "the muscular form and the simplified muscular form share the same
+  base"; `polygonizer/anime-bodies.js`, the hero door's `animeBody`): a codename names a body on the anime frame, worn
+  two ways. Its SIMPLIFIED form is a body tune laid in place of the head style's body (the style's head size kept, the
+  hero's own tune and a look composing over it as before), so any anime head wears any body of its pole; its MUSCULAR
+  form is the `muscleShirt` over that same base, wearing the codename's own card when the shirt names none. The door
+  stores the word beside a resolved stamp (`animeBodyResolved`, as `animeStyleResolved`), refuses a word of the other
+  pole and one without the anime head. TOJI (male) and MIZUKI (female) are the base: Z-Fighter's bodies, so a hero that
+  names them draws as a Z-Fighter hero does, and their cards are the Saikyo cards (`toji`, `mizuki`; `saikyo` the same
+  by its old name). SATORU (male, slim): a tall, long-limbed swimmer's V, near Shonen High's size and set apart from it
+  by height in the legs and a broad shoulder over a narrow waist; his card the base's muscles lean and dry (every mass
+  0.62 as proud and 0.92 as large, the lats and the shoulder's cap kept fuller for the V, the arms and the chest the
+  leanest). MAKI (female, slim): an athlete near Shonen High's size, a squarer shoulder, a held waist, fuller thighs
+  and calves; her card Mizuki's muscles lean (0.65, 0.93), her seat, hamstrings and calves kept fuller, her bust held.
+  A slim card is the base's `slimmed` (musculature/cards.js).
 - **The legs lengthened** (the operator's: the hands and the feet grown with the arms and the legs read the figure
   stocky; `passes.js` `lengthened`, a card's `legs`, the Saikyo cards' 1.06): the leg's shells, its joints and the pelvis
   stretched up from the ankle to the hip joint, everything over the hip lifted by as much (about 5 cm), so the soles stay

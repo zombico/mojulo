@@ -19,9 +19,10 @@ export { FORM_GAIN, DETAIL_GAIN, BLEND, presence, articulation } from './princip
 const r6 = (x) => Math.round(x * 1e6) / 1e6;
 
 /** the spec resolved: { card, word, definition, groups, nipples, activity } (a word, or an object of SPEC_KEYS) */
-export function resolveMuscleShirt(spec, cast = null) {
+export function resolveMuscleShirt(spec, cast = null, bodyCard = null) {
   const s = typeof spec === 'string' ? { card: spec } : spec ?? {};
-  const word = typeof s.card === 'string' || s.card === undefined ? (s.card ?? 'saikyo') : null;
+  // (no card named: the body codename's own, its muscular form over its simplified form's base; else the base's)
+  const word = typeof s.card === 'string' || s.card === undefined ? (s.card ?? bodyCard ?? 'saikyo') : null;
   // (a card word names the cast's own card where the card carries one: 'saikyo' on a female wearer, her card)
   const named = word ? MUSCLE_CARDS[word] : s.card, card = (cast && named?.casts?.[cast]) || named;
   return { card, word, definition: s.definition ?? 0.5, groups: s.groups ?? {}, nipples: s.nipples === true, activity: s.activity !== false };
@@ -57,9 +58,9 @@ export function validateMuscleShirt(spec, label = 'muscleShirt') {
 
 /** THE MUSCLE SHIRT PUT ON: `recipe` a lofted hero's (its rig's joints, its body's closed lofts), `spec` as above.
  * Returns { recipe, report: { card, definition, masses, missed, moved, points } } */
-export function muscleShirt(recipe, spec, { cast = null } = {}) {
+export function muscleShirt(recipe, spec, { cast = null, card: bodyCard = null } = {}) {
   const errs = validateMuscleShirt(spec); if (errs.length) throw new Error(`musculature: ${errs.join('; ')}`);
-  const { card, word, definition, groups: own, nipples, activity } = resolveMuscleShirt(spec, cast);
+  const { card, word, definition, groups: own, nipples, activity } = resolveMuscleShirt(spec, cast, bodyCard);
   const F = frames(recipe.rig), skin = skinOf(recipe), grain = card.grain ?? 0.011;
   // 1. DENSIFY the midline parts and the right limbs (their left partners mirrored at the end)
   const dense = {};

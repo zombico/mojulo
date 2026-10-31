@@ -82,6 +82,7 @@ import { ANIME_HAIR_STYLES } from '@/lib/graph/polygonizer/anime-head';
 import { validateGenki, genkiStand } from '@/lib/graph/polygonizer/anime-genki';
 import { ANIME_STYLE_NAMES, validateAnimeStyle, resolveAnimeStyle, animeStyleOf } from '@/lib/graph/polygonizer/anime-styles';
 import { muscleShirt, validateMuscleShirt } from '@/lib/graph/musculature';
+import { ANIME_BODY_NAMES, validateAnimeBody, resolveAnimeBody } from '@/lib/graph/polygonizer/anime-bodies';
 import { LOOK_TABLES, validateLook, resolveLook, composeAnime, heroHeadPole as headPoleOf, animeHeroEffective as animeEffective, animeFaceBase, animeSculptBase, castHeadPole as castHeadPoleOf, heroFeatureAdvice, heroHairPole } from '@/lib/graph/polygonizer/anime-looks';
 import { ANIME_SCULPT, ANIME_SCULPT_KEYS, SCULPT_SHAPE_KEYS, validateAnimeSculpt, resolveAnimeSculpt, sparseSculpt, animeSculptWarnings, describeAnimeSculpt } from '@/lib/graph/polygonizer/anime-sculpt';
 import { layeredStats, persistedLayeredLedger } from '@/lib/graph/polygonizer/station-loft-faces';
@@ -265,7 +266,8 @@ function withBodySmooth(recipe, hero) {
 /** A hero wearing the MUSCLE SHIRT (`muscleShirt`, musculature/: a flat body puts it on and its muscles show up): its
  * body's skin re-sampled at the shirt's grain and carried out to the card's muscles. Without one: as it was. */
 function withMuscleShirt(recipe, hero) {
-  return hero?.muscleShirt ? muscleShirt(recipe, hero.muscleShirt, { cast: hero.cast ?? null }).recipe : recipe;
+  // (a body codename's own card when the shirt names none: the muscular form over the simplified form's base)
+  return hero?.muscleShirt ? muscleShirt(recipe, hero.muscleShirt, { cast: hero.cast ?? null, card: hero.animeBodyResolved?.card ?? null }).recipe : recipe;
 }
 /** The realistic form's build (body-relational.js): the cast's pole's (male: norrin, female: shalla) under the record's
  * physique (its laws aside) */
@@ -769,6 +771,9 @@ export function normalizeHero(hero) {
   // its stamp (so a re-tuned style never moves this row)
   if (hero.animeStyle === undefined || hero.animeStyle === null) { if (hero.animeStyle !== undefined || hero.animeStyleResolved !== undefined) { const { animeStyle: _a, animeStyleResolved: _b, ...rest } = hero; hero = rest; } }
   else if (hero.animeStyleResolved?.word !== hero.animeStyle) hero = { ...hero, animeStyleResolved: resolveAnimeStyle(hero.animeStyle) };
+  // (the body codename's stamp as the style's: set again when its word changes, dropped when the word is)
+  if (hero.animeBody === undefined || hero.animeBody === null) { if (hero.animeBody !== undefined || hero.animeBodyResolved !== undefined) { const { animeBody: _a, animeBodyResolved: _b, ...rest } = hero; hero = rest; } }
+  else if (hero.animeBodyResolved?.word !== hero.animeBody) hero = { ...hero, animeBodyResolved: resolveAnimeBody(hero.animeBody) };
   const words = hero.look === undefined || hero.look === null ? [] : Array.isArray(hero.look) ? hero.look : [hero.look];
   if (!words.length) { if (hero.look === undefined && hero.lookResolved === undefined) return hero; const { look: _l, lookResolved: _r, ...rest } = hero; return rest; }
   if (hero.lookResolved && JSON.stringify(hero.lookResolved.words) === JSON.stringify(words)) return Array.isArray(hero.look) ? hero : { ...hero, look: words };
@@ -819,7 +824,7 @@ export const STREAMLINED_DEPRECATED = "the streamlined core (core: 'streamlined'
  * its tongue behind the lips in an open cup, the lips' corners bound half to the jaw), where laws 2 to 11 closed a bag
  * behind the lips, bound each lip wholly to its bone to the corner, and an open mouth was a box onto the bag's dark front */
 export const REALISTIC_LAWS_VERSION = 12;
-export const HERO_FIELDS = ['cast', 'register', 'tune', 'body', 'girth', 'headScale', 'scale', 'palette', 'head', 'face', 'hair', 'expression', 'headPreset', 'look', 'proportions', 'detail', 'adorn', 'paint', 'outfit', 'gesture', 'sculpt', 'clips', 'blink', 'gear', 'core', 'statue', 'genki', 'motion', 'target', 'geocube', 'form', 'physique', 'skin', 'painterly', 'stylism', 'laws', 'kit', 'name', 'emblem', 'undead', 'beast', 'perform', 'acting', 'animeStyle', 'muscleShirt'];
+export const HERO_FIELDS = ['cast', 'register', 'tune', 'body', 'girth', 'headScale', 'scale', 'palette', 'head', 'face', 'hair', 'expression', 'headPreset', 'look', 'proportions', 'detail', 'adorn', 'paint', 'outfit', 'gesture', 'sculpt', 'clips', 'blink', 'gear', 'core', 'statue', 'genki', 'motion', 'target', 'geocube', 'form', 'physique', 'skin', 'painterly', 'stylism', 'laws', 'kit', 'name', 'emblem', 'undead', 'beast', 'perform', 'acting', 'animeStyle', 'animeBody', 'muscleShirt'];
 /** what the hero door takes beside a hero's own words: the mint's (the layered kind's top-level keys) and `vibe` */
 /** A named hero's name is its own on this machine: refused when another hero (any ref but `ref`) holds it, as names are
  * compared (case and spacing aside), naming the hero that holds it. */
@@ -1009,6 +1014,10 @@ export function validateHeroSpec(spec, { staleScale = false } = {}) {
   }
   // THE ANIME FACE'S ACTING (anime-face-rig.js sevenG): `full` draws the 7G drawings at any target, `basic` the four
   // channels at any target; unset, a take on a target of T3 or higher draws the 7G (era/cast-spend.js DENSE_TIERS)
+  if (spec.animeBody !== undefined && spec.animeBody !== null) {
+    if (spec.head !== 'anime') errs.push(`animeBody: the anime frame's body (head: 'anime'): ${ANIME_BODY_NAMES.join(', ')}`);
+    else errs.push(...validateAnimeBody(spec.animeBody, typeof spec.cast === 'string' && ['male', 'female'].includes(spec.cast) ? spec.cast : null));
+  }
   if (spec.muscleShirt !== undefined && spec.muscleShirt !== null) {
     if (spec.form === 'realistic') errs.push("muscleShirt: the lofted body's (the tiered hero's); the realistic body's muscles are its physique");
     else errs.push(...validateMuscleShirt(spec.muscleShirt));
@@ -1226,6 +1235,7 @@ export function heroRecord(spec, { staleScale = false } = {}) {
     if (words.length) Object.assign(hero, { look: [...words], lookResolved: resolveLook(words) });
     // the style pole: its word beside its stamp (anime-styles.js), so a re-tuned style never moves this row
     if (spec.animeStyle) Object.assign(hero, { animeStyle: spec.animeStyle, animeStyleResolved: resolveAnimeStyle(spec.animeStyle) });
+    if (spec.animeBody) Object.assign(hero, { animeBody: spec.animeBody, animeBodyResolved: resolveAnimeBody(spec.animeBody) });
     // the graphic face: SPARSE (the words that differ from the base; absent when none, so the default is read at plan
     // time and never stored); `false` (the studio's face) is stored
     if (spec.sculpt !== undefined && spec.sculpt !== null) { const sc = sparseSculpt(resolveAnimeSculpt(spec.sculpt)); if (sc !== null) hero.sculpt = sc; }
