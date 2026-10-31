@@ -313,7 +313,9 @@ export const WALKABLE_WORLD_KINDS = ['fractal-city', 'city', 'condo-complex', 's
 // Orbit-only single artifacts and studies — the /maker/objects concern. The
 // polygomer manji-tree joins via isPolygomerManjiTree (its 2D/structural form
 // stays an illustration SVG).
-export const OBJECT_RENDER_KINDS = ['workbench', 'scad', 'assembler', 'layered', 'egocube', 'board', 'stadium', 'planetary', 'vehicle-instance', 'molecule-view', 'dna-view', 'dna-process', 'energy-cycle', 'cellular-view', 'atom-view', 'mechanics-view', 'classical-view', 'microscopic-view', 'quantum-view', 'relativistic-view', 'rocket-view', 'airplane-view', 'orbit-view', 'comet-view', 'field-view', 'fluid-view', 'ocean-view', 'beach-view', 'river-view', 'waterfall-view', 'windmill-view', 'hydro-view', 'double-slit-view', 'black-hole-view', 'galaxy-view', 'star-birth-view', 'pulsar-view', 'plasma-globe-view', 'lightning-storm-view', 'wavepacket-view', 'fission-view', 'cascade-view', 'fusion-view', 'cherenkov-view', 'reactor-view', 'atmosphere-view', 'saturn-view', 'star-surface-view', 'gravity-wave-view', 'parallel-transport-view', 'transformer-view', 'vector-match-view', ...EDUCATION_VIEW_KINDS];
+// A persona (persona/persona.js: a hero cast as a speaker) is turned as its hero is: world-scene.js plays it as the hero
+// with its reads as the face's takes.
+export const OBJECT_RENDER_KINDS = ['workbench', 'scad', 'assembler', 'layered', 'persona', 'egocube', 'board', 'stadium', 'planetary', 'vehicle-instance', 'molecule-view', 'dna-view', 'dna-process', 'energy-cycle', 'cellular-view', 'atom-view', 'mechanics-view', 'classical-view', 'microscopic-view', 'quantum-view', 'relativistic-view', 'rocket-view', 'airplane-view', 'orbit-view', 'comet-view', 'field-view', 'fluid-view', 'ocean-view', 'beach-view', 'river-view', 'waterfall-view', 'windmill-view', 'hydro-view', 'double-slit-view', 'black-hole-view', 'galaxy-view', 'star-birth-view', 'pulsar-view', 'plasma-globe-view', 'lightning-storm-view', 'wavepacket-view', 'fission-view', 'cascade-view', 'fusion-view', 'cherenkov-view', 'reactor-view', 'atmosphere-view', 'saturn-view', 'star-surface-view', 'gravity-wave-view', 'parallel-transport-view', 'transformer-view', 'vector-match-view', ...EDUCATION_VIEW_KINDS];
 export const WORLD_RENDER_KINDS = [...WALKABLE_WORLD_KINDS, ...OBJECT_RENDER_KINDS];
 export const SCENE_RENDER_KINDS = ['css3d-turntable', 'subway-station'];
 // Beats artifacts (beats.plan.md) — heard, not looked at. Rendered as a live
@@ -322,9 +324,7 @@ export const BEATS_RENDER_KINDS = ['beats-ambient', 'beats-composition', 'beats-
 // Voice registers (voice-worker.plan.md) — recipes for how a voice sounds;
 // no in-plane render at all (an external worker speaks them). The /maker/voice
 // shelf shows the recipe itself: axes, resolved blend weights, worker handoff.
-// A persona (persona/persona.js: a hero cast as a speaker, its scripts) is spoken
-// too: it shelves beside the voices it reads in.
-export const VOICE_RENDER_KINDS = ['voice-register', 'persona'];
+export const VOICE_RENDER_KINDS = ['voice-register'];
 const SVG_RENDER_SET = new Set(SVG_RENDER_KINDS);
 const WALKABLE_WORLD_SET = new Set(WALKABLE_WORLD_KINDS);
 const OBJECT_RENDER_SET = new Set(OBJECT_RENDER_KINDS);

@@ -14,5 +14,7 @@
   every read regenerates from its script. The door answers each read in short (its seconds, lines, words, the words it
   stressed, its captions and gestures) and where its face is drawn. `update_character` merges its reads by id (null
   removes one), checks the record whole and its refs before storing, and keeps what it replaced as a revision. A
-  persona shelves with the voices (`bucket: 'voice'`; the shelf's cards stay the registers'). Manual:
+  persona is turned and exported as its hero (the object shelf): its World and its GLB play the hero, its reads the
+  realistic face's `face:<id>` clips; `export_model` writes each read's captions (`captions/<id>.srt`, `.vtt`) and
+  cue sheet (`cues/<id>.json`: lines, words, stresses, gaze, gestures, the clip it rides) beside the model. Manual:
   `get_solid_vocab({ id: 'persona' })`; routing card `persona`.

@@ -22,7 +22,7 @@ describe('create_character as a persona', () => {
     const row = SketchRepository.getByRef('pp_news');
     expect(row.manifest).toEqual({ kind: 'persona', persona: { hero: 'pp_ada', register: 'anchor', reads: { lead: { script: NEWS } } } });
     expect(row.title).toBe('persona · Ada');
-    expect(classifyBucket(row.manifest)).toBe('voice');
+    expect(classifyBucket(row.manifest)).toBe('object');
     const [lead] = out.persona.reads;
     expect(lead).toMatchObject({ id: 'lead', register: 'anchor', lines: 3 });
     expect(lead.stressed).toContain('4,000');

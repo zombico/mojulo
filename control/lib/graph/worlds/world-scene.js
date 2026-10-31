@@ -208,6 +208,16 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     sketch = { ...sketch, manifest: applyMapRef(sketch.manifest, src.manifest) };
   }
 
+  // a PERSONA (persona/persona.js) is played as its hero, its reads the hero's face takes where the hero has the realistic
+  // face (persona/bundle.js personaHero): the hero's World and its GLB's face:<read> clips, from the persona's scripts
+  if (sketch.manifest?.kind === 'persona') {
+    const { SketchRepository } = await import('@/lib/db/repositories/sketches');
+    const hero = SketchRepository.getByRef(sketch.manifest.persona?.hero);
+    if (!hero?.manifest?.hero) throw new Error(`persona '${sketch.ref}': its hero '${sketch.manifest.persona?.hero}' is not a stored hero (create_character { as: 'hero' })`);
+    const { personaHero } = await import('@/lib/graph/persona/bundle.js');
+    sketch = { ...sketch, manifest: personaHero(sketch.manifest.persona, hero.manifest) };
+  }
+
   // a stage drawn in a composed look (a gameworld's look words or palette) carries the recipes that make it: composed here, once per
   // process, before anything reads its kit (color-theorist/look.js). Absent `looks` ⇒ byte-identical.
   if (Array.isArray(sketch.manifest?.looks)) {
