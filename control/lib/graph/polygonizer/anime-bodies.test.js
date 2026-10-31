@@ -29,6 +29,16 @@ describe('the body codenames', () => {
     expect(half(satoru)).toBeLessThan(half(toji));
     expect(half(satoru)).toBeGreaterThan(half(sh));
   });
+  it('orders each pole slim, base, hulking: by the shoulder\'s width and the arm\'s girth, the simplified form and the muscular', () => {
+    const half = (r) => Math.abs((r.rig.joints.shoulderR.at ?? r.rig.joints.shoulderR)[0]);
+    const arm = (r) => Math.max(...r.parts.upperArmR.stations.map((x) => { const ps = Object.values(x.points), c = ps.reduce((a, p) => a.map((v, k) => v + p[k] / ps.length), [0, 0, 0]); return ps.reduce((a, p) => a + Math.hypot(p[0] - c[0], p[1] - c[1]), 0) / ps.length; }));
+    for (const [cast, names] of [['male', ['satoru', 'toji', 'armstrong']], ['female', ['maki', 'mizuki', 'kale']]]) {
+      // (the muscular forms, each over its simplified form's base: the shoulder's width is the base's own)
+      const worn = names.map((b) => mint({ animeStyle: 'z-fighter', cast, animeBody: b, muscleShirt: { definition: 1 } }));
+      expect(half(worn[0])).toBeLessThan(half(worn[1])); expect(half(worn[1])).toBeLessThan(half(worn[2]));
+      expect(arm(worn[0])).toBeLessThan(arm(worn[1])); expect(arm(worn[1])).toBeLessThan(arm(worn[2]));
+    }
+  }, 120000);
   it('wears the codename\'s own card as its muscular form, and stores a resolved stamp', () => {
     const hero = heroRecord(withDefaultForm({ head: 'anime', animeStyle: 'z-fighter', cast: 'female', animeBody: 'maki', muscleShirt: { definition: 1 } }));
     expect(hero.animeBodyResolved).toEqual(resolveAnimeBody('maki'));

@@ -167,7 +167,15 @@ fractal articulation of the big groups. The eyes gate is the operator's.
   0.62 as proud and 0.92 as large, the lats and the shoulder's cap kept fuller for the V, the arms and the chest the
   leanest). MAKI (female, slim): an athlete near Shonen High's size, a squarer shoulder, a held waist, fuller thighs
   and calves; her card Mizuki's muscles lean (0.65, 0.93), her seat, hamstrings and calves kept fuller, her bust held.
-  A slim card is the base's `slimmed` (musculature/cards.js).
+  A slim card is the base's `slimmed` (musculature/cards.js). ARMSTRONG (male, hulking): a strongman-bodybuilder's
+  mass, taller and far heavier than Toji, the neck buried in the yoke, the shoulders and the chest's depth at their
+  widest, the arms and legs massive; his card the base's massed (1.28 as proud, 1.07 as large; the yoke, the chest and
+  the arms the most). KALE (female, hulking): a powerhouse, broad in the shoulder and the hip, the arms and legs
+  massive; her card Mizuki's massed, the back, the seat and the legs the most, her bust held as Mizuki's. On both the
+  deltoid's crown over the shoulder's top is held near the base's (massed with the heads, it carried the arm's dome past
+  the move's cap, held flat there); and the shells under the arm's skin are tucked in proportion to the arm's girth
+  over Toji's (`UNDER_GIRTH`: Armstrong's web stood level with the arm's dome). Mizuki's rectus sheet is held short
+  and raised (its lower end had stood on her lower belly as a pair of blocks, the plainer on Kale).
 - **The legs lengthened** (the operator's: the hands and the feet grown with the arms and the legs read the figure
   stocky; `passes.js` `lengthened`, a card's `legs`, the Saikyo cards' 1.06): the leg's shells, its joints and the pelvis
   stretched up from the ankle to the hip joint, everything over the hip lifted by as much (about 5 cm), so the soles stay

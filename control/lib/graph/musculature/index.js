@@ -11,7 +11,7 @@
 import { MUSCLE_CARDS, MUSCLE_CARD_NAMES, validateMuscleCard } from './cards.js';
 import { densify, grainOf, frames, seatMass, displace, symmetrize, mirrorPart, mirrorEgg, girthOf, handsScaled, feetScaled, nipplesOn, activeMass, offsetsOf, domeKeys, endsInside, keptInOrder, UNDER_GAP, taperedTo, endsMeeting, welded, hipWrapped, hipHidden, lengthened } from './passes.js';
 import { HAND_SHARE, FOOT_SHARE, NIPPLE, ACTIVITY_JOINTS, WRIST_FROM } from './principles.js';
-import { skinOf, sideOf, TAKEN_OFF, TUCK, DOMES, UNDER, OVER, ABUT, handParts, handJoints, handRamp, footParts, footJoints, legParts, legJoint } from './adapters/loft.js';
+import { skinOf, sideOf, TAKEN_OFF, TUCK, DOMES, UNDER, UNDER_GIRTH, OVER, ABUT, handParts, handJoints, handRamp, footParts, footJoints, legParts, legJoint } from './adapters/loft.js';
 
 export { MUSCLE_CARDS, MUSCLE_CARD_NAMES, validateMuscleCard } from './cards.js';
 export { FORM_GAIN, DETAIL_GAIN, BLEND, presence, articulation } from './principles.js';
@@ -98,11 +98,15 @@ export function muscleShirt(recipe, spec, { cast = null, card: bodyCard = null }
   const weldOf = (n, P, shape) => (welds[n] ? welded(P, welds[n].map((w) => (w ? (({ stations, slots }) => slots.map((sl) => stations[w.end ? stations.length - 1 : 0].points[sl]))(shape(w.a)) : null))) : P);
   // (a hidden shell KEPT IN ORDER with the shells that show over it, as they were displaced: `shape` names each owner's shape)
   const underOwners = (n, P, shape) => (ownersOf[n].length ? keptInOrder(dense[n], P, ownersOf[n].map((a) => ({ A0: dense[a], A: shape(a), gap: Math.max(UNDER_GAP, tuckOf(n) - tuckOf(a)) }))) : P);
+  // (the shells under the arm's skin tucked in proportion to the arm's girth over the base's: Armstrong's web, a
+  // broader arm's, stood level with the arm's dome at the shoulder's top)
+  const underScale = Math.max(1, girthOf(recipe.parts.upperArmR ?? { stations: [] }) / UNDER_GIRTH);
   const displaced = (n, worn) => {
     const { base } = sideOf(n), ds = [...new Set(worn.map((e) => e.d))], d = ds.length === 1 ? ds[0] : definition;
     // (each group at its own definition: the union's blends read the group's, so a part's masses are displaced together
     // at the definition of the most of them; a part worn by groups at different definitions takes the shirt's)
-    return displace(dense[n], worn, d, TUCK[base] ?? 0, null, UNDER.includes(base), ends[n]);
+    const tk = (TUCK[base] ?? 0) * (UNDER.includes(base) ? underScale : 1);
+    return displace(dense[n], worn, d, tk, null, UNDER.includes(base), ends[n]);
   };
   for (const n of Object.keys(dense)) {
     const { side } = sideOf(n), { part, moved: k, capped } = displaced(n, (side ? masses : both).filter((e) => e.parts.includes(sideOf(n).base)));

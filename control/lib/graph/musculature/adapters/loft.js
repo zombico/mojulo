@@ -18,6 +18,8 @@ export const TUCK = Object.freeze({ torso: 0, upperArm: 0, foreArm: 0, shank: 0,
  * dome (which the shirt carries over the shoulder); tucked by their movement, a band of the web showed between the arm's
  * dome and its side. They still bridge the armpit as the arm rises */
 export const UNDER = Object.freeze(['shoulderWeb', 'shoulderBall']);
+/** the upper arm's girth (m) UNDER's tucks are drawn for (the base's, Toji's): a thicker arm's tucked in proportion */
+export const UNDER_GIRTH = 0.459;
 /** which shells show OVER each shell where they meet (base names; a limb's on its own side): the shirt keeps the one
  * under them under (passes.js keptInOrder) and dives its ends inside them (endsInside). Named, not read off the tucks:
  * by the tucks alone the elbow's bridge lay under the pelvis it hangs beside */

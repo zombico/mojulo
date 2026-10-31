@@ -24,11 +24,21 @@ const SATORU = Object.freeze({ stature: 1.06, torso: 1, legs: 1.06, neck: 1.02, 
  * squarer shoulder, a fuller thigh and calf and a waist held in rather than pinched */
 const MAKI = Object.freeze({ stature: 1.05, torso: 0.97, legs: 1.05, neck: 1, neckGirth: 0.86, shoulders: 0.99, depth: 0.92, waist: 0.88, hips: 1, upperArm: 0.94, forearm: 0.94, thigh: 1, calf: 0.97 });
 
+/** the hulking male, a strongman-bodybuilder's mass: taller and far heavier than the base, the neck buried in the yoke,
+ * the shoulders and the chest's depth at their widest, the arms and the legs massive, the waist thick but under the
+ * chest */
+const ARMSTRONG = Object.freeze({ stature: 1.08, torso: 1.03, neck: 0.88, neckGirth: 1.26, shoulders: 1.23, depth: 1.18, waist: 1.12, hips: 1.08, upperArm: 1.42, forearm: 1.34, thigh: 1.3, calf: 1.25 });
+/** the hulking female, a powerhouse's: taller and heavier than the base's, broad in the shoulder and the hip, the arms
+ * and the legs massive, the waist still under the chest and the hips */
+const KALE = Object.freeze({ stature: 1.07, torso: 1.02, neck: 0.9, neckGirth: 1.1, shoulders: 1.13, depth: 1.1, waist: 1.03, hips: 1.08, upperArm: 1.26, forearm: 1.2, thigh: 1.24, calf: 1.16 });
+
 export const ANIME_BODIES = Object.freeze({
   toji: Object.freeze({ pole: 'male', note: 'the base: a grown martial hero, tall and heavy, the neck short and thick', tune: TOJI, card: 'toji' }),
   mizuki: Object.freeze({ pole: 'female', note: 'the base\'s female: a grown martial heroine, strong and full', tune: MIZUKI, card: 'mizuki' }),
   satoru: Object.freeze({ pole: 'male', note: 'slim: a tall, long-limbed swimmer\'s V, a broad shoulder over a narrow waist', tune: SATORU, card: 'satoru' }),
   maki: Object.freeze({ pole: 'female', note: 'slim: an athlete, a square shoulder, a held waist, full thighs and calves', tune: MAKI, card: 'maki' }),
+  armstrong: Object.freeze({ pole: 'male', note: 'hulking: a strongman-bodybuilder\'s mass, the neck buried in the yoke, the arms and the legs massive', tune: ARMSTRONG, card: 'armstrong' }),
+  kale: Object.freeze({ pole: 'female', note: 'hulking: a powerhouse, broad in the shoulder and the hip, the arms and the legs massive', tune: KALE, card: 'kale' }),
 });
 export const ANIME_BODY_NAMES = Object.freeze(Object.keys(ANIME_BODIES));
 
