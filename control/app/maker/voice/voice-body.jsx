@@ -192,7 +192,8 @@ export default function MakerVoiceBody({ authEnabled = false }) {
           throw new Error(body.error || `HTTP ${res.status}`);
         }
         const data = await res.json();
-        if (!cancelled) setSketches(data.sketches || []);
+        // (the shelf's cards are the registers; a persona shelves here too, read on its own page)
+        if (!cancelled) setSketches((data.sketches || []).filter((s) => (s.kind ?? s.manifest?.kind) !== 'persona'));
       } catch (err) {
         if (!cancelled) setError(err.message || 'failed');
       } finally {

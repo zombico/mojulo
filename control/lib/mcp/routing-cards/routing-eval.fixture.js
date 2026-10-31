@@ -146,6 +146,9 @@ export const FIXTURE = [
   // mascot: a cartoony, head-heavy character rolled from a promise (create_character { as: 'mascot' })
   ['I need a speedy blue cartoon guy with spikes for my platformer', 'create_character'],
   ['a round pink blob mascot with big eyes that floats around', 'create_character'],
+  // persona: a hero cast as a speaker, reading scripts in a delivery register (create_character { as: 'persona' })
+  ['I want my realistic guy to read out the nightly news in my game with subtitles', 'create_character'],
+  ['get my character to deliver the mission briefing to camera, crisp and serious', 'create_character'],
   // hero (layered): a human character as a rigged mesh in one art-style register
   ['a low-poly hero for my game with a face and a ponytail I can rig', 'create_character'],
   ['a boxy pixel knight that walks and exports skinned', 'create_character'],

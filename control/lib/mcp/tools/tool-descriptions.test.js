@@ -68,6 +68,9 @@ const DESCRIPTION_ALLOWLIST = {
   // at the Mojulo Voice landing (figure garment/setup dials, beats export
   // midi handoff, render-packet control-scaffold pointer). Shrink-only.
   create_beats: 1150,
+  // create_character joins 2026-10-31 (1030-broadcasting-personas) at 730 for one clause: `as: 'persona'`, a hero who
+  // reads scripts (a record of its own, persona/persona.js); its spec and registers live on the `persona` card, off-payload.
+  create_character: 730,
   // create_cover / export_game allowlisted + sketch_polygomer re-pinned
   // 2026-08-04 to bless the 1.0 consolidation batch (publication covers,
   // the game-publish phase-2 export seam, the polygomer drapes/detail

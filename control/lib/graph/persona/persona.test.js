@@ -4,6 +4,7 @@ import { DELIVERY, DELIVERY_NAMES, deliveryOf, deliveryErrors } from './delivery
 import { readScript, takeOf, parseScript, spoken, stressed } from './read.js';
 import { captionCues, srt, vtt, CAPTION } from './captions.js';
 import { speakerFidelity } from './fidelity.js';
+import { readFileSync } from 'node:fs';
 import { gazeFaults } from '../face-acting/gaze.js';
 import { performanceTrack, RELATIONAL_FACE_TARGETS, eyesOfWeights } from '../polygonizer/relational-face-rig.js';
 
@@ -131,5 +132,46 @@ describe('fidelity: the face is a gen-7 game\'s, with the realistic head', () =>
     expect(speakerFidelity({}, hero)).toBe('body');
     expect(speakerFidelity({ era: 'gen-7' }, { form: 'stylised' })).toBe('body');
     expect(speakerFidelity({ era: 'gen-7' }, { ...hero, head: 'legacy' })).toBe('body');
+  });
+});
+
+describe('the manual: the persona card names every register', () => {
+  it('lists each register by name under its Registers heading (a new register is a card line too)', () => {
+    const card = readFileSync(new URL('../solid-vocab/persona.md', import.meta.url), 'utf8');
+    const section = card.slice(card.indexOf('## Registers'), card.indexOf('## Worked example'));
+    for (const name of DELIVERY_NAMES) expect(section, name).toContain(`\`${name}\``);
+  });
+});
+
+describe('the export bundle: captions and a cue sheet per read, the reads as the hero\'s face takes', async () => {
+  const { personaHero, personaFiles, personaHasFace } = await import('./bundle.js');
+  const { cueSheet } = await import('./cues.js');
+  const persona = { hero: 'h', register: 'anchor', reads: { lead: { script: SCRIPT } } };
+  const realistic = { kind: 'layered', hero: { form: 'realistic', head: 'relational', perform: { own: { beats: [{ at: 0, face: 'neutral' }] } } } };
+  const tiered = { kind: 'layered', hero: { form: 'tiered' } };
+
+  it('a realistic hero takes the reads as its perform takes beside its own; any other hero is left as it is', () => {
+    expect(personaHasFace(realistic)).toBe(true);
+    const H = personaHero(persona, realistic);
+    expect(Object.keys(H.hero.perform).sort()).toEqual(['lead', 'own']);
+    expect(H.hero.perform.lead.seconds).toBe(readScript({ script: SCRIPT }).seconds);
+    expect(personaHero(persona, tiered)).toBe(tiered);
+  });
+
+  it('writes each read\'s SRT, VTT and cue sheet; the cue sheet names the face clip only where there is a face', () => {
+    const F = personaFiles(persona, realistic), names = F.map((f) => f.name);
+    expect(names).toEqual(['captions/lead.srt', 'captions/lead.vtt', 'cues/lead.json']);
+    const C = JSON.parse(F[2].text);
+    expect(C.clips.face).toBe('face:lead');
+    expect(JSON.parse(personaFiles(persona, tiered)[2].text).clips.face).toBeNull();
+    expect(C.words.map((w) => w.w).join(' ')).toBe(C.lines.map((L) => L.text).join(' '));
+  });
+
+  it('the cue sheet\'s gaze follows the register: a look to the notes between paragraphs and back to the lens', () => {
+    const C = cueSheet('lead', readScript({ script: SCRIPT, register: 'anchor' }));
+    expect(C.gaze[0].target).toBe('lens');
+    expect(C.gaze.map((g) => g.target)).toContain('notes');
+    expect(C.gaze.at(-1).target).toBe('lens');
+    for (let i = 1; i < C.gaze.length; i++) expect(C.gaze[i].t).toBeGreaterThanOrEqual(C.gaze[i - 1].t);
   });
 });

@@ -322,7 +322,9 @@ export const BEATS_RENDER_KINDS = ['beats-ambient', 'beats-composition', 'beats-
 // Voice registers (voice-worker.plan.md) — recipes for how a voice sounds;
 // no in-plane render at all (an external worker speaks them). The /maker/voice
 // shelf shows the recipe itself: axes, resolved blend weights, worker handoff.
-export const VOICE_RENDER_KINDS = ['voice-register'];
+// A persona (persona/persona.js: a hero cast as a speaker, its scripts) is spoken
+// too: it shelves beside the voices it reads in.
+export const VOICE_RENDER_KINDS = ['voice-register', 'persona'];
 const SVG_RENDER_SET = new Set(SVG_RENDER_KINDS);
 const WALKABLE_WORLD_SET = new Set(WALKABLE_WORLD_KINDS);
 const OBJECT_RENDER_SET = new Set(OBJECT_RENDER_KINDS);
