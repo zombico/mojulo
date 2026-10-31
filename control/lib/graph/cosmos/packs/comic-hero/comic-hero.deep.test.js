@@ -3,7 +3,7 @@
 // characters .test.js hold the concepts, one case per family or path).
 import { describe, it, expect } from 'vitest';
 import { PIECE_IDS } from './pieces.js';
-import { HEADGEAR, HEADGEAR_IDS, fitted } from './headgear.js';
+import { HEADGEAR, HEADGEAR_IDS, fitted } from '../../../headgear/cards.js';
 import { ENSEMBLES, HARMONY } from './ensembles.js';
 import { ERA_IDS, costumeOf } from './costumes.js';
 import { SUITS, SUIT_KEYS, suitOf } from './suits.js';

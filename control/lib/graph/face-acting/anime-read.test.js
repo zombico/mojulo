@@ -42,12 +42,18 @@ describe('a take read as drawings', () => {
     expect(vowels.filter((q) => at(q).mouth === KUCHIPAKU[q.p.replace(/\d$/, '')]).length / vowels.length).toBeGreaterThan(0.6);
   });
   it('lets the smiling and squinting lids draw their own narrowing: while one is drawn, the eye\'s closure is the blink\'s alone', () => {
-    const { frames } = animeRead(acted), raw = (F, s) => [F[`eye${s}`], F.lids[s]];
-    const drawn = frames.flatMap((F) => ['L', 'R'].map((s) => raw(F, s))).filter(([, l]) => l === 'lids.smile' || l === 'lids.squint');
-    expect(drawn.length).toBeGreaterThan(0);
-    // (the acted take blinks only where its beats say so; a narrowing drawn as closure would snap the eye to a knot and
-    // drop the lid's shape, so a drawn smile or squint is on an open eye or a blink, never on a narrowing's partial closure)
-    for (const [eye] of drawn) expect(eye === 0 || eye >= 0.5, `eye ${eye}`).toBe(true);
+    // (a take held on one face, built by hand so the read alone is tested: a raised cheek, a tightened lid, and the lid
+    // tightened under a scowl, whose angry lid draws no narrowing of its own, so the squint's closure stays on it)
+    const held = (curves) => { const n = 31; return { seconds: 1, fps: 30, frames: n, curves: Object.fromEntries(Object.entries(curves).map(([k, v]) => [k, Array(n).fill(v)])) }; };
+    const mid = (curves) => animeRead(held(curves)).frames[15];
+    for (const [curves, lid] of [[{ AU6: 0.8 }, 'lids.smile'], [{ AU7: 0.8 }, 'lids.squint']]) {
+      const F = mid(curves);
+      for (const s of ['L', 'R']) { expect(F.lids[s]).toBe(lid); expect(F[`eye${s}`], lid).toBe(0); }
+      // (a blink over it is the blink's own closure)
+      expect(mid({ ...curves, AU45: 0.7 }).eyeL).toBeCloseTo(0.7, 6);
+    }
+    const scowl = mid({ AU4: 0.8, AU7: 0.8 });
+    expect(scowl.lids.L).toBe('lids.angry'); expect(scowl.eyeL).toBeGreaterThan(0);
   });
   it('draws each emotion: anger, happiness, surprise, sadness, a thought\'s turned gaze', () => {
     const { frames } = animeRead(acted), at = (t) => frames[Math.round(t * FACE_FPS)];

@@ -175,10 +175,17 @@ export async function buildGodotWorldPack({ ref, outDir, clips = '_all', posture
       ...(!anime && f.face ? { face: true, ambientOver: f.face.ambient ? clipNames.filter((c) => f.face.ambientOver?.includes(c)).map((c) => `${name}:${c}`) : [] } : {}),
       // THE RELIEF (epidermis/dermal-relief.js): a lit figure carrying its normal map and tangents, said by its ledger
       ...(lit && f.normalTex ? { relief: true } : {}),
+      // THE CLOTH (epidermis/cloth-relief.js, realistic laws 13): its ORM beside the map, said by its ledger
+      ...(lit && f.normalTex && f.ormTex ? { cloth: true } : {}),
+      ...(lit && f.normalTex && f.depthTex ? { parallax: true } : {}),
       // a realistic hero's RECORDED LINES (face-acting/recordings.js): each held one shipped at voice/<recording>.wav
       ...(voice?.length ? { voice: voice.filter((v) => v.bytes).length, voiceMissing: voice.filter((v) => !v.bytes).length } : {}),
     };
   })() : null;
+  // THE PARALLAX (epidermis/cloth-relief.js, realistic laws 13): the clothes' depth map written beside the GLB, the score
+  // naming it for the kernel (level.gd _fix_parallax: figure_parallax.gdshader on the figure's material). Absent ⇒ as before.
+  const depthPng = figure?.parallax ? Buffer.from(fig[1].depthTex.url.replace(/^data:image\/png;base64,/, ''), 'base64') : null;
+  if (depthPng) score.figure_parallax = { material: `fig:${fig[0]}`, height: 'res://figure_depth.png', depth: fig[1].depthTex.depth, per_m: fig[1].depthTex.perM };
   log(`resolved '${ref}' (kind ${kind}) — GLB ${exported.byteLength} bytes, ${exported.animationCount ?? 0} animations${figure ? `, the figure '${figure.name}' skinned (${figure.joints} joints, plays ${figure.clip})` : ''}`);
   const binaries = [
     { rel: 'model.glb', bytes: exported.bytes },
@@ -186,6 +193,7 @@ export async function buildGodotWorldPack({ ref, outDir, clips = '_all', posture
     // the world's behaviour, beside its score (engine-score.js extractBus): absent behaviour ⇒ no file
     ...(bus ? [{ rel: 'bus.json', bytes: JSON.stringify(bus) }] : []),
     { rel: `recipe/${ref}.json`, bytes: JSON.stringify(manifest, null, 2) },
+    ...(depthPng ? [{ rel: 'figure_depth.png', bytes: depthPng }] : []),
     // (the recorded lines, once each: figure_face.gd keys them on their takes)
     ...voiceFiles(voice, 'voice'),
   ];

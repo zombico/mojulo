@@ -21,7 +21,8 @@
  *                                            `items` item cards in the gear's slots (items.js), or 'signature' for the
  *                                            member's own (cast.js `items`); `swing` stands the hero in a swing: true for
  *                                            the word the first item card suits, or a swing word. None of the three ⇒
- *                                            the orders exactly as without them
+ *                                            the orders exactly as without them; `words` the headgear as the hero
+ *                                            door's `headgear` word (headgear/wear.js) in place of the card worn
  *   bodyOf(lookId)                           → 'tiered' | 'realistic' (the look's stop's body, looks.js DIAL)
  *   registerOf(lookId)                       → { setting?, geocube? } what the stop's light asks of a roll and a spec
  *   animeHair(style, pole)                   → the anime head's family for a landmark hair style, by the egocube's
@@ -33,7 +34,7 @@ import { castMember } from './cast.js';
 import { SUIT_KEYS } from './suits.js';
 import { costumeOf, ERA_OF_STOP, ERAS } from './costumes.js';
 import { withPieces } from './pieces.js';
-import { withHeadgear } from './headgear.js';
+import { withHeadgear } from '../../../headgear/cards.js';
 import { withAccessories } from './accessories.js';
 import { withItems, swingOf } from './items.js';
 import { ensembleOf, HARMONY, SKIN_TONE } from './ensembles.js';
@@ -63,7 +64,7 @@ export function rollMember(id, { seed = 1, pole, setting } = {}) {
 // the body words the realistic form refuses (layered.js realisticErrors): addressed on the stylized body's rings
 const STYLIZED_ONLY = ['detail', 'body', 'girth', 'paint'];
 
-export function memberOrders(id, lookId, { seed = 1, pole, era: eraIn, pieces = [], headgear = null, ensemble = null, accessories = [], items = [], swing = null } = {}) {
+export function memberOrders(id, lookId, { seed = 1, pole, era: eraIn, pieces = [], headgear = null, ensemble = null, accessories = [], items = [], swing = null, words = false } = {}) {
   const m = castMember(id), L = lookOf(lookId), body = bodyOf(lookId), R = registerOf(lookId), sheet = rollMember(id, { seed, pole, setting: R.setting });
   const era = eraIn ?? ERA_OF_STOP[L.stop];
   if (!ERAS[era]) throw new Error(`comic-hero: no era '${era}' (known: ${Object.keys(ERAS).join(', ')})`);
@@ -84,8 +85,10 @@ export function memberOrders(id, lookId, { seed = 1, pole, era: eraIn, pieces = 
   // (an armour on the anime head goes bareheaded, as the egocube's own armour looks do: no helm is fitted to that head)
   if (spec.head === 'anime' && spec.adorn?.type === 'armor') spec.adorn = { ...spec.adorn, language: { ...(spec.adorn.language || {}), helm: 'none' } };
   if (body === 'realistic') { spec.form = 'realistic'; for (const k of STYLIZED_ONLY) delete spec[k]; }
-  // (the headgear worn over a COPY: a card returns a new spec, no card the one it was given)
-  const worn = withHeadgear({ ...spec }, body, headgear);
+  // (the headgear worn over a COPY: a card returns a new spec, no card the one it was given; with `words`, the hero door's
+  // own word, lowered on every read as the card would have been here, so the character keeps it editable by word; a
+  // card's colours sit beneath the suit's, which never name the head's groups)
+  const worn = words ? (withHeadgear({ ...spec }, body, headgear), { ...spec, ...(headgear ? { headgear } : {}) }) : withHeadgear({ ...spec }, body, headgear);
   for (const k of Object.keys(spec)) delete spec[k]; Object.assign(spec, worn);
   // (the items in their slots, and a swing to stand in: absent ⇒ no `gear` key and the member's own gesture)
   const itemIds = items === 'signature' ? (m.items || []) : items == null ? [] : Array.isArray(items) ? items : [items];

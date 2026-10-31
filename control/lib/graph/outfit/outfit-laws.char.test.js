@@ -20,15 +20,26 @@ import { heroRecord, expandLayeredManifest } from '../../mcp/tools/layered.js';
 // (rings re-pinned for the hero laws 2, a body change: the hero minted now lifts its neck's root, hero-form.js
 // SHOULDER_LINE, and the garments that reach the shoulders follow it; the expansions, the laws hashes, unchanged; and
 // again for the hero laws 3, hero-form.js LEG_SET, the leg turned back about the ankle: every garment on the legs or
-// the seat follows the hip's joint; and for the hero laws 20, the anime form's rounded body: a garment over it eases out by
-// the rounding, outfit-plan.js ROUND_EASE, so every piece but the plain out-shirt's moves a few millimetres off the skin)
+// the seat follows the hip's joint; and laws and rings rewritten in place for the waistband (1029, unreleased, at the
+// operator's word: outfit law 2, a waistband has no ease, body-garment.js `waistband` on the trousers' seat; the dress
+// has no seat and keeps its bytes); and the rings again for the game body's construction (1029, unreleased): a sleeve
+// that starts on the arm's first ring takes its cap out past the skin's at the shoulder (authored-jacket.js sleeveSeams:
+// every case with a sleeve but the trousers worn out), the outer layer fitted onto what it is worn over (fitJacket), and
+// the shirt's collar stood on its neckline (standCollar: the tucked shirt's); the laws unchanged; and the tucked shirt's
+// laws and rings rewritten in place (1029, unreleased, at the operator's word: "restructure shirt collars") for the
+// collar as one construction, its kind and its front carried on its stand and its fall made over it (outfit/collar.js,
+// polygonizer/shirt-collar.js: `collar: true` a shirt collar, closed); and the tucked case's laws and rings
+// rewritten in place (1029, unreleased, at the operator's word: "are the chest fits too wide … the corrected method"):
+// a collared woven shirt worn outermost is fitted as a jacket is (the expander's `tailoring.shirt`, authored-jacket.js
+// fitShirt); and the rings again for the hero laws 20, the anime form's rounded body: a garment over it eases out by
+// the rounding, outfit-plan.js ROUND_EASE, so every case's pieces but the out-shirt's move a few millimetres off the skin
 const PINS = {
   1: {
-    'out': { laws: '6b63e2d4125c3c4d', rings: 'b0b17af3f724b51d' },
-    'tucked': { laws: '2699679ced951074', rings: 'c1947c4fb07d6e45' },
-    'dress': { laws: 'bb1fe989040c0422', rings: '4e46c22d329f5e8f' },
-    'outer': { laws: '537daebbd9973246', rings: 'a5fa0db82033b048' },
-    'panels': { laws: '157d53eaabdb1ce6', rings: 'c1146b898f38bfdb' },
+    'out': { laws: 'c3f82aeccde0da38', rings: 'a9f475582083f731' },
+    'tucked': { laws: '073a4630d0cf5381', rings: '4b2d1c2415e5843a' },
+    'dress': { laws: 'bb1fe989040c0422', rings: 'cd64581aabb08540' },
+    'outer': { laws: '127769bbfdd8e767', rings: 'c82fbd2a67f8d7ab' },
+    'panels': { laws: 'd114d51d72f13d3b', rings: '3e5b4c2923dee579' },
   },
 };
 

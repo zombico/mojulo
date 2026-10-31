@@ -1,0 +1,208 @@
+### The face's emotes: held states that loop, never cross-eyed
+
+The realistic hero's face past the emotions: emotes, held states that loop and live, each a card any realistic hero
+plays, starting with the neutral asymmetric faces of someone looking at nothing. Speaking stays its own loop: an emote
+gives the mouth's articulation to whatever drives it. The eyes gate is the operator's.
+
+- **The eyes' law** (`face-acting/gaze.js`): two eyes look at one thing. A gaze is a direction and a distance, and each
+  eye's turn is the line from it to the target: the eyes move together, converge no nearer than the near point (0.4 m),
+  never diverge and never skew; no distance is the far point, the eyes parallel. `gazeFaults` names a frame crossed,
+  wall-eyed or skewed (a capture's, a hand's), `seatGaze` puts it back. The rig's `gazeWeights` turns each eye by the
+  law (`eyeWeights`, and `eyesOfWeights` reads a frame's look weights back); every take so far looks at the far point
+  and keeps its bytes.
+- **The emote registry** (`face-acting/emotes.js` `FACE_EMOTES`): each emote a card (the words people say, what it
+  reads as, a held face given side by side, so asymmetric by construction; the regard, at the far point; the blinks'
+  rate and pace; the stirs, a moment the face moves and settles; the loop's length). The first: `rest` (the resting
+  face, nothing on it but its own unevenness), `vacant`, `daydream`, `absorbed`, `waiting`, `drowsy`. `emoteTake` plays
+  one as a seamless loop (every wave a whole number of cycles in it, the blinks, the stirs and the re-fixations laid
+  round it: the last frame is the first), `mirror` its sides swapped and its regard to the other side, `intensity` its
+  face. Every emote is general: any realistic face plays any of them, and a new one is a card.
+- **The mouth's owner** (`face-acting/mouth.js` `MOUTH`): who owns the mouth while a line is spoken, lifted out of the
+  performer: the line's driver owns the articulation (the jaw, the lips parted, rounded, rolled, pressed, spread); the
+  face's corners are drawn in by a rounded lip and its closing units let go while the line runs; the brows, the eyes
+  and the corners' set stay the face's. `speakOver` lays a line (a text, or the phonemes a voice timed) over any take,
+  an emote's loop played round as long as the line needs. The performer speaks its beats through it, byte for byte.
+- **The emote in the engine** (the hero door's `emote`): a name, a list of names or `{ <clip>: a name | { emote,
+  face?, mirror?, intensity?, seconds?, seed? } }` on a realistic hero exports each as a looping face-only clip,
+  `emote:<clip>` (a LINEAR weights channel at 30 fps, its last key its first), named in the GLB's `face.emotes`; and
+  `face.mouth` says the mouth's ownership in the targets' names (`mouthTargets`), so an engine's runtime lip-sync lays
+  a line over the loop as `speakOver` does. Refused by name on another head. `/hero-live` plays `emote:*` as it plays a
+  take.
+- **The emote as the base layer** (`emotes.js` `emoteState`): an emote's `face` lays an emotion over it (`{ emote:
+  'rest', face: 'worried' }`), the emotion's units added to the emote's, so the face's own unevenness shows through the
+  expression; the loop, the door and a beat take it.
+- **A performance's beats hold emotes** (`perform.js`, a beat's `emote`): the beat settles into the emote's face over
+  the performer's onsets (the brows and the eyes leading), looks at its regard where it names no gaze, re-fixates and
+  drifts as the card says, blinks at its rate and pace but while speaking, and stirs as it stirs; its `face` the emotion
+  over it. A performance is emotes and the moments that break them. A take with no emote keeps its bytes.
+- **A pulse on a lid held by side shuts it once**: a blink, a stir or a flash on a whole unit a face holds side by side
+  (an emote's heavier lid) lays onto each side, the greater of the two, where the rig summed the whole's target and the
+  side's past shut.
+- **The face's machine read** (`face-acting/emote-read.js`): a face clip held at its median key on the hero's own
+  mesh, each side's move in millimetres and the asymmetry's, measured as the face against its own mirror (its sides'
+  weights swapped: a symmetric face reads nought exactly, where pairing vertices across the midline read three
+  millimetres of noise on the one skin's layered lids and lips), `shows` from half a millimetre, and by region (the
+  brows, the lids, the mouth). It found `absorbed`'s unevenness too faint (0.48 mm), `drowsy`'s stir summing past shut
+  and `vacant`'s lips showing teeth: the cards are retuned.
+- **Tuning the face without a mint** (`/hero-live` `face.mjs`): emotes and performances recomputed over a hero already
+  minted, in seconds, beside its GLB (`<id>.face.json`, the viewer playing each over the GLB's own clip of its name),
+  read, and shot as a contact sheet (the face close, each moment moved to the nearest frame off a blink).
+- **The face as parts** (`face-acting/parts.js` `PARTS`): the brows, the lids, the cheeks and the mouth each move on
+  their own timing (the brows lead a thought, the lids go quickest, the cheeks lag the smile by a tenth of a second and
+  settle slowest) and live in a hold their own way (the brows' slow drift, the lids' faint flutter, the cheeks' slow
+  settle). The performer and the emotes time each unit by its part; every take's curves change (face acting is
+  unreleased).
+- **The parts pull on each other** (`COUPLINGS`, `couple`): the cheek raised bunches its own lower lid up, the brow
+  lowered bears on the lid, the outer brow raised lifts the lid's skin; side by side, frame by frame, so a coupled move
+  rides its cause's timing; a floor under the lid, never a sum.
+- **The upper face's gestures** (`UPPER_GESTURES`): `oneBrow`, `eyeSmile`, `appraise`, `knit`, `wince`, `widen`,
+  `attend`, each a card of a few units (a side its own), a rise, a hold and a fall: a beat's `tell` (a name, `{ gesture,
+  at?, mirror?, intensity? }` or a list) lays one over the face, and an emote's stir may be one (`{ tell, every }`:
+  `daydream` smiles in its eyes now and then, `absorbed` knits its brow). The expression the face keeps while a line
+  owns the mouth.
+- **Each part alone** (`face.mjs --parts brows,lids,cheeks`): every clip again with one part moving and the rest at rest
+  (`<clip>·<part>`), read, played and shot beside the whole; the read's regions are the parts (the cheeks their own).
+  Part by part it found the cheeks idle in most emotes and `daydream`'s cheek, `absorbed`'s narrowed lid and `drowsy`'s
+  propping brow under the line: the cards are retuned.
+- **The eyes focus** (`gaze.js` `distanceOf`, `EYES.verge`; a take's `gaze.vergence`): every fixation carries a focus,
+  the eyes' convergence on its distance, and the rig turns each eye by it (`performanceTrack`); the focus follows a
+  saccade slowly, over a quarter of a second. The performer's `listener` is a face across a conversation (1.1 m), a
+  beat's gaze may name its own `distance`, and a thinking look away or a glance off relaxes the eyes to the far point.
+  Every take now converges where it looks at the listener.
+- **Listening** (the `listening` emote): the idle gaze of someone listening close by: the eyes focused on a speaker's
+  face, moving between their eyes and their mouth on short dwells (a scan, `eyes.scan`: points, weights, dwell, never the
+  same point twice running), glancing away now and then unfocused (`eyes.away`), the brows a little lifted, a smile in
+  the eyes at times. A regard's fixations (`regardFixations`) are shared by the loop and a performance's beat that holds
+  an emote.
+- **Wariness** (`face-acting/alert.js`, `alert`: 0 calm … 1 on guard, a performance's or a beat's (carried on), an
+  emote spec's or its card's; the fear a face holds raises it by itself, `fearOf`): a wary face WATCHES: its
+  spontaneous blinks thin (to two fifths at 1) and quicken, more of them ride the gaze's shifts; its eyes dwell less,
+  re-fixate wider and CHECK their surroundings (glances off to a side, focused a few metres off, more often and further
+  the warier); its lids rise and its brows take fear's set a little. A beat's `startle`: the reflex blink, taken whatever
+  else wanted one near it, then the eyes fly wide and settle slowly, the beat left wary.
+- **The look moves the face** (`parts.js` `LOOK`, `lookLids`, `lookPulses`): the upper lid follows the eye down (a
+  blink's share a degree) and lifts looking up, the brows with it a little; a large glance widens the lids for a
+  moment, the more the warier. Every take and loop, calm or not.
+- **Wary** (the `wary` emote): on guard by its card (0.75): the eyes on something a few metres off, checking to the
+  sides, the lids up, one brow drawn and the other eye a little narrowed, the blinks held back and quick, an appraising
+  squint now and then.
+- **The breath: the mind-body loop** (`face-acting/breath.js`). The state of mind sets the breath (`breathOf`): calm
+  slow and low (the belly's), the warier faster and HIGH (the chest's, the shoulders with it) and past half through the
+  mouth; sadness slower and given to sighs; anger heavier; an emote's card may set its own (`drowsy` slow and deep with
+  sighs, `waiting` sighing now and then, `vacant` slow). The breath moves the face (`breathFace`): through the mouth the
+  lips apart and the jaw with each breath in; a held breath's lips pressed; a sigh's brows lifted on its long breath in,
+  its lips parted and its lids heavy on the breath out. And the breath settles the mind: a `startle` now holds the
+  breath, its wariness settling after (`settle`, a few seconds' e-fold) rather than holding for the whole beat, and it
+  lets go with a sigh of relief as it falls under half; the blinks, the checks and the glances' widening read the
+  wariness of the moment. A beat may sigh (`sigh: true`). Every take and loop carries its `breath` (the lungs' fill and
+  how high it sits).
+- **The breath on the body** (`breathBones`, `breath:<clip>` in the GLB): each face clip's breath as a body clip keyed
+  with it: the torso tipped back a little with each breath in (more in a high breath) and the clavicles lifted in a high
+  one, the upper body's joints carried, each arm whole from its shoulder; each joint its rest head plus its offset, so an
+  engine plays it as an additive layer over any body clip, the rest pose its reference (the flat skeleton's; the GLB's
+  `face.breathing` says so). `/hero-live` plays each take's breath additively over the body's idle, synced to it, and
+  `face.mjs` writes it for its clips. The nostrils' flare (FACS 38) is a gap: the realistic head has no such action yet.
+- **The neck turns and tilts** (`face-acting/head.js`): the head as the face acting carries it. A CARRIAGE (its turn,
+  nod and tilt: an emote card's `head`, a beat's own `head: { yaw, pitch, roll }`), a slow sway, and the larger looks
+  FOLLOWED: a look within ten degrees is the eyes' alone; past it the head takes a share, starting a moment after the
+  eyes and arriving slower (a critically damped spring, quicker the larger the turn), and always what would turn the
+  eyes in the head past their comfortable reach (18°), while the eyes turn back to keep the gaze where it was sent (a
+  take's `gaze` is now the eyes' turn in the head, its `head` the head's). A stir may move the head (`drowsy`'s lids
+  sinking take its head down with them, `waiting` shifts it with its sighs); a spoken word's emphasis nods it; the
+  warier, the more the head follows and the stiller it sways. The cards' carriages: `listening` tilted, `daydream`
+  tilted and lifted toward where it looks, `absorbed` down and to a side, `drowsy` low, `wary` its chin tucked, `rest`
+  a touch, `vacant` still.
+- **The head on the body** (`headBones`, `head:<clip>` in the GLB): each face clip's head as a body clip keyed with it,
+  the neck's joint turned by its share about its root and the head's and the jaw's by the whole, carried round it; an
+  additive layer as the breath is. `/hero-live` plays it with the breath, and `face.mjs` writes it. And `/hero-live`'s
+  tuned clips no longer shake the body: they were bound to their joints by uuid where the loader binds by name, two
+  mixers writing one joint (`heroLive.probe` reads the playback and found it).
+- **The hair sealed against the neck and the body** (realistic laws 14, `hero-head-layers.js` `HAIR_SEAL`): the head's
+  skin below its base (the upper neck under the jaw, which the head's one skin covers) is now a collider the hair falls
+  outside, as the neck part is; and a hanging point within a few centimetres of the skin takes that skin's own bones (the
+  neck's, the trunk's, the clavicles', the shoulder blades'; the jaw's share the head's, so hair by the jaw never opens
+  with the mouth), eased to the height's rule away from it, so the hair moves as what it lies on moves: it rests on the
+  neck and the shoulders as it rests on the head, never sweeping through them as the head turns or the shoulders rise
+  with a breath. And a stroke STOPS where it meets the body (`hair-locks.js` `seal`): a groom's guide falls past the body,
+  which it never meets, and a spine through the neck pushed out point by point came out the far side, wrapped round the
+  throat and down the chest (two strokes from the temples crossing under the jaw, four from the nape); now it is cut
+  where it runs in and tapers there, and one cut back to its root is dropped. On one long-haired hero: 236 hair points
+  inside the upper neck at rest (to 26 mm), up to 360 inside the back with the head turned (to 30 mm) and six strokes
+  across the throat under laws 13; none of any under 14, at rest, turned, tilted or nodding. A hero stamped with laws 13
+  or before keeps its hair.
+- **The lid ROLLS shut, and the space under the brow is one section** (`hero-relational-head.js` `SKIN_FOLLOW` `roll`,
+  realistic laws 14 `head-relational-eye.js` `SEAT.section`). A blink stretched the upper lid in one band: the lid
+  turned whole only up to a fifth of its height and less and less above, so a band from a fifth to seven tenths of the
+  way to the crease stretched past twice and tore into a sawtooth. Now the lid's skin is a STRIP from the margin to the
+  fold's lip, measured along the skin, and shut, each point lies as far along the shut lid as it lay along the open
+  strip: the skin stored under the fold unrolls forward and the stretch is spread over all of it. The strip lies on the
+  globe for its lower part and rises to the fold's lip, which comes down a little with it. A column's turn is capped at
+  the most the eye's middle turns: at the inner corner the margin lies near the turn's axis and read a 129° turn against
+  the middle's 33°, which swung the skin beside the corner through all of it (streaks down the inner corner). The blink
+  also lifts the lower lid a touch, so the lids meet a little below the middle, and the rolled skin is drawn taut (a few
+  rounds of Taubin's smoothing: turned whole, each point kept its rest's small creases, lumps across the shut lid). Under
+  laws 14 the rest shape helps: the fold rises out of the lid a third as steeply and no crease is cut, where laws 11 to 13
+  stacked the lid's top, a cut crease and the fold's hooked underside under the brow (three dark bands, and three layers a
+  closing lid had to cross); and the skin's baked occlusion is read with the lids shut as well as open, each point the
+  more open of the two, so the skin a blink brings out of the cove under the brow carries no shadow onto the shut lid. On
+  one hero's right eye, shut against open: edges stretched past twice 201 → 39, the worst 7.1× → 3.3×, folds sharper than
+  45° between neighbours 223 → 55 (62 open). Every realistic hero's face rig rebuilds on its next export (face store v8); a
+  hero stamped with laws 13 or before keeps its brow and its paint. (The smoky stain round a shut eye in `/hero-live` is
+  the viewer's own soft shadow, the brow's, at its shadow map's millimetre and a half a texel.)
+- **The eye out of its cove, one arc over it, a rounder brow** (realistic laws 14, `head-relational-eye.js` SEAT
+  `forwardOut`, `shelf`; `epidermis.js` `BROW_ROUND`). The eye comes out until its cornea is a third as far behind the
+  glabella (the lid about 4 mm forward), so the brow no longer shadows a cove over the lid; the fold steps forward out of
+  the crease as a near-level SHELF as far as the brow's own face, so from the front the brow's skin runs down to one arc
+  at the crease and the lid's top tucks back under it, hidden, the skin a blink unrolls (rising out of the crease, the
+  fold left a recess whose brow overhang drew a second dark curve above the first). The brow's arch rises three fifths
+  as high and falls to its tail as it rises, a quarter sine (the fall's power pinched its peak to a point, an angular
+  brow). And a face target's NORMAL, where the shape turns a normal far (`scene-gltf.js` `MORPH_NORMAL`), arrives at the
+  shape's own normal rather than the rest's plus the net's turn (where a coarse net's normals and the field's differ, the
+  sum was neither; the shut lid's GLB normals now match its shape's, a median 0.3°).
+  Face store v9 (the corner's cap and the taut pass changed the actions under keys that did not see them). A face lock
+  of one guide (`hair-locks.js` `lockStrands`) takes the default spacing: with no neighbour it was infinite and every point
+  of its flow NaN, which a jaw's beard of one guide hit once the eye came forward.
+- **The face even from 3/4 and below** (realistic laws 14, `head-relational.js` `EVEN_FACE`, `evenFace`; the new relation
+  `cheekBack`). The cheek's balloon (the buccal fat and the malar pad as one mass) stood forward of the face from 3/4 and
+  below, a heavy cheek over a jaw's side too slight, a lump beside the mouth. Now offsets over the face's own relations
+  (or its pole's) take volume off the cheek's front and give it to the jaw's side: the balloon 0.15 less full and its
+  bulge set 0.06 back, her cheekbone's front 0.02 back (`malarDepth`), its
+  lower arm 0.3 fuller over the jaw's body, the jaw's corners wider (0.08 female, 0.05 male, of the cheekbones' width), the
+  masseter heavier, and the ear 0.015 forward (the new relation `earForward`, its hinge and the probe that finds the skin
+  under it). The front's silhouette keeps its top and widens at its foot, narrowing from the temple to the jaw and never
+  wider than the vault behind it (held by `hero-face-even.test.js`, a principle and not a pin); never the hollowed, gaunt
+  cheek. Kept in the head's fit, so the bake, the hair and the face rig rebuild the same head. Laws 13
+  and before keep the cheeks they had.
+- **`/hero-live`'s emotes no longer shift the jaw.** A face sidecar (`face.mjs`) solved on an earlier mint of the hero
+  kept its head layers' joint positions over that mint's rest, so where the jaw's joint had since moved (3.3 mm), every
+  sidecar emote carried the difference: the jaw forward in all of them. The sidecar now records each joint's rest beside
+  its positions and the viewer rebases them on the GLB's own; the jaw stays 49.7 to 49.9 mm from the head in every frame.
+- **The brows move again under the one section** (`hero-relational-head.js` `SKIN_FOLLOW.browBeads`). Under laws 11 and
+  12 the brow's lift came mostly from the fold's pad, hung on the brow's strings, settling the skin up to 4 mm; the one
+  section has no pad, and the brow pad's three beads alone left the brow's inner half a fifth of their move (the hair
+  0.3 mm on a raise, the worried brow's inner end 0.3 mm). Under seat 2 the pad carries the skin along its length, six
+  beads between each end and its middle: on one hero the raise lifts the brow's hair 2.1, 1.9 and 2.7 mm (inner, middle,
+  outer; laws 12 2.0, 1.8, 1.8) and the worried brow its inner end 1.6 mm, its tail kept. Face store v10. The face rig's
+  test now reads the worried brow by its thirds, as its principle says: the inner end as far as the raise's, the tail
+  kept.
+- **The throat in one slope** (realistic laws 14, `body-relational-builds.js` `THROAT_LINE`, `body-relational-field.js`
+  `throat`). From the side the front from under the chin to the chest bulged: the neck's root, the collarbones' heads and
+  the sternocleidomastoids' feet, blended wide, tented forward at the neck's base into a ledge under the chin (on one
+  heroine 77 mm forward 10 cm under the chin where the throat stood at 57 and the chest at 88; on one hero 92 against
+  62 and 102). The body's field is now cut back to the chord from the throat (under the head's base) to the chest, on
+  its own surface, over the front either side of the midline and eased out beyond: her front runs 56, 59, 64, 69, 73,
+  77, 81, 84, 88 mm down to the chest, his tent 92 → 77, male and female alike. Held by a principle (the midline's front
+  within 2.5 mm of the line from the throat to the chest), not a pin. Laws 13 and before keep their necks.
+- **The globe covered, every head** (realistic laws 14, `head-relational-eye.js` `cover`, `COVER_DEEP`; `SEAT.forwardOut`
+  per sex). With the eye brought forward and the cheekbone set back, the man's globe showed bare beside his cheekbone,
+  under his lower lid and in a slit beside the nose's bridge. Now the face's skin about an eye never lies inside the lids'
+  shell (the globe and a lid's thickness, about the globe's own centre, so no look moves it) but where the opening is
+  cut, and past 55° from straight ahead the opening's cut is covered again (its wedge into the inner corner had reached
+  the globe's side, where the caruncle fills it). His eye comes out less than hers (a third further behind the glabella
+  than hers, all but laws 12's), and his cheekbone keeps its front. Under the eye's outer corner the cover is fuller
+  and joins the face wider (`COVER_RIM`): the cheekbone's top and the lateral orbital rim, the profile's >, rise into
+  the lower lid over the globe's lower outer side, so the seam where the lid meets the globe there is hidden (a lift
+  alone stood a ledge with a hollow under it); and the even face no longer sets the brow's outer end back, which had
+  bared that corner. Held by a principle (`hero-face-even.test.js`, the
+  field read for each sex: every point of the globe below it, past its outer corner and in toward the nose lies under
+  the skin).

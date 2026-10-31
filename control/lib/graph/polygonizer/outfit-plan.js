@@ -222,13 +222,17 @@ export const OUTFIT_KINDS = Object.freeze({
   //   slick      one plate high on the chest, a lame under it: a low-profile plate
   //   rig        no plate: the harness's straps over the shoulders and a row of magazine pouches across the front
   //   hardshell  the cuirass covering the whole front (a future's moulded shell, in the metal)
+  //   plate      a modern PLATE CARRIER: the slick's plate high on the chest, a row of magazine pouches on the flap under
+  //              it (three a side), a cummerbund round the trunk from the flap to the back panel
   //   holster    a GUN HARNESS (a shoulder rig): the harness's straps, a pistol holstered level under the off arm (its grip
   //              forward, `side` the draw hand's, the holster under the other arm) and a double magazine carrier level
   //              under the draw arm; a pack signature with `holster` / `mags` (the authored kernel draws its box, the
   //              realistic body the pieces: body-relational-kit.js)
   // `cover` as the chest plate's (a carrier 0.85 unless it says)
   vest: { layer: 4, cls: 'stiff', colour: 'secondary', compile: (p, B, G, I) => { const id = p.id ?? 'vest', cut = p.cut ?? 'carrier';
-    const back = { id: `${id}Back`, mode: 'shell', part: 'torso', s: [1.6, 2.6], t: [3.2, 4], nt: 4, ns: 2, mugen: r3(0.03 * B.k), thick: r3(0.01 * B.k), group: G(p), signature: { kind: 'pack', w: r3(0.34 * B.k), h: r3(0.36 * B.k), d: r3(0.035 * B.k), lift: 0, chamfer: r3(0.015 * B.k), soft: false, flap: false, group: G(p) } };
+    // (the back panel high on the back, its window by shares (0 the front, 1 the back's middle), on no belt: a pack hung from
+    // the duty belt dropped to the hip)
+    const back = { id: `${id}Back`, mode: 'shell', part: 'torso', share: true, s: [0.36, 0.68], t: [0.86, 1], nt: 4, ns: 2, mugen: r3(0.03 * B.k), thick: r3(0.01 * B.k), group: G(p), signature: { kind: 'pack', w: r3(0.28 * B.k), h: r3(0.3 * B.k), d: r3(0.03 * B.k), lift: 0, chamfer: r3(0.015 * B.k), soft: false, flap: false, hang: false, lean: true, group: G(p) } };
     const role = p.role === 'focal' ? 'support' : p.role;
     if (cut === 'holster') {
       const straps = OUTFIT_KINDS.harness.compile({ ...p, id: `${id}Strap`, mounted: true, studs: 2 }, B, G).adorn, draw = p.side ?? I.side ?? 'R', off = draw === 'R' ? 'L' : 'R';
@@ -236,6 +240,15 @@ export const OUTFIT_KINDS = Object.freeze({
       return { adorn: [...straps,
         under('Holster', off, { holster: 'pistol', w: r3(0.19 * B.k), h: r3(0.05 * B.k), d: r3(0.032 * B.k) }),
         under('Mags', draw, { mags: 2, w: r3(0.1 * B.k), h: r3(0.075 * B.k), d: r3(0.026 * B.k) })] };
+    }
+    if (cut === 'plate') {
+      const front = OUTFIT_KINDS.chestPlate.compile({ ...p, id, cover: p.cover ?? 0.72, motif: 'dots', role }, B, G, I);
+      const mags = ['R', 'L'].flatMap((S) => [[0.03, 0.12], [0.13, 0.22], [0.23, 0.32]].map((t, i) => ({ id: `${id}Mag${S}${i}`, mode: 'shell', part: 'torso', side: S, share: true, s: [0.4, 0.53], t, nt: 3, ns: 2, mugen: r3(0.014 * B.k), thick: r3(0.008 * B.k), group: G(p),
+        signature: { kind: 'pack', w: r3(0.06 * B.k), h: r3(0.1 * B.k), d: r3(0.04 * B.k), lift: 0, chamfer: r3(0.01 * B.k), soft: false, flap: 0.3, group: G(p) } })));
+      // (the cummerbund: a wide band each side from the flap's edge round to the back panel, under the pouches' line)
+      const cummer = ['R', 'L'].map((S) => ({ id: `${id}Cummer${S}`, mode: 'shell', part: 'torso', side: S, share: true, s: [0.38, 0.52], t: [0.34, 0.92], nt: 10, ns: 2, mugen: r3(0.008 * B.k), thick: r3(0.008 * B.k), group: G(p),
+        signature: { kind: 'studs', r: r3(0.004 * B.k), h: r3(0.002 * B.k), count: 1, m: 6, group: G({ colour: 'trim' }) } }));
+      return { adorn: [...front.adorn, ...cummer, ...mags, back] };
     }
     if (cut === 'rig') {
       const straps = OUTFIT_KINDS.harness.compile({ ...p, id: `${id}Strap`, mounted: true, studs: 2 }, B, G).adorn;
@@ -266,6 +279,9 @@ export const OUTFIT_KINDS = Object.freeze({
   // KNEEPADS: a rigid cap over each knee (the top of the lower leg: a hero's shank, a creature's shin)
   kneepads: { layer: 4, cls: 'rigid', colour: 'secondary', compile: (p, B, G) => ({ adorn: ['R', 'L'].map((S) => ({ id: `${p.id ?? 'kneepad'}${S}`, mode: 'band', part: `${B.names.has('shank') ? 'shank' : 'shin'}${S}`, share: true, s: [0.0, 0.13], t: 'wrap', nt: 10, ns: 2, mugen: r3(0.008 * B.k), thick: r3(0.014 * B.k), rad: r3(0.03 * B.k), group: G(p), rigid: true, edge: 'roll', crown: r3(0.006 * B.k), interior: G({ colour: 'shade' }),
     signature: { kind: 'studs', r: r3(0.007 * B.k), h: r3(0.004 * B.k), count: 2, m: 6, group: G({ colour: 'trim' }) } })) }) },
+  // ELBOW PADS: a rigid cap over each elbow (the top of the forearm), as the kneepads are over the knees
+  elbowpads: { layer: 4, cls: 'rigid', colour: 'secondary', compile: (p, B, G) => ({ adorn: ['R', 'L'].map((S) => ({ id: `${p.id ?? 'elbowpad'}${S}`, mode: 'band', part: `foreArm${S}`, share: true, s: [0.0, 0.15], t: 'wrap', nt: 10, ns: 2, mugen: r3(0.006 * B.k), thick: r3(0.012 * B.k), rad: r3(0.025 * B.k), group: G(p), rigid: true, edge: 'roll', crown: r3(0.005 * B.k), interior: G({ colour: 'shade' }),
+    signature: { kind: 'studs', r: r3(0.006 * B.k), h: r3(0.003 * B.k), count: 1, m: 6, group: G({ colour: 'trim' }) } })) }) },
   // L6: what is CARRIED
   satchel: { layer: 6, cls: 'stiff', colour: 'leather', compile: (p, B, G, I) => { const S = p.side ?? I.side ?? 'R';
     return { adorn: [{ id: `${p.id ?? 'satchel'}${S}`, mode: 'shell', part: 'pelvis', side: S, s: [0.8, 1.3], t: [1.6, 2.2], nt: 4, ns: 2, mugen: r3(0.02 * B.k), thick: r3(0.008 * B.k), group: G({ colour: 'leather' }), signature: { kind: 'pack', w: r3(0.2 * B.k), h: r3(0.2 * B.k), d: r3(0.09 * B.k), lift: 0, chamfer: r3(0.03 * B.k), soft: true, group: G(p) } }] }; } },

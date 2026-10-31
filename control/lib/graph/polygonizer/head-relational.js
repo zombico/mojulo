@@ -95,6 +95,7 @@ export const RELATIONS = Object.freeze({
                         // not the canon's parts crowded into less room (− smaller)
   gonionDrop: 0,        // the jaw's corner lower than the canon's (0.03 under the stomion) / v-me (− a higher corner)
   cheeks: 0,            // the cheek's fullness: its balloon's radii × (1 + this) (+ fuller, − hollower)
+  cheekBack: 0,         // the cheek balloon's bulge set back from the cheek's apex / v-me (+ less volume forward)
   lowerCheek: 0,        // the lower cheek over the jaw's body: the balloon's lower arm bowed down and out and filled
                         // (+ a softer, rounder outline from the cheekbone to the chin; − a sharper V)
   masseter: 0,          // the jaw's muscle: the masseter's belly × (1 + this) (− a slimmer jaw's side, + a heavier one)
@@ -121,6 +122,7 @@ export const RELATIONS = Object.freeze({
   earTop: 0.5,          // the ear's top between the eye line (0) and the glabella (1): at the brow
   earBottom: 0,         // the lobule's bottom above the subnasale / v-me: level with the nose's base
   earWidth: 1,          // the ear's width over its outline's own
+  earForward: 0,        // the ear's hinge ahead of its rest (a touch ahead of the porion) / v-me
   earTilt: 6,           // degrees the ear leans back from vertical (its frame; the long axis, helix top to lobule
                         // bottom, reads ~4° more, ~10°): upright, at the clinic's 10–30 floor (a share of the nose's dorsum
                         // read ~18°, too angled)
@@ -142,6 +144,21 @@ export const RELATIONS = Object.freeze({
  */
 export const EAR_RAISE = Object.freeze({ male: Object.freeze({ earTop: 0.25, earBottom: 0.01 }), female: Object.freeze({ earTop: 0.5, earBottom: 0 }) });
 export const raisedEar = (rel = null, sex = 'male') => { const E = EAR_RAISE[sex] ?? EAR_RAISE.male; return { ...(rel || {}), earTop: (rel?.earTop ?? RELATIONS.earTop) + E.earTop, earBottom: (rel?.earBottom ?? RELATIONS.earBottom) + E.earBottom }; };
+/**
+ * THE EVEN FACE (realistic laws 14): the cheek's volume taken off its front and given to the jaw's side, offsets over the
+ * face's relations (or its pole's): the cheek's balloon a little smaller and its bulge set back (`cheekBack`), her
+ * cheekbone's front (`malarDepth`) set back, the lower arm fuller over the jaw's
+ * body, the jaw's corners wider and its masseter heavier, and the ear a little forward (`earForward`), so the front's
+ * silhouette keeps its top and widens at its foot, never past the vault's own width, and the profile runs even from 3/4
+ * and below (the balloon at the pole's fullness stood forward of the face there over a jaw's side too slight, a heavy
+ * cheek over a gaunt one, and the cheekbone and the brow's outer corner stood as bumps). Laws 1–13 keep the face they had.
+ */
+export const EVEN_FACE = Object.freeze({
+  female: Object.freeze({ cheeks: -0.15, cheekBack: 0.06, malarDepth: 0.02, lowerCheek: 0.3, jaw: 0.08, masseter: 0.3, earForward: 0.015 }),
+  // (his cheekbone kept forward, its front not set back: with his eye set deeper it is what covers the globe's flank)
+  male: Object.freeze({ cheeks: -0.15, cheekBack: 0.06, lowerCheek: 0.3, jaw: 0.05, masseter: 0.2, earForward: 0.015 }),
+});
+export const evenFace = (rel = null, sex = 'male') => { const E = EVEN_FACE[sex] ?? EVEN_FACE.male, P = RELATION_POLES[sex] ?? {}; return { ...(rel || {}), ...Object.fromEntries(Object.entries(E).map(([k, d]) => [k, (rel?.[k] ?? P[k] ?? RELATIONS[k]) + d])) }; };
 export const RELATION_NAMES = Object.freeze(Object.keys(RELATIONS));
 /** the sex poles: ratios each pole moves over the canon (the rest are shared) */
 export const RELATION_POLES = Object.freeze({
@@ -481,7 +498,7 @@ export function coreVajras(P, rel = RELATIONS) {
     // sharing the bulge. `balloon` keeps its volume: when an action shortens it (a smile draws its ends toward the
     // cheek), its radii grow by √(rest length / length), so the cheek's lift in a smile comes from the relation.
     // (`cheeks`: the balloon's fullness, its anchor's and bulge's radii)
-    const anchor = inX(at(go, { y: 0.03, z: 0.04 }), 0.05), bulge = at(P[`cheek${s}`], { y: -0.045 }), bk = 1 + R.cheeks;
+    const anchor = inX(at(go, { y: 0.03, z: 0.04 }), 0.05), bulge = at(P[`cheek${s}`], { y: -0.045 - R.cheekBack }), bk = 1 + R.cheeks;
     // (the arms overlap end to end — their ends a corner's height apart, their radii wider than half of it — so the
     // balloon is one closed mass, not a loop with a hole through it)
     const endUp = at(md, { x: -Math.sign(ch.x) * 0.005, y: -0.025, z: 0.016 }), endLo = at(md, { x: -Math.sign(ch.x) * 0.005, y: -0.025, z: -0.016 });
@@ -897,7 +914,7 @@ export function earPart(P, rel, s, baseX) {
   const add3 = (p, q, k = 1) => ({ x: p.x + q.x * k, y: p.y + q.y * k, z: p.z + q.z * k });
   const comb = (a, ka, b, kb) => ({ x: a.x * ka + b.x * kb, y: a.y * ka + b.y * kb, z: a.z * ka + b.z * kb });
   const outward = (a, b) => { const n = { x: a.y * b.z - a.z * b.y, y: a.z * b.x - a.x * b.z, z: a.x * b.y - a.y * b.x }, l = Math.hypot(n.x, n.y, n.z) || 1, k = Math.sign(n.x) === sg ? 1 / l : -1 / l; return { x: n.x * k, y: n.y * k, z: n.z * k }; };
-  const H0 = { x: sg * baseX, y: P.porionR.y + 0.03, z: zSba + 0.481 * Hear * ct };  // the hinge at the bowl's height
+  const H0 = { x: sg * baseX, y: P.porionR.y + 0.03 + R.earForward, z: zSba + 0.481 * Hear * ct };  // the hinge at the bowl's height
   const W = R.earWidth;
   // a frame: its origin, the directions of +v and of +b (back, b = (EAR_HINGE − u)·W), its normal, and where (u, v)
   // sit at the origin; points map linearly, so each piece inverts exactly
@@ -1033,7 +1050,8 @@ export const HEAD_LAYERS = Object.freeze(['skin', 'skull']);
  * otherwise join each lid's margin to the globe it rests on in one surface, and pinch there; `globes` hands each
  * globe's own field and paint, to be built as its own part (hero-relational-head.js's one skin). `seat: true` rests
  * the lids on the globes (head-relational-eye.js `SEAT`): the skin about each opening cut back to the lid shell, so no
- * tunnel stands between the lids' margins and the eye (realistic laws 11).
+ * tunnel stands between the lids' margins and the eye (realistic laws 11); `seat: 2` also runs the space under the brow as
+ * one section (`SEAT.section`, realistic laws 14).
  */
 export function relationalHead({ sex = 'male', relations = {}, layer = 'skin', tune = null, actions = null, eyes = null, ears: withEars = true, globes: withGlobes = true, seat = false } = {}) {
   const rel = { ...RELATIONS, ...RELATION_POLES[sex], ...relations };
@@ -1189,7 +1207,7 @@ export function relationalHead({ sex = 'male', relations = {}, layer = 'skin', t
   };
   // THE EARS — hinged on the skin: probe the head's own surface along the hinge's line, then hang each ear on it
   const hung = skin ? ['L', 'R'].map((s) => {
-    const sg = s === 'L' ? -1 : 1, probe = rayIn(skinField, { x: 0, y: (Pt.porionR.y + 0.03) * sc, z: Pt.porionR.z * sc }, [sg, 0, 0]);
+    const sg = s === 'L' ? -1 : 1, probe = rayIn(skinField, { x: 0, y: (Pt.porionR.y + 0.03 + (rel?.earForward ?? 0)) * sc, z: Pt.porionR.z * sc }, [sg, 0, 0]);
     const baseX = (probe ? Math.abs(probe.x) / sc : Pt.porionR.x) - 0.004;   // sunk a touch into the skin, so it welds
     const e = earPart(Pt, rel, s, baseX);
     return { side: s, f: (p) => e.f({ x: p.x / sc, y: p.y / sc, z: p.z / sc }) * sc, carve: (p) => e.carve({ x: p.x / sc, y: p.y / sc, z: p.z / sc }) * sc, top: S(e.top), tragion: S(e.tragion) };
@@ -1205,7 +1223,7 @@ export function relationalHead({ sex = 'male', relations = {}, layer = 'skin', t
   // (seated, the eyes come `SEAT.forward` of the way from the cornea to the nose's tip, their corneas kept behind the
   // glabella: their globes, lids and lashes, not the socket or the skin about it, which the seat cuts back to the lids)
   const Pe = seat ? { ...Pt, ...Object.fromEntries(['L', 'R'].flatMap((s) => {
-    const [share, behind] = SEAT.forward, y = Pt[`eye${s}`].y, dy = Math.max(0, Math.min(share * (Pt.prn.y - y), Pt.g.y - behind - y));
+    const [share, behind] = seat === 2 ? SEAT.forwardOut[sex] ?? SEAT.forwardOut.male : SEAT.forward, y = Pt[`eye${s}`].y, dy = Math.max(0, Math.min(share * (Pt.prn.y - y), Pt.g.y - behind - y));
     return ['eye', 'en', 'ex'].map((k) => [`${k}${s}`, { ...Pt[`${k}${s}`], y: Pt[`${k}${s}`].y + dy }]);
   })) } : Pt;
   const bridge = skin ? browBridge(Pe, { med: shift('c'), L: shift('a'), R: shift('b') }, { seat }) : null;
@@ -1224,14 +1242,16 @@ export function relationalHead({ sex = 'male', relations = {}, layer = 'skin', t
     // brow draws the upper lid's peak in, the worried lid)
     // (a side's own: `wideL` the left alone; the cheek raiser pushes the lower lid up from below, rounded)
     const per = (k) => Math.min(1, act(k) + act(`${k}${s}`)), wd = per('wide'), sq = per('squint'), bi = act('browInner'), bl0 = per('browLower'), cr = per('cheekRaise'), bo = per('browOuter');
-    const c = resolveEye(spec, s, { lower: 0.6 * sm + 0.35 * sq + 0.3 * cr, lowerShape: 0.3 * sm - 0.4 * sq + 0.2 * cr, open: 0.25 * act('browRaise') - 0.12 * bl0 + 0.5 * wd - 0.06 * sq + 0.08 * bi + 0.1 * bo - 0.05 * cr,
+    // (a blink lifts the lower lid a little, `0.12`: the lids meet a touch below the eye's middle, the lower travelling a
+    // millimetre or so of the upper's ten, so the upper has that much less to roll)
+    const c = resolveEye(spec, s, { lower: 0.6 * sm + 0.35 * sq + 0.3 * cr + 0.12 * bl, lowerShape: 0.3 * sm - 0.4 * sq + 0.2 * cr, open: 0.25 * act('browRaise') - 0.12 * bl0 + 0.5 * wd - 0.06 * sq + 0.08 * bi + 0.1 * bo - 0.05 * cr,
       upperShape: -0.3 * bl0 - 0.2 * sq, upperPeak: -0.45 * bi + 0.25 * bo, crease: 0.3 * wd });
     c.open *= 1 - bl;
     const r = eyeRig(Pe, s, c, rel.fissure, bridge.arcs[s], rel.lidSplit, { seat });
     const V = (p) => ({ x: p.x / sc, y: p.y / sc, z: p.z / sc });
     const near = (p) => Math.hypot(p.x / sc - r.bound.c.x, p.y / sc - r.bound.c.y, p.z / sc - r.bound.c.z) < r.bound.r;
     return { side: s, near, channels: c, gaze: r.gaze, margins: r.margins, globeV: r.globe, lids: (p) => r.lids(V(p)) * sc,
-      lidSpace: (p) => r.lidSpace(V(p)) * sc, seat: r.seat && ((p) => r.seat(V(p)) * sc), opening: r.opening && ((p) => r.opening(V(p)) * sc), rims: (p) => r.rims(V(p)) * sc,
+      lidSpace: (p) => r.lidSpace(V(p)) * sc, cover: r.cover && ((p) => r.cover(V(p)) * sc), coverBlend: r.coverBlend && ((p) => r.coverBlend(V(p))), coverEnds: r.coverEnds && ((p) => r.coverEnds(V(p)) * sc), seat: r.seat && ((p) => r.seat(V(p)) * sc), opening: r.opening && ((p) => r.opening(V(p)) * sc), rims: (p) => r.rims(V(p)) * sc,
       crease: r.crease && ((p) => r.crease(V(p)) * sc), globe: (p) => r.globe(V(p)) * sc, paint: (p) => r.paint(V(p)), irisTone: (p) => r.irisTone(V(p)) };
   }) : [];
   // THE FURROWS (`furrows`, an old forehead's deep folds as shape, so an engine's light casts them and the profile shows
@@ -1290,7 +1310,10 @@ export function relationalHead({ sex = 'male', relations = {}, layer = 'skin', t
       d = smax(d, -e.lidSpace(p), 0.005 * sc);
       if (e.seat) d = smax(d, -e.seat(p), SEAT.blend * sc);
       d = smin(d, e.lids(p), 0.008 * sc);
+      // (the globe covered by the skin all round, but through the opening: realistic laws 14, head-relational-eye.js)
+      if (e.cover) d = smin(d, e.cover(p), (0.002 + e.coverBlend(p)) * sc);
       if (e.opening) d = smax(d, -e.opening(p), 0.0025 * sc);
+      if (e.coverEnds) d = smin(d, e.coverEnds(p), 0.002 * sc);
       d = smin(d, e.rims(p), 0.004 * sc);
       if (e.crease) d = smax(d, -e.crease(p), 0.002 * sc);
       if (withGlobes) d = smin(d, e.globe(p), 0.0015 * sc);
@@ -1333,6 +1356,8 @@ export function relationalHead({ sex = 'male', relations = {}, layer = 'skin', t
     V: sc, points: Pt, rest: byName(rest), moved: byName(vajras), eyes: eyeRigs.map((e) => e.channels),
     // the brow's bridge, strings and arcs (V), and the eye rigs' lash lines and globes, for the lashes
     bridge,
+    // (the seat's level: 2 the brow of one section, realistic laws 14, whose brow's arch is the rounder, epidermis.js browLine)
+    ...(seat ? { seat } : {}),
     eyeRigs: eyeRigs.map((e) => ({ side: e.side, channels: e.channels, margins: e.margins, globe: e.globeV, ...(e.seat ? { seated: true } : {}) })),
   };
   // the skin wave alone (no nose, lips, lip line, eyes or ears: what a head sampled feature by feature lies over), and

@@ -52,7 +52,7 @@ import {
   physicsChannelScript, pickChannelScript, shadowDecalScript, skyDomeScript,
   specularChannelScript, splatChannelScript, spriteSfxChannelScript, marksChannelScript, normalizeMarks, shootChannelScript, shootSetScript, toonInkScript, walkersChannelScript, carsChannelScript, walkModeScript, waterMeshScript, liquidMeshScript, shallowsChannelScript, jetChannelScript, aquaPatchScript, wetSandScript, softGroundScript, snowPrintsScript,
   rigPreviewChannelScript, drawLayersScript, drawLayerGroup,
-  strokeOverlayChannelScript, versusChannelScript, boardChannelScript, meetChannelScript, courtChannelScript, turnsChannelScript, pitchChannelScript, holoChannelScript, inningsChannelScript,
+  strokeOverlayChannelScript, versusChannelScript, boardChannelScript, meetChannelScript, courtChannelScript, turnsChannelScript, pitchChannelScript, holoChannelScript, inningsChannelScript, broadcastScreenScript,
 } from './channels/index.js';
 import { xrModeScript } from './channels/xr.js';
 import { resampleScript } from './channels/resample.js';
@@ -246,7 +246,7 @@ const SCREEN_ZONES_CSS = [
   '  html[data-orientation=portrait] .moj-rpg-field{flex-direction:column}html[data-orientation=portrait] .moj-rpg-field .mem{width:auto}',
 ].join('\n');
 
-export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 1120, height: 780 }, title = 'mojulo world', bg = '#0e1014', inline = false, cdn = false, glow = true, light = null, sky = null, textures = {}, wireframe = false, walk = false, spin = false, hud = true, picks = [], tracers = [], planets = [], movers = [], comets = [], fields = [], surfaces = [], heatSpheres = [], starSurfaces = [], buildups = [], transports = [], deforms = [], raymarch = null, decollide = true, capture = false, signs = [], physics = null, actions = [], entities = [], camera = null, pilot = null, spectate = null, seats = null, ai = null, colliders = null, breakables = null, breakPieces = null, hangar = null, match = null, shadows = null, smoke = null, wreckExplodes = null, tutorial = null, aiDifficulty = null, lock = null, commander = null, figures = {}, events = null, fog = null, ao = null, repeats = [], splats = [], audio = null, fx = null, effects = [], spriteSfx = [], marks = [], driveSurface = null, shoot = null, game = null, backdrop = null, walkers = [], cars = [], carMeshes = {}, signals = null, trafficLanes = null, trafficConstants = null, xr = null, toon = null, stream = null, haze = null, strokeOverlay = null, terrain = null, crystalLight = null, fire = null, metersPerUnit = null, cutouts = null, doors = null, items = null, shallows = null, wetSand = null, softGround = null, jets = null, jetLight = null, sway = null, flicker = null, motes = null, wetRoad = null, weather = null, tone = null, liveGrass = null, pack = false, soft = null, pixel = null , versus = null, vertexContrast = null, board = null, screen = null, runner = null, science = null, hazeHeight = null, snowPrints = null, fauna = null, fabric = null, resample = null, creases = null, occlusion = null, lightTier = null, meet = null, court = null, turns = null, pitch = null, holo = null, innings = null, form = null } = {}) {
+export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 1120, height: 780 }, title = 'mojulo world', bg = '#0e1014', inline = false, cdn = false, glow = true, light = null, sky = null, textures = {}, wireframe = false, walk = false, spin = false, hud = true, picks = [], tracers = [], planets = [], movers = [], comets = [], fields = [], surfaces = [], heatSpheres = [], starSurfaces = [], buildups = [], transports = [], deforms = [], raymarch = null, decollide = true, capture = false, signs = [], physics = null, actions = [], entities = [], camera = null, pilot = null, spectate = null, seats = null, ai = null, colliders = null, breakables = null, breakPieces = null, hangar = null, match = null, shadows = null, smoke = null, wreckExplodes = null, tutorial = null, aiDifficulty = null, lock = null, commander = null, figures = {}, events = null, fog = null, ao = null, repeats = [], splats = [], audio = null, fx = null, effects = [], spriteSfx = [], marks = [], driveSurface = null, shoot = null, game = null, backdrop = null, walkers = [], cars = [], carMeshes = {}, signals = null, trafficLanes = null, trafficConstants = null, xr = null, toon = null, stream = null, haze = null, strokeOverlay = null, terrain = null, crystalLight = null, fire = null, metersPerUnit = null, cutouts = null, doors = null, items = null, shallows = null, wetSand = null, softGround = null, jets = null, jetLight = null, sway = null, flicker = null, motes = null, wetRoad = null, weather = null, tone = null, liveGrass = null, pack = false, soft = null, pixel = null , versus = null, vertexContrast = null, board = null, screen = null, runner = null, science = null, hazeHeight = null, snowPrints = null, fauna = null, fabric = null, resample = null, creases = null, occlusion = null, lightTier = null, meet = null, court = null, turns = null, pitch = null, holo = null, innings = null, form = null, broadcasts = null } = {}) {
   if (board && !capture) walk = false;   // a board owns the keys and the view: no walking over it
   // (a room in the form render, channels/form.js: its faces' baked light rides each mesh as `aLit`; none, none packed)
   const litPack = !!(form && form.room && Array.isArray(form.room.lights));
@@ -412,6 +412,8 @@ export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 11
       // the textured-instances block below with the same transforms; the key is absent without them
       ...(Object.keys(gm.textureGroups || {}).length ? { tex: Object.entries(gm.textureGroups).map(([key, g]) => ({ key, pos: b64(g.positions), uv: b64(g.uvs), col: b64(g.colors), lit: !!g.lit })) } : {}),
       ...(creasesCfg && creaseOf(r.template) ? { crease: creaseOf(r.template) } : {}),
+      // drawn only NEAR the camera (`near` world units): a street's kit and its paint, a far block needing none
+      ...(Number.isFinite(r.near) && r.near > 0 ? { near: r.near } : {}),
     };
   });
   // widen the camera-framing bound so a mostly-instanced world still frames fully
@@ -513,6 +515,7 @@ export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 11
   });
   const hasRepeatTextures = packedRepeats.some((r) => r.tex);
   const hasAxisScale = packedRepeats.some((r) => r.t.some((t) => t.length > 5));   // absent: the uniform line, byte-identical
+  const hasNear = packedRepeats.some((r) => r.near);   // absent: no near tiles, not one byte
   const hasTextures = groups.some((g) => g.tex.length) || hasRepeatTextures || blendLayers.length > 0;
   // the resampler (channels/resample.js): the plans for the textures this page draws; none, nothing emitted
   const resampled = resample && hasTextures ? (() => { const r = Object.fromEntries(Object.entries(resample).filter(([k]) => textures[k]).sort(([a], [b]) => (a < b ? -1 : 1))); return Object.keys(r).length ? r : null; })() : null;
@@ -696,7 +699,7 @@ export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 11
   // a stage's tone (channels/tone.js): each surface lit first, coloured off its ramp after; none → not one byte
   const toneBlock = tone && Array.isArray(tone.ramps) && tone.ramps.length ? toneScript(tone) : '';
   // the FORM render's land (gen-7, form/land-read.js formPayload): drawn last, in place of the painted land; absent, nothing
-  const formLandBlock = form && form.land ? formLandScript(form.land) : '';
+  const formLandBlock = form && form.land ? formLandScript(form.land, form.flora || null) : '';
   // a gritty style's rock fabric (channels/fabric.js): the near rock drawn from its own joints and beds; none → not one byte
   const fabricBlock = fabric && Array.isArray(fabric.sets) && fabric.sets.length && Array.isArray(fabric.groups) ? fabricScript(fabric) : '';
   // a stage's live grass and swaying crowns (channels/stage-grass.js); absent ⇒ zero bytes
@@ -797,6 +800,8 @@ export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 11
   // a board game lifted into a hologram arena (lib/graph/tabletop): it owns the camera; never on a capture run
   const holoBlock = holo && !capture ? holoChannelScript(holo) : '';
   const inningsBlock = innings && !capture ? inningsChannelScript(innings) : '';
+  // a persona's read on a screen in the world (persona/screen.js): drawn on a capture run too, its frame the clock's
+  const broadcastsBlock = Array.isArray(broadcasts) && broadcasts.length ? broadcastScreenScript(broadcasts) : '';
 
   // controllable channel (opt-in, LIVE): the unified control primitive. Present when the manifest
   // carries `entities` (or a `camera` spec). When it owns a camera entity it disables OrbitControls.
@@ -1052,7 +1057,7 @@ scene.add(__eQuad${i});${fxDepth ? ` __fxQuads.push(__eQuad${i});` : ''}
     creases: creasesCfg || occlusionCfg ? creasesChannelScript(creasesCfg, { metersPerUnit, ...(occlusionCfg ? { occlusion: occlusionCfg } : {}), ...(occlusionCfg && lightTier && lightTier.ao === 0.5 ? { aoHalf: true } : {}) }) : '',
     // the live light's budget (channels/cast-shadows.js liveBudgetScript): a page world-scene gave a tier counts what it draws
     lightBudget: lightTier && (liveShadows || occlusionCfg) ? liveBudgetScript(lightTier) : '',
-    fx: fxBlock, spriteSfx: spriteSfxBlock, marks: marksBlock, shoot: shootBlock, shootSet: shootSetBlock, audio: audioBlock, game: gameBlock, versus: versusBlock, board: boardBlock, meet: meetBlock, court: courtBlock, turns: turnsBlock, pitch: pitchBlock, holo: holoBlock, innings: inningsBlock,
+    fx: fxBlock, spriteSfx: spriteSfxBlock, marks: marksBlock, shoot: shootBlock, shootSet: shootSetBlock, audio: audioBlock, game: gameBlock, versus: versusBlock, board: boardBlock, meet: meetBlock, court: courtBlock, turns: turnsBlock, pitch: pitchBlock, holo: holoBlock, innings: inningsBlock, broadcasts: broadcastsBlock,
   };
 
   return `<!doctype html>
@@ -1201,12 +1206,42 @@ for (const grp of GROUPS) {
 // Pushed into solids: walk collision + pick occlusion + the wireframe toggle see instances
 // exactly like expanded geometry (three raycasts InstancedMesh per instance).
 const REPEATS = ${safeJson(packedRepeats)};
-for (const r of REPEATS) {
+${hasNear ? `// NEAR repeats: an entry with \`near\` is cut into square tiles of its instances, each its own InstancedMesh on the
+// shared geometry, shown only while the camera stands within \`near\` of the tile (checked before each render, so a
+// capture, a frozen frame and the live loop agree): a street's kit and paint drawn where they are seen, none far off;
+// a textured template's faces (a tree's bark) tiled the same, on their own material
+const __nearTiles = [];
+const __nearRepeat = (r, geo, material = null) => {
+  const T = Math.max(16, r.near / 2), tiles = new Map();
+  r.t.forEach((t, i) => { const k = Math.floor(t[0] / T) + ':' + Math.floor(t[1] / T); if (!tiles.has(k)) tiles.set(k, []); tiles.get(k).push(i); });
+  const mat = material || new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide });
+  const M = new THREE.Matrix4(), Q = new THREE.Quaternion(), UP = new THREE.Vector3(0, 0, 1), P = new THREE.Vector3(), S = new THREE.Vector3();
+  for (const [k, ids] of tiles) {
+    const im = new THREE.InstancedMesh(geo, mat, ids.length);
+    let cx = 0, cy = 0;
+    ids.forEach((i, j) => {
+      const t = r.t[i]; cx += t[0] / ids.length; cy += t[1] / ids.length;
+      Q.setFromAxisAngle(UP, t[3]); P.set(t[0], t[1], t[2]); ${hasAxisScale ? 'S.set(t[4], t[5] ?? t[4], t[6] ?? t[4]);' : 'S.set(t[4], t[4], t[4]);'} M.compose(P, Q, S); im.setMatrixAt(j, M);
+      if (r.tint) im.setColorAt(j, new THREE.Color(r.tint[i][0], r.tint[i][1], r.tint[i][2]));
+    });
+    im.instanceMatrix.needsUpdate = true; if (im.instanceColor) im.instanceColor.needsUpdate = true;
+    im.userData.g = r.name; im.visible = false;
+    scene.add(im); solids.push(im); if (!meshes[r.name]) meshes[r.name] = im;
+    __nearTiles.push({ im, x: cx, y: cy, r: r.near + T * 0.75 });
+  }
+};
+const __nearBR = scene.onBeforeRender;
+scene.onBeforeRender = function (rd, sc, cam, rt) {
+  __nearBR.call(this, rd, sc, cam, rt);
+  const p = cam.position;
+  for (const n of __nearTiles) n.im.visible = (n.x - p.x) * (n.x - p.x) + (n.y - p.y) * (n.y - p.y) < n.r * n.r;
+};
+` : ''}for (const r of REPEATS) {
   const geo = new THREE.BufferGeometry();
   geo.setAttribute('position', new THREE.BufferAttribute(decodeF32(r.pos), 3));
   geo.setAttribute('color', new THREE.BufferAttribute(decodeF32(r.col), 3));
   geo.computeBoundingSphere();
-  const im = new THREE.InstancedMesh(geo, new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide }), r.t.length);
+  ${hasNear ? 'if (r.near) { __nearRepeat(r, geo); continue; }\n  ' : ''}const im = new THREE.InstancedMesh(geo, new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide }), r.t.length);
   const M = new THREE.Matrix4(), Q = new THREE.Quaternion(), UP = new THREE.Vector3(0, 0, 1), P = new THREE.Vector3(), S = new THREE.Vector3();
   r.t.forEach((t, i) => {
     Q.setFromAxisAngle(UP, t[3]);
@@ -1232,7 +1267,7 @@ for (const r of REPEATS) for (const t of (r.tex || [])) {
   g.computeBoundingSphere();
   let tex = REP_TEX[t.key];
   if (!tex) { tex = REP_TEX[t.key] = new THREE.TextureLoader().load(url); tex.colorSpace = THREE.SRGBColorSpace; tex.wrapS = tex.wrapT = THREE.RepeatWrapping; tex.anisotropy = 8; }
-  const im = new THREE.InstancedMesh(g, new THREE.MeshBasicMaterial({ map: tex, vertexColors: !!t.lit, side: THREE.DoubleSide${cutOpt} }), r.t.length);
+  ${hasNear ? 'if (r.near) { __nearRepeat(r, g, new THREE.MeshBasicMaterial({ map: tex, vertexColors: !!t.lit, side: THREE.DoubleSide' + cutOpt + ' })); continue; }\n  ' : ''}const im = new THREE.InstancedMesh(g, new THREE.MeshBasicMaterial({ map: tex, vertexColors: !!t.lit, side: THREE.DoubleSide${cutOpt} }), r.t.length);
   const M = new THREE.Matrix4(), Q = new THREE.Quaternion(), UP = new THREE.Vector3(0, 0, 1), P = new THREE.Vector3(), S = new THREE.Vector3();
   r.t.forEach((q, i) => {
     Q.setFromAxisAngle(UP, q[3]); P.set(q[0], q[1], q[2]); S.set(q[4], q[4], q[4]); M.compose(P, Q, S); im.setMatrixAt(i, M);
@@ -1469,7 +1504,7 @@ ${channelRuntimeSection(chBlocks)}${walkersBlock}${rigPreviewBlock}${strokeOverl
 // channel stepped to t) instead of running the rAF loop — a deterministic still/thumbnail that doesn't
 // depend on how long the page has been open (and doesn't fight headless virtual-time budgets). Orbit
 // still works: the camera re-renders on control change. No ?t → the normal live loop, unchanged.
-${fxNorm ? 'let stepFx = () => {};\n' : ''}${spriteSfxList.length ? 'let stepSpriteSfx = () => {};\n' : ''}${marksList.length ? 'let stepMarks = () => {};\n' : ''}${shootBlock ? 'let stepShoot = () => {}, __shClock = (t) => t;\n' : ''}${shootSetBlock ? 'let stepShootSet = () => {}, __shSetShot = 0, __shSetT = null;\n' : ''}${versusBlock ? 'let stepFight = () => {};\n' : ''}${boardBlock ? 'let stepBoard = () => {};\n' : ''}${meetBlock ? 'let stepContest = () => {};\n' : ''}${courtBlock ? 'let stepCourt = () => {};\n' : ''}${turnsBlock ? 'let stepTurnSport = () => {};\n' : ''}${pitchBlock ? 'let stepPitch = () => {};\n' : ''}${holoBlock ? 'let stepHolo = () => {};\n' : ''}${inningsBlock ? 'let stepInnings = () => {};\n' : ''}function __mojStep(t) { ${mojStepCalls()}${weatherBlock ? ' stepWeather(t);' : ''}${walkersBlock ? ' stepWalkers(t);' : ''}${rigPreviewBlock ? ' stepRigPreview(t);' : ''}${carsBlock ? ' stepCars(t);' : ''}${crystalLightBlock ? ' stepCrystalLight(t);' : ''}${doorsBlock ? ' stepDoors(t);' : ''}${shallowsBlock ? ' stepShallows(t);' : ''}${jetBlock ? ' stepJets(t);' : ''}${wetSandBlock ? ' stepWetSand(t);' : ''}${softGroundBlock ? ' stepSoftGround(t);' : ''}${snowPrintsBlock ? ' stepSnowPrints(t);' : ''}${fireBlock ? ' stepFire(t);' : ''}${scienceBlock ? ' stepScience(t);' : ''}${fxNorm ? ' stepFx(t);' : ''}${spriteSfxList.length ? ' stepSpriteSfx(t);' : ''}${marksList.length ? ' stepMarks(t);' : ''}${shootBlock ? ' stepShoot(t);' : ''}${shootSetBlock ? ' stepShootSet(t);' : ''}${versusBlock ? ' stepFight(t);' : ''}${boardBlock ? ' stepBoard(t);' : ''}${meetBlock ? ' stepContest(t);' : ''}${courtBlock ? ' stepCourt(t);' : ''}${turnsBlock ? ' stepTurnSport(t);' : ''}${pitchBlock ? ' stepPitch(t);' : ''}${holoBlock ? ' stepHolo(t);' : ''}${inningsBlock ? ' stepInnings(t);' : ''} }
+${fxNorm ? 'let stepFx = () => {};\n' : ''}${spriteSfxList.length ? 'let stepSpriteSfx = () => {};\n' : ''}${marksList.length ? 'let stepMarks = () => {};\n' : ''}${shootBlock ? 'let stepShoot = () => {}, __shClock = (t) => t;\n' : ''}${shootSetBlock ? 'let stepShootSet = () => {}, __shSetShot = 0, __shSetT = null;\n' : ''}${versusBlock ? 'let stepFight = () => {};\n' : ''}${boardBlock ? 'let stepBoard = () => {};\n' : ''}${meetBlock ? 'let stepContest = () => {};\n' : ''}${courtBlock ? 'let stepCourt = () => {};\n' : ''}${turnsBlock ? 'let stepTurnSport = () => {};\n' : ''}${pitchBlock ? 'let stepPitch = () => {};\n' : ''}${holoBlock ? 'let stepHolo = () => {};\n' : ''}${inningsBlock ? 'let stepInnings = () => {};\n' : ''}${broadcastsBlock ? 'let stepBroadcasts = () => {};\n' : ''}function __mojStep(t) { ${mojStepCalls()}${weatherBlock ? ' stepWeather(t);' : ''}${walkersBlock ? ' stepWalkers(t);' : ''}${rigPreviewBlock ? ' stepRigPreview(t);' : ''}${carsBlock ? ' stepCars(t);' : ''}${crystalLightBlock ? ' stepCrystalLight(t);' : ''}${doorsBlock ? ' stepDoors(t);' : ''}${shallowsBlock ? ' stepShallows(t);' : ''}${jetBlock ? ' stepJets(t);' : ''}${wetSandBlock ? ' stepWetSand(t);' : ''}${softGroundBlock ? ' stepSoftGround(t);' : ''}${snowPrintsBlock ? ' stepSnowPrints(t);' : ''}${fireBlock ? ' stepFire(t);' : ''}${scienceBlock ? ' stepScience(t);' : ''}${fxNorm ? ' stepFx(t);' : ''}${spriteSfxList.length ? ' stepSpriteSfx(t);' : ''}${marksList.length ? ' stepMarks(t);' : ''}${shootBlock ? ' stepShoot(t);' : ''}${shootSetBlock ? ' stepShootSet(t);' : ''}${versusBlock ? ' stepFight(t);' : ''}${boardBlock ? ' stepBoard(t);' : ''}${meetBlock ? ' stepContest(t);' : ''}${courtBlock ? ' stepCourt(t);' : ''}${turnsBlock ? ' stepTurnSport(t);' : ''}${pitchBlock ? ' stepPitch(t);' : ''}${holoBlock ? ' stepHolo(t);' : ''}${inningsBlock ? ' stepInnings(t);' : ''}${broadcastsBlock ? ' stepBroadcasts(t);' : ''} }
 ${channelSetupSection('post-step', setupBlocks)}${fog ? `
 // ---- effects layer: volumetric fog composited over the rasterized world ----
 const __fogU = { uCamPos:{value:new THREE.Vector3()}, uCamBasis:{value:new THREE.Matrix3()}, uRes:{value:new THREE.Vector2()}, uTime:{value:0}, uFov:{value:1}, ${fogExtras} };

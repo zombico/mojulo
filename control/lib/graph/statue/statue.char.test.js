@@ -25,7 +25,10 @@
  * its pose's raw head angles are each joint's own, so every carved figure is the one before, byte for byte, the recipe
  * alone moving; a statue stored before keeps its laws and its bytes), and again for the hero laws 16 (hero-form.js
  * CERVICAL_LEAN: the landmark neck leaning forward up into the skull; a statue stored before keeps its laws and its
- * bytes).
+ * bytes). And the draped and belted cases when the game body's dress moved (1029, unreleased): a waistband with no ease
+ * (outfit law 2, body-garment.js `waistband`), and a belt made as one mass with a frame buckle in place of the
+ * adornment's band (authored-kit.js); and again (1029, unreleased) when a sleeve starting on the arm's first ring took its
+ * cap out past the skin's at the shoulder (authored-jacket.js sleeveSeams: the draped cases' sleeves).
  */
 import { createHash } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
@@ -36,21 +39,21 @@ import { STATUE_STYLES } from './styles.js';
 
 const PINS = {
   'archaic·male': '737414b0eed2dddc:31c3f45809f780b0',
-  'archaic·female': 'b61e5a572fc7c1a4:eab6ed5bedeb3cd1',
+  'archaic·female': 'dd546527107ee523:fb4ab62395c6c6fb',
   'classical·male': 'eaf7ce36b52dba44:4b32d620a22876ce',
-  'classical·female': '4d6d4d2bc059a1bc:34e356c60c5edd40',
+  'classical·female': '5fb685a6a1a77c09:b5b6d113d4186982',
   'hellenistic·male': '6e804af1abcf4590:e47ab77de49a4db7',
   'hellenistic·female': '0acde1d0060118aa:8593b5883085239b',
-  'roman·male': 'd2e31faeb7457c5b:34dfa1658d5ba501',
-  'roman·female': '107d25748d5394e3:4756cfce597ef86d',
-  'roman-bust·male': '95b2ab2007441d73:296e6e3540c5d087',
-  'roman-bust·female': 'fda7257bd28ca42e:f76f88570807c11e',
-  'egyptian·male': '8ed5c8d1c71aa161:49c2e0c4ba298657',
+  'roman·male': '213eddcac59e57d8:850ce5cee788ecbd',
+  'roman·female': 'db967806dbd38fb8:bf0b9ee22cab6ab9',
+  'roman-bust·male': '629750d87c7ed14e:1c03b3b7b96c9736',
+  'roman-bust·female': 'acf8028c17611b0f:82e40d4b1230d27b',
+  'egyptian·male': '0412ee82eb587a9f:830fd88ec31aacb7',
   'egyptian·female': '3d63df5a1bd7b757:ab59a2a7d57ad088',
   'sumerian·male': '1e2dbcb26b71cfc9:9bbb465813199b19',
   'sumerian·female': '1f31a4ac300e61cf:cdbc0c3c84eacdeb',
   'renaissance·male': '8ed676067edc2fa8:8ce8d61aaf306a46',
-  'renaissance·female': 'e8bede6b3c2fad2f:b9696fe9cbda837e',
+  'renaissance·female': '6415d9a732e8815d:160b91fbbf1a3684',
   'classical:bust': '271d8299b944e4d4:6fb96aa2f39b5b64',
   'classical:herm': '2855eb4bbe2ac7bb:313ca2c0b3ced8a3',
   'classical:torso': '2abc965fff9e8448:3294d901974fcbd9',
@@ -62,7 +65,7 @@ const PINS = {
   'classical:gilt': 'e88a3a81cd253c40:34a836aa49b885c7',
   'classical:painted': '02181a8cb74df8e0:a09443899bf4fe28',
   'classical:worn': '2b8e6dbd6022dc31:123d2198f69cf4a7',
-  'roman:broken': '2dceb00ae122462f:8836a075890f8b39',
+  'roman:broken': 'e4f423dc86414d90:a2d56334caa0dca9',
 };
 
 const CASES = [

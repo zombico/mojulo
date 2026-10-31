@@ -28,6 +28,13 @@ describe('the scree\'s stones', () => {
     for (const s of S) { expect(s.n[2]).toBeGreaterThan(0.5); expect(s.at[0]).toBeGreaterThanOrEqual(6); }
   });
 
+  it('none in ground a thing has claimed (`clear`: a boulder\'s, a trunk\'s), the rest where they were', () => {
+    const c = S[0].at, claim = [c[0], c[1], 1.5], C = landStones(faces, L, { seed: 2, clear: [claim] });
+    for (const s of C) expect(Math.hypot(s.at[0] - claim[0], s.at[1] - claim[1])).toBeGreaterThanOrEqual(claim[2] + s.r);
+    expect(C).toEqual(S.filter((s) => Math.hypot(s.at[0] - claim[0], s.at[1] - claim[1]) >= claim[2] + s.r));
+    expect(C.length).toBeLessThan(S.length);
+  });
+
   it('most small, a few large, each sunk into the ground', () => {
     const big = S.filter((s) => s.r > (STONE_SIZES[0] + STONE_SIZES[1]) / 2).length;
     expect(big).toBeLessThan(S.length / 4);

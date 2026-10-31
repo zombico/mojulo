@@ -792,7 +792,8 @@ const sub3 = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
  * `relief` (default null → byte-identical output; with `engineLit` only): the figure's relief as a normal map
  * (epidermis/dermal-relief.js heroRelief): each corner carries its TANGENT (`tan` on a part, float32 [x, y, z, w] per
  * vertex: `relief.tangentAt(fi, k)`, a cell's blended from its face's corners, a held thing's laid on its triangle), the
- * pack the map (`normalTex`: { url, w, h }) on the paint's atlas UVs.
+ * pack the map (`normalTex`: { url, w, h }) on the paint's atlas UVs, and its ORM (`ormTex`: the cloth relief's occlusion,
+ * roughness and metalness, epidermis/cloth-relief.js) and its depth map (`depthTex`: the parallax's) when it carries them.
  * `cover` (default null → byte-identical output; with `engineLit` only, on a figure without the paint): the figure's
  * COVER as a tiling material (beast/cover.js coverMap: a beast-kin's fur, scales, chitin or feathers): each corner its
  * place on the tile (`uv`: `cover.uvAt(fi, k)`, a cell's blended from its face's corners, a held thing's the tile's flat
@@ -892,7 +893,10 @@ export function packLayeredRig(mesh, skin, R, { clips = {}, keys = 12, dz = 0, l
     P.faces++; if (P.tg) P.tg.push(mesh.groups[fi]);
     // (a hair card's corners on the paint's strand strip, dermal-hero.js heroSkinPaint `cardUV`; its colour the band's)
     const card = !painted && pp?.cardUV ? pp.cardUV(fi) : null;
-    tri.forEach((vi, k) => { P.pos.push(...p[k]); P.col.push(...colourAt(vi, k)); P.jnt.push(...skin.joints[vi]); P.wgt.push(...skin.weights[vi]); if (P.uv) P.uv.push(...(carryC ? cover.uvAt(fi, k) : painted ? pp.baseUV(pp.uvAt({ vi })) : card ? card[k] : pp.white)); if (rowAt) { const d = rowAt({ vi }); if (d) P.mph.push({ i: P.pos.length / 3 - 1, d }); } if (corrAt) { const d = corrAt({ vi }); if (d) P.cph.push({ i: P.pos.length / 3 - 1, d }); } if (P.nrm) P.nrm.push(...normals[fi][k]); if (P.tan) P.tan.push(...tanOf(fi, k)); });
+    // (a cloth face's corners on the paint's cloth page, realistic laws 13: dermal-hero.js heroSkinPaint `clothUV`; its colour
+    // the palette's, the page white under it)
+    const cloth = !painted && !card && pp?.clothUV ? pp.clothUV(fi) : null;
+    tri.forEach((vi, k) => { P.pos.push(...p[k]); P.col.push(...colourAt(vi, k)); P.jnt.push(...skin.joints[vi]); P.wgt.push(...skin.weights[vi]); if (P.uv) P.uv.push(...(carryC ? cover.uvAt(fi, k) : painted ? pp.baseUV(pp.uvAt({ vi })) : card ? card[k] : cloth ? cloth[k] : pp.white)); if (rowAt) { const d = rowAt({ vi }); if (d) P.mph.push({ i: P.pos.length / 3 - 1, d }); } if (corrAt) { const d = corrAt({ vi }); if (d) P.cph.push({ i: P.pos.length / 3 - 1, d }); } if (P.nrm) P.nrm.push(...normals[fi][k]); if (P.tan) P.tan.push(...tanOf(fi, k)); });
   });
   // held gear (hero-gear.js gearPackParts): rest triangles already seated, appended to their bone's part with weight 1
   // on that bone, after its own faces (outside its ink and draw-layer spans). Absent ⇒ the pack is byte-identical.
@@ -931,6 +935,8 @@ export function packLayeredRig(mesh, skin, R, { clips = {}, keys = 12, dz = 0, l
     ...(paint ? { paintTex: { ...paint.atlas, white: paint.white, ...(paint.alphaMask ? { alphaMask: true } : {}) } } : {}),
     ...(corr ? { correctives: corr.meta } : {}),
     ...(carryT && !carryC && relief.atlas ? { normalTex: relief.atlas } : {}),
+    ...(carryT && !carryC && relief.orm ? { ormTex: relief.orm } : {}),
+    ...(carryT && !carryC && relief.depth ? { depthTex: relief.depth } : {}),
     ...(carryC ? { coverTex: { ...cover.maps } } : {}),
   };
 }

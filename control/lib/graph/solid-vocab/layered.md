@@ -596,7 +596,16 @@ GLB's baked ink (`bake: true`) cannot stencil: it leaves out only the outline of
   | sideR | sideL, length: micro … maxi, width: 0–1 of the half turn, split: 1 | 2, cut, rigidity }]` — DRAPE PANELS,
   open cloth hung from the waist over everything (coattails, a tabard's apron, tassets, a loincloth), under the belt,
   flowing as a strand (`soft` by default) while the body stays close: the flow is in pieces cut to hang, never in loose
-  tubes; `feet`, `tuck`, `focal`. `rigidity` (`shell` locked; `stiff`, `crisp`, `soft`, `flowing` or 0 … 1) on a skirt
+  tubes; `feet` (a word, or a footwear card by name: the military boots `jungleBoots`, `desertBoots`, `jumpBoots`,
+  `jackboots`, `kirzaBoots`, `putteeBoots`), `tuck`, `focal`. A soldier's trousers: `into: 'boots'` (ended at the boot's
+  shaft or the puttees' top, bloused over it), `cut: 'breeches'` (full down the thigh, close from the knee), `pockets:
+  'cargo'` (a bellows pocket and its flap wrapped round each thigh); `pattern` on any layer a weave or a camouflage
+  (`woodland`, `desert`, `dpm`, `tiger`, `flecktarn`, `digital`, `splinter`, `multicam`, `urban`, `snow`: its ground the
+  layer's tone, its marks painted on either body, shared by every layer in the same pattern); `head` a helmet (`m1`,
+  `stahlhelm`, `brodie`, `ssh40`, `adrian`, `pasgt`, `ach`, `highcut`) or `{ helmet, cover?, band?, net?, nvg?, headset? }`, its cover
+  a camouflage or `true` (the top's), the hair under it (the game body's; the realistic head wears none yet). The progression's cards: `guard`, `security`, `mercenary`,
+  `pmc`, the soldier's (`bdu` …), `specops`, each carrying its gear (`pieces`; a vest's `cut: 'plate'` a plate carrier,
+  `elbowpads`). `rigidity` (`shell` locked; `stiff`, `crisp`, `soft`, `flowing` or 0 … 1) on a skirt
   or a panel swings it with the stride and the wind against the locked body (the motion card's `--hair`, `--wind`).
   Expanded on every read by its passes: CUT, FIT, LAYER, CONSTRUCTION, ORNAMENT (from the focal out: collar or rib,
   buttons, belt; cuffs, hems, waistband, panel hems; seams), TONE (`Panel` with the rest), LEDGER (the readout's
@@ -819,6 +828,16 @@ GLB's baked ink (`bake: true`) cannot stencil: it leaves out only the outline of
   cock, a greatsword (or a `mass` ≥ 1.2, or an item past three quarters of the figure) strikes late from a held, higher
   cock. The readout's `hero.gear.<hand>.swing` gives the impact's phase, the contact `window`, `reachM` and `cone` for
   a game's hit test. No bow draw yet: the hand has no wrist, so a bow raised to draw would point at the archer.
+<!-- /section -->
+<!-- section: hero-headgear | Headgear | headgear: a mask, a cowl, eyegear, a helmet by word, swapped in place -->
+  THE HEADGEAR. `headgear: '<word>'`: a mask, a cowl, eyegear, a mouthpiece, a helmet, a respirator or a visor, each a
+  word from the headgear library; the words, by family, with the bodies each fits: get_solid_vocab({ id: 'headgear' }).
+  The word is kept on the hero and lowered on every read, so `update_character { spec: { headgear: '<another>' } }`
+  swaps it in place and `null` takes it off. Every word fits the game body; the realistic body wears the domino and the
+  cowl, and refuses another by name. A helmet drops the hair; a cowl rides an outfit build's cloak. The card's colours
+  sit beneath `palette`: name a group (Helmet, HelmetVisor, HelmetTrim, Mask, MaskLens, EyeLens, EyeGlow …) to recolour
+  it. A helmet by tradition (the steel pot, the K-pot …) is the outfit build's `language.head`, by word here too.
+  Comic-book characters wearing them, by name: get_solid_vocab({ id: 'comic-hero' }).
 <!-- /section -->
   THE BUDGET. `hero.budget`, on every hero's readout: triangles and vertices per palette group, the plan and recipe in
   bytes.

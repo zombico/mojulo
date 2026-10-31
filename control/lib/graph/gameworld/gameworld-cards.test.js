@@ -1,5 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { gameworldCards, GAMEWORLD_CARD_IDS, QUICK_GOAL_CARD_IDS, quickGoalCardById, genreCardById } from './gameworld-cards.js';
+import { QOW_PRINCIPLES } from '../qow/qow.js';
+import { WCD_KINDS, WCD_VIAS, WCD_PRINCIPLES } from '../wcd/wcd.js';
+import { BASE_USES } from '../era/programs.js';
 import { FOLK_KEYS } from '../folk/folk.js';
 import { SHAPES } from '../folk/domicile.js';
 import { SIDEQUEST_KEYS } from '../folk/sidequests.js';
@@ -27,14 +30,17 @@ describe('the rail\'s cards', () => {
 
   it('the guide first, then a card per page in the loop\'s order, each small', () => {
     expect(GAMEWORLD_CARD_IDS[0]).toBe('gameworld-guide');
-    expect(GAMEWORLD_CARD_IDS).toEqual(['gameworld-guide', 'gameworld-quick', 'gameworld-intent', 'gameworld-world', 'gameworld-direction', 'gameworld-looks', 'gameworld-motion', 'gameworld-feel', 'gameworld-juice', 'gameworld-actions', 'gameworld-adornment', 'gameworld-equipment', 'gameworld-systems', 'gameworld-battles', 'gameworld-foes', 'gameworld-story', 'gameworld-folk', 'gameworld-next']);
+    expect(GAMEWORLD_CARD_IDS).toEqual(['gameworld-guide', 'gameworld-quick', 'gameworld-intent', 'gameworld-world', 'gameworld-wcd', 'gameworld-qow', 'gameworld-direction', 'gameworld-looks', 'gameworld-motion', 'gameworld-feel', 'gameworld-juice', 'gameworld-actions', 'gameworld-adornment', 'gameworld-equipment', 'gameworld-systems', 'gameworld-battles', 'gameworld-foes', 'gameworld-story', 'gameworld-folk', 'gameworld-next']);
     // the guide alone may run to 4224 bytes: its loop gained the battles page (10-16) with 3 bytes to spare under 4096;
+    // 4480 since 2026-10-29 (1029-tac-com-simulator-interior: SHOWN FIRST, a draft's book as the approval sheet, 4407 bytes);
     // the world card too (2026-10-25, merging 1024-geocube-composition-update: its line per ground kit took geocube's
     // kits beside the city's stalker words, 4157 bytes); 4288 since 2026-10-28 (1027-building-program: the building line
     // names the four building uses, office | lab-building | warehouse | clinic, 4265 bytes)
     // the foes card too (2026-10-28): its row per class (the guard, the hunter and the summoner joined) beside the
-    // relations' words (summons, pair) and the win; a growing family, due to become an index and a card per member
-    const CEIL = { 'gameworld-guide': 4224, 'gameworld-world': 4288, 'gameworld-foes': 4608 };
+    // relations' words (summons, pair) and the win; a growing family, due to become an index and a card per member;
+    // 4736 since 2026-10-30 (1030-foe-casting-call: one line naming the cast sheet and the casting call's step, 4657 bytes);
+    // 5120 the same day (the patrol's row, a person's dress line and a building's rooms: 4916 bytes)
+    const CEIL = { 'gameworld-guide': 4480, 'gameworld-world': 4288, 'gameworld-foes': 5120 };
     for (const c of cards.values()) expect(Buffer.byteLength(c.body), c.id).toBeLessThan(CEIL[c.id] ?? 4096);
   });
 
@@ -46,6 +52,8 @@ describe('the rail\'s cards', () => {
     on('gameworld-adornment', RAILS.flatMap((r) => r.stems));
     on('gameworld-equipment', Object.keys(CLASS_SLOTS));
     on('gameworld-foes', [...Object.keys(FOE_CLASSES), ...Object.keys(MOVES), ...Object.keys(ATTACKS), ...Object.keys(STOMPS), ...Object.keys(FOE_RANKS)]);
+    on('gameworld-wcd', [...Object.keys(WCD_KINDS), ...Object.keys(WCD_VIAS), ...Object.keys(WCD_PRINCIPLES), ...BASE_USES]);
+    on('gameworld-qow', Object.keys(QOW_PRINCIPLES));
     on('gameworld-folk', [...FOLK_KEYS, ...Object.keys(SHAPES), ...['D + 0', 'D + P', 'D of F (P + C2)', 'D + C1'], ...SIDEQUEST_KEYS]);
   });
 

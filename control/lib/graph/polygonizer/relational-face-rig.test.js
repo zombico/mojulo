@@ -92,10 +92,10 @@ describe('the realistic face rig', () => {
     const tb = F.targets.indexOf('blink'), eyes = ['globeR', 'globeL'].map((g) => { const ps = Object.values(m.recipe.parts[g].mesh.points); return [0, 1, 2].map((a) => ps.reduce((t, q) => t + q[a], 0) / ps.length); });
     let far = 0; mesh.vertices.forEach((v, i) => { const k = F.sub[i]; if (k < 0 || mesh.provenance[i].part !== 'headSkin' || eyes.some((e) => Math.hypot(v[0] - e[0], v[1] - e[1], v[2] - e[2]) < 0.04)) return; const o = k * W + 3 + tb * 3; far = Math.max(far, Math.hypot(F.rows[o], F.rows[o + 1], F.rows[o + 2])); });
     expect(far).toBeLessThan(1e-4);
-    // (nor the fold over the lid and the brow: the lid slides down under them; above the eye's centre by more than the
-    // globe's radius, the skin is still)
-    let fold = 0; mesh.vertices.forEach((v, i) => { const k = F.sub[i]; if (k < 0 || mesh.provenance[i].part !== 'headSkin' || !eyes.some((e) => v[2] - e[2] > 0.015 && Math.hypot(v[0] - e[0], v[1] - e[1], v[2] - e[2]) < 0.04)) return; const o = k * W + 3 + tb * 3; fold = Math.max(fold, Math.hypot(F.rows[o], F.rows[o + 1], F.rows[o + 2])); });
-    expect(fold).toBeLessThan(3e-4);
+    // (the fold over the lid only a little, its lip let down as the lid rolls out from under it (hero-relational-head.js
+    // SKIN_FOLLOW `rollDrop`), and the brow not at all: above the eye's centre by 18 mm the skin is still)
+    const fold = (h) => { let mx = 0; mesh.vertices.forEach((v, i) => { const k = F.sub[i]; if (k < 0 || mesh.provenance[i].part !== 'headSkin' || !eyes.some((e) => v[2] - e[2] > h && Math.hypot(v[0] - e[0], v[1] - e[1], v[2] - e[2]) < 0.04)) return; const o = k * W + 3 + tb * 3; mx = Math.max(mx, Math.hypot(F.rows[o], F.rows[o + 1], F.rows[o + 2])); }); return mx; };
+    expect(fold(0.015)).toBeLessThan(0.002); expect(fold(0.018)).toBeLessThan(3e-4);
     // (one eye: the left's target leaves the right's side still)
     const ti = F.targets.indexOf('blinkLeft'); let right = 0;
     mesh.vertices.forEach((v, i) => { const k = F.sub[i]; if (k < 0 || v[0] < 0.01) return; const o = k * W + 3 + ti * 3; right = Math.max(right, Math.hypot(F.rows[o], F.rows[o + 1], F.rows[o + 2])); });
@@ -116,8 +116,12 @@ describe('the realistic face rig', () => {
     const tf = F.targets.indexOf('frownLeft'); let rightF = 0;
     mesh.vertices.forEach((v, i) => { const k = F.sub[i]; if (k < 0 || v[0] < 0.01) return; const o = k * W + 3 + tf * 3; rightF = Math.max(rightF, Math.hypot(F.rows[o], F.rows[o + 1], F.rows[o + 2])); });
     expect(rightF).toBeLessThan(1e-4);
-    // (its inner ends as far as the raise lifts them, the tail kept: most of the raise's reach at its most)
-    expect(move('browWorried', /^hairBrows$/)).toBeGreaterThan(0.7 * move('browRaise', /^hairBrows$/));
+    // (its inner ends most of the way the raise lifts them, the tail kept: each brow's inner third and its outer, by the
+    // brow's own span across the face; on this hero 0.65 of the raise's, the raise the stronger since the globe was covered)
+    const browHair = mesh.vertices.map((_, i) => i).filter((i) => /^hairBrows$/.test(mesh.provenance[i].part) && mesh.vertices[i][0] > 0), bx = browHair.map((i) => mesh.vertices[i][0]);
+    const [bx0, bx1] = [Math.min(...bx), Math.max(...bx)], third = (t, lo, hi) => { const ti = F.targets.indexOf(t); let mx = 0; for (const i of browHair) { const u = (mesh.vertices[i][0] - bx0) / (bx1 - bx0), k = F.sub[i]; if (u < lo || u > hi || k < 0) continue; const o = k * W + 3 + ti * 3; mx = Math.max(mx, Math.hypot(F.rows[o], F.rows[o + 1], F.rows[o + 2])); } return mx; };
+    expect(third('browWorried', 0, 1 / 3)).toBeGreaterThan(0.6 * third('browRaise', 0, 1 / 3));
+    expect(third('browWorried', 2 / 3, 1)).toBeLessThan(0.3 * third('browRaise', 2 / 3, 1));
   });
   it('parts the lips for speech, each lip its own way, and opens the jaw by the bone\'s own turn', () => {
     // (the lips' middles: the one skin's points on the midline about the mouth's bag, the upper lip's the head bone's and

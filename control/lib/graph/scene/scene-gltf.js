@@ -25,6 +25,8 @@
  */
 
 import { aquaWaterBodies } from '../materials/aqua-export.js';
+import { breathBones } from '../face-acting/breath.js';
+import { headBones } from '../face-acting/head.js';
 import { faceListToMesh, decollideFaces, collectWaterMesh, collectShadowDecals, faceColorLinear, plainFaces } from '../figures/face-mesh.js';
 import { shineOptics } from '../polygonizer/crystal-shine.js';
 import { resolveMetalSurface } from '../materials/metal-surface.js';
@@ -37,6 +39,7 @@ import { contrastFaces } from '../era/vertex-contrast.js';
 import { levelCameras, shootCameraDefs, levelEntityNodes, levelSceneExtras, levelAddress, zRotationQuat } from './scene-gltf-level.js';
 import { vrmSpacePack, humanoidParents, withProfileJoints } from '../figures/rig-tpose.js';
 import { humanoidBonesFor } from '../polygonizer/figure-humanoid-map.js';
+import { SKIN_ROUGH } from '../epidermis/cloth-relief.js';
 
 const COMPONENT_FLOAT = 5126;
 const COMPONENT_USHORT = 5123;
@@ -121,6 +124,11 @@ function b64ToBytes(s) {
 const b64ToF32 = (s) => new Float32Array(b64ToBytes(s).buffer);
 const b64ToU16 = (s) => new Uint16Array(b64ToBytes(s).buffer);
 const b64ToU32 = (s) => new Uint32Array(b64ToBytes(s).buffer);
+
+/** a face target's NORMAL: a vertex whose net normal the shape turns past `turn[0]` radians arrives, by `turn[1]`, at the
+ * shape's own normal instead of the rest's plus the net's turn (glTF adds a target's NORMAL to the rest's) */
+export const MORPH_NORMAL = Object.freeze({ turn: [0.35, 0.9] });
+const smoothTurn = (a) => { const t = Math.max(0, Math.min(1, (a - MORPH_NORMAL.turn[0]) / (MORPH_NORMAL.turn[1] - MORPH_NORMAL.turn[0]))); return t * t * (3 - 2 * t); };
 
 // smooth vertex normals for an indexed mesh: each triangle's (area-weighted) normal summed into its corners, normalized;
 // a vertex no triangle touches points up the figure (+z, the rig's frame)
@@ -445,7 +453,7 @@ class GlbBuilder {
   // P3): no unlit extension, so importers light it and the metallic/roughness read shows.
   // COLOR_0 still multiplies baseColor — the baked Lambert rides along as the albedo's shading,
   // the documented trade of exporting a baked world into a lit viewer.
-  pbrMaterial({ metallic = 0, roughness = 0.9, alpha = null, alphaCutoff = null, baseColorTexture = null, normalTexture = null, name, emissive = null, emissiveStrength = 1, baseColor = null } = {}) {
+  pbrMaterial({ metallic = 0, roughness = 0.9, alpha = null, alphaCutoff = null, baseColorTexture = null, normalTexture = null, ormTexture = null, extras = null, name, emissive = null, emissiveStrength = 1, baseColor = null } = {}) {
     const pbr = {
       // a metal surface carries its own colour here (its COLOR_0 is white); everything else is white × COLOR_0
       baseColorFactor: [...(Array.isArray(baseColor) ? baseColor.slice(0, 3) : [1, 1, 1]), alpha == null ? 1 : alpha],
@@ -454,9 +462,15 @@ class GlbBuilder {
     };
     // texture × material: the surface tile rides as the lit albedo (a marble floor with sheen)
     if (baseColorTexture != null) pbr.baseColorTexture = { index: baseColorTexture };
+    // an ORM map (a figure's cloth relief: occlusion red, roughness green, metalness blue) as both glTF's metallicRoughness
+    // and its occlusion: the factors then scale the map (metalness its own, roughness so its skin texels are the export's)
+    if (ormTexture != null) { pbr.metallicRoughnessTexture = { index: ormTexture }; pbr.metallicFactor = 1; }
     const mat = { doubleSided: true, pbrMetallicRoughness: pbr };
     // a tangent-space normal map on TEXCOORD_0 (a figure's relief: the primitive carries TANGENT beside it)
     if (normalTexture != null) mat.normalTexture = { index: normalTexture };
+    if (ormTexture != null) mat.occlusionTexture = { index: ormTexture };
+    // (what glTF has no slot for, an engine's importer to bind: a figure's parallax depth map, `mojulo.relief`)
+    if (extras) mat.extras = extras;
     if (name) mat.name = name;
     if (alpha != null) mat.alphaMode = 'BLEND';
     // (a texture whose alpha cuts its edges, a hair card's strands: tested, not blended, so it sorts as the opaque do)
@@ -771,6 +785,13 @@ class GlbBuilder {
     // the basis it was baked in. Absent ⇒ byte-identical.
     const relief = this.lit && tex !== null && fig.normalTex && fig.parts.some(Boolean) && fig.parts.every((p) => !p || (typeof p.nrm === 'string' && typeof p.tan === 'string'));
     const ntex = relief ? this.imageFromDataUrl(fig.normalTex.url) : null;
+    // THE CLOTH (epidermis/cloth-relief.js, the pack's `ormTex`, realistic laws 13): the relief's ORM on the same UVs, its
+    // skin texels SKIN_ROUGH, the material's roughness the export's over it. Absent ⇒ byte-identical.
+    const otex = relief && fig.ormTex ? this.imageFromDataUrl(fig.ormTex.url) : null;
+    // THE PARALLAX (the pack's `depthTex`): glTF has no height channel, so the depth map rides as a texture the material's
+    // extras name (`mojulo.relief`: its index, its depth in m, the UVs a metre spans), for Godot's kernel, Unreal's master
+    // and the hero-live viewer to march. Absent ⇒ byte-identical.
+    const dtex = otex !== null && fig.depthTex ? this.imageFromDataUrl(fig.depthTex.url) : null;
     // THE COVER (beast/cover.js, the pack's `coverTex` and each part's `uv` and `tan`), under the lit handoff only, on a
     // figure without the paint: the cover's tile over the figure (glTF's default sampler repeats it), its base × COLOR_0,
     // its normal, its occlusion and roughness (one ORM image, as glTF reads them), and its height in the material's
@@ -778,7 +799,7 @@ class GlbBuilder {
     const covered = this.lit && tex === null && fig.coverTex && fig.parts.some(Boolean) && fig.parts.every((p) => !p || (typeof p.uv === 'string' && typeof p.nrm === 'string' && typeof p.tan === 'string'));
     const ctex = covered ? Object.fromEntries(['base', 'normal', 'orm', 'height'].map((k) => [k, this.imageFromDataUrl(fig.coverTex[k])])) : null;
     // (an atlas with edges, the hero's hair cards: dermal-hero.js heroSkinPaint `alphaMask`, the figure's material alpha tested)
-    const material = tex !== null ? this.surfaceMaterial({ name: `fig:${name}`, baseColorTexture: tex, ...(ntex !== null ? { normalTexture: ntex } : {}), ...(fig.paintTex.alphaMask ? { alphaCutoff: HAIR_ALPHA_CUTOFF } : {}) }) : ctex ? this.coverMaterial(`fig:${name}`, ctex, fig.coverTex) : this.surfaceMaterial({ name: `fig:${name}` });
+    const material = tex !== null ? this.surfaceMaterial({ name: `fig:${name}`, baseColorTexture: tex, ...(ntex !== null ? { normalTexture: ntex } : {}), ...(otex !== null ? { ormTexture: otex, roughness: Math.min(1, this.litRoughness / SKIN_ROUGH) } : {}), ...(dtex !== null ? { extras: { mojulo: { relief: { height: dtex, depth: fig.depthTex.depth, perM: fig.depthTex.perM } } } } : {}), ...(fig.paintTex.alphaMask ? { alphaCutoff: HAIR_ALPHA_CUTOFF } : {}) }) : ctex ? this.coverMaterial(`fig:${name}`, ctex, fig.coverTex) : this.surfaceMaterial({ name: `fig:${name}` });
     const uvs = tex !== null || ctex ? [] : null;
     const bones = fig.bones;
     const hasTails = bones.every((b) => Array.isArray(b.tail) && b.tail.length === 3);
@@ -984,7 +1005,15 @@ class GlbBuilder {
       const normalOf = (ids, vals) => {
         const P = Float32Array.from(A.P); ids.forEach((v, k) => { for (let c = 0; c < 3; c++) P[v * 3 + c] += vals[k * 3 + c]; });
         const N1 = restNormals(P, I), nid = [], nv = [];
-        for (let v = 0; v < n; v++) { const d0 = N1[v * 3] - N0[v * 3], d1 = N1[v * 3 + 1] - N0[v * 3 + 1], d2 = N1[v * 3 + 2] - N0[v * 3 + 2]; if (Math.hypot(d0, d1, d2) > 1e-4) { nid.push(v); nv.push(d0, d1, d2); } }
+        for (let v = 0; v < n; v++) {
+          let d0 = N1[v * 3] - N0[v * 3], d1 = N1[v * 3 + 1] - N0[v * 3 + 1], d2 = N1[v * 3 + 2] - N0[v * 3 + 2];
+          // (a normal the shape turns far, `MORPH_NORMAL.turn` [from, to] radians, arrives at the shape's own: the rest's
+          // carry the field's smooth normals, the difference the net's, and where a coarse net's differ from the field's
+          // (a lid's fold) the sum lit the shut lid in blotches, flames along its top)
+          const c = N0[v * 3] * N1[v * 3] + N0[v * 3 + 1] * N1[v * 3 + 1] + N0[v * 3 + 2] * N1[v * 3 + 2], k = smoothTurn(Math.acos(Math.max(-1, Math.min(1, c))));
+          if (k > 0) { d0 += k * (N0[v * 3] - A.N[v * 3]); d1 += k * (N0[v * 3 + 1] - A.N[v * 3 + 1]); d2 += k * (N0[v * 3 + 2] - A.N[v * 3 + 2]); }
+          if (Math.hypot(d0, d1, d2) > 1e-4) { nid.push(v); nv.push(d0, d1, d2); }
+        }
         return this.morphAccessor(n, Uint32Array.from(nid), Float32Array.from(nv));
       };
       // (welded: a row once per vertex, the vertices ascending)
@@ -1006,6 +1035,10 @@ class GlbBuilder {
         brow: fig.face.brow ?? 'browInnerRaise = brow -1 (the inner ends up); browInnerLower = brow +1 (the inner ends down)',   // (the western face's own, western-face-rig.js)
         ...(fig.face.performances ? { performances: Object.entries(fig.face.performances).map(([take, P]) => ({ clip: `face:${take}`, seconds: P.seconds, ...(P.interp === 'STEP' ? { interpolation: 'STEP' } : {}), ...(P.gaps.length ? { gaps: P.gaps } : {}), ...(P.audio ? { audio: P.audio.map((A) => (A.bytes ? { at: A.at, recording: A.recording, mimeType: 'audio/wav', bufferView: this.addView(A.bytes, 0) } : { at: A.at, recording: A.recording, missing: true })) } : {}) })),
           performing: 'a performance (face-acting/perform.js) is a face-only clip: a LINEAR weights channel on the mesh node, keyed at 30 fps, FACS units on their targets, the gaze on the eyeLook targets and a spoken line\'s jaw on jawOpen (the jaw bone\'s own turn as a target, so the take needs no bone); layer it over a body clip, its face weights masked; a line\'s recording (`audio`: { at, recording, mimeType, bufferView }: the WAV embedded in the file\'s own buffer, `missing` where the machine that exported it held no such recording) starts `at` seconds into the clip' } : {}),
+        ...(Object.values({ ...(fig.face.performances ?? {}), ...(fig.face.emotes ?? {}) }).some((x) => x.breath) && !parents ? { breathing: 'each face clip breathes: `breath:<clip>` (face-acting/breath.js), the body\'s breath its state of mind breathes (calm low and slow, wary high and quick, a startle\'s held breath and the sigh it settles with): the torso tipped back a little with each breath in and the clavicles lifted in a high one, the upper body\'s joints carried; keyed with the face clip, each joint its rest head plus its offset: play it as an additive layer over the body clip, the rest pose its reference; and its head (`head:<clip>`, face-acting/head.js): the neck\'s turn and tilt, the head following the larger looks while the eyes keep the gaze, the head and the jaw carried round the neck, another additive layer' } : {}),
+        ...(fig.face.emotes ? { emotes: Object.entries(fig.face.emotes).map(([clip, E]) => ({ clip: `emote:${clip}`, emote: E.emote, seconds: E.seconds, loop: true, ...(E.gaps.length ? { gaps: E.gaps } : {}) })),
+          emoting: 'an emote (face-acting/emotes.js) is a held state as a face-only clip that LOOPS (its last key its first): a LINEAR weights channel on the mesh node, keyed at 30 fps, the face held and living on its targets, the eyes on the look targets, parallel where it looks at nothing and converged where it focuses (a listener on a speaker\'s face), never crossed; play it looping over a body clip, its face weights masked, and lay a line\'s mouth over it by `mouth`',
+          ...(fig.face.mouth ? { mouth: { ...fig.face.mouth, about: 'who owns the mouth while a line is spoken over a face clip (face-acting/mouth.js): the driver (a lip-sync, a take\'s line) owns `driver`; the face\'s `rounded.targets` are drawn in by rounded.share × the greatest of `rounded.by`; its `released.targets` let go by released.share while the line runs (eased over released.ease seconds); then each driver target is the greater of the face\'s and the driver\'s' } } : {}) } : {}),
         ...(fig.face.tracks ? {
           ambientClip: fig.face.ambient ? fig.face.ambient.name : null,
           ambientOver: fig.face.ambient ? tracked.filter((c) => fig.face.ambientOver?.includes(c)).map((c) => `${name}:${c}`) : [],
@@ -1095,8 +1128,53 @@ class GlbBuilder {
       if (!this.json.animations) this.json.animations = [];
       this.json.animations.push({ name: `face:${take}`, samplers, channels });
       animations++;
+      if (!parents) animations += this.addBodyLayers(`face:${take}`, bones, jointNodes, P);
+    }
+    // the face's EMOTES (the door's `emote`: face-acting/emotes.js): each a held state's loop `emote:<clip>`, as a take is
+    if (hasFace && fig.face.emotes) for (const [clip, E] of Object.entries(fig.face.emotes)) {
+      const samplers = [], channels = [];
+      this.addWeightsChannel(samplers, channels, { node: meshNode, t: E.t, w: corr ? E.w.map((x) => [...x, ...corr.targets.map((c) => c.w)]) : E.w }, null, 'LINEAR');
+      if (!this.json.animations) this.json.animations = [];
+      this.json.animations.push({ name: `emote:${clip}`, samplers, channels });
+      animations++;
+      if (!parents) animations += this.addBodyLayers(`emote:${clip}`, bones, jointNodes, E);
     }
     return { nodes: 1, animations, vertices, triangles, skinned: true, soft: hasTails, humanoid: !!hb, authored: fig.parts.some((p) => p && typeof p.jnt === 'string'), ...(hasFace ? { face: true } : {}), ...(corr ? { correctives: corr.targets.length } : {}) };
+  }
+
+  /**
+   * A face clip's layers on the body, each keyed with the face clip: its BREATH (face-acting/breath.js breathBones,
+   * `breath:<clip>`: the torso and the clavicles turned, the joints they carry offset) and its HEAD (head.js headBones,
+   * `head:<clip>`: the neck turned by its share, the head and the jaw by the whole and carried round). → how many written.
+   */
+  addBodyLayers(clipName, bones, jointNodes, T) {
+    const heads = Object.fromEntries(bones.map((b) => [b.id, b.head]));
+    return (T.breath ? this.addLayerClip(`breath:${clipName}`, bones, jointNodes, T, breathBones(heads, T.breath)) : 0)
+      + (T.head ? this.addLayerClip(`head:${clipName}`, bones, jointNodes, T, headBones(heads, T.head)) : 0);
+  }
+
+  /**
+   * One body layer (`B`: { id: { r?: quaternions, d?: offsets } } per frame): the joints' rotations and their rest heads
+   * plus their offsets, keyed with the face clip's own times (LINEAR): played alone it moves the rest pose; an engine
+   * plays it as an additive layer over a body clip (the rest pose its reference). The flat skeleton's (a nested one's
+   * joints carry each other: not written). → 1 when written, 0 when the rig has none of the joints it moves.
+   */
+  addLayerClip(animName, bones, jointNodes, T, B) {
+    const at = new Map(bones.map((b, bi) => [b.id, bi]));
+    if (!Object.keys(B).length) return 0;
+    const times = Float32Array.from(T.t), input = this.floatAccessor(times, 1, { min: [0], max: [times[times.length - 1]] }, null), samplers = [], channels = [];
+    for (const [id, M] of Object.entries(B)) {
+      const bi = at.get(id), node = jointNodes[bi];
+      if (bi === undefined || node == null) continue;
+      if (M.r) channels.push({ sampler: samplers.push({ input, output: this.floatAccessor(Float32Array.from(M.r), 4, null, null), interpolation: 'LINEAR' }) - 1, target: { node, path: 'rotation' } });
+      if (M.d) {
+        const h = bones[bi].head, tr = Float32Array.from(M.d, (x, i) => x + h[i % 3]);
+        channels.push({ sampler: samplers.push({ input, output: this.floatAccessor(tr, 3, null, null), interpolation: 'LINEAR' }) - 1, target: { node, path: 'translation' } });
+      }
+    }
+    if (!channels.length) return 0;
+    this.json.animations.push({ name: animName, samplers, channels });
+    return 1;
   }
 
   // One packed clip ({ k, b:[qx,qy,qz,qw,hx,hy,hz per bone per key], once?, s? }) → one glTF

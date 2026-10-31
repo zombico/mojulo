@@ -97,6 +97,25 @@ function bloomDiscs(F, B, { light, yaw, scale }) {
   }
   return out;
 }
+/** A tree's levels with its crown RAISED to `c` of its height, as a street tree's is: the whole crown (its limbs, its
+ *  leaves) carried up on a clear trunk, scaled about the trunk into the height left above it, and the trunk below it a
+ *  tapering prism from the template's own base girth, in its lowest wood's tone. Every level alike. */
+function raiseCrown(lad, H, c) {
+  const k = 1 - c, lift = (q) => [q[0] * k, q[1] * k, c * H + q[2] * k], out = {};
+  for (const [l, tris] of Object.entries(lad)) {
+    let r0 = 0, low = null;
+    for (const t of tris) { if (t.kind === 'leaf') continue; for (const q of t.p ?? t.q) if (q[2] < 0.03 * H) { r0 = Math.max(r0, Math.hypot(q[0], q[1])); if (!low || q[2] < low.z) low = { z: q[2], c: t.c }; } }
+    const lifted = tris.map((t) => (t.q ? { ...t, q: t.q.map(lift) } : { ...t, p: t.p.map(lift) }));
+    // the clear trunk: six sides from the ground to a little into the lifted crown's own trunk
+    const n = 6, rb = r0 || 0.02 * H, rt = rb * k, zt = c * H + 0.04 * H, col = low?.c ?? [92, 74, 58];
+    for (let i = 0; i < n; i++) {
+      const a = (2 * Math.PI * i) / n, b = (2 * Math.PI * (i + 1)) / n, P0 = [rb * Math.cos(a), rb * Math.sin(a), 0], P1 = [rb * Math.cos(b), rb * Math.sin(b), 0], Q0 = [rt * Math.cos(a), rt * Math.sin(a), zt], Q1 = [rt * Math.cos(b), rt * Math.sin(b), zt];
+      lifted.push({ p: [P0, P1, Q1], c: col, kind: 'wood' }, { p: [P0, Q1, Q0], c: col, kind: 'wood' });
+    }
+    out[l] = lifted;
+  }
+  return out;
+}
 const cut = (lad, maxLevel) => Object.fromEntries(LEVELS.map((l) => [l, LEVELS.indexOf(l) <= LEVELS.indexOf(maxLevel) ? lad[l] : lad[maxLevel]]));
 
 /**
@@ -107,8 +126,10 @@ const cut = (lad, maxLevel) => Object.fromEntries(LEVELS.map((l) => [l, LEVELS.i
  * `discs` (a species in bloom only): each variant also carries its flowers (`bloom`: 7 a flower, its centre in the
  * variant's units, its size, and its colour lit in the scene's light as sRGB bytes) and its L1 and L2 wood bare of the
  * crown's clusters (`bare`), for a page that draws the flowers themselves as discs. Absent, nothing changes.
+ * `clear` (a broadleaf tree only, 0..1): its crown RAISED as a street tree's is: the whole crown carried up on a clear
+ * trunk to that share of its height, so it starts there and a person walks under it. Absent or 0, nothing changes.
  */
-export function plantPool({ species, variants = 3, seed = 'plants', light = null, maxLevel = 'L2', group = null, discs = false } = {}) {
+export function plantPool({ species, variants = 3, seed = 'plants', light = null, maxLevel = 'L2', group = null, discs = false, clear = 0 } = {}) {
   const S = SPECIES[species]; if (!S) throw new Error(`unknown species '${species}' (one of ${Object.keys(SPECIES).join(', ')})`);
   const g = group || species; const out = { species, kind: S.kind, variants: [], textures: {} };
   if (S.kind === 'tree') {
@@ -121,7 +142,7 @@ export function plantPool({ species, variants = 3, seed = 'plants', light = null
     for (let k = 0; k < nv; k++) {
       const sd = hashSeed(`${seed}::${species}::${k}`) % 100000, G = S.growth ? S.growth[k] : null, years = G ? G.years : S.years, stand = G && G.stand ? { stand: G.stand } : {};
       const arch = S.fig ? FIGS[S.fig] : S.leafLife || S.over ? { ...ARCHITECTURES[S.arch], ...(S.over || {}), ...(S.leafLife ? { leafLife: S.leafLife } : {}) } : S.arch, fill = S.bloom && S.bloom.fill ? { fill: S.bloom.fill } : {};
-      const grown = cached(`tree:${S.arch}:${years}:${sd}:${S.leafScale}:${S.bark || ''}${S.leafLife ? `:${S.leafLife}` : ''}${S.fig ? `:fig-${S.fig}` : ''}${fill.fill ? `:fill-${fill.fill}` : ''}${S.over ? `:over-${JSON.stringify(S.over)}` : ''}${stand.stand ? `:stand-${stand.stand}` : ''}`, () => { const p = grow(arch, { years, seed: sd, ...stand }); const H = measure(p).height; return { H, lad: ladder(p, H, { leafScale: S.leafScale, bark, ...fill }), ...(S.bloom ? { fl: bloomFlowers(p, { seed: sd }) } : {}) }; });
+      const grown = cached(`tree:${S.arch}:${years}:${sd}:${S.leafScale}:${S.bark || ''}${S.leafLife ? `:${S.leafLife}` : ''}${S.fig ? `:fig-${S.fig}` : ''}${fill.fill ? `:fill-${fill.fill}` : ''}${S.over ? `:over-${JSON.stringify(S.over)}` : ''}${stand.stand ? `:stand-${stand.stand}` : ''}${clear > 0 ? `:clear-${clear}` : ''}`, () => { const p = grow(arch, { years, seed: sd, ...stand }); const H = measure(p).height; const lad0 = ladder(p, H, { leafScale: S.leafScale, bark, ...fill }); return { H, lad: clear > 0 ? raiseCrown(lad0, H, clear) : lad0, ...(S.bloom ? { fl: bloomFlowers(p, { seed: sd }) } : {}) }; });
       const yaw = (k * 2 * Math.PI) / nv; const lad = cut(S.bloom ? bloomLad(grown.lad, S.bloom) : grown.lad, maxLevel);
       const v = { height: 1, grownHeight: grown.H, ...(G ? { years } : {}), levels: Object.fromEntries(LEVELS.map((l) => [l, trisToFaces(lad[l], { light, yaw, scale: 1 / grown.H, group: `${g}-${l}` })])) };
       if (discs && S.bloom && grown.fl) { v.bloom = bloomDiscs(grown.fl, S.bloom, { light, yaw, scale: 1 / grown.H }); v.bare = Object.fromEntries(['L1', 'L2'].map((l) => [l, trisToFaces(lad[l].filter((t) => t.kind !== 'leaf'), { light, yaw, scale: 1 / grown.H, group: `${g}-${l}` })])); }

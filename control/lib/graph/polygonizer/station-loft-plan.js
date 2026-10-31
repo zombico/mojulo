@@ -84,7 +84,7 @@ export const SLOT_FAMILIES = {
 };
 const STYLE_KEYS = ['slots', 'limbSlots', 'e', 'drawn', 'body'];   // (`body`: the figure's style, 'chibi' | 'child': hero-form.js CHIBI_FORM / CHILD_FORM, read by what it wears)
 export const PLAN_SCHEMA = 'layered-plan-v1';
-const SEGMENT_KINDS = ['trunk', 'segment', 'chain', 'loft', 'rings'];
+const SEGMENT_KINDS = ['trunk', 'segment', 'chain', 'loft', 'rings', 'mesh'];
 const DETAIL_KINDS = ['claw'];
 
 // ── ring geometry (the seeds' rules, verbatim) ──
@@ -273,6 +273,7 @@ export function validatePlan(plan) {
     // RINGS: a closed loft whose rings are given point by point (every slot of its family, in loop order), for a form
     // that hugs another part's surface where no ring of radii can (a muscle's layer over the chest)
     if (seg.kind === 'rings') { claim(seg.name, 'a rings part'); const f = seg.slots ?? plan.style?.slots ?? 'ring8', fam = typeof f === 'string' ? families[f] ?? [] : f; if (!Array.isArray(seg.stations) || seg.stations.length < 2) fail(`rings '${seg.name}' needs at least two stations`); for (const st of seg.stations) for (const sl of fam) if (!isVec(st.points?.[sl])) fail(`rings '${seg.name}': every station gives points for every slot of its family (${fam.join(', ')})`); if (!seg.caps || !isVec(seg.caps.back) || !isVec(seg.caps.tip)) fail(`rings '${seg.name}' needs caps { back, tip }`); if (seg.mirror === 'plane') fail(`rings '${seg.name}' is given point by point; mirror it by 'name'`); if (seg.mirror === 'name' && !/[RL]$/.test(seg.name)) fail(`rings '${seg.name}' mirrors by name, so its name must end in R or L`); }
+    if (seg.kind === 'mesh') { claim(seg.name, 'a mesh part'); if (!seg.mesh || typeof seg.mesh.points !== 'object' || typeof seg.mesh.faces !== 'object' || !Object.keys(seg.mesh.faces).length) fail(`mesh '${seg.name}' needs mesh { points, faces }`); if (seg.mirror != null) fail(`mesh '${seg.name}' is given whole; it does not mirror`); if (seg.closure != null && !['open', 'closed'].includes(seg.closure)) fail(`mesh '${seg.name}' closure is 'open' or 'closed'`); }
     if (seg.kind === 'chain') { if (!Array.isArray(seg.joints) || seg.joints.length < 2) fail(`chain '${seg.name}' needs at least two joints`); seg.joints.forEach((j) => joint(j, seg)); if (!Array.isArray(seg.r) || seg.r.length !== seg.joints.length) fail(`chain '${seg.name}' needs one radius per joint`); for (let i = 0; i + 1 < seg.joints.length; i++) claim(`${seg.name}${i}`, 'a chain link'); if (seg.mirror === 'name') fail(`chain '${seg.name}' is a midline part; mirror 'name' is for a side part`); if (seg.mirror === 'plane') seg.joints.forEach((j) => midline(j, seg)); }
   }
   for (const inc of includesOf(plan)) { if (!inc.name || !inc.parts || typeof inc.parts !== 'object') fail('every include needs { name, parts, shift }'); if (!isVec(inc.shift)) fail(`include '${inc.name}' needs shift [x, y, z]`); for (const n of Object.keys(inc.parts)) claim(n, `include '${inc.name}' part`); }
@@ -299,8 +300,12 @@ export function validatePlan(plan) {
 // ── expansion ──
 /** `body`: a re-sampled body (a recipe whose layer-1 parts stand in for the plan's own, the realistic form's slice, its
  * parts absent there dropped): placed where the plan's body is, after the head's seam, so the dress (garments, paint,
- * details, body detail and adornment) is made on it. Absent, the plan's own body */
-export function expandPlan(plan, { body = null } = {}) {
+ * details, body detail and adornment) is made on it. Absent, the plan's own body.
+ * `kit`: `(recipe, adorn, { tailoring }) → { parts, taken }`, run on the dressed recipe before the adornment bake (the
+ * game body's kit and jacket as pieces: authored-kit.js), when the plan has an adornment, a tailoring or a garment: its parts put in
+ * the recipe (a garment it reshaped, its own), the adornments it `taken` left to it, the rest baked. Absent, the
+ * adornment baked whole */
+export function expandPlan(plan, { body = null, kit = null } = {}) {
   validatePlan(plan);
   const families = { ...SLOT_FAMILIES, ...(plan.slotFamilies || {}) };
   const style = { slots: 'ring8', limbSlots: 'limb6', e: 2, ...(plan.style || {}) };
@@ -319,6 +324,8 @@ export function expandPlan(plan, { body = null } = {}) {
     } else if (seg.kind === 'rings') {
       const right = finish({ slots: slotsOf(seg, 'slots'), stations: seg.stations.map((st, i) => ({ id: st.id ?? `st${i}`, points: st.points })), caps: seg.caps }, look); place(seg.name, right, seg, seg.bind);
       if (seg.mirror === 'name') { const left = mirrorPart(right); parts[mirrorPartName(seg.name)] = left; const b = resolveBind(seg.bind, seg.name); if (b !== undefined) left.bind = mirrorBind(b); }
+    } else if (seg.kind === 'mesh') {
+      place(seg.name, { layer: 1, closure: seg.closure ?? 'closed', ...(seg.group ? { group: seg.group } : {}), ...(seg.tint ? { tint: seg.tint } : {}), ...(seg.coverChart ? { coverChart: true } : {}), mesh: seg.mesh }, seg, seg.bind);
     } else if (seg.kind === 'chain') {
       const n = seg.joints.length - 1; const ov = { first: 0.4, last: 0.3, inner: 0.6, ...(seg.over || {}) };
       for (let i = 0; i < n; i++) {
@@ -412,15 +419,23 @@ export function expandPlan(plan, { body = null } = {}) {
   }
   // body detail, then adornment: the dragon's passes as data, baked as pinned parts on the refined rest carrier (a
   // pinned part inherits its pin face's weights; refinement extends the bind blends so skinning is unchanged)
-  if (plan.body || plan.adorn) {
-    const errs = [...(plan.body ? validateBody(plan.body, recipe.parts) : []), ...(plan.adorn ? validateKit(plan.adorn, recipe.parts) : [])];
+  // the KIT as pieces (the `kit` hook): made on the dressed recipe, the kernel baking what it leaves
+  let adorn = plan.adorn;
+  if (kit && (adorn?.length || plan.tailoring || plan.garments?.length)) {
+    const errs = adorn ? validateKit(adorn, recipe.parts) : []; if (errs.length) fail(`adorn: ${errs.join('; ')}`);
+    let K; try { K = kit(recipe, adorn ?? [], { tailoring: plan.tailoring ?? null }); } catch (err) { fail(`adorn: ${err.message}`); }
+    Object.assign(recipe.parts, K.parts);
+    if (adorn) adorn = adorn.filter((A) => !K.taken.has(A.id));
+  }
+  if (plan.body || adorn?.length) {
+    const errs = [...(plan.body ? validateBody(plan.body, recipe.parts) : []), ...(adorn ? validateKit(adorn, recipe.parts) : [])];
     if (errs.length) fail(errs.join('; '));
     const source = JSON.parse(JSON.stringify(recipe)); let fig;
     try {
-      if (plan.body) { const { recipe: baked, built } = bakeBody(recipe, plan.body, { under: plan.adorn || [] }); Object.assign(recipe, baked); fig = { mesh: built.mesh, parts: built.parts, anchors: built.anchors }; }
+      if (plan.body) { const { recipe: baked, built } = bakeBody(recipe, plan.body, { under: adorn || [] }); Object.assign(recipe, baked); fig = { mesh: built.mesh, parts: built.parts, anchors: built.anchors }; }
       else fig = { mesh: compileLayered(recipe, {}), parts: {} };
-      if (plan.adorn?.length) bakeAdorn(recipe, fig, plan.adorn, { source });
-    } catch (err) { fail(`${plan.body && plan.adorn ? 'body / adorn' : plan.body ? 'body' : 'adorn'}: ${err.message}`); }
+      if (adorn?.length) bakeAdorn(recipe, fig, adorn, { source });
+    } catch (err) { fail(`${plan.body && adorn?.length ? 'body / adorn' : plan.body ? 'body' : 'adorn'}: ${err.message}`); }
   }
   // rig: joints and bones may carry `$S`; a `perSide` bone block expands to its R bones then its L bones
   if (plan.rig) {

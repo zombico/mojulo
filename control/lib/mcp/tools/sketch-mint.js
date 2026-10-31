@@ -14,6 +14,7 @@ import { purposeAtMint, allowanceOf } from '@/lib/graph/era/compose-purpose';
 import { compassOf } from '@/lib/graph/polygonizer/home-windows';
 import { readForm, formErrors, stairWidthOf, FORM_FOOTPRINT, FORM_MAX_RISE } from '@/lib/graph/polygonizer/house-forms';
 import { stampSolid } from '@/lib/graph/era/solid';
+import { stampSceneEra } from '@/lib/graph/era/geocube';
 import { draftSection } from '@/lib/graph/interior/section';
 import { compileInterior } from '@/lib/graph/interior/compile';
 import { readStructure } from '@/lib/graph/structure/read';
@@ -28,6 +29,7 @@ import { SketchFolderRepository } from '@/lib/db/repositories/sketch-folders';
 import { pluginProfileActive, pluginProfileNotice, PLUGIN_PROFILE_HIDDEN_SKETCH_KINDS } from '@/lib/mcp/plugin-profile';
 import { isBeatsKind } from '@/lib/graph/beats/beats-manifest';
 import { isVoiceRegisterKind } from '@/lib/graph/voice/voice-register';
+import { isPersonaKind, personaManifest } from '@/lib/graph/persona/persona.js';
 import { validateGameManifest, normalizeGameManifest } from '@/lib/graph/game/game-manifest';
 import { withProgram } from '@/lib/graph/era/programs';
 import { resolveGame } from '@/lib/graph/game/game-resolve';
@@ -672,6 +674,9 @@ async function prepareWorldRecipe({ manifest, ref, title, existingSketch, patch,
   manifest = stampGeocubes(manifest, existingSketch?.manifest ?? null);
   // a new world that builds is solid (era/solid.js: no flat building polygons); an edit or a restore keeps the row's own
   if (!existingSketch && !restore) manifest = stampSolid(manifest);
+  // a new geocube scene is drawn in the form render, gen-7 (era/geocube.js stampSceneEra: new is no seed yet, so a scene
+  // restored from its export keeps its era); an edit keeps the row's
+  if (!existingSketch) manifest = stampSceneEra(manifest);
   // a geocube's trail its own seed, a new island
   manifest = newTrailSeed(manifest, ref ?? existingSketch?.ref, existingSketch?.manifest ?? null);
   // a world's UI direction (playscape/ui/direction.js): the same gate for its play block's UI, filled here and stored
@@ -1155,6 +1160,13 @@ export async function updateSketchHandler(input) {
     } catch (err) {
       // Error-as-drawer: a failed update points at the kind's manifest manual.
       throw new Error(`Invalid manifest: ${err.message} — manifest manual: get_sketch_vocab({ id: 'motion-comic' }).`);
+    }
+  } else if (manifest !== undefined && isPersonaKind(manifest?.kind)) {
+    // a persona (persona/persona.js) is a record, not a diagram: its words checked whole, as at its door
+    try {
+      nextManifest = { ...(manifest.title ? { title: manifest.title } : {}), ...personaManifest(manifest.persona) };
+    } catch (err) {
+      throw new Error(`Invalid manifest: ${err.message} — revise a persona with update_character; manual: get_solid_vocab({ id: 'persona' }).`);
     }
   } else if (manifest !== undefined && isImageOutcomesKind(manifest?.kind)) {
     // Image-outcomes kinds skip the diagram pipeline; store the normalized

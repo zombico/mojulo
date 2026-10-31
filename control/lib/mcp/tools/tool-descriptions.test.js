@@ -68,6 +68,9 @@ const DESCRIPTION_ALLOWLIST = {
   // at the Mojulo Voice landing (figure garment/setup dials, beats export
   // midi handoff, render-packet control-scaffold pointer). Shrink-only.
   create_beats: 1150,
+  // create_character joins 2026-10-31 (1030-broadcasting-personas) at 730 for one clause: `as: 'persona'`, a hero who
+  // reads scripts (a record of its own, persona/persona.js); its spec and registers live on the `persona` card, off-payload.
+  create_character: 730,
   // create_cover / export_game allowlisted + sketch_polygomer re-pinned
   // 2026-08-04 to bless the 1.0 consolidation batch (publication covers,
   // the game-publish phase-2 export seam, the polygomer drapes/detail
@@ -420,7 +423,13 @@ const DESCRIPTION_ALLOWLIST = {
 // Raised 2026-10-27 on 1027-tabletop-rpg-gen (212_300 -> 212_500; measured 212,353) for the table game: create_game's
 // `table_rpg` (a pen-and-paper RPG played in text, its characters rolled, its book printed), one schema property, its
 // grammar on the vocab card. No new tool.
-const PAYLOAD_CEILING = 212_500;
+// Raised 2026-10-31 on 1026-consolidated (212_500 -> 212_600) for the comic hero pack's characters by name:
+// create_character's `pack` ({ id, member | grunt, … }), one schema property; its words on the generated `comic-hero`
+// card and headgear's on the `headgear` card, off-payload. No new tool.
+// Raised 2026-10-31 on 1030-broadcasting-personas merged over create_character's `pack` (212_600 -> 212_700; measured
+// 212,643): create_character's `as: 'persona'` (a hero who reads scripts, a record of its own: persona/persona.js), one
+// enum word and one clause; update_character's line that a persona's reads merge by id. No new tool.
+const PAYLOAD_CEILING = 212_700;
 
 async function listedTools() {
   const { ensureToolsRegistered, listTools } = await import('@/lib/mcp/server');
