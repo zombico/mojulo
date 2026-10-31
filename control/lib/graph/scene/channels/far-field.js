@@ -6,17 +6,22 @@
 //                a flower's on a share of a flowering cell's pixels), lit and shadowed as the ground is. It reads the
 //                grass's FAR MAP (channels/form-grass.js `window.__formFar`: a strand a cell, its height, colour slot,
 //                dice and the ground's height). No draw, no triangle
-//   the contour  (farFieldScript) the frame is drawn once into an image with its depth, and one 2D pass over it, from
-//                that eye only, paints the grass's SILHOUETTE: where the blanket's edge meets what is past it (the sky,
-//                or ground farther than FAR_FIELD.edge × its own depth: a ridge, a bank) strands stand up the image from
-//                the contour, a pixel wide and 1 to FAR_FIELD.fringe pixels tall by a fine world dice, darker at the
-//                root, a flower's colour at a tip where one grows, lit by the light under them (the frame's colour at the
-//                contour over the blanket's own). Then the frame's tone curve and colour space, as the canvas would
+//   the contour  (farFieldScript) the land's silhouette, SURVEYED, not read back from the frame: the eye's point of
+//                view solved from the grass's map (form/survey.js contourScan, embedded whole): on each bearing of a full
+//                turn, where the ground peaks against what is past it (the sky, or ground farther than FAR_FIELD.edge ×
+//                its distance), its point, what stands there, its colour and its dice. The art at each: strokes a pixel
+//                wide and up to FAR_FIELD.fringe pixels tall, the colour of what stands there (a flower's at a tip),
+//                darker at the root, lit and shadowed as the ground is, anchored to the world, in one draw, depth-tested
+//                against whatever stands nearer and standing over the ridge into the sky. A point of view is solved once
+//                for its cell (FAR_FIELD.cell m of the eye's ground), kept once walked (FAR_FIELD.keep cells), and the
+//                cells round it are solved while the page is idle, the probable next
 //   aerial       (a cutscene's camera, the grass's `aerial`) draws the whole field live: no blanket, no contour pass
 //
-// `window.__formFar.on` and F toggle the far field on a walkable page.
+// `window.__formFarField` ({ on, set(bool), solved: the cells kept }) and F toggle the far field on a walkable page.
+import { contourScan } from '../../form/survey.js';
+
 export const FAR_FIELD = Object.freeze({
-  fringe: 3, edge: 1.2, strand: 0.12, ground: 0.35, tone: Object.freeze([0.6, 1.4]), samples: 4,
+  fringe: 3, edge: 1.2, ground: 0.35, tone: Object.freeze([0.6, 1.4]), px: 1.2, bearings: 1440, strands: 3, cell: 2, keep: 64, most: 60000,
   blanket: Object.freeze({ tone: Object.freeze([0.85, 1.15]), flowers: 0.35, blend: 0.9 }),
 });
 
@@ -56,77 +61,69 @@ vec4 farBlanket( vec3 P, vec3 nW ) {
 /** The blanket's uniforms, the ground's, set by the grass (its far map) and each frame (on, the reach). */
 export const farBlanketUniforms = () => `{ uFarOn: { value: 0 }, uFarR: { value: 1e6 }, tFarG: { value: new THREE.DataTexture(new Uint8Array(4), 1, 1, THREE.RGBAFormat) }, uFGo: { value: new THREE.Vector2() }, uFGn: { value: new THREE.Vector2(1, 1) }, uFGc: { value: 1 }, uFGz0: { value: 0 }, uFGzr: { value: 1 }, uFGfl: { value: new Array(16).fill(0) }, uFGcol: { value: Array.from({ length: 16 }, () => new THREE.Vector3()) } }`;
 
-const CONTOUR = (C) => `precision highp float;
-uniform sampler2D tC, tD;
-uniform vec2 uRes;
-uniform float uLogF, uFarR;
-uniform mat4 uPI, uCW;
-uniform vec3 uEye;
-varying vec2 vUv;
-${FAR_MAP_GLSL(C)}
-// (a pixel's view depth, from the log depth; and its world point, along its ray)
-float viewW( ivec2 b ) { float d = texelFetch( tD, b, 0 ).r; return d >= 1.0 ? 1e9 : exp2( d * uLogF ) - 1.0; }
-vec3 worldAt( ivec2 b, float w ) { vec4 r = uPI * vec4( ( vec2( b ) + 0.5 ) / uRes * 2.0 - 1.0, 1.0, 1.0 ); vec3 rv = r.xyz / r.w; return ( uCW * vec4( rv / -rv.z * w, 1.0 ) ).xyz; }
-vec3 contour( ivec2 P ) {
-  for ( int k = 1; k <= ${C.fringe}; k++ ) {
-    ivec2 b = P - ivec2( 0, k );
-    if ( b.y < 0 ) break;
-    float wb = viewW( b );
-    if ( wb > 1e8 ) continue;
-    vec3 W = worldAt( b, wb );
-    if ( length( W.xy - uEye.xy ) < uFarR ) continue;
-    vec4 t = farGrassAt( W );
-    if ( t.r <= 0.0 || viewW( b + ivec2( 0, 1 ) ) < wb * ${C.edge.toFixed(2)} ) continue;
-    float tall = ceil( ${C.fringe.toFixed(1)} * farHash( floor( W.xy / ${C.strand.toFixed(2)} ) ) * ( 0.5 + 0.5 * t.r ) );
-    if ( float( k ) > tall ) continue;
-    int si = int( t.g * 255.0 + 0.5 );
-    float bt = float( k ) / tall;
-    vec3 light = texelFetch( tC, b, 0 ).rgb / max( farBlanketAlbedo( W, t ), vec3( 1e-3 ) );
-    return ( uFGfl[ si ] > 0.5 && bt < 1.0 ? uFGcol[ 0 ] : uFGcol[ si ] ) * light * mix( ${C.tone[0].toFixed(2)}, ${C.tone[1].toFixed(2)}, bt ) * ( 0.85 + 0.3 * t.a );
-  }
-  return vec3( -1.0 );
-}
-void main() {
-  vec3 f = contour( ivec2( floor( vUv * uRes ) ) );
-  gl_FragColor = vec4( f.r < 0.0 ? texture2D( tC, vUv ).rgb : f, 1.0 );
-  #include <tonemapping_fragment>
-  #include <colorspace_fragment>
-}
-`;
 
-/** The far field's page source, after the grass and the view cone, in the form channel's scope (THREE, scene, renderer,
- *  LAYER_U: the ground's uniforms, which carry the blanket's). */
+/** The far field's page source, after the grass and the view cone, in the form channel's scope (THREE, scene, LAYER_U:
+ *  the ground's uniforms, which carry the blanket's). */
 export function farFieldScript() {
+  const C = FAR_FIELD;
   return `
-  // --- the far field: the blanket past the view cone's reach, and its contour painted in 2D (channels/far-field.js) ---
+  // --- the far field: the blanket past the view cone's reach, and the contour surveyed from the eye (channels/far-field.js) ---
   (function () {
     const CO = window.__mojCone, FF = window.__formFar; if (!CO || !FF) return;
+    const FC = ${JSON.stringify(C)};
     // (the blanket's far map, on the ground's uniforms)
     LAYER_U.tFarG.value = FF.tex; LAYER_U.uFGo.value.set(...FF.origin); LAYER_U.uFGn.value.set(...FF.n); LAYER_U.uFGc.value = FF.cell;
     LAYER_U.uFGz0.value = FF.z[0]; LAYER_U.uFGzr.value = FF.z[1]; LAYER_U.uFGcol.value = FF.cols; LAYER_U.uFGfl.value = FF.flowers;
-    const size = new THREE.Vector2(), dt = new THREE.DepthTexture(1, 1); dt.type = THREE.FloatType;
-    const frameRT = new THREE.WebGLRenderTarget(1, 1, { type: THREE.HalfFloatType, samples: ${FAR_FIELD.samples}, depthTexture: dt });
-    const PU = Object.assign({ tC: { value: frameRT.texture }, tD: { value: dt }, uRes: { value: new THREE.Vector2() }, uLogF: { value: 1 }, uFarR: LAYER_U.uFarR,
-      uPI: { value: new THREE.Matrix4() }, uCW: { value: new THREE.Matrix4() }, uEye: { value: new THREE.Vector3() } },
-      { tFarG: LAYER_U.tFarG, uFGo: LAYER_U.uFGo, uFGn: LAYER_U.uFGn, uFGc: LAYER_U.uFGc, uFGz0: LAYER_U.uFGz0, uFGzr: LAYER_U.uFGzr, uFGcol: LAYER_U.uFGcol, uFGfl: LAYER_U.uFGfl });
-    const qs = new THREE.Scene(), qc = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
-    qs.add(new THREE.Mesh(new THREE.PlaneGeometry(2, 2), new THREE.ShaderMaterial({ uniforms: PU, depthTest: false, depthWrite: false,
-      vertexShader: 'varying vec2 vUv;\\nvoid main() { vUv = uv; gl_Position = vec4( position.xy, 0.0, 1.0 ); }', fragmentShader: ${JSON.stringify(CONTOUR(FAR_FIELD))} })));
-    let on = true;
-    FF.on = () => on;
-    window.__formFarField = { get on() { return on; }, set: (v) => { on = !!v; return on; } };
+    // (the surveyor: the contour from a point of view, form/survey.js)
+    const contourScan = ${contourScan.toString()};
+    // (the art: a stroke an instance, its root, height, colour slot and dice; a pixel wide, at most FC.fringe tall)
+    const sg = new THREE.InstancedBufferGeometry();
+    sg.setAttribute('position', new THREE.Float32BufferAttribute([-0.5, 0, 0, 0.5, 0, 0, 0.5, 0, 1, -0.5, 0, 1], 3)); sg.setIndex([0, 1, 2, 0, 2, 3]);
+    const IB = new THREE.InstancedInterleavedBuffer(new Float32Array(FC.most * 6), 6, 1); IB.setUsage(THREE.DynamicDrawUsage);
+    sg.setAttribute('aRoot', new THREE.InterleavedBufferAttribute(IB, 4, 0)); sg.setAttribute('aLook', new THREE.InterleavedBufferAttribute(IB, 2, 4)); sg.instanceCount = 0;
+    sg.boundingSphere = new THREE.Sphere(new THREE.Vector3(FF.centre[0] + FF.n[0] * FF.cell / 2, FF.centre[1] + FF.n[1] * FF.cell / 2, FF.z[0]), Math.hypot(FF.n[0], FF.n[1]) * FF.cell);
+    const SU = { uPxm: { value: 0.001 }, uFGcol: LAYER_U.uFGcol, uFGfl: LAYER_U.uFGfl };
+    const sm = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.8, metalness: 0, side: THREE.DoubleSide });
+    sm.onBeforeCompile = (sh) => {
+      Object.assign(sh.uniforms, SU);
+      sh.vertexShader = 'uniform float uPxm, uFGfl[ 16 ];\\nuniform vec3 uFGcol[ 16 ];\\nattribute vec4 aRoot;\\nattribute vec2 aLook;\\nvarying vec3 vCol;\\n' + sh.vertexShader
+        .replace('#include <beginnormal_vertex>', [
+          'vec3 objectNormal = vec3( 0.0, 0.0, 1.0 );',
+          'float dE = length( aRoot.xy - cameraPosition.xy ), hW = min( aRoot.w, ' + FC.fringe.toFixed(1) + ' * uPxm * dE ), bt = position.z;',
+          'int si = int( aLook.x + 0.5 );',
+          'vCol = ( uFGfl[ si ] > 0.5 && bt < 0.99 ? uFGcol[ 0 ] : uFGcol[ si ] ) * mix( ' + FC.tone[0].toFixed(2) + ', ' + FC.tone[1].toFixed(2) + ', bt ) * ( 0.85 + 0.3 * aLook.y );'].join('\\n'))
+        .replace('#include <begin_vertex>', 'vec2 eyeD = normalize( aRoot.xy - cameraPosition.xy + vec2( 1e-4, 0.0 ) );\\nvec3 transformed = vec3( aRoot.xy + vec2( -eyeD.y, eyeD.x ) * position.x * ' + FC.px.toFixed(2) + ' * uPxm * dE, aRoot.z + position.z * hW );');
+      sh.fragmentShader = 'varying vec3 vCol;\\n' + sh.fragmentShader.replace('#include <color_fragment>', '#include <color_fragment>\\n  diffuseColor.rgb *= vCol;');
+    };
+    sm.customProgramCacheKey = () => 'far-field-strokes';
+    const strokes = new THREE.Mesh(sg, sm); strokes.receiveShadow = true; strokes.visible = false; scene.add(strokes);
+    // (a point of view solved once for its cell, kept once walked; the cells round it solved while the page is idle)
+    const kept = new Map(), keyOf = (i, j, R) => i + ',' + j + ',' + Math.round(R), queue = [];
+    const solve = (i, j, R) => { const k = keyOf(i, j, R); let S = kept.get(k);
+      if (!S) { S = contourScan(FF, [(i + 0.5) * FC.cell, (j + 0.5) * FC.cell, eyeZ], { reach: R, bearings: FC.bearings, edge: FC.edge, strands: FC.strands }); kept.set(k, S); if (kept.size > FC.keep) kept.delete(kept.keys().next().value); }
+      else { kept.delete(k); kept.set(k, S); }
+      return S; };
+    const idle = window.requestIdleCallback || ((f) => setTimeout(() => f({ timeRemaining: () => 8 }), 50));
+    const ahead = (dl) => { while (queue.length && dl.timeRemaining() > 4) { const [i, j, R] = queue.shift(); solve(i, j, R); } if (queue.length) idle(ahead); };
+    let on = true, at = '', eyeZ = 0;
+    window.__formFarField = { get on() { return on; }, set: (v) => { on = !!v; return on; }, get solved() { return kept.size; } };
     window.addEventListener('keydown', (e) => { if (e.key === 'f' || e.key === 'F') console.log('far field', window.__formFarField.set(!on)); });
-    const R0 = renderer.render.bind(renderer);
-    renderer.render = function (s, c) {
+    const prev = scene.onBeforeRender;
+    scene.onBeforeRender = function (r, s, cam, rt) {
+      if (prev) prev.call(this, r, s, cam, rt);
+      if (!cam.isPerspectiveCamera) return;
       const live = on && FF.pov() && CO.reach < 1e5;
-      LAYER_U.uFarOn.value = live ? 1 : 0; LAYER_U.uFarR.value = live ? CO.reach : 1e6;
-      if (!live || s !== scene || !c.isPerspectiveCamera || renderer.getRenderTarget() !== null) return R0(s, c);
-      // (the frame, once, into an image with its depth; then its contour painted over it and its tone curve, to the canvas)
-      renderer.getDrawingBufferSize(size);
-      if (frameRT.width !== size.x || frameRT.height !== size.y) frameRT.setSize(size.x, size.y);
-      renderer.setRenderTarget(frameRT); R0(s, c); renderer.setRenderTarget(null);
-      PU.uRes.value.copy(size); PU.uLogF.value = Math.log2(c.far + 1); PU.uPI.value.copy(c.projectionMatrixInverse); PU.uCW.value.copy(c.matrixWorld); PU.uEye.value.setFromMatrixPosition(c.matrixWorld);
-      R0(qs, qc);
+      LAYER_U.uFarOn.value = live ? 1 : 0; LAYER_U.uFarR.value = live ? CO.reach : 1e6; strokes.visible = live;
+      if (!live) return;
+      SU.uPxm.value = CO.px;
+      const i = Math.floor(CO.eye.x / FC.cell), j = Math.floor(CO.eye.y / FC.cell), R = CO.reach, k = keyOf(i, j, R);
+      if (k === at) return;
+      at = k; eyeZ = CO.eye.z;
+      const S = solve(i, j, R), n = Math.min(FC.most, S.length / 6);
+      IB.array.set(S.subarray(0, n * 6)); IB.needsUpdate = true; sg.instanceCount = n;
+      // (the probable next: the cells round this one)
+      queue.length = 0; for (const [di, dj] of [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [-1, 1], [1, -1], [-1, -1]]) if (!kept.has(keyOf(i + di, j + dj, R))) queue.push([i + di, j + dj, R]);
+      if (queue.length) idle(ahead);
     };
   })();
 `;

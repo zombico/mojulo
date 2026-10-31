@@ -293,7 +293,10 @@ export function formGrassScript() {
         for (let k = 0; k < nx * ny; k++) FG[k * 4] = H[k] > 0 ? Math.max(1, Math.round((H[k] / hMax) * 255)) : 0;
         while (SFL.length < 16) { SC.push(0, 0, 0); SFL.push(0); }
         const ft = new THREE.DataTexture(FG, nx, ny, THREE.RGBAFormat); ft.magFilter = ft.minFilter = THREE.NearestFilter; ft.needsUpdate = true;
-        window.__formFar = { tex: ft, origin: [x0 - Gm.cell / 2, y0 - Gm.cell / 2], n: [nx, ny], cell: Gm.cell, hMax, z: Gm.z, thin: PG.thin,
+        // (and the same as arrays, for the far field's contour scan: the ground's height, what stands, its slot and its dice)
+        const zs = Float32Array.from({ length: nx * ny }, (_, k) => zT(k * 4)), slots = new Uint8Array(nx * ny), tones = new Uint8Array(nx * ny);
+        for (let k = 0; k < nx * ny; k++) { slots[k] = FG[k * 4 + 1]; tones[k] = FG[k * 4 + 3]; }
+        window.__formFar = { tex: ft, origin: [x0 - Gm.cell / 2, y0 - Gm.cell / 2], centre: [x0, y0], n: [nx, ny], cell: Gm.cell, hMax, z: Gm.z, thin: PG.thin, zs, hs: H, slots, tones,
           cols: Array.from({ length: 16 }, (_, i) => new THREE.Vector3(SC[i * 3], SC[i * 3 + 1], SC[i * 3 + 2])), flowers: SFL, pov: () => view === 'pov' };
         window.__formStrands = H.reduce((n, v) => n + (v > 0 ? 1 : 0), 0);
       })();

@@ -5,7 +5,7 @@
  */
 import { describe, expect, it } from 'vitest';
 
-import { surveyView, surveyChart, surveyRegions } from './survey.js';
+import { surveyView, surveyChart, surveyRegions, contourScan } from './survey.js';
 
 const b64 = (a) => Buffer.from(new Float32Array(a).buffer).toString('base64');
 // (a flat square 0..100 m at z 0, its grass map over x < 50 only, full cover)
@@ -40,5 +40,26 @@ describe('the surveyor', () => {
       expect(k.standsPx).toBeGreaterThan(0);
       expect(k.d).toBeGreaterThanOrEqual(10);
     }
+  });
+});
+
+describe('the contour scan', () => {
+  // (a ground map 100 m square at 1 m, flat, a ridge 3 m high across it at y 40..41, grass everywhere half a metre tall)
+  const N = 100, map = (ridge) => ({ n: [N, N], cell: 1, centre: [0, 0], zs: Float32Array.from({ length: N * N }, (_, k) => (ridge && Math.floor(k / N) >= 40 && Math.floor(k / N) <= 41 ? 3 : 0)),
+    hs: new Float32Array(N * N).fill(0.5), slots: new Uint8Array(N * N), tones: new Uint8Array(N * N).fill(128) });
+
+  it('finds the ridge as the contour past the reach, and none on flat ground short of the map\'s edge', () => {
+    const S = contourScan(map(true), [50, 5, 1.7], { reach: 20, bearings: 360, strands: 1 });
+    const ys = []; for (let i = 0; i < S.length; i += 6) ys.push(S[i + 1]);
+    expect(ys.some((y) => y >= 39 && y <= 42)).toBe(true);
+    // (flat: the only contour is where the map ends)
+    const F = contourScan(map(false), [50, 50, 1.7], { reach: 20, bearings: 360, strands: 1 });
+    for (let i = 0; i < F.length; i += 6) expect(Math.min(F[i], F[i + 1], N - 1 - F[i], N - 1 - F[i + 1])).toBeLessThan(2);
+  });
+
+  it('is deterministic, and nothing inside the reach is handed to the art', () => {
+    const a = contourScan(map(true), [50, 5, 1.7], { reach: 60 }), b = contourScan(map(true), [50, 5, 1.7], { reach: 60 });
+    expect(Array.from(a)).toEqual(Array.from(b));
+    for (let i = 0; i < a.length; i += 6) expect(Math.hypot(a[i] - 50, a[i + 1] - 5)).toBeGreaterThanOrEqual(59);
   });
 });

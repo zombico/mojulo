@@ -164,3 +164,37 @@ export function surveyRegions({ cols, rows, samples }, { reach, height = 720, vf
   }
   return regions;
 }
+
+/** THE CONTOUR SCAN, the page's surveyor (scene/channels/far-field.js embeds it whole, so it reaches nothing outside
+ *  itself): from an eye, every `bearings`-th of a turn walked out over a ground map cell by cell, the ground's elevation
+ *  from the eye tracked; where it peaks and what lies behind is hidden until ground at least `edge` × as far rises past
+ *  it (or the map ends), that peak is the land's CONTOUR on that bearing. Each contour point past `reach` where something
+ *  stands is handed to the art as `strands` strokes spread across its bearing's width:
+ *    F: { n: [nx, ny], cell, centre: [x, y] (cell 0's), zs (the ground's height a cell), hs (what stands there, m; 0
+ *       none), slots (its colour slot), tones (its dice, 0..255) }
+ *  contourScan(F, eye, { reach, bearings, edge, strands }) → Float32Array, a stroke every 6: x, y, z, height, slot, tone */
+export function contourScan(F, eye, { reach = 25, bearings = 1440, edge = 1.2, strands = 3 } = {}) {
+  const nx = F.n[0], ny = F.n[1], c = F.cell, ox = F.centre[0], oy = F.centre[1], out = [];
+  const maxD = Math.hypot(nx * c, ny * c) + Math.hypot(eye[0] - ox, eye[1] - oy);
+  const at = (x, y) => { const i = Math.round((x - ox) / c), j = Math.round((y - oy) / c); return i < 0 || j < 0 || i >= nx || j >= ny ? -1 : j * nx + i; };
+  const hash = (a, b) => { const s = Math.sin(a * 127.1 + b * 311.7) * 43758.5453; return s - Math.floor(s); };
+  const emit = (P, a) => {
+    if (P.d < reach || !(F.hs[P.k] > 0)) return;
+    const half = (Math.PI / bearings) * P.d, px = -Math.sin(a), py = Math.cos(a);
+    for (let s = 0; s < strands; s++) { const u = (hash(P.k, s) - 0.5) * 2 * half; out.push(P.x + px * u, P.y + py * u, P.z, F.hs[P.k] * (0.5 + 0.5 * hash(s, P.k)), F.slots[P.k], F.tones[P.k] / 255); }
+  };
+  for (let b = 0; b < bearings; b++) {
+    const a = (b / bearings) * 2 * Math.PI, dx = Math.cos(a), dy = Math.sin(a);
+    let maxE = -Infinity, rising = false, cand = null, pend = null, seen = false;
+    for (let d = c; d <= maxD; d += c) {
+      const x = eye[0] + dx * d, y = eye[1] + dy * d, k = at(x, y);
+      if (k < 0) { if (seen) break; continue; }
+      seen = true;
+      const z = F.zs[k], e = (z - eye[2]) / d;
+      if (e > maxE) { if (pend && d > pend.d * edge) emit(pend, a); pend = null; maxE = e; cand = { k, d, x, y, z }; rising = true; }
+      else if (rising) { pend = cand; rising = false; }
+    }
+    if (pend) emit(pend, a);
+  }
+  return Float32Array.from(out);
+}
