@@ -13,4 +13,12 @@ C# runtime, Roblox's Luau kernel) and the conformance machinery that held them t
 a target, and "plays in an engine" stops being a measure: the hillclimb page loses its engine columns, and the engine
 marks become one handoff ledger of what each export carried and what stayed the web's.
 
-Built so far: nothing yet; the theme opens with its design.
+Built so far:
+
+- **The runtimes are frozen.** The engine game runtimes take no new ports while the handoff replaces them.
+- **A real Godot in CI.** The workflow's `godot` job fetches a pinned Godot (4.7.2, from the builds repository, checked
+  against the release's SHA512 sums and cached), names it as `MOJULO_GODOT`, and runs the Godot legs the handoff keeps:
+  a figure's import with its engine skeleton, BoneMap, retarget and clips.
+- **The form data is pinned.** The land read's payload (a small meru island with its grass map) is hashed painted fresh
+  and memoized, the two must agree, and the hash is held on every reference leg, so a run, a process or a CPU that paints
+  a different byte fails before anything is handed off from it.

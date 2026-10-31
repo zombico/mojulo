@@ -7,8 +7,8 @@ import base from './vitest.config.js';
 // in the other tiers), the ratchet, and the fixture matrix (lib/graph/game/level-equivalence.godot.test.js: every
 // cosmos fixture made, exported, imported and played by script in both engines). It sets nothing itself: it needs
 // MOJULO_GODOT naming a Godot 4.7.2 binary and fails loudly without it, since a Godot tier that skips its Godot legs
-// says nothing. CI has no Godot (a follow-up for the operator); run it before every commit that touches the kernel,
-// the score, the bus contract or the marks.
+// says nothing. CI's `godot` job runs a pinned Godot over the legs the engine handoff keeps, not this whole tier; run
+// the tier before every commit that touches the kernel, the score, the bus contract or the marks.
 const GODOT = process.env.MOJULO_GODOT;
 if (!GODOT || !existsSync(GODOT)) {
   throw new Error(`test:godot needs MOJULO_GODOT naming a Godot binary (got ${GODOT ? `'${GODOT}', which does not exist` : 'nothing'}); every leg of this tier runs the engine`);

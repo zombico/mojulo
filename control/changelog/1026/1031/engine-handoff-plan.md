@@ -1,6 +1,6 @@
 ### Engine handoff plan (temporary: the working plan, parked here; delete before release)
 
-**Status:** planned (1031). Branch `1031-gen7-export`, cut from `1026-consolidated`. Theme file
+**Status:** phase 0 built, its Godot job awaiting its first CI run (1031). Branch `1031-gen7-export`, cut from `1026-consolidated`. Theme file
 `control/changelog/1026/1031/engine-handoff.md`. No release has carried the engine game runtimes this plan removes, so
 nothing here needs a deprecation path.
 
@@ -217,3 +217,18 @@ developer would want to wire. Never claimed by a machine.
   merged, Unreal already assets only, the first real engine gate. The form modules confirmed pure and seeded, and
   `payload.form` confirmed plain data the engine path skips under `paint: true`. Reframed from "gen-7 as Godot's
   graphics" to the engine handoff: the runtimes culled, Roblox dropped, the desktop app kept under `export_game`.
+- 1031, phase 0:
+  - Frozen: `CLAUDE.md`'s engine-legs line says the engine game runtimes take no new ports and give way to the handoff.
+    `1025-godot-recoup` has no pull request; it stays unmerged (the branch itself is kept until the operator says).
+  - CI's `godot` job (`.github/workflows/test.yml`): Godot 4.7.2 (the version the gate was last verified against; the
+    repository variable `GODOT_VERSION` overrides it) fetched from `godotengine/godot-builds`, checked against the
+    release's `SHA512-SUMS.txt`, cached, named as `MOJULO_GODOT`, and `godot-humanoid-pack.test.js` (a figure's import,
+    its engine skeleton, BoneMap and retarget, its clips) run against it. Not yet run: this container cannot reach
+    GitHub's release downloads, so the job's first run is on CI (a pull request or the workflow's manual run). If the
+    builds repository does not carry the version or its sums file, the first run says so.
+  - The form data is byte-stable: `form/land-read.char.test.js` hashes `formPayload` for a small meru island with its
+    grass map, painted fresh and then memoized, the two equal and the hash pinned; two separate runs gave the same hash
+    here (Node 22, x86_64). The pin runs on every reference leg, so the macOS leg is the cross-CPU check.
+  - Open question 1 answered in part: Godot 4.7.2 from the builds repository; a literal checksum pin can replace the
+    sums-file check once the first run prints it.
+
