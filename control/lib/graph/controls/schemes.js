@@ -175,13 +175,13 @@ const GRID = {
   label: 'grid / turn-based puzzle',
   contexts: ['play'],
   actions: [
-    { id: 'up', label: 'up', group: 'move', in: ['play'], bind: { keyboard: ['ArrowUp', 'KeyW'], gamepad: ['up', 'leftY-'] } },
-    { id: 'down', label: 'down', group: 'move', in: ['play'], bind: { keyboard: ['ArrowDown', 'KeyS'], gamepad: ['down', 'leftY+'] } },
-    { id: 'left', label: 'left', group: 'move', in: ['play'], bind: { keyboard: ['ArrowLeft', 'KeyA'], gamepad: ['left', 'leftX-'] } },
-    { id: 'right', label: 'right', group: 'move', in: ['play'], bind: { keyboard: ['ArrowRight', 'KeyD'], gamepad: ['right', 'leftX+'] } },
+    { id: 'up', label: 'up', group: 'move', in: ['play'], bind: { keyboard: ['ArrowUp', 'KeyW'], gamepad: ['up', 'leftY-'], xr: ['left.thumbstickY-'] } },
+    { id: 'down', label: 'down', group: 'move', in: ['play'], bind: { keyboard: ['ArrowDown', 'KeyS'], gamepad: ['down', 'leftY+'], xr: ['left.thumbstickY+'] } },
+    { id: 'left', label: 'left', group: 'move', in: ['play'], bind: { keyboard: ['ArrowLeft', 'KeyA'], gamepad: ['left', 'leftX-'], xr: ['left.thumbstickX-'] } },
+    { id: 'right', label: 'right', group: 'move', in: ['play'], bind: { keyboard: ['ArrowRight', 'KeyD'], gamepad: ['right', 'leftX+'], xr: ['left.thumbstickX+'] } },
     { id: 'confirm', label: 'select / act', group: 'act', in: ['play'], bind: { keyboard: ['Enter', 'Space'], mouse: ['left'], gamepad: ['confirm'], xr: ['right.trigger'] } },
     { id: 'back', label: 'back / cancel', group: 'act', in: ['play'], bind: { keyboard: ['Escape', 'Backspace'], mouse: ['right'], gamepad: ['cancel'], xr: ['right.secondary'] } },
-    { id: 'undo', label: 'undo', group: 'act', in: ['play'], bind: { keyboard: ['KeyZ', 'KeyU'], gamepad: ['west'] } },
+    { id: 'undo', label: 'undo', group: 'act', in: ['play'], bind: { keyboard: ['KeyZ', 'KeyU'], gamepad: ['west'], xr: ['left.primary'] } },
     { id: 'restart', label: 'restart', group: 'system', in: ['play'], bind: { keyboard: ['KeyR'], gamepad: ['select'] } },
   ],
   legend: {
@@ -197,6 +197,11 @@ const GRID = {
       { ids: ['confirm', 'back'], label: 'select / back' },
       { ids: ['undo'], label: 'undo' },
     ],
+    xr: [
+      { quad: ['up', 'left', 'down', 'right'], label: 'move' },
+      { ids: ['confirm', 'back'], label: 'select / back' },
+      { ids: ['undo'], label: 'undo' },
+    ],
   },
 };
 
@@ -207,17 +212,17 @@ const BOARD = {
   label: 'tactics board',
   contexts: ['play'],
   actions: [
-    { id: 'up', label: 'cursor up', group: 'move', in: ['play'], bind: { keyboard: ['ArrowUp', 'KeyW'], gamepad: ['up', 'leftY-'] } },
-    { id: 'down', label: 'cursor down', group: 'move', in: ['play'], bind: { keyboard: ['ArrowDown', 'KeyS'], gamepad: ['down', 'leftY+'] } },
-    { id: 'left', label: 'cursor left', group: 'move', in: ['play'], bind: { keyboard: ['ArrowLeft', 'KeyA'], gamepad: ['left', 'leftX-'] } },
-    { id: 'right', label: 'cursor right', group: 'move', in: ['play'], bind: { keyboard: ['ArrowRight', 'KeyD'], gamepad: ['right', 'leftX+'] } },
-    { id: 'confirm', label: 'select / move', group: 'act', in: ['play'], bind: { keyboard: ['Enter', 'Space'], mouse: ['left'], gamepad: ['confirm'] } },
-    { id: 'back', label: 'back', group: 'act', in: ['play'], bind: { keyboard: ['Escape', 'Backspace'], gamepad: ['cancel'] } },
-    { id: 'turnLeft', label: 'turn the view', group: 'view', in: ['play'], bind: { keyboard: ['KeyQ'], gamepad: ['lb'] } },
-    { id: 'turnRight', label: 'turn the view back', group: 'view', in: ['play'], bind: { keyboard: ['KeyE'], gamepad: ['rb'] } },
-    { id: 'zoomIn', label: 'zoom in', group: 'view', in: ['play'], bind: { keyboard: ['KeyZ', 'Equal'], gamepad: ['north'] } },
-    { id: 'zoomOut', label: 'zoom out', group: 'view', in: ['play'], bind: { keyboard: ['KeyX', 'Minus'], gamepad: ['west'] } },
-    { id: 'tilt', label: 'tilt', group: 'view', in: ['play'], bind: { keyboard: ['KeyV'], gamepad: ['select'] } },
+    { id: 'up', label: 'cursor up', group: 'move', in: ['play'], bind: { keyboard: ['ArrowUp', 'KeyW'], gamepad: ['up', 'leftY-'], xr: ['left.thumbstickY-'] } },
+    { id: 'down', label: 'cursor down', group: 'move', in: ['play'], bind: { keyboard: ['ArrowDown', 'KeyS'], gamepad: ['down', 'leftY+'], xr: ['left.thumbstickY+'] } },
+    { id: 'left', label: 'cursor left', group: 'move', in: ['play'], bind: { keyboard: ['ArrowLeft', 'KeyA'], gamepad: ['left', 'leftX-'], xr: ['left.thumbstickX-'] } },
+    { id: 'right', label: 'cursor right', group: 'move', in: ['play'], bind: { keyboard: ['ArrowRight', 'KeyD'], gamepad: ['right', 'leftX+'], xr: ['left.thumbstickX+'] } },
+    { id: 'confirm', label: 'select / move', group: 'act', in: ['play'], bind: { keyboard: ['Enter', 'Space'], mouse: ['left'], gamepad: ['confirm'], xr: ['right.trigger'] } },
+    { id: 'back', label: 'back', group: 'act', in: ['play'], bind: { keyboard: ['Escape', 'Backspace'], gamepad: ['cancel'], xr: ['right.secondary'] } },
+    { id: 'turnLeft', label: 'turn the view', group: 'view', in: ['play'], bind: { keyboard: ['KeyQ'], gamepad: ['lb'], xr: ['right.thumbstickX-'] } },
+    { id: 'turnRight', label: 'turn the view back', group: 'view', in: ['play'], bind: { keyboard: ['KeyE'], gamepad: ['rb'], xr: ['right.thumbstickX+'] } },
+    { id: 'zoomIn', label: 'zoom in', group: 'view', in: ['play'], bind: { keyboard: ['KeyZ', 'Equal'], gamepad: ['north'], xr: ['right.thumbstickY-'] } },
+    { id: 'zoomOut', label: 'zoom out', group: 'view', in: ['play'], bind: { keyboard: ['KeyX', 'Minus'], gamepad: ['west'], xr: ['right.thumbstickY+'] } },
+    { id: 'tilt', label: 'tilt', group: 'view', in: ['play'], bind: { keyboard: ['KeyV'], gamepad: ['select'], xr: ['right.thumbstick'] } },
   ],
   legend: {
     keyboard: [
@@ -233,6 +238,13 @@ const BOARD = {
       { ids: ['confirm', 'back'], label: 'select / back' },
       { ids: ['turnLeft', 'turnRight'], label: 'turn' },
       { ids: ['zoomIn', 'zoomOut'], label: 'zoom' },
+    ],
+    xr: [
+      { quad: ['up', 'left', 'down', 'right'], label: 'cursor' },
+      { ids: ['confirm', 'back'], label: 'select / back' },
+      { ids: ['turnLeft', 'turnRight'], label: 'turn' },
+      { ids: ['zoomIn', 'zoomOut'], label: 'zoom' },
+      { ids: ['tilt'], label: 'tilt' },
     ],
   },
 };
@@ -333,30 +345,33 @@ const VERSUS = {
 };
 // THE ACTION VERBS (gameworld/feel: the action lab and its kernel's buttons, kernel.js BTN): move, jump, attack, dodge,
 // dash, lock, guard, shoot, switch, sprint. A direction's first pad control is the D-pad, its second the left stick, so
-// `axis` reads the stick analog and the D-pad wins while pressed.
+// `axis` reads the stick analog and the D-pad wins while pressed. On a Quest's Touch pair: the left stick moves (click
+// sprints), the triggers attack (right) and guard (left), A jumps, B dodges, X shoots, Y switches, the left grip dashes
+// and the right stick's click locks; the right grip stays free for a hand's grab.
 const ACT_IN = ['play'];
 const ACTION = {
   id: 'action',
   label: 'action game: move, jump, attack, dodge, guard',
   contexts: ACT_IN,
   actions: [
-    { id: 'up', label: 'up', group: 'move', in: ACT_IN, bind: { keyboard: ['KeyW', 'ArrowUp'], gamepad: ['up', 'leftY-'] } },
-    { id: 'down', label: 'down', group: 'move', in: ACT_IN, bind: { keyboard: ['KeyS', 'ArrowDown'], gamepad: ['down', 'leftY+'] } },
-    { id: 'left', label: 'left', group: 'move', in: ACT_IN, bind: { keyboard: ['KeyA', 'ArrowLeft'], gamepad: ['left', 'leftX-'] } },
-    { id: 'right', label: 'right', group: 'move', in: ACT_IN, bind: { keyboard: ['KeyD', 'ArrowRight'], gamepad: ['right', 'leftX+'] } },
-    { id: 'jump', label: 'jump', group: 'move', in: ACT_IN, bind: { keyboard: ['Space'], gamepad: ['south'] } },
-    { id: 'sprint', label: 'sprint', group: 'move', hold: true, in: ACT_IN, bind: { keyboard: ['Shift'], gamepad: ['lt', 'ls'] } },
-    { id: 'dodge', label: 'dodge', group: 'move', in: ACT_IN, bind: { keyboard: ['KeyK'], gamepad: ['east'] } },
-    { id: 'dash', label: 'dash', group: 'move', in: ACT_IN, bind: { keyboard: ['KeyL'], gamepad: ['rb'] } },
-    { id: 'attack', label: 'attack', group: 'combat', in: ACT_IN, bind: { keyboard: ['KeyJ'], gamepad: ['west'] } },
-    { id: 'guard', label: 'guard', group: 'combat', hold: true, in: ACT_IN, bind: { keyboard: ['KeyU'], gamepad: ['rt'] } },
-    { id: 'shoot', label: 'shoot', group: 'combat', in: ACT_IN, bind: { keyboard: ['KeyF'], gamepad: ['north'] } },
-    { id: 'lock', label: 'target lock', group: 'combat', in: ACT_IN, bind: { keyboard: ['KeyI', 'KeyQ'], gamepad: ['lb', 'rs'] } },
-    { id: 'switch', label: 'switch weapon', group: 'combat', in: ACT_IN, bind: { keyboard: ['KeyZ'], gamepad: ['select'] } },
+    { id: 'up', label: 'up', group: 'move', in: ACT_IN, bind: { keyboard: ['KeyW', 'ArrowUp'], gamepad: ['up', 'leftY-'], xr: ['left.thumbstickY-'] } },
+    { id: 'down', label: 'down', group: 'move', in: ACT_IN, bind: { keyboard: ['KeyS', 'ArrowDown'], gamepad: ['down', 'leftY+'], xr: ['left.thumbstickY+'] } },
+    { id: 'left', label: 'left', group: 'move', in: ACT_IN, bind: { keyboard: ['KeyA', 'ArrowLeft'], gamepad: ['left', 'leftX-'], xr: ['left.thumbstickX-'] } },
+    { id: 'right', label: 'right', group: 'move', in: ACT_IN, bind: { keyboard: ['KeyD', 'ArrowRight'], gamepad: ['right', 'leftX+'], xr: ['left.thumbstickX+'] } },
+    { id: 'jump', label: 'jump', group: 'move', in: ACT_IN, bind: { keyboard: ['Space'], gamepad: ['south'], xr: ['right.primary'] } },
+    { id: 'sprint', label: 'sprint', group: 'move', hold: true, in: ACT_IN, bind: { keyboard: ['Shift'], gamepad: ['lt', 'ls'], xr: ['left.thumbstick'] } },
+    { id: 'dodge', label: 'dodge', group: 'move', in: ACT_IN, bind: { keyboard: ['KeyK'], gamepad: ['east'], xr: ['right.secondary'] } },
+    { id: 'dash', label: 'dash', group: 'move', in: ACT_IN, bind: { keyboard: ['KeyL'], gamepad: ['rb'], xr: ['left.squeeze'] } },
+    { id: 'attack', label: 'attack', group: 'combat', in: ACT_IN, bind: { keyboard: ['KeyJ'], gamepad: ['west'], xr: ['right.trigger'] } },
+    { id: 'guard', label: 'guard', group: 'combat', hold: true, in: ACT_IN, bind: { keyboard: ['KeyU'], gamepad: ['rt'], xr: ['left.trigger'] } },
+    { id: 'shoot', label: 'shoot', group: 'combat', in: ACT_IN, bind: { keyboard: ['KeyF'], gamepad: ['north'], xr: ['left.primary'] } },
+    { id: 'lock', label: 'target lock', group: 'combat', in: ACT_IN, bind: { keyboard: ['KeyI', 'KeyQ'], gamepad: ['lb', 'rs'], xr: ['right.thumbstick'] } },
+    { id: 'switch', label: 'switch weapon', group: 'combat', in: ACT_IN, bind: { keyboard: ['KeyZ'], gamepad: ['select'], xr: ['left.secondary'] } },
   ],
   legend: {
     keyboard: [{ quad: ['up', 'left', 'down', 'right'], label: 'move' }, { ids: ['jump', 'attack', 'dodge', 'guard'], label: 'jump / attack / dodge / guard' }, { ids: ['dash', 'lock', 'shoot', 'sprint'], label: 'dash / lock / shoot / sprint' }],
     gamepad: [{ quad: ['up', 'left', 'down', 'right'], label: 'move' }, { ids: ['jump', 'attack', 'dodge', 'guard'], label: 'jump / attack / dodge / guard' }, { ids: ['dash', 'lock', 'shoot', 'sprint'], label: 'dash / lock / shoot / sprint' }],
+    xr: [{ quad: ['up', 'left', 'down', 'right'], label: 'move' }, { ids: ['jump', 'attack', 'dodge', 'guard'], label: 'jump / attack / dodge / guard' }, { ids: ['dash', 'lock', 'shoot', 'sprint'], label: 'dash / lock / shoot / sprint' }],
   },
 };
 

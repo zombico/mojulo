@@ -26,8 +26,11 @@ describe('emitThreeWorld xr', () => {
     expect(js).toContain("setReferenceSpaceType('local-floor')");
     expect(js).toContain('renderer.xr.enabled = true');
     expect(js).toContain('if (__xrOn) __xrStep(dt);');
-    // defaults: fallback eye 1.6, orbit-only speed 3, 30° snap in radians
-    expect(js).toContain('const XR = {"eye":1.6,"speed":3,"snap":0.5235987755982988};');
+    // defaults: fallback eye 1.6, orbit-only speed 3, smooth turn at 120°/s on the right stick, the walk heading latched
+    expect(js).toContain('const XR = {"eye":1.6,"speed":3,"turn":"smooth","snap":0.5235987755982988,"turnSpeed":2.0943951023931953,"move":"latch",');
+    // the sticks are the pilot scheme's, read through the kernel and the xr driver
+    expect(js).toContain('"turnRight":["right.thumbstickX+"]');
+    expect(js).toContain('__XRV.xrRead(session.inputSources, __XRD)');
     // no three/examples import — the page stays self-contained
     expect(js).not.toContain('three/addons/webxr');
     expect(page).toContain('<b>vr</b> = headset');
@@ -36,7 +39,8 @@ describe('emitThreeWorld xr', () => {
   it('rides the walk channel: speed follows walk speed, ground probe is typeof-guarded', () => {
     const page = emitThreeWorld({ faces: [floor()], walk: { speed: 8, spawn: [1, 1, 1.6], radius: 0.4 }, xr: { eye: 1.7, snap: 45 } });
     const js = moduleScript(page);
-    expect(js).toContain('const XR = {"eye":1.7,"speed":4,"snap":0.7853981633974483};');
+    // `snap` given alone means snap turning, as it always did
+    expect(js).toContain('const XR = {"eye":1.7,"speed":4,"turn":"snap","snap":0.7853981633974483,');
     expect(js).toContain("typeof groundBelow === 'function'");
     expect(js).toContain('function groundBelow(');
   });
