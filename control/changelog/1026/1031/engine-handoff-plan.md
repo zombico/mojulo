@@ -1,17 +1,46 @@
 ### Engine handoff plan (temporary: the working plan, parked here; delete before release)
 
-**Status:** phase 0 built (its Godot job awaiting its first CI run); phases 1 and 2 built; phase 3 (the levels: environment, colliders, markers) next (1031). Branch `1031-gen7-export`, cut from `1026-consolidated`. Theme file
+**Status:** phase 0 built (its Godot job awaiting its first CI run); phases 1 and 2 built; the outcomes tuned to two audiences; phase 3 (the levels: environment, colliders, markers, the loop, seats, stable names) next (1031). Branch `1031-gen7-export`, cut from `1026-consolidated`. Theme file
 `control/changelog/1026/1031/engine-handoff.md`. No release has carried the engine game runtimes this plan removes, so
 nothing here needs a deprecation path.
 
-**Outcome.** Two outcomes, said plainly everywhere:
-- **The web: the whole game, end to end.** `export_game` (`web`, `desktop`): every department, playable in the browser or
-  as the Electron desktop app. Unchanged.
-- **The engines: a handoff of assets, animation and levels at the polygon level.** One export, `export_model { engine }`,
-  gives Godot, Unity, Unreal and Blender as much as mojulo can make: every surface as a gen-7 material, every rig with
-  its clips and faces, every level as layout, light, colliders and named markers, for a developer to wire and finish
-  there. It supersedes every prior engine export. The game runtimes ported into the engines (Godot's GDScript kernel,
-  Unity's C# runtime, Roblox's Luau kernel) are culled, and Roblox is dropped as a target.
+**Outcome.** Mojulo makes single-player and couch (local) multiplayer games, for two audiences, each with its own
+outcome. Online multiplayer is out of scope, on the web and in every handoff.
+
+- **The solo creator: the whole game, end to end, on the web.** `export_game` (`web`, `desktop`): every department
+  composed into a game that plays in the browser or as the Electron desktop app, alone or with two to four players on one
+  screen (the seats: `docs/local-multiplayer-principles.md`). Mojulo is the whole studio; nothing is handed anywhere.
+- **Developers and teams: assets, animation and levels handed to their engine.** One export, `export_model { engine }`,
+  gives Godot, Unity, Unreal and Blender as much as mojulo can make at the polygon level: every surface as a gen-7
+  material, every rig with its clips and faces, every level as layout, light, colliders and named markers, for a
+  developer to wire and finish there. It supersedes every prior engine export. The game runtimes ported into the engines
+  (Godot's GDScript kernel, Unity's C# runtime, Roblox's Luau kernel) are culled, and Roblox is dropped as a target. What
+  a team gets from it:
+  - **Mojulo as the team's design source ("Figma-ization").** As a design tool is where a product is drawn and a
+    developer's handoff is read from it, the recipe and its bible are where a game is designed, and the handoff is what
+    the engine reads from them. Anyone on the team (a designer, a producer, an artist, a writer) can make and change the
+    thing by conversation; the developer receives it as assets, levels and markers in their own engine.
+  - **Quick prototypes to validate the loop.** A loop is played on the web first (the same recipe, end to end) before an
+    engine hour is spent on it; what the team validated is what the handoff carries.
+  - **Faster iteration.** Change the recipe, hand it off again: the engine's scene takes the new version without losing
+    the developer's own wiring.
+  - **Broader contribution.** More people on a team can make a playable prototype, because making one takes a
+    conversation, not an engine.
+
+What this asks of the handoff (phases 3 onward; each a gate, not a wish):
+- **The loop travels with the level.** A level's handoff carries what the web prototype validated as data a developer
+  wires: its win and fail conditions (the contract), its markers (the spawns, the foes with their roles and tiers, the
+  triggers and what they fire, doors and their keys, pickups, the critical path, the shots), and a pointer to the
+  playable web build and the bible pages it was made from, so the engine's level and its reference prototype are one
+  thing.
+- **Couch multiplayer is in the level.** A level made for seats carries a spawn per seat, each seat's colour and its
+  camera's share of the screen (split or shared), as markers and data.
+- **Re-handoff is safe.** Every node, mesh, material and marker has a stable name derived from the recipe (never from an
+  order or a counter that a change to something else would shift), and a handoff of a changed recipe changes only what
+  changed. An engine-side importer replaces mojulo's nodes by name and leaves the developer's own nodes and scripts
+  alone. Held by a test: change one thing in a recipe, hand off twice, and diff the names.
+- **The prototype is the reference.** The web build of the same recipe ships beside the handoff (or is linked from it),
+  so a developer can play what they are building to.
 
 #### Why, and why now
 
@@ -114,6 +143,9 @@ adapter. Plain data, seeded, byte-stable.
    the face morphs, the recorded takes with their voice.
 3. **Levels.**
    - The layout as meshes in the level's own frame (z-up metres, each adapter converting once).
+   - The loop: the level's contract (its win and fail conditions, as the web's audit reads them) beside its markers.
+   - Seats: a couch level's spawn, colour and screen share per seat.
+   - The reference: a pointer to the level's web build and the bible pages it was made from.
    - Colliders: walkable ground and walls, as the web's own traversal reads them.
    - The environment at the level's hour: the sun's direction, colour and strength (`era/cube-light.js`), the ambient,
      the sky, fog and haze, the shadow tier, occlusion on or off, a room's lamps, the cloud deck's numbers.
@@ -148,7 +180,9 @@ Each engine is an **adapter**, an importer and nothing more:
    geometry. Rooms: `room-form.js` tiles as materials, the lamps as lights, the baked indirect (`aLit`) as a second
    vertex colour.
 3. **Levels.** The environment record, colliders and markers from `engine-score.js` and the level's own data; the
-   soundtrack and effects as files; the ledger.
+   soundtrack and effects as files; the ledger. With the outcomes' asks: the level's contract (win and fail) and its
+   markers as the loop a developer wires, a spawn, colour and screen share per seat for a couch level, a pointer to the
+   web build and the bible pages, and stable names throughout (the re-handoff test).
 4. **The Godot adapter.** The import script and its gate: import, one frame, a materials probe (normal and ORM bound, no
    vertex colour forced over a coloured material), an environment probe, a markers probe (every marker present, named,
    carrying its data).
@@ -196,6 +230,10 @@ developer would want to wire. Never claimed by a machine.
 - Changing the web's look, or making gen-7 the web's default.
 
 #### Open questions
+
+0. The team flow's re-import: how each engine's importer replaces mojulo's nodes by name and keeps a developer's own
+   (Godot: a scene inherited from the imported one; Unity: a prefab variant; Unreal: Interchange's reimport; Blender: a
+   linked library). Settle per adapter in phase 4 and 7.
 
 1. Which Godot 4 minor, and the CI download's source and checksum?
 2. The layered ground: is bake-first's texture budget acceptable for a chunked island, or does Godot go straight to a
@@ -358,4 +396,11 @@ developer would want to wire. Never claimed by a machine.
   - Size: the trail's handoff is about 48 MB: the land and its cut cliff leave as unwelded triangle soup with float
     colours, normals and weights (about 716,000 vertices). Welding and indexing the land parts, and quantizing the
     weights to bytes, is the obvious next saving.
+- 1031, the outcomes tuned (before phase 3): mojulo makes single-player and couch-multiplayer games (online is out of
+  scope) for two audiences: the solo creator gets the whole game end to end on the web; developers and teams get the
+  handoff, with mojulo as their design source ("Figma-ization"), quick prototypes to validate a loop on the web first,
+  faster iteration and broader contribution. Four asks follow for the handoff: the validated loop travels with the level
+  (contract, markers, a pointer to the web build and the bible), couch levels carry a spawn, colour and screen share per
+  seat, re-handoff is safe (stable names from the recipe; a test that changes one thing and diffs the names), and the
+  web build is the reference beside the handoff. Phase 3 builds the first three.
 

@@ -1,7 +1,9 @@
 ### Engine handoff: assets, animation and levels at the polygon level, on gen 7's form
 
-Two outcomes, said plainly. The web is the whole game, end to end: `export_game` to the browser or the desktop app,
-unchanged. An engine gets a handoff: one export, `export_model { engine }`, gives Godot, Unity, Unreal and Blender every
+Mojulo makes single-player and couch-multiplayer games, for two audiences. A solo creator gets the whole game, end to
+end, on the web: `export_game` to the browser or the desktop app, unchanged. Developers and teams get a handoff, with the
+recipe and its bible as their design source, the web build as the prototype that validated the loop, and a re-handoff
+that keeps their own wiring, so more of a team can make prototypes and iterate on them: one export, `export_model { engine }`, gives Godot, Unity, Unreal and Blender every
 surface as a gen-7 material (base colour, normal, occlusion and roughness, relief for parallax, the land's layers, the
 plants and the scree's stones as instances), every rig with its clips and faces, and every level as layout, light,
 colliders and named markers (the spawn, the foes, triggers, doors and keys, the critical path, the shots), for a

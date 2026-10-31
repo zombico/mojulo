@@ -18,6 +18,10 @@ GLB, STL, 3MF, USD, which is why a game's bible, its levels and its export agree
 are what the departments' combinations make; rooms, prints and science views are the same studio's other outcomes.
 Underneath, it is a 3D compiler for agents: that is how it works and what the agent is told, not what the person is
 sold. Mojulo is the agent-driven upstream that feeds those tools, never a fidelity rival and never "just an exporter."
+It makes single-player and couch-multiplayer games (online is out of scope) for two audiences: a solo creator gets the
+whole game end to end on the web (`export_game`); developers and teams get a handoff of assets, animation and levels to
+their engine, with the recipe and its bible as the team's design source and the web build as the prototype that
+validated the loop (the `engine-handoff` theme).
 
 Two audiences, one truth. The README, the plugin and the manifests speak to the person (the studio); the drawers and
 the `initialize` preamble speak to the agent (the compiler). The canonical self-description is the `get_substrate`
