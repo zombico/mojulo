@@ -18,7 +18,7 @@
 export const FAR_FIELD = Object.freeze({
   blend: 0.9,
   tone: Object.freeze([0.85, 1.15]),
-  speck: Object.freeze({ px: 1.5, flowers: 0.3, weeds: 0.12, light: 0.1, dark: 0.1, lift: 1.3, shade: 0.7 }),
+  speck: Object.freeze({ px: 1, flowers: 0.3, weeds: 0.12, light: 0.1, dark: 0.1, lift: 1.3, shade: 0.7 }),
 });
 
 const C = FAR_FIELD, S = C.speck;

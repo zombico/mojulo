@@ -17,15 +17,17 @@
   cell's dice, lit and shadowed as the ground is, and speckled with world-anchored specks about a pixel and a half at
   their distance (the grain snapped to powers of two, so it holds while the eye walks): a flower's colour where flowers
   grow, a weed's head in the weeds' patches, a lighter or a darker fleck. No draw, no triangle. F toggles it.
-- **The far trees** (`scene/channels/form-flora.js` `FLORA_FAR`): in gameplay's camera a plant climbs a ladder by the
-  screen's own rule, each rung where its own grain goes under a pixel: whole inside the cone's reach (where its old
-  hand-set 25 m was); past it, its own far form; and past where its card's texel is under a pixel, its card. The card is
-  itself from that side at the card's grain, solved from the recipe rather than rendered: its near crown's own leaves
+- **The far trees** (`scene/channels/form-flora.js` `FLORA_FAR`): a plant has two rungs, by the screen's own rule: whole
+  inside the cone's reach (where its old hand-set 25 m was) and until its card's texel is under the cone's grain, then
+  its card. The card is itself from that side, solved from the recipe rather than rendered: its near crown's own leaves
   (each clump's turned as the tree's recipe turns them, so the leaf mass lies the way its clusters do, gaps kept, no
-  volume the leaves do not hold) and its wood's own triangles, baked once a template from eight bearings, lit as the
-  land is by each leaf's clump's facing, at each leaf's own tone, casting its silhouette from the sun's side.
-  Every far plant is one draw. A needled crown and a culm keep their own far form; the aerial camera keeps the old
-  ladder.
+  volume the leaves do not hold) and its wood's own triangles, baked once a template from eight bearings at 128 × 192
+  texels, POINT-SAMPLED as the screen samples the tree (a texel is leaf where its centre falls on a leaf, nothing grown,
+  so the card is no thicker than the tree it replaces), lit as the near crown's leaves are by each leaf's clump's facing,
+  at each leaf's own tone, casting its silhouette from the sun's side. Every far plant is one draw. No far form between
+  the rungs: the old one, a share of the crown's clumps grown, read as a bubble there and gone as the eye walked; a
+  crossed crown's half-leaved far bundles (`farGeo`) are gone from the payload too. A needled crown and a culm keep their
+  own far form; an aerial camera's reach is `FLORA_LOD.mid`.
 - **The stones on the same ladder** (`scene/channels/form-land.js` `STONE_LADDER`): the scree's stones, every one drawn
   chipped or as its block at any distance before, are chipped inside the cone's reach (a stone big enough to cast),
   their block past it, and gone once the whole stone is under a pixel, where the ground's own scree and pebbles carry
@@ -85,6 +87,14 @@
   bed the plants drawn near fell from about 261k triangles to 102k (the bushes from about 200k to 30k); the trees keep
   their own, well within theirs.
 - **One grain past the reach** (`scene/channels/view-cone.js` `VIEW_CONE.grain`): everything past the cone's reach is its
-  impression at one grain, at most three pixels a texel: a tree its card, a tile of buildings its card, as the grass is
-  its colour there; a tree turns to its card where its card's texel is under that grain, so a meadow's trees show their
-  leaf-built cards from about 40 m.
+  impression at one grain, at most a pixel and a half a texel: a tree its card, a tile of buildings its card, as the grass
+  is its colour there, its specks about a pixel (`FAR_FIELD.speck.px`); a tree turns to its card where its card's texel is
+  under that grain, so a meadow's grown trees show their leaf-built cards from about 45 m, smaller ones sooner.
+- **No bubble left in a gen-7 trail** (`era/isekai.js` `plantItems` `skirt`, `form/flora-read.js` `SKIRT_FLAG`): the stage's
+  clumps of trees out on the skirt, three faceted blobs a tree, stood past the plants' box and were drawn as faceted land
+  (the `crown` class). The trail hands them over as data now (each tree's foot, its crown's reach, its kind) and the form
+  grows them as the level's own trees, each as wide as the crown it stands for, a card at that distance; no litter round
+  them and never brushed. A bamboo or a blossom card keeps its painted clumps. And what stands is read once the form has
+  hidden what it draws in its place (`scene/channels/form-land.js`): a painted crown, trunk or rock had been taken for a
+  structure, batched near and carded far, so a crown the form had grown over showed again as a ghost card past the reach
+  and was gone inside it.

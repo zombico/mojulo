@@ -494,7 +494,7 @@ ${form.dunes ? `      sh.fragmentShader = DUNE_HEAD + sh.fragmentShader.replace(
       at = { pov, reach: CO.reach, eye: CO.eye.clone() }; ladder(pov, CO.eye, CO.reach, CO.px);
     };
   }
-${formSkyScript()}${viewConeScript(form.cone || null)}${formGrassScript()}${flora ? formFloraScript(flora, { snow: !!form.snow }) : ''}${farFieldScript()}${farStructuresScript()}
+${formSkyScript()}${viewConeScript(form.cone || null)}${formGrassScript()}${flora ? formFloraScript(flora, { snow: !!form.snow }) : ''}${farFieldScript()}
   // open sea: deep water's colour under it, where the recipe lays no floor (the shallows' floor fades into the same colour)
   if (D.seabed) { const B = D.seabed, g = new THREE.PlaneGeometry(B.x[1] - B.x[0], B.y[1] - B.y[0]); g.translate((B.x[0] + B.x[1]) / 2, (B.y[0] + B.y[1]) / 2, B.z);
     scene.add(new THREE.Mesh(g, new THREE.MeshStandardMaterial({ color: rgb(D.deep), roughness: 1, metalness: 0 }))); }
@@ -506,6 +506,9 @@ ${formSkyScript()}${viewConeScript(form.cone || null)}${formGrassScript()}${flor
   if (D.far && D.far.length) { const U = new Set(D.far); scene.traverse((o) => { if (o.isMesh && U.has(o.userData.g)) o.visible = false; }); }${flora ? `
   // (the plants' groups wholly: a group drawn in several meshes, its faces split by their tiles, is one name in \`meshes\`)
   { const H = new Set(D.hides); scene.traverse((o) => { if (o.isMesh && H.has(o.userData.g)) o.visible = false; }); }` : ''}
+  // (what stands, once what the form draws in its place is hidden: a painted crown, trunk or rock the form grows or lays
+  // is no structure, and never a card or a batch of its own)
+${farStructuresScript()}
   if (D.depth) for (const o of __formBefore) if (o.isMesh && !__formNamed.has(o) && o.material.isMeshBasicMaterial && o.material.transparent && o.geometry.getAttribute('color')?.itemSize === 4) o.visible = false;
   for (const o of __formBefore) for (const m of [].concat(o.material)) { m.toneMapped = false; m.needsUpdate = true; }
   renderer.toneMapping = THREE.NeutralToneMapping; renderer.toneMappingExposure = 1;

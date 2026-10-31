@@ -53,6 +53,12 @@ describe('the ground\'s parallax kinds', () => {
     expect(page).toContain("if ((water && D.depth) || R.key === 'unread') continue;");
   });
 
+  it('reads what stands only once what it draws in its place is hidden: a painted crown is never a structure\'s card', () => {
+    const page = formLandScript(land), stands = page.indexOf('--- the far structures');
+    expect(stands).toBeGreaterThan(page.indexOf('for (const g of D.hides) if (meshes[g]) meshes[g].visible = false;'));
+    expect(stands).toBeGreaterThan(page.indexOf('const U = new Set(D.far)'));
+  });
+
   it('reads the same page twice', () => {
     expect(formLandScript(land)).toBe(formLandScript(land));
   });

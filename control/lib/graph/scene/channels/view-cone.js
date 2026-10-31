@@ -21,7 +21,7 @@ const tall = GRASS_TIERS.find((t) => t.sward === 'tall');
  *  for the whole world. */
 export const VIEW_CONE = Object.freeze({
   px: 0.75,
-  grain: 3,
+  grain: 1.5,
   blade: Math.round(tall.scale * ((tall.clump.width[0] + tall.clump.width[1]) / 2) * 1e4) / 1e4,
   range: Object.freeze([4, 600]),
   step: 1.25,
