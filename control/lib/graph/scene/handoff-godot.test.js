@@ -9,7 +9,7 @@ process.env.SQLITE_PATH = ':memory:';
 process.env.MOJULO_SEMANTIC_INDEX_DISABLED = '1';
 
 import { describe, expect, it } from 'vitest';
-import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import os from 'node:os';
 import path from 'node:path';
@@ -18,6 +18,9 @@ import { resolveHandoff } from './handoff.js';
 import { handoffGodotFiles, writeHandoffGodot, LEVEL_GLB_IMPORT, LEVEL_TSCN, HANDOFF_GODOT_VERSION } from './handoff-godot.js';
 
 const GODOT = process.env.MOJULO_GODOT;
+// (MOJULO_HANDOFF_KEEP=<dir>: the Godot legs write their projects there, kept, to open in the editor and look at)
+const KEEP = process.env.MOJULO_HANDOFF_KEEP;
+const packDir = (name) => { if (!KEEP) return mkdtempSync(path.join(os.tmpdir(), `mojulo-handoff-godot-${name}-`)); const d = path.join(KEEP, name); mkdirSync(d, { recursive: true }); return d; };
 const box = { type: 'mesh', shape: 'box' };
 const COUCH = { ref: 'sk_couch', title: 'couch', manifest: { kind: 'controllable', title: 'couch', faces: [{ corners: [[-10, -10, 0], [10, -10, 0], [10, 10, 0], [-10, 10, 0]], fill: '#a0b0c0', group: 'floor' }],
   entities: [{ id: 'p1', pilotable: true, rule: { type: 'walk' }, body: box, transform: { pos: [0, 0, 0.5] } }, { id: 'p2', pilotable: true, rule: { type: 'walk' }, body: box, transform: { pos: [3, 0, 0.5] } },
@@ -71,10 +74,10 @@ describe('the handoff as a Godot project', () => {
   }, 120_000);
 
   it.skipIf(!GODOT)('in a headless Godot: imports, and the probe finds what the importer built (MOJULO_GODOT)', async () => {
-    const h = await resolveHandoff(COUCH), dir = mkdtempSync(path.join(os.tmpdir(), 'mojulo-handoff-godot-run-'));
+    const h = await resolveHandoff(COUCH), dir = packDir('couch');
     await writeHandoffGodot(h, dir);
     const { line, log } = probe(dir);
-    expect(line, log).toBeTruthy();
+    expect(line, `${dir}\n${log}`).toBeTruthy();
     expect(line.ok, log).toBe(true);
     expect(line.handoff).toBe(HANDOFF_GODOT_VERSION);
     expect(line.albedo).toBe(line.materials);
@@ -85,7 +88,7 @@ describe('the handoff as a Godot project', () => {
   }, 900_000);
 
   it.skipIf(!GODOT)('in a headless Godot: a dressed face\'s relief is its material\'s height map (MOJULO_GODOT)', async () => {
-    const h = await resolveHandoff(BAY), dir = mkdtempSync(path.join(os.tmpdir(), 'mojulo-handoff-godot-bay-'));
+    const h = await resolveHandoff(BAY), dir = packDir('bay');
     await writeHandoffGodot(h, dir);
     const { line, log } = probe(dir);
     expect(line?.ok, log).toBe(true);
