@@ -18,7 +18,7 @@
  *
  *   readWater(w, at)                → the forms as written, checked (false: no water, a cube's refused) | null
  *   layWater(W, ctx)                → the bodies laid on the site's grid (it is cut in place): { forms, wet, sand,
- *                                     clear, faces, cameras, anchors, hazards, sea, coast }
+ *                                     level, clear, faces, cameras, anchors, hazards, sea, coast }
  *   waterCameras(site)              → the stills each body is seen from (a lake, the shore, the river, the falls)
  *
  * Pure: integer-hash dice and value noise, the same recipe the same water.
@@ -46,6 +46,9 @@ export const WATER = Object.freeze({
   falls: Object.freeze({ width: 2.4, pool: 3.2, poolDepth: 1.2, brook: 1.4, lift: 0.28 }),
 });
 export const WATER_FORMS = Object.freeze(Object.keys(WATER));
+// how far a fresh water's bank reaches: a lake's (and a pool's) in its radii from its centre, a river's in metres past
+// its edge (era/substrate.js reads its wet ground off it)
+const BANK_REACH = Object.freeze({ lake: 1.7, river: 4 });
 const SIDES = ['open', 'far'];
 const KEYS = { lake: ['side', 'at', 'size', 'depth'], coast: ['beach', 'depth'], river: ['side', 'width', 'off', 'depth'], falls: ['at', 'width'] };
 const RAILS = { at: [0.15, 0.85, 'a share of the walk, 0.15 to 0.85'], size: [3, 14, 'the basin\'s radius in metres, 3 to 14'], depth: [0.3, 8, 'metres under the water, 0.3 to 8'],
@@ -92,7 +95,7 @@ export function layWater(Wr, ctx) {
   const nodes = (fn) => { for (let j = 0; j < g.ny; j++) for (let i = 0; i < g.nx; i++) fn(j * g.nx + i, gridX(g, i), gridY(g, j)); };
   // (the far side's foot: the cliff's past its talus, or the site's back edge on an open trail)
   const farFoot = (y) => (open ? x0 + 2 : cliffX(y) + talus + 1);
-  const bodies = [], wetFns = [], sandFns = [], clearFns = [], faces = [], cameras = [], anchors = [], hazards = [];
+  const bodies = [], wetFns = [], sandFns = [], levelFns = [], clearFns = [], faces = [], cameras = [], anchors = [], hazards = [];
   const fill = waterFill(st);
   const sheet = (corners, alpha, f = fill) => faces.push({ corners: corners.map((p) => p.map(r5)), normal: [0, 0, 1], outNormal: [0, 0, 1], fill: f, water: true, cornerAlpha: alpha.map(r5), group: 'isekai:water' });
   const lower = (q, t) => { if (t < g.z[q]) { g.z[q] = t; g.apron[q] = 0; g.hard[q] = 0; } };
@@ -115,6 +118,7 @@ export function layWater(Wr, ctx) {
     wetFns.push((x, y) => u(x, y) < 1.02 && gridSample(g, x, y) < L);
     sandFns.push((x, y, z) => (u(x, y) < 1.3 ? L + WATER.lake.shore - z : -1));
     clearFns.push((x, y) => u(x, y) < 1.4);
+    levelFns.push((x, y) => (u(x, y) < BANK_REACH.lake ? L : null));
     return { name, at: [r5(cx), r5(cy), r5(L)], r: r5(r), level: r5(L), u };
   };
   const respawn = (y) => { const b = [...ctx.beats].filter((q) => q.y < y - 1 && q.kind !== 'pit').pop() || ctx.beats[0]; return [r5(trailX(b.y)), r5(b.y), r5(pre(trailX(b.y), b.y) + 0.1)]; };
@@ -241,6 +245,7 @@ export function layWater(Wr, ctx) {
     wetFns.push((x, y) => dist(x, y) < hw && gridSample(g, x, y) < at(wl, y));
     sandFns.push((x, y) => hw + Rv.shingle - dist(x, y));
     clearFns.push((x, y) => dist(x, y) < hw + 1.8);
+    levelFns.push((x, y) => (dist(x, y) < hw + BANK_REACH.river ? at(wl, y) : null));
     const mid = Math.floor(n / 2);
     bodies.push({ form: 'river', side: side > 0 ? 'open' : 'far', width: Rv.width, falls: r5(wl[down ? 0 : n - 1] - wl[down ? n - 1 : 0]) });
     anchors.push({ id: 'river-1', kind: 'water', water: 'river', at: [r5(xr[mid]), r5(ys[mid]), r5(wl[mid])], width: Rv.width });
@@ -257,6 +262,8 @@ export function layWater(Wr, ctx) {
     wet,
     // where the ground is sand (a shore, a beach, a river's shingle): + inside, − outside, at a point on the ground
     sand: (x, y, z = gridSample(g, x, y)) => sandFns.reduce((m, f) => Math.max(m, f(x, y, z)), -1),
+    // the level of the fresh water (a lake's, a pool's, a river's) whose bank holds a point, else null (the sea's is `sea`)
+    level: (x, y) => { for (const f of levelFns) { const L = f(x, y); if (L !== null) return L; } return null; },
     // where nothing grows or stands: the water and its shores
     clear: (x, y) => clearFns.some((f) => f(x, y)),
     // (the bare ground, grass kept off it: the water and the sand)
