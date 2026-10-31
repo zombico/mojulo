@@ -16,7 +16,7 @@
 import * as dmath from '../../util/dmath.js';
 import { sdEgg } from '../polygonizer/body-relational-field.js';
 import { resamplePart, mirrorPart, swapRL, mixW } from '../polygonizer/body-relational-resample.js';
-import { articulation, blendOf, skinBlendOf, smin } from './principles.js';
+import { articulation, blendOf, skinBlendOf, smin, ACTIVITY } from './principles.js';
 
 const add = (a, b) => [a[0] + b[0], a[1] + b[1], a[2] + b[2]];
 const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
@@ -81,7 +81,7 @@ const ORIGIN = new WeakMap();
 export function densify(P0, { around, rings, grain = 0.011, domes = [] }) {
   const P = bindOf(P0), Q = resamplePart(P, () => 1, { around, rings }), cage = smoothCage(P);
   let stations = Q.stations.map((x) => ({ ...x, points: Object.fromEntries(Q.slots.map((sl, j) => [sl, cage(x.u, j / around).map(r6)])) }));
-  const blend = { ...Q.bind.blend }, own = { [Q.bind.bone]: 1 }, origins = {}, caps = { ...Q.caps };
+  const blend = { ...Q.bind.blend, ...smoothShares(P, Q, around) }, own = { [Q.bind.bone]: 1 }, origins = {}, caps = { ...Q.caps };
   const centre = (x) => scl(Q.slots.reduce((a, sl) => add(a, x.points[sl]), [0, 0, 0]), 1 / Q.slots.length);
   for (const end of domes) {
     const pole = Q.caps?.[end]; if (!pole) continue;
@@ -105,6 +105,27 @@ export function densify(P0, { around, rings, grain = 0.011, domes = [] }) {
   }
   const out = { ...Q, stations, ...(Q.caps ? { caps } : {}), bind: { ...Q.bind, blend } };
   ORIGIN.set(out, origins);
+  return out;
+}
+
+/** a part's per-slot shares (an authored bind naming slots, `<station>.<slot>`) carried onto the dense grid BETWEEN
+ * the authored slots and stations (bilinear), where resamplePart takes the nearest authored slot's: round the shoulder
+ * the anime body binds slot by slot, and a step in the shares between two dense neighbours tore the skin into shards
+ * as the arm rose. A part with a hard zone, or none named by slot, keeps resamplePart's */
+function smoothShares(P, Q, around) {
+  const b = P.bind; if (b.zone > 0 || !Object.keys(b.blend || {}).some((k) => k.includes('.'))) return {};
+  const st = P.stations.map((x, i) => ({ id: x.id, u: x.u ?? i })), SL = P.slots, n0 = SL.length, own = { [b.bone]: 1 };
+  const share = (a, k) => b.blend[`${a.id}.${SL[k % n0]}`] ?? b.blend[a.id] ?? own;
+  const out = {};
+  for (const x of Q.stations) {
+    let i = 0; while (i < st.length - 2 && st[i + 1].u < x.u) i++;
+    const a = st[i], c = st[i + 1], tu = c.u > a.u ? Math.max(0, Math.min(1, (x.u - a.u) / (c.u - a.u))) : 0;
+    Q.slots.forEach((sl, j) => {
+      const f = (j / around) * n0, k = Math.floor(f), tf = f - k;
+      const w = mixW(mixW(share(a, k), share(a, k + 1), tf), mixW(share(c, k), share(c, k + 1), tf), tu);
+      if (!(Object.keys(w).length === 1 && w[b.bone] === 1)) out[`${x.id}.${sl}`] = w;
+    });
+  }
   return out;
 }
 
@@ -170,7 +191,7 @@ export function seatMass(m, g, F, dense, d, finest) {
   const b = cross(n, a), r = m.r.map((x) => x * W * A.grow), proud = m.proud * W * A.proud;
   // the mass stands `proud` of the skin, sunk under its children as they rise and buried while its level has not come
   const depth = proud - r[2] - A.bury * (r[2] + proud) - A.sink * r[2];
-  return { id: m.id, group: g.id, level: m.level, c: add(hit.p, scl(n, depth)), ax: [a, b, n], r };
+  return { id: m.id, group: g.id, level: m.level, c: add(hit.p, scl(n, depth)), ax: [a, b, n], r, proud, bone: g.frame === 'trunk' ? 0 : F.limb[g.frame].L };
 }
 
 /** a seated egg mirrored across x = 0 (the left side's) */
@@ -204,6 +225,8 @@ export function unionOf(masses, d, k = null) {
  * that shows along an overlap would otherwise end on the muscle in a rim a few millimetres proud of the one it overlaps
  * (the torso's over the pelvis, the arm's over the elbow's bridge), a step at every joint */
 export const END_TUCK = 0.004, END_BAND = 0.018;
+/** the most the shirt carries a point (m): past every muscle's stand off the skin */
+export const MOST_MOVE = 0.045;
 
 /** a dense part DISPLACED onto the union of the skin and `masses`: each point carried out along its ring's ray to the
  * union's surface (the skin a plane through the point, square to the ray), less its `tuck` and, near its ends, its end
@@ -227,6 +250,11 @@ export function displace(P, masses, d, tuck = 0, k = null, whole = false) {
     const f = (s) => smin(s - t0, M(add(c, scl(dir, s))), kS);
     if (f(t0) >= 0) return dome && tk ? add(c, scl(dir, t0 - tk)).map(r6) : p0;
     let lo = t0, hi = t0 + STEP; while (hi < t0 + REACH && f(hi) < 0) { lo = hi; hi += STEP; }
+    // (a ray that leaves no surface within its reach, one a long mass engulfs along it, keeps its point; and so does one
+    // carried past MOST_MOVE, a ray that grazed along a mass: hidden in another shell at rest, posed it stood out in shards)
+    // (a dome's ray, from its end ring's centre over the end, is the shirt's own and carries its point as far as its muscle,
+    // on a shell that shows; a dome under another shell's, `whole`, carried far had swung out in flaps as the arm rose)
+    if (f(hi) < 0 || (!(dome && !whole) && lo - t0 > MOST_MOVE)) return p0;
     for (let it = 0; it < 30 && hi - lo > 1e-7; it++) { const m = (lo + hi) / 2; if (f(m) < 0) lo = m; else hi = m; }
     // (a shell that should not show tucked in by as much as it moved, up to its tuck: adapters/loft.js TUCK)
     const s = (lo + hi) / 2; moved++;
@@ -313,4 +341,38 @@ export function nipplesOn(P, F, on, N) {
   const egg = (id, m) => { const r = m.r.map((x) => x * F.W); return { id, group: 'nipple', level: 0, c: add(hit.p, scl(n, m.proud * F.W - r[2])), ax: [a, b, n], r }; };
   const R = [egg('areola', N.areola), egg('papilla', N.papilla)];
   return [...R, ...R.map(mirrorEgg)];
+}
+
+// ─── 7. SQUASH AND STRETCH ─────────────────────────────────────────────────────────────────────────────────────────
+
+/** a seated mass IN ACTIVITY (principles.js ACTIVITY[role], at the joint's full drive): its radii along, across and
+ * deep scaled, standing prouder or nearer the bone on the skin it was seated on, and slid toward its origin along its
+ * fibre (`slide` of its bone) */
+export function activeMass(e, role) {
+  const A = ACTIVITY[role], [a, , n] = e.ax, r = [e.r[0] * A.along, e.r[1] * A.across, e.r[2] * A.depth];
+  const lift = e.proud * (A.proud - 1) - (r[2] - e.r[2]), slide = -A.slide * (e.bone ?? 0);
+  return { ...e, r, c: add(add(e.c, scl(n, lift)), scl(a, slide)) };
+}
+
+/** the most a corrective moves a point (m): past it a ray found another surface, not the muscle's squash */
+export const ACT_MOST = 0.04;
+/** how far past twice its neighbours' median a corrective's point may move before it takes their mean (m) */
+export const SPIKE = 0.004;
+
+/** a corrective's offsets, a side each: { R, L } by point id: each point of `active` less the same point of `rest` (a
+ * part, its stations' slots and its caps) on the right (`name`), and their mirror on the left (`L`: the left part's
+ * name, or a midline part's own, its slots swapped); a point that did not move, or moved past ACT_MOST, is left out */
+export function offsetsOf(name, rest, active, L) {
+  const R = {}, Lf = {}, put = (id, idL, o) => { const l = len(o); if (l > 1e-6 && l <= ACT_MOST) { R[id] = o.map(r6); Lf[idL] = [-o[0], o[1], o[2]].map(r6); } };
+  // (a point moved far past its neighbours on the grid, a ray that found another surface, takes their mean: more than
+  // twice their median, and SPIKE more)
+  const n = rest.slots.length, O = rest.stations.map((x, i) => rest.slots.map((sl) => sub(active.stations[i].points[sl], x.points[sl])));
+  const near = (i, j) => [[i - 1, j], [i + 1, j], [i, (j + 1) % n], [i, (j + n - 1) % n]].filter(([a]) => a >= 0 && a < O.length).map(([a, b]) => O[a][b]);
+  const F = O.map((row, i) => row.map((o, j) => {
+    const nb = near(i, j), m = nb.map(len).sort((a, b) => a - b)[Math.floor(nb.length / 2)];
+    return len(o) > 2 * m + SPIKE ? scl(nb.reduce((a, q) => add(a, q), [0, 0, 0]), 1 / nb.length) : o;
+  }));
+  rest.stations.forEach((x, i) => rest.slots.forEach((sl, j) => put(`${name}/${x.id}.${sl}`, `${L}/${x.id}.${swapRL(sl)}`, F[i][j])));
+  for (const k of Object.keys(rest.caps ?? {})) put(`${name}/${k}`, `${L}/${k}`, sub(active.caps[k], rest.caps[k]));
+  return { R, L: Lf };
 }

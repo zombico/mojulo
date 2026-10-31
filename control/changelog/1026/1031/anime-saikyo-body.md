@@ -53,10 +53,27 @@ fractal articulation of the big groups. The eyes gate is the operator's.
   round cap, its heads seated higher so no waist shows under it; the web's and the drum's tucks taken whole (they lie
   under the arm's skin, and still bridge the armpit as the arm rises); a dome's points take their tuck whole (the
   dome is the shirt's surface, none of the wearer's), and a domed end no end tuck (it had cut a groove under the dome).
+- **Squash and stretch** (a group's `act`, `principles.js` `ACTIVITY` and `ACTIVITY_JOINTS`; `activity: false` holds the
+  muscles as at rest): as a joint closes its flexors bunch (shorter along the fibre, fuller and deeper, prouder, the
+  belly sliding toward its origin: the biceps' peak rising as the elbow closes) and its extensors stretch (longer,
+  narrower, flatter: the triceps drawn long, the quadriceps over the bent knee), each about as much muscle as it was.
+  The elbow (the biceps and the triceps), the knee (the hamstrings and the quadriceps) and the shoulder's raise (the
+  deltoid bunching, the chest and the lats drawn long). Per joint the right side's masses are made active and the parts
+  they are worn by displaced again; the difference is a CORRECTIVE on the rest (`muscleElbowR` …), the left side's its
+  mirror, driven by the joint, so it rides into an export's clips as the realistic body's pauldron does. Zero at rest.
+- **A bend driver** for a corrective (`driver.bend`, the joint before: `station-loft-rig.js` `correctiveWeight`,
+  `body-relational-correctives.js` `correctiveRest`, the pack's driver joints): its weight the joint's flexion, the
+  angle between the bone into it and the bone out of it, 0 straight. A driver without one reads the raise as before;
+  the glTF's corrective note says how an engine reads it only where a target names it.
+- **The skin's guards** (they came out of the raised arm): a ray that leaves no surface within its reach keeps its point,
+  and so does one carried past 4.5 cm (a ray grazing along a mass, hidden in another shell at rest, swung out in shards
+  as the arm rose), a dome on a shell that shows excepted; the shoulder's cone and web wear only the arm's groups; a
+  corrective's point past 4 cm, or far past its neighbours, left out or eased to them.
 - **Held** (`musculature.test.js`): the dial's laws; absence adds nothing (a skin no mass reaches keeps every point);
   every mass seated; the skin carried out; the left the right's mirror; every shell wound outward; the hands and their
-  joints scaled about the wrist; the soles on the ground as the feet grow; the nipples only when asked; deterministic;
-  the door stores the word and refuses it by name.
+  joints scaled about the wrist; the soles on the ground as the feet grow; the nipples only when asked; a bend driver none straight and
+  whole at full; a corrective a side per acting joint, the left the right's mirror, nothing at rest, each joint its own;
+  the biceps' front bunched; none with the activity off; deterministic; the door stores the word and refuses it by name.
 
 #### The anime frame (hero laws 21): the wrist, the shoe's heel and the clavicle
 

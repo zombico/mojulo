@@ -17,6 +17,9 @@
  *   r: [along, across, depth] and proud (how far it stands off the skin), all in W, the wearer's half biacromial
  *   mid: true    a trunk mass on the midline, not mirrored
  *
+ * A group may ACT at joints (`act`: [{ joint, role }], principles.js ACTIVITY_JOINTS and ACTIVITY): as the joint closes, a
+ * flexor's masses bunch and an extensor's stretch, worn as correctives on the rest (passes.js activity).
+ *
  * Pure data and its checks; no dice. */
 
 const egg = (id, level, on, r, proud, more = {}) => Object.freeze({ id, level, on: Object.freeze(on), r: Object.freeze(r), proud, ...more });
@@ -28,7 +31,7 @@ const SAIKYO = {
   grain: 0.011,
   // (its hands follow its arms: principles.js HAND_SHARE of the forearm's growth; a number here would name their scale)
   groups: [
-    { id: 'chest', frame: 'trunk', parts: ['torso'], masses: [
+    { id: 'chest', frame: 'trunk', parts: ['torso'], act: [{ joint: 'shoulder', role: 'extensor' }], masses: [
       egg('pecSlab', 0, { t: 0.6, az: 30 }, [0.5, 0.32, 0.16], 0.065, { along: [1, 0, 0.15] }),
       egg('pecSternal', 1, { t: 0.55, az: 27 }, [0.44, 0.26, 0.13], 0.065, { along: [1, 0, 0.35] }),
       egg('pecClavicular', 1, { t: 0.8, az: 32 }, [0.32, 0.14, 0.08], 0.039, { along: [1, 0, -0.1] }),
@@ -61,7 +64,7 @@ const SAIKYO = {
       egg('serratus3', 2, { t: 0.46, az: 63 }, [0.13, 0.05, 0.035], 0.0228, { along: [0, 1, -0.4] }),
       egg('serratus4', 2, { t: 0.58, az: 65 }, [0.12, 0.05, 0.035], 0.0195, { along: [0, 1, -0.4] }),
     ] },
-    { id: 'back', frame: 'trunk', parts: ['torso', 'pelvis', 'shoulderWeb', 'shoulderCone'], masses: [
+    { id: 'back', frame: 'trunk', parts: ['torso', 'pelvis'], act: [{ joint: 'shoulder', role: 'extensor' }], masses: [
       egg('latWing', 0, { t: 0.35, az: 122 }, [0.75, 0.32, 0.12], 0.065, { along: [0.35, 0, 1] }),
       egg('erectorMass', 0, { t: -0.35, az: 166 }, [0.65, 0.14, 0.09], 0.039),
       egg('latissimus', 1, { t: 0.3, az: 120 }, [0.65, 0.26, 0.11], 0.0585, { along: [0.35, 0, 1] }),
@@ -75,11 +78,11 @@ const SAIKYO = {
       egg('erectorLower', 2, { t: -0.55, az: 166 }, [0.35, 0.12, 0.08], 0.0455),
       egg('erectorUpper', 2, { t: 0.0, az: 168 }, [0.35, 0.1, 0.06], 0.0325),
     ] },
-    { id: 'trapezius', frame: 'trunk', parts: ['torso', 'shoulderWeb', 'shoulderCone'], masses: [
-      egg('trapYoke', 0, { t: 0.85, az: 125, el: 55 }, [0.45, 0.28, 0.12], 0.065, { along: [1, 0, -0.35] }),
-      egg('trapUpper', 1, { t: 0.85, az: 125, el: 55 }, [0.4, 0.22, 0.11], 0.065, { along: [1, 0, -0.35] }),
+    { id: 'trapezius', frame: 'trunk', parts: ['torso'], masses: [
+      egg('trapYoke', 0, { t: 0.85, az: 125, el: 30 }, [0.45, 0.28, 0.12], 0.065, { along: [1, 0, -0.35] }),
+      egg('trapUpper', 1, { t: 0.85, az: 125, el: 30 }, [0.4, 0.22, 0.11], 0.065, { along: [1, 0, -0.35] }),
       egg('trapMiddle', 1, { t: 0.72, az: 168 }, [0.32, 0.26, 0.07], 0.0325, { along: [1, 0, 0] }),
-      egg('trapUpperHead', 2, { t: 0.85, az: 123, el: 55 }, [0.38, 0.2, 0.1], 0.0683, { along: [1, 0, -0.4] }),
+      egg('trapUpperHead', 2, { t: 0.85, az: 123, el: 30 }, [0.38, 0.2, 0.1], 0.0683, { along: [1, 0, -0.4] }),
       egg('trapMiddleHead', 2, { t: 0.72, az: 168 }, [0.28, 0.22, 0.065], 0.0325, { along: [1, 0, 0] }),
       egg('trapLower', 2, { t: 0.4, az: 172 }, [0.36, 0.16, 0.05], 0.0228, { along: [0.45, 0, 1] }),
     ] },
@@ -90,7 +93,7 @@ const SAIKYO = {
       egg('gluteMaxHead', 2, { t: -1.1, az: 155 }, [0.36, 0.34, 0.13], 0.0553),
       egg('gluteMedHead', 2, { t: -0.7, az: 112 }, [0.22, 0.22, 0.08], 0.0358),
     ] },
-    { id: 'deltoid', frame: 'upperArm', parts: ['upperArm', 'shoulderWeb', 'shoulderBall', 'shoulderCone'], masses: [
+    { id: 'deltoid', frame: 'upperArm', parts: ['upperArm', 'shoulderWeb', 'shoulderBall'], act: [{ joint: 'shoulder', role: 'flexor' }], masses: [
       egg('deltoidCap', 0, { s: 0.06, az: 90 }, [0.42, 0.42, 0.16], 0.078),
       egg('deltoidCrown', 0, { s: -0.08, az: 100, el: 70 }, [0.3, 0.36, 0.14], 0.05),
       egg('deltoidTop', 1, { s: -0.08, az: 100, el: 70 }, [0.26, 0.3, 0.12], 0.045),
@@ -103,7 +106,7 @@ const SAIKYO = {
       egg('deltoidLateralBack', 2, { s: 0.1, az: 106 }, [0.36, 0.12, 0.12], 0.0715),
       egg('deltoidPosteriorHead', 2, { s: 0.08, az: 150 }, [0.32, 0.18, 0.11], 0.0585),
     ] },
-    { id: 'biceps', frame: 'upperArm', parts: ['upperArm', 'elbowBridge', 'foreArm'], masses: [
+    { id: 'biceps', frame: 'upperArm', parts: ['upperArm', 'elbowBridge', 'foreArm'], act: [{ joint: 'elbow', role: 'flexor' }], masses: [
       egg('armFront', 0, { s: 0.56, az: 10 }, [0.5, 0.3, 0.17], 0.078),
       egg('bicepsBelly', 1, { s: 0.56, az: 5 }, [0.42, 0.24, 0.15], 0.078),
       egg('brachialis', 1, { s: 0.76, az: 72 }, [0.25, 0.14, 0.09], 0.039),
@@ -111,7 +114,7 @@ const SAIKYO = {
       egg('bicepsShort', 2, { s: 0.58, az: -15 }, [0.36, 0.14, 0.14], 0.0715),
       egg('brachialisHead', 2, { s: 0.76, az: 72 }, [0.23, 0.12, 0.085], 0.0423),
     ] },
-    { id: 'triceps', frame: 'upperArm', parts: ['upperArm', 'elbowBridge', 'foreArm'], masses: [
+    { id: 'triceps', frame: 'upperArm', parts: ['upperArm', 'elbowBridge', 'foreArm'], act: [{ joint: 'elbow', role: 'extensor' }], masses: [
       egg('armBack', 0, { s: 0.42, az: 180 }, [0.55, 0.32, 0.15], 0.065),
       egg('tricepsLong', 1, { s: 0.38, az: 196 }, [0.46, 0.2, 0.13], 0.065),
       egg('tricepsLateral', 1, { s: 0.36, az: 140 }, [0.4, 0.16, 0.12], 0.0585),
@@ -130,7 +133,7 @@ const SAIKYO = {
       egg('extensorRadial', 2, { s: 0.3, az: 115 }, [0.36, 0.1, 0.1], 0.0423),
       egg('extensorUlnar', 2, { s: 0.34, az: 160 }, [0.34, 0.1, 0.09], 0.039),
     ] },
-    { id: 'quadriceps', frame: 'thigh', parts: ['thigh', 'kneeBridge', 'shank', 'pelvis'], masses: [
+    { id: 'quadriceps', frame: 'thigh', parts: ['thigh', 'kneeBridge', 'shank', 'pelvis'], act: [{ joint: 'knee', role: 'extensor' }], masses: [
       egg('quadMass', 0, { s: 0.48, az: 20 }, [0.85, 0.46, 0.2], 0.078),
       egg('rectusFemoris', 1, { s: 0.42, az: 5 }, [0.65, 0.22, 0.16], 0.0715),
       egg('vastusLateralis', 1, { s: 0.5, az: 68 }, [0.7, 0.26, 0.17], 0.0715),
@@ -141,7 +144,7 @@ const SAIKYO = {
       egg('sartorius', 2, { s: 0.5, az: -55 }, [0.7, 0.06, 0.05], 0.026, { spin: -18 }),
       egg('tensorFasciae', 2, { s: 0.12, az: 80 }, [0.26, 0.14, 0.08], 0.0325),
     ] },
-    { id: 'hamstrings', frame: 'thigh', parts: ['thigh', 'kneeBridge', 'shank', 'pelvis'], masses: [
+    { id: 'hamstrings', frame: 'thigh', parts: ['thigh', 'kneeBridge', 'shank', 'pelvis'], act: [{ joint: 'knee', role: 'flexor' }], masses: [
       egg('hamMass', 0, { s: 0.5, az: 185 }, [0.75, 0.4, 0.16], 0.065),
       egg('adductorMass', 0, { s: 0.3, az: -100 }, [0.5, 0.26, 0.14], 0.0455),
       egg('bicepsFemoris', 1, { s: 0.5, az: 150 }, [0.62, 0.2, 0.14], 0.0585),
@@ -180,6 +183,7 @@ export function validateMuscleCard(card, label = 'card') {
     const gl = `${label}.${g.id}`;
     if (!MUSCLE_FRAMES.includes(g.frame)) errs.push(`${gl}: frame is one of ${MUSCLE_FRAMES.join(', ')}`);
     if (!Array.isArray(g.parts) || !g.parts.length) errs.push(`${gl}: parts names the wearer's parts it is worn on`);
+    for (const a of g.act ?? []) if (!['elbow', 'knee', 'shoulder'].includes(a.joint) || !['flexor', 'extensor'].includes(a.role)) errs.push(`${gl}.act: { joint: elbow | knee | shoulder, role: flexor | extensor }`);
     for (const m of g.masses || []) {
       const ml = `${gl}.${m.id}`;
       if (ids.has(m.id)) errs.push(`${ml}: a mass id is unique in a card`); ids.add(m.id);

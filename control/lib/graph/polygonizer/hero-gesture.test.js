@@ -296,12 +296,13 @@ describe('the anime wave', () => {
 // built anew, the chibi's plan and recipe as they were (a child's proportions are its own), and each at laws 3 builds the
 // record, plan and recipe pinned before it (LAWS_3 below); then for the hero laws 5 (hero-form.js ARM_LENGTH: the
 // adult humerus and forearm shortened), the same again, each at laws 4 as pinned before it (LAWS_4 below)
+// (re-pinned for hero laws 21, the anime frame: each record's stamp alone moved, its plan and recipe as they were)
 const PINS = {
-  landmarkMale: [{ cast: 'male' }, ['1456bd1db5d418ce', '41bd60ab3623a06d', '8255963574361639'], ['83486ddf925dd1e5', '061c177f4a0b9175']],
-  landmarkFemaleLowpoly: [{ cast: 'female', register: 'lowpoly' }, ['cecdca18cb1d4b68', 'c927544d60f2d254', '52faad4125c59d09'], ['a1abb4fbc8d78a61', '7f67633ae270e296']],
-  headNone: [{ cast: 'female', head: 'none' }, ['e5b62d6d817bf837', '41b706da8526b86c', '03fb84eabe1c07d8'], ['3501097320b96707', 'cd26a720b2420d48']],
-  ranger: [{ cast: 'male', hair: 'crop', detail: 'clothed', adorn: 'ranger' }, ['818eb466474572fd', '6a79f98126fbc1dc', 'f4ee8b82d0e9ccae'], ['e09eb3fc01c74335', '7510f5dc97a29248']],
-  chibiFaced: [{ cast: 'chibi', headScale: 1.3, face: 'broad-jaw' }, ['63d68f97c60a1b1d', '29e55dfcd666d970', '0234d75e92dcbaf9'], ['031f46caafd139ae', '1c2adc75891c5cf2']],
+  landmarkMale: [{ cast: 'male' }, ['ae13af57b6d7c787', '41bd60ab3623a06d', '8255963574361639'], ['83486ddf925dd1e5', '061c177f4a0b9175']],
+  landmarkFemaleLowpoly: [{ cast: 'female', register: 'lowpoly' }, ['76989a9161d75ef3', 'c927544d60f2d254', '52faad4125c59d09'], ['a1abb4fbc8d78a61', '7f67633ae270e296']],
+  headNone: [{ cast: 'female', head: 'none' }, ['d72e08a05361b0e4', '41b706da8526b86c', '03fb84eabe1c07d8'], ['3501097320b96707', 'cd26a720b2420d48']],
+  ranger: [{ cast: 'male', hair: 'crop', detail: 'clothed', adorn: 'ranger' }, ['8f3fd29302ddb9ad', '6a79f98126fbc1dc', 'f4ee8b82d0e9ccae'], ['e09eb3fc01c74335', '7510f5dc97a29248']],
+  chibiFaced: [{ cast: 'chibi', headScale: 1.3, face: 'broad-jaw' }, ['2258187ca6506656', '29e55dfcd666d970', '0234d75e92dcbaf9'], ['031f46caafd139ae', '1c2adc75891c5cf2']],
 };
 /** the structured heroes as minted before the hero laws 2: their record without the stamp, and the plan and recipe a
  * row stamped laws 1 (or unstamped) still builds */

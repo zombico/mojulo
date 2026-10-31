@@ -37,6 +37,23 @@ export const NIPPLE = Object.freeze({
   k: 0.002,
 });
 
+/** SQUASH AND STRETCH: a muscle in activity, read off the joint it crosses. As the joint closes its FLEXOR bunches
+ * (shorter along its fibre, fuller across and deeper, prouder, its belly sliding `slide` of its bone toward its origin:
+ * the biceps' peak rising as the elbow closes) and its EXTENSOR stretches (longer, narrower, flatter, nearer the bone:
+ * the triceps drawn long), each about as much muscle as it was. Factors at the joint's full drive */
+export const ACTIVITY = Object.freeze({
+  flexor: Object.freeze({ along: 0.8, across: 1.04, depth: 1.25, proud: 1.5, slide: 0.05 }),
+  extensor: Object.freeze({ along: 1.12, across: 0.96, depth: 0.85, proud: 0.72, slide: 0 }),
+});
+/** the JOINTS a muscle acts at, and the driver that reads each (the right side's; the left swaps the side): the elbow's
+ * and the knee's by their flexion (`bend` the joint before, 0 straight), the shoulder's by the arm's raise from the
+ * trunk's down; `from` where the activity begins and `full` where it is whole (degrees). A joint at rest drives nothing */
+export const ACTIVITY_JOINTS = Object.freeze({
+  elbow: Object.freeze({ joint: 'elbowR', to: 'wristR', bend: 'shoulderR', from: 15, full: 135 }),
+  knee: Object.freeze({ joint: 'kneeR', to: 'ankleR', bend: 'hipR', from: 15, full: 135 }),
+  shoulder: Object.freeze({ joint: 'shoulderR', to: 'elbowR', from: 35, full: 160 }),
+});
+
 /** each level's blend `k` in metres, [at the form end, at the detail end]: the masses of one level summed by it, then
  * summed with their parent's level by the parent's; and the skin's (`skin`), how the union meets the wearer's skin */
 export const BLEND = Object.freeze({

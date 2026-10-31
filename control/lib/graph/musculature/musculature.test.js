@@ -5,6 +5,8 @@
 // the dial moves the surface; the door stores it, refuses it on the realistic body and refuses a bad word by name.
 import { describe, it, expect } from 'vitest';
 import { muscleShirt, validateMuscleShirt, MUSCLE_CARDS, presence, articulation } from './index.js';
+import { validateRig, rigNodesAt, correctiveWeight } from '../polygonizer/station-loft-rig.js';
+import { correctiveRest } from '../polygonizer/body-relational-correctives.js';
 import { blendOf, smin } from './principles.js';
 import { densify, grainOf, displace } from './passes.js';
 import { compileLayered } from '../polygonizer/station-loft.js';
@@ -86,6 +88,41 @@ describe('the shirt put on a flat body', () => {
   it('is deterministic, and the dial moves the surface', () => {
     expect(JSON.stringify(worn(1).recipe)).toBe(JSON.stringify(AT1.recipe));
     expect(JSON.stringify(worn(0).recipe.parts.torso)).not.toBe(JSON.stringify(AT1.recipe.parts.torso));
+  });
+});
+
+describe('squash and stretch', () => {
+  const C = AT1.recipe.correctives, byId = Object.fromEntries((C ?? []).map((c) => [c.id, c]));
+  const R = validateRig(AT1.recipe.rig), w = (id, pose) => correctiveWeight(byId[id].driver, rigNodesAt(R, pose).nodes);
+  it('reads a bend driver as the joint\'s flexion: none straight, whole at full, the raise as before without one', () => {
+    const D = { joint: 'b', to: 'c', bend: 'a', from: 0, full: 90 }, straight = { a: [0, 0, 2], b: [0, 0, 1], c: [0, 0, 0] }, bent = { a: [0, 0, 2], b: [0, 0, 1], c: [0, 1, 1] };
+    expect(correctiveWeight(D, straight)).toBe(0);
+    expect(correctiveWeight(D, bent)).toBeCloseTo(1, 9);
+    const { bend: _b, ...raise } = D;
+    expect(correctiveWeight(raise, { ...bent, navel: [0, 0, 0], neckHub: [0, 0, 1] })).toBe(correctiveWeight(raise, { ...straight, b: [0, 0, 1], c: [0, 1, 1], navel: [0, 0, 0], neckHub: [0, 0, 1] }));
+  });
+  it('wears a corrective a side per joint its groups act at, the left the right\'s mirror', () => {
+    expect(Object.keys(byId).sort()).toEqual(['muscleElbowL', 'muscleElbowR', 'muscleKneeL', 'muscleKneeR', 'muscleShoulderL', 'muscleShoulderR']);
+    const [id, o] = Object.entries(byId.muscleElbowR.d).find(([k]) => k.startsWith('upperArmR/'));
+    const sw = id.replace('upperArmR/', 'upperArmL/').replace(/([RL])$/, (m) => (m === 'R' ? 'L' : 'R'));
+    expect(byId.muscleElbowL.d[sw]).toEqual([-o[0], o[1], o[2]]);
+  });
+  it('drives nothing at rest, and each joint its own as it closes', () => {
+    for (const id of Object.keys(byId)) expect(w(id, {})).toBe(0);
+    expect(w('muscleElbowR', { elbowR: 130 })).toBeGreaterThan(0.95);
+    expect(w('muscleElbowL', { elbowR: 130 })).toBe(0);
+    expect(w('muscleKneeR', { kneeR: 110, support: 'L' })).toBeGreaterThan(0.8);
+    expect(w('muscleShoulderR', { armR: 'up' })).toBeGreaterThan(0.95);
+    const mesh = compileLayered(AT1.recipe, {});
+    expect(correctiveRest(mesh, AT1.recipe, rigNodesAt(R, {}).nodes)).toBe(mesh.vertices);
+  });
+  it('bunches the flexor as the elbow closes: the biceps\' front stands further out', () => {
+    const front = Object.entries(byId.muscleElbowR.d).filter(([k]) => /^upperArmR\/st1_st2/.test(k)).map(([, o]) => Math.hypot(...o));
+    expect(Math.max(...front)).toBeGreaterThan(0.005);
+    expect(Math.max(...Object.values(byId.muscleElbowR.d).map((o) => Math.hypot(...o)))).toBeLessThanOrEqual(0.04);
+  });
+  it('holds the muscles as at rest when the activity is off', () => {
+    expect(muscleShirt(flat, { card: 'saikyo', definition: 1, activity: false }).recipe.correctives).toBeUndefined();
   });
 });
 

@@ -9,8 +9,8 @@
  * (their joints with them), the nipples drawn when asked, and nothing else touched (the head, the clips). Pure and
  * deterministic. */
 import { MUSCLE_CARDS, MUSCLE_CARD_NAMES, validateMuscleCard } from './cards.js';
-import { densify, grainOf, frames, seatMass, displace, symmetrize, mirrorPart, mirrorEgg, girthOf, handsScaled, feetScaled, nipplesOn } from './passes.js';
-import { HAND_SHARE, FOOT_SHARE, NIPPLE } from './principles.js';
+import { densify, grainOf, frames, seatMass, displace, symmetrize, mirrorPart, mirrorEgg, girthOf, handsScaled, feetScaled, nipplesOn, activeMass, offsetsOf } from './passes.js';
+import { HAND_SHARE, FOOT_SHARE, NIPPLE, ACTIVITY_JOINTS } from './principles.js';
 import { skinOf, sideOf, TAKEN_OFF, TUCK, DOMES, UNDER, handParts, handJoints, handRamp, footParts, footJoints } from './adapters/loft.js';
 
 export { MUSCLE_CARDS, MUSCLE_CARD_NAMES, validateMuscleCard } from './cards.js';
@@ -18,16 +18,17 @@ export { FORM_GAIN, DETAIL_GAIN, BLEND, presence, articulation } from './princip
 
 const r6 = (x) => Math.round(x * 1e6) / 1e6;
 
-/** the spec resolved: { card, word, definition, groups, nipples } (a word, or { card, definition, groups, nipples }) */
+/** the spec resolved: { card, word, definition, groups, nipples, activity } (a word, or an object of SPEC_KEYS) */
 export function resolveMuscleShirt(spec) {
   const s = typeof spec === 'string' ? { card: spec } : spec ?? {};
   const word = typeof s.card === 'string' || s.card === undefined ? (s.card ?? 'saikyo') : null;
   const card = word ? MUSCLE_CARDS[word] : s.card;
-  return { card, word, definition: s.definition ?? 0.5, groups: s.groups ?? {}, nipples: s.nipples === true };
+  return { card, word, definition: s.definition ?? 0.5, groups: s.groups ?? {}, nipples: s.nipples === true, activity: s.activity !== false };
 }
 
-/** a spec's keys: the card, its definition (0 form … 1 detail), a group's own, and the nipples (off unless true) */
-const SPEC_KEYS = Object.freeze(['card', 'definition', 'groups', 'nipples']);
+/** a spec's keys: the card, its definition (0 form … 1 detail), a group's own, the nipples (off unless true) and the
+ * muscles' activity (their squash and stretch as the joints close: on unless false) */
+const SPEC_KEYS = Object.freeze(['card', 'definition', 'groups', 'nipples', 'activity']);
 /** a spec's errors (empty = valid) */
 export function validateMuscleShirt(spec, label = 'muscleShirt') {
   if (spec === undefined || spec === null) return [];
@@ -36,6 +37,7 @@ export function validateMuscleShirt(spec, label = 'muscleShirt') {
   const errs = [];
   for (const k of Object.keys(spec)) if (!SPEC_KEYS.includes(k)) errs.push(`${label}.${k}: not a muscle shirt key (${SPEC_KEYS.join(', ')})`);
   if (spec.nipples !== undefined && typeof spec.nipples !== 'boolean') errs.push(`${label}.nipples: true (drawn on the chest) or false (none, the default)`);
+  if (spec.activity !== undefined && typeof spec.activity !== 'boolean') errs.push(`${label}.activity: true (the muscles bunch and stretch as the joints close, the default) or false (held as at rest)`);
   if (typeof spec.card === 'string' && !MUSCLE_CARDS[spec.card]) errs.push(`${label}.card: one of ${MUSCLE_CARD_NAMES.join(', ')}`);
   else if (spec.card !== undefined && typeof spec.card !== 'string') errs.push(...validateMuscleCard(spec.card, `${label}.card`));
   const inUnit = (x) => Number.isFinite(x) && x >= 0 && x <= 1;
@@ -55,7 +57,7 @@ export function validateMuscleShirt(spec, label = 'muscleShirt') {
  * Returns { recipe, report: { card, definition, masses, missed, moved, points } } */
 export function muscleShirt(recipe, spec) {
   const errs = validateMuscleShirt(spec); if (errs.length) throw new Error(`musculature: ${errs.join('; ')}`);
-  const { card, word, definition, groups: own, nipples } = resolveMuscleShirt(spec);
+  const { card, word, definition, groups: own, nipples, activity } = resolveMuscleShirt(spec);
   const F = frames(recipe.rig), skin = skinOf(recipe), grain = card.grain ?? 0.011;
   // 1. DENSIFY the midline parts and the right limbs (their left partners mirrored at the end)
   const dense = {};
@@ -72,14 +74,39 @@ export function muscleShirt(recipe, spec) {
   }
   // 4. DISPLACE each part by the masses its group wears it by (a midline part both sides', a right limb's its own)
   const both = masses.flatMap((e) => (e.mid ? [e] : [e, mirrorEgg(e)]));
-  const out = {}, moved = {};
-  for (const n of Object.keys(dense)) {
-    const { base, side } = sideOf(n), worn = (side ? masses : both).filter((e) => e.parts.includes(base));
+  const out = {}, raw = {}, moved = {};
+  const displaced = (n, worn) => {
+    const { base } = sideOf(n), ds = [...new Set(worn.map((e) => e.d))], d = ds.length === 1 ? ds[0] : definition;
     // (each group at its own definition: the union's blends read the group's, so a part's masses are displaced together
     // at the definition of the most of them; a part worn by groups at different definitions takes the shirt's)
-    const ds = [...new Set(worn.map((e) => e.d))], d = ds.length === 1 ? ds[0] : definition;
-    const { part, moved: k } = displace(dense[n], worn, d, TUCK[base] ?? 0, null, UNDER.includes(base));
-    out[n] = side ? part : symmetrize(part); moved[n] = k;
+    return displace(dense[n], worn, d, TUCK[base] ?? 0, null, UNDER.includes(base));
+  };
+  for (const n of Object.keys(dense)) {
+    const { side } = sideOf(n), { part, moved: k } = displaced(n, side ? masses : both.filter((e) => e.parts.includes(sideOf(n).base)));
+    raw[n] = part; out[n] = side ? part : symmetrize(part); moved[n] = k;
+  }
+  // SQUASH AND STRETCH (a group's `act`): per joint, its flexors bunched and its extensors stretched (activeMass) on the
+  // right side, the parts they are worn by displaced again, and the difference worn as a CORRECTIVE on the rest, driven
+  // by the joint (principles.js ACTIVITY_JOINTS); the left side's the mirror. Hands and feet and bridges a scale moves
+  // after are not in it
+  const correctives = [];
+  const actOf = Object.fromEntries(card.groups.map((g) => [g.id, g.act ?? []]));
+  for (const [joint, driver] of activity ? Object.entries(ACTIVITY_JOINTS) : []) {
+    const swap = new Map();
+    for (const e of masses) { const a = actOf[e.group].find((x) => x.joint === joint); if (a) swap.set(e, activeMass(e, a.role)); }
+    if (!swap.size) continue;
+    const touched = [...new Set([...swap.keys()].flatMap((e) => e.parts))].flatMap((b) => [b, `${b}R`]).filter((n) => dense[n] && !/^wristBridge/.test(n));
+    const right = {}, left = {}, cap = joint[0].toUpperCase() + joint.slice(1);
+    for (const n of touched) {
+      // (the right side's masses active, the left's as they were: a midline part takes the right arm's or leg's alone)
+      const { base, side } = sideOf(n);
+      const set = masses.map((e) => swap.get(e) ?? e), worn = (side ? set : [...set, ...masses.filter((e) => !e.mid).map(mirrorEgg)]).filter((e) => e.parts.includes(base));
+      const o = offsetsOf(n, raw[n], displaced(n, worn).part, side ? `${base}L` : n);
+      Object.assign(right, o.R); Object.assign(left, o.L);
+    }
+    const swapD = (D) => ({ ...D, joint: D.joint.replace(/R$/, 'L'), to: D.to.replace(/R$/, 'L'), ...(D.bend ? { bend: D.bend.replace(/R$/, 'L') } : {}) });
+    if (Object.keys(right).length) correctives.push({ id: `muscle${cap}R`, driver: { ...driver }, d: right });
+    if (Object.keys(left).length) correctives.push({ id: `muscle${cap}L`, driver: swapD(driver), d: left });
   }
   // the NIPPLES (`nipples: true`): marks on the chest the muscles made, seated on it and worn after them under their own
   // tight blend (the chest group's definition)
@@ -111,7 +138,7 @@ export function muscleShirt(recipe, spec) {
   }
   const { smoothBody: _s, ...rest } = recipe;
   return {
-    recipe: { ...rest, parts, dials, rig },
-    report: { card: word ?? 'own', definition, masses: masses.length, missed, moved, hands, feet, nipples, points: Object.values(out).reduce((a, p) => a + p.stations.length * p.slots.length, 0) },
+    recipe: { ...rest, parts, dials, rig, ...(correctives.length ? { correctives: [...(recipe.correctives ?? []), ...correctives] } : {}) },
+    report: { card: word ?? 'own', definition, masses: masses.length, missed, moved, hands, feet, nipples, correctives: correctives.map((c) => `${c.id}:${Object.keys(c.d).length}`), points: Object.values(out).reduce((a, p) => a + p.stations.length * p.slots.length, 0) },
   };
 }

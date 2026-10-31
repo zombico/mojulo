@@ -722,9 +722,18 @@ function cornerRowOf(sub, rows, W) {
 
 /** A CORRECTIVE's weight at posed nodes (a sliced recipe's, body-relational-correctives.js correctiveRest): the smoothstep
  * of its driver bone's raise (joint → to, its angle in degrees from the trunk's down, navel from neckHub) between `from`
- * and `full`; 0 when a node is missing. */
+ * and `full`, or, a driver naming `bend`, of the joint's flexion (bend → joint against joint → to); 0 when a node is
+ * missing. */
 export function correctiveWeight(driver, nodes) {
-  const a = nodes[driver.joint], b = nodes[driver.to]; if (!a || !b || !nodes.navel || !nodes.neckHub) return 0;
+  const a = nodes[driver.joint], b = nodes[driver.to];
+  // (a BEND driver, `bend` the joint before: the joint's flexion, the angle between the bone into it and the bone out of
+  // it, 0 straight; musculature/'s squash and stretch)
+  if (driver.bend) {
+    const h = nodes[driver.bend]; if (!a || !b || !h) return 0;
+    const flex = (Math.acos(Math.max(-1, Math.min(1, bv.dot(bv.unit(bv.sub(a, h)), bv.unit(bv.sub(b, a)))))) * 180) / Math.PI;
+    const y = Math.max(0, Math.min(1, (flex - driver.from) / (driver.full - driver.from))); return y * y * (3 - 2 * y);
+  }
+  if (!a || !b || !nodes.navel || !nodes.neckHub) return 0;
   const raise = (Math.acos(Math.max(-1, Math.min(1, bv.dot(bv.unit(bv.sub(b, a)), bv.unit(bv.sub(nodes.navel, nodes.neckHub)))))) * 180) / Math.PI;
   const y = Math.max(0, Math.min(1, (raise - driver.from) / (driver.full - driver.from))); return y * y * (3 - 2 * y);
 }
@@ -739,12 +748,12 @@ function correctivesOf(mesh, R, list) {
   const rowsL = []; mesh.pointIds.forEach((id, vi) => { const r = at.get(id); if (r) { sub[vi] = rowsL.length; rowsL.push(r); } });
   const rows = new Float64Array(rowsL.length * W); rowsL.forEach((r, k) => rows.set(r, k * W));
   const joints = {};
-  for (const c of list) for (const j of [c.driver.joint, c.driver.to, 'navel', 'neckHub']) {
+  for (const c of list) for (const j of [c.driver.joint, c.driver.to, ...(c.driver.bend ? [c.driver.bend] : ['navel', 'neckHub'])]) {
     if (joints[j] || !R.joints[j]) continue;
     const b = R.bones.find((x) => x.head === j) || R.bones.find((x) => x.tail === j); if (!b) continue;
     joints[j] = { bone: b.id, at: sub3(R.joints[j], R.joints[b.head]).map(r4) };
   }
-  return { rowAt: cornerRowOf(sub, rows, W), meta: { targets: list.map((c) => ({ id: c.id, driver: { joint: c.driver.joint, to: c.driver.to, from: c.driver.from, full: c.driver.full }, w: r4(correctiveWeight(c.driver, R.joints)) })), joints } };
+  return { rowAt: cornerRowOf(sub, rows, W), meta: { targets: list.map((c) => ({ id: c.id, driver: { joint: c.driver.joint, to: c.driver.to, ...(c.driver.bend ? { bend: c.driver.bend } : {}), from: c.driver.from, full: c.driver.full }, w: r4(correctiveWeight(c.driver, R.joints)) })), joints } };
 }
 const sub3 = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
 
