@@ -57,6 +57,7 @@ import { readDrifts } from '@/lib/graph/form/grass-drifts';
 import { tagCreaseRoles } from '@/lib/graph/scene/crease-roles';
 import { readCreases } from '@/lib/graph/scene/channels/creases';
 import { readCone } from '@/lib/graph/scene/channels/view-cone';
+import { readClouds, CLOUDS_OF_WEATHER } from '@/lib/graph/matte-paint/sky';
 import { wantsSunShare, readOcclusion, liveLightDefaults } from '@/lib/graph/scene/live-light';
 import { readEra, ERAS } from '@/lib/graph/era/eras';
 import { seedOfRef } from '@/lib/graph/beats/field-cue';
@@ -746,6 +747,9 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     const S0 = payload.snowMap ? readSnow(cube.snow) : null, winter = !!S0 && (S0.line === undefined || S0.line === null);
     const read = landRead(payload, cube, { ...(M.hour !== undefined ? { hour: readHour(M.hour) } : {}), dress, grass: winter ? false : 'map', ...(moss ? { moss } : {}), ...(sward !== undefined ? { sward } : {}), ...(drifts.length ? { drifts } : {}), ...(grown ? { grown } : {}), ...(payload.snowMap ? { snow: payload.snowMap } : {}) });
     if (read) payload.form = { ...(payload.form || {}), land: formPayload(read) };
+    // (the recipe's weather for the form's sky, channels/form-sky.js: its clouds, or the weather's own; absent, the sky reads
+    // what the stage painted)
+    if (read && M.clouds !== undefined) payload.form.land.clouds = M.clouds === 'weather' ? { kind: CLOUDS_OF_WEATHER[M.weather] || 'fair', cover: 0.5, seed: 1 } : readClouds(M.clouds);
     // (the view cone's reach fixed in metres, channels/view-cone.js; absent, the screen's)
     if (read && M.cone !== undefined && M.cone !== null) payload.form.land.cone = readCone(M.cone);
     // (and its dunes' sand drawn by the wind that laid them: ripples, slip faces, glint; era/out-dunes.js duneMap)

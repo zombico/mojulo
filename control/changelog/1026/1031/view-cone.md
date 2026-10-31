@@ -59,3 +59,12 @@
   'html'` turned a scene's own walk (its spawn, eye and speed) into a bare `true`, so the page took the walk's defaults
   off the whole scene's bounds: over a gen-7 meadow, whose sky and hills are wide, an eye of 15 m, a 6 m stride and walls
   a body could not pass. It keeps the scene's walk now, as the /world route always did.
+- **The gen-7 sky** (`scene/channels/form-sky.js`, emitted by the form channel): a geocube's gen-7 outside draws the sky as
+  the light that lights its land, in place of the stage's painted sky. The air's level is the solved sky light's (its
+  cosine-weighted average over the dome, by luminance), its hue and gradient the cube's zenith and horizon, more air at
+  the horizon, the sky's scattering round the sun and the forward glow at it; the sun a disc where the solved sun stands,
+  at its light. Clouds are a layer over the eye, its cover the recipe's `clouds` (clear, fair, overcast, storm, haze,
+  high, and its cover; absent, fair where the stage painted clouds, clear where it painted none), lit by the solved sun
+  through their own depth with a silver edge toward it and by the sky from below, passing over as the eye walks and
+  drifting with the page's wind. The haze takes the air where the far land stands, and the stage's painted far land
+  takes it too. All through the land's own tone curve; a night's stars and moon stay.

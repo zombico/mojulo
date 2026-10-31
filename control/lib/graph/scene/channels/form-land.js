@@ -18,6 +18,7 @@
 import { safeJson } from '../emit-util.js';
 import { formGrassScript } from './form-grass.js';
 import { viewConeScript } from './view-cone.js';
+import { formSkyScript } from './form-sky.js';
 import { farFieldScript, FAR_BLANKET_GLSL, farBlanketUniforms } from './far-field.js';
 import { farStructuresScript } from './far-structures.js';
 import { formFloraScript } from './form-flora.js';
@@ -459,7 +460,7 @@ ${form.dunes ? `      sh.fragmentShader = DUNE_HEAD + sh.fragmentShader.replace(
       at = { pov, reach: CO.reach, eye: CO.eye.clone() }; ladder(pov, CO.eye, CO.reach, CO.px);
     };
   }
-${viewConeScript(form.cone || null)}${formGrassScript()}${flora ? formFloraScript(flora, { snow: !!form.snow }) : ''}${farFieldScript()}${farStructuresScript()}
+${formSkyScript()}${viewConeScript(form.cone || null)}${formGrassScript()}${flora ? formFloraScript(flora, { snow: !!form.snow }) : ''}${farFieldScript()}${farStructuresScript()}
   // open sea: deep water's colour under it, where the recipe lays no floor (the shallows' floor fades into the same colour)
   if (D.seabed) { const B = D.seabed, g = new THREE.PlaneGeometry(B.x[1] - B.x[0], B.y[1] - B.y[0]); g.translate((B.x[0] + B.x[1]) / 2, (B.y[0] + B.y[1]) / 2, B.z);
     scene.add(new THREE.Mesh(g, new THREE.MeshStandardMaterial({ color: rgb(D.deep), roughness: 1, metalness: 0 }))); }
