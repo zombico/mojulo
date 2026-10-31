@@ -4,7 +4,8 @@
 import { describe, expect, it } from 'vitest';
 import { outTrailOf } from './out-trail-board.js';
 import { treeItems } from './nature.js';
-import { readWater, WATER } from './out-water.js';
+import { readWater, WATER, UNDERGROUND } from './out-water.js';
+import { CAVERN } from './cavern.js';
 import { withGeocube, assembleGeocubeScene, readGeocube } from './geocube.js';
 import { assembleStageScene } from './stage.js';
 import { layLevel } from '../level/index.js';
@@ -86,6 +87,41 @@ describe('a trail\'s water, cut into its land', () => {
     expect(() => readWater({ coast: true, lake: { side: 'open' } })).toThrow(/coast takes the open side/);
     expect(() => readWater({ lake: { side: 'far' }, river: true })).toThrow(/both on the far side/);
     expect(() => trail({ cliff: false, water: { falls: true } })).toThrow(/falls drop off the far cliff/);
+  });
+});
+
+describe('the water underground, under a cavern (cavern.js)', () => {
+  const luma = (h) => { const c = [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16)); return 0.3 * c[0] + 0.59 * c[1] + 0.11 * c[2]; };
+  it('a river runs between the end walls, rising out of the rock and sinking into it, a mouth at each end', () => {
+    const t = trail({ cavern: true, water: { river: true } }), dry = trail({ cavern: true }), S = t.site, sheets = S.water.faces.filter((f) => f.water);
+    // (its water on the floor, never up the walls)
+    for (const f of sheets) for (const c of f.corners) { expect(c[2]).toBeLessThan(S.cavern.top - 4); expect(c[1]).toBeGreaterThanOrEqual(CAVERN.endRun - 1e-6); expect(c[1]).toBeLessThanOrEqual(S.D - CAVERN.endRun + 1e-6); }
+    // (the end walls whole past its channel's cut into their foot)
+    const a = S.water.anchors[0], x = a.at[0];
+    for (const y of [1, S.D - 1]) expect(S.ground(x, y)).toBe(dry.site.ground(x, y));
+    // (a dark mouth at each end, facing into the cavern)
+    const mouths = S.water.faces.filter((f) => f.group === 'isekai:water-mouth');
+    expect(mouths.length).toBeGreaterThan(0);
+    expect(new Set(mouths.map((f) => f.normal[1]))).toEqual(new Set([1, -1]));
+    for (const f of mouths) expect(f.corners.every((c) => (f.normal[1] > 0 ? c[1] < CAVERN.endRun : c[1] > S.D - CAVERN.endRun))).toBe(true);
+  });
+
+  it('no sea under the rock: a coast is skipped and named, the site not run on for it', () => {
+    const t = trail({ cavern: true, water: { coast: true } });
+    expect(t.site.water.forms).toEqual([{ form: 'coast', skipped: expect.stringMatching(/cavern/) }]);
+    expect(t.site.water.sea).toBeUndefined();
+    expect(t.site.W).toBe(trail({ cavern: true }).site.W);
+  });
+
+  it('its still water deepened toward the dark, its bed mostly lost; a fall\'s white water stays white', () => {
+    const open = trail({ water: { lake: true } }).site.water.faces, under = trail({ cavern: true, water: { lake: true, falls: true } }).site.water.faces;
+    // (the open water's one fill; under the rock the still water darker than it, the fall's white lighter)
+    const L0 = luma(open[0].fill), white = (f) => luma(f.fill) > L0, still = under.filter((f) => f.water && !white(f));
+    expect(new Set(open.map((f) => f.fill)).size).toBe(1);
+    expect(still.length).toBeGreaterThan(0);
+    expect(Math.max(...still.map((f) => luma(f.fill)))).toBeLessThan(L0);
+    expect(Math.min(...still.flatMap((f) => f.cornerAlpha))).toBeGreaterThanOrEqual(UNDERGROUND.alpha[0] - 1e-6);
+    expect(under.some((f) => f.water && white(f))).toBe(true);
   });
 });
 

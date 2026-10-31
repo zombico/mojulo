@@ -34,9 +34,9 @@ import { readBounds, boundSegments, boundAnchors, boundColliders, boundLaw } fro
 import { readGround, groundOf, editsField, applyEdits } from './out-ground.js';
 import { applyGrade } from './grade.js';
 import { cutCaves, caveClear, caveLamps } from './cave.js';
-import { encloseCavern } from './cavern.js';
+import { encloseCavern, CAVERN } from './cavern.js';
 import { readTrailDress } from './trail-dress.js';
-import { layWater, WATER } from './out-water.js';
+import { layWater, WATER, undergroundFill, undergroundAlpha } from './out-water.js';
 import { duneField, DUNE_WALK } from './out-dunes.js';
 
 const smooth = (a, b, v) => { const t = Math.max(0, Math.min(1, (v - a) / (b - a))); return t * t * (3 - 2 * t); };
@@ -346,8 +346,8 @@ function siteOf(st, plan, grade = null) {
   const pits = at('pit').map((b) => ({ b, y: b.y, w: C.pit.w, depth: C.pit.depth }));
   const streams = at('crossing').map((b) => ({ b, y: b.y }));
   // the WATER (out-water.js, `ground.water`): laid after the walk; a coast runs the ground on past the plan's edge
-  // (`ground.room`: open ground past the trail's far side, the site that much wider)
-  const Wr = G.water && Object.keys(G.water).length ? G.water : null, Wg = Wr?.coast ? W + WATER.coast.room : W + (G.room ?? 0);
+  // (`ground.room`: open ground past the trail's far side, the site that much wider; no sea under a cavern, out-water.js)
+  const Wr = G.water && Object.keys(G.water).length ? G.water : null, Wg = Wr?.coast && !(G.cavern && !open) ? W + WATER.coast.room : W + (G.room ?? 0);
 
   // the DUNES (out-dunes.js, `ground.dunes`): laid over the ground once the walk and the edits are, easing down to the
   // walk's street, the cliff's foot, a pocket, a ford and the site's edges; where they stand the bumps lie down (sand)
@@ -451,7 +451,8 @@ function siteOf(st, plan, grade = null) {
     const q = j * g.nx + i; g.z[q] += DN.h(x, y) * k; g.apron[q] *= 1 - k; g.hard[q] *= 1 - k;
   }
   // the WATER cut into the ground, after the walk is laid and clear of it (out-water.js)
-  const WB = Wr ? layWater(Wr, { st, g, trailX, edge, cliffX, open, W, Wg, D, S, beats, streams, pockets, marks, pits }) : null;
+  // (under a cavern: its floor's span between its end walls, era/cavern.js)
+  const WB = Wr ? layWater(Wr, { st, g, trailX, edge, cliffX, open, W, Wg, D, S, beats, streams, pockets, marks, pits, ...(CVN ? { cavern: { y0: CAVERN.endRun, y1: D - CAVERN.endRun } } : {}) }) : null;
   // the PITS, cut last so nothing fills them: across the walk and a little wider, the ground whole beyond (the way round)
   for (const p of pits) for (let j = 0; j < g.ny; j++) for (let i = 0; i < g.nx; i++) {
     const x = gridX(g, i), y = gridY(g, j), d = lineDist(x, y), e = edge(y);
@@ -591,13 +592,15 @@ export function streamSheets(site, st) {
  *  runs (so it follows the ground as a stream does), sky-tinted, drawn after the bake. */
 export function streamFaces(site, st) {
   // (and the trail's water, out-water.js: its lake, its sea, its river, its falls; none without)
-  const out = site.water ? [...site.water.faces] : [], n = 40;
+  const out = site.water ? [...site.water.faces] : [], n = 40, fill = st.water ? st.water.fill : st.debris ? st.debris.water : '#7f95ab', a = 0.55;
+  // (under a cavern its water deepened, its bed mostly lost: out-water.js UNDERGROUND)
+  const [f0, a0] = site.cavern ? [undergroundFill(fill), undergroundAlpha(a)] : [fill, a];
   for (const { y, w, x0, x1, z } of streamSheets(site, st)) {
     // it rises at the cliff's foot (past the talus), and runs out across the valley
     for (let i = 0; i < n; i++) {
       const xa = mix(x0, x1, i / n), xb = mix(x0, x1, (i + 1) / n);
       out.push({ corners: [[xa, y - w, z(xa)], [xb, y - w, z(xb)], [xb, y + w, z(xb)], [xa, y + w, z(xa)]].map((p) => p.map(r5)), normal: [0, 0, 1], water: true,
-        fill: st.water ? st.water.fill : st.debris ? st.debris.water : '#7f95ab', cornerAlpha: [0.55, 0.55, 0.55, 0.55], group: 'trail:water' });
+        fill: f0, cornerAlpha: [a0, a0, a0, a0].map(r5), group: 'trail:water' });
     }
   }
   return out;

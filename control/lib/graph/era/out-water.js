@@ -16,6 +16,11 @@
  *   `side` 'open' (the walk's open side) or 'far' (the cliff's side); `at` a share of the walk (0.15–0.85) where it
  *   stands; metres else. The coast takes the open side: a lake or a river beside a coast takes the far one.
  *
+ *   UNDERGROUND (a cavern's trail, era/cavern.js: `ctx.cavern` its floor's span along the walk, { y0, y1 }): the river
+ *   runs between its end walls, rising out of the rock at one and sinking into it at the other, a dark mouth on the wall
+ *   at each; no sea lies under the rock (a coast is skipped); and the water is deepened toward the dark, its bed mostly
+ *   lost (UNDERGROUND), so the cavern's own light is all that shows it (a fall's white water stays white).
+ *
  *   readWater(w, at)                → the forms as written, checked (false: no water, a cube's refused) | null
  *   layWater(W, ctx)                → the bodies laid on the site's grid (it is cut in place): { forms, wet, sand,
  *                                     level, clear, faces, cameras, anchors, hazards, sea, coast }
@@ -46,6 +51,13 @@ export const WATER = Object.freeze({
   falls: Object.freeze({ width: 2.4, pool: 3.2, poolDepth: 1.2, brook: 1.4, lift: 0.28 }),
 });
 export const WATER_FORMS = Object.freeze(Object.keys(WATER));
+// underground water: its colour deepened this far toward black, its alpha [lo, hi] (the shallows' and the deeps': its
+// bed mostly lost); a river's mouth in the wall where it rises and where it sinks, `h` metres over its water, `out`
+// off the wall's foot, `into` how far its channel is cut into the wall
+export const UNDERGROUND = Object.freeze({ deep: 0.55, alpha: Object.freeze([0.5, 0.95]), mouth: Object.freeze({ h: 1.1, into: 1, fill: '#0b0b0d' }) });
+/** A water face's fill and alpha underground (a cavern's): deepened toward the dark, its bed mostly lost. */
+export const undergroundFill = (hex) => rgbHex(hexRgb(hex).map((v) => v * (1 - UNDERGROUND.deep)));
+export const undergroundAlpha = (a) => UNDERGROUND.alpha[0] + (UNDERGROUND.alpha[1] - UNDERGROUND.alpha[0]) * a;
 // how far a fresh water's bank reaches: a lake's (and a pool's) in its radii from its centre, a river's in metres past
 // its edge (era/substrate.js reads its wet ground off it)
 const BANK_REACH = Object.freeze({ lake: 1.7, river: 4 });
@@ -96,8 +108,10 @@ export function layWater(Wr, ctx) {
   // (the far side's foot: the cliff's past its talus, or the site's back edge on an open trail)
   const farFoot = (y) => (open ? x0 + 2 : cliffX(y) + talus + 1);
   const bodies = [], wetFns = [], sandFns = [], levelFns = [], clearFns = [], faces = [], cameras = [], anchors = [], hazards = [];
-  const fill = waterFill(st);
-  const sheet = (corners, alpha, f = fill) => faces.push({ corners: corners.map((p) => p.map(r5)), normal: [0, 0, 1], outNormal: [0, 0, 1], fill: f, water: true, cornerAlpha: alpha.map(r5), group: 'isekai:water' });
+  const fill = waterFill(st), under = ctx.cavern ?? null;
+  // (underground the still water is deepened and its bed lost; a fall's white water, named by its own fill, stays white)
+  const sheet = (corners, alpha, f = fill) => faces.push({ corners: corners.map((p) => p.map(r5)), normal: [0, 0, 1], outNormal: [0, 0, 1], fill: under && f === fill ? undergroundFill(f) : f, water: true,
+    cornerAlpha: (under && f === fill ? alpha.map(undergroundAlpha) : alpha).map(r5), group: 'isekai:water' });
   const lower = (q, t) => { if (t < g.z[q]) { g.z[q] = t; g.apron[q] = 0; g.hard[q] = 0; } };
   const trailEye = (y) => { const x = trailX(y); return [x, y, pre(x, y) + 1.7]; };
   // (a basin: its outline a wandering ring of radius r round c, its level just under the lowest of its shore, its bed
@@ -126,7 +140,9 @@ export function layWater(Wr, ctx) {
 
   // ── the COAST: the open side falls to the sea ──
   let sea = null, coastLine = null;
-  if (Wr.coast) {
+  // (no sea lies under a cavern's rock: its coast skipped, named)
+  if (Wr.coast && under) bodies.push({ form: 'coast', skipped: 'a cavern is closed in by its rock: no sea under it' });
+  if (Wr.coast && !under) {
     const C = { ...WATER.coast, ...Wr.coast };
     // the shoreline just past the plan's edge (the meadow as it was), wandering, never nearer the walk than the beach
     // and its ease allow
@@ -202,7 +218,7 @@ export function layWater(Wr, ctx) {
     const busy = [...(ctx.pockets ?? []).filter((p) => Math.sign(p.cx - trailX(p.cy)) === side).map((p) => p.cy), ...(ctx.marks ?? []).filter((m) => Math.sign(m.x - trailX(m.y)) === side).map((m) => m.y),
       ...streams.map((s) => s.y), ...(ctx.pits ?? []).map((p) => p.y), 3, D - 4];
     const shares = Lk.at !== undefined ? [Lk.at] : [0.3, 0.4, 0.5, 0.6, 0.7].map((s, i) => s + (hash3(i, 3, S + 1331) - 0.5) * 0.04);
-    const room = (y) => (side > 0 ? (Wr.coast ? coastLine(y) - 8 : Wg - 2) - (trailX(y) + edge(y) + Lk.gap) : (trailX(y) - edge(y) - Lk.gap) - farFoot(y));
+    const room = (y) => (side > 0 ? (coastLine ? coastLine(y) - 8 : Wg - 2) - (trailX(y) + edge(y) + Lk.gap) : (trailX(y) - edge(y) - Lk.gap) - farFoot(y));
     const pick = shares.map((s) => ({ y: D * s, far: Math.min(...busy.map((b) => Math.abs(D * s - b))) })).sort((a, b) => b.far - a.far || a.y - b.y)[0];
     const y = pick.y, r = Math.min(Lk.size, room(y) / (2 * (1 + Lk.wander)));
     if (r >= 2.5) {
@@ -220,11 +236,13 @@ export function layWater(Wr, ctx) {
   // ── the RIVER: beside the walk, falling with the land ──
   if (Wr.river) {
     const Rv = { ...WATER.river, ...Wr.river }, side = sideOf(Wr, 'river') === 'open' ? 1 : -1, hw = Rv.width / 2, dy = 0.5;
-    const ys = []; for (let y = -2; y <= D + 2 + 1e-9; y += dy) ys.push(y);
+    // (its reach: past both ends of the site, or underground between the cavern's end walls)
+    const ya = under ? under.y0 : -2, yb = under ? under.y1 : D + 2, inReach = under ? (y) => y >= ya - UNDERGROUND.mouth.into && y <= yb + UNDERGROUND.mouth.into : () => true;
+    const ys = []; for (let y = ya; y <= yb + 1e-9; y += dy) ys.push(y);
     // its line off the walk's, wandering, held off the walk and off the cliff's foot (or the site's edge), smoothed
     const raw = ys.map((y) => {
       const x = trailX(y) + side * (Rv.off + 2 * (2 * vnoise(y * 0.04, 7.5, S + 1341) - 1));
-      return side > 0 ? Math.max(trailX(y) + edge(y) + hw + 1, Math.min((Wr.coast ? coastLine(y) - Wr.coast.beach - 2 : Wg - 2) - hw, x)) : Math.min(trailX(y) - edge(y) - hw - 1, Math.max(farFoot(y) + hw, x));
+      return side > 0 ? Math.max(trailX(y) + edge(y) + hw + 1, Math.min((coastLine ? coastLine(y) - Wr.coast.beach - 2 : Wg - 2) - hw, x)) : Math.min(trailX(y) - edge(y) - hw - 1, Math.max(farFoot(y) + hw, x));
     });
     const xr = raw.map((_, k) => { let t = 0, c = 0; for (let j = k - 8; j <= k + 8; j++) if (j >= 0 && j < raw.length) { t += raw[j]; c++; } return t / c; });
     // its water: from the higher end down, the least of the land so far, climbing with it only where the land rises
@@ -235,17 +253,26 @@ export function layWater(Wr, ctx) {
     const at = (a, y) => { const u = Math.max(0, Math.min(n - 1.001, (y - ys[0]) / dy)), i = Math.floor(u); return mix(a[i], a[i + 1], u - i); };
     const dist = (x, y) => Math.abs(x - at(xr, y));
     nodes((q, x, y) => {
-      const d = dist(x, y), L = at(wl, y); if (d > hw + 6) return;
+      const d = dist(x, y), L = at(wl, y); if (d > hw + 6 || !inReach(y)) return;
       lower(q, d < hw ? L - Rv.depth * (1 - (d / hw) ** 2) : L + Rv.bank * (d - hw));
     });
     for (let k = 0; k + 2 < n; k += 2) {
       const a = ys[k], b = ys[k + 2], xa = xr[k], xb = xr[k + 2], la = wl[k], lb = wl[k + 2], w = hw + 0.25;
       sheet([[xa - w, a, la], [xa + w, a, la], [xb + w, b, lb], [xb - w, b, lb]], [0.5, 0.5, 0.5, 0.5]);
     }
-    wetFns.push((x, y) => dist(x, y) < hw && gridSample(g, x, y) < at(wl, y));
-    sandFns.push((x, y) => hw + Rv.shingle - dist(x, y));
-    clearFns.push((x, y) => dist(x, y) < hw + 1.8);
-    levelFns.push((x, y) => (dist(x, y) < hw + BANK_REACH.river ? at(wl, y) : null));
+    wetFns.push((x, y) => inReach(y) && dist(x, y) < hw && gridSample(g, x, y) < at(wl, y));
+    sandFns.push((x, y) => (inReach(y) ? hw + Rv.shingle - dist(x, y) : -1));
+    clearFns.push((x, y) => inReach(y) && dist(x, y) < hw + 1.8);
+    levelFns.push((x, y) => (inReach(y) && dist(x, y) < hw + BANK_REACH.river ? at(wl, y) : null));
+    // (underground, its MOUTHS: where it rises out of the rock and where it sinks into it, a low dark arch on the wall's
+    // foot over its water, facing into the cavern)
+    if (under) for (const [k, toward] of [[0, 1], [n - 1, -1]]) {
+      const M = UNDERGROUND.mouth, y = ys[k] - toward * M.into * 0.9, x = xr[k], z = wl[k] - 0.05, w = hw + 0.35, seg = 8;
+      for (let i = 0; i < seg; i++) {
+        const a0 = Math.PI * (i / seg), a1 = Math.PI * ((i + 1) / seg), p = (a, r) => [x - toward * Math.cos(a) * w * r, y, z + Math.sin(a) * M.h * r];
+        faces.push({ corners: [[x, y, z], p(a0, 1), p(a1, 1), [x, y, z]].map((c) => c.map(r5)), normal: [0, toward, 0], outNormal: [0, toward, 0], fill: M.fill, group: 'isekai:water-mouth' });
+      }
+    }
     const mid = Math.floor(n / 2);
     bodies.push({ form: 'river', side: side > 0 ? 'open' : 'far', width: Rv.width, falls: r5(wl[down ? 0 : n - 1] - wl[down ? n - 1 : 0]) });
     anchors.push({ id: 'river-1', kind: 'water', water: 'river', at: [r5(xr[mid]), r5(ys[mid]), r5(wl[mid])], width: Rv.width });
