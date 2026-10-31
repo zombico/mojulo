@@ -2,7 +2,7 @@
 // river, brook, falls and pool drawn as they move), from each water still at two moments `--dt` seconds apart, so the
 // motion shows as a pair. The machine gate: no page errors, the live water carried; the look is the operator's.
 //
-//   node scripts/spikes/water/live.mjs [--out <dir>] [--cube valley-morning] [--water '{"river":true,"falls":true}']
+//   node scripts/spikes/water/live.mjs [--out <dir>] [--cube valley-morning] [--water '{"river":true,"falls":true,"lake":true}']
 //     [--eras gen-6,gen-7] [--dt 0.5]
 import fs from 'node:fs';
 import path from 'node:path';
@@ -15,7 +15,7 @@ const { resolveChromium, launchChromium, CHROMIUM_WEBGL_ARGS } = await import('@
 
 const arg = (k, d) => { const i = process.argv.indexOf(k); return i > 0 ? process.argv[i + 1] : d; };
 const out = path.resolve(arg('--out', 'water-live')), W = 1120, H = 700, dt = +arg('--dt', '0.5');
-const cube = arg('--cube', 'valley-morning'), water = JSON.parse(arg('--water', '{"river":true,"falls":true}')), eras = arg('--eras', 'gen-6,gen-7').split(',');
+const cube = arg('--cube', 'valley-morning'), water = JSON.parse(arg('--water', '{"river":true,"falls":true,"lake":true}')), eras = arg('--eras', 'gen-6,gen-7').split(',');
 fs.mkdirSync(out, { recursive: true });
 
 const browser = await launchChromium({ executablePath: await resolveChromium({ allowFetch: false }), headless: true, args: CHROMIUM_WEBGL_ARGS });

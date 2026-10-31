@@ -733,7 +733,7 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     const drawn = new Set(W ? W.drawn : []);
     payload.faces = payload.faces.filter((f) => !(f.waterBody && drawn.has(f.waterBody))).map((f) => { if (!f.waterBody) return f; const { waterBody: _w, ...rest } = f; return rest; });
     if (W) {
-      payload.surfaces = [...(payload.surfaces || []), ...W.surfaces];
+      if (W.surfaces) payload.surfaces = [...(payload.surfaces || []), ...W.surfaces];
       if (W.shallows) payload.shallows = { bodies: [...(payload.shallows?.bodies || []), ...W.shallows.bodies], floaters: [...(payload.shallows?.floaters || []), ...W.shallows.floaters] };
       if (W.jets) payload.jets = [...(payload.jets || []), ...W.jets];
     }

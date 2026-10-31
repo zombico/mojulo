@@ -40,6 +40,16 @@ describe('the water lowered live', () => {
     expect(W.surfaces.map((s) => s.river.pts)).toEqual([P.brook.line]);
   });
 
+  it('a lake: still water, a pond in its own bed as dark with depth as the river, its leaves on it; no surface', () => {
+    const [P] = planOf({ lake: true }), W = lowerWaterworks([P]), [pond] = W.shallows.bodies;
+    expect(W.drawn).toEqual(['lake-1']);
+    expect(W.surfaces).toBeUndefined();
+    expect(pond).toMatchObject({ id: 'lake-1', kind: 'pond' });
+    expect(pond.level).toBeCloseTo(P.pool.at[2], 4);
+    expect(pond.look.sigma).toEqual(LIVE.absorb.map((v) => expect.closeTo(v, 4)));
+    expect(W.shallows.floaters).toEqual(P.pool.floaters);
+  });
+
   it('nothing to draw: nothing', () => {
     expect(lowerWaterworks([])).toBeNull();
     expect(lowerWaterworks([{ id: 'x', form: 'lake' }])).toBeNull();
@@ -47,14 +57,14 @@ describe('the water lowered live', () => {
 });
 
 describe('the gate: a gen-7 read on the page draws it, every other read keeps the painted water', () => {
-  const manifest = { kind: 'stage', geocube: 'valley-morning', trail: { run: 14, ground: { water: { river: true, falls: true } } } };
+  const manifest = { kind: 'stage', geocube: 'valley-morning', trail: { run: 14, ground: { water: { river: true, falls: true, lake: true } } } };
   const read = async (opts) => (await resolveWorldScene({ ref: 'water-live', title: 'water live', manifest }, opts)).payload;
 
-  it('gen-7: the river and the falls live, their painted faces gone; the plan and its tags never on a page', async () => {
+  it('gen-7: the river, the falls and the lake live, their painted faces gone; the plan and its tags never on a page', async () => {
     const P = await read({ era: 'gen-7' }), six = await read({ era: 'gen-6' }), paint = await read({ era: 'gen-7', paint: true });
     expect(P.surfaces.length).toBe(2);
     expect(P.jets.length).toBe(1);
-    expect(P.shallows.bodies.length).toBe(1);
+    expect(P.shallows.bodies.map((b) => b.id).sort()).toEqual(['falls-1:pool', 'lake-1']);
     // (what it drew live is out of the faces; the crossing's stream, not in the plan, stays painted)
     expect(P.faces.filter((f) => f.water).length).toBeLessThan(six.faces.filter((f) => f.water).length);
     for (const Q of [P, six, paint]) {

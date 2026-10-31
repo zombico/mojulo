@@ -26,7 +26,8 @@
  *                                     level, clear, faces, cameras, anchors, hazards, sea, coast, plan }
  *
  *   THE PLAN (`plan`): each body that moves as data, for a render to draw it live (era/water-live.js): a river's line
- *   downstream, its levels and its width; the falls' lip, its drop and width, the brook to it and its pool's carved bed.
+ *   downstream, its levels and its width; the falls' lip, its drop and width, the brook to it and its pool's carved bed;
+ *   a lake's still water in its carved bed, a few leaves at rest on it.
  *   Each body's painted faces carry its id (`waterBody`), so a render that draws it live leaves them out.
  *   waterCameras(site)              → the stills each body is seen from (a lake, the shore, the river, the falls)
  *
@@ -64,7 +65,7 @@ export const undergroundFill = (hex) => rgbHex(hexRgb(hex).map((v) => v * (1 - U
 export const undergroundAlpha = (a) => UNDERGROUND.alpha[0] + (UNDERGROUND.alpha[1] - UNDERGROUND.alpha[0]) * a;
 // the plan's (era/water-live.js): a pool's bed read on a grid this fine (m)
 // (`basin` how far out, in its radii, a pool's own water reaches; `dry` the least bank past it, m)
-const WATER_LIVE = Object.freeze({ bedCell: 0.25, basin: 1.15, dry: 0.05 });
+const WATER_LIVE = Object.freeze({ bedCell: 0.25, bedMax: 121, basin: 1.15, dry: 0.05 });
 // how far a fresh water's bank reaches: a lake's (and a pool's) in its radii from its centre, a river's in metres past
 // its edge (era/substrate.js reads its wet ground off it)
 const BANK_REACH = Object.freeze({ lake: 1.7, river: 4 });
@@ -302,7 +303,13 @@ export function layWater(Wr, ctx) {
     const y = pick.y, r = Math.min(Lk.size, room(y) / (2 * (1 + Lk.wander)));
     if (r >= 2.5) {
       const cx = trailX(y) + side * (edge(y) + Lk.gap + r * (1 + Lk.wander));
+      body = 'lake-1';
       const L = basin(cx, y, r, Lk.depth, S + 1311, 'lake');
+      body = null;
+      // (its plan: still water in its carved bed, a few leaves at rest on it)
+      const floaters = [0, 1, 2].map((i) => { const a = 2 * Math.PI * hash3(i, 5, S + 1361), d = r * (0.25 + 0.4 * hash3(i, 7, S + 1361)); return { at: [r5(cx + d * Math.cos(a)), r5(y + d * Math.sin(a))], shape: 'leaf', r: 0.3, yaw: r5(2 * Math.PI * hash3(i, 9, S + 1361)) }; });
+      plan.push({ id: 'lake-1', form: 'lake', fill, pool: { at: L.at, r: L.r, depth: Lk.depth, reach: r5(r * (1 + WATER.lake.wander) * 1.6), floaters } });
+      basins.set('lake-1', L.u);
       bodies.push({ form: 'lake', at: L.at, r: L.r, side: side > 0 ? 'open' : 'far' });
       anchors.push({ id: 'lake-1', kind: 'water', water: 'lake', at: L.at, r: L.r });
       hazard('hazard-lake-1', 'lake-1', [[cx - r * 1.3, y - r * 1.3, L.level - Lk.depth], [cx + r * 1.3, y + r * 1.3, L.level]], y);
@@ -313,10 +320,12 @@ export function layWater(Wr, ctx) {
   }
 
   const wet = (x, y) => wetFns.some((f) => f(x, y));
-  // (a pool's bed, read off the land now every body is cut: its depth under its level on a grid round it, + under the
-  // water, − the bank over it; past its own basin all bank, though another water's channel run under its level there)
+  // (a pool's or a lake's bed, read off the land now every body is cut: its depth under its level on a grid round it,
+  // + under the water, − the bank over it; past its own basin all bank, though another water's channel run under its
+  // level there; a big one's grid coarser, at most `bedMax` a side)
   for (const P of plan) if (P.pool) {
-    const { at: [cx, cy, L], reach } = P.pool, u = basins.get(P.id), cell = WATER_LIVE.bedCell, nb = Math.ceil((2 * reach) / cell) + 1, bx = cx - reach, by = cy - reach, depth = [];
+    const { at: [cx, cy, L], reach } = P.pool, u = basins.get(P.id), cell = r5(Math.max(WATER_LIVE.bedCell, (2 * reach) / (WATER_LIVE.bedMax - 1)));
+    const nb = Math.ceil((2 * reach) / cell) + 1, bx = cx - reach, by = cy - reach, depth = [];
     for (let j = 0; j < nb; j++) for (let i = 0; i < nb; i++) {
       const x = bx + i * cell, y = by + j * cell, d = L - gridSample(g, x, y);
       // (and where a river runs through it, the river's water: one surface, not two)

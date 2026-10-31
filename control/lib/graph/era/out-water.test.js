@@ -114,6 +114,18 @@ describe('the water\'s plan: what moves, as data for a render to draw it live (w
     expect(new Set(W.faces.filter((f) => f.waterBody).map((f) => f.waterBody))).toEqual(new Set(['falls-1']));
   });
 
+  it('a lake: still water in its carved bed (wet in it, bank past it), a few leaves at rest on it', () => {
+    const W = trail({ water: { lake: true } }).site.water, [P] = W.plan, B = P.pool.bed, [L] = W.forms;
+    expect(P).toMatchObject({ id: 'lake-1', form: 'lake', pool: { at: L.at, depth: WATER.lake.depth } });
+    const at = (x, y) => B.depth[Math.round((y - B.y0) / B.dy) * B.nx + Math.round((x - B.x0) / B.dx)];
+    expect(at(L.at[0], L.at[1])).toBeGreaterThan(0);
+    expect(at(B.x0, B.y0)).toBeLessThan(0);
+    expect(B.nx).toBeLessThanOrEqual(121);
+    // (its leaves on its water)
+    for (const f of P.pool.floaters) expect(at(...f.at)).toBeGreaterThan(0);
+    expect(new Set(W.faces.filter((f) => f.waterBody).map((f) => f.waterBody))).toEqual(new Set(['lake-1']));
+  });
+
   it('a pool on a river takes the river\'s level there: the fall drops into it, no rim stands between', () => {
     const W = trail({ water: { falls: true, river: true } }).site.water, R = W.plan.find((p) => p.form === 'river'), F = W.plan.find((p) => p.form === 'falls');
     const y = F.pool.at[1], k = R.line.reduce((b, p, i) => (Math.abs(p[1] - y) < Math.abs(R.line[b][1] - y) ? i : b), 0);
