@@ -284,4 +284,22 @@ developer would want to wire. Never claimed by a machine.
     blossoms and berries.
   - Tested from `floraRead` directly (a needled tree and a shrub's dome, as `form/flora-read.test.js` grows them), not
     through a whole forest.
+- 1031, the runtime tests culled (phase 6's first cut, ahead of the code): the tests that held the engine game runtimes
+  to the web are gone, since the runtimes they prove are leaving:
+  - Godot: the bus and combat corpora (`bus-conformance`, `combat-conformance`), the kernel's own legs (`godot-beat`,
+    `godot-bus-level`, `godot-clock-dial`, `godot-edit`, `godot-frame`, `godot-game-shell`, `godot-looks`,
+    `godot-markers`, `godot-mind`, `godot-rules`, `godot-scenes`, `godot-sound`, `godot-story-rows`, `godot-travel`),
+    the planted bugs (`godot-plants`), the arcade kernel (`godot-arcade`), and the fixture matrix with its web half
+    (`level-equivalence.godot`, `level-equivalence`).
+  - Roblox: `roblox-look`, `roblox-project`, and the Lune corpora (`engines/roblox-combat`, `roblox-levelcast`,
+    `roblox-rules`, `roblox-scenes`), with the engine-neutral conformance protocol's test (`engines/conformance`).
+  - `godot-marks.test.js` loses "a built mark names the Godot leg that proves it" (its proofs were the culled tests);
+    its tables' other checks stay until the marks become the handoff ledger. `vitest.godot.config.js` stops listing the
+    level-equivalence test.
+  - Kept: `godot-humanoid*`, `godot-pack.figure`, `godot-look` (the sky and tone, for the environment adapter),
+    `engine-score`, `engine-voice`, `engines/pack`, `engines/marks`, `bus-abi`, `unity-project`, `unreal-*`.
+  - The runtime code itself (the kernels, the corpora's modules, the probes, `scripts/conformance*`) is still there and
+    still exported by `export_game`'s engine targets, now untested: it leaves in phase 6 with those targets.
+  - Found: `lib/motion/world-traversal.test.js` fails in this container only, because the app's browser finder does not
+    find the pre-installed Chromium; `MOJULO_CHROMIUM=/opt/pw-browsers/chromium` would point it there. Not this branch's.
 

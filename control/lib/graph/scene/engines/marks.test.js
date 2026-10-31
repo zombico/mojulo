@@ -162,7 +162,7 @@ describe('dryRun and the sweep read every engine', () => {
 
 describe('a young kernel offers only what it proves', () => {
   // A Roblox mark flips with the part of the place that carries it: every row not absent says how, and a built row names
-  // the kernel module (held equal under Lune by engines/conformance.test.js) or the place file that performs it.
+  // the kernel module or the place file that performs it.
   it('every Roblox row not absent says how the place carries it, and a built one names a file that is there', () => {
     const M = marksOf('roblox');
     const rows = [...['RULE_MARKS', 'PAGE_MARKS', 'FIGURE_MARKS', 'EVENT_MARKS', 'SYSTEM_MARKS', 'LINK_MARKS', 'MECHANIC_EXTRAS'].flatMap((t) => Object.entries(M[t]).map(([k, r]) => [`${t}.${k}`, r])),
