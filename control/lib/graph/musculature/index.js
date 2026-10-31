@@ -9,9 +9,9 @@
  * (their joints with them), the nipples drawn when asked, and nothing else touched (the head, the clips). Pure and
  * deterministic. */
 import { MUSCLE_CARDS, MUSCLE_CARD_NAMES, validateMuscleCard } from './cards.js';
-import { densify, grainOf, frames, seatMass, displace, symmetrize, mirrorPart, mirrorEgg, girthOf, handsScaled, feetScaled, nipplesOn, activeMass, offsetsOf, domeKeys, endsInside, keptInOrder, UNDER_GAP, taperedTo, endsMeeting, welded, hipWrapped, hipHidden } from './passes.js';
+import { densify, grainOf, frames, seatMass, displace, symmetrize, mirrorPart, mirrorEgg, girthOf, handsScaled, feetScaled, nipplesOn, activeMass, offsetsOf, domeKeys, endsInside, keptInOrder, UNDER_GAP, taperedTo, endsMeeting, welded, hipWrapped, hipHidden, lengthened } from './passes.js';
 import { HAND_SHARE, FOOT_SHARE, NIPPLE, ACTIVITY_JOINTS, WRIST_FROM } from './principles.js';
-import { skinOf, sideOf, TAKEN_OFF, TUCK, DOMES, UNDER, OVER, ABUT, handParts, handJoints, handRamp, footParts, footJoints } from './adapters/loft.js';
+import { skinOf, sideOf, TAKEN_OFF, TUCK, DOMES, UNDER, OVER, ABUT, handParts, handJoints, handRamp, footParts, footJoints, legParts, legJoint } from './adapters/loft.js';
 
 export { MUSCLE_CARDS, MUSCLE_CARD_NAMES, validateMuscleCard } from './cards.js';
 export { FORM_GAIN, DETAIL_GAIN, BLEND, presence, articulation } from './principles.js';
@@ -189,7 +189,9 @@ export function muscleShirt(recipe, spec, { cast = null } = {}) {
   // growth in girth (the sole stays on the ground)
   const shank = recipe.parts.shankR && out.shankR ? girthOf(out.shankR) / girthOf(recipe.parts.shankR) : 1;
   const feet = r6(typeof card.feet === 'number' ? card.feet : Math.max(1, 1 + FOOT_SHARE * (shank - 1)));
-  const { parts, rig } = feetScaled(H.parts, H.rig, feet, footParts, footJoints);
+  const FS = feetScaled(H.parts, H.rig, feet, footParts, footJoints);
+  // 7. THE LEGS LENGTHENED by the card's `legs`: the feet on the ground, the body taller in the legs
+  const { parts, rig } = lengthened(FS.parts, FS.rig, card.legs ?? 1, legParts, legJoint);
   const gone = Object.keys(recipe.parts).filter((n) => TAKEN_OFF.test(n)), done = Object.keys(out);
   const dials = structuredClone(recipe.dials || {});
   for (const dl of Object.values(dials)) {

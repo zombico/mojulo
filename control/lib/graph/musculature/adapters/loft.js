@@ -56,3 +56,8 @@ export const handRamp = (name) => /^wristBridge[RL]$/.test(name);
  * ankle (the toe base and the tip) */
 export const footParts = (S) => new RegExp(`^(foot|toes|hallux|toe[2-5])${S}$`);
 export const footJoints = (S) => new RegExp(`^(toeBase|toeTip)${S}$`);
+
+/** the leg's shells and the pelvis, which the legs' lengthening stretches (passes.js lengthened); every other loft is lifted */
+export const legParts = /^(pelvis|thigh[RL]|shank[RL]|kneeBridge[RL]|foot[RL]|toes[RL])$/;
+/** the leg's joints, stretched with it (the hip's, the knee's, the ankle's, the foot's and their folds) */
+export const legJoint = (k) => /^(hip|knee|ankle|toe|heel|foot|hock|pelvis)/i.test(k);

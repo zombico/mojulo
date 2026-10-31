@@ -154,6 +154,12 @@ fractal articulation of the big groups. The eyes gate is the operator's.
   teardrop and the calf's form-end mass are held in (her knee is slimmer than his, and they ballooned into a ball). The
   door passes the hero's cast (`muscleShirt(recipe, spec, { cast })`; a card may carry `casts`), and a spec's `groups`
   may name a cast's groups (`bust`).
+- **The legs lengthened** (the operator's: the hands and the feet grown with the arms and the legs read the figure
+  stocky; `passes.js` `lengthened`, a card's `legs`, the Saikyo cards' 1.06): the leg's shells, its joints and the pelvis
+  stretched up from the ankle to the hip joint, everything over the hip lifted by as much (about 5 cm), so the soles stay
+  on the ground and the figure stands taller in the legs, where a heroic figure takes its height; the hanging hands lift
+  with the arms rather than stretch, the head's pinned meshes ride the cranium, and the hip's fold's axis grows with the
+  thigh. Her bust a third smaller than first drawn (the operator's).
 - **The hip wrap over high thighs**: the wrap re-lays the pelvis's rings up to the hip joint, or past it to over the
   thighs' tops where they rise higher (the anime female's): her thigh's top, carried out by the hip's muscles, had come
   through the pelvis above the wrap in bars at each hip.
@@ -192,7 +198,7 @@ fractal articulation of the big groups. The eyes gate is the operator's.
   joints scaled about the wrist; the soles on the ground as the feet grow; the nipples only when asked; a bend driver none straight and
   whole at full; a corrective a side per acting joint, the left the right's mirror, nothing at rest, each joint its own;
   the biceps' front bunched; none with the activity off; raised overhead, held out and forward, the shoulder's
-  shells folding no more than the flat body's; the cone as it was; the nipples on the mid-clavicular line; a mass meeting the skin square on climbed in a ramp; a point past the cap held at it; a limb's shells worn by its own groups only; a hidden shell kept under the one over it, only ever pulled in; the hip joined, the pelvis wrapping both thighs to the level, its sides bound as the thighs are; a hip corrective a side, the cheeks spread from the midline; the female card valid and named by the cast, her bust one level and held across the dial, no male fans under it; a joint's bridge welded ring to ring and the wrist most of the hand's width; deterministic; the door stores the word and refuses it by name.
+  shells folding no more than the flat body's; the cone as it was; the nipples on the mid-clavicular line; a mass meeting the skin square on climbed in a ramp; a point past the cap held at it; a limb's shells worn by its own groups only; a hidden shell kept under the one over it, only ever pulled in; the hip joined, the pelvis wrapping both thighs to the level, its sides bound as the thighs are; a hip corrective a side, the cheeks spread from the midline; the legs lengthened with the soles on the ground and the hands and the head not grown; the female card valid and named by the cast, her bust one level and held across the dial, no male fans under it; a joint's bridge welded ring to ring and the wrist most of the hand's width; deterministic; the door stores the word and refuses it by name.
 
 #### The anime frame (hero laws 21): the wrist, the shoe's heel and the clavicle
 

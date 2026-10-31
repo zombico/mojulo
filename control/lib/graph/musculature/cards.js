@@ -31,6 +31,9 @@ const egg = (id, level, on, r, proud, more = {}) => Object.freeze({ id, level, o
 const SAIKYO = {
   note: 'the Saikyo body: hulking but lean on the anime frame (big arms, a full chest and core, sweeping lats, strong legs); form end the JoJo openings\' bodybuilder in a few shapes, detail end Tekken\'s separated muscles',
   grain: 0.011,
+  // (its legs a little longer, 1.06 from the ankle to the hip: the hands and feet grown with the arms and legs had read
+  // the figure stocky; a heroic figure takes its height in the legs)
+  legs: 1.06,
   // (its hands follow its arms: principles.js HAND_SHARE of the forearm's growth; a number here would name their scale)
   groups: [
     { id: 'chest', frame: 'trunk', parts: ['torso'], act: [{ joint: 'shoulder', role: 'extensor' }], masses: [
@@ -218,8 +221,9 @@ const SAIKYO_FEMALE = (() => {
   // (the bust a round mass, its lower pole fuller, the apex a little out from the middle of the mass and down: one level)
   const bust = { id: 'bust', frame: 'trunk', parts: ['torso'], masses: [
     // (broad and deep, its centre near the skin, so it rounds out of the chest rather than standing on it as a cone)
-    egg('breast', 0, { t: 0.62, az: 30 }, [0.4, 0.42, 0.3], 0.24),
-    egg('breastLower', 0, { t: 0.5, az: 28 }, [0.26, 0.36, 0.24], 0.2, { along: [0.3, 0, 1] }),
+    // (a third smaller than first drawn, the operator's)
+    egg('breast', 0, { t: 0.62, az: 30 }, [0.33, 0.35, 0.24], 0.16),
+    egg('breastLower', 0, { t: 0.51, az: 28 }, [0.22, 0.3, 0.19], 0.135, { along: [0.3, 0, 1] }),
   ] };
   const groups = [
     chest, bust,
@@ -243,7 +247,7 @@ const SAIKYO_FEMALE = (() => {
     restyled(by.hamstrings, { proud: 1.15, r: [1, 1.08, 1.05] }),
     restyled(by.calf, { proud: 1.0, r: [1, 0.95, 1], each: { calfMass: { proud: 0.85, r: [1, 0.8, 1] }, gastrocMedial: { r: [0.95, 0.9, 1] }, gastrocMedialHead: { r: [0.95, 0.9, 1] } } }),
   ];
-  return { note: 'the Saikyo body\'s female: muscular and athletic on the anime frame\'s female (a broad capped shoulder, sweeping lats, a narrow waist, a full high round seat, strong hamstrings and diamond calves, her bust its own one-level group)', grain: SAIKYO.grain, groups };
+  return { legs: SAIKYO.legs, note: 'the Saikyo body\'s female: muscular and athletic on the anime frame\'s female (a broad capped shoulder, sweeping lats, a narrow waist, a full high round seat, strong hamstrings and diamond calves, her bust its own one-level group)', grain: SAIKYO.grain, groups };
 })();
 
 export const MUSCLE_CARDS = Object.freeze({ saikyo: Object.freeze({ ...SAIKYO, casts: Object.freeze({ female: SAIKYO_FEMALE }) }), 'saikyo-female': SAIKYO_FEMALE });
@@ -254,6 +258,7 @@ export const MUSCLE_FRAMES = Object.freeze(['trunk', 'upperArm', 'foreArm', 'thi
 export function validateMuscleCard(card, label = 'card') {
   const errs = [];
   if (!card || !Array.isArray(card.groups) || !card.groups.length) return [`${label}: { groups: [{ id, frame, parts, masses }] }`];
+  if (card.legs !== undefined && !(Number.isFinite(card.legs) && card.legs >= 1 && card.legs <= 1.3)) errs.push(`${label}.legs: the legs' length from the ankle to the hip, 1 … 1.3`);
   const ids = new Set();
   for (const g of card.groups) {
     const gl = `${label}.${g.id}`;

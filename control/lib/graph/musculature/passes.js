@@ -691,6 +691,27 @@ export function feetScaled(parts, rig, f, partsOf, jointsOf) {
   return scaledAbout(parts, rig, f, ground, partsOf, jointsOf);
 }
 
+/** the legs LENGTHENED by `f` (the card's `legs`): the leg's shells, its joints and the pelvis stretched up from the ankle
+ * to the hip joint, and everything over the hip lifted by as much, so the feet stay on the ground and the body stands
+ * taller in the legs, where a heroic figure takes its height. The shells a loft of stations (a pinned mesh rides its
+ * parent); the hanging hands lifted with the arms, not stretched. The hands and feet grown with the arms and legs had
+ * read the figure stocky. `legParts` and `legJoint` name the leg's */
+export function lengthened(parts, rig, f, legParts, legJoint) {
+  if (!(f > 1)) return { parts, rig };
+  const J = rig.joints, at = (j) => (Array.isArray(j) ? j : j.at), hipJ = J.hipR && at(J.hipR), ankJ = J.ankleR && at(J.ankleR);
+  if (!hipJ || !ankJ) return { parts, rig };
+  const a = ankJ[2], h = hipJ[2], D = (f - 1) * (h - a);
+  const map = (z) => (z <= a ? z : z >= h ? z + D : z + (D * (z - a)) / (h - a));
+  const leg = (p) => [p[0], p[1], r6(map(p[2]))], lift = (p) => [p[0], p[1], r6(p[2] + D)];
+  const moved = (P, g) => ({ ...P, stations: P.stations.map((x) => ({ ...x, points: Object.fromEntries(Object.entries(x.points).map(([sl, p]) => [sl, g(p)])) })), ...(P.caps ? { caps: Object.fromEntries(Object.entries(P.caps).map(([k, p]) => [k, g(p)])) } : {}) });
+  const out = Object.fromEntries(Object.entries(parts).map(([n, P]) => [n, P.stations ? moved(P, legParts.test(n) ? leg : lift) : P]));
+  const joints = Object.fromEntries(Object.entries(J).map(([k, v]) => { const g = legJoint(k) ? leg : lift; return [k, Array.isArray(v) ? g(v) : { ...v, at: g(v.at) }]; }));
+  // (a fold's axis down the thigh, the knee from the hip, grown as the thigh is)
+  const kf = 1 + D / (h - a);
+  const folds = rig.folds ? Object.fromEntries(Object.entries(rig.folds).map(([k, F]) => [k, F.inAxis && /^hipFold/.test(k) ? { ...F, inAxis: [F.inAxis[0], F.inAxis[1], r6(F.inAxis[2] * kf)] } : F])) : rig.folds;
+  return { parts: out, rig: { ...rig, joints, ...(folds ? { folds } : {}) }, lift: D };
+}
+
 /** parts and joints scaled `f` about each side's centre `centreOf(S)`: the parts `partsOf(S)` names (their stations and
  * caps; one `ramp` names eased from 1 at its back to `f`) and the joints `jointsOf(S)` names */
 /** a limb's shell TAPERED out from its bone toward `f` at its tail: each point's offset from the bone grown by 1 + (f − 1)

@@ -70,7 +70,9 @@ describe('the shirt put on a flat body', () => {
     expect(AT1.report.hands).toBeGreaterThan(1.1);
     const J0 = flat.rig.joints, J1 = AT1.recipe.rig.joints, at = (j) => j.at ?? j, d = (a, b) => Math.hypot(...[0, 1, 2].map((k) => at(a)[k] - at(b)[k]));
     expect(d(J1.knucklesR, J1.wristR) / d(J0.knucklesR, J0.wristR)).toBeCloseTo(AT1.report.hands, 5);
-    expect(at(J1.elbowR)).toEqual(at(J0.elbowR));
+    // (the elbow where it was, lifted with the body over the lengthened legs)
+    const lift = at(J1.headTop)[2] - at(J0.headTop)[2];
+    expect(at(J1.elbowR)).toEqual([at(J0.elbowR)[0], at(J0.elbowR)[1], +(at(J0.elbowR)[2] + lift).toFixed(6)]);
   });
   it('keeps the soles on the ground as the feet grow with the legs, the toes\' joints with them', () => {
     expect(AT1.report.feet).toBeGreaterThan(1.05);
@@ -185,6 +187,22 @@ describe('the skin between the masses', () => {
   });
 });
 
+describe('the legs lengthened', () => {
+  it('stands taller in the legs: the soles on the ground, the head risen by the stretch, the hands and the head not grown', () => {
+    const plain = muscleShirt(flat, { card: { ...MUSCLE_CARDS.saikyo, legs: 1 }, definition: 1 }).recipe, long = AT1.recipe;
+    const zs = (P) => P.stations.flatMap((x) => Object.values(x.points).map((p) => p[2]));
+    const span = (P) => { const z = zs(P); return Math.max(...z) - Math.min(...z); };
+    const J = (r, k) => { const v = r.rig.joints[k]; return Array.isArray(v) ? v : v.at; };
+    const D = (MUSCLE_CARDS.saikyo.legs - 1) * (J(plain, 'hipR')[2] - J(plain, 'ankleR')[2]);
+    expect(Math.min(...zs(long.parts.footR))).toBeCloseTo(Math.min(...zs(plain.parts.footR)), 6);
+    expect(J(long, 'headTop')[2] - J(plain, 'headTop')[2]).toBeCloseTo(D, 5);
+    expect(J(long, 'kneeR')[2]).toBeGreaterThan(J(plain, 'kneeR')[2]);
+    expect(span(long.parts.handR)).toBeCloseTo(span(plain.parts.handR), 6);
+    expect(span(long.parts.cranium)).toBeCloseTo(span(plain.parts.cranium), 6);
+    expect(span(long.parts.thighR)).toBeGreaterThan(span(plain.parts.thighR) * 1.04);
+  });
+});
+
 describe('the female card', () => {
   const HER = { head: 'anime', animeStyle: 'z-fighter', cast: 'female' };
   const her = expandLayeredManifest({ kind: 'layered', hero: heroRecord(withDefaultForm(HER)) }).recipe;
@@ -263,7 +281,9 @@ describe('the shirt in a pose', () => {
     for (const pose of [{ armR: 'up' }, { armR: 'outward' }, { armR: 'forward' }]) expect(folds(AT1.recipe, pose), JSON.stringify(pose)).toBeLessThanOrEqual(folds(flat, pose) + 3);
   }, 120000);
   it('leaves a shell no group wears as it was: the shoulder\'s cone', () => {
-    expect(AT1.recipe.parts.shoulderConeR).toEqual(flat.parts.shoulderConeR);
+    // (as it was but lifted with the body over the lengthened legs: the card's own legs left out)
+    const short = muscleShirt(flat, { card: { ...MUSCLE_CARDS.saikyo, legs: 1 }, definition: 1 });
+    expect(short.recipe.parts.shoulderConeR).toEqual(flat.parts.shoulderConeR);
   });
   it('seats the nipples on the mid-clavicular line, low on the chest', () => {
     const F = frames(flat.rig), [areola] = nipplesOn(AT1.recipe.parts.torso, F, NIPPLE.on, NIPPLE);
