@@ -48,7 +48,7 @@ import { outlineMeasures, outlineCritic } from '@/lib/graph/polygonizer/dress-ou
 import { validateStylism, styledHero, stylismLedger, STYLISM_LAWS_VERSION } from '@/lib/graph/stylism';
 import { readKit, kitDress } from '@/lib/graph/sportswear/kits.js';
 import { readSilhouette, silhouetteAdvice, cohesionAdvice } from '@/lib/graph/stylism/silhouette';
-import { heroPlan, planScale, castOf, lawCast, bustCeilingError, isBuiltCast, HERO_LAWS_VERSION, readsHeroLaws, takesLegSet, takesArmLength, castPole, castLabel, validateBuiltCast, HERO_BUILD_NAMES, HERO_BUILDS, PROPORTION_WORDS, HERO_CASTS, HERO_CORES, DEFAULT_CORE, REGISTERS, BODY_DEFAULTS, PALETTE as HERO_PALETTE, TUNE_KEYS, TUNE_AGGREGATE_KEYS, HERO_MOVE_NAMES, resolveTune, storedTune, validateTune, tuneWarnings } from '@/lib/graph/polygonizer/hero-form';
+import { heroPlan, planScale, castOf, lawCast, bustCeilingError, isBuiltCast, HERO_LAWS_VERSION, ANIME_FRAME, isAnimeFrame, readsHeroLaws, takesLegSet, takesArmLength, castPole, castLabel, validateBuiltCast, HERO_BUILD_NAMES, HERO_BUILDS, PROPORTION_WORDS, HERO_CASTS, HERO_CORES, DEFAULT_CORE, REGISTERS, BODY_DEFAULTS, PALETTE as HERO_PALETTE, TUNE_KEYS, TUNE_AGGREGATE_KEYS, HERO_MOVE_NAMES, resolveTune, storedTune, validateTune, tuneWarnings } from '@/lib/graph/polygonizer/hero-form';
 import { humanoidPlan, PALETTE as HUMANOID_PALETTE } from '@/lib/graph/polygonizer/humanoid-plan';
 import { humanoidAnchors, EXPRESSIONS, westernExpressionErrors, HEAD_PRESETS, FACE_KEYS, FACE_AGGREGATE_KEYS, FACE_MOVE_NAMES, resolveFace, validateFace, faceWarnings } from '@/lib/graph/polygonizer/humanoid-head';
 import { HAIR_KEYS, HAIR_STYLE_NAMES, resolveHair, validateHair, hairWarnings, withGrownFall } from '@/lib/graph/polygonizer/humanoid-hair';
@@ -1414,8 +1414,10 @@ function tieredFormPlan(hero) {
   // shoulders balled: undead/tiered.js, beast/tiered.js, beast/legs.js, beast/topology.js: a digitigrade kin's hock and
   // its second arms' elbows bridged with the knee; its tail and its second arms welded to the trunk by the generic
   // socket, its hands and claws and its own head on the neck (beast/head.js), on the body as it ends)
-  return beastStyle(beastHead(serpentCoil(beastHands(beastDetail(beastSockets(tieredSockets(tieredJoints(tieredChest(beastTopology(beastLegs(beastFlesh(beastTone(undeadFlesh(heroFormPlanOf(tieredFace({ ...hero, body: { ...(hero.body ?? {}), bust: 0 } }, pole)), hero), hero), hero), hero), hero), tieredBust(hero)), beastJoints(hero), { respace: (hero.laws ?? 1) >= 7 }), { web: (hero.laws ?? 1) >= 10 ? 3 : (hero.laws ?? 1) >= 9 ? 2 : (hero.laws ?? 1) >= 8 ? 1 : 0 }), hero), hero), hero), hero), hero), hero);
+  return beastStyle(beastHead(serpentCoil(beastHands(beastDetail(beastSockets(tieredSockets(tieredJoints(tieredChest(beastTopology(beastLegs(beastFlesh(beastTone(undeadFlesh(heroFormPlanOf(tieredFace({ ...hero, body: { ...(hero.body ?? {}), bust: 0 } }, pole)), hero), hero), hero), hero), hero), tieredBust(hero)), beastJoints(hero), { respace: (hero.laws ?? 1) >= 7 }), { web: (hero.laws ?? 1) >= 10 ? 3 : (hero.laws ?? 1) >= 9 ? 2 : (hero.laws ?? 1) >= 8 ? 1 : 0, clavicle: animeFrameOf(hero) && ANIME_FRAME.clavicle }), hero), hero), hero), hero), hero), hero);
 }
+/** whether a hero wears the anime frame (hero-form.js ANIME_FRAME: hero laws 21, the anime proportions, the structured core) */
+const animeFrameOf = (hero) => isAnimeFrame({ laws: hero.laws ?? 1, proportions: hero.proportions ?? (hero.head === 'anime' ? 'anime' : 'hero'), core: hero.core ?? DEFAULT_CORE });
 function heroFormPlanOf(hero) {
   // a child-coded figure (childCoding) never takes the adult female's default bust (hero-form.js BUST_FORM): its body says 0
   // (a footwear library card on the game body keeps its foot bare under it, for the card to be worn over: the library's

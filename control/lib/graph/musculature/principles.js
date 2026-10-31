@@ -23,6 +23,20 @@ export const SINK = 0.45;
  * 1)), so a fist reads with the forearm the shirt grew without becoming a mitt; a card's `hands` (a number) names its own */
 export const HAND_SHARE = 0.75;
 
+/** THE FEET follow the legs: scaled about the ground under the ankle (the sole stays on it) by this share of the
+ * shank's growth in girth; a card's `feet` (a number) names its own */
+export const FOOT_SHARE = 0.6;
+
+/** THE NIPPLES (the shirt's `nipples: true`): a mark on the muscle's skin, worn after the muscles, seated where a ray from
+ * the trunk's axis leaves the displaced chest: the areola a low disc and the papilla a small bump on it (each [across,
+ * across, depth] and proud, in W, sized to read at the shirt's grain: a papilla under it barely moved a point), under
+ * their own tight blend `k` (m), so the pectoral's blend never washes them out */
+export const NIPPLE = Object.freeze({
+  areola: Object.freeze({ r: [0.1, 0.1, 0.03], proud: 0.012 }),
+  papilla: Object.freeze({ r: [0.042, 0.042, 0.03], proud: 0.032 }),
+  k: 0.002,
+});
+
 /** each level's blend `k` in metres, [at the form end, at the detail end]: the masses of one level summed by it, then
  * summed with their parent's level by the parent's; and the skin's (`skin`), how the union meets the wearer's skin */
 export const BLEND = Object.freeze({

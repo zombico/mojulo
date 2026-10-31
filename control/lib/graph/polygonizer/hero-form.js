@@ -347,7 +347,27 @@ export const HERO_BUILD_NAMES = Object.freeze(Object.keys(HERO_BUILDS));
  * drawn with the brow, frame by frame; laws 1 to 19 drew every brow over the head's one socket, its rim only tied to
  * the brow's middle. Only on the anime head's form (laws 19).
  */
-export const HERO_LAWS_VERSION = 20;
+export const HERO_LAWS_VERSION = 21;
+/** THE ANIME FRAME (hero laws 21, the anime proportions on the structured core): the body the anime head wears, refined
+ * where a fuller body read it thin or as boxes (the muscle shirt, musculature/, worn over it, takes each with it):
+ *   wrist   the hand's section at the wrist and its palm's first ring deeper through the hand by this (its second by
+ *           half as much), and the forearm's tendon ring with it: from the front, the palm facing the thigh, the wrist
+ *           had read as a stalk (the side, across the hand, read right)
+ *   shoe    the shoe's section ROUND (`slots` ten points a ring and `e` the superellipse's: six points at a box's 3 had
+ *           read as a hexagon from behind) and its heel a HEEL: a ring at `at` of the ankle → toe base run fullest (`r`,
+ *           of the foot's own) and a little low (`low`, m), the back ring a little in (`back`) under a round cap (`cap`,
+ *           of its radius), so the heel reads as a rounded bulb behind the ankle, not the foot box's flat end
+ *   clavicle  the shoulder's cone rides UNDER the torso's skin at the shoulder's top and front (tiered-form.js
+ *           SHOULDER_CONE `skin`, laws 9), so the collarbone's run from the neck to the shoulder is the torso's own
+ *           surface: riding over it, the cone had stood through it in angular plates
+ * Laws 1 to 20 build the anime body as it was. */
+export const ANIME_FRAME = Object.freeze({
+  wrist: 1.35,
+  shoe: Object.freeze({ slots: 'ring10', e: 2.2, back: [0.92, 0.9], cap: 0.6, at: -0.3, r: [1.06, 1.02], low: -0.004 }),
+  clavicle: true,
+});
+/** whether a plan is the anime frame (hero laws 21 on the anime proportions' structured core) */
+export const isAnimeFrame = ({ laws = 1, proportions = 'hero', core = DEFAULT_CORE } = {}) => laws >= 21 && proportions === 'anime' && core === 'structured';
 /** Does this spec read a table the hero laws cover? (the structured core's shoulder line, laws 2, leg set, laws 3, leg length, laws 4, and arm length, laws 5:
  * every hero on the default core) */
 export const readsHeroLaws = (spec) => (spec.core ?? DEFAULT_CORE) === 'structured' || spec.form === 'tiered' || (spec.painterly !== undefined && spec.painterly !== null && spec.painterly !== false) || isBuiltCast(spec.cast) || (spec.geocube !== undefined && spec.geocube !== null);
@@ -990,7 +1010,9 @@ export function heroPlan({ cast = 'canonical', register = 'round', girth = 1, he
   // (`feet: 'bare'`: the bare foot under a clothed figure too, for a footwear library card to be worn over: footwear/
   // adapters/authored.js)
   const foot = structured && (bare || feet === 'bare') ? heroFoot({ ankle: J.ankle, toeBase: J.toeBase, X, girth: g0, female: femaleMass }) : null;
-  const hand = structured ? heroHand({ wrist: J.wrist, elbow: J.elbow, len: 0.09 * X * handSize, X: X * handSize, girth: g0 * handPuff, wide: (preset?.handWidth ?? 1) * (CF?.wide ?? 1), female: femaleMass, ...(preset?.glove ? { group: 'Glove' } : {}) }) : null;
+  // (hero laws 21: the anime frame, ANIME_FRAME: the wrist deeper through the hand, the shoe's heel a heel)
+  const AFR = isAnimeFrame({ laws, proportions, core }) && !CF ? ANIME_FRAME : null;
+  const hand = structured ? heroHand({ wrist: J.wrist, elbow: J.elbow, len: 0.09 * X * handSize, X: X * handSize, girth: g0 * handPuff, wide: (preset?.handWidth ?? 1) * (CF?.wide ?? 1), female: femaleMass, ...(preset?.glove ? { group: 'Glove' } : {}), ...(AFR ? { wristDepth: AFR.wrist } : {}) }) : null;
   const limb = (name, from, to, rA, rB, over, group, prev, next, extra = {}) => ({ name, kind: 'segment', from, to, rA, rB, ...extra, over, group, mirror: 'name', bind: { bone: name, prev, next } });
   const segments = [torso, ...bust, ...pelvisParts, neck, ...(head ? [] : [blankHead]),
     // the structured core's DELTOID (NECK_ROOT.deltoid): the arm's top ring a little under the joint, its cap taller, so
@@ -1006,7 +1028,7 @@ export function heroPlan({ cast = 'canonical', register = 'round', girth = 1, he
     // through, × extremities), so it tapers into the hand instead of stepping down onto it; it is fullest across below
     // the elbow (ARM_FORM) and slims over its last third from the tendon's ring, at u 1.5 (st1_st2_50, the cuff's)
     limb('foreArmR', 'elbow', 'wrist', structured ? g(AF.forearm.elbow.map((x) => b.forearm * x)) : g([b.forearm * 0.76, b.forearm * 0.86]), hand ? hand.wrist : g([0.029, 0.03]), [0.36, 0.2], 'Top', 'upperArmR', 'handR',
-      { mid: 0.3, rMid: structured ? g(AF.forearm.belly.map((x) => b.forearm * x)) : g([b.forearm * 0.77, b.forearm * 0.82]), ...(structured ? { shape: [{ at: (0.3 + 1 + 0.2 * Math.max(...hand.wrist) / Math.sqrt(J.wrist.reduce((a, x, k) => a + (x - J.elbow[k]) ** 2, 0))) / 2, r: g(AF.forearm.tendon.map((x) => b.forearm * x)) }] } : {}) }),
+      { mid: 0.3, rMid: structured ? g(AF.forearm.belly.map((x) => b.forearm * x)) : g([b.forearm * 0.77, b.forearm * 0.82]), ...(structured ? { shape: [{ at: (0.3 + 1 + 0.2 * Math.max(...hand.wrist) / Math.sqrt(J.wrist.reduce((a, x, k) => a + (x - J.elbow[k]) ** 2, 0))) / 2, r: g(AF.forearm.tendon.map((x, i) => b.forearm * x * (AFR && i === 0 ? 1 + (AFR.wrist - 1) / 2 : 1))) }] } : {}) }),
     // the structured core's HAND (hero-hand.js): a palm and five digits on the same wrist and knuckles; the streamlined
     // core keeps the mitten
     ...(hand ? hand.segments : [limb('handR', 'wrist', 'knuckles', g([0.035 * X, 0.025 * X]), g([0.037 * X, 0.023 * X]), [0.25, 0.1], 'Skin', 'foreArmR', null, { e: Math.max(reg.e, 3) })]),
@@ -1017,7 +1039,12 @@ export function heroPlan({ cast = 'canonical', register = 'round', girth = 1, he
       ...(structured ? { shape: [{ at: LF.calf.at, r: LF.calf.r.map((x) => r6(b.calf * x)), yc: r6(b.calf * LF.calf.yc * softL), xc: r6(b.calf * LF.calf.xc * softL) },
         { at: (0.36 + 1 + 0.28 * (b.calf - 0.028) / Math.sqrt(J.ankle.reduce((a, x, k) => a + (x - J.knee[k]) ** 2, 0))) / 2, r: LF.slim.map((x) => r6(b.calf * x)) }] } : {}) }),
     // the shoe (footwear replaces the foot: hero-foot.js is the bare structured hero's)
-    ...(foot ? foot.segments : [limb('footR', 'ankle', 'toeBase', [r6(0.046 * XW), 0.038], [r6(0.056 * XW), 0.028], [1.1, 0.2], 'Shoes', 'shankR', 'toesR', { e: Math.max(reg.e, 3) }),   // the width scales; the height keeps the sole
+    // (hero laws 21, the anime frame: its section rounder and its heel a heel, ANIME_FRAME.shoe)
+    ...(foot ? foot.segments : AFR ? (() => {
+      const H = AFR.shoe, rF = [r6(0.046 * XW), 0.038];
+      return [limb('footR', 'ankle', 'toeBase', H.back.map((x, i) => r6(rF[i] * x)), [r6(0.056 * XW), 0.028], [1.1, 0.2], 'Shoes', 'shankR', 'toesR', { slots: H.slots, e: H.e, cap: [H.cap, 0.45], shape: [{ at: H.at, r: H.r.map((x, i) => r6(rF[i] * x)), yc: H.low }] }),
+        limb('toesR', 'toeBase', 'toeTip', [r6(0.056 * XW), 0.028], [r6(0.05 * XW), 0.02], [0.2, 0.35], 'Shoes', 'footR', null, { slots: H.slots, e: H.e })];
+    })() : [limb('footR', 'ankle', 'toeBase', [r6(0.046 * XW), 0.038], [r6(0.056 * XW), 0.028], [1.1, 0.2], 'Shoes', 'shankR', 'toesR', { e: Math.max(reg.e, 3) }),   // the width scales; the height keeps the sole
       limb('toesR', 'toeBase', 'toeTip', [r6(0.056 * XW), 0.028], [r6(0.05 * XW), 0.02], [0.2, 0.35], 'Shoes', 'footR', null, { e: Math.max(reg.e, 3) })]),
   ];
   // laws 12: the chibi's limbs CYLINDERS (CHIBI_FORM): each ring of the arm, the forearm and the shank drawn toward the

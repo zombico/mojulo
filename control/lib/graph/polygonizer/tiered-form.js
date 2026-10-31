@@ -13,6 +13,7 @@
  *   tieredChest(plan, size)   the plan with the field on its torso (size: the bust radius in metres; 0 none)
  *   tieredJoints(plan)        the plan with a BRIDGE over the elbows, the knees and the wrists
  *   tieredSockets(plan)       the plan with the shoulders and the hips turning their limb's root through a fold
+ *                             (`clavicle`, hero laws 21's anime frame: the shoulder's cone under the torso's skin)
  *   tieredGarments(plan)      the plan's garments over its bridges, and split wherever their body part is split
  *   tieredKit(kit, plan, { laws })  an adornment kit over the joints: a piece over a joint rides its bridge, a pauldron its
  *                                   ball, a trunk plate keeps off the shoulder (laws 18)
@@ -298,7 +299,8 @@ export const WEB_ARMPIT = Object.freeze({ slots: Object.freeze(['sideL', 'backL'
  * inner side and goes into the torso over the shoulder's top, front and back, so the torso's shoulder corner (the
  * pectoral's top, the trapezius' slope, the shoulder blade) runs into the ball closed, not at a facet: a ring between
  * rides `skin` (of the ball's radius) over the torso where it would sink under it, at most `most`, on its upper half
- * (fully from `top` of its radius up), its sides held under the skin (`sink` of the way to it), and draws in by `tuck` toward its centre on its
+ * (fully from `top` of its radius up), its sides held under the skin (`sink` of the way to it; `clavicleSink` under hero
+ * laws 21's anime frame, where none of it rides over: at 0.97 it broke through between the torso's rings), and draws in by `tuck` toward its centre on its
  * lower half (fully from `under` down), so it never spans the armpit and never steps. Rings at `t` (0
  * in the ball, 1 the base) with their weights by role. Past the ball it runs on INTO THE ARM (`arm`: rings round the
  * arm's axis at `at` of the ball's radius from its centre with radius `r` of it, then the arm's belly ring drawn in to
@@ -307,7 +309,7 @@ export const WEB_ARMPIT = Object.freeze({ slots: Object.freeze(['sideL', 'backL'
  * under them (its centre kept), so a raised arm never shows it. At laws 9 the web also HUGS the arm before it ends (`hug`: its last ring before the
  * arm's the arm's own section that share of the way down to the belly ring, `swell` over it), where laws 8 met the arm at
  * an angle and showed the meeting as a crease. */
-export const SHOULDER_CONE = Object.freeze({ ball: 0.7, reach: 0.55, start: 0.9, across: 2.1, up: 1.35, inside: 0.85, top: 0.7, under: 0.7, sink: 0.97, tuck: 0.6, most: 0.8, hug: 0.55, swell: 1.05,
+export const SHOULDER_CONE = Object.freeze({ ball: 0.7, reach: 0.55, start: 0.9, across: 2.1, up: 1.35, inside: 0.85, top: 0.7, under: 0.7, sink: 0.97, clavicleSink: 0.82, tuck: 0.6, most: 0.8, hug: 0.55, swell: 1.05,
   rings: Object.freeze([Object.freeze({ t: 1, w: { trunk: 1 } }), Object.freeze({ t: 0.66, skin: 0.08, w: { trunk: 0.65, fold: 0.35 } }), Object.freeze({ t: 0.33, skin: 0.06, w: { trunk: 0.3, fold: 0.7 } }), Object.freeze({ t: 0, w: { fold: 1 } })]),
   arm: Object.freeze([Object.freeze({ at: 0.7, r: 0.9, w: { fold: 0.45, limb: 0.55 } }), Object.freeze({ at: 1.4, r: 0.82, w: { fold: 0.15, limb: 0.85 } }), Object.freeze({ belly: 0.88, w: { limb: 1 } })]) });
 
@@ -343,7 +345,7 @@ export function torsoSection(plan, segments, name = 'torso') {
   return { hold, clear };
 }
 
-export function tieredSockets(plan, { web = 0 } = {}) {
+export function tieredSockets(plan, { web = 0, clavicle = false } = {}) {
   const folds = plan.rig?.folds; if (!folds || !plan.rig.joints) return plan;
   const J = plan.joints, newFolds = { ...folds }; let any = false;
   const segments = plan.segments.map((seg) => {
@@ -407,8 +409,10 @@ export function tieredSockets(plan, { web = 0 } = {}) {
         const P = ringAt(R.t, r * (C.start + (C.across - C.start) * R.t), r * (C.start + (C.up - C.start) * R.t)), m = c.map((x, i) => x + (to[i] - x) * R.t);
         if (R.t === 1) return Object.fromEntries(slots.map((sl) => [sl, torso.hold(P[sl], web >= 3 ? WEB_ARMPIT.inside : C.inside)]));
         // (a ring between rides just over the torso's skin where it would sink under it, over the shoulder's top and its
-        // front and back; under the shoulder it draws in toward its centre, so it never spans the armpit)
-        return Object.fromEntries(slots.map((sl) => { const w = R.skin ? over(sl) : 0, under = torso.hold(P[sl], C.sink), outer = w > 0 ? torso.clear(P[sl], unit3(sub3(P[sl], m)), R.skin * r, C.most * r) : P[sl];
+        // front and back; under the shoulder it draws in toward its centre, so it never spans the armpit. Under hero
+        // laws 21's anime frame, `clavicle` (hero-form.js ANIME_FRAME), it rides under the skin there too: the
+        // collarbone's run is the torso's own surface, which the riding cone had stood through in angular plates)
+        return Object.fromEntries(slots.map((sl) => { const w = R.skin && !clavicle ? over(sl) : 0, under = torso.hold(P[sl], clavicle ? C.clavicleSink : C.sink), outer = w > 0 ? torso.clear(P[sl], unit3(sub3(P[sl], m)), R.skin * r, C.most * r) : P[sl];
           const out = R.skin ? under.map((x, i) => x + (outer[i] - x) * w) : P[sl], tk = tuckOf(sl);
           return [sl, out.map((x, i) => x + (m[i] + (P[sl][i] - m[i]) * C.tuck - x) * tk)]; }));
       });
@@ -438,7 +442,7 @@ export function tieredSockets(plan, { web = 0 } = {}) {
         return [`st${i}.${sl}`, wOf(w)]; }) : [])));
       const endC = centre(cone[cone.length - 1]);
       balls.push({ name: b.name.replace(/^shoulderBall/, 'shoulderCone'), kind: 'rings', slots: 'ring8', stations: cone.map((P, i) => ({ id: `st${i}`, points: Object.fromEntries(slots.map((sl) => [sl, P[sl].map(r6)])) })),
-        caps: { back: to.map((x, i) => r6(x + ax[i] * r * 0.2)), tip: endC.map((x, i) => r6(x + d[i] * r * 0.15)) }, group: seg.group, mirror: 'name',
+        caps: { back: (clavicle ? torso.hold(to.map((x, i) => x + ax[i] * r * 0.2), C.inside) : to.map((x, i) => x + ax[i] * r * 0.2)).map(r6), tip: endC.map((x, i) => r6(x + d[i] * r * 0.15)) }, group: seg.group, mirror: 'name',
         bind: { bone: K.fold, blend: { back: wOf(ws[0]), ...Object.fromEntries(ws.map((w, i) => [`st${i}`, wOf(w)])), tip: wOf(ws[ws.length - 1]), ...(web >= 3 ? tuckedToTrunk() : {}) } } });
     }
     balls.push({ name: b.name.replace(/^shoulderBall/, 'shoulderWeb'), kind: 'rings', slots: 'ring8', stations,

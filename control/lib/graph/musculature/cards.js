@@ -32,9 +32,13 @@ const SAIKYO = {
       egg('pecSlab', 0, { t: 0.6, az: 30 }, [0.5, 0.32, 0.16], 0.065, { along: [1, 0, 0.15] }),
       egg('pecSternal', 1, { t: 0.55, az: 27 }, [0.44, 0.26, 0.13], 0.065, { along: [1, 0, 0.35] }),
       egg('pecClavicular', 1, { t: 0.8, az: 32 }, [0.32, 0.14, 0.08], 0.039, { along: [1, 0, -0.1] }),
-      egg('pecFanLow', 2, { t: 0.46, az: 23 }, [0.36, 0.11, 0.09], 0.0585, { along: [1, 0, 0.55] }),
-      egg('pecFanMid', 2, { t: 0.58, az: 28 }, [0.38, 0.11, 0.09], 0.0618, { along: [1, 0, 0.3] }),
-      egg('pecFanHigh', 2, { t: 0.69, az: 33 }, [0.34, 0.1, 0.08], 0.052, { along: [1, 0, 0.1] }),
+      // (its heads at the detail end ROUNDED, as a pectoral is: a full belly low and in, the lower border one curve
+      // rising gently and ending short of the armpit, the outer corner round, the fibres turning up into the tendon under
+      // the deltoid; fans reaching out to the armpit had converged there in a triangle)
+      egg('pecBelly', 2, { t: 0.52, az: 21 }, [0.3, 0.24, 0.12], 0.072, { along: [1, 0, 0.2] }),
+      egg('pecLowerBorder', 2, { t: 0.44, az: 24 }, [0.28, 0.11, 0.09], 0.068, { along: [1, 0, 0.35] }),
+      egg('pecUpper', 2, { t: 0.67, az: 27 }, [0.28, 0.11, 0.075], 0.058, { along: [1, 0, 0.05] }),
+      egg('pecOuter', 2, { t: 0.57, az: 37 }, [0.17, 0.16, 0.08], 0.05, { along: [1, 0, 0.5] }),
       egg('pecClavicularHead', 2, { t: 0.8, az: 33 }, [0.3, 0.12, 0.075], 0.0423, { along: [1, 0, -0.1] }),
     ] },
     { id: 'core', frame: 'trunk', parts: ['torso', 'pelvis'], masses: [
@@ -86,18 +90,18 @@ const SAIKYO = {
       egg('gluteMaxHead', 2, { t: -1.1, az: 155 }, [0.36, 0.34, 0.13], 0.0553),
       egg('gluteMedHead', 2, { t: -0.7, az: 112 }, [0.22, 0.22, 0.08], 0.0358),
     ] },
-    { id: 'deltoid', frame: 'upperArm', parts: ['upperArm', 'shoulderBall', 'shoulderCone', 'shoulderWeb'], masses: [
-      egg('deltoidCap', 0, { s: 0.12, az: 90 }, [0.42, 0.42, 0.16], 0.078),
-      egg('deltoidCrown', 0, { s: 0.02, az: 95, el: 55 }, [0.3, 0.36, 0.14], 0.06),
-      egg('deltoidTop', 1, { s: 0.03, az: 95, el: 50 }, [0.26, 0.3, 0.12], 0.055),
-      egg('deltoidAnterior', 1, { s: 0.14, az: 30 }, [0.36, 0.2, 0.13], 0.065),
-      egg('deltoidLateral', 1, { s: 0.16, az: 90 }, [0.38, 0.22, 0.14], 0.0715),
-      egg('deltoidPosterior', 1, { s: 0.15, az: 150 }, [0.34, 0.2, 0.12], 0.0585),
-      egg('deltoidTopHead', 2, { s: 0.03, az: 95, el: 50 }, [0.24, 0.28, 0.11], 0.055),
-      egg('deltoidAnteriorHead', 2, { s: 0.14, az: 30 }, [0.34, 0.18, 0.12], 0.065),
-      egg('deltoidLateralFront', 2, { s: 0.17, az: 74 }, [0.36, 0.12, 0.12], 0.0715),
-      egg('deltoidLateralBack', 2, { s: 0.17, az: 106 }, [0.36, 0.12, 0.12], 0.0715),
-      egg('deltoidPosteriorHead', 2, { s: 0.15, az: 150 }, [0.32, 0.18, 0.11], 0.0585),
+    { id: 'deltoid', frame: 'upperArm', parts: ['upperArm', 'shoulderWeb', 'shoulderBall', 'shoulderCone'], masses: [
+      egg('deltoidCap', 0, { s: 0.06, az: 90 }, [0.42, 0.42, 0.16], 0.078),
+      egg('deltoidCrown', 0, { s: -0.08, az: 100, el: 70 }, [0.3, 0.36, 0.14], 0.05),
+      egg('deltoidTop', 1, { s: -0.08, az: 100, el: 70 }, [0.26, 0.3, 0.12], 0.045),
+      egg('deltoidAnterior', 1, { s: 0.08, az: 30 }, [0.36, 0.2, 0.13], 0.065),
+      egg('deltoidLateral', 1, { s: 0.09, az: 90 }, [0.38, 0.22, 0.14], 0.0715),
+      egg('deltoidPosterior', 1, { s: 0.08, az: 150 }, [0.34, 0.2, 0.12], 0.0585),
+      egg('deltoidTopHead', 2, { s: -0.08, az: 100, el: 70 }, [0.24, 0.28, 0.11], 0.045),
+      egg('deltoidAnteriorHead', 2, { s: 0.08, az: 30 }, [0.34, 0.18, 0.12], 0.065),
+      egg('deltoidLateralFront', 2, { s: 0.1, az: 74 }, [0.36, 0.12, 0.12], 0.0715),
+      egg('deltoidLateralBack', 2, { s: 0.1, az: 106 }, [0.36, 0.12, 0.12], 0.0715),
+      egg('deltoidPosteriorHead', 2, { s: 0.08, az: 150 }, [0.32, 0.18, 0.11], 0.0585),
     ] },
     { id: 'biceps', frame: 'upperArm', parts: ['upperArm', 'elbowBridge', 'foreArm'], masses: [
       egg('armFront', 0, { s: 0.56, az: 10 }, [0.5, 0.3, 0.17], 0.078),

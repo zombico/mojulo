@@ -97,7 +97,7 @@ export { HAND_POSES };
  * Returns { segments, joints, bones, hands, wrist }: the six rings parts (mirrored by name), the rig joints and bones
  * (`$S`), the rig's `hands` block for both sides, and the hand's section at the wrist (the forearm's last ring).
  */
-export function heroHand({ wrist, elbow, len, X = 1, girth = 1, wide = 1, female = false, group = 'Skin' }) {
+export function heroHand({ wrist, elbow, len, X = 1, girth = 1, wide = 1, female = false, group = 'Skin', wristDepth = 1 }) {
   const F = HAND_FORM[female ? 'female' : 'male'];
   const A = unit(sub(wrist, elbow)), V = unit(sub([0, 1, 0], mul(A, A[1]))), N = unit(cross(V, A));   // along, across (toward the thumb), out of the palm
   const at = (u, v, w) => add(wrist, add(add(mul(A, u), mul(V, v)), mul(N, w)));
@@ -115,8 +115,10 @@ export function heroHand({ wrist, elbow, len, X = 1, girth = 1, wide = 1, female
   // ── the palm: the back of the hand is −N; its rings' radial side (cross(−N, A) = V) carries the R slots ──
   const P = F.palm, back = mul(N, -1);
   const ring8 = ['front', 'frontR', 'sideR', 'backR', 'back', 'backL', 'sideL', 'frontL'];
-  const palmStations = P.rings.map(([u, hw, hb, hf], i) => {
-    const last = i === P.rings.length - 1;
+  // (`wristDepth`, hero laws 21's anime frame: the first ring deeper through the hand by it, the second by half as much)
+  const deepAt = (i) => (i === 0 ? wristDepth : i === 1 ? 1 + (wristDepth - 1) / 2 : 1);
+  const palmStations = P.rings.map(([u, hw, hb0, hf0], i) => {
+    const last = i === P.rings.length - 1, hb = hb0 * deepAt(i), hf = hf0 * deepAt(i);
     const push = {
       ...(i === 1 || i === 2 ? { backR: mul(N, P.thenar[i - 1] * gx), backL: mul(N, (i === 1 ? P.hypothenar : P.hypothenar * 0.6) * gx) } : {}),
     };
@@ -195,7 +197,7 @@ export function heroHand({ wrist, elbow, len, X = 1, girth = 1, wide = 1, female
   // the hand's section at the wrist joint (its first two rings met there): the forearm's last ring takes it, [through the
   // hand, across it] in a limb ring's [R side, front] (at rest the hand's across is the front), so the forearm tapers into
   // the hand with no step
-  const [r0, r1] = P.rings, t = -r0[0] / (r1[0] - r0[0]), mix = (k) => r0[k] + (r1[k] - r0[k]) * t;
+  const [r0, r1] = P.rings.map((r, i) => (i < 2 ? [r[0], r[1], r[2] * deepAt(i), r[3] * deepAt(i)] : r)), t = -r0[0] / (r1[0] - r0[0]), mix = (k) => r0[k] + (r1[k] - r0[k]) * t;
   const section = [r6(((mix(2) + mix(3)) / 2) * gx), r6(mix(1) * gx)];
   return { segments, joints, bones, hands: { R: side('R'), L: side('L') }, wrist: section };
 }

@@ -67,7 +67,7 @@ export function grainOf(P, grain, { maxAround = 96, maxRings = 120 } = {}) {
  * winds a shell by its first band (station-loft.js loft), which a ring collapsed onto the pole cannot answer */
 const DOME_REACH = (70 * Math.PI) / 180;
 /** a dome's least rise past its end ring (of the ring's radius): a flat cap's */
-const DOME_RISE = 0.6;
+const DOME_RISE = 0.5;
 
 /** where a dense part's DOME rings and poles cast from (displace): the end ring's centre, by station and by cap */
 const ORIGIN = new WeakMap();
@@ -180,11 +180,11 @@ const mirrorEgg = (e) => ({ ...e, id: `${e.id}L`, c: [-e.c[0], e.c[1], e.c[2]], 
 
 /** the union of a set of seated masses at definition `d`: each group summed finest level first (a level's masses by
  * its blend, then with the finer levels' union by the same), the groups by level 0's */
-export function unionOf(masses, d) {
+export function unionOf(masses, d, k = null) {
   // (a level none of a group's masses seated on is empty, never a hole: Array.from, since map skips one)
   const groups = new Map();
   for (const e of masses) { let g = groups.get(e.group); if (!g) groups.set(e.group, g = []); (g[e.level] ??= []).push(e); }
-  const k0 = blendOf(0, d), G = [...groups.values()].map((levels) => Array.from(levels, (es, l) => ({ es: es ?? [], k: blendOf(l, d) })));
+  const k0 = k ?? blendOf(0, d), G = [...groups.values()].map((levels) => Array.from(levels, (es, l) => ({ es: es ?? [], k: k ?? blendOf(l, d) })));
   return (q) => {
     let all = Infinity;
     for (const levels of G) {
@@ -207,33 +207,38 @@ export const END_TUCK = 0.004, END_BAND = 0.018;
 
 /** a dense part DISPLACED onto the union of the skin and `masses`: each point carried out along its ring's ray to the
  * union's surface (the skin a plane through the point, square to the ray), less its `tuck` and, near its ends, its end
- * tuck (each never more than the point moved). A point no mass reaches keeps its place */
-export function displace(P, masses, d, tuck = 0) {
+ * tuck (each never more than the point moved). A point no mass reaches keeps its place. `k` one blend for every level
+ * and the skin (a mark's: the nipples'), its march finer. `whole`: the tuck taken whole, moved or not (adapters/loft.js UNDER) */
+export function displace(P, masses, d, tuck = 0, k = null, whole = false) {
   if (!masses.length) return { part: P, moved: 0 };
-  const M = unionOf(masses, d), kS = skinBlendOf(d), STEP = 0.002, REACH = 0.16;
+  const M = unionOf(masses, d, k), kS = k ?? skinBlendOf(d), STEP = k ? 0.0005 : 0.002, REACH = k ? 0.03 : 0.16;
   const centres = P.stations.map((x) => scl(P.slots.reduce((a, s) => add(a, x.points[s]), [0, 0, 0]), 1 / P.slots.length));
   // (each ring's run from the part's nearer end, along its rings' centres)
   const run = [0]; for (let i = 1; i < centres.length; i++) run.push(run[i - 1] + len(sub(centres[i], centres[i - 1])));
-  const total = run[run.length - 1], endOf = (i) => { const x = Math.min(run[i], total - run[i]) / END_BAND; if (x >= 1) return 0; const y = 1 - x; return END_TUCK * y * y * (3 - 2 * y); };
+  // (an end closed in a dome is no end: the dome runs on over it, and a tuck there cut a groove round the arm under it)
+  const domedBack = ORIGIN.has(P.stations[0]), domedTip = ORIGIN.has(P.stations[P.stations.length - 1]);
+  const total = run[run.length - 1], endOf = (i) => { const x = Math.min(domedBack ? Infinity : run[i], domedTip ? Infinity : total - run[i]) / END_BAND; if (x >= 1) return 0; const y = 1 - x; return END_TUCK * y * y * (3 - 2 * y); };
   let moved = 0;
   // (a point carried out along its ray from `c` onto the union, less its tuck; unmoved where no mass reaches)
-  const carry = (p0, c, tk) => {
+  // (a DOME's point, the shirt's own surface and none of the wearer's, takes its tuck whole: the shoulder web's dome lay on
+  // the arm's, the two shells showing through each other in patches)
+  const carry = (p0, c, tk, dome = false) => {
     const t0 = len(sub(p0, c)), dir = unit(sub(p0, c));
     const f = (s) => smin(s - t0, M(add(c, scl(dir, s))), kS);
-    if (f(t0) >= 0) return p0;
+    if (f(t0) >= 0) return dome && tk ? add(c, scl(dir, t0 - tk)).map(r6) : p0;
     let lo = t0, hi = t0 + STEP; while (hi < t0 + REACH && f(hi) < 0) { lo = hi; hi += STEP; }
     for (let it = 0; it < 30 && hi - lo > 1e-7; it++) { const m = (lo + hi) / 2; if (f(m) < 0) lo = m; else hi = m; }
     // (a shell that should not show tucked in by as much as it moved, up to its tuck: adapters/loft.js TUCK)
     const s = (lo + hi) / 2; moved++;
-    return add(c, scl(dir, s - Math.min(tk, s - t0))).map(r6);
+    return add(c, scl(dir, s - (dome ? tk : Math.min(tk, s - t0)))).map(r6);
   };
   const stations = P.stations.map((x, i) => {
     // (a dome ring casts from its end ring's centre, so its rays leave over the end, not across it)
-    const c = ORIGIN.get(x) ?? centres[i], points = {}, tk = Math.max(tuck, endOf(i));
-    for (const sl of P.slots) points[sl] = carry(x.points[sl], c, tk);
+    const dome = ORIGIN.has(x), c = ORIGIN.get(x) ?? centres[i], points = {}, tk = dome ? tuck : Math.max(tuck, endOf(i));
+    for (const sl of P.slots) points[sl] = carry(x.points[sl], c, tk, dome || whole);
     return { ...x, points };
   });
-  const from = ORIGIN.get(P) ?? {}, caps = P.caps ? Object.fromEntries(Object.entries(P.caps).map(([k, q]) => [k, from[k] ? carry(q, from[k], Math.max(tuck, END_TUCK)) : q])) : P.caps;
+  const from = ORIGIN.get(P) ?? {}, caps = P.caps ? Object.fromEntries(Object.entries(P.caps).map(([k, q]) => [k, from[k] ? carry(q, from[k], tuck, true) : q])) : P.caps;
   return { part: { ...P, stations, ...(caps ? { caps } : {}) }, moved };
 }
 /** a midline part made exactly symmetric: each left slot the mirror of its right partner, the midline slots on x = 0 */
@@ -262,20 +267,50 @@ export function girthOf(P) {
 }
 
 /** the recipe's hands scaled `f` about each wrist: the parts `partsOf(S)` names (their stations and caps) and the joints
- * `jointsOf(S)` names, so the fingers still turn in their knuckles; a part `ramp` names eased from 1 at its back to `f` (the form field's physique `hands`, body-relational.js) */
-export function handsScaled(parts, rig, f, partsOf, jointsOf, ramp = () => false) {
+ * `jointsOf(S)` names, so the fingers still turn in their knuckles; a part `ramp` names eased from 1 at its back to `f`
+ * (the form field's physique `hands`, body-relational.js) */
+export const handsScaled = (parts, rig, f, partsOf, jointsOf, ramp = () => false) => scaledAbout(parts, rig, f, (S) => rig.joints[`wrist${S}`] && at(rig.joints[`wrist${S}`]), partsOf, jointsOf, ramp);
+
+/** the recipe's feet scaled `f` about the ground under each ankle (the lowest point of the side's foot parts, under the
+ * ankle joint), so the sole stays on it and the foot grows forward, back and up */
+export function feetScaled(parts, rig, f, partsOf, jointsOf) {
+  const ground = (S) => {
+    const a = rig.joints[`ankle${S}`]; if (!a) return null;
+    let z = Infinity; const re = partsOf(S);
+    for (const [k, P] of Object.entries(parts)) if (re.test(k)) for (const x of P.stations) for (const p of Object.values(x.points)) if (p[2] < z) z = p[2];
+    return Number.isFinite(z) ? [at(a)[0], at(a)[1], z] : null;
+  };
+  return scaledAbout(parts, rig, f, ground, partsOf, jointsOf);
+}
+
+/** parts and joints scaled `f` about each side's centre `centreOf(S)`: the parts `partsOf(S)` names (their stations and
+ * caps; one `ramp` names eased from 1 at its back to `f`) and the joints `jointsOf(S)` names */
+export function scaledAbout(parts, rig, f, centreOf, partsOf, jointsOf, ramp = () => false) {
   if (f === 1) return { parts, rig };
   const P = { ...parts }, joints = { ...rig.joints };
   for (const S of ['R', 'L']) {
-    const w = rig.joints[`wrist${S}`]; if (!w) continue;
-    const c = at(w), to = (p) => add(c, scl(sub(p, c), f)).map(r6), re = partsOf(S), rj = jointsOf(S);
+    const c = centreOf(S); if (!c) continue;
+    const re = partsOf(S), rj = jointsOf(S), toAt = (g) => (p) => add(c, scl(sub(p, c), g)).map(r6);
     for (const [k, Pt] of Object.entries(parts)) if (re.test(k)) {
       // (a bridge from the forearm, `ramp`, grows from none at its forearm end to the hand's at its hand end: grown whole, it
       // stood over the forearm's slim end as a cuff)
-      const n = Pt.stations.length, by = (i) => (ramp(k) ? 1 + ((f - 1) * i) / (n - 1) : f), toAt = (g) => (p) => add(c, scl(sub(p, c), g)).map(r6);
+      const n = Pt.stations.length, by = (i) => (ramp(k) ? 1 + ((f - 1) * i) / (n - 1) : f);
       P[k] = { ...Pt, stations: Pt.stations.map((x, i) => ({ ...x, points: Object.fromEntries(Object.entries(x.points).map(([sl, p]) => [sl, toAt(by(i))(p)])) })), ...(Pt.caps ? { caps: Object.fromEntries(Object.entries(Pt.caps).map(([q, p]) => [q, toAt(q === 'back' ? by(0) : by(n - 1))(p)])) } : {}) };
     }
-    for (const j of Object.keys(joints)) if (rj.test(j)) { const v = joints[j]; joints[j] = Array.isArray(v) ? to(v) : { ...v, at: to(v.at) }; }
+    for (const j of Object.keys(joints)) if (rj.test(j)) { const v = joints[j]; joints[j] = Array.isArray(v) ? toAt(f)(v) : { ...v, at: toAt(f)(v.at) }; }
   }
   return { parts: P, rig: { ...rig, joints } };
+}
+
+// ─── 6. MARKS ON THE SKIN ──────────────────────────────────────────────────────────────────────────────────────────
+
+/** the NIPPLES seated on a displaced trunk part (the right; the left its mirror): where a ray from the trunk's axis at
+ * `on` leaves it, the areola and the papilla (principles.js NIPPLE) laid square to its skin, each standing proud of it */
+export function nipplesOn(P, F, on, N) {
+  const rad = (deg) => (deg * Math.PI) / 180, o = [0, 0, F.trunk.z0 + on.t * F.trunk.T], dir = [dmath.sin(rad(on.az)), dmath.cos(rad(on.az)), 0];
+  const hit = rayHit(P, o, dir); if (!hit) return [];
+  const n = hit.n, a = unit(sub([0, 0, 1], scl(n, n[2]))), b = cross(n, a);
+  const egg = (id, m) => { const r = m.r.map((x) => x * F.W); return { id, group: 'nipple', level: 0, c: add(hit.p, scl(n, m.proud * F.W - r[2])), ax: [a, b, n], r }; };
+  const R = [egg('areola', N.areola), egg('papilla', N.papilla)];
+  return [...R, ...R.map(mirrorEgg)];
 }

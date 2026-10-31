@@ -68,6 +68,21 @@ describe('the shirt put on a flat body', () => {
     expect(d(J1.knucklesR, J1.wristR) / d(J0.knucklesR, J0.wristR)).toBeCloseTo(AT1.report.hands, 5);
     expect(at(J1.elbowR)).toEqual(at(J0.elbowR));
   });
+  it('keeps the soles on the ground as the feet grow with the legs, the toes\' joints with them', () => {
+    expect(AT1.report.feet).toBeGreaterThan(1.05);
+    const low = (R, re) => Math.min(...Object.entries(R.parts).filter(([n]) => re.test(n)).flatMap(([, P]) => P.stations.flatMap((x) => Object.values(x.points).map((p) => p[2]))));
+    expect(low(AT1.recipe, /^(foot|toes)R$/)).toBeCloseTo(low(flat, /^(foot|toes)R$/), 5);
+    const at = (j) => j.at ?? j;
+    expect(at(AT1.recipe.rig.joints.toeTipR)[1]).toBeGreaterThan(at(flat.rig.joints.toeTipR)[1]);
+  });
+  it('draws the nipples only when asked, as marks on the chest', () => {
+    const on = muscleShirt(flat, { card: 'saikyo', definition: 1, nipples: true });
+    expect(AT1.report.nipples).toBe(false);
+    expect(on.report.moved.nipples).toBe(2);
+    expect(JSON.stringify(on.recipe.parts.torso)).not.toBe(JSON.stringify(AT1.recipe.parts.torso));
+    expect(JSON.stringify(on.recipe.parts.pelvis)).toBe(JSON.stringify(AT1.recipe.parts.pelvis));
+    expect(validateMuscleShirt({ card: 'saikyo', nipples: 'yes' })[0]).toMatch(/nipples: true/);
+  });
   it('is deterministic, and the dial moves the surface', () => {
     expect(JSON.stringify(worn(1).recipe)).toBe(JSON.stringify(AT1.recipe));
     expect(JSON.stringify(worn(0).recipe.parts.torso)).not.toBe(JSON.stringify(AT1.recipe.parts.torso));

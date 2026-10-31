@@ -25,8 +25,9 @@ import { resolveTune } from './hero-form.js';
 /** the bodies of a style: a high-schooler's, a smaller head on a longer, skinnier frame, the neck slim under the jaw
  * (relative to the anime proportions the head wears) */
 const LEAN_LONG = Object.freeze({ head: 0.94, stature: 1.03, legs: 1.03, neck: 1.04, neckGirth: 0.82, shoulders: 0.96, depth: 0.92, waist: 0.93, upperArm: 0.88, forearm: 0.9, thigh: 0.88, calf: 0.9 });
-/** a grown martial hero's: a small head on a tall, heavy frame, the neck short and thick into the trapezius */
-const HEAVY_HERO = Object.freeze({ head: 0.88, stature: 1.05, neck: 0.92, neckGirth: 1.25, shoulders: 1.14, depth: 1.08, waist: 1.02, upperArm: 1.25, forearm: 1.18, thigh: 1.15, calf: 1.12 });
+/** a grown martial hero's: a small head on a tall, heavy frame, the neck short and thick into the trapezius (thick, not a
+ * column: at 1.25 it stood as wide as the jaw from the front) */
+const HEAVY_HERO = Object.freeze({ head: 0.88, stature: 1.05, neck: 0.92, neckGirth: 1.1, shoulders: 1.14, depth: 1.08, waist: 1.02, upperArm: 1.25, forearm: 1.18, thigh: 1.15, calf: 1.12 });
 /** a schoolkid's: a big head on a short, slight frame, the neck thin */
 const SCHOOL_KID = Object.freeze({ head: 1.1, stature: 0.88, legs: 0.95, torso: 0.96, neck: 0.94, neckGirth: 0.78, shoulders: 0.9, depth: 0.88, waist: 0.92, upperArm: 0.84, forearm: 0.86, thigh: 0.85, calf: 0.87 });
 
