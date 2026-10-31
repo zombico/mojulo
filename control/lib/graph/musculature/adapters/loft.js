@@ -21,7 +21,7 @@ export const UNDER = Object.freeze(['shoulderWeb', 'shoulderBall']);
 /** which shells show OVER each shell where they meet (base names; a limb's on its own side): the shirt keeps the one
  * under them under (passes.js keptInOrder) and dives its ends inside them (endsInside). Named, not read off the tucks:
  * by the tucks alone the elbow's bridge lay under the pelvis it hangs beside */
-export const OVER = Object.freeze({ neck: ['torso'], pelvis: ['torso'], thigh: ['pelvis'] });
+export const OVER = Object.freeze({ neck: ['torso'], pelvis: ['torso'] });
 /** the joints' BRIDGES and the shells they ABUT, ring to ring on the flat body: the shirt welds each bridge's ends to its
  * neighbours' end rings (passes.js welded), and those ends do not dive */
 export const ABUT = Object.freeze({ elbowBridge: ['upperArm', 'foreArm'], wristBridge: ['foreArm'], kneeBridge: ['thigh', 'shank'] });

@@ -9,7 +9,7 @@
  * (their joints with them), the nipples drawn when asked, and nothing else touched (the head, the clips). Pure and
  * deterministic. */
 import { MUSCLE_CARDS, MUSCLE_CARD_NAMES, validateMuscleCard } from './cards.js';
-import { densify, grainOf, frames, seatMass, displace, symmetrize, mirrorPart, mirrorEgg, girthOf, handsScaled, feetScaled, nipplesOn, activeMass, offsetsOf, domeKeys, endsInside, keptInOrder, UNDER_GAP, taperedTo, endsMeeting, welded } from './passes.js';
+import { densify, grainOf, frames, seatMass, displace, symmetrize, mirrorPart, mirrorEgg, girthOf, handsScaled, feetScaled, nipplesOn, activeMass, offsetsOf, domeKeys, endsInside, keptInOrder, UNDER_GAP, taperedTo, endsMeeting, welded, hipWrapped, hipHidden } from './passes.js';
 import { HAND_SHARE, FOOT_SHARE, NIPPLE, ACTIVITY_JOINTS, WRIST_FROM } from './principles.js';
 import { skinOf, sideOf, TAKEN_OFF, TUCK, DOMES, UNDER, OVER, ABUT, handParts, handJoints, handRamp, footParts, footJoints } from './adapters/loft.js';
 
@@ -106,6 +106,18 @@ export function muscleShirt(recipe, spec) {
     raw[n] = part; out[n] = side ? part : symmetrize(part); moved[n] = k; held[n] = capped;
   }
   { const shown = { ...out }; for (const n of Object.keys(dense)) { const P = weldOf(n, underOwners(n, raw[n], (a) => shown[a]), (a) => shown[a]); if (P !== raw[n]) { raw[n] = P; out[n] = sideOf(n).side ? P : symmetrize(P); } } }
+  // THE HIP JOINED (hipWrapped): the pelvis re-laid round itself and both thighs' tops, one surface down to a level over
+  // the crotch, the thighs' tops hidden under it; `hip` applies it to a pelvis and a right thigh (rest or active), the
+  // left thigh the rest's mirror
+  const thighL = recipe.parts.thighL && (typeof recipe.parts.thighL.bind === 'string' ? { ...recipe.parts.thighL, bind: { bone: recipe.parts.thighL.bind } } : recipe.parts.thighL);
+  const hipZ = F.limb.thigh?.h?.[2];
+  const hip = (pelvis, thighR, restR) => {
+    if (!pelvis || !thighR || !thighL || hipZ === undefined) return { pelvis, thighR };
+    const { part, level, rim } = hipWrapped(pelvis, { R: thighR, L: mirrorPart(restR, thighL) }, hipZ);
+    return level === undefined ? { pelvis, thighR } : { pelvis: part, thighR: hipHidden(thighR, level, rim) };
+  };
+  const hipFree = { thighR: raw.thighR };
+  if (raw.pelvis && raw.thighR) { const j = hip(raw.pelvis, raw.thighR, raw.thighR); raw.pelvis = j.pelvis; out.pelvis = symmetrize(j.pelvis); raw.thighR = out.thighR = j.thighR; }
   // SQUASH AND STRETCH (a group's `act`): per joint, its flexors bunched and its extensors stretched (activeMass) on the
   // right side, the parts they are worn by displaced again, and the difference worn as a CORRECTIVE on the rest, driven
   // by the joint (principles.js ACTIVITY_JOINTS); the left side's the mirror. Hands and feet and bridges a scale moves
@@ -139,7 +151,10 @@ export function muscleShirt(recipe, spec) {
       // (a point held at the move's cap at rest or active, its ray grazing a mass, keeps its rest place: posed, such rays
       // swung out in shards; a joint that reverts eases every point back, the held ones too, or they stood out in frills
       // round the skin it eased)
-      const { capped } = acts[n], shape = (a) => acts[a]?.part ?? out[a], act = weldOf(n, underOwners(n, acts[n].part, shape), shape);
+      const { capped } = acts[n], shape = (a) => acts[a]?.part ?? out[a];
+      let act = weldOf(n, underOwners(n, acts[n].part, shape), shape);
+      // (the hip joined on the active shapes as on the rest: the pelvis round the active right thigh, the thigh under it)
+      if (n === 'pelvis' || n === 'thighR') { const j = hip(n === 'pelvis' ? act : (acts.pelvis?.part ?? raw.pelvis), n === 'thighR' ? act : (acts.thighR?.part ?? hipFree.thighR), hipFree.thighR); act = n === 'pelvis' ? j.pelvis : j.thighR; }
       const keep = driver.revert ? [] : [...held[n], ...capped, ...(driver.domes ? [] : domeKeys(dense[n]))];
       const o = offsetsOf(n, raw[n], driver.revert ? reverted(act, dense[n], driver.revert) : act, side ? `${base}L` : n, new Set(keep));
       Object.assign(right, o.R); Object.assign(left, o.L);

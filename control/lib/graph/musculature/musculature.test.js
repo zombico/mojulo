@@ -138,6 +138,20 @@ describe('the skin between the masses', () => {
     const i = P.stations.indexOf(mid), j = P.slots.find((sl) => mid.points[sl] === front);
     expect(keptInOrder(B0, B0, [{ A0, A, gap: 0.002 }]).stations[i].points[j]).toEqual(B0.stations[i].points[j]);
   });
+  it('joins the hip: the pelvis wraps both thighs\' tops down to a level over the crotch, its sides bound as the thighs are', () => {
+    const Pv = AT1.recipe.parts.pelvis, T = AT1.recipe.parts.thighR, hj = AT1.recipe.rig.joints.hipR, hipZ = (hj.at ?? hj)[2];
+    const zc = (X, x) => X.slots.reduce((a, sl) => a + x.points[sl][2], 0) / X.slots.length;
+    // (the pelvis's rings under the hip joint: the widest as wide as the thighs' outer sides at its height)
+    const low = Pv.stations.filter((x) => zc(Pv, x) < hipZ - 0.01 && zc(Pv, x) > Pv.stations[0].points.front[2] + 0.005);
+    expect(low.length).toBeGreaterThan(2);
+    const x = low[1], z = zc(Pv, x), half = Math.max(...Pv.slots.map((sl) => x.points[sl][0]));
+    const thighOut = Math.max(...T.stations.flatMap((t) => T.slots.map((sl) => t.points[sl])).filter((q) => Math.abs(q[2] - z) < 0.006).map((q) => q[0]));
+    expect(half).toBeGreaterThan(thighOut - 0.004);
+    // (its side bound with the thigh's fold, its front's midline the pelvis's alone)
+    const side = Pv.slots.reduce((a, sl) => (x.points[sl][0] > x.points[a][0] ? sl : a));
+    expect(Object.keys(Pv.bind.blend[`${x.id}.${side}`])).toContain('hipFoldR');
+    expect(Pv.bind.blend[`${x.id}.front`]).toEqual({ pelvis: 1 });
+  });
   it('welds a joint\'s bridge to the shells it meets, ring to ring, and tapers the wrist to the hand', () => {
     const P = AT1.recipe.parts, cen = (X, i) => X.slots.reduce((a, sl) => a.map((v, k) => v + X.stations[i].points[sl][k] / X.slots.length), [0, 0, 0]);
     // (each ring's mean reach from its centre: the bridge's and its neighbour's rings sample one curve at different points)

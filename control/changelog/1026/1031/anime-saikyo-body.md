@@ -124,6 +124,22 @@ fractal articulation of the big groups. The eyes gate is the operator's.
   (fewer points escaped by count, but those left tore in long shards across the groin) and fading the hold at the
   outer shell's open end (no better). Thigh points escaping the pelvis in the horse stance: about 280 → 180; the plain
   body has its own shards there, being two boxes at the crotch.
+- **The hip joined** (the operator's; `passes.js` `hipWrapped`, `hipHidden`): the pelvis had been a brief over the
+  thighs, each shell bound its own way (the pelvis rigid to its bone, the thigh ramping through the hip's fold to the
+  femur), and in a wide stance the thighs' tops tore out through its leg openings, the plain body's as well. Now, as the
+  realistic body hands its hip over, by one level: the pelvis's rings under the hip joint are re-laid round the union
+  of itself and both thighs (each slot the farthest crossing along its azimuth from the trunk's axis), so the pelvis
+  wraps the tops of both legs as one surface down to a level 1.2 cm over the crotch, where the thighs take the skin; its
+  lowest ring goes on straight down a little inside them and its cap closes over the crotch (drawn sharply in, it had
+  shaded the level's ring into a dark band). Out at the sides the wrap takes the weights of the thigh under it at its
+  height (the hip's fold, then the femur), none on the midline (`HIP_SIDE`), so it moves with the legs. Each thigh is
+  drawn 6 mm in from half a band under the level (hidden under the wrap, crossing it at a slope rather than lying on it
+  in teeth), and under the level its skin facing out from the trunk is eased out to the wrap's lowest ring over 4 cm
+  where that stands at most 2.5 cm further out (`HIP_DROP`, `HIP_REACH`: the cheek's underside running into the thigh;
+  without the reach, the inner thigh's front was drawn out to the belly's front at the crotch and spiked posed). The
+  thigh is no longer kept under the pelvis (`OVER`), the wrap does that. At rest the hip reads as one surface: the
+  cheeks round under into the gluteal fold, a thin line where the shells meet; the ready, horse and sumo stances, the
+  fighting stance and the side lunge hold at the crotch at both ends of the dial.
 - **The shoulder's cap without its rim**: the shoulder's drum and web, under the arm's skin, are tucked 2.5 cm (1 cm
   had let their domes stand through the top of the arm's dome at rest, a crisp rim round the deltoid's crown); raised,
   they still bridge the armpit as before.
@@ -145,7 +161,7 @@ fractal articulation of the big groups. The eyes gate is the operator's.
   joints scaled about the wrist; the soles on the ground as the feet grow; the nipples only when asked; a bend driver none straight and
   whole at full; a corrective a side per acting joint, the left the right's mirror, nothing at rest, each joint its own;
   the biceps' front bunched; none with the activity off; raised overhead, held out and forward, the shoulder's
-  shells folding no more than the flat body's; the cone as it was; the nipples on the mid-clavicular line; a mass meeting the skin square on climbed in a ramp; a point past the cap held at it; a limb's shells worn by its own groups only; a hidden shell kept under the one over it, only ever pulled in; a joint's bridge welded ring to ring and the wrist most of the hand's width; deterministic; the door stores the word and refuses it by name.
+  shells folding no more than the flat body's; the cone as it was; the nipples on the mid-clavicular line; a mass meeting the skin square on climbed in a ramp; a point past the cap held at it; a limb's shells worn by its own groups only; a hidden shell kept under the one over it, only ever pulled in; the hip joined, the pelvis wrapping both thighs to the level, its sides bound as the thighs are; a joint's bridge welded ring to ring and the wrist most of the hand's width; deterministic; the door stores the word and refuses it by name.
 
 #### The anime frame (hero laws 21): the wrist, the shoe's heel and the clavicle
 
