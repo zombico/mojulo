@@ -51,7 +51,7 @@ describe('form grass', () => {
     expect(GRASS_TIERS.some((t) => t.sward === 'any')).toBe(false);
   });
 
-  it('by the camera\'s mode: POV real grass to the view cone\'s reach, thinning, strands past it; aerial all of it', () => {
+  it('by the camera\'s mode: POV real grass to the view cone\'s reach, thinning, its far map past it; aerial all of it', () => {
     const src = formGrassScript();
     // (no share of the map: the reach is the cone's, and a tile its frustum does not see is not drawn)
     expect(POV_GRASS.share).toBeUndefined();
@@ -59,9 +59,10 @@ describe('form grass', () => {
     expect(src).toContain('PV.uPovR.value = pov ? RP : 1e6');
     expect(src).toContain('&& CONE.sees(T.s)');
     expect(POV_GRASS.thin).toBeLessThan(1);
-    expect(POV_GRASS.strands.px).toBeGreaterThan(0);
     expect(src).toContain('window.__formGrassView = (v) =>');
-    expect(src).toContain("'form-grass-strands'");
+    // (past the reach no geometry: the far map the crust paints from, channels/crust.js)
+    expect(src).not.toContain("'form-grass-strands'");
+    expect(src).toContain('window.__formFar = {');
   });
 
   it('wanders in height (a slow field, taller and shorter stretches, each clump its own share), and carries a few weeds', () => {

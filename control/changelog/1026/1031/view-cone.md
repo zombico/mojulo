@@ -12,3 +12,13 @@
 - **The grass reads the cone** (`scene/channels/form-grass.js` `POV_GRASS`): real grass inside it, thinning over its last
   half, strands past it; a tile is drawn only if the frustum sees it and its band of distance reaches it. The aerial
   camera still draws the whole field.
+- **The crust** (`scene/channels/crust.js`, emitted by the form channel after the grass). In gameplay's camera each frame
+  is drawn in two: the crust, everything past the cone's reach rendered from the eye into an image with its depth and
+  painted over in 2D, and the main slice, the live scene to the reach, over it. The matte spends the grass on the land's
+  contour: past the reach grass is a blanket of one colour, lit as the plate is and offset by each cell's dice (a
+  flower's colour where one grows), and strands a few pixels tall stand only where its edge meets the sky or a farther
+  slope. C toggles the crust. The crust is drawn every frame for now, so a frame costs more than one pass: its reuse
+  between frames is the next step.
+- **No strands past the reach** (`scene/channels/form-grass.js`): the 0.45 m strand rows and their meshes are gone; a
+  far map, one strand a cell of the grass map (its height, colour, dice and the ground's height), is what the crust
+  paints from (`window.__formFar`).

@@ -16,7 +16,9 @@
 //           of their own, grown full, one plant a cell picked by its dice and its form's weight; a kind that stands
 //           (wheat) takes the blades' place, a low one (chaff, the flowers) stands among them
 //   views   by the camera's mode (POV_GRASS): AERIAL, a cutscene's, the whole field; POV, gameplay's, real grass in the
-//           VIEW CONE (channels/view-cone.js: the frustum to its reach), thinning, and STRANDS past its reach
+//           VIEW CONE (channels/view-cone.js: the frustum to its reach), thinning, and past its reach an impression:
+//           no geometry, the crust's painter (channels/crust.js) dotting a tuft a cell of the grass map on the far
+//           image, from the FAR MAP this block builds once (`window.__formFar`)
 //   wind    the page's one gust field (channels/terrain-wind.js, the gen-6 live grass's wind kept on a form page with its
 //           blades off: the trees' crowns sway in it): every blade, strand and plant bends downwind by the gust at its
 //           root, its top the most, with a quiver of its own, and a gust's band reads a shade brighter as it passes, so
@@ -43,13 +45,12 @@ export const GRASS_TIERS = Object.freeze([
 export const STILL_FIELD = Object.freeze({ spread: Object.freeze({ tall: 1, medium: 1, short: 1 }), tile: 24 });
 /** The field as the eye sees it, by the CAMERA'S MODE: AERIAL (a cutscene's camera) the whole field; POV (gameplay, the
  *  walker's eye, the default) real grass only out to the VIEW CONE's reach (channels/view-cone.js `window.__mojCone`: the
- *  screen's, or a world's `cone`, adjustable live), thinning past `thin` of it, each
- *  clump going whole at a distance of its own, and past it STRANDS: one sliver a strand, `spacing` m apart over all the
- *  grass, kept `px` pixels wide whatever its distance (the perspective's own measure), shaded root to tip as the blades
- *  are and swaying in the same wind, each coming in at its own distance as the grass thins. In either mode a tile the
- *  cone's frustum does not see is not drawn. `window.__formGrassView('aerial' | 'pov')` sets it; V toggles it on a
- *  walkable page. */
-export const POV_GRASS = Object.freeze({ thin: 0.5, strands: Object.freeze({ spacing: 0.45, px: 1.6, height: Object.freeze([0.55, 1]) }) });
+ *  screen's, or a world's `cone`, adjustable live), thinning past `thin` of it, each clump going whole at a distance of
+ *  its own, and past it an IMPRESSION: a tuft a cell of the grass map, a few dots painted up the far image from its root
+ *  (channels/crust.js, from the FAR MAP: each cell's strand height, colour slot, dice and ground). No geometry. In either
+ *  mode a tile the cone's frustum does not see is not drawn. `window.__formGrassView('aerial' | 'pov')` sets it; V toggles it on a walkable
+ *  page. */
+export const POV_GRASS = Object.freeze({ thin: 0.5, strands: Object.freeze({ height: Object.freeze([0.55, 1]) }) });
 /** How the grass's height wanders: a slow field over the land (`cell` m), taller and shorter stretches between `range`
  *  × the sward's own, and each clump its own share more or less (± `clump`). */
 export const GRASS_HEIGHT = Object.freeze({ cell: 6, range: Object.freeze([0.72, 1.28]), clump: 0.2 });
@@ -80,6 +81,7 @@ float fgGust( vec2 root ) { return clamp( length( mojWindAt( root, 1.0, uWindT )
 `;
 const WIND_HEAD = 'uniform float uWindT; uniform vec4 uWindA; uniform vec4 uWindB; uniform sampler2D uWindNoise;\n' + WIND_AT_GLSL + BEND_GLSL;
 const STILL_HEAD = 'vec3 fgBend( vec2 root, float hgt, float s, float ph ) { return vec3( 0.0 ); }\nfloat fgGust( vec2 root ) { return 0.0; }\n';
+
 
 export function formGrassScript() {
   return `
@@ -149,7 +151,7 @@ export function formGrassScript() {
       const tipAt = (sw) => { const q = GTIERS.find((t) => t.sward === (sw < 0.25 ? 'tall' : sw < 0.75 ? 'medium' : 'short')); return q.scale * q.clump.height[1] * (BR[q.sward][0] + BR[q.sward][1] * 0.5); };
       // (the camera's mode: POV draws real grass out to the view cone's reach and strands past it, AERIAL all the grass;
       // a tile wholly past what its mode draws, or out of the cone's frustum, is not drawn at all)
-      const CONE = window.__mojCone, PV = { uPovR: { value: CONE.reach }, uPx: { value: new THREE.Vector2(PG.strands.px, 0.001) } }, TILES = [];
+      const CONE = window.__mojCone, PV = { uPovR: { value: CONE.reach } }, TILES = [];
       let view = 'pov';
       window.__formGrassView = (v) => { view = v === 'aerial' ? 'aerial' : 'pov'; return view; };
       window.addEventListener('keydown', (e) => { if (e.key === 'v' || e.key === 'V') console.log('grass view', window.__formGrassView(view === 'pov' ? 'aerial' : 'pov')); });
@@ -259,61 +261,52 @@ export function formGrassScript() {
         });
         window.__formWeeds = (window.__formWeeds || 0) + stand(tg, R, plantMat()) * Fm.p.length / 9;
       }); }
-      // the STRANDS (POV, past the real grass): over all the grass, a strand a cell, its height its section's tips', one
-      // sliver turned to the eye and kept PG.strands.px pixels wide, coming in at its own distance as the grass thins.
-      // A strand is the colour of what grows where it stands: the grass's, a standing drift's (wheat) whole, one that lies
-      // among the blades (chaff) on a share of them, a flower's at its tip on a share of them (each form's colour its
-      // tip's, a slot of its own)
+      // the STRANDS (POV, past the real grass): the FAR MAP, a strand a cell of the grass map, its height its section's
+      // tips' (a standing drift's its own), its colour slot, its dice and the ground's height there, read by the crust's
+      // painter (channels/crust.js), no geometry. A strand is the colour of what grows where it stands: the grass's, a standing
+      // drift's (wheat) whole, one that lies among the blades (chaff) on a share of them, a flower's at its tip on a share
+      // of them (each form's colour its tip's, a slot of its own)
       (function () {
-        const tip = (q) => q.scale * q.clump.height[1] * (BR[q.sward][0] + BR[q.sward][1]), R = [];
+        const tip = (q) => q.scale * q.clump.height[1] * (BR[q.sward][0] + BR[q.sward][1]);
         const SC = [grassCol.r, grassCol.g, grassCol.b], SFL = [0], slot = [];
         if (Dr) Dr.kinds.forEach((K, k) => { slot[k] = K.forms.map((Fm) => {
           if (SFL.length >= 16) return 0;
           const P = Fm.p, C = Fm.c; let top = 0; for (let i = 2; i < P.length; i += 3) top = Math.max(top, P[i]);
           const c = [0, 0, 0]; let n = 0; for (let i = 2; i < P.length; i += 3) if (P[i] > top * 0.6) { for (let q = 0; q < 3; q++) c[q] += C[i - 2 + q]; n++; }
           SC.push(...c.map((v) => v / Math.max(1, n))); SFL.push(K.id === 'flowers' ? 1 : 0); return SFL.length - 1; }); });
-        each(PG.strands.spacing, 77, (x, y, m, h) => {
-          if (h(5.3, 1.9) >= m.cov * 1.2) return;
-          const q = GTIERS.find((t) => t.sward === (m.sw < 0.25 ? 'tall' : m.sw < 0.75 ? 'medium' : 'short'));
-          let ht = tip(q), si = 0;
-          if (Dr) Dr.kinds.some((K, k) => {
-            if (m.dr[k] < 0.5 || h(11.3 + k, 3.7) >= (K.stands ? 1 : K.id === 'flowers' ? DT.flowers.keep * 0.5 : 0.5)) return false;
+        const H = new Float32Array(nx * ny), FG = new Uint8Array(nx * ny * 4); let hMax = 0.01;
+        for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++) {
+          const q = cAt(i, j), m = { cov: gpx[q + 2] / 255, sw: gpx[q + 3] / 255, dr: dpx ? [dpx[q], dpx[q + 1], dpx[q + 2], dpx[q + 3]].map((v) => v / 255) : [0, 0, 0, 0] };
+          const h = (a, b) => hb(i * a + 77, j * b), k = j * nx + i, x = x0 + i * Gm.cell, y = y0 + j * Gm.cell;
+          if (h(5.3, 1.9) >= m.cov * 1.2) continue;
+          const tq = GTIERS.find((t) => t.sward === (m.sw < 0.25 ? 'tall' : m.sw < 0.75 ? 'medium' : 'short'));
+          let ht = tip(tq), si = 0;
+          if (Dr) Dr.kinds.some((K, kk) => {
+            if (m.dr[kk] < 0.5 || h(11.3 + kk, 3.7) >= (K.stands ? 1 : K.id === 'flowers' ? DT.flowers.keep * 0.5 : 0.5)) return false;
             let w0 = 0; const pk = h(17.13, 5.71), fi = Math.max(0, K.forms.findIndex((Fm) => (w0 += Fm.w) > pk));
-            si = slot[k][fi]; if (K.stands) ht = (K.heights[0] + K.heights[1]) / 2; return true; });
-          R.push(x, y, zAt(x, y), ht * tall(x, y) * (PG.strands.height[0] + (PG.strands.height[1] - PG.strands.height[0]) * h(0.37, 0.91)) * sm(0.08, 0.6, m.cov), h(2.9, 4.1) * 6.2832, si + 0.98 * h(7.7, 0.3));
-        });
+            si = slot[kk][fi]; if (K.stands) ht = (K.heights[0] + K.heights[1]) / 2; return true; });
+          H[k] = ht * tall(x, y) * (PG.strands.height[0] + (PG.strands.height[1] - PG.strands.height[0]) * h(0.37, 0.91)) * sm(0.08, 0.6, m.cov);
+          hMax = Math.max(hMax, H[k]); FG[k * 4 + 1] = si; FG[k * 4 + 3] = Math.round(h(7.7, 0.3) * 255);
+        }
+        // (the ground's height in the third channel, over the map's range: the painter's test that a pixel is the ground)
+        for (let k = 0; k < nx * ny; k++) FG[k * 4 + 2] = Math.round(((zT(k * 4) - Gm.z[0]) / Math.max(1e-6, Gm.z[1])) * 255);
+        for (let k = 0; k < nx * ny; k++) FG[k * 4] = H[k] > 0 ? Math.max(1, Math.round((H[k] / hMax) * 255)) : 0;
         while (SFL.length < 16) { SC.push(0, 0, 0); SFL.push(0); }
-        const tg = new THREE.InstancedBufferGeometry(); tg.setAttribute('position', new THREE.Float32BufferAttribute([-0.5, 0, 0, 0.5, 0, 0, 0, 0, 1], 3)); tg.setAttribute('bt', new THREE.Float32BufferAttribute([0, 0, 1], 1)); tg.setIndex([0, 1, 2]);
-        const sm0 = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.8, metalness: 0, side: THREE.DoubleSide });
-        const SCU = { uSC: { value: Array.from({ length: 16 }, (_, i) => new THREE.Vector3(SC[i * 3], SC[i * 3 + 1], SC[i * 3 + 2])) }, uSF: { value: SFL } };
-        sm0.onBeforeCompile = (sh) => {
-          Object.assign(sh.uniforms, GU, PV, SCU);
-          sh.vertexShader = GHEAD + windHead(sh) + ROOT + 'uniform vec2 uPx;\\nuniform vec3 uSC[16];\\nuniform float uSF[16];\\nattribute float bt;\\nvarying float vBt;\\nvarying float vTone;\\nvarying float vFl;\\nvarying vec3 vCol;\\nvarying vec3 vBase;\\n' + sh.vertexShader
-            .replace('#include <beginnormal_vertex>', [
-              // (in where the grass thins, at its own distance; its width the pixels it is held to at its distance)
-              'float dP = length( aRoot.xy - cameraPosition.xy ), rP = fract( fract( aTurn.y ) * 5.17 + aTurn.x * 2.03 ), aP = mix( uPovR * ' + PG.thin.toFixed(2) + ', uPovR, sqrt( rP ) );',
-              'float hP = aRoot.w * smoothstep( aP, aP + 0.6, dP ) * step( uPovR, 1e5 );',
-              'vec2 eye = normalize( aRoot.xy - cameraPosition.xy + vec2( 1e-4, 0.0 ) ), side = vec2( -eye.y, eye.x ) * uPx.x * uPx.y * dP;',
-              'vec3 objectNormal = vec3( 0.0, 0.0, 1.0 );',
-              'int si = int( floor( aTurn.y ) ); vCol = uSC[si]; vFl = uSF[si]; vBase = uSC[0];',
-              'vBt = bt; vTone = ( 0.85 + 0.3 * fract( aTurn.y ) ) * ( 1.0 + fgGust( aRoot.xy ) );'].join('\\n'))
-            .replace('#include <begin_vertex>', 'vec3 transformed = vec3( aRoot.xy + side * position.x * step( 0.001, hP ), aRoot.z + position.z * hP ) + fgBend( aRoot.xy, hP, position.z, aTurn.x * 2.1 + aTurn.y );');
-          sh.fragmentShader = 'varying float vBt;\\nvarying float vTone;\\nvarying float vFl;\\nvarying vec3 vCol;\\nvarying vec3 vBase;\\n' + sh.fragmentShader
-            // (a flower's colour at its tip, the grass's under it; any other strand its colour root to tip)
-            .replace('#include <color_fragment>', '#include <color_fragment>\\n  diffuseColor.rgb *= mix( vBase, vCol, vFl > 0.5 ? smoothstep( 0.55, 0.9, vBt ) : 1.0 ) * mix( 0.45, 1.1, vBt ) * vTone;');
-        };
-        sm0.customProgramCacheKey = () => 'form-grass-strands' + (windU() ? '-wind' : '');
-        window.__formStrands = stand(tg, R, sm0, 'strands');
+        const ft = new THREE.DataTexture(FG, nx, ny, THREE.RGBAFormat); ft.magFilter = ft.minFilter = THREE.NearestFilter; ft.needsUpdate = true;
+        window.__formFar = { tex: ft, origin: [x0 - Gm.cell / 2, y0 - Gm.cell / 2], n: [nx, ny], cell: Gm.cell, hMax, z: Gm.z, thin: PG.thin,
+          cols: Array.from({ length: 16 }, (_, i) => new THREE.Vector3(SC[i * 3], SC[i * 3 + 1], SC[i * 3 + 2])), flowers: SFL, pov: () => view === 'pov' };
+        window.__formStrands = H.reduce((n, v) => n + (v > 0 ? 1 : 0), 0);
       })();
-      // (each frame, after the cone has its camera and before the render list is built: the eye's pixel at a metre, for
-      // the strands, the cone's reach, and the tiles its mode does not reach or its frustum does not see left undrawn)
+      // (each frame, after the cone has its camera and before the render list is built: the eye's pixel at a metre and
+      // the cone's reach, for the plants and the ground's strands, and the tiles its mode does not reach or its frustum
+      // does not see left undrawn)
       const prevBR = scene.onBeforeRender;
       scene.onBeforeRender = function (r, sc, cam, rt) {
         if (prevBR) prevBR.call(this, r, sc, cam, rt);
         if (!cam.isPerspectiveCamera) return;
         const pov = view === 'pov', RP = CONE.reach, cx = CONE.eye.x, cy = CONE.eye.y;
-        PV.uPx.value.y = CONE.px; PV.uPovR.value = pov ? RP : 1e6;
-        for (const T of TILES) { const d = Math.hypot(T.s.center.x - cx, T.s.center.y - cy); T.m.visible = (T.kind === 'strands' ? pov && d + T.s.radius > RP * PG.thin : !pov || d - T.s.radius < RP) && CONE.sees(T.s); }
+        PV.uPovR.value = pov ? RP : 1e6;
+        for (const T of TILES) { const d = Math.hypot(T.s.center.x - cx, T.s.center.y - cy); T.m.visible = (!pov || d - T.s.radius < RP) && CONE.sees(T.s); }
       };
     })();
   }
