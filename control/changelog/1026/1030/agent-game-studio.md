@@ -25,3 +25,14 @@ and stays the agent's word; the person reads what the compiler lets their agent 
   compiler moved to How it works, and the quickstart's first ask is a game. The npm README's lead, the Claude plugin's
   README and manifests, `package.json`, `server.json`, `glama.json` and the dashboard's meta description say the same.
   The department cards with a bible page beside each screen wait on their captures.
+- **Six departments, proving what the studio builds.** The departments are worlds and levels; characters, props and
+  vehicles; play modes, animation and sound; foes and bosses; cameras and cutscenes; and game design and production,
+  which ties them into the game's bible. QA, shipping and the trailer stop being departments: the audit and the engine
+  legs are how everything the studio builds holds up, told in How it works and Where it goes. The README opens on the six
+  things it builds, its departments table sits under the quickstart, and the one-breath answer, `CLAUDE.md`, the npm
+  README, the plugin README and the outline name the same six.
+- **Fixed after a blind read against the code.** The departments table no longer links cameras to the broadcast doc or
+  game design to the press (the stealth base's book is the bible's example); worlds name the ground and what grows on it,
+  and characters their acting faces (expressions, a facial-capture take saved with its voice). The stealth session's
+  cost line says what it wrote to the cache (107k) apart from its output (9k), and the opening no longer says one
+  sentence changes the game "wherever it shows".

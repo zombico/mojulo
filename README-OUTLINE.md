@@ -32,11 +32,11 @@ manifests follow it (Appendix A). The `initialize` preamble and `forward_context
 - *Design* is the capability; printing, playing and watching are outcomes of it.
 - Tool names never in a heading or a card's body; one collapsed "for your agent" line per card at most.
 
-**Showcase rule.** Every capability is shown as a pair: a bible page beside the screen it describes (the world bible's
-map beside the level being played, the character sheet beside the hero mid-fight). Both are views of one recipe, so the
-pair proves "what you wrote is what plays" without the words recipe or deterministic. Where it helps, a third panel: one
-sentence, and both the page and the screen change. Captures are real sessions, unretouched, timed and costed, the way
-the decor demo was made.
+**Showcase rule.** The departments prove what the studio can BUILD, not how it checks it: proving that building works is
+hard enough, and a reader who has seen each department's output draws the studio in their mind. Each card shows its own
+best output; only Game design and production shows the bible, because the bible is its output. The audit, the export
+ledger and determinism are told in How it works and Where it goes. Where it helps, one sentence and the output changed.
+Captures are real sessions, unretouched, timed and costed, the way the decor demo was made.
 
 **Length target.** About 1,500 words, down from 3,900. Capability text should be roughly 75% of it.
 
@@ -52,8 +52,8 @@ maintainer's call.
 
 Turn your agent into a game studio.
 
-You direct. It builds: the levels, the cast, the feel, the look, the sound and the world's bible, all in one recipe
-on your machine that plays in the browser and opens in Godot or Blender.
+You direct; it builds the worlds and levels, the characters, props and vehicles, the play modes with their animation
+and sound, the foes and bosses, the camera work and cutscenes, and the game bible that ties them into one game.
 ```
 
 - Keep the badges (npm, license, node).
@@ -67,7 +67,7 @@ on your machine that plays in the browser and opens in Godot or Blender.
 One real session, shown as bible-and-screen pairs, then the change, then where it goes. `[choose]` the game:
 
 - **A walled-core dungeon** (a military base to infiltrate): grunt crews, a named hero, juice, a title card. The deepest
-  stack; it replaces the stealth demo, which today ends on a drafted plan.
+  stack, and the README's hero session is already one (pitch, the book approved, four levels built).
 - **Race of Champions**: race machines in a stadium under the broadcast package. The most spectacular to capture.
 - **A quest open world over a geocity**: the widest range of places.
 
@@ -84,35 +84,29 @@ The pairs, in order:
 
 ## 2. The departments
 
-Each department is a card in the same three parts: the reader's question as the heading, a bible-and-screen pair as
-the answer, and one sentence that changes it, with the result. Order: the first four answer "can it make a game?", the
-next three "can it make *my* game?", QA and shipping "can I trust it and take it?", the trailer and production are for
-the convinced.
+Six departments, each a card: the department's name, what it builds in a sentence, and its best output as the picture
+(one sentence and the output changed, where it helps). The first five build the parts; the sixth ties them into the game.
+QA, shipping and determinism are not departments: they are how everything the studio builds holds up, told in How it
+works and Where it goes.
 
-| Department | The heading (the reader's question) | The proof | For your agent |
+| Department | What it builds | The picture | For your agent |
 |---|---|---|---|
-| Direction | Can I pitch it a game? | pitch → bible cover and map | `design_game` |
-| Levels and worlds | Does it build real levels? | map page → the level played | `design_game` world keys (walled-core dungeon, quest open world), `compose_world`, `mint_building` as a level, `tune_ground` |
-| Characters | Can I have my hero, my enemies? | character sheet → the hero mid-fight | `create_character`, `update_character`; foe classes, grunt crews; `mint_solid` for gear and vehicles |
-| Gameplay and feel | Is it fun to control? | feel book → a jump or a swing | `create_game`; the game types; game feel, juice, weapon swings; local multiplayer |
-| Art direction | Can it be my look? | one scene in three looks | `pick_palette`; the looks (anime, western, DCAU, realistic); the seventh generation's light; architectural style |
-| Audio | Music, sound effects, voices? | a clip with sound; the score's MIDI in a DAW | `create_beats`, `create_voice` (an optional local speech worker renders it) |
-| Writing and world | Is there a world behind it? | bible pages: civilizations, cast, the title card | the world, character and feel bibles; title words in the game's language; the table RPG's game book |
-| QA | Will it actually work? | the audit stamp; the playtest run | `create_game` plays every level through to its win before it mints (waivable); the resonance check |
-| Shipping | Can I take it to my engine? | the Godot project with its `plays` stamp | `export_game` (a folder or a desktop app), the engine packs, `export_model`, `bind_mesh_render` back from Blender |
-| The trailer | Can I show it off? | a cut trailer and a cover | `forge_motion` (flythroughs, recorded runs, shoot plans), `stitch_motion`, `create_cover` |
-| Production | Can it make many, try variants? | a grid of variants from one sweep | `run_experiment_sweep`, plans, stash and cook, catalysts, `save_recipe` |
+| Worlds and levels | The look and the light, the worldbuilding, the set pieces and the layouts: a base on a critical path to its core, an open world over a city's regions, caverns, buildings from a brief, a metro planned for play, an island at any hour. The look set here carries to every department. | one level, lit, at two hours; or one base in two looks | `design_game` worlds (`wcd`, `qow`), `compose_world`, `mint_building` as a level, `tune_ground`, `pick_palette` |
+| Characters, props and vehicles | Heads and bodies in realistic, cartoon or anime looks; hair, wardrobe, armour, footwear and the gear a hero carries, fitted to the body and customized; named heroes; race machines and craft. | a hero in three looks; one hero bare and armoured | `create_character`, `update_character`, `mint_solid` (gear, vehicles) |
+| Play modes, animation and sound | The principles a game loop is composed from: the game types, how the controls feel, moves and clips, hit effects, local multiplayer, a score and sound effects. | a jump or a swing in motion, with its sound | `create_game`, the gameworld's `feel` and `juice`, `create_beats`, `create_voice` (an optional speech worker) |
+| Foes and bosses | Who stands in each level and how hard: grunts, harriers, elites and a boss on the last; how each attacks, from its wind-up to its recovery; enemy crews, beasts and oozes in the game's look. | the foe cast sheet beside a fight | `design_game`'s `foes` step, the casting call, the foe classes |
+| Cameras and cutscenes | Directed moments in the game (a boss entrance, an arrival, two characters talking), shots keyed for Godot and Blender, flythroughs and recorded runs joined into a video, and a picture of anything being built, from any angle, whenever asked. | a boss entrance; a contact sheet of one thing from many angles | the `ui-scenes` card, `forge_motion` (shoot plans, runs, flythroughs), `stitch_motion` |
+| Game design and production | The game's bible (its world, cast, levels and feel) drafted from a pitch for approval, each step built on a yes, and the record of what is made and what is left, for bigger games; the runtime turns the bible into the game. | the bible's pages | `design_game` (`run: true`), the bibles, plans, sweeps |
 
-Under the cards, one paragraph, the studio's real advantage: in a studio the handoffs between departments are where
-things break (the map drifts from the art, the art from the build). Here every department writes into the same recipe,
-which is why the bible and the screen agree, why one sentence changes both, and why QA can play the whole of it.
+Under the cards, one paragraph: every department writes into the same recipe, so they compose (a place, a cast, a play
+mode, its foes and its shots make one game), and one sentence changes the game wherever it shows.
 
 Then one plain line on what the studio does not have, so the word "studio" does not overpromise: painted concept art is
 handed to image tools you bring; voices need an optional local speech worker; multiplayer is local, not online; Unreal
 takes assets, not whole games; whether it looks good is the director's call, not a gate.
 
-Audio and the trailer are thinner than a reader assumes (voices depend on a worker; the trailer records runs and joins
-clips, no edit beyond that): show each with one modest artifact, not a hero card.
+`[verify]` boss phases: the foe roles, tiers and attack timing (wind-up, strike, recovery) are built; a boss that
+changes phase mid-fight is not, so the README says "a boss", not "boss phases", until it is.
 
 ## 3. Change one word
 
@@ -122,8 +116,7 @@ The combinations, shown as a grid that holds everything but one department. `[ch
 - **Rules** (the most impressive): the same hero in a dungeon, an open city and on a race track.
 - **Place and hour**: the same city at dawn, at night and under snow.
 
-Under the grid, one paragraph: each department is a shelf, any row composes with any other, and the studio checks the
-composition plays before you see it. `[choose]` whether to publish a hillclimb-style figure (how many rolled game worlds
+Under the grid, one paragraph: each department is a shelf, and its rows compose with the other departments' rows. `[choose]` whether to publish a hillclimb-style figure (how many rolled game worlds
 play through); it would have to be generated, not written by hand (CLAUDE.md: no counts that drift).
 
 `[asset]` the grid, from one `run_experiment_sweep` where possible, so the grid is itself a production card.
@@ -193,7 +186,7 @@ replaces it.
 The compiler, told once, for the reader who asks "what's under it?":
 
 ```
-DEPARTMENTS   direction · levels · characters · feel · look · audio · writing · QA · shipping · trailer
+DEPARTMENTS   worlds · characters · play modes · foes · cameras · game design
                  │  every department writes the same recipe
 COMPILER      recipe → geometry · deterministic · true scale · diffable
                  │

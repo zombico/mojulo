@@ -8,9 +8,11 @@ comments, docs, or the changelog: plans are working documents that move to
 ## What this is
 
 A local MCP server with a dashboard that turns the operator's agent into a game studio. The person directs; the
-agent works through the departments: direction (`design_game`), levels and worlds, characters (`create_character`),
-gameplay and feel, art direction, audio, writing (the bibles), QA (the traversal audit), shipping (the engine legs),
-the trailer, and production (plans, sweeps, stash and cook, catalysts). Every department writes into one tiny
+agent works through six departments: worlds and levels (art direction, light, set pieces, cities planned for play),
+characters, props and vehicles (`create_character`, `mint_solid`), play modes, animation and sound (`create_game`, feel,
+juice, `create_beats`), foes and bosses, cameras and cutscenes (`forge_motion`, the scenes card), and game design and
+production (`design_game`, the bibles, plans and sweeps), which ties the rest into a game. The audit and the engine legs
+are how everything holds up, not departments. Every department writes into one tiny
 deterministic recipe (a `sketches` row) that regenerates on every read and exports to Godot, Unity, Unreal, Blender,
 GLB, STL, 3MF, USD, which is why a game's bible, its levels and its export agree. Play, Print, Read, Hear and Observe
 are what the departments' combinations make; rooms, prints and science views are the same studio's other outcomes.
@@ -200,6 +202,8 @@ Pointers only; each target carries its own design notes.
   Played as an engine gets it (the skinned GLB, its clips and face morphs, variants bare and armoured): `/hero-live`.
 - What it wears: the wearable libraries [footwear/](control/lib/graph/footwear/), [handwear/](control/lib/graph/handwear/) and
   [plating/](control/lib/graph/plating/) (card → passes → laws → adapter; a new look is a card): [docs/plating.md](docs/plating.md).
+  On the head, [headgear/](control/lib/graph/headgear/): the cards (masks, cowls, eyegear, helmets) worn by the hero door's
+  `headgear` word, and the helmets by tradition an outfit's `language.head` wears; a new look is a card.
 - Solids: [polygonizer/](control/lib/graph/polygonizer/) (`field-terms.js`, `code-realm.js`,
   `field-exact.js` for `exact: true` through Manifold), [worlds/workbench.js](control/lib/graph/worlds/workbench.js);
   manuals are the `solid-vocab/` cards. OpenSCAD both ways: [scad/scad-render.js](control/lib/graph/scad/scad-render.js)

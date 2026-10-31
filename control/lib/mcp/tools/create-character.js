@@ -31,6 +31,7 @@ import { rollMascot } from '@/lib/graph/egocube/mascot.js';
 import { mascotPlanFromSheet } from '@/lib/graph/egocube/mascot-form.js';
 import { readKit } from '@/lib/graph/sportswear/kits.js';
 import { mascotKit } from '@/lib/graph/sportswear/mascot-kit.js';
+import { packCharacterOrders } from '@/lib/graph/cosmos/packs/index.js';
 import { bindPerformance } from '@/lib/graph/face-acting/recordings';
 
 // as → the mint_solid call it makes, and the card that is its manual.
@@ -89,8 +90,25 @@ async function createFromEgocube({ egocube, years, member, dress, output, as, sp
   return { ...out, ...(C.modelSheet ? { modelSheet: C.modelSheet } : {}), ...(C.mascot ? { mascot: C.mascot } : {}), egocube: { ...made, ...(C.output ? { output: C.output } : {}), node: C.node, ...(C.member ? { member: C.member } : {}), ...(C.moves ? { moves: C.moves } : {}), notes: `${landed} of ${(C.ledger || []).length} design notes land on a dial`, pending: (C.ledger || []).filter((r) => r.pending).map((r) => `${r.channel}: ${r.line} (${r.pending})`) } };
 }
 
+/**
+ * A character from a PACK by name (cosmos/packs/index.js): a pack's cast member or a crew's grunt, its orders the pack's
+ * own, minted through the hero door with its headgear as the door's word, so it is revised by word like any hero; a
+ * hero's `spec` words lay over the pack's. The result says what was rolled (`pack`).
+ */
+async function createFromPack({ pack, as, spec, title, ref, folder_ref: folderRef, ...extra }) {
+  if (!pack || typeof pack !== 'object' || Array.isArray(pack)) throw new Error("create_character: pack is { id: 'comic-hero', member | grunt, look?, … } (get_solid_vocab({ id: 'comic-hero' }))");
+  const stray = Object.keys(extra).filter((k) => extra[k] !== undefined);
+  if (stray.length) throw new Error(`create_character: a pack's character takes pack, spec, title, ref and folder_ref (not ${stray.join(', ')}); its words are pack's`);
+  if (as !== undefined && as !== 'hero') throw new Error("create_character: a pack's character is a person; leave `as` out");
+  if (spec !== undefined && (!spec || typeof spec !== 'object' || Array.isArray(spec))) throw new Error("create_character: `spec` lays a hero's words over the pack's");
+  const O = packCharacterOrders(pack);
+  const out = throughDoor(await mintSolidHandler({ ...O.mint.args, spec: { ...O.mint.args.spec, ...(spec || {}) }, title: title ?? O.mint.args.title, ref, folder_ref: folderRef }));
+  return { ...out, pack: O.pack };
+}
+
 export async function createCharacterHandler(input) {
   if (input && typeof input === 'object' && input.egocube !== undefined) return createFromEgocube(input);
+  if (input && typeof input === 'object' && input.pack !== undefined) return createFromPack(input);
   if (!input || typeof input !== 'object') {
     throw new Error(`create_character requires an object: { as: ${AS_LIST.map((a) => `'${a}'`).join(' | ')}, spec, title?, ref?, folder_ref? }`);
   }
@@ -208,6 +226,7 @@ export function registerCreateCharacterTools() {
         years: { type: 'number' },
         member: { type: 'string', description: 'A cast member\'s path (hero/rival).' },
         output: { type: 'string', enum: ['character', 'mascot'], description: "With egocube: 'mascot' makes the cube's character as its mascot." },
+        pack: { type: 'object', description: "A pack's character by name: { id: 'comic-hero', member | grunt, look?, … } (get_solid_vocab({ id: 'comic-hero' }))." },
         spec: { type: 'object', description: "The body's own knobs, per its card (`layered` for hero and creature, `animal` for animal)." },
         title: { type: 'string', description: 'Title for the resulting sketch artifact.' },
         ref: { type: 'string', description: 'Optional stable sketch ref.' },
