@@ -44,3 +44,12 @@ laws 20: a row minted before keeps the drawings it had. The eyes gate is the ope
   reads as the lid cropping the iris.
 - **hero-live's held shots**: a hold now replaces every morph weight and a shot without one releases it; before, holds
   stacked (each shot kept the last shot's weights), so a sheet's later rows showed the earlier drawings too.
+- **The skull's mass slid: the orbit squeezed** (sampled on the squint first, before the other drawings take it): the
+  socket word `rise` slides the mass over the eye, the brow's ridge and the forehead, up or down along the face, the
+  skull's shape terms there read from that far below or above (from the top of the widest lid's lash band, eased in to
+  the drawn brow's bottom, up through the forehead, gone before the side seam). The squint's socket slides it down onto
+  the eye beside its cheek pushed up: the skin at the brow comes forward and the forehead above it goes back. The eye,
+  its lenses and lash bands, the socket's cut and the brow block's height keep their place (a lid's drawing never moves
+  the brow up or down); the brow rides the mass. A word both of two drawings name adds when they are drawn together.
+  Tried and set aside: a matching slide of the cheekbone's mass up toward the eye, which moved nothing where a style's
+  cheek is flat under the eye (Shonen High's); the cheek's push forward carries the squeeze's lower half instead.

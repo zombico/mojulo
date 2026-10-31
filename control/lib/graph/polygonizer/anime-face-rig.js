@@ -35,7 +35,7 @@ import { animeHeadAt } from './humanoid-plan.js';
 import { animeHeroEffective, heroHeadPole, heroHairPole } from './anime-looks.js';
 import { ANIME_POSES, resolveAnimeExpression } from './anime-head.js';
 import { DRAWINGS } from './anime-drawings.js';
-import { socketsOn, withSocket } from './anime-sockets.js';
+import { socketsOn, withSocket, addSockets } from './anime-sockets.js';
 import { tierOf, DENSE_TIERS } from '../era/cast-spend.js';
 import { readTarget, DEFAULT_TARGET } from '../era/target.js';
 
@@ -175,8 +175,7 @@ function g7Targets(T, recipe, opts, X, C, sockets = false) {
   const at = sockets ? 'sockets' : 'plain';
   if (T.g7[at] !== undefined) return T.g7[at];
   const W = (name) => withSocket(name, DRAWINGS[name].words, sockets);
-  // (two drawings' words together: a brow's socket and a lid's are one socket, their words disjoint)
-  const W2 = (a, b) => { const A = W(a), B = W(b); return { ...A, ...B, ...(A.socket || B.socket ? { socket: { ...A.socket, ...B.socket } } : {}) }; };
+  const W2 = (a, b) => { const A = W(a), B = W(b); return { ...A, ...B, ...(A.socket || B.socket ? { socket: addSockets(A.socket, B.socket) } : {}) }; };
   const V0 = T.V0, D = {}, names = [], whole = {};
   const vOf = (E, words) => { const b = headBuild(opts, E, X, C, words); if (!sameLayout(b, T.check)) throw new Error(MOVED7); return subVertices(recipe, X, b.parts); };
   const put = (n, d) => { D[n] = d; names.push(n); };

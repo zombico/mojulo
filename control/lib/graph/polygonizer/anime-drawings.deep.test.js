@@ -10,6 +10,7 @@ import { ANIME_STYLE_NAMES } from './anime-styles.js';
 import { SOCKETS, withSocket } from './anime-sockets.js';
 
 const LAYER_OF = { brow: 'brows', socket: 'brows', lid: 'lids', gaze: 'gaze', pupil: 'gaze', mouth: 'mouth' };
+// (a socket word alone: the brows' layer may move the brows and the face, as the skull's words do)
 
 describe('the 7G drawings, swept', () => {
   it('every drawing of the catalog', () => {
@@ -19,11 +20,12 @@ describe('the 7G drawings, swept', () => {
     for (const name of Object.keys(SOCKETS)) {
       const words = withSocket(name, DRAWINGS[name].words, true);
       if (DRAWINGS[name].layer === 'brows') { checkDrawing(`${name} socketed`, 'brows', words); continue; }
-      // (a lid's socket is the cheek under the eye, outside the lid's own region: against its plain drawing, the face
-      // alone moved, the topology kept, nothing turned over)
+      // (a lid's socket is the cheek under the eye and the skull's masses round it, outside the lid's own region: against
+      // its plain drawing, the face alone moved (and the brows, riding a mass the socket slides), the topology kept,
+      // nothing turned over)
       const A = build(words), P = build(DRAWINGS[name].words);
       for (const n of Object.keys(A)) expect(A[n].faces, `${name} ${n}`).toEqual(P[n].faces);
-      expect(Object.keys(moved(A, P)), `${name} socket moves`).toEqual(['face']);
+      expect(Object.keys(moved(A, P)).sort(), `${name} socket moves`).toEqual(SOCKETS[name].rise ? ['browL', 'browR', 'face'] : ['face']);
       expect(folds(A, P), `${name} socket folds`).toEqual([]);
     }
   });

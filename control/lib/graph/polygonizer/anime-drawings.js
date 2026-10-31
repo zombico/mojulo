@@ -38,7 +38,7 @@ export const DRAWING_LAYERS = Object.freeze(['brows', 'lids', 'gaze', 'mouth']);
 export const DRAWING_RANGES = Object.freeze({
   brow: Object.freeze({ lift: [-1, 1], inner: [0, 1], knit: [0, 1] }),
   // (the brow drawing's socket, anime-sockets.js: carried by the drawing, never named in the table below)
-  socket: Object.freeze({ ridge: [-0.03, 0.03], deep: [-0.02, 0.02], pinch: [-0.03, 0.03], outer: [-0.03, 0.03], cheek: [-0.02, 0.03] }),
+  socket: Object.freeze({ ridge: [-0.03, 0.03], deep: [-0.02, 0.02], pinch: [-0.03, 0.03], outer: [-0.03, 0.03], cheek: [-0.02, 0.03], rise: [-0.06, 0.08] }),
   lid: Object.freeze({ inner: [0, 0.6], outer: [0, 0.6], wide: [0, 0.3], low: [0, 0.5], lower: [0, 0.6], smile: [0, 0.85] }),
   gaze: Object.freeze({ x: [-1, 1], y: [-1, 1] }),
   pupil: Object.freeze([0.4, 1.4]),

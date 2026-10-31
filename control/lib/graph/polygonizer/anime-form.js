@@ -189,10 +189,24 @@ export function buildAnime(r, options = {}) {
     if (T === T0 || y <= F) return w0;
     return w0 + (fillet(1 - (y - ya) / Math.max(ORBIT.upMin, T - ya)) - w0) * smoother((y - F) / Math.max(BROW.warpEase, B0 - F));
   };
+  // the drawing's SKULL (`socket.rise`, anime-sockets.js): the mass over the eye slid along the face, the skull's shape
+  // there sampled that far below or above, so the brow's ridge and the forehead over it rise or sink: the orbit opened in
+  // surprise or squeezed in a squint (with the cheek pushed up under the eye, `socket.cheek`). From the top of the widest
+  // lid's lash band (eased in to the drawn brow's bottom, as the socket is) up through the forehead (SKULL.top, eased out
+  // over SKULL.fade), gone before the side seam (SKULL.side) where the face meets the back of the head. The eye, its
+  // lenses and lash bands, the socket's own cut and the brow block's height keep their place: only the skull's shape
+  // terms read the shifted height, and the brow rides the mass
+  const skullShift = (u, y) => {
+    if (!BROW_RIM) return 0;
+    const [, , , F, , Bd] = rimAt(u);
+    return D.socket.rise * smoother((y - F) / Math.max(SOCKET.ease, Bd - F)) * (1 - smoother((y - SKULL.top) / SKULL.fade)) * (1 - smoother((Math.abs(u) - SKULL.side[0]) / SKULL.side[1]));
+  };
   function surface0(u, y, back = false, noseOff = NOSE_OFF) {
+    // (the skull's height: the drawing's slid mass, anime-sockets.js, the front only; the eye's terms read `y`)
+    const yk = !back && D?.socket?.rise ? y - skullShift(u, y) : y;
     let x = u * width(y); const g = (v, c, w) => dmath.exp(-(((v - c) / w) ** 2)), arc = dmath.pow(Math.max(0, 1 - u * u), 0.45);
-    const seam = profile(y, [[-1.02, -0.43], [-0.90, -0.36], [-0.74, -0.17], [-0.60, -0.035], [-0.30, 0.06], [1.19, 0.06]]);
-    const front = profile(y, [[-1.02, 0.025], [-0.90, 0.12], [-0.74, 0.30], [-0.60, 0.45], [-0.30, 0.57], [0.22, 0.59], [0.62, 0.57], [0.92, 0.45], [1.16, 0.18], [1.19, 0.009]]);
+    const seam = profile(yk, [[-1.02, -0.43], [-0.90, -0.36], [-0.74, -0.17], [-0.60, -0.035], [-0.30, 0.06], [1.19, 0.06]]);
+    const front = profile(yk, [[-1.02, 0.025], [-0.90, 0.12], [-0.74, 0.30], [-0.60, 0.45], [-0.30, 0.57], [0.22, 0.59], [0.62, 0.57], [0.92, 0.45], [1.16, 0.18], [1.19, 0.009]]);
     const rear = profile(y, [[-1.02, 0.55], [-0.98, 0.59], [-0.90, 0.58], [-0.74, 0.43], [-0.60, 0.30], [-0.40, 0.30], [-0.20, 0.48], [0.10, 0.68], [0.45, 0.73], [0.65, 0.70], [0.78, 0.64], [0.92, 0.53], [1.04, 0.40], [1.10, 0.30], [1.16, 0.17], [1.19, 0.009]]);
     let z = seam + (back ? rear * (f.backDepth ?? 1) : -front * f.depth) * arc;
     if (back) { z += arc * (0.28 * ((f.occiput ?? 1) - 1) * g(y, 0.78, 0.32) - 0.16 * ((f.nape ?? 1) - 1) * g(y, -0.45, 0.24)); }
@@ -249,11 +263,11 @@ export function buildAnime(r, options = {}) {
       }
     }
     // Independent forehead and supraorbital depth; blend to the temple seam.
-    if (!back) { const sideFade = Math.max(0, 1 - u * u); z -= 0.28 * ((f.foreheadDepth ?? 1) - 1) * g(y, 0.70, 0.28) * sideFade; z -= 0.22 * ((f.browDepth ?? 1) - 1) * g(y, 0.34, 0.14) * sideFade; }
+    if (!back) { const sideFade = Math.max(0, 1 - u * u); z -= 0.28 * ((f.foreheadDepth ?? 1) - 1) * g(yk, 0.70, 0.28) * sideFade; z -= 0.22 * ((f.browDepth ?? 1) - 1) * g(yk, 0.34, 0.14) * sideFade; }
     // Cheek fullness is local to the front malar region; fades to zero at the side seam.
-    if (!back) { const cheekWeight = g(Math.abs(u), 0.57, 0.24) * g(y, -0.29, 0.22) * (1 - dmath.pow(Math.abs(u), 8)); const amount = (f.cheekVolume ?? 1) - 1; x += Math.sign(u) * 0.18 * amount * cheekWeight; z -= 0.25 * amount * cheekWeight; }
+    if (!back) { const cheekWeight = g(Math.abs(u), 0.57, 0.24) * g(yk, -0.29, 0.22) * (1 - dmath.pow(Math.abs(u), 8)); const amount = (f.cheekVolume ?? 1) - 1; x += Math.sign(u) * 0.18 * amount * cheekWeight; z -= 0.25 * amount * cheekWeight; }
     // Soft cheek below the malar area, lateral to the mouth; leaves the centerline and seam fixed.
-    if (!back) { const weight = g(Math.abs(u), 0.64, 0.23) * g(y, -0.56, 0.17) * (1 - dmath.pow(Math.abs(u), 8)); const amount = (f.lowerCheekVolume ?? 1) - 1; x += Math.sign(u) * 0.20 * amount * weight; z -= 0.28 * amount * weight; }
+    if (!back) { const weight = g(Math.abs(u), 0.64, 0.23) * g(yk, -0.56, 0.17) * (1 - dmath.pow(Math.abs(u), 8)); const amount = (f.lowerCheekVolume ?? 1) - 1; x += Math.sign(u) * 0.20 * amount * weight; z -= 0.28 * amount * weight; }
     // Chin projection blends through the whole lower ring; the rear rises into the jaw corner.
     z -= 0.18 * ((f.chinProjection ?? 1) - 1) * g(y, -0.91, 0.18);
     const lower = clamp((-0.30 - y) / 0.72), rearWeight = back ? 0.65 + 0.35 * arc : 0.65 * dmath.pow(Math.abs(u), 1.5);
@@ -1015,10 +1029,13 @@ export const BROW = Object.freeze({ lift: 0.6, inner: 0.9, knit: 0.9, knitIn: 0.
 /** the drawing's socket (anime-sockets.js): its least ease in over the lash band's top, how far above the brow's middle it
  * reaches, and the ease out above that; the cheek's ease in under the eye's lower outline, its reach down, its ease out,
  * and the share of the eye's half-width it fades over toward the corners */
+/** the drawing's skull (anime-sockets.js `rise`): how high the brow's mass slides through the forehead and its ease out,
+ * and the side fade (from |u|, over) that leaves the side seam where it is */
+export const SKULL = Object.freeze({ top: 0.55, fade: 0.35, side: [0.7, 0.22] });
 export const SOCKET = Object.freeze({ ease: 0.004, reach: 0.06, fade: 0.14, cheekEase: 0.03, cheekReach: 0.12, cheekFade: 0.12, cheekSpan: 0.5 });
 export const LID = Object.freeze({ floor: 0.15, ease: 1.5, wide: 0.3, lowFloor: 0.25, arc: 0.7 });   // (`wide`: the widest lid a drawing draws, anime-drawings.js DRAWING_RANGES; `lowFloor`: the least of the lower lid a drawing leaves, `arc` the smile's spread along it)
 /** the drawing's neutral words: a word at its neutral is dropped, so a neutral drawing is no drawing */
-const DRAWING_NEUTRAL = Object.freeze({ brow: { lift: 0, inner: 0, knit: 0 }, socket: { ridge: 0, deep: 0, pinch: 0, outer: 0, cheek: 0 }, lid: { inner: 0, outer: 0, wide: 0, low: 0, lower: 0, smile: 0 }, gaze: { x: 0, y: 0 }, mouth: { wide: 1, corner: 0, box: 0, omega: 0, wave: 0 } });
+const DRAWING_NEUTRAL = Object.freeze({ brow: { lift: 0, inner: 0, knit: 0 }, socket: { ridge: 0, deep: 0, pinch: 0, outer: 0, cheek: 0, rise: 0 }, lid: { inner: 0, outer: 0, wide: 0, low: 0, lower: 0, smile: 0 }, gaze: { x: 0, y: 0 }, mouth: { wide: 1, corner: 0, box: 0, omega: 0, wave: 0 } });
 /** a drawing with its neutral words dropped (`pupil` 1 dropped), or null when nothing is left */
 export function drawingOf(d) {
   if (!d || typeof d !== 'object') return null;
