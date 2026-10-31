@@ -1,4 +1,4 @@
-### The anime head's socket library: the eye socket drawn with the brow
+### The anime head's socket library: the eye socket drawn with the brow and the lid
 
 Each brow drawing carries its own eye socket, a base table for every anime head: animating the brows animates the
 socket for that frame, since the socket is part of the drawing's build and so of its 7G target, and snaps with it. Hero
@@ -25,3 +25,22 @@ laws 20: a row minted before keeps the drawings it had. The eyes gate is the ope
   the eye never moved; the brow block moved whole; its clearance of the eye never less; the rig's brow targets carry it,
   its lid targets unchanged. The deep sweep builds every socketed brow drawing, every socket word at both ends of its
   range, and every brow over every lid on every cast with its socket and without.
+- **The lid family: the squint and the smiling eye.** Two new lid drawings, each on an open eye: `lids.squint` (both
+  lids drawn in, the upper lowered and the lower raised) and `lids.smile` (the lower lid pushed up into a half-moon,
+  most at its middle, the upper a little lowered). New lid words for them (`low`: the upper lid lowered whole; `lower`:
+  the lower lid raised whole; `smile`: the lower lid raised most at its middle, never above a quarter of its height at
+  rest, past which its curve grew too steep for the iris's clip), the lenses sized by the lids at rest so a drawing
+  never resizes them. Their socket is the new word `cheek`: the cheek under the eye pushed up into it, below the eye's
+  lower outline at rest only, over the eye's own span, so the white, the lenses, the lid band's tail and the lashes
+  never move with it. The rig merges a brow's socket and a lid's (their words disjoint), so a scowl over smiling eyes is
+  still the exact sum of its drawings.
+- **The reading** (`face-acting/anime-read.js`): the cheek raised (AU6) is drawn as the smiling eye and the lid tightened
+  without it (AU7) as the squint, where the squint drew the angry lid and both only closed the eye a little; while one
+  of them is drawn, the eye's closure is the blink's alone (a partial closure would snap the eye to a knot and drop the
+  lid's shape). Happiness now reads with smiling eyes.
+- **Seen in clay**: the squint narrows the opening by about a third from both lids, the smile by about a quarter from
+  below; the cheek rises softly under the eye with no edge to it. Where the raised lower lid crops the iris, the clay
+  shows the iris's cut edge in a slight relief (the lower lid has no band over it, as the upper has); in colour it
+  reads as the lid cropping the iris.
+- **hero-live's held shots**: a hold now replaces every morph weight and a shot without one releases it; before, holds
+  stacked (each shot kept the last shot's weights), so a sheet's later rows showed the earlier drawings too.

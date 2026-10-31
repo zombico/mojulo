@@ -4,7 +4,7 @@
 // face turned over.
 import { describe, it, expect } from 'vitest';
 import { DRAWINGS, DRAWING_RANGES } from './anime-drawings.js';
-import { checkDrawing, studio, headOf, browClearance } from './anime-drawings.fixture.js';
+import { checkDrawing, studio, headOf, browClearance, build, moved, folds } from './anime-drawings.fixture.js';
 import { drawingWords } from './anime-drawings.js';
 import { ANIME_STYLE_NAMES } from './anime-styles.js';
 import { SOCKETS, withSocket } from './anime-sockets.js';
@@ -15,8 +15,17 @@ describe('the 7G drawings, swept', () => {
   it('every drawing of the catalog', () => {
     for (const [name, D] of Object.entries(DRAWINGS)) if (D.words) checkDrawing(name, D.layer, D.words);
   });
-  it('every brow drawing with its socket (anime-sockets.js, hero laws 20)', () => {
-    for (const name of Object.keys(SOCKETS)) checkDrawing(`${name} socketed`, 'brows', withSocket(name, DRAWINGS[name].words, true));
+  it('every brow and lid drawing with its socket (anime-sockets.js, hero laws 20)', () => {
+    for (const name of Object.keys(SOCKETS)) {
+      const words = withSocket(name, DRAWINGS[name].words, true);
+      if (DRAWINGS[name].layer === 'brows') { checkDrawing(`${name} socketed`, 'brows', words); continue; }
+      // (a lid's socket is the cheek under the eye, outside the lid's own region: against its plain drawing, the face
+      // alone moved, the topology kept, nothing turned over)
+      const A = build(words), P = build(DRAWINGS[name].words);
+      for (const n of Object.keys(A)) expect(A[n].faces, `${name} ${n}`).toEqual(P[n].faces);
+      expect(Object.keys(moved(A, P)), `${name} socket moves`).toEqual(['face']);
+      expect(folds(A, P), `${name} socket folds`).toEqual([]);
+    }
   });
   it('every drawing of the catalog on the head before its form (a row stamped hero laws 18)', () => {
     for (const [name, D] of Object.entries(DRAWINGS)) if (D.words) studio.checkDrawing(`laws 18 ${name}`, D.layer, D.words);

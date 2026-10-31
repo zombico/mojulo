@@ -3,9 +3,9 @@
  * lines' timed phonemes) becomes a DRAWING per layer per frame on the face tracks' 30 fps grid (polygonizer/anime-drawings.js
  * names them), held as anime holds them, and played by the anime face's targets as a STEP track.
  *
- *   • THE LAYERS, per frame: the BROWS and the LID'S SHAPE per eye (from AU1, AU2, AU4; AU5, AU7: raised, worried, angry,
- *     low; wide, angry, sad), each EYE'S CLOSURE (AU45, with the squint's and the cheek's share; drawn at the head's knots
- *     by the rig), the GAZE (the take's yaw and pitch past `GAZE_STEP` degrees: left, right, up, down; the pupils shrunk
+ *   • THE LAYERS, per frame: the BROWS and the LID'S SHAPE per eye (from AU1, AU2, AU4; AU5, AU6, AU7: raised, worried,
+ *     angry, low; wide, angry, smiling, squinting, sad), each EYE'S CLOSURE (AU45, with the squint's and the cheek's share
+ *     unless the smiling or squinting lid draws it; drawn at the head's knots by the rig), the GAZE (the take's yaw and pitch past `GAZE_STEP` degrees: left, right, up, down; the pupils shrunk
  *     in shock), the MOUTH: over a spoken line KUCHIPAKU (each phoneme its vowel's shape, A I U E O; m, b and p shut, f and
  *     v the narrow i, any other consonant its vowel's, the next one in the word's reach, else the last), elsewhere the
  *     face's own mouth (the jaw open: the shout in anger, the o rounded, else the a; the smile, one-sided a smirk; the
@@ -76,9 +76,13 @@ export function animeRead(take) {
     for (const s of ['L', 'R']) {
       const a1 = side('AU1', s), a2 = side('AU2', s), a4 = side('AU4', s), a5 = side('AU5', s), a7 = side('AU7', s), a6 = side('AU6', s);
       face.brows[s] = a4 > R.brow && a1 > R.brow ? 'brows.worried' : a4 > R.brow ? 'brows.angry' : a1 > R.brow && a2 > R.brow ? 'brows.raised' : a1 > R.brow ? 'brows.worried' : a4 > R.browLow ? 'brows.low' : 'brows.rest';
-      // (anger's glare lifts the lid too, AU5 with AU4: anime draws it as the angry lid, not the wide one)
-      face.lids[s] = a4 > R.lid && a1 <= R.brow ? 'lids.angry' : a5 > R.lid ? 'lids.wide' : a7 > R.lid ? 'lids.angry' : a1 > R.brow && a4 > R.browLow ? 'lids.sad' : 'lids.open';
-      face[`eye${s}`] = clamp01(Math.max(side('AU45', s), side('AU43', s)) + R.squint * a7 + R.cheek * a6);
+      // (anger's glare lifts the lid too, AU5 with AU4: anime draws it as the angry lid, not the wide one; the cheek raised,
+      // AU6, is the smiling eye's half-moon, and the lid tightened without it, AU7, the squint)
+      face.lids[s] = a4 > R.lid && a1 <= R.brow ? 'lids.angry' : a5 > R.lid ? 'lids.wide' : a6 > R.lid && a6 >= a7 ? 'lids.smile' : a7 > R.lid ? 'lids.squint' : a1 > R.brow && a4 > R.browLow ? 'lids.sad' : 'lids.open';
+      // (the eye's closure: a blink; a squint's and a raised cheek's narrowing on top, unless their own drawing draws it,
+      // since a lid's shape is drawn on an open eye only)
+      const drawn = face.lids[s] === 'lids.smile' || face.lids[s] === 'lids.squint';
+      face[`eye${s}`] = clamp01(Math.max(side('AU45', s), side('AU43', s)) + (drawn ? 0 : R.squint * a7 + R.cheek * a6));
     }
     // the gaze: its dominant turn past the step (+yaw the figure's right, +pitch up), the pupils shrunk in shock
     const yaw = take.gaze?.yaw?.[i] ?? 0, pitch = take.gaze?.pitch?.[i] ?? 0;

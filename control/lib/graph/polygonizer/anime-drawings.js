@@ -38,8 +38,8 @@ export const DRAWING_LAYERS = Object.freeze(['brows', 'lids', 'gaze', 'mouth']);
 export const DRAWING_RANGES = Object.freeze({
   brow: Object.freeze({ lift: [-1, 1], inner: [0, 1], knit: [0, 1] }),
   // (the brow drawing's socket, anime-sockets.js: carried by the drawing, never named in the table below)
-  socket: Object.freeze({ ridge: [-0.03, 0.03], deep: [-0.02, 0.02], pinch: [-0.03, 0.03], outer: [-0.03, 0.03] }),
-  lid: Object.freeze({ inner: [0, 0.6], outer: [0, 0.6], wide: [0, 0.3] }),
+  socket: Object.freeze({ ridge: [-0.03, 0.03], deep: [-0.02, 0.02], pinch: [-0.03, 0.03], outer: [-0.03, 0.03], cheek: [-0.02, 0.03] }),
+  lid: Object.freeze({ inner: [0, 0.6], outer: [0, 0.6], wide: [0, 0.3], low: [0, 0.5], lower: [0, 0.6], smile: [0, 0.85] }),
   gaze: Object.freeze({ x: [-1, 1], y: [-1, 1] }),
   pupil: Object.freeze([0.4, 1.4]),
   mouth: Object.freeze({ wide: [0.4, 1.25], up: [0, 1], down: [0, 0.85], corner: [-0.7, 1], box: [0, 1], omega: [0, 1], wave: [0, 0.7] }),
@@ -59,6 +59,9 @@ export const DRAWINGS = Object.freeze({
   'lids.angry': d('lids', 'the upper lids flattened at the inner corners, glaring', { words: { lid: { inner: 0.55 } }, lower: { blink: 0.12 }, sided: true }),
   'lids.sad': d('lids', 'the upper lids drooping at the outer corners', { words: { lid: { outer: 0.55 } }, lower: { blink: 0.12 }, sided: true }),
   'lids.wide': d('lids', 'eyes wide open, the whites showing', { words: { lid: { wide: 0.25 } }, lower: { blink: 0 } }),
+  // (the lower lid: drawn up in a squint with the upper lowered over it, or arched up most in its middle in a smile)
+  'lids.squint': d('lids', 'the eyes narrowed in a squint, both lids drawn in', { words: { lid: { low: 0.3, lower: 0.35 } }, lower: { blink: 0.35 } }),
+  'lids.smile': d('lids', 'smiling eyes, the lower lids pushed up into half-moons', { words: { lid: { low: 0.1, smile: 0.6 } }, lower: { blink: 0.3 } }),
   // the gaze: its positions (held between keys)
   'gaze.ahead': d('gaze', 'looking ahead', { channels: {} }),
   'gaze.left': d('gaze', 'eyes turned to the left', { words: { gaze: { x: -1 } }, lower: {} }),

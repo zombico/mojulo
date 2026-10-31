@@ -235,6 +235,18 @@ export function buildAnime(r, options = {}) {
           if (y >= ya) z += (K.deep ?? 0) * wu * wy * vy;
         }
       }
+      // the lid drawing's socket (`socket.cheek`, anime-sockets.js: the squint's, the smiling eye's): the cheek under the
+      // eye brought forward over the socket's lower plane, from the eye's lower outline as it sits at rest (so nothing at
+      // or above it, the white and the lenses, moves with it, whatever the lid draws) eased in over SOCKET.cheekEase and
+      // down onto the cheekbone (SOCKET.cheekReach, eased out over SOCKET.cheekFade); under the eye's own span only, full
+      // over its middle and gone by its corners (SOCKET.cheekSpan: the share of its half-width eased over), so the lid
+      // band's tail past the outer corner, at the eye's level, never moves with it
+      if (D?.socket?.cheek && EYE0) {
+        const side = u < 0 ? -1 : 1, cU = side * 0.455 * f.spacing, lat = (u - cU) * side / EYE0.a;
+        const yl = EYE_Y - (Math.abs(lat) < 1 ? EYE0.bDn * EYE0.Ydn0(lat) : 0) + f.tilt * (Math.abs(u) - Math.abs(cU)), below = yl - y;
+        const cv = smoother(below / SOCKET.cheekEase) * (1 - smoother((below - SOCKET.cheekReach) / SOCKET.cheekFade)) * smoother((1 - Math.abs(lat)) / SOCKET.cheekSpan);
+        if (cv > 0) z -= D.socket.cheek * cv;
+      }
     }
     // Independent forehead and supraorbital depth; blend to the temple seam.
     if (!back) { const sideFade = Math.max(0, 1 - u * u); z -= 0.28 * ((f.foreheadDepth ?? 1) - 1) * g(y, 0.70, 0.28) * sideFade; z -= 0.22 * ((f.browDepth ?? 1) - 1) * g(y, 0.34, 0.14) * sideFade; }
@@ -417,8 +429,9 @@ export function buildAnime(r, options = {}) {
   // that boundary, so the lid cut is exact at any ring count and the grid is the same at every expression (a point
   // outside the opening, and every point once the lids shut, is set back behind the lid: constant topology)
   function graphicLenses(side, centerU, cy, blink, eyePoint) {
-    // (sized by the studio's lid, `Yup0`: a drawing's lid shape covers more or less of the same lens, never resizes it)
-    const up = EYE.bUp * EYE.Yup0(0), dn = EYE.bDn * EYE.Ydn(0), shut = e.blink >= 0.985;
+    // (sized by the studio's lids, `Yup0` and `Ydn0`: a drawing's lid shape covers more or less of the same lens, never
+    // resizes it)
+    const up = EYE.bUp * EYE.Yup0(0), dn = EYE.bDn * EYE.Ydn0(0), shut = e.blink >= 0.985;
     const Ry = (S.irisSpan ?? 1) * (up + dn) / (2 * (1 - S.lidCover)), Rx = Ry * (0.13 / 0.138) * (S.irisOval ?? 1), cI = up - Ry * (1 - 2 * S.lidCover);
     const at = (dx, dy) => eyePoint(centerU + dx, cy + dy + f.tilt * (Math.abs(centerU + dx) - Math.abs(centerU)));
     function disc(part, rx, ry, ox, oy, fwd, seg, rings) {
@@ -927,9 +940,12 @@ function eyeShapeOf(S, f, L = null) {
   const F = S.fissure || {}, a = 0.285 * f.eyeWidth, bUp = 0.155 * f.eyeHeight * (F.h ?? 1), bDn = 0.108 * f.eyeHeight * (F.h ?? 1) * (F.hDn ?? 1);
   const shape = ({ m = 2, p = 0.5, k = 0 } = {}) => (lat) => { const x = lat >= k ? (lat - k) / (1 - k) : (lat - k) / (1 + k); return dmath.pow(Math.max(0, 1 - dmath.pow(Math.min(1, Math.abs(x)), m)), p); };
   // `L` the drawing's lid (anime-drawings.js): the upper lid lowered at its medial end (`inner`: angry) or its lateral
-  // end (`outer`: sad), or raised whole (`wide`: surprise), never below LID.floor of the studio's
-  const Yup0 = shape(F.upper), Ydn = shape(F.lower);
-  const Yup = L ? (lat) => Yup0(lat) * Math.max(LID.floor, 1 + (L.wide ?? 0) - (L.inner ?? 0) * dmath.pow((1 - lat) / 2, LID.ease) - (L.outer ?? 0) * dmath.pow((1 + lat) / 2, LID.ease)) : Yup0;
+  // end (`outer`: sad), lowered whole (`low`: a squint) or raised whole (`wide`: surprise), never below LID.floor of the
+  // studio's; the lower lid raised whole (`lower`: a squint) or most at its middle (`smile`: the smiling eye's half-moon,
+  // its line flattened toward the corners'), never above LID.lowFloor of the studio's
+  const Yup0 = shape(F.upper), Ydn0 = shape(F.lower);
+  const Yup = L ? (lat) => Yup0(lat) * Math.max(LID.floor, 1 + (L.wide ?? 0) - (L.low ?? 0) - (L.inner ?? 0) * dmath.pow((1 - lat) / 2, LID.ease) - (L.outer ?? 0) * dmath.pow((1 + lat) / 2, LID.ease)) : Yup0;
+  const Ydn = L && (L.lower || L.smile) ? (lat) => Ydn0(lat) * Math.max(LID.lowFloor, 1 - (L.lower ?? 0) - (L.smile ?? 0) * dmath.pow(Math.max(0, 1 - lat * lat), LID.arc)) : Ydn0;
   const N = 720, tab = [];
   for (let i = 0; i <= N; i++) { const lat = 1 - 2 * i / N, Y = Yup(lat); tab.push([dmath.atan2(Y, lat), dmath.hypot(lat, Y)]); }
   for (let i = 1; i < N; i++) { const lat = -1 + 2 * i / N, Y = Ydn(lat); tab.push([dmath.atan2(-Y, lat), dmath.hypot(lat, Y)]); }
@@ -941,7 +957,7 @@ function eyeShapeOf(S, f, L = null) {
     const A = tab[lo], B = tab[hi]; return A[1] + (B[1] - A[1]) * (th - A[0]) / ((B[0] - A[0]) || 1);
   };
   const norm = (side, du, dy, blink = 1) => { const xn = du / a, yn = dy / ((dy >= 0 ? bUp : bDn) * blink); if (xn === 0 && yn === 0) return 0; return dmath.hypot(xn, yn) / rho(dmath.atan2(yn, xn * side)); };
-  return { a, bUp, bDn, Yup, Yup0, Ydn, norm };
+  return { a, bUp, bDn, Yup, Yup0, Ydn, Ydn0, norm };
 }
 
 /** the 7G drawing's terms (anime-drawings.js names them): the gaze's reach (of the eye's half-width and half-height), the
@@ -997,11 +1013,12 @@ const smoother = (t) => { const x = clamp(t); return x * x * x * (x * (6 * x - 1
 export const GAZE = Object.freeze({ x: 0.3, y: 0.25 });
 export const BROW = Object.freeze({ lift: 0.6, inner: 0.9, knit: 0.9, knitIn: 0.12, clearEase: 0.3, clearReach: 0.2, warpEase: 0.03 });
 /** the drawing's socket (anime-sockets.js): its least ease in over the lash band's top, how far above the brow's middle it
- * reaches, and the ease out above that */
-export const SOCKET = Object.freeze({ ease: 0.004, reach: 0.06, fade: 0.14 });
-export const LID = Object.freeze({ floor: 0.15, ease: 1.5, wide: 0.3 });   // (`wide`: the widest lid a drawing draws, anime-drawings.js DRAWING_RANGES)
+ * reaches, and the ease out above that; the cheek's ease in under the eye's lower outline, its reach down, its ease out,
+ * and the share of the eye's half-width it fades over toward the corners */
+export const SOCKET = Object.freeze({ ease: 0.004, reach: 0.06, fade: 0.14, cheekEase: 0.03, cheekReach: 0.12, cheekFade: 0.12, cheekSpan: 0.5 });
+export const LID = Object.freeze({ floor: 0.15, ease: 1.5, wide: 0.3, lowFloor: 0.25, arc: 0.7 });   // (`wide`: the widest lid a drawing draws, anime-drawings.js DRAWING_RANGES; `lowFloor`: the least of the lower lid a drawing leaves, `arc` the smile's spread along it)
 /** the drawing's neutral words: a word at its neutral is dropped, so a neutral drawing is no drawing */
-const DRAWING_NEUTRAL = Object.freeze({ brow: { lift: 0, inner: 0, knit: 0 }, socket: { ridge: 0, deep: 0, pinch: 0, outer: 0 }, lid: { inner: 0, outer: 0, wide: 0 }, gaze: { x: 0, y: 0 }, mouth: { wide: 1, corner: 0, box: 0, omega: 0, wave: 0 } });
+const DRAWING_NEUTRAL = Object.freeze({ brow: { lift: 0, inner: 0, knit: 0 }, socket: { ridge: 0, deep: 0, pinch: 0, outer: 0, cheek: 0 }, lid: { inner: 0, outer: 0, wide: 0, low: 0, lower: 0, smile: 0 }, gaze: { x: 0, y: 0 }, mouth: { wide: 1, corner: 0, box: 0, omega: 0, wave: 0 } });
 /** a drawing with its neutral words dropped (`pupil` 1 dropped), or null when nothing is left */
 export function drawingOf(d) {
   if (!d || typeof d !== 'object') return null;

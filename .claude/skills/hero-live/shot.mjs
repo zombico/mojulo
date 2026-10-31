@@ -63,7 +63,7 @@ try {
       if (S.take) H.take(S.take);
       if (S.look && !S.look.bone) H.look(S.look); else H.view(S.view ?? 'vFace');
       H.seek(S.phase ?? 0.5);
-      if (S.hold) H.hold(S.hold);
+      if (S.hold) H.hold(S.hold); else H.release();
       // (a bone's closeup once the pose is set: it frames the bone as posed)
       if (S.look?.bone) H.look(S.look);
       const s = H.state(); return `${S.label ? `${S.label} · ` : ''}${s.variant} · ${s.take} · ${s.view.startsWith('v') ? s.view.slice(1) : s.view} · ${s.phase.toFixed(2)}${S.hold ? ' · held' : ''}`;

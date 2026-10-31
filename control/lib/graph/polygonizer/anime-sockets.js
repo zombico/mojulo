@@ -1,7 +1,9 @@
-/** anime-sockets.js — THE SOCKET LIBRARY: each brow drawing (anime-drawings.js) carries its own eye socket, so animating
- * the brows animates the socket for that frame. A socket is part of its drawing's build (anime-form.js `socket`: the
- * ridge over the eye, the socket's upper plane, its inner and outer ends, above the widest lid's lash band only), so the
- * drawing's 7G target carries it and it snaps with the drawing, held on twos (face-acting/anime-read.js).
+/** anime-sockets.js — THE SOCKET LIBRARY: each brow and lid drawing (anime-drawings.js) carries its own eye socket, so
+ * animating the brows and the lids animates the socket for that frame. A socket is part of its drawing's build
+ * (anime-form.js `socket`: the brow's family the ridge over the eye, the socket's upper plane, its inner and outer ends,
+ * above the widest lid's lash band only; the lid's family the cheek under the eye, below its lower outline at rest
+ * only), so the drawing's 7G target carries it and it snaps with the drawing, held on twos (face-acting/anime-read.js).
+ * A brow's socket and a lid's are one socket drawn together, their words disjoint.
  *
  * One base table for every anime head, tuned first on Shonen High's: the rest brow's socket is the head's own (the form's
  * `orbit`, tied to the brow by its rim); a raised brow lifts the ridge back and opens the socket's upper plane shallow; a
@@ -12,6 +14,7 @@
  *   deep   the socket's upper plane cut deeper (shallower when negative)
  *   pinch  the inner end bunched forward toward the nose (eased back when negative)
  *   outer  the outer end hooded forward (lifted back when negative)
+ *   cheek  the cheek under the eye pushed up into it, forward over the socket's lower plane (the lids': a squint, a smile)
  * A hero reads the table under hero laws 20 on the head's form (anime-looks.js animeFormed); a row minted before draws
  * its brows as it did. Pure data and lookups; no dice.
  */
@@ -21,12 +24,15 @@ import { DRAWING_RANGES } from './anime-drawings.js';
 /** each word's range ([lo, hi]): the drawing word's (anime-drawings.js), so the head refuses what the table may not hold */
 export const SOCKET_RANGES = DRAWING_RANGES.socket;
 
-/** the base table: a brow drawing's socket by its name (a drawing not named keeps the head's own socket) */
+/** the base table: a brow or lid drawing's socket by its name (a drawing not named keeps the head's own socket) */
 export const SOCKETS = Object.freeze({
   'brows.raised': Object.freeze({ ridge: -0.008, deep: -0.008, outer: -0.004 }),
   'brows.low': Object.freeze({ ridge: 0.007, deep: 0.004, outer: 0.006 }),
   'brows.angry': Object.freeze({ ridge: 0.008, deep: 0.006, pinch: 0.014, outer: 0.004 }),
   'brows.worried': Object.freeze({ ridge: -0.004, pinch: -0.008, outer: 0.006 }),
+  // the lid family: the cheek under the eye pushed up into it, a little in a squint, fully in a smile
+  'lids.squint': Object.freeze({ cheek: 0.008 }),
+  'lids.smile': Object.freeze({ cheek: 0.014 }),
 });
 
 /** the hero laws that read the table (hero-form.js HERO_LAWS_VERSION) */
@@ -40,7 +46,7 @@ export const withSocket = (name, words, on) => (on && SOCKETS[name] ? { ...words
 export function socketErrors(table = SOCKETS, drawings = null) {
   const errs = [];
   for (const [name, K] of Object.entries(table)) {
-    if (!name.startsWith('brows.')) errs.push(`${name}: a socket is a brow drawing's`);
+    if (!/^(brows|lids)\./.test(name)) errs.push(`${name}: a socket is a brow or lid drawing's`);
     if (drawings && !drawings[name]) errs.push(`${name}: not a drawing`);
     for (const [k, v] of Object.entries(K)) {
       const R = SOCKET_RANGES[k];

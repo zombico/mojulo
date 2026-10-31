@@ -45,8 +45,10 @@ describe('a 7G rig', () => {
     const W = (1 + F.targets.length) * 3;
     // (the face the rig's targets draw at weights w, against the head built at those words)
     const check = (state, E = {}) => {
-      // (each brow with its socket, as the hero reads it: anime-sockets.js, hero laws 20)
-      const words = withSocket(state.brows?.L, drawingWords({ brows: state.brows?.L, lids: state.lids?.L, gaze: state.gaze, mouth: state.mouth }), socketsOn(full.M.hero)), w = drawingWeights({ eyeL: E.blink ?? 0, eyeR: E.blink ?? 0, smile: 0, open: 0, brow: 0, ...state }, F.K);
+      // (each brow and lid with its socket, as the hero reads it: anime-sockets.js, hero laws 20; their words disjoint)
+      const on = socketsOn(full.M.hero), base = drawingWords({ brows: state.brows?.L, lids: state.lids?.L, gaze: state.gaze, mouth: state.mouth });
+      const socket = { ...withSocket(state.brows?.L, {}, on).socket, ...withSocket(state.lids?.L, {}, on).socket };
+      const words = Object.keys(socket).length ? { ...base, socket } : base, w = drawingWeights({ eyeL: E.blink ?? 0, eyeR: E.blink ?? 0, smile: 0, open: 0, brow: 0, ...state }, F.K);
       const exact = compileLayered({ ...full.M.recipe, parts: { ...full.M.recipe.parts, ...animeHeadAt(opts, E, X, words) } }, full.M.dials).vertices;
       let worst = 0;
       for (let i = 0; i < full.mesh.vertices.length; i++) {
@@ -60,6 +62,8 @@ describe('a 7G rig', () => {
     expect(check({ brows: both('brows.angry'), lids: both('lids.sad'), mouth: 'mouth.a' })).toBeLessThan(1e-5);
     expect(check({ lids: both('lids.angry'), gaze: 'gaze.right' })).toBeLessThan(1e-5);
     expect(check({ brows: both('brows.worried') }, { blink: 1 })).toBeLessThan(1e-5);
+    // (a brow's socket over a lid's: the brow's ridge and the lid's cheek, one socket)
+    expect(check({ brows: both('brows.angry'), lids: both('lids.smile') })).toBeLessThan(1e-5);
   });
   it('weighs one eye\'s drawing alone, a sided mouth on its side, a lid\'s shape only on an open eye', () => {
     const w = (state) => Object.fromEntries(F.targets.map((n, i) => [n, drawingWeights({ eyeL: 0, eyeR: 0, smile: 0, open: 0, brow: 0, ...state }, F.K)[i]]).filter(([, x]) => x));

@@ -1,7 +1,8 @@
 // anime-read: a take read as anime draws it. The concepts: deterministic; every frame one drawing per layer, each of its
 // layer; every layer held on twos but a spoken closure; kuchipaku (every m, b and p shut, a vowel its own shape); the
-// emotions reach their drawings (anger's brows and lids and its shout, happiness's smile, surprise's raised brows and
-// wide lids, sadness's worried brows, a thought's turned gaze); lowered to the four channels; a STEP track keyed half a
+// emotions reach their drawings (anger's brows and lids and its shout, happiness's smile and smiling eyes, surprise's raised brows and
+// wide lids, sadness's worried brows, a thought's turned gaze); a smiling or squinting lid draws its own narrowing, so it
+// never rides a partial closure; lowered to the four channels; a STEP track keyed half a
 // frame early, its recording carried.
 import { describe, it, expect } from 'vitest';
 import { perform } from './perform.js';
@@ -40,10 +41,18 @@ describe('a take read as drawings', () => {
     const vowels = ph.filter((q) => KUCHIPAKU[q.p.replace(/\d$/, '')] && !['M', 'B', 'P', 'sil'].includes(q.p.replace(/\d$/, '')));
     expect(vowels.filter((q) => at(q).mouth === KUCHIPAKU[q.p.replace(/\d$/, '')]).length / vowels.length).toBeGreaterThan(0.6);
   });
+  it('lets the smiling and squinting lids draw their own narrowing: while one is drawn, the eye\'s closure is the blink\'s alone', () => {
+    const { frames } = animeRead(acted), raw = (F, s) => [F[`eye${s}`], F.lids[s]];
+    const drawn = frames.flatMap((F) => ['L', 'R'].map((s) => raw(F, s))).filter(([, l]) => l === 'lids.smile' || l === 'lids.squint');
+    expect(drawn.length).toBeGreaterThan(0);
+    // (the acted take blinks only where its beats say so; a narrowing drawn as closure would snap the eye to a knot and
+    // drop the lid's shape, so a drawn smile or squint is on an open eye or a blink, never on a narrowing's partial closure)
+    for (const [eye] of drawn) expect(eye === 0 || eye >= 0.5, `eye ${eye}`).toBe(true);
+  });
   it('draws each emotion: anger, happiness, surprise, sadness, a thought\'s turned gaze', () => {
     const { frames } = animeRead(acted), at = (t) => frames[Math.round(t * FACE_FPS)];
     expect(at(0.9).brows.L).toBe('brows.angry'); expect(at(0.9).lids.L).toBe('lids.angry');
-    expect(at(2.1).mouth).toBe('mouth.smile');
+    expect(at(2.1).mouth).toBe('mouth.smile'); expect(at(2.1).lids.L).toBe('lids.smile');
     expect(at(3.2).brows.R).toBe('brows.raised'); expect(at(3.2).lids.R).toBe('lids.wide');
     expect(at(4.6).brows.L).toBe('brows.worried');
     expect(frames.slice(Math.round(3.6 * FACE_FPS)).some((F) => F.gaze !== 'gaze.ahead')).toBe(true);

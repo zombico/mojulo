@@ -17,9 +17,12 @@ that takes one off is the operator's call. A principle a test holds names the te
    drawing moves, the 7G rig carries a corrective per brow over each lid, so a drawn face stays the exact build of its
    drawings. Under hero laws 20 each brow drawing also carries its OWN socket (`anime-sockets.js`, a base table for every
    head): the ridge forward or back over the eye, the socket's upper plane deeper or shallower, its inner end bunched
-   (a scowl) or eased (worry), its outer end hooded or lifted, in the same band and moving the brow block whole. It is
-   part of the drawing's build, so its target carries it and it snaps with the drawing: animating the brows animates
-   the socket, frame by frame. Held by `anime-sockets.test.js`, and swept in `anime-drawings.deep.test.js`.
+   (a scowl) or eased (worry), its outer end hooded or lifted, in the same band and moving the brow block whole. Each lid
+   drawing that narrows the eye from below (the squint, the smiling eye) carries the socket's lower half: the cheek
+   pushed up under the eye, below its lower outline at rest only, so the white and the lenses never move with it. A
+   socket is part of its drawing's build, so its target carries it and it snaps with the drawing: animating the brows
+   and the lids animates the socket, frame by frame. Held by `anime-sockets.test.js`, and swept in
+   `anime-drawings.deep.test.js`.
 3. **No line where the form carries it.** The pyramid nose draws no nose line (its shade side's plane is the line); the
    lips are flat (`flatLips`), the mouth drawn on the face, not raised as lips.
 4. **The profile reads by its blocks.** The brow, the socket and the cheekbone break the face into planes; the nose points

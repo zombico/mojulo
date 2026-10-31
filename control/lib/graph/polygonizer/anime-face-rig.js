@@ -175,6 +175,8 @@ function g7Targets(T, recipe, opts, X, C, sockets = false) {
   const at = sockets ? 'sockets' : 'plain';
   if (T.g7[at] !== undefined) return T.g7[at];
   const W = (name) => withSocket(name, DRAWINGS[name].words, sockets);
+  // (two drawings' words together: a brow's socket and a lid's are one socket, their words disjoint)
+  const W2 = (a, b) => { const A = W(a), B = W(b); return { ...A, ...B, ...(A.socket || B.socket ? { socket: { ...A.socket, ...B.socket } } : {}) }; };
   const V0 = T.V0, D = {}, names = [], whole = {};
   const vOf = (E, words) => { const b = headBuild(opts, E, X, C, words); if (!sameLayout(b, T.check)) throw new Error(MOVED7); return subVertices(recipe, X, b.parts); };
   const put = (n, d) => { D[n] = d; names.push(n); };
@@ -185,13 +187,13 @@ function g7Targets(T, recipe, opts, X, C, sockets = false) {
     }
     const fix = (a, b, d) => { for (const s of ['L', 'R']) put(fixTarget(a, b, s), sideOf(d, V0, s)); };
     for (const lid of SEVEN_G.lids) for (const gz of SEVEN_G.gazes) {
-      const d = diffOf(vOf({}, { ...W(lid), ...W(gz) }), V0);
+      const d = diffOf(vOf({}, W2(lid, gz)), V0);
       for (let i = 0; i < d.length; i++) d[i] -= whole[lid][i] + whole[gz][i];
       fix(lid, gz, d);
     }
     // (a brow over a lid: the socket's rim warps with the brow over the rings the lid moves, anime-form.js BROW_RIM)
     for (const brow of SEVEN_G.brows) for (const lid of SEVEN_G.lids) {
-      const d = diffOf(vOf({}, { ...W(brow), ...W(lid) }), V0);
+      const d = diffOf(vOf({}, W2(brow, lid)), V0);
       for (let i = 0; i < d.length; i++) d[i] -= whole[brow][i] + whole[lid][i];
       fix(brow, lid, d);
     }

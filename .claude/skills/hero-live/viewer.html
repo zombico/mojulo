@@ -396,7 +396,9 @@ const ready = selectVariant(M.variants[0].id);
 window.heroLive = {
   ready, manifest: M,
   variant: (id) => selectVariant(id), take: (name) => play(name, { fade: 0 }), view: (id) => frame(id), seek, pause: setPaused,
-  hold: (weights) => { $('hold').checked = true; $('hold').dispatchEvent(new Event('change')); Object.assign(S.holdW, weights); },
+  // (a hold replaces every weight: the morphs it names at theirs, every other at 0, never what an earlier hold left)
+  hold: (weights) => { $('hold').checked = true; $('hold').dispatchEvent(new Event('change')); for (const k of Object.keys(S.holdW)) S.holdW[k] = 0; Object.assign(S.holdW, weights); },
+  release: () => { if ($('hold').checked) { $('hold').checked = false; $('hold').dispatchEvent(new Event('change')); } },
   set: (opts) => { for (const [k, v] of Object.entries(opts)) { const el = $(k); if (el && el.type === 'checkbox' && el.checked !== v) el.click(); } },
   state: () => ({ variant: S.variant, take: S.take, paused: S.paused, phase: phaseNow(), view: S.view }),
   // (a camera for a script. With `bone`, a closeup on that bone as posed at this moment: its head, plus `off` m, from
