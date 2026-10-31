@@ -7,12 +7,14 @@
 import { describe, it, expect } from 'vitest';
 import { heroRecord, heroPlanOf, normalizeHero, validateHeroSpec, expandLayeredManifest } from '../../mcp/tools/layered.js';
 import { compileLayered } from './station-loft.js';
+import { heroPlan } from './hero-form.js';
 import { heroFaceRig } from './anime-face-rig.js';
 import { animeHeroEffective, animeFaceBase, heroFeatureAdvice, heroHeadPole, heroHairPole } from './anime-looks.js';
 import { ANIME_STYLES, ANIME_STYLE_NAMES, ANIME_STYLE_DEFAULT, animeStyleOf, resolveAnimeStyle } from './anime-styles.js';
 import { withDefaultForm } from './motion-stamp.js';
 import { heroRemakeOps } from '../../mcp/tools/hero-mint.js';
 import { headOf } from './anime-drawings.fixture.js';
+import { coreAdvice } from './hero-core-measures.js';
 
 const STYLE = ANIME_STYLE_NAMES[0];
 
@@ -90,6 +92,27 @@ describe('the style pole', () => {
     expect(B.neck).toEqual(A.neck);
     // (the whole head the same distance back: the hero's forward is +y)
     expect(B.hi - A.hi).toBeLessThan(-0.005); expect(B.lo - A.lo).toBeCloseTo(B.hi - A.hi, 4);
+  });
+  it('lends its chest: a pectoral rising out of the chest under a `rise`; Shonen High\'s male with none, its female\'s bust a fifth smaller', () => {
+    // (the pectoral's lowest section stands off the chest less under a `rise` than without one)
+    const seg = (P, name) => [...(P.segments ?? []), ...Object.values(P.parts ?? {})].find((x) => x?.name === name);
+    const pec = (chest) => seg(heroPlan({ cast: 'male', ...(chest ? { chest } : {}) }), 'pectoralR').stations.map((st) => Math.max(...Object.values(st.points).map((p) => p[1])));
+    expect(pec({ pec: { rise: 0.45 } })[0]).toBeLessThan(pec(null)[0]);
+    expect(seg(heroPlanOf(heroRecord({ cast: 'male', head: 'anime', animeStyle: STYLE })), 'pectoralR')).toBeUndefined();
+    expect(seg(heroPlanOf(heroRecord({ cast: 'male', head: 'anime' })), 'pectoralR')).toBeDefined();
+    // (the bust's reach across: its widest section, styled against the form's at the same chest)
+    const span = (chest) => { const B = seg(heroPlan({ cast: 'female', ...(chest ? { chest } : {}) }), 'bustR'); return Math.max(...B.stations.flatMap((st) => Object.values(st.points).map((p) => p[1]))); };
+    expect(span({ bust: { size: 0.8 } })).toBeLessThan(span(null));
+  });
+  it('reads the core in its own canon: a cast\'s core bands in place of the body\'s', () => {
+    for (const pole of ['male', 'female']) {
+      const bands = resolveAnimeStyle(STYLE)[pole].coreBands;
+      if (!bands?.waistToHip) continue;
+      // (a waist just inside the cast's band and outside the body's: advised by the body's bands, not by the cast's)
+      const m = { waistToHip: bands.waistToHip[0] + 0.005 };
+      expect(coreAdvice(m, pole), pole).toHaveLength(1);
+      expect(coreAdvice(m, pole, bands), pole).toEqual([]);
+    }
   });
   it('advises each base\'s styled default nothing, by its style\'s bands over the form\'s', () => {
     for (const cast of ['male', 'female']) {

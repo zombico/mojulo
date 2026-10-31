@@ -50,3 +50,8 @@ game: every cast is lit the same way, so any game can field any of them. The eye
   on the true almond shape (not the male head's flat top), long thin brows a little arched, a tiny nose and a small
   mouth; one soft oval from under the ear to the chin, the jaw's corner low. The cheek stays one arc and the jaw stays
   closed into the skull.
+- **A cast's core in its own canon** (`coreBands` on a cast's pole, `hero-core-measures.js` `coreAdvice(m, body,
+  bands)`): the body's core advice reads a cast's own bands in place of the body's, as its feature advice does.
+  Shonen High's figures (merged from the expressiveness branch: an athletic male, a long-legged female) carry waists
+  narrower for the hips than the realistic bands, and as the default anime head every minted anime hero was advised
+  against them; their own bands admit them.

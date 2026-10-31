@@ -71,3 +71,26 @@ lean, long faces. The eyes gate is the operator's.
   tip raised by the same amount under a root that stays, so the nose is shorter and steeper and the gap from it to
   the mouth is kept. All the way up, the mouth line sank into the nose's shadow and the nose all but flattened;
   three-quarters of the way reads.
+- **Shonen High's bodies, proportioned** (on a proportion sheet: both casts at one scale, a line every head height):
+  the male an athletic lead's, 7.65 heads (the torso shorter and the legs longer, the shoulders broader over a narrow
+  waist, a V); the female long-legged and slim, 7.26 heads (the torso shorter, the legs longer, the waist narrow, the
+  shoulders narrower).
+- **The body rounded** (`body-smooth.js`; a style's `smooth`, Shonen High's 1; the recipe's `smoothBody: { rounds }`):
+  the body's skin split once, each triangle into four, its new points on the curved patch its corners' welded normals
+  describe (the curved PN triangle's edge), so the silhouette reads rounded rather than as its rings' facets. The
+  corners keep their places byte for byte (the joints, the pinned parts' seats, the binds); a new point is appended
+  after every point the mesh had and binds as its two corners' mean; a part's open rim splits on its straight line.
+  Absent, the mesh as built. One round: the parts are still separate shells, so the seams where they meet (the chest's
+  plates on the torso, the torso over the pelvis) still read; fusing them is the next step.
+- **A style's chest** (`chest`: its pectorals' and its bust's own words over the form's, hero-form.js heroPlan `chest`):
+  a pectoral's `rise` lifts the dome off its lower border over that share of the run instead of standing its full
+  height there, so the muscle grows out of the chest rather than lying on it as a panel; a bust's `size`, its field's
+  words and `within` (held inside a share of the torso's half-width), each absent as it was. Shonen High's male: thinner pectorals rising
+  over 0.45 of the run (once the body was rounded they read as separate panels).
+- **A chest's width** (`chest.width`: the rib cage's ring, the shoulders' span left as the tune sets it; the tune has no
+  key for it, `shoulders` moves the arms' span alone). Shonen High's both at 0.82, their chests' depth a little less: the
+  rounded body stood too broad under the arms, its sides flaring out past the armpit; they now fall nearly straight to
+  the waist.
+- **Shonen High's chests, simpler**: the male's pectoral layer gone (a chest's `pec: false`: the chest the torso's own
+  smooth front; rounded, the layer read as an imprint), the female's bust a fifth smaller than the form's
+  (`bust: { size: 0.8 }`).

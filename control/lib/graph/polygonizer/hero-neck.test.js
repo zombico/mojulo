@@ -85,11 +85,13 @@ describe('the neck form on the anime casts', () => {
       const tris = (re) => mesh.faces.filter((t) => re.test(mesh.provenance[t[0]].part)).map((t) => t.map((vi) => V[vi]));
       const skull = [tris(/^face$/), tris(/^cranium$/)], head = skull[0]; const isIn = (q) => skull.some((T) => inside(T, q));   // each closed part on its own
       const N = m.recipe.parts.neck, ids = N.stations.map((s) => s.id), last = ids.at(-1);
-      const ringOf = (id) => mesh.provenance.map((p, i) => (p.part === 'neck' && p.station === id ? i : -1)).filter((i) => i >= 0);
+      // (a ring's own points: a rounded body's new points, body-smooth.js, carry their first corner's station and slot
+      // with `mix` naming the pair they lie between, and are not the ring's)
+      const ringOf = (id) => mesh.provenance.map((p, i) => (p.part === 'neck' && p.station === id && !p.mix ? i : -1)).filter((i) => i >= 0);
       const front = ringOf(last).filter((vi) => /^(front|side)/.test(mesh.provenance[vi].slot));
       expect(front.length, at).toBe(SLOT_FAMILIES.ring12.filter((s) => /^(front|side)/.test(s)).length);
       expect(front.filter((vi) => !isIn(V[vi])), `${at}: the top ring's front half`).toEqual([]);
-      const apex = mesh.provenance.map((p, i) => (p.part === 'neck' && !p.station ? i : -1)).filter((i) => i >= 0).sort((a, b) => V[b][2] - V[a][2])[0];
+      const apex = mesh.provenance.map((p, i) => (p.part === 'neck' && !p.station && !p.mix ? i : -1)).filter((i) => i >= 0).sort((a, b) => V[b][2] - V[a][2])[0];
       expect(isIn(V[apex]), `${at}: the top cap's point`).toBe(true);
       // the nape: walk the back line (slot 'back', ring to ring, then up the top cap to its point) to the first point
       // inside the skull (the male's nape ring stands out behind it by design: the visible nape)

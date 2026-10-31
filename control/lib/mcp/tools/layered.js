@@ -80,8 +80,8 @@ import { fitEvidence } from '@/lib/graph/polygonizer/humanoid-head-fit';
 import { ANIME_FACE, ANIME_HAIR, ANIME_FACE_KEYS, ANIME_HAIR_KEYS, ANIME_POSES, ANIME_PRESETS, resolveAnimeFace, validateAnimeFace, animeFaceWarnings, resolveAnimeHair, validateAnimeHair, animeHairWarnings, resolveAnimeExpression, validateAnimeExpression, animeExpressionWarnings, animeCoverageWarnings, animeFaceZoneWarnings, ANIME_HAIR_BASE, ANIME_HAIR_FORM_WORDS } from '@/lib/graph/polygonizer/anime-head';
 import { ANIME_HAIR_STYLES } from '@/lib/graph/polygonizer/anime-head';
 import { validateGenki, genkiStand } from '@/lib/graph/polygonizer/anime-genki';
-import { ANIME_STYLE_NAMES, validateAnimeStyle, resolveAnimeStyle } from '@/lib/graph/polygonizer/anime-styles';
-import { LOOK_TABLES, validateLook, resolveLook, composeAnime, heroHeadPole as headPoleOf, animeHeroEffective as animeEffective, animeFaceBase, animeSculptBase, heroFeatureAdvice, heroHairPole } from '@/lib/graph/polygonizer/anime-looks';
+import { ANIME_STYLE_NAMES, validateAnimeStyle, resolveAnimeStyle, animeStyleOf } from '@/lib/graph/polygonizer/anime-styles';
+import { LOOK_TABLES, validateLook, resolveLook, composeAnime, heroHeadPole as headPoleOf, animeHeroEffective as animeEffective, animeFaceBase, animeSculptBase, castHeadPole as castHeadPoleOf, heroFeatureAdvice, heroHairPole } from '@/lib/graph/polygonizer/anime-looks';
 import { ANIME_SCULPT, ANIME_SCULPT_KEYS, SCULPT_SHAPE_KEYS, validateAnimeSculpt, resolveAnimeSculpt, sparseSculpt, animeSculptWarnings, describeAnimeSculpt } from '@/lib/graph/polygonizer/anime-sculpt';
 import { layeredStats, persistedLayeredLedger } from '@/lib/graph/polygonizer/station-loft-faces';
 import { validateBake } from '@/lib/graph/polygonizer/surface-bake';
@@ -253,7 +253,13 @@ function expandHeroAwarePlan(plan, hero, geocube = null) {
   // a STATUE (statue/expand.js): the expanded recipe cut to its format, carved in its material, its surface tagged
   if (hero?.statue) return statueRecipeOf(expandAware(plan, hero), plan, hero);
   // (an undead's heavy arm, its bared flesh and its loss on their sides, undead/tiered-layers.js; absent, the recipe as it was)
-  return withLegGirths(withDressMaterials(hero?.undead ? undeadRecipe(expandAware(plan, hero), hero) : expandAware(plan, hero), hero, plan, geocube));
+  return withBodySmooth(withLegGirths(withDressMaterials(hero?.undead ? undeadRecipe(expandAware(plan, hero), hero) : expandAware(plan, hero), hero, plan, geocube)), hero);
+}
+/** An anime hero whose style rounds its body (anime-styles.js `smooth`): the recipe names the rounds and compileLayered
+ * splits its body's skin on the curved patch (body-smooth.js). Any other recipe: as it was. */
+function withBodySmooth(recipe, hero) {
+  const rounds = hero?.head === 'anime' ? animeStyleOf(hero, castHeadPoleOf(hero))?.smooth : null;
+  return rounds ? { ...recipe, smoothBody: { rounds } } : recipe;
 }
 /** The realistic form's build (body-relational.js): the cast's pole's (male: norrin, female: shalla) under the record's
  * physique (its laws aside) */
@@ -1420,7 +1426,7 @@ function heroFormPlanOf(hero) {
   }
   if (hero.head === 'anime') {
     const eff = animeEffective(hero);   // the look's stamp, the own layer on top, the hair base under them
-    return humanoidPlan({ preset: cast, ...common, tune: eff.tune, head: 'anime', face: eff.face, hair: eff.hair, expression: eff.expression, sculpt: eff.sculpt, palette: { ...ANIME_HERO_PALETTE[heroHairPole(hero)], ...(hero.palette ?? {}) }, ...(hero.painterly ? { facePaint: { dense: facePaintDense(heroTarget(hero)), nose: { ...NOSE_DEFAULTS, ...(hero.painterly.nose ?? {}) } } } : {}), ...(hero.headPreset || heroHairPole(hero) !== headPoleOf(hero) ? { headPreset: headPoleOf(hero) } : {}), ...(hero.proportions ? { proportions: hero.proportions } : {}), ...dress });
+    return humanoidPlan({ preset: cast, ...common, tune: eff.tune, ...(eff.chest ? { chest: eff.chest } : {}), head: 'anime', face: eff.face, hair: eff.hair, expression: eff.expression, sculpt: eff.sculpt, palette: { ...ANIME_HERO_PALETTE[heroHairPole(hero)], ...(hero.palette ?? {}) }, ...(hero.painterly ? { facePaint: { dense: facePaintDense(heroTarget(hero)), nose: { ...NOSE_DEFAULTS, ...(hero.painterly.nose ?? {}) } } } : {}), ...(hero.headPreset || heroHairPole(hero) !== headPoleOf(hero) ? { headPreset: headPoleOf(hero) } : {}), ...(hero.proportions ? { proportions: hero.proportions } : {}), ...dress });
   }
   // the blank trunk and a baked include take `proportions` too (the anime casts), as the two worn heads do
   const plan = heroPlan({ cast, ...common, scale: hero.scale, palette: hero.palette || dress.adorn || isOutfitBuild(dress.outfit) ? { ...HERO_PALETTE, ...kitPalette(dress.adorn), ...outfitTones(dress.outfit), ...(hero.palette || {}) } : HERO_PALETTE, head: hero.head === 'none' ? null : hero.head, ...(hero.proportions ? { proportions: hero.proportions } : {}), ...((hero.detail === 'swimsuit' && !childCoding(hero)) || hero.beast ? { bare: true } : {}) });
@@ -1628,7 +1634,8 @@ export function heroReadout(hero, plan, stats, extraWarnings = [], { mesh, recip
   // the midsection measured (hero-core-measures.js) for the design loop's critic; its advice joins the warnings on the
   // structured core (the default: its bands are its contract), and stays in `core.advice` on a streamlined hero
   const coreM = coreMeasures(plan, mesh), coreBody = castOf(hero.cast, hero.proportions ?? (anime ? 'anime' : 'hero'))?.silhouette === 'female' ? 'female' : 'male';
-  const core = coreM ? { core: hero.core ?? DEFAULT_CORE, body: coreBody, ...coreM, advice: coreAdvice(coreM, coreBody) } : null;
+  // (an anime cast reads the core in its own canon, its `coreBands` in place of the body's: anime-styles.js)
+  const core = coreM ? { core: hero.core ?? DEFAULT_CORE, body: coreBody, ...coreM, advice: coreAdvice(coreM, coreBody, anime ? animeStyleOf(hero, castHeadPoleOf(hero))?.coreBands : null) } : null;
   if (core && core.core === 'structured') warnings.push(...core.advice);
   // a designed piece with no place on this body is said, never dropped without a word (sortPieces)
   const styledOutfit = styledHero(hero).outfit;

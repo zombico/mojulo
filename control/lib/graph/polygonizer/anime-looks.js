@@ -177,7 +177,8 @@ export function composeAnime(hero, defaultStyle, { hairBase = null } = {}) {
   const expression = genkiExpression(hero.expression !== undefined && hero.expression !== null ? resolveAnimeExpression(hero.expression) : L?.expression ?? resolveAnimeExpression('neutral'), hero);
   const { from: _t, ...tune } = resolveTune([St?.tune, L?.tune, hero.tune, G?.tune].filter(Boolean));
   const sculpt = hero.sculpt === false ? false : resolveAnimeSculpt([animeFormOf(hero), St?.sculpt, C?.sculpt, L?.sculpt, hero.sculpt, G?.sculpt].filter((x) => x !== undefined && x !== null));
-  return { face, sculpt, hair, expression, tune, hairWords, hairCut };
+  // (the style's chest, its pectorals' and its bust's own words: hero-form.js heroPlan `chest`; absent, the form's)
+  return { face, sculpt, hair, expression, tune, hairWords, hairCut, ...(St?.chest ? { chest: St.chest } : {}) };
 }
 /** the hero's head pole: its `headPreset`, else the cast when that is a hero cast, else the male */
 export const heroHeadPole = (hero) => hero.headPreset ?? styleHeadOf(hero) ?? castHeadPole(hero);
