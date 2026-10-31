@@ -17,8 +17,8 @@
 //           (wheat) takes the blades' place, a low one (chaff, the flowers) stands among them
 //   views   by the camera's mode (POV_GRASS): AERIAL, a cutscene's, the whole field; POV, gameplay's, real grass in the
 //           VIEW CONE (channels/view-cone.js: the frustum to its reach), thinning, and past its reach an impression:
-//           no geometry, the crust's painter (channels/crust.js) dotting a tuft a cell of the grass map on the far
-//           image, from the FAR MAP this block builds once (`window.__formFar`)
+//           no geometry, the far field (channels/far-field.js): the ground's blanket and its contour, from the FAR
+//           MAP this block builds once (`window.__formFar`)
 //   wind    the page's one gust field (channels/terrain-wind.js, the gen-6 live grass's wind kept on a form page with its
 //           blades off: the trees' crowns sway in it): every blade, strand and plant bends downwind by the gust at its
 //           root, its top the most, with a quiver of its own, and a gust's band reads a shade brighter as it passes, so
@@ -46,8 +46,8 @@ export const STILL_FIELD = Object.freeze({ spread: Object.freeze({ tall: 1, medi
 /** The field as the eye sees it, by the CAMERA'S MODE: AERIAL (a cutscene's camera) the whole field; POV (gameplay, the
  *  walker's eye, the default) real grass only out to the VIEW CONE's reach (channels/view-cone.js `window.__mojCone`: the
  *  screen's, or a world's `cone`, adjustable live), thinning past `thin` of it, each clump going whole at a distance of
- *  its own, and past it an IMPRESSION: a tuft a cell of the grass map, a few dots painted up the far image from its root
- *  (channels/crust.js, from the FAR MAP: each cell's strand height, colour slot, dice and ground). No geometry. In either
+ *  its own, and past it an IMPRESSION (channels/far-field.js: a blanket on the ground and strands on its contour, from
+ *  the FAR MAP: each cell's strand height, colour slot, dice and ground). No geometry. In either
  *  mode a tile the cone's frustum does not see is not drawn. `window.__formGrassView('aerial' | 'pov')` sets it; V toggles it on a walkable
  *  page. */
 export const POV_GRASS = Object.freeze({ thin: 0.5, strands: Object.freeze({ height: Object.freeze([0.55, 1]) }) });
@@ -262,8 +262,8 @@ export function formGrassScript() {
         window.__formWeeds = (window.__formWeeds || 0) + stand(tg, R, plantMat()) * Fm.p.length / 9;
       }); }
       // the STRANDS (POV, past the real grass): the FAR MAP, a strand a cell of the grass map, its height its section's
-      // tips' (a standing drift's its own), its colour slot, its dice and the ground's height there, read by the crust's
-      // painter (channels/crust.js), no geometry. A strand is the colour of what grows where it stands: the grass's, a standing
+      // tips' (a standing drift's its own), its colour slot, its dice and the ground's height there, read by the far
+      // field (channels/far-field.js), no geometry. A strand is the colour of what grows where it stands: the grass's, a standing
       // drift's (wheat) whole, one that lies among the blades (chaff) on a share of them, a flower's at its tip on a share
       // of them (each form's colour its tip's, a slot of its own)
       (function () {
