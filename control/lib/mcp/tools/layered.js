@@ -81,6 +81,7 @@ import { ANIME_FACE, ANIME_HAIR, ANIME_FACE_KEYS, ANIME_HAIR_KEYS, ANIME_POSES, 
 import { ANIME_HAIR_STYLES } from '@/lib/graph/polygonizer/anime-head';
 import { validateGenki, genkiStand } from '@/lib/graph/polygonizer/anime-genki';
 import { ANIME_STYLE_NAMES, validateAnimeStyle, resolveAnimeStyle, animeStyleOf } from '@/lib/graph/polygonizer/anime-styles';
+import { muscleShirt, validateMuscleShirt } from '@/lib/graph/musculature';
 import { LOOK_TABLES, validateLook, resolveLook, composeAnime, heroHeadPole as headPoleOf, animeHeroEffective as animeEffective, animeFaceBase, animeSculptBase, castHeadPole as castHeadPoleOf, heroFeatureAdvice, heroHairPole } from '@/lib/graph/polygonizer/anime-looks';
 import { ANIME_SCULPT, ANIME_SCULPT_KEYS, SCULPT_SHAPE_KEYS, validateAnimeSculpt, resolveAnimeSculpt, sparseSculpt, animeSculptWarnings, describeAnimeSculpt } from '@/lib/graph/polygonizer/anime-sculpt';
 import { layeredStats, persistedLayeredLedger } from '@/lib/graph/polygonizer/station-loft-faces';
@@ -253,13 +254,18 @@ function expandHeroAwarePlan(plan, hero, geocube = null) {
   // a STATUE (statue/expand.js): the expanded recipe cut to its format, carved in its material, its surface tagged
   if (hero?.statue) return statueRecipeOf(expandAware(plan, hero), plan, hero);
   // (an undead's heavy arm, its bared flesh and its loss on their sides, undead/tiered-layers.js; absent, the recipe as it was)
-  return withBodySmooth(withLegGirths(withDressMaterials(hero?.undead ? undeadRecipe(expandAware(plan, hero), hero) : expandAware(plan, hero), hero, plan, geocube)), hero);
+  return withMuscleShirt(withBodySmooth(withLegGirths(withDressMaterials(hero?.undead ? undeadRecipe(expandAware(plan, hero), hero) : expandAware(plan, hero), hero, plan, geocube)), hero), hero);
 }
 /** An anime hero whose style rounds its body (anime-styles.js `smooth`): the recipe names the rounds and compileLayered
  * splits its body's skin on the curved patch (body-smooth.js). Any other recipe: as it was. */
 function withBodySmooth(recipe, hero) {
   const rounds = hero?.head === 'anime' ? animeStyleOf(hero, castHeadPoleOf(hero))?.smooth : null;
   return rounds ? { ...recipe, smoothBody: { rounds } } : recipe;
+}
+/** A hero wearing the MUSCLE SHIRT (`muscleShirt`, musculature/: a flat body puts it on and its muscles show up): its
+ * body's skin re-sampled at the shirt's grain and carried out to the card's muscles. Without one: as it was. */
+function withMuscleShirt(recipe, hero) {
+  return hero?.muscleShirt ? muscleShirt(recipe, hero.muscleShirt).recipe : recipe;
 }
 /** The realistic form's build (body-relational.js): the cast's pole's (male: norrin, female: shalla) under the record's
  * physique (its laws aside) */
@@ -813,7 +819,7 @@ export const STREAMLINED_DEPRECATED = "the streamlined core (core: 'streamlined'
  * its tongue behind the lips in an open cup, the lips' corners bound half to the jaw), where laws 2 to 11 closed a bag
  * behind the lips, bound each lip wholly to its bone to the corner, and an open mouth was a box onto the bag's dark front */
 export const REALISTIC_LAWS_VERSION = 12;
-export const HERO_FIELDS = ['cast', 'register', 'tune', 'body', 'girth', 'headScale', 'scale', 'palette', 'head', 'face', 'hair', 'expression', 'headPreset', 'look', 'proportions', 'detail', 'adorn', 'paint', 'outfit', 'gesture', 'sculpt', 'clips', 'blink', 'gear', 'core', 'statue', 'genki', 'motion', 'target', 'geocube', 'form', 'physique', 'skin', 'painterly', 'stylism', 'laws', 'kit', 'name', 'emblem', 'undead', 'beast', 'perform', 'acting', 'animeStyle'];
+export const HERO_FIELDS = ['cast', 'register', 'tune', 'body', 'girth', 'headScale', 'scale', 'palette', 'head', 'face', 'hair', 'expression', 'headPreset', 'look', 'proportions', 'detail', 'adorn', 'paint', 'outfit', 'gesture', 'sculpt', 'clips', 'blink', 'gear', 'core', 'statue', 'genki', 'motion', 'target', 'geocube', 'form', 'physique', 'skin', 'painterly', 'stylism', 'laws', 'kit', 'name', 'emblem', 'undead', 'beast', 'perform', 'acting', 'animeStyle', 'muscleShirt'];
 /** what the hero door takes beside a hero's own words: the mint's (the layered kind's top-level keys) and `vibe` */
 /** A named hero's name is its own on this machine: refused when another hero (any ref but `ref`) holds it, as names are
  * compared (case and spacing aside), naming the hero that holds it. */
@@ -1003,6 +1009,10 @@ export function validateHeroSpec(spec, { staleScale = false } = {}) {
   }
   // THE ANIME FACE'S ACTING (anime-face-rig.js sevenG): `full` draws the 7G drawings at any target, `basic` the four
   // channels at any target; unset, a take on a target of T3 or higher draws the 7G (era/cast-spend.js DENSE_TIERS)
+  if (spec.muscleShirt !== undefined && spec.muscleShirt !== null) {
+    if (spec.form === 'realistic') errs.push("muscleShirt: the lofted body's (the tiered hero's); the realistic body's muscles are its physique");
+    else errs.push(...validateMuscleShirt(spec.muscleShirt));
+  }
   if (spec.acting !== undefined && spec.acting !== null) {
     if (spec.head !== 'anime') errs.push(`acting: the anime head's (head: 'anime'): 'full' draws its 7G drawings, 'basic' its four channels`);
     else if (!['full', 'basic'].includes(spec.acting)) errs.push(`acting: 'full' (the 7G drawings, at any target) | 'basic' (the four channels, at any target); unset, a take on a T3 or higher target draws the 7G`);
@@ -1245,6 +1255,7 @@ export function heroRecord(spec, { staleScale = false } = {}) {
   if (spec.motion && typeof spec.motion === 'object' && Object.keys(spec.motion).length) hero.motion = spec.motion;
   if (spec.perform && typeof spec.perform === 'object' && Object.keys(spec.perform).length) hero.perform = spec.perform;
   if (spec.acting === 'full' || spec.acting === 'basic') hero.acting = spec.acting;
+  if (spec.muscleShirt !== undefined && spec.muscleShirt !== null) hero.muscleShirt = structuredClone(spec.muscleShirt);
   // the ambient blink: on by default (read at export, never stored); stored only when turned off
   if (spec.blink === false) hero.blink = false;
   // held and carried gear (hero-gear.js): each slot's build words with the laws stamped; absent ⇒ no key
