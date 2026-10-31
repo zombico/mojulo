@@ -228,16 +228,20 @@ export function unionOf(masses, d, k = null) {
  * (the torso's over the pelvis, the arm's over the elbow's bridge), a step at every joint */
 export const END_TUCK = 0.0015, END_BAND = 0.018;
 /** how far an end BURIED inside a shell that shows over it dives (m), over how long a run (m): it never shows */
-export const BURIED_TUCK = 0.008, BURIED_BAND = 0.025;
+export const BURIED_TUCK = 0.008, BURIED_BAND = 0.025, BURIED_IN = 0.01;
 /** which ends of a dense part (its first station's, its last's) lie inside one of `owners` (dense parts that show over
  * it): the end ring's centre within an owner's run along its axis and within its rings' reach of it */
 export function endsInside(B, owners) {
   const centre = (A, x) => scl(A.slots.reduce((a, s) => add(a, x.points[s]), [0, 0, 0]), 1 / A.slots.length);
+  // (at least BURIED_IN within the owner's run from its ends: a bridge's end only meets its neighbour's, ring to ring,
+  // and dived as buried it sank the elbow's band under both)
   const inside = (p) => owners.some((A) => {
     const C = A.stations.map((x) => centre(A, x)), R = A.stations.map((x, i) => A.slots.reduce((a, s) => a + len(sub(x.points[s], C[i])), 0) / A.slots.length);
+    const run = [0]; for (let i = 1; i < C.length; i++) run.push(run[i - 1] + len(sub(C[i], C[i - 1])));
     for (let i = 0; i + 1 < C.length; i++) {
       const e = sub(C[i + 1], C[i]), l2 = dot(e, e); if (l2 < 1e-12) continue;
       const t = dot(sub(p, C[i]), e) / l2; if (t < 0 || t > 1) continue;
+      const s = run[i] + (run[i + 1] - run[i]) * t; if (s < BURIED_IN || run[run.length - 1] - s < BURIED_IN) continue;
       if (len(sub(p, add(C[i], scl(e, t)))) < R[i] + (R[i + 1] - R[i]) * t) return true;
     }
     return false;
@@ -254,7 +258,7 @@ export const DOME_MOST = 0.07;
  * union's surface (the skin a plane through the point, square to the ray), less its `tuck` and, near its ends, its end
  * tuck (each never more than the point moved). A point no mass reaches keeps its place. `k` one blend for every level
  * and the skin (a mark's: the nipples'), its march finer. `whole`: the tuck taken whole, moved or not (adapters/loft.js UNDER) */
-export function displace(P, masses, d, tuck = 0, k = null, whole = false, buried = [false, false]) {
+export function displace(P, masses, d, tuck = 0, k = null, whole = false, ends = [false, false]) {
   if (!masses.length) return { part: P, moved: 0, capped: new Set() };
   const M = unionOf(masses, d, k), kS = k ?? skinBlendOf(d), STEP = k ? 0.0005 : 0.002, REACH = k ? 0.03 : 0.16;
   const centres = P.stations.map((x) => scl(P.slots.reduce((a, s) => add(a, x.points[s]), [0, 0, 0]), 1 / P.slots.length));
@@ -265,7 +269,8 @@ export function displace(P, masses, d, tuck = 0, k = null, whole = false, buried
   // (an end BURIED inside a shell that shows over it dives deeper and longer, BURIED_TUCK: at END_TUCK the thigh's top
   // lay a millimetre under the pelvis and flickered through it in strips at the hip, the pelvis's top through the torso)
   const total = run[run.length - 1], dive = (x, deep) => { const b = deep ? BURIED_BAND : END_BAND, t = deep ? BURIED_TUCK : END_TUCK; if (x >= b) return 0; const y = 1 - x / b; return t * y * y * (3 - 2 * y); };
-  const endOf = (i) => Math.max(domedBack ? 0 : dive(run[i], buried[0]), domedTip ? 0 : dive(total - run[i], buried[1]));
+  // (`ends`, each end's: true BURIED, 'flush' WELDED to a bridge's end, ring to ring, so it does not dive at all)
+  const endOf = (i) => Math.max(domedBack || ends[0] === 'flush' ? 0 : dive(run[i], ends[0] === true), domedTip || ends[1] === 'flush' ? 0 : dive(total - run[i], ends[1] === true));
   let moved = 0, held = false;
   const capped = new Set();
   // (a point carried out along its ray from `c` onto the union, less its tuck; unmoved where no mass reaches)
@@ -331,6 +336,59 @@ function sloped(P, S, C, capped) {
   }
   if (!up.size) return S;
   return S.map((x, i) => ({ ...x, points: Object.fromEntries(P.slots.map((sl, j) => [sl, up.has(i * n + j) ? add(P.stations[i].points[sl], scl(dir[i][j], m[i][j])).map(r6) : x.points[sl]])) }));
+}
+
+/** which ends of a dense part `B` MEET an end of `A` ring to ring (their end rings' centres within 1 cm): [{ b, a }],
+ * each 0 for a part's first station's end, 1 for its last's */
+export function endsMeeting(B, A) {
+  const cen = (P, i) => { const x = P.stations[i]; return scl(P.slots.reduce((a, s) => add(a, x.points[s]), [0, 0, 0]), 1 / P.slots.length); };
+  const out = [];
+  for (const b of [0, 1]) for (const a of [0, 1]) if (len(sub(cen(B, b ? B.stations.length - 1 : 0), cen(A, a ? A.stations.length - 1 : 0))) < 0.01) out.push({ b, a });
+  return out;
+}
+/** over how long a run from its end (m) a bridge is eased onto the end ring it is welded to */
+export const WELD_BAND = 0.025;
+/** a dense part `B` (a joint's bridge) WELDED at its ends to the end rings it meets (`rings`: [back, tip], each an array of
+ * points round the neighbour's end ring, or null): each point carried out from its ring's centre to the neighbour's
+ * ring's reach in its direction, wholly at the end and eased off over WELD_BAND. The shirt carried a bridge and its
+ * neighbours each by its own muscles: where the plain body's ring was one, two stood a few millimetres apart, a crisp
+ * line round the elbow and the knee */
+export function welded(B, rings) {
+  const C = B.stations.map((x) => scl(B.slots.reduce((a, s) => add(a, x.points[s]), [0, 0, 0]), 1 / B.slots.length));
+  const run = [0]; for (let i = 1; i < C.length; i++) run.push(run[i - 1] + len(sub(C[i], C[i - 1])));
+  const total = run[run.length - 1];
+  // (a ring's reach from `c` along the unit `u`, in the ring's own plane: the farthest crossing of its polygon)
+  const reach = (ring, c, u, nrm) => {
+    const v = unit(sub(u, scl(nrm, dot(u, nrm)))), w = cross(nrm, v); let best = -1;
+    for (let k = 0; k < ring.length; k++) {
+      const p = sub(ring[k], c), q = sub(ring[(k + 1) % ring.length], c), px = dot(p, v), py = dot(p, w), qx = dot(q, v), qy = dot(q, w);
+      const den = py - qy; if (Math.abs(den) < 1e-12) continue;
+      const t = py / den; if (t < 0 || t > 1) continue;
+      const x = px + (qx - px) * t; if (x > best) best = x;
+    }
+    return best;
+  };
+  const ends = rings.map((ring, e) => {
+    if (!ring) return null;
+    const c = scl(ring.reduce((a, p) => add(a, p), [0, 0, 0]), 1 / ring.length), i0 = e ? C.length - 1 : 0, i1 = e ? C.length - 2 : 1;
+    return { ring, c, nrm: unit(sub(C[i0], C[i1])) };
+  });
+  const stations = B.stations.map((x, i) => {
+    let points = x.points;
+    ends.forEach((E, e) => {
+      if (!E) return;
+      const y = (e ? total - run[i] : run[i]) / WELD_BAND; if (y >= 1) return;
+      const w = 1 - y * y * (3 - 2 * y);
+      points = Object.fromEntries(B.slots.map((sl) => {
+        const p = points[sl], u = unit(sub(p, C[i])), r = reach(E.ring, E.c, u, E.nrm); if (r <= 0) return [sl, p];
+        const own = len(sub(p, C[i])), to = own + (r - own) * w;
+        return [sl, add(C[i], scl(u, to)).map(r6)];
+      }));
+    });
+    return points === x.points ? x : { ...x, points };
+  });
+  const caps = B.caps ? Object.fromEntries(Object.entries(B.caps).map(([k, p]) => [k, p])) : B.caps;
+  return { ...B, stations, ...(caps ? { caps } : {}) };
 }
 
 /** the least a hidden shell lies under the one that shows over it (m), past their tucks' difference */
@@ -471,6 +529,16 @@ export function feetScaled(parts, rig, f, partsOf, jointsOf) {
 
 /** parts and joints scaled `f` about each side's centre `centreOf(S)`: the parts `partsOf(S)` names (their stations and
  * caps; one `ramp` names eased from 1 at its back to `f`) and the joints `jointsOf(S)` names */
+/** a limb's shell TAPERED out from its bone toward `f` at its tail: each point's offset from the bone grown by 1 + (f − 1)
+ * eased in from `from` (a share of the bone, 0 at its head) to the tail. The forearm's wrist toward the hand's scale:
+ * the hand grown with the arm and the forearm's slim end not, the wrist had read as a stalk under a cuff */
+export function taperedTo(P, L, f, from) {
+  if (f === 1) return P;
+  const k = (p) => { const s = dot(sub(p, L.h), L.ax), t = (s / L.L - from) / (1 - from); const y = t <= 0 ? 0 : t >= 1 ? 1 : t * t * (3 - 2 * t); return [s, 1 + (f - 1) * y]; };
+  const at = (p) => { const [s, g] = k(p); if (g === 1) return p; const q = add(L.h, scl(L.ax, s)); return add(q, scl(sub(p, q), g)).map(r6); };
+  return { ...P, stations: P.stations.map((x) => ({ ...x, points: Object.fromEntries(Object.entries(x.points).map(([sl, p]) => [sl, at(p)])) })), ...(P.caps ? { caps: Object.fromEntries(Object.entries(P.caps).map(([q, p]) => [q, at(p)])) } : {}) };
+}
+
 export function scaledAbout(parts, rig, f, centreOf, partsOf, jointsOf, ramp = () => false) {
   if (f === 1) return { parts, rig };
   const P = { ...parts }, joints = { ...rig.joints };
@@ -479,8 +547,17 @@ export function scaledAbout(parts, rig, f, centreOf, partsOf, jointsOf, ramp = (
     const re = partsOf(S), rj = jointsOf(S), toAt = (g) => (p) => add(c, scl(sub(p, c), g)).map(r6);
     for (const [k, Pt] of Object.entries(parts)) if (re.test(k)) {
       // (a bridge from the forearm, `ramp`, grows from none at its forearm end to the hand's at its hand end: grown whole, it
-      // stood over the forearm's slim end as a cuff)
-      const n = Pt.stations.length, by = (i) => (ramp(k) ? 1 + ((f - 1) * i) / (n - 1) : f);
+      // stood over the forearm's slim end as a cuff; ramp 'anchored', a forearm tapered to the hand's scale: grown whole
+      // out from its own rings' centres, its forearm end kept where it was along the arm and its hand end carried with the
+      // hand, or slid up over the forearm's end it flickered through it in teeth)
+      const n = Pt.stations.length, mode = ramp(k), by = (i) => (mode === true ? 1 + ((f - 1) * i) / (n - 1) : f);
+      if (mode === 'anchored') {
+        const cen = (x) => scl(Object.values(x.points).reduce((a, p) => add(a, p), [0, 0, 0]), 1 / Object.keys(x.points).length);
+        const C = Pt.stations.map(cen), to = (i) => { const cc = C[i], moved = toAt(f)(cc); return add(cc, scl(sub(moved, cc), i / (n - 1))); };
+        const grow = (i) => (p) => add(to(i), scl(sub(p, C[i]), f)).map(r6);
+        P[k] = { ...Pt, stations: Pt.stations.map((x, i) => ({ ...x, points: Object.fromEntries(Object.entries(x.points).map(([sl, p]) => [sl, grow(i)(p)])) })), ...(Pt.caps ? { caps: Object.fromEntries(Object.entries(Pt.caps).map(([q, p]) => [q, q === 'back' ? grow(0)(p) : grow(n - 1)(p)])) } : {}) };
+        continue;
+      }
       P[k] = { ...Pt, stations: Pt.stations.map((x, i) => ({ ...x, points: Object.fromEntries(Object.entries(x.points).map(([sl, p]) => [sl, toAt(by(i))(p)])) })), ...(Pt.caps ? { caps: Object.fromEntries(Object.entries(Pt.caps).map(([q, p]) => [q, toAt(q === 'back' ? by(0) : by(n - 1))(p)])) } : {}) };
     }
     for (const j of Object.keys(joints)) if (rj.test(j)) { const v = joints[j]; joints[j] = Array.isArray(v) ? toAt(f)(v) : { ...v, at: toAt(f)(v.at) }; }

@@ -87,10 +87,15 @@ const SAIKYO = {
       egg('trapLower', 2, { t: 0.4, az: 172 }, [0.36, 0.16, 0.05], 0.0228, { along: [0.45, 0, 1] }),
     ] },
     { id: 'seat', frame: 'trunk', parts: ['pelvis', 'thigh'], masses: [
-      egg('glute', 0, { t: -1.05, az: 152 }, [0.42, 0.4, 0.14], 0.052),
-      egg('gluteMax', 1, { t: -1.1, az: 155 }, [0.38, 0.36, 0.13], 0.052),
+      // (the cheek a round mass, deep as it is broad, its fibre slanting down and out as the gluteus maximus's does, its
+      // fullest point low, just over the fold, where the lower cheek turns under into it; the medius filling the hip's
+      // side under the crest)
+      egg('glute', 0, { t: -1.08, az: 146 }, [0.4, 0.31, 0.2], 0.11, { along: [0.35, 0, -1] }),
+      egg('gluteMax', 1, { t: -1.1, az: 155 }, [0.36, 0.34, 0.19], 0.1, { along: [0.35, 0, -1] }),
+      egg('gluteLower', 1, { t: -1.3, az: 160 }, [0.2, 0.3, 0.14], 0.075, { along: [1, 0, -0.25] }),
       egg('gluteMed', 1, { t: -0.7, az: 112 }, [0.24, 0.24, 0.08], 0.0325),
-      egg('gluteMaxHead', 2, { t: -1.1, az: 155 }, [0.36, 0.34, 0.13], 0.0553),
+      egg('gluteMaxHead', 2, { t: -1.1, az: 155 }, [0.34, 0.32, 0.18], 0.105, { along: [0.35, 0, -1] }),
+      egg('gluteLowerHead', 2, { t: -1.3, az: 160 }, [0.19, 0.28, 0.13], 0.078, { along: [1, 0, -0.25] }),
       egg('gluteMedHead', 2, { t: -0.7, az: 112 }, [0.22, 0.22, 0.08], 0.0358),
     ] },
     { id: 'deltoid', frame: 'upperArm', parts: ['upperArm', 'shoulderWeb', 'shoulderBall'], act: [{ joint: 'shoulder', role: 'flexor' }], masses: [
@@ -123,15 +128,25 @@ const SAIKYO = {
       egg('tricepsMedial', 2, { s: 0.68, az: 220 }, [0.2, 0.12, 0.08], 0.0358),
     ] },
     { id: 'forearm', frame: 'foreArm', parts: ['foreArm', 'elbowBridge', 'wristBridge', 'upperArm'], masses: [
-      egg('forearmMass', 0, { s: 0.3, az: 60 }, [0.45, 0.36, 0.15], 0.0585),
-      egg('brachioradialis', 1, { s: 0.24, az: 50 }, [0.38, 0.15, 0.12], 0.052),
+      // (the forearm's bulk seated high and long, so its line carries up over the elbow, not flaring out under it)
+      egg('forearmMass', 0, { s: 0.25, az: 55 }, [0.52, 0.36, 0.15], 0.0545),
+      egg('brachioradialis', 1, { s: 0.22, az: 50 }, [0.42, 0.15, 0.12], 0.052),
       egg('flexors', 1, { s: 0.3, az: -55 }, [0.4, 0.18, 0.12], 0.0455),
       egg('extensors', 1, { s: 0.32, az: 140 }, [0.38, 0.17, 0.11], 0.0423),
-      egg('brachioradialisHead', 2, { s: 0.24, az: 50 }, [0.36, 0.13, 0.115], 0.0553),
+      egg('brachioradialisHead', 2, { s: 0.2, az: 50 }, [0.4, 0.13, 0.115], 0.0553),
       egg('flexorRadial', 2, { s: 0.3, az: -30 }, [0.38, 0.1, 0.1], 0.0455),
       egg('flexorUlnar', 2, { s: 0.32, az: -80 }, [0.38, 0.1, 0.1], 0.0423),
       egg('extensorRadial', 2, { s: 0.3, az: 115 }, [0.36, 0.1, 0.1], 0.0423),
       egg('extensorUlnar', 2, { s: 0.34, az: 160 }, [0.34, 0.1, 0.09], 0.039),
+    ] },
+    // THE ELBOW's landmarks, one level, so they hold at every definition (a level-0 mass in a deeper group sinks under its
+    // children toward the detail end): the brachioradialis's root rising out of the upper arm above the joint on the
+    // thumb's side, the olecranon the elbow's point, the humerus's two epicondyles its width (the inner the prouder)
+    { id: 'elbow', frame: 'foreArm', parts: ['upperArm', 'elbowBridge', 'foreArm'], masses: [
+      egg('elbowCrest', 0, { s: -0.06, az: 60 }, [0.3, 0.17, 0.09], 0.03),
+      egg('olecranon', 0, { s: -0.02, az: 182 }, [0.17, 0.12, 0.07], 0.032),
+      egg('epicondyleInner', 0, { s: -0.12, az: -100 }, [0.18, 0.1, 0.06], 0.028),
+      egg('epicondyleOuter', 0, { s: -0.13, az: 100 }, [0.18, 0.09, 0.05], 0.02),
     ] },
     { id: 'quadriceps', frame: 'thigh', parts: ['thigh', 'kneeBridge', 'shank', 'pelvis'], act: [{ joint: 'knee', role: 'extensor' }], masses: [
       egg('quadMass', 0, { s: 0.48, az: 20 }, [0.85, 0.46, 0.2], 0.078),

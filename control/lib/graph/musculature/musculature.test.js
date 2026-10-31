@@ -131,6 +131,17 @@ describe('the skin between the masses', () => {
     const K = keptInOrder(B0, B, [{ A0, A, gap: 0.002 }]);
     for (const sl of P.slots) expect(r(K, i, sl)).toBeLessThan(r(A, i, sl) - 0.001);
   });
+  it('welds a joint\'s bridge to the shells it meets, ring to ring, and tapers the wrist to the hand', () => {
+    const P = AT1.recipe.parts, cen = (X, i) => X.slots.reduce((a, sl) => a.map((v, k) => v + X.stations[i].points[sl][k] / X.slots.length), [0, 0, 0]);
+    // (each ring's mean reach from its centre: the bridge's and its neighbour's rings sample one curve at different points)
+    const reach = (X, i) => { const c = cen(X, i); return X.slots.reduce((a, sl) => a + Math.hypot(...X.stations[i].points[sl].map((v, k) => v - c[k])), 0) / X.slots.length; };
+    const last = (X) => X.stations.length - 1, E = P.elbowBridgeR, U = P.upperArmR, F = P.foreArmR, B = P.wristBridgeR;
+    expect(Math.abs(reach(E, 0) - reach(U, last(U)))).toBeLessThan(0.0008);
+    expect(Math.abs(reach(E, last(E)) - reach(F, 0))).toBeLessThan(0.0008);
+    // (the wrist's bridge starts on the forearm's end, and the forearm's end is most of the hand's width, no stalk)
+    expect(Math.hypot(...cen(B, 0).map((v, k) => v - cen(F, last(F))[k]))).toBeLessThan(0.003);
+    expect(reach(F, last(F)) / reach(B, last(B))).toBeGreaterThan(0.75);
+  });
   it('wears a limb\'s shells by the limb\'s groups only: the chest taken off the card leaves the arm as it was', () => {
     const card = { ...MUSCLE_CARDS.saikyo, groups: MUSCLE_CARDS.saikyo.groups.filter((g) => g.id !== 'chest') };
     const without = muscleShirt(flat, { card, definition: 1 });

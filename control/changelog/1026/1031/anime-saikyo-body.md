@@ -12,8 +12,8 @@ fractal articulation of the big groups. The eyes gate is the operator's.
   (the tiered hero, the anime head's among them); refused on the realistic body, whose muscles are its physique. Stored
   as given; a hero without one is as it was, byte for byte.
 - **The Saikyo card** (`cards.js`): hulking but lean on the anime frame, first on the large cast (Z-Fighter's male).
-  Thirteen groups (the chest, the core, the flank, the back, the trapezius, the seat, the deltoid, the biceps, the
-  triceps, the forearm, the quadriceps, the hamstrings, the calf), each by level: 0 its silhouette in a few shapes, 1 its
+  Fourteen groups (the chest, the core, the flank, the back, the trapezius, the seat, the deltoid, the biceps, the
+  triceps, the forearm, the elbow, the quadriceps, the hamstrings, the calf), each by level: 0 its silhouette in a few shapes, 1 its
   muscles, 2 their heads (the pectoral's fans, the eight blocks of the rectus, the serratus's fingers, the deltoid's
   three heads, the biceps' two, the triceps' horseshoe, the teardrop over the knee, the calf's diamond). A trunk mass is
   seated by its height up the torso bone and its azimuth, a limb's by its share down the bone and its azimuth round it;
@@ -90,6 +90,29 @@ fractal articulation of the big groups. The eyes gate is the operator's.
   the pelvis, the pelvis's top in the torso, the bridges' ends) dives 8 mm over 2.5 cm (`BURIED_TUCK`), and an end that
   shows only 1.5 mm (`END_TUCK`, was 4: the torso's edge dived through the pelvis under it and crossed it in a dark
   band). The hip reads as one surface down to the pelvis's own end; a thin line stays where each shell ends.
+- **The forearm's side profile, the elbow and the wrist** (the operator's): measured along the forearm's bone (front,
+  back, out and in), the forearm flared 4 cm in its first 4 cm under the elbow and fell in a concave pinch to a wrist
+  0.65 of the hand's width (the forearm's last ring the flat body's, the hand grown 1.3), and the elbow's bridge stood in
+  a band between the upper arm and the forearm. Now: the forearm's bulk seated higher and longer; an ELBOW group of
+  one level, so its landmarks hold at every definition (a level-0 mass in a deeper group sinks under its children
+  toward the detail end): the brachioradialis's root rising out of the upper arm above the joint on the thumb's side, the
+  olecranon the elbow's point at the back, the two epicondyles its width; the elbow's width 0.82 of the forearm's (was
+  0.72), its back line from the triceps over the olecranon to the ulna without a dip. The forearm TAPERED out from its
+  bone toward the hand's scale from 0.4 of the way down (`passes.js` `taperedTo`, `principles.js` `WRIST_FROM`), so the
+  wrist meets the hand at 0.82 of its width; the wrist's bridge grown from its own rings' centres, its forearm end kept
+  where it was along the arm (scaled about the wrist it slid over the forearm's end and flickered through it in teeth).
+- **The joints' bridges welded** (`adapters/loft.js` `ABUT`, `passes.js` `welded`): the elbow's, the knee's and the wrist's
+  bridges meet their neighbours ring to ring on the flat body, not overlapping; tucked under them, with their neighbours'
+  ends diving, each joint showed a band and a crisp line at each ring. Now a bridge is not tucked, its neighbours' ends
+  meeting it do not dive, and its end rings are carried to theirs (eased over 2.5 cm); the shells that show over others
+  where they overlap are named (`OVER`: the torso over the neck and the pelvis, the pelvis over the thighs), not read
+  off the tucks (by the tucks the elbow's bridge counted the pelvis it hangs beside as over it). An end counts as buried
+  only 1 cm or more inside the shell over it.
+- **The glutes rounded** (the operator's): the seat's side profile stood 1.7 cm off the flat body's in a flat slab from
+  the hip joint's height to a ledge over the thigh. Now each cheek is a round mass, as deep as it is broad, its fibre
+  slanting down and out as the gluteus maximus's does, with a lower cheek (`gluteLower`) that holds the fullest point just
+  over the fold and turns the surface under into it: 4.6 cm past the lower back at the detail end, curving under over
+  6 cm to the fold; the form end's one seat shape narrower and further out, so the two cheeks keep their cleft.
 - **The shoulder's cap without its rim**: the shoulder's drum and web, under the arm's skin, are tucked 2.5 cm (1 cm
   had let their domes stand through the top of the arm's dome at rest, a crisp rim round the deltoid's crown); raised,
   they still bridge the armpit as before.
@@ -111,7 +134,7 @@ fractal articulation of the big groups. The eyes gate is the operator's.
   joints scaled about the wrist; the soles on the ground as the feet grow; the nipples only when asked; a bend driver none straight and
   whole at full; a corrective a side per acting joint, the left the right's mirror, nothing at rest, each joint its own;
   the biceps' front bunched; none with the activity off; raised overhead, held out and forward, the shoulder's
-  shells folding no more than the flat body's; the cone as it was; the nipples on the mid-clavicular line; a mass meeting the skin square on climbed in a ramp; a point past the cap held at it; a limb's shells worn by its own groups only; a hidden shell kept under the one over it; deterministic; the door stores the word and refuses it by name.
+  shells folding no more than the flat body's; the cone as it was; the nipples on the mid-clavicular line; a mass meeting the skin square on climbed in a ramp; a point past the cap held at it; a limb's shells worn by its own groups only; a hidden shell kept under the one over it; a joint's bridge welded ring to ring and the wrist most of the hand's width; deterministic; the door stores the word and refuses it by name.
 
 #### The anime frame (hero laws 21): the wrist, the shoe's heel and the clavicle
 

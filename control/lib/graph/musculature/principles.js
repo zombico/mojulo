@@ -25,6 +25,9 @@ export const HAND_SHARE = 0.75;
 
 /** THE FEET follow the legs: scaled about the ground under the ankle (the sole stays on it) by this share of the
  * shank's growth in girth; a card's `feet` (a number) names its own */
+/** where down the forearm (a share of the bone from the elbow) its taper toward the hand's scale begins: from there to
+ * the wrist the forearm's skin is grown out from the bone, eased, to the hand's scale at the wrist */
+export const WRIST_FROM = 0.4;
 export const FOOT_SHARE = 0.6;
 
 /** THE NIPPLES (the shirt's `nipples: true`): a mark on the muscle's skin, worn after the muscles, seated `on` the

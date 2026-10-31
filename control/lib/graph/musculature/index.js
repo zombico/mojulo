@@ -9,9 +9,9 @@
  * (their joints with them), the nipples drawn when asked, and nothing else touched (the head, the clips). Pure and
  * deterministic. */
 import { MUSCLE_CARDS, MUSCLE_CARD_NAMES, validateMuscleCard } from './cards.js';
-import { densify, grainOf, frames, seatMass, displace, symmetrize, mirrorPart, mirrorEgg, girthOf, handsScaled, feetScaled, nipplesOn, activeMass, offsetsOf, domeKeys, endsInside, keptInOrder, UNDER_GAP } from './passes.js';
-import { HAND_SHARE, FOOT_SHARE, NIPPLE, ACTIVITY_JOINTS } from './principles.js';
-import { skinOf, sideOf, TAKEN_OFF, TUCK, DOMES, UNDER, handParts, handJoints, handRamp, footParts, footJoints } from './adapters/loft.js';
+import { densify, grainOf, frames, seatMass, displace, symmetrize, mirrorPart, mirrorEgg, girthOf, handsScaled, feetScaled, nipplesOn, activeMass, offsetsOf, domeKeys, endsInside, keptInOrder, UNDER_GAP, taperedTo, endsMeeting, welded } from './passes.js';
+import { HAND_SHARE, FOOT_SHARE, NIPPLE, ACTIVITY_JOINTS, WRIST_FROM } from './principles.js';
+import { skinOf, sideOf, TAKEN_OFF, TUCK, DOMES, UNDER, OVER, ABUT, handParts, handJoints, handRamp, footParts, footJoints } from './adapters/loft.js';
 
 export { MUSCLE_CARDS, MUSCLE_CARD_NAMES, validateMuscleCard } from './cards.js';
 export { FORM_GAIN, DETAIL_GAIN, BLEND, presence, articulation } from './principles.js';
@@ -80,22 +80,32 @@ export function muscleShirt(recipe, spec) {
   const out = {}, raw = {}, moved = {}, held = {};
   // (which ends of each shell lie BURIED in a shell that shows over it, a smaller tuck's: the thigh's top in the pelvis,
   // the pelvis's top in the torso; the shells under the arm's skin, UNDER, are tucked whole already)
-  const tuckOf = (n) => TUCK[sideOf(n).base] ?? 0, under = (n) => UNDER.includes(sideOf(n).base);
-  const ownersOf = Object.fromEntries(Object.keys(dense).map((n) => [n, under(n) ? [] : Object.keys(dense).filter((a) => a !== n && !under(a) && tuckOf(a) < tuckOf(n))]));
-  const buried = Object.fromEntries(Object.keys(dense).map((n) => [n, ownersOf[n].length ? endsInside(dense[n], ownersOf[n].map((a) => dense[a])) : [false, false]]));
+  const tuckOf = (n) => TUCK[sideOf(n).base] ?? 0;
+  const ownersOf = Object.fromEntries(Object.keys(dense).map((n) => { const { base, side } = sideOf(n); return [n, (OVER[base] ?? []).map((a) => (dense[`${a}${side ?? ''}`] ? `${a}${side ?? ''}` : a)).filter((a) => dense[a])]; }));
+  const ends = Object.fromEntries(Object.keys(dense).map((n) => [n, ownersOf[n].length ? endsInside(dense[n], ownersOf[n].map((a) => dense[a])) : [false, false]]));
+  // (each joint's bridge WELDED to the shells it meets ring to ring, and their meeting ends flush: ABUT)
+  const welds = {};
+  for (const n of Object.keys(dense)) {
+    const { base, side } = sideOf(n);
+    for (const a0 of ABUT[base] ?? []) {
+      const a = dense[`${a0}${side ?? ''}`] ? `${a0}${side ?? ''}` : a0; if (!dense[a]) continue;
+      for (const { b, a: ae } of endsMeeting(dense[n], dense[a])) { (welds[n] ??= [null, null])[b] = { a, end: ae }; ends[a][ae] = 'flush'; }
+    }
+  }
+  const weldOf = (n, P, shape) => (welds[n] ? welded(P, welds[n].map((w) => (w ? (({ stations, slots }) => slots.map((sl) => stations[w.end ? stations.length - 1 : 0].points[sl]))(shape(w.a)) : null))) : P);
   // (a hidden shell KEPT IN ORDER with the shells that show over it, as they were displaced: `shape` names each owner's shape)
   const underOwners = (n, P, shape) => (ownersOf[n].length ? keptInOrder(dense[n], P, ownersOf[n].map((a) => ({ A0: dense[a], A: shape(a), gap: Math.max(UNDER_GAP, tuckOf(n) - tuckOf(a)) }))) : P);
   const displaced = (n, worn) => {
     const { base } = sideOf(n), ds = [...new Set(worn.map((e) => e.d))], d = ds.length === 1 ? ds[0] : definition;
     // (each group at its own definition: the union's blends read the group's, so a part's masses are displaced together
     // at the definition of the most of them; a part worn by groups at different definitions takes the shirt's)
-    return displace(dense[n], worn, d, TUCK[base] ?? 0, null, UNDER.includes(base), buried[n]);
+    return displace(dense[n], worn, d, TUCK[base] ?? 0, null, UNDER.includes(base), ends[n]);
   };
   for (const n of Object.keys(dense)) {
     const { side } = sideOf(n), { part, moved: k, capped } = displaced(n, (side ? masses : both).filter((e) => e.parts.includes(sideOf(n).base)));
     raw[n] = part; out[n] = side ? part : symmetrize(part); moved[n] = k; held[n] = capped;
   }
-  { const shown = { ...out }; for (const n of Object.keys(dense)) { const P = underOwners(n, raw[n], (a) => shown[a]); if (P !== raw[n]) { raw[n] = P; out[n] = sideOf(n).side ? P : symmetrize(P); } } }
+  { const shown = { ...out }; for (const n of Object.keys(dense)) { const P = weldOf(n, underOwners(n, raw[n], (a) => shown[a]), (a) => shown[a]); if (P !== raw[n]) { raw[n] = P; out[n] = sideOf(n).side ? P : symmetrize(P); } } }
   // SQUASH AND STRETCH (a group's `act`): per joint, its flexors bunched and its extensors stretched (activeMass) on the
   // right side, the parts they are worn by displaced again, and the difference worn as a CORRECTIVE on the rest, driven
   // by the joint (principles.js ACTIVITY_JOINTS); the left side's the mirror. Hands and feet and bridges a scale moves
@@ -129,7 +139,7 @@ export function muscleShirt(recipe, spec) {
       // (a point held at the move's cap at rest or active, its ray grazing a mass, keeps its rest place: posed, such rays
       // swung out in shards; a joint that reverts eases every point back, the held ones too, or they stood out in frills
       // round the skin it eased)
-      const { capped } = acts[n], act = underOwners(n, acts[n].part, (a) => acts[a]?.part ?? out[a]);
+      const { capped } = acts[n], shape = (a) => acts[a]?.part ?? out[a], act = weldOf(n, underOwners(n, acts[n].part, shape), shape);
       const keep = driver.revert ? [] : [...held[n], ...capped, ...(driver.domes ? [] : domeKeys(dense[n]))];
       const o = offsetsOf(n, raw[n], driver.revert ? reverted(act, dense[n], driver.revert) : act, side ? `${base}L` : n, new Set(keep));
       Object.assign(right, o.R); Object.assign(left, o.L);
@@ -152,7 +162,12 @@ export function muscleShirt(recipe, spec) {
   // 5. THE HANDS after the arms: about each wrist by the card's `hands`, else HAND_SHARE of the forearm's growth in girth
   const fore = recipe.parts.foreArmR && out.foreArmR ? girthOf(out.foreArmR) / girthOf(recipe.parts.foreArmR) : 1;
   const hands = r6(typeof card.hands === 'number' ? card.hands : Math.max(1, 1 + HAND_SHARE * (fore - 1)));
-  const H = handsScaled(worn, recipe.rig, hands, handParts, handJoints, handRamp);
+  // (the forearm's wrist tapered out to the hand's scale, each side about its own bone: the wrist's bridge then grows
+  // whole with the hand, no ramp; a forearm only as the shirt left it where the hand is not grown)
+  const FA = { R: frames(recipe.rig).limb.foreArm };
+  if (FA.R) FA.L = { ...FA.R, h: [-FA.R.h[0], FA.R.h[1], FA.R.h[2]], ax: [-FA.R.ax[0], FA.R.ax[1], FA.R.ax[2]] };
+  const tapered = hands === 1 || !FA.R ? worn : { ...worn, ...Object.fromEntries(['R', 'L'].filter((S) => worn[`foreArm${S}`]).map((S) => [`foreArm${S}`, taperedTo(worn[`foreArm${S}`], FA[S], hands, WRIST_FROM)])) };
+  const H = handsScaled(tapered, recipe.rig, hands, handParts, handJoints, hands === 1 || !FA.R ? handRamp : (k) => handRamp(k) && 'anchored');
   // 6. THE FEET after the legs: about the ground under each ankle by the card's `feet`, else FOOT_SHARE of the shank's
   // growth in girth (the sole stays on the ground)
   const shank = recipe.parts.shankR && out.shankR ? girthOf(out.shankR) / girthOf(recipe.parts.shankR) : 1;

@@ -11,13 +11,20 @@ export const TAKEN_OFF = /^pectoral[RL]$/;
 /** each part's TUCK (metres): where two shells overlap and the shirt carries both onto the same muscle, the one that
  * should not show is set this far inside, as far as the shirt moved it (two skins on one surface z-fought in stripes).
  * The torso and the limbs show; the neck under the torso's root, the pelvis under the waist, the thigh under the
- * pelvis, and the joints' bridging shells under all of them */
-export const TUCK = Object.freeze({ torso: 0, upperArm: 0, foreArm: 0, shank: 0, neck: 0.002, pelvis: 0.002, thigh: 0.003, shoulderBall: 0.025, shoulderCone: 0.005, shoulderWeb: 0.025, elbowBridge: 0.004, wristBridge: 0.004, kneeBridge: 0.004 });
+ * pelvis; the joints' bridges are welded to their neighbours instead (ABUT) */
+export const TUCK = Object.freeze({ torso: 0, upperArm: 0, foreArm: 0, shank: 0, neck: 0.002, pelvis: 0.002, thigh: 0.003, shoulderBall: 0.025, shoulderCone: 0.005, shoulderWeb: 0.025, elbowBridge: 0, wristBridge: 0, kneeBridge: 0 });
 
 /** the shells tucked WHOLE, not by how far the shirt moved them: the shoulder's web and drum, under the arm's own skin and
  * dome (which the shirt carries over the shoulder); tucked by their movement, a band of the web showed between the arm's
  * dome and its side. They still bridge the armpit as the arm rises */
 export const UNDER = Object.freeze(['shoulderWeb', 'shoulderBall']);
+/** which shells show OVER each shell where they meet (base names; a limb's on its own side): the shirt keeps the one
+ * under them under (passes.js keptInOrder) and dives its ends inside them (endsInside). Named, not read off the tucks:
+ * by the tucks alone the elbow's bridge lay under the pelvis it hangs beside */
+export const OVER = Object.freeze({ neck: ['torso'], pelvis: ['torso'], thigh: ['pelvis'] });
+/** the joints' BRIDGES and the shells they ABUT, ring to ring on the flat body: the shirt welds each bridge's ends to its
+ * neighbours' end rings (passes.js welded), and those ends do not dive */
+export const ABUT = Object.freeze({ elbowBridge: ['upperArm', 'foreArm'], wristBridge: ['foreArm'], kneeBridge: ['thigh', 'shank'] });
 
 /** the ends that SHOW and are closed in a dome the shirt is worn over (passes.js densify): the shoulder's top (the
  * web's, the drum's and the arm's). Every other end is a joint's seam under its neighbour and keeps its authored cap (domed, the
