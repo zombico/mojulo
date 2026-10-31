@@ -190,6 +190,11 @@ async function shoot(characterRef, paper, body) {
   return PHOTOS.get(key);
 }
 
+/** One made character photographed as the book's are: { figure, bust } image data URIs, kept per its revision and the
+ * paper. `body` 'beast' | 'mascot' | 'object' frames it so; absent, a figure standing. Throws when it cannot (no such
+ * character, no body, no browser). The cast sheet's foes are photographed by it (foe-portraits.js). */
+export const photographCharacter = (ref, { paper = '#ffffff', body } = {}) => shoot(ref, paper, body);
+
 export async function tableRpgPortraits(manifest, { paper = '#ffffff' } = {}) {
   const { module } = readTableRpg(manifest.tableRpg);
   const portraits = {}, foes = {}, missing = [];

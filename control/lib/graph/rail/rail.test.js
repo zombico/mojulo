@@ -106,6 +106,16 @@ describe('the gameworld rail', () => {
     expect(flat(world).find((c) => c.id === 'hero:body')).toMatchObject({ view: 'characters', anchor: 'hero-body' });
   });
 
+  it('a world that fields foes has a Foes outcome of their parts, read on its cast sheet; one without has none', () => {
+    const lv = Object.keys(MEADOWMARK_HERO.levels)[0];
+    const fielding = readRail({ ...WORLD, foes: { a: { class: 'walker' } }, levels: { ...WORLD.levels, [lv]: { ...WORLD.levels[lv], foes: true } } }, { ref: 'gw' });
+    expect(fielding.outcomes.map((o) => o.id)).toContain('foes');
+    expect(fielding.outcomes.find((o) => o.id === 'foes').concerns.map((c) => c.id)).toEqual(['foes:cast', 'foes:a']);
+    expect(flat(fielding).find((c) => c.id === 'foes:a')).toMatchObject({ view: 'foes', anchor: 'foe-a' });
+    expect(fielding.exits.find((e) => e.id === 'foes')).toEqual({ id: 'foes', href: '/api/sketches/gw/bible?book=foes' });
+    expect(world.outcomes.map((o) => o.id)).not.toContain('foes');
+  });
+
   it('groups the book\'s parts into what a game asks of its maker; a world that writes no intent has it open', () => {
     expect(world.outcomes.map((o) => o.id)).toEqual(['intent', 'world', 'characters', 'systems', 'levels', 'story', 'play']);
     expect(stateOf(world, 'intent')).toBe('open');

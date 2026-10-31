@@ -423,7 +423,13 @@ const DESCRIPTION_ALLOWLIST = {
 // Raised 2026-10-27 on 1027-tabletop-rpg-gen (212_300 -> 212_500; measured 212,353) for the table game: create_game's
 // `table_rpg` (a pen-and-paper RPG played in text, its characters rolled, its book printed), one schema property, its
 // grammar on the vocab card. No new tool.
-const PAYLOAD_CEILING = 212_500;
+// Raised 2026-10-31 on 1026-consolidated (212_500 -> 212_600) for the comic hero pack's characters by name:
+// create_character's `pack` ({ id, member | grunt, … }), one schema property; its words on the generated `comic-hero`
+// card and headgear's on the `headgear` card, off-payload. No new tool.
+// Raised 2026-10-31 on 1030-broadcasting-personas merged over create_character's `pack` (212_600 -> 212_700; measured
+// 212,643): create_character's `as: 'persona'` (a hero who reads scripts, a record of its own: persona/persona.js), one
+// enum word and one clause; update_character's line that a persona's reads merge by id. No new tool.
+const PAYLOAD_CEILING = 212_700;
 
 async function listedTools() {
   const { ensureToolsRegistered, listTools } = await import('@/lib/mcp/server');

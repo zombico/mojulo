@@ -40,7 +40,7 @@ import { QUICK_GOALS, RHYTHM_MOODS, RACE, DEFEND, DEATHMATCH_MODES } from './qui
 import { CAMERAS } from './cameras.js';
 import { FOE_CLASSES, classStatus } from '../foes/index.js';
 import { MOVES, ATTACKS, STOMPS, FOE_RANKS } from '../foes/vocab.js';
-import { SWARM, MAX_FOES, PAIR_DOWNS } from './foes.js';
+import { SWARM, MAX_FOES, PAIR_DOWNS, ROOM_FOES } from './foes.js';
 import { VANISHES, SEVERS } from './vanish.js';
 import { PEOPLE } from '../foes/people.js';
 import { SCREENS, NEW_GAME_SCREEN } from '../game/screen.js';
@@ -595,9 +595,10 @@ function foesCard() {
     '        Or skin: { people, facets? }: a person (\'human\') or a people (' + PEOPLE.slice(1).join(', ') + '),',
     '        rolled in the world\'s setting in its class\'s role, made by the character loop with its moves, at its own height.',
     '        Or skin: { meshRef, height? }: a rigged humanoid .glb made elsewhere, bound onto that sketch, worn as a person.',
+    '        A person dressed as a crew: { people: \'human\', dress: { faction, kind?, colourway?, body? } } (the grunt factions).',
     'levels.<id>.foes   true (the bestiary; each class on its stand-in if the world keeps none) or { from?: [<id>],',
     '        count?, win?: exit | clear }: one foe on each free beat of a stage, cycling through from; clear: won when all fall;',
-    `        count stands that many (up to ${MAX_FOES}), the extra round the beats. A swarm stands a pack of ${SWARM}. A stage they`,
+    `        count stands that many (up to ${MAX_FOES}), the extra round the beats; a building, ${ROOM_FOES} of its rooms. A swarm, a pack of ${SWARM}. A stage they`,
     '        stand on makes the hero hittable, its hp taking their hits.',
     `rank    ${Object.entries(FOE_RANKS).map(([k, R]) => `${k} ×${R.downs}`).join(', ')}: the blows it takes; a boss duels.`,
     '        skill: novice, regular, veteran, ace: how well it carries out what it decided.',
@@ -618,6 +619,7 @@ function foesCard() {
     `        sever?, inside? } names its own. DESTRUCTION: a dismantle comes apart at its joints (sever: ${Object.keys(SEVERS).join(' | ')}),`,
     '        a cleave is cut through its trunk (inside: its colour); a destroy lets the killing blow choose (a strike',
     '        cleaves, a round knocks some off, a burst tears it apart): the undead\'s default, layer 0 under every foe.',
+    'CAST    /bible?book=foes, the cast sheet: parts foes:cast, foes:<id>. None kept: design_game\'s `foes` step proposes one.',
     'A world or level without foes is laid as it was.',
   );
 }
@@ -764,6 +766,8 @@ function nextCard() {
     '  feel       no feel written: `suggest` is the template its brief, shooter pole or genre points at (`why`, `from`):',
   '             write it (feel: …) or leave the hero its own rule. Written, `lost` are card fields the runtime does not',
   '             carry yet: advice (gameworld-feel). Keep it, pick a template closer to what the runtime plays, or wait.',
+  '  foes       it fights and keeps no bestiary: `suggest` is the cast a casting call proposes (`why`); show the',
+  '             creator its cast sheet (foeBook), then write `patch` or any of it (gameworld-foes). Never written for you.',
   '  advice     read `advice`: a choice the brief does not explain, or one that reads as a fixture or a sample, is the',
     '             creator\'s to confirm.',
   );
@@ -841,7 +845,7 @@ const CARDS = [
   ['gameworld-foes', 'The foes', 'hostile classes on the trails: how each moves, hurts and decides, at any rank, on any body that fits', 'enemies in my level, goombas, monsters to fight, a wolf pack, a boss beast, dire wolves, foot soldiers, a turret, things that chase me, a swarm of rats', foesCard],
   ['gameworld-story', 'The cast and the story', 'other people, and the moments they are in, bound to the world as it is built', 'a mayor who greets you, a story written first, characters in my levels, what happens where, dialogue choices, quests, a journal, a companion, a party member who joins, a cast rolled for my game, a party, a rival, a villain and his lieutenant, a familiar or summon, beastfolk or a mascot in the party', storyCard],
   ['gameworld-folk', 'The town\'s people', 'NPCs grown from a town\'s houses: their houses and faces, their talk, their sidequests, their day', 'villagers to talk to, a shopkeeper, townsfolk, NPCs with errands, side quests, the same nurse in every town', folkCard],
-  ['gameworld-next', 'The next moves', "design_game's readout steps: review, play, share, run, rerun, intent, target, feel, wait, advice", 'what do I do next, approve the parts, is it playable', nextCard],
+  ['gameworld-next', 'The next moves', "design_game's readout steps: review, play, share, run, rerun, intent, target, feel, foes, wait, advice", 'what do I do next, approve the parts, is it playable', nextCard],
 ];
 export const GAMEWORLD_CARD_IDS = Object.freeze(CARDS.map(([id]) => id));
 export { SAMPLE_PAGES };

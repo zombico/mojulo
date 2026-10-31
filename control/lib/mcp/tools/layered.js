@@ -48,6 +48,7 @@ import { dressSilhouette } from '@/lib/graph/polygonizer/dress-silhouette';
 import { outlineMeasures, outlineCritic } from '@/lib/graph/polygonizer/dress-outline';
 import { validateStylism, styledHero, stylismLedger, STYLISM_LAWS_VERSION } from '@/lib/graph/stylism';
 import { readKit, kitDress } from '@/lib/graph/sportswear/kits.js';
+import { headgearErrors, wearHeadgear } from '@/lib/graph/headgear/wear.js';
 import { readSilhouette, silhouetteAdvice, cohesionAdvice } from '@/lib/graph/stylism/silhouette';
 import { heroPlan, planScale, castOf, lawCast, bustCeilingError, isBuiltCast, HERO_LAWS_VERSION, readsHeroLaws, takesLegSet, takesArmLength, castPole, castLabel, validateBuiltCast, HERO_BUILD_NAMES, HERO_BUILDS, PROPORTION_WORDS, HERO_CASTS, HERO_CORES, DEFAULT_CORE, REGISTERS, BODY_DEFAULTS, PALETTE as HERO_PALETTE, TUNE_KEYS, TUNE_AGGREGATE_KEYS, HERO_MOVE_NAMES, resolveTune, storedTune, validateTune, tuneWarnings } from '@/lib/graph/polygonizer/hero-form';
 import { humanoidPlan, PALETTE as HUMANOID_PALETTE } from '@/lib/graph/polygonizer/humanoid-plan';
@@ -215,7 +216,7 @@ export function expandLayeredManifest(manifest, { from = 'auto' } = {}) {
   if (!manifest?.plan && !manifest?.hero) return manifest;
   const hero = manifest.hero && from !== 'plan' ? normalizeHero(manifest.hero) : manifest.hero;
   const plan = manifest.hero && from !== 'plan' ? heroPlanOf(hero) : manifest.plan;
-  const recipe = expandHeroAwarePlan(plan, hero ? kittedHero(hero) : hero, hero ? null : manifest.geocube);
+  const recipe = expandHeroAwarePlan(plan, hero ? wornHero(hero) : hero, hero ? null : manifest.geocube);
   const known = new Set(Object.keys(recipe.dials || {}));
   const dials = Object.fromEntries(Object.entries(manifest.dials || {}).filter(([k]) => known.has(k)));
   return { ...manifest, ...(hero ? { hero } : {}), plan, recipe, dials: resolveLayeredDials(recipe.dials || {}, dials) };
@@ -246,6 +247,9 @@ export function kittedHero(hero) {
     palette: { ...D.tones, ...(rest.palette ?? {}) },
   };
 }
+/** The hero as worn: its sport's kit, then its headgear word, each lowered into the words the passes read (the record
+ * keeps the words alone). Neither ⇒ the hero as it is. */
+export const wornHero = (hero) => wearHeadgear(kittedHero(hero));
 /** expandPlan, except that an armour's head piece (a helm, a kabuto, a theme's helm) on the anime head refuses by
  * name: the piece is addressed on the landmark cranium, which the anime head does not carry. */
 function expandHeroAwarePlan(plan, hero, geocube = null) {
@@ -826,7 +830,7 @@ export const STREAMLINED_DEPRECATED = "the streamlined core (core: 'streamlined'
  * stretch the lid across them; and the face EVEN (head-relational.js EVEN_FACE: the cheek's volume off its front and onto
  * the jaw's side), where laws 2 to 13 stood the cheek forward of the face from 3/4 and below over a jaw's side too slight */
 export const REALISTIC_LAWS_VERSION = 14;
-export const HERO_FIELDS = ['cast', 'register', 'tune', 'body', 'girth', 'headScale', 'scale', 'palette', 'head', 'face', 'hair', 'expression', 'headPreset', 'look', 'proportions', 'detail', 'adorn', 'paint', 'outfit', 'gesture', 'sculpt', 'clips', 'blink', 'gear', 'core', 'statue', 'genki', 'motion', 'target', 'geocube', 'form', 'physique', 'skin', 'painterly', 'stylism', 'laws', 'kit', 'name', 'emblem', 'undead', 'beast', 'perform', 'emote'];
+export const HERO_FIELDS = ['cast', 'register', 'tune', 'body', 'girth', 'headScale', 'scale', 'palette', 'head', 'face', 'hair', 'expression', 'headPreset', 'look', 'proportions', 'detail', 'adorn', 'paint', 'outfit', 'gesture', 'sculpt', 'clips', 'blink', 'gear', 'core', 'statue', 'genki', 'motion', 'target', 'geocube', 'form', 'physique', 'skin', 'painterly', 'stylism', 'laws', 'kit', 'headgear', 'name', 'emblem', 'undead', 'beast', 'perform', 'emote'];
 /** what the hero door takes beside a hero's own words: the mint's (the layered kind's top-level keys) and `vibe` */
 /** A named hero's name is its own on this machine: refused when another hero (any ref but `ref`) holds it, as names are
  * compared (case and spacing aside), naming the hero that holds it. */
@@ -846,6 +850,7 @@ const KEY_HOMES = Object.freeze({
   jersey: "a sport's kit is kit: '<sport>' | { sport, colours, pattern } (sportswear/kits.js)", uniform: "a sport's kit is kit: '<sport>' | { sport, colours, pattern } (sportswear/kits.js)", sportswear: "a sport's kit is kit: '<sport>' | { sport, colours, pattern }", strip: "a sport's kit is kit: '<sport>' | { sport, colours, pattern }",
   colour: 'colours are the palette: palette: { … }', color: 'colours are the palette: palette: { … }', colors: 'colours are the palette: palette: { … }', colours: 'colours are the palette: palette: { … }',
   clothes: 'clothes are detail (a word) or outfit (garments that follow the body)', clothing: 'clothes are detail (a word) or outfit', dress: 'clothes are detail (a word) or outfit', armor: "armour is an adorn build: adorn: { type: 'armor', style }", armour: "armour is an adorn build: adorn: { type: 'armor', style }",
+  helmet: "headgear is a word: headgear: '<word>' (get_solid_vocab({ id: 'headgear' }))", mask: "headgear is a word: headgear: '<word>' (get_solid_vocab({ id: 'headgear' }))", cowl: "headgear is a word: headgear: 'cowl' | '<a cowl word>' (get_solid_vocab({ id: 'headgear' }))", hat: "headgear is a word: headgear: '<word>' (get_solid_vocab({ id: 'headgear' }))", goggles: "goggles are headgear: headgear: '<word>' (get_solid_vocab({ id: 'headgear' }))", visor: "a visor is headgear: headgear: '<word>' (get_solid_vocab({ id: 'headgear' }))",
   weapon: "held things are gear: gear: { right: { item: 'sword' } }", item: "held things are gear: gear: { right: { item } }", items: 'held things are gear: gear: { right, left, back, hip }',
   pose: 'the stand is gesture', stance: 'the stand is gesture (or a ready stance in motion)', animation: 'moves are motion (gaits and moves by word) or clips (your own keys)', animations: 'moves are motion or clips', walk: 'a walk is motion: motion: { walk }',
   wings: "a body beyond a person is a creature (create_character as: 'creature', a ring plan) or an animal (as: 'animal')", tail: "a body beyond a person is a creature (as: 'creature') or an animal (as: 'animal')", horns: "a body beyond a person is a creature (as: 'creature')",
@@ -989,6 +994,10 @@ export function validateHeroSpec(spec, { staleScale = false } = {}) {
   errs.push(...validateOutfit(spec.outfit));
   errs.push(...validateStylism(spec.stylism));
   errs.push(...readKit(spec.kit));
+  // the HEADGEAR word (headgear/wear.js): a card the hero's body is fitted for, and the hero wearing it a hero the door takes
+  const hg = headgearErrors(spec.headgear, spec);
+  errs.push(...hg);
+  if (!hg.length && spec.headgear !== undefined && spec.headgear !== null) errs.push(...validateHeroSpec(wearHeadgear(spec), { staleScale }).map((e) => `headgear '${spec.headgear}': ${e}`));
   if (isOutfitBuild(spec.outfit)) for (const [i, P] of outfitPieces(spec.outfit).entries()) if (P && typeof P.kind === 'string' && !OUTFIT_KIND_NAMES.includes(P.kind)) errs.push(`outfit.pieces[${i}].kind: '${P.kind}' is not a piece (${OUTFIT_KIND_NAMES.join(', ')})`);
   // the hand's words (wrist, fingers) on a hero whose hand has them: the structured core
   const hands = (spec.core ?? DEFAULT_CORE) === 'structured';
@@ -1227,7 +1236,7 @@ export function heroRecord(spec, { staleScale = false } = {}) {
     if (spec.painterly === true) hero.painterly = true;
     else if (spec.painterly && typeof spec.painterly === 'object') hero.painterly = { ...(spec.painterly.nose ? { nose: { ...spec.painterly.nose } } : {}) };
   }
-  for (const k of ['body', 'girth', 'headScale', 'scale', 'palette', 'proportions', 'detail', 'adorn', 'paint', 'outfit', 'core', 'target', 'geocube', 'form', 'skin', 'kit', 'emblem', 'undead', 'beast']) if (spec[k] !== undefined && spec[k] !== null) hero[k] = spec[k];
+  for (const k of ['body', 'girth', 'headScale', 'scale', 'palette', 'proportions', 'detail', 'adorn', 'paint', 'outfit', 'core', 'target', 'geocube', 'form', 'skin', 'kit', 'headgear', 'emblem', 'undead', 'beast']) if (spec[k] !== undefined && spec[k] !== null) hero[k] = spec[k];
   // a named hero's name, stored tidied (its uniqueness on the machine is the door's: assertHeroNameFree)
   if (spec.name !== undefined && spec.name !== null) hero.name = readHeroName(spec.name);
   // the realistic face's words (realisticFaceOf), stored as given: composed on every read
@@ -1276,8 +1285,9 @@ export function heroRecord(spec, { staleScale = false } = {}) {
  * form with a blank trunk (`head: 'none'`) or a baked include; the door's clips (`clips`) merged over its own, and the
  * stand (`gesture`) as its first clip. */
 export function heroPlanOf(hero) {
-  // a sport's KIT (sportswear/kits.js) lowers first, into the dress every pass below reads; absent ⇒ the hero as it is
-  hero = kittedHero(hero);
+  // a sport's KIT (sportswear/kits.js) lowers first, into the dress every pass below reads, and the HEADGEAR word
+  // (headgear/wear.js) over it; absent ⇒ the hero as it is
+  hero = wornHero(hero);
   // the STYLISM tuner resolves first, into the outfit (and an armour build's dials) every pass below reads; absent ⇒ the hero
   hero = styledHero(hero);
   // a statue's card stands, stills and drapes the hero beneath its own words (statue/expand.js passes 1 and 2)
@@ -1734,7 +1744,7 @@ export async function createLayeredHeroHandler(input) {
   const dressNext = ` Detail and adornment: /hero/detail (${DETAIL_WORDS.join(', ')}), /hero/outfit (garments that follow the body: an outfit build { type: 'outfit', style, dials }, restyled by /hero/outfit/dials/<stylize | fit | coverage | ornament> and /hero/outfit/style; or ${Object.keys(OUTFIT_WORDS).join(', ')}, or a list), /hero/paint (second skin: ${Object.keys(PAINT_WORDS).join(', ')}, or a list) and /hero/adorn (${KIT_WORDS.join(', ')}); or an armour build /hero/adorn { type: 'armor', style, dials, theme? }, restyled by /hero/adorn/dials/<stylize | coverage | mass | ornament>, /hero/adorn/style and /hero/adorn/theme. The stand: /hero/gesture (${GESTURE_WORDS.join(', ')}, or pose words ${GESTURE_KEYS.join(', ')}). Clips: set /hero/clips to { <name>: [keys] } (each key an object of the stand's pose words; the head and neck may aim; heelL, heelR, lift, support: 'none'${jawedHead(hero) ? ', jaw' : ''}), then /hero/clips/<name> (remove drops a door clip); a name the figure plays (${Object.keys(plan.clips || {}).filter((c) => c !== GESTURE_CLIP).join(', ')}) replaces that clip, false removes one of the hero's own.${hero.head === 'anime' ? ` On the anime head a key may carry face (an expression word, { blink, smile, open, brow } or a list), a clip may be { seconds, keys } (its designed duration; the clips play ${Object.entries(locoSeconds(heroClipSeconds(hero, plan.clips) || {}, plan.locomotion)).filter(([c]) => c !== GESTURE_CLIP).map(([c, s]) => `${c} ${s} s`).join(', ')}), and /hero/blink false turns the ambient blink off.` : (hero.head ?? 'landmark') === 'landmark' ? ` A key may carry face (an expression word, or { word?, browRaise, browTilt, mouthCorner, aperture, blink }: the face's blend shapes in an export), and /hero/blink false turns the ambient blink off.` : ''} A statue: /hero/statue (a period card: ${STATUE_STYLES.join(', ')}; or { type: 'statue', style, material: ${STATUE_MATERIAL_WORDS.join(' | ')}, crop: ${STATUE_CROP_WORDS.join(' | ')}, lose: [head, armR, forearmL, …], base: ${STATUE_BASE_WORDS.join(' | ')}, dials: { wear } }).`;
   // the dress ledgers read the figure at REST (every dial at its rest, no channels), as the door always measured them;
   // the mint's own mesh is that figure unless the mint turned a dial or carried a channel
-  const dressed = hero.detail !== undefined || hero.adorn !== undefined;
+  const dressed = hero.detail !== undefined || hero.adorn !== undefined || hero.headgear !== undefined;
   const atRest = planned && !planned.channels && Object.entries(planned.recipe.dials || {}).every(([k, d]) => planned.dials?.[k] === d.rest);
   const dressMesh = dressed && planned ? (atRest ? planned.mesh : compileLayered(planned.recipe, {})) : planned?.mesh;
   return {

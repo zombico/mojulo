@@ -1,10 +1,10 @@
 # Mojulo
 
-![One real chat with an agent that has mojulo connected. A homeowner uploads their floor plan and asks, in their own words, for ideas for living in it: the agent builds the house from the picture and designs the living room, the dining room and the big bedroom; asked for sage green walls and the sofa facing the windows, it repaints the living room and rearranges it, shown from eye level as a before and after; then it films a walkthrough of the three rooms. The last slide shows the session's own time, tokens and API cost](https://raw.githubusercontent.com/zombico/mojulo/main/docs/images/decor-demo.gif)
+![One real chat with an agent that has mojulo connected. A game maker asks for a multi-level military base for a stealth game, from the hangar through the barracks and a fortified armoury down to the reactor plant at its core, each section unlike the last, and to see the plan and the looks first. The agent drafts the world without building it and points to its book: the way in drawn as rings to the core, each layer's look with its wall, base, floor and paint, and a level's finishes board, its materials as the build will paint them and its light. On "Looks good, approved. Build it." it builds the four levels, shown one after another. The last slide shows the session's time, tokens and API cost](https://raw.githubusercontent.com/zombico/mojulo/main/docs/images/wcd-demo.gif)
 
-<sub>One real Claude Code session on Sonnet 5.5: a floor plan in, three rooms designed, one repainted and rearranged, a walkthrough out; just over two minutes of agent time, 30 cents at API list price. How it was made: [docs/images/src/decor-demo](https://github.com/zombico/mojulo/tree/main/docs/images/src/decor-demo).</sub>
+<sub>One real Claude Code session on Sonnet 5.5: a stealth game's base asked for, its plan and looks approved from the world's book, four levels built; under four minutes of agent time, 63 cents at API list price. How it was made: [docs/images/src/wcd-demo](https://github.com/zombico/mojulo/tree/main/docs/images/src/wcd-demo).</sub>
 
-Mojulo is a 3D compiler for agents: an MCP server that runs wherever your agent runs, on your machine or in the throwaway Linux box it gives itself, where everything your agent makes is stored as a small recipe (the source), compiled back to the same geometry on every read, and emitted to Godot, Blender, STL and more. A compiler, not a generator; a recipe minted in a box re-mints as the same geometry at home.
+**Mojulo turns your agent into a game studio.** You direct; it builds. It is an MCP server that runs wherever your agent runs, on your machine or in the throwaway Linux box it gives itself. Tell the agent the game you want, and it works through the studio's departments (worlds and levels; characters, props and vehicles; play modes, animation and sound; foes and bosses; cameras and cutscenes; and game design and production, which ties them into the game's bible), every one of them writing into the same small recipe, so the bible, the level you play and the export agree. The same studio designs rooms, furniture and printable parts. Underneath, it is a 3D compiler: the recipe is the source, compiled back to the same geometry on every read and emitted to Godot, Blender, STL and more, and a recipe minted in a box re-mints as the same geometry at home.
 
 ```bash
 npx mojulo init
@@ -12,7 +12,7 @@ npx mojulo init
 
 That wires mojulo into the coding agents on this machine (Claude Code, Codex, Claude Desktop — one yes/no each) and opens the dashboard. Node 22.14+. No API key; your agent is the reasoning loop.
 
-You talk to the agent you already run; it does the reasoning, and mojulo is the machine it works in. Build **objects, worlds, and games by conversation.** An object blocks out at literal scale, a world is a place you can walk, a level is a world under a game contract, a game composes the levels — and music folds in as an asset, synthesized from seeded math with no samples. Each rung is a small deterministic **recipe**: readable, seeded to regenerate identically, never a render.
+You talk to the agent you already run; it does the reasoning, and mojulo is the machine it works in. Build **games, worlds and objects by conversation.** An object blocks out at literal scale, a world is a place you can walk, a level is a world under a game contract, a game composes the levels — and music folds in as an asset, synthesized from seeded math with no samples. Each rung is a small deterministic **recipe**: readable, seeded to regenerate identically, never a render.
 
 **Two pipelines out.** DIGITAL: worlds, levels and scenes render dependency-free in the browser and export to **Godot** as a real project, to **Unity** as a data pack plus importer, characters and solids to **Unreal** as assets (each with an advisory gate when the engine is installed), and to **Blender** as an art-pass pack — with `.glb` and OpenUSD for everything else. PHYSICAL: objects, vehicles and wordmarks export as **print-ready STL or 3MF at true scale** — mm units, z-up, slicer-ready, with a slicer gate that stamps what it measured.
 
@@ -57,6 +57,7 @@ npx mojulo init
 #    Other MCP hosts: register the same `npx -y mojulo` stdio command.
 
 # 2. In an agent session, just ask:
+#      make me a kart racer               → a game: levels, a cast, a score
 #      what is this?                      → mojulo orients itself, out loud
 #      here's my floor plan, ideas?       → the house built from it, rooms designed
 #      build an oak table, exploded       → a jointed frame; see how it goes together
