@@ -56,6 +56,23 @@ A tune is a register with its own dials: `{ from: 'anchor', rate: 1.1, gaze: { p
 syllables a second) and `articulation` (0.6 mumbled to 1.4 enunciated) are more than 0 and at most 2; a gaze is `lens`,
 `notes` or `away`. A read's own `register` overrides the persona's for that read.
 
+## On a screen in a world
+
+A world's `broadcasts` key stands screens in it, each playing one read on a loop: the news broadcast, a briefing on the
+wall of a base, a scoreboard's caller. Set it on any world (a game's level, a room, a city) with update_sketch:
+
+```
+broadcasts: [{ persona: '<ref>', read: 'lead', at: [x, y, z], yaw?: 0, size?: [1.6, 0.9],
+               title?: 'Evening news', strap?: 'Halden Bay', package?: 'network' | 'stadium' | 'arcade' | 'table',
+               loop?: true, gap?: 2 }]
+```
+
+`at` is the screen's centre (metres, z up); at `yaw` 0 it faces −y. The screen draws the set in the package's glass, the
+channel's bug, the reader as the body plays the read (a nod, a point, a bow on its gestures, its mouth on its words), the
+lower third (its hero's name and the strap) for the first seconds, and the captions, on the read's own clock. The page
+draws no talking face yet: the face's take is the persona's export (`face:<id>`); each screen says the fidelity its
+world's era gives it (`face` in a gen-7 world with the realistic hero, else `body`).
+
 ## Worked example
 
 ```

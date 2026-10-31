@@ -149,6 +149,7 @@ export const FIXTURE = [
   // persona: a hero cast as a speaker, reading scripts in a delivery register (create_character { as: 'persona' })
   ['I want my realistic guy to read out the nightly news in my game with subtitles', 'create_character'],
   ['get my character to deliver the mission briefing to camera, crisp and serious', 'create_character'],
+  ['put a TV in my game level that plays the evening news read by my anchor', 'create_character'],
   // hero (layered): a human character as a rigged mesh in one art-style register
   ['a low-poly hero for my game with a face and a ponytail I can rig', 'create_character'],
   ['a boxy pixel knight that walks and exports skinned', 'create_character'],

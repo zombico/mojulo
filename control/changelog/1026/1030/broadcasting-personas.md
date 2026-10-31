@@ -18,3 +18,10 @@
   realistic face's `face:<id>` clips; `export_model` writes each read's captions (`captions/<id>.srt`, `.vtt`) and
   cue sheet (`cues/<id>.json`: lines, words, stresses, gaze, gestures, the clip it rides) beside the model. Manual:
   `get_solid_vocab({ id: 'persona' })`; routing card `persona`.
+- **The first host: a news broadcast on a screen in a world.** A world's `broadcasts` key (`[{ persona, read, at, yaw?,
+  size?, title?, strap?, package?, loop?, gap? }]`, `persona/screen.js`) stands screens in it, each playing one read on
+  a loop on the read's own clock: the set in a broadcast package's glass, the channel's bug, the reader as the body
+  plays the read (a nod, a point, a bow on its gestures, its mouth on its words), the lower third and the captions
+  (`scene/channels/broadcast-screen.js`, an appended page row: zero bytes when absent). The page draws no talking face
+  yet; each screen records the fidelity its world's era gives it. Godot and Roblox mark it absent (the persona's export
+  carries the face clips, captions and cue sheets).

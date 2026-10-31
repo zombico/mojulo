@@ -21,6 +21,7 @@ import { versusChannelScript } from './versus.js';
 import { boardChannelScript } from './board.js';
 import { meetChannelScript, courtChannelScript, turnsChannelScript, pitchChannelScript, inningsChannelScript } from './contest.js';
 import { holoChannelScript } from './holo.js';
+import { broadcastScreenScript } from './broadcast-screen.js';
 import { glowSpriteScript } from './glow.js';
 import { heatSphereChannelScript } from './heat-sphere.js';
 import { inkDecalScript } from './ink-decal.js';
@@ -282,6 +283,10 @@ export const SETUP_CHANNELS = [
     normalizeIn: 'emitThreeWorld',     // a bat-and-ball game on a field (lib/graph/contest); it owns the camera
     sep: '',                           // appended row: zero bytes when absent (char-net holds)
     provides: ['__mojInnings'] },      // the game's state and phase, for probes
+  { key: 'broadcasts', anchor: 'post-capture', script: broadcastScreenScript,
+    normalizeIn: 'emitThreeWorld',     // a persona's read on a screen in the world (lib/graph/persona/screen.js)
+    sep: '',                           // appended row: zero bytes when absent (char-net holds)
+    provides: ['__mojBroadcasts'] },   // each screen's frame: its time, caption, gesture and fidelity, for probes
 ];
 
 // load-time contract assertion (S1): a row's hard `requires` must be provided by an
@@ -369,6 +374,7 @@ export { versusChannelScript } from './versus.js';
 export { boardChannelScript } from './board.js';
 export { meetChannelScript, courtChannelScript, turnsChannelScript, pitchChannelScript, inningsChannelScript } from './contest.js';
 export { holoChannelScript } from './holo.js';
+export { broadcastScreenScript } from './broadcast-screen.js';
 export { specularChannelScript } from './specular.js';
 export { pickChannelScript } from './pick.js';
 export { signageChannelScript } from './signage.js';
