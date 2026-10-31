@@ -23,6 +23,7 @@ import { turnsArenaData } from '../contest/turn-arena.js';
 import { teamArenaData } from '../contest/team-arena.js';
 import { inningsArenaData } from '../contest/innings-arena.js';
 import { holoArenaData } from '../tabletop/holo-arena.js';
+import { broadcastScreens } from '../persona/screen.js';
 import { layBoard } from '../board/board-lay.js';
 import { boardChannelData } from '../board/board-page.js';
 
@@ -283,6 +284,9 @@ export const EMIT_FIXTURES = [
   ['holo', { faces: [floor()], holo: holoArenaData({ game: 'checkers', players: 1 }) }],
   // innings (a bat-and-ball game on a field): the innings block, its own frame step (`stepInnings`), the camera owned
   ['innings', { faces: [floor()], innings: inningsArenaData({ sport: 'baseball', players: 1, innings: 1 }) }],
+  // broadcasts (a persona's read on a screen in the world): the screens block, its own frame step (`stepBroadcasts`); the
+  // persona and its hero from an in-memory store
+  ['broadcasts', { faces: [floor()], broadcasts: broadcastScreens([{ persona: 'p', read: 'lead', at: [0, 2, 1.5], title: 'Evening news', strap: 'Halden Bay' }], { era: 'gen-6', lookup: (r) => ({ p: { manifest: { kind: 'persona', persona: { hero: 'h', register: 'anchor', reads: { lead: { script: 'Good evening. The storm left 4,000 homes without power.' } } } } }, h: { manifest: { kind: 'layered', hero: { name: 'Ada', form: 'realistic', head: 'relational' } } } })[r] }) }],
   // board (a tactics board over the ground): the board kernel, the tactical camera and the page in one block, its own
   // frame step (`stepBoard`), the camera owned
   ['board', { faces: [floor()], board: boardChannelData(layBoard({ seed: 'fixture', cols: 4, rows: 4 }), { units: [{ id: 'a', side: 'p', at: 'A1' }, { id: 'b', side: 'q', at: 'D4' }] }) }],

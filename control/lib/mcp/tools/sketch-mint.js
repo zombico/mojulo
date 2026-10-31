@@ -29,6 +29,7 @@ import { SketchFolderRepository } from '@/lib/db/repositories/sketch-folders';
 import { pluginProfileActive, pluginProfileNotice, PLUGIN_PROFILE_HIDDEN_SKETCH_KINDS } from '@/lib/mcp/plugin-profile';
 import { isBeatsKind } from '@/lib/graph/beats/beats-manifest';
 import { isVoiceRegisterKind } from '@/lib/graph/voice/voice-register';
+import { isPersonaKind, personaManifest } from '@/lib/graph/persona/persona.js';
 import { validateGameManifest, normalizeGameManifest } from '@/lib/graph/game/game-manifest';
 import { withProgram } from '@/lib/graph/era/programs';
 import { resolveGame } from '@/lib/graph/game/game-resolve';
@@ -1159,6 +1160,13 @@ export async function updateSketchHandler(input) {
     } catch (err) {
       // Error-as-drawer: a failed update points at the kind's manifest manual.
       throw new Error(`Invalid manifest: ${err.message} — manifest manual: get_sketch_vocab({ id: 'motion-comic' }).`);
+    }
+  } else if (manifest !== undefined && isPersonaKind(manifest?.kind)) {
+    // a persona (persona/persona.js) is a record, not a diagram: its words checked whole, as at its door
+    try {
+      nextManifest = { ...(manifest.title ? { title: manifest.title } : {}), ...personaManifest(manifest.persona) };
+    } catch (err) {
+      throw new Error(`Invalid manifest: ${err.message} — revise a persona with update_character; manual: get_solid_vocab({ id: 'persona' }).`);
     }
   } else if (manifest !== undefined && isImageOutcomesKind(manifest?.kind)) {
     // Image-outcomes kinds skip the diagram pipeline; store the normalized

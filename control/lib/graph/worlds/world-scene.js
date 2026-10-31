@@ -209,6 +209,16 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     sketch = { ...sketch, manifest: applyMapRef(sketch.manifest, src.manifest) };
   }
 
+  // a PERSONA (persona/persona.js) is played as its hero, its reads the hero's face takes where the hero has the realistic
+  // face (persona/bundle.js personaHero): the hero's World and its GLB's face:<read> clips, from the persona's scripts
+  if (sketch.manifest?.kind === 'persona') {
+    const { SketchRepository } = await import('@/lib/db/repositories/sketches');
+    const hero = SketchRepository.getByRef(sketch.manifest.persona?.hero);
+    if (!hero?.manifest?.hero) throw new Error(`persona '${sketch.ref}': its hero '${sketch.manifest.persona?.hero}' is not a stored hero (create_character { as: 'hero' })`);
+    const { personaHero } = await import('@/lib/graph/persona/bundle.js');
+    sketch = { ...sketch, manifest: personaHero(sketch.manifest.persona, hero.manifest) };
+  }
+
   // a stage drawn in a composed look (a gameworld's look words or palette) carries the recipes that make it: composed here, once per
   // process, before anything reads its kit (color-theorist/look.js). Absent `looks` ⇒ byte-identical.
   if (Array.isArray(sketch.manifest?.looks)) {
@@ -1570,6 +1580,14 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     const { athleteBodies } = await import('@/lib/graph/contest/athletes.js');
     payload.innings = inningsArenaData(sketch.manifest.innings, { bodies: await athleteBodies(sketch.manifest.innings.athletes) });
   }
+  // a persona's read on a SCREEN in the world (persona/screen.js: the news broadcast): each screen its read compiled, its
+  // captions cued, the fidelity the world's era gives its hero; the page's broadcasts channel plays it. Absent ⇒ nothing.
+  if (payload && sketch.manifest.broadcasts !== undefined) {
+    const { SketchRepository } = await import('@/lib/db/repositories/sketches');
+    const { broadcastScreens } = await import('@/lib/graph/persona/screen.js');
+    payload.broadcasts = broadcastScreens(sketch.manifest.broadcasts, { era, lookup: (r) => SketchRepository.getByRef(r) });
+  }
+
   // a board game lifted into a hologram arena (tabletop/holo-arena.js): the game dealt, its board on the stage, each
   // kind's body, the level wire's names; the page's holo channel plays it. Absent ⇒ nothing (scene/channels/holo.js).
   if (payload && sketch.manifest.holo && typeof sketch.manifest.holo === 'object') {

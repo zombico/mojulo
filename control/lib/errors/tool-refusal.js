@@ -61,6 +61,12 @@ function revisionFor(ref, kind) {
       hint: `Revise it in place with update_beats({ ref: '${ref}', … }) after get_beats, or omit ref to mint a new one.`,
     };
   }
+  if (k === 'persona') {
+    return {
+      next_action: { tool: 'update_character', args: { ref }, reason: 'Revise the persona in place (its reads merge by id); the ref stays the same.' },
+      hint: `Revise it in place with update_character({ ref: '${ref}', spec: { reads: { … } } }), or omit ref to mint a new one.`,
+    };
+  }
   if (k === 'voice-register') {
     return {
       next_action: {
