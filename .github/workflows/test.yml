@@ -97,8 +97,8 @@ jobs:
 
   # The Godot gate (the engine handoff's): a pinned Godot, its download checked against the release's own SHA512 sums
   # and cached, so MOJULO_GODOT names a real engine somewhere that runs. The suites it runs are the Godot legs the
-  # handoff keeps (a figure's import, its engine skeleton and retarget, its clips); the handoff's own probes (materials,
-  # environment, markers) join them as they are built. Unity and Unreal stay local gates (their editors need accounts).
+  # handoff keeps (a figure's import, its engine skeleton and retarget, its clips) and the handoff's own: its pack
+  # imported, and the probe holding what the importer built (materials, the sun, the environment, markers, seats) to it. Unity and Unreal stay local gates (their editors need accounts).
   godot:
     name: godot gate / ubuntu-latest / node 22 / Godot ${{ vars.GODOT_VERSION || '4.7.2' }}
     runs-on: ubuntu-latest
@@ -144,7 +144,7 @@ jobs:
 
       - name: The Godot legs the handoff keeps
         working-directory: control
-        run: npx vitest run lib/graph/scene/godot-humanoid-pack.test.js
+        run: npx vitest run lib/graph/scene/godot-humanoid-pack.test.js lib/graph/scene/handoff-godot.test.js
 
   lint-hygiene:
     name: lint hygiene (node --check + locale validator + manifest pins)

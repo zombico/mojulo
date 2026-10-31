@@ -1,6 +1,6 @@
 ### Engine handoff plan (temporary: the working plan, parked here; delete before release)
 
-**Status:** phase 0 built (its Godot job awaiting its first CI run); phases 1 and 2 built; phase 3's level record built (colliders as meshes and the files beside the handoff wait on the pack, phase 4); the Godot adapter next (1031).
+**Status:** phases 0 to 3 built; phase 4's Godot adapter built in its first slice, its GDScript awaiting its first run on CI's `godot` job; the terrain shader next (1031).
 `control/changelog/1026/1031/engine-handoff.md`. No release has carried the engine game runtimes this plan removes, so
 nothing here needs a deprecation path.
 
@@ -428,4 +428,36 @@ developer would want to wire. Never claimed by a machine.
   - Still to come with the pack (phase 4): colliders as meshes (today the boxes ride `moj:colliders`, and an engine
     builds the walkable ground's collision from its meshes), and the files beside the handoff (the web build, the
     soundtrack and the sound effects).
+- 1031, phase 4, the Godot adapter (first slice):
+  - `scene/handoff-godot.js`: `handoffGodotFiles(handoff)` and `writeHandoffGodot(handoff, dir)` make a Godot 4 project:
+    `mojulo/level.glb` (the handoff's GLB), `mojulo/level.glb.import` naming the post-import script (Godot's own
+    `import_script/path`, so every import and reimport runs it), `mojulo/handoff.json` (the level record and the ledger,
+    each material's height map by the material's name in the GLB, the instanced sets' name prefixes, the terrain's
+    atlases and parts), `mojulo/textures/*.png`, the importer and the probe; and, written once and kept after,
+    `project.godot` and `level.tscn` (which instances `mojulo/level.glb`). `mojulo/` is cleared and written whole on
+    every handoff.
+  - The re-import answer for Godot (open question 0): the developer's scene is `level.tscn`, which instances the
+    imported GLB; mojulo's work lives in the GLB's import (its post-import script), so a re-handoff replaces `mojulo/`,
+    Godot reimports, and the developer's scene and anything they added to it stay. Tested without Godot: a second
+    handoff keeps an edited `level.tscn` and drops a stale file from `mojulo/`.
+  - `handoff-godot/handoff_post_import.gd` (`EditorScenePostImport`): every material's vertex colour as albedo (linear,
+    `vertex_color_is_srgb` false) and its height map where `handoff.json` names one (`heightmap_scale` from depth over
+    repeat, clamped 0.5 to 16: an eyes-gate number); trimesh collision on every mesh but the instanced sets; a
+    `WorldEnvironment` (a procedural sky from the zenith and horizon, the ambient as a colour and an energy, SSAO, the
+    filmic tone, fog where the level has haze) and the sun as a shadowed `DirectionalLight3D` (energy the solve's level,
+    intensity / π); every marker and seat a `Marker3D` under `MojuloMarkers` and `MojuloSeats`, its record in its
+    metadata, the whole level record on the root. What it adds is turned from z-up to y-up (`zup`).
+  - `handoff-godot/handoff_probe.gd`: instances the imported level and prints one JSON line (materials, albedo, normal,
+    ORM, height, bodies, markers, seats, environment, sky, SSAO, sun and its shadow, omni lights).
+  - `handoff-godot.test.js`: the pack (its importer named, its level record, each dressed face's height as a file, the
+    same bytes twice; the developer's files kept) runs here; with `MOJULO_GODOT` (CI's `godot` job, which now runs it):
+    the couch level imports and the probe's counts match the record (albedo on every material, the environment, every
+    marker and seat, collision), and the bay's dressed faces arrive with normal and height maps. `scripts/test-changed.mjs`
+    declares the adapter as the reader of `handoff-godot/`.
+  - Not run yet: this container has no Godot. The GDScript is written against Godot 4's API (`EditorScenePostImport`,
+    `BaseMaterial3D.heightmap_*`, `Basis.looking_at`, `create_trimesh_collision`, `ProceduralSkyMaterial`); the first
+    run on CI is its first check, and anything it finds is the next fix.
+  - Next in phase 4: the terrain shader (the page's layered-ground fragment as a `.gdshader` on the parts
+    `handoff.json` names, reading `_SPLAT` and the atlases, held to the page's fragment in Chrome), then `export_model
+    { engine: 'godot' }` writing this pack (phase 5's door).
 

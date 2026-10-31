@@ -51,4 +51,11 @@ Built so far:
   (each seat's number, colour, body and spawn, the screen they share, their lives) and its reference (the web build and
   the bible pages of the same recipe). Every name comes from the recipe, so handing off a changed level keeps the names
   of what did not change, and an engine can take the new version without losing a developer's own wiring.
+- **The Godot adapter, first slice.** A handoff becomes a Godot 4 project: the GLB, a `handoff.json` with the level
+  record and what glTF has no slot for (each material's height map, the terrain's atlases), and a post-import script
+  that, on every import, gives the materials their colours and parallax, the static meshes their collision, the level
+  its sky, ambient, occlusion and shadowed sun, and stands every marker and seat as a node carrying its record. The
+  developer's `project.godot` and `level.tscn` are written once and kept: a re-handoff replaces mojulo's folder, Godot
+  reimports, and whatever the developer wired stays. CI's Godot job imports a couch level and a dressed bay and probes
+  what the importer built.
 

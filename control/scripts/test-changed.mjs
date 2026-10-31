@@ -29,6 +29,7 @@ import { CONTROL, importGraph, testsReaching, isTest } from './test-graph.mjs';
 
 /** Sources read as text, and the modules (or tests) that read them: a change to one is a change to its readers. */
 export const TEXT_READERS = Object.freeze([
+  { reads: /^lib\/graph\/scene\/handoff-godot\//, by: ['lib/graph/scene/handoff-godot.js'], why: 'the handoff\'s Godot adapter copies its GDScript into the pack' },
   { reads: /^lib\/graph\/versus\/[^/]+\.js$/, by: ['lib/graph/versus/versus-page.js'], why: 'the versus page inlines its modules and clients' },
   { reads: /^lib\/graph\/broadcast\/broadcast\.client\.js$/, by: ['lib/graph/contest/meet-arena.js', 'lib/graph/contest/match-arena.js', 'lib/graph/contest/turn-arena.js', 'lib/graph/contest/team-arena.js', 'lib/graph/contest/innings-arena.js'], why: 'every contest channel inlines the broadcast graphics before its arena client' },
   { reads: /^lib\/graph\/contest\/contest-stats\.js$/, by: ['lib/graph/contest/meet-arena.js', 'lib/graph/contest/match-arena.js', 'lib/graph/contest/turn-arena.js', 'lib/graph/contest/team-arena.js', 'lib/graph/contest/innings-arena.js'], why: 'every contest channel inlines the stats fold its broadcast shows' },
