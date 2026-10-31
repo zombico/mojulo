@@ -5,7 +5,8 @@
  */
 import { describe, expect, it } from 'vitest';
 
-import { formLandScript, GROUND_PARALLAX, STONE_LADDER } from './form-land.js';
+import { formLandScript, GROUND_PARALLAX, STONE_LADDER, FAR_LAND } from './form-land.js';
+import { FAR_GROUPS } from '../../form/land-read.js';
 
 const land = { light: { sun: [1, 1, 1], ambient: [0.2, 0.2, 0.2] } };
 
@@ -39,6 +40,17 @@ describe('the ground\'s parallax kinds', () => {
     expect(page).toContain("big && d < reach ? 'chipped' : (2 * r) / (pxm * Math.max(d, 0.1)) < SL.px ? null : big ? 'block' : 'pebble'");
     // (the aerial camera as it was: chipped if it casts, the block if not)
     expect(page).toContain("!pov ? (big ? 'chipped' : 'pebble')");
+  });
+
+  it('draws the stage\'s far ring as its far land: facets in the land\'s colours, under more of the sky\'s air the farther', () => {
+    const page = formLandScript(land);
+    expect(FAR_GROUPS.has('isekai:ridge')).toBe(true);
+    expect(page).toContain("if (R.key === 'far') { farLand(R); continue; }");
+    expect(page).toContain('flatShading: true');
+    expect(FAR_LAND.air[0]).toBeLessThan(FAR_LAND.air[1]);
+    expect(FAR_LAND.rise[0]).toBeLessThan(FAR_LAND.rise[1]);
+    // (what the read could not class otherwise, a town's own buildings, stays painted)
+    expect(page).toContain("if ((water && D.depth) || R.key === 'unread') continue;");
   });
 
   it('reads the same page twice', () => {

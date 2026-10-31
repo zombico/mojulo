@@ -35,6 +35,10 @@ export const GROUND_PARALLAX = Object.freeze({ pebbles: Object.freeze({ cell: 0.
  *  it); sorted again when the eye has moved `step` m. The aerial camera draws them as they were: chipped if they cast,
  *  the block if not. */
 export const STONE_LADDER = Object.freeze({ px: 1, step: 0.5 });
+/** The far land: the stage's far ring (form/land-read.js FAR_GROUPS) drawn in facets as the land is lit, the grass's base
+ *  low on it rising into the stone's between `rise` of its skyline's height, each facet ± `tone` its own, under `air`
+ *  of the sky's air (its nearest layer to its farthest); `rough` its roughness. */
+export const FAR_LAND = Object.freeze({ rise: Object.freeze([0.35, 0.85]), tone: 0.06, air: Object.freeze([0.25, 0.7]), rough: 0.95 });
 
 export function formLandScript(form, flora = null) {
   return `
@@ -56,6 +60,33 @@ export function formLandScript(form, flora = null) {
     for (let i = 0; i < p.count; i++) { const t = Math.pow(Math.max(0, p.getZ(i) / 4000), 0.6), c = h.clone().lerp(z, t); col.set([c.r, c.g, c.b], i * 3); }
     g.setAttribute('color', new THREE.BufferAttribute(col, 3)); g.rotateX(0);
     return new THREE.Mesh(g, new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.BackSide, fog: false, depthWrite: false, toneMapped: false }));
+  }
+  // THE FAR LAND (FAR_LAND): the stage's far ring, its ridges past the level (standing curtains, layer behind layer, up
+  // to a skyline), drawn as the land is lit, in facets: the grass's base low on it (a land with no grass, its dirt's)
+  // rising into the stone's toward its peaks, each facet a shade its own, and over it the sky's AIR (channels/form-sky.js
+  // sets it: the air where the far land stands), more of it the farther its layer
+  const FAR_AIR = { value: new THREE.Vector3(0.5, 0.6, 0.65) };
+  function farLand(R) {
+    const FL = ${JSON.stringify(FAR_LAND)}, n = R.count, P0 = POS.subarray(R.start * 3, (R.start + n) * 3), col = new Float32Array(n * 3), air = new Float32Array(n);
+    const gentle = (D.grass && D.grass.base) || D.layers.pathBase, steep = D.stones && D.stones.base ? D.stones.base : D.layers.stoneBase;
+    const cx = (D.box[0][0] + D.box[0][1]) / 2, cy = (D.box[1][0] + D.box[1][1]) / 2, r = (v) => Math.hypot(P0[v * 3] - cx, P0[v * 3 + 1] - cy);
+    let z0 = Infinity, z1 = -Infinity, r0 = Infinity, r1 = -Infinity;
+    for (let v = 0; v < n; v++) { const z = P0[v * 3 + 2]; if (z > -10) { z0 = Math.min(z0, z); z1 = Math.max(z1, z); } r0 = Math.min(r0, r(v)); r1 = Math.max(r1, r(v)); }
+    for (let f = 0; f < n / 3; f++) {
+      const o = f * 9, x = Math.sin((P0[o] + P0[o + 3] + P0[o + 6]) * 12.9898 + (P0[o + 1] + P0[o + 4] + P0[o + 7]) * 78.233) * 43758.5453, t = 1 - FL.tone + 2 * FL.tone * (x - Math.floor(x));
+      for (let v = 0; v < 3; v++) {
+        const q = f * 3 + v, z = P0[q * 3 + 2], k = Math.min(1, Math.max(0, ((z - z0) / Math.max(1e-3, z1 - z0) - FL.rise[0]) / (FL.rise[1] - FL.rise[0])));
+        for (let c = 0; c < 3; c++) col[q * 3 + c] = (gentle[c] + (steep[c] - gentle[c]) * k) * t;
+        air[q] = FL.air[0] + (FL.air[1] - FL.air[0]) * (r1 > r0 ? (r(q) - r0) / (r1 - r0) : 0);
+      }
+    }
+    const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(P0, 3)); g.setAttribute('color', new THREE.BufferAttribute(col, 3)); g.setAttribute('aAir', new THREE.BufferAttribute(air, 1));
+    const m = new THREE.MeshStandardMaterial({ vertexColors: true, flatShading: true, roughness: FL.rough, metalness: 0, side: THREE.DoubleSide });
+    m.onBeforeCompile = (sh) => { sh.uniforms.uAir = FAR_AIR;
+      sh.vertexShader = 'attribute float aAir;\\nvarying float vAir;\\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\\n  vAir = aAir;');
+      sh.fragmentShader = 'uniform vec3 uAir;\\nvarying float vAir;\\n' + sh.fragmentShader.replace('#include <fog_fragment>', '  gl_FragColor.rgb = mix( gl_FragColor.rgb, uAir, vAir );\\n#include <fog_fragment>'); };
+    m.customProgramCacheKey = () => 'form-far-land';
+    const mesh = new THREE.Mesh(g, m); mesh.receiveShadow = true; scene.add(mesh); __formMeshes.push(mesh);
   }
   function part(R, colours, extra = {}) {
     const g = new THREE.BufferGeometry();
@@ -377,6 +408,9 @@ ${form.dunes ? `      sh.fragmentShader = DUNE_HEAD + sh.fragmentShader.replace(
   for (const R of D.ranges) {
     const water = R.key === 'water';
     // (the sea one plane where there is a depth to fade it by; what the read could not class stays painted)
+    // (the stage's far ring: FAR_LAND, its own facets in the land's colours under the sky's air; what the read could not
+    // class stays painted)
+    if (R.key === 'far') { farLand(R); continue; }
     if ((water && D.depth) || R.key === 'unread') continue;
     const m = water
       ? new THREE.MeshStandardMaterial({ color: 0xffffff, vertexColors: true, roughness: R.rough, metalness: 0, transparent: true, depthWrite: false, envMap: skyEnv, envMapIntensity: 1 })
@@ -467,7 +501,9 @@ ${formSkyScript()}${viewConeScript(form.cone || null)}${formGrassScript()}${flor
   // the painted land it draws in its place, and the painted water sheet under its sea (a standalone sheet: per-vertex
   // alpha, not one of the named groups)
   const __formNamed = new Set(Object.values(meshes));
-  for (const g of D.hides) if (meshes[g]) meshes[g].visible = false;${flora ? `
+  for (const g of D.hides) if (meshes[g]) meshes[g].visible = false;
+  // (and the stage's painted far ring, which the form draws as its far land, with its painted tiles)
+  if (D.far && D.far.length) { const U = new Set(D.far); scene.traverse((o) => { if (o.isMesh && U.has(o.userData.g)) o.visible = false; }); }${flora ? `
   // (the plants' groups wholly: a group drawn in several meshes, its faces split by their tiles, is one name in \`meshes\`)
   { const H = new Set(D.hides); scene.traverse((o) => { if (o.isMesh && H.has(o.userData.g)) o.visible = false; }); }` : ''}
   if (D.depth) for (const o of __formBefore) if (o.isMesh && !__formNamed.has(o) && o.material.isMeshBasicMaterial && o.material.transparent && o.geometry.getAttribute('color')?.itemSize === 4) o.visible = false;

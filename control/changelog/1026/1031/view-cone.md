@@ -68,3 +68,9 @@
   through their own depth with a silver edge toward it and by the sky from below, passing over as the eye walks and
   drifting with the page's wind. The haze takes the air where the far land stands, and the stage's painted far land
   takes it too. All through the land's own tone curve; a night's stars and moon stay.
+- **The far land** (`scene/channels/form-land.js` `FAR_LAND`, `form/land-read.js` `FAR_GROUPS`): the stage's far ring, its
+  ridges past the level (standing curtains, layer behind layer, up to a skyline), was left painted on a gen-7 page, a
+  pale backdrop shimmering with its tiles. The read gives it its own range (`far`) and the form draws it as land, in
+  facets lit as the land is: the trail's own grass low on it rising into its stone toward the peaks, each facet a shade
+  its own, under the sky's air (the new sky's, where the far land stands), more of it the farther its layer. What the
+  read cannot class otherwise (a town's own buildings) stays painted.
