@@ -1660,7 +1660,14 @@ export function facesToGlb(payload = {}, { generator, clips = null, skinned = fa
           ...(nIdx != null ? { normalTexture: nIdx } : {}), ...(oIdx != null ? { ormTexture: oIdx } : {}),
           ...(hIdx != null ? { extras: { mojulo: { height: { index: hIdx }, depth: fm.depth, metres: fm.metres } } } : {}) });
         if (oIdx != null) b.json.materials[mat].pbrMetallicRoughness.metallicFactor = 0;
-        tr = b.addNode(`${name}:${key}`, grp.positions, null, 3, mat, grp.uvs);
+        // (its faces' own normals, so an engine generates the tangents its normal map and its parallax are read in)
+        const P = grp.positions, N = new Float32Array(P.length);
+        for (let t = 0; t + 8 < P.length; t += 9) {
+          const e1 = [P[t + 3] - P[t], P[t + 4] - P[t + 1], P[t + 5] - P[t + 2]], e2 = [P[t + 6] - P[t], P[t + 7] - P[t + 1], P[t + 8] - P[t + 2]];
+          const c = [e1[1] * e2[2] - e1[2] * e2[1], e1[2] * e2[0] - e1[0] * e2[2], e1[0] * e2[1] - e1[1] * e2[0]], l = Math.hypot(c[0], c[1], c[2]) || 1;
+          for (let k = 0; k < 3; k++) { N[t + k * 3] = c[0] / l; N[t + k * 3 + 1] = c[1] / l; N[t + k * 3 + 2] = c[2] / l; }
+        }
+        tr = b.addNode(`${name}:${key}`, grp.positions, null, 3, mat, grp.uvs, N);
       } else if (texIdx != null) {
         const mat = pbr
           ? b.pbrMaterial({ metallic: pbr[0], roughness: pbr[1], baseColorTexture: texIdx, alpha: groupAlpha, name: `${name}:${key}` })

@@ -460,4 +460,23 @@ developer would want to wire. Never claimed by a machine.
   - Next in phase 4: the terrain shader (the page's layered-ground fragment as a `.gdshader` on the parts
     `handoff.json` names, reading `_SPLAT` and the atlases, held to the page's fragment in Chrome), then `export_model
     { engine: 'godot' }` writing this pack (phase 5's door).
+- 1031, phase 4, the first real Godot run (the operator's local agent, Godot 4.7.2, CI's pin): both packs imported and
+  probed with no Godot error; markers and seats right (z-up to y-up holds); the bay read well (its walls, ribs,
+  clerestory, column bases, floor lines and its five lamps). Five findings, fixed:
+  1. The dressed faces had no normals in the GLB, so Godot made no tangents and their normal maps and parallax were read
+     without them. `facesToGlb` now writes each textured group's own flat normals where a handoff material stands on it,
+     and the `.import` asks for tangents (`meshes/ensure_tangents=true`).
+  2. Neither level carried a sun: the couch (a controllable stage) has none of its own. A level with no sun and no lamp
+     is now given `DEFAULT_SUN` (high in the south-east, warm white, π), marked `default: true`, which the importer
+     marks on its light (`mojulo_default`); a room lit by its lamps takes none.
+  3. The background colour and the haze were ignored: with no sky, the environment's background is the level's colour
+     (`BG_COLOR`); the haze sets the fog's colour and density (the page's exp² density taken as Godot's: an eyes-gate
+     number).
+  4. Translucent overlays (the bay's sun patch, glint, wiring, sky panes) got trimesh collision: a mesh with any
+     see-through material now gets none.
+  5. No camera was current, so the scene ran empty: the importer makes the GLB's first camera current, or stands one
+     (`MojuloCamera`) at the level's camera marker looking at its `look` (camera markers now carry `look` and `yfov`),
+     or behind the spawn.
+  The probe now reports the background, the fog, the sun's default mark and a current camera, and the Godot legs hold
+  them: the couch has a default shadowed sun, its background and a camera; the bay no sun, its lamps and a camera.
 

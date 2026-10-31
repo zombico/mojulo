@@ -44,6 +44,7 @@ type="PackedScene"
 [params]
 
 import_script/path="res://mojulo/handoff_post_import.gd"
+meshes/ensure_tangents=true
 meshes/generate_lods=true
 meshes/force_disable_compression=true
 `;

@@ -159,6 +159,13 @@ describe('the engine handoff', () => {
       expect(m.extras.mojulo.depth).toBeGreaterThan(0);
       expect(m.extras.mojulo.metres).toBe(generatedSpecOf(k).cfg.metres ?? 2);
     }
+    // (each dressed face's primitive carries its normals, so an engine can make the tangents its relief is read in)
+    for (const m of j.meshes) {
+      const mat = j.materials[m.primitives[0].material];
+      if (keys.some((k) => String(mat.name).endsWith(`:${k}`))) expect(m.primitives[0].attributes.NORMAL, m.name).toBeDefined();
+    }
+    // (a room lit by its lamps takes no default sun)
+    expect(h.level.environment.sun).toBeUndefined();
     // (a tile's ORM carries no metal: its blue is none)
     const orm = decodePng(h.materials[keys[0]].orm);
     let metal = 0; for (let k = 0; k < orm.W * orm.H; k++) metal = Math.max(metal, orm.px[k * 4 + 2]);
@@ -234,6 +241,10 @@ describe('the engine handoff', () => {
     expect(L.seats).toMatchObject({ screen: 'shared', lives: 3 });
     expect(L.reference).toEqual({ web: '/api/sketches/sk_couch/world', play: '/api/sketches/sk_couch/play', bible: '/api/sketches/sk_couch/bible' });
     expect(h.ledger.carried.level).toMatchObject({ seats: 2, contract: true });
+    // (no sun of its own and no lamp: the default noon sun, marked so; its camera marker carries what it looks at)
+    expect(L.environment.sun).toMatchObject({ default: true });
+    const cam = L.markers.find((m) => m.kind === 'camera');
+    if (cam) { expect(cam.look).toHaveLength(3); expect(cam.yfov).toBeGreaterThan(0); }
   }, 120_000);
 
   it('a re-handoff is safe: change one thing, and every name of what did not change holds', async () => {

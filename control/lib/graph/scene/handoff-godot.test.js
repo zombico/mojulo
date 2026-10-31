@@ -85,6 +85,10 @@ describe('the handoff as a Godot project', () => {
     expect(line.markers).toBe(h.level.markers.length);
     expect(line.seats).toBe(h.level.seats.rows.length);
     expect(line.bodies).toBeGreaterThan(0);
+    // (no sun of its own: the default, casting shadows; the background its own colour; a camera current)
+    expect(line.sun && line.sun_shadow && line.sun_default, log).toBe(true);
+    expect(line.background, log).toBe(true);
+    expect(line.camera, log).toBe(true);
   }, 900_000);
 
   it.skipIf(!GODOT)('in a headless Godot: a dressed face\'s relief is its material\'s height map (MOJULO_GODOT)', async () => {
@@ -94,5 +98,9 @@ describe('the handoff as a Godot project', () => {
     expect(line?.ok, log).toBe(true);
     expect(line.height, log).toBeGreaterThan(0);
     expect(line.normal, log).toBeGreaterThan(0);
+    // (lit by its lamps: no sun; a camera current)
+    expect(line.sun, log).toBe(false);
+    expect(line.omni, log).toBeGreaterThan(0);
+    expect(line.camera, log).toBe(true);
   }, 900_000);
 });

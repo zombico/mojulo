@@ -12,7 +12,7 @@ func _init() -> void:
 		return
 	var scene: Node = packed.instantiate()
 	var out := { "ok": true, "materials": 0, "albedo": 0, "normal": 0, "orm": 0, "height": 0, "bodies": 0, "markers": 0, "seats": 0,
-		"environment": false, "sky": false, "ssao": false, "sun": false, "sun_shadow": false, "omni": 0, "handoff": scene.get_meta("mojulo_handoff", "") }
+		"environment": false, "sky": false, "background": false, "fog": false, "ssao": false, "sun": false, "sun_shadow": false, "sun_default": false, "omni": 0, "camera": false, "handoff": scene.get_meta("mojulo_handoff", "") }
 	var seen := {}
 	for mi in scene.find_children("*", "MeshInstance3D", true, false):
 		if mi.mesh == null:
@@ -35,12 +35,18 @@ func _init() -> void:
 	if we != null and we.environment != null:
 		out["environment"] = true
 		out["sky"] = we.environment.sky != null
+		out["background"] = we.environment.background_mode == Environment.BG_COLOR
+		out["fog"] = we.environment.fog_enabled
 		out["ssao"] = we.environment.ssao_enabled
 	var sun = scene.get_node_or_null("MojuloSun")
 	if sun != null:
 		out["sun"] = true
 		out["sun_shadow"] = sun.shadow_enabled
+		out["sun_default"] = sun.get_meta("mojulo_default", false)
 	out["omni"] = scene.find_children("*", "OmniLight3D", true, false).size()
+	for c in scene.find_children("*", "Camera3D", true, false):
+		if c.current:
+			out["camera"] = true
 	print("[mojulo-handoff-probe] " + JSON.stringify(out))
 	scene.free()
 	quit(0)

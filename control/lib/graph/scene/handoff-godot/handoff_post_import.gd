@@ -7,9 +7,12 @@ extends EditorScenePostImport
 # instances this one, as they left it. From handoff.json it:
 #   - gives every material its vertex colour as albedo (glTF's COLOR_0 is linear) and, where the handoff names one, its
 #     height map for parallax (a dressed face's relief, a bark's)
-#   - gives the level's static meshes trimesh collision (not the instances: stones, plants)
-#   - builds the environment: a WorldEnvironment (the sky's zenith and horizon, the ambient, SSAO, a filmic tone) and the
-#     sun at the level's hour as a DirectionalLight3D casting shadows
+#   - gives the level's static meshes trimesh collision (not the instances: stones, plants; not what is see-through: a
+#     decal, a sun patch, glass, water)
+#   - builds the environment: a WorldEnvironment (the sky's zenith and horizon, or the level's background colour where it
+#     has no sky; the ambient, SSAO, a filmic tone, the haze as fog in its colour and density) and the sun as a
+#     DirectionalLight3D casting shadows (a level with no sun and no lamps is given a default one, marked so)
+#   - makes a camera current: the GLB's first, or one stood at the level's camera marker looking at what it looks at
 #   - stands every marker (the spawn, the entities with their part in the loop, the anchors, the cameras) and every
 #     seat as a Marker3D under MojuloMarkers and MojuloSeats, its record in its metadata ("mojulo"), and the whole level
 #     record on the root ("mojulo_level")
@@ -58,13 +61,19 @@ func _post_import(scene: Node) -> Object:
 		for p in still:
 			if String(mi.name).begins_with(safe(p)):
 				instanced = true
-		if not instanced:
+		var see_through := false
+		for s in range(mesh.get_surface_count()):
+			var sm = mesh.surface_get_material(s)
+			if sm is BaseMaterial3D and sm.transparency != BaseMaterial3D.TRANSPARENCY_DISABLED:
+				see_through = true
+		if not instanced and not see_through:
 			mi.create_trimesh_collision()
 			own(mi, scene)
 	var level = H.get("level")
 	if typeof(level) == TYPE_DICTIONARY:
 		environment(scene, level.get("environment", {}))
 		markers(scene, level)
+		camera(scene, level)
 		scene.set_meta("mojulo_level", level)
 	scene.set_meta("mojulo_handoff", H.get("version", ""))
 	return scene
@@ -76,10 +85,14 @@ func environment(scene: Node, env: Dictionary) -> void:
 		sm.sky_top_color = Color.html(env["sky"].get("zenith", "#6a8fc0"))
 		sm.sky_horizon_color = Color.html(env["sky"].get("horizon", "#c8d4e0"))
 		sm.ground_horizon_color = sm.sky_horizon_color
-	var sky := Sky.new()
-	sky.sky_material = sm
-	e.background_mode = Environment.BG_SKY
-	e.sky = sky
+	if env.has("sky") or not env.has("background"):
+		var sky := Sky.new()
+		sky.sky_material = sm
+		e.background_mode = Environment.BG_SKY
+		e.sky = sky
+	else:
+		e.background_mode = Environment.BG_COLOR
+		e.background_color = Color.html(env["background"])
 	if env.has("ambient"):
 		var a: Array = env["ambient"]
 		var m := maxf(maxf(float(a[0]), float(a[1])), maxf(float(a[2]), 0.000001))
@@ -88,8 +101,12 @@ func environment(scene: Node, env: Dictionary) -> void:
 		e.ambient_light_energy = m
 	e.ssao_enabled = true
 	e.tonemap_mode = Environment.TONE_MAPPER_FILMIC
-	if env.has("haze"):
+	if env.has("haze") and typeof(env["haze"]) == TYPE_DICTIONARY:
 		e.fog_enabled = true
+		if env["haze"].has("color"):
+			e.fog_light_color = Color.html(env["haze"]["color"])
+		if env["haze"].has("density"):
+			e.fog_density = float(env["haze"]["density"])
 	var we := WorldEnvironment.new()
 	we.name = "MojuloEnvironment"
 	we.environment = e
@@ -104,6 +121,8 @@ func environment(scene: Node, env: Dictionary) -> void:
 		sun.light_color = lin(env["sun"]["color"])
 		sun.light_energy = float(env["sun"]["intensity"]) / PI
 		sun.shadow_enabled = true
+		if env["sun"].get("default", false):
+			sun.set_meta("mojulo_default", true)
 		scene.add_child(sun)
 		sun.owner = scene
 
@@ -135,3 +154,36 @@ func markers(scene: Node, level: Dictionary) -> void:
 			sk.set_meta("mojulo", r)
 			sroot.add_child(sk)
 			sk.owner = scene
+
+func camera(scene: Node, level: Dictionary) -> void:
+	var cams := scene.find_children("*", "Camera3D", true, false)
+	if cams.size() > 0:
+		cams[0].current = true
+		return
+	var at := Vector3(0, 5, 8)
+	var look := Vector3.ZERO
+	var fov := 60.0
+	var found := false
+	for m in level.get("markers", []):
+		if m.get("kind") == "camera" and m.get("at") != null and not found:
+			at = zup(m["at"])
+			if m.get("look") != null:
+				look = zup(m["look"])
+			if m.get("yfov") != null:
+				fov = rad_to_deg(float(m["yfov"]))
+			found = true
+	if not found:
+		for m in level.get("markers", []):
+			if m.get("kind") == "spawn" and m.get("at") != null:
+				look = zup(m["at"])
+				at = look + Vector3(0, 5, 8)
+	var cam := Camera3D.new()
+	cam.name = "MojuloCamera"
+	cam.fov = fov
+	var dir := (look - at).normalized()
+	var up := Vector3.UP if absf(dir.y) < 0.99 else Vector3.FORWARD
+	cam.transform = Transform3D(Basis.looking_at(dir, up), at)
+	cam.current = true
+	scene.add_child(cam)
+	cam.owner = scene
+

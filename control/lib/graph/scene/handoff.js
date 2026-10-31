@@ -261,6 +261,10 @@ export const HANDOFF_LEVEL = 'handoff-level/0';
 const { SEAT_COLORS, SEAT_LABELS } = (() => { const K = buildSeatsKernel(); return { SEAT_COLORS: K.SEAT_COLORS, SEAT_LABELS: K.SEAT_LABELS }; })();
 const v3 = (v) => (Array.isArray(v) && v.length >= 3 ? [r5(v[0]), r5(v[1]), r5(v[2])] : null);
 
+/** The sun a level with none of its own and no lamps is given: high in the south-east, warm white, at a renderer's
+ *  strength of π (the solve's level 1). */
+export const DEFAULT_SUN = Object.freeze({ direction: Object.freeze([0.36, -0.48, 0.8]), color: Object.freeze([1, 0.96, 0.9]), intensity: r5(Math.PI) });
+
 function environmentOf(sketch, payload) {
   const land = payload.form?.land, room = payload.form?.room, M = sketch?.manifest ?? {};
   const sky = land?.sky ?? payload.sky ?? null, sun = land?.sun ?? null, sunL = land?.light?.sun ?? null;
@@ -274,6 +278,9 @@ function environmentOf(sketch, payload) {
   if (Array.isArray(amb)) env.ambient = amb.map(r5);
   if (payload.haze) env.haze = payload.haze;
   if (payload.weather) env.weather = true;
+  // (a level with no sun of its own and no lamp, a stage lit only by its paint: a default noon sun, marked so, that a
+  // developer replaces; a room lit by its lamps takes none)
+  if (!env.sun && !(Array.isArray(payload.lights) && payload.lights.length)) env.sun = { ...DEFAULT_SUN, default: true };
   return env;
 }
 
@@ -300,7 +307,10 @@ export function levelRecord(sketch, payload) {
     ...(ex['moj:spawn'] ? [{ name: 'spawn', kind: 'spawn', at: v3(ex['moj:spawn']) }] : []),
     ...entities.map((e) => ({ kind: 'entity', ...e })),
     ...(ex['moj:anchors'] ?? []).map((a) => ({ ...a, name: `anchor:${a.id}`, kind: 'anchor', anchor: a.kind })),
-    ...(levelCameras(payload) ?? []).map((c) => ({ name: `camera:${c.name}`, kind: 'camera', at: v3(c.translation) })),
+    ...(levelCameras(payload) ?? []).map((c) => {
+      const cam = (payload.cameras ?? []).find((x, i) => x && (x.name || `view ${i}`) === c.name), look = cam?.worldFraming?.lookAt;
+      return { name: `camera:${c.name}`, kind: 'camera', at: v3(c.translation), ...(look ? { look: v3(look) } : {}), yfov: r5(c.yfov) };
+    }),
   ];
   const seatRows = seats ? Array.from({ length: seats.max }, (_, k) => {
     const n = k + 1, body = n === 1 ? pilot : seats.bodies[n - 2] ?? null, e = body ? entities.find((x) => x.name === `entity:${body}`) : null;
