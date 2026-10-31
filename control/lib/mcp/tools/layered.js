@@ -80,8 +80,8 @@ import { fitEvidence } from '@/lib/graph/polygonizer/humanoid-head-fit';
 import { ANIME_FACE, ANIME_HAIR, ANIME_FACE_KEYS, ANIME_HAIR_KEYS, ANIME_POSES, ANIME_PRESETS, resolveAnimeFace, validateAnimeFace, animeFaceWarnings, resolveAnimeHair, validateAnimeHair, animeHairWarnings, resolveAnimeExpression, validateAnimeExpression, animeExpressionWarnings, animeCoverageWarnings, animeFaceZoneWarnings, ANIME_HAIR_BASE, ANIME_HAIR_FORM_WORDS } from '@/lib/graph/polygonizer/anime-head';
 import { ANIME_HAIR_STYLES } from '@/lib/graph/polygonizer/anime-head';
 import { validateGenki, genkiStand } from '@/lib/graph/polygonizer/anime-genki';
-import { ANIME_STYLE_NAMES, validateAnimeStyle, resolveAnimeStyle } from '@/lib/graph/polygonizer/anime-styles';
-import { LOOK_TABLES, validateLook, resolveLook, composeAnime, heroHeadPole as headPoleOf, animeHeroEffective as animeEffective, animeFaceBase, animeSculptBase, heroFeatureAdvice, heroHairPole } from '@/lib/graph/polygonizer/anime-looks';
+import { ANIME_STYLE_NAMES, validateAnimeStyle, resolveAnimeStyle, animeStyleOf } from '@/lib/graph/polygonizer/anime-styles';
+import { LOOK_TABLES, validateLook, resolveLook, composeAnime, heroHeadPole as headPoleOf, animeHeroEffective as animeEffective, animeFaceBase, animeSculptBase, castHeadPole as castHeadPoleOf, heroFeatureAdvice, heroHairPole } from '@/lib/graph/polygonizer/anime-looks';
 import { ANIME_SCULPT, ANIME_SCULPT_KEYS, SCULPT_SHAPE_KEYS, validateAnimeSculpt, resolveAnimeSculpt, sparseSculpt, animeSculptWarnings, describeAnimeSculpt } from '@/lib/graph/polygonizer/anime-sculpt';
 import { layeredStats, persistedLayeredLedger } from '@/lib/graph/polygonizer/station-loft-faces';
 import { validateBake } from '@/lib/graph/polygonizer/surface-bake';
@@ -253,7 +253,13 @@ function expandHeroAwarePlan(plan, hero, geocube = null) {
   // a STATUE (statue/expand.js): the expanded recipe cut to its format, carved in its material, its surface tagged
   if (hero?.statue) return statueRecipeOf(expandAware(plan, hero), plan, hero);
   // (an undead's heavy arm, its bared flesh and its loss on their sides, undead/tiered-layers.js; absent, the recipe as it was)
-  return withLegGirths(withDressMaterials(hero?.undead ? undeadRecipe(expandAware(plan, hero), hero) : expandAware(plan, hero), hero, plan, geocube));
+  return withBodySmooth(withLegGirths(withDressMaterials(hero?.undead ? undeadRecipe(expandAware(plan, hero), hero) : expandAware(plan, hero), hero, plan, geocube)), hero);
+}
+/** An anime hero whose style rounds its body (anime-styles.js `smooth`): the recipe names the rounds and compileLayered
+ * splits its body's skin on the curved patch (body-smooth.js). Any other recipe: as it was. */
+function withBodySmooth(recipe, hero) {
+  const rounds = hero?.head === 'anime' ? animeStyleOf(hero, castHeadPoleOf(hero))?.smooth : null;
+  return rounds ? { ...recipe, smoothBody: { rounds } } : recipe;
 }
 /** The realistic form's build (body-relational.js): the cast's pole's (male: norrin, female: shalla) under the record's
  * physique (its laws aside) */

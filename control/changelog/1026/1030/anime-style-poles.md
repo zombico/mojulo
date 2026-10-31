@@ -75,3 +75,10 @@ lean, long faces. The eyes gate is the operator's.
   the male an athletic lead's, 7.65 heads (the torso shorter and the legs longer, the shoulders broader over a narrow
   waist, a V); the female long-legged and slim, 7.26 heads (the torso shorter, the legs longer, the waist narrow, the
   shoulders narrower).
+- **The body rounded** (`body-smooth.js`; a style's `smooth`, Shonen High's 1; the recipe's `smoothBody: { rounds }`):
+  the body's skin split once, each triangle into four, its new points on the curved patch its corners' welded normals
+  describe (the curved PN triangle's edge), so the silhouette reads rounded rather than as its rings' facets. The
+  corners keep their places byte for byte (the joints, the pinned parts' seats, the binds); a new point is appended
+  after every point the mesh had and binds as its two corners' mean; a part's open rim splits on its straight line.
+  Absent, the mesh as built. One round: the parts are still separate shells, so the seams where they meet (the chest's
+  plates on the torso, the torso over the pelvis) still read; fusing them is the next step.

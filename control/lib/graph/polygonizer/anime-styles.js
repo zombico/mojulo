@@ -5,7 +5,8 @@
  *
  * A style names, per design base, its face (the studio's controls), its sculpt (the graphic face's words) and its body
  * tune, all as the door's own words; the head it wears (`head`: another base's, its face and sculpt under its own, so
- * Shonen High's female wears the male's head tuned); and its FEATURE BANDS: a style is a canon of its own, so a styled hero is advised
+ * Shonen High's female wears the male's head tuned); its body's rounding (`smooth`: the rounds its skin is split, on the
+ * curved patch, body-smooth.js); and its FEATURE BANDS: a style is a canon of its own, so a styled hero is advised
  * against its style's bands (each one it names in place of the base's), never against the base it departs from.
  *
  * The door stores the word beside a RESOLVED stamp (`animeStyleResolved`, as a look's `lookResolved`): a later re-tuning
@@ -37,6 +38,8 @@ export const ANIME_STYLES = Object.freeze({
       // (the male an athletic lead's: the torso shorter and the legs longer, the shoulders broader over a narrow waist, a V)
       tune: Object.freeze({ ...LEAN_LONG, head: 0.9212, torso: 0.95, legs: 1.0712, shoulders: 1.008, waist: 0.8556 }),
       bands: Object.freeze({ eyeWidth: [0.17, 0.21], lid: [0.3, 0.45], mouthWidth: [0.25, 0.34], browGap: [0.3, 0.75] }),
+      // (the body rounded: its skin split once on the curved patch, body-smooth.js; the female's the same)
+      smooth: 1,
     }),
     // the female: the MALE's head (`head`: his skull, his profile, his jaw's line to the back of the skull, his ear), and
     // over his face and sculpt her own layer, after Nobara's figure: her head smaller than his; her features softer (her
@@ -50,6 +53,7 @@ export const ANIME_STYLES = Object.freeze({
     // her hair are her cast's own
     female: Object.freeze({
       head: 'male',
+      smooth: 1,
       face: Object.freeze({ lower: 0.85, eyeHeight: 1.087, eyeWidth: 1.061, spacing: 1.04, iris: 1.08, jaw: 1.012, chin: 0.689, chinProjection: 0.94, cheekVolume: 1.026, lowerCheekVolume: 0.92, browDepth: 0.85, nose: 0.69 }),
       sculpt: Object.freeze({ pronasale: 0.038, stomion: 0.06, lidWeight: 1.12, lidTail: 1.04, lidFlick: 10, lidAngle: -3, browThick: 0.65, browAngle: -3, bridgeRoot: -0.035, tipProjection: 0.52, mouthWidth: 0.6, jawHollow: 0.01, napeLift: -0.03, seatBack: 0.08 }),
       // (the female long-legged and slim: the torso shorter, the legs longer, the waist narrow, the shoulders narrower)
@@ -72,7 +76,7 @@ export function resolveAnimeStyle(word) {
   const pole = (P) => {
     const H = P.head ? S[P.head] : null;
     const { from: _f, ...face } = resolveAnimeFace([H?.face, P.face].filter(Boolean)); const { from: _t, ...tune } = resolveTune([P.tune]);
-    return { ...(P.head ? { head: P.head } : {}), face, sculpt: resolveAnimeSculpt([H?.sculpt, P.sculpt].filter(Boolean)), tune, bands: structuredClone({ ...(H?.bands ?? {}), ...P.bands }) };
+    return { ...(P.head ? { head: P.head } : {}), ...(P.smooth ? { smooth: P.smooth } : {}), face, sculpt: resolveAnimeSculpt([H?.sculpt, P.sculpt].filter(Boolean)), tune, bands: structuredClone({ ...(H?.bands ?? {}), ...P.bands }) };
   };
   return { word, male: pole(S.male), female: pole(S.female) };
 }

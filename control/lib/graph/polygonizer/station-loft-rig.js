@@ -497,7 +497,7 @@ export function bindLayered(mesh, recipe, R = validateRig(recipe.rig)) {
   const boneOf = (id, where) => { const bi = R.boneIndex[id]; if (bi === undefined) throw new Error(`station-loft-rig: ${where} binds unknown bone '${id}'`); return bi; };
   for (let i = 0; i < n; i++) {
     const prov = mesh.provenance[i]; const part = recipe.parts[prov.part];
-    if (prov.layer !== 1) continue;
+    if (prov.layer !== 1 || prov.mix) continue;   // (a rounded body's new point, body-smooth.js: weighed below, from its corners)
     const bind = part.bind; if (bind === undefined || bind === null) throw new Error(`station-loft-rig: part ${prov.part} has no bind`);
     if (typeof bind === 'string') { per[i] = [[boneOf(bind, prov.part), 1]]; continue; }
     if (!bind || typeof bind !== 'object' || typeof bind.bone !== 'string') throw new Error(`station-loft-rig: part ${prov.part}.bind must be a bone id or { bone, blend }`);
@@ -508,6 +508,8 @@ export function bindLayered(mesh, recipe, R = validateRig(recipe.rig)) {
     if (!entries.length || entries.length > 4 || entries.some(([, w]) => !Number.isFinite(w) || w < 0) || Math.abs(sum - 1) > 1e-9) throw new Error(`station-loft-rig: part ${prov.part} blend at ${st} must be ≤ 4 finite non-negative weights summing to 1`);
     per[i] = entries.map(([b, w]) => [boneOf(b, `${prov.part}.${st}`), w]);
   }
+  // (a rounded body's new point: its two corners' weights, each half, the strongest four kept)
+  for (let i = 0; i < n; i++) { const mix = mesh.provenance[i].mix; if (!mix) continue; const acc = {}; for (const c of mix) for (const [bi, w] of per[c]) acc[bi] = (acc[bi] ?? 0) + w / mix.length; per[i] = topFour(acc); }
   for (const [name, part] of Object.entries(recipe.parts)) if (part.layer !== 1 && part.bind !== undefined) throw new Error(`station-loft-rig: pinned part ${name} cannot bind — it inherits its pin face`);
   const order = Object.entries(mesh.parts).filter(([, p]) => p.layer !== 1).sort(([a, x], [b, y]) => x.layer - y.layer || (a < b ? -1 : 1));
   for (const [name, part] of order) {
