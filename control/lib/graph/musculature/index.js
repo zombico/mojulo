@@ -9,7 +9,7 @@
  * (their joints with them), the nipples drawn when asked, and nothing else touched (the head, the clips). Pure and
  * deterministic. */
 import { MUSCLE_CARDS, MUSCLE_CARD_NAMES, validateMuscleCard } from './cards.js';
-import { densify, grainOf, frames, seatMass, displace, symmetrize, mirrorPart, mirrorEgg, girthOf, handsScaled, feetScaled, nipplesOn, activeMass, offsetsOf, domeKeys } from './passes.js';
+import { densify, grainOf, frames, seatMass, displace, symmetrize, mirrorPart, mirrorEgg, girthOf, handsScaled, feetScaled, nipplesOn, activeMass, offsetsOf, domeKeys, endsInside, keptInOrder, UNDER_GAP } from './passes.js';
 import { HAND_SHARE, FOOT_SHARE, NIPPLE, ACTIVITY_JOINTS } from './principles.js';
 import { skinOf, sideOf, TAKEN_OFF, TUCK, DOMES, UNDER, handParts, handJoints, handRamp, footParts, footJoints } from './adapters/loft.js';
 
@@ -78,16 +78,24 @@ export function muscleShirt(recipe, spec) {
   // 4. DISPLACE each part by the masses its group wears it by (a midline part both sides', a right limb's its own)
   const both = masses.flatMap((e) => (e.mid ? [e] : [e, mirrorEgg(e)]));
   const out = {}, raw = {}, moved = {}, held = {};
+  // (which ends of each shell lie BURIED in a shell that shows over it, a smaller tuck's: the thigh's top in the pelvis,
+  // the pelvis's top in the torso; the shells under the arm's skin, UNDER, are tucked whole already)
+  const tuckOf = (n) => TUCK[sideOf(n).base] ?? 0, under = (n) => UNDER.includes(sideOf(n).base);
+  const ownersOf = Object.fromEntries(Object.keys(dense).map((n) => [n, under(n) ? [] : Object.keys(dense).filter((a) => a !== n && !under(a) && tuckOf(a) < tuckOf(n))]));
+  const buried = Object.fromEntries(Object.keys(dense).map((n) => [n, ownersOf[n].length ? endsInside(dense[n], ownersOf[n].map((a) => dense[a])) : [false, false]]));
+  // (a hidden shell KEPT IN ORDER with the shells that show over it, as they were displaced: `shape` names each owner's shape)
+  const underOwners = (n, P, shape) => (ownersOf[n].length ? keptInOrder(dense[n], P, ownersOf[n].map((a) => ({ A0: dense[a], A: shape(a), gap: Math.max(UNDER_GAP, tuckOf(n) - tuckOf(a)) }))) : P);
   const displaced = (n, worn) => {
     const { base } = sideOf(n), ds = [...new Set(worn.map((e) => e.d))], d = ds.length === 1 ? ds[0] : definition;
     // (each group at its own definition: the union's blends read the group's, so a part's masses are displaced together
     // at the definition of the most of them; a part worn by groups at different definitions takes the shirt's)
-    return displace(dense[n], worn, d, TUCK[base] ?? 0, null, UNDER.includes(base));
+    return displace(dense[n], worn, d, TUCK[base] ?? 0, null, UNDER.includes(base), buried[n]);
   };
   for (const n of Object.keys(dense)) {
     const { side } = sideOf(n), { part, moved: k, capped } = displaced(n, (side ? masses : both).filter((e) => e.parts.includes(sideOf(n).base)));
     raw[n] = part; out[n] = side ? part : symmetrize(part); moved[n] = k; held[n] = capped;
   }
+  { const shown = { ...out }; for (const n of Object.keys(dense)) { const P = underOwners(n, raw[n], (a) => shown[a]); if (P !== raw[n]) { raw[n] = P; out[n] = sideOf(n).side ? P : symmetrize(P); } } }
   // SQUASH AND STRETCH (a group's `act`): per joint, its flexors bunched and its extensors stretched (activeMass) on the
   // right side, the parts they are worn by displaced again, and the difference worn as a CORRECTIVE on the rest, driven
   // by the joint (principles.js ACTIVITY_JOINTS); the left side's the mirror. Hands and feet and bridges a scale moves
@@ -109,14 +117,19 @@ export function muscleShirt(recipe, spec) {
     if (!swap.size) continue;
     const touched = [...new Set([...swap.keys()].flatMap((e) => e.parts))].flatMap((b) => [b, `${b}R`]).filter((n) => dense[n] && !/^wristBridge/.test(n));
     const right = {}, left = {}, cap = joint[0].toUpperCase() + joint.slice(1);
+    const acts = {};
     for (const n of touched) {
       // (the right side's masses active, the left's as they were: a midline part takes the right arm's or leg's alone)
       const { base, side } = sideOf(n);
       const set = masses.map((e) => swap.get(e) ?? e), worn = (side ? set : [...set, ...masses.filter((e) => !e.mid).map(mirrorEgg)]).filter((e) => e.parts.includes(base));
+      acts[n] = displaced(n, worn);
+    }
+    for (const n of touched) {
+      const { base, side } = sideOf(n);
       // (a point held at the move's cap at rest or active, its ray grazing a mass, keeps its rest place: posed, such rays
       // swung out in shards; a joint that reverts eases every point back, the held ones too, or they stood out in frills
       // round the skin it eased)
-      const { part: act, capped } = displaced(n, worn);
+      const { capped } = acts[n], act = underOwners(n, acts[n].part, (a) => acts[a]?.part ?? out[a]);
       const keep = driver.revert ? [] : [...held[n], ...capped, ...(driver.domes ? [] : domeKeys(dense[n]))];
       const o = offsetsOf(n, raw[n], driver.revert ? reverted(act, dense[n], driver.revert) : act, side ? `${base}L` : n, new Set(keep));
       Object.assign(right, o.R); Object.assign(left, o.L);

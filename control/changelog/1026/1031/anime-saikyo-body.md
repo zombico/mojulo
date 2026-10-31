@@ -80,6 +80,16 @@ fractal articulation of the big groups. The eyes gate is the operator's.
   onto a mass in a ramp, each point's move raised (never lowered) to its neighbours' less `SLOPE` (0.8) times their
   distance, a point held at the cap raising none. The elbow's and the knee's correctives leave the shoulder's domes
   alone (the elbow's biceps, slid toward its origin, had grazed the arm's dome and lifted it 7 cm).
+- **The waist and the hip without their seams** (the operator's): the torso over the pelvis and the pelvis over the
+  thighs are overlapping shells, and the shirt carries each onto the muscles along rays from its own axis, so in the
+  overlap the two landed a millimetre or two apart and flickered through each other: a jagged line at the waist, the
+  thigh's top in strips over the hip, the pelvis's brief outline torn. Now a shell that should not show is KEPT IN
+  ORDER with the shell over it (`passes.js` `keptInOrder`): each of its points within 2 cm of that shell on the flat body
+  takes the nearest place on it and sits under it there as the shirt carried it, its tuck's difference (at least 2 mm)
+  below, eased to its own displacement further off; an end BURIED inside a shell that shows over it (the thigh's top in
+  the pelvis, the pelvis's top in the torso, the bridges' ends) dives 8 mm over 2.5 cm (`BURIED_TUCK`), and an end that
+  shows only 1.5 mm (`END_TUCK`, was 4: the torso's edge dived through the pelvis under it and crossed it in a dark
+  band). The hip reads as one surface down to the pelvis's own end; a thin line stays where each shell ends.
 - **The shoulder's cap without its rim**: the shoulder's drum and web, under the arm's skin, are tucked 2.5 cm (1 cm
   had let their domes stand through the top of the arm's dome at rest, a crisp rim round the deltoid's crown); raised,
   they still bridge the armpit as before.
@@ -101,7 +111,7 @@ fractal articulation of the big groups. The eyes gate is the operator's.
   joints scaled about the wrist; the soles on the ground as the feet grow; the nipples only when asked; a bend driver none straight and
   whole at full; a corrective a side per acting joint, the left the right's mirror, nothing at rest, each joint its own;
   the biceps' front bunched; none with the activity off; raised overhead, held out and forward, the shoulder's
-  shells folding no more than the flat body's; the cone as it was; the nipples on the mid-clavicular line; a mass meeting the skin square on climbed in a ramp; a point past the cap held at it; a limb's shells worn by its own groups only; deterministic; the door stores the word and refuses it by name.
+  shells folding no more than the flat body's; the cone as it was; the nipples on the mid-clavicular line; a mass meeting the skin square on climbed in a ramp; a point past the cap held at it; a limb's shells worn by its own groups only; a hidden shell kept under the one over it; deterministic; the door stores the word and refuses it by name.
 
 #### The anime frame (hero laws 21): the wrist, the shoe's heel and the clavicle
 

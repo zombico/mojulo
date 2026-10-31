@@ -8,7 +8,7 @@ import { muscleShirt, validateMuscleShirt, MUSCLE_CARDS, presence, articulation 
 import { validateRig, rigNodesAt, correctiveWeight, bindLayered, boneFrames, skinLayered } from '../polygonizer/station-loft-rig.js';
 import { correctiveRest } from '../polygonizer/body-relational-correctives.js';
 import { blendOf, smin } from './principles.js';
-import { densify, grainOf, displace, frames, nipplesOn, MOST_MOVE, SLOPE } from './passes.js';
+import { densify, grainOf, displace, frames, nipplesOn, keptInOrder, MOST_MOVE, SLOPE } from './passes.js';
 import { NIPPLE } from './principles.js';
 import { compileLayered } from '../polygonizer/station-loft.js';
 import { heroRecord, expandLayeredManifest } from '../../mcp/tools/layered.js';
@@ -120,6 +120,16 @@ describe('the skin between the masses', () => {
     expect(Math.max(...mv.flat())).toBeLessThanOrEqual(MOST_MOVE + 1e-6);
     const j = P.slots.indexOf(P.slots.find((sl) => mid.points[sl] === front)), i = P.stations.indexOf(mid);
     expect(mv[i][j]).toBeCloseTo(MOST_MOVE, 4);
+  });
+  it('keeps a hidden shell under the one over it, though the shirt carried it out further', () => {
+    // a shell 3 mm inside the thigh's (the flat body's order), carried out by a mass the thigh does not wear
+    const A0 = P, B0 = { ...P, stations: P.stations.map((x) => ({ ...x, points: Object.fromEntries(P.slots.map((sl) => [sl, x.points[sl].map((v, k) => v + (c[k] - v) * 0.03)])) })) };
+    const A = displace(A0, [egg([0.06, 0.06, 0.035])], 1).part, B = displace(B0, [egg([0.07, 0.07, 0.045])], 1).part;
+    const r = (S, i, sl) => Math.hypot(S.stations[i].points[sl][0] - c[0], S.stations[i].points[sl][1] - c[1]);
+    const i = P.stations.indexOf(mid), j = P.slots.find((sl) => mid.points[sl] === front);
+    expect(r(B, i, j)).toBeGreaterThan(r(A, i, j));
+    const K = keptInOrder(B0, B, [{ A0, A, gap: 0.002 }]);
+    for (const sl of P.slots) expect(r(K, i, sl)).toBeLessThan(r(A, i, sl) - 0.001);
   });
   it('wears a limb\'s shells by the limb\'s groups only: the chest taken off the card leaves the arm as it was', () => {
     const card = { ...MUSCLE_CARDS.saikyo, groups: MUSCLE_CARDS.saikyo.groups.filter((g) => g.id !== 'chest') };

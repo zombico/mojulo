@@ -226,7 +226,24 @@ export function unionOf(masses, d, k = null) {
 /** how far a shell's ENDS dive under their neighbours (metres), over how long a run from each end (metres): the shell
  * that shows along an overlap would otherwise end on the muscle in a rim a few millimetres proud of the one it overlaps
  * (the torso's over the pelvis, the arm's over the elbow's bridge), a step at every joint */
-export const END_TUCK = 0.004, END_BAND = 0.018;
+export const END_TUCK = 0.0015, END_BAND = 0.018;
+/** how far an end BURIED inside a shell that shows over it dives (m), over how long a run (m): it never shows */
+export const BURIED_TUCK = 0.008, BURIED_BAND = 0.025;
+/** which ends of a dense part (its first station's, its last's) lie inside one of `owners` (dense parts that show over
+ * it): the end ring's centre within an owner's run along its axis and within its rings' reach of it */
+export function endsInside(B, owners) {
+  const centre = (A, x) => scl(A.slots.reduce((a, s) => add(a, x.points[s]), [0, 0, 0]), 1 / A.slots.length);
+  const inside = (p) => owners.some((A) => {
+    const C = A.stations.map((x) => centre(A, x)), R = A.stations.map((x, i) => A.slots.reduce((a, s) => a + len(sub(x.points[s], C[i])), 0) / A.slots.length);
+    for (let i = 0; i + 1 < C.length; i++) {
+      const e = sub(C[i + 1], C[i]), l2 = dot(e, e); if (l2 < 1e-12) continue;
+      const t = dot(sub(p, C[i]), e) / l2; if (t < 0 || t > 1) continue;
+      if (len(sub(p, add(C[i], scl(e, t)))) < R[i] + (R[i + 1] - R[i]) * t) return true;
+    }
+    return false;
+  });
+  return [inside(centre(B, B.stations[0])), inside(centre(B, B.stations[B.stations.length - 1]))];
+}
 /** the most the shirt carries a point (m): past every muscle's stand off the skin */
 export const MOST_MOVE = 0.065;
 /** the most the shirt carries a dome's point on a shell that shows (m): the deltoid's crown lifts the arm's top about 5 cm,
@@ -237,7 +254,7 @@ export const DOME_MOST = 0.07;
  * union's surface (the skin a plane through the point, square to the ray), less its `tuck` and, near its ends, its end
  * tuck (each never more than the point moved). A point no mass reaches keeps its place. `k` one blend for every level
  * and the skin (a mark's: the nipples'), its march finer. `whole`: the tuck taken whole, moved or not (adapters/loft.js UNDER) */
-export function displace(P, masses, d, tuck = 0, k = null, whole = false) {
+export function displace(P, masses, d, tuck = 0, k = null, whole = false, buried = [false, false]) {
   if (!masses.length) return { part: P, moved: 0, capped: new Set() };
   const M = unionOf(masses, d, k), kS = k ?? skinBlendOf(d), STEP = k ? 0.0005 : 0.002, REACH = k ? 0.03 : 0.16;
   const centres = P.stations.map((x) => scl(P.slots.reduce((a, s) => add(a, x.points[s]), [0, 0, 0]), 1 / P.slots.length));
@@ -245,7 +262,10 @@ export function displace(P, masses, d, tuck = 0, k = null, whole = false) {
   const run = [0]; for (let i = 1; i < centres.length; i++) run.push(run[i - 1] + len(sub(centres[i], centres[i - 1])));
   // (an end closed in a dome is no end: the dome runs on over it, and a tuck there cut a groove round the arm under it)
   const domedBack = ORIGIN.has(P.stations[0]), domedTip = ORIGIN.has(P.stations[P.stations.length - 1]);
-  const total = run[run.length - 1], endOf = (i) => { const x = Math.min(domedBack ? Infinity : run[i], domedTip ? Infinity : total - run[i]) / END_BAND; if (x >= 1) return 0; const y = 1 - x; return END_TUCK * y * y * (3 - 2 * y); };
+  // (an end BURIED inside a shell that shows over it dives deeper and longer, BURIED_TUCK: at END_TUCK the thigh's top
+  // lay a millimetre under the pelvis and flickered through it in strips at the hip, the pelvis's top through the torso)
+  const total = run[run.length - 1], dive = (x, deep) => { const b = deep ? BURIED_BAND : END_BAND, t = deep ? BURIED_TUCK : END_TUCK; if (x >= b) return 0; const y = 1 - x / b; return t * y * y * (3 - 2 * y); };
+  const endOf = (i) => Math.max(domedBack ? 0 : dive(run[i], buried[0]), domedTip ? 0 : dive(total - run[i], buried[1]));
   let moved = 0, held = false;
   const capped = new Set();
   // (a point carried out along its ray from `c` onto the union, less its tuck; unmoved where no mass reaches)
@@ -311,6 +331,81 @@ function sloped(P, S, C, capped) {
   }
   if (!up.size) return S;
   return S.map((x, i) => ({ ...x, points: Object.fromEntries(P.slots.map((sl, j) => [sl, up.has(i * n + j) ? add(P.stations[i].points[sl], scl(dir[i][j], m[i][j])).map(r6) : x.points[sl]])) }));
+}
+
+/** the least a hidden shell lies under the one that shows over it (m), past their tucks' difference */
+export const UNDER_GAP = 0.002;
+/** how near the shell over it (m, along the ray from its axis, on the flat body) a hidden shell's point keeps its ORDER */
+export const KEEP_NEAR = 0.02;
+/** a displaced part `B` (from its flat dense `B0`) KEPT IN ORDER with the shells that show over it (`owners`: [{ A0, A,
+ * gap }], each's flat dense and displaced): each point of B that lay within KEEP_NEAR of an owner's skin on the flat body
+ * keeps its offset along the owner's normal from the same place on the owner (its nearest face and the place in it), as
+ * the shirt carried the owner, less `gap`; eased to its own displacement as it lay further off, or off the face's edge.
+ * Two shells the shirt carried onto one surface from two axes had flickered through each other (the thigh's top in strips
+ * over the pelvis at the hip, a jagged waist); the flat body's own order keeps the line where one passes out of the other
+ * (the pelvis's brief over the thigh) where it was, and a hidden shell its gap under the other */
+export function keptInOrder(B0, B, owners) {
+  const O = owners.map(({ A0, A, gap }) => {
+    const n = A0.slots.length, T = [];
+    for (let i = 0; i + 1 < A0.stations.length; i++) for (let j = 0; j < n; j++) {
+      const k = [[i, j], [i, (j + 1) % n], [i + 1, (j + 1) % n], [i + 1, j]];
+      T.push([k[0], k[1], k[2]], [k[0], k[2], k[3]]);
+    }
+    const at = (P, [i, j]) => P.stations[i].points[P.slots[j]];
+    // (the faces' winding read outward from the shell's middle ring's centre)
+    const mid = A0.stations[Math.floor(A0.stations.length / 2)], mc = scl(A0.slots.reduce((a, s) => add(a, mid.points[s]), [0, 0, 0]), 1 / n);
+    let sgn = 0;
+    for (let j = 0; j < n; j++) { const t = T[2 * (Math.floor(A0.stations.length / 2) * n + j)]; if (!t) break; const [a, b, c] = t.map((v) => at(A0, v)); sgn += dot(cross(sub(b, a), sub(c, a)), sub(a, mc)); }
+    const out = sgn < 0 ? -1 : 1;
+    // (a grid of the faces by their centres, 4 cm cells)
+    const cell = 0.04, grid = new Map(), key = (p) => p.map((v) => Math.floor(v / cell)).join(',');
+    T.forEach((t, f) => { const c = scl(t.reduce((a, v) => add(a, at(A0, v)), [0, 0, 0]), 1 / 3), k = key(c); if (!grid.has(k)) grid.set(k, []); grid.get(k).push(f); });
+    return { A0, A, gap, T, at, out, grid, cell };
+  });
+  // (the nearest place on a triangle to p: its barycentrics, clamped onto the triangle)
+  const nearest = (p, a, b, c) => {
+    const ab = sub(b, a), ac = sub(c, a), ap = sub(p, a), d1 = dot(ab, ap), d2 = dot(ac, ap);
+    if (d1 <= 0 && d2 <= 0) return [1, 0, 0];
+    const bp = sub(p, b), d3 = dot(ab, bp), d4 = dot(ac, bp); if (d3 >= 0 && d4 <= d3) return [0, 1, 0];
+    const vc = d1 * d4 - d3 * d2; if (vc <= 0 && d1 >= 0 && d3 <= 0) { const v = d1 / (d1 - d3); return [1 - v, v, 0]; }
+    const cp = sub(p, c), d5 = dot(ab, cp), d6 = dot(ac, cp); if (d6 >= 0 && d5 <= d6) return [0, 0, 1];
+    const vb = d5 * d2 - d1 * d6; if (vb <= 0 && d2 >= 0 && d6 <= 0) { const w = d2 / (d2 - d6); return [1 - w, 0, w]; }
+    const va = d3 * d6 - d5 * d4; if (va <= 0 && d4 - d3 >= 0 && d5 - d6 >= 0) { const w = (d4 - d3) / (d4 - d3 + d5 - d6); return [0, 1 - w, w]; }
+    const den = 1 / (va + vb + vc), v = vb * den, w = vc * den; return [1 - v - w, v, w];
+  };
+  const mix = (a, b, c, [u, v, w]) => [0, 1, 2].map((k) => a[k] * u + b[k] * v + c[k] * w);
+  const ease = (x) => (x <= 0 ? 1 : x >= 1 ? 0 : 1 - x * x * (3 - 2 * x));
+  let changed = false;
+  const stations = B.stations.map((x, bi) => {
+    if (ORIGIN.has(B0.stations[bi])) return x;
+    const points = {};
+    for (const sl of B.slots) {
+      const p0 = B0.stations[bi].points[sl];
+      let p = x.points[sl];
+      for (const { A0, A, gap, T, at, out, grid, cell } of O) {
+        const g = p0.map((v) => Math.floor(v / cell));
+        let best = null;
+        for (let dx = -1; dx <= 1; dx++) for (let dy = -1; dy <= 1; dy++) for (let dz = -1; dz <= 1; dz++) {
+          for (const f of grid.get(`${g[0] + dx},${g[1] + dy},${g[2] + dz}`) ?? []) {
+            const [a, b, c] = T[f].map((v) => at(A0, v)), w = nearest(p0, a, b, c), q = mix(a, b, c, w), dd = len(sub(p0, q));
+            if (!best || dd < best.dd) best = { f, w, q, dd };
+          }
+        }
+        if (!best || best.dd >= KEEP_NEAR) continue;
+        const [a0, b0, c0] = T[best.f].map((v) => at(A0, v)), n0 = scl(unit(cross(sub(b0, a0), sub(c0, a0))), out);
+        const d0 = dot(sub(p0, best.q), n0), off = len(sub(sub(p0, best.q), scl(n0, d0)));
+        const wt = ease(Math.abs(d0) / KEEP_NEAR * 2 - 1) * ease(off / 0.01);
+        if (wt <= 0) continue;
+        const [a1, b1, c1] = T[best.f].map((v) => at(A, v)), n1 = scl(unit(cross(sub(b1, a1), sub(c1, a1))), out);
+        const target = add(mix(a1, b1, c1, best.w), scl(n1, Math.min(d0, 0) - gap));
+        p = [0, 1, 2].map((k) => r6(p[k] + (target[k] - p[k]) * wt)); changed = true;
+        break;
+      }
+      points[sl] = p;
+    }
+    return { ...x, points };
+  });
+  return changed ? { ...B, stations } : B;
 }
 
 /** the points of a dense part's DOMES (densify's rings closing an end), as `<station>.<slot>` */
