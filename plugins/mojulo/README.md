@@ -1,9 +1,9 @@
 # Mojulo
 
 **Mojulo turns Claude into a game studio.** You direct; Claude builds. Describe the game you want
-and Claude works through mojulo's departments: it plans the world and shows you its bible, builds the
-levels, casts the hero and the enemies, tunes how it feels to play, sets the look and scores it, and
-plays every level through before handing it over. The same studio makes characters, objects, walkable
+and Claude works through mojulo's departments: it drafts the game's bible for you to approve, then
+builds the worlds and levels, the characters, props and vehicles, the play modes with their animation
+and sound, the foes and bosses, and the camera work and cutscenes. The same studio makes characters, objects, walkable
 worlds, diagrams and music. Each one is a deterministic recipe: a few hundred bytes of JSON, or
 an OpenSCAD program, that compiles back to the same result every time. You edit and diff the
 recipe like code; every render is derived from it. From the recipe mojulo exports print-ready STL

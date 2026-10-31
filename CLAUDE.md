@@ -8,9 +8,11 @@ comments, docs, or the changelog: plans are working documents that move to
 ## What this is
 
 A local MCP server with a dashboard that turns the operator's agent into a game studio. The person directs; the
-agent works through the departments: direction (`design_game`), levels and worlds, characters (`create_character`),
-gameplay and feel, art direction, audio, writing (the bibles), QA (the traversal audit), shipping (the engine legs),
-the trailer, and production (plans, sweeps, stash and cook, catalysts). Every department writes into one tiny
+agent works through six departments: worlds and levels (art direction, light, set pieces, cities planned for play),
+characters, props and vehicles (`create_character`, `mint_solid`), play modes, animation and sound (`create_game`, feel,
+juice, `create_beats`), foes and bosses, cameras and cutscenes (`forge_motion`, the scenes card), and game design and
+production (`design_game`, the bibles, plans and sweeps), which ties the rest into a game. The audit and the engine legs
+are how everything holds up, not departments. Every department writes into one tiny
 deterministic recipe (a `sketches` row) that regenerates on every read and exports to Godot, Unity, Unreal, Blender,
 GLB, STL, 3MF, USD, which is why a game's bible, its levels and its export agree. Play, Print, Read, Hear and Observe
 are what the departments' combinations make; rooms, prints and science views are the same studio's other outcomes.

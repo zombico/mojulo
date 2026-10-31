@@ -4,13 +4,13 @@
 [![license](https://img.shields.io/badge/license-Apache--2.0-blue)](LICENSE)
 [![node](https://img.shields.io/badge/node-%E2%89%A522.14-brightgreen)](control/package.json)
 
-**Turn your agent into a game studio.** You direct; it builds.
+**Turn your agent into a game studio.** You direct; it builds the worlds and levels, the characters, props and vehicles, the play modes with their animation and sound, the foes and bosses, the camera work and cutscenes, and the game bible that ties them into one game.
 
 ![One real chat with an agent that has mojulo connected. A game maker asks for a multi-level military base for a stealth game, from the hangar through the barracks and a fortified armoury down to the reactor plant at its core, each section unlike the last, and to see the plan and the looks first. The agent drafts the world without building it and points to its book: the way in drawn as rings to the core, each layer's look with its wall, base, floor and paint, and a level's finishes board, its materials as the build will paint them and its light. On "Looks good, approved. Build it." it builds the four levels, shown one after another. The last slide shows the session's time, tokens and API cost](docs/images/wcd-demo.gif)
 
 <sub>One real Claude Code session on Sonnet 5.5: a stealth game's base asked for, its plan and looks approved from the world's book, four levels built; under four minutes of agent time, 63 cents at API list price. The whole session is the first example below.</sub>
 
-Tell the agent you already run (Claude Code, Codex, the Claude app, ChatGPT, any MCP host) the game you want, and it works through a studio's departments: it plans the world and shows you its bible, builds the levels, casts the hero and the enemies, tunes how the game feels to play, sets the look, scores it, plays every level through to its win, and hands you a game that runs in the browser, as a desktop app or as a Godot project. Every department writes into the same small recipe on your machine, so the bible, the level you play and the export agree, and one sentence changes them all. You bring the taste; it brings the craft. Local: no API key, no account, no telemetry.
+Tell the agent you already run (Claude Code, Codex, the Claude app, ChatGPT, any MCP host) the game you want. It drafts the game's bible for you to approve, then builds from it: the levels lit and dressed, the hero and the enemies, how the game plays and sounds, the shots and the cutscenes. You get a game that runs in the browser, as a desktop app or as a Godot project. Every department writes into the same small recipe on your machine, so one sentence changes the game wherever it shows. You bring the taste; it brings the craft. Local: no API key, no account, no telemetry.
 
 The same studio designs more than games: rooms from your floor plan, a chest of drawers with its cutting plan, a printable part at true size, a walkable city.
 
@@ -54,6 +54,19 @@ Open the dashboard on its own with `npx -y mojulo-ui`. It is its own npm package
 </details>
 
 ---
+
+## The studio's departments
+
+| Department | What it builds | Read more |
+|---|---|---|
+| **Worlds and levels** | The look and the light, the worldbuilding, the set pieces and the layouts: a base on a critical path to its core, an open world over a city's regions, caverns, buildings from a brief, a metro planned for play, an island at any hour. The look set here carries to every department. | [walled-core dungeons](docs/walled-core-dungeon.md), [quest open worlds](docs/quest-open-world.md) |
+| **Characters, props and vehicles** | Heads and bodies in realistic, cartoon or anime looks; hair, wardrobe, armour, footwear and the gear a hero carries, fitted to the body and customized; named heroes; race machines and craft. | [the realistic body](docs/realistic-body.md), [garments](docs/garment-principles.md), [armour](docs/plating.md), [flight](docs/flight-games.md) |
+| **Play modes, animation and sound** | The principles a game loop is composed from: the game types (stealth, racing, shooter, flight, fighting, rhythm, sports, board, strategy, a table RPG), how the controls feel, moves and clips, hit effects, local multiplayer, and a score and sound effects synthesized from seeded math. | [local multiplayer](docs/local-multiplayer-principles.md), [the table RPG](docs/table-rpg.md) |
+| **Foes and bosses** | Who stands in each level and how hard: grunts, harriers, elites and a boss on the last; how each attacks, from its wind-up to its recovery; enemy crews, beasts and oozes in the game's look. | [foes](docs/foes.md) |
+| **Cameras and cutscenes** | Directed moments in the game (a boss entrance, an arrival, two characters talking), shots keyed for Godot and Blender, flythroughs and recorded runs joined into a video, and a picture of anything you are building, from any angle, whenever you ask. | [broadcast](docs/broadcast.md) |
+| **Game design and production** | Drafts the game's bible (its world, cast, levels and feel) from your pitch for your approval, builds each step on your yes, and keeps the record of what is made and what is left, for bigger games; the runtime turns the bible into the game. | [books](docs/books.md) |
+
+Every department writes into the same recipe, so they compose: a place, a cast, a play mode, its foes and its shots make one game. Not in the studio: painted art (handed to image tools you bring), voices without an optional local speech worker, online multiplayer (it is local), and whole games in Unreal (it takes assets). Whether it looks good is your call as director; no gate claims a human looked.
 
 ## Where it runs, three things you can add
 
@@ -153,24 +166,6 @@ It plays in the browser as it is: `export_game` writes a self-contained folder f
 ![An aerial view of a generated New York-style metro: brick walk-ups with wooden water tanks on their roofs, glass and Art Deco towers, and avenues with traffic, from one compose_world call](docs/images/metro-new-york-aerial.jpg)
 
 The agent calls `compose_world { base: 'city', seed: 11, overrides: { profile: 'metro', flavor: 'new-york' } }`. `metro` builds it in proportion at about 0.8 × 0.5 km, and the flavor picks the architecture: brick walk-ups, fire escapes, water tanks and Art Deco setbacks here, or `paris`, `london`, `tokyo` and more. The whole city is a pure function of the seed: change it for a new city, keep it and the same city regrows on any machine. `context: { time: 'night' }` lights it for night, and `asset: { monument: 'eiffel-tower' }` stands a landmark at its real size. Open `/world` to walk it with WASD or jump between its street, aerial and skyline views. Bases besides `city`: a transport hub, a K-12 campus, a torch-lit dungeon, a planetary body, a painted landscape, terrain at real scale, a walkable Cayley graph of a finite group.
-
-## The studio's departments
-
-| Department | What it does for you | Read more |
-|---|---|---|
-| **Direction** | Turns your pitch into a world and its levels, drafts the world's bible for your approval, and builds each step on your yes. | |
-| **Levels and worlds** | Lays levels as places: a base on a critical path to its core, an open world over a city's regions, caverns, buildings from a brief, a metro, an island at any hour. | [walled-core dungeons](docs/walled-core-dungeon.md), [quest open worlds](docs/quest-open-world.md) |
-| **Characters** | Casts the hero (stylized, or realistic with its face, hair, wardrobe and armour), named heroes, enemy crews and foes, creatures and animals, rigged and animated. | [the realistic body](docs/realistic-body.md), [foes](docs/foes.md), [garments](docs/garment-principles.md) |
-| **Gameplay and feel** | Sets the rules of the game type (stealth, racing, shooter, flight, fighting, rhythm, sports, board, strategy, a table RPG), how the controls feel, the hit effects, and local multiplayer. | [flight games](docs/flight-games.md), [local multiplayer](docs/local-multiplayer-principles.md) |
-| **Art direction** | Solves the palette from colour theory and draws everything in one look (anime, western or realistic), lit by the hour. | |
-| **Audio** | Scores the game and its sound effects from seeded math, with no samples; voices through an optional local speech worker. | [the voice worker](docs/local-voice-worker.md) |
-| **Writing and world** | Writes the world's bible, the character bible and the feel book, carves the title card in the game's language, and prints a game book. | [books](docs/books.md), [the table RPG](docs/table-rpg.md) |
-| **QA** | Plays every level through to its win before the game is made, and stamps what each export carried and what it lost. | [the gates](docs/bicycles.md) |
-| **Shipping** | Exports a self-contained browser game or desktop app, a Godot project, a Roblox place, Unity and Blender packs, and Unreal assets. | [where it goes](#where-it-goes) |
-| **The trailer** | Films flythroughs and recorded runs and joins them into one video; puts a broadcast package over a contest. | [broadcast](docs/broadcast.md) |
-| **Production** | Sweeps variants of anything, chains calls into plans, and keeps what you tune in your own cookbook. | |
-
-Every department writes into the same recipe, so they compose: a place, a cast, a look and a game type combine into one game, and the studio checks that the combination plays before you see it. Not in the studio: painted art (handed to image tools you bring), online multiplayer (it is local), and whole games in Unreal (it takes assets). Whether it looks good is your call as director; no gate claims a human looked.
 
 ## The same studio, beyond games
 
