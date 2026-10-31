@@ -26,6 +26,10 @@
   land is by each leaf's clump's facing, at each leaf's own tone, casting its silhouette from the sun's side.
   Every far plant is one draw. A needled crown and a culm keep their own far form; the aerial camera keeps the old
   ladder.
+- **The stones on the same ladder** (`scene/channels/form-land.js` `STONE_LADDER`): the scree's stones, every one drawn
+  chipped or as its block at any distance before, are chipped inside the cone's reach (a stone big enough to cast),
+  their block past it, and gone once the whole stone is under a pixel, where the ground's own scree and pebbles carry
+  it. The meadow's cameras draw about 300k fewer triangles each, looking the same.
 - **No strands past the reach** (`scene/channels/form-grass.js`): the 0.45 m strand rows and their meshes are gone; a
   far map, one strand a cell of the grass map (its height, colour slot and dice), is what the far field paints from
   (`window.__formFar`).

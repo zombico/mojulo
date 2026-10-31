@@ -5,7 +5,7 @@
  */
 import { describe, expect, it } from 'vitest';
 
-import { formLandScript, GROUND_PARALLAX } from './form-land.js';
+import { formLandScript, GROUND_PARALLAX, STONE_LADDER } from './form-land.js';
 
 const land = { light: { sun: [1, 1, 1], ambient: [0.2, 0.2, 0.2] } };
 
@@ -31,6 +31,14 @@ describe('the ground\'s parallax kinds', () => {
     expect(cone).toBeLessThan(page.indexOf('const CONE = window.__mojCone'));
     expect(page).toContain('let fixed = null;');
     expect(formLandScript({ ...land, cone: { reach: 40 } })).toContain('let fixed = 40;');
+  });
+
+  it('draws the stones on a ladder by the screen\'s rule: chipped inside the reach, the block past it, none under a pixel', () => {
+    const page = formLandScript({ ...land, stones: { n: 1, shapes: 1, px: '', base: [0.5, 0.5, 0.5], forms: { near: [], far: [] } }, layers: { tile: [1], mean: [[0.5, 0.5, 0.5]] } });
+    expect(STONE_LADDER.px).toBeLessThanOrEqual(1);
+    expect(page).toContain("big && d < reach ? 'chipped' : (2 * r) / (pxm * Math.max(d, 0.1)) < SL.px ? null : big ? 'block' : 'pebble'");
+    // (the aerial camera as it was: chipped if it casts, the block if not)
+    expect(page).toContain("!pov ? (big ? 'chipped' : 'pebble')");
   });
 
   it('reads the same page twice', () => {

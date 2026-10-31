@@ -28,6 +28,12 @@ import { formFloraScript } from './form-flora.js';
  *  pebbled stretch and a cracked one; marched within `near` m. */
 export const GROUND_PARALLAX = Object.freeze({ pebbles: Object.freeze({ cell: 0.09, depth: 0.03 }), cracks: Object.freeze({ cell: 0.34, depth: 0.035 }),
   plates: Object.freeze({ cell: 0.75, depth: 0.06 }), dry: 9, stretch: 7, near: 30 });
+/** The scree's stones on gameplay's camera: chipped inside the view cone's reach (a stone big enough to cast), its block
+ *  past it, and none once the whole stone is under `px` pixels at its distance (the ground's own scree and pebbles carry
+ *  it); sorted again when the eye has moved `step` m. The aerial camera draws them as they were: chipped if they cast,
+ *  the block if not. */
+export const STONE_LADDER = Object.freeze({ px: 1, step: 0.5 });
+
 export function formLandScript(form, flora = null) {
   return `
 // --- the form render (gen-7): the land as material, lit by the cube's light (channels/form-land.js) ---
@@ -411,23 +417,46 @@ ${form.dunes ? `      sh.fragmentShader = DUNE_HEAD + sh.fragmentShader.replace(
     // (each shape as the rock studies break a rock: chipped for the stones that cast, its block of fractures for the
     // small; creased normals, so a fracture's edge stays sharp; land-stones.js stoneForms)
     const formGeo = (F) => { const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(bytes(F.pos).buffer), 3)); g.setAttribute('normal', new THREE.BufferAttribute(new Int8Array(bytes(F.nrm).buffer), 3, true)); return g; };
-    for (let v = 0; v < D.stones.shapes; v++) {
-      const geo = { true: formGeo(D.stones.forms.near[v]), false: formGeo(D.stones.forms.far[v]) };
-      // (a stone under CAST_R casts nothing: its shadow is finer than the map's texel, a smudge beside it)
-      const CAST_R = 0.18;
-      for (const big of [true, false]) {
-      const idx = []; for (let i = 0; i < D.stones.n; i++) if (SP[i * per + 8] === v && (SP[i * per + 3] >= CAST_R) === big) idx.push(i);
-      if (!idx.length) continue;
-      const im = new THREE.InstancedMesh(geo[big], mat, idx.length);
-      idx.forEach((i, k) => {
-        const o = i * per, r = SP[o + 3]; nv.set(SP[o + 4], SP[o + 5], SP[o + 6]).normalize();
-        q.setFromUnitVectors(up, nv); qy.setFromAxisAngle(up, i * 2.399); q.multiply(qy);
-        m4.compose(pv.set(SP[o], SP[o + 1], SP[o + 2]), q, sv.set(r * (0.9 + 0.3 * hsh(i, 1)), r * (0.8 + 0.3 * hsh(i, 2)), r)); im.setMatrixAt(k, m4);
-        im.setColorAt(k, col.setRGB(SP[o + 7], SP[o + 7], SP[o + 7]));
-      });
-      im.castShadow = big; im.receiveShadow = true; scene.add(im);
-      }
+    // (each shape as the rock studies break a rock: chipped for the stones that cast, its block of fractures for the
+    // rest; on gameplay's camera a LADDER by the screen's rule, STONE_LADDER: chipped inside the view cone's reach, the
+    // block past it, and nothing once the stone is under a pixel: the ground's own scree and pebbles carry it)
+    const CAST_R = 0.18, SL = ${JSON.stringify(STONE_LADDER)}, M4 = [], parts = [];
+    for (let i = 0; i < D.stones.n; i++) {
+      const o = i * per, r = SP[o + 3]; nv.set(SP[o + 4], SP[o + 5], SP[o + 6]).normalize();
+      q.setFromUnitVectors(up, nv); qy.setFromAxisAngle(up, i * 2.399); q.multiply(qy);
+      M4.push(new THREE.Matrix4().compose(pv.set(SP[o], SP[o + 1], SP[o + 2]), q, sv.set(r * (0.9 + 0.3 * hsh(i, 1)), r * (0.8 + 0.3 * hsh(i, 2)), r)));
     }
+    for (let v = 0; v < D.stones.shapes; v++) {
+      const near = formGeo(D.stones.forms.near[v]), far = formGeo(D.stones.forms.far[v]), idx = [];
+      for (let i = 0; i < D.stones.n; i++) if (SP[i * per + 8] === v) idx.push(i);
+      if (!idx.length) continue;
+      const mk = (g, cast) => { const im = new THREE.InstancedMesh(g, mat, idx.length); im.count = 0; im.castShadow = cast; im.receiveShadow = true; scene.add(im); return im; };
+      parts.push({ idx, chipped: mk(near, true), block: mk(far, true), pebble: mk(far, false) });
+    }
+    let at = null;
+    const ladder = (pov, eye, reach, pxm) => {
+      for (const P of parts) {
+        const c = { chipped: 0, block: 0, pebble: 0 };
+        for (const i of P.idx) {
+          const o = i * per, r = SP[o + 3], big = r >= CAST_R, d = Math.hypot(SP[o] - eye.x, SP[o + 1] - eye.y, SP[o + 2] - eye.z);
+          const k = !pov ? (big ? 'chipped' : 'pebble') : big && d < reach ? 'chipped' : (2 * r) / (pxm * Math.max(d, 0.1)) < SL.px ? null : big ? 'block' : 'pebble';
+          if (!k) continue;
+          P[k].setMatrixAt(c[k], M4[i]); P[k].setColorAt(c[k], col.setRGB(SP[o + 7], SP[o + 7], SP[o + 7])); c[k]++;
+        }
+        for (const k of ['chipped', 'block', 'pebble']) { P[k].count = c[k]; P[k].instanceMatrix.needsUpdate = true; if (P[k].instanceColor) P[k].instanceColor.needsUpdate = true; }
+      }
+    };
+    ladder(false, new THREE.Vector3(), 0, 1);
+    // (each frame, after the view cone has its eye: the ladder again when the eye has moved SL.step m, the reach or the
+    // camera's mode changed)
+    const prevS = scene.onBeforeRender;
+    scene.onBeforeRender = function (r, sc, cam, rt) {
+      if (prevS) prevS.call(this, r, sc, cam, rt);
+      const CO = window.__mojCone; if (!CO || !cam.isPerspectiveCamera) return;
+      const pov = CO.reach < 1e5 && (!window.__formFar || window.__formFar.pov()) && (!window.__formFarField || window.__formFarField.on);
+      if (at && at.pov === pov && Math.abs(at.reach - CO.reach) < 0.5 && at.eye.distanceTo(CO.eye) < SL.step) return;
+      at = { pov, reach: CO.reach, eye: CO.eye.clone() }; ladder(pov, CO.eye, CO.reach, CO.px);
+    };
   }
 ${viewConeScript(form.cone || null)}${formGrassScript()}${flora ? formFloraScript(flora, { snow: !!form.snow }) : ''}${farFieldScript()}
   // open sea: deep water's colour under it, where the recipe lays no floor (the shallows' floor fades into the same colour)
