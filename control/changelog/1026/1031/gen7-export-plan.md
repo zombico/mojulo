@@ -1,4 +1,4 @@
-# Form export: gen-7 as every engine's graphics, Godot first
+### Form export plan (temporary: the working plan, parked here; delete before release)
 
 **Status:** planned (1031). Branch `1031-gen7-export`, cut from `1026-consolidated` at af0046fe+. Theme file
 `control/changelog/1026/1031/gen7-export.md`.
@@ -9,7 +9,7 @@ hour, its sky, fog and occlusion), and Godot lights it. The paint export (light 
 retires as Godot's graphics path. The binding is one engine-neutral contract that Blender, Unity and Unreal's asset leg
 read through their own adapters, so the second engine costs an adapter, not a port.
 
-## The thesis, corrected
+#### The thesis, corrected
 
 "In gen 7 everything is polygons" is half right. What makes gen 7 the bridge is that **nothing in it is light**:
 `era/eras.js` names gen-6's surface `paint` (the light held in the colour) and gen-7's `form` (material and geometry,
@@ -29,7 +29,7 @@ return glTF's metal-rough set. `form/land-layers.js` calls itself "the engine's 
 layers, Godot's splat … a renderer, or an engine pack, owns the materials". The page's `channels/form-*.js` is the web's
 ADAPTER of `payload.form`. This plan writes the others.
 
-## What exists (reuse, don't design)
+#### What exists (reuse, don't design)
 
 - **The shared seam.** `engines/pack.js` `resolveLevel` → `facesToGlb` → each engine's score. Godot, Unity, Unreal and
   Roblox read that GLB; Blender resolves its own and writes through `facesToGlb` too; USD writes beside it from the
@@ -54,7 +54,7 @@ ADAPTER of `payload.form`. This plan writes the others.
   `godot-juice.chrome.test.js`: a `.gdshader` rewritten as GLSL ES 3.00 and rendered against the page's own fragment into
   float targets, plus a drifted variant that must disagree); corpora with planted bugs for logic ports.
 
-## What `1025-godot-recoup` teaches
+#### What `1025-godot-recoup` teaches
 
 The recoup branch caught Godot's GAMEPLAY up (near the genre probes 192 → 270 of 500 worlds playing; no fixture game
 losing anything on export) in three commits. What it did:
@@ -81,7 +81,7 @@ Its gameplay work is valuable and orthogonal: graphics make Godot exports LOOK r
 Recovering it is its own branch (rebase onto the candidate, its log as a theme file, the marks and the hillclimb page
 regenerated over the live registry), recommended before phase 6.
 
-## The contract (engine-neutral)
+#### The contract (engine-neutral)
 
 `scene/form-export.js` (new): `formExport(payload, { engine })` → what every adapter reads. Three parts, all plain data,
 seeded, byte-stable:
@@ -103,7 +103,7 @@ for parallax), `DirectionalLight3D` with shadows, `WorldEnvironment` (fog, SSAO,
 `MultiMeshInstance3D`; Blender to Principled BSDF, a World, sun and point lights, collection instances; Unity to URP Lit
 and a Volume; Unreal's asset leg to its master material. Roblox stays paint (out of scope).
 
-## Phases
+#### Phases
 
 0. **A real Godot in a gate.** Pin a Godot 4 binary the gate can fetch (or a CI job with it) so `MOJULO_GODOT` is set
    somewhere that runs. This container cannot fetch it (GitHub releases answer 403 through the proxy); CI can. Without
@@ -143,7 +143,7 @@ and a Volume; Unreal's asset leg to its master material. Roblox stays paint (out
    is the shortest adapter), to prove the binding is reusable; then Unity. Each a new adapter; no change to the contract
    unless an adapter finds a gap, and then the contract grows for every engine at once.
 
-## Gates
+#### Gates
 
 **Machine.**
 - Determinism: the same level exports byte-identical twice, on the reference runtime; `payload.form` is identical run
@@ -160,7 +160,7 @@ and a Volume; Unreal's asset leg to its master material. Roblox stays paint (out
 **Eyes.** The operator opens the meru island, a trail and a lit room in a Godot window beside the World page at the same
 camera and says what reads wrong. Never claimed by a machine.
 
-## Out of scope
+#### Out of scope
 
 - Gameplay parity (recoup's, and its rebase).
 - A moving sun (eras.js: a level is lit at one hour), HDR and image-based lighting beyond what `WorldEnvironment` gives
@@ -168,7 +168,7 @@ camera and says what reads wrong. Never claimed by a machine.
 - Roblox graphics; Unreal games or levels (assets only, unchanged).
 - Changing the web's gen-6 look or making gen-7 the web's default.
 
-## Open questions
+#### Open questions
 
 1. Godot in CI: a pinned download in the workflow, or a self-hosted runner? Which Godot 4 minor do the kernel's scripts
    target?
@@ -182,7 +182,7 @@ camera and says what reads wrong. Never claimed by a machine.
    superseding mean removing it?
 6. Recoup: rebase it before this branch's phase 6, or after?
 
-## Log
+#### Log
 
 - 1031: plan written; `1025-godot-recoup` read (three commits, 10-25, unmerged, 528 commits behind, conflicting in the
   changelog, the live registry, the marks and the hillclimb page); the form modules confirmed pure and seeded, and
