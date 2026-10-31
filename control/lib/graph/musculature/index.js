@@ -113,8 +113,8 @@ export function muscleShirt(recipe, spec) {
   const hipZ = F.limb.thigh?.h?.[2];
   const hip = (pelvis, thighR, restR) => {
     if (!pelvis || !thighR || !thighL || hipZ === undefined) return { pelvis, thighR };
-    const { part, level, rim } = hipWrapped(pelvis, { R: thighR, L: mirrorPart(restR, thighL) }, hipZ);
-    return level === undefined ? { pelvis, thighR } : { pelvis: part, thighR: hipHidden(thighR, level, rim) };
+    const { part, level, rim, L } = hipWrapped(pelvis, { R: thighR, L: mirrorPart(restR, thighL) }, hipZ);
+    return level === undefined ? { pelvis, thighR } : { pelvis: part, thighR: hipHidden(thighR, level, rim, L) };
   };
   const hipFree = { thighR: raw.thighR };
   if (raw.pelvis && raw.thighR) { const j = hip(raw.pelvis, raw.thighR, raw.thighR); raw.pelvis = j.pelvis; out.pelvis = symmetrize(j.pelvis); raw.thighR = out.thighR = j.thighR; }

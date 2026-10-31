@@ -8,7 +8,7 @@ import { muscleShirt, validateMuscleShirt, MUSCLE_CARDS, presence, articulation 
 import { validateRig, rigNodesAt, correctiveWeight, bindLayered, boneFrames, skinLayered } from '../polygonizer/station-loft-rig.js';
 import { correctiveRest } from '../polygonizer/body-relational-correctives.js';
 import { blendOf, smin } from './principles.js';
-import { densify, grainOf, displace, frames, nipplesOn, keptInOrder, MOST_MOVE, SLOPE } from './passes.js';
+import { densify, grainOf, displace, frames, nipplesOn, keptInOrder, MOST_MOVE, SLOPE, HIP_DEEP } from './passes.js';
 import { NIPPLE } from './principles.js';
 import { compileLayered } from '../polygonizer/station-loft.js';
 import { heroRecord, expandLayeredManifest } from '../../mcp/tools/layered.js';
@@ -146,7 +146,9 @@ describe('the skin between the masses', () => {
     expect(low.length).toBeGreaterThan(2);
     const x = low[1], z = zc(Pv, x), half = Math.max(...Pv.slots.map((sl) => x.points[sl][0]));
     const thighOut = Math.max(...T.stations.flatMap((t) => T.slots.map((sl) => t.points[sl])).filter((q) => Math.abs(q[2] - z) < 0.006).map((q) => q[0]));
-    expect(half).toBeGreaterThan(thighOut - 0.004);
+    // (the wrap spans both thighs; out at the side, under the risen handover, it lies just under the thigh, the skin there)
+    expect(half).toBeGreaterThan(thighOut - HIP_DEEP - 0.004);
+    expect(thighOut).toBeGreaterThan(half);
     // (its side bound with the thigh's fold, its front's midline the pelvis's alone)
     const side = Pv.slots.reduce((a, sl) => (x.points[sl][0] > x.points[a][0] ? sl : a));
     expect(Object.keys(Pv.bind.blend[`${x.id}.${side}`])).toContain('hipFoldR');

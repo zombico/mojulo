@@ -495,6 +495,20 @@ export const HIP_REACH = 0.025;
 /** how far out (a share of the hip joint's half width) the joined hip takes the thigh's weights wholly (none on the
  * midline, so the crotch moves with the pelvis) */
 export const HIP_SIDE = 0.35;
+/** how far the handover rises at the outer hip (a share of the run from the level to the hip joint): out at the side the
+ * thigh is the skin up toward the greater trochanter, the pelvis's lowest outer rings under it. Level all round, those
+ * rings carried the thigh's weights on the closing side of an abducted hip and bunched into a knot; the fold and the
+ * groin's line rise toward the outside as well */
+export const HIP_RISE = 0.6;
+/** the handover's height at a point (`L`, hipWrapped's): the level, risen out at the side by HIP_RISE, by how far out
+ * (past half the hip's half width) and how square to the side (the azimuth from the trunk's axis) the point stands */
+export const hipLevelAt = (L, p) => {
+  // (a smooth diagonal from the crotch out to the hip, as the groin's line runs: a step past half the width had drawn a
+  // brief's square corners at rest)
+  const ax = Math.abs(p[0]), y = Math.min(1, Math.max(0, (ax / L.hipX - 0.15) / 0.85)), s = y * y * (3 - 2 * y);
+  const v = [p[0], p[1] - L.cy], r = Math.hypot(v[0], v[1]) || 1, side = Math.abs(v[0]) / r;
+  return L.level + L.rise * s * side;
+};
 
 const ringCentre = (P, x) => scl(P.slots.reduce((a, s) => add(a, x.points[s]), [0, 0, 0]), 1 / P.slots.length);
 /** a dense part's faces as triangles with their z range */
@@ -548,6 +562,13 @@ export function hipWrapped(P, thighs, hipZ) {
   // ring's shading down into a dark band all round)
   const c0 = ringCentre(P, P.stations[0]), cr = [0, c0[1], crotch];
   rings[0] = rings[0].map((q) => { if (!q) return null; const v = [q[0], q[1] - cK[1]], r = Math.hypot(v[0], v[1]) || 1, g = Math.max(0, r - 2 * HIP_DEEP) / r; return [q[0] * g, cK[1] + v[1] * g, crotch]; });
+  // (out at the side, under the risen handover, the wrap drawn in under the thigh, as the thigh is drawn in over it)
+  const L = { level, rise: HIP_RISE * (zc[k] - level), hipX: Math.max(...P.slots.map((sl) => Math.abs(K.points[sl][0]))), cy: cK[1] };
+  for (let i = 1; i < k; i++) rings[i] = rings[i].map((q) => {
+    if (!q) return q; const y = (hipLevelAt(L, q) - q[2]) / HIP_BAND; if (y <= 0) return q;
+    const w = y >= 1 ? 1 : y * y * (3 - 2 * y), v = [q[0], q[1] - L.cy], r = Math.hypot(v[0], v[1]) || 1, g = Math.max(0, r - HIP_DEEP * w) / r;
+    return [q[0] * g, L.cy + v[1] * g, q[2]];
+  });
   const hipX = Math.max(...P.slots.map((sl) => Math.abs(K.points[sl][0])));
   // (a thigh's weights at a height: the share of its station whose ring's centre is nearest it)
   const shareAt = (X, z) => { let best = null; for (const x of X.stations) { const d = Math.abs(ringCentre(X, x)[2] - z); if (!best || d < best.d) best = { d, x }; } return X.bind?.blend?.[best.x.id] ?? { [X.bind?.bone]: 1 }; };
@@ -565,14 +586,14 @@ export function hipWrapped(P, thighs, hipZ) {
   const caps = P.caps?.back ? { ...P.caps, back: cr.map(r6) } : P.caps;
   // (the level's ring by azimuth from the trunk's axis: the thighs' skin under it eased out to it, hipHidden)
   const rim = { cy: cK[1], at: P.slots.map((_, j) => [th[j], rings[1][j] ? Math.hypot(rings[1][j][0], rings[1][j][1] - cK[1]) : null]).filter(([, r]) => r !== null).sort((a, b) => a[0] - b[0]) };
-  return { part: { ...P, stations, ...(caps ? { caps } : {}), bind: { ...P.bind, blend } }, level, rim };
+  return { part: { ...P, stations, ...(caps ? { caps } : {}), bind: { ...P.bind, blend } }, level, rim, L };
 }
 
 /** a thigh HANDED the skin at the joined hip's `level`: each point over it drawn in toward its ring's centre by HIP_DEEP,
  * eased in over HIP_BAND (hidden under the pelvis); each under it, within HIP_DROP and facing out from the trunk's axis,
  * eased out to the level's ring (`rim`, by azimuth from the axis) where that stands further out, wholly at the level and
  * none HIP_DROP under it: the pelvis's lower cheek stood past the thigh's skin, a ledge under the seat */
-export function hipHidden(T, level, rim) {
+export function hipHidden(T, level, rim, L = null) {
   const rimAt = (a) => {
     const A = rim.at, n = A.length; if (!n) return null;
     let k = A.findIndex(([t]) => t > a); if (k < 0) k = n;
@@ -584,16 +605,18 @@ export function hipHidden(T, level, rim) {
     const c = ringCentre(T, x); let any = false;
     const points = Object.fromEntries(T.slots.map((sl) => {
       let p = x.points[sl]; const r0 = len(sub(p, c)); if (r0 < 1e-9) return [sl, p];
+      // (the handover here: the level, risen out at the side, hipLevelAt; where risen, no easing out, the thigh the side)
+      const at = L ? hipLevelAt(L, p) : level, risen = L && L.rise > 0 ? (at - level) / L.rise : 0;
       // (under the level: eased out to the level's ring where it stands further out)
       const yd = (level - p[2]) / HIP_DROP;
-      if (rim && yd > -1e-9 && yd < 1) {
+      if (rim && risen < 0.5 && yd > -1e-9 && yd < 1) {
         const v = [p[0], p[1] - rim.cy], rv = Math.hypot(v[0], v[1]), out = [(p[0] - c[0]) / r0, (p[1] - c[1]) / r0];
         const facing = rv > 1e-9 ? (out[0] * v[0] + out[1] * v[1]) / (Math.hypot(out[0], out[1]) || 1) / rv : 0, R = facing >= HIP_FACING ? rimAt(Math.atan2(v[0], v[1])) : null;
-        if (R !== null && R > rv && R - rv <= HIP_REACH) { const e = 1 - Math.max(0, yd), w = e * e * (3 - 2 * e) * Math.min(1, (facing - HIP_FACING) / 0.2), g = (rv + (R - rv) * w) / rv; p = [r6(p[0] * g), r6(rim.cy + (p[1] - rim.cy) * g), p[2]]; any = true; }
+        if (R !== null && R > rv && R - rv <= HIP_REACH) { const e = 1 - Math.max(0, yd), w = e * e * (3 - 2 * e) * Math.min(1, (facing - HIP_FACING) / 0.2) * (1 - 2 * risen), g = (rv + (R - rv) * w) / rv; p = [r6(p[0] * g), r6(rim.cy + (p[1] - rim.cy) * g), p[2]]; any = true; }
       }
       // (drawn in from half a band under the level, so at the level it lies under the pelvis's ring and just under it over
       // the pelvis's inturned edge: the two crossing at a slope, not lying on each other in teeth)
-      const y = (p[2] - level) / HIP_BAND + 0.5;
+      const y = (p[2] - at) / HIP_BAND + 0.5;
       if (y > 0) { const w = y >= 1 ? 1 : y * y * (3 - 2 * y), r = len(sub(p, c)); any = true; p = add(c, scl(sub(p, c), Math.max(0, r - HIP_DEEP * w) / r)).map(r6); }
       return [sl, p];
     }));

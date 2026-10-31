@@ -140,6 +140,12 @@ fractal articulation of the big groups. The eyes gate is the operator's.
   thigh is no longer kept under the pelvis (`OVER`), the wrap does that. At rest the hip reads as one surface: the
   cheeks round under into the gluteal fold, a thin line where the shells meet; the ready, horse and sumo stances, the
   fighting stance and the side lunge hold at the crotch at both ends of the dial.
+- **The hip's side in an abducted stance** (the operator's): the handover rises toward the outer hip (`HIP_RISE`,
+  `hipLevelAt`): a smooth diagonal from the crotch out to the side, up to 0.6 of the way to the hip joint, where the
+  thigh is the skin toward the greater trochanter and the wrap's lower outer rings lie under it. Level all round, those
+  rings carried the thigh's weights on the closing side of an abducted hip and bunched into a knot at the side of the
+  pelvis in the horse stance. At rest the line runs as the groin's does, rising toward the hip, and under each cheek
+  toward the outside.
 - **The glutes in a squat** (the operator's): squash and stretch at the HIP (`principles.js` `ACTIVITY_JOINTS.hip`, driven
   by the thigh's raise from the trunk's down, from 10° to whole at 75°: a squat, a wide stance, a high knee). The seat is
   a hip extensor, so as the hip flexes the cheeks are drawn long (1.15) and a little flatter, their fibre turned 18°
