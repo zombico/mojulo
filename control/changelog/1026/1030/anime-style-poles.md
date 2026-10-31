@@ -91,3 +91,6 @@ lean, long faces. The eyes gate is the operator's.
   key for it, `shoulders` moves the arms' span alone). Shonen High's both at 0.82, their chests' depth a little less: the
   rounded body stood too broad under the arms, its sides flaring out past the armpit; they now fall nearly straight to
   the waist.
+- **Shonen High's chests, simpler**: the male's pectoral layer gone (a chest's `pec: false`: the chest the torso's own
+  smooth front; rounded, the layer read as an imprint), the female's bust a fifth smaller than the form's
+  (`bust: { size: 0.8 }`).

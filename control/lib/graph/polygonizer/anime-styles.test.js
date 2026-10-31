@@ -72,11 +72,16 @@ describe('the style pole', () => {
     // (the whole head the same distance back: the hero's forward is +y)
     expect(B.hi - A.hi).toBeLessThan(-0.005); expect(B.lo - A.lo).toBeCloseTo(B.hi - A.hi, 4);
   });
-  it('lends its chest: Shonen High\'s pectorals rising out of the chest from their lower border, not standing there as a panel', () => {
-    // (the pectoral's lowest section stands off the chest less under a `rise` than without one; its top as it was)
-    const pec = (chest) => { const P = heroPlan({ cast: 'male', ...(chest ? { chest } : {}) }); const seg = [...(P.segments ?? []), ...Object.values(P.parts ?? {})].find((x) => x?.name === 'pectoralR'); return seg.stations.map((st) => Math.max(...Object.values(st.points).map((p) => p[1]))); };
-    const A = pec(null), B = pec(ANIME_STYLES[STYLE].male.chest);
-    expect(B[0]).toBeLessThan(A[0]); expect(B.at(-1)).toBeLessThanOrEqual(A.at(-1));
+  it('lends its chest: a pectoral rising out of the chest under a `rise`; Shonen High\'s male with none, its female\'s bust a fifth smaller', () => {
+    // (the pectoral's lowest section stands off the chest less under a `rise` than without one)
+    const seg = (P, name) => [...(P.segments ?? []), ...Object.values(P.parts ?? {})].find((x) => x?.name === name);
+    const pec = (chest) => seg(heroPlan({ cast: 'male', ...(chest ? { chest } : {}) }), 'pectoralR').stations.map((st) => Math.max(...Object.values(st.points).map((p) => p[1])));
+    expect(pec({ pec: { rise: 0.45 } })[0]).toBeLessThan(pec(null)[0]);
+    expect(seg(heroPlanOf(heroRecord({ cast: 'male', head: 'anime', animeStyle: STYLE })), 'pectoralR')).toBeUndefined();
+    expect(seg(heroPlanOf(heroRecord({ cast: 'male', head: 'anime' })), 'pectoralR')).toBeDefined();
+    // (the bust's reach across: its widest section, styled against the form's at the same chest)
+    const span = (chest) => { const B = seg(heroPlan({ cast: 'female', ...(chest ? { chest } : {}) }), 'bustR'); return Math.max(...B.stations.flatMap((st) => Object.values(st.points).map((p) => p[1]))); };
+    expect(span({ bust: { size: 0.8 } })).toBeLessThan(span(null));
   });
   it('advises each base\'s styled default nothing, by its style\'s bands over the form\'s', () => {
     for (const cast of ['male', 'female']) {

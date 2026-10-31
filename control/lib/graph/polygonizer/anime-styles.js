@@ -42,8 +42,8 @@ export const ANIME_STYLES = Object.freeze({
       // (the body rounded: its skin split once on the curved patch, body-smooth.js; the female's the same)
       smooth: 1,
       // (his chest: the rib cage narrower than the form's under his shoulders, so his sides fall straight from the armpit
-      // to the waist; its pectorals rising out of it, thinner: not a panel laid on it)
-      chest: Object.freeze({ width: 0.82, pec: Object.freeze({ thick: 0.012, rise: 0.45 }) }),
+      // to the waist; no pectoral layer, the chest the torso's own smooth front)
+      chest: Object.freeze({ width: 0.82, pec: false }),
     }),
     // the female: the MALE's head (`head`: his skull, his profile, his jaw's line to the back of the skull, his ear), and
     // over his face and sculpt her own layer, after Nobara's figure: her head smaller than his; her features softer (her
@@ -58,8 +58,8 @@ export const ANIME_STYLES = Object.freeze({
     female: Object.freeze({
       head: 'male',
       smooth: 1,
-      // (her rib cage as narrow under her shoulders as his)
-      chest: Object.freeze({ width: 0.82 }),
+      // (her rib cage as narrow under her shoulders as his; her bust a fifth smaller than the form's)
+      chest: Object.freeze({ width: 0.82, bust: Object.freeze({ size: 0.8 }) }),
       face: Object.freeze({ lower: 0.85, eyeHeight: 1.087, eyeWidth: 1.061, spacing: 1.04, iris: 1.08, jaw: 1.012, chin: 0.689, chinProjection: 0.94, cheekVolume: 1.026, lowerCheekVolume: 0.92, browDepth: 0.85, nose: 0.69 }),
       sculpt: Object.freeze({ pronasale: 0.038, stomion: 0.06, lidWeight: 1.12, lidTail: 1.04, lidFlick: 10, lidAngle: -3, browThick: 0.65, browAngle: -3, bridgeRoot: -0.035, tipProjection: 0.52, mouthWidth: 0.6, jawHollow: 0.01, napeLift: -0.03, seatBack: 0.08 }),
       // (the female long-legged and slim: the torso shorter, the legs longer, the waist narrow, the shoulders narrower; her

@@ -844,7 +844,7 @@ export function heroPlan({ cast = 'canonical', register = 'round', girth = 1, he
       stations: zs.map((z) => { const [xi, xo] = span(typeof z === 'function' ? z.low : z); return { points: section(z, xi, xo, (sv, x, zz) => lift(zz, sv, x), fam) }; }),
       caps: { back: (() => { const [xi, xo] = span(zs[0]); const x = (xi + xo) / 2; return R([x, surf(x, zs[0]) - SINK, zs[0] - 0.004]); })(), tip: (() => { const z = zs[zs.length - 1], [xi, xo] = span(z), x = (xi + xo) / 2; return R([x, surf(x, z) - SINK, z + 0.004]); })() } });
     const C = S.find((x) => x.id === 'st2'), A = S.find((x) => x.id === 'st2_st3_50') ?? C, Sh = S.find((x) => x.id === 'st3'), a = fronts[S.indexOf(C)].arc.at(-1)[0];
-    const Pf = { ...CHEST_FORM.pec[femaleMass ? 'female' : 'male'], ...(chest?.pec ?? {}) }, [x0, x1] = Pf.x.map((f) => f * a);
+    const Pf = { ...CHEST_FORM.pec[femaleMass ? 'female' : 'male'], ...(chest?.pec || {}) }, [x0, x1] = Pf.x.map((f) => f * a);
     const zLo = C.z + g(Pf.lo), zAx = A.z, zUp = C.z + Pf.hi * (Sh.z - C.z), Tm = g(Pf.thick);
     const pecZ = [0.06, 0.22, 0.4, 0.58, 0.76, 0.94].map((t) => r6(zLo + t * (zUp - zLo)));
     // the CLAVICLE: the muscle's top edge rises from the sternum to the shoulder as the clavicle does (its medial top
@@ -863,7 +863,8 @@ export function heroPlan({ cast = 'canonical', register = 'round', girth = 1, he
     // its top medial corner thins to nothing over the sternal notch (NECK_ROOT): the pair melts into the notch instead of
     // standing proud over the hollow (at full thickness there, their corners inked a V)
     const zTh = zUp - 0.4 * (zUp - zLo), pecIn = (z, sv) => 1 - Math.min(1, Math.max(0, (z - zTh) / (zUp - zTh))) * (1 - Math.min(1, sv / 0.45));
-    const parts = [layer('pectoralR', pecZ, pecSpan, (z, sv) => [0, pecT(z) * pecBump(sv) * pecIn(z, sv)], pecBind)];
+    // (a chest's `pec: false`: no pectoral layer, the chest the torso's own smooth front)
+    const parts = chest?.pec === false ? [] : [layer('pectoralR', pecZ, pecSpan, (z, sv) => [0, pecT(z) * pecBump(sv) * pecIn(z, sv)], pecBind)];
     // the navel, on the midline `at` up the lumbar run: only on a bare belly (`bare`, the swimsuit's), never on a shirt
     if (bare) { const N = CHEST_FORM.navel, zv = zp + N.at * L, w = g(N.w), hh = g(N.h);
       const zs = [-0.85, -0.4, 0.15, 0.6, 0.9].map((k) => r6(zv + k * hh)), span = (z) => { const u = (z - zv) / hh, x = w * Math.sqrt(Math.max(0.05, 1 - u * u)); return [-x, x]; };
