@@ -88,7 +88,7 @@ function fitOf(parts, head, eared) {
 
 /** the neck's column as a distance: each ring a level polygon at its mean height, lerped between; closed at both ends
  * (from ring `from` up: a ray cast steeply down the side found the neck's flared base again past the seam) */
-function neckField(neck, from = 0) {
+export function neckField(neck, from = 0) {
   const rings = neck.stations.slice(from).map((st) => { const pts = neck.slots.map((s) => st.points[s]); return { z: mean(pts)[2], pts }; });
   const zTop = Math.max(...rings.at(-1).pts.map((p) => p[2])), zBot = Math.min(...rings[0].pts.map((p) => p[2]));
   const poly = (pts, x, y) => {
@@ -324,14 +324,14 @@ function earPart(fE, tragion, C) {
  * stored cranium and jaw): the face's parts alone are built, exactly as a whole build makes them; the cranium and the
  * jaw are the recipe's as given.
  */
-export function relationalHeadRecipe(recipe, { sex = 'male', relations = null, eyes = null, tune: own_ = null, actions = null, fit = null, faceOnly = false, oneSkin = false, opts = {} } = {}) {
+export function relationalHeadRecipe(recipe, { sex = 'male', relations = null, eyes = null, tune: own_ = null, actions = null, fit = null, faceOnly = false, oneSkin = false, seat = false, teeth = false, opts = {} } = {}) {
   const C = { ...RELATIONAL_HEAD, ...opts };
   const r = structuredClone(recipe), parts = r.parts, neck = parts.neck;
   if (!parts.cranium || !parts.jaw || !neck) throw new Error('hero-relational-head: the recipe carries no landmark head on a neck');
   // (a face's own tune, solved for its relations, in place of the pole's: the head the study shows, exactly; it rides the fit)
   const tune = own_ ?? HEAD_TUNES[sex];
   if (!tune) throw new Error(`hero-relational-head: the head's pole is ${Object.keys(HEAD_TUNES).join(' or ')}`);
-  const own = { ...(relations ? { relations } : {}), ...(eyes && Object.keys(eyes).length ? { eyes } : {}) };
+  const own = { ...(relations ? { relations } : {}), ...(eyes && Object.keys(eyes).length ? { eyes } : {}), ...(seat ? { seat } : {}) };
   // (`actions`, the face's: head-relational.js ACTIONS, a blink, a smile, a brow; `fit` the rest's, kept so an action moves
   // the face and never the head's place: relational-face-rig.js differences these builds)
   // (ONE SKIN, realistic laws 2: the head's field netted whole, its globes their own parts: hero-one-skin.js)
@@ -340,7 +340,7 @@ export function relationalHeadRecipe(recipe, { sex = 'male', relations = null, e
   const toHero = (p) => [p.x * k, p.y * k + ty, p.z * k + men];
   const inHead = (f) => (q) => f({ x: q[0] / k, y: (q[1] - ty) / k, z: (q[2] - men) / k }) * k;
   const fH = inHead(head.field), fBare = inHead(head.bare);
-  if (oneSkin) return oneSkinRecipe(r, recipe, { sex, own, own_, head, k, ty, men, toHero, inHead, fH, C, opts });
+  if (oneSkin) return oneSkinRecipe(r, recipe, { sex, own, own_, head, k, ty, men, toHero, inHead, fH, C, opts, teeth });
   // THE VISAGE's frame first: the cranium is let down under it by its reach (`deflate`, eased out over its rim)
   const V = visageFrame(fH, fBare, toHero(mid3(head.points.sto, head.points.ls)), C);
   const under = (q) => { const { f, h } = V.f(q); return (C.deflate * (1 - ramp((f - 0.85 * C.inner) / (0.15 * C.inner))) + C.rimDeflate * (1 - ramp((f - C.inner) / (1 - C.inner)))) * ramp((h + 0.06) / 0.02); };
@@ -522,7 +522,7 @@ export function relationalHeadRecipe(recipe, { sex = 'male', relations = null, e
 /** the hero's recipe wearing the head as ONE SKIN (hero-one-skin.js): the seam, the neck's end and the jaw's share as
  * the pieces' build reads them, the skin, the mouth and the globes in place of the cranium, the jaw, the visage, the
  * nose and the eyes; the ears and the fit as before */
-function oneSkinRecipe(r, recipe, { sex, own, own_, head, k, ty, men, toHero, inHead, fH, C, opts }) {
+function oneSkinRecipe(r, recipe, { sex, own, own_, head, k, ty, men, toHero, inHead, fH, C, opts, teeth = false }) {
   const parts = r.parts, neck = parts.neck;
   // THE SEAM: the highest neck ring standing wholly outside the head by the join's width
   let seam = -1;
@@ -548,14 +548,14 @@ function oneSkinRecipe(r, recipe, { sex, own, own_, head, k, ty, men, toHero, in
     return wj > 0 ? (wj < 1 ? { head: r6(1 - wj), jaw: wj } : { jaw: 1 }) : { head: 1 };
   };
   const S2 = (q) => ({ x: q[0] / k, y: (q[1] - ty) / k, z: (q[2] - men) / k });
-  const skin = oneSkinHead({ head, k, toHero, inHead, S2, fN, join: C.join, seamPts, seamW, O, lipZ, ch, sto, jawW, opts: opts.oneSkin });
+  const skin = oneSkinHead({ head, k, toHero, inHead, S2, fN, join: C.join, seamPts, seamW, O, lipZ, ch, sto, jawW, teeth, opts: opts.oneSkin });
   // the landmark head leaves (its details, its creases, its dial); the neck ends on the seam
   const gone = landmarkHeadParts(recipe.parts);
   for (const g of gone) delete parts[g];
   for (const [id, c] of Object.entries(r.creases || {})) if (gone.has(c.parent)) delete r.creases[id];
   if (r.dials?.jawOpen?.part === 'jaw') delete r.dials.jawOpen;
   // (a dial that moved the cranium and the jaw moves the skin and what is set in it)
-  const HEADS = ['headSkin', 'mouth', 'globeR', 'globeL', 'earR', 'earL'];
+  const HEADS = ['headSkin', 'mouth', ...(teeth ? ['teethUpper', 'teethLower', 'tongue'] : []), 'globeR', 'globeL', 'earR', 'earL'];
   for (const d of Object.values(r.dials || {})) if (Array.isArray(d.parts) && d.parts.some((n) => gone.has(n))) {
     const i = d.parts.findIndex((n) => gone.has(n));
     d.parts = [...d.parts.slice(0, i).filter((n) => !gone.has(n)), ...HEADS, ...d.parts.slice(i).filter((n) => !gone.has(n) && !HEADS.includes(n))];
@@ -601,7 +601,7 @@ export function oneSkinFields(recipe, { join = RELATIONAL_HEAD.join } = {}) {
   // (the neck's column as the net was joined to it: its two rings under the seam, then the rings the fit kept above)
   const at = (pts) => ({ points: Object.fromEntries(minted.slots.map((s, j) => [s, pts[j]])) });
   const neck = { slots: minted.slots, stations: [...minted.stations.slice(-2), ...fit.column.map(at)] };
-  const own = { ...(fit.relations ? { relations: fit.relations } : {}), ...(fit.eyes ? { eyes: fit.eyes } : {}) };
+  const own = { ...(fit.relations ? { relations: fit.relations } : {}), ...(fit.eyes ? { eyes: fit.eyes } : {}), ...(fit.seat ? { seat: fit.seat } : {}) };
   const { k, ty, men } = fit, inHead = (f) => (q) => f({ x: q[0] / k, y: (q[1] - ty) / k, z: (q[2] - men) / k }) * k;
   const head = relationalHead({ sex: fit.sex, tune: fit.tune ?? HEAD_TUNES[fit.sex], ears: false, globes: false, ...own });
   const fH = inHead(head.field), fN = neckField(neck), earR = head.earFields.find((e) => e.side === 'R'), fE = earR ? inHead(earR.field) : null;
@@ -616,19 +616,31 @@ export function oneSkinFields(recipe, { join = RELATIONAL_HEAD.join } = {}) {
  * quarter of the opening up from the lower margin, wholly over `lidBand[0]` radians above its margin and easing out by
  * `lidBand[1]`, the lower up to it over `lowBand`, the margins' inner walls between drawn onto the line; a lid only as
  * far out from the globe's centre as its margin and `lidOut` past it (the fold over the upper lid stands further out,
- * and the lid slides under it); a lid is its margin's by the skin's own way (`faces` given: the distance along the skin
- * from the margin, out to `geoUp` or `geoLow`), else by those bands. The beads carry what the lids leave (under the lower
- * lid `carryUnder` of it); in the eye's footprint the settle reaches `settleIn` of its own */
-export const SKIN_FOLLOW = Object.freeze({ beadReach: 1.6, beadMin: 0.012, eyeEase: 0.006, settle: 0.004, lid: 0.009, lidReach: 0.022, lidBand: [0.12, 0.45], lowBand: [0.04, 0.25], lidOut: [0.0015, 0.0035], canthus: 0.006, settleIn: 0.1, carryUnder: 0.3, seed: 0.0008, geoUp: [0.004, 0.01], geoLow: [0.002, 0.006] });
+ * and the lid slides under it); a lid is its margin's by the skin's own way (`faces` given: the nearer margin along the
+ * skin; the upper lid by its height from its margin up to its crease, whole to `tuck[0]` of it and none from `tuck[1]`,
+ * out to `lidOutUp` past its margin; the lower out to `geoLow` along the skin), else by those bands, and its
+ * weight and turn smoothed `smooth` times over the skin's neighbours. The beads carry what the lids leave (under the
+ * lower lid `carryUnder` of it; about the mouth each lip by its own beads alone, `lipApart`; the nose held by its still
+ * beads, `noseHold`), and what they carry settles (in the eye's footprint `settleIn` of the settle's reach; only from
+ * `settleFrom` under the eyes up). The upper lid ROLLS shut (`roll`, the skin's way known): the strip from its margin to
+ * the fold's lip (where the wall under the fold, its skin facing back within `faceIn`, first stands `lip` of the lip's
+ * height out) laid along the shut lid by its share of the way, kept off it near the margin over `rollKeep`, the lip let
+ * down `rollDrop` and the fold's face past it eased over `rollEase`, whole once the lid has come `rollShut` of the opening;
+ * each column's turn capped at the eye's middle half's (`cornerCap`), and the rolled skin drawn `taut` [rounds, λ, μ]; under
+ * the brow of one section (`seat` 2) the brow pad carries the skin along its length, `browBeads` beads between each end
+ * and its middle */
+export const SKIN_FOLLOW = Object.freeze({ beadReach: 1.6, beadMin: 0.012, eyeEase: 0.006, settle: 0.004, lid: 0.009, lidReach: 0.022, lidBand: [0.12, 0.45], lowBand: [0.04, 0.25], lidOut: [0.0015, 0.0035], canthus: 0.006, settleIn: 0.1, carryUnder: 0.3, seed: 0.0008, geoLow: [0.002, 0.006], tuck: [0.2, 0.7], lidOutUp: [0.0035, 0.005], smooth: 12, roll: true, faceIn: 0.15, lip: 0.9, rollDrop: 0.05, rollHug: 0.4, rollShut: 0.6, rollKeep: [0.45, 0.65], rollEase: 0.004, cornerCap: true, taut: [4, 0.5, -0.53], browBeads: 6, lipApart: [0.004, 0.012, 0.006], settleFrom: [0.016, 0.01], noseHold: 0.6 });
+/** the drivers of the upper lip's beads, and of the lower lip's and the jaw's (head-relational.js actionDrivers) */
+const LIP_UP = /^(bow[LR]|lipUpC|lipUpHalf)$/, LIP_DOWN = /^(loMid[LR]|lipStretch|jaw|jawHalf|foldOpen)$/;
 /**
  * Where the one skin's points go under `actions` (head-relational.js ACTIONS): `points` { id: [x, y, z] } and
  * `normals` { id: n } in the hero's frame (the rest skin's: hero-one-skin.js), the face's words and its `fit`. →
  * { id: [x, y, z] }. The skin is never re-netted per action (its faces would change): the rest's own points move, so the
  * face rig differences them (relational-face-rig.js). A point of the eye's socket behind its globe moves with the lids alone.
  */
-export function oneSkinFollow({ sex = 'male', relations = null, eyes = null, tune = null, fit, actions, points, normals, faces = null, opts = {} }) {
+export function oneSkinFollow({ sex = 'male', relations = null, eyes = null, seat = false, tune = null, fit, actions, points, normals, faces = null, jawShare = null, opts = {} }) {
   const C = { ...RELATIONAL_HEAD, ...opts }, F = { ...SKIN_FOLLOW, ...(opts.follow || {}) };
-  const own = { ...(relations ? { relations } : {}), ...(eyes && Object.keys(eyes).length ? { eyes } : {}) }, tn = tune ?? HEAD_TUNES[sex];
+  const own = { ...(relations ? { relations } : {}), ...(eyes && Object.keys(eyes).length ? { eyes } : {}), ...(seat ? { seat } : {}) }, tn = tune ?? HEAD_TUNES[sex];
   const rest = relationalHead({ sex, tune: tn, ears: false, ...own }), acted = relationalHead({ sex, tune: tn, ears: false, ...own, actions });
   const { k, ty, men } = fit, toHero = (p) => [p.x * k, p.y * k + ty, p.z * k + men], S2 = (q) => ({ x: q[0] / k, y: (q[1] - ty) / k, z: (q[2] - men) / k });
   const f0 = (q) => rest.field(S2(q)) * k, fA = (q) => acted.field(S2(q)) * k, e = 1e-5;
@@ -637,8 +649,37 @@ export function oneSkinFollow({ sex = 'male', relations = null, eyes = null, tun
   const beads = [];
   // (the beads live in the head's vajra units: HEAD_V of the head's own)
   const hv = HEAD_V, inH = (q) => ({ x: q.x * hv, y: q.y * hv, z: q.z * hv });
-  rest.vajras.forEach((w, i) => { const v = acted.vajras[i]; if (!w.drive || !v) return; ['a', 'c', 'b'].forEach((key, j) => { const d = [(v[key].x - w[key].x) * hv * k, (v[key].y - w[key].y) * hv * k, (v[key].z - w[key].z) * hv * k]; if (Math.hypot(...d) < 1e-7) return; const r = Math.max(F.beadMin, (Array.isArray(w.r) ? w.r[Math.min(j, w.r.length - 1)] : w.r) * hv * k * F.beadReach); beads.push({ p: toHero(inH(w[key])), d, r }); }); });
-  const carry = (p) => { const m = [0, 0, 0]; let s = 0; for (const b of beads) { const d2 = (p[0] - b.p[0]) ** 2 + (p[1] - b.p[1]) ** 2 + (p[2] - b.p[2]) ** 2, w = Math.exp(-d2 / (b.r * b.r)); if (w < 1e-4) continue; s += w; for (let a = 0; a < 3; a++) m[a] += w * b.d[a]; } const q = s > 1 ? 1 / s : 1; return m.map((x) => x * q); };
+  // (each bead's LIP: +1 the upper lip's, −1 the lower's and the jaw's, 0 neither, by the drivers that move it)
+  const lipOf = (names = []) => (names.some((x) => LIP_UP.test(x)) ? 1 : names.some((x) => LIP_DOWN.test(x)) ? -1 : 0);
+  const beadR = (w, j) => Math.max(F.beadMin, (Array.isArray(w.r) ? w.r[Math.min(j, w.r.length - 1)] : w.r) * hv * k * F.beadReach);
+  rest.vajras.forEach((w, i) => { const v = acted.vajras[i]; if (!w.drive || !v) return; ['a', 'c', 'b'].forEach((key, j) => { const d = [(v[key].x - w[key].x) * hv * k, (v[key].y - w[key].y) * hv * k, (v[key].z - w[key].z) * hv * k]; if (Math.hypot(...d) < 1e-7) return; beads.push({ p: toHero(inH(w[key])), d, r: beadR(w, j), lip: lipOf(w.drive[j] || []), nose: w.group === 'nose' }); }); });
+  // (the brow of ONE SECTION, `seat` 2: the brow pad carries the skin along its whole length, `browBeads` more beads between
+  // each end and its middle; three alone pulled the brow's inner half from beads a centimetre and a half off, a fifth of
+  // their move, where the fold's pad, hung on the brow's strings, had carried it)
+  if (seat === 2) rest.vajras.forEach((w, i) => {
+    const v = acted.vajras[i]; if (w.name !== 'browPad' || !v) return;
+    for (const [e, j] of [['a', 0], ['b', 2]]) for (let q = 1; q <= F.browBeads; q++) {
+      const t = q / (F.browBeads + 1), at = (o) => ({ x: o[e].x + (o.c.x - o[e].x) * t, y: o[e].y + (o.c.y - o[e].y) * t, z: o[e].z + (o.c.z - o[e].z) * t }), p0 = at(w), p1 = at(v);
+      const d = [(p1.x - p0.x) * hv * k, (p1.y - p0.y) * hv * k, (p1.z - p0.z) * hv * k]; if (Math.hypot(...d) < 1e-7) continue;
+      beads.push({ p: toHero(inH(p0)), d, r: beadR(w, j) + (beadR(w, 1) - beadR(w, j)) * t, lip: 0 });
+    }
+  });
+  // THE NOSE HELD: an action that moves none of the nose's beads (all but the sneer) leaves the nose where it is, its
+  // beads in the carry as still ones over `noseHold` of their reach (no further: held wider, they pinned the cheek beside
+  // the wings and a smile folded it over itself), so the cheek and the lip drawn past its wings do not drag them (carried by the
+  // moved beads alone, the alar creases' points tore out across the cheek in spikes)
+  if (beads.length && !beads.some((b) => b.nose)) rest.vajras.forEach((w) => { if (w.group === 'nose' && !w.drive) ['a', 'c', 'b'].forEach((key, j) => beads.push({ p: toHero(inH(w[key])), d: [0, 0, 0], r: beadR(w, j) * F.noseHold, lip: 0 })); });
+  // THE LIPS APART (`jawShare` given: each point's share of the jaw bone, the one skin's cut its sides each whole): about
+  // the mouth a point of the upper lip is carried by no bead of the lower and the lower's by none of the upper, so an
+  // action that moves the lips' middles apart parts them (carried by both, the lips moved as one and never parted);
+  // easing out past the corners (`lipApart` [m past the corner, m above or below the lips' line, the ease m])
+  const ch = toHero(rest.points.chR), sto = toHero(rest.points.sto), LA = F.lipApart;
+  // (the settle is the eyes' and the brows', from `settleFrom[0]` m under the eyes' centres, eased in over
+  // `settleFrom[1]`: about the mouth, the nose and the cheeks beside them the skin folds back on itself (the lips' turn-in,
+  // the nostrils, the alar creases) or is netted coarse, and a settled point stood out as a spike on the layer beside its own)
+  const settles = (p) => ramp((p[2] - eyeC[2] + F.settleFrom[0]) / F.settleFrom[1]);
+  const apart = (id, p) => { if (!jawShare) return 0; const s = 1 - ramp((Math.abs(p[0]) - Math.abs(ch[0]) - LA[0]) / LA[2]), t = 1 - ramp((Math.abs(p[2] - sto[2]) - LA[1]) / LA[2]); return s * t * ((jawShare[id] ?? 0) >= 0.5 ? -1 : 1); };
+  const carry = (p, side = 0) => { const m = [0, 0, 0]; let s = 0; for (const b of beads) { const d2 = (p[0] - b.p[0]) ** 2 + (p[1] - b.p[1]) ** 2 + (p[2] - b.p[2]) ** 2; let w = Math.exp(-d2 / (b.r * b.r)); if (side && b.lip && Math.sign(side) !== b.lip) w *= 1 - Math.abs(side); if (w < 1e-4) continue; s += w; for (let a = 0; a < 3; a++) m[a] += w * b.d[a]; } const q = s > 1 ? 1 / s : 1; return m.map((x) => x * q); };
   // (to the depth it had: a point the rim let down under the cranium stays that far under)
   const settle = (p, n, depth, most = F.settle) => { let T = 0; for (let it = 0; it < 4; it++) { const q = p.map((x, a) => x + n[a] * T), g = gradA(q), gn = g[0] * n[0] + g[1] * n[1] + g[2] * n[2]; if (Math.abs(gn) < 1e-6) break; const t = (depth - fA(q)) / gn, T2 = Math.max(-most, Math.min(most, T + t)); if (Math.abs(T2 - T) < 1e-6) { T = T2; break; } T = T2; } return p.map((x, a) => x + n[a] * T); };
   // (the rest eye's frame: within the eye's footprint the beads carry nothing, the lids are the eye's own)
@@ -663,7 +704,12 @@ export function oneSkinFollow({ sex = 'male', relations = null, eyes = null, tun
   const line = (m) => { const A = Array.from({ length: 65 }, (_, i) => { const q = inV(m(i / 64).c); return [dot3([q[0] - eyeC[0], q[1] - eyeC[1], q[2] - eyeC[2]], S0), elevOf(q)]; }).sort((x, y) => x[0] - y[0]);
     return (u) => { if (u <= A[0][0]) return A[0][1]; if (u >= A.at(-1)[0]) return A.at(-1)[1]; const i = A.findIndex((x) => x[0] >= u), t = (u - A[i - 1][0]) / (A[i][0] - A[i - 1][0] || 1); return A[i - 1][1] + (A[i][1] - A[i - 1][1]) * t; }; };
   const M0 = rest.relational.eyeRigs.find((e) => e.side === 'R').margins, M1 = acted.relational.eyeRigs.find((e) => e.side === 'R').margins;
-  const elev = { top: line(M0.upper), bot: line(M0.lower), topA: line(M1.upper), botA: line(M1.lower) };
+  const elev = { top: line(M0.upper), bot: line(M0.lower), topA: line(M1.upper), botA: line(M1.lower), crease: line(M0.crease) };
+  // (a column's turn no more than the eye's middle half turns any (`cornerCap`): at a canthus the margin lies near the
+  // turn's axis, its elevation ill-posed, and a blink there read 129° against the middle's 33°, swinging the skin beside
+  // the corner, further from the axis, through all of it: streaks down the inner corner)
+  const capOf = (a, b) => { let m = 0; for (let i = 0; i <= 32; i++) { const u = cols.u0 + (cols.u1 - cols.u0) * (0.25 + (0.5 * i) / 32); m = Math.max(m, Math.abs(a(u) - b(u))); } return m; };
+  const capT = capOf(elev.topA, elev.top), capB = capOf(elev.botA, elev.bot), capped = (d, c) => (F.cornerCap ? Math.max(-c, Math.min(c, d)) : d);
   // (each margin's distance from the globe's centre per column: the lid lies there over the globe; what stands further
   // out, the fold over the upper lid, is no lid's and stays as the lid slides under it)
   const reach = (m) => { const A = Array.from({ length: 65 }, (_, i) => { const q = inV(m(i / 64).c); return [dot3([q[0] - eyeC[0], q[1] - eyeC[1], q[2] - eyeC[2]], S0), Math.hypot(...rel(q))]; }).sort((x, y) => x[0] - y[0]);
@@ -671,8 +717,8 @@ export function oneSkinFollow({ sex = 'male', relations = null, eyes = null, tun
   const rTop = reach(M0.upper), rBot = reach(M0.lower);
   // THE LIDS BY THE SKIN'S OWN WAY (`faces` given): each point's distance ALONG the skin from each margin (both eyes,
   // the left by the right's mirror): over the lid, up into its crease and back out over the fold that distance only
-  // grows, where the elevation and the distance from the globe fold back on themselves; a lid is its margin's out to
-  // `geoUp` (the upper) or `geoLow` (the lower), the fold beyond it is not
+  // grows, where the elevation and the distance from the globe fold back on themselves; it says which margin's lid a
+  // point is, and the lower lid is its margin's out to `geoLow`, the fold beyond it is not
   let geo = null;
   if (faces) {
     const ids = Object.keys(points), ix = new Map(ids.map((id, i) => [id, i])), Pp = ids.map((id) => points[id]), n = ids.length, nb = Array.from({ length: n }, () => []);
@@ -687,12 +733,48 @@ export function oneSkinFollow({ sex = 'male', relations = null, eyes = null, tun
       while (heap.length) { const [d, i] = pop(); if (d > D[i]) continue; const N = nb[i]; for (let j = 0; j < N.length; j += 2) { const e = d + N[j + 1]; if (e < D[N[j]]) { D[N[j]] = e; push(N[j], e); } } }
       return new Map(ids.map((id, i) => [id, D[i]]));
     };
-    geo = { up: walk(lash(M0.upper)), low: walk(lash(M0.lower)) };
+    geo = { up: walk(lash(M0.upper)), low: walk(lash(M0.lower)), ids, ix, nb };
   }
-  const ramp2 = (x, [a, b]) => 1 - ramp((x - a) / (b - a));
-  const out = {}, globes = rest.globes.map((g) => g.field);
+  // THE LID ROLLS (`roll`, the skin's way known): a real lid's skin is stored folded under the brow while the eye is open,
+  // in the crease and up the fold's underside to its LIP, and unrolls from there as the lid shuts: never gathered in one
+  // band (gathered, a band a fifth to seven tenths of the way to the crease stretched past twice and tore). So per column
+  // across the eye the STRIP, the skin from the margin to the fold's lip by its distance along the skin (the lid, then
+  // the wall the fold's underside makes, near square to the globe): the lip where the fold stands out farthest with its
+  // skin still facing back toward the eye (`faceIn`), and the strip's length to it (where the wall first stands `lip` of
+  // the lip's height out)
+  let fold = null;
+  if (F.roll && geo) {
+    const B = 48, R = new Array(B + 1).fill(-Infinity), A = new Array(B + 1).fill(0), Ls = Array.from({ length: B + 1 }, () => []), bin = (u) => Math.max(0, Math.min(B, Math.round(((u - cols.u0) / (cols.u1 - cols.u0)) * B)));
+    for (const [id, p] of Object.entries(points)) {
+      const m = p[0] < 0, pp = m ? [-p[0], p[1], p[2]] : p, n0 = normals[id], s = geo.up.get(id); if (!n0 || !(s <= geo.low.get(id))) continue;
+      const n = m ? [-n0[0], n0[1], n0[2]] : n0, r = rel(pp), rg = Math.hypot(...r); if (rg > F.lidReach || dotD(pp) < -0.004) continue;
+      const at = E0.at(pp), u = at.r * Math.sin(at.th); if (u < cols.u0 || u > cols.u1) continue;
+      const a = elevOf(pp), aT = elev.top(u), b = bin(u); if (a <= aT || a > elev.crease(u) + 0.6) continue;
+      Ls[b].push([s, rg - rTop(u)]);
+      if (rg > rTop(u) + 0.0005 && dot3(n, r.map((x) => x / rg)) <= F.faceIn && rg > R[b]) { R[b] = rg; A[b] = a; }
+    }
+    const S = R.map((r, b) => { if (!Number.isFinite(r)) return NaN; const u = cols.u0 + ((cols.u1 - cols.u0) * b) / B, h = F.lip * (r - rTop(u)); return Math.min(...Ls[b].filter(([, d]) => d >= h).map(([s]) => s)); });
+    // (columns the scan missed take their neighbours'; then a light smoothing across)
+    for (let b = 0; b <= B; b++) if (!Number.isFinite(R[b]) || !Number.isFinite(S[b])) { let l = b; while (l >= 0 && !(Number.isFinite(R[l]) && Number.isFinite(S[l]))) l--; let h = b; while (h <= B && !(Number.isFinite(R[h]) && Number.isFinite(S[h]))) h++; const src = l >= 0 ? l : h <= B ? h : -1; if (src >= 0) { R[b] = R[src]; A[b] = A[src]; S[b] = S[src]; } }
+    if (R.every(Number.isFinite) && S.every(Number.isFinite)) {
+      const sm = (X) => X.map((_, b) => (X[Math.max(0, b - 1)] + 2 * X[b] + X[Math.min(B, b + 1)]) / 4), Rs = sm(sm(R)), As = sm(sm(A)), Ss = sm(sm(S));
+      const at = (X, u) => { const x = Math.max(0, Math.min(B, ((u - cols.u0) / (cols.u1 - cols.u0)) * B)), i = Math.min(B - 1, Math.floor(x)), t = x - i; return X[i] + (X[i + 1] - X[i]) * t; };
+      fold = { r: (u) => at(Rs, u), a: (u) => at(As, u), s: (u) => at(Ss, u) };
+    }
+  }
+  /** the shut strip of a column: from the margin where the lids meet (`aMeet`, on the lid's shell) to the fold's lip let
+   * down `rollDrop`, the lid on the globe for `rollHug` of the way and then rising to the lip; a point `φ` of the way
+   * along the rest strip lies `φ` of the way along it (the shut strip's stretch spread over all its skin) → [elevation,
+   * distance from the globe's centre] */
+  const shutStrip = (uc, aMeet) => {
+    const r = rTop(uc), H = Math.max(0, fold.r(uc) - r), a1 = fold.a(uc) - F.rollDrop, N = 32, P = [], L = [0];
+    for (let i = 0; i <= N; i++) { const t = i / N, h = t <= F.rollHug ? 0 : ((t - F.rollHug) / (1 - F.rollHug)) ** 2; P.push([aMeet + (a1 - aMeet) * t, r + H * h]); }
+    for (let i = 1; i <= N; i++) L.push(L[i - 1] + Math.hypot(P[i][1] - P[i - 1][1], 0.5 * (P[i][1] + P[i - 1][1]) * (P[i][0] - P[i - 1][0])));
+    return (phi) => { const x = Math.max(0, Math.min(1, phi)) * L[N]; let i = 1; while (i < N && L[i] < x) i++; const t = (x - L[i - 1]) / (L[i] - L[i - 1] || 1); return [P[i - 1][0] + (P[i][0] - P[i - 1][0]) * t, P[i - 1][1] + (P[i][1] - P[i - 1][1]) * t]; };
+  };
+  const ramp2 = (x, [a, b]) => 1 - ramp((x - a) / (b - a)), smooth01 = (x) => { const t = Math.max(0, Math.min(1, x)); return t * t * (3 - 2 * t); };
+  const out = {}, globes = rest.globes.map((g) => g.field), pre = new Map();
   for (const [id, p] of Object.entries(points)) {
-    const n = normals[id];
     const socket = globes.some((g) => g(S2(p)) < 0);
     let inside = 0, under = 0, lid = null;
     {
@@ -710,7 +792,7 @@ export function oneSkinFollow({ sex = 'male', relations = null, eyes = null, tun
       // canthi and points toward the reach's end eased out. What the lids leave of a point moves as the rest does.
       const rg = Math.hypot(pp[0] - gC[0], pp[1] - gC[1], pp[2] - gC[2]);
       if (rg < F.lidReach && dotD(pp) > -0.004) {
-        const uc = Math.max(cols.u0, Math.min(cols.u1, u)), aT = elev.top(uc), aB = elev.bot(uc), dT = elev.topA(uc) - aT, dB = elev.botA(uc) - aB, a = elevOf(pp);
+        const uc = Math.max(cols.u0, Math.min(cols.u1, u)), aT = elev.top(uc), aB = elev.bot(uc), dT = capped(elev.topA(uc) - aT, capT), dB = capped(elev.botA(uc) - aB, capB), a = elevOf(pp);
         const t = Math.max(0, Math.min(1, (a - aB) / (aT - aB || 1e-6)));
         // (by the skin's way when it is known: the nearer margin's lid, out to its reach; else by the elevation's bands)
         const gU = geo?.up.get(id) ?? Infinity, gL = geo?.low.get(id) ?? Infinity, upper = gU <= gL;
@@ -718,18 +800,84 @@ export function oneSkinFollow({ sex = 'male', relations = null, eyes = null, tun
         const w = (1 - ramp(Math.max(cols.u0 - u, u - cols.u1, 0) / F.canthus)) * ramp((F.lidReach - rg) / (0.25 * F.lidReach))
           // (the lower lid also only as far out as its margin: the cheek standing in front of it is the cheek's, and turned
           // with the lid it swung up across the eye)
-          * (geo ? (a > aB && a < aT && Math.min(gU, gL) < F.geoLow[0] ? 1 : upper ? ramp2(gU, F.geoUp) : ramp2(gL, F.geoLow) * ramp2(rg - rBot(uc), F.lidOut))
+          // (and the upper by its height from its margin up to its CREASE: the tarsus, its lower `tuck[0]`, turns whole, a
+          // stiff plate, and the skin above it less and less, to nothing by `tuck[1]`, so the lid stretches over its height as
+          // it shuts, the stretch gathered at the top of its cavity, tucked under the fold, which stays; only as far out as
+          // its margin, the fold's underside never. By the distance along the skin it reached past the crease into the fold,
+          // the fold's underside turned on its longer radius through the lid, and what was left stretched across the open
+          // eye, a waterfall down the shut lid)
+          * (geo ? (a > aB && a < aT && Math.min(gU, gL) < F.geoLow[0] ? 1 : upper ? ramp2((a - aT) / Math.max(1e-3, elev.crease(uc) - aT), F.tuck) * ramp2(rg - rTop(uc), F.lidOutUp) : ramp2(gL, F.geoLow) * ramp2(rg - rBot(uc), F.lidOut))
             : a >= aT ? ramp2(a - aT, F.lidBand) * ramp2(rg - rTop(uc), F.lidOut) : a <= aB ? ramp2(aB - a, F.lowBand) * ramp2(rg - rBot(uc), F.lidOut) : 1);
         // (a lid's point is the lid's for every action, turned or not: a smile's beads would draw the upper lid down)
-        if (w > 1e-4) lid = { q: Math.abs(da) > 1e-7 ? back(turnLid(pp, da * w)) : p, w };
+        lid = { w, th: da * w, pp, back };
+        // (the lid ROLLED where the fold is known and the upper lid shuts: the lid turned whole into its share, the crease's
+        // wall swung down after it from the fold's edge, the fold's own face left)
+        // (the lid ROLLED where the strip is known and the upper lid shuts, by how far it shuts (`λ`, whole by `rollShut` of
+        // the opening): a point of the strip `φ` of the way along it to the lip, `φ` of the way along the shut strip, and
+        // near the margin keeping its own place off the strip (the margin's rounding, the lid's layers), to nothing by the
+        // crease; past the lip the fold's face let down with the lip, the less the farther)
+        const gS = geo?.up.get(id) ?? Infinity;
+        if (fold && upper && a > aT && dT < -1e-4 && rg - rTop(uc) > -0.003) {
+          const r = rTop(uc), L0 = fold.s(uc), lam = Math.min(1, -dT / (F.rollShut * Math.max(1e-6, aT - aB)));
+          const ease = (1 - ramp(Math.max(cols.u0 - u, u - cols.u1, 0) / F.canthus)) * ramp((F.lidReach - rg) / (0.25 * F.lidReach));
+          let th, dr;
+          if (gS <= L0) {
+            const phi = gS / L0, [As, Rs] = shutStrip(uc, aT + dT)(phi), keep = 1 - smooth01((phi - F.rollKeep[0]) / (F.rollKeep[1] - F.rollKeep[0]));
+            th = lam * (As + keep * (a - aT - gS / r) - a); dr = lam * (Rs + keep * (rg - r) - rg);
+          } else { th = -lam * F.rollDrop * (1 - smooth01((gS - L0) / F.rollEase)); dr = 0; }
+          lid = { w: ease, th: th * ease, dr: dr * ease, pp, back };
+        }
       }
     }
+    pre.set(id, { p, socket, inside, under, lid });
+  }
+  // THE LIDS SMOOTHED over the skin's own neighbours (`faces` given), their weight and their turn, `smooth` times: a
+  // lid's weight eases out with the distance along the skin, which is the net's edges' and jagged, and a turn of 40° or
+  // more makes a hundredth of difference between neighbours a sliver across the shut lid
+  if (geo && F.smooth) {
+    const { ids, nb } = geo, L = ids.map((id) => pre.get(id).lid), W = L.map((l) => l?.w ?? 0), T = L.map((l) => l?.th ?? 0), Dr = L.map((l) => l?.dr ?? 0);
+    // (only what the lid holds is smoothed: a point it leaves stays left, the fold still while the lid slides under it)
+    const held = W.map((w) => w > 1e-4);
+    for (let it = 0; it < F.smooth; it++) {
+      const W2 = W.slice(), T2 = T.slice(), D2 = Dr.slice();
+      for (let i = 0; i < ids.length; i++) {
+        if (!held[i] || !nb[i].length) continue;
+        let sw = 0, st = 0, sd = 0, c = 0;
+        for (let j = 0; j < nb[i].length; j += 2) { sw += W[nb[i][j]]; st += T[nb[i][j]]; sd += Dr[nb[i][j]]; c++; }
+        W2[i] = 0.5 * W[i] + (0.5 * sw) / c; T2[i] = 0.5 * T[i] + (0.5 * st) / c; D2[i] = 0.5 * Dr[i] + (0.5 * sd) / c;
+      }
+      W.splice(0, W.length, ...W2); T.splice(0, T.length, ...T2); Dr.splice(0, Dr.length, ...D2);
+    }
+    ids.forEach((id, i) => { if (L[i]) { L[i].w = W[i]; L[i].th = T[i]; if (L[i].dr !== undefined || Dr[i]) L[i].dr = Dr[i]; } });
+  }
+  for (const [id, { p, socket, inside, under, lid: L }] of pre) {
+    const n = normals[id];
+    // (a rolled point also let out from the globe or in toward it, `dr`)
+    const out_ = (q, dr) => { if (!dr) return q; const r = rel(q), l = Math.hypot(...r) || 1; return q.map((x, a) => x + (r[a] / l) * dr); };
+    const lid = L && L.w > 1e-4 ? { q: Math.abs(L.th) > 1e-7 || L.dr ? L.back(out_(turnLid(L.pp, L.th), L.dr)) : p, w: L.w } : null;
     // (the socket behind a globe turns with the lids over it, else stays)
     if (socket) { out[id] = lid ? lid.q : p; continue; }
     // (the beads carry what the lids leave; the settle reaches less in the eye's footprint: the fold's layers lie closer
     // than a settle's reach, and a point settled onto the layer beside its own stood out as a spike)
-    const c = carry(p).map((x) => x * (1 - (1 - F.carryUnder) * under)), q = p.map((x, a) => x + c[a]), sq = n ? settle(q, n, f0(p), F.settle * (1 - (1 - F.settleIn) * inside)) : q;
+    // (only what the beads carried settles: the settle keeps a carried point on the moved skin, and a point no bead moves
+    // has nothing to keep. A blink moves no bead, and settled, the skin over the lid followed the seat's cut down with the
+    // shutting margin, the fold poured down the shut eye)
+    const c = carry(p, apart(id, p)).map((x) => x * (1 - (1 - F.carryUnder) * under)), q = p.map((x, a) => x + c[a]), carried = c.some((x) => Math.abs(x) > 1e-9);
+    const most = F.settle * (1 - (1 - F.settleIn) * inside) * settles(p), sq = n && carried && most > 1e-6 ? settle(q, n, f0(p), most) : q;
     out[id] = lid ? lid.q.map((x, a) => x + (1 - lid.w) * (sq[a] - p[a])) : sq;
+  }
+  // THE ROLLED LID TAUT (`taut` [rounds, λ, μ]): a lid drawn shut is stretched skin, its rest's small folds pulled out, so
+  // the rolled points are relaxed toward their neighbours by as much as they rolled, a few rounds of Taubin's pass, which
+  // keeps the surface's size, so it never sinks onto the globe (turned whole, each kept its rest's creases, lumps across the
+  // shut lid; more rounds smooth it further but slide the points along it, gathering the stretch the roll spread)
+  if (geo && F.taut) {
+    const { ids, nb } = geo, k = ids.map((id) => { const L = pre.get(id).lid; return L && L.dr !== undefined ? Math.min(1, L.w) : 0; });
+    if (k.some((x) => x > 0)) {
+      let X = ids.map((id) => out[id]);
+      const pass = (f) => X.map((q, i) => { if (!(k[i] > 0) || !nb[i].length) return q; const m = [0, 0, 0]; let c = 0; for (let j = 0; j < nb[i].length; j += 2) { const r = X[nb[i][j]]; m[0] += r[0]; m[1] += r[1]; m[2] += r[2]; c++; } return q.map((x, a) => x + f * k[i] * (m[a] / c - x)); });
+      for (let it = 0; it < F.taut[0]; it++) { X = pass(F.taut[1]); X = pass(F.taut[2]); }
+      ids.forEach((id, i) => { if (k[i] > 0) out[id] = X[i]; });
+    }
   }
   return out;
 }

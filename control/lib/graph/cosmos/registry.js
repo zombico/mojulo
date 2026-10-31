@@ -1,14 +1,13 @@
 /**
  * The CAPABILITY REGISTRY: for every facet setting, its values and what makes each one today. Sourced settings take
- * their values from registry.generated.js (the tables, read by the generator); hand settings take them from the facet
+ * their values from their tables, read live on the first call (read-sources.js); hand settings take them from the facet
  * file. A sourced setting may also name `planned` values its table does not hold, so the sweep sees the gap (or, built by
-something else, what lowers it). Pure
-and light: it imports no source module.
+ * something else, what lowers it).
  *
  *   capabilityRegistry() → { [facet]: { [setting]: { multi, values: { [value]: { status, lowers?, note?, effort?, pkg?, requires?, [engine]: mark } } } } }
  *
  * Every value carries its mark in each engine with a runtime kernel (scene/engines/registry.js): built, approximated
- * or absent. A sourced setting's come from the generated read (or its source's `<engine>: { all }`), a hand value
+ * or absent. A sourced setting's come from the live read (or its source's `<engine>: { all }`), a hand value
  * writes its own under the engine's id. A value with no mark reads as the engine's `unmarked` (a young kernel's
  * 'absent'); an engine with none (Godot) throws.
  *
@@ -16,7 +15,7 @@ and light: it imports no source module.
  * 'facet.setting=value') a value cannot be built without; the sweep builds them with it. An unknown one throws.
  */
 import { FACETS, STATUSES } from './facets/index.js';
-import { GENERATED } from './registry.generated.js';
+import { readSources } from './read-sources.js';
 import { MARKS } from '../scene/engines/marks.js';
 import { ENGINES, MARKED_ENGINES } from '../scene/engines/registry.js';
 
@@ -24,14 +23,13 @@ let cached = null;
 
 export function capabilityRegistry() {
   if (cached) return cached;
-  const reg = {};
+  const reg = {}, sources = readSources();
   for (const facet of FACETS) {
     const out = (reg[facet.id] = {});
     for (const [setting, spec] of Object.entries(facet.settings)) {
       const values = {};
       if (spec.source) {
-        const gen = GENERATED[`${facet.id}.${setting}`];
-        if (!gen) throw new Error(`cosmos: ${facet.id}.${setting} has no generated values; run node scripts/gen-cosmos-registry.mjs`);
+        const gen = sources[`${facet.id}.${setting}`];
         const { status = 'built', note, effort, pkg, requires } = spec.source;
         for (const v of gen.values) {
           values[v] = { status, lowers: gen.lowers, ...(note ? { note } : {}), ...(effort ? { effort } : {}), ...(pkg ? { pkg } : {}), ...(requires ? { requires } : {}), ...Object.fromEntries(MARKED_ENGINES.map((e) => [e, spec.source[e]?.all ?? gen[e]?.[v]])) };

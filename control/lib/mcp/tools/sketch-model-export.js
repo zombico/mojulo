@@ -56,6 +56,7 @@ import { lazyDependency } from '@/lib/lazy-deps';
 import { handoffForContext, fitsForContext, resolveHandoffHost } from '@/lib/mcp/hosts/handoff';
 import { getHostProfile, hostHandoff } from '@/lib/mcp/hosts/registry';
 import { pluginProfileActive } from '@/lib/mcp/plugin-profile';
+import { attachRecordings } from '@/lib/graph/face-acting/recordings';
 
 /**
  * export_model — serialize a stored sketch's traversable World as a .glb or .stl.
@@ -960,6 +961,9 @@ async function exportModel(input, context = {}) {
   // world-kinds layered, anime-face-rig.js) — every other kind and hero resolves exactly as without it
   const { payload: resolvedPayload, kind } = await resolveWorldScene(sketch, { ...(lit ? { unshaded: true } : {}), ...(skinned ? { face: true } : {}), ...(rest === 'tpose' ? { tpose: true } : {}) });
   let payload = resolvedPayload;
+  // a realistic hero's PERFORMANCES carry their lines' recordings (face-acting/recordings.js): each one this machine holds
+  // rides the GLB embedded (scene-gltf.js), the take whole with its sound; one it does not hold is named as missing
+  attachRecordings(payload);
   let tposed = null;
   if (rest === 'tpose' && payload?.figures) {
     tposed = { figures: [], skipped: [] };

@@ -50,7 +50,7 @@ export const TEXT_READERS = Object.freeze([
  * data files are covered by the folder rule. */
 export const DATA_READERS = Object.freeze([
   'app/api/sketches/[ref]/model.glb/route.js', 'lib/app-mcp-scaffold/install.js', 'lib/graph/beats/beats-vocab/loader.js',
-  'lib/graph/creature-heads/index.js', 'lib/graph/game/hud-cards/loader.js', 'lib/graph/game/mechanic-cards/loader.js',
+  'lib/graph/creature-heads/index.js', 'lib/graph/face-acting/recordings.js', 'lib/graph/game/hud-cards/loader.js', 'lib/graph/game/mechanic-cards/loader.js',
   'lib/graph/game/title-carve.js', 'lib/graph/game/title-words.js',
   'lib/graph/game/slice-cards/loader.js', 'lib/graph/image-outcomes/fonts/font-shelf.js', 'lib/graph/image-outcomes/render-store.js',
   'lib/graph/image-outcomes/sheet-store.js', 'lib/graph/manji-programs/loader.js', 'lib/graph/motion-vocab/loader.js',

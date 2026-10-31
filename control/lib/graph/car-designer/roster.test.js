@@ -11,9 +11,11 @@ const arch = Object.keys(ARCHETYPES)[0];
 
 describe('the roster', () => {
   it('reads an entry in each of its forms to one recipe, and refuses what is not one', () => {
-    expect(racerSpec(arch, 0, 1)).toEqual({ facets: { archetype: arch }, seed: 32 });
-    expect(racerSpec('a grumpy old wizard', 1, 1)).toEqual({ facets: {}, brief: 'a grumpy old wizard', seed: 39 });
-    expect(racerSpec({ archetype: arch, build: 'brute', seed: 4, parts: { wheel: 'slick' } })).toEqual({ facets: { archetype: arch, build: 'brute' }, seed: 4, parts: { wheel: 'slick' } });
+    // (minted in gloss in the form render unless the entry names its own: racerSpec's MINT)
+    const mint = { shade: 'gloss', light: 'form' };
+    expect(racerSpec(arch, 0, 1)).toEqual({ facets: { archetype: arch }, seed: 32, ...mint });
+    expect(racerSpec('a grumpy old wizard', 1, 1)).toEqual({ facets: {}, brief: 'a grumpy old wizard', seed: 39, ...mint });
+    expect(racerSpec({ archetype: arch, build: 'brute', seed: 4, parts: { wheel: 'slick' } })).toEqual({ facets: { archetype: arch, build: 'brute' }, seed: 4, parts: { wheel: 'slick' }, ...mint });
     expect(() => racerSpec(3)).toThrow(/a racer is an archetype, a brief in words/);
     expect(() => racerSpec({ archetype: arch, wings: 2 })).toThrow(/wings is not one of/);
     expect(() => solveRoster(9)).toThrow(/1 to 8 racers/);

@@ -63,6 +63,18 @@ describe('the egocube kind', () => {
   }, 300_000);
 });
 
+describe('a lone sheet made to play a part (`moves: true`, a bestiary\'s people)', () => {
+  it('carries its moves as a cast member\'s do, on its own door; without it, the sheet is made as it always was', () => {
+    const roll = { facets: { role: 'frontline' }, seed: 4 };
+    const S = rollStored({ kind: 'egocube', roll, moves: true }), plain = rollStored({ kind: 'egocube', roll });
+    const C = egocubeCreate(S);
+    expect(C.moves).toMatchObject({ attack: expect.any(String) });
+    expect(C.create.spec.motion).toBeTruthy();
+    expect(egocubeCreate(plain).moves).toBeUndefined();
+    expect(() => readEgocubeKind({ kind: 'egocube', roll, moves: 'yes' })).toThrow(/moves is true/);
+  });
+});
+
 describe('a cast as a cube (cast.js)', () => {
   const CAST = { kind: 'egocube', cast: { seed: 4, cast: { rival: { relation: 'rival', body: 'person' }, red: { relation: 'party', body: 'beast', species: 'wolf' } } } };
 
@@ -74,6 +86,12 @@ describe('a cast as a cube (cast.js)', () => {
     expect(egocubeNodes(S).map((n) => [n.path, n.band])).toEqual([['hero', S.castSheet.members.hero.sheet.facets.age], ['hero/rival', S.castSheet.members['hero/rival'].sheet.facets.age], ['hero/red', 'beast']]);
     expect(rollStored(CAST, { ...S, castSheet: { ...S.castSheet, kept: true } }).castSheet.kept).toBe(true);
     expect(egocubePrint(S)).not.toBe(egocubePrint(rollStored({ ...CAST, cast: { ...CAST.cast, seed: 5 } })));
+  });
+
+  it('a beast\'s ooze rides to the animal door: the species made a game creature; none, the spec as it was', () => {
+    const S = rollStored({ ...CAST, cast: { ...CAST.cast, cast: { ...CAST.cast.cast, red: { ...CAST.cast.cast.red, ooze: ['dire', { id: 'frost', strength: 0.5 }] } } } });
+    expect(egocubeCreate(S, { member: 'hero/red' }).create.spec).toMatchObject({ species: 'wolf', ooze: ['dire', { id: 'frost', strength: 0.5 }] });
+    expect(egocubeCreate(rollStored(CAST), { member: 'hero/red' }).create.spec).not.toHaveProperty('ooze');
   });
 
   it('lowers each member to its door, and refuses years on a cast and a member on one character', () => {
@@ -107,13 +125,15 @@ describe('a cast member\'s moves (moves.js)', () => {
     expect(moveSetOf({ role: 'non-combatant', archetype: 'ruler' }).motion).toEqual({ hitHigh: true, crossedArms: true });
   });
 
-  it('a member below the hero door walks and jogs and keeps the moves its rig solves; a beast its two gaits', () => {
+  it('a member below the hero door plays a hero\'s moves on the tiered body; the creature loop\'s rig solves its own; a beast its two gaits', () => {
     expect(creatureMovesOf({ role: 'frontline', archetype: 'hero' }).motion).toEqual({ walk: true, jog: true, guard: true, cross: true, hitHigh: true, stagger: true, knockedOut: true });
     expect(creatureMovesOf({ role: 'caster', archetype: 'magician' }).moves).toEqual({ ready: 'centre', react: ['hitHigh', 'stagger', 'knockedOut'] });   // a showcase pose is a person's
     const S = rollStored({ kind: 'egocube', cast: { seed: 2, cast: { kin: { relation: 'party', body: 'beastkin', facets: { ancestry: 'lupine', humanity: 0.2 } } } } });
+    // (a beast-kin of a kin the cards know stands on the tiered body, beast/: a hero's moves on its spec)
     const kin = egocubeCreate(S, { member: 'hero/kin' });
-    expect(kin.create.as).toBe('creature');
-    expect(Object.keys(kin.create.spec.plan.locomotion)).toEqual(expect.arrayContaining(['walk', 'jog', 'hitHigh', 'knockedOut']));
+    expect(kin.create.as).toBe('hero');
+    expect(kin.create.spec.beast.kin).toBe('lupine');
+    expect(Object.keys(kin.create.spec.motion)).toEqual(expect.arrayContaining(['hitHigh', 'knockedOut']));
     expect(beastGaitsOf('wolf')).toEqual(['walk', 'trot']);
     expect(beastGaitsOf('baldEagle')).toEqual(['walk', 'hop']);   // a flier crosses the field on its feet
   });

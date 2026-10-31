@@ -48,8 +48,12 @@ import { readWeather } from '@/lib/graph/weather/weather';
 const SEASON_CLIMATES = ['spring-blossom', 'temperate', 'autumn', 'alpine'];
 import { airCard } from '@/lib/graph/era/air';
 import { geocubeContrastOf, geocubeRegisterOf, geocubeStructures, geocubeEraOf, readGeocube } from '@/lib/graph/era/geocube';
+import { readBiocube } from '@/lib/graph/era/biocube';
 import { readHour } from '@/lib/graph/era/geocube-hours';
-import { landRead, formPayload, DRESS_DEFAULT } from '@/lib/graph/form/land-read';
+import { landRead, formPayload, DRESS_DEFAULT, GRASS_CARDS } from '@/lib/graph/form/land-read';
+import { floraRead, floraBox, viewHeld, FLORA_HIDES } from '@/lib/graph/form/flora-read';
+import { snowBase, readSnow } from '@/lib/graph/era/snow';
+import { readDrifts } from '@/lib/graph/form/grass-drifts';
 import { tagCreaseRoles } from '@/lib/graph/scene/crease-roles';
 import { readCreases } from '@/lib/graph/scene/channels/creases';
 import { wantsSunShare, readOcclusion, liveLightDefaults } from '@/lib/graph/scene/live-light';
@@ -108,6 +112,11 @@ export function stateFace(face, own, clips) {
   for (const [st, c] of Object.entries(of)) if (c && face.tracks[c]) tracks[st] = face.tracks[c];
   return { ...face, tracks, ambientOver: Object.keys(clips).filter((st) => !of[st] || !tracks[st] || over.has(of[st])) };
 }
+/** a body destroyed when it goes down (its `vanish.die` a dismantle, a cleave or a destroy: gameworld/vanish.js), or one
+ * that sheds a mode (its `modes`): the page's wreck plays both */
+// (a body destroyed in its going, a body with modes, or a summons whose strings may be cut: worlds/controllable/summon.js)
+const wrecks = (e) => !!(e && e.body && ((e.body.vanish && ['dismantle', 'cleave', 'destroy'].includes(e.body.vanish.die)) || (Array.isArray(e.body.modes) && e.body.modes.length > 1) || (e.rule && e.rule.summoned && e.rule.summoned.bound)));
+
 /** A hero (or a mascot) as a figure-rig body: the layered kind's packed rig, its clips renamed for the runtime's states. */
 /** A world's `seats`, checked against its entities: the bodies seats 2 to 4 take (pilotable, not the pilot, each once),
  * how many may sit (2 to 4, at most one more than the bodies), how they join (drop-in or lobby), what an empty seat's body
@@ -137,8 +146,11 @@ export function readSeats(seats, entities, pilot = null) {
 }
 
 export async function heroFigure(name, spec, { swing = null, swings = null } = {}) {
-  let manifest;
-  if (typeof spec.heroRef === 'string') {
+  let manifest, body;
+  // a MODEL made elsewhere (`modelRef`: a sketch a rigged humanoid .glb is bound onto, stood `height` metres): its pack read
+  // by scene/rig-import.js, played as a hero's is (worlds/controllable/model-figure.js)
+  if (typeof spec.modelRef === 'string') body = await (await import('@/lib/graph/worlds/controllable/model-figure.js')).modelPack(name, spec.modelRef, { height: spec.height ?? null });
+  else if (typeof spec.heroRef === 'string') {
     const { SketchRepository } = await import('@/lib/db/repositories/sketches');
     const src = SketchRepository.getByRef(spec.heroRef);
     // a hero, or a MASCOT on foot (egocube/mascot-pilot.js: its own walk, run and jump); the same check the minting doors run
@@ -152,9 +164,11 @@ export async function heroFigure(name, spec, { swing = null, swings = null } = {
   }
   // `swing`: the world's game type (its composed juice's flavor), the timing the hero's swing plays at (hero-swing.js);
   // `swings`: the contact window of a body that strikes with what the hero holds (the held strike: its swing directions)
-  const scene = await WORLD_KINDS.layered.resolve(manifest, { title: name, ...(swing ? { swing } : {}), ...(swings ? { swings } : {}) });
-  const body = scene.figures && scene.figures.body;
-  if (!body) throw new Error(`figures.${name}: the hero has no rig with clips to play`);
+  if (!body) {
+    const scene = await WORLD_KINDS.layered.resolve(manifest, { title: name, ...(swing ? { swing } : {}), ...(swings ? { swings } : {}) });
+    body = scene.figures && scene.figures.body;
+    if (!body) throw new Error(`figures.${name}: the hero has no rig with clips to play`);
+  }
   const { preview, embodies, held, ...pack } = body;
   const clips = { ...pack.clips };
   // a LIBRARY (figures/library: an outside animation library's clips, retargeted onto this rig through the T-pose mold):
@@ -300,8 +314,8 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     // (form: a read in the form render (gen-7), for the builders that make more of the land for it: the meru island's
     // broken boulders, rims and strewn stones; only when on, so a gen-6 ctx is as it was)
     ...(ERAS[era]?.surface === 'form' ? { form: true } : {}),
-    // (formLit: a room under no sun drawn by the form render, its corners holding no light and its lights live on the page:
-    // era/stage.js, form/room-form.js; a page's read only: the unshaded export bakes none of it, and `paint: true` (an
+    // (formLit: a room under no sun drawn by the form render, its colour and its light baked apart by its palette's solve
+    // and its relief lit on the page: era/stage.js, form/room-light.js; a page's read only: the unshaded export bakes none of it, and `paint: true` (an
     // engine or file export, which carries its surfaces as paint until it carries materials) keeps the paint)
     ...(ERAS[era]?.surface === 'form' && !unshaded && viewOpts.paint !== true ? { formLit: true } : {}),
     // the live /world page (not an export or a still): a kind that meshes itself in the page may skip its bake
@@ -565,7 +579,10 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
   // (and the land and the plant pools' faces take their class off their groups: scene/crease-roles.js)
   if (payload && ctx.creases && Array.isArray(payload.faces) && payload.faces.length) { payload.creases = ctx.creases; tagCreaseRoles(payload); }
   // the live occlusion pass (ctx.occlusion above): the World page reads the resolved terms; stills and exports ignore them
-  if (payload && ctx.occlusion && Array.isArray(payload.faces) && payload.faces.length) payload.occlusion = ctx.occlusion;
+  // (a room in the form render bakes its occlusion with its light, form/room-light.js: it takes the live pass only when its
+  // recipe asks for it, not by its era's default)
+  const formRoomOcc = payload && payload.form && payload.form.room && liveL && liveL.from && liveL.from.occlusion === 'form';
+  if (payload && ctx.occlusion && !formRoomOcc && Array.isArray(payload.faces) && payload.faces.length) payload.occlusion = ctx.occlusion;
 
   // generic, opt-in page BACKDROP image: `backdrop: '<url>'` on any mesh-world manifest paints
   // the image behind a TRANSPARENT canvas (emitThreeWorld gates the alpha + CSS on it), so the
@@ -590,13 +607,13 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     if (manifestTex && typeof manifestTex === 'object') {
       for (const [k, v] of Object.entries(manifestTex)) if (typeof v === 'string') textures[k] = v;
     }
-    // THE FORM RENDER INDOORS (form/room-form.js): a room that sent its lights to be lit live has its tiles read as
-    // material, each key's colour under no light in place of its paint, its normal and occlusion beside it
+    // THE FORM RENDER INDOORS (form/room-form.js): a room baked for the form render has its tiles read as material, each
+    // key's colour under no light in place of its paint, its normal, occlusion, height and mean beside it
     if (payload.form && payload.form.room && Array.isArray(payload.form.room.lights)) {
       const keys = payload.faces.filter((f) => typeof f.texture === 'string' && textures[f.texture] && typeof f.group === 'string' && f.group.startsWith('stage:') && f.group !== 'stage:fixture').map((f) => f.texture);
       const R = payload.form.room, F = formRoomMaps(keys, R.detail !== undefined ? { detail: R.detail } : {});
       Object.assign(textures, F.textures);
-      payload.form = { ...payload.form, room: { ...R, maps: F.maps } };
+      payload.form = { ...payload.form, room: { ...R, maps: F.maps, ...(F.reliefSize ? { reliefSize: F.reliefSize } : {}) } };
     }
     if (Object.keys(textures).length) payload.textures = textures;
     // the painted detail tiles' resampling (matte-paint/detail.js, scene/channels/resample.js): only where a page draws one
@@ -698,29 +715,61 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
   // split of it (scene/live-light.js, read and checked into ctx.liveSun above): what moves casts each frame, the static
   // world into its own map when the hour changes. Opt-in; absent ⇒ byte-identical.
   // (the live light's defaults filled in: liveL above; the unshaded export carries the recipe's own)
-  // (a room lit live in the form render owns its shadows: its lights' own maps, channels/form.js; the live light's actors'
-  // map is drawn under a light the room's material would be lit by, so it gives way)
-  const shadowsOut = payload && payload.form && payload.form.room ? null : liveL ? liveL.shadows : sketch.manifest.shadows;
-  // (the actors it would have cast cast in the room's own lights instead: channels/form.js `actors`)
-  if (payload && payload.form && payload.form.room && liveL && liveL.shadows && liveL.shadows.actors) payload.form = { ...payload.form, room: { ...payload.form.room, actors: true } };
+  // (a room in the form render, under no sun, bakes its lamps' shadows: of the live light it keeps what moves, the actors)
+  const shadowsOut = payload && payload.form && payload.form.room ? (liveL && liveL.shadows && liveL.shadows.actors ? { actors: true } : null) : liveL ? liveL.shadows : sketch.manifest.shadows;
   if (payload && shadowsOut) payload.shadows = shadowsOut;
   // the tier the live light costs at (its maps' size, its occlusion's resolution) and the page's budget probe: only on a
   // page with live light on
   if (payload && liveL && liveL.tier) payload.lightTier = liveL.tier;
-  // (the form render's casters under the same tier: half the maps a side and half as many on a half tier, none off)
-  if (payload && payload.form && payload.form.room) { const T = liveL && liveL.tier ? liveL.tier.tier : 'off'; payload.form = { ...payload.form, room: { ...payload.form.room, shadows: T === 'off' ? { count: 0 } : T === 'half' ? { count: 2, size: 256 } : { count: 4, size: 512 } } }; }
   // (a read in another era than its cube's says so where the cube's look is read back)
   if (payload && payload.geocube && viewOpts.era !== undefined && payload.geocube.era !== era) payload.geocube = { ...payload.geocube, era };
   // THE FORM RENDER'S LAND (gen-7): a 'form' era's read of a geocube's island or trail carries its land as material
-  // (form/land-read.js: the cube's light solved for its palette, the layers, the trail's dress, the scree's stones), drawn
+  // (form/land-read.js: the cube's light solved for its palette, the layers, the trail's dress, the scree's stones, the
+  // biocube's moss), drawn
   // on the page in the painted land's place (scene/channels/form-land.js). The trail's dress its words: rubble on or off,
   // its patches. Any other read, and the unshaded export: none, every byte as it was
   if (payload && !unshaded && viewOpts.paint !== true && sketch.manifest.kind === 'geocube' && ERAS[era]?.surface === 'form') {
-    const M = sketch.manifest, path = M.path && typeof M.path === 'object' ? M.path : {};
-    const dress = { ...DRESS_DEFAULT, ...(path.rubble === false ? { rubble: 0 } : {}), ...(path.patches === false ? { patches: [] } : Array.isArray(path.patches) ? { patches: path.patches } : {}) };
-    const read = landRead(payload, readGeocube(M.cube), { ...(M.hour !== undefined ? { hour: readHour(M.hour) } : {}), dress });
+    const M = sketch.manifest, path = M.path && typeof M.path === 'object' ? M.path : {}, town = M.show === 'geotown';
+    // (a town, geotown: its land a lawn's, no trail's rubble, dust, clay or patches)
+    const dress = town ? { ...DRESS_DEFAULT, rubble: 0, dust: 0, clay: 0, patches: [] } : { ...DRESS_DEFAULT, ...(path.rubble === false ? { rubble: 0 } : {}), ...(path.patches === false ? { patches: [] } : Array.isArray(path.patches) ? { patches: path.patches } : {}) };
+    // (the biocube's words the form render reads: the rock's moss, `flora.moss`; the grass's length, `flora.grass.sward`;
+    // its drifts, `flora.grass.drifts` and `flora.flowers`; the recipe's biocube or else the cube's, none without)
+    // (a town's lawns are mown: the short sward, no meadow's drifts)
+    const cube = readGeocube(M.cube), bio = M.biocube ?? cube.biocube, F = bio ? readBiocube(bio).flora : null, moss = town ? 0 : F?.moss ?? 0, sward = town ? 'short' : F?.grass?.sward;
+    const drifts = town ? [] : readDrifts({ drifts: F?.grass?.drifts, flowers: F?.grass ? F.flowers : null });
+    // (a raised view's ground claimed, form/flora-read.js viewHeld: no crown over an overlook's eye in what it looks over)
+    if (payload.plants && !town) payload.plants = viewHeld(payload.plants, payload.cameras, { kinds: payload.plants.kinds });
+    // (where the form grows its own plants, floraBox: the painted trees and bushes there are not read as land)
+    const grown = floraBox(payload.plants);
+    // (a winter, snow over the whole land with no line, grows no grass at all; under a snow line the grass stands below it)
+    const S0 = payload.snowMap ? readSnow(cube.snow) : null, winter = !!S0 && (S0.line === undefined || S0.line === null);
+    const read = landRead(payload, cube, { ...(M.hour !== undefined ? { hour: readHour(M.hour) } : {}), dress, grass: winter ? false : 'map', ...(moss ? { moss } : {}), ...(sward !== undefined ? { sward } : {}), ...(drifts.length ? { drifts } : {}), ...(grown ? { grown } : {}), ...(payload.snowMap ? { snow: payload.snowMap } : {}) });
     if (read) payload.form = { ...(payload.form || {}), land: formPayload(read) };
+    // (and its dunes' sand drawn by the wind that laid them: ripples, slip faces, glint; era/out-dunes.js duneMap)
+    if (read && payload.dunes) payload.form = { ...payload.form, land: { ...payload.form.land, dunes: payload.dunes } };
+    // (and its snow laid over the ground as it lies: era/snow.js snowMap, its colour solved under the cube's light)
+    if (read && payload.snowMap) payload.form = { ...payload.form, land: { ...payload.form.land, snow: { ...payload.snowMap, base: snowBase(payload.snowMap.albedo, read.light) } } };
+    // (its plants grown as form where the trail's placement stood them, form/flora-read.js: the painted trees, bushes and
+    // shrubs hidden in their place; a bamboo or a blossom card keeps its own)
+    const flora = read && payload.plants ? floraRead(payload.plants, { kinds: payload.plants.kinds, bushKinds: payload.plants.bushKinds, colours: cube.colour, bases: read.light.linearBases, autumn: F?.autumn ?? 0 }) : null;
+    if (flora) {
+      const stamped = (payload.repeats || []).map((r) => r.group).filter((g) => g && g.startsWith('isekai:trees:'));
+      payload.form = { ...payload.form, land: { ...payload.form.land, hides: [...new Set([...payload.form.land.hides, ...FLORA_HIDES, ...stamped])] }, flora };
+    }
+    // (the gen-6 live grass's blades go with the painted land: the form render's grass is its own; its wind stays, and the
+    // crowns' sway in it, so the form's grass bends in the same gusts as the trees; channels/form-grass.js)
+    if (read && payload.liveGrass) {
+      const { grid, wind, crowns, seed, cards, petals } = payload.liveGrass;
+      if (wind && grid) payload.liveGrass = { grid, wind, crowns, seed, cards, field: false, ...(petals ? { petals } : {}) };
+      else delete payload.liveGrass;
+    }
+    // (and its blade cards, never walked on: gone from the page, not only hidden)
+    if (read) payload.faces = payload.faces.filter((f) => f.group !== GRASS_CARDS);
   }
+  // (where the plants stand is the form render's read alone: never on a page)
+  if (payload && payload.plants) delete payload.plants;
+  if (payload && payload.dunes) delete payload.dunes;
+  if (payload && payload.snowMap) delete payload.snowMap;
   // crystal light (crystal-rig R3): lamps whose beams pass through the world's crystals, each gem an operator. Any
   // world can carry it; emitThreeWorld resolves it against the faces. Opt-in; absent ⇒ byte-identical.
   // effect light (scene/effect-light.js): what a world's beams and moments throw on it, by rule. Opt-in: one word
@@ -734,7 +783,8 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     const fxs = sketch.manifest.fxStyle;
     if (typeof fxs !== 'boolean' && !(fxs && typeof fxs === 'object' && !Array.isArray(fxs))) throw new Error('fxStyle is true (every beam and explosion raised to the effects\' style floor, by rule), false, or { register?, flavor?, …dials } (the floor composed for the game: scene/juice-style.js)');
     if (fxs === true && payload.events) payload.events = { ...payload.events, fxStyle: true };
-    else if (fxs && payload.events) { const { readJuiceStyle } = await import('@/lib/graph/scene/juice-style.js'); payload.events = { ...payload.events, fxStyle: readJuiceStyle(fxs) }; }
+    // (a floor at the era's fidelity is drawn at the read's: the sixth generation's paint, the seventh's form)
+    else if (fxs && payload.events) { const { readJuiceStyle, fidelityOfRead } = await import('@/lib/graph/scene/juice-style.js'); const S = readJuiceStyle(fxs); payload.events = { ...payload.events, fxStyle: S.fidelity ? { ...S, fidelity: fidelityOfRead(S.fidelity, era) } : S }; }
     else if (fxs) { const { readJuiceStyle } = await import('@/lib/graph/scene/juice-style.js'); readJuiceStyle(fxs); }
   }
   if (payload && sketch.manifest.crystalLight) {
@@ -747,7 +797,9 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
   // payload.fireSources (a dungeon's chambers and tunnels; a terrain's sources set on the ground); `fire.sources` with
   // a 3D `at` add to them anywhere. Opt-in; absent ⇒ byte-identical.
   // A play block's burning statuses (playscape elements burning / blaze) add a fire per body they may set alight.
-  const bodyFire = payload && sketch.manifest.play ? (await import('@/lib/graph/playscape/elements/body-fire.js')).bodyFires(sketch.manifest.play, sketch.manifest.entities) : [];
+  // (and a status a body is born under: a foe's base state)
+  const bornAlight = Array.isArray(sketch.manifest.entities) && sketch.manifest.entities.some((e) => e && e.body && e.body.born && e.body.born.statuses && Object.keys(e.body.born.statuses).length);
+  const bodyFire = payload && (sketch.manifest.play || bornAlight) ? (await import('@/lib/graph/playscape/elements/body-fire.js')).bodyFires(sketch.manifest.play, sketch.manifest.entities) : [];
   if (payload && (sketch.manifest.fire || bodyFire.length)) {
     const { validateFire, resolveFire, firePageChannel } = await import('@/lib/graph/fire/fire.js');
     const errs = validateFire(sketch.manifest.fire);
@@ -766,7 +818,7 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     // operator watches from a glide/follow spectator camera (WASD free-fly, Tab cycles the watched
     // fighter). Opt-in; absent ⇒ the world seats a pilot as before (byte-identical).
     if (sketch.manifest.spectate === true) payload.spectate = true;
-    // SEATS (pilots.plan.md): `seats: { bodies, max?, join?, drop?, floor? }`, the pilotable bodies seats 2 to 4 take, each
+    // SEATS (docs/local-multiplayer-principles.md): `seats: { bodies, max?, join?, drop?, floor? }`, the pilotable bodies seats 2 to 4 take, each
     // a player's own controller on the page (scene/channels/controllable seatsScript). Opt-in; absent ⇒ byte-identical.
     if (sketch.manifest.seats !== undefined) payload.seats = readSeats(sketch.manifest.seats, sketch.manifest.entities, payload.pilot);
     // AI-attack switch: `ai:'off'` loads the world passive (ai-ambient suits stand down until the
@@ -826,6 +878,19 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     if (sketch.manifest.commander && typeof sketch.manifest.commander === 'object') payload.commander = sketch.manifest.commander;
     payload.nonBakeable = true;
     const figs = sketch.manifest.figures;
+    // A MACHINE'S JUICE AT ITS FIDELITY (car-designer/juice.js rigFidelity): the world's composed floor's (at the read's
+    // era), else the venue's drawing (a voxel kit or venue its blocks, an anime venue its cel discs), else the read's era
+    // (gen-7 its bloom). The sixth generation's paint is the page's own: the juice as it was
+    const atRigFidelity = async (fig) => {
+      if (!fig || !fig.juice) return fig;
+      const m = sketch.manifest, { rigFidelity } = await import('@/lib/graph/car-designer/juice.js');
+      const fxs = m.fxStyle && typeof m.fxStyle === 'object' ? m.fxStyle : null;
+      const floor = fxs && fxs.fidelity ? (await import('@/lib/graph/scene/juice-style.js')).fidelityOfRead(fxs.fidelity, era) : undefined;
+      const v = m.scape && m.scape.venue, { STADIUM_PRESETS } = await import('@/lib/graph/stadium/stadium-words.js');
+      const venueLook = typeof v === 'string' ? STADIUM_PRESETS[v]?.look : v && typeof v === 'object' ? v.look ?? STADIUM_PRESETS[v.preset]?.look : undefined;
+      const f = rigFidelity({ floor, pole: m.kit && m.kit.pole, venueLook, era });
+      return f === 'paint' ? fig : { ...fig, juice: { ...fig.juice, fidelity: f } };
+    };
     if (figs && typeof figs === 'object') {
       payload.figures = {};
       for (const [name, rawSpec] of Object.entries(figs)) {
@@ -843,7 +908,8 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
         // whose clips, retargeted onto its rig, play the states `clips` hands to them (playerStates, when the world was
         // written: the library's for the states it names, the hero's own door gaits where it carries them). Absent ⇒
         // no hero is resolved, byte-identical.
-        if (rawSpec.hero || typeof rawSpec.heroRef === 'string') {
+        // (and a MODEL made elsewhere, `modelRef`: a rigged humanoid .glb bound onto a sketch, worn as a hero's pack is)
+        if (rawSpec.hero || typeof rawSpec.heroRef === 'string' || typeof rawSpec.modelRef === 'string') {
           // (a composed juice floor's game type times the hero's swing: hero-swing.js swingTiming; the floor or none ⇒ its own)
           const fxs = sketch.manifest.fxStyle, swing = fxs && typeof fxs === 'object' ? (await import('@/lib/graph/scene/juice-style.js')).readJuiceStyle(fxs).flavor : null;
           // THE HELD STRIKE: a platform body playing this hero whose rule carries a feel's string (its contact window,
@@ -853,7 +919,25 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
           const wields = (e) => e && e.body && e.body.figure === name && e.rule && e.rule.type === 'platform' && Array.isArray(e.rule.strikeContact) && e.rule.strike == null;
           const wielder = (payload.entities || []).find(wields);
           const { held, ...figure } = await heroFigure(name, rawSpec, { swing, ...(wielder ? { swings: { contact: wielder.rule.strikeContact } } : {}) });
-          payload.figures[name] = figure;
+          // (a body destroyed in it, `vanish.die` a dismantle or a cleave: each bone's parent rides the figure, the joints the
+          // page's wreck cuts: figures/rig-tpose.js humanoidParents, read off the rest bones; a rig not a humanoid's, none)
+          // (and one CLEAVED in it: its parts cut in two by a slash, scene/rig-cleave.js, seeded by the figure's name, the
+          // cut capped in the inside its body names)
+          const wrecked = (payload.entities || []).filter((e) => e && e.body && (e.body.figure === name || (Array.isArray(e.body.modes) && e.body.modes.some((m) => m && m.figure === name))) && wrecks(e));
+          if (wrecked.length) {
+            const { humanoidParents } = await import('@/lib/graph/figures/rig-tpose.js');
+            try { figure.wreck = { parent: humanoidParents(figure.bones) }; } catch { figure.wreck = {}; }
+            const cleaved = wrecked.find((e) => e.body.vanish && (e.body.vanish.die === 'cleave' || (e.body.vanish.die === 'destroy' && Object.values(e.body.vanish.by || {}).some((D) => D && D.die === 'cleave'))));
+            if (cleaved) {
+              const { slashPlane, cleaveFigure } = await import('@/lib/graph/scene/rig-cleave.js');
+              let h = 7; for (const ch of name) h = (h * 31 + ch.charCodeAt(0)) % 999983;
+              figure.wreck.cleave = cleaveFigure(figure, { plane: slashPlane(figure.figH, { seed: h }), ...(cleaved.body.vanish.inside ? { inside: cleaved.body.vanish.inside } : {}) });
+            }
+          }
+          // (the same game type's movement juice, a platformer's or pinball's: gameworld/feel/hero-juice.js, at the
+          // fidelity a machine's takes; any other game type's hero as it was)
+          const moves = swing ? (await import('@/lib/graph/gameworld/feel/hero-juice.js')).heroJuice(swing, figure) : null;
+          payload.figures[name] = moves ? await atRigFidelity({ ...figure, juice: moves }) : figure;
           if (held) payload.entities = payload.entities.map((e) => (wields(e) ? { ...e, rule: { ...e.rule, strike: 'melee', strikeReach: e.rule.strikeReach ?? held.reach, strikeDur: e.rule.strikeDur ?? held.seconds, strikeDamage: e.rule.strikeDamage ?? held.damage } } : e));
           continue;
         }
@@ -863,7 +947,8 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
         // Absent ⇒ no racer is resolved, byte-identical.
         if (rawSpec.racer && typeof rawSpec.racer === 'object') {
           const { racerOf } = await import('@/lib/graph/car-designer/roster.js');
-          payload.figures[name] = racerOf(rawSpec.racer).S.figure;
+          // (read in the form render, gen-7, a finished racer carries its materials for the page to light)
+          payload.figures[name] = await atRigFidelity(racerOf(rawSpec.racer, { form: ERAS[era]?.surface === 'form' }).S.figure);
           continue;
         }
         // SUPERCAR bodies (car-designer/supercar-figure.js): a figures-map entry may be a composed supercar's recipe
@@ -872,7 +957,8 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
         // Absent ⇒ no supercar is resolved, byte-identical.
         if (rawSpec.supercar && typeof rawSpec.supercar === 'object') {
           const { supercarFigure } = await import('@/lib/graph/car-designer/supercar-figure.js');
-          payload.figures[name] = supercarFigure(rawSpec.supercar);
+          // (read in the form render, gen-7, its body and wheels carry their materials for the page to light)
+          payload.figures[name] = await atRigFidelity(supercarFigure(rawSpec.supercar, { form: ERAS[era]?.surface === 'form' }));
           continue;
         }
         // TRANSFORMER bodies (transformation/: more-than-meets): a figures-map entry may be a body in two forms
@@ -1102,11 +1188,21 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
       const figureSources = {};
       for (const [name, rawSpec] of Object.entries(figs)) {
         if (!rawSpec || typeof rawSpec !== 'object') continue;
-        const refKey = ['unitRef', 'figureRef', 'vehicleRef', 'polygomerRef', 'meshRef', 'heroRef']
+        const refKey = ['unitRef', 'figureRef', 'vehicleRef', 'polygomerRef', 'meshRef', 'heroRef', 'modelRef']
           .find((k) => typeof rawSpec[k] === 'string');
         if (refKey) figureSources[name] = `${refKey}:${rawSpec[refKey]}`;
       }
       if (Object.keys(figureSources).length) payload.figureSources = figureSources;
+      // MODES (a body's `modes`, worlds/controllable/vanish.js): each mode's figure carries what it SHEDS when defeated into
+      // the next (scene/rig-shed.js: its triangles the next lacks, bone by bone). None ⇒ the figures as they were
+      const moded = (payload.entities || []).filter((e) => e && e.body && Array.isArray(e.body.modes) && e.body.modes.length > 1);
+      if (moded.length) {
+        const { shedParts } = await import('@/lib/graph/scene/rig-shed.js');
+        for (const e of moded) e.body.modes.slice(0, -1).forEach((m, i) => {
+          const A = payload.figures[m.figure], B = payload.figures[e.body.modes[i + 1].figure];
+          if (A && B && A.rig && B.rig && !(A.shed && A.shed[e.body.modes[i + 1].figure])) A.shed = { ...(A.shed || {}), [e.body.modes[i + 1].figure]: shedParts(A, B) };
+        });
+      }
     }
     // GLYPH bodies (game-ui-language.plan.md, U1): body:{type:'glyph', form, tint?, scale?}
     // lowers here to a single-frame figure-frames body + a generated `glyph:<form>` clip — the
@@ -1234,6 +1330,28 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     if (ev.style !== undefined) {
       const se = validateHudStyle(ev.style, 'events.style');
       if (se.length) throw new Error(`events.style is invalid — see get_game_vocab({ id: 'hud-style' }):\n- ${se.join('\n- ')}`);
+    }
+    // the fades its downed bodies go by (a body's `vanish`, gameworld/vanish.js), played by the page's events. A world
+    // with no events has no page to play them on, and its downed bodies simply go
+    const vanish = Array.isArray(sketch.manifest.entities) ? [...new Set(sketch.manifest.entities.map((e) => e && e.body && e.body.vanish && e.body.vanish.is).filter((k) => typeof k === 'string'))] : [];
+    if (vanish.length) ev = { ...ev, vanish };
+    // and how a summoner's summons arrive (its call's transit, worlds/controllable/summon.js)
+    const arrive = Array.isArray(sketch.manifest.entities) ? [...new Set(sketch.manifest.entities.map((e) => e && e.rule && e.rule.summon && e.rule.summon.with).filter((k) => typeof k === 'string'))] : [];
+    if (arrive.length) ev = { ...ev, arrive };
+    // and whether one of them is DESTROYED (its `vanish.die` a dismantle or a cleave): the page's wreck plays its pieces
+    if (Array.isArray(sketch.manifest.entities) && sketch.manifest.entities.some(wrecks)) ev = { ...ev, wreck: true };
+    // and whether it has LAYER-0 foes (a body with modes, or born under a state: docs/foes.md): a look laid on a foe is laid
+    // on the body it wears now, given the normals a rig body lacks
+    if (Array.isArray(sketch.manifest.entities) && sketch.manifest.entities.some((e) => e && ((e.body && ((Array.isArray(e.body.modes) && e.body.modes.length > 1) || e.body.born)) || (e.rule && e.rule.pair)))) {
+      // (and each status a body is born under, its look drawn as a cue's would be: foes/states.js; and the power-up a
+      // pair's survivor takes on when its partner falls: worlds/controllable/pair.js)
+      const raged = sketch.manifest.entities.some((e) => e && e.rule && e.rule.pair && e.rule.pair.down === 'enrage') ? ['power-up'] : [];
+      const born = [...new Set([...sketch.manifest.entities.flatMap((e) => (e && e.body && e.body.born && e.body.born.statuses ? Object.keys(e.body.born.statuses) : [])), ...raged])];
+      const { LOOKS } = born.length ? await import('@/lib/graph/playscape/elements/elements.js') : { LOOKS: {} };
+      // (a state may leave its look's coat off, `coat: false`: a foe's flaming, whose fire is its look)
+      const coatless = (n) => sketch.manifest.entities.every((e) => !(e && e.body && e.body.born && e.body.born.statuses && e.body.born.statuses[n]) || e.body.born.statuses[n].coat === false);
+      const bornLooks = Object.fromEntries(born.filter((n) => LOOKS[n] && !(ev.looks && ev.looks[n])).map((n) => [n, coatless(n) ? { ...LOOKS[n], coat: false } : LOOKS[n]]));
+      ev = { ...ev, layer0: true, ...(born.length ? { born, looks: { ...(ev.looks || {}), ...bornLooks } } : {}) };
     }
     payload.events = ev;
     payload.nonBakeable = true;

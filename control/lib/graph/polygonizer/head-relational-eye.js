@@ -22,12 +22,37 @@
  * then a gaze TARGET (`look`, aimed from each eye's own centre, so near targets converge), then a side's own; the head's ACTIONS (blink, a smile's squint, a brow's lift) add on top. All V units
  * (head heights), the relational head's frame (+x the figure's right, +y the face, +z up). Pure, deterministic.
  */
-import { smin, sdRoundCone } from './vajra.js';
+import { smin, smax, sdRoundCone } from './vajra.js';
 import { SM } from '../../util/math-scope.js';
 import { hash3 } from '../era/dirt.js';
 
 /** the globe (V): 24 mm across, its sclera's front `back` behind the eye point, the cornea proud of it to the point */
 export const GLOBE = Object.freeze({ r: 0.052, back: 0.063, cornea: 0.034, iris: 0.0255, pupil: 0.0085 });
+
+/** the lids' SEAT on the globe (`eyeRig`'s `seat`, V): within `reach` of a margin the skin lies `lie` over the lid
+ * shell and rises out of it by `rise` [slope, curl] with the distance from the margin, cut with its own `blend` (wide, so
+ * the lid rolls into the cheek: the lid space's narrow blend left a kink there that a net drew ragged); the fold above the
+ * crease rises by `fold` [how far forward it has come at its top over its height, its curl past the arc, how far past
+ * the arc it reaches, the blend it is capped there with: a hard cap stood a ridge along the fold's top] as a pad, out of
+ * the crease steeply and up to the brow near upright, so its face looks forward to the light (a straight lean faced it
+ * down its whole height, the cove's shadow again),
+ * and its ends by `side` [the lean per unit out, its curl, the rise where it has left the skin, the share of the span
+ * either side of the eye's centre it leans out from]; the brow's arc and its ties hang lower by `brow` [the arc's peak,
+ * the brow's head and tail] (the fold's arch was a tall cove over the lid); and the eye (its globe, lids and lashes) sits
+ * `forward` [a share of the way from the cornea toward the nose's tip, the least its cornea stays behind the glabella]
+ * out of a socket that set it deep behind the brow (a deep-set eye comes forward; one already near the brow's line stays,
+ * where the share alone stood it proud of the face). Seated as ONE SECTION (`seat` 2, realistic laws 14) the eye comes
+ * out by `forwardOut`, per sex (hers a third as far behind the glabella: set deep, the lid sat in a cove the brow
+ * shadowed; his a little less out, the globe's flank bare beside his cheekbone when brought as far),
+ * the fold leans out of the knee by `section` instead, a third as steep, and no crease is cut: the lid runs up into the
+ * brow as one surface (the steep pad hooked out over a cut crease, the lid's top, the crease and the fold's underside three dark bands
+ * stacked under the brow, and a blink stretched the lid across them) */
+/** how far from straight ahead (degrees) the opening may bare the globe: past it the skin covers the globe again */
+export const COVER_DEEP = 55;
+/** the cover's fullness under the eye's outer corner (V): its lift and its blend into the face at the middle of the sector
+ * `toward` [out, forward, up] from the globe's centre, eased to none `spread` degrees off it */
+export const COVER_RIM = Object.freeze({ lift: 0.003, blend: 0.014, toward: [0.6, 0.35, -0.7], spread: 50 });
+export const SEAT = Object.freeze({ reach: 0.045, lie: 0.0005, rise: [0.4, 60], blend: 0.012, fold: [0.9, 80, 0.03, 0.012], section: [0.3, 80, 0.03, 0.012], side: [0.3, 20, 0.12, 0.05], brow: [0.016, 0.012], forward: [1 / 3, 0.026], forwardOut: Object.freeze({ female: [1 / 3, 0.008], male: [1 / 3, 0.024] }), shelf: [0.03, 0.005] });
 
 /** the channels, [rest, min, max]; the gaze in degrees (+yaw toward the figure's right, +pitch up) */
 export const EYE_CHANNELS = Object.freeze({
@@ -130,9 +155,10 @@ function bump(t, a, shape) {
  * is the brow pad's action ({ med, L, R }, each a { x, z } shift in V from rest to moved); the medial strings take the
  * medial pull, each lateral string its side's. Returns { bridge: [{x, z}…], strings: [[top, tie, foot]…], arcs,
  * sides }: each arc { Fm, Fl, K, z(x) } (z null past the feet), each side { arc, head, tail } (the brow's ties). V
- * units, the head's frame.
+ * units, the head's frame. `seat`: the arc and the ties hang lower by `SEAT.brow`.
  */
-export function browBridge(P, pull = {}) {
+export function browBridge(P, pull = {}, { seat = false } = {}) {
+  const [dropK, dropTie] = seat ? SEAT.brow : [0, 0];
   const zero = { x: 0, z: 0 }, med = pull.med || zero, sides = ['L', 'R'].filter((s) => P[`en${s}`]);
   const bz = sides.reduce((m, s) => m + P[`en${s}`].z, 0) / sides.length + 0.16;
   const arcs = {}, strings = [], tops = {}, out = {};
@@ -142,11 +168,11 @@ export function browBridge(P, pull = {}) {
     const Fl = { x: ex.x + sg * 0.022 + lat.x, z: ex.z + 0.004 + lat.z };
     // the brow's ties: its head a touch medial of the inner canthus, its tail on the wing-to-canthus line (straight up
     // past the canthus when there is no wing), both carried by their strings' pulls
-    const head = { x: en.x - sg * 0.008 + med.x, z: en.z + 0.075 + med.z }, tz = en.z + 0.079;
+    const head = { x: en.x - sg * 0.008 + med.x, z: en.z + 0.075 - dropTie + med.z }, tz = en.z + 0.079 - dropTie;
     const tail = al ? { x: ex.x + (ex.x - al.x) * ((tz - ex.z) / (ex.z - al.z)) + lat.x, z: tz + lat.z } : { x: ex.x + sg * 0.03 + lat.x, z: tz + lat.z };
     // each string a line from its foot through its tie, up to the bridge
     const along = (foot, tie, z) => ({ x: foot.x + ((tie.x - foot.x) * (z - foot.z)) / (tie.z - foot.z), z });
-    const K = { x: e.x + sg * GLOBE.iris + (med.x + lat.x) / 2, z: en.z + 0.08 + (med.z + lat.z) / 2 };
+    const K = { x: e.x + sg * GLOBE.iris + (med.x + lat.x) / 2, z: en.z + 0.08 - dropK + (med.z + lat.z) / 2 };
     const W = Fl.x - Fm.x, uK = (K.x - Fm.x) / W;
     const chord = (u) => Fm.z + (Fl.z - Fm.z) * u;
     const z = (x) => { const u = (x - Fm.x) / W; return u <= 0 || u >= 1 ? null : chord(u) + (K.z - chord(uK)) * bump(u, uK, -0.35); };
@@ -168,9 +194,9 @@ export function browBridge(P, pull = {}) {
  * { opening, lidSpace, lids, rims, crease, globe, paint, margins } — signed fields in V (negative inside): the lid space
  * to cut back out of the skin, the lids' mass to add to it, the opening to carve through it, the margins and folds to lay on, the crease to cut, the globe to set in; `paint(p)` names the globe's part
  * at a surface point ('pupil' | 'iris' | 'sclera') or null, and `irisTone(p)` the iris's pattern there (a tone about 1);
- * `margins` are the lash lines (upper, lower) as functions of t.
+ * `margins` are the lash lines (upper, lower) and the upper lid's crease as functions of t.
  */
-export function eyeRig(P, s, c, fissure, arc = browBridge(P).arcs[s], split = 0.6) {
+export function eyeRig(P, s, c, fissure, arc = browBridge(P).arcs[s], split = 0.6, { seat = false } = {}) {
   const en = P[`en${s}`], ex = P[`ex${s}`], e = P[`eye${s}`];
   const gc = { x: e.x, y: e.y - GLOBE.back, z: e.z };
   // THE GAZE: the axis the cornea, iris and pupil turn to (+yaw toward the figure's right, +pitch up)
@@ -218,8 +244,11 @@ export function eyeRig(P, s, c, fissure, arc = browBridge(P).arcs[s], split = 0.
     for (let i = 0; i + 1 < beads.length; i++) m = SM.min(m, sdRoundCone(p, beads[i].c, beads[i + 1].c, beads[i].r, beads[i + 1].r));
     return m;
   };
-  const upperRim = ts.map((t) => ({ c: pt(t, upZ(t), 0.004 * taper(t), 0.004), r: 0.0035 + 0.006 * taper(t) }));
-  const lowerRim = ts.map((t) => ({ c: pt(t, loZ(t), -0.003 * taper(t), 0.003), r: 0.003 + 0.004 * taper(t) }));
+  // (seated, the lower margin stands at the lid's front: the opening's cut edge there, no longer in a tunnel, would net
+  // ragged; the rim rounds it, as the upper's does)
+  const rimAt = (upper, t) => (upper ? { c: pt(t, upZ(t), 0.004 * taper(t), 0.004), r: 0.0035 + 0.006 * taper(t) }
+    : seat ? { c: pt(t, loZ(t), -0.002 * taper(t), 0.006), r: 0.004 + 0.005 * taper(t) } : { c: pt(t, loZ(t), -0.003 * taper(t), 0.003), r: 0.003 + 0.004 * taper(t) });
+  const upperRim = ts.map((t) => rimAt(true, t)), lowerRim = ts.map((t) => rimAt(false, t));
   // the crease's height over the margin, more as the lid closes (the lid's skin unfolds)
   const gap = 0.034 * (1 + 0.6 * (1 - Math.min(1, c.open)));
   // THE LID SPACE, hung from the bridge: the upper lid drapes the globe from its margin up to the KNEE (the crease, no
@@ -251,19 +280,56 @@ export function eyeRig(P, s, c, fissure, arc = browBridge(P).arcs[s], split = 0.
     const zm0 = upZ(tc), zm = zm0 + (za0 - zm0) * smooth01(out / reach), zk = Math.min(kneeZ(tc), zm + 0.5 * Math.max(0, za0 - zm));
     // (and shallower as the space thins toward its feet and past the canthi, to nothing where it closes: a thin wedge
     // cut to full depth left the skin above it overhanging, a ledge beside the eye)
-    const shallow = 0.04 * Math.max(1 - smooth01((za0 - zm) / 0.02), smooth01(out / reach));
+    // (seated, the SIDES lean as the fold does: out from the eye's middle stretch (`SEAT.side[3]` of the span either side
+    // of its centre) the floor leans out by `SEAT.side` [lean, curl] with the distance, out to the arc's feet, so the space's
+    // ends roll out into the temple and the nose's side; cut to full depth out to the canthi, the nose's side and the
+    // temple stood as walls facing sideways, dark under a light from above)
+    const ds = Math.max(0, Math.abs(t - 0.5) - SEAT.side[3]) * Math.abs(span), side = seat ? SEAT.side[0] * ds + SEAT.side[1] * ds * ds : 0;
+    if (side > SEAT.side[2]) return null;
+    // (the lean is the fold's, above the knee: at the knee the lid lies on its shell, the crease in it)
+    const shallow = seat ? 0 : 0.04 * Math.max(1 - smooth01((za0 - zm) / 0.02), smooth01(out / reach));
     const za = zk + Math.max(0, za0 - zk) * (1 - 0.5 * c.hood), yk = shellY(x, zk) + shallow;
-    return { zm, zk, za, yk, h: Math.max(za - zk, 0.002), shallow };
+    return { zm, zk, za, yk, h: Math.max(za - zk, 0.002), shallow, side };
   };
+  // THE SEAT (`seat`): the lids rest on the globe. Without it the skin about the opening stands proud of the globe (the
+  // lower lid a shelf of the cheek, the upper a plate toward the canthi, where the lid space is shallow) and the opening
+  // is a tunnel down to the globe, a dark void between lid and eye; with it the skin within `SEAT.reach` of the margins
+  // is cut back to the lid shell over the globe, rising out of it with the distance from the margin (`SEAT.rise`, a
+  // slope and a curl), so each margin lies on the globe and the lid rolls out into the cheek and the fold above
+  const seatSpace = seat ? (p) => {
+    const t = (p.x - en.x) / span, tc = clamp(t, 0, 1), out = Math.abs(t - tc) * Math.abs(span);
+    const zu = upZ(tc), zl = loZ(tc);
+    // (the upper side only up to the crease: the fold above is the lid space's own)
+    if (p.z > zu && p.z > kneeZ(tc)) return Infinity;
+    const dv = p.z > (zu + zl) / 2 ? p.z - zu : zl - p.z, dd = Math.hypot(Math.max(0, dv), out);
+    if (dd > SEAT.reach) return Infinity;
+    // (over the slope, so it reads as a distance and the blend is as wide where the rise curls)
+    return (shellY(p.x, p.z) + SEAT.lie + SEAT.rise[0] * dd + SEAT.rise[1] * dd * dd - p.y) / Math.hypot(1, SEAT.rise[0] + 2 * SEAT.rise[1] * dd);
+  } : null;
   const lidSpace = (p) => {
     const t = (p.x - en.x) / span, F = foldAt(p.x, t);
     if (!F) return Infinity;
     if (p.z <= F.zk) return Math.max(F.zm - p.z, shellY(p.x, p.z) + F.shallow - p.y);
+    // (seated, the fold rises from the knee as a pad, `SEAT.fold`: forward out of the crease, which keeps its shadow,
+    // then up to the brow near upright, its face to the light, the brow's underside trimmed to it; then it curls out of
+    // the skin past the arc. The square's ease below stood at the lid shell's depth well up under the brow, a cove
+    // facing down, dark under any key)
+    if (seat) {
+      // (the sides' lean grows from nothing at the knee to its whole over the fold's height)
+      const dz = p.z - F.zk, u = Math.min(1, dz / F.h), over = Math.max(0, dz - F.h), [lean, curl, past, cap] = seat === 2 ? SEAT.section : SEAT.fold, sw = smooth01(dz / F.h);
+      // (one section's SHELF, `shelf` [forward, over the height]: the fold steps forward out of the knee near level, so
+      // from the front its edge is the one arc and the lid's top tucks back under it, hidden: the skin a blink unrolls)
+      const [sd, sh] = seat === 2 ? SEAT.shelf : [0, 1], ds = sd * smooth01(F.h / (4 * sh)), st = Math.min(1, dz / sh);
+      const slope = 2 * lean * (1 - u) + 2 * curl * over + (ds * 6 * st * (1 - st)) / sh;
+      return smax(p.z - F.za - past, (F.yk + ds * smooth01(st) + lean * F.h * (1 - (1 - u) * (1 - u)) + curl * over * over + F.side * sw - p.y) / Math.hypot(1, slope), cap);
+    }
     // the fold rolls out of the knee and rises into the arc (a square's ease: gentle at the crease, steep at the brow)
     const u = Math.min(1, (p.z - F.zk) / F.h), rise = yArc - F.yk, slope = (2 * rise * u) / F.h;
     return Math.max(p.z - F.za, (F.yk + rise * u * u - p.y) / Math.hypot(1, slope));
   };
   // the crease: a groove along the knee
+  // (seated as one section under the brow, `seat` 2: no groove cut along the knee)
+  if (seat === 2) c = { ...c, crease: 0 };
   const crease = c.crease > 0.02 ? chainF(ts.map((t) => {
     const x = xAt(t), F = foldAt(x, t);
     const z = F ? F.zk : kneeZ(t);
@@ -309,7 +375,7 @@ export function eyeRig(P, s, c, fissure, arc = browBridge(P).arcs[s], split = 0.
     return { x: g.x / l, y: g.y / l, z: g.z / l };
   };
   const lashLine = (upper) => (t) => {
-    const rim = (u) => (upper ? { c: pt(u, upZ(u), 0.004 * taper(u), 0.004), r: 0.0035 + 0.006 * taper(u) } : { c: pt(u, loZ(u), -0.003 * taper(u), 0.003), r: 0.003 + 0.004 * taper(u) });
+    const rim = (u) => rimAt(upper, u);
     const { c: q, r } = rim(t), a = rim(Math.max(0, t - 0.01)).c, b = rim(Math.min(1, t + 0.01)).c;
     const n = gradG(q);
     let T = { x: b.x - a.x, y: b.y - a.y, z: b.z - a.z };
@@ -320,7 +386,9 @@ export function eyeRig(P, s, c, fissure, arc = browBridge(P).arcs[s], split = 0.
     if ((w.z > 0) !== upper) w = { x: -w.x, y: -w.y, z: -w.z };
     return { c: q, r, n, T, away: w };
   };
-  const margins = { upper: lashLine(true), lower: lashLine(false), shut };
+  // (and the upper lid's CREASE on the lid's shell, where the lid ends and the fold over it begins: what follows the
+  // lid, a blink, turns the lid up to it and leaves the fold)
+  const margins = { upper: lashLine(true), lower: lashLine(false), shut, crease: (t) => { const u = clamp(t, 0, 1), z = kneeZ(u); return { c: { x: xAt(u), y: shellY(xAt(u), z), z } }; } };
   // THE IRIS'S PATTERN: a tone (×, about 1) over the iris's colour, in polar terms about the gaze — u from the pupil's
   // edge (0) to the limbus (1), θ round it. Radial FIBRES (streaks: many round, few across), a wavy COLLARETTE ring
   // a third of the way out parting the lighter pupillary zone from the ciliary, darker CRYPTS among the fibres, the
@@ -351,5 +419,20 @@ export function eyeRig(P, s, c, fissure, arc = browBridge(P).arcs[s], split = 0.
     return (u < uc ? 1.14 : 1) * (0.72 + 0.5 * fibres) * (1 + 0.22 * collarette) * (1 - 0.45 * crypt) * (1 - 0.5 * limbal * limbal) * (1 - 0.35 * ruff);
   };
   const bound = { c: { x: e.x, y: e.y, z: e.z }, r: 0.16 };
-  return { opening, lidSpace, lids, rims, crease, globe, paint, irisTone, bound, gaze: d, margins };
+  // THE GLOBE COVERED (`seat` 2, realistic laws 14): the face's skin about the eye never lies inside the lids' shell (the
+  // globe and a lid's thickness, about its own centre, so no look moves it), but where the opening is carved through it:
+  // with the eye brought forward the cheekbone, the socket's floor and the nose's side had left the globe's flank bare
+  // between them and the lower lid, the sclera seen from below and beside
+  // (and past `COVER_DEEP` from straight ahead laid over the opening's cut again (`coverEnds`): the opening's wedge into the
+  // inner corner cut to the globe's side, a slit to it beside the nose's bridge, where the caruncle fills it)
+  // (fuller under the eye's outer corner, `COVER_RIM`: the cheekbone's top and the lateral orbital rim, the profile's >,
+  // stand forward over the globe's lower outer side, so the seam where the lower lid meets the globe there is hidden)
+  const sgx = Math.sign(ex.x - en.x) || 1, rimD = (() => { const [a, b, c] = COVER_RIM.toward, l = Math.hypot(a, b, c); return [sgx * a / l, b / l, c / l]; })(), rimC = Math.cos((COVER_RIM.spread * Math.PI) / 180);
+  const rimW = (p, r) => { const t = Math.min(1, Math.max(0, (((p.x - gc.x) * rimD[0] + (p.y - gc.y) * rimD[1] + (p.z - gc.z) * rimD[2]) / (r || 1e-9) - rimC) / (1 - rimC))); return t * t * (3 - 2 * t); };
+  const rim = (p, r) => COVER_RIM.lift * rimW(p, r);
+  const cover = seat === 2 ? (p) => { const r = Math.hypot(p.x - gc.x, p.y - gc.y, p.z - gc.z); return r - lidR - rim(p, r); } : null, cd = Math.cos((COVER_DEEP * Math.PI) / 180);
+  const coverEnds = cover ? (p) => { const r = Math.hypot(p.x - gc.x, p.y - gc.y, p.z - gc.z) || 1e-9; return Math.max(cover(p), ((p.y - gc.y) / r - cd) * lidR); } : null;
+  // (and joined to the face the wider there, `COVER_RIM.blend`: the cheekbone's top rising into it, never a ledge)
+  const coverBlend = cover ? (p) => COVER_RIM.blend * rimW(p, Math.hypot(p.x - gc.x, p.y - gc.y, p.z - gc.z)) : null;
+  return { opening, lidSpace, seat: seatSpace, lids, rims, crease, globe, paint, irisTone, bound, gaze: d, margins, ...(cover ? { cover, coverEnds, coverBlend } : {}) };
 }

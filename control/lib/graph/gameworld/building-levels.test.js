@@ -57,6 +57,16 @@ describe('the runner makes it', () => {
     expect(h.game.levelRef).toBe('lv_inn');
   });
 
+  it('a building use (a genre level\'s office) is laid on its own bay kit with its plan\'s settings, played to its goal up its storeys', () => {
+    const W = withInn(MEADOWMARK, { use: 'office', storeys: 2, wings: 'I', bays: 2 }), G = readGameworld(W);
+    const st = gameStages(W).find((s) => s.level === 'the-inn'), order = stageLevelOrder(G, st, { ref: 'lv_office' });
+    expect(order.args.manifest).toMatchObject({ kind: 'stage', kit: 'bay-everyday', program: { use: 'office', storeys: 2, wings: 'I', bays: 2 } });
+    const lowered = withBuildingLevel(order.args.manifest, 'lv_office');
+    expect(lowered.game.mechanics.at(-1).kind).toBe('reach-exit');
+    expect(order.ends.exitFrom).toMatch(/office/);
+    expect(() => readGameworld(withInn(MEADOWMARK, { use: 'office', floors: 2 }))).toThrow(/not a building setting/);
+  });
+
   it('a tower is played up its storeys: the goal at the lookout\'s floor, the walker looking for ground over its feet', () => {
     const W = withInn(MEADOWMARK, { use: 'tower', seed: 1 }), G = readGameworld(W);
     const st = gameStages(W).find((s) => s.level === 'the-inn');

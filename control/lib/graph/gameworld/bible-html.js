@@ -15,7 +15,8 @@
  * the kit's card (its trees, grass, water, sky, light, air). The style and color key lays out every kit's ramps and
  * what each one paints. Every plate is drawn by its builder.
  *
- * `gameworldBibleHtml(world)` is pure (the same world, the same page). Each plate is fenced `<!--plate:name-->…
+ * `gameworldBibleHtml(world, { foePortraits? })` is pure (the same world, the same page); `foePortraits` the made foes'
+ * photographs its Foes section shows (foe-cast-html.js foeBiblePart), each foe its silhouette without one. Each plate is fenced `<!--plate:name-->…
  * <!--/plate-->` so a script can swap its SVG for an image (`out-sheet.mjs gameworld --raster`).
  */
 import { readGeocube, geocubeRamps } from '../era/geocube.js';
@@ -28,7 +29,7 @@ import { engineOf } from '../scene/engines/registry.js';
 import { concernsOf } from './concerns.js';
 import { readGameworld, resolveLevel, OPEN_SLOTS, civLibrary } from './world.js';
 import { rtsRoster } from '../board/board-rts-tech.js';
-import { gameworldGraph, graphOutline, graphMermaid } from './graph.js';
+import { gameworldGraph, graphOutline, graphMermaid, playOrder } from './graph.js';
 import { styleGuide, civilizationCard } from './style-guide.js';
 import { natureCard, colorKey, landFor } from './nature.js';
 import { reviewState, MODES, STAMPS } from './review.js';
@@ -36,7 +37,10 @@ import { landLaws } from '../era/out-land.js';
 import { designLand, manyStep, LAND_FORM_IDS } from '../era/out-land.js';
 import { drawLand, manyStrip, landFit } from '../era/out-land-html.js';
 import { withProgram, programPlanSvg } from '../era/programs.js';
-import { buildingStage } from './levels.js';
+import { buildingStage, levelBuildingStage } from './levels.js';
+import { finishesOf, finishesCss, finishesHtml } from './finishes.js';
+import { skinHead } from './book-skin.js';
+import { wcdPage, WCD_CSS } from './wcd-page.js';
 import { layLevel } from '../level/index.js';
 import { outTrailPlanSvg } from '../era/out-trail-board.js';
 import { localMeruPlanSvg } from '../local-meru/premap.js';
@@ -57,6 +61,7 @@ import { CRAFTED } from './world.js';
 import { weatherCardHtml } from './weather-card.js';
 import { airOfKit } from './style-guide.js';
 import { storyReport } from './runner.js';
+import { foeBiblePart } from './foe-cast-html.js';
 import { airspaceOf } from '../skyscape/airspace.js';
 import { feelReport } from './feel/lower.js';
 import { feelSuggestion } from './feel/suggest.js';
@@ -147,7 +152,9 @@ function buildLevel(G, id) {
     const B = R.building, name = B.use ?? B.ref;
     const svg = B.ref ? `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 80" width="300" height="80"><text x="150" y="44" text-anchor="middle" fill="currentColor" font-size="13">the building ${esc(B.ref)}, as made</text></svg>`
       : (() => { const m = withProgram(buildingStage(B)); return programPlanSvg({ use: B.use, rooms: m.rooms, links: m.links, entry: m._program.entry, goal: m._program.goal }, 300); })();
-    return { R, laid: { stages: [{ node: name, section: 'building' }], order: [name] }, town: null, paint, walk: [{ node: name, section: 'building', svg }] };
+    // (what it will wear: its finishes, read off the stage it is built as)
+    const stage = levelBuildingStage(G, R, id), finishes = stage ? finishesOf(stage, { palette: R.style?.palette ?? G.style?.palette ?? null }) : null;
+    return { R, laid: { stages: [{ node: name, section: 'building' }], order: [name] }, town: null, paint, walk: [{ node: name, section: 'building', svg }], finishes };
   }
   // a city level: its plan sheet (the city book's), its segments and portals drawn on it
   if (R.city) {
@@ -215,14 +222,6 @@ function worldMapSvg(g, order) {
   return `<svg class="worldmap" viewBox="0 0 ${W} ${H}" width="${W}" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="The world map"><defs><marker id="wm-a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="var(--ink)"/></marker></defs>${o.join('')}</svg>`;
 }
 
-// the levels in the order they are played: from the start, along its links, then any left
-function playOrder(G) {
-  const order = [G.start];
-  for (let more = true; more;) { more = false; for (const l of G.links) if (order.includes(l.from) && !order.includes(l.to)) { order.push(l.to); more = true; } }
-  return [...order, ...G.ids.filter((id) => !order.includes(id))];
-}
-
-
 /** The bible of a gameworld, as one page. */
 /** A brief's words, however it was written: a string, the composer's { prompt }, or a creator's { text, why? }. */
 export const briefText = (b) => (typeof b === 'string' ? b : b?.prompt ?? b?.text ?? '');
@@ -255,10 +254,16 @@ function feelHtml(world) {
 ${R.lost.length ? `<p class="muted">not carried yet: ${R.lost.map((x) => esc(x.field)).join(', ')}</p>` : ''}</details>`;
 }
 
-export function gameworldBibleHtml(world) {
+export function gameworldBibleHtml(world, { foePortraits = {} } = {}) {
   resetTownIds();
   const G = readGameworld(world), order = playOrder(G), graph = gameworldGraph(G), guide = styleGuide(G);
+  // (the world's book skin, book-skin.js: absent, the book's own look)
+  const skin = skinHead(G.book);
+  // its foes (foe-cast-html.js): a section of their own and who stands on each level, linked to the cast sheet's cards;
+  // a world that fields none carries none of it
+  const FX = foeBiblePart(world, { portraits: foePortraits });
   const built = Object.fromEntries(order.map((id) => [id, buildLevel(G, id)]));
+  const fin = order.map((id) => built[id].finishes).filter((F) => F?.tiles.length);
   const first = built[order.find((id) => built[id].town) ?? order[0]];
   const cover = first.town ? plate('cover', townAxonSvg(first.town, first.paint, null, { w: 1500, h: 900 })) : first.walk[0].svg;
 
@@ -352,7 +357,7 @@ ${briefText(world.brief) ? `<details class="brief" open><summary>${Array.isArray
     const walk = b.walk.map((w, k) => `<figure class="sec"><div class="sec-im">${plate(`walk-${id}-${w.node}`, w.svg)}</div><figcaption><i>${k + 1}</i> ${esc(w.node)} · ${SECTION_WORDS[w.section]}</figcaption></figure>${k < b.walk.length - 1 ? '<div class="seam" aria-hidden="true">→</div>' : ''}`).join('');
     const places = b.town ? `<div class="places"><figure>${plate(`town-${id}`, townMapSvg(b.town, b.paint, null, { px: 3, labels: true }))}<figcaption>The town${b.town.castle ? ' and its castle' : ''}, by ${esc(G.civilizations[R.built.town].name)}${R.built.castle && R.built.castle !== R.built.town ? ` and ${esc(G.civilizations[R.built.castle].name)}` : ''} · ${b.town.laws.filter((l) => !l.ok).length ? `${b.town.laws.filter((l) => !l.ok).length} laws advise` : 'every law holds'}</figcaption></figure>${b.town.castle ? `<figure>${plate(`castle-${id}`, castleAxon(b.town.castle, b.paint))}<figcaption>The castle standing, by ${esc(G.civilizations[R.built.castle].name)}</figcaption></figure>` : ''}</div>` : '';
     return `<section class="part level" id="level-${esc(id)}"><div class="level-h"><span class="eyebrow">Level ${i + 1}${id === G.start ? ' · start' : ''} ${stamp(`level:${id}`)}</span><h2>${esc(R.name)}</h2><p class="muted mono">${esc(R.style.kit)} · seed ${R.seed} · ${b.laid.order.length} section${b.laid.order.length === 1 ? '' : 's'}</p></div>
-<div class="level-grid"><div><h4>${R.building ? 'The building' : R.city ? 'The city' : R.roadway ? 'The roadway' : R.airspace ? 'The airspace' : 'The walk'}</h4><div class="walk">${walk}</div>${places ? `<h4>On its ground</h4>${places}` : ''}</div><aside class="local">${stampOf(`level:${id}`)?.note ? `<div class="review-note"><span class="eyebrow">Sent back</span><p>${esc(stampOf(`level:${id}`).note)}</p></div>` : ''}<h4>Local</h4>${ledger}${ownStyle.join('')}</aside></div></section>`;
+<div class="level-grid"><div><h4>${R.building ? 'The building' : R.city ? 'The city' : R.roadway ? 'The roadway' : R.airspace ? 'The airspace' : 'The walk'}</h4><div class="walk">${walk}</div>${places ? `<h4>On its ground</h4>${places}` : ''}${b.finishes?.tiles.length ? `<div class="finishes"><h4>Its finishes</h4>${finishesHtml(b.finishes, esc)}</div>` : ''}${FX ? FX.onLevel(id) : ''}</div><aside class="local">${stampOf(`level:${id}`)?.note ? `<div class="review-note"><span class="eyebrow">Sent back</span><p>${esc(stampOf(`level:${id}`).note)}</p></div>` : ''}<h4>Local</h4>${ledger}${ownStyle.join('')}</aside></div></section>`;
   }).join('\n');
 
   // THE CAST AND THE STORY (story.js): who else is in the world, and each moment with where it bound, or why it could not
@@ -373,21 +378,22 @@ ${briefText(world.brief) ? `<details class="brief" open><summary>${Array.isArray
   const open = OPEN_SLOTS.filter((k) => !G[k]).map((k) => `<article class="card open"><div class="card-h"><span class="eyebrow">Open</span><h3>${esc(k[0].toUpperCase() + k.slice(1))}</h3></div><p class="muted">Not on the ground. The world leaves room for them${k === 'characters' ? ', and for the people of its civilizations' : ''}.</p></article>`).join('');
 
   return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(G.name)} · Gameworld bible</title>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@600;800&family=IBM+Plex+Mono:wght@400;500&family=Public+Sans:wght@400;500;600&display=swap">
-<style>${CSS}</style></head><body><div class="wrap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@600;800&family=IBM+Plex+Mono:wght@400;500&family=Public+Sans:wght@400;500;600&display=swap">${skin.link}
+<style>${CSS}${G.wcd ? `\n${WCD_CSS}` : ''}${fin.length ? `\n${finishesCss(fin)}` : ''}${FX ? FX.css : ''}${skin.css ? `\n${skin.css}` : ''}</style></head><body><div class="wrap">
 <div class="mast"><div class="t">Gameworld bible</div><div class="eyebrow">${esc(G.id)} · seed ${G.seed}</div></div>
-<nav class="tabs" aria-label="Sections"><a href="#cover">World</a><a href="#gate">Gate</a><a href="#map">World map</a><a href="#nature">Natural world</a><a href="#civilizations">Civilizations</a><a href="#key">Color key</a>${order.map((id) => `<a href="#level-${esc(id)}">${esc(built[id].R.name)}</a>`).join('')}${storyPart ? '<a href="#story">Story</a>' : ''}<a href="#open">Open</a></nav>
+<nav class="tabs" aria-label="Sections"><a href="#cover">World</a><a href="#gate">Gate</a><a href="#map">World map</a>${G.wcd ? '<a href="#wcd">To the core</a>' : ''}<a href="#nature">Natural world</a><a href="#civilizations">Civilizations</a><a href="#key">Color key</a>${order.map((id) => `<a href="#level-${esc(id)}">${esc(built[id].R.name)}</a>`).join('')}${FX ? '<a href="#foes">Foes</a>' : ''}${storyPart ? '<a href="#story">Story</a>' : ''}<a href="#open">Open</a></nav>
 <section class="part" id="cover"><div class="cover"><div><h1>${esc(G.name)}</h1><p class="lede">${order.length} level${order.length === 1 ? '' : 's'} · ${esc(G.style.kit)} · ${G.civIds.length} civilization${G.civIds.length === 1 ? '' : 's'}</p></div><figure class="hero">${cover}</figure></div>
 ${gateHtml}<div class="eyebrow">The levels, in the order they are played</div><div class="strip">${strip}</div></section>
 <section class="part" id="map"><div class="part-h"><span class="eyebrow">World map ${stamp('world')}</span><h2>The world, drawn from its graph</h2></div><div class="canvas">${worldMapSvg(graph, order)}</div>
 <details><summary>The graph as an outline</summary><pre>${esc(graphOutline(graph))}</pre></details>
 <details><summary>The graph as a flowchart (Mermaid)</summary><pre>${esc(graphMermaid(graph))}</pre></details>
 <script type="application/json" id="gameworld-graph">${JSON.stringify(graph).replace(/</g, '\\u003c')}</script></section>
-<section class="part" id="nature"><div class="part-h"><span class="eyebrow">Natural world ${stamp('nature')}</span><h2>The land, before anyone builds on it</h2></div>${natureHtml}<div class="cards">${groundHtml}${G.style.weather ? weatherCardHtml(G.style.weather, G.seed, airOfKit(G.style.kit, G.style.weather.air)) : ''}</div></section>
+${wcdPage(G, esc, Object.fromEntries(order.filter((id) => built[id].finishes).map((id) => [id, built[id].finishes])), new Set(Object.keys(world.made ?? {}).filter((k) => k.startsWith('level-')).map((k) => k.replace(/^level-|-\d+$/g, ''))))}<section class="part" id="nature"><div class="part-h"><span class="eyebrow">Natural world ${stamp('nature')}</span><h2>The land, before anyone builds on it</h2></div>${natureHtml}<div class="cards">${groundHtml}${G.style.weather ? weatherCardHtml(G.style.weather, G.seed, airOfKit(G.style.kit, G.style.weather.air)) : ''}</div></section>
 <section class="part" id="civilizations"><div class="part-h"><span class="eyebrow">Civilizations ${stamp('civilizations')}</span><h2>Who builds on it</h2></div>${civCards}</section>
 <section class="part" id="key"><div class="part-h"><span class="eyebrow">Style and color key ${stamp('key')}</span><h2>Every ramp, and what it paints</h2></div><div class="cards">${keyHtml}</div></section>
 ${levels}
-${storyPart}<section class="part" id="open"><div class="part-h"><span class="eyebrow">Open</span><h2>Beyond the ground</h2></div><div class="cards">${open}</div></section>
+${FX ? `${FX.section}
+` : ''}${storyPart}<section class="part" id="open"><div class="part-h"><span class="eyebrow">Open</span><h2>Beyond the ground</h2></div><div class="cards">${open}</div></section>
 <footer><span class="eyebrow">Every plate drawn from its recipe</span><span class="eyebrow">Scapeshift</span></footer>
 </div></body></html>`;
 }

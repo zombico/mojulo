@@ -7,7 +7,7 @@
 //
 // Writes <effect>.html (fxLight and fxStyle), <effect>-light.html (fxLight alone) and <effect>-off.html for each.
 // --juice cel:action: the effect under that composed floor (scene/juice-style.js: a look names its register) instead,
-// <effect>-cel-action.html. --board: every look (or the comma-separated ones given) × game type,
+// <effect>-cel-action.html; --juice material:action:voxel at a fidelity too, <effect>-material-action-voxel.html. --board: every look (or the comma-separated ones given) × game type,
 // <effect>-<look>-<flavor>.html, and board-<effect>.html with the cells side by side, a row a look, so the compositions
 // can be compared by eye. Spike only: the
 // payload is composed here and handed to emitThreeWorld; nothing in it is a product surface.
@@ -58,7 +58,7 @@ const rigI = args.indexOf('--rig'), rig = rigI >= 0; if (rig) args.splice(rigI, 
 // --close caster|target: the camera close on one of them (to see what an effect does to a body)
 const closeArg = flag('--close') ?? null;
 const cells = board ? (boardArg ? boardArg.split(',') : JUICE_LOOK_IDS).flatMap((look) => JUICE_FLAVOR_IDS.map((flavor) => readJuiceStyle({ look, flavor })))
-  : juiceArg ? [(([look, flavor]) => readJuiceStyle({ look, flavor }))(juiceArg.split(':'))] : null;
+  : juiceArg ? [(([look, flavor, fidelity]) => readJuiceStyle({ look, flavor, ...(fidelity ? { fidelity } : {}) }))(juiceArg.split(':'))] : null;
 const want = args.length ? args : Object.keys(EFFECTS);
 
 const NIGHT = { from: 'gothic-night', materials: true };
@@ -117,7 +117,7 @@ for (const name of want) {
   const cues = [...(E.start ? [{ id: 'wear', when: { start: true }, then: E.start }] : []), { id: 'go', when: { start: true }, then: E.then }, { id: 'again', when: { every: E.every }, then: E.then }];
   const events = lowerPlay({ entities, play: { cues } }, { player: 'caster' });
   // three takes: the floor and the light (<effect>), the light alone (-light), neither (-off); or the composed cells
-  const takes = cells ? cells.map((c) => [`-${c.look}-${c.flavor}`, { ...events, fxLight: true, fxStyle: c }]) : [['', { ...events, fxLight: true, fxStyle: true }], ['-light', { ...events, fxLight: true }], ['-off', events]];
+  const takes = cells ? cells.map((c) => [`-${c.look}-${c.flavor}${c.fidelity ? `-${c.fidelity}` : ''}`, { ...events, fxLight: true, fxStyle: c }]) : [['', { ...events, fxLight: true, fxStyle: true }], ['-light', { ...events, fxLight: true }], ['-off', events]];
   for (const [tag, ev] of takes) {
     const figs = rigs && E.swing ? { ...rigs, caster: await swingRig(E.swing, ev.fxStyle?.flavor ?? null) } : rigs;
     // the swinging caster plays its swing in place, a swing every ~1.4 s (the clock rule: the clip by time, no travel)

@@ -29,7 +29,7 @@ describe('design classes', () => {
       expect(crestFlightSpeed(c.crestK)).toBeGreaterThanOrEqual(c.designSpeed / 3.6);
       expect(c.rmin).toBeLessThan(c.rmax);
     }
-    expect(() => designClass('hovercraft')).toThrow(/not one of kart, circuit, rally, freeway/);
+    expect(() => designClass('hovercraft')).toThrow(/not one of kart, circuit, rally, stadium, freeway/);
   });
 });
 
@@ -149,13 +149,13 @@ describe('a line that keeps clear of itself', () => {
     const sc = selfClearance(fold.alignment, { width: fold.width, margin: 3 });
     expect(sc.conflicts.length).toBeGreaterThan(0);
   });
-  it('every preset keeps its footprint clear; the figure of eight crosses once, its upper pass a deck over the class clearance', () => {
+  it('every preset keeps its footprint clear; one with a bridge (a figure of eight, a duel) crosses once, its upper pass a deck over the class clearance', () => {
     for (const [name, c] of Object.entries(all)) {
       const sc = selfClearance(c.alignment, { width: c.footprint, margin: 1 });
       expect(sc.conflicts, name).toEqual([]);
-      if (name === 'figure-eight') {
-        expect(sc.crossings).toHaveLength(1);
-        expect(sc.crossings[0].dz).toBeGreaterThanOrEqual(DESIGN_CLASSES.kart.clearance);
+      if (c.crossingDeck) {
+        expect(sc.crossings, name).toHaveLength(1);
+        expect(sc.crossings[0].dz, name).toBeGreaterThanOrEqual(DESIGN_CLASSES[c.class].clearance);
       } else expect(sc.crossings, name).toEqual([]);
     }
   });

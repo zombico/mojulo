@@ -44,6 +44,23 @@
  * edges proud), its cracks sealed in tar, an oil stain here and there. And an ANCIENT road: `'setts'` (a floor) small
  * stones in courses (`rows` × `cols` a repeat, their lengths their own), crowned and worn smooth on top, set in sand.
  *
+ * The MADE class, the bay's (era/bay.js: steel, sheet and poured; worn where used, never broken; `stone` the face's
+ * colour, `mortar` what shows through it): `cut: 'plate'` steel plates (`cols` × `rows` a repeat) butted at seams, some
+ * welded (a rippled bead), a row of rivets inset round each, each plate a hair oil-canned, the paint worn to the steel on
+ * the arrises and the rivet crowns at grit, rust run down from a few rivets; `'tread'` (a floor) diamond plate, its
+ * lugs in a herringbone, their tops polished, dirt in the valleys; `'block'` concrete masonry units (`rows` × `cols`) in
+ * a running bond, a coarse aggregate face, concave tooled joints, chips at grit; `'panel'` sheet panels (`cols` × `rows`)
+ * with a reveal joint between them, a fastener at each corner and edge's middle, dents and scuffs low at grit; `'epoxy'`
+ * (a floor) a poured coat, saw-cut joints (`cols` a repeat), a broadcast fleck, the lanes tracked; `'grating'` (a
+ * floor) bar grating read opaque, bearing bars every 30 mm, cross bars every 100 mm over a dark pit; `'corrugated'` a
+ * trapezoid sheet profile (`cols` ribs a repeat), lapped at the repeat's top with fasteners on the crowns, the weather
+ * streaked down; `'perforated'` punched metal, round holes on a staggered pitch over the dark behind; `'terrazzo'` (a
+ * floor) chips of marble at two sizes in a polished matrix, divider strips in a grid; `'glazed'` ceramic tile (`cols` ×
+ * `rows`) in grout, each tile's glaze a hair domed and its own shade, crazed at grit; `'studded'` (a floor) rubber with
+ * round studs, their tops scuffed; `'seam'` standing-seam cladding (`cols` panels a repeat), a folded rib between the
+ * pans, the weather down from the top; `'acoustic'` fissured lay-in tiles in a T-bar grid (`cols` a repeat), stained at
+ * grit.
+ *
  * The NATURAL class, the land a town stands in (era/gritty-land.js): `cut: 'turf'` (a floor) a sward from above, blades
  * in every direction standing in tussocks, bare earth worn through in patches at grit; `'leaves'` a crown's skin, leaves
  * laid over one another, domed, grooved down the midrib, the dark between them; `'bark'` (u round a trunk, v up it)
@@ -120,6 +137,7 @@ function dressedOf(c, size, seed) {
   if (cut === 'tile' || cut === 'slate') return roofTile(c, size, seed);
   if (cut === 'boards') return boardsTile(c, size, seed);
   if (MODERN[cut]) return MODERN[cut](c, size, seed);
+  if (MADE[cut]) return MADE[cut](c, size, seed);
   if (NATURAL[cut]) return NATURAL[cut](c, size, seed);
   const W = size, H = size, M = c.metres, px = M / size, g = c.grit;
   const { height, owner, lx, ly, blocks } = ashlarField(c, W, H, seed);
@@ -521,6 +539,456 @@ const MODERN = {
     }, (x, y, k, lit) => {
       const tone = (cellHash(x, y, M, sw, seed + 17) - 0.5) * 2 * c.vary / 255;
       return rampAt(body, 0.6 + (lit.value[k] - 1) * 1.1 + tone + 0.03 * sfbm(x, y, M, 0.1, 0.1, 2, seed + 19) - 0.18 * stain[k] - 0.3 * crack[k] - 0.3 * lit.cavity[k]);
+    });
+  },
+};
+
+// ── the made class: the bay's materials (era/bay.js) ────────────────────────────────────────────────────────────
+// steel, sheet and poured: machine-made and regular, worn where they are used (paint off the edges and the crowns, the
+// lanes scuffed), never broken. `stone` the face's colour (a paint, a cement), `mortar` what shows through it (bare
+// steel, a joint's sealant, the pit under a grating)
+const steelBare = [150, 152, 150];
+// a rivet's (a fastener's) dome: `r` its radius, `h` its height, at distance d from its centre
+const dome = (d, r, h) => (d < r ? h * Math.sqrt(1 - (d / r) ** 2) : 0);
+// wrapped distance to the nearest point of a lattice at pitch p (offset o) along one axis
+const toLattice = (v, p, o = 0) => { const t = (v - o) / p; return Math.abs(t - Math.round(t)) * p; };
+const MADE = {
+  // steel plate: `cols` × `rows` plates a repeat, butt seams between them (some welded, a bead proud along them), a row
+  // of rivets inset round each plate, each plate a hair oil-canned; the paint worn off the arrises and the rivet crowns
+  // to the steel at grit, rust run down from a few rivets
+  plate(c, size, seed) {
+    const M = c.metres, g = c.grit, pw = M / c.cols, ph = M / c.rows, body = rampOf(c.stone), bare = rampOf(c.mortar ?? steelBare), rust = [120, 62, 34];
+    const tone = new Float32Array(size * size), wear = new Float32Array(size * size), seam = new Uint8Array(size * size), run = new Float32Array(size * size);
+    const pitch = 0.11, inset = 0.045, rr = 0.011;
+    return paintedTile(c, size, LIGHT, (x, y, k) => {
+      const pi = Math.floor(x / pw), pj = Math.floor(y / ph), fx = x - pi * pw, fy = y - pj * ph, d = Math.min(fx, pw - fx, fy, ph - fy);
+      const ph1 = hash01(pi % c.cols, pj % c.rows, seed + 3);
+      tone[k] = (ph1 - 0.5) * 2 * c.vary / 255;
+      // the seam: a narrow groove where two plates butt; a welded seam (every other, by the dice) a rippled bead
+      const welded = hash01(pi % c.cols, (pj + 7) % c.rows, seed + 5) < 0.45;
+      let z = 0.0004 * (1 - ((2 * fx) / pw - 1) ** 2) * (1 - ((2 * fy) / ph - 1) ** 2) * (0.5 + ph1);
+      if (d < 0.005) { seam[k] = welded ? 0 : 1; z = welded ? 0.0022 * (1 - (d / 0.005) ** 2) * (0.75 + 0.25 * Math.sin((fx + fy) / 0.004)) : -0.0025; }
+      // rivets: a row inset round the plate's edge, on a pitch along it
+      const nearEdgeX = Math.min(fx, pw - fx), nearEdgeY = Math.min(fy, ph - fy);
+      let rd = 9;
+      if (Math.abs(nearEdgeX - inset) < rr * 1.5) rd = Math.min(rd, Math.hypot(nearEdgeX - inset, toLattice(fy, pitch, ph / 2)));
+      if (Math.abs(nearEdgeY - inset) < rr * 1.5) rd = Math.min(rd, Math.hypot(nearEdgeY - inset, toLattice(fx, pitch, pw / 2)));
+      z += dome(rd, rr, 0.005);
+      // the wear: the paint off the arrises, the rivet crowns and where the plate is rubbed, more at grit
+      const rub = clamp((sfbm(x, y, M, 0.25, 0.25, 3, seed + 7) - 0.15) * 2.5, 0, 1);
+      wear[k] = clamp((rd < rr * 0.7 ? 0.9 : 0) + (d < 0.02 ? 0.7 * (1 - d / 0.02) : 0) + rub * 0.45, 0, 1) * (0.3 + 0.7 * g);
+      // rust run down from a rivet (below it: y grows down the wall)
+      const rx = toLattice(fx, pitch, pw / 2), ry = fy - inset;
+      run[k] = g > 0.2 && hash01(Math.round((fx - pw / 2) / pitch) & 63, pi % c.cols, seed + 9) < 0.18 * g && rx < 0.005 && ry > 0 && ry < 0.25 * g ? (1 - rx / 0.005) * (1 - ry / (0.25 * g)) : 0;
+      return z + 0.00015 * sfbm(x, y, M, 0.003, 0.003, 2, seed + 11);
+    }, (x, y, k, lit) => {
+      const v = (lit.value[k] - 1) * 1.15 - 0.3 * lit.cavity[k];
+      if (seam[k]) return rampAt(bare, 0.35 + v);
+      let col = rampAt(body, 0.6 + v + tone[k] + 0.03 * sfbm(x, y, M, 0.3, 0.3, 2, seed + 13));
+      const w = smoothstep(0.35, 0.7, wear[k]);
+      if (w > 0) col = col.map((q, i) => q + (rampAt(bare, 0.62 + v)[i] - q) * w);
+      if (run[k] > 0) col = col.map((q, i) => q + (rust[i] - q) * 0.7 * run[k]);
+      return col;
+    });
+  },
+  // diamond tread plate: raised lugs in a herringbone (each row turned the other way), the sheets' joints `cols` a
+  // repeat; the lugs' tops polished bright by feet, dirt packed in the valleys between at grit
+  tread(c, size, seed) {
+    const M = c.metres, g = c.grit, sw = M / c.cols, pitch = snapCell(M, 0.032), lugL = 0.012, lugW = 0.003, body = rampOf(c.stone), dirt = [58, 52, 44];
+    const top = new Float32Array(size * size), joint = new Uint8Array(size * size);
+    return paintedTile(c, size, FLOOR_LIGHT, (x, y, k) => {
+      const fx = x - Math.floor(x / sw) * sw, fy = y - Math.floor(y / sw) * sw;
+      if (Math.min(fx, sw - fx, fy, sw - fy) < 0.0025) { joint[k] = 1; return -0.002; }
+      const ci = Math.floor(x / pitch), cj = Math.floor(y / pitch), lx = x - (ci + 0.5) * pitch, ly = y - (cj + 0.5) * pitch;
+      // each lug an ellipse along a diagonal, the diagonal flipping cell to cell (the herringbone)
+      const a = (ci + cj) % 2 ? Math.PI / 4 : -Math.PI / 4, u = lx * Math.cos(a) + ly * Math.sin(a), v = -lx * Math.sin(a) + ly * Math.cos(a);
+      const e = (u / lugL) ** 2 + (v / lugW) ** 2, z = e < 1 ? 0.0016 * Math.min(1, (1 - e) * 3) : 0;
+      top[k] = e < 0.6 ? 1 : 0;
+      return z + 0.0001 * sfbm(x, y, M, 0.004, 0.004, 2, seed + 3);
+    }, (x, y, k, lit) => {
+      const v = (lit.value[k] - 1) * 1.1 - 0.35 * lit.cavity[k];
+      if (joint[k]) return rampAt(body, 0.25 + v);
+      let col = rampAt(body, 0.55 + v + 0.04 * sfbm(x, y, M, 0.4, 0.4, 3, seed + 5) + (top[k] ? 0.12 * (0.4 + g) : 0));
+      // dirt in the valleys, heaviest in broad patches at grit
+      const dz = (1 - top[k]) * clamp((sfbm(x, y, M, 0.5, 0.5, 3, seed + 7) + 0.1) * 1.5, 0, 1) * (0.15 + 0.5 * g) * (lit.cavity[k] > 0.05 ? 1 : 0.4);
+      return col.map((q, i) => q + (dirt[i] - q) * dz);
+    });
+  },
+  // concrete masonry units: `rows` courses × `cols` blocks a repeat in a running bond, the face coarse with its
+  // aggregate, the joints tooled concave; a block's own tone, chips and a stain or two at grit
+  block(c, size, seed) {
+    const M = c.metres, g = c.grit, hc = M / c.rows, bw = M / c.cols, jt = 0.01, body = rampOf(c.stone), mortar = rampOf(c.mortar);
+    const tone = new Float32Array(size * size), joint = new Uint8Array(size * size), stain = new Float32Array(size * size);
+    return paintedTile(c, size, LIGHT, (x, y, k) => {
+      const r = Math.floor(y / hc), xi = x + (r % 2) * bw / 2, b = ((Math.floor(xi / bw) % c.cols) + c.cols) % c.cols;
+      const fx = xi / bw - Math.floor(xi / bw), fy = y / hc - r, d = Math.min(Math.min(fx, 1 - fx) * bw, Math.min(fy, 1 - fy) * hc);
+      tone[k] = (hash01(r % c.rows, b, seed + 3) - 0.5) * 2 * c.vary / 255;
+      stain[k] = clamp((sfbm(x, y, M, 0.5, 0.9, 3, seed + 9) - 0.3) * 2, 0, 1) * g;
+      // the tooled joint: a concave groove, its section a circle's arc
+      if (d < jt / 2) { joint[k] = 1; const t = d / (jt / 2); return -0.001 - 0.004 * (1 - t * t); }
+      // the face: aggregate pits and crowns, an arris eased, a chip out of a corner at grit
+      let z = 0.0007 * sfbm(x, y, M, 0.006, 0.006, 2, seed + 5) - 0.0008 * (cellHash(x, y, M, 0.004, seed + 7) < 0.12 ? 1 : 0);
+      if (d < jt / 2 + 0.004) z -= 0.0012 * (1 - (d - jt / 2) / 0.004);
+      // (a chip spalled off a corner: a shallow scoop, its edge broken by the aggregate)
+      const cx = Math.min(fx, 1 - fx) * bw, cy = Math.min(fy, 1 - fy) * hc, cd = Math.hypot(cx, cy) + 0.006 * sfbm(x, y, M, 0.01, 0.01, 2, seed + 12);
+      if (hash01(r % c.rows, b, seed + 11) < 0.3 * g && cd < 0.03) z -= 0.003 * (1 - cd / 0.03);
+      return z;
+    }, (x, y, k, lit) => {
+      const v = (lit.value[k] - 1) * 1.15 - 0.28 * lit.cavity[k];
+      if (joint[k]) return rampAt(mortar, 0.55 + v);
+      return rampAt(body, 0.6 + v + tone[k] + 0.04 * sfbm(x, y, M, 0.08, 0.08, 2, seed + 13) - 0.12 * stain[k]);
+    });
+  },
+  // sheet panels: `cols` × `rows` a repeat, a reveal joint between them (a shadow line), a fastener at each corner and
+  // mid edge, the paint's orange peel; scuffs and dents low on the wall at grit
+  panel(c, size, seed) {
+    const M = c.metres, g = c.grit, pw = M / c.cols, ph = M / c.rows, jt = 0.008, body = rampOf(c.stone), reveal = rampOf(c.mortar);
+    const tone = new Float32Array(size * size), joint = new Uint8Array(size * size), scuff = new Float32Array(size * size);
+    return paintedTile(c, size, LIGHT, (x, y, k) => {
+      const pi = Math.floor(x / pw), pj = Math.floor(y / ph), fx = x - pi * pw, fy = y - pj * ph, d = Math.min(fx, pw - fx, fy, ph - fy);
+      tone[k] = (hash01(pi % c.cols, pj % c.rows, seed + 3) - 0.5) * 2 * c.vary / 255;
+      if (d < jt / 2) { joint[k] = 1; return -0.006; }
+      let z = 0.00012 * sfbm(x, y, M, 0.002, 0.002, 2, seed + 5);
+      // the fasteners: a screw head at each corner and at each edge's middle, 20 mm in
+      const ex = Math.min(fx, pw - fx), ey = Math.min(fy, ph - fy), mx = Math.abs(fx - pw / 2), my = Math.abs(fy - ph / 2);
+      const fd = Math.min(Math.hypot(ex - 0.02, ey - 0.02), Math.hypot(ex - 0.02, my), Math.hypot(mx, ey - 0.02));
+      z += dome(fd, 0.005, 0.0015);
+      // a dent here and there, low (y grows down: the panel's foot is the repeat's bottom rows)
+      const low = clamp((fy / ph - 0.55) * 2.2, 0, 1);
+      scuff[k] = low * clamp((sfbm(x, y, M, 0.12, 0.05, 3, seed + 7) - 0.2) * 2.5, 0, 1) * g;
+      if (cellHash(x, y, M, 0.12, seed + 9) < 0.08 * g) { const dc = snapCell(M, 0.12), cx = (Math.floor(x / dc) + 0.5) * dc, cy = (Math.floor(y / dc) + 0.5) * dc, dd = Math.hypot(x - cx, y - cy); z -= 0.0025 * clamp(1 - dd / 0.035, 0, 1) ** 2 * low; }
+      return z;
+    }, (x, y, k, lit) => {
+      const v = (lit.value[k] - 1) * 1.1 - 0.3 * lit.cavity[k];
+      if (joint[k]) return rampAt(reveal, 0.3 + v);
+      return rampAt(body, 0.62 + v + tone[k] + 0.02 * sfbm(x, y, M, 0.4, 0.4, 2, seed + 11) - 0.14 * scuff[k]);
+    });
+  },
+  // a poured floor: an epoxy coat over the slab, saw-cut joints `cols` a repeat, a fleck broadcast in it; the lanes
+  // dulled and tracked where the traffic runs, a tyre mark or two at grit
+  epoxy(c, size, seed) {
+    const M = c.metres, g = c.grit, sw = M / c.cols, body = rampOf(c.stone), cut = rampOf(c.mortar), tracked = new Float32Array(size * size), joint = new Uint8Array(size * size), fleck = new Float32Array(size * size);
+    return paintedTile(c, size, FLOOR_LIGHT, (x, y, k) => {
+      const fx = x - Math.floor(x / sw) * sw, fy = y - Math.floor(y / sw) * sw, d = Math.min(fx, sw - fx, fy, sw - fy);
+      if (d < 0.0025) { joint[k] = 1; return -0.005; }
+      fleck[k] = cellHash(x, y, M, 0.006, seed + 3) < 0.05 ? (cellHash(x, y, M, 0.006, seed + 4) - 0.5) : 0;
+      // the traffic: long streaks along the floor's v, broader where the lanes run
+      tracked[k] = clamp((sfbm(x, y, M, 0.3, 1.2, 2, seed + 5) + 0.05) * 1.6, 0, 1) * (0.2 + 0.8 * g);
+      return 0.0003 * sfbm(x, y, M, 0.5, 0.5, 2, seed + 7) - 0.0002 * tracked[k];
+    }, (x, y, k, lit) => {
+      const v = (lit.value[k] - 1) * 1.05 - 0.3 * lit.cavity[k];
+      if (joint[k]) return rampAt(cut, 0.3 + v);
+      return rampAt(body, 0.6 + v + 0.18 * fleck[k] + 0.025 * sfbm(x, y, M, 0.6, 0.6, 2, seed + 9) - 0.05 * tracked[k]);
+    });
+  },
+  // bar grating, read opaque: bearing bars along v every 30 mm, cross bars every 100 mm, the pit dark below; the bars'
+  // tops bright where they are walked, dirt in the pit
+  grating(c, size, seed) {
+    const M = c.metres, g = c.grit, pb = snapCell(M, 0.03), pc = snapCell(M, 0.1), body = rampOf(c.stone), pit = rampOf(c.mortar ?? [26, 26, 28]);
+    const bar = new Uint8Array(size * size);
+    return paintedTile(c, size, FLOOR_LIGHT, (x, y, k) => {
+      const db = toLattice(x, pb), dc = toLattice(y, pc);
+      if (db < 0.0025) { bar[k] = 2; return 0; }
+      if (dc < 0.003) { bar[k] = 1; return -0.004; }
+      return -0.03 + 0.003 * sfbm(x, y, M, 0.2, 0.2, 2, seed + 3);
+    }, (x, y, k, lit) => {
+      const v = (lit.value[k] - 1) * 1.1;
+      if (bar[k] === 2) return rampAt(body, 0.62 + v + 0.08 * g * clamp(sfbm(x, y, M, 0.3, 0.6, 2, seed + 5) + 0.3, 0, 1));
+      if (bar[k] === 1) return rampAt(body, 0.48 + v - 0.2 * lit.cavity[k]);
+      return rampAt(pit, 0.25 + 0.1 * sfbm(x, y, M, 0.15, 0.15, 2, seed + 7) - 0.3 * lit.cavity[k]);
+    });
+  },
+  // punched metal: round holes on a staggered pitch (`cols` holes across a repeat's row of 10 cm), the sheet's edge a
+  // plain margin at the repeat's border; the dark behind each hole, the sheet's face a little worn at grit
+  perforated(c, size, seed) {
+    const M = c.metres, g = c.grit, p = snapCell(M, 0.1 / Math.max(1, c.cols)), hr = p * 0.3, body = rampOf(c.stone), back = rampOf(c.mortar ?? [20, 20, 22]);
+    const hole = new Float32Array(size * size);
+    return paintedTile(c, size, LIGHT, (x, y, k) => {
+      const row = Math.floor(y / (p * 0.866)), xo = row % 2 ? p / 2 : 0, dy = toLattice(y, p * 0.866, p * 0.433), dx = toLattice(x, p, xo + p / 2), d = Math.hypot(dx, dy);
+      hole[k] = d < hr ? 1 : 0;
+      return d < hr ? -0.006 : 0.0002 * sfbm(x, y, M, 0.3, 0.3, 2, seed + 3);
+    }, (x, y, k, lit) => {
+      const v = (lit.value[k] - 1) * 1.1;
+      if (hole[k]) return rampAt(back, 0.2);
+      return rampAt(body, 0.6 + v + 0.04 * sfbm(x, y, M, 0.4, 0.4, 2, seed + 5) * (0.4 + g) - 0.2 * lit.cavity[k]);
+    });
+  },
+  // terrazzo: chips of marble (`mortar` the chips' colour, the matrix `stone`) in a ground and polished matrix, a divider
+  // strip in a grid (`cols` a repeat); flat, its chips flush
+  terrazzo(c, size, seed) {
+    const M = c.metres, g = c.grit, sw = M / c.cols, body = rampOf(c.stone), chip = rampOf(c.mortar), chipK = new Float32Array(size * size), strip = new Uint8Array(size * size);
+    return paintedTile(c, size, FLOOR_LIGHT, (x, y, k) => {
+      const fx = x - Math.floor(x / sw) * sw, fy = y - Math.floor(y / sw) * sw;
+      if (Math.min(fx, sw - fx, fy, sw - fy) < 0.004) { strip[k] = 1; return 0.0002; }
+      // chips at two sizes on wrapped grids, each its own tone
+      for (const [cell, share, q] of [[0.06, 0.6, 3], [0.025, 0.55, 7]]) {
+        const cc = snapCell(M, cell), hx = cellHash(x, y, M, cc, seed + q), cx = (Math.floor(x / cc) + 0.25 + 0.5 * hx) * cc, cy = (Math.floor(y / cc) + 0.25 + 0.5 * cellHash(x, y, M, cc, seed + q + 1)) * cc;
+        if (hx < share && Math.hypot(x - cx, (y - cy) * 1.3) < cc * 0.32) { chipK[k] = 0.3 + 0.7 * cellHash(x, y, M, cc, seed + q + 2); break; }
+      }
+      return 0.00008 * sfbm(x, y, M, 0.5, 0.5, 2, seed + 11) - 0.0001 * g * clamp(sfbm(x, y, M, 0.3, 1, 2, seed + 13), 0, 1);
+    }, (x, y, k, lit) => {
+      const v = (lit.value[k] - 1) * 1.0;
+      if (strip[k]) return [176, 160, 120].map((q) => q * (0.85 + 0.3 * v));
+      if (chipK[k] > 0) return rampAt(chip, 0.35 + 0.5 * chipK[k] + v);
+      return rampAt(body, 0.6 + v + 0.02 * sfbm(x, y, M, 0.4, 0.4, 2, seed + 15));
+    });
+  },
+  // glazed ceramic tile: `cols` × `rows` tiles a repeat, a grout joint between them, each tile's glaze a hair domed and a
+  // shade its own, a crazed glaze at grit
+  glazed(c, size, seed) {
+    const M = c.metres, g = c.grit, tw = M / c.cols, th = M / c.rows, jt = 0.005, body = rampOf(c.stone), grout = rampOf(c.mortar), tone = new Float32Array(size * size), joint = new Uint8Array(size * size), craze = new Float32Array(size * size);
+    return paintedTile(c, size, LIGHT, (x, y, k) => {
+      const ti = Math.floor(x / tw), tj = Math.floor(y / th), fx = x - ti * tw, fy = y - tj * th, d = Math.min(fx, tw - fx, fy, th - fy);
+      tone[k] = (hash01(ti % c.cols, tj % c.rows, seed + 3) - 0.5) * 0.7 * c.vary / 255;
+      if (d < jt / 2) { joint[k] = 1; return -0.0015; }
+      craze[k] = g > 0.3 ? 1 - smoothstep(0.0008, 0.002, Math.abs(sfbm(x, y, M, 0.04, 0.04, 2, seed + 5))) : 0;
+      // (the glaze pillowed: highest in the tile's middle, rolling down to the grout)
+      return 0.0004 * Math.min(1, d / 0.004) + 0.0006 * (1 - ((2 * fx) / tw - 1) ** 4) * (1 - ((2 * fy) / th - 1) ** 4) - 0.0001 * craze[k];
+    }, (x, y, k, lit) => {
+      const v = (lit.value[k] - 1) * 1.05;
+      if (joint[k]) return rampAt(grout, 0.5 + v);
+      return rampAt(body, 0.62 + v + tone[k] - 0.06 * craze[k] + 0.08 * lit.convex[k]);
+    });
+  },
+  // studded rubber: round studs on a square pitch, the sheet's seams `cols` a repeat; the studs' tops scuffed lighter
+  studded(c, size, seed) {
+    const M = c.metres, g = c.grit, p = snapCell(M, 0.04), sr = 0.012, sw = M / c.cols, body = rampOf(c.stone), top = new Float32Array(size * size), seam = new Uint8Array(size * size);
+    return paintedTile(c, size, FLOOR_LIGHT, (x, y, k) => {
+      const fx = x - Math.floor(x / sw) * sw, fy = y - Math.floor(y / sw) * sw;
+      if (Math.min(fx, sw - fx, fy, sw - fy) < 0.0015) { seam[k] = 1; return -0.001; }
+      const d = Math.hypot(toLattice(x, p, p / 2), toLattice(y, p, p / 2));
+      top[k] = d < sr * 0.7 ? 1 : 0;
+      return dome(d, sr, 0.0025) + 0.0001 * sfbm(x, y, M, 0.01, 0.01, 2, seed + 3);
+    }, (x, y, k, lit) => {
+      const v = (lit.value[k] - 1) * 1.1 - 0.25 * lit.cavity[k];
+      if (seam[k]) return rampAt(body, 0.25 + v);
+      return rampAt(body, 0.55 + v + top[k] * 0.08 * (0.3 + g) * clamp(sfbm(x, y, M, 0.3, 0.3, 2, seed + 5) + 0.4, 0, 1));
+    });
+  },
+  // standing-seam cladding: panels `cols` a repeat, each seam a raised rib folded up between them, the pans between flat
+  // with a faint stiffening ripple; the weather streaked down from the top
+  seam(c, size, seed) {
+    const M = c.metres, g = c.grit, pw = M / c.cols, body = rampOf(c.stone), rib = new Uint8Array(size * size);
+    return paintedTile(c, size, LIGHT, (x, y, k) => {
+      const fx = x - Math.floor(x / pw) * pw, d = Math.min(fx, pw - fx);
+      if (d < 0.012) { rib[k] = 1; return 0.025 * Math.cos((d / 0.012) * Math.PI / 2); }
+      return 0.0006 * Math.sin((fx / pw) * Math.PI * 6) * (d > 0.05 ? 1 : d / 0.05);
+    }, (x, y, k, lit) => {
+      const v = (lit.value[k] - 1) * 1.2 - 0.2 * lit.cavity[k];
+      const streak = Math.max(0, sfbm(x, y, M, 0.06, 1.4, 2, seed + 5) - 0.05) * (0.04 + 0.18 * g);
+      return rampAt(body, 0.6 + v + 0.03 * rib[k] - streak);
+    });
+  },
+  // fissured acoustic tile in a T-bar grid: `cols` tiles a repeat, the grid a bar proud under them, each tile's face
+  // pocked with fissures and pinholes, a stain or two at grit
+  acoustic(c, size, seed) {
+    const M = c.metres, g = c.grit, tw = M / c.cols, bar = rampOf(c.mortar), body = rampOf(c.stone), grid = new Uint8Array(size * size), stain = new Float32Array(size * size);
+    return paintedTile(c, size, LIGHT, (x, y, k) => {
+      const fx = x - Math.floor(x / tw) * tw, fy = y - Math.floor(y / tw) * tw, d = Math.min(fx, tw - fx, fy, tw - fy);
+      if (d < 0.008) { grid[k] = 1; return 0.004; }
+      stain[k] = clamp((sfbm(x, y, M, 0.25, 0.25, 3, seed + 9) - 0.4) * 3, 0, 1) * g;
+      const fiss = Math.abs(sfbm(x, y, M, 0.015, 0.03, 2, seed + 3));
+      return -0.0012 * (1 - smoothstep(0.02, 0.08, fiss)) - (cellHash(x, y, M, 0.006, seed + 5) < 0.08 ? 0.0008 : 0) - 0.003 * clamp(1 - (d - 0.008) / 0.01, 0, 1);
+    }, (x, y, k, lit) => {
+      const v = (lit.value[k] - 1) * 1.1;
+      if (grid[k]) return rampAt(bar, 0.6 + v);
+      return rampAt(body, 0.65 + v - 0.25 * lit.cavity[k] - 0.12 * stain[k]);
+    });
+  },
+  // corrugated sheet: a trapezoid profile across u (`cols` ribs a repeat), the sheets lapped at the repeat's edge, a row
+  // of fasteners across each lap; the paint's weather streaked down the ribs at grit
+  corrugated(c, size, seed) {
+    const M = c.metres, g = c.grit, rib = M / c.cols, depth = 0.018, body = rampOf(c.stone), lap = new Float32Array(size * size);
+    return paintedTile(c, size, LIGHT, (x, y, k) => {
+      const t = (x / rib) - Math.floor(x / rib), prof = t < 0.2 ? 1 : t < 0.35 ? 1 - (t - 0.2) / 0.15 : t < 0.85 ? 0 : (t - 0.85) / 0.15;
+      let z = depth * (prof - 0.5);
+      // the lap across the sheet at the repeat's top, its fasteners on the ribs' crowns
+      const dl = Math.min(y, M - y);
+      lap[k] = dl < 0.03 ? 1 : 0;
+      if (dl < 0.03) z += 0.002;
+      if (Math.abs(dl - 0.015) < 0.006 && prof === 1) z += dome(Math.hypot(toLattice(x, rib, 0.1 * rib), dl - 0.015), 0.006, 0.002);
+      return z + 0.0002 * sfbm(x, y, M, 0.01, 0.01, 2, seed + 3);
+    }, (x, y, k, lit) => {
+      const v = (lit.value[k] - 1) * 1.2 - 0.25 * lit.cavity[k];
+      const streak = Math.max(0, sfbm(x, y, M, 0.08, 1.2, 2, seed + 5) - 0.05) * (0.05 + 0.2 * g);
+      return rampAt(body, 0.6 + v + 0.03 * lap[k] - streak);
+    });
+  },
+  // ── the coats a modern fitting wears ──
+  // powder-coated sheet, matte: `cols` × `rows` panels a repeat, each folded at its edge (a rolled break, its shadow a
+  // soft line, not a reveal), the coat's orange peel fine and even; no gloss, so the light's value runs flat across it,
+  // and a hand's rub burnishes it lighter low on the panel at grit
+  matte(c, size, seed) {
+    const M = c.metres, g = c.grit, pw = M / c.cols, ph = M / c.rows, br = 0.006, body = rampOf(c.stone);
+    const tone = new Float32Array(size * size), rub = new Float32Array(size * size), fold = new Uint8Array(size * size);
+    return paintedTile(c, size, LIGHT, (x, y, k) => {
+      const pi = Math.floor(x / pw), pj = Math.floor(y / ph), fx = x - pi * pw, fy = y - pj * ph, d = Math.min(fx, pw - fx, fy, ph - fy);
+      tone[k] = (hash01(pi % c.cols, pj % c.rows, seed + 3) - 0.5) * 0.5 * c.vary / 255;
+      rub[k] = clamp((fy / ph - 0.5) * 2, 0, 1) * clamp((sfbm(x, y, M, 0.2, 0.08, 3, seed + 7) - 0.15) * 2.5, 0, 1) * g;
+      if (d < 0.0015) { fold[k] = 1; return -br; }
+      // (the break a quarter round: down `br` at the edge, level `br` in)
+      const z = d < br ? -(br - Math.sqrt(Math.max(0, br * br - (br - d) ** 2))) : 0;
+      return z + 0.00008 * sfbm(x, y, M, 0.0025, 0.0025, 2, seed + 5);
+    }, (x, y, k, lit) => {
+      const v = (lit.value[k] - 1) * 0.7 - 0.2 * lit.cavity[k];
+      if (fold[k]) return rampAt(body, 0.28 + v);
+      return rampAt(body, 0.6 + v + tone[k] + 0.015 * sfbm(x, y, M, 0.3, 0.3, 2, seed + 9) + 0.08 * rub[k]);
+    });
+  },
+  // carbon fibre: a 2×2 twill of tows 12 mm wide (each over two, under two, a step along each row: the diagonal), the warp
+  // along v in `stone`, the weft across in `mortar`; each tow crowned and its fibres streaked along it, the two
+  // directions catching the light apart (the weave's checker), all under a clear coat that levels it nearly flat;
+  // fine scratches in the coat at grit
+  carbon(c, size, seed) {
+    const M = c.metres, g = c.grit, p = M / (4 * Math.max(1, Math.round(M / 0.048))), warp = rampOf(c.stone), weft = rampOf(c.mortar ?? c.stone);
+    const dir = new Uint8Array(size * size), sheen = new Float32Array(size * size), fibre = new Float32Array(size * size);
+    return paintedTile(c, size, LIGHT, (x, y, k) => {
+      const i = Math.floor(x / p), j = Math.floor(y / p), fx = x / p - i, fy = y / p - j, n = (((i - j) % 4) + 4) % 4, up = n < 2;
+      // across the tow and along its float (a float spans two cells, diving under at its ends)
+      const across = up ? fx : fy, along = up ? ((1 - n) + fy) / 2 : ((n - 2) + fx) / 2;
+      const a = Math.sin(Math.PI * across) ** 0.6, crimp = Math.sin(Math.PI * clamp(along, 0, 1)) ** 0.5;
+      dir[k] = up ? 1 : 0;
+      sheen[k] = a ** 4 * (0.4 + 0.6 * crimp);
+      fibre[k] = up ? sfbm(x, y, M, 0.0012, 0.03, 2, seed + 3) : sfbm(x, y, M, 0.03, 0.0012, 2, seed + 4);
+      return 0.00025 * a * crimp + 0.00003 * sfbm(x, y, M, 0.01, 0.01, 2, seed + 5);
+    }, (x, y, k, lit) => {
+      const v = (lit.value[k] - 1) * 0.6;
+      const scratch = g * (1 - smoothstep(0.004, 0.012, Math.abs(sfbm(x, y, M, 0.25, 0.006, 2, seed + 7)))) * (sfbm(x, y, M, 0.4, 0.4, 2, seed + 9) > 0.1 ? 1 : 0);
+      const col = dir[k] ? rampAt(warp, 0.52 + 0.45 * sheen[k] + v + 0.06 * fibre[k]) : rampAt(weft, 0.2 + 0.12 * sheen[k] + v + 0.05 * fibre[k]);
+      return col.map((q) => q + (200 - q) * 0.12 * scratch);
+    });
+  },
+
+  // ── the everyday: what offices, schools, shops and clinics are made of ──
+  // painted gypsum board: sheets `cols` × `rows` a repeat, their taped joints feathered flat under the paint (a band a
+  // hair proud and a shade off, never a groove), a filled screw dimple on each stud's pitch, the roller's stipple over
+  // all; scuffs low and a patched ding at grit
+  drywall(c, size, seed) {
+    const M = c.metres, g = c.grit, pw = M / c.cols, ph = M / c.rows, body = rampOf(c.stone), sx = snapCell(M, 0.4), sy = snapCell(M, 0.3);
+    const tape = new Float32Array(size * size), scuff = new Float32Array(size * size), patch = new Float32Array(size * size);
+    return paintedTile(c, size, LIGHT, (x, y, k) => {
+      const fx = x - Math.floor(x / pw) * pw, fy = y - Math.floor(y / ph) * ph, d = Math.min(fx, pw - fx, fy, ph - fy);
+      tape[k] = clamp(1 - d / 0.15, 0, 1) ** 2;
+      scuff[k] = clamp((fy / ph - 0.6) * 2.5, 0, 1) * clamp((sfbm(x, y, M, 0.15, 0.06, 3, seed + 7) - 0.2) * 2.5, 0, 1) * g;
+      // a patch: a square of compound skimmed over a ding, in a few cells of a coarse grid
+      const pc = snapCell(M, 0.6), qx = x - (Math.floor(x / pc) + 0.5) * pc, qy = y - (Math.floor(y / pc) + 0.5) * pc;
+      patch[k] = cellHash(x, y, M, pc, seed + 9) < 0.2 * g && Math.abs(qx) < 0.07 && Math.abs(qy) < 0.05 ? 1 : 0;
+      return 0.0004 * tape[k] + 0.00025 * patch[k] - dome(Math.hypot(toLattice(x, sx), toLattice(y, sy, sy / 2)), 0.008, 0.0003) + 0.00006 * sfbm(x, y, M, 0.002, 0.002, 2, seed + 5);
+    }, (x, y, k, lit) => {
+      const v = (lit.value[k] - 1) * 0.9 - 0.15 * lit.cavity[k];
+      return rampAt(body, 0.64 + v + 0.02 * tape[k] + 0.03 * patch[k] - 0.1 * scuff[k] + 0.01 * sfbm(x, y, M, 0.5, 0.5, 2, seed + 11));
+    });
+  },
+  // carpet tile: tiles `cols` a repeat laid quarter-turned (each one's pile leaning its own way, so the floor reads as a
+  // checker of two shades), a loop pile ribbed along the pile, a tweed of two yarns (`mortar` the fleck); the seams
+  // tight; the traffic lane crushed darker and a spill at grit
+  carpet(c, size, seed) {
+    const M = c.metres, g = c.grit, tw = M / c.cols, body = rampOf(c.stone), yarn = rampOf(c.mortar), turned = new Uint8Array(size * size), fleck = new Float32Array(size * size), crush = new Float32Array(size * size);
+    const rib = snapCell(M, 0.008);
+    return paintedTile(c, size, FLOOR_LIGHT, (x, y, k) => {
+      const ti = Math.floor(x / tw), tj = Math.floor(y / tw), fx = x - ti * tw, fy = y - tj * tw;
+      turned[k] = (ti + tj) % 2;
+      if (Math.min(fx, tw - fx, fy, tw - fy) < 0.001) return -0.0015;
+      fleck[k] = cellHash(x, y, M, 0.006, seed + 3) < 0.05 ? 0.4 + 0.6 * cellHash(x, y, M, 0.006, seed + 4) : 0;
+      crush[k] = clamp((sfbm(x, y, M, 0.4, 1.4, 2, seed + 5) + 0.05) * 1.6, 0, 1) * (0.15 + 0.85 * g);
+      const r = Math.cos((2 * Math.PI * (turned[k] ? x : y)) / rib);
+      return (0.0004 * r + 0.0006 * sfbm(x, y, M, 0.005, 0.005, 2, seed + 7)) * (1 - 0.5 * crush[k]);
+    }, (x, y, k, lit) => {
+      const v = (lit.value[k] - 1) * 0.8 - 0.3 * lit.cavity[k];
+      const spill = g * clamp((sfbm(x, y, M, 0.35, 0.35, 3, seed + 9) - 0.45) * 4, 0, 1);
+      const col = rampAt(body, 0.55 + v + (turned[k] ? 0.06 : -0.06) + 0.04 * sfbm(x, y, M, 0.02, 0.02, 2, seed + 11) - 0.08 * crush[k] - 0.12 * spill);
+      return fleck[k] ? col.map((q, i) => q + (rampAt(yarn, 0.4 + 0.4 * fleck[k] + v)[i] - q) * 0.3) : col;
+    });
+  },
+  // vinyl composition tile: tiles `cols` a repeat, each marbled with streaks of `mortar` running one way, laid with the
+  // streaks quarter-turned tile to tile; hairline joints, the wax's faint sheen; black heel marks and a dulled lane at grit
+  vinyl(c, size, seed) {
+    const M = c.metres, g = c.grit, tw = M / c.cols, body = rampOf(c.stone), chip = rampOf(c.mortar), streak = new Float32Array(size * size), tone = new Float32Array(size * size), joint = new Uint8Array(size * size);
+    return paintedTile(c, size, FLOOR_LIGHT, (x, y, k) => {
+      const ti = Math.floor(x / tw), tj = Math.floor(y / tw), fx = x - ti * tw, fy = y - tj * tw, turned = (ti + tj) % 2;
+      if (Math.min(fx, tw - fx, fy, tw - fy) < 0.0008) { joint[k] = 1; return -0.0005; }
+      const s = seed + 13 * (ti % c.cols) + 29 * (tj % c.cols);
+      tone[k] = (hash01(ti % c.cols, tj % c.cols, seed + 3) - 0.5) * 0.6 * c.vary / 255;
+      streak[k] = 1 - smoothstep(0.01, 0.07, Math.abs(turned ? sfbm(x, y, M, 0.2, 0.04, 3, s) : sfbm(x, y, M, 0.04, 0.2, 3, s)));
+      // (each tile a hair out of the floor's plane: the wax catches the light on one edge more than the next)
+      const sx = (hash01(ti % c.cols, tj % c.cols, seed + 7) - 0.5) * 0.0012, sy = (hash01(ti % c.cols, tj % c.cols, seed + 8) - 0.5) * 0.0012;
+      return sx * (fx - tw / 2) + sy * (fy - tw / 2) + 0.00005 * sfbm(x, y, M, 0.05, 0.05, 2, seed + 5);
+    }, (x, y, k, lit) => {
+      const v = (lit.value[k] - 1) * 1.0;
+      if (joint[k]) return rampAt(body, 0.35 + v);
+      const lane = clamp((sfbm(x, y, M, 0.3, 1.2, 2, seed + 7) + 0.05) * 1.6, 0, 1) * (0.1 + 0.6 * g);
+      const heel = g > 0.2 && Math.abs(sfbm(x, y, M, 0.08, 0.08, 2, seed + 11)) < 0.012 && sfbm(x, y, M, 0.3, 0.3, 2, seed + 13) > 0.4 ? 0.55 : 0;
+      let col = rampAt(body, 0.6 + v + tone[k] - 0.04 * lane);
+      col = col.map((q, i) => q + (rampAt(chip, 0.5 + v)[i] - q) * 0.35 * streak[k]);
+      return col.map((q) => q + (28 - q) * heel);
+    });
+  },
+  // laminate plank: `cols` planks across a repeat, about 1.2 m long with their ends staggered, a printed grain (`mortar`
+  // its dark) that comes round again every third plank, as a print does; a micro-bevel at the long joints, the grain
+  // embossed in register; the wear layer dulled in the lane at grit
+  laminate(c, size, seed) {
+    const M = c.metres, g = c.grit, pw = M / c.cols, L = M / Math.max(1, Math.round(M / 1.2)), body = rampOf(c.stone), dark = rampOf(c.mortar);
+    const band = new Float32Array(size * size), tone = new Float32Array(size * size), joint = new Uint8Array(size * size);
+    return paintedTile(c, size, FLOOR_LIGHT, (x, y, k) => {
+      const i = Math.floor(x / pw), fx = x - i * pw, off = hash01(i % c.cols, 1, seed + 3) * L, yy = y + off, j = Math.floor(yy / L), fy = yy - j * L;
+      const print = (i + 2 * j) % 3, sp = seed + 17 * print;
+      tone[k] = (hash01(i % c.cols, j, seed + 5) - 0.5) * c.vary / 255;
+      // (the print's figure: bands along the plank, wandering, laid from the plank's own corner so the print repeats)
+      band[k] = 0.5 + 0.5 * Math.sin(2 * Math.PI * (fx / 0.018 + 2.5 * sfbm(fx, fy, M, 0.06, 0.6, 2, sp)));
+      const dx = Math.min(fx, pw - fx);
+      if (dx < 0.0018 || Math.min(fy, L - fy) < 0.0012) { joint[k] = 1; return -0.0012; }
+      return (dx < 0.005 ? -0.0008 * (1 - dx / 0.005) : 0) - 0.00008 * band[k];
+    }, (x, y, k, lit) => {
+      const v = (lit.value[k] - 1) * 1.0 - 0.25 * lit.cavity[k];
+      if (joint[k]) return rampAt(dark, 0.25 + v);
+      const lane = clamp((sfbm(x, y, M, 0.3, 1.2, 2, seed + 7) + 0.05) * 1.6, 0, 1) * (0.1 + 0.5 * g);
+      const col = rampAt(body, 0.62 + v + tone[k] - 0.03 * lane);
+      return col.map((q, i) => q + (rampAt(dark, 0.5 + v)[i] - q) * 0.35 * band[k] ** 2);
+    });
+  },
+  // large-format porcelain: `cols` × `rows` tiles a repeat, rectified (sharp arrises, a 2 mm grout), each printed with a
+  // soft cement-look mottle, each crowned or cupped a hair (the light finds it across the tile);
+  // the grout darkened at grit
+  porcelain(c, size, seed) {
+    const M = c.metres, g = c.grit, tw = M / c.cols, th = M / c.rows, body = rampOf(c.stone), grout = rampOf(c.mortar), tone = new Float32Array(size * size), joint = new Uint8Array(size * size), mottle = new Float32Array(size * size);
+    return paintedTile(c, size, FLOOR_LIGHT, (x, y, k) => {
+      const ti = Math.floor(x / tw), tj = Math.floor(y / th), fx = x - ti * tw, fy = y - tj * th, d = Math.min(fx, tw - fx, fy, th - fy);
+      const h = hash01(ti % c.cols, tj % c.rows, seed + 3);
+      tone[k] = (h - 0.5) * 0.6 * c.vary / 255;
+      if (d < 0.001) { joint[k] = 1; return -0.002; }
+      mottle[k] = sfbm(x, y, M, 0.12, 0.12, 3, seed + 5 + Math.floor(h * 7));
+      // (a large tile is never quite flat: crowned or cupped a hair by its firing, level again at its arrises)
+      const warp = (hash01(ti % c.cols, tj % c.rows, seed + 7) - 0.5) * 0.0012;
+      return warp * (1 - ((2 * fx) / tw - 1) ** 2) * (1 - ((2 * fy) / th - 1) ** 2);
+    }, (x, y, k, lit) => {
+      const v = (lit.value[k] - 1) * 1.05;
+      if (joint[k]) return rampAt(grout, 0.45 + v - 0.15 * g);
+      return rampAt(body, 0.6 + v + tone[k] + 0.05 * mottle[k] - 0.15 * lit.cavity[k]);
+    });
+  },
+  // wood veneer panelling: `cols` panels a repeat, each two leaves book-matched (the second the first's mirror), a flat-
+  // cut figure (the grain's rings arched up the leaf: cathedrals) under a satin lacquer, a reveal (`mortar`) between
+  // the panels
+  veneer(c, size, seed) {
+    const M = c.metres, pw = M / c.cols, lw = pw / 2, sp = M / Math.max(1, Math.round(M / 0.045)), body = rampOf(c.stone), reveal = rampOf(c.mortar);
+    const late = new Float32Array(size * size), tone = new Float32Array(size * size), joint = new Uint8Array(size * size), mx = new Float32Array(size * size);
+    return paintedTile(c, size, LIGHT, (x, y, k) => {
+      const pi = Math.floor(x / pw), fx = x - pi * pw;
+      if (Math.min(fx, pw - fx) < 0.003) { joint[k] = 1; return -0.004; }
+      const li = Math.floor(fx / lw), lx = li % 2 ? lw - (fx - li * lw) : fx - li * lw;
+      mx[k] = pi * pw + lx;
+      tone[k] = (hash01(pi % c.cols, 0, seed + 3) - 0.5) * 0.6 * c.vary / 255;
+      const q = (y - 9 * (lx - lw * 0.55) ** 2) / sp + 0.7 * sfbm(mx[k], y, M, 0.1, 0.5, 3, seed + 5);
+      const f = q - Math.floor(q);
+      // (the latewood: a dark band, sharp on the ring's outer side, fading into the next year's earlywood)
+      late[k] = f < 0.12 ? f / 0.12 : 1 - smoothstep(0.12, 0.55, f);
+      // (the latewood's open pores sunk a hair under the lacquer)
+      return -0.00025 * late[k];
+    }, (x, y, k, lit) => {
+      const v = (lit.value[k] - 1) * 1.0;
+      if (joint[k]) return rampAt(reveal, 0.25 + v);
+      const col = rampAt(body, 0.62 + v + tone[k] + 0.03 * sfbm(mx[k], y, M, 0.006, 0.12, 2, seed + 7));
+      return col.map((q, i) => q + (rampAt(body, 0.3 + v)[i] - q) * 0.5 * late[k]);
     });
   },
 };

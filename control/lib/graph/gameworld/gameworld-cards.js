@@ -31,13 +31,18 @@ import { SAMPLE_PAGES, SAMPLE_MAX, DERIVE } from './samples.js';
 import { LOOKS } from '../playscape/elements/elements.js';
 import { MARKED_ENGINES } from '../scene/engines/registry.js';
 import { BEAM_NAMES } from '../playscape/elements/beams.js';
-import { PROGRAM_IDS } from '../era/programs.js';
+import { PROGRAM_IDS, PROGRAMS, BASE_USES } from '../era/programs.js';
 import { STAGE_KITS, resolveKitId, GROUND_KITS } from '../era/stage.js';
 import { STRUCTURE_KITS } from '../era/out-structures.js';
 import { ISEKAI_STYLES } from '../era/isekai.js';
 import { SEEDED_STYLES } from '../equipment/styles.js';
 import { QUICK_GOALS, RHYTHM_MOODS, RACE, DEFEND, DEATHMATCH_MODES } from './quick.js';
 import { CAMERAS } from './cameras.js';
+import { FOE_CLASSES, classStatus } from '../foes/index.js';
+import { MOVES, ATTACKS, STOMPS, FOE_RANKS } from '../foes/vocab.js';
+import { SWARM, MAX_FOES, PAIR_DOWNS, ROOM_FOES } from './foes.js';
+import { VANISHES, SEVERS } from './vanish.js';
+import { PEOPLE } from '../foes/people.js';
 import { SCREENS, NEW_GAME_SCREEN } from '../game/screen.js';
 import { SUPERCAR_LIBRARY } from '../car-designer/vehicle-library.js';
 import { RACE_MOOD_IDS } from '../roads/race-mood.js';
@@ -59,6 +64,9 @@ import { PACKS, JOINER_CLASSES, BATTLE_CLASSES } from './battles.js';
 import { MINIGAME_IDS } from '../playscape/ui/minigames.js';
 import { ROOMS_KEPT } from './minigames.js';
 import { JUICE_REGISTERS, JUICE_LOOKS, JUICE_FLAVORS, JUICE_DIALS, juiceFloor, juiceSignature } from '../scene/juice-style.js';
+import { WCD_KINDS, WCD_VIAS, WCD_PRINCIPLES } from '../wcd/wcd.js';
+import { QOW_PRINCIPLES, SIGHT } from '../qow/qow.js';
+import { BOOK_SKINS } from './book-skin.js';
 
 const lines = (...xs) => xs.flat().join('\n');
 const words = (o) => Object.keys(o).join(', ');
@@ -115,6 +123,8 @@ function guide() {
     '  makes every ready step. A run keeps what did not move, remakes what did in place, leaves hand edits (force: true',
     '  overwrites). It answers each stamp, the steps, what was made and `next` step ids (gameworld-next); `readout:',
     '  \'changed\'` only what moved. `mode`: ' + Object.entries(MODES).map(([k, v]) => `${k} (${v})`).join('; ') + '.',
+    'SHOWN FIRST: asked to see it before it is built? Create the world (no run), show its book (/api/sketches/<ref>/bible:',
+    '  the plans, a building\'s finishes as the build paints them) and stop for the verdicts.',
   );
 }
 
@@ -133,8 +143,8 @@ function worldCard() {
     '  scenes: the level\'s directed moments (get_play_vocab({ id: \'ui-scenes\' })), each with stage?: \'<node>\' (its first stage by default);',
     '    the hero is \'hero\', the stage\'s places are spots (start, exit, pocket, pocket-2…, landmark…); scenes that read or set flags',
     '    (if, sets) ride a \'story\' flags slice from level to level.',
-    `  or building: { use: ${PROGRAM_IDS.join(' | ')}, seed?, goal?, civilization? } | { ref } in place of the walk:`,
-    '  a building played from its way in to its goal room. places.buildings: [{ use, at?, node?, goal? }] and places.street:',
+    `  or building: { use: ${PROGRAM_IDS.filter((u) => !BASE_USES.includes(u)).join(' | ')} | a base's (gameworld-wcd), seed?, goal?,`,
+    '  civilization? } | { ref } in place of the walk: played from its way in to its goal room. places.buildings: [{ use, at?, node?, goal? }] and places.street:',
     '  { houses?, enter?, goal? } stand buildings and a town\'s first houses on a trail, walked into (card game-building).',
     '  or city: { grammar?, civilization?, from?, to?, stalker?, … } (card city-plan), played by its segments (stalker: true, by the hero).',
     '  ground: the level\'s land on a grid of cells, its dials and edits (cliff, gorge, raise…): tune_ground.',
@@ -389,9 +399,9 @@ const QUICK_LEVERS = {
     `  ride: ${Object.keys(RIDES).join(' | ')}   you drive it (W / S / A / D), followed from behind; no hero, climb or building`,
     `    vehicle: ${Object.keys(VEHICLES).join(' | ')}; tuning: ${TUNINGS.join(' | ')}; conditions: ${Object.keys(CONDITIONS).join(' | ')}`,
     '  rivals: n (1..7, with a ride)   a place to finish in, on the podium',
-    '  racers: n (2..8) or a list (an archetype, a brief in words, or { archetype?, build?, age?, brief?, facets?, seed?, parts?, shade? }):',
-    '    the whole field, yours first (no ride, hero or rivals beside it); shade: smooth bevels and smooth-lights a racer (cel by default)',
-    `  supercars: n (2..8) or a list ({ preset?: ${Object.keys(SUPERCAR_LIBRARY).join(' | ')}, paint?, livery? }): a field of supercars, yours first, liveries solved to stand out`,
+    '  racers: n (2..8) or a list (an archetype, a brief in words, or { archetype?, build?, age?, brief?, facets?, seed?, parts?, shade?, light? }):',
+    '    the whole field, yours first (no ride, hero or rivals beside it); shade: gloss (default: bevelled, round tyres) | smooth | cel (flat); light: form (default: lit by the page) | paint',
+    `  supercars: n (2..8) or a list ({ preset?: ${Object.keys(SUPERCAR_LIBRARY).join(' | ')}, paint?, livery? }): a field of streamlined supercars lit by the page, yours first, liveries solved to stand out`,
     `  mood: ${RACE_MOOD_IDS.join(' | ')} (with a roadway)   the light it is raced in: lamps after dark, rain and a wet road`,
     `  roadway: ${Object.keys(COURSE_PRESETS).join(' | ')} | a course spec | { intent: '<words>' }   the race's whole ground, in place of track (no track, climb, building or run beside it)`,
   ],
@@ -490,8 +500,8 @@ function battlesCard() {
     '        fight; each class keeps its own rank, points and skill tree; learned skills stay.',
     `packs   the packs met along the way, walked in order across the game's trail stages (default: ${PACKS.slice(0, 3).map((p) => `[${p.join(', ')}]`).join(', ')} …);`,
     '        per: n on each trail stage (2), on its beats, as many as it has room for. boss: a pack, the last stage\'s',
-    '        last, with no escape. foe: { <hero-door words> } how a foe stands on the map, or { species }: a beast on its',
-    '        own gaits (a wolf pack); walk up to one to fight.',
+    '        last, with no escape. foe: { <hero-door words> } how a foe stands on the map, or { species, ooze?, stylism? }:',
+    '        a beast on its own gaits (a wolf pack, dire wolves); walk up to one to fight.',
     'rest    E at each stage\'s start restores HP and MP (rest: false for none). random: { every?, chance?, after? }',
     '        random fights on the trails, drawn from the stage\'s packs.',
     'gear    one item a slot (weapon, armor, accessory), its numbers on the member\'s; each class starts in its own; the',
@@ -518,6 +528,99 @@ function battlesCard() {
     '  steps up a trail stage (fishing). E there plays a round in a pixel window over the field (it holds still).',
     '  Its score pays gold (gold: a point) into the carried bag;',
     '  goal is the score that wins; the first win gives its prize (an item) and sets its flag (a scene or quest reads it).',
+  );
+}
+
+function wcdCard() {
+  return lines(
+    'THE WALLED-CORE DUNGEON (WCD) — a dungeon built as layers on a critical path toward a final area, the CORE. Each layer',
+    '  gates the next and takes the player deeper: across, down or up. A concept, not a map shape: Shadow Moses and the',
+    '  three walls (Maria, Rose, Sina) are WCDs.',
+    '  A stealth game is close to a stack of them; a metroidvania is WCDs side by side, one core\'s reward opening another\'s gate.',
+    '',
+    'wcd     on the world: { core, spaces: { <id>: { kind, depth, level?, use?, look?, built? } }, doors: [{ from, to, via,',
+    '        gate?, oneWay? }] }',
+    'SPACES',
+    ...Object.entries(WCD_KINDS).map(([k, v]) => `  ${k.padEnd(13)} ${v}`),
+    '  depth         0 the outermost; the core the deepest',
+    "  level         the world level it is in; use: a building use (the program's rooms); look: the composer's words or",
+    '                { words?, construction?, palette? }, built into its level (a base building is composed and stocked);',
+    '                tone: the stage\'s colour (its ramps), kept on the dungeon; built: false, on the path and not made yet',
+    'DOORS (the intermediaries)',
+    ...Object.entries(WCD_VIAS).map(([k, v]) => `  ${k.padEnd(13)} ${v}`),
+    "  gate          what opens it: { clearance: 1…9 } (a keycard's level) or { power: '<id>' } (a power found in the world)",
+    '  oneWay        it opens only from `from`: a shortcut back out, or a drop',
+    '',
+    'A BASE\'S BUILDINGS (a space\'s use; each on the bay kit of what it is, so the layers look unlike each other):',
+    ...BASE_USES.map((u) => `  ${u.padEnd(13)} ${PROGRAMS[u].reads} (${PROGRAMS[u].kit})`),
+    '',
+    'PRINCIPLES (laws on the recipe: they advise in design_game\'s readout, `advice.wcd`, and never refuse)',
+    ...Object.entries(WCD_PRINCIPLES).map(([k, v]) => `  ${k.padEnd(13)} ${v}`),
+    '',
+    'A layer\'s construction and palette carry the change from the last. The book draws the dungeon as rings to the core,',
+    'each gate on its join, each layer\'s finishes beside it: the approval sheet before a run. A level\'s style palette does',
+    'not colour a bay building; its look or its tone does.',
+  );
+}
+function qowCard() {
+  return lines(
+    'THE QUEST OPEN WORLD (QOW) — the walled-core dungeon\'s opposite pole. A WCD forces the player in, layer by gated layer,',
+    '  to a core; a QOW never does: its map is REGIONS joined sideways, connected and loaded as they are passed, each',
+    '  reached without a gate, always two ways round. A city or an island: its regions are a geocity\'s neighbourhoods.',
+    '',
+    'qow     on the world: { map: { geocity: { … }, seed? }, spawn?, locks?, quests?, landmarks?, stream?, level? }',
+    '  map         the regions: a geocity\'s (the geocube\'s show \'geocity\' recipe: its metro, its evoke), each neighbourhood',
+    '              a region, each pair across an arterial joined at its portal; the beyond on its land edge where more joins',
+    "  spawn       where play starts: a region's id ('D3'; by default the core's nearest the seat)",
+    "  locks       [{ region, gate: { clearance: 1…9 } | { power: '<id>' }, why? }]: optional, a side door, never the way on",
+    "  quests      [{ id, at: '<region>', kind?: main | side, after?: ['<quest id>'] }]: placed on the regions",
+    `  landmarks   'auto' (the core's tallest tower, each node's) or [{ at, name?, height? }]: seen ${SIGHT}× their height off`,
+    '  stream      { hops?, blocks? }: a region and its neighbours hops away loaded as it is passed, at most blocks blocks',
+    '  level       the world level it is played in (city hunter\'s)',
+    '',
+    'PRINCIPLES (laws on the recipe: they advise in design_game\'s readout, `advice.qow`, and never refuse)',
+    ...Object.entries(QOW_PRINCIPLES).map(([k, v]) => `  ${k.padEnd(11)} ${v}`),
+  );
+}
+function foesCard() {
+  const status = (c) => classStatus(c);
+  const row = (c) => { const S = status(c); return `  ${c.id.padEnd(8)} ${c.reads}${S.status === 'built' ? '' : ` [${S.status}: ${S.short.join(', ')}]`}`; };
+  return lines(
+    'THE FOES — hostile things in the hero\'s way, by CLASS: how it moves, hurts, decides and what body it needs, never',
+    '  a species or a skin (a goomba and a foot soldier are one class dressed two ways). Any class is any rank.',
+    '',
+    'foes    the bestiary, on the world: { <id>: { class, rank?, skill?, skin?: { species?, ooze?, stylism? }, vanish? } }. skin: the',
+    '        animal door\'s words (a species, the oozes that grow it: dire, mythical, frost …); absent, the class\'s stand-in.',
+    '        A skin that does not fit its class is refused, saying why (a swooper needs wings).',
+    '        Or skin: { people, facets? }: a person (\'human\') or a people (' + PEOPLE.slice(1).join(', ') + '),',
+    '        rolled in the world\'s setting in its class\'s role, made by the character loop with its moves, at its own height.',
+    '        Or skin: { meshRef, height? }: a rigged humanoid .glb made elsewhere, bound onto that sketch, worn as a person.',
+    '        A person dressed as a crew: { people: \'human\', dress: { faction, kind?, colourway?, body? } } (the grunt factions).',
+    'levels.<id>.foes   true (the bestiary; each class on its stand-in if the world keeps none) or { from?: [<id>],',
+    '        count?, win?: exit | clear }: one foe on each free beat of a stage, cycling through from; clear: won when all fall;',
+    `        count stands that many (up to ${MAX_FOES}), the extra round the beats; a building, ${ROOM_FOES} of its rooms. A swarm, a pack of ${SWARM}. A stage they`,
+    '        stand on makes the hero hittable, its hp taking their hits.',
+    `rank    ${Object.entries(FOE_RANKS).map(([k, R]) => `${k} ×${R.downs}`).join(', ')}: the blows it takes; a boss duels.`,
+    '        skill: novice, regular, veteran, ace: how well it carries out what it decided.',
+    '',
+    'CLASSES (built unless marked: what does not run yet is said):',
+    ...Object.values(FOE_CLASSES).map(row),
+    '',
+    `MOVES   ${Object.keys(MOVES).join(', ')}; ATTACKS ${Object.keys(ATTACKS).join(', ')}.`,
+    'MODES   becomes: <id>: defeated, it is that entry (skin, class, bar) till the last: a knight\'s armour, a shell.',
+    'SUMMONS a summoner\'s: { foe, count?, bound? }: another entry, asleep till called; bound (true), they fall with it.',
+    `PAIR    an entry's pair: { foe, cover?, down?: ${PAIR_DOWNS.join(' | ')}, swap? }: its partner stands beside it, each its own bar;`,
+    '        each covers the other reeling; one whose partner falls enrages, or (revive) both must fall together; swap: under',
+    '        that share of its health one leaves the field while the other stands, and comes back.',
+    `STOMP   ${Object.entries(STOMPS).map(([k, v]) => `${k}: ${v}`).join('; ')}.`,
+    `VANISH  a downed foe dies in its game type's register, then goes (no carcass): ${Object.keys(VANISHES).join(', ')}.`,
+    '        A platformer squashes it, an action game throws it back, a realistic one lets it fall; then the look fades it.',
+    '        An entry\'s vanish: <word> | { is?, linger?, die?: fall | launch | dismantle | cleave | destroy,',
+    `        sever?, inside? } names its own. DESTRUCTION: a dismantle comes apart at its joints (sever: ${Object.keys(SEVERS).join(' | ')}),`,
+    '        a cleave is cut through its trunk (inside: its colour); a destroy lets the killing blow choose (a strike',
+    '        cleaves, a round knocks some off, a burst tears it apart): the undead\'s default, layer 0 under every foe.',
+    'CAST    /bible?book=foes, the cast sheet: parts foes:cast, foes:<id>. None kept: design_game\'s `foes` step proposes one.',
+    'A world or level without foes is laid as it was.',
   );
 }
 
@@ -638,7 +741,9 @@ function nextCard() {
     'THE NEXT MOVES — design_game\'s readout ends with `next`: step ids, each with what it needs. What each asks:',
     '',
     '  review     gated: show the creator the bible, then approve or send back those `parts` ({ ref, approve: [...] } or',
-    '             { ref, revise: { part, note } }). The verdicts are theirs, never yours.',
+    '             { ref, revise: { part, note } }). The verdicts are theirs, never yours. The bible\'s look is the world\'s',
+    `             book: { skin: ${Object.keys(BOOK_SKINS).map((k) => `'${k}'`).join(' | ')} | { from?, paper, sheet, ink, muted, rule, accent, signal (#rrggbb),`,
+    '             display, body, mono (font names), frame: rule | bracket, texture: none | grid | scanlines, plates: paper | night } }.',
     '  advised    autonomous: the machine gate advises on those `parts`: change the page, or approve it as it stands.',
     '  play       the game is made: `url`. Its levels are walkable by construction (the hero spawns on each stage\'s ground,',
     '             its exit is the stage\'s own end); whether they can be beaten is the creator\'s to judge in play: nothing',
@@ -661,6 +766,8 @@ function nextCard() {
     '  feel       no feel written: `suggest` is the template its brief, shooter pole or genre points at (`why`, `from`):',
   '             write it (feel: …) or leave the hero its own rule. Written, `lost` are card fields the runtime does not',
   '             carry yet: advice (gameworld-feel). Keep it, pick a template closer to what the runtime plays, or wait.',
+  '  foes       it fights and keeps no bestiary: `suggest` is the cast a casting call proposes (`why`); show the',
+  '             creator its cast sheet (foeBook), then write `patch` or any of it (gameworld-foes). Never written for you.',
   '  advice     read `advice`: a choice the brief does not explain, or one that reads as a fixture or a sample, is the',
     '             creator\'s to confirm.',
   );
@@ -723,6 +830,8 @@ const CARDS = [
   ['gameworld-quick', 'The quick path', `one level and a simple goal in one call: ${Object.keys(QUICK_GOALS).join(', ')}`, 'a simple game, a platformer level, collect coins, reach the exit, survive for a minute, a race against the clock, a kart race against rivals, a stealth level, a rhythm game, drive a car, tower defence, a boulder puzzle, a farm, a turn-based fight, a shooter, a deathmatch with bots, a quick game', quickCard],
   ['gameworld-intent', 'What game it is', 'the cube the world is laid for: a genre to start from, and what each value asks of the world', 'a shooter, a farming game, a racing game, what kind of game, genre, game type', intentCard],
   ['gameworld-world', 'The world', 'the ground, its levels, kits, civilizations and links', 'the levels of my game, where it happens', worldCard],
+  ['gameworld-wcd', 'The walled-core dungeon', 'layers on a critical path toward a core: inners, outers and the doors between, each gated', 'a dungeon of layers to the core, a base to infiltrate, keycards to the next area, walls within walls', wcdCard],
+  ['gameworld-qow', 'The quest open world', 'regions joined sideways, loaded as they are passed, never gated on the way on: the WCD\'s opposite pole', 'an open world, a city to roam, an island to explore, side quests anywhere, no forced path', qowCard],
   ['gameworld-direction', 'The direction', 'how characters are drawn: tradition, elements, motif', 'anime or western, the colours of my hero', directionCard],
   ['gameworld-looks', 'The looks', 'the hero bare: body, head, hair, colour and the underlayer', 'what my hero looks like', looksCard],
   ['gameworld-motion', 'The motion', 'how the hero feels to move: vibe words on four axes', 'make my hero feel heavy, bouncy, bold', motionCard],
@@ -733,9 +842,10 @@ const CARDS = [
   ['gameworld-equipment', 'The equipment', 'the gear classes in one gear language', 'the weapons in my game, a gear set', equipmentCard],
   ['gameworld-systems', 'The systems', 'the numbers and the HUD, derived from the actions', 'stats, levels, a skill tree, the HUD', systemsCard],
   ['gameworld-battles', 'The battles', 'party battles turn by turn: classes the party switches, packs along the way, carried level to level', 'a JRPG, turn-based battles, a party of classes, a job system, class switching, a skill tree, random encounters, a boss fight, minigames, a fishing minigame, an arcade in the inn', battlesCard],
+  ['gameworld-foes', 'The foes', 'hostile classes on the trails: how each moves, hurts and decides, at any rank, on any body that fits', 'enemies in my level, goombas, monsters to fight, a wolf pack, a boss beast, dire wolves, foot soldiers, a turret, things that chase me, a swarm of rats', foesCard],
   ['gameworld-story', 'The cast and the story', 'other people, and the moments they are in, bound to the world as it is built', 'a mayor who greets you, a story written first, characters in my levels, what happens where, dialogue choices, quests, a journal, a companion, a party member who joins, a cast rolled for my game, a party, a rival, a villain and his lieutenant, a familiar or summon, beastfolk or a mascot in the party', storyCard],
   ['gameworld-folk', 'The town\'s people', 'NPCs grown from a town\'s houses: their houses and faces, their talk, their sidequests, their day', 'villagers to talk to, a shopkeeper, townsfolk, NPCs with errands, side quests, the same nurse in every town', folkCard],
-  ['gameworld-next', 'The next moves', "design_game's readout steps: review, play, share, run, rerun, intent, target, feel, wait, advice", 'what do I do next, approve the parts, is it playable', nextCard],
+  ['gameworld-next', 'The next moves', "design_game's readout steps: review, play, share, run, rerun, intent, target, feel, foes, wait, advice", 'what do I do next, approve the parts, is it playable', nextCard],
 ];
 export const GAMEWORLD_CARD_IDS = Object.freeze(CARDS.map(([id]) => id));
 export { SAMPLE_PAGES };

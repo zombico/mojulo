@@ -89,18 +89,21 @@ const smooth = (t) => { const x = Math.max(0, Math.min(1, t)); return x * x * (3
  * edge, `arch` lifting it. A spine runs through them, rising convex to the peak and falling to the tail. Its width is
  * broad at the head and narrows past the peak to a fine tail. `side` is the bridge's for this side (pulled by the
  * brow's action: the strings carry the brow with the fold); at rest when absent. Returns { spine(u) → {x, z},
- * slope(u), width(u), span, sg, uK } for u ∈ [0, 1] medial → lateral, in V.
+ * slope(u), width(u), span, sg, uK } for u ∈ [0, 1] medial → lateral, in V. `round` (realistic laws 14, the seat's level
+ * 2): the arch lower, `BROW_ROUND.arch` of its rise, and its fall to the tail a quarter sine like its rise, so the peak
+ * is a curve, not a point (the fall's power pinched it, an angular brow).
  */
-export function browLine(P, s, brow, side = browBridge(P).sides[s]) {
+export const BROW_ROUND = Object.freeze({ arch: 0.6 });
+export function browLine(P, s, brow, side = browBridge(P).sides[s], { round = false } = {}) {
   const sg = Math.sign(P[`ex${s}`].x - P[`en${s}`].x), H = side.head, T = side.tail;
-  const K = { x: side.arc.K.x, z: side.arc.K.z + 0.005 + 0.025 * brow.arch };
+  const K0 = side.arc.K.z + 0.005 + 0.025 * brow.arch, K = { x: side.arc.K.x, z: round ? H.z + BROW_ROUND.arch * (K0 - H.z) : K0 };
   const archH = K.z - H.z;
   const uK = Math.abs(K.x - H.x) / Math.abs(T.x - H.x);
   const spine = (u) => {
     const x = lerp(H.x, T.x, u);
     if (u <= uK) return { x, z: H.z + archH * Math.sin((Math.PI / 2) * (u / uK)) };
     const t = (u - uK) / (1 - uK);
-    return { x, z: K.z + (T.z - K.z) * Math.pow(t, 1.4) };
+    return { x, z: K.z + (T.z - K.z) * (round ? 1 - Math.cos((Math.PI / 2) * t) : Math.pow(t, 1.4)) };
   };
   const slope = (u) => { const a = spine(Math.max(0, u - 0.01)), b = spine(Math.min(1, u + 0.01)); return Math.atan2(b.z - a.z, Math.abs(b.x - a.x)); };
   const th = brow.thickness;
@@ -112,11 +115,11 @@ export function browLine(P, s, brow, side = browBridge(P).sides[s]) {
  * The brow groom for side `s`: roots scattered over the brow's band (more where it is broad), each hair combed by its
  * region — the HEAD's straight up, the BODY's out and up along the line, the TAIL's out and down — with the
  * HERRINGBONE across the band (the lower hairs angled up, the upper down, meeting along the spine); laid flat on the
- * skin (`skinY`), lifting a hair's breadth at its middle. `side` is the bridge's, as `browLine` takes it. Returns
+ * skin (`skinY`), lifting a hair's breadth at its middle. `side` and `round` are `browLine`'s. Returns
  * strands in V: [{ pts: [{x, y, z}], r }].
  */
-export function growBrow(P, s, brow, skinY, side) {
-  const L = browLine(P, s, brow, side);
+export function growBrow(P, s, brow, skinY, side, { round = false } = {}) {
+  const L = browLine(P, s, brow, side, { round });
   const dice = streamOf(brow.seed ?? 1, 'brow', s);
   // how many: the band's area at rest (mm²) × the density — the same hairs whatever pulls the strings
   const L0 = browLine(P, s, brow);
@@ -153,6 +156,11 @@ export function growBrow(P, s, brow, skinY, side) {
 const add = (a, b, k = 1) => ({ x: a.x + b.x * k, y: a.y + b.y * k, z: a.z + b.z * k });
 const unit = (a) => { const l = Math.hypot(a.x, a.y, a.z) || 1; return { x: a.x / l, y: a.y / l, z: a.z / l }; };
 
+/** the lower lashes on a SEATED lid (`growLashes`'s `seated`), out of the tunnel that hid most of their length: rooted
+ * `root` of the rim's radius up the margin's front from where the unseated root lay (the rim's front face, under the
+ * lid's band, so they hung off it), a share of their `length`, their `curl` down, and `lift` degrees nearer level */
+export const SEATED_LOWER = Object.freeze({ root: 0.7, length: 0.75, curl: 0.6, lift: 10 });
+
 /**
  * THE LASHES for one eye: roots along each lid margin's front edge (the eye rig's lash lines, `margins.upper/lower`
  * at t medial → lateral), none at the inner canthus's punctum, thicker toward the lateral. Each lash leaves the margin
@@ -162,25 +170,27 @@ const unit = (a) => { const l = Math.hypot(a.x, a.y, a.z) || 1; return { x: a.x 
  * the medial a touch inward. The upper's longest sit centre-lateral, the lower's are shorter and sparser. Seeded per
  * side; `open` the lid's openness (the rig's channel). `skin` lays a root on the skin (`place(p)`, null where it cannot) and takes each step
  * (`step(prev, dir, len)`, which may deflect a lash off the skin it would sink into, or end it: null); both default to
- * free space.
+ * free space. `seated`: the lids rest on the globe (head-relational-eye.js SEAT), so the lower lashes are no longer cut
+ * short in a tunnel; they root on the margin's front edge under the eye and grow by `SEATED_LOWER`.
  * Returns strands in V, their first point the root.
  */
-export function growLashes(margins, s, lash, open = 1, skin = {}) {
+export function growLashes(margins, s, lash, open = 1, skin = {}, { seated = false } = {}) {
   const place = skin.place || ((p) => p), step = skin.step || ((p, d, l) => add(p, d, l));
   const deg = Math.PI / 180, strands = [], K = 6;
   for (const upper of [true, false]) {
     const line = upper ? margins.upper : margins.lower;
     const dice = streamOf(lash.seed ?? 1, upper ? 'lash' : 'lashLow', s);
     const n = Math.round((upper ? 110 : 55) * lash.density);
-    const L = lash.length * (upper ? 1 : lash.lower);
-    const roll = (upper ? 16 + 34 * (1 - Math.min(1, open)) : -4) * deg, curl = (upper ? 25 + 45 * lash.curl : 15 + 30 * lash.curl) * deg;
+    const low = !upper && seated ? SEATED_LOWER : null;
+    const L = lash.length * (upper ? 1 : lash.lower) * (low ? low.length : 1);
+    const roll = (upper ? 16 + 34 * (1 - Math.min(1, open)) : low ? -low.lift : -4) * deg, curl = (upper ? 25 + 45 * lash.curl : (15 + 30 * lash.curl) * (low ? low.curl : 1)) * deg;
     for (let i = 0; i < n; i++) {
       // a root along the margin: from past the punctum to the lateral canthus, denser laterally
       const t = upper ? 0.08 + 0.9 * Math.pow(dice(), 0.85) : 0.15 + 0.82 * Math.pow(dice(), 0.75);
       const m = line(t);
       const row = dice() - 0.5;   // the lashes stand in rows across the margin's front
       const len = L * (upper ? 0.5 + 0.5 * Math.pow(Math.sin(Math.PI * Math.min(1, t / 1.25 + 0.1)), 1.5) : 0.4 + 0.6 * Math.sin(Math.PI * Math.min(1, t * 0.85 + 0.12))) * (0.8 + 0.35 * dice()) * MM;
-      const root = place(add(add(m.c, m.n, m.r * 0.85), m.away, -m.r * (upper ? 0.25 : 0.15) + row * 0.5 * MM));
+      const root = place(add(add(m.c, m.n, m.r * 0.85), m.away, -m.r * (upper ? 0.25 : low ? low.root : 0.15) + row * 0.5 * MM));
       if (!root) continue;
       // the frame: forward (the globe's normal, flattened), the margin's tangent for the flare, up
       const fwd = unit({ x: m.n.x * 0.6, y: m.n.y, z: 0 }), fl = lash.flare * (t - 0.4) * 0.9 + (dice() - 0.5) * 0.12;
@@ -240,7 +250,7 @@ export function growEpidermis(head, cube) {
     counts.brows = 0;
     for (const s of ['L', 'R']) {
       // the brow hangs on the bridge's strings, as the action pulled them
-      const side = R.bridge.sides[s], L = browLine(P, s, cube.hair.brows, side);
+      const side = R.bridge.sides[s], round = R.seat === 2, L = browLine(P, s, cube.hair.brows, side, { round });
       // the skin's depth over the brow's reach, on a grid
       const x0 = Math.min(L.spine(0).x, L.spine(1).x) - 0.03, x1 = Math.max(L.spine(0).x, L.spine(1).x) + 0.03;
       const z0 = Math.min(L.spine(0).z, L.spine(1).z) - 0.05, z1 = L.spine(L.uK).z + 0.08, NX = 28, NZ = 16;
@@ -260,7 +270,7 @@ export function growEpidermis(head, cube) {
         const fill = known.reduce((m, y) => m + y, 0) / known.length, [c00, c10, c01, c11] = c.map((y) => (y === null ? fill : y));
         return lerp(lerp(c00, c10, a), lerp(c01, c11, a), b);
       };
-      const grown = growBrow(P, s, cube.hair.brows, skinY, side);
+      const grown = growBrow(P, s, cube.hair.brows, skinY, side, { round });
       counts.brows += grown.length;
       // WALK each hair over the skin: its root laid on the skin along the normal (the field's gradient), then each step
       // taken in the skin's tangent plane toward the comb's next point, snapped back to a hair's lift above the skin
@@ -307,7 +317,7 @@ export function growEpidermis(head, cube) {
       },
     };
     for (const rig of R.eyeRigs) {
-      for (const g of growLashes(rig.margins, rig.side, cube.hair.lashes, rig.channels.open, skin)) {
+      for (const g of growLashes(rig.margins, rig.side, cube.hair.lashes, rig.channels.open, skin, { seated: !!rig.seated })) {
         strands.push({ ...g, pts: g.pts.map((p) => ({ x: p.x * sc, y: p.y * sc, z: p.z * sc })), r: g.r * sc });
         counts.lashes++;
       }

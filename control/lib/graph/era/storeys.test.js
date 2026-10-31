@@ -10,6 +10,7 @@ import { planStage, assembleStageScene } from './stage.js';
 import { planProgram, withProgram, programPlanSvg } from './programs.js';
 import { storeyCut, stairColliders, SLAB, RISE } from './storeys.js';
 import { stageLevel, withBuildingLevel } from '../structure/level.js';
+import { stairProfile } from '../construction/circulation.js';
 
 const KEEP2 = {
   kind: 'stage', kit: 'gothic-stone',
@@ -108,7 +109,10 @@ describe('a stage on storeys', () => {
     const R = KEEP2.rooms;
     expect(() => planStage({ ...KEEP2, rooms: [...R, { id: 'out', x: 30, y: 0, w: 4, d: 4, h: 3, storey: 1 }] })).toThrow(/stands over nothing/);
     expect(() => planStage({ ...KEEP2, rooms: [...R, { id: 'up2', x: 8, y: 0, w: 7, d: 8, h: 4, storey: 2 }], links: [...KEEP2.links, { from: 'stair', to: 'up2' }] })).toThrow(/a stair climbs one storey/);
-    expect(() => planStage({ ...KEEP2, ways: [{ room: 'guard', side: '-y' }] })).toThrow(/leaves the ground storey/);
+    // (a way out of an upper storey is a building set into its slope's: stage-buildings.js `embed`; a side with no
+    // outside wall is still refused)
+    expect(planStage({ ...KEEP2, ways: [{ room: 'guard', side: '-y' }] }).ways[0]).toMatchObject({ room: 'guard', side: '-y' });
+    expect(() => planStage({ ...KEEP2, ways: [{ room: 'guard', side: 'up' }] })).toThrow(/needs side/);
     expect(() => planStage({ ...KEEP2, rooms: R.map((r) => (r.id === 'stair' || r.id === 'landing' ? { ...r, d: 4 } : r)) })).toThrow(/finds no wall to climb along/);
     expect(() => planStage({ ...KEEP2, rooms: [{ ...R[0], storey: 1.5 }] })).toThrow(/whole number/);
   });
@@ -152,5 +156,44 @@ describe('the programs that build upward', () => {
     const svg = programPlanSvg(planProgram({ use: 'tower', seed: 1 }, 'gothic-stone'));
     expect(svg).toContain('>ground<'); expect(svg).toContain('>storey 2<');
     expect(svg).toContain('stair ↑');
+  });
+});
+
+describe('a building\'s stair: the game profile\'s switchback (construction/circulation.js)', () => {
+  const G = stairProfile('game'), K = stairProfile('keep');
+  // three storeys of a stair core with a room beside it: each core over the one below
+  const core = (s) => ({ id: `core-${s}`, x: 0, y: 0, w: 10, d: 12, h: 3.5, ...(s ? { storey: s } : {}) });
+  const wing = (s) => ({ id: `wing-${s}`, x: 10, y: 0, w: 8, d: 12, h: 3.5, ...(s ? { storey: s } : {}) });
+  const TOWER = { kind: 'stage', kit: 'bay-everyday', stair: 'game', rooms: [0, 1, 2].flatMap((s) => [core(s), wing(s)]),
+    links: [0, 1, 2].map((s) => ({ from: `core-${s}`, to: `wing-${s}` })).concat([{ from: 'core-0', to: 'core-1' }, { from: 'core-1', to: 'core-2' }]) };
+  const P = planStage(TOWER), [s1, s2] = P.stairs;
+
+  it('two flights side by side up to a half landing, its steps no higher than the profile\'s riser, room at its foot and head', () => {
+    expect(s1.flights).toHaveLength(2);
+    expect(s1.flights[0].n).toBe(s1.flights[1].n);
+    expect(s1.landing.z).toBeCloseTo(s1.rise / 2, 5);
+    expect(s1.rise / s1.n).toBeLessThanOrEqual(G.riser + 1e-9);
+    // (the second flight climbs back the other way and ends where the first began)
+    expect(s1.flights[1].dir).toBe(-s1.flights[0].dir);
+    const A = s1.axis === 'y' ? 1 : 0, footEnd = s1.foot;
+    expect(Math.abs(s1.approach[A] - footEnd)).toBeCloseTo(G.foot, 5);
+    expect(Math.abs(s1.arrival[A] - footEnd)).toBeCloseTo(G.head, 5);
+    // shallower than a keep's and with more room at both ends
+    expect(G.riser / G.going).toBeLessThan(K.riser / K.going);
+    expect(G.foot).toBeGreaterThan(K.foot); expect(G.head).toBeGreaterThan(K.head);
+    // the walker climbs it by its route: up, across the landing, up again
+    expect(s1.route.length).toBeGreaterThan(4);
+  });
+
+  it('a stair over a stair stacks in the one shaft: the same footprint, its flights slabs, the hole under it open to it', () => {
+    expect(s2.rect).toEqual(s1.rect);
+    expect(s2.stacked).toBe(true);
+    expect(s1.through).toBe(true);
+    expect(s2.through).toBeUndefined();
+  });
+
+  it('a keep\'s stair is laid as it always was: one straight flight, no profile fields on its record', () => {
+    for (const k of ['flights', 'landing', 'route', 'exit', 'profile', 'going', 'guard']) expect(st[k], k).toBeUndefined();
+    expect(() => planStage({ ...TOWER, stair: 'ladder' })).toThrow(/keep or game/);
   });
 });

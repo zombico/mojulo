@@ -43,7 +43,7 @@ describe('the micro-town', () => {
     const P = assembleGeocubeScene({ kind: 'geocube', cube: 'limestone-crags', domain: 'harbour-town', show: 'town', seed: 3 }, {}, assembleStageScene);
     expect(P.geocube.town.settlement).toBe('harbour');
     expect(P.geocube.domain).toMatchObject({ name: 'harbour-town', terrain: 'cove' });
-    expect(() => assembleGeocubeScene({ kind: 'geocube', cube: 'gothic-night', show: 'land', seed: 3 }, {}, assembleStageScene)).toThrow(/seed is the trail's, the path's and the town's/);
+    expect(() => assembleGeocubeScene({ kind: 'geocube', cube: 'gothic-night', show: 'land', seed: 3 }, {}, assembleStageScene)).toThrow(/seed is the trail's, the path's, the town's and the hall's/);
     expect(() => assembleGeocubeScene({ kind: 'geocube', cube: 'gothic-night', show: 'city' }, {}, assembleStageScene)).toThrow(/the kind's micro-city/);
   });
 });

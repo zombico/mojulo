@@ -42,7 +42,7 @@ import { SPACING, beatPosts, coverBlocks, blindBlocks, concernLaws, jumpHeight, 
 import { sceneFlags, sceneNeeds } from '../playscape/ui/scenes.js';
 import { storyScene, levelQuests } from './story.js';
 import { withBuildingLevel, PROBE } from '../structure/level.js';
-import { withProgram } from '../era/programs.js';
+import { withProgram, PROGRAMS } from '../era/programs.js';
 import { buildNav } from '../worlds/controllable/nav.js';
 import { inferCity } from '../city/plan/card.js';
 import { designCity } from '../city/plan/design.js';
@@ -57,7 +57,13 @@ import { spaceLaws } from '../skyscape/space.js';
 import { flyCourse } from '../skyscape/autopilot.js';
 import { seatCraft, craftPilot } from '../skyscape/craft.js';
 import { battleRoster, laidBattles, PARTY_SLICE, BAG_SLICE, BAG_START } from './battles.js';
-import { mergeExtras, libraryFigure, fieldFigure, stand, PERSON_BODY } from './stage-figures.js';
+import { mergeExtras, libraryFigure, fieldFigure, stand } from './stage-figures.js';
+import { standFoe } from './foes.js';
+
+/** A sneak's guard: a guard in a person's skin (foes/classes/guard.js), and what the sneak plays it at: a watcher whose
+ * sighting ends the run (the `unseen` mechanic reads its team), never fought, kept near its post. */
+const SNEAK_GUARD = Object.freeze({ class: 'guard', skin: { people: 'human' } });
+const SNEAK_TUNE = Object.freeze({ team: 'guards', rule: { guardRadius: 10, speed: 3, turnRate: 2.2 }, body: { hittable: false } });
 import { feelCard, lowerFeel } from './feel/lower.js';
 import { juiceOfGame } from './juice.js';
 
@@ -81,7 +87,7 @@ export function gameStages(world) {
     const R = resolveLevel(G, level);
     if (R.style?.hour !== undefined) hours[level] = R.style.hour;
     // a building level is one stage: its rooms laid from its program (or the building already made, by ref)
-    if (R.building) { out.push({ level, node: 'building', section: 'building', index: 0, building: R.building, manifest: R.building.ref ? null : inPalette(buildingStage(R.building), R.style?.palette ?? G.style?.palette, `${level}/building`) }); continue; }
+    if (R.building) { out.push({ level, node: 'building', section: 'building', index: 0, building: R.building, manifest: levelBuildingStage(G, R, level) }); continue; }
     // a city level is its segments: a line of them from its way in to its way out in a linear world, all of them in a map
     if (R.city) { out.push(...cityStages(level, R.city, G.topology === 'interconnected')); continue; }
     // a runner level is one stage: the run (worlds/controllable/runner.js), its ground a floor, its rows laid in play
@@ -227,7 +233,8 @@ export function roadwayEnds(manifest) {
   if (ROAD_ENDS.size > 16) ROAD_ENDS.clear();
   let plan;
   try { plan = manifest.scape ? planScapedTrack(manifest) : planTrack(manifest); } catch (e) { throw new Error(`levels: ${e.message}`); }
-  const T = trackContract(plan), surface = trackSurface(plan), pole = T.grid[0];
+  // (a duel's player starts in lane one: its grid's second slot, lane two's the rival's)
+  const T = trackContract(plan), surface = trackSurface(plan), pole = T.duel ? T.duel.grid[1] : T.grid[0];
   const out = { spawn: pole.at, heading: pole.heading, exit: T.finish.at, exitFrom: 'the finish line', planar: true, beats: [], hazards: [] };
   const at = (x, y) => surface([x, y, 1e4]);
   for (const [k, v] of Object.entries({ ground: at, surface: at, rocks: null, colliders: plan.colliders, roadway: T, roadLaws: trackLaws(trackCensus(plan)) })) Object.defineProperty(out, k, { value: v, enumerable: false });
@@ -520,11 +527,13 @@ function levelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = null, me
   const watchers = guards?.ref ? guards.posts(ends) : null;
   if (guards?.ref) {
     const figures = { ...(pilotPart.figures ?? {}) }, entities = [...pilotPart.entities];
+    // (each a GUARD, stood as every hostile is: foes.js standFoe, its narrow sweeping gaze the class's; the sneak's own:
+    // watchers, never fought, a short way from their posts)
+    const part = { figures, entities };
     for (const [k, g] of watchers.entries()) {
       // (a pool of guards' figures, each its own roll, cycled: quick.js refAt)
-      figures[g.id] = libraryFigure(Array.isArray(guards.ref) ? guards.ref[k % guards.ref.length] : guards.ref);
-      const rule = { type: 'ai', mind: { motivation: 'guard', aggressiveness: 'bold', perception: 'sight' }, sightRange: 14, sightCone: 0.6, scan: 1.3, scanPeriod: 7, guardRadius: 10, speed: 3, turnRate: 2.2, ...PERSON_BODY };
-      entities.push({ id: g.id, rule, team: 'guards', body: { type: 'figure-rig', figure: g.id }, transform: { pos: lane ? onLane({ at: g.at }, lane).at : g.at, heading: g.heading } });
+      const figure = libraryFigure(Array.isArray(guards.ref) ? guards.ref[k % guards.ref.length] : guards.ref);
+      standFoe(G, part, { id: g.id, entry: SNEAK_GUARD, at: lane ? onLane({ at: g.at }, lane).at : g.at, heading: g.heading }, { figure, tune: SNEAK_TUNE });
     }
     pilotPart = { ...pilotPart, figures, entities };
   }
@@ -600,7 +609,7 @@ function levelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = null, me
   return { tool: 'create_sketch', args: { title: name, manifest }, ends, ...(laws.length ? { laws } : {}) };
 }
 
-/** SEATS (pilots.plan.md; docs/local-multiplayer-principles.md): a world whose cube says soul.seats two or four lays,
+/** SEATS (docs/local-multiplayer-principles.md): a world whose cube says soul.seats two or four lays,
  * beside the hero's spawn, a body per extra seat (`hero-2`…): the hero itself, dressed as the goal dressed it, on the
  * hero's rule, its seat's ring its colour. While its seat is empty it follows the hero on the party's escort motive (the
  * seat's `drop: 'ai'`); all of them on the hero's side. The manifest's `seats` names them for the page (soul.join: drop-in
@@ -893,10 +902,19 @@ function inPalette(manifest, P, at) {
   return { ...manifest, art: { seed, ...rollArt(manifest.kit, seed), palette: { seed: K.spec.seed, from: K.spec, ...artPalette(K) }, status } };
 }
 
+/** The stage a building level is built as (its program on its kit, in its palette): what a run makes and what the book
+ *  shows its finishes from (finishes.js); null for a building by ref, played as it was made. */
+export const levelBuildingStage = (G, R, level) => (R.building.ref ? null : inPalette(buildingStage(R.building), R.style?.palette ?? G.style?.palette, `${level}/building`));
+
 /** The inside of a building entered by its door: its program on its room kit, played from its door `out` (which
  *  leads back out) to its goal room. */
 export function interiorStage(inside) {
   const anchor = typeof inside.civilization === 'string' ? inside.civilization : undefined;
+  // (a base's building, or one given a look, is composed as a building level is: its bay kit, its rooms stocked)
+  if (PROGRAMS[inside.use]?.base || inside.look !== undefined) {
+    const { level: _l, ...S } = buildingStage({ use: inside.use, seed: inside.seed ?? 1, rooms: inside.rooms, add: inside.add, kit: inside.kit, anchor, look: inside.look, tone: inside.tone });
+    return { ...S, level: { door: 'out' } };
+  }
   return {
     kind: 'stage', kit: inside.kit ?? roomKitFor(anchor),
     program: { use: inside.use, seed: inside.seed ?? 1, ...(inside.rooms ? { rooms: inside.rooms } : {}), ...(inside.add ? { add: inside.add } : {}), ...(inside.civilization !== undefined ? { civilization: inside.civilization } : {}) },
@@ -918,12 +936,18 @@ const roomKitFor = (anchor) => (anchor === 'shell' ? 'research-lab' : 'gothic-st
 
 /** A building level's stage recipe: its program in its civilization's language, dressed by its kit or cube. */
 export function buildingStage(B) {
-  const { use, seed, rooms, add, kit, geocube, goal, from, anchor } = B;
+  const { use, seed, rooms, add, kit, geocube, goal, from, anchor, look, tone } = B;
+  // (a military base's building is composed, so its rooms are stocked by their uses (era/stocking.js): by the look of the
+  // walled-core dungeon's space it is, else by its kit's own register; its space's tone colours it)
+  const composed = look || PROGRAMS[use]?.base ? { compose: look ? { construction: look.construction, palette: look.palette } : {} } : {};
+  // (a building's use names its bay kit, whatever the world's language, and takes its plan's settings: era/programs.js)
+  const plan = Object.fromEntries(['storeys', 'wings', 'loading', 'bays'].filter((k) => B[k] !== undefined).map((k) => [k, B[k]]));
   return {
     kind: 'stage',
-    ...(geocube !== undefined ? { geocube } : { kit: kit ?? roomKitFor(anchor) }),
-    program: { use, seed, ...(rooms ? { rooms } : {}), ...(add ? { add } : {}), ...(anchor !== undefined ? { civilization: anchor } : {}) },
+    ...(geocube !== undefined ? { geocube } : { kit: kit ?? PROGRAMS[use]?.kit ?? roomKitFor(anchor) }),
+    program: { use, seed, ...(rooms ? { rooms } : {}), ...(add ? { add } : {}), ...(anchor !== undefined ? { civilization: anchor } : {}), ...plan },
     level: { ...(goal !== undefined ? { goal } : {}), ...(from !== undefined ? { from } : {}) },
+    ...composed, ...(tone !== undefined ? { tone } : {}),
   };
 }
 
@@ -960,10 +984,14 @@ function buildingLevelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = 
   // pilot): the stage's own first-person walker, when no hero pilots it
   // (and the stage's extra beside it: the minigames' stalls in its rooms, their mechanics the level's)
   const X = mergeExtras(goalCast ? goalCast(ends) : null, extra ? extra(ends) : null);
+  // (what it gives whoever walks the rooms, as a trail's extra does: the foes' hits and the hero's stomp, foes.js
+  // hostileCast's `pilot`; a written feel's feet over a goal's own)
+  const feelOver = X?.pilot?.rule && G.feel ? lowerFeel(feelCard(G.feel)).rule : null;
+  const piloted = (p) => (X?.pilot ? { ...p, ...X.pilot, rule: { ...p.rule, ...(X.pilot.rule ?? {}), ...(feelOver ?? {}) }, body: { ...p.body, ...(X.pilot.body ?? {}) } } : p);
   if (X?.play) base = { ...base, play: mergePlay(base.play, X.play) };
   if (extra && X?.mechanics?.length) base = { ...base, level: { ...base.level, mechanics: [...(base.level?.mechanics ?? []), ...X.mechanics.filter((m) => !(base.level?.mechanics ?? []).some((x) => x.kind === m.kind && x.slice === m.slice))] } };
   if (!heroRef) {
-    if (X?.entities?.length) base = { ...base, figures: { ...(base.figures ?? {}), ...X.figures }, entities: [walker, ...X.entities], camera: lowered.camera };
+    if (X?.entities?.length) base = { ...base, figures: { ...(base.figures ?? {}), ...X.figures }, entities: [piloted(walker), ...X.entities], camera: lowered.camera };
     if (X?.inputs?.length) base = { ...base, events: { ...(base.events ?? {}), inputs: [...(base.events?.inputs ?? []), ...X.inputs] } };
     return { tool: 'create_sketch', args: { title: name, manifest: { ...base, ...juiceOf(G) } }, ends };
   }
@@ -974,7 +1002,7 @@ function buildingLevelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = 
   const P = withMoves(playerWorld({ heroRef, ...(heroGaits ? { gaits: heroGaits } : {}), ...(pilot ? { pilot } : {}), id: 'hero', title: name, controls }), moves);
   const inputs = [...(P.events?.inputs ?? []), ...(mechanics?.inputs ?? []), ...(X?.inputs ?? [])];
   const events = { ...(P.events || {}), ...(inputs.length > (P.events?.inputs?.length ?? 0) ? { inputs } : {}) };
-  const pilot0 = { figures: X?.figures ? { ...P.figures, ...X.figures } : P.figures, entities: [{ ...P.entities[0], transform: { pos: spawn, heading } }, ...(X?.entities ?? [])], camera: P.camera, events };
+  const pilot0 = { figures: X?.figures ? { ...P.figures, ...X.figures } : P.figures, entities: [piloted({ ...P.entities[0], transform: { pos: spawn, heading } }), ...(X?.entities ?? [])], camera: P.camera, events };
   // the story's share (its quests, its party; its moments bind to a building's start and goal), as a stage's
   const play0 = base.play ?? null, { pilotPart, play } = storyPart(G, stage, ends, null, pilot0, play0, { story, carryFrom, party, castFigures });
   const manifest = { ...base, ...pilotPart, ...(play !== play0 ? { play } : {}), ...juiceOf(G) };

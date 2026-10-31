@@ -36,6 +36,9 @@
  * docs/examples/dragon-body/seed-recipe.mjs.
  */
 import { SketchRepository } from '@/lib/db/repositories/sketches';
+import { validateHeroName, readHeroName, validateEmblem, heroFieldPaint } from '@/lib/graph/polygonizer/hero-emblem';
+import { performanceErrors } from '@/lib/graph/face-acting/perform';
+import { emoteClipErrors } from '@/lib/graph/face-acting/emotes';
 import { resolveToon, toonLightErrors } from '@/lib/graph/polygonizer/vexar';
 import { warmScenePng } from '@/lib/graph/scene/scene-png-warm';
 import { compileLayered, resolveLayeredDials, pinFrame } from '@/lib/graph/polygonizer/station-loft';
@@ -51,10 +54,23 @@ import { humanoidPlan, PALETTE as HUMANOID_PALETTE } from '@/lib/graph/polygoniz
 import { humanoidAnchors, EXPRESSIONS, westernExpressionErrors, HEAD_PRESETS, FACE_KEYS, FACE_AGGREGATE_KEYS, FACE_MOVE_NAMES, resolveFace, validateFace, faceWarnings } from '@/lib/graph/polygonizer/humanoid-head';
 import { HAIR_KEYS, HAIR_STYLE_NAMES, resolveHair, validateHair, hairWarnings, withGrownFall } from '@/lib/graph/polygonizer/humanoid-hair';
 import { validateCast, resolveCast, CAST_KEYS, CAST_PRESET_NAMES } from '@/lib/graph/polygonizer/figure-cast';
-import { isOutfitBuild, outfitReadout, outfitTones, OUTFIT_LAWS_VERSION } from '@/lib/graph/outfit/expand';
+import { isOutfitBuild, outfitReadout, outfitTones, outfitLanguage, outfitPieces, OUTFIT_LAWS_VERSION } from '@/lib/graph/outfit/expand';
+import { headOf as helmetOf } from '@/lib/graph/headgear/helmets';
 import { DETAIL_WORDS, KIT_WORDS, validateDress, validateDressPaint, PAINT_WORDS, validateOutfit, OUTFIT_WORDS, dressPlan, kitPalette, dressContext, libraryFeet } from '@/lib/graph/polygonizer/hero-dress';
 import { isArmorBuild, armorReadout, armorFamily, armorMaterials, armorLanguage, ARMOR_LAWS_VERSION } from '@/lib/graph/armor/expand';
 import { validateStatueBuild, normalizeStatue, statueHero, statueHair, statueRecipe, STATUE_LAWS_VERSION, STATUE_STYLES } from '@/lib/graph/statue/expand';
+import { undeadWords, undeadFlesh, undeadCard } from '@/lib/graph/undead/tiered';
+import { heroSkeleton } from '@/lib/graph/undead/hero-bones';
+import { undeadLayers, undeadRecipe } from '@/lib/graph/undead/tiered-layers';
+import { UNDEAD_FORMS, UNDEAD_LAYERS } from '@/lib/graph/undead/cards';
+import { beastWords, beastFlesh, beastHands, beastErrors } from '@/lib/graph/beast/tiered';
+import { beastLegs, beastJoints } from '@/lib/graph/beast/legs';
+import { beastTopology, beastSockets } from '@/lib/graph/beast/topology';
+import { beastHead, beastHeadOf } from '@/lib/graph/beast/head';
+import { creatureHeadOn } from '@/lib/graph/creature-heads/worn';
+import { beastDetail } from '@/lib/graph/beast/detail';
+import { beastTone, beastStyle } from '@/lib/graph/beast/style';
+import { serpentCoil } from '@/lib/graph/beast/serpent';
 import { validateCreatureStatue } from '@/lib/graph/statue/creature';
 import { mutagenErrors } from '@/lib/graph/mutagen/index';
 import { rigSpecies } from '@/lib/graph/mutagen/rig';
@@ -73,7 +89,7 @@ import { validateBake } from '@/lib/graph/polygonizer/surface-bake';
 import { validateFieldPaint, fieldPaintReadout } from '@/lib/graph/polygonizer/field-paint';
 import { validateRig, bindLayered, auditRig, layeredClip, rigNodesAt, holdGrip } from '@/lib/graph/polygonizer/station-loft-rig';
 import { formSlice, physique as physiqueBuild, PHYSIQUES, PHYSIQUE_DIALS } from '@/lib/graph/polygonizer/body-relational';
-import { cervicalNeck, roundOut } from '@/lib/graph/polygonizer/body-relational-builds';
+import { cervicalNeck, roundOut, maleHips, withHipSpan, throatLine } from '@/lib/graph/polygonizer/body-relational-builds';
 import { envelopeParts } from '@/lib/graph/polygonizer/body-relational-envelope';
 import { bodyPartMap } from '@/lib/graph/polygonizer/body-relational-map';
 import { fieldGarment, FIELD_GARMENTS } from '@/lib/graph/polygonizer/body-relational-garment';
@@ -89,16 +105,18 @@ import { handwearAuthored } from '@/lib/graph/handwear/adapters/authored';
 import { loosePants, LOOSE_GARMENTS } from '@/lib/graph/polygonizer/body-relational-drape';
 import { giJacket, LOOSE_TOPS } from '@/lib/graph/polygonizer/body-relational-gi';
 import { wearPieces } from '@/lib/graph/polygonizer/body-relational-wear';
+import { kitPieces } from '@/lib/graph/polygonizer/body-relational-kit';
+import { authoredKit } from '@/lib/graph/polygonizer/authored-kit';
 import { placeSurfaceOffset, surfaceLocalOffset } from '@/lib/graph/polygonizer/surface-pin';
 import { relationalHeadRecipe } from '@/lib/graph/polygonizer/hero-relational-head';
 import { ONE_SKIN_RUNGS } from '@/lib/graph/polygonizer/hero-one-skin';
-import { heroJewellery, heroHair, heroFaceHair } from '@/lib/graph/polygonizer/hero-head-layers';
+import { heroJewellery, heroHair, heroLockHair, heroFaceHair } from '@/lib/graph/polygonizer/hero-head-layers';
 import { readScalp, hairLevel } from '@/lib/graph/epidermis/dermal-hair';
 import { heroDermisSpec } from '@/lib/graph/epidermis/dermal-hero';
 import { composeFace, FACE_BUCKETS, FACE_SHAPES, FACE_FEATURES, FACE_AGE } from '@/lib/graph/polygonizer/face-compose';
 import { readAncestry } from '@/lib/graph/epidermis/dermal-looks';
 import { randomInt, createHash } from 'node:crypto';
-import { solveTune } from '@/lib/graph/polygonizer/head-relational';
+import { solveTune, raisedEar, evenFace } from '@/lib/graph/polygonizer/head-relational';
 import { DERMIS_DIALS } from '@/lib/graph/epidermis/dermal-map';
 import { faunaBones, motionGaits, checkBehaviors } from '@/lib/graph/fauna/rig';
 import { bugBones, bugMotionGaits, bugMotionBehaviors } from '@/lib/graph/bugs/rig';
@@ -236,7 +254,8 @@ function expandHeroAwarePlan(plan, hero, geocube = null) {
   if (own.length) throw new Error(`plan refused: ${own.join('; ')}`);
   // a STATUE (statue/expand.js): the expanded recipe cut to its format, carved in its material, its surface tagged
   if (hero?.statue) return statueRecipeOf(expandAware(plan, hero), plan, hero);
-  return withLegGirths(withDressMaterials(expandAware(plan, hero), hero, plan, geocube));
+  // (an undead's heavy arm, its bared flesh and its loss on their sides, undead/tiered-layers.js; absent, the recipe as it was)
+  return withLegGirths(withDressMaterials(hero?.undead ? undeadRecipe(expandAware(plan, hero), hero) : expandAware(plan, hero), hero, plan, geocube));
 }
 /** The realistic form's build (body-relational.js): the cast's pole's (male: norrin, female: shalla) under the record's
  * physique (its laws aside) */
@@ -251,7 +270,11 @@ function realisticBuild(hero) {
   // (realistic laws 6: the crotch found no lower than 0.6 W under the hip and the pelvis's rings under it drawn in to a
   // cone, on EVERY build; laws 1 to 5 did so only under a physique with a dial set, and the athletic base, the build
   // itself byte for byte, hung the pelvis down between touching thighs to the knees: body-relational.js CROTCH)
-  return laws >= 6 ? { ...R4, crotch: true } : R4;
+  const R6 = laws >= 6 ? { ...R4, crotch: true } : R4;
+  // (realistic laws 9: the man's hips, a waist about as wide as them, body-relational-builds.js MALE_HIPS; laws 14: the
+  // throat one slope from the jaw to the chest, THROAT_LINE)
+  const R9 = laws >= 9 ? maleHips(R6, name) : R6;
+  return laws >= 14 ? throatLine(R9, name) : R9;
 }
 /** A realistic body: the recipe re-sampled onto the build's form field (formSlice). A slice costs seconds, so slices are
  * kept by what a slice reads: the body's parts (the trunk, the limbs, the pectorals and the bust it removes, the hands it
@@ -266,7 +289,8 @@ function realisticRecipe(recipe, hero) {
   let kept = SLICES.get(key);
   if (kept) { SLICES.delete(key); SLICES.set(key, kept); }
   else {
-    const out = formSlice(recipe, validateRig(recipe.rig), B).recipe;
+    // (realistic laws 9: a man's hip sockets brought in, body-relational-builds.js MALE_HIPS; the rig the slice reads and keeps)
+    const rig = B.hipSpan ? withHipSpan(recipe.rig, B.hipSpan) : recipe.rig, out = formSlice(B.hipSpan ? { ...recipe, rig } : recipe, validateRig(rig), B).recipe;
     kept = { parts: reads(out.parts), removed: Object.keys(recipe.parts).filter((k) => SLICE_READS.test(k) && !out.parts[k]), rig: out.rig, dials: out.dials, ...(out.correctives ? { correctives: out.correctives } : {}) };
     SLICES.set(key, kept); if (SLICES.size > SLICES_KEPT) SLICES.delete(SLICES.keys().next().value);
   }
@@ -279,8 +303,9 @@ function realisticRecipe(recipe, hero) {
   // and the brows on the target's rung; a hero drawn for no target its skin whole: hero-one-skin.js ONE_SKIN_RUNGS,
   // hero-head-layers.js HEAD_BUDGET)
   const laws = (hero.physique && typeof hero.physique === 'object' ? hero.physique.laws : undefined) ?? 1, one = laws >= 2;
-  // (and under laws 5 its fit keeps the neck's column, so the normal bake can rebuild the skin's own field)
-  const face = realisticFaceOf(hero), H = relationalHeadOn(S, femaleOf(hero) ? 'female' : 'male', face, { oneSkin: one, rung: one && hero.target ? heroHairLevel(hero) : null, column: one && laws >= 5 });
+  // (and under laws 5 its fit keeps the neck's column, so the normal bake can rebuild the skin's own field; under laws 10
+  // the ear raised to the canon; under laws 11 the lids rest on the globes: head-relational-eye.js SEAT)
+  const face = realisticFaceOf(hero), H = relationalHeadOn(S, femaleOf(hero) ? 'female' : 'male', face, { oneSkin: one, rung: one && hero.target ? heroHairLevel(hero) : null, column: one && laws >= 5, ear: laws >= 10, seat: one && laws >= 11 && (laws >= 14 ? 2 : true), teeth: one && laws >= 12, even: one && laws >= 14 });
   // THE FACE'S PIERCINGS on its head (hero-head-layers.js): the composed face's, pinned to the visage, their metals'
   // colours under the palette's own
   if (!face || !H.headFit) return H;
@@ -292,17 +317,38 @@ function realisticRecipe(recipe, hero) {
   const scalp = faceScalp(hero, face), dermis = heroDermisSpec(faceSkin(hero)).spec;
   // (the hair's rung on the grass's ladder by the head's size on screen: the hero's target, else a third of the blades)
   const level = heroHairLevel(hero);
-  if (scalp) wear(hairOf(H, dermis, scalp, level, one));
+  // (under laws 7 its blades as ALPHA CARDS on the strand texture, hair-depict.js stripMesh `card`: the grass hat before)
+  // (under laws 10 the hair as LOCKS, one colour, its register the face's `stylize`: hair-locks.js; the blades before)
+  const scalpHair = scalp ? (laws >= 10 ? lockHairOf(H, dermis, scalp, level, hero.face?.stylize, laws >= 14) : hairOf(H, dermis, scalp, level, one, laws >= 7)) : null;
+  if (scalpHair) wear(scalpHair);
+  // (realistic laws 10: hair a clipper took under its shell, the scalp's and a stubble's, is the skin's paint, its shadow
+  // by its length: dermal-texture.js `clip`; the recipe carries where, the hero's skin paint reads it)
+  if (laws >= 10) out = { ...out, hairClip: { scalp: scalpHair?.clip ?? null, beard: true } };
   // THE FACE'S HAIR (hero-head-layers.js heroFaceHair): a styled beard curling by the scalp's type, the brows and the
   // lashes by the ancestry's grooms with the composed face's over them
   const A = readAncestry({ id: face.ancestry, sex: femaleOf(hero) ? 'female' : 'male', seed: hero.face.seed ?? 1 });
   const epidermis = { from: 'default', hair: { ...(A.epidermis?.hair || {}), ...(face.epidermis?.hair || {}) } };
-  wear(faceHairOf(H, dermis, { type: scalp ? readScalp(scalp).type : 'straight', epidermis, level, ...(one ? { budget: true } : {}) }));
+  wear(faceHairOf(H, dermis, { type: scalp ? readScalp(scalp).type : 'straight', epidermis, level, ...(one ? { budget: true } : {}), ...(laws >= 10 ? { locks: { stylize: hero.face?.stylize ?? null } } : laws >= 7 ? { cards: true } : {}) }));
   return out;
+}
+/** THE DOOR'S HAIR ON THE REALISTIC FACE: a landmark style (the word a cast or a crew writes, egocube/plan.js) read as the
+ * scalp's cut (dermal-hair.js SCALP_STYLES), the name where both libraries have it, the nearest cut where not; its
+ * `wave` as the scalp's curl (the inverse of the sheet's WAVE). A face that names its own `scalp` keeps it. */
+const SCALP_OF_HAIR = Object.freeze({ none: 'none', animeShort: 'short', crew: 'fade', taper: 'short', quiff: 'pompadour', swept: 'slick-back', pixie: 'french-crop', animeBob: 'bob', wavy: 'long' });
+export function scalpOfHair(hair) {
+  const { style, wave } = resolveHair(hair), cut = SCALP_OF_HAIR[style] ?? style;
+  if (cut === 'none') return 'none';
+  // (every style resolves a wave, 1 when none was said: a straight fall, but the wavy fall's own swing)
+  const type = wave >= 1.55 ? 'coily' : wave >= 1.35 ? 'curly' : wave > 1.05 || style === 'wavy' ? 'wavy' : null;
+  return type ? { style: cut, type } : cut;
 }
 /** the realistic face's SCALP groom: its ancestry's (dermal-looks.js readAncestry), the composed cut in its place when the
  * face rolled one (a style), else the face's hint over the ancestry's (a peak's part, the streaks); null for none */
 function faceScalp(hero, C) {
+  // (the door's own cut, `face.scalp`, over whatever the face and its ancestry roll)
+  const own = hero.face?.scalp;
+  if (own === 'none') return null;
+  if (own !== undefined) return { ...(typeof own === 'string' ? { style: own } : own), seed: hero.face.seed ?? 1 };
   const A = readAncestry({ id: C.ancestry, sex: femaleOf(hero) ? 'female' : 'male', seed: hero.face.seed ?? 1 });
   if (C.scalp?.style) return { ...C.scalp, seed: hero.face.seed ?? 1 };
   if (!A.scalp || A.scalp === 'none') return null;
@@ -326,10 +372,17 @@ function faceHairOf(S, dermis, opts) {
   return H;
 }
 /** a head's hair cards, kept by its fit, its dermis and its groom (growing them costs seconds) */
-function hairOf(S, dermis, scalp, level, budget = false) {
-  const key = JSON.stringify([wornHead(S), dermis, scalp, level, budget]);
+function hairOf(S, dermis, scalp, level, budget = false, cards = false) {
+  const key = JSON.stringify([wornHead(S), dermis, scalp, level, budget, cards]);
   let H = HAIRS.get(key);
-  if (!H) { H = heroHair(S, dermis, scalp, { level, budget }); HAIRS.set(key, H); if (HAIRS.size > 16) HAIRS.delete(HAIRS.keys().next().value); }
+  if (!H) { H = heroHair(S, dermis, scalp, { level, budget, cards }); HAIRS.set(key, H); if (HAIRS.size > 16) HAIRS.delete(HAIRS.keys().next().value); }
+  return H;
+}
+/** a head's lock hair (realistic laws 10; sealed against the neck and the body under laws 14), kept as its blades are */
+function lockHairOf(S, dermis, scalp, level, stylize, seal = false) {
+  const key = JSON.stringify(['locks', wornHead(S), dermis, scalp, level, stylize ?? null, ...(seal ? ['seal'] : [])]);
+  let H = HAIRS.get(key);
+  if (!H) { H = heroLockHair(S, dermis, scalp, { level, budget: true, stylize, seal }); HAIRS.set(key, H); if (HAIRS.size > 16) HAIRS.delete(HAIRS.keys().next().value); }
   return H;
 }
 /** THE HAIR'S RUNG (dermal-hair.js HAIR_LADDER, the grass's ladder): by the head's height on screen under the hero's
@@ -345,14 +398,15 @@ function jewelleryOf(S, piercings) {
   if (!J) { J = heroJewellery(S, piercings); JEWELS.set(key, J); if (JEWELS.size > 16) JEWELS.delete(JEWELS.keys().next().value); }
   return J;
 }
-function relationalHeadOn(S, sex, face = null, { oneSkin = false, rung = null, column = false } = {}) {
-  const own = face ? { relations: face.relations, eyes: face.eyes, ...(face.tune ? { tune: face.tune } : {}) } : {};
-  const key = JSON.stringify([S.parts.neck, S.parts.cranium, S.parts.jaw, S.rig.joints, sex, own, oneSkin, rung, ...(column ? ['column'] : [])]);
+function relationalHeadOn(S, sex, face = null, { oneSkin = false, rung = null, column = false, ear = false, seat = false, teeth = false, even = false } = {}) {
+  // (`ear`, realistic laws 10: the ear raised to the canon, head-relational.js EAR_RAISE, over the face's own relations)
+  const own0 = face ? { relations: face.relations, eyes: face.eyes, ...(face.tune ? { tune: face.tune } : {}) } : {}, own1 = ear ? { ...own0, relations: raisedEar(own0.relations, sex) } : own0, own = even ? { ...own1, relations: evenFace(own1.relations, sex) } : own1;
+  const key = JSON.stringify([S.parts.neck, S.parts.cranium, S.parts.jaw, S.rig.joints, sex, own, oneSkin, rung, ...(column ? ['column'] : []), ...(seat ? [seat === true ? 'seat' : `seat${seat}`] : []), ...(teeth ? ['teeth'] : [])]);
   let d = HEADS.get(key);
   if (d) { HEADS.delete(key); HEADS.set(key, d); }
   else {
     const opts = { ...(rung ? { oneSkin: ONE_SKIN_RUNGS[rung] } : {}), ...(column ? { column: true } : {}) };
-    const r = relationalHeadRecipe(S, { sex, ...own, oneSkin, ...(Object.keys(opts).length ? { opts } : {}) });
+    const r = relationalHeadRecipe(S, { sex, ...own, oneSkin, ...(seat ? { seat } : {}), ...(teeth ? { teeth: true } : {}), ...(Object.keys(opts).length ? { opts } : {}) });
     d = {
       parts: Object.fromEntries(Object.entries(r.parts).filter(([k, p]) => JSON.stringify(p) !== JSON.stringify(S.parts[k]))),
       removed: Object.keys(S.parts).filter((k) => !r.parts[k]), creases: r.creases, dropped: Object.keys(S.dials || {}).filter((k) => !r.dials?.[k]), joints: r.rig.joints, headFit: r.headFit,
@@ -363,10 +417,14 @@ function relationalHeadOn(S, sex, face = null, { oneSkin = false, rung = null, c
   }
   const D = structuredClone(d), parts = Object.fromEntries(Object.entries(S.parts).filter(([k]) => !D.removed.includes(k)));
   const dials = S.dials ? Object.fromEntries(Object.entries(S.dials).filter(([k]) => !D.dropped.includes(k)).map(([k, v]) => [k, D.redialled?.[k] ?? v])) : S.dials;
-  const out = { ...S, parts: { ...parts, ...D.parts }, ...(D.creases !== undefined ? { creases: D.creases } : {}), ...(dials ? { dials } : {}), rig: { ...S.rig, joints: D.joints }, ...(D.headFit ? { headFit: D.headFit } : {}) };
+  // (the teeth's and the tongue's colours, laws 12: MOUTH_PALETTE)
+  const out = { ...S, parts: { ...parts, ...D.parts }, ...(D.creases !== undefined ? { creases: D.creases } : {}), ...(dials ? { dials } : {}), rig: { ...S.rig, joints: D.joints }, ...(D.headFit ? { headFit: D.headFit } : {}), ...(teeth ? { palette: { ...S.palette, ...MOUTH_PALETTE } } : {}) };
   HEAD_OF.set(out, key);
   return out;
 }
+/** the mouth's colours (realistic laws 12): the front teeth's enamel, the cheek teeth's (further in, the light reaches
+ * them less), the tongue */
+export const MOUTH_PALETTE = Object.freeze({ Teeth: '#eee8da', TeethShade: '#a39b8b', Tongue: '#8f444c' });
 /** the realistic form's tune: the hero's own times the build's (its shoulders; the physique's stature and shoulders), so
  * the slice's frame finds the build's tune where it laid its masses out */
 function realisticTune(hero) {
@@ -447,7 +505,8 @@ function realisticExpand(plan, hero) {
   if (fieldWords.length) plan = { ...plan, garments: (plan.garments || []).filter((g) => !fieldWords.some((w) => new RegExp(`^${w}([A-Z]|$)`).test(g.id))) };
   // FOOTWEAR: a word with a footwear card (lib/graph/footwear FOOTWEAR) is the library's, in place of its segment pieces
   // (`boot…`, `shoe…`, `<word>…`)
-  const footWords = words.filter((w) => FOOTWEAR[w]), footPiece = new RegExp(`^(boot|shoe|${footWords.join('|')})[A-Z]`);
+  // (an outfit card's `feet` naming a library card, as a word list's word: hero-dress.js libraryFeet)
+  const footWords = [...words.filter((w) => FOOTWEAR[w]), ...(Array.isArray(hero.outfit) || typeof hero.outfit === 'string' ? [] : libraryFeet(hero.outfit))], footPiece = new RegExp(`^(boot|shoe|${footWords.join('|')})[A-Z]`);
   if (footWords.length) plan = { ...plan, garments: (plan.garments || []).filter((g) => !footPiece.test(g.id)) };
   // PLATING: a suit word (lib/graph/plating SUITS: a powered suit's undersuit and plates) is the library's
   const suitWords = words.filter((w) => SUITS[w]);
@@ -464,7 +523,9 @@ function realisticExpand(plan, hero) {
   if (plan.garments?.length || (Array.isArray(plan.paint) && plan.paint.some((x) => Array.isArray(x?.part)))) {
     // (a jacket's fronts close as the figure's do: a man's right over his left, a woman's left over her right)
     const B = realisticBuild(hero), RS = validateRig(S.rig);
-    wear = wearPieces(S, RS, B, bodyPartMap(S, RS, B), plan.garments || [], plan.adorn || [], Array.isArray(plan.paint) ? plan.paint : [], plan.tailoring && { ...plan.tailoring, over: femaleOf(hero) ? 'left' : 'right' });
+    // (under realistic laws 8 the kit HUGS: a belt one mass fitted to what is worn at its height, body-relational-kit.js)
+    const laws = (hero.physique && typeof hero.physique === 'object' ? hero.physique.laws : undefined) ?? 1;
+    wear = wearPieces(S, RS, B, bodyPartMap(S, RS, B), plan.garments || [], plan.adorn || [], Array.isArray(plan.paint) ? plan.paint : [], plan.tailoring && { ...plan.tailoring, over: femaleOf(hero) ? 'left' : 'right' }, { hug: laws >= 8 });
     // what the expander placed on a worn piece (a row of buttons, an embroidered emblem, a painted trim) moved to the cloth
     // it is now (its alias), its stations' `u` shifted where the piece was merged (and turned, `k`, on a skirt carried
     // down from its coat: its hem the lowest `u`) and a limb's `run` taken as its `u`; with no window of its own, the
@@ -484,6 +545,17 @@ function realisticExpand(plan, hero) {
     plan = { ...plan, garments: (plan.garments || []).filter((g) => !wear.worn.has(g.id)).map(hangs), ...(plan.adorn ? { adorn: plan.adorn.filter((A) => !wear.belts.has(A.id)).flatMap(moved) } : {}),
       ...(plan.body?.rows ? { body: { ...plan.body, rows: plan.body.rows.flatMap(moved) } } : {}), ...(Array.isArray(plan.paint) ? { paint: plan.paint.filter((x, i) => !wear.painted.has(i)).flatMap(moved) } : {}) };
   }
+  // THE KIT'S PIECES (realistic laws 8, body-relational-kit.js): a pouch, a strap and a leg's band made as the things they
+  // are on what the body wears, its belts among it, in place of the authored kernel's slabs on the skin's envelope
+  if (wear && plan.adorn?.length && ((hero.physique && typeof hero.physique === 'object' ? hero.physique.laws : undefined) ?? 1) >= 8) {
+    const L1 = compileLayered({ schema: 'layered-v1', frame: S.frame, dials: {}, parts: Object.fromEntries(['torso', 'pelvis', 'thighR', 'thighL'].filter((k) => S.parts[k]).map((k) => [k, S.parts[k]])) }, {}, { details: false, creases: false }).parts;
+    const K = kitPieces(S, wear.parts, plan.adorn, { L1 });
+    Object.assign(wear.parts, K.parts);
+    plan = { ...plan, adorn: plan.adorn.filter((A) => !K.taken.has(A.id)) };
+  }
+  // (a piece on the landmark head's cranium, an outfit's helmet: the relational head has no cranium to cast it on, so it
+  // is left off, said in the readout's `gameOnly`)
+  if (plan.adorn?.some((A) => A.part === 'cranium') && !S.parts.cranium) plan = { ...plan, adorn: plan.adorn.filter((A) => A.part !== 'cranium') };
   if (!DRESS_KEYS.some((k) => has(plan[k])) && !fieldWords.length && !footWords.length && !suitWords.length && !handWords.length && !looseWords.length && !(wear && Object.keys(wear.parts).length)) return S;
   // (an adornment or a garment stood off `over` parts the slice removed, the pectorals and the bust: the torso's field
   // carries the chest now, so they stand off the torso alone; the tailor's cloth stays, which a cape hangs over)
@@ -662,7 +734,9 @@ function wearFeet(R, hero, W, id) {
 function expandAware(plan, hero) {
   // a creature drawn for its target (creature-drawn.js: `style.drawn`): bridged and densified first; absent, the plan itself
   // an OUTFIT designed for the whole body (outfit-plan.js) compiles first, in layer order; absent, the plan itself
-  try { const full = drawnPlan(compileOutfit(plan)); return hero?.form === 'realistic' ? withSkin(realisticExpand(full, hero), hero) : authoredWear(expandPlan(full), hero); } catch (err) {
+  // (a hero's kit on the game body made as pieces on its cloth before the kernel bakes the rest: authored-kit.js; an
+  // armour build's straps and ridges are its plates' own, stacked over them by the kernel)
+  try { const full = drawnPlan(compileOutfit(plan)); return hero?.form === 'realistic' ? withSkin(realisticExpand(full, hero), hero) : authoredWear(creatureHeadOn(expandPlan(full, hero && !isArmorBuild(hero.adorn) ? { kit: authoredKit } : {}), plan?.creatureHead), hero); } catch (err) {
     if (hero?.head === 'anime' && isArmorBuild(hero.adorn) && /off cranium/.test(err.message)) {
       throw new Error("hero refused: adorn: this armour's head piece (a helm, a kabuto, or a theme's helm) is not fitted to the anime head yet; wear it with head 'landmark' or 'none', or choose a plate style with no head piece");
     }
@@ -726,10 +800,40 @@ export const STREAMLINED_DEPRECATED = "the streamlined core (core: 'streamlined'
  * baked from its own field into a normal map on the lit engine export (epidermis/dermal-relief.js; its fit keeps the
  * neck's column it was joined to, `headFit.column`, so the field can be rebuilt), the body as laws 4 built it; 6: the
  * crotch and the pelvis's cone under it on every build, the athletic base included (body-relational.js, the hip's
- * handover) */
-export const REALISTIC_LAWS_VERSION = 6;
-export const HERO_FIELDS = ['cast', 'register', 'tune', 'body', 'girth', 'headScale', 'scale', 'palette', 'head', 'face', 'hair', 'expression', 'headPreset', 'look', 'proportions', 'detail', 'adorn', 'paint', 'outfit', 'gesture', 'sculpt', 'clips', 'blink', 'gear', 'core', 'statue', 'genki', 'motion', 'target', 'geocube', 'form', 'physique', 'skin', 'painterly', 'stylism', 'laws', 'kit'];
+ * handover); 7: the scalp's blades as alpha cards carrying a strand texture on the skin's atlas, the figure's material
+ * alpha tested (epidermis/hair-strands.js, hair-depict.js stripMesh `card`), where laws 6 drew opaque blades; 8: the kit
+ * as pieces fitted to what the body wears (body-relational-kit.js): a belt one mass round everything at its height, its
+ * buckle a frame, where laws 7 copied the cloth's rings and so rippled with them; 9: the man's hips (body-relational-builds.js
+ * MALE_HIPS), where laws 1 to 8 gave every male physique a pinched waist over a heart-shaped seat that read as a woman's; 10:
+ * the hair as LOCKS (epidermis/hair-locks.js: the groom's guides gathered into tapered, flattened, grooved tubes over the
+ * cap kept as a solid shell, one colour, cards only at the hairline and the tips, its register the face's `stylize`), where
+ * laws 7 to 9 grew a lawn of banded blades whose bands and grey flecks fought the light; 11: the lids seated on the globes
+ * (head-relational-eye.js SEAT), where laws 2 to 10 left the skin about each opening standing proud of the globe, a tunnel
+ * and a dark void between the lids and the eye; 12: the mouth with TEETH (hero-one-skin.js `teeth`: the head's dentition and
+ * its tongue behind the lips in an open cup, the lips' corners bound half to the jaw), where laws 2 to 11 closed a bag
+ * behind the lips, bound each lip wholly to its bone to the corner, and an open mouth was a box onto the bag's dark front;
+ * 13: the clothes' relief on the lit engine export (epidermis/cloth-relief.js: each garment's tube unrolled onto a cloth
+ * page of the skin's atlas, its creases where the body bends, its seams, hems and grain baked into the normal map beside
+ * the head's, and an ORM map, each cloth's roughness and metalness), where laws 5 to 12 put every garment corner on the
+ * atlas's white texel, one roughness for the whole figure; the recipe as laws 12's;
+ * 14: the hair SEALED against the neck and the body (hero-head-layers.js HAIR_SEAL: the head's skin below its base a
+ * collider the hair falls outside, a hanging point near the skin taking the skin's own bones (the jaw's the head's), so it
+ * moves as what it lies on moves, and a stroke that runs into the body stopping there, hair-locks.js `seal`), where laws
+ * 10 to 13 let hair beside the jaw sit inside the upper neck, swept a long lock's foot through the back as the head
+ * turned, and wrapped strokes that fell through the neck round the throat and down the chest; and the space under the
+ * brow ONE SECTION (head-relational-eye.js SEAT `brow`: no crease cut, the fold rising out of the lid gently), where laws
+ * 11 to 13 stacked the lid's top, the crease and the fold's hooked underside there, three dark bands, and a blink had to
+ * stretch the lid across them; and the face EVEN (head-relational.js EVEN_FACE: the cheek's volume off its front and onto
+ * the jaw's side), where laws 2 to 13 stood the cheek forward of the face from 3/4 and below over a jaw's side too slight */
+export const REALISTIC_LAWS_VERSION = 14;
+export const HERO_FIELDS = ['cast', 'register', 'tune', 'body', 'girth', 'headScale', 'scale', 'palette', 'head', 'face', 'hair', 'expression', 'headPreset', 'look', 'proportions', 'detail', 'adorn', 'paint', 'outfit', 'gesture', 'sculpt', 'clips', 'blink', 'gear', 'core', 'statue', 'genki', 'motion', 'target', 'geocube', 'form', 'physique', 'skin', 'painterly', 'stylism', 'laws', 'kit', 'name', 'emblem', 'undead', 'beast', 'perform', 'emote'];
 /** what the hero door takes beside a hero's own words: the mint's (the layered kind's top-level keys) and `vibe` */
+/** A named hero's name is its own on this machine: refused when another hero (any ref but `ref`) holds it, as names are
+ * compared (case and spacing aside), naming the hero that holds it. */
+export function assertHeroNameFree(name, ref) {
+  const held = SketchRepository.heroByName(name);
+  if (held && held.ref !== ref) throw new Error(`hero refused: the name '${held.manifest.hero.name}' is the hero '${held.ref}''s on this machine; a named hero's name is its own (choose another, or revise that hero with update_character { ref: '${held.ref}' })`);
+}
 export const HERO_DOOR_KEYS = Object.freeze(['title', 'ref', 'folder_ref', 'toon', 'dials', 'channels', 'units', 'facing', 'seat', 'hullShade', 'bake', 'fieldPaint', 'rim', 'strokes', 'vibe', 'egocube']);
 /** where a word the hero door does not take belongs: the words agents guess, then the nearest known word */
 const KEY_HOMES = Object.freeze({
@@ -778,7 +882,8 @@ const WORN = new Set(['landmark', 'anime']);
 const headOf = (hero) => hero.head ?? 'landmark';
 /** a head whose rig carries a jaw chain (a door clip's `jaw`): the landmark head, or an include with a `jawHinge` joint
  * (hero-form.js decides the chain the same way) */
-const jawedHead = (hero) => headOf(hero) === 'landmark' || headOf(hero) === 'relational' || !!hero.head?.joints?.jawHinge;
+// (a beast's head, its kin's library skull or the relational one, carries a jaw bone the rig's jaw chain opens: beast/head.js)
+const jawedHead = (hero) => headOf(hero) === 'landmark' || headOf(hero) === 'relational' || !!hero.head?.joints?.jawHinge || (!!hero.beast && !!beastHeadOf(hero));
 const isHex = (v) => typeof v === 'string' && /^#[0-9a-fA-F]{6}$/.test(v);
 /** a hero whose cast reads female (a statue card drapes and paints by silhouette) */
 const femaleOf = (hero) => castOf(hero.cast, hero.proportions ?? (hero.head === 'anime' ? 'anime' : 'hero'))?.silhouette === 'female';
@@ -832,6 +937,8 @@ export function adultsOnly(spec) {
 export function validateHeroSpec(spec, { staleScale = false } = {}) {
   spec = adultsOnly(spec);
   const errs = [];
+  // the named hero's identity (hero-emblem.js): its name and its emblem, a mark pasted as SVG paths
+  errs.push(...validateHeroName(spec.name), ...validateEmblem(spec.emblem));
   const casts = [...Object.keys(HERO_CASTS), ...CAST_PRESET_NAMES];
   if (spec.cast !== undefined) {
     if (typeof spec.cast === 'string') { if (!HERO_CASTS[spec.cast]) errs.push(...validateCast(spec.cast, 'cast').map((e) => `${e} — or a hero cast (${Object.keys(HERO_CASTS).join(', ')}), or a pole with a build: { pole: 'female', build: '${spec.cast}' }`)); }
@@ -882,7 +989,7 @@ export function validateHeroSpec(spec, { staleScale = false } = {}) {
   errs.push(...validateOutfit(spec.outfit));
   errs.push(...validateStylism(spec.stylism));
   errs.push(...readKit(spec.kit));
-  if (isOutfitBuild(spec.outfit) && Array.isArray(spec.outfit.pieces)) for (const [i, P] of spec.outfit.pieces.entries()) if (P && typeof P.kind === 'string' && !OUTFIT_KIND_NAMES.includes(P.kind)) errs.push(`outfit.pieces[${i}].kind: '${P.kind}' is not a piece (${OUTFIT_KIND_NAMES.join(', ')})`);
+  if (isOutfitBuild(spec.outfit)) for (const [i, P] of outfitPieces(spec.outfit).entries()) if (P && typeof P.kind === 'string' && !OUTFIT_KIND_NAMES.includes(P.kind)) errs.push(`outfit.pieces[${i}].kind: '${P.kind}' is not a piece (${OUTFIT_KIND_NAMES.join(', ')})`);
   // the hand's words (wrist, fingers) on a hero whose hand has them: the structured core
   const hands = (spec.core ?? DEFAULT_CORE) === 'structured';
   errs.push(...validateGesture(spec.gesture, 'gesture', { hands }));
@@ -896,6 +1003,21 @@ export function validateHeroSpec(spec, { staleScale = false } = {}) {
     if (spec.head !== 'anime' && !landmark) errs.push(`blink: the ambient blink is the anime or the landmark head's (head: 'anime' | 'landmark')`);
     else if (typeof spec.blink !== 'boolean') errs.push('blink: false turns the hero\'s ambient blink off (true is the default and not stored)');
   }
+  // THE FACE'S PERFORMANCES (face-acting/perform.js): { <take>: a performance in beats, a beat's `say` a line it speaks
+  // (face-acting/speech.js) }, each a face-only clip in an export (`face:<take>`), the realistic face's
+  if (spec.perform !== undefined && spec.perform !== null) {
+    if (!relational) errs.push(`perform: a face's performance is the realistic hero's (form: 'realistic', its relational head)`);
+    else if (typeof spec.perform !== 'object' || Array.isArray(spec.perform) || !Object.keys(spec.perform).length) errs.push('perform: { <take>: { beats: [{ at, face, say?, … }], seconds?, intensity?, seed? } }');
+    else for (const [take, P] of Object.entries(spec.perform)) {
+      if (!/^[A-Za-z][A-Za-z0-9_-]{0,31}$/.test(take)) { errs.push(`perform.${take}: a take's name is a word (letters, digits, - and _)`); continue; }
+      errs.push(...performanceErrors(P).map((e) => `perform.${take}.${e}`));
+    }
+  }
+  // THE FACE'S EMOTES (face-acting/emotes.js): held states that loop, each a face-only clip in an export (`emote:<clip>`)
+  if (spec.emote !== undefined && spec.emote !== null) {
+    if (!relational) errs.push(`emote: a face's emote is the realistic hero's (form: 'realistic', its relational head)`);
+    else errs.push(...emoteClipErrors(spec.emote).map((e) => (e.startsWith('emote') ? e : e.startsWith('[') ? `emote${e}` : `emote.${e}`)));
+  }
   errs.push(...validateGear(spec.gear));
   if (spec.statue !== undefined && spec.statue !== null) errs.push(...validateStatueBuild(spec.statue, spec));
   if (isSwing(spec.gesture) && !spec.gear?.[SWING_HAND[spec.gesture]]) errs.push(`gesture '${spec.gesture}' swings the ${SWING_HAND[spec.gesture]} hand's gear: add gear.${SWING_HAND[spec.gesture]} (an item's build words, e.g. { item: '${spec.gesture === 'bash' ? 'shield' : spec.gesture === 'plant' ? 'staff' : 'sword'}' })`);
@@ -905,11 +1027,25 @@ export function validateHeroSpec(spec, { staleScale = false } = {}) {
   if (spec.target !== undefined && spec.target !== null && targetError(spec.target)) errs.push(`${targetError(spec.target)} — what the hero is drawn for: its rings hold the outline within \`error\` pixels there`);
   if (spec.geocube !== undefined && spec.geocube !== null) { try { readGeocube(spec.geocube); } catch (e) { errs.push(`${e.message} — the cube whose light the hero is baked in (a preset id, a document or { from, … })`); } }
   if (spec.laws !== undefined && !(Number.isInteger(spec.laws) && spec.laws >= 1 && spec.laws <= HERO_LAWS_VERSION)) errs.push(`laws: ${spec.laws} is unknown — this kernel carries hero laws 1 … ${HERO_LAWS_VERSION} (stamped at mint; leave it out)`);
+  // the UNDEAD (lib/graph/undead/tiered.js): a form on the tiered body, its variation by the build, its layers
+  if (spec.undead !== undefined && spec.undead !== null) {
+    const U = spec.undead;
+    if (!U || typeof U !== 'object' || Array.isArray(U)) errs.push(`undead: { form: ${Object.keys(UNDEAD_FORMS).join(' | ')}, build?, seed?, layers?, hobble? }`);
+    else {
+      if (!UNDEAD_FORMS[U.form]) errs.push(`undead.form: one of ${Object.keys(UNDEAD_FORMS).join(', ')}`);
+      if (U.seed !== undefined && !Number.isInteger(U.seed)) errs.push('undead.seed: an integer (the form\'s own dice)');
+      if (U.hobble !== undefined && typeof U.hobble !== 'boolean') errs.push('undead.hobble: true or false (one leg lame in its walk; absent, its walk\'s own odds on its dice)');
+      for (const l of U.layers ?? []) if (!UNDEAD_LAYERS[l]) errs.push(`undead.layers: '${l}' is not a layer (${Object.keys(UNDEAD_LAYERS).join(', ')})`);
+      if ((spec.form ?? 'tiered') !== 'tiered') errs.push("undead: the undead stand on the tiered body (form: 'tiered')");
+    }
+  }
+  // the BEAST-KIN (lib/graph/beast/tiered.js): a non-human people on the tiered body, its kin a card
+  errs.push(...beastErrors(spec));
   if (spec.form !== undefined && spec.form !== null && !HERO_FORMS.includes(spec.form)) errs.push(`form: ${HERO_FORMS.map((f) => `'${f}'`).join(' | ')} (the tiered base, the game body and the default at mint: triangles spent where the eye reads them, detail added by tier; the realistic body: the anatomy on one skin, dialled by physique; the classic body, deprecated: the game body before it, and what a hero stored without a form reads)`);
   const wearsHead = spec.head === undefined || WORN.has(spec.head);
   // the worn heads (humanoid-plan.js) size the figure by the cast and tune.stature alone and never read `scale`
   if (wearsHead && spec.scale !== undefined && !staleScale) errs.push(`scale: the ${headOf(spec)} head's figure takes its height from tune.stature (a ratio to the cast's own height: tune: { stature: 0.85 }); scale sizes only the blank trunk (head: 'none') or a baked head include`);
-  if (!wearsHead) for (const k of [...(realisticFaced(spec) ? [] : ['face']), 'hair', 'expression', 'headPreset']) if (spec[k] !== undefined) errs.push(`${k}: only the landmark head or the anime head takes it (head: 'landmark' | 'anime')`);
+  if (!wearsHead) for (const k of [...(realisticFaced(spec) ? [] : ['face', 'hair', 'expression']), 'headPreset']) if (spec[k] !== undefined) errs.push(`${k}: only the landmark head or the anime head takes it (head: 'landmark' | 'anime')`);
   // a worn head sizes its figure from one named cast (humanoid-plan.js wornHead): a list or a dial map is the blank trunk's
   if (wearsHead && spec.cast !== undefined && typeof spec.cast !== 'string' && !isBuiltCast(spec.cast)) errs.push(`cast: a list or a dial map builds only the blank trunk (head: 'none'); the ${headOf(spec)} head takes a cast word or a pole with a build ({ pole: 'female', build: 'brute' })`);
   // the tiered form's joints and sockets are cut on the structured core's pelvis and lumbar bones
@@ -932,7 +1068,7 @@ export const FACE_ETHNICITIES = Object.freeze(Object.keys(FACE_BUCKETS));
 /** the ethnicities a roll draws from when none is named: every base population, and the mixed */
 const BASE_ETHNICITIES = Object.keys(FACE_BUCKETS).filter((k) => FACE_BUCKETS[k].ancestry);
 export const ROLLED_ETHNICITIES = Object.freeze([...BASE_ETHNICITIES, 'mixed']);
-const FACE_WORDS = ['seed', 'ethnicity', 'want', 'character', 'accent', 'nose', 'beauty', 'age', 'fit'];
+const FACE_WORDS = ['seed', 'ethnicity', 'want', 'character', 'accent', 'nose', 'beauty', 'age', 'fit', 'scalp', 'stylize'];
 /** THE FACE'S OWN FIT (head-relational.js solveTune: the skin's masses tuned so it lands on its composed relations, as the
  * studies show it; the pole's tune serves a face near its pole, close but not exact). Solved once at mint (~45 s) and
  * stamped, `fit: { tune, of }`, `of` the fingerprint of the relations it was solved for: a face whose words have changed
@@ -957,6 +1093,10 @@ function realisticFaceErrors(f) {
   if (f.nose !== undefined && !(Number.isFinite(f.nose) && f.nose >= -1 && f.nose <= 1)) errs.push('face.nose: −1 (short and flat) … 1 (long and pointed)');
   if (f.beauty !== undefined && !(Number.isFinite(f.beauty) && f.beauty >= 0 && f.beauty <= 1)) errs.push('face.beauty: 0 (every roll at its full reach) … 1 (the population\'s mean)');
   if (f.age !== undefined && !(Number.isFinite(f.age) && f.age >= FACE_AGE.range[0] && f.age <= FACE_AGE.range[1])) errs.push(`face.age: years, ${FACE_AGE.range.join(' … ')} (the roll is the person at ${FACE_AGE.prime})`);
+  // (the scalp's cut by word, in place of the one the face rolls: a style, or a groom on one)
+  if (f.scalp !== undefined && f.scalp !== 'none') try { readScalp(f.scalp); } catch (e) { errs.push(`face.${String(e.message).split('\n')[0]} (face.scalp: a style, { style, …its groom }, or 'none')`); }
+  // (the hair's register, realistic laws 10: hair-locks.js HAIR_STYLIZE its default)
+  if (f.stylize !== undefined && !(Number.isFinite(f.stylize) && f.stylize >= 0 && f.stylize <= 1)) errs.push('face.stylize: 0 (a realistic game\'s hair: many fine locks, soft cards at the edge) … 1 (a stylised game\'s: a few dozen chunky sculpted locks); the default 0.5');
   if (f.fit !== undefined && !(f.fit && typeof f.fit === 'object' && typeof f.fit.of === 'string' && f.fit.tune && typeof f.fit.tune === 'object' && Object.entries(f.fit.tune).every(([k, v]) => FIT_KEYS.includes(k) && Number.isFinite(v) && Math.abs(v) < 0.5))) errs.push('face.fit: the face\'s own fit as the mint stamps it ({ tune, of }); leave it out and the next mint solves it');
   return errs;
 }
@@ -1055,6 +1195,11 @@ function realisticErrors(spec) {
 export function heroRecord(spec, { staleScale = false } = {}) {
   // (a realistic child is the stylized figure: the realistic body depicts adults)
   spec = adultsOnly(spec);
+  // the UNDEAD's words (undead/tiered.js) under the spec's own: bald, bare, one tone, a gaunt face, its rest; stored as
+  // any hero's words are, so an edit reaches them
+  spec = undeadWords(spec);
+  // the BEAST-KIN's words (beast/tiered.js) the same way: bald, bare in its coat, its rest
+  spec = beastWords(spec);
   const errs = validateHeroSpec(spec, { staleScale });
   if (errs.length) throw new Error(`hero refused:\n - ${errs.join('\n - ')}\nThe hero door: { cast: 'male' | 'female' | a figure cast | { pole: 'male' | 'female', build: ${HERO_BUILD_NAMES.join(' | ')} }, register, tune: a move (${HERO_MOVE_NAMES.join(' / ')}), { ${TUNE_KEYS.join(', ')} } or a list, face: a move (${FACE_MOVE_NAMES.join(' / ')}), { ${FACE_KEYS.join(', ')} } or a list, hair?: a style (${HAIR_STYLE_NAMES.join(' / ')}), { style, ${HAIR_KEYS.join(', ')} } or a list, expression?, sculpt?: the anime head's graphic face (an object of words, a move (${ANIME_SCULPT.MOVE_NAMES.join(' / ')}), a list or false), painterly?: true (the anime head's painterly look: the face painted, a soft edge), detail?: ${DETAIL_WORDS.join(' | ')}, adorn?: ${KIT_WORDS.join(' | ')} | { type: 'armor', style, dials }, paint?: ${Object.keys(PAINT_WORDS).join(' | ')} | { part, u?, run?, t?, group } | a list, outfit?: { type: 'outfit', style, dials?, language? } | ${Object.keys(OUTFIT_WORDS).join(' | ')} | { id, part, u?, run?, ease, flare?, over?, group } | a list, body?, palette?, head?: 'landmark' | 'none' | include, gesture?: ${GESTURE_WORDS.join(' | ')} | { ${GESTURE_KEYS.join(', ')} } | a list, clips?: { <name>: [keys] | { seconds, keys } | false } (keys in pose words: ${CLIP_KEYS.join(', ')}; a key's face on the anime or the landmark head), motion?: { walk?, jog?, sprint?: true | { <the gait's dials>, tilt, seconds }, <a jump, roll or stop>?: true | { seconds }, <a pose, stance or strike (hairToss, jotaroPoint, guard, jab …, <name>Left its mirror)>?: true | { seconds } }, blink?: false, target?: ${Object.keys(RESOLUTIONS).join(' | ')} | { resolution, framing?: ${Object.keys(FRAMINGS).join(' | ')}, error? }, geocube?: a cube (its light, era and target unless target is named) }`);
   const { from, ...resolved } = resolveTune(spec.tune), tune = storedTune(resolved);   // a sparse control at 1 stores nothing
@@ -1082,9 +1227,15 @@ export function heroRecord(spec, { staleScale = false } = {}) {
     if (spec.painterly === true) hero.painterly = true;
     else if (spec.painterly && typeof spec.painterly === 'object') hero.painterly = { ...(spec.painterly.nose ? { nose: { ...spec.painterly.nose } } : {}) };
   }
-  for (const k of ['body', 'girth', 'headScale', 'scale', 'palette', 'proportions', 'detail', 'adorn', 'paint', 'outfit', 'core', 'target', 'geocube', 'form', 'skin', 'kit']) if (spec[k] !== undefined && spec[k] !== null) hero[k] = spec[k];
+  for (const k of ['body', 'girth', 'headScale', 'scale', 'palette', 'proportions', 'detail', 'adorn', 'paint', 'outfit', 'core', 'target', 'geocube', 'form', 'skin', 'kit', 'emblem', 'undead', 'beast']) if (spec[k] !== undefined && spec[k] !== null) hero[k] = spec[k];
+  // a named hero's name, stored tidied (its uniqueness on the machine is the door's: assertHeroNameFree)
+  if (spec.name !== undefined && spec.name !== null) hero.name = readHeroName(spec.name);
   // the realistic face's words (realisticFaceOf), stored as given: composed on every read
   if (hero.head === 'relational' && spec.face !== undefined && spec.face !== null) hero.face = structuredClone(spec.face);
+  // the door's landmark words on the realistic face: its hair as the face's cut (scalpOfHair) unless the face names one,
+  // its expression as the face rig's rest (relational-face-rig.js); both were dropped here before
+  if (hero.head === 'relational' && hero.face && typeof hero.face === 'object' && hero.face.scalp === undefined && spec.hair !== undefined && spec.hair !== null) hero.face = { ...hero.face, scalp: scalpOfHair(spec.hair) };
+  if (hero.head === 'relational' && spec.expression !== undefined && spec.expression !== null) hero.expression = spec.expression;
   // the realistic body's physique, always stored on a realistic hero (athletic when none is given), with the laws
   if (spec.form === 'realistic') { const p = spec.physique ?? 'athletic', o = typeof p === 'string' ? { from: p } : { ...p }; hero.physique = o.laws === undefined ? { ...o, laws: REALISTIC_LAWS_VERSION } : o; }
   // genki (anime-genki.js): stored only when it adds something (absent and 0 store nothing)
@@ -1096,6 +1247,8 @@ export function heroRecord(spec, { staleScale = false } = {}) {
   if (spec.clips && typeof spec.clips === 'object' && Object.keys(spec.clips).length) hero.clips = spec.clips;
   // the door's motion (hero-motion.js), stored AS GIVEN and sparse: absent when none (an empty object stores nothing)
   if (spec.motion && typeof spec.motion === 'object' && Object.keys(spec.motion).length) hero.motion = spec.motion;
+  if (spec.perform && typeof spec.perform === 'object' && Object.keys(spec.perform).length) hero.perform = spec.perform;
+  if (spec.emote !== undefined && spec.emote !== null) hero.emote = spec.emote;
   // the ambient blink: on by default (read at export, never stored); stored only when turned off
   if (spec.blink === false) hero.blink = false;
   // held and carried gear (hero-gear.js): each slot's build words with the laws stamped; absent ⇒ no key
@@ -1147,7 +1300,8 @@ export function heroPlanOf(hero) {
  * bracers …), worn over the cut on the hero's own landmarks (outfit-plan.js compileOutfit, as a creature wears them), in
  * the intent's palette roles; before the target, so a tiered kit tiers them. No pieces ⇒ the plan as it was. */
 function designedPieces(plan, hero) {
-  const O = isOutfitBuild(hero.outfit) && Array.isArray(hero.outfit.pieces) && hero.outfit.pieces.length ? hero.outfit : null;
+  // (the card's own gear first, a team's kit, then the build's: outfit/expand.js outfitPieces)
+  const pieces = isOutfitBuild(hero.outfit) ? outfitPieces(hero.outfit) : [], O = pieces.length ? { ...hero.outfit, pieces } : null;
   if (!O) return plan;
   const { worn } = sortPieces(plan, O);
   return worn.length ? compileOutfit({ ...plan, outfit: { intent: O.intent ?? {}, pieces: worn } }) : plan;
@@ -1234,13 +1388,29 @@ function tieredBust(hero) {
  *  worn over the armour); a cowl's `ears: false` leaves them. */
 export function cowlPressesEars(hero) {
   const kit = Array.isArray(hero?.adorn) ? hero.adorn : Array.isArray(hero?.adorn?.with) ? hero.adorn.with : [];
-  return kit.some((A) => A?.signature?.kind === 'cowl' && A.signature.ears !== false);
+  return kit.some((A) => A?.signature?.kind === 'cowl' && A.signature.ears !== false) || helmeted(hero);
 }
+/** the hero's outfit wears a helmet (its language's `head`: headgear/helmets.js): the ears pressed under it, the hair dropped */
+export const helmeted = (hero) => isOutfitBuild(hero?.outfit) && !!helmetOf(outfitLanguage(hero.outfit));
 
 function heroFormPlan(hero) {
   if (hero.form !== 'tiered') return heroFormPlanOf(hero);
+  // (the undead's layers over the body as it ends: undead/tiered-layers.js; absent, the plan as it was)
+  if (!hero.undead) return tieredFormPlan(hero);
+  // (a skeleton's armour is sized to the flesh it was built from: the living plan)
+  const living = undeadCard(hero)?.form === 'bone' ? heroFormPlanOf(tieredFace({ ...hero, body: { ...(hero.body ?? {}), bust: 0 } }, tieredPole(hero))) : null, plan = tieredFormPlan(hero);
+  return undeadLayers(plan, hero, { living: living ?? plan });
+}
+function tieredFormPlan(hero) {
   const pole = tieredPole(hero);
-  return tieredSockets(tieredJoints(tieredChest(heroFormPlanOf(tieredFace({ ...hero, body: { ...(hero.body ?? {}), bust: 0 } }, pole)), tieredBust(hero)), undefined, { respace: (hero.laws ?? 1) >= 7 }), { web: (hero.laws ?? 1) >= 10 ? 3 : (hero.laws ?? 1) >= 9 ? 2 : (hero.laws ?? 1) >= 8 ? 1 : 0 });
+  // (a skeleton's bones on the hero's landmarks, undead/hero-bones.js: no bridges, no shoulder balls; a bone joint is
+  // its knob)
+  if (undeadCard(hero)?.form === 'bone') return heroSkeleton(heroFormPlanOf(tieredFace({ ...hero, body: { ...(hero.body ?? {}), bust: 0 } }, pole)), undeadCard(hero), { segmented: !!hero.undead.layers?.includes('attack') });
+  // (the undead's flesh passes, and a beast-kin's girths and legs, on the body before its joints are bridged and its
+  // shoulders balled: undead/tiered.js, beast/tiered.js, beast/legs.js, beast/topology.js: a digitigrade kin's hock and
+  // its second arms' elbows bridged with the knee; its tail and its second arms welded to the trunk by the generic
+  // socket, its hands and claws and its own head on the neck (beast/head.js), on the body as it ends)
+  return beastStyle(beastHead(serpentCoil(beastHands(beastDetail(beastSockets(tieredSockets(tieredJoints(tieredChest(beastTopology(beastLegs(beastFlesh(beastTone(undeadFlesh(heroFormPlanOf(tieredFace({ ...hero, body: { ...(hero.body ?? {}), bust: 0 } }, pole)), hero), hero), hero), hero), hero), tieredBust(hero)), beastJoints(hero), { respace: (hero.laws ?? 1) >= 7 }), { web: (hero.laws ?? 1) >= 10 ? 3 : (hero.laws ?? 1) >= 9 ? 2 : (hero.laws ?? 1) >= 8 ? 1 : 0 }), hero), hero), hero), hero), hero), hero);
 }
 function heroFormPlanOf(hero) {
   // a child-coded figure (childCoding) never takes the adult female's default bust (hero-form.js BUST_FORM): its body says 0
@@ -1259,14 +1429,14 @@ function heroFormPlanOf(hero) {
     // lift, so the cowl passes close over them; its `ears: false` leaves them as they are. No cowl: the ears as before)
     const cowled = cowlPressesEars(hero);
     const features = cowled ? { ...(hero.faceFeatures ?? {}), earAngle: 0.03, earLift: 0 } : hero.faceFeatures;
-    return humanoidPlan({ preset: cast, ...common, face: hero.face ?? {}, hair: hero.hair ?? 'swept', expression: hero.expression ?? 'neutral', palette: hero.palette ?? {}, ...(features ? { features } : {}), ...(hero.headPreset ? { headPreset: hero.headPreset } : {}), ...(hero.proportions ? { proportions: hero.proportions } : {}), ...dress });
+    return humanoidPlan({ preset: cast, ...common, face: hero.face ?? {}, hair: helmeted(hero) ? 'none' : hero.hair ?? 'swept', expression: hero.expression ?? 'neutral', palette: hero.palette ?? {}, ...(features ? { features } : {}), ...(hero.undead || hero.beast ? { bare: true } : {}), ...(hero.headPreset ? { headPreset: hero.headPreset } : {}), ...(hero.proportions ? { proportions: hero.proportions } : {}), ...dress });
   }
   if (hero.head === 'anime') {
     const eff = animeEffective(hero);   // the look's stamp, the own layer on top, the hair base under them
     return humanoidPlan({ preset: cast, ...common, tune: eff.tune, head: 'anime', face: eff.face, hair: eff.hair, expression: eff.expression, sculpt: eff.sculpt, palette: { ...ANIME_HERO_PALETTE[headPoleOf(hero)], ...(hero.palette ?? {}) }, ...(hero.painterly ? { facePaint: { dense: facePaintDense(heroTarget(hero)), nose: { ...NOSE_DEFAULTS, ...(hero.painterly.nose ?? {}) } } } : {}), ...(hero.headPreset ? { headPreset: hero.headPreset } : {}), ...(hero.proportions ? { proportions: hero.proportions } : {}), ...dress });
   }
   // the blank trunk and a baked include take `proportions` too (the anime casts), as the two worn heads do
-  const plan = heroPlan({ cast, ...common, scale: hero.scale, palette: hero.palette || dress.adorn || isOutfitBuild(dress.outfit) ? { ...HERO_PALETTE, ...kitPalette(dress.adorn), ...outfitTones(dress.outfit), ...(hero.palette || {}) } : HERO_PALETTE, head: hero.head === 'none' ? null : hero.head, ...(hero.proportions ? { proportions: hero.proportions } : {}), ...(hero.detail === 'swimsuit' && !childCoding(hero) ? { bare: true } : {}) });
+  const plan = heroPlan({ cast, ...common, scale: hero.scale, palette: hero.palette || dress.adorn || isOutfitBuild(dress.outfit) ? { ...HERO_PALETTE, ...kitPalette(dress.adorn), ...outfitTones(dress.outfit), ...(hero.palette || {}) } : HERO_PALETTE, head: hero.head === 'none' ? null : hero.head, ...(hero.proportions ? { proportions: hero.proportions } : {}), ...((hero.detail === 'swimsuit' && !childCoding(hero)) || hero.beast ? { bare: true } : {}) });
   const { childCoded, ...worn } = dress;
   return dressPlan(plan, { ...worn, laws: hero.laws ?? 1, figure: { female: castOf(hero.cast, hero.proportions ?? 'hero')?.silhouette === 'female', child: !!childCoded }, operatorPalette: hero.palette ?? {}, scale: planScale({ cast: hero.cast, scale: hero.scale, tune: hero.tune, proportions: hero.proportions ?? 'hero' }) });
 }
@@ -1277,15 +1447,21 @@ export function dressReadout(hero, plan, mesh, recipe) {
   if (hero.detail === undefined && hero.adorn === undefined && hero.paint === undefined && hero.outfit === undefined) return null;
   const word = (v) => (v === undefined ? 'none' : typeof v === 'string' ? v : isArmorBuild(v) ? `armor:${typeof v.style === 'string' ? v.style : 'inline'}` : 'data');
   const DRESS = /^(crease|tile|patch|pad|spur|spine|stud|ring|cuff|wrap|collar)\./;
+  // (the kit made as pieces: its belts and their buckles, `<id>…_<trunk segment>`, and the rest, `…_kit`)
+  const KIT_PIECE = /_kit$|^(belt|\w*Belt)(Buckle\w*)?_[a-z]+$/;
   const parts = Object.keys(mesh?.parts || {}); const count = (re) => parts.filter((n) => re.test(n)).length;
-  const out = { detail: word(hero.detail), adorn: word(hero.adorn), ...(hero.paint !== undefined ? { paint: (Array.isArray(hero.paint) ? hero.paint : [hero.paint]).map((x) => (typeof x === 'string' ? x : 'data')) } : {}), ...(hero.outfit !== undefined ? { outfit: isOutfitBuild(hero.outfit) ? outfitReadout(hero.outfit, plan, { drawn: hero.head === 'anime' ? 'anime' : null }) : (Array.isArray(hero.outfit) ? hero.outfit : [hero.outfit]).map((x) => (typeof x === 'string' ? x : x.id)) } : {}), ...(mesh ? { parts: { detail: count(DRESS), adorn: count(/^adorn\./) } } : {}) };
+  const out = { detail: word(hero.detail), adorn: word(hero.adorn), ...(hero.paint !== undefined ? { paint: (Array.isArray(hero.paint) ? hero.paint : [hero.paint]).map((x) => (typeof x === 'string' ? x : 'data')) } : {}), ...(hero.outfit !== undefined ? { outfit: isOutfitBuild(hero.outfit) ? outfitReadout(hero.outfit, plan, { drawn: hero.head === 'anime' ? 'anime' : null }) : (Array.isArray(hero.outfit) ? hero.outfit : [hero.outfit]).map((x) => (typeof x === 'string' ? x : x.id)) } : {}), ...(mesh ? { parts: { detail: count(DRESS), adorn: count(/^adorn\./), ...(count(KIT_PIECE) ? { kit: count(KIT_PIECE) } : {}) } } : {}) };
   if (isArmorBuild(hero.adorn)) out.armor = armorReadout(hero.adorn, dressContext(plan.style));   // the style, dials, pieces worn, focal
   // (a GHOST adornment is thread on cloth, no plate of its own: its legibility is the families' below, not a share of a plate)
   // (a piece the mesh does not carry is not judged: the realistic body wears the kit's trunk panels, hoops, feet and
   // shoulders as field shells of its own and leaves the head's and the optional pieces off, body-relational-armour.js;
   // those are `unworn`, named, never "does not read")
   const plated = mesh ? plan.adorn?.filter((A) => !A.ghost && mesh.parts?.[`adorn.${A.id}`]) ?? [] : [];
-  if (mesh && plan.adorn?.some((A) => !A.ghost && !mesh.parts?.[`adorn.${A.id}`])) out.unworn = plan.adorn.filter((A) => !A.ghost && !mesh.parts?.[`adorn.${A.id}`]).map((A) => A.id);
+  // (a belt made as cloth, `<id>_<part>` (body-relational-wear.js `belts`, authored-kit.js), and a piece of the kit made as
+  // the thing it is, `<id>…_kit` (body-relational-kit.js), are worn: a band or a pouch, not a plate)
+  const tailored = (A) => parts.some((n) => n.startsWith(`${A.id}_`) || (n.startsWith(A.id) && n.endsWith('_kit')));
+  const off = mesh ? plan.adorn?.filter((A) => !A.ghost && !mesh.parts?.[`adorn.${A.id}`] && !tailored(A)) ?? [] : [];
+  if (off.length) out.unworn = off.map((A) => A.id);
   if (plated.length) out.adornments = justify(mesh, plated.map((A) => ({ id: A.id, signature: A.signature.kind }))).map((r) => ({ id: r.id, signature: r.signature, verdict: r.verdict, exposed: r.sigExposed, share: r.sigShare }));
   // the read at the viewing height: the character height from which each dress family reads (the face's is measure_solid's)
   if (mesh) { const L = layeredLegibility(mesh); out.legibility = { viewPx: L.viewPx, families: L.families.filter((f) => DRESS.test(`${f.family}.`) || f.family.startsWith('adorn.')) }; }
@@ -1302,17 +1478,20 @@ export function dressReadout(hero, plan, mesh, recipe) {
     out.outline = { family: M.family, bare: M.bareFamily, fit: { top: M.fit.top.class, bottom: M.fit.bottom.class }, returns: M.returns, divisions: M.divisions.map((d) => `${d.kind}@${d.f}`), flair: M.flair.of,
       advice: Object.fromEntries(canons.map((st) => [st, outlineCritic(M, st, { sex }).advice])) };
   }
-  // what the GAME BODY wears plain or not at all, said (advice, never a refusal): the tailoring is the realistic body's
-  // tailor's; the plating suits its library's realistic adapter's; a footwear card on the streamlined core its base
+  // what the GAME BODY wears plain or not at all, said (advice, never a refusal): the plating suits are its library's
+  // realistic adapter's; a footwear card on the streamlined core its base
   if (hero.form !== 'realistic') {
     const words = (Array.isArray(hero.outfit) ? hero.outfit : [hero.outfit]).filter((w) => typeof w === 'string'), only = [];
-    if (plan.tailoring) only.push(`tailoring (${Object.keys(plan.tailoring).join(', ')}): a jacket's front and lapels, its shoulder and waist, a tie and a waistcoat's V are made on the realistic body; the game body wears the pieces plain`);
+    // (the tailoring, a jacket's front and shape, a tie and a waistcoat, and a jacket's construction, the game body wears
+    // too: authored-tailoring.js, authored-jacket.js)
     const suits = words.filter((w) => Object.hasOwn(SUITS, w)); if (suits.length) only.push(`${suits.join(', ')}: plated suits are worn on the realistic body; the game body wears none (its armour is an armour build, adorn: { type: 'armor' })`);
     // (a footwear card is the library's on the structured core, through its authored adapter; the streamlined core's feet
     // are boxes it has no foot for)
     const shoes = hero.core === 'streamlined' ? libraryFeet(words) : []; if (shoes.length) only.push(`${shoes.join(', ')}: worn as plain boots, shoes or sandals on the streamlined core; the card's cut, sole and adornment need the structured core's foot`);
     if (only.length) out.realisticOnly = only;
   }
+  // (and what the REALISTIC BODY leaves off: a helmet, cast on the landmark head's cranium)
+  if (hero.form === 'realistic' && helmeted(hero)) out.gameOnly = ['a helmet (the outfit\'s `head`): worn on the game body; the realistic head wears none yet'];
   // (GHOST thread lies in the cloth it is worked on: sinking into its own carrier alone is the stitch, not a fault)
   const stitched = (id, a) => { const A = plan.adorn.find((x) => x.id === id); return !!A?.ghost && (a.worst.into || []).every((n) => n === A.part); };
   if (recipe && plan.adorn?.length) { const C = layeredClearance(recipe); out.clearance = { sinking: C.sinking.filter((id) => !C.adornments[id] || !stitched(id, C.adornments[id])), worst: Object.fromEntries(Object.entries(C.adornments).map(([id, a]) => [id, { at: a.worst.dial ? `${a.worst.dial} ${a.worst.value}` : 'rest', share: a.worst.share, ...(a.worst.into?.length ? { into: a.worst.into } : {}) }])) }; }
@@ -1350,7 +1529,8 @@ export function faceMeasures(hero, plan) {
 /** What the tune did, in the operator's units: height off the compiled stats, the yoke and the pelvis off the plan's rings. */
 export function heroMeasures(plan, stats) {
   const r3 = (x) => Math.round(x * 1000) / 1000;
-  const torso = plan.segments.find((s) => s.name === 'torso'), thigh = plan.segments.find((s) => s.name === 'thighR');
+  // (the yoke off the torso's trunk and the hips off the thigh's loft; a body without them, a skeleton's, measures none)
+  const torso = plan.segments.find((s) => s.name === 'torso' && s.kind === 'trunk'), thigh = plan.segments.find((s) => s.name === 'thighR' && s.kind === 'loft');
   return {
     height_m: stats?.size?.h ?? null,
     shoulder_m: torso ? r3(2 * (torso.stations.find((st) => st.id === 'st3') ?? torso.stations[3]).r[0]) : null,   // across the yoke ring at the shoulders
@@ -1471,7 +1651,7 @@ export function heroReadout(hero, plan, stats, extraWarnings = [], { mesh, recip
   if (core && core.core === 'structured') warnings.push(...core.advice);
   // a designed piece with no place on this body is said, never dropped without a word (sortPieces)
   const styledOutfit = styledHero(hero).outfit;
-  if (isOutfitBuild(styledOutfit) && styledOutfit.pieces?.length) for (const u of sortPieces(plan, styledOutfit).unworn) warnings.push(`outfit.pieces: the ${u.kind} is not worn: ${u.why}`);
+  if (isOutfitBuild(styledOutfit) && outfitPieces(styledOutfit).length) for (const u of sortPieces(plan, { ...styledOutfit, pieces: outfitPieces(styledOutfit) }).unworn) warnings.push(`outfit.pieces: the ${u.kind} is not worn: ${u.why}`);
   const clips = clipsReadout(hero, recipe);
   const budget = heroBudget(plan, mesh, recipe);
   const unjustified = (dress?.adornments || []).filter((a) => a.verdict !== 'justified').map((a) => `adornment ${a.id}: its ${a.signature} ${a.verdict === 'unjustified' ? 'does not read' : 'reads but is a small share of its picture'} (exposed ${a.exposed}, share ${a.share}; wants ≥ 0.25 and ≥ 0.08) — make the element bolder or ask whether the adornment is wanted`);
@@ -1538,13 +1718,18 @@ export async function createLayeredHeroHandler(input) {
   const { spec: heroSpec, vibe } = lowerVibe(Object.fromEntries(HERO_FIELDS.filter((k) => input[k] !== undefined).map((k) => [k, input[k]])), input.vibe);
   // a new hero walks with the calibrated gait unless it brings its own walk (withDefaultWalk), and the door's gaits are
   // stored by value as they are minted now (motion-stamp.js), so a later mint table never moves them
-  const hero = heroRecord(stampHero(withDefaultWalk(withRolledFace(withGrownHair(withDefaultForm(heroSpec))))));
+  // (an undead's or a beast-kin's words come before the default walk, so its own walk is the one stamped: undead/tiered.js,
+  // beast/tiered.js; heroRecord lays
+  // them again, a no-op over what it laid)
+  const hero = heroRecord(stampHero(withDefaultWalk(beastWords(undeadWords(withRolledFace(withGrownHair(withDefaultForm(heroSpec))))))));
+  // a named hero's name is its own on this machine; the row is titled by it unless the call names a title
+  if (hero.name) assertHeroNameFree(hero.name, input.ref);
   let plan;
   try { plan = heroPlanOf(hero); }
   catch (err) { throw new Error(`${err.message} — manual: get_solid_vocab({ id: 'layered' }) (the Hero door, and its hero-* sections by name).`); }
   const rest = Object.fromEntries(Object.entries(input).filter(([k]) => !HERO_FIELDS.includes(k) && k !== 'vibe'));
   let planned = null;   // the mint's own compiled figure: the readout's stand and budget read it
-  const out = await createLayeredPlanHandler({ ...rest, plan, hero, title: input.title ?? `hero · ${castLabel(hero.cast)}${hero.head === 'anime' ? ` · anime${hero.look?.length ? ` · ${hero.look.join('+')}` : ''}` : ''}${hero.from ? ` · ${hero.from}` : ''}${hero.faceFrom ? ` · ${hero.faceFrom}` : ''}` }, { onPlanned: (p) => { planned = p; } });
+  const out = await createLayeredPlanHandler({ ...rest, plan, hero, title: input.title ?? hero.name ?? `hero · ${castLabel(hero.cast)}${hero.head === 'anime' ? ` · anime${hero.look?.length ? ` · ${hero.look.join('+')}` : ''}` : ''}${hero.from ? ` · ${hero.from}` : ''}${hero.faceFrom ? ` · ${hero.faceFrom}` : ''}` }, { onPlanned: (p) => { planned = p; } });
   const face = hero.head === 'anime' ? ` The anime head by word: /hero/face/<control> (${ANIME_FACE_KEYS.join(', ')}; 1 = the base, tilt an offset); the hair: /hero/hair/style (${ANIME_HAIR_STYLES.join(', ')}), /hero/hair/<control> (${ANIME_HAIR_KEYS.join(', ')}) and /hero/hair/locks/<clump> ({ cx, cy, cz, tx, ty, tz }: fringe-1…7, left-temple-0…2, right-temple-0…2, back-1…11, crown-±1-0…2 on short); the hair's form /hero/hair/<word> (${ANIME_HAIR_FORM_WORDS.join(', ')}; lift { crown, temple, fringe, nape } in construction units; false the studio's construction, null back to the base's); the hair base (the cut worn while no family is named: ${Object.entries(ANIME_HAIR_BASE).map(([pole, b]) => `${b.cut} on the ${pole}`).join(', ')}, its form under every family); /hero/expression (${Object.keys(ANIME_POSES).join(', ')} or { blink, smile, open, brow }). The graphic face: /hero/sculpt (an object of ${ANIME_SCULPT_KEYS.join(', ')}, ${Object.keys(SCULPT_SHAPE_KEYS).join(', ')}; 1 = the base, positions and angles offsets; moves ${ANIME_SCULPT.MOVE_NAMES.join(', ')}; false for the studio's face), then /hero/sculpt/<word>. A LOOK composes presets by word: set /hero/look to a list (archetypes ${LOOK_TABLES.archetype.join(', ')}; face traits ${LOOK_TABLES.face.join(', ')}; graphic-face traits ${LOOK_TABLES.sculpt.join(', ')}; hair traits and families ${LOOK_TABLES.hair.join(', ')}; poses); the controls above apply on top of it.` : hero.head === 'landmark' ? ` The face by word too: /hero/face/<control> (${FACE_KEYS.join(', ')}; groups ${FACE_AGGREGATE_KEYS.join(', ')}; moves ${FACE_MOVE_NAMES.join(', ')}); the hair: /hero/hair/style (${HAIR_STYLE_NAMES.join(', ')}) and /hero/hair/<control> (${HAIR_KEYS.join(', ')}); /hero/expression.` : '';
   const dressNext = ` Detail and adornment: /hero/detail (${DETAIL_WORDS.join(', ')}), /hero/outfit (garments that follow the body: an outfit build { type: 'outfit', style, dials }, restyled by /hero/outfit/dials/<stylize | fit | coverage | ornament> and /hero/outfit/style; or ${Object.keys(OUTFIT_WORDS).join(', ')}, or a list), /hero/paint (second skin: ${Object.keys(PAINT_WORDS).join(', ')}, or a list) and /hero/adorn (${KIT_WORDS.join(', ')}); or an armour build /hero/adorn { type: 'armor', style, dials, theme? }, restyled by /hero/adorn/dials/<stylize | coverage | mass | ornament>, /hero/adorn/style and /hero/adorn/theme. The stand: /hero/gesture (${GESTURE_WORDS.join(', ')}, or pose words ${GESTURE_KEYS.join(', ')}). Clips: set /hero/clips to { <name>: [keys] } (each key an object of the stand's pose words; the head and neck may aim; heelL, heelR, lift, support: 'none'${jawedHead(hero) ? ', jaw' : ''}), then /hero/clips/<name> (remove drops a door clip); a name the figure plays (${Object.keys(plan.clips || {}).filter((c) => c !== GESTURE_CLIP).join(', ')}) replaces that clip, false removes one of the hero's own.${hero.head === 'anime' ? ` On the anime head a key may carry face (an expression word, { blink, smile, open, brow } or a list), a clip may be { seconds, keys } (its designed duration; the clips play ${Object.entries(locoSeconds(heroClipSeconds(hero, plan.clips) || {}, plan.locomotion)).filter(([c]) => c !== GESTURE_CLIP).map(([c, s]) => `${c} ${s} s`).join(', ')}), and /hero/blink false turns the ambient blink off.` : (hero.head ?? 'landmark') === 'landmark' ? ` A key may carry face (an expression word, or { word?, browRaise, browTilt, mouthCorner, aperture, blink }: the face's blend shapes in an export), and /hero/blink false turns the ambient blink off.` : ''} A statue: /hero/statue (a period card: ${STATUE_STYLES.join(', ')}; or { type: 'statue', style, material: ${STATUE_MATERIAL_WORDS.join(' | ')}, crop: ${STATUE_CROP_WORDS.join(' | ')}, lose: [head, armR, forearmL, …], base: ${STATUE_BASE_WORDS.join(' | ')}, dials: { wear } }).`;
   // the dress ledgers read the figure at REST (every dial at its rest, no channels), as the door always measured them;
@@ -1611,7 +1796,7 @@ export async function createLayeredHandler(input, { onPlanned } = {}) {
   if (!input || typeof input !== 'object' || !input.recipe || typeof input.recipe !== 'object' || !input.recipe.parts) {
     throw new Error("The layered kind needs `recipe` — { frame, parts: { <name>: { layer, slots, stations, caps | pin, offsets, faces } }, dials?, creases? }. Read get_solid_vocab({ id: 'layered' }); the worked recipe is docs/examples/dragon-layered/recipe.json.");
   }
-  const { title, recipe, plan, hero, provenance, dials, channels, units, facing, seat, toon, hullShade, bake, fieldPaint, rim, strokes, statue, species, ooze, egocube, geocube, ref, folder_ref: folderRef } = input;
+  const { title, recipe, plan, hero, provenance, dials, channels, units, facing, seat, toon, hullShade, smooth, bake, fieldPaint, rim, strokes, statue, species, ooze, egocube, geocube, ref, folder_ref: folderRef } = input;
   const cubeErrs = creatureCubeErrors(input);
   if (cubeErrs.length) throw new Error(`layered refused:\n - ${cubeErrs.join('\n - ')}`);
   // a CREATURE carved (statue/creature.js): stored beside a plan that is not a hero, carved by the layered resolve on
@@ -1653,6 +1838,9 @@ export async function createLayeredHandler(input, { onPlanned } = {}) {
     // the shader-look dials (opt-in, rigged recipes): hull-smooth bake normals and the figure rim —
     // stored as authored; the layered world resolve validates shapes on read
     ...(hullShade === true || (hullShade && typeof hullShade === 'object') ? { hullShade } : {}),
+    // a creature shaded as one smooth form (its corners' normals welded, a mesh part's its own), on the page and in the lit
+    // export (the feature style's, egocube/feature-body.js); absent ⇒ one shade per face, byte-identical
+    ...(smooth === true ? { smooth: true } : {}),
     ...(bake === true || (bake && typeof bake === 'object') ? { bake } : {}),
     ...(Array.isArray(fieldPaint) && fieldPaint.length ? { fieldPaint } : {}),   // field paint (field-paint.js): shapes cut into the faces, on every read   // the bake stack (surface-bake.js): painted light per corner, on every read
     ...(Array.isArray(rim) && rim.length === 5 && rim.every(Number.isFinite) ? { rim } : {}),
@@ -1675,7 +1863,7 @@ export async function createLayeredHandler(input, { onPlanned } = {}) {
     ok: true, ref: sketch.ref,
     worldUrl: `/api/sketches/${encodeURIComponent(sketch.ref)}/world`, sceneUrl: `/api/sketches/${encodeURIComponent(sketch.ref)}/scene`, url: `/sketches/${encodeURIComponent(sketch.ref)}`,
     stats,
-    ...(manifest.fieldPaint ? { fieldPaint: fieldPaintReadout(planned.mesh, manifest.fieldPaint) } : {}),
+    ...(heroFieldPaint(manifest) ? { fieldPaint: fieldPaintReadout(planned.mesh, heroFieldPaint(manifest)) } : {}),
     next: { tool: 'update_sketch', args: { ref: sketch.ref, patch: [{ op: 'set', path: '/dials/<name>', value: '<number>' }] }, reason: 'Turn a dial in place; the solid re-lowers on read.' },
   };
 }

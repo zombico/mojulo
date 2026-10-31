@@ -5,8 +5,8 @@
  */
 import { describe, expect, it } from 'vitest';
 
-import { relationalHead, RELATIONS } from './head-relational.js';
-import { GLOBE } from './head-relational-eye.js';
+import { relationalHead, RELATIONS, raisedEar } from './head-relational.js';
+import { GLOBE, SEAT } from './head-relational-eye.js';
 import { rayIn } from './head-field-view.js';
 
 const MM = 230;
@@ -85,5 +85,80 @@ describe('the closed mouth\'s seam', () => {
     });
     expect(Math.min(...depths)).toBeGreaterThan(0.6);
     expect(Math.max(...depths) - Math.min(...depths)).toBeLessThan(0.7);
+  });
+  it('the ear RAISED to the canon (realistic laws 10): its top at the brow line, never under it; the old ear lower', () => {
+    for (const sex of ['male', 'female']) {
+      const was = relationalHead({ sex }).landmarks, now = relationalHead({ sex, relations: raisedEar(null, sex) }).landmarks;
+      // (raised at least 3 mm, its top within ~4 mm of the glabella's level, the brows' own height; V × 1.8 m)
+      expect((now.earTopR.z - was.earTopR.z) * 1.8 * 1000).toBeGreaterThan(3);
+      expect(Math.abs(now.earTopR.z - now.g.z) * 1.8 * 1000).toBeLessThan(4.5);
+    }
+  });
+});
+
+describe('the lids\' seat', () => {
+  // how far the skin stands ahead of the globe just outside a margin (head heights): a lid's thickness when it rests on
+  // the globe, a tunnel's depth when the face stands proud of it
+  const proud = (h, which, t, dz) => {
+    const g = h.globes.find((q) => q.side === 'R'), c = h.relational.eyeRigs.find((e) => e.side === 'R').margins[which](t).c, x = c.x * sc, z = (c.z + dz) * sc;
+    const front = (f) => { let y = (c.y + 0.15) * sc; while (f({ x, y, z }) > 0 && y > (c.y - 0.2) * sc) y -= 0.0001; return y; };
+    return (front(h.field) - front(g.field)) / sc;
+  };
+  const loose = relationalHead({ sex: 'male', ears: false, globes: false }), seated = relationalHead({ sex: 'male', ears: false, globes: false, seat: true });
+  it('rests the lower lid on the globe, as the upper lies, where the cheek stood proud of it', () => {
+    for (const t of [0.2, 0.5, 0.8]) {
+      expect(proud(loose, 'lower', t, -0.005)).toBeGreaterThan(0.05);
+      expect(proud(seated, 'lower', t, -0.005)).toBeLessThan(0.03);
+    }
+    // (the upper lid lay on the globe already: the seat leaves its middle as it was, within its blend)
+    expect(proud(seated, 'upper', 0.5, 0.004)).toBeCloseTo(proud(loose, 'upper', 0.5, 0.004), 2);
+    expect(proud(seated, 'lower', 0.5, -0.005)).toBeLessThan(proud(seated, 'upper', 0.5, 0.004) + 0.01);
+  });
+  it('brings the eye forward, short of the glabella, and hangs the brow\'s arc and ties lower', () => {
+    const P0 = seated.relational.points, cornea = (h) => h.globes.find((g) => g.side === 'R').centre.y / sc + GLOBE.back;
+    const [share, behind] = SEAT.forward, room = P0.g.y - behind - P0.eyeR.y;
+    // (a share of the way to the nose's tip, never nearer the glabella than `behind`)
+    const dy = cornea(seated) - cornea(loose);
+    expect(dy).toBeGreaterThan(0);
+    expect(dy).toBeCloseTo(Math.min(share * (P0.prn.y - P0.eyeR.y), room), 9);
+    expect(P0.g.y - cornea(seated)).toBeGreaterThan(behind - 1e-9);
+    // (the skin about it stays: the bare wave is the same)
+    const q = { x: P0.eyeR.x * sc, y: P0.eyeR.y * sc, z: (P0.eyeR.z + 0.1) * sc };
+    expect(seated.bare(q)).toBe(loose.bare(q));
+    const [A, B] = [loose, seated].map((h) => h.relational.bridge);
+    expect(A.arcs.R.K.z - B.arcs.R.K.z).toBeCloseTo(SEAT.brow[0], 9);
+    expect(A.sides.R.head.z - B.sides.R.head.z).toBeCloseTo(SEAT.brow[1], 9);
+    expect(A.sides.R.tail.z - B.sides.R.tail.z).toBeCloseTo(SEAT.brow[1], 9);
+  });
+});
+
+describe('the face\'s muscles (FACS action units: face-acting/facs.js)', () => {
+  const rest = relationalHead({ sex: 'male', ears: false, globes: false }).relational.rest;
+  const moved = (actions) => relationalHead({ sex: 'male', ears: false, globes: false, actions }).relational.moved;
+  const d = (A, name, k, ax) => (A[name][k][ax] - rest[name][k][ax]) * MM;
+  it('pull the mouth\'s corner by its muscle, one side alone by the side\'s own, and leave the brows', () => {
+    const f = moved({ frown: 1 }), fl = moved({ frownL: 1 }), s = moved({ stretch: 1 });
+    // (the corner is each lower lip's first bead: down for the depressor, out for the risorius)
+    expect(d(f, 'lowerLipL', 'a', 'z')).toBeLessThan(-3); expect(d(f, 'lowerLipR', 'a', 'z')).toBeLessThan(-3);
+    expect(d(fl, 'lowerLipL', 'a', 'z')).toBeLessThan(-3); expect(d(fl, 'lowerLipR', 'a', 'z')).toBeCloseTo(0, 9);
+    expect(Math.abs(s.lowerLipR.a.x) - Math.abs(rest.lowerLipR.a.x)).toBeGreaterThan(3 / MM);
+    expect(d(f, 'browPad', 'a', 'z')).toBe(0);
+  });
+  it('draw the nose\'s wings up for the sneer, and push the lower lip up from the chin for the mentalis', () => {
+    expect(d(moved({ sneer: 1 }), 'nostrilR', 'c', 'z')).toBeGreaterThan(3);
+    const c = moved({ chinRaise: 1 });
+    expect(d(c, 'lowerLipBodyR', 'c', 'z')).toBeGreaterThan(2);
+    // (the chin itself is bone: the mentalis moves the soft tissue over it)
+    expect(d(c, 'chin', 'c', 'z')).toBe(0);
+  });
+  it('shape the lips for speech: rounded forward and in, turned out, the lower under the teeth, parted, the bone still', () => {
+    // (each lip's middle is its vajras' last bead, its corner the first)
+    const pk = moved({ pucker: 1 }), fn = moved({ funnel: 1 }), rl = moved({ rollLower: 1 }), lp = moved({ lipsPart: 1 });
+    expect(d(pk, 'upperLipR', 'c', 'y')).toBeGreaterThan(5); expect(d(pk, 'lowerLipR', 'c', 'y')).toBeGreaterThan(5);
+    expect(Math.abs(rest.lowerLipR.a.x) - Math.abs(pk.lowerLipR.a.x)).toBeGreaterThan(5 / MM);
+    expect(d(fn, 'upperLipR', 'c', 'z')).toBeGreaterThan(2); expect(d(fn, 'lowerLipR', 'c', 'z')).toBeLessThan(-2);
+    expect(d(rl, 'lowerLipR', 'c', 'y')).toBeLessThan(-3); expect(d(rl, 'lowerLipR', 'c', 'z')).toBeGreaterThan(2); expect(d(rl, 'upperLipR', 'c', 'y')).toBe(0);
+    expect(d(lp, 'upperLipR', 'c', 'z')).toBeGreaterThan(2); expect(d(lp, 'lowerLipR', 'c', 'z')).toBeLessThan(-2); expect(d(lp, 'lowerLipR', 'a', 'z')).toBe(0);
+    for (const A of [pk, fn, rl, lp]) { expect(d(A, 'chin', 'c', 'z')).toBe(0); expect(d(A, 'browPad', 'a', 'z')).toBe(0); }
   });
 });

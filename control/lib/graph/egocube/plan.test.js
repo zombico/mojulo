@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { rollEgocube } from './egocube.js';
-import { planFromSheet, shade, legible, BODY_MIN_L, EYE_ACCENTS, LOCK_KINDS, FUR_SPOTS } from './plan.js';
+import { planFromSheet as planFromSheetOf, shade, legible, BODY_MIN_L, EYE_ACCENTS, LOCK_KINDS, FUR_SPOTS } from './plan.js';
 import { validateBody } from '../polygonizer/station-loft-body.js';
 import { hexLch } from '../polygonizer/station-loft-shade.js';
 import { LINEAGES, HUMAN_IDS } from './ancestry.js';
@@ -8,6 +8,9 @@ import { HEAD_LIBRARY, HEAD_IDS, headPlan, headFor } from '../creature-heads/ind
 import { expandPlan } from '../polygonizer/station-loft-plan.js';
 import { validateHead, headFromPlan } from '../polygonizer/station-loft-head.js';
 import { validateHeroSpec } from '@/lib/mcp/tools/layered.js';
+// (these read the sixth generation's procedures: a beast-kin sheet asks for the creature biped, plan.js `gen: 6`; the
+// seventh, on the tiered body, is beast/route.test.js's)
+const planFromSheet = (sheet, opts = {}) => planFromSheetOf(sheet, { gen: 6, ...opts });
 
 describe('the creature head library', () => {
   it('holds heads that read as plan data, each serving its people', () => {
@@ -198,6 +201,15 @@ describe('planFromSheet', () => {
   it('is pure: the same sheet, the same call', () => {
     const sheet = rollEgocube({ seed: 7, facets: { ancestry: 'draconic' } });
     expect(JSON.stringify(planFromSheet(sheet))).toBe(JSON.stringify(planFromSheet(sheet)));
+  });
+  it('writes the hair\'s wave only on a style that takes it: a free fall with a wave is the wavy fall, a crop takes none', () => {
+    const textured = (sheet) => (sheet.notes.hair || []).some((n) => /^(wavy|curly|coily) hair$/.test(n.line));
+    // (the first seed whose sheet reads a wave in the hair, a free woman's and a man's)
+    const roll = (facets) => { for (let seed = 1; seed <= 40; seed++) { const sh = rollEgocube({ seed, facets: { age: 'adult', ancestry: HUMAN_IDS[0], ...facets } }); if (textured(sh)) return sh; } return null; };
+    const fall = roll({ pole: 'female', order: 0.9 }), crop = roll({ pole: 'male', order: 0.5 });
+    expect(fall && crop).toBeTruthy();
+    expect(planFromSheet(fall).create.spec.hair).toMatchObject({ style: 'wavy', wave: expect.any(Number) });
+    expect(planFromSheet(crop).create.spec.hair).toEqual({ style: 'crop' });
   });
   it('takes the hero door\'s amounts from the sheet\'s directions, inside the channel ranges', () => {
     const p = planFromSheet(rollEgocube({ brief: 'a weary paladin' }));

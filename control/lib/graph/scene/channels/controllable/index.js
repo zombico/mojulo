@@ -52,7 +52,7 @@ function poolFigureBuffers(figures) {
   return { fig: rewrite(figures), pool: [...idx.keys()] };
 }
 
-/** The page's seats (pilots.plan.md; a world's `seats: { bodies, max?, join?, drop? }`): seat 1 is the player the world
+/** The page's seats (a world's `seats: { bodies, max?, join?, drop? }`): seat 1 is the player the world
  * already has, read through its own controller once it has one; seats 2 to N each a compact read of their own controller
  * through the pilot scheme, riding the frame's input as `input.seats` (worlds/controllable/core.js). A controller sits down
  * with any press (start is the shell's pause): the first to press is seat 1. A ring in the seat's colour stands under each
@@ -60,7 +60,7 @@ function poolFigureBuffers(figures) {
 function seatsScript(seats) {
   const bodies = Array.isArray(seats.bodies) ? seats.bodies.slice(0, 3) : [];
   const max = Math.max(1, Math.min(4, seats.max ?? bodies.length + 1, bodies.length + 1));
-  return `// ── SEATS (pilots.plan.md) ──
+  return `// ── SEATS ──
 const __SK = (${buildSeatsKernel.toString()})();
 let __SEATS = __SK.newSeats({ max: ${max}, join: ${safeJson(seats.join === 'lobby' ? 'lobby' : 'drop-in')} });
 const __SEAT_BODY = ${safeJson(bodies)};   // seat n's body: __SEAT_BODY[n - 2]; seat 1's is the world's pilot
@@ -148,7 +148,7 @@ window.__mojSeatRings = () => Object.keys(__seatRing).map((n) => ({ n: +n, color
 `;
 }
 
-export function controllableChannelScript(entities, camera, figures, { exposeBodies = false, pilot = null, spectate = null, ai = null, colliders = null, breakables = null, breakPieces = null, hangar = null, match = null, shadows = null, smoke = null, wreckExplodes = null, tutorial = null, aiDifficulty = null, lock = null, commander = null, key = null, toonInk = null, driveSurface = null, touch = false, runner = null, gearGranted = false, seats = null } = {}) {
+export function controllableChannelScript(entities, camera, figures, { exposeBodies = false, pilot = null, spectate = null, ai = null, colliders = null, breakables = null, breakPieces = null, hangar = null, match = null, shadows = null, smoke = null, wreckExplodes = null, tutorial = null, aiDifficulty = null, lock = null, commander = null, key = null, toonInk = null, driveSurface = null, touch = false, runner = null, gearGranted = false, seats = null, formSun = null } = {}) {
   // per-vertex specular (material-response): inject the aSpec wiring into the rig-figure
   // builder ONLY when some packed figure carries a spec buffer (a material-finished suit).
   // Absent → the emitted controllable channel is byte-identical (the char-net pin holds),
@@ -168,9 +168,21 @@ export function controllableChannelScript(entities, camera, figures, { exposeBod
   // __makeRigGroup q branch below so rig pages without them stay byte-identical.
   const figHasQ = Object.values(figures || {}).some((f) => f && f.rig
     && Array.isArray(f.parts) && f.parts.some((p) => p && p.q));
+  // a body in the FORM render (era/eras.js gen-7: vehicle-rig.js packFormMesh, a supercar's `form`): its bones' material
+  // slots drawn with physical materials, lit by the world's sun and an environment of its sky. No form body → the
+  // emitted channel is byte-identical.
+  const figHasForm = Object.values(figures || {}).some((f) => f && f.rig && f.form && Array.isArray(f.parts) && f.parts.some((p) => p && p.form));
   // a rig body drawn at a scale of its own (`body.scale`: a hero in a world authored in other units, a city level's 3.66 m
   // to the unit): the group scales once at build. No body carries one → the emitted channel is byte-identical
   const bodyScaled = (entities || []).some((e) => e && e.body && Number.isFinite(e.body.scale) && e.body.scale > 0 && e.body.scale !== 1);
+  // a FOE's hp bar (`body.hpBar: 'target'`, gameworld/foes.js): shown only over the one foe the pilot targets (its lock,
+  // else the nearest its aim crosses), never over the body: above the drawn model's top, or under its feet when the top
+  // leaves the screen. No body asks for one → the emitted channel is byte-identical
+  const foeBars = (entities || []).some((e) => e && e.body && e.body.hpBar === 'target');
+  // a TARGET RIM (`body.targetRim`: an rgb, gameworld/foes.js): the foe the pilot targets (the bar's own pick) lit at its
+  // edges, a fresnel shell on the bone meshes of whatever body it now wears (a mode swapped in is lit as it comes). No body
+  // asks for one → the emitted channel is byte-identical
+  const foeRim = foeBars && (entities || []).some((e) => e && e.body && Array.isArray(e.body.targetRim));
   // the gear's line (worlds/controllable/swing.js): drawn from the hand to the anchor while a body swings or zips. No
   // entity carries a gear → the emitted channel is byte-identical
   // (or one a power grants later: a map game's game.powers, scene-three.js reads its grants)
@@ -211,9 +223,20 @@ function __updateGearLines() {
   // each part's `uv`): its bone meshes drawn on the atlas (texel × the part's lit colour), as the World page draws it.
   // No painted body → the emitted channel is byte-identical.
   const figHasPaint = Object.values(figures || {}).some((f) => f && f.rig && f.paintTex && Array.isArray(f.parts) && f.parts.some((p) => p && p.uv));
+  // a body with MODES (worlds/controllable/vanish.js): each mode's figure built up front as a loadout's are, the sync's
+  // variant swap showing the one it is in. None ⇒ the body as it was, byte for byte
+  const hasModes = (entities || []).some((e) => e && e.body && Array.isArray(e.body.modes) && e.body.modes.length > 1);
+  // (and one whose atlas has edges, the hero's hair cards: its material alpha tested; none ⇒ not a byte of it)
+  const figHasMask = figHasPaint && Object.values(figures || {}).some((f) => f?.paintTex?.alphaMask);
   // a racer's JUICE (car-designer/juice.js: flames, puffs, smoke, dust, sparks, a landing ring at its anchors) —
   // emitted only when some figure carries one.
   const figHasJuice = Object.values(figures || {}).some((f) => f && f.rig && f.juice);
+  // and its FIDELITY (car-designer/juice.js RIG_FIDELITIES: a voxel venue's cubes, a banded one's cel discs, the seventh
+  // generation's bloom) — emitted only when some figure's juice names one.
+  const figHasJuiceFid = figHasJuice && Object.values(figures || {}).some((f) => f && f.rig && f.juice && f.juice.fidelity);
+  // and a HERO's movement juice (gameworld/feel/hero-juice.js: the platformer's and pinball's), read off the platform
+  // rule's facts — emitted only when some figure's juice is a hero's.
+  const figHasHeroJuice = figHasJuice && Object.values(figures || {}).some((f) => f && f.rig && f.juice && f.juice.hero);
   // a body with FORMS (controllable/forms.js) and a figure baked to be both (transformation/compose.js): the transform
   // press, the clip each form plays, a flying form's attitude. Emitted only when some entity or figure carries forms.
   const hasForms = (entities || []).some((e) => e && e.forms);
@@ -531,7 +554,7 @@ window.__mojCommanderPorts = __mojCmd;   // headless verification: ports + curre
 })();
 ` : '';
   return `
-const __CW = ${emissionSource({ ...(runner ? { runner: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.hitstop) ? { hitstop: true } : {}) })};
+const __CW = ${emissionSource({ ...(runner ? { runner: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.hitstop) ? { hitstop: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.foe) ? { foe: true } : {}), ...(entities.some((e) => e && e.body && e.body.vanish) ? { vanish: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.summon) ? { summon: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.pair) ? { pair: true } : {}) })};
 const __world = __CW.createWorld({ entities: ${safeJson(entities)}, camera: ${safeJson(camera)}, pilot: ${safeJson(pilot)}${spectate ? ', spectate: true' : ''}${seats ? `, seats: ${safeJson(seats)}` : ''}, ai: ${safeJson(ai)}, colliders: ${safeJson(colliders)}${breakables ? `, breakables: ${safeJson(breakables)}` : ''}, match: ${safeJson(match)}${wreckExplodes ? `, wreckExplodes: ${safeJson(wreckExplodes)}` : ''}${tutorial ? `, tutorial: ${safeJson(tutorial)}` : ''}${aiDifficulty ? `, aiDifficulty: ${safeJson(aiDifficulty)}` : ''}${lock ? `, lock: ${safeJson(lock)}` : ''}${runner ? `, runner: ${safeJson(runner)}` : ''} });
 ${commanderBlock}${flyHudBlock}${(() => {
     const pooled = poolFigureBuffers(figures || {});
@@ -570,7 +593,65 @@ function __decodeFigFrame(posB64, colB64, origin, inv, foot) {
 // The q branch is emitted only when some figure carries it (figHasQ, same gating pattern as
 // figHasSpec) so a page without unit rigs stays byte-identical.${figHasQ ? `
 function __decodeU16(s) { const bin = atob(s); const u = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i); return new Uint16Array(u.buffer); }
-function __decodeU32(s) { const bin = atob(s); const u = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i); return new Uint32Array(u.buffer); }` : ''}
+function __decodeU32(s) { const bin = atob(s); const u = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i); return new Uint32Array(u.buffer); }` : ''}${figHasForm ? `
+// ---- the form render (gen-7): a body's material slots (paint under clearcoat, glass, alloy, rubber, carbon, the lamps)
+// drawn with physical materials, lit by the world's own sun, a hemisphere of its sky and ground, and reflecting an
+// environment made of that sky; the body casts and takes the live shadows. Tone-mapped in its own shader (the world's
+// paint is not), so a lit body sits in the painted world ----
+const __FORM_SUN = ${JSON.stringify(formSun || [0.55, 0.4, 0.72])};
+function __formBytes(s, T) { const b = atob(s), u = new Uint8Array(b.length); for (let i = 0; i < b.length; i++) u[i] = b.charCodeAt(i); return new T(u.buffer); }
+const __formSrgb = (c) => new THREE.Color().setRGB(c[0] / 255, c[1] / 255, c[2] / 255, THREE.SRGBColorSpace);
+let __formEnvTex = null, __formLit = false;
+function __formEnv(F) {
+  if (__formEnvTex) return __formEnvTex;
+  // the sky as a room: zenith over horizon over the ground, and the sun a hot disc where it stands
+  const room = new THREE.Scene(), z = __formSrgb(F.sky.zenith), h = __formSrgb(F.sky.horizon), g = __formSrgb(F.sky.ground);
+  const dome = new THREE.Mesh(new THREE.SphereGeometry(50, 32, 16), new THREE.ShaderMaterial({ side: THREE.BackSide, depthWrite: false,
+    uniforms: { uZ: { value: new THREE.Vector3(z.r, z.g, z.b) }, uH: { value: new THREE.Vector3(h.r, h.g, h.b) }, uG: { value: new THREE.Vector3(g.r, g.g, g.b) } },
+    vertexShader: 'varying vec3 vD; void main(){ vD = normalize(position); gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
+    fragmentShader: 'uniform vec3 uZ; uniform vec3 uH; uniform vec3 uG; varying vec3 vD; void main(){ float e = vD.z; vec3 c = e > 0.0 ? mix(uH, uZ, pow(e, 0.6)) : mix(uH * 0.9, uG, pow(min(1.0, -e * 4.0), 0.7)); gl_FragColor = vec4(c, 1.0); }' }));
+  dome.rotation.x = 0; room.add(dome);
+  const sun = new THREE.Mesh(new THREE.SphereGeometry(2.2, 12, 8), new THREE.MeshBasicMaterial({ color: new THREE.Color(F.key[0], F.key[1], F.key[2]).multiplyScalar(14 * F.keyIntensity) }));
+  sun.position.fromArray(F.toLight || __FORM_SUN).normalize().multiplyScalar(44); room.add(sun);
+  const pm = new THREE.PMREMGenerator(renderer); __formEnvTex = pm.fromScene(room, 0.015).texture; pm.dispose();
+  return __formEnvTex;
+}
+// the key: the shadow lights the page already casts with take the key's colour and strength (they were white and seen by
+// nothing lit); with none, a key of its own along the sun. A hemisphere of the sky over the ground fills it.
+function __formLights(F) {
+  if (__formLit) return; __formLit = true;
+  setTimeout(() => {
+    const key = new THREE.Color(F.key[0], F.key[1], F.key[2]), casters = [];
+    scene.traverse((o) => { if (o.isDirectionalLight && o.castShadow) casters.push(o); });
+    if (casters.length) for (const l of casters) { l.color.copy(key); l.intensity = F.keyIntensity / casters.length; }
+    else { const l = new THREE.DirectionalLight(key, F.keyIntensity); l.position.fromArray(F.toLight || __FORM_SUN).normalize().multiplyScalar(100); scene.add(l); scene.add(l.target); }
+    const hemi = new THREE.HemisphereLight(__formSrgb(F.sky.zenith), __formSrgb(F.sky.ground), F.ambient * 1.6); hemi.position.set(0, 0, 1); scene.add(hemi);
+  }, 0);
+}
+// how much of the sky each slot throws back: polished metal most, the clearcoat and the glass, then the rest
+const ENV_GAIN = { alloy: 1.6, paint: 0.95, glass: 1.2, carbon: 0.8, brake: 1.1 };
+// (a material each bone: the status tints its own uniforms on it; the program is shared)
+function __formMat(F, name) {
+  const P = F.materials[name] || {}, ex = F.exposure || 1;
+  const m = new THREE.MeshPhysicalMaterial({ ...P, vertexColors: true, side: THREE.DoubleSide, envMap: __formEnv(F), envMapIntensity: ENV_GAIN[name] ?? 0.85 });
+  // (a filmic curve on the lit colour, before it is encoded: the world's paint is drawn as it is)
+  m.onBeforeCompile = (sh) => { sh.fragmentShader = sh.fragmentShader.replace('#include <tonemapping_fragment>', '{ vec3 x = gl_FragColor.rgb * ' + ex.toFixed(3) + '; gl_FragColor.rgb = clamp((x * (2.51 * x + 0.03)) / (x * (2.43 * x + 0.59) + 0.14), 0.0, 1.0); }\\n#include <tonemapping_fragment>'); };
+  return m;
+}
+function __formBone(fig, P) {
+  const F = fig.form, geo = new THREE.BufferGeometry(), q = __formBytes(P.q, Uint16Array), p = new Float32Array(P.n * 3);
+  for (let i = 0; i < p.length; i += 3) { p[i] = P.o[0] + q[i] * P.s[0]; p[i + 1] = P.o[1] + q[i + 1] * P.s[1]; p[i + 2] = P.o[2] + q[i + 2] * P.s[2]; }
+  geo.setAttribute('position', new THREE.BufferAttribute(p, 3));
+  geo.setAttribute('normal', new THREE.BufferAttribute(__formBytes(P.nrm, Int8Array), 3, true));
+  geo.setAttribute('color', new THREE.BufferAttribute(decodeU8(P.col), 3, true));
+  geo.setIndex(new THREE.BufferAttribute(P.n > 65535 ? __formBytes(P.idx, Uint32Array) : __formBytes(P.idx, Uint16Array), 1));
+  for (const [start, count, mi] of P.groups) geo.addGroup(start, count, mi);
+  geo.computeBoundingSphere();
+  __formLights(F);
+  const mesh = new THREE.Mesh(geo, P.mats.map((name) => __formMat(F, name)));
+  mesh.receiveShadow = true;
+  return mesh;
+}` : ''}
 ${figHasFace ? `function __rigU32(s) { const b = atob(s), u = new Uint8Array(b.length); for (let i = 0; i < b.length; i++) u[i] = b.charCodeAt(i); return new Uint32Array(u.buffer); }
 // the face's targets on one bone mesh: its corners at the neutral face, each target's offsets (as the GLB writes them)
 function __mq(m) { const b = atob(m.q), u = new Uint8Array(b.length); for (let i = 0; i < b.length; i++) u[i] = b.charCodeAt(i); const q = new Int16Array(u.buffer), f = new Float32Array(q.length); for (let i = 0; i < q.length; i++) f[i] = q[i] * m.s; return f; }   // the page's 16-bit rows
@@ -601,7 +682,14 @@ function __rigTex(fig) { if (!fig.__tex) { fig.__tex = new THREE.TextureLoader()
   const group = new THREE.Group();
   const boneMeshes = fig.bones.map((bn, bi) => {
     const part = fig.parts[bi];
-    if (!part) return null;
+    if (!part) return null;${figHasForm ? `
+    if (part.form && fig.form) {
+      const mesh = __formBone(fig, part.form);${castHook}
+      mesh.matrixAutoUpdate = false;
+      mesh.frustumCulled = false;
+      group.add(mesh);
+      return mesh;
+    }` : ''}
     const geo = new THREE.BufferGeometry();${figHasQ ? `
     if (part.q) {
       const q = __decodeU16(part.q), o = part.o, s = part.s, p = new Float32Array(part.n * 3);
@@ -617,7 +705,7 @@ function __rigTex(fig) { if (!fig.__tex) { fig.__tex = new THREE.TextureLoader()
     if (map) geo.setAttribute('uv', new THREE.BufferAttribute(decodeF32(part.uv), 2));` : ''}${figHasFace ? `
     if (fig.face && part.morph && !part.q) __rigMorph(fig, part, geo);` : ''}
     geo.computeBoundingSphere();
-    const mesh = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide${figHasPaint ? ', ...(map ? { map } : {})' : ''} }));${figHasFace ? `
+    const mesh = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide${figHasPaint ? (figHasMask ? ', ...(map ? { map, ...(fig.paintTex.alphaMask ? { alphaTest: 0.4 } : {}) } : {})' : ', ...(map ? { map } : {})') : ''} }));${figHasFace ? `
     if (geo.morphAttributes.position) mesh.updateMorphTargets();` : ''}${rigSpecHook}${rigMetalHook}${rigRimHook}${rigInkHook}${castHook}
     mesh.matrixAutoUpdate = false;
     mesh.frustumCulled = false;   // matrices mutate per frame
@@ -712,7 +800,8 @@ function __makeBody(e) {
   // An UNPILOTED pilotable suit runs its ambient rule at build time, so its loadout lives on
   // pilotRule — check both, or its weapons could never swap after a T take-over.
   const lo = (e.rule && Array.isArray(e.rule.loadout) && e.rule.loadout.length ? e.rule.loadout : null)
-    || (e.pilotRule && Array.isArray(e.pilotRule.loadout) && e.pilotRule.loadout.length ? e.pilotRule.loadout : null);
+    || (e.pilotRule && Array.isArray(e.pilotRule.loadout) && e.pilotRule.loadout.length ? e.pilotRule.loadout : null)${hasModes ? `
+    || (Array.isArray(b.modes) && b.modes.length > 1 ? b.modes : null)` : ''};
   if (lo && (b.type === 'figure-rig' || b.type === 'figure-frames')) {
     const variants = {};
     const buildVariant = (fname) => {
@@ -888,7 +977,22 @@ function __rjWhen(n, F) {
   }
   return 0;
 }
-const __rjMatch = (at, kind) => at === kind || (at.indexOf('.') < 0 && kind.split('.')[0] === at);
+const __rjMatch = (at, kind) => at === kind || (at.indexOf('.') < 0 && kind.split('.')[0] === at);${figHasJuiceFid ? `
+// a particle at its juice's fidelity: a voxel venue's a tumbling block, a banded one's a flat cel disc (three hard bands),
+// the seventh generation's spark a hot core in a wide bloom; the soft sprite otherwise
+const __rjFidTex = {};
+function __rjTexOf(fid, spark) {
+  const key = fid === 'form' ? (spark ? 'bloom' : null) : fid === 'voxel' || fid === 'banded' ? fid : null;
+  if (!key) return __rjTexture();
+  if (__rjFidTex[key]) return __rjFidTex[key];
+  const c = document.createElement('canvas'); c.width = c.height = 64; const g = c.getContext('2d');
+  const face = (pts, col) => { g.fillStyle = col; g.beginPath(); pts.forEach(([a, b]) => g.lineTo(a, b)); g.closePath(); g.fill(); };
+  const disc = (r, col) => { g.fillStyle = col; g.beginPath(); g.arc(32, 32, r, 0, 7); g.fill(); };
+  if (key === 'voxel') { face([[32, 6], [58, 19], [32, 32], [6, 19]], '#ffffff'); face([[6, 19], [32, 32], [32, 60], [6, 46]], '#c4c4c4'); face([[32, 32], [58, 19], [58, 46], [32, 60]], '#8c8c8c'); }
+  else if (key === 'banded') { disc(30, 'rgba(255,255,255,0.35)'); disc(22, 'rgba(255,255,255,0.7)'); disc(12, '#ffffff'); }
+  else { const gr = g.createRadialGradient(32, 32, 0, 32, 32, 32); gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(0.12, 'rgba(255,255,255,0.9)'); gr.addColorStop(0.3, 'rgba(255,255,255,0.28)'); gr.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = gr; g.fillRect(0, 0, 64, 64); }
+  return (__rjFidTex[key] = new THREE.CanvasTexture(c));
+}` : ''}
 function __rjBuild(fig, group, boneMeshes) {
   const J = fig.juice, anchors = J.anchors.map((a) => {
     const loc = new THREE.Object3D(); loc.position.set(a.at[0], a.at[1], a.at[2]);
@@ -909,13 +1013,23 @@ function __rjBuild(fig, group, boneMeshes) {
   const st = boneMeshes.map((m) => {
     if (!m) return null;
     const u = { uTint: { value: new THREE.Vector3(1, 1, 1) }, uMix: { value: 0 }, uMixCol: { value: new THREE.Color(1, 1, 1) }, uAdd: { value: new THREE.Vector3() } };
+${figHasForm ? `
+    for (const mt of [].concat(m.material)) {
+      const prev = mt.onBeforeCompile;
+      mt.onBeforeCompile = (sh) => {
+        if (prev) prev(sh);
+        Object.assign(sh.uniforms, u);
+        sh.fragmentShader = 'uniform vec3 uTint;\\nuniform float uMix;\\nuniform vec3 uMixCol;\\nuniform vec3 uAdd;\\n' + sh.fragmentShader.replace('#include <dithering_fragment>', 'gl_FragColor.rgb = mix(gl_FragColor.rgb * uTint, uMixCol, uMix) + uAdd;\\n#include <dithering_fragment>');
+      };
+      mt.needsUpdate = true;
+    }` : `
     const prev = m.material.onBeforeCompile;
     m.material.onBeforeCompile = (sh) => {
       if (prev) prev(sh);
       Object.assign(sh.uniforms, u);
       sh.fragmentShader = 'uniform vec3 uTint;\\nuniform float uMix;\\nuniform vec3 uMixCol;\\nuniform vec3 uAdd;\\n' + sh.fragmentShader.replace('#include <dithering_fragment>', 'gl_FragColor.rgb = mix(gl_FragColor.rgb * uTint, uMixCol, uMix) + uAdd;\\n#include <dithering_fragment>');
     };
-    m.material.needsUpdate = true;
+    m.material.needsUpdate = true;`}
     return u;
   });
   const boneOf = (id) => fig.bones.findIndex((b) => b.id === id), slot = {};
@@ -1060,7 +1174,11 @@ function __rjSpawn(rj, row, a, e, F, tier) {
   p.c0 = new THREE.Color(c0); p.c1 = new THREE.Color(c1);
   p.s0 = row.size * D * (spark ? 1 : 0.8); p.s1 = spark ? p.s0 * 0.3 : p.s0 * 2.6;
   p.o0 = spark ? 1 : look === 'puff' ? 0.75 : 0.6;
-  p.spr.material.blending = spark ? THREE.AdditiveBlending : THREE.NormalBlending; p.spr.material.needsUpdate = true;
+  p.spr.material.blending = spark ? THREE.AdditiveBlending : THREE.NormalBlending;${figHasJuiceFid ? `
+  // (at a fidelity: its particle's shape; a block is solid, never added light; a bloom is wider than its core)
+  const fid = rj.J.fidelity; p.spr.material.map = __rjTexOf(fid, spark); p.spin = 0; p.spr.material.rotation = 0;
+  if (fid === 'voxel') { p.spr.material.blending = THREE.NormalBlending; p.o0 = 1; p.s0 *= 0.8; p.s1 = p.s0 * (spark ? 0.5 : 1.4); p.spin = (__rjRnd() - 0.5) * 9; }
+  else if (fid === 'form' && spark) { p.s0 *= 1.7; p.s1 = p.s0 * 0.35; }` : ''} p.spr.material.needsUpdate = true;
   p.spr.visible = true; rj.alive[key] = (rj.alive[key] || 0) + 1;
 }
 function __rjRing(rj, row, e) {
@@ -1141,7 +1259,26 @@ function __rjPools(d) {
     const s = k.size * (0.2 + 0.8 * Math.sqrt(u)); k.m.scale.set(s, s, s); k.m.material.opacity = 0.5 * (1 - u) * (1 - u);
   }
 }
-function __updateRacerJuice(dt) {
+${figHasHeroJuice ? `// a HERO's facts (gameworld/feel/hero-juice.js), the platform rule's as this frame leaves them: its speed along the
+// ground, a jump's frame and an air jump's, the landing's and how hard, a hard stop, its share of the top speed, a surge,
+// the charge, a blow taken (its hits counted up), a bump (speed lost in an instant)
+function __rjHero(rj, e, F, d) {
+  // (its speed along the ground from how far it went: the rule moves a body directly, its vel the vertical's; a jump
+  // across the map, a respawn, read as none)
+  const p = e.transform.pos, R = e.rule || {}, step = rj.hpos && d > 0 ? Math.hypot(p[0] - rj.hpos[0], p[1] - rj.hpos[1]) / d : 0, sp = step > 60 ? 0 : step; rj.hpos = [p[0], p[1]];
+  const acc = d > 0 ? (sp - (rj.hv || 0)) / d : 0; rj.hv = sp; rj.hacc = (rj.hacc || 0) + (acc - (rj.hacc || 0)) * Math.min(1, d * 8);
+  const air = e.airJumpsUsed || 0, hits = e.hits || 0;
+  F.speed = sp; F.accel = rj.hacc; F.grounded = e.grounded ? 1 : 0;
+  F.airJump = air > (rj.air || 0) ? 1 : 0; F.takeoff = e.jumped && !F.airJump ? 1 : 0; rj.air = air;
+  F.landed = e.landed ? 1 : 0; F.fall = Math.abs(e.landVel || 0);
+  F.brake = e.grounded && rj.hacc < -14 && sp > 1 ? 1 : 0;
+  F.topShare = sp / Math.max(4, e.boosting && R.boostSpeed ? R.boostSpeed : R.speed || 6);
+  F.surge = e.boosting ? 1 : Math.max(0, Math.min(1, (rj.hacc - 6) / 10));
+  F.charging = e.charging ? 1 : 0; F.charge = e.chargeFrac || 0;
+  F.hit = hits > (rj.hits || 0) ? 1 : 0; rj.hits = hits;
+  rj.himp = Math.max(0, (rj.himp || 0) - d); F.impact = acc < -40 && rj.himp === 0 ? 1 : 0; if (F.impact) rj.himp = 0.5;
+}
+` : ''}function __updateRacerJuice(dt) {
   const d = Math.min(0.05, dt || 0), t = __world.time || 0;
   for (const e of __world.entities) {
     const body = __bodies[e.id], rf = body && body.userData && body.userData.rigFig, rj = rf && rf.rj;
@@ -1158,7 +1295,8 @@ function __updateRacerJuice(dt) {
     const boosting = e.boosting || (e.boostT || 0) > 0 ? 1 : 0, boostStart = boosting && !rj.wasBoost ? 1 : 0; rj.wasBoost = !!boosting;
     const topShare = Math.abs(vv) / Math.max(6, R.topSpeed || 13), surge = boosting ? 1 : Math.max(0, Math.min(1, (rj.accel - 4) / 6));
     const F = { speed: Math.abs(e.speed || 0), throttle: e.throttle || 0, braking: e.braking ? 1 : 0, steer: e.steerAngle || 0, skidding: e.skidding ? 1 : 0, skidTime: rj.skidT, corner, cornerTime: rj.cornerT, landed: e.landed ? 1 : 0, boosting, boostStart, accel: rj.accel, topShare, surge, impact, hit: e.hit || e.hitStart ? 1 : 0, charge: e.boostCharge != null ? e.boostCharge : (e.charge || 0), shield: e.shield ? 1 : 0, invulnerable: e.invulnerable || e.star ? 1 : 0, item: e.item ? 1 : 0, offroad: ${driveSurface ? `(__surface(e.transform.pos) || { mu: 1 }).mu < 0.85 ? 1 : 0` : '0'}, damage: hp };
-    for (const row of rj.J.rows) {
+${figHasHeroJuice ? `    if (rj.J.hero) __rjHero(rj, e, F, d);
+` : ''}    for (const row of rj.J.rows) {
       const on = !!__rjWhen(row.when, F);
       if (row.look === 'flame') continue;
       if (row.look === 'ring') { if (on) __rjRing(rj, row, e); continue; }
@@ -1188,7 +1326,8 @@ function __updateRacerJuice(dt) {
     if (u >= 1) { p.on = false; p.spr.visible = false; p.rj.alive[p.key]--; continue; }
     p.vel[2] += p.grav * d; const drag = Math.max(0, 1 - d * 2.2); p.vel[0] *= drag; p.vel[1] *= drag;
     p.spr.position.x += p.vel[0] * d; p.spr.position.y += p.vel[1] * d; p.spr.position.z = Math.max(0.02, p.spr.position.z + p.vel[2] * d);
-    const s = p.s0 + (p.s1 - p.s0) * u; p.spr.scale.set(s, s, s);
+    const s = p.s0 + (p.s1 - p.s0) * u; p.spr.scale.set(s, s, s);${figHasJuiceFid ? `
+    if (p.spin) p.spr.material.rotation += p.spin * d;` : ''}
     p.spr.material.color.copy(p.c0).lerp(p.c1, u); p.spr.material.opacity = p.o0 * (1 - u) * (1 - u * 0.3);
   }
   for (const g of __rjRings) {
@@ -2493,7 +2632,64 @@ for (const e of __world.entities) {
   el.appendChild(fl); wrap.appendChild(el);
   __ehp.push({ id: e.id, el: el, fill: fl });
 }
-const __ehpV = __ehp.length ? new THREE.Vector3() : null;
+const __ehpV = __ehp.length ? new THREE.Vector3() : null;${foeBars ? `
+// the one foe the pilot targets: its lock's, else the foe nearest the way it faces (a ground hero aims where it
+// faces: the angle on the ground, within the foe's own width and 30 m), the nearer of two equally in line
+function __foeTarget(pilot) {
+  if (!pilot) return null;
+  if (__world.lock && __world.lock.target) return __world.lock.target;
+  const h = pilot.transform.heading, p = pilot.transform.pos;
+  let best = null, bestS = Infinity;
+  for (const e of __world.entities) {
+    if (!(e.body && e.body.hpBar === 'target') || e.gone || e.downed || e === pilot) continue;
+    const dx = e.transform.pos[0] - p[0], dy = e.transform.pos[1] - p[1], d = Math.hypot(dx, dy);
+    if (d > 30 || d < 1e-6) continue;
+    const a = Math.abs(((Math.atan2(dy, dx) - h + Math.PI) % (2 * Math.PI) + 2 * Math.PI) % (2 * Math.PI) - Math.PI);
+    const w = (e.body.egg && e.body.egg.a) || e.body.radius || 0.5;
+    if (a <= 0.2 + Math.atan(w / d) && a * 10 + d < bestS) { bestS = a * 10 + d; best = e.id; }
+  }
+  return best;
+}
+// a foe body's drawn top above its feet (m), measured once from its mesh against its own group (where it is drawn,
+// whatever the entity did this frame); its bar stands clear of it
+const __foeTop = {}, __foeBox = new THREE.Box3();
+function __foeTopOf(e) {
+  if (__foeTop[e.id] != null) return __foeTop[e.id];
+  const g = __bodies[e.id]; if (!g) return 1;
+  g.updateMatrixWorld(true);
+  __foeBox.setFromObject(g);
+  const top = __foeBox.max.z - g.position.z;
+  return Number.isFinite(top) && top > 0 ? (__foeTop[e.id] = Math.min(top, 12)) : 1;
+}${foeRim ? `
+// the TARGET RIM: a shell of light at the targeted foe's edges (fresnel: brightest where its surface turns from the eye),
+// pulsing, on each bone mesh of the body it is drawn as now; moved off when the target changes or its body does
+const __rimMat = new THREE.ShaderMaterial({ uniforms: { uCol: { value: new THREE.Color(1, 1, 1) }, uK: { value: 0 } }, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
+  vertexShader: '#include <common>\\n#include <logdepthbuf_pars_vertex>\\nvarying vec3 vN; varying vec3 vV; void main() { vec4 wp = modelMatrix * vec4(position + normal * 0.006, 1.0); vN = normalize(mat3(modelMatrix) * normal); vV = normalize(cameraPosition - wp.xyz); gl_Position = projectionMatrix * viewMatrix * wp;\\n#include <logdepthbuf_vertex>\\n}',
+  fragmentShader: '#include <logdepthbuf_pars_fragment>\\nuniform vec3 uCol; uniform float uK; varying vec3 vN; varying vec3 vV; void main() {\\n#include <logdepthbuf_fragment>\\n float f = pow(1.0 - abs(dot(normalize(vN), vV)), 1.8); gl_FragColor = vec4(uCol * (1.0 + f), min(1.0, (0.18 + 1.3 * f) * uK)); }' });
+const __rim = { id: null, g: null, kids: [] };
+// smooth normals for a bone mesh's triangle list, once (its corners averaged where they meet), for the rim's fresnel
+function __rimNormals(geo) {
+  if (geo.attributes.normal) return;
+  const P = geo.attributes.position.array, N = new Float32Array(P.length), acc = new Map(), key = (i) => Math.round(P[i] * 1e4) + ',' + Math.round(P[i + 1] * 1e4) + ',' + Math.round(P[i + 2] * 1e4);
+  for (let t = 0; t < P.length; t += 9) {
+    const ax = P[t + 3] - P[t], ay = P[t + 4] - P[t + 1], az = P[t + 5] - P[t + 2], bx = P[t + 6] - P[t], by = P[t + 7] - P[t + 1], bz = P[t + 8] - P[t + 2];
+    const n = [ay * bz - az * by, az * bx - ax * bz, ax * by - ay * bx];
+    for (let k = 0; k < 9; k += 3) { const q = key(t + k), a = acc.get(q) || [0, 0, 0]; a[0] += n[0]; a[1] += n[1]; a[2] += n[2]; acc.set(q, a); }
+  }
+  for (let i = 0; i < P.length; i += 3) { const a = acc.get(key(i)), l = Math.hypot(a[0], a[1], a[2]) || 1; N[i] = a[0] / l; N[i + 1] = a[1] / l; N[i + 2] = a[2] / l; }
+  geo.setAttribute('normal', new THREE.BufferAttribute(N, 3));
+}
+function __foeRim(id) {
+  const e = id && __world.byId[id], g = e && __bodies[id];
+  if (__rim.id !== id || __rim.g !== g) {
+    for (const k of __rim.kids) if (k.parent) k.parent.remove(k);
+    __rim.kids = []; __rim.id = id; __rim.g = g;
+    const rf = g && g.userData.rigFig;
+    if (rf) for (const m of rf.boneMeshes) { if (!m) continue; __rimNormals(m.geometry); const k = new THREE.Mesh(m.geometry, __rimMat); k.raycast = function () {}; k.renderOrder = 5; k.userData.ink = true; m.add(k); __rim.kids.push(k); }
+    if (e && Array.isArray(e.body.targetRim)) __rimMat.uniforms.uCol.value.setRGB(e.body.targetRim[0], e.body.targetRim[1], e.body.targetRim[2]);
+  }
+  __rimMat.uniforms.uK.value = __rim.kids.length ? 0.75 + 0.25 * Math.sin(__world.time * 6) : 0;
+}` : ''}` : ''}
 function __updateEnemyHp() {
   if (!__ehp.length) return;
   const pilot = (__world.pilotId && __world.byId[__world.pilotId]) || null;
@@ -2507,9 +2703,25 @@ function __updateEnemyHp() {
     const ez = pilot.weapon ? (pilot.weapon.eye || 0) : (pilot.collideVol ? pilot.collideVol.cz : 12);
     eye = [pilot.transform.pos[0], pilot.transform.pos[1], pilot.transform.pos[2] + ez];
   }
-  camera.updateMatrixWorld();
+  camera.updateMatrixWorld();${foeBars ? `
+  const __foeT = __foeTarget(pilot);${foeRim ? `
+  __foeRim(__foeT);` : ''}` : ''}
   for (const r of __ehp) {
-    const e = __world.byId[r.id];
+    const e = __world.byId[r.id];${foeBars ? `
+    if (e && e.body && e.body.hpBar === 'target') {
+      if (e.id !== __foeT || e.gone || e.downed) { r.el.style.display = 'none'; continue; }
+      const top = __foeTopOf(e);
+      __ehpV.set(e.transform.pos[0], e.transform.pos[1], e.transform.pos[2] + top + 0.25).project(camera);
+      if (__ehpV.y > 0.94) __ehpV.set(e.transform.pos[0], e.transform.pos[1], e.transform.pos[2] - 0.2).project(camera);
+      if (__ehpV.z >= 1) { r.el.style.display = 'none'; continue; }
+      r.el.style.display = '';
+      r.el.style.left = ((__ehpV.x * 0.5 + 0.5) * cw) + 'px';
+      r.el.style.top = ((-__ehpV.y * 0.5 + 0.5) * ch) + 'px';
+      const cur = Number.isFinite(e.body.hp) ? Math.max(0, e.body.hp) : e.hpMax, frac = Math.max(0, Math.min(1, cur / e.hpMax));
+      r.fill.style.width = (frac * 100).toFixed(1) + '%';
+      r.fill.style.background = frac < 0.3 ? '#ff2e2e' : '#ff5a5a';
+      continue;
+    }` : ''}
     // gone covers both the vanished wreck (finisher) and a DORMANT tutorial seat parked at its
     // authored pose — neither should float a bar over empty air.
     if (!e || e === pilot || e.gone) { r.el.style.display = 'none'; continue; }

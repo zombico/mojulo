@@ -67,6 +67,8 @@
 //   marks    [ marking, … ]    painted regions (the fauna builder's `markings`: band, stripes, patch, spots), each with
 //            `group` and `color`, `glow: true` to draw it full-bright; spots are placed by the creature's seed
 //   surfaces { <group> | '*': material }   a shelf material per palette group (gunmetal, steel, glass, stone, …)
+//   cover    { length, size, shape, sheen, tipped }   a beast-kin's coat carried as a material (beast/cover.js COVER_STYLE:
+//            sleek or shaggy fur, fine or keeled scales, a matte, glossy or metal sheen, frosted tips); an animal reads none
 //   eyes     { color, glow, open, socket }   the iris's colour, mixed in by strength; glow draws the whole eye
 //            full-bright (the sclera a deeper shade, the pupil dark); `open` widens the lids; `socket`: a dark socket
 //            round a glowing pupil (the sclera black and unlit); `toon`: a cartoon's eye, the set eye with a white round
@@ -93,6 +95,8 @@ const LEAVES = {
   'tailSpikes.count': 'last', 'tailSpikes.size': 'max', 'ruff.size': 'max', bands: 'glow', tipGlow: 'glow', motif: 'last', motifGlow: 'glow',
   'pauldrons.size': 'max', 'earDomes.size': 'max', gem: 'glow', 'pistons.size': 'max', 'boots.flare': 'mul', 'jointBalls.size': 'max', 'antenna.size': 'max', motifColor: 'last',
   'armor.color': 'last', 'armor.material': 'last', 'armor.glow': 'glow',
+  // (the COVER's qualities a beast-kin's coat takes, beast/cover.js COVER_STYLE: an animal's fur cards read none of them)
+  'cover.length': 'last', 'cover.size': 'last', 'cover.shape': 'last', 'cover.sheen': 'last', 'cover.tipped': 'max',
 };
 const LISTS = ['tint', 'marks'];   // stacked in list order, not merged
 const leafOf = (path) => LEAVES[path] ?? (path.startsWith('expression.') ? 'add' : path.startsWith('surfaces.') || /^groups\.[A-Za-z]\w*\.(color|material)$/.test(path) ? 'last' : /^groups\.[A-Za-z]\w*\.glow$/.test(path) ? 'glow' : null);
@@ -241,6 +245,18 @@ export function pushParams(P, push) {
     out.markDensity = D;
   }
   return out;
+}
+
+/** One colour through a push's colour layers as a coat's colour is (pushColors): darkened, greyed, saturated, tinted; a
+ * light value (a belly, a throat) takes half the darkening and `light` of each tint. For a body that is not a species'
+ * colour table (the beast-kin's coat, beast/ooze.js). */
+export function pushTone(hex, push, light = false) {
+  let c = hex;
+  if (push.coat) c = darken(c, light ? push.coat / 2 : push.coat);
+  if (push.desaturate) c = grey(c, push.desaturate);
+  if (push.saturate) c = saturate(c, push.saturate);
+  for (const t of push.tints || []) c = light ? mixHex(c, t.lightColor ?? t.color, t.amount * t.light) : mixHex(c, t.color, t.amount);
+  return c;
 }
 
 function pushColors(C0, push) {

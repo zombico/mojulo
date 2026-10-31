@@ -108,7 +108,37 @@ export function deriveHead(base, D) {
 /** the cat's ear: a broad flat triangle high on the skull (the wolf's leaf ear is edge-on from the front and reads as a horn) */
 const CAT_EAR = { kind: 'sweep', name: 'ear', at: [1.35, 0.85], space: 'local', spine: [[0, 0, -0.01], [0, -0.005, 0.04], [0, -0.012, 0.085], [0, -0.02, 0.125]], radii: [0.072, 0.052, 0.022], m: 8, squash: [0.28, 1], group: 'Ears' };
 
+/** a person's ear, small and close to the head (a dead face keeps its ears; a skull has none) */
+const HUMAN_EAR = { kind: 'sweep', name: 'ear', at: [1.3, 2.7], space: 'local', spine: [[0, 0, -0.008], [0, -0.004, 0.018], [0, -0.008, 0.04]], radii: [0.03, 0.026, 0.012], m: 8, squash: [0.3, 1], group: 'Ears' };
+// a person's skull from the bear's: the face drawn back flat under a tall dome, the eyes brought round to the front
+const HUMAN_SKULL_MOVES = [
+  { op: 'length', k: 0.78, about: -0.04 },
+  { op: 'skull', pivot: -0.02, width: 0.76, height: 1.0, back: 0.95 },
+  { op: 'muzzle', pivot: -0.02, length: 0.16, width: 0.85, height: 1.2 },
+];
+
+// (the skull and the gaunt face are the SIXTH GENERATION's: drawn for the undead on the creature door, which stand on the
+// tiered body now, lib/graph/undead, with their own skull and the landmark face; kept for the rows minted with them)
 export const HEAD_DERIVATIONS = Object.freeze({
+  skull: {
+    from: 'bear', reads: 'a human skull: a tall dome, a flat face, empty sockets, the teeth bared', family: 'mammal', head: 'skull', serves: ['skeleton'],
+    units: { scale: 0.66 },
+    moves: HUMAN_SKULL_MOVES,
+    // the sockets: a solid eye, dark, set deep in a wide orbit
+    // (the lids pulled clear: an open orbit round a dark ball reads as the socket's hole)
+    eye: { shift: [2.85, -0.85], R: 0.024, mode: 'solid', catchlight: false },
+    regions: { orbit: { open: [0.97, 0.97], reach: [0.012, 0.016, 0.018], tuck: 0.004, bulk: [0.002, 0.004], thickness: 0.005 }, whiskers: null, tongue: null, tiles: [] },
+    ornaments: { drop: ['ear', 'nose', 'ruff', 'cheekRuff'], teeth: 0.45 },
+    palette: { Sclera: '#1e1b19', Iris: '#1e1b19', Pupil: '#1e1b19', Limbus: '#1e1b19', Teeth: '#e6e0cc' },
+  },
+  gaunt: {
+    from: 'bear', reads: 'a dead face: the skull\'s shape under drawn flesh, sunken eyes, a nose and ears still on it, the jaw slack', family: 'mammal', head: 'gaunt face', serves: ['zombie'],
+    units: { scale: 0.62 },
+    moves: HUMAN_SKULL_MOVES,
+    eye: { shift: [2.85, -0.85], R: 0.02 },
+    regions: { orbit: { open: [0.55, 0.5], reach: [0.016, 0.02, 0.024], tuck: 0.006, bulk: [0.003, 0.008], thickness: 0.006 }, whiskers: null, tongue: null, tiles: [] },
+    ornaments: { drop: ['ear', 'ruff', 'cheekRuff'], add: [HUMAN_EAR], set: { nose: { spine: [[0, 0, -0.004], [0, 0.006, 0.008], [0, 0.008, 0.014]], radii: [0.011, 0.008] } }, teeth: 0.4 },
+  },
   felid: {
     from: 'wolf', reads: 'a cat: a round skull, a short muzzle, eyes brought to the face, broad ears high on the head', family: 'mammal', head: 'short muzzle', serves: ['feline'],
     units: { scale: 0.7 },
@@ -134,6 +164,26 @@ export const HEAD_DERIVATIONS = Object.freeze({
     // the beak in horn over the skin, its ridge darker (the snout bands are the beak)
     palette: { Snout: '#c9a650', Jowl: '#b8953f', Palate: '#7a6230', Jaw: '#b8953f', NosePad: '#3a3026' },
     keep: ['Snout', 'Jowl', 'Palate', 'Jaw'],
+  },
+  serpent: {
+    from: 'wolf', reads: 'a snake: a flat skull wide at the jaw\'s hinge, a short blunt snout, lidless slit-pupilled eyes, the forked tongue', family: 'reptile', head: 'snake', serves: ['serpentine'],
+    // (from the wolf, drawn about the origin as every derivation's base is: the dragon, the nearer skull, is drawn in
+    // metres where it sits, and the row moves' heights scaled it from the floor)
+    units: { scale: 0.7 },
+    // (a flat wedge: the crown lowered, the snout drawn in toward the mouth line so the mouth stays shut, where squeezing
+    // the jaw about its own middle opened it)
+    moves: [
+      { op: 'length', k: 0.86, about: 0 },
+      { op: 'skull', pivot: -0.02, width: 1.18, height: 0.48, back: 0.92 },
+      { op: 'muzzle', pivot: 0, length: 0.72, width: 1.0 },
+      { op: 'taper', from: 0, x: 0.55, z: 0.62 },
+    ],
+    // (lidless: the orbit open round the eye; the pupil a slit)
+    eye: { shift: [0.3, -0.05], R: 0.022, pupil: 'slit' },
+    regions: { orbit: { open: [0.85, 0.82], reach: [0.008, 0.01, 0.01], tuck: 0.002, bulk: [0.002, 0.003], thickness: 0.004 }, whiskers: null, tiles: [], nostril: { r: 0.0035, squash: [1.6, 1], slide: 0.3 },
+      tongue: { at: [0.6, 0.02], to: 3.6, slide: 0.06, width: 0.05, thickness: 0.016, lift: 0, seat: 0.003, groove: 0.35, tip: 'fork', forkDepth: 0.3, forkSpread: 0.36, curlMax: 2.2, swayMax: 0.9, droop: 0.9 } },
+    ornaments: { drop: ['ear', 'nose', 'teeth'] },
+    palette: { Iris: '#c9b03a', Pupil: '#0e0e0c', Tongue: '#3a1a22' },
   },
   mandibled: {
     from: 'bear', reads: 'an insect: a short face pitched down, compound eyes, mandibles where the mouth is, short antennae', family: 'insect', head: 'mandibles', serves: ['insectoid'],

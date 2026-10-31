@@ -57,7 +57,9 @@ describe('the dressed outline', () => {
     // into a T, the outline stays the body's V)
     const m = outlineMeasures(knight.mesh, knight.r);
     expect(m.bareFamily).toBe('V');
-    expect(m.family).toBe('V');
+    // (the shoulders a V's still; on a man's hips, realistic laws 9, the cuirass's column over the waist runs straight
+    // down to them, so the dressed outline may read T, a breastplate's, but never one the plates carried out)
+    expect(['V', 'T']).toContain(m.family);
     expect(m.at.shoulder.e).toBeGreaterThan(0.05);
     expect(m.at.shoulder.e).toBeLessThan(0.15);
   });
@@ -71,9 +73,10 @@ describe('the dressed outline', () => {
     expect(out.outline).toMatchObject({ family: M.family, bare: M.bareFamily });
     expect(Object.keys(out.outline.advice)).toEqual(['western', 'anime']);
     expect(out.realisticOnly).toBeUndefined();
-    // (what the game body wears plain or not at all is said, never refused: the tailoring, a plated suit, a footwear card)
+    // (what the game body wears plain or not at all is said, never refused: a plated suit, a footwear card; the tailoring
+    // it wears too, so a suit says nothing)
     const suit = heroRecord({ cast: 'male', outfit: { type: 'outfit', style: 'business' } }), sm = expandLayeredManifest({ kind: 'layered', hero: suit });
-    expect(dressReadout(suit, heroPlanOf(suit), null, sm.recipe).realisticOnly.join(' ')).toMatch(/tailoring \(.*outer.*tie/);
+    expect(dressReadout(suit, heroPlanOf(suit), null, sm.recipe).realisticOnly).toBeUndefined();
     const words = heroRecord({ cast: 'male', outfit: ['powerSuit', 'oxfords'] });
     const said = dressReadout(words, heroPlanOf(words), null, null).realisticOnly.join(' ');
     expect(said).toMatch(/powerSuit: plated suits are worn on the realistic body/); expect(said).not.toMatch(/oxfords/);

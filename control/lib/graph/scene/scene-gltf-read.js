@@ -160,7 +160,7 @@ const hex2 = (n) => n.toString(16).padStart(2, '0');
 const rgbHex = (r, g, b) => `#${hex2(linearToSrgb(r))}${hex2(linearToSrgb(g))}${hex2(linearToSrgb(b))}`;
 
 // Decode one accessor into a flat number array (denormalized when `normalized`).
-function readAccessor(json, bin, idx) {
+export function readAccessor(json, bin, idx) {
   const acc = json.accessors?.[idx];
   if (!acc) throw new Error(`corrupt glTF: missing accessor ${idx}`);
   if (acc.sparse) throw new Error('unsupported glTF: sparse accessors (re-export without sparse encoding)');

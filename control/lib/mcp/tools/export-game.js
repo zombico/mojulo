@@ -41,7 +41,7 @@ import { resolveWorldScene, WALK_KINDS } from '@/lib/graph/worlds/world-scene';
 import { emitThreeWorld } from '@/lib/graph/scene/scene-three';
 import { renderBeatsOffline } from '@/lib/graph/beats/beats-render';
 import { rasterizeSketchToPng } from '@/lib/graph/sketch/sketch-png';
-import { withChromiumFetch } from '@/lib/graph/scene/chromium-consent';
+import { withChromiumFetch, withoutChromiumFetch } from '@/lib/graph/scene/chromium-consent';
 import { outcomeDirFor, outcomeUrlFor } from '@/lib/outcomes-paths';
 import { handoffForContext, fitsForContext } from '@/lib/mcp/hosts/handoff';
 import { ELECTRON_TARGET, DESKTOP_GITIGNORE, desktopMainJs, desktopPackageJson, desktopReadmeLines } from '@/lib/graph/game/desktop-shell';
@@ -193,7 +193,7 @@ function menuModeLines(menu) {
 }
 
 function buildReadme({ manifest, ref, hash, files, engine, figureBank, geometryBank, desktop = false }) {
-  const modeLines = engine === 'pixelizer' || engine === 'versus' || engine === 'tabletop' ? [] : menuModeLines(manifest.menu);
+  const modeLines = ['pixelizer', 'versus', 'tabletop', 'table-rpg'].includes(engine) ? [] : menuModeLines(manifest.menu);
   const lines = [
     `# ${manifest.title}`,
     '',
@@ -209,6 +209,7 @@ function buildReadme({ manifest, ref, hash, files, engine, figureBank, geometryB
       ? [`- engine: pixelizer (single-file 2D reducer game)`]
       : engine === 'versus' ? [`- engine: versus (single-file side-view fighter; roster of ${(manifest.roster || []).length || 'the default'} fighters)`]
       : engine === 'tabletop' ? [`- engine: tabletop (single-file board game against the computer: ${typeof manifest.tabletop?.game === 'string' ? manifest.tabletop.game : 'a game written out'})`]
+      : engine === 'table-rpg' ? ['- engine: table-rpg (a pen-and-paper game played in text on one page; `book.html` its game book, `characters.html` its party\'s sheets, each a PDF beside it when a browser could print one)']
       : [`- levels: ${(manifest.levels || []).length} minted level worlds (one \`recipe/<ref>.json\` each)`]),
     '',
     '## How to play',
@@ -295,6 +296,8 @@ function withHandoff(result, context, artifact) {
 }
 
 // `deps.smoke`: false skips the desktop smoke (the CLI runs its own, with --electron / --no-gate); { find, run } inject it.
+// `deps.printPdf`: the printer a table game's book goes through (book/book-pdf.js's by default; tests inject one);
+// `deps.portraits`: its party's photographer (table-rpg-portraits.js's by default; tests inject one).
 export async function exportGameHandler(input, context = {}, deps = {}) {
   if (!input || typeof input !== 'object') throw new Error('export_game requires { ref }');
   const { ref, target, posture = null, cdn: cdnInput = false, era } = input;
@@ -497,7 +500,7 @@ export async function exportGameHandler(input, context = {}, deps = {}) {
   } : {});
 
   // ── pixelizer branch: already single-file, the export is just the folder dressing ──
-  if (era !== undefined && ['pixelizer', 'versus', 'tabletop'].includes(manifest.engine)) {
+  if (era !== undefined && ['pixelizer', 'versus', 'tabletop', 'table-rpg'].includes(manifest.engine)) {
     throw new Error(`export_game: era is read by a game's World pages; a ${manifest.engine} game is drawn by its own single page, which no era changes — export it without era`);
   }
   if (manifest.engine === 'pixelizer') {
@@ -544,6 +547,39 @@ export async function exportGameHandler(input, context = {}, deps = {}) {
       preview_url: `${outcomeUrlFor(ref)}game.html`,
       files, total_bytes: totalBytes,
       note: 'Single-file board game: game.html plays anywhere, file:// included, against the computer.',
+    }, context, { kind: 'page', name: 'game.html', path: path.join(dir, 'game.html'), dir, bytes: totalBytes, download_url: `${outcomeUrlFor(ref)}game.html`, recipe: 'recipe/' });
+  }
+
+  // ── table-rpg branch: a table game's page is single-file, the kernel inside it; its book and its characters printed ──
+  if (manifest.engine === 'table-rpg') {
+    const { emitTableRpgGame, tableRpgBookOf, tableRpgPaper } = await import('@/lib/graph/table-rpg/table-rpg-manifest');
+    await write('game.html', emitTableRpgGame(manifest, { title: sketch.title, bookHref: 'book.html' }));
+    // the party's and the cast's characters photographed for the book (a browser on the machine; none, and the sheets
+    // print without: never a download, whatever scope the export runs in)
+    const shoot = deps.portraits ?? (await import('./table-rpg-portraits.js')).tableRpgPortraits;
+    const { portraits, foes: foePortraits, items: itemPortraits, missing } = await withoutChromiumFetch(() => shoot(manifest, { paper: tableRpgPaper(manifest) }));
+    const book = tableRpgBookOf(manifest, { title: sketch.title, portraits, foePortraits, itemPortraits }).html, characters = tableRpgBookOf(manifest, { title: sketch.title, parts: ['party'], portraits }).html;
+    await write('book.html', book);
+    await write('characters.html', characters);
+    // the PDFs need a browser: one already on the machine prints them; none, and the pages print from any browser
+    let printed = null;
+    try {
+      const printPdf = deps.printPdf ?? (await import('@/lib/graph/book/book-pdf')).printPdf;
+      await write('book.pdf', await printPdf(book, { allowFetch: false }));
+      await write('characters.pdf', await printPdf(characters, { allowFetch: false }));
+      printed = true;
+    } catch (err) { printed = err.message.split('\n')[0]; }
+    await writeRecipe('recipe/game.json', manifest);
+    await write('README.md', buildReadme({ manifest, ref, hash, files, engine: 'table-rpg' }));
+    const totalBytes = files.reduce((n, f) => n + f.bytes, 0);
+    return withHandoff({
+      ok: true, ref, engine: 'table-rpg', dir,
+      preview_url: `${outcomeUrlFor(ref)}game.html`,
+      book_url: `${outcomeUrlFor(ref)}${printed === true ? 'book.pdf' : 'book.html'}`,
+      characters_url: `${outcomeUrlFor(ref)}${printed === true ? 'characters.pdf' : 'characters.html'}`,
+      files, total_bytes: totalBytes,
+      ...(missing.length ? { portraits_missing: missing } : {}),
+      note: `A table game: game.html plays in text anywhere, file:// included; book.html is its game book and characters.html its party's sheets${printed === true ? ', each printed beside it as a PDF' : `. No PDF was printed (${printed}): open a page in any browser and print it, or point MOJULO_CHROMIUM at a browser and export again`}.`,
     }, context, { kind: 'page', name: 'game.html', path: path.join(dir, 'game.html'), dir, bytes: totalBytes, download_url: `${outcomeUrlFor(ref)}game.html`, recipe: 'recipe/' });
   }
 

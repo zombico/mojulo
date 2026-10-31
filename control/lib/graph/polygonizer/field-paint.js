@@ -6,7 +6,9 @@
  *
  * `fieldPaint` on a layered manifest (beside `bake`): a list of entries, painted in order (a later one over an earlier):
  *   { part, chart?, shape? | pattern?, at?, size?, rotate?, group, color?, only? }
- *   part     a part name, a list, or a prefix ending '*' ('adorn.torso-tabard*': the tabard and its signatures)
+ *   part     a part name, a list, a prefix ending '*' ('adorn.torso-tabard*': the tabard and its signatures), or a suffix
+ *            starting '*' ('*_torso': every layer worn over the torso, the top, a jacket, a suit; with 'torso' itself,
+ *            ['torso', '*_torso'] is the chest whatever is worn on it, the outermost showing)
  *   chart    where the shape is drawn:
  *            'front' | 'back' | 'left' | 'right' | 'top' | 'bottom' (default 'front') — a PROJECTION from that side over
  *              the named parts' box, x to the viewer's right, y up (top: y toward the front); only faces facing that
@@ -19,7 +21,10 @@
  *   rotate   degrees, counter-clockwise
  *   shape    'rect' | 'circle' | 'diamond' | 'shield' | 'cross' | 'star' | { motif: MOTIFS name, w? } (a motif's strokes
  *            filled, `w` their width in the shape's own box, default 0.22) | { poly: [[x, y], …] } (convex, in the
- *            shape's box −1…1) | { polys: [[[x, y], …], …] } (a union of convex ones)
+ *            shape's box −1…1) | { polys: [[[x, y], …], …] } (a union of convex ones) | { path: '<an SVG path's d>' } (a
+ *            MARK: a logo, an emblem, an insignia pasted as drawn, any outline with its holes, its curves and arcs;
+ *            fitted into the shape's box with its aspect kept, its y turned up, simplified to the cut's tolerance and
+ *            cut as convex pieces, so `size` sets its larger side; markPolys)
  *   pattern  a repeat over the window at ± size / 2: { cells: 'hex' | 'scale' | 'square' | 'brick', grid: [nx, ny], gap? }
  *            (cells, each shrunk by `gap`, a share of its own size, default 0.15: scale rows, a hide's plates) or
  *            { bands: n, gap?, axis?: 'x' | 'y' } (strips along y by default: a belly's scutes)
@@ -31,10 +36,13 @@
  *                                     entry touches the face
  *   fieldColours(list)                { group: colour } the entries name
  *   fieldPaintReadout(mesh, list)     per entry: the parts it names, the faces it cut and the cells it painted
+ *   markPolys(d)                      an SVG path's d → its convex pieces in the box −1…1, or throws saying why
  *
  * Pure, deterministic: shapes are fixed tables, patterns are grids, no dice.
  */
 import { MOTIFS } from './station-loft-adorn.js';
+import { parseSvgPath, normalizeContours } from './carve-solid.js';
+import { triangulateRings } from './triangulate.js';
 
 export const FIELD_CHARTS = Object.freeze(['front', 'back', 'left', 'right', 'top', 'bottom', 'ring']);
 const KEYS = ['part', 'chart', 'shape', 'pattern', 'at', 'size', 'rotate', 'group', 'color', 'only', 'id'];
@@ -77,10 +85,46 @@ const isPt = (p) => Array.isArray(p) && p.length === 2 && p.every((x) => typeof 
 const isNum = (x) => typeof x === 'number' && Number.isFinite(x);
 const isPair = (v, lo, hi) => Array.isArray(v) && v.length === 2 && v.every((x) => isNum(x) && x >= lo && x <= hi);
 
+// ─── marks: an SVG path drawn as it was drawn ───
+/** a mark's reading: the points a quarter turn of a curve or an arc takes, how far a simplified outline may stand off the
+ * drawn one (a share of the box's half-width: a millimetre on a chest emblem a quarter metre wide), the longest `d` read */
+export const MARK = Object.freeze({ curveSteps: 8, tolerance: 0.008, maxLength: 20000 });
+const segDist = (p, a, b) => { const dx = b[0] - a[0], dy = b[1] - a[1], L = dx * dx + dy * dy, t = L > 0 ? Math.max(0, Math.min(1, ((p[0] - a[0]) * dx + (p[1] - a[1]) * dy) / L)) : 0; return Math.hypot(p[0] - a[0] - t * dx, p[1] - a[1] - t * dy); };
+// Douglas–Peucker on an open run of points (its ends kept)
+function simplify(P, tol) {
+  if (P.length < 3) return P;
+  let far = 0, at = 0;
+  for (let i = 1; i < P.length - 1; i++) { const d = segDist(P[i], P[0], P[P.length - 1]); if (d > far) { far = d; at = i; } }
+  return far <= tol ? [P[0], P[P.length - 1]] : [...simplify(P.slice(0, at + 1), tol).slice(0, -1), ...simplify(P.slice(at), tol)];
+}
+// a closed ring simplified: split at its farthest pair from its first point, each half simplified, the duplicates gone
+function simplifyRing(R, tol) {
+  const Q = R.filter((p, i) => i === 0 || Math.hypot(p[0] - R[i - 1][0], p[1] - R[i - 1][1]) > 1e-9);
+  if (Q.length > 1 && Math.hypot(Q[0][0] - Q.at(-1)[0], Q[0][1] - Q.at(-1)[1]) <= 1e-9) Q.pop();
+  if (Q.length < 4) return Q;
+  let at = 0, far = 0; for (let i = 1; i < Q.length; i++) { const d = Math.hypot(Q[i][0] - Q[0][0], Q[i][1] - Q[0][1]); if (d > far) { far = d; at = i; } }
+  return [...simplify(Q.slice(0, at + 1), tol).slice(0, -1), ...simplify([...Q.slice(at), Q[0]], tol).slice(0, -1)];
+}
+/** An SVG path's `d` → its convex pieces in the box −1…1 (y up, the aspect kept, centred): every outline and the holes in
+ * it (even-odd), curves and arcs drawn, simplified to MARK.tolerance, triangulated. Throws saying why it cannot be read. */
+export function markPolys(d) {
+  if (typeof d !== 'string' || !d.trim()) throw new Error('a mark\'s path is an SVG path\'s d: \'M 0 0 L 10 0 …\'');
+  if (d.length > MARK.maxLength) throw new Error(`a mark's path is at most ${MARK.maxLength} characters (this one is ${d.length}): simplify it`);
+  if (!/^\s*[mM]/.test(d) || /[^mMlLhHvVcCsSqQtTaAzZ0-9eE+\-.,\s]/.test(d)) throw new Error('a mark\'s path is an SVG path\'s d: it starts with M and holds only path commands and numbers');
+  const raw = parseSvgPath(d, { curveSteps: MARK.curveSteps, arcs: true });
+  if (!raw.length || raw.some((R) => R.some((p) => !p.every(Number.isFinite)))) throw new Error('a mark\'s path drew no closed outline (each outline is a run of three points or more)');
+  const rings = normalizeContours(raw, { box: 2, flipY: true }).map((R) => simplifyRing(R, MARK.tolerance)).filter((R) => R.length >= 3 && Math.abs(area2(R)) > 1e-6);
+  if (!rings.length) throw new Error('a mark\'s path drew no outline with an area');
+  const tris = triangulateRings(rings).filter((T) => Math.abs(area2(T)) > 1e-9);
+  if (!tris.length) throw new Error('a mark\'s path could not be cut into pieces');
+  return tris;
+}
+
 /** the unit-box polygons a shape names */
 function shapePolys(shape) {
   if (typeof shape === 'string') return FIELD_SHAPES[shape]();
   if (shape.motif) return MOTIFS[shape.motif].flatMap((line) => stroke(line, shape.w ?? 0.22));
+  if (shape.path) return markPolys(shape.path);
   if (shape.poly) return [shape.poly];
   return shape.polys;
 }
@@ -111,11 +155,16 @@ function patternPolys(P, [x0, x1], [y0, y1]) {
 }
 
 function shapeErrors(S, at) {
-  if (typeof S === 'string') return FIELD_SHAPES[S] ? [] : [`${at}: '${S}' is not a shape (${FIELD_SHAPE_NAMES.join(', ')}), or { motif }, { poly }, { polys }`];
-  if (!S || typeof S !== 'object' || Array.isArray(S)) return [`${at}: a shape word (${FIELD_SHAPE_NAMES.join(', ')}), { motif, w? }, { poly } or { polys }`];
+  if (typeof S === 'string') return FIELD_SHAPES[S] ? [] : [`${at}: '${S}' is not a shape (${FIELD_SHAPE_NAMES.join(', ')}), or { motif }, { poly }, { polys }, { path }`];
+  if (!S || typeof S !== 'object' || Array.isArray(S)) return [`${at}: a shape word (${FIELD_SHAPE_NAMES.join(', ')}), { motif, w? }, { poly }, { polys } or { path: an SVG path's d }`];
+  if (S.path !== undefined) {
+    if (Object.keys(S).some((k) => k !== 'path')) return [`${at}: a mark is { path } alone (its size, place and turn are the entry's: at, size, rotate)`];
+    try { const n = markPolys(S.path).length; return n > MAX_POLYS ? [`${at}.path: too detailed to cut (${n} pieces, at most ${MAX_POLYS}): simplify the path or split it into entries`] : []; } catch (e) { return [`${at}.path: ${e.message}`]; }
+  }
   if (S.motif !== undefined) { const e = []; if (!Object.hasOwn(MOTIFS, S.motif)) e.push(`${at}.motif: '${S.motif}' is not a motif (${Object.keys(MOTIFS).join(', ')})`); if (S.w !== undefined && !(isNum(S.w) && S.w > 0 && S.w <= 1)) e.push(`${at}.w: a number over 0, up to 1`); return e; }
   const polys = S.poly !== undefined ? [S.poly] : S.polys;
-  if (!Array.isArray(polys) || !polys.length || polys.length > 64) return [`${at}: { poly: [[x, y], …] } or { polys: [ … ] } (1–64 convex polygons in −1…1)`];
+  // (as many pieces as a path's mark may cut to: a camouflage's marks, outfit/camouflage.js, are hundreds)
+  if (!Array.isArray(polys) || !polys.length || polys.length > MAX_POLYS) return [`${at}: { poly: [[x, y], …] } or { polys: [ … ] } (1–${MAX_POLYS} convex polygons in −1…1)`];
   return polys.flatMap((P, i) => (Array.isArray(P) && P.length <= 64 && P.every((p) => isPt(p) && Math.abs(p[0]) <= 1 && Math.abs(p[1]) <= 1) && convex(P) ? [] : [`${at}${S.poly ? '.poly' : `.polys[${i}]`}: a convex polygon of 3–64 points in −1…1`]));
 }
 
@@ -130,7 +179,7 @@ export function validateFieldPaint(list) {
     if (!E || typeof E !== 'object' || Array.isArray(E)) { errs.push(`${at}: { part, chart?, shape | pattern, at?, size?, rotate?, group, color?, only? }`); return; }
     for (const k of Object.keys(E)) if (!KEYS.includes(k)) errs.push(`${at}.${k}: not a field paint word (${KEYS.join(', ')})`);
     const parts = Array.isArray(E.part) ? E.part : [E.part];
-    if (!parts.length || !parts.every((p) => typeof p === 'string' && p)) errs.push(`${at}.part: a part name, a list, or a prefix ending '*'`);
+    if (!parts.length || !parts.every((p) => typeof p === 'string' && p && p !== '*')) errs.push(`${at}.part: a part name, a list, a prefix ending '*' or a suffix starting '*'`);
     if (typeof E.group !== 'string' || !E.group) errs.push(`${at}.group: the palette group it paints`);
     if (E.chart !== undefined && !FIELD_CHARTS.includes(E.chart)) errs.push(`${at}.chart: one of ${FIELD_CHARTS.join(', ')}`);
     if (E.at !== undefined && !isPair(E.at, -1, 2)) errs.push(`${at}.at: [x, y] shares of the chart`);
@@ -176,7 +225,7 @@ function axes(chart) { const d = DIRS[chart], f = d.map((x) => -x), up = chart =
 /** the parts an entry names in `mesh` */
 function partsOf(mesh, E) {
   const names = Object.keys(mesh.parts), want = Array.isArray(E.part) ? E.part : [E.part];
-  return [...new Set(want.flatMap((w) => (w.endsWith('*') ? names.filter((n) => n.startsWith(w.slice(0, -1))) : names.includes(w) ? [w] : [])))];
+  return [...new Set(want.flatMap((w) => (w.endsWith('*') ? names.filter((n) => n.startsWith(w.slice(0, -1))) : w.startsWith('*') ? names.filter((n) => n.endsWith(w.slice(1))) : names.includes(w) ? [w] : [])))];
 }
 
 /** each vertex's ring-chart coordinates on its L1 part ([x, y], see the header) or null */

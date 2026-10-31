@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { gait, sprint, resolveMotion, stampMotion, WALK_DEFAULTS, SPRINT_DEFAULTS, WALK_MINT, SPRINT_MINT, WAVE_MINT, EMOTE_MINT } from './figure-posing.js';
 import { stampHeroMotion, motionPlan, validateHeroMotion, MOTION_GAITS } from './hero-motion.js';
-import { HERO_WALK, HERO_WALK_POLE, HERO_RUN } from './hero-gaits.js';
+import { HERO_WALK, HERO_WALK_POLE, HERO_RUN, HERO_RUN_POLE } from './hero-gaits.js';
 import { HERO_LAWS_VERSION } from './hero-form.js';
 import { stampAuthoredMotion, stampHero, withDefaultWalk, withDefaultForm } from './motion-stamp.js';
 
@@ -129,6 +129,18 @@ describe('withDefaultWalk — a new hero walks with the calibrated gait', () => 
     // (stored by value: a walk already stamped keeps its width when the hero is written again)
     const stored = { cast: 'male', motion: { walk: { ...WALK_MINT, ...HERO_WALK } } };
     expect(stampHero(stored).motion.walk.stepWidth).toBe(WALK_MINT.stepWidth);
+  });
+
+  it('the man runs his own wider base, his pelvis steadier; the woman the run as minted; a stored run kept', () => {
+    const run = (spec, g = 'jog') => stampHero(withDefaultForm({ ...spec, motion: { [g]: true } })).motion[g];
+    for (const g of ['jog', 'sprint']) {
+      expect(run({ cast: 'male' }, g)).toMatchObject(HERO_RUN_POLE.male);
+      expect(run({ cast: 'male', form: 'realistic' }, g).stepWidth).toBe(HERO_RUN_POLE.male.stepWidth);
+      expect(run({ cast: 'female' }, g)).toMatchObject({ stepWidth: SPRINT_MINT.stepWidth, pelvisRot: SPRINT_MINT.pelvisRot });
+    }
+    expect(HERO_RUN_POLE.male.stepWidth).toBeGreaterThan(SPRINT_MINT.stepWidth); expect(HERO_RUN_POLE.male.pelvisRot).toBeLessThan(SPRINT_MINT.pelvisRot);
+    const stored = { cast: 'male', motion: { jog: { ...SPRINT_MINT, ...HERO_RUN } } };
+    expect(stampHero(stored).motion.jog.stepWidth).toBe(SPRINT_MINT.stepWidth);
   });
 
   it('a creator\'s own walk, a door clip named walk, and a statue are left as they are', () => {

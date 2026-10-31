@@ -386,6 +386,9 @@ function groundRoute(route, heightAt) {
   return out;
 }
 
+/** How far over an island's ground the walk drops a walker (metres, under the eye's 1.7): its ground ray must start above
+ *  the faces, which run straight between the ground's samples. */
+export const SPAWN_CLEAR = 0.1;
 /** How broken a gen-7 island's rock is when its style says nothing grittier (the grit the broken land reads). */
 export const FORM_GRIT = 0.6;
 
@@ -485,7 +488,9 @@ export function assembleLocalMeruScene(manifest = {}, ctx = {}) {
   const faces = [...land, ...lockFaces([...baked, ...cel], (f) => made.ramps[f.group] || (lockOf(f.group) ? st.palette[lockOf(f.group)] : null)), ...(S ? seaFaces(st, S, heightAt, ground.grid) : []), ...gems];
   const cutouts = [...new Set(faces.filter((f) => /^isekai:.*:(blades)-/.test(f.texture || '')).map((f) => f.texture))].sort();
   // the frames: from the seam to the top; the whole level from off its flank; at each climb; from the top back
-  const J = p.join, eye = [J.at[0], J.at[1], J.at[2] + 1.7], top = p.top, sky = st.palette.sky;
+  // (the walk's spawn and the seam's eye: on an island, its own ground at the join, which can stand far above the stage's
+  // join (the meru island's high side over it), a hand over it so the walk's ground ray starts above the land)
+  const J = p.join, eyeZ = S ? Math.max(J.at[2], heightAt(J.at[0], J.at[1])) + SPAWN_CLEAR : J.at[2], eye = [J.at[0], J.at[1], eyeZ + 1.7], top = p.top, sky = st.palette.sky;
   const peakZ = top.form === 'tower' ? (top.roofed ? top.apexZ : top.railZ) : top.top, rise = peakZ - J.at[2], span = Math.max(foot, rise * 0.6);
   const wide = [c[0] + J.N[1] * span * 3.2, c[1] - J.N[0] * span * 3.2, J.at[2] + rise * 1.0];
   const cam = (name, from, to, fov = 70) => ({ name, worldFraming: { cameraPosition: from.map(r5), lookAt: to.map(r5), horizontalFov: fov, pictureCenter: [560, 390] } });

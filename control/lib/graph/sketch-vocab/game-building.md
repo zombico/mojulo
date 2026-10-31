@@ -9,6 +9,13 @@ A building in a game is a plan, a language and a look. Name the use; the rest is
 1. **What is it?** `program: { use }`.
    - The town's uses: `dwelling`, `shop`, `workshop`, `barn`, `hall`, `tower`.
    - The game's uses: `tavern`, `keep`, `temple`, `crypt`, `guardhouse`, `library`, `lab`.
+   - The buildings: `office`, `lab-building`, `warehouse`, `clinic`. A stair core and wings of corridors off it, rooms
+     a bay wide along them, the same floor up every storey, a lobby with the way in; each on its bay kit
+     (`bay-everyday`, `bay-science`, `bay-utility`), a warehouse's shed and a lab's instrument bay off a wing's end.
+     Their settings are the plan's: `storeys` (1 to 6), `wings` (`I`, `L`, `T`, `U`), `loading` (`single`: rooms on
+     one side of a corridor, windows on the other; `double`), `bays` (a wing's length, 1 to 6). For a genre level set
+     in a building (a stealth mission, a shooter's floor, a horror crawl); a building asked for as a building is
+     `mint_building`'s.
 
    Each has its rooms by role, which opens off which, and a goal room (the tavern's cellar, the keep's treasury, the
    crypt's tomb). The tower and the keep build upward: the tower three storeys to its lookout, the keep's solar and
@@ -27,6 +34,7 @@ A building in a game is a plan, a language and a look. Name the use; the rest is
 
 ```json
 { "kind": "stage", "geocube": "gothic-night", "program": { "use": "tavern", "seed": 2 }, "level": {} }
+{ "kind": "stage", "program": { "use": "office", "storeys": 4, "wings": "L" }, "level": {} }
 { "kind": "stage", "kit": "research-lab", "program": { "use": "lab", "civilization": "shell", "rooms": { "store": { "drop": true } } } }
 ```
 
@@ -79,6 +87,22 @@ civilization?, kit? }]`.
   rocks and grass in its footprint are cleared.
 - **No scene change:** you walk in off the trail.
 - **On storeys** (a tower, a keep): its walls rise storey on storey to its top, and you climb its stairs inside.
+- **A base's building** (`barracks`, `armoury`, `comms`, `command` and the rest of a military base's uses), or any
+  bay building given `look: { construction?, palette? }`, is composed as a building level is: its bay kit, its rooms
+  stocked, its `tone`, its plan's `storeys`, `wings`, `loading` and `bays`. It wears its construction outside
+  (corrugated sheeting, board-formed concrete, block, panels or a floated coat; a flat roof behind a parapet or a low
+  steel one). Its windows open through the shell onto the land, and the land's sun at its hour lays their light on its
+  floors. A yard before its front is kept clear. A trail's site is about 44 m across: an outpost's building is
+  `wings: 'I', bays: 1, loading: 'single'` (about 18 by 22 m on two storeys); a level's plan stands over its edge, and
+  the answer says so.
+- **Set into its slope** (`embed: true`, or `{ up: <storey> }`): a building of two storeys or more stands with its
+  front, the way in, as a walkout on the low land and a door out of its upper storey's back onto the high land behind.
+  It is placed where the land falls most nearly a storey across it, clear of the trail, with room to walk round it, and
+  the land is cut and filled to it: level before and behind, a bank along one side. A concrete stair climbs the other
+  side, and paths of slabs run from the trail to the walkout, to the stair and on to the upper door. Inside, its own
+  stairs join the two. No window is laid under the land. The answer's anchor says its doors, its stair, the way through
+  it (`through`) and the way round it (`round`); a finding says how far the land was cut and filled. A trail's site is
+  about 44 m across: `trail: { ground: { room: 30 } }` adds open ground past the trail's far side for it.
 - **On a level:** in the game designer it is `places: { buildings: [...] }`. `goal: true` ends the level in its goal
   room, and the route runs in at its door.
 

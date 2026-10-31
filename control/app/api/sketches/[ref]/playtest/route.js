@@ -23,8 +23,8 @@ export async function GET(request, { params }) {
     if (!sketch.manifest || sketch.manifest.kind !== 'game') {
       return NextResponse.json({ error: `Sketch '${ref}' is not a game`, hint: 'Games have manifest.kind "game" (create_game, or design_game\'s run).' }, { status: 422 });
     }
-    if (sketch.manifest.engine === 'pixelizer') {
-      return NextResponse.json({ error: `'${ref}' is a pixelizer game: it plays at /api/sketches/${ref}/game` }, { status: 422 });
+    if (['pixelizer', 'tabletop', 'table-rpg'].includes(sketch.manifest.engine)) {
+      return NextResponse.json({ error: `'${ref}' is a ${sketch.manifest.engine} game, with no levels to open: it plays at /api/sketches/${ref}/game` }, { status: 422 });
     }
     const level = new URL(request.url).searchParams.get('level');
     let html;

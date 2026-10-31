@@ -90,6 +90,67 @@ export const FURNITURE_LANGUAGES = {
     fabrics: ['canvas', 'herringbone', 'twill'],
     timbers: ['oak', 'oak', 'cherry'],
   },
+  // ── the townhouse traditions (polygonizer/floorplan-styles.js) ──
+  brownstone: {
+    label: 'brownstone: a parlour of chesterfields and mid-century pieces, velvet and bouclé, walnut',
+    styles: {
+      sofa: ['chesterfield', 'mid-century-sofa', 'tuxedo'],
+      'easy-chair': ['club-chair', 'armchair'],
+      'dining-chair': ['chair', 'windsor-side-chair'],
+      'coffee-table': ['coffee-table'],
+      'dining-table': ['mid-century-table', 'dining-table'],
+      bookcase: ['bookcase'], media: ['media-console'], sideboard: ['sideboard'],
+      dresser: ['chest'], nightstand: ['nightstand'],
+    },
+    legs: ['tapered', 'turned', 'bun'],
+    fabrics: ['velvet', 'boucle', 'herringbone'],
+    timbers: ['walnut', 'walnut', 'oak'],
+  },
+  terrace: {
+    label: 'terrace: roll arms and turned legs, linen and herringbone, oak and walnut',
+    styles: {
+      sofa: ['english-roll-arm', 'english-roll-arm', 'chesterfield', 'sofa'],
+      'easy-chair': ['armchair', 'club-chair'],
+      'dining-chair': ['windsor-side-chair', 'chair'],
+      'coffee-table': ['coffee-table'],
+      'dining-table': ['farmhouse-table', 'dining-table'],
+      bookcase: ['bookcase'], media: ['media-console'], sideboard: ['sideboard'],
+      dresser: ['painted-dresser', 'chest'], nightstand: ['nightstand'],
+    },
+    legs: ['turned', 'bun', 'block'],
+    fabrics: ['linen', 'herringbone', 'velvet', 'tartan'],
+    timbers: ['oak', 'walnut'],
+  },
+  canal: {
+    label: 'canal: low and spare, tapered legs, linen and bouclé, pale oak and ash',
+    styles: {
+      sofa: ['settee', 'mid-century-sofa', 'sofa'],
+      'easy-chair': ['armchair'],
+      'dining-chair': ['chair'],
+      'coffee-table': ['coffee-table'],
+      'dining-table': ['dining-table', 'mid-century-table'],
+      bookcase: ['bookcase'], media: ['media-console'], sideboard: ['sideboard'],
+      dresser: ['chest'], nightstand: ['nightstand'],
+    },
+    legs: ['tapered', 'block', 'hairpin'],
+    fabrics: ['linen', 'boucle', 'canvas'],
+    timbers: ['oak', 'ash'],
+  },
+  kyosho: {
+    label: 'kyosho: low, plain and light, block legs, linen and canvas, hinoki, sugi and ash',
+    styles: {
+      sofa: ['settee', 'sofa'],
+      'easy-chair': ['armchair'],
+      'dining-chair': ['chair'],
+      'coffee-table': ['coffee-table'],
+      'dining-table': ['dining-table'],
+      bookcase: ['bookcase'], media: ['media-console'], sideboard: ['sideboard'],
+      dresser: ['chest'], nightstand: ['nightstand'],
+    },
+    legs: ['block', 'block', 'tapered'],
+    fabrics: ['linen', 'canvas'],
+    timbers: ['hinoki', 'sugi', 'ash'],
+  },
 };
 export const FURNITURE_LANGUAGE_NAMES = Object.keys(FURNITURE_LANGUAGES);
 // a house with no style (or an unknown one) speaks this

@@ -53,7 +53,7 @@ export function isMascotRoll(roll = {}) {
   const personal = Object.keys(roll.facets || {}).some((k) => !MASCOT_KEYS.includes(k)) || roll.years !== undefined || roll.chapters !== undefined || roll.lineages !== undefined;
   return !personal && asksForMascot(roll.brief || '');
 }
-const KEYS = ['kind', 'title', 'roll', 'cast', 'dress', 'output', 'sheet', 'thread', 'castSheet'];
+const KEYS = ['kind', 'title', 'roll', 'cast', 'dress', 'output', 'sheet', 'thread', 'castSheet', 'moves'];
 /** what the cube makes by default: the character as rolled, or its MASCOT (a person's read into a mascot's facets) */
 export const OUTPUTS = Object.freeze(['character', 'mascot']);
 const DRESS = ['designed', 'kit'];
@@ -81,6 +81,7 @@ export function readEgocubeKind(m) {
   if (isMascotRoll(m.roll)) for (const k of ['years', 'chapters', 'lineages']) if (m.roll[k] !== undefined) throw fail(`a mascot does not age and has no people: roll.${k} is a person's (tuning: 'person')`);
   if (m.output !== undefined && !OUTPUTS.includes(m.output)) throw fail(`output is ${OUTPUTS.map((o) => `'${o}'`).join(' or ')} (mascot: the character made as its mascot, docs/mascot.md)`);
   if (m.dress !== undefined && !DRESS.includes(m.dress)) throw fail(`dress is ${DRESS.map((d) => `'${d}'`).join(' or ')} (designed: the outfit designed from the sheet; kit: the stock kit by role)`);
+  if (m.moves !== undefined && m.moves !== true) throw fail('moves is true: the character is made to play a part, its moves on it as a cast member\'s (a foe\'s: its swing, its flinch, its fall and rise)');
   return m;
 }
 
@@ -123,11 +124,12 @@ export function egocubeCreate(m, { years, dress, title, output, member } = {}) {
   const node = m.cast !== undefined ? (member === undefined ? nodes[0] : nodes.find((n) => n.path === member)) : years === undefined ? nodes[0] : nodes.find((n) => n.years === years);
   if (!node) throw new Error(m.cast !== undefined ? `egocube: the cast has no member '${member}' (${nodes.map((n) => n.path).join(', ')})` : `egocube: no node at ${years} years (the thread has ${nodes.map((n) => n.years).join(', ')})`);
   const of = node.member ? { member: { path: node.path, relation: node.member.relation, ...(node.member.bond ? { bond: node.member.bond } : {}), body: node.member.body } } : {};
-  // a beast (cast.js): a real species, through the animal door; its temperament is the cast's reading of it
+  // a beast (cast.js): a real species, through the animal door; its temperament is the cast's reading of it, its ooze
+  // (the mutagen's words) the game creature the species is made into
   if (node.member?.body === 'beast') {
-    const { species } = node.member.beast;
+    const { species, ooze } = node.member.beast;
     // (with its two gaits rigged, so it can cross a level's map beside its keeper, and on legs its flinch, fall and rise)
-    return { node: { path: node.path, band: 'beast' }, ...of, create: { as: 'animal', spec: { species, motion: beastMovesOf(species).motion }, title: title ?? `${node.path} · ${species}` }, after: [], ledger: [] };
+    return { node: { path: node.path, band: 'beast' }, ...of, create: { as: 'animal', spec: { species, motion: beastMovesOf(species).motion, ...(ooze !== undefined ? { ooze } : {}) }, title: title ?? `${node.path} · ${species}` }, after: [], ledger: [] };
   }
   const out = output ?? m.output ?? 'character';
   if (!OUTPUTS.includes(out)) throw new Error(`egocube: output is ${OUTPUTS.map((o) => `'${o}'`).join(' or ')}`);
@@ -141,13 +143,15 @@ export function egocubeCreate(m, { years, dress, title, output, member } = {}) {
       ...(mascot.mapping ? { mascot: { facets: mascot.facets, mapping: mascot.mapping } } : {}) };
   }
   const P = planFromSheet(node.sheet, { dress: (dress ?? m.dress ?? 'designed') === 'designed' ? 'designed' : undefined, ...(title ? { title } : {}) });
-  // a cast's member on the hero door plays its part: its moves ride its spec as motion words (moves.js)
-  if (node.member && P.create.as === 'hero') {
+  // a cast's member on the hero door plays its part: its moves ride its spec as motion words (moves.js); so does a lone
+  // sheet made to play one (`moves: true`, a bestiary's people: gameworld/foes.js)
+  const plays = !!node.member || m.moves === true;
+  if (plays && P.create.as === 'hero') {
     const M = moveSetOf(node.sheet.facets);
     return { node: { path: node.path, years: node.years, band: node.band }, ...of, create: { ...P.create, spec: { ...P.create.spec, motion: { ...(P.create.spec.motion ?? {}), ...M.motion } } }, moves: M.moves, after: P.after, ledger: P.ledger, ...(P.outfit ? { outfit: P.outfit } : {}) };
   }
   // a member below the hero door (a beast-kin on the creature loop's rig): a walk and a jog, and the moves its rig solves
-  if (node.member && P.create.spec?.plan) {
+  if (plays && P.create.spec?.plan) {
     const M = creatureMovesOf(node.sheet.facets);
     return { node: { path: node.path, years: node.years, band: node.band }, ...of, create: { ...P.create, spec: { ...P.create.spec, plan: { ...P.create.spec.plan, locomotion: motionPlan(M.motion) } } }, moves: M.moves, after: P.after, ledger: P.ledger, ...(P.outfit ? { outfit: P.outfit } : {}) };
   }

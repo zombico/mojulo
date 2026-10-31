@@ -7,14 +7,21 @@ comments, docs, or the changelog: plans are working documents that move to
 
 ## What this is
 
-A local MCP server with a dashboard: a 3D compiler for agents. The agent makes things to Play, Print,
-Read, Hear and Observe by conversation, characters (`create_character`) first among them; each one is a tiny deterministic recipe (a `sketches` row) that
-regenerates on every read and exports to Godot, Unity, Unreal, Blender, GLB, STL, 3MF, USD. Workflows (plans,
-sweeps, stash and cook, catalysts) orchestrate the rest. Mojulo is the agent-driven upstream that feeds those
-tools, never a fidelity rival and never "just an exporter." The canonical self-description is the
-`get_substrate` drawer in [control/lib/mcp/tools/context.js](control/lib/mcp/tools/context.js); keep
-user-facing copy consistent with it. The office wing (apps, daemons, contextmap, MCP-to-MCP binding) left the
-tool surface in 3.1.0: `RETIRED_PACKS` in `packs.js`, callable by name, never listed or routed to.
+A local MCP server with a dashboard that turns the operator's agent into a game studio. The person directs; the
+agent works through the departments: direction (`design_game`), levels and worlds, characters (`create_character`),
+gameplay and feel, art direction, audio, writing (the bibles), QA (the traversal audit), shipping (the engine legs),
+the trailer, and production (plans, sweeps, stash and cook, catalysts). Every department writes into one tiny
+deterministic recipe (a `sketches` row) that regenerates on every read and exports to Godot, Unity, Unreal, Blender,
+GLB, STL, 3MF, USD, which is why a game's bible, its levels and its export agree. Play, Print, Read, Hear and Observe
+are what the departments' combinations make; rooms, prints and science views are the same studio's other outcomes.
+Underneath, it is a 3D compiler for agents: that is how it works and what the agent is told, not what the person is
+sold. Mojulo is the agent-driven upstream that feeds those tools, never a fidelity rival and never "just an exporter."
+
+Two audiences, one truth. The README, the plugin and the manifests speak to the person (the studio); the drawers and
+the `initialize` preamble speak to the agent (the compiler). The canonical self-description is the `get_substrate`
+drawer in [control/lib/mcp/tools/context.js](control/lib/mcp/tools/context.js): its one-breath answer is what the
+agent says to the person, so it and the README agree. The office wing (apps, daemons, contextmap, MCP-to-MCP binding)
+left the tool surface in 3.1.0: `RETIRED_PACKS` in `packs.js`, callable by name, never listed or routed to.
 
 One package. [control/](control/) is the product (Next.js 16 on 3001, ESM, vitest); all work happens here.
 The chatbot factory and its bot runtime left in 3.0.0 for their own project; the unmaintained 2.x line still carries them.
@@ -57,6 +64,9 @@ The chatbot factory and its bot runtime left in 3.0.0 for their own project; the
   claim the eyes gate passed. All gates advise and stamp; none refuse. Say which gate ran and what was seen.
   [docs/bicycles.md](docs/bicycles.md), [docs/responsibility-model.md](docs/responsibility-model.md).
 - **Recipes are starters.** Iterate in place with `update_sketch` / `edit_solid`; don't re-mint.
+- **A capability joins a department and composes.** A new row on a shelf (a place, a foe, a look, a game type) is
+  reachable from the keys that compose it, read in its book (the bibles), carried by its exports and checked by its
+  audit. One that only works alone is a spike. The README's combinations stay true only while this holds.
 - **Core is capability, the book is repertoire.** A new study-object kind is normally a recipe-book Door-2
   builder in [control/book/](control/book/), not a core addition. The book ships bundled (3.1.0); the
   separate `mojulo-recipe-book` repo and `MOJULO_RECIPE_BOOK` are deprecated (they cannot load in an agent box).
@@ -102,6 +112,7 @@ npm run test:e2e             # whole worlds through the real handlers, games who
 node scripts/mcp-stdio.mjs orient|tools|packs|help <tool>|call <tool> --json '{…}'   # CLI over the registry; orient = initialize for a shell
 node scripts/reindex-embeddings.js   # text-only without the recall group; vectors with it
 node scripts/mcp-stdio.mjs install recall   # the embedding runtime, opt-in, lands in ~/.mojulo/recall
+node scripts/runnability.mjs <page.html> --cams cams.json   # what a World page asks of Chrome: docs/runnability.md
 ```
 
 No lint, formatter, or types. CI runs `node --check` and the locale validator. Always run from `control/`:
@@ -201,6 +212,13 @@ Pointers only; each target carries its own design notes.
   words people say, its handles into the floorplan, preset, net and room-asset tables); a new piece is a row first.
 - Flight parts: [craft-shelf/](control/lib/graph/craft-shelf/) (the ODM inventory of aircraft and spacecraft parts → whole
   craft by archetype; a new part is a row first); the flight-game map is [docs/flight-games.md](docs/flight-games.md).
+- Books: [book/](control/lib/graph/book/) (the press: a style library of looks, formats and faces from the font shelf,
+  one self-contained page a book, printed to PDF by headless Chromium): [docs/books.md](docs/books.md).
+- Table RPG: [table-rpg/](control/lib/graph/table-rpg/) (a pen-and-paper module played in text: rules as procedures, a
+  generic starter each and no published game, portable words, the kernel a page emits; composed with the egocube, the
+  live RPG, programs and the epoch map; its game book on the press; minted by `create_game({ table_rpg })`, engine
+  `table-rpg`): [docs/table-rpg.md](docs/table-rpg.md); play it with `node scripts/table-rpg.mjs`. "Tabletop" is the
+  board-game type.
 - Fractal structures: [fractal-structure/](control/lib/graph/fractal-structure/) (towers from a plan, a rise, a crown and
   an echo, the `structures` world channel any kind takes; manual: the `structures` view-vocab card).
 - Vegetation: [vegetation/](control/lib/graph/vegetation/) (grown trees, palms, bamboo; pooled like `rock-pool.js`);
@@ -212,6 +230,17 @@ Pointers only; each target carries its own design notes.
   by [motion/glyph-carver.js](control/lib/motion/glyph-carver.js) into the glyph atlas the page plays, slam | rise | stamp,
   in the juice register's look; words by key in the world's `locale` from `control/messages/`: `game/title-words.js`);
   manual: the `hud-title` card. A host that cannot carve shows the banner.
+- Walled-core dungeons: [docs/walled-core-dungeon.md](docs/walled-core-dungeon.md) (layers on a critical path toward a
+  core, a `design_game` world's `wcd`; its principles as laws; a space builds its level; a military base's buildings,
+  stocked by `era/stocking.js`).
+- Quest open worlds: [docs/quest-open-world.md](docs/quest-open-world.md) (the WCD's opposite pole: a geocity's regions
+  joined sideways, never gated on the way on; a `design_game` world's `qow`; its principles as laws). The metro it is
+  laid on: [geocity/](control/lib/graph/geocity/) (the geocube's `show: 'geocity'`: major streets first, rings, roads,
+  evocations at game scale, the street's kit near the camera only).
+- Foes: [docs/foes.md](docs/foes.md) (layer 0, the skeleton under every foe, and the shelves over it: behaviour, skin,
+  modes, states, death; a new thing on a shelf is a row, never a foe special-cased). Their book is the cast sheet
+  (`/bible?book=foes`, [gameworld/foe-cast-html.js](control/lib/graph/gameworld/foe-cast-html.js)), and a world with
+  none is proposed a cast by the casting call ([foe-casting.js](control/lib/graph/gameworld/foe-casting.js)).
 - Effects: [playscape/elements/](control/lib/graph/playscape/elements/) (attacks, blasts, puffs, looks), raised to the style
   floor [scene/effect-style.js](control/lib/graph/scene/effect-style.js), composed per game by
   [scene/juice-style.js](control/lib/graph/scene/juice-style.js) (register anime | western × the game type's flavor; a

@@ -4,6 +4,16 @@ import { quickWorld } from './quick.js';
 import { composeGameworld } from './compose.js';
 
 describe('the runner\'s plan', () => {
+  it('an adopted hero is equipped over its own row: its field paint, strokes and bake ride; a made hero has none of its own', () => {
+    const heroSpec = { cast: 'female', palette: { Top: '#0f5c4a' } };
+    const fieldPaint = [{ part: 'torso', shape: 'star', group: 'Emblem', color: '#ffd400' }], strokes = [{ id: 's1' }];
+    const world = { ...MEADOWMARK_HERO, mode: 'autonomous', characters: { ...MEADOWMARK_HERO.characters, hero: { ...MEADOWMARK_HERO.characters.hero, ref: 'solo' } } };
+    const lookup = Object.assign(() => null, { heroSpec, head: { hero: heroSpec, fieldPaint, strokes, bake: true } });
+    const eq = runSteps(world, { ref: 'gw', lookup }).find((st) => st.key === 'hero-equipped').order.spec;
+    expect([eq.fieldPaint, eq.strokes, eq.bake, eq.palette.Top]).toEqual([fieldPaint, strokes, true, '#0f5c4a']);
+    const made = runSteps(MEADOWMARK_HERO, { ref: 'gw' }).find((st) => st.key === 'hero-equipped').order.spec;
+    expect([made.fieldPaint, made.strokes, made.bake]).toEqual([undefined, undefined, undefined]);
+  });
   it('a world before its people lays its levels, waiting on its parts; with a hero, the hero first, the systems and every filled class after', () => {
     // no character book: each stage a level walked in first person, then the game; gated and unreviewed, all wait
     const W = runSteps(MEADOWMARK, { ref: 'gw' });

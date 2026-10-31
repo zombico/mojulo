@@ -5,9 +5,11 @@
  *   light     the sixth-gen reference both sides share (`reference`), the moon a night outside takes (`moon`), how
  *             thick the outside's air is against the reference's (`outsideFog`), the inside's `shadows` (the
  *             stage's: torch, sun, cells; the gen-6 upgrades by default), the outside's `sky` (zenith, horizon,
- *             fog; the reference's dome and fog colour where it names none), and the `sun`'s colour (`{ color }`: a
+ *             fog; the reference's dome and fog colour where it names none), the `sun`'s colour (`{ color }`: a
  *             solved day palette's light; the reference keeps the sun's arc and strength; era/cube-light.js reads it
- *             as the hue the palette's light is solved in, the hour's key where it is absent)
+ *             as the hue the palette's light is solved in, the hour's key where it is absent), and the cast's `rim`
+ *             ({ strength?, power? }: the rim the cube's people wear, era/cast-light.js, in the cube's own sky; absent,
+ *             the reference's horizon at the cast light's own strength)
  *   colour    key colours, each a ramp (look-facets.js rampFrom): stone, floor, trim, accent, grass, foliage, water,
  *             and optionally sand; `shade` is the hue every ramp's dark end leans to (degrees, blue by default)
  *   palette   the color theorist's spec (color-theorist/solve.js) the colours are SOLVED from: with a seed, the colours,
@@ -37,7 +39,9 @@
  *             break into (a trail's `ground.cliff`, era/out-ground.js: { height?, face?, bed?, dip?, joint?, pattern? }), or
  *             false: none, the land open on both sides of every trail it paints (a field, a plain); `water`
  *             (optional): the water cut into the land of every trail it paints (a trail's `ground.water`, era/out-water.js:
- *             { lake?, coast?, river?, falls? }; a trail's own form wins); and
+ *             { lake?, coast?, river?, falls? }; a trail's own form wins); `dunes` (optional): the land of every trail it
+ *             paints laid in sand dunes (a trail's `ground.dunes`, era/out-dunes.js: true | { height?, spacing?, wind?,
+ *             repose?, supply?, sinuous? }; a trail's own wins); and
  *             its TERRAINS: the cube's own outside is one (named by `terrain`, 'default' unless named), `terrains`
  *             the others, each a few changes to it, up to a whole land of its own ({ reads?, base?, tiers?, island?, land?,
  *             relief?, ground?, crystals?, cliff?, water?, colour? }: a shore, a highland). A level asks for one, or its heartbeat names the
@@ -76,6 +80,9 @@
  *                              the terrain; the outside at `hour`: geocube-hours.js; under `clouds`, painted round the
  *                              dome: matte-paint/sky.js)
  *   assembleGeocubeScene(m)    the `geocube` world kind: { cube, show: 'room' | 'land' | 'trail' | 'path' | 'town', domain? }
+ *                              (`city`, the micro-city, `geotown`, a neighbourhood on the cube's land, and `geocity`, a
+ *                              metro on it, are resolved by the kind: era/geocube-city.js, geotown/scene.js,
+ *                              geocity/scene.js)
  *                              → its specimen (`path`: the way through the cube's land, a trail stage with no town and
  *                              nobody on it, walked by the dummy: a place to walk, not a game; `town`: a micro-town's
  *                              street walked by the dummy; `path` (the key) the dress of the
@@ -396,6 +403,9 @@ const waterOrNo = (v, cliff, at) => { try { readTrailGround({ water: v, ...(clif
 // the water a cube lays under a trail's own (out-water.js): each form the trail names its own, the trail's `false`
 // none; the trail's as written when the cube names none. A fall keeps the cliff it drops from (`keep`)
 const cubeWater = (O, g = {}) => { const w = O.water !== undefined && O.water !== false && g.water !== false ? { ...O.water, ...(g.water ?? {}) } : g.water; return { water: w, keep: !!(w && w.falls) }; };
+// the dunes its trails are laid in (out-dunes.js), and the trail's own over the cube's (its `false` none)
+const dunesOrNo = (v, at) => { try { readTrailGround({ dunes: v }, 'ground'); } catch (e) { no(`${at}${e.message.replace(/^stage: ground\.dunes/, '')}`); } };
+const cubeDunes = (O, g = {}) => (g.dunes !== undefined ? g.dunes : O.dunes);
 const SLUG = /^[a-z][a-z0-9-]{0,31}$/;
 const TERRAIN_KEYS = ['reads', 'base', 'tiers', 'island', 'land', 'relief', 'ground', 'crystals', 'cliff', 'water', 'colour'];
 const DOMAIN_KEYS = ['reads', 'terrain', 'interior', 'hour', 'structures', 'settlement'];
@@ -445,7 +455,7 @@ export function readGeocube(spec) {
   if (eraError(c.era)) no(eraError(c.era));
   try { readTarget(c.target); } catch (e) { no(e.message); }
   // light
-  only(c.light, ['reference', 'moon', 'outsideFog', 'shadows', 'sky', 'sun'], 'light');
+  only(c.light, ['reference', 'moon', 'outsideFog', 'shadows', 'sky', 'sun', 'rim'], 'light');
   if (c.light.sun !== undefined && !(isObj(c.light.sun) && Object.keys(c.light.sun).every((k) => k === 'color') && HEX.test(c.light.sun.color ?? ''))) no('light.sun is { color: \'#rrggbb\' }: the sun\'s colour (its arc and strength are the reference\'s)');
   c.light.shadows ??= SHADOWS;
   if (!SIXTH_GEN_LOOK_IDS.includes(c.light.reference)) no(`light.reference '${c.light.reference}' is not one (${SIXTH_GEN_LOOK_IDS.join(', ')})`);
@@ -462,6 +472,13 @@ export function readGeocube(spec) {
     only(c.light.moon, ['color', 'elevation', 'azimuth', 'gain'], 'light.moon');
     if (!HEX.test(c.light.moon.color ?? '')) no('light.moon.color is a #rrggbb colour');
     for (const k of ['elevation', 'azimuth', 'gain']) if (!Number.isFinite(c.light.moon[k])) no(`light.moon.${k} is a number`);
+  }
+  // (the cast's rim, era/cast-light.js: its strength and its falloff, in the cube's own sky)
+  if (c.light.rim !== undefined) {
+    if (!isObj(c.light.rim)) no('light.rim is { strength?, power? }: the cast\'s rim in the cube\'s own sky');
+    only(c.light.rim, ['strength', 'power'], 'light.rim');
+    if (c.light.rim.strength !== undefined && !(c.light.rim.strength >= 0 && c.light.rim.strength <= 1.5)) no('light.rim.strength is how bright the rim is, 0 to 1.5');
+    if (c.light.rim.power !== undefined && !(c.light.rim.power >= 1 && c.light.rim.power <= 8)) no('light.rim.power is how tight the rim hugs the outline, 1 (wide) to 8 (a thin line)');
   }
   c.light.outsideFog ??= 1;
   if (!(c.light.outsideFog > 0 && c.light.outsideFog <= 4)) no('light.outsideFog is the outside\'s fog against the reference\'s, above 0 and at most 4');
@@ -509,7 +526,8 @@ export function readGeocube(spec) {
     }
   }
   // outside
-  only(c.outside, ['base', 'tiers', 'island', 'land', 'relief', 'ground', 'crystals', 'cliff', 'water', 'terrain', 'terrains'], 'outside');
+  only(c.outside, ['base', 'tiers', 'island', 'land', 'relief', 'ground', 'crystals', 'cliff', 'water', 'dunes', 'terrain', 'terrains'], 'outside');
+  if (c.outside.dunes !== undefined) dunesOrNo(c.outside.dunes, 'outside.dunes');
   if (c.outside.cliff !== undefined) cliffOrNo(c.outside.cliff, 'outside.cliff');
   if (c.outside.water !== undefined) waterOrNo(c.outside.water, c.outside.cliff, 'outside.water');
   if (c.outside.relief !== undefined) reliefOrNo(c.outside.relief, 'outside.relief');
@@ -688,6 +706,12 @@ export function geocubeInteriors(cube) {
     ...Object.entries(cube.inside.interiors ?? {}).map(([name, r]) => ({ name, reads: r.reads ?? '', own: false }))];
 }
 // the cube as one of its interiors: the cube's own room, or an interior's changes over it
+/** The room kit a stage recipe on a cube is built in: its inside domain's interior's bones, else the cube's own room's
+ *  (a hall lays its rooms on that kit's grid before the cube lowers: era/in-hall.js). */
+export function geocubeBones(geocube, domain) {
+  const cube = readGeocube(geocube), D = domain === undefined ? undefined : readDomainAsk(cube, domain).domain;
+  return onInterior(cube, D?.side === 'inside' ? D.interior : undefined).inside.bones;
+}
 function onInterior(cube, name) {
   if (name === undefined || name === (cube.inside.interior ?? 'room')) return cube;
   const r = cube.inside.interiors?.[name];
@@ -986,7 +1010,7 @@ export function geocubeContrastOf(manifest, { value = false } = {}) {
   if (!readContrast(cube.contrast)) return null;
   // a stage's or a specimen's domain says its side, its terrain and its hour (the recipe's own hour over it)
   const D = (m.kind === 'stage' || m.kind === 'geocube') && m.domain !== undefined ? readDomainAsk(cube, m.domain).domain : null;
-  const side = D ? D.side : m.kind === 'geocube' ? (['land', 'trail', 'town', 'city'].includes(m.show) ? 'outside' : 'inside') : m.kind === 'city' || m.meru !== undefined || m.trail !== undefined ? 'outside' : 'inside';
+  const side = D ? D.side : m.kind === 'geocube' ? (['land', 'trail', 'town', 'city', 'geotown', 'geocity'].includes(m.show) ? 'outside' : 'inside') : m.kind === 'city' || m.meru !== undefined || m.trail !== undefined ? 'outside' : 'inside';
   const terrain = D ? D.terrain : side === 'outside' && m.kind === 'stage' && m.terrain !== undefined ? readTerrainAsk(cube, m.terrain).name : undefined;
   const hour = m.hour ?? D?.hour;
   return cubeContrast(cube, side, { terrain, value, ...(hour !== undefined && side === 'outside' ? { hour: readHour(hour) } : {}) });
@@ -1019,6 +1043,22 @@ export function geocubeEraOf(manifest) {
   const spec = cubeSpecOf(m);
   if (spec === undefined || spec === null) return null;
   return readGeocube(spec).era;
+}
+
+/** The shows a new geocube scene is minted in the form render for (gen-7: its land, its trail and its plants as form,
+ *  lit by the cube's light): the cube's own path (the scene door's) and the island's trail. */
+export const FORM_SCENE_SHOWS = Object.freeze(['path', 'trail']);
+/**
+ * A NEW geocube scene is drawn in the seventh generation: its cube's `era` written `gen-7` where it names none (a preset
+ * id read as `{ from: <id> }`). New is a scene with no seed yet: a path or a trail draws its seed at its first mint
+ * (sketch-mint.js newTrailSeed, after this), so a row already minted, or one restored from its export, carries its seed
+ * and keeps the era it renders in. A cube that names its era keeps it (`era: 'gen-6'` is the painted render).
+ */
+export function stampSceneEra(manifest) {
+  const m = manifest;
+  if (m?.kind !== 'geocube' || !FORM_SCENE_SHOWS.includes(m.show) || m.seed !== undefined || m.cube === undefined || m.cube === null) return m;
+  if (typeof m.cube === 'string') return { ...m, cube: { from: m.cube, era: 'gen-7' } };
+  return typeof m.cube === 'object' && m.cube.era === undefined ? { ...m, cube: { ...m.cube, era: 'gen-7' } } : m;
 }
 
 const readHourOf = (v) => { try { return readHour(v); } catch (err) { return no(err.message); } };
@@ -1074,6 +1114,9 @@ export function withGeocube(manifest) {
     const { water: Wt, keep } = cubeWater(O, tr.ground ?? {});
     if (C !== undefined && tr.ground?.cliff === undefined && !(C === false && keep)) m.trail = { ...tr, ground: { ...(tr.ground ?? {}), cliff: C } };
     if (Wt !== tr.ground?.water) m.trail = { ...(isObj(m.trail) ? m.trail : {}), ground: { ...(isObj(m.trail) ? m.trail.ground ?? {} : {}), water: Wt } };
+    // (and its dunes the cube's under the trail's own, out-dunes.js)
+    const Dn = cubeDunes(O, tr.ground ?? {});
+    if (Dn !== undefined && Dn !== tr.ground?.dunes) m.trail = { ...(isObj(m.trail) ? m.trail : {}), ground: { ...(isObj(m.trail) ? m.trail.ground ?? {} : {}), dunes: Dn } };
     return { ...m, kit: m.kit ?? low.kit, ...(own && m.shading === undefined && low.meru?.shading ? { shading: low.meru.shading } : {}), ...(own && m.biocube === undefined && cube.biocube !== undefined ? { biocube: cube.biocube } : {}),
       // (and its snow, era/snow.js: the cube's when the recipe names none)
       ...(own && m.snow === undefined && cube.snow !== undefined ? { snow: cube.snow } : {}) };
@@ -1123,16 +1166,19 @@ export function geocubePaint(manifest) {
 
 // the accent wall: the cube's wall re-tiled in the accent's pattern (a toned room keeps its value twins, so it does too)
 const INWARD = { '-y': [0, 1], '+x': [-1, 0], '+y': [0, -1], '-x': [1, 0] };
-function withAccent(payload, wall, tile) {
+function withAccent(payload, wall, tile, box = null, must = true) {
   const fam = tileFamilyOf(tile, 'geocube accent'), [nx, ny] = INWARD[wall];
+  // (`box`: only the walls of one room, [x0, y0, x1, y1] (a hall's landmark room): their middles inside it; `must`
+  // false: a kit's dressing that has made the wall its own accent already (the crypt's) keeps it)
+  const inBox = (f) => { if (!box) return true; const c = [0, 1].map((k) => f.corners.reduce((a, p) => a + p[k], 0) / f.corners.length); return c[0] >= box[0] - 0.01 && c[0] <= box[2] + 0.01 && c[1] >= box[1] - 0.01 && c[1] <= box[3] + 0.01; };
   let n = 0;
   payload.faces = payload.faces.map((f) => {
-    if (f.group !== 'stage:wall' || !Array.isArray(f.normal) || typeof f.texture !== 'string') return f;
+    if (f.group !== 'stage:wall' || !Array.isArray(f.normal) || typeof f.texture !== 'string' || !inBox(f)) return f;
     if (Math.abs(f.normal[0] - nx) > 0.05 || Math.abs(f.normal[1] - ny) > 0.05) return f;
     n++;
     return { ...f, texture: `${f.texture.startsWith('value:') ? 'value:' : ''}${fam}-${f.texture.slice(-1)}`, group: 'stage:accent' };
   });
-  if (!n) no(`no wall faces on ${wall} to make the accent`);
+  if (!n && must) no(`no wall faces on ${wall} to make the accent`);
 }
 // the island seen whole: the wide camera pulled back and up, first so the page opens on it
 /**
@@ -1173,8 +1219,8 @@ export function geocubeDensity(cube) {
 
 // the trail's climb: every way up the island drawn, the way up rolled from the seed
 const trailMeru = (meru, seed) => rollTiers({ ...meru, ...(meru.island ? { island: { ...meru.island, walk: 'all' } } : {}) }, seed);
-const SHOW = ['room', 'land', 'trail', 'path', 'town'];
-const SHOWN = { room: 'room', land: 'landform', trail: 'trail', path: 'path', town: 'town' };
+const SHOW = ['room', 'land', 'trail', 'path', 'town', 'hall'];
+const SHOWN = { room: 'room', land: 'landform', trail: 'trail', path: 'path', town: 'town', hall: 'hall' };
 const r3 = (v) => Math.round(v * 1000) / 1000;
 // the micro-town's street where neither the domain nor the cube names a town: the smallest town the rails allow (a
 // hamlet on one lane), four of its houses standing, none entered, so it builds in seconds
@@ -1223,7 +1269,7 @@ function withTownCameras(payload, site) {
     cam('trail', [te[0], te[1], gz(te) + 1.7], [tk[0], tk[1], gz(tk) + 0.4], 75), ...payload.cameras];
 }
 export function assembleGeocubeScene(manifest, ctx, assemble) {
-  for (const k of Object.keys(manifest)) if (!['kind', 'cube', 'show', 'title', 'walk', 'hour', 'clouds', 'weather', 'seed', 'domain', 'style', 'biocube', 'path', 'trail', 'camera', 'words', 'brief', 'shadows', 'occlusion', 'light', 'solid'].includes(k)) no(`'${k}' is not a setting of the geocube kind (cube, show, hour, clouds, weather, seed, domain, style, biocube, path, trail, camera, words; the page's live light: shadows, occlusion, light; solid); build a level on a cube with a stage recipe's geocube`);
+  for (const k of Object.keys(manifest)) if (!['kind', 'cube', 'show', 'title', 'walk', 'hour', 'clouds', 'weather', 'seed', 'domain', 'style', 'biocube', 'path', 'trail', 'camera', 'words', 'brief', 'shadows', 'occlusion', 'light', 'solid', 'hall'].includes(k)) no(`'${k}' is not a setting of the geocube kind (cube, show, hour, clouds, weather, seed, domain, style, biocube, path, trail, camera, words, hall; the page's live light: shadows, occlusion, light; solid); build a level on a cube with a stage recipe's geocube`);
   // (`camera`: the still it is first seen from, STILLS: a camera glyph's, gameworld/glyph-words.js)
   if (manifest.camera !== undefined && !STILLS.includes(manifest.camera)) no(`camera is the still it is first seen from: ${STILLS.join(', ')}`);
   // (`words`, and its `brief`: the words a scene was asked in and what each decided, written at authoring time into the
@@ -1233,20 +1279,26 @@ export function assembleGeocubeScene(manifest, ctx, assemble) {
   // a domain shows the level it makes: its room, or its land (or its land walked, `trail`), at its hour unless the
   // recipe names one
   const P = manifest.domain === undefined ? null : readDomainAsk(cube, manifest.domain), D = P?.domain;
-  if (D?.side === 'inside' && manifest.show !== undefined && manifest.show !== 'room') no('the domain is inside: show \'room\' (or leave show out)');
+  if (D?.side === 'inside' && manifest.show !== undefined && manifest.show !== 'room' && manifest.show !== 'hall') no('the domain is inside: show \'room\' or \'hall\' (or leave show out)');
+  if (D?.side === 'outside' && manifest.show === 'hall') no('the domain is outside: a hall is walked indoors, so ask an inside domain (or leave domain out: the cube\'s own room)');
   if (D?.side === 'outside' && manifest.show === 'room') no('the domain is outside: show \'land\', \'trail\', \'path\' or \'town\' (or leave show out)');
   const show = manifest.show ?? (D ? (D.side === 'inside' ? 'room' : 'land') : 'room');
   if (show === 'city') no('show \'city\' is the kind\'s micro-city, built by the city plan: resolve it through the geocube kind (era/geocube-city.js)');
+  if (show === 'geotown') no('show \'geotown\' is the kind\'s neighbourhood on its land, built from its map: resolve it through the geocube kind (geotown/scene.js)');
+  if (show === 'geocity') no('show \'geocity\' is the kind\'s metro on its land, built from its map: resolve it through the geocube kind (geocity/scene.js)');
   if (!SHOW.includes(show)) no(`show is ${SHOW.slice(0, -1).map((s) => `'${s}'`).join(', ')} or '${SHOW[SHOW.length - 1]}'`);
-  if (manifest.camera !== undefined && show === 'room') no('camera is a still of the outside: show \'land\', \'trail\', \'path\' or \'town\'');
-  for (const k of ['hour', 'clouds']) if (manifest[k] !== undefined && show === 'room') no(`${k} ${k === 'hour' ? 'is' : 'are'} the outside's: show 'land', 'trail', 'path' or 'town' to see the cube under ${k === 'hour' ? 'it' : 'them'}`);
-  if (manifest.seed !== undefined && show !== 'trail' && show !== 'path' && show !== 'town') no('seed is the trail\'s, the path\'s and the town\'s: show \'trail\' to lay the island from a seed, \'path\' the way through the land, or \'town\' its street');
+  // (inside: the cube's room, or a hall walked through its interior: in-hall.js)
+  const inside = show === 'room' || show === 'hall';
+  if (manifest.camera !== undefined && inside) no('camera is a still of the outside: show \'land\', \'trail\', \'path\' or \'town\'');
+  if (manifest.hall !== undefined && show !== 'hall') no('hall is the walk through the cube\'s interior (era/in-hall.js): show \'hall\'');
+  for (const k of ['hour', 'clouds']) if (manifest[k] !== undefined && inside) no(`${k} ${k === 'hour' ? 'is' : 'are'} the outside's: show 'land', 'trail', 'path' or 'town' to see the cube under ${k === 'hour' ? 'it' : 'them'}`);
+  if (manifest.seed !== undefined && show !== 'trail' && show !== 'path' && show !== 'town' && show !== 'hall') no('seed is the trail\'s, the path\'s, the town\'s and the hall\'s: show \'trail\' to lay the island from a seed, \'path\' the way through the land, \'town\' its street, or \'hall\' a walk through its interior');
   if (manifest.seed !== undefined && !Number.isInteger(manifest.seed)) no('seed is an integer');
   if (manifest.style !== undefined && show !== 'town') no('style is the town\'s and the city\'s: show \'town\' (its street) or \'city\' to see the cube\'s architecture in it');
   const hour = manifest.hour ?? D?.hour;
   const title = ctx.title || `${cube.title} · ${P ? P.name ?? 'composed' : SHOWN[show]}`;
-  const low0 = lowerGeocube(cube, show === 'room' ? 'inside' : 'outside', D ? D.interior ?? D.terrain : undefined, hour === undefined ? undefined : readHourOf(hour),
-    show !== 'room' ? cloudsOf(manifest.clouds, manifest.weather) : undefined);
+  const low0 = lowerGeocube(cube, inside ? 'inside' : 'outside', D ? D.interior ?? D.terrain : undefined, hour === undefined ? undefined : readHourOf(hour),
+    !inside ? cloudsOf(manifest.clouds, manifest.weather) : undefined);
   // a domain with a town shows its street, on a trail in the land's look; the trail: every way up the island drawn, the
   // island laid from the seed and its way up rolled from it (local-meru/roll.js); an island-less cube's ways are all drawn
   // the micro-town: the domain's street, else the cube's first, else a hamlet's, on a short trail laid from the seed
@@ -1263,20 +1315,26 @@ export function assembleGeocubeScene(manifest, ctx, assemble) {
   // (the trail's far cliff the cube's, its terrain's, as on any stage it paints: `false` an open land, out-trail.js)
   // (and its water, out-water.js, the cube's under the trail's own: one rule for every trail the cube paints)
   const OT = onTerrain(cube, D?.terrain).outside, T0 = manifest.trail ?? {}, CW = cubeWater(OT, isObj(T0.ground) ? T0.ground : {});
-  const cliff = OT.cliff === false && CW.keep ? undefined : OT.cliff, dress = { ...(manifest.path ?? {}), ...(cliff !== undefined || CW.water ? { ground: { ...(cliff !== undefined ? { cliff } : {}), ...(CW.water ? { water: CW.water } : {}) } } : {}) };
+  // (and its dunes, out-dunes.js: the cube's under the trail's own)
+  const DN = cubeDunes(OT, isObj(T0.ground) ? T0.ground : {});
+  const cliff = OT.cliff === false && CW.keep ? undefined : OT.cliff, dress = { ...(manifest.path ?? {}), ...(cliff !== undefined || CW.water || DN ? { ground: { ...(cliff !== undefined ? { cliff } : {}), ...(CW.water ? { water: CW.water } : {}), ...(DN ? { dunes: DN } : {}) } } : {}) };
   // (the path's own trail recipe, a level's trail's: its dials, its ground and rocks; the cube's cliff where it names none)
   if (manifest.trail !== undefined && show !== 'path') no('trail is the path\'s own trail recipe (its dials, ground, rocks): show \'path\'');
   if (manifest.trail !== undefined && !isObj(manifest.trail)) no('trail is a trail recipe: { run?, heartbeat?, bumpiness?, ground?, rocks?, … }');
-  const ground = { ...(cliff !== undefined ? { cliff } : {}), ...(T0.ground ?? {}), ...(CW.water !== undefined ? { water: CW.water } : {}) };
+  const ground = { ...(cliff !== undefined ? { cliff } : {}), ...(T0.ground ?? {}), ...(CW.water !== undefined ? { water: CW.water } : {}), ...(DN !== undefined ? { dunes: DN } : {}) };
   const pathTrail = { ...T0, ...(manifest.path ?? {}), ...(Object.keys(ground).length ? { ground } : {}) };
   const land = { ...(low0.meru?.shading ? { shading: low0.meru.shading } : {}), ...(bio !== undefined ? { biocube: bio } : {}) };
   // the PATH: the way through the cube's land, no town and nobody on it (a place to walk, not a game), under its snow
-  const low = show === 'path' ? { kind: 'stage', kit: low0.kit, seed, trail: pathTrail, ...land, ...(cube.snow !== undefined ? { snow: cube.snow } : {}) } : show === 'town' ? { kind: 'stage', kit: low0.kit, seed, trail: { run: 12, ...dress }, town, ...land } : town ? { kind: 'stage', kit: low0.kit, trail: { ...dress }, town, ...land } : show !== 'trail' ? low0 : { ...low0, seed, meru: trailMeru(low0.meru, seed) };
+  // the HALL: the cube's interior walked as rooms strung on a walk (era/in-hall.js), its kit dressed (the set piece in its
+  // landmark's room), laid from the seed
+  const hallLow = show === 'hall' ? (({ rooms, dress, ...rest }) => ({ ...rest, seed, hall: manifest.hall ?? {} }))(low0) : null;
+  const low = hallLow ?? (show === 'path' ? { kind: 'stage', kit: low0.kit, seed, trail: pathTrail, ...land, ...(cube.snow !== undefined ? { snow: cube.snow } : {}) } : show === 'town' ? { kind: 'stage', kit: low0.kit, seed, trail: { run: 12, ...dress }, town, ...land } : town ? { kind: 'stage', kit: low0.kit, trail: { ...dress }, town, ...land } : show !== 'trail' ? low0 : { ...low0, seed, meru: trailMeru(low0.meru, seed) });
   // (a trail's route comes back on the payload, for its dummy to walk: local-meru/dummy.js; a town's is its street's)
   const payload = assemble({ ...low, ...(manifest.walk !== undefined ? { walk: manifest.walk } : {}) }, { ...ctx, title, ...(show === 'trail' ? { route: true } : {}) });
   if (show === 'town') { payload.route = townRoute(low, payload); withTownCameras(payload, outTrailOf(low).site); }
   if (show === 'path') payload.route = townRoute(low, payload);
   if (show === 'room') withAccent(payload, onInterior(cube, D?.interior).inside.accentWall, cube.surfaces.accent);
+  else if (show === 'hall') withAccent(payload, '+y', cube.surfaces.accent, ((B) => (B ? [B.min[0], B.min[1], B.max[0], B.max[1]] : null))((payload.rooms || []).find((r) => r.id === payload.hall.beats.find((b) => b.kind === 'landmark')?.room)?.box), false);
   else withIslandCamera(payload);
   if (manifest.camera !== undefined) withStill(payload, manifest.camera);
   // (what its ground is, era/substrate.js: a street's land, read off the trail it stands on)

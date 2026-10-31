@@ -12,6 +12,7 @@ export const ooze = {
       { on: 'torso', kind: 'spots', count: 12, size: [0.06, 0.12], t: [0, 0.6], group: 'Acid', color: '#9cff3a', glow: true },
       { on: 'torso', kind: 'belly', from: 0.7, group: 'AcidBelly', color: '#c4ff5a', glow: true },
     ],
+    cover: { sheen: 'glossy' },
     fangs: 2.4,
     eyes: { color: '#e6ff3a', glow: true },
     motif: 'toxin',

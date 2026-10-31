@@ -35,9 +35,14 @@
  *     racers?: n | [<racer>, …],            // race: a field of cartoon racers (2 to 8), each in the machine its driver
  *                                           // reads as (car-designer/roster.js), the first yours, the rest your rivals:
  *                                           // n drawn, or each an archetype, a brief in words, or { archetype?, build?,
- *                                           // age?, brief?, facets?, seed?, parts?, shade?, tuning? }; balanced, each
- *                                           // on its own physics (shade 'smooth': bevelled parts, smooth light; 'cel' the
- *                                           // default), each driver rolled in the game's setting
+ *                                           // age?, brief?, facets?, seed?, parts?, shade?, tuning?, light?, theme? }; balanced,
+ *                                           // each on its own physics (shade 'gloss', the default: bevelled parts, its
+ *                                           // tyres turned, smooth light; 'smooth' without the tyres; 'cel' flat), lit in
+ *                                           // the form render (light 'form', the default: its materials lit by the page;
+ *                                           // 'paint' its light baked), each driver rolled in the game's setting
+ *     series?: <theme>,                     // race: a theme (car-designer/vehicle-theme.js: a starter's name, a card, or
+ *                                           // { from, …a card's keys }) every racer or supercar without its own wears,
+ *                                           // each car its own variation of it (the first the theme itself)
  *     guards?: n,                           // sneak: how many guards keep the trail (1 to 8, 3), on its beats
  *     guard?: <a hero-door spec>,           // sneak: what a guard looks like (by default, rolled in the game's setting:
  *                                           // gameworld/cast-setting.js)
@@ -129,13 +134,15 @@ import { readScreen } from '../game/screen.js';
 import { readRunner } from '../worlds/controllable/runner.js';
 import { RIDES, RIDE_H } from './ride.js';
 import { libraryFigure, foeFigure, beastLook, readBeastFoe, standRule, stand, facing, PERSON_BODY } from './stage-figures.js';
+import { standFoe as standHostile } from './foes.js';
 import { mulberry32 } from '../vegetation/grow.js';
 import { beatPosts, padSites, askBoxes } from './lay-concerns.js';
 import { shooterPole, readPole } from './shooter-pole.js';
 import { poleArmory, roleLoadout } from './weapon-roles.js';
 import { racerSpec, solveRoster, racerRule } from '../car-designer/roster.js';
 import { composeSupercar, SUPERCAR_LIBRARY } from '../car-designer/vehicle-library.js';
-import { supercarRule } from '../car-designer/supercar-figure.js';
+import { supercarRule, supercarOfSpec } from '../car-designer/supercar-figure.js';
+import { readTheme, seriesTheme } from '../car-designer/vehicle-theme.js';
 import { paintHex, liveryOf } from '../car-designer/vehicle-livery.js';
 import { solveLiveries } from '../color-theorist/livery.js';
 import { RACE_MOOD_IDS, RACE_MOODS, moodOf, moodGround } from '../roads/race-mood.js';
@@ -198,13 +205,16 @@ export const QUICK_GOALS = Object.freeze({
 // supplies (health given, rounds given)
 /** A dogfight's costs: what a hit on the craft takes off its hp, and what a crash does. */
 export const DOGFIGHT = Object.freeze({ hit: 4, crash: 25 });
+/** A shooter's foe: a hunter in a person's skin (foes/classes/hunter.js), and what the shooter plays it at. */
+const SHOOT_FOE = Object.freeze({ class: 'hunter', skin: { people: 'human' } });
 export const SHOOT = Object.freeze({
   hp: 100, hit: 8, health: 30, rounds: 24, foeHp: 4,
   rifle: { fireClass: 'sight', auto: false, cooldown: 0.3, magazine: 12, reserve: 36, reload: 1.5, damage: 1, impact: 1, range: 60, coreAngle: 1.5 },
   gun: { fireClass: 'sight', auto: false, cooldown: 0.7, magazine: 6, reload: 2.2, damage: 1, range: 28, coreAngle: 1.5, eye: 1.4 },
 });
+const SHOOT_TUNE = Object.freeze({ rule: { standoff: 12, speed: 3, turn: 3, burst: 0.3, pause: 1.2, navCell: 0.5 }, weapon: SHOOT.gun, body: { hp: SHOOT.foeHp, radius: 0.6 } });
 // a person's hit volume (an egg: `a` its half-width, `c` its half-height), stood on its feet
-const PERSON = Object.freeze({ a: 0.35, c: 0.9 });
+export const PERSON = Object.freeze({ a: 0.35, c: 0.9 });
 // a battle's numbers: the hero's hp and blow, each foe's (the later ones tougher)
 // a race's numbers: the trail a loop is laid on (its run, seconds: the longest; its beats, none that cuts the land or
 // stands a stone on it: no pit, no stream, no landmark), laps round it, metres between its checkpoints, the grid (the first row's distance behind the
@@ -223,7 +233,7 @@ export const FARM = Object.freeze({ cost: 2, price: 6, gold: 6, rate: 4, start: 
 export const DEFEND = Object.freeze({ cost: 5, gold: 10, bounty: 2, perWave: [3, 5, 7, 9, 11, 13], hp: 3 });
 // the field scores a rhythm game runs to (each a steady tempo, beats-world's audio.beat)
 export const RHYTHM_MOODS = Object.freeze(['wayfarer', 'expedition', 'tavern', 'village', 'plains', 'forest', 'highlands', 'desert']);
-const KEYS = ['goal', 'craft', 'assist', 'airspace', 'hero', 'ride', 'transformer', 'racers', 'supercars', 'mood', 'vehicle', 'tuning', 'conditions', 'track', 'roadway', 'laps', 'rivals', 'climb', 'building', 'pickup', 'seconds', 'theme', 'camera', 'screen', 'runner', 'distance', 'guards', 'guard', 'alarms', 'music', 'sfx', 'misses', 'waves', 'lives', 'pads', 'foe', 'tower', 'board', 'sides', 'doctrine', 'match', 'boulders', 'plots', 'target', 'days', 'folk', 'farmhand', 'run', 'foes', 'bots', 'frags', 'arena', 'pole', 'weapons', 'mode', 'roster', 'arenas', 'stages', 'rounds', 'timer', 'rules', 'cast', 'moves', 'event', 'lanes', 'sport', 'players', 'register', 'level', 'seats', 'sets', 'periods', 'attempts', 'athletes', 'kits', 'broadcast', 'game', 'human', 'lift', 'venue', 'surface', 'preset', 'innings', 'overs', 'concept', 'teams'];
+const KEYS = ['goal', 'craft', 'assist', 'airspace', 'hero', 'ride', 'transformer', 'racers', 'supercars', 'series', 'mood', 'vehicle', 'tuning', 'conditions', 'track', 'roadway', 'laps', 'rivals', 'climb', 'building', 'pickup', 'seconds', 'theme', 'camera', 'screen', 'runner', 'distance', 'guards', 'guard', 'alarms', 'music', 'sfx', 'misses', 'waves', 'lives', 'pads', 'foe', 'tower', 'board', 'sides', 'doctrine', 'match', 'boulders', 'plots', 'target', 'days', 'folk', 'farmhand', 'run', 'foes', 'bots', 'frags', 'arena', 'pole', 'weapons', 'mode', 'roster', 'arenas', 'stages', 'rounds', 'timer', 'rules', 'cast', 'moves', 'event', 'lanes', 'sport', 'players', 'register', 'level', 'seats', 'sets', 'periods', 'attempts', 'athletes', 'kits', 'broadcast', 'game', 'human', 'lift', 'venue', 'surface', 'preset', 'innings', 'overs', 'concept', 'teams'];
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const fail = (m) => new Error(`gameworld: quick${m}`);
 
@@ -358,12 +368,17 @@ export function readQuick(Q) {
     if (list === null ? !(Q.supercars >= 2 && Q.supercars <= 8) : !(Array.isArray(list) && list.length >= 2 && list.length <= 8)) throw fail(`.supercars is how many cars (2 to 8), or a list of them: each { preset?: ${Object.keys(SUPERCAR_LIBRARY).join(' | ')}, paint?, livery?, seed? }`);
     if (list) list.forEach((c, k) => {
       const at = `.supercars[${k}]`;
-      if (!isObj(c)) throw fail(`${at} is { preset?, paint?, livery?, seed? }`);
-      for (const key of Object.keys(c)) if (!['preset', 'paint', 'livery', 'seed'].includes(key)) throw fail(`${at}.${key} is not one of preset, paint, livery, seed`);
+      if (!isObj(c)) throw fail(`${at} is { preset?, paint?, livery?, seed?, theme? }`);
+      for (const key of Object.keys(c)) if (!['preset', 'paint', 'livery', 'seed', 'theme'].includes(key)) throw fail(`${at}.${key} is not one of preset, paint, livery, seed, theme`);
+      if (c.theme !== undefined) try { readTheme(c.theme); } catch (e) { throw fail(`${at}.theme: ${e.message.replace(/^vehicle-theme: /, '')}`); }
       if (c.preset !== undefined && !SUPERCAR_LIBRARY[c.preset]) throw fail(`${at}.preset is one of ${Object.keys(SUPERCAR_LIBRARY).join(', ')}`);
       if (c.seed !== undefined && !Number.isInteger(c.seed)) throw fail(`${at}.seed is a whole number`);
       try { if (c.paint !== undefined) paintHex(c.paint); liveryOf(c.livery, c.paint ?? 'scarlet'); } catch (e) { throw fail(`${at}: ${e.message.replace(/^vehicle-odm: /, '')}`); }
     });
+  }
+  if (Q.series !== undefined) {
+    if (Q.racers === undefined && Q.supercars === undefined) throw fail('.series themes a field: name racers or supercars');
+    try { readTheme(Q.series); } catch (e) { throw fail(`.series: ${e.message.replace(/^vehicle-theme: /, '')}`); }
   }
   if (Q.mood !== undefined) {
     if (!RACE_MOODS[Q.mood]) throw fail(`.mood is one of ${RACE_MOOD_IDS.map((m) => `${m} (${RACE_MOODS[m].reads})`).join('; ')}`);
@@ -830,6 +845,15 @@ export function goalMechanics(quick, ends) {
       // on a roadway (roads/contract.js): its own checkpoints, the last its finish; a lap goes round `laps` times
       if (ends.roadway) {
         const T = ends.roadway;
+        // a duel (a Race of Champions' lanes): you in lane one, a rival in lane two on its own checkpoints; a car's lap
+        // is one leg, its next the other, so two laps are the whole loop
+        if (T.duel) {
+          const D = T.duel, n = quick.laps ?? 2;
+          if (rivals.length > 1) throw new Error('gameworld: quick.rivals on a duel is 1 (a Race of Champions races two cars), or none against the clock');
+          if (!(n === 1 || n % 2 === 0)) throw new Error('gameworld: quick.laps on a duel is 1, or an even number (each lap one lane\'s half: two laps the whole loop)');
+          const mine = n === 1 ? D.legs[0] : [...D.legs[0], ...D.legs[1]], theirs = n === 1 ? D.legs[1] : [...D.legs[1], ...D.legs[0]];
+          return [{ kind: 'laps', checkpoints: mine, laps: n === 1 ? 1 : n / 2, ...race, ...(rivals.length ? { rivalCheckpoints: { [rivals[0]]: theirs } } : {}) }];
+        }
         return [{ kind: 'laps', checkpoints: T.checkpoints, ...(T.closed ? { laps: quick.laps ?? RACE.laps } : {}), ...race }];
       }
       // round a loop (lay-concerns.js loopSite): checkpoints about every RACE.leg metres of its line, the last its start
@@ -934,15 +958,21 @@ export const raceRivals = (quick) => Array.from({ length: quick.racers !== undef
  * its rule the sports class at its own frame, at the race's tuning (arcade unless named) and conditions, and its
  * figure the recipe the page draws it by, lit in the race's mood. → { field: [{ spec, figure, rule }] } */
 export function quickSupercars(quick, seed = 1) {
-  const given = Array.isArray(quick.supercars) ? quick.supercars : Array.from({ length: quick.supercars }, () => ({}));
-  const presets = Object.keys(SUPERCAR_LIBRARY), unpainted = given.filter((c) => c.paint === undefined).length;
+  // (a field in a series: every car without its own theme wears it, each its own variation; a themed car is painted by it)
+  const listed = Array.isArray(quick.supercars) ? quick.supercars : Array.from({ length: quick.supercars }, () => ({}));
+  const given = quick.series === undefined ? listed : listed.map((c, k) => (c.theme === undefined ? { ...c, theme: seriesTheme(quick.series, k) } : c));
+  const painted = (c) => c.paint !== undefined || (c.theme !== undefined && readTheme(c.theme).palette?.body !== undefined);
+  const presets = Object.keys(SUPERCAR_LIBRARY), unpainted = given.filter((c) => !painted(c)).length;
   const solved = unpainted ? solveLiveries({ n: unpainted, seed, ...(quick.mood ? { against: moodGround(moodOf(quick.mood)) } : {}) }).liveries : [];
   let u = 0;
   const field = given.map((c, k) => {
-    const L = c.paint === undefined ? solved[u++] : null;
-    const surface = L ? { paint: L.paint, livery: c.livery ?? { pattern: L.pattern, secondary: L.secondary } } : { paint: c.paint, ...(c.livery ? { livery: c.livery } : {}) };
-    const spec = { preset: c.preset ?? presets[k % presets.length], seed: c.seed ?? seed * 31 + 7 * k + 1, surface, ...(quick.mood ? { mood: quick.mood } : {}) };
-    const design = composeSupercar({ preset: spec.preset, seed: spec.seed, surface: { ...surface, quality: 'game' } }).design;
+    const L = painted(c) ? null : solved[u++];
+    const surface = L ? { paint: L.paint, livery: c.livery ?? { pattern: L.pattern, secondary: L.secondary } } : { ...(c.paint !== undefined ? { paint: c.paint } : {}), ...(c.livery ? { livery: c.livery } : {}) };
+    // (a themed car's preset its own, else its theme's, else the library's in turn)
+    const theme = c.theme !== undefined ? readTheme(c.theme) : null;
+    // (minted streamlined and in the form render: car-designer/vehicle-odm-surface.js `line`, supercar-figure.js `light`)
+    const spec = { preset: c.preset ?? theme?.supercar?.preset ?? presets[k % presets.length], seed: c.seed ?? seed * 31 + 7 * k + 1, surface: { ...surface, line: 'streamline' }, ...(quick.mood ? { mood: quick.mood } : {}), light: 'form', ...(c.theme !== undefined ? { theme: c.theme } : {}) };
+    const design = c.theme !== undefined ? supercarOfSpec({ ...spec, surface: { ...surface } }).car.design : composeSupercar({ preset: spec.preset, seed: spec.seed, surface: { ...surface, quality: 'game' } }).design;
     return { spec, figure: { supercar: spec }, rule: { ...supercarRule(design, { tuning: quick.tuning ?? 'arcade', conditions: quick.conditions ?? 'dry' }), eye: 0 } };
   });
   return { field };
@@ -952,7 +982,7 @@ export function quickSupercars(quick, seed = 1) {
  * its figure resolves through) and the drive rule its own machine plays by, at the race's tuning (arcade unless named)
  * and conditions. → { field: [{ spec, archetype, rule }], balance, changes } */
 export function quickRacers(quick, seed = 1, setting) {
-  const { racers, balance, changes } = solveRoster(quick.racers, { seed, ...(setting ? { setting } : {}) });
+  const { racers, balance, changes } = solveRoster(quick.racers, { seed, ...(setting ? { setting } : {}), ...(quick.series !== undefined ? { series: quick.series } : {}) });
   const field = racers.map((r) => ({ spec: r.spec, archetype: r.archetype, rule: { ...racerRule(r.S, { tuning: quick.tuning ?? 'arcade', conditions: quick.conditions ?? 'dry' }), eye: 0 } }));
   return { field, balance, changes };
 }
@@ -1011,7 +1041,9 @@ function roadwayCast(rivals, T, ride) {
     const rule = { ...(mine ? mine.rule : ride.rule), type: 'racer', line, closed: T.closed, lane: k % 2 ? -RACE.roadLane : RACE.roadLane, pace, collideRadius: mine ? mine.rule.collideRadius : RACE.body, ...(ramps.length ? { ramps } : {}) };
     entities.push({ id, team: 'rivals', rule, body: { type: 'figure-rig', figure: id }, transform: { pos: slot(k).at, heading: slot(k).heading } });
   });
-  return { figures, entities, pilot: { rule: { collideRadius: ride.field ? ride.field[0].rule.collideRadius : RACE.body }, transform: { pos: slot(rivals.length).at, heading: slot(rivals.length).heading } } };
+  // (a duel's player is in lane one whatever the field: its grid's second slot)
+  const you = T.duel ? T.duel.grid[1] : slot(rivals.length);
+  return { figures, entities, pilot: { rule: { collideRadius: ride.field ? ride.field[0].rule.collideRadius : RACE.body }, transform: { pos: you.at, heading: you.heading } } };
 }
 
 export function guardPosts(quick, ends) {
@@ -1181,20 +1213,13 @@ export function shootDrops(posts, ends) {
 /** A shooter's cast, on a stage: each foe at its post, armed, hunting by sight and taking cover (the walls are the
  * intent's: its `cover` concern stands them by these posts, lay-concerns.js). `ref`: their figure; `hero`: the player
  * has a body (its eye over its feet). → { figures, entities, posts, pilot } (stageLevelOrder's `extra`). */
-export function shootCast(quick, ends, ref, { hero = false, camera } = {}) {
+export function shootCast(quick, ends, ref, { hero = false, camera, G = null } = {}) {
   // with a craft, a dogfight: the wing of fighters and the craft's cannon (skyscape/dogfight.js)
   if (ends.airMap) return dogfightCast(ends.airMap, ends.airField, ends.seat, { foes: quick.foes, waves: quick.waves });
-  const posts = shootPosts(quick, ends), figures = {}, entities = [];
-  posts.forEach((p, k) => {
-    figures[p.id] = libraryFigure(refAt(ref, k));
-    entities.push({
-      id: p.id, team: 'foes',
-      rule: { type: 'ai', mind: { motivation: 'hunt', aggressiveness: 'bold', perception: 'memory', pathing: 'navmesh' }, sightRange: 30, sightCone: 1.1, memorySpan: 6, navCell: 0.5, cover: { radius: 7, hold: 2.5 }, standoff: 12, speed: 3, turn: 3, dodge: false, burst: 0.3, pause: 1.2, eye: 0, stride: 1.6, collideRadius: 0.3, collideHeight: 1.7, step: 0.3 },
-      weapon: { ...SHOOT.gun },
-      body: { type: 'figure-rig', figure: p.id, hittable: true, hp: SHOOT.foeHp, poise: 2, radius: 0.6, egg: { ...PERSON, cz: PERSON.c } },
-      transform: { pos: p.at, heading: p.heading },
-    });
-  });
+  const posts = shootPosts(quick, ends), figures = {}, entities = [], part = { figures, entities };
+  // (each a HUNTER, stood as every hostile is: foes.js standFoe; the shooter's own numbers over the class's, its gun, its
+  // health and its spacing: the class says how it sees and hunts)
+  posts.forEach((p, k) => standHostile(G, part, { id: p.id, entry: SHOOT_FOE, at: p.at, heading: p.heading }, { figure: libraryFigure(refAt(ref, k)), tune: SHOOT_TUNE }));
   // the player, armed: hittable (a person's egg: over its feet, or under the eye it walks at), its eye's height known
   // (sight is eye to eye), the rifle at its eye; over the shoulder (shoulderOf) its rounds converge on the crosshair
   const over = shoulderOf(camera ?? quick.camera, hero);

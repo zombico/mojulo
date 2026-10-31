@@ -207,3 +207,26 @@ describe('proportional, dense and panels', () => {
     expect(validateGarments([{ ...hood, open: 200 }])[0]).toMatch(/open/);
   });
 });
+
+describe('the yoke: cloth on the tiered trunk hangs from the chest, not the shoulder', async () => {
+  const { heroRecord, expandLayeredManifest } = await import('../../mcp/tools/layered.js');
+  const { withDefaultForm } = await import('./motion-stamp.js');
+  const { YOKE_SIDE } = await import('./body-garment.js');
+  // (an open jacket over a second skin, the egocube's designed cut: the piece that read as a box)
+  const outfit = { type: 'outfit', style: { id: 'designed', dials: { stylize: 0.35, fit: 0.55, coverage: 1, ornament: 1 },
+    language: { top: { family: 'knit', sleeve: 'short', hem: 'tunic', fit: 'skin' }, bottom: { family: 'woven', leg: 'long', fit: 'fitted' }, outer: { family: 'woven', sleeve: 'none', hem: 'tunic', open: true, cut: 'aline', fit: 'eased' }, feet: 'none' } } };
+  it('above the armpit it lies on the shoulder; below it, the side is not held out to the shoulder\'s width', () => {
+    const P = expandLayeredManifest({ kind: 'layered', hero: heroRecord(withDefaultForm({ cast: 'male', outfit })) }).recipe.parts;
+    const armpit = Math.min(...['shoulderBallR', 'shoulderBallL'].flatMap((n) => P[n].stations.flatMap((s) => Object.values(s.points).map((p) => p[2]))));
+    const side = (part, id) => Math.max(...Object.values(P[part].stations.find((s) => s.id === id).points).map((p) => p[0]));
+    const rings = P.outer_torso.stations.filter((s) => P.torso.stations.some((t) => t.id === s.id)).map((s) => ({ id: s.id, z: centre(s)[2] }));
+    const yoke = rings.filter((r) => r.z > armpit), under = rings.filter((r) => r.z <= armpit).sort((a, b) => b.z - a.z)[0];
+    expect(yoke.length).toBeGreaterThan(0);
+    // (its side within YOKE_SIDE of the piece's ease, a few centimetres at most, past the body's shoulder: it stood 5 out)
+    for (const r of yoke) expect(side('outer_torso', r.id) - side('torso', r.id), r.id).toBeLessThan(0.03);
+    expect(YOKE_SIDE).toBeLessThan(0.5);
+    // (the first ring under the arm narrower than the yoke above it: its side falls from the chest)
+    expect(side('outer_torso', under.id)).toBeLessThan(Math.max(...yoke.map((r) => side('outer_torso', r.id))) + 0.02);
+    expect(side('outer_torso', under.id) - side('torso', under.id)).toBeLessThan(0.075);
+  }, 60_000);
+});

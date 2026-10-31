@@ -12,6 +12,7 @@ export const ooze = {
       { on: 'torso', kind: 'stripes', run: [0.05, 0.95], t: [0.2, 0.9], count: 6, width: 0.16, slant: 0.6, group: 'Ember', color: '#ff7a1a', glow: true },
       { on: 'legs', kind: 'band', run: [0.75, 1], group: 'Ember', color: '#ff7a1a', glow: true },
     ],
+    cover: { tipped: 0.5 },
     tipGlow: true,
     eyes: { color: '#ffd23a', glow: true },
     motif: 'flame',

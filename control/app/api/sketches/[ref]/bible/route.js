@@ -1,8 +1,10 @@
 /**
- * GET /api/sketches/[ref]/bible[?book=world|characters|feel] — serve a stored gameworld as its bible: the world bible
+ * GET /api/sketches/[ref]/bible[?book=world|characters|feel|foes] — serve a stored gameworld as its bible: the world bible
  * (its map, its land, its civilizations' towns and castles, each level) by default, the character bible with
  * `book=characters` when the world has a character book, the feel book with `book=feel` when it writes a feel (the stick
- * view of its controls to sample, lib/graph/gameworld/feel/book.js; `cast=female` for the other body). All are drawn
+ * view of its controls to sample, lib/graph/gameworld/feel/book.js; `cast=female` for the other body), the cast sheet
+ * with `book=foes` when it fields foes or fights something a casting call could cast for (lib/graph/gameworld/
+ * foe-cast-html.js: each made foe photographed, lib/mcp/tools/foe-portraits.js, a download included). All are drawn
  * from the recipe and kept in memory per revision (lib/sheet-cache.js), never stored. `?download=1` flips the
  * Content-Disposition.
  *
@@ -10,14 +12,17 @@
  * schedules and the checks read from the recipe, the row's World framed in its Walk tab. A downloaded book leaves the
  * World out (its frame would point back at this dashboard) and says how to export one. A city plan (kind 'city') is
  * served as its plan book (lib/graph/city/plan/book-html.js). A historic scene (kind 'historic') is served as its field guide
- * (lib/graph/historic/field-guide.js): what the solver chose, the record it stands on, and the knob for each.
+ * (lib/graph/historic/field-guide.js): what the solver chose, the record it stands on, and the knob for each. A table game
+ * (a game row, engine 'table-rpg') is served as its game book (lib/graph/table-rpg/table-rpg-book.js), in its own style or
+ * `?style=<preset>`, the whole book or `?parts=party` (its characters' sheets alone; parts a comma list), its party's
+ * characters photographed into it when a browser is at hand.
  */
 
 import { NextResponse } from 'next/server';
 
 import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { isGameworldKind, gameworldOf } from '@/lib/graph/gameworld/gameworld-kind';
-import { gameworldBibleHtml, characterBibleHtml } from '@/lib/graph/gameworld/index';
+import { gameworldBibleHtml, characterBibleHtml, foeCastHtml, castable, castingCall } from '@/lib/graph/gameworld/index';
 import { feelBookHtml, BOOK_CASTS } from '@/lib/graph/gameworld/feel/book';
 import { structureBookHtml } from '@/lib/graph/structure/book-html';
 import { occupancyOf } from '@/lib/graph/structure/programs';
@@ -49,24 +54,44 @@ export async function GET(request, { params }) {
     } else if (sketch.manifest?.kind === 'historic') {
       html = await cachedPage(`guide:${ref}:${sketch.updatedAt}`, () => historicGuideHtml({ ...sketch.manifest, title: sketch.title || sketch.manifest.title }, { ref }));
       base = `${(sketch.title || ref).trim().replace(/[^a-z0-9._-]+/gi, '-').replace(/^-+|-+$/g, '') || 'historic'}-field-guide`;
+    } else if (sketch.manifest?.kind === 'game' && sketch.manifest.engine === 'table-rpg') {
+      const { tableRpgBookOf, tableRpgPaper } = await import('@/lib/graph/table-rpg/table-rpg-manifest');
+      const { tableRpgPortraits } = await import('@/lib/mcp/tools/table-rpg-portraits');
+      const parts = request.nextUrl.searchParams.get('parts'), style = request.nextUrl.searchParams.get('style');
+      try {
+        // the party's and the cast's characters photographed on the book's paper (kept per character revision; none
+        // without a browser)
+        const { portraits, foes: foePortraits, items: itemPortraits } = await tableRpgPortraits(sketch.manifest, { paper: tableRpgPaper(sketch.manifest, style ? { style } : {}) });
+        html = tableRpgBookOf(sketch.manifest, { title: sketch.title, portraits, foePortraits, itemPortraits, ...(parts ? { parts: parts.split(',') } : {}), ...(style ? { style } : {}) }).html;
+      } catch (err) {
+        return NextResponse.json({ error: err.message }, { status: 400 });
+      }
+      base = `${(sketch.title || ref).trim().replace(/[^a-z0-9._-]+/gi, '-').replace(/^-+|-+$/g, '') || 'table-game'}${parts ? `-${parts.replace(/,/g, '-')}` : '-book'}`;
     } else if (isGameworldKind(sketch.manifest?.kind)) {
       const world = gameworldOf(sketch.manifest);
       const book = request.nextUrl.searchParams.get('book') ?? 'world';
-      if (!['world', 'characters', 'feel'].includes(book)) return NextResponse.json({ error: "book is 'world', 'characters' or 'feel'" }, { status: 400 });
+      if (!['world', 'characters', 'feel', 'foes'].includes(book)) return NextResponse.json({ error: "book is 'world', 'characters', 'feel' or 'foes'" }, { status: 400 });
       if (book === 'characters' && !world.characters) {
         return NextResponse.json({ eligible: false, reason: 'this world has no character book (characters: { direction, hero? })' }, { status: 422 });
       }
       if (book === 'feel' && (world.feel === undefined || world.feel === null)) {
         return NextResponse.json({ eligible: false, reason: "this world writes no feel (feel: '<template>' | { pole, … }): design_game's readout suggests one" }, { status: 422 });
       }
+      if (book === 'foes' && !castable(world) && !castingCall(world)) {
+        return NextResponse.json({ eligible: false, reason: 'this world fields no foe and fights nothing a casting call could cast for (foes: { <id>: { class, … } }, levels.<id>.foes, or an intent that fights)' }, { status: 422 });
+      }
+      // (each made foe photographed for the cast sheet and the world bible's Foes section, a download included: the
+      // photographs are data; none without a browser, each foe its silhouette)
+      const { foePortraits } = await import('@/lib/mcp/tools/foe-portraits');
+      const shots = (book === 'foes' || book === 'world') && castable(world) ? await foePortraits(world) : { portraits: {}, key: '' };
       const cast = request.nextUrl.searchParams.get('cast') ?? 'male';
       if (book === 'feel' && !BOOK_CASTS.includes(cast)) return NextResponse.json({ error: `cast is one of ${BOOK_CASTS.join(', ')}` }, { status: 400 });
-      html = await cachedPage(`bible:${ref}:${sketch.updatedAt}:${book}${book === 'feel' ? `:${cast}` : ''}`, () => (book === 'characters' ? characterBibleHtml(world) : book === 'feel' ? feelBookHtml(world, { cast }) : gameworldBibleHtml(world)));
+      html = await cachedPage(`bible:${ref}:${sketch.updatedAt}:${book}${book === 'feel' ? `:${cast}` : ''}${shots.key ? `:${shots.key}` : ''}`, () => (book === 'characters' ? characterBibleHtml(world) : book === 'feel' ? feelBookHtml(world, { cast }) : book === 'foes' ? foeCastHtml(world, { portraits: shots.portraits }) : gameworldBibleHtml(world, { foePortraits: shots.portraits })));
       base = `${(sketch.title || world.name || ref).trim().replace(/[^a-z0-9._-]+/gi, '-').replace(/^-+|-+$/g, '') || 'gameworld'}${book === 'world' ? '' : `-${book}`}`;
     } else {
       return NextResponse.json({
         eligible: false,
-        reason: `'/bible' serves a gameworld, a building (floorplan, store, restaurant, mall), a city plan or a historic scene only (this sketch is '${sketch.manifest?.kind}').`,
+        reason: `'/bible' serves a gameworld, a building (floorplan, store, restaurant, mall), a city plan, a historic scene or a table game only (this sketch is '${sketch.manifest?.kind}').`,
       }, { status: 422 });
     }
     return new Response(html, {

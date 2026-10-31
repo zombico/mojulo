@@ -1,7 +1,8 @@
-// ROOMS IN THE FORM RENDER (gen-7 indoors: form/room-form.js, era/stage.js, scene/channels/form.js): a handful of rooms,
+// ROOMS IN THE FORM RENDER (gen-7 indoors: form/room-light.js, era/stage.js, scene/channels/form.js): a handful of rooms,
 // each read in gen-6 (the light painted into the tiles and baked into the corners) and gen-7 (the tiles read as
-// material, the placed lights live, the nearest casting), written as walkable World pages, and captured side by side
-// from each room's own eye. The machine gate: the page's form probe (lights, casters, materials made, each map's read)
+// material, the light solved from the palette and baked apart from the colour, the nearest lamps lighting the relief),
+// written as walkable World pages, and captured side by side from each room's own eye. The machine gate: the page's
+// form probe (lamps, the live set, materials made, each map's read)
 // and each frame's mean luminance against its gen-6 twin. The look is the operator's.
 //
 //   node scripts/spikes/form/rooms.mjs [--out <dir>] [--only crypt,brick] [--no-capture] [--cdn]
@@ -54,7 +55,7 @@ for (const [name, R] of Object.entries(ROOMS)) {
     const file = path.join(out, `${name}-${era}.html`);
     fs.writeFileSync(file, html);
     pages.push({ name, era, file, payload, ms });
-    console.log(`${name} ${era}: ${ms} ms, ${payload.faces.length} faces, page ${(html.length / 1e6).toFixed(2)} MB${payload.form?.room ? `, ${payload.form.room.lights.length} lights, ${Object.keys(payload.form.room.maps).length} maps (${Object.values(payload.form.room.maps).filter((m) => m.read === 'relief').length} from relief)` : ''}`);
+    console.log(`${name} ${era}: ${ms} ms, ${payload.faces.length} faces, page ${(html.length / 1e6).toFixed(2)} MB${payload.form?.room ? `, ${payload.form.room.lights.length} lamps, ${Object.keys(payload.form.room.maps).length} maps (${Object.values(payload.form.room.maps).filter((m) => m.read === 'relief').length} from relief)` : ''}`);
   }
 }
 
@@ -73,7 +74,7 @@ if (capture) {
     // close: by the first torch, an arm's length off its wall, looking along it so the light rakes the relief
     const T = (p.payload.anchors || []).find((a) => a.kind === 'torch');
     if (T) { const n = T.N, t = [-n[1], n[0], 0]; cams.close = { pos: [T.at[0] + n[0] * 1.1 - t[0] * 1.8, T.at[1] + n[1] * 1.1 - t[1] * 1.8, 1.5], target: [T.at[0] + t[0] * 1.6, T.at[1] + t[1] * 1.6, 1.0], vfov: 55 }; }
-    // two frames each: the first lays the casters on the nearest lights and draws their maps
+    // two frames each: the first picks the lamps nearest the eye that light the relief
     const res = {};
     for (const [shot, cam] of Object.entries(cams)) {
       res[shot] = await page.evaluate(async (cam) => {
@@ -82,7 +83,7 @@ if (capture) {
         const g = c2.getContext('2d'); g.drawImage(cv, 0, 0); const d = g.getImageData(0, 0, c2.width, c2.height).data;
         let s = 0; for (let i = 0; i < d.length; i += 4) s += 0.2126 * d[i] + 0.7152 * d[i + 1] + 0.0722 * d[i + 2];
         const f = window.__mojForm;
-        return { mean: +(s / (d.length / 4)).toFixed(1), form: f ? { lights: f.lights, casters: f.casters, on: f.on(), made: f.made, moves: f.moves } : null };
+        return { mean: +(s / (d.length / 4)).toFixed(1), form: f ? { lamps: f.lamps, live: f.live, on: f.on(), made: f.made } : null };
       }, cam);
       await (await page.$('#wrap')).screenshot({ path: path.join(out, `${p.name}-${p.era}${shot === 'wide' ? '' : `-${shot}`}.png`) });
     }

@@ -237,7 +237,7 @@ export function neckTone(headChart, D) {
  * Paint the body's islands: the head's channels by the head's painter. `opts.neck` a tone (linear RGB, `neckTone`) the
  * neck's top is eased toward over its upper third, so the head and the body meet; absent, the map's own.
  */
-export function paintBody(chart, D, layout, { neck = null } = {}) {
+export function paintBody(chart, D, layout, { neck = null, clip = null } = {}) {
   const P = dermalPages(layout, D);
   for (const r of layout.rects) {
     const I = chart.islands[r.key], mpt = layout.mmPerTexel / r.density, at = islandAddress(I, r, mpt);
@@ -246,7 +246,8 @@ export function paintBody(chart, D, layout, { neck = null } = {}) {
       const own = ringTone(I, D, 1), gain = neck.map((c, k) => c / (own[k] || 1e-6));
       tone = (col, A) => { const w = smooth(0.62, 1, A.along); return col.map((c, k) => c * (1 + (gain[k] - 1) * w)); };
     }
-    paintIsland(P, r, D, mpt, { grid: (i, j) => at(i * STEP, j * STEP), texel: at, scalp: false, flowSign: I.dir, tone, softHair: true });
+    // (`clip`, realistic laws 10: a stubble down the throat its shadow as the head's is, so the two pages meet)
+    paintIsland(P, r, D, mpt, { grid: (i, j) => at(i * STEP, j * STEP), texel: at, scalp: false, flowSign: I.dir, tone, softHair: true, ...(clip?.beard ? { clip: { at: null, beard: true } } : {}) });
   }
   return finishPages(P, chart, bodyFaceUVs(chart, layout), D, layout);
 }
@@ -277,7 +278,7 @@ export function unweldSeams(faces, corners) {
  */
 export function bodyDermis(mesh, recipe, { dermis = null, sex = 'male', page = 2048, neck = null, partMap = null, shown = null } = {}) {
   const D = dermis && Object.isFrozen(dermis) && 'seed' in dermis ? dermis : readDermis(typeof dermis === 'string' ? { from: dermis, ...BODY_DERMIS[dermis] } : dermis || { from: sex, ...BODY_DERMIS[sex] });
-  const chart = bodyChart(mesh, recipe, { partMap, shown }), layout = layoutBody(chart, { page }), maps = paintBody(chart, D, layout, { neck });
+  const chart = bodyChart(mesh, recipe, { partMap, shown }), layout = layoutBody(chart, { page }), maps = paintBody(chart, D, layout, { neck, ...(recipe.hairClip ? { clip: recipe.hairClip } : {}) });
   const F = mesh.faces.length, corners = new Float32Array(F * 6), vertex = new Float32Array(mesh.vertices.length * 2).fill(NaN);
   for (let fi = 0; fi < F; fi++) { const uv = maps.faceUV(fi); for (let q = 0; q < 3; q++) { corners[fi * 6 + q * 2] = uv[q][0]; corners[fi * 6 + q * 2 + 1] = uv[q][1]; } }
   // each grid point's own UV (a seam point's on the island's near edge), a pole's at its island's centre line past the end

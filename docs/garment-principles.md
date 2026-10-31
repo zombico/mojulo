@@ -69,6 +69,12 @@ female fitted 0.72–0.80; anime male hero 0.70–0.80, anime female 0.62–0.75
 0.02, fitted 0.03–0.11 (the published minimum wearing ease: bust 2½–4 in, waist 1–1.5, hip 2–4 [snippet: Threads, NMSU
 C-228]), semi 0.11–0.20, loose 0.20–0.35, oversized above [practice].
 
+**A waistband has no ease.** Trousers (and any bottom with a waistband) sit on what they are worn over at the waist: the
+skin, or a tail tucked under them, which the band presses flat with it; the cloth takes its own ease back by the hips'
+widest. On both bodies, whatever the fit: the fit is the seat's and the leg's, never the waist's (outfit law 2; the game
+body's kernel `waistband`, body-garment.js; the realistic tailor's `cinchWaist`). Ease at the waist reads as bulk, and a
+belt over it as a ledge.
+
 **One volume, one fitted; or the outline returns.** A loose half reads as a shape over a fitted one. Loose above AND
 below still reads as a figure when the cloth comes back to the body at RETURN POINTS (`e ≤ 0.10`): the waist under a
 sash or belt, the cuffs, the ankles; without them it is a sack. At least two, one of them the waist; anime/game at least
@@ -168,6 +174,116 @@ body volume reads at a distance and on few polygons; on the realistic body volum
 Measured as the dressed outline's standoff per side over the bare body (`dress-outline.js`): close cloth at the chest
 within its ease and 1.5 cm, a waist within a few centimetres, a coat's knee well under 10 cm. The game body keeps its
 own eases; the compression is the realistic adapter's (`body-relational-wear.js`).
+
+## The kit as pieces, the cloth as it folds (realistic laws 8)
+
+On the realistic body the kit and the cloth are made by these rules, in core, for every hero whatever its outfit
+(`control/lib/graph/polygonizer/body-relational-kit.js`, `body-relational-folds.js`; their measures beside them as data:
+`KIT`, `POUCH`, `HOLSTER`, `FOLD_CLOTH`). Each holds at the eyes gate first: a thing reads as what it is at a glance,
+and keeps reading as the body moves.
+
+- **A piece is the thing it is.** A belt is one mass: one section top to bottom, its edges rounded, a buckle that is a
+  frame (bars, a tongue, the tail through it, a keeper). A pouch is a body with rounded corners, a lid flap folded over
+  its top, a closure (a tab and its snap) and seams. A strap is a flat strip of webbing. A holster carries its pistol,
+  the slide and the grip out of its mouth, a retention strap over the frame. Never a slab with a signature on it.
+- **It is fitted over what is under it, and only that.** A belt is cinched over the piece it is on, the trunk's cloth
+  inside that, the belts before it and the skin, spanning the hollows (the small of the back) as a belt under tension
+  does; a garment wider than it there is worn over it and clears it. Webbing lies on the outermost layer it crosses. A
+  pouch's back is pressed flat to whatever stands out most under it. A piece on the trunk lies on the trunk: an arm
+  hanging beside it is no surface.
+- **Everything is fastened to something.** A strap that runs to a belt ends on it: a ladder lock just over it and a tab
+  round it. Straps whose ends meet at the waist (a harness's X) end on a waist strap of the same webbing round the body.
+  A pouch hangs from its own belt; a thigh rig hangs from the belt by a strap down the hip; a holster from the harness.
+  Nothing hangs open at the sides.
+- **One of a thing.** Belts at nearly one height share it, the later cinched over the earlier (a duty belt over the
+  trousers' belt). A strap along a path one is already laid on is that strap.
+- **Sized as the real thing**, by what it carries: a magazine pouch, a utility pouch, a pistol's holster.
+- **Folds as a game draws them, not a simulation's.** A few broad ridges where cloth gathers (crescents inside the
+  elbows and behind the knees, stacked rolls over the boots and at the cuffs, a shirt bloused over its belt with
+  gathers under it), each standing out from the cloth, never into it; the crease side sharp, the other side soft; the
+  size the cloth's weight (a knit small, canvas sharper, a heavy layer broad, leather broadest). They ride the cloth's
+  own weights, so a bend closes the crescents it shows and they read in motion. None where a belt cinches the cloth flat,
+  none on a piece a garment is worn over (the outer one carries the fold), and only cloth that runs under a belt blouses
+  over it.
+
+- **A jacket opens.** An opening is cut, never painted: the jacket's body is a C in section (its inner face round to a
+  front edge, the edge turned, its outer face back), so its two fronts are real edges with a real gap between them, and
+  what is under it shows through the gap itself. Its collar opens with it. Closed, it closes on a zip in the gap; open,
+  the fronts hang apart. Its pieces lie on its own face and stay inside their own front: the pockets clear of the edge
+  and short of the side, the collar's points from the edge out over the chest.
+- **A knit rib gathers.** A rib waistband or cuff is a band cinched round what is under it, tighter than the cloth it
+  finishes, and the body or the sleeve blouses over it.
+
+The game body (the authored and the tiered hero) wears the same kit by the same rules (`polygonizer/authored-kit.js`:
+its weights read by ring, its sparse rings read with rings put between them, a belt sampled round at its own density, no
+lower than the hips' widest). A pouch on a leg rides the leg and hangs below a pouch above it, never through it. Not yet:
+the kneepads on either body, and every piece the kit does not make (a panel, a cape, a hood, a plate) are still the
+authored kernel's, laid on the body's envelope. The game body's jacket opens too (`polygonizer/authored-jacket.js`: its
+trunk pieces opened in place, keeping their names, and its zip, rib bands, pockets, collar points and epaulettes laid on
+the jacket as one tube), and so is it tailored (`polygonizer/authored-tailoring.js` over `tailored-front.js`, the realistic
+body's own: the V, the lapels, the edge and its quarters, the buttons, the tie, the waistcoat, the shoulder and the waist,
+on its pieces densified in place). There a lapelled jacket is its lapels alone, no collar round the back of the neck: the
+shirt's collar under it is the collar, two materials that never share a surface. The shirt's collar stands on the
+shirt's neckline (`standCollar`: its rings follow the neckline round, lower in front, and stand 3 cm over it behind), so
+it shows white over the jacket at the back and the sides, all its own colour. The V's edge is a seam of the cloth: the
+same slots lie in the V on every ring it crosses, spread from one roll line to the other, so its edge is a line, not a
+row of teeth where each ring's cut stepped a slot on from the next. Its jacket lies on what it is worn over at a jacket's ease (`fitJacket`), and the
+tiered body's shoulder sockets, which no garment covers, take the outermost sleeve's colour. The folds are the realistic
+body's alone so far. On its lit engine export (realistic laws 12) the clothes carry their surface as material besides:
+creases where the body bends, seams, hems, leather's wear and the cloth's grain baked into a normal map, and each cloth's
+roughness and metalness in an ORM map, a depth map an engine marches (its parallax), and what a layer names it is made
+of and worked in: a knit's stitches, a cable knit's ropes, a weave's pattern (herringbone, houndstooth, plaid, stripes,
+corduroy, quilting; docs/realistic-body.md, the clothes' relief). The finest weave, under a stitch's size, is not yet.
+
+## The collar, one construction
+
+A top's collar is built in stages from one piece, on either body (`polygonizer/shirt-collar.js`; its words
+`outfit/collar.js`, the language's `top.collar`):
+
+- **The stand**, the band rising from the neckline: the base of every collar. Its rings follow the shirt's neckline round
+  (lower in front), on the neck a hair off the skin.
+- **A band** (`collar: 'band'`) is the stand alone: the V that goes up, its front parted and the V widening up it (open,
+  its default), or a ring buttoned up (closed).
+- **A turtleneck** (`'turtle'`) is the stand looped all the way round and tall, near level round the neck, its top folded
+  down over it all round: no opening.
+- **A collared shirt** (`'shirt'`, or `true`) is the stand and its FALL: a leaf folded down over the stand from its top,
+  deepest at the front where its two points hang, its front edges parting down and out from the middle, so the front
+  reads as an M. Closed (its default) the stand is a ring and the points nearly meet under it; open, the stand parts in
+  its V and the points spread.
+- `{ kind, open }` sets the front either way. The fall is a piece of its own (`topCollarFall_neck`), the collar's colour,
+  carried by the stand's top ring's weights.
+
+## The soldier, from the ground up
+
+Fatigues are dressed from the boots up, each layer reading off the one under it:
+
+- **The boots** are footwear cards of the `military` family (`footwear/styles.js`: the jungle boot, the desert boot, the
+  jump boot, the jackboot, the kirza boot, the ammunition boot under puttees), worn by name from an outfit card
+  (`language.feet`), on either body.
+- **The trousers** meet them by tradition (`language.bottom`): loose to the ankle over the boot; `into: 'boots'` ending
+  just below the top of what covers the shin (a shaft's top, a puttee's wrap) and bloused over its edge; `cut: 'breeches'`
+  (the riding breeches, the galife) full down the upper thigh, its fullness a `swell` along the leg rather than at the
+  crotch, and close from the knee into a tall boot.
+- **Cargo pockets** (`pockets: 'cargo'`) are bellows patches wrapped round the side of each thigh on the trousers, their
+  rows arcs of the leg's outermost surface, swelling at the middle and flush at the edges, under a flap with its button
+  (`body-relational-kit.js` `pocketOn`), riding the leg. A pocket is cloth on cloth: never a box hung off the leg.
+- **The helmet** (`language.head`: `headgear/helmets.js`) is a hard shell cast over the head on the game body, its edge
+  by height round the head (over the brow in front, over or under the ears at the sides, the nape behind), its brim or
+  skirt along that edge. It takes its cover in the outfit's camouflage, a band, a net, a night-vision mount, and the hair
+  goes under it. The realistic head wears none yet.
+- **The outermost shirt is fitted as a jacket is**: a collared woven top with nothing over it is brought in onto the body
+  and what is under it, a little roomier than a jacket, never let out. The silhouette is the cut's and the belt's, not
+  the ease's; `fit: 'loose'` keeps it loose, and a collarless tunic or blouse hangs as it is cut.
+- **The progression** dresses one figure up a ladder, each rung the last and its gear: civilian security (a uniform
+  shirt, a duty belt), private security (a fitted top, a low-profile plate, a holster), the mercenary (a field shirt, a
+  chest rig), the PMC squad member (a plate carrier, a high-cut helmet and headset, kneepads), the soldier, special forces
+  (camouflage, the carrier, NVG and headset, knee and elbow pads). Gear is a card's `pieces`. A rung is told by what it
+  carries, never by its service.
+- **Camouflage** is a `pattern` like the weaves (`outfit/camouflage.js`: woodland, desert, DPM, tiger stripe, flecktarn,
+  digital, splinter, multicam, urban, snow). Its ground is the layer's tone, and its marks are field paint cut into the
+  faces, so it shows on both bodies, on the World page and in every export. Every layer printed in the same pattern shares
+  one set of marks, over one box round all of them, so a mark runs on from the shirt onto the trousers. Each colour
+  paints over the ground and the colours before it, as the printer lays them.
 
 ## Against the outfit laws
 

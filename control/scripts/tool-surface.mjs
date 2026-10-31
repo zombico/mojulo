@@ -16,12 +16,15 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { TOOL_LINES, RING_TITLES, VERBS } from '../lib/mcp/tool-lines.js';
 import { PACKS, SPINE, FOLDED, RETIRED_PACKS } from '../lib/mcp/packs.js';
-import { FACETS, STATUSES } from '../lib/graph/cosmos/facets/index.js';
-import { capabilityRegistry } from '../lib/graph/cosmos/registry.js';
-import { FIXTURES } from '../lib/graph/cosmos/fixtures.js';
-import { sweep } from '../lib/graph/cosmos/sweep.js';
-import { dryRun } from '../lib/graph/cosmos/cosmos.js';
-import { composeCandidates } from '../lib/graph/cosmos/compose.js';
+import { register } from 'node:module';
+// (the cosmos registry reads its tables live, and they import by '@/': plain Node takes the repo's resolver first)
+if (!process.env.VITEST) register('./mcp-stdio-loader.mjs', import.meta.url);
+const { FACETS, STATUSES } = await import('../lib/graph/cosmos/facets/index.js');
+const { capabilityRegistry } = await import('../lib/graph/cosmos/registry.js');
+const { FIXTURES } = await import('../lib/graph/cosmos/fixtures.js');
+const { sweep } = await import('../lib/graph/cosmos/sweep.js');
+const { dryRun } = await import('../lib/graph/cosmos/cosmos.js');
+const { composeCandidates } = await import('../lib/graph/cosmos/compose.js');
 import { ENGINES, MARKED_ENGINES } from '../lib/graph/scene/engines/registry.js';
 
 // what proves an engine's marks, said under its scoreboard

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { dressedTile } from './dressed.js';
+import { dressedTile, dressedMaterial } from './dressed.js';
 import { tileFamilyOf, normalizeTileSpec } from '../era/tile-specs.js';
 import { surfaceTexture } from '../landscape/surface-textures.js';
 import { assembleStageScene } from '../era/stage.js';
@@ -175,6 +175,60 @@ describe('the modern class and the roads', () => {
       expect(Buffer.compare(dressedTile({ ...CFG, cut, rows: 8, cols: 4, metres: 1 }, { size: 192, seed: 3 }).rgb, T.rgb), cut).toBe(0);
       expect(normalizeTileSpec({ gen: 'dressed', stone: [1, 2, 3], mortar: [1, 2, 3], cut }).params.cut).toBe(cut);
     }
+  });
+});
+
+describe('the made class: the bay\'s steel, sheet and poured faces', () => {
+  const MADE = ['plate', 'tread', 'block', 'panel', 'epoxy', 'grating', 'corrugated', 'perforated', 'terrazzo', 'glazed', 'studded', 'seam', 'acoustic',
+    'matte', 'carbon', 'drywall', 'carpet', 'vinyl', 'laminate', 'porcelain', 'veneer'];
+  const H = (cut, over = {}) => { const M = dressedMaterial({ ...CFG, cut, metres: 1, rows: 4, cols: 2, ...over }, { size: 128, seed: 3 }); return { M, at: (x, y) => M.height[Math.floor(y * 128) * 128 + Math.floor(x * 128)] }; };
+  it('each cut is seamless, its own bytes, on the rails, and read as material from a relief', () => {
+    for (const cut of MADE) {
+      const T = dressedTile({ ...CFG, cut, rows: 4, cols: 2, metres: 1 }, { size: 128, seed: 3 });
+      let over = 0;
+      for (let j = 1; j < T.H - 1; j++) {
+        let most = 0;
+        for (let i = 1; i < T.W; i++) most = Math.max(most, Math.abs(lum(T, i, j) - lum(T, i - 1, j)));
+        if (Math.abs(lum(T, T.W - 1, j) - lum(T, 0, j)) > 1.25 * most + 4) over++;
+      }
+      expect(over, cut).toBe(0);
+      expect(Buffer.compare(dressedTile({ ...CFG, cut, rows: 4, cols: 2, metres: 1 }, { size: 128, seed: 3 }).rgb, T.rgb), cut).toBe(0);
+      expect(normalizeTileSpec({ gen: 'dressed', stone: [1, 2, 3], mortar: [1, 2, 3], cut }).params.cut).toBe(cut);
+      const { M } = H(cut);
+      expect(Math.max(...M.height) - Math.min(...M.height), cut).toBeGreaterThan(0.0002);
+    }
+  });
+  it('each reads as what it is: a rivet proud of its plate, a joint sunk into a block, a pit under the bars, ribs at their pitch', () => {
+    const plate = H('plate', { rows: 1, cols: 1 }), mid = plate.at(0.5, 0.5);
+    // (a rivet row inset 45 mm from the plate's edge, the field's middle well clear of it)
+    expect(Math.max(...[0, 1, 2, 3, 4].map((i) => plate.at(0.045, 0.5 + (i - 2) / 128)))).toBeGreaterThan(mid + 0.002);
+    const block = H('block', { rows: 4, cols: 2, grit: 0 });
+    expect(block.at(0.25, 0.001)).toBeLessThan(block.at(0.25, 0.125) - 0.002);
+    const grating = H('grating');
+    expect(Math.min(...grating.M.height)).toBeLessThan(-0.02);
+    const ribs = H('corrugated', { cols: 8, grit: 0 }), row = Array.from({ length: 128 }, (_, i) => ribs.at(i / 128, 0.5));
+    // eight crowns across the repeat: count the rises onto a crown
+    expect(row.filter((v, i) => v > 0 && row[(i + 127) % 128] <= 0).length).toBe(8);
+    // a poured floor is smooth: its relief its joints' and little more
+    const epoxy = H('epoxy', { cols: 1 });
+    expect(Math.max(...epoxy.M.height)).toBeLessThan(0.002);
+  });
+  it('the coats and the everyday: a fold, a twill, a checker of pile, a book-matched leaf', () => {
+    const base = (cut, over) => { const M = dressedMaterial({ ...CFG, cut, ...over }, { size: 128, seed: 3 }); return (i, j) => { const k = (j * 128 + i) * 3; return M.baseColor[k] + M.baseColor[k + 1] + M.baseColor[k + 2]; }; };
+    // (a matte sheet rolls away at its fold: its edge under its field)
+    const matte = H('matte', { rows: 1, cols: 1, grit: 0 });
+    expect(matte.at(0.002, 0.5)).toBeLessThan(matte.at(0.5, 0.5) - 0.0002);
+    // (a 2×2 twill: a tow's cell the same as the one a step along the diagonal, unlike the one two across)
+    const tw = base('carbon', { metres: 0.384, stone: [40, 40, 44], mortar: [40, 40, 44], grit: 0 }), cell = 128 / 32, at = (i, j) => tw(Math.floor((i + 0.5) * cell), Math.floor((j + 0.5) * cell));
+    let diag = 0, across = 0;
+    for (let i = 0; i < 28; i++) for (let j = 0; j < 28; j++) { diag += Math.abs(at(i, j) - at(i + 1, j + 1)); across += Math.abs(at(i, j) - at(i + 2, j)); }
+    expect(diag).toBeLessThan(across * 0.25);
+    // (carpet tiles quarter-turned: neighbours apart, diagonals alike)
+    const cp = base('carpet', { metres: 1, cols: 2, grit: 0 }), mean = (ti, tj) => { let s = 0; for (let j = 8; j < 56; j++) for (let i = 8; i < 56; i++) s += cp(ti * 64 + i, tj * 64 + j); return s / 48 / 48; };
+    expect(Math.abs(mean(0, 0) - mean(1, 0))).toBeGreaterThan(4 * Math.abs(mean(0, 0) - mean(1, 1)));
+    // (veneer book-matched: each panel's second leaf its first's mirror)
+    const vn = base('veneer', { metres: 1, cols: 2, grit: 0 });
+    for (const j of [10, 70, 120]) for (const i of [3, 12, 25]) expect(vn(i, j)).toBe(vn(63 - i, j));
   });
 });
 

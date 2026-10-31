@@ -1,108 +1,199 @@
 import { safeJson } from '../emit-util.js';
 
-// In-page script: THE FORM RENDER INDOORS (gen-7: form/room-form.js, era/stage.js). The build kept no light in the room's
-// corners, only each surface's material colour (its tint under its dirt), and read each tile as material (its colour
-// under no light, a tangent-space normal, occlusion + roughness packed). Here the page lights it: every surface becomes
-// a lit material (three's MeshStandardMaterial, flat-shaded so the faces need no normals; the normal map finds its
-// frame from the screen's derivatives) under the room's placed lights, live.
+// In-page script: THE FORM RENDER INDOORS (gen-7: form/room-light.js, form/room-form.js, era/stage.js). The build baked the
+// room as a lightmap is, its colour and its light apart: each corner its base (the colour its palette asks for under no
+// light) and its light (`aLit`, linear: the ambient, every lamp by its solved key where it can see the corner, the bounce),
+// and read each tile as material (its colour under no light, a tangent-space normal, occlusion + roughness + height). Here
+// each surface's material (three's MeshBasicMaterial, as the paint's: no light of three's is evaluated) multiplies its
+// colour by that light, and adds only what a bake cannot hold, near the eye (its frame from the screen's derivatives).
 //
-//   falloff   each light falls off by the bake's own law (stage.js bakeStageLight: flat inside 1.1 m, a smooth square to
-//             its radius), raised to `fall` in linear light; its intensity decoded as the bake's sRGB corners are
-//             (`gamma`). The bake sums its lights before the decode, so live lights summed after it fall off faster:
-//             `fall` under the gamma, the indirect lifted (`ambientGain`) and the exposure hold a room near its gen-6
-//             brightness (the machine gate: rooms.mjs, each frame's mean against its gen-6 twin)
-//   indirect  the bake's ambient, and a bounce: each light's falloff over a wider reach, unshadowed, a share of it
-//             (`bounce`): what a lightmap would hold. The material's occlusion darkens it, never the direct light
-//   shadows   the `shadows.count` lights nearest the eye cast (cube maps `shadows.size` a side); the casters are a fixed
-//             pool moved onto the nearest lights as the eye walks (each map drawn when its light changes), the rest light
-//             unshadowed, so the shader never recompiles. With `actors` (a hero's level: what moves flags its meshes to
-//             cast) the nearest light's map is drawn each frame, so a hero throws its shadow from the torch beside it;
-//             the others stay as drawn
-//   tone      the frame is tone-mapped (three's Neutral) at `exposure`: a lit crest rolls off where the bake's shoulder did
+//   colour    the tile divided by its mean (`mean`), times the corner's base: the base sets the colour, the tile the detail
+//   bake      the corner's light as the indirect (the tile's occlusion darkens it): out = base × light, the solve's law
+//   relief    the `live` lamps nearest the eye (no shadow maps): what each does to the relief, the normal map's slope
+//             against the face's own (its light at the pixel's normal less its light at the face's), and its sheen; both
+//             scaled by how lit the bake says that spot is by them (the baked light over what they would lay unshadowed),
+//             so nothing shines in a baked shadow. A lamp coming into the set fades in, one leaving fades out; far off
+//             (`relief`: the distances it fades out between) a pixel is its bake alone
+//   parallax  near the eye each tile's height (the ORM's blue, 1 the crest) is marched along the view (`pom`: steps, and the
+//             distances it fades out between), so a joint sinks and a stone stands; far off the map lies flat
+//   tone      the frame is tone-mapped (three's Neutral, exposure 1: what the solve solved for)
+//   beats     a lamp a beat changes (`beat`: alarm, pulse, flicker; its `rate`, era/compose-plot.js BEATS) is in no corner's
+//             bake: the page lays its light whole (its falloff and its cosine on the face, no shadow), its key swung by the
+//             beat in time. Only a room with one carries this code
 //
-// `keep` groups (the torches' flames and iron, glass) stay as built. `__mojForm` is the machine gate's probe: the lights,
-// the casters' lights, the maps and how each was read, the materials made.
+// A mesh with no baked light, and the `keep` groups (the torches' flames and iron, glass), stay as built and untoned; the
+// `panes` (see-through glass) reflect the room by Fresnel from `f0`, and the painted glints are hidden. The
+// live light's actors' shadow (channels/cast-shadows.js) patches these materials as it patched the paint's.
+// `__mojForm` is the machine gate's probe: the lamps, the live set, the maps and how each was read, the materials made.
 // Absent `form` ⇒ NOT emitted.
-// `cfg`: { lights: [{ at, rgb, intensity, radius, cast }], ambient: [r, g, b], maps: { key: { normal, orm, read } },
-//          shadows: { count, size }, actors, bounce, reach, gamma, fall, ambientGain, exposure, keep: [group] }
+// `cfg`: { lights: [{ at, key, radius, live, beat?, rate? }], ambient: [r, g, b] (linear), fall, maps: { key: { normal?, orm?, read,
+//          depth?, mean } }, live, pom: { steps, near, far }, relief: { near, far }, keep: [group], panes: [group], f0,
+//          void?: '#rrggbb' (a toned room's) }
 export function formScript(cfg) {
+  // (the beats' code only in a room with a beat: a room without one is byte for byte as it was)
+  const NB = cfg.lights.filter((l) => l.beat).length;
   return `
-// --- form: a room's surfaces as material, its placed lights live (gen-7) ---
+// --- form: a room's surfaces as material over its baked light (gen-7) ---
 const __mojForm = (function () {
-  const F = ${safeJson(cfg)}, keep = new Set(F.keep), loader = new THREE.TextureLoader();
-  renderer.toneMapping = THREE.NeutralToneMapping; renderer.toneMappingExposure = F.exposure;
-  renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap; renderer.shadowMap.autoUpdate = !!F.actors;
-  const srgb = (c) => new THREE.Color().setRGB(c[0], c[1], c[2], THREE.SRGBColorSpace);
-  // (the bake's falloff, in linear light: decay carries the gamma)
-  const FALL = 'float formT = cutoffDistance > 0.0 ? clamp(1.0 - max(lightDistance, 1.1) / cutoffDistance, 0.0, 1.0) : 1.0;\\n\\tfloat distanceFalloff = pow(formT * formT, decayExponent);\\n\\treturn distanceFalloff;';
-  const PARS = THREE.ShaderChunk.lights_pars_begin.replace('float distanceFalloff = 1.0 / max( pow( lightDistance, decayExponent ), 0.01 );', FALL);
-  const INDIRECT = 'uniform vec3 uFormAmb;\\nuniform float uFormBounce;\\nuniform float uFormReach;\\n';
-  const BOUNCE = '#if NUM_POINT_LIGHTS > 0\\nfor (int i = 0; i < NUM_POINT_LIGHTS; i++) {\\n'
-    + '  vec3 fd = pointLights[i].position - geometryPosition; float fr = length(fd);\\n'
-    + '  float ft = clamp(1.0 - max(fr, 1.1) / (pointLights[i].distance * uFormReach), 0.0, 1.0);\\n'
-    + '  irradiance += pointLights[i].color * uFormBounce * pow(ft * ft, pointLights[i].decay) * (0.6 + 0.4 * max(dot(geometryNormal, fd / max(fr, 1e-3)), 0.0));\\n'
-    + '}\\n#endif\\nirradiance += PI * uFormAmb;\\n';
-  const amb = srgb(F.ambient), U = { uFormAmb: { value: new THREE.Vector3(amb.r, amb.g, amb.b).multiplyScalar(F.ambientGain) }, uFormBounce: { value: F.bounce }, uFormReach: { value: F.reach } };
-  const lit = (params) => {
-    const mat = new THREE.MeshStandardMaterial({ roughness: 0.9, metalness: 0, flatShading: true, ...params });
+  const F = ${safeJson(cfg)}, keep = new Set(F.keep), loader = new THREE.TextureLoader(), K = Math.max(1, F.live);
+  renderer.toneMapping = THREE.NeutralToneMapping; renderer.toneMappingExposure = 1;
+  const U = { uFLp: { value: Array.from({ length: K }, () => new THREE.Vector3()) }, uFLk: { value: Array.from({ length: K }, () => new THREE.Vector3()) },
+    uFLr: { value: new Array(K).fill(1) }, uFFall: { value: F.fall }, uFAmb: { value: new THREE.Vector3(...F.ambient) }, uFPom: { value: new THREE.Vector4(F.pom.near, F.pom.far, F.relief.near, F.relief.far) } };
+${NB ? `  const BL = F.lights.map((l, i) => ({ l, i })).filter(({ l }) => l.beat);
+  Object.assign(U, { uFBp: { value: BL.map(() => new THREE.Vector3()) }, uFBk: { value: BL.map(() => new THREE.Vector3()) }, uFBr: { value: BL.map(({ l }) => l.radius) } });
+` : ''}  const VERT = 'attribute vec3 aLit;\\nvarying vec3 vFLit;\\nvarying vec3 vFPos;\\n';
+  const FRAG = 'uniform vec3 uFLp[' + K + '];\\nuniform vec3 uFLk[' + K + '];\\nuniform float uFLr[' + K + '];\\nuniform float uFFall;\\nuniform vec3 uFAmb;\\nuniform vec4 uFPom;\\nuniform vec3 uFMean;\\nuniform float uFDepth;\\nuniform sampler2D uFNorm;\\nvarying vec3 vFLit;\\nvarying vec3 vFPos;\\n'
+    + 'float fLum( vec3 c ) { return dot( c, vec3( 0.2126, 0.7152, 0.0722 ) ); }\\n'${NB ? `
+    + 'uniform vec3 uFBp[${NB}];\\nuniform vec3 uFBk[${NB}];\\nuniform float uFBr[${NB}];\\n'` : ''};
+  // the face's own frame from the screen's derivatives (its normal, and the tile's directions on it), then the parallax:
+  // the tile's height marched along the view in that frame, near the eye
+  const POM = \`vec3 fq0 = dFdx( vFPos ), fq1 = dFdy( vFPos ), fN = normalize( cross( fq0, fq1 ) ), fT = vec3( 0.0 ), fB = vec3( 0.0 );
+float fD = length( vFPos );
+#ifdef USE_MAP
+  vec2 fUV = vMapUv, fs0 = dFdx( vMapUv ), fs1 = dFdy( vMapUv );
+  { vec3 q1p = cross( fq1, fN ), q0p = cross( fN, fq0 ); fT = q1p * fs0.x + q0p * fs1.x; fB = q1p * fs0.y + q0p * fs1.y;
+    fT = dot( fT, fT ) > 0.0 ? normalize( fT ) : fT; fB = dot( fB, fB ) > 0.0 ? normalize( fB ) : fB; }
+#else
+  vec2 fUV = vec2( 0.0 );
+#endif
+#if defined( FORM_POM ) && defined( USE_AOMAP ) && defined( USE_MAP )
+{
+  float fk = 1.0 - smoothstep( uFPom.x, uFPom.y, fD );
+  if ( fk > 0.0 ) {
+    vec3 V = - vFPos / fD, vt = vec3( dot( V, fT ), dot( V, fB ), dot( V, fN ) );
+    vec2 dP = vt.xy / max( abs( vt.z ), 0.25 ) * uFDepth * fk / float( FORM_POM );
+    float lay = 0.0, hh = 1.0 - textureGrad( aoMap, fUV, fs0, fs1 ).b;
+    for ( int k = 0; k < FORM_POM; k++ ) { if ( lay >= hh ) break; fUV -= dP; hh = 1.0 - textureGrad( aoMap, fUV, fs0, fs1 ).b; lay += 1.0 / float( FORM_POM ); }
+  }
+}
+#endif
+\`;
+  // (the chunks that read the tile, read where the march landed)
+  const at = (chunk, uv) => THREE.ShaderChunk[chunk].split(uv).join('fUV');
+  const MAP = POM + at('map_fragment', 'vMapUv') + '\\n#ifdef USE_MAP\\n  diffuseColor.rgb /= uFMean;\\n#endif\\n';
+  // the bake as the light (the tile's occlusion darkens it), and near the eye what the live lamps add to the relief: the
+  // normal map against the face's own, and a sheen (normalised Blinn-Phong at the tile's roughness, a dielectric's 4%)
+  const LIGHT = \`reflectedLight.indirectDiffuse *= vFLit;
+\` + at('aomap_fragment', 'vAoMapUv') + \`
+vec3 fDirect = vec3( 0.0 );
+#if defined( FORM_RELIEF ) && defined( USE_AOMAP )
+float fNear = 1.0 - smoothstep( uFPom.z, uFPom.w, fD );
+if ( fNear > 0.0 ) {
+  vec3 tn = texture2D( uFNorm, fUV ).xyz * 2.0 - 1.0, n = normalize( fT * tn.x + fB * tn.y + fN * tn.z ), V = - vFPos / fD;
+  float rough = max( texture2D( aoMap, fUV ).g, 0.08 ), shine = clamp( 2.0 / ( rough * rough * rough * rough ) - 2.0, 1.0, 512.0 );
+  vec3 fSum = vec3( 0.0 ), fAdd = vec3( 0.0 ), fSpec = vec3( 0.0 );
+  for ( int i = 0; i < \${K}; i++ ) {
+    vec3 d = uFLp[ i ] - vFPos; float r = length( d ); vec3 L = d / max( r, 1e-3 );
+    float t = clamp( 1.0 - max( r, 1.1 ) / uFLr[ i ], 0.0, 1.0 );
+    vec3 c = uFLk[ i ] * pow( t * t, uFFall );
+    float ng = max( dot( fN, L ), 0.0 ), np = max( dot( n, L ), 0.0 );
+    fSum += c * ng; fAdd += c * ( np - ng );
+    fSpec += c * np * 0.04 * ( shine + 8.0 ) / 8.0 * pow( max( dot( n, normalize( L + V ) ), 0.0 ), shine );
+  }
+  float fVis = fNear * clamp( ( fLum( vFLit ) - fLum( uFAmb ) ) / max( fLum( fSum ), 1e-3 ), 0.0, 1.0 );
+  fDirect = fVis * ( fAdd * diffuseColor.rgb + fSpec );
+}
+#endif
+${NB ? `vec3 fBeat = vec3( 0.0 );
+for ( int i = 0; i < ${NB}; i++ ) {
+  vec3 d = uFBp[ i ] - vFPos; float r = length( d );
+  float t = clamp( 1.0 - max( r, 1.1 ) / uFBr[ i ], 0.0, 1.0 );
+  fBeat += uFBk[ i ] * pow( t * t, uFFall ) * max( dot( fN, d / max( r, 1e-3 ) ), 0.0 );
+}
+fDirect += fBeat * diffuseColor.rgb;
+` : ''}\`;
+  const lit = (params, M) => {
+    const mat = new THREE.MeshBasicMaterial(params);
+    const pom = M && M.depth > 0 && F.pom.steps > 0 ? F.pom.steps : 0, relief = !!(M && M.normal);
+    mat.defines = { ...(pom ? { FORM_POM: pom } : {}), ...(relief ? { FORM_RELIEF: 1 } : {}) };
     mat.onBeforeCompile = (sh) => {
-      Object.assign(sh.uniforms, U);
-      sh.fragmentShader = INDIRECT + sh.fragmentShader.replace('#include <lights_pars_begin>', PARS).replace('#include <lights_fragment_end>', BOUNCE + '#include <lights_fragment_end>');
+      Object.assign(sh.uniforms, U, { uFMean: { value: new THREE.Vector3(...(M ? M.mean : [1, 1, 1])) }, uFDepth: { value: M && M.depth ? M.depth : 0 }, uFNorm: { value: relief ? M.normal : null } });
+      sh.vertexShader = VERT + sh.vertexShader.replace('#include <project_vertex>', '#include <project_vertex>\\n  vFLit = aLit;\\n  vFPos = mvPosition.xyz;');
+      sh.fragmentShader = FRAG + sh.fragmentShader.replace('#include <map_fragment>', MAP)
+        .replace('#include <aomap_fragment>', LIGHT)
+        .replace('vec3 outgoingLight = reflectedLight.indirectDiffuse;', 'vec3 outgoingLight = reflectedLight.indirectDiffuse + fDirect;');
     };
-    mat.customProgramCacheKey = () => 'form';
+    mat.customProgramCacheKey = () => 'form-room' + pom + (relief ? 'r' : '');
     return mat;
   };
   const map = (url) => { const t = loader.load(url); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = 8; t.colorSpace = THREE.NoColorSpace; t.channel = 0; return t; };
-  const maps = {}, made = { material: 0, colour: 0 };
-  for (const [k, m] of Object.entries(F.maps)) maps[k] = { normal: map(m.normal), orm: map(m.orm) };
-  // every surface of the room lit: a tile read as material takes its maps, the rest their colour alone
+  const maps = {}, made = { material: 0, colour: 0, pom: 0 };
+  for (const [k, m] of Object.entries(F.maps)) maps[k] = { ...m, normal: m.normal ? map(m.normal) : null, orm: m.orm ? map(m.orm) : null };
+  // every surface of the room that carries its baked light; the rest keep their look, untoned
   scene.traverse((o) => {
-    if (!o.isMesh || o.isInstancedMesh || !o.material || !o.material.isMeshBasicMaterial || typeof o.userData.g !== 'string' || keep.has(o.userData.g)) return;
-    const b = o.material, M = maps[o.userData.key];
+    if (!o.material) return;
+    const b = o.material;
+    if (!o.isMesh || o.isInstancedMesh || !b.isMeshBasicMaterial || typeof o.userData.g !== 'string' || keep.has(o.userData.g) || !o.geometry.getAttribute('aLit')) { (Array.isArray(b) ? b : [b]).forEach((m) => { m.toneMapped = false; }); return; }
+    const M = maps[o.userData.key];
     o.material = lit({ map: b.map, vertexColors: b.vertexColors, side: b.side, transparent: b.transparent, opacity: b.opacity, depthWrite: b.depthWrite, alphaTest: b.alphaTest,
-      ...(M ? { normalMap: M.normal, aoMap: M.orm, roughnessMap: M.orm, roughness: 1 } : {}) });
-    if (M) made.material++; else made.colour++;
-    o.receiveShadow = true;
-    o.castShadow = !b.transparent && !b.alphaTest;
+      ...(M && M.orm ? { aoMap: M.orm } : {}) }, M);
+    if (M && M.normal) made.material++; else made.colour++;
+    if (M && M.depth > 0 && F.pom.steps > 0) made.pom++;
   });
-  // the lights: each its own, unshadowed; the casters a pool laid over the nearest that may cast
-  const lights = F.lights.map((l) => {
-    const p = new THREE.PointLight(srgb(l.rgb), Math.PI * Math.pow(l.intensity, F.gamma), l.radius, F.fall);
-    p.position.set(l.at[0], l.at[1], l.at[2]); scene.add(p); return p;
+  // the glass: a pane reflects by Fresnel (Schlick from F0, \`F.f0\`, held up a little: a game's glass must be seen), the room in it (the floor's dark under its horizon,
+  // the lamps' light over it, a lamp's streak toward the zenith), its opacity rising toward a grazing view; the sixth
+  // generation's painted glints give way to it
+  const PANES = new Set(F.panes || []), lampMean = F.lights.length ? F.lights.reduce((a, l) => a.map((v, i) => v + l.key[i] / F.lights.length), [0, 0, 0]) : [1, 1, 1];
+  const lY = Math.max(1e-4, 0.2126 * lampMean[0] + 0.7152 * lampMean[1] + 0.0722 * lampMean[2]), enc = (v) => Math.pow(Math.min(1, Math.max(0, v)), 1 / 2.2);
+  const up = new THREE.Color(...lampMean.map((v) => enc((v / lY) * 0.8))), down = new THREE.Color(...F.ambient.map((v) => enc(v * 1.6)));
+  let panes = 0;
+  scene.traverse((o) => {
+    if (!o.isMesh || typeof o.userData.g !== 'string') return;
+    if (o.userData.g === 'stage:glint') { o.visible = false; return; }
+    if (!PANES.has(o.userData.g)) return;
+    const a0 = o.material.opacity;
+    o.material = new THREE.ShaderMaterial({ vertexColors: true, transparent: true, depthWrite: false, side: THREE.DoubleSide, toneMapped: false,
+      uniforms: { uA: { value: a0 }, uF0: { value: F.f0 }, uUp: { value: up }, uDown: { value: down } },
+      vertexShader: 'varying vec3 vC;\\nvarying vec3 vW;\\nvoid main() { vC = color; vec4 w = modelMatrix * vec4( position, 1.0 ); vW = w.xyz; gl_Position = projectionMatrix * viewMatrix * w; }',
+      fragmentShader: 'uniform float uA;\\nuniform float uF0;\\nuniform vec3 uUp;\\nuniform vec3 uDown;\\nvarying vec3 vC;\\nvarying vec3 vW;\\n'
+        + 'void main() { vec3 N = normalize( cross( dFdx( vW ), dFdy( vW ) ) ), V = normalize( cameraPosition - vW ); if ( dot( N, V ) < 0.0 ) N = - N;\\n'
+        + '  float c = clamp( dot( N, V ), 0.0, 1.0 ), fr = uF0 + ( 1.0 - uF0 ) * pow( 1.0 - c, 5.0 ); vec3 R = reflect( - V, N );\\n'
+        + '  vec3 env = mix( uDown, uUp, smoothstep( -0.25, 0.35, R.z ) ) + uUp * pow( max( R.z, 0.0 ), 12.0 ) * 0.6;\\n'
+        + '  float k = clamp( fr * 2.2, 0.0, 1.0 ); gl_FragColor = vec4( mix( vC, env, k ), uA + ( 1.0 - uA ) * k * 0.85 ); }' });
+    o.renderOrder = 2; panes++;
   });
-  const pool = Array.from({ length: Math.min(F.shadows.count, F.lights.filter((l) => l.cast).length) }, () => {
-    const p = new THREE.PointLight(0xffffff, 0, 1, F.fall);
-    p.castShadow = true; p.shadow.mapSize.set(F.shadows.size, F.shadows.size); p.shadow.camera.near = 0.05; p.shadow.bias = -0.0015; p.shadow.normalBias = 0.02; p.shadow.radius = 3;
-    p.shadow.autoUpdate = false; p.userData.on = -1; scene.add(p); return p;
-  });
-  const eye = new THREE.Vector3();
-  let lastPick = -1;
-  const pick = (cam) => {
-    if (!pool.length) return;
-    cam.getWorldPosition(eye);
-    const near = F.lights.map((l, i) => [i, l]).filter(([, l]) => l.cast).map(([i, l]) => [i, (l.at[0] - eye.x) ** 2 + (l.at[1] - eye.y) ** 2 + (l.at[2] - eye.z) ** 2])
-      .sort((a, b) => a[1] - b[1] || a[0] - b[0]).slice(0, pool.length).map(([i]) => i);
-    const want = new Set(near), free = pool.filter((p) => !want.has(p.userData.on));
-    let moved = false;
-    for (const i of near) {
-      if (pool.some((p) => p.userData.on === i)) continue;
-      const p = free.shift(), l = F.lights[i];
-      if (p.userData.on >= 0) lights[p.userData.on].intensity = Math.PI * Math.pow(F.lights[p.userData.on].intensity, F.gamma);
-      p.userData.on = i; p.color.copy(lights[i].color); p.intensity = lights[i].intensity; p.distance = l.radius; p.shadow.camera.far = l.radius;
-      p.position.set(l.at[0], l.at[1], l.at[2]); p.shadow.needsUpdate = true; lights[i].intensity = 0; moved = true;
-    }
-    // (with actors, the nearest light's map follows them each frame)
-    if (F.actors) for (const p of pool) p.shadow.autoUpdate = p.userData.on === near[0];
-    if (moved) { renderer.shadowMap.needsUpdate = true; probe.moves++; }
+
+  // the live set: the nearest lamps that may light the relief, each slot fading to its next lamp
+  const lamps = F.lights.map((l, i) => ({ i, at: new THREE.Vector3(...l.at), key: new THREE.Vector3(...l.key), r: l.radius })).filter((l, i) => F.lights[i].live${NB ? ' && !F.lights[i].beat' : ''});
+  const slots = Array.from({ length: Math.min(F.live, lamps.length) }, () => ({ lamp: null, next: null, w: 0 }));
+  const eye = new THREE.Vector3(), tmp = new THREE.Vector3();
+  let lastPick = -1, lastT = -1;
+  const pick = () => {
+    const want = lamps.map((l) => [l, l.at.distanceToSquared(eye)]).sort((a, b) => a[1] - b[1] || a[0].i - b[0].i).slice(0, slots.length).map(([l]) => l);
+    const held = new Set(slots.map((s) => s.next || s.lamp));
+    const free = slots.filter((s) => !(s.next || s.lamp) || !want.includes(s.next || s.lamp));
+    for (const l of want) if (!held.has(l)) { const s = free.shift(); if (s) s.next = l; }
+    for (const s of slots) if (s.next === s.lamp) s.next = null;
   };
-  const probe = { lights: lights.length, casters: pool.length, moves: 0, made,
-    reads: Object.fromEntries(Object.entries(F.maps).map(([k, m]) => [k, m.read])), on: () => pool.map((p) => p.userData.on) };
+  const probe = { lamps: lamps.length, live: slots.length, made, panes, reads: Object.fromEntries(Object.entries(F.maps).map(([k, m]) => [k, m.read])), on: () => slots.map((s) => (s.lamp ? s.lamp.i : -1)) };
   const prev = scene.onBeforeRender;
   scene.onBeforeRender = function (r, s, cam, rt) {
     if (prev) prev.call(this, r, s, cam, rt);
     if (rt) return;
-    const t = performance.now();
-    if (t - lastPick > 250) { lastPick = t; pick(cam); }
+    const t = performance.now(), dt = lastT < 0 ? 1 : Math.min(0.1, (t - lastT) / 1000);
+    lastT = t;
+    cam.getWorldPosition(eye);
+    // (a toned room's void and its haze are its ramp's darkest colour, as its toned page paints them: set at the first
+    // frame, after the page's own haze has laid its colour)
+    if (F.void && !probe.first) { scene.background = new THREE.Color(F.void); if (scene.fog) scene.fog.color.set(F.void); }
+    if (t - lastPick > 250) { lastPick = t; pick(); }
+    slots.forEach((sl, k) => {
+      // (a slot taking a new lamp fades its old one out first, then the new one in; the first frame's come in whole)
+      if (sl.next && (!sl.lamp || sl.w < 0.02)) { sl.lamp = sl.next; sl.next = null; }
+      sl.w = !sl.lamp ? 0 : !probe.first ? 1 : sl.w + ((sl.next ? 0 : 1) - sl.w) * Math.min(1, dt * 8);
+      U.uFLp.value[k].copy(sl.lamp ? sl.lamp.at : tmp.set(0, 0, -1e4)).applyMatrix4(cam.matrixWorldInverse);
+      U.uFLk.value[k].copy(sl.lamp ? sl.lamp.key : tmp.set(0, 0, 0)).multiplyScalar(sl.w);
+      U.uFLr.value[k] = sl.lamp ? sl.lamp.r : 1;
+    });
+${NB ? `    // the beats: each key swung in time (an alarm's sweep, a pulse's breath, a flicker's drops), at \`probe.at\` when set
+    const now = probe.at ?? t / 1000;
+    BL.forEach(({ l, i }, k) => {
+      const ph = 2 * Math.PI * l.rate * now, step = Math.floor(now * l.rate), h = ((Math.sin((step + i * 17.17) * 12.9898) * 43758.5453) % 1 + 1) % 1;
+      const w = l.beat === 'alarm' ? Math.pow(0.5 + 0.5 * Math.sin(ph), 6) : l.beat === 'pulse' ? 0.55 + 0.45 * Math.sin(ph) : h < 0.15 ? 0.15 + h * 2 : 1;
+      U.uFBp.value[k].set(...l.at).applyMatrix4(cam.matrixWorldInverse);
+      U.uFBk.value[k].set(...l.key).multiplyScalar(w);
+    });
+` : ''}    probe.first = true;
   };
   return probe;
 })();
@@ -110,6 +201,6 @@ window.__mojForm = __mojForm;
 `;
 }
 
-/** The page's defaults under a form cfg: the indirect's share and reach, the gamma the bake's corners are decoded by, the
- *  exposure, the casters, the groups kept as built. */
-export const FORM_PAGE = Object.freeze({ bounce: 0.25, reach: 1.6, gamma: 2.2, fall: 1.4, ambientGain: 1.6, exposure: 1.3, shadows: Object.freeze({ count: 4, size: 512 }), keep: Object.freeze(['stage:fixture', 'stage:glass']) });
+/** The page's defaults under a form cfg: how many lamps light the relief live and the distances that fades out between,
+ *  the parallax (its steps, and the distances it fades out between), the groups kept as built. */
+export const FORM_PAGE = Object.freeze({ live: 4, pom: Object.freeze({ steps: 6, near: 4, far: 8 }), relief: Object.freeze({ near: 12, far: 22 }), keep: Object.freeze(['stage:fixture', 'stage:glass']), panes: Object.freeze(['stage:pane', 'stage:wired']), f0: 0.04 });

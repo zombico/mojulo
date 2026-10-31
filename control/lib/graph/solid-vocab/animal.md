@@ -48,6 +48,10 @@ REACTIONS ride it too, on any body with legs: `flinch` (dropped low on bent legs
 stand), `fall` (onto its side, gathering speed) and `rise` (back up onto its feet), each a one-shot between poses its own
 body solves (`['walk', 'trot', 'flinch', 'fall', 'rise']`, or `{ reactions: 'all' }`). A legless body takes them on its
 own coil: it rears back into its strike coil to flinch and falls laid out flat; a swimmer has none yet.
+The STRIKE is the blow it deals: `'strike'` among the words, or `{ strike: { startup, active, recovery } }` at its
+attack's timing (frames at 60 Hz; a jab's by default), one clip named `strike`. A body on legs crouches, head down
+(the telegraph), then springs a fifth of its length forward; a legless one rears into its coil and darts. The result
+says its `seconds` and the `blow` window, the share of the clip where the hit lands. A swimmer has none yet.
 
 ## The maker door — a NEW fish or snake from parameters
 
@@ -203,6 +207,12 @@ oozes make (a piece, armour, panels, marks, ornaments) in the world's colours: e
 hue and value, so the creature keeps its three values. The animal's own coat, a glow, a colour drawn in a metal (chrome
 stays chrome) and a signal colour the world has no ramp for stay their own. The result's `ooze.setting` lists every
 colour it moved, from what, to which ramp's stop, and the light it took. Absent: as before.
+
+`spec.coat: 'world'` (with a `setting` that has `ramps`) takes the animal's OWN colours into the world too: its coat and
+markings each take the hue and chroma of the nearest ramp stop of its hue and value, at its own value, so its light and
+dark markings keep their contrast (a game's foes ask for it: an enemy belongs to its world's palette). Its face's details
+(eyes, ink, teeth, nose, mouth) stay its own, and so does a colour no stop is near. Colours only: the body and its rig are
+the species'. The result's `coat.dressed` lists what moved.
 
 ### stylism: design notes that style a creature up
 

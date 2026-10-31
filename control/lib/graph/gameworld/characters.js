@@ -98,7 +98,7 @@ const NOT_LOOKS = Object.freeze({
  * the systems numbered from the actions (mechanics.js): their stats and their HUD.
  * They share the world's `review` field with the world's own parts. */
 export const CHARACTER_PART_IDS = Object.freeze(['characters:direction', ...Object.keys(LOOKS_ELEMENTS).map((k) => `hero:${k}`), 'hero:base', 'hero:motion', 'hero:actions', 'hero:adornment', 'equipment', 'mechanics:stats', 'mechanics:hud']);
-const HERO_KEYS = ['ref', 'looks', 'motion', 'actions', 'adornment'];
+const HERO_KEYS = ['ref', 'name', 'looks', 'motion', 'actions', 'adornment'];
 const KEYS = ['direction', 'hero', 'cast', 'casting', 'folk'];
 /** The casting page's part: present only in a book that has one (casting.js). */
 export const CAST_PART = 'characters:cast';
@@ -246,11 +246,17 @@ export function readCharacters(C) {
     if (!isObj(C.hero)) throw err(`hero is { ${HERO_KEYS.join(', ')} }`);
     for (const k of Object.keys(C.hero)) {
       if (!HERO_KEYS.includes(k)) throw err(`hero.${k} is not part of the hero's page (${HERO_KEYS.join(', ')})${NOT_LOOKS[k] ? `; ${NOT_LOOKS[k]}` : LOOKS_ELEMENTS[k] ? `; ${k} is a looks page (hero.looks.${k})` : ''}`);
-      if (k !== 'looks' && k !== 'ref' && C.hero[k] !== undefined && !isObj(C.hero[k])) throw err(`hero.${k} is an object`);
+      if (k !== 'looks' && k !== 'ref' && k !== 'name' && C.hero[k] !== undefined && !isObj(C.hero[k])) throw err(`hero.${k} is an object`);
     }
     if (C.hero.ref !== undefined && !(typeof C.hero.ref === 'string' && /^[A-Za-z0-9_-]{1,64}$/.test(C.hero.ref))) throw err('hero.ref is the sketch ref of a hero made with create_character (the run adopts it and makes none)');
     out.hero = {};
     if (C.hero.ref !== undefined) out.hero.ref = C.hero.ref;
+    // a named hero (create_character spec.name): design_game finds its ref by name and writes both, so the run pins the row
+    if (C.hero.name !== undefined) {
+      if (typeof C.hero.name !== 'string' || !C.hero.name.trim()) throw err('hero.name is the name of a hero made with create_character (spec.name): the run adopts it by name');
+      if (C.hero.ref === undefined) throw err(`hero.name '${C.hero.name}' is found by design_game, which writes its ref beside it; a world read without it names hero.ref`);
+      out.hero.name = C.hero.name;
+    }
     if (C.hero.looks !== undefined) out.hero.looks = readLooks(C.hero.looks);
     if (C.hero.motion !== undefined) out.hero.motion = readMotion(C.hero.motion);
     if (C.hero.actions !== undefined) out.hero.actions = readActions(C.hero.actions);

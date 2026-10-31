@@ -17,14 +17,16 @@
  * speed the stride implies, so a walk plays at a walk's pace. In place: the World's walkers move the body. A behavior
  * packs the same way, a clip named for its word (`relax`, `sleep`): one loop of the pose its strategy resolves to, from
  * behavior/pose.js, lasting as long as its loop's motion takes on a body that size (`behaviorSeconds`). A floating
- * behavior's surface is the ground's level. `gaitStride(id, gait)` says how far one stride goes and how fast, for the
- * walker that moves the body (a level's fauna, era/biocube-fauna.js).
+ * behavior's surface is the ground's level. A `strike` (true, or its attack's `{ startup, active, recovery }`) packs the
+ * one-shot a beast deals a blow by (behavior/strike.js), clip `strike`; absent, nothing. `gaitStride(id, gait)` says how
+ * far one stride goes and how fast, for the walker that moves the body (a level's fauna, era/biocube-fauna.js).
  */
 import { faunaSkeleton } from './skeleton.js';
 import { gaitFrames, prepare } from './gait.js';
 import { BEHAVIORS, resolveBehavior, repertoire } from './behavior/index.js';
 import { posable, behaviorFrames, prepare as preparePose } from './behavior/pose.js';
 import { reactsOf, reactionFrames, REACTION_SECONDS } from './behavior/react.js';
+import { strikesOf, strikeFrames, strikeSeconds, strikeTiming } from './behavior/strike.js';
 import { packLayeredRig } from '../polygonizer/station-loft-rig.js';
 import { bodyPlan, bodyLocomotion } from './body.js';
 
@@ -120,13 +122,15 @@ export function checkBehaviors(id, behaviors = [], variants = {}) {
  * A copy of `plan` (the species' own) bound to its skeleton and carrying `motion`. Throws on a gait it does not have,
  * or a behavior it cannot be posed doing. `extra`: `{ behaviors, variants }`.
  */
-export function withMotion(plan, id, gaits = motionGaits(id), keys = 24, { behaviors = [], variants = {}, reactions = [] } = {}) {
+export function withMotion(plan, id, gaits = motionGaits(id), keys = 24, { behaviors = [], variants = {}, reactions = [], strike } = {}) {
   const have = motionGaits(id);
   for (const g of gaits) if (!have.includes(g)) throw new Error(`'${id}' has no gait '${g}' (it can: ${have.join(', ')})`);
   if (!Number.isInteger(keys) || keys < 4 || keys > 96) throw new Error('motion keys must be an integer in [4, 96]');
   checkBehaviors(id, behaviors, variants);
   for (const w of reactions) if (!reactsOf(id).includes(w)) throw new Error(`'${id}' has no reaction '${w}' (it can: ${reactsOf(id).join(', ') || 'none yet'})`);
-  if (!gaits.length && !behaviors.length && !reactions.length) throw new Error('motion carries no clip: name a gait, a behavior or a reaction');
+  if (strike !== undefined && !strikesOf(id).length) throw new Error(`'${id}' cannot strike yet (a swimmer and a body on folded wings have no strike)`);
+  const struck = strike === undefined ? undefined : strike === true ? true : strikeTiming(strike);
+  if (!gaits.length && !behaviors.length && !reactions.length && !struck) throw new Error('motion carries no clip: name a gait, a behavior, a reaction or the strike');
   const B = faunaBinds(id), out = structuredClone(plan);
   for (const s of out.segments) if (B.segments[s.name] !== undefined) s.bind = B.segments[s.name];
   if (out.heads?.length) out.heads[0] = { ...out.heads[0], bind: B.head };
@@ -134,6 +138,7 @@ export function withMotion(plan, id, gaits = motionGaits(id), keys = 24, { behav
   if (behaviors.length) out.motion.behaviors = [...behaviors];
   if (Object.keys(variants || {}).length) out.motion.variants = { ...variants };
   if (reactions.length) out.motion.reactions = [...reactions];
+  if (struck) out.motion.strike = struck;
   return out;
 }
 
@@ -188,7 +193,7 @@ export function behaviorSeconds(id, behavior, { variant } = {}) {
  * (dz, normals, light, …).
  */
 export function packFaunaRig(mesh, skin, motion, opts = {}) {
-  const { species: id, gaits = [], behaviors = [], variants = {}, reactions = [], keys = 24 } = motion, dz = opts.dz || 0;
+  const { species: id, gaits = [], behaviors = [], variants = {}, reactions = [], strike, keys = 24 } = motion, dz = opts.dz || 0;
   const S = faunaSkeleton(id);
   const stand = { joints: {}, bones: S.bones.map((b) => ({ id: b.id, head: `${b.id}:h`, tail: `${b.id}:t` })) };
   for (const b of S.bones) { stand.joints[`${b.id}:h`] = b.head; stand.joints[`${b.id}:t`] = b.tail; }
@@ -209,5 +214,7 @@ export function packFaunaRig(mesh, skin, motion, opts = {}) {
   }
   // a reaction (behavior/react.js): a one-shot, its keys 0 … 1 inclusive, at its own seconds
   for (const w of reactions) clips[w] = { k: keys, b: packed(reactionFrames(id, w, keys)), s: REACTION_SECONDS[w] };
+  // the strike (behavior/strike.js): a one-shot at its attack's timing (`true`, the default jab)
+  if (strike) { const t = strike === true ? undefined : strike; clips.strike = { k: keys, b: packed(strikeFrames(id, t, keys)), s: strikeSeconds(t) }; }
   return { ...pack, clips };
 }

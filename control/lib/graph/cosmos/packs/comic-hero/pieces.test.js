@@ -33,7 +33,7 @@ describe('comic hero pack: piece cards', () => {
     expect(() => withPieces(costumeOf('classic', 'movie', 'realistic'), ['utilityBelt'])).toThrow(/word list/);
   });
   it('a card of each family validates on the hero through the door on both bodies (the Movie realistic suit aside, a word list)', () => {
-    for (const id of firstOfFamily(PIECE_IDS, PIECES)) for (const look of ['comic-day', 'realistic-city']) {
+    for (const id of firstOfFamily(PIECE_IDS, PIECES)) for (const look of ['dcau-golden', 'realistic-night']) {
       const { mint } = memberOrders('hero', look, { era: 'modern', pieces: [id] });
       expect(validateHeroSpec(mint.args.spec), `${id} on ${look}`).toEqual([]);
     }
@@ -49,16 +49,16 @@ describe('comic hero pack: headgear (the spike)', () => {
     expect(() => withHeadgear({}, 'tiered', 'crown')).toThrow(/no headgear 'crown'/);
   });
   it('a helmet drops the hair; a domino is cast from the face on the tiered head and the dermis\'s war paint on the realistic one; a card of each family validates', () => {
-    for (const id of firstOfFamily(HEADGEAR_IDS, HEADGEAR)) for (const look of ['comic-day', 'realistic-city']) {
-      if (!fitted(id, look === 'comic-day' ? 'tiered' : 'realistic')) continue;
+    for (const id of firstOfFamily(HEADGEAR_IDS, HEADGEAR)) for (const look of ['dcau-golden', 'realistic-night']) {
+      if (!fitted(id, look === 'dcau-golden' ? 'tiered' : 'realistic')) continue;
       const { mint } = memberOrders('hero', look, { era: 'modern', headgear: id });
       expect(validateHeroSpec(mint.args.spec), `${id} on ${look}`).toEqual([]);
       if (['helmet', 'cowl'].includes(HEADGEAR[id].family) || (HEADGEAR[id].family === 'face')) expect(mint.args.spec.hair).toBe('none');
     }
     // (no headgear: the spec as the costume made it, its outfit and hair kept)
-    const bare = memberOrders('hero', 'comic-day', { era: 'modern' }).mint.args.spec;
+    const bare = memberOrders('hero', 'dcau-golden', { era: 'modern' }).mint.args.spec;
     expect(bare.outfit?.type).toBe('outfit'); expect(bare.hair).not.toBe('none'); expect(bare.palette).toBeTruthy();
-    const T = memberOrders('hero', 'comic-day', { headgear: 'domino' }).mint.args.spec, R = memberOrders('hero', 'realistic-city', { headgear: 'domino' }).mint.args.spec;
+    const T = memberOrders('hero', 'dcau-golden', { headgear: 'domino' }).mint.args.spec, R = memberOrders('hero', 'realistic-night', { headgear: 'domino' }).mint.args.spec;
     expect(T.adorn.some((A) => A.signature?.kind === 'cast' && A.part === 'cranium')).toBe(true);
     expect(R.skin.paint.pattern).toBe('mask');
   });
@@ -71,12 +71,12 @@ describe('comic hero pack: ensembles (the body that answers a head)', () => {
     for (const head of [heads.find(armoured), heads.find((h) => !armoured(h))]) {
       const id = HARMONY[head];
       expect(ENSEMBLES[id], `${head} → ${id}`).toBeTruthy();
-      const { spec } = memberOrders('hero', 'comic-day', { headgear: head, ensemble: 'auto' }).mint.args;
+      const { spec } = memberOrders('hero', 'dcau-golden', { headgear: head, ensemble: 'auto' }).mint.args;
       expect(validateHeroSpec(spec), `${head} in ${id}`).toEqual([]);
       if (ENSEMBLES[id].armor) expect(spec.adorn.type === 'armor' && spec.adorn.with.some((A) => A.part === 'cranium'), head).toBe(true);
     }
-    const G = memberOrders('hero', 'comic-day', { headgear: 'fishGladiator', ensemble: 'auto' }).mint.args.spec;
+    const G = memberOrders('hero', 'dcau-golden', { headgear: 'fishGladiator', ensemble: 'auto' }).mint.args.spec;
     expect(G.palette.Top).toBe(G.palette.Skin ?? '#e0b9a0');
-    expect(() => memberOrders('hero', 'comic-day', { headgear: 'domino', ensemble: 'auto' })).toThrow(/no ensemble answers/);
+    expect(() => memberOrders('hero', 'dcau-golden', { headgear: 'domino', ensemble: 'auto' })).toThrow(/no ensemble answers/);
   });
 });
