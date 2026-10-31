@@ -296,12 +296,16 @@ describe('the anime wave', () => {
 // built anew, the chibi's plan and recipe as they were (a child's proportions are its own), and each at laws 3 builds the
 // record, plan and recipe pinned before it (LAWS_3 below); then for the hero laws 5 (hero-form.js ARM_LENGTH: the
 // adult humerus and forearm shortened), the same again, each at laws 4 as pinned before it (LAWS_4 below)
+// then for the hero laws 21 (hero-form.js FORM_BODY: the landmark adult on the one body every tiered hero wears, its
+// chest narrowed and the male's pectoral layer gone): every record stamped `laws: 21`, the landmark adults' plans and
+// recipes built anew, head-none's and the chibi's as they were (no landmark head, a child's build), and each at laws 20
+// builds the record, plan and recipe pinned before it (LAWS_20 below)
 const PINS = {
-  landmarkMale: [{ cast: 'male' }, ['1456bd1db5d418ce', '41bd60ab3623a06d', '8255963574361639'], ['83486ddf925dd1e5', '061c177f4a0b9175']],
-  landmarkFemaleLowpoly: [{ cast: 'female', register: 'lowpoly' }, ['cecdca18cb1d4b68', 'c927544d60f2d254', '52faad4125c59d09'], ['a1abb4fbc8d78a61', '7f67633ae270e296']],
-  headNone: [{ cast: 'female', head: 'none' }, ['e5b62d6d817bf837', '41b706da8526b86c', '03fb84eabe1c07d8'], ['3501097320b96707', 'cd26a720b2420d48']],
-  ranger: [{ cast: 'male', hair: 'crop', detail: 'clothed', adorn: 'ranger' }, ['818eb466474572fd', '6a79f98126fbc1dc', 'f4ee8b82d0e9ccae'], ['e09eb3fc01c74335', '7510f5dc97a29248']],
-  chibiFaced: [{ cast: 'chibi', headScale: 1.3, face: 'broad-jaw' }, ['63d68f97c60a1b1d', '29e55dfcd666d970', '0234d75e92dcbaf9'], ['031f46caafd139ae', '1c2adc75891c5cf2']],
+  landmarkMale: [{ cast: 'male' }, ['ae13af57b6d7c787', '1e2fc74494cb9cb6', '86c43c78d0f6f402'], ['83486ddf925dd1e5', '061c177f4a0b9175']],
+  landmarkFemaleLowpoly: [{ cast: 'female', register: 'lowpoly' }, ['76989a9161d75ef3', '4b99766ac600fe34', '2d022ceb02259f0a'], ['a1abb4fbc8d78a61', '7f67633ae270e296']],
+  headNone: [{ cast: 'female', head: 'none' }, ['d72e08a05361b0e4', '41b706da8526b86c', '03fb84eabe1c07d8'], ['3501097320b96707', 'cd26a720b2420d48']],
+  ranger: [{ cast: 'male', hair: 'crop', detail: 'clothed', adorn: 'ranger' }, ['8f3fd29302ddb9ad', '03e2431f266c084f', 'cd72fd396314a251'], ['e09eb3fc01c74335', '7510f5dc97a29248']],
+  chibiFaced: [{ cast: 'chibi', headScale: 1.3, face: 'broad-jaw' }, ['2258187ca6506656', '29e55dfcd666d970', '0234d75e92dcbaf9'], ['031f46caafd139ae', '1c2adc75891c5cf2']],
 };
 /** the structured heroes as minted before the hero laws 2: their record without the stamp, and the plan and recipe a
  * row stamped laws 1 (or unstamped) still builds */
@@ -336,6 +340,14 @@ const LAWS_4 = {
   headNone: ['99445a734cc9a5ab', '47ee165f3473eaca', '8630ddd46fbb0d2e'], ranger: ['dbfcdbd606890fac', '614cfdf46293b64e', 'e21cd5c5c0bfc229'],
   chibiFaced: ['d7b9d264c21a0643', '37e5e2f421d7cf79', 'ba1b546d97b8f573'],
 };
+/** the heroes as minted under the hero laws 20 (before the form body reached the landmark head) */
+const LAWS_20 = {
+  landmarkMale: ['1456bd1db5d418ce', '41bd60ab3623a06d', '8255963574361639'],
+  landmarkFemaleLowpoly: ['cecdca18cb1d4b68', 'c927544d60f2d254', '52faad4125c59d09'],
+  headNone: ['e5b62d6d817bf837', '41b706da8526b86c', '03fb84eabe1c07d8'],
+  ranger: ['818eb466474572fd', '6a79f98126fbc1dc', 'f4ee8b82d0e9ccae'],
+  chibiFaced: ['63d68f97c60a1b1d', '29e55dfcd666d970', '0234d75e92dcbaf9'],
+};
 describe('the door: no gesture ⇒ byte-identical', () => {
   // (the structured core's plans and recipes re-pinned when its pelvis bone took the hip hinge's tilt, `pelvisTilt`: the
   // rig gained the reference joint; the streamlined core's pins did not move), and again for its shoulder girdle (the
@@ -357,8 +369,8 @@ describe('the door: no gesture ⇒ byte-identical', () => {
       for (const hr of [bare, { ...bare, laws: 1 }]) { const p = heroPlanOf(hr); expect(h(p)).toBe(plan); expect(h(expandPlan(p))).toBe(recipe); }
     }
   });
-  it('a row minted under the hero laws 2, 3, 4 or 5 builds as it did, byte for byte', () => {
-    for (const [L, pins] of [[2, LAWS_2], [3, LAWS_3], [4, LAWS_4], [5, LAWS_5]]) for (const [name, [record, plan, recipe]] of Object.entries(pins)) {
+  it('a row minted under the hero laws 2, 3, 4, 5 or 20 builds as it did, byte for byte', () => {
+    for (const [L, pins] of [[2, LAWS_2], [3, LAWS_3], [4, LAWS_4], [5, LAWS_5], [20, LAWS_20]]) for (const [name, [record, plan, recipe]] of Object.entries(pins)) {
       const hr = { ...heroRecord(PINS[name][0]), laws: L }, p = heroPlanOf(hr);
       expect(h(hr), `${name} laws ${L}`).toBe(record); expect(h(p), `${name} laws ${L}`).toBe(plan); expect(h(expandPlan(p)), `${name} laws ${L}`).toBe(recipe);
     }

@@ -574,10 +574,16 @@ describe('the World payload: absent ⇒ byte-identical', () => {
   // one under laws 14 is the value pinned before it, still (LAWS_14); the anime heroes (their own wave) as they were.
   // Re-pinned for the head seated on its neck, hero laws 16 (2026-10-25, merging the realism round-out): each one under
   // laws 15 is the value pinned before it, still (LAWS_15); the headless hero as it was.
+  // Re-pinned for the form body, hero laws 21 (hero-form.js FORM_BODY: the landmark adult rounded, its chest narrowed,
+  // the male's pectorals off; the lowpoly register keeps its facets but takes the chest): each one under laws 20 is the
+  // value pinned before it, still (LAWS_20); the headless hero as it was.
   it('the structured core (the default): the heroes\' payloads, pinned', async () => {
-    const S = { landmarkMale: [{ cast: 'male' }, ['54691a595e9320bf', '03b9fb5a7c3392f7', 'd86938f05a3f9c0f']],
-      landmarkFemaleLowpoly: [{ cast: 'female', register: 'lowpoly' }, ['21c885abd8cebb4b', '121dce540fae59be', '4a733c5ac17b3b49']],
+    const S = { landmarkMale: [{ cast: 'male' }, ['f3a27ca9fd9cef8e', '2c2eb276be708533', 'b6d28683a82d08c8']],
+      landmarkFemaleLowpoly: [{ cast: 'female', register: 'lowpoly' }, ['3fc9d89bc3b29309', 'f3ede715197e3713', '59bf5e2042371780']],
       headNone: [{ cast: 'female', head: 'none' }, ['82a11ef446c59684', '451bf3e3a0ea6b45', 'dbb43421213022eb']] };
+    const LAWS_20 = { landmarkMale: ['54691a595e9320bf', '03b9fb5a7c3392f7', 'd86938f05a3f9c0f'],
+      landmarkFemaleLowpoly: ['21c885abd8cebb4b', '121dce540fae59be', '4a733c5ac17b3b49'],
+      headNone: ['82a11ef446c59684', '451bf3e3a0ea6b45', 'dbb43421213022eb'] };
     const LAWS_15 = { landmarkMale: ['11b72bcb82042619', 'a1fbd0aa9163dd81', '4902a3e02aabec25'],
       landmarkFemaleLowpoly: ['ff73b46f123d7a49', 'edbe9cb88d1d9883', 'f3cf422abc79caab'],
       headNone: ['82a11ef446c59684', '451bf3e3a0ea6b45', 'dbb43421213022eb'] };
@@ -599,7 +605,7 @@ describe('the World payload: absent ⇒ byte-identical', () => {
     for (const [name, [spec, [plain, toon, unshaded]]] of Object.entries(S)) {
       const m = expandLayeredManifest({ kind: 'layered', hero: heroRecord(spec) });
       expect(h(await world(m)), name).toBe(plain); expect(h(await world({ ...m, toon: { bands: 3, ink: true } })), name).toBe(toon); expect(h(await world(m, { unshaded: true })), name).toBe(unshaded);
-      for (const [L, pins] of [[1, LAWS_1], [2, LAWS_2], [3, LAWS_3], [4, LAWS_4], [14, LAWS_14], [15, LAWS_15]]) {
+      for (const [L, pins] of [[1, LAWS_1], [2, LAWS_2], [3, LAWS_3], [4, LAWS_4], [14, LAWS_14], [15, LAWS_15], [20, LAWS_20]]) {
         const [p1, t1, u1] = pins[name], m1 = expandLayeredManifest({ kind: 'layered', hero: heroRecord({ ...spec, laws: L }) });
         expect(h(await world(m1)), `${name} laws ${L}`).toBe(p1); expect(h(await world({ ...m1, toon: { bands: 3, ink: true } })), `${name} laws ${L}`).toBe(t1); expect(h(await world(m1, { unshaded: true })), `${name} laws ${L}`).toBe(u1);
       }

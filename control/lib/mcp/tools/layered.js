@@ -1686,8 +1686,10 @@ export function heroReadout(hero, plan, stats, extraWarnings = [], { mesh, recip
   // the midsection measured (hero-core-measures.js) for the design loop's critic; its advice joins the warnings on the
   // structured core (the default: its bands are its contract), and stays in `core.advice` on a streamlined hero
   const coreM = coreMeasures(plan, mesh), coreBody = castOf(hero.cast, hero.proportions ?? (anime ? 'anime' : 'hero'))?.silhouette === 'female' ? 'female' : 'male';
-  // (an anime cast reads the core in its own canon, its `coreBands` in place of the body's: anime-styles.js)
-  const core = coreM ? { core: hero.core ?? DEFAULT_CORE, body: coreBody, ...coreM, advice: coreAdvice(coreM, coreBody, anime ? animeStyleOf(hero, castHeadPoleOf(hero))?.coreBands : null) } : null;
+  // (an anime cast reads the core in its own canon, its `coreBands` in place of the body's: anime-styles.js; over the form
+  // body's own, hero-form.js FORM_BODY)
+  const coreBands = { ...(formBodied(hero) ? FORM_BODY.coreBands[coreBody] : {}), ...(anime ? animeStyleOf(hero, castHeadPoleOf(hero))?.coreBands : {}) };
+  const core = coreM ? { core: hero.core ?? DEFAULT_CORE, body: coreBody, ...coreM, advice: coreAdvice(coreM, coreBody, Object.keys(coreBands).length ? coreBands : null) } : null;
   if (core && core.core === 'structured') warnings.push(...core.advice);
   // a designed piece with no place on this body is said, never dropped without a word (sortPieces)
   const styledOutfit = styledHero(hero).outfit;

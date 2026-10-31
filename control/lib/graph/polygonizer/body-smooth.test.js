@@ -38,8 +38,10 @@ describe('the body rounded', () => {
     const w = (v) => { const o = {}; skin.joints[v].forEach((j, k) => { if (skin.weights[v][k]) o[j] = (o[j] ?? 0) + skin.weights[v][k]; }); return o; }, A = w(a), B = w(b), I = w(i);
     for (const bi of Object.keys(I)) expect(I[bi]).toBeCloseTo(((A[bi] ?? 0) + (B[bi] ?? 0)) / 2, 6);
     // (a hero whose body is not rounded: a row stamped before the anime form's body, hero laws 20, anime-looks.js
-    // ANIME_FORM_BODY, and the landmark head's)
+    // ANIME_FORM_BODY, and the landmark head's before laws 21)
     expect(expandLayeredManifest({ kind: 'layered', hero: heroRecord({ cast: 'male', head: 'anime', laws: 19 }) }).recipe.smoothBody).toBeUndefined();
-    expect(expandLayeredManifest({ kind: 'layered', hero: heroRecord({ cast: 'male' }) }).recipe.smoothBody).toBeUndefined();
+    expect(expandLayeredManifest({ kind: 'layered', hero: heroRecord({ cast: 'male', laws: 20 }) }).recipe.smoothBody).toBeUndefined();
+    // (the landmark adult on the form body from hero laws 21, hero-form.js FORM_BODY: rounded as the anime adult is)
+    expect(expandLayeredManifest({ kind: 'layered', hero: heroRecord({ cast: 'male' }) }).recipe.smoothBody).toEqual({ rounds: 1 });
   });
 }, 300000);

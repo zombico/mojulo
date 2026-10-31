@@ -349,8 +349,13 @@ export const HERO_BUILD_NAMES = Object.freeze(Object.keys(HERO_BUILDS));
  * ANIME_FORM_BODY): the body rounded (its skin split once on the curved patch, body-smooth.js) and, as the rounded body
  * asks, the rib cage narrower under the shoulders and the male's pectoral layer gone; laws 1 to 19 built the anime body
  * as its rings, faceted, with the chest as it was. Not on a child or a chibi (its build's own body).
+ * Laws 21 GIVES THE LANDMARK HEAD'S ADULT THE FORM BODY (FORM_BODY, the anime adult's since laws 20): one body for every
+ * tiered hero, only the head making a difference: rounded, the rib cage narrower under the shoulders, no male pectoral
+ * layer, and on the lit export the engine's smooth normals over the whole figure, its face as well; laws 1 to 20 built the landmark hero's body as its rings, faceted, with the chest
+ * as it was. Not on a child or a chibi, a hero robot's toy body, an undead's or a beast-kin's (their own bodies, for
+ * now), nor the realistic form.
  */
-export const HERO_LAWS_VERSION = 20;
+export const HERO_LAWS_VERSION = 21;
 /** Does this spec read a table the hero laws cover? (the structured core's shoulder line, laws 2, leg set, laws 3, leg length, laws 4, and arm length, laws 5:
  * every hero on the default core) */
 export const readsHeroLaws = (spec) => (spec.core ?? DEFAULT_CORE) === 'structured' || spec.form === 'tiered' || (spec.painterly !== undefined && spec.painterly !== null && spec.painterly !== false) || isBuiltCast(spec.cast) || (spec.geocube !== undefined && spec.geocube !== null);
@@ -434,9 +439,12 @@ export const castOf = (cast, proportions = 'hero') => {
 export const FORM_BODY = Object.freeze({
   smooth: 1,
   chest: Object.freeze({ male: Object.freeze({ width: 0.82, pec: false }), female: Object.freeze({ width: 0.82 }) }),
+  // the core read on it (hero-core-measures.js CORE_BANDS, a cast's own bands over these): rounded, the female's hip side
+  // falls from its waist ring nearly straight to the trochanter, so its widest stretch is a plateau under 2 mm flat from
+  // the hip joint down, and its peak may read anywhere on it
+  coreBands: Object.freeze({ female: Object.freeze({ hipPeak: Object.freeze([-0.45, -0.05]) }) }),
 });
-/** the hero laws each head first wears the form body under (the landmark head's prepared: stamped when HERO_LAWS_VERSION
- * reaches it, so until then no landmark hero wears it) */
+/** the hero laws each head first wears the form body under */
 export const FORM_BODY_LAWS = Object.freeze({ anime: 20, landmark: 21 });
 /** does this hero wear the form body: its head's laws, an adult's build (the anime head's as laws 20 read it) */
 export function formBodied(hero) {
