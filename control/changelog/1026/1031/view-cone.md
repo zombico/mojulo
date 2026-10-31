@@ -17,6 +17,15 @@
   cell's dice, lit and shadowed as the ground is, and speckled with world-anchored specks about a pixel and a half at
   their distance (the grain snapped to powers of two, so it holds while the eye walks): a flower's colour where flowers
   grow, a weed's head in the weeds' patches, a lighter or a darker fleck. No draw, no triangle. F toggles it.
+- **The far trees** (`scene/channels/form-flora.js` `FLORA_FAR`): in gameplay's camera a plant climbs a ladder by the
+  screen's own rule, each rung where its own grain goes under a pixel: whole inside the cone's reach (where its old
+  hand-set 25 m was); past it, its own far form; and past where its card's texel is under a pixel, its card. The card is
+  itself from that side at the card's grain, solved from the recipe rather than rendered: its near crown's own leaves
+  (each clump's turned as the tree's recipe turns them, so the leaf mass lies the way its clusters do, gaps kept, no
+  volume the leaves do not hold) and its wood's own triangles, baked once a template from eight bearings, lit as the
+  land is by each leaf's clump's facing, at each leaf's own tone, casting its silhouette from the sun's side.
+  Every far plant is one draw. A needled crown and a culm keep their own far form; the aerial camera keeps the old
+  ladder.
 - **No strands past the reach** (`scene/channels/form-grass.js`): the 0.45 m strand rows and their meshes are gone; a
   far map, one strand a cell of the grass map (its height, colour slot and dice), is what the far field paints from
   (`window.__formFar`).

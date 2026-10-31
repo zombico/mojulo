@@ -11,7 +11,7 @@
  *
  *   formFloraScript(flora, { snow? }) → the block's page source (absent `flora`, the land's block carries none); `snow`, the
  *     land's snow (channels/form-land.js, its map `SM`) caps the leaves that turn up where it lies
- *   `window.__formFlora()` → { templates, plants, near, far, sprays, triangles } what is drawn now
+ *   `window.__formFlora()` → { templates, plants, near, far, impressions, sprays, triangles } what is drawn now
  */
 import { safeJson } from '../emit-util.js';
 import { WIND_AT_GLSL } from './terrain-wind.js';
@@ -54,6 +54,22 @@ const LITTER_SHAPES = Object.freeze(['ovate', 'lobed', 'broad', 'lance', 'needle
  */
 export const NEEDLE_LOOK = Object.freeze({ steps: 14, cell: Object.freeze([0.026, 0.024]), length: Object.freeze([0.6, 0.4]), tilt: 0.7, width: 0.5,
   shade: Object.freeze([1.15, 0.5]), core: 0.08, solid: 1.2 });
+/**
+ * THE FAR TREES: past the view cone's reach (channels/view-cone.js), in gameplay's camera, a tree or a bush is drawn as
+ * its IMPRESSION: a card turned to the eye, painted with itself from that side at the card's own grain. Solved from the
+ * recipe, not rendered: its near crown's own leaves (each clump's turned as the tree's recipe turns them, so the leaf
+ * mass lies the way its clusters do, its gaps kept, no volume the leaves do not hold) and its wood's own triangles,
+ * rasterized at `texels` (the crown's width, its height) from `bearings` sides, a leaf a quarter texel wider (`leaf`) so
+ * a leaf under a texel is still a pixel of leaf, a limb half a texel (`wood`); each texel its surface's facing (a leaf's
+ * its clump's), its tone (a leaf's its own) and whether leaf or wood. Baked once a template at load. The card is lit as
+ * the land is by that facing, the leaf its plant's colour at its own tone and the wood its bark's, and casts its
+ * silhouette from the sun's side into the land's shadow map. Every far plant is one draw. A needled crown and a culm keep their own far form.
+ * A plant climbs a ladder by the screen's own rule, each rung where its own grain goes under a pixel: whole inside the
+ * view cone's reach; past it, its own far form (fewer clumps grown, its thick axes); and its card where the card's texel
+ * (its width over `texels`, × the plant's scale) is under `px` pixels at its distance. The aerial camera keeps the
+ * trees' own far form past FLORA_LOD.mid.
+ */
+export const FLORA_FAR = Object.freeze({ bearings: 8, texels: Object.freeze([64, 96]), px: 1, leaf: 0.25, wood: 0.5 });
 export const FLORA_WIND = Object.freeze({ phi: 0.006, bushPhi: 0.004, culmPhi: 0.012, limb: 1.2, flutter: 0.025, shake: 0.07, settle: 1.2 });
 const SWAY_GLSL = `vec3 floraSway( vec3 wp, vec3 base, float w, float leaf, float shake, float ph ) {
   vec2 u = mojWindAt( wp.xy, max( 0.5, wp.z - base.z ), uWindT ); float m = length( u );
@@ -312,28 +328,113 @@ ${snow ? `    // (under snow, era/snow.js capOf: a leaf turned up past its cap c
       }
       return { t, parts, list: by[ti] };
     });
+    // THE FAR TREES (FLORA_FAR): each template's silhouette from each bearing, baked from its clumps' discs and its trunk;
+    // one card a far plant, turned to the eye, painted with it
+    const FF0 = ${safeJson(FLORA_FAR)}, IB = FF0.bearings, [IW, IH] = FF0.texels;
+    const impOf = T.map(({ t }) => !t.sleeve && !t.culm && t.nClumps > 0);
+    const impRow = []; let rows = 0; impOf.forEach((ok, ti) => { impRow[ti] = ok ? rows++ : -1; });
+    const atlas = new Uint8Array(Math.max(1, rows) * IH * IB * IW * 4), tpl = Array.from({ length: Math.max(1, T.length) }, () => new THREE.Vector4());
+    T.forEach(({ t }, ti) => {
+      if (!impOf[ti]) return;
+      // (the leaves: the near crown's own triangles, each clump's leaves as the tree's recipe turns them, its tone and
+      // its clump's facing)
+      const CG = T[ti].parts.crown.im.geometry, LP = CG.getAttribute('position').array, LC = CG.getAttribute('color').array, LO = CG.getAttribute('aOut').array;
+      // (the wood: its trunk and its limbs, the triangles themselves)
+      const W = f32(t.wood.pos), WI = t.wood.big ? new Uint32Array(bytes(t.wood.idx).buffer) : new Uint16Array(bytes(t.wood.idx).buffer);
+      let R = 0.5, top = 0.5;
+      for (const A of [LP, W]) for (let k = 0; k < A.length; k += 3) { R = Math.max(R, Math.hypot(A[k], A[k + 1])); top = Math.max(top, A[k + 2]); }
+      const row = impRow[ti], du0 = (2 * R) / IW, dv0 = top / IH, depth = new Float32Array(IW * IH);
+      tpl[ti].set(R, top, row, du0);
+      for (let k = 0; k < IB; k++) {
+        const th = (2 * Math.PI * k) / IB, rx = -Math.sin(th), ry = Math.cos(th), tx = Math.cos(th), ty = Math.sin(th);
+        depth.fill(-Infinity);
+        const put = (iu, iv, f, nx, ny, tone, kind) => { const q = iv * IW + iu; if (f <= depth[q]) return; depth[q] = f; const o = (((row * IH + iv) * IB + k) * IW + iu) * 4;
+          atlas[o] = Math.round((Math.max(-1, Math.min(1, nx)) * 0.5 + 0.5) * 255); atlas[o + 1] = Math.round((Math.max(-1, Math.min(1, ny)) * 0.5 + 0.5) * 255); atlas[o + 2] = Math.round(Math.min(1, tone) * 255); atlas[o + 3] = kind; };
+        // (a triangle over its box: a texel whose centre is inside it, or within its grow of texels, is its; front-most wins)
+        const tri = (a0, a1, a2, grow, nu, nv, tone, kind) => {
+          const V = [a0, a1, a2].map((a) => [(a[0] * rx + a[1] * ry + R) / du0, a[2] / dv0, a[0] * tx + a[1] * ty]);
+          const area = (V[1][0] - V[0][0]) * (V[2][1] - V[0][1]) - (V[2][0] - V[0][0]) * (V[1][1] - V[0][1]), f = (V[0][2] + V[1][2] + V[2][2]) / 3;
+          for (let iv = Math.max(0, Math.floor(Math.min(V[0][1], V[1][1], V[2][1]) - grow)); iv <= Math.min(IH - 1, Math.floor(Math.max(V[0][1], V[1][1], V[2][1]) + grow)); iv++)
+            for (let iu = Math.max(0, Math.floor(Math.min(V[0][0], V[1][0], V[2][0]) - grow)); iu <= Math.min(IW - 1, Math.floor(Math.max(V[0][0], V[1][0], V[2][0]) + grow)); iu++) {
+              const px = iu + 0.5, py = iv + 0.5;
+              let ok = true; for (let e = 0; e < 3 && ok; e++) { const a = V[e], b = V[(e + 1) % 3], ex = b[0] - a[0], ey = b[1] - a[1], el = Math.hypot(ex, ey) || 1e-6; if ((Math.sign(area || 1) * (ex * (py - a[1]) - ey * (px - a[0]))) / el < -grow) ok = false; }
+              if (ok) put(iu, iv, f, nu, nv, tone, kind);
+            }
+        };
+        const at = (A, v) => [A[v * 3], A[v * 3 + 1], A[v * 3 + 2]];
+        // (the leaves, a quarter texel wider so a leaf under a texel is still a pixel of leaf; lit as their clump faces)
+        for (let v = 0; v < LP.length / 3; v += 3) {
+          const o = at(LO, v), tone = ((LC[v * 3] + LC[v * 3 + 1] + LC[v * 3 + 2]) / 3) * 0.5;
+          tri(at(LP, v), at(LP, v + 1), at(LP, v + 2), FF0.leaf, o[0] * rx + o[1] * ry, o[2], tone, 255);
+        }
+        // (the wood, half a texel wider so a limb thinner than a texel still shows)
+        for (let f = 0; f < WI.length; f += 3) {
+          const a = at(W, WI[f]), b = at(W, WI[f + 1]), c = at(W, WI[f + 2]), e1 = [b[0] - a[0], b[1] - a[1], b[2] - a[2]], e2 = [c[0] - a[0], c[1] - a[1], c[2] - a[2]];
+          const n = [e1[1] * e2[2] - e1[2] * e2[1], e1[2] * e2[0] - e1[0] * e2[2], e1[0] * e2[1] - e1[1] * e2[0]], nl = Math.hypot(...n) || 1;
+          tri(a, b, c, FF0.wood, (n[0] * rx + n[1] * ry) / nl, n[2] / nl, 0.5, 128);
+        }
+      }
+    });
+    const impTex = new THREE.DataTexture(atlas, IB * IW, Math.max(1, rows) * IH, THREE.RGBAFormat); impTex.magFilter = impTex.minFilter = THREE.NearestFilter; impTex.needsUpdate = true;
+    const ig = new THREE.InstancedBufferGeometry(); ig.setAttribute('position', new THREE.Float32BufferAttribute([-1, 0, 0, 1, 0, 0, 1, 0, 1, -1, 0, 1], 3)); ig.setIndex([0, 1, 2, 0, 2, 3]);
+    const iPos = new Float32Array(Math.max(1, N) * 4), iTR = new Float32Array(Math.max(1, N) * 2), iLeaf = new Float32Array(Math.max(1, N) * 3), iBark = new Float32Array(Math.max(1, N) * 3);
+    for (const [k, a, w] of [['aPos', iPos, 4], ['aTR', iTR, 2], ['aLeaf', iLeaf, 3], ['aBark', iBark, 3]]) ig.setAttribute(k, new THREE.InstancedBufferAttribute(a, w).setUsage(THREE.DynamicDrawUsage));
+    ig.instanceCount = 0;
+    const IU = { tImp: { value: impTex }, uTpl: { value: tpl }, uImpRows: { value: Math.max(1, rows) } };
+    // (the card: turned to the eye about its foot, its bearing the nearest baked one in the plant's own turn)
+    const IMP_VERT = 'attribute vec4 aPos;\\nattribute vec2 aTR;\\nattribute vec3 aLeaf;\\nattribute vec3 aBark;\\nuniform vec4 uTpl[ ' + Math.max(1, T.length) + ' ];\\nuniform float uImpRows;\\nvarying vec2 vAt;\\nvarying vec3 vLeaf, vBark, vRt, vTw;\\n';
+    const IMP_PLACE = [
+      'vec4 Tp = uTpl[ int( aTR.y + 0.5 ) ]; vec2 to = cameraPosition.xy - aPos.xy; float Lt = length( to ); vec2 tw = Lt > 1e-4 ? to / Lt : vec2( 1.0, 0.0 ), rt = vec2( -tw.y, tw.x );',
+      'float bk = mod( floor( ( atan( tw.y, tw.x ) - aTR.x ) / 6.2831853 * ' + IB.toFixed(1) + ' + 0.5 ), ' + IB.toFixed(1) + ' );',
+      'vec3 transformed = vec3( aPos.xy + rt * position.x * Tp.x * aPos.w, aPos.z + position.z * Tp.y * aPos.w );',
+      'vAt = vec2( ( bk + position.x * 0.5 + 0.5 ) / ' + IB.toFixed(1) + ', ( Tp.z + position.z ) / uImpRows ); vLeaf = aLeaf; vBark = aBark; vRt = vec3( rt, 0.0 ); vTw = vec3( tw, 0.0 );'].join('\\n');
+    const im = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.85, metalness: 0, side: THREE.DoubleSide });
+    im.onBeforeCompile = (sh) => {
+      Object.assign(sh.uniforms, IU);
+      sh.vertexShader = IMP_VERT + sh.vertexShader.replace('#include <begin_vertex>', IMP_PLACE);
+      sh.fragmentShader = 'uniform sampler2D tImp;\\nvarying vec2 vAt;\\nvarying vec3 vLeaf, vBark, vRt, vTw;\\n' + sh.fragmentShader
+        .replace('#include <color_fragment>', '#include <color_fragment>\\n  vec4 impA = texture2D( tImp, vAt ); if ( impA.a < 0.25 ) discard;\\n  diffuseColor.rgb *= ( impA.a > 0.75 ? vLeaf : vBark ) * impA.b * 2.0;')
+        .replace('#include <normal_fragment_begin>', '#include <normal_fragment_begin>\\n  { vec2 nn = impA.rg * 2.0 - 1.0; normal = normalize( ( viewMatrix * vec4( normalize( vRt * nn.x + vec3( 0.0, 0.0, 1.0 ) * nn.y + vTw * sqrt( max( 0.0, 1.0 - dot( nn, nn ) ) ) ), 0.0 ) ).xyz ); }');
+    };
+    im.customProgramCacheKey = () => 'form-flora-far';
+    // (its shadow: the card turned to the sun, its silhouette from that side)
+    const idm = new THREE.MeshDepthMaterial({ depthPacking: THREE.RGBADepthPacking });
+    idm.onBeforeCompile = (sh) => {
+      Object.assign(sh.uniforms, IU);
+      sh.vertexShader = IMP_VERT + sh.vertexShader.replace('#include <begin_vertex>', IMP_PLACE);
+      sh.fragmentShader = 'uniform sampler2D tImp;\\nvarying vec2 vAt;\\n' + sh.fragmentShader.replace('void main() {', 'void main() {\\n  if ( texture2D( tImp, vAt ).a < 0.25 ) discard;');
+    };
+    idm.customProgramCacheKey = () => 'form-flora-far-depth';
+    const impMesh = new THREE.Mesh(ig, im); impMesh.customDepthMaterial = idm; impMesh.castShadow = impMesh.receiveShadow = true; impMesh.frustumCulled = false; scene.add(impMesh);
     // the sort: near copies their whole wood and crown (and their sprays inside the detail range), far ones their thick
     // axes and far crown; every copy's matrix and colours set into the pieces it is drawn in
     let stat = {};
     function sortPlants() {
-      eye.value.copy(camera.position); let near = 0, far = 0, sprays = 0, tris = 0;
+      eye.value.copy(camera.position); let near = 0, far = 0, sprays = 0, tris = 0, imps = 0;
+      // (gameplay's camera: the near trees end at the view cone's reach and past it each is its impression; the aerial
+      // camera keeps the trees' own far form past FLORA_LOD.mid)
+      const CO = window.__mojCone, FFd = window.__formFar, pov = !!CO && CO.reach < 1e5 && (!FFd || FFd.pov()) && (!window.__formFarField || window.__formFarField.on);
+      const mid = pov ? CO.reach : LOD.mid;
       // (the sprays on the nearest copies inside the detail range only: every other copy's would be drawn at nothing)
       const ranked = [];
       for (const [ti, { t, list }] of T.entries()) for (const i of list) { const b = i * STRIDE, d = Math.hypot(P[b] - camera.position.x, P[b + 1] - camera.position.y, P[b + 2] + t.height * P[b + 3] * 0.5 - camera.position.z) - t.radius * P[b + 3]; if (d < (t.detail || LOD.detail)[1]) ranked.push([d, i]); }
       const sprayed = new Set(ranked.sort((a, b) => a[0] - b[0]).slice(0, LOD.sprayed).map((r) => r[1]));
-      for (const { t, parts, list } of T) {
+      for (const [ti, { t, parts, list }] of T.entries()) {
         const c = { wood: 0, woodFar: 0, crown: 0, crownFar: 0, sprays: 0, adorn: 0 };
         for (const i of list) {
           const b = i * STRIDE, sc = P[b + 3], d = Math.hypot(P[b] - camera.position.x, P[b + 1] - camera.position.y, P[b + 2] + t.height * sc * 0.5 - camera.position.z);
           q.setFromAxisAngle(AXZ, P[b + 4]); m4.compose(pv.set(P[b], P[b + 1], P[b + 2]), q, sv.set(sc, sc, sc));
-          const isNear = d < LOD.mid, put = (k, col) => { const X = parts[k]; if (!X) return; X.im.setMatrixAt(c[k], m4); if (col) X.im.setColorAt(c[k], col); X.slot[c[k]] = i; c[k]++; };
+          const isNear = d < mid, card = pov && impOf[ti] && d >= Math.max(mid, (tpl[ti].w * sc) / (FF0.px * CO.px)), put = (k, col) => { const X = parts[k]; if (!X) return; X.im.setMatrixAt(c[k], m4); if (col) X.im.setColorAt(c[k], col); X.slot[c[k]] = i; c[k]++; };
           const leafC = cv.setRGB(P[b + 5], P[b + 6], P[b + 7], THREE.LinearSRGBColorSpace).clone(), barkC = new THREE.Color().setRGB(P[b + 8], P[b + 9], P[b + 10], THREE.LinearSRGBColorSpace);
-          if (isNear) { put('wood', barkC); put('crown', leafC); if (parts.adorn) put('adorn', new THREE.Color(1, 1, 1)); near++; } else { put('woodFar', barkC); put('crownFar', leafC); far++; }
+          if (isNear) { put('wood', barkC); put('crown', leafC); if (parts.adorn) put('adorn', new THREE.Color(1, 1, 1)); near++; }
+          else if (card) { const bm = FL.barks[t.bark] ? FL.barks[t.bark].mean : [0.1, 0.07, 0.05]; iPos.set([P[b], P[b + 1], P[b + 2], sc], imps * 4); iTR.set([P[b + 4], ti], imps * 2); iLeaf.set([leafC.r, leafC.g, leafC.b], imps * 3); iBark.set([barkC.r * bm[0], barkC.g * bm[1], barkC.b * bm[2]], imps * 3); imps++; far++; }
+          else { put('woodFar', barkC); put('crownFar', leafC); far++; }
           if (sprayed.has(i)) { put('sprays', leafC); sprays++; }
         }
         for (const [k, X] of Object.entries(parts)) { X.im.count = c[k]; X.im.instanceMatrix.needsUpdate = true; if (X.im.instanceColor) X.im.instanceColor.needsUpdate = true; tris += c[k] * X.tris; }
       }
-      stat = { templates: T.length, plants: N, near, far, sprays, triangles: tris, wind: !!(window.__mojTerrain && window.__mojTerrain.wind),
+      ig.instanceCount = imps; for (const k of ['aPos', 'aTR', 'aLeaf', 'aBark']) ig.getAttribute(k).needsUpdate = true; tris += imps * 2;
+      stat = { templates: T.length, plants: N, near, far, impressions: imps, sprays, triangles: tris, wind: !!(window.__mojTerrain && window.__mojTerrain.wind),
         // (the trunks stand: each template's share of its wood held still, and of its leaves at full sway)
         rigid: T.map(({ t, parts }) => { const w = parts.wood.im.geometry.getAttribute('aSway').array, l = parts.crown.im.geometry.getAttribute('aSway').array; let a = 0, b = 0; for (const v of w) if (v < 0.05) a++; for (const v of l) if (v > 0.95) b++; return { name: t.name, wood: +(a / w.length).toFixed(2), leaves: +(b / l.length).toFixed(2) }; }) };
     }
