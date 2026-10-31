@@ -30,6 +30,15 @@
   chipped or as its block at any distance before, are chipped inside the cone's reach (a stone big enough to cast),
   their block past it, and gone once the whole stone is under a pixel, where the ground's own scree and pebbles carry
   it. The meadow's cameras draw about 300k fewer triangles each, looking the same.
+- **The far structures** (`scene/channels/far-structures.js`): what stands on a form page that is not the land or a
+  plant (a town's buildings, fences, poles, cars), painted a mesh a group across the whole level, is drawn instead as a
+  batch a group (`BatchedMesh`, one draw as before on a GPU with multi-draw) of 16 m tiles, each shown or left out on its
+  own, and each tile has its card: itself from that side, baked once from its own triangles and colours from eight
+  bearings, turned to the eye and casting from the sun's side. A tile is its card past the cone's reach where its card's
+  texel is under a pixel. What stands is a triangle more than half a metre over the land's own height and under 60 m, so
+  roads, kerbs, terrain and clouds stay live. A pass that swaps its own material onto each mesh (the creases' and the
+  occlusion's prepass) draws the merged mesh in its place; the cards, the trees' too, sit it out.
+  `scripts/runnability.mjs` counts a multi-draw's triangles.
 - **No strands past the reach** (`scene/channels/form-grass.js`): the 0.45 m strand rows and their meshes are gone; a
   far map, one strand a cell of the grass map (its height, colour slot and dice), is what the far field paints from
   (`window.__formFar`).

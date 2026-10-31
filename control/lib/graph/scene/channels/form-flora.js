@@ -405,7 +405,7 @@ ${snow ? `    // (under snow, era/snow.js capOf: a leaf turned up past its cap c
       sh.fragmentShader = 'uniform sampler2D tImp;\\nvarying vec2 vAt;\\n' + sh.fragmentShader.replace('void main() {', 'void main() {\\n  if ( texture2D( tImp, vAt ).a < 0.25 ) discard;');
     };
     idm.customProgramCacheKey = () => 'form-flora-far-depth';
-    const impMesh = new THREE.Mesh(ig, im); impMesh.customDepthMaterial = idm; impMesh.castShadow = impMesh.receiveShadow = true; impMesh.frustumCulled = false; scene.add(impMesh);
+    const impMesh = new THREE.Mesh(ig, im); impMesh.customDepthMaterial = idm; impMesh.castShadow = impMesh.receiveShadow = true; impMesh.frustumCulled = false; impMesh.userData.ink = true; scene.add(impMesh);
     // the sort: near copies their whole wood and crown (and their sprays inside the detail range), far ones their thick
     // axes and far crown; every copy's matrix and colours set into the pieces it is drawn in
     let stat = {};

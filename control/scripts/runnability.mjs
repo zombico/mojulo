@@ -32,6 +32,23 @@ function hooks() {
   wrap('drawArraysInstanced', (a) => { S.draws++; if (a[0] === 4) S.tri += (a[2] / 3) * a[3]; });
   wrap('drawElements', (a) => { S.draws++; if (a[0] === 4) S.tri += a[1] / 3; });
   wrap('drawArrays', (a) => { S.draws++; if (a[0] === 4) S.tri += a[2] / 3; });
+  // (a multi-draw, WEBGL_multi_draw, as a BatchedMesh draws: one draw, the triangles of every range it draws)
+  const getExt = P.getExtension;
+  P.getExtension = function (name) {
+    const e = getExt.call(this, name);
+    if (e && name === 'WEBGL_multi_draw' && !e.__run) {
+      e.__run = true;
+      const sum = (L, off, n) => { let t = 0; for (let i = 0; i < n; i++) t += L[off + i]; return t; };
+      const mA = e.multiDrawArraysWEBGL, mE = e.multiDrawElementsWEBGL;
+      if (mA) e.multiDrawArraysWEBGL = function (...a) { S.draws++; if (a[0] === 4) S.tri += sum(a[3], a[4], a[5]) / 3; return mA.apply(this, a); };
+      if (mE) e.multiDrawElementsWEBGL = function (...a) { S.draws++; if (a[0] === 4) S.tri += sum(a[1], a[2], a[6]) / 3; return mE.apply(this, a); };
+      const iA = e.multiDrawArraysInstancedWEBGL, iE = e.multiDrawElementsInstancedWEBGL;
+      const sumI = (L, lo, I, io, n) => { let t = 0; for (let i = 0; i < n; i++) t += L[lo + i] * I[io + i]; return t; };
+      if (iA) e.multiDrawArraysInstancedWEBGL = function (...a) { S.draws++; if (a[0] === 4) S.tri += sumI(a[3], a[4], a[5], a[6], a[7]) / 3; return iA.apply(this, a); };
+      if (iE) e.multiDrawElementsInstancedWEBGL = function (...a) { S.draws++; if (a[0] === 4) S.tri += sumI(a[1], a[2], a[6], a[7], a[8]) / 3; return iE.apply(this, a); };
+    }
+    return e;
+  };
   wrap('linkProgram', () => { S.programs++; });
   wrap('bufferData', (a) => { const d = a[1]; S.buf += typeof d === 'number' ? d : d && d.byteLength ? d.byteLength : 0; });
   const bytes = (d) => (d && d.byteLength ? d.byteLength : 0);
