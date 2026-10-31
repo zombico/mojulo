@@ -1436,7 +1436,7 @@ class GlbBuilder {
  */
 /** a vault's extras in the export's units (metres × mpu): the box, the take-off and landing distances, the run */
 const vaultExtras = (v, mpu) => { const m = (x) => Math.round(x * mpu * 1e4) / 1e4; return { ...v, box: { h: m(v.box.h), d: m(v.box.d), w: m(v.box.w) }, entry: { ...v.entry, takeoff: m(v.entry.takeoff) }, exit: { ...v.exit, landing: m(v.exit.landing) }, travel: m(v.travel) }; };
-export function facesToGlb(payload = {}, { generator, clips = null, skinned = false, quantize = false, humanoid = false, lit = false, roughness = 0.85, instances = null, handoff = false } = {}) {
+export function facesToGlb(payload = {}, { generator, clips = null, skinned = false, quantize = false, humanoid = false, lit = false, roughness = 0.85, instances = null, handoff = false, materials = null } = {}) {
   const { faces = [], textures = {}, light = null, ao = null, vertexContrast = null, repeats = [], figures = null } = payload || {};
   const repeatList = (Array.isArray(repeats) ? repeats : []).filter((r) => r && Array.isArray(r.template) && r.template.length && Array.isArray(r.transforms) && r.transforms.length);
   // rig-figure selection: only packed rigs qualify (figure-frames stacks / polygomer statics have
@@ -1646,10 +1646,20 @@ export function facesToGlb(payload = {}, { generator, clips = null, skinned = fa
     for (const f of fs) if (f && typeof f.texture === 'string' && Array.isArray(f.pbr) && f.pbr.length >= 2) texPbr.set(f.texture, f.pbr);
     for (const [key, grp] of Object.entries(gm.textureGroups || {})) {
       if (!grp.positions.length) continue;
-      const texIdx = b.imageFromDataUrl(textures[key]);
+      // (the engine handoff's form material for this tile, scene/handoff.js `materials`: its colour under no light, its
+      // relief's normal, occlusion and roughness, its height in the extras; absent, the tile as it was)
+      const fm = materials && materials[key];
+      const texIdx = b.imageFromDataUrl(fm ? fm.base : textures[key]);
       const pbr = texPbr.get(key) || null;
       let tr;
-      if (texIdx != null) {
+      if (texIdx != null && fm) {
+        const [nIdx, oIdx, hIdx] = [fm.normal, fm.orm, fm.height].map((u) => (u ? b.imageFromDataUrl(u) : null));
+        const mat = b.pbrMaterial({ metallic: 0, roughness: fm.rough ?? 0.85, baseColorTexture: texIdx, alpha: groupAlpha, name: `${name}:${key}`,
+          ...(nIdx != null ? { normalTexture: nIdx } : {}), ...(oIdx != null ? { ormTexture: oIdx } : {}),
+          ...(hIdx != null ? { extras: { mojulo: { height: { index: hIdx }, depth: fm.depth, metres: fm.metres } } } : {}) });
+        if (oIdx != null) b.json.materials[mat].pbrMetallicRoughness.metallicFactor = 0;
+        tr = b.addNode(`${name}:${key}`, grp.positions, null, 3, mat, grp.uvs);
+      } else if (texIdx != null) {
         const mat = pbr
           ? b.pbrMaterial({ metallic: pbr[0], roughness: pbr[1], baseColorTexture: texIdx, alpha: groupAlpha, name: `${name}:${key}` })
           : b.surfaceMaterial({ baseColorTexture: texIdx, alpha: groupAlpha, name: `${name}:${key}` });

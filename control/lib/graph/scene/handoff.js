@@ -16,17 +16,25 @@
  *     ledger    { version, era, what, carried: { faces, instances: { <set>: n } }, stays: [what stayed the web's] }
  *   stoneInstances(stones) → [instance set]: the form land's scree stones (form/land-stones.js), one set per shape, size
  *     and tone, each stone a node turned to its ground's normal and yawed by its index, as the World page stands them
+ *   dressedMaterials(keys) → { <key>: { base, normal, orm, height, depth, metres, rough } }: each tile key painted by the
+ *     matte painter (matte-paint/dressed.js, the `dressed` generator) painted again as material: its colour under no light,
+ *     its relief's tangent-space normal, glTF's ORM (occlusion red, roughness green, no metal) and its height as its own
+ *     grey map over `depth` metres, for an engine's parallax. A tile painted any other way keeps its paint (its light
+ *     painted in, the ledger says so)
  *   floraInstances(flora) → [instance set]: the form render's plants (form/flora-read.js), per template its wood on its
  *     bark (base, normal, ORM, the height in the extras) and its crown (its clumps merged in its own space as the page
  *     merges them, each leaf's normal bent toward the crown's outside, as the page's shader bends it), each plant a node
  *     of each, turned about +Z and scaled to its height
  *
- * Built so far: the albedo floor, the scree's stones and the plants. The land's layers, the dressed faces' relief, the
- * rooms, the environment and the markers join as their phases land.
+ * Built so far: the albedo floor, the scree's stones, the plants and the dressed faces. The land's layers, the rooms'
+ * light, the environment and the markers join as their phases land.
  */
 import { resolveWorldScene } from '../worlds/world-scene.js';
 import { facesToGlb } from './scene-gltf.js';
 import { stoneForms } from '../form/land-stones.js';
+import { dressedMaterial } from '../matte-paint/dressed.js';
+import { FORM_ROUGH } from '../form/room-form.js';
+import { generatedSpecOf, encodePng, encodePngGrey } from '../landscape/surface-textures.js';
 
 export const HANDOFF_VERSION = 'handoff/0';
 export const HANDOFF_WHATS = Object.freeze(['level', 'asset']);
@@ -38,6 +46,7 @@ const STAYS = Object.freeze([
   'the land\'s layered ground (its layers, their relief and parallax): the land leaves as its painted faces\' albedo',
   'the stones\' skin (the rock layer\'s tile over them): each stone leaves in its solved colour',
   'each plant\'s own tint (a template\'s plants leave in their mean leaf and bark colour), the wind, the sprays near the eye, the far levels of detail (an engine makes its own), a needled crown\'s needles, a shrub\'s blossoms and berries',
+  'a tile painted other than from relief (its light painted in): it leaves as its paint',
   'the grass and its drifts',
   'the light: the sun at the level\'s hour, the sky, fog and occlusion',
 ]);
@@ -79,6 +88,31 @@ export function stoneInstances(stones) {
     });
   }
   return [...sets.keys()].sort().map((k) => sets.get(k));
+}
+
+// --- the dressed faces (the matte painter's tiles, read as the material they were painted from) ---
+
+const dressedCache = new Map();
+const pngUrl = (buf) => `data:image/png;base64,${buf.toString('base64')}`;
+export function dressedMaterials(keys) {
+  const out = {};
+  for (const key of [...new Set(keys)].sort()) {
+    const spec = typeof key === 'string' ? generatedSpecOf(key) : null;
+    if (!spec || spec.gen !== 'dressed') continue;
+    if (dressedCache.has(key) && !dressedCache.get(key)) continue;
+    if (!dressedCache.has(key)) {
+      // (a cut that paints without a relief has no material: it keeps its paint)
+      const rough = FORM_ROUGH[spec.cfg.cut] ?? 0.85;
+      let M = null; try { M = dressedMaterial(spec.cfg, { size: spec.size, seed: spec.seed, rough }); } catch { dressedCache.set(key, null); continue; }
+      let lo = Infinity, hi = -Infinity; for (const h of M.height) { if (h < lo) lo = h; if (h > hi) hi = h; }
+      const span = Math.max(1e-6, hi - lo), grey = Buffer.alloc(M.W * M.H);
+      for (let k = 0; k < grey.length; k++) grey[k] = Math.round(((M.height[k] - lo) / span) * 255);
+      dressedCache.set(key, { base: pngUrl(encodePng(M.baseColor, M.W, M.H)), normal: pngUrl(encodePng(M.normal, M.W, M.H)), orm: pngUrl(encodePng(M.orm, M.W, M.H)),
+        height: pngUrl(encodePngGrey(grey, M.W, M.H)), depth: r5(span), metres: spec.cfg.metres ?? 2, rough });
+    }
+    if (dressedCache.get(key)) out[key] = dressedCache.get(key);
+  }
+  return out;
 }
 
 // --- the plants (the page's channels/form-flora.js, its merge and placement, without three) ---
@@ -180,15 +214,17 @@ export async function resolveHandoff(sketch, { what = 'level' } = {}) {
   const { payload, kind } = await resolveWorldScene(sketch, { unshaded: true, era: HANDOFF_ERA, handoff: true });
   if (!payload) throw new Error(`handoff: '${sketch?.ref ?? sketch?.title ?? '?'}' resolves to no scene`);
   const instances = [...stoneInstances(payload.form?.land?.stones), ...floraInstances(payload.form?.flora)];
-  const exported = facesToGlb(payload, { generator: `mojulo handoff ${sketch?.ref ?? ''}`.trim(), lit: true, handoff: true, instances });
+  const keys = (payload.faces || []).map((f) => f && f.texture).filter((k) => typeof k === 'string');
+  const materials = dressedMaterials(keys);
+  const exported = facesToGlb(payload, { generator: `mojulo handoff ${sketch?.ref ?? ''}`.trim(), lit: true, handoff: true, instances, materials });
   if (!exported) throw new Error(`handoff: '${sketch?.ref ?? sketch?.title ?? '?'}' has nothing to hand off`);
   const counts = {};
   // (a plant counts once, though its wood and its crown are two sets)
   for (const s of instances) { if (s.name.endsWith(':crown')) continue; const k = s.name.split(':')[1]; counts[k] = (counts[k] ?? 0) + s.transforms.length; }
   const ledger = {
     version: HANDOFF_VERSION, era: HANDOFF_ERA, what,
-    carried: { faces: Array.isArray(payload.faces) ? payload.faces.length : 0, instances: counts },
+    carried: { faces: Array.isArray(payload.faces) ? payload.faces.length : 0, instances: counts, materials: { dressed: Object.keys(materials).length, painted: new Set(keys).size - Object.keys(materials).length } },
     stays: [...STAYS],
   };
-  return { kind, payload, exported, instances, ledger };
+  return { kind, payload, exported, instances, materials, ledger };
 }

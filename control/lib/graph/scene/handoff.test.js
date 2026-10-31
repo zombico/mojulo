@@ -6,7 +6,9 @@
  */
 import { describe, expect, it } from 'vitest';
 
-import { resolveHandoff, stoneInstances, floraInstances, mergeClumps, HANDOFF_VERSION } from './handoff.js';
+import { resolveHandoff, stoneInstances, floraInstances, mergeClumps, dressedMaterials, HANDOFF_VERSION } from './handoff.js';
+import { generatedSpecOf } from '../landscape/surface-textures.js';
+import { decodePng } from '../era/tone.js';
 import { facesToGlb } from './scene-gltf.js';
 import { floraRead, FLORA_SPECIES } from '../form/flora-read.js';
 
@@ -98,6 +100,32 @@ describe('the engine handoff', () => {
     expect(Array.from(m.positions)).toEqual([5, 6, 7, 7, 6, 7, 5, 8, 7]);
     expect(Array.from(m.colors)).toEqual([1, 1, 1, 1, 1, 1, 1, 1, 1]);
   });
+
+  it('the dressed faces: each tile the matte painter painted leaves as the material it was painted from', async () => {
+    const h = await resolveHandoff({ title: 'bay', manifest: { kind: 'stage', kit: 'bay-military', rooms: [{ id: 'low', x: 0, y: 0, w: 6, d: 8, h: 3.5 }] } });
+    const keys = Object.keys(h.materials);
+    expect(keys.length).toBeGreaterThan(0);
+    expect(h.ledger.carried.materials.dressed).toBe(keys.length);
+    for (const k of keys) expect(generatedSpecOf(k).gen).toBe('dressed');
+    const j = glbJson(h.exported.bytes);
+    for (const k of keys) {
+      const m = j.materials.find((x) => String(x.name).endsWith(`:${k}`));
+      expect(m, k).toBeDefined();
+      // (its colour, its relief's normal, glTF's ORM with no metal, its height for parallax over its depth)
+      expect(m.pbrMetallicRoughness.baseColorTexture).toBeDefined();
+      expect(m.normalTexture).toBeDefined();
+      expect(m.occlusionTexture).toBeDefined();
+      expect(m.pbrMetallicRoughness.metallicFactor).toBe(0);
+      expect(m.extras.mojulo.depth).toBeGreaterThan(0);
+      expect(m.extras.mojulo.metres).toBe(generatedSpecOf(k).cfg.metres ?? 2);
+    }
+    // (a tile's ORM carries no metal: its blue is none)
+    const orm = decodePng(h.materials[keys[0]].orm);
+    let metal = 0; for (let k = 0; k < orm.W * orm.H; k++) metal = Math.max(metal, orm.px[k * 4 + 2]);
+    expect(metal).toBe(0);
+    // (a key the painter did not paint is no material)
+    expect(dressedMaterials(['asphalt', 'no-such-tile'])).toEqual({});
+  }, 300_000);
 
   it('a thing that is no world hands off its albedo, with no instances', async () => {
     const h = await resolveHandoff({ title: 'box', manifest: { kind: 'workbench', units: 'mm', frames: [{ id: 'box', unit: 'mm', build: { type: 'table', w: 600, d: 400, h: 450, species: 'oak' } }] } }, { what: 'asset' });

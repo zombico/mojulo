@@ -31,4 +31,8 @@ Built so far:
   normal, occlusion and roughness, and its height for parallax) and its crown, its leaf clumps merged as the page merges
   them, each leaf's normal bent toward the crown's outside so the crown takes the sun as one volume. Each plant's own
   tint, the wind, the sprays near the eye, the far levels of detail and a conifer's needles stay the web's for now.
+- **The dressed faces.** Every tile the matte painter painted from relief (a bay kit's floors, walls, columns, crowns and
+  soffits, a crypt's ashlar, a house's render and tiles) leaves as the material it was painted from: its colour under no
+  light, its relief's normal, its occlusion and roughness, and its height for parallax, instead of the tile with the
+  light painted in. A tile painted any other way leaves as its paint, and the ledger counts both.
 

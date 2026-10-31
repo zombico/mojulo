@@ -1,6 +1,6 @@
 ### Engine handoff plan (temporary: the working plan, parked here; delete before release)
 
-**Status:** phase 0 built (its Godot job awaiting its first CI run); phase 1's stones and plants built, the dressed faces' relief next (1031). Branch `1031-gen7-export`, cut from `1026-consolidated`. Theme file
+**Status:** phase 0 built (its Godot job awaiting its first CI run); phase 1 built (the albedo floor, the stones, the plants, the dressed faces); phase 2 next (1031). Branch `1031-gen7-export`, cut from `1026-consolidated`. Theme file
 `control/changelog/1026/1031/engine-handoff.md`. No release has carried the engine game runtimes this plan removes, so
 nothing here needs a deprecation path.
 
@@ -302,4 +302,24 @@ developer would want to wire. Never claimed by a machine.
     still exported by `export_game`'s engine targets, now untested: it leaves in phase 6 with those targets.
   - Found: `lib/motion/world-traversal.test.js` fails in this container only, because the app's browser finder does not
     find the pre-installed Chromium; `MOJULO_CHROMIUM=/opt/pw-browsers/chromium` would point it there. Not this branch's.
+- 1031, phase 1, the dressed faces:
+  - `dressedMaterials(keys)`: each tile key the matte painter painted (`generatedSpecOf(key).gen === 'dressed'`, the
+    `dressed` generator of `era/tile-specs.js`'s families) painted again as the material it was painted from
+    (`dressedMaterial`, at its own size and seed, its cut's roughness from `form/room-form.js`'s `FORM_ROUGH`): its colour
+    under no light, its relief's normal, glTF's ORM (occlusion red, roughness green, no metal: `form/room-form.js`'s own
+    maps pack the height into the blue, which glTF reads as metal, so the handoff paints its own) and its height as a
+    grey map with its `depth` (the relief's range in metres) and `metres` (the repeat's size) in `extras.mojulo`.
+    Memoized per key. A cut that paints without a relief keeps its paint.
+  - `facesToGlb`'s new `materials` option: a textured group whose key has a material leaves on it (base, normal and ORM
+    bound, the height in the extras, no COLOR_0 under it); absent, the tile as it was.
+  - The ledger counts the tiles carried as material and those that left as their paint.
+  - Fixtures found: `island-noon`'s room and its town lay no dressed tile (their keys are the library's painted tiles); a
+    bay kit's stage does (`{ kind: 'stage', kit: 'bay-military', rooms: [{ id: 'low', x: 0, y: 0, w: 6, d: 8, h: 3.5 }] }`,
+    about 25 s: eight dressed surfaces, its floor, base, wall, crown, column, paint, soffit and vent). The town handed
+    off its plants (eight) and stones with textured bark.
+  - Left the web's: a tile painted other than from relief (the library's stone brick, flagstone, rock, wood, frieze):
+    it leaves as its paint, its light painted in. `form/room-form.js`'s `luminance` read (the paint's light read back as
+    height) could give those a normal and an ORM too; an approximation that says so, a later step if wanted.
+  - Phase 1 is done. Phase 2 next: the land's layered ground baked into textures, the rock relief as geometry, and the
+    rooms' lamps and baked indirect light.
 
