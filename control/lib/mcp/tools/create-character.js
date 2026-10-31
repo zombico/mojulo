@@ -226,7 +226,7 @@ export function registerCreateCharacterTools() {
         years: { type: 'number' },
         member: { type: 'string', description: 'A cast member\'s path (hero/rival).' },
         output: { type: 'string', enum: ['character', 'mascot'], description: "With egocube: 'mascot' makes the cube's character as its mascot." },
-        pack: { type: 'object', description: "A pack's character by name: { id: 'comic-hero', member | grunt, look?, era?, headgear?, … }; manual: get_solid_vocab({ id: 'comic-hero' })." },
+        pack: { type: 'object', description: "A pack's character by name: { id: 'comic-hero', member | grunt, look?, … } (get_solid_vocab({ id: 'comic-hero' }))." },
         spec: { type: 'object', description: "The body's own knobs, per its card (`layered` for hero and creature, `animal` for animal)." },
         title: { type: 'string', description: 'Title for the resulting sketch artifact.' },
         ref: { type: 'string', description: 'Optional stable sketch ref.' },
