@@ -159,6 +159,50 @@ Within each plan the kit modules are shared: a pointed ear is the same module on
 on a pigeon and a pteranodon. A family adds dials to its plan (a canine's longer muzzle, a leporid's bigger feet), and a
 species' coat sets its palette and its pattern. Nothing is crafted per species unless its name demands it.
 
+## Tuning
+
+The grammar makes each species as designed; the TUNE ([feature-tune.js](../control/lib/graph/egocube/feature-tune.js))
+is the operator's hand on that model sheet, by the two halves above and a detail tier. It rides the mascot sheet
+(`rollMascot({ tune })`, `create_character({ as: 'mascot', spec: { facets: { style: 'feature', animal }, tune } })`), so
+every door that compiles a sheet carries it. Absent, nothing runs: the sheet carries no tune and the build is the
+designed one.
+
+```js
+tune: {
+  structure: { head, girth, legs, arms, hands, feet, tail, ears, muzzle, eyes, neck },   // multipliers, 1 as designed (FEATURE_TUNE: each one's range)
+  decoration: { tufts, crown, markings, horns, spines, mane, fins },                     // 0 – 3, 1 the designed amount, 0 bare
+  detail: 'game' | 'gen7',                                                                // FEATURE_DETAIL
+}
+```
+
+- **Structure moves masses by their own rule.** The head grows about its seat (its jaw kept on the neck), its muzzle,
+  ears and tufts with it. The girth widens and deepens the trunk about its axis, the shoulders, the hips and the limbs'
+  radii following. The tail, the ears and the muzzle grow as modules from their roots. The neck raises the head over a
+  stretched neck; a head merged into its body has none to stretch.
+- **The function outranks an ask.** A quadruped's `legs` and `arms` are handed to the all-fours fit (Function) as asks:
+  the hips at that share of the height the fit made them, the arms at that share of their reach, as far as the floor
+  allows. Shorter than the floor allows, the fit keeps them, and the build says which (`tune.notes`). A tuned girth
+  (a deeper trunk standing higher) lets the arms grow as far as reaching the floor needs.
+- **Decoration never moves a mass** (Structure and decoration, above).
+- **The words.** A brief says the same: `big ears`, `big head`, `long legs`, `lanky`, `chubby`, `bushy tail`, `long
+  snout`, `fluffy`, `shaggy`, `sleek`, `plain coat` (`TUNE_LEXICON`); the tier `7th gen`, `ps3`, `xbox 360`, `hd era`,
+  `hero model` (`DETAIL_WORDS`). They are read only in the feature style; a tier's word asks for the style, and so does an
+  explicit `tune` (refused under another named style). No tuning phrase is one the mascot's own lexicon owns.
+- **The families' designed sizes** (`FAMILY_SIZES`): where a family's animals read off on the shared silhouettes (a
+  bear's head lost on its barrel, a canine's face too short for its name), its structure dials are set as designed, and
+  the operator's multiply over them.
+
+### The detail tiers
+
+| Tier | The skin | The decoration | The light |
+|---|---|---|---|
+| **game** | a default game model: net cell 7.5 mm, 8,500 faces simplified, the figure within 18,000 triangles | as designed | the lit export's own |
+| **gen7** | a hero model of the seventh console generation's HD era: cell 5.8 mm, 16,000 faces, the figure within 34,000 triangles | the secondary clumps: a fuller cheek fan, two more crown locks, tufts at the shoulders, elbows and haunches, a ruff under a visible neck, a brush tail's fanned tip; a wing's coverts; a scaled back's second row | baked into the corners (surface-bake.js, inline finishes `DETAIL_FINISH`): occlusion, a sky light, warm fur, wet eyes and nose, polished horns, hooves and beaks; every lit export carries it |
+
+The tier's clumps are pointed details like the designed ones (round blobs, pointy details), so the decoration dials
+rule them too: `tufts: 0` leaves a gen7 model's fur as bare as a game model's. What the tier does not do yet: a normal map
+for the fur (the skin has no UVs to carry one).
+
 ## QA
 
 The converter is judged by the whole roster, not one species at a time: `control/scripts/spikes/feature-roster.mjs`
@@ -170,4 +214,5 @@ silhouette cast from the roster and each a different set of masses; a belly only
 bird with folded prominent wings, toes and round legs; a quadruped's all-fours pose for one species per silhouette,
 the paws reaching and the trunk clearing, big hind legs kept big; a bird's φ side silhouette, its own beak, its
 plumage; no fish). `feature-roster.mjs --takes idle,fours` shoots the cast standing and on all fours. The eyes gate is
-the operator's.
+the operator's. `--tune '<json>'` mints the whole cast with one tune, and `--tunes '[{"label":"game"},{"label":"gen7","tune":{"detail":"gen7"}}]'`
+shoots each species once per tune, side by side. The tune's laws are `feature-tune.test.js`.

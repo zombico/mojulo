@@ -6,8 +6,9 @@
  *
  *   speciesMetrics(id)   → { lenGirth, frontBack, leg, neck, bellyContrast, limbless } (null where the roster lacks one)
  *   silhouetteOf(id, family, plan) → a SILHOUETTES key
- *   bellyOf(id, silhouette, { plan, pattern, tune }) → { kind, regions }: the belly designed on this body (BELLIES), or
- *                        none: a pale belly is a species' feature where its roster says so, never a default
+ *   bellyOf(id, silhouette, { plan, pattern, tune, table }) → { kind, regions }: the belly designed on this body
+ *                        (BELLIES), or none: a pale belly is a species' feature where its roster says so, never a
+ *                        default; `table` the silhouette's belly shapes moved with a tuned body (feature-tune.js)
  *   SILHOUETTES          each: heads tall, the head's centre and forward offset, its neck (pinch | visible | merged | long),
  *                        the body's masses, the shoulder and the arm's direction and links, the legs (hidden under the
  *                        haunches, or cones), the hips, the tail's anchor, the back's line (where spines run), the belly's
@@ -186,8 +187,8 @@ const BELLY_OF = Object.freeze({ squat: 'oval', pear: 'oval', barrel: 'oval', te
 /** the least lightness between a belly and its coat that shows as a designed belly (less reads as one colour) */
 export const BELLY_CONTRAST = 0.12;
 
-export function bellyOf(id, silhouette, { plan, pattern, tune } = {}) {
-  const B = SILHOUETTES[silhouette].belly;
+export function bellyOf(id, silhouette, { plan, pattern, tune, table } = {}) {
+  const B = table ?? SILHOUETTES[silhouette].belly;
   if (pattern === 'tuxedo') { const o = B.oval; return { kind: 'tuxedo', regions: [{ ...o, c: [0, o.c[1] * 0.85, o.c[2] + 0.25], r: [o.r[0] * 1.32, o.r[1] * 1.22, o.r[2] * 1.27], e: 0.2 }] }; }
   const c = speciesMetrics(id).bellyContrast;
   let kind = tune ?? (c == null || Math.abs(c) < BELLY_CONTRAST ? 'none' : BELLY_OF[silhouette]);

@@ -23,9 +23,10 @@
  *                     the coat's ZONES cut into it along their exact edges (feature-coat.js cutSkin), with its points and
  *                     faces as arrays (V, F) for the coat's layers; kept by key (a few seconds a body)
  *   FEATURE_BUILDS      the raccoon's build (the grammar's: feature-grammar.js featureBuild makes every animal's)
- *   featurePlan(sheet, { title?, reactions? }) → { plan, H, height }   the creature plan: the skin, the face's parts
- *                     (feature-face.js: globes, lids and brows about each globe's centre), the mascot's rig and clips
- *                     (mascot-form.js rigOf)
+ *   featurePlan(sheet, { title?, reactions? }) → { plan, H, height, bake? }   the creature plan: the skin, the face's
+ *                     parts (feature-face.js: globes, lids and brows about each globe's centre), the mascot's rig and
+ *                     clips (mascot-form.js rigOf); the sheet's `tune` (feature-tune.js) moves the build, sets the skin's
+ *                     density by its detail tier and, for the gen7 tier, the light baked into its corners (`bake`)
  *
  * Pure and deterministic: fixed loops, ties by index; no dice, no clock.
  */
@@ -36,6 +37,7 @@ import { featureFace } from './feature-face.js';
 import { cutSkin, coatLayers, stroke, band } from './feature-coat.js';
 import { measuresOf, rigOf, coatPalette } from './mascot-form.js';
 import { featureBuild } from './feature-grammar.js';
+import { resolveTune, detailBake } from './feature-tune.js';
 import { foursClips } from './feature-function.js';
 import { plumageOf, wingTones } from './feature-birds.js';
 import { speciesParams } from '../fauna/species.js';
@@ -255,10 +257,12 @@ export const FEATURE_HEIGHT = 0.96;
 export function featurePlan(sheet, { title = 'a feature animal', reactions = false, decor = {} } = {}) {
   const f = sheet.facets, A = sheet.animal ?? null, K = A?.kit ?? {}, { k } = measuresOf(sheet);
   if (!A) throw new Error('mascot: the feature style draws an animal (a species in the brief or `facets.animal`)');
-  const build = featureBuild(A, { decor });
+  // (the operator's tune, feature-tune.js: absent, the build and the skin as designed)
+  const tune = sheet.tune ? resolveTune(sheet.tune) : null, net = tune ? { cell: tune.detail.cell, faces: tune.detail.faces } : {};
+  const build = featureBuild(A, { decor, ...(tune ? { tune } : {}) });
   const L = laidOut(build, FEATURE_HEIGHT), H = L.H;
   const zones = L.marks.filter((m) => !m.strokes && !m.bands), layers = L.marks.filter((m) => m.strokes || m.bands);
-  const skin = eggSkin(L.eggs, { zones, seam: L.seam }), F = eggField(L.eggs, { seam: L.seam });
+  const skin = eggSkin(L.eggs, { zones, seam: L.seam, ...net }), F = eggField(L.eggs, { seam: L.seam });
   const coat = coatOf(skin, F, L.eggs, layers);
   // the face: globes seated on the skin, lids as shells about them, the brows on the eye, the mouth in the muzzle
   const face = featureFace({ field: F.field, H, eye: L.eye, rest: f.expression, mouth: L.mouth,
@@ -289,8 +293,8 @@ export function featurePlan(sheet, { title = 'a feature animal', reactions = fal
     symmetry: { plane: 'x=0', policy: 'the skin given whole; the face\'s side parts authored on the right, mirrored by name' },
     style: { slots: 'ring20', limbSlots: 'ring12', e: 2 },
     joints, segments, dials: {}, rig, clips, paint: [],
-    mascot: { energy: f.energy, form: f.form, height: L.top, headR: r4(Math.max(H.rx, H.ry)), style: 'feature' },
+    mascot: { energy: f.energy, form: f.form, height: L.top, headR: r4(Math.max(H.rx, H.ry)), style: 'feature', ...(build.tune ? { tune: build.tune } : {}) },
     palette: { EarInner: '#c9a19b', ...featurePalette(coatPalette(sheet, k, A, f), A.id, build) },
   };
-  return { plan, H, height: L.top };
+  return { plan, H, height: L.top, ...(tune?.detail.bake ? { bake: detailBake(build.plan) } : {}) };
 }

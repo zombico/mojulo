@@ -21,6 +21,7 @@ import { ANIMAL_WORDS, animalCard, animalFacets } from './mascot-animals.js';
 import { ADORNS, ORB_ADORNS } from './mascot-adorn.js';
 import { readSetting, leanOf, leanPriors } from './setting.js';
 import { FEATURE_EXCLUDES } from './feature-grammar.js';
+import { readTuneBrief, mergeTune, validateTune } from './feature-tune.js';
 
 export const MAX_ATTEMPTS = 8;
 /** The facets, in the order their dice are thrown: a new facet goes last, so an older seed throws the older ones alike. */
@@ -271,6 +272,9 @@ export const MASCOT_LEXICON = Object.freeze({
   'anime': { style: 'anime' }, 'manga': { style: 'anime' }, 'chibi': { style: 'anime', form: 'sprout' }, 'sd': { style: 'anime', form: 'sprout' },
   'super-deformed': { style: 'anime', form: 'sprout' }, 'moe': { style: 'anime' }, 'kawaii': { style: 'anime' }, 'beaming': { expression: 'joy' },
   'western': { style: 'toon' },
+  // the feature style (feature animation's animals, docs/feature-style.md)
+  'feature style': { style: 'feature' }, 'feature-style': { style: 'feature' }, 'feature animation': { style: 'feature' }, 'stylized': { style: 'feature' },
+  'stylised': { style: 'feature' }, 'cartoon realistic': { style: 'feature' }, 'cartoon-realistic': { style: 'feature' }, 'cartoon realism': { style: 'feature' },
   // the signature piece (mascot-adorn.js)
   'collar': { adorn: 'collar' }, 'bell': { adorn: 'collar' }, 'scarf': { adorn: 'scarf' }, 'bow': { adorn: 'bow' }, 'ribbon': { adorn: 'bow' },
   'belt': { adorn: 'belt' }, 'champion': { adorn: 'belt' }, 'medal': { adorn: 'medal' }, 'bandana': { adorn: 'bandana' }, 'kerchief': { adorn: 'bandana' },
@@ -395,14 +399,24 @@ function compose(f, card = null) {
 export const accordOf = (accent) => (accent === 'round' ? 'harmony' : 'contrast');
 
 /** Roll one mascot sheet. `path` names it in a cast (it keys the seed). */
-export function rollMascot({ brief = '', facets: asked0 = {}, seed = 1, path = 'mascot', setting } = {}) {
+export function rollMascot({ brief = '', facets: asked0 = {}, seed = 1, path = 'mascot', setting, tune } = {}) {
   readMascot(asked0);
   if (setting !== undefined) readSetting(setting);
+  const tuneErrs = validateTune(tune);
+  if (tuneErrs.length) throw new Error(`mascot: the tune refused:\n - ${tuneErrs.join('\n - ')}`);
   // the game's tradition is the mascot's style (a rule, under anything the operator asked for); its genre leans the rest
   const set = setting?.tradition ? { style: setting.tradition === 'anime' ? 'anime' : 'toon' } : {}, lean = leanOf(setting, 'mascot');
-  const fromBrief = readMascotBrief(brief);
+  // THE TUNE (feature-tune.js): the feature style's own dials, from `tune` and from the brief's tuning words (big ears,
+  // long legs, chunky, 7th gen). They are read only where the style is the feature style (asked, said in the brief, or
+  // asked by a tier's word or by a `tune` itself); otherwise the brief reads as it always has
+  const T = readTuneBrief(brief), rest = T.read.length ? readMascotBrief(T.rest) : null;
+  const style = asked0.style ?? (rest ?? readMascotBrief(brief)).facets.style ?? T.facets.style ?? (tune !== undefined ? 'feature' : undefined);
+  if (tune !== undefined && style !== 'feature') throw new Error(`mascot: a tune is the feature style's own (style '${style}' was asked); drop the tune or ask for style 'feature'`);
+  const tuned = style === 'feature' && T.read.length > 0;
+  const fromBrief = tuned ? { ...rest, facets: { ...T.facets, ...rest.facets }, read: [...T.read, ...rest.read] } : readMascotBrief(brief);
   readMascot(fromBrief.facets);
-  const named = { ...fromBrief.facets, ...asked0 };
+  const sheetTune = style === 'feature' ? mergeTune(tuned ? T.tune : null, tune) : undefined;
+  const named = { ...fromBrief.facets, ...(tune !== undefined && !fromBrief.facets.style ? { style: 'feature' } : {}), ...asked0 };
   // an animal decides the facets its card names, under whatever the operator asked for (it is an ask too)
   const card = named.animal && named.animal !== 'none' ? animalCard(named.animal) : null;
   const given = { ...set, ...(card ? animalFacets(card) : {}), ...named };
@@ -428,6 +442,7 @@ export function rollMascot({ brief = '', facets: asked0 = {}, seed = 1, path = '
     ...(setting !== undefined ? { setting } : {}),   // the game it was rolled for
     accord,
     ...(card ? { animal: card } : {}),   // the resolved card, kept by value: its kit is what the body draws
+    ...(sheetTune ? { tune: sheetTune } : {}),   // the feature style's tune (feature-tune.js); absent, as designed
     reads: [PROMISES[f.promise].reads, FORMS[f.form].reads, `${ACCENTS[f.accent].reads}; ${HOOKS[f.hook].reads}`, `${EYES[f.eyes].reads}; ${EXTREMITIES[f.extremities].reads}`, `${ENERGIES[f.energy].reads}, in ${f.hue}${f.style === 'anime' ? ', drawn anime super-deformed' : f.style === 'feature' ? ', drawn in the feature style' : ''}`, f.being === 'human' ? `${BEINGS.human.reads}, ${f.skin} skin, ${EXPRESSIONS[f.expression].reads}` : `${BEINGS.critter.reads}, ${EXPRESSIONS[f.expression].reads}`],
     notes, derives,
     unread: { words: fromBrief.unread },

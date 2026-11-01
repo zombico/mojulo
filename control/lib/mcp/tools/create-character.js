@@ -10,7 +10,8 @@
  *   as 'hero'     → mint_solid kind 'layered' via 'hero'   (a cast word, a tune, face, hair, dress)
  *   as 'creature' → mint_solid kind 'layered' via 'plan' when spec.plan, else the layered recipe
  *   as 'animal'   → mint_solid kind 'animal'                (a species, or a bare archetype)
- *   as 'mascot'   → a mascot sheet rolled from spec { brief?, facets?, seed?, kit? } (egocube/mascot.js), its body
+ *   as 'mascot'   → a mascot sheet rolled from spec { brief?, facets?, seed?, kit?, tune? } (egocube/mascot.js; `tune` the
+ *                   feature style's sizes, decoration and detail tier: egocube/feature-tune.js), its body
  *                   compiled to a ring plan (egocube/mascot-form.js), minted as a creature: the same call a mascot
  *                   egocube makes; `kit` a sport's kit worn as far as its shape allows (sportswear/mascot-kit.js)
  *
@@ -43,14 +44,14 @@ export const CHARACTER_DOORS = {
 
 /** `as: 'mascot'` is a door of its own: a sheet rolled from the words, then the creature door (docs/mascot.md) */
 const AS_LIST = [...Object.keys(CHARACTER_DOORS), 'mascot'];
-const MASCOT_SPEC_KEYS = ['brief', 'facets', 'seed', 'kit'];
+const MASCOT_SPEC_KEYS = ['brief', 'facets', 'seed', 'kit', 'tune'];
 
 /** The dials a sheet's first reading turns after the mint (`after` ops on /dials/<name>), as a mint's `dials`. */
 const dialsAfter = (after) => Object.fromEntries((after || []).filter((op) => op.op === 'set' && /^\/dials\/[^/]+$/.test(op.path)).map((op) => [op.path.slice(7), op.value]));
 
 /** A MASCOT: rolled from its words (brief, facets, seed), compiled, minted through the creature door. */
 async function createMascot({ spec = {}, title, ref, folder_ref: folderRef }) {
-  if (!spec || typeof spec !== 'object' || Array.isArray(spec)) throw new Error("create_character: a mascot's spec is { brief?, facets?, seed?, kit? } (docs/mascot.md)");
+  if (!spec || typeof spec !== 'object' || Array.isArray(spec)) throw new Error("create_character: a mascot's spec is { brief?, facets?, seed?, kit?, tune? } (docs/mascot.md; `tune` the feature style's: docs/feature-style.md)");
   const unknown = Object.keys(spec).filter((k) => !MASCOT_SPEC_KEYS.includes(k));
   if (unknown.length) throw new Error(`create_character: a mascot's spec takes ${MASCOT_SPEC_KEYS.join(', ')} (not ${unknown.join(', ')}); its body is revised after, with update_character patch ops`);
   // (a sport's kit, sportswear/kits.js words, worn as far as the mascot's shape has the parts: sportswear/mascot-kit.js)
@@ -59,7 +60,9 @@ async function createMascot({ spec = {}, title, ref, folder_ref: folderRef }) {
   const sheet = rollMascot(words), P = mascotPlanFromSheet(sheet, { ...(title ? { title } : {}) });
   const dials = dialsAfter(P.after), plan = kit === undefined ? P.create.spec.plan : mascotKit(P.create.spec.plan, kit);
   const out = throughDoor(await mintSolidHandler({ ...CHARACTER_DOORS.creature.route(P.create.spec), spec: { ...P.create.spec, plan, ...(Object.keys(dials).length ? { dials } : {}) }, title: P.create.title, ref, folder_ref: folderRef }));
-  return { ...out, mascot: { thesis: P.thesis, facets: sheet.facets, given: sheet.given, reads: sheet.reads, ...(sheet.unread.words.length ? { unread: sheet.unread.words } : {}), ...(sheet.faults.length ? { faults: sheet.faults } : {}) } };
+  // (a tuned feature animal reads back what its tune moved: egocube/feature-tune.js)
+  const tuned = P.create.spec.plan?.mascot?.tune;
+  return { ...out, mascot: { thesis: P.thesis, facets: sheet.facets, given: sheet.given, reads: sheet.reads, ...(tuned ? { tune: tuned } : {}), ...(sheet.unread.words.length ? { unread: sheet.unread.words } : {}), ...(sheet.faults.length ? { faults: sheet.faults } : {}) } };
 }
 
 /**
@@ -215,7 +218,7 @@ export function registerCreateCharacterTools() {
       + "'male' | 'female', register: 'round' | 'lowpoly' …, tune, face, hair, expression, detail, adorn }); "
       + "`as: 'creature'`, an invented body, a dragon, a monster, a plush toy (spec.plan, a ring plan, or a layered "
       + "recipe); `as: 'animal'`, a real species (spec { species } or { archetype }); `as: 'mascot'`, cartoony, "
-      + "head-heavy (spec { brief: 'sonic-like', facets?, seed? }). A deterministic recipe: a still, a World that "
+      + "head-heavy (spec { brief: 'sonic-like', facets?, seed?, tune? }). A deterministic recipe: a still, a World that "
       + 'plays its clips, a skinned `.glb`. Iterate in place with `update_character`; never re-mint. Manual: '
       + "get_solid_vocab({ id: 'layered' }), ({ id: 'animal' }) for an animal.",
     inputSchema: {
