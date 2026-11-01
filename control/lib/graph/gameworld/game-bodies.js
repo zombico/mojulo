@@ -1,0 +1,151 @@
+/**
+ * THE BODY RAILS — what kind of BODY a game puts in it, by the kind of game it is: a small table, not code per game (a
+ * new kind of body is a row), as the underlayer rails are what a world's setting makes a person wear (hero-looks.js
+ * UNDERLAYERS). Each rail names the games it is for and, per ROLE (the hero, the henchman: the grunt a cast fields),
+ * the hero-door words it lowers, in each STYLE the world's own primitives choose:
+ *
+ *   comic      superheroes and their henchmen (a city stalker, a brawler)   anime | ink | material
+ *   realistic  people as they are (a story, a western RPG, serious action)  anime | western
+ *   muscular   the fighters (a versus fighter)                              anime | western
+ *   mascot     the platformer's (a collectathon, a runner, a kart)          mascot | lowpoly
+ *
+ * The style is the world's, never the rail's: the anime tradition draws on the anime frame (anime-bodies.js: a body
+ * codename, its muscular form the `muscleShirt` over the same base); the western on the tiered builds (hero-form.js
+ * HERO_BUILDS) or the realistic body (`form: 'realistic'` and a physique), by the world's look; a pixel world's mascot
+ * on the lowpoly register. Heads and light are not a rail's: the tradition's head and the character light stay where
+ * they are (characters.js TRADITIONS), and how a head sits on the body is its own loop.
+ *
+ *   railOfGame({ genre?, goal?, feel? })  → { rail, from, why } | null   the rail a game reads: its feel template, else
+ *                                       its genre (intent.from), else its quick goal; none when none names one
+ *   styleOf(rail, primitives)          → { style, why }   primitives { tradition?, look?, pixel? }
+ *   gameBody(rail, role, primitives)   → { rail, role, style, spec, why }   `spec` the hero-door words, `primitives.pole`
+ *                                       male | female choosing a codename's or a build's pole
+ *   readBodyWord(v, at)                → the word, checked: a rail, or 'game' (the rail the game reads)
+ *
+ * Pure data and resolvers; no dice, no imports.
+ */
+
+/** The rails, each { read, genres, goals (a quick game's), feels, styles: { <style>: { when, roles: { hero, henchman } } } }. A role's words are
+ * hero-door fields; `animeBody` and `build` are poled ({ male, female }) and resolved by `gameBody`. */
+export const GAME_BODIES = Object.freeze({
+  comic: Object.freeze({
+    read: 'superheroes and their henchmen: the hero broad and defined under a suit, the henchmen heavy',
+    genres: ['city-stalker', 'arena-brawler', 'co-op-brawler'],
+    goals: [],
+    feels: ['vigilante-justice'],
+    styles: Object.freeze({
+      anime: { when: 'the anime tradition', roles: {
+        hero: { animeBody: { male: 'toji', female: 'mizuki' }, muscleShirt: { definition: 0.5 } },
+        henchman: { animeBody: { male: 'armstrong', female: 'kale' } } } },
+      ink: { when: 'the western tradition, drawn (the comic page\'s cel and ink, the default)', roles: {
+        hero: { build: 'heroic' },
+        henchman: { build: 'brute' } } },
+      material: { when: 'the western tradition in a material look (the world\'s juice look)', roles: {
+        hero: { form: 'realistic', physique: 'jacked' },
+        henchman: { form: 'realistic', physique: { from: 'heavyset', bulk: 0.6 } } } },
+    }),
+  }),
+  realistic: Object.freeze({
+    read: 'people as they are: a grown body on earth, neither a hero\'s nor a mascot\'s',
+    genres: ['story-adventure', 'survival-horror', 'stealth', 'shooter', 'dungeon-crawler', 'tactics'],
+    goals: ['shoot', 'sneak', 'deathmatch'],
+    feels: ['ebon-spirits', 'conscription'],
+    styles: Object.freeze({
+      // (the anime tradition's real body is the anime frame's base, simplified: the realistic body takes only the
+      // realistic casts' proportions)
+      anime: { when: 'the anime tradition', roles: {
+        hero: { animeBody: { male: 'toji', female: 'mizuki' } },
+        henchman: { animeBody: { male: 'toji', female: 'mizuki' } } } },
+      western: { when: 'the western tradition', roles: {
+        hero: { form: 'realistic', physique: 'athletic' },
+        henchman: { form: 'realistic', physique: 'athletic' } } },
+    }),
+  }),
+  muscular: Object.freeze({
+    read: 'the fighters: every muscle drawn, the heavies hulking',
+    genres: ['versus-fighter'],
+    goals: ['fight'],
+    feels: ['mojulo-fighter'],
+    styles: Object.freeze({
+      anime: { when: 'the anime tradition', roles: {
+        hero: { animeBody: { male: 'toji', female: 'mizuki' }, muscleShirt: { definition: 1 } },
+        henchman: { animeBody: { male: 'armstrong', female: 'kale' }, muscleShirt: { definition: 1 } } } },
+      western: { when: 'the western tradition', roles: {
+        hero: { form: 'realistic', physique: 'jacked' },
+        henchman: { form: 'realistic', physique: { from: 'jacked', bulk: 1, weight: 0.4 } } } },
+    }),
+  }),
+  mascot: Object.freeze({
+    read: 'the platformer\'s: a big head on a small round body, or a few flat faces',
+    genres: ['collectathon', 'co-op-platformer', 'metroidvania', 'endless-runner', 'racing', 'kart-racer', 'rhythm'],
+    goals: ['collect', 'runner', 'race', 'rhythm'],
+    feels: ['jumping-giuseppe', 'galaxy-boy'],
+    styles: Object.freeze({
+      mascot: { when: 'any world but a pixel one (the default)', roles: {
+        hero: { build: 'chibi' },
+        henchman: { build: 'chibi' } } },
+      lowpoly: { when: 'a pixel world (its medium), or the operator\'s word', roles: {
+        hero: { register: 'lowpoly' },
+        henchman: { register: 'lowpoly', build: 'stout' } } },
+    }),
+  }),
+});
+export const GAME_BODY_NAMES = Object.freeze(Object.keys(GAME_BODIES));
+export const GAME_BODY_ROLES = Object.freeze(['hero', 'henchman']);
+/** the word that takes the rail the game reads */
+export const GAME_WORD = 'game';
+
+const BY_GENRE = Object.fromEntries(GAME_BODY_NAMES.flatMap((r) => GAME_BODIES[r].genres.map((g) => [g, r])));
+const BY_GOAL = Object.fromEntries(GAME_BODY_NAMES.flatMap((r) => GAME_BODIES[r].goals.map((g) => [g, r])));
+const BY_FEEL = Object.fromEntries(GAME_BODY_NAMES.flatMap((r) => GAME_BODIES[r].feels.map((f) => [f, r])));
+
+/** The rail a game reads: its feel template's (how the hero moves says what it is), else its genre's, else its quick
+ * goal's; null when none names one (the door as it is). */
+export function railOfGame({ genre = null, goal = null, feel = null } = {}) {
+  if (feel && BY_FEEL[feel]) return { rail: BY_FEEL[feel], from: 'feel', why: `its feel plays ${feel}` };
+  if (genre && BY_GENRE[genre]) return { rail: BY_GENRE[genre], from: 'genre', why: `a ${genre} game` };
+  if (goal && BY_GOAL[goal]) return { rail: BY_GOAL[goal], from: 'goal', why: `a quick game to ${goal}` };
+  return null;
+}
+
+/** The style a world draws a rail in, from its primitives: the tradition (anime | western), the look (the juice look:
+ * material makes a western comic realistic), the medium (a pixel world's mascot is lowpoly). */
+export function styleOf(rail, { tradition = null, look = null, pixel = false, style = null } = {}) {
+  const R = GAME_BODIES[rail];
+  if (!R) throw new Error(`body: '${rail}' is not a rail (${GAME_BODY_NAMES.join(', ')})`);
+  const S = R.styles;
+  if (style) {
+    if (!S[style]) throw new Error(`body: the ${rail} rail is drawn ${Object.keys(S).join(' | ')} (not '${style}')`);
+    return { style, why: 'the operator\'s word' };
+  }
+  if (rail === 'mascot') return pixel ? { style: 'lowpoly', why: 'a pixel world' } : { style: 'mascot', why: S.mascot.when };
+  if (tradition === 'anime') return { style: 'anime', why: 'the anime tradition' };
+  if (rail === 'comic') return look === 'material' ? { style: 'material', why: 'the western tradition in a material look' } : { style: 'ink', why: 'the western tradition, drawn' };
+  return { style: 'western', why: tradition === 'western' ? 'the western tradition' : 'no tradition named: the western, the default that never lies about a body' };
+}
+
+/** A role's hero-door words on a rail, in the world's style, for a pole: the codename and the build resolved. */
+export function gameBody(rail, role = 'hero', primitives = {}) {
+  if (!GAME_BODY_ROLES.includes(role)) throw new Error(`body: '${role}' is not a role (${GAME_BODY_ROLES.join(', ')})`);
+  const { style, why } = styleOf(rail, primitives), pole = primitives.pole === 'female' ? 'female' : 'male';
+  const { animeBody, build, ...rest } = GAME_BODIES[rail].styles[style].roles[role];
+  const spec = { ...JSON.parse(JSON.stringify(rest)) };
+  if (animeBody) spec.animeBody = animeBody[pole];
+  if (build) spec.cast = { pole, build };
+  return { rail, role, style, spec, why };
+}
+
+/** A body word, checked: a rail, or 'game' (the rail the game reads). */
+export function readBodyWord(v, at = 'body') {
+  if (v === GAME_WORD || GAME_BODY_NAMES.includes(v)) return v;
+  if (v && typeof v === 'object' && !Array.isArray(v)) {
+    for (const k of Object.keys(v)) if (!['rail', 'style'].includes(k)) throw new Error(`${at}.${k}: a body is { rail, style? }`);
+    const rail = readBodyWord(v.rail, `${at}.rail`);
+    if (v.style !== undefined) {
+      if (rail === GAME_WORD) throw new Error(`${at}.style names a style on a rail; '${GAME_WORD}' has none until the game is read (name the rail)`);
+      styleOf(rail, { style: v.style });
+    }
+    return { rail, ...(v.style !== undefined ? { style: v.style } : {}) };
+  }
+  throw new Error(`${at} is a body rail (${GAME_BODY_NAMES.map((n) => `${n}: ${GAME_BODIES[n].read}`).join('; ')}), '${GAME_WORD}' for the one the game reads, or { rail, style }`);
+}
