@@ -12,6 +12,7 @@ import { GRUNT_STYLES } from '../cosmos/packs/comic-hero/grunts.js';
 import { ITEMS } from '../cosmos/packs/comic-hero/items.js';
 import { isGroundKit } from '../era/stage.js';
 import { foeCastHtml } from './foe-cast-html.js';
+import { applyManifestPatch } from '../../mcp/tools/manifest-patch.js';
 import { readGameworld, MEADOWMARK_HERO, gameworldBibleHtml } from './index.js';
 import { readReview, FOE_CAST_PART } from './review.js';
 import { FOE_CLASSES } from '../foes/index.js';
@@ -116,6 +117,12 @@ describe('the casting call', () => {
     // (the boss alone on the last walk, won by clearing it)
     const walks = Object.keys(fighting.levels).filter((k) => fighting.levels[k].walk);
     expect(P.levels[walks[walks.length - 1]]).toEqual({ from: ['boss'], count: 1, win: 'clear' });
+  });
+
+  it('its patch applies as handed out, through the door design_game patches by, to the world it proposes', () => {
+    const P = castingCall(fighting), { manifest } = applyManifestPatch(fighting, P.patch);
+    expect(manifest).toEqual(adopt(fighting, P));
+    expect(() => readGameworld(manifest)).not.toThrow();
   });
 
   it('a person cast is dressed as one crew, a soldier\'s for a game whose minds are soldiers\'; a building takes foes too', () => {

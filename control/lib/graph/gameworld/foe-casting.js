@@ -206,7 +206,7 @@ export function castingCall(world) {
     const from = roles0.flatMap((r) => [r, ...(deeper && r !== 'boss' ? variantsOf(r) : [])]);
     levels[id] = { from: from.filter((r) => foes[r]), ...(last ? { count: 1, win: 'clear' } : {}) };
   });
-  const patch = [{ op: 'add', path: '/foes', value: foes }, ...Object.entries(levels).map(([id, v]) => ({ op: 'add', path: `/levels/${id}/foes`, value: v }))];
+  const patch = [{ op: 'set', path: '/foes', value: foes }, ...Object.entries(levels).map(([id, v]) => ({ op: 'set', path: `/levels/${id}/foes`, value: v }))];
   const reasons = [
     genre ? `a ${genre} (the intent's cube), its minds ${Object.entries(mind).filter(([k]) => k !== 'foes').map(([k, v]) => `${k} ${v}`).join(', ') || 'unsaid'}` : 'no genre: the cube\'s own values',
     `a ${style.flavor} game in the ${style.register} register (${style.from})`,
