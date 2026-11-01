@@ -40,6 +40,17 @@ import { AGGRESSIVENESS } from '../mind/vocab.js';
 import { mulberry32 } from '../vegetation/grow.js';
 import { GRUNT_STYLES } from '../cosmos/packs/comic-hero/grunts.js';
 import { ITEMS } from '../cosmos/packs/comic-hero/items.js';
+import { bookRail, gameBody } from './game-bodies.js';
+
+/** The dress words a crew takes from the body its game puts in its henchmen (`characters.direction.body`: a rail, 'game',
+ * or { rail, style?, muscle? }): { rail, body?, muscle? }, `body` 'realistic' where the rail draws its henchman on the
+ * realistic body in the world's tradition and look; null when the book names no body, or its game's kind no rail. */
+export function henchmenOf(G) {
+  const R = bookRail(G); if (!R) return null;
+  const look = G.juice && typeof G.juice === 'object' ? G.juice.look ?? null : null;
+  const B = gameBody(R.rail, 'henchman', { tradition: G.characters.direction.tradition, look, ...(R.style ? { style: R.style } : {}) });
+  return { rail: R.rail, ...(B.spec.form === 'realistic' ? { body: 'realistic' } : {}), ...(R.muscle !== undefined ? { muscle: R.muscle } : {}) };
+}
 
 /** The cast's roles, in the order they are cast: the rank each stands at and what it is for. */
 export const ROLES = Object.freeze({
@@ -124,6 +135,9 @@ export function castingCall(world) {
   const factions = people === 'human' ? ERA_DRESS[era] ?? null : null;
   const faction = factions ? (MILITARY.includes(genre) ? factions[0] : factions[Math.floor(rnd() * factions.length)]) : null;
   const F = faction ? GRUNT_STYLES[faction] : null, colourways = F ? Object.keys(F.colourways) : [];
+  // (the body its game puts in its henchmen, where the book names one (game-bodies.js, characters.direction.body): the
+  // crew dressed on it, the realistic body where the rail draws one; a book that names none dresses the crew as before)
+  const hench = F ? henchmenOf(G) : null;
   const colourway = F ? colourways[Math.floor(rnd() * colourways.length)] : null;
   // (each role the kind its class reads as, by what the kind carries: a class on watch the kind whose arms are stowed, one
   // that fires the kind with a long gun at the ready in its hands, the boss or a heavy class the heaviest build; the rest,
@@ -159,7 +173,7 @@ export function castingCall(world) {
   const foes = {}, roles = [];
   for (const [role, x] of Object.entries(cast)) {
     const rank = role === 'boss' ? bossRank : ROLES[role].rank;
-    const skin = people && fitOfPeople(x.c.id, { people }).ok ? { people, ...(F ? { dress: { faction, kind: kindOf(role, x.c), colourway } } : {}) } : null;
+    const skin = people && fitOfPeople(x.c.id, { people }).ok ? { people, ...(F ? { dress: { faction, kind: kindOf(role, x.c), colourway, ...(hench ?? {}) } } : {}) } : null;
     const entry = { class: x.c.id, ...(rank !== 'minion' ? { rank } : {}), ...(skill ? { skill } : {}), ...(skin ? { skin } : {}) };
     // (a summoner calls the grunt; a grunt that is itself a summoner never stands, so it always has one to call)
     if (x.c.id === 'summoner') entry.summons = { foe: 'grunt' };
@@ -206,7 +220,7 @@ export function castingCall(world) {
     const from = roles0.flatMap((r) => [r, ...(deeper && r !== 'boss' ? variantsOf(r) : [])]);
     levels[id] = { from: from.filter((r) => foes[r]), ...(last ? { count: 1, win: 'clear' } : {}) };
   });
-  const patch = [{ op: 'add', path: '/foes', value: foes }, ...Object.entries(levels).map(([id, v]) => ({ op: 'add', path: `/levels/${id}/foes`, value: v }))];
+  const patch = [{ op: 'set', path: '/foes', value: foes }, ...Object.entries(levels).map(([id, v]) => ({ op: 'set', path: `/levels/${id}/foes`, value: v }))];
   const reasons = [
     genre ? `a ${genre} (the intent's cube), its minds ${Object.entries(mind).filter(([k]) => k !== 'foes').map(([k, v]) => `${k} ${v}`).join(', ') || 'unsaid'}` : 'no genre: the cube\'s own values',
     `a ${style.flavor} game in the ${style.register} register (${style.from})`,

@@ -717,6 +717,12 @@ GLB's baked ink (`bake: true`) cannot stencil: it leaves out only the outline of
   `hero.gesture` says the word, the support, the hand and forearm against the torso, bust, thighs, neck and head
   (`clearance`, millimetres past their rest overlap) and the free sole against the floor; past 5 mm it advises, as does
   `lean` or `stance` off rest beside a stand (the rig poses the rest joints, so the dial is posed twice).
+  A SHOWCASE word as the stand (`heroHips`, `crossedArms`, `fistToSky`, `peaceWink`, `pocketsCool`, `jotaroPoint` …,
+  each with its `…Left` mirror; the motion card lists them as the showcase poses) holds that pose's hit: solved on the
+  rig, the hands resting on the body's own surfaces. It stands alone, not in a list. What a game shows by default, the
+  cover's showcase and the live demo's stand and idle per kind of game, is the pose rails' (gameworld/game-poses.js): a
+  fighter in its bouncing guard, a hero chest out, a person at ease shifting its weight, a mascot bobbing; a live idle
+  is a door clip `idle` (in place of the form's breathing loop).
 <!-- /section -->
 <!-- section: hero-clips | Clips | the operator's motion as keys, durations, the ambient blink -->
   THE CLIPS. `clips: { <name>: [keys] | false }` adds the operator's motion to the hero's own (`idle`, `walk`, `wave`;
@@ -830,6 +836,22 @@ GLB's baked ink (`bake: true`) cannot stencil: it leaves out only the outline of
   cock, a greatsword (or a `mass` ≥ 1.2, or an item past three quarters of the figure) strikes late from a held, higher
   cock. The readout's `hero.gear.<hand>.swing` gives the impact's phase, the contact `window`, `reachM` and `cone` for
   a game's hit test. No bow draw yet: the hand has no wrist, so a bow raised to draw would point at the archer.
+<!-- /section -->
+<!-- section: hero-attach | Worn objects of your own | attach: any workbench recipe, or a solid by ref, worn on a bone -->
+  ATTACH. What no catalogue has (a horned crown, a bracer with a crystal, a jetpack, a tail ornament, a halo): make it
+  and wear it. `attach: [{ object | ref, at, t?, bone?, size?, fit?, anchor?, offset?, rotate?, align?, mirror?, id? }]`.
+  `object` is a workbench recipe inline (`{ units?, lathes?, extrudes?, sweeps?, lofts?, fields?, shells?, program?,
+  cuts? }`: the workbench card's whole language, fields and code included), or `ref` names a solid already made with
+  `mint_solid { kind: 'workbench' }`, copied in at the door so a later edit of that solid never moves this hero until the
+  ref is set again. `at` is a rig joint (`headTop`, `neckHub`, `shoulderR`, `elbowL`, `wristR`, `hipL`, `kneeR`,
+  `ankleL` …) or `[a, b]` with `t` (0 to 1) along it; it rides the bone that starts there (or ends there; a pair's
+  a → b; or `bone` by id). `size` is metres along `fit` (`height` | `width` | `depth` | `max`); absent, the object's own
+  size in its `units`. `anchor` (`center` | `base` | `top`) lands on the mount; `rotate` is degrees about the object's own
+  axes first; `align: 'bone'` turns its +z down the bone; `offset` nudges in metres (x right, y forward, z up); `mirror:
+  true` wears a reflected twin on the other side (pauldrons, earrings, wings). Rigid on its bone, so the stand, the clips
+  and the skinned GLB carry it as gear; it layers over whatever the hero wears. The readout's `hero.attach` names each
+  object's bone, length (m) and share of the figure's height. Patch one: `/hero/attach/0/size`; add one:
+  `{ op: 'add', path: '/hero/attach/-', value: {…} }`.
 <!-- /section -->
 <!-- section: hero-headgear | Headgear | headgear: a mask, a cowl, eyegear, a helmet by word, swapped in place -->
   THE HEADGEAR. `headgear: '<word>'`: a mask, a cowl, eyegear, a mouthpiece, a helmet, a respirator or a visor, each a

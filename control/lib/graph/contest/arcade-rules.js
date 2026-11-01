@@ -60,7 +60,7 @@ function netCourt(c, serve) {
 
 /** The score: rally points to a count by a lead, games to the match; or the tennis ladder. */
 function netScore(s, games, rally) {
-  if (s.tennis) return { points: 'rally', ladder: [{ unit: 'game', to: 4, by: 2, names: ['0', '15', '30', '40'] }, { unit: 'set', to: 6, by: 2 }, { unit: 'match', to: games }] };
+  if (s.tennis) return { points: 'rally', ladder: [{ unit: 'game', to: 4, by: 2, names: ['0', '15', '30', '40'] }, { unit: 'set', to: 6, by: 2, tiebreak: { at: 6, to: 7, by: 2 } }, { unit: 'match', to: games }] };
   return { points: rally, ladder: [{ unit: s.unit ?? 'game', to: s.to, by: s.by ?? 2 }, { unit: 'match', to: games }] };
 }
 

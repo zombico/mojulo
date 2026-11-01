@@ -190,13 +190,16 @@ function lightIn(light, W) {
 function carry(f, G, frame, dz) {
   const P = (q) => { const p = gearRestPoint(G, q); const w = frame ? ride(frame, p) : p; return [w[0], w[1], w[2] + dz]; };
   const V = (v) => { const w = mv(G.M, v); return frame ? mv(frame.m, w) : w; };
-  const out = { ...f, corners: f.corners.map(P) };
+  // (a mirrored attachment, hero-attach.js, is reflected: its faces wound back so they still face out)
+  const out = { ...f, corners: G.flip ? f.corners.map(P).reverse() : f.corners.map(P) };
   if (Array.isArray(f.outNormal)) out.outNormal = unit(V(f.outNormal));
   if (f.crystal && Array.isArray(f.crystal.c)) out.crystal = { ...f.crystal, c: P(f.crystal.c), ...(Array.isArray(f.crystal.axis) ? { axis: unit(V(f.crystal.axis)) } : {}), ...(Number.isFinite(f.crystal.r) ? { r: f.crystal.r * G.k } : {}) };
   if (f.metal && Array.isArray(f.metal.p)) out.metal = { ...f.metal, p: f.metal.p.map((c) => c.map((v) => r5(v * G.k))) };   // the billet in metres
   return out;
 }
 function lowered(G, light, W) {
+  // a worn object of the operator's own (hero-attach.js): its recipe lowered as it is, a failure costing only itself
+  if (G.object) { try { return lowerObjectFaces({ kind: 'workbench', ...G.object }, lightIn(light, W)).filter((f) => Array.isArray(f?.corners) && f.corners.length >= 3); } catch { return []; } }
   const m = { kind: 'workbench', units: 'cm', build: G.build };
   return lowerObjectFaces(G.detail ? tierMonomers(withEquipment(m), G.detail) : m, lightIn(light, W));
 }

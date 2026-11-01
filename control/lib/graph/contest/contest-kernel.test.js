@@ -176,6 +176,29 @@ describe('tennis: a served match with a named ladder', () => {
     expect(kinds(r.calls)).toContain('game');
     expect(r.S.score[rec][1]).toBe(1);
   });
+  it('a set tied at six all is decided by a tiebreak: counted plainly to seven by two, the serve changing hands after its first point and every two after', () => {
+    const win = (S, side) => play(T, S, S.server === side ? pointToServer : pointToReceiver);
+    const tied = () => { const S = contestStart(T, 1); S.score.a[1] = 6; S.score.b[1] = 6; return S; };
+    // (a runs it off seven–nil: the set is a's, seven–six; the serve went a b b a a b b)
+    let S = tied(); const first = S.server, servers = [];
+    for (let i = 0; i < 7; i++) { servers.push(S.server); const r = win(S, 'a'); S = r.S; if (i === 0) expect(contestDisplay(T, S).score.a[0]).toBe('1'); if (i === 6) expect(r.calls.find((c) => c.kind === 'set')).toMatchObject({ side: 'a', score: [7, 6] }); }
+    const other = first === 'a' ? 'b' : 'a';
+    expect(servers).toEqual([first, other, other, first, first, other, other]);
+    expect(S.score.a[1]).toBe(0); expect(S.score.a[2]).toBe(1);
+    // (six all in the tiebreak is no win: eight–six is)
+    S = tied();
+    for (let i = 0; i < 6; i++) { S = win(S, 'a').S; S = win(S, 'b').S; }
+    S = win(S, 'a').S; expect(S.score.a[2]).toBe(0); expect(contestDisplay(T, S).score.a[0]).toBe('7');
+    const r = win(S, 'a'); expect(r.calls.find((c) => c.kind === 'set')).toMatchObject({ side: 'a', score: [7, 6] });
+    // (a ladder without one plays the set on, as written: seven–six is not a set)
+    const N = contestRead({ ...tennis(), scoring: { ...tennis().scoring, ladder: tennis().scoring.ladder.map(({ tiebreak, ...u }) => u) } });
+    let Q = contestStart(N, 1); Q.score.a[1] = 6; Q.score.b[1] = 6;
+    for (let i = 0; i < 4; i++) Q = play(N, Q, Q.server === 'a' ? pointToServer : pointToReceiver).S;
+    expect([Q.score.a[1], Q.score.b[1], Q.score.a[2]]).toEqual([7, 6, 0]);
+    expect(() => contestRead({ ...tennis(), scoring: { ladder: [{ unit: 'game', to: 4, by: 2, tiebreak: { at: 3, to: 7 } }, { unit: 'set', to: 6 }] } })).toThrow(/the lowest unit has no unit below it/);
+    expect(() => contestRead({ ...tennis(), scoring: { ladder: [{ unit: 'game', to: 4 }, { unit: 'set', to: 6, tiebreak: { at: 6 } }] } })).toThrow(/takes whole numbers/);
+  });
+
   it('a fault, a double fault, a let, a volleyed serve and a foot fault', () => {
     const S0 = contestStart(T, 7), srv = S0.server, rec = srv === 'a' ? 'b' : 'a';
     let r = play(T, S0, [serveIn, (S) => ({ kind: 'bounce', at: [0, Y(rec, 8)] })]);   // long: past the service line

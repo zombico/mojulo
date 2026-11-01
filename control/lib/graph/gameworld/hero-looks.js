@@ -22,6 +22,7 @@ import { resolveMotion, motionOrders } from './hero-vibe.js';
 import { ELEMENT_TINT } from './element-words.js';
 import { solvePalette } from '../color-theorist/solve.js';
 import { skinDirection } from '../color-theorist/adapters.js';
+import { railOfGame, gameBody, GAME_WORD } from './game-bodies.js';
 
 export { ELEMENT_TINT };
 
@@ -112,14 +113,41 @@ export function heroLooks(G) {
   const own = (key) => ({ ...(L[key] || {}) });
   const colour = own('colour');
   const palette = { ...(D.palette ? paletteOfDirection(D.palette) : {}), ...tint, ...(colour.palette || {}) };
+  const B = bodyOfGame(G, D, own('body'));
   const elements = {
-    body: page('body', { ...own('body'), proportions: T.proportions }, { tradition: D.tradition, proportions: T.proportions }),
+    body: page('body', { ...(B?.spec ?? {}), ...ownBody(own('body'), B), proportions: T.proportions }, { tradition: D.tradition, proportions: T.proportions, ...(B ? { body: `${B.rail} · ${B.style}`, why: B.why } : {}) }),
     head: page('head', { head: T.head, ...own('head') }, { tradition: D.tradition, head: T.head }),
     hair: page('hair', own('hair'), { ...(motif ? { motif } : {}), ...(D.primary ? { primary: D.primary } : {}) }),
     colour: page('colour', Object.keys(palette).length ? { palette } : {}, { ...(D.palette ? { palette: D.palette } : {}), ...(Object.keys(tint).length ? { tints: tint } : {}) }),
   };
-  return { elements, unread, direction: D };
+  return { elements, unread, direction: D, ...(B ? { body: B } : {}) };
 }
+
+/**
+ * The body the game puts in the hero (game-bodies.js), when the direction names one: `direction.body` a rail, 'game' (the
+ * rail its feel, genre or quick goal reads) or { rail, style?, muscle? }, styled by the tradition, the world's juice look
+ * and its medium, the pole the body page's cast. → { rail, style, spec, why, from, ledger } | null (no body named, or a
+ * game whose kind names no rail). Its words lie under the body page: the creator's own win, each departure ledgered.
+ */
+export function bodyOfGame(G, D = resolveDirection(G), own = G?.characters?.hero?.looks?.body ?? {}) {
+  if (!D || D.body === undefined) return null;
+  const word = typeof D.body === 'string' ? D.body : D.body.rail;
+  const feel = typeof G.feel === 'string' ? G.feel : G.feel?.pole ?? null;
+  const read = word === GAME_WORD ? railOfGame({ genre: G.intent?.from ?? null, goal: G.quick?.goal ?? null, feel }) : { rail: word, from: 'direction', why: 'the direction names it' };
+  if (!read) return null;
+  const pole = typeof own.cast === 'string' ? own.cast : own.cast?.pole ?? 'male';
+  const look = G.juice && typeof G.juice === 'object' ? G.juice.look ?? null : null;
+  const B = gameBody(read.rail, 'hero', { tradition: D.tradition, look, pixel: !!G.style?.pixel, pole, ...(isObj(D.body) && D.body.style ? { style: D.body.style } : {}), ...(isObj(D.body) && D.body.muscle !== undefined ? { muscle: D.body.muscle } : {}) });
+  // (the creator's own body words over the rail's, each a departure the ledger keeps)
+  // (a cast word only names the pole the rail's build stands on: no departure)
+  const departs = (k) => own[k] !== undefined && !(k === 'cast' && typeof own.cast === 'string') && JSON.stringify(own[k]) !== JSON.stringify(B.spec[k]);
+  const ledger = Object.keys(B.spec).filter(departs)
+    .map((k) => ({ scope: 'rail', at: `hero.looks.body.${k}`, key: k, world: B.spec[k], local: own[k] }));
+  return { ...B, from: read.from, why: `${read.why}: ${B.why}`, ledger };
+}
+const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
+/** the body page's own words over a rail's: a cast word only names the pole, so the rail's build on that pole stands */
+const ownBody = (own, B) => (B?.spec.cast && typeof own.cast === 'string' ? (({ cast: _c, ...rest }) => rest)(own) : own);
 
 /** A direction's palette (a list of colours) as hero palette groups: the first is the Hair, the next the Top and Bottom. */
 function paletteOfDirection(list) {
@@ -143,7 +171,7 @@ export function composeHero(G, looks = heroLooks(G)) {
   if (!Object.keys(spec.palette).length) delete spec.palette;
   spec.outfit = U.build;
   const skin = worldSkin(G);
-  return { spec, toon: D.hero.toon, underlayer: U, elements, unread: looks.unread, ledger: [...D.ledger, ...U.ledger], ...(skin ? { skin } : {}) };
+  return { spec, toon: D.hero.toon, underlayer: U, elements, unread: looks.unread, ledger: [...D.ledger, ...U.ledger, ...(looks.body?.ledger ?? [])], ...(skin ? { skin } : {}), ...(looks.body ? { body: looks.body } : {}) };
 }
 
 /**

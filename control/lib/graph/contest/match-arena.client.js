@@ -280,7 +280,7 @@ function tick() {
   readCalls();
   if (S.over && S.dead === 0) {
     const won = ctx.players === 0 || S.winner === 'a';
-    if (hosted) { post({ moj: CA.wire.outcome, envelope: { result: won ? 'success' : 'fail', events: [], stats: { court: { winner: S.winner, score: S.K.score }, contest: statCompact(statsNow()) } } }); phase = 'done'; }
+    if (hosted) { post({ moj: CA.wire.outcome, envelope: { contractVersion: CA.wire.version, result: won ? 'success' : 'fail', events: [], stats: { court: { winner: S.winner, score: S.K.score }, contest: statCompact(statsNow()) } } }); phase = 'done'; }
     else phase = 'over';
   }
 }
