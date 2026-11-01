@@ -7,6 +7,7 @@ import { compileRealistic } from './realistic.js';
 import { roadPart, formFace, smoothForm, ROAD_MATERIALS } from './road-form.js';
 import { loftFigure } from './race-families.js';
 import { roadWheel, wheelWell, WHEEL_STYLES } from './road-wheel.js';
+import { glasshouse, GLASSHOUSE } from './road-glass.js';
 
 // one class per body plan the loft draws, chosen in code: a car's language loft and a heavy class's own build
 const carClass = Object.keys(FLEET).find((c) => FLEET[c].kind === 'car');
@@ -133,5 +134,48 @@ describe('the road wheel, lathed', () => {
     expect(c.form[wheelBone].some((f) => f.part === 'wheel.caliper')).toBe(false);
     expect(c.form.root.filter((f) => f.part === 'wheel.well').length).toBeGreaterThan(0);
     expect(c.form.root.some((f) => f.part === 'wheel.caliper')).toBe(true);
+  });
+});
+
+describe('the glasshouse: panes, pillars and frames', () => {
+  const area = (fs) => fs.reduce((s, f) => {
+    const c = f.corners, n = [0, 0, 0];
+    for (let i = 0; i < c.length; i++) { const a = c[i], b = c[(i + 1) % c.length]; n[0] += (a[1] - b[1]) * (a[2] + b[2]); n[1] += (a[2] - b[2]) * (a[0] + b[0]); n[2] += (a[0] - b[0]) * (a[1] + b[1]); }
+    return s + Math.hypot(...n) / 2;
+  }, 0);
+  const glassy = (f) => f.material === 'glass' || f.part === 'glass.frame' || f.part === 'pillar';
+  // (the pass run on a few panes made here: one case per rule, the smallest input that shows it)
+  const quad = (y0, y1, x, n) => ({ corners: [[x, y0, 1], [x, y1, 1], [x, y1, 1.4], [x, y0, 1.4]], material: 'glass', part: 'glass', albedo: '#1e2630', outNormal: n });
+  const paintAbove = (y0, y1, x) => ({ corners: [[x, y0, 1.4], [x, y1, 1.4], [x * 0.9, y1, 1.5], [x * 0.9, y0, 1.5]], material: 'paint', part: 'body', albedo: '#20304a', outNormal: [Math.sign(x), 0, 0.3] });
+  it('parts a long side into panes with a door pillar, and keeps the glass\'s area', () => {
+    const faces = [quad(-1.2, 0, -0.9, [-1, 0, 0]), quad(0, 1.2, -0.9, [-1, 0, 0])];
+    const out = glasshouse(faces, { body: '#20304a' });
+    const span = 2.4, panes = Math.round(span / GLASSHOUSE.pane);
+    expect(out.filter((f) => f.part === 'pillar' && f.material === 'carbon').length).toBeGreaterThan(0);
+    expect(panes).toBeGreaterThan(1);
+    expect(area(out.filter(glassy))).toBeCloseTo(area(faces), 6);
+  });
+  it('keeps a short side one pane', () => {
+    const out = glasshouse([quad(0, 1.0, -0.9, [-1, 0, 0])]);
+    expect(out.some((f) => f.part === 'pillar')).toBe(false);
+  });
+  it('frames a pane where it meets paint, in rubber or a classic\'s chrome, the area kept', () => {
+    const faces = [quad(0, 1, -0.9, [-1, 0, 0]), paintAbove(0, 1, -0.9)];
+    const rubber = glasshouse(faces), chrome = glasshouse(faces, { chrome: true });
+    expect(rubber.find((f) => f.part === 'glass.frame')).toMatchObject({ material: 'seal' });
+    expect(chrome.find((f) => f.part === 'glass.frame')).toMatchObject({ material: 'alloy' });
+    expect(area(rubber.filter(glassy))).toBeCloseTo(area(faces.slice(0, 1)), 6);
+  });
+  it('paints a pillar where two panes meet at a turn', () => {
+    const screen = { ...quad(0, 1, -0.9, [0, 0.7, 0.7]), corners: [[-0.9, 1, 1], [-0.9, 1, 1.4], [0, 1.4, 1.4], [0, 1.4, 1]] };
+    const side = { ...quad(0, 1, -0.9, [-1, 0, 0]), corners: [[-0.9, 0, 1], [-0.9, 1, 1], [-0.9, 1, 1.4], [-0.9, 0, 1.4]] };
+    const out = glasshouse([screen, side], { body: '#20304a' });
+    expect(out.filter((f) => f.part === 'pillar' && f.material === 'paint' && f.albedo === '#20304a')).toHaveLength(2);
+  });
+  it('is the loft\'s glass in the form render: every side of a car framed, a sedan\'s doors pillared', () => {
+    const c = compileRealistic(sheet(carClass), { form: true });
+    expect(c.form.root.some((f) => f.part === 'glass.frame')).toBe(true);
+    expect(c.form.root.some((f) => f.part === 'pillar')).toBe(true);
+    for (const f of c.form.root) expect(ROAD_MATERIALS).toHaveProperty(f.material);
   });
 });

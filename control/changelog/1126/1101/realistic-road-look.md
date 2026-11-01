@@ -60,6 +60,19 @@ carries its material and its form and the page lights it.
   bed (`PICKUP_AXLE_SHIFT`, now one constant both read). The body language now cuts its arches there, not at the
   wheelbase's centre, where the wheels showed half behind the body. Only the realistic compile draws the language
   loft; the fleet's own pickup keeps its bytes.
+- **The glasshouse** (`car-designer/road-glass.js` `glasshouse`). In the form render a loft's glass is parted, pillared
+  and framed, read from the faces' own edges, so it holds for any loft:
+  - **Panes:** each side's glass is parted along its length into panes about a door's length each (`GLASSHOUSE.pane`):
+    a sedan's two, a short cab's one, a crossover's three, a van's several. A door pillar stands between them, black as
+    the road's are, or in paint on a classic three-box.
+  - **Pillars:** where two panes meet at a turn of more than 35° (the screen against the side glass, the rear glass
+    against it), the joint is a pillar in the body's paint, the A and C pillars.
+  - **Frames:** where glass meets paint (the roof's edge, the belt, the bonnet, the boot lid), a strip of the frame:
+    black rubber, or chrome on a classic three-box. These are the roof's drip line, the belt's trim and the screen's
+    border.
+  - **Cuts and insets:** a pane is cut at a pillar's two planes with the cut's points shared exactly. An edge is inset
+    along the pane's own sides, so neighbouring panes move a shared corner the same way. The glass's area is
+    conserved: glass, frames and pillars cover what the glass covered.
 - **The compile returns its named faces** by bone (`form`) when asked for the form render, for a review to draw and
   an engine's materials to be read from.
 - **Held** (`road-form.test.js`):
@@ -73,7 +86,10 @@ carries its material and its form and the page lights it.
   - the wheel: a tyre lathed to its radius and width, its faces out of it; every face a material and a unit normal,
     the plates looking out of the wheel; a spoked style's spokes as solids and a dish as a plate; the liner facing the
     wheel and the caliper on the body; in the compile, the wheel bones rolling the wheel and the body keeping the
-    liner.
+    liner;
+  - the glasshouse, one case per rule on panes made in the test: a long side parted with a door pillar and its area
+    kept, a short side left one pane, a pane framed against paint in rubber or a classic's chrome (its area kept), a
+    turning joint painted as two pillar strips; in the compile, a car framed and pillared, every face a material.
 
   End to end, the realistic ride's figure is in the form render.
 - **Seen** (machine gate only; the eyes gate is open):
@@ -81,8 +97,16 @@ carries its material and its form and the page lights it.
     errors. The paint carries the sky, the glass reads as glass, and the rims and tyres part.
   - The wheel close (the named faces under a static light): a sedan, a pickup and a box truck. The spokes stand off a
     dark barrel, the caliper shows through them, and the arch is a well; the pickup's wheels sit in their arches.
+  - The glasshouse (the same review, and the sedan's level in the form render):
+    - the sedan: a black B pillar between its doors' glass, the drip line along the roof, the belt's trim and the
+      screen's border;
+    - the crossover: its B and rear pillars;
+    - the pickup: its short cab one framed pane;
+    - in the level, the rear glass framed under the roof, with no page errors.
 - **Not built, said:**
-  - **The glasshouse:** pillars and frames.
+  - **The glass set in:** pushed a few millimetres behind its frame, with the frame's reveal drawn.
+  - **A cargo van's side:** a cargo van's sides are panels, not glass (the loft draws it as a people carrier); this is
+    for the panels phase.
   - **The panels:** shut lines, handles, mirrors, plates, and a real patched panel.
   - **The heavy classes:** the bus's and the trucks' own bodies.
   - **The head and tail lamps** as their own bones, lit by the page as status slots.
