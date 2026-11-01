@@ -120,7 +120,7 @@ export const FAMILY_TUNE = Object.freeze({
   macropod: { feet: 1.8, body: 0.92 },
   giraffid: { legs: 1.5 },
   // (a cat's stripes stop short of its pale belly, and are thinner than a zebra's)
-  feline: { body: 0.86, belly: 'underside', stripes: { end: 140, taper: 2.5, width: 0.8 } },
+  feline: { kit: { muzzle: 'feline' }, body: 0.86, belly: 'underside', stripes: { end: 140, taper: 2.5, width: 0.8 } },
   // (a horse: its long face ending in a soft dark nose, a flowing mane falling to one side with a forelock, a long hair
   // tail, a head longer and narrower than a stander's; a deer: its antlers, its big ears out to the sides, a narrow snout
   // ending in a black nose over a pale chin)
@@ -147,7 +147,7 @@ export function speciesMeasures(id) {
 
 /** a species' own kit over its family card's, where its name is a feature the family's rule misses (the squirrel is its
  *  brush) or gets wrong (a hippo has no trunk; a great ape no tail) */
-export const SPECIES_KIT = Object.freeze({ giraffe: { pattern: 'reticulated' }, zebra: { mane: 'crest', tail: 'tuft' }, donkey: { mane: 'crest', tail: 'tuft' }, squirrel: { tail: 'brush' }, hippo: { muzzle: 'wide' }, rhino: { muzzle: 'wide' }, gorilla: { tail: 'none' }, chimpanzee: { tail: 'none' }, orangutan: { tail: 'none' }, frog: { tail: 'none' }, toad: { tail: 'none' } });
+export const SPECIES_KIT = Object.freeze({ moose: { horns: 'palmate' }, giraffe: { pattern: 'reticulated' }, zebra: { mane: 'crest', tail: 'tuft' }, donkey: { mane: 'crest', tail: 'tuft' }, squirrel: { tail: 'brush' }, hippo: { muzzle: 'wide' }, rhino: { muzzle: 'wide' }, gorilla: { tail: 'none' }, chimpanzee: { tail: 'none' }, orangutan: { tail: 'none' }, frog: { tail: 'none' }, toad: { tail: 'none' } });
 
 /** a wing's fold on a silhouette that is not a standing bird's (an owl's teardrop): back and down along the side */
 const WING_FOLD = unit([0.4, -0.55, -0.73]);
@@ -301,6 +301,14 @@ const MUZZLES = {
     { name: 'chin', c: [0, 0.92, 2.2], u: [0, 1, 0], r: [0.18, 0.22, 0.12], hint: [1, 0, 0], bone: 'head', join: 0.08 },
     { name: 'nostrilR', c: [0.15, 1.24, 2.44], u: unit([0.3, 1, 0.3]), r: [0.07, 0.06, 0.035], hint: [0, 0, 1], bone: 'head', group: 'Ink', join: 0.02 }],
     mouth: { nose: [0, 1.25, 2.32], centre: [0, 1.22, 2.2], corner: [0.2, 1.04, 2.22], pivot: [0, 0.92, 2.26] }, nose: null }),
+  // (a cat's: a bridge down from the brow, two puffy whisker pads and a chin, pale, and an inverted triangle of a nose at
+  // the top of the pads, its point down to the mouth's line that parts them)
+  feline: () => ({ eggs: [
+    { name: 'bridge', c: [0, 0.4, 2.64], u: unit([0, 1, 0.1]), r: [0.3, 0.2, 0.17], e: 0.2, hint: [1, 0, 0], bone: 'head', join: 0.12 },
+    { name: 'padR', c: [0.13, 0.54, 2.46], u: unit([0.3, 1, -0.1]), r: [0.17, 0.16, 0.14], hint: [0, 0, 1], bone: 'head', group: 'Belly', join: 0.08 },
+    { name: 'chin', c: [0, 0.44, 2.32], u: [0, 1, 0], r: [0.12, 0.13, 0.09], hint: [1, 0, 0], bone: 'head', group: 'Belly', join: 0.08 },
+    { name: 'nose', c: [0, 0.68, 2.62], u: unit([0, 0.3, -1]), r: [0.08, 0.13, 0.06], e: 0.6, hint: [1, 0, 0], bone: 'head', group: 'Nose', join: 0.03 }],
+    mouth: { nose: [0, 0.7, 2.53], centre: [0, 0.68, 2.41], corner: [0.18, 0.57, 2.41], pivot: [0, 0.42, 2.48] }, nose: 'nose', pale: ['padR', 'padL', 'chin'] }),
   // (a deer's: a narrow snout tapering to a black nose, a pale chin under it)
   cervid: () => ({ eggs: [
     { name: 'muzzle', c: [0, 0.6, 2.52], u: unit([0, 1, -0.28]), r: [0.5, 0.26, 0.24], e: 0.4, hint: [1, 0, 0], bone: 'head', join: 0.12 },
@@ -530,6 +538,20 @@ export function featureBuild(card, { decor = {}, tune = null } = {}) {
     B.tufts.push(headTuft(beam));
     [[0.17, [0.1, 1, 0.45], 0.3], [0.5, [0.3, 0.3, 1], 0.32], [0.8, [0.15, 0.5, 1], 0.24]].forEach(([t, aim, len], i) =>
       B.tufts.push(headTuft({ name: `antlerTine${i}R`, root: along(t), aim: unit(aim), len: len * k, r: 0.05, tip: 0.35, curl: 15, bend: [0, 1, 0], bone: 'head', group: 'Horn', join: 0.03 })));
+  } else if (K.horns === 'palmate' && D.horns > 0) {
+    // (a moose's: a short beam out from each side of the head carrying a broad flat PALM, spread out and up like an open
+    // hand held up, its broad face to the front, points along its outer and upper rim)
+    const k = D.horns, root = [0.3, -0.05, 3.3], out = unit([1, -0.15, 0.35]);
+    B.tufts.push(headTuft({ name: 'antlerR', root, aim: out, len: 0.42 * k, r: 0.075, tip: 0.8, curl: 0, bend: [0, 0, 1], bone: 'head', group: 'Horn', join: 0.04 }));
+    const U = unit([0.85, -0.1, 0.55]), up = [0, -0.3, 1], V = unit(sub3(up, mul(U, dot(up, U)))), c = add(at(root, out, 0.38 * k), mul(U, 0.42 * k)), palm = { name: 'palmR', c, u: U, r: [0.5 * k, 0.34 * k, 0.05], e: 0.25, hint: V, bone: 'head', group: 'Horn', join: 0.05 };
+    B.eggs.push(headEgg(palm));
+    // (the points: along the rim's outer half, each standing out of it and up)
+    const W = unit(cross(U, V));
+    [-10, 25, 55, 85, 115].forEach((deg, i) => {
+      const t = rad(deg), rim = add(c, add(mul(U, 0.5 * k * 0.85 * Math.cos(t)), mul(V, 0.34 * k * 0.9 * Math.sin(t))));
+      const aim = unit(add(add(mul(U, Math.cos(t)), mul(V, Math.sin(t) * 0.8)), mul(W[1] > 0 ? W : mul(W, -1), 0.25)));
+      B.tufts.push(headTuft({ name: `palmTine${i}R`, root: rim, aim, len: (0.2 + 0.04 * (2 - Math.abs(i - 2))) * k, r: 0.05, tip: 0.3, curl: 0, bend: [0, 0, 1], bone: 'head', group: 'Horn', join: 0.03 }));
+    });
   } else if (K.horns && D.horns > 0) {
     const oss = K.horns === 'ossicones';
     B.tufts.push(headTuft(dialled({ name: 'hornR', root: [0.26, 0.02, 3.3], aim: oss ? [0.15, -0.1, 1] : [0.7, 0.25, 0.75], len: oss ? 0.3 : 0.55, r: oss ? 0.07 : 0.12, tip: oss ? 0.9 : 0.15, curl: oss ? 0 : 55, bend: [0, -0.6, 0.2], bone: 'head', group: 'Horn', join: 0.04 }, D.horns)));

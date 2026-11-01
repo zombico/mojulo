@@ -134,6 +134,13 @@ member, a quick game's hero). Code: `control/lib/graph/egocube/feature-tune.js`.
   coat (`FEATURE_NETWORK`, the coat's `cells`). The seeds sit on a jittered lattice from seeded dice, and the patches
   take the roster's own brown (`Spot`), over the body, legs and neck to under the head. It is cut into the skin as a
   zone, the patches sized to keep the giraffe within budget (17,831 triangles).
+- **The moose's palms and the cats' noses.**
+  - A new `palmate` antler (the moose's, `SPECIES_KIT`): a short beam out from each side of the head carrying a broad
+    flat palm, held up and out like an open hand, its broad face to the front, with points along its outer and upper
+    rim. The moose had worn the deer's branching antlers.
+  - A new `feline` muzzle for the cat family (tiger, lion, house cat, cougar): a bridge down from the brow, two puffy
+    pale whisker pads and a pale chin, and an inverted triangle of a nose at the top of the pads in the roster's nose
+    colour. The cats had a `button` nose, a small dot the tiger's orange swallowed.
 - **QA.** `scripts/spikes/feature-roster.mjs` takes `--tune` (every species minted with it) and `--tunes` (each species
   once per tune, side by side).
 - **Stored mascots keep their look.** A minted mascot stores its compiled plan. An untuned sheet compiles as before,
@@ -159,6 +166,8 @@ member, a quick game's hero). Code: `control/lib/graph/egocube/feature-tune.js`.
     the jaw (rings on the legs, arcs from the spine to the belly above them, a cat's stopping short), and a giraffe's
     seeded network of patches in its own colour, both cut into the skin within the budget, the markings' dial still
     ruling them;
+  - a moose's flat palms (broad face to the front, points on the rim, not the deer's tines) and a cat's pointed nose
+    on pale whisker pads;
   - a horse's long face, flowing mane, forelock and hair tail, and a deer's antlers, side-set ears and pale chin, with
     the dials still ruling them;
   - a head tuft worn by every plan in place of the crown, each card's locks rooted in the skull and standing out of it,
@@ -168,4 +177,3 @@ member, a quick game's hero). Code: `control/lib/graph/egocube/feature-tune.js`.
 **Known.**
 
 - The gen7 look is vertex-baked light and denser geometry. The fur has no normal map yet: the skin has no UVs.
-- The moose wears the deer's branching antlers, not its own broad ones.

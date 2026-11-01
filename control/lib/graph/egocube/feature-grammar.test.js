@@ -174,6 +174,25 @@ describe('the feature grammar', () => {
     expect(featureBuild(animalCard(net)).marks.find((m) => m.name === 'network').cells[0].seeds).toEqual(mk.cells[0].seeds);   // (seeded: the same every time)
   });
 
+  it('a moose wears broad flat palms; a cat has a nose on pale whisker pads', () => {
+    const palmate = Object.keys(SPECIES_KIT).find((id) => SPECIES_KIT[id].horns === 'palmate'), m = featureBuild(animalCard(palmate));
+    const palm = m.eggs.find((e) => e.name === 'palmR');
+    expect(palm.group).toBe('Horn');
+    expect(Math.min(...palm.r)).toBeLessThan(Math.max(...palm.r) / 5);            // (flat: a plate, never a club)
+    expect(m.tufts.filter((t) => /^palmTine/.test(t.name)).length).toBeGreaterThanOrEqual(4);
+    expect(m.tufts.some((t) => /^antlerTine/.test(t.name))).toBe(false);          // (not the deer's branching ones)
+    // (its broad face to the front: the plate's thin axis mostly front to back)
+    const U = palm.u.map((x) => x / Math.hypot(...palm.u)), h = palm.hint, d = h[0] * U[0] + h[1] * U[1] + h[2] * U[2];
+    const V = [h[0] - U[0] * d, h[1] - U[1] * d, h[2] - U[2] * d].map((x, _, a) => x / Math.hypot(...a)), W = [U[1] * V[2] - U[2] * V[1], U[2] * V[0] - U[0] * V[2], U[0] * V[1] - U[1] * V[0]];
+    expect(Math.abs(W[1])).toBeGreaterThan(0.8);
+    // (one cat, chosen in code: its nose an inverted triangle at the top of two pale whisker pads and a pale chin)
+    const cat = Object.keys(SPECIES).find((id) => SPECIES[id].family === 'feline' && !SPECIES_KIT[id]), c = featureBuild(animalCard(cat));
+    const nose = c.eggs.find((e) => e.name === 'nose');
+    expect(nose.group).toBe('Nose'); expect(nose.u[2]).toBeLessThan(-0.8); expect(nose.e).toBeGreaterThan(0.4);   // (its point down)
+    expect(c.eggs.some((e) => e.name === 'padR')).toBe(true);
+    expect(c.marks.find((x) => x.name === 'throat').eggs).toEqual(expect.arrayContaining(['padR', 'padL', 'chin']));
+  });
+
   it('a bird rests open and bright: its default face a bright one, its lids more open and its brows higher, every clip the same', () => {
     // (the roll leans a feature bird bright; an asked face wins; one bird chosen in code)
     const bird = Object.keys(SPECIES).find((i) => PLAN_OF[SPECIES[i].family] === 'bird');
