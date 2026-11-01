@@ -89,6 +89,28 @@ carries its material and its form and the page lights it.
     by its seed. It replaces the speckle the old patch made.
   - **A cargo van:** its glass is its cab doors' alone (`glasshouse({ cargo })`), and its side behind them is a panel
     of the body.
+- **The heavy classes** (`car-designer/road-heavy.js` `heavyBody`). In the form render a bus, a box truck and a semi are
+  built as their own bodies, in place of the fleet's boxes, at the class's true numbers and round the fleet's own
+  wheels. Their physics, their census and their wheels are the fleet's. The glasshouse and the panels read them as they
+  read a car: the bus's window band is parted and framed, and a truck's cab doors are cut and fitted.
+  - **Primitives:**
+    - a plan rounded at its corners and sampled where it must be (an arch's stations, a door's edges);
+    - a band extruding a plan between two heights, a material per edge and a foot that rises round each arch;
+    - caps, boxes, cylinders, and plates set just proud of a face.
+  - **The bus:** a skirt rising round its arches to the belt; a window band of side glass, with a flat screen between
+    painted corners and the rear in paint; a roof edge, its bevel, the roof and a pod on it. On the kerb side, a door
+    ahead of the front axle (as wide as the overhang lets it) and one between the axles, glazed full height. A
+    destination sign lit over the screen (`sign`), head lamps and bumpers, a rear grille, a rear window and tail lamps.
+    No car's doors, pulls or mirrors (`panels({ kind })`), and its door glass is its own pane (the glasshouse parts
+    the window glass alone).
+  - **The box truck:** a cab over its front wheels (a screen, a door's window each side, a grille between head lamps,
+    a bumper) and its box. The box has panels between posts every 0.62 m, rails at its floor and its top, two rear
+    doors with a seam and four lock bars, and amber marker lamps (`marker`). The frame is under it, mud flaps behind
+    its rear wheels, and a lit underride bar.
+  - **The semi:** a hood narrower than the cab, rising to the cowl, to a chrome grille with head lamps at its corners
+    and a chrome bumper; the cab and its sleeper; two exhaust stacks, five marker lamps on the roof, chrome fuel tanks,
+    the frame and flaps behind the drive axles. The trailer is a box as the truck's, with side skirts, landing gear,
+    an underride guard and flaps.
 - **The compile returns its named faces** by bone (`form`) when asked for the form render, for a review to draw and
   an engine's materials to be read from.
 - **Held** (`road-form.test.js`):
@@ -111,7 +133,14 @@ carries its material and its form and the page lights it.
     - in the compile, a car with shut lines each side, a mirror each side its glass looking back, a plate each end,
       and no primer when it is not battered;
     - a battered car's primer door on one side;
-    - a cargo van glazed at its cab alone, its side behind a panel.
+    - a cargo van glazed at its cab alone, its side behind a panel;
+  - the heavy classes, one class a body plan found in code from the fleet:
+    - every face of each with a material and a unit normal;
+    - a bus's doors on the kerb side alone, its sign and lamps at the right ends, no skirt hanging below an arch's
+      top, no car's pulls;
+    - a truck's box (posts, lock bars, markers, grille, lamps, flaps) and a semi's rig (stacks, tanks, markers,
+      skirts, grille, the trailer's posts);
+    - a car's body still the loft's.
 
   End to end, the realistic ride's figure is in the form render.
 - **Seen** (machine gate only; the eyes gate is open):
@@ -130,10 +159,16 @@ carries its material and its form and the page lights it.
       both quarters (the bonnet's and the boot lid's gaps, the plates);
     - the cargo van's side a panel behind its cab;
     - the sedan's level, its plate and boot lid reading from the chase, with no page errors.
+  - The heavy classes, before and after (the same review):
+    - the bus from the front and the kerb side, its sign, doors, arches and pod;
+    - the truck from both quarters, its cab and its box;
+    - the semi from both quarters;
+    - the bus's and the semi's levels in the form render, with no page errors.
 - **Not built, said:**
   - **The glass set in:** pushed a few millimetres behind its frame, with the frame's reveal drawn.
   - **A crossover's third pane:** a rear quarter window, not a door, but it is given a pull as the doors are.
-  - **The heavy classes:** the bus's and the trucks' own bodies.
+  - **A heavy class's mirrors:** a bus's on its arms, and a truck's larger than a car's (the panels give a truck's cab
+    a car's).
   - **The head and tail lamps** as their own bones, lit by the page as status slots (moved again: they want the juice's
     status slots, a phase of their own).
   - **The studio grid** drawn with the smoothed shading.

@@ -37,6 +37,9 @@ export const ROAD_MATERIALS = Object.freeze({
   // (a patched panel's primer: no clearcoat, no sheen; a number plate's painted card)
   primer: Object.freeze({ metalness: 0, roughness: 0.82 }),
   plate: Object.freeze({ metalness: 0.05, roughness: 0.55 }),
+  // (a bus's destination sign and a truck's marker lamps: amber, lit by their own)
+  sign: Object.freeze({ metalness: 0, roughness: 0.3, emissive: '#ffa62b', emissiveIntensity: 0.9 }),
+  marker: Object.freeze({ metalness: 0, roughness: 0.3, emissive: '#ff9a1f', emissiveIntensity: 0.7 }),
 });
 
 const unit = (n) => { const d = Math.hypot(n[0], n[1], n[2]) || 1; return [n[0] / d, n[1] / d, n[2] / d]; };

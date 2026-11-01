@@ -36,6 +36,7 @@ import { formFace, smoothForm, ROAD_MATERIALS } from './road-form.js';
 import { roadWheel, wheelWell } from './road-wheel.js';
 import { glasshouse } from './road-glass.js';
 import { panels } from './road-panels.js';
+import { heavyBody } from './road-heavy.js';
 import { formLight } from './form-light.js';
 import { readDerive } from './channels.js';
 import { HEAVY } from './facets.js';
@@ -191,14 +192,16 @@ export function compileRealistic(sheet, { keys = 12, form = false } = {}) {
   // three-box, drawn without a body language, framed in chrome)
   const bodyColour = form ? colours[painted.findIndex((g) => g.part === 'body')] : null;
   // (and the body parted into its panels, their fittings set on them: road-panels.js; a cargo van's side a panel)
-  const formRoot = form ? smoothForm(panels(glasshouse([
-    // (a battered car's patch is one quad in 23 darkened, which the form render's light reads as speckle: drawn in the
-    // body's colour here until the panels are a phase of their own)
+  // (a heavy class's body is its own, at the class's numbers round the fleet's wheels: road-heavy.js; a car's the loft's)
+  const hubAt = (w) => [-w.side * spec.track / 2, w.x, spec.r];
+  const heavy = form ? heavyBody(spec, { hubs: wheels.map(hubAt), body: bodyColour }) : null;
+  const named = !form ? null : heavy ?? [
     ...painted.map((f, i) => formFace(f, rec.albedo.get(built.paint[i]), { part: f.part, hex: f.part === 'patch' ? bodyColour : colours[i] })),
     ...built.trim.map((f) => formFace(lift(f), rec.albedo.get(f))),
     ...built.trailer.map((f) => formFace(lift(f), rec.albedo.get(f))),
     ...marks.map((f) => formFace(f, null, { part: f.part, hex: f.fill, inside: [0, 0, spec.H / 2] })),
-  ], { body: bodyColour, chrome: !spec.language, cargo: cls === 'van' }), { body: bodyColour, chrome: !spec.language, battered: sheet.facets.wear === 'battered', seed: sheet.seed, W: spec.W })) : null;
+  ];
+  const formRoot = form ? smoothForm(panels(glasshouse(named, { body: bodyColour, chrome: !spec.language && !heavy, cargo: cls === 'van' }), { body: bodyColour, chrome: !spec.language && !heavy, battered: sheet.facets.wear === 'battered', seed: sheet.seed, W: spec.W, kind: spec.kind })) : null;
   // (each wheel in the form render is the road wheel, lathed, its rim the sheet's wheel style: road-wheel.js; the fleet's
   // prism stays the wheel the census measures)
   const hubOf = (w) => [-w.side * spec.track / 2, w.x, spec.r], tyreW = spec.tyreW || 0.24, wheelWord = form ? readSheet(sheet).words.wheel : null;

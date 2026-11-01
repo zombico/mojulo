@@ -12,7 +12,8 @@
  *   plates       a number plate on each end, low and centred
  *   patch        a battered car's patched panel: a whole door in primer (no clearcoat), one side, by its seed
  *
- *   panels(faces, { body, chrome?, battered?, seed?, W }) → the faces cut at their shut lines, with the fittings added
+ *   panels(faces, { body, chrome?, battered?, seed?, W, kind? }) → the faces cut at their shut lines, with the fittings
+ *                                                    added (kind 'bus': its own glazed doors, no car's doors on it)
  *
  * Vehicle space (+y forward, x across, z up), metres. Pure and deterministic.
  */
@@ -81,13 +82,14 @@ function box(at, u, v, w, [hu, hv, hw], make) {
 }
 
 /** The panels: shut lines cut into the body's paint, the fittings set on it, a battered car's door in primer. */
-export function panels(faces, { body = '#8a8f96', chrome = false, battered = false, seed = 1, W = 1.8 } = {}) {
+export function panels(faces, { body = '#8a8f96', chrome = false, battered = false, seed = 1, W = 1.8, kind = 'car' } = {}) {
   let F = faces;
   const glass = F.filter((f) => f.material === 'glass');
   const added = [];
   // ── each side: its doors' shut lines at the glass's own joints and ends, a pull on each door, a mirror on the front
   const doorsBy = {};
-  for (const sx of [-1, 1]) {
+  // (a bus's doors are its own, glazed: no car's doors, pulls or mirrors on it)
+  for (const sx of kind === 'bus' ? [] : [-1, 1]) {
     // (the side's glass as the glasshouse parted it: its panes, their frames and pillars; a cargo van's is its cab's)
     const side = F.filter((f) => (f.material === 'glass' || f.part === 'pillar' || f.part === 'glass.frame') && Math.sign(f.outNormal[0]) === sx && Math.abs(f.outNormal[0]) > 0.6);
     if (!side.length) continue;

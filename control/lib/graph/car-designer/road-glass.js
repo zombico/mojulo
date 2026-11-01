@@ -55,7 +55,8 @@ const cutY = (corners, c) => cutPlane(corners, 1, c);
 
 // the side glass parted into panes: each side's span cut at its pane joints, a door pillar between neighbours
 function parted(faces, { chrome, body, cargo = false }) {
-  const out = [], side = (f) => material(f) === 'glass' && Math.abs(f.outNormal[0]) > 0.6;
+  // (a door's glass, a bus's, is its own pane: the window glass alone is parted)
+  const out = [], side = (f) => material(f) === 'glass' && f.part === 'glass' && Math.abs(f.outNormal[0]) > 0.6;
   for (const sx of [-1, 1]) {
     const S = faces.filter((f) => side(f) && Math.sign(f.outNormal[0]) === sx);
     if (!S.length) continue;

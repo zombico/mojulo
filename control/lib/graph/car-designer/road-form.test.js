@@ -9,6 +9,7 @@ import { loftFigure } from './race-families.js';
 import { roadWheel, wheelWell, WHEEL_STYLES } from './road-wheel.js';
 import { glasshouse, GLASSHOUSE, paneJoints } from './road-glass.js';
 import { panels } from './road-panels.js';
+import { heavyBody, HEAVY_KINDS } from './road-heavy.js';
 
 // one class per body plan the loft draws, chosen in code: a car's language loft and a heavy class's own build
 const carClass = Object.keys(FLEET).find((c) => FLEET[c].kind === 'car');
@@ -225,5 +226,43 @@ describe('the panels: shut lines, fittings, a patched door', () => {
     const ys = (fs) => fs.flatMap((f) => f.corners.map((p) => p[1]));
     expect(Math.max(...ys(sideGlass)) - Math.min(...ys(sideGlass))).toBeLessThan(GLASSHOUSE.pane * 1.2);
     expect(Math.min(...ys(body))).toBeLessThan(Math.min(...ys(sideGlass)) - 1);
+  });
+});
+
+describe('the heavy classes: their own bodies round the fleet\'s wheels', () => {
+  // one class a body plan, found in code from the fleet: the bus, the straight truck, the semi
+  const kindOf = (k) => Object.keys(FLEET).find((c) => FLEET[c].kind === k);
+  const compiled = (k) => compileRealistic(sheet(kindOf(k)), { form: true });
+  const parts = (R) => new Set(R.map((f) => f.part));
+  it('gives every face of each a material and a unit normal', () => {
+    for (const k of HEAVY_KINDS) {
+      for (const f of compiled(k).form.root) { expect(ROAD_MATERIALS).toHaveProperty(f.material); expect(Math.hypot(...f.outNormal)).toBeCloseTo(1, 6); }
+    }
+  });
+  it('builds a bus: its doors on the kerb side alone, its sign and lamps at the right ends, its arches over its wheels', () => {
+    const c = compiled('bus'), R = c.form.root;
+    const doors = R.filter((f) => f.part === 'door.glass');
+    expect(doors.length).toBeGreaterThan(0);
+    expect(doors.every((f) => f.outNormal[0] > 0.9)).toBe(true);
+    expect(R.find((f) => f.part === 'sign').outNormal[1]).toBeCloseTo(1, 6);
+    expect(R.filter((f) => f.part === 'headlamp').every((f) => f.outNormal[1] > 0.9)).toBe(true);
+    expect(R.filter((f) => f.part === 'taillamp').every((f) => f.outNormal[1] < -0.9)).toBe(true);
+    // no skirt hangs below the arch's top over a wheel
+    const r = c.spec.r;
+    for (const w of c.faces.wheels) {
+      const over = R.filter((f) => f.part === 'body' && Math.abs(f.outNormal[0]) > 0.9 && f.corners.every((p) => Math.abs(p[1] - w.hub[1]) < r * 0.5));
+      for (const f of over) expect(Math.min(...f.corners.map((p) => p[2]))).toBeGreaterThan(r * 2);
+    }
+    expect(R.some((f) => f.part === 'door.handle')).toBe(false);
+  });
+  it('builds a truck\'s box and a semi\'s rig', () => {
+    const T = parts(compiled('straight').form.root), S = parts(compiled('semi').form.root);
+    for (const p of ['box', 'box.post', 'box.lockbar', 'marker', 'grille', 'headlamp', 'mudflap']) expect(T.has(p), p).toBe(true);
+    for (const p of ['exhaust', 'tank', 'marker', 'skirt', 'grille', 'box.post']) expect(S.has(p), p).toBe(true);
+  });
+  it('leaves a car\'s body the loft\'s', () => {
+    const P = parts(compileRealistic(sheet(carClass), { form: true }).form.root);
+    expect(P.has('box.post') || P.has('sign')).toBe(false);
+    expect(heavyBody({ kind: 'car' }, { hubs: [] })).toBe(null);
   });
 });
