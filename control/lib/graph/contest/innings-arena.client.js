@@ -188,7 +188,7 @@ function tick() {
   if (S.over && S.dead === 0) {
     const mine = ['a', 'b'].filter((side, i) => i < ctx.players);
     const won = ctx.players === 0 || S.winner === null || mine.includes(S.winner);
-    if (hosted) { post({ moj: IA.wire.outcome, envelope: { result: won ? 'success' : 'fail', events: [], stats: { innings: { winner: S.winner, runs: S.K.total }, contest: statCompact(statsNow()) } } }); phase = 'done'; }
+    if (hosted) { post({ moj: IA.wire.outcome, envelope: { contractVersion: IA.wire.version, result: won ? 'success' : 'fail', events: [], stats: { innings: { winner: S.winner, runs: S.K.total }, contest: statCompact(statsNow()) } } }); phase = 'done'; }
     else phase = 'over';
   }
 }

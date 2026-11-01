@@ -206,7 +206,7 @@ function tick() {
   if (S.over) {
     const mine = Object.keys(S.K.cards).filter((id) => Number(id.slice(1)) - 1 < ctx.players);
     const won = ctx.players === 0 || (S.winner !== null ? mine.includes(S.winner) : (S.K.tied || []).some((id) => mine.includes(id)));
-    if (hosted) { post({ moj: TA.wire.outcome, envelope: { result: won ? 'success' : 'fail', events: [], stats: { turns: { winner: S.winner, tied: S.K.tied, totals: S.K.totals }, contest: statCompact(statsNow()) } } }); phase = 'done'; }
+    if (hosted) { post({ moj: TA.wire.outcome, envelope: { contractVersion: TA.wire.version, result: won ? 'success' : 'fail', events: [], stats: { turns: { winner: S.winner, tied: S.K.tied, totals: S.K.totals }, contest: statCompact(statsNow()) } } }); phase = 'done'; }
     else phase = 'over';
   }
 }

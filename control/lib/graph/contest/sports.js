@@ -58,7 +58,7 @@ export function tennis({ sets = 2 } = {}) {
       points: 'rally',
       ladder: [
         { unit: 'game', to: 4, by: 2, names: ['0', '15', '30', '40'] },
-        { unit: 'set', to: 6, by: 2 },
+        { unit: 'set', to: 6, by: 2, tiebreak: { at: 6, to: 7, by: 2 } },
         { unit: 'match', to: sets },
       ],
     },
