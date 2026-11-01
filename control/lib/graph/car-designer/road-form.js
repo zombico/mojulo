@@ -22,6 +22,7 @@
  *   smoothForm(faces, { crease? })       → the faces with crease-aware corner normals: coincident corners of one
  *                                          material whose faces turn less than the crease share a normal (a face with
  *                                          no area left out: it has no normal to light)
+ *   bakeForm(faces)                      → the faces baked for the studio grid (its light in each corner, polygons fanned)
  *   ROAD_MATERIALS                        the slots' response (vehicle-surface-finish.js, a road car's paint a touch
  *                                          less glassy than a supercar's)
  *
@@ -104,4 +105,28 @@ export function smoothForm(all, { crease = 40 } = {}) {
     ...f,
     cornerNormals: f.corners.map((p) => unit(at.get(key(f.material, p)).map((j) => faces[j].outNormal).filter((n) => dot(n, f.outNormal) > cos).reduce((s, n) => [s[0] + n[0], s[1] + n[1], s[2] + n[2]], [0, 0, 0]))),
   }));
+}
+
+// ── the studio grid ───────────────────────────────────────────────────────────────
+// the light the grid's preview is baked under (the grid draws a face's fill as it is): a key from the front quarter and
+// above, an ambient, a touch of sky in the glass by how far it faces up, a lit slot (a lamp, a sign) in its own colour
+const STUDIO = Object.freeze({ key: [0.35, 0.45, 0.82], ambient: 0.42, diffuse: 0.62, sky: [0.62, 0.71, 0.79] });
+const LIT_SLOTS = new Set(['lamp', 'tail', 'sign', 'marker']);
+function studioFill(hex, material, n) {
+  const c = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255);
+  if (LIT_SLOTS.has(material)) return hex;
+  const k = unit(STUDIO.key), lam = STUDIO.ambient + STUDIO.diffuse * Math.max(0, dot(n, k)) + (material === 'alloy' ? 0.12 : 0);
+  const sky = material === 'glass' ? 0.35 * Math.max(0, n[2] + 0.3) : 0;
+  const out = c.map((v, i) => Math.min(1, v * lam * (1 - sky) + STUDIO.sky[i] * sky));
+  return `#${out.map((v) => Math.round(v * 255).toString(16).padStart(2, '0')).join('')}`;
+}
+
+/** The form faces baked for the studio grid (the grid draws a face's first four corners, so a polygon is fanned into
+ *  triangles): each corner's fill its albedo under the studio's light by its corner normal. */
+export function bakeForm(faces) {
+  return faces.flatMap((f) => {
+    const ns = f.cornerNormals ?? f.corners.map(() => f.outNormal);
+    const fans = f.corners.length <= 4 ? [[...f.corners.keys()]] : Array.from({ length: f.corners.length - 2 }, (_, j) => [0, j + 1, j + 2]);
+    return fans.map((ix) => ({ corners: ix.map((i) => f.corners[i]), fill: studioFill(f.albedo, f.material, f.outNormal), cornerFills: ix.map((i) => studioFill(f.albedo, f.material, ns[i])) }));
+  });
 }

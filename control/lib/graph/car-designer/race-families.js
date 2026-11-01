@@ -18,6 +18,7 @@ import { racerSpec, racerOf, racerMeasures } from './roster.js';
 import { supercarOfSpec, readSupercarSpec, themeFaces } from './supercar-figure.js';
 import { rollVehicleSheet } from './sheet.js';
 import { compileRealistic } from './realistic.js';
+import { bakeForm } from './road-form.js';
 
 const flat = (fs) => fs.map((f) => ({ corners: f.corners, fill: f.fill }));
 
@@ -53,7 +54,9 @@ export function loftFigure(spec, opts = {}) {
 }
 
 export function loftInstanceFaces(spec) {
-  const { sheet, c } = compileLoft(spec);
-  const faces = flat([...c.faces.root, ...c.faces.wheels.flatMap((w) => w.faces)]);
+  // (on the grid the loft is what a game draws: its named faces, lathed wheels, glasshouse, panels or heavy body,
+  // baked under the studio's light from their corner normals, road-form.js bakeForm)
+  const { sheet, c } = compileLoft({ ...spec, light: 'form' });
+  const faces = bakeForm(Object.values(c.form).flat());
   return { faces, spec, stats: { class: spec.class, era: sheet.facets.era, census: c.census, faces: faces.length } };
 }

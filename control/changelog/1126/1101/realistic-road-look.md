@@ -111,6 +111,26 @@ carries its material and its form and the page lights it.
     and a chrome bumper; the cab and its sleeper; two exhaust stacks, five marker lamps on the roof, chrome fuel tanks,
     the frame and flaps behind the drive axles. The trailer is a box as the truck's, with side skirts, landing gear,
     an underride guard and flaps.
+- **The studio grid** (`road-form.js` `bakeForm`, `race-families.js` `loftInstanceFaces`). A loft's preview on the grid
+  is what a game draws: its named faces, with the lathed wheels, the glasshouse and the panels, or a heavy class's own
+  body. They are baked under the studio's light from their corner normals:
+  - a lit slot (a lamp, a sign, a marker) in its own colour;
+  - the glass with a touch of sky by how far it faces up;
+  - the metal a touch brighter;
+  - polygons fanned into triangles, since the grid draws a face's first four corners.
+
+  The grid shows the form whatever the loft's own `light` says.
+- **The engines** (`scene/scene-gltf.js`). A figure in the form render now carries its material slots into the GLB, for
+  any form figure (the realistic lofts, the supercar, the gloss racer):
+  - each form part is one primitive per slot, sharing its positions, its normals (decoded from the packed form, now
+    carried) and its albedo as `COLOR_0`;
+  - each slot is a real PBR material (`formMaterial`): its metalness and roughness, its clearcoat through
+    `KHR_materials_clearcoat` (declared once), and its emissive in its own colour, with the emissive strength
+    extension above 1;
+  - one material per slot and response, shared across the figures that use it.
+
+  A figure out of the form render keeps its one surface material. Godot's import fixup only turns the vertex colours
+  on, so the slots' metal, roughness, clearcoat and emissive reach a Godot level as its importer reads them.
 - **The compile returns its named faces** by bone (`form`) when asked for the form render, for a review to draw and
   an engine's materials to be read from.
 - **Held** (`road-form.test.js`):
@@ -140,7 +160,12 @@ carries its material and its form and the page lights it.
       top, no car's pulls;
     - a truck's box (posts, lock bars, markers, grille, lamps, flaps) and a semi's rig (stacks, tanks, markers,
       skirts, grille, the trailer's posts);
-    - a car's body still the loft's.
+    - a car's body still the loft's;
+  - the grid: the named faces baked with a lit slot in its own colour, polygons fanned, a face at the key brighter than
+    one away from it, and the loft's preview the same whatever its light;
+  - the engines (`scene-gltf.vehicle.test.js`): a car's loft and a bus's body each export a primitive per slot, every
+    one with its normals, the paint clearcoated (the extension declared) and a lit slot emissive; a figure out of the
+    form render keeps its one material.
 
   End to end, the realistic ride's figure is in the form render.
 - **Seen** (machine gate only; the eyes gate is open):
@@ -164,6 +189,9 @@ carries its material and its form and the page lights it.
     - the truck from both quarters, its cab and its box;
     - the semi from both quarters;
     - the bus's and the semi's levels in the form render, with no page errors.
+  - The studio grid's previews of a pickup and a bus, in the form render's geometry.
+  - The Khronos glTF validator (`gltf-validator`, run from a scratch install, not a dependency) passes the GLB of a
+    realistic sedan, a bus and a supercar with no errors and no warnings, the clearcoat extension declared.
 - **Not built, said:**
   - **The glass set in:** pushed a few millimetres behind its frame, with the frame's reveal drawn.
   - **A crossover's third pane:** a rear quarter window, not a door, but it is given a pull as the doors are.
@@ -171,5 +199,5 @@ carries its material and its form and the page lights it.
     a car's).
   - **The head and tail lamps** as their own bones, lit by the page as status slots (moved again: they want the juice's
     status slots, a phase of their own).
-  - **The studio grid** drawn with the smoothed shading.
-  - **GLB carrying the material slots.**
+  - **A validator in the suite:** the glTF validator is run by hand, not by a test (it is not a dependency).
+  - **Unity and Unreal** read the GLB's slots as their importers do; neither was run here.

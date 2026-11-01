@@ -4,8 +4,8 @@ import { buildVehicle, FLEET, FLEET_TRIM } from '../roads/fleet.js';
 import { SMOKE } from '../roads/bodywork.js';
 import { rollVehicleSheet } from './sheet.js';
 import { compileRealistic } from './realistic.js';
-import { roadPart, formFace, smoothForm, ROAD_MATERIALS } from './road-form.js';
-import { loftFigure } from './race-families.js';
+import { roadPart, formFace, smoothForm, bakeForm, ROAD_MATERIALS } from './road-form.js';
+import { loftFigure, loftInstanceFaces } from './race-families.js';
 import { roadWheel, wheelWell, WHEEL_STYLES } from './road-wheel.js';
 import { glasshouse, GLASSHOUSE, paneJoints } from './road-glass.js';
 import { panels } from './road-panels.js';
@@ -264,5 +264,25 @@ describe('the heavy classes: their own bodies round the fleet\'s wheels', () => 
     const P = parts(compileRealistic(sheet(carClass), { form: true }).form.root);
     expect(P.has('box.post') || P.has('sign')).toBe(false);
     expect(heavyBody({ kind: 'car' }, { hubs: [] })).toBe(null);
+  });
+});
+
+describe('the studio grid: the loft as a game draws it, its light baked', () => {
+  it('bakes the named faces under the studio\'s light, polygons fanned, a lit slot in its own colour', () => {
+    const c = compileRealistic(sheet(carClass), { form: true }), faces = Object.values(c.form).flat();
+    const baked = bakeForm(faces);
+    expect(baked.every((f) => f.corners.length <= 4 && f.cornerFills.length === f.corners.length)).toBe(true);
+    expect(baked.length).toBeGreaterThanOrEqual(faces.length);
+    const lamp = faces.find((f) => f.material === 'lamp' || f.material === 'tail');
+    expect(bakeForm([lamp])[0].fill).toBe(lamp.albedo);
+    // a face looking at the key is lit brighter than one looking away
+    const q = (n) => ({ corners: [[0, 0, 0], [1, 0, 0], [1, 1, 0], [0, 1, 0]], albedo: '#808080', material: 'paint', outNormal: n });
+    const lum = (hex) => parseInt(hex.slice(1, 3), 16);
+    expect(lum(bakeForm([q([0, 0, 1])])[0].fill)).toBeGreaterThan(lum(bakeForm([q([0, 0, -1])])[0].fill));
+  });
+  it('is the loft\'s preview on the grid, whatever its light', () => {
+    const lit = loftInstanceFaces({ class: carClass }), painted = loftInstanceFaces({ class: carClass, light: 'paint' });
+    expect(lit.faces.length).toBe(painted.faces.length);
+    expect(lit.faces.every((f) => f.corners.length <= 4)).toBe(true);
   });
 });

@@ -8,6 +8,8 @@ import { facesToGlb } from './scene-gltf.js';
 import { racerOf, racerSpec } from '../car-designer/roster.js';
 import { supercarFigure } from '../car-designer/supercar-figure.js';
 import { ARCHETYPES } from '../egocube/facets.js';
+import { loftFigure } from '../car-designer/race-families.js';
+import { FLEET } from '../roads/fleet.js';
 
 function gltfJson(buf) {
   const jsonLen = buf.readUInt32LE(12);
@@ -37,5 +39,28 @@ describe('a race machine in the form render exports to GLB', () => {
     expect(formParts).toBeGreaterThan(0);
     expect(out.animatedFigures).toContain('car');
     expect(out.triangleCount).toBeGreaterThan(0);
+  });
+
+  it('a realistic loft carries its material slots: a primitive a slot, its normals, the paint clearcoated, the lamps lit', () => {
+    // (one class a body plan, found in code: a car's loft and a heavy class's own body)
+    for (const cls of [Object.keys(FLEET).find((c) => FLEET[c].kind === 'car'), Object.keys(FLEET).find((c) => FLEET[c].kind === 'bus')]) {
+      const fig = loftFigure({ class: cls, light: 'form' });
+      const { out, json } = exported(fig);
+      expect(out.triangleCount).toBeGreaterThan(0);
+      const named = (n) => json.materials.findIndex((m) => m.name === `form:${n}`);
+      for (const slot of ['paint', 'glass', 'rubber', 'alloy']) expect(named(slot), slot).toBeGreaterThanOrEqual(0);
+      const paint = json.materials[named('paint')];
+      expect(paint.extensions.KHR_materials_clearcoat.clearcoatFactor).toBeGreaterThan(0);
+      expect(json.extensionsUsed).toContain('KHR_materials_clearcoat');
+      expect(json.materials.some((m) => m.name?.startsWith('form:') && m.emissiveFactor)).toBe(true);
+      const body = json.meshes.find((m) => m.name === 'car:root');
+      expect(body.primitives.length).toBeGreaterThan(3);
+      for (const p of body.primitives) { expect(p.attributes.NORMAL).toBeDefined(); expect(json.materials[p.material].name).toMatch(/^form:/); }
+    }
+  });
+  it('a figure out of the form render keeps its one surface material', () => {
+    const { json } = exported(loftFigure({ class: Object.keys(FLEET).find((c) => FLEET[c].kind === 'car'), light: 'paint' }));
+    expect(json.materials.some((m) => m.name?.startsWith('form:'))).toBe(false);
+    expect(json.meshes.find((m) => m.name === 'car:root').primitives).toHaveLength(1);
   });
 });
