@@ -84,6 +84,9 @@ These hold beside the ten mascot laws.
   the animal. `facets: { animal: 'fox' }` does the same. The operator's other facets win over the card's.
 - The sheet keeps the resolved card by value (`sheet.animal`), and its notes say what names the animal, what was let go
   and why.
+- The composition pass ([animal-cartoon-pass.md](animal-cartoon-pass.md)) picks one focal owner per card and quiets
+  what competes with it: a quiet piece when the focus is at the face, a broad brush, a small beak. A new sheet carries
+  its moves (`sheet.animal.composition`).
 - `node ../docs/examples/mascot/render-mascots.mjs 'fox|panda|owl'` draws them, and `--faces` draws their faces.
   `node scripts/fauna-lineup.mjs --one real fox giantPanda` draws the real animals to compare against.
 

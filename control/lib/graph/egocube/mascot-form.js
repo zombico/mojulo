@@ -17,6 +17,7 @@ import { readMascotDerive, HUES, SKINS } from './mascot.js';
 import { buildFace, EXPRESSION_IDS } from './mascot-face.js';
 import { animalPalette } from './mascot-animals.js';
 import { mascotAdorn } from './mascot-adorn.js';
+import { compositionLines } from './mascot-composition.js';
 import { gaitClips } from './mascot-gait.js';
 import { PLAN_SCHEMA } from '../polygonizer/station-loft-plan.js';
 import { featurePlan } from './feature-body.js';
@@ -144,8 +145,12 @@ export function coatPalette(sheet, k, A, f) {
     Brow: hsl(a.Body, ([h, s, l]) => [h, s * 0.6, clamp(l - 0.32, 0.08, 0.32)]),
     // Ad4: the piece carries the colour the coat lacks: across the wheel from it (a red collar on a grey or a white coat)
     Adorn: toHsl(hexRgb(a.Body))[1] < 0.15 ? '#d8302c' : hsl(a.Body, ([h, s2]) => [(h + 165) % 360, clamp(Math.max(s2, 0.7), 0, 1), 0.48]),
+    // the composition pass (mascot-composition.js): a focus at the face keeps the strongest contrast, so the piece is
+    // drawn quiet, the coat's own colour greyed and deepened, its shine dulled toward it (step 7: the tertiary register)
+    ...(A.composition?.piece === 'quiet' ? quietPiece(a.Body) : {}),
   };
 }
+const quietPiece = (coat) => { const q = hsl(coat, ([h, s, l]) => [h, s * 0.45, clamp(l - 0.12, 0.14, 0.6)]); return { ...piece(q), Shine: mix('#f2c230', q, 0.6) }; };
 
 // ══════════ the shapes: every form a ball, an egg or a cone (law 8) ══════════
 
@@ -253,7 +258,7 @@ export function mascotPlan(sheet, { title = 'a mascot', reactions = false } = {}
     bind: { bone: 'torso', blend: { back: { pelvis: 1 }, st0: { pelvis: 1 }, st1: { pelvis: 1 }, st2: { pelvis: 1 }, st3: { pelvis: 0.75, torso: 0.25 }, st4: { pelvis: 0.4, torso: 0.6 }, tip: { torso: 0.6, head: 0.4 } } } }];
   // the shoe: an egg from the heel to past the toe, its sole on the ground (law 6: big feet carry the pose)
   const heel = [hipX, r4(-fl * 0.95), r4(fh)], toe = [hipX, r4(fl * 1.05), r4(fh)];
-  const hooks = A ? animalParts(f, K, H, { M, hipZ, neckZ, neckLift, headBind, orb }) : hookParts(f, H, { M, hipZ, neckZ, headBind, orb, fur: G.fur });
+  const hooks = A ? animalParts(f, K, H, { M, hipZ, neckZ, neckLift, headBind, orb, C: A.composition ?? {} }) : hookParts(f, H, { M, hipZ, neckZ, headBind, orb, fur: G.fur });
   const face = faceOf(f, H, k, { headBind, orb, human, hooks, G, wide: K.muzzle === 'wide' });
   const segments = [
     ...body,
@@ -405,7 +410,7 @@ export function eyes(f, H, k, K = {}) {
 
 /** An ANIMAL's kit (docs/mascot-animals.md): its identifiers as mascot shapes, every one a ball, an egg or a cone,
  *  sized to the head (A4: a muzzle at most a head's radius long), bound to the head (or the orb's body). */
-function animalParts(f, K, H, { M, hipZ, neckZ, neckLift, headBind, orb }) {
+function animalParts(f, K, H, { M, hipZ, neckZ, neckLift, headBind, orb, C = {} }) {
   const R = H.rz, at = onHeadAt(H), out = [], g = (group, bind = headBind) => ({ group, bind });
   // ears
   if (K.ears === 'pointed') out.push(shape('earR', at(0.42, -0.06, 0.6), at(0.72, -0.12, 1.45), [r4(0.24 * R), r4(0.09 * R)], 'cone', { ...g('Body'), tip: 0.08 }));
@@ -419,7 +424,9 @@ function animalParts(f, K, H, { M, hipZ, neckZ, neckLift, headBind, orb }) {
   if (K.muzzle === 'point') muzzle(at(0, 0.55, -0.3), at(0, 1.5, -0.3), [r4(0.36 * R), r4(0.3 * R)], 'cone', 'Belly');
   if (K.muzzle === 'round') muzzle(at(0, 0.45, -0.35), at(0, 1.32, -0.3), [r4(0.42 * R), r4(0.34 * R)], 'egg', 'Belly');
   if (K.muzzle === 'long') muzzle(at(0, 0.45, -0.3), at(0, 2.1, -0.4), [r4(0.4 * R), r4(0.25 * R)], 'egg', 'Body');
-  if (K.muzzle === 'beak') muzzle(at(0, 0.7, -0.1), at(0, 1.55, -0.25), [r4(0.28 * R), r4(0.2 * R)], 'cone', 'Beak', false);
+  // (the composition pass: a small beak where the eyes are the face, so the discs keep their negative space)
+  if (K.muzzle === 'beak' && C.beak === 'small') muzzle(at(0, 0.74, -0.12), at(0, 1.32, -0.22), [r4(0.21 * R), r4(0.15 * R)], 'cone', 'Beak', false);
+  else if (K.muzzle === 'beak') muzzle(at(0, 0.7, -0.1), at(0, 1.55, -0.25), [r4(0.28 * R), r4(0.2 * R)], 'cone', 'Beak', false);
   if (K.muzzle === 'bill') muzzle(at(0, 0.7, -0.2), at(0, 1.75, -0.25), [r4(0.42 * R), r4(0.13 * R)], 'egg', 'Beak', false);
   if (K.muzzle === 'disc') muzzle(at(0, 0.72, -0.2), at(0, 1.3, -0.22), [r4(0.32 * R), r4(0.26 * R)], 'egg', 'Nose', false);
   if (K.muzzle === 'button') out.push(shape('noseTip', at(0, 0.9, -0.16), at(0, 1.14, -0.16), r4(0.09 * R), 'ball', g('Nose')));
@@ -451,7 +458,9 @@ function animalParts(f, K, H, { M, hipZ, neckZ, neckLift, headBind, orb }) {
   if (K.tail) {
     const s = orb ? R : M.bodyR * 1.6, bind = orb ? 'torso' : 'pelvis', base = orb ? at(0, -0.88, -0.45) : V([0, -M.bodyR * 0.8, hipZ + M.bodyR * 0.15]);
     const T = (name, a, b, r, profile, group = 'Body', tip) => out.push(shape(name, a, b, r, profile, { group, bind, ...(tip ? { tip } : {}) }));
-    if (K.tail === 'brush') T('tail0', base, V(add(base, [0, -0.85 * s, 0.55 * s])), [r4(0.3 * s), r4(0.32 * s)], 'egg');
+    // (the composition pass: a broad brush swept back, a soft mass against pointed ears, its direction distinct from theirs)
+    if (K.tail === 'brush' && C.tail === 'broad') T('tail0', base, V(add(base, [0, -1 * s, 0.38 * s])), [r4(0.38 * s), r4(0.38 * s)], 'egg');
+    else if (K.tail === 'brush') T('tail0', base, V(add(base, [0, -0.85 * s, 0.55 * s])), [r4(0.3 * s), r4(0.32 * s)], 'egg');
     if (K.tail === 'pom') T('tail0', V(add(base, [0, 0.08 * s, 0])), V(add(base, [0, -0.42 * s, 0.08 * s])), r4(0.26 * s), 'ball', 'Belly');
     if (K.tail === 'thin') { const m = V(add(base, [0, -0.55 * s, 0.1 * s])); T('tail0', base, m, r4(0.07 * s), 'egg'); T('tail1', V(add(m, [0, 0.04 * s, -0.02 * s])), V(add(m, [0, -0.25 * s, 0.6 * s])), r4(0.07 * s), 'cone', 'Body', 0.5); }
     if (K.tail === 'tuft') { const m = V(add(base, [0, -0.75 * s, 0.25 * s])); T('tail0', base, m, r4(0.06 * s), 'egg'); T('tail1', V(add(m, [0, 0.1 * s, -0.05 * s])), V(add(m, [0, -0.25 * s, 0.1 * s])), r4(0.15 * s), 'ball', 'Mane'); }
@@ -641,6 +650,8 @@ export function modelSheet(sheet, P) {
   const named = sheet.animal ? `the ${sheet.animal.id}: ${sheet.animal.identity.join(', ') || 'its face and feet'}` : f.hook === 'none' ? 'the shape alone' : f.hook;
   return {
     name: P.create.title, thesis: P.thesis, swatches, named, piece: f.adorn ?? 'none',
+    // the composition pass's focal owner and what it quieted (an animal's sheet rolled with it; none before)
+    ...(sheet.animal?.composition ? { composition: { focus: sheet.animal.composition.focus, moves: compositionLines(f.adorn && f.adorn !== 'none' ? sheet.animal.composition : { ...sheet.animal.composition, piece: undefined }) } } : {}),
     faces: { rest: f.expression, clips: EXPRESSION_IDS.filter((e) => plan.clips[e]) }, clips: Object.keys(plan.clips),
     laws: [
       { law: 1, reads: `promises ${f.promise}` }, { law: 2, reads: `named at 64 px by ${named}` }, { law: 3, reads: `${f.form}: ${P.thesis.split(' · ')[0].split(', ')[1] ?? ''}` },

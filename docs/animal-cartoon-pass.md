@@ -1,6 +1,6 @@
 # Animal cartoon pass — composition-first follow-up (1031)
 
-This branch builds on the already implemented animal mascot principles in [mascot-animals.md](../../../docs/mascot-animals.md).
+This branch builds on the already implemented animal mascot principles in [mascot-animals.md](mascot-animals.md).
 **Do not replace the species roster with per-animal sculptures.** Continue to derive the form from the species card, then evaluate the *relationships* of its resulting features.
 
 ## Findings from the existing architecture
@@ -30,16 +30,41 @@ This branch builds on the already implemented animal mascot principles in [masco
 | Elephant | trunk and fan ears | face hidden by oversized pieces | trunk curve / ear negative-space sweep |
 | Rabbit | tall ears | ear-heavy top versus tiny feet | vary ear spread and grounded oversized hind feet |
 
-## What the first implementation adds
-`egocube/mascot-composition.js` is a deterministic, advisory composition audit over any resolved `animalCard`.
-It exposes focal owner, outline load, priorities, and specific suggestions. It neither changes the species nor
-creates hidden procedural decoration, and is safe for review tooling to call.
+## What it does now
+[`egocube/mascot-composition.js`](../control/lib/graph/egocube/mascot-composition.js) reads any resolved `animalCard`:
+`auditAnimalComposition(card)` is the advisory audit (the focal owner, the outline load, priorities, suggestions), and
+`compositionMoves(card)` the few moves it can act on without touching the identity. A move quiets what competes with
+the focus. It never removes an identifier or adds decoration:
 
-## Next integration step
-Feed the audit into character-sheet notes and a preview/contact-sheet generator (not auto-removal of kit parts).
-A later numeric quality pass should measure silhouette separation, centre-of-mass projection, eye clearance,
-value clustering, colour-area shares, and ornament occupancy using actual generated geometry. Evaluate side,
-front and 3/4 views before changing the rules globally.
+| Move | When | What the body draws |
+| --- | --- | --- |
+| `piece: 'quiet'` | the focus is at the face: a coat pattern, the eyes, a ring mane, a trunk or a long jaw | the signature piece in the coat's own colour, greyed and deepened, its shine dulled toward it (step 7) |
+| `tail: 'broad'` | a brush tail under pointed ears | the brush broader and swept back, a soft mass with a direction distinct from the ears' |
+| `beak: 'small'` | eye discs or eyes on top, with a beak | a smaller beak, so the discs keep their negative space (step 5) |
 
-**Testing note:** the accompanying Vitest tests cover representative card expectations. No geometry renders or
-full project tests were executed in the current connector-only environment.
+Of the representative set, the panda, the owl, the lion and the elephant wear a quiet piece; the fox keeps its loud
+scarf (its focus, the ears, is not at the face) and gets the broad brush; the owl gets the small beak; the rabbit is
+unchanged.
+
+**A new sheet carries its moves; an old one draws as it always did.** `rollMascot` stamps the moves on the card the
+sheet keeps by value (`sheet.animal.composition`), and `mascotPlan` acts only on that stamp. A sheet rolled before the
+pass has no stamp, so an egocube row minted before it regenerates byte for byte. The feature style composes its own
+body and takes no stamp.
+
+The sheet says what was done. The silhouette notes name the focal owner and the shaping moves, and the palette notes
+carry the quiet piece when one is worn. The model sheet carries `composition: { focus, moves }`.
+
+## Gates
+- Machine: `mascot-composition.test.js` (one case per move, the stamp kept by value, an unstamped sheet unchanged, the
+  feature style untouched).
+- Eyes: `animal-cartoon-previews/` holds the baseline and the composition pass, front, three-quarter and side
+  (`comparison-labeled.png`), and `composed-from-code.png` is the committed code's own render of the six:
+  `node ../docs/examples/mascot/render-mascots.mjs 'a fox mascot|a panda mascot|an owl mascot|a lion mascot|an elephant mascot|a rabbit mascot'`.
+  The eyes gate is the operator's.
+
+## Next
+- The lion's "smaller ears" and the elephant's "trunk curve / ear negative-space sweep" are still suggestions, not moves.
+- A numeric pass over the generated geometry: silhouette separation, centre-of-mass projection, eye clearance, value
+  clustering, colour-area shares and ornament occupancy, read front, side and three-quarter before a rule changes
+  globally.
+- The mascot ooze (`mutagen/mascot.js`) does not read the moves yet; its signature piece is still loud.

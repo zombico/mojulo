@@ -19,6 +19,7 @@
 import { mulberry32 } from '../vegetation/grow.js';
 import { ANIMAL_WORDS, animalCard, animalFacets } from './mascot-animals.js';
 import { ADORNS, ORB_ADORNS } from './mascot-adorn.js';
+import { compositionMoves, compositionLines } from './mascot-composition.js';
 import { readSetting, leanOf, leanPriors } from './setting.js';
 import { FEATURE_EXCLUDES } from './feature-grammar.js';
 
@@ -363,21 +364,26 @@ function sources(f) {
 }
 
 /** Merge per channel: notes in priority order; each knob once, its highest-priority direction. */
-/** An animal's notes (docs/mascot-animals.md): what names it, what it lets go, its folk reading, its coat. */
-function animalSource(card) {
+/** An animal's notes (docs/mascot-animals.md): what names it, what it lets go, its folk reading, its coat; and the
+ *  composition pass's moves (docs/animal-cartoon-pass.md), a quiet piece only when one is worn. */
+function animalSource(card, f) {
   const name = card.id.replace(/([a-z])([A-Z])/g, '$1 $2').toLowerCase();
   const kept = Object.entries(card.kit).map(([k, v]) => `${v} ${k}`).join(', ');
+  const C = card.composition, worn = f.adorn && f.adorn !== 'none';
+  const shaped = C ? compositionLines({ ...(C.tail ? { tail: C.tail } : {}), ...(C.beak ? { beak: C.beak } : {}) }) : [];
   return { from: `animal.${card.id}`, notes: {
     promise: `the ${name}, read as people read it: ${card.folk}`,
-    silhouette: `named by ${card.identity.length ? card.identity.join(', ') : 'its face and feet alone'} (${kept || 'nothing added'})`,
+    silhouette: [`named by ${card.identity.length ? card.identity.join(', ') : 'its face and feet alone'} (${kept || 'nothing added'})`,
+      ...(C ? [`composed around one focus: the ${C.focus}`, ...shaped] : [])],
     frame: `let go: ${card.drops}${card.dropped.length ? `; and past the budget: ${card.dropped.join(', ')}` : ''}`,
     ...(card.craft ? { face: `crafted: ${card.craft}` } : {}),
+    ...(C?.piece && worn ? { palette: compositionLines({ piece: C.piece }) } : {}),
   } };
 }
 
 function compose(f, card = null) {
   const notes = {}, derives = {}, claimed = new Set();
-  for (const src of [...(card ? [animalSource(card)] : []), ...sources(f)]) for (const ch of MASCOT_CHANNEL_IDS) {
+  for (const src of [...(card ? [animalSource(card, f)] : []), ...sources(f)]) for (const ch of MASCOT_CHANNEL_IDS) {
     for (const line of lines(src.notes?.[ch])) (notes[ch] ||= []).push({ line, from: src.from });
     for (const d of lines(src.derives?.[ch])) {
       const r = readMascotDerive(d), key = `${r.family}.${r.key}`;
@@ -418,7 +424,10 @@ export function rollMascot({ brief = '', facets: asked0 = {}, seed = 1, path = '
     if (broken.every((x) => x.on.every((k) => asked.has(k)))) break;
   }
   if (attempt === MAX_ATTEMPTS) attempt -= 1;
-  const { notes, derives } = compose(f, card);
+  // the composition pass (docs/animal-cartoon-pass.md): its moves stamped on the card the sheet keeps, so a sheet rolled
+  // before it (no stamp) draws as it always did; the feature style composes its own and takes none
+  const animal = card && f.style !== 'feature' ? { ...card, composition: compositionMoves(card) } : card;
+  const { notes, derives } = compose(f, animal);
   if (unstyled) (notes.frame ||= []).unshift({ line: `the feature style draws no fish: the ${card.id} is drawn as a western toon`, from: 'style.feature' });
   const accord = accordOf(f.accent);
   return {
@@ -427,7 +436,7 @@ export function rollMascot({ brief = '', facets: asked0 = {}, seed = 1, path = '
     given: [...MASCOT_KEYS.filter((k) => k in named), ...(card ? ['animal'] : [])],
     ...(setting !== undefined ? { setting } : {}),   // the game it was rolled for
     accord,
-    ...(card ? { animal: card } : {}),   // the resolved card, kept by value: its kit is what the body draws
+    ...(animal ? { animal } : {}),   // the resolved card, kept by value: its kit is what the body draws, its composition how
     reads: [PROMISES[f.promise].reads, FORMS[f.form].reads, `${ACCENTS[f.accent].reads}; ${HOOKS[f.hook].reads}`, `${EYES[f.eyes].reads}; ${EXTREMITIES[f.extremities].reads}`, `${ENERGIES[f.energy].reads}, in ${f.hue}${f.style === 'anime' ? ', drawn anime super-deformed' : f.style === 'feature' ? ', drawn in the feature style' : ''}`, f.being === 'human' ? `${BEINGS.human.reads}, ${f.skin} skin, ${EXPRESSIONS[f.expression].reads}` : `${BEINGS.critter.reads}, ${EXPRESSIONS[f.expression].reads}`],
     notes, derives,
     unread: { words: fromBrief.unread },
