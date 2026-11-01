@@ -2,7 +2,7 @@
 
 The equipment kernel gains an arms library (`control/lib/graph/equipment/arms/`): pistols (service, compact, heavy,
 revolver), the carbine, rifles (assault, marksman, bullpup), the submachine gun, shotguns (pump, tactical) and knives
-(combat, tanto, dagger, karambit), each in the modern or the future line and a finish card, every part tunable by word.
+(combat, tanto, dagger, karambit), each in the modern, the future or the near line and a finish card, every part tunable by word.
 Generic forms, no make or model. They are drawn by eight laws for the gen-7 look (a live key over materials told apart
 by how they reflect): every major part a side outline pushed through its width; every edge chamfered to its part's
 thickness so the key draws a highlight along it; bare or coated metal, a finish and the grip as three responses, a
@@ -24,4 +24,11 @@ The machine gate (`stats.equipment.arms`) reads the laws back; the eyes gate is 
   hip at the left side.
 - **Review:** `node scripts/render-arms.mjs <dir> [presets]` draws each arm side-on and from the front three-quarter
   with its triangles and its laws readout (a third-person pistol about 1.7k triangles, a marksman rifle about 7k).
+- **The near line** (law 9: futuristic, styled real; `line: 'near'`): each new part shows what it does in a form a
+  factory could make, shells are moulded and read by their parting lines and vent rows, and light appears only on a
+  display. Its own models, each inspired by a modern design: the `smart` pistol (a moulded shroud, a recessed crown, an
+  ammo counter), the `pdw` (a top-fed translucent magazine, a thumbhole), the `caseless` rifle (a monolithic shell, a
+  top-loaded cassette, a sight on posts), the `coilgun` (countable copper coils in a skeleton of rails, a capacitor bank
+  with its cells bare, a cable) and the `breacher` (a drum-fed shotgun). Any model takes the line (a smart sight, a
+  seam, a round counter), every gun's optic takes `smart`, and four finishes carry it: slate, sand, ranger, arctic.
 - Manual: the equipment card's modern and future arms section; the hero card's gear line.

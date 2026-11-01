@@ -45,6 +45,16 @@ export const PRESETS = {
   karambit: { item: 'knife', model: 'karambit' },
   vibroblade: { item: 'knife', line: 'future', style: 'white' },
   'anime-pistol': { item: 'pistol', model: 'service', dials: { stylize: 0.7 } },
+  // the near line (law 9: futuristic, styled real)
+  'smart-pistol': { item: 'pistol', model: 'smart' },
+  pdw: { item: 'smg', model: 'pdw', style: 'sand' },
+  caseless: { item: 'rifle', model: 'caseless' },
+  'caseless-arctic': { item: 'rifle', model: 'caseless', style: 'arctic' },
+  coilgun: { item: 'rifle', model: 'coilgun' },
+  'coilgun-ranger': { item: 'rifle', model: 'coilgun', style: 'ranger', parts: { underbarrel: 'bipod', barrel: 'long' } },
+  breacher: { item: 'shotgun', model: 'breacher' },
+  'near-carbine': { item: 'carbine', line: 'near', style: 'ranger' },
+  'near-knife': { item: 'knife', model: 'tanto', style: 'arctic' },
 };
 
 const args = process.argv.slice(2);

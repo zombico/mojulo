@@ -12,16 +12,19 @@
 //     bore       the dark of a bore, a port, a slot (matte black when absent)
 //     glass      an optic's lens (a blue glass when absent)
 //     blade      a knife's flat (the metal's when absent);  edge  its sharpened bevel (bright steel when absent)
-//     glow       the one emissive hue of a future arm (law 3): its conduit, its emitter, its cell, a future blade's edge
+//     glow       the one emissive hue of a future arm (law 3): its conduit, its emitter, its cell, a future blade's edge;
+//                on the near line (law 9) only a display's: a smart sight's screen, a counter, a charge indicator
+//     coil       a coilgun's windings (polished copper when absent: the windings are copper whatever the shell)
 //
 // `service` and `future` are the firearm samples' names (equipment/firearm.js) carried over: a build that names them
 // and opts into the arms kernel gets these looks.
 
-export const ARM_ROLES = Object.freeze(['metal', 'frame', 'grip', 'furniture', 'accent', 'bore', 'glass', 'blade', 'edge', 'glow']);
+export const ARM_ROLES = Object.freeze(['metal', 'frame', 'grip', 'furniture', 'accent', 'bore', 'glass', 'blade', 'edge', 'glow', 'coil']);
 export const REQUIRED_ROLES = Object.freeze(['metal', 'frame']);
 
 const BLACK_STEEL = ['gunmetal', '#3c4248'];
 const EDGE = { metal: 'steel', finish: 'brushed' };
+const COIL = { metal: 'copper', finish: 'polished' };
 
 export const ARM_FINISHES = Object.freeze({
   black: {
@@ -70,11 +73,33 @@ export const ARM_FINISHES = Object.freeze({
     "roles": { "metal": ["gunmetal", "#2b2f33"], "frame": ["plastic", "#e2b320"], "grip": ["rubber", "#18191b"], "accent": ["plastic", "#1d1f22"],
       "bore": ["matte", "#060606"], "glass": ["glass", "#6fc3ff"], "blade": ["gunmetal", "#2b2f33"], "glow": ["neon", "#ff3b30"] }
   },
+  // the near line (law 9): moulded shells in the modern's palette, a dim display for the one light
+  slate: {
+    "id": "slate", "line": "near",
+    "roles": { "metal": ["gunmetal", "#33383e"], "frame": ["plastic", "#464b52"], "grip": ["rubber", "#1b1d20"], "furniture": ["plastic", "#2c3035"], "accent": ["gunmetal", "#6d747c"],
+      "bore": ["matte", "#060606"], "glass": ["glass", "#8ab4c8"], "blade": ["gunmetal", "#3a3f45"], "edge": { "metal": "stainless", "finish": "brushed" }, "glow": ["neon", "#ffb347"] }
+  },
+  sand: {
+    "id": "sand", "line": "near",
+    "roles": { "metal": ["gunmetal", "#33383e"], "frame": ["plastic", "#a8977a"], "grip": ["rubber", "#3b3a35"], "furniture": ["plastic", "#8e7f64"], "accent": ["gunmetal", "#4d5258"],
+      "bore": ["matte", "#060606"], "glass": ["glass", "#8ab4c8"], "blade": ["gunmetal", "#4b4840"], "edge": { "metal": "stainless", "finish": "brushed" }, "glow": ["neon", "#9dffb0"] }
+  },
+  ranger: {
+    "id": "ranger", "line": "near",
+    "roles": { "metal": ["gunmetal", "#33383e"], "frame": ["plastic", "#5d634a"], "grip": ["rubber", "#25271f"], "furniture": ["plastic", "#4a4f3a"], "accent": ["gunmetal", "#4d5258"],
+      "bore": ["matte", "#060606"], "glass": ["glass", "#8ab4c8"], "blade": ["gunmetal", "#3c3f33"], "edge": { "metal": "stainless", "finish": "brushed" }, "glow": ["neon", "#ffb347"] }
+  },
+  arctic: {
+    "id": "arctic", "line": "near",
+    "roles": { "metal": ["gunmetal", "#3a3f45"], "frame": ["plastic", "#d6d8d3"], "grip": ["rubber", "#2b2e33"], "furniture": ["plastic", "#bfc2bd"], "accent": ["gunmetal", "#5d646c"],
+      "bore": ["matte", "#060606"], "glass": ["glass", "#8ab4c8"], "blade": ["satin", "#e8e8e2"], "edge": ["satin", "#f4f4ee"], "glow": ["neon", "#8fe3ff"] }
+  },
 });
 /** the firearm samples' names (equipment/firearm.js) → the arms looks they open */
 export const FINISH_ALIASES = Object.freeze({ service: 'black', future: 'white' });
 export const DEFAULT_FINISH = 'black';
 export const DEFAULT_FUTURE_FINISH = 'white';
+export const DEFAULT_NEAR_FINISH = 'slate';
 
 const ROW = (v) => Array.isArray(v) && v.length === 2 && typeof v[0] === 'string' && /^#[0-9a-f]{6}$/i.test(v[1]);
 const SURFACE = (v) => !!v && typeof v === 'object' && !Array.isArray(v) && typeof v.metal === 'string';
@@ -82,7 +107,7 @@ const SURFACE = (v) => !!v && typeof v === 'object' && !Array.isArray(v) && type
 /** A finish name (or alias) → its card; an inline card passes through. The old firearm card ({ roles: { metal, body,
  * furniture, lit? }, round? }) reads as an arms card: body → frame, lit → glow (and the future line). */
 export function finishCardOf(style, line = null) {
-  if (style === undefined || style === null) return ARM_FINISHES[line === 'future' ? DEFAULT_FUTURE_FINISH : DEFAULT_FINISH];
+  if (style === undefined || style === null) return ARM_FINISHES[line === 'future' ? DEFAULT_FUTURE_FINISH : line === 'near' ? DEFAULT_NEAR_FINISH : DEFAULT_FINISH];
   if (typeof style === 'string') return ARM_FINISHES[FINISH_ALIASES[style] ?? style] ?? null;
   const r = style.roles || {};
   if (r.body && !r.frame) {
@@ -96,7 +121,7 @@ export function finishCardOf(style, line = null) {
 export function validateFinishCard(card, path = 'style') {
   if (!card || typeof card !== 'object' || Array.isArray(card)) return [`${path}: a finish is a sample name (${Object.keys(ARM_FINISHES).join(', ')}) or a card { line?, roles: { ${ARM_ROLES.join(', ')} } }`];
   const errs = [], c = finishCardOf(card);
-  if (c.line !== undefined && !['modern', 'future'].includes(c.line)) errs.push(`${path}.line: 'modern' or 'future'`);
+  if (c.line !== undefined && !['modern', 'future', 'near'].includes(c.line)) errs.push(`${path}.line: 'modern', 'future' or 'near'`);
   for (const role of REQUIRED_ROLES) if (!c.roles?.[role]) errs.push(`${path}.roles.${role}: required, ['<material>', '#rrggbb'] or { metal, finish?, film? }`);
   for (const [k, v] of Object.entries(c.roles || {})) {
     if (!ARM_ROLES.includes(k)) errs.push(`${path}.roles.${k}: not a role — use ${ARM_ROLES.join(', ')}`);
@@ -112,6 +137,6 @@ export function rolesOf(card) {
     ...r,
     grip: r.grip ?? r.frame, furniture: r.furniture ?? r.frame, accent: r.accent ?? r.frame,
     bore: r.bore ?? ['matte', '#060606'], glass: r.glass ?? ['glass', '#6fc3ff'], blade: r.blade ?? r.metal,
-    edge: r.edge ?? EDGE, glow: r.glow ?? null, steel: BLACK_STEEL,
+    edge: r.edge ?? EDGE, glow: r.glow ?? null, coil: r.coil ?? COIL, steel: BLACK_STEEL,
   };
 }

@@ -5,7 +5,7 @@
 // outline pushed through its width or a section pushed along the bore (arms law 1), chamfered (law 2).
 import * as dmath from '../../../util/dmath.js';
 import { slab, slabC, tube, box, band } from './geom.js';
-import { optic, rail, muzzle, conduit, shellGap, fins, rod, irons, boreDisc } from './fittings.js';
+import { optic, rail, muzzle, conduit, shellGap, fins, rod, irons, boreDisc, seam, display } from './fittings.js';
 import { GRIP_RAKE } from './laws.js';
 
 const rad = (d) => (d * Math.PI) / 180;
@@ -25,7 +25,7 @@ export function pistolGrip(c, { zBack, yTop, drop = 9.8, depth = 4.4, hw = 1.4, 
 }
 
 /** A trigger guard as a band from (zF, yTop) down, back along yBot, up into the grip at zB; and the trigger. → opening. */
-function guardAndTrigger(c, { zF, zB, yTop, yBot, zTrig }) {
+export function guardAndTrigger(c, { zF, zB, yTop, yBot, zTrig }) {
   const g = c.P.girth;
   push(c, { ring: band([[zF, yTop + 0.2], [zF, yBot + 0.6], [zF - 0.6, yBot], [zB + 0.4, yBot], [zB - 0.3, yBot + 0.5]], 0.5 * g), plane: 'side', hw: 0.68 * g, chamfer: 0.12, role: c.R.frame, group: 'guard' });
   push(c, { ring: [[zTrig, yTop], [zTrig + 0.55, yTop], [zTrig + 0.3, yTop - 1.0], [zTrig - 0.3, yTop - 1.75], [zTrig - 0.6, yTop - 1.65], [zTrig - 0.15, yTop - 0.9]], plane: 'side', hw: 0.34, chamfer: 0.08, role: c.R.accent, group: 'trigger' });
@@ -33,7 +33,7 @@ function guardAndTrigger(c, { zF, zB, yTop, yBot, zTrig }) {
 }
 
 /** A magazine hung from its well: curved (a 30-round arc), box (straight), drum, or cell (the future line's). */
-function magazine(c, kind, { z0, z1, yTop, len, hw = 1.1, rake = 0.1, group = 'magazine' }) {
+export function magazine(c, kind, { z0, z1, yTop, len, hw = 1.1, rake = 0.1, group = 'magazine' }) {
   const g = c.P.girth, depth = z1 - z0, mid = (z0 + z1) / 2, h = hw * g;
   if (kind === 'drum') {
     push(c, { ring: [[z0 + 0.2, yTop], [z1 - 0.2, yTop], [z1 - 0.4, yTop - 4.5], [z0 + 0.4, yTop - 4.5]], plane: 'side', hw: h, chamfer: 0.15, role: c.R.frame, group });
@@ -84,7 +84,7 @@ function stock(c, kind, { z0, yHi, yLo, length = 25 }) {
 
 /** A handguard's section pushed along the bore from z0 to z1: an octagon (modern) or a hexagon with deep facets
  * (future), its slots dark along each side, every pitch. */
-function handguard(c, { z0, z1, hw, yTop, yBot, role }) {
+export function handguard(c, { z0, z1, hw, yTop, yBot, role }) {
   const fut = c.line === 'future', cut = fut ? hw * 0.7 : hw * 0.42;
   const ring = fut
     ? [[hw, yTop - cut], [hw * 0.45, yTop], [-hw * 0.45, yTop], [-hw, yTop - cut], [-hw * 0.82, yBot + cut * 0.6], [0, yBot], [hw * 0.82, yBot + cut * 0.6]]
@@ -98,6 +98,8 @@ function handguard(c, { z0, z1, hw, yTop, yBot, role }) {
 const LAYOUTS = Object.freeze({
   assault: { rz0: -9, rz1: 14.5, top: 2.6, bot: -1.4, hw: 1.25, well: [3.8, 11.4], wellY: -6.4, gripBack: -5.0, hgHW: 2.3, hgBot: -2.9, rB: 0.95, chamber: 4, magLen: 18, stockL: 25, exposed: 7 },
   marksman: { rz0: -10, rz1: 15.5, top: 2.7, bot: -1.5, hw: 1.35, well: [4.4, 11.4], wellY: -6.5, gripBack: -5.6, hgHW: 2.5, hgBot: -3.0, rB: 1.15, chamber: 4.5, magLen: 9, stockL: 31, exposed: 11 },
+  // the breacher (a drum-fed automatic shotgun, the near line's): a deep receiver, a wide well, a big bore
+  breacher: { rz0: -10, rz1: 13, top: 3.0, bot: -1.8, hw: 1.7, well: [3.6, 12.0], wellY: -7.0, gripBack: -5.6, hgHW: 2.7, hgBot: -3.2, rB: 1.25, chamber: 4, magLen: 9, stockL: 28, exposed: 5 },
   smg: { rz0: -6.5, rz1: 12, top: 2.4, bot: -1.8, hw: 1.4, well: [4.2, 8.0], wellY: -4.8, gripBack: -4.6, hgHW: 2.0, hgBot: -2.6, rB: 0.8, chamber: 3, magLen: 20, stockL: 22, exposed: 2 },
 });
 
@@ -114,6 +116,8 @@ export function buildLongGun(c, M) {
   push(c, { ring: [[L.rz0 - 0.5, bot], [w1 + 1.6, bot], [w1 + 1.6, bot - 1.1], [w1, bot - 1.3], [w1, wy], [w0, wy], [w0, bot - 1.7], [L.gripBack, bot - 1.7], [L.gripBack - 2.3, bot - 2.2], [L.rz0 - 0.5, bot - 1.9]],
     plane: 'side', hw: hw * 1.04, chamfer: c.ch(hw * 2), role: lowerRole, group: 'lower' });
   if (fut) { shellGap(c, { z0: L.rz0 + 0.2, z1: L.rz1 - 0.1, y: bot, hw: hw * 1.02, t: 0.26 }); conduit(c, { z0: L.rz0 + 2, z1: L.rz1 - 1.5, y: top - 1.3, hw }); }
+  // the near line (law 9): the upper parted from the lower by its seam, a round counter on the left by the thumb
+  if (c.line === 'near') { seam(c, { z0: L.rz0 + 0.3, z1: L.rz1 - 0.3, y: bot, hw: hw * 1.04 }); display(c, { face: 'left', x: hw * 1.04, z0: L.gripBack + 0.6, z1: L.gripBack + 3.8, y0: bot - 1.25, y1: bot - 0.35 }); }
   // the port and its bolt (right side), the charging handle at the rear top, the forward assist, the controls
   c.add('extrudes', box({ lo: [hw - 0.01, 0.0, 0.6], hi: [hw + 0.03, 1.6, Math.min(6.6, L.rz1 - 3)], role: c.R.bore, group: 'port' }));
   c.add('extrudes', box({ lo: [hw - 0.2, 0.35, 1.0], hi: [hw + 0.04, 1.25, Math.min(6.2, L.rz1 - 3.4)], role: c.R.metal, group: 'port' }));
@@ -171,6 +175,7 @@ export function buildBullpup(c) {
   push(c, { ring: [[-38, 2.2], [-39.1, 2.1], [-39.1, -10.0], [-38, -9.6]], plane: 'side', hw: hw * 1.04, chamfer: 0.2, role: c.R.grip, group: 'buttpad' });
   c.add('extrudes', box({ lo: [hw - 0.01, -0.2, -15], hi: [hw + 0.03, 1.6, -9], role: c.R.bore, group: 'port' }));
   if (fut) { shellGap(c, { z0: -36, z1: zFront - 0.5, y: -1.6, hw: hw * 1.01, t: 0.26 }); conduit(c, { z0: -30, z1: zFront - 2, y: 1.2, hw }); }
+  if (c.line === 'near') { seam(c, { z0: -37, z1: zFront - 0.5, y: -1.6, hw }); display(c, { face: 'left', x: hw, z0: -4, z1: 0.4, y0: 0.0, y1: 1.4 }); }
   // the grip forward, the guard that takes the whole hand, the magazine behind it
   const G = pistolGrip(c, { zBack: 2.6, yTop: -3.0, drop: 9.6, depth: 4.1, hw: 1.45 });
   push(c, { ring: band([[zFront - 1.6, -2.9], [zFront - 1.6, -10.6], [zFront - 2.6, -12.0], [G.frontAt(-12.4) + 0.4, -12.4]], 0.7 * g), plane: 'side', hw: 0.95 * g, chamfer: 0.18, role: c.R.frame, group: 'guard' });
@@ -200,6 +205,7 @@ export function buildShotgun(c, M) {
   c.add('extrudes', box({ lo: [hw - 0.01, -0.6, -1.0], hi: [hw + 0.03, 1.5, 5.5], role: c.R.bore, group: 'port' }));
   c.add('extrudes', box({ lo: [-0.9 * g, bot - 0.03, 0], hi: [0.9 * g, bot + 0.05, 7.5], role: c.R.bore, group: 'port' }));
   if (fut) { shellGap(c, { z0: zR0 + 0.5, z1: zR1 - 0.3, y: -0.9, hw: hw * 1.01, t: 0.26 }); conduit(c, { z0: zR0 + 2.5, z1: zR1 - 1.5, y: 1.2, hw }); }
+  if (c.line === 'near') { seam(c, { z0: zR0 + 0.5, z1: zR1 - 0.3, y: -0.9, hw: hw * 1.01 }); display(c, { face: 'left', x: hw, z0: -6.4, z1: -2.8, y0: 0.4, y1: 1.6 }); }
   // the barrel and the magazine tube under it, its cap; a bead at the muzzle
   const rB = 1.15 * g;
   c.add('lathes', tube({ z0: zR1 - 0.5, z1: zM, profile: [[0, rB * 1.05], [0.15, rB], [1, rB * 0.97]], samples: 18, role: c.R.metal, group: 'barrel' }));

@@ -1,11 +1,12 @@
 // equipment/arms/handguns — the pistol's models: service (a polymer-framed striker pistol, the default), compact (the
 // same, shorter in the slide and the grip), heavy (a steel-framed single-stack with an exposed hammer and a beavertail)
-// and revolver (a swing-out double action: the frame round a fluted cylinder, a barrel with its underlug and rib).
+// revolver (a swing-out double action: the frame round a fluted cylinder, a barrel with its underlug and rib) and
+// smart (the near line's: a moulded shroud over the slide, its crown recessed, an ammo counter in its rear face).
 // Generic forms, no make or model. The bore is y = 0 along +z; the slide and the frame are side outlines pushed
 // through their widths (arms law 1), chamfered to their thickness (law 2); the grip rakes back 18° (law 4).
 import * as dmath from '../../../util/dmath.js';
 import { slab, slabC, tube, box, band } from './geom.js';
-import { optic, muzzle, conduit, shellGap, boreDisc } from './fittings.js';
+import { optic, muzzle, conduit, shellGap, boreDisc, smartSight, display, seam, vents } from './fittings.js';
 import { GRIP_RAKE } from './laws.js';
 
 const rad = (d) => (d * Math.PI) / 180;
@@ -13,15 +14,17 @@ const RAKE = [0, dmath.cos(rad(GRIP_RAKE)), dmath.sin(rad(GRIP_RAKE))];
 
 /** The self-loading pistols: a slide over a frame. `spec` is the model's row (arms/models.js). */
 export function buildPistol(c, spec) {
-  const { parts: p, P } = c, g = P.girth, fut = c.line === 'future';
-  const heavy = spec.frame === 'steel';
+  const { parts: p, P } = c, g = P.girth, fut = c.line === 'future', near = c.line === 'near';
+  const heavy = spec.frame === 'steel', shroud = !!spec.shroud;
   const B = c.barrel, zR = -3.6 * P.length, zM = 3.6 + B * P.length;
   const sH = (heavy ? 2.05 : 2.2) * g, sB = -0.95 * g, sHW = (heavy ? 1.12 : 1.27) * g, fHW = (heavy ? 1.2 : 1.42) * g;
   const gripDrop = (spec.grip ?? 11) * P.length, yB = -gripDrop;
   // the future line's shell is the slide (the frame's finish over the metal's frame): law 7 keeps the stations
-  const frameRole = heavy || fut ? c.R.metal : c.R.frame, slideRole = fut ? c.R.frame : c.R.metal;
-  // the slide: its nose bevelled, its rear square (law 1)
-  slabC({ ring: [[zR, sB], [zR, sH - 0.5], [zR + 0.5, sH], [zM - 1.2, sH], [zM, sH - 0.65], [zM, sB]], plane: 'side', hw: sHW, chamfer: c.ch(sHW * 2), role: slideRole, group: 'slide' }).forEach((e) => c.add('extrudes', e));
+  // (law 9) a smart pistol's shroud is moulded over its slide: the frame's finish over the furniture's frame
+  const frameRole = heavy || fut ? c.R.metal : shroud ? c.R.furniture : c.R.frame, slideRole = fut || shroud ? c.R.frame : c.R.metal;
+  // the slide: its nose bevelled, its rear square (law 1); a shroud squarer, full to its nose
+  const slide = shroud ? [[zR, sB], [zR, sH - 0.3], [zR + 0.3, sH], [zM - 0.4, sH], [zM, sH - 0.4], [zM, sB]] : [[zR, sB], [zR, sH - 0.5], [zR + 0.5, sH], [zM - 1.2, sH], [zM, sH - 0.65], [zM, sB]];
+  slabC({ ring: slide, plane: 'side', hw: sHW, chamfer: c.ch(sHW * 2), role: slideRole, group: 'slide' }).forEach((e) => c.add('extrudes', e));
   // the frame and its grip, one outline: the dust cover, the front strap behind the guard, the raked grip, the
   // beavertail (law 4: the grip raked back off the bore)
   const k = dmath.tan(rad(GRIP_RAKE));
@@ -43,16 +46,19 @@ export function buildPistol(c, spec) {
   slabC({ ring: [[bs(yM) - 0.35, yM], [fs(yM) + 0.3, yM], [fs(yM - 0.7) + 0.2, yM - 0.7], [bs(yM - 0.7) - 0.25, yM - 0.7]], plane: 'side', hw: fHW * 1.02, chamfer: 0.14, role: mag === 'cell' ? c.R.metal : c.R.accent, group: 'magazine' }).forEach((e) => c.add('extrudes', e));
   if (mag === 'cell' && c.R.glow) c.add('extrudes', box({ lo: [-fHW * 1.06, yM - 0.5, bs(yM) + 0.4], hi: [fHW * 1.06, yM - 0.25, fs(yM) - 0.4], role: c.R.glow, group: 'glow' }));
   // the slide's tertiary detail (law 5): the rear serrations (the future line's vents), the port and the barrel's hood
-  const sw = fut ? 3 : Math.max(3, Math.round(2.6 / c.pitch(0.42)));
-  const span = fut ? 2.8 : 2.6, step = span / sw;
+  const wide = fut || shroud, sw = fut ? 3 : shroud ? 2 : Math.max(3, Math.round(2.6 / c.pitch(0.42)));
+  const span = wide ? 2.8 : 2.6, step = span / sw;
   for (let i = 0; i < sw; i++) {
-    const z = zR + 0.55 + i * step, w = fut ? step * 0.45 : 0.13;
+    const z = zR + 0.55 + i * step, w = wide ? step * 0.45 : 0.13;
     for (const s of [1, -1]) c.add('extrudes', box({ lo: [s > 0 ? sHW - 0.01 : -sHW - 0.035, sB + 0.45, z], hi: [s > 0 ? sHW + 0.035 : -sHW + 0.01, sH - 0.45, z + w], role: c.R.bore, group: 'serrations' }));
   }
   if (heavy) for (let i = 0; i < 4; i++) { const z = zM - 4.2 + i * 0.7; for (const s of [1, -1]) c.add('extrudes', box({ lo: [s > 0 ? sHW - 0.01 : -sHW - 0.035, sB + 0.45, z], hi: [s > 0 ? sHW + 0.035 : -sHW + 0.01, sH - 0.45, z + 0.13], role: c.R.bore, group: 'serrations' })); }
   const pz0 = 2.8, pz1 = Math.min(zM - 6.4, 6.6);
-  c.add('extrudes', box({ lo: [sHW - 0.01, 0.5, pz0], hi: [sHW + 0.03, sH - 0.25, pz1], role: c.R.bore, group: 'port' }));
-  c.add('extrudes', box({ lo: [0.05, sH - 0.02, pz0 + 0.2], hi: [sHW - 0.25, sH + 0.03, pz1 - 0.2], role: c.R.accent, group: 'port' }));
+  if (shroud) vents(c, { z0: zM - 5.6, z1: zM - 1.0, y: 0.75, hw: sHW, h: 0.55, base: 0.8 });   // the shroud hides its port; it breathes
+  else {
+    c.add('extrudes', box({ lo: [sHW - 0.01, 0.5, pz0], hi: [sHW + 0.03, sH - 0.25, pz1], role: c.R.bore, group: 'port' }));
+    c.add('extrudes', box({ lo: [0.05, sH - 0.02, pz0 + 0.2], hi: [sHW - 0.25, sH + 0.03, pz1 - 0.2], role: c.R.accent, group: 'port' }));
+  }
   // the controls (tertiary): the slide stop and the takedown on the left, the magazine catch behind the guard; a steel
   // frame's small parts are bright (a two-tone: law 3's third response)
   const ctl = heavy ? c.R.edge : c.R.accent;
@@ -65,14 +71,19 @@ export function buildPistol(c, spec) {
   if (heavy) slabC({ ring: [[zR - 0.1, 0.2], [zR + 0.3, 1.2], [zR - 0.6, 2.05], [zR - 1.3, 1.85], [zR - 0.8, 0.6]], plane: 'side', hw: 0.4, chamfer: 0.08, role: c.R.edge, group: 'hammer' }).forEach((e) => c.add('extrudes', e));
   // the barrel's crown in the slide's nose, the bore's dark, and the muzzle device
   const rB = 0.66 * g;
-  c.add('lathes', tube({ z0: zM - 1.0, z1: zM + 0.08, profile: [[0, rB], [1, rB]], samples: 16, role: c.R.metal, group: 'barrel' }));
-  let front = zM + 0.08;
-  if (p.muzzle === 'plain') boreDisc(c, { z: zM + 0.08, r: rB * 0.66 });
-  else front = muzzle(c, p.muzzle, { zM: zM + 0.08, rB });
+  // (a shroud's crown sits recessed in its nose: the bore's dark in the face)
+  const crown = shroud ? zM + 0.01 : zM + 0.08;
+  c.add('lathes', tube({ z0: zM - 1.0, z1: crown, profile: [[0, rB], [1, rB]], samples: 16, role: c.R.metal, group: 'barrel' }));
+  let front = crown;
+  if (p.muzzle === 'plain') boreDisc(c, { z: crown, r: rB * 0.66 });
+  else front = muzzle(c, p.muzzle, { zM: crown, rB });
   // the future line (law 7): the shell split from the frame by a dark gap, a lit conduit down the slide
   if (fut) { shellGap(c, { z0: zR + 0.2, z1: zM - 0.3, y: sB, hw: fHW * 0.98, t: 0.24 }); conduit(c, { z0: zR + 3.6, z1: zM - 1.8, y: 0.55, hw: sHW, h: 0.28 }); }
+  // the near line (law 9): the slide parted from the frame by its seam, an ammo counter in the slide's rear face
+  if (near || shroud) { seam(c, { z0: zR + 0.3, z1: zM - 0.3, y: sB, hw: Math.max(sHW, fHW) }); display(c, { z: zR, x0: -0.55 * g, x1: 0.55 * g, y0: 0.15, y1: 0.95 }); }
   // the sights or an optic on the slide's top line (law 4); a light under the dust cover
-  optic(c, p.optic, { z0: -1.9, z1: 0, yTop: sH, zRear: zR + 1.2, zFront: zM - 0.8 });
+  if (p.optic === 'smart') smartSight(c, { z0: zR + 1.4, yTop: sH, L: 4.6, k: 0.6 });
+  else optic(c, p.optic, { z0: -1.9, z1: 0, yTop: sH, zRear: zR + 1.2, zFront: zM - 0.8 });
   if (p.optic === 'reddot') optic(c, 'irons', { yTop: sH, zRear: zR + 1.2, zFront: zM - 0.8 });
   if (p.underbarrel === 'light') {
     const yl = -2.35 * g - 1.15, z0 = Math.max(gF + 0.3, zM - 6.6), z1 = zM - 0.6;

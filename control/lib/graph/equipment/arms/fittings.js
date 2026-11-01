@@ -55,6 +55,47 @@ export function optic(c, kind, { z0, z1, yTop, zFront, zRear }) {
   else if (kind === 'reddot') reddot(c, { z0, yTop });
   else if (kind === 'holo') holo(c, { z0, yTop });
   else if (kind === 'scope') scope(c, { z0, z1, yTop });
+  else if (kind === 'smart') smartSight(c, { z0, yTop });
+}
+
+/**
+ * A smart sight (law 9): a low moulded housing on a clamp (k its section's scale: a pistol's is small), its objective lens in a chamfered front, its screen dim in
+ * the rear face (the one light: the display), a button and a sensor window on its side. z0 its rear, on yTop.
+ */
+export function smartSight(c, { z0, yTop, L = 9, k = 1, group = 'optic' }) {
+  const s = c.P.sight, len = L * s, H = 3.6 * s * k, hw = 1.75 * s * k, base = 0.9 * s * k;
+  c.add('extrudes', box({ lo: [-1.25 * s, yTop, z0 + len * 0.2], hi: [1.25 * s, yTop + base, z0 + len * 0.75], role: c.R.accent, group, chamfer: 0.12 }));
+  slabC({ ring: [[z0, yTop + base], [z0 + len, yTop + base], [z0 + len, yTop + H * 0.82], [z0 + len * 0.9, yTop + H], [z0 + len * 0.08, yTop + H], [z0, yTop + H * 0.9]], plane: 'side', hw, chamfer: c.ch(hw * 2), role: c.R.frame, group }).forEach((e) => c.add('extrudes', e));
+  const yc = yTop + base + (H - base) * 0.52, rl = (H - base) * 0.36;
+  c.add('lathes', tube({ z0: z0 + len - 0.25, z1: z0 + len + 0.04, y: yc, profile: [[0, rl], [1, rl]], samples: 20, role: c.R.glass, group }));
+  c.add('lathes', tube({ z0: z0 + len - 0.3, z1: z0 + len + 0.12, y: yc, profile: [[0, rl * 1.18], [1, rl * 1.18]], samples: 20, role: c.R.bore, group }));
+  display(c, { z: z0, y0: yc - rl * 0.75, y1: yc + rl * 0.75, x0: -hw * 0.7, x1: hw * 0.7, face: 'rear', group });
+  c.add('extrudes', box({ lo: [hw - 0.01, yTop + H * 0.55, z0 + len * 0.3], hi: [hw + 0.08, yTop + H * 0.72, z0 + len * 0.42], role: c.R.accent, group, chamfer: 0.04 }));
+  c.add('extrudes', box({ lo: [-hw - 0.03, yTop + H * 0.48, z0 + len * 0.55], hi: [-hw + 0.01, yTop + H * 0.78, z0 + len * 0.8], role: c.R.glass, group }));
+}
+
+/** A display (law 9's one light): a dark bezel and a dim screen inset in it, on a part's rear face at z (face 'rear')
+ * or on its side at x (face 'left' | 'right', from z0 to z1). Without a glow role it is the bezel and a glass. */
+export function display(c, { z, z0, z1, x, x0, x1, y0, y1, face = 'rear', group = 'display' }) {
+  const scr = c.R.glow ?? c.R.glass, m = 0.12;
+  if (face === 'rear') {
+    c.add('extrudes', box({ lo: [x0 - m, y0 - m, z - 0.04], hi: [x1 + m, y1 + m, z + 0.01], role: c.R.bore, group }));
+    c.add('extrudes', box({ lo: [x0, y0, z - 0.07], hi: [x1, y1, z - 0.03], role: scr, group: 'screen' }));
+  } else {
+    const s = face === 'right' ? 1 : -1;
+    c.add('extrudes', box({ lo: s > 0 ? [x - 0.01, y0 - m, z0 - m] : [-x - 0.04, y0 - m, z0 - m], hi: s > 0 ? [x + 0.04, y1 + m, z1 + m] : [-x + 0.01, y1 + m, z1 + m], role: c.R.bore, group }));
+    c.add('extrudes', box({ lo: s > 0 ? [x + 0.03, y0, z0] : [-x - 0.07, y0, z0], hi: s > 0 ? [x + 0.07, y1, z1] : [-x - 0.03, y1, z1], role: scr, group: 'screen' }));
+  }
+}
+
+/** A parting line (law 9): a thin dark seam round a moulded shell at height y, from z0 to z1, at half-width hw. */
+export const seam = (c, { z0, z1, y, hw, group = 'seam' }) => c.add('extrudes', box({ lo: [-hw - 0.015, y - 0.035, z0], hi: [hw + 0.015, y + 0.035, z1], role: c.R.bore, group }));
+
+/** A vent row (law 9): n dark slots on each side at half-width hw, centred on y, from z0, every pitch (fewer as it
+ * stylizes), each h tall. */
+export function vents(c, { z0, z1, y, hw, h = 1.0, base = 1.1, group = 'vents' }) {
+  const p = c.pitch(base), n = Math.max(2, Math.floor((z1 - z0) / p)), w = p * 0.45;
+  for (let i = 0; i < n; i++) { const z = z0 + i * p + (z1 - z0 - n * p) / 2 + (p - w) / 2; for (const sx of [1, -1]) c.add('extrudes', box({ lo: sx > 0 ? [hw - 0.01, y - h / 2, z] : [-hw - 0.04, y - h / 2, z], hi: sx > 0 ? [hw + 0.04, y + h / 2, z + w] : [-hw + 0.01, y + h / 2, z + w], role: c.R.bore, group })); }
 }
 
 /** A rail on the top line from z0 to z1 at yTop: its base and its teeth, every pitch. */

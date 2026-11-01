@@ -1,6 +1,6 @@
 // equipment/arms/laws — the laws a modern or a future arm is built and read by: what makes a gun or a knife hold up in
 // the seventh-generation look (era/eras.js gen-7: a live key over the surface, materials told apart by how they
-// reflect), as arithmetic over two dials and a line.
+// reflect), as arithmetic over two dials and a line (modern, future, near).
 //
 //   1. SILHOUETTE FROM THE SIDE. An arm is read side-on first: the grip's rake, the gap of the trigger guard, the
 //      magazine's drop, the stock's line. Every major part is drawn as its side outline and pushed through its width,
@@ -26,12 +26,18 @@
 //   8. A BLADE READS BY ITS GRIND. A knife's flat is ground toward the spine, its edge a secondary bevel of a brighter
 //      response (a coated blade's sharpened edge), so the edge draws a line under the key at any angle; a future
 //      blade's edge is the glow.
+//   9. THE NEAR FUTURE IS ENGINEERED (the `near` line: futuristic, styled real). Every new part says what it does in a
+//      form a factory could make: a coil is copper rings you can count, a capacitor bank shows its cells and terminals, a
+//      cassette its door, a smart sight its lens in front and its screen behind. Shells are moulded (a softer chamfer than
+//      machined steel, 1.3×) and read as assemblies by their parting lines and their vent rows; light appears only where
+//      a real device lights — a display, a counter, an indicator — small and screen-shaped, never a conduit or a glowing
+//      bore; the palette stays in the modern's (tech greys, earth, a pale shell).
 //
 // Pure arithmetic; no dice. ARMS_LAWS_VERSION is stamped on every minted arm (the build's `laws`): a change here that
 // moves an arm's bytes is a new version.
 
 export const ARMS_LAWS_VERSION = 1;
-export const LINES = Object.freeze(['modern', 'future']);
+export const LINES = Object.freeze(['modern', 'future', 'near']);
 
 export const ARMS_LAWS = Object.freeze([
   { id: 'silhouette-from-the-side', line: 'Every major part is its side outline pushed through its width: the rake, the guard, the magazine and the stock read side-on.' },
@@ -42,6 +48,7 @@ export const ARMS_LAWS = Object.freeze([
   { id: 'negative-space-reads', line: 'A trigger guard keeps a finger\'s opening (1.6 cm); a skeleton stock its window.' },
   { id: 'future-transforms-the-same-mechanics', line: 'The future line keeps every station and changes the language: facets, a shell gap, a conduit, an emitter, a cell.' },
   { id: 'blade-reads-by-its-grind', line: 'A blade is ground toward its spine, its edge a brighter secondary bevel (or the glow).' },
+  { id: 'near-future-is-engineered', line: 'The near line: every new part shows its function (coils, cells, a cassette door, a sight\'s lens and screen), moulded shells read by parting lines and vents, light only on a display.' },
 ]);
 
 const lerp = (a, b, t) => a + (b - a) * t;
@@ -55,7 +62,7 @@ export const GUARD_OPENING = 1.6;
 
 /** Law 2: a part's chamfer from its thickness (cm), the stylize dial and the line. */
 export function chamferOf(thick, { stylize = 0, line = 'modern' } = {}) {
-  const share = lerp(0.12, 0.2, stylize) * (line === 'future' ? 2 : 1);
+  const share = lerp(0.12, 0.2, stylize) * (line === 'future' ? 2 : line === 'near' ? 1.3 : 1);
   return r3(Math.min(thick * 0.32, Math.max(CHAMFER_FLOOR * (1 + stylize), thick * share)));
 }
 

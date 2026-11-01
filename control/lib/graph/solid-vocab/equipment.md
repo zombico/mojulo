@@ -4,8 +4,8 @@
   "name": "Equipment (arms named by intent and direction: fantasy, modern and future)",
   "family": "object",
   "entry": "mint_solid",
-  "summary": "Compose fantasy arms (dagger, sword, greatsword, staff, bow, shield) from an item, a style and a few dials, and modern or future ones (pistols, revolvers, carbines, rifles, bullpups, marksman rifles, submachine guns, shotguns, knives, karambits, blasters, pulse rifles, vibroblades) from an item, a model, a line, a finish and tunable parts. A handful of laws turn the words into every dimension, so an item nobody has drawn before comes out with the samples' discipline. The recipe stores the words, stamped with the laws, and re-derives the item on every read.",
-  "when": "Reach for this on 'a pistol / revolver / assault rifle / sniper rifle / bullpup / SMG / shotgun', 'a combat knife / tanto / karambit', 'a blaster / pulse rifle / railgun / sci-fi gun / vibroblade', 'a gun with a red dot / scope / suppressor', 'guns for a seventh-gen shooter', 'a fantasy sword / dagger / greatsword', 'a wizard's staff / a druid staff', 'an elven bow / a longbow', 'a shield with a gem / a heater shield / a round shield', 'fantasy weapons / gear / arms in <style>', 'make the gem bigger / more stylized / more anime', 'a warlock's staff', 'a weapon for my hero', 'a style guide for our weapons'."
+  "summary": "Compose fantasy arms (dagger, sword, greatsword, staff, bow, shield) from an item, a style and a few dials, and modern or future ones (pistols, revolvers, carbines, rifles, bullpups, marksman rifles, submachine guns, shotguns, knives, karambits, blasters, pulse rifles, vibroblades, and near-future smart pistols, PDWs, caseless rifles, coilguns and breachers styled real) from an item, a model, a line, a finish and tunable parts. A handful of laws turn the words into every dimension, so an item nobody has drawn before comes out with the samples' discipline. The recipe stores the words, stamped with the laws, and re-derives the item on every read.",
+  "when": "Reach for this on 'a pistol / revolver / assault rifle / sniper rifle / bullpup / SMG / shotgun', 'a combat knife / tanto / karambit', 'a blaster / pulse rifle / railgun / sci-fi gun / vibroblade', 'a near-future / realistic sci-fi gun', 'a coilgun / gauss rifle / caseless rifle / smart gun / PDW', 'a gun with a red dot / scope / suppressor', 'guns for a seventh-gen shooter', 'a fantasy sword / dagger / greatsword', 'a wizard's staff / a druid staff', 'an elven bow / a longbow', 'a shield with a gem / a heater shield / a round shield', 'fantasy weapons / gear / arms in <style>', 'make the gem bigger / more stylized / more anime', 'a warlock's staff', 'a weapon for my hero', 'a style guide for our weapons'."
 }
 ---
 
@@ -89,25 +89,36 @@ look (a live key over materials told apart by how they reflect), by its own laws
    broad facets, a shell split by a dark gap, a lit conduit, an emitter at the muzzle, a cell for a magazine. A blaster
    is held as a pistol.
 8. **A blade reads by its grind.** Ground toward the spine, its edge a brighter secondary bevel (the future line's: the glow).
+9. **The near future is engineered** (the `near` line: futuristic, styled real). Every new part shows what it does in a
+   form a factory could make: coils you can count, a capacitor bank's cells and terminals, a cassette's door, a smart
+   sight's lens in front and its screen behind. Shells are moulded (a softer chamfer) and read by their parting lines and
+   vent rows; light only where a real device lights (a display, a counter), small and screen-shaped.
 
 ```
 { item: 'pistol' | 'carbine' | 'rifle' | 'smg' | 'shotgun' | 'knife',
   model?:  the archetype (below; absent → the item's first),
-  line?:   'modern' | 'future' (absent → the finish's),
-  style?:  'black' | 'fde' | 'od' | 'stainless' | 'walnut' (modern) | 'white' | 'gunship' | 'titan' | 'hazard' (future) | { …a card },
+  line?:   'modern' | 'future' | 'near' (absent → the finish's, else the model's),
+  style?:  'black' | 'fde' | 'od' | 'stainless' | 'walnut' (modern) | 'white' | 'gunship' | 'titan' | 'hazard' (future) | 'slate' | 'sand' | 'ranger' | 'arctic' (near) | { …a card },
   parts?:  { <slot>: <word>, … },
   dials?:  { stylize?: 0–1, mass?: 0.5–2 } }
 ```
 
 - **pistol** — `service` (a polymer-framed striker), `compact`, `heavy` (a steel single-stack, an exposed hammer),
-  `revolver` (a fluted cylinder, an underlug). Slots: `barrel` short · standard · long (or cm), `magazine` flush ·
+  `revolver` (a fluted cylinder, an underlug), `smart` (near: a moulded shroud over the slide, a recessed crown, an ammo
+  counter in its rear face, a smart sight). Slots: `barrel` short · standard · long (or cm), `magazine` flush ·
   extended · cell, `optic` irons · reddot, `muzzle` plain · suppressor · emitter, `underbarrel` none · light (a revolver:
   barrel, optic, muzzle).
-- **carbine** — `assault`. **rifle** — `assault`, `marksman` (a scope and a bipod), `bullpup`. **smg** — `compact`.
+- **carbine** — `assault`. **rifle** — `assault`, `marksman` (a scope and a bipod), `bullpup`, and the near line's
+  `caseless` (a monolithic shell over a shrouded barrel, a cassette loaded from the top, a smart sight on two posts) and
+  `coilgun` (a bullpup chassis, a barrel wound with copper coils in a skeleton of rails and bulkheads, a capacitor bank
+  for a magazine with its cells bare, a cable to the coils). **smg** — `compact`, and the near line's `pdw` (a
+  top-feeder: a translucent magazine along its top, a thumbhole, a guard that takes the hand). The caseless, the coilgun
+  and the pdw take `barrel`, `optic`, `muzzle` and `underbarrel`.
   Slots: `barrel`, `stock` fixed · collapsible · folding · skeleton · none, `magazine` box · curved · drum · cell, `optic`
   irons · reddot · holo · scope · none, `muzzle` plain · flash · brake · suppressor · emitter, `rail` none · top · full,
   `underbarrel` none · grip · light · bipod (a bullpup has no stock or rail slot).
-- **shotgun** — `pump` (a straight stock, a wooden pump on the walnut card), `tactical` (a pistol grip, a rail, a light).
+- **shotgun** — `pump` (a straight stock, a wooden pump on the walnut card), `tactical` (a pistol grip, a rail, a light),
+  and the near line's `breacher` (drum-fed, a deep receiver; it takes the rifle's slots).
   Slots: `barrel`, `stock`, `magazine` tube · box · cell, `optic`, `muzzle` plain · brake · emitter, `rail` none · top,
   `underbarrel` none · light, `grip` straight · pistol.
 - **knife** — `combat` (a clip point, a cross guard, a ridged handle), `tanto` (a choil, a cord wrap), `dagger` (a
@@ -115,10 +126,12 @@ look (a live key over materials told apart by how they reflect), by its own laws
   clip · drop · tanto · spear · hawkbill, `length` short · standard · long (or cm), `guard` cross · choil · none, `handle`
   ridged · cord · slab, `serrations` true · false.
 
-The future line's defaults: an emitter for a muzzle and a cell for a magazine (`{ item: 'pistol', line: 'future' }` is a
+Every gun's `optic` also takes `smart` (a moulded housing, its lens in front and a dim screen behind). Any model takes
+the near line (`{ item: 'carbine', line: 'near' }`: a smart sight, the upper parted from the lower by its seam, a round
+counter by the thumb); the near models draw in it by default. The future line's defaults: an emitter for a muzzle and a cell for a magazine (`{ item: 'pistol', line: 'future' }` is a
 blaster; `{ item: 'rifle', model: 'marksman', style: 'titan' }` a railgun; `{ item: 'knife', style: 'white' }` a
 vibroblade). A finish card is plain JSON: `{ id?, line?, roles: { metal, frame, grip?, furniture?, accent?, bore?, glass?,
-blade?, edge?, glow? } }`, each role a shelf row `['<material>', '#hex']` or a metal surface; copy one and pass it as
+blade?, edge?, glow?, coil? } }` (on the near line `glow` is only a display's; `coil` a coilgun's windings, copper when absent), each role a shelf row `['<material>', '#hex']` or a metal surface; copy one and pass it as
 `style`. Sockets: a gun's `grip` (the fist, the grip's raked line), `tip` (the muzzle), `stock` (the butt); a knife's the
 sword's (`grip`, `guard`, `tip`). `stats.equipment.arms` reads the laws back: the chamfers, the responses, the glow
 hues, the guard's opening and any advice (advisory: nothing refuses).

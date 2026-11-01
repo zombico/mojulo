@@ -1,13 +1,14 @@
 // equipment/arms — modern and future arms as equipment: pistols (service, compact, heavy, revolver), the carbine, rifles
 // (assault, marksman, bullpup), the submachine gun, shotguns (pump, tactical) and knives (combat, tanto, dagger,
-// karambit), each in the modern or the future line and a finish card, its parts tunable by word. Built by the laws in
+// karambit; and the near line's smart pistol, pdw, caseless rifle, coilgun and breacher), each in the modern, the future
+// or the near line and a finish card, its parts tunable by word. Built by the laws in
 // laws.js for the seventh-generation look: side outlines pushed through their widths, every edge chamfered to catch
 // the key, materials told apart by how they reflect, the bore one line, detail in three tiers.
 //
 //   build: { type: 'equipment', item, model?, line?, style?, parts?, dials?: { stylize, mass }, laws? }
 //     item    pistol | carbine | shotgun | rifle | smg | knife
 //     model   the archetype (models.js ARM_MODELS); absent → the item's default
-//     line    'modern' | 'future'; absent → the finish card's
+//     line    'modern' | 'future' | 'near' (law 9: futuristic, styled real); absent → the finish card's, else the model's
 //     style   a finish (finishes.js: black, fde, od, stainless, walnut; white, gunship, titan, hazard; the firearm
 //             samples' service and future) or an inline finish card
 //     parts   slot → word: barrel, stock, magazine, optic, muzzle, rail, underbarrel, grip; a knife's blade, length,
@@ -23,9 +24,10 @@ import { ARMS_LAWS_VERSION, ARMS_LAWS, LINES, chamferOf, pitchOf, armsProportion
 import { buildPistol, buildRevolver } from './handguns.js';
 import { buildLongGun, buildBullpup, buildShotgun } from './longguns.js';
 import { buildKnife } from './knives.js';
+import { buildPdw, buildCaseless, buildCoilgun } from './nearfuture.js';
 
 export { ARM_MODELS, ARM_ITEMS, ARMS_ONLY_ITEMS, ARM_FINISHES, ARMS_LAWS_VERSION, ARMS_LAWS, LINES, armClass };
-const BUILDERS = { pistol: buildPistol, revolver: buildRevolver, long: buildLongGun, bullpup: buildBullpup, shotgun: buildShotgun, knife: buildKnife };
+const BUILDERS = { pistol: buildPistol, revolver: buildRevolver, long: buildLongGun, bullpup: buildBullpup, shotgun: buildShotgun, knife: buildKnife, pdw: buildPdw, caseless: buildCaseless, coilgun: buildCoilgun };
 const SAMPLE_FIREARMS = ['pistol', 'carbine', 'shotgun'];
 const r3 = (v) => Math.round(v * 1000) / 1000;
 const an = (w) => `${/^[aeiou]/i.test(w) ? 'an' : 'a'} ${w}`;
@@ -85,9 +87,11 @@ export function validateArmsBuild(build) {
  * build's own). */
 export function resolveArm(build) {
   const item = ARM_MODELS[build.item], model = build.model ?? item.default, M = item.models[model];
-  const card = finishCardOf(build.style, build.line);
-  const line = build.line ?? card.line ?? 'modern';
-  const parts = { ...M.parts, ...(line === 'future' ? M.future || {} : {}), ...(build.parts || {}) };
+  // the line: the build's, else its finish's when it names one, else the model's own (a near model's), else modern
+  const named = build.style !== undefined && build.style !== null;
+  const line = build.line ?? (named ? finishCardOf(build.style).line : M.line) ?? 'modern';
+  const card = finishCardOf(build.style, line);
+  const parts = { ...M.parts, ...(line === 'future' ? M.future || {} : line === 'near' ? M.near || {} : {}), ...(build.parts || {}) };
   return { item: build.item, model, M, card, line, parts, finish: typeof build.style === 'string' ? (FINISH_ALIASES[build.style] ?? build.style) : card.id ?? (build.style ? 'inline' : card.id) };
 }
 

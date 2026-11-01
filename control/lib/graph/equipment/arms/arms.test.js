@@ -97,6 +97,45 @@ describe('each builder procedure under the laws', () => {
   });
 });
 
+describe('the near line (law 9: futuristic, styled real)', () => {
+  const NEAR = PROCEDURES.map((p) => ({ ...p, line: 'near' }));
+  it('lights only a display: every glow monomer is a screen, one hue at most, the shell parted by a seam', () => {
+    for (const b of NEAR) {
+      const m = buildArm(eq(b)).monomers, lit = ['extrudes', 'lathes', 'sweeps'].flatMap((k) => (m[k] || []).filter((x) => x.material === 'neon'));
+      expect(lit.every((x) => x.group === 'screen')).toBe(true);
+      expect(buildArm(eq(b)).trace.arms.glowHues).toBeLessThanOrEqual(1);
+      if (armClass(b.item) === 'firearm') expect(count(m, 'seam') + count(m, 'screen')).toBeGreaterThan(0);
+    }
+  });
+  it('a near model draws in the near line unless its build or its finish says otherwise', () => {
+    const near = Object.entries(ARM_MODELS).flatMap(([item, I]) => Object.entries(I.models).filter(([, M]) => M.line === 'near').map(([model]) => ({ item, model })));
+    expect(near.length).toBeGreaterThan(0);
+    const one = near[0];
+    expect(resolveArm(eq(one)).line).toBe('near');
+    expect(resolveArm(eq({ ...one, style: 'black' })).line).toBe('modern');
+    expect(resolveArm(eq({ ...one, line: 'future' })).line).toBe('future');
+  });
+  it('each near model (its own code path: a shroud, a layout, a builder) builds under the laws', () => {
+    const near = Object.entries(ARM_MODELS).flatMap(([item, I]) => Object.entries(I.models).filter(([, M]) => M.line === 'near').map(([model]) => ({ item, model })));
+    for (const b of near) {
+      expect(validateBuild(eq(b))).toEqual([]);
+      const e = buildArm(eq(b));
+      expect(e.trace.arms.advice).toEqual([]);
+      expect(e.trace.arms.guardOpening).toBeGreaterThanOrEqual(GUARD_OPENING);
+      expect(e.sockets.grip.origin[2]).toBeLessThan(e.sockets.tip.origin[2]);
+    }
+  });
+  it('shows what its parts do: the coilgun\'s coils countable in their own copper, the capacitor bank\'s cells bare', () => {
+    const coil = Object.entries(ARM_MODELS.rifle.models).find(([, M]) => M.build === 'coilgun')[0];
+    const m = buildArm(eq({ item: 'rifle', model: coil })).monomers;
+    const coils = m.lathes.filter((x) => x.group === 'coils');
+    expect(coils.length).toBeGreaterThanOrEqual(3);
+    expect(coils[0].material).toEqual({ metal: 'copper', finish: 'polished' });
+    expect(count(m, 'cells')).toBeGreaterThan(0);
+    expect(count(buildArm(eq({ item: 'rifle', model: coil, dials: { stylize: 1 } })).monomers, 'coils')).toBeLessThan(coils.length);
+  });
+});
+
 describe('the parts and the finishes', () => {
   it('a barrel word or length moves the muzzle by its length', () => {
     const tip = (parts) => buildArm(eq({ item: 'carbine', parts })).sockets.tip.origin[2];
@@ -116,12 +155,12 @@ describe('the parts and the finishes', () => {
   });
   it('refuses by name: a model, a slot, a word, a finish, a line, a stone, the laws', () => {
     const errs = (b) => validateArmsBuild(eq(b)).join('\n');
-    expect(errs({ item: 'pistol', model: 'derringer' })).toMatch(/not a pistol model \(service, compact, heavy, revolver\)/);
+    expect(errs({ item: 'pistol', model: 'derringer' })).toMatch(/not a pistol model \(service, compact, heavy, smart, revolver\)/);
     expect(errs({ item: 'pistol', parts: { stock: 'fixed' } })).toMatch(/a service pistol takes barrel, magazine/);
-    expect(errs({ item: 'rifle', parts: { optic: 'binoculars' } })).toMatch(/not one of irons, reddot, holo, scope, none/);
+    expect(errs({ item: 'rifle', parts: { optic: 'binoculars' } })).toMatch(/not one of irons, reddot, holo, scope, smart, none/);
     expect(errs({ item: 'rifle', parts: { barrel: 200 } })).toMatch(/4–90/);
     expect(errs({ item: 'knife', style: 'tiger' })).toMatch(/not a finish \(black/);
-    expect(errs({ item: 'smg', line: 'retro' })).toMatch(/not a line \(modern, future\)/);
+    expect(errs({ item: 'smg', line: 'retro' })).toMatch(/not a line \(modern, future, near\)/);
     expect(errs({ item: 'knife', gem: 'ruby' })).toMatch(/takes no stone/);
     expect(errs({ item: 'knife', laws: 9 })).toMatch(/arms laws 1/);
   });
