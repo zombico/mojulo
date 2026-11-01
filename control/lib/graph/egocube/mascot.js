@@ -20,7 +20,7 @@ import { mulberry32 } from '../vegetation/grow.js';
 import { ANIMAL_WORDS, animalCard, animalFacets } from './mascot-animals.js';
 import { ADORNS, ORB_ADORNS } from './mascot-adorn.js';
 import { readSetting, leanOf, leanPriors } from './setting.js';
-import { FEATURE_EXCLUDES } from './feature-grammar.js';
+import { FEATURE_EXCLUDES, PLAN_OF } from './feature-grammar.js';
 import { readTuneBrief, mergeTune, validateTune } from './feature-tune.js';
 
 export const MAX_ATTEMPTS = 8;
@@ -168,6 +168,10 @@ export const STYLES = Object.freeze({
 
 /** what the anime style leans when it is asked for (S3, S5): open, bright faces; the ahoge (a tuft) as the hook */
 const STYLE_LEAN = Object.freeze({ expression: { happy: 3, joy: 3, grin: 2, surprised: 2, content: 0.4, determined: 0.5, sleepy: 0.3 }, hook: { tuft: 5, ears: 1.5 } });
+
+/** what a bird in the feature style leans when its face is not asked for: open, bright faces. Its face is its eyes and
+ *  brows alone (a beak has no smile), and a brow pressed down or a lid half shut on a bird reads sad whatever it means */
+export const FEATURE_BIRD_LEAN = Object.freeze({ expression: { happy: 4, grin: 2, joy: 1.5, surprised: 1.5, content: 0.5, determined: 0.3, smirk: 0.6, sad: 0.15, angry: 0.3, sleepy: 0.15 } });
 
 /** The hues a mascot owns: the body colour. Saturated and value-separated by design (law 7). */
 export const HUES = Object.freeze({
@@ -337,7 +341,7 @@ const leaned = (facet, promise) => Object.fromEntries(Object.entries(PRIORS[face
 
 /** Every facet's die, thrown in a fixed order (the promise first: it leans the rest). `lean` is the game's setting's
  * (setting.js), multiplied over the promise's; absent, the priors as they were. */
-function throwDice(rand, given, lean = {}) {
+function throwDice(rand, given, lean = {}, styleLean = null) {
   const f = {};
   f.promise = pick(rand, leanPriors(PRIORS.promise, lean.promise));
   const promise = given.promise ?? f.promise;
@@ -347,6 +351,8 @@ function throwDice(rand, given, lean = {}) {
     if (k === 'adorn' && (given.form ?? f.form) === 'orb') w = Object.fromEntries(Object.entries(w).filter(([a]) => ORB_ADORNS.includes(a)));
     // an anime mascot asked for (its style die is thrown last) rests open and bright, and wears the ahoge as its hook
     if (given.style === 'anime' && STYLE_LEAN[k]) w = Object.fromEntries(Object.entries(w).map(([val, x]) => [val, x * (STYLE_LEAN[k][val] ?? 1)]));
+    // (a feature bird rests open and bright: FEATURE_BIRD_LEAN)
+    if (styleLean?.[k]) w = Object.fromEntries(Object.entries(w).map(([val, x]) => [val, x * (styleLean[k][val] ?? 1)]));
     f[k] = pick(rand, w);
   }
   return f;
@@ -425,9 +431,10 @@ export function rollMascot({ brief = '', facets: asked0 = {}, seed = 1, path = '
   const unstyled = given.style === 'feature' && card && FEATURE_EXCLUDES.includes(card.family);
   if (unstyled) given.style = 'toon';
   const asked = new Set(Object.keys(given));
+  const birdLean = given.style === 'feature' && card && PLAN_OF[card.family] === 'bird' ? FEATURE_BIRD_LEAN : null;
   let f, attempt = 0, broken = [];
   for (; attempt < MAX_ATTEMPTS; attempt++) {
-    f = { ...throwDice(mulberry32(hashSeed(`${seed}::mascot::${path}::${attempt}`)), given, lean), ...given };
+    f = { ...throwDice(mulberry32(hashSeed(`${seed}::mascot::${path}::${attempt}`)), given, lean, birdLean), ...given };
     broken = FAULTS.filter((x) => x.when(f));
     if (broken.every((x) => x.on.every((k) => asked.has(k)))) break;
   }

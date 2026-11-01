@@ -67,13 +67,19 @@ export const PLAN_OF = Object.freeze({
   anuran: 'orb', cetacean: 'orb', chondrichthyan: 'orb', teleost: 'orb', pinniped: 'orb', plesiosaur: 'orb', cephalopod: 'orb',
 });
 
+/** A BIRD'S RESTING FACE (feature-face.js, the eye's `rest`): a bird's eyes sit round the sides of its head, where a brow
+ *  laid as a mammal's wraps down and back over the globe and its lid sits heavy: the face reads sad and droopy whatever
+ *  it means. So its lids rest more open (`lid` degrees), its brows sit higher off them (`at`, degrees above the gaze's
+ *  level) and their outer ends are lifted (`tilt`: the inner end drops by it), for every expression alike */
+export const BIRD_REST = Object.freeze({ lid: 12, at: 62, tilt: 8 });
+
 /** THE BODY PLANS: what the plan's skin grows (fur, feather, scale, smooth), its hands (fingers, hooves, wings,
  *  flippers), the body's and the head's scales against the stander's, the legs' length, the head's lift and seam, the
  *  eye's place, the muzzle and the tail it falls back on when the kit names none */
 export const PLANS = Object.freeze({
   stander: Object.freeze({ skin: 'fur', hands: 'fingers', body: 1, head: 1, legs: 1, lift: 0.12, seam: 0.05, eye: { az: 24, el: 0, r: 0.15 }, muzzle: 'point', tail: 'brush', ruffs: true }),
   hoofed: Object.freeze({ skin: 'fur', hands: 'hooves', body: 0.92, head: 1, legs: 1.35, lift: 0.14, seam: 0.05, eye: { az: 26, el: 2, r: 0.14 }, muzzle: 'long', tail: 'tuft', ruffs: false }),
-  bird: Object.freeze({ skin: 'feather', hands: 'wings', body: 1.05, head: 0.9, legs: 1.3, lift: 0.08, seam: 0.05, eye: { az: 30, el: 4, r: 0.16 }, muzzle: 'beak', tail: 'fan', ruffs: false }),
+  bird: Object.freeze({ skin: 'feather', hands: 'wings', body: 1.05, head: 0.9, legs: 1.3, lift: 0.08, seam: 0.05, eye: { az: 30, el: 4, r: 0.16, rest: BIRD_REST }, muzzle: 'beak', tail: 'fan', ruffs: false }),
   reptile: Object.freeze({ skin: 'scale', hands: 'claws', body: 0.95, head: 1, legs: 1.1, lift: 0.08, seam: 0.04, eye: { az: 32, el: 10, r: 0.13 }, muzzle: 'long', tail: 'thick', ruffs: false }),
   orb: Object.freeze({ skin: 'smooth', hands: 'flippers', body: 1.12, head: 1, legs: 0.6, lift: -0.3, seam: 0, eye: { az: 26, el: 8, r: 0.15 }, muzzle: 'round', tail: 'fluke', ruffs: false }),
 });

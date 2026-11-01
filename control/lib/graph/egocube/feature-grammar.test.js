@@ -7,7 +7,9 @@
 // A quadruped is functional (it drops onto all fours: its paws reach the floor, its trunk clears it, big hind legs stay
 // big); a bird's side silhouette falls in φ, its beak is its own and its wings carry its silhouette; no fish is drawn.
 import { describe, it, expect } from 'vitest';
-import { featureBuild, PLAN_OF, PLANS, speciesMeasures, FEATURE_PROPORTION, FEATURE_EXCLUDES } from './feature-grammar.js';
+import { featureBuild, PLAN_OF, PLANS, speciesMeasures, FEATURE_PROPORTION, FEATURE_EXCLUDES, BIRD_REST } from './feature-grammar.js';
+import { featureFace } from './feature-face.js';
+import { FEATURE_BIRD_LEAN } from './mascot.js';
 import { FEATURE_FOURS, speciesLimbs } from './feature-function.js';
 import { PHI, beakParts, plumageOf, extentAlong } from './feature-birds.js';
 import { SILHOUETTES, silhouetteOf, speciesMetrics, BELLY_CONTRAST } from './feature-silhouettes.js';
@@ -107,6 +109,27 @@ describe('the feature grammar', () => {
     // (the beak is broad at its root: wider across than deep, from the front a wedge, never a spike)
     const beak = b.tufts.find((t) => t.name === 'beak'), side = b.tufts.find((t) => t.name === 'beakSideR');
     if (beak) expect(side.root[0] + side.r).toBeGreaterThan(beak.r * 1.15);
+  });
+
+  it('a bird rests open and bright: its default face a bright one, its lids more open and its brows higher, every clip the same', () => {
+    // (the roll leans a feature bird bright; an asked face wins; one bird chosen in code)
+    const bird = Object.keys(SPECIES).find((i) => PLAN_OF[SPECIES[i].family] === 'bird');
+    const bright = ['happy', 'grin', 'joy', 'surprised'], rolled = Array.from({ length: 24 }, (_, k) => rollMascot({ facets: { style: 'feature', animal: bird }, seed: k + 1 }).facets.expression);
+    expect(rolled.filter((e) => bright.includes(e)).length / rolled.length).toBeGreaterThan(0.75);
+    expect(Object.keys(FEATURE_BIRD_LEAN)).toEqual(['expression']);
+    expect(rollMascot({ facets: { style: 'feature', animal: bird, expression: 'sad' } }).facets.expression).toBe('sad');
+    // (its plan's resting face: carried on the build's eye, a mammal's none)
+    expect(featureBuild(animalCard(bird)).eye.rest).toEqual(BIRD_REST); expect(featureBuild(animalCard('raccoon')).eye.rest).toBeUndefined();
+    // (on a ball of a head: the upper lid's edge higher and the brow higher with the rest; the brows' channels unchanged)
+    const field = ({ x, y, z }) => Math.hypot(x, y, z) - 0.1, H = { C: [0, 0, 0], rx: 0.1, ry: 0.1, rz: 0.1 };
+    const mouth = { nose: [0, 0.1, 0], centre: [0, 0.098, -0.012], corner: [0.022, 0.095, -0.016], pivot: [0, 0.08, -0.01], rise: 0.004, sag: 0.001 };
+    const eye = { az: 30, el: 4, r: 0.016, proud: 0.42 }, face = (e) => featureFace({ field, H, eye: e, rest: 'happy', mouth, groups: { lid: 'Body', brow: 'Belly' } });
+    const plain = face(eye), rested = face({ ...eye, rest: BIRD_REST });
+    const lowest = (F, n) => Math.min(...Object.values(F.segments.find((x) => x.name === n).mesh.points).map((p) => p[2]));
+    const middle = (F, n) => { const P = Object.values(F.segments.find((x) => x.name === n).mesh.points); return P.reduce((a, p) => a + p[2], 0) / P.length; };
+    expect(lowest(rested, 'lidR')).toBeGreaterThan(lowest(plain, 'lidR'));
+    expect(middle(rested, 'browR')).toBeGreaterThan(middle(plain, 'browR'));
+    for (const x of ['happy', 'determined', 'sad', 'surprised']) for (const k of ['browLiftR', 'browR', 'browL']) expect(rested.channels(x)[k] ?? 0, `${x} ${k}`).toBe(plain.channels(x)[k] ?? 0);
   });
 
   it('a quadruped is functional: it drops onto all fours, its paws on the floor and its trunk clear of it; big hind legs stay big', () => {

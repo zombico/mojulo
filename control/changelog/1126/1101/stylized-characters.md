@@ -45,6 +45,15 @@ member, a quick game's hero). Code: `control/lib/graph/egocube/feature-tune.js`.
     splay out sideways from the front, and no feather grazes the panel it springs from. That grazing tore the skin:
     on five birds measured, four carry fewer open edges in their skin (between 11 and 35% fewer), and the macaw 5% more.
     The open edges themselves (non-manifold pieces dropped from the net) remain a known defect.
+- **Birds rest bright, not droopy.** Every bird's default face read sad. Its eyes sit round the sides of its head, so
+  the brow's outer end wrapped down over the eyeball, the upper lid sat heavy over the iris, and every bird's default
+  sheet rolled `determined`. Now:
+  - the bird plan has its own resting face (`BIRD_REST`): lids 12° more open, brows 12° higher off the lid, their outer
+    ends lifted. It moves every expression alike, so the clips play the same and a blink still shuts;
+  - a bird whose head is its own colour (an eagle's white, a mallard's green) wears that colour on its lids, instead of
+    the body's dark bags under its eyes;
+  - a feature bird whose face is not asked for rolls a bright one (`FEATURE_BIRD_LEAN`: mostly happy or grin); an asked
+    face wins. Mammals roll as before.
 - **QA.** `scripts/spikes/feature-roster.mjs` takes `--tune` (every species minted with it) and `--tunes` (each species
   once per tune, side by side).
 - **Stored mascots keep their look.** A minted mascot stores its compiled plan. An untuned sheet compiles as before,
@@ -63,7 +72,7 @@ member, a quick game's hero). Code: `control/lib/graph/egocube/feature-tune.js`.
   - the family sizes multiply;
   - gen7's clumps, coverts, denser skin within budget, and its bake (none on the game model);
   - and, in `feature-grammar.test.js`, a standing bird's wing panel out of its body, its primaries not splayed, its beak
-    broader than deep.
+    broader than deep; its default face rolled bright, its resting lids and brows higher, its brows' clips unchanged.
 - Eyes: not passed. Sheets were shot for the operator: game against gen7, and one species tuned several ways.
 
 **Known.**

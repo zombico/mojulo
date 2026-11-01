@@ -131,6 +131,14 @@ A bird is told by its own beak, its plumage and its wings, all read from the ros
   fold's outward lean), its panel and its primaries in one plane, so the tip never splays sideways from the front and no
   feather grazes the panel it springs from (a feather passing within a net cell of a panel tears the skin). In the clips
   the wings stay folded, the elbow straight.
+- **A bird rests open and bright.** Its face is its eyes and brows alone (a beak has no smile), and its eyes sit round
+  the sides of its head, where a brow laid as a mammal's wraps down and back over the globe and the lid sits heavy: any
+  face reads sad and droopy. So the bird plan has its own resting face (`BIRD_REST`, the eye's `rest`: feature-face.js):
+  the upper lid's open edge higher, the brow higher off the lid and its outer end lifted, moved for every expression alike
+  (the channels are differences from the rest, so the clips play the same; the lid's shut edge is kept, so a blink still
+  meets the lower lid). Its lids take its head's colour where its head is a crown of its own (no dark bags under an
+  eagle's eyes). And a feature bird whose face is not asked for rolls a bright one (`FEATURE_BIRD_LEAN` in mascot.js:
+  happy and grin, rarely determined, sad or sleepy); an asked face wins.
 - **The side silhouette is golden.** The tail, the head and the body (the beak apart) fall as 1 : φ : φ²: the head is
   sized to the body's length over φ, and the tail's fan reaches past the body by the head's length over φ.
 

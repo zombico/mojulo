@@ -265,8 +265,11 @@ export function featurePlan(sheet, { title = 'a feature animal', reactions = fal
   const skin = eggSkin(L.eggs, { zones, seam: L.seam, ...net }), F = eggField(L.eggs, { seam: L.seam });
   const coat = coatOf(skin, F, L.eggs, layers);
   // the face: globes seated on the skin, lids as shells about them, the brows on the eye, the mouth in the muzzle
+  // (the lids in the head's own colour: a bird whose head is a crown of its own (an eagle's white, a mallard's green)
+  // would otherwise wear the body's on its lids, dark bags under its eyes)
+  const crowned = build.plan === 'bird' && build.marks.some((m) => m.name === 'crown');
   const face = featureFace({ field: F.field, H, eye: L.eye, rest: f.expression, mouth: L.mouth,
-    groups: { lid: ['mask', 'patches'].includes(K.pattern) ? 'Patch' : 'Body', lip: 'Belly', brow: 'Belly' } });
+    groups: { lid: ['mask', 'patches'].includes(K.pattern) ? 'Patch' : crowned ? 'Crown' : 'Body', lip: 'Belly', brow: 'Belly' } });
   const segments = [
     { name: 'skin', kind: 'mesh', group: 'Body', mesh: skin.mesh, bind: { bone: 'pelvis', blend: skin.blend } },
     ...coat,
