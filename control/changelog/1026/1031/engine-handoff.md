@@ -79,3 +79,9 @@ Built so far:
   sheet; in Godot it takes a water shader ported from the page's (the sea's colour lit, the shore's fade, the level's
   sky in its reflection), so the cliff's cut faces below the waterline no longer show through. The haze in Godot now
   follows the page's curve (faint near, closing late) instead of matching it at one distance only.
+- **Hand a world to Godot from the agent.** `export_model { engine: 'godot' }` writes the handoff as a Godot 4 project in
+  the world's outcome folder (`godot-handoff/`): open it and play `level.tscn`. Handing off a changed recipe again
+  replaces mojulo's folder and keeps the developer's project and scene; `what: 'asset'` hands off a thing without its
+  level. The result says what travelled, what stayed the web's, and the command that checks the import in a headless
+  Godot. A desktop app built from the same outcome folder now leaves every engine pack out (Godot's handoff, Unreal's
+  and Blender's packs had been packed into it).

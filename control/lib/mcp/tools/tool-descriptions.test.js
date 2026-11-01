@@ -420,7 +420,10 @@ const DESCRIPTION_ALLOWLIST = {
 // Raised 2026-10-27 on 1027-tabletop-rpg-gen (212_300 -> 212_500; measured 212,353) for the table game: create_game's
 // `table_rpg` (a pen-and-paper RPG played in text, its characters rolled, its book printed), one schema property, its
 // grammar on the vocab card. No new tool.
-const PAYLOAD_CEILING = 212_500;
+// Raised 2026-11-01 on 1031-gen7-export (212_500 -> 212_800; measured 212,719) for the engine handoff: export_model's
+// `engine` (a world handed to a team's Godot as a project of its assets, materials and level) and `what` (level or
+// asset), two schema properties, the description held under its own pin. No new tool.
+const PAYLOAD_CEILING = 212_800;
 
 async function listedTools() {
   const { ensureToolsRegistered, listTools } = await import('@/lib/mcp/server');

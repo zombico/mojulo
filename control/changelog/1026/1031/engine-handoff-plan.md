@@ -1,6 +1,6 @@
 ### Engine handoff plan (temporary: the working plan, parked here; delete before release)
 
-**Status:** phases 0 to 3 built; phase 4's Godot adapter built and run in a real Godot (4.7.2) on the operator's machine, the terrain shader with it; the sea as the engine's own water built; `export_model { engine: 'godot' }` next (1101).
+**Status:** phases 0 to 3 built; phase 4's Godot adapter built and run in a real Godot (4.7.2) on the operator's machine, the terrain shader with it; the sea as the engine's own water built; phase 5's door open for Godot (`export_model { engine: 'godot' }`); the rest of phase 5 (the other engines on `engine`, `format: 'unreal'` folded in, every pointer rewritten) next (1101).
 `control/changelog/1026/1031/engine-handoff.md`. No release has carried the engine game runtimes this plan removes, so
 nothing here needs a deprecation path.
 
@@ -552,4 +552,21 @@ developer would want to wire. Never claimed by a machine.
     page's. The near sea 84,163,204 against the page's 57,169,220 (the red mostly Khronos neutral's toe, as on the
     land). Left: from the island camera a faint line where the shallows' floor ends under the open sea (the 10% the sea
     lets through shows the floor inside it and the sky beyond it); the page shows none.
+- 1101, phase 5's door, for Godot:
+  - `export_model { engine: 'godot', what? }` (`sketch-model-export.js` `engineExport`, `MODEL_ENGINES`): resolves the
+    handoff (`what` 'level' by default, or 'asset') and writes it with `writeHandoffGodot` to `<ref>/godot-handoff/`
+    (the registry's new `handoff` folder per engine; the old game pack keeps `<ref>/godot/` until the cull). Returns
+    the files written and kept, the bytes, the ledger's `carried` and `stays`, the level's counts (markers, seats,
+    contract, environment, reference), the editor and gate commands, and a note naming only the shaders the level
+    has. `engine` is its own export: beside a `format` it refuses, as an unknown engine or `what` does.
+  - Run end to end: a trail through the door into a scratch outcomes folder, its gate command run as returned in Godot
+    4.7.2: a clean import, the probe's terrain (8 parts, 9 layers, the path), sea, sky, sun, 52 markers and a camera.
+  - The desktop app's packager skipped only export_game's engine folders: export_model's (`unreal/`, `blender/`, now
+    `godot-handoff/`) under the same outcome folder were packed into the app. `ENGINE_HANDOFF_DIRS` joins the skip.
+  - The surface: the description holds under its pin (2281 of 2285: the fidelity sentence tightened to pay for the
+    engine's); the two schema properties raise the tools/list pin 212,500 -> 212,800 (measured 212,719), said in the
+    pin's comment; the share-game card points a team's Godot level at the door, and a routing-eval row holds it.
+  - Next in phase 5: Unity, Unreal and Blender on `engine` as their adapters land (phase 7), `format: 'unreal'` folded
+    into `engine: 'unreal'`, and every pointer to the old engine targets rewritten (`context.js`'s engine paragraph,
+    the share-game card's `export_game` targets, the holdout's "export it all to Godot").
 

@@ -188,6 +188,8 @@ export const FIXTURE = [
   // share a finished game (desktop export): the completion offer's options all enter on export_game
   ['the game is done, how do I get it to my friends', 'export_game'],
   ['wrap my finished racer as a program I can double-click on my laptop', 'export_game'],
+  // the engine handoff: a level for a team's engine, its assets and markers, not the game (export_model's `engine`)
+  ['hand this level to our godot team so they can wire it up', 'export_model'],
   ['stamp my exported model so people can tell I made it', 'sign_asset'],
   ['is this glb really the one I exported, or has someone changed it', 'verify_asset'],
   // (historic places left the routing eval in 1015: deemphasized, a historical view rather than an ask the surface

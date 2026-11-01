@@ -38,6 +38,9 @@ import { occupancyOf } from '@/lib/graph/structure/programs';
 import { scheduleFiles, sheetFiles, allTables } from '@/lib/graph/structure/tables';
 import { buildBlenderPack } from '@/lib/graph/scene/blender-pack';
 import { buildUnrealAssetPack } from '@/lib/graph/scene/unreal-pack';
+import { resolveHandoff, HANDOFF_WHATS } from '@/lib/graph/scene/handoff';
+import { writeHandoffGodot } from '@/lib/graph/scene/handoff-godot';
+import { ENGINES } from '@/lib/graph/scene/engines/registry';
 import { meshFileToFaces } from '@/lib/graph/scene/mesh-read';
 import { glbToScene } from '@/lib/graph/scene/scene-gltf-read';
 import { facesBox } from '@/lib/graph/scene/mesh-fit';
@@ -427,6 +430,40 @@ async function unrealExport(input) {
     },
     note: `An Unreal asset pack in ${dir} (IMPORT-GUIDE.md walks the import). Its geometry and colours travel${pack.figure ? ', and its figure\'s skeleton, clips and face morphs' : ''}; `
       + 'every slot takes one vertex-colour material, and the look the web build draws stays mojulo\'s. Unreal runs on the operator\'s machine; mojulo did not launch it.',
+  };
+}
+
+// ── engine: 'godot' (the engine handoff) ──────────────────────────────────────────────────────────────────────────
+// A team's engine gets the world's assets, animation and level (scene/handoff.js), never its game: the web build is the
+// game. Godot's adapter (scene/handoff-godot.js) writes a Godot 4 project under <ref>/godot-handoff/: mojulo/ replaced
+// whole every time, the developer's project.godot and level.tscn written once and kept, so a re-handoff of a changed
+// recipe reimports under their wiring.
+export const MODEL_ENGINES = Object.freeze(['godot']);
+async function engineExport(input) {
+  const { ref, engine, what = 'level' } = input;
+  if (!MODEL_ENGINES.includes(engine)) throw new Error(`\`engine\` must be one of ${MODEL_ENGINES.map((e) => `'${e}'`).join(', ')} if provided`);
+  if (!HANDOFF_WHATS.includes(what)) throw new Error(`\`what\` must be one of ${HANDOFF_WHATS.map((w) => `'${w}'`).join(', ')}`);
+  if ('format' in input) throw new Error("`engine` is its own export: omit `format` (a team's Unreal still takes `format: 'unreal'`)");
+  const sketch = SketchRepository.getByRef(ref);
+  if (!sketch) throw new Error(`No sketch exists at ref '${ref}'`);
+  if (!sketch.manifest) throw new Error(`Sketch '${ref}' has no manifest`);
+  const h = await resolveHandoff(sketch, { what });
+  const dir = path.join(outcomeDirFor(ref), ENGINES[engine].handoff);
+  const { written, kept } = await writeHandoffGodot(h, dir, { title: sketch.title ?? null });
+  const L = h.level, C = h.ledger?.carried ?? {};
+  const shaded = [(h.instances ?? []).some((x) => x.terrain) && 'the layered ground', (h.instances ?? []).some((x) => x.sea) && 'the sea'].filter(Boolean);
+  return {
+    ok: true, ref, kind: h.kind, engine, what, dir, files: written, kept, bytes: h.exported.bytes.length,
+    carried: C, stays: h.ledger?.stays ?? [],
+    ...(L ? { level: { markers: L.markers.length, seats: L.seats ? L.seats.rows.length : 0, contract: !!L.contract, environment: Object.keys(L.environment ?? {}), reference: L.reference ?? null } } : {}),
+    commands: {
+      open: `godot --editor --path '${dir}'`,
+      gate: `godot --headless --path '${dir}' --import && godot --headless --path '${dir}' --script res://mojulo/handoff_probe.gd`,
+    },
+    note: `A Godot 4 project in ${dir}: open it and play level.tscn, which instances mojulo/level.glb. Its importer gives the materials, `
+      + `${shaded.length ? `${shaded.join(' and ')} ${shaded.length > 1 ? 'their' : 'its'} shader${shaded.length > 1 ? 's' : ''} (ported from the page), ` : ''}`
+      + 'the static meshes collision, the level its environment and sun, and stands every marker and seat as a node carrying its record. '
+      + `${kept.length ? `Kept as the developer left them: ${kept.join(', ')}. ` : ''}What stayed the web's is in \`stays\`; the web build is the game. Godot runs on the operator's machine; mojulo did not launch it.`,
   };
 }
 
@@ -889,6 +926,8 @@ async function exportModel(input, context = {}) {
   if (format === 'ifc') return ifcExport(input, context);
   // the drawing set and the schedules are the building read as 2D: they read the house, not the World's faces
   if (format === 'sheets' || format === 'schedules') return structureExport(input, context, format);
+  // an engine is the handoff of a world (its assets, animation and level), not a format of its faces
+  if ('engine' in input) return engineExport(input);
   if (format === 'blender') return blenderExport(input);
   if (format === 'unreal') return unrealExport(input);
   // bom is what to buy: read off the plan and the frames, not the faces.
