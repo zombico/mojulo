@@ -9,6 +9,7 @@
  * bends is plain to see) and the walkable fractal CITY. Nothing here is a recipe: it calls the emitter directly.
  */
 import { mkdirSync, writeFileSync } from 'node:fs';
+import { execSync } from 'node:child_process';
 import { register } from 'node:module';
 import path from 'node:path';
 
@@ -66,15 +67,18 @@ const MODES = [
 ];
 const WORLDS = [['course', course(), 'a straight lane with a post every 5 m: does a push forward stay on it?'], ['city', city(), 'the walkable fractal city']];
 
+// the build stamp: the commit the pages were built from, on the index and in every link (a headset browser caches hard)
+const BUILD = (() => { try { return execSync('git rev-parse --short HEAD', { encoding: 'utf8' }).trim(); } catch { return 'local'; } })();
 const rows = [];
 for (const [w, payload, about] of WORLDS) {
   writeFileSync(path.join(out, `${w}.html`), emitThreeWorld({ ...payload, cdn: true, xr: true }));
-  const links = MODES.map(([m, what]) => `<li><a href="${w}.html${m ? '?xr=' + m : ''}">${m || 'default'}</a> — ${what}</li>`);
+  const links = MODES.map(([m, what]) => `<li><a href="${w}.html?b=${BUILD}${m ? '&xr=' + m : ''}">${m || 'default'}</a> — ${what}</li>`);
   rows.push(`<h2>${w}</h2><p>${about}</p><ul>${links.join('')}</ul>`);
 }
 writeFileSync(path.join(out, 'index.html'), `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>mojulo xr test pages</title><style>body{font:18px/1.5 system-ui,sans-serif;background:#111;color:#eee;max-width:760px;margin:24px auto;padding:0 16px}a{color:#7cf}li{margin:8px 0}code{color:#fc8}</style></head><body>
 <h1>mojulo · headset walk test pages</h1>
+<p>build <code>${BUILD}</code></p>
 <p>Open a page in the Quest browser and press <code>vr</code> (top left, beside walk) straight away: VR starts you where the page's view stands, on the course's lane facing the blue goal. Left stick walks and strafes, right stick turns.</p>
 <p>Check: a long push forward stays on the lane while you look around; turning happens where you stand; the turn speed feels right.</p>
 ${rows.join('\n')}

@@ -17,6 +17,9 @@ rather than the player's head.
   - Goes straight: the heading a push walks on is latched when the stick engages (`move: 'latch'`, the default); the
     right stick turns it with the body. `move: 'head'` steers by the gaze (the old way), `move: 'hand'` walks where the
     left controller points.
+  - Forward is where the body faces after a right-stick turn (the operator, on a Quest 3S: walking north, turned east,
+    forward still walked north): the gaze is read from the frame's own viewer pose carried through the rig, not off
+    three's XR camera, and the test's headset reports its pose rig-local as a real one does.
   - Turns on the right stick about the head: smooth by default (`turnSpeed`, 120°/s), or `turn: 'snap'` (`snap`
     degrees; `{ snap }` alone still means snap turning).
   - `?xr=` takes the mode words for an A/B in a headset without a re-mint: `?xr=snap`, `?xr=smooth,hand`, `?xr=head`.

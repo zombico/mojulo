@@ -14,14 +14,20 @@ function rigUp(xr, { headOffset = [0, 0] } = {}) {
     inputSources: [{ handedness: 'left', gamepad: pads.left }, { handedness: 'right', gamepad: pads.right }],
     addEventListener() {}, end() {},
   };
-  const head = { yaw: 0 };   // the gaze's world heading, set by the test
-  // the viewer pose, rig-local (y-up): the player stands off the play-space origin by headOffset (x, -z)
-  const frame = { getViewerPose: () => ({ transform: { position: { x: headOffset[0], y: 1.6, z: -headOffset[1] } } }), getPose: () => null };
+  // the head's yaw INSIDE the play space (what a Quest reports: rig-local, y-up, about +Y), set by the test; the
+  // world heading is the body's (the rig's) plus this, which is the composition a right-stick turn must go through
+  const head = { yaw: 0 };
+  const frame = {
+    getViewerPose: () => ({ transform: {
+      position: { x: headOffset[0], y: 1.6, z: -headOffset[1] },   // the player stands off the play-space origin
+      orientation: { x: 0, y: Math.sin(head.yaw / 2), z: 0, w: Math.cos(head.yaw / 2) },
+    } }),
+    getPose: () => null,
+  };
   const renderer = {
     xr: {
       enabled: false, getSession: () => session, getFrame: () => frame, getReferenceSpace: () => ({}),
       setReferenceSpaceType() {}, async setSession() {},
-      getCamera: () => ({ getWorldDirection: (d) => d.set(Math.cos(head.yaw), Math.sin(head.yaw), 0) }),
     },
   };
   const camera = new THREE.PerspectiveCamera();
@@ -88,6 +94,27 @@ describe('xr locomotion, run', () => {
     const d = r.page.rig().position.clone().sub(p0);
     expect(d.x).toBeCloseTo(0, 6);                       // now walking down +Y
     expect(d.y).toBeCloseTo(3, 6);
+  });
+
+  // the operator's report from a Quest 3S: walking north, a right-stick turn to the east, and forward still walked north.
+  // Forward is where the body faces after a turn, the convention every controller game keeps.
+  it('forward follows the body after a right-stick turn, held through the turn or pushed again after it', async () => {
+    for (const regrip of [false, true]) {
+      const r = rigUp(true);
+      await r.page.enter();
+      r.pads.left.axes = [0, 0, 0, -1];
+      for (let i = 0; i < 30; i++) r.page.step(1 / 60);          // walking "north" (+X here)
+      if (regrip) r.pads.left.axes = [0, 0, 0, 0];
+      r.pads.right.axes = [0, 0, 1, 0];
+      for (let i = 0; i < 45; i++) r.page.step(1 / 60);          // 90° to the right: now facing -Y
+      r.pads.right.axes = [0, 0, 0, 0];
+      r.pads.left.axes = [0, 0, 0, -1];
+      const p0 = r.page.rig().position.clone();
+      for (let i = 0; i < 60; i++) r.page.step(1 / 60);
+      const d = r.page.rig().position.clone().sub(p0);
+      expect(d.x, regrip ? 'pushed again' : 'held').toBeCloseTo(0, 6);
+      expect(d.y, regrip ? 'pushed again' : 'held').toBeCloseTo(-3, 6);
+    }
   });
 
   it('snap turns one step a push, about the head', async () => {
