@@ -34,34 +34,34 @@ export const SPACE = Object.freeze({
     },
     topology: {
       values: {
-        linear: { status: 'built', godot: 'built', roblox: 'approximated', lowers: 'lib/graph/level/graph.js', note: "LEVEL_LAYOUTS is 'sequential'" },
+        linear: { status: 'built', godot: 'built', lowers: 'lib/graph/level/graph.js', note: "LEVEL_LAYOUTS is 'sequential'" },
         // Godot plays a hub as its level list with the gates held (kernel/game.gd, store.gd): no road between them
-        hub: { status: 'built', godot: 'approximated', roblox: 'absent', lowers: 'lib/graph/gameworld/world.js', note: 'a gameworld joins its levels by road and gate' },
+        hub: { status: 'built', godot: 'approximated', lowers: 'lib/graph/gameworld/world.js', note: 'a gameworld joins its levels by road and gate' },
         open: { status: 'partial', godot: 'absent', effort: 'L', lowers: 'lib/graph/scene/channels/stream.js', note: 'terrain LOD and city tile streaming exist on world pages only; no game level is a streamed region, nothing loads content by region' },
         // built 10-11: a gameworld's topology: 'interconnected' plays as a map (exits, travel, arrival, keyed doors). Godot's
         // game.gd still plays a list from its menu, with no exits or arrival.
-        interconnected: { status: 'built', lowers: 'lib/graph/gameworld/levels.js', note: 'a map: two-way links, levels left by named exits, the game travelling on and arriving at the matching end, doors opened by keys found elsewhere, an item or one of the hero\'s powers (whose move it then gives, the wall and the line among them); trails, and a city (its key on a roof the hero reaches)', godot: 'built', roblox: 'absent' },
+        interconnected: { status: 'built', lowers: 'lib/graph/gameworld/levels.js', note: 'a map: two-way links, levels left by named exits, the game travelling on and arriving at the matching end, doors opened by keys found elsewhere, an item or one of the hero\'s powers (whose move it then gives, the wall and the line among them); trails, and a city (its key on a roof the hero reaches)', godot: 'built' },
       },
     },
     levelForm: {
       values: {
-        rooms: { status: 'built', godot: 'built', roblox: 'approximated', lowers: 'lib/graph/era/stage.js' },
-        floormap: { status: 'built', godot: 'built', roblox: 'approximated', lowers: 'lib/graph/era/floormap.js' },
-        trail: { status: 'built', godot: 'built', roblox: 'approximated', lowers: 'lib/graph/era/out-trail.js' },
-        meru: { status: 'built', godot: 'built', roblox: 'approximated', lowers: 'lib/graph/local-meru/plan.js' },
-        arena: { status: 'built', godot: 'built', roblox: 'approximated', lowers: 'lib/graph/worlds/match-modes.js' },
+        rooms: { status: 'built', godot: 'built', lowers: 'lib/graph/era/stage.js' },
+        floormap: { status: 'built', godot: 'built', lowers: 'lib/graph/era/floormap.js' },
+        trail: { status: 'built', godot: 'built', lowers: 'lib/graph/era/out-trail.js' },
+        meru: { status: 'built', godot: 'built', lowers: 'lib/graph/local-meru/plan.js' },
+        arena: { status: 'built', godot: 'built', lowers: 'lib/graph/worlds/match-modes.js' },
         // built 10-19 (mobile genres): a runner level, the run alone on its floor, its rows laid ahead as it is played
-        run: { status: 'built', godot: 'absent', roblox: 'absent', lowers: 'lib/graph/gameworld/levels.js', note: 'an endless run down lanes (worlds/controllable/runner.js): its rows laid at play time from its seed, drawn round the hero' },
+        run: { status: 'built', godot: 'absent', lowers: 'lib/graph/gameworld/levels.js', note: 'an endless run down lanes (worlds/controllable/runner.js): its rows laid at play time from its seed, drawn round the hero' },
         // built 10-12 (kart racer): a loop laid on a trail's land, gone round lap after lap
-        circuit: { status: 'built', lowers: 'lib/graph/gameworld/lay-concerns.js', godot: 'built', roblox: 'approximated', note: 'an oval laid on the first trail\'s land (flattened, a low wall down its middle), its start the finish; a race goes round it' },
+        circuit: { status: 'built', lowers: 'lib/graph/gameworld/lay-concerns.js', godot: 'built', note: 'an oval laid on the first trail\'s land (flattened, a low wall down its middle), its start the finish; a race goes round it' },
         // merged 10-12 (structure rails, broadened): a level that is a building, laid from its use
-        building: { status: 'built', lowers: 'lib/graph/gameworld/levels.js', godot: 'built', roblox: 'approximated', note: 'a level that is a building: rooms laid from a use (tavern, keep, temple, crypt, library, lab, the town\'s six), walked from its way in to its goal room, up its stairs' },
+        building: { status: 'built', lowers: 'lib/graph/gameworld/levels.js', godot: 'built', note: 'a level that is a building: rooms laid from a use (tavern, keep, temple, crypt, library, lab, the town\'s six), walked from its way in to its goal room, up its stairs' },
         // built 10-14 (skyscape): a flight map, its ground meshed round the camera, its edge hidden in haze
-        airspace: { status: 'built', lowers: 'lib/graph/skyscape/airspace.js', godot: 'absent', roblox: 'absent', note: 'a flight map: a field, a reach to turn back in, a backdrop and a haze that hides the edge (island, basin, canyon, plain); scapeshift\'s ground, a runway and a gate course' },
+        airspace: { status: 'built', lowers: 'lib/graph/skyscape/airspace.js', godot: 'absent', note: 'a flight map: a field, a reach to turn back in, a backdrop and a haze that hides the edge (island, basin, canyon, plain); scapeshift\'s ground, a runway and a gate course' },
         // a city segment played as a level (city/plan/level.js, gameworld cityStages): its lots as solid boxes, lobbies walked
         // into, doors to insides, a ring of the city as its backdrop. No Godot fixture plays one: its traffic and walkers do
         // not step there (godot-marks.js), and the rest is unproven
-        city: { status: 'built', lowers: 'lib/graph/city/plan/level.js', godot: 'absent', roblox: 'absent', note: 'a district of a planned city: a segment cut along its streets, left by its portals, its lots solid, lobbies walked into and doors to insides; played first person by a walker, or third person by a hero whose roofs are ground (level.hero)' },
+        city: { status: 'built', lowers: 'lib/graph/city/plan/level.js', godot: 'absent', note: 'a district of a planned city: a segment cut along its streets, left by its portals, its lots solid, lobbies walked into and doors to insides; played first person by a walker, or third person by a hero whose roofs are ground (level.hero)' },
         // built 10-25 (battle city): the venue of a contest, laid in an arena with stands
         court: { status: 'built', lowers: 'lib/graph/contest/match-arena.js', ...WEB, note: 'a court, a pitch, a track, a course or a lane laid in an arena with stands (a stage recipe: match-arena.js, meet-arena.js, turn-arena.js, team-arena.js): the contest kernel\'s named regions mirrored for the other side (a half, a service box, a box, a green, a gutter), the lines drawn on the ground from them, a camera square to the play (the broadcast, the end, the follow); played as the level of a quick meet or contest' },
       },
@@ -69,15 +69,15 @@ export const SPACE = Object.freeze({
     // what stands on a walk's ground (merged 10-12): buildings walked into from the trail, a town's street along it
     places: {
       values: {
-        none: { status: 'built', godot: 'built', roblox: 'built' },
-        buildings: { status: 'built', lowers: 'lib/graph/era/stage-buildings.js', godot: 'built', roblox: 'approximated', note: 'buildings stood on the flattest land beside the trail, cut into their slope, walked into (or a door that changes the scene to their inside)' },
-        street: { status: 'built', lowers: 'lib/graph/era/stage-buildings.js', godot: 'built', roblox: 'approximated', note: 'a town\'s first houses along the trail, in the town\'s own order, the hall walked into' },
+        none: { status: 'built', godot: 'built' },
+        buildings: { status: 'built', lowers: 'lib/graph/era/stage-buildings.js', godot: 'built', note: 'buildings stood on the flattest land beside the trail, cut into their slope, walked into (or a door that changes the scene to their inside)' },
+        street: { status: 'built', lowers: 'lib/graph/era/stage-buildings.js', godot: 'built', note: 'a town\'s first houses along the trail, in the town\'s own order, the hall walked into' },
       },
     },
     // a layer of spots over a level's ground, indoors or out (priced 10-19): one unit a spot, the moves listed
     board: {
       values: {
-        none: { status: 'built', godot: 'built', roblox: 'built' },
+        none: { status: 'built', godot: 'built' },
         spots: { status: 'built', ...WEB, lowers: 'lib/graph/board/board-kernel.js', note: 'square spots over a level\'s own ground (its rooms or its land) or a diorama, each a height, a type and one occupant; reach by move and jump, aim and area shapes, walls cutting steps, legal moves; a book\'s battles on boards are laid over their stages' },
         lattice: { status: 'built', ...WEB, lowers: 'lib/graph/polygonizer/lattice.js', note: 'a board game\'s own board, no map: square or hex cells, corners and edges with their relations, pieces whose moves are vectors under its symmetry; chess and checkers in its book, any other game written out on it from systems and meeples (tabletop/), played against the computer as their own page, or a game of moves lifted into a hologram arena on the World page (tabletop/holo-arena.js)' },
       },
@@ -90,7 +90,7 @@ export const SPACE = Object.freeze({
       // roof, read from the level's own lot boxes (a body owner beside the climb, not an object placed, so not the table's)
       planned: {
         // built 10-19 (phase 2): a body owner beside the climb, read off the level's own boxes; web only
-        wall: { status: 'built', lowers: 'lib/graph/worlds/controllable/wall.js', godot: 'absent', roblox: 'absent', note: 'any box\'s face held (rule.wall), crawled, rounded at its outside corners and mantled off onto its roof; a wall-jump, a charged wall-launch; perched at a roof\'s lip, a dive off it; the climb holds only a placed ladder, rope or net' },
+        wall: { status: 'built', lowers: 'lib/graph/worlds/controllable/wall.js', godot: 'absent', note: 'any box\'s face held (rule.wall), crawled, rounded at its outside corners and mantled off onto its roof; a wall-jump, a charged wall-launch; perched at a roof\'s lip, a dive off it; the climb holds only a placed ladder, rope or net' },
       },
     },
   },

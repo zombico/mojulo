@@ -16,7 +16,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { findGodot, findLune } from '../../../workers/find.js';
+import { findGodot } from '../../../workers/find.js';
 import { corpusOf } from './conformance.js';
 
 const CONTROL = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../../..');
@@ -32,16 +32,6 @@ export const RUNNERS = Object.freeze({
     prepare: (dir, corpus) => writeFileSync(path.join(dir, 'project.godot'), `config_version=5\n\n[application]\nconfig/name="${corpus}-conformance"\n`),
     args: (dir, inFile, outFile) => ['--headless', '--path', dir, '--script', 'res://conformance.gd', '--', inFile, outFile],
     error: /SCRIPT ERROR|Parse Error|ERROR:/,
-  },
-  roblox: {
-    find: findLune,
-    kernelDir: 'lib/graph/scene/roblox-kernel',
-    file: (m) => `${m}.luau`,
-    always: ['js'],
-    script: (corpus) => `scripts/conformance/roblox/${corpus}.luau`,
-    entry: 'conformance.luau',
-    args: (dir, inFile, outFile) => ['run', path.join(dir, 'conformance.luau'), inFile, outFile],
-    error: /error|Error|exception/,
   },
 });
 

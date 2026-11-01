@@ -3,10 +3,9 @@
  * The conformance gate, for any engine with a runtime kernel: is the engine's kernel EQUAL to the web runtime, frame by
  * frame, over a corpus (lib/graph/scene/engines/conformance.js)? Builds a scratch folder (the kernel modules the corpus
  * needs and the engine's runner script, scripts/conformance/<engine>/<corpus>), runs it headless, and compares every
- * frame's canonical snapshot. Advisory like every engine gate: it needs the engine (Godot: $MOJULO_GODOT or the app;
- * Roblox: Lune, $MOJULO_LUNE or on the PATH).
+ * frame's canonical snapshot. Advisory like every engine gate: it needs the engine (Godot: $MOJULO_GODOT or the app).
  *
- *   node scripts/conformance.mjs --engine godot|roblox --corpus bus|combat|mind|rules|scenes|level|levelcast [--random 24] [--seed 7] [--only <id>] [--json]
+ *   node scripts/conformance.mjs --engine godot --corpus bus|combat|mind|rules|scenes|level [--random 24] [--seed 7] [--only <id>] [--json]
  *
  * Exit 0 when every frame of every scenario is equal; 1 with the first difference of each unequal scenario; 2 when the
  * engine is not found or its kernel does not have the corpus's modules yet.

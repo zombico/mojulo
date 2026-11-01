@@ -175,7 +175,7 @@ function engineFlags(score, engine) {
   return out;
 }
 
-// engine with marks (Godot, Roblox): its kernel runs the bus (a level's contract ends it) and carries the store (a flag
+// engine with marks (Godot): its kernel runs the bus (a level's contract ends it) and carries the store (a flag
 // gate holds); the other engines do neither, so for them a bus level's win and a flag gate are still lost
 export function assessPortability({ manifest, levels, engine = null }) {
   const marked = !!marksOf(engine);

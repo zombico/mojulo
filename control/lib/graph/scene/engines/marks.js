@@ -1,10 +1,10 @@
 /**
  * THE MARKS, engine-neutral: the vocabulary every engine's marks module speaks, and the tables that say what a world
  * asks of an engine without saying which engine. Each engine with a runtime kernel has its own marks module
- * (scene/godot-marks.js, scene/roblox-marks.js) exporting the same tables over the same closed key sets; a mark row is
+ * (scene/godot-marks.js) exporting the same tables over the same closed key sets; a mark row is
  * keyed by the engine it belongs to, so a row can never be read as another engine's:
  *
- *   { godot: 'built', how: 'kernel/rules.gd: …' }      { roblox: 'absent', how: 'not in the Roblox kernel yet' }
+ *   { godot: 'built', how: 'kernel/rules.gd: …' }      { godot: 'absent', how: 'not in the Godot kernel yet' }
  *
  *   built         the kernel runs it as the web does (or, for a look, carries it whole)
  *   approximated  it runs, simpler or in part: the `how` says what stays the web's
@@ -21,7 +21,7 @@ const RANK = { built: 0, approximated: 1, absent: 2 };
 /** The worse of marks: absent over approximated over built; none → built. */
 export const worstMark = (...marks) => marks.flat().reduce((w, m) => (RANK[m] > RANK[w] ? m : w), 'built');
 
-/** A row maker for one engine: `const m = markRow('roblox'); m('absent', 'why')` → { roblox: 'absent', how: 'why' }. */
+/** A row maker for one engine: `const m = markRow('godot'); m('absent', 'why')` → { godot: 'absent', how: 'why' }. */
 export const markRow = (engine) => (mark, how) => Object.freeze({ [engine]: mark, ...(how ? { how } : {}) });
 
 /** The bus contract's statuses (bus-abi.js: built | partial | absent) as marks. */

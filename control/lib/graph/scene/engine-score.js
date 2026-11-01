@@ -1,6 +1,6 @@
 /**
  * engine-score.js — the shared score extraction for engine handoffs
- * (consumed by the Godot, Unity and Roblox legs).
+ * (consumed by the Godot and Unity legs).
  *
  * The score is the engine-agnostic digest of a resolved world payload:
  * colliders, spawn, cameras, entities, declarative mechanics, audio binding,

@@ -17,8 +17,11 @@ import { readScreen } from './screen.js';
 export const ELECTRON_TARGET = '^44.0.0';
 
 // Engine packs and build output that share the outcome folder but are not the app (the engines' folders: engines/registry.js,
-// export_game's and export_model's).
-const PACKAGER_IGNORE = `^/(${['dist', ...ENGINE_OUT_DIRS, ...ENGINE_HANDOFF_DIRS].join('|')})(/|$)`;
+// export_game's and export_model's). A retired engine's folder (Roblox's pack, written before its translation left) may
+// still sit in an older outcome folder, so it stays left out, in its old place among the packs.
+const OUT_DIRS = [...ENGINE_OUT_DIRS];
+OUT_DIRS.splice(OUT_DIRS.indexOf('godot') + 1, 0, 'roblox');
+const PACKAGER_IGNORE = `^/(${['dist', ...OUT_DIRS, ...ENGINE_HANDOFF_DIRS].join('|')})(/|$)`;
 
 const slug = (s, fallback) => String(s ?? '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 60) || fallback;
 

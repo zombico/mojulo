@@ -30,7 +30,6 @@ import { ENGINES, MARKED_ENGINES } from '../lib/graph/scene/engines/registry.js'
 // what proves an engine's marks, said under its scoreboard
 const SCOREBOARD_PROOF = {
   godot: 'The fixture matrix (`npm run test:godot`)\nplays them in both engines.',
-  roblox: 'A built mark names its Lune conformance test;\nthe Roblox kernel is young, so its flow offers only what is marked.',
 };
 
 const HERE = dirname(fileURLToPath(import.meta.url));

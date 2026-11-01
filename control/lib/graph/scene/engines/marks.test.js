@@ -3,7 +3,6 @@
 // engine's mark, and the cosmos registry reads the same marks the export reads. What only one engine proves (Godot's
 // proof tests, its kernel files) stays in that engine's own test (godot-marks.test.js). No engine needed.
 import { describe, it, expect } from 'vitest';
-import { existsSync } from 'node:fs';
 import { MARKS, worstMark, CAMERA_RULE, PAGE_CAMERAS, PAGE_OPTIONS, LEDGER_INFO, SHELL_INFO, figureOverlays } from './marks.js';
 import { ENGINES, MARKED_ENGINES, DEFAULT_ENGINE, ENGINE_OUT_DIRS, engineOf, marksOf, marksAcross } from './registry.js';
 import { pageInputs, controllableRules, platformRuleKeys, ledgerKeys, busRows, systemKinds, linkKinds, pageEventKeys } from './mark-sources.js';
@@ -26,7 +25,7 @@ const MIND_AXES = ['motivation', 'aggressiveness', 'rank', 'skill', 'perception'
 
 describe('the engine registry', () => {
   it('names each engine once, the marked ones with a marks module, a proof and an unmarked policy', () => {
-    expect(MARKED_ENGINES).toEqual(['godot', 'roblox']);
+    expect(MARKED_ENGINES).toEqual(['godot']);
     expect(DEFAULT_ENGINE).toBe('godot');
     for (const e of MARKED_ENGINES) {
       expect(ENGINES[e].kind).toBe('runtime');
@@ -34,12 +33,13 @@ describe('the engine registry', () => {
       expect([null, 'absent']).toContain(ENGINES[e].unmarked);
     }
     expect(ENGINES.godot.unmarked).toBeNull();   // Godot is closed: an unmarked cosmos value throws
-    expect(ENGINE_OUT_DIRS).toEqual(['godot', 'roblox', 'unity']);   // Unreal and Blender take assets and art passes, no game pack
+    expect(ENGINE_OUT_DIRS).toEqual(['godot', 'unity']);   // Unreal and Blender take assets and art passes, no game pack
     expect(ENGINES.unreal.kind).toBe('art');
     expect(marksOf('unity')).toBeNull();
     expect(marksOf(null)).toBeNull();
     expect(() => engineOf('frostbite')).toThrow(/unknown engine 'frostbite'/);
-    expect(marksAcross((M, e) => M.RULE_MARKS.walk[e])).toEqual({ godot: 'built', roblox: 'approximated' });
+    expect(marksAcross((M, e) => M.RULE_MARKS.walk[e])).toEqual({ godot: 'built' });
+    expect(() => engineOf('roblox')).toThrow(/unknown engine 'roblox'/);   // its runtime translation is retired
   });
 });
 
@@ -160,31 +160,7 @@ describe('dryRun and the sweep read every engine', () => {
   });
 });
 
-describe('a young kernel offers only what it proves', () => {
-  // A Roblox mark flips with the part of the place that carries it: every row not absent says how, and a built row names
-  // the kernel module or the place file that performs it.
-  it('every Roblox row not absent says how the place carries it, and a built one names a file that is there', () => {
-    const M = marksOf('roblox');
-    const rows = [...['RULE_MARKS', 'PAGE_MARKS', 'FIGURE_MARKS', 'EVENT_MARKS', 'SYSTEM_MARKS', 'LINK_MARKS', 'MECHANIC_EXTRAS'].flatMap((t) => Object.entries(M[t]).map(([k, r]) => [`${t}.${k}`, r])),
-      ...Object.entries(M.BUS_MARKS.facts).map(([k, r]) => [`fact.${k}`, r]), ...Object.entries(M.BUS_MARKS.effects).map(([k, r]) => [`effect.${k}`, r])].filter(([, r]) => !r.option);
-    const FILES = { 'kernel/': 'lib/graph/scene/roblox-kernel/', 'MojuloServer': 'lib/graph/scene/roblox-place/MojuloServer.server.luau', 'MojuloClient': 'lib/graph/scene/roblox-place/MojuloClient.client.luau', 'roblox-project.js': 'lib/graph/scene/roblox-project.js' };
-    for (const [k, r] of rows) {
-      if (r.roblox === 'absent') continue;
-      expect(r.how, k).toBeTruthy();
-      if (r.roblox !== 'built') continue;
-      const named = [...r.how.matchAll(/kernel\/(\w+)\.luau/g)].map((x) => `lib/graph/scene/roblox-kernel/${x[1]}.luau`);
-      for (const [word, file] of Object.entries(FILES)) if (word !== 'kernel/' && r.how.includes(word)) named.push(file);
-      expect(named.length, `${k} names what performs it`).toBeGreaterThan(0);
-      for (const f of named) expect(existsSync(f), `${k}: ${f}`).toBe(true);
-    }
-    // the ledger and the shell: no row built yet but the play shell's level list, approximated
-    expect(Object.entries({ ...M.LEDGER_MARKS, ...M.SHELL_MARKS }).filter(([, r]) => r.roblox !== 'absent').map(([k]) => k)).toEqual(['shell']);
-    // what the place carries reads through: the zone mechanics a Humanoid can walk to, and with the cast whole in the
-    // kernel the fight's and the watchers'; never a door, a beat, a use or a bag
-    const carried = carriedMechanics('roblox');
-    for (const k of ['reach-exit', 'collect', 'survive', 'laps', 'hp-pool', 'defeat-all', 'unseen']) expect(carried, k).toContain(k);
-    for (const k of ['door', 'on-beat', 'crops', 'bag']) expect(carried, k).not.toContain(k);
-  });
+describe('the shared reads', () => {
   it('worstMark and figureOverlays are the engines\' shared reads', () => {
     expect(worstMark('built', ['approximated'], 'built')).toBe('approximated');
     expect(worstMark()).toBe('built');

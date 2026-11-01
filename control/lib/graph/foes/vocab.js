@@ -44,7 +44,7 @@ const PKG = 'hostile-encounters';
 // a foe's own moves (worlds/controllable/foe.js): played on the web; no engine kernel plays them yet
 const FOE = 'lib/graph/worlds/controllable/foe.js';
 const SUMMON = 'lib/graph/worlds/controllable/summon.js';
-const WEB_ONLY = { godot: 'absent', roblox: 'absent' };
+const WEB_ONLY = { godot: 'absent' };
 
 export const MOVES = Object.freeze({
   hold: {
@@ -102,7 +102,7 @@ export const MOVES = Object.freeze({
 const MELEE = 'lib/graph/worlds/controllable/combat-melee.js';
 const RANGED = 'lib/graph/worlds/controllable/combat-ranged.js';
 // the hero's swings and rounds are kernel/combat.gd's; every AI's attack stays the web's (cosmos/facets/power.js combat)
-const AI_ATTACK = { godot: 'approximated', roblox: 'approximated' };
+const AI_ATTACK = { godot: 'approximated' };
 
 export const ATTACKS = Object.freeze({
   contact: {

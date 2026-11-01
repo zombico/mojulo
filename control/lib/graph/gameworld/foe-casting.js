@@ -28,7 +28,7 @@
  */
 import { readGameworld } from './world.js';
 import { playOrder } from './graph.js';
-import { cubeOfWorld } from './intent.js';
+import { cubeOfWorld, readIntent } from './intent.js';
 import { castStyleOf } from './foe-cast.js';
 import { settingOfGame } from './cast-setting.js';
 import { FOE_CLASSES, classStatus } from '../foes/index.js';
@@ -115,7 +115,7 @@ export function castingCall(world) {
   const { cube, from: genre } = cubeOfWorld(world), mind = cube.mind ?? {}, combat = [].concat(cube.power?.combat ?? []);
   const named = [].concat(mind.foes ?? []);
   if (!named.length && !combat.some((k) => FIGHTS.combat.includes(k)) && !FIGHTS.motivation.includes(mind.motivation)) return null;
-  const style = castStyleOf(G), era = settingOfGame(G).era ?? null, target = world.intent?.target ?? null;
+  const style = castStyleOf(G), era = settingOfGame(G).era ?? null, target = readIntent(world.intent)?.target ?? null;
   // the people the cast is drawn as: one for the world, rolled from its era's
   const rnd = mulberry32(peopleSeed(G.seed, 'casting-call'));
   const peoples = !BEAST_FLAVORS.includes(style.flavor) && ERA_PEOPLES[era] ? ERA_PEOPLES[era] : null;

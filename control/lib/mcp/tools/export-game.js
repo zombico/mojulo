@@ -307,6 +307,11 @@ export async function exportGameHandler(input, context = {}, deps = {}) {
   const desktop = target === 'desktop';
   const cdn = pluginBuild || desktop ? false : cdnInput;
   if (!ref || typeof ref !== 'string') throw new Error('`ref` is required (string)');
+  // Roblox's runtime translation is retired: the game is the web build, and a team's engine takes a handoff
+  if (target === 'roblox') {
+    throw new Error("export_game: target is 'web' | 'desktop' (the game is the web build; Roblox's runtime translation "
+      + "is retired) — a team's engine takes the game's levels and assets through export_model { ref, engine }");
+  }
   // the era is the render's (era/eras.js), read by the pages: the engine packs carry the recipe's surfaces as they are
   // until the form render gives them materials, so an era there would change nothing, and says so
   if (era !== undefined) {
@@ -342,29 +347,6 @@ export async function exportGameHandler(input, context = {}, deps = {}) {
       ...(pack.scope === 'arcade' ? { arcade: { reducer: pack.reducer, replay: pack.replay.file, replay_steps: pack.replay.steps } } : {}),
       note: 'Pack emitted (data + versioned kernel). Machine gate + web build live in the CLI: '
         + `node scripts/export-godot.mjs --ref ${ref} — or open the folder in Godot ≥4.5 and run.`,
-    };
-  }
-
-  if (target === 'roblox') {
-    const { buildRobloxGamePack } = await import('@/lib/graph/scene/roblox-pack.js');
-    const outDir = path.join(outcomeDirFor(ref), 'roblox');
-    const pack = await buildRobloxGamePack({ ref, outDir, posture });
-    const { exportVerdict } = await import('@/lib/graph/scene/engine-portability.js');
-    const stamp = exportVerdict(pack.portability, 'roblox');
-    return {
-      ok: true,
-      verdict: stamp.verdict,
-      lost: stamp.lost,
-      ref,
-      target: 'roblox',
-      dir: outDir,
-      ...(posture ? { posture } : {}),
-      files: pack.written.length,
-      total_bytes: pack.written.reduce((s, f) => s + f.bytes, 0),
-      levels: pack.levels,
-      portability: { portable: pack.portability.portable, flags: pack.portability.flags },
-      note: 'Rojo project emitted (the Luau kernel, a greybox per level, one player driving). Machine gate lives in the CLI: '
-        + `node scripts/export-roblox.mjs --ref ${ref} — or \`rojo build default.project.json -o game.rbxl\` in the folder and open it in Studio (Max Players 1).`,
     };
   }
 
@@ -765,7 +747,7 @@ export function registerExportGameTools() {
       type: 'object',
       properties: {
         ref: { type: 'string', description: 'Existing game sketch ref (`sk_…`, kind `game`). Errors on other kinds.' },
-        // (the engine runtimes' targets, godot / unity / roblox, are still taken until they are culled; a team's engine is
+        // (the engine runtimes' targets, godot / unity, are still taken until they are culled; a team's engine is
         // export_model's `engine` now, the engine handoff)
         target: { type: 'string', enum: ['web', 'desktop'], description: 'Optional. Default `web` (the self-contained folder). `desktop`: that folder as an Electron app.' },
         era: { type: 'string', enum: ['gen-6', 'gen-7'], description: 'Optional. The era its pages are drawn in, the cube\'s by default: the same recipe, another render. Web and desktop.' },

@@ -11,8 +11,6 @@
  */
 import { ERAS, ERA_IDS, eraCastConventions } from '../../era/eras.js';
 
-// Roblox (scene/roblox-marks.js): a built era, kit or look travels as the place's voxel look and coloured floors
-// (roblox-look.js), its sky, haze, tone and weather do not; the cast stands as block figures.
 // Godot (scene/godot-marks.js): an era that is built rides the GLB as its bake, its fog only with weather; a figure in
 // a game pack rides as rigid parts (no painted or blend-shape face, no ink); a planned era travels no more than it plays
 const eraGodot = (row) => (row.status === 'built' ? 'approximated' : 'absent');
@@ -21,8 +19,8 @@ function castStatus(id) {
   // (a convention made for part of the cast says which, after the planned ones)
   const partial = eraCastConventions(id).filter((c) => c.status === 'partial').map((c) => `${c.id} (${c.note})`);
   return planned.length || partial.length
-    ? { status: 'partial', godot: 'approximated', roblox: 'approximated', lowers: 'lib/graph/era/cast-density.js', note: `the body is built, its density set by the target${planned.length ? `; planned: ${planned.join(', ')}` : ''}${partial.length ? `; partial: ${partial.join('; ')}` : ''}` }
-    : { status: 'built', godot: 'approximated', roblox: 'approximated', lowers: 'lib/graph/era/cast-density.js', note: 'its density set by the target' };
+    ? { status: 'partial', godot: 'approximated', lowers: 'lib/graph/era/cast-density.js', note: `the body is built, its density set by the target${planned.length ? `; planned: ${planned.join(', ')}` : ''}${partial.length ? `; partial: ${partial.join('; ')}` : ''}` }
+    : { status: 'built', godot: 'approximated', lowers: 'lib/graph/era/cast-density.js', note: 'its density set by the target' };
 }
 
 export const REALITY = Object.freeze({
@@ -30,31 +28,31 @@ export const REALITY = Object.freeze({
   asks: 'how does it look, and how are its assets made?',
   settings: {
     // the look's generation (era/eras.js), drawn at the target's resolution; how dense is the target's, not the era's
-    era: { values: Object.fromEntries(ERA_IDS.map((id) => [id, { ...ERAS[id].world, godot: eraGodot(ERAS[id].world), roblox: eraGodot(ERAS[id].world) === 'absent' ? 'absent' : 'approximated' }])) },
+    era: { values: Object.fromEntries(ERA_IDS.map((id) => [id, { ...ERAS[id].world, godot: eraGodot(ERAS[id].world) }])) },
     // the cast in the same era (era/cast-density.js): built where its body is, partial while conventions are planned
     cast: { values: Object.fromEntries(ERA_IDS.map((id) => [id, castStatus(id)])) },
     // a look's bake and palette ride the GLB; its sky and haze travel approximated, its tone whole (godot-marks.js PAGE_MARKS)
     look: {
-      source: { module: 'lib/graph/era/sixth-gen.js', table: 'SIXTH_GEN_LOOKS', godot: { all: 'approximated' }, roblox: { all: 'approximated' } },
+      source: { module: 'lib/graph/era/sixth-gen.js', table: 'SIXTH_GEN_LOOKS', godot: { all: 'approximated' } },
       // priced 10-25 (the comic hero pack): the comic page as a look. The parts exist and no look names them: the geocube's
       // `cel` register (colour-register.js: three bands, an outline, inked creases), effect-style's ink and echoes, the
       // color theorist's palette; a look row that composes them is the gap, by day and by night
       planned: {
-        'comic-day': { status: 'absent', godot: 'absent', roblox: 'absent', effort: 'M', pkg: 'comic-look', note: 'a sixth-gen look on the cel register: an ink outline, three bands, a bold two-ramp palette, a flat noon sky; the halftone is not promised' },
-        'comic-night': { status: 'absent', godot: 'absent', roblox: 'absent', effort: 'S', pkg: 'comic-look', requires: ['reality.look=comic-day'], note: 'the comic look by night: the same ink and bands, a city-night palette, rim light on the cast' },
+        'comic-day': { status: 'absent', godot: 'absent', effort: 'M', pkg: 'comic-look', note: 'a sixth-gen look on the cel register: an ink outline, three bands, a bold two-ramp palette, a flat noon sky; the halftone is not promised' },
+        'comic-night': { status: 'absent', godot: 'absent', effort: 'S', pkg: 'comic-look', requires: ['reality.look=comic-day'], note: 'the comic look by night: the same ink and bands, a city-night palette, rim light on the cast' },
       },
     },
-    kit: { source: { module: 'lib/graph/era/stage.js', table: 'STAGE_KITS', godot: { all: 'built' }, roblox: { all: 'approximated' } } },
+    kit: { source: { module: 'lib/graph/era/stage.js', table: 'STAGE_KITS', godot: { all: 'built' } } },
     medium: {
       values: {
-        '3d': { status: 'built', godot: 'built', roblox: 'approximated', lowers: 'lib/graph/scene/scene-three.js' },
+        '3d': { status: 'built', godot: 'built', lowers: 'lib/graph/scene/scene-three.js' },
         // built 10-12: a world's `pixel` (a gameworld's style.pixel) draws the page small and blows it up unsmoothed
-        pixel: { status: 'built', godot: 'built', roblox: 'absent', lowers: 'lib/graph/scene/scene-three.js', note: 'the World page drawn at 1/2 to 1/8 of its size, blown up without smoothing (style.pixel); no palette snap yet, and true 2D sprite levels are another thing' },
+        pixel: { status: 'built', godot: 'built', lowers: 'lib/graph/scene/scene-three.js', note: 'the World page drawn at 1/2 to 1/8 of its size, blown up without smoothing (style.pixel); no palette snap yet, and true 2D sprite levels are another thing' },
         // built 10-19 (mobile genres): a 2D board game on a pixelizer reducer (create_pixelizer_game): one page, no world
-        board: { status: 'built', godot: 'absent', roblox: 'absent', lowers: 'lib/graph/pixelizer/pixelizer-games.js', note: 'a 2D board or falling-blocks game on a pixelizer reducer (falling blocks, match-3, the match-3 saga): one page, no world or level audit; falling blocks alone ports to Godot' },
+        board: { status: 'built', godot: 'absent', lowers: 'lib/graph/pixelizer/pixelizer-games.js', note: 'a 2D board or falling-blocks game on a pixelizer reducer (falling blocks, match-3, the match-3 saga): one page, no world or level audit; falling blocks alone ports to Godot' },
       },
     },
     // the weather's fog, colour and light play (kernel/weather.gd); its falls and lightning are the web's
-    climate: { source: { module: 'lib/graph/weather/weather.js', table: 'CLIMATES', godot: { all: 'approximated' }, roblox: { all: 'absent' } } },
+    climate: { source: { module: 'lib/graph/weather/weather.js', table: 'CLIMATES', godot: { all: 'approximated' } } },
   },
 });

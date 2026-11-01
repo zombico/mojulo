@@ -41,6 +41,10 @@ describe('export_game — input gates', () => {
     await expect(exportGameHandler({ ref: 'sk_nope', era: 'gen-9' })).rejects.toThrow(/not an era \(gen-6, gen-7\)/);
     await expect(exportGameHandler({ ref: 'sk_nope', era: 'gen-7', target: 'godot' })).rejects.toThrow(/era is read by the web and desktop pages; a godot pack/);
   });
+
+  it('the retired Roblox target teaches the targets there are and the engine handoff', async () => {
+    await expect(exportGameHandler({ ref: 'sk_nope', target: 'roblox' })).rejects.toThrow(/target is 'web' \| 'desktop'.*export_model \{ ref, engine \}/);
+  });
 });
 
 describe('export_game — pixelizer branch', () => {

@@ -9,8 +9,8 @@
  * absent, so the sweep ranks it. The law beside them: a camera that frames one body (first person) needs a view per seat.
  */
 // a seat value the runtime does not run yet; no engine kernel seats a second player
-const NOT_YET = { status: 'absent', godot: 'absent', roblox: 'absent' };
-const TOGETHER = { godot: 'absent', roblox: 'absent' };
+const NOT_YET = { status: 'absent', godot: 'absent' };
+const TOGETHER = { godot: 'absent' };
 const VERSUS = 'lib/graph/versus/versus-core.js';
 const VERSUS_ONLY = 'the versus fighter only (versus-core.js): two local players or the CPU, on one fixed stage; no other kind seats a second player';
 // the seats kernel (controls/seats-kernel.js) seats up to four controllers; the versus fighter plays two on it, and a
@@ -31,19 +31,19 @@ export const SOUL = Object.freeze({
   settings: {
     hero: {
       values: {
-        hero: { status: 'built', godot: 'built', roblox: 'approximated', lowers: 'lib/mcp/tools/create-character.js' },
+        hero: { status: 'built', godot: 'built', lowers: 'lib/mcp/tools/create-character.js' },
         // makeable and rigged, not yet a game's pilot: a world's figure takes a hero alone (heroRef, world-scene.js)
         creature: { status: 'partial', godot: 'absent', effort: 'M', lowers: 'lib/mcp/tools/create-character.js', note: 'made and rigged through create_character; not pilotable: a world figure takes a hero (heroRef), no creatureRef' },
         animal: { status: 'partial', godot: 'absent', effort: 'M', lowers: 'lib/mcp/tools/create-character.js', note: 'made and rigged through create_character; not pilotable: a world figure takes a hero (heroRef), no animalRef' },
         // built 10-12: a quick game's `ride` (car, coupe, van) mints its build and pilots every stage on the drive rule,
         // its feel derived from the build's parts. Godot has no drive rule.
-        vehicle: { status: 'built', godot: 'built', roblox: 'absent', lowers: 'lib/graph/gameworld/ride.js', note: 'a quick game\'s ride: a car, coupe or van built by the vehicle designer and driven (rules-drive.js); quick games only, no fly rule yet' },
+        vehicle: { status: 'built', godot: 'built', lowers: 'lib/graph/gameworld/ride.js', note: 'a quick game\'s ride: a car, coupe or van built by the vehicle designer and driven (rules-drive.js); quick games only, no fly rule yet' },
         // built 10-14 (skyscape): a flight's aircraft, a class's envelope on the fly rule (a glider, a trainer, a jet).
         // Its body is a placeholder slab until the aircraft roster; Godot has no fly rule.
         aircraft: { status: 'built', godot: 'absent', lowers: 'lib/graph/skyscape/craft.js', note: 'a quick flight\'s craft (glider, trainer, jet, and the space fighter): its class on the fly rule (rules-fly.js), seated on its runway, launched aloft or flying in space; its body a slab until the aircraft roster' },
-        // built 10-19 (more than meets): a hero in two forms, one body (transformation/), B to change; Godot and Roblox
-        // have no forms
-        transformer: { status: 'built', godot: 'absent', roblox: 'absent', lowers: 'lib/graph/transformation/index.js', note: 'a quick game\'s transformer: a variable suit folding into its waverider, or a car or jet standing up into a robot (controllable/forms.js: the rule of each form, the beat between them); a car\'s goals are a trail\'s, a flier\'s the fly goal' },
+        // built 10-19 (more than meets): a hero in two forms, one body (transformation/), B to change; Godot has no
+        // forms
+        transformer: { status: 'built', godot: 'absent', lowers: 'lib/graph/transformation/index.js', note: 'a quick game\'s transformer: a variable suit folding into its waverider, or a car or jet standing up into a robot (controllable/forms.js: the rule of each form, the beat between them); a car\'s goals are a trail\'s, a flier\'s the fly goal' },
       },
     },
     // proportions and a vibe are baked into the figure and its clips; gear rides it (scene/godot-marks.js)
@@ -53,17 +53,17 @@ export const SOUL = Object.freeze({
     gaits: { multi: true, source: { module: 'lib/graph/polygonizer/hero-motion.js', table: 'MOTION_GAITS', marks: 'gaitMarks' } },
     equipment: {
       multi: true,
-      source: { module: 'lib/graph/equipment/expand.js', table: 'EQUIPMENT_ITEMS', godot: { all: 'built' }, roblox: { all: 'approximated' } },
+      source: { module: 'lib/graph/equipment/expand.js', table: 'EQUIPMENT_ITEMS', godot: { all: 'built' } },
       // priced 10-25 (the comic hero pack): a cape is a garment that moves, not a held item; the tailor has no cloth that trails
       planned: {
-        cape: { status: 'absent', godot: 'absent', roblox: 'absent', effort: 'M', pkg: 'cape', note: 'a garment hung from the shoulders that trails the gait and lifts in a leap or a flight; a few bones on the hero\'s rig, no cloth simulation' },
+        cape: { status: 'absent', godot: 'absent', effort: 'M', pkg: 'cape', note: 'a garment hung from the shoulders that trails the gait and lifts in a leap or a flight; a few bones on the hero\'s rig, no cloth simulation' },
       },
     },
     // a creature's body and clips ride the GLB; how it behaves is a mind's, and the kernel has none
     species: { multi: true, source: { module: 'lib/graph/fauna/species.js', table: 'SPECIES', godot: { all: 'approximated' } } },
     party: {
       values: {
-        solo: { status: 'built', godot: 'built', roblox: 'built', lowers: 'lib/graph/playscape/player.js' },
+        solo: { status: 'built', godot: 'built', lowers: 'lib/graph/playscape/player.js' },
         party: { status: 'built', lowers: 'lib/graph/playscape/ui/party.js', godot: 'absent', note: 'a cast member who joins on a flag (cast.<id>.joins) escorts the hero in every level after; no party roster stats or menus yet; web only' },
         // built 10-25 (battle city): a side of a contest, local players and the positional mind's teammates alike
         team: { status: 'built', lowers: 'lib/graph/contest/team-sim.js', godot: 'absent', note: 'a side of a team goal game (team-sim.js): its roles and their home regions the contest kernel\'s, the player nearest the ball at the pad, the rest played by the positional mind, the keeper on its line; two pads on one screen. On the contest page\'s own bodies: the controllable runtime still has one pilot, so the hero body is not on the pitch yet' },
@@ -73,13 +73,13 @@ export const SOUL = Object.freeze({
     // level its street is laid on, each talked to; their houses, sidequests, the recurring and their day ride it. Web only
     folk: {
       values: {
-        none: { status: 'built', godot: 'built', roblox: 'built' },
-        town: { status: 'built', godot: 'absent', roblox: 'absent', lowers: 'lib/graph/gameworld/folk-cast.js', note: 'characters.folk: each town a level lays peopled from its houses (folk/folk.js: a lot\'s use roots its first person, who grows the rest; a house is a domicile), dressed by its culture and their role, each with a talk menu (chitchat and service talk from the line book, never the plot), sidequests a checklist they give, the recurring one face in every town, a day on the clock with folk.day; web only' },
+        none: { status: 'built', godot: 'built' },
+        town: { status: 'built', godot: 'absent', lowers: 'lib/graph/gameworld/folk-cast.js', note: 'characters.folk: each town a level lays peopled from its houses (folk/folk.js: a lot\'s use roots its first person, who grows the rest; a house is a domicile), dressed by its culture and their role, each with a talk menu (chitchat and service talk from the line book, never the plot), sidequests a checklist they give, the recurring one face in every town, a day on the clock with folk.day; web only' },
       },
     },
     seats: {
       values: {
-        one: { status: 'built', godot: 'built', roblox: 'built', lowers: 'lib/graph/worlds/controllable/core.js', note: 'one pilot (state.pilotId); every other pilotable body runs its AI rule' },
+        one: { status: 'built', godot: 'built', lowers: 'lib/graph/worlds/controllable/core.js', note: 'one pilot (state.pilotId); every other pilotable body runs its AI rule' },
         two: { status: 'built', ...TOGETHER, lowers: LEVELS, note: SEATS_KERNEL },
         four: { status: 'built', ...TOGETHER, lowers: LEVELS, note: SEATS_KERNEL },
       },

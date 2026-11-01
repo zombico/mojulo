@@ -9,7 +9,9 @@
  *     why    the creator's words for it
  *     target an engine the game is meant for (one with marks: scene/engines/registry.js MARKED_ENGINES). ADVICE ONLY:
  *            the readout says which of the cube's values the engine does not carry and which it carries in part (its
- *            marks, the export's own reading); nothing is refused and nothing rewritten, and without it the advice goes
+ *            marks, the export's own reading); nothing is refused and nothing rewritten, and without it the advice goes.
+ *            A retired engine (RETIRED_TARGETS: its translation left mojulo) a stored row may still name is accepted and
+ *            read as no target: the row still resolves and re-renders, with no advice
  *
  * A world that names no intent still has a cube: the one it implies (its quick goal's genre, its camera, topology,
  * ride, pixel look), read and shown, never written.
@@ -101,6 +103,8 @@ export function contestGenre(sport) {
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const clone = (c) => Object.fromEntries(Object.entries(c ?? {}).map(([f, s]) => [f, { ...s }]));
 const fail = (m) => new Error(`gameworld: intent${m}`);
+// engines a stored intent may name whose translation is retired: accepted, inert (read as no target)
+export const RETIRED_TARGETS = Object.freeze(['roblox']);
 
 export function suggestGenres(text, n = 3) {
   const t = ` ${String(text ?? '').toLowerCase().replace(/[^a-z0-9-]+/g, ' ')} `;
@@ -121,9 +125,10 @@ export function readIntent(v) {
     try { validateCube(v.cube); } catch (e) { throw fail(`.cube: ${e.message.replace(/^cosmos: /, '')}`); }
   }
   if (v.why !== undefined && typeof v.why !== 'string') throw fail('.why is the creator\'s words for it');
-  if (v.target !== undefined && !MARKED_ENGINES.includes(v.target)) throw fail(`.target is an engine whose marks say what it carries: ${MARKED_ENGINES.join(', ')} (advice only: nothing is refused)`);
+  const retired = RETIRED_TARGETS.includes(v.target);
+  if (v.target !== undefined && !retired && !MARKED_ENGINES.includes(v.target)) throw fail(`.target is an engine whose marks say what it carries: ${MARKED_ENGINES.join(', ')} (advice only: nothing is refused)`);
   if (v.from === undefined && v.cube === undefined && v.target === undefined) throw fail(' names a genre (from) or its own cube, or both (or only a target)');
-  return { from: v.from ?? null, cube: clone(v.cube), why: v.why ?? null, target: v.target ?? null };
+  return { from: v.from ?? null, cube: clone(v.cube), why: v.why ?? null, target: retired ? null : v.target ?? null };
 }
 
 const put = (cube, f, s, v) => { (cube[f] ||= {})[s] = v; };
