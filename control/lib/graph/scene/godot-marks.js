@@ -178,6 +178,8 @@ export const PAGE_MARKS = Object.freeze({
   court: m(A, 'the net game (contest/match-sim.js, scene/channels/contest.js) is the page\'s own frame simulation: nothing in the kernel plays it'),
   turns: m(A, 'the turn sport (contest/turn-sim.js, scene/channels/contest.js) is the page\'s own frame simulation: nothing in the kernel plays it'),
   pitch: m(A, 'the team goal game (contest/team-sim.js, scene/channels/contest.js) is the page\'s own frame simulation: nothing in the kernel plays it'),
+  formSky: m(A, 'the gen-7 sky over a page without the form render (channels/form-sky.js) is the page\'s own shader; an engine draws its own sky'),
+  cone: m(A, 'the view cone and its far impressions (channels/view-cone.js, far-structures.js) are a web page\'s camera trick: an engine draws the level whole, under its own levels of detail'),
   innings: m(A, 'the bat-and-ball game (contest/bat-sim.js, scene/channels/contest.js) is the page\'s own frame simulation: nothing in the kernel plays it'),
   broadcasts: m(A, 'a persona\'s read on a screen (persona/screen.js, scene/channels/broadcast-screen.js) is the page\'s own canvas: the kernel draws no screen; the persona\'s export carries its face:<read> clips, captions and cue sheets'),
   holo: m(A, 'the hologram arena (tabletop/holo-arena.client.js, scene/channels/holo.js) is the page\'s own: the tabletop kernel and its mind play in the page, nothing in the kernel plays it'),

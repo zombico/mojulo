@@ -133,7 +133,8 @@ A cube that names no domains offers one per terrain and one per interior.
   `camera` the still it is first seen from (`low`, `overhead`, `wide`, `close`); `brief` says what each word
   decided; a new scene (`show: 'path'` or `'trail'`, no seed yet) is drawn in gen-7, its cube's `era` stamped `gen-7`
   at mint (the land, its stones and grass, its trees, bamboo and bushes as form, lit by the cube's light; a blossom
-  card's trees keep their painted look), `cube.era: 'gen-6'` for the painted render, a minted row keeping its own; `hour` and `clouds` set an outside's sky (the city's too: past dusk its windows lit). A gritty
+  card's trees keep their painted look; gameplay's camera draws full detail in its VIEW CONE, its frustum to a reach, the
+  grass as strands past it: `cone` (metres) fixes the reach, absent the screen's, `[` `]` and `\` adjust it live), `cube.era: 'gen-6'` for the painted render, a minted row keeping its own; `hour` and `clouds` set an outside's sky (the city's too: past dusk its windows lit). A gritty
   cube's street and city are painted from relief as its rock is: stone walls ashlar, plaster a lime render broken to the
   stone, roofs in courses, timber in boards; a city's walls between its windows and its sidewalks the same. `style`
   on the micro-town or micro-city builds it in that style, over the settlement's own; `path` dresses the trail its

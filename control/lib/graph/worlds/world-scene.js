@@ -57,6 +57,8 @@ import { snowBase, readSnow } from '@/lib/graph/era/snow';
 import { readDrifts } from '@/lib/graph/form/grass-drifts';
 import { tagCreaseRoles } from '@/lib/graph/scene/crease-roles';
 import { readCreases } from '@/lib/graph/scene/channels/creases';
+import { readCone } from '@/lib/graph/scene/channels/view-cone';
+import { readClouds, CLOUDS_OF_WEATHER } from '@/lib/graph/matte-paint/sky';
 import { wantsSunShare, readOcclusion, liveLightDefaults } from '@/lib/graph/scene/live-light';
 import { readEra, ERAS } from '@/lib/graph/era/eras';
 import { seedOfRef } from '@/lib/graph/beats/field-cue';
@@ -771,6 +773,11 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     const S0 = payload.snowMap ? readSnow(cube.snow) : null, winter = !!S0 && (S0.line === undefined || S0.line === null);
     const read = landRead(payload, cube, { ...(M.hour !== undefined ? { hour: readHour(M.hour) } : {}), dress, grass: winter ? false : 'map', ...(moss ? { moss } : {}), ...(sward !== undefined ? { sward } : {}), ...(drifts.length ? { drifts } : {}), ...(grown ? { grown } : {}), ...(payload.snowMap ? { snow: payload.snowMap } : {}) });
     if (read) payload.form = { ...(payload.form || {}), land: formPayload(read) };
+    // (the recipe's weather for the form's sky, channels/form-sky.js: its clouds, or the weather's own; absent, the sky reads
+    // what the stage painted)
+    if (read && M.clouds !== undefined) payload.form.land.clouds = M.clouds === 'weather' ? { kind: CLOUDS_OF_WEATHER[M.weather] || 'fair', cover: 0.5, seed: 1 } : readClouds(M.clouds);
+    // (the view cone's reach fixed in metres, channels/view-cone.js; absent, the screen's)
+    if (read && M.cone !== undefined && M.cone !== null) payload.form.land.cone = readCone(M.cone);
     // (and its dunes' sand drawn by the wind that laid them: ripples, slip faces, glint; era/out-dunes.js duneMap)
     if (read && payload.dunes) payload.form = { ...payload.form, land: { ...payload.form.land, dunes: payload.dunes } };
     // (and its snow laid over the ground as it lies: era/snow.js snowMap, its colour solved under the cube's light)
@@ -792,6 +799,15 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     // (and its blade cards, never walked on: gone from the page, not only hidden)
     if (read) payload.faces = payload.faces.filter((f) => f.group !== GRASS_CARDS);
   }
+  // (a gen-7 geocube page without the form render, a geocity: the form's sky over it, channels/form-sky.js, its light the
+  // cube's own sky colours, its sun the page's, its clouds the recipe's)
+  if (payload && !payload.form && sketch.manifest.kind === 'geocube' && ERAS[era]?.surface === 'form' && payload.sky && !payload.sky.space && Array.isArray(payload.sky.zenith) && Array.isArray(payload.sky.sun?.dir)) {
+    const Mc = sketch.manifest.clouds;
+    payload.formSky = { sun: payload.sky.sun.dir, zenith: payload.sky.zenith, horizon: payload.sky.horizon,
+      ...(Mc !== undefined ? { clouds: Mc === 'weather' ? { kind: CLOUDS_OF_WEATHER[sketch.manifest.weather] || 'fair', cover: 0.5, seed: 1 } : readClouds(Mc) } : {}) };
+  }
+  // (a page without the form render carries the view cone and its far structures only when its world asks: `cone`)
+  if (payload && !payload.form && sketch.manifest.cone !== undefined && sketch.manifest.cone !== null) payload.cone = readCone(sketch.manifest.cone);
   // (where the plants stand is the form render's read alone: never on a page)
   if (payload && payload.plants) delete payload.plants;
   if (payload && payload.dunes) delete payload.dunes;
