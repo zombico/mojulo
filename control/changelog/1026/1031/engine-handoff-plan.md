@@ -1,6 +1,6 @@
 ### Engine handoff plan (temporary: the working plan, parked here; delete before release)
 
-**Status:** phases 0 to 3 built; phase 4's Godot adapter built and run in a real Godot (4.7.2) on the operator's machine, the terrain shader with it; the sea as the engine's own water built; phase 5's door open for Godot (`export_model { engine: 'godot' }`); the rest of phase 5 (the other engines on `engine`, `format: 'unreal'` folded in, every pointer rewritten) next (1101).
+**Status:** phases 0 to 3 built; phase 4's Godot adapter built and run in a real Godot (4.7.2) on the operator's machine, the terrain shader with it; the sea as the engine's own water built; phase 5 done (one door, `export_model { engine }`); the cull (phase 6) next (1101).
 `control/changelog/1026/1031/engine-handoff.md`. No release has carried the engine game runtimes this plan removes, so
 nothing here needs a deprecation path.
 
@@ -569,4 +569,26 @@ developer would want to wire. Never claimed by a machine.
   - Next in phase 5: Unity, Unreal and Blender on `engine` as their adapters land (phase 7), `format: 'unreal'` folded
     into `engine: 'unreal'`, and every pointer to the old engine targets rewritten (`context.js`'s engine paragraph,
     the share-game card's `export_game` targets, the holdout's "export it all to Godot").
+- 1101, the rest of phase 5:
+  - `engine` takes 'godot' | 'unreal' | 'blender' (`MODEL_ENGINES`). 'unreal' is the Unreal asset pack, lit unless
+    `lit: false` (the handoff's materials are the engine's to light), `what` 'asset' only (a level refuses, pointing at
+    Godot); 'blender' the Blender pack (`what` refuses: the pack is the world as it stands). `format: 'unreal'` and
+    `'blender'` leave the schema and the description for `engine`; the handler still takes them, the same packs (the
+    Unreal one unlit unless asked, as before), for the calls and plan steps that name them. Unity is not on `engine`:
+    its adapter is phase 7's; until the cull its runtime leg is `export_game`'s, unadvertised.
+  - A game on `engine: 'godot'` hands off every level its manifest names (`normalizeGameManifest`), each its own
+    project under `<game>/godot-handoff/<level>/`; the game itself (its rules, menu, score, the flow between levels)
+    is the web build's. One project per level is this slice; a game as one project with a scene per level is later.
+  - `export_game`: its description ends on the web build being the game and a team's engine taking levels and assets
+    through `export_model { ref, engine }`; the schema's `target` is `web` | `desktop` and `posture` (engine packs
+    only) leaves it; the handler still takes godot / unity / roblox until each is culled. Its Unreal refusal points
+    at `engine: 'unreal'`.
+  - Pointers rewritten: the share offer's Godot option (`export_model({ ref, engine: 'godot' })`, its levels for a
+    team), the share-game card (its name, `when`, body), `tool-lines.js` (export_model's and export_game's lines),
+    `context.js`'s export dispatch and its Unreal pointer, the vocab cards (beats-world-audio's "in Godot" now says
+    the handoff carries no audio yet; blender-film, terrain and dungeon on `engine: 'blender'`), the Unreal pack's
+    own pointers, the registry's comment. The routing holdout's "godot project" request adds `export_model` to its
+    accept set (re-pinned, said why); the forward_context cells stay under their ceiling by the dispatch naming only
+    `engine`. Left for phase 9 (the copy): `SERVER_INSTRUCTIONS` and `get_substrate`'s engine paragraph, which still
+    describe the translations, the README, the docs and the manifests.
 

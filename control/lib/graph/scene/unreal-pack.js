@@ -1,7 +1,8 @@
 /**
  * unreal-pack.js — the Unreal ASSET pack: one of mojulo's things (a character, a creature, a prop, a building, a robot,
  * anything assembled) as Unreal takes it, shared by the two front doors so they cannot drift:
- * - export_model { ref, format: 'unreal' } (MCP: writes the pack; the gate note rides the result)
+ * - export_model { ref, engine: 'unreal' } (MCP: writes the pack, lit; the gate note rides the result; `format: 'unreal'` the same,
+ *   unlit unless `lit`)
  * - scripts/export-unreal.mjs (CLI: writes the pack, then runs the advisory gate when an editor is found)
  *
  * Unreal takes mojulo's ASSETS, not its games or levels: what reaches it is the GLB's surface (geometry, vertex colour,
@@ -22,7 +23,7 @@ import { loadSketch, packHash, resolveLevel, worldGlbStats, emitFolder, figureCl
 export function unrealRefusal(manifest = {}, ref = '?') {
   if (manifest.kind === 'game' || manifest.engine === 'pixelizer' || manifest.kind === 'pixelizer') {
     return `'${ref}' is a game: Unreal takes mojulo's assets, not its games or levels — export its characters and solids, `
-      + "each by its own ref (export_model { ref, format: 'unreal' })";
+      + "each by its own ref (export_model { ref, engine: 'unreal' })";
   }
   return null;
 }

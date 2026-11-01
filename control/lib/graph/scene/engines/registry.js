@@ -25,7 +25,7 @@ export const ENGINES = Object.freeze({
   godot: Object.freeze({ id: 'godot', name: 'Godot', kind: 'runtime', marks: godotMarks, marksPath: 'lib/graph/scene/godot-marks.js', unmarked: null, proof: 'MOJULO_GODOT', outDir: 'godot', handoff: 'godot-handoff' }),
   roblox: Object.freeze({ id: 'roblox', name: 'Roblox', kind: 'runtime', marks: robloxMarks, marksPath: 'lib/graph/scene/roblox-marks.js', unmarked: 'absent', proof: 'MOJULO_LUNE', outDir: 'roblox' }),
   unity: Object.freeze({ id: 'unity', name: 'Unity', kind: 'scene', marks: null, outDir: 'unity' }),
-  // Unreal takes mojulo's assets (export_model { format: 'unreal' }: a character, a prop, a building), not its games
+  // Unreal takes mojulo's assets (export_model { engine: 'unreal' }: a character, a prop, a building), not its games
   unreal: Object.freeze({ id: 'unreal', name: 'Unreal', kind: 'art', marks: null, handoff: 'unreal' }),
   blender: Object.freeze({ id: 'blender', name: 'Blender', kind: 'art', marks: null, handoff: 'blender' }),
 });

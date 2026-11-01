@@ -316,7 +316,7 @@ export async function exportGameHandler(input, context = {}, deps = {}) {
   // Unreal takes mojulo's assets, not its games: the game's characters and solids go, each by its own ref
   if (target === 'unreal') {
     throw new Error("export_game: Unreal takes mojulo's assets, not its games or levels — export each character or solid "
-      + "the game uses by its own ref with export_model { ref, format: 'unreal' }");
+      + "the game uses by its own ref with export_model { ref, engine: 'unreal' }");
   }
 
   if (target === 'godot') {
@@ -758,17 +758,16 @@ export function registerExportGameTools() {
       + "GitHub-Pages URL. `target:'desktop'` adds `package.json` + `main.js`: the same folder is an Electron app "
       + '(`npm install && npm start`, offline). Deterministic; previews at `/outcomes/<ref>/game.html`, '
       + 'exactly what ships. Slow for big games (each level a full bake). Reach for "export this game", "make '
-      + 'it playable outside mojulo", "publish it to GitHub Pages", "make it a desktop app". The engines get a '
-      + "translation with a portability report: `target:'godot'` a Godot 4 pack under `<ref>/godot/` (per-level GLB, "
-      + "score, audio, run by the versioned mojulo-godot kernel); `'unity'` the Unity 6 sibling (its "
-      + "kernel + an import guide); `'roblox'` a Rojo project (the Luau kernel, a greybox, a Humanoid). Unreal takes "
-      + "assets, not games: export_model { format: 'unreal' }.",
+      + 'it playable outside mojulo", "publish it to GitHub Pages", "make it a desktop app". The web build is the '
+      + "game: a team's engine takes its levels and assets, not the game, through export_model { ref, engine } "
+      + "(`engine: 'godot'` on the game hands off every level).",
     inputSchema: {
       type: 'object',
       properties: {
         ref: { type: 'string', description: 'Existing game sketch ref (`sk_…`, kind `game`). Errors on other kinds.' },
-        target: { type: 'string', enum: ['web', 'desktop', 'godot', 'unity', 'roblox'], description: 'Optional. Default `web` (the self-contained folder). `desktop`: that folder as an Electron app. `godot`/`unity`/`roblox` emit the engine pack instead.' },
-        posture: { type: 'string', enum: ['greybox', 'final'], description: 'Optional operator-declared handoff posture for engine packs. `greybox` = blockout: geometry/scale/layout authoritative, surfaces placeholder — the ledger reframes surfacing losses as deferred and the import guide carries the handoff sentence. Never inferred; a manifest `posture` is the durable default.' },
+        // (the engine runtimes' targets, godot / unity / roblox, are still taken until they are culled; a team's engine is
+        // export_model's `engine` now, the engine handoff)
+        target: { type: 'string', enum: ['web', 'desktop'], description: 'Optional. Default `web` (the self-contained folder). `desktop`: that folder as an Electron app.' },
         era: { type: 'string', enum: ['gen-6', 'gen-7'], description: 'Optional. The era its pages are drawn in, the cube\'s by default: the same recipe, another render. Web and desktop.' },
         cdn: { type: 'boolean', description: "web target only (a desktop app always inlines). Default false: every level/menu/preview page inlines three.js (~1 MB each) and contacts no server. `true` loads three.js from the pinned jsdelivr CDN, the only form a page door running a CSP will execute." },
       },

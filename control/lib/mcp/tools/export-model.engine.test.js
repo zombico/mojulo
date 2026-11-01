@@ -61,6 +61,40 @@ describe("export_model engine: 'godot'", () => {
     await expect(exportModelHandler({ ref: 'sk_xe_none', engine: 'godot' })).rejects.toThrow(/No sketch exists/);
   }, 300_000);
 
+  it('a game: each of its levels handed to Godot as its own project under the game\'s folder', async () => {
+    SketchRepository.create({ ref: 'sk_xe_lv_a', title: 'a', manifest: COUCH });
+    SketchRepository.create({ ref: 'sk_xe_lv_b', title: 'b', manifest: { ...COUCH, seats: undefined } });
+    SketchRepository.create({ ref: 'sk_xe_game', title: 'duo', manifest: { kind: 'game', title: 'duo', levels: [{ ref: 'sk_xe_lv_a', title: 'A' }, { ref: 'sk_xe_lv_b', title: 'B' }] } });
+    const r = await exportModelHandler({ ref: 'sk_xe_game', engine: 'godot' });
+    expect(r).toMatchObject({ ok: true, kind: 'game', engine: 'godot', what: 'level' });
+    expect(r.levels.map((l) => l.ref)).toEqual(['sk_xe_lv_a', 'sk_xe_lv_b']);
+    for (const l of r.levels) {
+      expect(l.dir).toBe(path.join(r.dir, l.ref));
+      expect(existsSync(path.join(l.dir, 'mojulo', 'level.glb')), l.ref).toBe(true);
+      expect(existsSync(path.join(l.dir, 'level.tscn')), l.ref).toBe(true);
+    }
+    expect(r.levels[0].level.seats).toBe(2);
+    expect(r.levels[1].level.seats).toBe(0);
+    expect(r.note).toContain('export_game');
+  }, 300_000);
+
+  it('Unreal takes an asset, lit; Blender an art pack; their format names the same packs', async () => {
+    const u = await exportModelHandler({ ref: 'sk_xe_box', engine: 'unreal' });
+    expect(u).toMatchObject({ ok: true, engine: 'unreal', what: 'asset' });
+    expect(u.format).toBeUndefined();
+    expect(path.basename(u.dir)).toBe('unreal');
+    expect(u.commands.gate).toContain('--lit');
+    await expect(exportModelHandler({ ref: 'sk_xe_box', engine: 'unreal', what: 'level' })).rejects.toThrow(/not its levels/);
+    const b = await exportModelHandler({ ref: 'sk_xe_box', engine: 'blender' });
+    expect(b).toMatchObject({ ok: true, engine: 'blender' });
+    expect(path.basename(b.dir)).toBe('blender');
+    await expect(exportModelHandler({ ref: 'sk_xe_box', engine: 'blender', what: 'asset' })).rejects.toThrow(/`what` applies/);
+    // (the old names: the same packs, the Unreal one unlit unless asked)
+    const uf = await exportModelHandler({ ref: 'sk_xe_box', format: 'unreal' });
+    expect(uf).toMatchObject({ ok: true, format: 'unreal' });
+    expect(uf.commands.gate).not.toContain('--lit');
+  }, 300_000);
+
   it('a desktop app built from the same outcome folder leaves the engine packs out', () => {
     expect(ENGINE_HANDOFF_DIRS).toEqual(expect.arrayContaining(['godot-handoff', 'unreal', 'blender']));
     const pkg = JSON.parse(desktopPackageJson({ title: 't', ref: 'sk_x' }));

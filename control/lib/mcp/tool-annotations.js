@@ -180,7 +180,7 @@ export const TOOL_ANNOTATIONS = {
   bind_image_render: ['Bind a rendered image', ADDITIVE], // append-only slots
   bind_character_sheet: ['Bind a character sheet render', ADDITIVE],
   preview_world: ['Preview a stored mesh', ADDITIVE_IDEMPOTENT],
-  export_model: ['Export a model file', ADDITIVE_IDEMPOTENT], // rewrites its own export files (a blender or unreal pack its folder)
+  export_model: ['Export a model file', ADDITIVE_IDEMPOTENT], // rewrites its own export files (an engine's pack its folder; a godot handoff keeps the developer's scene)
   bind_mesh_render: ['Bind a refined mesh', ADDITIVE],
   mint_diagram: ['Mint a diagram', ADDITIVE],
   mint_building: ['Mint a building', ADDITIVE],

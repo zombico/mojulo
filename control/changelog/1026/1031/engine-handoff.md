@@ -85,3 +85,8 @@ Built so far:
   level. The result says what travelled, what stayed the web's, and the command that checks the import in a headless
   Godot. A desktop app built from the same outcome folder now leaves every engine pack out (Godot's handoff, Unreal's
   and Blender's packs had been packed into it).
+- **One door to a team's engine.** `export_model`'s `engine` takes Godot, Unreal and Blender: a world or a game to
+  Godot (a game's levels each its own project), a character or a solid to Unreal (lit: the engine lights it), a world
+  to Blender as an art pack. `export_game` is the game itself, a web folder or a desktop app, and no longer offers the
+  engine translations; a finished game's share offer hands its levels to Godot. Every pointer the agent reads (the
+  routing card, the tool lines, the export dispatch, the vocab cards) points at the one door.

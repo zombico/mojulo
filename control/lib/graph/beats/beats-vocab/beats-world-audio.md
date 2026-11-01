@@ -89,10 +89,8 @@ These read the controllable entity's state and never write back.
 - `beat`: `true` or `{ lead }` puts `{ type: 'beat', n }` on the bus `lead` seconds (default 0.15) before each beat
   of a steady-tempo soundtrack: the clock a rhythm level plays to.
 
-## in Godot
+## in an engine
 
-`export_game({ target: 'godot' })` carries the level's sound as data its kernel plays: every cue the level sounds
-renders to `audio/sfx/` (three takes each when `vary`, never the same twice in a row), fired by the same bus events
-and hero moves as the page; `combat` renders beside the soundtrack and changes on the bar line by the page's own
-meter; the game's `music.victory` / `music.defeat` play once as a level ends. The pack's buses are Music, SFX and
-UI, and the sounds duck the music. Unity carries the explore score only.
+The web build is the game, and plays all of this. A team's engine takes a level's assets, animation and markers
+(`export_model({ engine: 'godot' })`), not its rules: the level's sound is the web build's, and the handoff carries no
+audio yet (its soundtrack and cues as files beside it are to come).

@@ -2,7 +2,7 @@
 // engine skeleton by default (VRM names, the T-pose rest: export_model { humanoid: true, rest: 'tpose' }'s bytes), the
 // importer loops its clip and reads its retarget chains off the GLB; `humanoid: false` keeps the flat skeleton; a solid
 // with no figure carries the GLB it always exported; a game is refused (Unreal takes assets, not games), and
-// export_model { format: 'unreal' } writes the same pack.
+// export_model { engine: 'unreal' } (and its old name, `format: 'unreal'`) writes the same pack.
 process.env.SQLITE_PATH = ':memory:';
 process.env.MOJULO_SEMANTIC_INDEX_DISABLED = '1';
 
@@ -132,7 +132,7 @@ describe('Unreal takes assets, not games', () => {
     SketchRepository.create({ ref: 'sk_uf_game', title: 'hero game', manifest: { kind: 'game', title: 'Hero Game', levels: [{ ref: 'sk_uf_hero', title: 'Hero' }] } });
     const move = /Unreal takes mojulo's assets, not its games or levels/;
     await expect(buildUnrealAssetPack({ ref: 'sk_uf_game', outDir: outDir('sk_uf_game') })).rejects.toThrow(move);
-    await expect(exportGameHandler({ ref: 'sk_uf_game', target: 'unreal' })).rejects.toThrow(/export_model \{ ref, format: 'unreal' \}/);
+    await expect(exportGameHandler({ ref: 'sk_uf_game', target: 'unreal' })).rejects.toThrow(/export_model \{ ref, engine: 'unreal' \}/);
     await expect(exportModelHandler({ ref: 'sk_uf_game', format: 'unreal' })).rejects.toThrow(move);
   });
 

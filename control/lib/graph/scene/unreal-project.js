@@ -1295,7 +1295,7 @@ does. A notify the editor will not take leaves the SoundWave imported and says s
 - source ref: \`${ref}\`
 - manifest sha256/16: \`${manifestHash}\`
 - unreal leg: v${UNREAL_LEG_VERSION}, target ${UNREAL_EDITOR_TARGET}, importer Interchange glTF
-- re-mint: \`${remint ?? `node scripts/export-unreal.mjs --ref ${ref}`}\` (from mojulo's \`control/\`), or \`export_model { ref: '${ref}', format: 'unreal' }\`
+- re-mint: \`${remint ?? `node scripts/export-unreal.mjs --ref ${ref}`}\` (from mojulo's \`control/\`), or \`export_model { ref: '${ref}', engine: 'unreal' }\`
 `,
     },
   ];

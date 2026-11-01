@@ -21,7 +21,7 @@ The result's `blender` block names the folder (`<motion>/blender/`) and the one 
 
 ## The pack
 
-- the world's Blender pack (`model.glb`, `import_mojulo.py`, `README.md`, `ARTPASS-GUIDE.md`) — as `export_model({ format: 'blender' })` writes it;
+- the world's Blender pack (`model.glb`, `import_mojulo.py`, `README.md`, `ARTPASS-GUIDE.md`) — as `export_model({ engine: 'blender' })` writes it;
 - `shot.json` — the exact per-frame cameras the preview was rendered from (z-up world units, horizontal FOV, fps, frame size);
 - `film_shots.py` — each shot as a camera keyed every frame, aimed by a Track To on a target empty (move the target to re-aim), FOV keyed only when the shot zooms, a timeline marker bound per shot so several shots play as cuts; `--verify` is the machine gate (every keyed frame read back against `shot.json` → `film-gate.json`); `--check 1,18,36` renders Workbench stills for the eyes gate;
 - `atmosphere.json` + `film_light.py` — the world's lighting as its recipe declared it (the lit handoff the engine legs share): the sky preset (day; dawn/dusk with a low warm sun; night with a faint moon; interior with no sun), mojulo's street lamps — they arrive in `model.glb` as point lights — at street-lamp power, a ground fog that glows in its own colour like mojulo's when the recipe has `fog`, and the water surfaces the pack leaves out as a rippled, reflective mesh; plus a ground and AgX. Dials: `--preset`, `--lamp-gain`, `--fog-glow`, `--fog-scale`, `--sun*`. A scene with the operator's own light is left alone and a placed rig is kept, so the operator lights once (`--force` rebuilds);
