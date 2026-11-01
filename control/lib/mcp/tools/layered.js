@@ -327,7 +327,7 @@ function realisticRecipe(recipe, hero) {
   const laws = (hero.physique && typeof hero.physique === 'object' ? hero.physique.laws : undefined) ?? 1, one = laws >= 2;
   // (and under laws 5 its fit keeps the neck's column, so the normal bake can rebuild the skin's own field; under laws 10
   // the ear raised to the canon; under laws 11 the lids rest on the globes: head-relational-eye.js SEAT)
-  const face = realisticFaceOf(hero), H = relationalHeadOn(S, femaleOf(hero) ? 'female' : 'male', face, { oneSkin: one, rung: one && hero.target ? heroHairLevel(hero) : null, column: one && laws >= 5, ear: laws >= 10, seat: one && laws >= 11 && (laws >= 14 ? 2 : true), teeth: one && laws >= 12, even: one && laws >= 14 });
+  const face = realisticFaceOf(hero), H = relationalHeadOn(S, femaleOf(hero) ? 'female' : 'male', face, { oneSkin: one, rung: one && hero.target ? heroHairLevel(hero) : null, column: one && laws >= 5, ear: laws >= 10, seat: one && laws >= 11 && (laws >= 14 ? 2 : true), teeth: one && laws >= 12, even: one && laws >= 14, squeeze: one && laws >= 15, periorbital: one && laws >= 16 });
   // THE FACE'S PIERCINGS on its head (hero-head-layers.js): the composed face's, pinned to the visage, their metals'
   // colours under the palette's own
   if (!face || !H.headFit) return H;
@@ -420,9 +420,12 @@ function jewelleryOf(S, piercings) {
   if (!J) { J = heroJewellery(S, piercings); JEWELS.set(key, J); if (JEWELS.size > 16) JEWELS.delete(JEWELS.keys().next().value); }
   return J;
 }
-function relationalHeadOn(S, sex, face = null, { oneSkin = false, rung = null, column = false, ear = false, seat = false, teeth = false, even = false } = {}) {
+function relationalHeadOn(S, sex, face = null, { oneSkin = false, rung = null, column = false, ear = false, seat = false, teeth = false, even = false, squeeze = false, periorbital = false } = {}) {
   // (`ear`, realistic laws 10: the ear raised to the canon, head-relational.js EAR_RAISE, over the face's own relations)
-  const own0 = face ? { relations: face.relations, eyes: face.eyes, ...(face.tune ? { tune: face.tune } : {}) } : {}, own1 = ear ? { ...own0, relations: raisedEar(own0.relations, sex) } : own0, own = even ? { ...own1, relations: evenFace(own1.relations, sex) } : own1;
+  const own0 = face ? { relations: face.relations, eyes: face.eyes, ...(face.tune ? { tune: face.tune } : {}) } : {}, own1 = ear ? { ...own0, relations: raisedEar(own0.relations, sex) } : own0, own2 = even ? { ...own1, relations: evenFace(own1.relations, sex) } : own1;
+  // (`squeeze`, realistic laws 15: the squint slides the brow's mass down, relational-face-rig.js SQUINT_SQUEEZE)
+  // (`periorbital`, realistic laws 16: the skin beside each eye brought forward to the canthus, head-relational.js)
+  const own = squeeze || periorbital ? { ...own2, relations: { ...(own2.relations ?? {}), ...(squeeze ? { squeeze: 1 } : {}), ...(periorbital ? { periorbital: 1 } : {}) } } : own2;
   const key = JSON.stringify([S.parts.neck, S.parts.cranium, S.parts.jaw, S.rig.joints, sex, own, oneSkin, rung, ...(column ? ['column'] : []), ...(seat ? [seat === true ? 'seat' : `seat${seat}`] : []), ...(teeth ? ['teeth'] : [])]);
   let d = HEADS.get(key);
   if (d) { HEADS.delete(key); HEADS.set(key, d); }
@@ -853,8 +856,15 @@ export const STREAMLINED_DEPRECATED = "the streamlined core (core: 'streamlined'
  * brow ONE SECTION (head-relational-eye.js SEAT `brow`: no crease cut, the fold rising out of the lid gently), where laws
  * 11 to 13 stacked the lid's top, the crease and the fold's hooked underside there, three dark bands, and a blink had to
  * stretch the lid across them; and the face EVEN (head-relational.js EVEN_FACE: the cheek's volume off its front and onto
- * the jaw's side), where laws 2 to 13 stood the cheek forward of the face from 3/4 and below over a jaw's side too slight */
-export const REALISTIC_LAWS_VERSION = 14;
+ * the jaw's side), where laws 2 to 13 stood the cheek forward of the face from 3/4 and below over a jaw's side too slight;
+ * 15: the squint SQUEEZES (relational-face-rig.js SQUINT_SQUEEZE, the head's `squeeze` relation: the mass over each eye,
+ * the brow and the forehead's foot, slid down onto it and a touch forward as the lower lids rise, the brows' hairs
+ * riding it, as the anime squint slides its brow's mass), where laws 1 to 14 raised the lower lids under a still brow;
+ * 16: the LATERAL PERIORBITAL FILL (head-relational.js, the `periorbital` relation: the tissue over the lateral orbital
+ * rim, the skin beside each eye brought forward to the outer canthus's depth so it wraps the globe's side, the eye and
+ * the front's silhouette kept), where laws 1 to 15 let the skin fall back a centimetre behind the canthus and the
+ * globe's side show bare from 3/4 and the side */
+export const REALISTIC_LAWS_VERSION = 16;
 export const HERO_FIELDS = ['cast', 'register', 'tune', 'body', 'girth', 'headScale', 'scale', 'palette', 'head', 'face', 'hair', 'expression', 'headPreset', 'look', 'proportions', 'detail', 'adorn', 'paint', 'outfit', 'gesture', 'sculpt', 'clips', 'blink', 'gear', 'core', 'statue', 'genki', 'motion', 'target', 'geocube', 'form', 'physique', 'skin', 'painterly', 'stylism', 'laws', 'kit', 'headgear', 'name', 'emblem', 'undead', 'beast', 'perform', 'emote', 'acting', 'animeStyle', 'animeBody', 'muscleShirt'];
 /** what the hero door takes beside a hero's own words: the mint's (the layered kind's top-level keys) and `vibe` */
 /** A named hero's name is its own on this machine: refused when another hero (any ref but `ref`) holds it, as names are

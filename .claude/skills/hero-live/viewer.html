@@ -208,7 +208,7 @@ async function load(v) {
     if (o.isSkinnedMesh) { if (!body || o.geometry.attributes.position.count > body.geometry.attributes.position.count) body = o; o.castShadow = true; o.receiveShadow = true; o.frustumCulled = false; }
   });
   // (a figure with no ORM of its own a satin skin; one carrying its clothes' ORM, realistic laws 12, as it ships)
-  for (const m of [body?.material].flat().filter(Boolean)) { if (!m.roughnessMap) { m.roughness = 0.62; m.metalness = 0; } m.needsUpdate = true; m.userData.paint = { color: m.color.clone(), map: m.map, vertexColors: m.vertexColors }; }
+  for (const m of [body?.material].flat().filter(Boolean)) { if (!m.roughnessMap) { m.roughness = 0.62; m.metalness = 0; } m.needsUpdate = true; }
   // THE PARALLAX (the clothes' depth map the GLB names in its figure material's extras, `mojulo.relief`): marched on the
   // page as Godot's and Unreal's masters march it, so the eye sees what an engine does
   const rel = body?.material?.userData?.mojulo?.relief;
@@ -376,9 +376,13 @@ async function selectVariant(id) {
 function setWire(on) { const L = cur(); for (const m of [L?.body?.material].flat().filter(Boolean)) m.wireframe = on; }
 // (clay: the form alone under the same light, one warm grey and no paint, as a maquette is read before it is painted)
 const CLAY = new THREE.Color(0xb9aea3);
+// (a material of its own swapped in, not the painted one stripped: a figure whose material marches the clothes' depth map,
+// THE PARALLAX, samples its colour map in its shader, and stripping the map broke the shader)
+const clayOf = (m) => new THREE.MeshStandardMaterial({ color: CLAY, roughness: 0.62, metalness: 0, wireframe: m.wireframe, side: m.side });
 function setClay(on) {
-  const L = cur();
-  for (const m of [L?.body?.material].flat().filter(Boolean)) { const P = m.userData.paint; if (!P) continue; m.color.copy(on ? CLAY : P.color); m.map = on ? null : P.map; m.vertexColors = on ? false : P.vertexColors; m.needsUpdate = true; }
+  const L = cur(), b = L?.body; if (!b) return;
+  if (on) { b.userData.painted ??= b.material; const P = b.userData.painted; b.material = Array.isArray(P) ? P.map(clayOf) : clayOf(P); }
+  else if (b.userData.painted) { const P = b.userData.painted, w = [b.material].flat()[0]?.wireframe ?? false; b.material = P; for (const m of [P].flat()) m.wireframe = w; }
   // (and no shadow cast on itself: the key's shadow map lays a straight edge across the face that reads as a crease)
   if (L?.body) L.body.receiveShadow = !on;
 }
