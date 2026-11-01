@@ -853,10 +853,18 @@ const __xrA = new THREE.Vector3(), __xrB = new THREE.Vector3(), __xrQ = new THRE
 // the hand that walks: the one the forward binding names
 const __xrHand = (/^(left|right)\./.exec((XR.bind.xr.moveForward || [])[0] || '') || [0, 'left'])[1];
 function __xrSetYaw(rig, yaw){ rig.quaternion.setFromAxisAngle(new THREE.Vector3(0, 0, 1), yaw - Math.PI / 2).multiply(__xrTilt); }
-// world-XY heading of the headset gaze (falls back to the rig yaw when looking straight up/down)
+// the frame's viewer pose (rig-local, y-up), or null before the session's first frame
+function __xrViewer(){
+  const f = renderer.xr.getFrame && renderer.xr.getFrame(), ref = renderer.xr.getReferenceSpace();
+  return f && ref ? f.getViewerPose(ref) : null;
+}
+// world-XY heading of the headset gaze: this frame's viewer orientation carried through the rig, so a right-stick turn
+// (which turns the rig) turns "forward" with it; the rig yaw when looking straight up or down, or before a pose
 function __xrHeading(){
-  const d = new THREE.Vector3(); renderer.xr.getCamera().getWorldDirection(d);
-  return Math.hypot(d.x, d.y) > 1e-4 ? Math.atan2(d.y, d.x) : __xrYaw;
+  const p = __xrViewer(); if (!p) return __xrYaw;
+  const o = p.transform.orientation; __xrQ.set(o.x, o.y, o.z, o.w);
+  __xrA.set(0, 0, -1).applyQuaternion(__xrQ).applyQuaternion(__xrRig.quaternion);
+  return Math.hypot(__xrA.x, __xrA.y) > 0.2 ? Math.atan2(__xrA.y, __xrA.x) : __xrYaw;
 }
 // world-XY heading of the walking hand's pointing ray ('hand'); the gaze when it points straight up or down
 function __xrHandHeading(){
@@ -873,8 +881,7 @@ function __xrHandHeading(){
 }
 // the head in world space: the frame's viewer pose (rig-local) through the rig; last render's camera without a frame
 function __xrHead(out){
-  const f = renderer.xr.getFrame && renderer.xr.getFrame(), ref = renderer.xr.getReferenceSpace();
-  const p = f && ref ? f.getViewerPose(ref) : null;
+  const p = __xrViewer();
   if (p) out.set(p.transform.position.x, p.transform.position.y, p.transform.position.z); else out.copy(camera.position);
   __xrRig.updateMatrixWorld(); return __xrRig.localToWorld(out);
 }
