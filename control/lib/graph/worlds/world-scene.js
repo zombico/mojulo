@@ -57,6 +57,9 @@ import { snowBase, readSnow } from '@/lib/graph/era/snow';
 import { readDrifts } from '@/lib/graph/form/grass-drifts';
 import { tagCreaseRoles } from '@/lib/graph/scene/crease-roles';
 import { readCreases } from '@/lib/graph/scene/channels/creases';
+import { readCone } from '@/lib/graph/scene/channels/view-cone';
+import { readAtmosphere, atmosphereInput, roomAirColour } from '@/lib/graph/scene/channels/atmosphere';
+import { readClouds, CLOUDS_OF_WEATHER } from '@/lib/graph/matte-paint/sky';
 import { wantsSunShare, readOcclusion, liveLightDefaults } from '@/lib/graph/scene/live-light';
 import { readEra, ERAS } from '@/lib/graph/era/eras';
 import { seedOfRef } from '@/lib/graph/beats/field-cue';
@@ -771,6 +774,11 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     const S0 = payload.snowMap ? readSnow(cube.snow) : null, winter = !!S0 && (S0.line === undefined || S0.line === null);
     const read = landRead(payload, cube, { ...(M.hour !== undefined ? { hour: readHour(M.hour) } : {}), dress, grass: winter ? false : 'map', ...(moss ? { moss } : {}), ...(sward !== undefined ? { sward } : {}), ...(drifts.length ? { drifts } : {}), ...(grown ? { grown } : {}), ...(payload.snowMap ? { snow: payload.snowMap } : {}) });
     if (read) payload.form = { ...(payload.form || {}), land: formPayload(read) };
+    // (the recipe's weather for the form's sky, channels/form-sky.js: its clouds, or the weather's own; absent, the sky reads
+    // what the stage painted)
+    if (read && M.clouds !== undefined) payload.form.land.clouds = M.clouds === 'weather' ? { kind: CLOUDS_OF_WEATHER[M.weather] || 'fair', cover: 0.5, seed: 1 } : readClouds(M.clouds);
+    // (the view cone's reach fixed in metres, channels/view-cone.js; absent, the screen's)
+    if (read && M.cone !== undefined && M.cone !== null) payload.form.land.cone = readCone(M.cone);
     // (and its dunes' sand drawn by the wind that laid them: ripples, slip faces, glint; era/out-dunes.js duneMap)
     if (read && payload.dunes) payload.form = { ...payload.form, land: { ...payload.form.land, dunes: payload.dunes } };
     // (and its snow laid over the ground as it lies: era/snow.js snowMap, its colour solved under the cube's light)
@@ -791,6 +799,30 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     }
     // (and its blade cards, never walked on: gone from the page, not only hidden)
     if (read) payload.faces = payload.faces.filter((f) => f.group !== GRASS_CARDS);
+  }
+  // (a gen-7 geocube page without the form render, a geocity: the form's sky over it, channels/form-sky.js, its light the
+  // cube's own sky colours, its sun the page's, its clouds the recipe's)
+  if (payload && !payload.form && sketch.manifest.kind === 'geocube' && ERAS[era]?.surface === 'form' && payload.sky && !payload.sky.space && Array.isArray(payload.sky.zenith) && Array.isArray(payload.sky.sun?.dir)) {
+    const Mc = sketch.manifest.clouds;
+    payload.formSky = { sun: payload.sky.sun.dir, zenith: payload.sky.zenith, horizon: payload.sky.horizon,
+      ...(Mc !== undefined ? { clouds: Mc === 'weather' ? { kind: CLOUDS_OF_WEATHER[sketch.manifest.weather] || 'fair', cover: 0.5, seed: 1 } : readClouds(Mc) } : {}) };
+  }
+  // (a page without the form render carries the view cone and its far structures only when its world asks: `cone`)
+  if (payload && !payload.form && sketch.manifest.cone !== undefined && sketch.manifest.cone !== null) payload.cone = readCone(sketch.manifest.cone);
+  // THE AIR of a gen-7 geocube page (channels/atmosphere.js): the recipe's `air`, a fog by its visibility over the outside
+  // (lying low over the walk's ground, glowing toward the sun) or the inside (a hall, a room, a cavern: even), the gen-7
+  // sky veiled to it and the far softened past the view cone. Read on any geocube read (a bad word refuses there too);
+  // drawn on a gen-7 page alone: a painted page keeps its haze, and the unshaded export its faces
+  if (payload && sketch.manifest.kind === 'geocube' && sketch.manifest.air !== undefined) {
+    const sun = payload.sky && !payload.sky.space && Array.isArray(payload.sky.sun?.dir) ? payload.sky.sun.dir : null;
+    const inside = !!payload.form?.room || !sun;
+    const A = readAtmosphere(sketch.manifest.air, { where: inside ? 'inside' : sketch.manifest.show === 'geocity' ? 'city' : 'outside' });
+    if (A && !unshaded && viewOpts.paint !== true && ERAS[era]?.surface === 'form') {
+      const spawn = Array.isArray(payload.walk?.spawn) ? payload.walk.spawn : null;
+      // (a room's air is the colour of the room's own light, not the sky's: roomAirColour; a cavern keeps its page's dark)
+      const room = payload.form?.room, colour = room && Array.isArray(room.ambient) ? roomAirColour(room) : null;
+      payload.air = atmosphereInput(A, { base: spawn && Number.isFinite(spawn[2]) ? spawn[2] : 0, sun: inside ? null : sun, unit: payload.metersPerUnit || 1, colour });
+    }
   }
   // (where the plants stand is the form render's read alone: never on a page)
   if (payload && payload.plants) delete payload.plants;
