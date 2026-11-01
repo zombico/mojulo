@@ -190,13 +190,14 @@ export function leafSpray(species, { seed = 1, leaves = null, size = 1 } = {}) {
  * One clump of a species: CLUMP.leaves oversized leaves of its outline simplified, a rosette round the origin, each
  * tilted off the clump's facing (+z) and turned round it, their petioles lifted a little off the centre: a cupped dome.
  */
-export function leafClump(species, { seed = 1 } = {}) {
+export function leafClump(species, { seed = 1, lean = false } = {}) {
   const nh = needleHabit(species); if (nh) return scaled(needleClump(nh, seed), species);
   const { S, A, O } = speciesOf(species), rng = mulberry32((seed * 2654435761 + 97) >>> 0), L = A.leafSize * (S.leafScale || 1) * CLUMP.size, tris = [];
   for (let k = 0; k < CLUMP.leaves; k++) {
     const az = (k * 360 / CLUMP.leaves + (rng() - 0.5) * 40) * DEG, tilt = (CLUMP.tilt[0] + (CLUMP.tilt[1] - CLUMP.tilt[0]) * rng()) * DEG;
     const d = [dmath.sin(tilt) * dmath.cos(az), dmath.sin(tilt) * dmath.sin(az), dmath.cos(tilt)];
-    pushLeaf(tris, [0, 0, -L * CLUMP.lift], d, L * (0.85 + 0.3 * rng()), O.clump, O.fold, mix(TONES.leaf, TONES.leafLit, 0.3 + 0.5 * rng()));
+    // (lean: a leaf one width along its run, four triangles, not its outline's fan)
+    pushLeaf(tris, [0, 0, -L * CLUMP.lift], d, L * (0.85 + 0.3 * rng()), lean ? [Math.max(...O.clump)] : O.clump, O.fold, mix(TONES.leaf, TONES.leafLit, 0.3 + 0.5 * rng()));
   }
   return { tris, leaves: CLUMP.leaves };
 }

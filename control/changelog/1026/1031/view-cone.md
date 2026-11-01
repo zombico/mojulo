@@ -1,0 +1,100 @@
+### The view cone
+
+- **The cone, not a ring** (`scene/channels/view-cone.js`, emitted by the form channel). Full detail is where the
+  screen can show it: the camera's frustum, cut off at a reach. `window.__mojCone` holds the eye, the frustum, the reach
+  in metres and the pixel at a metre, set before each frame's render list is built, so what the cone does not see is
+  left undrawn the same frame. The reach is the screen's by default: the distance at which a tall grass blade's width
+  covers `VIEW_CONE.px` pixels, at the camera's field of view and the canvas's height, so a bigger screen sees real
+  grass further. It replaces the grass's third-of-the-map rule.
+- **The reach adjustable**: a geocube outside's `cone` fixes it in metres (`cone: 40`; refused indoors or out of
+  range); live, `[` and `]` shrink and grow it, and `\` returns it to the screen's. `window.__mojCone.set(m | null)`
+  does the same from a script.
+- **The grass reads the cone** (`scene/channels/form-grass.js` `POV_GRASS`): real grass inside it, thinning over its last
+  half, strands past it; a tile is drawn only if the frustum sees it and its band of distance reaches it. The aerial
+  camera still draws the whole field.
+- **The far field** (`scene/channels/far-field.js`): past the cone's reach the grass is its colour on the ground,
+  nothing standing, in the ground's own shader: the grass's (a standing drift's where one holds the cell), offset by each
+  cell's dice, lit and shadowed as the ground is, and speckled with world-anchored specks about a pixel and a half at
+  their distance (the grain snapped to powers of two, so it holds while the eye walks): a flower's colour where flowers
+  grow, a weed's head in the weeds' patches, a lighter or a darker fleck. No draw, no triangle. F toggles it.
+- **The far trees** (`scene/channels/form-flora.js` `FLORA_FAR`): a plant has two rungs, by the screen's own rule: whole
+  inside the cone's reach (where its old hand-set 25 m was) and until its card's texel is under the cone's grain, then
+  its card. The card is itself from that side, solved from the recipe rather than rendered: its near crown's own leaves
+  (each clump's turned as the tree's recipe turns them, so the leaf mass lies the way its clusters do, gaps kept, no
+  volume the leaves do not hold) and its wood's own triangles, baked once a template from eight bearings at 128 × 192
+  texels, POINT-SAMPLED as the screen samples the tree (a texel is leaf where its centre falls on a leaf, nothing grown,
+  so the card is no thicker than the tree it replaces), lit as the near crown's leaves are by each leaf's clump's facing,
+  at each leaf's own tone, casting its silhouette from the sun's side. Every far plant is one draw. No far form between
+  the rungs: the old one, a share of the crown's clumps grown, read as a bubble there and gone as the eye walked; a
+  crossed crown's half-leaved far bundles (`farGeo`) are gone from the payload too. A needled crown and a culm keep their
+  own far form; an aerial camera's reach is `FLORA_LOD.mid`.
+- **The stones on the same ladder** (`scene/channels/form-land.js` `STONE_LADDER`): the scree's stones, every one drawn
+  chipped or as its block at any distance before, are chipped inside the cone's reach (a stone big enough to cast),
+  their block past it, and gone once the whole stone is under a pixel, where the ground's own scree and pebbles carry
+  it. The meadow's cameras draw about 300k fewer triangles each, looking the same.
+- **The far structures** (`scene/channels/far-structures.js`): what stands on a form page that is not the land or a
+  plant (a town's buildings, fences, poles, cars), painted a mesh a group across the whole level, is drawn instead as a
+  batch a group (`BatchedMesh`, one draw as before on a GPU with multi-draw) of 16 m tiles, each shown or left out on its
+  own, and each tile has its card: itself from that side, baked once from its own triangles and colours from eight
+  bearings, turned to the eye and casting from the sun's side. A tile is its card past the cone's reach where its card's
+  texel is under a pixel. What stands is a triangle more than half a metre over the land's own height and under 60 m, so
+  roads, kerbs, terrain and clouds stay live. A pass that swaps its own material onto each mesh (the creases' and the
+  occlusion's prepass) draws the merged mesh in its place; the cards, the trees' too, sit it out.
+  `scripts/runnability.mjs` counts a multi-draw's triangles.
+  A page without the form render (a geocity) carries the view cone and its far structures when its world asks
+  (`cone: true` for the screen's reach, or metres), the land's height there its lowest surface in each cell. A level
+  whose standing plan holds more than 128 tiles is left as it was and says so (`window.__formStructures().skipped`): at
+  a metro's size a tile's card is too coarse to stand in inside it, and its finer cards wait for baking ahead of the eye.
+- **No strands past the reach** (`scene/channels/form-grass.js`): the 0.45 m strand rows and their meshes are gone; a
+  far map, one strand a cell of the grass map (its height, colour slot and dice), is what the far field paints from
+  (`window.__formFar`).
+- **The surveyor** (`form/survey.js`, `scripts/far-survey.mjs`): what an eye sees of a sketch's form land, solved from
+  its recipe rather than rendered. Each sample of the image is a ray over the land's triangles, read against the grass
+  map: sky, inside the reach, or past it as grass, bare, outside the grass map, or the contour, counted by land class and
+  charted as text, camera by camera. And what it hands the art (`surveyRegions`): the far field as regions of one
+  substance (grass where the map covers it, else the land's class), each with its main colour, its horizontal bounds,
+  and column by column its upper bound (the land's top from the eye, less what stands on it: the grass's height there in
+  pixels at its distance) and its lower bound (where the far field begins).
+  Its contour scan (`contourScan`: from a point of view, on each bearing of a full turn, where the ground peaks against
+  the sky or ground well past it) is kept for what stands past the reach, trees, rocks and buildings, not the grass.
+- **An exported page walks at the scene's eye** (`mcp/tools/sketch-model-export.js` `htmlWalk`): `export_model format:
+  'html'` turned a scene's own walk (its spawn, eye and speed) into a bare `true`, so the page took the walk's defaults
+  off the whole scene's bounds: over a gen-7 meadow, whose sky and hills are wide, an eye of 15 m, a 6 m stride and walls
+  a body could not pass. It keeps the scene's walk now, as the /world route always did.
+- **The gen-7 sky** (`scene/channels/form-sky.js`, emitted by the form channel): a geocube's gen-7 outside draws the sky as
+  the light that lights its land, in place of the stage's painted sky. The air's level is the solved sky light's (its
+  cosine-weighted average over the dome, by luminance), its hue and gradient the cube's zenith and horizon, more air at
+  the horizon, the sky's scattering round the sun and the forward glow at it; the sun a disc where the solved sun stands,
+  at its light. Clouds are a layer over the eye, its cover the recipe's `clouds` (clear, fair, overcast, storm, haze,
+  high, and its cover; absent, fair where the stage painted clouds, clear where it painted none), lit by the solved sun
+  through their own depth with a silver edge toward it and by the sky from below, passing over as the eye walks and
+  drifting with the page's wind. The haze takes the air where the far land stands, and the stage's painted far land
+  takes it too. All through the land's own tone curve; a night's stars and moon stay.
+  A gen-7 geocube page without the form render (a geocity) carries the same sky (`formSky`), its light the cube's own
+  sky colours and its sun the page's; a recipe naming no clouds over a stage that painted none has a few fair-weather
+  clouds, not an empty sky.
+- **The far land** (`scene/channels/form-land.js` `FAR_LAND`, `form/land-read.js` `FAR_GROUPS`): the stage's far ring, its
+  ridges past the level (standing curtains, layer behind layer, up to a skyline), was left painted on a gen-7 page, a
+  pale backdrop shimmering with its tiles. The read gives it its own range (`far`) and the form draws it as land, in
+  facets lit as the land is: the trail's own grass low on it rising into its stone toward the peaks, each facet a shade
+  its own, under the sky's air (the new sky's, where the far land stands), more of it the farther its layer. What the
+  read cannot class otherwise (a town's own buildings) stays painted.
+- **The plants' budget** (`form/flora-read.js` `FLORA_BUDGET`): a plant on a gen-7 page spends at most 300 triangles a
+  square metre of its side's silhouette (its crown's width × its height). Over it, it gives up its sprays (the crown
+  holds the outline), then its leaves' outlines (a leaf one width, four triangles: `leafClump` `lean`), then clumps by
+  rank, each kept clump grown to hold the crown's cover; every template carries what it spends (`budget`). A garden's
+  spray bush, 1.2 m tall, drew about 3,800 triangles a crown and 192 sprays near: it draws 516 now. In a town's garden
+  bed the plants drawn near fell from about 261k triangles to 102k (the bushes from about 200k to 30k); the trees keep
+  their own, well within theirs.
+- **One grain past the reach** (`scene/channels/view-cone.js` `VIEW_CONE.grain`): everything past the cone's reach is its
+  impression at one grain, at most a pixel and a half a texel: a tree its card, a tile of buildings its card, as the grass
+  is its colour there, its specks about a pixel (`FAR_FIELD.speck.px`); a tree turns to its card where its card's texel is
+  under that grain, so a meadow's grown trees show their leaf-built cards from about 45 m, smaller ones sooner.
+- **No bubble left in a gen-7 trail** (`era/isekai.js` `plantItems` `skirt`, `form/flora-read.js` `SKIRT_FLAG`): the stage's
+  clumps of trees out on the skirt, three faceted blobs a tree, stood past the plants' box and were drawn as faceted land
+  (the `crown` class). The trail hands them over as data now (each tree's foot, its crown's reach, its kind) and the form
+  grows them as the level's own trees, each as wide as the crown it stands for, a card at that distance; no litter round
+  them and never brushed. A bamboo or a blossom card keeps its painted clumps. And what stands is read once the form has
+  hidden what it draws in its place (`scene/channels/form-land.js`): a painted crown, trunk or rock had been taken for a
+  structure, batched near and carded far, so a crown the form had grown over showed again as a ghost card past the reach
+  and was gone inside it.

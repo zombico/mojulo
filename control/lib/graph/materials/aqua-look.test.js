@@ -36,6 +36,13 @@ describe('resolveAquaLook', () => {
     expect(L.flow).toEqual(resolveAquaLook('lake').flow);
   });
 
+  it('takes its own absorption (`absorb`) over the preset\'s, clamped; junk or none leaves the preset\'s', () => {
+    expect(resolveAquaLook({ kind: 'lake', absorb: [0.9, 0.35, 9] }).sigma).toEqual([0.9, 0.35, 5]);
+    for (const absorb of [undefined, [1, 2], ['x', 1, 1]]) expect(resolveAquaLook({ kind: 'lake', absorb }).sigma).toEqual(resolveAquaLook('lake').sigma);
+    // (a pond's look as its kind writes it keeps the preset's absorption, as before)
+    expect(resolveAquaLook({ kind: 'lake', sigma: [3, 3, 3] }).sigma).toEqual(resolveAquaLook('lake').sigma);
+  });
+
   it('scales ripple frequency, drift and absorption by the scene unit', () => {
     const a = resolveAquaLook('ocean'), b = resolveAquaLook('ocean', { unit: 2 });
     expect(b.nScale).toBeCloseTo(a.nScale / 2, 3);

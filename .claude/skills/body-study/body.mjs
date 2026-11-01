@@ -97,7 +97,7 @@ for (let i = 0; i < args.length; i++) {
 if (!casts.length) casts.push('male', 'female');
 if (phys && !form) throw new Error('body-study: --physique dials a form build; name one with --form');
 const BUILD = form ? physique(form, phys ?? 'athletic') : null;
-const CROPS = ['torso', 'shoulder', 'hip', 'knee', 'shin', 'hand', 'foot', 'neck', 'head'];
+const CROPS = ['torso', 'shoulder', 'arm', 'hip', 'knee', 'shin', 'hand', 'foot', 'neck', 'head'];
 for (const c of [crop, ...(acts || []).map((r) => r.crop)]) if (c && !CROPS.includes(c)) throw new Error(`body-study: crop '${c}' is not one of ${CROPS.join(', ')}`);
 mkdirSync(out, { recursive: true });
 
@@ -251,6 +251,8 @@ function frameBox(V, J, which) {
   const mid = (a, b, t = 0.5) => a.map((x, k) => x + (b[k] - x) * t);
   if (which === 'torso') return { min: [J.shoulderL[0] - 0.12, -0.2, J.hipR[2] - 0.12], max: [J.shoulderR[0] + 0.12, 0.2, J.neckHub[2] + 0.1] };
   if (which === 'shoulder') return box(J.shoulderR, [0.15, 0.15, 0.15]);
+  // (the arm from the elbow to the wrist, the elbow's top in: the forearm's taper and its joint with the upper arm)
+  if (which === 'arm') return box(mid(J.elbowR, J.wristR, 0.4), [0.19, 0.19, 0.19]);
   if (which === 'hip') return box(mid(J.pelvisHub, J.hipR, 0.7), [0.2, 0.2, 0.2]);
   if (which === 'knee') return box(J.kneeR, [0.14, 0.14, 0.16]);
   // (the shin: from over the knee to the floor, the toes in front: a tall boot whole)

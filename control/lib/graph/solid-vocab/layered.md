@@ -502,6 +502,20 @@ GLB's baked ink (`bake: true`) cannot stencil: it leaves out only the outline of
   nothing. It composes with every other word (the dress, the gear and the clips fit the body it makes; read the
   clearance warnings as for any tune). The readout says `genki`.
 <!-- /section -->
+<!-- section: hero-anime-style | Anime head casts | the anime head's sibling casts, Shonen High the default -->
+  ANIME HEAD CASTS (the anime head only). `animeStyle` names a HEAD CAST (`anime-styles.js`): a figure's scale and
+  theme, sculpted as an action figure is, never a kind of game; every cast is lit alike, so any game fields any of them.
+  A minted adult anime hero wears `shonen-high` unless it names another; `null` is the form's bare head (a child, a
+  chibi and the studio's face wear none). The cast sits under the child's face, the look, the hero's own words and
+  genki, which compose on it, and is the base `/hero/face/<control>` moves off; its body tune follows the head.
+  `shonen-high` (high-school-sized, action-themed): a long, narrow face, flat cheeks, a narrow V chin; small eyes under a
+  hard lid angled to its tail; thin, low brows; a lean body under a smaller head. `z-fighter` (grown-hero-sized,
+  martial-arts-themed): a broad, square-jawed head, wide low eyes under heavy lids, thick brows angled to the bridge, on
+  a heavy frame. `school-kid-hero` (schoolkid-sized, action-themed): a big round head, a soft elliptical face to a small
+  pointed chin, large crisp eyes, a small mouth, on a short, slight frame. The feature advice reads the cast's bands. Stored as the word beside
+  its resolved stamp (a re-tuned cast never moves the row); `/hero/animeStyle null` takes it off. The readout says
+  `animeStyle`.
+<!-- /section -->
 <!-- section: hero-dress | The dress and second skin | detail and adorn passes, and paint: skintight garments as colour -->
   THE DRESS. `detail` and `adorn` put the dragon's BODY DETAIL and ADORNMENT passes on the hero, the same operators with
   the hero's parameters (`hero-dress.js`). `detail: 'clothed'` is a garment read: elbows and knees refined, the masses a

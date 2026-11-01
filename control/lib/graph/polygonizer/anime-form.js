@@ -148,7 +148,10 @@ export function buildAnime(r, options = {}) {
   if (S?.brow) parts.brow = [];
   if (S?.catchlight) parts.catch = [];
   if (S?.noseLine) parts.nose = [];
-  const EYE = S && (S.fissure || S.lidWeight !== undefined || S.brow || S.lidCover !== undefined) ? eyeShapeOf(S, f) : null;
+  // the 7G DRAWING (`drawing`, anime-drawings.js): each word gates its own term, a word at its neutral dropped first, so
+  // an absent, empty or all-neutral drawing runs the statements below unchanged
+  const D = drawingOf(options.drawing);
+  const EYE = S && (S.fissure || S.lidWeight !== undefined || S.brow || S.lidCover !== undefined) ? eyeShapeOf(S, f, D?.lid) : null;
   const EYE_Y = S?.eyeLevel !== undefined ? S.eyeLevel : 0.055;
   // the lens resolution (a budget, never `coarse`); `paint`: the lenses are painted flat, so one ring holds their outline
   const LENS = options.paint ? { seg: 40, rings: 1 } : options.budget === 'game' ? { seg: 24, rings: 2 } : { seg: 40, rings: 3 };
@@ -159,10 +162,51 @@ export function buildAnime(r, options = {}) {
   // Separate vault/occiput/nape and jaw-to-chin profiles, informed by the fitted head landmarks.
   // under the nose dials the studio's own nose is off: the dials build theirs on a smooth face (anime-nose.js)
   const NOSE_OFF = !!options.nose;
+  // THE SOCKET TIED TO THE BROW (sculpt `orbit` with a brow): over each column the socket's upper plane runs from its
+  // apex up to the middle of the brow above it as it sits at rest (its gap, its angle and arch, its clearance of the
+  // eye), so the brow sits on the socket's rim whatever a style sets its gap to; and the rim WARPS WITH THE BROW as it
+  // acts, its plane run to the drawn brow's middle instead (raised with the brow, drawn down at the inner end with a
+  // knit), faded in from the top of the widest lid's lash band up to the brow's rest bottom: below that band's top the
+  // socket is the rest one, so the eye, its lenses and its lash band never move with a brow. Without a brow, ORBIT.up
+  const EYE0 = EYE && D?.lid ? eyeShapeOf(S, f, null) : EYE;
+  const BROW_RIM = S?.orbit && S?.brow && EYE ? Object.fromEntries([-1, 1].map((side) => {
+    const R = browLine(side, true), A = browLine(side), mid = (L, i) => L.bot[i][1] + 0.5 * L.bt[i];
+    // per column: [u, the rest middle, the drawn middle, the lash band's top (nothing warps below it), the rest bottom,
+    // the drawn bottom]
+    const P = R.bot.map(([u, y], i) => [u, mid(R, i), mid(A, i), R.floor[i], y, A.bot[i][1]]);
+    if (P[0][0] > P.at(-1)[0]) P.reverse();
+    return [side, P];
+  })) : null;
+  const rimAt = (u) => {
+    const P = BROW_RIM[u < 0 ? -1 : 1], k = P.findIndex((q) => q[0] >= u);
+    if (k <= 0) return P[k < 0 ? P.length - 1 : 0];
+    const t = (u - P[k - 1][0]) / (P[k][0] - P[k - 1][0]); return P[k].map((v, c) => P[k - 1][c] + (v - P[k - 1][c]) * t);
+  };
+  // the upper plane's weight at (u, y ≥ its apex)
+  const orbitUpper = (u, y, ya) => {
+    if (!BROW_RIM) return fillet(1 - (y - ya) / ORBIT.up);
+    const [, T0, T, F, B0] = rimAt(u), w0 = fillet(1 - (y - ya) / Math.max(ORBIT.upMin, T0 - ya));
+    if (T === T0 || y <= F) return w0;
+    return w0 + (fillet(1 - (y - ya) / Math.max(ORBIT.upMin, T - ya)) - w0) * smoother((y - F) / Math.max(BROW.warpEase, B0 - F));
+  };
+  // the drawing's SKULL (`socket.rise`, anime-sockets.js): the mass over the eye slid along the face, the skull's shape
+  // there sampled that far below or above, so the brow's ridge and the forehead over it rise or sink: the orbit opened in
+  // surprise or squeezed in a squint (with the cheek pushed up under the eye, `socket.cheek`). From the top of the widest
+  // lid's lash band (eased in to the drawn brow's bottom, as the socket is) up through the forehead (SKULL.top, eased out
+  // over SKULL.fade), gone before the side seam (SKULL.side) where the face meets the back of the head. The eye, its
+  // lenses and lash bands, the socket's own cut and the brow block's height keep their place: only the skull's shape
+  // terms read the shifted height, and the brow rides the mass
+  const skullShift = (u, y) => {
+    if (!BROW_RIM) return 0;
+    const [, , , F, , Bd] = rimAt(u);
+    return D.socket.rise * smoother((y - F) / Math.max(SOCKET.ease, Bd - F)) * (1 - smoother((y - SKULL.top) / SKULL.fade)) * (1 - smoother((Math.abs(u) - SKULL.side[0]) / SKULL.side[1]));
+  };
   function surface0(u, y, back = false, noseOff = NOSE_OFF) {
+    // (the skull's height: the drawing's slid mass, anime-sockets.js, the front only; the eye's terms read `y`)
+    const yk = !back && D?.socket?.rise ? y - skullShift(u, y) : y;
     let x = u * width(y); const g = (v, c, w) => dmath.exp(-(((v - c) / w) ** 2)), arc = dmath.pow(Math.max(0, 1 - u * u), 0.45);
-    const seam = profile(y, [[-1.02, -0.43], [-0.90, -0.36], [-0.74, -0.17], [-0.60, -0.035], [-0.30, 0.06], [1.19, 0.06]]);
-    const front = profile(y, [[-1.02, 0.025], [-0.90, 0.12], [-0.74, 0.30], [-0.60, 0.45], [-0.30, 0.57], [0.22, 0.59], [0.62, 0.57], [0.92, 0.45], [1.16, 0.18], [1.19, 0.009]]);
+    const seam = profile(yk, [[-1.02, -0.43], [-0.90, -0.36], [-0.74, -0.17], [-0.60, -0.035], [-0.30, 0.06], [1.19, 0.06]]);
+    const front = profile(yk, [[-1.02, 0.025], [-0.90, 0.12], [-0.74, 0.30], [-0.60, 0.45], [-0.30, 0.57], [0.22, 0.59], [0.62, 0.57], [0.92, 0.45], [1.16, 0.18], [1.19, 0.009]]);
     const rear = profile(y, [[-1.02, 0.55], [-0.98, 0.59], [-0.90, 0.58], [-0.74, 0.43], [-0.60, 0.30], [-0.40, 0.30], [-0.20, 0.48], [0.10, 0.68], [0.45, 0.73], [0.65, 0.70], [0.78, 0.64], [0.92, 0.53], [1.04, 0.40], [1.10, 0.30], [1.16, 0.17], [1.19, 0.009]]);
     let z = seam + (back ? rear * (f.backDepth ?? 1) : -front * f.depth) * arc;
     if (back) { z += arc * (0.28 * ((f.occiput ?? 1) - 1) * g(y, 0.78, 0.32) - 0.16 * ((f.nape ?? 1) - 1) * g(y, -0.45, 0.24)); }
@@ -170,37 +214,119 @@ export function buildAnime(r, options = {}) {
       // the nose placed: the tip (pronasale) at its height with its own projection and width, the dorsum a ridge that
       // starts below the brow (dorsumStart) and ramps down to the tip; the muzzle bump follows the lip line
       const N = S.nose, ramp = y > N.dorsumStart ? 0 : y > N.pronasale ? dmath.pow((N.dorsumStart - y) / (N.dorsumStart - N.pronasale), 1.3) : dmath.exp(-(((y - N.pronasale) / 0.05) ** 2));
-      if (!noseOff) z -= f.nose * (N.tip * 0.135 * g(x, 0, N.tipWidth[0]) * g(y, N.pronasale, N.tipWidth[1]) + N.dorsum * 0.072 * g(x, 0, N.dorsumWidth) * ramp);
+      // (`shape: 'pyramid'`, sculpt `noseShape`: the nose as a pyramid, pyramidNose)
+      if (!noseOff) z -= f.nose * (N.shape === 'pyramid' ? pyramidNose(N, x, y, EYE_Y) : N.tip * 0.135 * g(x, 0, N.tipWidth[0]) * g(y, N.pronasale, N.tipWidth[1]) + N.dorsum * 0.072 * g(x, 0, N.dorsumWidth) * ramp);
       z -= 0.025 * g(x, 0, 0.18) * g(y, S.stomion !== undefined ? S.stomion + 0.035 : -0.50, 0.12);
     }
     else { if (!noseOff) z -= f.nose * (0.135 * g(x, 0, 0.092) * g(y, -0.18, 0.085) + 0.072 * g(x, 0, 0.075) * g(y, 0.02, 0.20)); z -= 0.025 * g(x, 0, 0.18) * g(y, S?.stomion !== undefined ? S.stomion + 0.035 : -0.50, 0.12); }
     // canthusSetback: the lateral canthus set back along the globe (eye-local; faded to zero at the side seam)
     if (!back && S?.canthusSetback) { const cl = 0.455 * f.spacing + 0.285 * f.eyeWidth * 0.95; z += S.canthusSetback * g(Math.abs(u), cl, 0.13) * g(y, EYE_Y, 0.14) * (1 - dmath.pow(Math.abs(u), 8)); }
+    // orbit { depth }: the eye's SOCKET cut as planes, so the face breaks in profile into the brow's block, the socket and
+    // the cheekbone's block (a "<": the brow ridge's plane runs back to an apex just over the eye, the cheek's plane runs
+    // forward from it), and in front into the nose's block and the cheek's (the socket's medial wall is the nose's side,
+    // and runs down it, so the bridge stands between two walls). Each plane is straight, its edges and the apex filleted
+    // (`fillet` of its run), so no point stands; the opening, the white, the lenses, the lid band and the brow block are
+    // built on the surface, so they sit in it
+    if (!back && S?.orbit) {
+      const O = ORBIT, au = Math.abs(u), ya = EYE_Y + O.apex, down = O.down + O.noseDrop * (1 - clamp((au - O.bridge) / O.noseReach));
+      const wu = fillet((au - O.bridge) / O.medial) * (1 - smoother((au - O.lateral[0]) / O.lateral[1]));
+      const wy = y >= ya ? orbitUpper(u, y, ya) : fillet(1 - (ya - y) / down);
+      z += S.orbit.depth * wu * wy;
+      // the drawing's SOCKET (`socket`, anime-sockets.js: each brow drawing carries its own): above the top of the widest
+      // lid's lash band only, faded in from it to the bottom of the brow as drawn (the gap the brow's clearance of the
+      // eye leaves, SOCKET.ease at least; so the eye, its lenses and its lash band never move with a socket, the brow
+      // block moves whole, and the strip under it is the ridge's overhang: an ease longer than the gap left the brow's
+      // bottom behind its top and tipped it forward like a visor) and out above the brow's middle (SOCKET.reach, eased
+      // over SOCKET.fade): the ridge brought forward over the eye (`ridge`, construction units; back when negative), the
+      // socket's upper plane cut deeper (`deep`; shallower when negative), its inner end bunched forward toward the nose
+      // (`pinch`: a scowl; eased back when negative: worry) and its outer end hooded forward (`outer`; lifted back when
+      // negative), each fading out to the temple as the socket does
+      if (D?.socket && BROW_RIM) {
+        const K = D.socket, [, T0, T, F, , Bd] = rimAt(u), vy = smoother((y - F) / Math.max(SOCKET.ease, Bd - F)) * (1 - smoother((y - Math.max(T, T0) - SOCKET.reach) / SOCKET.fade));
+        if (vy > 0) {
+          const lat = clamp((au - O.bridge) / (O.lateral[0] - O.bridge)), wl = (1 - smoother((au - O.lateral[0]) / O.lateral[1])) * vy;
+          z -= ((K.ridge ?? 0) + (K.pinch ?? 0) * dmath.pow(1 - lat, 1.5) + (K.outer ?? 0) * dmath.pow(lat, 1.5)) * wl;
+          if (y >= ya) z += (K.deep ?? 0) * wu * wy * vy;
+        }
+      }
+      // the lid drawing's socket (`socket.cheek`, anime-sockets.js: the squint's, the smiling eye's): the cheek under the
+      // eye brought forward over the socket's lower plane, from the eye's lower outline as it sits at rest (so nothing at
+      // or above it, the white and the lenses, moves with it, whatever the lid draws) eased in over SOCKET.cheekEase and
+      // down onto the cheekbone (SOCKET.cheekReach, eased out over SOCKET.cheekFade); under the eye's own span only, full
+      // over its middle and gone by its corners (SOCKET.cheekSpan: the share of its half-width eased over), so the lid
+      // band's tail past the outer corner, at the eye's level, never moves with it
+      if (D?.socket?.cheek && EYE0) {
+        const side = u < 0 ? -1 : 1, cU = side * 0.455 * f.spacing, lat = (u - cU) * side / EYE0.a;
+        const yl = EYE_Y - (Math.abs(lat) < 1 ? EYE0.bDn * EYE0.Ydn0(lat) : 0) + f.tilt * (Math.abs(u) - Math.abs(cU)), below = yl - y;
+        const cv = smoother(below / SOCKET.cheekEase) * (1 - smoother((below - SOCKET.cheekReach) / SOCKET.cheekFade)) * smoother((1 - Math.abs(lat)) / SOCKET.cheekSpan);
+        if (cv > 0) z -= D.socket.cheek * cv;
+      }
+    }
     // Independent forehead and supraorbital depth; blend to the temple seam.
-    if (!back) { const sideFade = Math.max(0, 1 - u * u); z -= 0.28 * ((f.foreheadDepth ?? 1) - 1) * g(y, 0.70, 0.28) * sideFade; z -= 0.22 * ((f.browDepth ?? 1) - 1) * g(y, 0.34, 0.14) * sideFade; }
+    if (!back) { const sideFade = Math.max(0, 1 - u * u); z -= 0.28 * ((f.foreheadDepth ?? 1) - 1) * g(yk, 0.70, 0.28) * sideFade; z -= 0.22 * ((f.browDepth ?? 1) - 1) * g(yk, 0.34, 0.14) * sideFade; }
     // Cheek fullness is local to the front malar region; fades to zero at the side seam.
-    if (!back) { const cheekWeight = g(Math.abs(u), 0.57, 0.24) * g(y, -0.29, 0.22) * (1 - dmath.pow(Math.abs(u), 8)); const amount = (f.cheekVolume ?? 1) - 1; x += Math.sign(u) * 0.18 * amount * cheekWeight; z -= 0.25 * amount * cheekWeight; }
+    if (!back) { const cheekWeight = g(Math.abs(u), 0.57, 0.24) * g(yk, -0.29, 0.22) * (1 - dmath.pow(Math.abs(u), 8)); const amount = (f.cheekVolume ?? 1) - 1; x += Math.sign(u) * 0.18 * amount * cheekWeight; z -= 0.25 * amount * cheekWeight; }
     // Soft cheek below the malar area, lateral to the mouth; leaves the centerline and seam fixed.
-    if (!back) { const weight = g(Math.abs(u), 0.64, 0.23) * g(y, -0.56, 0.17) * (1 - dmath.pow(Math.abs(u), 8)); const amount = (f.lowerCheekVolume ?? 1) - 1; x += Math.sign(u) * 0.20 * amount * weight; z -= 0.28 * amount * weight; }
+    if (!back) { const weight = g(Math.abs(u), 0.64, 0.23) * g(yk, -0.56, 0.17) * (1 - dmath.pow(Math.abs(u), 8)); const amount = (f.lowerCheekVolume ?? 1) - 1; x += Math.sign(u) * 0.20 * amount * weight; z -= 0.28 * amount * weight; }
     // Chin projection blends through the whole lower ring; the rear rises into the jaw corner.
     z -= 0.18 * ((f.chinProjection ?? 1) - 1) * g(y, -0.91, 0.18);
     const lower = clamp((-0.30 - y) / 0.72), rearWeight = back ? 0.65 + 0.35 * arc : 0.65 * dmath.pow(Math.abs(u), 1.5);
-    const lift = 0.20 * dmath.sin(Math.PI * lower) * rearWeight * (f.jawAngle ?? 1);
+    // (sculpt `napeLift`: the back of the head's underside, behind the jaw, raised, so the line from the jaw's corner runs
+    // up behind the ear into the back of the skull instead of a ledge to the nape; the back only, faded to nothing at the
+    // side seam where it meets the face, the jaw left as it is)
+    const lift = 0.20 * dmath.sin(Math.PI * lower) * rearWeight * (f.jawAngle ?? 1) + (back && S?.napeLift ? S.napeLift * dmath.sin(Math.PI * lower) * rearWeight * arc : 0);
     // Local jaw-corner depth, with no displacement at the chin or upper skull.
     const jawWeight = y > -0.90 && y < -0.30 ? dmath.sin(Math.PI * (y + 0.90) / 0.60) ** 2 : 0;
     const jawAmount = (f.jawDepth ?? 1) - 1;
     // Broaden and deepen the rear jaw together rather than merely translating its corner.
     z += 0.70 * jawAmount * jawWeight * rearWeight;
     x *= 1 + 0.45 * jawAmount * jawWeight * rearWeight;
+    // jawHollow { depth }: the lower face's side curved IN toward the jaw's edge, so it turns down and away from a side
+    // light instead of rounding out into it: below the cheekbone (`apex`) the head narrows toward the middle, gently at
+    // first and more toward the jaw's edge (`edge`, eased by `curve`), the underside with it (front and back alike, so the
+    // edge turns under with no lip); every point by its own distance from the middle, so the centre line, the chin's
+    // point and the mouth's middle keep their place and no groove is cut beside the chin
+    if (S?.jawHollow && y < JAW.apex) x *= 1 - (S.jawHollow.depth / JAW.span) * dmath.pow(clamp((JAW.apex - y) / (JAW.apex - JAW.edge)), JAW.curve);
     // Positive chin height lengthens the lower chin, fading out before the mouth.
     const chinWeight = clamp((-0.66 - y) / 0.36);
     const chinLift = -0.40 * ((f.chinHeight ?? 1) - 1) * chinWeight * chinWeight;
-    return [x, fy(y) + lift + chinLift, z];
+    // jawLine (sculpt, a share): THE JAW'S LINE SQUARED. In profile the jaw's edge runs back from the chin nearly level to
+    // a corner set low under the ear, then straight up to the ear, and nothing hangs below it: the side seam drawn back
+    // toward the ramus (JAW_LINE.seam, by the column's nearness to the seam, so the middle of the face and the throat keep
+    // their place), the jaw corner's lift taken off the sides (each point narrowed, the front's V kept), and the
+    // underside behind the chin raised onto the line from the chin's bottom up to the corner (a smooth max, so a point
+    // already above the line keeps its place). Absent at 0
+    let jaw = 0;
+    if (S?.jawLine) {
+      const J = JAW_LINE, k = S.jawLine, ws = 1 - arc;
+      z += k * (profile(y, J.seam) - seam) * ws;
+      // (a side point taken down is narrowed as the row `narrow` times as far below it, so from the front the jaw keeps
+      // the V the lift gave it and its lower rim does not flare out)
+      const drop = k * 0.20 * dmath.sin(Math.PI * lower) * rearWeight * (f.jawAngle ?? 1) * ws;
+      jaw -= drop; x *= width(y - J.narrow * drop / f.lower) / width(y);
+      // (the underside raised onto the line, and the face's side with it only at the seam, the same from front and back
+      // there so the two still meet and the jaw's edge itself lies on the line, no lip left below it)
+      const onLine = back ? 1 : 1 - smoother(clamp(arc / J.seamEase));
+      // (the KEEL under the chin, its bottom rows, narrow, merged into the floor beside it: behind the chin each row below
+      // `top` widened to that row's width, so the keel and the two walls up from it curve into one; then the whole floor
+      // shrunk in toward the middle by `shrink`, the rows from `from` down, the chin and the jaw's edge (the seam) kept)
+      if (back) {
+        const M = J.merge, zc0 = J.seam[0][1] - 0.18 * ((f.chinProjection ?? 1) - 1) * g(-1.02, -0.91, 0.18), behind = k * smoother(clamp((z - zc0) / M.reach)) * smoother(clamp(arc / J.seamEase));
+        if (y < M.top) x *= 1 + behind * (width(M.top) / width(y) - 1) * smoother(clamp((M.top - y) / M.ease));
+        x *= 1 - behind * M.shrink * smoother(clamp((M.from - y) / M.fade));
+      }
+      if (onLine > 0 && lower > 0) {
+        const yc = fy(-1.02) - 0.40 * ((f.chinHeight ?? 1) - 1), zc = J.seam[0][1] - 0.18 * ((f.chinProjection ?? 1) - 1) * g(-1.02, -0.91, 0.18);
+        const L = yc + J.rise * clamp((z - zc) / (J.corner - zc)), Y = fy(y) + lift + chinLift + jaw, h = Math.max(J.soft - Math.abs(Y - L), 0) / J.soft;
+        jaw += k * (Math.max(Y, L) + h * h * J.soft / 4 - Y) * smoother(clamp(lower / J.ease)) * onLine * smoother(clamp((z - zc) / J.chinEase));
+      }
+    }
+    return [x, fy(y) + lift + chinLift + jaw, z];
   }
   // the NOSE DIALS (`nose`, anime-nose.js): the face's front drawn to a target side profile, the nose a wedge on it;
   // absent, the studio's surface
   // (the jaw rises to under the ear's lobe: the ear ellipsoid below, its centre and radii)
-  const EAR_C = [S?.ear ? fy(-0.24) + S.ear.lift : fy(-0.24), 0.045], EAR_R = [0.205, 0.14];
+  const EAR_C = [S?.ear ? fy(-0.24) + S.ear.lift : fy(-0.24), 0.045 + (S?.ear?.back ?? 0)], EAR_R = [0.205, 0.14];
   const ND = options.nose ? noseDial(surface0, options.nose, { anchorAt: (u, y) => surface0(u, y, false, false), widthAt: (y) => surface0(1, y)[0], pitch: (6 + 12 * ((f.headPitch ?? 1) - 1)) * Math.PI / 180, ear: { Y: EAR_C[0] - 0.8 * EAR_R[0], zFront: EAR_C[1] - EAR_R[1], zBack: EAR_C[1] + EAR_R[1] } }) : null;
   // (the dials move the face back and lift the head's underside; every point's studio place is kept, so the head is
   // registered by the studio's extent and the dials never rescale it: `nose.floorY`)
@@ -221,7 +347,10 @@ export function buildAnime(r, options = {}) {
   // (an added ROW closer than `gap` to one kept is dropped: the strip between two near rows runs the whole face's width,
   // folds its normals and inks as a crease line across the eyes and the cheeks; the wedge's columns stay, as they are)
   const merge = (a, extra, lo, hi, gap = 0) => { const out = [...new Set(a)]; for (const v of extra.filter((x) => x > lo && x < hi).map((x) => Math.round(x * 1e4) / 1e4)) if (out.every((w) => (gap ? Math.abs(w - v) >= gap : w !== v))) out.push(v); return out.sort((p, q) => p - q); };
-  const xs = ND ? merge(xs1, ND.cols, -1, 1) : xs1, ys = ND ? merge(ys1, ND.rows, ys1[0], ys1.at(-1), 0.012) : ys1;
+  const xs = ND ? merge(xs1, ND.cols, -1, 1) : xs1, ys2 = ND ? merge(ys1, ND.rows, ys1[0], ys1.at(-1), 0.012) : ys1;
+  // the pyramid nose's rows (PYRAMID.rows, between the eyes' and the mouth's openings): a row halfway in each gap wider
+  // than `rowGap`, so its bridge, its tip and the underside cut back to the lip are drawn by rows, not by one edge
+  const ys = S?.nose?.shape === 'pyramid' && !options.coarse ? (() => { const P = PYRAMID, out = [...ys2]; for (let k = 0; k < ys2.length - 1; k++) { const lo = ys2[k], hi = ys2[k + 1]; if (lo >= P.rows[0] && hi <= P.rows[1] && hi - lo > P.rowGap) out.push(Math.round((lo + hi) / 2 * 1e4) / 1e4); } return out.sort((p, q) => p - q); })() : ys2;
   // mouthWidth past the studio's aperture: the mouth box widens to the first lattice column that clears the smiling line
   const MB = S?.mouthWidth > 1 ? xs0.find((x) => x >= 0.175 * S.mouthWidth * 1.12 + 0.04) ?? 0.8 : null;
   const holes = [{ kind: 'eye', side: -1, x0: -0.8, x1: -0.12, y0: -0.22, y1: 0.32 }, { kind: 'eye', side: 1, x0: 0.12, x1: 0.8, y0: -0.22, y1: 0.32 }, { kind: 'mouth', side: 0, x0: MB ? -MB : -0.26, x1: MB ? MB : 0.26, y0: -0.66, y1: -0.40 }];
@@ -239,6 +368,16 @@ export function buildAnime(r, options = {}) {
     const center = side * 0.455 * f.spacing, co = dmath.cos(t), si = dmath.sin(t), u = center + 0.285 * f.eyeWidth * co * scale, blink = Math.max(0.015, 1 - e.blink), yy = EYE_Y + (si >= 0 ? 0.155 : 0.108) * f.eyeHeight * si * scale * blink + f.tilt * (Math.abs(u) - Math.abs(center)); return [u, yy];
   }
   function mouthUV(t, scale = 1) {
+    // the drawing's mouth (anime-drawings.js): the lips opened apart (`up`, `down`, the studio's `open` per lip), the
+    // width (`wide`), the corners lifted or dropped (`corner`, the smile's own term), the opening squared (`box`), the
+    // cat's ω (`omega`) and the flustered wave (`wave`); every term scales with `scale`, so the fan's centre stays put
+    if (D?.mouth) {
+      const M = D.mouth, co = dmath.cos(t), si = dmath.sin(t), b = M.box ?? 0, up = M.up ?? e.open, dn = M.down ?? e.open;
+      const sx = b ? Math.sign(co) * dmath.pow(Math.abs(co), 1 - 0.5 * b) : co, sy = b ? Math.sign(si) * dmath.pow(Math.abs(si), 1 - 0.7 * b) : si;
+      const u = 0.175 * (S?.mouthWidth ?? 1) * (1 + 0.12 * e.smile) * (M.wide ?? 1) * sx * scale;
+      const y = (S?.stomion ?? -0.535) + 0.035 * (e.smile + (M.corner ?? 0)) * co * co * scale + 0.012 * (M.omega ?? 0) * dmath.cos(2 * Math.PI * co) * scale + 0.01 * (M.wave ?? 0) * dmath.sin(3 * Math.PI * co) * scale + (sy > 0 ? 0.055 * up : 0.11 * dn) * sy * scale + 0.007 * si * scale;
+      return [u, y];
+    }
     // stomion (the lip line) and mouthWidth (a ratio of the studio's)
     if (S?.stomion !== undefined || S?.mouthWidth !== undefined) { const co = dmath.cos(t), si = dmath.sin(t), u = 0.175 * (S.mouthWidth ?? 1) * (1 + 0.12 * e.smile) * co * scale, y = (S.stomion ?? -0.535) + 0.035 * e.smile * co * co * scale + (si > 0 ? 0.055 : 0.11) * e.open * si * scale + 0.007 * si * scale; return [u, y]; }
     const co = dmath.cos(t), si = dmath.sin(t), u = 0.175 * (1 + 0.12 * e.smile) * co * scale, y = -0.535 + 0.035 * e.smile * co * co * scale + (si > 0 ? 0.055 : 0.11) * e.open * si * scale + 0.007 * si * scale; return [u, y];
@@ -248,8 +387,13 @@ export function buildAnime(r, options = {}) {
     // (the full lattice's points, so a thinned painted lattice keeps the features' own outline sampling)
     const outer = [...xs0.filter((x) => x >= x0 && x < x1).map((x) => [x, y0]), ...ys0.filter((y) => y >= y0 && y < y1).map((y) => [x1, y]), ...xs0.filter((x) => x > x0 && x <= x1).reverse().map((x) => [x, y1]), ...ys0.filter((y) => y > y0 && y <= y1).reverse().map((y) => [x0, y])];
     const ts = outer.map(([u, y]) => dmath.atan2((y - (y0 + y1) / 2) / ((y1 - y0) / 2), (u - (x0 + x1) / 2) / ((x1 - x0) / 2))), uv = (t) => (hole.kind === 'eye' ? eyeUV(side, t) : mouthUV(t)), inner = ts.map(uv), rings = [];
-    for (let k = 0; k <= 3; k++) { const t = k / 3; rings.push(outer.map((p, i) => { const u = mix(inner[i][0], p[0], t), y = mix(inner[i][1], p[1], t), v = surface(u, y); v[2] -= 0.009 * dmath.sin(Math.PI * t); return v; })); }
-    if (!options.paint) for (let k = 0; k < 3; k++) for (let i = 0; i < outer.length; i++) quad('skin', rings[k][i], rings[k + 1][i], rings[k + 1][(i + 1) % outer.length], rings[k][(i + 1) % outer.length], true);
+    // (the rings from the outline out to the hole's box: three, the studio's, raised a little between the two (round the
+    // mouth that raise is the lips' rim, flattened by sculpt `flatLips`, so the mouth reads drawn on the face); an eye in a
+    // socket (`orbit`) takes ORBIT.rings on the surface itself, so the skin follows the socket's curve, no chord stands in
+    // front of the brow block or the lid band laid on it, and no raised frame rims the box)
+    const RK = hole.kind === 'eye' && S?.orbit ? ORBIT.rings : 3;
+    for (let k = 0; k <= RK; k++) { const t = k / RK; rings.push(outer.map((p, i) => { const u = mix(inner[i][0], p[0], t), y = mix(inner[i][1], p[1], t), v = surface(u, y); if (RK === 3) v[2] -= (hole.kind === 'mouth' && S?.flatLips ? 1 - S.flatLips : 1) * 0.009 * dmath.sin(Math.PI * t); return v; })); }
+    if (!options.paint) for (let k = 0; k < RK; k++) for (let i = 0; i < outer.length; i++) quad('skin', rings[k][i], rings[k + 1][i], rings[k + 1][(i + 1) % outer.length], rings[k][(i + 1) % outer.length], true);
     const centerUV = hole.kind === 'eye' ? eyeUV(side, 0, 0) : mouthUV(0, 0), center = surface(...centerUV); center[2] += hole.kind === 'eye' ? -0.025 : 0.035;
     for (let i = 0; i < outer.length; i++) {
       const n = (i + 1) % outer.length;
@@ -277,7 +421,7 @@ export function buildAnime(r, options = {}) {
       for (const upper of S?.lidWeight !== undefined ? [false] : [true, false]) { const N = 32; for (let i = 0; i < N; i++) { const t0 = (upper ? 0 : Math.PI) + i * Math.PI / N, t1 = (upper ? 0 : Math.PI) + (i + 1) * Math.PI / N; const rim = (t) => { const [u, y] = eyeUV(side, t), p = surface(u, y); p[2] -= 0.01; const thick = (upper ? 0.020 : S?.lowerRim !== undefined ? 0.006 * S.lowerRim : 0.006) * dmath.pow(Math.max(0.05, dmath.sin(t) * (upper ? 1 : -1)), 0.4); return [p, add(p, [0, thick * (upper ? 1 : -1), -0.002])]; }; quad('ink', ...rim(t0), ...rim(t1).reverse()); } }
       if (S?.lidWeight !== undefined) lidBand(side, centerU, cy, blink);
       // Brow ribbon follows the face and can tilt independently from eyelids. (brow: the brow block replaces it)
-      if (S?.brow) browBlock(side, centerU, cy);
+      if (S?.brow) browBlock(side);
       else for (let i = 0; i < 16; i++) { const point = (t, top) => { const u = centerU + (t - 0.5) * 0.46 * f.eyeWidth, y = 0.37 + 0.035 * dmath.sin(t * Math.PI) + e.brow * side * (t - 0.5) * 0.12; const p = surface(u, y + (top ? 0.018 : 0)); p[2] -= 0.014; return p; }; quad('ink', point(i / 16, 0), point((i + 1) / 16, 0), point((i + 1) / 16, 1), point(i / 16, 1)); }
     }
   }
@@ -299,7 +443,9 @@ export function buildAnime(r, options = {}) {
   // that boundary, so the lid cut is exact at any ring count and the grid is the same at every expression (a point
   // outside the opening, and every point once the lids shut, is set back behind the lid: constant topology)
   function graphicLenses(side, centerU, cy, blink, eyePoint) {
-    const up = EYE.bUp * EYE.Yup(0), dn = EYE.bDn * EYE.Ydn(0), shut = e.blink >= 0.985;
+    // (sized by the studio's lids, `Yup0` and `Ydn0`: a drawing's lid shape covers more or less of the same lens, never
+    // resizes it)
+    const up = EYE.bUp * EYE.Yup0(0), dn = EYE.bDn * EYE.Ydn0(0), shut = e.blink >= 0.985;
     const Ry = (S.irisSpan ?? 1) * (up + dn) / (2 * (1 - S.lidCover)), Rx = Ry * (0.13 / 0.138) * (S.irisOval ?? 1), cI = up - Ry * (1 - 2 * S.lidCover);
     const at = (dx, dy) => eyePoint(centerU + dx, cy + dy + f.tilt * (Math.abs(centerU + dx) - Math.abs(centerU)));
     function disc(part, rx, ry, ox, oy, fwd, seg, rings) {
@@ -312,6 +458,15 @@ export function buildAnime(r, options = {}) {
         return p;
       }));
       for (let j = 0; j < rings; j++) for (let i = 0; i < seg; i++) quad(part, G[j][i], G[j + 1][i], G[j + 1][(i + 1) % seg], G[j][(i + 1) % seg]);
+    }
+    // the drawing's gaze: the lenses slid together (both eyes the same way, not mirrored), `x` of GAZE.x of the eye's
+    // half-width and `y` of GAZE.y of its half-height, clipped by the lids as any lens; `pupil` scales the pupil
+    if (D?.gaze || D?.pupil !== undefined) {
+      const gx = (D.gaze?.x ?? 0) * GAZE.x * EYE.a, gy = (D.gaze?.y ?? 0) * GAZE.y * (up + dn) / 2, P = (S.pupil ?? 0.31) * (D.pupil ?? 1);
+      disc('iris', Rx, Ry, gx, cI + gy, 0, LENS.seg, LENS.rings);
+      disc('pupil', Rx * P, Ry * P, gx, cI + gy, 0.002, LENS.seg, LENS.rings);
+      if (S.catchlight) { const C = S.catchlight; disc('catch', C.r * Rx, C.r * Rx * 1.1, C.at[0] * Rx + gx, cI + gy + C.at[1] * Ry, 0.0035, 16, 1); }
+      return;
     }
     disc('iris', Rx, Ry, 0, cI, 0, LENS.seg, LENS.rings);
     disc('pupil', Rx * (S.pupil ?? 0.31), Ry * (S.pupil ?? 0.31), 0, cI, 0.002, LENS.seg, LENS.rings);
@@ -343,11 +498,45 @@ export function buildAnime(r, options = {}) {
   // the brow as a block: its bottom `gap` of the opening above the lid's top, the inner end down `angle`°, `thick` of the
   // opening at its widest; 'block' blunt at the inner end and thinning outward, 'taper' pointed at both ends; an arch.
   // The thickness is vertical (a band normal would lean it on the angle)
-  function browBlock(side, centerU, cy) {
+  // `rest`: the brow as it sits at rest (no drawing, no expression, no shut), the socket's reference
+  function browLine(side, rest = false) {
+    const centerU = side * 0.455 * f.spacing, cy = EYE_Y, eBrow = rest ? 0 : e.brow;
     // shutLift: shutting (as the lid band's lidShut) the brow relaxes up by `shutLift` of the opening
-    const B = S.brow, shutQ = B.shutLift ? clamp((e.blink - 0.7) / 0.3) : 0, shutK = shutQ * shutQ * (3 - 2 * shutQ), a = EYE.a, WK = 0.76, openP = EYE.bUp + EYE.bDn, NW = 24, bot = [], bt = [], yb = B.shutLift ? cy + EYE.bUp + (B.gap + B.shutLift * shutK) * openP : cy + EYE.bUp + B.gap * openP, tan = dmath.tan(B.angle * Math.PI / 180);
+    const B = S.brow, shutQ = B.shutLift && !rest ? clamp((e.blink - 0.7) / 0.3) : 0, shutK = shutQ * shutQ * (3 - 2 * shutQ), a = EYE.a, WK = 0.76, openP = EYE.bUp + EYE.bDn, NW = 24, bot = [], bt = [], yb = B.shutLift ? cy + EYE.bUp + (B.gap + B.shutLift * shutK) * openP : cy + EYE.bUp + B.gap * openP, tan = dmath.tan(B.angle * Math.PI / 180);
     const prof = (s) => (B.shape === 'block' ? (s < 0.2 ? 0.75 + 1.25 * s : 1 - (1 - (B.tip ?? 0.35)) * dmath.pow((s - 0.2) / 0.8, 1.4)) : dmath.pow(dmath.sin(Math.PI * (0.06 + 0.88 * s)), 0.7) * (1 - 0.35 * s));
-    for (let i = 0; i <= NW; i++) { const s = i / NW, lu = -B.inner + s * (B.inner + B.outer), u = centerU + side * lu * a; bot.push([u, yb + lu * a * WK * tan + (B.arch ?? 0) * dmath.sin(Math.PI * s) + e.brow * (s - 0.5) * 0.12]); bt.push(B.thick * openP * prof(s)); }
+    for (let i = 0; i <= NW; i++) { const s = i / NW, lu = -B.inner + s * (B.inner + B.outer), u = centerU + side * lu * a; bot.push([u, yb + lu * a * WK * tan + (B.arch ?? 0) * dmath.sin(Math.PI * s) + eBrow * (s - 0.5) * 0.12]); bt.push(B.thick * openP * prof(s)); }
+    // the drawing's brow: the whole brow raised (`lift`, of the opening), its inner end raised (`inner`: worried) or drawn
+    // down and in toward the nose (`knit`: angry), easing to nothing at the outer end
+    if (D?.brow && !rest) {
+      const W = D.brow;
+      bot.forEach((p, i) => { const s = i / NW, k = dmath.pow(1 - s, 1.5); p[0] -= side * BROW.knitIn * (W.knit ?? 0) * a * k; p[1] += (BROW.lift * (W.lift ?? 0) + (BROW.inner * (W.inner ?? 0) - BROW.knit * (W.knit ?? 0)) * k) * openP; });
+    }
+    // the drawing's socket that slides the skull's mass over the eye (`socket.rise`, anime-sockets.js): the brow rides it,
+    // brought down onto the eye in a squint (or up), so the orbit squeezes at the brow too; the rim follows the brow
+    const RISE = !rest && D?.socket?.rise ? D.socket.rise : 0;
+    if (RISE) for (const p of bot) p[1] += RISE;
+    // THE BROW NEVER COVERS THE EYE (sculpt `browClear`, of the opening): over the eye its bottom is held that far above
+    // the top of the lash band as the widest lid any drawing draws would set it (LID.wide: so a lid's drawing never moves
+    // the brow, and the layers still add), eased by a smooth max so the brow bends rather than kinks; past the eye's
+    // corners it is free. A drawing whose socket slides the brow (`socket.rise`: the squint) holds it above its own lid
+    // instead, as drawn: that brow moves with the eye by design, and the rig's correctives keep the layers' sum exact
+    const floor = [];
+    {
+      const [r0, rSpan] = S.lidRamp ?? [0.3, 0.45], lw = (S.lidWeight ?? 0) * openP, k = BROW.clearEase * openP;
+      // (a drawing whose socket slides the brow, `socket.rise`, clears the lid as it draws it: its brow is meant to move
+      // with the eye, and never covers it)
+      const E0 = RISE ? EYE : EYE0, wide = RISE ? 0 : LID.wide;
+      const top = (lat) => { const m = Math.min(1, (lat + 1) / rSpan), u = centerU + a * lat * side; return cy + E0.bUp * E0.Yup(lat) * (1 + wide) + f.tilt * (Math.abs(u) - Math.abs(centerU)) + lw * (r0 + (1 - r0) * m * m * (3 - 2 * m)); };
+      const smax = (p, q) => { const h = clamp(0.5 + 0.5 * (p - q) / k); return q + (p - q) * h + k * h * (1 - h); };
+      // (the band leans toward the lateral canthus, so its top over a column is drawn from a little either side of it: the
+      // highest within BROW.clearReach, held a little past the corners)
+      const R = BROW.clearReach, over = (lat) => Math.max(...[-R, 0, R].map((d) => top(clamp((lat + d + 1) / 2) * 2 - 1)));
+      for (const p of bot) { const lat = (p[0] - centerU) / (a * side); floor.push(over(lat)); if (S.browClear && Math.abs(lat) <= 1 + R) p[1] = smax(p[1], over(lat) + S.browClear * openP); }
+    }
+    return { bot, bt, floor };
+  }
+  function browBlock(side) {
+    const B = S.brow, { bot, bt } = browLine(side), NW = bot.length - 1;
     const G = bot.map(([u, y], i) => [0, 1].map((r) => { const p = surface(u, y + r * bt[i]); p[2] -= B.push ?? 0.016; return p; }));
     for (let i = 0; i < NW; i++) quad('brow', G[i][0], G[i + 1][0], G[i + 1][1], G[i][1]);
   }
@@ -356,7 +545,7 @@ export function buildAnime(r, options = {}) {
   function ellipsoid(part, c, rad) { const N = 24, M = 16, pt = (i, j) => { const t = 2 * Math.PI * i / N, a = Math.PI * j / M; return [c[0] + rad[0] * dmath.sin(a) * dmath.cos(t), c[1] + rad[1] * dmath.cos(a), c[2] + rad[2] * dmath.sin(a) * dmath.sin(t)]; }; for (let j = 0; j < M; j++) for (let i = 0; i < N; i++) quad(part, pt(i, j), pt(i + 1, j), pt(i + 1, j + 1), pt(i, j + 1)); }
   const earsStart = parts.skin.length;
   // ear { lift }: the ear raised `lift` (construction units), so it spans the eye level to the nose tip
-  for (const side of [-1, 1]) { ellipsoid('skin', [side * 0.77 * f.width, S?.ear ? fy(-0.24) + S.ear.lift : fy(-0.24), 0.045], [0.10, 0.205, 0.14]); }
+  for (const side of [-1, 1]) { ellipsoid('skin', [side * 0.77 * f.width, S?.ear ? fy(-0.24) + S.ear.lift : fy(-0.24), 0.045 + (S?.ear?.back ?? 0)], [0.10, 0.205, 0.14]); }
   // Upper neck overlaps inside the jaw/skull instead of ending below the head.
   // Separate front/back extent gives the throat and nape a continuous supporting volume.
   const neckStart = parts.skin.length;
@@ -769,10 +958,16 @@ export function sculptOf(sculpt) {
  * +1 lateral canthus), Y = (1 − |x'|^m)^p with the peak moved to lat k (m 2, p 0.5, k 0 is the studio's ellipse), and the
  * normalised radius of any eye-local point (1 on the outline) from a polar table — ONE outline shared by the aperture,
  * the sclera dish, the iris clip and the lid band. `h` scales the opening's height, `hDn` the lower lid's share. */
-function eyeShapeOf(S, f) {
+function eyeShapeOf(S, f, L = null) {
   const F = S.fissure || {}, a = 0.285 * f.eyeWidth, bUp = 0.155 * f.eyeHeight * (F.h ?? 1), bDn = 0.108 * f.eyeHeight * (F.h ?? 1) * (F.hDn ?? 1);
   const shape = ({ m = 2, p = 0.5, k = 0 } = {}) => (lat) => { const x = lat >= k ? (lat - k) / (1 - k) : (lat - k) / (1 + k); return dmath.pow(Math.max(0, 1 - dmath.pow(Math.min(1, Math.abs(x)), m)), p); };
-  const Yup = shape(F.upper), Ydn = shape(F.lower);
+  // `L` the drawing's lid (anime-drawings.js): the upper lid lowered at its medial end (`inner`: angry) or its lateral
+  // end (`outer`: sad), lowered whole (`low`: a squint) or raised whole (`wide`: surprise), never below LID.floor of the
+  // studio's; the lower lid raised whole (`lower`: a squint) or most at its middle (`smile`: the smiling eye's half-moon,
+  // its line flattened toward the corners'), never above LID.lowFloor of the studio's
+  const Yup0 = shape(F.upper), Ydn0 = shape(F.lower);
+  const Yup = L ? (lat) => Yup0(lat) * Math.max(LID.floor, 1 + (L.wide ?? 0) - (L.low ?? 0) - (L.inner ?? 0) * dmath.pow((1 - lat) / 2, LID.ease) - (L.outer ?? 0) * dmath.pow((1 + lat) / 2, LID.ease)) : Yup0;
+  const Ydn = L && (L.lower || L.smile) ? (lat) => Ydn0(lat) * Math.max(LID.lowFloor, 1 - (L.lower ?? 0) - (L.smile ?? 0) * dmath.pow(Math.max(0, 1 - lat * lat), LID.arc)) : Ydn0;
   const N = 720, tab = [];
   for (let i = 0; i <= N; i++) { const lat = 1 - 2 * i / N, Y = Yup(lat); tab.push([dmath.atan2(Y, lat), dmath.hypot(lat, Y)]); }
   for (let i = 1; i < N; i++) { const lat = -1 + 2 * i / N, Y = Ydn(lat); tab.push([dmath.atan2(-Y, lat), dmath.hypot(lat, Y)]); }
@@ -784,7 +979,82 @@ function eyeShapeOf(S, f) {
     const A = tab[lo], B = tab[hi]; return A[1] + (B[1] - A[1]) * (th - A[0]) / ((B[0] - A[0]) || 1);
   };
   const norm = (side, du, dy, blink = 1) => { const xn = du / a, yn = dy / ((dy >= 0 ? bUp : bDn) * blink); if (xn === 0 && yn === 0) return 0; return dmath.hypot(xn, yn) / rho(dmath.atan2(yn, xn * side)); };
-  return { a, bUp, bDn, Yup, Ydn, norm };
+  return { a, bUp, bDn, Yup, Yup0, Ydn, Ydn0, norm };
+}
+
+/** the 7G drawing's terms (anime-drawings.js names them): the gaze's reach (of the eye's half-width and half-height), the
+ * brow's moves (of the opening; `knitIn` of the eye's half-width) and the lid's (its floor, its ease along the lid) */
+/** the orbit's planes (studio units, sculpt `orbit`): across, the nose's side wall from the bridge's edge (`bridge`, |u|)
+ * over `medial` to the socket's floor, easing out to the temple (`lateral`: its start and ease); up, the apex `apex` over
+ * the eye level, the brow's plane `up` above it and the cheek's `down` below, reaching `noseDrop` further down along the
+ * nose (fading over `noseReach` out from the bridge); each run filleted at `fillet` of it; the rings an eye in a socket is
+ * built with, from its outline out to its hole's box */
+export const ORBIT = Object.freeze({ bridge: 0.035, medial: 0.17, lateral: [0.64, 0.2], apex: 0.02, up: 0.2, upMin: 0.08, down: 0.24, noseDrop: 0.14, noseReach: 0.3, fillet: 0.2, rings: 8 });
+/** the jaw's curve in (sculpt `jawHollow`, studio units): the head narrowed below `apex` (under the cheekbone) to its
+ * fullest at `edge` (the jaw's edge) and on through the underside, by `t^curve` along the way (no crease where it
+ * starts); its depth is the narrowing at a half-width of `span` (so a share of `depth / span` of every point's distance
+ * from the middle) */
+export const JAW = Object.freeze({ apex: -0.5, edge: -0.95, curve: 1.6, span: 0.5 });
+/** the jaw's line squared (sculpt `jawLine`, studio units): the side seam's target profile [y, z] (the chin's point, back
+ * to the corner by `corner`'s depth and straight up from it), the corner's rise over the chin's bottom (`rise`), the smooth
+ * max's width (`soft`), the underside's ease in from the head's middle (`ease`, of the lower ring) and the face's side's
+ * share of the raise, whole at the seam and gone `seamEase` of the front's arc from it; the raise eased in over `chinEase`
+ * behind the chin, so the chin's own underside keeps its curve; a side point the corner's lift no longer raises narrowed
+ * as the row `narrow` times as far below it; the keel under the chin merged into the floor beside it and the floor
+ * shrunk in (`merge`: the rows below `top` widened to it over `ease`, from the chin back over `reach`; the floor narrowed
+ * by `shrink` from `from` down over `fade`) */
+export const JAW_LINE = Object.freeze({ seam: [[-1.02, -0.43], [-0.90, -0.30], [-0.78, -0.08], [-0.66, 0.04], [-0.30, 0.06], [1.19, 0.06]], corner: 0.02, rise: 0.13, soft: 0.03, ease: 0.3, seamEase: 0.3, chinEase: 0.15, narrow: 2, merge: { top: -0.9, reach: 0.25, ease: 0.06, shrink: 0.45, from: -0.7, fade: 0.2 } });
+/** the pyramid nose (sculpt `noseShape: 'pyramid'`, studio units): its ROOT at the eye's level, where the lids meet (so
+ * the centre line's "<" — the brow, back to the root, out to the tip — keeps step with the socket's), or raised toward
+ * the brow (sculpt `bridgeRoot`, its dip shallower as it rises, flat at `rootUpFlat`, and its bridge standing higher by
+ * `rootBridge` of it there, so a bridge from the brow carries itself), set back there by `nasion` (easing
+ * out `nasionUp` above to the brow and `nasionDown` below), the bridge raised `bridge` × the dorsum word at the root
+ * (faded in over `root` above it) and rising to the tip, `tip` × the tip word, its line hollowed by `curve` (1 straight)
+ * so the tip turns up, the tip's point `lift` above the pronasale and the underside cut back from it to the lip over
+ * `under` (the tip points up: the profile reads by it); across, a ridge between two flat side planes, `rootWidth` wide at
+ * the root widening to `tipWidth` at the tip (the root's dip `nasionWidth` wide); every run filleted as the socket's
+ * (`fillet`). Its face is drawn with a row halfway in each gap wider than `rowGap` within `rows` (between the eyes' and
+ * the mouth's openings), so the tip and its underside are rows, not one edge */
+export const PYRAMID = Object.freeze({ bridge: 0.02, tip: 0.38, lift: 0.035, curve: 1.7, root: 0.06, under: 0.11, rootWidth: 0.06, tipWidth: 0.1, nasion: 0.015, nasionUp: 0.12, nasionDown: 0.1, nasionWidth: 0.1, rootUpFlat: 0.2, rootBridge: 0.76, rows: [-0.4, -0.22], rowGap: 0.04 });
+function pyramidNose(N, x, y, rootY) {
+  // (`N.rootUp`, sculpt `bridgeRoot`: the root raised toward the brow, so the bridge starts between the brows and runs
+  // nearly straight from there to the tip; its dip shallower and its bridge higher by as much)
+  rootY += N.rootUp ?? 0;
+  const P = PYRAMID, up = clamp((N.rootUp ?? 0) / P.rootUpFlat), B0 = N.dorsum * P.bridge * (1 + P.rootBridge * up), T = N.tip * P.tip, yt = N.pronasale + (P.lift ?? 0), cv = P.curve ?? 1, nasion = P.nasion * (1 - up);
+  let proj, hw;
+  if (y >= rootY) { proj = B0 * fillet(1 - (y - rootY) / P.root); hw = P.rootWidth; }
+  else if (y >= yt) { const s = (rootY - y) / (rootY - yt); proj = B0 + (T - B0) * (cv === 1 ? s : dmath.pow(s, cv)); hw = P.rootWidth + (P.tipWidth - P.rootWidth) * s; }
+  else { proj = T * fillet(1 - (yt - y) / P.under); hw = P.tipWidth; }
+  const dip = nasion * fillet(1 - (y >= rootY ? (y - rootY) / P.nasionUp : (rootY - y) / P.nasionDown)) * fillet(1 - Math.abs(x) / P.nasionWidth);
+  return proj * fillet(1 - Math.abs(x) / hw) - dip;
+}
+/** a straight run on [0, 1] with its ends filleted (`ORBIT.fillet` of it, parabolic, C1): flat planes, no point */
+const fillet = (t) => { const x = clamp(t), k = ORBIT.fillet; return (x < k ? (x * x) / (2 * k) : x <= 1 - k ? x - k / 2 : 1 - k - ((1 - x) * (1 - x)) / (2 * k)) / (1 - k); };
+/** smootherstep on [0, 1] (C2 at both ends: the socket's edges ease in without a crease) */
+const smoother = (t) => { const x = clamp(t); return x * x * x * (x * (6 * x - 15) + 10); };
+export const GAZE = Object.freeze({ x: 0.3, y: 0.25 });
+export const BROW = Object.freeze({ lift: 0.6, inner: 0.9, knit: 0.9, knitIn: 0.12, clearEase: 0.3, clearReach: 0.2, warpEase: 0.03 });
+/** the drawing's socket (anime-sockets.js): its least ease in over the lash band's top, how far above the brow's middle it
+ * reaches, and the ease out above that; the cheek's ease in under the eye's lower outline, its reach down, its ease out,
+ * and the share of the eye's half-width it fades over toward the corners */
+/** the drawing's skull (anime-sockets.js `rise`): how high the brow's mass slides through the forehead and its ease out,
+ * and the side fade (from |u|, over) that leaves the side seam where it is */
+export const SKULL = Object.freeze({ top: 0.55, fade: 0.35, side: [0.7, 0.22] });
+export const SOCKET = Object.freeze({ ease: 0.004, reach: 0.06, fade: 0.14, cheekEase: 0.03, cheekReach: 0.12, cheekFade: 0.12, cheekSpan: 0.5 });
+export const LID = Object.freeze({ floor: 0.15, ease: 1.5, wide: 0.3, lowFloor: 0.25, arc: 0.7 });   // (`wide`: the widest lid a drawing draws, anime-drawings.js DRAWING_RANGES; `lowFloor`: the least of the lower lid a drawing leaves, `arc` the smile's spread along it)
+/** the drawing's neutral words: a word at its neutral is dropped, so a neutral drawing is no drawing */
+const DRAWING_NEUTRAL = Object.freeze({ brow: { lift: 0, inner: 0, knit: 0 }, socket: { ridge: 0, deep: 0, pinch: 0, outer: 0, cheek: 0, rise: 0 }, lid: { inner: 0, outer: 0, wide: 0, low: 0, lower: 0, smile: 0 }, gaze: { x: 0, y: 0 }, mouth: { wide: 1, corner: 0, box: 0, omega: 0, wave: 0 } });
+/** a drawing with its neutral words dropped (`pupil` 1 dropped), or null when nothing is left */
+export function drawingOf(d) {
+  if (!d || typeof d !== 'object') return null;
+  const out = {};
+  for (const [k, N] of Object.entries(DRAWING_NEUTRAL)) {
+    const w = d[k]; if (!w || typeof w !== 'object') continue;
+    const kept = Object.fromEntries(Object.entries(w).filter(([q, v]) => v !== undefined && v !== null && !(q in N && v === N[q])));
+    if (Object.keys(kept).length) out[k] = kept;
+  }
+  if (d.pupil !== undefined && d.pupil !== null && d.pupil !== 1) out.pupil = d.pupil;
+  return Object.keys(out).length ? out : null;
 }
 
 /** mojulo's hair fit (see the header): the cap as the head's surface lifted off it, and a drape that keeps a clump's

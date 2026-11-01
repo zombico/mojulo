@@ -14,6 +14,8 @@ import { createHash } from 'node:crypto';
 import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { getServerVersion } from '@/lib/server-version';
 import { outcomeDirFor, outcomeUrlFor } from '@/lib/outcomes-paths';
+import { isPersonaKind } from '@/lib/graph/persona/persona.js';
+import { personaFiles, personaHasFace } from '@/lib/graph/persona/bundle.js';
 import { resolveWorldScene, WALK_KINDS } from '@/lib/graph/worlds/world-scene';
 import { emitThreeWorld } from '@/lib/graph/scene/scene-three';
 import { facesToGlb } from '@/lib/graph/scene/scene-gltf';
@@ -187,8 +189,12 @@ const modelFileName = (format, { cdn = false } = {}) => (format === 'html' ? (cd
 // there; the handoff note tells the agent on that host to ask for it. 2.0.9 through 2.1 made the
 // CDN build the default; 2.2 restored the self-contained one, so a page fetches from a third
 // party only when that was asked for.
+/** The exported page's walk: the scene's own when it tunes one (its spawn, eye and speed), as the /world route keeps
+ *  it; else on for a walk kind. A bare `true` takes the walk's defaults off the whole scene's bounds: over a meadow
+ *  whose sky and hills are wide, an eye of 15 m. */
+export const htmlWalk = (payload, kind) => (payload.walk && typeof payload.walk === 'object' ? payload.walk : Boolean(payload.walk || WALK_KINDS.has(kind)));
 function htmlExport(payload, { kind, cdn = false }) {
-  const walk = Boolean(payload.walk || WALK_KINDS.has(kind));
+  const walk = htmlWalk(payload, kind);
   const html = emitThreeWorld({ ...payload, walk, inline: !cdn, cdn });
   const bytes = Buffer.from(html, 'utf8');
   return { bytes, byteLength: bytes.length, vertexCount: null, triangleCount: null, walk, cdn };
@@ -1365,6 +1371,16 @@ async function exportModel(input, context = {}) {
     }
     const hash = createHash('sha256').update(JSON.stringify(sketch.manifest)).digest('hex').slice(0, 16);
     await fs.writeFile(path.join(dir, 'recipe.json'), `${JSON.stringify(sketch.manifest, null, 2)}\n`);
+    // a PERSONA's reads (persona/bundle.js): each read's captions and cue sheet beside the model, on the clock of its
+    // face:<read> clip where the hero has the realistic face, else of its audio and the body's gestures
+    if (isPersonaKind(sketch.manifest.kind)) {
+      const hero = SketchRepository.getByRef(sketch.manifest.persona.hero), files = personaFiles(sketch.manifest.persona, hero.manifest);
+      for (const f of files) {
+        await fs.mkdir(path.dirname(path.join(dir, f.name)), { recursive: true });
+        await fs.writeFile(path.join(dir, f.name), f.text);
+      }
+      result.persona = { files: files.map((f) => f.name), face: personaHasFace(hero.manifest) ? Object.keys(sketch.manifest.persona.reads).map((id) => `face:${id}`) : 'none: the hero is not the realistic head; the captions and cue sheets carry the reads' };
+    }
     await fs.writeFile(
       path.join(dir, 'README.md'),
       buildModelReadme({

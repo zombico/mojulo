@@ -98,6 +98,7 @@
         <label><input id="blink" type="checkbox" checked> Ambient blink</label>
         <label><input id="sound" type="checkbox" checked> Sound</label>
         <label><input id="wire" type="checkbox"> Wireframe</label>
+        <label><input id="clay" type="checkbox"> Clay</label>
         <label><input id="bones" type="checkbox"> Bones</label>
       </div>
       <div>
@@ -191,7 +192,9 @@ async function load(v) {
   const loader = new GLTFLoader();
   let gltf;
   if (M.packed) {
-    const { glb, gz } = await fetch(v.file).then((r) => { if (!r.ok) throw new Error(`${v.file}: ${r.status}`); return r.json(); });
+    // (one file, or its parts in order: a big hero packs past the host's text-file ceiling)
+    const parts = await Promise.all([].concat(v.file).map((f) => fetch(f).then((r) => { if (!r.ok) throw new Error(`${f}: ${r.status}`); return r.json(); })));
+    const glb = parts.map((p) => p.glb).join(''), gz = parts[0].gz;
     const bin = atob(glb), buf = new Uint8Array(bin.length);
     for (let i = 0; i < bin.length; i++) buf[i] = bin.charCodeAt(i);
     // (gzipped by live.mjs --publish to fit a host's file limit)
@@ -361,7 +364,7 @@ async function selectVariant(id) {
   let L; try { L = await load(v); } catch (e) { status.textContent = `${v.label} could not be loaded: ${e.message}`; console.error(e); return; }
   const old = cur(); if (old) { old.root.visible = false; old.bones.visible = false; old.mixer.stopAllAction(); S.under = null; S.layers = []; }
   S.variant = id; L.root.visible = true; L.bones.visible = $('bones').checked;
-  setWire($('wire').checked);
+  setWire($('wire').checked); setClay($('clay').checked);
   renderTakes(L); renderMeters(L); renderRead(v);
   const first = !old; S.take = null;
   play(take && L.actions[take] ? take : (M.firstTake && L.actions[M.firstTake] ? M.firstTake : Object.keys(L.actions)[0]), { phase, fade: 0 });
@@ -371,6 +374,18 @@ async function selectVariant(id) {
 }
 
 function setWire(on) { const L = cur(); for (const m of [L?.body?.material].flat().filter(Boolean)) m.wireframe = on; }
+// (clay: the form alone under the same light, one warm grey and no paint, as a maquette is read before it is painted)
+const CLAY = new THREE.Color(0xb9aea3);
+// (a material of its own swapped in, not the painted one stripped: a figure whose material marches the clothes' depth map,
+// THE PARALLAX, samples its colour map in its shader, and stripping the map broke the shader)
+const clayOf = (m) => new THREE.MeshStandardMaterial({ color: CLAY, roughness: 0.62, metalness: 0, wireframe: m.wireframe, side: m.side });
+function setClay(on) {
+  const L = cur(), b = L?.body; if (!b) return;
+  if (on) { b.userData.painted ??= b.material; const P = b.userData.painted; b.material = Array.isArray(P) ? P.map(clayOf) : clayOf(P); }
+  else if (b.userData.painted) { const P = b.userData.painted, w = [b.material].flat()[0]?.wireframe ?? false; b.material = P; for (const m of [P].flat()) m.wireframe = w; }
+  // (and no shadow cast on itself: the key's shadow map lays a straight edge across the face that reads as a crease)
+  if (L?.body) L.body.receiveShadow = !on;
+}
 
 // ─── the transport and the toggles ──────────────────────────────────────────
 /** the breath kept with its take: its time, its speed, paused with it */
@@ -393,6 +408,7 @@ $('speed').addEventListener('input', (e) => {
   if (L && S.take) syncBreath(L.actions[S.take]?.action);
 });
 $('wire').addEventListener('change', (e) => setWire(e.target.checked));
+$('clay').addEventListener('change', (e) => setClay(e.target.checked));
 $('bones').addEventListener('change', (e) => { const L = cur(); if (L) L.bones.visible = e.target.checked; });
 $('hold').addEventListener('change', (e) => {
   S.hold = e.target.checked; const L = cur();
@@ -478,7 +494,9 @@ const ready = selectVariant(M.variants[0].id);
 window.heroLive = {
   ready, manifest: M,
   variant: (id) => selectVariant(id), take: (name) => play(name, { fade: 0 }), view: (id) => frame(id), seek, pause: setPaused,
-  hold: (weights) => { $('hold').checked = true; $('hold').dispatchEvent(new Event('change')); Object.assign(S.holdW, weights); },
+  // (a hold replaces every weight: the morphs it names at theirs, every other at 0, never what an earlier hold left)
+  hold: (weights) => { $('hold').checked = true; $('hold').dispatchEvent(new Event('change')); for (const k of Object.keys(S.holdW)) S.holdW[k] = 0; Object.assign(S.holdW, weights); },
+  release: () => { if ($('hold').checked) { $('hold').checked = false; $('hold').dispatchEvent(new Event('change')); } },
   set: (opts) => { for (const [k, v] of Object.entries(opts)) { const el = $(k); if (el && el.type === 'checkbox' && el.checked !== v) el.click(); } },
   // (the relief's strength on the figure's material, for an eye to read a normal map: 1 as the GLB ships it, 0 none)
   relief: (k = 1) => { const L = cur(); for (const m of [L?.body?.material].flat().filter(Boolean)) if (m.normalScale) m.normalScale.set(k, k); },
