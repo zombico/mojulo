@@ -3,15 +3,13 @@
  * The cube is the contract; a genre is only a preset cube to start from (the cosmos probes), never a lock: any value
  * may be changed and a world may mix what two genres ask.
  *
- *   intent: { from?: '<genre id>', cube?: { <facet>: { <setting>: value } }, why?: '<words>', target?: '<engine>' }
+ *   intent: { from?: '<genre id>', cube?: { <facet>: { <setting>: value } }, why?: '<words>' }
  *     from   a genre (GENRES) whose cube the world starts from
  *     cube   the world's own values, laid over it value by value
  *     why    the creator's words for it
- *     target an engine the game is meant for (one with marks: scene/engines/registry.js MARKED_ENGINES). ADVICE ONLY:
- *            the readout says which of the cube's values the engine does not carry and which it carries in part (its
- *            marks, the export's own reading); nothing is refused and nothing rewritten, and without it the advice goes.
- *            A retired engine (RETIRED_TARGETS: its translation left mojulo) a stored row may still name is accepted and
- *            read as no target: the row still resolves and re-renders, with no advice
+ *   A stored row may still carry `target`, an engine a retired game runtime once translated it for (RETIRED_TARGETS):
+ *   accepted and inert, read as no target, so the row still resolves and re-renders as before. No engine runs a game
+ *   now (a team's engine takes a handoff: export_model { engine }), so another target is refused.
  *
  * A world that names no intent still has a cube: the one it implies (its quick goal's genre, its camera, topology,
  * ride, pixel look), read and shown, never written.
@@ -26,17 +24,15 @@
  *                            the intent quickWorld writes)
  *   cubeOfWorld(world)       → { cube, from, said: [<facet.setting>] } the cube the world is: its genre's, then what the
  *                            world's own settings imply, then its intent's own values (`said`: the ones the intent wrote)
- *   intentReport(world)      → { from, written, verdict, concerns: [{ id, name, by, laid, checked }], suggest?, drift?, target?,
+ *   intentReport(world)      → { from, written, verdict, concerns: [{ id, name, by, laid, checked }], suggest?, drift?,
  *                            latent? } (latent: the resonances a user voices that the cube is one move from, resonance.js)
  *                            the readout's: the world's cube read (cosmos dryRun's verdict), what it asks of the world,
  *                            for a world that wrote no intent the genres its brief's words suggest, for a quick game
  *                            whose goal now reads as another genre than its written one `drift: { written, goal }`
- *                            (the written one holds until the creator changes it), and with a target
- *                            { engine, carries, lost: ['facet.setting=value'], partly: [...], says } (dryRun's engines)
+ *                            (the written one holds until the creator changes it)
  */
 import { FIXTURES } from '../cosmos/fixtures.js';
 import { validateCube, dryRun } from '../cosmos/cosmos.js';
-import { MARKED_ENGINES, engineOf } from '../scene/engines/registry.js';
 import { concernsOf } from './concerns.js';
 import { latentOf } from './resonance.js';
 import { CRAFT } from '../skyscape/eye.js';
@@ -103,8 +99,8 @@ export function contestGenre(sport) {
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const clone = (c) => Object.fromEntries(Object.entries(c ?? {}).map(([f, s]) => [f, { ...s }]));
 const fail = (m) => new Error(`gameworld: intent${m}`);
-// engines a stored intent may name whose translation is retired: accepted, inert (read as no target)
-export const RETIRED_TARGETS = Object.freeze(['roblox']);
+// engines a stored intent may name whose game runtime is retired: accepted, inert (read as no target)
+export const RETIRED_TARGETS = Object.freeze(['roblox', 'godot']);
 
 export function suggestGenres(text, n = 3) {
   const t = ` ${String(text ?? '').toLowerCase().replace(/[^a-z0-9-]+/g, ' ')} `;
@@ -117,18 +113,18 @@ export function suggestGenres(text, n = 3) {
 
 export function readIntent(v) {
   if (v === undefined) return null;
-  if (!isObj(v)) throw fail(' is { from?: <genre>, cube?: { <facet>: { <setting>: value } }, why?, target?: <engine> }');
-  for (const k of Object.keys(v)) if (!['from', 'cube', 'why', 'target'].includes(k)) throw fail(`.${k} is not part of an intent (from, cube, why, target)`);
+  if (!isObj(v)) throw fail(' is { from?: <genre>, cube?: { <facet>: { <setting>: value } }, why? }');
+  for (const k of Object.keys(v)) if (!['from', 'cube', 'why', 'target'].includes(k)) throw fail(`.${k} is not part of an intent (from, cube, why)`);
   if (v.from !== undefined && !GENRES[v.from]) throw fail(`.from is a genre: ${Object.keys(GENRES).join(', ')}`);
   if (v.cube !== undefined) {
     if (!isObj(v.cube)) throw fail('.cube is { <facet>: { <setting>: value } } (get_game_vocab({ id: \'gameworld-intent\' }))');
     try { validateCube(v.cube); } catch (e) { throw fail(`.cube: ${e.message.replace(/^cosmos: /, '')}`); }
   }
   if (v.why !== undefined && typeof v.why !== 'string') throw fail('.why is the creator\'s words for it');
-  const retired = RETIRED_TARGETS.includes(v.target);
-  if (v.target !== undefined && !retired && !MARKED_ENGINES.includes(v.target)) throw fail(`.target is an engine whose marks say what it carries: ${MARKED_ENGINES.join(', ')} (advice only: nothing is refused)`);
-  if (v.from === undefined && v.cube === undefined && v.target === undefined) throw fail(' names a genre (from) or its own cube, or both (or only a target)');
-  return { from: v.from ?? null, cube: clone(v.cube), why: v.why ?? null, target: retired ? null : v.target ?? null };
+  // (a stored row's retired target reads as none; no engine runs a game, so no other target is one)
+  if (v.target !== undefined && !RETIRED_TARGETS.includes(v.target)) throw fail(`.target is retired: no engine runs a game, so an intent names none (a team's engine takes a handoff: export_model { engine }); a stored ${RETIRED_TARGETS.join(' | ')} target is read as none`);
+  if (v.from === undefined && v.cube === undefined && v.target === undefined) throw fail(' names a genre (from) or its own cube, or both');
+  return { from: v.from ?? null, cube: clone(v.cube), why: v.why ?? null };
 }
 
 const put = (cube, f, s, v) => { (cube[f] ||= {})[s] = v; };
@@ -160,21 +156,11 @@ export function cubeOfWorld(world) {
   return { cube, from, said };
 }
 
-// a target's advice: what of the cube the engine does not carry and what it carries in part, as its marks say (the
-// export reads the same marks); words to pass on, never a refusal
-function targetAdvice(engine, read) {
-  const at = (r) => `${r.facet}.${r.setting}=${r.value}`, name = engineOf(engine).name, lost = read.lost.map(at), partly = read.approximated.map(at);
-  const says = lost.length
-    ? `${lost.length} of the world's values do not carry to ${name} (${lost.join(', ')}); the game still makes and exports, and the export names what it leaves out. Change one or keep it: the choice is the creator's.`
-    : partly.length ? `everything the world asks carries to ${name}, ${partly.length} in part (${partly.join(', ')}).` : `everything the world asks carries to ${name}.`;
-  return { engine, carries: !lost.length, lost, partly, says };
-}
-
 export function intentReport(world) {
   const { cube, from } = cubeOfWorld(world), written = world?.intent !== undefined;
   const brief = typeof world?.brief === 'string' ? world.brief : world?.brief?.prompt ?? world?.brief?.text ?? '';
   const suggest = !written && !world?.quick && brief ? suggestGenres(brief) : [];
-  const I = readIntent(world?.intent), target = I?.target ?? null, run = dryRun(cube);
+  const I = readIntent(world?.intent), run = dryRun(cube);
   // a quick game's written genre against what its goal reads as now (a goal patched since): said, never rewritten
   const reads = quickGenre(world?.quick), drift = I?.from && reads && reads !== I.from ? { written: I.from, goal: reads } : null;
   // what the cube is one move from (gameworld/resonance.js): an outcome a user voices, the values it still lacks
@@ -184,7 +170,6 @@ export function intentReport(world) {
     concerns: concernsOf(cube).map(({ asks: _, ...c }) => c),
     ...(suggest.length ? { suggest: suggest.map((g) => ({ id: g.id, matched: g.matched })) } : {}),
     ...(drift ? { drift } : {}),
-    ...(target ? { target: targetAdvice(target, run.engines[target]) } : {}),
     ...(latent.length ? { latent } : {}),
   };
 }

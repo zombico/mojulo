@@ -37,12 +37,13 @@ describe('export_game — input gates', () => {
     await expect(exportGameHandler({ ref: 'sk_eg_diagram' })).rejects.toThrow(/not a game[\s\S]*export_model/);
   });
 
-  it('an era is the pages\': an unknown one teaches, an engine pack refuses one', async () => {
+  it('an era is the pages\': an unknown one teaches', async () => {
     await expect(exportGameHandler({ ref: 'sk_nope', era: 'gen-9' })).rejects.toThrow(/not an era \(gen-6, gen-7\)/);
-    await expect(exportGameHandler({ ref: 'sk_nope', era: 'gen-7', target: 'godot' })).rejects.toThrow(/era is read by the web and desktop pages; a godot pack/);
   });
 
-  it('the retired Roblox and Unity targets teach the targets there are and the engine handoff', async () => {
+  it('the retired Godot, Roblox and Unity targets teach the targets there are and the engine handoff', async () => {
+    await expect(exportGameHandler({ ref: 'sk_nope', target: 'godot' })).rejects.toThrow(/target is 'web' \| 'desktop'.*Godot's runtime translation is retired.*export_model \{ ref, engine \}/);
+    await expect(exportGameHandler({ ref: 'sk_nope', era: 'gen-7', target: 'godot' })).rejects.toThrow(/Godot's runtime translation is retired/);
     await expect(exportGameHandler({ ref: 'sk_nope', target: 'roblox' })).rejects.toThrow(/target is 'web' \| 'desktop'.*Roblox's runtime translation is retired.*export_model \{ ref, engine \}/);
     await expect(exportGameHandler({ ref: 'sk_nope', target: 'unity' })).rejects.toThrow(/target is 'web' \| 'desktop'.*Unity's runtime translation is retired.*export_model \{ ref, engine \}/);
   });

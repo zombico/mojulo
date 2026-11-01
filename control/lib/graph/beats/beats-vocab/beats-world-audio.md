@@ -32,8 +32,7 @@ audio: {
   play (a fight is battle music, the last fight the boss; a sneak toward tension, a race driving), with a `why`.
   `create_game`'s reply carries each unscored level's update_sketch call; `design_game({ quick: { music: 'auto' } })`
   writes it at mint.
-- A composition always loops here, at the next bar line. The Godot export renders the same
-  soundtrack as a looped WAV bed. Godot also plays the level's sounds and its `combat` change (see the end).
+- A composition always loops here, at the next bar line.
 
 ## sfx
 

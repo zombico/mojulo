@@ -1,20 +1,8 @@
-// The screen a game is made for (game/screen.js), carried by its exports: the desktop window, Godot's [display] and its
-// kernel's cameras, the score's cameras. Absent, every export as it was.
+// The screen a game is made for (game/screen.js), carried by its exports: the desktop window, the score's cameras.
+// Absent, every export as it was.
 import { describe, it, expect } from 'vitest';
-import fs from 'node:fs';
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { desktopWindow, desktopMainJs } from '../game/desktop-shell.js';
-import { emitGodotGame } from './godot-project.js';
 import { levelCameras } from './scene-gltf-level.js';
-
-const KERNEL = path.join(path.dirname(fileURLToPath(import.meta.url)), 'godot-kernel');
-const score = {
-  ref: 'lv-a', title: 'A', kind: 'controllable', frame: 'z-up', units: '1 mojulo unit = 1 meter', spawn: [0, 0, 0], eye: 1.7, ground: 0,
-  colliders: [], cameras: [{ name: 'view 0', translation: [6, -9, 5] }], entities: [], mechanics: [{ kind: 'reach-exit' }], ledger: {},
-};
-const lv = { ref: 'lv-a', title: 'A', gate: null, score };
-const file = (out, name) => out.files.find((f) => f.file === name).text;
 
 describe('the screen in the exports', () => {
   it('the desktop window: the frame fitted inside 1280×800; without one, 1280×800 as it was', () => {
@@ -25,22 +13,6 @@ describe('the screen in the exports', () => {
     const app = { title: 'Coin Run', ref: 'g' };
     expect(desktopMainJs({ ...app, screen: 'phone' })).toContain('width: 450,\n    height: 800,');
     expect(desktopMainJs(app)).toContain('width: 1280,\n    height: 800,');
-  });
-
-  it('Godot: [display] holds the frame, its orientation for the kernel; the ledger says what stays on the web', () => {
-    const game = (screen) => emitGodotGame({ ref: 'g', title: 'G', manifestHash: 'h', levels: [lv], kernelVersion: '0.23.0', ...(screen ? { screen } : {}) });
-    const phone = game('phone'), plain = game(null);
-    const P = file(phone, 'project.godot');
-    expect(P).toContain('[display]\n\nwindow/size/viewport_width=720\nwindow/size/viewport_height=1280\nwindow/size/window_width_override=450\nwindow/size/window_height_override=800\nwindow/stretch/mode="canvas_items"\nwindow/stretch/aspect="expand"\nwindow/handheld/orientation=1\n');
-    expect(file(game('tablet'), 'project.godot')).toContain('window/size/viewport_width=1280\nwindow/size/viewport_height=960\nwindow/size/window_width_override=1067\nwindow/size/window_height_override=800\n');
-    expect(file(game('tablet'), 'project.godot')).toContain('window/handheld/orientation=0');
-    expect(phone.ledger.screen_carried.note).toMatch(/a phone \(9:16, portrait\).*cameras keep its width/);
-    expect(file(plain, 'project.godot')).not.toContain('[display]');
-    expect(plain.ledger.screen_carried).toBeUndefined();
-    // the kernel reads the orientation and holds an upright frame's width
-    const level = fs.readFileSync(path.join(KERNEL, 'level.gd'), 'utf8');
-    expect(level).toContain('ProjectSettings.get_setting("display/window/handheld/orientation", 0)) == 1');
-    expect(level).toContain('node.keep_aspect = Camera3D.KEEP_WIDTH');
   });
 
   it('the score\'s cameras: the frame\'s own vertical fov when the screen names one; absent, the solve as it was', () => {

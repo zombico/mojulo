@@ -1067,8 +1067,7 @@ const MECHANICS = {
   // CONTROL (a terminal): a point two sides fight over (`teams`, as frags' sides). Every second the side alone on it (a
   // ring `radius` round `at`, its standing bodies: a fallen one holds nothing) scores one; contested (both there) or
   // empty, nobody does. The first side to `hold` seconds wins it (the player's: `control:won`; the other's:
-  // `control:lost`). Lowers to a zone per contender, counts and flags, a timer and watches (the web's: a Godot export
-  // does not keep it yet). Kept: the player's side's seconds on the point.
+  // `control:lost`). Lowers to a zone per contender, counts and flags, a timer and watches. Kept: the player's side's seconds on the point.
   control: {
     role: 'terminal', ends: ['success', 'fail'], requires: [],
     lower(p, ctx) {

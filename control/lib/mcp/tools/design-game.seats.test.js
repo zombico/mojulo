@@ -10,13 +10,11 @@ import { mintGame } from './create-game.js';
 import { runLevelTraversal } from '@/lib/graph/game/auto-audit-runner';
 import { resolveWorldScene } from '@/lib/graph/worlds/world-scene';
 import { emitThreeWorld } from '@/lib/graph/scene/scene-three';
-import { engineReading } from '@/lib/graph/scene/engine-score';
-import { MARKED_ENGINES } from '@/lib/graph/scene/engines/registry';
 
 // SEATS, END TO END (an e2e suite: a hero is made and the level audit walks it in headless
 // Chrome): a quick game whose cube says two seats lays a hero for seat 2 on its level, the page seats the players, and
 // the level audit walks it with seat 1, its own pilot, the empty seat's hero following as the party does: the audit's run
-// and verdict are the ones the same level without seats gets. The engine legs seat one, and the export says so.
+// and verdict are the ones the same level without seats gets.
 beforeEach(() => { closeDb(); });
 const stored = (ref) => SketchRepository.getByRef(ref)?.manifest;
 
@@ -48,8 +46,5 @@ describe('a two-seat co-op game, made and audited', () => {
     const duo = await audit('d-level-run-0'), solo = await audit('solo-level');
     expect(duo.ok).toBe(true);
     expect({ ...duo, hero: duo.hero.map((v) => +v.toFixed(6)) }).toEqual({ ...solo, hero: solo.hero.map((v) => +v.toFixed(6)) });
-
-    // the engine legs seat one: the export's reading names the seats among the page channels it does not carry
-    for (const engine of MARKED_ENGINES) expect(engineReading(payload, engine).channels).toContain('seats');
   }, 1_800_000);   // a hero made and two real traversals: about 17 minutes on a quiet machine
 });

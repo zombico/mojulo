@@ -6,7 +6,6 @@ import { composeGameworld } from './compose.js';
 import { CRAFT } from '../skyscape/eye.js';
 import { FIXTURES } from '../cosmos/fixtures.js';
 import { capabilityRegistry } from '../cosmos/registry.js';
-import { dryRun } from '../cosmos/cosmos.js';
 import { reviewParts } from './review.js';
 
 // WHAT GAME IT IS: a world says its game as a cosmos cube; a genre is a preset to start from; each cube value raises
@@ -136,42 +135,25 @@ describe('a dogfight\'s genre', () => {
   });
 });
 
-// A TARGET: the engine the game is meant for. Advice only: the readout says what of the cube that engine does not carry,
-// as the export's own marks say; nothing is refused or rewritten, and dropping the target drops the advice.
+// A TARGET: a stored row may name an engine a retired game runtime once translated it for. It is accepted and inert:
+// read as no target, no advice, the same cube. No engine runs a game now, so any other target is refused, teaching.
 describe('a target', () => {
-  // the genres whose cube Godot carries whole, and those it loses values from (chosen from the catalog, not listed)
-  const lossOf = (id) => dryRunOf(id).engines.godot.lost.length;
-  const dryRunOf = (id) => dryRun(cubeOfWorld(world({ intent: { from: id } })).cube);
-  const losing = Object.keys(GENRES).find((id) => lossOf(id) > 0);
-
-  it('is an engine with marks, alone or beside a genre; another is refused, naming the engines it can be', () => {
-    expect(readIntent({ target: 'godot' })).toMatchObject({ target: 'godot', from: null });
-    expect(readIntent({ from: losing, target: 'godot' }).target).toBe('godot');
-    expect(() => readIntent({ target: 'unity' })).toThrow(/target is an engine.*godot/);
-  });
+  const losing = Object.keys(GENRES)[0];
 
   it('a retired engine a stored row names is accepted and inert: no target, no advice, the same cube', () => {
+    expect(RETIRED_TARGETS).toEqual(expect.arrayContaining(['roblox', 'godot']));
     for (const t of RETIRED_TARGETS) {
-      expect(readIntent({ target: t })).toMatchObject({ target: null, from: null });
+      expect(readIntent({ target: t })).toEqual({ from: null, cube: {}, why: null });
+      expect(readIntent({ from: losing, target: t })).toEqual(readIntent({ from: losing }));
       const aimed = world({ intent: { from: losing, target: t } }), plain = world({ intent: { from: losing } });
       expect(cubeOfWorld(aimed).cube).toEqual(cubeOfWorld(plain).cube);
+      expect(intentReport(aimed)).toEqual(intentReport(plain));
       expect(intentReport(aimed).target).toBeUndefined();
-      expect(intentReport(aimed).verdict).toBe(intentReport(plain).verdict);
     }
   });
 
-  it('names what the engine does not carry and what it carries in part, from the same marks the export reads', () => {
-    const r = intentReport(world({ intent: { from: losing, target: 'godot' } }));
-    const read = dryRunOf(losing).engines.godot;
-    expect(r.target).toMatchObject({ engine: 'godot', carries: false, lost: read.lost.map((x) => `${x.facet}.${x.setting}=${x.value}`), partly: read.approximated.map((x) => `${x.facet}.${x.setting}=${x.value}`) });
-    expect(r.target.says).toMatch(/do not carry to Godot.*the choice is the creator's/);
-  });
-
-  it('rewrites nothing: the cube is the same with it and without, and without it there is no advice', () => {
-    const plain = world({ intent: { from: losing } }), aimed = world({ intent: { from: losing, target: 'godot' } });
-    expect(cubeOfWorld(aimed).cube).toEqual(cubeOfWorld(plain).cube);
-    expect(intentReport(plain).target).toBeUndefined();
-    expect(intentReport(aimed).verdict).toBe(intentReport(plain).verdict);
+  it('any other target is refused, naming the handoff', () => {
+    expect(() => readIntent({ target: 'unity' })).toThrow(/target is retired: no engine runs a game.*export_model \{ engine \}.*roblox \| godot/);
   });
 });
 

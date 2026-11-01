@@ -277,7 +277,7 @@ export function shootCameraDefs(shoot, viewBox) {
   const def = (name, frames, times, step) => ({
     name, ...pose(frames[0]), yfov: yfov(frames[0].hfov), aspectRatio: aspect, znear: 0.1, zfar: 8000,
     times, translations: frames.map((v) => pose(v).translation), rotations: frames.map((v) => pose(v).rotation), step,
-    // the lens at every frame (a glTF camera cannot key its field of view: the Godot kernel sets it from score.shoot)
+    // the lens at every frame (a glTF camera cannot key its field of view: score.shoot carries it)
     yfovs: frames.map((v) => yfov(v.hfov)),
   });
   const out = shoot.cameras.map((c) => {

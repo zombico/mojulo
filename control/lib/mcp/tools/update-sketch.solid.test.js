@@ -790,7 +790,7 @@ describe("the hero door's clips through update_sketch", () => {
 // the anime head's door clips: a clip `{ seconds, keys }` (its designed duration) and a key's `face` (its facial track),
 // stored as given, the plan without the face; they survive an unrelated /hero edit and edit by path; `blink` is stored
 // only when false; the readout says every clip's duration and the clips carrying a face; the World payload's packed
-// clips carry the durations the page, the GLB and the Godot pack play.
+// clips carry the durations the page and the GLB play.
 describe("the anime hero's timed clips, facial tracks and ambient blink through update_sketch", () => {
   it('stored as given; survives an unrelated /hero edit; by path; blink stored only when false; refusals leave the row', async () => {
     const { resolveWorldScene } = await import('@/lib/graph/worlds/world-scene');

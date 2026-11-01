@@ -34,7 +34,7 @@ export const unrealAssetName = (ref) => String(ref).replace(/[^A-Za-z0-9]/g, '_'
  * M_MojuloLitRelief from an import before it is left as it was. And the PARALLAX (cloth-relief, realistic laws 13): the
  * clothes' depth map written beside the GLB, imported linear and set as the instance's HeightTex, its ParallaxDepth and
  * ParallaxPerM; the master's ParallaxUV node (a custom HLSL node) marches the samplers' UVs into it along the camera's
- * vector in tangent space, the same march Godot's kernel and the hero-live viewer make. Rebinds the swap's ensure_master,
+ * vector in tangent space, the same march the hero-live viewer makes. Rebinds the swap's ensure_master,
  * first_texture and unlit_instance; absent, the importer is the one before it. */
 const POM_HLSL = 'float2 uv = UV; float3 v = normalize(V); if (v.z > 0.08 && Depth > 0) { float2 dir = -v.xy / v.z * Depth; float2 duv = float2(dir.x * PerM.x, dir.y * PerM.y); float d = 0; float h = 1 - Texture2DSampleLevel(Tex, TexSampler, uv, 0).r; [loop] for (int i = 0; i < 24; i++) { if (d >= h) break; d += 1.0 / 24.0; uv += duv / 24.0; h = 1 - Texture2DSampleLevel(Tex, TexSampler, uv, 0).r; } } return uv;';
 const reliefPy = (parallax = null) => `

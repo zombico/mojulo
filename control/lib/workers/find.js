@@ -89,7 +89,7 @@ export function workersPresent({ host = HOST, findSlicer, chromiumCandidates = [
   return [
     { id: 'blender', found: findBlender(host), env: 'MOJULO_BLENDER', uses: 'the Blender pack gate, blender-bake (--fur), the GI bake, USD reads',
       without: 'the pack and its art-pass guide are still written; bakes and the gate skip' },
-    { id: 'godot', found: findGodot(host), env: 'MOJULO_GODOT', uses: 'the headless Godot gate on an exported project',
+    { id: 'godot', found: findGodot(host), env: 'MOJULO_GODOT', uses: 'the headless Godot gate on the engine handoff (export_model engine godot)',
       without: 'the project is still written; the gate skips' },
     { id: 'unity', found: findUnity(host), env: 'MOJULO_UNITY', uses: 'a Unity import gate (none runs today: Unity\'s runtime pack is retired)',
       without: 'nothing changes: no export runs Unity today' },

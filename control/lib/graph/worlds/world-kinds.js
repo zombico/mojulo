@@ -865,7 +865,7 @@ export const WORLD_KINDS = {
         // leaves the one-key clip out of its picker (played by rigidly moved parts it would only crack at the joints);
         // the clip stays in the pack for the skinned and engine exports.
         const rim = Array.isArray(m.rim) && m.rim.length === 5 && m.rim.every(Number.isFinite) ? m.rim : figLight !== light ? figLight.rim : null;
-        // THE FACE (anime-face-rig.js), only when the export asks (ctx.face: the skinned GLB, the Godot pack's figure): the
+        // THE FACE (anime-face-rig.js), only when the export asks (ctx.face: the skinned GLB): the
         // anime hero's expression channels as morph targets — its rows ride the pack's parts (`morph`), the targets, the
         // authored weights and every word's weights ride the figure (`face`); a row the guards refuse says why
         // (`faceSkipped`) and exports without it. The World page never asks, so its payload is the one before the face.
@@ -876,7 +876,7 @@ export const WORLD_KINDS = {
         const pageFace = !ctx.face && rigged && m.hero?.form === 'realistic' && m.hero.head === 'relational';
         const face = (ctx.face || pageFace) && rigged && m.hero ? (m.hero.head === 'anime' ? (m.hero.painterly && facePaint ? paintFaceRig(m, mesh, facePaint) : heroFaceRig(m, mesh)) : (m.hero.head ?? 'landmark') === 'landmark' ? westernFaceRig(m, mesh) : m.hero.head === 'relational' ? relationalFaceRig(m, mesh) : null) : null;
         // CLIP TIMING (hero-gesture.js heroClipSeconds): the anime hero's clips each carry a designed duration (`s` on the
-        // packed clip), which the World page's clip preview, the GLB and the Godot pack all play; every other row's clips
+        // packed clip), which the World page's clip preview and the GLB both play; every other row's clips
         // carry none (three seconds on the page, one in an export, as before). With the face, each clip's facial track
         // and the ambient blink ride the face (anime-face-tracks.js), derived here and never stored.
         let seconds = m.hero?.head === 'anime' ? heroClipSeconds(m.hero, m.recipe.clips) : null;

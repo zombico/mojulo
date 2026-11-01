@@ -247,7 +247,7 @@ const BRIEFS = [
       'mint_solid kind assembler — the chariot, every item carrying an id',
       'update_sketch — the one fix, the exploded variant, the subtractions',
       'export_model — .glb and .stl',
-      'optional rungs: scripts/export-godot.mjs (engine), request_mesh_render → pull → submit → accept (upscaler)',
+      'optional rungs: export_model { engine } (engine), request_mesh_render → pull → submit → accept (upscaler)',
     ],
     brief: [
       'A Roman racing biga at real scale a person could stand in. units: cm. What makes it read Roman: a D-shaped floor ' +
@@ -297,7 +297,7 @@ const BRIEFS = [
       },
       {
         id: 'C4', title: 'Hand it on',
-        do: 'export_model as glb and as stl. Optional rung: an engine pack (scripts/export-godot.mjs --ref). Optional rung: the mesh upscaler ' +
+        do: 'export_model as glb and as stl. Optional rung: an engine pack (export_model { ref, engine }). Optional rung: the mesh upscaler ' +
           '(request_mesh_render → pull_mesh_render → an external sculptor → submit_mesh_render → accept_mesh_render by a DIFFERENT source). ' +
           'A missing binary or sculptor degrades the rung, never the exercise — say which rungs ran.',
         machine: 'Bytes and triangle count; the closure advisory; the size gate on any sculpted mesh.',

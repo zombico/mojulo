@@ -19,7 +19,7 @@
  *     `hero.expression` reads): the plan never sees it (the rig does not read it); the export draws it
  *     (heroClipFaces, anime-face-tracks.js).
  *   • CLIP TIMING (heroClipSeconds, the anime hero only): every clip a designed duration the World page's clip preview,
- *     the GLB and the Godot pack all play — the door clip's own `seconds`, else the hero's own clip's
+ *     and the GLB both play — the door clip's own `seconds`, else the hero's own clip's
  *     (ANIME_CLIP_SECONDS), else half a second a key. Every other hero's clips play one second in an export and three
  *     on the World page.
  *   • the presets are per CAST (each body carries its arms and free leg differently): the rig has no arm IK and no

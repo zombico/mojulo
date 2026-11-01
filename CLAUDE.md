@@ -13,7 +13,7 @@ characters, props and vehicles (`create_character`, `mint_solid`), play modes, a
 juice, `create_beats`), foes and bosses, cameras and cutscenes (`forge_motion`, the scenes card), and game design and
 production (`design_game`, the bibles, plans and sweeps), which ties the rest into a game. The audit and the engine legs
 are how everything holds up, not departments. Every department writes into one tiny
-deterministic recipe (a `sketches` row) that regenerates on every read and exports to Godot, Unity, Unreal, Blender,
+deterministic recipe (a `sketches` row) that regenerates on every read and exports to the web, Godot, Unreal, Blender,
 GLB, STL, 3MF, USD, which is why a game's bible, its levels and its export agree. Play, Print, Read, Hear and Observe
 are what the departments' combinations make; rooms, prints and science views are the same studio's other outcomes.
 Underneath, it is a 3D compiler for agents: that is how it works and what the agent is told, not what the person is
@@ -195,13 +195,10 @@ Pointers only; each target carries its own design notes.
   [world-kinds.js](control/lib/graph/worlds/world-kinds.js) (the registry).
 - Emitters: [control/lib/graph/scene/](control/lib/graph/scene/); native frame is z-up, 1 unit = 1 m
   ([engine-score.js](control/lib/graph/scene/engine-score.js)); each emitter owns its conversion.
-  Engine legs: `godot-project.js`, `blender-project.js`; Unreal takes assets,
-  not games or levels (`unreal-project.js`: `export_model { format: 'unreal' }`, a character or solid as GLB + importer);
-  one registry and marks per engine in `scene/engines/`; CLIs in `control/scripts/export-*.mjs`; gates are advisory and
-  need `MOJULO_GODOT` / `MOJULO_UNREAL`. A runtime kernel (Godot's
-  GDScript) is held equal to the web by `scripts/conformance.mjs --engine <e> --corpus <c>`. The engine
-  game runtime (Godot's kernel) is FROZEN: no new ports (Roblox's and Unity's are retired). It gives way to one engine
-  handoff of assets, animation and levels on gen 7's form (the `engine-handoff` theme); CI's `godot` job runs a pinned Godot.
+  The engine handoff (`export_model { engine }`): `handoff.js` and an adapter per engine, Godot's in `handoff-godot.js`
+  (a project of a world's or a game's levels); Unreal takes assets (`unreal-project.js`), Blender an art pack
+  (`blender-project.js`); the registry in `scene/engines/`. Gates are advisory and need `MOJULO_GODOT` / `MOJULO_UNREAL`;
+  CI's `godot` job runs the handoff's Godot leg on a pinned Godot. The game runtimes (Godot's, Roblox's, Unity's) are retired.
 - The realistic hero body (`form: 'realistic'`, the form field's slice): [docs/realistic-body.md](docs/realistic-body.md).
   Its garments: the construction in [body-relational-tailor.js](control/lib/graph/polygonizer/body-relational-tailor.js), the
   principles a silhouette is read by in [docs/garment-principles.md](docs/garment-principles.md); skill: `/garment-design`.

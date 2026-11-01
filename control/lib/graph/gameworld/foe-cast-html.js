@@ -58,7 +58,6 @@ const EXTRA_CSS = `
 .statline{font:12px var(--mono);color:var(--ink)}
 .foe{border-top:4px solid var(--tier)}.foe .lesson{font:500 17px var(--body);max-width:70ch}
 .sit{width:100%;border-collapse:collapse;font-size:13px}.sit td,.sit th{border-bottom:1px solid var(--rule);padding:5px 8px;text-align:left;vertical-align:top}.sit th{font:10.5px var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-weight:400}
-.marks{display:flex;gap:6px;flex-wrap:wrap}.mk{font:10.5px var(--mono);padding:2px 6px;border-radius:3px;border:1px solid var(--rule)}.mk-absent{color:var(--local)}.mk-approximated{color:var(--c-meru)}.mk-built{color:var(--c-trail)}
 .foe-h{display:grid;grid-template-columns:110px 1fr;gap:14px;align-items:end}.foe-h .por{height:110px}.foe-h .por svg{height:96px}
 .counsel{display:grid;grid-template-columns:max-content 1fr;margin:0;gap:0;border-top:2px solid var(--tier);font-size:14.5px}.counsel dt{font:500 10.5px var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--muted);padding:9px 12px 0 0}.counsel dd{margin:0;padding:6px 0;border-bottom:1px solid var(--rule)}.counsel dd.lesson{font:500 16px var(--body)}.counsel ul{margin:0;padding-left:18px;display:grid;gap:3px}
 details.designer{margin-top:6px}
@@ -267,7 +266,6 @@ ${gate}<div class="eyebrow">Levels</div><div class="strip">${levelStrip(G, stand
 <details class="designer"><summary>Designer</summary>
 <h4>Mind</h4>${dl([['motivation', `<b>${esc(M.motivation.word)}</b>: ${esc(M.motivation.line)}`], ['aggressiveness', `<b>${esc(M.aggressiveness.word)}</b>: ${esc(M.aggressiveness.line)}`], ...M.senses.map((s) => [s.axis, `<b>${esc(s.word)}</b>: ${esc(s.line)}`]), ['switches', M.switches.length ? M.switches.map((s) => `<b>${esc(s.word)}</b> ${esc(s.line)}`).join('; ') : undefined]])}
 <table class="sit"><tr><th>when</th><th>it does</th><th>runs</th></tr>${sitRows}</table>
-<h4>Engines</h4><div class="marks">${Object.entries(x.marks ?? {}).map(([e, m]) => `<span class="mk mk-${esc(m)}">${esc(e)} ${esc(m)}</span>`).join('')}</div>
 ${machine(id)}</details></article>`;
     };
     const shelvesOf = (x) => `${dl([['modes', x.modes.length ? x.modes.map((m) => (m === x.id ? `<b>${esc(m)}</b>` : `<a href="#foe-${esc(m)}">${esc(m)}</a>`)).join(' → ') : undefined], ['states', x.states.length ? x.states.map((s) => `<b>${esc(s.name)}</b>${s.color ? ` (${esc(s.color)})` : ''}: ${esc(s.reads)}`).join('; ') : undefined], ['death', esc(x.death.says)], ...x.relations.map((r) => [r.kind === 'variant-of' ? 'variant of' : r.kind, `<a href="#foe-${esc(r.foe)}">${esc(r.foe)}</a>: ${esc(r.says)}`])])}`;

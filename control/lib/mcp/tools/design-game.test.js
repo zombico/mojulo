@@ -9,8 +9,7 @@ import { SketchRevisionRepository } from '@/lib/db/repositories/sketch-revisions
 import { updateSketchHandler } from './sketches.js';
 import { designGameHandler } from './design-game.js';
 import { MEADOWMARK, MEADOWMARK_HERO, HALDEN_REACH, gameworldOf } from '@/lib/graph/gameworld/index';
-import { GENRES, cubeOfWorld } from '@/lib/graph/gameworld/intent';
-import { dryRun } from '@/lib/graph/cosmos/cosmos';
+import { GENRES } from '@/lib/graph/gameworld/intent';
 import { createCharacterHandler, updateCharacterHandler } from './create-character.js';
 import { resolveWorldScene } from '@/lib/graph/worlds/world-scene';
 import { simLevel } from '@/lib/graph/game/level-sim.js';
@@ -58,22 +57,16 @@ describe('design_game', () => {
     expect(ground.made).toBeUndefined();
   });
 
-  it('a target is advice: the readout names what the engine does not carry as a next step, and writes the world as given', async () => {
-    // a genre whose cube Godot loses a value from, on this world (chosen from the catalog, not listed)
-    const losing = Object.keys(GENRES).find((id) => dryRun(cubeOfWorld({ ...MEADOWMARK, intent: { from: id } }).cube).engines.godot.lost.length > 0);
-    const out = await designGameHandler({ world: { ...MEADOWMARK, intent: { from: losing, target: 'godot' } }, ref: 'gw-aimed' });
-    expect(out.intent.target).toMatchObject({ engine: 'godot', carries: false });
-    expect(step(out, 'target')).toEqual({ step: 'target', engine: 'godot', lost: out.intent.target.lost, card: 'gameworld-intent' });
-    expect(gameworldOf(stored('gw-aimed')).intent).toEqual({ from: losing, target: 'godot' });
-    // the same world with no target: no advice, no step
-    const plain = await designGameHandler({ world: { ...MEADOWMARK, intent: { from: losing } }, ref: 'gw-plain' });
-    expect(plain.intent.target).toBeUndefined();
-    expect(step(plain, 'target')).toBeUndefined();
-    // a retired engine (Roblox) a stored row may still name: written as given, read as no target
-    const retired = await designGameHandler({ world: { ...MEADOWMARK, intent: { from: losing, target: 'roblox' } }, ref: 'gw-retired' });
-    expect(gameworldOf(stored('gw-retired')).intent).toEqual({ from: losing, target: 'roblox' });
-    expect(retired.intent.target).toBeUndefined();
-    expect(step(retired, 'target')).toBeUndefined();
+  it('a stored retired target (Godot, Roblox) is written as given and read as none: no advice, no step', async () => {
+    const from = Object.keys(GENRES)[0];
+    const plain = await designGameHandler({ world: { ...MEADOWMARK, intent: { from } }, ref: 'gw-plain' });
+    for (const target of ['godot', 'roblox']) {
+      const ref = `gw-retired-${target}`;
+      const retired = await designGameHandler({ world: { ...MEADOWMARK, intent: { from, target } }, ref });
+      expect(gameworldOf(stored(ref)).intent).toEqual({ from, target });
+      expect(retired.intent).toEqual(plain.intent);
+      expect(step(retired, 'target')).toBeUndefined();
+    }
   });
 
   it('gated: a run makes the hero and pins its base; the rest waits for the creator; a second run makes nothing', async () => {

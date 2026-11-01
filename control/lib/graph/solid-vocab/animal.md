@@ -35,7 +35,7 @@ frames per stride (default 24). The words are the `MOVES` line of the species' e
 with the species' own list. Each clip is one stride in place, at its own pace (a walk slower than a gallop, an elephant
 slower than a fox), from the family's biomechanics: footfall order, how long each foot is down, the spine's flex or
 wave, the head and tail. The World page previews the clips; `export_model { clips: '_all', skinned: true }` writes a
-skinned GLB with them, and the Godot pack plays the first. Without `motion` the solid is still. Wings flap in a `fly`
+skinned GLB with them. Without `motion` the solid is still. Wings flap in a `fly`
 gait but the wing surface rides its root bone rigidly for now.
 
 BEHAVIORS ride the same field: `relax`, `alert`, `eat`, `sleep`, each one loop in place, named for its word and done
@@ -306,7 +306,7 @@ the way its parts allow (claws raised and a scorpion's sting arched, a mantis re
 mandibles chewing, a proboscis sipping). `wingbeat` (with `fly`): 'auto' (the default: wings beat at the order's
 measured rate where a screen can show it, a butterfly's or a dragonfly's, and a bee's or a fly's turns to a see-through
 blur over the stroke), 'beat' (always beating, at most 18 a second), 'blur', or beats a second. The blur is the World's
-drawing; a GLB or Godot export plays the wings beating at 18 a second.
+drawing; a GLB plays the wings beating at 18 a second.
 
 Forms (the common denominators; lib/graph/bugs/forms.js documents every field):
 - head: `hypognathous` (face down) · `prognathous` (face forward) · `opisthognathous` (beak back) · `globe` · `fused`

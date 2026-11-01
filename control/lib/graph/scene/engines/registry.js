@@ -1,56 +1,19 @@
 /**
- * THE ENGINE REGISTRY: which engines a game translates into, said once. The web runtime is the game; every engine
- * here is a translation of it (CHANGELOG "Desktop export: … the engines as translations"). A row says what kind of
- * translation it is and, for an engine with a runtime kernel, where its marks live and what an unwritten mark means.
+ * THE ENGINE REGISTRY: the engines a team's work is handed off to, said once. The web build is the game; an engine takes
+ * a handoff of it (export_model { engine }): Godot a project of a world's or a game's levels (assets, materials,
+ * markers), Unreal an asset, Blender an art pack. No engine runs a game: the game runtimes are retired.
  *
- *   kind     runtime   a kernel runs the game's behaviour (the bus, the rules, the minds) and is held equal to the web
- *            art       geometry and materials for an art pass or an asset; no game
- *   marks    the engine's marks module (engines/marks.js says the shape); null for an engine with none
- *   unmarked what a cosmos value with no mark for this engine reads as: null (closed: the registry throws, the mark must
- *            be written) or 'absent' (a young kernel: what nobody marked does not run, so its flow offers nothing
- *            it cannot carry)
- *   proof    the env var a test names when it runs the engine: a `built` mark names such a test
- *   outDir   the folder its game pack lands in, under the game's outcome folder (export_game); none for an art pass
- *   handoff  the folder export_model's pack for it lands in, under the same outcome folder (the engine handoff, an asset
- *            or art pack); none for an engine export_model writes nothing for
+ *   proof    the env var a test names when it runs the engine (its gate)
+ *   handoff  the folder export_model's pack for it lands in, under the outcome folder
  *
- * Light on purpose: marks modules are pure data, so the cosmos registry can read this. Pack builders and runners
- * register elsewhere (they import builders).
+ * Light on purpose: pure data, no builder imported.
  */
-import * as godotMarks from '../godot-marks.js';
-
 export const ENGINES = Object.freeze({
-  godot: Object.freeze({ id: 'godot', name: 'Godot', kind: 'runtime', marks: godotMarks, marksPath: 'lib/graph/scene/godot-marks.js', unmarked: null, proof: 'MOJULO_GODOT', outDir: 'godot', handoff: 'godot-handoff' }),
+  godot: Object.freeze({ id: 'godot', name: 'Godot', proof: 'MOJULO_GODOT', handoff: 'godot-handoff' }),
   // Unreal takes mojulo's assets (export_model { engine: 'unreal' }: a character, a prop, a building), not its games
-  unreal: Object.freeze({ id: 'unreal', name: 'Unreal', kind: 'art', marks: null, handoff: 'unreal' }),
-  blender: Object.freeze({ id: 'blender', name: 'Blender', kind: 'art', marks: null, handoff: 'blender' }),
+  unreal: Object.freeze({ id: 'unreal', name: 'Unreal', handoff: 'unreal' }),
+  blender: Object.freeze({ id: 'blender', name: 'Blender', handoff: 'blender' }),
 });
-
-/** The engines with marks (a runtime kernel), in registry order. */
-export const MARKED_ENGINES = Object.freeze(Object.values(ENGINES).filter((e) => e.marks).map((e) => e.id));
-
-/** The folders engine packs land in under a game's outcome folder, in registry order. */
-export const ENGINE_OUT_DIRS = Object.freeze(Object.values(ENGINES).map((e) => e.outDir).filter(Boolean));
 
 /** The folders export_model's engine packs land in under an outcome folder, in registry order. */
 export const ENGINE_HANDOFF_DIRS = Object.freeze(Object.values(ENGINES).map((e) => e.handoff).filter(Boolean));
-
-/** The engine a call that names none reads: Godot, the most complete translation (its callers predate the registry). */
-export const DEFAULT_ENGINE = 'godot';
-
-/** An engine's row; throws on an unknown id. */
-export function engineOf(id) {
-  const e = ENGINES[id];
-  if (!e) throw new Error(`engines: unknown engine '${id}' (known: ${Object.keys(ENGINES).join(', ')})`);
-  return e;
-}
-
-/** An engine's marks module, or null for an engine that has none (and for no engine at all). */
-export const marksOf = (id) => (id == null ? null : engineOf(id).marks);
-
-/** A mark row's mark for an engine (rows are keyed by their engine's id). */
-export const markIn = (row, engine) => (row ? row[engine] : undefined);
-
-/** A value's marks in every engine with marks, from one reading of an engine's marks module:
- * `marksAcross((M, e) => M.RULE_MARKS.walk[e])` → { godot: 'built' }. */
-export const marksAcross = (read) => Object.fromEntries(MARKED_ENGINES.map((e) => [e, read(marksOf(e), e)]));

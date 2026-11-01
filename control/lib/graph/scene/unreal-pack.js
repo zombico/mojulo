@@ -35,7 +35,7 @@ export async function buildUnrealAssetPack({ ref, outDir, clips = '_all', lit = 
   const manifest = sketch.manifest ?? {};
   const refused = unrealRefusal(manifest, ref);
   if (refused) throw new Error(`refused: ${refused}`);
-  const { kind, exported, fig, engine, voice: lines } = await resolveLevel(sketch, { engine: 'unreal', clips, lit, figure: true, humanoid });
+  const { kind, exported, fig, engine, voice: lines } = await resolveLevel(sketch, { clips, lit, figure: true, humanoid });
   // a realistic hero's recorded lines (face-acting/recordings.js): each held one shipped at Voice/<recording>.wav, the
   // importer cueing it on its take
   const voice = (lines ?? []).filter((v) => v.bytes).map((v) => ({ clip: v.clip, at: v.at, file: `Voice/${v.recording}.wav` }));

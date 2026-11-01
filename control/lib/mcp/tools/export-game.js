@@ -53,8 +53,8 @@ import { findElectron } from '@/lib/workers/find';
 const manifestHash = (manifest) =>
   createHash('sha256').update(JSON.stringify(manifest)).digest('hex').slice(0, 16);
 
-// engine runtime targets whose translation is retired (no release carried them): refused, naming the targets there are
-const RETIRED_GAME_TARGETS = Object.freeze({ roblox: 'Roblox', unity: 'Unity' });
+// engine runtime targets whose translation is retired: refused, naming the targets there are and the engine handoff
+const RETIRED_GAME_TARGETS = Object.freeze({ godot: 'Godot', roblox: 'Roblox', unity: 'Unity' });
 
 // Folder-relative src resolvers: the export twin of the /game route's API-URL
 // resolvers. Whatever these return is BOTH the src baked into game.html and the
@@ -303,55 +303,25 @@ function withHandoff(result, context, artifact) {
 // `deps.portraits`: its party's photographer (table-rpg-portraits.js's by default; tests inject one).
 export async function exportGameHandler(input, context = {}, deps = {}) {
   if (!input || typeof input !== 'object') throw new Error('export_game requires { ref }');
-  const { ref, target, posture = null, cdn: cdnInput = false, era } = input;
+  const { ref, target, cdn: cdnInput = false, era } = input;
   // The Claude plugin profile (lib/mcp/plugin-profile.js) writes only self-contained pages, and so does a desktop
   // app, which plays offline.
   const pluginBuild = pluginProfileActive();
   const desktop = target === 'desktop';
   const cdn = pluginBuild || desktop ? false : cdnInput;
   if (!ref || typeof ref !== 'string') throw new Error('`ref` is required (string)');
-  // Roblox's and Unity's runtime translations are retired: the game is the web build, and a team's engine takes a handoff
+  // the engine runtime translations are retired: the game is the web build, and a team's engine takes a handoff
   if (Object.hasOwn(RETIRED_GAME_TARGETS, target)) {
     throw new Error(`export_game: target is 'web' | 'desktop' (the game is the web build; ${RETIRED_GAME_TARGETS[target]}'s runtime translation `
       + "is retired) — a team's engine takes the game's levels and assets through export_model { ref, engine }");
-  }
-  // the era is the render's (era/eras.js), read by the pages: the engine packs carry the recipe's surfaces as they are
-  // until the form render gives them materials, so an era there would change nothing, and says so
-  if (era !== undefined) {
-    readEra(era);
-    if (target && target !== 'web' && target !== 'desktop') throw new Error(`export_game: era is read by the web and desktop pages; a ${target} pack carries the recipe's surfaces as they are until the form render (gen-7) gives them materials — export it without era`);
   }
   // Unreal takes mojulo's assets, not its games: the game's characters and solids go, each by its own ref
   if (target === 'unreal') {
     throw new Error("export_game: Unreal takes mojulo's assets, not its games or levels — export each character or solid "
       + "the game uses by its own ref with export_model { ref, engine: 'unreal' }");
   }
-
-  if (target === 'godot') {
-    const { buildGodotGamePack } = await import('@/lib/graph/scene/godot-pack.js');
-    const outDir = path.join(outcomeDirFor(ref), 'godot');
-    const pack = await buildGodotGamePack({ ref, outDir, posture });
-    const { exportVerdict } = await import('@/lib/graph/scene/engine-portability.js');
-    const stamp = exportVerdict(pack.portability);
-    return {
-      ok: true,
-      // plays | plays-partly | hollow, and what it rests on: a stamp beside ok, never a refusal
-      verdict: stamp.verdict,
-      lost: stamp.lost,
-      ref,
-      target: 'godot',
-      dir: outDir,
-      kernel: pack.kernelVersion,
-      ...(posture ? { posture } : {}),
-      files: pack.written.length,
-      total_bytes: pack.written.reduce((s, f) => s + f.bytes, 0),
-      portability: { portable: pack.portability.portable, flags: pack.portability.flags },
-      ledger: pack.ledger,
-      ...(pack.scope === 'arcade' ? { arcade: { reducer: pack.reducer, replay: pack.replay.file, replay_steps: pack.replay.steps } } : {}),
-      note: 'Pack emitted (data + versioned kernel). Machine gate + web build live in the CLI: '
-        + `node scripts/export-godot.mjs --ref ${ref} — or open the folder in Godot ≥4.5 and run.`,
-    };
-  }
+  // the era is the render's (era/eras.js), read by the pages
+  if (era !== undefined) readEra(era);
 
   const sketch = SketchRepository.getByRef(ref);
   if (!sketch) throw new Error(`No sketch exists at ref '${ref}'`);
@@ -729,8 +699,7 @@ export function registerExportGameTools() {
       type: 'object',
       properties: {
         ref: { type: 'string', description: 'Existing game sketch ref (`sk_…`, kind `game`). Errors on other kinds.' },
-        // (the engine runtime's target, godot, is still taken until it is culled; a team's engine is
-        // export_model's `engine` now, the engine handoff)
+        // (a team's engine is export_model's `engine`, the engine handoff)
         target: { type: 'string', enum: ['web', 'desktop'], description: 'Optional. Default `web` (the self-contained folder). `desktop`: that folder as an Electron app.' },
         era: { type: 'string', enum: ['gen-6', 'gen-7'], description: 'Optional. The era its pages are drawn in, the cube\'s by default: the same recipe, another render. Web and desktop.' },
         cdn: { type: 'boolean', description: "web target only (a desktop app always inlines). Default false: every level/menu/preview page inlines three.js (~1 MB each) and contacts no server. `true` loads three.js from the pinned jsdelivr CDN, the only form a page door running a CSP will execute." },

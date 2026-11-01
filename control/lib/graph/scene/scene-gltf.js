@@ -825,8 +825,8 @@ class GlbBuilder {
     // skin texels SKIN_ROUGH, the material's roughness the export's over it. Absent ⇒ byte-identical.
     const otex = relief && fig.ormTex ? this.imageFromDataUrl(fig.ormTex.url) : null;
     // THE PARALLAX (the pack's `depthTex`): glTF has no height channel, so the depth map rides as a texture the material's
-    // extras name (`mojulo.relief`: its index, its depth in m, the UVs a metre spans), for Godot's kernel, Unreal's master
-    // and the hero-live viewer to march. Absent ⇒ byte-identical.
+    // extras name (`mojulo.relief`: its index, its depth in m, the UVs a metre spans), for Unreal's master and the hero-live
+    // viewer to march. Absent ⇒ byte-identical.
     const dtex = otex !== null && fig.depthTex ? this.imageFromDataUrl(fig.depthTex.url) : null;
     // THE COVER (beast/cover.js, the pack's `coverTex` and each part's `uv` and `tan`), under the lit handoff only, on a
     // figure without the paint: the cover's tile over the figure (glTF's default sampler repeats it), its base × COLOR_0,
@@ -1872,8 +1872,8 @@ export function facesToGlb(payload = {}, { generator, clips = null, skinned = fa
   const lightDefs = Array.isArray(payload.lights) ? payload.lights.filter((l) => l && Array.isArray(l.position)) : [];
   for (const l of lightDefs) b.addLightNode({ ...l, translation: l.position });
   // A crystal light rig (crystal-rig R5) leaves as a frozen frame at t = 0: its beams and pools as one emissive node
-  // per colour (`crystal-light:<colour>`), its brightest glows as point lights. The Godot kernel performs the rig live
-  // from score.json and hides these; every other importer keeps the frame. No rig → zero bytes.
+  // per colour (`crystal-light:<colour>`), its brightest glows as point lights; an importer keeps
+  // the frame. No rig → zero bytes.
   const cryRig = payload.crystalLight ? crystalRigFor(expanded, payload.crystalLight) : null;
   if (cryRig) {
     const frame = rigFrozenFrame(expanded, cryRig);

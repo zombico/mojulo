@@ -6,7 +6,8 @@
  * proves a reader honoured them. Tiers are monotonic (T(n) ⊂ T(n+1)); a payload DECLARES a
  * tier when every declaration up to it is present, and ATTAINS it when the tier's gate
  * passes on that kind. This module measures the declarations only — pure, no dice, no
- * engine knowledge; the gates live in scripts/export-*.mjs and stamp their own results.
+ * engine knowledge; the gates live with the engine packs (the handoff's probe, scripts/export-*.mjs) and stamp their own
+ * results.
  *
  * Two things a tier is not: a fidelity rank (T0 is a finished look, on purpose), and an
  * engine. The engine is the WITNESS — the first reader that cannot proceed without the
@@ -24,8 +25,8 @@ export const WORLD_TIERS = Object.freeze([
   {
     id: 'T0', name: 'coherent',
     declares: ['faces', 'fills', 'walk_seat', 'floor_under_spawn', 'units_valid'],
-    gate: 'world-scene kinds characterization + engine-portability advisory + Godot locomotion_probe (unlit)',
-    witness: 'the World runtime; Godot unlit; Unreal as an asset, unlit',
+    gate: 'world-scene kinds characterization',
+    witness: 'the World runtime; Unreal as an asset, unlit',
   },
   {
     id: 'T1', name: 'baked',
@@ -36,8 +37,8 @@ export const WORLD_TIERS = Object.freeze([
   {
     id: 'T2', name: 'transported',
     declares: ['eye_plausible', 'lights_positioned', 'locomotion_row'],
-    gate: 'export-godot.mjs --lit + locomotion_probe; lights_carried in the ledger',
-    witness: 'Godot',
+    gate: 'the Godot handoff\'s probe (handoff_probe.gd, MOJULO_GODOT): its lights, markers and seats as handoff.json declares them',
+    witness: 'Godot 4, the engine handoff (export_model { engine })',
   },
   {
     id: 'T3', name: 'materialized',

@@ -251,7 +251,7 @@ export const TOOL_ANNOTATIONS = {
   create_pixelizer_game: ['Create a pixel arcade game', ADDITIVE],
   create_sprite_sheet: ['Create a sprite sheet', ADDITIVE],
   bake_sprite_sheet: ['Bake a sprite sheet', ADDITIVE_IDEMPOTENT],
-  // An engine target (godot) deletes and rewrites its pack folder.
+  // It rewrites the files of the game's outcome folder in place.
   export_game: ['Export a game', DESTRUCTIVE_IDEMPOTENT],
 
   // ── unlisted, callable by name (figure-specs.js, roles.js) ─────────────────

@@ -1,7 +1,6 @@
 /**
  * THE MINDS AS DATA: what an engine kernel needs to run the web's minds (worlds/controllable/mind.js, the `ai` rule) in
- * the bus's frame (z-up, recipe units, radians), beside the cast and the fight. It rides bus.json as `minds`; Godot's
- * kernel/mind.gd reads it (with kernel/nav.gd for pathing).
+ * the bus's frame (z-up, recipe units, radians), beside the cast and the fight. It rides the bus fragment as `minds`.
  *
  *   extractMinds(payload, player) → { version, tier?, off?, rules, minds, food? } | null
  *     tier    the world's class tuning (aiDifficulty → the matrix's skill × aggressiveness), as the web seeds it
