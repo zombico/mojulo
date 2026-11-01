@@ -38,6 +38,7 @@ import { correctiveRest } from './body-relational-correctives.js';
 import { validateAnimeExpression, resolveAnimeExpression } from './anime-head.js';
 import { westernExpressionErrors, resolveWesternExpression } from './humanoid-head.js';
 import { SWING_WORDS, isSwing } from './hero-swing.js';
+import { AURA_NAMES, heroAura, auraBody } from './hero-aura.js';
 import { HAND_POSES, DIGITS } from './hero-hand.js';
 import * as dmath from '../../util/dmath.js';
 
@@ -184,12 +185,13 @@ function gestureObjectErrors(g, label, clip = null, hands = false) {
 export function validateGesture(gesture, label = 'gesture', { hands = false } = {}) {
   if (gesture === undefined || gesture === null) return [];
   if (isSwing(gesture)) return [];   // a swing word (hero-swing.js): the stand is its ready key, the swing its clip
+  if (isShowcase(gesture)) return [];   // a showcase word (hero-aura.js): the stand is the pose's hit, held
   const items = Array.isArray(gesture) ? gesture : [gesture];
   if (!items.length) return [`${label}: a gesture word (${GESTURE_WORDS.join(', ')}), an object of pose words, or a list of them`];
   const errs = [];
   items.forEach((it, i) => {
     const at = Array.isArray(gesture) ? `${label}[${i}]` : label;
-    if (typeof it === 'string') { if (isSwing(it)) errs.push(`${at}: a swing word ('${it}') stands alone, not in a list`); else if (!GESTURE_WORDS.includes(it)) errs.push(`${at}: unknown gesture word '${it}' (${GESTURE_WORDS.join(', ')}; a swing: ${SWING_WORDS.join(', ')}; or an object of pose words: ${GESTURE_KEYS.join(', ')})`); }
+    if (typeof it === 'string') { if (isSwing(it)) errs.push(`${at}: a swing word ('${it}') stands alone, not in a list`); else if (isShowcase(it)) errs.push(`${at}: a showcase word ('${it}') stands alone, not in a list`); else if (!GESTURE_WORDS.includes(it)) errs.push(`${at}: unknown gesture word '${it}' (${GESTURE_WORDS.join(', ')}; a swing: ${SWING_WORDS.join(', ')}; or an object of pose words: ${GESTURE_KEYS.join(', ')})`); }
     else if (isObj(it)) errs.push(...gestureObjectErrors(it, at, null, hands));
     else errs.push(`${at}: a gesture word (${GESTURE_WORDS.join(', ')}) or an object of pose words`);
   });
@@ -264,7 +266,7 @@ const castEntry = (preset, cast) => (typeof cast === 'string' && Object.hasOwn(p
 /** A gesture → the stand's pose words for `cast`, or null (`rest`, or nothing given). A list resolves left → right:
  * a later entry's keys win, the nested words (spine, neck, head, the raw swivels) merge one level deep. */
 export function resolveGesture(gesture, cast, { core } = {}) {
-  if (gesture === undefined || gesture === null) return null;
+  if (gesture === undefined || gesture === null || isShowcase(gesture)) return null;   // (a showcase's stand is its own: showcaseStand)
   let pose = null;
   for (const it of Array.isArray(gesture) ? gesture : [gesture]) {
     if (it === 'rest') { pose = null; continue; }
@@ -339,6 +341,24 @@ export const gestureWord = (g) => (g === undefined || g === null ? null : (Array
 // ─── the stand on a compiled mesh ──────────────────────────────────────────
 /** The stand a rigged recipe holds: its `gesture` clip's key, resolved as the clip preview resolves it; else null. The
  * caller keys it on a HERO (the World resolver: a hero-door row); a plan's own clip of that name is just a clip. */
+/** a SHOWCASE word as the stand (hero-aura.js AURAS; `<name>Left` its mirror): the pose the character strikes to be
+ * looked at, its hit held (a bible's cover, a select screen, a live demo). Its stand is solved on the rig, not written in
+ * the stand's pose words, so it rides no `gesture` clip: `showcaseStand` gives it to the render. */
+export const isShowcase = (g) => typeof g === 'string' && AURA_NAMES.includes(g);
+/** A showcase hero's stand: the pose's hit on the rig (its hands on the body's own surfaces when `mesh` and `skin` are
+ * given), as rigNodesAt takes it; null for any other stand. */
+export function showcaseStand(hero, R, { mesh = null, skin = null } = {}) {
+  if (!isShowcase(hero?.gesture)) return null;
+  const A = heroAura(hero.gesture, R, { body: mesh ? auraBody(R, mesh, skin) : null });
+  return A.clip.fn(1);
+}
+/** A layered hero's manifest standing in a showcase instead (in memory: a lineup's member, a portrait): its stand's clip
+ * dropped so the showcase is the stand the render reads (showcaseStand). Any other manifest, or word, as it is. */
+export function asShowcase(m, word) {
+  if (!m?.hero || !m.recipe || !isShowcase(word)) return m;
+  const { [GESTURE_CLIP]: _g, ...clips } = m.recipe.clips || {};
+  return { ...m, hero: { ...m.hero, gesture: word }, recipe: { ...m.recipe, clips } };
+}
 export function standPose(recipe, R) {
   const keys = recipe?.rig && recipe.clips?.[GESTURE_CLIP];
   if (!Array.isArray(keys) || !keys.length) return null;

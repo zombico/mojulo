@@ -13,6 +13,7 @@
  *
  * Pure.
  */
+import { GAME_BODIES, GAME_BODY_NAMES } from './game-bodies.js';
 import { TRADITIONS, BRIDGE, FROM, LOOKS_ELEMENTS, CHARACTER_PART_IDS } from './characters.js';
 import { ELEMENT_WORDS } from './element-words.js';
 import { UNDERLAYERS } from './hero-looks.js';
@@ -170,6 +171,7 @@ function directionCard() {
     `elements with a tint (primary, secondary): ${Object.keys(ELEMENT_WORDS).join(', ')}; a word with no tint is carried as words.`,
     'LAWS: the leading element tints the trim and the top the hero wears, the supporting one the hair highlight and the',
     'bottom; a leading element with a stone gives a staff its stone. The motif is free words, repeated shape language.',
+    `body (the body the game puts in it, opt-in): a rail (${GAME_BODY_NAMES.map((n) => `${n}: ${GAME_BODIES[n].read}`).join('; ')}), 'game' for the one its feel, genre or quick goal reads, or { rail, style?, muscle? }; styled by the tradition, the juice look and the medium, laid under the body page (its own words win and are ledgered); muscle: true puts on the muscle shirt (the anime frame's).`,
     '',
     ...pair('direction',
       ['a courier racing sandstorms across a sun-bleached salt flat', { tradition: 'western', primary: 'sun', secondary: 'earth', motif: ['chevron'] }],
@@ -634,6 +636,7 @@ function quickCard() {
     'Knowing the goal, read that card alone.',
     '',
     ...quickShared(),
+    `  body: ${GAME_BODY_NAMES.join(' | ')} | 'game' | { rail, style?, muscle? }   the body it puts in its people: under the hero's words, under each foe, guard and tower rolled ('game': the goal's)`,
   );
 }
 

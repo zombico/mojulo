@@ -34,7 +34,7 @@ const dl = (rows) => `<dl class="vocab">${rows.filter(([, v]) => v !== undefined
 
 const EXTRA_CSS = `
 .sws{display:flex;flex-wrap:wrap;gap:8px}.sw{display:inline-flex;align-items:center;gap:6px;font:11px var(--mono);color:var(--muted)}.sw i{width:22px;height:22px;border-radius:3px;border:1px solid var(--rule)}.sw b{font-weight:500;color:var(--ink)}
-.turn{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}.turn figure{background:#fff;border:1px solid var(--rule);border-radius:3px;padding:6px}.turn figcaption{font:10.5px var(--mono);text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin-top:4px}
+.hero-cover{margin:0 0 12px;max-width:420px;background:#fff;border:1px solid var(--rule);border-radius:3px;overflow:hidden}.hero-cover img{display:block;width:100%;height:auto}.hero-cover figcaption{font:10.5px var(--mono,monospace);padding:4px 6px;color:var(--muted,#666)}.turn{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}.turn figure{background:#fff;border:1px solid var(--rule);border-radius:3px;padding:6px}.turn figcaption{font:10.5px var(--mono);text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin-top:4px}
 .turn.colour figure{padding:0;overflow:hidden}.turn.colour img{display:block;width:100%;height:auto}.turn.colour figcaption{padding:4px 6px}details.wire{margin-top:10px}details.wire summary{font:10.5px var(--mono);text-transform:uppercase;letter-spacing:.08em;color:var(--muted);cursor:pointer}details.wire .turn{margin-top:8px}
 img.gear{display:block;width:96px;height:96px;margin-top:6px;border:1px solid var(--rule);border-radius:3px;background:#eef1f4}
 .live iframe{width:100%;height:520px;border:1px solid var(--rule);border-radius:3px;background:#fff}.live figcaption{font:10.5px var(--mono);text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin-top:4px}
@@ -196,7 +196,7 @@ ${G.characters.cast ? `<article class="card"><div class="card-h"><span class="ey
 <style>${CSS}${EXTRA_CSS}</style></head><body><div class="wrap">
 <div class="mast"><div class="t">Character bible</div><div class="eyebrow">${esc(G.id)} · seed ${G.seed}</div></div>
 <nav class="tabs" aria-label="Sections"><a href="#cover">Hero</a><a href="#gate">Gate</a><a href="#characters-direction">Direction</a><a href="#hero-looks">Looks</a><a href="#hero-base">Base</a><a href="#hero-motion">Motion</a><a href="#hero-actions">Actions</a><a href="#hero-adornment">Adornment</a><a href="#equipment">Equipment</a><a href="#mechanics-stats">Systems</a><a href="#open">Open</a></nav>
-<section class="part" id="cover"><div class="cover"><div><h1>${esc(G.name)}</h1><p class="lede">${esc(D.tradition)} · ${esc(D.from === 'world' ? G.style.kit : 'its own direction')}${D.primary ? ` · ${esc(D.primary)}${D.secondary ? ` and ${esc(D.secondary)}` : ''}` : ''}</p></div></div>
+<section class="part" id="cover"><div class="cover">${renders.cover?.image ? `<figure class="hero-cover"><img alt="${esc(G.name)} hero, ${esc(renders.cover.pose)}" src="${esc(renders.cover.image)}"><figcaption>${esc(renders.cover.pose)}${renders.cover.rail ? ` · the ${esc(renders.cover.rail)} rail` : ''} · ${esc(renders.cover.why)}</figcaption></figure>` : ''}<div><h1>${esc(G.name)}</h1><p class="lede">${esc(D.tradition)} · ${esc(D.from === 'world' ? G.style.kit : 'its own direction')}${D.primary ? ` · ${esc(D.primary)}${D.secondary ? ` and ${esc(D.secondary)}` : ''}` : ''}</p></div></div>
 ${gate}</section>
 ${direction}
 ${looks}

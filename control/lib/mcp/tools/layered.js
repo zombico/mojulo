@@ -85,7 +85,7 @@ import { ANIME_HAIR_STYLES } from '@/lib/graph/polygonizer/anime-head';
 import { validateGenki, genkiStand } from '@/lib/graph/polygonizer/anime-genki';
 import { ANIME_STYLE_NAMES, validateAnimeStyle, resolveAnimeStyle, animeStyleOf } from '@/lib/graph/polygonizer/anime-styles';
 import { muscleShirt, validateMuscleShirt } from '@/lib/graph/musculature';
-import { ANIME_BODY_NAMES, validateAnimeBody, resolveAnimeBody } from '@/lib/graph/polygonizer/anime-bodies';
+import { ANIME_BODY_NAMES, validateAnimeBody, resolveAnimeBody, animePoleOf, animeBodyStamped } from '@/lib/graph/polygonizer/anime-bodies';
 import { LOOK_TABLES, validateLook, resolveLook, composeAnime, heroHeadPole as headPoleOf, animeHeroEffective as animeEffective, animeFaceBase, animeSculptBase, animeBodySmooth, castHeadPole as castHeadPoleOf, heroFeatureAdvice, heroHairPole } from '@/lib/graph/polygonizer/anime-looks';
 import { ANIME_SCULPT, ANIME_SCULPT_KEYS, SCULPT_SHAPE_KEYS, validateAnimeSculpt, resolveAnimeSculpt, sparseSculpt, animeSculptWarnings, describeAnimeSculpt } from '@/lib/graph/polygonizer/anime-sculpt';
 import { layeredStats, persistedLayeredLedger } from '@/lib/graph/polygonizer/station-loft-faces';
@@ -128,6 +128,7 @@ import { WINGBEATS } from '@/lib/graph/bugs/gait';
 import { prepareStrokes, strokesLedger } from '@/lib/mcp/tools/layered-strokes';
 import { packRecipe } from '@/lib/graph/sketch/manifest-store';
 import { validateGear, gearRecord, gearMounts, gearReadout, gearBuild, gearTriangles } from '@/lib/graph/polygonizer/hero-gear';
+import { validateAttach, attachRecord, attachMounts, attachReadout } from '@/lib/graph/polygonizer/hero-attach';
 import { isSwing, SWING_HAND, heroSwing } from '@/lib/graph/polygonizer/hero-swing';
 import { expandEquipment } from '@/lib/graph/equipment/expand';
 import { GESTURE_CLIP, GESTURE_WORDS, GESTURE_KEYS, STRUCTURED_SWING_BASE, heroGesture, validateGesture, resolveGesture, withGestureClip, gestureWord, standPose, poseLayered, gestureClearance, validateHeroClips, withHeroClips, heroClipSeconds, CLIP_KEYS } from '@/lib/graph/polygonizer/hero-gesture';
@@ -771,7 +772,12 @@ function expandAware(plan, hero) {
 
 /** An anime hero's LOOK stamp kept with its words: re-resolved only when the list changed (a re-tuned look word never
  * changes a stored row until its list is edited); an emptied or removed look drops its stamp. Anything else as given. */
+/** a worn object's ref read from this machine's sketches (hero-attach.js attachRecord): its manifest, or null */
+const attachLookup = (ref) => SketchRepository.getByRef(ref)?.manifest ?? null;
 export function normalizeHero(hero) {
+  // a worn object patched in by its ref is copied in as at mint (a stamp already standing for its ref is kept); an
+  // emptied list drops the field
+  if (hero && hero.attach !== undefined) { const a = hero.attach === null ? null : attachRecord(hero.attach, { lookup: attachLookup }); if (a) hero = { ...hero, attach: a }; else { const { attach: _a, ...rest } = hero; hero = rest; } }
   // the door's clips stay sparse after a patch under /hero/clips (the last one removed, or the field set to null, drops it)
   if (hero && hero.clips !== undefined && (hero.clips === null || !Object.keys(hero.clips).length)) { const { clips: _c, ...rest } = hero; hero = rest; }
   // the ambient blink is stored only when off: a patch setting it back on (true, null) drops the field
@@ -794,7 +800,7 @@ export function normalizeHero(hero) {
   else if (hero.animeStyleResolved?.word !== hero.animeStyle) hero = { ...hero, animeStyleResolved: resolveAnimeStyle(hero.animeStyle) };
   // (the body codename's stamp as the style's: set again when its word changes, dropped when the word is)
   if (hero.animeBody === undefined || hero.animeBody === null) { if (hero.animeBody !== undefined || hero.animeBodyResolved !== undefined) { const { animeBody: _a, animeBodyResolved: _b, ...rest } = hero; hero = rest; } }
-  else if (hero.animeBodyResolved?.word !== hero.animeBody) hero = { ...hero, animeBodyResolved: resolveAnimeBody(hero.animeBody) };
+  else if (!animeBodyStamped(hero)) hero = { ...hero, animeBodyResolved: resolveAnimeBody(hero.animeBody, animePoleOf(hero), hero.animeStyle ?? undefined) };
   const words = hero.look === undefined || hero.look === null ? [] : Array.isArray(hero.look) ? hero.look : [hero.look];
   if (!words.length) { if (hero.look === undefined && hero.lookResolved === undefined) return hero; const { look: _l, lookResolved: _r, ...rest } = hero; return rest; }
   if (hero.lookResolved && JSON.stringify(hero.lookResolved.words) === JSON.stringify(words)) return Array.isArray(hero.look) ? hero : { ...hero, look: words };
@@ -865,7 +871,7 @@ export const STREAMLINED_DEPRECATED = "the streamlined core (core: 'streamlined'
  * the front's silhouette kept), where laws 1 to 15 let the skin fall back a centimetre behind the canthus and the
  * globe's side show bare from 3/4 and the side */
 export const REALISTIC_LAWS_VERSION = 16;
-export const HERO_FIELDS = ['cast', 'register', 'tune', 'body', 'girth', 'headScale', 'scale', 'palette', 'head', 'face', 'hair', 'expression', 'headPreset', 'look', 'proportions', 'detail', 'adorn', 'paint', 'outfit', 'gesture', 'sculpt', 'clips', 'blink', 'gear', 'core', 'statue', 'genki', 'motion', 'target', 'geocube', 'form', 'physique', 'skin', 'painterly', 'stylism', 'laws', 'kit', 'headgear', 'name', 'emblem', 'undead', 'beast', 'perform', 'emote', 'acting', 'animeStyle', 'animeBody', 'muscleShirt'];
+export const HERO_FIELDS = ['cast', 'register', 'tune', 'body', 'girth', 'headScale', 'scale', 'palette', 'head', 'face', 'hair', 'expression', 'headPreset', 'look', 'proportions', 'detail', 'adorn', 'paint', 'outfit', 'gesture', 'sculpt', 'clips', 'blink', 'gear', 'core', 'statue', 'genki', 'motion', 'target', 'geocube', 'form', 'physique', 'skin', 'painterly', 'stylism', 'laws', 'kit', 'headgear', 'name', 'emblem', 'undead', 'beast', 'perform', 'emote', 'acting', 'animeStyle', 'animeBody', 'muscleShirt', 'attach'];
 /** what the hero door takes beside a hero's own words: the mint's (the layered kind's top-level keys) and `vibe` */
 /** A named hero's name is its own on this machine: refused when another hero (any ref but `ref`) holds it, as names are
  * compared (case and spacing aside), naming the hero that holds it. */
@@ -1084,6 +1090,8 @@ export function validateHeroSpec(spec, { staleScale = false } = {}) {
     else errs.push(...emoteClipErrors(spec.emote).map((e) => (e.startsWith('emote') ? e : e.startsWith('[') ? `emote${e}` : `emote.${e}`)));
   }
   errs.push(...validateGear(spec.gear));
+  // objects of the operator's own worn on a bone (hero-attach.js): a workbench recipe, or a solid by its ref
+  errs.push(...validateAttach(spec.attach, { resolving: true }));
   if (spec.statue !== undefined && spec.statue !== null) errs.push(...validateStatueBuild(spec.statue, spec));
   if (isSwing(spec.gesture) && !spec.gear?.[SWING_HAND[spec.gesture]]) errs.push(`gesture '${spec.gesture}' swings the ${SWING_HAND[spec.gesture]} hand's gear: add gear.${SWING_HAND[spec.gesture]} (an item's build words, e.g. { item: '${spec.gesture === 'bash' ? 'shield' : spec.gesture === 'plant' ? 'staff' : 'sword'}' })`);
   if (spec.proportions !== undefined && !PROPORTION_WORDS.includes(spec.proportions)) errs.push(`proportions: 'anime' (about 6.5 / 7 heads tall: the default with the anime head), 'hero' (the realistic casts: the default with the landmark head) or 'herobot' (the hero robot's toy-hero body, about 4.5 heads tall: a big head, short arms and torso, big hands and feet)`);
@@ -1287,7 +1295,7 @@ export function heroRecord(spec, { staleScale = false } = {}) {
     if (words.length) Object.assign(hero, { look: [...words], lookResolved: resolveLook(words) });
     // the style pole: its word beside its stamp (anime-styles.js), so a re-tuned style never moves this row
     if (spec.animeStyle) Object.assign(hero, { animeStyle: spec.animeStyle, animeStyleResolved: resolveAnimeStyle(spec.animeStyle) });
-    if (spec.animeBody) Object.assign(hero, { animeBody: spec.animeBody, animeBodyResolved: resolveAnimeBody(spec.animeBody) });
+    if (spec.animeBody) Object.assign(hero, { animeBody: spec.animeBody, animeBodyResolved: resolveAnimeBody(spec.animeBody, animePoleOf(hero), hero.animeStyle ?? undefined) });
     // the graphic face: SPARSE (the words that differ from the base; absent when none, so the default is read at plan
     // time and never stored); `false` (the studio's face) is stored
     if (spec.sculpt !== undefined && spec.sculpt !== null) { const sc = sparseSculpt(resolveAnimeSculpt(spec.sculpt)); if (sc !== null) hero.sculpt = sc; }
@@ -1323,6 +1331,8 @@ export function heroRecord(spec, { staleScale = false } = {}) {
   if (spec.blink === false) hero.blink = false;
   // held and carried gear (hero-gear.js): each slot's build words with the laws stamped; absent ⇒ no key
   const gear = gearRecord(spec.gear); if (gear) hero.gear = gear;
+  // worn objects (hero-attach.js): each as given, a ref copied in so the hero stays its own recipe; absent ⇒ no key
+  const attach = attachRecord(spec.attach, { lookup: attachLookup }); if (attach) hero.attach = attach;
   // an armour build is stamped with the laws it was minted under, so a later refinement never moves a stored suit
   if (isArmorBuild(hero.adorn) && hero.adorn.laws === undefined) hero.adorn = { ...hero.adorn, laws: ARMOR_LAWS_VERSION };
   if (isOutfitBuild(hero.outfit) && hero.outfit.laws === undefined) hero.outfit = { ...hero.outfit, laws: OUTFIT_LAWS_VERSION };
@@ -1755,6 +1765,7 @@ export function heroReadout(hero, plan, stats, extraWarnings = [], { mesh, recip
     ...(stand ? { gesture: stand } : {}),
     ...(core ? { core } : {}),
     ...(clips ? { clips } : {}),
+    ...(hero.attach && recipe?.rig ? { attach: attachReadout(attachMounts(hero, validateRig(recipe.rig)), validateRig(recipe.rig)) } : {}),
     ...(hero.gear && recipe?.rig ? { gear: (() => { const R = validateRig(recipe.rig); const out = gearReadout(gearMounts(hero, R), R); const sw = heroSwing(hero, { expand: expandEquipment, gearBuild });
       // the swing's contact data for a game's hit test (the clip never reads it): the impact's phase, the window, the reach
       if (sw && out[sw.hand]) out[sw.hand].swing = { word: sw.word, class: sw.cls, strike: sw.strike, window: sw.window, reachM: out[sw.hand].lengthM, cone: 70 };
@@ -1766,7 +1777,7 @@ export function heroReadout(hero, plan, stats, extraWarnings = [], { mesh, recip
     ...((sm) => (sm ? { critic: { style: anime || hero.proportions === 'anime' ? 'anime' : 'western', measures: sm, western: styleCritic(sm, 'western', coreBody), anime: styleCritic(sm, 'anime', coreBody),
       ...(coreBody === 'female' && !childCoding(hero) ? ((cm) => (cm ? { chest: { measures: cm, ...chestCritic(cm) } } : {}))(chestMeasures(plan, mesh, sm.head_m)) : {}) } } : {}))(mesh ? styleMeasures(plan, mesh) : null),
     // the carried gear is drawn beside the figure's mesh (hero-gear.js): the spend counts it as its own region
-    ...(mesh && heroTarget(hero) ? { spend: castSpend(mesh, plan, heroTarget(hero), { gear: hero.gear && recipe?.rig ? gearTriangles(gearMounts(hero, validateRig(recipe.rig))) : null }) } : {}),
+    ...(mesh && heroTarget(hero) ? { spend: castSpend(mesh, plan, heroTarget(hero), { gear: (hero.gear || hero.attach) && recipe?.rig ? gearTriangles([...gearMounts(hero, validateRig(recipe.rig)), ...attachMounts(hero, validateRig(recipe.rig))]) : null }) } : {}),
     // the painterly look (era/looks.js): its conventions built and still planned
     ...(hero.painterly ? { painterly: lookReadout('painterly-toon') } : {}),
     ...(budget && heroTarget(hero) ? { density: { ...castDensityReadout(plan, heroTarget(hero), budget.triangles), era: heroEra(hero), ...(hero.geocube ? { geocube: readGeocube(hero.geocube).id } : {}),
