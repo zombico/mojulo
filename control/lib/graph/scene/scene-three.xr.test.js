@@ -26,8 +26,8 @@ describe('emitThreeWorld xr', () => {
     expect(js).toContain("setReferenceSpaceType('local-floor')");
     expect(js).toContain('renderer.xr.enabled = true');
     expect(js).toContain('if (__xrOn) __xrStep(dt);');
-    // defaults: fallback eye 1.6, orbit-only speed 3, smooth turn at 120°/s on the right stick, the walk heading latched
-    expect(js).toContain('const XR = {"eye":1.6,"speed":3,"turn":"smooth","snap":0.5235987755982988,"turnSpeed":2.0943951023931953,"move":"latch",');
+    // defaults: fallback eye 1.6, orbit-only speed 3, smooth turn at 120°/s on the right stick, the feet walking on the body's heading
+    expect(js).toContain('const XR = {"eye":1.6,"speed":3,"turn":"smooth","snap":0.5235987755982988,"turnSpeed":2.0943951023931953,"move":"body",');
     // the sticks are the pilot scheme's, read through the kernel and the xr driver
     expect(js).toContain('"turnRight":["right.thumbstickX+"]');
     expect(js).toContain('__XRV.xrRead(session.inputSources, __XRD)');

@@ -18,11 +18,14 @@ import { SCHEMES } from '../../controls/schemes.js';
 // kernel and the xr family's driver (controls/xr-driver.js), so the headset and the scheme's
 // controls card say the same thing and `xr.bind` remaps them: the left thumbstick walks and
 // strafes, the right one turns, so the player never has to turn their head to turn.
-//   - GOES STRAIGHT: the stick is shaped (a radial dead zone, a near-cardinal push snapped onto the
-//     cardinal), and the heading a push walks on is LATCHED when the stick engages (`move: 'latch'`),
-//     so a glance aside mid-walk does not bend the path; the right stick turns the latched heading
-//     with the body. `'head'` re-reads the gaze every frame (the pre-latch behaviour), `'hand'` walks
-//     where the moving hand's controller points.
+//   - FEET, BODY, HEAD (`move: 'body'`, the default: the seated, couch action game): the feet go where
+//     the body points (the left stick: forward, back, and sideways to it), the body turns only on the
+//     right stick, and the head is a pure camera, looking anywhere without steering. The body is the
+//     rig: its yaw is the body's, so "forward" is the rig yaw. Standing players who turn their whole
+//     body by hand want the head to steer instead: `'latch'` takes the gaze when a push begins and
+//     holds it (a glance aside mid-walk does not bend the path), `'head'` re-reads the gaze every
+//     frame, `'hand'` walks where the moving hand's controller points. Every mode goes straight: the
+//     stick is shaped (a radial dead zone, a near-cardinal push snapped onto the cardinal).
 //   - TURNS IN PLACE: smooth (`turn: 'smooth'`, `turnSpeed` deg/s) or snap (`snap` deg), about the
 //     head, not the play-space origin the rig hangs from (turning about the origin swings a player
 //     standing off-centre around a circle).
@@ -34,7 +37,7 @@ import { SCHEMES } from '../../controls/schemes.js';
 // rig replaces the controllable step); overlays (fog/effects) are camera-fed per eye by three but
 // were tuned for the mono view.
 
-const MOVES = ['latch', 'head', 'hand'];
+const MOVES = ['body', 'latch', 'head', 'hand'];
 const TURNS = ['smooth', 'snap'];
 // the pilot scheme's locomotion: what the headset reads
 const LOCO = ['moveForward', 'moveBack', 'strafeLeft', 'strafeRight', 'turnLeft', 'turnRight'];
@@ -58,7 +61,7 @@ export function xrConfig(xr, walk) {
     turn,
     snap: num(k.snap, 30) * Math.PI / 180,
     turnSpeed: num(k.turnSpeed, 120) * Math.PI / 180,
-    move: MOVES.includes(k.move) ? k.move : 'latch',
+    move: MOVES.includes(k.move) ? k.move : 'body',
     dead: clamp(num(k.dead, 0.2), 0, 0.9),
     axial: clamp(num(k.axial, 12), 0, 44) * Math.PI / 180,
     bind: { xr: bind },
@@ -67,7 +70,7 @@ export function xrConfig(xr, walk) {
 
 // `?xr=` on the live /world route: '1' / 'true' adds the entry with the manifest's own `xr` (or the defaults), '0' /
 // 'false' drops it, and words pick the modes for a headset A/B without a re-mint: `?xr=snap`, `?xr=smooth,hand`,
-// `?xr=head` (any of latch | head | hand, smooth | snap, comma-separated). No param ⇒ the manifest's `xr` as is.
+// `?xr=head` (any of body | latch | head | hand, smooth | snap, comma-separated). No param ⇒ the manifest's `xr` as is.
 export function xrFromParam(param, own) {
   if (param == null) return own || null;
   const p = String(param).trim().toLowerCase();
@@ -85,7 +88,7 @@ export function xrModeScript(cfg) {
 // --- WebXR immersive-vr (opt-in): the z-up rig carries the y-up XR space through the same scene ---
 const XR = ${safeJson(cfg)};
 // a static copy (a download, a page on a static host) takes the mode words the live route does: ?xr=snap,hand
-try { for (const w of (new URLSearchParams(location.search).get('xr') || '').toLowerCase().split(',')) { if (w === 'smooth' || w === 'snap') XR.turn = w; else if (w === 'latch' || w === 'head' || w === 'hand') XR.move = w; } } catch (e) { /* no location */ }
+try { for (const w of (new URLSearchParams(location.search).get('xr') || '').toLowerCase().split(',')) { if (w === 'smooth' || w === 'snap') XR.turn = w; else if (w === 'body' || w === 'latch' || w === 'head' || w === 'hand') XR.move = w; } } catch (e) { /* no location */ }
 const __XRK = (${buildControlsKernel.toString()})();
 const __XRV = (${buildXrDriver.toString()})();
 const __XRD = ${safeJson({ xr: DEVICES.xr })};
@@ -167,7 +170,7 @@ async function __xrEnter(){
   await renderer.xr.setSession(session);
 }
 // per-frame: the right stick turns (smooth or snap, about the head), the left stick walks and strafes on the
-// latched / gaze / hand heading, then the rig's feet snap to the floor beneath (walk channel's probe).
+// body / latched / gaze / hand heading, then the rig's feet snap to the floor beneath (walk channel's probe).
 function __xrStep(dt){
   const session = renderer.xr.getSession(); if (!session || !__xrRig) return;
   const rd = __XRV.xrRead(session.inputSources, __XRD);
@@ -186,7 +189,7 @@ function __xrStep(dt){
     if (t) __xrTurn(-t * XR.turnSpeed * dt);
   }
   if (walking) {
-    const h = XR.move === 'latch' ? __xrLatch : XR.move === 'hand' ? __xrHandHeading() : __xrHeading();
+    const h = XR.move === 'body' ? __xrYaw : XR.move === 'latch' ? __xrLatch : XR.move === 'hand' ? __xrHandHeading() : __xrHeading();
     const v = XR.speed * dt, fx = Math.cos(h), fy = Math.sin(h), rx = Math.sin(h), ry = -Math.cos(h);
     __xrRig.position.x += (m[1] * fx + m[0] * rx) * v;
     __xrRig.position.y += (m[1] * fy + m[0] * ry) * v;

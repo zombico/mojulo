@@ -48,8 +48,20 @@ function rigUp(xr, { headOffset = [0, 0] } = {}) {
 const headWorld = (r, off) => { const v = new THREE.Vector3(off[0], 1.6, -off[1]); r.page.rig().updateMatrixWorld(); return r.page.rig().localToWorld(v); };
 
 describe('xr locomotion, run', () => {
-  it('walks straight on the heading the push began on: a stick a little off true and a glance aside do not bend it', async () => {
+  it('feet, body, head: the head is a pure camera, looking before or during a push never steers it', async () => {
     const r = rigUp(true);
+    expect(r.cfg.move).toBe('body');
+    await r.page.enter();
+    r.head.yaw = 0.8;                            // looking 45° left before pushing
+    r.pads.left.axes = [0, 0, 0.12, -1];         // forward, a worn stick's drift to the right
+    for (let i = 0; i < 60; i++) { if (i === 30) r.head.yaw = -0.8; r.page.step(1 / 60); }
+    const p = r.page.rig().position;
+    expect(p.x).toBeCloseTo(3, 5);               // the body's forward, +X, at 3 m/s
+    expect(Math.abs(p.y)).toBeLessThan(1e-9);
+  });
+
+  it('latch: walks straight on the heading the push began on, a glance aside mid-walk does not bend it', async () => {
+    const r = rigUp({ move: 'latch' });
     await r.page.enter();
     r.pads.left.axes = [0, 0, 0.12, -1];       // forward, a worn stick's drift to the right
     for (let i = 0; i < 60; i++) {
@@ -99,8 +111,8 @@ describe('xr locomotion, run', () => {
   // the operator's report from a Quest 3S: walking north, a right-stick turn to the east, and forward still walked north.
   // Forward is where the body faces after a turn, the convention every controller game keeps.
   it('forward follows the body after a right-stick turn, held through the turn or pushed again after it', async () => {
-    for (const regrip of [false, true]) {
-      const r = rigUp(true);
+    for (const [move, regrip] of [['body', false], ['body', true], ['latch', false], ['latch', true]]) {
+      const r = rigUp({ move });
       await r.page.enter();
       r.pads.left.axes = [0, 0, 0, -1];
       for (let i = 0; i < 30; i++) r.page.step(1 / 60);          // walking "north" (+X here)
@@ -112,8 +124,8 @@ describe('xr locomotion, run', () => {
       const p0 = r.page.rig().position.clone();
       for (let i = 0; i < 60; i++) r.page.step(1 / 60);
       const d = r.page.rig().position.clone().sub(p0);
-      expect(d.x, regrip ? 'pushed again' : 'held').toBeCloseTo(0, 6);
-      expect(d.y, regrip ? 'pushed again' : 'held').toBeCloseTo(-3, 6);
+      expect(d.x, `${move}, ${regrip ? 'pushed again' : 'held'}`).toBeCloseTo(0, 6);
+      expect(d.y, `${move}, ${regrip ? 'pushed again' : 'held'}`).toBeCloseTo(-3, 6);
     }
   });
 
@@ -140,11 +152,11 @@ describe('xr locomotion, run', () => {
 });
 
 describe('xr config', () => {
-  it('defaults: smooth turn, latched heading, a radial dead zone; `snap` alone still means snap turning', () => {
-    expect(xrConfig(true, null)).toMatchObject({ turn: 'smooth', move: 'latch', dead: 0.2, speed: 3 });
+  it('defaults: smooth turn, the body’s heading, a radial dead zone; `snap` alone still means snap turning', () => {
+    expect(xrConfig(true, null)).toMatchObject({ turn: 'smooth', move: 'body', dead: 0.2, speed: 3 });
     expect(xrConfig({ snap: 45 }, null).turn).toBe('snap');
     expect(xrConfig({ snap: 45, turn: 'smooth' }, null).turn).toBe('smooth');
-    expect(xrConfig({ move: 'sideways' }, null).move).toBe('latch');
+    expect(xrConfig({ move: 'sideways' }, null).move).toBe('body');
     expect(xrConfig(null, null)).toBe(null);
   });
 
