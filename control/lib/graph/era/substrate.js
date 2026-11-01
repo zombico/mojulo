@@ -1,7 +1,7 @@
 /**
  * THE SUBSTRATE — what a level's ground IS, cell by cell: the geology a level's flora grows on (era/substrate-flora.js
  * says what belongs on each). The geocube's: read off the land its stage lays (its heightfield, its slope, its talus
- * apron, its trail and its streams) and turned by the rock's formation. It draws nothing.
+ * apron, its trail, its streams and its water: era/out-water.js) and turned by the rock's formation. It draws nothing.
  *
  *   SUBSTRATES                           each substrate's read
  *   substrateMap(st, site, opts)         → { cells: Uint8Array (a SUBSTRATE_IDS index a land cell, 255 off the land),
@@ -17,7 +17,9 @@
  *                                          cell is turned by its centre's; a land draws the line through its cells
  *   (era/substrate-of.js substrateOf(manifest): the same for an isekai stage recipe, as the stage lays it)
  *
- * The rules, in order: the trail and its fringe are the path; within a stream's reach the ground is wet; a face
+ * The rules, in order: the trail and its fringe are the path; under a lake's, a pool's or a river's shallows the ground
+ * is wet, under deeper water (and the sea) it is no land; a shore the water lays as sand (a lake's, a beach, a river's
+ * shingle) is sand; within a stream's reach, and on a fresh water's bank low over it, the ground is wet; a face
  * steeper than the land's rock slope is bedrock; the talus apron is scree; the rest is soil, which the formation then
  * turns in patches (limestone: thin soil giving way to bare pavement; sandstone: the flats to sand; flagstone: slabs of
  * bedrock through the turf). Pure: the site's own numbers and hashed noise.
@@ -64,11 +66,15 @@ export function turnField(formation, seed = 1) {
 }
 // a stream's reach either side of its crossing (m)
 const WET_REACH = 2.6;
+// a fresh water's shallows (m under its level: reeds, rushes and lilies root there; deeper is open water, no land) and
+// its bank (m over its level the ground stays wet, within the bank's reach: era/out-water.js level)
+const SHALLOWS = 0.6, BANK = 0.9;
 
 /** The substrate of every land cell of an isekai stage's site. */
 export function substrateMap(st, site, { formation = null, seed = 1 } = {}) {
   const g = site.grid, nx = g.nx, ny = g.ny, cells = new Uint8Array((nx - 1) * (ny - 1)).fill(255), cell = gridX(g, 1) - gridX(g, 0);
   const turn = formation ? FORMATION_TURNS[formation] ?? null : null, streams = site.out?.streams ?? [], field = turn ? turnField(formation, seed) : null;
+  const Wt = site.water ?? null;
   const turnable = turn ? new Uint8Array(cells.length) : null;
   const count = Object.fromEntries(SUBSTRATE_IDS.map((k) => [k, 0]));
   let land = 0;
@@ -80,9 +86,13 @@ export function substrateMap(st, site, { formation = null, seed = 1 } = {}) {
     const ux = p[2][0] - p[0][0], uy = p[2][1] - p[0][1], uz = p[2][2] - p[0][2], vx = p[3][0] - p[1][0], vy = p[3][1] - p[1][1], vz = p[3][2] - p[1][2];
     const nxv = uy * vz - uz * vy, nyv = uz * vx - ux * vz, nzv = ux * vy - uy * vx, nz = Math.abs(nzv) / (Math.hypot(nxv, nyv, nzv) || 1);
     const apron = g.apron ? (g.apron[j * nx + i] + g.apron[(j + 1) * nx + i + 1]) / 2 : 0;
+    // (the water's: the ground at the centre, the level of the fresh water whose bank holds it)
+    const cz = Wt ? (p[0][2] + p[1][2] + p[2][2] + p[3][2]) / 4 : 0, lv = Wt ? Wt.level(cx, cy) : null;
     let s;
     if (site.trailDist(cx, cy) < site.halfWAt(cy) + site.fringeAt(cy)) s = 'path';
-    else if (streams.some((t) => Math.abs(cy - t.y) < WET_REACH)) s = 'wet';
+    else if (Wt && Wt.wet(cx, cy)) { if (lv !== null && lv - cz <= SHALLOWS) s = 'wet'; else continue; }
+    else if (Wt && Wt.sand(cx, cy, cz) > 0) s = 'sand';
+    else if (streams.some((t) => Math.abs(cy - t.y) < WET_REACH) || (lv !== null && cz < lv + BANK)) s = 'wet';
     else if (nz < st.slope.rock) s = 'bedrock';
     else if (apron > st.landform.apronMin) s = 'scree';
     else {

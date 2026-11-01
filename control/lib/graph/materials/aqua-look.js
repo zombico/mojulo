@@ -57,7 +57,8 @@ function skyOf(sky, bg) {
 }
 
 /**
- * Resolve a water look for the page. `spec` is a kind name or `{ kind, ...overrides }`; an unknown kind
+ * Resolve a water look for the page. `spec` is a kind name or `{ kind, ...overrides }` (BOUNDS' keys, `flow`, `tint`,
+ * `absorb`: its absorption over the preset's `sigma`); an unknown kind
  * resolves to null (no look — the caller keeps the old shading). `unit` rescales the ripple frequency and
  * drift for scenes built at a non-unit scale (an ocean at scale 2 has ripples half as dense per unit).
  * Pure: the same arguments give the same numbers, rounded to 4 places so the emitted page is byte-stable.
@@ -67,6 +68,8 @@ export function resolveAquaLook(spec, { sky = null, bg = null, unit = 1 } = {}) 
   if (!o || !AQUA_PRESETS[o.kind]) return null;
   const p = { ...AQUA_PRESETS[o.kind] };
   for (const [k, [lo, hi]] of Object.entries(BOUNDS)) if (Number.isFinite(+o[k]) && o[k] !== null && o[k] !== '') p[k] = clamp(+o[k], lo, hi);
+  // (`absorb`: a look's own absorption per metre, r/g/b, over its preset's `sigma`: a world's water as dark as its own)
+  if (Array.isArray(o.absorb) && o.absorb.length === 3 && o.absorb.every((v) => Number.isFinite(+v))) p.sigma = o.absorb.map((v) => clamp(+v, 0, 5));
   if (Array.isArray(o.flow) && o.flow.length >= 2 && o.flow.every((v) => Number.isFinite(+v)) && (o.flow[0] || o.flow[1])) p.flow = [+o.flow[0], +o.flow[1]];
   const u = Number.isFinite(+unit) && +unit > 0 ? +unit : 1;
   const fl = dmath.hypot(p.flow[0], p.flow[1]) || 1;

@@ -268,6 +268,9 @@ import { emitThreeWorld } from './scene-three.js';
 // broadcast's cues and plates name its calls and the stats count its conversion, and the minds (the carry mind, its role
 // lines) the court, turns and pitch inline; the pitch block's sim and client too (the carry mode, the field's lines, the
 // posts, the line markers, the oval). Every other page is byte-identical.
+// Added 2026-10-31 (broadcasting personas): the `broadcasts` fixture pins a persona's read on a screen in the world (the
+// screens block, `stepBroadcasts`); every other fixture is as it was (the row is appended, zero bytes when absent).
+//
 // Re-pinned 2026-10-26 (arcade rules: the innings games): the `meet`, `court`, `turns` and `pitch` fixtures re-pin because
 // the kernel every contest block inlines reads an innings game (strikes, outs, the bases or the runs, the overs, the side
 // retired), the broadcast's cues and plates name its calls and the stats fold counts them; the new `innings` fixture pins

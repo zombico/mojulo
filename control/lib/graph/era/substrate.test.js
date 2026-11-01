@@ -1,11 +1,13 @@
 // The substrate (substrate.js, substrate-of.js) and what belongs on it (substrate-flora.js): what a stage's ground is,
 // cell by cell, by the land's own numbers and the rock's formation; the library set against it.
 import { describe, expect, it } from 'vitest';
-import { SUBSTRATES, SUBSTRATE_IDS, FORMATION_TURNS } from './substrate.js';
+import { SUBSTRATES, SUBSTRATE_IDS, FORMATION_TURNS, substrateMap } from './substrate.js';
 import { substrateOf } from './substrate-of.js';
 import { SUBSTRATE_FLORA, ROLES, WANTS, floraGaps, floraLibrary } from './substrate-flora.js';
 import { assembleGeocubeScene } from './geocube.js';
 import { assembleStageScene } from './stage.js';
+import { ISEKAI_STYLES } from './isekai.js';
+import { outTrailSite } from './out-trail.js';
 
 const M = { kind: 'stage', kit: 'isekai-meadow', trail: {} };
 const sum = (s) => Object.values(s).reduce((a, v) => a + v, 0);
@@ -23,6 +25,29 @@ describe('what the ground is', () => {
 
   it('a stream\'s crossing wets the ground about it', () => {
     expect(substrateOf({ ...M, trail: { beats: ['crossing', 'reveal', 'pocket', 'landmark'] } }).shares.wet).toBeGreaterThan(0);
+  });
+
+  it('the water (out-water.js) reads as its ground: open water no land, the shallows and the bank wet, the shore sand', () => {
+    // (one case per procedure: a fresh water with its bank, a lake; the sea, a coast)
+    const st = ISEKAI_STYLES[M.kit], site = outTrailSite(st, { ground: { water: { lake: true } } }, 1), S = substrateMap(st, site);
+    const lake = site.water.forms.find((f) => f.form === 'lake'), [cx, cy] = lake.at, id = (k) => SUBSTRATE_IDS.indexOf(k);
+    expect(S.shares.sand).toBeGreaterThan(0);
+    expect(S.shares.wet).toBeGreaterThan(0);
+    // walked out from the lake's middle: open water, then its shallows, its sand shore, its wet bank, the soil
+    const runs = [], j = Math.floor((cy - S.y0) / S.cell);
+    for (let i = Math.floor((cx - S.x0) / S.cell); i < S.nx; i++) { const c = S.cells[j * S.nx + i]; if (runs[runs.length - 1] !== c) runs.push(c); }
+    expect(runs.slice(0, 5)).toEqual([255, id('wet'), id('sand'), id('wet'), id('soil')]);
+    // (well clear of the water, the ground is the dry stage's)
+    const dry = substrateMap(st, outTrailSite(st, {}, 1));
+    for (let k = 0; k < S.cells.length; k++) {
+      const x = S.x0 + (k % S.nx + 0.5) * S.cell, y = S.y0 + (Math.floor(k / S.nx) + 0.5) * S.cell;
+      if (Math.hypot(x - cx, y - cy) > lake.r * 2.6) expect(S.cells[k]).toBe(dry.cells[k]);
+    }
+    // the coast: its beach sand, the sea no land, nothing wet
+    const coast = substrateOf({ ...M, trail: { ground: { water: { coast: true } } } });
+    expect(coast.shares.sand).toBeGreaterThan(0);
+    expect(coast.shares.wet).toBe(0);
+    expect(coast.cells.some((c) => c === 255)).toBe(true);
   });
 
   it('a formation turns only the soil, in patches of its own; the same recipe the same map', () => {
