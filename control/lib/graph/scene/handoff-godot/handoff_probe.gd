@@ -12,7 +12,7 @@ func _init() -> void:
 		return
 	var scene: Node = packed.instantiate()
 	var out := { "ok": true, "materials": 0, "albedo": 0, "normal": 0, "orm": 0, "height": 0, "bodies": 0, "markers": 0, "seats": 0,
-		"environment": false, "sky": false, "background": false, "fog": false, "ssao": false, "sun": false, "sun_shadow": false, "sun_default": false, "omni": 0, "camera": false, "handoff": scene.get_meta("mojulo_handoff", "") }
+		"environment": false, "sky": false, "background": false, "fog": false, "ssao": false, "sun": false, "sun_shadow": false, "sun_default": false, "omni": 0, "camera": false, "animated": 0, "skins": 0, "entity_meshes": 0, "handoff": scene.get_meta("mojulo_handoff", "") }
 	var seen := {}
 	for mi in scene.find_children("*", "MeshInstance3D", true, false):
 		if mi.mesh == null:
@@ -25,7 +25,7 @@ func _init() -> void:
 				if m.vertex_color_use_as_albedo: out["albedo"] += 1
 				if m.normal_enabled and m.normal_texture != null: out["normal"] += 1
 				if m.roughness_texture != null or m.ao_texture != null: out["orm"] += 1
-				if m.heightmap_enabled and m.heightmap_texture != null: out["height"] += 1
+				if m.heightmap_texture != null: out["height"] += 1
 	out["bodies"] = scene.find_children("*", "StaticBody3D", true, false).size()
 	var mk = scene.get_node_or_null("MojuloMarkers")
 	if mk != null: out["markers"] = mk.get_child_count()
@@ -44,6 +44,10 @@ func _init() -> void:
 		out["sun_shadow"] = sun.shadow_enabled
 		out["sun_default"] = sun.get_meta("mojulo_default", false)
 	out["omni"] = scene.find_children("*", "OmniLight3D", true, false).size()
+	out["animated"] = scene.find_children("*", "AnimationPlayer", true, false).size()
+	out["skins"] = scene.find_children("*", "Skeleton3D", true, false).size()
+	for mi in scene.find_children("entity_*", "MeshInstance3D", true, false):
+		out["entity_meshes"] += 1
 	for c in scene.find_children("*", "Camera3D", true, false):
 		if c.current:
 			out["camera"] = true

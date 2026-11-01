@@ -6,7 +6,8 @@ extends EditorScenePostImport
 # handoff.json, reimported) rebuilds what mojulo owns and leaves the developer's own scene, level.tscn, which only
 # instances this one, as they left it. From handoff.json it:
 #   - gives every material its vertex colour as albedo (glTF's COLOR_0 is linear) and, where the handoff names one, its
-#     height map for parallax (a dressed face's relief, a bark's)
+#     height map for parallax (a dressed face's relief, a bark's), bound but off: the relief's normal map carries it, and
+#     at the relief's own depth a few millimetres of parallax reads as nothing; a developer turns it on
 #   - gives the level's static meshes trimesh collision (not the instances: stones, plants; not what is see-through: a
 #     decal, a sun patch, glass, water)
 #   - builds the environment: a WorldEnvironment (the sky's zenith and horizon, or the level's background colour where it
@@ -54,7 +55,7 @@ func _post_import(scene: Node) -> Object:
 				if typeof(spec) == TYPE_DICTIONARY and spec.has("height"):
 					var img := Image.load_from_file(ProjectSettings.globalize_path(spec["height"]))
 					if img != null:
-						m.heightmap_enabled = true
+						m.heightmap_enabled = false
 						m.heightmap_texture = ImageTexture.create_from_image(img)
 						m.heightmap_scale = clampf(float(spec.get("depth", 0.02)) / max(float(spec.get("metres", 1.0)), 0.001) * 100.0, 0.5, 16.0)
 		var instanced := false
@@ -106,7 +107,9 @@ func environment(scene: Node, env: Dictionary) -> void:
 		if env["haze"].has("color"):
 			e.fog_light_color = Color.html(env["haze"]["color"])
 		if env["haze"].has("density"):
-			e.fog_density = float(env["haze"]["density"])
+			# (the page's fog is exp-squared, Godot's exponential: the density that puts Godot's half-fog where the page's
+			# is, ln 2 / (ln 2)^(1/2) per density)
+			e.fog_density = float(env["haze"]["density"]) * sqrt(log(2.0))
 	var we := WorldEnvironment.new()
 	we.name = "MojuloEnvironment"
 	we.environment = e

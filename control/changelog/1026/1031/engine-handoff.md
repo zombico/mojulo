@@ -58,4 +58,9 @@ Built so far:
   developer's `project.godot` and `level.tscn` are written once and kept: a re-handoff replaces mojulo's folder, Godot
   reimports, and whatever the developer wired stays. CI's Godot job imports a couch level and a dressed bay and probes
   what the importer built.
+- **The cast travels.** A level's rigged bodies (its hero, its creatures) leave as their figures, skinned with every clip
+  they play, on their entities' nodes; a primitive body (a box, a sphere) leaves as its mesh on its entity's node, so
+  moving the entity in the engine moves the body. Found in the first Godot runs, with three more: a dressed face's
+  relief lit by its normal map (its parallax bound but off: at the relief's real depth it reads as nothing), the haze's
+  density taken so Godot's fog reaches half at the page's distance, and a default sun, background and camera.
 

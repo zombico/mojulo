@@ -1438,7 +1438,7 @@ class GlbBuilder {
  */
 /** a vault's extras in the export's units (metres × mpu): the box, the take-off and landing distances, the run */
 const vaultExtras = (v, mpu) => { const m = (x) => Math.round(x * mpu * 1e4) / 1e4; return { ...v, box: { h: m(v.box.h), d: m(v.box.d), w: m(v.box.w) }, entry: { ...v.entry, takeoff: m(v.entry.takeoff) }, exit: { ...v.exit, landing: m(v.exit.landing) }, travel: m(v.travel) }; };
-export function facesToGlb(payload = {}, { generator, clips = null, skinned = false, quantize = false, humanoid = false, lit = false, roughness = 0.85, instances = null, handoff = false, materials = null, sceneExtras: extraScene = null } = {}) {
+export function facesToGlb(payload = {}, { generator, clips = null, skinned = false, quantize = false, humanoid = false, lit = false, roughness = 0.85, instances = null, handoff = false, materials = null, sceneExtras: extraScene = null, bodies = null } = {}) {
   const { faces = [], textures = {}, light = null, ao = null, vertexContrast = null, repeats = [], figures = null } = payload || {};
   const repeatList = (Array.isArray(repeats) ? repeats : []).filter((r) => r && Array.isArray(r.template) && r.template.length && Array.isArray(r.transforms) && r.transforms.length);
   // rig-figure selection: only packed rigs qualify (figure-frames stacks / polygomer statics have
@@ -1899,10 +1899,20 @@ export function facesToGlb(payload = {}, { generator, clips = null, skinned = fa
         if (yaw) node.rotation = zRotationQuat(yaw);
       }
       node.extras = e.extras;
+      // (the engine handoff names a figure's node as its entity, so the level record's names hold)
+      if (handoff) node.name = e.name;
     } else {
       const node = { name: e.name, extras: e.extras };
       if (e.translation.some((v) => v)) node.translation = e.translation;
       if (e.heading) node.rotation = zRotationQuat(e.heading);
+      // (the engine handoff's primitive body, scene/handoff.js `bodies`: its mesh on the entity's own node, so the body
+      // moves with it; absent, the node as it was)
+      const body = bodies && bodies[e.id];
+      if (body && body.positions?.length) {
+        const mat = b.pbrMaterial({ metallic: 0, roughness: 0.8, baseColor: body.color, name: `${e.name}:body` });
+        node.mesh = b.json.meshes.push({ name: `${e.name}:body`, primitives: [{ attributes: { POSITION: b.floatAccessor(body.positions, 3, bounds3(body.positions)), NORMAL: b.floatAccessor(body.normals, 3) }, mode: MODE_TRIANGLES, material: mat }] }) - 1;
+        vertexCount += body.positions.length / 3; triangleCount += body.positions.length / 9;
+      }
       b.children.push(b.json.nodes.push(node) - 1);
     }
   }

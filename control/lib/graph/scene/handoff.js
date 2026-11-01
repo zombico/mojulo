@@ -326,6 +326,44 @@ export function levelRecord(sketch, payload) {
   };
 }
 
+// --- the entities' bodies ---
+
+// a box (`size`, centred) or a sphere (`radius`) as the page draws a `mesh` body (channels/controllable): flat triangles,
+// their normals out
+function boxTris([sx, sy, sz]) {
+  const h = [sx / 2, sy / 2, sz / 2], P = [], N = [];
+  const quad = (n, a, b2, c, d) => { for (const q of [a, b2, c, a, c, d]) { P.push(...q); N.push(...n); } };
+  const v = (x, y, z) => [x * h[0], y * h[1], z * h[2]];
+  quad([1, 0, 0], v(1, -1, -1), v(1, 1, -1), v(1, 1, 1), v(1, -1, 1)); quad([-1, 0, 0], v(-1, 1, -1), v(-1, -1, -1), v(-1, -1, 1), v(-1, 1, 1));
+  quad([0, 1, 0], v(1, 1, -1), v(-1, 1, -1), v(-1, 1, 1), v(1, 1, 1)); quad([0, -1, 0], v(-1, -1, -1), v(1, -1, -1), v(1, -1, 1), v(-1, -1, 1));
+  quad([0, 0, 1], v(-1, -1, 1), v(1, -1, 1), v(1, 1, 1), v(-1, 1, 1)); quad([0, 0, -1], v(-1, 1, -1), v(1, 1, -1), v(1, -1, -1), v(-1, -1, -1));
+  return { positions: Float32Array.from(P), normals: Float32Array.from(N) };
+}
+function sphereTris(r, W = 24, H = 16) {
+  const at = (i, j) => { const th = (j / H) * Math.PI, ph = (i / W) * 2 * Math.PI; return [Math.sin(th) * Math.cos(ph), Math.sin(th) * Math.sin(ph), Math.cos(th)]; };
+  const P = [], N = [];
+  for (let j = 0; j < H; j++) for (let i = 0; i < W; i++) {
+    const a = at(i, j), b2 = at(i + 1, j), c = at(i + 1, j + 1), d = at(i, j + 1);
+    for (const q of [a, d, c, a, c, b2]) { P.push(q[0] * r, q[1] * r, q[2] * r); N.push(...q); }
+  }
+  return { positions: Float32Array.from(P), normals: Float32Array.from(N) };
+}
+const hexLinear = (h) => [1, 3, 5].map((i) => { const c = parseInt(String(h).slice(i, i + 2), 16) / 255; return c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4; });
+
+/** Each entity whose body is a primitive (`mesh`: a box or a sphere) → its mesh, by the entity's id: the GLB hangs it on
+ *  the entity's own node. A rigged body (a hero, a creature) leaves as its figure, with its clips. */
+export function entityBodies(payload) {
+  const out = {};
+  for (const [i, e] of (Array.isArray(payload.entities) ? payload.entities : []).entries()) {
+    const b = e?.body;
+    if (!b || b.type !== 'mesh') continue;
+    const geo = b.shape === 'box' ? boxTris(Array.isArray(b.size) ? b.size : [1, 1, 1]) : sphereTris(Number.isFinite(b.radius) ? b.radius : 0.5);
+    const col = typeof b.color === 'string' && /^#[0-9a-f]{6}$/i.test(b.color) ? hexLinear(b.color) : Number.isFinite(b.color) ? hexLinear(`#${b.color.toString(16).padStart(6, '0')}`) : hexLinear('#ff7a59');
+    out[String(e.id ?? i)] = { ...geo, color: col.map(r5) };
+  }
+  return out;
+}
+
 // --- the plants (the page's channels/form-flora.js, its merge and placement, without three) ---
 
 const f32 = (s) => { const b = Buffer.from(s, 'base64'); return new Float32Array(b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength)); };
@@ -434,7 +472,10 @@ export async function resolveHandoff(sketch, { what = 'level' } = {}) {
   const keys = (handed.faces || []).map((f) => f && f.texture).filter((k) => typeof k === 'string');
   const materials = dressedMaterials(keys);
   const level = what === 'level' ? levelRecord(sketch, handed) : null;
+  // (the cast: a rigged body leaves as its figure, skinned, with every clip it plays; a primitive one as its mesh)
+  const bodies = entityBodies(handed);
   const exported = facesToGlb(handed, { generator: `mojulo handoff ${sketch?.ref ?? ''}`.trim(), lit: true, handoff: true, instances, materials,
+    clips: '_all', skinned: true, bodies,
     ...(level ? { sceneExtras: { 'moj:handoff': level } } : {}) });
   if (!exported) throw new Error(`handoff: '${sketch?.ref ?? sketch?.title ?? '?'}' has nothing to hand off`);
   const counts = {};
@@ -444,6 +485,7 @@ export async function resolveHandoff(sketch, { what = 'level' } = {}) {
   const ledger = {
     version: HANDOFF_VERSION, era: HANDOFF_ERA, what,
     carried: { faces: Array.isArray(handed.faces) ? handed.faces.length : 0, instances: counts, ...(lamps.length ? { lamps: lamps.length } : {}),
+      ...(Object.keys(bodies).length ? { bodies: Object.keys(bodies).length } : {}), ...(exported.animatedFigures ? { figures: exported.animatedFigures, clips: exported.animationCount } : {}),
       ...(level ? { level: { markers: level.markers.length, contract: !!level.contract, seats: level.seats ? level.seats.rows.length : 0, environment: Object.keys(level.environment) } } : {}),
       ...(landSets.length ? { land: { parts: landSets.length, layered: landSets.filter((s) => s.terrain).length, vertices: landSets.reduce((a, s) => a + s.positions.length / 3, 0), reliefCut: landSets.reduce((a, s) => a + (s.relief ?? 0), 0) } } : {}), materials: { dressed: Object.keys(materials).length, painted: new Set(keys).size - Object.keys(materials).length } },
     stays: [...STAYS],

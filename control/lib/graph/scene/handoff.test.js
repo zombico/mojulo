@@ -31,7 +31,8 @@ const plants = { form: 'blob', kinds: [needled], bushKinds: null, trees: [{ x: 0
 const floorFace = { corners: [[-10, -10, 0], [10, -10, 0], [10, 10, 0], [-10, 10, 0]], fill: '#a0b0c0', group: 'floor' };
 const crateBody = { type: 'mesh', shape: 'box' };
 const couch = (extra = []) => ({ ref: 'sk_couch', title: 'couch', manifest: { kind: 'controllable', title: 'couch', faces: [floorFace],
-  entities: [{ id: 'p1', pilotable: true, rule: { type: 'walk' }, body: crateBody, transform: { pos: [0, 0, 0.5] } },
+  figures: { hero: { hero: { cast: 'male', head: 'none', register: 'lowpoly' } } },
+  entities: [{ id: 'p1', pilotable: true, rule: { type: 'walk' }, body: { type: 'figure-rig', figure: 'hero' }, transform: { pos: [0, 0, 0.5] } },
     { id: 'p2', pilotable: true, rule: { type: 'walk' }, body: crateBody, transform: { pos: [3, 0, 0.5] } },
     { id: 'grunt', rule: { type: 'ai' }, body: crateBody, transform: { pos: [6, 2, 0.5] } }, ...extra],
   seats: { bodies: ['p2'], lives: 3 }, camera: { rule: 'side', target: 'p1', dist: 11 },
@@ -241,6 +242,14 @@ describe('the engine handoff', () => {
     expect(L.seats).toMatchObject({ screen: 'shared', lives: 3 });
     expect(L.reference).toEqual({ web: '/api/sketches/sk_couch/world', play: '/api/sketches/sk_couch/play', bible: '/api/sketches/sk_couch/bible' });
     expect(h.ledger.carried.level).toMatchObject({ seats: 2, contract: true });
+    // (the cast: the hero leaves as its rigged figure, skinned with its clips, on its entity's node; the second seat's
+    // body and the foe as their meshes on theirs)
+    expect(j.skins?.length).toBeGreaterThan(0);
+    expect(j.animations?.length).toBeGreaterThan(0);
+    const node = (n) => j.nodes.find((x) => x.name === n);
+    expect(node('entity:p2').mesh).toBeDefined();
+    expect(node('entity:grunt').mesh).toBeDefined();
+    expect(h.ledger.carried).toMatchObject({ bodies: 2 });
     // (no sun of its own and no lamp: the default noon sun, marked so; its camera marker carries what it looks at)
     expect(L.environment.sun).toMatchObject({ default: true });
     const cam = L.markers.find((m) => m.kind === 'camera');

@@ -23,7 +23,8 @@ const KEEP = process.env.MOJULO_HANDOFF_KEEP;
 const packDir = (name) => { if (!KEEP) return mkdtempSync(path.join(os.tmpdir(), `mojulo-handoff-godot-${name}-`)); const d = path.join(KEEP, name); mkdirSync(d, { recursive: true }); return d; };
 const box = { type: 'mesh', shape: 'box' };
 const COUCH = { ref: 'sk_couch', title: 'couch', manifest: { kind: 'controllable', title: 'couch', faces: [{ corners: [[-10, -10, 0], [10, -10, 0], [10, 10, 0], [-10, 10, 0]], fill: '#a0b0c0', group: 'floor' }],
-  entities: [{ id: 'p1', pilotable: true, rule: { type: 'walk' }, body: box, transform: { pos: [0, 0, 0.5] } }, { id: 'p2', pilotable: true, rule: { type: 'walk' }, body: box, transform: { pos: [3, 0, 0.5] } },
+  figures: { hero: { hero: { cast: 'male', head: 'none', register: 'lowpoly' } } },
+  entities: [{ id: 'p1', pilotable: true, rule: { type: 'walk' }, body: { type: 'figure-rig', figure: 'hero' }, transform: { pos: [0, 0, 0.5] } }, { id: 'p2', pilotable: true, rule: { type: 'walk' }, body: box, transform: { pos: [3, 0, 0.5] } },
     { id: 'grunt', rule: { type: 'ai' }, body: box, transform: { pos: [6, 2, 0.5] } }],
   seats: { bodies: ['p2'], lives: 3 }, camera: { rule: 'side', target: 'p1', dist: 11 }, game: { levelRef: 'couch', mechanics: [{ kind: 'reach-exit', at: [8, 0, 0] }] } } };
 const BAY = { ref: 'sk_bay', title: 'bay', manifest: { kind: 'stage', kit: 'bay-military', rooms: [{ id: 'low', x: 0, y: 0, w: 6, d: 8, h: 3.5 }] } };
@@ -81,7 +82,7 @@ describe('the handoff as a Godot project', () => {
     expect(line.ok, log).toBe(true);
     expect(line.handoff).toBe(HANDOFF_GODOT_VERSION);
     expect(line.albedo).toBe(line.materials);
-    expect(line.environment && line.sky && line.ssao).toBe(true);
+    expect(line.environment && line.ssao).toBe(true);
     expect(line.markers).toBe(h.level.markers.length);
     expect(line.seats).toBe(h.level.seats.rows.length);
     expect(line.bodies).toBeGreaterThan(0);
@@ -89,6 +90,10 @@ describe('the handoff as a Godot project', () => {
     expect(line.sun && line.sun_shadow && line.sun_default, log).toBe(true);
     expect(line.background, log).toBe(true);
     expect(line.camera, log).toBe(true);
+    // (the cast: the hero its rigged figure with its clips, the second seat's body and the foe their meshes)
+    expect(line.skins, log).toBeGreaterThan(0);
+    expect(line.animated, log).toBeGreaterThan(0);
+    expect(line.entity_meshes, log).toBe(2);
   }, 900_000);
 
   it.skipIf(!GODOT)('in a headless Godot: a dressed face\'s relief is its material\'s height map (MOJULO_GODOT)', async () => {

@@ -479,4 +479,23 @@ developer would want to wire. Never claimed by a machine.
      or behind the spawn.
   The probe now reports the background, the fog, the sun's default mark and a current camera, and the Godot legs hold
   them: the couch has a default shadowed sun, its background and a camera; the bay no sun, its lamps and a camera.
+- 1031 (round 2 of the local Godot run): the five fixes held (no Godot error; the tangent warning gone; the see-through
+  meshes left without collision; the sun, background and camera right). The operator's eyes: the couch "is just a
+  rectangle". It is the test's stub, but it showed a real gap: **the cast left as markers**. An entity's node was empty
+  unless clips were asked for, and the handoff asked for none, so a level's heroes and foes reached the engine as empty
+  nodes. Fixed, with three findings of the round:
+  - The cast: the handoff asks `facesToGlb` for every clip, skinned (`clips: '_all', skinned: true`), so a rigged body
+    (a hero, a creature) leaves as its figure with its skeleton and clips on its entity's node, the node named as the
+    entity (`entity:<id>`, under the `handoff` flag) so the record's names hold; a primitive body (`mesh`: a box or a
+    sphere, `entityBodies`) leaves as its mesh in its colour on the entity's own node (`facesToGlb`'s new `bodies`
+    option), so moving the entity in the engine moves its body. The couch fixture's pilot is a rigged hero now (the
+    fast one: no head, low-poly) and the tests hold its skin and clips and the two bodies' meshes; the probe counts
+    skeletons, animation players and entity meshes.
+  - Parallax: at the relief's own depth (millimetres) Godot's parallax reads as nothing (the operator rendered it on and
+    off: a mean difference of hundredths of a level). The height map stays bound but off; the normal map carries the
+    relief, and a developer turns the parallax on.
+  - Fog: the page's fog is exp², Godot's exponential; the importer now takes the density × √(ln 2), so the half-fog
+    distance is the page's (at room scale the two were already close; outdoors the raw density read far hazier).
+  - The test's `line.sky` assertion was stale after the background fix (a level with a background and no sky has no
+    sky); the local agent's correction is the branch's.
 
