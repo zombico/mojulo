@@ -686,6 +686,9 @@ async function prepareWorldRecipe({ manifest, ref, title, existingSketch, patch,
   if (!restore) manifest = stampAuthoredMotion(manifest, existingSketch?.manifest ?? null);
   // an egocube's sheet (egocube/kind.js) is rolled where it is written and stored by value; a roll left as stored keeps it
   if (manifest?.kind === 'egocube') manifest = rollStored(manifest, existingSketch?.manifest ?? null);
+  // a new cast stands its preview's members in the showcases their roles pick (egocube/kind.js LINEUPS); an edit keeps the
+  // row's own, so a cast written before stands as it did
+  if (!existingSketch && !restore && manifest?.kind === 'egocube' && manifest.cast !== undefined && manifest.lineup === undefined) manifest = { ...manifest, lineup: 'showcase' };
   let nextManifest, workbenchStats, prevWorkbenchStats, scadStats, prevScadStats, layeredStats;
   // World recipes are not stations/marks diagrams (0813 persona sims: the diagram
   // validator demanded viewBox/stations from a world manifest, so iterating a world

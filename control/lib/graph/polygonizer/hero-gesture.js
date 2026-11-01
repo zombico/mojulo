@@ -352,6 +352,13 @@ export function showcaseStand(hero, R, { mesh = null, skin = null } = {}) {
   const A = heroAura(hero.gesture, R, { body: mesh ? auraBody(R, mesh, skin) : null });
   return A.clip.fn(1);
 }
+/** A layered hero's manifest standing in a showcase instead (in memory: a lineup's member, a portrait): its stand's clip
+ * dropped so the showcase is the stand the render reads (showcaseStand). Any other manifest, or word, as it is. */
+export function asShowcase(m, word) {
+  if (!m?.hero || !m.recipe || !isShowcase(word)) return m;
+  const { [GESTURE_CLIP]: _g, ...clips } = m.recipe.clips || {};
+  return { ...m, hero: { ...m.hero, gesture: word }, recipe: { ...m.recipe, clips } };
+}
 export function standPose(recipe, R) {
   const keys = recipe?.rig && recipe.clips?.[GESTURE_CLIP];
   if (!Array.isArray(keys) || !keys.length) return null;

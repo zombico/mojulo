@@ -13,3 +13,10 @@ the poses the door already has. The creator's own stand wins wherever it is said
   drawn as before.
 - **A showcase word as the stand**: the hero door's `gesture` takes a showcase pose (`heroHips`, `crossedArms`, …, each
   `…Left`) and holds its hit, solved on the rig with the hands on the body's own surfaces.
+- **The cast lineup**: a cast's preview stands each member striking the showcase its role picks (the hero's side the
+  rail's hero poses, a rival pointing the challenge, a mastermind turning its back or looking down its arms, the rank and
+  file squaring up), no two neighbours alike, the right half mirrored so the line frames toward its middle. Stamped on a
+  cast when it is first written (`lineup: 'showcase'`); a cast written before stands as it did.
+- **The foes' portraits**: the cast sheet photographs each person foe striking the showcase its rank picks on the game's
+  rail (a boss, an elite, a grunt), in memory: the foe as made never changes; a beast stands as made.
+

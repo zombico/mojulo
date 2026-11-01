@@ -23,7 +23,7 @@
 import { resolveGesture } from '../polygonizer/hero-gesture.js';
 
 export const POSE_CONTEXTS = Object.freeze(['cover', 'live']);
-export const POSE_ROLES = Object.freeze(['hero', 'henchman']);
+export const POSE_ROLES = Object.freeze(['hero', 'henchman', 'rival', 'boss']);
 
 /** the showcase poses a cover picks from, per rail and role (hero-aura.js AURAS); the first is the rail's own */
 export const COVER_POSES = Object.freeze({
@@ -33,6 +33,17 @@ export const COVER_POSES = Object.freeze({
   mascot: { hero: ['peaceWink', 'fingerGuns', 'fistToSky'], henchman: ['ginyu', 'fingerGuns'], why: 'a mascot plays to the player: a wink, a grin, a cheer' },
   none: { hero: ['heroHips', 'crossedArms'], henchman: ['crossedArms'], why: 'no rail: a lead stands ready, a henchman squares up' },
 });
+/** the roles every rail strikes alike, the rail's own list over them where it names one: a rival points the challenge, a
+ * boss turns its back on you or looks down its arms */
+export const ROLE_POSES = Object.freeze({
+  rival: { list: ['jotaroPoint', 'josephPoint', 'giorno'], why: 'a rival points the challenge' },
+  boss: { list: ['dioBack', 'crossedArms', 'killerQueen'], why: 'a boss turns its back on you, or looks down its arms' },
+});
+/** the cast's relations (egocube/cast.js RELATIONS) and a foe's rank (mind.rank) as the role a pose reads */
+export const RELATION_ROLE = Object.freeze({ mastermind: 'boss', lieutenant: 'boss', rank: 'henchman', rival: 'rival', shadow: 'rival', foil: 'rival' });
+export const RANK_ROLE = Object.freeze({ boss: 'boss', miniboss: 'boss', elite: 'henchman', minion: 'henchman' });
+const coverList = (R, role) => COVER_POSES[R]?.[role] ?? ROLE_POSES[role]?.list ?? COVER_POSES[R]?.hero;
+const coverWhy = (R, role) => (COVER_POSES[R]?.[role] ? COVER_POSES[R].why : ROLE_POSES[role]?.why ?? COVER_POSES[R]?.why);
 
 /** the live demo's stand and idle per rail: the stand's words (a preset and its pose words over it, hero-gesture.js) and
  * the idle as changes over that stand, one per key, played as a loop. Each a small, readable move. */
@@ -77,10 +88,9 @@ export function gamePose(rail = null, context = 'cover', { role = 'hero', cast =
   if (!POSE_ROLES.includes(role)) throw new Error(`pose: '${role}' is not a role (${POSE_ROLES.join(', ')})`);
   const R = rail ?? 'none';
   if (context === 'cover') {
-    const C = COVER_POSES[R];
-    if (!C) throw new Error(`pose: '${rail}' is not a rail (${Object.keys(COVER_POSES).filter((k) => k !== 'none').join(', ')})`);
-    const word = pick(C[role], seed, `${R}:${role}`);
-    return { context, rail, role, gesture: word, why: `${C.why} (${word}, of ${C[role].join(', ')})` };
+    if (!COVER_POSES[R]) throw new Error(`pose: '${rail}' is not a rail (${Object.keys(COVER_POSES).filter((k) => k !== 'none').join(', ')})`);
+    const list = coverList(R, role), word = pick(list, seed, `${R}:${role}`);
+    return { context, rail, role, gesture: word, why: `${coverWhy(R, role)} (${word}, of ${list.join(', ')})` };
   }
   const L = LIVE_POSES[R];
   if (!L) return { context, rail, role, gesture: null, why: 'no rail: the live demo plays the hero as it stands' };
@@ -88,4 +98,24 @@ export function gamePose(rail = null, context = 'cover', { role = 'hero', cast =
   const stand = typeof L.stand === 'string' ? resolveGesture(L.stand, cast, { core }) : resolveGesture(['relaxed', L.stand], cast, { core });
   const keys = L.idle.map((d) => over(stand, typeof L.stand === 'string' ? relative(stand, d) : d));
   return { context, rail, role, gesture: typeof L.stand === 'string' ? L.stand : stand, clips: { idle: keys }, why: L.why };
+}
+
+/**
+ * A LINEUP's poses (a cast standing in a line, the egocube's preview): each member a showcase its role picks on the
+ * rail, no two neighbours alike (the next of its role's own, else another role's), and a member right of the line's
+ * middle mirrored, so the line frames toward its centre. `members` [{ path, role }] in line order (left to right as
+ * seen); → [{ path, role, gesture, why }].
+ */
+export function lineupPoses(members, { rail = null, seed = 1 } = {}) {
+  const R = rail ?? 'none', out = [], mid = (members.length - 1) / 2;
+  if (!COVER_POSES[R]) throw new Error(`pose: '${rail}' is not a rail (${Object.keys(COVER_POSES).filter((k) => k !== 'none').join(', ')})`);
+  members.forEach((m, i) => {
+    const role = POSE_ROLES.includes(m.role) ? m.role : 'hero', list = coverList(R, role);
+    const prev = out[i - 1]?.base, first = pick(list, seed, `${R}:${role}:${m.path}`);
+    // (a neighbour's pose taken: the next of the role's own, else the first of the whole rail's not taken)
+    const others = [...list.slice(list.indexOf(first) + 1), ...list.slice(0, list.indexOf(first)), ...POSE_ROLES.flatMap((r) => coverList(R, r))];
+    const base = first !== prev ? first : others.find((w) => w !== prev) ?? first;
+    out.push({ path: m.path, role, base, gesture: i > mid ? `${base}Left` : base, why: coverWhy(R, role) });
+  });
+  return out.map(({ base: _b, ...x }) => x);
 }
