@@ -345,9 +345,11 @@ const VERSUS = {
 };
 // THE ACTION VERBS (gameworld/feel: the action lab and its kernel's buttons, kernel.js BTN): move, jump, attack, dodge,
 // dash, lock, guard, shoot, switch, sprint. A direction's first pad control is the D-pad, its second the left stick, so
-// `axis` reads the stick analog and the D-pad wins while pressed. On a Quest's Touch pair: the left stick moves (click
-// sprints), the triggers attack (right) and guard (left), A jumps, B dodges, X shoots, Y switches, the left grip dashes
-// and the right stick's click locks; the right grip stays free for a hand's grab.
+// `axis` reads the stick analog and the D-pad wins while pressed. On a Quest's Touch pair, the same verb on the same
+// control as the pilot's: the left stick moves (click sprints), the triggers hold the held verbs (attack right, guard
+// left), A jumps, B dodges, X dashes (the pilot's tackle, the rush move), Y switches, the right grip shoots (a second
+// attack) and the right stick's click locks; the left grip is the hands' use / talk (the pilot's interact). The menu
+// buttons are the system's.
 const ACT_IN = ['play'];
 const ACTION = {
   id: 'action',
@@ -361,10 +363,10 @@ const ACTION = {
     { id: 'jump', label: 'jump', group: 'move', in: ACT_IN, bind: { keyboard: ['Space'], gamepad: ['south'], xr: ['right.primary'] } },
     { id: 'sprint', label: 'sprint', group: 'move', hold: true, in: ACT_IN, bind: { keyboard: ['Shift'], gamepad: ['lt', 'ls'], xr: ['left.thumbstick'] } },
     { id: 'dodge', label: 'dodge', group: 'move', in: ACT_IN, bind: { keyboard: ['KeyK'], gamepad: ['east'], xr: ['right.secondary'] } },
-    { id: 'dash', label: 'dash', group: 'move', in: ACT_IN, bind: { keyboard: ['KeyL'], gamepad: ['rb'], xr: ['left.squeeze'] } },
+    { id: 'dash', label: 'dash', group: 'move', in: ACT_IN, bind: { keyboard: ['KeyL'], gamepad: ['rb'], xr: ['left.primary'] } },
     { id: 'attack', label: 'attack', group: 'combat', in: ACT_IN, bind: { keyboard: ['KeyJ'], gamepad: ['west'], xr: ['right.trigger'] } },
     { id: 'guard', label: 'guard', group: 'combat', hold: true, in: ACT_IN, bind: { keyboard: ['KeyU'], gamepad: ['rt'], xr: ['left.trigger'] } },
-    { id: 'shoot', label: 'shoot', group: 'combat', in: ACT_IN, bind: { keyboard: ['KeyF'], gamepad: ['north'], xr: ['left.primary'] } },
+    { id: 'shoot', label: 'shoot', group: 'combat', in: ACT_IN, bind: { keyboard: ['KeyF'], gamepad: ['north'], xr: ['right.squeeze'] } },
     { id: 'lock', label: 'target lock', group: 'combat', in: ACT_IN, bind: { keyboard: ['KeyI', 'KeyQ'], gamepad: ['lb', 'rs'], xr: ['right.thumbstick'] } },
     { id: 'switch', label: 'switch weapon', group: 'combat', in: ACT_IN, bind: { keyboard: ['KeyZ'], gamepad: ['select'], xr: ['left.secondary'] } },
   ],

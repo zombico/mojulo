@@ -36,8 +36,10 @@ rather than the player's head.
   https, so the script writes static pages (three from the pinned CDN) for a host such as GitHub Pages: a course (a
   straight lane down +X with a post every 5 m and a goal at its end, the opening view standing on it) and the walkable
   fractal city, with an index linking each mode.
-- **The xr rows of the other schemes**: the action game (left stick moves and its click sprints, right trigger attacks,
-  left guards, A jumps, B dodges, X shoots, Y switches, the left grip dashes, the right stick's click locks), the grid
+- **The xr rows of the other schemes**: the action game, the same verb on the same control as the pilot's (left stick
+  moves and its click sprints, the triggers hold attack (right) and guard (left), A jumps, B dodges, X dashes like the
+  pilot's tackle, Y switches, the right grip shoots, the right stick's click locks, the left grip stays the hands' use),
+  the grid
   puzzle and the tactics board (the left stick moves the cursor, the right turns and zooms the view), with their legend
   rows. The pilot scheme's rows are as they were: they ride every game page, and no game page reads a headset yet.
 - Gates: machine — the driver and the shaping, and the emitted block run against three's math with a fake session (a
