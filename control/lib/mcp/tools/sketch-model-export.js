@@ -40,6 +40,7 @@ import { buildBlenderPack } from '@/lib/graph/scene/blender-pack';
 import { buildUnrealAssetPack } from '@/lib/graph/scene/unreal-pack';
 import { resolveHandoff, HANDOFF_WHATS } from '@/lib/graph/scene/handoff';
 import { writeHandoffGodot } from '@/lib/graph/scene/handoff-godot';
+import { writeHandoffBlender } from '@/lib/graph/scene/handoff-blender';
 import { ENGINES } from '@/lib/graph/scene/engines/registry';
 import { normalizeGameManifest } from '@/lib/graph/game/game-manifest';
 import { meshFileToFaces } from '@/lib/graph/scene/mesh-read';
@@ -438,9 +439,12 @@ async function unrealExport(input) {
 // A team's engine gets the world's assets, animation and level (scene/handoff.js), never its game: the web build is the
 // game. Godot's adapter (scene/handoff-godot.js) writes a Godot 4 project under <ref>/godot-handoff/: mojulo/ replaced
 // whole every time, the developer's project.godot and level.tscn written once and kept, so a re-handoff of a changed
-// recipe reimports under their wiring; a game's levels each their own, under the game's folder. Unreal takes an asset
-// (unreal-pack.js, lit: the handoff's materials are the engine's to light); Blender an art pack (blender-pack.js). Their
-// `format` names ('unreal', 'blender') are the same packs, kept for the calls that name them.
+// recipe reimports under their wiring. Blender's (scene/handoff-blender.js) writes the same handoff under
+// <ref>/blender-handoff/: mojulo/ replaced whole, its importer building level.blend in mojulo's own collections and
+// keeping the artist's; a world's `fire` rides along at `fire_t` (the art pack's own fire). A game's levels each their
+// own, under the game's folder. Unreal takes an asset (unreal-pack.js, lit: the handoff's materials are the engine's to
+// light). `format: 'unreal'` is the same Unreal pack; `format: 'blender'` stays the Blender art pack (blender-pack.js,
+// <ref>/blender/), kept for the calls and plan steps that name it.
 export const MODEL_ENGINES = Object.freeze(['godot', 'unreal', 'blender']);
 async function engineExport(input) {
   const { ref, engine } = input;
@@ -455,29 +459,33 @@ async function engineExport(input) {
     if ((input.what ?? 'asset') !== 'asset') throw new Error("Unreal takes mojulo's assets (`what: 'asset'`), not its levels yet: a level goes to Godot (`engine: 'godot'`)");
     return { ...asEngine(await unrealExport({ ...input, lit: input.lit ?? true })), what: 'asset' };
   }
-  if (engine === 'blender') {
-    if ('what' in input) throw new Error('`what` applies to `engine: \'godot\'` and `\'unreal\'`: a Blender pack is the world as it stands');
-    return asEngine(await blenderExport(input));
-  }
   const what = input.what ?? 'level';
-  if (sketch.manifest.kind === 'game') return gameHandoffGodot(sketch, what);
-  const one = await handoffGodotTo(sketch, what, path.join(outcomeDirFor(ref), ENGINES.godot.handoff));
-  return { ok: true, ref, engine, what, ...one, note: handoffNote(one) };
+  const to = engine === 'blender' ? blenderTo(fireOf(input)) : handoffGodotTo;
+  if (sketch.manifest.kind === 'game') return gameHandoff(sketch, what, engine, to);
+  const one = await to(sketch, what, path.join(outcomeDirFor(ref), ENGINES[engine].handoff));
+  return { ok: true, ref, engine, what, ...one, note: (engine === 'blender' ? handoffBlenderNote : handoffNote)(one) };
 }
 
 // one world handed to Godot into `dir`: what it wrote and kept, what travelled and what stayed the web's
 async function handoffGodotTo(sketch, what, dir) {
   const h = await resolveHandoff(sketch, { what });
   const { written, kept } = await writeHandoffGodot(h, dir, { title: sketch.title ?? null });
+  return {
+    ...handoffSummary(h, dir, written, kept),
+    commands: {
+      open: `godot --editor --path '${dir}'`,
+      gate: `godot --headless --path '${dir}' --import && godot --headless --path '${dir}' --script res://mojulo/handoff_probe.gd`,
+    },
+  };
+}
+
+// (what a handoff carried, wrote and kept, for any engine's result)
+function handoffSummary(h, dir, written, kept) {
   const L = h.level;
   const shaded = [(h.instances ?? []).some((x) => x.terrain) && 'the layered ground', (h.instances ?? []).some((x) => x.sea) && 'the sea'].filter(Boolean);
   return {
     kind: h.kind, dir, files: written, kept, bytes: h.exported.bytes.length, carried: h.ledger?.carried ?? {}, stays: h.ledger?.stays ?? [], shaded,
     ...(L ? { level: { markers: L.markers.length, seats: L.seats ? L.seats.rows.length : 0, contract: !!L.contract, environment: Object.keys(L.environment ?? {}), reference: L.reference ?? null } } : {}),
-    commands: {
-      open: `godot --editor --path '${dir}'`,
-      gate: `godot --headless --path '${dir}' --import && godot --headless --path '${dir}' --script res://mojulo/handoff_probe.gd`,
-    },
   };
 }
 
@@ -486,22 +494,53 @@ const handoffNote = (one) => `A Godot 4 project in ${one.dir}: open it and play 
   + 'the static meshes collision, the level its environment and sun, and stands every marker and seat as a node carrying its record. '
   + `${one.kept.length ? `Kept as the developer left them: ${one.kept.join(', ')}. ` : ''}What stayed the web's is in \`stays\`; the web build is the game. Godot runs on the operator's machine; mojulo did not launch it.`;
 
-// a game's levels, each handed to Godot as its own project under the game's folder (<game>/godot-handoff/<level>/): the
+// a world's fire for the Blender handoff: the art pack's own dials, checked as its `format` checks them
+function fireOf(input) {
+  const { fire_t: fireT = null, fire_detail: fireDetail = 1 } = input;
+  if (fireT != null && !(Number.isFinite(fireT) && fireT >= 0)) throw new Error('`fire_t` must be a time in seconds (≥ 0)');
+  if (!(Number.isFinite(fireDetail) && fireDetail > 0 && fireDetail <= 4)) throw new Error('`fire_detail` must be a number in (0, 4]');
+  return { fireT, fireDetail };
+}
+
+// one world handed to Blender into `dir` (handoff-blender.js): the folder, the commands that build and probe its .blend
+const blenderTo = ({ fireT, fireDetail }) => async (sketch, what, dir) => {
+  const h = await resolveHandoff(sketch, { what });
+  const { written, kept, fire } = await writeHandoffBlender(h, dir, { title: sketch.title ?? null, sketch, fireT, fireDetail });
+  const imp = `blender -b --python '${dir}/mojulo/import_handoff.py'`;
+  return {
+    ...handoffSummary(h, dir, written, kept), ...(fire ? { fire } : {}),
+    commands: {
+      import: imp,
+      open: `blender '${dir}/level.blend'`,
+      gate: `${imp} && blender -b '${dir}/level.blend' --python '${dir}/mojulo/handoff_probe.py'`,
+      render: fire ? `${imp} -- --render '${dir}/fire.png' --camera Fire --engine cycles --res 3840x2160 --samples 512` : `${imp} -- --render '${dir}/still.png'`,
+    },
+  };
+};
+
+const handoffBlenderNote = (one) => `A Blender handoff in ${one.dir}: its importer (commands.import) builds level.blend from mojulo/, in mojulo's own collections: the materials, `
+  + `${one.shaded.length ? `${one.shaded.join(' and ')} as node trees ported from the page, ` : ''}`
+  + 'the World, haze and sun as the page lights it, a camera, and every marker and seat as an Empty carrying its record. '
+  + `${one.fire ? `It carries the fire at t = ${one.fire.t} s (commands.render makes a Cycles still). ` : ''}`
+  + `A re-handoff replaces mojulo/ and rebuilds only mojulo's collections${one.kept.length ? `; kept: ${one.kept.join(', ')}` : ''}. What stayed the web's is in \`stays\`. Blender runs on the operator's machine; mojulo did not launch it.`;
+
+// a game's levels, each handed to the engine as its own folder under the game's (<game>/<engine handoff>/<level>/): the
 // game itself, its rules, menu and score, stays the web's
-async function gameHandoffGodot(game, what) {
+async function gameHandoff(game, what, engine, to) {
   const refs = [...new Set((normalizeGameManifest(game.manifest).levels ?? []).map((lv) => lv.ref).filter((r) => typeof r === 'string'))];
   if (!refs.length) throw new Error(`Game '${game.ref}' names no levels to hand off`);
-  const root = path.join(outcomeDirFor(game.ref), ENGINES.godot.handoff), levels = [];
+  const root = path.join(outcomeDirFor(game.ref), ENGINES[engine].handoff), levels = [];
   for (const r of refs) {
     const lv = SketchRepository.getByRef(r);
     if (!lv || !lv.manifest) throw new Error(`Game '${game.ref}': its level '${r}' has no sketch`);
-    const one = await handoffGodotTo(lv, what, path.join(root, r));
+    const one = await to(lv, what, path.join(root, r));
     levels.push({ ref: r, ...one });
   }
+  const each = engine === 'blender' ? `each a Blender handoff under ${root}/<level>/ (run its importer to build its level.blend). ` : `each a Godot 4 project under ${root}/<level>/ (open one and play its level.tscn). `;
   return {
-    ok: true, ref: game.ref, kind: 'game', engine: 'godot', what, dir: root, levels,
-    note: `${levels.length} level${levels.length > 1 ? 's' : ''} of the game, each a Godot 4 project under ${root}/<level>/ (open one and play its level.tscn). `
-      + 'The game itself (its rules, menu, score and flow between levels) is the web build\'s: `export_game` writes it. Godot runs on the operator\'s machine; mojulo did not launch it.',
+    ok: true, ref: game.ref, kind: 'game', engine, what, dir: root, levels,
+    note: `${levels.length} level${levels.length > 1 ? 's' : ''} of the game, ${each}`
+      + `The game itself (its rules, menu, score and flow between levels) is the web build's: \`export_game\` writes it. ${ENGINES[engine].name} runs on the operator's machine; mojulo did not launch it.`,
   };
 }
 

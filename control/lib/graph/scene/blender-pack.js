@@ -75,7 +75,7 @@ function collectionsFor(inventory, groups) {
 // their values (float32 LE: rgb for a flame, density for smoke). import_mojulo.py writes them to OpenVDB. The fires
 // are read as the live page reads them (an unshaded resolve keeps none: a dungeon's torches stand on its walls only
 // when it is lit), at `fireT` seconds, else at the time the fire reads best.
-async function packFire({ sketch, manifest, payload, shaded, fireT, fireDetail, outDir, writeOut }) {
+export async function packFire({ sketch, manifest, payload, shaded, fireT, fireDetail, outDir, writeOut }) {
   let live = payload;
   if (!shaded) ({ payload: live } = await resolveWorldScene(sketch, { paint: true }));
   if (!live || !live.fire) return null;

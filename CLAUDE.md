@@ -196,8 +196,9 @@ Pointers only; each target carries its own design notes.
 - Emitters: [control/lib/graph/scene/](control/lib/graph/scene/); native frame is z-up, 1 unit = 1 m
   ([engine-score.js](control/lib/graph/scene/engine-score.js)); each emitter owns its conversion.
   The engine handoff (`export_model { engine }`): `handoff.js` and an adapter per engine, Godot's in `handoff-godot.js`
-  (a project of a world's or a game's levels); Unreal takes assets (`unreal-project.js`), Blender an art pack
-  (`blender-project.js`); the registry in `scene/engines/`. Gates are advisory and need `MOJULO_GODOT` / `MOJULO_UNREAL`;
+  (a project of a world's or a game's levels), Blender's in `handoff-blender.js` (the same, built into a .blend; the art
+  pack, `format: 'blender'`, stays `blender-pack.js`); Unreal takes assets (`unreal-project.js`); the registry in
+  `scene/engines/`. Gates are advisory and need `MOJULO_GODOT` / `MOJULO_BLENDER` / `MOJULO_UNREAL`;
   CI's `godot` job runs the handoff's Godot leg on a pinned Godot. The game runtimes (Godot's, Roblox's, Unity's) are retired.
 - The realistic hero body (`form: 'realistic'`, the form field's slice): [docs/realistic-body.md](docs/realistic-body.md).
   Its garments: the construction in [body-relational-tailor.js](control/lib/graph/polygonizer/body-relational-tailor.js), the

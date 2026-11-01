@@ -1,6 +1,8 @@
-// export_model engine: 'godot' — the engine handoff from a tool call: a world's assets, animation and level as a Godot 4
-// project under <ref>/godot-handoff/ (scene/handoff-godot.js), the developer's project and scene kept on a re-handoff;
-// `engine` is its own export (no `format`), and a bad engine or `what` refuses.
+// export_model engine: 'godot' | 'blender' — the engine handoff from a tool call: a world's assets, animation and level as
+// a Godot 4 project under <ref>/godot-handoff/ (scene/handoff-godot.js), the developer's project and scene kept on a
+// re-handoff, or as a Blender folder under <ref>/blender-handoff/ (scene/handoff-blender.js), the artist's .blend kept,
+// a world's fire carried at `fire_t`; `engine` is its own export (no `format`), and a bad engine or `what` refuses.
+// `format: 'blender'` stays the Blender art pack.
 
 process.env.SQLITE_PATH = ':memory:';
 process.env.MOJULO_SEMANTIC_INDEX_DISABLED = '1';
@@ -78,25 +80,68 @@ describe("export_model engine: 'godot'", () => {
     expect(r.note).toContain('export_game');
   }, 300_000);
 
-  it('Unreal takes an asset, lit; Blender an art pack; their format names the same packs', async () => {
+  it('Unreal takes an asset, lit; its format name the same pack; Blender\'s format name the art pack', async () => {
     const u = await exportModelHandler({ ref: 'sk_xe_box', engine: 'unreal' });
     expect(u).toMatchObject({ ok: true, engine: 'unreal', what: 'asset' });
     expect(u.format).toBeUndefined();
     expect(path.basename(u.dir)).toBe('unreal');
     expect(u.commands.gate).toContain('--lit');
     await expect(exportModelHandler({ ref: 'sk_xe_box', engine: 'unreal', what: 'level' })).rejects.toThrow(/not its levels/);
-    const b = await exportModelHandler({ ref: 'sk_xe_box', engine: 'blender' });
-    expect(b).toMatchObject({ ok: true, engine: 'blender' });
-    expect(path.basename(b.dir)).toBe('blender');
-    await expect(exportModelHandler({ ref: 'sk_xe_box', engine: 'blender', what: 'asset' })).rejects.toThrow(/`what` applies/);
-    // (the old names: the same packs, the Unreal one unlit unless asked)
+    // (the old names: the same Unreal pack, unlit unless asked; Blender's the art pack, in its own folder)
     const uf = await exportModelHandler({ ref: 'sk_xe_box', format: 'unreal' });
     expect(uf).toMatchObject({ ok: true, format: 'unreal' });
     expect(uf.commands.gate).not.toContain('--lit');
+    const bf = await exportModelHandler({ ref: 'sk_xe_box', format: 'blender' });
+    expect(bf).toMatchObject({ ok: true, format: 'blender' });
+    expect(path.basename(bf.dir)).toBe('blender');
+    expect(bf.files).toContain('import_mojulo.py');
+  }, 300_000);
+
+  it('Blender takes the same handoff: the folder its importer builds level.blend from; a re-handoff keeps the artist\'s', async () => {
+    const r = await exportModelHandler({ ref: 'sk_xe_couch', engine: 'blender' });
+    expect(r).toMatchObject({ ok: true, engine: 'blender', what: 'level', kept: [] });
+    expect(path.basename(r.dir)).toBe('blender-handoff');
+    for (const f of ['mojulo/level.glb', 'mojulo/handoff.json', 'mojulo/import_handoff.py', 'mojulo/handoff_nodes.py', 'mojulo/handoff_probe.py']) {
+      expect(r.files, f).toContain(f);
+      expect(existsSync(path.join(r.dir, f)), f).toBe(true);
+    }
+    expect(r.level.seats).toBe(2);
+    expect(r.commands.import).toContain('mojulo/import_handoff.py');
+    expect(r.commands.gate).toContain('mojulo/handoff_probe.py');
+    expect(r.fire).toBeUndefined();
+    expect(r.note).toContain('level.blend');
+    writeFileSync(path.join(r.dir, 'level.blend'), 'the artist\'s');
+    const again = await exportModelHandler({ ref: 'sk_xe_couch', engine: 'blender' });
+    expect(again.kept).toEqual(['level.blend']);
+    expect(readFileSync(path.join(r.dir, 'level.blend'), 'utf8')).toBe('the artist\'s');
+    // (an asset alone: no level record; a game: each level its own folder)
+    const a = await exportModelHandler({ ref: 'sk_xe_box', engine: 'blender', what: 'asset' });
+    expect(a).toMatchObject({ ok: true, engine: 'blender', what: 'asset' });
+    expect(JSON.parse(readFileSync(path.join(a.dir, 'mojulo/handoff.json'), 'utf8')).level).toBeNull();
+    const g = await exportModelHandler({ ref: 'sk_xe_game', engine: 'blender' });
+    expect(g).toMatchObject({ ok: true, kind: 'game', engine: 'blender' });
+    expect(g.levels.map((l) => path.relative(g.dir, l.dir))).toEqual(['sk_xe_lv_a', 'sk_xe_lv_b']);
+    expect(path.basename(g.dir)).toBe('blender-handoff');
+  }, 300_000);
+
+  it('Blender carries a world\'s fire at fire_t, by the art pack\'s own writer; bad fire dials refuse', async () => {
+    const DUNGEON = { kind: 'dungeon', chambers: [{ id: 'hub', at: [0, 0], elevation: 0, radius: 7, height: 9 }, { id: 'west', at: [-17, 5], elevation: -2.5, radius: 6, height: 8 }], tunnels: [{ from: 'hub', to: 'west', style: 'corridor' }] };
+    SketchRepository.create({ ref: 'sk_xe_fire', title: 'fire', manifest: { ...DUNGEON, fire: true } });
+    const r = await exportModelHandler({ ref: 'sk_xe_fire', engine: 'blender', fire_t: 4 });
+    expect(r).toMatchObject({ ok: true, engine: 'blender', fire: { t: 4, fires: 4 } });
+    for (const f of ['mojulo/fire/fire.json', 'mojulo/fire/props.glb', 'mojulo/handoff_fire.py']) {
+      expect(r.files, f).toContain(f);
+      expect(existsSync(path.join(r.dir, f)), f).toBe(true);
+    }
+    expect(r.files.some((f) => f.endsWith('.bin'))).toBe(false);
+    expect(JSON.parse(readFileSync(path.join(r.dir, 'mojulo/fire/fire.json'), 'utf8')).t).toBe(4);
+    expect(r.commands.render).toMatch(/--camera Fire --engine cycles --res 3840x2160/);
+    await expect(exportModelHandler({ ref: 'sk_xe_fire', engine: 'blender', fire_t: -1 })).rejects.toThrow(/fire_t/);
+    await expect(exportModelHandler({ ref: 'sk_xe_fire', engine: 'blender', fire_detail: 9 })).rejects.toThrow(/fire_detail/);
   }, 300_000);
 
   it('a desktop app built from the same outcome folder leaves the engine packs out', () => {
-    expect(ENGINE_HANDOFF_DIRS).toEqual(expect.arrayContaining(['godot-handoff', 'unreal', 'blender']));
+    expect(ENGINE_HANDOFF_DIRS).toEqual(expect.arrayContaining(['godot-handoff', 'unreal', 'blender-handoff', 'blender']));
     const pkg = JSON.parse(desktopPackageJson({ title: 't', ref: 'sk_x' }));
     for (const d of ENGINE_HANDOFF_DIRS) expect(pkg.scripts.package).toContain(d);
   });
