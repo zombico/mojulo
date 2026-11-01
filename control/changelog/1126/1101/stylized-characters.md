@@ -101,6 +101,16 @@ member, a quick game's hero). Code: `control/lib/graph/egocube/feature-tune.js`.
     wear them too;
   - no pale cheek discs on a hoofed face. The horns' and the mane's decoration dials still rule the antlers and the
     mane.
+- **Everything is attached.** A new rule (`feature-attach.js`): every shape on a feature animal is attached to the body
+  or to something attached to it.
+  - Two shapes count as one where the gap between their surfaces is narrow enough for the skin's blend to bridge.
+  - Once the build is laid out, a piece apart is moved, whole, to the nearest attached shape and set into it: its design
+    kept, its place corrected. The plan records what moved (`mascot.attached`).
+  - It caught 14 of 57 species sampled (one or two per family). Thin tails stood off the rump (a cougar's, a mouse's, a
+    wombat's, a platypus's), and the reptiles' and dinosaurs' dorsal spines floated above their backs. Each moved 0.3
+    to 4.5 cm.
+  - Every family's shapes are now one piece, as designed and at the gen7 tier, and every plan's minted skin is a single
+    connected piece.
 - **QA.** `scripts/spikes/feature-roster.mjs` takes `--tune` (every species minted with it) and `--tunes` (each species
   once per tune, side by side).
 - **Stored mascots keep their look.** A minted mascot stores its compiled plan. An untuned sheet compiles as before,
@@ -121,7 +131,7 @@ member, a quick game's hero). Code: `control/lib/graph/egocube/feature-tune.js`.
   - and, in `feature-grammar.test.js`, a standing bird's wing panel out of its body, its primaries not splayed, its beak
     broader than deep; its default face rolled bright, its resting lids and brows higher, its brows' clips unchanged;
   - a frog sitting on its own all fours (hands planted, webbed feet on its ankles, eyes on domes, its own muzzle);
-    every plan's minted skin closed (`feature-body.test.js`);
+    every plan's minted skin closed and in one piece, and every family's shapes attached (`feature-body.test.js`);
   - a horse's long face, flowing mane, forelock and hair tail, and a deer's antlers, side-set ears and pale chin, with
     the dials still ruling them;
   - a head tuft worn by every plan in place of the crown, each card's locks rooted in the skull and standing out of it,

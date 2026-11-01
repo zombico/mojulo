@@ -23,6 +23,7 @@
  *                     the coat's ZONES cut into it along their exact edges (feature-coat.js cutSkin), with its points and
  *                     faces as arrays (V, F) for the coat's layers; kept by key (a few seconds a body)
  *   FEATURE_BUILDS      the raccoon's build (the grammar's: feature-grammar.js featureBuild makes every animal's)
+ *   featureShapes(build) → { L, moved }   the build's shapes laid out in metres, every one attached (feature-attach.js)
  *   featurePlan(sheet, { title?, reactions? }) → { plan, H, height, bake? }   the creature plan: the skin, the face's
  *                     parts (feature-face.js: globes, lids and brows about each globe's centre), the mascot's rig and
  *                     clips (mascot-form.js rigOf); the sheet's `tune` (feature-tune.js) moves the build, sets the skin's
@@ -39,6 +40,7 @@ import { measuresOf, rigOf, coatPalette } from './mascot-form.js';
 import { featureBuild } from './feature-grammar.js';
 import { resolveTune, detailBake } from './feature-tune.js';
 import { tuftColour } from './feature-tufts.js';
+import { attachAll } from './feature-attach.js';
 import { foursClips } from './feature-function.js';
 import { plumageOf, wingTones } from './feature-birds.js';
 import { speciesParams } from '../fauna/species.js';
@@ -219,6 +221,14 @@ function laidOut(build, height) {
   return { h, eggs, marks, mouth, seam: (build.seam ?? 0) * h, digits: digits.map((d) => ({ i: d.i, base: S(d.base), mid: S(d.mid), tip: S(d.tip) })), eye: { ...build.eye, r: build.eye.r * h }, J: Object.fromEntries(Object.entries(build.joints).map(([k, p]) => [k, S(p)])), hipZ: r4(build.hipZ * h), neckZ: r4(build.neckZ * h), top: r4((build.top + up) * h), H: ell(build.head), muzzle: ell(build.muzzle) };
 }
 
+/** A build's shapes laid out in metres at the style's height, under THE ATTACHMENT RULE: every shape attached to the body
+ *  or to something attached to it, a piece apart moved, whole, to the nearest attached shape (feature-attach.js).
+ *  → { L (the laid-out build, its `eggs` the attached shapes), moved (what was moved, where, how far: none, nothing) } */
+export function featureShapes(build) {
+  const L0 = laidOut(build, FEATURE_HEIGHT), att = attachAll(L0.eggs, { seam: L0.seam });
+  return { L: att.moved.length ? { ...L0, eggs: att.shapes } : L0, moved: att.moved };
+}
+
 /** clips with every arm direction (`armL`, `armR`: { x, y, z }) turned out until its outward share is at least `out` */
 function splayed(clips, out) {
   if (!out) return clips;
@@ -265,7 +275,7 @@ export function featurePlan(sheet, { title = 'a feature animal', reactions = fal
   // (the operator's tune, feature-tune.js: absent, the build and the skin as designed)
   const tune = sheet.tune ? resolveTune(sheet.tune) : null, net = tune ? { cell: tune.detail.cell, faces: tune.detail.faces } : {};
   const build = featureBuild(A, { decor, ...(tune ? { tune } : {}) });
-  const L = laidOut(build, FEATURE_HEIGHT), H = L.H;
+  const { L, moved } = featureShapes(build), H = L.H, att = { moved };
   const zones = L.marks.filter((m) => !m.strokes && !m.bands), layers = L.marks.filter((m) => m.strokes || m.bands);
   const skin = eggSkin(L.eggs, { zones, seam: L.seam, ...net }), F = eggField(L.eggs, { seam: L.seam });
   const coat = coatOf(skin, F, L.eggs, layers);
@@ -301,7 +311,7 @@ export function featurePlan(sheet, { title = 'a feature animal', reactions = fal
     symmetry: { plane: 'x=0', policy: 'the skin given whole; the face\'s side parts authored on the right, mirrored by name' },
     style: { slots: 'ring20', limbSlots: 'ring12', e: 2 },
     joints, segments, dials: {}, rig, clips, paint: [],
-    mascot: { energy: f.energy, form: f.form, height: L.top, headR: r4(Math.max(H.rx, H.ry)), style: 'feature', ...(build.tune ? { tune: build.tune } : {}) },
+    mascot: { energy: f.energy, form: f.form, height: L.top, headR: r4(Math.max(H.rx, H.ry)), style: 'feature', ...(build.tune ? { tune: build.tune } : {}), ...(att.moved.length ? { attached: att.moved } : {}) },
     palette: tune?.tuft ? (() => { const pal = featurePalette(coatPalette(sheet, k, A, f), A.id, build); return { EarInner: '#c9a19b', ...pal, Tuft: tuftColour(tune.tuft, pal) }; })()
       : { EarInner: '#c9a19b', ...featurePalette(coatPalette(sheet, k, A, f), A.id, build) },
   };

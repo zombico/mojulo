@@ -4,14 +4,17 @@
 // it; the mascot sheet in the feature style compiles to that skin on the mascot's rig, shaded smooth, its lids shells
 // turning about their globes; a sheet in any other style compiles as it did.
 import { describe, it, expect } from 'vitest';
-import { egg, eggDistance, eggField, eggSkin, tuft, FEATURE_BUILDS, FEATURE_TRIANGLES } from './feature-body.js';
+import { egg, eggDistance, eggField, eggSkin, tuft, FEATURE_BUILDS, FEATURE_TRIANGLES, featureShapes } from './feature-body.js';
+import { pieces, attachAll, gapOf } from './feature-attach.js';
+import { resolveTune } from './feature-tune.js';
+import { animalCard } from './mascot-animals.js';
 import { FEATURE_EYE } from './feature-face.js';
 import { FEATURE_COAT, strokesOf, coatLayers } from './feature-coat.js';
 import { rollMascot } from './mascot.js';
 import { mascotPlanFromSheet } from './mascot-form.js';
 import { validateRig, rigNodesAt } from '../polygonizer/station-loft-rig.js';
 import { expandPlan } from '../polygonizer/station-loft-plan.js';
-import { PLAN_OF, PLANS, FEATURE_EXCLUDES } from './feature-grammar.js';
+import { featureBuild, PLAN_OF, PLANS, FEATURE_EXCLUDES } from './feature-grammar.js';
 import { SPECIES } from '../fauna/species.js';
 
 const along = (E, s) => { let lo = 0, hi = 4 * Math.max(...E.r); for (let i = 0; i < 60; i++) { const m = (lo + hi) / 2; (eggDistance(E, E.c.map((x, k) => x + E.u[k] * s * m)) < 0 ? (lo = m) : (hi = m)); } return lo; };
@@ -109,6 +112,26 @@ describe('the feature body', () => {
     expect(toon.create.spec.plan.segments.some((s) => s.kind === 'mesh')).toBe(false);
   }, 120_000);
 
+  it('the attachment rule: every shape attached to the body or to something attached to it, a piece apart moved to it', () => {
+    // (one species per family, chosen in code, as designed and at the gen7 tier: its shapes one piece once laid out)
+    const fams = {}; for (const [id, sp] of Object.entries(SPECIES)) if (!FEATURE_EXCLUDES.includes(sp.family)) fams[sp.family] ??= id;
+    let movedAny = false;
+    for (const id of Object.values(fams)) for (const tune of [null, resolveTune({ detail: 'gen7' })]) {
+      const { L, moved } = featureShapes(featureBuild(animalCard(id), tune ? { tune } : {}));
+      expect(pieces(L.eggs, { seam: L.seam }).length, `${id}${tune ? ' gen7' : ''}`).toBe(1);
+      movedAny ||= moved.length > 0;
+    }
+    expect(movedAny).toBe(true);                                                   // (the rule did work somewhere)
+    // (a piece set apart on purpose is brought back, whole, and only as far as it must be: its shape kept)
+    const a = egg({ name: 'belly', c: [0, 0, 0.5], u: [0, 0, 1], r: [0.3, 0.3, 0.3], bone: 'pelvis', join: 0.05 });
+    const b = egg({ name: 'tail0', c: [0, -0.6, 0.5], u: [0, -1, 0], r: [0.1, 0.1, 0.1], bone: 'pelvis', join: 0.05 });
+    const { shapes, moved } = attachAll([a, b]);
+    expect(moved).toHaveLength(1); expect(pieces(shapes).length).toBe(1);
+    expect(shapes[1].r).toEqual(b.r); expect(shapes[0]).toBe(a);
+    expect(gapOf(shapes[0], shapes[1])).toBeGreaterThan(-0.05);                   // (set in by a margin, not swallowed)
+    expect(attachAll([a, egg({ ...b, c: [0, -0.35, 0.5], u: [0, -1, 0], r: b.r, join: 0.05 })]).moved).toHaveLength(0);
+  });
+
   it('every plan\'s skin is closed: a pinch the net lets go is fanned shut on the surface', () => {
     // (one species per plan, chosen in code; its minted skin: every edge two faces')
     const pick = (pl) => Object.keys(SPECIES).find((id) => PLAN_OF[SPECIES[id].family] === pl && !FEATURE_EXCLUDES.includes(SPECIES[id].family));
@@ -117,6 +140,11 @@ describe('the feature body', () => {
       const skin = plan.segments.find((x) => x.name === 'skin').mesh, uses = new Map();
       for (const t of Object.values(skin.faces)) for (let a = 0; a < 3; a++) { const k = [t[a], t[(a + 1) % 3]].sort().join('|'); uses.set(k, (uses.get(k) ?? 0) + 1); }
       expect([...uses.values()].filter((n) => n !== 2).length, `${pl}: ${id}`).toBe(0);
+      // (and ONE piece: nothing floats apart from the body)
+      const up = new Map(), find = (x) => { while (up.get(x) !== x) x = up.get(x); return x; };
+      for (const t of Object.values(skin.faces)) for (const v of t) if (!up.has(v)) up.set(v, v);
+      for (const t of Object.values(skin.faces)) { const a = find(t[0]); for (const v of t.slice(1)) up.set(find(v), a); }
+      expect(new Set([...up.keys()].map(find)).size, `${pl}: ${id} in one piece`).toBe(1);
     }
   }, 180000);
 });

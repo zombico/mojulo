@@ -57,6 +57,13 @@ Every build has two halves. They are designed separately and dialled separately.
 10. **Equivalently functional.** The animal moves as its animal does: a quadruped stands up for the acting and drops
    onto all fours to move, so its limbs keep the species' own proportions (big hind legs stay big, an ape's arms stay
    long) and its body fits over them. See Function.
+11. **Everything is attached.** Every shape (a mass, a tuft, a limb, a horn, a spine, a tail) is attached to the body
+   or to something attached to it: two shapes are one where the gap between their surfaces is narrower than the skin's
+   blend can bridge (`FEATURE_ATTACH.bridge` of the softer join; the seam's where a head shape meets a body shape). Once
+   the build is laid out, a piece apart (a tail behind the rump, a dorsal spine above the back) is moved, whole, to the
+   nearest attached shape and set into it by a margin: its design kept, only its place corrected
+   ([feature-attach.js](../control/lib/graph/egocube/feature-attach.js); the plan records what moved, `mascot.attached`).
+   The minted skin is one piece.
 9. **A default game model.** One smooth skin, a few layers and parts, a triangle budget (FEATURE_TRIANGLES), the
    whole shaded smooth by the field's normals. The skin is CLOSED: where two sheets of the surface pass within a net cell
    (a crease under the jaw, a wing on its flank, an arm against the body) the net pinches, the pinch is let go and the
