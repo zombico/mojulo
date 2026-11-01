@@ -38,6 +38,7 @@ import { compilerGaps, formGaps } from '@/lib/graph/gameworld/resonance.js';
 import { feelReport } from '@/lib/graph/gameworld/feel/lower.js';
 import { feelSuggestion } from '@/lib/graph/gameworld/feel/suggest.js';
 import { juiceOfGame, juiceSuggestion } from '@/lib/graph/gameworld/juice.js';
+import { railOfGame } from '@/lib/graph/gameworld/game-bodies.js';
 import { quickWorld, sportConceptOf } from '@/lib/graph/gameworld/quick.js';
 import { composeGameworld } from '@/lib/graph/gameworld/compose.js';
 import './palette-ledger.js';
@@ -355,6 +356,10 @@ function readout(ref, world, context = {}) {
   const JW = feel ? { ...world, feel: { pole: feel.pole } } : world;
   const juice = juiceOfGame(JW), juiceSuggest = juice ? null : juiceSuggestion(JW);
   if (juiceSuggest) next.push({ step: 'juice', suggest: juiceSuggest.fxStyle, why: juiceSuggest.why, card: 'gameworld-juice' });
+  // the body the game puts in its hero (gameworld/game-bodies.js): a book whose direction names none, the rail its kind
+  // reads proposed (opt-in: a body is written, never laid)
+  const bodyRail = world.characters?.direction && world.characters.direction.body === undefined ? railOfGame({ genre: world.intent?.from ?? null, goal: world.quick?.goal ?? null, feel: typeof world.feel === 'string' ? world.feel : world.feel?.pole ?? null }) : null;
+  if (bodyRail) next.push({ step: 'body', suggest: 'game', rail: bodyRail.rail, why: bodyRail.why, patch: [{ op: 'add', path: '/characters/direction/body', value: 'game' }], card: 'gameworld-direction' });
   // who it fights (gameworld/foe-casting.js): a world that fights and keeps no bestiary, the cast a casting call proposes
   const call = castingCall(world);
   if (call) next.push({ step: 'foes', suggest: Object.fromEntries(call.roles.map((r) => [r.id, `${r.class}${r.rank !== 'minion' ? ` ${r.rank}` : ''}${r.skin ? ` (${r.skin.people})` : ''}`])), why: call.reasons, patch: call.patch, card: 'gameworld-foes' });
