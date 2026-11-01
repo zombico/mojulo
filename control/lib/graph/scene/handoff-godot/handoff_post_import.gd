@@ -77,6 +77,7 @@ func _post_import(scene: Node) -> Object:
 		if not instanced and not see_through:
 			mi.create_trimesh_collision()
 			own(mi, scene)
+	lamps(scene)
 	if typeof(H.get("terrain")) == TYPE_DICTIONARY:
 		terrain(scene, H["terrain"])
 	if typeof(H.get("sea")) == TYPE_DICTIONARY:
@@ -212,6 +213,14 @@ func sea(scene: Node, S: Dictionary, env: Dictionary) -> void:
 				sm.set_shader_parameter("uRough", m.roughness)
 				mesh.surface_set_material(s, sm)
 				mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+
+# (a room's lamps, form:lamp:*, carry π × the solve's level as their glTF intensity, the page's convention: Godot's
+# importer takes it as the light's energy, which Godot lights by as it does a sun's, so a lamp's energy is its level,
+# intensity / π, as the sun's is)
+func lamps(scene: Node) -> void:
+	for l in scene.find_children("*", "OmniLight3D", true, false):
+		if String(l.name).contains("form_lamp"):
+			l.light_energy = l.light_energy / PI
 
 func environment(scene: Node, env: Dictionary) -> void:
 	var e := Environment.new()
