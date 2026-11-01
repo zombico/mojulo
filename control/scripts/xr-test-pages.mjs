@@ -59,10 +59,12 @@ function city() {
 
 // the page reads its mode off ?xr= (channels/xr.js), so a world is one page and a mode a link
 const MODES = [
-  ['', 'default, the couch: feet go where the body points, the right stick turns the body, the head only looks'],
-  ['snap', 'the same, snap turn (30°)'],
-  ['latch', 'standing: forward is where you look when a push begins, held while you walk'],
-  ['head', 'standing: steer by the gaze every frame (the old way)'],
+  ['', 'seated (default, the couch): feet go where the body points, the right stick turns the body, the head only looks'],
+  ['snap', 'seated, snap turn (30°)'],
+  ['standing', 'standing: turn your body to turn (hands held in front lead it), the right stick snap-turns on top'],
+  ['standing,off', 'standing, no stick turning at all'],
+  ['latch', 'forward is where you look when a push begins, held while you walk'],
+  ['head', 'steer by the gaze every frame (the old way)'],
   ['hand', 'walk where the left controller points, smooth turn'],
   ['hand,snap', 'walk where the left controller points, snap turn'],
 ];
@@ -80,7 +82,7 @@ writeFileSync(path.join(out, 'index.html'), `<!doctype html><html><head><meta ch
 <title>mojulo xr test pages</title><style>body{font:18px/1.5 system-ui,sans-serif;background:#111;color:#eee;max-width:760px;margin:24px auto;padding:0 16px}a{color:#7cf}li{margin:8px 0}code{color:#fc8}</style></head><body>
 <h1>mojulo · headset walk test pages</h1>
 <p>build <code>${BUILD}</code></p>
-<p>Open a page in the Quest browser and press <code>vr</code> (top left, beside walk) straight away: VR starts you where the page's view stands, on the course's lane facing the blue goal. Left stick walks and strafes where your body points, right stick turns your body; your head just looks. Holding the Meta button recenters.</p>
+<p>Open a page in the Quest browser and press <code>vr</code> (top left, beside walk) straight away: VR starts you where the page's view stands, on the course's lane facing the blue goal. Left stick walks and strafes where your body points. Seated, the right stick turns your body; standing, you turn it yourself. Your head just looks. Holding the Meta button recenters.</p>
 <p>Check: a long push forward stays on the lane while you look around; after a right-stick turn, forward is the new way; turning happens where you stand; the turn speed feels right.</p>
 ${rows.join('\n')}
 </body></html>

@@ -18,17 +18,24 @@ import { SCHEMES } from '../../controls/schemes.js';
 // kernel and the xr family's driver (controls/xr-driver.js), so the headset and the scheme's
 // controls card say the same thing and `xr.bind` remaps them: the left thumbstick walks and
 // strafes, the right one turns, so the player never has to turn their head to turn.
-//   - FEET, BODY, HEAD (`move: 'body'`, the default: the seated, couch action game): the feet go where
-//     the body points (the left stick: forward, back, and sideways to it), the body turns only on the
-//     right stick, and the head is a pure camera, looking anywhere without steering. The body is the
-//     rig: its yaw is the body's, so "forward" is the rig yaw. Standing players who turn their whole
-//     body by hand want the head to steer instead: `'latch'` takes the gaze when a push begins and
-//     holds it (a glance aside mid-walk does not bend the path), `'head'` re-reads the gaze every
-//     frame, `'hand'` walks where the moving hand's controller points. Every mode goes straight: the
-//     stick is shaped (a radial dead zone, a near-cardinal push snapped onto the cardinal).
-//   - TURNS IN PLACE: smooth (`turn: 'smooth'`, `turnSpeed` deg/s) or snap (`snap` deg), about the
-//     head, not the play-space origin the rig hangs from (turning about the origin swings a player
-//     standing off-centre around a circle).
+//   - FEET, BODY, HEAD: the feet go where the body points (the left stick: forward, back, and sideways
+//     to it), and the head is a camera on top. What turns the body is the stance:
+//       `move: 'seated'` (the default, the couch action game): the right stick alone turns the body (the
+//       rig: forward is the rig yaw); the head looks anywhere without steering.
+//       `move: 'standing'` (room scale, a game that cares how the player physically turns): the body is
+//       the player's torso, turned by turning. WebXR tracks no torso, so it is estimated the way an
+//       avatar's is: the point between the two controllers, held out in front, is in front of the
+//       chest (followed fast); with the hands down, the body catches up to where the head has faced
+//       for about a second (a glance barely moves it); and the head never sits more than `neck` (50°)
+//       off it (a bigger turn drags the body along). The right stick snap-turns on top (a play space
+//       and a cable run out); `turn: 'off'` leaves turning to the feet.
+//     The head-steered modes stay for comparison: `'latch'` takes the gaze when a push begins and holds
+//     it, `'head'` re-reads the gaze every frame, `'hand'` walks where the moving hand's controller
+//     points. Every mode goes straight: the stick is shaped (a radial dead zone, a near-cardinal push
+//     snapped onto the cardinal).
+//   - TURNS IN PLACE: smooth (`turn: 'smooth'`, `turnSpeed` deg/s; seated's default) or snap (`snap` deg;
+//     standing's default), about the head, not the play-space origin the rig hangs from (turning about
+//     the origin swings a player standing off-centre around a circle).
 //
 // Frame: WebXR's reference space is y-up with -Z forward; mojulo is z-up. The rig quaternion is
 // Qz(yaw − π/2) · Qx(+π/2): local +Y → world +Z, local −Z → world heading `yaw`. three composes
@@ -37,31 +44,35 @@ import { SCHEMES } from '../../controls/schemes.js';
 // rig replaces the controllable step); overlays (fog/effects) are camera-fed per eye by three but
 // were tuned for the mono view.
 
-const MOVES = ['body', 'latch', 'head', 'hand'];
-const TURNS = ['smooth', 'snap'];
+const MOVES = ['seated', 'standing', 'latch', 'head', 'hand'];
+const TURNS = ['smooth', 'snap', 'off'];
 // the pilot scheme's locomotion: what the headset reads
 const LOCO = ['moveForward', 'moveBack', 'strafeLeft', 'strafeRight', 'turnLeft', 'turnRight'];
 
 const num = (v, d) => (Number.isFinite(v) ? v : d);
 const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
 
-// `xr`: true | { eye, speed, turn, snap (deg), turnSpeed (deg/s), move, dead, axial (deg), bind }. `snap` given
-// without `turn` means snap turning (what `{ snap }` always meant). `walk` is the page's walk config (its speed
+// `xr`: true | { eye, speed, move, turn, snap (deg), turnSpeed (deg/s), neck (deg), reach (m), dead, axial (deg), bind }.
+// `turn` defaults to smooth seated and snap standing; `snap` given without `turn` means snap turning (what `{ snap }`
+// always meant). `walk` is the page's walk config (its speed
 // halved is the headset's: a walk speed is tuned for a sprint across a monitor). Absent `xr` ⇒ null.
 export function xrConfig(xr, walk) {
   if (!xr) return null;
   const k = typeof xr === 'object' ? xr : {};
-  const turn = TURNS.includes(k.turn) ? k.turn : (Number.isFinite(k.snap) ? 'snap' : 'smooth');
+  const move = MOVES.includes(k.move) ? k.move : 'seated';
+  const turn = TURNS.includes(k.turn) ? k.turn : (Number.isFinite(k.snap) || move === 'standing' ? 'snap' : 'smooth');
   const K = buildControlsKernel();
   const B = K.resolve(SCHEMES.pilot, { xr: DEVICES.xr }, k.bind && typeof k.bind === 'object' ? { xr: k.bind } : null);
   const bind = Object.fromEntries(LOCO.map((id) => [id, B.bind.xr[id]]));
   return {
     eye: num(k.eye, 1.6),
     speed: num(k.speed, walk ? walk.speed * 0.5 : 3),
+    move,
     turn,
     snap: num(k.snap, 30) * Math.PI / 180,
     turnSpeed: num(k.turnSpeed, 120) * Math.PI / 180,
-    move: MOVES.includes(k.move) ? k.move : 'body',
+    neck: clamp(num(k.neck, 50), 10, 120) * Math.PI / 180,
+    reach: clamp(num(k.reach, 0.12), 0.02, 0.6),
     dead: clamp(num(k.dead, 0.2), 0, 0.9),
     axial: clamp(num(k.axial, 12), 0, 44) * Math.PI / 180,
     bind: { xr: bind },
@@ -69,16 +80,18 @@ export function xrConfig(xr, walk) {
 }
 
 // `?xr=` on the live /world route: '1' / 'true' adds the entry with the manifest's own `xr` (or the defaults), '0' /
-// 'false' drops it, and words pick the modes for a headset A/B without a re-mint: `?xr=snap`, `?xr=smooth,hand`,
-// `?xr=head` (any of body | latch | head | hand, smooth | snap, comma-separated). No param ⇒ the manifest's `xr` as is.
+// 'false' drops it, and words pick the modes for a headset A/B without a re-mint: `?xr=standing`, `?xr=seated,snap`,
+// `?xr=head` (any of seated | standing | latch | head | hand, smooth | snap | off, comma-separated). A stance word picks
+// its own turn unless a turn word is given too. No param ⇒ the manifest's `xr` as is.
 export function xrFromParam(param, own) {
   if (param == null) return own || null;
   const p = String(param).trim().toLowerCase();
   if (p === '0' || p === 'false') return null;
   const base = own && typeof own === 'object' ? { ...own } : {};
-  for (const w of p.split(',').map((s) => s.trim())) {
+  const words = p.split(',').map((s) => s.trim());
+  for (const w of words) {
     if (TURNS.includes(w)) base.turn = w;
-    else if (MOVES.includes(w)) base.move = w;
+    else if (MOVES.includes(w)) { base.move = w; if (!words.some((x) => TURNS.includes(x))) delete base.turn; }
   }
   return Object.keys(base).length ? base : (own || true);
 }
@@ -88,11 +101,16 @@ export function xrModeScript(cfg) {
 // --- WebXR immersive-vr (opt-in): the z-up rig carries the y-up XR space through the same scene ---
 const XR = ${safeJson(cfg)};
 // a static copy (a download, a page on a static host) takes the mode words the live route does: ?xr=snap,hand
-try { for (const w of (new URLSearchParams(location.search).get('xr') || '').toLowerCase().split(',')) { if (w === 'smooth' || w === 'snap') XR.turn = w; else if (w === 'body' || w === 'latch' || w === 'head' || w === 'hand') XR.move = w; } } catch (e) { /* no location */ }
+try {
+  const ws = (new URLSearchParams(location.search).get('xr') || '').toLowerCase().split(',');
+  const t = ws.find((w) => w === 'smooth' || w === 'snap' || w === 'off'), m = ws.find((w) => ['seated', 'standing', 'latch', 'head', 'hand'].includes(w));
+  if (m) { XR.move = m; XR.turn = m === 'standing' ? 'snap' : 'smooth'; }
+  if (t) XR.turn = t;
+} catch (e) { /* no location */ }
 const __XRK = (${buildControlsKernel.toString()})();
 const __XRV = (${buildXrDriver.toString()})();
 const __XRD = ${safeJson({ xr: DEVICES.xr })};
-let __xrOn = false, __xrRig = null, __xrYaw = 0, __xrSnapCool = 0, __xrSaved = null, __xrLatch = null;
+let __xrOn = false, __xrRig = null, __xrYaw = 0, __xrSnapCool = 0, __xrSaved = null, __xrLatch = null, __xrTorso = null;
 const __xrTilt = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), Math.PI / 2);
 const __xrA = new THREE.Vector3(), __xrB = new THREE.Vector3(), __xrQ = new THREE.Quaternion();
 // the hand that walks: the one the forward binding names
@@ -123,6 +141,33 @@ function __xrHandHeading(){
     break;
   }
   return __xrHeading();
+}
+// standing: the torso's yaw inside the play space (rig-local, about +Y, 0 = the space's -Z), estimated each frame
+const __xrWrap = (a) => Math.atan2(Math.sin(a), Math.cos(a));
+function __xrLocalYaw(o){
+  __xrQ.set(o.x, o.y, o.z, o.w); __xrB.set(0, 0, -1).applyQuaternion(__xrQ);
+  return Math.hypot(__xrB.x, __xrB.z) > 0.2 ? Math.atan2(-__xrB.x, -__xrB.z) : null;
+}
+function __xrStance(dt){
+  const p = __xrViewer(); if (!p) return;
+  const hy = __xrLocalYaw(p.transform.orientation);
+  if (__xrTorso === null) { __xrTorso = hy !== null ? hy : 0; return; }
+  // the hands: the point between the two controllers, held out in front of the head, is in front of the chest
+  let hands = null;
+  const f = renderer.xr.getFrame(), ref = renderer.xr.getReferenceSpace(), s = renderer.xr.getSession();
+  if (f && ref && s) {
+    let n = 0, mx = 0, mz = 0;
+    for (const src of s.inputSources) {
+      if (src.handedness !== 'left' && src.handedness !== 'right') continue;
+      const sp = src.gripSpace || src.targetRaySpace, q = sp ? f.getPose(sp, ref) : null;
+      if (q) { mx += q.transform.position.x; mz += q.transform.position.z; n++; }
+    }
+    const vx = mx / 2 - p.transform.position.x, vz = mz / 2 - p.transform.position.z;
+    if (n === 2 && Math.hypot(vx, vz) > XR.reach) hands = Math.atan2(-vx, -vz);
+  }
+  const goal = hands !== null ? hands : hy, rate = hands !== null ? 8 : 1;
+  if (goal !== null) __xrTorso += __xrWrap(goal - __xrTorso) * (1 - Math.exp(-rate * dt));
+  if (hy !== null) { const d = __xrWrap(hy - __xrTorso); if (Math.abs(d) > XR.neck) __xrTorso += d - Math.sign(d) * XR.neck; }
 }
 // the head in world space: the frame's viewer pose (rig-local) through the rig; last render's camera without a frame
 function __xrHead(out){
@@ -163,17 +208,18 @@ async function __xrEnter(){
   scene.add(__xrRig);
   __xrSaved = { pos: camera.position.clone(), quat: camera.quaternion.clone(), controls: controls.enabled, walkOn };
   __xrRig.add(camera); camera.position.set(0, 0, 0); camera.quaternion.identity();
-  walkOn = false; controls.enabled = false; __xrLatch = null; __xrSnapCool = 0;
+  walkOn = false; controls.enabled = false; __xrLatch = null; __xrSnapCool = 0; __xrTorso = null;
   if (document.pointerLockElement) document.exitPointerLock();
   __xrOn = true; __xrBtn.classList.add('on');
   session.addEventListener('end', __xrExit);
   await renderer.xr.setSession(session);
 }
-// per-frame: the right stick turns (smooth or snap, about the head), the left stick walks and strafes on the
-// body / latched / gaze / hand heading, then the rig's feet snap to the floor beneath (walk channel's probe).
+// per-frame: standing estimates the torso, the right stick turns (smooth or snap, about the head), the left stick walks
+// and strafes on the body (seated: the rig; standing: the rig and the torso in it) / latched / gaze / hand heading, then the rig's feet snap to the floor beneath (walk channel's probe).
 function __xrStep(dt){
   const session = renderer.xr.getSession(); if (!session || !__xrRig) return;
   const rd = __XRV.xrRead(session.inputSources, __XRD);
+  if (XR.move === 'standing') __xrStance(dt);
   const m = __XRV.stick(__XRK.axis(XR, 'strafeRight', 'strafeLeft', 'xr', rd), __XRK.axis(XR, 'moveForward', 'moveBack', 'xr', rd), XR.dead, XR.axial);
   const walking = !!(m[0] || m[1]);
   // latch before turning, so this frame's turn turns the latched heading too
@@ -184,12 +230,12 @@ function __xrStep(dt){
     __xrSnapCool = Math.max(0, __xrSnapCool - dt);
     if (Math.abs(turn) > 0.7 && __xrSnapCool <= 0) { __xrTurn(-Math.sign(turn) * XR.snap); __xrSnapCool = 0.3; }
     else if (Math.abs(turn) < 0.3) __xrSnapCool = 0;
-  } else {
+  } else if (XR.turn === 'smooth') {
     const t = __XRV.stick(turn, 0, XR.dead, 0)[0];
     if (t) __xrTurn(-t * XR.turnSpeed * dt);
   }
   if (walking) {
-    const h = XR.move === 'body' ? __xrYaw : XR.move === 'latch' ? __xrLatch : XR.move === 'hand' ? __xrHandHeading() : __xrHeading();
+    const h = XR.move === 'seated' ? __xrYaw : XR.move === 'standing' ? __xrYaw + (__xrTorso || 0) : XR.move === 'latch' ? __xrLatch : XR.move === 'hand' ? __xrHandHeading() : __xrHeading();
     const v = XR.speed * dt, fx = Math.cos(h), fy = Math.sin(h), rx = Math.sin(h), ry = -Math.cos(h);
     __xrRig.position.x += (m[1] * fx + m[0] * rx) * v;
     __xrRig.position.y += (m[1] * fy + m[0] * ry) * v;

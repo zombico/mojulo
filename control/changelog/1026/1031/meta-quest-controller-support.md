@@ -14,17 +14,23 @@ rather than the player's head.
   kernel, in every game page, is unchanged.
 - **The headset reads the pilot scheme** (`scene/channels/xr.js`): forward, back, strafe and turn are the scheme's own xr
   bindings, read through the kernel and the driver, so the headset and the controls card agree and `xr.bind` remaps them.
-  - Feet, body, head (`move: 'body'`, the default; the operator: "the sitting in couch action game mode"): the feet go
-    where the body points (the left stick, forward, back and sideways to it), the body turns only on the right stick,
-    and the head is a pure camera that looks without steering. For standing play, where the player turns their whole
-    body by hand: `move: 'latch'` takes the gaze when a push begins and holds it, `move: 'head'` steers by the gaze
-    every frame (the old way), `move: 'hand'` walks where the left controller points. Every mode goes straight.
+  - Feet, body, head: the feet go where the body points (the left stick, forward, back and sideways to it) and the
+    head is a camera that looks without steering. What turns the body is the stance:
+    - `move: 'seated'`, the default (the operator: "the sitting in couch action game mode"): the right stick alone.
+    - `move: 'standing'` (the operator: "a game that cares about physical body rotation rather than right stick"):
+      the player turns it by turning. WebXR tracks no torso, so it is estimated as an avatar's is: the point between
+      the controllers held out in front leads it; with the hands down it catches up to where the head has stayed
+      (about a second, so a glance barely moves it); the head never sits more than `neck` (50°) off it. The right
+      stick snap-turns on top by default (a play space and a cable run out); `turn: 'off'` removes it.
+    - For comparison, head-steered: `move: 'latch'` takes the gaze when a push begins and holds it, `move: 'head'`
+      steers by the gaze every frame (the old way), `move: 'hand'` walks where the left controller points.
+    Every mode goes straight.
   - Forward is where the body faces after a right-stick turn (the operator, on a Quest 3S: walking north, turned east,
     forward still walked north): the gaze is read from the frame's own viewer pose carried through the rig, not off
     three's XR camera, and the test's headset reports its pose rig-local as a real one does.
   - Turns on the right stick about the head: smooth by default (`turnSpeed`, 120°/s), or `turn: 'snap'` (`snap`
     degrees; `{ snap }` alone still means snap turning).
-  - `?xr=` takes the mode words for an A/B in a headset without a re-mint: `?xr=snap`, `?xr=latch`, `?xr=smooth,hand`, `?xr=head`.
+  - `?xr=` takes the mode words for an A/B in a headset without a re-mint: `?xr=standing`, `?xr=seated,snap`, `?xr=standing,off`, `?xr=head`.
     The live route applies them, and the page reads them itself too, so a downloaded or statically hosted copy takes them.
 - **Test pages for a headset** (`scripts/xr-test-pages.mjs <out-dir>`): a Quest browser opens a WebXR session only over
   https, so the script writes static pages (three from the pinned CDN) for a host such as GitHub Pages: a course (a
