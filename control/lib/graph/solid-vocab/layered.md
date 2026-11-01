@@ -717,6 +717,12 @@ GLB's baked ink (`bake: true`) cannot stencil: it leaves out only the outline of
   `hero.gesture` says the word, the support, the hand and forearm against the torso, bust, thighs, neck and head
   (`clearance`, millimetres past their rest overlap) and the free sole against the floor; past 5 mm it advises, as does
   `lean` or `stance` off rest beside a stand (the rig poses the rest joints, so the dial is posed twice).
+  A SHOWCASE word as the stand (`heroHips`, `crossedArms`, `fistToSky`, `peaceWink`, `pocketsCool`, `jotaroPoint` …,
+  each with its `…Left` mirror; the motion card lists them as the showcase poses) holds that pose's hit: solved on the
+  rig, the hands resting on the body's own surfaces. It stands alone, not in a list. What a game shows by default, the
+  cover's showcase and the live demo's stand and idle per kind of game, is the pose rails' (gameworld/game-poses.js): a
+  fighter in its bouncing guard, a hero chest out, a person at ease shifting its weight, a mascot bobbing; a live idle
+  is a door clip `idle` (in place of the form's breathing loop).
 <!-- /section -->
 <!-- section: hero-clips | Clips | the operator's motion as keys, durations, the ambient blink -->
   THE CLIPS. `clips: { <name>: [keys] | false }` adds the operator's motion to the hero's own (`idle`, `walk`, `wave`;

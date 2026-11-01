@@ -56,7 +56,7 @@ import { studioSceneFromFaces, WORKBENCH_LIGHT } from '@/lib/graph/worlds/workbe
 import { withBands, resolveToon } from '@/lib/graph/polygonizer/vexar';
 import { layeredFaces, layeredSeat } from '@/lib/graph/polygonizer/station-loft-faces';
 import { resolveCharacterLight, layeredShadingNormals, characterLitPieces, characterLitFaces, characterInk, piecesAt, STUDIO_SMOOTH_CREASE } from '@/lib/graph/polygonizer/station-loft-shade';
-import { standPose, poseLayered, rigidParts, GESTURE_CLIP, heroClipSeconds, STRUCTURED_SWING_BASE } from '@/lib/graph/polygonizer/hero-gesture';
+import { standPose, showcaseStand, poseLayered, rigidParts, GESTURE_CLIP, heroClipSeconds, STRUCTURED_SWING_BASE } from '@/lib/graph/polygonizer/hero-gesture';
 import { locomotionClips } from '@/lib/graph/polygonizer/hero-motion';
 import { validateRig, bindLayered, packLayeredRig, rigNodesAt, boneFrames, layeredClip } from '@/lib/graph/polygonizer/station-loft-rig';
 import { isSwing, SWING_HAND, swingClassOfKeys, swingPhases, swingTiming, swingClass, HELD_SWINGS, HELD_STRIKE, swingClipKeys, fitSwing } from '@/lib/graph/polygonizer/hero-swing';
@@ -733,7 +733,9 @@ export const WORLD_KINDS = {
       // the REST floor its planted toes hold; the light below is baked on that posed mesh. Keyed on the hero record, so a
       // plan's own clip of that name stays an ordinary clip. No stand ⇒ the rest mesh, byte-identical.
       const rig = rigged ? (() => { const R = validateRig(m.recipe.rig); return { R, skin: bindLayered(mesh, m.recipe, R) }; })() : null;
-      const stand = rig && m.hero ? standPose(m.recipe, rig.R) : null;
+      // (a showcase word as the stand, hero-gesture.js showcaseStand: the pose's hit solved on the rig, the hands on the
+      // body's own surfaces; any other stand is the recipe's `gesture` clip)
+      const stand = rig && m.hero ? standPose(m.recipe, rig.R) ?? showcaseStand(m.hero, rig.R, { mesh, skin: rig.skin }) : null;
       const shown = stand ? poseLayered(mesh, m.recipe, stand, rig).mesh : mesh; const restDz = layeredSeat(mesh, seat);
       // The character light (station-loft-shade.js): ctx.light (FLAT_LIGHT under the unshaded / lit export) wins, then
       // the manifest's `toon.light`, then the anime head's read-time default; the static faces then take the step (two
