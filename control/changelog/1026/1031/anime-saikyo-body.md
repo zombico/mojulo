@@ -176,6 +176,12 @@ fractal articulation of the big groups. The eyes gate is the operator's.
   the move's cap, held flat there); and the shells under the arm's skin are tucked in proportion to the arm's girth
   over Toji's (`UNDER_GIRTH`: Armstrong's web stood level with the arm's dome). Mizuki's rectus sheet is held short
   and raised (its lower end had stood on her lower belly as a pair of blocks, the plainer on Kale).
+- **What is worn over the shirt** (found merging with the anime-7g consolidation, which carries the dressing work): every
+  garment, kit and adornment is built from the plain body before the shirt runs, so over a muscled body cloth is
+  pierced by the muscles and its hems and boots stay where the lengthened legs no longer are. An adornment (`adorn`: the
+  ranger's kit, armour) and a clothed detail (`detail: 'clothed'`, its creases) are pinned to the body's faces, which the
+  shirt re-samples, and failed to build: the door now refuses a muscle shirt with either, by name. An outfit, a kit,
+  paint and gear build with it (fitted to the body under the shirt); dressing the muscled body is its own next step.
 - **The legs lengthened** (the operator's: the hands and the feet grown with the arms and the legs read the figure
   stocky; `passes.js` `lengthened`, a card's `legs`, the Saikyo cards' 1.06): the leg's shells, its joints and the pelvis
   stretched up from the ankle to the hip joint, everything over the hip lifted by as much (about 5 cm), so the soles stay

@@ -203,6 +203,15 @@ describe('the legs lengthened', () => {
   });
 });
 
+describe('the shirt and what is worn over it', () => {
+  it('refuses an adornment or a clothed detail by name (pinned to the faces it re-samples), and builds under an outfit', () => {
+    expect(() => heroRecord(withDefaultForm({ ...HERO, muscleShirt: 'saikyo', adorn: 'ranger' }))).toThrow(/muscleShirt: not yet worn with adorn/);
+    expect(() => heroRecord(withDefaultForm({ ...HERO, muscleShirt: 'saikyo', detail: 'clothed' }))).toThrow(/muscleShirt: not yet worn with detail/);
+    const r = expandLayeredManifest({ kind: 'layered', hero: heroRecord(withDefaultForm({ ...HERO, muscleShirt: 'saikyo', outfit: { type: 'outfit', style: 'casual' } })) }).recipe;
+    expect(() => compileLayered(r, {})).not.toThrow();
+  });
+});
+
 describe('the female card', () => {
   const HER = { head: 'anime', animeStyle: 'z-fighter', cast: 'female' };
   const her = expandLayeredManifest({ kind: 'layered', hero: heroRecord(withDefaultForm(HER)) }).recipe;
