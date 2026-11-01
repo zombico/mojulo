@@ -40,20 +40,16 @@ import { AGGRESSIVENESS } from '../mind/vocab.js';
 import { mulberry32 } from '../vegetation/grow.js';
 import { GRUNT_STYLES } from '../cosmos/packs/comic-hero/grunts.js';
 import { ITEMS } from '../cosmos/packs/comic-hero/items.js';
-import { railOfGame, gameBody, GAME_WORD } from './game-bodies.js';
+import { bookRail, gameBody } from './game-bodies.js';
 
 /** The dress words a crew takes from the body its game puts in its henchmen (`characters.direction.body`: a rail, 'game',
  * or { rail, style?, muscle? }): { rail, body?, muscle? }, `body` 'realistic' where the rail draws its henchman on the
  * realistic body in the world's tradition and look; null when the book names no body, or its game's kind no rail. */
 export function henchmenOf(G) {
-  const D = G.characters?.direction; if (!D || D.body === undefined) return null;
-  const word = typeof D.body === 'string' ? D.body : D.body.rail;
-  const feel = typeof G.feel === 'string' ? G.feel : G.feel?.pole ?? null;
-  const rail = word === GAME_WORD ? railOfGame({ genre: G.intent?.from ?? null, goal: G.quick?.goal ?? null, feel })?.rail : word;
-  if (!rail) return null;
-  const look = G.juice && typeof G.juice === 'object' ? G.juice.look ?? null : null, own = typeof D.body === 'object' ? D.body : {};
-  const B = gameBody(rail, 'henchman', { tradition: D.tradition, look, ...(own.style ? { style: own.style } : {}) });
-  return { rail, ...(B.spec.form === 'realistic' ? { body: 'realistic' } : {}), ...(own.muscle !== undefined ? { muscle: own.muscle } : {}) };
+  const R = bookRail(G); if (!R) return null;
+  const look = G.juice && typeof G.juice === 'object' ? G.juice.look ?? null : null;
+  const B = gameBody(R.rail, 'henchman', { tradition: G.characters.direction.tradition, look, ...(R.style ? { style: R.style } : {}) });
+  return { rail: R.rail, ...(B.spec.form === 'realistic' ? { body: 'realistic' } : {}), ...(R.muscle !== undefined ? { muscle: R.muscle } : {}) };
 }
 
 /** The cast's roles, in the order they are cast: the rank each stands at and what it is for. */

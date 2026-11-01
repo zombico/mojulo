@@ -191,4 +191,18 @@ export function railOfWord(word, game = {}) {
   const read = W.rail === GAME_WORD ? railOfGame(game) : { rail: W.rail, from: 'word', why: 'the game names it' };
   return read ? { ...read, ...(W.style ? { style: W.style } : {}), ...(W.muscle !== undefined ? { muscle: W.muscle } : {}) } : null;
 }
+/** The rail a read world's book names for its people (`characters.direction.body`), its kind read for 'game'; null when
+ * it names none. → railOfWord's */
+export function bookRail(G) {
+  const feel = typeof G?.feel === 'string' ? G.feel : G?.feel?.pole ?? null;
+  return railOfWord(G?.characters?.direction?.body, { genre: G?.intent?.from ?? null, goal: G?.quick?.goal ?? null, feel });
+}
+/** The words a lowered spec changed over its base: each new or changed word, and null for a word it left off (so a
+ * create over a sheet, `{ ...sheet, ...words }`, draws the lowered spec). {} when nothing changed. */
+export function bodyWords(base, lowered) {
+  const out = {};
+  for (const [k, v] of Object.entries(lowered)) if (JSON.stringify(v) !== JSON.stringify(base[k])) out[k] = v;
+  for (const k of Object.keys(base)) if (!(k in lowered)) out[k] = null;
+  return out;
+}
 

@@ -188,8 +188,9 @@ export function composeAnime(hero, defaultStyle, { hairBase = null } = {}) {
   const expression = genkiExpression(hero.expression !== undefined && hero.expression !== null ? resolveAnimeExpression(hero.expression) : L?.expression ?? resolveAnimeExpression('neutral'), hero);
   // (a BODY codename, anime-bodies.js: its tune stands for the style's body, the style's head size kept)
   // (and the head fitted to the body: its style's head scaled toward the body's home head, anime-bodies.js headFit)
-  const Bd = animeBodyOf(hero), fit = Bd?.fit && St && Bd.fit.style === St.word && Bd.fit.head !== 1 ? Bd.fit.head : null;
-  const bodyTune = Bd ? { ...(St?.tune ?? {}), ...Bd.tune, ...(fit ? { head: (St.tune?.head ?? 1) * fit } : {}) } : St?.tune;
+  const Bd = animeBodyOf(hero), F = Bd?.fit && St && Bd.fit.style === St.word ? Bd.fit : null;
+  const fit = F && F.head !== 1 ? F.head : null, neck = F?.neck !== undefined && F.neck !== 1 ? F.neck : null;
+  const bodyTune = Bd ? { ...(St?.tune ?? {}), ...Bd.tune, ...(fit ? { head: (St.tune?.head ?? 1) * fit } : {}), ...(neck ? { neckGirth: (Bd.tune.neckGirth ?? 1) * neck } : {}) } : St?.tune;
   const { from: _t, ...tune } = resolveTune([bodyTune, L?.tune, hero.tune, G?.tune].filter(Boolean));
   const sculpt = hero.sculpt === false ? false : resolveAnimeSculpt([animeFormOf(hero), St?.sculpt, C?.sculpt, L?.sculpt, hero.sculpt, G?.sculpt].filter((x) => x !== undefined && x !== null));
   // (the chest: the anime form's body's (ANIME_FORM_BODY, its cast's pole), the cast's own words over it, its bust's

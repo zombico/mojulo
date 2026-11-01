@@ -3,7 +3,7 @@
 // Z-Fighter body as it was; a codename's tune stands for the style's body, the style's head kept; the muscular form wears
 // the codename's own card; the door stores a resolved stamp.
 import { describe, it, expect } from 'vitest';
-import { ANIME_BODIES, ANIME_BODY_NAMES, validateAnimeBody, resolveAnimeBody, headFit, HEAD_SIZE, FIT_ALPHA } from './anime-bodies.js';
+import { ANIME_BODIES, ANIME_BODY_NAMES, validateAnimeBody, resolveAnimeBody, headFit, neckFit, HEAD_SIZE, FIT_ALPHA } from './anime-bodies.js';
 import { normalizeHero } from '../../mcp/tools/layered.js';
 import { MUSCLE_CARDS, validateMuscleCard, muscleShirt } from '../musculature/index.js';
 import { heroRecord, expandLayeredManifest } from '../../mcp/tools/layered.js';
@@ -82,10 +82,23 @@ describe('the head fitted to the body', () => {
   }, 120000);
   it('fits again when the style changes, and leaves a row minted before without a fit as it was', () => {
     const h = heroRecord(withDefaultForm({ head: 'anime', cast: 'male', animeStyle: 'z-fighter', animeBody: 'satoru' }));
-    expect(h.animeBodyResolved.fit).toEqual({ style: 'z-fighter', head: headFit('satoru', 'male', 'z-fighter') });
-    expect(normalizeHero({ ...h, animeStyle: 'shonen-high', animeStyleResolved: undefined }).animeBodyResolved.fit).toEqual({ style: 'shonen-high', head: 1 });
+    expect(h.animeBodyResolved.fit).toEqual({ style: 'z-fighter', head: headFit('satoru', 'male', 'z-fighter'), neck: neckFit('satoru', 'male', 'z-fighter') });
+    expect(normalizeHero({ ...h, animeStyle: 'shonen-high', animeStyleResolved: undefined }).animeBodyResolved.fit).toEqual({ style: 'shonen-high', head: 1, neck: 1 });
     const { fit: _f, ...old } = h.animeBodyResolved, before = { ...h, animeBodyResolved: old };
     expect(normalizeHero(before).animeBodyResolved).toEqual(old);
   });
+  it('stands a bigger foreign head on a thicker neck and a smaller on a slimmer, the join nearer the home pair\'s', () => {
+    const neckW = (r) => { let m = 0; for (const [id, P] of Object.entries(r.parts)) { if (!/^neck/i.test(id)) continue; for (const st of P.stations || []) for (const p of Object.values(st.points)) m = Math.max(m, Math.abs(p[0])); } return 2 * m; };
+    expect(neckFit('toji', 'male', 'z-fighter')).toBe(1);
+    expect(neckFit('toji', 'male', 'school-kid-hero')).toBeGreaterThan(1);
+    expect(neckFit('armstrong', 'male', 'shonen-high')).toBeLessThan(1);
+    const join = (r) => neckW(r) / headW(r);
+    const home = join(unfitted({ cast: 'male', animeStyle: 'z-fighter', animeBody: 'toji' }));
+    const h = heroRecord(withDefaultForm({ head: 'anime', cast: 'male', animeStyle: 'school-kid-hero', animeBody: 'toji' }));
+    const { neck: _n, ...headOnly } = h.animeBodyResolved.fit;
+    const without = join(expandLayeredManifest({ kind: 'layered', hero: { ...h, animeBodyResolved: { ...h.animeBodyResolved, fit: headOnly } } }).recipe);
+    const withNeck = join(expandLayeredManifest({ kind: 'layered', hero: h }).recipe);
+    expect(Math.abs(withNeck - home)).toBeLessThan(Math.abs(without - home));
+  }, 120000);
 });
 

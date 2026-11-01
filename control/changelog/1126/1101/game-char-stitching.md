@@ -25,7 +25,9 @@ the quick games read it.
   over the grunt's in the game's tradition: on the anime frame its codename (Armstrong or Kale, by the grunt's pole),
   western on the realistic body for a realistic or a fighting game, a mascot's frame; drawn in ink, the crew's own builds
   stand. The casting call dresses its crew with the rail the book's `direction.body` reads; a book that names none
-  dresses it as before.
+  dresses it as before. A people foe rolled on the Egocube (not dressed) takes the same body: the words the rail
+  changes over the sheet's person are laid over it when its character is made (`create_character { egocube, spec }`,
+  a word set to null left off).
 - **Quick games take a body**: `quick.body` (a rail, `'game'` for the one its goal reads, or `{ rail, style?, muscle? }`)
   lays the rail's hero under the hero spec's own words (a cast word naming the pole; the anime frame's codename takes the
   anime head where the spec names none) and its henchman under each foe, gunner, tower and guard the run rolls; a
@@ -35,6 +37,8 @@ the quick games read it.
   home head's size (`anime-bodies.js` `headFit`): the body keeps the proportion it was drawn to, the style half its own
   (a School-Kid Hero head is still the big one). A style's head size is one number against Shonen High's per pole
   (`HEAD_SIZE`, measured: two heads' ratio is the same on every body to half a percent), held to the measure by its test.
+  The NECK follows the head it carries (`neckFit`): its girth half the fitted head's remaining departure from the home
+  head's size, so a bigger head stands on a thicker neck and a smaller on a slimmer, the join nearer the home pair's.
   The fit rides the body's stamp with the style it was fitted under, and fits again when the style changes; a row minted
   before, its stamp without a fit, is drawn as it was.
 

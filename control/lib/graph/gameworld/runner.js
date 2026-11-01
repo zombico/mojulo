@@ -24,7 +24,8 @@
  *
  * Every run of the same world and the same store decides the same: no dice, no clock.
  */
-import { railOfWord, gameBody, lowerBody } from './game-bodies.js';
+import { railOfWord, gameBody, lowerBody, bookRail, bodyWords } from './game-bodies.js';
+import { egocubeCreate, rollStored } from '../egocube/kind.js';
 import { readScreen } from '../game/screen.js';
 import { fingerprint, reviewState } from './review.js';
 import { readGameworld } from './world.js';
@@ -69,6 +70,16 @@ const REF_MAX = 64;
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 /** the rolled figures a quick game's body rail dresses as its henchmen (cast-setting.js QUICK_FIGURES) */
 const HENCH_FIGURES = new Set(['foe', 'gunner', 'tower', 'guard']);
+/** The henchman's words over a people foe's sheet (its person on the hero door, rolled as the sheet step will roll it):
+ * what the rail changes, or null (a beast-kin or a mascot the sheet makes, or nothing changed). */
+function henchOverSheet(manifest, R, setting, G) {
+  const C = egocubeCreate(rollStored(manifest));
+  if (C.create.as !== 'hero') return null;
+  const base = C.create.spec, pole = typeof base.cast === 'string' ? base.cast : base.cast?.pole ?? 'male';
+  const B = gameBody(R.rail, 'henchman', { tradition: setting.tradition, look: isObj(G.juice) ? G.juice.look ?? null : null, pixel: !!G.style?.pixel, pole, ...(R.style ? { style: R.style } : {}), ...(R.muscle !== undefined ? { muscle: R.muscle } : {}) });
+  const words = bodyWords(base, lowerBody(base, B));
+  return Object.keys(words).length ? words : null;
+}
 
 /** The character light in an order's print. Named `light` where an order carries one: the door now receives it (it
  * was dropped before), so the print of such an order moves and a run remakes the hero once, with its light. An order
@@ -396,7 +407,7 @@ function goalArgs(G, s, lastOf, ref) {
  * and the refs each stage's foes stand on. */
 const foeSteps = (G, ref, ready) => {
   // (its coat in the world's colours too, where the world has ramps: a foe belongs to its world's palette)
-  const setting = settingOfGame(G), coat = setting.ramps?.length ? { coat: 'world' } : {};
+  const setting = settingOfGame(G), coat = setting.ramps?.length ? { coat: 'world' } : {}, hench = bookRail(G);
   return fieldedIds(G).flatMap((id) => {
     const entry = bestiaryOf(G)[id], title = `${G.name ?? G.id} ${id}`;
     // (a model made elsewhere is made by no step: it stands on the sketch its model is bound onto)
@@ -411,9 +422,12 @@ const foeSteps = (G, ref, ready) => {
     // a person or a people (foes/people.js): its sheet rolled in the game's setting, then the character the loop makes
     // from it through its own door, its moves on it (a fighter's two steps: the sheet, then the character)
     const roll = peopleRollOf(G, id, entry), manifest = { kind: 'egocube', roll, moves: true }, sheetRef = childRef(ref, `foes-${id}-sheet`);
+    // (the body its game puts in its henchmen, where the book names one (game-bodies.js): the words it changes over the
+    // sheet's person, laid over it when the character is made; a book that names none makes it as before)
+    const words = hench ? henchOverSheet(manifest, hench, setting, G) : null;
     return [
       { key: `foes-${id}-sheet`, ref: sheetRef, ...ready, order: { title: `${title} (sheet)`, manifest }, print: fingerprint(manifest) },
-      { key: `foes-${id}`, ref: childRef(ref, `foes-${id}`), ...ready, order: { egocube: sheetRef, title }, print: fingerprint({ roll, moves: true }) },
+      { key: `foes-${id}`, ref: childRef(ref, `foes-${id}`), ...ready, order: { egocube: sheetRef, title, ...(words ? { spec: words } : {}) }, print: fingerprint({ roll, moves: true, ...(words ? { spec: words } : {}) }) },
     ];
   });
 };

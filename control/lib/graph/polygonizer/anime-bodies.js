@@ -18,7 +18,9 @@
  * the proportion it was drawn to, the style keeps half its own (a School-Kid Hero head is still the big one). A style's
  * head size is one number against Shonen High's per pole (HEAD_SIZE: measured, the ratio of two heads' widths is the
  * same on every body to half a percent, so it is the style's own), held to the measure by its test. The fit is stamped
- * with the style it was fitted for (`fit: { style, head }`); a stamp without one (a row minted before) fits nothing. */
+ * with the style it was fitted for (`fit: { style, head, neck }`): the neck's girth follows the fitted head half the
+ * way (NECK_BETA), so the join reads as one; a stamp without one (a row minted before) fits nothing, without a `neck`
+ * fits the head alone. */
 import { resolveTune } from './hero-form.js';
 import { ANIME_STYLES, ANIME_STYLE_DEFAULT } from './anime-styles.js';
 
@@ -69,12 +71,22 @@ export const HEAD_SIZE = Object.freeze({
 });
 /** how far a foreign head is scaled toward the body's home head's size: half the way, in ratio */
 export const FIT_ALPHA = 0.5;
+/** how far the neck follows the head it carries: half the head's remaining departure from the home head's size, so a
+ * bigger head stands on a thicker neck and a smaller one on a slimmer, the join reading as one */
+export const NECK_BETA = 0.5;
 /** The head's fit for a body worn under a style: the scale on the style's head size, 1 under the body's home style (or
  * a style or a pole the table has no size for). */
 export function headFit(word, pole, style) {
   const B = ANIME_BODIES[word], P = HEAD_SIZE[pole === 'female' ? 'female' : 'male'];
   if (!B || !P[style] || !P[B.home] || style === B.home) return 1;
   return Math.round((P[B.home] / P[style]) ** FIT_ALPHA * 1e4) / 1e4;
+}
+/** The neck's fit under a head worn from another style: its girth followed toward the fitted head's size (NECK_BETA of
+ * the head's departure that remains after headFit), 1 under the body's home style. */
+export function neckFit(word, pole, style) {
+  const B = ANIME_BODIES[word], P = HEAD_SIZE[pole === 'female' ? 'female' : 'male'];
+  if (!B || !P[style] || !P[B.home] || style === B.home) return 1;
+  return Math.round(((P[style] / P[B.home]) * headFit(word, pole, style)) ** NECK_BETA * 1e4) / 1e4;
 }
 /** The stamp the door stores beside the word: its pole, its tune resolved (every body word), its card's word, and the
  * head's fit for the style it is worn under (`style`, the default's when absent). A body of either pole takes the
@@ -83,7 +95,7 @@ export function resolveAnimeBody(word, pole = null, style = ANIME_STYLE_DEFAULT)
   const B = ANIME_BODIES[word]; if (!B) throw new Error(validateAnimeBody(word)[0]);
   const { from: _f, head: _h, ...tune } = resolveTune([B.pole ? B.tune : B.tune[pole === 'female' ? 'female' : 'male']]);
   const P = B.pole ?? (pole === 'female' ? 'female' : 'male');
-  return { word, pole: P, tune, card: B.card, fit: { style, head: headFit(word, P, style) } };
+  return { word, pole: P, tune, card: B.card, fit: { style, head: headFit(word, P, style), neck: neckFit(word, P, style) } };
 }
 /** the hero's pole as a body reads it: its cast word, or its build's pole */
 export const animePoleOf = (hero) => { const c = hero?.cast; const p = typeof c === 'string' ? c : c?.pole; return p === 'female' ? 'female' : 'male'; };

@@ -8,6 +8,10 @@ import { readGameworld } from './world.js';
 import { composeHero, heroOrders, bodyOfGame } from './hero-looks.js';
 import { heroRecord } from '../../mcp/tools/layered.js';
 import { withDefaultForm } from '../polygonizer/motion-stamp.js';
+import { runSteps } from './runner.js';
+import { FOE_CLASSES } from '../foes/index.js';
+import { fitOfPeople } from '../foes/fit.js';
+import { egocubeCreate, rollStored } from '../egocube/kind.js';
 
 const world = (direction = {}, more = {}, body) => {
   const C = MEADOWMARK_HERO.characters;
@@ -57,4 +61,25 @@ describe('the body rails on the book hero', () => {
   it('refuses a body that is not a rail', () => {
     expect(() => world({ body: 'hulk' })).toThrow(/direction\.body/);
   });
+  it('lays the henchman body over a people foe\'s sheet when the book names one, and nothing when it does not', () => {
+    const cls = Object.values(FOE_CLASSES).find((c) => fitOfPeople(c.id, { people: 'human' }).ok);
+    const first = readGameworld(MEADOWMARK_HERO).ids[0];
+    const withFoes = (direction, tradition) => {
+      const C = MEADOWMARK_HERO.characters, looks = tradition === 'western' ? { ...C.hero.looks, head: {}, hair: 'ponytail' } : C.hero.looks;
+      return { ...MEADOWMARK_HERO, foes: { thug: { class: cls.id, skin: { people: 'human' } } }, levels: { ...MEADOWMARK_HERO.levels, [first]: { ...MEADOWMARK_HERO.levels[first], foes: { from: ['thug'] } } },
+        characters: { ...C, hero: { ...C.hero, looks }, direction: { ...C.direction, ...(tradition ? { tradition } : {}), ...(direction ? { body: direction } : {}) } } };
+    };
+    const step = (W) => runSteps(W, { ref: 'gw' }).find((s) => s.key === 'foes-thug');
+    expect(step(withFoes(null)).order.spec).toBeUndefined();
+    const anime = step(withFoes('comic'));
+    expect(['armstrong', 'kale']).toContain(anime.order.spec.animeBody);
+    expect(anime.print).not.toBe(step(withFoes(null)).print);
+    // (laid over the sheet's person, a word set to null left off, the result mints through the door)
+    for (const W of [withFoes('comic'), withFoes('muscular', 'western')]) {
+      const S = step(W), sheet = runSteps(W, { ref: 'gw' }).find((s) => s.key === 'foes-thug-sheet').order.manifest;
+      const spec = Object.fromEntries(Object.entries({ ...egocubeCreate(rollStored(sheet)).create.spec, ...S.order.spec }).filter(([, v]) => v !== null));
+      expect(() => heroRecord(withDefaultForm(spec))).not.toThrow();
+    }
+  }, 120000);
 });
+
