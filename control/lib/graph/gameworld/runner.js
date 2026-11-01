@@ -50,7 +50,7 @@ import { settingOfGame, quickFigure, CAST_POOL } from './cast-setting.js';
 import { castingOf, laidCasting } from './casting.js';
 import { REACT_MOTION, reactStatesOf, beastMovesOf } from '../egocube/moves.js';
 import { beastLook } from './stage-figures.js';
-import { fieldedIds, bestiaryOf, foeLook, foePlacements, hostileCast, withFoeHits, withFoeWin, peopleRollOf, isPeople, isModel } from './foes.js';
+import { fieldedIds, bestiaryOf, foeLook, foePlacements, hostileCast, withFoeHits, withFoeWin, peopleRollOf, isPeople, isModel, isDressed, dressOf } from './foes.js';
 import { rideBuild, rideRule } from './ride.js';
 import { rollMascot } from '../egocube/mascot.js';
 import { mascotPlanFromSheet } from '../egocube/mascot-form.js';
@@ -387,7 +387,7 @@ function goalArgs(G, s, lastOf, ref) {
   return { ...own, goal: (ends) => (foePlacements(G, s.level, ends).length ? withFoeWin(G, s.level, ends, withFoeHits(mech(ends))) : mech(ends)) };
 }
 /** The bestiary's figures (foes.js): a beast for each entry some level stands, at `<ref>-foes-<id>`, made through the
- * animal door with its skin's oozes, in the WORLD'S LOOK (cast-setting.js settingOfGame: its tradition's light, and what
+ * animal door with its skin's oozes (a person dressed as a crew's through the hero door), in the WORLD'S LOOK (cast-setting.js settingOfGame: its tradition's light, and what
  * an ooze makes dressed from its kit's ramps, the colour theorist's when the world names a palette, and its own coat
  * taken to them: animal.js `coat: 'world'`), as its people are;
  * and the refs each stage's foes stand on. */
@@ -399,6 +399,12 @@ const foeSteps = (G, ref, ready) => {
     // (a model made elsewhere is made by no step: it stands on the sketch its model is bound onto)
     if (isModel(entry)) return [];
     if (!isPeople(entry)) return [{ ...beastStep(`foes-${id}`, childRef(ref, `foes-${id}`), { ...foeLook(entry), setting, ...coat }, title), ...ready }];
+    // a person dressed as a crew's (foes/dress.js): the hero door's grunt, its reactions on it, as a quick game's guard is
+    // made (guardStep)
+    if (isDressed(entry)) {
+      const { mint: M } = dressOf(G, id, entry), spec = withReact(true, M.spec), mint = { ...M, spec };
+      return [{ key: `foes-${id}`, ref: childRef(ref, `foes-${id}`), ...ready, order: { spec, mint, motion: null }, print: fingerprint({ spec, dress: entry.skin.dress }) }];
+    }
     // a person or a people (foes/people.js): its sheet rolled in the game's setting, then the character the loop makes
     // from it through its own door, its moves on it (a fighter's two steps: the sheet, then the character)
     const roll = peopleRollOf(G, id, entry), manifest = { kind: 'egocube', roll, moves: true }, sheetRef = childRef(ref, `foes-${id}-sheet`);

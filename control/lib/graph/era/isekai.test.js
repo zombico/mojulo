@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { assembleStageScene, STAGE_PAGE_BUDGET } from './stage.js';
-import { isekaiGround, boulderFaces, layerFaces, cumulusFaces } from './isekai.js';
+import { isekaiGround, boulderFaces, layerFaces, cumulusFaces, ALLOT } from './isekai.js';
 import { isekaiTexels, isekaiKey, ISEKAI_STYLES } from './isekai-tiles.js';
 import { rampDistance } from './palette.js';
 import { natureSite, rockItems, trailRims } from './nature.js';
@@ -187,6 +187,40 @@ describe('the isekai meadow, live (`wind`)', () => {
     expect('far' in off.liveGrass).toBe(false);
     expect(page(off)).not.toContain('THE FAR GRASS');
     expect(() => assembleStageScene({ ...M, wind: true, grass: { far: 'yes' } })).toThrow(/grass.far/);
+    // (a form page's blades off: the wind and the crowns kept, the blades' field not emitted)
+    const still = stageGrassScript({ ...W.liveGrass, field: false });
+    expect(still).not.toContain('THE FAR GRASS');
+    expect(still).toContain('mojWindAt');
+    expect(still.length).toBeLessThan(page(W).length);
+  });
+
+  it('tells the form render where its plants stand, and nothing to any other read', () => {
+    const F = assembleStageScene(M, { form: true }), P = F.plants;
+    expect('plants' in p).toBe(false);
+    expect(P.trees.length).toBeGreaterThan(3);
+    expect(P.trees.filter((t) => t.hero)).toHaveLength(1);
+    for (const t of P.trees) { expect(t.h).toBeGreaterThan(0); expect(Math.abs(t.z - site.ground(t.x, t.y) + 0.15)).toBeLessThan(1e-3); }
+    expect(P.form).toBe(st.trees.form || 'blob');
+    // (and the ground each thing claims, ALLOT: the stones but the pebbles, every trunk; no tree standing in a stone's)
+    const stones = P.clear.filter((c) => !P.trees.some((t) => t.x === c[0] && t.y === c[1]));
+    for (const t of P.trees) expect(P.clear.some((c) => c[0] === t.x && c[1] === t.y && c[2] === ALLOT.trunk)).toBe(true);
+    expect(stones.length).toBeGreaterThan(0);
+    for (const t of P.trees) for (const [x, y, r] of stones) expect(Math.hypot(t.x - x, t.y - y)).toBeGreaterThanOrEqual(r + ALLOT.trunk - 1e-6);
+  });
+
+  it('stands the trunks: each built tree\'s stems ship with the crowns, the wood weighed off them on the page', () => {
+    const S = dec(LG.crowns.trunks), trees = W.faces.filter((f) => f.group === 'isekai:wood');
+    expect(LG.crowns.rigid).toEqual(['isekai:wood']);
+    expect(S.length % 8).toBe(0);
+    expect(S.length).toBeGreaterThan(0);
+    // (every segment rises, its radii a trunk's, and stands where the wood is)
+    for (let k = 0; k < S.length; k += 8) {
+      expect(S[k + 5]).toBeGreaterThan(S[k + 2]);
+      expect(S[k + 6]).toBeGreaterThan(0);
+      expect(S[k + 7]).toBeLessThanOrEqual(S[k + 6] + 1e-6);
+      expect(trees.some((f) => Math.hypot(f.corners[0][0] - S[k], f.corners[0][1] - S[k + 1]) < 1)).toBe(true);
+    }
+    expect(stageGrassScript(LG)).toContain('THE TRUNKS STAND');
   });
 
   it('ships the ground: heights over the landform grid, and a mask that keeps grass off the trail, the rocks, the trunks and the cliff', () => {

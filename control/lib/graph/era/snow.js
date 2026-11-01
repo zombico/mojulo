@@ -21,12 +21,20 @@
  *   snowField(S, { base, sun, seed }) → (x, y, z, n) → > 0 where snow lies (n the ground's normal), the least of its terms
  *   grassUnder(S)        → the share of the grass that stands in the snow (1 at a dusting, 0 under deep snow)
  *   capOf(S)             → { up, share }: how far a leaf must turn up to carry snow, and the share of those that do
+ *   snowMap(site, SF, S, ramp, cell?) → the snow as the form render reads it (scene/channels/form-land.js): { origin, cell,
+ *                        size, px, depth, hold, drift, albedo, under } a map over the site, `cell` m a texel (0.5), RGBA
+ *                        bytes base64, red how much snow lies there (the field's, read on the ground's own normal);
+ *                        `albedo` the snow's colour (snowAlbedo), `under` the grass's share standing in it, `cap` a
+ *                        leaf's (capOf)
+ *   snowBase(albedo, light) → the snow's linear base under a cube's light (era/cube-light.js): the base that shows its
+ *                        colour where the sun falls square, as the palette's own are solved, held under the most a base takes
  *
  * Pure: hashed noise only (era/dirt.js).
  */
 import { vnoise } from './dirt.js';
 import { oklch, lchOf, mixHue } from '../color-theorist/oklab.js';
 import { hexRgb } from './geom.js';
+import { displayToLinear, BASE_MAX } from '../color-theorist/light.js';
 
 export const SNOW_DEPTHS = Object.freeze({ dusting: 0.03, cover: 0.15, deep: 0.45 });
 export const SNOW_DEFAULTS = Object.freeze({ line: null, depth: SNOW_DEPTHS.cover, hold: 0.8, drift: 0.25, lee: 0.5 });
@@ -77,3 +85,22 @@ export function snowField(S, { base = 0, sun = [0, 0, 1], seed = 1 } = {}) {
 export const snowAlbedo = (R) => R[Math.max(0, R.length - 2)].map((v) => v / 255);
 export const grassUnder = (S) => Math.max(0, Math.min(1, 1 - (S.depth - SNOW_DEPTHS.dusting) / (SNOW_DEPTHS.deep * 0.6)));
 export const capOf = (S) => { const t = Math.max(0, Math.min(1, (S.depth - SNOW_DEPTHS.dusting) / (SNOW_DEPTHS.deep - SNOW_DEPTHS.dusting))); return { up: 0.72 - 0.4 * t, share: 0.55 + 0.4 * t }; };
+
+export function snowMap(site, SF, S, ramp, cell = 0.5) {
+  const g = site.grid, x0 = g.x0, y0 = g.y0, nx = Math.ceil(((g.nx - 1) * g.dx) / cell) + 1, ny = Math.ceil(((g.ny - 1) * g.dx) / cell) + 1;
+  const px = new Uint8Array(nx * ny * 4), e = 0.25;
+  for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++) {
+    const x = x0 + i * cell, y = y0 + j * cell, z = site.ground(x, y);
+    // (the ground's own normal there, across half a metre)
+    const gx = (site.ground(x + e, y) - site.ground(x - e, y)) / (2 * e), gy = (site.ground(x, y + e) - site.ground(x, y - e)) / (2 * e), l = Math.hypot(gx, gy, 1);
+    const v = SF(x, y, z, [-gx / l, -gy / l, 1 / l]), o = (j * nx + i) * 4;
+    px[o] = Math.round(Math.max(0, Math.min(1, 0.5 + 0.5 * v)) * 255); px[o + 3] = 255;
+  }
+  const r4 = (v) => Math.round(v * 1e4) / 1e4, hex = (c) => '#' + c.map((v) => Math.round(v * 255).toString(16).padStart(2, '0')).join('');
+  return { origin: [r4(x0), r4(y0)], cell, size: [nx, ny], px: Buffer.from(px).toString('base64'), depth: S.depth, hold: S.hold, drift: S.drift, albedo: hex(snowAlbedo(ramp)), under: r4(grassUnder(S)), cap: capOf(S) };
+}
+
+export function snowBase(albedo, light) {
+  const T = displayToLinear(albedo), A = light.ambient.linear, S = light.sun.linear;
+  return T.map((v, k) => Math.round(Math.min(BASE_MAX, v / Math.max(1e-6, A[k] + S[k])) * 1e4) / 1e4);
+}

@@ -14,6 +14,7 @@
  *   bumpiness  mounds and hollows over the ground, low on the walk and full toward the edges; `bumpiness` 0…1
  *   ground     the card's numbers tuned for this trail (amplitude, depth, grade, the beats' shapes…) and the ground
  *              shaped by hand (raise, lower, flatten, cliff, gorge, ridge): out-ground.js
+ *   dunes      the land laid in wind-blown sand dunes, the walk an inter-dune street through them: out-dunes.js
  *
  * The ground is built in PASSES, each on the one before, and each kept so the board can show it:
  *   1 rough    the heartbeat and the beats' edges and the bumps: the raw elevation
@@ -31,8 +32,12 @@ import { r5 } from './geom.js';
 import { landformGrid, bakeGrid, applyLandform, gridSample, gridX, gridY } from '../polygonizer/landform.js';
 import { readBounds, boundSegments, boundAnchors, boundColliders, boundLaw } from './out-bounds.js';
 import { readGround, groundOf, editsField, applyEdits } from './out-ground.js';
+import { applyGrade } from './grade.js';
+import { cutCaves, caveClear, caveLamps } from './cave.js';
+import { encloseCavern, CAVERN } from './cavern.js';
 import { readTrailDress } from './trail-dress.js';
-import { layWater, WATER } from './out-water.js';
+import { layWater, WATER, undergroundFill, undergroundAlpha } from './out-water.js';
+import { duneField, DUNE_WALK } from './out-dunes.js';
 
 const smooth = (a, b, v) => { const t = Math.max(0, Math.min(1, (v - a) / (b - a))); return t * t * (3 - 2 * t); };
 const mix = (a, b, t) => a + (b - a) * t;
@@ -262,13 +267,13 @@ export const beatRoom = (len) => Math.max(3, Math.min(7, Math.floor((len - 2 * C
  * tree stands: the pockets, the rests, the view off a reveal), `gapAt` (where the ribbon breaks: a pit), `rocks` (the
  * landmark), `passes` (each pass's grid, for the board) and `out` (the plan, its hazards and its anchors).
  */
-export function outTrailSite(st, recipe, seed = 1) {
+export function outTrailSite(st, recipe, seed = 1, grade = null) {
   const T = readOutTrail(recipe), join = T.after ? joinOf(outTrailSite(st, T.after.recipe, T.after.seed)) : null;
-  if (T.beats) return siteOf(st, planOutTrail(st, T, seed, null, join));
+  if (T.beats) return siteOf(st, planOutTrail(st, T, seed, null, join), grade);
   // drawn beats: as many as the spine holds, fewer while exploring would run past the band (a long trail is a sparse
   // one: the run grows, the exploring stays two or three minutes)
   for (let n = beatRoom(T.run * C.speed); ; n--) {
-    const site = siteOf(st, planOutTrail(st, T, seed, n, join));
+    const site = siteOf(st, planOutTrail(st, T, seed, n, join), grade);
     if (n <= 3 || exploreSeconds(site) <= C.explore[1]) return site;
   }
 }
@@ -292,7 +297,7 @@ function landmarkSizes(st, T) {
   return [r5(T.rocks.landmark / landmarkStands(st, 1))];
 }
 
-function siteOf(st, plan) {
+function siteOf(st, plan, grade = null) {
   const { T, G, S, W, D, trailX, trailSlope, sOf, beats } = plan;
   const Lf = st.landform, halfW = st.trail.width / 2;
   const at = (kind) => beats.filter((b) => b.kind === kind);
@@ -310,7 +315,9 @@ function siteOf(st, plan) {
   // has none: its line stands past the site's back edge, so the whole site is the open side (the meadow on both sides of
   // the walk, nature.js), no scarp and no geology are laid, and no beat moves it
   const open = G.cliff === false, Gc = open ? {} : G.cliff;
-  const cliffRaw = open ? () => -Lf.back - OPEN_BEYOND : (y) => st.cliff.x + 3 * (vnoise(y * 0.05, 0.5, S + 3) - 0.5);
+  // (the land over the far cliff, `back` metres deep: the card's, and `ground.behind` more)
+  const back = Lf.back + (G.behind ?? 0);
+  const cliffRaw = open ? () => -back - OPEN_BEYOND : (y) => st.cliff.x + 3 * (vnoise(y * 0.05, 0.5, S + 3) - 0.5);
   const J = plan.join, seamW = (y) => (J ? 1 - smooth(0, SEAM, y) : 0);
   const cliff0 = (y) => cliffRaw(y) + (J ? (1 - smooth(0, JOIN, y)) * (J.cliff - cliffRaw(0)) : 0);
   const cliffX = (y) => {
@@ -325,7 +332,7 @@ function siteOf(st, plan) {
   const pockets = at('pocket').map((b, i) => {
     const reach = mix(C.pocket.reach[0], C.pocket.reach[1], hash3(i, 7, S + 931)), x0 = trailX(b.y);
     const cx = x0 + b.side * (edge(b.y) + reach), cy = b.y + (hash3(i, 8, S + 937) - 0.5) * 4;
-    return { b, cx: Math.max(-Lf.back + 6, Math.min(W - 6, cx)), cy, mouth: [x0, b.y], r: C.pocket.r };
+    return { b, cx: Math.max(-back + 6, Math.min(W - 6, cx)), cy, mouth: [x0, b.y], r: C.pocket.r };
   });
   const spurDist = (p, x, y) => {
     const [ax, ay] = p.mouth, dx = p.cx - ax, dy = p.cy - ay, l2 = dx * dx + dy * dy || 1, t = Math.max(0, Math.min(1, ((x - ax) * dx + (y - ay) * dy) / l2));
@@ -339,8 +346,12 @@ function siteOf(st, plan) {
   const pits = at('pit').map((b) => ({ b, y: b.y, w: C.pit.w, depth: C.pit.depth }));
   const streams = at('crossing').map((b) => ({ b, y: b.y }));
   // the WATER (out-water.js, `ground.water`): laid after the walk; a coast runs the ground on past the plan's edge
-  const Wr = G.water && Object.keys(G.water).length ? G.water : null, Wg = Wr?.coast ? W + WATER.coast.room : W;
+  // (`ground.room`: open ground past the trail's far side, the site that much wider; no sea under a cavern, out-water.js)
+  const Wr = G.water && Object.keys(G.water).length ? G.water : null, Wg = Wr?.coast && !(G.cavern && !open) ? W + WATER.coast.room : W + (G.room ?? 0);
 
+  // the DUNES (out-dunes.js, `ground.dunes`): laid over the ground once the walk and the edits are, easing down to the
+  // walk's street, the cliff's foot, a pocket, a ford and the site's edges; where they stand the bumps lie down (sand)
+  const DN = G.dunes ? duneField(G.dunes, S + 7100) : null;
   // ── pass 1: ROUGH — the heartbeat under the trail, the beats' edges, the bumps ──
   const B = G.B, fk = G.bumpScale;
   const bump = (x, y) => C.bump.octaves.reduce((a, [share, f], i) => a + B * share * (2 * vnoise(x * f * fk, y * f * fk, S + 951 + i) - 1), 0);
@@ -356,9 +367,9 @@ function siteOf(st, plan) {
       z += C.pocket.berm * gauss(r - p.r - 2.4, 1.1) * smooth(0.55, 0.85, -mouthward + 1.0);
       z = mix(z, floor, Math.max(1 - smooth(p.r, p.r + 3, r), 1 - smooth(1.6, 3.6, spurDist(p, x, y))));
     }
-    return z + bump(x, y) * (G.bumpWalk + (1 - G.bumpWalk) * smooth(e, e + 5, d));
+    return z + bump(x, y) * (G.bumpWalk + (1 - G.bumpWalk) * smooth(e, e + 5, d)) * (DN ? 1 - 0.85 * DN.share(x, y) : 1);
   };
-  const grid = () => landformGrid({ x0: -Lf.back, x1: Wg, y0: 0, y1: D, res: Math.round(D / Lf.cell) + 1 });
+  const grid = () => landformGrid({ x0: -back, x1: Wg, y0: 0, y1: D, res: Math.round(D / Lf.cell) + 1 });
   const rough = bakeGrid(grid(), field(plan.baseRoughAt));
   const edited = G.edits.length > 0, editOpts = { gridX, gridY, walkAt: (y) => plan.smoothAt(sOf(y)) };
   if (edited) applyEdits(rough, G.edits, editOpts);
@@ -416,8 +427,32 @@ function siteOf(st, plan) {
       for (let i = 0; i < g.nx; i++) { const w = walkLevel(gridX(g, i), y); if (w <= 0) continue; const q = j * g.nx + i; g.z[q] = mix(g.z[q], baseZ[q] + lift, w); }
     }
   }
+  // the GRADE (era/grade.js): the land cut and filled round a building set into its slope, the walk kept
+  if (grade) applyGrade(g, grade, { gridX, gridY, keep: walkLevel });
+  // the CAVES (era/cave.js, `ground.caves`): cut into the far cliff to their floors, the land over each kept for its lid
+  const CV = G.caves && !open ? cutCaves(g, G.caves, { gridX, gridY, cliffX, floorAt: (x, y) => gridSample(g, x, y), back: -back }) : null;
+  const inCave = CV ? caveClear(CV) : null;
+  // the CAVERN (era/cavern.js, `ground.cavern`): the open side and the ends raised to the far cliff's top, the walk's
+  // notch kept; nothing grows anywhere in it
+  // (its pockets kept: the wall steps round each clearing and its spur, a bay in the rock, as they were carved)
+  const bay = (x, y) => pockets.reduce((m, p) => Math.max(m, 1 - smooth(p.r + 1, p.r + 4, Math.hypot(x - p.cx, y - p.cy)), 1 - smooth(2.5, 4.5, spurDist(p, x, y))), 0);
+  const CVN = G.cavern && !open ? { ...G.cavern, ...encloseCavern(g, G.cavern, { gridX, gridY, walkLevel, trailX, edge, D, cliffX, bay }) } : null;
+  // the DUNES laid over it, the walk kept: their share where they stand (the sand), 0 on the street
+  const duneAt = DN ? (x, y) => {
+    if (open ? false : x - cliffX(y) < Lf.keep[1]) return 0;
+    const d = lineDist(x, y), e = edge(y), rim = Math.min(x + back, Wg - x, y, D - y);
+    let k = smooth(e + DUNE_WALK[0], e + DUNE_WALK[1], d) * smooth(0, 6, rim) * (1 - seamW(y)) * (open ? 1 : smooth(Lf.keep[1], Lf.keep[1] + 8, x - cliffX(y)));
+    for (const p of pockets) k *= Math.min(smooth(p.r, p.r + 6, Math.hypot(x - p.cx, y - p.cy)), smooth(2, 6, spurDist(p, x, y)));
+    for (const st0 of streams) k *= smooth(3, 8, Math.abs(y - st0.y));
+    return k;
+  } : null;
+  if (DN) for (let j = 0; j < g.ny; j++) for (let i = 0; i < g.nx; i++) {
+    const x = gridX(g, i), y = gridY(g, j), k = duneAt(x, y); if (k <= 0) continue;
+    const q = j * g.nx + i; g.z[q] += DN.h(x, y) * k; g.apron[q] *= 1 - k; g.hard[q] *= 1 - k;
+  }
   // the WATER cut into the ground, after the walk is laid and clear of it (out-water.js)
-  const WB = Wr ? layWater(Wr, { st, g, trailX, edge, cliffX, open, W, Wg, D, S, beats, streams, pockets, marks, pits }) : null;
+  // (under a cavern: its floor's span between its end walls, era/cavern.js)
+  const WB = Wr ? layWater(Wr, { st, g, trailX, edge, cliffX, open, W, Wg, D, S, beats, streams, pockets, marks, pits, ...(CVN ? { cavern: { y0: CAVERN.endRun, y1: D - CAVERN.endRun } } : {}) }) : null;
   // the PITS, cut last so nothing fills them: across the walk and a little wider, the ground whole beyond (the way round)
   for (const p of pits) for (let j = 0; j < g.ny; j++) for (let i = 0; i < g.nx; i++) {
     const x = gridX(g, i), y = gridY(g, j), d = lineDist(x, y), e = edge(y);
@@ -439,7 +474,10 @@ function siteOf(st, plan) {
     || marks.some((m) => Math.hypot(x - m.x, y - m.y) < m.size + 2)
     || pits.some((p) => Math.abs(y - p.y) < p.w + 2)
     || streams.some((s) => Math.abs(y - s.y) < 3)
-    || (WB !== null && WB.clear(x, y));
+    || (WB !== null && WB.clear(x, y))
+    || (DN !== null && duneAt(x, y) * DN.share(x, y) > 0.3)
+    || (inCave !== null && inCave(x, y))
+    || CVN !== null;
   // the foci (where the eye lands, nature.js inRadius): the trailhead, and every beat; a pinch is framed as a gate
   const foci = beats.filter((b) => b.kind !== 'exit').map((b) => ({ name: b.id, y: b.y, r: b.kind === 'trailhead' ? 11 : 9, x: trailX(b.y), ...(b.kind === 'pinch' ? { gate: true } : {}) }));
   const inRadius = (x, y) => foci.some((f) => Math.hypot(x - f.x, y - f.y) < f.r);
@@ -459,10 +497,18 @@ function siteOf(st, plan) {
   const out = annotate(plan, { pockets, marks, pits, streams, ground, trailX, edge });
   // (the water's anchors and hazards on the trail, as a ford's are)
   if (WB) { const tid = `out-trail:${plan.id}`; out.anchors.push(...[...WB.anchors, ...WB.hazards].map((a) => ({ ...a, trail: tid }))); out.hazards.push(...WB.hazards.map((a) => ({ ...a, trail: tid }))); }
+  // (each cave an anchor: its centreline from the land before its mouth to its end, its width and height, its mouth's floor)
+  // (a cavern an anchor: its ceiling's rim and crown, its skylight, its register)
+  if (CVN) out.anchors.push({ id: 'cavern', kind: 'cavern', top: Math.round(CVN.top * 1e5) / 1e5, height: CVN.height, light: CVN.light, ...(CVN.skylight ? { skylight: { ...CVN.skylight, x: Math.round(trailX(CVN.skylight.y) * 1e5) / 1e5 } } : {}), trail: `out-trail:${plan.id}` });
+  if (CV) out.anchors.push(...CV.map((c) => ({ id: c.id, kind: 'cave', path: c.path, width: c.width, height: c.height, ...(c.mouth !== null ? { mouth: c.mouth } : {}), light: c.light, ...(c.light !== 'daylight' ? { lamps: caveLamps(c).length } : {}), floor: c.floorZ, trail: `out-trail:${plan.id}` })));
   const origin = J ? J.origin : 0;
   const site = { W: Wg, D, halfW, halfWAt, fringeAt, trailX, trailDist, cliffX, ground, groundBase, valley, apronAt, grid: g, scree, foci, inRadius, ...(open ? { open: true } : {}),
     clear, gapAt, rocks, passes: { rough, smooth: g }, out, origin, ...(T.rocks?.boulders !== undefined ? { boulders: T.rocks.boulders } : {}),
-    ...(WB ? { water: WB, wet: WB.bare } : {}) };
+    ...(WB ? { water: WB, wet: WB.bare } : {}),
+    ...(CV ? { caves: CV } : {}),
+    ...(CVN ? { cavern: CVN } : {}),
+    // (the dunes: `sand` > 0 where the sand lies, its line through the troughs; `crest` toward a brink; the wind)
+    ...(DN ? { dunes: { sand: (x, y) => duneAt(x, y) * DN.share(x, y) - 0.3, crest: (x, y) => duneAt(x, y) * DN.crest(x, y), height: (x, y) => duneAt(x, y) * DN.h(x, y), wind: DN.wind, dials: G.dunes } } : {}) };
   // the BOUNDARY (out-bounds.js): the site's edge as walls with faces; every segment an anchor on this trail
   site.bounds = boundSegments(site, T.bounds, { after: !!J, cliff: !!st.cliff && !open });
   out.anchors.push(...boundAnchors(site, site.bounds).map((a) => ({ ...a, trail: `out-trail:${plan.id}` })));
@@ -531,6 +577,9 @@ export function outTrailPayload(site) {
       stairs: P.stairs, laws: outTrailLaws(site).map(({ law, ok, value }) => ({ law, ok, value })),
       // a trail that follows another: which, and where its site sits beside it (the followed one's frame, metres)
       ...(P.join ? { after: `out-trail:${P.join.from}`, origin: [0, site.origin, 0] } : {}) },
+    // (its water's plan, out-water.js: what a render may draw live, era/water-live.js; read off the payload there, never
+    // a page's. None under a cavern: its water keeps its painted look)
+    ...(site.water?.plan?.length && !site.cavern ? { waterworks: site.water.plan } : {}),
   };
 }
 
@@ -546,13 +595,15 @@ export function streamSheets(site, st) {
  *  runs (so it follows the ground as a stream does), sky-tinted, drawn after the bake. */
 export function streamFaces(site, st) {
   // (and the trail's water, out-water.js: its lake, its sea, its river, its falls; none without)
-  const out = site.water ? [...site.water.faces] : [], n = 40;
+  const out = site.water ? [...site.water.faces] : [], n = 40, fill = st.water ? st.water.fill : st.debris ? st.debris.water : '#7f95ab', a = 0.55;
+  // (under a cavern its water deepened, its bed mostly lost: out-water.js UNDERGROUND)
+  const [f0, a0] = site.cavern ? [undergroundFill(fill), undergroundAlpha(a)] : [fill, a];
   for (const { y, w, x0, x1, z } of streamSheets(site, st)) {
     // it rises at the cliff's foot (past the talus), and runs out across the valley
     for (let i = 0; i < n; i++) {
       const xa = mix(x0, x1, i / n), xb = mix(x0, x1, (i + 1) / n);
       out.push({ corners: [[xa, y - w, z(xa)], [xb, y - w, z(xb)], [xb, y + w, z(xb)], [xa, y + w, z(xa)]].map((p) => p.map(r5)), normal: [0, 0, 1], water: true,
-        fill: st.water ? st.water.fill : st.debris ? st.debris.water : '#7f95ab', cornerAlpha: [0.55, 0.55, 0.55, 0.55], group: 'trail:water' });
+        fill: f0, cornerAlpha: [a0, a0, a0, a0].map(r5), group: 'trail:water' });
     }
   }
   return out;

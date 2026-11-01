@@ -20,6 +20,7 @@ import { mulberry32 } from '../vegetation/grow.js';
 import { ANIMAL_WORDS, animalCard, animalFacets } from './mascot-animals.js';
 import { ADORNS, ORB_ADORNS } from './mascot-adorn.js';
 import { readSetting, leanOf, leanPriors } from './setting.js';
+import { FEATURE_EXCLUDES } from './feature-grammar.js';
 
 export const MAX_ATTEMPTS = 8;
 /** The facets, in the order their dice are thrown: a new facet goes last, so an older seed throws the older ones alike. */
@@ -156,6 +157,11 @@ export const STYLES = Object.freeze({
     frame: 'super-deformed: about two heads, the head wider than tall, a tiny soft body, small round hands and feet',
     face: 'anime eyes: huge, set low and wide, a coloured iris, two glints, a heavy upper lash; a dot for a nose, a tiny mouth, a blush',
     palette: 'pastel: the colours softened and lightened',
+  }, {}),
+  feature: v('feature animation\'s animals: cartoon realism', {
+    frame: 'the animal\'s own body in its own silhouette, the head standing apart from it; its limbs its own, so it stands for the acting and drops onto all fours to move (a bird on its folded wings; no fish)',
+    face: 'the eyes turned front, globes with a white sclera; the brow is the coat\'s marking over the eye; a smile line across the muzzle',
+    silhouette: 'one skin of eggs: every join a fillet, the species told by its ears, its markings, its feet and its tail',
   }, {}),
 });
 
@@ -351,6 +357,7 @@ function sources(f) {
     { from: `eyes.${f.eyes}`, ...EYES[f.eyes] }, { from: `hook.${f.hook}`, ...HOOKS[f.hook] }, { from: `accent.${f.accent}`, ...ACCENTS[f.accent] },
     { from: `extremities.${f.extremities}`, ...EXTREMITIES[f.extremities] }, { from: `energy.${f.energy}`, ...ENERGIES[f.energy] },
     ...(f.style === 'anime' ? [{ from: 'style.anime', ...STYLES.anime }] : []),
+    ...(f.style === 'feature' ? [{ from: 'style.feature', ...STYLES.feature }] : []),
     { from: `being.${f.being}`, ...BEINGS[f.being] }, { from: `expression.${f.expression}`, ...EXPRESSIONS[f.expression] }, { from: `adorn.${f.adorn}`, ...ADORN_READS[f.adorn] },
   ];
 }
@@ -400,6 +407,9 @@ export function rollMascot({ brief = '', facets: asked0 = {}, seed = 1, path = '
   const card = named.animal && named.animal !== 'none' ? animalCard(named.animal) : null;
   const given = { ...set, ...(card ? animalFacets(card) : {}), ...named };
   delete given.animal;
+  // (the feature style draws no fish: one asked for in it is drawn in the toon, and the sheet says so)
+  const unstyled = given.style === 'feature' && card && FEATURE_EXCLUDES.includes(card.family);
+  if (unstyled) given.style = 'toon';
   const asked = new Set(Object.keys(given));
   let f, attempt = 0, broken = [];
   for (; attempt < MAX_ATTEMPTS; attempt++) {
@@ -409,6 +419,7 @@ export function rollMascot({ brief = '', facets: asked0 = {}, seed = 1, path = '
   }
   if (attempt === MAX_ATTEMPTS) attempt -= 1;
   const { notes, derives } = compose(f, card);
+  if (unstyled) (notes.frame ||= []).unshift({ line: `the feature style draws no fish: the ${card.id} is drawn as a western toon`, from: 'style.feature' });
   const accord = accordOf(f.accent);
   return {
     tuning: 'mascot', path, seed, attempt,
@@ -417,7 +428,7 @@ export function rollMascot({ brief = '', facets: asked0 = {}, seed = 1, path = '
     ...(setting !== undefined ? { setting } : {}),   // the game it was rolled for
     accord,
     ...(card ? { animal: card } : {}),   // the resolved card, kept by value: its kit is what the body draws
-    reads: [PROMISES[f.promise].reads, FORMS[f.form].reads, `${ACCENTS[f.accent].reads}; ${HOOKS[f.hook].reads}`, `${EYES[f.eyes].reads}; ${EXTREMITIES[f.extremities].reads}`, `${ENERGIES[f.energy].reads}, in ${f.hue}${f.style === 'anime' ? ', drawn anime super-deformed' : ''}`, f.being === 'human' ? `${BEINGS.human.reads}, ${f.skin} skin, ${EXPRESSIONS[f.expression].reads}` : `${BEINGS.critter.reads}, ${EXPRESSIONS[f.expression].reads}`],
+    reads: [PROMISES[f.promise].reads, FORMS[f.form].reads, `${ACCENTS[f.accent].reads}; ${HOOKS[f.hook].reads}`, `${EYES[f.eyes].reads}; ${EXTREMITIES[f.extremities].reads}`, `${ENERGIES[f.energy].reads}, in ${f.hue}${f.style === 'anime' ? ', drawn anime super-deformed' : f.style === 'feature' ? ', drawn in the feature style' : ''}`, f.being === 'human' ? `${BEINGS.human.reads}, ${f.skin} skin, ${EXPRESSIONS[f.expression].reads}` : `${BEINGS.critter.reads}, ${EXPRESSIONS[f.expression].reads}`],
     notes, derives,
     unread: { words: fromBrief.unread },
     faults: broken.map((x) => ({ id: x.id, why: x.why, held: x.on.every((k) => asked.has(k)) })),

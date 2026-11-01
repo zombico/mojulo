@@ -6,7 +6,8 @@
  * powder and clay, its patches, its dust; the undergrowth on a green land; the wet line by height), the land shaded
  * smooth, the sea one surface faded over the depth under it, the scree's stones instanced, the cube's sun and sky light.
  *
- *   formLandScript(form) → the channel's page source (one block, after the page's own; absent `form`, the page has none)
+ *   formLandScript(form, flora?) → the channel's page source (one block, after the page's own; absent `form`, the page has
+ *     none); `flora`, a form read's plants (channels/form-flora.js), grown inside it under its light
  *
  * It hides the painted groups it draws in their place (`form.hides`) and the painted water sheet under its sea; every
  * other painted thing is left unlit as it was (the renderer's tone curve is set, those materials marked untouched by
@@ -14,8 +15,17 @@
  * the land is lit once. `window.__formReady` when it has drawn (its textures load first).
  */
 import { safeJson } from '../emit-util.js';
+import { formGrassScript } from './form-grass.js';
+import { formFloraScript } from './form-flora.js';
 
-export function formLandScript(form) {
+/** THE GROUND'S OWN PARALLAX KINDS, procedural (a Voronoi field, no texture): `pebbles` (domes strewn `cell` m apart over the soil, a cell in four bare,
+ *  `depth` m tall), `cracks` (dry mud in plates `cell` m across, cracks `depth` m deep, their edges curled up), `plates`
+ *  (a second rock, slabs `cell` m across stepped `depth` m). Bare soil takes pebbles where it is damp and cracks where it
+ *  is dry (a field `dry` m across); the trail varies by stretches (a field `stretch` m across) between its powder, a
+ *  pebbled stretch and a cracked one; marched within `near` m. */
+export const GROUND_PARALLAX = Object.freeze({ pebbles: Object.freeze({ cell: 0.09, depth: 0.03 }), cracks: Object.freeze({ cell: 0.34, depth: 0.035 }),
+  plates: Object.freeze({ cell: 0.75, depth: 0.06 }), dry: 9, stretch: 7, near: 30 });
+export function formLandScript(form, flora = null) {
   return `
 // --- the form render (gen-7): the land as material, lit by the cube's light (channels/form-land.js) ---
 (async function () {
@@ -70,12 +80,17 @@ export function formLandScript(form) {
   pathMap.magFilter = pathMap.minFilter = THREE.LinearFilter; pathMap.needsUpdate = true;
   const LAYER_U = { tGrassL: { value: new THREE.DataTexture(new Uint8Array([0, 0, 255, 255]), 1, 1, THREE.RGBAFormat) }, uGOl: { value: new THREE.Vector2() }, uGMl: { value: new THREE.Vector2(1, 1) }, uHasG: { value: 0 }, tBase: { value: tBase }, tNorm: { value: tNorm }, tOrm: { value: tOrm }, tDice: { value: tDice }, uTile: { value: D.layers.tile }, uMean: { value: D.layers.mean.map((m) => new THREE.Vector3(...m)) },
     tPath: { value: pathMap }, uPathO: { value: new THREE.Vector2(...(D.path ? D.path.origin.map((v) => v - D.path.cell / 2) : [0, 0])) }, uPathM: { value: new THREE.Vector2(...(D.path ? D.path.metres : [1, 1])) },
-    uPathZ: { value: new THREE.Vector2(...(D.path ? D.path.z : [0, 1])) }, uHasPath: { value: D.path ? 1 : 0 }, uDress: { value: new THREE.Vector3(D.dress.rubble, D.dress.dust, D.dress.reach) }, uSdIn: { value: D.dress.sdIn }, uPatch: { value: new THREE.Vector3(...D.dress.patches) }, uPathBase: { value: new THREE.Vector3(...D.layers.pathBase) }, uStoneBase: { value: new THREE.Vector3(...D.layers.stoneBase) }, uClayBase: { value: new THREE.Vector3(...D.layers.clayBase) }, uUnderBase: { value: new THREE.Vector3(...D.layers.underBase) }, uUnder: { value: D.layers.green ? 1 : 0 }, uClay: { value: D.dress.surface === 'sand' ? 0 : D.dress.clay }, uWet: { value: new THREE.Vector4(D.wet.z ?? -1e9, D.wet.band, D.wet.tone, D.wet.rough) } };
-  function layeredGround(m, roughScale) {
+    uPathZ: { value: new THREE.Vector2(...(D.path ? D.path.z : [0, 1])) }, uHasPath: { value: D.path ? 1 : 0 }, uDress: { value: new THREE.Vector3(D.dress.rubble, D.dress.dust, D.dress.reach) }, uSdIn: { value: D.dress.sdIn }, uPatch: { value: new THREE.Vector3(...D.dress.patches) }, uPathBase: { value: new THREE.Vector3(...D.layers.pathBase) }, uStoneBase: { value: new THREE.Vector3(...D.layers.stoneBase) }, uClayBase: { value: new THREE.Vector3(...D.layers.clayBase) }, uUnderBase: { value: new THREE.Vector3(...D.layers.underBase) }, uUnder: { value: D.layers.green ? 1 : 0 }, uMoss: { value: D.layers.moss ?? 0 }, uClay: { value: D.dress.surface === 'sand' ? 0 : D.dress.clay }, uWet: { value: new THREE.Vector4(D.wet.z ?? -1e9, D.wet.band, D.wet.tone, D.wet.rough) } };
+${form.dunes ? duneScript() : ''}${form.snow ? snowScript() : ''}${form.dunes || form.snow ? printScript(form) : ''}  function layeredGround(m, roughScale) {
     m.onBeforeCompile = (sh) => {
       Object.assign(sh.uniforms, LAYER_U, { uRough: { value: roughScale } });
       sh.vertexShader = 'attribute vec4 splat;\\nvarying vec4 vSplat;\\nvarying vec3 vWPos;\\n' + sh.vertexShader.replace('#include <project_vertex>', '#include <project_vertex>\\n  vSplat = splat; vWPos = ( modelMatrix * vec4( transformed, 1.0 ) ).xyz;');
-      sh.fragmentShader = 'uniform sampler2DArray tBase, tNorm, tOrm;\\nuniform sampler2D tPath, tDice;\\nuniform float uTile[7];\\nuniform vec3 uMean[7];\\nuniform float uRough, uHasPath;\\nuniform vec2 uPathO, uPathM, uPathZ;\\nuniform vec3 uPathBase, uStoneBase, uClayBase;\\nuniform float uClay, uUnder, uHasG;\\nuniform sampler2D tGrassL;\\nuniform vec2 uGOl, uGMl;\\nuniform vec3 uUnderBase;\\nuniform vec4 uWet;\\nuniform vec3 uDress, uPatch;\\nuniform float uSdIn;\\nvarying vec4 vSplat;\\nvarying vec3 vWPos;\\nfloat hn( vec2 p ) { return fract( sin( dot( p, vec2( 127.1, 311.7 ) ) ) * 43758.5453 ); }\\nfloat vn( vec2 p ) { vec2 i = floor( p ), f = fract( p ); f = f * f * ( 3.0 - 2.0 * f ); return mix( mix( hn( i ), hn( i + vec2( 1.0, 0.0 ) ), f.x ), mix( hn( i + vec2( 0.0, 1.0 ) ), hn( i + vec2( 1.0, 1.0 ) ), f.x ), f.y ); }\\n' + sh.fragmentShader.replace('#include <normal_fragment_maps>', \`
+      sh.fragmentShader = 'uniform sampler2DArray tBase, tNorm, tOrm;\\nuniform sampler2D tPath, tDice;\\nuniform float uTile[7];\\nuniform vec3 uMean[7];\\nuniform float uRough, uHasPath;\\nuniform vec2 uPathO, uPathM, uPathZ;\\nuniform vec3 uPathBase, uStoneBase, uClayBase;\\nuniform float uClay, uUnder, uHasG, uMoss;\\nuniform sampler2D tGrassL;\\nuniform vec2 uGOl, uGMl;\\nuniform vec3 uUnderBase;\\nuniform vec4 uWet;\\nuniform vec3 uDress, uPatch;\\nuniform float uSdIn;\\nvarying vec4 vSplat;\\nvarying vec3 vWPos;\\nfloat hn( vec2 p ) { return fract( sin( dot( p, vec2( 127.1, 311.7 ) ) ) * 43758.5453 ); }\\nfloat vn( vec2 p ) { vec2 i = floor( p ), f = fract( p ); f = f * f * ( 3.0 - 2.0 * f ); return mix( mix( hn( i ), hn( i + vec2( 1.0, 0.0 ) ), f.x ), mix( hn( i + vec2( 0.0, 1.0 ) ), hn( i + vec2( 1.0, 1.0 ) ), f.x ), f.y ); }\\n'
+        // (the ground's own parallax kinds, procedural: a Voronoi cell's distance, its edge and its dice; and each kind's
+        // height over its cells, GROUND_PARALLAX)
+        + 'vec3 vor5( vec2 p ) { vec2 i = floor( p ), f = fract( p ); float d1 = 8.0, d2 = 8.0; vec2 id = vec2( 0.0 ); for ( int y = -1; y <= 1; y++ ) for ( int x = -1; x <= 1; x++ ) { vec2 g = vec2( float( x ), float( y ) ), o = vec2( hn( i + g ), hn( i + g + 17.3 ) ) * 0.8 + 0.1; float d = length( g + o - f ); if ( d < d1 ) { d2 = d1; d1 = d; id = i + g; } else if ( d < d2 ) d2 = d; } return vec3( d1, d2 - d1, hn( id + 5.1 ) ); }\\n'
+        + 'float gHt( int k, vec2 p ) { if ( k > 0 ) p += vec2( vn( p * 0.45 ), vn( p * 0.45 + 7.7 ) ) * ( k == 1 ? 0.8 : 1.6 ); vec3 v = vor5( p ); if ( k == 0 ) { float r = mix( 0.22, 0.46, fract( v.z * 7.3 ) ), q = clamp( v.x / r, 0.0, 1.0 ); return v.z < 0.28 ? 0.0 : sqrt( 1.0 - q * q ) * mix( 0.6, 1.0, v.z ); } if ( k == 1 ) return smoothstep( 0.0, mix( 0.012, 0.09, vn( p * 1.7 + 3.0 ) ), v.y ) * ( 0.8 + 0.2 * v.x ); return smoothstep( 0.0, 0.05, v.y ) * mix( 0.35, 1.0, v.z ); }\\n'
+        + sh.fragmentShader.replace('#include <normal_fragment_maps>', \`
     vec3 nW = normalize( ( vec4( normal, 0.0 ) * viewMatrix ).xyz ), aN = abs( nW );
     vec2 uvW; vec3 tT, tB;
     if ( aN.z >= aN.x && aN.z >= aN.y ) { uvW = vWPos.xy; tT = vec3( 1.0, 0.0, 0.0 ); tB = vec3( 0.0, 1.0, 0.0 ); }
@@ -97,6 +112,8 @@ export function formLandScript(form) {
         pw = ( 1.0 - smoothstep( -0.25, eW, pd + eN * 0.75 ) ) * onIt;
       }
     }
+    // (a face with no natural layer, the trail's own ribbons and the walls of its shelves: the path's material all over it)
+    if ( vSplat.x + vSplat.y + vSplat.z + vSplat.w < 0.01 ) pw = 1.0;
     float hgt[7]; vec3 bs[7]; vec3 ns[7]; vec2 rs[7];
     // the scree's PARALLAX (near, and only where there is scree): its height map marched along the view in the face's
     // frame, so its stones stand up and hide what is behind them; fading out with distance to the flat map
@@ -165,6 +182,10 @@ export function formLandScript(form) {
     float ugK = uUnder * clamp( 0.62 + 0.5 * ( vn( vWPos.xy / 3.5 + 47.0 ) - 0.5 ), 0.0, 1.0 ) * mix( 0.6, 1.0, gcov );
     float ws[7]; ws[0] = vSplat.x * ( 1.0 - pw ); ws[1] = vSplat.y * ( 1.0 - pw ); ws[2] = vSplat.z * ( 1.0 - pw ) * ( 1.0 - ugK ); ws[3] = vSplat.w * ( 1.0 - pw ); ws[4] = pw * ( 1.0 - clayK ); ws[5] = pw * clayK; ws[6] = vSplat.z * ( 1.0 - pw ) * ugK;
     float toDirt = ws[ 0 ] * min( 1.0, ledge ) * 0.7; ws[ 0 ] -= toDirt; ws[ 2 ] += toDirt; float dirtFrac = toDirt / max( 1e-4, ws[ 2 ] );
+    // (the MOSS, as much as the biocube asks (flora.moss): on the rock where its relief faces up, in patches over metres,
+    // in the undergrowth's cushions, its colour the palette's grass darkened)
+    float mossK = uMoss > 0.0 ? uMoss * smoothstep( 0.3, 0.75, ( tT * ns[ 0 ].x + tB * ns[ 0 ].y + nW * ns[ 0 ].z ).z ) * smoothstep( 0.3, 0.6, vn( vWPos.xy / 1.8 + vWPos.z * 0.6 + 81.0 ) * 0.7 + vn( vWPos.xy / 0.5 + 7.0 ) * 0.3 ) : 0.0;
+    float toMoss = ws[ 0 ] * min( 1.0, mossK * 1.6 ); ws[ 0 ] -= toMoss; ws[ 6 ] += toMoss;
     // (each layer present here nudged by its own noise over the plan, a few metres across: the corners' weights run
     // straight across a triangle, the border they give must not)
     // the scree thins out by its stones: a stone is kept whole where its dice fall under the scree's share here (nudged
@@ -175,7 +196,9 @@ export function formLandScript(form) {
     // (the trail's verge: its rubble's share, the stones the dice keep along its edges as the real ones lie, a few on it)
     float vergeW = uDress.x * ( pd <= 0.05 ? 0.15 : exp( -pow( ( pd - 0.45 ) / 0.7, 2.0 ) ) ) * smoothstep( 0.6, 0.85, nW.z );
     sh = max( sh, pd < 98.0 ? vergeW * 0.9 : 0.0 );
-    float kept = sh > 0.001 ? step( texture( tDice, scUV ).r, min( 1.0, sh * 1.2 + sn * 0.3 ) ) : 0.0;
+    // (the noise nudges the share as far as there is one: where the scree is a trace, a trace of its stones, never a
+    // scatter of them far from any scree)
+    float kept = sh > 0.001 ? step( texture( tDice, scUV ).r, min( 1.0, sh * 1.2 + sn * 0.3 * min( 1.0, sh * 4.0 ) ) ) : 0.0;
     float top = 0.0, steepF = 1.0 - smoothstep( 0.5, 0.8, abs( nW.z ) );
     for ( int i = 0; i < 7; i++ ) {
       float nz = vn( vWPos.xy / 2.5 + float( i ) * 17.3 ) * 0.7 + vn( vWPos.xy / 0.8 + float( i ) * 5.1 ) * 0.3 - 0.5;
@@ -208,6 +231,45 @@ export function formLandScript(form) {
     diffuseColor.rgb = mix( diffuseColor.rgb, mix( diffuseColor.rgb, uPathBase, 0.55 ), dirtFrac * ws[ 2 ] / max( 1e-4, tw ) );
     diffuseColor.rgb *= mb * mix( 1.0, mr.x, 0.5 );
     roughnessFactor = clamp( mr.y * uRough, 0.04, 1.0 );
+    // the ground's own PARALLAX KINDS (GROUND_PARALLAX): PEBBLES packed in the bare soil where it is damp, in the scree's
+    // fines between its stones and on a pebbled stretch of trail; CRACKED EARTH, dry mud in curled plates, in the bare soil
+    // where it is dry and on a cracked stretch of trail; FRACTURED PLATES, a second rock in patches over the rock. Each
+    // marched along the view near (eight steps), its normal from its own height, its detail fading by its cells' size on
+    // the screen, so nothing sparkles far off
+    {
+      float sS = ws[ 2 ] / max( 1e-4, tw ), rS = ws[ 0 ] / max( 1e-4, tw );
+      float gBare = uHasG > 0.5 ? 1.0 - texture2D( tGrassL, ( vWPos.xy - uGOl ) / uGMl ).b : 1.0;
+      float bare = sS * smoothstep( 0.15, 0.7, gBare ) * smoothstep( 0.55, 0.8, nW.z );
+      float dryF = smoothstep( 0.45, 0.65, vn( vWPos.xy / ${GROUND_PARALLAX.dry.toFixed(1)} + 4.2 ) );
+      float tvF = vn( vWPos.xy / ${GROUND_PARALLAX.stretch.toFixed(1)} + 55.0 ), tPeb = 1.0 - smoothstep( 0.28, 0.38, tvF ), tCrk = smoothstep( 0.62, 0.72, tvF );
+      float fines = vSplat.y * ( 1.0 - kept ) * smoothstep( 0.55, 0.8, nW.z ) * ( 1.0 - pw );
+      float wK0 = clamp( bare * ( 1.0 - dryF ) + tsh * tPeb + fines * 0.9, 0.0, 1.0 ), wK1 = clamp( bare * dryF + tsh * tCrk, 0.0, 1.0 );
+      float wK2 = rS * 0.85 * smoothstep( 0.5, 0.62, vn( vWPos.xy / 6.0 + vWPos.z * 0.35 + 9.0 ) ), wMax = max( wK0, max( wK1, wK2 ) );
+      if ( wMax > 0.02 ) {
+        int kd = wK0 >= wMax ? 0 : wK1 >= wMax ? 1 : 2;
+        float cellK = kd == 0 ? ${GROUND_PARALLAX.pebbles.cell.toFixed(3)} : kd == 1 ? ${GROUND_PARALLAX.cracks.cell.toFixed(3)} : ${GROUND_PARALLAX.plates.cell.toFixed(3)};
+        float depK = kd == 0 ? ${GROUND_PARALLAX.pebbles.depth.toFixed(3)} : kd == 1 ? ${GROUND_PARALLAX.cracks.depth.toFixed(3)} : ${GROUND_PARALLAX.plates.depth.toFixed(3)};
+        vec2 gp = uvW / cellK;
+        float detK = 1.0 - smoothstep( 0.25, 0.7, length( fwidth( gp ) ) );
+        if ( detK > 0.0 ) {
+          if ( camD < ${GROUND_PARALLAX.near.toFixed(1)} ) {
+            vec3 V5 = normalize( cameraPosition - vWPos ), vt5 = vec3( dot( V5, tT ), dot( V5, tB ), dot( V5, nW ) );
+            vec2 dG = vt5.xy / max( vt5.z, 0.3 ) * ( depK / cellK ) * ( 1.0 - smoothstep( ${(GROUND_PARALLAX.near * 0.6).toFixed(1)}, ${GROUND_PARALLAX.near.toFixed(1)}, camD ) ) / 8.0;
+            float lG = 0.0, hG = 1.0 - gHt( kd, gp );
+            for ( int k = 0; k < 8; k++ ) { if ( lG >= hG ) break; gp -= dG; hG = 1.0 - gHt( kd, gp ); lG += 0.125; }
+          }
+          float h0 = gHt( kd, gp ), hx = gHt( kd, gp + vec2( 0.04, 0.0 ) ), hy = gHt( kd, gp + vec2( 0.0, 0.04 ) );
+          vec3 gN = normalize( vec3( ( h0 - hx ) * depK / ( 0.04 * cellK ), ( h0 - hy ) * depK / ( 0.04 * cellK ), 1.0 ) );
+          float wG = wMax * detK, cz = vor5( gp ).z;
+          mn = normalize( mix( mn, gN, wG ) );
+          float peb = step( 0.001, h0 ), tone = kd == 0 ? mix( 0.9, mix( 0.72, 1.2, cz ) * mix( 0.7, 1.05, h0 ), peb ) : kd == 1 ? mix( 0.42, 1.08, smoothstep( 0.0, 0.6, h0 ) ) : mix( 0.62, 1.12, cz ) * mix( 0.55, 1.0, h0 );
+          // (a pebble takes a stone's own colour more than the soil's)
+          diffuseColor.rgb *= mix( 1.0, tone, wG );
+          if ( kd == 0 ) diffuseColor.rgb = mix( diffuseColor.rgb, uStoneBase * tone * mix( 0.85, 1.1, fract( cz * 13.0 ) ), 0.7 * peb * wG );
+          roughnessFactor = mix( roughnessFactor, kd == 1 ? 0.95 : 0.8, wG * 0.5 );
+        }
+      }
+    }
     vec3 dustC = mix( uPathBase, vec3( dot( uPathBase, vec3( 0.2126, 0.7152, 0.0722 ) ) ), 0.35 ) * 1.25 * mix( vec3( 1.0 ), mb, 0.3 );
     diffuseColor.rgb = mix( diffuseColor.rgb, dustC, dust * 0.85 ); roughnessFactor = mix( roughnessFactor, 1.0, dust ); mn = normalize( mix( mn, vec3( 0.0, 0.0, 1.0 ), dust * 0.6 ) );
     // (the sand WET by its height over the water, at this point, not face by face: the line it leaves follows the
@@ -217,15 +279,17 @@ export function formLandScript(form) {
     diffuseColor.rgb *= mix( 1.0, uWet.z, wet );
     roughnessFactor = mix( roughnessFactor, uWet.w, wet );
     normal = normalize( ( viewMatrix * vec4( normalize( tT * mn.x + tB * mn.y + nW * mn.z ), 0.0 ) ).xyz );\`);
-    };
-    m.customProgramCacheKey = () => 'layered-ground';
+${form.dunes ? `      sh.fragmentShader = DUNE_HEAD + sh.fragmentShader.replace('    // (the sand WET', DUNE_SAND + '    // (the sand WET'); Object.assign(sh.uniforms, DUNE_U);\n` : ''}${form.snow ? `      sh.fragmentShader = SNOW_HEAD + sh.fragmentShader.replace('    // (the sand WET', SNOW_COVER + '    // (the sand WET'); Object.assign(sh.uniforms, SNOW_U);\n` : ''}${form.dunes || form.snow ? `      sh.fragmentShader = PRINT_HEAD + sh.fragmentShader.replace('    // (the sand WET', PRINT_PRESS + '    // (the sand WET'); Object.assign(sh.uniforms, PRINT_U);\n` : ''}    };
+    m.customProgramCacheKey = () => 'layered-ground${form.dunes ? '-dunes' : ''}${form.snow ? '-snow' : ''}';
     return m;
   }
   // the ROCK'S RELIEF (form/rock-relief.js): the cliff's steep faces cut finer and pushed in and out along their normals by
   // the relief's map, sampled along both side axes and blended as the rock's texture is (its beds level on either);
   // nothing moves on level ground (benches and tops stay as walked) or at a corner another class shares (no cracks), and a
-  // face left whole has its every edge so; normals rebuilt over the points the cut faces share
-  const RF = D.relief && (() => { const q = new Uint16Array(bytes(D.relief.px).buffer), lo = D.relief.lo, sp = D.relief.hi - D.relief.lo; return { N: D.relief.size, T: D.relief.tile, h: Float32Array.from(q, (v) => lo + (v / 65535) * sp) }; })();
+  // face left whole has its every edge so; normals rebuilt over the points the cut faces share. It only carves: the map's
+  // highest point at the land as built, so nothing stands proud of it (a house set against a cliff, a stair at its foot
+  // stay in front of the rock; the walker, who stands on the land as built, never stands inside it)
+  const RF = D.relief && (() => { const q = new Uint16Array(bytes(D.relief.px).buffer), sp = D.relief.hi - D.relief.lo; return { N: D.relief.size, T: D.relief.tile, h: Float32Array.from(q, (v) => (v / 65535 - 1) * sp) }; })();
   const sst = (a, b, v) => { const t = Math.max(0, Math.min(1, (v - a) / (b - a))); return t * t * (3 - 2 * t); };
   const steepOf = (nz) => 1 - sst(0.5, 0.8, Math.abs(nz));
   function reliefAt(x, y, z, nx, ny, nz) {
@@ -356,13 +420,16 @@ export function formLandScript(form) {
       }
     }
   }
+${formGrassScript()}${flora ? formFloraScript(flora, { snow: !!form.snow }) : ''}
   // open sea: deep water's colour under it, where the recipe lays no floor (the shallows' floor fades into the same colour)
   if (D.seabed) { const B = D.seabed, g = new THREE.PlaneGeometry(B.x[1] - B.x[0], B.y[1] - B.y[0]); g.translate((B.x[0] + B.x[1]) / 2, (B.y[0] + B.y[1]) / 2, B.z);
     scene.add(new THREE.Mesh(g, new THREE.MeshStandardMaterial({ color: rgb(D.deep), roughness: 1, metalness: 0 }))); }
   // the painted land it draws in its place, and the painted water sheet under its sea (a standalone sheet: per-vertex
   // alpha, not one of the named groups)
   const __formNamed = new Set(Object.values(meshes));
-  for (const g of D.hides) if (meshes[g]) meshes[g].visible = false;
+  for (const g of D.hides) if (meshes[g]) meshes[g].visible = false;${flora ? `
+  // (the plants' groups wholly: a group drawn in several meshes, its faces split by their tiles, is one name in \`meshes\`)
+  { const H = new Set(D.hides); scene.traverse((o) => { if (o.isMesh && H.has(o.userData.g)) o.visible = false; }); }` : ''}
   if (D.depth) for (const o of __formBefore) if (o.isMesh && !__formNamed.has(o) && o.material.isMeshBasicMaterial && o.material.transparent && o.geometry.getAttribute('color')?.itemSize === 4) o.visible = false;
   for (const o of __formBefore) for (const m of [].concat(o.material)) { m.toneMapped = false; m.needsUpdate = true; }
   renderer.toneMapping = THREE.NeutralToneMapping; renderer.toneMappingExposure = 1;
@@ -375,3 +442,188 @@ export function formLandScript(form) {
 })();
 `;
 }
+
+/** The dunes' sand (era/out-dunes.js duneMap, `form.dunes`): its uniforms and the shader's piece, spliced in before the wet
+ *  sand; a land with no dunes has none of it. */
+function duneScript() {
+  return `  // the DUNES' sand (era/out-dunes.js): ripples across the wind, streaks down a slip face, grains catching the sun
+  const DM = new THREE.DataTexture(bytes(D.dunes.px), D.dunes.size[0], D.dunes.size[1], THREE.RGBAFormat); DM.magFilter = DM.minFilter = THREE.LinearFilter; DM.needsUpdate = true;
+  const DUNE_U = { tDune: { value: DM }, uDuneW: { value: new THREE.Vector2(...D.dunes.wind) }, uDuneO: { value: new THREE.Vector2(...D.dunes.origin.map((v) => v - D.dunes.cell / 2)) }, uDuneM: { value: new THREE.Vector2(D.dunes.size[0] * D.dunes.cell, D.dunes.size[1] * D.dunes.cell) } };
+  const DUNE_HEAD = ${JSON.stringify(DUNE_HEAD)}, DUNE_SAND = ${JSON.stringify(DUNE_SAND)};
+`;
+}
+// (the wind the way the sand travels; the map's red how much dune stands there, its green near a crest)
+const DUNE_HEAD = 'uniform sampler2D tDune;\nuniform vec2 uDuneW, uDuneO, uDuneM;\n';
+// RIPPLES: crests across the wind ~11 cm apart, their stoss gentle and their lee steep, wandering and forking, on the
+// dunes' backs and the flats between, none on a slip face; they fade before they alias, and the sand's own tile is calmed
+// under them. A SLIP FACE (steep, falling downwind): the sand avalanched down it in streaks along the fall line. GLINT: a
+// grain in a hundred, a centimetre across, turned its own way and polished, so the sun's highlight catches it (lit and
+// shadowed by the light, never drawn over it).
+const DUNE_SAND = `    float sandK = ws[ 3 ] / max( 1e-4, tw );
+    if ( sandK > 0.01 ) {
+      vec4 dm = texture2D( tDune, ( vWPos.xy - uDuneO ) / uDuneM );
+      vec2 Wd = uDuneW, Pd = vec2( -Wd.y, Wd.x ), gd = nW.xy;
+      float slope = length( gd ) / max( 0.2, nW.z ); vec2 down = length( gd ) > 1e-4 ? normalize( gd ) : Wd;
+      float lee = smoothstep( 0.35, 0.55, slope ) * smoothstep( 0.1, 0.5, dot( down, Wd ) ), flt = 1.0 - smoothstep( 0.4, 0.65, slope );
+      vec3 nw = normalize( tT * mn.x + tB * mn.y + nW * mn.z );
+      float sd = dot( vWPos.xy, Wd ), qd = dot( vWPos.xy, Pd );
+      // (their spacing wanders over a couple of metres, so crests merge and fork where it tightens; each crest wavers)
+      float lam = 0.11 * ( 0.8 + 0.4 * vn( vWPos.xy / 2.2 + 41.0 ) );
+      float ph = ( sd + 0.09 * ( vn( vec2( qd / 0.6, sd / 1.8 ) + 9.0 ) - 0.5 ) + 0.04 * ( vn( vec2( qd / 0.22, sd / 0.5 ) + 2.0 ) - 0.5 ) ) / lam;
+      float aa = 1.0 - smoothstep( 0.12, 0.35, fwidth( ph ) );
+      float rk = sandK * aa * flt * ( 1.0 - lee ) * mix( 0.55, 1.0, dm.r ) * ( 0.75 + 0.5 * vn( vec2( qd / 3.0, sd / 6.0 ) + 31.0 ) );
+      if ( rk > 0.001 ) {
+        float t = fract( ph ), w = t < 0.7 ? t / 0.7 * 0.5 : 0.5 + ( t - 0.7 ) / 0.3 * 0.5, dw = t < 0.7 ? 0.5 / 0.7 : 0.5 / 0.3;
+        float dh = 0.0032 * 3.14159 * sin( 6.28318 * w ) * dw / lam;
+        nw = normalize( mix( nw, nW, 0.45 * rk ) - vec3( Wd * dh * rk, 0.0 ) );
+        // (the coarser grains gather on a crest: a shade paler there)
+        diffuseColor.rgb *= 1.0 + 0.05 * rk * ( 0.5 - 0.5 * cos( 6.28318 * w ) - 0.5 );
+      }
+      float sk = sandK * lee * ( 1.0 - smoothstep( 0.3, 0.8, fwidth( dot( vWPos.xy, vec2( -down.y, down.x ) ) / 0.12 ) ) * 0.5 );
+      if ( sk > 0.001 ) {
+        vec2 sp = vec2( -down.y, down.x ); float sa = dot( vWPos.xy, sp ), sb = dot( vWPos.xy, down );
+        float st = vn( vec2( sa / 0.35, sb / 4.0 ) + 5.0 ) * 0.7 + vn( vec2( sa / 0.12, sb / 1.4 ) + 13.0 ) * 0.3 - 0.5;
+        diffuseColor.rgb *= 1.0 + st * 0.22 * sk; roughnessFactor = mix( roughnessFactor, roughnessFactor * ( 1.0 - 0.25 * st ), sk );
+      }
+      vec2 gc = floor( vWPos.xy / 0.012 ); float gh = hn( gc + 0.5 ), ga = sandK * ( 1.0 - smoothstep( 0.35, 0.9, fwidth( vWPos.x / 0.012 ) ) );
+      if ( gh > 0.99 && ga > 0.001 ) {
+        vec3 gj = vec3( hn( gc + 7.3 ) - 0.5, hn( gc + 3.1 ) - 0.5, 0.0 ) * 1.4;
+        nw = normalize( mix( nw, normalize( nw + gj ), ga ) ); roughnessFactor = mix( roughnessFactor, 0.06, ga ); metalnessFactor = mix( metalnessFactor, 0.5, ga );
+      }
+      mn = vec3( dot( nw, tT ), dot( nw, tB ), dot( nw, nW ) );
+    }
+`;
+
+/** The snow over the ground (era/snow.js snowMap, `form.snow`): its uniforms and the shader's piece, spliced in before
+ *  the wet sand; a land with no snow has none of it. */
+function snowScript() {
+  return `  // the SNOW over the ground (era/snow.js): as it lies, level enough to hold it, its path trodden
+  const SM = new THREE.DataTexture(bytes(D.snow.px), D.snow.size[0], D.snow.size[1], THREE.RGBAFormat); SM.magFilter = SM.minFilter = THREE.LinearFilter; SM.needsUpdate = true;
+  const SNOW_U = { tSnow: { value: SM }, uSnowO: { value: new THREE.Vector2(...D.snow.origin.map((v) => v - D.snow.cell / 2)) }, uSnowM: { value: new THREE.Vector2(D.snow.size[0] * D.snow.cell, D.snow.size[1] * D.snow.cell) },
+    uSnowD: { value: new THREE.Vector4(D.snow.depth, D.snow.hold, D.snow.depth >= 0.1 ? 0.2 : 0.5, D.snow.drift) }, uSnowBase: { value: new THREE.Vector3(...D.snow.base) } };
+  const SNOW_HEAD = ${JSON.stringify(SNOW_HEAD)}, SNOW_COVER = ${JSON.stringify(SNOW_COVER)};
+`;
+}
+// (the map's red how much snow lies there; depth, hold, how worn the trodden path, drift)
+const SNOW_HEAD = 'uniform sampler2D tSnow;\nuniform vec2 uSnowO, uSnowM;\nuniform vec4 uSnowD;\nuniform vec3 uSnowBase;\n';
+// THE SNOW: laid over whatever ground is here as the map says it lies, held per pixel only where the ground is level
+// enough (its own normal: a rock's ledge white, its face bare), its edge wandering in and out over a metre and finer; it
+// buries the ground's own detail (deeper, more), swells in soft drifts, and glitters (a grain in fifty, turned its own way
+// and polished, lit through the light). On the trail it is trodden: packed, greyed, the soil showing through as far as it
+// is shallow.
+const SNOW_COVER = `    float snowKo = 0.0;
+    {
+      vec2 su = ( vWPos.xy - uSnowO ) / uSnowM;
+      float sc = ( su.x > 0.0 && su.y > 0.0 && su.x < 1.0 && su.y < 1.0 ) ? texture2D( tSnow, su ).r : 0.0;
+      float hold = smoothstep( uSnowD.y - 0.1, uSnowD.y + 0.03, nW.z );
+      float en = vn( vWPos.xy / 1.1 + 71.0 ) * 0.6 + vn( vWPos.xy / 0.28 + 3.0 ) * 0.4 - 0.5;
+      float snowK = smoothstep( 0.3, 0.5, sc * hold + en * 0.3 ); snowKo = snowK;
+      if ( snowK > 0.001 ) {
+        vec3 nw = normalize( tT * mn.x + tB * mn.y + nW * mn.z );
+        // (it buries the ground's detail, and swells in drifts a couple of metres across)
+        float bury = clamp( 0.55 + uSnowD.x * 2.5, 0.55, 0.95 );
+        vec2 e = vec2( 0.35, 0.0 ), q = vWPos.xy / 2.2;
+        vec2 dg = vec2( vn( q + e.xy ) - vn( q - e.xy ), vn( q + e.yx ) - vn( q - e.yx ) ) / ( 2.0 * 0.35 * 2.2 );
+        vec3 ns = normalize( mix( nw, nW, bury ) - vec3( dg * 0.35 * min( 1.0, uSnowD.x * 6.0 ), 0.0 ) );
+        vec3 sb = uSnowBase * ( 0.97 + 0.06 * vn( vWPos.xy / 3.0 + 13.0 ) );
+        // (trodden on the trail: packed and greyed, the soil through it as far as it is shallow)
+        float trod = pw * snowK;
+        sb = mix( sb, mix( sb * 0.86, uPathBase, uSnowD.z ), trod );
+        float rs = mix( 0.72, 0.55, trod );
+        vec2 gc = floor( vWPos.xy / 0.008 ); float gh = hn( gc + 0.5 ), ga = ( 1.0 - trod ) * ( 1.0 - smoothstep( 0.35, 0.9, fwidth( vWPos.x / 0.008 ) ) );
+        if ( gh > 0.98 && ga > 0.001 ) { vec3 gj = vec3( hn( gc + 7.3 ) - 0.5, hn( gc + 3.1 ) - 0.5, 0.0 ) * 1.6; ns = normalize( mix( ns, normalize( ns + gj ), ga ) ); rs = mix( rs, 0.05, ga ); metalnessFactor = mix( metalnessFactor, 0.6 * snowK, ga ); }
+        diffuseColor.rgb = mix( diffuseColor.rgb, sb, snowK );
+        roughnessFactor = mix( roughnessFactor, rs, snowK );
+        nw = normalize( mix( nw, ns, snowK ) );
+        mn = vec3( dot( nw, tT ), dot( nw, tB ), dot( nw, nW ) );
+      }
+    }
+`;
+
+/** The PRINTS (sand: the dunes; snow: era/snow.js): the walker's feet pressed into what is soft under them, drawn by the
+ *  layered ground from a map that moves with the walker; the wind fills them back. Only on a land with dunes or snow. */
+export const PRINTS = Object.freeze({ texels: 512, metres: 12, step: 0.8, apart: 0.1, max: 320, sand: { depth: 0.035, fill: 60 }, snow: { most: 0.12, fill: 600 } });
+function printScript(form) {
+  return `  // the PRINTS: each step of the walker on sand or snow pressed into it (a sole, its rim pushed up), on a map that moves
+  // with the walker (PRINTS.metres across, PRINTS.texels a side), the wind filling each back over its own time (sand
+  // quickly, snow slowly); window.__formPrints: stamp, walk (a line of steps), stats
+  const PR = ${JSON.stringify(PRINTS)}, PRT = new THREE.DataTexture(new Uint8Array(PR.texels * PR.texels).fill(128), PR.texels, PR.texels, THREE.RedFormat);
+  PRT.magFilter = PRT.minFilter = THREE.LinearFilter; PRT.needsUpdate = true;
+  const PRINT_U = { tPrint: { value: PRT }, uPrintO: { value: new THREE.Vector2(-1e4, -1e4) }, uPrintM: { value: PR.metres }, uPrintD: { value: new THREE.Vector2(PR.sand.depth, ${form.snow ? 'Math.min(PR.snow.most, D.snow.depth * 0.6)' : '0'}) } };
+  const prints = [], prTx = PR.metres / PR.texels;
+  // what the foot lands in: snow where the map lays it, else sand
+  const onSnowAt = ${form.snow ? `(x, y) => { const i = Math.round((x - D.snow.origin[0]) / D.snow.cell), j = Math.round((y - D.snow.origin[1]) / D.snow.cell); return i >= 0 && j >= 0 && i < D.snow.size[0] && j < D.snow.size[1] && SM.image.data[(j * D.snow.size[0] + i) * 4] > 90; }` : '() => false'};
+  // a sole in its own frame (u along the step, v across, metres): heel and ball joined, its depth with a soft wall, its rim
+  const sole = (u, v) => {
+    const e = (cu, ru, rv) => Math.hypot((u - cu) / ru, v / rv) - 1, a = e(-0.075, 0.05, 0.042), b = e(0.05, 0.075, 0.05);
+    const k = 0.6, h = Math.max(0, Math.min(1, 0.5 + 0.5 * (b - a) / k)), d = (b * (1 - h) + a * h - k * h * (1 - h)) * 0.045;
+    return d < 0 ? -Math.min(1, -d / 0.012) * (0.85 + 0.15 * Math.sin(u * 160)) : 0.35 * Math.exp(-(((d - 0.01) / 0.01) ** 2));
+  };
+  function rasterPrints(now) {
+    const N = PR.texels, A = PRT.image.data, [ox, oy] = PRINT_U.uPrintO.value.toArray(), H = new Float32Array(N * N);
+    for (let k = prints.length - 1; k >= 0; k--) {
+      const p = prints[k], amp = Math.exp(-(now - p.t) / (p.snow ? PR.snow.fill : PR.sand.fill));
+      if (amp < 0.03) { prints.splice(k, 1); continue; }
+      const c = Math.cos(p.yaw), s = Math.sin(p.yaw), i0 = Math.floor((p.x - 0.2 - ox) / prTx), i1 = Math.ceil((p.x + 0.2 - ox) / prTx), j0 = Math.floor((p.y - 0.2 - oy) / prTx), j1 = Math.ceil((p.y + 0.2 - oy) / prTx);
+      for (let j = Math.max(0, j0); j <= Math.min(N - 1, j1); j++) for (let i = Math.max(0, i0); i <= Math.min(N - 1, i1); i++) {
+        const dx = ox + (i + 0.5) * prTx - p.x, dy = oy + (j + 0.5) * prTx - p.y, h = sole(dx * c + dy * s, -dx * s + dy * c) * amp, q = j * N + i;
+        H[q] = h < 0 ? Math.min(H[q], h) : H[q] < 0 ? H[q] : Math.max(H[q], h);
+      }
+    }
+    for (let q = 0; q < N * N; q++) A[q] = Math.max(0, Math.min(255, Math.round(128 + H[q] * 127)));
+    PRT.needsUpdate = true;
+  }
+  function recentre(x, y) { PRINT_U.uPrintO.value.set(Math.round((x - PR.metres / 2) / prTx) * prTx, Math.round((y - PR.metres / 2) / prTx) * prTx); }
+  function stamp(x, y, yaw, side, t = performance.now() / 1000) {
+    const o = PRINT_U.uPrintO.value; if (Math.abs(x - o.x - PR.metres / 2) > PR.metres / 4 || Math.abs(y - o.y - PR.metres / 2) > PR.metres / 4) recentre(x, y);
+    prints.push({ x: x - Math.sin(yaw) * side * PR.apart, y: y + Math.cos(yaw) * side * PR.apart, yaw, t, snow: onSnowAt(x, y) });
+    if (prints.length > PR.max) prints.shift();
+    rasterPrints(t);
+  }
+  let prSide = 1, prAcc = 0, prLast = null, prRaster = 0;
+  (function printTick() {
+    const now = performance.now() / 1000;
+    if (typeof walkOn !== 'undefined' && walkOn && walkMode === 'walk' && walkGround) {
+      const x = camera.position.x, y = camera.position.y;
+      if (prLast) { const dx = x - prLast[0], dy = y - prLast[1], d = Math.hypot(dx, dy); prAcc += d; if (prAcc >= PR.step && d > 1e-4) { prAcc = 0; prSide = -prSide; stamp(x, y, Math.atan2(dy, dx), prSide, now); } }
+      prLast = [x, y];
+    } else prLast = null;
+    if (prints.length && now - prRaster > 0.5) { prRaster = now; rasterPrints(now); }
+    requestAnimationFrame(printTick);
+  })();
+  const PRINT_HEAD = ${JSON.stringify(PRINT_HEAD)}, PRINT_PRESS = ${JSON.stringify(form.snow ? PRINT_PRESS : PRINT_PRESS.replace('onSn = snowKo', 'onSn = 0.0'))};
+  window.__formPrints = { stamp, walk: (pts) => { let side = 1, acc = 0; for (let k = 1; k < pts.length; k++) { const [ax, ay] = pts[k - 1], [bx, by] = pts[k], L = Math.hypot(bx - ax, by - ay), yaw = Math.atan2(by - ay, bx - ax); for (let s = acc; s < L; s += PR.step) { side = -side; stamp(ax + (bx - ax) * s / L, ay + (by - ay) * s / L, yaw, side); } acc = 0; } }, stats: () => ({ prints: prints.length, snow: prints.filter((p) => p.snow).length }), debug: () => { const o = PRINT_U.uPrintO.value, A = PRT.image.data, N = PR.texels; let n = 0, lo = [1e9, 1e9], hi = [-1e9, -1e9]; for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) if (A[j * N + i] < 100) { n++; const x = o.x + (i + 0.5) * prTx, y = o.y + (j + 0.5) * prTx; lo = [Math.min(lo[0], x), Math.min(lo[1], y)]; hi = [Math.max(hi[0], x), Math.max(hi[1], y)]; } return { o: [o.x, o.y], n, lo, hi, first: prints[0], last: prints[prints.length - 1] }; } };
+`;
+}
+const PRINT_HEAD = 'uniform sampler2D tPrint;\nuniform vec2 uPrintO, uPrintD;\nuniform float uPrintM;\n';
+// THE PRINTS pressed into the sand and the snow: the map's height (its depth the surface's: a shallow sand print, a snow
+// print as deep as the snow lets it) read a step along the view into it (parallax), its walls lit from its slopes, the
+// ripples and the drifts' detail gone where the foot pressed, the inside shaded as deep as it goes
+const PRINT_PRESS = `    {
+      vec2 pu0 = ( vWPos.xy - uPrintO ) / uPrintM;
+      float onSa = ws[ 3 ] / max( 1e-4, tw ), onSn = snowKo, softK = max( onSa, onSn );
+      if ( softK > 0.01 && pu0.x > 0.0 && pu0.y > 0.0 && pu0.x < 1.0 && pu0.y < 1.0 && camD < 14.0 ) {
+        float dep = onSn > onSa ? uPrintD.y : uPrintD.x, tx = 1.0 / 512.0;
+        float h0 = texture2D( tPrint, pu0 ).r * 255.0 / 127.0 - 128.0 / 127.0;
+        if ( abs( h0 ) > 0.004 || texture2D( tPrint, pu0 + vec2( 6.0 * tx, 0.0 ) ).r != texture2D( tPrint, pu0 - vec2( 6.0 * tx, 0.0 ) ).r ) {
+          // (the view marched down into the print, eight layers, till it meets the pressed surface: its far wall seen, its
+          // near wall hidden, as deep as the surface's depth makes it)
+          vec3 V5 = normalize( cameraPosition - vWPos );
+          vec2 dU = -( V5.xy / max( V5.z, 0.35 ) ) * dep / uPrintM / 8.0, pu = pu0;
+          float lay = 0.0, dd = max( 0.0, -h0 );
+          for ( int k = 0; k < 8; k++ ) { if ( lay >= dd ) break; pu += dU; lay += 0.125; dd = max( 0.0, -( texture2D( tPrint, pu ).r * 255.0 / 127.0 - 128.0 / 127.0 ) ); }
+          float hc = texture2D( tPrint, pu ).r * 255.0 / 127.0 - 128.0 / 127.0;
+          float hx = ( texture2D( tPrint, pu + vec2( tx, 0.0 ) ).r - texture2D( tPrint, pu - vec2( tx, 0.0 ) ).r ) * 255.0 / 127.0;
+          float hy = ( texture2D( tPrint, pu + vec2( 0.0, tx ) ).r - texture2D( tPrint, pu - vec2( 0.0, tx ) ).r ) * 255.0 / 127.0;
+          vec2 grad = vec2( hx, hy ) * dep / ( 2.0 * uPrintM * tx );
+          float inK = softK * ( 1.0 - smoothstep( 9.0, 14.0, camD ) ), pressed = smoothstep( 0.02, 0.25, -hc );
+          vec3 nw = normalize( tT * mn.x + tB * mn.y + nW * mn.z );
+          nw = normalize( mix( nw, nW, pressed * 0.9 * inK ) - vec3( grad * inK, 0.0 ) );
+          // (sand disturbed a shade darker; snow pressed deep holds a blue shade the sky fills it with)
+          diffuseColor.rgb *= onSn > onSa ? mix( vec3( 1.0 ), vec3( 0.72, 0.8, 0.95 ), inK * max( 0.0, -hc ) ) : vec3( 1.0 - inK * ( 0.05 * pressed + 0.08 * max( 0.0, -hc ) ) );
+          roughnessFactor = mix( roughnessFactor, min( 1.0, roughnessFactor * 1.15 + 0.05 ), pressed * inK );
+          mn = vec3( dot( nw, tT ), dot( nw, tB ), dot( nw, nW ) );
+        }
+      }
+    }
+`;

@@ -34,7 +34,9 @@ import { resolveWesternExpression, CHANNEL_RANGES } from './humanoid-head.js';
 import { westernKnots, westernState } from './western-face-rig.js';
 import { FACE_FPS, drawEye } from './anime-face-rig.js';
 import { faceStoreKey, readFaceStore, writeFaceStore } from './relational-face-store.js';
-import { facsActions } from '../face-acting/facs.js';
+import { facsActions, FACS_UNITS, auOf } from '../face-acting/facs.js';
+import { MOUTH } from '../face-acting/mouth.js';
+import { eyeTurns, distanceOf } from '../face-acting/gaze.js';
 import { validateRig, bindLayered, skinLayered, boneFrames, rigNodesAt } from './station-loft-rig.js';
 
 /** THE GAZE as ARKit's look targets: each eye's globe turned about its centre `GAZE_TURN` degrees up, down, in (toward
@@ -96,29 +98,57 @@ export function relationalWeights(F, knots) {
     browWorried: Math.min(1, pos(-tilt, -R.browTilt[0])) };
   return RELATIONAL_FACE_TARGETS.map((n) => +(w[n] ?? 0).toFixed(6));
 }
-/** a gaze (degrees: +yaw the figure's right, +pitch up) → the look targets' weights ({ eyeLookUpLeft: w, … }) */
-export function gazeWeights(yaw = 0, pitch = 0) {
+/** a gaze (degrees: +yaw the figure's right, +pitch up; a distance in metres, none the far point) → the look targets'
+ * weights ({ eyeLookUpLeft: w, … }), each eye's turn by the eyes' law (face-acting/gaze.js: together, never crossed) */
+export function gazeWeights(yaw = 0, pitch = 0, distance = Infinity) {
+  return eyeWeights(eyeTurns(yaw, pitch, distance));
+}
+/** each eye's turn ({ L: { yaw, pitch }, R: … }, degrees, an eye's +yaw the figure's right) → the look targets' weights */
+export function eyeWeights({ L, R }) {
   const q = (x) => Math.min(1, Math.max(0, x / GAZE_TURN));
-  return { eyeLookUpLeft: q(pitch), eyeLookUpRight: q(pitch), eyeLookDownLeft: q(-pitch), eyeLookDownRight: q(-pitch),
-    eyeLookInLeft: q(yaw), eyeLookOutRight: q(yaw), eyeLookOutLeft: q(-yaw), eyeLookInRight: q(-yaw) };
+  return { eyeLookUpLeft: q(L.pitch), eyeLookUpRight: q(R.pitch), eyeLookDownLeft: q(-L.pitch), eyeLookDownRight: q(-R.pitch),
+    eyeLookInLeft: q(L.yaw), eyeLookOutRight: q(R.yaw), eyeLookOutLeft: q(-L.yaw), eyeLookInRight: q(-R.yaw) };
+}
+/** the look targets' weights (a frame's: a capture's, a hand's) → each eye's turn, to read against the eyes' law
+ * (face-acting/gaze.js `gazeFaults`, `seatGaze`) */
+export function eyesOfWeights(w) {
+  const g = (k) => w[k] ?? 0;
+  return { L: { yaw: (g('eyeLookInLeft') - g('eyeLookOutLeft')) * GAZE_TURN, pitch: (g('eyeLookUpLeft') - g('eyeLookDownLeft')) * GAZE_TURN },
+    R: { yaw: (g('eyeLookOutRight') - g('eyeLookInRight')) * GAZE_TURN, pitch: (g('eyeLookUpRight') - g('eyeLookDownRight')) * GAZE_TURN } };
 }
 /**
  * A TAKE (face-acting/perform.js `perform`) as the rig's weights track: { seconds, t: [s], w: [[weights per target]] }
  * at `fps` (30: LINEAR keys, an engine tweens between them), each frame's FACS state on its targets and the gaze on the
- * look targets; the jaw (AU26) is a bone and no target: it is left out and said in `gaps`.
+ * look targets (each eye by the eyes' law, converged where the take focuses: `gaze.vergence`); the jaw (AU26) is a
+ * bone and no target: it is left out and said in `gaps`.
  */
 export function performanceTrack(take, { fps = 30 } = {}) {
-  const step = take.fps / fps, t = [], w = [], gaps = new Set();
+  const step = take.fps / fps, t = [], w = [], gaps = new Set(), bv = [], bh = [], hd = { yaw: [], pitch: [], roll: [] };
   for (let f = 0; f <= (take.frames - 1) / step + 1e-9; f++) {
     const i = Math.min(take.frames - 1, Math.round(f * step)), st = {};
     for (const [k, c] of Object.entries(take.curves)) if (c[i] > 0) st[k] = c[i];
-    const { weights, gaps: g } = facsWeights(st), G = gazeWeights(take.gaze.yaw[i], take.gaze.pitch[i]);
+    const { weights, gaps: g } = facsWeights(st), G = gazeWeights(take.gaze.yaw[i], take.gaze.pitch[i], distanceOf(take.gaze.vergence?.[i] ?? 0));
     for (const k of Object.keys(g)) gaps.add(k);
     t.push(+(i / take.fps).toFixed(6)); w.push(RELATIONAL_FACE_TARGETS.map((n, j) => (n in G ? +G[n].toFixed(6) : weights[j])));
+    if (take.breath) { bv.push(take.breath.v[i]); bh.push(take.breath.high[i]); }
+    if (take.head) for (const ax of ['yaw', 'pitch', 'roll']) hd[ax].push(take.head[ax][i]);
   }
   // (a spoken line's recording, where it has one: its id, face-acting/recordings.js, played from its beat)
   const audio = (take.events?.lines ?? []).filter((L) => L.recording).map((L) => ({ at: L.t, recording: L.recording }));
-  return { seconds: take.seconds, t, w, gaps: [...gaps], ...(audio.length ? { audio } : {}) };
+  // (and its breath and its head, keyed with it: the body's, face-acting/breath.js breathBones and head.js headBones)
+  return { seconds: take.seconds, t, w, gaps: [...gaps], ...(audio.length ? { audio } : {}), ...(take.breath ? { breath: { v: bv, high: bh } } : {}), ...(take.head ? { head: hd } : {}) };
+}
+/**
+ * THE MOUTH'S OWNERSHIP in the rig's target names (face-acting/mouth.js `MOUTH`), the contract an engine's runtime
+ * lip-sync reads to lay a line over a face clip (a take, an emote's loop) as `overMouth` does: { driver (the targets the
+ * line's driver owns), rounded: { targets, share, by } (the face's drawn in by `share` × the greatest of `by`, the
+ * rounding targets), released: { targets, share, ease } (the face's let go by `share` while the line runs) }; then each
+ * driver target the greater of the face's and the driver's.
+ */
+export function mouthTargets() {
+  const keys = (au) => { const [u, side] = auOf(au), U = FACS_UNITS[u]; return side ? [au] : [au, ...(U.sided ? [`${au}L`, `${au}R`] : []), ...(U.lips ? [`${au}T`, `${au}B`] : [])]; };
+  const of = (aus) => [...new Set(aus.flatMap(keys).flatMap((k) => { const { weights } = facsWeights({ [k]: 1 }); return RELATIONAL_FACE_TARGETS.filter((_, j) => weights[j] > 0); }))];
+  return { driver: of(MOUTH.driver), rounded: { targets: of(MOUTH.rounded), share: MOUTH.round, by: of(MOUTH.rounding) }, released: { targets: of(MOUTH.released), share: MOUTH.release, ease: MOUTH.ease } };
 }
 /**
  * A FACS state (face-acting/facs.js: { AU12: 0.8, AU14R: 0.4, … }) → its weights in RELATIONAL_FACE_TARGETS' order, a
@@ -256,7 +286,7 @@ export function relationalFaceRig(m, mesh) {
   // the head's parts and everything pinned to them, in the recipe's order (the figure's vertex order)
   // (and the one skin's GLOBES, their own parts: still but for the gaze's turn and the blink's sink)
   const X = Object.keys(P).filter((n) => HEAD.test(n) || (P[n]?.layer === 2 && HEAD.test(P[n].pin?.parent ?? '')) || (skin && GLOBE_PART.test(n) && P[n]?.mesh));
-  const words = { sex: fit.sex, ...(fit.relations ? { relations: fit.relations } : {}), ...(fit.eyes ? { eyes: fit.eyes } : {}), ...(fit.tune ? { tune: fit.tune } : {}), ...(fit.seat ? { seat: true } : {}) };
+  const words = { sex: fit.sex, ...(fit.relations ? { relations: fit.relations } : {}), ...(fit.eyes ? { eyes: fit.eyes } : {}), ...(fit.tune ? { tune: fit.tune } : {}), ...(fit.seat ? { seat: fit.seat } : {}) };
   const key = JSON.stringify([words, fit.k, fit.ty, fit.men, X, X.map((n) => layoutOf(P[n]))]);
   let T = RIGS.get(key);
   if (T === undefined) {

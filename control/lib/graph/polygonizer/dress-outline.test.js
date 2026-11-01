@@ -73,9 +73,10 @@ describe('the dressed outline', () => {
     expect(out.outline).toMatchObject({ family: M.family, bare: M.bareFamily });
     expect(Object.keys(out.outline.advice)).toEqual(['western', 'anime']);
     expect(out.realisticOnly).toBeUndefined();
-    // (what the game body wears plain or not at all is said, never refused: the tailoring, a plated suit, a footwear card)
+    // (what the game body wears plain or not at all is said, never refused: a plated suit, a footwear card; the tailoring
+    // it wears too, so a suit says nothing)
     const suit = heroRecord({ cast: 'male', outfit: { type: 'outfit', style: 'business' } }), sm = expandLayeredManifest({ kind: 'layered', hero: suit });
-    expect(dressReadout(suit, heroPlanOf(suit), null, sm.recipe).realisticOnly.join(' ')).toMatch(/tailoring \(.*outer.*tie/);
+    expect(dressReadout(suit, heroPlanOf(suit), null, sm.recipe).realisticOnly).toBeUndefined();
     const words = heroRecord({ cast: 'male', outfit: ['powerSuit', 'oxfords'] });
     const said = dressReadout(words, heroPlanOf(words), null, null).realisticOnly.join(' ');
     expect(said).toMatch(/powerSuit: plated suits are worn on the realistic body/); expect(said).not.toMatch(/oxfords/);

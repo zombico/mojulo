@@ -49,4 +49,18 @@ describe('a scene asked in words, at mint', () => {
     expect(after).toMatchObject({ hour: 'dusk', cube: { snow: true } });
     expect(after.cube.palette.seed).toBe(before.cube.palette.seed);
   }, 120_000);
+
+  it('is drawn in the seventh generation when new: its cube\'s era gen-7, unless the cube names one; an edit keeps the row\'s', async () => {
+    expect((await scene('sk_scene_g7', { words: 'a meadow path in the morning' })).cube.era).toBe('gen-7');
+    expect((await scene('sk_scene_preset', { cube: 'island-noon', show: 'path' })).cube).toMatchObject({ from: 'island-noon', era: 'gen-7' });
+    // (a cube that names its era keeps it; a room is not a scene's show)
+    expect((await scene('sk_scene_g6', { cube: { from: 'island-noon', era: 'gen-6' }, show: 'path' })).cube.era).toBe('gen-6');
+    expect((await scene('sk_scene_room', { cube: 'island-noon', show: 'room' })).cube.era).toBeUndefined();
+    // (a scene restored from its export carries its seed: it comes back in the era it was drawn in)
+    expect((await scene('sk_scene_restored', { cube: 'island-noon', show: 'path', seed: 41 })).cube.era).toBeUndefined();
+    const { updateSketchHandler } = await import('./sketch-mint.js');
+    const g6 = await scene('sk_scene_keep', { cube: { from: 'island-noon', era: 'gen-6' }, show: 'path' });
+    await updateSketchHandler({ ref: 'sk_scene_keep', manifest: { ...g6, hour: 'dusk' } });
+    expect(SketchRepository.getByRef('sk_scene_keep').manifest.cube.era).toBe('gen-6');
+  }, 120_000);
 });

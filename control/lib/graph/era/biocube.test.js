@@ -99,4 +99,36 @@ describe('nothing grows on a path', () => {
     const paved = T.faces.filter((f) => /^street:(road|walk)$/.test(f.group) && f.normal[2] > 0.7).map((f) => f.corners.map((c) => [c[0], c[1]]));
     expect(T.faces.filter((f) => /:ground$/.test(f.group || '') && f.corners.every((c) => onPath(paved, c[0], c[1]))).length).toBe(0);
   }, 60000);
+
+  it('moss on the rock is asked for, never a preset\'s: a share 0–1, null for none, refused past it', () => {
+    expect(readBiocube('meadow').flora.moss).toBeUndefined();
+    expect(readBiocube({ from: 'meadow', flora: { moss: 0.6 } }).flora.moss).toBe(0.6);
+    expect(readBiocube({ from: 'meadow', flora: { moss: null } }).flora.moss).toBeUndefined();
+    expect(() => readBiocube({ from: 'meadow', flora: { moss: 2 } })).toThrow(/flora\.moss/);
+  });
+
+  it('the sward is a mood\'s word: tall, short or a share of short areas; the card\'s grass is as it was', () => {
+    expect(readBiocube('meadow').flora.grass.sward).toBeUndefined();
+    expect(readBiocube({ from: 'meadow', flora: { grass: { sward: 'short' } } }).flora.grass.sward).toBe('short');
+    expect(readBiocube({ from: 'meadow', flora: { grass: { sward: { short: 0.4 } } } }).flora.grass.sward).toEqual({ short: 0.4 });
+    expect(() => readBiocube({ from: 'meadow', flora: { grass: { sward: 'mown' } } })).toThrow(/flora\.grass\.sward/);
+    expect(() => readBiocube({ from: 'meadow', flora: { grass: { sward: { short: 2 } } } })).toThrow(/flora\.grass\.sward/);
+    const short = readBiocube({ from: 'meadow', flora: { grass: { sward: 'short' } } });
+    expect(withFlora(ISEKAI_MEADOW, short).grass).toEqual(withFlora(ISEKAI_MEADOW, readBiocube('meadow')).grass);
+  });
+
+  it('reads how far into the fall a biome is, 0 to 1, and nothing where it names none', () => {
+    expect(readBiocube({ from: 'forest', flora: { autumn: 0.6 } }).flora.autumn).toBe(0.6);
+    expect(readBiocube({ from: 'forest' }).flora.autumn).toBeUndefined();
+    expect(() => readBiocube({ from: 'forest', flora: { autumn: 2 } })).toThrow(/flora\.autumn/);
+  });
+
+  it('drifts are other grasses in areas of their own: a grass kind and a share, at most three; the card\'s grass as it was', () => {
+    const W = readBiocube({ from: 'meadow', flora: { grass: { drifts: { wheat: 0.2, chaff: 0.1 } } } });
+    expect(W.flora.grass.drifts).toEqual({ wheat: 0.2, chaff: 0.1 });
+    expect(() => readBiocube({ from: 'meadow', flora: { grass: { drifts: { barley: 0.2 } } } })).toThrow(/flora\.grass\.drifts/);
+    expect(() => readBiocube({ from: 'meadow', flora: { grass: { drifts: { wheat: 2 } } } })).toThrow(/flora\.grass\.drifts/);
+    expect(() => readBiocube({ from: 'meadow', flora: { grass: { drifts: { wheat: 0.1, chaff: 0.1, sedge: 0.1, lawn: 0.1 } } } })).toThrow(/at most three/);
+    expect(withFlora(ISEKAI_MEADOW, W).grass).toEqual(withFlora(ISEKAI_MEADOW, readBiocube('meadow')).grass);
+  });
 });

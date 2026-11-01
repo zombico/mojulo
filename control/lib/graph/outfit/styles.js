@@ -4,17 +4,28 @@
 //
 // A card:
 //   dials     { stylize, fit, coverage, ornament } — the defaults a build's own `dials` override
-//   language  top:    { family: 'knit' | 'woven', sleeve, hem, collar: true|false } | false (no top)
-//             bottom: { family, leg, cut?: skinny | tapered (default) | straight | wide } | { kind: 'skirt', family, leg: micro | mini | knee | midi | maxi, cut: pencil | aline |
+//   language  top:    { family: 'knit' | 'woven', sleeve, hem, collar?, cloth? } | false (no top); `collar` false, true (a
+//             collared shirt, closed), 'band' (the stand and its V, open), 'turtle' (the stand round and tall, rolled),
+//             'shirt' (the stand and its fall, the points an M, closed) or { kind, open? } (polygonizer/shirt-collar.js); `cloth` on the
+//             top, the bottom and the outer one of CLOTH_WORDS (how it folds and shines; on the realistic body's lit export
+//             its surface: `knit` a sweater, `cable` a cable knit); `pattern` on the top, the bottom, the outer and the
+//             waistcoat one of PATTERN_WORDS or { kind, scale?, contrast? } (herringbone, houndstooth, plaid, pinstripe …:
+//             on the realistic body's lit export its relief and its colour; or a camouflage, CAMO_WORDS: woodland,
+//             dpm, tiger, flecktarn …, its marks painted on either body: outfit/camouflage.js)
+//             head:   a helmet (headgear/helmets.js HELMETS: m1, stahlhelm, brodie, ssh40, adrian, pasgt, ach, highcut) or
+//             { helmet, cover?: true | a camouflage, band?, net?, nvg?, headset? }: worn on the head, the hair dropped under it
+//             bottom: { family, leg, cut?: skinny | tapered (default) | straight | wide | breeches (full at the thigh, close from
+//             the knee: the riding and the soldier's galife), into?: 'boots' (tucked: the leg ends at the top of the boot's
+//             shaft or its puttees, bloused over it), pockets?: 'cargo' (a flapped pocket on each thigh) } | { kind: 'skirt', family, leg: micro | mini | knee | midi | maxi, cut: pencil | aline |
 //             full, rigidity?: shell | stiff | crisp | soft | flowing | 0 … 1 (how the skirt moves: rigidity.js) } | false
 //             outer:  { family, sleeve, hem: waist | hip | tunic | knee | midi | maxi, open: true|false, cut?: pencil | aline |
 //             full } | false: a layer over the top and the bottom (a vest or jerkin without sleeves, a jacket, a coat);
-//             a tailored FRONT on the realistic body (the authored body's jacket unchanged): front?: single | double (one
+//             a tailored FRONT (the tailor's, on either body: tailored-front.js): front?: single | double (one
 //             row of buttons, or two with the fronts overlapped), lapel?: notch | peak | shawl | none (none: the stand
 //             collar), buttons?: 1 | 2 | 3 (in a row); any of them gives the jacket a V onto the shirt, its lapels and its
 //             buttons (single with a notch lapel, double with a peak, unless named); its SHAPE: shoulder?: natural |
 //             structured (squared on a pad), waist?: suppressed (taken in) | straight (a sack, chest to hip); its
-//             CONSTRUCTION (a jacket's, on the realistic body: body-relational-jacket.js): front: 'zip' (closed on a zip
+//             CONSTRUCTION (a jacket's, on either body: body-relational-jacket.js, authored-jacket.js): front: 'zip' (closed on a zip
 //             down the centre, no V), collar: 'shirt' (a falling collar, its points snapped to the chest; true the stand
 //             collar), rib?: cuffs | waist | both (knit rib bands, the body and the sleeves bloused over them),
 //             pockets?: flap (patch pockets low on the front, each under a flap with a snap), epaulettes?: true (a strap
@@ -27,9 +38,10 @@
 //             fit:    on top, trousers and outer: 'skin' (painted second skin; not the outer) | 'fitted' | 'eased' (the
 //             dials' cut, the default) | 'loose': law 2 zone by zone, so an outfit can be tight in one place and full in another
 //             dress:  true (the skirt is the top's own cloth: one garment, no waistband, the belt its focal) | false
-//             feet:   'boots' | 'shoes' | 'none'
+//             feet:   'boots' | 'shoes' | 'none', or a footwear card's name (footwear/styles.js: combatBoots, jungleBoots,
+//                     jackboots …), worn by the footwear library on either body
 //             tuck:   true (the top tucked in, the bottom over its tail) | false (worn out over the bottom)
-//             tie:    true (a tie on the shirt from its collar to the belt, under a closed jacket: the realistic body's) |
+//             tie:    true (a tie on the shirt from its collar to the belt, under a closed jacket) |
 //             false
 //             waistcoat: true | { front?: 'single' | 'double', buttons?: 3–6 } (a waistcoat over the shirt and the tie and
 //             under the jacket, from the chest to below the waist, worn without a belt; its V and its buttons the realistic
@@ -41,6 +53,10 @@
 
 import { rigidityErrors } from '../polygonizer/rigidity.js';
 import { GIRTH_LANDMARKS } from '../polygonizer/body-garment.js';
+import { FOOTWEAR } from '../footwear/styles.js';
+import { CAMOS } from './camouflage.js';
+import { validateHead } from '../headgear/helmets.js';
+
 export const SEEDED_OUTFITS = Object.freeze({
   casual: {
     "id": "casual",
@@ -177,8 +193,8 @@ export const SEEDED_OUTFITS = Object.freeze({
       "outer": { "family": "woven", "sleeve": "long", "hem": "knee", "open": true, "fit": "fitted", "collar": true }, "feet": "shoes", "tuck": true, "focal": "collar" },
     "tones": { "Outer": "#e8eaee", "Top": "#2a2e36", "Bottom": "#2a2e36", "Shoes": "#e8eaee", "Trim": "#7fb2ff", "Leather": "#2a2e36", "Buckle": "#c9ced6" }
   },
-  // the BUSINESS SUITS: a closed jacket over a shirt and tie, its front made by the tailor on the realistic body (a V,
-  // lapels, the right front over the left; the authored body wears the jacket as it always has)
+  // the BUSINESS SUITS: a closed jacket over a shirt and tie, its front made by the tailor on either body (a V, lapels,
+  // the right front over the left; on the game body its lapels alone, no collar on it nor the shirt's under it)
   business: {
     "id": "business",
     "dials": { "stylize": 0.1, "fit": 0.3, "coverage": 1, "ornament": 3 },
@@ -216,18 +232,139 @@ export const SEEDED_OUTFITS = Object.freeze({
     "language": { "top": { "family": "woven", "sleeve": "long", "hem": "hip", "collar": true, "fit": "fitted" }, "bottom": { "family": "woven", "leg": "long", "cut": "wide", "fit": "eased" },
       "outer": { "family": "woven", "sleeve": "long", "hem": "tunic", "open": false, "fit": "fitted", "collar": true, "front": "double", "lapel": "peak", "buttons": 2 , "shoulder": "structured", "waist": "suppressed" }, "feet": "shoes", "tuck": true, "focal": "collar" },
     "tones": { "Outer": "#141416", "Top": "#f1ece1", "Bottom": "#141416", "Shoes": "#0b0b0b", "Button": "#c9a24a", "Leather": "#0b0b0b", "Buckle": "#c9a24a", "Trim": "#141416" }
+  },
+  // the soldier, by tradition, from the boots up: jungle fatigues; the woodland, desert and DPM camouflage uniforms; the
+  // Soviet gymnastyorka and galife breeches in kirza boots; the field-grey tunic in jackboots; battledress over puttees
+  jungle: {
+    "id": "jungle",
+    "dials": { "stylize": 0.15, "fit": 0.6, "coverage": 1, "ornament": 2 },
+    "language": { "top": { "family": "woven", "sleeve": "long", "hem": "hip", "collar": true }, "bottom": { "family": "woven", "leg": "long", "cut": "straight", "into": "boots", "pockets": "cargo" },
+      "head": { "helmet": "m1", "band": true }, "feet": "jungleBoots", "tuck": false, "focal": "placket" },
+    "tones": { "Top": "#4f5735", "Bottom": "#454c2f", "Button": "#2f3322", "Leather": "#2b2622", "Buckle": "#5c5c58" }
+  },
+  bdu: {
+    "id": "bdu",
+    "dials": { "stylize": 0.15, "fit": 0.6, "coverage": 1, "ornament": 2 },
+    "language": { "top": { "family": "woven", "sleeve": "long", "hem": "hip", "collar": true, "pattern": "woodland" }, "bottom": { "family": "woven", "leg": "long", "cut": "straight", "into": "boots", "pockets": "cargo", "pattern": "woodland" },
+      "head": { "helmet": "pasgt", "cover": true }, "feet": "combatBoots", "tuck": false, "focal": "placket" },
+    "tones": { "Button": "#2f3322", "Leather": "#1e1c19", "Buckle": "#4a4a46" }
+  },
+  desertbdu: {
+    "id": "desertbdu",
+    "dials": { "stylize": 0.15, "fit": 0.6, "coverage": 1, "ornament": 2 },
+    "language": { "top": { "family": "woven", "sleeve": "long", "hem": "hip", "collar": true, "pattern": "desert" }, "bottom": { "family": "woven", "leg": "long", "cut": "straight", "into": "boots", "pockets": "cargo", "pattern": "desert" },
+      "head": { "helmet": "pasgt", "cover": true }, "feet": "desertBoots", "tuck": false, "focal": "placket" },
+    "tones": { "Button": "#8d7d5c", "Leather": "#7a6446", "Buckle": "#6b6656" }
+  },
+  dpm: {
+    "id": "dpm",
+    "dials": { "stylize": 0.15, "fit": 0.6, "coverage": 1, "ornament": 2 },
+    "language": { "top": { "family": "woven", "sleeve": "long", "hem": "hip", "collar": true, "pattern": "dpm" }, "bottom": { "family": "woven", "leg": "long", "cut": "straight", "into": "boots", "pockets": "cargo", "pattern": "dpm" },
+      "head": { "helmet": "pasgt", "cover": true }, "feet": "combatBoots", "tuck": false, "focal": "placket" },
+    "tones": { "Button": "#3a3d2a", "Leather": "#1e1c19", "Buckle": "#4a4a46" }
+  },
+  galife: {
+    "id": "galife",
+    "dials": { "stylize": 0.15, "fit": 0.6, "coverage": 1, "ornament": 2 },
+    "language": { "top": { "family": "woven", "sleeve": "long", "hem": "hip", "collar": { "kind": "band", "open": false }}, "bottom": { "family": "woven", "leg": "long", "cut": "breeches", "into": "boots" },
+      "head": "ssh40", "feet": "kirzaBoots", "tuck": false, "focal": "belt" },
+    "tones": { "Top": "#8a8257", "Bottom": "#5d5838", "Button": "#6f6a40", "Leather": "#4a3423", "Buckle": "#a08a4e" }
+  },
+  feldgrau: {
+    "id": "feldgrau",
+    "dials": { "stylize": 0.15, "fit": 0.6, "coverage": 1, "ornament": 2 },
+    "language": { "top": { "family": "woven", "sleeve": "long", "hem": "hip", "collar": true }, "bottom": { "family": "woven", "leg": "long", "cut": "straight", "into": "boots" },
+      "head": "stahlhelm", "feet": "jackboots", "tuck": false, "focal": "belt" },
+    "tones": { "Top": "#6a6e5d", "Bottom": "#4d5046", "Button": "#7c7c74", "Leather": "#1b1a18", "Buckle": "#77776f" }
+  },
+  battledress: {
+    "id": "battledress",
+    "dials": { "stylize": 0.15, "fit": 0.6, "coverage": 1, "ornament": 2 },
+    "language": { "top": { "family": "woven", "sleeve": "long", "hem": "waist", "collar": true }, "bottom": { "family": "woven", "leg": "long", "cut": "straight", "into": "boots" },
+      "head": { "helmet": "brodie", "net": true }, "feet": "putteeBoots", "tuck": true, "focal": "belt" },
+    "tones": { "Top": "#79683f", "Bottom": "#655733", "Button": "#4c4126", "Leather": "#3b2c1f", "Buckle": "#9a8a5a" }
+  },
+  // the PROGRESSION, each rung the one before and its gear (a depiction: no service told apart): civilian security
+  // (a uniform shirt and a duty belt), private security (a fitted top, a low-profile plate, a holster), the mercenary (a
+  // field shirt, a chest rig), the PMC squad member (a plate carrier, a high-cut helmet with its headset, kneepads), the
+  // soldier (the cards above), special forces (camouflage, the carrier, the high-cut with its NVG and headset, knee and
+  // elbow pads)
+  guard: {
+    "id": "guard",
+    "dials": { "stylize": 0.15, "fit": 0.6, "coverage": 1, "ornament": 2 },
+    "language": { "top": { "family": "woven", "sleeve": "short", "hem": "hip", "collar": true }, "bottom": { "family": "woven", "leg": "long", "cut": "straight" }, "feet": "boots", "tuck": true, "focal": "belt" },
+    "pieces": [{ "kind": "pouches" }],
+    "tones": { "Top": "#c9d4e3", "Bottom": "#1c2230", "Shoes": "#111214", "Button": "#e8ecf2", "Leather": "#141414", "Buckle": "#b9bcc2" }
+  },
+  security: {
+    "id": "security",
+    "dials": { "stylize": 0.15, "fit": 0.6, "coverage": 1, "ornament": 2 },
+    "language": { "top": { "family": "knit", "sleeve": "long", "hem": "hip", "fit": "fitted", "collar": "band" }, "bottom": { "family": "woven", "leg": "long", "cut": "straight", "pockets": "cargo" }, "feet": "combatBoots", "tuck": true, "focal": "belt" },
+    "pieces": [{ "kind": "vest", "cut": "slick" }, { "kind": "pouches" }, { "kind": "thighPouch" }],
+    "tones": { "OutfitTrim": "#3a3c40", "Top": "#1c1d20", "Bottom": "#2c2e33", "OutfitSecond": "#26282b", "Leather": "#121212", "Buckle": "#55575c" }
+  },
+  mercenary: {
+    "id": "mercenary",
+    "dials": { "stylize": 0.15, "fit": 0.6, "coverage": 1, "ornament": 2 },
+    "language": { "top": { "family": "woven", "sleeve": "long", "hem": "hip", "collar": true }, "bottom": { "family": "woven", "leg": "long", "cut": "straight", "into": "boots", "pockets": "cargo" }, "feet": "desertBoots", "tuck": false, "focal": "belt" },
+    "pieces": [{ "kind": "vest", "cut": "rig" }, { "kind": "thighPouch" }],
+    "tones": { "OutfitTrim": "#4a4232", "Top": "#7a6a4f", "Bottom": "#4f5038", "OutfitSecond": "#5c5240", "Leather": "#3b3226", "Buckle": "#5c5c58" }
+  },
+  pmc: {
+    "id": "pmc",
+    "dials": { "stylize": 0.15, "fit": 0.6, "coverage": 1, "ornament": 2 },
+    "language": { "top": { "family": "knit", "sleeve": "long", "hem": "hip", "fit": "fitted" }, "bottom": { "family": "woven", "leg": "long", "cut": "straight", "into": "boots", "pockets": "cargo" }, "head": { "helmet": "highcut", "headset": true }, "feet": "combatBoots", "tuck": true, "focal": "belt" },
+    "pieces": [{ "kind": "vest", "cut": "plate" }, { "kind": "kneepads" }, { "kind": "thighPouch" }],
+    "tones": { "OutfitTrim": "#5a4f3a", "Top": "#5e5a4c", "Bottom": "#6e6550", "OutfitSecond": "#7a6a4c", "Leather": "#3a3328", "Buckle": "#4a4a46" }
+  },
+  specops: {
+    "id": "specops",
+    "dials": { "stylize": 0.15, "fit": 0.6, "coverage": 1, "ornament": 2 },
+    "language": { "top": { "family": "knit", "sleeve": "long", "hem": "hip", "fit": "fitted", "pattern": "multicam" }, "bottom": { "family": "woven", "leg": "long", "cut": "straight", "into": "boots", "pockets": "cargo", "pattern": "multicam" }, "head": { "helmet": "highcut", "cover": true, "nvg": true, "headset": true }, "feet": "combatBoots", "tuck": true, "focal": "belt" },
+    "pieces": [{ "kind": "vest", "cut": "plate" }, { "kind": "kneepads" }, { "kind": "elbowpads" }, { "kind": "thighPouch" }],
+    "tones": { "OutfitTrim": "#5a4f3a", "OutfitSecond": "#6f6450", "Leather": "#3a3328", "Buckle": "#4a4a46" }
   }
 });
 
 const FAMILY = ['knit', 'woven'], SLEEVE = ['none', 'cap', 'short', 'elbow', 'threeQuarter', 'long'], HEM = ['crop', 'waist', 'hip', 'tunic'];
 const COAT = ['waist', 'hip', 'tunic', 'knee', 'midi', 'maxi'], FITS = ['skin', 'fitted', 'eased', 'loose'];
-/** a jacket's FRONT words (the tailor's, on the realistic body): the fastening, the lapel, the buttons in a row */
+/** a jacket's FRONT words (the tailor's, on either body): the fastening, the lapel, the buttons in a row */
 export const OUTER_FRONTS = Object.freeze(['single', 'double', 'zip']), OUTER_LAPELS = Object.freeze(['notch', 'peak', 'shawl', 'none']);
 /** a jacket's SHAPE words (the tailor's too): its shoulder and its waist */
 export const OUTER_SHOULDERS = Object.freeze(['natural', 'structured']), OUTER_WAISTS = Object.freeze(['suppressed', 'straight']);
-/** a jacket's CONSTRUCTION words (the realistic body's: body-relational-jacket.js): its rib bands, its pockets, the cloth */
+/** a jacket's CONSTRUCTION words (either body's: body-relational-jacket.js, authored-jacket.js): its rib bands, its pockets, the cloth */
 export const OUTER_RIBS = Object.freeze(['cuffs', 'waist', 'both']), OUTER_POCKETS = Object.freeze(['flap', 'none']), OUTER_CLOTHS = Object.freeze(['leather', 'canvas', 'wool', 'denim', 'nylon', 'cotton']);
-const PANEL_AT = ['back', 'front', 'sides', 'sideR', 'sideL'], TCUT = ['skinny', 'tapered', 'straight', 'wide'], LEG = ['brief', 'short', 'knee', 'capri', 'long'], SKIRT = ['micro', 'mini', 'knee', 'midi', 'maxi'], CUT = ['pencil', 'aline', 'full'], FEET = ['boots', 'shoes', 'none'], FOCAL = ['collar', 'placket', 'belt'];
+/** the cloth a layer may name (`cloth`, on the top, the bottom or the outer): how it folds and shines, and on the realistic
+ * body's lit export its surface (epidermis/cloth-relief.js): `knit` a sweater's stockinette, its stitches in columns down
+ * it; `cable` a cable knit, ropes crossing down it between purl channels; `jersey` a fine knit; the rest woven or hide */
+export const CLOTH_WORDS = Object.freeze([...OUTER_CLOTHS, 'twill', 'jersey', 'knit', 'cable', 'silk']);
+/** the pattern a layer may be woven or worked in (`pattern`, on the top, the bottom, the outer or the waistcoat: a name or
+ * { kind, scale?, contrast? }): on the realistic body's lit export, its relief and its colour (epidermis/cloth-relief.js
+ * PATTERNS, its names these) */
+export const WEAVE_WORDS = Object.freeze(['herringbone', 'houndstooth', 'plaid', 'gingham', 'pinstripe', 'chalkstripe', 'corduroy', 'quilted', 'waffle', 'tweed']);
+/** and the camouflages it may be printed in (outfit/camouflage.js CAMOS, its names these): marks of field paint over its
+ * ground, on either body */
+export const CAMO_WORDS = Object.freeze(Object.keys(CAMOS));
+export const PATTERN_WORDS = Object.freeze([...WEAVE_WORDS, ...CAMO_WORDS]);
+/** a top's collar: false none, true a collared shirt (closed), a kind (COLLAR_WORDS: band, the stand and its V, open;
+ * turtle, the stand round and tall, its top rolled; shirt, the stand and its fall, the points an M, closed), or
+ * { kind, open? } (polygonizer/shirt-collar.js) */
+export const COLLAR_WORDS = Object.freeze(['band', 'turtle', 'shirt']);   // (outfit/collar.js COLLAR_KINDS' names)
+const collarErrors = (w, at) => {
+  if (w === undefined || w === true || w === false) return [];
+  const o = typeof w === 'string' ? { kind: w } : w;
+  if (!o || typeof o !== 'object' || Array.isArray(o)) return [`${at}: true, false, a kind (${COLLAR_WORDS.join(', ')}) or { kind, open? }`];
+  return [...one(o.kind, COLLAR_WORDS, `${at}.kind`), ...(o.kind === undefined ? [`${at}.kind: one of ${COLLAR_WORDS.join(', ')}`] : []), ...(o.open !== undefined && typeof o.open !== 'boolean' ? [`${at}.open: true (its front parted) or false (closed, buttoned up)`] : [])];
+};
+const patternErrors = (w, at) => {
+  if (w === undefined) return [];
+  const o = typeof w === 'string' ? { kind: w } : w;
+  if (!o || typeof o !== 'object' || Array.isArray(o)) return [`${at}: a pattern's name or { kind, scale?, contrast? }`];
+  return [...one(o.kind, PATTERN_WORDS, `${at}.kind`), ...(o.kind === undefined ? [`${at}.kind: one of ${PATTERN_WORDS.join(', ')}`] : []),
+    ...(o.scale !== undefined && !(Number.isFinite(o.scale) && o.scale > 0 && o.scale <= 8) ? [`${at}.scale: a size's multiple, 0 < scale ≤ 8`] : []),
+    ...(o.contrast !== undefined && !(Number.isFinite(o.contrast) && o.contrast >= 0 && o.contrast <= 1.5) ? [`${at}.contrast: 0 (none) … 1 (as woven) … 1.5`] : [])];
+};
+const PANEL_AT = ['back', 'front', 'sides', 'sideR', 'sideL'], TCUT = ['skinny', 'tapered', 'straight', 'wide', 'breeches'], LEG = ['brief', 'short', 'knee', 'capri', 'long'], SKIRT = ['micro', 'mini', 'knee', 'midi', 'maxi'], CUT = ['pencil', 'aline', 'full'], FEET = ['boots', 'shoes', 'none'], FOCAL = ['collar', 'placket', 'belt'];
 const isHex = (v) => typeof v === 'string' && /^#[0-9a-fA-F]{6}$/.test(v);
 const one = (v, list, at) => (v === undefined || list.includes(v) ? [] : [`${at}: '${v}' — one of ${list.join(', ')}`]);
 
@@ -237,16 +374,22 @@ export function validateOutfitCard(card, at = 'outfit.style') {
   const errs = [], L = card.language ?? {};
   if (typeof L !== 'object' || Array.isArray(L)) return [`${at}.language: { top, bottom, feet, tuck, focal }`];
   if (L.top !== undefined && L.top !== false) { if (typeof L.top !== 'object') errs.push(`${at}.language.top: { family, sleeve, hem, collar? } or false`);
-    else errs.push(...one(L.top.family, FAMILY, `${at}.language.top.family`), ...one(L.top.sleeve, SLEEVE, `${at}.language.top.sleeve`), ...one(L.top.hem, HEM, `${at}.language.top.hem`)); }
+    else errs.push(...one(L.top.family, FAMILY, `${at}.language.top.family`), ...one(L.top.sleeve, SLEEVE, `${at}.language.top.sleeve`), ...one(L.top.hem, HEM, `${at}.language.top.hem`), ...one(L.top.cloth, CLOTH_WORDS, `${at}.language.top.cloth`), ...collarErrors(L.top.collar, `${at}.language.top.collar`)); }
   if (L.bottom !== undefined && L.bottom !== false) { if (typeof L.bottom !== 'object') errs.push(`${at}.language.bottom: { family, leg } or false`);
     else if (L.bottom.kind === 'skirt') errs.push(...one(L.bottom.family, FAMILY, `${at}.language.bottom.family`), ...one(L.bottom.leg, SKIRT, `${at}.language.bottom.leg`), ...one(L.bottom.cut, CUT, `${at}.language.bottom.cut`), ...rigidityErrors(L.bottom.rigidity, `${at}.language.bottom.rigidity`));
     else if (L.bottom.kind !== undefined && L.bottom.kind !== 'trousers') errs.push(`${at}.language.bottom.kind: 'trousers' (the default) or 'skirt'`);
     else errs.push(...one(L.bottom.family, FAMILY, `${at}.language.bottom.family`), ...one(L.bottom.leg, LEG, `${at}.language.bottom.leg`), ...one(L.bottom.cut, TCUT, `${at}.language.bottom.cut`)); }
+  if (L.bottom && typeof L.bottom === 'object') errs.push(...one(L.bottom.into, ['boots'], `${at}.language.bottom.into`), ...one(L.bottom.pockets, ['cargo', 'none'], `${at}.language.bottom.pockets`), ...one(L.bottom.cloth, CLOTH_WORDS, `${at}.language.bottom.cloth`), ...patternErrors(L.bottom.pattern, `${at}.language.bottom.pattern`));
+  // (a card's own GEAR: designed pieces worn over its cut, outfit-plan.js OUTFIT_KINDS, a team's kit)
+  if (card.pieces !== undefined && !(Array.isArray(card.pieces) && card.pieces.every((P) => P && typeof P === 'object' && !Array.isArray(P) && typeof P.kind === 'string'))) errs.push(`${at}.pieces: a list of { kind, … } (designed pieces: a vest, pouches, kneepads …)`);
+  if (L.top && typeof L.top === 'object') errs.push(...patternErrors(L.top.pattern, `${at}.language.top.pattern`));
+  if (L.outer && typeof L.outer === 'object') errs.push(...patternErrors(L.outer.pattern, `${at}.language.outer.pattern`));
+  if (L.waistcoat && typeof L.waistcoat === 'object') errs.push(...one(L.waistcoat.cloth, CLOTH_WORDS, `${at}.language.waistcoat.cloth`), ...patternErrors(L.waistcoat.pattern, `${at}.language.waistcoat.pattern`));
   if (L.outer !== undefined && L.outer !== false) { if (typeof L.outer !== 'object') errs.push(`${at}.language.outer: { family, sleeve, hem, open?, cut? } or false`);
     else { errs.push(...one(L.outer.family, FAMILY, `${at}.language.outer.family`), ...one(L.outer.sleeve, SLEEVE, `${at}.language.outer.sleeve`), ...one(L.outer.hem, COAT, `${at}.language.outer.hem`), ...one(L.outer.cut, CUT, `${at}.language.outer.cut`));
       if (L.outer.open !== undefined && typeof L.outer.open !== 'boolean') errs.push(`${at}.language.outer.open: true or false`);
       errs.push(...one(L.outer.front, OUTER_FRONTS, `${at}.language.outer.front`), ...one(L.outer.lapel, OUTER_LAPELS, `${at}.language.outer.lapel`), ...one(L.outer.shoulder, OUTER_SHOULDERS, `${at}.language.outer.shoulder`), ...one(L.outer.waist, OUTER_WAISTS, `${at}.language.outer.waist`));
-      errs.push(...one(L.outer.rib, OUTER_RIBS, `${at}.language.outer.rib`), ...one(L.outer.pockets, OUTER_POCKETS, `${at}.language.outer.pockets`), ...one(L.outer.cloth, OUTER_CLOTHS, `${at}.language.outer.cloth`));
+      errs.push(...one(L.outer.rib, OUTER_RIBS, `${at}.language.outer.rib`), ...one(L.outer.pockets, OUTER_POCKETS, `${at}.language.outer.pockets`), ...one(L.outer.cloth, CLOTH_WORDS, `${at}.language.outer.cloth`));
       if (L.outer.collar !== undefined && ![true, false, 'shirt'].includes(L.outer.collar)) errs.push(`${at}.language.outer.collar: true (a stand collar), 'shirt' (a falling collar, its points snapped) or false`);
       if (L.outer.epaulettes !== undefined && typeof L.outer.epaulettes !== 'boolean') errs.push(`${at}.language.outer.epaulettes: true or false`);
       if (L.outer.front === 'zip' && (L.outer.lapel !== undefined || L.outer.buttons !== undefined)) errs.push(`${at}.language.outer.front: 'zip' closes without lapels or buttons (leave lapel and buttons out)`);
@@ -264,9 +407,11 @@ export function validateOutfitCard(card, at = 'outfit.style') {
   for (const [k, list] of [['top', FITS], ['bottom', FITS], ['outer', FITS.slice(1)]]) if (L[k] && typeof L[k] === 'object') errs.push(...one(L[k].fit, L[k].kind === 'skirt' ? [] : list, `${at}.language.${k}.fit`));
   if (L.dress !== undefined && typeof L.dress !== 'boolean') errs.push(`${at}.language.dress: true or false`);
   if (L.dress && L.bottom?.kind !== 'skirt') errs.push(`${at}.language.dress: a dress is a top and a skirt (bottom.kind 'skirt')`);
-  errs.push(...one(L.feet, FEET, `${at}.language.feet`), ...one(L.focal, FOCAL, `${at}.language.focal`));
+  // (feet: the plain words, or a footwear library card by its name: footwear/styles.js FOOTWEAR, combatBoots, jungleBoots …)
+  errs.push(...(L.feet === undefined || FEET.includes(L.feet) || FOOTWEAR[L.feet] ? [] : [`${at}.language.feet: '${L.feet}' — one of ${FEET.join(', ')}, or a footwear card (${Object.keys(FOOTWEAR).filter((w) => !FEET.includes(w)).slice(0, 8).join(', ')} …)`]), ...one(L.focal, FOCAL, `${at}.language.focal`));
+  errs.push(...validateHead(L.head, `${at}.language.head`, Object.keys(CAMOS)));
   if (L.tuck !== undefined && typeof L.tuck !== 'boolean') errs.push(`${at}.language.tuck: true or false`);
-  if (L.tie !== undefined && typeof L.tie !== 'boolean') errs.push(`${at}.language.tie: true or false (a tie on the shirt, the realistic body's)`);
+  if (L.tie !== undefined && typeof L.tie !== 'boolean') errs.push(`${at}.language.tie: true or false (a tie on the shirt)`);
   if (L.waistcoat !== undefined && typeof L.waistcoat !== 'boolean') {
     const V = L.waistcoat, w = `${at}.language.waistcoat`;
     if (!(V && typeof V === 'object' && !Array.isArray(V))) errs.push(`${w}: true, false or { front?, buttons? }`);

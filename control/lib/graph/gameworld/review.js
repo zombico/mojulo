@@ -70,13 +70,17 @@ export function checkReviewEntry(id, r) {
   if (r.status === 'approved' && typeof r.print !== 'string') throw new Error(`gameworld: review.${id}: an approval keeps the print it was given on (approve(world, '${id}') writes it)`);
 }
 
-/** Read a world's review and mode, and say what is wrong. The character book's parts (characters.js) are reviewed in
- * the same recipe field, and stamped by their own page (character-review.js). */
+/** The cast sheet's parts (foe-cast.js): the cast as a whole, and each foe of the bestiary by its id. */
+export const FOE_CAST_PART = 'foes:cast';
+export const isFoePart = (world, id) => id === FOE_CAST_PART || (typeof id === 'string' && id.startsWith('foes:') && !!world?.foes && Object.prototype.hasOwnProperty.call(world.foes, id.slice(5)));
+
+/** Read a world's review and mode, and say what is wrong. The character book's parts (characters.js) and the cast
+ * sheet's are reviewed in the same recipe field, and stamped by their own pages (character-review.js, foe-cast.js). */
 export function readReview(world, parts = reviewParts(world)) {
   const review = world.review ?? {}, ids = parts.map((p) => p.id);
   if (typeof review !== 'object' || Array.isArray(review)) throw new Error('gameworld: review is { <part>: { status, print?, note? } }');
   for (const [id, r] of Object.entries(review)) {
-    if (!ids.includes(id) && !CHARACTER_PART_IDS.includes(id) && id !== CAST_PART) throw new Error(`gameworld: review.${id} is not a part (parts: ${ids.join(', ')})`);
+    if (!ids.includes(id) && !CHARACTER_PART_IDS.includes(id) && id !== CAST_PART && !isFoePart(world, id)) throw new Error(`gameworld: review.${id} is not a part (parts: ${ids.join(', ')})`);
     checkReviewEntry(id, r);
   }
   return review;

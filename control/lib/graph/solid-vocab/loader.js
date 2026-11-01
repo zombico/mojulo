@@ -31,6 +31,8 @@ import { join } from 'node:path';
 import { moduleDir } from '../../module-dir.js';
 import { readBookCards } from '../views/recipe-book/cards.js';
 import { animalEntryCards } from '../fauna/entries.js';
+import { headgearCard } from '../headgear/entries.js';
+import { packCards } from '../cosmos/packs/entries.js';
 const VOCAB_DIR = moduleDir(import.meta.url, 'lib/graph/solid-vocab');
 
 // `when` is required for the same reason as view-vocab: it's the intent-shaped
@@ -137,6 +139,12 @@ export function getSolidVocabCatalog() {
   // read by id; the bare index listing leaves them out (the `animal` card points at their index, `animals`).
   for (const card of animalEntryCards()) {
     if (catalog.has(card.id)) throw new Error(`solid-vocab: generated animal entry '${card.id}' collides with a card`);
+    catalog.set(card.id, card);
+  }
+  // Generated wearables and packs (`generated: true`): the headgear words (../headgear/entries.js) and each pack's
+  // characters by name (../cosmos/packs/entries.js), from their own tables; read by id ('headgear', 'comic-hero')
+  for (const card of [headgearCard(), ...packCards()]) {
+    if (catalog.has(card.id)) throw new Error(`solid-vocab: generated card '${card.id}' collides with a card`);
     catalog.set(card.id, card);
   }
   // Attached recipe-book / cookbook cards routed here by their

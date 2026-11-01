@@ -41,7 +41,8 @@
  * Meshes as hair-depict.js's: { vertices, faces, groups, closure } in the chart's frame (metres, z up); `cards` an open
  * mesh with `uv` ([across, along, cell] on the strand page). Every stroke lies outside the head (the chart's skin and its
  * ears) and over the shell (`HAIR_CLEAR.gap` past the shell's height), and outside `colliders` (surfaces { vertices,
- * normals } in the chart's frame: the neck, the shoulders and the back a hero gives) by `HAIR_CLEAR.body`.
+ * normals } in the chart's frame: the neck, the shoulders and the back a hero gives) by `HAIR_CLEAR.body`; with `seal`, a
+ * stroke whose spine runs into a collider stops there (never pushed out round it).
  * Deterministic: no dice beyond the groom's own; the same chart, dermis, groom and dial give the same mesh.
  */
 import { dermisAt, CLIPPER } from './dermal-map.js';
@@ -91,8 +92,9 @@ export const LOCK_RUNG = Object.freeze({
   L0: Object.freeze({ count: 0.45, ring: 6, seg: 0.026, stations: 7 }),
 });
 /** CLEARANCE: every point at least `gap` (m) off the head's skin, `reach` the farthest a skin sample is looked for, `body`
- * (m) off a collider's (the neck and shoulders, cloth's thickness and a little: hair lies over the collar) */
-export const HAIR_CLEAR = Object.freeze({ gap: 0.0008, reach: 0.03, body: 0.006 });
+ * (m) off a collider's (the neck and shoulders, cloth's thickness and a little: hair lies over the collar); `inside` how
+ * deep under a collider a stroke's spine is taken to have run into the body (`seal`: cut there) */
+export const HAIR_CLEAR = Object.freeze({ gap: 0.0008, reach: 0.03, body: 0.006, inside: 0.004 });
 /** the groups: the mass and its cards one colour; the shell under it; a dye only where the groom asks for a streak */
 export const LOCK_GROUPS = Object.freeze({ mass: 'Hair', shell: 'Hair', streak: 'HairStreak' });
 const FULL_GUIDES = 236;
@@ -174,7 +176,9 @@ export function surfaceClear(chart, reach = HAIR_CLEAR.reach) {
     const n = unit(chart.normals[i]), h = dot(sub(p, chart.vertices[i]), n);
     return h >= gap ? p : add(p, scl(n, gap - h));
   };
-  return { nearest, out };
+  /** `p`'s height over the surface along the nearest sample's normal (negative under it); Infinity past reach */
+  const depth = (p) => { const i = nearest(p); return i < 0 ? Infinity : dot(sub(p, chart.vertices[i]), unit(chart.normals[i])); };
+  return { nearest, out, depth };
 }
 
 // ── a polyline's arc and its resampling ──────────────────────────────────────────────────────────────────────────────
@@ -350,7 +354,7 @@ function noise3(p, s) {
  * THE LOCK HAIR on a head: the groom `S` (readScalp's) on `chart` with dermis `D`, at the ladder's `level`, `stylize` the
  * dial, `centre` the head's middle (a lock's top faces away from it), `colliders` surfaces the hair falls outside.
  */
-export function lockHair(chart, D, S, { level = 'L1', centre = [0, 0, 0], stylize = HAIR_STYLIZE, colliders = [], maps = false } = {}) {
+export function lockHair(chart, D, S, { level = 'L1', centre = [0, 0, 0], stylize = HAIR_STYLIZE, colliders = [], maps = false, seal = false } = {}) {
   const s = readStylize(stylize), St = lockStyleAt(s), R = LOCK_RUNG[level] ?? LOCK_RUNG.L1, cls = lockClass(S);
   // (the head's skin, then what the hero gives the hair to fall over: its neck, its shoulders, its back)
   // (a lock lies over the shell, never under it: the shell would hide it)
@@ -484,6 +488,15 @@ export function lockHair(chart, D, S, { level = 'L1', centre = [0, 0, 0], styliz
       if (!tied && !stand && !ride) { const N0 = spine.length - 1, tEnd = unit(sub(spine[N0], spine[N0 - 1])), end = toEdge(spine[N0], scl(tEnd, -1), (q) => !grows[skin.nearest(q)] || exempt(q)); if (end) { spine = [...spine, end]; cutEnd = true; } }
       // (a flow that reaches the cut's line keeps its width to it, cut there: only a free end draws to its tip)
       const along = (u) => (cutEnd ? Math.min(u, LOCK_EDGE.held) : u);
+      // (`seal`, realistic laws 14: a stroke STOPS where it meets the body, as it does on the head. Where its spine runs into
+      // a collider (the neck, the trunk, the upper arms, the upper neck under the jaw) it is cut there and tapers to its end;
+      // one cut back to its root is dropped. A guide falls past the body, which it never meets; pushed out point by point,
+      // a spine through the neck came out the far side, wrapped round the throat and down the chest)
+      if (seal && body.length && !tied) {
+        const k = spine.findIndex((p, i) => i > pre && body.some((B) => B.depth(p) < -HAIR_CLEAR.inside));
+        if (k >= 0 && k <= pre + 2) { if (trail) trailers--; counts.dropped = (counts.dropped ?? 0) + 1; continue; }
+        if (k >= 0) { spine = spine.slice(0, k); cutEnd = false; counts.stopped = (counts.stopped ?? 0) + 1; }
+      }
       spine = spine.map(clear);
       // (a lying flow's root, walked or reached back along its first tangent, laid round the head at its first guide point's height: a
       // straight reach off a curved crown stands up off it)
@@ -670,7 +683,8 @@ export function lockStrands(guides, chart, { kind = 'beard', centre = [0, 0, 0],
   const live = guides.filter((g) => g.pts.length > 1 && arcOf(g.pts).at(-1) >= F.min && !(F.hang && tipOff(g) < F.hang));
   if (!live.length) return null;
   // (the guides' spacing: each root's nearest other's distance, the median)
-  const roots = live.map((g) => g.pts[0]), near = roots.map((p, i) => Math.min(...roots.map((q, j) => (i === j ? Infinity : len(sub(p, q)))))).sort((a, b) => a - b);
+  // (a lone guide has no neighbour: the spacing's default, never an infinite one that made every point of its flow NaN)
+  const roots = live.map((g) => g.pts[0]), near = roots.map((p, i) => Math.min(...roots.map((q, j) => (i === j ? Infinity : len(sub(p, q)))))).filter(Number.isFinite).sort((a, b) => a - b);
   const spacing = Math.max(0.0005, near[Math.floor(near.length / 2)] ?? 0.002);
   // (a band over what is under it; a beard's hang off the skin alone, its root inside the coat)
   const clear = banded ? (p) => skin.out(p, under(p) + HAIR_CLEAR.gap) : (p) => skin.out(p, HAIR_CLEAR.gap);

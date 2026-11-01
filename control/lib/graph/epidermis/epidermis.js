@@ -89,18 +89,21 @@ const smooth = (t) => { const x = Math.max(0, Math.min(1, t)); return x * x * (3
  * edge, `arch` lifting it. A spine runs through them, rising convex to the peak and falling to the tail. Its width is
  * broad at the head and narrows past the peak to a fine tail. `side` is the bridge's for this side (pulled by the
  * brow's action: the strings carry the brow with the fold); at rest when absent. Returns { spine(u) → {x, z},
- * slope(u), width(u), span, sg, uK } for u ∈ [0, 1] medial → lateral, in V.
+ * slope(u), width(u), span, sg, uK } for u ∈ [0, 1] medial → lateral, in V. `round` (realistic laws 14, the seat's level
+ * 2): the arch lower, `BROW_ROUND.arch` of its rise, and its fall to the tail a quarter sine like its rise, so the peak
+ * is a curve, not a point (the fall's power pinched it, an angular brow).
  */
-export function browLine(P, s, brow, side = browBridge(P).sides[s]) {
+export const BROW_ROUND = Object.freeze({ arch: 0.6 });
+export function browLine(P, s, brow, side = browBridge(P).sides[s], { round = false } = {}) {
   const sg = Math.sign(P[`ex${s}`].x - P[`en${s}`].x), H = side.head, T = side.tail;
-  const K = { x: side.arc.K.x, z: side.arc.K.z + 0.005 + 0.025 * brow.arch };
+  const K0 = side.arc.K.z + 0.005 + 0.025 * brow.arch, K = { x: side.arc.K.x, z: round ? H.z + BROW_ROUND.arch * (K0 - H.z) : K0 };
   const archH = K.z - H.z;
   const uK = Math.abs(K.x - H.x) / Math.abs(T.x - H.x);
   const spine = (u) => {
     const x = lerp(H.x, T.x, u);
     if (u <= uK) return { x, z: H.z + archH * Math.sin((Math.PI / 2) * (u / uK)) };
     const t = (u - uK) / (1 - uK);
-    return { x, z: K.z + (T.z - K.z) * Math.pow(t, 1.4) };
+    return { x, z: K.z + (T.z - K.z) * (round ? 1 - Math.cos((Math.PI / 2) * t) : Math.pow(t, 1.4)) };
   };
   const slope = (u) => { const a = spine(Math.max(0, u - 0.01)), b = spine(Math.min(1, u + 0.01)); return Math.atan2(b.z - a.z, Math.abs(b.x - a.x)); };
   const th = brow.thickness;
@@ -112,11 +115,11 @@ export function browLine(P, s, brow, side = browBridge(P).sides[s]) {
  * The brow groom for side `s`: roots scattered over the brow's band (more where it is broad), each hair combed by its
  * region — the HEAD's straight up, the BODY's out and up along the line, the TAIL's out and down — with the
  * HERRINGBONE across the band (the lower hairs angled up, the upper down, meeting along the spine); laid flat on the
- * skin (`skinY`), lifting a hair's breadth at its middle. `side` is the bridge's, as `browLine` takes it. Returns
+ * skin (`skinY`), lifting a hair's breadth at its middle. `side` and `round` are `browLine`'s. Returns
  * strands in V: [{ pts: [{x, y, z}], r }].
  */
-export function growBrow(P, s, brow, skinY, side) {
-  const L = browLine(P, s, brow, side);
+export function growBrow(P, s, brow, skinY, side, { round = false } = {}) {
+  const L = browLine(P, s, brow, side, { round });
   const dice = streamOf(brow.seed ?? 1, 'brow', s);
   // how many: the band's area at rest (mm²) × the density — the same hairs whatever pulls the strings
   const L0 = browLine(P, s, brow);
@@ -247,7 +250,7 @@ export function growEpidermis(head, cube) {
     counts.brows = 0;
     for (const s of ['L', 'R']) {
       // the brow hangs on the bridge's strings, as the action pulled them
-      const side = R.bridge.sides[s], L = browLine(P, s, cube.hair.brows, side);
+      const side = R.bridge.sides[s], round = R.seat === 2, L = browLine(P, s, cube.hair.brows, side, { round });
       // the skin's depth over the brow's reach, on a grid
       const x0 = Math.min(L.spine(0).x, L.spine(1).x) - 0.03, x1 = Math.max(L.spine(0).x, L.spine(1).x) + 0.03;
       const z0 = Math.min(L.spine(0).z, L.spine(1).z) - 0.05, z1 = L.spine(L.uK).z + 0.08, NX = 28, NZ = 16;
@@ -267,7 +270,7 @@ export function growEpidermis(head, cube) {
         const fill = known.reduce((m, y) => m + y, 0) / known.length, [c00, c10, c01, c11] = c.map((y) => (y === null ? fill : y));
         return lerp(lerp(c00, c10, a), lerp(c01, c11, a), b);
       };
-      const grown = growBrow(P, s, cube.hair.brows, skinY, side);
+      const grown = growBrow(P, s, cube.hair.brows, skinY, side, { round });
       counts.brows += grown.length;
       // WALK each hair over the skin: its root laid on the skin along the normal (the field's gradient), then each step
       // taken in the skin's tangent plane toward the comb's next point, snapped back to a hair's lift above the skin

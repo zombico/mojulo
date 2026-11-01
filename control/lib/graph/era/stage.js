@@ -348,7 +348,13 @@ export function planStage(m = {}) {
   const composed = m.compose !== undefined ? composeForBuild(m) : null;
   const kitId = resolveKitId(m.kit || (composed ? `bay-${composed.construction}` : 'gothic-stone'));
   if (composed && !kitId.startsWith('bay-')) throw new Error(`stage: compose composes a bay room (a hangar, a warehouse, a lab, an office); kit '${kitId}' is not one`);
-  const kit0 = composed ? bayKitOf(composed) : stageKit(kitId);
+  const kit00 = composed ? bayKitOf(composed) : stageKit(kitId);
+  // (a bay building seated on open ground, era/stage-buildings.js: its windows' sun is the land's, `_sun` { el, toward,
+  // day }, the daylight in at its windows as bright as the land's day; set into its slope, `_ground` the land against its
+  // walls, and no window where the land stands over it)
+  const kitS = m._sun && kit00?.B?.glass ? (({ day = 1, ...S }) => ({ ...kit00, B: { ...kit00.B, glass: { ...kit00.B.glass, sun: { ...kit00.B.glass.sun, ...S } },
+    ...(kit00.B.light?.daylight ? { light: { ...kit00.B.light, daylight: { ...kit00.B.light.daylight, intensity: r5(kit00.B.light.daylight.intensity * day) } } } : {}) } }))(m._sun) : kit00;
+  const kit0 = m._ground && kitS?.B ? { ...kitS, B: { ...kitS.B, ground: m._ground } } : kitS;
   if (!kit0) throw new Error(`stage: unknown kit '${kitId}' (known: ${Object.keys(STAGE_KITS).join(', ')})`);
   // the art direction (art-direction.js) first: its tiles, proportions and dressing; the recipe's own tiles and
   // proportions are then laid over it, surface by surface
@@ -444,11 +450,11 @@ export function planStage(m = {}) {
     return { from: a.id, to: b.id, wall: wall.ax, at: wall.at, ...op };
   });
   // WAYS (`ways: [{ room, side, width? }]`): a doorway out of a room through an outside wall, the middle of that side (a
-  // building standing in open ground is walked into by it); the side must face out (no room against it there)
+  // building standing in open ground is walked into by it); the side must face out (no room against it there). A room on
+  // an upper storey has one too: a building set into its slope is walked into at the ground its storey stands on
   const ways = (m.ways || []).map((w) => {
     const r = byId.get(w.room);
     if (!r) throw new Error(`stage: way out of '${w.room}', which is not a room`);
-    if (r.storey) throw new Error(`stage: way out of '${w.room}', which stands on storey ${r.storey}; a way out leaves the ground storey`);
     if (!['-x', '+x', '-y', '+y'].includes(w.side)) throw new Error(`stage: way out of '${w.room}' needs side, one of -x +x -y +y`);
     const width = w.width ?? kit.door.width, height = Math.min(w.height ?? kit.door.height, r.h - 0.5), alongX = w.side.endsWith('y');
     const lo0 = alongX ? r.x0 : r.y0, hi0 = alongX ? r.x1 : r.y1, mid = Math.round((lo0 + hi0) / 2 / g) * g;
@@ -480,6 +486,8 @@ export function planStage(m = {}) {
     return { ...nightRef, light: { ...nightRef.light, ambient: amb }, air: { ...nightRef.air, fog: { color: Dd.fog, density: r5(nightRef.air.fog.density * (1 + Dd.thicken * Math.max(a, b))) } } };
   })() : nightRef;
   const planned = { kit: nightKit, kitId, ref: dRef, refId, rooms, links, ...(ways.length ? { ways } : {}),
+    // (a military base's building is stocked by its rooms' uses: stocking.js, compose-dress.js layProps)
+    ...(m._program?.base ? { use: m._program.use } : {}),
     // (a composed interior's rooms read for their parts in the walk: compose-roles.js)
     ...(composed ? { compose: { axes: composed, mood: composed.mood ?? 'even', beats: beatsPinned(m), roles: m._composeRoles ?? roomRoles({ rooms, links, ways, stairs }, { goal: m._program?.goal, pinned: rolesPinned(m) }) } } : {}), spawn: [(first.x0 + first.x1) / 2, first.y0 + 1.5, 0], lights: m.lights ?? 'auto', ...(N ? { night: N } : {}), ...(decay ? { decay } : {}), ...(Object.keys(At).length ? { atmosphere: At } : {}), ...(tone ? { tone } : {}), ...(icp ? { intercept: icp } : {}), ...(shadows ? { shadows } : {}),
     ...(St ? { storeys: St.z0s.map((z0, index) => ({ index, z0 })), flat: St.flat, stairs } : {}), ...(m._storey ? { cuts: m._storey } : {}) };
@@ -1060,11 +1068,14 @@ export function assembleStageScene(manifest = {}, ctx = {}) {
   // ground, walked into as terrain
   // planned before anything grows: a first pass over the land seats them only to claim their ground, and the land is
   // laid again with that ground reserved (`_keepOut`: no tree, rock or arrangement on it), then they are built on it
+  // (a building set into its slope, `embed`, grades the land round it too: the land is laid again cut and filled, and
+  // each building stands where the first pass placed it)
   const seat = (build) => {
     if (manifest.buildings === undefined && manifest.town === undefined) return build(manifest);
     const M = { ...manifest, kit: resolveKitId(manifest.kit) };
-    const { reserved } = withBuildings(build(manifest), M, { ...ctx, planOnly: true });
-    return withBuildings(build(reserved.length ? { ...manifest, _keepOut: [...(manifest._keepOut ?? []), ...reserved] } : manifest), M, ctx);
+    const { reserved, grade, placed } = withBuildings(build(manifest), M, { ...ctx, planOnly: true });
+    const again = { ...manifest, ...(reserved.length ? { _keepOut: [...(manifest._keepOut ?? []), ...reserved] } : {}), ...(grade?.length ? { _grade: grade } : {}) };
+    return withBuildings(build(reserved.length || grade?.length ? again : manifest), M, grade?.length ? { ...ctx, placed } : ctx);
   };
   if (kit && kit.shell === 'nature') return seat((m) => assembleNatureScene({ style: kit.style, ...m }, ctx));
   if (kit && kit.shell === 'jungle') return seat((m) => assembleJungleScene({ style: kit.style, ...m }, ctx));

@@ -1,6 +1,6 @@
 /**
  * THE COMIC HERO PACK'S GRUNTS: the faces a hero fights through, each FACTION a style pack of the hero door's own words
- * (outfit/styles.js cards and their language, outfit-plan.js pieces, headgear.js heads, items.js gear), so a squad of
+ * (outfit/styles.js cards and their language, outfit-plan.js pieces, headgear/cards.js heads, items.js gear), so a squad of
  * them reads as one crew and every member as a person. A faction names its KINDS (the corner boy and the shooter, the
  * soldier and the enforcer), each a dress, the builds and ages it is cast from, its gear, its heads and its stands; its
  * COLOURWAYS (a crew's colours: a gang's, a chapter's, a clan's), shared by a squad, with per-grunt `vary` so a crew is
@@ -15,11 +15,11 @@
  *                                  vary? } }, hair: { male, female }, kinds: { <id>: { reads, weight, builds, dress(pole,
  *                                  body), items: [[ids]…], heads?: [ids | null…], stands, swing? } } } }
  *   GRUNT_STYLE_IDS, GRUNT_RATIO, GRUNT_GAPS
- *   gruntOrders(style, look, { seed, index, kind, pole, colourway })
+ *   gruntOrders(style, look, { seed, index, kind, pole, colourway, words })
  *                                → { grunt: { style, kind, pole, colourway, index }, sheet, mint: { tool: 'mint_solid', args } }
  *   squadOrders(style, look, { count, seed, ratio, colourway, kinds })
  *                                → [gruntOrders …] the crew: `count` grunts, round(ratio × count) of them women
- * The heads are the tiered body's (headgear.js): on the realistic body a grunt goes bareheaded. A sleeveless top (the
+ * The heads are the tiered body's (headgear/cards.js): on the realistic body a grunt goes bareheaded. A sleeveless top (the
  * bruiser's tank, the punks') bares the arms on the realistic body only: the tiered body paints its skin under the cloth
  * in the top's colour. A grunt takes its stop's light as the heroes do (characters.js registerOf): the anime head at
  * the anime stop (its cut the anime family of the faction's, animeHair), the look's cube on it where the look bakes.
@@ -28,7 +28,7 @@ import { rollEgocube } from '../../../egocube/egocube.js';
 import { planFromSheet } from '../../../egocube/plan.js';
 import { mulberry32 } from '../../../polygonizer/floorplan-glyphs.js';
 import { SUIT_KEYS } from './suits.js';
-import { withHeadgear } from './headgear.js';
+import { HEADGEAR, withHeadgear } from '../../../headgear/cards.js';
 import { withItems, swingOf, ITEMS } from './items.js';
 import { bodyOf, registerOf, animeHair } from './characters.js';
 
@@ -234,7 +234,7 @@ function styleOf(id) {
   return S;
 }
 
-export function gruntOrders(styleId, lookId, { seed = 1, index = 0, kind: kindIn, pole: poleIn, colourway: cwIn, ratio = GRUNT_RATIO } = {}) {
+export function gruntOrders(styleId, lookId, { seed = 1, index = 0, kind: kindIn, pole: poleIn, colourway: cwIn, ratio = GRUNT_RATIO, words = false } = {}) {
   const S = styleOf(styleId), body = bodyOf(lookId);
   // (every draw taken in a fixed order, whatever is asked, so naming one choice never moves the others)
   const r = mulberry32(hash(styleId, seed, index));
@@ -270,6 +270,15 @@ export function gruntOrders(styleId, lookId, { seed = 1, index = 0, kind: kindIn
   if (swing && ITEMS[itemIds.find((i) => ITEMS[i].swing === swing)]?.slot === 'right') worn.gesture = swing;
   if (R.geocube) worn.geocube = R.geocube;
   delete worn.toon;
+  // (with `words`, the head as the hero door's word over the spec before it (the dress and the hair a card changes), so
+  // the grunt keeps it editable by word: the crew's colours stay over the head's, the card's own left to the word, which
+  // lays them beneath)
+  if (words && head) {
+    const own = HEADGEAR[head].palette || {}, palette = Object.fromEntries(Object.entries(worn.palette).filter(([g, v]) => own[g] !== v));
+    const { adorn: _a, ...rest } = worn;
+    for (const k of Object.keys(worn)) delete worn[k];
+    Object.assign(worn, rest, { hair: spec.hair, outfit: spec.outfit, ...(spec.adorn !== undefined ? { adorn: spec.adorn } : {}), palette, headgear: head });
+  }
   return {
     grunt: { style: styleId, kind, pole, colourway: cwId, index, build, age, head, items: itemIds },
     sheet: { facets: sheet.facets, reading: sheet.reading, seed: sheet.seed },

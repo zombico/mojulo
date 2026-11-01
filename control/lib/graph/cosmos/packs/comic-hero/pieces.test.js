@@ -5,7 +5,7 @@
 // validator, chosen from the catalogue in code; comic-hero.deep.test.js validates every card.
 import { describe, it, expect } from 'vitest';
 import { PIECES, PIECE_IDS, withPieces } from './pieces.js';
-import { HEADGEAR, HEADGEAR_IDS, fitted, withHeadgear } from './headgear.js';
+import { HEADGEAR, HEADGEAR_IDS, fitted, withHeadgear } from '../../../headgear/cards.js';
 import { costumeOf } from './costumes.js';
 import { memberOrders } from './characters.js';
 import { ENSEMBLES, HARMONY } from './ensembles.js';

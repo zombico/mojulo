@@ -264,6 +264,15 @@ const __crCut = (cls, m) => {
   if (!c) { c = new THREE.ShaderMaterial({ glslVersion: THREE.GLSL3, vertexShader: __crVSC, fragmentShader: __crFSC, uniforms: { uM: { value: cls.uniforms.uM.value }, uCut: { value: m.map }, uCutA: { value: m.alphaTest }, uCutT: { value: m.map.matrix } }, side: THREE.DoubleSide }); __crCuts.set(k, c); }
   return c;
 };
+// a material that moves its vertices (the wind, a spray's growth) names its own (\`userData.prepass(vs)\` → { vertexShader,
+// uniforms }): the class's fragment over that vertex shader, so the prepass sees it where the frame draws it
+const __crMoves = new Map();
+const __crMoved = (cls, m) => {
+  const k = cls.uniforms.uM.value + '|' + m.uuid;
+  let c = __crMoves.get(k);
+  if (!c) { const P = m.userData.prepass(cls.vertexShader); c = new THREE.ShaderMaterial({ glslVersion: cls.glslVersion, vertexShader: P.vertexShader, fragmentShader: cls.fragmentShader, uniforms: Object.assign({}, P.uniforms, { uM: cls.uniforms.uM }), side: THREE.DoubleSide }); __crMoves.set(k, c); }
+  return c;
+};
 const __crVSQ = 'void main(){ gl_Position = vec4(position.xy, 0.0, 1.0); }';${cfg ? `
 const __crInkRT = new THREE.WebGLRenderTarget(1, 1, { minFilter: THREE.NearestFilter, magFilter: THREE.NearestFilter, depthBuffer: false });
 const __crU = { uZM: { value: __crRT.textures[0] }, uRes: { value: new THREE.Vector2() }, uCamPos: { value: new THREE.Vector3() }, uCamBasis: { value: new THREE.Matrix3() }, uFov: { value: 1 },
@@ -308,7 +317,7 @@ const __creasePrepass = () => {
     const m = o.material;
     const solid = (o.isMesh || o.isInstancedMesh) && !o.userData.ink && m && (Array.isArray(m) || (m.depthTest !== false && m.depthWrite !== false && (!m.transparent || (o.userData.crease && m.opacity > 0.5))));
     const water = !solid && o.isMesh && m && m.transparent && o.geometry && o.geometry.getAttribute('color') && o.geometry.getAttribute('color').itemSize === 4;
-    if (solid || water) { __sw.push([o, m]); const __cls = ${cfg ? "o.userData.crease === 1 ? __crA : o.userData.crease === 0.5 ? __crL : __crB" : '__crB'}; o.material = !Array.isArray(m) && m.alphaTest > 0 && m.map ? __crCut(__cls, m) : __cls; }
+    if (solid || water) { __sw.push([o, m]); const __cls = ${cfg ? "o.userData.crease === 1 ? __crA : o.userData.crease === 0.5 ? __crL : __crB" : '__crB'}; o.material = !Array.isArray(m) && m.userData && m.userData.prepass ? __crMoved(__cls, m) : !Array.isArray(m) && m.alphaTest > 0 && m.map ? __crCut(__cls, m) : __cls; }
     else if (o.isMesh || o.isLine || o.isPoints || o.isSprite) { __sw.push([o, null]); o.visible = false; }
   });
   // (the shadow maps are the frame's, not the prepass's: three skips them here)
@@ -352,6 +361,15 @@ const __crRT = new THREE.WebGLRenderTarget(1, 1, { type: THREE.FloatType, format
 const __crVS = 'varying float vZ;\\n#include <common>\\n#include <skinning_pars_vertex>\\nvoid main() {\\n#include <skinbase_vertex>\\n#include <begin_vertex>\\n#include <skinning_vertex>\\n#include <project_vertex>\\nvZ = -mvPosition.z;\\n}';
 const __crMask = (m) => new THREE.ShaderMaterial({ vertexShader: __crVS, fragmentShader: 'uniform float uM; varying float vZ; void main() { gl_FragColor = vec4(vZ, uM, 0.0, 1.0); }', uniforms: { uM: { value: m } }, side: THREE.DoubleSide });
 const __crA = __crMask(1), __crL = __crMask(0.5), __crB = __crMask(0);   // angular, land, organic
+// a material that moves its vertices (the wind, a spray's growth) names its own (\`userData.prepass(vs)\` → { vertexShader,
+// uniforms }): the class's fragment over that vertex shader, so the prepass sees it where the frame draws it
+const __crMoves = new Map();
+const __crMoved = (cls, m) => {
+  const k = cls.uniforms.uM.value + '|' + m.uuid;
+  let c = __crMoves.get(k);
+  if (!c) { const P = m.userData.prepass(cls.vertexShader); c = new THREE.ShaderMaterial({ glslVersion: cls.glslVersion, vertexShader: P.vertexShader, fragmentShader: cls.fragmentShader, uniforms: Object.assign({}, P.uniforms, { uM: cls.uniforms.uM }), side: THREE.DoubleSide }); __crMoves.set(k, c); }
+  return c;
+};
 const __crInkRT = new THREE.WebGLRenderTarget(1, 1, { minFilter: THREE.NearestFilter, magFilter: THREE.NearestFilter, depthBuffer: false });
 const __crVSQ = 'void main(){ gl_Position = vec4(position.xy, 0.0, 1.0); }';
 const __crU = { uZM: { value: __crRT.texture }, uRes: { value: new THREE.Vector2() }, uCamPos: { value: new THREE.Vector3() }, uCamBasis: { value: new THREE.Matrix3() }, uFov: { value: 1 },
@@ -382,7 +400,7 @@ const __creasePrepass = () => {
     // a water sheet (channels/water.js: translucent, per-vertex alpha in RGBA colours) is a surface to the eye: it hides
     // the bed under it, and is never inked
     const water = !solid && o.isMesh && m && m.transparent && o.geometry && o.geometry.getAttribute('color') && o.geometry.getAttribute('color').itemSize === 4;
-    if (solid || water) { __sw.push([o, m]); o.material = o.userData.crease === 1 ? __crA : o.userData.crease === 0.5 ? __crL : __crB; }
+    if (solid || water) { __sw.push([o, m]); const __cls = o.userData.crease === 1 ? __crA : o.userData.crease === 0.5 ? __crL : __crB; o.material = !Array.isArray(m) && m.userData && m.userData.prepass ? __crMoved(__cls, m) : __cls; }
     else if (o.isMesh || o.isLine || o.isPoints || o.isSprite) { __sw.push([o, null]); o.visible = false; }
   });
   const __bg = scene.background, __ca = renderer.getClearAlpha(); renderer.getClearColor(__crCc);

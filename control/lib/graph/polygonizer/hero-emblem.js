@@ -27,6 +27,8 @@
  * Pure and deterministic.
  */
 import { validateFieldPaint } from './field-paint.js';
+import { camoFieldPaint } from '../outfit/camouflage.js';
+import { isOutfitBuild, outfitLanguage } from '../outfit/expand.js';
 
 /** where an emblem is worn: the field-paint entry's parts (the body part and every layer worn over it, so it lands on the
  * outermost: the suit, the top, a catsuit's painted skin), its chart, its centre and its size by default */
@@ -97,9 +99,12 @@ export function validateEmblem(emblem) {
 }
 
 /** The field paint a layered manifest is painted with: its hero's emblem first (so the row's own entries paint over it),
- * its colours from the recipe's palette as it reads now. A manifest whose hero wears no emblem: its own list as it is. */
+ * its colours from the recipe's palette as it reads now; under it the camouflage its outfit is printed in. A manifest whose
+ * hero wears neither: its own list as it is. */
 export function heroFieldPaint(m) {
   const E = m?.hero?.emblem;
-  if (!E) return m?.fieldPaint;
-  return [...emblemFieldPaint(E, m.recipe?.palette ?? m.hero.palette ?? {}), ...(Array.isArray(m.fieldPaint) ? m.fieldPaint : [])];
+  // (the camouflage its outfit is printed in, outfit/camouflage.js: under the emblem, the row's own over both)
+  const camo = isOutfitBuild(m?.hero?.outfit) ? camoFieldPaint(outfitLanguage(m.hero.outfit), m.recipe) : null;
+  if (!E && !camo) return m?.fieldPaint;
+  return [...(camo || []), ...(E ? emblemFieldPaint(E, m.recipe?.palette ?? m.hero.palette ?? {}) : []), ...(Array.isArray(m.fieldPaint) ? m.fieldPaint : [])];
 }

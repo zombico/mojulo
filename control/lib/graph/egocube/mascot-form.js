@@ -19,6 +19,7 @@ import { animalPalette } from './mascot-animals.js';
 import { mascotAdorn } from './mascot-adorn.js';
 import { gaitClips } from './mascot-gait.js';
 import { PLAN_SCHEMA } from '../polygonizer/station-loft-plan.js';
+import { featurePlan } from './feature-body.js';
 
 const r4 = (x) => Math.round(x * 1e4) / 1e4 + 0;
 const V = (p) => p.map(r4);
@@ -58,7 +59,7 @@ const LIMB_OF_HAND = Object.freeze({ nubs: 0.62, gloves: 0.36, paws: 0.5 });
 const HAND_SCALE = Object.freeze({ nubs: 1, gloves: 1.35, paws: 1.05 });
 
 /** The knobs after the sheet's derives: a scale knob moves by a STEP of itself, a shift knob counts its steps. */
-function measuresOf(sheet) {
+export function measuresOf(sheet) {
   const f = sheet.facets, B = FORM_MEASURES[f.form], M = { ...B, foot: [...B.foot] };
   const k = { head: 1, body: 1, legs: 1, arms: 1, width: 1, size: 1, lift: 0, gap: 0, pupil: 1, hands: 1, feet: 1, saturation: 0, value: 0, lean: 0, stance: 0, bounce: 0 };
   const SHIFTS = ['lift', 'gap', 'saturation', 'value', 'lean', 'stance', 'bounce'];
@@ -135,7 +136,7 @@ export function mascotPalette(sheet, k = { saturation: 0, value: 0 }) {
 
 /** An animal's palette (A6): its own coat as flat zones (mascot-animals.js animalPalette) over the mascot's groups; the
  *  face's, the eyes' and the gloves' as for any mascot. */
-function coatPalette(sheet, k, A, f) {
+export function coatPalette(sheet, k, A, f) {
   const base = mascotPalette(sheet, k), a = animalPalette(A.id, A);
   const belly = a.Belly ?? mix(a.Body, CREAM, 0.6);
   return {
@@ -312,7 +313,7 @@ export function mascotPlan(sheet, { title = 'a mascot', reactions = false } = {}
 }
 
 /** The R eye's centre and size, in head radii and degrees: what the lids and the brows are placed by. */
-function eyeOf(f, k) {
+export function eyeOf(f, k) {
   const X = eyeForm(f), s = k.size, [pw, ph] = X.pupil.map((x) => x * s * k.pupil);
   const az = X.az + 2.5 * k.gap, el = X.el + 7 * k.lift;
   return X.w ? { az, el, w: X.w * s, h: X.h * s, lidOut: 0.075 } : { az, el, w: pw * 1.15, h: ph * 1.15, lidOut: 0.06 };
@@ -375,7 +376,7 @@ function animePerson(f, H, { headBind, at, R, b }) {
 }
 
 /** The eyes (law 4): the white, the pupil turned a little toward the nose, one glint up and out. */
-function eyes(f, H, k, K = {}) {
+export function eyes(f, H, k, K = {}) {
   const X = eyeForm(f), s = k.size, az = X.az + 2.5 * k.gap, el = X.el + 7 * k.lift, bind = f.form === 'orb' ? 'torso' : 'head';
   const out = [];
   // the marks the eyes sit in, behind the white: a panda's patches, a raccoon's mask, an owl's pale dishes
@@ -529,7 +530,7 @@ function hookParts(f, H, { M, hipZ, neckZ, headBind, orb, fur = 'Body' }) {
 
 // ══════════ the rig, the clips, the dials (laws 9, 10) ══════════
 
-function rigOf(f, { J, H, hipZ, neckZ, top, orb, k, face, headParts, upper, reactions = false }) {
+export function rigOf(f, { J, H, hipZ, neckZ, top, orb, k, face, headParts, upper, reactions = false }) {
   const bodyTop = orb ? H.C[2] : neckZ;
   const rig = {
     joints: {
@@ -655,7 +656,8 @@ export function mascotPlanFromSheet(sheet, { title, reactions = false } = {}) {
   if (sheet?.tuning !== 'mascot') throw new Error('mascot: a mascot sheet (rollMascot) compiles here');
   const f = sheet.facets;
   const name = title || `${f.hue} ${f.promise} mascot (mascot seed ${sheet.seed})`;
-  const { plan, H, height } = mascotPlan(sheet, { title: name, ...(reactions ? { reactions } : {}) });
+  const feature = f.style === 'feature';
+  const { plan, H, height } = (feature ? featurePlan : mascotPlan)(sheet, { title: name, ...(reactions ? { reactions } : {}) });
   const heads = Math.round((height / (2 * H.rz)) * 10) / 10;
   const thesis = `${f.form}, ${heads} heads · a round core, a ${f.accent} accent (${sheet.accord}) · ${f.eyes} eyes · ${f.hook === 'none' ? 'no hook' : f.hook} · ${f.extremities} · ${f.energy} · ${Math.round(height * 100) / 100} m`;
   const lean = (sheet.derives.motion || []).includes('motion.lean +') ? 4 : 0;
@@ -663,5 +665,6 @@ export function mascotPlanFromSheet(sheet, { title, reactions = false } = {}) {
   if (lean && !pose.lean) pose.lean = lean;
   const after = Object.entries(pose).filter(([d]) => plan.dials[d]).map(([d, value]) => ({ op: 'set', path: `/dials/${d}`, value }));
   const ledger = Object.entries(sheet.notes).flatMap(([ch, notes]) => notes.map((n) => ({ channel: ch, line: n.line, from: n.from, at: AT[ch] })));
-  return { door: 'creature', thesis, create: { as: 'creature', title: name, spec: { plan, hullShade: true, toon: { light: true } } }, after, ledger };
+  // (the feature style is lit as feature animation is, softly, not by the cel step)
+  return { door: 'creature', thesis, create: { as: 'creature', title: name, spec: feature ? { plan, smooth: true } : { plan, hullShade: true, toon: { light: true } } }, after, ledger };
 }

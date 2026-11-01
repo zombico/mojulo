@@ -87,6 +87,22 @@ civilization?, kit? }]`.
   rocks and grass in its footprint are cleared.
 - **No scene change:** you walk in off the trail.
 - **On storeys** (a tower, a keep): its walls rise storey on storey to its top, and you climb its stairs inside.
+- **A base's building** (`barracks`, `armoury`, `comms`, `command` and the rest of a military base's uses), or any
+  bay building given `look: { construction?, palette? }`, is composed as a building level is: its bay kit, its rooms
+  stocked, its `tone`, its plan's `storeys`, `wings`, `loading` and `bays`. It wears its construction outside
+  (corrugated sheeting, board-formed concrete, block, panels or a floated coat; a flat roof behind a parapet or a low
+  steel one). Its windows open through the shell onto the land, and the land's sun at its hour lays their light on its
+  floors. A yard before its front is kept clear. A trail's site is about 44 m across: an outpost's building is
+  `wings: 'I', bays: 1, loading: 'single'` (about 18 by 22 m on two storeys); a level's plan stands over its edge, and
+  the answer says so.
+- **Set into its slope** (`embed: true`, or `{ up: <storey> }`): a building of two storeys or more stands with its
+  front, the way in, as a walkout on the low land and a door out of its upper storey's back onto the high land behind.
+  It is placed where the land falls most nearly a storey across it, clear of the trail, with room to walk round it, and
+  the land is cut and filled to it: level before and behind, a bank along one side. A concrete stair climbs the other
+  side, and paths of slabs run from the trail to the walkout, to the stair and on to the upper door. Inside, its own
+  stairs join the two. No window is laid under the land. The answer's anchor says its doors, its stair, the way through
+  it (`through`) and the way round it (`round`); a finding says how far the land was cut and filled. A trail's site is
+  about 44 m across: `trail: { ground: { room: 30 } }` adds open ground past the trail's far side for it.
 - **On a level:** in the game designer it is `places: { buildings: [...] }`. `goal: true` ends the level in its goal
   room, and the route runs in at its door.
 

@@ -84,6 +84,29 @@ describe('a foe\'s own moves', () => {
     expect(st.byId.l.foeAwake).toBe(true);
     expect(st.byId.l.transform.pos[0]).toBeGreaterThan(0);
   });
+  it('a patrol walks its round unseen; a hero in its sight is the mind\'s, one behind a wall is not; calm, it walks again', () => {
+    const P = byMove('patrol'), sight = resolveFoe({ class: P.id }).entity.rule.sightRange;
+    // (out of its range, whichever way it turns: it walks its round)
+    const st = world([pilot([0, -sight * 2, 0]), foe('g', P, [0, 0, 0], 0, { foe: { stretch: 6 } })]);
+    const xs = [];
+    for (let i = 0; i < 120; i++) { run(st, 1); xs.push(st.byId.g.transform.pos[0]); }
+    expect(Math.max(...xs) - Math.min(...xs)).toBeGreaterThan(2);
+    expect(st.byId.g.lastSeen).toBeFalsy();
+    // (ahead of it, in its range: the mind perceives it the same step)
+    const seen = world([pilot([sight / 2, 0, 0]), foe('g', P, [0, 0, 0], 0)]);
+    run(seen, 2);
+    expect(seen.byId.g.lastSeen?.id).toBe('p');
+    // (the same hero behind a wall: unseen, and its round goes on)
+    const walled = world([pilot([sight / 2, 0, 0]), foe('g', P, [0, 0, 0], 0, { foe: { stretch: 2 } })], [{ min: [1.5, -3, 0], max: [2, 3, 3] }]);
+    run(walled, 60);
+    expect(walled.byId.g.lastSeen).toBeFalsy();
+    // (seen, then the hero gone far behind it: once calm, it walks its round again)
+    seen.byId.p.transform.pos = [-sight * 2, 0, 0];
+    const calm = MOVES.patrol.own.patrol.calm;
+    run(seen, Math.ceil((calm + 1) / DT));
+    const x0 = seen.byId.g.transform.pos[0]; run(seen, 30);
+    expect(seen.byId.g.transform.pos[0]).not.toBeCloseTo(x0, 3);
+  });
 });
 
 describe('body to body', () => {

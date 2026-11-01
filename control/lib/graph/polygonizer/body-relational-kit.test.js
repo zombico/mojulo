@@ -7,6 +7,7 @@ import { describe, it, expect } from 'vitest';
 import { beltOn, frameBuckle, pouchOn, webbingOn, holsterOn, KIT } from './body-relational-kit.js';
 import { foldCloth, FOLD_CLOTH } from './body-relational-folds.js';
 import { ringSlots } from './body-relational-resample.js';
+import { waistbandOf, cinchWaist } from './body-relational-tailor.js';
 
 const SLOTS = ringSlots(16);
 const angle = (j) => (2 * Math.PI * j) / SLOTS.length;
@@ -143,5 +144,25 @@ describe('a rig\'s straps on a body', async () => {
     for (const k of ['harnessR_kit', 'harnessL_kit']) expect(Math.min(...pts(parts[k]).map((q) => q[2]))).toBeGreaterThan(mid - 0.01);
     // (and every strap lies out over the shirt, its frames read out from the torso's axis whatever their handedness)
     for (const k of ['harnessR_kit', 'harnessL_kit']) for (const q of pts(parts[k])) if (q[2] > 1.05 && q[2] < 1.4) expect(radius(q), `${k} ${q}`).toBeGreaterThan(0.146);
+  });
+});
+
+describe('a waistband (outfit law 2: no ease at the waist)', () => {
+  // (a body narrowing to a waist at 1.05 over hips widest at 0.92; a tucked tail and trousers standing 2 cm off it)
+  const body = (th, z) => 0.13 + 0.02 * Math.exp(-(((z - 0.92) / 0.06) ** 2));
+  const zs = range(0.86, 1.08, 23), skin = tube(zs, body), tail = tube(zs, (th, z) => body(th, z) + 0.012), trousers = tube(zs, (th, z) => body(th, z) + 0.02);
+  trousers.stations.forEach((st, i) => { st.u = 6 * i / (zs.length - 1); });
+  const zone = waistbandOf(trousers, 5.6), r = (P, i) => radius(P.stations[i].points.front);
+  cinchWaist(tail, pts(skin), zone); cinchWaist(trousers, [...pts(skin), ...pts(tail)], zone, { gap: 0.0035 });
+  it('the band sits on what it is worn over, the tucked layer under it pressed to the skin', () => {
+    const top = zs.length - 1;
+    expect(r(tail, top) - r(skin, top)).toBeLessThan(0.0035);
+    expect(r(trousers, top) - r(tail, top)).toBeGreaterThan(0.002);
+    expect(r(trousers, top) - r(skin, top)).toBeLessThan(0.007);
+  });
+  it('the cloth below takes its ease back by the hips\' widest, and nothing goes inside what it is worn over', () => {
+    const hip = zs.findIndex((z) => Math.abs(z - zone.zw) < 1e-9);
+    expect(r(trousers, hip) - r(skin, hip)).toBeCloseTo(0.02, 4);
+    for (let i = 0; i < zs.length; i++) for (const sl of SLOTS) expect(radius(trousers.stations[i].points[sl])).toBeGreaterThanOrEqual(radius(tail.stations[i].points[sl]) - 1e-6);
   });
 });

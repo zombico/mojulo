@@ -112,25 +112,29 @@ export function strewStones(st, { faces, rocks, heightAt, seed, grit, sea = -Inf
 // and the pebbles' between; on the trail, half)
 export const EDGE = Object.freeze({ step: 0.4, heap: 4, out: 1.25, in: 0.22, size: [0.1, 0.42], most: 700 });
 
-export function strewEdge(st, { site, heightAt, seed, grit, keep = null, inShare = 0.15, inReach = EDGE.in }) {
+// (`edge`: its numbers, EDGE's unless a land asks for its own: a cavern's walk heaps more and bigger stones, evenly, so no
+// line shows between the walk and the floor off it; `even` the least a station's clump is, 0 bare stretches allowed)
+export function strewEdge(st, { site, heightAt, seed, grit, keep = null, inShare = 0.15, inReach, edge = EDGE }) {
+  const EDGE_ = edge;
+  if (inReach === undefined) inReach = EDGE_.in;
   const S = { ...st, boulder: STONE, rubble: { ...st.rubble, unit: 1 } }, out = [], H = (a, b) => hash3(a, b, seed + 907);
   const t = Math.max(0, Math.min(1, (grit - GRIT_PIXELS) / (1 - GRIT_PIXELS))), lerp = (a, b, u) => a + (b - a) * u;
   let i = 0;
-  for (let y = EDGE.step / 2; y < site.D && out.length < EDGE.most; y += EDGE.step) {
+  for (let y = EDGE_.step / 2; y < site.D && out.length < EDGE_.most; y += EDGE_.step) {
     if (site.gapAt && site.gapAt(y)) continue;
     // (the station's normal across the trail, as the ribbon's)
     const sl = (site.trailX(y + 0.01) - site.trailX(y - 0.01)) / 0.02, l = Math.hypot(sl, 1), n = [1 / l, -sl / l], c = [site.trailX(y), y];
     for (const side of [-1, 1]) {
       // (heaped in clumps along the trail: a slow noise a side lets a stretch go bare and heaps another)
-      const clump = Math.max(0, Math.min(1, 1.8 * (vnoise(y * 0.3, side * 7.3, seed + 911) - 0.35))), count = Math.floor(EDGE.heap * (0.35 + 0.65 * t) * clump + H(i, 1));
-      for (let j = 0; j < count && out.length < EDGE.most; j++) {
+      const clump = Math.max(EDGE_.even ?? 0, Math.min(1, 1.8 * (vnoise(y * 0.3, side * 7.3, seed + 911) - 0.35))), count = Math.floor(EDGE_.heap * (0.35 + 0.65 * t) * clump + H(i, 1));
+      for (let j = 0; j < count && out.length < EDGE_.most; j++) {
         const k = i * 8 + j, u = H(k, 2), inward = u < inShare;
         // where across: mostly at the edge, a few in on the trail (`inShare` of them, `inReach` in), the rest out across
         // the fringe (squared: near the edge)
-        const off = inward ? site.halfWAt(y) - inReach * H(k, 3) : site.halfWAt(y) + site.fringeAt(y) * EDGE.out * H(k, 3) ** 2;
-        const x = c[0] + side * n[0] * off, yy = c[1] + side * n[1] * off + (H(k, 4) - 0.5) * EDGE.step * 1.5;
+        const off = inward ? site.halfWAt(y) - inReach * H(k, 3) : site.halfWAt(y) + site.fringeAt(y) * EDGE_.out * H(k, 3) ** 2;
+        const x = c[0] + side * n[0] * off, yy = c[1] + side * n[1] * off + (H(k, 4) - 0.5) * EDGE_.step * 1.5;
         if (!kept(keep, x, yy, 0.3)) continue;
-        const sz = lerp(EDGE.size[0], EDGE.size[1], H(k, 5) ** 1.6) * (inward ? 0.5 : 1);
+        const sz = lerp(EDGE_.size[0], EDGE_.size[1], H(k, 5) ** 1.6) * (inward ? 0.5 : 1);
         out.push(boulderFaces(S, { x: r5(x), y: r5(yy), z0: r5(heightAt(x, yy)), size: r5(sz), v: 20000 + k }, seed));
       }
       i++;

@@ -31,13 +31,17 @@ import { FOOTWEAR, footwearCard } from '../footwear/index.js';
 import { SUITS } from '../plating/index.js';
 import { HANDWEAR } from '../handwear/index.js';
 import { validateGarments } from './body-garment.js';
-import { isOutfitBuild, validateOutfitBuild, expandOutfit, outfitTones } from '../outfit/expand.js';
+import { isOutfitBuild, validateOutfitBuild, expandOutfit, outfitTones, outfitLanguage } from '../outfit/expand.js';
 
 export const DETAIL_WORDS = ['clothed', 'swimsuit', 'none'];
 /** the footwear library's cards past the plain boots, shoes and sandals: worn by the library itself on either body */
 const LIBRARY_FEET = Object.keys(FOOTWEAR).filter((w) => !['boots', 'shoes', 'sandals'].includes(w));
-/** the footwear library cards an outfit word list names (they keep the authored body's foot bare under them) */
-export const libraryFeet = (outfit) => (Array.isArray(outfit) ? outfit : typeof outfit === 'string' ? [outfit] : []).filter((w) => typeof w === 'string' && LIBRARY_FEET.includes(w));
+/** the footwear library cards an outfit names (they keep the authored body's foot bare under them): a word list's, or an
+ * outfit card's `feet` when it names one (`feet: 'combatBoots'`) */
+export const libraryFeet = (outfit) => {
+  if (isOutfitBuild(outfit)) { const f = outfitLanguage(outfit)?.feet; return typeof f === 'string' && LIBRARY_FEET.includes(f) ? [f] : []; }
+  return (Array.isArray(outfit) ? outfit : typeof outfit === 'string' ? [outfit] : []).filter((w) => typeof w === 'string' && LIBRARY_FEET.includes(w));
+};
 export const KIT_WORDS = ['ranger', 'none'];
 /** THE CHIBI'S DRESS (hero laws 12, on a plan whose style says `body: 'chibi'`: hero-form.js CHIBI_FORM): what it wears
  * drawn for its body, a toy's, not a small adult's, and FEW: a body that small cannot carry every piece, so it wears

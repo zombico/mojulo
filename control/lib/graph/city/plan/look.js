@@ -21,7 +21,7 @@ import { readStyle } from '../../era/arch-style.js';
 import { resolveLookSpec, LOOK_CELL } from '../../era/look.js';
 import { readGeocube, GEOCUBE_PRESETS } from '../../era/geocube.js';
 import { hourAir, readHour, referenceHour } from '../../era/geocube-hours.js';
-import { readClouds } from '../../matte-paint/sky.js';
+import { readClouds, cloudBand } from '../../matte-paint/sky.js';
 import { SIXTH_GEN_REFERENCES, resolveLook } from '../../era/sixth-gen.js';
 import { makeLight, hexToRgb, rgbToHex } from '../../polygonizer/vexar.js';
 import { cos, sin } from '../../../util/dmath.js';
@@ -69,6 +69,18 @@ export function cubeLookSpec(P) {
   const A = hourAir(P.cube, P.hour ?? referenceHour(ref), P.clouds), H = A.H;
   const relit = { ...ref, light: { ...ref.light, key: H.moonlit ? null : H.key, ambient: A.ambient }, air: { ...ref.air, fog: { ...ref.air.fog, color: A.fog.color, density: +(A.fog.density / P.cube.light.outsideFog).toFixed(5) }, dome: A.dome } };
   return { id, refId, ref: relit, cell: LOOK_CELL, air: A };
+}
+
+/** A cube's hour on the city's dome (look.js cubeLookSpec): the stars out as far as the night has come, the moon where its
+ *  key is, the clouds painted round it (matte-paint/sky.js). */
+export function hourSky(A) {
+  const H = A.H, out = {};
+  if (H.moonlit) {
+    const a = (H.key.azimuth * Math.PI) / 180, az = Math.atan2(Math.sin(a), Math.cos(a));
+    Object.assign(out, { day: +Math.min(1, Math.max(0, 1.25 * (1 - H.night))).toFixed(3), stars: 1, moon: { u: +((az + Math.PI / 2) / Math.PI + 0.5).toFixed(5), h: +(H.key.elevation / 90).toFixed(5), phase: 0.62, size: 1.3 } });
+  }
+  if (A.band) out.clouds = cloudBand(A.band);
+  return out;
 }
 
 const mix = (a, b, t) => rgbToHex(hexToRgb(a).map((v, i) => v + (hexToRgb(b)[i] - v) * t));

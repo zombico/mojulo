@@ -263,6 +263,20 @@ export function cervicalNeck(build, name) {
   return { ...build, base: build.base.map((m) => (m.id === 'neck' ? { ...m, cone: [m.cone[0], [m.cone[1][0], m.cone[1][1] + lean, m.cone[1][2]]], r: [m.r[0], m.r[1] * top] } : m)) };
 }
 
+/**
+ * THE THROAT LINE (realistic laws 14): the front from under the jaw to the chest one slope. The neck's root, the
+ * collarbones' medial heads and the sternocleidomastoids' feet, blended wide, tented forward at the neck's base into a
+ * ledge under the chin, the throat bulging forward of the line from the jaw to the chest (17 mm of it, on one hero): the
+ * build's field is cut back to the chord from the neck's top to the chest (body-relational-field.js `throat`), each
+ * build its own: `top` the chord's upper end under the head's base (W: the throat, under the chin); `chest` its lower,
+ * up the torso bone; `x0`, `x1` its reach either side of the midline and its ease out (W); `k` its blend (W).
+ */
+export const THROAT_LINE = Object.freeze({
+  shalla: Object.freeze({ top: 0.49, chest: 0.62, x0: 0.12, x1: 0.18, k: 0.03 }),
+  norrin: Object.freeze({ top: 0.49, chest: 0.62, x0: 0.14, x1: 0.2, k: 0.03 }),
+});
+export const throatLine = (build, name) => ({ ...build, throat: THROAT_LINE[name] });
+
 /** THE PHYSIQUE: four dials over a build, each −1 to 1, 0 the build as authored (the athletic base). `bulk` the muscles'
  * mass (their bellies across, how proud they stand; the bones and the joints as they are; on the plus side the arms set
  * out with the shoulders' muscle, the V of a superhero), `tone` their definition (the blends tighter or looser, the

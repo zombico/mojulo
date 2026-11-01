@@ -42,7 +42,7 @@ export const ADORN_PRIMS = Object.freeze({
   toeCap: { keys: ['lift', 'room', 'rivets', 'stud', 'group'], group: 'Steel', what: 'a quarter egg over the toes, toe base to tip (the half teacup), rivets round its back edge (`stud`: { size, group }, small and dark: broguing)' },
 });
 /** the families a card is annotated with (what kind of footwear it is: a shelf to browse, a word to ask by) */
-export const FOOTWEAR_FAMILIES = Object.freeze(['shoe', 'boot', 'sandal', 'sneaker', 'dress', 'historic', 'fantasy']);
+export const FOOTWEAR_FAMILIES = Object.freeze(['shoe', 'boot', 'sandal', 'sneaker', 'dress', 'historic', 'fantasy', 'military']);
 /** a sole layer's PATTERNS: `pod` a window of another group at the heel, `from` … `to` shares of the foot's print from
  * the heel, proud of the layer's wall (an air sole); `heel` a block under the print's rear (`to` of it from the heel),
  * `thick` tall from the layer's floor (a dress heel, the foot still flat); `lugs` tread blocks round the layer's edge,

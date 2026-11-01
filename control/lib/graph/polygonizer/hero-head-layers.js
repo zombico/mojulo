@@ -17,6 +17,7 @@
 import { relationalHead } from './head-relational.js';
 import { HEAD_TUNES } from './hero-relational-head.js';
 import { compileLayered, pinFrame } from './station-loft.js';
+import { validateRig, bindLayered } from './station-loft-rig.js';
 import { surfaceLocalOffset } from './surface-pin.js';
 import { relationalHeadChart, STAND_M } from '../epidermis/dermal-head.js';
 import { pierce, JEWEL_METALS, JEWEL_GEMS } from '../epidermis/dermal-jewel.js';
@@ -56,7 +57,7 @@ export function heroJewellery(recipe, piercings) {
   const fit = recipe.headFit;
   if (!fit || !piercings?.length || !faceSkinOf(recipe)[0]) return { parts: {}, palette: {} };
   const { sex, k, ty, men, relations, eyes } = fit;
-  const head = relationalHead({ sex, tune: fit.tune ?? HEAD_TUNES[sex], ...(relations ? { relations } : {}), ...(eyes ? { eyes } : {}), ...(fit.seat ? { seat: true } : {}) });
+  const head = relationalHead({ sex, tune: fit.tune ?? HEAD_TUNES[sex], ...(relations ? { relations } : {}), ...(eyes ? { eyes } : {}), ...(fit.seat ? { seat: fit.seat } : {}) });
   const J = pierce(relationalHeadChart(head, { cells: CELLS }), head, piercings);
   if (!J.mesh.faces.length) return { parts: {}, palette: {} };
   const s = k / STAND_M, toHero = (q) => [q[0] * s, q[1] * s + ty, q[2] * s + men];
@@ -148,7 +149,7 @@ export function heroHair(recipe, dermis, scalp, { level = 'L1', budget = false, 
   const fit = recipe.headFit;
   if (!fit || !scalp || !faceSkinOf(recipe)[0]) return { parts: {}, palette: {}, counts: null };
   const { sex, k, ty, men, relations, eyes } = fit, D = readDermis(dermis), S = readScalp(scalp);
-  const head = relationalHead({ sex, tune: fit.tune ?? HEAD_TUNES[sex], ...(relations ? { relations } : {}), ...(eyes ? { eyes } : {}), ...(fit.seat ? { seat: true } : {}) });
+  const head = relationalHead({ sex, tune: fit.tune ?? HEAD_TUNES[sex], ...(relations ? { relations } : {}), ...(eyes ? { eyes } : {}), ...(fit.seat ? { seat: fit.seat } : {}) });
   // THE GRASS HAT: the scalp a lawn of blades, combed, cut and hung, its coat under them (epidermis/hair-depict.js)
   const centre = [0, head.landmarks.eyeR.y * STAND_M * 0.3, head.landmarks.eyeR.z * STAND_M];
   // (`cards`, realistic laws 7: the blades as alpha cards, each point's place on its card kept for the strand texture)
@@ -170,27 +171,71 @@ export function heroHair(recipe, dermis, scalp, { level = 'L1', budget = false, 
 /** the parts the hair falls over (the hero's neck, its trunk and its upper arms) and how far below the head's base a point
  * of it rides the neck alone, then the torso alone (m) */
 export const HAIR_HANG = Object.freeze({ over: ['neck', 'torso', 'upperArmR', 'upperArmL'], neck: 0.06 });
-/** the hero's parts `over` as surfaces in the chart's frame (`toChart`), each { vertices, normals } */
-function bodyColliders(recipe, toChart) {
+/** the hero's parts `over` as surfaces in the chart's frame (`toChart`), each { vertices, normals }; with `seal`
+ * (sealSkin's), the head's skin below its base too (its `samples` the kept points: surfaceClear reads only those) */
+function bodyColliders(recipe, toChart, seal = null) {
   const parts = Object.fromEntries(HAIR_HANG.over.filter((n) => recipe.parts[n] && (recipe.parts[n].layer ?? 1) === 1).map((n) => [n, recipe.parts[n]]));
   if (!Object.keys(parts).length) return [];
   const C = compileLayered({ parts, dials: {}, creases: {} }).parts;
-  return Object.values(C).map((P) => {
+  const out = Object.values(C).map((P) => {
     const ids = Object.keys(P.points), at = new Map(ids.map((id, i) => [id, i])), vertices = ids.map((id) => toChart(P.points[id])), normals = vertices.map(() => [0, 0, 0]);
     for (const f of Object.values(P.faces)) { const [a, b, c] = f.map((id) => at.get(id)), n = cross3(sub3(vertices[b], vertices[a]), sub3(vertices[c], vertices[a])); for (const v of [a, b, c]) normals[v] = normals[v].map((x, q) => x + n[q]); }
     return { vertices, normals: normals.map(unit3) };
   });
+  if (seal) out.push({ vertices: seal.vertices.map(toChart), normals: seal.normals, samples: seal.keep.map((k, i) => k && seal.under[i]) });
+  return out;
+}
+/** THE SEAL (realistic laws 14): hair lying on the body moves as the skin under it moves. A hanging point within `near`
+ * (m) of the neck, the trunk, the upper arms or the head's skin below its base takes that skin's own bones (the jaw's share
+ * the head's: hair by the jaw never opens with the mouth), eased out to the height's rule by `far`; the head's skin below
+ * its base (the upper neck under the jaw, the head's one skin's) is a collider the hair falls outside, as the neck is; and
+ * a stroke that runs into the body stops there (hair-locks.js `seal`), never wrapped round it */
+export const HAIR_SEAL = Object.freeze({ near: 0.012, far: 0.04, under: 'headSkin' });
+/** the skin the hair seals against (hero frame): the hang's parts and the head's skin below its base, each vertex with its
+ * normal and its own bones (station-loft-rig.js bindLayered, as the body binds it); null where the rig cannot bind it */
+function sealSkin(recipe) {
+  const J = recipe.rig?.joints, names = [...HAIR_HANG.over, HAIR_SEAL.under].filter((n) => recipe.parts[n] && (recipe.parts[n].layer ?? 1) === 1);
+  if (!J?.headBase || !names.length) return null;
+  const parts = Object.fromEntries(names.map((n) => [n, recipe.parts[n]])), M = compileLayered({ parts, dials: {}, creases: {} });
+  let skin; try { const R = validateRig(recipe.rig); skin = bindLayered(M, { ...recipe, parts }, R); skin.bones = R.bones.map((b) => b.id); } catch { return null; }
+  const normals = M.vertices.map(() => [0, 0, 0]);
+  for (const [a, b, c] of M.faces) { const n = cross3(sub3(M.vertices[b], M.vertices[a]), sub3(M.vertices[c], M.vertices[a])); for (const v of [a, b, c]) normals[v] = normals[v].map((x, q) => x + n[q]); }
+  // (the head's skin only below the head's base: above it the scalp, which the hair already lies on)
+  const zb = J.headBase.at[2], keep = M.vertices.map((p, i) => M.provenance[i].part !== HAIR_SEAL.under || p[2] < zb);
+  const under = M.vertices.map((_, i) => M.provenance[i].part === HAIR_SEAL.under);
+  // (the jaw's share the head's: hair lying by the jaw stays with the head, never opening with the mouth)
+  const own = (i) => { const acc = {}; skin.joints[i].forEach((j, k) => { const w = skin.weights[i][k]; if (w > 0) { const b = skin.bones[j] === 'jaw' ? 'head' : skin.bones[j]; acc[b] = (acc[b] ?? 0) + w; } }); return Object.entries(acc); };
+  return { vertices: M.vertices, normals: normals.map(unit3), keep, under, weights: M.vertices.map((_, i) => own(i)) };
 }
 /** a hanging point's bones (hero frame z): the head's above its base, the neck's down to the neck's hub, the torso's under
- * it; null where the pin's own (the head's) serves */
-function hangWeights(recipe, M, toHero) {
+ * it; null where the pin's own (the head's) serves. With `seal` (sealSkin's), a point near the skin takes the skin's own
+ * bones (HAIR_SEAL), so it moves as what it lies on moves and never sweeps through it */
+function hangWeights(recipe, M, toHero, seal = null) {
   const J = recipe.rig?.joints, ids = new Set((recipe.rig?.bones || []).map((b) => b.id));
   if (!J?.headBase || !J?.neckHub || !['head', 'neck', 'torso'].every((b) => ids.has(b))) return null;
   const zb = J.headBase.at[2], zn = J.neckHub.at[2], out = {};
+  const cell = HAIR_SEAL.far, grid = new Map(), key = (p) => p.map((v) => Math.floor(v / cell)).join(',');
+  if (seal) seal.vertices.forEach((p, i) => { if (seal.keep[i]) { const k = key(p); (grid.get(k) || grid.set(k, []).get(k)).push(i); } });
+  const nearest = (p) => {
+    const c = p.map((v) => Math.floor(v / cell)); let bi = -1, bd = Infinity;
+    for (let a = -1; a <= 1; a++) for (let b = -1; b <= 1; b++) for (let e = -1; e <= 1; e++) for (const i of grid.get(`${c[0] + a},${c[1] + b},${c[2] + e}`) || []) { const q = seal.vertices[i], d = (p[0] - q[0]) ** 2 + (p[1] - q[1]) ** 2 + (p[2] - q[2]) ** 2; if (d < bd) { bd = d; bi = i; } }
+    return [bi, Math.sqrt(bd)];
+  };
   M.vertices.forEach((p, i) => {
-    const z = toHero(p)[2]; if (z >= zb) return;
+    const h = toHero(p), z = h[2]; if (z >= zb) return;
     const t = Math.min(1, (zb - z) / Math.max(1e-6, zb - zn)), u = Math.min(1, Math.max(0, (zn - z) / HAIR_HANG.neck));
-    const w = z >= zn ? [['head', 1 - t], ['neck', t]] : [['neck', 1 - u], ['torso', u]];
+    let w = z >= zn ? [['head', 1 - t], ['neck', t]] : [['neck', 1 - u], ['torso', u]];
+    if (seal) {
+      // (the skin's own bones where the point lies on it, eased to the height's rule away from it)
+      const [j, d] = nearest(h);
+      if (j >= 0 && d < HAIR_SEAL.far) {
+        const x = Math.min(1, Math.max(0, (HAIR_SEAL.far - d) / (HAIR_SEAL.far - HAIR_SEAL.near))), s = x * x * (3 - 2 * x), acc = {};
+        for (const [b, v] of w) acc[b] = (acc[b] ?? 0) + (1 - s) * v;
+        for (const [b, v] of seal.weights[j]) acc[b] = (acc[b] ?? 0) + s * v;
+        const top = Object.entries(acc).filter(([, v]) => v > 1e-4).sort((a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : 1)).slice(0, 4), sum = top.reduce((q, [, v]) => q + v, 0);
+        w = top.map(([b, v]) => [b, v / sum]);
+      }
+    }
     out[`v${i}`] = w.filter(([, x]) => x > 1e-4).map(([b, x]) => [b, r6(x)]);
   });
   return out;
@@ -204,20 +249,22 @@ function hangWeights(recipe, M, toHero) {
  * the hero's neck and shoulders. ONE colour, `Hair`: the hair's as the eye averages it (its grey a lighter whole, never
  * flecks); `HairStreak` only where the groom asks for a streak. Deterministic.
  */
-export function heroLockHair(recipe, dermis, scalp, { level = 'L1', budget = false, stylize } = {}) {
+export function heroLockHair(recipe, dermis, scalp, { level = 'L1', budget = false, stylize, seal = false } = {}) {
   const fit = recipe.headFit;
   if (!fit || !scalp || !faceSkinOf(recipe)[0]) return { parts: {}, palette: {}, counts: null };
   const { sex, k, ty, men, relations, eyes } = fit, D = readDermis(dermis), S = readScalp(scalp);
   const head = relationalHead({ sex, tune: fit.tune ?? HEAD_TUNES[sex], ...(relations ? { relations } : {}), ...(eyes ? { eyes } : {}) });
   const centre = [0, head.landmarks.eyeR.y * STAND_M * 0.3, head.landmarks.eyeR.z * STAND_M];
   const sc = k / STAND_M, toHero = (q) => [q[0] * sc, q[1] * sc + ty, q[2] * sc + men], toChart = (p) => [p[0] / sc, (p[1] - ty) / sc, (p[2] - men) / sc];
-  const H = lockHair(relationalHeadChart(head, { cells: CELLS }), D, S, { level, centre, stylize, colliders: bodyColliders(recipe, toChart) });
+  // (realistic laws 14: the hair SEALED against the neck and the body, HAIR_SEAL)
+  const sealed = seal ? sealSkin(recipe) : null;
+  const H = lockHair(relationalHeadChart(head, { cells: CELLS }), D, S, { level, centre, stylize, colliders: bodyColliders(recipe, toChart, sealed), seal: !!sealed });
   const cap = budget ? leanCoat(H.cap, HEAD_BUDGET[level]?.coat) : H.cap;
   if (!H.mesh && !cap && !H.cards) return { parts: {}, palette: {}, counts: H.counts };
   const [skinName, visage] = faceSkinOf(recipe), compiled = compileLayered({ parts: { [skinName]: visage }, dials: {}, creases: {} }).parts[skinName];
   const pin = visagePin(visage, compiled, 'head', [head.landmarks.n.x * k, head.landmarks.n.y * k + ty, head.landmarks.n.z * k + men], skinName);
   if (!pin) return { parts: {}, palette: {}, counts: H.counts };
-  const frame = pinFrame(compiled, pin), hang = (M) => ({ boneWeights: hangWeights(recipe, M, toHero) });
+  const frame = pinFrame(compiled, pin), hang = (M) => ({ boneWeights: hangWeights(recipe, M, toHero, sealed) });
   const parts = {
     ...(H.mesh ? { hair: pinMesh(frame, toHero, H.mesh, pin, 'Hair', hang(H.mesh)) } : {}),
     ...(cap ? { hairCap: pinMesh(frame, toHero, cap, pin, 'Hair') } : {}),
@@ -291,7 +338,7 @@ export function heroFaceHair(recipe, dermis, { type = 'straight', epidermis = nu
   const fit = recipe.headFit;
   if (!fit || !faceSkinOf(recipe)[0]) return { parts: {}, palette: {} };
   const { sex, k, ty, men, relations, eyes } = fit, D = readDermis(dermis);
-  const head = relationalHead({ sex, tune: fit.tune ?? HEAD_TUNES[sex], ...(relations ? { relations } : {}), ...(eyes ? { eyes } : {}), ...(fit.seat ? { seat: true } : {}) });
+  const head = relationalHead({ sex, tune: fit.tune ?? HEAD_TUNES[sex], ...(relations ? { relations } : {}), ...(eyes ? { eyes } : {}), ...(fit.seat ? { seat: fit.seat } : {}) });
   const sc = k / STAND_M, toHero = (q) => [q[0] * sc, q[1] * sc + ty, q[2] * sc + men], L = head.landmarks, at = (p) => [p.x * k, p.y * k + ty, p.z * k + men];
   const [skinName, visage] = faceSkinOf(recipe), compiled = compileLayered({ parts: { [skinName]: visage }, dials: {}, creases: {} }).parts[skinName];
   const centre = [0, L.eyeR.y * STAND_M * 0.3, L.eyeR.z * STAND_M], parts = {}, palette = {}, volume = volumeOf(skinName), Bg = budget ? HEAD_BUDGET[level] ?? HEAD_BUDGET.L1 : null;

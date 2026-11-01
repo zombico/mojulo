@@ -1,8 +1,10 @@
 /**
- * GET /api/sketches/[ref]/bible[?book=world|characters|feel] — serve a stored gameworld as its bible: the world bible
+ * GET /api/sketches/[ref]/bible[?book=world|characters|feel|foes] — serve a stored gameworld as its bible: the world bible
  * (its map, its land, its civilizations' towns and castles, each level) by default, the character bible with
  * `book=characters` when the world has a character book, the feel book with `book=feel` when it writes a feel (the stick
- * view of its controls to sample, lib/graph/gameworld/feel/book.js; `cast=female` for the other body). All are drawn
+ * view of its controls to sample, lib/graph/gameworld/feel/book.js; `cast=female` for the other body), the cast sheet
+ * with `book=foes` when it fields foes or fights something a casting call could cast for (lib/graph/gameworld/
+ * foe-cast-html.js: each made foe photographed, lib/mcp/tools/foe-portraits.js, a download included). All are drawn
  * from the recipe and kept in memory per revision (lib/sheet-cache.js), never stored. `?download=1` flips the
  * Content-Disposition.
  *
@@ -20,7 +22,7 @@ import { NextResponse } from 'next/server';
 
 import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { isGameworldKind, gameworldOf } from '@/lib/graph/gameworld/gameworld-kind';
-import { gameworldBibleHtml, characterBibleHtml } from '@/lib/graph/gameworld/index';
+import { gameworldBibleHtml, characterBibleHtml, foeCastHtml, castable, castingCall } from '@/lib/graph/gameworld/index';
 import { feelBookHtml, BOOK_CASTS } from '@/lib/graph/gameworld/feel/book';
 import { structureBookHtml } from '@/lib/graph/structure/book-html';
 import { occupancyOf } from '@/lib/graph/structure/programs';
@@ -68,16 +70,23 @@ export async function GET(request, { params }) {
     } else if (isGameworldKind(sketch.manifest?.kind)) {
       const world = gameworldOf(sketch.manifest);
       const book = request.nextUrl.searchParams.get('book') ?? 'world';
-      if (!['world', 'characters', 'feel'].includes(book)) return NextResponse.json({ error: "book is 'world', 'characters' or 'feel'" }, { status: 400 });
+      if (!['world', 'characters', 'feel', 'foes'].includes(book)) return NextResponse.json({ error: "book is 'world', 'characters', 'feel' or 'foes'" }, { status: 400 });
       if (book === 'characters' && !world.characters) {
         return NextResponse.json({ eligible: false, reason: 'this world has no character book (characters: { direction, hero? })' }, { status: 422 });
       }
       if (book === 'feel' && (world.feel === undefined || world.feel === null)) {
         return NextResponse.json({ eligible: false, reason: "this world writes no feel (feel: '<template>' | { pole, … }): design_game's readout suggests one" }, { status: 422 });
       }
+      if (book === 'foes' && !castable(world) && !castingCall(world)) {
+        return NextResponse.json({ eligible: false, reason: 'this world fields no foe and fights nothing a casting call could cast for (foes: { <id>: { class, … } }, levels.<id>.foes, or an intent that fights)' }, { status: 422 });
+      }
+      // (each made foe photographed for the cast sheet and the world bible's Foes section, a download included: the
+      // photographs are data; none without a browser, each foe its silhouette)
+      const { foePortraits } = await import('@/lib/mcp/tools/foe-portraits');
+      const shots = (book === 'foes' || book === 'world') && castable(world) ? await foePortraits(world) : { portraits: {}, key: '' };
       const cast = request.nextUrl.searchParams.get('cast') ?? 'male';
       if (book === 'feel' && !BOOK_CASTS.includes(cast)) return NextResponse.json({ error: `cast is one of ${BOOK_CASTS.join(', ')}` }, { status: 400 });
-      html = await cachedPage(`bible:${ref}:${sketch.updatedAt}:${book}${book === 'feel' ? `:${cast}` : ''}`, () => (book === 'characters' ? characterBibleHtml(world) : book === 'feel' ? feelBookHtml(world, { cast }) : gameworldBibleHtml(world)));
+      html = await cachedPage(`bible:${ref}:${sketch.updatedAt}:${book}${book === 'feel' ? `:${cast}` : ''}${shots.key ? `:${shots.key}` : ''}`, () => (book === 'characters' ? characterBibleHtml(world) : book === 'feel' ? feelBookHtml(world, { cast }) : book === 'foes' ? foeCastHtml(world, { portraits: shots.portraits }) : gameworldBibleHtml(world, { foePortraits: shots.portraits })));
       base = `${(sketch.title || world.name || ref).trim().replace(/[^a-z0-9._-]+/gi, '-').replace(/^-+|-+$/g, '') || 'gameworld'}${book === 'world' ? '' : `-${book}`}`;
     } else {
       return NextResponse.json({

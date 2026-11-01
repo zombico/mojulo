@@ -1,6 +1,7 @@
 /**
  * A GAMEWORLD'S FOES: the foe classes (lib/graph/foes/) a world fields and where its levels stand them. The world keeps
- * a BESTIARY, each entry a class at a rank on a skin; a level names which of them stand on its trails.
+ * a BESTIARY, each entry a class at a rank on a skin; a level names which of them stand on its trails, or in a
+ * building's rooms (each room between the way in and the goal a beat: levels.js buildingLevelOrder).
  *
  *   foes?: { '<id>': { class, rank?, skill?, skin?: { species?, ooze?, stylism? } | { people, facets? } | { meshRef, height? }, vanish? } }
  *                                                                                        // the world's bestiary: a skin is a
@@ -13,7 +14,8 @@
  *                                                                                        // how it is won (FOE_WINS: exit | clear)
  *
  * `true` stands the whole bestiary (every class on its stand-in, when the world keeps none), one foe on each of a trail
- * stage's free beats (the exit and the trailhead left clear), cycling through `from`; `count` stands that many instead,
+ * stage's free beats (the exit and the trailhead left clear), cycling through `from` (in a building, ROOM_FOES of its
+ * rooms, spread from the way in to the goal); `count` stands that many instead,
  * the extra ones round the beats. A swarm's placement is a pack of SWARM members sharing one group. Absent at both,
  * nothing is laid: every world as it was.
  *
@@ -27,6 +29,9 @@
  *   peopleRollOf(G, id, entry)          → a people's egocube roll (foes/people.js): its sheet is made at foes-<id>-sheet
  *                                         and the character from it at foes-<id>, through its own door with its moves
  *   isPeople(entry)                     → the entry is skinned as a person or a people, not a beast
+ *   isDressed(entry)                    → the entry is a person dressed as a crew's (foes/dress.js `dress`): made through
+ *                                         the hero door at foes-<id>, drawn on the library as a person
+ *   dressOf(G, id, entry)               → { grunt, mint } its hero-door order, in the game's tradition, on the entry's seed
  *   isModel(entry)                      → the entry is skinned as a model made elsewhere: it stands on its own ref (the
  *                                         sketch its model is bound onto), made by no step, on the library as a person
  *   foePlacements(G, level, ends)       → [{ id, entry, at, heading, group? }]: who stands where on a stage
@@ -42,7 +47,8 @@
 import { FOE_CLASSES, foeClass } from '../foes/index.js';
 import { MOVES } from '../foes/vocab.js';
 import { resolveFoe } from '../foes/resolve.js';
-import { foeFigure, fieldFigure, modelFigure, facing } from './stage-figures.js';
+import { foeFigure, fieldFigure, modelFigure, libraryFigure, facing } from './stage-figures.js';
+import { dressOrders } from '../foes/dress.js';
 import { isModelSkin } from '../foes/model.js';
 import { LEVEL_GOAL, PERSON } from './quick.js';
 import { HERO } from '../foes/vocab.js';
@@ -105,6 +111,8 @@ const LEVEL_KEYS = ['from', 'count', 'win'];
  * down, a summoner's summons with it). */
 export const FOE_WINS = Object.freeze(['exit', 'clear']);
 export const SWARM = 3;
+/** How many foes a building's rooms stand when its level names no count (one a room, spread through them). */
+export const ROOM_FOES = 6;
 export const MAX_FOES = 32;
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const r3 = (v) => Math.round(v * 1000) / 1000;
@@ -180,6 +188,8 @@ export const foeLook = (entry) => { const f = resolveFoe(specOf(entry)); return 
  * seed. The run makes its sheet from it, and the field rolls the same sheet to draw it. */
 export const peopleRollOf = (G, id, entry) => peopleRoll(entry.skin, foeClass(entry.class), { seed: peopleSeed(G.seed, id), setting: settingOfGame(G) });
 export const isPeople = (entry) => entry?.skin?.people !== undefined;
+export const isDressed = (entry) => entry?.skin?.dress !== undefined;
+export const dressOf = (G, id, entry) => dressOrders(entry.skin, { seed: peopleSeed(G.seed, id), tradition: settingOfGame(G).tradition ?? null, title: `${G.name ?? G.id} ${id}` });
 export const isModel = (entry) => isModelSkin(entry?.skin);
 
 const freeBeats = (ends) => (ends?.beats ?? []).filter((b) => b.beat !== 'exit' && b.beat !== 'trailhead');
@@ -189,9 +199,12 @@ const round = (at, k, n, r) => (k === 0 ? at : [r3(at[0] + r * Math.cos((2 * Mat
 export function foePlacements(G, level, ends) {
   const LF = G.levels[level]?.foes;
   if (LF === undefined) return [];
-  const along = freeBeats(ends);
-  if (!along.length) return [];
-  const { from, count = along.length } = readLevelFoes(LF, G.foes, `levels.${level}`), B = bestiaryOf(G), out = [];
+  const free = freeBeats(ends);
+  if (!free.length) return [];
+  const read = readLevelFoes(LF, G.foes, `levels.${level}`), B = bestiaryOf(G), out = [];
+  // (a building's rooms are many: it stands ROOM_FOES by default, spread through them from the way in to the goal)
+  const indoors = ends.use !== undefined, { from, count = indoors ? Math.min(ROOM_FOES, free.length) : free.length } = read;
+  const along = indoors && count < free.length ? Array.from({ length: count }, (_, k) => free[Math.floor(((k + 0.5) * free.length) / count)]) : free;
   for (let k = 0; k < count; k++) {
     const beat = along[k % along.length], lap = Math.floor(k / along.length), eid = from[k % from.length], entry = B[eid];
     const back = (k % along.length) ? along[(k % along.length) - 1].at : ends.spawn;
@@ -232,6 +245,11 @@ function figureFor(G, C, part, id, eid, entry, f, { ref = null, figure = null } 
   if (isModel(entry)) {
     // a MODEL made elsewhere (foes/model.js): worn as a person on the library, stood at its height grown by its rank
     part.figures[id] = had ?? modelFigure(ref, f.measured.height);
+    return peopleBody(f.measured.height, f.scale);
+  }
+  if (isDressed(entry)) {
+    // a person dressed as a crew's (foes/dress.js), made through the hero door: on the library as any made person is
+    part.figures[id] = had ?? libraryFigure(ref);
     return peopleBody(f.measured.height, f.scale);
   }
   if (isPeople(entry)) {

@@ -25,11 +25,14 @@ export { natureCard, colorKey, landOfKit, landFor, landToLevel, RAMP_KEY } from 
 export { gameworldBibleHtml } from './bible-html.js';
 export { MEADOWMARK, MEADOWMARK_HERO, HALDEN_REACH } from './examples.js';
 export { characterBibleHtml } from './character-bible-html.js';
+export { foeCastHtml } from './foe-cast-html.js';
+export { foeCastOf, foeState, foeParts, approveFoe, castable } from './foe-cast.js';
+export { castingCall } from './foe-casting.js';
 export { readIntent, tunnel } from './tunnel.js';
 export { tunnelBuilding, buildingDomain, BUILDING_TRAITS } from './tunnel-buildings.js';
 export { tunnelTech, techDomain, composeThing, TECH_TRAITS } from './tunnel-tech.js';
 export { tunnelLand, landDomain, composeLook, LAND_TRAITS, LOOK_LAWS, COLOURS } from './tunnel-land.js';
 export { techIndexHtml } from './tech-html.js';
-export { reviewParts, reviewState, readReview, approve, fingerprint, MODES, REVIEW_STATUSES, STAMPS } from './review.js';
+export { reviewParts, reviewState, readReview, approve, fingerprint, MODES, REVIEW_STATUSES, STAMPS, FOE_CAST_PART, isFoePart } from './review.js';
 export { weatherCardHtml, stateStill, weatherStrip } from './weather-card.js';
 export { composeGameworld, readPrompt, LEXICON } from './compose.js';

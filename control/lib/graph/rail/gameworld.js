@@ -1,12 +1,13 @@
 // The gameworld rail: a game designed top down (design_game). Its concerns are the book's reviewed parts, each in the
 // state its stamp puts it (gameworld/review.js, character-review.js), grouped into what a game asks of its maker: what
 // game it is, its world, its characters, its systems, its levels, its story, and play. Its parts are what a run made
-// (runner.js), each fresh or not by the runner's own `decide`; it is read in its world bible and its character bible,
-// and played as its game.
+// (runner.js), each fresh or not by the runner's own `decide`; it is read in its world bible and its character bible
+// (and, where it fields foes, its cast sheet: a Foes outcome of its own), and played as its game.
 import { registerRail, sketchHref } from './rail.js';
 import { isGameworldKind, gameworldOf } from '../gameworld/gameworld-kind.js';
 import { reviewState, fingerprint } from '../gameworld/review.js';
 import { characterState } from '../gameworld/character-review.js';
+import { castable, foeState } from '../gameworld/foe-cast.js';
 import { runSteps, decide } from '../gameworld/runner.js';
 import { readGameworld } from '../gameworld/world.js';
 
@@ -16,6 +17,7 @@ export const GAMEWORLD_OUTCOMES = Object.freeze([
   { id: 'characters', name: 'Characters' },
   { id: 'systems', name: 'Systems' },
   { id: 'levels', name: 'Levels' },
+  { id: 'foes', name: 'Foes' },
   { id: 'story', name: 'Story' },
   { id: 'play', name: 'Play' },
 ]);
@@ -28,6 +30,7 @@ export function partOutcome(id) {
   if (id === 'equipment' || id.startsWith('mechanics:')) return 'systems';
   if (id.startsWith('level:')) return 'levels';
   if (id === 'story' || id === 'quests') return 'story';
+  if (id.startsWith('foes:')) return 'foes';
   return null;
 }
 
@@ -49,11 +52,15 @@ export function stampState(s) {
 /** Is this part the character book's (its own bible), rather than the world's? */
 export const isCharacterPart = (id) => id === 'characters:direction' || id.startsWith('hero:') || id.startsWith('mechanics:') || id === 'equipment';
 
-/** Where a part is drawn: its view (the world bible, `book`, or the character bible, `characters`) and its section. */
+/** Where a part is drawn: its view (the world bible, `book`, the character bible, `characters`, or the cast sheet,
+ * `foes`) and its section. */
 export function partPlace(id) {
   if (isCharacterPart(id)) return { view: 'characters', anchor: id.replace(':', '-') };
   if (id === 'world') return { view: 'book', anchor: 'map' };
   if (id === 'cast' || id === 'quests') return { view: 'book', anchor: 'story' };
+  // (the cast sheet's: the lineup, or a foe's card)
+  if (id === 'foes:cast') return { view: 'foes', anchor: 'lineup' };
+  if (id.startsWith('foes:')) return { view: 'foes', anchor: `foe-${id.slice(5)}` };
   return { view: 'book', anchor: id.replace(':', '-') };
 }
 
@@ -70,6 +77,9 @@ export default registerRail({
     const stamps = [];
     try { stamps.push(...reviewState(world)); } catch (err) { errors.push(err.message); }
     try { if (world.characters) stamps.push(...characterState(world)); } catch (err) { errors.push(err.message); }
+    // (its foes, where it fields any: the cast sheet's parts, under an outcome only such a world has)
+    let fielding = false;
+    try { fielding = castable(world); if (fielding) stamps.push(...foeState(world)); } catch (err) { errors.push(err.message); }
     const concerns = stamps.filter((s) => partOutcome(s.id)).map((s) => ({
       id: s.id, name: s.name, outcome: partOutcome(s.id), ...stampState(s), ...(s.note ? { note: s.note } : {}), ...partPlace(s.id),
     }));
@@ -109,8 +119,9 @@ export default registerRail({
     if (ref) exits.push({ id: 'book', href: sketchHref(ref, 'bible') });
     if (ref && world.characters) exits.push({ id: 'characters', href: `${sketchHref(ref, 'bible')}?book=characters` });
     if (ref && world.feel !== undefined && world.feel !== null) exits.push({ id: 'feel', href: `${sketchHref(ref, 'bible')}?book=feel` });
+    if (ref && fielding) exits.push({ id: 'foes', href: `${sketchHref(ref, 'bible')}?book=foes` });
     const gameRef = made.game?.ref;
     if (gameRef && row(gameRef)) exits.push({ id: 'play', href: sketchHref(gameRef, 'game') }, { id: 'playtest', href: sketchHref(gameRef, 'playtest') });
-    return { concerns, parts, exits };
+    return { concerns, parts, exits, ...(fielding ? {} : { outcomes: GAMEWORLD_OUTCOMES.filter((o) => o.id !== 'foes') }) };
   },
 });

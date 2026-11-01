@@ -1,0 +1,188 @@
+{
+ "id": "outer-works",
+ "name": "Outer works",
+ "levels": {
+  "hangar": {
+   "name": "Hangar bay",
+   "building": {
+    "use": "hangar-bay",
+    "seed": 2
+   }
+  },
+  "barracks": {
+   "name": "Barracks",
+   "building": {
+    "use": "barracks",
+    "seed": 3
+   }
+  },
+  "fortifications": {
+   "name": "Fortifications",
+   "building": {
+    "use": "armoury",
+    "seed": 5
+   }
+  },
+  "plant": {
+   "name": "The plant",
+   "building": {
+    "use": "plant",
+    "seed": 4
+   }
+  }
+ },
+ "wcd": {
+  "core": "plant",
+  "spaces": {
+   "dock": {
+    "kind": "outer",
+    "depth": 0,
+    "built": false
+   },
+   "hangar": {
+    "kind": "outer",
+    "depth": 1,
+    "level": "hangar",
+    "use": "hangar-bay",
+    "look": {
+     "construction": "military",
+     "palette": "military"
+    }
+   },
+   "barracks": {
+    "kind": "inner",
+    "depth": 2,
+    "level": "barracks",
+    "use": "barracks",
+    "look": {
+     "construction": "everyday",
+     "palette": "everyday"
+    },
+    "tone": {
+     "texture": "value",
+     "steps": 0,
+     "key": 0.48,
+     "gain": 1,
+     "default": "olive",
+     "ramps": {
+      "olive": [
+       "#141a0f",
+       "#2f3a22",
+       "#556b3a",
+       "#8a9a63",
+       "#d8dcc0"
+      ],
+      "earth": [
+       "#1c140d",
+       "#3e2c1c",
+       "#6b4a2e",
+       "#9c7a55",
+       "#e0cfb2"
+      ],
+      "khaki": [
+       "#1f1d14",
+       "#4a4630",
+       "#7d7550",
+       "#b8ad82",
+       "#ece5c8"
+      ],
+      "rust": [
+       "#24120a",
+       "#55301a",
+       "#8a5230",
+       "#c08a5a",
+       "#f0d6b8"
+      ]
+     },
+     "groups": {
+      "stage:floor": "earth",
+      "stage:band": "earth",
+      "stage:base": "earth",
+      "stage:column": "khaki",
+      "stage:trim": "khaki",
+      "stage:cabinet": "khaki",
+      "stage:services": "khaki",
+      "stage:beam": "khaki",
+      "stage:soffit": "khaki",
+      "stage:ceiling": "khaki",
+      "stage:crown": "khaki",
+      "stage:paint": "rust"
+     },
+     "keep": [
+      "stage:lamp",
+      "stage:fixture",
+      "stage:hazard"
+     ]
+    }
+   },
+   "fortifications": {
+    "kind": "outer",
+    "depth": 3,
+    "level": "fortifications",
+    "use": "armoury",
+    "look": {
+     "construction": "bunker",
+     "palette": "military"
+    }
+   },
+   "plant": {
+    "kind": "inner",
+    "depth": 4,
+    "level": "plant",
+    "use": "plant",
+    "look": {
+     "construction": "utility",
+     "palette": "utility"
+    }
+   }
+  },
+  "doors": [
+   {
+    "from": "dock",
+    "to": "hangar",
+    "via": "door",
+    "gate": {
+     "clearance": 1
+    }
+   },
+   {
+    "from": "hangar",
+    "to": "barracks",
+    "via": "stair",
+    "gate": {
+     "clearance": 1
+    }
+   },
+   {
+    "from": "barracks",
+    "to": "fortifications",
+    "via": "door",
+    "gate": {
+     "clearance": 2
+    }
+   },
+   {
+    "from": "fortifications",
+    "to": "plant",
+    "via": "stair",
+    "gate": {
+     "clearance": 3
+    }
+   },
+   {
+    "from": "plant",
+    "to": "hangar",
+    "via": "door",
+    "oneWay": true
+   }
+  ]
+ },
+ "style": {
+  "palette": {
+   "seed": 776210334
+  }
+ },
+ "book": {
+  "skin": "briefing"
+ }
+}

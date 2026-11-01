@@ -17,7 +17,7 @@
 import { ANIME_FACE, ANIME_FACE_MOVES, ANIME_HAIR_MOVES, ANIME_POSES, resolveAnimeFace, resolveAnimeHair, resolveAnimeExpression, animeDefaultStyle, ANIME_HAIR_BASE } from './anime-head.js';
 import { ANIME_HAIR_STYLES } from './anime-head.js';
 import { HEAD_PRESETS } from './humanoid-head.js';
-import { resolveTune, castPole, castOf, lawCast } from './hero-form.js';
+import { resolveTune, castPole, castOf, lawCast, FORM_BODY, formBodied } from './hero-form.js';
 import { ANIME_SCULPT_MOVES, resolveAnimeSculpt, featureAdvice } from './anime-sculpt.js';
 import { genkiLayers, genkiExpression } from './anime-genki.js';
 import { animeStyleOf } from './anime-styles.js';
@@ -131,6 +131,16 @@ export const ANIME_FORM_POLE = Object.freeze({
   female: Object.freeze({ sculpt: Object.freeze({ tipProjection: 1.08, pronasale: 0.02, stomion: 0.004 }), face: Object.freeze({ chinHeight: 0.9 }),
     bands: Object.freeze({ noseProjection: [0.05, 0.09], pronasale: [0.27, 0.33], noseToMouth: [0.09, 0.15], browGap: [0.4, 0.9] }) }),
 });
+/** THE ANIME FORM'S BODY (hero laws 20): the form body (hero-form.js FORM_BODY, one body for every tiered hero) as the
+ * anime adult wears it under its cast, as the head wears ANIME_FORM. A cast's own `smooth` and `chest` go over it
+ * (anime-styles.js); a child or a chibi keeps its own body (its build's), and a row stamped before laws 20 the body it
+ * had. */
+export const ANIME_FORM_BODY = FORM_BODY;
+/** does this hero wear the anime form's body (ANIME_FORM_BODY): the anime head under laws 20, an adult's build */
+export const animeBodyFormed = (hero) => hero?.head === 'anime' && formBodied(hero);
+/** the rounds this hero's body is split (body-smooth.js): its cast's `smooth`, else the form's body's, else none; never
+ * in the lowpoly register, faceted by design */
+export const animeBodySmooth = (hero) => (hero?.register === 'lowpoly' ? null : animeStyleOf(hero, castHeadPole(hero))?.smooth ?? (animeBodyFormed(hero) ? ANIME_FORM_BODY.smooth : null));
 /** the anime head's form this hero wears, as one sculpt layer (ANIME_FORM and its base's), or null */
 export const animeFormOf = (hero) => (animeFormed(hero) ? resolveAnimeSculpt([ANIME_FORM, ANIME_FORM_POLE[heroHeadPole(hero)]?.sculpt]) : null);
 /** and its face layer (its base's), or null */
@@ -180,8 +190,11 @@ export function composeAnime(hero, defaultStyle, { hairBase = null } = {}) {
   const Bd = animeBodyOf(hero), bodyTune = Bd ? { ...(St?.tune ?? {}), ...Bd.tune } : St?.tune;
   const { from: _t, ...tune } = resolveTune([bodyTune, L?.tune, hero.tune, G?.tune].filter(Boolean));
   const sculpt = hero.sculpt === false ? false : resolveAnimeSculpt([animeFormOf(hero), St?.sculpt, C?.sculpt, L?.sculpt, hero.sculpt, G?.sculpt].filter((x) => x !== undefined && x !== null));
-  // (the style's chest, its pectorals' and its bust's own words: hero-form.js heroPlan `chest`; absent, the form's)
-  return { face, sculpt, hair, expression, tune, hairWords, hairCut, ...(St?.chest ? { chest: St.chest } : {}) };
+  // (the chest: the anime form's body's (ANIME_FORM_BODY, its cast's pole), the cast's own words over it, its bust's
+  // over the form's bust; hero-form.js heroPlan `chest`; neither, the plan's own)
+  const FB = animeBodyFormed(hero) ? ANIME_FORM_BODY.chest[castHeadPole(hero)] : null, SC = St?.chest ?? null;
+  const chest = FB || SC ? { ...(FB ?? {}), ...(SC ?? {}), ...(FB?.bust || SC?.bust ? { bust: { ...(FB?.bust ?? {}), ...(SC?.bust ?? {}) } } : {}) } : null;
+  return { face, sculpt, hair, expression, tune, hairWords, hairCut, ...(chest ? { chest } : {}) };
 }
 /** the hero's head pole: its `headPreset`, else the cast when that is a hero cast, else the male */
 export const heroHeadPole = (hero) => hero.headPreset ?? styleHeadOf(hero) ?? castHeadPole(hero);

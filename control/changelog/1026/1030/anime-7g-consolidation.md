@@ -55,3 +55,16 @@ game: every cast is lit the same way, so any game can field any of them. The eye
   Shonen High's figures (merged from the expressiveness branch: an athletic male, a long-legged female) carry waists
   narrower for the hips than the realistic bands, and as the default anime head every minted anime hero was advised
   against them; their own bands admit them.
+- **The anime form's body** (`anime-looks.js` `ANIME_FORM_BODY`, hero laws 20): the body work first done on Shonen High's
+  pair (merged from the expressiveness branch) is every anime adult's now, as the head wears its form: the body rounded
+  (its skin split once on the curved patch, `body-smooth.js`) and, as the rounded body asks, the rib cage narrower under
+  the shoulders (its sides falling nearly straight from the armpit) and the male's pectoral layer gone (rounded, it read
+  as an imprint). A cast's own `smooth` and `chest` go over it (Shonen High's female keeps her smaller bust on it), and
+  its proportions stay its own; a child or a chibi keeps its build's body, and a row stamped before laws 20 the body it
+  had. Z-Fighter's and School-Kid Hero's pairs wear it with no words of their own: Z-Fighter's male reads a V under his
+  broad shoulders with the pectoral imprint gone.
+  What rides with it: the lowpoly register keeps its flat facets (no rounding); a garment over the rounded body eases out
+  by the rounding (`outfit-plan.js` `ROUND_EASE`), so a cloak no longer grazes the fuller flank; the hero's mesh budget
+  (`hero-budget.test.js`) grows to the rounded body's 34k triangles and 17.5k vertices; a hand in its pocket rests its
+  wrist and forearm against the hip it hangs by (`hero-aura.js` `POCKET`), so Jotaro's pocketed hand is read against the
+  fuller flank as a hand at rest, not one inside the body.

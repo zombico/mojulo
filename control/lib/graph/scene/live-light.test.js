@@ -251,7 +251,7 @@ describe('occlusion: the World page', () => {
       expect(page.split('__creasePrepass(); renderer.render(scene, camera)').length - 1).toBe(renders - 1);   // all but the prepass's own
       expect(page.includes('__crInkScene')).toBe(!!extra.creases);
       // a cutout (an alpha-tested map) is drawn with an override that cuts its holes
-      expect(page).toContain('o.material = !Array.isArray(m) && m.alphaTest > 0 && m.map ? __crCut(__cls, m) : __cls;');
+      expect(page).toContain('m.userData && m.userData.prepass ? __crMoved(__cls, m) : !Array.isArray(m) && m.alphaTest > 0 && m.map ? __crCut(__cls, m) : __cls;');
       expect(page).toContain("if (texture(uCut, vCutUv).a < uCutA) discard;");
     }
   });

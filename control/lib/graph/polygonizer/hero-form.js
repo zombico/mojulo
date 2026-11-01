@@ -345,10 +345,20 @@ export const HERO_BUILD_NAMES = Object.freeze(Object.keys(HERO_BUILDS));
  * drawings are built with their own eye socket (the ridge over the eye, the socket's upper plane, its inner and outer
  * ends, above the widest lid's lash band only), so a brow's target and its correctives carry it and the socket is
  * drawn with the brow, frame by frame; laws 1 to 19 drew every brow over the head's one socket, its rim only tied to
- * the brow's middle. Only on the anime head's form (laws 19).
+ * the brow's middle. Only on the anime head's form (laws 19). And it GIVES THE ANIME ADULT ITS FORM'S BODY (anime-looks.js
+ * ANIME_FORM_BODY): the body rounded (its skin split once on the curved patch, body-smooth.js) and, as the rounded body
+ * asks, the rib cage narrower under the shoulders and the male's pectoral layer gone; laws 1 to 19 built the anime body
+ * as its rings, faceted, with the chest as it was. Not on a child or a chibi (its build's own body).
+ * Laws 21 GIVES THE LANDMARK HEAD'S ADULT THE FORM BODY (FORM_BODY, the anime adult's since laws 20): one body for every
+ * tiered hero, only the head making a difference: rounded, the rib cage narrower under the shoulders, no male pectoral
+ * layer, and on the lit export the engine's smooth normals over the whole figure, its face as well; laws 1 to 20 built the landmark hero's body as its rings, faceted, with the chest
+ * as it was. Not on a child or a chibi, a hero robot's toy body, an undead's or a beast-kin's (their own bodies, for
+ * now), nor the realistic form.
+ * Laws 22 REFINES THE ANIME FRAME (ANIME_FRAME, below): the wrist deeper through the hand, the shoe's heel, the
+ * shoulder's cone under the torso's skin at the clavicle; laws 1 to 21 build the anime body as it was.
  */
-export const HERO_LAWS_VERSION = 21;
-/** THE ANIME FRAME (hero laws 21, the anime proportions on the structured core): the body the anime head wears, refined
+export const HERO_LAWS_VERSION = 22;
+/** THE ANIME FRAME (hero laws 22, the anime proportions on the structured core): the body the anime head wears, refined
  * where a fuller body read it thin or as boxes (the muscle shirt, musculature/, worn over it, takes each with it):
  *   wrist   the hand's section at the wrist and its palm's first ring deeper through the hand by this (its second by
  *           half as much), and the forearm's tendon ring with it: from the front, the palm facing the thigh, the wrist
@@ -360,14 +370,14 @@ export const HERO_LAWS_VERSION = 21;
  *   clavicle  the shoulder's cone rides UNDER the torso's skin at the shoulder's top and front (tiered-form.js
  *           SHOULDER_CONE `skin`, laws 9), so the collarbone's run from the neck to the shoulder is the torso's own
  *           surface: riding over it, the cone had stood through it in angular plates
- * Laws 1 to 20 build the anime body as it was. */
+ * Laws 1 to 21 build the anime body as it was. */
 export const ANIME_FRAME = Object.freeze({
   wrist: 1.35,
   shoe: Object.freeze({ slots: 'ring10', e: 2.2, back: [0.92, 0.9], cap: 0.6, at: -0.3, r: [1.06, 1.02], low: -0.004 }),
   clavicle: true,
 });
-/** whether a plan is the anime frame (hero laws 21 on the anime proportions' structured core) */
-export const isAnimeFrame = ({ laws = 1, proportions = 'hero', core = DEFAULT_CORE } = {}) => laws >= 21 && proportions === 'anime' && core === 'structured';
+/** whether a plan is the anime frame (hero laws 22 on the anime proportions' structured core) */
+export const isAnimeFrame = ({ laws = 1, proportions = 'hero', core = DEFAULT_CORE } = {}) => laws >= 22 && proportions === 'anime' && core === 'structured';
 /** Does this spec read a table the hero laws cover? (the structured core's shoulder line, laws 2, leg set, laws 3, leg length, laws 4, and arm length, laws 5:
  * every hero on the default core) */
 export const readsHeroLaws = (spec) => (spec.core ?? DEFAULT_CORE) === 'structured' || spec.form === 'tiered' || (spec.painterly !== undefined && spec.painterly !== null && spec.painterly !== false) || isBuiltCast(spec.cast) || (spec.geocube !== undefined && spec.geocube !== null);
@@ -438,6 +448,37 @@ export const castOf = (cast, proportions = 'hero') => {
   const pole = castOf(castPole(cast), proportions);
   return { ...builtCast(pole, cast.build ?? 'canonical'), pole: castPole(cast) };
 };
+
+/** THE FORM BODY: one body for every tiered hero, whatever head it wears. Only the head makes a difference; the body
+ * differs by its cast's sizes and proportions alone. The body rounded (`smooth`: its skin split once on the curved patch,
+ * body-smooth.js, so it reads as one form rather than its rings' facets) and, as the rounded body asks, its chest
+ * (heroPlan `chest`): the rib cage narrower under the shoulders, so the rounded sides fall nearly straight from the
+ * armpit instead of flaring past it, and on the male no pectoral layer (rounded, it read as an imprint on the chest).
+ * First tuned on Shonen High's pair and worn by the anime adult under laws 20 (anime-looks.js ANIME_FORM_BODY, a cast's
+ * own `smooth` and `chest` over it), by the landmark head's adult under laws 21 (FORM_BODY_LAWS). Not on a child or a
+ * chibi (its build's own body), and for the landmark head not yet on a hero robot's toy body, an undead's or a
+ * beast-kin's, nor on the realistic form (its own body). */
+export const FORM_BODY = Object.freeze({
+  smooth: 1,
+  chest: Object.freeze({ male: Object.freeze({ width: 0.82, pec: false }), female: Object.freeze({ width: 0.82 }) }),
+  // the core read on it (hero-core-measures.js CORE_BANDS, a cast's own bands over these): rounded, the female's hip side
+  // falls from its waist ring nearly straight to the trochanter, so its widest stretch is a plateau under 2 mm flat from
+  // the hip joint down, and its peak may read anywhere on it
+  coreBands: Object.freeze({ female: Object.freeze({ hipPeak: Object.freeze([-0.45, -0.05]) }) }),
+});
+/** the hero laws each head first wears the form body under */
+export const FORM_BODY_LAWS = Object.freeze({ anime: 20, landmark: 21 });
+/** does this hero wear the form body: its head's laws, an adult's build (the anime head's as laws 20 read it) */
+export function formBodied(hero) {
+  if (!hero) return false;
+  const head = hero.head ?? 'landmark', gate = FORM_BODY_LAWS[head], laws = hero.laws ?? 1;
+  if (gate === undefined || laws < gate) return false;
+  if (head === 'anime') return !castOf(lawCast(hero.cast, laws).cast)?.child;
+  const props = hero.proportions ?? 'hero';
+  return hero.form !== 'realistic' && !hero.undead && !hero.beast && props !== 'herobot' && !castOf(lawCast(hero.cast, laws, props).cast, props)?.child;
+}
+/** the form body's pole for a cast: its female's, else its male's */
+export const formBodyPole = (cast) => (castPole(cast) === 'female' ? 'female' : 'male');
 
 /** THE NECK ROOT on the structured core: the neck rises out of the chest. `notch` the sternal notch under the neck hub
  * (m: the top ring's front; the canon's T2 against C7, about 2.5 cm), falling off round the ring by `cos^fall` of the

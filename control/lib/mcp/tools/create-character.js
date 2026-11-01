@@ -13,6 +13,10 @@
  *   as 'mascot'   → a mascot sheet rolled from spec { brief?, facets?, seed?, kit? } (egocube/mascot.js), its body
  *                   compiled to a ring plan (egocube/mascot-form.js), minted as a creature: the same call a mascot
  *                   egocube makes; `kit` a sport's kit worn as far as its shape allows (sportswear/mascot-kit.js)
+ *   as 'persona'  → a hero cast as a SPEAKER (persona/persona.js): a record of its own (kind 'persona') pointing at a
+ *                   hero, with a voice, a delivery register and the scripts it reads (spec { hero, voice?, register?,
+ *                   reads }); a read is a face take where the face is drawn (a gen-7 game, the realistic head), and its
+ *                   captions and the body's gestures everywhere (persona/fidelity.js)
  *
  * Iteration: `update_character` (below), the same door the other way round: a character's own words merged into the
  * stored recipe, carried out by `update_sketch`'s patch path, so an edit through it equals the equivalent patch
@@ -22,6 +26,7 @@
 import { registerTool } from '@/lib/mcp/server';
 import { mintSolidHandler } from '@/lib/mcp/tools/mint-solid';
 import { updateSketchHandler } from '@/lib/mcp/tools/sketch-mint';
+import { applyManifestPatch } from '@/lib/mcp/tools/manifest-patch.js';
 import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { HERO_FIELDS, heroKeyHint, lowerVibe } from '@/lib/mcp/tools/layered';
 import { readHeroName } from '@/lib/graph/polygonizer/hero-emblem';
@@ -31,7 +36,11 @@ import { rollMascot } from '@/lib/graph/egocube/mascot.js';
 import { mascotPlanFromSheet } from '@/lib/graph/egocube/mascot-form.js';
 import { readKit } from '@/lib/graph/sportswear/kits.js';
 import { mascotKit } from '@/lib/graph/sportswear/mascot-kit.js';
+import { packCharacterOrders } from '@/lib/graph/cosmos/packs/index.js';
 import { bindPerformance } from '@/lib/graph/face-acting/recordings';
+import { personaManifest, personaReads, readSummary, isPersonaKind } from '@/lib/graph/persona/persona.js';
+import { speakerFidelity, FACE_ERA } from '@/lib/graph/persona/fidelity.js';
+import { isVoiceRegisterKind } from '@/lib/graph/voice/voice-register';
 
 // as → the mint_solid call it makes, and the card that is its manual.
 export const CHARACTER_DOORS = {
@@ -40,8 +49,9 @@ export const CHARACTER_DOORS = {
   animal: { card: 'animal', route: () => ({ kind: 'animal' }) },
 };
 
-/** `as: 'mascot'` is a door of its own: a sheet rolled from the words, then the creature door (docs/mascot.md) */
-const AS_LIST = [...Object.keys(CHARACTER_DOORS), 'mascot'];
+/** `as: 'mascot'` is a door of its own: a sheet rolled from the words, then the creature door (docs/mascot.md); `as:
+ * 'persona'` another, a record pointing at a hero (persona/persona.js) */
+const AS_LIST = [...Object.keys(CHARACTER_DOORS), 'mascot', 'persona'];
 const MASCOT_SPEC_KEYS = ['brief', 'facets', 'seed', 'kit'];
 
 /** The dials a sheet's first reading turns after the mint (`after` ops on /dials/<name>), as a mint's `dials`. */
@@ -89,13 +99,64 @@ async function createFromEgocube({ egocube, years, member, dress, output, as, sp
   return { ...out, ...(C.modelSheet ? { modelSheet: C.modelSheet } : {}), ...(C.mascot ? { mascot: C.mascot } : {}), egocube: { ...made, ...(C.output ? { output: C.output } : {}), node: C.node, ...(C.member ? { member: C.member } : {}), ...(C.moves ? { moves: C.moves } : {}), notes: `${landed} of ${(C.ledger || []).length} design notes land on a dial`, pending: (C.ledger || []).filter((r) => r.pending).map((r) => `${r.channel}: ${r.line} (${r.pending})`) } };
 }
 
+/** A persona's refs against the store: its hero a hero, its voice a voice register → the hero's row */
+function personaRefs(P, at = 'create_character') {
+  const hero = SketchRepository.getByRef(P.hero);
+  if (!hero?.manifest?.hero) throw new Error(`${at}: a persona's hero is a hero's ref (create_character { as: 'hero' }); '${P.hero}' is ${hero ? `a ${hero.manifest?.kind ?? 'sketch'}` : 'no sketch'}`);
+  if (P.voice !== undefined) {
+    const voice = SketchRepository.getByRef(P.voice);
+    if (!voice || !isVoiceRegisterKind(voice.manifest?.kind)) throw new Error(`${at}: a persona's voice is a voice register's ref; '${P.voice}' is ${voice ? `a ${voice.manifest?.kind ?? 'sketch'}` : 'no sketch'}`);
+  }
+  return hero;
+}
+
+/** What a persona's door says of it: its hero, where its face is drawn, and each read in short */
+function personaSays(row, hero) {
+  const P = row.manifest.persona, face = speakerFidelity({ era: FACE_ERA }, hero.manifest.hero) === 'face';
+  return {
+    hero: P.hero, ...(P.voice ? { voice: P.voice } : {}), register: P.register,
+    face: face ? `the face reads in a ${FACE_ERA} game; elsewhere its audio, captions and the body's gestures` : `no face take: the hero is not the realistic head (form: 'realistic'), so every host plays its audio, captions and the body's gestures`,
+    reads: Object.entries(personaReads(P)).map(([id, R]) => readSummary(id, R)),
+  };
+}
+
+/** A PERSONA: a hero cast as a speaker, its own record (persona/persona.js) */
+function createPersona({ spec, title, ref, folder_ref: folderRef }) {
+  let manifest;
+  try { manifest = personaManifest(spec); } catch (e) { throw new Error(`create_character: ${e.message} (manual: get_solid_vocab({ id: 'persona' }))`); }
+  const hero = personaRefs(manifest.persona);
+  const row = SketchRepository.create({ title: title ?? `persona · ${hero.manifest.hero.name ?? hero.title ?? manifest.persona.hero}`, manifest, ref, folderRef });
+  return {
+    ok: true, ref: row.ref, url: `/sketches/${encodeURIComponent(row.ref)}`, persona: personaSays(row, hero),
+    next: { tool: 'update_character', args: { ref: row.ref, spec: { reads: { '<id>': { script: '…' } } } }, reason: "Give it a script to read, or retune a read: reads merge by id (null removes one); register retunes every read that has none of its own." },
+  };
+}
+
+/**
+ * A character from a PACK by name (cosmos/packs/index.js): a pack's cast member or a crew's grunt, its orders the pack's
+ * own, minted through the hero door with its headgear as the door's word, so it is revised by word like any hero; a
+ * hero's `spec` words lay over the pack's. The result says what was rolled (`pack`).
+ */
+async function createFromPack({ pack, as, spec, title, ref, folder_ref: folderRef, ...extra }) {
+  if (!pack || typeof pack !== 'object' || Array.isArray(pack)) throw new Error("create_character: pack is { id: 'comic-hero', member | grunt, look?, … } (get_solid_vocab({ id: 'comic-hero' }))");
+  const stray = Object.keys(extra).filter((k) => extra[k] !== undefined);
+  if (stray.length) throw new Error(`create_character: a pack's character takes pack, spec, title, ref and folder_ref (not ${stray.join(', ')}); its words are pack's`);
+  if (as !== undefined && as !== 'hero') throw new Error("create_character: a pack's character is a person; leave `as` out");
+  if (spec !== undefined && (!spec || typeof spec !== 'object' || Array.isArray(spec))) throw new Error("create_character: `spec` lays a hero's words over the pack's");
+  const O = packCharacterOrders(pack);
+  const out = throughDoor(await mintSolidHandler({ ...O.mint.args, spec: { ...O.mint.args.spec, ...(spec || {}) }, title: title ?? O.mint.args.title, ref, folder_ref: folderRef }));
+  return { ...out, pack: O.pack };
+}
+
 export async function createCharacterHandler(input) {
   if (input && typeof input === 'object' && input.egocube !== undefined) return createFromEgocube(input);
+  if (input && typeof input === 'object' && input.pack !== undefined) return createFromPack(input);
   if (!input || typeof input !== 'object') {
     throw new Error(`create_character requires an object: { as: ${AS_LIST.map((a) => `'${a}'`).join(' | ')}, spec, title?, ref?, folder_ref? }`);
   }
   const { as, spec, title, ref, folder_ref: folderRef } = input;
   if (as === 'mascot') return createMascot(input);
+  if (as === 'persona') return createPersona(input);
   const entry = CHARACTER_DOORS[as];
   if (!entry) {
     throw new Error(
@@ -176,6 +237,7 @@ export async function updateCharacterHandler(input) {
   if (spec !== undefined && (!spec || typeof spec !== 'object' || Array.isArray(spec))) throw new Error('update_character: `spec` is an object of the character\'s words (a key set to null removes it)');
   const row = SketchRepository.getByRef(ref);
   if (!row) throw new Error(`update_character: no sketch '${ref}'`);
+  if (isPersonaKind(row.manifest?.kind)) return updatePersona(row, input);
   if (!CHARACTER_ROW_KINDS.includes(row.manifest?.kind)) throw new Error(`update_character: '${ref}' is not a character (kind '${row.manifest?.kind}'); revise it with update_sketch`);
   const ops = [...characterPatch(row, { spec: row.manifest?.hero ? bindPerformance(spec) : spec, target, geocube }), ...(Array.isArray(patch) ? patch : [])];
   // a named hero renamed is retitled with its name, when its title was its old name or the door's own
@@ -189,6 +251,21 @@ export async function updateCharacterHandler(input) {
   return moved ? { ...out, egocube: { ...from, moved } } : out;
 }
 
+/** A persona revised by its words: `spec` merges into the record (a read by id, null removes one; a register naming
+ * `from` replaces), checked whole and against the store, carried out by update_sketch's patch path */
+async function updatePersona(row, { ref, spec, target, geocube, patch, title, note, folder_ref: folderRef }) {
+  if (target !== undefined || geocube !== undefined) throw new Error(`update_character: '${ref}' is a persona; target and geocube are its hero's ('${row.manifest.persona.hero}')`);
+  if (patch !== undefined && !Array.isArray(patch)) throw new Error('update_character: `patch` is an array of update_sketch ops');
+  const ops = [...(spec ? Object.entries(spec).flatMap(([k, v]) => mergeOps(`/persona/${pointer(k)}`, v, row.manifest.persona[k], true)) : []), ...(patch ?? [])];
+  if (!ops.length && title === undefined && folderRef === undefined) throw new Error('update_character: give at least one of spec, patch, title, folder_ref');
+  // (the record it makes checked whole, and its refs against the store, before anything is stored)
+  const after = ops.length ? applyManifestPatch(row.manifest, ops).manifest : row.manifest;
+  try { personaManifest(after.persona); } catch (e) { throw new Error(`update_character: ${e.message} (manual: get_solid_vocab({ id: 'persona' }))`); }
+  const hero = personaRefs(after.persona, 'update_character');
+  const out = await updateSketchHandler({ ref, ...(ops.length ? { patch: ops } : {}), ...(title !== undefined ? { title } : {}), ...(note !== undefined ? { note } : {}), ...(folderRef !== undefined ? { folder_ref: folderRef } : {}) });
+  return { ...out, persona: personaSays(SketchRepository.getByRef(ref), hero) };
+}
+
 export function registerCreateCharacterTools() {
   registerTool({
     name: 'create_character',
@@ -197,17 +274,18 @@ export function registerCreateCharacterTools() {
       + "'male' | 'female', register: 'round' | 'lowpoly' …, tune, face, hair, expression, detail, adorn }); "
       + "`as: 'creature'`, an invented body, a dragon, a monster, a plush toy (spec.plan, a ring plan, or a layered "
       + "recipe); `as: 'animal'`, a real species (spec { species } or { archetype }); `as: 'mascot'`, cartoony, "
-      + "head-heavy (spec { brief: 'sonic-like', facets?, seed? }). A deterministic recipe: a still, a World that "
+      + "head-heavy (spec { brief: 'sonic-like', facets?, seed? }); `as: 'persona'`, a hero who reads scripts. A deterministic recipe: a still, a World that "
       + 'plays its clips, a skinned `.glb`. Iterate in place with `update_character`; never re-mint. Manual: '
       + "get_solid_vocab({ id: 'layered' }), ({ id: 'animal' }) for an animal.",
     inputSchema: {
       type: 'object',
       properties: {
-        as: { type: 'string', enum: AS_LIST, description: 'hero (a person) | creature (an invented body) | animal (a real species) | mascot (cartoony, Sonic-like).' },
+        as: { type: 'string', enum: AS_LIST, description: 'hero (a person) | creature (an invented body) | animal (a real species) | mascot (cartoony, Sonic-like) | persona (a hero who reads scripts).' },
         egocube: { type: 'string', description: "An egocube's ref (create_sketch kind 'egocube'): its character at `years`, or a cast's `member`." },
         years: { type: 'number' },
         member: { type: 'string', description: 'A cast member\'s path (hero/rival).' },
         output: { type: 'string', enum: ['character', 'mascot'], description: "With egocube: 'mascot' makes the cube's character as its mascot." },
+        pack: { type: 'object', description: "A pack's character by name: { id: 'comic-hero', member | grunt, look?, … } (get_solid_vocab({ id: 'comic-hero' }))." },
         spec: { type: 'object', description: "The body's own knobs, per its card (`layered` for hero and creature, `animal` for animal)." },
         title: { type: 'string', description: 'Title for the resulting sketch artifact.' },
         ref: { type: 'string', description: 'Optional stable sketch ref.' },
@@ -223,7 +301,8 @@ export function registerCreateCharacterTools() {
       + "(cast, register, tune, face, hair, detail, adorn, …; null removes one). `target` is what it is drawn for "
       + "('720p' … '4k', or { resolution, framing: 'close' | 'third-person' | 'wide' | 'top-down', error }): each body "
       + 'part gets the rings its outline needs there. `geocube` bakes it in a level\'s light (and lends its target). '
-      + "`patch` takes update_sketch ops for the rest. Archives a revision; the readout gives each part's outline error.",
+      + "`patch` takes update_sketch ops for the rest; a persona's `spec` merges its reads by id. Archives a revision; the "
+      + "readout gives each part's outline error.",
     inputSchema: {
       type: 'object',
       properties: {

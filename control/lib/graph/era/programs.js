@@ -81,8 +81,31 @@ export const PROGRAMS = Object.freeze({
     core: { storeys: 2, wings: 'I', loading: 'single', bays: 2, h: 3.5 }, lobby: { d: 8, h: 4 }, roles: { near: 'wc', second: 'locker', room: 'office', far: 'dispatch', goal: 'manager' }, annex: { role: 'shed', w: 18, d: 30, h: 12, ways: ['+x'] } },
   clinic: { reads: 'a waiting room at the front, consult rooms both sides of the corridors, treatment rooms at their ends, the records room last', shape: 'core', goal: 'records', kit: 'bay-everyday',
     core: { storeys: 1, wings: 'T', loading: 'double', bays: 2, h: 3.5 }, lobby: { d: 8, h: 4 }, roles: { near: 'wc', second: 'waiting', room: 'consult', far: 'treatment', goal: 'records' } },
+  // a military base's buildings (a walled-core dungeon's spaces, wcd/wcd.js), on the same core: each on the bay kit of
+  // what it is (a hangar's steel, a barracks' painted block, a comms room's white panels, a plant's concrete), so the
+  // layers a base is walked through look unlike each other; the rooms are what a base is stocked for
+  'hangar-bay': { reads: 'a crew lobby and a stair, the ready room and the shops along a wing, the hangar off its end with its doors, flight ops at the top', shape: 'core', goal: 'flight-ops', kit: 'bay-military', base: true,
+    core: { storeys: 2, wings: 'I', loading: 'single', bays: 3, h: 3.5 }, lobby: { d: 8, h: 4.5 }, roles: { near: 'wc', second: 'ready-room', room: 'shop', far: 'parts', goal: 'flight-ops' }, annex: { role: 'hangar', w: 24, d: 30, h: 12, ways: ['+x'] } },
+  barracks: { reads: 'a duty desk and a stair, bunk rooms both sides of the corridors, the latrine and the day room nearest, the first sergeant\'s office at the top', shape: 'core', goal: 'nco-office', kit: 'bay-everyday', base: true,
+    core: { storeys: 2, wings: 'L', loading: 'double', bays: 3, h: 3.2 }, lobby: { d: 6, h: 3.5 }, roles: { near: 'latrine', second: 'day-room', room: 'bunks', far: 'laundry', goal: 'nco-office' } },
+  armoury: { reads: 'an issue window off the lobby, the cleaning room, the rack cages along one corridor, the vault at its end', shape: 'core', goal: 'vault', kit: 'bay-military', base: true,
+    core: { storeys: 1, wings: 'I', loading: 'single', bays: 3, h: 3.5 }, lobby: { d: 6, h: 3.5 }, roles: { near: 'issue', second: 'cleaning', room: 'cage', far: 'magazine', goal: 'vault' } },
+  comms: { reads: 'a guarded lobby and a stair, the radio rooms both sides, the server room nearest, the crypto room at the top', shape: 'core', goal: 'crypto', kit: 'bay-science', base: true,
+    core: { storeys: 2, wings: 'I', loading: 'double', bays: 2, h: 3.5 }, lobby: { d: 6, h: 4 }, roles: { near: 'wc', second: 'server', room: 'radio', far: 'cable-vault', goal: 'crypto' } },
+  command: { reads: 'a reception and a stair, the staff offices along a T of corridors, the briefing room nearest, the operations centre at the top', shape: 'core', goal: 'ops-centre', kit: 'bay-everyday', base: true,
+    core: { storeys: 2, wings: 'T', loading: 'double', bays: 2, h: 3.5 }, lobby: { d: 8, h: 4.5 }, roles: { near: 'wc', second: 'briefing', room: 'staff', far: 'planning', goal: 'ops-centre' } },
+  mess: { reads: 'a serving lobby, the scullery and the stores along a wing, the cold store at its end, the dining hall off it, the quartermaster at the far end', shape: 'core', goal: 'quartermaster', kit: 'bay-utility', base: true,
+    core: { storeys: 1, wings: 'I', loading: 'single', bays: 3, h: 3.5 }, lobby: { d: 8, h: 4 }, roles: { near: 'wc', second: 'scullery', room: 'store', far: 'cold-store', goal: 'quartermaster' }, annex: { role: 'dining', w: 18, d: 20, h: 6, ways: ['+x'] } },
+  'med-bay': { reads: 'triage at the front, the wards both sides of a T of corridors, the theatres at their ends, the pharmacy last', shape: 'core', goal: 'pharmacy', kit: 'bay-science', base: true,
+    core: { storeys: 1, wings: 'T', loading: 'double', bays: 2, h: 3.5 }, lobby: { d: 8, h: 4 }, roles: { near: 'scrub', second: 'triage', room: 'ward', far: 'theatre', goal: 'pharmacy' } },
+  'cell-block': { reads: 'a sally port and processing, the cells both sides of a long corridor, the interview rooms at its end, isolation last', shape: 'core', goal: 'isolation', kit: 'bay-military', base: true,
+    core: { storeys: 1, wings: 'I', loading: 'double', bays: 4, h: 3.2 }, lobby: { d: 6, h: 3.5 }, roles: { near: 'guard', second: 'processing', room: 'cell', far: 'interview', goal: 'isolation' } },
+  plant: { reads: 'a control lobby and a stair, switchgear and pumps along an L, the battery room at its end, the generator hall off it, the plant control at the top', shape: 'core', goal: 'plant-control', kit: 'bay-utility', base: true,
+    core: { storeys: 2, wings: 'L', loading: 'single', bays: 3, h: 3.5 }, lobby: { d: 6, h: 4 }, roles: { near: 'control', second: 'switchgear', room: 'pump', far: 'battery', goal: 'plant-control' }, annex: { role: 'generator-hall', w: 18, d: 24, h: 12, ways: ['+x'] } },
 });
 export const PROGRAM_IDS = Object.freeze(Object.keys(PROGRAMS));
+/** A military base's buildings: the uses a walled-core dungeon's spaces are made of (card gameworld-wcd). */
+export const BASE_USES = Object.freeze(PROGRAM_IDS.filter((id) => PROGRAMS[id].base));
 
 /** A room kit's language when no civilization names one: the kit's own (outdoor kits carry theirs in STRUCTURE_RAILS). */
 const KIT_ANCHOR = { 'gothic-stone': 'tiered', 'gothic-nave': 'tiered', catacomb: 'tiered', 'island-plaza': 'timber-hall', 'research-lab': 'shell' };
@@ -261,7 +284,7 @@ export function withProgram(m) {
     // (a building climbs by a game's stair: construction/circulation.js `game`, a switchback with room at its ends)
     ...(PROGRAMS[program.use]?.shape === 'core' && rest.stair === undefined ? { stair: 'game' } : {}),
     ...(level !== undefined ? { level } : {}),
-    _program: { use: P.use, reads: P.reads, entry: P.entry, goal: P.goal, front: P.front, language: P.language, rooms: P.rooms.map((r) => r.id),
+    _program: { use: P.use, ...(PROGRAMS[P.use]?.base ? { base: true } : {}), reads: P.reads, entry: P.entry, goal: P.goal, front: P.front, language: P.language, rooms: P.rooms.map((r) => r.id),
       // (on storeys, the rooms each holds, the ground first)
       ...(P.rooms.some((r) => r.storey) ? { storeys: [...Array(Math.max(...P.rooms.map((r) => r.storey ?? 0)) + 1)].map((_, s) => P.rooms.filter((r) => (r.storey ?? 0) === s).map((r) => r.id)) } : {}), findings: P.findings },
   };

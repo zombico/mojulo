@@ -6,11 +6,12 @@ export const LEVELS = ['L0', 'L1', 'L2', 'L3'];
  * fracture preset its trunk wears (`fir`, the self-organizing Massart tree, keeps pine's plates); `leafLife` (years a
  * leaf is kept, over the architecture's own) makes a tree evergreen; `fig` names a fig row (ficus.js), whose architecture
  * carries its roots, lattice or buttresses; `over` retunes its architecture's numbers; `bloom` dresses its leaf faces as
- * blossom (a flowering tree in flower).
+ * blossom (a flowering tree in flower); `specimen` is the seed a level's one tree of it grows from (form/flora-read.js),
+ * a full crown's, where seed 1 grows a thin one.
  */
 export const SPECIES = Object.freeze({
   oak: { kind: 'tree', bark: 'oak', arch: 'rauh', years: 20, leafScale: 1.5, heights: [11, 20] },
-  beech: { kind: 'tree', bark: 'beech', arch: 'troll', years: 20, leafScale: 1.5, heights: [10, 18] },
+  beech: { kind: 'tree', bark: 'beech', arch: 'troll', years: 20, leafScale: 1.5, heights: [10, 18], specimen: 5 },
   fir: { kind: 'tree', bark: 'pine', arch: 'massart', years: 16, leafScale: 1, heights: [9, 17] },
   // the umbrella tree of tropical mountains: Leeuwenberg's sympodial crown on a short forking bole, evergreen
   schefflera: { kind: 'tree', bark: 'beech', arch: 'leeuwenberg', years: 18, leafScale: 1.4, leafLife: 3, heights: [10, 24] },
@@ -24,6 +25,12 @@ export const SPECIES = Object.freeze({
   // its leaves are its blossom (`bloom`: the deep, the petal and the lit tone the leaf faces are recoloured between; `fill`
   // the blossom's area over the leaves', a spur carrying several flower clusters), kept two years along the spurs (`leafLife`)
   cherry: { kind: 'tree', bark: 'beech', arch: 'rauh', over: { apical: [0.5, 0.44], matureAt: 8, setPoint: [0, 52, 64, 74], hand: { sense: 1, twist: 6, helix: 9, turn: 55, zig: 9 }, smooth: true }, years: 12, growth: [{ years: 8 }, { years: 11 }, { years: 14, stand: 0.35 }, { years: 17, stand: 0.35 }, { years: 21 }], leafScale: 1.8, leafLife: 2, heights: [5, 9], bloom: { fill: 3, deep: [222, 150, 178], petal: [246, 200, 214], lit: [255, 236, 242] } },
+  // the weeping willow (Salix babylonica): Troll's arching limbs, its leaves on long hanging shoots (`weep`: how far its
+  // curtains fall, × its height, form/tree-form.js), its leaf narrow
+  willow: { kind: 'tree', bark: 'oak', arch: 'troll', years: 18, leafScale: 1.1, heights: [10, 16], weep: 0.6, leaf: 'lance', specimen: 5 },
+  // a maple: Rauh's rhythm, a round crown, its leaf palmate (vegetation/twigs.js), five pointed lobes from the stalk
+  // (its limbs sweeping round and a little crooked, the hand's helix and zig; smooth, bending between nodes)
+  maple: { kind: 'tree', bark: 'beech', arch: 'rauh', over: { hand: { sense: 1, twist: 5, helix: 7, turn: 35, zig: 5 }, smooth: true }, years: 18, leafScale: 1.8, heights: [10, 18], leaf: 'palmate' },
   coconut: { kind: 'palm', palm: 'coconut', ages: [22, 32, 45], heights: [8, 26] },
   date: { kind: 'palm', palm: 'date', ages: [18, 30, 45], heights: [5, 16] },
   washingtonia: { kind: 'palm', palm: 'washingtonia', ages: [25, 40], heights: [11, 18] },

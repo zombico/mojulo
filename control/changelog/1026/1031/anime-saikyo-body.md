@@ -222,11 +222,12 @@ fractal articulation of the big groups. The eyes gate is the operator's.
   the biceps' front bunched; none with the activity off; raised overhead, held out and forward, the shoulder's
   shells folding no more than the flat body's; the cone as it was; the nipples on the mid-clavicular line; a mass meeting the skin square on climbed in a ramp; a point past the cap held at it; a limb's shells worn by its own groups only; a hidden shell kept under the one over it, only ever pulled in; the hip joined, the pelvis wrapping both thighs to the level, its sides bound as the thighs are; a hip corrective a side, the cheeks spread from the midline; the legs lengthened with the soles on the ground and the hands and the head not grown; the female card valid and named by the cast, her bust one level and held across the dial, no male fans under it; a joint's bridge welded ring to ring and the wrist most of the hand's width; deterministic; the door stores the word and refuses it by name.
 
-#### The anime frame (hero laws 21): the wrist, the shoe's heel and the clavicle
+#### The anime frame (hero laws 22): the wrist, the shoe's heel and the clavicle
 
 The body the anime head wears (the anime proportions on the structured core), refined where a fuller body read it thin
-or as boxes; the muscle shirt worn over it takes each with it. Hero laws 21 (`hero-form.js` `ANIME_FRAME`); a hero
-minted under laws 1 to 20 keeps its body, and the landmark head's is untouched.
+or as boxes; the muscle shirt worn over it takes each with it. Hero laws 22 (`hero-form.js` `ANIME_FRAME`, over laws
+21's form body, the landmark adult's from the anime-7g consolidation); a hero minted under laws 1 to 21 keeps its body,
+and the landmark head's is untouched.
 
 - **The wrist from the front**: the hand's section at the wrist and its palm's first ring 1.35 deeper through the hand
   (the second by half as much), the forearm's tendon ring with it (`hero-hand.js` `wristDepth`). With the palm facing
@@ -237,9 +238,10 @@ minted under laws 1 to 20 keeps its body, and the landmark head's is untouched.
 - **The clavicle**: the shoulder's cone held under the torso's skin at the shoulder's top and front (`tiered-form.js`
   `tieredSockets` `clavicle`, `SHOULDER_CONE.clavicleSink`), where since laws 9 its middle rings rode over it and stood
   through it in angular plates; the collarbone's run from the neck to the shoulder is the torso's own surface.
-- **Held** (`anime-frame.test.js`): minted at laws 21 on the anime proportions only; the wrist deeper through, the
-  same across; the shoe round with a heel ring under 21 and the box under 20; only the cone's riding rings move; the
-  landmark head's body as laws 20 built it.
+- **Held** (`anime-frame.test.js`): minted at laws 22 on the anime proportions only; the wrist deeper through, the
+  same across; the shoe round with a heel ring under 22 and the box under 21; only the cone's riding rings move; the
+  landmark head's body as laws 21 built it. Re-pinned for laws 22 with the old values kept at laws 21: the gesture
+  records (the stamp only), the anime payloads, her hair's hull (one triangle fewer), the outfit rings on her.
 
 #### Z-Fighter's neck thinner
 

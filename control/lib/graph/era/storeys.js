@@ -422,7 +422,9 @@ export function assembleStoreys(manifest, ctx, plan, assemble) {
       ...(s === goalStorey ? {} : { bare: true }) };
     const sub = {
       ...manifest, rooms, links: ordered, _storey: cuts,
-      ...(manifest.ways ? { ways: s === 0 ? manifest.ways : [] } : {}),
+      // (a way out on the storey its room stands on: an upper one where a building set into its slope meets its land)
+      ...(manifest.ways ? { ways: manifest.ways.filter((w) => mine.has(w.room)) } : {}),
+      ...(manifest._ground ? { _ground: { ...manifest._ground, lift: st.z0 } } : {}),
       ...(manifest.doors ? { doors: manifest.doors.filter((d) => mine.has(d.room)) } : {}),
       ...(manifest.items ? { items: manifest.items.filter((it) => it.room === undefined ? s === 0 : mine.has(it.room)) } : {}),
       ...(s > 0 ? { camera: undefined } : {}),

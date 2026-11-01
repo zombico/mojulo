@@ -37,8 +37,9 @@ describe('the spend critic', () => {
     expect(['T0', 'T1', 'T2', 'T3', 'T4'].map((id, k) => tierOf([100, 240, 360, 720, 1728][k]).id)).toEqual(['T0', 'T1', 'T2', 'T3', 'T4']);
     const { m, mesh } = built({ cast: 'female' });
     const s = castSpend(mesh, m.plan, '720p');
-    expect(s).toMatchObject({ tier: 'T1', figurePx: 240, budget: 2880, triangles: 5196 });
-    expect(Object.values(s.regions).reduce((t, r) => t + r.triangles, 0)).toBe(5196);
+    // (re-pinned for hero laws 21, hero-form.js FORM_BODY: the body's skin split once, rounded, 5196 before)
+    expect(s).toMatchObject({ tier: 'T1', figurePx: 240, budget: 2880, triangles: 15636 });
+    expect(Object.values(s.regions).reduce((t, r) => t + r.triangles, 0)).toBe(15636);
     expect(s.heaviest[0]).toMatchObject({ part: expect.stringMatching(/^bust[RL]$/), region: 'body' });
   }, 60000);
 
@@ -52,11 +53,12 @@ describe('the spend critic', () => {
 
 describe('the tiered form', () => {
   it('draws the chest into the torso: no domes, a quarter fewer triangles, standing off the chest wall', () => {
-    const today = built({ cast: 'female' }), tiered = built({ cast: 'female', form: 'tiered' });
+    // (the construction's counts, before the form body splits its skin once, hero laws 21: hero-form.js FORM_BODY)
+    const today = built({ cast: 'female', laws: 20 }), tiered = built({ cast: 'female', form: 'tiered', laws: 20 });
     expect(tiered.m.plan.segments.some((s) => /^bust/.test(s.name))).toBe(false);
     expect(tiered.mesh.faces.length).toBe(5480);   // (hero laws 8 and 9: the shoulders' webs and cones, 384, over the 5,096 below) the domes' 1,280 gone, the chest band's three rings added; the six joint bridges, the limbs' ring8 and the shoulder balls 752; the lower lips 64; the eyes' domes and lids 160; the lips' denser strips 144; the brows' 48; the nose's wings 192; the lean ears −400; the brow ridge's eye-and-brow column 52 (cranium 36, jaw 16) and the brows' spans halved again over it 96
     // the chest stands off the wall (the same figure with no bust) by a couple of centimetres at its fullest
-    const wall = built({ cast: 'female', body: { bust: 0 } }), front = (mesh) => Math.max(...[1.13, 1.16, 1.19, 1.22].map((z) => chestY(mesh, z)));
+    const wall = built({ cast: 'female', body: { bust: 0 }, laws: 20 }), front = (mesh) => Math.max(...[1.13, 1.16, 1.19, 1.22].map((z) => chestY(mesh, z)));
     expect(front(tiered.mesh) - front(wall.mesh)).toBeGreaterThan(0.015);
   }, 120000);
 
@@ -72,15 +74,16 @@ describe('the tiered form', () => {
     // the male's tiered form is today's and the joints' bridges and balls, the lips and the eyes' domes and lids, less
     // the lean ears' 400 (two ears at 80 against 280); the brow ridge's column and the brows over it 148; the shoulders'
     // webs and cones 384 (hero laws 8 and 9)
-    expect(built({ cast: 'male', form: 'tiered' }).mesh.faces.length - built({ cast: 'male' }).mesh.faces.length).toBe(1492);
+    // (the construction's counts, before the form body splits its skin once, hero laws 21)
+    expect(built({ cast: 'male', form: 'tiered', laws: 20 }).mesh.faces.length - built({ cast: 'male', laws: 20 }).mesh.faces.length).toBe(1492);
     expect(validateHeroSpec({ form: 'layered' })[0]).toMatch(/form: 'tiered'/);
   }, 120000);
 });
 
 describe('the tiered joints', () => {
-  // a ring's points by slot, off the compiled (or skinned) mesh
-  const ring = (mesh, V, part, st) => { const o = {}; mesh.pointIds.forEach((id, i) => { const m = id.match(/^([^/]+)\/([^.]+)\.(.+)$/); if (m && m[1] === part && m[2] === st) o[m[3]] = V[i]; }); return o; };
-  const lastSt = (mesh, part) => { let last = null; mesh.pointIds.forEach((id) => { const m = id.match(/^([^/]+)\/([^.]+)\./); if (m && m[1] === part) last = m[2]; }); return last; };
+  // a ring's points by slot, off the compiled (or skinned) mesh (a rounded body's new points, `a~b`, body-smooth.js, on no ring)
+  const ring = (mesh, V, part, st) => { const o = {}; mesh.pointIds.forEach((id, i) => { const m = !id.includes('~') && id.match(/^([^/]+)\/([^.]+)\.(.+)$/); if (m && m[1] === part && m[2] === st) o[m[3]] = V[i]; }); return o; };
+  const lastSt = (mesh, part) => { let last = null; mesh.pointIds.forEach((id) => { const m = !id.includes('~') && id.match(/^([^/]+)\/([^.]+)\./); if (m && m[1] === part) last = m[2]; }); return last; };
   // the two rings as point sets (a bridge's slots may be turned against the lower part's): every point of each on the other
   const gap = (a, b) => { const A = Object.values(a), B = Object.values(b); if (!A.length || A.length !== B.length) return Infinity;
     const near = (P, Q) => Math.max(...P.map((p) => Math.min(...Q.map((q) => Math.hypot(p[0] - q[0], p[1] - q[1], p[2] - q[2]))))); return Math.max(near(A, B), near(B, A)); };

@@ -135,3 +135,11 @@ export function graphMermaid(g, { overrides = true } = {}) {
   }
   return out.join('\n');
 }
+
+/** The levels in the order they are played: the start, then each a link leads to from one already reached, then the rest
+ * in the world's order (a level no link reaches). */
+export function playOrder(G) {
+  const order = [G.start];
+  for (let more = true; more;) { more = false; for (const l of G.links) if (order.includes(l.from) && !order.includes(l.to)) { order.push(l.to); more = true; } }
+  return [...order, ...G.ids.filter((id) => !order.includes(id))];
+}

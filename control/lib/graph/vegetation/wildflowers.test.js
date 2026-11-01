@@ -1,9 +1,16 @@
 import { describe, it, expect } from 'vitest';
-import { wildflower, wildflowerLadder, flowerRamp, WILDFLOWERS, WILDFLOWER_KINDS } from './wildflowers.js';
+import { wildflower, wildflowerLadder, flowerRamp, WILDFLOWERS, WILDFLOWER_KINDS, WEEDS } from './wildflowers.js';
 
 describe('wildflowers: stems and heads a tuft carries', () => {
-  // one kind per head procedure: rays round an eye, cupped petals, a ball, a spike
-  const cases = ['daisy', 'buttercup', 'clover', 'lupine'].filter((k) => WILDFLOWER_KINDS.includes(k));
+  // one kind per head procedure: rays round an eye, cupped petals, a ball, a spike; and the weeds' own: rays in rings,
+  // tiny cross-petalled flowers, an umbel, a slim spike
+  const cases = ['daisy', 'buttercup', 'clover', 'lupine', 'dandelion', 'speedwell', 'yarrow', 'plantain'].filter((k) => WILDFLOWER_KINDS.includes(k));
+
+  it('names its weeds: the low common kinds, clover among them, each a kind of the library', () => {
+    expect(WEEDS).toContain('clover');
+    for (const k of WEEDS) expect(WILDFLOWERS[k]).toBeTruthy();
+    expect(WEEDS.length).toBeGreaterThan(1);
+  });
 
   it('is a recipe: the same seed grows the same plant, another seed another', () => {
     const k = WILDFLOWER_KINDS[0];

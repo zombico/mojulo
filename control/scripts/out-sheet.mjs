@@ -1,6 +1,8 @@
 #!/usr/bin/env node
 /**
- * Write a scapeshift outdoor sheet to disk: `node scripts/out-sheet.mjs <index|flora|land|blocks|tech|structures|fortified-town|castle|gameworld|characters> [out.html] [--seed N] [--kit id] [--raster]`.
+ * Write a scapeshift outdoor sheet to disk: `node scripts/out-sheet.mjs <index|flora|land|blocks|tech|structures|fortified-town|castle|gameworld|characters|foes> [out.html] [--seed N] [--kit id] [--raster]`.
+ * `foes --genre <id>` draws the example hero's world as that genre (metroidvania by default) with its casting call's cast
+ * written in; `--propose` leaves it unwritten, so the sheet shows the proposal.
  * `characters --render` also draws the example hero (minted in memory) as wire views of its front, three-quarter and back.
  * `gameworld --example halden-reach` draws the frontier example instead of Meadowmark. `gameworld --auto "a few words"` composes a world from a prompt (autonomous mode) and draws its bible instead of the
  * example's. `--raster` swaps each of the gameworld bible's plates (drawn as SVG) for a JPEG, for a page small enough to share.
@@ -16,7 +18,8 @@ register('./mcp-stdio-loader.mjs', import.meta.url);
 const args = process.argv.slice(2), flag = (k) => { const i = args.indexOf(k); return i >= 0 ? args.splice(i, 2)[1] : undefined; };
 const raster = args.includes('--raster') && !!args.splice(args.indexOf('--raster'), 1);
 const render = args.includes('--render') && !!args.splice(args.indexOf('--render'), 1);
-const seed = flag('--seed'), kitId = flag('--kit'), auto = flag('--auto'), example = flag('--example');
+const seed = flag('--seed'), kitId = flag('--kit'), auto = flag('--auto'), example = flag('--example'), genre = flag('--genre');
+const propose = args.includes('--propose') && !!args.splice(args.indexOf('--propose'), 1);
 const [name = 'structures', out = `out-${name}.html`] = args;
 const SHEETS = {
   index: async (o) => (await import('../lib/graph/era/out-index-html.js')).outIndexHtml(o),
@@ -39,6 +42,14 @@ const SHEETS = {
       catch (e) { console.error(`out-sheet: the hero was not drawn (${e.message}); the page shows its orders instead`); }
     }
     return G.characterBibleHtml(world, { renders });
+  },
+  // the cast sheet: the example hero's world as a genre, its casting call's cast written in (or, --propose, only proposed)
+  foes: async () => {
+    const G = await import('../lib/graph/gameworld/index.js');
+    const world = { ...G.MEADOWMARK_HERO, intent: { from: genre ?? 'metroidvania' } }, P = G.castingCall(world);
+    if (!P) throw new Error(`out-sheet: a ${genre} fights nothing a casting call casts for`);
+    const cast = propose ? world : { ...world, foes: P.foes, levels: Object.fromEntries(Object.entries(world.levels).map(([k, v]) => [k, { ...v, ...(P.levels[k] ? { foes: P.levels[k] } : {}) }])) };
+    return G.foeCastHtml(cast);
   },
 };
 if (!SHEETS[name]) { console.error(`out-sheet: '${name}' is not a sheet (${Object.keys(SHEETS).join(', ')})`); process.exit(1); }

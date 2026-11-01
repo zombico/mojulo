@@ -29,6 +29,8 @@ const CASES = {
   winged: { cast: 'female', beast: { kin: kinWith((c) => c.keel > 0.5), legs: 'digitigrade', wings: 'arms' } },
 };
 // (records re-pinned for the hero laws 20, anime-sockets.js: each record carries the new laws; no plan moves)
+// (and for the hero laws 21, hero-form.js FORM_BODY: each record carries the new laws; a beast-kin keeps its own body,
+// so no plan moves)
 const PINS = {
   plantigrade: ['a355e07c37a3556b', 'd7f91ee2a0c8ebed'], digitigrade: ['cb826201b1b20cba', '075b0200012951a1'],
   coil: ['d0e94a12846f27fc', '3f1e7c335efbfed4'], ridged: ['7f420488696ade51', '21c75f71c17b6632'],

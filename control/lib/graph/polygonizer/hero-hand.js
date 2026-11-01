@@ -115,7 +115,7 @@ export function heroHand({ wrist, elbow, len, X = 1, girth = 1, wide = 1, female
   // ── the palm: the back of the hand is −N; its rings' radial side (cross(−N, A) = V) carries the R slots ──
   const P = F.palm, back = mul(N, -1);
   const ring8 = ['front', 'frontR', 'sideR', 'backR', 'back', 'backL', 'sideL', 'frontL'];
-  // (`wristDepth`, hero laws 21's anime frame: the first ring deeper through the hand by it, the second by half as much)
+  // (`wristDepth`, hero laws 22's anime frame: the first ring deeper through the hand by it, the second by half as much)
   const deepAt = (i) => (i === 0 ? wristDepth : i === 1 ? 1 + (wristDepth - 1) / 2 : 1);
   const palmStations = P.rings.map(([u, hw, hb0, hf0], i) => {
     const last = i === P.rings.length - 1, hb = hb0 * deepAt(i), hf = hf0 * deepAt(i);

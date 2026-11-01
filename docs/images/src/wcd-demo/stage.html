@@ -1,0 +1,85 @@
+<!doctype html><html><head><meta charset="utf-8"><style>
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{width:960px;height:540px;background:#0f1117;overflow:hidden;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Helvetica Neue",Arial,sans-serif;-webkit-font-smoothing:antialiased;color:#e7e9ee}
+#top{position:absolute;left:0;top:0;width:960px;height:40px;background:#171a22;border-bottom:1px solid #262b37;display:flex;align-items:center;padding:0 14px;gap:8px}
+.dot{width:10px;height:10px;border-radius:50%;background:#3a4050}
+#ttl{margin-left:10px;font-size:12.5px;color:#9aa3b5}
+#ttl b{color:#d9dde6;font-weight:600}
+#conn{margin-left:auto;font-size:11.5px;color:#7fcf9f;display:flex;align-items:center;gap:6px}
+#conn i{width:7px;height:7px;border-radius:50%;background:#55c487;display:inline-block}
+#chat{position:absolute;left:0;top:40px;width:420px;height:500px;background:#12151c;border-right:1px solid #262b37}
+#log{position:absolute;left:0;top:0;width:420px;height:436px;padding:14px 16px 6px;display:flex;flex-direction:column;justify-content:flex-end;gap:10px;overflow:hidden;-webkit-mask-image:linear-gradient(to bottom,transparent 0,#000 46px)}
+.u{align-self:flex-end;max-width:330px;background:#2b4c7e;color:#f2f5fb;border-radius:14px 14px 4px 14px;padding:8px 11px;font-size:13px;line-height:1.42}
+.a{align-self:flex-start;max-width:370px;font-size:13px;line-height:1.48;color:#dfe3ea}
+.a .who{font-size:11px;color:#8b93a6;margin-bottom:4px;font-weight:600;letter-spacing:.02em}
+.chips{display:flex;flex-wrap:wrap;gap:5px;margin:2px 0 6px}
+.chip{font-size:11px;color:#a9b3c6;background:#1b2030;border:1px solid #2c3344;border-radius:10px;padding:2px 8px}
+.said{white-space:pre-line}
+.u .up{display:block;width:150px;border-radius:8px;margin-bottom:7px;background:#fff}
+.att{display:inline-block;flex:none;font-size:11.5px;color:#cfd6e4;background:#232a3a;border:1px solid #34405a;border-radius:7px;padding:3px 8px;margin-right:8px}
+.att::before{content:"▦ ";color:#8fb4ff}
+.pair img.pl{object-fit:contain;background:#fff}
+#bar{position:absolute;top:0;width:4px;height:500px;margin-left:-2px;background:#fff8e6;box-shadow:0 0 10px 3px rgba(255,222,140,.95),0 0 38px 14px rgba(255,190,90,.45)}
+#spark{position:absolute;inset:0;pointer-events:none}
+#spark i{position:absolute;border-radius:50%;background:radial-gradient(circle,#fff 0,#ffe9a8 35%,rgba(255,205,110,0) 70%)}
+.chip.ok::before{content:"✓ ";color:#6fcf97}
+.work{font-size:11.5px;color:#8b93a6}
+#input{position:absolute;left:12px;bottom:14px;width:396px;height:42px;background:#1a1e28;border:1px solid #2e3546;border-radius:12px;padding:0 12px;display:flex;align-items:center;font-size:13px;color:#e7e9ee;white-space:nowrap;overflow:hidden}
+#input .ph{color:#5f6779}
+#cur{display:inline-block;width:2px;height:16px;background:#8fb4ff;margin-left:1px;vertical-align:-3px}
+#view{position:absolute;left:420px;top:40px;width:540px;height:500px;background:#0f1117;overflow:hidden}
+#view img{position:absolute;left:0;top:0;width:540px;height:500px;object-fit:cover}
+#tag{position:absolute;left:12px;top:12px;font-size:11px;font-weight:600;letter-spacing:.04em;color:#e9edf5;background:rgba(12,14,20,.72);border:1px solid rgba(255,255,255,.12);border-radius:6px;padding:4px 8px}
+#tag span{color:#9fb0cc;font-weight:500}
+
+
+#panel{position:absolute;inset:0;background:#0f1117;padding:46px 16px 16px;display:none}
+.looks{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.look{background:#161a23;border:1px solid #2a3040;border-radius:10px;padding:10px 12px}
+.look b{display:block;font-size:12.5px;color:#f2f4f8;margin-bottom:2px}
+.look p{font-size:10.5px;color:#8b93a6;margin-bottom:8px;line-height:1.35;height:28px;overflow:hidden}
+.ramp{display:flex;height:17px;margin-bottom:4px;border-radius:3px;overflow:hidden}
+.ramp i{flex:1}
+.look .r{display:flex;gap:6px;align-items:center;font-size:9.5px;color:#7d8597}
+.look .r .ramp{flex:1;margin:0 0 4px}
+.look .r span{width:40px}
+#end{position:absolute;inset:0;background:#0f1117;display:flex;flex-direction:column;align-items:center;padding-top:34px}
+#end h1{font-size:25px;font-weight:700;letter-spacing:-.01em;color:#f2f4f8}
+#end .sub{margin-top:6px;font-size:13.5px;color:#9aa3b5}
+#grid{margin-top:20px;display:flex;gap:12px}
+.pair{display:flex;flex-direction:column;gap:6px;align-items:center}
+.pair .ims{display:flex;gap:4px}
+.pair img{width:136px;height:126px;object-fit:cover;border-radius:6px;border:1px solid #262b37}
+.pair .cap{font-size:11px;color:#9aa3b5}
+#stats{margin-top:22px;display:flex;gap:14px}
+.st{width:200px;background:#161a23;border:1px solid #2a3040;border-radius:10px;padding:12px 14px}
+.st .k{font-size:11px;color:#8b93a6;letter-spacing:.06em;text-transform:uppercase}
+.st .v{margin-top:4px;font-size:24px;font-weight:700;color:#f2f4f8}
+.st .n{margin-top:3px;font-size:11px;color:#8b93a6;line-height:1.35}
+#foot{margin-top:16px;font-size:11.5px;color:#7d8597}
+#foot b{color:#8fb4ff;letter-spacing:.12em;font-weight:600}
+</style></head><body>
+<div id="top"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span id="ttl"><b>Your agent</b> · a chat with mojulo connected</span><span id="conn"><i></i>mojulo</span></div>
+<div id="chat"><div id="log"></div><div id="input"></div></div>
+<div id="view"><img id="ia"><img id="ib"><div id="bar"></div><div id="spark"></div><div id="panel"></div><div id="tag"></div></div>
+<div id="end"></div>
+<script>
+window.setFrame = (f) => {
+  const ia = document.getElementById('ia'), ib = document.getElementById('ib');
+  ia.style.display = f.a ? '' : 'none'; if (f.a && ia.getAttribute('src') !== f.a) ia.src = f.a;
+  ib.style.display = f.b ? '' : 'none'; if (f.b && ib.getAttribute('src') !== f.b) ib.src = f.b;
+  ia.style.objectFit = f.fitA || 'cover'; ib.style.objectFit = f.fitB || f.fitA || 'cover';
+  ia.style.objectPosition = f.posA || '50% 50%'; ib.style.objectPosition = f.posB || f.posA || '50% 50%';
+  ib.style.opacity = f.wipe != null ? 1 : f.mix ?? 0;
+  // the reveal: the after shows to the left of a glowing line that sweeps across, sparkles in its wake
+  ib.style.clipPath = f.wipe != null ? `inset(0 ${(100 - f.wipe * 100).toFixed(2)}% 0 0)` : '';
+  const bar = document.getElementById('bar'); bar.style.display = f.wipe != null && f.wipe > 0 && f.wipe < 1 ? '' : 'none'; bar.style.left = `${(f.wipe ?? 0) * 540}px`;
+  document.getElementById('spark').innerHTML = (f.sparks || []).map(([x, y, r, o]) => `<i style="left:${x - r}px;top:${y - r}px;width:${2 * r}px;height:${2 * r}px;opacity:${o}"></i>`).join('');
+  document.getElementById('log').innerHTML = f.log || '';
+  document.getElementById('input').innerHTML = f.input ? `${f.input}${f.cursor ? '<span id="cur"></span>' : ''}` : `<span class="ph">Message your agent…</span>`;
+  const panel = document.getElementById('panel'); panel.style.display = f.panel ? 'block' : 'none'; panel.style.opacity = f.panelOp ?? 1; if (f.panel && panel.dataset.k !== f.panel) { panel.innerHTML = f.panel; panel.dataset.k = f.panel; }
+  const tag = document.getElementById('tag'); tag.style.display = f.tag ? '' : 'none'; tag.innerHTML = f.tag || '';
+  const end = document.getElementById('end'); end.style.display = f.end ? '' : 'none'; end.style.opacity = f.endOp ?? 1; if (f.end && end.dataset.k !== f.endKey) { end.innerHTML = f.end; end.dataset.k = f.endKey; }
+  return Promise.all([...document.images].filter((i) => i.offsetParent && i.getAttribute('src')).map((i) => i.decode().catch(() => {})));
+};
+</script></body></html>

@@ -6,7 +6,8 @@
  *                       draconic, dwarven, sylvan, feline, lupine, ursine, avian, insectoid): each a band of humanity,
  *                       on the hero door above DOOR_H (kin with ears and a tail) and below it the beast-kin's
  *                       tiered body (lib/graph/beast; egocube/plan.js beastOnTiered)
- *   readPeopleSkin(skin, at)   → { people, facets? } checked (throws teaching the words)
+ *   readPeopleSkin(skin, at)   → { people, facets?, dress? } checked (throws teaching the words); a person's `dress`
+ *                       (./dress.js) dresses it as a crew's, made through the hero door rather than the egocube's loop
  *   peopleBody(skin)    → the body ./fit.js measures: { support: 'two', wings: false, swimmer: false, size, extent,
  *                         height, scale: 1, gaits, people }; its height the build's and the age's (egocube/plan.js HEIGHT,
  *                         AGE_SCALE), the facets' when named, else the canonical adult's
@@ -27,9 +28,10 @@ import { HEIGHT, AGE_SCALE } from '../egocube/plan.js';
 import { FACETS } from '../egocube/facets.js';
 import { classOfExtent } from '../fauna/size-class.js';
 import { MOVES } from './vocab.js';
+import { readDress } from './dress.js';
 
 export const PEOPLE = Object.freeze(['human', ...Object.keys(LINEAGES)]);
-const SKIN_KEYS = ['people', 'facets'];
+const SKIN_KEYS = ['people', 'facets', 'dress'];
 // (the facets a skin may name: the egocube's own, its frame's build beside them)
 const FACET_KEYS = [...Object.keys(FACETS).filter((k) => k !== 'frame'), 'build', 'pole'];
 const r3 = (v) => Math.round(v * 1000) / 1000;
@@ -44,7 +46,13 @@ export function readPeopleSkin(skin, at = 'foe: .skin') {
     if (skin.facets.ancestry !== undefined) throw new Error(`${at}.facets: the people is its ancestry (say it as people)`);
     for (const k of Object.keys(skin.facets)) if (!FACET_KEYS.includes(k)) throw new Error(`${at}.facets.${k} is not an egocube facet (${FACET_KEYS.join(', ')})`);
   }
-  return { people: skin.people, ...(skin.facets !== undefined ? { facets: { ...skin.facets } } : {}) };
+  // (a person dressed as a crew's (./dress.js): the dress says its build, its age and its clothes; only its pole is its own)
+  if (skin.dress !== undefined) {
+    if (skin.people !== 'human') throw new Error(`${at}.dress: only a person is dressed (people: 'human'); a ${skin.people} wears its own roll`);
+    const stray = Object.keys(skin.facets ?? {}).filter((k) => k !== 'pole');
+    if (stray.length) throw new Error(`${at}.facets: a dressed person's build and age are its dress's; it names only its pole (not ${stray.join(', ')})`);
+  }
+  return { people: skin.people, ...(skin.facets !== undefined ? { facets: { ...skin.facets } } : {}), ...(skin.dress !== undefined ? { dress: readDress(skin.dress, `${at}.dress`) } : {}) };
 }
 
 export function peopleBody(skin) {

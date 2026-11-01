@@ -6,6 +6,8 @@
 // says the adult-form chibi's emission changes.
 // (the knight's record re-pinned for armour laws 2, which its build is stamped with at mint; its plan and recipe unmoved:
 // the plate is not the hard-suit, whose cut laws 2 changes)
+// (the ranger's recipe re-pinned, 1029, unreleased: the game body's kit made as pieces, authored-kit.js, its belt and its
+// baldric each the thing it is on the cloth; its record and plan unmoved; the knight's armour is its plates' own, unmoved)
 import { describe, it, expect } from 'vitest';
 import { createHash } from 'node:crypto';
 import { heroRecord, heroPlanOf, expandLayeredManifest } from '../../mcp/tools/layered.js';
@@ -14,7 +16,7 @@ import { withDefaultForm } from './motion-stamp.js';
 const h = (x) => createHash('sha256').update(JSON.stringify(x)).digest('hex').slice(0, 16);
 const PINS = {
   bare: [{ cast: 'chibi' }, 'cb8f519a8618b56c', 'cca8e48f59fc0abc', '62179f95b6207aa2'],
-  ranger: [{ cast: 'chibi', adorn: 'ranger' }, 'ecd2544f2f758daf', 'f3368556c1e110f9', '032dcb229344a2fb'],
+  ranger: [{ cast: 'chibi', adorn: 'ranger' }, 'ecd2544f2f758daf', 'f3368556c1e110f9', 'e7741c4376b25569'],
   knight: [{ cast: 'chibi', adorn: { type: 'armor', style: 'knight' } }, '1202ebf6ce9d963b', '406972d2373d7d63', '96827d1f9a97d9c3'],
 };
 
