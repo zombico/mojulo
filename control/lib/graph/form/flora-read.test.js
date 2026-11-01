@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { floraRead, speciesFor, treeSizes, viewHeld, AUTUMN, FLORA_SPECIES, FLORA_DEFAULT, FLORA_STRIDE, FLORA_HIDES, VIEW_CLEAR } from './flora-read.js';
+import { floraRead, floraBox, speciesFor, treeSizes, viewHeld, AUTUMN, FLORA_SPECIES, FLORA_DEFAULT, FLORA_STRIDE, FLORA_HIDES, VIEW_CLEAR, SKIRT_FLAG } from './flora-read.js';
 import { LEAF_FORM_IDS } from '../era/leaf-forms.js';
 import { formLandScript } from '../scene/channels/form-land.js';
 
@@ -30,6 +30,20 @@ describe('the form render\'s plants', () => {
     }
     expect(Object.keys(F.barks)).toEqual([F.templates[0].bark]);
     expect(JSON.stringify(floraRead(plants(), { kinds: plants().kinds, colours, bases }))).toBe(JSON.stringify(F));
+  });
+
+  it('grows the skirt\'s clumps as the level\'s own trees, as wide as their crowns, past the walk; none adds nothing', () => {
+    const skirt = [{ x: 80, y: 5, z: 2, r: 2.4, kind: 0 }];
+    const A = floraRead(plants(), { kinds: plants().kinds, colours, bases }), B = floraRead(plants({ skirt }), { kinds: plants().kinds, colours, bases }), P = unpack(B.trees);
+    expect(B.templates.length).toBe(A.templates.length);
+    expect(B.n).toBe(A.n + 1);
+    const b = A.n * FLORA_STRIDE, T = B.templates[P[b + 11]];
+    expect([P[b], P[b + 1], P[b + 2]]).toEqual([80, 5, 2]);
+    expect(P[b + 3] * T.radius).toBeCloseTo(2.4, 3);
+    expect(P[b + 12]).toBe(SKIRT_FLAG);
+    // (the plants' box takes it in, so its painted clump is no land; the trail's own plants are as they were)
+    expect(floraBox(plants({ skirt })).box[2]).toBeGreaterThan(80);
+    expect(Array.from(P.slice(0, b))).toEqual(Array.from(unpack(A.trees)));
   });
 
   it('a raised view claims what it looks over: a crown over its eye ahead held, the rest as they were; a walker\'s eye holds none', () => {

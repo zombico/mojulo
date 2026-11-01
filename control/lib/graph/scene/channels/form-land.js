@@ -8,6 +8,7 @@
  *
  *   formLandScript(form, flora?) → the channel's page source (one block, after the page's own; absent `form`, the page has
  *     none); `flora`, a form read's plants (channels/form-flora.js), grown inside it under its light
+ *     `form.cone`, a world's fixed view-cone reach (channels/view-cone.js readCone): the cone is the form's, read by its grass
  *
  * It hides the painted groups it draws in their place (`form.hides`) and the painted water sheet under its sea; every
  * other painted thing is left unlit as it was (the renderer's tone curve is set, those materials marked untouched by
@@ -16,6 +17,10 @@
  */
 import { safeJson } from '../emit-util.js';
 import { formGrassScript } from './form-grass.js';
+import { viewConeScript } from './view-cone.js';
+import { formSkyScript } from './form-sky.js';
+import { farFieldScript, FAR_BLANKET_GLSL, farBlanketUniforms } from './far-field.js';
+import { farStructuresScript } from './far-structures.js';
 import { formFloraScript } from './form-flora.js';
 
 /** THE GROUND'S OWN PARALLAX KINDS, procedural (a Voronoi field, no texture): `pebbles` (domes strewn `cell` m apart over the soil, a cell in four bare,
@@ -25,6 +30,16 @@ import { formFloraScript } from './form-flora.js';
  *  pebbled stretch and a cracked one; marched within `near` m. */
 export const GROUND_PARALLAX = Object.freeze({ pebbles: Object.freeze({ cell: 0.09, depth: 0.03 }), cracks: Object.freeze({ cell: 0.34, depth: 0.035 }),
   plates: Object.freeze({ cell: 0.75, depth: 0.06 }), dry: 9, stretch: 7, near: 30 });
+/** The scree's stones on gameplay's camera: chipped inside the view cone's reach (a stone big enough to cast), its block
+ *  past it, and none once the whole stone is under `px` pixels at its distance (the ground's own scree and pebbles carry
+ *  it); sorted again when the eye has moved `step` m. The aerial camera draws them as they were: chipped if they cast,
+ *  the block if not. */
+export const STONE_LADDER = Object.freeze({ px: 1, step: 0.5 });
+/** The far land: the stage's far ring (form/land-read.js FAR_GROUPS) drawn in facets as the land is lit, the grass's base
+ *  low on it rising into the stone's between `rise` of its skyline's height, each facet ± `tone` its own, under `air`
+ *  of the sky's air (its nearest layer to its farthest); `rough` its roughness. */
+export const FAR_LAND = Object.freeze({ rise: Object.freeze([0.35, 0.85]), tone: 0.06, air: Object.freeze([0.25, 0.7]), rough: 0.95 });
+
 export function formLandScript(form, flora = null) {
   return `
 // --- the form render (gen-7): the land as material, lit by the cube's light (channels/form-land.js) ---
@@ -45,6 +60,33 @@ export function formLandScript(form, flora = null) {
     for (let i = 0; i < p.count; i++) { const t = Math.pow(Math.max(0, p.getZ(i) / 4000), 0.6), c = h.clone().lerp(z, t); col.set([c.r, c.g, c.b], i * 3); }
     g.setAttribute('color', new THREE.BufferAttribute(col, 3)); g.rotateX(0);
     return new THREE.Mesh(g, new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.BackSide, fog: false, depthWrite: false, toneMapped: false }));
+  }
+  // THE FAR LAND (FAR_LAND): the stage's far ring, its ridges past the level (standing curtains, layer behind layer, up
+  // to a skyline), drawn as the land is lit, in facets: the grass's base low on it (a land with no grass, its dirt's)
+  // rising into the stone's toward its peaks, each facet a shade its own, and over it the sky's AIR (channels/form-sky.js
+  // sets it: the air where the far land stands), more of it the farther its layer
+  const FAR_AIR = { value: new THREE.Vector3(0.5, 0.6, 0.65) };
+  function farLand(R) {
+    const FL = ${JSON.stringify(FAR_LAND)}, n = R.count, P0 = POS.subarray(R.start * 3, (R.start + n) * 3), col = new Float32Array(n * 3), air = new Float32Array(n);
+    const gentle = (D.grass && D.grass.base) || D.layers.pathBase, steep = D.stones && D.stones.base ? D.stones.base : D.layers.stoneBase;
+    const cx = (D.box[0][0] + D.box[0][1]) / 2, cy = (D.box[1][0] + D.box[1][1]) / 2, r = (v) => Math.hypot(P0[v * 3] - cx, P0[v * 3 + 1] - cy);
+    let z0 = Infinity, z1 = -Infinity, r0 = Infinity, r1 = -Infinity;
+    for (let v = 0; v < n; v++) { const z = P0[v * 3 + 2]; if (z > -10) { z0 = Math.min(z0, z); z1 = Math.max(z1, z); } r0 = Math.min(r0, r(v)); r1 = Math.max(r1, r(v)); }
+    for (let f = 0; f < n / 3; f++) {
+      const o = f * 9, x = Math.sin((P0[o] + P0[o + 3] + P0[o + 6]) * 12.9898 + (P0[o + 1] + P0[o + 4] + P0[o + 7]) * 78.233) * 43758.5453, t = 1 - FL.tone + 2 * FL.tone * (x - Math.floor(x));
+      for (let v = 0; v < 3; v++) {
+        const q = f * 3 + v, z = P0[q * 3 + 2], k = Math.min(1, Math.max(0, ((z - z0) / Math.max(1e-3, z1 - z0) - FL.rise[0]) / (FL.rise[1] - FL.rise[0])));
+        for (let c = 0; c < 3; c++) col[q * 3 + c] = (gentle[c] + (steep[c] - gentle[c]) * k) * t;
+        air[q] = FL.air[0] + (FL.air[1] - FL.air[0]) * (r1 > r0 ? (r(q) - r0) / (r1 - r0) : 0);
+      }
+    }
+    const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(P0, 3)); g.setAttribute('color', new THREE.BufferAttribute(col, 3)); g.setAttribute('aAir', new THREE.BufferAttribute(air, 1));
+    const m = new THREE.MeshStandardMaterial({ vertexColors: true, flatShading: true, roughness: FL.rough, metalness: 0, side: THREE.DoubleSide });
+    m.onBeforeCompile = (sh) => { sh.uniforms.uAir = FAR_AIR;
+      sh.vertexShader = 'attribute float aAir;\\nvarying float vAir;\\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\\n  vAir = aAir;');
+      sh.fragmentShader = 'uniform vec3 uAir;\\nvarying float vAir;\\n' + sh.fragmentShader.replace('#include <fog_fragment>', '  gl_FragColor.rgb = mix( gl_FragColor.rgb, uAir, vAir );\\n#include <fog_fragment>'); };
+    m.customProgramCacheKey = () => 'form-far-land';
+    const mesh = new THREE.Mesh(g, m); mesh.receiveShadow = true; scene.add(mesh); __formMeshes.push(mesh);
   }
   function part(R, colours, extra = {}) {
     const g = new THREE.BufferGeometry();
@@ -78,7 +120,10 @@ export function formLandScript(form, flora = null) {
   // (the path's mask: the weight in red, the trail's height in green and blue; none without a trail)
   const pathMap = D.path ? new THREE.DataTexture(bytes(D.path.px), D.path.size[0], D.path.size[1], THREE.RGBAFormat) : new THREE.DataTexture(new Uint8Array(4), 1, 1, THREE.RGBAFormat);
   pathMap.magFilter = pathMap.minFilter = THREE.LinearFilter; pathMap.needsUpdate = true;
-  const LAYER_U = { tGrassL: { value: new THREE.DataTexture(new Uint8Array([0, 0, 255, 255]), 1, 1, THREE.RGBAFormat) }, uGOl: { value: new THREE.Vector2() }, uGMl: { value: new THREE.Vector2(1, 1) }, uHasG: { value: 0 }, tBase: { value: tBase }, tNorm: { value: tNorm }, tOrm: { value: tOrm }, tDice: { value: tDice }, uTile: { value: D.layers.tile }, uMean: { value: D.layers.mean.map((m) => new THREE.Vector3(...m)) },
+  const LAYER_U = { tGrassL: { value: new THREE.DataTexture(new Uint8Array([0, 0, 255, 255]), 1, 1, THREE.RGBAFormat) }, uGOl: { value: new THREE.Vector2() }, uGMl: { value: new THREE.Vector2(1, 1) }, uHasG: { value: 0 },
+    // (the far field's blanket past the view cone's reach: channels/far-field.js)
+    ...${farBlanketUniforms()},
+    tBase: { value: tBase }, tNorm: { value: tNorm }, tOrm: { value: tOrm }, tDice: { value: tDice }, uTile: { value: D.layers.tile }, uMean: { value: D.layers.mean.map((m) => new THREE.Vector3(...m)) },
     tPath: { value: pathMap }, uPathO: { value: new THREE.Vector2(...(D.path ? D.path.origin.map((v) => v - D.path.cell / 2) : [0, 0])) }, uPathM: { value: new THREE.Vector2(...(D.path ? D.path.metres : [1, 1])) },
     uPathZ: { value: new THREE.Vector2(...(D.path ? D.path.z : [0, 1])) }, uHasPath: { value: D.path ? 1 : 0 }, uDress: { value: new THREE.Vector3(D.dress.rubble, D.dress.dust, D.dress.reach) }, uSdIn: { value: D.dress.sdIn }, uPatch: { value: new THREE.Vector3(...D.dress.patches) }, uPathBase: { value: new THREE.Vector3(...D.layers.pathBase) }, uStoneBase: { value: new THREE.Vector3(...D.layers.stoneBase) }, uClayBase: { value: new THREE.Vector3(...D.layers.clayBase) }, uUnderBase: { value: new THREE.Vector3(...D.layers.underBase) }, uUnder: { value: D.layers.green ? 1 : 0 }, uMoss: { value: D.layers.moss ?? 0 }, uClay: { value: D.dress.surface === 'sand' ? 0 : D.dress.clay }, uWet: { value: new THREE.Vector4(D.wet.z ?? -1e9, D.wet.band, D.wet.tone, D.wet.rough) } };
 ${form.dunes ? duneScript() : ''}${form.snow ? snowScript() : ''}${form.dunes || form.snow ? printScript(form) : ''}  function layeredGround(m, roughScale) {
@@ -86,6 +131,7 @@ ${form.dunes ? duneScript() : ''}${form.snow ? snowScript() : ''}${form.dunes ||
       Object.assign(sh.uniforms, LAYER_U, { uRough: { value: roughScale } });
       sh.vertexShader = 'attribute vec4 splat;\\nvarying vec4 vSplat;\\nvarying vec3 vWPos;\\n' + sh.vertexShader.replace('#include <project_vertex>', '#include <project_vertex>\\n  vSplat = splat; vWPos = ( modelMatrix * vec4( transformed, 1.0 ) ).xyz;');
       sh.fragmentShader = 'uniform sampler2DArray tBase, tNorm, tOrm;\\nuniform sampler2D tPath, tDice;\\nuniform float uTile[7];\\nuniform vec3 uMean[7];\\nuniform float uRough, uHasPath;\\nuniform vec2 uPathO, uPathM, uPathZ;\\nuniform vec3 uPathBase, uStoneBase, uClayBase;\\nuniform float uClay, uUnder, uHasG, uMoss;\\nuniform sampler2D tGrassL;\\nuniform vec2 uGOl, uGMl;\\nuniform vec3 uUnderBase;\\nuniform vec4 uWet;\\nuniform vec3 uDress, uPatch;\\nuniform float uSdIn;\\nvarying vec4 vSplat;\\nvarying vec3 vWPos;\\nfloat hn( vec2 p ) { return fract( sin( dot( p, vec2( 127.1, 311.7 ) ) ) * 43758.5453 ); }\\nfloat vn( vec2 p ) { vec2 i = floor( p ), f = fract( p ); f = f * f * ( 3.0 - 2.0 * f ); return mix( mix( hn( i ), hn( i + vec2( 1.0, 0.0 ) ), f.x ), mix( hn( i + vec2( 0.0, 1.0 ) ), hn( i + vec2( 1.0, 1.0 ) ), f.x ), f.y ); }\\n'
+        + ${JSON.stringify(FAR_BLANKET_GLSL)}
         // (the ground's own parallax kinds, procedural: a Voronoi cell's distance, its edge and its dice; and each kind's
         // height over its cells, GROUND_PARALLAX)
         + 'vec3 vor5( vec2 p ) { vec2 i = floor( p ), f = fract( p ); float d1 = 8.0, d2 = 8.0; vec2 id = vec2( 0.0 ); for ( int y = -1; y <= 1; y++ ) for ( int x = -1; x <= 1; x++ ) { vec2 g = vec2( float( x ), float( y ) ), o = vec2( hn( i + g ), hn( i + g + 17.3 ) ) * 0.8 + 0.1; float d = length( g + o - f ); if ( d < d1 ) { d2 = d1; d1 = d; id = i + g; } else if ( d < d2 ) d2 = d; } return vec3( d1, d2 - d1, hn( id + 5.1 ) ); }\\n'
@@ -278,6 +324,8 @@ ${form.dunes ? duneScript() : ''}${form.snow ? snowScript() : ''}${form.dunes ||
     float wet = ( 1.0 - smoothstep( 0.0, uWet.y, abs( vWPos.z - uWet.x + ( vn( vWPos.xy / 1.7 + 3.1 ) - 0.5 ) * uWet.y * 0.8 ) ) ) * ws[ 3 ] / max( 1e-4, tw );
     diffuseColor.rgb *= mix( 1.0, uWet.z, wet );
     roughnessFactor = mix( roughnessFactor, uWet.w, wet );
+    // the FAR FIELD's blanket past the view cone's reach: the grass one colour, offset by its cells (channels/far-field.js)
+    { vec4 fb = farBlanket( vWPos, nW ); if ( fb.a > 0.0 ) { diffuseColor.rgb = mix( diffuseColor.rgb, fb.rgb, fb.a ); roughnessFactor = mix( roughnessFactor, 0.8, fb.a ); mn = normalize( mix( mn, vec3( 0.0, 0.0, 1.0 ), fb.a ) ); } }
     normal = normalize( ( viewMatrix * vec4( normalize( tT * mn.x + tB * mn.y + nW * mn.z ), 0.0 ) ).xyz );\`);
 ${form.dunes ? `      sh.fragmentShader = DUNE_HEAD + sh.fragmentShader.replace('    // (the sand WET', DUNE_SAND + '    // (the sand WET'); Object.assign(sh.uniforms, DUNE_U);\n` : ''}${form.snow ? `      sh.fragmentShader = SNOW_HEAD + sh.fragmentShader.replace('    // (the sand WET', SNOW_COVER + '    // (the sand WET'); Object.assign(sh.uniforms, SNOW_U);\n` : ''}${form.dunes || form.snow ? `      sh.fragmentShader = PRINT_HEAD + sh.fragmentShader.replace('    // (the sand WET', PRINT_PRESS + '    // (the sand WET'); Object.assign(sh.uniforms, PRINT_U);\n` : ''}    };
     m.customProgramCacheKey = () => 'layered-ground${form.dunes ? '-dunes' : ''}${form.snow ? '-snow' : ''}';
@@ -360,6 +408,9 @@ ${form.dunes ? `      sh.fragmentShader = DUNE_HEAD + sh.fragmentShader.replace(
   for (const R of D.ranges) {
     const water = R.key === 'water';
     // (the sea one plane where there is a depth to fade it by; what the read could not class stays painted)
+    // (the stage's far ring: FAR_LAND, its own facets in the land's colours under the sky's air; what the read could not
+    // class stays painted)
+    if (R.key === 'far') { farLand(R); continue; }
     if ((water && D.depth) || R.key === 'unread') continue;
     const m = water
       ? new THREE.MeshStandardMaterial({ color: 0xffffff, vertexColors: true, roughness: R.rough, metalness: 0, transparent: true, depthWrite: false, envMap: skyEnv, envMapIntensity: 1 })
@@ -402,34 +453,62 @@ ${form.dunes ? `      sh.fragmentShader = DUNE_HEAD + sh.fragmentShader.replace(
     // (each shape as the rock studies break a rock: chipped for the stones that cast, its block of fractures for the
     // small; creased normals, so a fracture's edge stays sharp; land-stones.js stoneForms)
     const formGeo = (F) => { const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(bytes(F.pos).buffer), 3)); g.setAttribute('normal', new THREE.BufferAttribute(new Int8Array(bytes(F.nrm).buffer), 3, true)); return g; };
-    for (let v = 0; v < D.stones.shapes; v++) {
-      const geo = { true: formGeo(D.stones.forms.near[v]), false: formGeo(D.stones.forms.far[v]) };
-      // (a stone under CAST_R casts nothing: its shadow is finer than the map's texel, a smudge beside it)
-      const CAST_R = 0.18;
-      for (const big of [true, false]) {
-      const idx = []; for (let i = 0; i < D.stones.n; i++) if (SP[i * per + 8] === v && (SP[i * per + 3] >= CAST_R) === big) idx.push(i);
-      if (!idx.length) continue;
-      const im = new THREE.InstancedMesh(geo[big], mat, idx.length);
-      idx.forEach((i, k) => {
-        const o = i * per, r = SP[o + 3]; nv.set(SP[o + 4], SP[o + 5], SP[o + 6]).normalize();
-        q.setFromUnitVectors(up, nv); qy.setFromAxisAngle(up, i * 2.399); q.multiply(qy);
-        m4.compose(pv.set(SP[o], SP[o + 1], SP[o + 2]), q, sv.set(r * (0.9 + 0.3 * hsh(i, 1)), r * (0.8 + 0.3 * hsh(i, 2)), r)); im.setMatrixAt(k, m4);
-        im.setColorAt(k, col.setRGB(SP[o + 7], SP[o + 7], SP[o + 7]));
-      });
-      im.castShadow = big; im.receiveShadow = true; scene.add(im);
-      }
+    // (each shape as the rock studies break a rock: chipped for the stones that cast, its block of fractures for the
+    // rest; on gameplay's camera a LADDER by the screen's rule, STONE_LADDER: chipped inside the view cone's reach, the
+    // block past it, and nothing once the stone is under a pixel: the ground's own scree and pebbles carry it)
+    const CAST_R = 0.18, SL = ${JSON.stringify(STONE_LADDER)}, M4 = [], parts = [];
+    for (let i = 0; i < D.stones.n; i++) {
+      const o = i * per, r = SP[o + 3]; nv.set(SP[o + 4], SP[o + 5], SP[o + 6]).normalize();
+      q.setFromUnitVectors(up, nv); qy.setFromAxisAngle(up, i * 2.399); q.multiply(qy);
+      M4.push(new THREE.Matrix4().compose(pv.set(SP[o], SP[o + 1], SP[o + 2]), q, sv.set(r * (0.9 + 0.3 * hsh(i, 1)), r * (0.8 + 0.3 * hsh(i, 2)), r)));
     }
+    for (let v = 0; v < D.stones.shapes; v++) {
+      const near = formGeo(D.stones.forms.near[v]), far = formGeo(D.stones.forms.far[v]), idx = [];
+      for (let i = 0; i < D.stones.n; i++) if (SP[i * per + 8] === v) idx.push(i);
+      if (!idx.length) continue;
+      const mk = (g, cast) => { const im = new THREE.InstancedMesh(g, mat, idx.length); im.count = 0; im.castShadow = cast; im.receiveShadow = true; scene.add(im); return im; };
+      parts.push({ idx, chipped: mk(near, true), block: mk(far, true), pebble: mk(far, false) });
+    }
+    let at = null;
+    const ladder = (pov, eye, reach, pxm) => {
+      for (const P of parts) {
+        const c = { chipped: 0, block: 0, pebble: 0 };
+        for (const i of P.idx) {
+          const o = i * per, r = SP[o + 3], big = r >= CAST_R, d = Math.hypot(SP[o] - eye.x, SP[o + 1] - eye.y, SP[o + 2] - eye.z);
+          const k = !pov ? (big ? 'chipped' : 'pebble') : big && d < reach ? 'chipped' : (2 * r) / (pxm * Math.max(d, 0.1)) < SL.px ? null : big ? 'block' : 'pebble';
+          if (!k) continue;
+          P[k].setMatrixAt(c[k], M4[i]); P[k].setColorAt(c[k], col.setRGB(SP[o + 7], SP[o + 7], SP[o + 7])); c[k]++;
+        }
+        for (const k of ['chipped', 'block', 'pebble']) { P[k].count = c[k]; P[k].instanceMatrix.needsUpdate = true; if (P[k].instanceColor) P[k].instanceColor.needsUpdate = true; }
+      }
+    };
+    ladder(false, new THREE.Vector3(), 0, 1);
+    // (each frame, after the view cone has its eye: the ladder again when the eye has moved SL.step m, the reach or the
+    // camera's mode changed)
+    const prevS = scene.onBeforeRender;
+    scene.onBeforeRender = function (r, sc, cam, rt) {
+      if (prevS) prevS.call(this, r, sc, cam, rt);
+      const CO = window.__mojCone; if (!CO || !cam.isPerspectiveCamera) return;
+      const pov = CO.reach < 1e5 && (!window.__formFar || window.__formFar.pov()) && (!window.__formFarField || window.__formFarField.on);
+      if (at && at.pov === pov && Math.abs(at.reach - CO.reach) < 0.5 && at.eye.distanceTo(CO.eye) < SL.step) return;
+      at = { pov, reach: CO.reach, eye: CO.eye.clone() }; ladder(pov, CO.eye, CO.reach, CO.px);
+    };
   }
-${formGrassScript()}${flora ? formFloraScript(flora, { snow: !!form.snow }) : ''}
+${formSkyScript()}${viewConeScript(form.cone || null)}${formGrassScript()}${flora ? formFloraScript(flora, { snow: !!form.snow }) : ''}${farFieldScript()}
   // open sea: deep water's colour under it, where the recipe lays no floor (the shallows' floor fades into the same colour)
   if (D.seabed) { const B = D.seabed, g = new THREE.PlaneGeometry(B.x[1] - B.x[0], B.y[1] - B.y[0]); g.translate((B.x[0] + B.x[1]) / 2, (B.y[0] + B.y[1]) / 2, B.z);
     scene.add(new THREE.Mesh(g, new THREE.MeshStandardMaterial({ color: rgb(D.deep), roughness: 1, metalness: 0 }))); }
   // the painted land it draws in its place, and the painted water sheet under its sea (a standalone sheet: per-vertex
   // alpha, not one of the named groups)
   const __formNamed = new Set(Object.values(meshes));
-  for (const g of D.hides) if (meshes[g]) meshes[g].visible = false;${flora ? `
+  for (const g of D.hides) if (meshes[g]) meshes[g].visible = false;
+  // (and the stage's painted far ring, which the form draws as its far land, with its painted tiles)
+  if (D.far && D.far.length) { const U = new Set(D.far); scene.traverse((o) => { if (o.isMesh && U.has(o.userData.g)) o.visible = false; }); }${flora ? `
   // (the plants' groups wholly: a group drawn in several meshes, its faces split by their tiles, is one name in \`meshes\`)
   { const H = new Set(D.hides); scene.traverse((o) => { if (o.isMesh && H.has(o.userData.g)) o.visible = false; }); }` : ''}
+  // (what stands, once what the form draws in its place is hidden: a painted crown, trunk or rock the form grows or lays
+  // is no structure, and never a card or a batch of its own)
+${farStructuresScript()}
   if (D.depth) for (const o of __formBefore) if (o.isMesh && !__formNamed.has(o) && o.material.isMeshBasicMaterial && o.material.transparent && o.geometry.getAttribute('color')?.itemSize === 4) o.visible = false;
   for (const o of __formBefore) for (const m of [].concat(o.material)) { m.toneMapped = false; m.needsUpdate = true; }
   renderer.toneMapping = THREE.NeutralToneMapping; renderer.toneMappingExposure = 1;

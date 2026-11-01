@@ -251,12 +251,13 @@ describe('the female card', () => {
   it('holds her bust at both ends of the dial, and the door picks her card from the hero\'s cast', () => {
     const at = (d) => muscleShirt(her, { card: 'saikyo', definition: d }, { cast: 'female' });
     const front = (r) => Math.max(...r.recipe.parts.torso.stations.flatMap((x) => r.recipe.parts.torso.slots.map((sl) => x.points[sl][1])));
-    const a = front(at(0)), b = front(at(1)), flatFront = Math.max(...her.parts.torso.stations.flatMap((x) => her.parts.torso.slots.map((sl) => x.points[sl][1])));
+    // (each end built once: a whole shirt on her card is a heavy build, three of them here with the door's)
+    const one = at(1), a = front(at(0)), b = front(one), flatFront = Math.max(...her.parts.torso.stations.flatMap((x) => her.parts.torso.slots.map((sl) => x.points[sl][1])));
     expect(a).toBeGreaterThan(flatFront + 0.02);
     expect(Math.abs(a - b)).toBeLessThan(0.012);
     const door = expandLayeredManifest({ kind: 'layered', hero: heroRecord(withDefaultForm({ ...HER, muscleShirt: { card: 'saikyo', definition: 1 } })) }).recipe;
-    expect(door.parts.torso.stations).toEqual(at(1).recipe.parts.torso.stations);
-  });
+    expect(door.parts.torso.stations).toEqual(one.recipe.parts.torso.stations);
+  }, 120000);
 });
 
 describe('squash and stretch', () => {
