@@ -12,7 +12,7 @@ func _init() -> void:
 		return
 	var scene: Node = packed.instantiate()
 	var out := { "ok": true, "materials": 0, "albedo": 0, "normal": 0, "orm": 0, "height": 0, "bodies": 0, "markers": 0, "seats": 0,
-		"environment": false, "sky": false, "background": false, "fog": false, "ssao": false, "sun": false, "sun_shadow": false, "sun_default": false, "omni": 0, "camera": false, "animated": 0, "skins": 0, "entity_meshes": 0, "terrain": 0, "terrain_splat": 0, "terrain_layers": 0, "terrain_path": false, "handoff": scene.get_meta("mojulo_handoff", "") }
+		"environment": false, "sky": false, "background": false, "fog": false, "ssao": false, "sun": false, "sun_shadow": false, "sun_default": false, "omni": 0, "camera": false, "animated": 0, "skins": 0, "entity_meshes": 0, "terrain": 0, "terrain_splat": 0, "terrain_layers": 0, "terrain_path": false, "sea": false, "sea_depth": false, "handoff": scene.get_meta("mojulo_handoff", "") }
 	var seen := {}
 	for mi in scene.find_children("*", "MeshInstance3D", true, false):
 		if mi.mesh == null:
@@ -26,6 +26,10 @@ func _init() -> void:
 				var tb = m.get_shader_parameter("tBase")
 				if tb is TextureLayered: out["terrain_layers"] = tb.get_layers()
 				out["terrain_path"] = m.get_shader_parameter("tPath") != null and float(m.get_shader_parameter("uHasPath")) > 0.5
+			# (the sea: its plane on the water shader, its depth map bound)
+			if m is ShaderMaterial and m.resource_name == "mojulo:sea":
+				out["sea"] = true
+				out["sea_depth"] = m.get_shader_parameter("tDepth") != null
 			if m is BaseMaterial3D and not seen.has(m):
 				seen[m] = true
 				out["materials"] += 1

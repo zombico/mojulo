@@ -79,6 +79,10 @@ describe('the handoff as a Godot project', () => {
       } else expect(imp).toContain('importer="keep"');
     }
     expect(Object.keys(H.terrain.images)).toEqual(expect.arrayContaining(['base', 'normal', 'orm', 'dice', 'path']));
+    // (the sea: its plane, its read, its depth map kept as written, its shader)
+    expect(H.sea).toMatchObject({ part: 'form:sea', image: 'res://mojulo/terrain/sea_depth.png', shader: 'res://mojulo/handoff_sea.gdshader' });
+    expect(fileOf(files, 'mojulo/terrain/sea_depth.png.import').data).toContain('importer="keep"');
+    expect(fileOf(files, 'mojulo/handoff_sea.gdshader').data).toContain('shader_type spatial');
   }, 300_000);
 
   it('writes the developer\'s project and scene once, and mojulo/ whole every time', async () => {
@@ -133,7 +137,7 @@ describe('the handoff as a Godot project', () => {
     expect(line.camera, log).toBe(true);
   }, 900_000);
 
-  it.skipIf(!GODOT)('in a headless Godot: the layered ground on its shader, its weights and layers bound, under its sky (MOJULO_GODOT)', async () => {
+  it.skipIf(!GODOT)('in a headless Godot: the layered ground on its shader, its weights and layers bound, the sea on its own, under its sky (MOJULO_GODOT)', async () => {
     const h = await resolveHandoff(TRAIL), dir = packDir('trail');
     await writeHandoffGodot(h, dir);
     const { line, log, errors } = probe(dir), parts = h.instances.filter((x) => x.terrain).length;
@@ -144,7 +148,8 @@ describe('the handoff as a Godot project', () => {
     expect(line.terrain_splat, log).toBe(parts);
     expect(line.terrain_layers, log).toBeGreaterThanOrEqual(h.instances.find((x) => x.terrain).terrain.read.atlas.cells.length);
     expect(line.terrain_path, log).toBe(true);
-    // (the cube's sky, its sun at the hour, its haze)
+    // (the sea on its water shader, its depth bound; the cube's sky, its sun at the hour, its haze)
+    expect(line.sea && line.sea_depth, log).toBe(true);
     expect(line.sky && line.sun && line.fog, log).toBe(true);
     expect(line.sun_default, log).toBe(false);
   }, 900_000);

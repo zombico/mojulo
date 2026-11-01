@@ -6,7 +6,7 @@
  */
 import { describe, expect, it } from 'vitest';
 
-import { resolveHandoff, stoneInstances, floraInstances, mergeClumps, dressedMaterials, landParts, HANDOFF_VERSION, HANDOFF_LEVEL } from './handoff.js';
+import { resolveHandoff, stoneInstances, floraInstances, mergeClumps, dressedMaterials, landParts, HANDOFF_VERSION, HANDOFF_LEVEL, SEA_OPACITY } from './handoff.js';
 import { resolveWorldScene } from '../worlds/world-scene.js';
 import { generatedSpecOf } from '../landscape/surface-textures.js';
 import { decodePng } from '../era/tone.js';
@@ -60,7 +60,19 @@ describe('the engine handoff', () => {
     expect(a.ledger.carried.land.parts).toBe(land.length);
     const groups = new Set(a.payload.form.land.hides);
     const meshNames = new Set(j.meshes.map((m) => m.name));
-    for (const g of groups) if (!g.endsWith(':water')) expect(meshNames.has(g), g).toBe(false);
+    for (const g of groups) expect(meshNames.has(g), g).toBe(false);
+    // (the sea: the painted sheet gone, one plane at the water's height over the bed in its place, see-through, its depth
+    // map placed on the plan in its material's extras, as the page draws it)
+    const L0 = a.payload.form.land, seaMesh = j.meshes.find((m) => m.name === 'form:sea');
+    expect(seaMesh).toBeDefined();
+    const seaMat = j.materials[seaMesh.primitives[0].material];
+    expect(seaMat.alphaMode).toBe('BLEND');
+    expect(seaMat.pbrMetallicRoughness.baseColorFactor[3]).toBe(SEA_OPACITY);
+    expect(seaMat.extras.mojulo.sea).toMatchObject({ max: L0.depth.max, z: L0.waterZ, metres: L0.depth.size.map((n) => n * L0.depth.cell) });
+    expect(seaMat.extras.mojulo.sea.depth.index).toBeGreaterThanOrEqual(0);
+    const seaPos = j.accessors[seaMesh.primitives[0].attributes.POSITION];
+    expect(seaPos.min).toEqual([L0.seabed.x[0], L0.seabed.y[0], L0.waterZ].map((v) => Math.fround(v)));
+    expect(seaPos.max).toEqual([L0.seabed.x[1], L0.seabed.y[1], L0.waterZ].map((v) => Math.fround(v)));
     const layered = j.meshes.filter((m) => m.primitives[0].attributes._SPLAT);
     expect(layered.length).toBe(a.ledger.carried.land.layered);
     expect(layered.length).toBeGreaterThan(0);

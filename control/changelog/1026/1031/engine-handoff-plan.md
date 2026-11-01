@@ -1,6 +1,6 @@
 ### Engine handoff plan (temporary: the working plan, parked here; delete before release)
 
-**Status:** phases 0 to 3 built; phase 4's Godot adapter built and run in a real Godot (4.7.2) on the operator's machine, the terrain shader with it; the sea as the engine's own water, then `export_model { engine: 'godot' }`, next (1101).
+**Status:** phases 0 to 3 built; phase 4's Godot adapter built and run in a real Godot (4.7.2) on the operator's machine, the terrain shader with it; the sea as the engine's own water built; `export_model { engine: 'godot' }` next (1101).
 `control/changelog/1026/1031/engine-handoff.md`. No release has carried the engine game runtimes this plan removes, so
 nothing here needs a deprecation path.
 
@@ -532,4 +532,24 @@ developer would want to wire. Never claimed by a machine.
     translucent over the cliff's cut faces below the waterline, where the page fades its sea by depth: the sea as the
     engine's own water from `form.land.depth`. The dunes' and the snow's layers stay the page's. A painted face (the
     trail's ribbon) is albedo under the engine's light where the page draws it unlit, by design.
+- 1101, the sea as the engine's own water:
+  - `seaPlane(land)` (handoff.js): where the land has a depth map, a bed and a water height (as the page draws its sea),
+    one quad `form:sea` at `waterZ` over `seabed`'s x and y, its material lit, its colour the sea's base (linear),
+    its roughness the water class's, `BLEND` at `SEA_OPACITY` (0.9), and `extras.mojulo.sea` its depth map (an image,
+    the map's red the depth over `max`), placed on the plan (`origin`, `metres`), `max`, `z`, `opacity`. `landHides`
+    now drops the painted water too where the plane stands; without a depth the sea stays the painted one, as before.
+  - `handoff-godot/handoff_sea.gdshader`: the page's sea ported: the base colour lit (Lambert), roughness, alpha the
+    opacity times `smoothstep(0, max, depth)` on the map and 1 off it, no depth written; the sky in its reflection as
+    the page's dome (horizon to zenith by `pow(max(0, R.z), 0.6)`) at Schlick's Fresnel (F0 0.04), added as emission
+    (the environment's own reflections are off, as on the land). The importer binds it to the plane `sea.part` names,
+    the zenith and horizon from the level's sky; the plane casts no shadow and takes no collision (it is see-through).
+    The probe reports `sea` and `sea_depth`; the trail's Godot leg holds them.
+  - The fog: Godot's exponential fog, matched to the page's exp² at its half distance only, lay three times as thick at
+    mid distance (0.18 at 60 m against 0.06). Godot's depth fog is `smoothstep(begin, end, d)^curve × density`
+    (checked in a render: 0.304 measured where it predicts 0.30); at begin 0, end 1.92 / ρ, curve 0.8, density 1 it
+    follows 1 − exp(−(ρd)²) within 0.03 at every distance.
+  - Held to the page at the two shots: the cliff below the waterline no longer shows through, the shore fades as the
+    page's. The near sea 84,163,204 against the page's 57,169,220 (the red mostly Khronos neutral's toe, as on the
+    land). Left: from the island camera a faint line where the shallows' floor ends under the open sea (the 10% the sea
+    lets through shows the floor inside it and the sky beyond it); the page shows none.
 

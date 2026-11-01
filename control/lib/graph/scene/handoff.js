@@ -27,8 +27,10 @@
  *     ground, its four layers' weights (`_SPLAT`, and the same bytes as TEXCOORD_2 and _3) with the layers' atlases, their
  *     tiles and their means, and all else the page's ground reads (the scree's dice, the trail's mask and dress, the bases,
  *     the moss, the wet line) in its material's `extras.mojulo.terrain`: what an engine's terrain shader blends (each layer
- *     along the face's dominant axis, by weight and by its own height, as the page does). The painted faces it stands for leave the export; the sea stays
- *     the painted one
+ *     along the face's dominant axis, by weight and by its own height, as the page does). The painted faces it stands for
+ *     leave the export, its painted water too where it has a sea's depth (`seaPlane`), else the sea stays the painted one
+ *   seaPlane(land) → [instance set]: the sea as the page draws it, one plane at the water's height over the bed, in the
+ *     sea's colour at 0.9, its depth map and its fade toward the shore in its material's `extras.mojulo.sea`
  *   roomLamps(room) → [glTF point light]: a room's lamps under the form render's solve (form/room-light.js): each where
  *     its flame is, its solved key as its colour and, in a renderer's units, its strength (π × the key's level: out =
  *     base × light, form/room-light.js), its reach its radius. With them its surfaces leave as their solved bases, so the
@@ -148,9 +150,29 @@ export function dressedMaterials(keys) {
 
 const LIN8 = Float32Array.from({ length: 256 }, (_, v) => { const c = v / 255; return c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4; });
 const i8 = (s) => { const b = Buffer.from(s, 'base64'); return new Int8Array(b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength)); };
-/** The painted groups the form's land stands for, but its water: the sea leaves painted (the page draws it as a plane
- *  over the depth, an engine as its own water). */
-export const landHides = (land) => (land?.hides ?? []).filter((g) => !/:water$/.test(g));
+/** The painted groups the form's land stands for; its water too where the land has a sea's depth (the sea leaves as a
+ *  plane over it, `seaPlane`), else the sea leaves painted. */
+export const landHides = (land) => (land?.hides ?? []).filter((g) => !/:water$/.test(g) || !!seaOf(land));
+
+// (a land whose sea the page draws as a plane faded over its depth: its water's height, its bed's extent, its depth map)
+const seaOf = (land) => (land && land.depth && land.seabed && Number.isFinite(land.waterZ) ? land : null);
+
+/** The sea as the page draws it (channels/form-land.js): one plane at the water's height over the bed's extent, in the
+ *  sea's colour, see-through at 0.9 and faded to nothing toward the shore by the depth under it (the map's red over
+ *  `max` metres, 1 off the map), its roughness the water class's, the sky in its reflection. A plain reader sees the
+ *  plane at 0.9; an engine's water reads `sea` (its depth map placed on the plan) in its material's extras. */
+export const SEA_OPACITY = 0.9;
+export function seaPlane(land) {
+  const L = seaOf(land);
+  if (!L) return [];
+  const Q = L.depth, B = L.seabed, z = L.waterZ, [x0, x1] = B.x, [y0, y1] = B.y;
+  const positions = Float32Array.from([x0, y0, z, x1, y0, z, x1, y1, z, x0, y0, z, x1, y1, z, x0, y1, z]);
+  const normals = Float32Array.from({ length: 18 }, (_, i) => (i % 3 === 2 ? 1 : 0));
+  const base = L.light?.sea?.base ?? '#2a6f8f', rgb = [1, 3, 5].map((i) => LIN8[parseInt(base.slice(i, i + 2), 16)]);
+  return [{ name: 'form:sea', positions, normals, transforms: [{ translation: [0, 0, 0] }], color: rgb.map(r5), roughness: L.classes?.water ?? 0.06, alpha: SEA_OPACITY,
+    sea: { depth: pngUrl(encodePngRgba(Buffer.from(Q.px, 'base64'), Q.size[0], Q.size[1])), origin: Q.origin.map((v) => r5(v - Q.cell / 2)),
+      metres: Q.size.map((n) => r5(n * Q.cell)), max: Q.max, z: r5(z), opacity: SEA_OPACITY } }];
+}
 
 // THE ROCK'S RELIEF AS GEOMETRY (the page's reliefPart, channels/form-land.js): a cliff's triangles cut into a finer
 // grid (NS a side) and every point pushed along its normal by the relief (form/rock-relief.js, read along the face's two
@@ -234,7 +256,7 @@ export function landParts(land) {
     ...(Gm ? { grass: { origin: Gm.origin.map((v) => r5(v - Gm.cell / 2)), metres: Gm.size.map((n) => r5(n * Gm.cell)) } } : {}) } : null;
   const sets = [];
   for (const R of land.ranges) {
-    // (the sea: the painted one stays; what the read could not class stays painted)
+    // (the sea: a plane of its own, seaPlane, or the painted one; what the read could not class stays painted)
     if (R.key === 'water' || R.key === 'unread' || !R.count) continue;
     const a = R.start, n = R.count, ground = keys.includes(R.key.split(':')[0]), floor = R.key === 'sand:under';
     const positions = POS.slice(a * 3, (a + n) * 3), colors = new Float32Array(n * 3), normals = new Float32Array(n * 3);
@@ -479,7 +501,7 @@ export async function resolveHandoff(sketch, { what = 'level' } = {}) {
   const { payload, kind } = await resolveWorldScene(sketch, { unshaded: true, era: HANDOFF_ERA, handoff: true });
   if (!payload) throw new Error(`handoff: '${sketch?.ref ?? sketch?.title ?? '?'}' resolves to no scene`);
   const land = payload.form?.land ?? null, hides = new Set(landHides(land));
-  const instances = [...landParts(land), ...stoneInstances(land?.stones), ...floraInstances(payload.form?.flora)];
+  const instances = [...landParts(land), ...seaPlane(land), ...stoneInstances(land?.stones), ...floraInstances(payload.form?.flora)];
   // (the painted faces the form's land stands for leave: the land is its parts above)
   const lamps = roomLamps(payload.form?.room);
   const handed = hides.size || lamps.length ? { ...payload, ...(hides.size ? { faces: (payload.faces || []).filter((f) => !(f && hides.has(f.group))) } : {}),

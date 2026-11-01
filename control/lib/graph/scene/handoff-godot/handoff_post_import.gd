@@ -12,6 +12,8 @@ extends EditorScenePostImport
 #     World page's fragment), its layers' base, normal and ORM as arrays (Godot's importer cuts the atlases), the scree's
 #     dice, the trail's mask and the grass's cover as textures built into the import from mojulo/terrain/, and the rest
 #     of its read as the shader's uniforms
+#   - lays the sea (`sea`): its plane takes the water shader (handoff_sea.gdshader, the World page's sea): its colour,
+#     faded toward the shore by its depth map, the level's sky in its reflection; it casts no shadow
 #   - gives the level's static meshes trimesh collision (not the instances: stones, plants; not what is see-through: a
 #     decal, a sun patch, glass, water)
 #   - builds the environment: a WorldEnvironment (the sky's zenith and horizon, or the level's background colour where it
@@ -77,6 +79,9 @@ func _post_import(scene: Node) -> Object:
 			own(mi, scene)
 	if typeof(H.get("terrain")) == TYPE_DICTIONARY:
 		terrain(scene, H["terrain"])
+	if typeof(H.get("sea")) == TYPE_DICTIONARY:
+		var lv = H.get("level")
+		sea(scene, H["sea"], lv.get("environment", {}) if typeof(lv) == TYPE_DICTIONARY else {})
 	var level = H.get("level")
 	if typeof(level) == TYPE_DICTIONARY:
 		environment(scene, level.get("environment", {}))
@@ -175,6 +180,39 @@ func terrain(scene: Node, T: Dictionary) -> void:
 			if m != null and parts.has(m.resource_name):
 				mesh.surface_set_material(s, sm)
 
+func sea(scene: Node, S: Dictionary, env: Dictionary) -> void:
+	var shader = load(String(S.get("shader", "res://mojulo/handoff_sea.gdshader")))
+	if shader == null:
+		push_error("[mojulo-handoff] the sea's shader is missing")
+		return
+	var R: Dictionary = S.get("read", {})
+	var sm := ShaderMaterial.new()
+	sm.resource_name = "mojulo:sea"
+	sm.shader = shader
+	if S.has("image"):
+		sm.set_shader_parameter("tDepth", flat(S["image"], false))
+	sm.set_shader_parameter("uDO", v2(R.get("origin", [0, 0])))
+	sm.set_shader_parameter("uDM", v2(R.get("metres", [1, 1])))
+	sm.set_shader_parameter("uDMax", float(R.get("max", 1.0)))
+	sm.set_shader_parameter("uOpacity", float(R.get("opacity", 0.9)))
+	# (the sky it reflects: the level's, else its background)
+	var sky = env.get("sky", {})
+	var bg := String(env.get("background", "#c8d4e0"))
+	sm.set_shader_parameter("uZenith", Color.html(sky.get("zenith", bg)) if typeof(sky) == TYPE_DICTIONARY else Color.html(bg))
+	sm.set_shader_parameter("uHorizon", Color.html(sky.get("horizon", bg)) if typeof(sky) == TYPE_DICTIONARY else Color.html(bg))
+	for mi in scene.find_children("*", "MeshInstance3D", true, false):
+		var mesh: Mesh = mi.mesh
+		if mesh == null:
+			continue
+		for s in range(mesh.get_surface_count()):
+			var m = mesh.surface_get_material(s)
+			if m is BaseMaterial3D and m.resource_name == String(S.get("part", "form:sea")):
+				# (its colour and roughness the plane's own, glTF's: linear)
+				sm.set_shader_parameter("uBase", Vector3(m.albedo_color.srgb_to_linear().r, m.albedo_color.srgb_to_linear().g, m.albedo_color.srgb_to_linear().b))
+				sm.set_shader_parameter("uRough", m.roughness)
+				mesh.surface_set_material(s, sm)
+				mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+
 func environment(scene: Node, env: Dictionary) -> void:
 	var e := Environment.new()
 	var sm := ProceduralSkyMaterial.new()
@@ -214,9 +252,15 @@ func environment(scene: Node, env: Dictionary) -> void:
 			# values, so the hex lands darker and bluer than itself)
 			e.fog_light_color = Color.html(env["haze"]["color"]).srgb_to_linear()
 		if env["haze"].has("density"):
-			# (the page's fog is exp-squared, Godot's exponential: the density that puts Godot's half-fog where the page's
-			# is, ln 2 / (ln 2)^(1/2) per density)
-			e.fog_density = float(env["haze"]["density"]) * sqrt(log(2.0))
+			# (the page's fog is exp-squared, 1 - exp(-(density × distance)²): faint near, closing late. Godot's depth fog,
+			# smoothstep(0, end, distance) to a power, follows it within 0.03 everywhere at an end of 1.92 / density and a
+			# power of 0.8; its exponential fog, matched at the half distance, lay three times as thick at mid distance)
+			var rho := maxf(float(env["haze"]["density"]), 0.000001)
+			e.fog_mode = Environment.FOG_MODE_DEPTH
+			e.fog_density = 1.0
+			e.fog_depth_begin = 0.0
+			e.fog_depth_end = 1.92 / rho
+			e.fog_depth_curve = 0.8
 	var we := WorldEnvironment.new()
 	we.name = "MojuloEnvironment"
 	we.environment = e

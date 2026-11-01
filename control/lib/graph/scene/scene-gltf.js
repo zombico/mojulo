@@ -1835,7 +1835,7 @@ export function facesToGlb(payload = {}, { generator, clips = null, skinned = fa
     // set, and its height for parallax in the extras, for an engine's importer to bind)
     const T = set.textures, tex = (k) => (T && T[k] ? b.imageFromDataUrl(T[k]) : null);
     const [base, normal, orm, height] = ['base', 'normal', 'orm', 'height'].map(tex);
-    const mat = b.pbrMaterial({ metallic: 0, roughness: set.roughness ?? 0.85, baseColor: set.color, name: set.name,
+    const mat = b.pbrMaterial({ metallic: 0, roughness: set.roughness ?? 0.85, baseColor: set.color, name: set.name, ...(set.alpha != null ? { alpha: set.alpha } : {}),
       ...(base != null ? { baseColorTexture: base } : {}), ...(normal != null ? { normalTexture: normal } : {}), ...(orm != null ? { ormTexture: orm } : {}),
       ...(height != null ? { extras: { mojulo: { height: { index: height }, depth: set.depth, metres: set.metres } } } : {}) });
     if (orm != null) b.json.materials[mat].pbrMetallicRoughness.metallicFactor = 0;
@@ -1844,6 +1844,11 @@ export function facesToGlb(payload = {}, { generator, clips = null, skinned = fa
       const t = (terrainTex ??= Object.fromEntries(Object.keys(set.terrain.atlases).map((k) => [k, b.imageFromDataUrl(set.terrain.atlases[k])])));
       b.json.materials[mat].extras = { mojulo: { terrain: { part: set.terrain.part, splat: '_SPLAT', splatUv: ['TEXCOORD_2', 'TEXCOORD_3'],
         layers: Object.fromEntries(Object.entries(t).map(([k, i]) => [k, { index: i }])), ...set.terrain.read } } };
+    }
+    // (the sea as a plane: its depth map and its fade in the extras, for an engine's water)
+    if (set.sea) {
+      const { depth, ...read } = set.sea;
+      b.json.materials[mat].extras = { mojulo: { sea: { depth: { index: b.imageFromDataUrl(depth) }, ...read } } };
     }
     const r = b.addFormInstances(set.name, set, mat, set.transforms);
     vertexCount += r.vertices * set.transforms.length;

@@ -74,3 +74,8 @@ Built so far:
   record as colour bytes and broke Godot's environment (now hex, as the rest of the record), and the environment now
   lights as the page does (its tone curve, its solved ambient alone, the haze's colour as the page shows it, the sky
   clear of the fog). CI's Godot job imports a trail too, and fails on any script or shader error in the import.
+- **The sea as the engine's own water.** Where a land has a sea's depth, its sea leaves as one plane at the water's
+  height over the bed, see-through and fading to nothing toward the shore by the depth under it, in place of the painted
+  sheet; in Godot it takes a water shader ported from the page's (the sea's colour lit, the shore's fade, the level's
+  sky in its reflection), so the cliff's cut faces below the waterline no longer show through. The haze in Godot now
+  follows the page's curve (faint near, closing late) instead of matching it at one distance only.

@@ -12,6 +12,7 @@
  *     mojulo/terrain/*.png           the layered ground's images: its layers' atlases (imported as arrays, `.import` beside
  *                                    each), the scree's dice, the trail's mask, the grass's cover (kept as written)
  *     mojulo/handoff_terrain.gdshader  the World page's layered-ground fragment, ported, for the parts `terrain` names
+ *     mojulo/handoff_sea.gdshader    the page's sea, ported, for the plane `sea` names (its depth map in mojulo/terrain/)
  *     mojulo/handoff_post_import.gd  the importer (handoff-godot/): materials, collision, the environment and the sun,
  *                                    the markers and the seats, built on every import from handoff.json
  *     mojulo/handoff_probe.gd        the gate's probe: what the import built, as one JSON line
@@ -115,13 +116,22 @@ export function handoffGodotFiles(h, { title = null } = {}) {
       return [k, `res://${f}`];
     })),
   } : null;
+  // the sea: its plane's name, its read, its depth map kept as written (its red the depth over `max`) and its shader
+  const seaSet = (h.instances ?? []).find((s) => s.sea);
+  const sea = seaSet ? (() => {
+    const { depth, ...read } = seaSet.sea;
+    terrainFiles.push({ file: 'mojulo/terrain/sea_depth.png', data: dataUrlBytes(depth) }, { file: 'mojulo/terrain/sea_depth.png.import', data: KEEP_IMPORT });
+    return { part: seaSet.name, read, image: 'res://mojulo/terrain/sea_depth.png', shader: 'res://mojulo/handoff_sea.gdshader' };
+  })() : null;
   const handoffJson = { version: HANDOFF_GODOT_VERSION, handoff: h.ledger?.version ?? null, level: h.level ?? null, ledger: h.ledger ?? null,
-    materials, instanced: [...HANDOFF_INSTANCED], ...(terrain ? { terrain } : {}) };
+    materials, instanced: [...HANDOFF_INSTANCED], ...(terrain ? { terrain } : {}), ...(sea ? { sea } : {}) };
   files.push({ file: 'mojulo/level.glb', data: Buffer.from(h.exported.bytes) });
   files.push({ file: 'mojulo/level.glb.import', data: LEVEL_GLB_IMPORT });
   files.push({ file: 'mojulo/handoff.json', data: `${JSON.stringify(handoffJson, null, 1)}\n` });
   for (const [f, b] of [...tex].sort(([a], [b2]) => (a < b2 ? -1 : a > b2 ? 1 : 0))) files.push({ file: f, data: b });
-  if (terrain) files.push(...terrainFiles, { file: 'mojulo/handoff_terrain.gdshader', data: gd('handoff_terrain.gdshader') });
+  files.push(...terrainFiles);
+  if (terrain) files.push({ file: 'mojulo/handoff_terrain.gdshader', data: gd('handoff_terrain.gdshader') });
+  if (sea) files.push({ file: 'mojulo/handoff_sea.gdshader', data: gd('handoff_sea.gdshader') });
   files.push({ file: 'mojulo/handoff_post_import.gd', data: gd('handoff_post_import.gd') });
   files.push({ file: 'mojulo/handoff_probe.gd', data: gd('handoff_probe.gd') });
   files.push({ file: 'project.godot', data: projectGodot(title ?? h.level?.title ?? 'mojulo handoff'), keep: true });
