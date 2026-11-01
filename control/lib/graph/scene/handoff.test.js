@@ -12,6 +12,8 @@ import { generatedSpecOf } from '../landscape/surface-textures.js';
 import { decodePng } from '../era/tone.js';
 import { facesToGlb } from './scene-gltf.js';
 import { floraRead, FLORA_SPECIES } from '../form/flora-read.js';
+import { ATLAS_LAYERS } from '../form/land-read.js';
+import { GROUND_PARALLAX } from './channels/form-land.js';
 
 const glbJson = (bytes) => { const b = Buffer.from(bytes); return JSON.parse(b.subarray(20, 20 + b.readUInt32LE(12)).toString('utf8')); };
 const rotate = (q, v) => {
@@ -62,17 +64,41 @@ describe('the engine handoff', () => {
     const layered = j.meshes.filter((m) => m.primitives[0].attributes._SPLAT);
     expect(layered.length).toBe(a.ledger.carried.land.layered);
     expect(layered.length).toBeGreaterThan(0);
+    const L = a.payload.form.land;
     for (const m of layered) {
-      const t = j.materials[m.primitives[0].material].extras.mojulo.terrain;
+      const t = j.materials[m.primitives[0].material].extras.mojulo.terrain, at = m.primitives[0].attributes;
       expect(t.splat).toBe('_SPLAT');
-      expect(t.keys).toEqual(a.payload.form.land.layers.keys);
-      expect(t.layers.base.index).toBeGreaterThanOrEqual(0);
+      expect(t.keys).toEqual(L.layers.keys);
+      // (the atlas's cells named, one a layer the page cuts: its tiles and its means)
+      expect(t.atlas.cells).toEqual([...ATLAS_LAYERS]);
+      expect(t.tile.length).toBe(t.atlas.cells.length);
+      expect(t.mean.length).toBe(t.atlas.cells.length);
+      for (const k of ['base', 'normal', 'orm', 'dice']) expect(t.layers[k].index, k).toBeGreaterThanOrEqual(0);
+      // (and what else the page's fragment reads: the trail's mask placed on the plan, its dress, the bases, the wet line)
+      expect(t.layers.path.index).toBeGreaterThanOrEqual(0);
+      expect(t.path.metres).toEqual(L.path.metres);
+      expect(Object.keys(t.bases)).toEqual(['path', 'clay', 'stone', 'under']);
+      expect(t.dress.reach).toBe(L.dress.reach);
+      expect(t.wet.band).toBe(L.wet.band);
+      expect(t.parallax).toEqual(JSON.parse(JSON.stringify(GROUND_PARALLAX)));
+      // (the weights again as TEXCOORD_2 and _3, the same bytes as _SPLAT; the plan's x and y as TEXCOORD_0 and _1,
+      // POSITION's own bytes: views, no byte more)
+      expect(t.splatUv).toEqual(['TEXCOORD_2', 'TEXCOORD_3']);
+      const acc = (k) => j.accessors[at[k]];
+      expect(acc('TEXCOORD_2').bufferView).toBe(acc('_SPLAT').bufferView);
+      expect(acc('TEXCOORD_3')).toMatchObject({ bufferView: acc('_SPLAT').bufferView, byteOffset: 8, type: 'VEC2' });
+      expect(j.bufferViews[acc('_SPLAT').bufferView].byteStride).toBe(16);
+      expect(at.TEXCOORD_1).toBe(at.TEXCOORD_0);
+      expect(acc('TEXCOORD_0').bufferView).toBe(acc('POSITION').bufferView);
+      expect(j.bufferViews[acc('POSITION').bufferView].byteStride).toBe(12);
     }
     // (a trail's cliff under its relief: cut and pushed as the page pushes it)
     if (a.payload.form.land.relief && a.payload.form.land.ranges.some((R) => R.key === 'cliff')) expect(a.ledger.carried.land.reliefCut).toBeGreaterThan(0);
     // (the environment: the sky, the sun at the cube's hour as a direction, a colour and a renderer's strength, the ambient)
     const E = a.level.environment;
-    expect(E.sky.zenith).toBeTruthy();
+    // (its colours as hex, as the background's and the haze's: the form read holds the sky as sRGB bytes)
+    expect(E.sky.zenith).toMatch(/^#[0-9a-f]{6}$/);
+    expect(E.sky.horizon).toMatch(/^#[0-9a-f]{6}$/);
     expect(Math.hypot(...E.sun.direction)).toBeCloseTo(1, 2);
     expect(Math.max(...E.sun.color)).toBeCloseTo(1, 4);
     expect(E.sun.intensity).toBeGreaterThan(0);

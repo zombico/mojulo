@@ -27,6 +27,7 @@ const COUCH = { ref: 'sk_couch', title: 'couch', manifest: { kind: 'controllable
   entities: [{ id: 'p1', pilotable: true, rule: { type: 'walk' }, body: { type: 'figure-rig', figure: 'hero' }, transform: { pos: [0, 0, 0.5] } }, { id: 'p2', pilotable: true, rule: { type: 'walk' }, body: box, transform: { pos: [3, 0, 0.5] } },
     { id: 'grunt', rule: { type: 'ai' }, body: box, transform: { pos: [6, 2, 0.5] } }],
   seats: { bodies: ['p2'], lives: 3 }, camera: { rule: 'side', target: 'p1', dist: 11 }, game: { levelRef: 'couch', mechanics: [{ kind: 'reach-exit', at: [8, 0, 0] }] } } };
+const TRAIL = { ref: 'sk_trail', title: 'trail', manifest: { kind: 'geocube', cube: 'island-noon', show: 'trail', seed: 1 } };
 const BAY = { ref: 'sk_bay', title: 'bay', manifest: { kind: 'stage', kit: 'bay-military', rooms: [{ id: 'low', x: 0, y: 0, w: 6, d: 8, h: 3.5 }] } };
 
 const fileOf = (files, name) => files.find((f) => f.file === name);
@@ -34,7 +35,10 @@ const probe = (dir) => {
   const imp = spawnSync(GODOT, ['--headless', '--path', dir, '--import'], { encoding: 'utf8', timeout: 600000 });
   const run = spawnSync(GODOT, ['--headless', '--path', dir, '--script', 'res://mojulo/handoff_probe.gd'], { encoding: 'utf8', timeout: 300000 });
   const line = `${run.stdout}\n${run.stderr}`.split('\n').find((l) => l.startsWith('[mojulo-handoff-probe] '));
-  return { line: line ? JSON.parse(line.slice('[mojulo-handoff-probe] '.length)) : null, log: `${imp.stdout}${imp.stderr}${run.stdout}${run.stderr}`.slice(-4000) };
+  const all = `${imp.stdout}\n${imp.stderr}\n${run.stdout}\n${run.stderr}`;
+  // (what the importer, a shader or a script said went wrong, anywhere in the import or the probe's run)
+  const errors = all.split('\n').filter((l) => /SCRIPT ERROR|SHADER ERROR|\[mojulo-handoff\]|Invalid color code/.test(l));
+  return { line: line ? JSON.parse(line.slice('[mojulo-handoff-probe] '.length)) : null, errors, log: all.slice(-4000) };
 };
 
 describe('the handoff as a Godot project', () => {
@@ -59,6 +63,24 @@ describe('the handoff as a Godot project', () => {
     for (const [i, f] of files.entries()) expect(Buffer.from(again[i].data).equals(Buffer.from(f.data)), f.file).toBe(true);
   }, 300_000);
 
+  it('a layered ground: its shader, its layers\' atlases imported as arrays, its dice and mask kept as written', async () => {
+    const h = await resolveHandoff(TRAIL), files = handoffGodotFiles(h), H = JSON.parse(fileOf(files, 'mojulo/handoff.json').data);
+    expect(H.terrain.parts).toEqual(h.instances.filter((x) => x.terrain).map((x) => x.name));
+    expect(H.terrain.shader).toBe('res://mojulo/handoff_terrain.gdshader');
+    expect(fileOf(files, 'mojulo/handoff_terrain.gdshader').data).toContain('shader_type spatial');
+    for (const [k, res] of Object.entries(H.terrain.images)) {
+      const f = res.replace('res://', '');
+      expect(fileOf(files, f), k).toBeDefined();
+      const imp = fileOf(files, `${f}.import`).data;
+      // (an atlas a cell a layer, three by three; the rest read as written)
+      if (['base', 'normal', 'orm'].includes(k)) {
+        expect(imp).toContain('importer="2d_array_texture"');
+        expect(imp).toContain(`slices/horizontal=${H.terrain.read.atlas.grid}`);
+      } else expect(imp).toContain('importer="keep"');
+    }
+    expect(Object.keys(H.terrain.images)).toEqual(expect.arrayContaining(['base', 'normal', 'orm', 'dice', 'path']));
+  }, 300_000);
+
   it('writes the developer\'s project and scene once, and mojulo/ whole every time', async () => {
     const h = await resolveHandoff(COUCH), dir = mkdtempSync(path.join(os.tmpdir(), 'mojulo-handoff-godot-'));
     const first = await writeHandoffGodot(h, dir);
@@ -77,9 +99,10 @@ describe('the handoff as a Godot project', () => {
   it.skipIf(!GODOT)('in a headless Godot: imports, and the probe finds what the importer built (MOJULO_GODOT)', async () => {
     const h = await resolveHandoff(COUCH), dir = packDir('couch');
     await writeHandoffGodot(h, dir);
-    const { line, log } = probe(dir);
+    const { line, log, errors } = probe(dir);
     expect(line, `${dir}\n${log}`).toBeTruthy();
     expect(line.ok, log).toBe(true);
+    expect(errors).toEqual([]);
     expect(line.handoff).toBe(HANDOFF_GODOT_VERSION);
     expect(line.albedo).toBe(line.materials);
     expect(line.environment && line.ssao).toBe(true);
@@ -99,13 +122,30 @@ describe('the handoff as a Godot project', () => {
   it.skipIf(!GODOT)('in a headless Godot: a dressed face\'s relief is its material\'s height map (MOJULO_GODOT)', async () => {
     const h = await resolveHandoff(BAY), dir = packDir('bay');
     await writeHandoffGodot(h, dir);
-    const { line, log } = probe(dir);
+    const { line, log, errors } = probe(dir);
     expect(line?.ok, log).toBe(true);
+    expect(errors).toEqual([]);
     expect(line.height, log).toBeGreaterThan(0);
     expect(line.normal, log).toBeGreaterThan(0);
     // (lit by its lamps: no sun; a camera current)
     expect(line.sun, log).toBe(false);
     expect(line.omni, log).toBeGreaterThan(0);
     expect(line.camera, log).toBe(true);
+  }, 900_000);
+
+  it.skipIf(!GODOT)('in a headless Godot: the layered ground on its shader, its weights and layers bound, under its sky (MOJULO_GODOT)', async () => {
+    const h = await resolveHandoff(TRAIL), dir = packDir('trail');
+    await writeHandoffGodot(h, dir);
+    const { line, log, errors } = probe(dir), parts = h.instances.filter((x) => x.terrain).length;
+    expect(line?.ok, log).toBe(true);
+    expect(errors).toEqual([]);
+    // (every layered part on the terrain shader, its corners' weights kept, every layer's slice, the trail's mask)
+    expect(line.terrain, log).toBe(parts);
+    expect(line.terrain_splat, log).toBe(parts);
+    expect(line.terrain_layers, log).toBeGreaterThanOrEqual(h.instances.find((x) => x.terrain).terrain.read.atlas.cells.length);
+    expect(line.terrain_path, log).toBe(true);
+    // (the cube's sky, its sun at the hour, its haze)
+    expect(line.sky && line.sun && line.fog, log).toBe(true);
+    expect(line.sun_default, log).toBe(false);
   }, 900_000);
 });

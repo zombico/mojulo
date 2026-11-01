@@ -1,6 +1,6 @@
 ### Engine handoff plan (temporary: the working plan, parked here; delete before release)
 
-**Status:** phases 0 to 3 built; phase 4's Godot adapter built in its first slice, its GDScript awaiting its first run on CI's `godot` job; the terrain shader next (1031).
+**Status:** phases 0 to 3 built; phase 4's Godot adapter built and run in a real Godot (4.7.2) on the operator's machine, the terrain shader with it; the sea as the engine's own water, then `export_model { engine: 'godot' }`, next (1101).
 `control/changelog/1026/1031/engine-handoff.md`. No release has carried the engine game runtimes this plan removes, so
 nothing here needs a deprecation path.
 
@@ -498,4 +498,38 @@ developer would want to wire. Never claimed by a machine.
     distance is the page's (at room scale the two were already close; outdoors the raw density read far hazier).
   - The test's `line.sky` assertion was stale after the background fix (a level with a background and no sky has no
     sky); the local agent's correction is the branch's.
+- 1101, round 3 of the local Godot run, and the terrain shader (the operator's local agent, Godot 4.7.2):
+  - Round 2's fixes held: the couch's hero arrives skinned with its clips (1 skeleton, 1 animation player), its box
+    bodies as meshes on their entities' nodes (2), no error in either import.
+  - A trail had never been through the Godot legs; its import raised a script error: the form read's sky is sRGB bytes
+    (`[52, 122, 214]`) where the importer expects hex. The record's sky is now hex (`environmentOf`), and every Godot leg
+    now fails on any `SCRIPT ERROR`, `SHADER ERROR` or importer error anywhere in its import or probe log.
+  - Godot drops a glTF application attribute (`_SPLAT` never reached the mesh) but imports `TEXCOORD_2` and `_3` as
+    `CUSTOM0`. `addFormInstances` now writes, on a layered part with no UVs of its own, `TEXCOORD_2` and `_3` as VEC2
+    views of `_SPLAT`'s own bytes (its view strided 16) and `TEXCOORD_0` = `TEXCOORD_1` as a VEC2 view of POSITION's
+    (strided 12: the plan's x and y in metres), since glTF's sets count up from 0: no byte added to the buffer.
+  - The terrain's read grows to what the page's fragment reads: `atlas.cells` names the atlas's seven layers
+    (`ATLAS_LAYERS`, land-read.js; it was the count of `keys`, the ground classes, seven only by coincidence), the
+    bases (path, clay, stone, under), green, moss, the dress, the wet line, the path's mask and the grass's cover placed
+    on the plan, and `GROUND_PARALLAX`; the dice, the mask and the cover leave as images beside the atlases.
+  - `handoff-godot/handoff_terrain.gdshader`: the page's `layeredGround` fragment ported line for line (every layer,
+    the path's feathered edge, the trail's dirts, patches and dust, the ledges' dirt, the moss, the undergrowth, the
+    scree's dice, the ground's parallax kinds, every near march, the wet line), in the mesh's own space (mojulo's z-up:
+    the GLB's root turns it). The importer binds one ShaderMaterial to every part `terrain.parts` names. A
+    `Texture2DArray` built in the post-import script does not survive the imported scene's save (its images reload
+    null), so the atlases ship with a `.import` naming Godot's own `2d_array_texture` importer (3 × 3, lossless,
+    mipmapped); the dice, mask and cover with `keep`, read raw so the mask's packed bytes stay exact. The dice is read
+    flipped (the page loads it as an image), the arrays and the mask not (the page's are data textures).
+  - Held to the page at two shots (the `island` camera and a close one at the spawn; the page in headless Chrome by its
+    capture bridge's `frame`): the same strata, cliff band, cracked patch, pebbles, scree and stones in the same places.
+    The environment then moved to the page's: the tone linear (the page's is Khronos neutral, which Godot lacks: equal
+    below its shoulder, ~0.76; its toe's 0.04 off the darks remains a difference), the ambient the solve's alone
+    (`ambient_light_sky_contribution` 0) with no sky reflection, the fog's colour the one the page shows (three mixes it
+    after sRGB encoding by its linear values) and the sky clear of it, the sky's ground the horizon's colour (Godot's
+    default grey band is gone). Measured after: the close shot's rock 216,198,168 against the page's 206,185,148, the
+    sky 151,186,231 against 166,198,235.
+  - Left (the next fixes): the sea is the painted sheet, a finite square whose edges show from the island camera, and
+    translucent over the cliff's cut faces below the waterline, where the page fades its sea by depth: the sea as the
+    engine's own water from `form.land.depth`. The dunes' and the snow's layers stay the page's. A painted face (the
+    trail's ribbon) is albedo under the engine's light where the page draws it unlit, by design.
 

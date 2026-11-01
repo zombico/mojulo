@@ -8,7 +8,10 @@
  *     mojulo/handoff.json            the level record and the ledger, and what glTF has no slot for: each material's
  *                                    height map for parallax (`materials`), the instanced sets (`instanced`, which get no
  *                                    collision) and the terrain's atlases and weights (`terrain`)
- *     mojulo/textures/*.png          those height maps and atlases, as files
+ *     mojulo/textures/*.png          those height maps, as files
+ *     mojulo/terrain/*.png           the layered ground's images: its layers' atlases (imported as arrays, `.import` beside
+ *                                    each), the scree's dice, the trail's mask, the grass's cover (kept as written)
+ *     mojulo/handoff_terrain.gdshader  the World page's layered-ground fragment, ported, for the parts `terrain` names
  *     mojulo/handoff_post_import.gd  the importer (handoff-godot/): materials, collision, the environment and the sun,
  *                                    the markers and the seats, built on every import from handoff.json
  *     mojulo/handoff_probe.gd        the gate's probe: what the import built, as one JSON line
@@ -49,6 +52,25 @@ meshes/generate_lods=true
 meshes/force_disable_compression=true
 `;
 
+// (the terrain's layer atlases, Godot's array importer: a cell a layer, mipmapped, lossless; and an image kept as written)
+const TERRAIN_LAYERS = ['base', 'normal', 'orm'];
+const layerArrayImport = (grid) => `[remap]
+
+importer="2d_array_texture"
+type="CompressedTexture2DArray"
+
+[params]
+
+compress/mode=0
+mipmaps/generate=true
+slices/horizontal=${grid}
+slices/vertical=${grid}
+`;
+const KEEP_IMPORT = `[remap]
+
+importer="keep"
+`;
+
 const projectGodot = (title) => `; a mojulo handoff's Godot project: yours from here (a re-handoff replaces mojulo/ only)
 config_version=5
 
@@ -80,11 +102,18 @@ export function handoffGodotFiles(h, { title = null } = {}) {
     if (dressed && dressed[1].height) materials[name] = { height: texFile(`${dressed[0]}.height`, dressed[1].height), depth: dressed[1].depth, metres: dressed[1].metres };
     else if (set) materials[name] = { height: texFile(`${set.name}.height`, set.textures.height), depth: set.depth, metres: set.metres };
   }
-  // the terrain's atlases and each layered part's name, for a terrain shader (handoff-godot/'s next step)
-  const parts = (h.instances ?? []).filter((s) => s.terrain);
+  // the layered ground: each part's name, its read and its images for the terrain shader (handoff_terrain.gdshader), under
+  // mojulo/terrain/: the layers' atlases imported by Godot as arrays (its own importer, a cell a layer, lossless), the
+  // scree's dice, the trail's mask and the grass's cover kept as written (the importer reads them as they are, so the
+  // mask keeps its packed bytes)
+  const parts = (h.instances ?? []).filter((s) => s.terrain), terrainFiles = [];
   const terrain = parts.length ? {
-    parts: parts.map((s) => s.name), read: parts[0].terrain.read,
-    atlases: Object.fromEntries(Object.entries(parts[0].terrain.atlases).map(([k, u]) => [k, texFile(`terrain.${k}`, u)])),
+    parts: parts.map((s) => s.name), read: parts[0].terrain.read, shader: 'res://mojulo/handoff_terrain.gdshader',
+    images: Object.fromEntries(Object.entries(parts[0].terrain.atlases).map(([k, u]) => {
+      const f = `mojulo/terrain/${k}.png`, grid = parts[0].terrain.read.atlas?.grid ?? 3;
+      terrainFiles.push({ file: f, data: dataUrlBytes(u) }, { file: `${f}.import`, data: TERRAIN_LAYERS.includes(k) ? layerArrayImport(grid) : KEEP_IMPORT });
+      return [k, `res://${f}`];
+    })),
   } : null;
   const handoffJson = { version: HANDOFF_GODOT_VERSION, handoff: h.ledger?.version ?? null, level: h.level ?? null, ledger: h.ledger ?? null,
     materials, instanced: [...HANDOFF_INSTANCED], ...(terrain ? { terrain } : {}) };
@@ -92,6 +121,7 @@ export function handoffGodotFiles(h, { title = null } = {}) {
   files.push({ file: 'mojulo/level.glb.import', data: LEVEL_GLB_IMPORT });
   files.push({ file: 'mojulo/handoff.json', data: `${JSON.stringify(handoffJson, null, 1)}\n` });
   for (const [f, b] of [...tex].sort(([a], [b2]) => (a < b2 ? -1 : a > b2 ? 1 : 0))) files.push({ file: f, data: b });
+  if (terrain) files.push(...terrainFiles, { file: 'mojulo/handoff_terrain.gdshader', data: gd('handoff_terrain.gdshader') });
   files.push({ file: 'mojulo/handoff_post_import.gd', data: gd('handoff_post_import.gd') });
   files.push({ file: 'mojulo/handoff_probe.gd', data: gd('handoff_probe.gd') });
   files.push({ file: 'project.godot', data: projectGodot(title ?? h.level?.title ?? 'mojulo handoff'), keep: true });

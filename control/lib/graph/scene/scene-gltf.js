@@ -668,8 +668,19 @@ class GlbBuilder {
     // (glTF's texture origin is the image's top-left: v flipped on the way out, as addNode flips it)
     if (uvs && uvs.length) attributes.TEXCOORD_0 = this.floatAccessor(Float32Array.from(uvs, (x, i) => (i % 2 ? 1 - x : x)), 2);
     if (colors && colors.length) attributes.COLOR_0 = this.floatAccessor(colors, 3);
-    // (a layered ground's four layers' weights a corner, glTF's application attribute: an engine's terrain shader reads it)
-    if (splat && splat.length) attributes._SPLAT = this.floatAccessor(splat, 4);
+    // (a layered ground's four layers' weights a corner, glTF's application attribute: an engine's terrain shader reads it;
+    // and the same bytes as TEXCOORD_2 and _3, which an importer that drops an application attribute keeps (Godot's
+    // CUSTOM0), the plan's x and y in metres (POSITION's own bytes) as TEXCOORD_0 and _1 before them, since glTF's sets
+    // count up from 0. Views of what is written already: no byte more in the buffer)
+    if (splat && splat.length && !(uvs && uvs.length)) {
+      const pv = this.json.bufferViews[this.json.accessors[attributes.POSITION].bufferView];
+      pv.byteStride = 12;
+      const sv = this.addView(Buffer.from(splat.buffer, splat.byteOffset, splat.byteLength), TARGET_ARRAY_BUFFER, 16), n = splat.length / 4;
+      const view2 = (bufferView, byteOffset, type) => this.json.accessors.push({ bufferView, ...(byteOffset ? { byteOffset } : {}), componentType: COMPONENT_FLOAT, count: n, type }) - 1;
+      attributes.TEXCOORD_0 = attributes.TEXCOORD_1 = view2(this.json.accessors[attributes.POSITION].bufferView, 0, 'VEC2');
+      attributes.TEXCOORD_2 = view2(sv, 0, 'VEC2'); attributes.TEXCOORD_3 = view2(sv, 8, 'VEC2');
+      attributes._SPLAT = view2(sv, 0, 'VEC4');
+    } else if (splat && splat.length) attributes._SPLAT = this.floatAccessor(splat, 4);
     const prim = { attributes, mode: MODE_TRIANGLES, material: materialIndex };
     if (indices && indices.length) prim.indices = this.indexAccessor(indices);
     this.json.meshes.push({ name, primitives: [prim] });
@@ -1830,8 +1841,9 @@ export function facesToGlb(payload = {}, { generator, clips = null, skinned = fa
     if (orm != null) b.json.materials[mat].pbrMetallicRoughness.metallicFactor = 0;
     // (a layered ground: its terrain's layer atlases written once, every ground part's material pointing at them)
     if (set.terrain) {
-      const t = (terrainTex ??= Object.fromEntries(['base', 'normal', 'orm'].map((k) => [k, b.imageFromDataUrl(set.terrain.atlases[k])])));
-      b.json.materials[mat].extras = { mojulo: { terrain: { part: set.terrain.part, splat: '_SPLAT', layers: { base: { index: t.base }, normal: { index: t.normal }, orm: { index: t.orm } }, ...set.terrain.read } } };
+      const t = (terrainTex ??= Object.fromEntries(Object.keys(set.terrain.atlases).map((k) => [k, b.imageFromDataUrl(set.terrain.atlases[k])])));
+      b.json.materials[mat].extras = { mojulo: { terrain: { part: set.terrain.part, splat: '_SPLAT', splatUv: ['TEXCOORD_2', 'TEXCOORD_3'],
+        layers: Object.fromEntries(Object.entries(t).map(([k, i]) => [k, { index: i }])), ...set.terrain.read } } };
     }
     const r = b.addFormInstances(set.name, set, mat, set.transforms);
     vertexCount += r.vertices * set.transforms.length;

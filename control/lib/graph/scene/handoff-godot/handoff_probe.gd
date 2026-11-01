@@ -12,13 +12,20 @@ func _init() -> void:
 		return
 	var scene: Node = packed.instantiate()
 	var out := { "ok": true, "materials": 0, "albedo": 0, "normal": 0, "orm": 0, "height": 0, "bodies": 0, "markers": 0, "seats": 0,
-		"environment": false, "sky": false, "background": false, "fog": false, "ssao": false, "sun": false, "sun_shadow": false, "sun_default": false, "omni": 0, "camera": false, "animated": 0, "skins": 0, "entity_meshes": 0, "handoff": scene.get_meta("mojulo_handoff", "") }
+		"environment": false, "sky": false, "background": false, "fog": false, "ssao": false, "sun": false, "sun_shadow": false, "sun_default": false, "omni": 0, "camera": false, "animated": 0, "skins": 0, "entity_meshes": 0, "terrain": 0, "terrain_splat": 0, "terrain_layers": 0, "terrain_path": false, "handoff": scene.get_meta("mojulo_handoff", "") }
 	var seen := {}
 	for mi in scene.find_children("*", "MeshInstance3D", true, false):
 		if mi.mesh == null:
 			continue
 		for s in range(mi.mesh.get_surface_count()):
 			var m = mi.mesh.surface_get_material(s)
+			# (the layered ground: its parts on the terrain shader, the corners' weights kept as CUSTOM0, its layers' arrays)
+			if m is ShaderMaterial and m.resource_name == "mojulo:terrain":
+				out["terrain"] += 1
+				if mi.mesh.surface_get_format(s) & Mesh.ARRAY_FORMAT_CUSTOM0: out["terrain_splat"] += 1
+				var tb = m.get_shader_parameter("tBase")
+				if tb is TextureLayered: out["terrain_layers"] = tb.get_layers()
+				out["terrain_path"] = m.get_shader_parameter("tPath") != null and float(m.get_shader_parameter("uHasPath")) > 0.5
 			if m is BaseMaterial3D and not seen.has(m):
 				seen[m] = true
 				out["materials"] += 1

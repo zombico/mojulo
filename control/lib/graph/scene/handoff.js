@@ -24,9 +24,10 @@
  *   landParts(land) → [instance set]: the form render's land (form/land-read.js formPayload), each part of it (a ground
  *     class: rock, scree, soil, sand, the trail's, the shallows' floor) a mesh of its own, shaded smooth as the page
  *     shades it, each corner its palette-solved base colour (the albedo a plain glTF reader shows) and, on the layered
- *     ground, its four layers' weights (`_SPLAT`) with the layers' atlases, their tiles and their means in its material's
- *     `extras.mojulo.terrain`: what an engine's terrain shader blends (each layer along the face's dominant axis, by
- *     weight and by its own height, as the page does). The painted faces it stands for leave the export; the sea stays
+ *     ground, its four layers' weights (`_SPLAT`, and the same bytes as TEXCOORD_2 and _3) with the layers' atlases, their
+ *     tiles and their means, and all else the page's ground reads (the scree's dice, the trail's mask and dress, the bases,
+ *     the moss, the wet line) in its material's `extras.mojulo.terrain`: what an engine's terrain shader blends (each layer
+ *     along the face's dominant axis, by weight and by its own height, as the page does). The painted faces it stands for leave the export; the sea stays
  *     the painted one
  *   roomLamps(room) → [glTF point light]: a room's lamps under the form render's solve (form/room-light.js): each where
  *     its flame is, its solved key as its colour and, in a renderer's units, its strength (π × the key's level: out =
@@ -55,7 +56,9 @@ import { facesToGlb } from './scene-gltf.js';
 import { stoneForms } from '../form/land-stones.js';
 import { dressedMaterial } from '../matte-paint/dressed.js';
 import { FORM_ROUGH } from '../form/room-form.js';
-import { generatedSpecOf, encodePng, encodePngGrey } from '../landscape/surface-textures.js';
+import { generatedSpecOf, encodePng, encodePngGrey, encodePngRgba } from '../landscape/surface-textures.js';
+import { ATLAS_LAYERS } from '../form/land-read.js';
+import { GROUND_PARALLAX } from './channels/form-land.js';
 import { levelSceneExtras, levelCameras } from './scene-gltf-level.js';
 import { synthesizeLevel } from '../game/level-synth.js';
 import { normalizeLevelContract } from '../game/level-contract.js';
@@ -68,7 +71,7 @@ export const HANDOFF_ERA = 'gen-7';
 
 // (what the page draws that the handoff does not carry yet: each leaves the ledger as the phase that adds it lands)
 const STAYS = Object.freeze([
-  'the layered ground\'s blend: its layers\' weights and atlases are carried for an engine\'s terrain shader, the path, the trail\'s dress, the moss, the undergrowth and the scree\'s thinning are the page\'s; a plain reader sees each corner\'s solved colour',
+  'the layered ground\'s blend: what it reads is carried (the weights, the atlases, the scree\'s dice, the trail\'s mask and dress, the bases, the moss, the wet line) for an engine\'s terrain shader, Godot\'s ported (handoff-godot/handoff_terrain.gdshader); a plain reader sees each corner\'s solved colour; the dunes\' and the snow\'s layers are the page\'s',
   'the stones\' skin (the rock layer\'s tile over them): each stone leaves in its solved colour',
   'each plant\'s own tint (a template\'s plants leave in their mean leaf and bark colour), the wind, the sprays near the eye, the far levels of detail (an engine makes its own), a needled crown\'s needles, a shrub\'s blossoms and berries',
   'a tile painted other than from relief (its light painted in): it leaves as its paint',
@@ -216,8 +219,19 @@ export function landParts(land) {
   if (!land || !land.ranges?.length) return [];
   const POS = f32(land.pos), C7 = u8(land.c7), SPL = u8(land.spl), NRM = i8(land.nrm), keys = land.layers?.keys ?? [];
   const RF = land.relief ? reliefField(land.relief) : null;
-  const L = land.layers, atlases = L ? { base: L.base, normal: L.normal, orm: L.orm } : null;
-  const read = L ? { tile: L.tile, mean: L.mean, keys, atlas: { cells: keys.length, grid: 3, size: L.size }, ormBlue: 'height' } : null;
+  const L = land.layers, Pm = land.path, Gm = land.grass, Dr = land.dress, W = land.wet;
+  // (what the page's layered ground reads beyond the corners, channels/form-land.js: the layers' atlases, the scree's dice,
+  // the trail's mask (its weight in red, its signed distance in green, its height in blue and alpha) and the grass's cover
+  // (blue), each placed on the plan by its corner and its size in metres)
+  const atlases = L ? { base: L.base, normal: L.normal, orm: L.orm, ...(L.dice ? { dice: L.dice } : {}),
+    ...(Pm ? { path: pngUrl(encodePngRgba(Buffer.from(Pm.px, 'base64'), Pm.size[0], Pm.size[1])) } : {}),
+    ...(Gm ? { grass: pngUrl(encodePngRgba(Buffer.from(Gm.px, 'base64'), Gm.size[0], Gm.size[1])) } : {}) } : null;
+  const read = L ? { tile: L.tile, mean: L.mean, keys, atlas: { cells: [...ATLAS_LAYERS], grid: 3, size: L.size }, ormBlue: 'height', parallax: GROUND_PARALLAX,
+    bases: { path: v3(L.pathBase), clay: v3(L.clayBase), stone: v3(L.stoneBase), under: v3(L.underBase) }, green: !!L.green, moss: L.moss ?? 0,
+    ...(Dr ? { dress: { clay: Dr.surface === 'sand' ? 0 : Dr.clay, rubble: Dr.rubble, dust: Dr.dust, reach: Dr.reach, sdIn: Dr.sdIn, patches: Dr.patches } } : {}),
+    ...(W ? { wet: { z: W.z ?? null, band: W.band, tone: W.tone, rough: W.rough } } : {}),
+    ...(Pm ? { path: { origin: Pm.origin.map((v) => r5(v - Pm.cell / 2)), metres: Pm.metres, z: Pm.z.map(r5) } } : {}),
+    ...(Gm ? { grass: { origin: Gm.origin.map((v) => r5(v - Gm.cell / 2)), metres: Gm.size.map((n) => r5(n * Gm.cell)) } } : {}) } : null;
   const sets = [];
   for (const R of land.ranges) {
     // (the sea: the painted one stays; what the read could not class stays painted)
@@ -260,6 +274,8 @@ export function roomLamps(room) {
 export const HANDOFF_LEVEL = 'handoff-level/0';
 const { SEAT_COLORS, SEAT_LABELS } = (() => { const K = buildSeatsKernel(); return { SEAT_COLORS: K.SEAT_COLORS, SEAT_LABELS: K.SEAT_LABELS }; })();
 const v3 = (v) => (Array.isArray(v) && v.length >= 3 ? [r5(v[0]), r5(v[1]), r5(v[2])] : null);
+// (a colour of the record as hex, whichever way the payload holds it: the form read's sky is sRGB bytes, the paint's hex)
+const hexOf = (c) => (Array.isArray(c) ? `#${c.slice(0, 3).map((v) => Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2, '0')).join('')}` : c);
 
 /** The sun a level with none of its own and no lamps is given: high in the south-east, warm white, at a renderer's
  *  strength of π (the solve's level 1). */
@@ -271,7 +287,7 @@ function environmentOf(sketch, payload) {
   const env = {};
   if (M.hour !== undefined) env.hour = M.hour;
   if (typeof payload.bg === 'string') env.background = payload.bg;
-  if (sky && (sky.zenith || sky.horizon)) env.sky = { ...(sky.zenith ? { zenith: sky.zenith } : {}), ...(sky.horizon ? { horizon: sky.horizon } : {}) };
+  if (sky && (sky.zenith || sky.horizon)) env.sky = { ...(sky.zenith ? { zenith: hexOf(sky.zenith) } : {}), ...(sky.horizon ? { horizon: hexOf(sky.horizon) } : {}) };
   // (the sun's light in the solve's units, out = base × light: a renderer's directional light is π × its level, as a lamp's)
   if (sun && sunL) { const m = Math.max(...sunL, 1e-9); env.sun = { direction: v3(sun), color: sunL.map((v) => r5(v / m)), intensity: r5(Math.PI * m) }; }
   const amb = land?.light?.ambient ?? room?.ambient ?? null;

@@ -64,3 +64,13 @@ Built so far:
   relief lit by its normal map (its parallax bound but off: at the relief's real depth it reads as nothing), the haze's
   density taken so Godot's fog reaches half at the page's distance, and a default sun, background and camera.
 
+- **The layered ground in Godot.** A form land's ground leaves Godot looking as it does on the World page: the page's
+  layered-ground shader ported to Godot's shading language (each layer along the face's dominant axis, raised by its own
+  height, the trail's powder and clay, the scree thinned by its stones, the ledges' dirt, the moss, the undergrowth, the
+  pebbles, cracked earth and plates, the wet sand line), bound on import to every layered part with its layers as
+  texture arrays. The corners' weights ride the GLB twice over the same bytes, as `_SPLAT` and as two UV sets an engine
+  that drops an application attribute keeps, and the handoff now carries everything the page's ground reads (the trail's
+  mask, the scree's dice, the dress, the bases, the wet line) for every engine. Found beside it: a cube's sky reached the
+  record as colour bytes and broke Godot's environment (now hex, as the rest of the record), and the environment now
+  lights as the page does (its tone curve, its solved ambient alone, the haze's colour as the page shows it, the sky
+  clear of the fog). CI's Godot job imports a trail too, and fails on any script or shader error in the import.
