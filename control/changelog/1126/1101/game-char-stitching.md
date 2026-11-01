@@ -30,4 +30,11 @@ the quick games read it.
   lays the rail's hero under the hero spec's own words (a cast word naming the pole; the anime frame's codename takes the
   anime head where the spec names none) and its henchman under each foe, gunner, tower and guard the run rolls; a
   farmhand or an athlete stands as rolled, a hero by ref or a mascot is its own. Absent, every step as before.
+- **The head fitted to the body**: each body codename has a home head (Toji, Mizuki, Armstrong and Kale Z-Fighter's;
+  Satoru, Maki and Shonen High's own Shonen High's), and a head worn from another style is scaled half the way toward the
+  home head's size (`anime-bodies.js` `headFit`): the body keeps the proportion it was drawn to, the style half its own
+  (a School-Kid Hero head is still the big one). A style's head size is one number against Shonen High's per pole
+  (`HEAD_SIZE`, measured: two heads' ratio is the same on every body to half a percent), held to the measure by its test.
+  The fit rides the body's stamp with the style it was fitted under, and fits again when the style changes; a row minted
+  before, its stamp without a fit, is drawn as it was.
 

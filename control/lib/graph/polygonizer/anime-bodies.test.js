@@ -3,7 +3,8 @@
 // Z-Fighter body as it was; a codename's tune stands for the style's body, the style's head kept; the muscular form wears
 // the codename's own card; the door stores a resolved stamp.
 import { describe, it, expect } from 'vitest';
-import { ANIME_BODIES, ANIME_BODY_NAMES, validateAnimeBody, resolveAnimeBody } from './anime-bodies.js';
+import { ANIME_BODIES, ANIME_BODY_NAMES, validateAnimeBody, resolveAnimeBody, headFit, HEAD_SIZE, FIT_ALPHA } from './anime-bodies.js';
+import { normalizeHero } from '../../mcp/tools/layered.js';
 import { MUSCLE_CARDS, validateMuscleCard, muscleShirt } from '../musculature/index.js';
 import { heroRecord, expandLayeredManifest } from '../../mcp/tools/layered.js';
 import { withDefaultForm } from './motion-stamp.js';
@@ -50,9 +51,41 @@ describe('the body codenames', () => {
   }, 120000);
   it('wears the codename\'s own card as its muscular form, and stores a resolved stamp', () => {
     const hero = heroRecord(withDefaultForm({ head: 'anime', animeStyle: 'z-fighter', cast: 'female', animeBody: 'maki', muscleShirt: { definition: 1 } }));
-    expect(hero.animeBodyResolved).toEqual(resolveAnimeBody('maki'));
+    expect(hero.animeBodyResolved).toEqual(resolveAnimeBody('maki', 'female', 'z-fighter'));
     const worn = expandLayeredManifest({ kind: 'layered', hero }).recipe;
     const own = muscleShirt(mint({ animeStyle: 'z-fighter', cast: 'female', animeBody: 'maki' }), { card: 'maki', definition: 1 });
     expect(worn.parts.torso.stations).toEqual(own.recipe.parts.torso.stations);
   });
 });
+
+describe('the head fitted to the body', () => {
+  // (the head's width: the widest of the head's own parts; the stature its top)
+  const headW = (r) => { let m = 0; for (const [id, P] of Object.entries(r.parts)) { if (!/^(cranium|head|face|skull)/i.test(id)) continue; for (const st of P.stations || []) for (const p of Object.values(st.points)) m = Math.max(m, Math.abs(p[0])); } return 2 * m; };
+  const unfitted = (spec) => { const h = heroRecord(withDefaultForm({ head: 'anime', ...spec })); const { fit: _f, ...R } = h.animeBodyResolved; return expandLayeredManifest({ kind: 'layered', hero: { ...h, animeBodyResolved: R } }).recipe; };
+  it('holds each style\'s head size against Shonen High\'s, measured on one body per pole', () => {
+    for (const [cast, body] of [['male', 'satoru'], ['female', 'mizuki']]) {
+      const base = headW(unfitted({ cast, animeStyle: 'shonen-high', animeBody: body }));
+      for (const style of Object.keys(HEAD_SIZE[cast])) expect(headW(unfitted({ cast, animeStyle: style, animeBody: body })) / base, `${cast} ${style}`).toBeCloseTo(HEAD_SIZE[cast][style], 1);
+    }
+  }, 120000);
+  it('fits a foreign head half the way to the body\'s home head, and none under the home style', () => {
+    expect(headFit('toji', 'male', 'z-fighter')).toBe(1);
+    expect(headFit('satoru', 'male', 'shonen-high')).toBe(1);
+    expect(headFit('satoru', 'male', 'z-fighter')).toBeCloseTo((1 / HEAD_SIZE.male['z-fighter']) ** FIT_ALPHA, 4);
+    expect(headFit('toji', 'male', 'shonen-high')).toBeGreaterThan(1);
+    // (on the body: the worn head between its own size and the home head's)
+    const own = headW(unfitted({ cast: 'male', animeStyle: 'school-kid-hero', animeBody: 'toji' }));
+    const home = headW(unfitted({ cast: 'male', animeStyle: 'z-fighter', animeBody: 'toji' }));
+    const fitted = headW(mint({ animeStyle: 'school-kid-hero', cast: 'male', animeBody: 'toji' }));
+    expect(fitted).toBeLessThan(own);
+    expect(fitted).toBeGreaterThan(home);
+  }, 120000);
+  it('fits again when the style changes, and leaves a row minted before without a fit as it was', () => {
+    const h = heroRecord(withDefaultForm({ head: 'anime', cast: 'male', animeStyle: 'z-fighter', animeBody: 'satoru' }));
+    expect(h.animeBodyResolved.fit).toEqual({ style: 'z-fighter', head: headFit('satoru', 'male', 'z-fighter') });
+    expect(normalizeHero({ ...h, animeStyle: 'shonen-high', animeStyleResolved: undefined }).animeBodyResolved.fit).toEqual({ style: 'shonen-high', head: 1 });
+    const { fit: _f, ...old } = h.animeBodyResolved, before = { ...h, animeBodyResolved: old };
+    expect(normalizeHero(before).animeBodyResolved).toEqual(old);
+  });
+});
+

@@ -800,7 +800,7 @@ export function normalizeHero(hero) {
   else if (hero.animeStyleResolved?.word !== hero.animeStyle) hero = { ...hero, animeStyleResolved: resolveAnimeStyle(hero.animeStyle) };
   // (the body codename's stamp as the style's: set again when its word changes, dropped when the word is)
   if (hero.animeBody === undefined || hero.animeBody === null) { if (hero.animeBody !== undefined || hero.animeBodyResolved !== undefined) { const { animeBody: _a, animeBodyResolved: _b, ...rest } = hero; hero = rest; } }
-  else if (!animeBodyStamped(hero)) hero = { ...hero, animeBodyResolved: resolveAnimeBody(hero.animeBody, animePoleOf(hero)) };
+  else if (!animeBodyStamped(hero)) hero = { ...hero, animeBodyResolved: resolveAnimeBody(hero.animeBody, animePoleOf(hero), hero.animeStyle ?? undefined) };
   const words = hero.look === undefined || hero.look === null ? [] : Array.isArray(hero.look) ? hero.look : [hero.look];
   if (!words.length) { if (hero.look === undefined && hero.lookResolved === undefined) return hero; const { look: _l, lookResolved: _r, ...rest } = hero; return rest; }
   if (hero.lookResolved && JSON.stringify(hero.lookResolved.words) === JSON.stringify(words)) return Array.isArray(hero.look) ? hero : { ...hero, look: words };
@@ -1295,7 +1295,7 @@ export function heroRecord(spec, { staleScale = false } = {}) {
     if (words.length) Object.assign(hero, { look: [...words], lookResolved: resolveLook(words) });
     // the style pole: its word beside its stamp (anime-styles.js), so a re-tuned style never moves this row
     if (spec.animeStyle) Object.assign(hero, { animeStyle: spec.animeStyle, animeStyleResolved: resolveAnimeStyle(spec.animeStyle) });
-    if (spec.animeBody) Object.assign(hero, { animeBody: spec.animeBody, animeBodyResolved: resolveAnimeBody(spec.animeBody, animePoleOf(hero)) });
+    if (spec.animeBody) Object.assign(hero, { animeBody: spec.animeBody, animeBodyResolved: resolveAnimeBody(spec.animeBody, animePoleOf(hero), hero.animeStyle ?? undefined) });
     // the graphic face: SPARSE (the words that differ from the base; absent when none, so the default is read at plan
     // time and never stored); `false` (the studio's face) is stored
     if (spec.sculpt !== undefined && spec.sculpt !== null) { const sc = sparseSculpt(resolveAnimeSculpt(spec.sculpt)); if (sc !== null) hero.sculpt = sc; }
