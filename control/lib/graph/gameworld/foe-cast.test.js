@@ -118,6 +118,18 @@ describe('the casting call', () => {
     expect(P.levels[walks[walks.length - 1]]).toEqual({ from: ['boss'], count: 1, win: 'clear' });
   });
 
+  it('dresses the crew on the body its game puts in its henchmen when the book names one, and as before when it does not', () => {
+    const era = Object.keys(ERA_DRESS)[0], kit = Object.keys(ERA_OF_KIT).find((k) => ERA_OF_KIT[k] === era && !/lab/.test(k) && k !== 'jungle-trail');
+    const W = (direction) => world(null, null, { intent: { from: 'stealth' }, style: { kit }, ...(direction ? { characters: { direction } } : {}) });
+    const dress = (w) => castingCall(w).roles.find((r) => r.skin?.dress)?.skin.dress;
+    expect(dress(W(null)).rail).toBeUndefined();
+    expect(dress(W({ tradition: 'western' })).rail).toBeUndefined();
+    // (a stealth game reads the realistic rail: drawn western, its henchmen on the realistic body)
+    expect(dress(W({ tradition: 'western', body: 'game' }))).toMatchObject({ rail: 'realistic', body: 'realistic' });
+    expect(dress(W({ tradition: 'anime', body: { rail: 'comic', muscle: true } }))).toMatchObject({ rail: 'comic', muscle: true });
+    expect(dress(W({ tradition: 'anime', body: 'comic' })).body).toBeUndefined();
+  });
+
   it('a person cast is dressed as one crew, a soldier\'s for a game whose minds are soldiers\'; a building takes foes too', () => {
     const era = Object.keys(ERA_DRESS)[0], kit = Object.keys(ERA_OF_KIT).find((k) => ERA_OF_KIT[k] === era && !/lab/.test(k) && k !== 'jungle-trail');
     const W = world(null, null, { intent: { from: 'stealth' }, style: { kit }, levels: { one: { ...walk }, hq: { building: { use: 'office' } } } });
