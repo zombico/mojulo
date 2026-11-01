@@ -553,9 +553,9 @@ let __ctrlActive = false;       // there are controllable entities to step each 
 let __ctrlOwnsCamera = false;   // a camera entity is present → drive the camera + disable OrbitControls
 
 // --- WebXR immersive-vr (opt-in): the z-up rig carries the y-up XR space through the same scene ---
-const XR = {"eye":1.6,"speed":10.12427387723202,"turn":"smooth","snap":0.5235987755982988,"turnSpeed":2.0943951023931953,"move":"latch","dead":0.2,"axial":0.20943951023931953,"bind":{"xr":{"moveForward":["left.thumbstickY-"],"moveBack":["left.thumbstickY+"],"strafeLeft":["left.thumbstickX-"],"strafeRight":["left.thumbstickX+"],"turnLeft":["right.thumbstickX-"],"turnRight":["right.thumbstickX+"]}}};
+const XR = {"eye":1.6,"speed":10.12427387723202,"turn":"smooth","snap":0.5235987755982988,"turnSpeed":2.0943951023931953,"move":"body","dead":0.2,"axial":0.20943951023931953,"bind":{"xr":{"moveForward":["left.thumbstickY-"],"moveBack":["left.thumbstickY+"],"strafeLeft":["left.thumbstickX-"],"strafeRight":["left.thumbstickX+"],"turnLeft":["right.thumbstickX-"],"turnRight":["right.thumbstickX+"]}}};
 // a static copy (a download, a page on a static host) takes the mode words the live route does: ?xr=snap,hand
-try { for (const w of (new URLSearchParams(location.search).get('xr') || '').toLowerCase().split(',')) { if (w === 'smooth' || w === 'snap') XR.turn = w; else if (w === 'latch' || w === 'head' || w === 'hand') XR.move = w; } } catch (e) { /* no location */ }
+try { for (const w of (new URLSearchParams(location.search).get('xr') || '').toLowerCase().split(',')) { if (w === 'smooth' || w === 'snap') XR.turn = w; else if (w === 'body' || w === 'latch' || w === 'head' || w === 'hand') XR.move = w; } } catch (e) { /* no location */ }
 const __XRK = (function buildControlsKernel() {
   // a keyboard control may name a modifier without its side; it matches either physical key
   const SIDES = { Shift: ['ShiftLeft', 'ShiftRight'], Control: ['ControlLeft', 'ControlRight'], Alt: ['AltLeft', 'AltRight'], Meta: ['MetaLeft', 'MetaRight'] };
@@ -925,7 +925,7 @@ async function __xrEnter(){
   await renderer.xr.setSession(session);
 }
 // per-frame: the right stick turns (smooth or snap, about the head), the left stick walks and strafes on the
-// latched / gaze / hand heading, then the rig's feet snap to the floor beneath (walk channel's probe).
+// body / latched / gaze / hand heading, then the rig's feet snap to the floor beneath (walk channel's probe).
 function __xrStep(dt){
   const session = renderer.xr.getSession(); if (!session || !__xrRig) return;
   const rd = __XRV.xrRead(session.inputSources, __XRD);
@@ -944,7 +944,7 @@ function __xrStep(dt){
     if (t) __xrTurn(-t * XR.turnSpeed * dt);
   }
   if (walking) {
-    const h = XR.move === 'latch' ? __xrLatch : XR.move === 'hand' ? __xrHandHeading() : __xrHeading();
+    const h = XR.move === 'body' ? __xrYaw : XR.move === 'latch' ? __xrLatch : XR.move === 'hand' ? __xrHandHeading() : __xrHeading();
     const v = XR.speed * dt, fx = Math.cos(h), fy = Math.sin(h), rx = Math.sin(h), ry = -Math.cos(h);
     __xrRig.position.x += (m[1] * fx + m[0] * rx) * v;
     __xrRig.position.y += (m[1] * fy + m[0] * ry) * v;
