@@ -470,7 +470,6 @@ const quickShared = () => [
   'levers any goal takes (where its play allows; a refusal names the clash):',
   `  hero: ${HERO_WORDS} | { ref } (a hero from create_character): looks, gear, the motion's feel (get_solid_vocab({ id: 'layered' }));`,
   '    { mascot: true | { brief?, facets?, seed? } } a mascot on foot, its own walk, run and jump; absent or false: first person',
-  `  body: ${GAME_BODY_NAMES.join(' | ')} | 'game' | { rail, style?, muscle? }   the body it puts in its people: under the hero's words, under each foe, guard and tower rolled ('game': the goal's)`,
   `  camera: ${Object.keys(CAMERAS).join(' | ')}   absent: third person with a hero, first person without; top-down and side need a hero`,
   `  screen: ${Object.keys(SCREENS).join(' | ')} | { pole?, aspect?, orientation?, fov? }   the screen it is for (absent: ${NEW_GAME_SCREEN})`,
   '  climb: true   a climb after the trail;   run: n   a pool of n + 2 trails, each run draws n, a death ends it',
@@ -636,6 +635,7 @@ function quickCard() {
     'Knowing the goal, read that card alone.',
     '',
     ...quickShared(),
+    `  body: ${GAME_BODY_NAMES.join(' | ')} | 'game' | { rail, style?, muscle? }   the body it puts in its people: under the hero's words, under each foe, guard and tower rolled ('game': the goal's)`,
   );
 }
 
