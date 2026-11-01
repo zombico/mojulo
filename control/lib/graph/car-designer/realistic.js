@@ -17,8 +17,10 @@
  *   livery.* / livery facet / wear facet   the paint: a second colour on the roof, stripes, a number, a patched panel
  *   physics.*      read in the readout only: a realistic vehicle drives its class's own row (roads/vehicles.js)
  *
- *   compileRealistic(sheet, { keys? }) → { spec, faces: { root, wheels: [{ bone, faces, hub }] }, figure, census,
+ *   compileRealistic(sheet, { keys?, form? }) → { spec, faces: { root, wheels: [{ bone, faces, hub }] }, figure, census,
  *                                          rule, envelope, reads }
+ *                  form: true draws the figure in the FORM render (gen-7, road-form.js): each face named and given its
+ *                  material, its albedo and its crease-aware normals, the page lighting it; absent, as it was
  *   realisticCensus(compiled)           → measured bounds, wheelbase, track and wheel radius against the class
  *
  * The figure is the browser's rig-figure (vehicle-designer/vehicle-rig.js packVehicleFigure): the hull the root, each
@@ -28,6 +30,9 @@ import { buildVehicle, FLEET, PAINTS } from '../roads/fleet.js';
 import { bodyShape } from '../roads/bodywork.js';
 import { VEHICLES, vehicleRule, envelope } from '../roads/vehicles.js';
 import { packVehicleFigure } from '../vehicle-designer/vehicle-rig.js';
+import { withAlbedo } from '../roads/road-faces.js';
+import { formFace, smoothForm, ROAD_MATERIALS } from './road-form.js';
+import { formLight } from './form-light.js';
 import { readDerive } from './channels.js';
 import { HEAVY } from './facets.js';
 import { mulberry32 } from '../vegetation/grow.js';
@@ -107,7 +112,7 @@ const absProfile = (P, H) => ({ hood: P.hood, roofA: P.roofA, roofB: P.roofB, de
 
 // the paint: a realistic vehicle's colour from the world's paints, by its seed; a second colour, stripes, a number,
 // a patched panel, as its livery and wear facets ask (read off the faces the loft painted)
-function paintFaces(paint, sheet, spec) {
+function paintFaces(paint, sheet, spec, colours = null) {
   const rnd = mulberry32((sheet.seed * 2654435761 + 7) >>> 0), base = PAINTS[Math.floor(rnd() * PAINTS.length)], second = PAINTS[Math.floor(rnd() * PAINTS.length)];
   const hex = (c, k = 1) => `#${c.map((v) => Math.round(Math.min(1, v * k) * 255).toString(16).padStart(2, '0')).join('')}`;
   const { dirs } = readSheet(sheet), lv = sheet.facets.livery, worn = sheet.facets.wear === 'battered';
@@ -118,6 +123,7 @@ function paintFaces(paint, sheet, spec) {
     let c = hex(base, k), part = 'body';
     if (lv === 'two-tone' && zc > top + 0.05) { c = hex(second, k); part = 'roof'; }
     if (worn && i % 23 === 11) { c = hex(base, 0.62); part = 'patch'; }
+    if (colours) colours.push(c);
     return { ...f, fill: shadeLike(f.fill, c), ...(f.cornerFills ? { cornerFills: f.cornerFills.map((x) => shadeLike(x, c)) } : {}), part };
   });
 }
@@ -165,14 +171,28 @@ function fan(faces) {
 }
 
 /** Compile a realistic sheet. */
-export function compileRealistic(sheet, { keys = 12 } = {}) {
+export function compileRealistic(sheet, { keys = 12, form = false } = {}) {
   const spec = realisticSpec(sheet), cls = sheet.facets.class;
   // the loft in vehicle space: the fleet builds +x forward; a quarter turn puts the nose on +y
   const wheels = [];
   const sink = (_call, side, x) => { const w = { side, x, faces: [] }; wheels.push(w); return w.faces; };
-  const built = buildVehicle(cls, Math.PI / 2, { spec, wheels: sink });
+  // (in the form render, each face's colour as asked and its normal are recorded beside it: road-faces.js withAlbedo)
+  const rec = form ? withAlbedo(() => buildVehicle(cls, Math.PI / 2, { spec, wheels: sink })) : null;
+  const built = rec ? rec.out : buildVehicle(cls, Math.PI / 2, { spec, wheels: sink });
   const lift = (f) => (spec.lift ? { ...f, corners: f.corners.map((c) => [c[0], c[1], c[2] + spec.lift]) } : f);
-  const root = fan([...paintFaces(built.paint.map(lift), sheet, spec), ...built.trim.map(lift), ...built.trailer.map(lift), ...liveryMarks(sheet, spec)]);
+  const colours = form ? [] : null, painted = paintFaces(built.paint.map(lift), sheet, spec, colours), marks = liveryMarks(sheet, spec);
+  // the form faces, named and smoothed before the polygons are fanned (realistic's fan makes new faces the recorder never
+  // saw): the paint by its part and colour, the trim by the colour it was drawn in, each wheel's on its own
+  const formRoot = form ? smoothForm([
+    // (a battered car's patch is one quad in 23 darkened, which the form render's light reads as speckle: drawn in the
+    // body's colour here until the panels are a phase of their own)
+    ...painted.map((f, i) => formFace(f, rec.albedo.get(built.paint[i]), { part: f.part, hex: f.part === 'patch' ? colours[painted.findIndex((g) => g.part === 'body')] : colours[i] })),
+    ...built.trim.map((f) => formFace(lift(f), rec.albedo.get(f))),
+    ...built.trailer.map((f) => formFace(lift(f), rec.albedo.get(f))),
+    ...marks.map((f) => formFace(f, null, { part: f.part, hex: f.fill, inside: [0, 0, spec.H / 2] })),
+  ]) : null;
+  if (form) for (const w of wheels) w.form = smoothForm(w.faces.map((f) => formFace(f, rec.albedo.get(f), { where: 'wheel' })));
+  const root = fan([...painted, ...built.trim.map(lift), ...built.trailer.map(lift), ...marks]);
   for (const w of wheels) w.faces.splice(0, w.faces.length, ...fan(w.faces));
   // the bones: axles ranked front to back by position (a trailer's are built by a call of their own); the front pair
   // the front wheels, the next pair the rear, any further axle its own pair
@@ -189,8 +209,12 @@ export function compileRealistic(sheet, { keys = 12 } = {}) {
   const bones = [{ id: 'root', head: [0, 0, 0] }, ...boneWheels.map((w) => ({ id: w.bone, head: N(w.hub).map(r4) }))];
   const buckets = new Map([['root', move(root)], ...boneWheels.map((w) => [w.bone, move(w.faces)])]);
   const axles = [...new Set(wheels.map((w) => w.x))].sort((a, b) => b - a);
+  // the form render: the body and the wheels carry their material form (packFormMesh), and the figure how the page
+  // lights it (form-light.js: noon's key and sky, the road car's materials)
+  const formOf = form ? new Map([['root', move(formRoot)], ...boneWheels.map((w, k) => [w.bone, move(wheels[k].form)])]) : null;
   const figure = {
-    ...packVehicleFigure(bones, buckets, { keys }),
+    ...packVehicleFigure(bones, buckets, { keys, ...(form ? { form: formOf } : {}) }),
+    ...(form ? { form: formLight(null, ROAD_MATERIALS) } : {}),
     figH: r4(ext(2)[1]),
     wheelbase: r4(axles[0] - axles[1]),
     wheelRadius: r4(spec.r),

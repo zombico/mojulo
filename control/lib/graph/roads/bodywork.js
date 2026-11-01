@@ -150,7 +150,7 @@ export function bodyShape(spec) {
 }
 /** What each run of a section is, from its first point to the next. */
 const SEGMENTS = Object.freeze(['floor', 'clad', 'side', 'side', 'side', 'glass', 'glass', 'roof', 'roof', 'roof', 'roof', 'glass', 'glass', 'side', 'side', 'side', 'clad']);
-const SMOKE = '#2b3036';   // a lamp's housing: smoked, its light a line along it
+export const SMOKE = '#2b3036';   // a lamp's housing: smoked, its light a line along it
 
 /** Loft the body in its language: paint (tinted) and trim (glass, plastics, lamps) face lists. */
 export function loftLanguage(paint, trim, R, spec, T) {

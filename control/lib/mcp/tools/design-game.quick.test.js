@@ -372,7 +372,7 @@ describe('design_game quick', () => {
     expect(out.ran.map((r) => r.key)).toEqual(['level-run-0', 'game']);
     expect(stored('rr').quick).toMatchObject({ ride: 'car', tier: 'realistic' });
     const L = stored('rr-level-run-0');
-    expect(L.figures.ride).toEqual({ loft: { class: 'midsize', seed: 1 } });
+    expect(L.figures.ride).toEqual({ loft: { class: 'midsize', seed: 1, light: 'form' } });
     expect(L.figures['rival-1']).toEqual(L.figures.ride);
     expect(L.entities[0]).toMatchObject({ id: 'car', rule: { type: 'drive', vehicle: 'midsize' } });
     expect(L.camera.dist).toBeGreaterThan(7);
@@ -380,10 +380,12 @@ describe('design_game quick', () => {
     // its rig: the hull and a bone a wheel, at the class's true height
     expect(payload.figures.ride.bones.map((b) => b.id)).toEqual(expect.arrayContaining(['root', 'wheelFL', 'wheelRR']));
     expect(payload.figures.ride.figH).toBeGreaterThan(1.3);
+    // drawn in the form render: its materials lit by the page (car-designer/road-form.js)
+    expect(payload.figures.ride.form.materials).toHaveProperty('paint');
     // a vehicle named by the registry: a pickup has no assembled ride, so it is its loft in any game
     await designGameHandler({ quick: { goal: 'reach', ride: 'a pickup truck', world: { id: 'truck', style: { kit: 'trail-valley' } } }, ref: 'pk' });
     expect(stored('pk').quick.ride).toBe('pickup');
-    expect(stored('pk-level-run-0').figures.ride).toEqual({ loft: { class: 'pickup', seed: 1 } });
+    expect(stored('pk-level-run-0').figures.ride).toEqual({ loft: { class: 'pickup', seed: 1, light: 'form' } });
   }, 240_000);
 
   it('kart race: rivals in the same car round a loop on the trail\'s land, the place on the HUD, a podium to win', async () => {

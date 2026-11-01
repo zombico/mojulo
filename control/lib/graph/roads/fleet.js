@@ -37,6 +37,8 @@ export const PAINTS = [
 export const TRAILER_PAINTS = [[0.95, 0.95, 0.94], [0.95, 0.95, 0.94], [0.95, 0.95, 0.94], [0.95, 0.95, 0.94], [0.95, 0.95, 0.94], [0.84, 0.84, 0.83], [0.84, 0.84, 0.83], [0.66, 0.67, 0.68], [0.62, 0.12, 0.10], [0.20, 0.30, 0.52]];
 
 const T = { paint: '#e9e9e9', glass: '#1e2630', tyre: '#1b1c1e', hub: '#8e9296', lamp: '#e9edf0', tail: '#9a1a17', plastic: '#2a2c2f', chrome: '#b9bcbf', box: '#eeeeec', frame: '#26282a' };
+/** The trim's colours, by what each draws (read by the realistic compile's form render to name a face's part). */
+export const FLEET_TRIM = Object.freeze({ ...T });
 
 // ── primitives in the template frame (+x forward, +y left, z up), rotated for the heading ──────────
 function makeFrame(yaw) {

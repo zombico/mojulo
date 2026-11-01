@@ -1020,12 +1020,13 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
           continue;
         }
         // LOFT bodies (car-designer/realistic.js, the vehicle registry's realistic build): a figures-map entry may be a
-        // road class's realistic loft (`loft`: { class, era?, brief?, seed? }, what a quick ride at the realistic tier
+        // road class's realistic loft (`loft`: { class, era?, brief?, seed?, light? }, what a quick ride at the realistic tier
         // writes), at its class's true numbers in metres, delivered as its vehicle rig (the hull the root, each wheel its
         // own bone). Absent ⇒ no loft is resolved, byte-identical.
         if (rawSpec.loft && typeof rawSpec.loft === 'object') {
           const { loftFigure } = await import('@/lib/graph/car-designer/race-families.js');
-          payload.figures[name] = await atRigFidelity(loftFigure(rawSpec.loft));
+          // (read in the form render, gen-7, or asked for it by its light: its faces carry their materials for the page)
+          payload.figures[name] = await atRigFidelity(loftFigure(rawSpec.loft, { form: ERAS[era]?.surface === 'form' }));
           continue;
         }
         // TRANSFORMER bodies (transformation/: more-than-meets): a figures-map entry may be a body in two forms

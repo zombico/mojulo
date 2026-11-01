@@ -91,11 +91,12 @@ const paletteTheme = (G) => (G.style?.palette ? gameTheme(solvePalette(G.style.p
  * (The flag moves the game order's print, so a game made before it is remade once on the next run, as it was.) */
 const PROVABLE = new Set(['reach-exit', 'survive']);
 const provable = (order) => { const k = (order?.manifest?.game?.mechanics ?? []).map((m) => m?.kind); return k.length > 0 && k.every((x) => PROVABLE.has(x)); };
-// a realistic loft ridden (vehicle-registry/ride.js): its figure compiled by the world in place, on its class's own
-// physics (roads/vehicles.js; quick.vehicle, tuning and conditions still read as the ride's), chased at its length
+// a realistic loft ridden (vehicle-registry/ride.js): its figure compiled by the world in place, in the form render (its
+// materials lit by the page: car-designer/road-form.js), on its class's own physics (roads/vehicles.js; quick.vehicle,
+// tuning and conditions still read as the ride's), chased at its length
 function loftRide(Q, rode, seed) {
   const dims = FLEET[rode.class] ?? PHYSICS[rode.class];
-  return { figure: { loft: { class: rode.class, seed } }, rule: quickRideRule(Q, vehicleRule(rode.class)), camera: loftCamera(dims) };
+  return { figure: { loft: { class: rode.class, seed, light: 'form' } }, rule: quickRideRule(Q, vehicleRule(rode.class)), camera: loftCamera(dims) };
 }
 
 export function auditOrder(steps, stages) {

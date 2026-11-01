@@ -5,10 +5,11 @@
  *
  *   racerInstanceFaces(spec)       a racer's recipe (roster.js racerSpec's entry) → { faces, stats }
  *   supercarInstanceFaces(spec)    a supercar's spec (supercar-figure.js) → { faces, stats }
- *   loftInstanceFaces(spec)        a realistic loft's { class, era?, brief?, seed? } (realistic.js compileRealistic: a
+ *   loftInstanceFaces(spec)        a realistic loft's { class, era?, brief?, seed?, light? } (realistic.js compileRealistic: a
  *                                  physics class at its true numbers, in metres) → { faces, stats }: the vehicle
  *                                  registry's realistic build of a road class, on the studio grid
- *   loftFigure(spec)               the same loft as its vehicle rig, the figure a realistic quick ride drives
+ *   loftFigure(spec, { form? })    the same loft as its vehicle rig, the figure a realistic quick ride drives; in the
+ *                                  form render (road-form.js) when its light is form, or absent in a gen-7 read
  *
  * The studio quality for a supercar (the grid's close look), the game's mesh for a racer (it has one). Kept apart from
  * the family layer so the nets' families never load the race machines: it is imported only when one is built.
@@ -33,19 +34,22 @@ export function supercarInstanceFaces(spec) {
   return { faces, spec, stats: { preset, cabinStyle: car.cabinStyle, headlightStyle: car.headlightStyle, livery: car.livery?.pattern ?? 'mono', faces: faces.length } };
 }
 
-const LOFT_KEYS = Object.freeze(['class', 'era', 'brief', 'seed']);
-// a loft's recipe compiled: the realistic sheet rolled for its class (its era and brief the sheet's words), then lofted
-function compileLoft(spec) {
+const LOFT_KEYS = Object.freeze(['class', 'era', 'brief', 'seed', 'light']);
+// a loft's recipe compiled: the realistic sheet rolled for its class (its era and brief the sheet's words), then lofted;
+// in the form render (gen-7) when its `light` says form, or it says nothing and the read is gen-7
+function compileLoft(spec, { form: formRead = false } = {}) {
   const extra = Object.keys(spec).filter((k) => !LOFT_KEYS.includes(k));
   if (extra.length) throw new Error(`meta-fabricator: a loft is { ${LOFT_KEYS.join(', ')} } (no ${extra.join(', ')})`);
   if (typeof spec.class !== 'string') throw new Error('meta-fabricator: a loft names its physics class ({ class: \'pickup\' })');
+  if (spec.light !== undefined && !['form', 'paint'].includes(spec.light)) throw new Error('meta-fabricator: a loft\'s light is form (its materials lit by the page) or paint (its light baked)');
   const sheet = rollVehicleSheet({ brief: spec.brief ?? '', facets: { pole: 'realistic', class: spec.class, ...(spec.era ? { era: spec.era } : {}) }, seed: spec.seed ?? 1 });
-  return { sheet, c: compileRealistic(sheet) };
+  const form = spec.light === 'form' || (spec.light === undefined && formRead);
+  return { sheet, c: compileRealistic(sheet, { form }) };
 }
 
-/** A loft's vehicle rig, as a world's figures map delivers it (the realistic ride's body). */
-export function loftFigure(spec) {
-  return compileLoft(spec).c.figure;
+/** A loft's vehicle rig, as a world's figures map delivers it (the realistic ride's body); `form` the read's (gen-7). */
+export function loftFigure(spec, opts = {}) {
+  return compileLoft(spec, opts).c.figure;
 }
 
 export function loftInstanceFaces(spec) {
