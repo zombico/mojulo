@@ -160,3 +160,35 @@ export function readBodyWord(v, at = 'body') {
   }
   throw new Error(`${at} is a body rail (${GAME_BODY_NAMES.map((n) => `${n}: ${GAME_BODIES[n].read}`).join('; ')}), '${GAME_WORD}' for the one the game reads, or { rail, style?, muscle? }`);
 }
+
+/** the hero door's words the realistic body does not take (the stylized body's own), left off when a rail lays it */
+const STYLIZED_ONLY = Object.freeze(['detail', 'body', 'girth', 'paint']);
+/**
+ * A rail's body laid under a hero-door spec of its own (a quick game's hero, a figure it rolls): the spec's own words
+ * win, but a cast WORD only names the pole the rail's build stands on; the anime frame's codename takes the anime head
+ * where the spec names none (and is left off a spec that names another); the realistic body leaves off what it does not
+ * take. `B` is gameBody's. → the spec, unchanged when `B` is null.
+ */
+export function lowerBody(spec, B) {
+  if (!B) return spec;
+  const own = spec || {}, W = B.spec, out = { ...W, ...own };
+  if (W.cast && typeof own.cast === 'string') out.cast = W.cast;
+  if (W.animeBody) {
+    if (own.head === undefined) out.head = 'anime';
+    else if (own.head !== 'anime') { delete out.animeBody; delete out.muscleShirt; }
+  }
+  if (W.form === 'realistic' && own.form === undefined) {
+    for (const k of STYLIZED_ONLY) delete out[k];
+    if (out.proportions !== undefined && out.proportions !== 'hero') delete out.proportions;
+  }
+  return out;
+}
+/** The rail a body word names for a game: the word's own, or (for 'game') the one its feel, genre or goal reads; null
+ * when it names none. `word` a rail, 'game' or { rail, style?, muscle? }. → { rail, from, why, style?, muscle? } | null */
+export function railOfWord(word, game = {}) {
+  if (word === undefined || word === null) return null;
+  const W = typeof word === 'string' ? { rail: word } : word;
+  const read = W.rail === GAME_WORD ? railOfGame(game) : { rail: W.rail, from: 'word', why: 'the game names it' };
+  return read ? { ...read, ...(W.style ? { style: W.style } : {}), ...(W.muscle !== undefined ? { muscle: W.muscle } : {}) } : null;
+}
+

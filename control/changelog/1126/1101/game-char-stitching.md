@@ -3,8 +3,8 @@
 A small table of what body a kind of game puts in it (`control/lib/graph/gameworld/game-bodies.js`), as the underlayer
 rails are what a world's setting makes a person wear: a new kind of body is a row. Each rail names the games it is for
 (their genres, feel templates and quick goals) and, per role (the hero, the henchman a cast fields), the hero-door words
-it lowers, in a style the world's own primitives choose. Heads and light are not a rail's. The book hero and the casting call
-read it; the quick games are next.
+it lowers, in a style the world's own primitives choose. Heads and light are not a rail's. The book hero, the casting call and
+the quick games read it.
 
 - **The rails**: `comic` (superheroes and their henchmen: a city stalker, a brawler), `realistic` (people as they are: a
   story, survival horror, stealth, a shooter, a dungeon crawler, tactics), `muscular` (the fighters) and `mascot` (the
@@ -26,4 +26,8 @@ read it; the quick games are next.
   western on the realistic body for a realistic or a fighting game, a mascot's frame; drawn in ink, the crew's own builds
   stand. The casting call dresses its crew with the rail the book's `direction.body` reads; a book that names none
   dresses it as before.
+- **Quick games take a body**: `quick.body` (a rail, `'game'` for the one its goal reads, or `{ rail, style?, muscle? }`)
+  lays the rail's hero under the hero spec's own words (a cast word naming the pole; the anime frame's codename takes the
+  anime head where the spec names none) and its henchman under each foe, gunner, tower and guard the run rolls; a
+  farmhand or an athlete stands as rolled, a hero by ref or a mascot is its own. Absent, every step as before.
 
