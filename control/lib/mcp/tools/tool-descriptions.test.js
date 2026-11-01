@@ -96,8 +96,8 @@ const DESCRIPTION_ALLOWLIST = {
   diff_sketches: 875,
   execute_plan: 1314,
   export_beats: 1124,
-  // export_game re-pinned 2026-09-03 (1253 → 1378) to bless the Unity Y1
-  // clause that rode the third-engine-leg commit (`target:'unity'` routing —
+  // export_game re-pinned 2026-09-03 (1253 → 1378) to bless an engine-target
+  // clause that rode the third-engine-leg commit (that target since retired —
   // the growth predates the greybox seam, which added only input-schema
   // bytes, not description). Shrink-only from here. Lowered 2026-10-15 (1378 -> 1290, 1015-desktop-export): the
   // desktop target's clause rode in on a tighter wording of the rest.
@@ -222,7 +222,7 @@ const DESCRIPTION_ALLOWLIST = {
 // greybox seam (skin-over-mesh.plan.md phase 0): export_game's `posture`
 // input-schema property (~330 bytes — the handoff-posture routing lives in
 // the schema, not the description, which stayed at its allowlist snapshot
-// aside from the pre-existing Unity Y1 growth blessed above).
+// aside from the pre-existing engine-target growth blessed above).
 // Re-pinned 2026-09-03 (257_000 -> 257_500; measured 257,164) to bless the
 // skinned export seam (skin-over-mesh.plan.md phase 4): export_model's
 // `skinned` input-schema property. Same rule — schema routing only, the

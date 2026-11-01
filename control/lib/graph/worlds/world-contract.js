@@ -25,7 +25,7 @@ export const WORLD_TIERS = Object.freeze([
     id: 'T0', name: 'coherent',
     declares: ['faces', 'fills', 'walk_seat', 'floor_under_spawn', 'units_valid'],
     gate: 'world-scene kinds characterization + engine-portability advisory + Godot locomotion_probe (unlit)',
-    witness: 'the World runtime; Godot / Unity unlit; Unreal as an asset, unlit',
+    witness: 'the World runtime; Godot unlit; Unreal as an asset, unlit',
   },
   {
     id: 'T1', name: 'baked',
@@ -42,8 +42,8 @@ export const WORLD_TIERS = Object.freeze([
   {
     id: 'T3', name: 'materialized',
     declares: ['material_identity', 'textures_resolved'],
-    gate: 'export-unity.mjs materials probe (MOJULO_UNITY); slot-swap count in the ledger',
-    witness: 'Unity 6 (URP)',
+    gate: 'the Godot handoff\'s probe (handoff_probe.gd, MOJULO_GODOT): the materials and maps its import built, held to handoff.json',
+    witness: 'Godot 4, the engine handoff (export_model { engine })',
   },
   {
     id: 'T4', name: 'physical',

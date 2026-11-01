@@ -7,7 +7,7 @@
  * (vs mojulo's declared size — the unit-slip check), manifold/parts from
  * `--info`, estimated time, filament, supports, layers from the G-code ledger.
  *
- * Same posture as blender-bake.mjs / export-unity.mjs: the slicer is
+ * Same posture as blender-bake.mjs / export-unreal.mjs: the slicer is
  * operator-hosted, located by env or the macOS app bundle, never a dependency.
  * No slicer ⇒ capability rung 0: the 3MF + closure audit ship, the gate says
  * why it skipped. The gate is ADVISORY — it reports and stamps; whether the

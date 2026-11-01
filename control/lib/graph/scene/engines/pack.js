@@ -16,7 +16,7 @@
  *   bedWriter({ binaries, log })          WAV beds rendered once per music (and loop), written at every path asked for
  *   emitFolder({ outDir, files, keep })   clean-emit a pack folder (`keep`: a folder the developer owns survives)
  *
- * The legs (godot-pack.js, unity-pack.js; the Blender art pass and the Unreal asset pack take its front) keep what is
+ * The legs (godot-pack.js; the Blender art pass and the Unreal asset pack take its front) keep what is
  * theirs: their layout, their sidecars, their music policy and their emitter.
  */
 import { promises as fs } from 'node:fs';

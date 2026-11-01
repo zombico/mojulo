@@ -4,7 +4,6 @@
  * translation it is and, for an engine with a runtime kernel, where its marks live and what an unwritten mark means.
  *
  *   kind     runtime   a kernel runs the game's behaviour (the bus, the rules, the minds) and is held equal to the web
- *            scene     a project with a small closed kernel of its own (walker, five mechanics, menu); no marks
  *            art       geometry and materials for an art pass or an asset; no game
  *   marks    the engine's marks module (engines/marks.js says the shape); null for an engine with none
  *   unmarked what a cosmos value with no mark for this engine reads as: null (closed: the registry throws, the mark must
@@ -22,7 +21,6 @@ import * as godotMarks from '../godot-marks.js';
 
 export const ENGINES = Object.freeze({
   godot: Object.freeze({ id: 'godot', name: 'Godot', kind: 'runtime', marks: godotMarks, marksPath: 'lib/graph/scene/godot-marks.js', unmarked: null, proof: 'MOJULO_GODOT', outDir: 'godot', handoff: 'godot-handoff' }),
-  unity: Object.freeze({ id: 'unity', name: 'Unity', kind: 'scene', marks: null, outDir: 'unity' }),
   // Unreal takes mojulo's assets (export_model { engine: 'unreal' }: a character, a prop, a building), not its games
   unreal: Object.freeze({ id: 'unreal', name: 'Unreal', kind: 'art', marks: null, handoff: 'unreal' }),
   blender: Object.freeze({ id: 'blender', name: 'Blender', kind: 'art', marks: null, handoff: 'blender' }),

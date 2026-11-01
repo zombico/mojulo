@@ -1,7 +1,7 @@
 /**
  * materials-gate — the pure half of the engine legs' MATERIALS probe
- * (interchange-next.plan.md N5; driven by scripts/export-godot.mjs and
- * scripts/export-unity.mjs). The question is narrow: did the engine's importer
+ * (interchange-next.plan.md N5; driven by scripts/export-godot.mjs). The
+ * question is narrow: did the engine's importer
  * build the shading the GLB DECLARES — KHR_materials_unlit on a primitive ⇒ an
  * unshaded material, a real pbrMetallicRoughness ⇒ a shaded one — and did its
  * KHR_lights_punctual become lights? `--lit` only labels the run: an unlit export

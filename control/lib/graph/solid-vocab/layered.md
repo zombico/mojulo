@@ -759,8 +759,8 @@ GLB's baked ink (`bake: true`) cannot stencil: it leaves out only the outline of
   so a camera on the head does not shake). The clip walks in place and carries its GROUND SPEED (`v`, metres a second
   at its seconds): the speed at which its planted feet stay put. A gait REPLACES the hero's own clip of that name (the
   stock walk) and a new name joins the clips; it rides the World's clip picker, the skinned GLB (24 keys a cycle; the
-  animation's `extras['moj:speed']`) and the engine score (the player's `locomotion.walkSpeed`), where Godot and Unity
-  play the walk at the walker's planar speed ÷ walkSpeed. JUMPS ride the same field: `jump` (standing, straight up,
+  animation's `extras['moj:speed']`) and the engine score (the player's `locomotion.walkSpeed`), where Godot
+  plays the walk at the walker's planar speed ÷ walkSpeed. JUMPS ride the same field: `jump` (standing, straight up,
   1.1 s), `jumpForward` and `jumpBack` (1.2 s: leaning into it or off the toes, the planted feet falling behind the
   travelling body at the push and landing ahead of it, or behind for the back jump, the body then rolling over them) and
   `doubleJump` (1.7 s: a first jump, a kick down off the air with the arms sweeping, a deeper second tuck) and

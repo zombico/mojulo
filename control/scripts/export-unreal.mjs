@@ -80,7 +80,7 @@ try {
 }
 log(`emitted ${pack.written.length} files (leg v${pack.legVersion}) → ${outDir}`);
 
-// MACHINE GATE — serial, watchdogged launches (the Unity leg's stale-lock 8-hour hang is the cautionary tale; UE has no
+// MACHINE GATE — serial, watchdogged launches (the retired Unity leg's stale-lock 8-hour hang is the cautionary tale; UE has no
 // known lockfile equivalent, but a hung batch editor must still fail loudly, never sit silent).
 const WATCHDOG_MS = Number(process.env.MOJULO_UNREAL_TIMEOUT_MS || 15 * 60 * 1000);
 function runUnreal(uargs, logFile, env = {}) {

@@ -1,14 +1,13 @@
 /**
  * Phase 3 of skin-over-mesh.plan.md: textures flip from an implicit gap to a
  * CARRIED ledger line. The GLB already embeds them (facesToGlb reads
- * payload.textures); the score now names the keys, and both engine emitters
- * state the carry. Untextured worlds stay byte-identical.
+ * payload.textures); the score now names the keys, and the engine emitter
+ * states the carry. Untextured worlds stay byte-identical.
  */
 import { describe, expect, it } from 'vitest';
 
 import { extractEngineScore } from './engine-score.js';
 import { emitGodotProject } from './godot-project.js';
-import { emitUnityProject, unityLevelLedger } from './unity-project.js';
 
 const sketch = { ref: 'sk_tex', manifest: { kind: 'floorplan-world', title: 'tex world' } };
 const PNG_URL = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==';
@@ -42,15 +41,7 @@ describe('engine emitters — the carried line', () => {
     expect(readme).toContain('multiply with the baked vertex colours');
   });
 
-  it('unity ledger names textures as carried via glTFast', () => {
-    const ledger = unityLevelLedger(score({ textures: ['skin-atlas'] }));
-    expect(ledger.textures_carried.kinds).toEqual(['skin-atlas']);
-    const { files } = emitUnityProject({ ref: 'w', score: score({ textures: ['skin-atlas'] }), manifestHash: 'h' });
-    expect(files.find((f) => f.file === 'IMPORT-GUIDE.md').text).toContain('textures_carried');
-  });
-
   it('untextured scores emit no carried line', () => {
-    expect('textures_carried' in unityLevelLedger(score())).toBe(false);
     const { ledger } = emitGodotProject({ ref: 'w', score: score(), manifestHash: 'h', kernelVersion: '0.1.1' });
     expect('textures_carried' in ledger).toBe(false);
   });

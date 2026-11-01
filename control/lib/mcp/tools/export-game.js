@@ -53,6 +53,9 @@ import { findElectron } from '@/lib/workers/find';
 const manifestHash = (manifest) =>
   createHash('sha256').update(JSON.stringify(manifest)).digest('hex').slice(0, 16);
 
+// engine runtime targets whose translation is retired (no release carried them): refused, naming the targets there are
+const RETIRED_GAME_TARGETS = Object.freeze({ roblox: 'Roblox', unity: 'Unity' });
+
 // Folder-relative src resolvers: the export twin of the /game route's API-URL
 // resolvers. Whatever these return is BOTH the src baked into game.html and the
 // path this tool writes — they cannot drift apart. Refs are [A-Za-z0-9_-]{1,64}
@@ -307,9 +310,9 @@ export async function exportGameHandler(input, context = {}, deps = {}) {
   const desktop = target === 'desktop';
   const cdn = pluginBuild || desktop ? false : cdnInput;
   if (!ref || typeof ref !== 'string') throw new Error('`ref` is required (string)');
-  // Roblox's runtime translation is retired: the game is the web build, and a team's engine takes a handoff
-  if (target === 'roblox') {
-    throw new Error("export_game: target is 'web' | 'desktop' (the game is the web build; Roblox's runtime translation "
+  // Roblox's and Unity's runtime translations are retired: the game is the web build, and a team's engine takes a handoff
+  if (Object.hasOwn(RETIRED_GAME_TARGETS, target)) {
+    throw new Error(`export_game: target is 'web' | 'desktop' (the game is the web build; ${RETIRED_GAME_TARGETS[target]}'s runtime translation `
       + "is retired) — a team's engine takes the game's levels and assets through export_model { ref, engine }");
   }
   // the era is the render's (era/eras.js), read by the pages: the engine packs carry the recipe's surfaces as they are
@@ -349,27 +352,6 @@ export async function exportGameHandler(input, context = {}, deps = {}) {
         + `node scripts/export-godot.mjs --ref ${ref} — or open the folder in Godot ≥4.5 and run.`,
     };
   }
-
-  if (target === 'unity') {
-    const { buildUnityGamePack } = await import('@/lib/graph/scene/unity-pack.js');
-    const outDir = path.join(outcomeDirFor(ref), 'unity');
-    const pack = await buildUnityGamePack({ ref, outDir, posture });
-    return {
-      ok: true,
-      ref,
-      target: 'unity',
-      dir: outDir,
-      leg: pack.legVersion,
-      ...(posture ? { posture } : {}),
-      files: pack.written.length,
-      total_bytes: pack.written.reduce((s, f) => s + f.bytes, 0),
-      portability: { portable: pack.portability.portable, flags: pack.portability.flags },
-      ledger: pack.ledger,
-      note: 'Pack emitted (data + mojulo-unity kernel). Machine gate lives in the CLI: '
-        + `node scripts/export-unity.mjs --ref ${ref} — or follow the pack's IMPORT-GUIDE.md in Unity 6.`,
-    };
-  }
-
 
   const sketch = SketchRepository.getByRef(ref);
   if (!sketch) throw new Error(`No sketch exists at ref '${ref}'`);
@@ -747,7 +729,7 @@ export function registerExportGameTools() {
       type: 'object',
       properties: {
         ref: { type: 'string', description: 'Existing game sketch ref (`sk_…`, kind `game`). Errors on other kinds.' },
-        // (the engine runtimes' targets, godot / unity, are still taken until they are culled; a team's engine is
+        // (the engine runtime's target, godot, is still taken until it is culled; a team's engine is
         // export_model's `engine` now, the engine handoff)
         target: { type: 'string', enum: ['web', 'desktop'], description: 'Optional. Default `web` (the self-contained folder). `desktop`: that folder as an Electron app.' },
         era: { type: 'string', enum: ['gen-6', 'gen-7'], description: 'Optional. The era its pages are drawn in, the cube\'s by default: the same recipe, another render. Web and desktop.' },

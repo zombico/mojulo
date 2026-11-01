@@ -1,13 +1,12 @@
 /**
  * The greybox seam at the emitter layer (skin-over-mesh.plan.md phase 0):
- * a stamped pack's README/IMPORT-GUIDE carries the one-sentence handoff
+ * a stamped pack's README carries the one-sentence handoff
  * contract; an unstamped pack emits byte-identical text to pre-seam output.
  */
 import { describe, expect, it } from 'vitest';
 
 import { GREYBOX_HANDOFF_SENTENCE } from './engine-score.js';
 import { emitGodotProject, emitGodotGame } from './godot-project.js';
-import { emitUnityProject, emitUnityGame } from './unity-project.js';
 
 const score = (extra = {}) => ({
   ref: 'sk_pack_fixture',
@@ -54,27 +53,5 @@ describe('godot emitter — greybox handoff sentence', () => {
     const readme = fileText(plain.files, 'README.md');
     // the section splice point: provenance flows straight into "## Open and play"
     expect(readme).toContain("(from mojulo's `control/`)\n\n## Open and play");
-  });
-});
-
-describe('unity emitter — greybox handoff sentence', () => {
-  it('world README + IMPORT-GUIDE carry the sentence only when stamped', () => {
-    const plain = emitUnityProject({ ref: 'w', score: score(), manifestHash: 'h' });
-    const stamped = emitUnityProject({ ref: 'w', score: score({ posture: 'greybox' }), manifestHash: 'h' });
-    for (const file of ['README.md', 'IMPORT-GUIDE.md']) {
-      expect(fileText(plain.files, file)).not.toContain('Greybox handoff');
-      expect(fileText(stamped.files, file)).toContain(GREYBOX_HANDOFF_SENTENCE);
-    }
-  });
-
-  it('game README + IMPORT-GUIDE carry the sentence when any level score is stamped', () => {
-    const mk = (posture) => emitUnityGame({
-      ref: 'g', title: 'G', manifestHash: 'h',
-      levels: [{ ref: 'lv1', title: 'One', gate: null, score: score(posture ? { posture } : {}) }],
-    });
-    for (const file of ['README.md', 'IMPORT-GUIDE.md']) {
-      expect(fileText(mk(null).files, file)).not.toContain('Greybox handoff');
-      expect(fileText(mk('greybox').files, file)).toContain(GREYBOX_HANDOFF_SENTENCE);
-    }
   });
 });

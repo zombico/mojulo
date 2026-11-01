@@ -1,6 +1,6 @@
 /**
  * engine-score.js — the shared score extraction for engine handoffs
- * (consumed by the Godot and Unity legs).
+ * (consumed by the Godot leg and the Unreal asset pack).
  *
  * The score is the engine-agnostic digest of a resolved world payload:
  * colliders, spawn, cameras, entities, declarative mechanics, audio binding,
@@ -305,7 +305,7 @@ export function levelSoundtrack(sketch, payload) {
 }
 
 // `engine`: the engine the score is read for (engines/registry.js); its ledger reads the level against that engine's marks.
-// An engine without marks (Unity) gets no reading rows and no bus coverage: its kernel runs neither.
+// An engine without marks (Unreal) gets no reading rows and no bus coverage: its kernel runs neither.
 export function extractEngineScore(sketch, payload, { posture = null, engine = DEFAULT_ENGINE } = {}) {
   const M = marksOf(engine);
   const manifest = sketch?.manifest ?? {};
