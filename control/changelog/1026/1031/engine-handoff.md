@@ -90,3 +90,9 @@ Built so far:
   to Blender as an art pack. `export_game` is the game itself, a web folder or a desktop app, and no longer offers the
   engine translations; a finished game's share offer hands its levels to Godot. Every pointer the agent reads (the
   routing card, the tool lines, the export dispatch, the vocab cards) points at the one door.
+- **The engine runtimes retire.** Mojulo no longer translates a game into an engine: the Godot, Unity and Roblox game
+  runtimes, their conformance corpora and the per-engine marks that measured them are gone (about 38,000 lines). The
+  web build is the game, alone or on the desktop; a team's engine gets the handoff. `export_game`'s engine targets
+  refuse with that move, a stored world's engine target is read as none, design_game no longer asks for one, and the
+  hillclimb page measures what the web build makes. The Godot handoff and a humanoid figure's import are checked in a
+  real Godot on CI.

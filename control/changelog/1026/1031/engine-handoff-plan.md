@@ -1,6 +1,6 @@
 ### Engine handoff plan (temporary: the working plan, parked here; delete before release)
 
-**Status:** phases 0 to 3 built; phase 4's Godot adapter built and run in a real Godot (4.7.2) on the operator's machine, the terrain shader with it; the sea as the engine's own water built; phase 5 done (one door, `export_model { engine }`); the cull (phase 6) next (1101).
+**Status:** phases 0 to 3 built; phase 4's Godot adapter built and run in a real Godot (4.7.2) on the operator's machine, the terrain shader with it; the sea as the engine's own water built; phases 5 and 6 done (one door, `export_model { engine }`; the runtimes culled); phase 7 (Unity, Unreal levels, Blender on the contract) next (1101).
 `control/changelog/1026/1031/engine-handoff.md`. No release has carried the engine game runtimes this plan removes, so
 nothing here needs a deprecation path.
 
@@ -591,4 +591,34 @@ developer would want to wire. Never claimed by a machine.
     accept set (re-pinned, said why); the forward_context cells stay under their ceiling by the dispatch naming only
     `engine`. Left for phase 9 (the copy): `SERVER_INSTRUCTIONS` and `get_substrate`'s engine paragraph, which still
     describe the translations, the README, the docs and the manifests.
+- 1101, phase 6, the cull (one commit per engine: Roblox, Unity, Godot; about 38,000 lines):
+  - Roblox: the Luau kernel and place, its gate, look, marks, pack and project, export-roblox.mjs, its conformance
+    corpora (and the levelcast corpus and level-conformance's cast section only it ran), the Rojo and Lune workers.
+    A stored `intent.target: 'roblox'` is retired (`RETIRED_TARGETS`): read as none, no advice, the row resolves.
+  - Unity: unity-project.js whole (its data pack, its C# runtime and its importer, MojuloImport.cs: the operator chose
+    a fresh adapter for phase 7 over keeping one tied to the runtime's layout), unity-pack.js, export-unity.mjs,
+    operator-guide's screenSection. `findUnity` stays for that adapter's gate. Unity was never an intent target.
+  - Godot: the kernels, the runtime modules, the conformance infrastructure, the old .gd probes and CLIs, and the
+    modules only the runtime used (engine-audio, materials-gate, engine-portability, bus-abi, figure-gate,
+    brickster-replay). With no engine running a game, the per-engine marks go: the registry keeps `godot` (the
+    handoff's folder and `MOJULO_GODOT`), `unreal` and `blender`, no marks, no `MARKED_ENGINES` / `DEFAULT_ENGINE`;
+    the cosmos measures what the web build makes (the facets' and foes' marks, `dryRun().engines`, the sweep's engine
+    survive counts and ladders, the hillclimb page's engine columns gone; its verdict totals unchanged, 233/131/136
+    random, 369/50/81 near the probes); the foe cast sheet's Engines block goes. `intent.target` is inert ('godot'
+    joins the retired; any other target refuses); design_game drops the target step; a world that carried a target
+    loses the bible's target paragraph.
+  - `export_game`'s engine targets refuse together (`RETIRED_GAME_TARGETS`), pointing at `export_model { engine }`;
+    `posture` and the engine-pack era refusal go. The desktop packager still skips an old outcome's godot/, roblox/
+    and unity/ folders (the package.json bytes unchanged).
+  - The humanoid's real-Godot check is ported (`export-model.godot-humanoid.test.js`, `scripts/godot-humanoid-probe.gd`):
+    export_model's humanoid GLB with godot-humanoid's BoneMap, `.import` and import script, imported twice and probed
+    (GeneralSkeleton, Hips, the flat GLB's clips, its posed heads against the page's within 2e-3 at Godot's 30 fps bake
+    keys, each profile bone against the flat bone). Lost: keys off the bake (the runtime pack baked at 36 fps), and the
+    runtime scene's idle clip and turn. CI's `godot` job runs it and `handoff-godot.test.js`; `test:godot`
+    auto-discovers the `MOJULO_GODOT` suites.
+  - Pins: the engine-score snapshot drops the retired runtime's ledger row (no kept export emits the score); the
+    workbench card's pin shrinks; the agent-facing copy only shrank (get_substrate's engine paragraph 647 -> 520 bytes,
+    now the handoff). No recipe's export bytes changed.
+  - Left for phase 9: README, CONTRIBUTING and docs/ prose (some link to deleted files); level-equivalence.js still
+    describes the Godot twin though only `faceGround` is used outside it.
 
