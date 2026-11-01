@@ -4,10 +4,12 @@ import { VEHICLES, handlesOf } from './roster.js';
 import { RIDES } from '../gameworld/ride.js';
 import { CRAFT_ARCHETYPES } from '../craft-shelf/craft-archetypes.js';
 import { quickWorld } from '../gameworld/quick.js';
+import { rideableRows } from './ride.js';
 
 // a row chosen in code for each table a quick word reads: one whose registry word is not the table's own key
 const rowFor = (table) => Object.keys(VEHICLES).find((id) => handlesOf(id)[table] && !handlesOf(id)[table].includes(id));
-const rowWithout = (table) => Object.keys(VEHICLES).find((id) => !handlesOf(id)[table] && handlesOf(id).physics);
+// a row the ride door cannot take: no assembled ride and nothing a ride can drive (vehicle-registry/ride.js)
+const rowWithout = () => Object.keys(VEHICLES).find((id) => !handlesOf(id).ride && !rideableRows().includes(id));
 
 describe('a quick game\'s vehicle words, read through the registry', () => {
   it('writes a registry word as its table\'s key, and says so', () => {
@@ -31,7 +33,7 @@ describe('a quick game\'s vehicle words, read through the registry', () => {
     expect(Object.keys(CRAFT_ARCHETYPES)).toContain(T.quick.transformer.vehicle.craft);
   });
   it('refuses a vehicle the table has none of, naming the row and what it needs', () => {
-    const id = rowWithout('ride');
+    const id = rowWithout();
     expect(() => quickVehicleWords({ goal: 'reach', ride: VEHICLES[id].label })).toThrow(new RegExp(`ride is one of .*the registry's ${id}`));
   });
   it('refuses a word the registry does not know, pointing at the rows it nearly names', () => {

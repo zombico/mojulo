@@ -366,6 +366,26 @@ describe('design_game quick', () => {
     expect(payload.events.sources.find((z) => z.zone === 'cp_0_0').watch).toBe('car');
   }, 240_000);
 
+  it('a realistic ride: the car\'s realistic loft, compiled in place on its class\'s physics, its rivals in it too', async () => {
+    // the game reads realistic (its juice drawn in the form render): the tier is stamped at mint, and the sedan is its loft
+    const out = await designGameHandler({ quick: { goal: 'race', ride: 'car', rivals: 1, world: { id: 'real', style: { kit: 'trail-valley' }, juice: { fidelity: 'form' } } }, ref: 'rr' });
+    expect(out.ran.map((r) => r.key)).toEqual(['level-run-0', 'game']);
+    expect(stored('rr').quick).toMatchObject({ ride: 'car', tier: 'realistic' });
+    const L = stored('rr-level-run-0');
+    expect(L.figures.ride).toEqual({ loft: { class: 'midsize', seed: 1 } });
+    expect(L.figures['rival-1']).toEqual(L.figures.ride);
+    expect(L.entities[0]).toMatchObject({ id: 'car', rule: { type: 'drive', vehicle: 'midsize' } });
+    expect(L.camera.dist).toBeGreaterThan(7);
+    const { payload } = await resolveWorldScene(SketchRepository.getByRef('rr-level-run-0'));
+    // its rig: the hull and a bone a wheel, at the class's true height
+    expect(payload.figures.ride.bones.map((b) => b.id)).toEqual(expect.arrayContaining(['root', 'wheelFL', 'wheelRR']));
+    expect(payload.figures.ride.figH).toBeGreaterThan(1.3);
+    // a vehicle named by the registry: a pickup has no assembled ride, so it is its loft in any game
+    await designGameHandler({ quick: { goal: 'reach', ride: 'a pickup truck', world: { id: 'truck', style: { kit: 'trail-valley' } } }, ref: 'pk' });
+    expect(stored('pk').quick.ride).toBe('pickup');
+    expect(stored('pk-level-run-0').figures.ride).toEqual({ loft: { class: 'pickup', seed: 1 } });
+  }, 240_000);
+
   it('kart race: rivals in the same car round a loop on the trail\'s land, the place on the HUD, a podium to win', async () => {
     const out = await designGameHandler({ quick: { goal: 'race', ride: 'coupe', rivals: 3, world: { id: 'karts', style: { kit: 'trail-valley' } } }, ref: 'k' });
     expect(out.ran.map((r) => r.key)).toEqual(['ride', 'level-run-0', 'game']);

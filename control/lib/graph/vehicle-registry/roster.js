@@ -145,7 +145,7 @@ export const VEHICLES = {
   // ── haulers ─────────────────────────────────────────────────────────────────
   pickup: row('pickup truck', ['pickup', 'pick-up', 'ute', 'full-size pickup'], 'road', 'hauler', M, ROAD,
     { physics: 'pickup', fleet: 'pickup', tech: 'truck' }),
-  van: row('cargo van', ['panel van', 'delivery van', 'box van', 'work van'], 'road', 'hauler', M, ROAD,
+  'cargo-van': row('cargo van', ['van', 'panel van', 'delivery van', 'box van', 'work van'], 'road', 'hauler', M, ROAD,
     { scenery: 'boxVan', physics: 'van', fleet: 'van', tech: 'truck' }),
   'box-truck': row('box truck', ['straight truck', 'lorry', 'removal truck', 'moving truck'], 'road', 'hauler', M, ROAD,
     { scenery: 'boxTruck', physics: 'straightTruck', fleet: 'straightTruck', tech: 'truck' }),

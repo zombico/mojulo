@@ -68,7 +68,7 @@ export function buildsOf(id) {
   for (const k of h.supercar ?? []) out.push(B('realistic', 'supercar', k, 'live', ['quick race (supercars)', 'mint_solid vehicle preview', 'transformer'], 'the supercar\'s surface compiler, streamlined in the form render'));
   for (const k of h.craft ?? []) out.push(B('realistic', 'craft', k, 'live', ['transformer'], 'the craft shelf\'s assembly at its class\'s true figures'));
   for (const k of h.fleet ?? []) out.push(B('realistic', 'fleet', k, 'live', ['roadway traffic'], 'the highway fleet\'s loft at true dimensions, at traffic distance'));
-  for (const k of (h.physics ?? []).filter(loftable).slice(0, 1)) out.push(B('realistic', 'loft', k, 'preview', ['mint_solid vehicle preview'], 'the realistic pole\'s loft of its class at its true numbers (compileRealistic): shown, not yet driven in a game'));
+  for (const k of (h.physics ?? []).filter(loftable).slice(0, 1)) out.push(B('realistic', 'loft', k, 'live', ['quick ride', 'mint_solid vehicle preview'], 'the realistic pole\'s loft of its class at its true numbers (compileRealistic), driven on its class\'s own physics'));
   for (const k of h.tech ?? []) out.push(B(null, 'tech', k, 'concept', ['bible plates', 'RTS roster'], 'the technology crafter\'s block plan'));
   return out;
 }

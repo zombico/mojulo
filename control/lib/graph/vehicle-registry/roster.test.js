@@ -81,6 +81,9 @@ describe('the legacy tables are frozen behind the registry: every key claimed by
   it('gives the racer grammar to one row', () => {
     expect(IDS.filter((id) => VEHICLES[id].handles.racer)).toHaveLength(1);
   });
+  it('names no row by another row\'s legacy ride key (a ride names a row by either, the key first)', () => {
+    expect(Object.keys(RIDES).filter((k) => VEHICLES[k] && rowOfHandle('ride', k) !== k)).toEqual([]);
+  });
   it('agrees with the legacy pairings', () => {
     for (const id of IDS) {
       const h = VEHICLES[id].handles;
@@ -169,9 +172,10 @@ describe('builds by tier', () => {
   });
   it('says what each row needs to be drawn realistic', () => {
     const states = new Set(IDS.map((id) => upscaleOf(id).realistic));
-    expect([...states].sort()).toEqual(['live', 'none', 'preview']);
-    const shown = IDS.find((id) => upscaleOf(id).realistic === 'preview');
-    expect(upscaleOf(shown).next).toMatch(/^wire the loft build into the games/);
+    expect([...states].every((st) => ['live', 'preview', 'asleep', 'none'].includes(st))).toBe(true);
+    // a road class's loft is driven now: its row is drawn realistic, by the loft
+    const lofted = byVia.get('loft');
+    expect(upscaleOf(lofted)).toMatchObject({ realistic: 'live', via: 'loft', next: null });
     expect(upscaleOf(IDS.find((id) => upscaleOf(id).realistic === 'none')).next).toMatch(/realistic body/);
   });
   it('reads a size from the table that measures it', () => {

@@ -5,8 +5,9 @@
  * (a physics class), its `craft` (the fly goal's flight model) and its transformer's `vehicle.ride` / `vehicle.craft`
  * (a craft archetype), and mint_solid's vehicle preview by a scenery `type`. They keep those keys (a stored recipe is a
  * compatibility promise), and they now take any word the registry knows: the word is read to its row and written as
- * the row's key in that table, so a game that says `ride: 'sedan'` stores exactly what `ride: 'car'` stores. A word the
- * registry knows whose row has no key in that table is refused with what the row does have; a word it does not know is
+ * the row's key in that table, so a game that says `ride: 'sedan'` stores exactly what `ride: 'car'` stores. A ride also
+ * takes a row it can drive by the row's own id (`ride: 'a pickup truck'` is stored as `ride: 'pickup'`: ride.js). A word
+ * the registry knows whose row has no key in that table is refused with what the row does have; a word it does not know is
  * refused with the rows it nearly names. Nothing new is ever written to a legacy table here: a new vehicle is a row.
  *
  *   quickVehicleWords(Q)  → { quick, redirects: [{ key, said, id, as }] }   Q with every vehicle word at its table's key
@@ -20,8 +21,11 @@ import { RIDES } from '../gameworld/ride.js';
 import { VEHICLES as PHYSICS } from '../roads/vehicles.js';
 import { CRAFT } from '../skyscape/eye.js';
 import { CRAFT_ARCHETYPES } from '../craft-shelf/craft-archetypes.js';
+import { rideableRows } from './ride.js';
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
+// a quick ride takes a row by its own id when the row has no assembled ride but can be driven (vehicle-registry/ride.js)
+const RIDE_ROWS = Object.freeze({ orRow: (id) => rideableRows().includes(id) });
 const fail = (m) => new Error(`gameworld: quick${m}`);
 
 /** The rows a table's keys belong to, in prose: "car (sedan), coupe (coupe), van (minivan)". */
@@ -30,11 +34,13 @@ export function keysInWords(table, keys) {
 }
 
 /** One word, read for one table: its key there (a key of the table stays as it is), or a refusal naming the registry. */
-export function readThrough(word, table, keys, where) {
+export function readThrough(word, table, keys, where, { orRow } = {}) {
   if (typeof word !== 'string' || keys.includes(word)) return { as: word };
   const hit = resolveVehicle(word);
   if (!hit) throw fail(`${where} is one of ${keysInWords(table, keys)}; or a vehicle the registry names (${suggestVehicles(word)})`);
   const [as] = handlesOf(hit.id)[table] ?? [];
+  // (a door that also takes a row by its own id, as a ride takes any row it can drive: the row's id is written)
+  if (as === undefined && orRow?.(hit.id)) return { as: hit.id, id: hit.id };
   if (as === undefined) {
     const up = upscaleOf(hit.id);
     throw fail(`${where} is one of ${keysInWords(table, keys)}: '${word}' is the registry's ${hit.id} (${hit.row.label}), which has none here yet${up.next ? ` (it needs ${up.next})` : ''}`);
@@ -46,12 +52,12 @@ export function readThrough(word, table, keys, where) {
 export function quickVehicleWords(Q) {
   if (!isObj(Q)) return { quick: Q, redirects: [] };
   const redirects = [], out = { ...Q };
-  const take = (key, value, table, keys, where, set) => {
+  const take = (key, value, table, keys, where, set, opts) => {
     if (value === undefined) return;
-    const r = readThrough(value, table, keys, where);
+    const r = readThrough(value, table, keys, where, opts);
     if (r.id && r.as !== value) { redirects.push({ key: where.replace(/^\./, ''), said: value, id: r.id, as: r.as }); set(r.as); }
   };
-  take('ride', Q.ride, 'ride', Object.keys(RIDES), '.ride', (v) => { out.ride = v; });
+  take('ride', Q.ride, 'ride', Object.keys(RIDES), '.ride', (v) => { out.ride = v; }, RIDE_ROWS);
   take('vehicle', Q.vehicle, 'physics', Object.keys(PHYSICS), '.vehicle', (v) => { out.vehicle = v; });
   take('craft', Q.craft, 'sky', Object.keys(CRAFT), '.craft', (v) => { out.craft = v; });
   const V = isObj(Q.transformer) && isObj(Q.transformer.vehicle) ? Q.transformer.vehicle : null;
@@ -66,7 +72,7 @@ export function quickVehicleWords(Q) {
 
 // the quick spec's vehicle words, by JSON Pointer under the world: the table each reads through
 const QUICK_POINTERS = Object.freeze({
-  '/quick/ride': ['ride', () => Object.keys(RIDES), '.ride'],
+  '/quick/ride': ['ride', () => Object.keys(RIDES), '.ride', RIDE_ROWS],
   '/quick/vehicle': ['physics', () => Object.keys(PHYSICS), '.vehicle'],
   '/quick/craft': ['sky', () => Object.keys(CRAFT), '.craft'],
   '/quick/transformer/vehicle/ride': ['ride', () => Object.keys(RIDES), '.transformer.vehicle.ride'],
@@ -82,7 +88,7 @@ export function patchVehicleWords(ops) {
     if (!isObj(op) || !['set', 'add', 'replace'].includes(op.op) || typeof op.path !== 'string') return op;
     const at = QUICK_POINTERS[op.path];
     if (at) {
-      const [table, keys, where] = at, r = readThrough(op.value, table, keys(), where);
+      const [table, keys, where, opts] = at, r = readThrough(op.value, table, keys(), where, opts);
       if (r.id && r.as !== op.value) { redirects.push({ key: where.replace(/^\./, ''), said: op.value, id: r.id, as: r.as }); return { ...op, value: r.as }; }
       return op;
     }

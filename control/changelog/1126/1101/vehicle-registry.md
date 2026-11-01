@@ -76,15 +76,55 @@ still measure, so no stored recipe changes by a byte.
   - the quick words written as their keys (the world byte-identical), the patch ops, the legacy key and a spec without
     a vehicle word left as the same object;
   - the door's word, legacy type, tier and race-machine reads;
+  - the tier read, one case per read and the stamp (`tier-ride.test.js`);
+  - the ride at each tier: an assembled ride, its row's loft at the realistic tier, a loft-only row falling, and a row
+    nothing drives refused;
+  - end to end (`design-game.quick.test.js`, e2e tier): a realistic ride race stamped from the juice, its loft figure
+    and its rival's, the class's rule and the rig resolved, and a pickup by name; the assembled ride and the kart race
+    unchanged;
   - a scenery mint;
   - a loft minted at true dimensions and drawn by the world route;
   - a legacy mint's manifest unchanged.
-- **Seen:** nothing yet. The loft on the grid has passed the machine gate only; the eyes gate is open.
+- **The tier read** (`vehicle-registry/tier.js` `vehicleTierOf`): the fidelity a game's vehicles are drawn at, read
+  from what the game already says, the first that speaks winning:
+  - the game's own word (`quick.tier`);
+  - a realistic hero (the quick hero's, the book's or an adopted hero's `form: 'realistic'`);
+  - the juice's written drawing (form → realistic, voxel → toy);
+  - a shooter pole on the realistic side;
+  - a voxel kit (→ toy);
+  - a field of karts (→ toy);
+  - else stylised.
+
+  `stampedTier` gives what a new quick world is stamped with at mint, only when the read is not stylised. A world
+  minted before carries no tier and drives what it always drove.
+- **The realistic ride** (`vehicle-registry/ride.js` `rideOf`):
+  - **Choosing the build:** a quick game's `ride` names a registry row, by its assembled ride's key (car, coupe, van)
+    or by any row with a realistic loft (`ride: 'pickup'`, `'bus'`, `'box-truck'`; the door writes `'a pickup truck'`
+    as `'pickup'`). The game's `tier` picks the build: the assembled ride, minted as its sketch as before, or the
+    class's realistic loft.
+  - **The loft in the game:** a figure the world compiles in place (`figures: { ride: { loft: { class, seed } } }`,
+    `world-scene.js`, nothing to mint). It drives on its class's own physics row, which a quick `vehicle`, `tuning` and
+    `conditions` still override, and is chased by a camera scaled to its length (a ride's `camera`, `levels.js`). Its
+    rivals race in it.
+  - **When the tier has none:** a row with no build at the tier drives the nearest and says so (a pickup has only its
+    loft; a sedan has no toy build).
+  - **The loft's status:** `live` in the registry, so every road row with a loftable class is drawn realistic for its
+    driven use.
+  - The cargo van's row is `cargo-van` (the word "van" still names it in the registry), since the ride key `van` is the
+    minivan. A contract check holds that no row's id is another row's legacy ride key.
+- **Seen** (machine gate only; the eyes gate is open):
+  - The loft on the studio grid.
+  - In headless Chrome, three trail levels, each followed from behind with no page errors: a stylised game's assembled
+    car (as before), the same game at the realistic tier driving the midsize loft, and a pickup by name.
+  - The lofts are at true size, and their look is plain (baked light, slab panels): the look work is not this
+    wiring.
 - **Not built, said:**
   - **Phase 2, search and the gaps page:** a generated `docs/vehicle-gaps.md` (realm × era, the wants ranked) and
     per-row cards.
-  - **Phase 3, the tier read from the game** (`vehicleTierOf`: the realistic hero, the juice's drawing, the setting).
-  - **Phase 4:** the realistic loft driven as a quick game's ride, and the fly goal's body from the craft shelf.
+  - **Phase 4's other half:** the fly goal's body from the craft shelf.
+  - **The tier read's other inputs:** the setting's tradition and the levels' render era (gen-7). A gameworld's own
+    record does not carry the era, so it is left out rather than guessed.
+  - **Book worlds:** a vehicle word beside `quick` (`vehicles.tier`), with the fleet phases.
   - **Phase 5:** a civilization's technology vehicles resolved through the registry.
   - **Phase 6:** the city's traffic by tier.
   - **Phase 7:** the engines.
