@@ -35,7 +35,7 @@ import { netSkin, soundMesh, simplifyMesh, fieldNormals, closeHoles } from '../p
 import { smin, sdRoundCone } from '../polygonizer/vajra.js';
 import { PLAN_SCHEMA } from '../polygonizer/station-loft-plan.js';
 import { featureFace } from './feature-face.js';
-import { cutSkin, coatLayers, stroke, band } from './feature-coat.js';
+import { cutSkin, coatLayers, stroke, band, cells } from './feature-coat.js';
 import { measuresOf, rigOf, coatPalette } from './mascot-form.js';
 import { featureBuild } from './feature-grammar.js';
 import { resolveTune, detailBake } from './feature-tune.js';
@@ -215,7 +215,8 @@ function laidOut(build, height) {
     ...(m.eggs ? { eggs: m.eggs } : {}),
     ...(m.regions ? { regions: m.regions.map((E) => egg({ c: S(E.c), u: E.u, r: E.r.map((v) => v * h), e: E.e ?? 0, hint: E.hint, bone: null, group: m.group, join: 0 })) } : {}),
     ...(m.strokes ? { strokes: m.strokes.flatMap((x) => { const one = (pts) => stroke({ points: pts.map((p) => SH(p, m.on)), r: x.r.map((v) => r6(v * h)) }); return x.both ? [one(x.points), one(x.points.map(mirrorX))] : [one(x.points)]; }) } : {}),
-    ...(m.bands ? { bands: m.bands.map((B) => band({ c: S(B.c), axis: B.axis, w: B.w * h, R: B.R * h, teeth: B.teeth, depth: (B.depth ?? 0) * h })) } : {}) }));
+    ...(m.bands ? { bands: m.bands.map((B) => band({ c: S(B.c), axis: B.axis, w: B.w * h, R: B.R * h, teeth: B.teeth, depth: (B.depth ?? 0) * h, ...(B.arc ? { arc: B.arc } : {}) })) } : {}),
+    ...(m.cells ? { cells: m.cells.map((C) => cells({ seeds: C.seeds.map(S), line: C.line * h, top: C.top * h })) } : {}) }));
   const ell = (E) => ({ C: S(U0(E.C)), rx: r4(E.rx * h), ry: r4(E.ry * h), rz: r4(E.rz * h) });
   const mouth = build.mouth && { nose: S(U0(build.mouth.nose)), centre: S(U0(build.mouth.centre)), corner: S(U0(build.mouth.corner)), pivot: S(U0(build.mouth.pivot)), rise: build.mouth.rise * h, sag: build.mouth.sag * h };
   return { h, eggs, marks, mouth, seam: (build.seam ?? 0) * h, digits: digits.map((d) => ({ i: d.i, base: S(d.base), mid: S(d.mid), tip: S(d.tip) })), eye: { ...build.eye, r: build.eye.r * h }, J: Object.fromEntries(Object.entries(build.joints).map(([k, p]) => [k, S(p)])), hipZ: r4(build.hipZ * h), neckZ: r4(build.neckZ * h), top: r4((build.top + up) * h), H: ell(build.head), muzzle: ell(build.muzzle) };
@@ -261,7 +262,9 @@ function coatOf(skin, F, eggs, layers) {
 /** the palette's feature groups: a bird's plumage (its crown, its neck band, its tail's tip, its wing bars, its legs) and
  *  its own belly's colour, over the coat's palette */
 function featurePalette(pal, id, build) {
-  if (build.plan !== 'bird') return { ...pal, Sock: pal.Beak, Wing: pal.Body, Flight: pal.Body };
+  // (a coat's patches in their own colour, the roster's: a giraffe's brown, never the near-black of a mask)
+  const spot = build.marks?.some((m) => m.group === 'Spot') ? { Spot: speciesParams(id)?.colors?.ashAlt ?? pal.Patch } : {};
+  if (build.plan !== 'bird') return { ...pal, Sock: pal.Beak, Wing: pal.Body, Flight: pal.Body, ...spot };
   const P = plumageOf(id), C = speciesParams(id)?.colors ?? {}, own = build.belly !== 'none' && build.belly !== 'tuxedo' && C.belly;
   return { ...pal, ...wingTones(pal.Body, P), Sock: P.sock ?? pal.Beak, ...(P.crown ? { Crown: P.crown } : {}), ...(P.neck ? { Mane: P.neck } : {}), ...(P.bar ? { Bar: P.bar } : {}), ...(P.tip ? { Tip: P.tip } : {}), ...(own ? { Belly: C.belly } : {}) };
 }

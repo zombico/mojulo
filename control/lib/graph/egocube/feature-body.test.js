@@ -132,7 +132,7 @@ describe('the feature body', () => {
     expect(attachAll([a, egg({ ...b, c: [0, -0.35, 0.5], u: [0, -1, 0], r: b.r, join: 0.05 })]).moved).toHaveLength(0);
   });
 
-  it('a long neck turns at its top; a striped coat\'s rings are cut into the skin within the triangle budget', () => {
+  it('a long neck turns at its top; a striped coat\'s and a reticulated coat\'s markings are cut into the skin within the budget', async () => {
     const find = (pred) => Object.keys(SPECIES).find((id) => { try { return pred(animalCard(id).kit); } catch { return false; } });
     const g = mascotPlanFromSheet(rollMascot({ facets: { style: 'feature', animal: find((k) => k.neck === 'long') } })).create.spec.plan, J = g.rig.joints;
     const neckBone = J.headBase.at[2] - J.neckHub.at[2], headBone = J.headTop.at[2] - J.headBase.at[2];
@@ -141,7 +141,13 @@ describe('the feature body', () => {
     expect(z.segments.some((x) => x.name === 'stripes')).toBe(false);             // (a zone, no layer laid over the skin)
     expect(Object.values(z.segments.find((x) => x.name === 'skin').mesh.groups)).toContain('Patch');
     expect(z.segments.reduce((n, x) => n + Object.keys(x.mesh?.faces ?? {}).length, 0)).toBeLessThanOrEqual(FEATURE_TRIANGLES);
-  }, 120000);
+    // (a giraffe's network of patches: cut into the skin in its own colour, the roster's, within the budget)
+    const gid = find((k) => k.pattern === 'reticulated') ?? Object.keys(SPECIES).find((id) => PLAN_OF[SPECIES[id].family] === 'hoofed' && featureBuild(animalCard(id)).marks.some((m) => m.name === 'network'));
+    const gp = mascotPlanFromSheet(rollMascot({ facets: { style: 'feature', animal: gid } })).create.spec.plan;
+    expect(Object.values(gp.segments.find((x) => x.name === 'skin').mesh.groups)).toContain('Spot');
+    expect(gp.palette.Spot).toBe(SPECIES[gid] && (await import('../fauna/species.js')).speciesParams(gid).colors.ashAlt);
+    expect(gp.segments.reduce((n, x) => n + Object.keys(x.mesh?.faces ?? {}).length, 0)).toBeLessThanOrEqual(FEATURE_TRIANGLES);
+  }, 180000);
 
   it('every plan\'s skin is closed: a pinch the net lets go is fanned shut on the surface', () => {
     // (one species per plan, chosen in code; its minted skin: every edge two faces')

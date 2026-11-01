@@ -30,6 +30,7 @@ import { functional, speciesLimbs } from './feature-function.js';
 import { PHI, beakOf, beakParts, headOf, plumageOf, extentAlong } from './feature-birds.js';
 import { tunedSilhouette, detailClumps, sizesOf } from './feature-tune.js';
 import { tuftLocks } from './feature-tufts.js';
+import { mulberry32 } from '../vegetation/grow.js';
 
 const add = (a, b) => [a[0] + b[0], a[1] + b[1], a[2] + b[2]];
 const mul = (a, s) => [a[0] * s, a[1] * s, a[2] * s];
@@ -61,8 +62,16 @@ export const FEATURE_DECOR = Object.freeze({ tufts: 1, crown: 1, markings: 1, ho
  *  the soles) every `pitch` up the neck to `under` below the head (never across the face), at most `most`; their
  *  half-widths in a falling rhythm (`w`, cycled), each ring leaning a little the other way from the last (`lean`), its
  *  edges notched (`teeth` round it, `depth` deep), within `reach` of the body's axis (the arms and the legs striped with
- *  the trunk). Cut into the skin as a zone, a ring costs only the faces its edges split: within the triangle budget */
-export const FEATURE_STRIPES = Object.freeze({ from: 0.28, pitch: 0.32, most: 14, w: [0.09, 0.07, 0.1, 0.06], lean: 0.12, teeth: 8, depth: 0.025, reach: 2.4, under: 0.15 });
+ *  the trunk). Over the legs a stripe is a ring; above them it is an ARC as a body wears one: widest at the spine (the back's
+ *  middle), holding its width down each flank and pinching (`taper`: the later, the larger) to a point `end` degrees from it (180: the two meet under the belly,
+ *  a zebra's chevrons; a family may stop short, a cat's at its pale belly), its widths by `width`. Cut into the skin as
+ *  a zone, a stripe costs only the faces its edges split: within the triangle budget */
+export const FEATURE_STRIPES = Object.freeze({ from: 0.28, pitch: 0.32, most: 14, w: [0.09, 0.07, 0.1, 0.06], lean: 0.12, teeth: 8, depth: 0.025, reach: 2.4, under: 0.15, end: 180, taper: 4, width: 1 });
+
+/** A NETWORK of patches (a `reticulated` coat: a giraffe's): seeds on a jittered lattice (`pitch` apart, `jitter` of it,
+ *  out to `span` across and from `from` up to `under` below the head; the dice seeded, `seed`), each point the patch of its
+ *  nearest seed, the patches parted by lines `line` wide */
+export const FEATURE_NETWORK = Object.freeze({ from: 0.2, pitch: 0.64, jitter: 0.7, span: 1.4, line: 0.07, under: 0.15, seed: 7 });
 
 /** the families the style does not draw: a fish has no body to stand on or limbs to act with (a fish asked for in the
  *  style is drawn in the toon, mascot.js) */
@@ -106,11 +115,12 @@ export const FAMILY_TUNE = Object.freeze({
   rodent: { fingers: 'long', body: 0.95, head: 1.04 },
   ursine: { body: 1.05, tail: 'pom' },
   canine: { body: 0.86, belly: 'bib' },
-  feline: { body: 0.86, belly: 'underside' },
   mustelid: { body: 0.84 },
   leporid: { feet: 1.6, body: 0.92 },
   macropod: { feet: 1.8, body: 0.92 },
   giraffid: { legs: 1.5 },
+  // (a cat's stripes stop short of its pale belly, and are thinner than a zebra's)
+  feline: { body: 0.86, belly: 'underside', stripes: { end: 140, taper: 2.5, width: 0.8 } },
   // (a horse: its long face ending in a soft dark nose, a flowing mane falling to one side with a forelock, a long hair
   // tail, a head longer and narrower than a stander's; a deer: its antlers, its big ears out to the sides, a narrow snout
   // ending in a black nose over a pale chin)
@@ -137,7 +147,7 @@ export function speciesMeasures(id) {
 
 /** a species' own kit over its family card's, where its name is a feature the family's rule misses (the squirrel is its
  *  brush) or gets wrong (a hippo has no trunk; a great ape no tail) */
-export const SPECIES_KIT = Object.freeze({ zebra: { mane: 'crest', tail: 'tuft' }, donkey: { mane: 'crest', tail: 'tuft' }, squirrel: { tail: 'brush' }, hippo: { muzzle: 'wide' }, rhino: { muzzle: 'wide' }, gorilla: { tail: 'none' }, chimpanzee: { tail: 'none' }, orangutan: { tail: 'none' }, frog: { tail: 'none' }, toad: { tail: 'none' } });
+export const SPECIES_KIT = Object.freeze({ giraffe: { pattern: 'reticulated' }, zebra: { mane: 'crest', tail: 'tuft' }, donkey: { mane: 'crest', tail: 'tuft' }, squirrel: { tail: 'brush' }, hippo: { muzzle: 'wide' }, rhino: { muzzle: 'wide' }, gorilla: { tail: 'none' }, chimpanzee: { tail: 'none' }, orangutan: { tail: 'none' }, frog: { tail: 'none' }, toad: { tail: 'none' } });
 
 /** a wing's fold on a silhouette that is not a standing bird's (an owl's teardrop): back and down along the side */
 const WING_FOLD = unit([0.4, -0.55, -0.73]);
@@ -606,9 +616,25 @@ export function featureBuild(card, { decor = {}, tune = null } = {}) {
   // On an animal standing up, the stripes that run from its spine down its flank, and those round its legs, all run
   // round it; their widths in a falling rhythm, their edges notched so each ends in points)
   if (K.pattern === 'stripes' && D.markings > 0) {
-    const R = FEATURE_STRIPES, zTop = S.neckZ + headLift - R.under, n = Math.min(R.most, Math.floor((zTop - R.from) / R.pitch) + 1);
+    // (as a body wears them: each stripe from the spine (the back's middle on an animal standing up) round the flank to a
+    // point at the belly, widest at the spine; a zebra's points meet under it in chevrons, a cat's stop short of its pale
+    // belly (FAMILY_TUNE `stripes`); the legs' are rings round them)
+    const R = { ...FEATURE_STRIPES, ...(T.stripes ?? {}) }, zTop = S.neckZ + headLift - R.under, n = Math.min(R.most, Math.floor((zTop - R.from) / R.pitch) + 1);
+    const legTop = S.hip[2] - 0.1;
     // (cut into the skin as a zone along their exact edges, as a big marking is: no layer of faces laid over it)
-    B.marks.push({ name: 'stripes', group: 'Patch', cut: true, bands: Array.from({ length: n }, (_, i) => ({ c: [0, S.hy * 0.5, R.from + i * R.pitch], axis: unit([0, R.lean * (i % 2 ? 1 : -1), 1]), w: R.w[i % R.w.length], R: R.reach, teeth: R.teeth, depth: R.depth })) });
+    B.marks.push({ name: 'stripes', group: 'Patch', cut: true, bands: Array.from({ length: n }, (_, i) => {
+      const z = R.from + i * R.pitch, leg = z < legTop;
+      return { c: [0, S.hy * 0.5, z], axis: unit([0, R.lean * (i % 2 ? 1 : -1), 1]), w: R.w[i % R.w.length] * R.width, R: R.reach, teeth: R.teeth, depth: R.depth,
+        ...(leg ? {} : { arc: { back: [0, -1, 0], end: R.end, taper: R.taper } }) };
+    }) });
+  }
+  // (a NETWORK of patches, a giraffe's: big rounded polygons in the coat's own darker colour, parted by thin lines of the
+  // coat, over the body, the legs and the neck to under the head)
+  if (K.pattern === 'reticulated' && D.markings > 0) {
+    const N = FEATURE_NETWORK, rand = mulberry32(N.seed), top = S.neckZ + headLift - N.under, seeds = [];
+    for (let z = N.from; z <= top + N.pitch; z += N.pitch) for (let x = -N.span; x <= N.span + 1e-9; x += N.pitch) for (let y = -N.span; y <= N.span + 1e-9; y += N.pitch)
+      seeds.push([x + (rand() - 0.5) * N.jitter * N.pitch, y + (rand() - 0.5) * N.jitter * N.pitch, z + (rand() - 0.5) * N.jitter * N.pitch].map(r4));
+    B.marks.push({ name: 'network', group: 'Spot', cut: true, cells: [{ seeds, line: N.line, top }] });
   }
   if (ear?.inner) layers.push({ name: 'ears', group: 'EarInner', on: 'head', strokes: [{ both: true, points: ear.inner.map(onHead), r: ear.ir }] });
   if (tl.rings && T.rings) layers.push({ name: 'rings', group: 'Patch', levels: 0, bands: tl.rings.map(([c, axis, w, R]) => ({ c, axis, w, R, teeth: 9, depth: 0.035 })) });

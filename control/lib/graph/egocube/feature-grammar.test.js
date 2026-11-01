@@ -155,7 +155,23 @@ describe('the feature grammar', () => {
     expect(rings.cut).toBe(true); expect(rings.bands.length).toBeGreaterThanOrEqual(8);
     const headBase = z.neckZ + z.headLift;
     for (const B of rings.bands) expect(B.c[2]).toBeLessThan(headBase);         // (never across the face)
+    // (as a body wears them: over the legs rings, above them arcs from the spine (the back) round each flank to a point
+    // at the belly; a cat's stop short of its pale belly)
+    const legs = rings.bands.filter((B) => B.c[2] < z.joints.hip[2] - 0.1), body = rings.bands.filter((B) => B.c[2] >= z.joints.hip[2] - 0.1);
+    expect(legs.length).toBeGreaterThan(0); for (const B of legs) expect(B.arc).toBeUndefined();
+    expect(body.length).toBeGreaterThan(2); for (const B of body) { expect(B.arc.back).toEqual([0, -1, 0]); expect(B.arc.end).toBeGreaterThan(90); }
+    const stripedOf = (pred) => Object.keys(SPECIES).find((id) => { try { return pred(SPECIES[id].family) && animalCard(id).kit.pattern === 'stripes'; } catch { return false; } });
+    const endOf = (id) => featureBuild(animalCard(id)).marks.find((m) => m.name === 'stripes').bands.find((B) => B.arc).arc.end;
+    const cat = stripedOf((f) => f === 'feline'), other = stripedOf((f) => f !== 'feline');
+    if (other) expect(endOf(other)).toBe(180);                                    // (a zebra's meet under it)
+    if (cat) expect(endOf(cat)).toBeLessThan(180);                                // (a cat's stop short of its pale belly)
     expect(featureBuild(animalCard(striped), { decor: { markings: 0 } }).marks.some((m) => m.name === 'stripes')).toBe(false);
+    // (a reticulated coat: a network of patches in its own colour, below the head)
+    const net = Object.keys(SPECIES).find((id) => { try { return featureBuild(animalCard(id)).marks.some((m) => m.name === 'network'); } catch { return false; } });
+    const nb = featureBuild(animalCard(net)), mk = nb.marks.find((m) => m.name === 'network');
+    expect(mk).toMatchObject({ group: 'Spot', cut: true }); expect(mk.cells[0].seeds.length).toBeGreaterThan(20);
+    expect(mk.cells[0].top).toBeLessThan(nb.neckZ + nb.headLift);
+    expect(featureBuild(animalCard(net)).marks.find((m) => m.name === 'network').cells[0].seeds).toEqual(mk.cells[0].seeds);   // (seeded: the same every time)
   });
 
   it('a bird rests open and bright: its default face a bright one, its lids more open and its brows higher, every clip the same', () => {

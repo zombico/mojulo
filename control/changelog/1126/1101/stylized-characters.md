@@ -123,6 +123,17 @@ member, a quick game's hero). Code: `control/lib/graph/egocube/feature-tune.js`.
     edges are notched.
   - The stripes are cut into the skin as a zone along their exact edges, not laid over it as a layer. So a zebra stays
     within the game model's triangle budget: 17,434 triangles, where the layer would have taken it to 24,767.
+- **Stripes as a body wears them, and the giraffe's patches.** The rings went all the way round. Real stripes start at
+  the spine and end at the belly. Now:
+  - each body stripe starts at the spine (on an animal standing up, the middle of its back) and runs round each flank,
+    widest at the spine, holding its width and pinching late to a point at the belly (an `arc` on the coat's `band`);
+  - a zebra's points meet under it in chevrons, and a cat's (the tiger's) stop short of its pale belly and are
+    thinner (FAMILY_TUNE `stripes`);
+  - over the legs a stripe stays a ring.
+- **The giraffe's patches.** A new `reticulated` coat is a network of big rounded patches parted by thin lines of the
+  coat (`FEATURE_NETWORK`, the coat's `cells`). The seeds sit on a jittered lattice from seeded dice, and the patches
+  take the roster's own brown (`Spot`), over the body, legs and neck to under the head. It is cut into the skin as a
+  zone, the patches sized to keep the giraffe within budget (17,831 triangles).
 - **QA.** `scripts/spikes/feature-roster.mjs` takes `--tune` (every species minted with it) and `--tunes` (each species
   once per tune, side by side).
 - **Stored mascots keep their look.** A minted mascot stores its compiled plan. An untuned sheet compiles as before,
@@ -144,8 +155,10 @@ member, a quick game's hero). Code: `control/lib/graph/egocube/feature-tune.js`.
     broader than deep; its default face rolled bright, its resting lids and brows higher, its brows' clips unchanged;
   - a frog sitting on its own all fours (hands planted, webbed feet on its ankles, eyes on domes, its own muzzle);
     every plan's minted skin closed and in one piece, and every family's shapes attached (`feature-body.test.js`);
-  - a long neck slim under its raised head and turning at its top; a striped coat's rings from the feet to under the
-    jaw, cut into the skin within the budget, the markings' dial still ruling them;
+  - a long neck slim under its raised head and turning at its top; a striped coat's stripes from the feet to under
+    the jaw (rings on the legs, arcs from the spine to the belly above them, a cat's stopping short), and a giraffe's
+    seeded network of patches in its own colour, both cut into the skin within the budget, the markings' dial still
+    ruling them;
   - a horse's long face, flowing mane, forelock and hair tail, and a deer's antlers, side-set ears and pale chin, with
     the dials still ruling them;
   - a head tuft worn by every plan in place of the crown, each card's locks rooted in the skull and standing out of it,
@@ -155,5 +168,4 @@ member, a quick game's hero). Code: `control/lib/graph/egocube/feature-tune.js`.
 **Known.**
 
 - The gen7 look is vertex-baked light and denser geometry. The fur has no normal map yet: the skin has no UVs.
-- The giraffe has no coat pattern yet (its patches), so it reads by its neck and ossicones alone.
 - The moose wears the deer's branching antlers, not its own broad ones.

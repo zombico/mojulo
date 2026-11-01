@@ -156,13 +156,22 @@ A bird is told by its own beak, its plumage and its wings, all read from the ros
 - **The side silhouette is golden.** The tail, the head and the body (the beak apart) fall as 1 : φ : φ²: the head is
   sized to the body's length over φ, and the tail's fan reaches past the body by the head's length over φ.
 
-## Stripes
+## Stripes and patches
 
-A `stripes` coat (a zebra's, a tiger's) is bold RINGS round the standing figure (`FEATURE_STRIPES`): on an animal stood
-up, the stripes that run from its spine down its flank and those round its legs all run round it. They go from the feet
-up the neck to just under the head (never across the face), their widths in a falling rhythm, each ring leaning a little
-the other way from the last, their edges notched. They are CUT into the skin as a zone (a big marking is: principle 6),
-so they cost only the faces their edges split and a striped animal stays within the triangle budget.
+A `stripes` coat (a zebra's, a tiger's) is worn as a body wears it (`FEATURE_STRIPES`). Each stripe starts at the SPINE
+(on an animal standing up, the middle of its back), runs round each flank and ends in a point at the belly: widest at the
+spine, holding its width down the flank and pinching late (`taper`). A zebra's points meet under it in chevrons
+(`end` 180°); a cat's stop short of its pale belly (FAMILY_TUNE `stripes`: end 140°, thinner). Over the legs a stripe is
+a ring round them. The stripes go from the feet up the neck to just under the head, never across the face; their widths
+fall in rhythm, each leans a little the other way from the last, and their edges are notched.
+
+A `reticulated` coat (a giraffe's) is a NETWORK of patches (`FEATURE_NETWORK`): seeds on a jittered lattice (seeded
+dice), each point of the skin the patch of its nearest seed, the patches parted by thin lines of the coat. The patches
+are in the coat's own darker colour from the roster (the `Spot` group), never a mask's near-black; they cover the body,
+the legs and the neck to under the head.
+
+Both are CUT into the skin as zones (a big marking is: principle 6), so they cost only the faces their edges split, and
+their sizes are set so a striped or patched animal stays within the triangle budget.
 
 ## Bellies
 
