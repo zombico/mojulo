@@ -6,11 +6,14 @@
  *
  * A codename names a body, not a head: any anime head wears any body of its pole, the style's head size kept (a body's
  * tune names every body word but `head`). Toji and Mizuki are the base, the grown martial hero's (Z-Fighter's body, so a
- * Z-Fighter hero reads as it did); Satoru and Maki the slim; Armstrong and Kale the hulking.
+ * Z-Fighter hero reads as it did); Satoru and Maki the slim; Armstrong and Kale the hulking. SHONEN HIGH is the lead's
+ * lean body, the anime frame's default (Shonen High's own, either pole, its tune read from the style so the two never
+ * part), named so a game can put it under any head; its muscular form wears the base card, as the default body does.
  *
  * The door stores the word beside a RESOLVED stamp (`animeBodyResolved`), so a later retune here never moves a stored
  * row until its word is set again. Pure data and resolvers; no dice. */
 import { resolveTune } from './hero-form.js';
+import { ANIME_STYLES } from './anime-styles.js';
 
 /** the base, a grown martial hero's: a tall, heavy frame, the neck short and thick into the trapezius (Z-Fighter's
  * male body, its head's size left to the style) */
@@ -39,6 +42,8 @@ export const ANIME_BODIES = Object.freeze({
   maki: Object.freeze({ pole: 'female', note: 'slim: an athlete, a square shoulder, a held waist, full thighs and calves', tune: MAKI, card: 'maki' }),
   armstrong: Object.freeze({ pole: 'male', note: 'hulking: a strongman-bodybuilder\'s mass, the neck buried in the yoke, the arms and the legs massive', tune: ARMSTRONG, card: 'armstrong' }),
   kale: Object.freeze({ pole: 'female', note: 'hulking: a powerhouse, broad in the shoulder and the hip, the arms and the legs massive', tune: KALE, card: 'kale' }),
+  // (either pole: its tune by the hero's)
+  'shonen-high': Object.freeze({ pole: null, note: 'the lead\'s lean body, the anime frame\'s default: long in the leg, a V on the male, slim on the female', tune: Object.freeze({ male: ANIME_STYLES['shonen-high'].male.tune, female: ANIME_STYLES['shonen-high'].female.tune }), card: 'saikyo' }),
 });
 export const ANIME_BODY_NAMES = Object.freeze(Object.keys(ANIME_BODIES));
 
@@ -47,14 +52,19 @@ export function validateAnimeBody(spec, pole = null, label = 'animeBody') {
   if (spec === undefined || spec === null) return [];
   const B = typeof spec === 'string' ? ANIME_BODIES[spec] : null;
   if (!B) return [`${label}: one of ${ANIME_BODY_NAMES.join(', ')} (a body codename, its simplified form a tune and its muscular form the muscleShirt over the same base; ${ANIME_BODY_NAMES.map((n) => `${n} (${ANIME_BODIES[n].pole}): ${ANIME_BODIES[n].note}`).join('; ')})`];
-  if (pole && pole !== B.pole) return [`${label}: ${spec} is a ${B.pole} body; the ${pole}'s are ${ANIME_BODY_NAMES.filter((n) => ANIME_BODIES[n].pole === pole).join(', ')}`];
+  if (pole && B.pole && pole !== B.pole) return [`${label}: ${spec} is a ${B.pole} body; the ${pole}'s are ${ANIME_BODY_NAMES.filter((n) => ANIME_BODIES[n].pole === pole).join(', ')}`];
   return [];
 }
-/** The stamp the door stores beside the word: its pole, its tune resolved (every body word), its card's word */
-export function resolveAnimeBody(word) {
+/** The stamp the door stores beside the word: its pole, its tune resolved (every body word), its card's word. A body of
+ * either pole takes the hero's (`pole`, male when absent). */
+export function resolveAnimeBody(word, pole = null) {
   const B = ANIME_BODIES[word]; if (!B) throw new Error(validateAnimeBody(word)[0]);
-  const { from: _f, head: _h, ...tune } = resolveTune([B.tune]);
-  return { word, pole: B.pole, tune, card: B.card };
+  const { from: _f, head: _h, ...tune } = resolveTune([B.pole ? B.tune : B.tune[pole === 'female' ? 'female' : 'male']]);
+  return { word, pole: B.pole ?? (pole === 'female' ? 'female' : 'male'), tune, card: B.card };
 }
+/** the hero's pole as a body reads it: its cast word, or its build's pole */
+export const animePoleOf = (hero) => { const c = hero?.cast; const p = typeof c === 'string' ? c : c?.pole; return p === 'female' ? 'female' : 'male'; };
+/** does a hero's stamp stand for its word (and, for a body of either pole, its pole)? */
+export const animeBodyStamped = (hero) => hero?.animeBodyResolved?.word === hero?.animeBody && (ANIME_BODIES[hero.animeBody]?.pole || hero.animeBodyResolved.pole === animePoleOf(hero));
 /** a hero's resolved body, or null */
 export const animeBodyOf = (hero) => (hero?.animeBody && hero.animeBodyResolved?.word === hero.animeBody ? hero.animeBodyResolved : null);

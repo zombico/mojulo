@@ -12,7 +12,7 @@ const mint = (spec) => expandLayeredManifest({ kind: 'layered', hero: heroRecord
 
 describe('the body codenames', () => {
   it('names each body a pole and a card the shirt knows, and refuses a word, a pole or a head that is not its', () => {
-    for (const n of ANIME_BODY_NAMES) { expect(['male', 'female']).toContain(ANIME_BODIES[n].pole); expect(validateMuscleCard(MUSCLE_CARDS[ANIME_BODIES[n].card])).toEqual([]); }
+    for (const n of ANIME_BODY_NAMES) { expect(['male', 'female', null]).toContain(ANIME_BODIES[n].pole); expect(validateMuscleCard(MUSCLE_CARDS[ANIME_BODIES[n].card])).toEqual([]); }
     expect(validateAnimeBody('satoru', 'male')).toEqual([]);
     expect(validateAnimeBody('satoru', 'female')[0]).toMatch(/male body/);
     expect(validateAnimeBody('gojo')[0]).toMatch(/one of/);
@@ -23,6 +23,15 @@ describe('the body codenames', () => {
       expect(mint({ animeStyle: 'z-fighter', cast, animeBody: body }).parts).toEqual(mint({ animeStyle: 'z-fighter', cast }).parts);
     }
   });
+  it('names Shonen High\'s body, either pole: the default drawn as it was, and under another head the lead\'s lean body', () => {
+    const half = (r) => Math.abs((r.rig.joints.shoulderR.at ?? r.rig.joints.shoulderR)[0]);
+    for (const cast of ['male', 'female']) {
+      expect(mint({ cast, animeBody: 'shonen-high' }).parts).toEqual(mint({ cast }).parts);
+      const zf = mint({ animeStyle: 'z-fighter', cast, animeBody: 'shonen-high' });
+      expect(half(zf)).toBeCloseTo(half(mint({ cast })), 3);
+      expect(heroRecord(withDefaultForm({ head: 'anime', cast, animeBody: 'shonen-high' })).animeBodyResolved.pole).toBe(cast);
+    }
+  }, 120000);
   it('lays the slim body over any head: Satoru narrower than Toji, broader in the shoulder than Shonen High\'s own', () => {
     const half = (r) => Math.abs((r.rig.joints.shoulderR.at ?? r.rig.joints.shoulderR)[0]);
     const satoru = mint({ animeStyle: 'shonen-high', animeBody: 'satoru' }), toji = mint({ animeStyle: 'shonen-high', animeBody: 'toji' }), sh = mint({ animeStyle: 'shonen-high' });

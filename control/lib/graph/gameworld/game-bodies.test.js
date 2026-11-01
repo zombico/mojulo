@@ -48,11 +48,20 @@ describe('the body rails', () => {
       if (B.spec.animeBody) expect(hero.animeBodyResolved.pole).toBe(pole);
     }
   }, 240000);
+  it('puts the muscle shirt on only when asked: the role\'s definition, or the world\'s; a western body has none to put on', () => {
+    expect(gameBody('muscular', 'hero', { tradition: 'anime' }).spec.muscleShirt).toBeUndefined();
+    expect(gameBody('muscular', 'hero', { tradition: 'anime', muscle: true }).spec.muscleShirt).toEqual({ definition: 1 });
+    expect(gameBody('comic', 'hero', { tradition: 'anime', muscle: 0.2 }).spec.muscleShirt).toEqual({ definition: 0.2 });
+    expect(gameBody('muscular', 'hero', { tradition: 'western', muscle: true }).spec.muscleShirt).toBeUndefined();
+    expect(gameBody('realistic', 'hero', { tradition: 'anime', pole: 'female' }).spec.animeBody).toBe('shonen-high');
+  });
   it('reads a body word: a rail, the game\'s, or a rail in a style', () => {
     expect(readBodyWord('comic')).toBe('comic');
     expect(readBodyWord('game')).toBe('game');
     expect(readBodyWord({ rail: 'mascot', style: 'lowpoly' })).toEqual({ rail: 'mascot', style: 'lowpoly' });
     expect(() => readBodyWord('hulk')).toThrow(/body rail/);
     expect(() => readBodyWord({ rail: 'game', style: 'ink' })).toThrow(/name the rail/);
+    expect(readBodyWord({ rail: 'game', muscle: true })).toEqual({ rail: 'game', muscle: true });
+    expect(() => readBodyWord({ rail: 'comic', muscle: 2 })).toThrow(/definition 0 to 1/);
   });
 });

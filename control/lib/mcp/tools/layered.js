@@ -85,7 +85,7 @@ import { ANIME_HAIR_STYLES } from '@/lib/graph/polygonizer/anime-head';
 import { validateGenki, genkiStand } from '@/lib/graph/polygonizer/anime-genki';
 import { ANIME_STYLE_NAMES, validateAnimeStyle, resolveAnimeStyle, animeStyleOf } from '@/lib/graph/polygonizer/anime-styles';
 import { muscleShirt, validateMuscleShirt } from '@/lib/graph/musculature';
-import { ANIME_BODY_NAMES, validateAnimeBody, resolveAnimeBody } from '@/lib/graph/polygonizer/anime-bodies';
+import { ANIME_BODY_NAMES, validateAnimeBody, resolveAnimeBody, animePoleOf, animeBodyStamped } from '@/lib/graph/polygonizer/anime-bodies';
 import { LOOK_TABLES, validateLook, resolveLook, composeAnime, heroHeadPole as headPoleOf, animeHeroEffective as animeEffective, animeFaceBase, animeSculptBase, animeBodySmooth, castHeadPole as castHeadPoleOf, heroFeatureAdvice, heroHairPole } from '@/lib/graph/polygonizer/anime-looks';
 import { ANIME_SCULPT, ANIME_SCULPT_KEYS, SCULPT_SHAPE_KEYS, validateAnimeSculpt, resolveAnimeSculpt, sparseSculpt, animeSculptWarnings, describeAnimeSculpt } from '@/lib/graph/polygonizer/anime-sculpt';
 import { layeredStats, persistedLayeredLedger } from '@/lib/graph/polygonizer/station-loft-faces';
@@ -794,7 +794,7 @@ export function normalizeHero(hero) {
   else if (hero.animeStyleResolved?.word !== hero.animeStyle) hero = { ...hero, animeStyleResolved: resolveAnimeStyle(hero.animeStyle) };
   // (the body codename's stamp as the style's: set again when its word changes, dropped when the word is)
   if (hero.animeBody === undefined || hero.animeBody === null) { if (hero.animeBody !== undefined || hero.animeBodyResolved !== undefined) { const { animeBody: _a, animeBodyResolved: _b, ...rest } = hero; hero = rest; } }
-  else if (hero.animeBodyResolved?.word !== hero.animeBody) hero = { ...hero, animeBodyResolved: resolveAnimeBody(hero.animeBody) };
+  else if (!animeBodyStamped(hero)) hero = { ...hero, animeBodyResolved: resolveAnimeBody(hero.animeBody, animePoleOf(hero)) };
   const words = hero.look === undefined || hero.look === null ? [] : Array.isArray(hero.look) ? hero.look : [hero.look];
   if (!words.length) { if (hero.look === undefined && hero.lookResolved === undefined) return hero; const { look: _l, lookResolved: _r, ...rest } = hero; return rest; }
   if (hero.lookResolved && JSON.stringify(hero.lookResolved.words) === JSON.stringify(words)) return Array.isArray(hero.look) ? hero : { ...hero, look: words };
@@ -1287,7 +1287,7 @@ export function heroRecord(spec, { staleScale = false } = {}) {
     if (words.length) Object.assign(hero, { look: [...words], lookResolved: resolveLook(words) });
     // the style pole: its word beside its stamp (anime-styles.js), so a re-tuned style never moves this row
     if (spec.animeStyle) Object.assign(hero, { animeStyle: spec.animeStyle, animeStyleResolved: resolveAnimeStyle(spec.animeStyle) });
-    if (spec.animeBody) Object.assign(hero, { animeBody: spec.animeBody, animeBodyResolved: resolveAnimeBody(spec.animeBody) });
+    if (spec.animeBody) Object.assign(hero, { animeBody: spec.animeBody, animeBodyResolved: resolveAnimeBody(spec.animeBody, animePoleOf(hero)) });
     // the graphic face: SPARSE (the words that differ from the base; absent when none, so the default is read at plan
     // time and never stored); `false` (the studio's face) is stored
     if (spec.sculpt !== undefined && spec.sculpt !== null) { const sc = sparseSculpt(resolveAnimeSculpt(spec.sculpt)); if (sc !== null) hero.sculpt = sc; }
