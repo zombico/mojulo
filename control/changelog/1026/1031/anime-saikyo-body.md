@@ -176,13 +176,27 @@ fractal articulation of the big groups. The eyes gate is the operator's.
   the move's cap, held flat there); and the shells under the arm's skin are tucked in proportion to the arm's girth
   over Toji's (`UNDER_GIRTH`: Armstrong's web stood level with the arm's dome). Mizuki's rectus sheet is held short
   and raised (its lower end had stood on her lower belly as a pair of blocks, the plainer on Kale).
-- **What is worn over the shirt** (found merging with the anime-7g consolidation, which carries the dressing work): every
-  garment, kit and adornment is built from the plain body before the shirt runs, so over a muscled body cloth is
-  pierced by the muscles and its hems and boots stay where the lengthened legs no longer are. An adornment (`adorn`: the
-  ranger's kit, armour) and a clothed detail (`detail: 'clothed'`, its creases) are pinned to the body's faces, which the
-  shirt re-samples, and failed to build: the door now refuses a muscle shirt with either, by name. An outfit, a kit,
-  paint and gear build with it (fitted to the body under the shirt); dressing the muscled body is its own next step.
-- **The legs lengthened** (the operator's: the hands and the feet grown with the arms and the legs read the figure
+- **The clothes over the shirt** (the operator's: "the muscular figures are literally ripping through their shirts";
+  found merging with the anime-7g consolidation, which carries the dressing work; `passes.js` `clothedOver`,
+  `garmentDense`, `repinned`): every garment, kit and adornment is built from the plain body before the shirt runs, so
+  the muscles came through the cloth, hems and boots stayed where the lengthened legs no longer were, and anything pinned
+  to the body's faces (an adornment, a clothed detail's creases, a stud on a shirt) failed to build. Now the shirt
+  dresses its own body:
+  - **Fitted over the muscle**: each garment (`<piece>_<part>`, its body part named, `CLOTH_OVER` the shells its cloth
+    lies over there) is re-sampled at the shirt's grain (between its own coarse rings a flat face had cut under the
+    muscle's bumps; its run taken from 0, a vest's started at 1.4 and folded inside out) and each point carried out along
+    its ring's ray over the muscled skin under it, keeping the room it had over the plain body (at least 4 mm, at most
+    2 cm: a layer keeps its order over another, a loose one is pushed only where the muscle comes within its room). The
+    highest muscle within 2.5 cm to the side holds the cloth, so a groove narrower than the cloth's span is bridged.
+  - **A skirt hangs**: a closed shell down its outside and back up its inside; its outside falls straight from its widest
+    point (each ring at least as far out as the one over it), its inside carried out with it, keeping its thickness.
+  - **With the legs, the hands and the feet**: a garment on a leg stretches with it, a shoe or a glove grows with the
+    foot or the hand.
+  - **The body's flex on the cloth**: each garment point takes the corrective offsets of the body point under it.
+  - **Pins found again**: a pinned part's place on its parent as it was found on the parent re-sampled, the nearest face
+    and its weights, so it rides where the shirt carried that face. An adornment and a clothed detail are worn with the
+    shirt again.
+- **The legs lengthened**- **The legs lengthened** (the operator's: the hands and the feet grown with the arms and the legs read the figure
   stocky; `passes.js` `lengthened`, a card's `legs`, the Saikyo cards' 1.06): the leg's shells, its joints and the pelvis
   stretched up from the ankle to the hip joint, everything over the hip lifted by as much (about 5 cm), so the soles stay
   on the ground and the figure stands taller in the legs, where a heroic figure takes its height; the hanging hands lift
@@ -226,7 +240,7 @@ fractal articulation of the big groups. The eyes gate is the operator's.
   joints scaled about the wrist; the soles on the ground as the feet grow; the nipples only when asked; a bend driver none straight and
   whole at full; a corrective a side per acting joint, the left the right's mirror, nothing at rest, each joint its own;
   the biceps' front bunched; none with the activity off; raised overhead, held out and forward, the shoulder's
-  shells folding no more than the flat body's; the cone as it was; the nipples on the mid-clavicular line; a mass meeting the skin square on climbed in a ramp; a point past the cap held at it; a limb's shells worn by its own groups only; a hidden shell kept under the one over it, only ever pulled in; the hip joined, the pelvis wrapping both thighs to the level, its sides bound as the thighs are; a hip corrective a side, the cheeks spread from the midline; the legs lengthened with the soles on the ground and the hands and the head not grown; the female card valid and named by the cast, her bust one level and held across the dial, no male fans under it; a joint's bridge welded ring to ring and the wrist most of the hand's width; deterministic; the door stores the word and refuses it by name.
+  shells folding no more than the flat body's; the cone as it was; the nipples on the mid-clavicular line; a mass meeting the skin square on climbed in a ramp; a point past the cap held at it; a limb's shells worn by its own groups only; a hidden shell kept under the one over it, only ever pulled in; the hip joined, the pelvis wrapping both thighs to the level, its sides bound as the thighs are; a hip corrective a side, the cheeks spread from the midline; dressed in an outfit, an adornment or a clothed detail it builds, no point of the arm through the sleeve, the elbow's flex on the sleeve; the legs lengthened with the soles on the ground and the hands and the head not grown; the female card valid and named by the cast, her bust one level and held across the dial, no male fans under it; a joint's bridge welded ring to ring and the wrist most of the hand's width; deterministic; the door stores the word and refuses it by name.
 
 #### The anime frame (hero laws 22): the wrist, the shoe's heel and the clavicle
 

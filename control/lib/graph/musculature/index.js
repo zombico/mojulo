@@ -9,9 +9,11 @@
  * (their joints with them), the nipples drawn when asked, and nothing else touched (the head, the clips). Pure and
  * deterministic. */
 import { MUSCLE_CARDS, MUSCLE_CARD_NAMES, validateMuscleCard } from './cards.js';
-import { densify, grainOf, frames, seatMass, displace, symmetrize, mirrorPart, mirrorEgg, girthOf, handsScaled, feetScaled, nipplesOn, activeMass, offsetsOf, domeKeys, endsInside, keptInOrder, UNDER_GAP, taperedTo, endsMeeting, welded, hipWrapped, hipHidden, lengthened } from './passes.js';
+import { swapRL } from '../polygonizer/body-relational-resample.js';
+import { loftPart } from '../polygonizer/station-loft.js';
+import { densify, grainOf, frames, seatMass, displace, symmetrize, mirrorPart, mirrorEgg, girthOf, handsScaled, feetScaled, nipplesOn, activeMass, offsetsOf, domeKeys, endsInside, keptInOrder, UNDER_GAP, taperedTo, endsMeeting, welded, hipWrapped, hipHidden, lengthened, clothSamples, clothedOver, repinned, garmentDense } from './passes.js';
 import { HAND_SHARE, FOOT_SHARE, NIPPLE, ACTIVITY_JOINTS, WRIST_FROM } from './principles.js';
-import { skinOf, sideOf, TAKEN_OFF, TUCK, DOMES, UNDER, UNDER_GIRTH, OVER, ABUT, handParts, handJoints, handRamp, footParts, footJoints, legParts, legJoint } from './adapters/loft.js';
+import { skinOf, sideOf, TAKEN_OFF, TUCK, DOMES, UNDER, UNDER_GIRTH, OVER, ABUT, handParts, handJoints, handRamp, footParts, footJoints, legParts, legJoint, garmentBase, CLOTH_OVER } from './adapters/loft.js';
 
 export { MUSCLE_CARDS, MUSCLE_CARD_NAMES, validateMuscleCard } from './cards.js';
 export { FORM_GAIN, DETAIL_GAIN, BLEND, presence, articulation } from './principles.js';
@@ -180,7 +182,30 @@ export function muscleShirt(recipe, spec, { cast = null, card: bodyCard = null }
   for (const [rn, ln] of Object.entries(skin.left)) if (out[rn]) out[ln] = mirrorPart(out[rn], typeof recipe.parts[ln].bind === 'string' ? { ...recipe.parts[ln], bind: { bone: recipe.parts[ln].bind } } : recipe.parts[ln]);
   // the recipe: the skin replaced, the pectoral layer off, the dials' station blends carried by u (as the form field's
   // slice carries them), the body's rounding dropped (the shirt's grain is its own rounding)
-  const worn = Object.fromEntries(Object.entries(recipe.parts).filter(([n]) => !TAKEN_OFF.test(n)).map(([n, p]) => [n, out[n] ?? p]));
+  const worn0 = Object.fromEntries(Object.entries(recipe.parts).filter(([n]) => !TAKEN_OFF.test(n)).map(([n, p]) => [n, out[n] ?? p]));
+  // THE CLOTHES OVER THE SHIRT (passes.js clothedOver): each garment, built from the plain body, carried out over the
+  // muscled skin under it (its part's, and the shells beside it there: CLOTH_OVER); a left one by the right's samples,
+  // mirrored. And the body's correctives ride onto the cloth, each garment point the offset of the body point under it
+  const sampleSets = new Map(), samplesOf = (over) => {
+    const k = over.join(','); if (sampleSets.has(k)) return sampleSets.get(k);
+    const pairs = over.flatMap((o) => [o, `${o}R`]).filter((n) => dense[n] && out[n]).map((n) => [n, dense[n], out[n]]);
+    const S = pairs.length ? clothSamples(pairs) : null; sampleSets.set(k, S); return S;
+  };
+  const worn = { ...worn0 }, clothed = [], clothFlat = {};
+  for (const [n, G] of Object.entries(worn0)) {
+    const b = G.stations && garmentBase(n); if (!b) continue;
+    const { base, side } = sideOf(b), S = samplesOf(CLOTH_OVER[base] ?? [base]); if (!S) continue;
+    // (re-sampled at the shirt's grain first: between its own coarse rings a flat face cut under the muscle's bumps)
+    // (a skirt is a hull hung round the legs, not a tube on one part: fitted on its own rings, its seat's room its own)
+    const D = /_skirt$/.test(n) ? G : garmentDense(G.bind ? G : { ...G, bind: { bone: base } }, { ...grainOf(G, grain), grain, domes: [] });
+    if (D !== G) clothFlat[n] = D;
+    const { part, on } = clothedOver(D, S, { mirror: side === 'L', hangs: /_skirt$/.test(n) });
+    worn[n] = part; clothed.push([n, on, side === 'L']);
+  }
+  const counterpart = (key) => { const [pn, rest] = key.split('/'), [st, sl] = rest.split('.'), { base, side } = sideOf(pn); return side === 'R' ? `${base}L/${st}.${swapRL(sl)}` : `${pn}/${st}.${swapRL(sl)}`; };
+  for (const c of correctives) for (const [n, on, left] of clothed) for (const [id, key] of Object.entries(on)) {
+    const o = c.d[left ? counterpart(key) : key]; if (o) c.d[`${n}/${id}`] = o;
+  }
   // 5. THE HANDS after the arms: about each wrist by the card's `hands`, else HAND_SHARE of the forearm's growth in girth
   const fore = recipe.parts.foreArmR && out.foreArmR ? girthOf(out.foreArmR) / girthOf(recipe.parts.foreArmR) : 1;
   const hands = r6(typeof card.hands === 'number' ? card.hands : Math.max(1, 1 + HAND_SHARE * (fore - 1)));
@@ -196,8 +221,13 @@ export function muscleShirt(recipe, spec, { cast = null, card: bodyCard = null }
   const feet = r6(typeof card.feet === 'number' ? card.feet : Math.max(1, 1 + FOOT_SHARE * (shank - 1)));
   const FS = feetScaled(H.parts, H.rig, feet, footParts, footJoints);
   // 7. THE LEGS LENGTHENED by the card's `legs`: the feet on the ground, the body taller in the legs
-  const { parts, rig } = lengthened(FS.parts, FS.rig, card.legs ?? 1, legParts, legJoint);
-  const gone = Object.keys(recipe.parts).filter((n) => TAKEN_OFF.test(n)), done = Object.keys(out);
+  const LG = lengthened(FS.parts, FS.rig, card.legs ?? 1, legParts, legJoint), rig = LG.rig;
+  // 8. THE PINS RE-ADDRESSED (passes.js repinned): every pinned part on a part the shirt re-sampled (an adornment, a
+  // crease, a stud on a garment) found again on it, where it was, so it rides where the shirt carried its face
+  const flat = { ...dense, ...clothFlat };
+  for (const [rn, ln] of Object.entries(skin.left)) if (dense[rn]) flat[ln] = mirrorPart(dense[rn], typeof recipe.parts[ln].bind === 'string' ? { ...recipe.parts[ln], bind: { bone: recipe.parts[ln].bind } } : recipe.parts[ln]);
+  const parts = repinned(LG.parts, recipe.parts, flat, loftPart);
+  const gone = Object.keys(recipe.parts).filter((n) => TAKEN_OFF.test(n)), done = [...Object.keys(out), ...Object.keys(clothFlat)];
   const dials = structuredClone(recipe.dials || {});
   for (const dl of Object.values(dials)) {
     if (Array.isArray(dl.parts)) dl.parts = dl.parts.filter((p) => !gone.includes(p));

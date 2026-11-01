@@ -203,12 +203,31 @@ describe('the legs lengthened', () => {
   });
 });
 
-describe('the shirt and what is worn over it', () => {
-  it('refuses an adornment or a clothed detail by name (pinned to the faces it re-samples), and builds under an outfit', () => {
-    expect(() => heroRecord(withDefaultForm({ ...HERO, muscleShirt: 'saikyo', adorn: 'ranger' }))).toThrow(/muscleShirt: not yet worn with adorn/);
-    expect(() => heroRecord(withDefaultForm({ ...HERO, muscleShirt: 'saikyo', detail: 'clothed' }))).toThrow(/muscleShirt: not yet worn with detail/);
-    const r = expandLayeredManifest({ kind: 'layered', hero: heroRecord(withDefaultForm({ ...HERO, muscleShirt: 'saikyo', outfit: { type: 'outfit', style: 'casual' } })) }).recipe;
-    expect(() => compileLayered(r, {})).not.toThrow();
+describe('the clothes over the shirt', () => {
+  const dressed = (extra) => expandLayeredManifest({ kind: 'layered', hero: heroRecord(withDefaultForm({ ...HERO, muscleShirt: { definition: 1 }, ...extra })) }).recipe;
+  const OFFICE = dressed({ outfit: { type: 'outfit', style: 'office' } });
+  it('builds under every kind of dress: an outfit, an adornment and a clothed detail (their pins found again)', () => {
+    expect(() => compileLayered(OFFICE, {})).not.toThrow();
+    for (const extra of [{ adorn: 'ranger' }, { detail: 'clothed' }]) expect(() => compileLayered(dressed(extra), {}), JSON.stringify(extra)).not.toThrow();
+  }, 60000);
+  it('carries a sleeve out over the muscled arm: no point of the arm stands past the sleeve round its bone', () => {
+    const sleeve = Object.keys(OFFICE.parts).find((n) => /Sleeve_upperArmR$/.test(n)), S = OFFICE.parts[sleeve], A = OFFICE.parts.upperArmR;
+    const J = (k) => OFFICE.rig.joints[k].at ?? OFFICE.rig.joints[k], h = J('shoulderR'), e = J('elbowR'), ax = e.map((v, k) => v - h[k]), L = Math.hypot(...ax), u = ax.map((v) => v / L);
+    const local = (p) => { const d = p.map((v, k) => v - h[k]), s = d[0] * u[0] + d[1] * u[1] + d[2] * u[2], q = d.map((v, k) => v - s * u[k]); return { s, r: Math.hypot(...q), a: Math.atan2(q[1], q[0]) }; };
+    const cloth = S.stations.flatMap((x) => S.slots.map((sl) => local(x.points[sl])));
+    const lo = Math.min(...cloth.map((c) => c.s)) + 0.02, hi = Math.max(...cloth.map((c) => c.s)) - 0.02;
+    let through = 0, checked = 0;
+    for (const x of A.stations) for (const sl of A.slots) {
+      const p = local(x.points[sl]); if (p.s < lo || p.s > hi) continue;
+      const near = cloth.filter((c) => Math.abs(c.s - p.s) < 0.012 && Math.abs(Math.atan2(Math.sin(c.a - p.a), Math.cos(c.a - p.a))) < 0.25);
+      if (!near.length) continue; checked++; if (p.r > Math.max(...near.map((c) => c.r)) + 0.001) through++;
+    }
+    expect(checked).toBeGreaterThan(50);
+    expect(through).toBe(0);
+  });
+  it('rides the body\'s flex onto the cloth: the elbow\'s corrective reaches the sleeve', () => {
+    const c = OFFICE.correctives.find((x) => x.id === 'muscleElbowR');
+    expect(Object.keys(c.d).some((k) => /Sleeve_upperArmR\//.test(k))).toBe(true);
   });
 });
 

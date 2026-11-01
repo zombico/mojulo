@@ -50,16 +50,23 @@ export function skinOf(recipe) {
 
 /** a side's HAND as the shirt scales it (passes.js handsScaled): its parts (the hand, its digits, the bridge from the
  * forearm) and its joints (the knuckles, the fingers' axis, every digit's), all about the wrist */
-export const handParts = (S) => new RegExp(`^(hand|thumb|index|middle|ring|little|wristBridge)${S}$`);
+export const handParts = (S) => new RegExp(`^(?:\\w+_)?(hand|thumb|index|middle|ring|little|wristBridge)${S}$`);
 export const handJoints = (S) => new RegExp(`^(knuckles|fingerAxis|thumb|index|middle|ring|little)[A-Za-z]*${S}$`);
 /** the bridges eased from the forearm's scale to the hand's (their back at the forearm, their tip at the hand) */
-export const handRamp = (name) => /^wristBridge[RL]$/.test(name);
+export const handRamp = (name) => /^(?:\w+_)?wristBridge[RL]$/.test(name);
 /** a side's FOOT as the shirt scales it: the shoe's two boxes, or the bare foot and its toes; and the joints past the
  * ankle (the toe base and the tip) */
-export const footParts = (S) => new RegExp(`^(foot|toes|hallux|toe[2-5])${S}$`);
+export const footParts = (S) => new RegExp(`^(?:\\w+_)?(foot|toes|hallux|toe[2-5])${S}$`);
 export const footJoints = (S) => new RegExp(`^(toeBase|toeTip)${S}$`);
 
 /** the leg's shells and the pelvis, which the legs' lengthening stretches (passes.js lengthened); every other loft is lifted */
-export const legParts = /^(pelvis|thigh[RL]|shank[RL]|kneeBridge[RL]|foot[RL]|toes[RL])$/;
+export const legParts = /^(?:\w+_)?(pelvis|thigh[RL]|shank[RL]|kneeBridge[RL]|foot[RL]|toes[RL]|skirt)$/;
 /** the leg's joints, stretched with it (the hip's, the knee's, the ankle's, the foot's and their folds) */
 export const legJoint = (k) => /^(hip|knee|ankle|toe|heel|foot|hock|pelvis)/i.test(k);
+
+/** a GARMENT's body part (`<piece>_<part>`: top_torso, topSleeve_upperArmR, bottomLeg_thighR; a skirt's the pelvis), or
+ * null for a part that is not a garment */
+export const garmentBase = (name) => { const m = /^\w+?_(\w+)$/.exec(name); if (!m) return null; return m[1] === 'skirt' ? 'pelvis' : m[1]; };
+/** the body parts a garment's cloth lies over, by its own part (the shells under it there): an arm's sleeve over the
+ * shoulder's drum and web as well, a skirt over the seat and the thighs */
+export const CLOTH_OVER = Object.freeze({ upperArm: ['upperArm', 'shoulderBall', 'shoulderWeb', 'elbowBridge'], foreArm: ['foreArm', 'elbowBridge', 'wristBridge'], torso: ['torso', 'neck'], pelvis: ['pelvis', 'thigh'], thigh: ['thigh', 'pelvis', 'kneeBridge'], shank: ['shank', 'kneeBridge'], kneeBridge: ['kneeBridge', 'thigh', 'shank'] });

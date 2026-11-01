@@ -691,6 +691,145 @@ export function feetScaled(parts, rig, f, partsOf, jointsOf) {
   return scaledAbout(parts, rig, f, ground, partsOf, jointsOf);
 }
 
+// ─── THE CLOTHES OVER THE SHIRT ────────────────────────────────────────────────────────────────────────────────────
+
+/** how far to the side of a garment point (m) the cloth reads the muscle under it: the highest within it holds the
+ * cloth, so a groove narrower than twice this is bridged, not followed (cloth does not enter a groove a finger wide) */
+export const CLOTH_SPAN = 0.025;
+/** the least the cloth stands off the muscled skin (m) where the muscle carried it */
+export const CLOTH_EASE = 0.004;
+/** the most clearance (m) the cloth keeps over the muscled skin from what it had over the plain body */
+export const CLOTH_ROOM = 0.02;
+
+/** the body's SAMPLES the cloth is fitted over: each point of a part as the plain body had it (`p0`) and as the shirt
+ * carried it (`p1`), its point id (`key`), on a grid by `p0` (4 cm cells) */
+export function clothSamples(pairs) {
+  const cell = 0.04, grid = new Map(), all = [];
+  for (const [name, P0, P1] of pairs) P0.stations.forEach((x, i) => P0.slots.forEach((sl) => {
+    const p0 = x.points[sl], p1 = P1.stations[i]?.points?.[sl]; if (!p1) return;
+    const s = { p0, p1, key: `${name}/${x.id}.${sl}` }, k = p0.map((v) => Math.floor(v / cell)).join(',');
+    all.push(s); if (!grid.has(k)) grid.set(k, []); grid.get(k).push(s);
+  }));
+  const near = (q, r) => { const g = q.map((v) => Math.floor(v / cell)), n = Math.ceil(r / cell), out = []; for (let a = -n; a <= n; a++) for (let b = -n; b <= n; b++) for (let c = -n; c <= n; c++) for (const s of grid.get(`${g[0] + a},${g[1] + b},${g[2] + c}`) ?? []) out.push(s); return out; };
+  return { all, near };
+}
+
+/** a GARMENT RE-SAMPLED at the shirt's grain (densify): a garment covers part of its body part's run, its stations' `u`
+ * starting past 0 (a vest's at 1.4), and the re-sampling reads a run from 0 (every ring under its first collapsed onto
+ * it, the first band no band, and the compiler wound the vest inside out by it); so its run taken from 0 and given back,
+ * and each new station named by its `u` (`c1400`), apart from the body's by name as a dial's blends are keyed */
+export function garmentDense(G, opts) {
+  const u0 = G.stations[0].u ?? 0, shifted = { ...G, stations: G.stations.map((x, i) => ({ ...x, u: (x.u ?? i) - u0 })) };
+  const D = densify(shifted, opts), name = new Map(D.stations.map((x) => [x.id, `c${Math.round(((x.u ?? 0) + u0) * 1000)}`]));
+  const rn = (k) => { const [a, ...rest] = k.split('.'); return name.has(a) ? [name.get(a), ...rest].join('.') : k; };
+  const blend = D.bind?.blend ? Object.fromEntries(Object.entries(D.bind.blend).map(([k, w]) => [rn(k), w])) : undefined;
+  const bandGroups = D.bandGroups ? Object.fromEntries(Object.entries(D.bandGroups).map(([k, v]) => [k.split('-').map((x) => name.get(x) ?? x).join('-'), v])) : undefined;
+  return { ...D, stations: D.stations.map((x) => ({ ...x, id: name.get(x.id), u: r6((x.u ?? 0) + u0) })), ...(blend ? { bind: { ...D.bind, blend } } : {}), ...(bandGroups ? { bandGroups } : {}) };
+}
+
+/** a GARMENT fitted OVER the shirt: each of its points carried out along its ring's ray to clear the muscled skin under
+ * it (the samples within CLOTH_SPAN of the ray, behind the cloth or a little ahead of it) by CLOTH_EASE, never in; a
+ * point the muscle does not reach stays. Returns { part, on }: `on` each point's (`<station>.<slot>`) body point under
+ * it, the nearest, by which the body's correctives ride onto the cloth. `mirror` fits a left garment by the right body's
+ * samples (the left the right's mirror). Garments were built from the plain body before the shirt, and the muscles came
+ * through them */
+export function clothedOver(G, S, { mirror = false, hangs = false } = {}) {
+  const f = (p) => (mirror ? [-p[0], p[1], p[2]] : p);
+  const on = {};
+  const fit = (g0, c0, id) => {
+    const g = f(g0), c = f(c0), u = unit(sub(g, c)); if (!Number.isFinite(u[0])) return g0;
+    let push = 0, best = null;
+    for (const s of S.near(g, 0.16)) {
+      const v = sub(s.p0, g), along = dot(v, u); if (along > 0.03 || along < -0.16) continue;
+      const side = len(sub(v, scl(u, along))); if (side > CLOTH_SPAN) continue;
+      // (the cloth keeps the clearance it had over the plain body there, at least CLOTH_EASE and at most CLOTH_ROOM: a
+      // layer over another keeps its order, a loose one is pushed only where the muscle comes within its room)
+      const room = Math.min(Math.max(-along, CLOTH_EASE), CLOTH_ROOM), need = dot(sub(s.p1, g), u) + room; if (need > push) push = need;
+      const d = side + Math.abs(along); if (!best || d < best.d) best = { d, key: s.key };
+    }
+    if (best) on[id] = best.key;
+    return push > 0 ? f(add(g, scl(u, push))).map(r6) : g0;
+  };
+  const centres = G.stations.map((x) => scl(G.slots.reduce((a, sl) => add(a, x.points[sl]), [0, 0, 0]), 1 / G.slots.length));
+  // (a HANGING garment, a skirt, is a closed shell with its thickness: its rings run down its outside to the hem and back
+  // up its inside. Its outside is fitted and then falls straight from its widest point, each ring at least as far out as
+  // the ring over it, slot by slot, about its own centre (pushed out over the seat and not below it, its rings had
+  // folded over each other); its inside carried out as its outside is at the same height, so it keeps its thickness)
+  const zc = centres.map((c) => c[2]), hem = hangs ? zc.indexOf(Math.min(...zc)) : G.stations.length - 1;
+  const stations = G.stations.map((x, i) => (i > hem ? x : { ...x, points: Object.fromEntries(G.slots.map((sl) => [sl, fit(x.points[sl], centres[i], `${x.id}.${sl}`)])) }));
+  if (hangs) {
+    const descend = zc[0] >= zc[hem], order = [...Array(hem + 1).keys()]; if (!descend) order.reverse();
+    const reach = {}, grew = {};
+    for (const i of order) {
+      const c = centres[i];
+      stations[i] = { ...stations[i], points: Object.fromEntries(G.slots.map((sl) => {
+        const p = stations[i].points[sl], h = [p[0] - c[0], p[1] - c[1]], r = Math.hypot(h[0], h[1]), R = Math.max(r, reach[sl] ?? 0); reach[sl] = R;
+        const q0 = G.stations[i].points[sl]; (grew[i] ??= {})[sl] = R - Math.hypot(q0[0] - c[0], q0[1] - c[1]);
+        return [sl, R > r + 1e-6 && r > 1e-9 ? [r6(c[0] + (h[0] * R) / r), r6(c[1] + (h[1] * R) / r), p[2]] : p];
+      })) };
+    }
+    for (let j = hem + 1; j < stations.length; j++) {
+      let k = 0; for (let i = 1; i <= hem; i++) if (Math.abs(zc[i] - zc[j]) < Math.abs(zc[k] - zc[j])) k = i;
+      const c = centres[j];
+      stations[j] = { ...stations[j], points: Object.fromEntries(G.slots.map((sl) => {
+        const p = G.stations[j].points[sl], h = [p[0] - c[0], p[1] - c[1]], r = Math.hypot(h[0], h[1]), d = grew[k]?.[sl] ?? 0;
+        return [sl, d > 1e-6 && r > 1e-9 ? [r6(c[0] + (h[0] * (r + d)) / r), r6(c[1] + (h[1] * (r + d)) / r), p[2]] : p];
+      })) };
+    }
+  }
+  const caps = G.caps ? Object.fromEntries(Object.entries(G.caps).map(([k, q]) => [k, fit(q, centres[k === 'back' ? 0 : centres.length - 1], k)])) : G.caps;
+  return { part: { ...G, stations, ...(caps ? { caps } : {}) }, on };
+}
+
+// ─── PINS RE-ADDRESSED ─────────────────────────────────────────────────────────────────────────────────────────────
+
+/** the nearest place on triangle (a, b, c) to p: its barycentrics */
+function nearestOn(p, a, b, c) {
+  const ab = sub(b, a), ac = sub(c, a), ap = sub(p, a), d1 = dot(ab, ap), d2 = dot(ac, ap);
+  if (d1 <= 0 && d2 <= 0) return [1, 0, 0];
+  const bp = sub(p, b), d3 = dot(ab, bp), d4 = dot(ac, bp); if (d3 >= 0 && d4 <= d3) return [0, 1, 0];
+  const vc = d1 * d4 - d3 * d2; if (vc <= 0 && d1 >= 0 && d3 <= 0) { const v = d1 / (d1 - d3); return [1 - v, v, 0]; }
+  const cp = sub(p, c), d5 = dot(ab, cp), d6 = dot(ac, cp); if (d6 >= 0 && d5 <= d6) return [0, 0, 1];
+  const vb = d5 * d2 - d1 * d6; if (vb <= 0 && d2 >= 0 && d6 <= 0) { const w = d2 / (d2 - d6); return [1 - w, 0, w]; }
+  const va = d3 * d6 - d5 * d4; if (va <= 0 && d4 - d3 >= 0 && d5 - d6 >= 0) { const w = (d4 - d3) / (d4 - d3 + d5 - d6); return [0, 1 - w, w]; }
+  const den = 1 / (va + vb + vc), v = vb * den, w = vc * den; return [1 - v - w, v, w];
+}
+const mirrorPointId = (id) => id.replace(/\.([^./]+)$/, (m, sl) => `.${swapRL(sl)}`);
+
+/** the PINS on the parts the shirt re-sampled RE-ADDRESSED: a pinned part (an adornment, a crease, a stud on a garment)
+ * names its parent's face by its stations and slots, which the re-sampling renamed. Each pin's place on the parent as it
+ * was (`olds`) found on the parent re-sampled but not yet carried (`flat`: the same shape, the final part's ids), the
+ * nearest face there and its weights, so the pin rides on that face wherever the shirt carried it; its tangent edge the
+ * face's edge across the rings, its mirror (a midline detail's) the face's mirror. `loft` builds a part's faces */
+export function repinned(parts, olds, flat, loft) {
+  const built = new Map(), faceList = new Map();
+  const of = (name, P) => { const k = P; if (!built.has(k)) built.set(k, loft(name, P)); return built.get(k); };
+  const listOf = (name, P) => { if (!faceList.has(P)) { const B = of(name, P); faceList.set(P, Object.entries(B.faces).filter(([id]) => !/\/(back|tip)\.k/.test(id)).map(([id, tri]) => [id, tri, tri.map((q) => B.points[q])])); } return faceList.get(P); };
+  const out = { ...parts };
+  for (const [name, P] of Object.entries(parts)) {
+    const pin = P.pin, par = pin?.parent; if (!par || !flat[par] || !olds[par]?.stations) continue;
+    const O = of(par, olds[par]), tri = O.faces[pin.face]; if (!tri || !Array.isArray(pin.weights)) continue;
+    const X = tri.reduce((a, q, k) => add(a, scl(O.points[q], pin.weights[k])), [0, 0, 0]);
+    let best = null;
+    for (const [id, t, pts] of listOf(par, flat[par])) {
+      const w = nearestOn(X, ...pts), q = add(add(scl(pts[0], w[0]), scl(pts[1], w[1])), scl(pts[2], w[2])), d = len(sub(q, X));
+      if (!best || d < best.d) best = { d, id, t, w };
+    }
+    if (!best) continue;
+    const ids = flat[par].stations.map((x) => x.id), stOf = (q) => ids.indexOf(q.slice(q.indexOf('/') + 1, q.lastIndexOf('.')));
+    const slotOf = (q) => q.slice(q.lastIndexOf('.') + 1);
+    let edge = null;
+    for (let a = 0; a < 3 && !edge; a++) for (let b = 0; b < 3; b++) if (a !== b && slotOf(best.t[a]) === slotOf(best.t[b]) && stOf(best.t[a]) < stOf(best.t[b])) { edge = [best.t[a], best.t[b]]; break; }
+    edge ??= [best.t[0], best.t[1]];
+    const n = flat[par].slots.length;
+    const face = best.id.slice(0), mirror = pin.mirror ? { ...pin.mirror, face: face.replace(/\.k(\d+)(\.[ab])?$/, (m, k, ab) => `.k${n - 1 - Number(k)}${ab || ''}`), tangentEdge: edge.map(mirrorPointId) } : undefined;
+    // (two weights rounded and the third their complement, so they sum to one exactly as a surface pin asks)
+    const w0 = Math.max(0, r6(best.w[0])), w1 = Math.max(0, Math.min(1 - w0, r6(best.w[1]))), weights = [w0, w1, 1 - w0 - w1];
+    out[name] = { ...P, pin: { ...pin, face, weights, tangentEdge: edge, ...(mirror ? { mirror } : {}) } };
+  }
+  return out;
+}
+
 /** the legs LENGTHENED by `f` (the card's `legs`): the leg's shells, its joints and the pelvis stretched up from the ankle
  * to the hip joint, and everything over the hip lifted by as much, so the feet stay on the ground and the body stands
  * taller in the legs, where a heroic figure takes its height. The shells a loft of stations (a pinned mesh rides its

@@ -81,7 +81,9 @@ function meshPart(name, part) {
   return { points, faces, groups, ...(M.boundary ? { boundary: M.boundary.map((e) => e.map(pid)) } : {}) };
 }
 
-/** A closed station loft: right half generated, left half mirrored by name; outward winding per family. */
+/** A closed station loft: right half generated, left half mirrored by name; outward winding per family. (Exported as
+ * `loftPart` for a pass that re-addresses pins on a part it re-sampled: musculature/passes.js repinned) */
+export { loft as loftPart };
 function loft(name, part) {
   const slots = part.slots; const n = slots.length; const half = n / 2;
   if (!Array.isArray(slots) || n < 4 || n % 2) throw new Error(`station-loft: ${name}.slots must be an even list of ≥ 4 slot names`);

@@ -1056,9 +1056,7 @@ export function validateHeroSpec(spec, { staleScale = false } = {}) {
   }
   if (spec.muscleShirt !== undefined && spec.muscleShirt !== null) {
     if (spec.form === 'realistic') errs.push("muscleShirt: the lofted body's (the tiered hero's); the realistic body's muscles are its physique");
-    // (an adornment and a clothed detail are pinned to the body's faces, which the shirt re-samples: they cannot be worn
-    // over it yet; an outfit, a kit, paint and gear are, fitted to the body under the shirt)
-    else if ((spec.adorn !== undefined && spec.adorn !== null && spec.adorn !== 'none') || spec.detail === 'clothed') errs.push(`muscleShirt: not yet worn with ${spec.detail === 'clothed' ? "detail: 'clothed'" : 'adorn'} (pinned to the body's faces, which the shirt re-samples); an outfit, a kit, paint and gear may be worn with it`);
+
     else errs.push(...validateMuscleShirt(spec.muscleShirt));
   }
   if (spec.acting !== undefined && spec.acting !== null) {
