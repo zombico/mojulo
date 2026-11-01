@@ -65,7 +65,9 @@ export const DEVICES = {
 
   xr: {
     standard: 'WebXR Gamepads Module, "xr-standard" mapping per hand; buttons past the thumbstick follow the WebXR Input Profiles registry',
-    driver: null,
+    // controls-kernel.js xrRead: an XRSession's inputSources by handedness (Meta Quest Touch, Touch Plus and Touch Pro
+    // all speak it: trigger, grip, thumbstick click, A B on the right, X Y on the left; the menu buttons are the system's)
+    driver: 'webxr-gamepad',
     hands: ['left', 'right'],
     buttons: { trigger: 0, squeeze: 1, touchpad: 2, thumbstick: 3, primary: 4, secondary: 5 },
     axes: { touchpadX: 0, touchpadY: 1, thumbstickX: 2, thumbstickY: 3 },
