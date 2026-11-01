@@ -34,6 +34,9 @@ import { VEHICLE_MATERIALS } from './vehicle-surface-finish.js';
 export const ROAD_MATERIALS = Object.freeze({
   ...VEHICLE_MATERIALS,
   paint: Object.freeze({ metalness: 0.18, roughness: 0.32, clearcoat: 0.85, clearcoatRoughness: 0.16 }),
+  // (a patched panel's primer: no clearcoat, no sheen; a number plate's painted card)
+  primer: Object.freeze({ metalness: 0, roughness: 0.82 }),
+  plate: Object.freeze({ metalness: 0.05, roughness: 0.55 }),
 });
 
 const unit = (n) => { const d = Math.hypot(n[0], n[1], n[2]) || 1; return [n[0] / d, n[1] / d, n[2] / d]; };

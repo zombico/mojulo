@@ -73,6 +73,22 @@ carries its material and its form and the page lights it.
   - **Cuts and insets:** a pane is cut at a pillar's two planes with the cut's points shared exactly. An edge is inset
     along the pane's own sides, so neighbouring panes move a shared corner the same way. The glass's area is
     conserved: glass, frames and pillars cover what the glass covered.
+- **The panels** (`car-designer/road-panels.js` `panels`). In the form render the body is parted into the panels a car
+  is built from, with the fittings that sit on them, read from the faces after the glasshouse:
+  - **Shut lines:** cut into the paint by planes (`road-glass.js` `cutPlane`, the glasshouse's cut made general). Each
+    is a strip of the body's own surface, so it lies on it exactly and the paint's area is kept:
+    - a door's front and rear edge down each side, at the glass's own joints (`paneJoints`, the glasshouse's rule,
+      read by both);
+    - the bonnet's gap at the cowl and along each fender;
+    - the boot lid's at the rear glass and along each quarter.
+  - **Door pulls:** one on each door, below the belt at its rear edge, a dark pocket (in chrome on a classic
+    three-box), set on the side's own surface where it is.
+  - **Mirrors:** a housing on each front door at the screen's foot, in the body's paint, its glass looking back.
+  - **Number plates:** one on each end, low and centred, a plate's card (`plate`) just proud of the end's own face.
+  - **A battered car's patched panel:** a whole front door in primer (`primer`: no clearcoat, no sheen), on one side
+    by its seed. It replaces the speckle the old patch made.
+  - **A cargo van:** its glass is its cab doors' alone (`glasshouse({ cargo })`), and its side behind them is a panel
+    of the body.
 - **The compile returns its named faces** by bone (`form`) when asked for the form render, for a review to draw and
   an engine's materials to be read from.
 - **Held** (`road-form.test.js`):
@@ -89,7 +105,13 @@ carries its material and its form and the page lights it.
     liner;
   - the glasshouse, one case per rule on panes made in the test: a long side parted with a door pillar and its area
     kept, a short side left one pane, a pane framed against paint in rubber or a classic's chrome (its area kept), a
-    turning joint painted as two pillar strips; in the compile, a car framed and pillared, every face a material.
+    turning joint painted as two pillar strips; in the compile, a car framed and pillared, every face a material;
+  - the panels:
+    - the shut lines cut in with the paint's area kept, and one pull a door (on panes made in the test);
+    - in the compile, a car with shut lines each side, a mirror each side its glass looking back, a plate each end,
+      and no primer when it is not battered;
+    - a battered car's primer door on one side;
+    - a cargo van glazed at its cab alone, its side behind a panel.
 
   End to end, the realistic ride's figure is in the form render.
 - **Seen** (machine gate only; the eyes gate is open):
@@ -103,12 +125,16 @@ carries its material and its form and the page lights it.
     - the crossover: its B and rear pillars;
     - the pickup: its short cab one framed pane;
     - in the level, the rear glass framed under the roof, with no page errors.
+  - The panels:
+    - the sedan close at its doors (the shut lines, a pull on each door, the mirror at the screen's foot) and from
+      both quarters (the bonnet's and the boot lid's gaps, the plates);
+    - the cargo van's side a panel behind its cab;
+    - the sedan's level, its plate and boot lid reading from the chase, with no page errors.
 - **Not built, said:**
   - **The glass set in:** pushed a few millimetres behind its frame, with the frame's reveal drawn.
-  - **A cargo van's side:** a cargo van's sides are panels, not glass (the loft draws it as a people carrier); this is
-    for the panels phase.
-  - **The panels:** shut lines, handles, mirrors, plates, and a real patched panel.
+  - **A crossover's third pane:** a rear quarter window, not a door, but it is given a pull as the doors are.
   - **The heavy classes:** the bus's and the trucks' own bodies.
-  - **The head and tail lamps** as their own bones, lit by the page as status slots.
+  - **The head and tail lamps** as their own bones, lit by the page as status slots (moved again: they want the juice's
+    status slots, a phase of their own).
   - **The studio grid** drawn with the smoothed shading.
   - **GLB carrying the material slots.**

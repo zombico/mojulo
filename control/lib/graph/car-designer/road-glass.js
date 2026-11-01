@@ -13,11 +13,12 @@
  *             black rubber, or chrome on a classic three-box. The roof's drip line, the belt's trim, the screen's
  *             border
  *
- *   glasshouse(faces, { body, chrome? }) → the faces with the glass parted, framed and pillared (the new strips are
+ *   glasshouse(faces, { body, chrome?, cargo? }) → the faces with the glass parted, framed and pillared (the new strips are
  *                                          form faces: part `glass.frame` | `pillar`, their materials and normals the
  *                                          glass's own plane's)
  *     body     the body's paint colour (the A and C pillars are painted)
  *     chrome   the frames in bright metal and the door pillars in paint (a classic three-box's)
+ *     cargo    a cargo van: its glass is its cab doors' alone, its side behind them a panel of the body
  *
  * Vehicle space (+y forward, x across, z up), metres. Pure and deterministic.
  */
@@ -38,29 +39,28 @@ const lerp = (a, b, t) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a
 const len = (a, b) => Math.hypot(b[0] - a[0], b[1] - a[1], b[2] - a[2]);
 const like = (f, corners, extra) => ({ ...f, corners, ...extra });
 
-// a polygon cut by the plane y = c: its part behind (y < c) and its part ahead, the cut's points shared exactly
-function cutY(corners, c) {
+/** A polygon cut by the plane where coordinate `axis` (0 x, 1 y, 2 z) is `c`: its part below and its part above (null
+ *  where none), the cut's points shared exactly, so the two parts and a strip cut between two planes meet edge to edge. */
+export function cutPlane(corners, axis, c) {
   const lo = [], hi = [];
   for (let i = 0; i < corners.length; i++) {
-    const a = corners[i], b = corners[(i + 1) % corners.length], da = a[1] - c, db = b[1] - c;
+    const a = corners[i], b = corners[(i + 1) % corners.length], da = a[axis] - c, db = b[axis] - c;
     if (da <= 0) lo.push(a);
     if (da >= 0) hi.push(a);
-    if ((da < 0 && db > 0) || (da > 0 && db < 0)) { const p = lerp(a, b, da / (da - db)); p[1] = c; lo.push(p); hi.push(p); }
+    if ((da < 0 && db > 0) || (da > 0 && db < 0)) { const p = lerp(a, b, da / (da - db)); p[axis] = c; lo.push(p); hi.push(p); }
   }
   return [lo, hi].map((q) => (q.length >= 3 ? q : null));
 }
+const cutY = (corners, c) => cutPlane(corners, 1, c);
 
 // the side glass parted into panes: each side's span cut at its pane joints, a door pillar between neighbours
-function parted(faces, { chrome, body }) {
+function parted(faces, { chrome, body, cargo = false }) {
   const out = [], side = (f) => material(f) === 'glass' && Math.abs(f.outNormal[0]) > 0.6;
   for (const sx of [-1, 1]) {
     const S = faces.filter((f) => side(f) && Math.sign(f.outNormal[0]) === sx);
     if (!S.length) continue;
-    const ys = S.flatMap((f) => f.corners.map((p) => p[1])), y0 = Math.min(...ys), y1 = Math.max(...ys);
-    const n = Math.max(1, Math.round((y1 - y0) / GLASSHOUSE.pane));
-    // the joints, from the front: the front pane a touch the longer (the front door is)
-    const joints = Array.from({ length: n - 1 }, (_, i) => y1 - (y1 - y0) * ((i + 1) / n) * (i === 0 ? 0.96 : 1));
-    out.push(...joints.map((y) => [sx, y]));
+    const ys = S.flatMap((f) => f.corners.map((p) => p[1]));
+    out.push(...paneJoints(Math.min(...ys), Math.max(...ys)).map((y, i) => [sx, y, i === 0]));
   }
   if (!out.length) return faces;
   const half = GLASSHOUSE.pillar / 2, pillarOf = (f, corners) => like(f, corners, { part: 'pillar', material: chrome ? 'paint' : 'carbon', albedo: chrome ? body : PILLAR_BLACK });
@@ -76,10 +76,20 @@ function parted(faces, { chrome, body }) {
         return [behind && { corners: behind, glass: true }, mid && { corners: mid, glass: false }, ahead && { corners: ahead, glass: true }].filter(Boolean);
       });
     }
-    return pieces.map((p) => (p.glass ? like(f, p.corners) : pillarOf(f, p.corners)));
+    // (a cargo van's glass is its cab doors' alone: behind their joint, its side is a panel of the body)
+    const cab = out.find(([sx, , first]) => first && sx === Math.sign(f.outNormal[0]));
+    const panel = (p) => cargo && cab && p.corners.reduce((a, q) => a + q[1], 0) / p.corners.length < cab[1];
+    return pieces.map((p) => (panel(p) ? like(f, p.corners, { part: 'body', material: 'paint', albedo: body }) : p.glass ? like(f, p.corners) : pillarOf(f, p.corners)));
   });
 }
 const material = (f) => f.material;
+
+/** Where a side's glass from y0 (its rear) to y1 (its front) is parted: about a door's length a pane, from the front, the
+ *  front pane a touch the longer (the front door is). The panels read the same joints for the doors' shut lines. */
+export function paneJoints(y0, y1) {
+  const n = Math.max(1, Math.round((y1 - y0) / GLASSHOUSE.pane));
+  return Array.from({ length: n - 1 }, (_, i) => y1 - (y1 - y0) * ((i + 1) / n) * (i === 0 ? 0.96 : 1));
+}
 
 // an edge of a pane inset by `w`: its two ends moved along the pane's sides that meet them, the strip between returned
 function inset(corners, i, w) {
@@ -92,8 +102,8 @@ function inset(corners, i, w) {
 
 /** The glasshouse: the side glass parted into panes, every pane framed where it meets paint and pillared where it
  *  turns against another pane. Faces that are not glass pass as they are. */
-export function glasshouse(faces, { body = '#8a8f96', chrome = false } = {}) {
-  const F = parted(faces, { chrome, body });
+export function glasshouse(faces, { body = '#8a8f96', chrome = false, cargo = false } = {}) {
+  const F = parted(faces, { chrome, body, cargo });
   // who borders each edge: a pane's edge against paint is framed, against a pane at a turn is a pillar's side
   const by = new Map();
   F.forEach((f, i) => f.corners.forEach((p, j) => { const k = ekey(p, f.corners[(j + 1) % f.corners.length]); if (!by.has(k)) by.set(k, []); by.get(k).push(i); }));

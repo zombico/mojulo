@@ -7,7 +7,8 @@ import { compileRealistic } from './realistic.js';
 import { roadPart, formFace, smoothForm, ROAD_MATERIALS } from './road-form.js';
 import { loftFigure } from './race-families.js';
 import { roadWheel, wheelWell, WHEEL_STYLES } from './road-wheel.js';
-import { glasshouse, GLASSHOUSE } from './road-glass.js';
+import { glasshouse, GLASSHOUSE, paneJoints } from './road-glass.js';
+import { panels } from './road-panels.js';
 
 // one class per body plan the loft draws, chosen in code: a car's language loft and a heavy class's own build
 const carClass = Object.keys(FLEET).find((c) => FLEET[c].kind === 'car');
@@ -177,5 +178,52 @@ describe('the glasshouse: panes, pillars and frames', () => {
     expect(c.form.root.some((f) => f.part === 'glass.frame')).toBe(true);
     expect(c.form.root.some((f) => f.part === 'pillar')).toBe(true);
     for (const f of c.form.root) expect(ROAD_MATERIALS).toHaveProperty(f.material);
+  });
+});
+
+describe('the panels: shut lines, fittings, a patched door', () => {
+  const area = (fs) => fs.reduce((s, f) => {
+    const c = f.corners, n = [0, 0, 0];
+    for (let i = 0; i < c.length; i++) { const a = c[i], b = c[(i + 1) % c.length]; n[0] += (a[1] - b[1]) * (a[2] + b[2]); n[1] += (a[2] - b[2]) * (a[0] + b[0]); n[2] += (a[0] - b[0]) * (a[1] + b[1]); }
+    return s + Math.hypot(...n) / 2;
+  }, 0);
+  const side = (f, sx) => Math.sign(f.outNormal[0]) === sx && Math.abs(f.outNormal[0]) > 0.5;
+  // one sheet a case, found in code: a car that is not battered, one that is (the sheet's own roll), and the cargo van
+  const seedWhere = (cls, test) => [1, 2, 3, 4, 5, 6, 7, 8].find((s) => test(sheet(cls, s)));
+  const clean = sheet(carClass, seedWhere(carClass, (S) => S.facets.wear !== 'battered'));
+  const battered = sheet(carClass, seedWhere(carClass, (S) => S.facets.wear === 'battered'));
+  const cargoClass = Object.keys(FLEET).find((c) => c === 'van');
+  it('cuts the shut lines into the paint, its area kept, and adds a pull to each door', () => {
+    const glassed = glasshouse([
+      { corners: [[-0.9, -1, 1], [-0.9, 1, 1], [-0.9, 1, 1.4], [-0.9, -1, 1.4]], material: 'glass', part: 'glass', albedo: '#1e2630', outNormal: [-1, 0, 0] },
+      { corners: [[-0.92, -1, 0.3], [-0.92, 1, 0.3], [-0.9, 1, 1], [-0.9, -1, 1]], material: 'paint', part: 'body', albedo: '#20304a', outNormal: [-1, 0, 0.03] },
+    ]);
+    const out = panels(glassed, { body: '#20304a', W: 1.84 });
+    const panel = (fs) => fs.filter((f) => f.material === 'paint' && f.part === 'body' || f.part === 'seam');
+    expect(out.filter((f) => f.part === 'seam').length).toBeGreaterThan(0);
+    expect(area(panel(out))).toBeCloseTo(area(panel(glassed)), 6);
+    expect(out.filter((f) => f.part === 'door.handle')).toHaveLength(paneJoints(-1, 1).length + 1);
+  });
+  it('fits a car: shut lines each side, a mirror each side its glass looking back, a plate each end', () => {
+    const c = compileRealistic(clean, { form: true }), R = c.form.root;
+    for (const sx of [-1, 1]) expect(R.some((f) => f.part === 'seam' && side(f, sx))).toBe(true);
+    const mirrors = R.filter((f) => f.part === 'mirror.glass');
+    expect(mirrors).toHaveLength(2);
+    for (const m of mirrors) expect(m.outNormal[1]).toBeLessThan(-0.9);
+    const plates = R.filter((f) => f.part === 'plate');
+    expect(plates.map((p) => Math.sign(p.outNormal[1])).sort()).toEqual([-1, 1]);
+    expect(R.some((f) => f.material === 'primer')).toBe(false);
+  });
+  it('patches a battered car\'s front door in primer, on one side', () => {
+    const R = compileRealistic(battered, { form: true }).form.root, primer = R.filter((f) => f.material === 'primer');
+    expect(primer.length).toBeGreaterThan(0);
+    expect(new Set(primer.map((f) => Math.sign(f.outNormal[0]))).size).toBe(1);
+  });
+  it('glazes a cargo van at its cab alone, its side behind a panel', () => {
+    const R = compileRealistic(sheet(cargoClass), { form: true }).form.root;
+    const sideGlass = R.filter((f) => f.material === 'glass' && Math.abs(f.outNormal[0]) > 0.6), body = R.filter((f) => f.part === 'body' && Math.abs(f.outNormal[0]) > 0.6);
+    const ys = (fs) => fs.flatMap((f) => f.corners.map((p) => p[1]));
+    expect(Math.max(...ys(sideGlass)) - Math.min(...ys(sideGlass))).toBeLessThan(GLASSHOUSE.pane * 1.2);
+    expect(Math.min(...ys(body))).toBeLessThan(Math.min(...ys(sideGlass)) - 1);
   });
 });
