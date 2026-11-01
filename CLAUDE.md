@@ -214,6 +214,10 @@ Pointers only; each target carries its own design notes.
   encyclopedia entry); adding or deepening one: [docs/historic/README.md](docs/historic/README.md), `/historic-culture`.
 - Room furniture: [furnishings/roster.js](control/lib/graph/furnishings/roster.js) names every piece (one row, the
   words people say, its handles into the floorplan, preset, net and room-asset tables); a new piece is a row first.
+- Vehicles: [vehicle-registry/roster.js](control/lib/graph/vehicle-registry/roster.js) names every vehicle (one row, the
+  words people say, its handles into the tables that build it); the old tables (nets, physics, fleet, rides, race
+  machines, craft shelf) are frozen behind it, every door reads a vehicle word through it, and a new vehicle is a row
+  first. Its builds by tier (toy | stylised | realistic) and what each needs to be drawn realistic: `builds.js`.
 - Flight parts: [craft-shelf/](control/lib/graph/craft-shelf/) (the ODM inventory of aircraft and spacecraft parts → whole
   craft by archetype; a new part is a row first); the flight-game map is [docs/flight-games.md](docs/flight-games.md).
 - Books: [book/](control/lib/graph/book/) (the press: a style library of looks, formats and faces from the font shelf,

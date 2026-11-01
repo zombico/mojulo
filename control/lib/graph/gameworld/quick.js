@@ -8,6 +8,9 @@
  *     goal: 'reach' | 'collect' | 'survive' | 'avoid' | 'race' | 'sneak' | 'rhythm' | 'defend' | 'puzzle' | 'farm' | 'battle' | 'fly',
  *     hero?: <a hero-door spec> | false,    // false or absent: first person, you are the camera
  *     ride?: 'car' | 'coupe' | 'van',        // the hero is a vehicle (ride.js): driven, its feel derived from its build
+ *                                           // (ride, vehicle, craft and the transformer's vehicle.ride / .craft also take
+ *                                           // any word the vehicle registry names, written as the table's key at the door:
+ *                                           // vehicle-registry/doors.js)
  *     transformer?: { robot?, vehicle?, scheme?, fold?, legs?, height? },   // the hero TRANSFORMS (transformation/: B,
  *                                           // the pad's L3): a robot that is a vehicle too. robot: { variable: { palette? } }
  *                                           // a variable suit folding into its waverider, { alien: { palette? } } an alien
@@ -156,6 +159,7 @@ import { VARIABLE_PALETTES } from '../transformation/variable-suit.js';
 import { ALIEN_PALETTES } from '../transformation/alien-body.js';
 import { SCHEME_DIALS } from '../transformation/schemes.js';
 import { CRAFT_ARCHETYPES } from '../craft-shelf/craft-archetypes.js';
+import { quickVehicleWords } from '../vehicle-registry/doors.js';
 import { flightLaps } from '../skyscape/course.js';
 import { dogfightCast, waveIds, WING } from '../skyscape/dogfight.js';
 import { solveFighter } from '../versus/versus-solver.js';
@@ -760,7 +764,10 @@ export function quickVersus(Q, { title, theme, arenas, roster } = {}) {
 }
 
 /** A quick game's gameworld: the creator's own settings (id, name, seed, style …) kept, one level written. */
-export function quickWorld({ quick: given, id, name, seed, style, ...rest } = {}) {
+export function quickWorld({ quick: asked, id, name, seed, style, ...rest } = {}) {
+  // a vehicle word is read through the vehicle registry first (vehicle-registry/doors.js): a word it names is written as
+  // its key in the table this door reads (`ride: 'sedan'` is stored as `ride: 'car'`), so the recipe is the legacy key's
+  const given = quickVehicleWords(asked).quick;
   readQuick(given);
   // the camera is the world's setting, not the goal's: it moves up to the world, where both run paths read it
   // (and the screen it is made for, beside it: game/screen.js)

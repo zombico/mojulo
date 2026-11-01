@@ -5,12 +5,17 @@
  *
  *   racerInstanceFaces(spec)       a racer's recipe (roster.js racerSpec's entry) → { faces, stats }
  *   supercarInstanceFaces(spec)    a supercar's spec (supercar-figure.js) → { faces, stats }
+ *   loftInstanceFaces(spec)        a realistic loft's { class, era?, brief?, seed? } (realistic.js compileRealistic: a
+ *                                  physics class at its true numbers, in metres) → { faces, stats }: the vehicle
+ *                                  registry's realistic build of a road class, on the grid before any game drives it
  *
  * The studio quality for a supercar (the grid's close look), the game's mesh for a racer (it has one). Kept apart from
  * the family layer so the nets' families never load the race machines: it is imported only when one is built.
  */
 import { racerSpec, racerOf, racerMeasures } from './roster.js';
 import { supercarOfSpec, readSupercarSpec, themeFaces } from './supercar-figure.js';
+import { rollVehicleSheet } from './sheet.js';
+import { compileRealistic } from './realistic.js';
 
 const flat = (fs) => fs.map((f) => ({ corners: f.corners, fill: f.fill }));
 
@@ -25,4 +30,15 @@ export function supercarInstanceFaces(spec) {
   const { car, preset, theme } = supercarOfSpec(spec, { quality: 'studio' });
   const faces = flat(themeFaces([...car.faces.body, ...car.faces.detail, ...car.faces.wheels], theme, car));
   return { faces, spec, stats: { preset, cabinStyle: car.cabinStyle, headlightStyle: car.headlightStyle, livery: car.livery?.pattern ?? 'mono', faces: faces.length } };
+}
+
+const LOFT_KEYS = Object.freeze(['class', 'era', 'brief', 'seed']);
+export function loftInstanceFaces(spec) {
+  const extra = Object.keys(spec).filter((k) => !LOFT_KEYS.includes(k));
+  if (extra.length) throw new Error(`meta-fabricator: a loft instance is { ${LOFT_KEYS.join(', ')} } (no ${extra.join(', ')})`);
+  if (typeof spec.class !== 'string') throw new Error('meta-fabricator: a loft instance names its physics class ({ class: \'pickup\' })');
+  const sheet = rollVehicleSheet({ brief: spec.brief ?? '', facets: { pole: 'realistic', class: spec.class, ...(spec.era ? { era: spec.era } : {}) }, seed: spec.seed ?? 1 });
+  const c = compileRealistic(sheet);
+  const faces = flat([...c.faces.root, ...c.faces.wheels.flatMap((w) => w.faces)]);
+  return { faces, spec, stats: { class: spec.class, era: sheet.facets.era, census: c.census, faces: faces.length } };
 }

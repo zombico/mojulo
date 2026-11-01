@@ -27,6 +27,8 @@ export const FIXTURE = [
   ['write me a bracket with four bolt holes in openscad', 'mint_solid'],
   ['I have some .scad code for an enclosure, can you bring it in and show it', 'mint_solid'],
   ['put the wheels and the chassis together into one model', 'mint_solid'],
+  // a vehicle by name: the vehicle registry's door
+  ['show me a pickup truck I can spin around and look at', 'mint_solid'],
   ['what bearings and screws should my printed spool holder use, list what I need to buy', 'fabricate_solid'],
   // solid-powerscale: a fitted part by words, and furniture (no card until then)
   ['a little knob that screws onto an M6 bolt', 'mint_solid'],

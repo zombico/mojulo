@@ -1,15 +1,19 @@
 ---
 {
   "id": "vehicle",
-  "name": "Vehicle instance (preview)",
+  "name": "Vehicle (preview), named by the vehicle registry",
   "family": "vehicle",
   "entry": "mint_solid",
-  "summary": "Preview a single VEHICLE family instance on the workbench's measured studio grid, orbitable at /world: a registered type + optional decoration, or a race machine (a cartoon racer or a supercar) wearing a THEME — a starter, a variation of one, or a card of the user's own.",
-  "when": "Reach for this on framing like 'preview / show a plane / bus / car', 'try the teal livery on a widebody', 'render a sedan in crimson', 'show me a steampunk racer', 'design my own kart theme', 'try a candy supercar', 'eyeball a vehicle candidate before committing it to a fleet library or a race'."
+  "summary": "Preview one VEHICLE on the workbench's measured studio grid, orbitable at /world, named by the vehicle registry (`vehicle`: any word it names, at a `tier`: toy, stylised, realistic) + optional decoration, or a race machine (a cartoon racer or a supercar) wearing a THEME — a starter, a variation of one, or a card of the user's own.",
+  "when": "Reach for this on framing like 'preview / show a plane / bus / car', 'show me a pickup truck', 'a tram at the stylised tier', 'try the teal livery on a widebody', 'render a sedan in crimson', 'show me a steampunk racer', 'design my own kart theme', 'try a candy supercar', 'eyeball a vehicle candidate before committing it to a fleet library or a race'."
 }
 ---
 
-Preview one VEHICLE family instance on the workbench's measured studio grid — orbitable at `/world`. The substrate stores ONLY the tiny recipe (`manifest.kind === 'vehicle-instance'`) and regenerates the vehicle deterministically on render. To DROP vehicles into a populated world, use the transportation-hub composer; to RACE them, the quick race (`racers`, `supercars`, `series`).
+Preview one VEHICLE on the workbench's measured studio grid — orbitable at `/world`. The substrate stores ONLY the tiny recipe (`manifest.kind === 'vehicle-instance'`) and regenerates the vehicle deterministically on render. To DROP vehicles into a populated world, use the transportation-hub composer; to RACE them, the quick race (`racers`, `supercars`, `series`).
+
+## Name it by the registry
+
+Every vehicle is a row of the vehicle registry, under the words people say (`get_solid_vocab({ id: 'vehicles' })` lists them by realm, with what each is drawn as at each tier). Name it by `vehicle`: `{ vehicle: 'tram' }`, `{ vehicle: 'a business jet' }`, `{ vehicle: 'kart', tier: 'toy' }`. The row's build at the tier (or its first build the grid shows) is what is drawn, and the readout's `registry` says the row, the build, every build it has and what it needs to be drawn realistic. A row the grid cannot show yet (a tank, a sailing ship: a concept only) is refused with its builds. The families below are the builds' own words, kept so a stored instance regenerates as it was minted; a `type` that is not one of their keys is read as a registry word. A new vehicle is a registry row first, never a new key in a family's table.
 
 ## The families
 
@@ -42,7 +46,8 @@ The grid draws the machine with its light painted in; its finish shows when it r
 
 `title`, `ref`, `folder_ref` are top-level mint params; everything else goes in `spec`.
 
-- `type` (string) — a registered vehicle preset (`airliner`, `widebody`, `sedan`, `cityBus` …). Or:
+- `vehicle` (string) — any word the vehicle registry names (`'pickup truck'`, `'tram'`, `'widebody'`); `tier` (toy | stylised | realistic) picks its build. Or, the builds' own words:
+- `type` (string) — a scenery preset (`airliner`, `widebody`, `sedan`, `cityBus` …). Or:
 - `racer` (object) — a racer's recipe, as above. Or:
 - `supercar` (object) — a supercar's spec, as above.
 - `decoration` (object) — for a `type` only: aircraft `{ scheme }`, cars `{ paint, hull }`.
@@ -54,7 +59,9 @@ Orbit-only — no preset CSS-3D scene shots. Returns `{ ok, ref, worldUrl, url, 
 ## Worked examples
 
 ```
-{ kind: 'vehicle', title: 'teal widebody candidate', spec: { type: 'widebody', decoration: { scheme: 'teal' } } }
+{ kind: 'vehicle', title: 'teal widebody candidate', spec: { vehicle: 'widebody airliner', decoration: { scheme: 'teal' } } }
+
+{ kind: 'vehicle', title: 'a tram', spec: { vehicle: 'streetcar' } }
 
 { kind: 'vehicle', title: 'my brass kart', spec: { racer: { archetype: 'explorer', theme: { from: 'steampunk', palette: { body: '#20304a' }, finish: { trim: 'copper' } } } } }
 
