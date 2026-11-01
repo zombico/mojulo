@@ -187,6 +187,7 @@ designed one.
 tune: {
   structure: { head, girth, legs, arms, hands, feet, tail, ears, muzzle, eyes, neck },   // multipliers, 1 as designed (FEATURE_TUNE: each one's range)
   decoration: { tufts, crown, markings, horns, spines, mane, fins },                     // 0 – 3, 1 the designed amount, 0 bare
+  tuft: 'mohawk' | { style, colour?: 'coat' | 'pale' | 'dark' | 'hair' | '#rrggbb', size? },  // the head's tuft (HEAD_TUFTS)
   detail: 'game' | 'gen7',                                                                // FEATURE_DETAIL
 }
 ```
@@ -200,8 +201,16 @@ tune: {
   allows. Shorter than the floor allows, the fit keeps them, and the build says which (`tune.notes`). A tuned girth
   (a deeper trunk standing higher) lets the arms grow as far as reaching the floor needs.
 - **Decoration never moves a mass** (Structure and decoration, above).
+- **The head's tuft** ([feature-tufts.js](../control/lib/graph/egocube/feature-tufts.js)): a look for the top of the head,
+  the most personal touch a cast has, worn by ANY animal of the style (furred, feathered, scaled or smooth) in place of
+  its designed crown: `swept` (the designed fan), `cowlick`, `mohawk`, `spikes`, `crest`, `plume` (a quail's topknot),
+  `fringe`, `mop`, `pompadour`, or `none` (bare). A look is a CARD of locks placed on the skull by angle (θ down from the
+  top, φ round from the front), so it sits on any head the grammar makes and grows with a tuned head; a new look is a
+  card, not code. Its colour is the coat's, its pale, its dark, its hair's, or a hex of its own; its size a multiplier;
+  the crown's decoration dial still rules it (0: none).
 - **The words.** A brief says the same: `big ears`, `big head`, `long legs`, `lanky`, `chubby`, `bushy tail`, `long
-  snout`, `fluffy`, `shaggy`, `sleek`, `plain coat` (`TUNE_LEXICON`); the tier `7th gen`, `ps3`, `xbox 360`, `hd era`,
+  snout`, `fluffy`, `shaggy`, `sleek`, `plain coat`, and the tufts' `mohawk`, `cowlick`, `crested`, `topknot`, `bangs`,
+  `pompadour`, `quiff`, `spiky hair`, `mop top` (`TUNE_LEXICON`); the tier `7th gen`, `ps3`, `xbox 360`, `hd era`,
   `hero model` (`DETAIL_WORDS`). They are read only in the feature style; a tier's word asks for the style, and so does an
   explicit `tune` (refused under another named style). No tuning phrase is one the mascot's own lexicon owns.
 - **The families' designed sizes** (`FAMILY_SIZES`): where a family's animals read off on the shared silhouettes (a

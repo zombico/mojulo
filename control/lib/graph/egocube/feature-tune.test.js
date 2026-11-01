@@ -7,7 +7,8 @@
 // species per procedure, chosen in code from the roster.
 import { describe, it, expect } from 'vitest';
 import { validateTune, resolveTune, readTuneBrief, mergeTune, FEATURE_TUNE, FEATURE_DETAIL, TUNE_LEXICON, DETAIL_WORDS, FAMILY_SIZES, sizesOf } from './feature-tune.js';
-import { featureBuild, PLAN_OF } from './feature-grammar.js';
+import { featureBuild, PLAN_OF, PLANS } from './feature-grammar.js';
+import { HEAD_TUFTS, TUFT_SKULL, TUFT_COLOURS, tuftLocks, tuftColour, resolveTuft } from './feature-tufts.js';
 import { FEATURE_FOURS } from './feature-function.js';
 import { silhouetteOf, SPECIES } from './feature-silhouettes.js';
 import { animalCard } from './mascot-animals.js';
@@ -127,4 +128,34 @@ describe('the feature tune', () => {
     expect(P0.create.spec).not.toHaveProperty('bake');
     expect(P7.create.spec.plan.mascot.tune.detail).toBe('gen7'); expect(P0.create.spec.plan.mascot).not.toHaveProperty('tune');
   }, 120000);
+
+  it('a head tuft is worn by every plan in place of the designed crown, its look a card, its colour and size its own', () => {
+    // (one species per plan, chosen in code)
+    const plans = Object.keys(PLANS), ids = plans.map((pl) => first((id) => PLAN_OF[SPECIES[id].family] === pl && !['teleost', 'chondrichthyan'].includes(SPECIES[id].family))).filter(Boolean);
+    expect(ids.length).toBe(plans.length);
+    for (const id of ids) {
+      const b = featureBuild(animalCard(id), { tune: resolveTune({ tuft: 'mohawk' }) }), locks = b.tufts.filter((t) => t.group === 'Tuft');
+      expect(locks.length, id).toBe(HEAD_TUFTS.mohawk.locks.length);
+      expect(b.tufts.some((t) => /^crown[A-C]$/.test(t.name)), id).toBe(false);
+      expect(b.tune.tuft.style).toBe('mohawk');
+    }
+    // (none takes the designed crown away; the crown's dial at 0 takes a tuft away)
+    expect(featureBuild(animalCard(pear), { tune: resolveTune({ tuft: 'none' }) }).tufts.some((t) => /^crown/.test(t.name) || t.group === 'Tuft')).toBe(false);
+    expect(featureBuild(animalCard(pear), { tune: resolveTune({ tuft: 'crest', decoration: { crown: 0 } }) }).tufts.some((t) => t.group === 'Tuft')).toBe(false);
+    // (every card's locks stand out of the skull: rooted in it, the tip outside it)
+    const S = TUFT_SKULL, inside = (p) => Math.hypot((p[0] - S.c[0]) / S.r[0], (p[1] - S.c[1]) / S.r[1], (p[2] - S.c[2]) / S.r[2]);
+    for (const style of Object.keys(HEAD_TUFTS)) for (const L of tuftLocks(resolveTuft(style))) {
+      expect(inside(L.root), `${style} ${L.name}`).toBeLessThan(1);
+      expect(inside(L.root.map((x, k) => x + L.aim[k] * L.len)), `${style} ${L.name}`).toBeGreaterThan(1);
+    }
+    // (its size grows it; its colour a palette's group by name, or its own)
+    const [a, b2] = [1, 1.6].map((size) => tuftLocks(resolveTuft({ style: 'mohawk', size }))[0].len);
+    expect(b2).toBeCloseTo(a * 1.6, 3);
+    const pal = { Body: '#111111', Belly: '#eeeeee', Patch: '#222222', Hair: '#333333' };
+    expect(tuftColour(resolveTuft({ style: 'mop', colour: 'pale' }), pal)).toBe(pal[TUFT_COLOURS.pale]);
+    expect(tuftColour(resolveTuft({ style: 'mop', colour: '#c0392b' }), pal)).toBe('#c0392b');
+    expect(validateTune({ tuft: { style: 'afro', colour: 'red', size: 9 } }).length).toBe(3);
+    // (the brief says it)
+    expect(rollMascot({ brief: `a stylized ${pear} with a mohawk` }).tune.tuft).toBe('mohawk');
+  });
 });

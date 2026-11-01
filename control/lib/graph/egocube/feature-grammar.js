@@ -29,6 +29,7 @@ import { SILHOUETTES, silhouetteOf, bellyOf } from './feature-silhouettes.js';
 import { functional, speciesLimbs } from './feature-function.js';
 import { PHI, beakOf, beakParts, headOf, plumageOf, extentAlong } from './feature-birds.js';
 import { tunedSilhouette, detailClumps, sizesOf } from './feature-tune.js';
+import { tuftLocks } from './feature-tufts.js';
 
 const add = (a, b) => [a[0] + b[0], a[1] + b[1], a[2] + b[2]];
 const mul = (a, s) => [a[0] * s, a[1] * s, a[2] * s];
@@ -335,7 +336,7 @@ function tuneRead(tune, fn) {
   const moved = Object.fromEntries(Object.entries(tune.structure).filter(([, v]) => v !== 1)), notes = [];
   if (fn?.held?.includes('arms')) notes.push(`the arms asked ${moved.arms}× are kept as long as the forepaws need to reach the floor on all fours`);
   if (fn?.held?.includes('legs')) notes.push(`the legs asked ${moved.legs}× are kept as long as the trunk needs to clear the floor on all fours`);
-  return { structure: moved, decoration: { ...tune.decor }, detail: tune.detail.id, ...(notes.length ? { notes } : {}) };
+  return { structure: moved, decoration: { ...tune.decor }, ...(tune.tuft ? { tuft: tune.tuft } : {}), detail: tune.detail.id, ...(notes.length ? { notes } : {}) };
 }
 
 export function featureBuild(card, { decor = {}, tune = null } = {}) {
@@ -429,7 +430,10 @@ export function featureBuild(card, { decor = {}, tune = null } = {}) {
     { name: 'cheekCR', root: [0.64, 0.06, 2.64], aim: [0.97, -0.15, 0.1], len: 0.34, r: 0.14, curl: 28, bend: [0, -0.4, -1], bone: 'head', join: 0.07 },
   ]) B.tufts.push(headTuft(dialled(t, D.tufts)));
   // (the crown's fan: asymmetric, overlapping, swept one way; a bird's head stays smooth unless its kit names a crest)
-  if (P.skin === 'fur' && D.crown > 0 && !K.horns && K.mane !== 'crest') {
+  // (a tuft the operator chose (feature-tufts.js) is worn in its place, on any skin: the head's own look, personal)
+  const tuft = tune?.tuft ?? null;
+  if (tuft) B.tufts.push(...tuftLocks(tuft, { shape: hs.shape, dial: D.crown }).map(headTuft));
+  else if (P.skin === 'fur' && D.crown > 0 && !K.horns && K.mane !== 'crest') {
     const swept = [1, 0.1, -0.4];
     for (const t of [
       { name: 'crownA', root: [-0.14, 0.16, 3.3], aim: [0.42, 0.28, 1], len: 0.4, r: 0.12, curl: 24, bend: swept, bone: 'head', join: 0.05 },
@@ -444,7 +448,7 @@ export function featureBuild(card, { decor = {}, tune = null } = {}) {
     B.tufts.push(dialled({ name: `spine${i}`, root: [0, y, z], aim: [0, -0.35, 1], len, r: len * 0.42, tip: 0.15, curl: 10, bend: [0, -1, 0], bone: i < 2 ? 'head' : i < 4 ? 'torso' : 'pelvis', group: plan === 'reptile' ? 'Patch' : 'Body', join: 0.05 }, D.spines));
   });
   // (the detail tier's secondary clumps: a hero model's fuller fur, a wing's coverts, a back's second row: feature-tune.js)
-  if (tune?.detail?.clumps) B.tufts.push(...detailClumps({ plan, skin: P.skin, B, S, K, D, headTuft, tail: tl, ruffs: P.ruffs }));
+  if (tune?.detail?.clumps) B.tufts.push(...detailClumps({ plan, skin: P.skin, B, S, K, D, headTuft, tail: tl, ruffs: P.ruffs, tuft }));
   // THE KIT'S OWN DECORATION: horns, a mane, a fin, a shell, a long neck, the eyes on top
   if (K.horns && D.horns > 0) {
     const oss = K.horns === 'ossicones';

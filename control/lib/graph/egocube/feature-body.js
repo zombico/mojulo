@@ -38,6 +38,7 @@ import { cutSkin, coatLayers, stroke, band } from './feature-coat.js';
 import { measuresOf, rigOf, coatPalette } from './mascot-form.js';
 import { featureBuild } from './feature-grammar.js';
 import { resolveTune, detailBake } from './feature-tune.js';
+import { tuftColour } from './feature-tufts.js';
 import { foursClips } from './feature-function.js';
 import { plumageOf, wingTones } from './feature-birds.js';
 import { speciesParams } from '../fauna/species.js';
@@ -297,7 +298,8 @@ export function featurePlan(sheet, { title = 'a feature animal', reactions = fal
     style: { slots: 'ring20', limbSlots: 'ring12', e: 2 },
     joints, segments, dials: {}, rig, clips, paint: [],
     mascot: { energy: f.energy, form: f.form, height: L.top, headR: r4(Math.max(H.rx, H.ry)), style: 'feature', ...(build.tune ? { tune: build.tune } : {}) },
-    palette: { EarInner: '#c9a19b', ...featurePalette(coatPalette(sheet, k, A, f), A.id, build) },
+    palette: tune?.tuft ? (() => { const pal = featurePalette(coatPalette(sheet, k, A, f), A.id, build); return { EarInner: '#c9a19b', ...pal, Tuft: tuftColour(tune.tuft, pal) }; })()
+      : { EarInner: '#c9a19b', ...featurePalette(coatPalette(sheet, k, A, f), A.id, build) },
   };
   return { plan, H, height: L.top, ...(tune?.detail.bake ? { bake: detailBake(build.plan) } : {}) };
 }

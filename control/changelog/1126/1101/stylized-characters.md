@@ -54,6 +54,18 @@ member, a quick game's hero). Code: `control/lib/graph/egocube/feature-tune.js`.
     the body's dark bags under its eyes;
   - a feature bird whose face is not asked for rolls a bright one (`FEATURE_BIRD_LEAN`: mostly happy or grin); an asked
     face wins. Mammals roll as before.
+- **Head tufts for every animal.** `tune.tuft` gives any feature-style animal a look for the top of its head, in place
+  of its designed crown. That means furred, feathered, scaled and smooth animals alike: a crested pigeon, a spiky gecko, a
+  frog with a topknot, a bear with a red mohawk.
+  - The looks: `swept` (the designed fan), `cowlick`, `mohawk`, `spikes`, `crest`, `plume`, `fringe`, `mop`,
+    `pompadour`, `none`.
+  - Each look is a card of locks in `feature-tufts.js` (`HEAD_TUFTS`), placed on the skull by angle. It sits on any head
+    and grows with a tuned head, and a new look is a card, not code.
+  - Its colour is the coat's, pale, dark, the hair's, or any hex (a palette group `Tuft`); its `size` is a multiplier.
+    The crown's decoration dial still rules it.
+  - A brief says it too: `mohawk`, `cowlick`, `crested`, `topknot`, `bangs`, `pompadour`, `quiff`, `spiky hair`, `mop
+    top`.
+  - Untuned animals keep their designed crown.
 - **QA.** `scripts/spikes/feature-roster.mjs` takes `--tune` (every species minted with it) and `--tunes` (each species
   once per tune, side by side).
 - **Stored mascots keep their look.** A minted mascot stores its compiled plan. An untuned sheet compiles as before,
@@ -72,7 +84,9 @@ member, a quick game's hero). Code: `control/lib/graph/egocube/feature-tune.js`.
   - the family sizes multiply;
   - gen7's clumps, coverts, denser skin within budget, and its bake (none on the game model);
   - and, in `feature-grammar.test.js`, a standing bird's wing panel out of its body, its primaries not splayed, its beak
-    broader than deep; its default face rolled bright, its resting lids and brows higher, its brows' clips unchanged.
+    broader than deep; its default face rolled bright, its resting lids and brows higher, its brows' clips unchanged;
+  - a head tuft worn by every plan in place of the crown, each card's locks rooted in the skull and standing out of it,
+    its size and colour, `none` and the crown's dial at 0 bare, and the brief's word.
 - Eyes: not passed. Sheets were shot for the operator: game against gen7, and one species tuned several ways.
 
 **Known.**

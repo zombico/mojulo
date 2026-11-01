@@ -10,6 +10,9 @@
  *                short arm asked of one is lengthened back as far as reaching the floor needs; the build says so)
  *   DECORATION   the decoration dials (feature-grammar.js FEATURE_DECOR: `tufts`, `crown`, `markings`, `horns`,
  *                `spines`, `mane`, `fins`): 1 the designed amount, 0 none, more bolder. A dial never moves a mass
+ *   TUFT         the head's tuft (feature-tufts.js): a look from the library (a mohawk, a cowlick, a crest, a topknot,
+ *                spikes, a fringe, a mop, a pompadour, the designed swept fan, or none), its colour and its size; any animal
+ *                of the style wears one, in place of its designed crown
  *   DETAIL       the model's tier (FEATURE_DETAIL): `game`, the default game model; `gen7`, a hero model of the
  *                seventh console generation's HD era: a denser skin, the fur's secondary clumps (a fuller cheek fan,
  *                tufts at the shoulders, the elbows, the chest and the haunches), a feathered wing's coverts or a
@@ -30,6 +33,7 @@
  */
 import { FEATURE_DECOR, FEATURE_PROPORTION } from './feature-grammar.js';
 import { refit } from './feature-function.js';
+import { validateTuft, resolveTuft } from './feature-tufts.js';
 
 const r4 = (x) => Math.round(x * 1e4) / 1e4 + 0;
 const isPlain = (x) => !!x && typeof x === 'object' && !Array.isArray(x);
@@ -100,6 +104,11 @@ export const TUNE_LEXICON = Object.freeze({
   'big eyes': { eyes: 1.3 }, 'small eyes': { eyes: 0.8 }, 'long neck': { neck: 1.6 }, 'long-necked': { neck: 1.6 }, 'short neck': { neck: 0.7 },
   'fluffy': { tufts: 1.5, crown: 1.3 }, 'shaggy': { tufts: 1.8, crown: 1.6 }, 'sleek': { tufts: 0.4, crown: 0.3 }, 'smooth-coated': { tufts: 0, crown: 0 },
   'bold markings': { markings: 1.5 }, 'plain coat': { markings: 0 }, 'unmarked': { markings: 0 },
+  // (the head's tuft: feature-tufts.js)
+  'mohawk': { tuft: 'mohawk' }, 'mohican': { tuft: 'mohawk' }, 'cowlick': { tuft: 'cowlick' }, 'crested': { tuft: 'crest' }, 'head crest': { tuft: 'crest' },
+  'topknot': { tuft: 'plume' }, 'plumed': { tuft: 'plume' }, 'bangs': { tuft: 'fringe' }, 'fringe': { tuft: 'fringe' }, 'pompadour': { tuft: 'pompadour' },
+  'quiff': { tuft: 'pompadour' }, 'spiky hair': { tuft: 'spikes' }, 'spiky crown': { tuft: 'spikes' }, 'mop top': { tuft: 'mop' }, 'mop-top': { tuft: 'mop' },
+  'messy hair': { tuft: 'mop' }, 'bare head': { tuft: 'none' },
   'big horns': { horns: 1.5 }, 'big antlers': { horns: 1.5 }, 'hornless': { horns: 0 }, 'big spines': { spines: 1.6 }, 'spinier': { spines: 1.6 }, 'big mane': { mane: 1.5 },
 });
 // (the decoration's keys read when asked: the grammar imports this module, and this one its dials)
@@ -107,9 +116,9 @@ const STRUCTURE_KEYS = Object.keys(FEATURE_TUNE), decorKeys = () => Object.keys(
 
 export function validateTune(tune) {
   if (tune === undefined) return [];
-  if (!isPlain(tune)) return ['tune: { structure?: { <dial>: a multiplier }, decoration?: { <dial>: 0–3 }, detail?: \'game\' | \'gen7\' }'];
-  const errs = [];
-  for (const k of Object.keys(tune)) if (!['structure', 'decoration', 'detail'].includes(k)) errs.push(`tune.${k}: not a tune word (structure, decoration, detail)`);
+  if (!isPlain(tune)) return ['tune: { structure?: { <dial>: a multiplier }, decoration?: { <dial>: 0–3 }, tuft?: a style or { style, colour?, size? }, detail?: \'game\' | \'gen7\' }'];
+  const errs = [...validateTuft(tune.tuft)];
+  for (const k of Object.keys(tune)) if (!['structure', 'decoration', 'tuft', 'detail'].includes(k)) errs.push(`tune.${k}: not a tune word (structure, decoration, tuft, detail)`);
   const dials = (o, name, keys, range) => {
     if (o === undefined) return;
     if (!isPlain(o)) { errs.push(`tune.${name}: { ${keys.join(' | ')}: a number }`); return; }
@@ -129,7 +138,7 @@ export function resolveTune(tune) {
   const errs = validateTune(tune);
   if (errs.length) throw new Error(`mascot: the tune refused:\n - ${errs.join('\n - ')}`);
   const T = tune ?? {}, id = T.detail ?? 'game';
-  return { structure: { ...Object.fromEntries(STRUCTURE_KEYS.map((k) => [k, 1])), ...(T.structure ?? {}) }, decor: { ...(T.decoration ?? {}) }, detail: { ...FEATURE_DETAIL[id], id } };
+  return { structure: { ...Object.fromEntries(STRUCTURE_KEYS.map((k) => [k, 1])), ...(T.structure ?? {}) }, decor: { ...(T.decoration ?? {}) }, tuft: resolveTuft(T.tuft), detail: { ...FEATURE_DETAIL[id], id } };
 }
 
 /** the longest tuning phrase, in words */
@@ -139,7 +148,7 @@ const PHRASE_MAX = Math.max(...PHRASES.map((k) => k.split(' ').length));
 export function readTuneBrief(brief = '') {
   const tokens = String(brief).split(/\s+/).filter(Boolean), norm = tokens.map((t) => t.toLowerCase().replace(/[^a-z0-9'-]/g, ''));
   const structure = {}, decoration = {}, read = [], kept = [];
-  let detail;
+  let detail, tuft;
   for (let i = 0; i < tokens.length;) {
     let hit = null;
     for (let n = Math.min(PHRASE_MAX, tokens.length - i); n >= 1 && !hit; n--) {
@@ -148,11 +157,11 @@ export function readTuneBrief(brief = '') {
     }
     if (!hit) { kept.push(tokens[i]); i += 1; continue; }
     if (DETAIL_WORDS.includes(hit.phrase)) detail = 'gen7';
-    else for (const [k, v] of Object.entries(TUNE_LEXICON[hit.phrase])) (STRUCTURE_KEYS.includes(k) ? structure : decoration)[k] = v;
+    else for (const [k, v] of Object.entries(TUNE_LEXICON[hit.phrase])) if (k === 'tuft') tuft = v; else (STRUCTURE_KEYS.includes(k) ? structure : decoration)[k] = v;
     read.push(hit.phrase); i += hit.n;
   }
   if (!read.length) return { tune: null, facets: {}, read, rest: brief };
-  const tune = { ...(Object.keys(structure).length ? { structure } : {}), ...(Object.keys(decoration).length ? { decoration } : {}), ...(detail ? { detail } : {}) };
+  const tune = { ...(Object.keys(structure).length ? { structure } : {}), ...(Object.keys(decoration).length ? { decoration } : {}), ...(tuft ? { tuft } : {}), ...(detail ? { detail } : {}) };
   // (the tiers are the feature style's: a brief that asks for one asks for the style)
   return { tune, facets: detail ? { style: 'feature' } : {}, read, rest: kept.join(' ') };
 }
@@ -161,8 +170,8 @@ export function readTuneBrief(brief = '') {
 export function mergeTune(a, b) {
   if (!a) return b ?? undefined;
   if (!b) return a;
-  const structure = { ...(a.structure ?? {}), ...(b.structure ?? {}) }, decoration = { ...(a.decoration ?? {}), ...(b.decoration ?? {}) }, detail = b.detail ?? a.detail;
-  return { ...(Object.keys(structure).length ? { structure } : {}), ...(Object.keys(decoration).length ? { decoration } : {}), ...(detail ? { detail } : {}) };
+  const structure = { ...(a.structure ?? {}), ...(b.structure ?? {}) }, decoration = { ...(a.decoration ?? {}), ...(b.decoration ?? {}) }, detail = b.detail ?? a.detail, tuft = b.tuft ?? a.tuft;
+  return { ...(Object.keys(structure).length ? { structure } : {}), ...(Object.keys(decoration).length ? { decoration } : {}), ...(tuft ? { tuft } : {}), ...(detail ? { detail } : {}) };
 }
 
 /** an egg's lowest point (its extent down the z axis, its frame as feature-body.js egg() makes it) */
@@ -210,7 +219,7 @@ export function detailBake(plan) {
  *  falling rhythm as the designed ones, smaller, where a hero model of the era breaks its silhouette: a fur's fuller cheek
  *  fan, a crown's two more locks, a tuft at each shoulder and elbow, a fan under the chin, a tuft off each haunch and two
  *  more at a brush tail's tip; a wing's coverts; a scaled back's second, smaller row between its spines */
-export function detailClumps({ plan, skin, B, S, K, D, headTuft, tail, ruffs }) {
+export function detailClumps({ plan, skin, B, S, K, D, headTuft, tail, ruffs, tuft = null }) {
   const out = [], T = D.tufts ?? 1, dl = (t, k) => (k > 0 ? { ...t, len: r4(t.len * k), r: r4(t.r * (0.6 + 0.4 * k)) } : null);
   const add3 = (a, b) => [a[0] + b[0], a[1] + b[1], a[2] + b[2]], mul = (a, s) => [a[0] * s, a[1] * s, a[2] * s];
   if (skin === 'fur' && T > 0) {
@@ -218,7 +227,7 @@ export function detailClumps({ plan, skin, B, S, K, D, headTuft, tail, ruffs }) 
       { name: 'cheekDR', root: [0.6, 0.0, 2.32], aim: [0.6, -0.4, -0.7], len: 0.26, r: 0.11, curl: 16, bend: [0, -1, -0.2], bone: 'head', join: 0.06 },
       { name: 'cheekER', root: [0.62, 0.1, 2.72], aim: [0.95, -0.1, 0.3], len: 0.24, r: 0.1, curl: 24, bend: [0, -0.4, -1], bone: 'head', join: 0.06 },
     ]) out.push(headTuft(dl(t, T)));
-    if (D.crown > 0 && !K.horns && K.mane !== 'crest') for (const t of [
+    if (D.crown > 0 && !K.horns && K.mane !== 'crest' && !tuft) for (const t of [
       { name: 'crownD', root: [0.22, -0.12, 3.26], aim: [0.75, 0.0, 0.8], len: 0.2, r: 0.08, curl: 18, bend: [1, 0.1, -0.4], bone: 'head', join: 0.05 },
       { name: 'crownE', root: [-0.24, 0.2, 3.24], aim: [0.2, 0.4, 1], len: 0.22, r: 0.08, curl: 22, bend: [1, 0.1, -0.4], bone: 'head', join: 0.05 },
     ]) out.push(headTuft(dl(t, D.crown)));
