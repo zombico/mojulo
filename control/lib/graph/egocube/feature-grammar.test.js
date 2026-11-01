@@ -144,6 +144,20 @@ describe('the feature grammar', () => {
     expect(featureBuild(animalCard(fam('equine')), { decor: { mane: 0 } }).tufts.some((t) => /^mane|forelock/.test(t.name))).toBe(false);
   });
 
+  it('a long neck stands as one, slim under a raised head; a striped coat is rings from the feet to under the jaw', () => {
+    // (one species of each, chosen in code from the kits)
+    const longNeck = Object.keys(SPECIES).find((id) => { try { return animalCard(id).kit.neck === 'long'; } catch { return false; } });
+    const striped = Object.keys(SPECIES).find((id) => { try { return animalCard(id).kit.pattern === 'stripes'; } catch { return false; } });
+    const g = featureBuild(animalCard(longNeck)), neck = g.eggs.find((e) => e.name === 'neckLong'), chest = g.eggs.find((e) => e.name === 'chest');
+    expect(g.headLift).toBeGreaterThanOrEqual(FEATURE_PROPORTION.longNeck);
+    expect(Math.max(neck.r[1], neck.r[2])).toBeLessThan(Math.max(chest.r[1], chest.r[2]) / 2);   // (slim: never a second body)
+    const z = featureBuild(animalCard(striped)), rings = z.marks.find((m) => m.name === 'stripes');
+    expect(rings.cut).toBe(true); expect(rings.bands.length).toBeGreaterThanOrEqual(8);
+    const headBase = z.neckZ + z.headLift;
+    for (const B of rings.bands) expect(B.c[2]).toBeLessThan(headBase);         // (never across the face)
+    expect(featureBuild(animalCard(striped), { decor: { markings: 0 } }).marks.some((m) => m.name === 'stripes')).toBe(false);
+  });
+
   it('a bird rests open and bright: its default face a bright one, its lids more open and its brows higher, every clip the same', () => {
     // (the roll leans a feature bird bright; an asked face wins; one bird chosen in code)
     const bird = Object.keys(SPECIES).find((i) => PLAN_OF[SPECIES[i].family] === 'bird');

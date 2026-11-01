@@ -46,8 +46,9 @@ const sub3 = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
  *  least outward share in a clip (so none sinks into the belly), a showing leg's least radii at the thigh and the ankle
  *  (a mascot's round leg; a bird's), a wing's scale (a bird's wing carries its silhouette: big), how far a folded wing
  *  stands proud of the body (so its edge reads in profile, never sunk into the flank), its panels' thickness, and how much
- *  of the fold's outward lean its primaries keep (little: they lie back along the body as the wing's tip, not splayed) */
-export const FEATURE_PROPORTION = Object.freeze({ heads: 3.3, seam: 0.05, headLift: 0.12, splay: 0.62, leg: [0.27, 0.2], birdLeg: [0.14, 0.1], wing: 1.45,
+ *  of the fold's outward lean its primaries keep (little: they lie back along the body as the wing's tip, not splayed),
+ *  and how far a long neck (a giraffe's) raises the head */
+export const FEATURE_PROPORTION = Object.freeze({ heads: 3.3, seam: 0.05, headLift: 0.12, splay: 0.62, leg: [0.27, 0.2], birdLeg: [0.14, 0.1], wing: 1.45, longNeck: 1.45,
   wingProud: 0.12, wingThick: 0.13, tipLean: 0.3 });
 
 /** THE DECORATION DIALS: 1 the designed amount, 0 none (the structure bare), more bolder. `tufts` the fur's and the
@@ -55,6 +56,13 @@ export const FEATURE_PROPORTION = Object.freeze({ heads: 3.3, seam: 0.05, headLi
  *  stripes, the rings, the inner ears; a coat's zones stay), `horns` horns, antlers and ossicones, `spines` a dorsal
  *  row, plates and quills, `mane` a mane's ring or crest, `fins` fins and flukes */
 export const FEATURE_DECOR = Object.freeze({ tufts: 1, crown: 1, markings: 1, horns: 1, spines: 1, mane: 1, fins: 1 });
+
+/** STRIPES (a `stripes` coat: a zebra's, a tiger's): ring bands round the standing figure, from `from` (head units over
+ *  the soles) every `pitch` up the neck to `under` below the head (never across the face), at most `most`; their
+ *  half-widths in a falling rhythm (`w`, cycled), each ring leaning a little the other way from the last (`lean`), its
+ *  edges notched (`teeth` round it, `depth` deep), within `reach` of the body's axis (the arms and the legs striped with
+ *  the trunk). Cut into the skin as a zone, a ring costs only the faces its edges split: within the triangle budget */
+export const FEATURE_STRIPES = Object.freeze({ from: 0.28, pitch: 0.32, most: 14, w: [0.09, 0.07, 0.1, 0.06], lean: 0.12, teeth: 8, depth: 0.025, reach: 2.4, under: 0.15 });
 
 /** the families the style does not draw: a fish has no body to stand on or limbs to act with (a fish asked for in the
  *  style is drawn in the toon, mascot.js) */
@@ -524,7 +532,14 @@ export function featureBuild(card, { decor = {}, tune = null } = {}) {
   const belly0 = B.eggs.find((e) => e.name === 'belly');
   if (K.shell) B.eggs.push({ name: 'shell', c: [0, belly0.c[1] - 0.34, belly0.c[2] + 0.28], u: [0, 0, 1], r: [belly0.r[0], belly0.r[1] * 0.98, belly0.r[2] * 1.06], e: 0.2, bone: 'torso', group: 'Shell', join: 0.06 });
   let headLift = S.neck === 'merged' ? 0 : P.lift;
-  if (K.neck === 'long') { headLift += 1.1; B.eggs.push({ name: 'neckLong', c: [0, 0.02 + S.hy, S.neckZ + 0.65], u: [0, 0.15, 1], r: [0.8, 0.34, 0.32], bone: 'neck', join: 0.18 }); }
+  // (a long neck, a giraffe's: the head raised high over a slim neck that tapers up to it from shoulders it does not
+  // swallow; its base no wider than they are)
+  if (K.neck === 'long') {
+    const NL = FEATURE_PROPORTION.longNeck;
+    headLift += NL;
+    B.eggs.push({ name: 'neckLong', c: [0, S.hy + 0.08, S.neckZ + NL / 2 + 0.05], u: unit([0, 0.16, 1]), r: [NL / 2 + 0.22, 0.2, 0.22], e: 0.3, bone: 'neck', join: 0.12 });
+    const base = B.eggs.find((e) => e.name === 'neck'); if (base) base.r = [base.r[0], Math.min(base.r[1], 0.3), Math.min(base.r[2], 0.3)];
+  }
   // (a tuned neck: the head raised over it, its neck's own mass stretched to meet it; a head merged into the body has none)
   const kN = Z?.neck ?? 1;
   if (kN !== 1 && S.neck !== 'merged') {
@@ -587,11 +602,14 @@ export function featureBuild(card, { decor = {}, tune = null } = {}) {
     { name: 'mask', group: 'Patch', on: 'head', strokes: [{ both: true, points: [[0.04, 0.68, 2.8], [0.3, 0.56, 2.79], [0.5, 0.38, 2.62], [0.66, 0.22, 2.44]].map(onHead), r: [0.1, 0.19, 0.13, 0.025] }] },
     { name: 'stripe', group: 'Patch', on: 'head', strokes: [{ points: [[0, 0.7, 2.92], [0, 0.55, 3.18], [0, 0.2, 3.36]].map(onHead), r: [0.05, 0.08, 0.02] }] });
   if (K.pattern === 'patches') layers.push({ name: 'patches', group: 'Patch', on: 'head', strokes: [{ both: true, points: [[0.16, 0.66, 2.86], [0.32, 0.54, 2.76], [0.4, 0.44, 2.64]].map(onHead), r: [0.12, 0.16, 0.05] }] });
-  // (the stripes wrap the body's own masses, from its flank's foot to its chest)
-  const chest0 = B.eggs.find((e) => e.name === 'chest'), zs = [0, 1, 2].map((i) => belly0.c[2] - 0.15 + (i / 2) * (chest0.c[2] - belly0.c[2] + 0.2));
-  const wx = belly0.r[1] / 1.2, wy = belly0.r[2] / 1.02;
-  if (K.pattern === 'stripes') layers.push({ name: 'stripes', group: 'Patch', strokes: zs.flatMap((z) => [false, true].map((left) => {
-    const m = (p) => (left ? [-p[0], p[1], p[2]] : p); return { points: [[0.02, -0.95 * wy + belly0.c[1] - 0.12, z + 0.25], [0.85 * wx, -0.35 * wy + belly0.c[1] - 0.12, z], [1.05 * wx, 0.25 * wy + belly0.c[1] - 0.12, z - 0.2]].map(m), r: [0.1, 0.08, 0.015] }; })) });
+  // (STRIPES, a zebra's, a tiger's: bold rings round the whole standing figure, from the feet up the neck to under the jaw.
+  // On an animal standing up, the stripes that run from its spine down its flank, and those round its legs, all run
+  // round it; their widths in a falling rhythm, their edges notched so each ends in points)
+  if (K.pattern === 'stripes' && D.markings > 0) {
+    const R = FEATURE_STRIPES, zTop = S.neckZ + headLift - R.under, n = Math.min(R.most, Math.floor((zTop - R.from) / R.pitch) + 1);
+    // (cut into the skin as a zone along their exact edges, as a big marking is: no layer of faces laid over it)
+    B.marks.push({ name: 'stripes', group: 'Patch', cut: true, bands: Array.from({ length: n }, (_, i) => ({ c: [0, S.hy * 0.5, R.from + i * R.pitch], axis: unit([0, R.lean * (i % 2 ? 1 : -1), 1]), w: R.w[i % R.w.length], R: R.reach, teeth: R.teeth, depth: R.depth })) });
+  }
   if (ear?.inner) layers.push({ name: 'ears', group: 'EarInner', on: 'head', strokes: [{ both: true, points: ear.inner.map(onHead), r: ear.ir }] });
   if (tl.rings && T.rings) layers.push({ name: 'rings', group: 'Patch', levels: 0, bands: tl.rings.map(([c, axis, w, R]) => ({ c, axis, w, R, teeth: 9, depth: 0.035 })) });
   // (a bird's wing bars: two strokes across the folded wing's coverts, a value step of its own greys)

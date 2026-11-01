@@ -211,7 +211,7 @@ function laidOut(build, height) {
     });
   }
   // (the coat's marks in metres: a stroke drawn `both` mirrored to the left)
-  const marks = (build.marks ?? []).map((m) => ({ name: m.name, group: m.group, ...(m.levels !== undefined ? { levels: m.levels } : {}),
+  const marks = (build.marks ?? []).map((m) => ({ name: m.name, group: m.group, ...(m.cut ? { cut: true } : {}), ...(m.levels !== undefined ? { levels: m.levels } : {}),
     ...(m.eggs ? { eggs: m.eggs } : {}),
     ...(m.regions ? { regions: m.regions.map((E) => egg({ c: S(E.c), u: E.u, r: E.r.map((v) => v * h), e: E.e ?? 0, hint: E.hint, bone: null, group: m.group, join: 0 })) } : {}),
     ...(m.strokes ? { strokes: m.strokes.flatMap((x) => { const one = (pts) => stroke({ points: pts.map((p) => SH(p, m.on)), r: x.r.map((v) => r6(v * h)) }); return x.both ? [one(x.points), one(x.points.map(mirrorX))] : [one(x.points)]; }) } : {}),
@@ -266,6 +266,9 @@ function featurePalette(pal, id, build) {
   return { ...pal, ...wingTones(pal.Body, P), Sock: P.sock ?? pal.Beak, ...(P.crown ? { Crown: P.crown } : {}), ...(P.neck ? { Mane: P.neck } : {}), ...(P.bar ? { Bar: P.bar } : {}), ...(P.tip ? { Tip: P.tip } : {}), ...(own ? { Belly: C.belly } : {}) };
 }
 
+/** the head's lift over the neck (head units) past which the head turns at the top of the neck, not over its pinch */
+export const FEATURE_NECK_PIVOT = 0.5;
+
 /** the feature style's height: the mascot's scale (a sprout's), its head a third of it */
 export const FEATURE_HEIGHT = 0.96;
 
@@ -276,7 +279,8 @@ export function featurePlan(sheet, { title = 'a feature animal', reactions = fal
   const tune = sheet.tune ? resolveTune(sheet.tune) : null, net = tune ? { cell: tune.detail.cell, faces: tune.detail.faces } : {};
   const build = featureBuild(A, { decor, ...(tune ? { tune } : {}) });
   const { L, moved } = featureShapes(build), H = L.H, att = { moved };
-  const zones = L.marks.filter((m) => !m.strokes && !m.bands), layers = L.marks.filter((m) => m.strokes || m.bands);
+  // (a zone is cut into the skin; a mark of strokes or bands is a layer over it, unless it is itself cut (a coat's stripes))
+  const zones = L.marks.filter((m) => m.cut || (!m.strokes && !m.bands)), layers = L.marks.filter((m) => !m.cut && (m.strokes || m.bands));
   const skin = eggSkin(L.eggs, { zones, seam: L.seam, ...net }), F = eggField(L.eggs, { seam: L.seam });
   const coat = coatOf(skin, F, L.eggs, layers);
   // the face: globes seated on the skin, lids as shells about them, the brows on the eye, the mouth in the muzzle
@@ -291,7 +295,10 @@ export function featurePlan(sheet, { title = 'a feature animal', reactions = fal
     ...face.segments,
   ];
   const faceNames = face.segments.flatMap((s) => (s.mirror === 'name' ? [s.name, twin(s.name)] : [s.name]));
-  const { rig, clips: clips0 } = rigOf(f, { J: L.J, H, hipZ: L.hipZ, neckZ: L.neckZ, top: L.top, orb: false, k, face, reactions, headParts: faceNames, upper: [] });
+  // (a head raised well clear of its body on a neck (a giraffe's, a horse's) turns at the top of that neck, so the neck's
+  // bone spans it: FEATURE_NECK_PIVOT head units of lift and more)
+  const longNeck = (build.headLift ?? 0) > FEATURE_NECK_PIVOT, headBaseZ = longNeck ? r4(H.C[2] - H.rz * 0.9) : undefined;
+  const { rig, clips: clips0 } = rigOf(f, { J: L.J, H, hipZ: L.hipZ, neckZ: L.neckZ, top: L.top, orb: false, k, face, reactions, headParts: faceNames, upper: [], ...(longNeck ? { headBaseZ } : {}) });
   // (the mascot's clips hang the arms close to the body; round this belly they would sink into it: each arm is splayed
   // out to clear it, its direction's outward share at least the build's)
   // (a bird's wings are held folded instead)

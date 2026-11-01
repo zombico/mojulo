@@ -530,12 +530,13 @@ function hookParts(f, H, { M, hipZ, neckZ, headBind, orb, fur = 'Body' }) {
 
 // ══════════ the rig, the clips, the dials (laws 9, 10) ══════════
 
-export function rigOf(f, { J, H, hipZ, neckZ, top, orb, k, face, headParts, upper, reactions = false }) {
+export function rigOf(f, { J, H, hipZ, neckZ, top, orb, k, face, headParts, upper, reactions = false, headBaseZ }) {
   const bodyTop = orb ? H.C[2] : neckZ;
   const rig = {
     joints: {
       pelvisHub: { at: [0, 0, hipZ] }, navel: { at: [0, 0, r4(orb ? H.C[2] - H.rz * 0.2 : (hipZ + bodyTop) / 2)] }, neckHub: { at: [0, 0, r4(bodyTop)] },
-      headBase: { at: [0, 0, r4(orb ? H.C[2] + H.rz * 0.2 : neckZ + H.rz * 0.15)] }, headTop: { at: [0, 0, top] },
+      // (the head's pivot: over the neck's pinch, or, given (a feature animal's long neck), at the top of the neck)
+      headBase: { at: [0, 0, r4(headBaseZ ?? (orb ? H.C[2] + H.rz * 0.2 : neckZ + H.rz * 0.15))] }, headTop: { at: [0, 0, top] },
       hip$S: { at: J.hip }, knee$S: { at: J.knee }, ankle$S: { at: J.ankle }, toeBase$S: { at: J.toeBase }, toeTip$S: { at: J.toeTip },
       shoulder$S: { at: J.shoulder }, elbow$S: { at: J.elbow }, wrist$S: { at: J.wrist }, knuckles$S: { at: J.knuckles, rides: 'foreArm$S' },
       ...face.joints,   // the face's pivots and tips, riding the head (the orb's ride its body)
