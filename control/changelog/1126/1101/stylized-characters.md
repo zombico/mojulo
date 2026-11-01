@@ -34,6 +34,17 @@ member, a quick game's hero). Code: `control/lib/graph/egocube/feature-tune.js`.
 - **Families' designed sizes.** `FAMILY_SIZES` sets five families' structure dials where the style's shared
   silhouettes misdrew them, multiplied under the operator's tune: a bear's head bigger, a canine's muzzle longer, a
   cat's shorter, a deer's and a horse's legs, necks and faces longer.
+- **Broader beaks.** Every bird's beak is broad at its root: side mandibles stand out from the middle of each mandible
+  and converge on its tip. From the front it reads as a wedge, not a spike; in profile it keeps its species' shape (a
+  hook, a needle, a deep beak). The breadth is capped by the beak's length, so an owl's short deep beak stays a beak. A
+  bill is broadened too.
+- **Wings that carry the profile.** A folded wing now reads as one bold shape on the bird's side:
+  - it lies closer along the flank, and stands proud of it on thicker panels instead of sinking in;
+  - its tone steps further from the body's (`WING_STEP`);
+  - the hand turns at the wrist so its primaries lie back past the tail, in the hand panel's own plane. They no longer
+    splay out sideways from the front, and no feather grazes the panel it springs from. That grazing tore the skin:
+    on five birds measured, four carry fewer open edges in their skin (between 11 and 35% fewer), and the macaw 5% more.
+    The open edges themselves (non-manifold pieces dropped from the net) remain a known defect.
 - **QA.** `scripts/spikes/feature-roster.mjs` takes `--tune` (every species minted with it) and `--tunes` (each species
   once per tune, side by side).
 - **Stored mascots keep their look.** A minted mascot stores its compiled plan. An untuned sheet compiles as before,
@@ -50,7 +61,9 @@ member, a quick game's hero). Code: `control/lib/graph/egocube/feature-tune.js`.
   - on a tuned quadruped the paws still reach and the trunk still clears the floor;
   - decoration at 0 is bare;
   - the family sizes multiply;
-  - gen7's clumps, coverts, denser skin within budget, and its bake (none on the game model).
+  - gen7's clumps, coverts, denser skin within budget, and its bake (none on the game model);
+  - and, in `feature-grammar.test.js`, a standing bird's wing panel out of its body, its primaries not splayed, its beak
+    broader than deep.
 - Eyes: not passed. Sheets were shot for the operator: game against gen7, and one species tuned several ways.
 
 **Known.**

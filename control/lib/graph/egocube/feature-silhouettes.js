@@ -53,7 +53,9 @@ export function silhouetteOf(id, family, plan) {
   return 'barrel';
 }
 
-const ARM_OUT = unit([0.86, 0.12, -0.5]), ARM_FOLD = unit([0.45, -0.75, -0.5]);
+// (a bird's folded wing lies close along its flank, so in profile it is a broad shape on the body's side; it leans out
+// only as far as it needs to clear the body)
+const ARM_OUT = unit([0.86, 0.12, -0.5]), ARM_FOLD = unit([0.34, -0.78, -0.52]);
 
 /** the silhouettes. `body` the masses (eggs; bones torso, pelvis, thighR), `legs` 'hidden' (an egg under the haunch) or
  *  cones from the hip to the ankle, `arm` the shoulder, the arm's direction and its links' lengths and radii */

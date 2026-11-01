@@ -41,8 +41,11 @@ const r4 = (x) => Math.round(x * 1e4) / 1e4 + 0;
 
 /** THE PROPORTION PRINCIPLES (h): heads tall, the seam under the jaw, the head's lift over the neck's pinch, the arms'
  *  least outward share in a clip (so none sinks into the belly), a showing leg's least radii at the thigh and the ankle
- *  (a mascot's round leg; a bird's), a wing's scale (a bird's wing carries its silhouette: big) */
-export const FEATURE_PROPORTION = Object.freeze({ heads: 3.3, seam: 0.05, headLift: 0.12, splay: 0.62, leg: [0.27, 0.2], birdLeg: [0.14, 0.1], wing: 1.25 });
+ *  (a mascot's round leg; a bird's), a wing's scale (a bird's wing carries its silhouette: big), how far a folded wing
+ *  stands proud of the body (so its edge reads in profile, never sunk into the flank), its panels' thickness, and how much
+ *  of the fold's outward lean its primaries keep (little: they lie back along the body as the wing's tip, not splayed) */
+export const FEATURE_PROPORTION = Object.freeze({ heads: 3.3, seam: 0.05, headLift: 0.12, splay: 0.62, leg: [0.27, 0.2], birdLeg: [0.14, 0.1], wing: 1.45,
+  wingProud: 0.12, wingThick: 0.13, tipLean: 0.3 });
 
 /** THE DECORATION DIALS: 1 the designed amount, 0 none (the structure bare), more bolder. `tufts` the fur's and the
  *  feathers' fans (the cheeks, the tail's tip), `crown` the head's own fan, `markings` the coat's layers (the mask, the
@@ -181,18 +184,26 @@ function hands(B, kind, T, D, plume = {}, kh = 1) {
   if (kind === 'flippers') { B.eggs.push({ name: 'pawR', c: at(el, ARM, 0.3), u: ARM, r: R([0.42, 0.24, 0.07]), e: 0.4, hint: FLAT, bone: 'handR', join: 0.06 }); return; }
   if (kind === 'wings') {
     const mid = (a, b) => mul(add(a, b), 0.5), L1 = Math.hypot(...el.map((x, k) => x - sh[k])), L2 = Math.hypot(...wr.map((x, k) => x - el[k]));
-    const W = FEATURE_PROPORTION.wing;
+    const { wing: W, wingProud: pr, wingThick: th, tipLean } = FEATURE_PROPORTION;
+    // (the wing's outward face: the panels and their feathers stand proud of the flank along it, so the folded wing is a
+    // shape of its own on the body's side in profile, its edge shadowed, never a patch sunk into the body)
+    const N0 = unit(cross(ARM, FLAT)), N = N0[0] < 0 ? mul(N0, -1) : N0, out = (p) => at(p, N, pr);
+    // (the hand turns at the wrist to lie back along the body: its panel and its primaries in one plane, keeping little of
+    // the fold's outward lean, so the wing's tip lies along the flank in profile and never splays sideways from the
+    // front; in one plane, no feather grazes the panel it springs from)
+    const TIP = unit([ARM[0] * tipLean, ARM[1], ARM[2]]), TF = unit(cross(TIP, [1, 0, 0]));
     B.eggs.push(
-      { name: 'wingR', c: at(mid(sh, el), FLAT, 0.08), u: ARM, r: [L1 / 2 + 0.22, 0.52 * W, 0.1], e: 0.2, hint: FLAT, bone: 'upperArmR', group: 'Wing', join: 0.04 },
-      { name: 'wingForeR', c: at(mid(el, wr), FLAT, 0.04), u: ARM, r: [L2 / 2 + 0.2, 0.46 * W, 0.09], e: 0.3, hint: FLAT, bone: 'foreArmR', group: 'Wing', join: 0.04 },
-      { name: 'pawR', c: at(wr, ARM, 0.12), u: ARM, r: [0.26, 0.32 * W, 0.08], e: 0.4, hint: FLAT, bone: 'handR', group: 'Wing', join: 0.04 });
+      { name: 'wingR', c: out(at(mid(sh, el), FLAT, 0.08)), u: ARM, r: [L1 / 2 + 0.22, 0.52 * W, th], e: 0.2, hint: FLAT, bone: 'upperArmR', group: 'Wing', join: 0.04 },
+      { name: 'wingForeR', c: out(at(mid(el, wr), FLAT, 0.04)), u: ARM, r: [L2 / 2 + 0.2, 0.46 * W, th * 0.9], e: 0.3, hint: FLAT, bone: 'foreArmR', group: 'Wing', join: 0.04 },
+      { name: 'pawR', c: out(at(wr, TIP, 0.12)), u: TIP, r: [0.26, 0.32 * W, th * 0.8], e: 0.4, hint: TF, bone: 'handR', group: 'Wing', join: 0.04 });
     if (D.tufts > 0) {
       // (the secondaries: a scalloped trailing edge, hanging back and down from the forearm's panel)
-      [0.05, 0.35, 0.65, 0.95].forEach((t, i) => B.tufts.push({ name: `secondary${i}R`, root: at(at(el, ARM, t * L2), FLAT, -0.22 * W), aim: unit(add(mul(ARM, 0.75), mul(FLAT, -0.65))), len: (0.32 + 0.05 * i) * W * D.tufts, r: 0.1, tip: 0.25, curl: 10, bend: FLAT, bone: 'foreArmR', group: 'Wing', join: 0.04 }));
-      // (the primaries: the fan's falling rhythm, long, overlapping into one feathered tip back along the fold past the tail)
+      [0.05, 0.35, 0.65, 0.95].forEach((t, i) => B.tufts.push({ name: `secondary${i}R`, root: out(at(at(el, ARM, t * L2), FLAT, -0.22 * W)), aim: unit(add(mul(ARM, 0.75), mul(FLAT, -0.65))), len: (0.32 + 0.05 * i) * W * D.tufts, r: 0.1, tip: 0.25, curl: 10, bend: FLAT, bone: 'foreArmR', group: 'Wing', join: 0.04 }));
+      // (the primaries: the fan's falling rhythm, long, overlapping into one feathered tip back along the body past the
+      // tail, in the turned hand's plane)
       [[-12, 0.62], [-6, 0.78], [0, 0.86], [6, 0.76], [12, 0.6]].forEach(([fan, len], i) => {
-        const f = (fan * Math.PI) / 180, d = unit(add(mul(ARM, Math.cos(f)), mul(FLAT, Math.sin(f))));
-        B.tufts.push({ name: `primary${i}R`, root: at(at(wr, ARM, 0.12), FLAT, (i - 2) * 0.06 * W), aim: d, len: len * W * D.tufts, r: 0.11, tip: 0.2, curl: 8, bend: FLAT, bone: 'handR', group: 'Flight', join: 0.05 });
+        const f = (fan * Math.PI) / 180, d = unit(add(mul(TIP, Math.cos(f)), mul(TF, Math.sin(f))));
+        B.tufts.push({ name: `primary${i}R`, root: out(at(at(wr, TIP, 0.12), TF, (i - 2) * 0.06 * W)), aim: d, len: len * W * D.tufts, r: 0.11, tip: 0.2, curl: 8, bend: TF, bone: 'handR', group: 'Flight', join: 0.05 });
       });
     }
     return;

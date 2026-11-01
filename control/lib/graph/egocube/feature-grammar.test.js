@@ -15,6 +15,7 @@ import { animalCard } from './mascot-animals.js';
 import { SPECIES } from '../fauna/species.js';
 import { rollMascot } from './mascot.js';
 import { mascotPlanFromSheet } from './mascot-form.js';
+import { egg, eggDistance } from './feature-body.js';
 
 // (the first species of the first family of each plan)
 const ONE = Object.fromEntries(Object.keys(PLANS).map((plan) => { const fam = Object.keys(PLAN_OF).find((f) => PLAN_OF[f] === plan); return [plan, Object.keys(SPECIES).find((id) => SPECIES[id].family === fam)]; }));
@@ -98,6 +99,14 @@ describe('the feature grammar', () => {
     expect(wing.r[1]).toBeGreaterThan(0.5);
     expect(b.tufts.filter((t) => t.name.startsWith('secondary')).length).toBeGreaterThan(2);
     expect(b.tufts.some((t) => t.name.startsWith('crown'))).toBe(false);
+    // (the folded wing reads in profile: its panel stands out of the body, not sunk in its flank; its tip lies back along
+    // the body, never splayed sideways)
+    const trunk = b.eggs.filter((e) => ['belly', 'chest'].includes(e.name)).map((e) => egg(e));
+    expect(Math.min(...trunk.map((E) => eggDistance(E, wing.c)))).toBeGreaterThan(0);
+    for (const t of prim) expect(Math.abs(t.aim[0]), t.name).toBeLessThan(0.2);
+    // (the beak is broad at its root: wider across than deep, from the front a wedge, never a spike)
+    const beak = b.tufts.find((t) => t.name === 'beak'), side = b.tufts.find((t) => t.name === 'beakSideR');
+    if (beak) expect(side.root[0] + side.r).toBeGreaterThan(beak.r * 1.15);
   });
 
   it('a quadruped is functional: it drops onto all fours, its paws on the floor and its trunk clear of it; big hind legs stay big', () => {

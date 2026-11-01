@@ -112,7 +112,10 @@ A bird is told by its own beak, its plumage and its wings, all read from the ros
   width against its depth, how far its tip curves down, how far its upper tip overhangs) is made by `beakParts`: an upper
   mandible bent by the droop and aimed down by the depth, a lower one tucked under it (shorter under a hook), or a flat
   egg where it is wider than deep (a bill). So a pigeon's is a short point, an eagle's a hook, a parrot's deep, a
-  hummingbird's a needle, a toucan's huge, a duck's a bill.
+  hummingbird's a needle, a toucan's huge, a duck's a bill. Every beak is BROAD at its root (`FEATURE_BEAK.broad`): a pair
+  of side mandibles stands out from the middle of each mandible and converges on its tip, so from the front a beak reads
+  as a wedge and never a spike, and in profile it keeps its own shape. The breadth is capped by the beak's length
+  (`broadOfLen`), so a short deep beak (an owl's) stays a beak and never a band across the face; a bill is broadened too.
 - **The head matches the beak** (`headOf`): a hooked beak's head long and low under a brow ridge (a raptor's frown), a
   deep beak's big and round, a needle's small and sleek, a bill's broad and low, a beak longer than the skull a small
   head behind it.
@@ -120,9 +123,14 @@ A bird is told by its own beak, its plumage and its wings, all read from the ros
   colour (a hood down the neck where the neck shares it: an eagle's white, a mallard's green), a neck band (a pigeon's
   green), the tail's tip (and the primaries where that is darker), wing bars (a value step of the coat's own greys), the
   legs and the beak.
-- **The wings carry the silhouette.** Folded along the body and held a little out from it, so they read from the front
-  as from the side: big panels in the wing's own tone (a value step off the coat), a scalloped row of secondaries, long
-  primaries in the flight feathers' tone reaching past the tail. In the clips they stay folded, the elbow straight.
+- **The wings carry the silhouette, in profile above all.** Folded close along the flank and STANDING PROUD of it
+  (`FEATURE_PROPORTION.wingProud`, thick panels: `wingThick`), so the folded wing is a broad shape of its own on the
+  body's side, its edge shadowed, never a patch sunk into the flank: big panels in the wing's own tone (a wide value step
+  off the coat, `WING_STEP`), a scalloped row of secondaries, and long primaries in the flight feathers' tone reaching
+  past the tail. The hand turns at the wrist to lie back along the body (`tipLean`: the primaries keep little of the
+  fold's outward lean), its panel and its primaries in one plane, so the tip never splays sideways from the front and no
+  feather grazes the panel it springs from (a feather passing within a net cell of a panel tears the skin). In the clips
+  the wings stay folded, the elbow straight.
 - **The side silhouette is golden.** The tail, the head and the body (the beak apart) fall as 1 : φ : φ²: the head is
   sized to the body's length over φ, and the tail's fan reaches past the body by the head's length over φ.
 

@@ -28,7 +28,7 @@
  *
  * Absent, nothing here runs: an untuned sheet compiles byte for byte as before. Pure: data and arithmetic.
  */
-import { FEATURE_DECOR } from './feature-grammar.js';
+import { FEATURE_DECOR, FEATURE_PROPORTION } from './feature-grammar.js';
 import { refit } from './feature-function.js';
 
 const r4 = (x) => Math.round(x * 1e4) / 1e4 + 0;
@@ -244,7 +244,10 @@ export function detailClumps({ plan, skin, B, S, K, D, headTuft, tail, ruffs }) 
   const wing = B.eggs.find((e) => e.name === 'wingR');
   if (skin === 'feather' && wing && T > 0) {
     const { sh, el, ARM, FLAT } = B, L1 = Math.hypot(...el.map((x, k) => x - sh[k]));
-    [0.2, 0.5, 0.8].forEach((t, i) => out.push(dl({ name: `covert${i}R`, root: add3(add3(sh, mul(ARM, t * L1)), mul(FLAT, 0.12)), aim: add3(mul(ARM, 0.7), mul(FLAT, -0.7)), len: 0.22, r: 0.09, tip: 0.35, curl: 8, bend: FLAT, bone: 'upperArmR', group: 'Wing', join: 0.04 }, T)));
+    // (on the wing's outward face, where the panel stands proud of the flank: feature-grammar.js FEATURE_PROPORTION)
+    const c = [ARM[1] * FLAT[2] - ARM[2] * FLAT[1], ARM[2] * FLAT[0] - ARM[0] * FLAT[2], ARM[0] * FLAT[1] - ARM[1] * FLAT[0]], l = Math.hypot(...c) || 1;
+    const N = mul(c, (c[0] < 0 ? -1 : 1) / l), lift = FEATURE_PROPORTION.wingProud + FEATURE_PROPORTION.wingThick * 0.6;
+    [0.2, 0.5, 0.8].forEach((t, i) => out.push(dl({ name: `covert${i}R`, root: add3(add3(add3(sh, mul(ARM, t * L1)), mul(FLAT, 0.12)), mul(N, lift)), aim: add3(mul(ARM, 0.7), mul(FLAT, -0.7)), len: 0.22, r: 0.09, tip: 0.35, curl: 8, bend: FLAT, bone: 'upperArmR', group: 'Wing', join: 0.04 }, T)));
   }
   // (a scaled back's second row: a smaller spine between each pair of the first)
   if (skin === 'scale' && (D.spines ?? 1) > 0 && !S.limbless && !K.shell) {
