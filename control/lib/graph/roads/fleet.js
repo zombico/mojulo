@@ -14,7 +14,7 @@
  */
 
 import { face, faceOut } from './road-faces.js';
-import { loftLanguage, BODY_LANGUAGES } from './bodywork.js';
+import { loftLanguage, BODY_LANGUAGES, PICKUP_AXLE_SHIFT } from './bodywork.js';
 
 // L × W × H, wheelbase, track, wheel radius (m) — the plan's reference sheet. Profile stations are
 // fractions of L from the front: nose, windscreen base (hood end), roof start, roof end, deck start.
@@ -182,7 +182,7 @@ export function buildVehicle(cls, yaw = 0, opts = {}) {
     for (const sy of [-1, 1]) box(paint, R, xb1, xb0, sy > 0 ? W / 2 - 0.08 : -W / 2, sy > 0 ? W / 2 : -W / 2 + 0.08, zf, zw, T.paint);
     box(paint, R, xb1, xb1 + 0.08, -W / 2, W / 2, zf, zw, T.paint);
     box(trim, R, xb1 + 0.08, xb0, -W / 2 + 0.08, W / 2 - 0.08, zf - 0.02, zf, T.plastic);
-    wheelsFor(trim, R, spec, [wb / 2 + 0.25, -wb / 2 + 0.25], sink);
+    wheelsFor(trim, R, spec, [wb / 2 + PICKUP_AXLE_SHIFT, -wb / 2 + PICKUP_AXLE_SHIFT], sink);
   } else if (spec.kind === 'straight') {
     const xc0 = L / 2, xc1 = L / 2 - spec.cab;
     prism(paint, R, [[xc1, 0.55], [xc0, 0.55], [xc0, 1.55], [xc0 - 0.45, spec.cabH], [xc1, spec.cabH]], -W / 2 + 0.05, W / 2 - 0.05, T.paint);

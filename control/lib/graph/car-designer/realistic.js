@@ -20,7 +20,8 @@
  *   compileRealistic(sheet, { keys?, form? }) → { spec, faces: { root, wheels: [{ bone, faces, hub }] }, figure, census,
  *                                          rule, envelope, reads }
  *                  form: true draws the figure in the FORM render (gen-7, road-form.js): each face named and given its
- *                  material, its albedo and its crease-aware normals, the page lighting it; absent, as it was
+ *                  material, its albedo and its crease-aware normals, the page lighting it, and the named faces by bone
+ *                  returned as `form`; absent, as it was
  *   realisticCensus(compiled)           → measured bounds, wheelbase, track and wheel radius against the class
  *
  * The figure is the browser's rig-figure (vehicle-designer/vehicle-rig.js packVehicleFigure): the hull the root, each
@@ -32,6 +33,7 @@ import { VEHICLES, vehicleRule, envelope } from '../roads/vehicles.js';
 import { packVehicleFigure } from '../vehicle-designer/vehicle-rig.js';
 import { withAlbedo } from '../roads/road-faces.js';
 import { formFace, smoothForm, ROAD_MATERIALS } from './road-form.js';
+import { roadWheel, wheelWell } from './road-wheel.js';
 import { formLight } from './form-light.js';
 import { readDerive } from './channels.js';
 import { HEAVY } from './facets.js';
@@ -191,7 +193,14 @@ export function compileRealistic(sheet, { keys = 12, form = false } = {}) {
     ...built.trailer.map((f) => formFace(lift(f), rec.albedo.get(f))),
     ...marks.map((f) => formFace(f, null, { part: f.part, hex: f.fill, inside: [0, 0, spec.H / 2] })),
   ]) : null;
-  if (form) for (const w of wheels) w.form = smoothForm(w.faces.map((f) => formFace(f, rec.albedo.get(f), { where: 'wheel' })));
+  // (each wheel in the form render is the road wheel, lathed, its rim the sheet's wheel style: road-wheel.js; the fleet's
+  // prism stays the wheel the census measures)
+  const hubOf = (w) => [-w.side * spec.track / 2, w.x, spec.r], tyreW = spec.tyreW || 0.24, wheelWord = form ? readSheet(sheet).words.wheel : null;
+  // (a heavy class's wheel, a truck's or a bus's, is the heavy dish unless the sheet names another)
+  const wheelStyle = wheelWord ?? (spec.r > 0.45 ? 'heavyDuty' : null);
+  if (form) for (const w of wheels) w.form = smoothForm(roadWheel({ hub: hubOf(w), r: spec.r, width: tyreW, style: wheelStyle }));
+  // (and each arch its liner, on the body)
+  if (form) formRoot.push(...smoothForm(wheels.flatMap((w) => wheelWell({ hub: hubOf(w), r: spec.r, width: tyreW }))));
   const root = fan([...painted, ...built.trim.map(lift), ...built.trailer.map(lift), ...marks]);
   for (const w of wheels) w.faces.splice(0, w.faces.length, ...fan(w.faces));
   // the bones: axles ranked front to back by position (a trailer's are built by a call of their own); the front pair
@@ -221,7 +230,8 @@ export function compileRealistic(sheet, { keys = 12, form = false } = {}) {
     warnings: [],
   };
   const compiled = { spec, faces: { root: move(root), wheels: boneWheels.map((w) => ({ ...w, faces: move(w.faces), hub: N(w.hub) })) }, figure, rule: vehicleRule(cls), envelope: envelope(cls), class: cls };
-  return { ...compiled, census: realisticCensus(compiled) };
+  // (in the form render, the named faces too, by bone: what a review draws, and what an engine's materials are read from)
+  return { ...compiled, census: realisticCensus(compiled), ...(form ? { form: Object.fromEntries(formOf) } : {}) };
 }
 
 /** What was drawn, against the class: bounds (length along +y, width across x, height), wheelbase and track from the

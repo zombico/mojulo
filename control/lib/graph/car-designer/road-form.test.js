@@ -6,6 +6,7 @@ import { rollVehicleSheet } from './sheet.js';
 import { compileRealistic } from './realistic.js';
 import { roadPart, formFace, smoothForm, ROAD_MATERIALS } from './road-form.js';
 import { loftFigure } from './race-families.js';
+import { roadWheel, wheelWell, WHEEL_STYLES } from './road-wheel.js';
 
 // one class per body plan the loft draws, chosen in code: a car's language loft and a heavy class's own build
 const carClass = Object.keys(FLEET).find((c) => FLEET[c].kind === 'car');
@@ -89,5 +90,48 @@ describe('the realistic loft in the form render', () => {
     expect(loftFigure({ class: carClass }, { form: true }).form).toBeTruthy();
     expect(loftFigure({ class: carClass, light: 'paint' }, { form: true }).form).toBeUndefined();
     expect(() => loftFigure({ class: carClass, light: 'glossy' })).toThrow(/form .* or paint/);
+  });
+});
+
+describe('the road wheel, lathed', () => {
+  const hub = [0.8, 1.4, 0.33], r = 0.33, width = 0.24;
+  const dist = (p) => Math.hypot(p[1] - hub[1], p[2] - hub[2]);
+  const mid = (f) => f.corners.reduce((s, p) => [s[0] + p[0] / f.corners.length, s[1] + p[1] / f.corners.length, s[2] + p[2] / f.corners.length], [0, 0, 0]);
+  // one wheel per kind of face a style draws, chosen in code: spoked, and a dish
+  const spoked = Object.keys(WHEEL_STYLES).find((k) => WHEEL_STYLES[k].spokes > 0), dish = Object.keys(WHEEL_STYLES).find((k) => !WHEEL_STYLES[k].spokes);
+  it('lathes a tyre to its radius and its width, its faces out of it', () => {
+    const W = roadWheel({ hub, r, width });
+    const tyre = W.filter((f) => f.part === 'tyre');
+    expect(Math.max(...tyre.flatMap((f) => f.corners.map(dist)))).toBeCloseTo(r, 3);
+    expect(Math.max(...W.flatMap((f) => f.corners.map((p) => Math.abs(p[0] - hub[0]))))).toBeLessThan(width * 0.55);
+    for (const f of tyre) { const m = mid(f); expect(f.outNormal[1] * (m[1] - hub[1]) + f.outNormal[2] * (m[2] - hub[2])).toBeGreaterThan(0); }
+  });
+  it('gives every face a material and a unit normal, the face of the wheel toward the outside', () => {
+    for (const style of [spoked, dish]) {
+      const W = roadWheel({ hub, r, width, style });
+      for (const f of W) { expect(ROAD_MATERIALS).toHaveProperty(f.material); expect(Math.hypot(...f.outNormal)).toBeCloseTo(1, 6); }
+      // (the plates look out of the wheel; the lip is a cone, leaning out)
+      for (const f of W.filter((g) => ['rim.lip', 'wheel.brake', 'rim.back', 'wheel.hub'].includes(g.part))) expect(f.outNormal[0] * Math.sign(hub[0])).toBeGreaterThan(0.5);
+      expect(W.some((f) => f.material === 'brake')).toBe(true);
+    }
+  });
+  it('draws a style\'s spokes as solids, a dish as a plate', () => {
+    expect(roadWheel({ hub, r, width, style: spoked }).filter((f) => f.part === 'wheel.spoke')).toHaveLength(WHEEL_STYLES[spoked].spokes * 3);
+    const D = roadWheel({ hub, r, width, style: dish });
+    expect(D.some((f) => f.part === 'wheel.face')).toBe(true);
+    expect(D.some((f) => f.part === 'wheel.spoke')).toBe(false);
+  });
+  it('lines the arch facing the wheel, and grips the disc, on the body', () => {
+    const B = wheelWell({ hub, r, width });
+    for (const f of B.filter((g) => g.part === 'wheel.well')) { const m = mid(f); expect(f.outNormal[1] * (hub[1] - m[1]) + f.outNormal[2] * (hub[2] - m[2])).toBeGreaterThan(0); }
+    expect(B.some((f) => f.part === 'wheel.caliper')).toBe(true);
+  });
+  it('is the loft\'s wheel in the form render: its bones roll the wheel, the body keeps the liner', () => {
+    const c = compileRealistic(sheet(carClass), { form: true });
+    const wheelBone = c.faces.wheels[0].bone;
+    expect(c.form[wheelBone].some((f) => f.part === 'wheel.spoke' || f.part === 'wheel.face')).toBe(true);
+    expect(c.form[wheelBone].some((f) => f.part === 'wheel.caliper')).toBe(false);
+    expect(c.form.root.filter((f) => f.part === 'wheel.well').length).toBeGreaterThan(0);
+    expect(c.form.root.some((f) => f.part === 'wheel.caliper')).toBe(true);
   });
 });
