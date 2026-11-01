@@ -41,6 +41,8 @@ import { buildUnrealAssetPack } from '@/lib/graph/scene/unreal-pack';
 import { resolveHandoff, HANDOFF_WHATS } from '@/lib/graph/scene/handoff';
 import { writeHandoffGodot } from '@/lib/graph/scene/handoff-godot';
 import { writeHandoffBlender } from '@/lib/graph/scene/handoff-blender';
+import { writeHandoffUnreal, handoffUnrealCommands, HANDOFF_UNREAL_PATHS } from '@/lib/graph/scene/handoff-unreal';
+import { findUnreal } from '@/lib/workers/find';
 import { ENGINES } from '@/lib/graph/scene/engines/registry';
 import { normalizeGameManifest } from '@/lib/graph/game/game-manifest';
 import { meshFileToFaces } from '@/lib/graph/scene/mesh-read';
@@ -413,8 +415,9 @@ async function blenderExport(input) {
 }
 
 // ── format: 'unreal' (the Unreal asset pack) ──────────────────────────────────────────────────
-// Unreal takes mojulo's ASSETS (a character, a prop, a building, a robot, anything assembled), not its games or levels:
-// the GLB, the recipe and an editor Python importer under <ref>/unreal/ (unreal-pack.js). A game is refused with the move.
+// Unreal's ASSET pack: one thing (a character, a prop, a building, a robot, anything assembled) by its ref: the GLB, the
+// recipe and an editor Python importer under <ref>/unreal/ (unreal-pack.js). A game is refused with the move (its levels
+// are `engine: 'unreal'`'s level handoff, below).
 async function unrealExport(input) {
   const { ref, lit = false } = input;
   if (typeof lit !== 'boolean') throw new Error('`lit` must be a boolean if provided');
@@ -441,11 +444,16 @@ async function unrealExport(input) {
 // whole every time, the developer's project.godot and level.tscn written once and kept, so a re-handoff of a changed
 // recipe reimports under their wiring. Blender's (scene/handoff-blender.js) writes the same handoff under
 // <ref>/blender-handoff/: mojulo/ replaced whole, its importer building level.blend in mojulo's own collections and
-// keeping the artist's; a world's `fire` rides along at `fire_t` (the art pack's own fire). A game's levels each their
-// own, under the game's folder. Unreal takes an asset (unreal-pack.js, lit: the handoff's materials are the engine's to
-// light). `format: 'unreal'` is the same Unreal pack; `format: 'blender'` stays the Blender art pack (blender-pack.js,
-// <ref>/blender/), kept for the calls and plan steps that name it.
+// keeping the artist's; a world's `fire` rides along at `fire_t` (the art pack's own fire). Unreal's
+// (scene/handoff-unreal.js) writes it as a UE5 project under <ref>/unreal-handoff/: mojulo/ replaced whole, its importer
+// rebuilding /Game/Mojulo/ and keeping the developer's /Game/Level and project files. A game's levels each their own,
+// under the game's folder. Unreal's `what: 'asset'` is its asset pack (unreal-pack.js, <ref>/unreal/, lit: the
+// handoff's materials are the engine's to light), and its default for a thing that is no world (not a game, not a
+// walkable world kind), so a character or a solid by its ref lands as it always did. `format: 'unreal'` is the same
+// asset pack; `format: 'blender'` stays the Blender art pack (blender-pack.js, <ref>/blender/), kept for the calls and
+// plan steps that name them.
 export const MODEL_ENGINES = Object.freeze(['godot', 'unreal', 'blender']);
+const isWorld = (m) => m.kind === 'game' || WALKABLE_WORLD_KINDS.includes(m.kind);
 async function engineExport(input) {
   const { ref, engine } = input;
   if (!MODEL_ENGINES.includes(engine)) throw new Error(`\`engine\` must be one of ${MODEL_ENGINES.map((e) => `'${e}'`).join(', ')} if provided`);
@@ -455,16 +463,27 @@ async function engineExport(input) {
   if (!sketch) throw new Error(`No sketch exists at ref '${ref}'`);
   if (!sketch.manifest) throw new Error(`Sketch '${ref}' has no manifest`);
   const asEngine = ({ format: _format, ...r }) => ({ ...r, engine });
-  if (engine === 'unreal') {
-    if ((input.what ?? 'asset') !== 'asset') throw new Error("Unreal takes mojulo's assets (`what: 'asset'`), not its levels yet: a level goes to Godot (`engine: 'godot'`)");
+  if (engine === 'unreal' && (input.what ?? (isWorld(sketch.manifest) ? 'level' : 'asset')) === 'asset') {
     return { ...asEngine(await unrealExport({ ...input, lit: input.lit ?? true })), what: 'asset' };
   }
   const what = input.what ?? 'level';
-  const to = engine === 'blender' ? blenderTo(fireOf(input)) : handoffGodotTo;
+  const to = engine === 'blender' ? blenderTo(fireOf(input)) : engine === 'unreal' ? handoffUnrealTo : handoffGodotTo;
   if (sketch.manifest.kind === 'game') return gameHandoff(sketch, what, engine, to);
   const one = await to(sketch, what, path.join(outcomeDirFor(ref), ENGINES[engine].handoff));
-  return { ok: true, ref, engine, what, ...one, note: (engine === 'blender' ? handoffBlenderNote : handoffNote)(one) };
+  return { ok: true, ref, engine, what, ...one, note: (engine === 'blender' ? handoffBlenderNote : engine === 'unreal' ? handoffUnrealNote : handoffNote)(one) };
 }
+
+// one world handed to Unreal into `dir` (handoff-unreal.js): the project, the commands that import, probe and render it
+async function handoffUnrealTo(sketch, what, dir) {
+  const h = await resolveHandoff(sketch, { what });
+  const { written, kept } = await writeHandoffUnreal(h, dir, { title: sketch.title ?? null });
+  return { ...handoffSummary(h, dir, written, kept), map: HANDOFF_UNREAL_PATHS.map, commands: handoffUnrealCommands(dir, findUnreal() ?? undefined) };
+}
+
+const handoffUnrealNote = (one) => `An Unreal Engine 5 project in ${one.dir}: its importer (commands.import, headless, or from the editor's Output Log) builds `
+  + `${one.map}, streaming mojulo's sublevel in: the materials, ${one.shaded.length ? `${one.shaded.join(' and ')} as HLSL ported from the page, ` : ''}`
+  + 'collision, the sun, lamps, sky light and dome, the page\'s tone and haze as a post-process, a camera per camera marker, and every marker and seat as a tagged TargetPoint. '
+  + `A re-handoff replaces mojulo/ and /Game/Mojulo/ only${one.kept.length ? `; kept: ${one.kept.join(', ')}` : ''}, and ${one.map} keeps what the developer added. What stayed the web's is in \`stays\`. Unreal runs on the operator's machine; mojulo did not launch it.`;
 
 // one world handed to Godot into `dir`: what it wrote and kept, what travelled and what stayed the web's
 async function handoffGodotTo(sketch, what, dir) {
@@ -536,7 +555,8 @@ async function gameHandoff(game, what, engine, to) {
     const one = await to(lv, what, path.join(root, r));
     levels.push({ ref: r, ...one });
   }
-  const each = engine === 'blender' ? `each a Blender handoff under ${root}/<level>/ (run its importer to build its level.blend). ` : `each a Godot 4 project under ${root}/<level>/ (open one and play its level.tscn). `;
+  const each = engine === 'blender' ? `each a Blender handoff under ${root}/<level>/ (run its importer to build its level.blend). `
+    : engine === 'unreal' ? `each an Unreal project under ${root}/<level>/ (run its importer to build its ${HANDOFF_UNREAL_PATHS.map}). ` : `each a Godot 4 project under ${root}/<level>/ (open one and play its level.tscn). `;
   return {
     ok: true, ref: game.ref, kind: 'game', engine, what, dir: root, levels,
     note: `${levels.length} level${levels.length > 1 ? 's' : ''} of the game, ${each}`

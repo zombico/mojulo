@@ -48,7 +48,7 @@ const dataUrlBytes = (u) => Buffer.from(String(u).split(',')[1] ?? '', 'base64')
 const fileKey = (s) => String(s).replace(/[^A-Za-z0-9_-]/g, '_');
 
 // one layer of an atlas (a grid × grid of T × T cells, ATLAS_LAYERS' order: row by row from the top), as its own PNG
-function atlasCells(url, grid, count) {
+export function atlasCells(url, grid, count) {
   const d = decodePng(url);
   if (!d) return null;
   const T = Math.floor(d.W / grid), out = [];

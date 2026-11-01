@@ -9,8 +9,9 @@
  * rig, and the diagnostics the run found). Env-located binary, watchdogged serial launches, log-grepped, stdout-JSON
  * handback.
  *
- * Unreal takes mojulo's assets, not its games or levels: a game ref is refused with the move (export its characters and
- * solids, each by its ref).
+ * This is Unreal's asset door, one thing by its ref: a game ref is refused with the move (its levels go to Unreal as
+ * projects through export_model { ref, engine: 'unreal' }, scene/handoff-unreal.js; its characters and solids each by
+ * its ref).
  *
  * Capability ladder rung 0 (no UE binary): emit-only — the pack + IMPORT-GUIDE.md are the no-binary path; the gate says
  * why it skipped. The headless incantation is PINNED (first machine gate, 2026-09-03).

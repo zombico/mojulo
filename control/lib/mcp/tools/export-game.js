@@ -315,10 +315,10 @@ export async function exportGameHandler(input, context = {}, deps = {}) {
     throw new Error(`export_game: target is 'web' | 'desktop' (the game is the web build; ${RETIRED_GAME_TARGETS[target]}'s runtime translation `
       + "is retired) — a team's engine takes the game's levels and assets through export_model { ref, engine }");
   }
-  // Unreal takes mojulo's assets, not its games: the game's characters and solids go, each by its own ref
+  // Unreal takes the game's levels and assets, never the game: export_model's door hands them over
   if (target === 'unreal') {
-    throw new Error("export_game: Unreal takes mojulo's assets, not its games or levels — export each character or solid "
-      + "the game uses by its own ref with export_model { ref, engine: 'unreal' }");
+    throw new Error("export_game: the game is the web build; Unreal takes its levels (an Unreal project each) and its characters "
+      + "and solids (each by its own ref) through export_model { ref, engine: 'unreal' }");
   }
   // the era is the render's (era/eras.js), read by the pages
   if (era !== undefined) readEra(era);
