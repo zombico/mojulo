@@ -12,6 +12,7 @@ const here = dirname(fileURLToPath(import.meta.url));
 // leg of the matrix. Listed here so both configs read one list; the e2e config re-exports it.
 // A list, not a suffix: a rename would collide with every branch still editing these files.
 export const E2E = [
+  'lib/graph/gameworld/door-probes.e2e.test.js',
   'lib/mcp/tools/gameworld-city.test.js',
   'lib/mcp/tools/building-level.test.js',
   'lib/mcp/tools/design-game.test.js',

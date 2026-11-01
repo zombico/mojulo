@@ -393,7 +393,7 @@ function reviewWith(world, { approve, revise, note }) {
 }
 
 // the words a world is composed from: { prompt, levels?, seed?, name? }
-function composedWorld(c) {
+export function composedWorld(c) {
   if (!isObj(c) || typeof c.prompt !== 'string' || !c.prompt.trim()) throw new Error('design_game: compose is { prompt, levels?, seed?, name? }: the few words the world is read from');
   for (const k of Object.keys(c)) if (!['prompt', 'levels', 'seed', 'name'].includes(k)) throw new Error(`design_game: compose.${k} is not a setting (prompt, levels, seed, name)`);
   if (c.levels !== undefined && !(Number.isInteger(c.levels) && c.levels >= 1 && c.levels <= 6)) throw new Error('design_game: compose.levels is 1 to 6');
