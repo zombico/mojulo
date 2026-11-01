@@ -33,7 +33,7 @@ member, a quick game's hero). Code: `control/lib/graph/egocube/feature-tune.js`.
   said it did.
 - **Families' designed sizes.** `FAMILY_SIZES` sets five families' structure dials where the style's shared
   silhouettes misdrew them, multiplied under the operator's tune: a bear's head bigger, a canine's muzzle longer, a
-  cat's shorter, a deer's and a horse's legs, necks and faces longer.
+  cat's shorter, a deer's and a horse's legs and necks longer.
 - **Broader beaks.** Every bird's beak is broad at its root: side mandibles stand out from the middle of each mandible
   and converge on its tip. From the front it reads as a wedge, not a spike; in profile it keeps its species' shape (a
   hook, a needle, a deep beak). The breadth is capped by the beak's length, so an owl's short deep beak stays a beak. A
@@ -89,6 +89,18 @@ member, a quick game's hero). Code: `control/lib/graph/egocube/feature-tune.js`.
   listed as known. Now the holes are fanned shut on the surface (`skin-net.js closeHoles`, as the realistic hero's
   skin already did). On nine animals measured, with their colour zones cut in, every skin is closed: 0 open edges,
   where the raccoon had 151.
+- **The horse and the deer read as their animals.** They read as a bear and a fox: the horse's kit gave it a short
+  round muzzle and a mane of a few stubby spikes, and the deer's horns were a single curl. Each family now has its own
+  modules, reached through its tuning's kit (`FAMILY_TUNE` `kit`), so every animal of the family gets them:
+  - the horses (`equine`): a long face sloping down to a soft round nose with dark nostrils, a longer and narrower
+    head, a flowing mane falling to one side from the poll to the withers with a forelock over the brow (its own
+    colour, the roster's mane), a long hair tail in the same colour, and a longer neck. The zebra and the donkey keep a
+    short upright mane and a tufted tail (`SPECIES_KIT`);
+  - the deer (`cervid`): antlers (a beam each side curving forward, with three tines), big ears set out to the sides,
+    a narrow snout tapering to a black nose over a pale chin, and a longer neck. The elk, the reindeer and the moose
+    wear them too;
+  - no pale cheek discs on a hoofed face. The horns' and the mane's decoration dials still rule the antlers and the
+    mane.
 - **QA.** `scripts/spikes/feature-roster.mjs` takes `--tune` (every species minted with it) and `--tunes` (each species
   once per tune, side by side).
 - **Stored mascots keep their look.** A minted mascot stores its compiled plan. An untuned sheet compiles as before,
@@ -110,6 +122,8 @@ member, a quick game's hero). Code: `control/lib/graph/egocube/feature-tune.js`.
     broader than deep; its default face rolled bright, its resting lids and brows higher, its brows' clips unchanged;
   - a frog sitting on its own all fours (hands planted, webbed feet on its ankles, eyes on domes, its own muzzle);
     every plan's minted skin closed (`feature-body.test.js`);
+  - a horse's long face, flowing mane, forelock and hair tail, and a deer's antlers, side-set ears and pale chin, with
+    the dials still ruling them;
   - a head tuft worn by every plan in place of the crown, each card's locks rooted in the skull and standing out of it,
     its size and colour, `none` and the crown's dial at 0 bare, and the brief's word.
 - Eyes: not passed. Sheets were shot for the operator: game against gen7, and one species tuned several ways.
@@ -117,4 +131,5 @@ member, a quick game's hero). Code: `control/lib/graph/egocube/feature-tune.js`.
 **Known.**
 
 - The gen7 look is vertex-baked light and denser geometry. The fur has no normal map yet: the skin has no UVs.
-- The horse and the deer still read as standers with long faces, not as their animals.
+- The giraffe shows little of its long neck, and the zebra's stripes barely show.
+- The moose wears the deer's branching antlers, not its own broad ones.

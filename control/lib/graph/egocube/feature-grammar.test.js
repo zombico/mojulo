@@ -7,7 +7,7 @@
 // A quadruped is functional (it drops onto all fours: its paws reach the floor, its trunk clears it, big hind legs stay
 // big); a bird's side silhouette falls in φ, its beak is its own and its wings carry its silhouette; no fish is drawn.
 import { describe, it, expect } from 'vitest';
-import { featureBuild, PLAN_OF, PLANS, speciesMeasures, FEATURE_PROPORTION, FEATURE_EXCLUDES, BIRD_REST } from './feature-grammar.js';
+import { featureBuild, PLAN_OF, PLANS, speciesMeasures, FEATURE_PROPORTION, FEATURE_EXCLUDES, BIRD_REST, SPECIES_KIT } from './feature-grammar.js';
 import { featureFace } from './feature-face.js';
 import { FEATURE_BIRD_LEAN } from './mascot.js';
 import { FEATURE_FOURS, speciesLimbs } from './feature-function.js';
@@ -121,6 +121,27 @@ describe('the feature grammar', () => {
     expect(b.eggs.some((e) => e.name === 'eyeDomeR')).toBe(true); expect(b.eye.el).toBeGreaterThan(35);
     expect(b.eggs.some((e) => e.name === 'chin')).toBe(true);                   // (the frog's own muzzle, a pale throat)
     expect(b.marks.some((m) => m.name === 'throat')).toBe(true);
+  });
+
+  it('a horse and a deer read as their animals: a long face, a flowing mane and a hair tail; antlers and big ears', () => {
+    // (one species of each family, chosen in code: the first whose own kit does not override the family's)
+    const fam = (f) => Object.keys(SPECIES).find((id) => SPECIES[id].family === f && !SPECIES_KIT[id]);
+    const horse = featureBuild(animalCard(fam('equine'))), deer = featureBuild(animalCard(fam('cervid'))), stander = featureBuild(animalCard('raccoon'));
+    const front = (b) => Math.max(...b.eggs.filter((e) => e.bone === 'head').map((e) => e.c[1] + e.r[0]));
+    expect(front(horse)).toBeGreaterThan(front(stander) * 1.4);                  // (the long face)
+    expect(horse.tufts.filter((t) => /^mane\d$/.test(t.name) && t.group === 'Mane').length).toBe(6);
+    expect(horse.tufts.some((t) => t.name === 'forelock')).toBe(true); expect(horse.tufts.some((t) => /^crown/.test(t.name))).toBe(false);
+    expect(horse.tufts.find((t) => t.name === 'tail')).toMatchObject({ group: 'Mane' });
+    expect(horse.tufts.find((t) => t.name === 'tail').len).toBeGreaterThan(1);
+    expect(deer.tufts.filter((t) => /^antler/.test(t.name)).length).toBe(4);     // (a beam and its three tines)
+    const ear = deer.eggs.find((e) => e.name === 'earR');
+    expect(ear.u[0]).toBeGreaterThan(0.6);                                        // (out to the side)
+    expect(deer.eggs.find((e) => e.name === 'chin').group).toBe('Belly');
+    // (no pale cheek discs on a hoofed face)
+    for (const b of [horse, deer]) expect(b.marks.some((m) => m.name === 'muzzle')).toBe(false);
+    // (the horns' dial still rules the antlers, the mane's the mane)
+    expect(featureBuild(animalCard(fam('cervid')), { decor: { horns: 0 } }).tufts.some((t) => /^antler/.test(t.name))).toBe(false);
+    expect(featureBuild(animalCard(fam('equine')), { decor: { mane: 0 } }).tufts.some((t) => /^mane|forelock/.test(t.name))).toBe(false);
   });
 
   it('a bird rests open and bright: its default face a bright one, its lids more open and its brows higher, every clip the same', () => {

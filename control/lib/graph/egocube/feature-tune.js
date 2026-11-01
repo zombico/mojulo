@@ -52,8 +52,8 @@ export const FAMILY_SIZES = Object.freeze({
   ursine: Object.freeze({ head: 1.15, ears: 1.15 }),
   canine: Object.freeze({ muzzle: 1.25, ears: 1.1 }),
   feline: Object.freeze({ head: 1.06, muzzle: 0.85, ears: 1.1 }),
-  cervid: Object.freeze({ legs: 1.12, neck: 1.25, muzzle: 1.1 }),
-  equine: Object.freeze({ legs: 1.1, neck: 1.3, muzzle: 1.15 }),
+  cervid: Object.freeze({ legs: 1.12, neck: 1.7 }),
+  equine: Object.freeze({ legs: 1.1, neck: 2 }),
 });
 
 /** a family's designed sizes and the operator's, multiplied: null where neither moves a dial */
@@ -227,7 +227,7 @@ export function detailClumps({ plan, skin, B, S, K, D, headTuft, tail, ruffs, tu
       { name: 'cheekDR', root: [0.6, 0.0, 2.32], aim: [0.6, -0.4, -0.7], len: 0.26, r: 0.11, curl: 16, bend: [0, -1, -0.2], bone: 'head', join: 0.06 },
       { name: 'cheekER', root: [0.62, 0.1, 2.72], aim: [0.95, -0.1, 0.3], len: 0.24, r: 0.1, curl: 24, bend: [0, -0.4, -1], bone: 'head', join: 0.06 },
     ]) out.push(headTuft(dl(t, T)));
-    if (D.crown > 0 && !K.horns && K.mane !== 'crest' && !tuft) for (const t of [
+    if (D.crown > 0 && !K.horns && !['crest', 'flow'].includes(K.mane) && !tuft) for (const t of [
       { name: 'crownD', root: [0.22, -0.12, 3.26], aim: [0.75, 0.0, 0.8], len: 0.2, r: 0.08, curl: 18, bend: [1, 0.1, -0.4], bone: 'head', join: 0.05 },
       { name: 'crownE', root: [-0.24, 0.2, 3.24], aim: [0.2, 0.4, 1], len: 0.22, r: 0.08, curl: 22, bend: [1, 0.1, -0.4], bone: 'head', join: 0.05 },
     ]) out.push(headTuft(dl(t, D.crown)));
