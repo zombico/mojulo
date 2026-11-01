@@ -553,9 +553,14 @@ let __ctrlActive = false;       // there are controllable entities to step each 
 let __ctrlOwnsCamera = false;   // a camera entity is present → drive the camera + disable OrbitControls
 
 // --- WebXR immersive-vr (opt-in): the z-up rig carries the y-up XR space through the same scene ---
-const XR = {"eye":1.6,"speed":10.12427387723202,"turn":"smooth","snap":0.5235987755982988,"turnSpeed":2.0943951023931953,"move":"body","dead":0.2,"axial":0.20943951023931953,"bind":{"xr":{"moveForward":["left.thumbstickY-"],"moveBack":["left.thumbstickY+"],"strafeLeft":["left.thumbstickX-"],"strafeRight":["left.thumbstickX+"],"turnLeft":["right.thumbstickX-"],"turnRight":["right.thumbstickX+"]}}};
+const XR = {"eye":1.6,"speed":10.12427387723202,"move":"seated","turn":"smooth","snap":0.5235987755982988,"turnSpeed":2.0943951023931953,"neck":0.8726646259971648,"reach":0.12,"dead":0.2,"axial":0.20943951023931953,"bind":{"xr":{"moveForward":["left.thumbstickY-"],"moveBack":["left.thumbstickY+"],"strafeLeft":["left.thumbstickX-"],"strafeRight":["left.thumbstickX+"],"turnLeft":["right.thumbstickX-"],"turnRight":["right.thumbstickX+"]}}};
 // a static copy (a download, a page on a static host) takes the mode words the live route does: ?xr=snap,hand
-try { for (const w of (new URLSearchParams(location.search).get('xr') || '').toLowerCase().split(',')) { if (w === 'smooth' || w === 'snap') XR.turn = w; else if (w === 'body' || w === 'latch' || w === 'head' || w === 'hand') XR.move = w; } } catch (e) { /* no location */ }
+try {
+  const ws = (new URLSearchParams(location.search).get('xr') || '').toLowerCase().split(',');
+  const t = ws.find((w) => w === 'smooth' || w === 'snap' || w === 'off'), m = ws.find((w) => ['seated', 'standing', 'latch', 'head', 'hand'].includes(w));
+  if (m) { XR.move = m; XR.turn = m === 'standing' ? 'snap' : 'smooth'; }
+  if (t) XR.turn = t;
+} catch (e) { /* no location */ }
 const __XRK = (function buildControlsKernel() {
   // a keyboard control may name a modifier without its side; it matches either physical key
   const SIDES = { Shift: ['ShiftLeft', 'ShiftRight'], Control: ['ControlLeft', 'ControlRight'], Alt: ['AltLeft', 'AltRight'], Meta: ['MetaLeft', 'MetaRight'] };
@@ -847,7 +852,7 @@ const __XRV = (function buildXrDriver() {
   return { xrRead, stick };
 })();
 const __XRD = {"xr":{"standard":"WebXR Gamepads Module, \"xr-standard\" mapping per hand; buttons past the thumbstick follow the WebXR Input Profiles registry","driver":"webxr-gamepad","hands":["left","right"],"buttons":{"trigger":0,"squeeze":1,"touchpad":2,"thumbstick":3,"primary":4,"secondary":5},"axes":{"touchpadX":0,"touchpadY":1,"thumbstickX":2,"thumbstickY":3},"sticks":{"thumbstick":["thumbstickX","thumbstickY"],"touchpad":["touchpadX","touchpadY"]},"labels":{"trigger":"trigger","squeeze":"grip","touchpad":"touchpad","thumbstick":"thumbstick click","primary":{"left":"X","right":"A"},"secondary":{"left":"Y","right":"B"},"thumbstick_stick":"thumbstick","touchpad_stick":"touchpad"}}};
-let __xrOn = false, __xrRig = null, __xrYaw = 0, __xrSnapCool = 0, __xrSaved = null, __xrLatch = null;
+let __xrOn = false, __xrRig = null, __xrYaw = 0, __xrSnapCool = 0, __xrSaved = null, __xrLatch = null, __xrTorso = null;
 const __xrTilt = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), Math.PI / 2);
 const __xrA = new THREE.Vector3(), __xrB = new THREE.Vector3(), __xrQ = new THREE.Quaternion();
 // the hand that walks: the one the forward binding names
@@ -878,6 +883,33 @@ function __xrHandHeading(){
     break;
   }
   return __xrHeading();
+}
+// standing: the torso's yaw inside the play space (rig-local, about +Y, 0 = the space's -Z), estimated each frame
+const __xrWrap = (a) => Math.atan2(Math.sin(a), Math.cos(a));
+function __xrLocalYaw(o){
+  __xrQ.set(o.x, o.y, o.z, o.w); __xrB.set(0, 0, -1).applyQuaternion(__xrQ);
+  return Math.hypot(__xrB.x, __xrB.z) > 0.2 ? Math.atan2(-__xrB.x, -__xrB.z) : null;
+}
+function __xrStance(dt){
+  const p = __xrViewer(); if (!p) return;
+  const hy = __xrLocalYaw(p.transform.orientation);
+  if (__xrTorso === null) { __xrTorso = hy !== null ? hy : 0; return; }
+  // the hands: the point between the two controllers, held out in front of the head, is in front of the chest
+  let hands = null;
+  const f = renderer.xr.getFrame(), ref = renderer.xr.getReferenceSpace(), s = renderer.xr.getSession();
+  if (f && ref && s) {
+    let n = 0, mx = 0, mz = 0;
+    for (const src of s.inputSources) {
+      if (src.handedness !== 'left' && src.handedness !== 'right') continue;
+      const sp = src.gripSpace || src.targetRaySpace, q = sp ? f.getPose(sp, ref) : null;
+      if (q) { mx += q.transform.position.x; mz += q.transform.position.z; n++; }
+    }
+    const vx = mx / 2 - p.transform.position.x, vz = mz / 2 - p.transform.position.z;
+    if (n === 2 && Math.hypot(vx, vz) > XR.reach) hands = Math.atan2(-vx, -vz);
+  }
+  const goal = hands !== null ? hands : hy, rate = hands !== null ? 8 : 1;
+  if (goal !== null) __xrTorso += __xrWrap(goal - __xrTorso) * (1 - Math.exp(-rate * dt));
+  if (hy !== null) { const d = __xrWrap(hy - __xrTorso); if (Math.abs(d) > XR.neck) __xrTorso += d - Math.sign(d) * XR.neck; }
 }
 // the head in world space: the frame's viewer pose (rig-local) through the rig; last render's camera without a frame
 function __xrHead(out){
@@ -918,17 +950,18 @@ async function __xrEnter(){
   scene.add(__xrRig);
   __xrSaved = { pos: camera.position.clone(), quat: camera.quaternion.clone(), controls: controls.enabled, walkOn };
   __xrRig.add(camera); camera.position.set(0, 0, 0); camera.quaternion.identity();
-  walkOn = false; controls.enabled = false; __xrLatch = null; __xrSnapCool = 0;
+  walkOn = false; controls.enabled = false; __xrLatch = null; __xrSnapCool = 0; __xrTorso = null;
   if (document.pointerLockElement) document.exitPointerLock();
   __xrOn = true; __xrBtn.classList.add('on');
   session.addEventListener('end', __xrExit);
   await renderer.xr.setSession(session);
 }
-// per-frame: the right stick turns (smooth or snap, about the head), the left stick walks and strafes on the
-// body / latched / gaze / hand heading, then the rig's feet snap to the floor beneath (walk channel's probe).
+// per-frame: standing estimates the torso, the right stick turns (smooth or snap, about the head), the left stick walks
+// and strafes on the body (seated: the rig; standing: the rig and the torso in it) / latched / gaze / hand heading, then the rig's feet snap to the floor beneath (walk channel's probe).
 function __xrStep(dt){
   const session = renderer.xr.getSession(); if (!session || !__xrRig) return;
   const rd = __XRV.xrRead(session.inputSources, __XRD);
+  if (XR.move === 'standing') __xrStance(dt);
   const m = __XRV.stick(__XRK.axis(XR, 'strafeRight', 'strafeLeft', 'xr', rd), __XRK.axis(XR, 'moveForward', 'moveBack', 'xr', rd), XR.dead, XR.axial);
   const walking = !!(m[0] || m[1]);
   // latch before turning, so this frame's turn turns the latched heading too
@@ -939,12 +972,12 @@ function __xrStep(dt){
     __xrSnapCool = Math.max(0, __xrSnapCool - dt);
     if (Math.abs(turn) > 0.7 && __xrSnapCool <= 0) { __xrTurn(-Math.sign(turn) * XR.snap); __xrSnapCool = 0.3; }
     else if (Math.abs(turn) < 0.3) __xrSnapCool = 0;
-  } else {
+  } else if (XR.turn === 'smooth') {
     const t = __XRV.stick(turn, 0, XR.dead, 0)[0];
     if (t) __xrTurn(-t * XR.turnSpeed * dt);
   }
   if (walking) {
-    const h = XR.move === 'body' ? __xrYaw : XR.move === 'latch' ? __xrLatch : XR.move === 'hand' ? __xrHandHeading() : __xrHeading();
+    const h = XR.move === 'seated' ? __xrYaw : XR.move === 'standing' ? __xrYaw + (__xrTorso || 0) : XR.move === 'latch' ? __xrLatch : XR.move === 'hand' ? __xrHandHeading() : __xrHeading();
     const v = XR.speed * dt, fx = Math.cos(h), fy = Math.sin(h), rx = Math.sin(h), ry = -Math.cos(h);
     __xrRig.position.x += (m[1] * fx + m[0] * rx) * v;
     __xrRig.position.y += (m[1] * fy + m[0] * ry) * v;
