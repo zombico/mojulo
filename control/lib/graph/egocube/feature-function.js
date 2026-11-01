@@ -14,7 +14,7 @@
  *                             the hips; the arms lengthened until the forepaws reach it from there; with the pose it
  *                             reaches. `arms` and `legs` are a tune's asks (feature-tune.js: multipliers on what the fit
  *                             makes): honoured as far as the floor allows, `held` naming each the function kept longer;
- *                             a tuned `girth` (a deeper trunk, standing higher) lets the arms grow as far
+ *                             a tuned `girth` (a deeper trunk, standing higher) lets the legs and the arms grow as far
  *   foursClips(F, { walk }) → the clips that play it: `fours` (dropping onto all fours, held) and `prowl` (the walk on
  *                             all fours: the hind legs' own walk, the trunk hinged, the arms swinging against the legs)
  *
@@ -114,7 +114,7 @@ export function functional(S, limbs = {}, { arms: A = 1, legs: Lg = 1, girth: G 
   // the hip height it needs
   let T = refit(S, fit), H = hinged(T, deg);
   while (-H.low - F.brush > T.hip[2] && fit.depth - F.depth.step >= F.depth.least - 1e-9) { fit.depth -= F.depth.step; T = refit(S, fit); H = hinged(T, deg); }
-  fit.rise = clamp(fit.rise + Math.max(0, -H.low - F.brush - T.hip[2]), 0, F.rise.most);
+  fit.rise = clamp(fit.rise + Math.max(0, -H.low - F.brush - T.hip[2]), 0, F.rise.most * Math.max(1, G));
   // (a tune's legs: the hips at that share of the height the fit made them, never lower than the floor needs)
   if (Lg !== 1) { const want = (S.hip[2] + fit.rise) * Lg - S.hip[2]; if (want < fit.rise) held.push('legs'); fit.rise = Math.max(fit.rise, want); }
   T = refit(S, fit); H = hinged(T, deg);

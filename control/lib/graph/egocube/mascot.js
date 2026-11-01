@@ -169,8 +169,9 @@ export const STYLES = Object.freeze({
 /** what the anime style leans when it is asked for (S3, S5): open, bright faces; the ahoge (a tuft) as the hook */
 const STYLE_LEAN = Object.freeze({ expression: { happy: 3, joy: 3, grin: 2, surprised: 2, content: 0.4, determined: 0.5, sleepy: 0.3 }, hook: { tuft: 5, ears: 1.5 } });
 
-/** what a bird in the feature style leans when its face is not asked for: open, bright faces. Its face is its eyes and
- *  brows alone (a beak has no smile), and a brow pressed down or a lid half shut on a bird reads sad whatever it means */
+/** what a bird (and a frog) in the feature style leans when its face is not asked for: open, bright faces. Its face is
+ *  its eyes and brows (a beak has no smile; a frog's eyes sit on top of its head), and a brow pressed down or a lid half
+ *  shut there reads sad whatever it means */
 export const FEATURE_BIRD_LEAN = Object.freeze({ expression: { happy: 4, grin: 2, joy: 1.5, surprised: 1.5, content: 0.5, determined: 0.3, smirk: 0.6, sad: 0.15, angry: 0.3, sleepy: 0.15 } });
 
 /** The hues a mascot owns: the body colour. Saturated and value-separated by design (law 7). */
@@ -431,7 +432,7 @@ export function rollMascot({ brief = '', facets: asked0 = {}, seed = 1, path = '
   const unstyled = given.style === 'feature' && card && FEATURE_EXCLUDES.includes(card.family);
   if (unstyled) given.style = 'toon';
   const asked = new Set(Object.keys(given));
-  const birdLean = given.style === 'feature' && card && PLAN_OF[card.family] === 'bird' ? FEATURE_BIRD_LEAN : null;
+  const birdLean = given.style === 'feature' && card && (PLAN_OF[card.family] === 'bird' || card.family === 'anuran') ? FEATURE_BIRD_LEAN : null;
   let f, attempt = 0, broken = [];
   for (; attempt < MAX_ATTEMPTS; attempt++) {
     f = { ...throwDice(mulberry32(hashSeed(`${seed}::mascot::${path}::${attempt}`)), given, lean, birdLean), ...given };

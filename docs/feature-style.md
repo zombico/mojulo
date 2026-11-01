@@ -58,7 +58,9 @@ Every build has two halves. They are designed separately and dialled separately.
    onto all fours to move, so its limbs keep the species' own proportions (big hind legs stay big, an ape's arms stay
    long) and its body fits over them. See Function.
 9. **A default game model.** One smooth skin, a few layers and parts, a triangle budget (FEATURE_TRIANGLES), the
-   whole shaded smooth by the field's normals.
+   whole shaded smooth by the field's normals. The skin is CLOSED: where two sheets of the surface pass within a net cell
+   (a crease under the jaw, a wing on its flank, an arm against the body) the net pinches, the pinch is let go and the
+   hole it leaves is fanned shut on the surface (skin-net.js closeHoles), so no slit shows through.
 
 ## Silhouettes
 
@@ -78,9 +80,14 @@ line of its back (where spines run) and the shapes a belly takes on it.
 | **teardrop** | an upright bird, a pinniped (an owl, a penguin, a seal) | one egg fat at its foot, the head merged into its top, short wings or flippers at the sides |
 | **perch** | a standing bird (a pigeon, a crow, an eagle) | the body tilted forward, the breast puffed, a visible neck, wings folded on the sides, thin legs and toes |
 | **wader** | a long-legged or long-necked bird (a flamingo, an ostrich) | a small body high on stilts, a long neck |
-| **squat** | an anuran (a frog, a toad) | wide and low, the head merged into the front, the hind legs folded big at the sides, the feet splayed out in front |
+| **squat** | an anuran (a frog, a toad) | a SITTER: a wide pear on its folded hind legs (each thigh forward along the side, the shin back under it, the long webbed foot forward from the ankle, its toes ending in round pads), the head wide, flat and merged into the top, big eyes bulging on domes on it, the mouth's line right across the face over a pale throat, thin arms with padded fingers planted in front. Its sitting pose is its own all fours: it is not fitted to drop onto them |
 | **orb** | a whale, a dolphin (fish are not drawn in the style) | one egg, the face on its front, fins for limbs |
 | **coil** | no legs (a snake) | a ring of loops on the ground, the body an S rising out of it, the head held out front |
+
+**Every silhouette is rounded** (`rounded`, `FEATURE_ROUND`): the style's animals are bottom-heavy and round, so the
+lower masses (the belly, a pear's front, the haunches, a snake's coils) are fuller across and deep, the chest a little
+slimmer, a leg that shows full at the thigh, every mass rounder (less pointed) and blended softer. The belly's shapes
+follow. It is applied before the function fits the body, so the all-fours fit still holds.
 
 **Birds stand as birds** (see Birds): the wings folded and prominent, round legs in their own colour, three toes
 forward and one back; the head smooth unless its kit names a crest.

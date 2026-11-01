@@ -25,7 +25,7 @@
  */
 
 import { speciesParams } from '../fauna/species.js';
-import { SILHOUETTES, silhouetteOf, bellyOf } from './feature-silhouettes.js';
+import { SILHOUETTES, silhouetteOf, bellyOf, rounded } from './feature-silhouettes.js';
 import { functional, speciesLimbs } from './feature-function.js';
 import { PHI, beakOf, beakParts, headOf, plumageOf, extentAlong } from './feature-birds.js';
 import { tunedSilhouette, detailClumps, sizesOf } from './feature-tune.js';
@@ -39,6 +39,7 @@ const unit = (a) => { const l = Math.hypot(a[0], a[1], a[2]) || 1; return [a[0] 
 const at = (p, d, s) => add(p, mul(d, s));
 const sc = (r, k) => r.map((x) => x * k);
 const r4 = (x) => Math.round(x * 1e4) / 1e4 + 0;
+const rad = (d) => (d * Math.PI) / 180;
 
 /** THE PROPORTION PRINCIPLES (h): heads tall, the seam under the jaw, the head's lift over the neck's pinch, the arms'
  *  least outward share in a clip (so none sinks into the belly), a showing leg's least radii at the thigh and the ankle
@@ -73,6 +74,7 @@ export const PLAN_OF = Object.freeze({
  *  it means. So its lids rest more open (`lid` degrees), its brows sit higher off them (`at`, degrees above the gaze's
  *  level) and their outer ends are lifted (`tilt`: the inner end drops by it), for every expression alike */
 export const BIRD_REST = Object.freeze({ lid: 12, at: 62, tilt: 8 });
+// (a frog's eyes, bulging on top of its head, rest the same way: FAMILY_TUNE anuran)
 
 /** THE BODY PLANS: what the plan's skin grows (fur, feather, scale, smooth), its hands (fingers, hooves, wings,
  *  flippers), the body's and the head's scales against the stander's, the legs' length, the head's lift and seam, the
@@ -85,8 +87,9 @@ export const PLANS = Object.freeze({
   orb: Object.freeze({ skin: 'smooth', hands: 'flippers', body: 1.12, head: 1, legs: 0.6, lift: -0.3, seam: 0, eye: { az: 26, el: 8, r: 0.15 }, muzzle: 'round', tail: 'fluke', ruffs: false }),
 });
 
-/** a family's tuning of its plan: the body's width, the feet's and the arms' lengths, the fingers (long | short), the
- *  tail its kit falls back on, the belly the roster lacks (feature-silhouettes.js BELLIES), and its own decoration
+/** a family's tuning of its plan: the body's width, the feet's and the arms' lengths, the fingers (long | short | frog),
+ *  its own kit over its card's (`kit`), its hands' kind, its head's shape [long, across, up], its eye and whether the
+ *  eyes bulge on domes, the tail its kit falls back on, the belly the roster lacks (feature-silhouettes.js BELLIES), and its own decoration
  *  (dark paws, a ringed tail) */
 export const FAMILY_TUNE = Object.freeze({
   procyonid: { fingers: 'long', paws: 'dark', rings: true, belly: 'oval' },
@@ -101,6 +104,8 @@ export const FAMILY_TUNE = Object.freeze({
   giraffid: { legs: 1.5 },
   pachyderm: { body: 1.1, legs: 1.1 },
   testudine: { body: 1.05 },
+  // (a frog: hands that grip, padded fingers; a wide flat head; big eyes bulging on domes on top of it)
+  anuran: { kit: { muzzle: 'frog' }, hands: 'fingers', fingers: 'frog', headShape: [0.92, 1.32, 0.74], eye: { az: 27, el: 42, r: 0.21, proud: 0.66, rest: BIRD_REST }, eyeDomes: true },
 });
 
 /** A SPECIES' OWN MEASURES, read from the fauna roster's realistic animal (fauna/species.js speciesParams): its ears'
@@ -160,7 +165,8 @@ function structure(S, P, T, shape = [1, 1, 1], Z = null) {
   const hip = X(S.hip), fx = S.foot[0], ankle = X([fx - 0.01, 0.05, 0.1]), knee = S.knee ? X(S.knee) : X([fx, 0.08, S.hip[2] * 0.58]);
   // (a leg that shows is a mascot's: round and full, never a stick; a bird's thinner, still round)
   const shinGroup = S.bird ? 'Sock' : undefined, CH = S.bird ? FEATURE_PROPORTION.birdLeg : FEATURE_PROPORTION.leg;
-  const legR = [Math.max(S.legR?.[0] ?? 0, CH[0]), Math.max(S.legR?.[1] ?? 0, CH[1])].map((x) => x * (S.legScale ?? 1) * (S.legGirth ?? 1)), legM = (legR[0] + legR[1]) / 2;
+  // (the style's rounding fills the thigh: the volume sits low, feature-silhouettes.js rounded)
+  const legR = [Math.max(S.legR?.[0] ?? 0, CH[0]) * (S.thighScale ?? 1), Math.max(S.legR?.[1] ?? 0, CH[1])].map((x) => x * (S.legScale ?? 1) * (S.legGirth ?? 1)), legM = (legR[0] + legR[1]) / 2;
   const legs = S.legs === 'cones' ? [
     { name: 'thighR', a: hip, b: knee, ra: legR[0], rb: legM, bone: 'thighR', join: 0.1 },
     { name: 'shinR', a: knee, b: ankle, ra: legM, rb: legR[1], bone: 'shinR', group: shinGroup, join: 0.08 }] : [];
@@ -216,8 +222,11 @@ function hands(B, kind, T, D, plume = {}, kh = 1) {
     return;
   }
   B.eggs.push({ name: 'pawR', c: at(wr, ARM, 0.09 * kh), u: ARM, r: R([0.13, 0.13, 0.075]), e: 0.15, hint: SPREAD, bone: 'handR', group: T.paws === 'dark' ? 'Patch' : undefined, join: 0.04 });
-  const long = (T.fingers ?? 'short') === 'long', claws = kind === 'claws';
-  const digits = claws
+  const long = (T.fingers ?? 'short') === 'long', claws = kind === 'claws', frog = T.fingers === 'frog';
+  const digits = frog
+    // (a frog's: four thin fingers fanned wide, each ending in a round pad)
+    ? { from: wr, along: ARM, across: SPREAD, at: [0.12, 0.14, 0.14, 0.12], offset: [-0.07, -0.024, 0.024, 0.07], fan: [-42, -14, 14, 42], len: [0.13, 0.15, 0.15, 0.13], r: [0.03, 0.026, 0.048], join: 0.012 }
+    : claws
     ? { from: wr, along: ARM, across: SPREAD, at: [0.13, 0.15, 0.13], offset: [-0.06, 0, 0.06], fan: [-30, 0, 30], len: [0.1, 0.11, 0.1], r: [0.04, 0.034, 0.018], join: 0.01, group: 'Claw' }
     : long
       ? { from: wr, along: ARM, across: SPREAD, at: [0.13, 0.15, 0.16, 0.15, 0.1], offset: [-0.085, -0.04, 0.005, 0.05, 0.09], fan: [-48, -22, 2, 26, 56], len: [0.12, 0.15, 0.16, 0.14, 0.1], r: [0.036, 0.031, 0.022], join: 0.01 }
@@ -260,6 +269,13 @@ const MUZZLES = {
     mouth: { nose: [0, 0.7, 2.56], centre: [0, 0.86, 2.48], corner: [0.14, 0.5, 2.5], pivot: [0, 0.3, 2.56] }, nose: 'beak' }),
   bill: () => ({ eggs: [{ name: 'bill', c: [0, 0.66, 2.5], u: [0, 1, -0.1], r: [0.42, 0.28, 0.08], hint: [1, 0, 0], bone: 'head', group: 'Beak', join: 0.06 }],
     mouth: { nose: [0, 0.9, 2.52], centre: [0, 1.0, 2.47], corner: [0.22, 0.42, 2.48], pivot: [0, 0.3, 2.52] }, nose: 'bill' }),
+  // (a frog's: no snout, a broad flat upper lip, a pale throat under it, two small nostrils, the mouth's line right across
+  // the face, its corners near the head's sides)
+  frog: () => ({ eggs: [
+    { name: 'muzzle', c: [0, 0.36, 2.5], u: [0, 1, -0.05], r: [0.32, 0.68, 0.22], e: 0.1, hint: [1, 0, 0], bone: 'head', join: 0.12 },
+    { name: 'chin', c: [0, 0.28, 2.3], u: [0, 1, 0], r: [0.3, 0.6, 0.16], hint: [1, 0, 0], bone: 'head', group: 'Belly', join: 0.12 },
+    { name: 'nose', c: [0, 0.66, 2.66], u: [0, 1, 0.2], r: [0.05, 0.13, 0.04], bone: 'head', group: 'Nose', join: 0.03 }],
+    mouth: { nose: [0, 0.68, 2.49], centre: [0, 0.68, 2.46], corner: [0.56, 0.5, 2.5], pivot: [0, 0.4, 2.5] }, nose: 'nose', pale: ['chin'] }),
   trunk: () => ({ eggs: [
     { name: 'muzzle', c: [0, 0.46, 2.52], u: [0, 1, -0.1], r: [0.26, 0.26, 0.22], e: 0.2, bone: 'head', join: 0.12 }],
     tufts: [{ name: 'trunk', root: [0, 0.62, 2.5], aim: [0, 0.6, -1], len: 0.95, r: 0.13, tip: 0.6, curl: 50, bend: [0, 1, 0], bone: 'head', join: 0.06 }],
@@ -343,17 +359,19 @@ export function featureBuild(card, { decor = {}, tune = null } = {}) {
   // (the structure's sizes: the family's designed ones and the operator's tune, multiplied: feature-tune.js)
   const Z = sizesOf(card.family, tune?.structure ?? null), D = { ...FEATURE_DECOR, ...decor, ...(tune?.decor ?? {}) }, plan = PLAN_OF[card.family] ?? 'stander', P = PLANS[plan], T = FAMILY_TUNE[card.family] ?? {};
   // THE SILHOUETTE, read from the species' own body (feature-silhouettes.js)
-  const silhouette = silhouetteOf(card.id, card.family, plan), Sd = SILHOUETTES[silhouette];
+  // (the style's rounding: every silhouette bottom-heavy and round, feature-silhouettes.js)
+  const silhouette = silhouetteOf(card.id, card.family, plan), Sd = rounded(SILHOUETTES[silhouette]);
   // THE FUNCTION (feature-function.js): a quadruped stands for the acting and drops onto all fours to move, so its
   // silhouette is fitted to its limbs (the species' hind against its fore) and to the floor
-  const quad = (['stander', 'hoofed', 'reptile'].includes(plan) && !Sd.limbless) || silhouette === 'squat';
+  // (a sitter, a frog, sits on its own all fours: SILHOUETTES squat)
+  const quad = ['stander', 'hoofed', 'reptile'].includes(plan) && !Sd.limbless && !Sd.sitter;
   // (the operator's tune moves the trunk first, so the function fits the tuned body; a quadruped's legs and arms are asks
   // the function honours as far as the floor allows: feature-tune.js)
   const S0 = Z ? tunedSilhouette(Sd, Z, { quad }) : Sd;
   const fn = quad ? (Z ? functional(S0, speciesLimbs(card.id), { arms: Z.arms, legs: Z.legs, girth: Z.girth }) : functional(S0, speciesLimbs(card.id))) : null, S1 = fn ? fn.S : S0;
-  const K = { ...(card.kit ?? {}), ...(S1.limbless ? { tail: 'thin' } : {}), ...(SPECIES_KIT[card.id] ?? {}) };
+  const K = { ...(card.kit ?? {}), ...(T.kit ?? {}), ...(S1.limbless ? { tail: 'thin' } : {}), ...(SPECIES_KIT[card.id] ?? {}) };
   // THE HANDS' KIND; a wing folds back along the body on any silhouette (an owl's too, not down its side as a flipper)
-  const handKind = S1.limbless ? 'none' : K.arms === 'flipper' ? 'flippers' : K.arms === 'wing' ? 'wings' : P.hands;
+  const handKind = S1.limbless ? 'none' : K.arms === 'flipper' ? 'flippers' : K.arms === 'wing' ? 'wings' : T.hands ?? P.hands;
   const S = handKind === 'wings' && !S1.bird ? { ...S1, arm: { ...S1.arm, dir: WING_FOLD } } : S1;
   // (a bird's plumage: the colours that are its pattern, feature-birds.js)
   const plume = plan === 'bird' ? plumageOf(card.id) : {};
@@ -364,7 +382,7 @@ export function featureBuild(card, { decor = {}, tune = null } = {}) {
   const headLen = (hd) => { const [lo, hi] = extentAlong(['cranium', 'jaw'].map((n) => HEAD0[n](hd, hs.shape)), [0, 1, 0]); return hi - lo; };
   let T1 = T;
   if (plan === 'bird') { const [lo, hi] = extentAlong(bodyMass, bodyAxis); T1 = { ...T, head: (hi - lo) / PHI / headLen(1) / P.head }; }
-  const B = structure(S, P, T1, hs.shape, Z), H = B.headAt, onHead = (p) => H(p), kH = B.kH;
+  const headShape = T.headShape ?? hs.shape, B = structure(S, P, T1, headShape, Z), H = B.headAt, onHead = (p) => H(p), kH = B.kH;
   // (a tuned head's own parts grow with it: their places by the head's scale, their sizes here)
   const headEgg = kH === 1 ? (x) => ({ ...x, c: onHead(x.c) }) : (x) => ({ ...x, c: onHead(x.c), r: sc(x.r, kH) });
   const headTuft = kH === 1 ? (x) => ({ ...x, root: onHead(x.root) }) : (x) => (x ? { ...x, root: onHead(x.root), len: x.len * kH, r: x.r * kH } : x);
@@ -421,7 +439,15 @@ export function featureBuild(card, { decor = {}, tune = null } = {}) {
       const f = (fan * Math.PI) / 180, d = [Math.sin(f) * 0.9, Math.cos(f), -0.08];
       B.limbs.push({ name: `toe${i}R`, a: pad, b: add(pad, mul(unit(d), len)), ra: 0.055, rb: 0.035, bone: 'metaR', group: 'Sock', join: 0.03 });
     });
-  } else if (K.feet === 'webbed') Object.assign(foot, { r: [0.28, 0.24, 0.05], group: plan === 'bird' ? 'Beak' : undefined });
+  } else if (K.feet === 'webbed') {
+    // (a webbed foot: long and flat, its heel at the ankle and its toes reaching forward, fanned, each ending in a round
+    // pad; never a disc lying apart from the leg)
+    const a = B.joints.ankle, fwd = unit([0.22, 1, 0]), L0 = 0.36 * B.ft, c = [a[0] + fwd[0] * L0 * 0.8, a[1] + fwd[1] * L0 * 0.8, 0.06];
+    Object.assign(foot, { c, u: mul(fwd, -1), r: [L0, 0.26, 0.05], e: 0.4, hint: [1, 0, 0], group: plan === 'bird' ? 'Beak' : undefined });
+    const toe0 = at(c, fwd, L0 * 0.8);
+    [-30, 0, 30].forEach((fan, i) => { const f = (fan * Math.PI) / 180, d = unit([fwd[0] * Math.cos(f) + Math.sin(f), fwd[1] * Math.cos(f) - fwd[0] * Math.sin(f) * 0.2, 0]);
+      B.tufts.push({ name: `webToe${i}R`, root: at(toe0, [Math.sin(f), 0, 0], 0.1), aim: d, len: 0.2 * B.ft, r: 0.045, tip: 1.5, curl: 0, bend: [0, 0, -1], bone: 'metaR', ...(plan === 'bird' ? { group: 'Beak' } : {}), join: 0.03 }); });
+  }
   else if (T.paws === 'dark') foot.group = 'Patch';
   // THE SKIN'S POINTED DETAILS, by its kind (round blobs, pointy details: a fan of falling lengths)
   if (P.skin === 'fur' && P.ruffs && D.tufts > 0) for (const t of [
@@ -432,7 +458,7 @@ export function featureBuild(card, { decor = {}, tune = null } = {}) {
   // (the crown's fan: asymmetric, overlapping, swept one way; a bird's head stays smooth unless its kit names a crest)
   // (a tuft the operator chose (feature-tufts.js) is worn in its place, on any skin: the head's own look, personal)
   const tuft = tune?.tuft ?? null;
-  if (tuft) B.tufts.push(...tuftLocks(tuft, { shape: hs.shape, dial: D.crown }).map(headTuft));
+  if (tuft) B.tufts.push(...tuftLocks(tuft, { shape: headShape, dial: D.crown }).map(headTuft));
   else if (P.skin === 'fur' && D.crown > 0 && !K.horns && K.mane !== 'crest') {
     const swept = [1, 0.1, -0.4];
     for (const t of [
@@ -470,7 +496,14 @@ export function featureBuild(card, { decor = {}, tune = null } = {}) {
     headLift += up;
     for (const e of B.eggs) if (e.name === 'neck' || e.name === 'neckLong') { const U = unit(e.u); e.c = at(e.c, U, up / 2); e.r = [Math.max(0.08, e.r[0] + up / 2), e.r[1], e.r[2]]; }
   }
-  const eye0 = { ...P.eye, ...(K.eyes === 'top' ? { el: 32, az: 20 } : {}), proud: 0.42 }, kY = (Z?.eyes ?? 1) * kH;
+  const eye0 = { ...P.eye, ...(K.eyes === 'top' ? { el: 32, az: 20 } : {}), proud: 0.42, ...(T.eye ?? {}) }, kY = (Z?.eyes ?? 1) * kH;
+  // (eyes bulging on domes: a frog's, on top of its head; each dome on the ray the face seats its globe along, so the
+  // globe sits on it: feature-face.js)
+  if (T.eyeDomes) {
+    const cr = B.eggs.find((e) => e.name === 'cranium'), az = rad(eye0.az), el = rad(eye0.el), d = [Math.cos(el) * Math.sin(az), Math.cos(el) * Math.cos(az), Math.sin(el)];
+    const t = 0.82 / Math.hypot(d[0] / cr.r[1], d[1] / cr.r[0], d[2] / cr.r[2]), rD = eye0.r * kY * 1.3;
+    B.eggs.push({ name: 'eyeDomeR', c: add(B.head.C, mul(d, t)), u: d, r: [rD, rD, rD], bone: 'head', join: 0.1 });
+  }
   const eye = kY === 1 ? eye0 : { ...eye0, r: r4(eye0.r * kY) };
   // THE COAT: zones cut into the skin (the pale muzzle, the nose, the pale belly, the dark paws), layers over it (the
   // pattern's strokes, the inner ears, the tail's rings), the markings' layers by their dial
@@ -479,15 +512,16 @@ export function featureBuild(card, { decor = {}, tune = null } = {}) {
   const zone = (name, group, eggs) => { const own = eggs.filter(has); if (own.length) B.marks.push({ name, group, eggs: own }); };
   if (mz.eggs.some((e) => e.name === 'muzzle' && e.group === 'Belly')) zone('muzzle', 'Belly', ['muzzle', 'chin', 'jowlR', 'jowlL']);
   if (mz.nose && mz.nose !== 'beak' && mz.nose !== 'bill') zone('nose', 'Nose', [mz.nose]);
+  if (mz.pale) zone('throat', 'Belly', mz.pale);
   // (the belly: the species' own, on this silhouette, or none)
   // (a tuned body's belly moves with it: the girth's breadth and depth, and as high as the tuned fit raised the body over
   // the designed one's)
-  let table;
+  let table = Sd.belly;
   if (Z) {
     const designedHip = quad ? functional(Sd, speciesLimbs(card.id)).S.hip[2] : Sd.hip[2], dz = S.hip[2] - designedHip;
     table = Object.fromEntries(Object.entries(tunedSilhouette(Sd, { girth: Z.girth }).belly).map(([k, e]) => [k, { ...e, c: [e.c[0], e.c[1], e.c[2] + dz] }]));
   }
-  const belly = bellyOf(card.id, silhouette, { plan, pattern: K.pattern, tune: T.belly, ...(table ? { table } : {}) });
+  const belly = bellyOf(card.id, silhouette, { plan, pattern: K.pattern, tune: T.belly, table });
   if (belly.regions.length) B.marks.push({ name: 'belly', group: 'Belly', regions: belly.regions.map((E) => ({ ...E, c: [E.c[0], E.c[1] * B.bw, E.c[2]], r: [E.r[0], E.r[1] * B.bw, E.r[2]] })) });
   const fingers = B.digits ? B.digits.at.flatMap((_, i) => ['a', 'b'].flatMap((l) => [`digit${i + 1}${l}R`, `digit${i + 1}${l}L`])) : [];
   if (T.paws === 'dark' || K.pattern === 'socks') zone('paws', 'Patch', ['pawR', 'pawL', 'footR', 'footL', ...(K.pattern === 'socks' ? ['foreArmR', 'foreArmL', 'shinR', 'shinL'] : [])]);

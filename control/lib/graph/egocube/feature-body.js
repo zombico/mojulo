@@ -30,7 +30,7 @@
  *
  * Pure and deterministic: fixed loops, ties by index; no dice, no clock.
  */
-import { netSkin, soundMesh, simplifyMesh, fieldNormals } from '../polygonizer/skin-net.js';
+import { netSkin, soundMesh, simplifyMesh, fieldNormals, closeHoles } from '../polygonizer/skin-net.js';
 import { smin, sdRoundCone } from '../polygonizer/vajra.js';
 import { PLAN_SCHEMA } from '../polygonizer/station-loft-plan.js';
 import { featureFace } from './feature-face.js';
@@ -151,8 +151,12 @@ export function eggSkin(eggs, { cell = FEATURE_SKIN.cell, faces = FEATURE_SKIN.f
   const box = { min: { x: lo[0], y: lo[1], z: lo[2] }, max: { x: hi[0], y: hi[1], z: hi[2] } };
   const net = netSkin(f, box, { cell, project: 2 });
   const grad = (q) => { const e = cell * 0.25, P = (x, y, z) => f({ x, y, z }); return [P(q[0] + e, q[1], q[2]) - P(q[0] - e, q[1], q[2]), P(q[0], q[1] + e, q[2]) - P(q[0], q[1] - e, q[2]), P(q[0], q[1], q[2] + e) - P(q[0], q[1], q[2] - e)]; };
-  const F0 = soundMesh(net.V, net.F, { out: grad, min: 64 });
-  const S0 = simplifyMesh(net.V, F0, { target: faces, turn: 0.35 });
+  // (the net pinches where two sheets of the surface pass within a cell, a crease under the jaw, a wing on its flank:
+  // soundMesh lets the pinch go, and the holes it leaves are fanned shut on the surface, twice over for a hole whose rim
+  // touched itself the first time)
+  let M = { V: net.V, F: soundMesh(net.V, net.F, { out: grad, min: 64 }) };
+  for (let pass = 0; pass < 2; pass++) { M = closeHoles(M.V, M.F, f); M = { V: M.V, F: soundMesh(M.V, M.F, { out: grad, min: 64 }) }; }
+  const S0 = simplifyMesh(M.V, M.F, { target: faces, turn: 0.35 });
   // (the coat's zones cut into it along their exact edges: feature-coat.js)
   const S = cutSkin(S0, zones, { field: f, shapes: eggs });
   const N = fieldNormals(S.V, f, 1e-5), points = {}, normals = {}, tris = {}, groups = {}, blend = {};

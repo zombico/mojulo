@@ -11,6 +11,8 @@ import { rollMascot } from './mascot.js';
 import { mascotPlanFromSheet } from './mascot-form.js';
 import { validateRig, rigNodesAt } from '../polygonizer/station-loft-rig.js';
 import { expandPlan } from '../polygonizer/station-loft-plan.js';
+import { PLAN_OF, PLANS, FEATURE_EXCLUDES } from './feature-grammar.js';
+import { SPECIES } from '../fauna/species.js';
 
 const along = (E, s) => { let lo = 0, hi = 4 * Math.max(...E.r); for (let i = 0; i < 60; i++) { const m = (lo + hi) / 2; (eggDistance(E, E.c.map((x, k) => x + E.u[k] * s * m)) < 0 ? (lo = m) : (hi = m)); } return lo; };
 
@@ -106,4 +108,15 @@ describe('the feature body', () => {
     expect(toon.create.spec).toMatchObject({ hullShade: true, toon: { light: true } });
     expect(toon.create.spec.plan.segments.some((s) => s.kind === 'mesh')).toBe(false);
   }, 120_000);
+
+  it('every plan\'s skin is closed: a pinch the net lets go is fanned shut on the surface', () => {
+    // (one species per plan, chosen in code; its minted skin: every edge two faces')
+    const pick = (pl) => Object.keys(SPECIES).find((id) => PLAN_OF[SPECIES[id].family] === pl && !FEATURE_EXCLUDES.includes(SPECIES[id].family));
+    for (const pl of Object.keys(PLANS)) {
+      const id = pick(pl), plan = mascotPlanFromSheet(rollMascot({ facets: { style: 'feature', animal: id } })).create.spec.plan;
+      const skin = plan.segments.find((x) => x.name === 'skin').mesh, uses = new Map();
+      for (const t of Object.values(skin.faces)) for (let a = 0; a < 3; a++) { const k = [t[a], t[(a + 1) % 3]].sort().join('|'); uses.set(k, (uses.get(k) ?? 0) + 1); }
+      expect([...uses.values()].filter((n) => n !== 2).length, `${pl}: ${id}`).toBe(0);
+    }
+  }, 180000);
 });

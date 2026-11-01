@@ -44,7 +44,7 @@ member, a quick game's hero). Code: `control/lib/graph/egocube/feature-tune.js`.
   - the hand turns at the wrist so its primaries lie back past the tail, in the hand panel's own plane. They no longer
     splay out sideways from the front, and no feather grazes the panel it springs from. That grazing tore the skin:
     on five birds measured, four carry fewer open edges in their skin (between 11 and 35% fewer), and the macaw 5% more.
-    The open edges themselves (non-manifold pieces dropped from the net) remain a known defect.
+    The open edges themselves are closed further down (Closed skins).
 - **Birds rest bright, not droopy.** Every bird's default face read sad. Its eyes sit round the sides of its head, so
   the brow's outer end wrapped down over the eyeball, the upper lid sat heavy over the iris, and every bird's default
   sheet rolled `determined`. Now:
@@ -66,6 +66,29 @@ member, a quick game's hero). Code: `control/lib/graph/egocube/feature-tune.js`.
   - A brief says it too: `mohawk`, `cowlick`, `crested`, `topknot`, `bangs`, `pompadour`, `quiff`, `spiky hair`, `mop
     top`.
   - Untuned animals keep their designed crown.
+- **Rounder, bottom-heavy animals.** Every silhouette is rounded (`FEATURE_ROUND` in `feature-silhouettes.js`):
+  - the lower masses (the belly, a pear's front, the haunches, a snake's coils) are fuller across and deep, and the
+    chest is a little slimmer;
+  - a leg that shows is fuller at the thigh;
+  - every mass is less pointed and blends softer;
+  - the pale belly follows the body.
+  It is applied before the all-fours fit, so the function still holds. A tuned girth now lets the legs rise as far as
+  the arms grow.
+- **The frog, redesigned.** The squat silhouette is now a sitter: a wide pear on folded hind legs, each thigh forward
+  along the side and its shin back under it.
+  - The head is wide and flat (a frog head shape), with big eyes bulging on domes on top of it.
+  - A new frog muzzle draws the mouth's line right across the face, over a pale throat and two small nostrils.
+  - The webbed feet now sit on the ankle, with three round-padded toes. Before, they were discs lying apart from the
+    leg, a bug for any webbed-footed animal.
+  - Its thin arms end in four padded fingers, planted on the floor in front.
+  - Its sitting pose is its own all fours, so it is no longer fitted to drop face down onto them (the known "frog faces
+    the floor" issue).
+  - A frog rests open-eyed like a bird and rolls a bright face when none is asked for.
+- **Closed skins.** The skin's net pinches wherever two sheets of the surface pass within a cell: a crease under the
+  jaw, a wing on its flank, an arm against the body. The pinch was let go and its hole left open, the slits PR #30
+  listed as known. Now the holes are fanned shut on the surface (`skin-net.js closeHoles`, as the realistic hero's
+  skin already did). On nine animals measured, with their colour zones cut in, every skin is closed: 0 open edges,
+  where the raccoon had 151.
 - **QA.** `scripts/spikes/feature-roster.mjs` takes `--tune` (every species minted with it) and `--tunes` (each species
   once per tune, side by side).
 - **Stored mascots keep their look.** A minted mascot stores its compiled plan. An untuned sheet compiles as before,
@@ -85,6 +108,8 @@ member, a quick game's hero). Code: `control/lib/graph/egocube/feature-tune.js`.
   - gen7's clumps, coverts, denser skin within budget, and its bake (none on the game model);
   - and, in `feature-grammar.test.js`, a standing bird's wing panel out of its body, its primaries not splayed, its beak
     broader than deep; its default face rolled bright, its resting lids and brows higher, its brows' clips unchanged;
+  - a frog sitting on its own all fours (hands planted, webbed feet on its ankles, eyes on domes, its own muzzle);
+    every plan's minted skin closed (`feature-body.test.js`);
   - a head tuft worn by every plan in place of the crown, each card's locks rooted in the skull and standing out of it,
     its size and colour, `none` and the crown's dial at 0 bare, and the brief's word.
 - Eyes: not passed. Sheets were shot for the operator: game against gen7, and one species tuned several ways.

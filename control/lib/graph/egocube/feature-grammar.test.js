@@ -111,6 +111,18 @@ describe('the feature grammar', () => {
     if (beak) expect(side.root[0] + side.r).toBeGreaterThan(beak.r * 1.15);
   });
 
+  it('a frog sits on its own all fours: its hands planted, its webbed feet on its ankles, its eyes bulging on domes on top', () => {
+    const id = SIL.squat, b = featureBuild(animalCard(id));
+    expect(b.fours, id).toBeUndefined();                                         // (a sitter: never fitted to drop onto them)
+    expect(b.joints.knuckles[2], id).toBeLessThan(0.2);                          // (its hands reach the floor where it sits)
+    const foot = b.eggs.find((e) => e.name === 'footR');
+    expect(eggDistance(egg(foot), b.joints.ankle), id).toBeLessThan(0.12);      // (the foot on the ankle, not a disc apart)
+    expect(b.tufts.filter((t) => /^webToe/.test(t.name)).length).toBe(3);
+    expect(b.eggs.some((e) => e.name === 'eyeDomeR')).toBe(true); expect(b.eye.el).toBeGreaterThan(35);
+    expect(b.eggs.some((e) => e.name === 'chin')).toBe(true);                   // (the frog's own muzzle, a pale throat)
+    expect(b.marks.some((m) => m.name === 'throat')).toBe(true);
+  });
+
   it('a bird rests open and bright: its default face a bright one, its lids more open and its brows higher, every clip the same', () => {
     // (the roll leans a feature bird bright; an asked face wins; one bird chosen in code)
     const bird = Object.keys(SPECIES).find((i) => PLAN_OF[SPECIES[i].family] === 'bird');
@@ -133,7 +145,7 @@ describe('the feature grammar', () => {
   });
 
   it('a quadruped is functional: it drops onto all fours, its paws on the floor and its trunk clear of it; big hind legs stay big', () => {
-    const quads = Object.entries(SIL).filter(([sil]) => ['pear', 'wedge', 'barrel', 'noodle', 'leggy', 'squat'].includes(sil)).map(([, id]) => id);
+    const quads = Object.entries(SIL).filter(([sil]) => ['pear', 'wedge', 'barrel', 'noodle', 'leggy'].includes(sil)).map(([, id]) => id);
     for (const id of quads) {
       const b = featureBuild(animalCard(id));
       expect(b.fours, id).toBeTruthy();
