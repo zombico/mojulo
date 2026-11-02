@@ -20,36 +20,20 @@
  *         girdle's joint and that line (an exact rotation: no bone stretches); the body sways toward the side bearing
  *         the weight and each girdle rolls toward its unloaded side (load.js); the swinging hoof arcs in a little.
  */
-import { GAITS, FOLD, HIND_FETLOCK, MECHANICS, NECK, LUMBOSACRAL, LATERAL, REFERENCE_HORSE } from './reference.js';
-import { solveFore, solveHind, hoofAt, hindReach, foreReach, softReach, add, sub, mul, dir, ang, len } from './limb.js';
+import { GAITS, FOLD, MECHANICS, NECK, LUMBOSACRAL, LATERAL, REFERENCE_HORSE } from './reference.js';
+import { sub, len } from './limb.js';
 import { fetlockExt, standOn } from './build.js';
 import { strideLoads, evaluate, accel, harmonics, N } from './load.js';
 import { assemble, bodyPoint, legPlane } from './pose.js';
+import { legRig, swingEnds, swingLeg, bump, swingPath } from './legs.js';
+
+export { bump, swingPath };
 
 const DEG = Math.PI / 180;
 const frac = (x) => x - Math.floor(x);
 const ease = (v) => 0.5 - 0.5 * Math.cos(Math.PI * Math.min(1, Math.max(0, v)));
 const lerp = (a, b, s) => a + (b - a) * s;
-/** a smooth bump, 0 with zero slope at both ends, 1 at `peak` */
-export const bump = (v, peak = 0.5) => { if (v <= 0 || v >= 1) return 0; const w = v ** (Math.log(0.5) / Math.log(peak)); return Math.sin(Math.PI * w) ** 2; };
-/**
- * The swing's path along one axis: a quintic carries it from p0 to p1 (still at both ends), and two short terms, each
- * over `tau` of the swing at its end, add the stance's own velocity there (m0 leaving, m1 arriving, per unit of swing):
- * C1 at lift-off and touchdown, without the overshoot a cubic makes when the ground runs fast. Leaving, the hoof runs
- * on back a moment; arriving, it swings back to meet the ground (the swing's retraction). The caller passes the
- * touchdown's velocity at IMPACT of its share: the rest the hoof sheds on the ground in the first instant of contact.
- */
-export function swingPath(p0, m0, p1, m1, v, tauLo = 0.08, tauTd = 0.12) {
-  const S = v * v * v * (10 - 15 * v + 6 * v * v);
-  const a = v < tauLo ? v * (1 - v / tauLo) ** 2 : 0;
-  const w = 1 - v, b = w < tauTd ? -w * (1 - w / tauTd) ** 2 : 0;
-  return p0 + (p1 - p0) * S + m0 * a + m1 * b;
-}
-const KNEE_OPEN = 0.82, FETLOCK_OPEN = 0.76;   // where in the swing the knee's and the fetlock's folds have opened
-const TOE_UP = 6 * DEG;                        // the toe's lift as the hoof comes in to land (≈)
-const STANCE_OPEN = { elbow: 152 * DEG, stifle: 152 * DEG };   // the most a loaded elbow and stifle open (≈)
 const VAULT_K = 4;     // the vault's harmonics: a slow sway of the girdles, so a suspension stays a fall at g
-const IMPACT = 0.7;   // the share of the ground's speed the swinging hoof matches before it lands (≈)
 const MIRROR = { LF: 'RF', RF: 'LF', LH: 'RH', RH: 'LH' };
 
 /** the gait's stride at a speed for this build: dynamic similarity from the reference horse */
@@ -122,26 +106,10 @@ export function gaitCycle(B, gait, { speed, lead = 'right' } = {}) {
       sway: mo.heave * side('sway', t), rollF: mo.heave * side('rollF', t), rollH: mo.heave * side('rollH', t),
     };
   };
-  // a leg's girdle joint in the world, and its plane through the line its hoof stands on (x = xh)
-  const girdle3 = (l, bd) => (l.pair === 'fore'
-    ? bodyPoint(B, bd, [l.side * B.fore.girdleX, B.trunk.scapulaPivot[0], B.trunk.scapulaPivot[1]])
-    : bodyPoint(B, bd, [l.side * B.hind.girdleX, B.trunk.hip[0], B.trunk.hip[1]], true));
-  const planeOf = (l, bd, xh = l.x) => legPlane(girdle3(l, bd), xh);
-  // the girdle in the leg's plane: [y, its height in the plane over the hoof's line]
-  const girdle = (l, bd, xh = l.x) => { const pl = planeOf(l, bd, xh); return [pl.G[1], pl.D]; };
-  const solve = (l, bd, target, carpus = 0, xh = l.x) => (l.pair === 'fore'
-    ? solveFore({ pivot: girdle(l, bd, xh), pitch: bd.pitch, L: B.foreL, rest: B.bladeRest, swing0: B.swing0, kS: MECHANICS.scapula, target, carpus })
-    : solveHind({ hip: girdle(l, bd, xh), L: B.hindL, ...B.reciprocal, target }));
-  // the swinging hoof's line: its track, drawn in a little at mid-swing (the inward arc of a straight mover)
-  const swingX = (l, v) => l.x - l.side * LATERAL.swingIn * B.scale * bump(v, 0.5);
+  const rig = legRig(B), { planeOf, girdle, solve, reachF, reachH } = rig;
 
   const stanceAt = (l, t) => { const gr = groundAt(l, t), bd = bodyAt(t); return standOn(B, l.pair, gr.g, gr.F, gr.eta, (F) => solve(l, bd, F)); };
 
-  // the standing legs' comfortable reach: the elbow and the stifle open to STANCE_OPEN at the most while loaded (BACK &
-  // CLAYTON 2013: neither straightens in the stance), clear of the straight leg's singularity
-  const reachF = foreReach(B.foreL, 0, STANCE_OPEN.elbow);
-  const reachH = hindReach(B.hindL, B.reciprocal.c0, B.reciprocal.k, B.reciprocal.hockMin, Math.PI - STANCE_OPEN.stifle);
-  const reachHard = hindReach(B.hindL, B.reciprocal.c0, B.reciprocal.k, B.reciprocal.hockMin, 10 * DEG);   // the solver's own limit
   const shortfall = (l, t) => {
     const st = stanceAt(l, t), from = l.pair === 'fore' ? st.solve.S : girdle(l, bodyAt(t));
     const v = sub(st.distal.F, from), D = len(v), over = D - (l.pair === 'fore' ? reachF : reachH);
@@ -197,19 +165,11 @@ export function gaitCycle(B, gait, { speed, lead = 'right' } = {}) {
   // extension and the hoof's angle to the pastern, each with its rate there (per unit of swing), so the swing leaves and
   // lands C1 in all three
   const h = 1e-4;
-  const extOf = (st) => st.distal.pastern - st.solve.cannon;
-  const coffinOf = (st) => st.distal.pastern - ang(sub(st.distal.toe, st.distal.heel));
   for (const l of limbs) {
     const tLo = l.phase + duty - 1e-7, tTd = l.phase + 1 + 1e-7;   // just inside the stance at each end
-    const lo = stanceAt(l, tLo), td = stanceAt(l, tTd), lo0 = stanceAt(l, tLo - h), td1 = stanceAt(l, tTd + h);
-    const k = (1 - duty) / h;
-    l.swing = {
-      lo: lo.distal, td: td.distal,
-      dLo: mul(sub(lo.distal.F, lo0.distal.F), k), dTd: mul(sub(td1.distal.F, td.distal.F), k),
-      eLo: extOf(lo), deLo: (extOf(lo) - extOf(lo0)) * k, eTd: extOf(td), deTd: (extOf(td1) - extOf(td)) * k,
-      qLo: coffinOf(lo), dqLo: (coffinOf(lo) - coffinOf(lo0)) * k, qTd: coffinOf(td), dqTd: (coffinOf(td1) - coffinOf(td)) * k,
-    };
+    l.swing = swingEnds(stanceAt(l, tLo), stanceAt(l, tLo - h), stanceAt(l, tTd), stanceAt(l, tTd + h), (1 - duty) / h);
   }
+  const foldK = { ...fold, k: mo.fold };
 
   const poseAt = (t) => {
     t = frac(t);
@@ -223,24 +183,8 @@ export function gaitCycle(B, gait, { speed, lead = 'right' } = {}) {
         distal = st.distal;
         contact[l.id] = true;
       } else {
-        const v = (u - duty) / (1 - duty), sw = l.swing;
-        const y = swingPath(sw.lo.F[0], sw.dLo[0], sw.td.F[0], IMPACT * sw.dTd[0], v);
-        const z = swingPath(sw.lo.F[1], sw.dLo[1], sw.td.F[1], IMPACT * sw.dTd[1], v) + lift[l.pair] * bump(v, fold.peak);
-        // the folds open again before the landing, the knee first and then the fetlock (the leg reaches out straight)
-        const carpus = l.pair === 'fore' ? fold.carpus * DEG * mo.fold * bump(v / KNEE_OPEN, fold.peak / KNEE_OPEN) : 0;
-        // a swing target past the leg's reach (a folded knee shortens the fore) eased onto it, faded in away from the
-        // stance at either end so neither lift-off nor touchdown is touched
-        let target = [y, z];
-        const fade = ease(Math.min(1, v / 0.06)) * ease(Math.min(1, (1 - v) / 0.1));
-        xh = swingX(l, v);
-        if (l.pair === 'fore') { const first = solve(l, bd, target, carpus, xh); target = softReach(first.S, foreReach(B.foreL, carpus), target, fade); }
-        else target = softReach(girdle(l, bd, xh), reachHard, target, fade);
-        sol = solve(l, bd, target, carpus, xh);
-        const e = swingPath(sw.eLo, sw.deLo, sw.eTd, IMPACT * sw.deTd, v) - fold.fetlock * DEG * mo.fold * (l.pair === 'fore' ? 1 : HIND_FETLOCK) * bump(v / FETLOCK_OPEN, fold.peak * 1.1 / FETLOCK_OPEN);
-        const pastern = sol.cannon + e;
-        const coffin = add(sol.F, mul(dir(pastern), B[l.pair].pastern));
-        const eta = pastern - swingPath(sw.qLo, sw.dqLo, sw.qTd, IMPACT * sw.dqTd, v) + TOE_UP * bump((v - 0.7) / 0.3, 0.6);   // toe up to land heel-first
-        distal = { ...hoofAt(coffin, eta, B.hoof), pastern };
+        const v = (u - duty) / (1 - duty);
+        ({ sol, distal, xh } = swingLeg(B, rig, l, bd, l.swing, v, { lift: lift[l.pair], fold: foldK }));
         contact[l.id] = false;
       }
       if (sol.clamped) clamps.push(l.id);
@@ -251,10 +195,10 @@ export function gaitCycle(B, gait, { speed, lead = 'right' } = {}) {
     return { t, bones, points, legs, contact, clamps, body: { ...bd, nu, lat, tau }, ground: -frac(t) * L };
   };
 
-  return { vault: { dropF, dropH }, gait, speed: S.speed, vRef: S.vRef, lead, f, T, L, duty, lift, crouch, limbs, loads, poseAt, zAccAt: (t) => evaluate(loads.zAcc, t), heaveAccAt: (t) => mo.heave * evaluate(accel(loads.heave, T), t) };
+  // the body's whole state at a phase (the trunk, the neck, the tail): what a one-shot blends between two cycles
+  const bodyFull = (t) => { t = frac(t); return { ...bodyAt(t), nu: mo.nod * evaluate(loads.nod, t), lat: mo.nod * side('lat', t), tau: evaluate(loads.swish, t) }; };
+  return { bodyFull, fold, vault: { dropF, dropH }, gait, speed: S.speed, vRef: S.vRef, lead, f, T, L, duty, lift, crouch, limbs, loads, poseAt, zAccAt: (t) => evaluate(loads.zAcc, t), heaveAccAt: (t) => mo.heave * evaluate(accel(loads.heave, T), t) };
 }
-
-function rotate(v, a) { return [v[0] * Math.cos(a) - v[1] * Math.sin(a), v[0] * Math.sin(a) + v[1] * Math.cos(a)]; }
 
 export function gaitFrames(B, gait, { speed, lead, n = 24 } = {}) {
   const c = gaitCycle(B, gait, { speed, lead });

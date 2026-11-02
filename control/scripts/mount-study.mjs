@@ -5,20 +5,23 @@
 // places) when `--png`.
 //
 //   node scripts/mount-study.mjs <outDir> [--register realistic|stylized] [--gaits walk,trot,canter,gallop,reinBack]
-//        [--lead right|left] [--view side|front] [--cols 8] [--before] [--png]
+//        [--lead right|left] [--view side|front] [--cols 8] [--before] [--shots] [--png]
+// `--shots` adds the one-shots' sheet (changes of gait, the halts, the move off).
 import path from 'node:path';
 import { mkdirSync, writeFileSync, existsSync } from 'node:fs';
 import { resolveMount } from '../lib/graph/mount/build.js';
 import { gaitCycle } from '../lib/graph/mount/gait.js';
 import { contactSheet } from '../lib/graph/mount/sheet.js';
-import { gaitGates } from '../lib/graph/mount/gates.js';
+import { gaitGates, shotGates } from '../lib/graph/mount/gates.js';
+import { oneShot } from '../lib/graph/mount/motion.js';
+import { standPose } from '../lib/graph/mount/gait.js';
 
 const args = process.argv.slice(2);
 const flag = (k) => { const i = args.indexOf(`--${k}`); if (i < 0) return false; args.splice(i, 1); return true; };
 const opt = (k, d) => { const i = args.indexOf(`--${k}`); return i >= 0 ? args.splice(i, 2)[1] : d; };
 const register = opt('register', 'realistic'), lead = opt('lead', 'right'), cols = Number(opt('cols', 8)), view = opt('view', 'side');
 const gaits = opt('gaits', 'walk,trot,canter,gallop,reinBack').split(',');
-const before = flag('before'), png = flag('png');
+const before = flag('before'), png = flag('png'), shots = flag('shots');
 const outDir = args[0] || '.';
 mkdirSync(outDir, { recursive: true });
 
@@ -42,6 +45,25 @@ files.push(`${name}.svg`);
 for (const r of report) {
   console.log(`${r.gait}: ${r.checks.every((x) => x.pass) ? 'passes' : 'FAILS'}`);
   for (const x of r.checks) console.log(`  ${x.pass ? 'ok  ' : 'FAIL'} ${x.name}: ${x.saw}${x.want ? ` (want ${x.want})` : ''}`);
+}
+
+if (shots) {
+  // the one-shots: each as poses at even times over its run, its footfalls under it, its gate beside it
+  const srows = [], sreport = [], stand = standPose(B);
+  for (const [from, to] of [['stand', 'walk'], ['walk', 'trot'], ['trot', 'canter'], ['canter', 'gallop'], ['gallop', 'canter'], ['canter', 'trot'], ['trot', 'walk'], ['walk', 'stand'], ['trot', 'stand']]) {
+    const c = oneShot(B, { from, to, lead });
+    const k = 10, frames = Array.from({ length: k }, (_, i) => c.poseAt(c.duration * i / (k - 1)));
+    const footfalls = {};
+    for (const id of ['LF', 'RF', 'LH', 'RH']) footfalls[id] = Array.from({ length: 240 }, (_, n) => c.poseAt(c.duration * n / 239).contact[id]);
+    const g = shotGates(B, c, { stand }), failed = g.checks.filter((x) => !x.pass).map((x) => x.name);
+    srows.push({ label: `${from} → ${to}`, sub: `${c.duration.toFixed(2)} s · ${c.rootAt(c.duration).toFixed(1)} m · machine gate ${failed.length ? 'FAILS ' + failed.join(', ') : 'passes'}`, frames, footfalls });
+    sreport.push({ from, to, ...g });
+    console.log(`${from} → ${to}: ${failed.length ? 'FAILS ' + failed.join(', ') : 'passes'}`);
+  }
+  const sname = `mount-horse-${register}-shots${view === 'front' ? '-front' : ''}`;
+  writeFileSync(path.join(outDir, `${sname}.svg`), contactSheet(srows, { title: `the mount's one-shots, ${register} (lead ${lead}): even times over each`, view, cellW: view === 'front' ? 130 : 200 }));
+  writeFileSync(path.join(outDir, `${sname}.gates.json`), JSON.stringify(sreport, null, 2));
+  files.push(`${sname}.svg`);
 }
 
 if (before) {

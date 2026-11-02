@@ -1,7 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { resolveMount } from './build.js';
 import { gaitCycle, standPose, strideOf, swingPath, bump } from './gait.js';
-import { gaitGates } from './gates.js';
+import { gaitGates, shotGates } from './gates.js';
+import { oneShot } from './motion.js';
 import { MOUNT_BONES } from './pose.js';
 import { GAITS } from './reference.js';
 
@@ -93,5 +94,31 @@ describe('the swing\'s pieces', () => {
   it('bump is 0 at its ends and 1 at its peak', () => {
     expect(bump(0, 0.4)).toBe(0); expect(bump(1, 0.4)).toBe(0);
     expect(bump(0.4, 0.4)).toBeCloseTo(1, 9);
+  });
+});
+
+describe('the one-shots: a change, a halt, a move off', () => {
+  const B = resolveMount('horse'), stand = standPose(B);
+  const shot = (o) => shotGates(B, oneShot(B, o), { stand });
+
+  it('a change (trot to canter): the footfalls shift by the warp, its seams are the two cycles\' poses, every check passes', () => {
+    const c = oneShot(B, { from: 'trot', to: 'canter' });
+    expect(failures(shotGates(B, c, { stand }))).toEqual([]);
+    expect(c.exit.phase).toBeCloseTo(0, 6);                                // it closes on a whole stride of the canter
+    expect(c.rootAt(c.duration)).toBeGreaterThan(0);                      // the root travels: the clip carries it
+  });
+
+  it('a halt (walk to the stand): the last landings are the standing spots, the clip closes on the stand', () => {
+    const c = oneShot(B, { from: 'walk', to: 'stand' });
+    expect(failures(shotGates(B, c, { stand }))).toEqual([]);
+    const end = c.poseAt(c.duration);
+    expect(Object.values(end.contact).every(Boolean)).toBe(true);
+  });
+
+  it('a move off (the stand to the walk): the hooves leave their spots in the walk\'s order, a hind first', () => {
+    const c = oneShot(B, { from: 'stand', to: 'walk' });
+    expect(failures(shot({ from: 'stand', to: 'walk' }))).toEqual([]);
+    const first = ['LF', 'RF', 'LH', 'RH'].map((id) => [id, c.stances[id][0].off]).sort((a, b) => a[1] - b[1]);
+    expect(first[0][0][1]).toBe('H');
   });
 });

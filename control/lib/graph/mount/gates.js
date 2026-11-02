@@ -158,3 +158,62 @@ export function gaitGates(B, c, { n = 192 } = {}) {
     `sway ${lateral.sway} m, roll ${lateral.rollF}° at the shoulders and ${lateral.rollH}° at the hips, neck ${lateral.neck}°`, 'sway ≤ 0.1 m, each roll ≤ 10° (range)');
   return { checks, measured: { down, duty, aerial, slip, low, brush, lateral } };
 }
+
+/**
+ * The machine gate over a ONE-SHOT (motion.js): sampled on its timeline at `hz` (192 a stride of its quicker gait). The seams: its first frame is the
+ * first cycle's pose at its entry phase (or the stand), its last the second's at its exit phase (or the stand); a
+ * planted hoof does not move in the WORLD (the root's travel added back); no hoof in the ground; no standing leg out of
+ * reach (a swing at full reach reported); no pop; rigid bones; the lower legs of a pair never brush.
+ */
+export function shotGates(B, clip, { hz, stand } = {}) {
+  // sampled as finely as the cycle gate samples the quicker gait's stride (192 a stride), so a pop reads the same
+  hz = hz ?? 192 * Math.max(clip.A.f ?? 0, clip.B.f ?? 0);
+  const n = Math.max(24, Math.round(clip.duration * hz)), dt = clip.duration / n;
+  const frames = Array.from({ length: n + 1 }, (_, i) => clip.poseAt(i * dt));
+  const checks = [];
+  const add = (name, pass, saw, want) => checks.push({ name, pass, saw, want });
+  const maxd = (a, b) => Math.max(...Object.keys(a).flatMap((id) => ['head', 'tail'].map((e) => dist(a[id][e], b[id][e]))));
+  const entryPose = clip.A.poseAt ? clip.A.poseAt(clip.entry.phase).bones : stand.bones;
+  const exitPose = clip.B.poseAt ? clip.B.poseAt(clip.exit.phase).bones : stand.bones;
+  const e0 = maxd(frames[0].bones, entryPose), e1 = maxd(frames[n].bones, exitPose);
+  add('seams', e0 <= 1e-4 && e1 <= 1e-4, `opens ${e0.toExponential(1)} m and closes ${e1.toExponential(1)} m off the cycles' poses`, '≤ 1e-4 m');
+
+  const HOOF = { LF: 'hoofFL', RF: 'hoofFR', LH: 'hoofHL', RH: 'hoofHR' };
+  let slip = 0, low = Infinity, standing = 0, swinging = 0;
+  for (let i = 0; i <= n; i++) {
+    const f = frames[i];
+    for (const k of ['LF', 'RF', 'LH', 'RH']) {
+      const L = f.legs[k];
+      low = Math.min(low, fromPlane(L.plane, L.distal.toe)[2], fromPlane(L.plane, L.distal.heel)[2]);
+      if (i < n && f.contact[k] && frames[i + 1].contact[k]) {
+        const a = f.bones[HOOF[k]].tail, b = frames[i + 1].bones[HOOF[k]].tail;
+        slip = Math.max(slip, Math.hypot(b[0] - a[0], (b[1] + frames[i + 1].root) - (a[1] + f.root)) / dt);
+      }
+    }
+    for (const k of f.clamps) { if (f.contact[k]) standing++; else swinging++; }
+  }
+  add('slip', slip <= 0.05, `worst planted toe slip ${r3(slip)} m/s in the world`, '≤ 0.05 m/s');
+  add('ground', low >= -0.01, `lowest hoof point ${r3(low)} m`, '≥ −0.01 m');
+  add('reach', standing === 0, `${standing} standing sample(s) out of reach, ${swinging} swinging at full reach`, 'no standing leg out of reach');
+
+  let pop = 0, popAt = '';
+  for (const id of Object.keys(frames[0].bones)) for (const end of ['head', 'tail']) {
+    const p = frames.map((f) => [f.bones[id][end][0], f.bones[id][end][1] + f.root, f.bones[id][end][2]]);
+    const v = p.slice(0, -1).map((q, i) => p[i + 1].map((x, d) => x - q[d]));
+    const top = Math.max(...v.map((w) => Math.hypot(...w)));
+    if (top < 1e-6) continue;
+    for (let i = 0; i + 1 < v.length; i++) {
+      const j = Math.hypot(...v[i + 1].map((x, d) => x - v[i][d])) / top;
+      if (j > pop) { pop = j; popAt = `${id}.${end} at ${(i * dt).toFixed(3)} s`; }
+    }
+  }
+  add('smooth', pop <= 0.5, `largest velocity jump ${r3(pop)} of its top speed (${popAt})`, '≤ 0.5');
+
+  let stretch = 0;
+  for (const id of Object.keys(frames[0].bones)) {
+    const l0 = dist(frames[0].bones[id].head, frames[0].bones[id].tail);
+    for (const f of frames) stretch = Math.max(stretch, Math.abs(dist(f.bones[id].head, f.bones[id].tail) - l0));
+  }
+  add('rigid', stretch <= 1e-6, `largest bone length change ${stretch.toExponential(1)} m`, '≤ 1e-6 m');
+  return { checks, measured: { e0, e1, slip, low, standing, swinging, pop } };
+}
