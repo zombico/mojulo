@@ -5,8 +5,8 @@
 // places) when `--png`.
 //
 //   node scripts/mount-study.mjs <outDir> [--register realistic|stylized] [--gaits walk,trot,canter,gallop,reinBack]
-//        [--lead right|left] [--view side|front] [--cols 8] [--before] [--shots] [--jump] [--png]
-// `--shots` adds the one-shots' sheet (changes of gait, the halts, the move off); `--jump` the jump's.
+//        [--lead right|left] [--view side|front] [--cols 8] [--before] [--shots] [--jump] [--idle] [--png]
+// `--shots` adds the one-shots' sheet (changes of gait, the halts, the move off); `--jump` the jump's; `--idle` the rest's.
 import path from 'node:path';
 import { mkdirSync, writeFileSync, existsSync } from 'node:fs';
 import { resolveMount } from '../lib/graph/mount/build.js';
@@ -14,6 +14,8 @@ import { gaitCycle } from '../lib/graph/mount/gait.js';
 import { contactSheet } from '../lib/graph/mount/sheet.js';
 import { gaitGates, shotGates, jumpGates } from '../lib/graph/mount/gates.js';
 import { jumpClip } from '../lib/graph/mount/jump.js';
+import { idleClip, idleLayer, grazeClip, IDLE_LAYERS } from '../lib/graph/mount/idle.js';
+import { idleGates } from '../lib/graph/mount/gates.js';
 import { oneShot } from '../lib/graph/mount/motion.js';
 import { standPose } from '../lib/graph/mount/gait.js';
 
@@ -22,7 +24,7 @@ const flag = (k) => { const i = args.indexOf(`--${k}`); if (i < 0) return false;
 const opt = (k, d) => { const i = args.indexOf(`--${k}`); return i >= 0 ? args.splice(i, 2)[1] : d; };
 const register = opt('register', 'realistic'), lead = opt('lead', 'right'), cols = Number(opt('cols', 8)), view = opt('view', 'side');
 const gaits = opt('gaits', 'walk,trot,canter,gallop,reinBack').split(',');
-const before = flag('before'), png = flag('png'), shots = flag('shots'), jumps = flag('jump');
+const before = flag('before'), png = flag('png'), shots = flag('shots'), jumps = flag('jump'), idles = flag('idle');
 const outDir = args[0] || '.';
 mkdirSync(outDir, { recursive: true });
 
@@ -85,6 +87,23 @@ if (jumps) {
   writeFileSync(path.join(outDir, `${jname}.svg`), contactSheet(jrows, { title: `the mount's jump, ${register} (lead ${lead}): the take-off stride to the landing`, cellW: 190 }));
   writeFileSync(path.join(outDir, `${jname}.gates.json`), JSON.stringify(jreport, null, 2));
   files.push(`${jname}.svg`);
+}
+
+if (idles) {
+  // the idle: all its layers together over the weight shift's loop, each layer alone, and grazing
+  const irows = [];
+  const row = (label, clip, k, loop) => {
+    const frames = Array.from({ length: k }, (_, i) => clip.poseAt(clip.duration * i / k));
+    const g = idleGates(B, clip, { loop }), failed = g.checks.filter((x) => !x.pass).map((x) => x.name);
+    irows.push({ label, sub: `${clip.duration.toFixed(2)} s · machine gate ${failed.length ? 'FAILS ' + failed.join(', ') : 'passes'}`, frames });
+    console.log(`${label}: ${failed.length ? 'FAILS ' + g.checks.filter((x) => !x.pass).map((x) => `${x.name}: ${x.saw}`).join(' | ') : 'passes'}`);
+  };
+  row('idle, every layer', idleClip(B, { seed: 3 }), 12, false);
+  for (const name of Object.keys(IDLE_LAYERS)) row(`layer: ${name} (${IDLE_LAYERS[name].toFixed(2)} s loop)`, idleLayer(B, name, { seed: 3 }), 8, true);
+  row('grazing: down, graze, up', grazeClip(B, { seed: 3 }), 10, false);
+  const iname = `mount-horse-${register}-idle${view === 'front' ? '-front' : ''}`;
+  writeFileSync(path.join(outDir, `${iname}.svg`), contactSheet(irows, { title: `the mount at rest, ${register}: the layers loop at 3 s × φⁿ`, view, cellW: view === 'front' ? 130 : 200 }));
+  files.push(`${iname}.svg`);
 }
 
 if (before) {

@@ -80,7 +80,9 @@ export const fromPlane = (pl, p) => [pl.xh + (pl.G[0] - pl.xh) * p[1] / pl.D, p[
  * `state` = { z, pitch, psi, rollF, rollH, sway, nu, lat, tau, legs: { LF|RF|LH|RH: { solve, distal, plane } } }: z the
  * centre of mass's height, pitch the trunk's (+ nose up), psi the lumbosacral flexion (+ rounding), rollF / rollH the
  * girdles' roll (+ the top to the right), sway the body's sideways shift (+ right), nu the neck's swing (+ raising),
- * lat its sideways swing (+ right), tau the tail's. A leg's solve and distal are in its plane (legPlane).
+ * lat its sideways swing (+ right), neckDrop a rigid turn of the whole neck at its base (+ raising), headPitch the head's
+ * angle outright, tau the tail's, tailLat its sideways swish (+ right), earR / earL { yaw, droop }. A
+ * leg's solve and distal are in its plane (legPlane).
  */
 export function assemble(B, state) {
   const T = B.trunk;
@@ -95,14 +97,15 @@ export function assemble(B, state) {
   const nb = [[0, T.neck[0][0], T.neck[0][1]]];
   let acc = 0, accL = 0;
   for (let i = 1; i < T.neck.length; i++) {
-    acc += NECK_W[i - 1] * nu; accL += NECK_W[i - 1] * lat;
+    acc += NECK_W[i - 1] * nu + (i === 1 ? state.neckDrop || 0 : 0); accL += NECK_W[i - 1] * lat;   // the drop: at the base
     const d = rot(sub(T.neck[i], T.neck[i - 1]), acc);            // [dy, dz] nodded
     const prev = nb[i - 1];
     nb.push([prev[0] + Math.sin(accL) * d[0], prev[1] + Math.cos(accL) * d[0], prev[2] + d[1]]);
   }
   const neck = nb.map((p) => bodyPoint(B, state, p));
   const pollB = nb[nb.length - 1];
-  const headA = -(90 - B.head.carriage) * DEG + acc * (1 - (state.headCounter ?? 0.5));
+  // the head's angle in the body frame: carried off the neck's swing, or set outright (`headPitch`: a grazing face)
+  const headA = state.headPitch ?? -(90 - B.head.carriage) * DEG + acc * (1 - (state.headCounter ?? 0.5));
   const yawH = accL * (1 - (state.headCounter ?? 0.5));
   // a point along the head at (forward, down) from the poll, in the body frame, then the world
   const H = (fwd, down = 0, side = 0) => {
@@ -113,15 +116,30 @@ export function assemble(B, state) {
   const Lh = B.head.length, k6 = Lh / 0.6;
   const poll = neck[neck.length - 1], muzzle = H(Lh);
   const jawFrom = H(0, 0.12 * k6), jawTo = H((B.head.jaw + 0.18 * Lh) * Math.cos(8 * DEG), (B.head.jaw + 0.18 * Lh) * Math.sin(8 * DEG));
-  const earTip = (side) => H(B.head.ear * Math.cos(125 * DEG), -B.head.ear * Math.sin(125 * DEG), side);
+  // an ear: up and a little back from the poll; `yaw` turns it about the head's up (+ out and back, each ear its own
+  // way), `droop` tips it back (radians): rotations about the ear's base, so it keeps its length
+  const earTip = (side, yaw = 0, droop = 0) => {
+    const a = 125 * DEG + droop, f0 = B.head.ear * Math.cos(a), d0 = -B.head.ear * Math.sin(a);
+    if (!yaw) return H(f0, d0, side);
+    // a rotation of the (forward, side) part about the ear's base, by −yaw on the right and +yaw on the left (both out)
+    const sg = Math.sign(side), b = 0.05 * sg, o = side - b, th = -yaw * sg, c = Math.cos(th), sn = Math.sin(th);
+    return H(f0 * c - o * sn, d0, b + f0 * sn + o * c);
+  };
   const bitAt = H(Lh * B.sockets.bit, 0.05 * k6), bitTo = H(Lh * B.sockets.bit + 0.04, 0.05 * k6);
   // the tail: the rest chain on the pelvis, each link swung by its share (in the mid-plane)
-  const tr = tailRest(B), tb = [tr[0]];
-  let ta = 0;
-  for (let i = 1; i < tr.length; i++) { ta += TAIL_W[i - 1] * (state.tau || 0); tb.push(add(tb[i - 1], rot(sub(tr[i], tr[i - 1]), ta))); }
+  // (and swished sideways by `tailLat`, each link its share about the vertical, the hair following)
+  const tr = tailRest(B), tb = [[0, tr[0][0], tr[0][1]]];
+  let ta = 0, tl = 0;
+  for (let i = 1; i < tr.length; i++) {
+    ta += TAIL_W[i - 1] * (state.tau || 0); tl += TAIL_W[i - 1] * (state.tailLat || 0);
+    const d = rot(sub(tr[i], tr[i - 1]), ta), prev = tb[i - 1];
+    tb.push(tl ? [prev[0] + Math.sin(tl) * d[0], prev[1] + Math.cos(tl) * d[0], prev[2] + d[1]] : [prev[0], prev[1] + d[0], prev[2] + d[1]]);
+  }
   // the hair hangs: its end straight down from the dock's end in the world, swung by half the dock's swing
-  const tail = tb.map((p) => W(p, 0, true));
-  const hairEnd = add3(tail[4], [0, Math.sin(ta * 0.5 + 2 * DEG) * -B.tail.hair, -Math.cos(ta * 0.5 + 2 * DEG) * B.tail.hair]);
+  const tail = tb.map((p) => bodyPoint(B, state, p, true));
+  const hairEnd = tl
+    ? add3(tail[4], [Math.cos(ta * 0.5 + 2 * DEG) * B.tail.hair * Math.sin(tl * 0.8), -Math.sin(ta * 0.5 + 2 * DEG) * B.tail.hair, -Math.cos(ta * 0.5 + 2 * DEG) * B.tail.hair * Math.cos(tl * 0.8)])   // the hanging hair turned about the long axis
+    : add3(tail[4], [0, Math.sin(ta * 0.5 + 2 * DEG) * -B.tail.hair, -Math.cos(ta * 0.5 + 2 * DEG) * B.tail.hair]);
 
   const bones = {};
   const put = (id, a, b) => { bones[id] = { head: a, tail: b }; };
@@ -129,7 +147,7 @@ export function assemble(B, state) {
   put('spine0', P.lumbosacral, P.tailRoot);
   for (let i = 0; i < 5; i++) put(`neck${i}`, neck[i], neck[i + 1]);
   put('head', poll, muzzle); put('jaw', jawFrom, jawTo);
-  put('earR', H(0, 0, 0.05), earTip(0.07)); put('earL', H(0, 0, -0.05), earTip(-0.07));
+  put('earR', H(0, 0, 0.05), earTip(0.07, state.earR?.yaw, state.earR?.droop)); put('earL', H(0, 0, -0.05), earTip(-0.07, state.earL?.yaw, state.earL?.droop));
   for (let i = 0; i < 4; i++) put(`tail${i}`, tail[i], tail[i + 1]);
   put('tailHair', tail[4], hairEnd);
   for (const s of ['R', 'L']) {

@@ -1,7 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { resolveMount } from './build.js';
 import { gaitCycle } from './gait.js';
-import { gaitGates, shotGates, jumpGates } from './gates.js';
+import { gaitGates, shotGates, jumpGates, idleGates } from './gates.js';
+import { idleLayer, idleClip, grazeClip, IDLE_LAYERS } from './idle.js';
 import { jumpClip } from './jump.js';
 import { oneShot } from './motion.js';
 import { standPose } from './gait.js';
@@ -44,6 +45,21 @@ describe('the mount\'s jumps', () => {
     it(`${fence} m${spread ? ` × ${spread} m` : ''}, ${lead} lead`, () => {
       const r = jumpGates(B, jumpClip(B, { fence, spread, lead }), { stand });
       expect(r.checks.filter((c) => !c.pass).map((c) => `${c.name}: ${c.saw}`)).toEqual([]);
+    });
+  }
+});
+
+// every idle layer as its own loop, the layers together, and grazing, in every register
+describe('the mount at rest', () => {
+  for (const register of Object.keys(REGISTERS)) {
+    const B = resolveMount('horse', { register });
+    for (const name of Object.keys(IDLE_LAYERS)) {
+      it(`${register} layer ${name}`, () => {
+        expect(idleGates(B, idleLayer(B, name, { seed: 3 }), { loop: true }).checks.filter((c) => !c.pass).map((c) => `${c.name}: ${c.saw}`)).toEqual([]);
+      });
+    }
+    it(`${register} every layer together, and grazing`, () => {
+      for (const clip of [idleClip(B, { seed: 3 }), grazeClip(B, { seed: 3 })]) expect(idleGates(B, clip).checks.filter((c) => !c.pass).map((c) => `${c.name}: ${c.saw}`)).toEqual([]);
     });
   }
 });

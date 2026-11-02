@@ -250,3 +250,48 @@ export function jumpGates(B, clip, { stand, hz } = {}) {
   add('clears', clear >= 0.02, `${clear === Infinity ? 'nothing passes the rail' : `the lowest point over the rail is ${r3(clear)} m above it (${at})`}`, '≥ 0.02 m');
   return r;
 }
+
+/**
+ * The idle's machine gate: sampled at `hz` over the clip; every hoof planted (its toe still in the world); no hoof in the
+ * ground; no leg out of reach; rigid bones; no pop; and a LOOP (a layer) closes on its own first frame.
+ */
+export function idleGates(B, clip, { hz = 60, loop = false } = {}) {
+  const n = Math.max(24, Math.round(clip.duration * hz)), dt = clip.duration / n;
+  const frames = Array.from({ length: n + 1 }, (_, i) => clip.poseAt(i * dt));
+  const checks = [];
+  const add = (name, pass, saw, want) => checks.push({ name, pass, saw, want });
+  const HOOF = { LF: 'hoofFL', RF: 'hoofFR', LH: 'hoofHL', RH: 'hoofHR' };
+  let slip = 0, low = Infinity, clamps = 0;
+  for (let i = 0; i <= n; i++) {
+    const f = frames[i];
+    for (const k of ['LF', 'RF', 'LH', 'RH']) {
+      const L = f.legs[k];
+      low = Math.min(low, fromPlane(L.plane, L.distal.toe)[2], fromPlane(L.plane, L.distal.heel)[2]);
+      if (i < n) { const a = f.bones[HOOF[k]].tail, b = frames[i + 1].bones[HOOF[k]].tail; slip = Math.max(slip, Math.hypot(b[0] - a[0], b[1] - a[1], b[2] - a[2]) / dt); }
+    }
+    clamps += f.clamps.length;
+  }
+  add('slip', slip <= 0.01, `worst toe drift ${r3(slip)} m/s`, '≤ 0.01 m/s (planted)');
+  add('ground', low >= -0.01, `lowest hoof point ${r3(low)} m`, '≥ −0.01 m');
+  add('reach', clamps === 0, `${clamps} sample(s) out of reach`, 'none');
+  let stretch = 0;
+  for (const id of Object.keys(frames[0].bones)) {
+    const l0 = dist(frames[0].bones[id].head, frames[0].bones[id].tail);
+    for (const f of frames) stretch = Math.max(stretch, Math.abs(dist(f.bones[id].head, f.bones[id].tail) - l0));
+  }
+  add('rigid', stretch <= 1e-6, `largest bone length change ${stretch.toExponential(1)} m`, '≤ 1e-6 m');
+  let pop = 0, popAt = '';
+  for (const id of Object.keys(frames[0].bones)) for (const end of ['head', 'tail']) {
+    const p = frames.map((f) => f.bones[id][end]);
+    const v = p.slice(0, -1).map((q, i) => p[i + 1].map((x, d) => x - q[d]));
+    const top = Math.max(...v.map((w) => Math.hypot(...w)));
+    if (top < 1e-5) continue;
+    for (let i = 0; i + 1 < v.length; i++) { const j = Math.hypot(...v[i + 1].map((x, d) => x - v[i][d])) / top; if (j > pop) { pop = j; popAt = `${id}.${end} at ${(i * dt).toFixed(2)} s`; } }
+  }
+  add('smooth', pop <= 0.5, `largest velocity jump ${r3(pop)} of its top speed (${popAt})`, '≤ 0.5');
+  if (loop) {
+    const e = Math.max(...Object.keys(frames[0].bones).flatMap((id) => ['head', 'tail'].map((x) => dist(frames[0].bones[id][x], frames[n].bones[id][x]))));
+    add('loops', e <= 1e-9, `the loop closes ${e.toExponential(1)} m off its first frame`, '≤ 1e-9 m');
+  }
+  return { checks };
+}

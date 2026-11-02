@@ -1,7 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { resolveMount } from './build.js';
 import { gaitCycle, standPose, strideOf, swingPath, bump } from './gait.js';
-import { gaitGates, shotGates, jumpGates } from './gates.js';
+import { gaitGates, shotGates, jumpGates, idleGates } from './gates.js';
+import { restState, idleLayer, idleClip, grazeClip, herdOffset, IDLE_LAYERS, PHI } from './idle.js';
 import { jumpClip } from './jump.js';
 import { oneShot } from './motion.js';
 import { MOUNT_BONES } from './pose.js';
@@ -140,5 +141,32 @@ describe('the jump', () => {
     expect(hi.flight.vz).toBeGreaterThan(lo.flight.vz);
     expect(hi.flight.distance).toBeGreaterThan(lo.flight.distance);
     expect(ox.flight.distance).toBeGreaterThan(up.flight.distance);
+  });
+});
+
+describe('at rest', () => {
+  const B = resolveMount('horse');
+
+  it('resting a hind: its toe planted where it stood, its hip dropped, the other hind carrying it', () => {
+    const sq = restState(B), r = restState(B, { restHind: 'L', rest: 1 });
+    expect(r.bones.hoofHL.tail).toEqual(sq.bones.hoofHL.tail);              // the toe never moves
+    expect(r.bones.femurL.head[2]).toBeLessThan(r.bones.femurR.head[2]);   // the left hip lower
+    const ext = (f, id) => f.legs[id].distal.pastern - f.legs[id].solve.cannon;
+    expect(ext(r, 'RH')).toBeGreaterThan(ext(sq, 'RH'));                   // the right fetlock sinks under the weight
+  });
+
+  it('grazing: the muzzle meets the grass, every hoof where it stood', () => {
+    const g = restState(B, { graze: 1 }), sq = restState(B);
+    expect(g.points.muzzle[2]).toBeCloseTo(0.03, 2);
+    for (const id of ['hoofFL', 'hoofFR', 'hoofHL', 'hoofHR']) expect(g.bones[id].tail).toEqual(sq.bones[id].tail);
+    expect(failures(idleGates(B, grazeClip(B)))).toEqual([]);
+  });
+
+  it('a layer loops exactly; the layers\' loops step by φ; a herd is never in step', () => {
+    expect(failures(idleGates(B, idleLayer(B, 'weight'), { loop: true }))).toEqual([]);
+    expect(IDLE_LAYERS.ears / IDLE_LAYERS.tail).toBeCloseTo(PHI, 9);
+    expect(IDLE_LAYERS.head / IDLE_LAYERS.ears).toBeCloseTo(PHI, 9);
+    const offs = Array.from({ length: 12 }, (_, i) => herdOffset(i, 1)).sort((a, b) => a - b);
+    for (let i = 1; i < offs.length; i++) expect(offs[i] - offs[i - 1]).toBeGreaterThan(0.02);
   });
 });
