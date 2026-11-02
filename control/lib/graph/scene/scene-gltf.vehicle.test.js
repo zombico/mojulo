@@ -10,6 +10,8 @@ import { supercarFigure } from '../car-designer/supercar-figure.js';
 import { ARCHETYPES } from '../egocube/facets.js';
 import { loftFigure } from '../car-designer/race-families.js';
 import { FLEET } from '../roads/fleet.js';
+import { MILITARY_CLASSES } from '../car-designer/road-military.js';
+import { validateBytes } from 'gltf-validator';
 
 function gltfJson(buf) {
   const jsonLen = buf.readUInt32LE(12);
@@ -63,4 +65,20 @@ describe('a race machine in the form render exports to GLB', () => {
     expect(json.materials.some((m) => m.name?.startsWith('form:'))).toBe(false);
     expect(json.meshes.find((m) => m.name === 'car:root').primitives).toHaveLength(1);
   });
+});
+
+// a field vehicle (road-military.js: each body the hull kit builds, in camo and worn) as the engines get it: the
+// Khronos validator finds no error and no warning, its camo and grime in its vertex colours, its slots its own
+describe('a field vehicle exports to a valid GLB', () => {
+  for (const cls of Object.keys(MILITARY_CLASSES)) {
+    it(`the ${MILITARY_CLASSES[cls]} body`, async () => {
+      const { out, json } = exported(loftFigure({ class: cls, seed: 3, light: 'form', livery: 'woodland' }));
+      const report = await validateBytes(new Uint8Array(out.bytes), { maxIssues: 50 });
+      expect(report.issues.numErrors, JSON.stringify(report.issues.messages.filter((m) => m.severity === 0))).toBe(0);
+      expect(report.issues.numWarnings).toBe(0);
+      const body = json.meshes.find((m) => m.name === 'car:root');
+      expect(body.primitives.every((p) => p.attributes.COLOR_0 !== undefined)).toBe(true);
+      for (const slot of ['milPaint', 'mud', 'worn', 'rubber']) expect(json.materials.some((m) => m.name === `form:${slot}`), slot).toBe(true);
+    }, 60000);
+  }
 });

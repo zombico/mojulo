@@ -20,6 +20,11 @@
  *                                           // the class's own physics; stamped at mint from what the game reads
  *                                           // (vehicle-registry/tier.js: a realistic hero, the juice's form render, the
  *                                           // pole) when that is not stylised, so a world minted before drives as it did
+ *     livery?: '<camo>' | { pattern, colours?, scale?, angle?, seed?, marks? },  // ride: a field vehicle's paint
+ *                                           // (car-designer/livery-cut.js: mono or a camo, its stencils); stamped at mint
+ *                                           // from the setting when unnamed (a jungle's tiger stripe)
+ *     wear?: 'pristine' | 'used' | 'battered' | { level, soil? },  // ride: a field vehicle's history (car-designer/
+ *                                           // mil-wear.js: caked mud, chips, dust); a working vehicle's (used) unnamed
  *     transformer?: { robot?, vehicle?, scheme?, fold?, legs?, height? },   // the hero TRANSFORMS (transformation/: B,
  *                                           // the pad's L3): a robot that is a vehicle too. robot: { variable: { palette? } }
  *                                           // a variable suit folding into its waverider, { alien: { palette? } } an alien
@@ -171,7 +176,7 @@ import { ALIEN_PALETTES } from '../transformation/alien-body.js';
 import { SCHEME_DIALS } from '../transformation/schemes.js';
 import { CRAFT_ARCHETYPES } from '../craft-shelf/craft-archetypes.js';
 import { quickVehicleWords } from '../vehicle-registry/doors.js';
-import { rideRowOf, rideClassOf, rideableRows } from '../vehicle-registry/ride.js';
+import { rideRowOf, rideClassOf, rideableRows, rideLivery, rideWear, settingLivery } from '../vehicle-registry/ride.js';
 import { stampedTier } from '../vehicle-registry/tier.js';
 import { TIER_IDS } from '../vehicle-registry/builds.js';
 import { flightLaps } from '../skyscape/course.js';
@@ -252,7 +257,7 @@ export const FARM = Object.freeze({ cost: 2, price: 6, gold: 6, rate: 4, start: 
 export const DEFEND = Object.freeze({ cost: 5, gold: 10, bounty: 2, perWave: [3, 5, 7, 9, 11, 13], hp: 3 });
 // the field scores a rhythm game runs to (each a steady tempo, beats-world's audio.beat)
 export const RHYTHM_MOODS = Object.freeze(['wayfarer', 'expedition', 'tavern', 'village', 'plains', 'forest', 'highlands', 'desert']);
-const KEYS = ['body', 'goal', 'craft', 'assist', 'airspace', 'hero', 'ride', 'tier', 'transformer', 'racers', 'supercars', 'series', 'mood', 'vehicle', 'tuning', 'conditions', 'track', 'roadway', 'laps', 'rivals', 'climb', 'building', 'pickup', 'seconds', 'theme', 'camera', 'screen', 'runner', 'distance', 'guards', 'guard', 'alarms', 'music', 'sfx', 'misses', 'waves', 'lives', 'pads', 'foe', 'tower', 'board', 'sides', 'doctrine', 'match', 'boulders', 'plots', 'target', 'days', 'folk', 'farmhand', 'run', 'foes', 'bots', 'frags', 'arena', 'pole', 'weapons', 'mode', 'roster', 'arenas', 'stages', 'rounds', 'timer', 'rules', 'cast', 'moves', 'event', 'lanes', 'sport', 'players', 'register', 'level', 'seats', 'sets', 'periods', 'attempts', 'athletes', 'kits', 'broadcast', 'game', 'human', 'lift', 'venue', 'surface', 'preset', 'innings', 'overs', 'concept', 'teams'];
+const KEYS = ['body', 'goal', 'craft', 'assist', 'airspace', 'hero', 'ride', 'tier', 'livery', 'wear', 'transformer', 'racers', 'supercars', 'series', 'mood', 'vehicle', 'tuning', 'conditions', 'track', 'roadway', 'laps', 'rivals', 'climb', 'building', 'pickup', 'seconds', 'theme', 'camera', 'screen', 'runner', 'distance', 'guards', 'guard', 'alarms', 'music', 'sfx', 'misses', 'waves', 'lives', 'pads', 'foe', 'tower', 'board', 'sides', 'doctrine', 'match', 'boulders', 'plots', 'target', 'days', 'folk', 'farmhand', 'run', 'foes', 'bots', 'frags', 'arena', 'pole', 'weapons', 'mode', 'roster', 'arenas', 'stages', 'rounds', 'timer', 'rules', 'cast', 'moves', 'event', 'lanes', 'sport', 'players', 'register', 'level', 'seats', 'sets', 'periods', 'attempts', 'athletes', 'kits', 'broadcast', 'game', 'human', 'lift', 'venue', 'surface', 'preset', 'innings', 'overs', 'concept', 'teams'];
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const fail = (m) => new Error(`gameworld: quick${m}`);
 
@@ -370,6 +375,16 @@ export function readQuick(Q) {
   if (Q.tier !== undefined) {
     if (!TIER_IDS.includes(Q.tier)) throw fail(`.tier is one of ${TIER_IDS.join(', ')}`);
     if (Q.ride === undefined) throw fail('.tier is the tier the ride is drawn at: name a ride');
+  }
+  // the ride's livery (car-designer/livery-cut.js: a field vehicle's paint as words, a camo or mono, its stencils)
+  if (Q.livery !== undefined) {
+    if (Q.ride === undefined) throw fail('.livery paints the ride: name a ride');
+    try { rideLivery(Q); } catch (e) { throw fail(e.message.startsWith('gameworld: quick.livery') ? e.message.slice('gameworld: quick'.length) : `.livery: ${e.message.replace(/^livery: /, '')}`); }
+  }
+  // the ride's wear (car-designer/mil-wear.js: pristine | used | battered, a field vehicle's history)
+  if (Q.wear !== undefined) {
+    if (Q.ride === undefined) throw fail('.wear weathers the ride: name a ride');
+    try { rideWear(Q); } catch (e) { throw fail(e.message.startsWith('gameworld: quick.wear') ? e.message.slice('gameworld: quick'.length) : `.wear: ${e.message.replace(/^wear: /, '')}`); }
   }
   if (Q.transformer !== undefined) readQuickTransformer(Q);
   if (Q.racers !== undefined) {
@@ -793,8 +808,12 @@ export function quickWorld({ quick: asked, id, name, seed, style, ...rest } = {}
   // a ride is drawn at the tier the game reads (vehicle-registry/tier.js), stamped here at mint when it is not the
   // stylised default: a world minted before carries none and drives what it always drove
   const tier = isObj(read) && read.ride !== undefined && read.tier === undefined ? stampedTier({ quick: read, style, juice: rest.juice, characters: rest.characters }) : null;
-  const given = tier ? { ...read, tier } : read;
-  readQuick(given);
+  const tiered = tier ? { ...read, tier } : read;
+  readQuick(tiered);
+  // a field vehicle is painted in its setting's camo (car-designer/livery-cut.js: a jungle's tiger stripe, a desert's
+  // sand), stamped here at mint when the operator names none: a world minted before carries none and stays olive
+  const camo = isObj(tiered) && tiered.ride !== undefined ? settingLivery(tiered, { style }) : null;
+  const given = camo ? { ...tiered, livery: camo } : tiered;
   // the camera is the world's setting, not the goal's: it moves up to the world, where both run paths read it
   // (and the screen it is made for, beside it: game/screen.js)
   const { camera: named, moves, screen, ...quick } = given;

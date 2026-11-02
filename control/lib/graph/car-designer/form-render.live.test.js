@@ -49,7 +49,7 @@ describe('the form render in the page', () => {
         const rig = window.__mojCtrl.bodies.car.userData.rigFig, out = { bones: {}, casters: [] };
         rig.fig.bones.forEach((b, i) => { const m = rig.boneMeshes[i]; if (m) out.bones[b.id] = [].concat(m.material).map((x) => x.type); });
         let root = window.__mojCtrl.bodies.car; while (root.parent) root = root.parent;
-        root.traverse((o) => { if (o.isDirectionalLight && o.castShadow) out.casters.push([o.color.r, o.color.g, o.color.b, o.intensity]); });
+        root.traverse((o) => { if (o.isDirectionalLight && o.castShadow) out.casters.push([o.color.r, o.color.g, o.color.b, o.intensity, o.shadow.normalBias]); });
         return out;
       });
       expect(errors, errors.join('\n')).toEqual([]);
@@ -59,6 +59,8 @@ describe('the form render in the page', () => {
       }
       expect(read.casters.length).toBeGreaterThan(0);
       for (const c of read.casters) expect(c[3]).toBeCloseTo(fig.form.keyIntensity / read.casters.length, 3);
+      // (each shadow light biased along the body's normals: a plate turned from the sun wears no stripes of its own shadow)
+      for (const c of read.casters) expect(c[4]).toBeGreaterThanOrEqual(0.05);
       // the car drawn and lit: the frame's middle holds many colours, not the ground's one
       const png = await page.screenshot({ clip: { x: 200, y: 140, width: 240, height: 160 } });
       expect(new Set(Array.from(png.subarray(64, png.length - 16)).filter((_, i) => i % 7 === 0)).size).toBeGreaterThan(40);
