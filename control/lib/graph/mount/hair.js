@@ -223,7 +223,7 @@ export function simulateHair(B, frameAt, { t0 = 0, t1 = 1, fps = 60, loop = fals
 
 /** the cards: ribbons along each strand (a guide's cards side by side across it), tapering to the tip, two-sided */
 export function hairCards(guides, strands, { coat = 'bay' } = {}) {
-  const C = typeof coat === 'string' ? COATS[coat] : coat, vertices = [], quads = [], colors = [], twoSided = [];
+  const C = typeof coat === 'string' ? COATS[coat] : coat, vertices = [], quads = [], colors = [], twoSided = [], at = [];
   const shade = (hex, f) => '#' + [1, 3, 5].map((i) => Math.max(0, Math.min(255, Math.round(parseInt(hex.slice(i, i + 2), 16) * f))).toString(16).padStart(2, '0')).join('');
   guides.forEach((g, gi) => {
     const s = strands[gi];
@@ -235,6 +235,7 @@ export function hairCards(guides, strands, { coat = 'bay' } = {}) {
         const sd = unit(sub(g.side, mul(along, dot(g.side, along)))), w = g.width * (1 - (g.taper ?? 0.65) * i / (g.n - 1));
         const c = add(s[i], mul(sd, off * g.width));
         vertices.push(add(c, mul(sd, -w / 2)), add(c, mul(sd, w / 2)));
+        at.push([gi, i], [gi, i]);                                                 // (each vertex's guide and point: a skin's)
       }
       for (let i = 0; i + 1 < g.n; i++) {
         quads.push([base + 2 * i, base + 2 * i + 1, base + 2 * i + 3, base + 2 * i + 2]);
@@ -242,5 +243,5 @@ export function hairCards(guides, strands, { coat = 'bay' } = {}) {
       }
     }
   });
-  return { vertices, quads, colors, twoSided };
+  return { vertices, quads, colors, twoSided, at };
 }

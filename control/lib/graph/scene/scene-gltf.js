@@ -1045,7 +1045,8 @@ class GlbBuilder {
           keying: 'each clip carries a STEP weights channel on the mesh node, a drawing per frame at fps keyed half a frame early ((f - 0.5) / fps; the first key at 0, the last at the clip\'s end), the eyes only ever at the knots; ambientClip holds the authored face with seeded blinks, to layer over the ambientOver clips through a filter on the blink targets (blink*); play at 30 fps or more (at 24, Blender\'s default scene rate, a one-frame drawing can fall between two samples)',
         } : {}),
       } } : {}), ...(corr ? { correctives: {
-        about: "morph targets on the rest after the face's, each its offsets at full weight; a target's weight is the smoothstep of its driver's raise between from and full (degrees): the angle of the bone from driver.joint to driver.to against the trunk's down (navel from neckHub); a joint's posed point is its bone's transform of `at` (its offset from the bone's head at rest); the default weights are the rest's, and every clip carries the weights its poses drive",
+        // (a figure that drives its correctives otherwise says how: the mount's, mount/export.js; absent, the hero's)
+        about: typeof corr.about === 'string' ? corr.about : "morph targets on the rest after the face's, each its offsets at full weight; a target's weight is the smoothstep of its driver's raise between from and full (degrees): the angle of the bone from driver.joint to driver.to against the trunk's down (navel from neckHub); a joint's posed point is its bone's transform of `at` (its offset from the bone's head at rest); the default weights are the rest's, and every clip carries the weights its poses drive",
         targets: corr.targets.map((c) => ({ id: c.id, driver: { ...c.driver } })), joints: corr.joints,
       } } : {}) } };
     }

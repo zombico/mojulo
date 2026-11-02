@@ -67,6 +67,14 @@ rather than over it (the fauna horse's rows stay byte-identical). Solo; the sadd
   there now, where it had swung the femur level with the back); a jump's footfall is placed where the hip stays in
   range; the body flies a little higher over the rail for the hip it no longer tucks. The gaits never reach the range
   and are unchanged. Every clip's gate checks the hip.
+- **The export** (`mount/export.js`, `node scripts/export-mount.mjs <dir>`): the mount as one skinned GLB an engine
+  imports as it is, through the hero's writer. The rig's bones as joints, the body on its own weights, the corrective
+  shapes as morph targets, the mane, forelock and tail as two-faced cards on the bones they grow from (their swing an
+  engine's spring bones give them), and every clip: the gaits' cycles in place with their ground speed, the
+  transitions between them and the halt, the jump, the idle, its layers and grazing, each with its shapes' weights. A
+  README says how Godot, Unity, Unreal and Blender take it. Re-skinned from its own buffers the file is the solver's
+  skin to a fraction of a millimetre. `node scripts/mount-live.mjs <glb> <dir> [--local]` plays it in a live viewer
+  (three.js): the clips by family, the shapes on or off, the skeleton, the ground passing at the gait's speed.
 - **The machine gate** (`mount/gates.js`): footfalls and duty, suspensions, slip, ground, the flight at g, the joints'
   ranges and the hip's, reach, pops, rigid bones, brushing, the seams of a one-shot, the rail's clearance, a layer's loop. Every
   gait at both band ends, both leads, both registers; every one-shot; every realistic jump; every idle layer pass it.
