@@ -37,6 +37,8 @@
  *                 defaults (juice.js); a skill's own `juice` too. Every beat says rpg-on:<happening> on the bus
  *     rules?:     { gold?: '<var>', defeat?: 'fail' | 'retry', switch?: 'anywhere' | 'never', carry?: 'class' | 'all',
  *                 foeHp?: 'bar' | 'hidden', turns?: 'rounds' | 'timeline', size?: 1-4, cap?: n, xp?: { base, growth },
+ *                 view?: 'side' | 'front' | 'left' | 'right' | 'overhead' (where the fight is seen from: from the side, over
+ *                 the party at the foes, a three-quarter view from either hand, from above),
  *                 cp?: [n], sp?: n, seed?: n }   turns: every member picks then all act in speed order (rounds), or
  *                 each acts when its gauge fills at its speed, the quick more often (timeline)
  *   }
@@ -65,7 +67,7 @@ export const RPG_RULES = Object.freeze({
   gold: 'gold', defeat: 'fail', switch: 'anywhere', carry: 'class', foeHp: 'bar', turns: 'rounds', size: 4, cap: 50,
   xp: Object.freeze({ base: 10, growth: 1.5 }), cp: Object.freeze([0, 4, 10, 18, 30, 45, 65, 90]), sp: 1, seed: 1,
 });
-const RULE_WORDS = { defeat: ['fail', 'retry'], switch: ['anywhere', 'never'], carry: ['class', 'all'], foeHp: ['bar', 'hidden'], turns: ['rounds', 'timeline'] };
+const RULE_WORDS = { defeat: ['fail', 'retry'], switch: ['anywhere', 'never'], carry: ['class', 'all'], foeHp: ['bar', 'hidden'], turns: ['rounds', 'timeline'], view: ['side', 'front', 'left', 'right', 'overhead'] };
 const BUFF_STATS = ['atk', 'def', 'mag', 'spd'];
 const DEFAULT_BASE = Object.freeze({ hp: 30, mp: 0, atk: 8, def: 6, mag: 4, spd: 6 });
 const DEFAULT_GROWTH = Object.freeze({ hp: 6, mp: 0, atk: 2, def: 1.5, mag: 1, spd: 1 });
@@ -176,8 +178,9 @@ export function readRpg(play) {
 
   // the rules
   const Ru = P.rules ?? {};
-  if (!isObj(Ru)) throw err('.rules is { gold?, defeat?, switch?, carry?, foeHp?, turns?, size?, cap?, xp?, cp?, sp?, seed? }');
-  keysOnly(Ru, Object.keys(RPG_RULES), '.rules');
+  if (!isObj(Ru)) throw err('.rules is { gold?, defeat?, switch?, carry?, foeHp?, turns?, size?, cap?, xp?, cp?, sp?, seed?, view? }');
+  // (view: where a fight is seen from, the side by default; written only where the book asks another)
+  keysOnly(Ru, [...Object.keys(RPG_RULES), 'view'], '.rules');
   for (const [k, ws] of Object.entries(RULE_WORDS)) if (Ru[k] !== undefined && !ws.includes(Ru[k])) throw err(`.rules.${k} is ${ws.join(' or ')}`);
   if (Ru.gold !== undefined && (typeof Ru.gold !== 'string' || !Ru.gold)) throw err('.rules.gold is the var the gold won goes into');
   if (Ru.size !== undefined && !(Number.isInteger(Ru.size) && Ru.size >= 1 && Ru.size <= 4)) throw err('.rules.size is how many fight at once, 1 to 4');

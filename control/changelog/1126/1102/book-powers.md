@@ -170,3 +170,14 @@ its resource, put on a look and showed a toast. This theme makes them act.
   - Made it run: `design_game` makes a person foe kind's figure as a hero (`foe-<kind>`), and a run's record takes
     the key. Seen in an exported JRPG: the slimes and the wolf each recoiled and fell on their own figure, a real wolf
     facing the party. A bat has no reactions and no foe a strike clip yet, so those play nothing.
+- **A pack spaced by its foes' size, and the fight's views** (`gameworld/battles.js`, `playscape/rpg/rpg.js`, the battle
+  page). A pack's figures stood a person's step apart, so two knee-high slimes overlapped. The step is now as wide as
+  the pack's largest reaches round its middle, on the map and in the fight's wedge. A fight is seen from a view the
+  battles' rules name (`rules.view`, by the book's `battles.rules`; the side when it names none):
+  - `side`: from the side, the two lines facing across the frame;
+  - `front`: over the party's shoulders at the foes, as a Dragon Quest fight is seen;
+  - `left` and `right`: a three-quarter view from either hand;
+  - `overhead`: from above.
+  Each is a direction round the fight and an elevation, the camera's distance fitted to the fighters across the frame
+  and down it, and the clearer side or a higher stand taken where the ground hides them. The page's
+  `__mojRpg.view(name)` re-stages a fight in another view, for a preview.

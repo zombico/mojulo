@@ -63,6 +63,13 @@ export const FOE_LOOKS = Object.freeze({
 // the height a beast foe stands at in a fight (metres), whatever its species' own: a monster's presence, not the animal's
 // (a slime grown from a frog stands knee-high, a golem from a bear over a person); a foe not here stands at its own size
 export const FOE_HEIGHT = Object.freeze({ slime: 0.7, bat: 0.9, spider: 0.8, shroom: 0.9, wisp: 1.2, golem: 2.3, drake: 2.6 });
+// how far a foe kind reaches round its middle as it stands (metres): a beast at its fight height by its species' build
+const reachOf = (G, kind) => {
+  const look = foeLookOf(G, kind);
+  if (!beastLook(look) || !FOE_HEIGHT[kind] || G.battles?.foe) return 0.3;
+  const m = bodyOf(look.species, { ooze: look.ooze });
+  return Math.min(2.5, Math.max(0.15, m.extent * (FOE_HEIGHT[kind] / Math.max(0.05, m.height)) * 0.5));
+};
 /** The look a foe stands in: the world's one foe look where it writes it, else the foe's own, else the plain one. */
 export const foeLookOf = (G, id) => G.battles?.foe ?? FOE_LOOKS[id] ?? BATTLE_FOE;
 /** The figure kinds a run makes for its battles: one per foe the plan stands (each its own look), or one for all where
@@ -225,9 +232,11 @@ export function battleCast(G, stage, ends, { ref, refs = null, packs = [], from 
   const figures = {}, entities = [], encounters = [];
   picks.forEach((b, k) => {
     const id = `foe-${k + 1}`, back = k ? picks[k - 1].at : ends.spawn, h = facing(b.at, back);
-    // (each foe of the pack its own figure: the first on the beat, the rest a step aside on either side and a step back)
+    // (each foe of the pack its own figure: the first on the beat, the rest a step aside on either side and a step back,
+    // the step as wide as the pack's largest needs: a golem's is not a bat's)
+    const span = Math.max(1.4, ...packs[k].map((kind) => 2 * reachOf(G, kind) + 0.6));
     const who = packs[k].map((kind, j) => {
-      const fid = j ? `${id}-${j + 1}` : id, side = (j % 2 ? 1 : -1) * Math.ceil(j / 2) * 1.4, back1 = Math.ceil(j / 2) * 0.7;
+      const fid = j ? `${id}-${j + 1}` : id, side = (j % 2 ? 1 : -1) * Math.ceil(j / 2) * span, back1 = Math.ceil(j / 2) * span * 0.5;
       const at = [r3(b.at[0] - Math.sin(h) * side - Math.cos(h) * back1), r3(b.at[1] + Math.cos(h) * side - Math.sin(h) * back1), b.at[2]];
       const look = foeLookOf(G, kind);
       stand({ figures, entities }, fid, foeFigure(refs?.[kind] ?? ref, look), at, h);
