@@ -25,7 +25,7 @@
  */
 
 import { speciesParams } from '../fauna/species.js';
-import { SILHOUETTES, silhouetteOf, bellyOf, rounded, sideHips, SIDE_HIPS, fronted, FRONT_SILHOUETTES } from './feature-silhouettes.js';
+import { SILHOUETTES, silhouetteOf, bellyOf, rounded, sideHips, SIDE_HIPS, fronted, FRONT_SILHOUETTES, FRONT_RATIO } from './feature-silhouettes.js';
 import { functional, speciesLimbs } from './feature-function.js';
 import { PHI, beakOf, beakParts, headOf, plumageOf, extentAlong } from './feature-birds.js';
 import { tunedSilhouette, detailClumps, sizesOf } from './feature-tune.js';
@@ -200,12 +200,17 @@ function structure(S, P, T, shape = [1, 1, 1], Z = null) {
     ...S.body.map((e) => ({ ...e, c: X(e.c), r: /R$/.test(e.name) ? e.r : [e.r[0], e.r[1] * bw, e.r[2] * bw] })),
   ];
   // the legs: hidden under the haunches, or two cones (the thigh, the shin) from the hip by the knee to the ankle
-  const hip = X(S.hip), fx = S.foot[0], ankle = X([fx - 0.01, 0.05, 0.1]), knee = S.knee ? X(S.knee) : X([fx, 0.08, S.hip[2] * 0.58]);
   // (a leg that shows is a mascot's: round and full, never a stick; a bird's thinner, still round)
   const shinGroup = S.bird ? 'Sock' : undefined, CH = S.bird ? FEATURE_PROPORTION.birdLeg : FEATURE_PROPORTION.leg;
   // (the style's rounding fills the thigh: the volume sits low, feature-silhouettes.js rounded)
-  // (a leg proportioned from the front (feature-silhouettes.js fronted) is as broad as its thigh, tapering to the ankle)
-  const legR = (S.thighR ? [S.thighR, Math.min(Math.max(S.legR?.[1] ?? 0, CH[1]), S.thighR * 0.75)] : [Math.max(S.legR?.[0] ?? 0, CH[0]) * (S.thighScale ?? 1), Math.max(S.legR?.[1] ?? 0, CH[1])]).map((x) => x * (S.legScale ?? 1) * (S.legGirth ?? 1)), legM = (legR[0] + legR[1]) / 2;
+  // (a leg proportioned from the front (feature-silhouettes.js fronted) is as broad as its thigh, tapering to the ankle,
+  // `FRONT_RATIO.ankle` of it)
+  const legR = (S.thighR ? [S.thighR, Math.min(Math.max(S.legR?.[1] ?? 0, CH[1]), S.thighR * FRONT_RATIO.ankle)] : [Math.max(S.legR?.[0] ?? 0, CH[0]) * (S.thighScale ?? 1), Math.max(S.legR?.[1] ?? 0, CH[1])]).map((x) => x * (S.legScale ?? 1) * (S.legGirth ?? 1)), legM = (legR[0] + legR[1]) / 2;
+  // (TOED IN from the front, \| |/: a leg proportioned from the front keeps its INNER edge straight down from the thigh,
+  // so as it tapers its middle leans in toward the other's, the knee by the thigh's narrowing to it and the ankle by its
+  // narrowing to the ankle; the foot goes with the ankle and still points straight ahead)
+  const lean = S.thighR ? [(legR[0] - legM) / bw, (legR[0] - legR[1]) / bw] : [0, 0];
+  const hip = X(S.hip), fx = S.foot[0] - lean[1], ankle = X([fx - 0.01, 0.05, 0.1]), knee = S.knee ? X([S.knee[0] - lean[0], S.knee[1], S.knee[2]]) : X([fx, 0.08, S.hip[2] * 0.58]);
   const legs = S.legs === 'cones' ? [
     { name: 'thighR', a: hip, b: knee, ra: legR[0], rb: legM, bone: 'thighR', join: 0.1 },
     { name: 'shinR', a: knee, b: ankle, ra: legM, rb: legR[1], bone: 'shinR', group: shinGroup, join: 0.08 }] : [];

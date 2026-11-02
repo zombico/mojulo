@@ -168,8 +168,15 @@ describe('the feature tune', () => {
     const belly = side.eggs.find((e) => e.name === 'belly');
     expect(side.joints.hip[0]).toBeGreaterThan(belly.r[1] * 0.6);                    // (on the ball's side)
     expect(side.joints.hip[2]).toBeGreaterThan(below.joints.hip[2]);                 // (up at its centre, not its bottom)
-    // (standing, the legs straight: the knee and the ankle under the hip; the butt low, nearer the ground than the old way's)
-    expect(side.joints.knee[0]).toBeCloseTo(side.joints.hip[0], 6); expect(Math.abs(side.joints.knee[1] - side.joints.hip[1])).toBeLessThan(0.05);
+    // (standing, the legs straight and toed in, \\| |/ from the front: the inner edge straight down from the thigh to the
+    // ankle, the ankle leaning in toward the other leg, the foot pointing ahead; the knee under the hip from the side; the
+    // butt low, nearer the ground than the old way's)
+    const J = side.joints, th = side.limbs.find((l) => l.name === 'thighR'), sh = side.limbs.find((l) => l.name === 'shinR');
+    expect(Math.abs((J.hip[0] - th.ra) - (J.knee[0] - th.rb))).toBeLessThan(1e-6);
+    expect(Math.abs((J.hip[0] - th.ra) - (J.ankle[0] - sh.rb))).toBeLessThan(0.02);
+    expect(J.ankle[0]).toBeLessThan(J.hip[0] - (th.ra - sh.rb) * 0.5);
+    expect(Math.abs(J.toeTip[0] - J.toeBase[0])).toBeLessThan((J.toeTip[1] - J.toeBase[1]) * 0.25);
+    expect(Math.abs(J.knee[1] - J.hip[1])).toBeLessThan(0.05);
     expect(belly.c[2] - belly.r[2]).toBeLessThan(below.eggs.find((e) => e.name === 'belly').c[2] - below.eggs.find((e) => e.name === 'belly').r[2]);
     // (from the side a drumstick: the thigh deeper than it is broad, its tapered end out under the ball)
     const haunch = side.eggs.find((e) => e.name === 'haunchR');

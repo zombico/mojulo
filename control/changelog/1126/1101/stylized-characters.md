@@ -184,7 +184,9 @@ member, a quick game's hero). Code: `control/lib/graph/egocube/feature-tune.js`.
     the belly's shapes with it;
   - each thigh takes a sixth, never thinner than a round full leg (`FRONT_RATIO.least`: a body too slim for 1 : 4 keeps
     that floor and reads a little thicker), tucked against the body: its middle at the body's side, half of it over the
-    belly (`FRONT_RATIO.overlap`). Before, the
+    belly (`FRONT_RATIO.overlap`);
+  - the legs toed in, `\| |/` from the front: each tapers to 0.6 of its thigh at the ankle (`FRONT_RATIO.ankle`, was
+    0.75) with its inner edge kept straight down, so it leans in toward the other; the feet still point ahead. Before, the
     thighs sat inside the body's outline, so from the front a wide body stood on thin legs; the legs' radius follows
     the thigh's;
   - the family's breadth is counted, so the ratio is the drawn one. Side hips keep the thigh's breadth.
@@ -217,8 +219,8 @@ member, a quick game's hero). Code: `control/lib/graph/egocube/feature-tune.js`.
     ruling them;
   - thigh : body : thigh as 1 : 4 : 1 from the front for one species of each standing silhouette, the thighs alongside the
     body, never thinner than a full leg;
-  - side hips as designed: a round animal's hips on its ball's sides at its centre, its legs straight under them, its
-    thigh a drumstick (deeper than broad, its end under the ball), its belly lower than the legs-below build's, the fit's rise less than half and the trunk's travel under 0.7 of it, on
+  - side hips as designed: a round animal's hips on its ball's sides at its centre, its legs straight and toed in
+    (the inner edge straight, the ankle leaning in, the foot ahead), its thigh a drumstick (deeper than broad, its end under the ball), its belly lower than the legs-below build's, the fit's rise less than half and the trunk's travel under 0.7 of it, on
     all fours the natural bend, the function holding, a silhouette that is no ball untouched; no standing clip bends a
     knee or widens the stance and the fours clip bends one (`feature-body.test.js`);
   - a rodent's buck teeth (none on the hedgehog), a chunky rodent's blunt face on whisker pads, a beaver's flat paddle on

@@ -94,8 +94,9 @@ line of its back (where spines run) and the shapes a belly takes on it.
 **From the front a standing animal reads THIGH : BODY : THIGH as 1 : 4 : 1** (`fronted`, `FRONT_RATIO`), within the
 width its body had: the body narrows to four sixths of it (across only; never widened), each thigh takes a sixth (never
 thinner than a round full leg, `FRONT_RATIO.least`: a slim body keeps that floor), tucked against the body: its middle
-at the body's side (`overlap`), half of it over the belly, so the legs fall straight down partly in front of the body,
-never from inside its outline. The family's breadth (`FAMILY_TUNE` `body`) is counted.
+at the body's side (`overlap`), half of it over the belly, so the legs fall partly in front of the body, never from
+inside its outline. The legs are TOED IN, `\| |/`: each tapers to `ankle` of its thigh with its inner edge straight
+down, so it leans in toward the other, and the feet still point straight ahead. The family's breadth (`FAMILY_TUNE` `body`) is counted.
 
 **Every silhouette is rounded** (`rounded`, `FEATURE_ROUND`): the style's animals are bottom-heavy and round, so the
 lower masses (the belly, a pear's front, the haunches, a snake's coils) are fuller across and deep, the chest a little

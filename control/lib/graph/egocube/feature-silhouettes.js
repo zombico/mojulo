@@ -201,10 +201,11 @@ export function rounded(S) {
  *  depth, its side view, kept; never widened), the shoulders and the belly's shapes with it, and each thigh takes one
  *  sixth (never thinner than a round leg, `least`; the leg itself as broad as its thigh, `thighR`), its middle at the
  *  body's side (`overlap`, the share of a thigh's half over the body: 1, half the thigh over the belly, half beside it),
- *  never hidden inside its outline: the legs fall straight down, tucked against the body. `bw` is the family's breadth (FAMILY_TUNE `body`), which the structure lays over the body's
+ *  never hidden inside its outline: the legs fall tucked against the body, toed in (\\| |/: each tapers to `ankle` of its
+ *  thigh at the ankle with its inner edge straight down, so it leans in toward the other; the feet still point ahead). `bw` is the family's breadth (FAMILY_TUNE `body`), which the structure lays over the body's
  *  width and the hips' places, so the ratio is the drawn one. The silhouettes it holds for (`FRONT_SILHOUETTES`): the
  *  standing four-legged ones */
-export const FRONT_RATIO = Object.freeze({ thigh: 1, body: 4, overlap: 1, least: 0.2 });
+export const FRONT_RATIO = Object.freeze({ thigh: 1, body: 4, overlap: 1, least: 0.2, ankle: 0.6 });
 export const FRONT_SILHOUETTES = Object.freeze(['pear', 'barrel', 'wedge', 'leggy', 'noodle']);
 export function fronted(S, bw = 1) {
   const haunch = S.body.find((e) => e.name === 'haunchR'), belly = S.body.find((e) => e.name === 'belly');
