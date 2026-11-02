@@ -340,3 +340,18 @@ describe('a pair of houses and their yards drawn loud (the cube\'s exaggerate.ho
     expect(fills(X, 'town:wall').size).toBeGreaterThan(fills(P, 'town:wall').size);
   });
 });
+
+describe('the low-rises drawn loud: an even row raised to no two one height, each balcony its own', () => {
+  const L0 = { kind: 'geocube', cube: 'valley-morning', show: 'geotown', seed: 3, geotown: { segment: 'lowrise', hills: { height: 2 } } };
+  const A = assembleGeotownScene(L0), X = assembleGeotownScene({ ...L0, cube: { from: 'valley-morning', exaggerate: { from: 'street', lean: 0, kit: { lean: 0, chunk: 1 } } } });
+  it('keeps every door where it was, and no two neighbours in a row one height', () => {
+    expect(X.anchors.map((a) => [a.id, a.at, a.floor])).toEqual(A.anchors.map((a) => [a.id, a.at, a.floor]));
+    const law = X.geotown.laws.find((l) => l.law === 'rooflines');
+    expect(law.ok).toBe(true);
+    expect(law.value).toMatch(/apart at the least/);
+  });
+  it('paints its balconies in inks, more than the plain town\'s one', () => {
+    const balc = (S) => new Set(S.faces.filter((f) => f.group === 'geotown:trim').map((f) => f.fill));
+    expect(balc(X).size).toBeGreaterThan(balc(A).size + 2);
+  });
+});

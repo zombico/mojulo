@@ -38,6 +38,10 @@
   gables still meeting at the party wall's eave; the `rooflines` law reads each pair). Its yard (`yard`): the patio and
   the pool's terrace in skewed pastel slabs over their paving, the deck in striped boards, the fence, the shed and the
   yard's things each its own ink, the pool bright. Every door and plot where the plan put it.
+  Its BLOCKS OF FLATS (a low-rise, a walk-up), whose rows are built even: each raises a false front over its street wall
+  in a form of its own (stepped, an arch, a gable, battlements), its top at least `step` from its row neighbour's (the
+  `rooflines` law reads its row); each balcony its own ink, never the one beside it or under it; its lot's cars toy cars
+  and its stall lines in inks.
 - **The street's doodads round** (`geotown/doodads.js`), a cube's exaggerate drawing them: a hydrant on its flange with
   its barrel, domed bonnet and nozzles; a bin a drum under its lid; a post box a pillar under its dome and slot band; a
   streetlight a tapered standard on its collar, its arm and its bell; a sign's and a signal's posts round. In the cube's

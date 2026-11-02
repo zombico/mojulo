@@ -86,7 +86,7 @@ function splat(x, y, z, r, hex, R) {
 /** The false front's faces: its wall (role 'wall', its top storey's) and the cap along its edge, by form. */
 const CROWN_FORMS = Object.freeze(['step', 'arch', 'gable', 'teeth']);
 export { CROWN_FORMS };
-function falseFront(form, W, zw, c, frame, fw, fd) {
+export function falseFront(form, W, zw, c, frame, fw, fd) {
   const out = [], wall = (pts) => {
     // (a wall's polygon in triangles from its foot's middle, both faces: the street's and the roof's side)
     const m = [W / 2, zw - 0.3];

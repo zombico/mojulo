@@ -21,7 +21,7 @@
  * (no higher than its roof) or, `upper`, an oriel over it. A shop with `loud` (the cube's exaggerate.front, and its
  * `seed`) is drawn LOUD by front-loud.js. Pure: no dice (a loud shop's are its seed's).
  */
-import { loudShopfront } from './front-loud.js';
+import { loudShopfront, falseFront } from './front-loud.js';
 export const FRONT = Object.freeze({
   porch: Object.freeze({ door: 1.8, full: 2.2, beside: 0.8, post: 0.18, stride: 2.6, skirt: 0.7, slab: 0.12, over: 0.3, rail: 0.9 }),
   // a shopfront: its glazing's head under the storey's top, its kick plate, its mullions' stride, the sign band, the awning
@@ -177,12 +177,17 @@ export function frontOf(front = {}, house) {
     const B = FRONT.balcony, k = Math.max(1, Math.floor((W - 2 * B.edge) / B.stride)), xs = Array.from({ length: k }, (_, i) => B.edge + B.stride * (i + 0.5) * ((W - 2 * B.edge) / (k * B.stride)));
     for (const x of xs.filter((x) => Math.abs(x - doorX) > B.w / 2 + doorW / 2 + 0.6)) for (let s = 1; s < n; s++) {
       const z = s * sh, a = x - B.w / 2, b = x + B.w / 2, d = B.d;
-      out.push(...box(a, -d, b, 0, z - 0.16, z, 'trim'));
-      out.push({ corners: [P(a, -d, z), P(b, -d, z), P(b, -d, z + B.rail), P(a, -d, z + B.rail)], out: [0, -1, 0], role: 'trim' });
-      for (const [u, sx] of [[a, -1], [b, 1]]) out.push({ corners: [P(u, 0, z), P(u, -d, z), P(u, -d, z + B.rail), P(u, 0, z + B.rail)], out: [sx, 0, 0], role: 'trim' });
+      // (each a balcony of its own: `balcony` its bay and its storey, so a loud home paints it its own)
+      const bk = { balcony: [Math.round(x * 10) / 10, s] };
+      out.push(...box(a, -d, b, 0, z - 0.16, z, 'trim', bk));
+      out.push({ corners: [P(a, -d, z), P(b, -d, z), P(b, -d, z + B.rail), P(a, -d, z + B.rail)], out: [0, -1, 0], role: 'trim', ...bk });
+      for (const [u, sx] of [[a, -1], [b, 1]]) out.push({ corners: [P(u, 0, z), P(u, -d, z), P(u, -d, z + B.rail), P(u, 0, z + B.rail)], out: [sx, 0, 0], role: 'trim', ...bk });
       out.push({ corners: [P(x - 0.55, -0.03, z), P(x + 0.55, -0.03, z), P(x + 0.55, -0.03, z + 2.1), P(x - 0.55, -0.03, z + 2.1)], out: [0, -1, 0], role: 'glass', storey: s });
     }
   }
+  // ── a false front over the street wall's top (`crown` { c, form, frame }, a loud home's: front-loud.js), so no two
+  // neighbours stand one height ──
+  if (front.crown && !(front.shop && front.shop.loud)) out.push(...falseFront(front.crown.form, W, n * sh, front.crown.c, front.crown.frame, 0.17, 0.22));
   // ── a walk-up's canopy over its door, on two brackets ──
   if (front.canopy) {
     const c = FRONT.canopy, a = Math.max(0, doorX - c.w / 2), b = Math.min(W, doorX + c.w / 2);

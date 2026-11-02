@@ -5,7 +5,7 @@
  *
  *   CLOSE='<caption>=<face group>[|<another>][=<distance ×>],…' the close cameras (each on the face of that group nearest the shop);
  *   VIEWS='[[name, [n, t, z], [n, t, z], fov], …]' cameras in the anchor building's frame instead of the close ones;
- *   SHOP=<k> the k-th shop (or building) the cameras anchor on; GEOTOWN='{…}' another geotown (a building, not a shop, anchors the cameras where it has no shop)
+ *   SHOP=<k> the k-th shop (or building) the cameras anchor on, ROW=<kind> of that row's; GEOTOWN='{…}' another geotown (a building, not a shop, anchors the cameras where it has no shop)
  *   cd control && node scripts/spikes/geotown/loud-front.mjs <out-dir> [hand …]   (default: a front of street's only)
  *     → <out-dir>/loud-front.png and .html
  */
@@ -46,7 +46,7 @@ try {
     P.walkers = (P.walkers || []).map((w) => ({ ...w, follow: false })); delete P.walk; delete P.route;
     if (!cams) {
       // (a shop, else any building: the cameras' anchor)
-      const shops0 = P.anchors.filter((a) => a.kind === 'house' && a.row === 'shops'), shops = shops0.length ? shops0 : P.anchors.filter((a) => a.kind === 'house');
+      const shops0 = P.anchors.filter((a) => a.kind === 'house' && a.row === 'shops'), shops = process.env.ROW ? P.anchors.filter((a) => a.kind === 'house' && a.row === process.env.ROW) : shops0.length ? shops0 : P.anchors.filter((a) => a.kind === 'house');
       const h = shops[Math.min(SHOP, shops.length - 1)], N = h.N, T = [-N[1], N[0]];
       const at = (n, t, z) => [h.at[0] + N[0] * n + T[0] * t, h.at[1] + N[1] * n + T[1] * t, h.floor + z].map(r3);
       const cam = (name, from, to, fov) => ({ name, worldFraming: { cameraPosition: from, lookAt: to, horizontalFov: fov } });
