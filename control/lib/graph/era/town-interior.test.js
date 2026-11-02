@@ -45,6 +45,15 @@ describe('a town building\'s inside', () => {
     expect(timber.faces.some((f) => f.group === 'stage:glint')).toBe(false);
   });
 
+  it('wears its town\'s outside, as the street\'s houses do: its language\'s wall and roof, its windows framed; no bay exterior', () => {
+    const P = assembleStageScene({ kind: 'stage', kit: 'isekai-meadow', trail: true, town: { houses: 3, enter: 2, walk: ['shop'], street: true, inside: true, anchor: 'tiered' } });
+    const walls = P.faces.filter((f) => f.group === 'building:wall');
+    expect(walls.length).toBeGreaterThan(0);
+    // (painted as the houses are, no bay construction's texture; each window under a lintel and over a sill)
+    expect(walls.every((f) => !f.texture)).toBe(true);
+    expect(P.faces.filter((f) => f.group === 'building:trim').length).toBeGreaterThan(0);
+  });
+
   it('a street\'s walked-in buildings laid so with `inside`, in a palette made from its exterior paint; absent, as before', () => {
     const T = { kind: 'stage', kit: 'isekai-meadow', trail: true };
     const look = (town) => assembleStageScene({ ...T, town }).anchors.filter((a) => a.kind === 'building').map((a) => a.look ?? null);

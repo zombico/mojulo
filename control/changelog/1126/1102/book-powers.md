@@ -336,3 +336,8 @@ its resource, put on a look and showed a toast. This theme makes them act.
     tile, the cube's where a geocube paints the stage), registered under its print (`registerPalette`). No preset.
   - **The street's `inside: true`:** lays its walked-in buildings so. The composed hub's are. A keeper kept inside
     stands behind the counter at the room's middle. Absent, a street is as it was.
+- **A town's building wears its town's outside.** A walked-in town building whose inside is the vernacular wore a
+  modern bay exterior (`style/bay-exterior.js`: textured cladding, a large gridded window). Now it wears its town's
+  outside as the street's houses do: its language's wall and roof, painted and dressed as theirs. Its windows are cut
+  through for its leaded lights, each under a lintel and over a sill in its language's ornament. Absent the vernacular,
+  a building is as it was.

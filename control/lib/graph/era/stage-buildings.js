@@ -714,7 +714,10 @@ export function withBuildings(payload, manifest, ctx = {}) {
     // each room's highest face inside: the roof stands over the vault, not through it
     const tops = Object.fromEntries(inner.rooms.map((r) => [r.id, Math.max(0, ...P.faces.filter((f) => { const n = f.corners.length, cx = f.corners.reduce((a, c) => a + c[0], 0) / n, cy = f.corners.reduce((a, c) => a + c[1], 0) / n; return cx > r.x && cx < r.x + r.w && cy > r.y && cy < r.y + r.d; }).flatMap((f) => f.corners.map((c) => c[2])))]));
     // (a composed bay building wears its construction outside, painted in its palette: style/bay-exterior.js)
-    const X = bay ? exteriorOf(P0.compose?.axes) : null;
+    // (a town's building, its interior the vernacular made from its language (`town.inside`), wears its town's outside
+    // as the street's houses do: the language's wall and roof, painted and dressed as theirs, its windows cut through)
+    const vern = bay && /^vernacular/.test(P0.compose?.axes?.construction ?? '');
+    const X = bay && !vern ? exteriorOf(P0.compose?.axes) : null;
     const shell = X ? shellOf(inner, ways, 0.5, X.cap, X.pitch, below, tops, !!ctx.solid, { holes, parapet: X.parapet }).map((s) => {
       // (lit by the land's sun where its sky has one, else by its day alone: a dusk under its moon, a night; the fill is
       // the light the page multiplies the tile by, so a sunlit wall carries white and shows its material as painted)
@@ -722,7 +725,7 @@ export function withBuildings(payload, manifest, ctx = {}) {
       const T = s.group === 'roof' ? X.roof : X.wall, flat = Math.abs(nn[2]) > 0.5, day = Math.max(0, Math.min(1, payload.sky?.day ?? 1)), g = Math.round(255 * Math.min(1, (0.68 + 0.32 * lam) * (0.35 + 0.65 * day))), fill = `#${g.toString(16).padStart(2, '0').repeat(3)}`;
       const uv = c.map((p) => (flat ? [p[0], p[1]] : [p[0] * -nn[1] + p[1] * nn[0], p[2]]).map((v) => r5(v / T.scale)));
       return { ...quad(c, `building:${s.group}`, fill), texture: T.key, textureLit: true, uv, normal: P3(nn), outNormal: P3(nn) };
-    }) : shellOf(inner, ways, 0.5, L.vocab.cap, L.proportions.pitch, below, tops, !!ctx.solid).map((s) => {
+    }) : shellOf(inner, ways, 0.5, L.vocab.cap, L.proportions.pitch, below, tops, !!ctx.solid, vern ? { holes } : null).map((s) => {
       const c = s.corners.map(W), nn = unit(cross(sub3(c[1], c[0]), sub3(c[c.length - 1], c[0]))), lam = Math.max(0, nn[0] * sun[0] + nn[1] * sun[1] + nn[2] * sun[2]);
       const roof = s.group === 'roof', v = (roof ? roofV : wallV) * (0.55 + 0.45 * lam);
       const F0 = { ...quad(c, `building:${s.group}`, paint(roof ? roofGroup : wallGroup, Math.min(1, v))), normal: P3(nn), outNormal: P3(nn) };
@@ -755,7 +758,19 @@ export function withBuildings(payload, manifest, ctx = {}) {
     const pathF = legs.flatMap(([p, q2]) => slabPath(p, q2, (x, y) => ground(x, y) ?? floor)).map((f) => { const nn = unit(cross(sub3(f.corners[1], f.corners[0]), sub3(f.corners[3], f.corners[0]))); return { ...quad(nn[2] < 0 ? f.corners.slice().reverse() : f.corners, 'building:path', paint('str:stone', 0.62)), normal: P3(nn[2] < 0 ? nn.map((v) => -v) : nn), outNormal: P3(nn[2] < 0 ? nn.map((v) => -v) : nn) }; });
     if (pathF.length) pathFaces.push(...pathF);
     if (SF) colliders.push(...SF.colliders.map((c) => { const a = W(c.min), z = W(c.max); return { min: P3([Math.min(a[0], z[0]), Math.min(a[1], z[1]), a[2]]), max: P3([Math.max(a[0], z[0]), Math.max(a[1], z[1]), z[2]]), of: `${id}:stair` }; }));
-    faces = [...faces, ...moved, ...shell, ...stoop, ...stairF, ...pathF];
+    // (a town's building's windows framed as its houses' are: a lintel over each and a sill under it, in its language's
+    // ornament, painted and lit as its shell)
+    const trims = vern ? (holes ?? []).flatMap((h) => {
+      const orn = L.values?.ornaments ?? {}, lin = orn.lintel ?? orn.lintels ?? orn.cornice ?? { group: 'str:stone', value: 0.6 }, sl = orn.sill ?? orn.sills ?? lin;
+      const along = h.n[0] === 0, o = (u, v, z) => (along ? [u, h.plane + h.n[1] * v, z] : [h.plane + h.n[0] * v, u, z]);
+      const piece = (u0, u1, z0, z1, d, P0) => {
+        const c = (u, v, z) => W(o(u, v, z)), fs = [[[u0, d, z0], [u1, d, z0], [u1, d, z1], [u0, d, z1]], [[u0, 0, z1], [u1, 0, z1], [u1, d, z1], [u0, d, z1]], [[u0, 0, z0], [u0, d, z0], [u0, d, z1], [u0, 0, z1]], [[u1, d, z0], [u1, 0, z0], [u1, 0, z1], [u1, d, z1]], [[u0, 0, z0], [u1, 0, z0], [u1, d, z0], [u0, d, z0]]];
+        return fs.map((q) => { const cs = q.map((p) => c(...p)), nn = unit(cross(sub3(cs[1], cs[0]), sub3(cs[cs.length - 1], cs[0]))), lam = Math.max(0, nn[0] * sun[0] + nn[1] * sun[1] + nn[2] * sun[2]);
+          return { ...quad(cs, 'building:trim', paint(P0.group ?? 'str:stone', Math.min(1, (P0.value ?? 0.6) * (0.55 + 0.45 * lam)))), normal: P3(nn), outNormal: P3(nn) }; });
+      };
+      return [...piece(h.u0 - 0.14, h.u1 + 0.14, h.z1, h.z1 + 0.2, 0.09, lin), ...piece(h.u0 - 0.08, h.u1 + 0.08, h.z0 - 0.08, h.z0, 0.11, sl)];
+    }) : [];
+    faces = [...faces, ...moved, ...shell, ...trims, ...stoop, ...stairF, ...pathF];
     for (const c of P.cutouts || []) cutouts.add(c);
     lights.push(...(P.lights || []).map((l) => ({ ...l, name: `${id}-${l.name}`, position: P3(W(l.position)) })));
     // its colliders: the stage's own, moved (a quarter turn keeps a box a box)
