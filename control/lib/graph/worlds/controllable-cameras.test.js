@@ -1,3 +1,4 @@
+import { HERO_CHASE } from '@/lib/graph/playscape/hero-chase';
 import { describe, expect, it } from 'vitest';
 
 import { createWorld, stepWorld } from './controllable-world.js';
@@ -124,7 +125,7 @@ describe('a gameworld\'s camera, lowered', () => {
 
   it('absent: third person with a hero, the old first-person walker without one (the args a run fingerprints, unchanged)', () => {
     const hero = level({}, 'h');
-    expect(hero.camera).toMatchObject({ rule: 'follow', target: 'hero', dist: 5.5 });
+    expect(hero.camera).toMatchObject({ rule: 'follow', target: 'hero', ...HERO_CHASE });   // (2026-11-02: laid long by the stand-off)
     expect(hero.entities[0].rule.move).toBeUndefined();
     expect(hero.entities[0].rule.turnMode).toBeUndefined();
     const walker = level({}, null);

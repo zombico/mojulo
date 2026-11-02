@@ -103,6 +103,16 @@ describe('the street, near', () => {
     const near = emitThreeWorld({ ...base, repeats: [{ group: 'g', template: tpl, transforms: [{ pos: [0, 0, 0] }], near: 50 }] });
     expect(plain).not.toContain('__nearTiles');
     expect(near).toContain('__nearTiles');
+  });  it('on a live page whose world asks for the view cone, grows every street tree twice and marks its kit: an export none', () => {
+    const C = assembleGeocityScene({ ...M, cone: true }, { live: true });
+    const trees = (side) => C.repeats.filter((r) => String(r.group).startsWith('geocity:tree-') && r.cone === side);
+    const count = (rs) => rs.reduce((n, r) => n + r.transforms.length, 0);
+    // (each placement once at its near level and once at L0, the page choosing by the live eye)
+    expect(count(trees('in'))).toBe(count(trees('out')));
+    expect(trees('out').every((r) => r.group.endsWith('-L0'))).toBe(true);
+    expect(C.repeats.filter((r) => !String(r.group).startsWith('geocity:tree-')).every((r) => r.cone === 'kit')).toBe(true);
+    // (an export reads it not live; a page without the cone keeps the ring and the scene's levels)
+    for (const X of [assembleGeocityScene({ ...M, cone: true }), assembleGeocityScene(M, { live: true })]) expect(X.repeats.some((r) => r.cone)).toBe(false);
   });
 });
 

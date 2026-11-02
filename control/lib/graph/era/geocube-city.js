@@ -24,14 +24,14 @@ import { civilizationGrammar } from '../city/plan/civilization.js';
 // cube's colours; a game's city level leans halfway, city/plan/look.js)
 export const MICRO_CITY = Object.freeze({ board: Object.freeze({ cols: 2, rows: 2 }), cars: false, people: 0, amount: 1 });
 // (and the page's live light, which world-scene reads: shadows, occlusion, light.tier; scene/live-light.js)
-const KEYS = ['kind', 'cube', 'show', 'title', 'walk', 'seed', 'domain', 'hour', 'clouds', 'materials', 'style', 'shadows', 'occlusion', 'light'];
+const KEYS = ['kind', 'cube', 'show', 'title', 'walk', 'seed', 'domain', 'hour', 'clouds', 'materials', 'style', 'shadows', 'occlusion', 'light', 'air', 'cone'];
 const no = (msg) => { throw new Error(`geocube: ${msg}`); };
 
 /** The micro-city a geocube's `show: 'city'` builds: its city manifest, and what it was built from. */
 export function geocubeCity(manifest) {
   for (const k of Object.keys(manifest)) {
     if (k === 'weather') no('weather is the land\'s live channel; a micro-city takes its sky as clouds (clear, fair, overcast, storm, haze, high)');
-    if (!KEYS.includes(k)) no(`'${k}' is not a setting of the geocube kind's city (cube, seed, domain, hour, clouds, materials, style)`);
+    if (!KEYS.includes(k)) no(`'${k}' is not a setting of the geocube kind's city (cube, seed, domain, hour, clouds, materials, style, air, cone)`);
   }
   if (manifest.seed !== undefined && !Number.isInteger(manifest.seed)) no('seed is an integer');
   const cube = readGeocube(manifest.cube ?? no('cube is a preset id or a document')), seed = manifest.seed ?? 1;

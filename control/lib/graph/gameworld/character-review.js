@@ -122,6 +122,19 @@ export function approveCharacter(world, part, note) {
 }
 
 /**
+ * A run's own write (the base it pinned) carried out an approved part: the approval kept on the part as it resolves now.
+ * `before` and `after` are the world either side of the write; the approval holds only where it was current on `before`
+ * (an approval already stale, or none, is left as it is). → `after`, its review re-stamped where it held.
+ */
+export function keepApproval(before, after, part) {
+  const r = before.review?.[part];
+  if (r?.status !== 'approved') return after;
+  const was = characterParts(before).find((x) => x.id === part), now = characterParts(after).find((x) => x.id === part);
+  if (!was || !now || was.print !== r.print || now.print === r.print) return after;
+  return { ...after, review: { ...(after.review ?? {}), [part]: { ...r, print: now.print } } };
+}
+
+/**
  * Which later steps may start: `{ adornment, systems, equipment }`, each `{ ready, waiting: [{ id, status }] }`.
  * Adornment needs `hero:base` and `hero:actions` settled (approved, or auto); the systems need `hero:motion` as well;
  * the equipment needs the systems' parts and the stats settled (`mechanics:stats`), since gear matters only once they
