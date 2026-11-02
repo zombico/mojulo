@@ -42,6 +42,16 @@ export function contactSheet(rows, { title = '', scale = 70, cellW = 230, cellH 
       }
       // side: the near (left) limbs behind; front: the far (hind) limbs behind the fore
       const back = (id) => (view === 'front' ? /^(femur|tibia|cannonH|pasternH|hoofH|tail|spine0)/.test(id) : /L$/.test(id) && !AXIS.test(id));
+      // a fence, if the frame carries one: its rails at its height (an oxer's two), in the body-following frame
+      if (fr.fence && view !== 'front') {
+        const fz = groundY - fr.fence.height * scale;
+        for (const dy of fr.fence.spread ? [-fr.fence.spread / 2, fr.fence.spread / 2] : [0]) {
+          const x = ox + cellW * 0.52 + (fr.fence.y + dy) * scale;
+          if (x < ox || x > ox + cellW) continue;
+          out.push(`<line x1="${f1(x)}" y1="${groundY}" x2="${f1(x)}" y2="${f1(fz - 4)}" stroke="#8d6e63" stroke-width="2.5"/>`);
+          out.push(`<line x1="${f1(x - 9)}" y1="${f1(fz)}" x2="${f1(x + 9)}" y2="${f1(fz)}" stroke="#c62828" stroke-width="3.5" stroke-linecap="round"/>`);
+        }
+      }
       const ids = Object.keys(fr.bones).sort((a, b) => (back(b) ? 1 : 0) - (back(a) ? 1 : 0));
       for (const id of ids) {
         const { head, tail } = fr.bones[id], [a, b] = [P(head), P(tail)];

@@ -11,7 +11,7 @@
  * THE STANCE     the hoof planted where it landed, its spot chosen at touchdown from the gait then (centred on the stance
  *   it expects, as in the cycles; a changing gait runs it off centre), its fetlock sinking under its share of the weight
  *   over the stance, rolling over its toe in breakover.
- * THE SWING      laid between the stance it leaves and the one it lands in, as the cycles lay it (legs.js).
+ * THE SWING      laid between the stance it leaves and the one it lands in, as the cycles lay it (schedule.js, legs.js).
  * THE BODY       the two cycles' bodies, each read at the warped phase, blended by the window: the clip opens on the
  *   first gait's pose and closes on the second's exactly (the gate measures both seams).
  * A HALT keeps the cadence while the speed falls; from a moment in the window each hoof's next landing is its last,
@@ -23,12 +23,10 @@
  */
 import { GAITS } from './reference.js';
 import { gaitCycle, standPose } from './gait.js';
-import { standOn } from './build.js';
 import { hoofForce } from './load.js';
-import { assemble } from './pose.js';
 import { sub, len } from './limb.js';
-import { legRig, swingEnds, swingLeg } from './legs.js';
-import { MECHANICS, NECK } from './reference.js';
+import { schedulePoser } from './schedule.js';
+import { MECHANICS } from './reference.js';
 
 const DEG = Math.PI / 180;
 const clamp01 = (x) => Math.min(1, Math.max(0, x));
@@ -159,7 +157,7 @@ export function oneShot(B, { from, to, strides = 1.5, lead = 'right' }) {
     else { const l = limbAt(id, st.on); st.y = rootAt(st.on) + v(st.on) * dutyStep(st.on) / f(st.on) / 2 + l.yc; st.x = l.x; void mid; }
   }
 
-  const rig = legRig(B), bo = MECHANICS.breakover, boPitch = MECHANICS.breakoverPitch * DEG;
+  const bo = MECHANICS.breakover, boPitch = MECHANICS.breakoverPitch * DEG;
   // the stance force's shape (the walk's double hump, the others' single) eased with the gaits
   const humpOf = (C) => GAITS[C.gait === 'stand' ? R.gait : C.gait].load ?? 0;
   // THE VAULT, for the strides between the two gaits: each girdle lowered by what its standing legs cannot comfortably
@@ -193,15 +191,23 @@ export function oneShot(B, { from, to, strides = 1.5, lead = 'right' }) {
     const F = hoofForce(Math.min(u, 0.999999), l.share / (d * Is(bb)), bb);
     return st.final ? lerp(u < 0.5 ? F : Math.max(F, standLoad(id)), standLoad(id), sBody(t)) : F;
   };
-  const stanceState = (id, st, t, bd = bodyAt(t)) => {
-    const l = { ...limbAt(id, t), x: st.x };
+  // breakover over the stance's last share; a first stance's over the same share of a nominal stance
+  const etaOf = (id, st, t) => {
     const len = st.final || st.first ? Infinity : st.off - st.on, w = (t - st.on) / len;
-    // breakover over the stance's last share; a first stance's over the same share of a nominal stance
     const boT = bo * dutyStep(t) / f(t);
-    const eta = st.first ? (t > st.off - boT ? -boPitch * ease((t - (st.off - boT)) / boT) : 0)
+    return st.first ? (t > st.off - boT ? -boPitch * ease((t - (st.off - boT)) / boT) : 0)
       : !st.final && w > 1 - bo ? -boPitch * ease((w - (1 - bo)) / bo) : 0;
-    return standOn(B, l.pair, st.y - rootAt(t), loadOf(id, st, t), eta, (F) => rig.solve(l, bd, F, 0, st.x));
   };
+  // the stand's side of a blend steps as the moving gait does, shorter: a halt's last steps and a move off's first are
+  // low and close (STAND_STEP of the gait's lift and fold)
+  const STAND_STEP = 0.6;
+  const foldOf = (C) => (C.gait === 'stand' ? { carpus: R.fold.carpus * STAND_STEP, fetlock: R.fold.fetlock * STAND_STEP, peak: R.fold.peak } : C.fold);
+  const liftOf = (C, pair) => (C.gait === 'stand' ? R.lift[pair] * STAND_STEP : C.lift[pair]);
+  const blendFold = (t) => { const fa = foldOf(A), fb = foldOf(Bc), w = sBody(t); return { carpus: lerp(fa.carpus, fb.carpus, w), fetlock: lerp(fa.fetlock, fb.fetlock, w), peak: lerp(fa.peak, fb.peak, w), k: B.motion.fold }; };
+  const blendLift = (pair, t) => lerp(liftOf(A, pair), liftOf(Bc, pair), sBody(t));
+  const swingParams = (id, a, b) => { const mid = (a.off + b.on) / 2; return { lift: blendLift(id[1] === 'F' ? 'fore' : 'hind', mid), fold: blendFold(mid) }; };
+  const { rig, stanceState, poseAt } = schedulePoser(B, { stances, rootAt, bodyAt: (t) => bodyAt(t), limbAt, loadOf, etaOf, swingParams });
+
   {
     const NV = Math.ceil(duration / dtV) + 2, W = Math.round(0.025 / dtV), sig = 0.05 / dtV, R3 = Math.ceil(3 * sig);
     const kern = Array.from({ length: 2 * R3 + 1 }, (_, i) => Math.exp(-(((i - R3) / sig) ** 2) / 2)); const ks = kern.reduce((a, b) => a + b, 0);
@@ -232,48 +238,6 @@ export function oneShot(B, { from, to, strides = 1.5, lead = 'right' }) {
       dropF = accF.map((x) => Math.min(x, cap)); dropH = accH.map((x) => Math.min(x, cap));
     }
   }
-
-  const swingCache = new Map();
-  const swingOf = (id, k) => {
-    const key = `${id}:${k}`;
-    if (swingCache.has(key)) return swingCache.get(key);
-    const a = stances[id][k], b = stances[id][k + 1], h = 1e-4;
-    const tLo = a.off - 1e-7, tTd = b.on + 1e-7;
-    const sw = swingEnds(stanceState(id, a, tLo), stanceState(id, a, tLo - h), stanceState(id, b, tTd), stanceState(id, b, tTd + h), (b.on - a.off) / h);
-    swingCache.set(key, sw);
-    return sw;
-  };
-  // the stand's side of a blend steps as the moving gait does, shorter: a halt's last steps and a move off's first are
-  // low and close (STAND_STEP of the gait's lift and fold)
-  const STAND_STEP = 0.6;
-  const foldOf = (C) => (C.gait === 'stand' ? { carpus: R.fold.carpus * STAND_STEP, fetlock: R.fold.fetlock * STAND_STEP, peak: R.fold.peak } : C.fold);
-  const liftOf = (C, pair) => (C.gait === 'stand' ? R.lift[pair] * STAND_STEP : C.lift[pair]);
-  const blendFold = (t) => { const fa = foldOf(A), fb = foldOf(Bc), w = sBody(t); return { carpus: lerp(fa.carpus, fb.carpus, w), fetlock: lerp(fa.fetlock, fb.fetlock, w), peak: lerp(fa.peak, fb.peak, w), k: B.motion.fold }; };
-  const blendLift = (pair, t) => lerp(liftOf(A, pair), liftOf(Bc, pair), sBody(t));
-
-  const poseAt = (t) => {
-    const bd = bodyAt(t), legs = {}, contact = {}, clamps = [];
-    for (const id of IDS) {
-      const list = stances[id];
-      let k = list.findIndex((st) => t >= st.on - 1e-9 && t < st.off - 1e-9);
-      let sol, distal, xh;
-      if (k >= 0) {
-        const st = stanceState(id, list[k], t, bd);
-        sol = st.solve; distal = st.distal; xh = list[k].x; contact[id] = true;
-      } else {
-        k = list.findIndex((st, i) => st.off - 1e-9 <= t && list[i + 1] && t < list[i + 1].on - 1e-9);
-        const a = list[k], b = list[k + 1], vv = clamp01((t - a.off) / (b.on - a.off));
-        const l = { ...limbAt(id, t), x: a.x };
-        const mid = (a.off + b.on) / 2;
-        ({ sol, distal, xh } = swingLeg(B, rig, l, bd, swingOf(id, k), vv, { lift: blendLift(l.pair, mid), fold: blendFold(mid), x0: a.x, x1: b.x }));
-        contact[id] = false;
-      }
-      if (sol.clamped) clamps.push(id);
-      legs[id] = { solve: sol, distal, plane: rig.planeOf({ ...limbAt(id, t) }, bd, xh) };
-    }
-    const { bones, points } = assemble(B, { ...bd, headCounter: NECK.headCounter, legs });
-    return { t, bones, points, legs, contact, clamps, body: bd, ground: -rootAt(t), root: rootAt(t) };
-  };
 
   const thEnd = theta(duration);
   return {

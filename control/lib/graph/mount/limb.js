@@ -72,6 +72,15 @@ export function foreReach(L, carpus, elbowMax = 168 * Math.PI / 180) {
   return Math.sqrt(L.humerus ** 2 + d2 ** 2 - 2 * L.humerus * d2 * Math.cos(elbowMax));
 }
 
+/** a target closer to `from` than Rmin eased out to it (a soft floor: the most a joint closes), blended by `w` */
+export function softMinReach(from, Rmin, t, w = 1) {
+  const v = sub(t, from), d = len(v), knee = 1.06 * Rmin;
+  if (d >= knee || w <= 0 || d < 1e-9) return t;
+  const ds = knee - (knee - Rmin) * Math.tanh((knee - d) / (knee - Rmin)) * 0.999;
+  const s = add(from, mul(v, ds / d));
+  return [t[0] + (s[0] - t[0]) * w, t[1] + (s[1] - t[1]) * w];
+}
+
 /**
  * A target eased onto a reach R from `from` (a soft saturation past 97 % of it: no kink), blended in by `w` ∈ [0, 1]:
  * a folding knee lifts its foot, a straightening leg reaches no further than it can.

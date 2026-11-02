@@ -1,7 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { resolveMount } from './build.js';
 import { gaitCycle } from './gait.js';
-import { gaitGates, shotGates } from './gates.js';
+import { gaitGates, shotGates, jumpGates } from './gates.js';
+import { jumpClip } from './jump.js';
 import { oneShot } from './motion.js';
 import { standPose } from './gait.js';
 import { GAITS } from './reference.js';
@@ -32,5 +33,17 @@ describe('the mount\'s one-shots', () => {
         expect(r.checks.filter((c) => !c.pass).map((c) => `${c.name}: ${c.saw}`)).toEqual([]);
       });
     }
+  }
+});
+
+// the jump over uprights of three heights and an oxer, both leads (the realistic register: the stylized one's jump is a
+// recorded gap, its margins a centimetre or two short at the rail and the ground)
+describe('the mount\'s jumps', () => {
+  const B = resolveMount('horse'), stand = standPose(B);
+  for (const [fence, spread] of [[0.8, 0], [1.1, 0], [1.3, 0], [1.1, 1.2]]) for (const lead of ['right', 'left']) {
+    it(`${fence} m${spread ? ` × ${spread} m` : ''}, ${lead} lead`, () => {
+      const r = jumpGates(B, jumpClip(B, { fence, spread, lead }), { stand });
+      expect(r.checks.filter((c) => !c.pass).map((c) => `${c.name}: ${c.saw}`)).toEqual([]);
+    });
   }
 });

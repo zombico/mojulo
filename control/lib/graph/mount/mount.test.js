@@ -1,7 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { resolveMount } from './build.js';
 import { gaitCycle, standPose, strideOf, swingPath, bump } from './gait.js';
-import { gaitGates, shotGates } from './gates.js';
+import { gaitGates, shotGates, jumpGates } from './gates.js';
+import { jumpClip } from './jump.js';
 import { oneShot } from './motion.js';
 import { MOUNT_BONES } from './pose.js';
 import { GAITS } from './reference.js';
@@ -120,5 +121,24 @@ describe('the one-shots: a change, a halt, a move off', () => {
     expect(failures(shot({ from: 'stand', to: 'walk' }))).toEqual([]);
     const first = ['LF', 'RF', 'LH', 'RH'].map((id) => [id, c.stances[id][0].off]).sort((a, b) => a[1] - b[1]);
     expect(first[0][0][1]).toBe('H');
+  });
+});
+
+describe('the jump', () => {
+  const B = resolveMount('horse'), stand = standPose(B);
+
+  it('an upright from the canter to the canter: a flight at g over the rail, every leg clear, the seams the canter\'s', () => {
+    const c = jumpClip(B, { fence: 1.1 });
+    expect(failures(jumpGates(B, c, { stand }))).toEqual([]);
+    const f = c.poseAt(c.flight.apex);
+    expect(Object.values(f.contact).some(Boolean)).toBe(false);              // airborne at the apex
+    expect(f.body.z).toBeGreaterThan(1.1 + 0.5);                              // the body well over the rail
+  });
+
+  it('a higher fence flies higher and longer; a spread one longer still', () => {
+    const lo = jumpClip(B, { fence: 0.8 }), hi = jumpClip(B, { fence: 1.3 }), ox = jumpClip(B, { fence: 1.1, spread: 1.2 }), up = jumpClip(B, { fence: 1.1 });
+    expect(hi.flight.vz).toBeGreaterThan(lo.flight.vz);
+    expect(hi.flight.distance).toBeGreaterThan(lo.flight.distance);
+    expect(ox.flight.distance).toBeGreaterThan(up.flight.distance);
   });
 });

@@ -217,3 +217,36 @@ export function shotGates(B, clip, { hz, stand } = {}) {
   add('rigid', stretch <= 1e-6, `largest bone length change ${stretch.toExponential(1)} m`, '≤ 1e-6 m');
   return { checks, measured: { e0, e1, slip, low, standing, swinging, pop } };
 }
+
+/**
+ * The jump's machine gate: the one-shot gate, and the flight (the centre of mass falls at g between launch and
+ * touchdown, the realistic register) and the clearance (every leg's segments over the rail where they pass it, and the
+ * belly, a barrel's depth under the centre of mass, over it too).
+ */
+export function jumpGates(B, clip, { stand, hz } = {}) {
+  const r = shotGates(B, clip, { stand, hz });
+  const add = (name, pass, saw, want) => r.checks.push({ name, pass, saw, want });
+  const { launch, touchdown } = clip.flight, n = 120, acc = [], dt = (touchdown - launch) / n;
+  for (let i = 2; i < n - 1; i++) {
+    const t = launch + i * dt, z = (u) => clip.poseAt(u).body.z;
+    acc.push((z(t + dt) - 2 * z(t) + z(t - dt)) / (dt * dt));
+  }
+  const mean = acc.reduce((a, b) => a + b, 0) / acc.length;
+  if (B.register === 'realistic') add('flight', Math.abs(mean + G) <= 0.02 * G, `the body falls at ${r3(-mean)} m/s² in the air`, `${G} ± 2 %`);
+  const { y: fy, height, spread } = clip.fence, half = spread / 2 + 0.06;
+  let clear = Infinity, at = '';
+  for (let i = 0; i <= 200; i++) {
+    const t = launch - 0.15 + (touchdown - launch + 0.3) * i / 200, f = clip.poseAt(t);
+    for (const [id, b] of Object.entries(f.bones)) {
+      if (!/^(radius|cannon|pastern|hoof|tibia|femur|humerus)/.test(id)) continue;
+      for (let j = 0; j <= 6; j++) {
+        const p = b.head.map((x, d) => x + (b.tail[d] - x) * j / 6), y = p[1] + f.root;
+        if (Math.abs(y - fy) <= half && p[2] - height < clear) { clear = p[2] - height; at = `${id} at ${t.toFixed(3)} s`; }
+      }
+    }
+    const belly = f.body.z - 0.32 * B.scale;
+    if (Math.abs(f.root - fy) <= half + 0.4 && belly - height < clear) { clear = belly - height; at = `the belly at ${t.toFixed(3)} s`; }
+  }
+  add('clears', clear >= 0.02, `${clear === Infinity ? 'nothing passes the rail' : `the lowest point over the rail is ${r3(clear)} m above it (${at})`}`, '≥ 0.02 m');
+  return r;
+}

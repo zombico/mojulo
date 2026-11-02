@@ -8,7 +8,7 @@
  *   swingLeg(B, rig, l, bd, sw, v, { lift, fold }) → { sol, distal, xh }
  */
 import { MECHANICS, HIND_FETLOCK, LATERAL } from './reference.js';
-import { solveFore, solveHind, hoofAt, hindReach, foreReach, softReach, add, sub, mul, dir, ang } from './limb.js';
+import { solveFore, solveHind, hoofAt, hindReach, foreReach, softReach, softMinReach, add, sub, mul, dir, ang } from './limb.js';
 import { bodyPoint, legPlane } from './pose.js';
 
 const DEG = Math.PI / 180;
@@ -17,7 +17,8 @@ const ease = (v) => 0.5 - 0.5 * Math.cos(Math.PI * Math.min(1, Math.max(0, v)));
 export const STANCE_OPEN = { elbow: 152 * DEG, stifle: 152 * DEG };   // the most a loaded elbow and stifle open (≈)
 export const KNEE_OPEN = 0.82, FETLOCK_OPEN = 0.76;   // where in the swing the knee's and the fetlock's folds have opened
 export const TOE_UP = 6 * DEG;                        // the toe's lift as the hoof comes in to land (≈)
-export const IMPACT = 0.7;   // the share of the ground's speed the swinging hoof matches before it lands (≈)
+export const IMPACT = 0.7;
+export const SWING_CLOSE = { elbow: 70 * DEG, stifle: 75 * DEG };   // the most an elbow and a stifle close in a swing (≈)   // the share of the ground's speed the swinging hoof matches before it lands (≈)
 
 /** a smooth bump, 0 with zero slope at both ends, 1 at `peak` */
 export const bump = (v, peak = 0.5) => { if (v <= 0 || v >= 1) return 0; const w = v ** (Math.log(0.5) / Math.log(peak)); return Math.sin(Math.PI * w) ** 2; };
@@ -55,7 +56,8 @@ export function legRig(B) {
   const reachF = foreReach(B.foreL, 0, STANCE_OPEN.elbow);
   const reachH = hindReach(B.hindL, B.reciprocal.c0, B.reciprocal.k, B.reciprocal.hockMin, Math.PI - STANCE_OPEN.stifle);
   const reachHard = hindReach(B.hindL, B.reciprocal.c0, B.reciprocal.k, B.reciprocal.hockMin, 10 * DEG);   // the solver's own limit
-  return { girdle3, planeOf, girdle, solve, swingX, reachF, reachH, reachHard };
+  const reachClose = hindReach(B.hindL, B.reciprocal.c0, B.reciprocal.k, B.reciprocal.hockMin, Math.PI - SWING_CLOSE.stifle);
+  return { girdle3, planeOf, girdle, solve, swingX, reachF, reachH, reachHard, reachClose };
 }
 
 const extOf = (st) => st.distal.pastern - st.solve.cannon;
@@ -80,21 +82,34 @@ export function swingEnds(lo, lo0, td, td1, k) {
  * the hoof's angle eased from the one it left with to the one it lands with, toe up to land heel-first. A target the
  * leg cannot reach is eased onto its reach. `x0`, `x1` the hoof's line leaving and landing (a one-shot's new track).
  */
-export function swingLeg(B, rig, l, bd, sw, v, { lift, fold, x0, x1 }) {
-  const y = swingPath(sw.lo.F[0], sw.dLo[0], sw.td.F[0], IMPACT * sw.dTd[0], v);
-  const z = swingPath(sw.lo.F[1], sw.dLo[1], sw.td.F[1], IMPACT * sw.dTd[1], v) + lift * bump(v, fold.peak);
+export function swingLeg(B, rig, l, bd, sw, v, { lift, fold, x0, x1, follow = [0, 0], hold = 0, forward = 0, floor = false }) {
+  // `hold` > 0 holds the lift and the folds near their peak (a plateau, still smooth): a tuck kept over a fence
+  const B_ = (x, pk) => (hold ? 1 - (1 - bump(x, pk)) ** (1 + 2 * hold) : bump(x, pk));   // smooth: no kink at the top
+  // `follow`: what the girdle has moved off its course between lift-off and landing (a flight's rise), the path rides it
+  const y = swingPath(sw.lo.F[0], sw.dLo[0], sw.td.F[0], IMPACT * sw.dTd[0], v) + follow[0] + forward * B_(v, fold.peak);   // a tuck forward under the body
+  const z = swingPath(sw.lo.F[1], sw.dLo[1], sw.td.F[1], IMPACT * sw.dTd[1], v) + lift * B_(v, fold.peak) + follow[1];
   // the folds open again before the landing, the knee first and then the fetlock (the leg reaches out straight)
   const k = fold.k ?? 1;
-  const carpus = l.pair === 'fore' ? fold.carpus * DEG * k * bump(v / KNEE_OPEN, fold.peak / KNEE_OPEN) : 0;
+  const carpus = l.pair === 'fore' ? fold.carpus * DEG * k * B_(v / KNEE_OPEN, fold.peak / KNEE_OPEN) : 0;
   // a swing target past the leg's reach (a folded knee shortens the fore) eased onto it, faded in away from the
   // stance at either end so neither lift-off nor touchdown is touched
   let target = [y, z];
   const fade = ease(Math.min(1, v / 0.06)) * ease(Math.min(1, (1 - v) / 0.1));
   const xh = rig.swingX(l, v, x0, x1);
-  if (l.pair === 'fore') { const first = rig.solve(l, bd, target, carpus, xh); target = softReach(first.S, foreReach(B.foreL, carpus), target, fade); }
-  else target = softReach(rig.girdle(l, bd, xh), rig.reachHard, target, fade);
+  // and a target closer than the most-closed elbow or stifle allows eased back out (a tuck folds, it does not collapse)
+  if (l.pair === 'fore') {
+    const first = rig.solve(l, bd, target, carpus, xh);
+    target = softMinReach(first.S, foreReach(B.foreL, carpus, SWING_CLOSE.elbow), softReach(first.S, foreReach(B.foreL, carpus), target, fade), fade);
+  } else {
+    const hip = rig.girdle(l, bd, xh);
+    target = softMinReach(hip, rig.reachClose, softReach(hip, rig.reachHard, target, fade), fade);
+  }
+  // `floor` (opt-in): a swinging fetlock kept above its hoof's hang by a smooth maximum, for a leg squeezed under a low
+  // girdle (a take-off's crouch) that would otherwise be pushed through the ground; its floor the hoof hung toe-down
+  // under the fetlock, and a margin
+  if (floor) { const zMin = (B[l.pair].pastern + B.hoof.coffin + Math.max(0.06 * B.scale, 0.5 * B.hoof.toe)) * fade, w = 0.03; target = [target[0], target[1] + w * Math.log1p(Math.exp((zMin - target[1]) / w))]; }
   const sol = rig.solve(l, bd, target, carpus, xh);
-  const e = swingPath(sw.eLo, sw.deLo, sw.eTd, IMPACT * sw.deTd, v) - fold.fetlock * DEG * k * (l.pair === 'fore' ? 1 : HIND_FETLOCK) * bump(v / FETLOCK_OPEN, fold.peak * 1.1 / FETLOCK_OPEN);
+  const e = swingPath(sw.eLo, sw.deLo, sw.eTd, IMPACT * sw.deTd, v) - fold.fetlock * DEG * k * (l.pair === 'fore' ? 1 : HIND_FETLOCK) * B_(v / FETLOCK_OPEN, Math.min(0.95, fold.peak * 1.1) / FETLOCK_OPEN);
   const pastern = sol.cannon + e;
   const coffin = add(sol.F, mul(dir(pastern), B[l.pair].pastern));
   const eta = pastern - swingPath(sw.qLo, sw.dqLo, sw.qTd, IMPACT * sw.dqTd, v) + TOE_UP * bump((v - 0.7) / 0.3, 0.6);   // toe up to land heel-first
