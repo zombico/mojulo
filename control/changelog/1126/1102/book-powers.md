@@ -255,6 +255,9 @@ its resource, put on a look and showed a toast. This theme makes them act.
   (`characters.folk`): the town's people, grown from its houses in the game's setting, each to talk to.
   - **Who keeps the shops:** the town's own shopkeeper opens the shop, and a second shopkeeper (or the head of the
     first house, letting a bed) the inn. No keeper of the shops' own stands there, and none is made.
+  - **Built through `design_game`:** a town's folk bodies (`folk-<town>-<body>`) were never routed by
+    `design_game`. They fell through to the gear door and failed, and the made record refused their keys, so a book's
+    folk could not be built. They are now minted through the hero door, as a guard is.
   - **Folk on a geocube level:** they now stand on a level a geocube paints. They read the cube's look as the street
     is drawn in it; before, the folk could not be laid there at all.
   - **Pooled bodies by sex:** the pooled bodies (the households, the apprentices, the watch) are now pooled by sex
