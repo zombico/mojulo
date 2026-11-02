@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { createWorld, stepWorld } from '@/lib/graph/worlds/controllable-world';
 import { POLES, POLE_IDS, variantsOf, poleCard, FPS } from './cards.js';
 import { readFeel, feelCard, lowerFeel, feelReport } from './lower.js';
+import { playerWorld } from '@/lib/graph/playscape/player';
 
 // A GAMEWORLD'S FEEL: a template's card lowered into the platform rule the runtime plays. One template per procedure
 // (a plain one, one with variants, a blend, one with its own fields), chosen from the catalog; the concept asserted
@@ -51,6 +52,19 @@ describe('the lowered rule in the runtime', () => {
     expect(off(R)).toBe(0);
     const gathered = POLE_IDS.map((id) => poleCard(id)).find((c) => c.jump.commit > 1);
     expect(off(lowerFeel(gathered).rule)).toBe(gathered.jump.commit);
+  });
+
+  it('the rule a made game ships (the lowered rule over the hero\'s own, playscape/player.js) takes off on the card\'s frame and taps the same hop', () => {
+    // (2026-11-02: a card with no gather wrote no jumpWindup, so the hero's default wind-up survived in the shipped rule
+    // and a take-off at frame 0 left at frame 9, its tap hop short of the card's)
+    const shipped = (rule, library) => playerWorld({ heroRef: 'h', ...(library ? { library } : {}), rule }).entities[0].rule;
+    const off = (rule) => play(rule, (i) => (i < 30 ? { jump: i === 0 ? 1 : 0, jumpHeld: 1 } : {}), 30).zs.findIndex((z) => z > 0);
+    const tap = (rule) => Math.max(...play(rule, (i) => (i === 0 ? { jump: 1, jumpHeld: 1 } : {}), 60).zs);
+    for (const lib of [null, 'quaternius-ual']) {
+      const S = shipped(R, lib);
+      expect(off(S)).toBe(card.jump.commit);
+      expect(tap(S)).toBeCloseTo(tap(R), 6);
+    }
   });
 
   it('a tap is a short hop: the rise cut on the release to the card\'s share of the launch', () => {

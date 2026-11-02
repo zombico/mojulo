@@ -29,7 +29,7 @@ import { HERO_FIELDS } from './layered.js';
 import { LAWS_VERSION } from '@/lib/graph/equipment/expand.js';
 import {
   GAMEWORLD_KIND, isGameworldKind, gameworldOf, readGameworld, resolveBook, reviewState, approve as approveWorldPart, reviewParts,
-  characterState, characterReady, approveCharacter, CHARACTER_PART_IDS, CAST_PART, fingerprint, pinBase, revisionLookup, runSteps, heroRefOf, decide, childRef, storyReport, landAdvice,
+  characterState, characterReady, approveCharacter, keepApproval, CHARACTER_PART_IDS, CAST_PART, fingerprint, pinBase, revisionLookup, runSteps, heroRefOf, decide, childRef, storyReport, landAdvice,
   castable, foeState, foeParts, approveFoe, castingCall,
 } from '@/lib/graph/gameworld/index';
 import { sameness, grounding, authorship, compareWorlds, REFERENCES } from '@/lib/graph/gameworld/advice.js';
@@ -40,6 +40,7 @@ import { feelSuggestion } from '@/lib/graph/gameworld/feel/suggest.js';
 import { juiceOfGame, juiceSuggestion } from '@/lib/graph/gameworld/juice.js';
 import { railOfGame } from '@/lib/graph/gameworld/game-bodies.js';
 import { quickWorld, sportConceptOf } from '@/lib/graph/gameworld/quick.js';
+import { quickVehicleWords, patchVehicleWords } from '@/lib/graph/vehicle-registry/doors.js';
 import { composeGameworld } from '@/lib/graph/gameworld/compose.js';
 import './palette-ledger.js';
 import { stampWorldPalette, stampGeocubes } from '@/lib/graph/color-theorist/stamp.js';
@@ -82,10 +83,13 @@ const handEdited = (world, lookup) => !!(world.made?.hero && lookup?.head && fin
 const storedPrint = (ref) => { const row = SketchRepository.getByRef(ref); return row ? fingerprint(row.manifest) : null; };
 const headRev = (ref) => (SketchRevisionRepository.head(ref)?.rev ?? 0) + 1;
 
-/** The world with the hero's base pinned (the looks page holds the pin). */
+/** The world with the hero's base pinned (the looks page holds the pin). An approval of the base that stood on the book
+ * as it was (given before the first mint, or before a remake of what was approved) is kept on what the run made from
+ * it (character-review.js keepApproval): the pin is the run carrying out the approved page, not a change to review. */
 function withPin(world, pin) {
   const hero = world.characters.hero ?? {};
-  return { ...world, characters: { ...world.characters, hero: { ...hero, looks: { ...(hero.looks ?? {}), base: pin } } } };
+  const pinned = { ...world, characters: { ...world.characters, hero: { ...hero, looks: { ...(hero.looks ?? {}), base: pin } } } };
+  return keepApproval(world, pinned, 'hero:base');
 }
 
 /** the steps a hero is made for, through the hero door (hero-mint.js): the book's hero and cast, a quick game's figures
@@ -462,10 +466,14 @@ export async function designGameHandler(input, context = {}) {
     const row = SketchRepository.getByRef(ref);
     if (!row) throw new Error(`design_game: no sketch at '${ref}'`);
     if (!isGameworldKind(row.manifest?.kind)) throw new Error(`design_game: '${ref}' is a '${row.manifest?.kind}', not a gameworld`);
-    if (patch !== undefined) await updateSketchHandler({ ref, patch, ...(title ? { title } : {}) });
+    // a quick game's vehicle word is read through the vehicle registry first, as the quick path reads it (doors.js)
+    if (patch !== undefined) await updateSketchHandler({ ref, patch: patchVehicleWords(patch).patch, ...(title ? { title } : {}) });
   }
+  // what the vehicle registry read: a word written as its table's key (absent when none was)
+  const redirected = [...(quick !== undefined ? quickVehicleWords(quick).redirects : []), ...(patch !== undefined ? patchVehicleWords(patch).redirects : [])];
   try {
-    return await afterWrite(ref, { approve, revise, note, run, force, compare, before, shape }, context);
+    const out = await afterWrite(ref, { approve, revise, note, run, force, compare, before, shape }, context);
+    return redirected.length ? { ...out, vehicles: { registry: redirected } } : out;
   } catch (err) {
     // the recipe is stored; the call failed after it: say where, so the next call fixes it in place
     throw new Error(`${err.message}\n— the gameworld is stored at '${ref}' as written; fix it with design_game({ ref: '${ref}', patch }) rather than starting a new one.`);
@@ -505,7 +513,14 @@ async function afterWrite(ref, { approve, revise, note, run, force, compare, bef
   }
   const full = { ...readout(ref, W, context), ...(await fightReadout(W)) };
   // a run's levels on their opening frame (machine gate, game/first-frame-check.js): { first_frame } or nothing
-  const eyes = await firstFrameReadout(W, ran);
+  const { record: framed, ...eyes } = await firstFrameReadout(W, ran);
+  // each level's verdict kept in the run's record beside the row it judged: a later run gates only what changed
+  if (framed) {
+    const made = { ...W.made };
+    for (const [k, frame] of Object.entries(framed)) if (made[k]) made[k] = { ...made[k], frame };
+    W = { ...W, made };
+    await updateSketchHandler({ ref, manifest: { kind: GAMEWORLD_KIND, ...W } });
+  }
   // the run that made (or remade) the game completed it: the whole share offer rides this call, once
   const completed = W.made?.game && ran?.some((r) => r.key === 'game' && (r.action === 'make' || r.action === 'remake'));
   const share = completed ? { share: shareForContext(context, { ref: W.made.game.ref }) } : {};

@@ -1,13 +1,16 @@
-// The form render in a real browser (an e2e suite, skipped when no Chromium is installed): a streamlined supercar and a
-// gloss racer, each in the form render, on a World page with the actors' shadows. Their body and wheel bones are drawn
-// with a physical material per slot, the lamps baked as they shine; every shader compiles; the car is drawn, lit (its
-// colours vary across its body, not one fill); its status tint still reaches its bones; and the shadow lights carry
-// the key's colour.
+// The form render in a real browser (an e2e suite, skipped when no Chromium is installed): a streamlined supercar, a
+// gloss racer and a field vehicle, each in the form render, on a World page with the actors' shadows. Their body and
+// wheel bones are drawn with a physical material per slot, the lamps baked as they shine; every shader compiles; the
+// car is drawn, lit (its colours vary across its body, not one fill); its status tint still reaches its bones; and the
+// shadow lights carry the key's colour.
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { supercarFigure, supercarRule } from './supercar-figure.js';
 import { composeSupercar } from './vehicle-library.js';
 import { racerOf } from './roster.js';
 import { vehicleRule } from '../roads/vehicles.js';
+import { rollVehicleSheet } from './sheet.js';
+import { compileRealistic } from './realistic.js';
+import { MILITARY_CLASSES } from './road-military.js';
 import { emitThreeWorld } from '../scene/scene-three.js';
 import { resolveChromium, launchChromium, CHROMIUM_WEBGL_ARGS } from '../scene/chromium.js';
 
@@ -21,6 +24,9 @@ const CASES = [
   ['a streamlined supercar', supercarFigure({ preset: 'razor', surface: { line: 'streamline' }, light: 'form' }), supercarRule(design)],
   ['a gloss racer', racerOf({ facets: { archetype: 'jester' }, seed: 3, shade: 'gloss', light: 'form' }).S.figure, vehicleRule('kart')],
 ];
+// (a field vehicle: the military hull kit's body in the field's materials, its matte paint, canvas, weld and steel)
+const FIELD = Object.keys(MILITARY_CLASSES)[0];
+CASES.push(['a field vehicle', compileRealistic(rollVehicleSheet({ facets: { pole: 'realistic', class: FIELD }, seed: 3 }), { form: true }).figure, vehicleRule(FIELD)]);
 beforeAll(async () => {
   let exe;
   try { exe = await resolveChromium({ allowFetch: false }); } catch { return; }
@@ -43,7 +49,7 @@ describe('the form render in the page', () => {
         const rig = window.__mojCtrl.bodies.car.userData.rigFig, out = { bones: {}, casters: [] };
         rig.fig.bones.forEach((b, i) => { const m = rig.boneMeshes[i]; if (m) out.bones[b.id] = [].concat(m.material).map((x) => x.type); });
         let root = window.__mojCtrl.bodies.car; while (root.parent) root = root.parent;
-        root.traverse((o) => { if (o.isDirectionalLight && o.castShadow) out.casters.push([o.color.r, o.color.g, o.color.b, o.intensity]); });
+        root.traverse((o) => { if (o.isDirectionalLight && o.castShadow) out.casters.push([o.color.r, o.color.g, o.color.b, o.intensity, o.shadow.normalBias]); });
         return out;
       });
       expect(errors, errors.join('\n')).toEqual([]);
@@ -53,6 +59,8 @@ describe('the form render in the page', () => {
       }
       expect(read.casters.length).toBeGreaterThan(0);
       for (const c of read.casters) expect(c[3]).toBeCloseTo(fig.form.keyIntensity / read.casters.length, 3);
+      // (each shadow light biased along the body's normals: a plate turned from the sun wears no stripes of its own shadow)
+      for (const c of read.casters) expect(c[4]).toBeGreaterThanOrEqual(0.05);
       // the car drawn and lit: the frame's middle holds many colours, not the ground's one
       const png = await page.screenshot({ clip: { x: 200, y: 140, width: 240, height: 160 } });
       expect(new Set(Array.from(png.subarray(64, png.length - 16)).filter((_, i) => i % 7 === 0)).size).toBeGreaterThan(40);

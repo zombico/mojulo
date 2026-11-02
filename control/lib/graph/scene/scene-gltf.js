@@ -157,7 +157,8 @@ function restNormals(pos, idx) {
 // space as the baked face colours. Per-vertex specular (spec/spec8) has no glTF-unlit analog and
 // is deliberately dropped, like the World's other screen embellishments. A vehicle's part in the form render
 // (vehicle-rig.js packFormMesh) is `{ form: { o, s, n, q, nrm, col, idx, groups, mats } }`: the same quantized mesh one
-// level down, its colours the albedo; its material slots and normals are the page's light and are not carried here.
+// level down, its colours the albedo; addRigFigure carries its normals and its material slots (formMaterial) when the
+// figure carries the form render's light (`fig.form.materials`).
 function decodeRigPart(part0, restHead) {
   const part = part0.form ?? part0;
   const colU8 = b64ToBytes(part.col);
@@ -539,6 +540,26 @@ class GlbBuilder {
 
   // The surface material for a plain group: unlit (the mojulo look, default) or — in the
   // lit handoff — a real dielectric PBR at the export's roughness. One switch, every path.
+  // A material slot of the FORM render (car-designer/road-form.js ROAD_MATERIALS, vehicle-surface-finish.js
+  // VEHICLE_MATERIALS): its metalness and roughness, its clearcoat (KHR_materials_clearcoat, declared once), its
+  // emissive in its own colour (a lamp, a sign); the albedo rides as COLOR_0, as the page's vertex colour. One material a
+  // slot and response, shared across the figures that use it.
+  formMaterial(slot, P = {}) {
+    const key = `form:${slot}:${JSON.stringify(P)}`;
+    this.formMats ||= new Map();
+    if (this.formMats.has(key)) return this.formMats.get(key);
+    const lin = (h) => [1, 3, 5].map((i) => { const c = parseInt(h.slice(i, i + 2), 16) / 255; return c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); });
+    const glow = typeof P.emissive === 'string' ? lin(P.emissive) : null, k = P.emissiveIntensity ?? 1;
+    const idx = this.pbrMaterial({ name: `form:${slot}`, metallic: P.metalness ?? 0, roughness: P.roughness ?? 0.9, ...(glow ? { emissive: glow.map((v) => Math.min(1, v * Math.min(1, k))), emissiveStrength: Math.max(1, k) } : {}) });
+    if (P.clearcoat) {
+      if (!this.clearcoatDeclared) { this.json.extensionsUsed.push('KHR_materials_clearcoat'); this.clearcoatDeclared = true; }
+      const m = this.json.materials[idx];
+      m.extensions = { ...(m.extensions || {}), KHR_materials_clearcoat: { clearcoatFactor: P.clearcoat, clearcoatRoughnessFactor: P.clearcoatRoughness ?? 0.1 } };
+    }
+    this.formMats.set(key, idx);
+    return idx;
+  }
+
   surfaceMaterial(opts = {}) {
     return this.lit ? this.pbrMaterial({ metallic: 0, roughness: this.litRoughness, ...opts }) : this.unlitMaterial(opts);
   }
@@ -704,6 +725,9 @@ class GlbBuilder {
   // as billboards/sky. Returns { nodes, animations, vertices, triangles }.
   addRigFigure(name, fig, clipNames) {
     const material = this.surfaceMaterial({ name: `fig:${name}` });
+    // (a part in the FORM render carries its normals and its material slots: one primitive per slot, each a real PBR
+    // material from the figure's `form.materials`, so an engine lights the paint, the glass and the metal as the page does)
+    const slots = fig.form && fig.form.materials ? fig.form.materials : null;
     const boneNodes = []; // bone index → node index (null for part-less bones)
     const kids = [];
     let vertices = 0;
@@ -714,10 +738,19 @@ class GlbBuilder {
       const d = decodeRigPart(part, bone.head);
       const attributes = { POSITION: this.floatAccessor(d.positions, 3, bounds3(d.positions)) };
       if (d.colors.length) attributes.COLOR_0 = this.floatAccessor(d.colors, 3);
-      const prim = { attributes, mode: MODE_TRIANGLES, material };
-      if (d.indices) prim.indices = this.indexAccessor(d.indices);
+      let primitives;
+      if (part.form && slots && d.indices && part.form.nrm) {
+        const n8 = new Int8Array(b64ToBytes(part.form.nrm).buffer.slice(0)), normals = new Float32Array(n8.length);
+        for (let i = 0; i < n8.length; i += 3) { const l = Math.hypot(n8[i], n8[i + 1], n8[i + 2]) || 1; normals[i] = n8[i] / l; normals[i + 1] = n8[i + 1] / l; normals[i + 2] = n8[i + 2] / l; }
+        attributes.NORMAL = this.floatAccessor(normals, 3);
+        primitives = part.form.groups.filter(([, count]) => count > 0).map(([start, count, mi]) => ({ attributes, mode: MODE_TRIANGLES, material: this.formMaterial(part.form.mats[mi], slots[part.form.mats[mi]]), indices: this.indexAccessor(d.indices.slice(start, start + count)) }));
+      } else {
+        const prim = { attributes, mode: MODE_TRIANGLES, material };
+        if (d.indices) prim.indices = this.indexAccessor(d.indices);
+        primitives = [prim];
+      }
       const nodeName = `${name}:${bone.id}`;
-      const meshIdx = this.json.meshes.push({ name: nodeName, primitives: [prim] }) - 1;
+      const meshIdx = this.json.meshes.push({ name: nodeName, primitives }) - 1;
       const nodeIdx = this.json.nodes.push({ name: nodeName, mesh: meshIdx, translation: [bone.head[0], bone.head[1], bone.head[2]] }) - 1;
       boneNodes[bi] = nodeIdx;
       kids.push(nodeIdx);

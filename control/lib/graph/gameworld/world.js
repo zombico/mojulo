@@ -151,6 +151,7 @@ import { RACE_MOOD_IDS } from '../roads/race-mood.js';
 import { readFront } from '../game/play-front.js';
 import { readMinigameBook, minigamesOfWords } from './minigames.js';
 import { validateAirspace, isSpace } from '../skyscape/airspace.js';
+import { readBuildingParked } from '../vehicle-registry/parked.js';
 
 /** The style: the ground, and who builds on it unless a place says otherwise. */
 export const WORLD_STYLE = Object.freeze({
@@ -217,7 +218,7 @@ const ROADWAY_LEVEL_KEYS = ['form', 'course', 'dress', 'kit', 'scape', 'mood'];
 // a city level (city/plan/): the plan's own settings, who builds it, and the segments it is entered at and left from
 const CITY_LEVEL_KEYS = ['grammar', 'seed', 'board', 'spine', 'districts', 'sites', 'transit', 'lots', 'segments', 'cars', 'play', 'look', 'paint', 'civilization', 'from', 'to', 'stalker'];
 // (a building use's plan, era/programs.js: storeys, wings, loading and bays for an office, a lab building, a warehouse)
-const BUILDING_KEYS = ['use', 'seed', 'rooms', 'add', 'kit', 'geocube', 'goal', 'from', 'civilization', 'ref', 'storeys', 'wings', 'loading', 'bays'];
+const BUILDING_KEYS = ['use', 'seed', 'rooms', 'add', 'kit', 'geocube', 'goal', 'from', 'civilization', 'ref', 'storeys', 'wings', 'loading', 'bays', 'parked'];
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 
@@ -579,6 +580,7 @@ export function readGameworld(W) {
       if (B.kit !== undefined && B.geocube !== undefined) throw new Error(`gameworld: ${at}.building: a kit or a geocube dresses it, not both`);
       if (B.kit !== undefined && !(STAGE_KITS[resolveKitId(B.kit)]?.grid)) throw new Error(`gameworld: ${at}.building.kit '${B.kit}' is not a room kit (${Object.keys(STAGE_KITS).filter((x) => STAGE_KITS[x].grid).join(', ')})`);
       if (B.civilization !== undefined) civ(B.civilization, `${at}.building.civilization`);
+      if (B.parked !== undefined) readBuildingParked(B.parked, `${at}.building.parked`);
     } else {
       if (!isObj(L.walk)) throw new Error(`gameworld: ${at}.walk is the level's graph { nodes, edges?, … } (or a building: ${at}.building)`);
       for (const k of ['kit', 'seed']) if (L.walk[k] !== undefined) throw new Error(`gameworld: ${at}.walk.${k}: a level's ${k} is its own (${k === 'kit' ? `${at}.style.kit` : `${at}.seed`}), handed to its sections`);

@@ -20,6 +20,16 @@ describe('rig preview channel', () => {
     expect(previewed.split('"clips":{"bob"').length - 1).toBe(1);   // the bank carries the figure once
     expect(previewed).not.toContain('"preview":');   // the bank entry sheds its preview key
   });
+  it('the hidden group\'s TEXTURED faces hide with it too (a barked staff in the hand), and a page without one is as it was', () => {
+    const uv = [[0, 0], [1, 0], [0, 1], [0, 0]], tex = { bark: { kind: 'svg', svg: '<svg xmlns="http://www.w3.org/2000/svg" width="4" height="4"/>' } };
+    const textured = [...faces, { corners: [[0, 0, 1], [1, 0, 1], [0, 1, 1], [0, 0, 1]], fill: '#776655', group: 'body', texture: 'bark', uv }];
+    const pv = { preview: { clips: ['bob'], hide: 'body', period: 2 } };
+    const page = emitThreeWorld({ ...base, faces: textured, textures: tex, figures: { body: { ...fig, ...pv } } });
+    expect(page).toContain('tm.userData.g = grp.name;');
+    // no textured face in the hidden group: the textured meshes stay untagged, byte for byte as before
+    const elsewhere = [...faces, { ...textured[1], group: 'prop' }];
+    expect(emitThreeWorld({ ...base, faces: elsewhere, textures: tex, figures: { body: { ...fig, ...pv } } })).not.toContain('tm.userData.g = grp.name;');
+  });
   it('the block builds the rig, hides the embodied group, honours ?clip=, and composes one matrix per bone', () => {
     const js = rigPreviewChannelScript([{ figure: 'body', clips: ['bob'], hide: 'body', period: 2 }], { body: fig });
     for (const needle of ['__rpBuild(fig)', "get('clip')", 'userData.g === pv.hide', 'mesh.matrix.compose(__rpv, __rpq, __rpONE)', "createElement('select')", 'rest (the solid)']) expect(js).toContain(needle);

@@ -546,7 +546,7 @@ export const WORLD_KINDS = {
       // (a page read by the seventh generation: the town's lawns and trees handed to the form render)
       if (m.show === 'geotown') return attachDummy(assembleGeotownScene(m, { title: ctx.title, ...(ctx.formLit ? { form: true } : {}) }));
       // a metro on the cube's own land (geocity/scene.js): its major streets first, its blocks as massing, in metres
-      if (m.show === 'geocity') return attachDummy(assembleGeocityScene(m, { title: ctx.title, ...(ctx.liveSun ? { liveSun: true } : {}) }));
+      if (m.show === 'geocity') return attachDummy(assembleGeocityScene(m, { title: ctx.title, ...(ctx.liveSun ? { liveSun: true } : {}), ...(ctx.live ? { live: true } : {}) }));
       const p = assembleGeocubeScene(m, { title: ctx.title, unshaded: ctx.unshaded, ...(ctx.liveSun ? { liveSun: true } : {}), ...(ctx.solid ? { solid: true } : {}), ...(ctx.form ? { form: true } : {}), ...(ctx.formLit ? { formLit: true } : {}), ...(ctx.handoff ? { handoff: true } : {}) }, assembleStageScene);
       return p.route ? attachDummy(p) : p;
     },
@@ -688,9 +688,10 @@ export const WORLD_KINDS = {
   'vehicle-instance': {
     // no default title — assembleInstanceStudio applies its own when the sketch carries none.
     title: undefined,
-    // (a race machine's instance, { racer } or { supercar }, its theme worn: the family layer builds it)
+    // (a race machine's instance, { racer } or { supercar }, its theme worn, or a realistic loft { loft }: the family
+    // layer builds it)
     resolve: (m, ctx) => assembleInstanceStudio(
-      { type: m.type, family: m.family, decoration: m.decoration, ...(m.racer ? { racer: m.racer } : {}), ...(m.supercar ? { supercar: m.supercar } : {}) },
+      { type: m.type, family: m.family, decoration: m.decoration, ...(m.racer ? { racer: m.racer } : {}), ...(m.supercar ? { supercar: m.supercar } : {}), ...(m.loft ? { loft: m.loft } : {}) },
       { pose: m.pose, viewBox: m.viewBox, title: ctx.title },
     ),
   },

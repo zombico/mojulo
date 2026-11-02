@@ -8,6 +8,7 @@ import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { SketchRevisionRepository } from '@/lib/db/repositories/sketch-revisions';
 import { updateSketchHandler } from './sketches.js';
 import { designGameHandler } from './design-game.js';
+import { LAWS_VERSION } from '@/lib/graph/equipment/expand';
 import { MEADOWMARK, MEADOWMARK_HERO, HALDEN_REACH, gameworldOf } from '@/lib/graph/gameworld/index';
 import { GENRES } from '@/lib/graph/gameworld/intent';
 import { createCharacterHandler, updateCharacterHandler } from './create-character.js';
@@ -110,7 +111,8 @@ describe('design_game', () => {
     expect(action(sys, 'gear-staff')).toBe('waiting');
     const gear = await designGameHandler({ ref: 'gw', approve: 'mechanics:stats', run: true });
     expect(gear.ran.filter((r) => r.key.startsWith('gear-')).map((r) => r.action)).toEqual(Array(6).fill('make'));
-    expect(stored('gw-gear-staff').build).toMatchObject({ type: 'equipment', item: 'staff', laws: 1 });
+    // (stamped with the laws current at mint: laws 2 since the hilt and the end, equipment/compose.js)
+    expect(stored('gw-gear-staff').build).toMatchObject({ type: 'equipment', item: 'staff', laws: LAWS_VERSION });
     expect(Object.keys(gear.made)).toHaveLength(15);
     expect(stored('gw-hero-equipped').hero.gear.right).toMatchObject({ item: 'staff' });
     expect(stored('gw-hero').hero.gear).toBeUndefined();

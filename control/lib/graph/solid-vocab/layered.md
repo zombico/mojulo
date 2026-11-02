@@ -817,7 +817,15 @@ GLB's baked ink (`bake: true`) cannot stencil: it leaves out only the outline of
   'bullpup', style: 'fde', parts: { optic: 'scope' } }`, a new hero's guns stamped with their item's default model) at
   low ready in a hand, muzzle forward and down; slung on `back` muzzle down; a pistol on `hip` holstered at the right
   thigh (a long gun has no hip). A `knife` (combat, tanto, dagger, karambit) is held as a blade. The gear is rigid on its bone, so the stand, the clips, the preview and the skinned
-  GLB carry it. An anime hero's gear takes `stylize: 0.7` unless its build says. The readout's `hero.gear` names each
+  GLB carry it. An anime hero's gear takes `stylize: 0.7` unless its build says.
+  HANDLING (laws-2 gear and the arms; gear minted under laws 1 keeps its hold): each item is fitted in the hand so it
+  clears the body (capsules round the trunk, the head, the limbs and bars across the shoulders and hips, by 2.5 % of the
+  height) at rest and through the poses it rides: a haft rolls out past the shoulder and the head, a blade or a gun
+  turns off the thigh, a shield stands off the arm. The idle breathes through the weapon by its class (a blade's tip
+  lifts and settles, a shield's forearm comes up in front, a gun sits at low ready), a haft stays upright (its wrist
+  deviates against the elbow, on a hand with digits), and at every key of the stand, the idle and the walk an arm whose
+  blade or gun comes inside the margin is taken out from the body until it clears. `hero.gear.<slot>.clearance` reads
+  the nearest approach per clip (m, − inside) and whether it keeps the margin; your own `clips` are left as written. The readout's `hero.gear` names each
   slot's item, hold, bone, length (m) and share of the figure's height.
   THE SWING. A swing word as the gesture: `chop`, `thrust`, `rising` (a low-to-high diagonal), `cleave` (two hands),
   `plant` (a staff driven down), and the contest's `forehand`, `backhand` (level arcs across the body) and `bat` (two

@@ -33,6 +33,9 @@ describe('the far trees', () => {
     expect(src).not.toContain('farGeo');
     // (a needled crown and a culm keep their own far form)
     expect(src).toContain('!t.sleeve && !t.culm && t.nClumps > 0');
+    // (with the page's air, a plant whose top it has taken is not drawn at all, whole or as its card)
+    expect(src).toContain('const AIR = window.__mojAir && window.__mojAir.taken ? window.__mojAir : null;');
+    expect(src).toContain('{ taken++; continue; }');
   });
 
   it('samples the leaves as the screen does: a leaf grown by nothing, so the card is no thicker than the crown', () => {

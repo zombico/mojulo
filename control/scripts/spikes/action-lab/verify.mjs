@@ -881,6 +881,17 @@ check('no body passes a wall or a block, and the hero never enters the dummy, at
     return { id, apex: [Math.max(...lz), Math.max(...r.z)], off: [off(lz), off(r.z)], run: [Math.hypot(lr[0], lr[1]), Math.hypot(rr[0], rr[1])] };
   });
   check(`a game's feel: lowered into the runtime's platform rule, ${rows.map((x) => POLES[x.id].name).join(' and ')} peak at the lab's apex (to 5 mm), leave the floor on the lab's frame and run at the lab's speed`, rows.every((x) => Math.abs(x.apex[0] - x.apex[1]) < 0.005 && x.off[0] === x.off[1] && Math.abs(x.run[0] - x.run[1]) < 1e-6), rows.map((x) => [x.id, x.apex.map((v) => +v.toFixed(4)), x.off, x.run.map((v) => +v.toFixed(3))]));
+  // the rule a made game SHIPS: the lowered rule laid over the hero's own (playscape/player.js playerWorld, its default
+  // wind-up and jump included), not the lowered rule alone; a tap leaves on the lab's frame, and without a gather hops the
+  // lab's tap (a tap let go during a gather is the runtime's cut at once, said as partly carried)
+  const { playerWorld } = await import('../../../lib/graph/playscape/player.js');
+  const shipped = picks.map((id) => {
+    const C = poleCard(id), S = playerWorld({ heroRef: 'h', rule: lowerFeel(C).rule }).entities[0].rule;
+    const lab = run(C, (f) => (f < 1 ? J : 0), 90), lz = lab.states.map((x) => x.hero.p[2]);
+    const r = rt(S, (i) => (i === 0 ? { jump: 1, jumpHeld: 1 } : {}), 90);
+    return { id, tap: [Math.max(...lz), Math.max(...r.z)], off: [off(lz), off(r.z)] };
+  });
+  check(`a game's feel as shipped: lowered over the hero's own rule, ${shipped.map((x) => POLES[x.id].name).join(' and ')} leave the floor on the lab's frame on a tap, and the one without a gather hops within 10 % of the lab's tap`, shipped.every((x) => x.off[0] === x.off[1] && (poleCard(x.id).jump.commit > 0 || Math.abs(x.tap[1] - x.tap[0]) <= 0.1 * x.tap[0])), shipped.map((x) => [x.id, x.tap.map((v) => +v.toFixed(3)), x.off]));
 }
 
 const presses = runs.flatMap((r) => r.events.filter((e) => e.type === 'press'));

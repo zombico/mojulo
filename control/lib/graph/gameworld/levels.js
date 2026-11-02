@@ -98,6 +98,9 @@ function armedPilot(G, entity, cam) {
 const SNEAK_TUNE = Object.freeze({ team: 'guards', rule: { guardRadius: 10, speed: 3, turnRate: 2.2 }, body: { hittable: false } });
 import { feelCard, lowerFeel } from './feel/lower.js';
 import { juiceOfGame } from './juice.js';
+import { readBuildingParked, parkIn, paintOfDress } from '../vehicle-registry/parked.js';
+import { roleOf } from '../era/stocking.js';
+import { camoForSetting } from '../car-designer/livery-cut.js';
 
 // the world's juice (juice.js): its effects' floor, composed from its register and its game type, on every level; none
 // written, nothing laid
@@ -513,13 +516,14 @@ function levelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = null, me
       events: P.events || {},
     };
   } else if (ride?.ref || ride?.racer || ride?.figure) {
-    // THE RIDE (ride.js): the hero is a vehicle, on the drive rule its build derived, followed from behind; or a racer
+    // THE RIDE (ride.js): the hero is a vehicle, on the drive rule its build derived, followed from behind (a ride's own
+    // chase when it brings one: a realistic loft's, scaled to its length); or a racer
     // (quick.racers): the first of the field, in the machine its driver reads as, followed close (a kart is small)
     const P = playerWorld({ heroRef: 'none', id: 'car', title: name, controls: `W  throttle · S  brake, hold to reverse · A / D  steer${mechanics?.legend ? ` · ${mechanics.legend}` : ''}` });
     pilotPart = {
       figures: { ride: ride.figure ?? (ride.racer ? { racer: ride.racer } : { vehicleRef: ride.ref, targetH: RIDE_H }) },
       entities: [{ id: 'car', pilotable: true, rule: ride.rule, body: { type: 'figure-rig', figure: 'ride' }, transform: { pos: ends.spawn, heading: ends.heading } }],
-      camera: ride.racer ? { rule: 'follow', target: 'car', ...RACER_CAMERA } : ride.figure ? { rule: 'follow', target: 'car', ...SUPERCAR_CAMERA } : { rule: 'follow', target: 'car', dist: 11, height: 4.5, lead: 5, lookH: 1.2 },
+      camera: ride.camera ? { rule: 'follow', target: 'car', ...ride.camera } : ride.racer ? { rule: 'follow', target: 'car', ...RACER_CAMERA } : ride.figure ? { rule: 'follow', target: 'car', ...SUPERCAR_CAMERA } : { rule: 'follow', target: 'car', dist: 11, height: 4.5, lead: 5, lookH: 1.2 },
       events: P.events || {},
     };
   } else if (heroRef) {
@@ -991,6 +995,14 @@ export function buildingStage(B) {
  * (the stage is metres, as the hero is); without one, the level's own first-person walker. A building by ref is not
  * made here: the game plays it as it was made.
  */
+function parkedOf(G, word, rooms) {
+  const P = readBuildingParked(word);
+  const room = rooms.find((r) => roleOf(r.id) === 'hangar') ?? rooms.reduce((a, r) => (r.w * r.d > a.w * a.d ? r : a));
+  const dress = Object.values(G.foes ?? {}).map((f) => f?.skin?.dress).find((d) => d?.colourway);
+  const livery = P.livery ?? paintOfDress(dress) ?? camoForSetting({ kit: typeof G.style?.kit === 'string' ? G.style.kit : null }) ?? undefined;
+  return parkIn(room, P.vehicles, { seed: Number.isInteger(G.seed) ? G.seed : 1, livery, wear: P.wear });
+}
+
 function buildingLevelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = null, mechanics = null, title, goal = null, goalCast = null, extra = null, story = null, carryFrom = null, party = null, castFigures = null } = {}) {
   const name = title ?? `${G.name ?? G.id} · ${stage.level}`;
   let base = { ...stage.manifest, title: name, ...(mechanics?.play ? { play: mechanics.play } : {}) };
@@ -1008,6 +1020,12 @@ function buildingLevelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = 
   // its rooms (each its box and floor) and its use, for a stage's extra to stand things in (a minigame's stall)
   Object.defineProperty(ends, 'rooms', { value: plan.rooms.map((r) => ({ id: r.id, x: r.x, y: r.y, w: r.w, d: r.d, z: floors ? floors.get(r.id) : 0 })), enumerable: false });
   Object.defineProperty(ends, 'use', { value: stage.building.use, enumerable: false });
+  // its parked vehicles (building.parked, vehicle-registry/parked.js): in its hangar, else its largest room, painted as its
+  // foes' faction dresses, else in its setting's camo, stamped into the level's manifest. Absent ⇒ byte-identical
+  if (stage.building?.parked !== undefined) {
+    const parked = parkedOf(G, stage.building.parked, ends.rooms);
+    if (parked.length) base = { ...base, parked };
+  }
   // a quick goal: its mechanics beside the building's own goal (which keeps its route through the doorways)
   if (goal) {
     const own = goal(ends), extra = own.filter((x) => x.kind !== 'reach-exit');
