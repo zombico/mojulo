@@ -48,7 +48,7 @@ function play(manifest, level) {
   const log = s.log.map((r) => r.type), proved = won.some((t) => log.includes(t));
   const want = G.arenas.flatMap((A) => A.waves.map((W) => W.foes.map((f) => (typeof f === 'string' ? f : f.id))));
   const inOrder = JSON.stringify(woke) === JSON.stringify(want);
-  return { level, proved: proved && inOrder, woke, says: proved && inOrder ? `${woke.length} waves woke in order, each after the last was down; the seal lifted and the way out won` : !inOrder ? `the waves woke ${JSON.stringify(woke)}, not ${JSON.stringify(want)}` : `woke ${woke.length} of ${want.length} waves; the level was not won` };
+  return { level, proved: proved && inOrder, woke, says: proved && inOrder ? (G.pace === 'timed' ? `${woke.length} waves woke in order on the clock${G.win?.outlast ? `; ${G.win.outlast} s outlasted` : ''}; the seal lifted and the way out won` : `${woke.length} waves woke in order, each after the last was down; the seal lifted and the way out won`) : !inOrder ? `the waves woke ${JSON.stringify(woke)}, not ${JSON.stringify(want)}` : `woke ${woke.length} of ${want.length} waves; the level was not won` };
 }
 
 /** Each gauntlet level proved on the bus, or null for a world with none. */

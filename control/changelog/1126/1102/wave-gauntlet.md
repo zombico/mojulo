@@ -41,3 +41,8 @@ that is a glove. Built so far:
   stands more than sixteen foes woken within half a minute (the worst case, none downed). The book's grid says when each
   timed wave comes; the proof plays its clock. A prompt's `holdout` lays the default to endure: one arena, four waves
   twenty seconds apart, ninety seconds to outlast. Tower defence stays `waves` (its path, base and leaks).
+- **The holdout, proved in an exported page** (machine gate, standing in for eyes): a `design_game` world of one level
+  held to endure (three waves eight seconds apart, thirty seconds to outlast), exported and played headless through its
+  shell: the second wave came on the clock with the whole first still standing; with every wave down and thirteen
+  seconds left the seal held and turned the walker back; at the clock's end the seal lifted and the way out won
+  (`success`, the shell showing it cleared).

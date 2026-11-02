@@ -155,7 +155,7 @@ describe('a gauntlet to endure, as a level goal', () => {
 
   it('proved on the bus: each wave on the clock, the falls given, the clock outlasted, the way out won', () => {
     const [P] = proveGauntlets(W2, { lift: L2.args.manifest });
-    expect(P).toMatchObject({ level: 'lift', proved: true });
+    expect(P).toMatchObject({ level: 'lift', proved: true, says: '3 waves woke in order on the clock; 60 s outlasted; the seal lifted and the way out won' });
     expect(P.woke).toHaveLength(3);
   });
 
