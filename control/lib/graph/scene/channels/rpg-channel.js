@@ -34,7 +34,22 @@ export const RPG_CSS = `
 .moj-rpg-foe .bar i,.moj-rpg-row .bar i{display:block;height:100%;background:var(--moj-accent,#ffd76a)}
 .moj-rpg-turns{display:flex;flex-wrap:wrap;gap:4px;margin-top:4px;font-size:11px}.moj-rpg-turns span{padding:1px 6px;border-radius:3px;background:rgba(0,0,0,.35)}.moj-rpg-turns span:first-child{outline:1px solid var(--moj-accent,#ffd76a)}.moj-rpg-turns .f{opacity:.7}
 .moj-rpg-bottom{position:absolute;left:50%;bottom:12px;transform:translateX(-50%);display:flex;justify-content:space-between;gap:10px;width:min(960px,calc(100vw - 24px));align-items:flex-end}
-.moj-rpg-cmd{position:absolute;left:0;bottom:calc(100% + 8px);width:250px}
+.moj-rpg-cmd{width:230px;flex:none}
+.moj-rpg-bottom .moj-rpg-foes{margin-left:auto}
+.moj-rpg-heads{position:fixed;inset:0;pointer-events:none;z-index:31;display:none;font:12px/1.25 var(--moj-font,system-ui,sans-serif);color:var(--moj-ink,#eef2ff)}
+.moj-rpg-heads.on{display:block}
+.moj-rpg-head{position:absolute;transform:translate(-50%,-100%);width:64px;padding:3px 4px;transition:opacity .25s ease,background .25s ease;border-radius:5px;background:var(--moj-panel-a,rgba(14,22,58,.72));pointer-events:auto;cursor:pointer;text-align:center}
+.moj-rpg-head .n{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:600}
+.moj-rpg-head .bar{height:4px;margin-top:2px;background:rgba(255,255,255,.18);border-radius:2px;overflow:hidden}.moj-rpg-head .bar i{display:block;height:100%;background:var(--moj-hp,#5ccf7e)}
+.moj-rpg-head .bar i.lo{background:var(--moj-harm,#ff6b6b)}.moj-rpg-head .bar.mp{height:3px}.moj-rpg-head .bar.mp i{background:var(--moj-mp,#5aa8ff)}
+.moj-rpg-head .st{font-size:10px;letter-spacing:1px;text-transform:uppercase;color:#ffd76a}
+.moj-rpg-head.turn{outline:2px solid var(--moj-accent,#ffd76a)}.moj-rpg-head.turn::before{content:"\\25BC";position:absolute;left:50%;top:-15px;transform:translateX(-50%);color:var(--moj-accent,#ffd76a);font-size:12px}
+.moj-rpg-head.aim{outline:2px solid #ff8a5a;box-shadow:0 0 10px rgba(255,138,90,.7)}.moj-rpg-head.aim::after{content:"\\25BC";position:absolute;left:50%;top:-15px;transform:translateX(-50%);color:#ff8a5a}
+.moj-rpg-head.down{opacity:.45}.moj-rpg-head.foe{width:auto;min-width:60px;background:rgba(80,16,16,.72)}
+.moj-rpg-head .moj-rpg-pop{top:-18px}
+.moj-rpg-bottom{transition:opacity .25s ease}.moj-rpg.acting .moj-rpg-bottom{opacity:0;pointer-events:none}
+.moj-rpg-heads.acting .moj-rpg-head{background:transparent;outline:none;box-shadow:none}.moj-rpg-heads.acting .moj-rpg-head::before,.moj-rpg-heads.acting .moj-rpg-head::after{display:none}
+.moj-rpg-heads.acting .moj-rpg-head>:not(.moj-rpg-pop){opacity:0;transition:opacity .25s ease}
 .moj-rpg-row .bar i.lo{background:var(--moj-harm,#ff6b6b)}
 .moj-rpg-party{width:250px;flex:none;display:flex;flex-direction:column;gap:3px}
 .moj-rpg-cmd .t,.moj-rpg-field .t{font-size:11px;letter-spacing:2px;text-transform:uppercase;opacity:.75;margin-bottom:4px}
@@ -78,6 +93,9 @@ export function rpgPage(cfg, K, ctl, jk) {
   K.mirror(cfg, R, V());
   const st = document.createElement('style'); st.textContent = RPG_CSS_TEXT; document.head.appendChild(st);
   const root = document.createElement('div'); root.className = 'moj-hud moj-rpg'; document.body.appendChild(root);
+  // (the bars over the fighters' heads: each member's name, HP, MP, statuses and turn; the pack's aimed foe and the numbers
+  // that land on it; pinned to their figures every frame by the scene's projection)
+  const heads = document.createElement('div'); heads.className = 'moj-rpg-heads'; document.body.appendChild(heads);
   const flashEl = document.createElement('div'); flashEl.className = 'moj-rpg-flash'; document.body.appendChild(flashEl);
   const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
   const CMD = { attack: 'Attack', skill: 'Skill', item: 'Item', guard: 'Guard', flee: 'Flee' };
@@ -207,9 +225,10 @@ export function rpgPage(cfg, K, ctl, jk) {
   // (gap: the party's point off the pack; WEDGE: each member's place in the party's formation, [aside, back] in metres,
   // the hero at its point and the rest in ranks behind on either side, never a line; the camera: back along the
   // party's side, up, its field and the margin round the fighters it fits; low: how far below the frame's middle the
-  // fighters' middle sits (a fraction of the half-frame), so they stand above the window's band; clear: how far a
+  // fighters' middle sits (a fraction of the half-frame; below zero, above it: the bars over their heads kept in the
+  // frame, the corners' boxes clear of their feet); clear: how far a
   // sightline may pass over the ground)
-  const STAGE = { gap: 4.2, back: 1.0, up: 2.2, fov: 45, margin: 1.8, low: 0.3, clear: 0.4, near: 4.5, far: 12 };
+  const STAGE = { gap: 4.2, back: 1.0, up: 2.2, fov: 45, margin: 2.4, low: -0.12, clear: 0.4, near: 4.5, far: 12 };
   const WEDGE = [[0, 0], [-1.1, 1.0], [1.1, 1.0], [0, 2.0], [-2.2, 2.0], [2.2, 2.0], [-1.1, 3.0], [1.1, 3.0]];
   let staged = null;
   function stage() {
@@ -253,8 +272,7 @@ export function rpgPage(cfg, K, ctl, jk) {
       // (the distance that fits every fighter across the frame with a margin, from the camera's field and the page's
       // shape: the fighters fill it, no corner left empty; then the aim set low by the band's share of the frame)
       const vf = (C.fov || STAGE.fov) * Math.PI / 360, asp = (window.innerWidth || 16) / (window.innerHeight || 9), hf = Math.atan(Math.tan(vf) * asp);
-      const half = (hi - lo) / 2 + STAGE.margin;
-      const dist = Math.max(STAGE.near, Math.min(STAGE.far, half / Math.tan(hf)));
+      const cu = (lo + hi) / 2, dist = Math.max(STAGE.near, Math.min(STAGE.far, Math.max(...pts.map((q, i) => (Math.abs(along[i] - cu) + STAGE.margin) / Math.tan(hf) + Math.abs(across[i] - mid)))));
       const look = [mx, my, zm + 1 - dist * Math.tan(vf) * STAGE.low], view = (sd, lift) => {
         // (its height the fight's own ground's, raised only to stand clear of the ground under it: a camera up a slope
         // looking down would set the fighters on the frame's top edge; one inside the slope is a blocked side)
@@ -345,36 +363,69 @@ export function rpgPage(cfg, K, ctl, jk) {
     dirty = true;
   }
 
+  // (the banner across the top tells an action's name or a status, never a number: a blow's lands over whoever takes it)
+  const TOLD = ['start', 'cast', 'status', 'ko', 'level', 'learn', 'spoils', 'end'];
   function drawBattle() {
     const b = R.b, L = phase === 'command' ? cmdList() : [];
     if (phase === 'command') f = Math.max(0, Math.min(f, L.length - 1));
     const aimAt = phase === 'command' && level === 'target' && L[f] ? L[f].target : null, active = phase === 'command' ? commanders()[mi] : null;
-    // (one band along the bottom: the foes under the fight's narration on the left, the party on the right; the command
-    // menu above it only while a member picks; nothing over the top of the scene)
-    let h = '<div class="moj-rpg-bottom">' + (phase === 'command' ? '<div class="moj-w moj-rpg-cmd">' : '');
+    // (the command menu in the lower-left corner while a member picks; the foes' box at the lower right)
+    let h = '<div class="moj-rpg-bottom">';
     if (phase === 'command') {
-      h += '<div class="t">' + esc(memberName(active)) + (level !== 'cmd' ? ' · ' + (level === 'target' ? 'target' : CMD[level]) : '') + '</div>';
+      h += '<div class="moj-w moj-rpg-cmd"><div class="t">' + esc(memberName(active)) + (level !== 'cmd' ? ' · ' + (level === 'target' ? 'target' : CMD[level]) : '') + '</div>';
       L.forEach((o, i) => { h += '<div class="opt' + (o.ok ? '' : ' off') + (i === f ? ' on-f' : '') + '" data-i="' + i + '"><span>' + esc(o.label) + '</span><span>' + esc(o.right || '') + '</span></div>'; });
       if (!L.length) h += '<div class="opt off">—</div>';
       h += '</div>';
     }
-    // (the party on the left: each a name over its HP bar and its MP bar, no class; the foes on the right)
-    h += '<div class="moj-w moj-rpg-party">';
-    if (b) for (const m of b.ids) {
-      const M = R.m[m], S = K.statsOf(cfg, R, m), hp = shown[m] != null ? shown[m] : M.hp, mp = shown[m + ':mp'] != null ? shown[m + ':mp'] : M.mp;
-      const s = b.side[m].st, tag = M.poison ? ' psn' : s.sleep ? ' slp' : s.silence ? ' sil' : '', pct = (v, of) => Math.round(100 * Math.max(0, v) / Math.max(1, of));
-      h += '<div class="moj-rpg-row' + (m === active ? ' act' : '') + (hp <= 0 ? ' down' : '') + (aimAt === m ? ' on-f' : '') + joltOf(m) + '" data-aim="' + m + '"><div class="n"><span>' + esc(memberName(m)) + tag + '</span><small>' + hp + '/' + S.hp + '</small></div>'
-        + '<div class="bar"><i' + (hp * 4 <= S.hp ? ' class="lo"' : '') + ' style="width:' + pct(hp, S.hp) + '%"></i></div>' + (S.mp > 0 ? '<div class="bar mp"><i style="width:' + pct(mp, S.mp) + '%"></i></div>' : '') + popsFor(m) + '</div>';
-    }
-    h += '</div><div class="moj-w moj-rpg-foes">';
+    h += '<div class="moj-w moj-rpg-foes">';
     if (b) b.foes.forEach((x) => {
       const hp = shown[x.uid] != null ? shown[x.uid] : x.hp;
-      h += '<div class="moj-rpg-foe' + (hp <= 0 ? ' down' : '') + (aimAt === x.uid ? ' on-f' : '') + joltOf(x.uid) + '" data-aim="' + x.uid + '">' + esc(x.name) + (cfg.rules.foeHp === 'bar' ? '<div class="bar"><i style="width:' + Math.round(100 * Math.max(0, hp) / x.max) + '%"></i></div>' : '') + popsFor(x.uid) + '</div>';
+      h += '<div class="moj-rpg-foe' + (hp <= 0 ? ' down' : '') + (aimAt === x.uid ? ' on-f' : '') + joltOf(x.uid) + '" data-aim="' + x.uid + '">' + esc(x.name) + (cfg.rules.foeHp === 'bar' ? '<div class="bar"><i style="width:' + Math.round(100 * Math.max(0, hp) / x.max) + '%"></i></div>' : '') + '</div>';
     });
     const next = K.preview(cfg, R, 6);
     if (next.length) h += '<div class="moj-rpg-turns">' + next.map((x) => '<span class="' + (x.party ? 'p' : 'f') + '">' + esc(x.name) + '</span>').join('') + '</div>';
-    root.innerHTML = h + '</div></div>' + (msg ? '<div class="moj-w moj-rpg-msg">' + esc(msg) + '</div>' : '');   // (the foes, the band; the narration across the top)
+    const beat = phase === 'intro' || phase === 'play' ? beats[bi] : null, told = beat && msg && TOLD.includes(beat.kind);
+    root.innerHTML = h + '</div></div>' + (told ? '<div class="moj-w moj-rpg-msg">' + esc(msg) + '</div>' : '');
+    drawHeads(aimAt, active);
     pops = []; jolts = {};
+  }
+  // the heads: one over each member's figure (members who share one, the pilot's, stacked), and one over the pack's
+  // figure while a foe is aimed at or a number lands on it
+  function drawHeads(aimAt, active) {
+    const b = R.b, w = W(), pct = (v, of) => Math.round(100 * Math.max(0, v) / Math.max(1, of));
+    if (!b || !w) { heads.innerHTML = ''; return; }
+    let h = '';
+    const stack = {};
+    for (const m of b.ids) {
+      const fig = figureOf(m); if (!fig) continue;
+      const M = R.m[m], S = K.statsOf(cfg, R, m), hp = shown[m] != null ? shown[m] : M.hp, mp = shown[m + ':mp'] != null ? shown[m + ':mp'] : M.mp, st = b.side[m].st;
+      const tags = [M.poison ? 'poison' : '', st.sleep ? 'asleep' : '', st.silence ? 'silenced' : ''].filter(Boolean).join(' · ');
+      const k = stack[fig] = (stack[fig] || 0) + 1;
+      h += '<div class="moj-rpg-head' + (m === active ? ' turn' : '') + (aimAt === m ? ' aim' : '') + (hp <= 0 ? ' down' : '') + joltOf(m) + '" data-fig="' + fig + '" data-k="' + (k - 1) + '" data-aim="' + m + '" title="' + esc(memberName(m)) + '">'
+        + (tags ? '<div class="st">' + tags + '</div>' : '') + '<div class="bar"><i' + (hp * 4 <= S.hp ? ' class="lo"' : '') + ' style="width:' + pct(hp, S.hp) + '%"></i></div>'
+        + (S.mp > 0 ? '<div class="bar mp"><i style="width:' + pct(mp, S.mp) + '%"></i></div>' : '') + popsFor(m) + '</div>';
+    }
+    const aimedFoe = aimAt != null && !b.side[aimAt] ? b.foes.find((x) => x.uid === aimAt) : null, fp = b.foes.map((x) => popsFor(x.uid)).join(''), ff = figureOf((aimedFoe || b.foes[0] || {}).uid);
+    if (ff && (aimedFoe || fp)) h += '<div class="moj-rpg-head foe' + (aimedFoe ? ' aim' : '') + '" data-fig="' + ff + '" data-k="0"' + (aimedFoe ? ' data-aim="' + aimedFoe.uid + '"' : '') + '>' + (aimedFoe ? '<div class="n">' + esc(aimedFoe.name) + '</div>' : '') + fp + '</div>';
+    heads.innerHTML = h;
+  }
+  // every frame: each head over its figure's head, by the scene's projection (hidden behind the eye)
+  function placeHeads() {
+    const w = W(), proj = window.__mojCtrl && window.__mojCtrl.project;
+    if (!w || !proj) return;
+    for (const el of heads.children) {
+      const e = w.byId[el.getAttribute('data-fig')];
+      if (!e || !e.transform) { el.style.display = 'none'; continue; }
+      const top = (e.rule && e.rule.collideHeight) || 1.8, p = proj(e.transform.pos[0], e.transform.pos[1], e.transform.pos[2] - ((e.rule && e.rule.eye) || 0) + top + 0.12);
+      if (!(p[2] < 1)) { el.style.display = 'none'; continue; }
+      el.style.display = ''; el.style.left = Math.round(p[0]) + 'px'; el.style.top = Math.round(p[1] - 44 * Number(el.getAttribute('data-k') || 0)) + 'px';
+    }
+    // (two heads that meet on the screen: the later lifted clear of the earlier, so no name sits under another's)
+    const shown = [...heads.children].filter((el) => el.style.display !== 'none').map((el) => ({ el, x: parseFloat(el.style.left), y: parseFloat(el.style.top), w: el.offsetWidth || 84, h: el.offsetHeight || 34 })).sort((a, b) => b.y - a.y);
+    for (let i = 0; i < shown.length; i++) for (let j = 0; j < i; j++) {
+      const a = shown[i], c = shown[j];
+      if (Math.abs(a.x - c.x) < (a.w + c.w) / 2 + 2 && Math.abs(a.y - c.y) < Math.max(a.h, c.h) + 2) { a.y = c.y - Math.max(a.h, c.h) - 3; a.el.style.top = Math.round(a.y) + 'px'; }
+    }
   }
   function popsFor(id) { return pops.filter((p) => p.at === id).map((p) => '<span class="moj-rpg-pop ' + p.cls + '"' + (p.color ? ' style="color:' + esc(p.color) + '"' : '') + '>' + esc(p.txt) + '</span>').join(''); }
   // a row's jolt, drawn once with the beat that asked for it
@@ -476,6 +527,10 @@ export function rpgPage(cfg, K, ctl, jk) {
     ev.preventDefault(); ev.stopImmediatePropagation();
     if (a && !ev.repeat) act(a);
   }, true);
+  heads.addEventListener('click', (ev) => {
+    const aim = ev.target.closest('[data-aim]');
+    if (mode === 'battle' && phase === 'command' && level === 'target' && aim) { const L = cmdList(), i = L.findIndex((x) => x.target === aim.getAttribute('data-aim')); if (i >= 0) { f = i; act('accept'); } }
+  });
   root.addEventListener('click', (ev) => {
     if (!mode) return;
     const o = ev.target.closest('[data-i]'), t = ev.target.closest('[data-tab]'), m = ev.target.closest('[data-m]'), aim = ev.target.closest('[data-aim]');
@@ -566,6 +621,11 @@ export function rpgPage(cfg, K, ctl, jk) {
     if (mode === 'battle' && W()) W().time = (W().time || 0) + dt / 1000;
     if (mode) { hold(); root.classList.add('on'); }
     if (mode && (dirty || pops.length)) { if (mode === 'battle') drawBattle(); else drawField(); dirty = false; }
+    if (mode === 'battle') {
+      heads.classList.add('on'); placeHeads();
+      // (a round playing out: the window and the bars step aside for the bodies' acts, back for the next pick)
+      const acting = phase === 'play'; root.classList[acting ? 'add' : 'remove']('acting'); heads.classList[acting ? 'add' : 'remove']('acting');
+    } else if (heads.innerHTML) { heads.classList.remove('on'); heads.innerHTML = ''; }
   }
   const api = {
     step, R,

@@ -132,10 +132,15 @@ its resource, put on a look and showed a toast. This theme makes them act.
   pack on the right, the hero's swing landing, all above the panels.
 - **The battle window, the formation and the camera reworked** (`scene/channels/rpg-channel.js`, `events.js`,
   `gameworld/levels.js`).
-  - **The window.** The party's box on the bottom left: each member's name over its HP bar (green, red when low) and its
-    MP bar (blue), no class. The foes' box on the bottom right: their names, HP bars and the turn order. The fight's
-    narration is a slim banner across the top. The command menu stands above the party's box only while a member picks.
-    There is no empty box, and the level's own HUD (its controls, its readouts) steps aside while the fight is up.
+  - **The window.** The command menu stands in the lower-left corner while a member picks; the foes' box (their
+    names, HP bars, the turn order) stands at the lower right. Each fighter's HP and MP ride on a bar over its head,
+    with no name. The member picking is outlined and marked ▼, and its statuses (poison, asleep, silenced) are said
+    over its head. The foe aimed at is named over the pack's figure, and marked in the menu and the foes' box; an ally
+    aimed at is lit; clicking a head picks it. A blow's number, a miss or a heal rises over whoever it lands on. The
+    banner across the top says only an action's name or a status (a cast, a status taking, a fall, a level), never a
+    number. While a round plays out, the window and the bars step aside for the bodies' acts, leaving the numbers
+    and the banner, and come back for the next pick. The level's own HUD steps aside for the whole fight. The page
+    exposes `__mojCtrl.project` to the battle where battles are.
   - **The formation.** The party stands in a wedge (the hero at its point, the rest in ranks behind on either side),
     never a line.
   - **The camera.** Its distance is fitted to the fighters' spread across the frame (its field, the page's shape, a

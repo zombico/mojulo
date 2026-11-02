@@ -81,9 +81,10 @@ function page(play, vars = {}, game = null, more = {}) {
   const ev = lowerPlay({ entities: ENTITIES, play }, { player: 'hero' });
   const bus = createBusState(ev, []);
   Object.assign(bus.vars, vars);
-  const el = () => ({ className: '', innerHTML: '', textContent: '', style: { setProperty() {} }, offsetWidth: 0, classList: { add() {}, remove() {} }, appendChild() {}, addEventListener() {} });
-  const keys = [];
-  const document = { createElement: el, head: el(), body: el() };
+  // (an element just big enough: its class list edits its className, as the page's own does)
+  const el = () => { const o = { className: '', innerHTML: '', textContent: '', style: { setProperty() {} }, offsetWidth: 0, appendChild() {}, addEventListener() {} }; o.classList = { add: (c) => { if (!o.className.split(' ').includes(c)) o.className = (o.className + ' ' + c).trim(); }, remove: (c) => { o.className = o.className.split(' ').filter((x) => x !== c).join(' '); } }; return o; };
+  const keys = [], appended = [];
+  const document = { createElement: el, head: el(), body: { ...el(), appendChild: (x) => appended.push(x) } };
   const window = { addEventListener: (_, f) => keys.push(f), ...(game ? { __mojGame: game } : {}), ...more };
   const queue = [];
   const ctl = { ...menuControls(), layout: () => 'xbox', select: 8 };
@@ -93,7 +94,7 @@ function page(play, vars = {}, game = null, more = {}) {
   const press = (code) => { for (const f of keys) f({ code, repeat: false, preventDefault() {}, stopImmediatePropagation() {} }); };
   // what the page said on the bus, less the juice's happenings (rpg-on:<key>)
   const said = () => queue.filter((e) => !e.type.startsWith('rpg-on:'));
-  return { api, bus, queue, said, frames, press, window };
+  return { api, bus, queue, said, frames, press, window, appended };
 }
 
 describe('the page: the battle window and the party menu', () => {
@@ -340,5 +341,28 @@ describe('the battle window is dressed by the world\'s UI guide', () => {
     expect(dressed).toMatch(/\.moj-rpg \.moj-w\{/);
     expect(dressed).toContain('--moj-panel:#203040');
     expect(() => new Function(dressed)).not.toThrow();
+  });
+});
+
+describe('the bars over the fighters\' heads', () => {
+  const world = () => {
+    const E = [{ id: 'hero', transform: { pos: [0, 0, 0], heading: 0 }, rule: { type: 'platform' } }, { id: 'ayla', transform: { pos: [-1, 1, 0], heading: 0 }, rule: { type: 'ai' } }, { id: 'wolf-1', transform: { pos: [8, 0, 0], heading: Math.PI }, rule: { type: 'static' } }];
+    return { pilotId: 'hero', time: 0, entities: E, byId: Object.fromEntries(E.map((e) => [e.id, e])), camera: { transform: { pos: [-5, 0, 2], heading: 0, pitch: 0 }, lookAt: null, rule: { type: 'follow' } } };
+  };
+  it('each member a bar over its head, no name; the one picking marked; a status said; the window steps aside as a round plays', () => {
+    const P = page(PLAY, {}, null, { __mojCtrl: { world: world(), cast() {}, ground: () => 0 } });
+    processEvents(P.bus, [{ type: 'rpg-battle:wolves' }]);
+    P.frames(); P.api.advance(); P.frames();
+    const heads = P.appended.find((x) => x.className.split(' ').includes('moj-rpg-heads')), root = P.appended.find((x) => x.className.split(' ').includes('moj-rpg'));
+    expect(heads.innerHTML).toMatch(/class="moj-rpg-head turn"[^>]*data-aim="ayla"/);
+    expect(heads.innerHTML).not.toMatch(/class="n">Ayla/);
+    // (a member poisoned: its head says so)
+    P.api.R.m.ayla.poison = true; P.api.act('down'); P.frames();
+    expect(heads.innerHTML).toMatch(/class="st">poison/);
+    // (the picks made, the round plays out: the window and the bars step aside)
+    const H = P.api;
+    expect(H.state().mode).toBe('battle');
+    for (let k = 0; k < 400 && H.state().mode === 'battle'; k++) { H.act('accept'); P.frames(); if (/acting/.test(root.className)) break; }
+    expect(String(root.className)).toMatch(/acting/);
   });
 });
