@@ -774,7 +774,7 @@ export function featureBuild(card, { decor = {}, tune = null } = {}) {
     const R = { ...FEATURE_STRIPES, ...(T.stripes ?? {}) }, zTop = S.neckZ + headLift - R.under, n = Math.min(R.most, Math.floor((zTop - R.from) / R.pitch) + 1);
     const legTop = S.hip[2] - 0.1;
     // (cut into the skin as a zone along their exact edges, as a big marking is: no layer of faces laid over it)
-    B.marks.push({ name: 'stripes', group: 'Patch', cut: true, bands: Array.from({ length: n }, (_, i) => {
+    B.marks.push({ name: 'stripes', group: 'Patch', cut: true, rigid: true, bands: Array.from({ length: n }, (_, i) => {
       const z = R.from + i * R.pitch, leg = z < legTop;
       return { c: [0, S.hy * 0.5, z], axis: unit([0, R.lean * (i % 2 ? 1 : -1), 1]), w: R.w[i % R.w.length] * R.width, R: R.reach, teeth: R.teeth, depth: R.depth,
         ...(leg ? {} : { arc: { back: [0, -1, 0], end: R.end, taper: R.taper } }) };

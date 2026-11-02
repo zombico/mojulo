@@ -73,7 +73,7 @@ function onSkin(field, p, e = 1e-4) {
 }
 
 /** a marking's field on the skin (negative inside): the union of its strokes, bands and territory */
-function markField(mark, field, shapes) {
+export function markField(mark, field, shapes) {
   const parts = [];
   for (const s of mark.strokes ?? []) {
     const pts = s.points.map((p) => P3(onSkin(field, p)));

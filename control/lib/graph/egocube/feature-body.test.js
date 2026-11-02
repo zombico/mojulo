@@ -196,6 +196,13 @@ describe('the feature body', () => {
     const z = mascotPlanFromSheet(rollMascot({ facets: { style: 'feature', animal: find((k) => k.pattern === 'stripes') } })).create.spec.plan;
     expect(z.segments.some((x) => x.name === 'stripes')).toBe(false);             // (a zone, no layer laid over the skin)
     expect(Object.values(z.segments.find((x) => x.name === 'skin').mesh.groups)).toContain('Patch');
+    // (the stripes keep their shape on the run: under a striped coat the skin is firm and a stripe's points commit to the
+    // bones they ride, loose (no bone over 0.8) less than half as often as the plain coat's)
+    const zs = z.segments.find((x) => x.name === 'skin'), inS = new Set(), inC = new Set();
+    for (const [f, t] of Object.entries(zs.mesh.faces)) for (const v of t) (zs.mesh.groups[f] === 'Patch' ? inS : inC).add(v);
+    for (const v of inS) inC.delete(v);
+    const loose = (S) => [...S].filter((v) => Math.max(...Object.values(zs.bind.blend[`st0.${v}`])) < 0.8).length / S.size;
+    expect(loose(inS)).toBeLessThan(loose(inC) / 2 + 0.01);
     expect(z.segments.reduce((n, x) => n + Object.keys(x.mesh?.faces ?? {}).length, 0)).toBeLessThanOrEqual(FEATURE_TRIANGLES);
     // (a giraffe's network of patches: cut into the skin in its own colour, the roster's, within the budget)
     const gid = find((k) => k.pattern === 'reticulated') ?? Object.keys(SPECIES).find((id) => PLAN_OF[SPECIES[id].family] === 'hoofed' && featureBuild(animalCard(id)).marks.some((m) => m.name === 'network'));

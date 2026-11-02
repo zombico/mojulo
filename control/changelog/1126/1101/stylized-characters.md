@@ -217,6 +217,15 @@ member, a quick game's hero). Code: `control/lib/graph/egocube/feature-tune.js`.
     band the bone it sits on: a band's `bone`, feature-coat.js), where it had taken the skin's weights and smeared across
     the blend at the tail's root; and the tail's skin blends into the rump over a short collar (`FEATURE_SKIN.collar`, a
     third of the usual width), so the skin under a ring moves with it;
+  - a zebra's and a tiger's stripes stretch less on the run. They are cut into the skin, so they stretch where it does:
+    under a striped coat the skin is FIRM (`FEATURE_SKIN.firm`: the blend between any two bones half as wide, the stretch
+    kept near the joints) and each stripe's points commit to the bones they ride (`FEATURE_SKIN.stripe`: their weights
+    to the 4th power, renormalised), so the plain coat between the stripes takes the stretch. The stripe area stretched
+    or shrunk past 1.5×, measured on the posed skin: the zebra's 4.2 / 8.7 / 6.5% (the gallop's strike, the walk on all
+    fours, the downward dog) to 3.0 / 4.3 / 3.3%; the tiger's walk and dog 10.2 / 8.6% to 6.7 / 6.6%, its gallop 4.8 to
+    5.7% (most of it the neck turned up to look ahead, stretching the stripes that run up it). Averaging each stripe's
+    weights whole was tried and tore the mesh: a band is a cut across the whole standing figure, so one band spans legs,
+    arms, trunk and tail;
   - the hips tip no further than 80° (`FEATURE_GALLOP.hinge`: the dog's tip past level carries the tail's root up the
     back), so running, the tail comes out of the rump;
   - the tail is carried as on all fours.
@@ -275,6 +284,7 @@ member, a quick game's hero). Code: `control/lib/graph/egocube/feature-tune.js`.
     broader than deep; its default face rolled bright, its resting lids and brows higher, its brows' clips unchanged;
   - a frog sitting on its own all fours (hands planted, webbed feet on its ankles, eyes on domes, its own muzzle);
     every plan's minted skin closed and in one piece, and every family's shapes attached (`feature-body.test.js`);
+  - under a striped coat, the stripe's points loose (no bone over 0.8) less than half as often as the plain coat's;
   - a long neck slim under its raised head and turning at its top; a striped coat's stripes from the feet to under
     the jaw (rings on the legs, arcs from the spine to the belly above them, a cat's stopping short), and a giraffe's
     seeded network of patches in its own colour, both cut into the skin within the budget, the markings' dial still

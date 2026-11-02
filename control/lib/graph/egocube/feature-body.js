@@ -37,7 +37,7 @@ import { PLAN_SCHEMA, expandPlan } from '../polygonizer/station-loft-plan.js';
 import { validateRig, rigNodesAt } from '../polygonizer/station-loft-rig.js';
 import { LIMITS } from '../polygonizer/figure-vajra.js';
 import { featureFace } from './feature-face.js';
-import { cutSkin, coatLayers, stroke, band, cells } from './feature-coat.js';
+import { cutSkin, coatLayers, stroke, band, cells, markField } from './feature-coat.js';
 import { measuresOf, rigOf, coatPalette } from './mascot-form.js';
 import { featureBuild } from './feature-grammar.js';
 import { resolveTune, detailBake } from './feature-tune.js';
@@ -61,10 +61,13 @@ const mirrorX = (p) => [-p[0], p[1], p[2]];
 const twin = (s) => (typeof s === 'string' ? s.replace(/R$/, 'L') : s);
 
 /** the skin: its net's cell and its faces after simplifying; the weights' floor, the bones a point may name, the tail's
- *  collar (the share of the blend's width between a tail's shapes and the body's), the eggs the
+ *  collar (the share of the blend's width between a tail's shapes and the body's), a FIRM skin's (a striped coat's: the
+ *  share of the blend's width between any two bones, so the skin under the stripes stretches only near the joints and
+ *  the stripes keep their shape on the run), a stripe's point's weights sharpened (`stripe`: each to that power, the
+ *  bone it rides most taking it over: a stripe follows its bones and the coat between takes the stretch), the eggs the
  *  field folds. And the whole figure's TRIANGLE BUDGET: a default game model's (skin, coat, face together) */
 export const FEATURE_TRIANGLES = 18000;
-export const FEATURE_SKIN = Object.freeze({ cell: 0.0075, faces: 8500, floor: 0.02, bones: 4, near: 3, collar: 0.33 });
+export const FEATURE_SKIN = Object.freeze({ cell: 0.0075, faces: 8500, floor: 0.02, bones: 4, near: 3, collar: 0.33, firm: 0.5, stripe: 4 });
 
 export function egg({ c, u, r, e = 0, hint = [1, 0, 0], bone, group = 'Body', join, name }) {
   const U = unit(u), h0 = Math.abs(dot(unit(hint), U)) > 0.95 ? [0, 1, 0] : hint, Vv = unit(sub(h0, mul(U, dot(h0, U)))), W = cross(U, Vv);
@@ -100,7 +103,7 @@ export function eggDistance(E, p) {
   return k1 > 1e-12 ? (k0 * (k0 - 1)) / k1 : -Math.min(ra, rb, rc);
 }
 
-export function eggField(eggs, { near = FEATURE_SKIN.near, bones = FEATURE_SKIN.bones, floor = FEATURE_SKIN.floor, seam = 0 } = {}) {
+export function eggField(eggs, { near = FEATURE_SKIN.near, bones = FEATURE_SKIN.bones, floor = FEATURE_SKIN.floor, seam = 0, firm = 1 } = {}) {
   // (the SEAM: a pair where one rides the head and the other does not blends no softer than `seam`, so the head stands
   // off the body with a crease under the jaw; the head's own and the body's own blend as their joins say)
   const onHead = eggs.map((E) => E.bone === 'head'), pairK = (i, j, k) => (seam > 0 && onHead[i] !== onHead[j] ? Math.min(k, seam) : k);
@@ -137,7 +140,7 @@ export function eggField(eggs, { near = FEATURE_SKIN.near, bones = FEATURE_SKIN.
     measure(p);
     const i0 = order[0], d0 = D[i0], by = {};
     for (let m = 0; m < n; m++) {
-      const i = order[m], tau = 0.3 * Math.min(eggs[i].join, eggs[i0].join) * (onTail[i] !== onTail[i0] ? FEATURE_SKIN.collar : 1), x = (D[i] - d0) / tau;
+      const i = order[m], tau = 0.3 * Math.min(eggs[i].join, eggs[i0].join) * (onTail[i] !== onTail[i0] ? FEATURE_SKIN.collar : 1) * (eggs[i].bone !== eggs[i0].bone ? firm : 1), x = (D[i] - d0) / tau;
       if (x > 6) break;
       by[eggs[i].bone] = (by[eggs[i].bone] ?? 0) + Math.exp(-x);
     }
@@ -153,10 +156,10 @@ export function eggField(eggs, { near = FEATURE_SKIN.near, bones = FEATURE_SKIN.
 }
 
 const SKINS = new Map();
-export function eggSkin(eggs, { cell = FEATURE_SKIN.cell, faces = FEATURE_SKIN.faces, group = 'Body', zones = [], seam = 0 } = {}) {
-  const key = JSON.stringify([eggs, cell, faces, group, zones, seam]);
+export function eggSkin(eggs, { cell = FEATURE_SKIN.cell, faces = FEATURE_SKIN.faces, group = 'Body', zones = [], seam = 0, firm = 1 } = {}) {
+  const key = JSON.stringify([eggs, cell, faces, group, zones, seam, firm]);
   if (SKINS.has(key)) return SKINS.get(key);
-  const F = eggField(eggs, { seam }), f = F.field, lo = [Infinity, Infinity, Infinity], hi = [-Infinity, -Infinity, -Infinity];
+  const F = eggField(eggs, { seam, firm }), f = F.field, lo = [Infinity, Infinity, Infinity], hi = [-Infinity, -Infinity, -Infinity];
   for (const E of eggs) { const R = reachOf(E) + E.join; for (let k = 0; k < 3; k++) { lo[k] = Math.min(lo[k], E.c[k] - R); hi[k] = Math.max(hi[k], E.c[k] + R); } }
   const box = { min: { x: lo[0], y: lo[1], z: lo[2] }, max: { x: hi[0], y: hi[1], z: hi[2] } };
   const net = netSkin(f, box, { cell, project: 2 });
@@ -171,6 +174,18 @@ export function eggSkin(eggs, { cell = FEATURE_SKIN.cell, faces = FEATURE_SKIN.f
   const S = cutSkin(S0, zones, { field: f, shapes: eggs });
   const N = fieldNormals(S.V, f, 1e-5), points = {}, normals = {}, tris = {}, groups = {}, blend = {};
   S.V.forEach((p, v) => { points[`v${v}`] = p.map(r6); normals[`v${v}`] = N[v].map(r4); blend[`st0.v${v}`] = F.weights(p); });
+  // (a RIGID zone's stripes (a zebra's, a tiger's): each point of a stripe, its edge with it, commits to the bones it
+  // rides most (FEATURE_SKIN.stripe), so the stripes keep their shape on the run and the plain coat takes the stretch)
+  for (const z of zones.filter((m) => m.rigid)) {
+    const inside = markField(z, f, eggs);
+    S.V.forEach((p, v) => {
+      if (inside(p) > cell * 0.05) return;
+      const e = Object.entries(blend[`st0.v${v}`]).map(([b, w]) => [b, Math.pow(w, FEATURE_SKIN.stripe)]), t = e.reduce((a, [, w]) => a + w, 0);
+      const kept = e.map(([b, w]) => [b, w / t]).filter(([, w]) => w >= FEATURE_SKIN.floor), t2 = kept.reduce((a, [, w]) => a + w, 0);
+      const W = kept.map(([b, w]) => [b, r4(w / t2)]); W[0][1] = r4(W[0][1] + 1 - W.reduce((a, [, w]) => a + w, 0));
+      blend[`st0.v${v}`] = Object.fromEntries(W);
+    });
+  }
   S.F.forEach((t, fi) => { tris[`f${fi}`] = t.map((v) => `v${v}`); if (S.groups[fi] && S.groups[fi] !== group) groups[`f${fi}`] = S.groups[fi]; });
   const out = { mesh: { points, faces: tris, groups, normals }, blend, V: S.V, F: S.F };
   if (SKINS.size >= 8) SKINS.delete(SKINS.keys().next().value);
@@ -219,7 +234,7 @@ function laidOut(build, height) {
     });
   }
   // (the coat's marks in metres: a stroke drawn `both` mirrored to the left)
-  const marks = (build.marks ?? []).map((m) => ({ name: m.name, group: m.group, ...(m.cut ? { cut: true } : {}), ...(m.levels !== undefined ? { levels: m.levels } : {}),
+  const marks = (build.marks ?? []).map((m) => ({ name: m.name, group: m.group, ...(m.cut ? { cut: true } : {}), ...(m.rigid ? { rigid: true } : {}), ...(m.levels !== undefined ? { levels: m.levels } : {}),
     ...(m.eggs ? { eggs: m.eggs } : {}),
     ...(m.regions ? { regions: m.regions.map((E) => egg({ c: S(E.c), u: E.u, r: E.r.map((v) => v * h), e: E.e ?? 0, hint: E.hint, bone: null, group: m.group, join: 0 })) } : {}),
     ...(m.strokes ? { strokes: m.strokes.flatMap((x) => { const one = (pts) => stroke({ points: pts.map((p) => SH(p, m.on)), r: x.r.map((v) => r6(v * h)) }); return x.both ? [one(x.points), one(x.points.map(mirrorX))] : [one(x.points)]; }) } : {}),
@@ -319,7 +334,9 @@ export function featurePlan(sheet, { title = 'a feature animal', reactions = fal
   const { L, moved } = featureShapes(build), H = L.H, att = { moved };
   // (a zone is cut into the skin; a mark of strokes or bands is a layer over it, unless it is itself cut (a coat's stripes))
   const zones = L.marks.filter((m) => m.cut || (!m.strokes && !m.bands)), layers = L.marks.filter((m) => !m.cut && (m.strokes || m.bands));
-  const skin = eggSkin(L.eggs, { zones, seam: L.seam, ...net }), F = eggField(L.eggs, { seam: L.seam });
+  // (a striped coat's skin FIRM: FEATURE_SKIN.firm; the coat's layers weighted as the skin under them)
+  const firm = L.marks.some((m) => m.rigid) ? FEATURE_SKIN.firm : 1;
+  const skin = eggSkin(L.eggs, { zones, seam: L.seam, ...net, ...(firm !== 1 ? { firm } : {}) }), F = eggField(L.eggs, { seam: L.seam, ...(firm !== 1 ? { firm } : {}) });
   const coat = coatOf(skin, F, L.eggs, layers);
   // the face: globes seated on the skin, lids as shells about them, the brows on the eye, the mouth in the muzzle
   // (the lids in the head's own colour: a bird whose head is a crown of its own (an eagle's white, a mallard's green)
