@@ -65,8 +65,9 @@ export function compileMilitary(sheet, { keys = 12, form = false, livery, wear, 
     // bounce; its slots wet in the rain: form-light.js skyMood)
     ...(form ? { form: formLight(skyMood(setting?.sky), wet ? wetMaterials(MIL_MATERIALS) : MIL_MATERIALS, { ground: groundOf(soil) }) } : {}),
     figH: r4(most(body.flatMap((f) => f.corners.map((c) => c[2])))),
-    // (to the rear axles' middle: a truck's tandem, a 4x4's one axle)
-    wheelbase: r4(axles[0] - axles.slice(1).reduce((t, y) => t + y, 0) / (axles.length - 1)),
+    // (as its sheet quotes it: a 4x4's axle to axle, a truck's front axle to its tandem's middle, a carrier's first axle
+    // to its last)
+    wheelbase: r4(axles.length > 3 ? axles[0] - axles[axles.length - 1] : axles[0] - axles.slice(1).reduce((t, y) => t + y, 0) / (axles.length - 1)),
     wheelRadius: r4(spec.r),
     warnings: [],
   };

@@ -180,12 +180,27 @@ function strip(q, along, h) {
   return out;
 }
 
+// a thin polygon of more corners (a chamfer whose ends are cut) sliced the same way, across the line its farthest two
+// corners make, or null when it is broader than two of the finest pieces
+function sliver(poly, hMin, h) {
+  let A = 0, B = 1, far = 0;
+  for (let i = 0; i < poly.length; i++) for (let j = i + 1; j < poly.length; j++) { const d = len(sub(poly[j].p, poly[i].p)); if (d > far) { far = d; A = i; B = j; } }
+  const ax = sub(poly[B].p, poly[A].p).map((q) => q / far), along = (p) => { const d = sub(p, poly[A].p); return d[0] * ax[0] + d[1] * ax[1] + d[2] * ax[2]; };
+  const off = (q) => len(sub(sub(q.p, poly[A].p), ax.map((k) => k * along(q.p))));
+  if (Math.max(...poly.map(off)) >= hMin) return null;
+  const n = Math.max(1, Math.ceil(far / h)), out = [];
+  let rest = poly.map((q) => ({ ...q, v: along(q.p) }));
+  for (let i = 1; i < n && rest.length >= 3; i++) { const [lo, hi] = clip(rest, (far * i) / n); if (lo.length >= 3) out.push(lo); rest = hi; }
+  if (rest.length >= 3) out.push(rest);
+  return out;
+}
+
 // one face cut at a field's levels: a thin strip (a tube's side, a plate's round) sliced along its length, anything broader
 // divided fine only where a level's contour crosses it (`varies`); each piece handed on with its band (the levels below it)
 function cutFace(f, poly0, { valueAt, levels, hMax, hMin, stripH, varies }, onPiece) {
   const e = poly0.map((q, k) => len(sub(poly0[(k + 1) % poly0.length].p, q.p)));
   const thin = poly0.length === 4 && Math.min(Math.max(e[0], e[2]), Math.max(e[1], e[3])) < hMin;
-  const pieces = thin ? strip(poly0, e[0] + e[2] >= e[1] + e[3] ? 0 : 1, stripH) : divide(f.corners, poly0.map((q) => q.n), { hMax, hMin, varies });
+  const pieces = thin ? strip(poly0, e[0] + e[2] >= e[1] + e[3] ? 0 : 1, stripH) : (poly0.length > 4 && sliver(poly0, hMin, stripH)) || divide(f.corners, poly0.map((q) => q.n), { hMax, hMin, varies });
   for (const tri of pieces) {
     let rest = tri.map((q) => ({ ...q, v: valueAt(q.p) }));
     for (let b = 0; b < levels.length && rest.length >= 3; b++) {

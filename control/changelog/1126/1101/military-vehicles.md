@@ -23,6 +23,10 @@ render, from a kit of those solids, at their classes' true numbers.
   - **Tube:** a polyline swept by a circle and carried without twisting, its bends rounded (`bend`), its normals radial.
   - **Bolts:** hex heads.
   - **Weld:** a bead rippled as a run of tacks is.
+  - **Slab:** armour, the convex solid inside its outline seen from the front, the side and above (the three prisms
+    intersected, plane by plane), each face flat. Every edge sharper than a crease is chamfered by taking the same
+    width off each face it joins, so a sharp edge's chamfer is broad and a shallow crease's a sliver, tagged `edge` for
+    the wear. A face the body leaves off (inside another slab) is not drawn and its edges are not chamfered.
 - **The utility 4x4** (`car-designer/road-military.js`, compiled by `car-designer/military.js` in the realistic
   compile's shape):
   - **Underneath:** a ladder frame, its axles and differentials.
@@ -177,6 +181,43 @@ render, from a kit of those solids, at their classes' true numbers.
   - **The budget:** about 30k triangles kept, 60k used, 72k in woodland, six lugged wheels included.
   - **Robustness:** the census and the figure's height take their extremes by a loop (`realistic.js` `most`,
     `least`), the spread of a large mesh's corners having overflowed the stack. The output is the same.
+- **The armoured carrier** (`road-military.js` `carrier`; the eight-wheeled class's realistic body, no longer waiting):
+  the hull kit's third body, its hull three slabs.
+  - **The hull:**
+    - a narrow lower hull between the wheels, its belly a shallow V, its nose plate raked back under the glacis;
+    - the troop compartment over it: sponsons out over the wheels, an upright band for the bins, the sides raked in to
+      the roof;
+    - ahead of it, a step lower, the driver's and the engine's roof and the glacis down to a nose with its corners cut;
+    - welds at the step, the glacis's top and the rear corners.
+  - **Underneath:** four axles in two pairs, each hub on its arms to the hull and a damper up to the sponson.
+  - **Openings:**
+    - the rear ramp on its hinges, the door in it with its vision block and handle;
+    - the driver's hatch and its three blocks over the glacis;
+    - the commander's cupola, six blocks round it, its lid, hinge and handle;
+    - two troop hatches on the roof, their hinges, handles and the stops an open lid rests on;
+    - a hatch in each raked side, its block, hinges and handle.
+  - **On the hull:**
+    - an empty mount ring, bolted, its well dark (weapons are mounts only);
+    - bins along both sponsons, their lids lipped and latched;
+    - the engine's grille deck, bolted;
+    - an access plate bolted on the glacis, the lamps on their stems in wire guards, the blackout markers;
+    - the exhaust's sooty louvred shield on the right, the tow cable looped and clamped on the left;
+    - grab rails on the roof, tail lamps in their guards.
+  - **Vision blocks** in their own slot (`MIL_MATERIALS.vision`: dark, deep, a small hard highlight).
+  - **Its kit:**
+    - a jerry can each side of the ramp, the tools on the right side;
+    - two whips at the rear corners, grab bars by the driver;
+    - steps at the nose, mud flaps behind the last axle;
+    - four tow shackles and the pintle, mirrors at the front corners;
+    - a rolled tarp on the roof (most carry one).
+  - **Composed with the rest:** the field's wheel on eight bones, its livery, wear and setting's light; its stencils on
+    the front bins, the ramp and the glacis.
+  - **The registry:** its realistic build is live, and `ride: 'an apc'` drives it.
+  - **The figure's wheelbase** is its first axle to its last, as its sheet quotes it.
+  - **The budget:** about 30k triangles kept, 48k used, 63k in woodland, eight wheels included.
+  - **The wear's cut** (`livery-cut.js`): a thin face of more than four corners (a chamfer whose ends are cut) is sliced
+    along its length as a thin quad is, not shattered by bisection. The carrier's used hull went from 111k triangles to
+    48k.
 - **Composed:**
   - The quick race's card says a ride takes a registry vehicle (`'a jeep'`), its wording trimmed to keep the card
     under its ceiling now that the physics classes it lists have grown.
@@ -221,7 +262,13 @@ render, from a kit of those solids, at their classes' true numbers.
       noon with no world), its ground the soil's, wet in the rain (glossier, the mud darker, its size unchanged);
     - a road car keeps its noon;
     - a body on more than two axles: each axle's pair, its wheelbase to its rear axles' middle, at its class's size;
-      its canvas sagging between its bows; within its budget; driven by its row.
+      its canvas sagging between its bows; within its budget; driven by its row;
+    - the slab: the solid inside its outlines (its volume), closed and flat; its sharp edges chamfered narrow and a
+      shallow crease nearly whole; a face left off not drawn, nor its edges chamfered;
+    - the carrier: four pairs, its wheelbase first to last, at its class's size; a raked glacis and sides, chamfered;
+      vision blocks in their slot, the mount ring empty; within its budget (40k kept, 60k used, 80k in camo); driven by
+      its row.
+  - `livery-cut.test.js`: a thin face of many corners sliced along its length, its area kept.
   - The form render in the page: each shadow light biased along the body's normals.
   - The quick game end to end: a night kit's jeep lit dimmer than the day valley's, under its world's own sky.
   - The form render in the page (`form-render.live.test.js`, e2e): the 4x4's shaders compile, it is drawn and lit, and
@@ -246,10 +293,11 @@ render, from a kit of those solids, at their classes' true numbers.
     - the alien night, a dim purple moonlight.
   - The canvas truck plain, from the three-quarter, the rear quarter and the side (the sag's wave along its roof), in
     woodland worn, and in desert under a golden sun.
+  - The carrier plain, from the three-quarter, the side, the rear quarter and the nose; woodland used at noon and under a
+    golden sun, desert battered under a golden sun.
 - **Not built yet, said:**
   - Streaks under the fittings (rain and rust runs).
   - A race mood (`golden`, `dusk`…) named on a field vehicle's loft: its light is its world's sky, read.
   - Lamps lit at night: the head and blackout lamps are emissive slots as always, not yet switched by the hour.
-  - The APC's body.
   - A camo on the canvas: the tilt is plain canvas, as most are.
   - Composition: the military game's faction painting them, the base's yards, the engines.

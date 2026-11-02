@@ -1,9 +1,10 @@
 // The field's vehicles: the hull kit's solids (a plate flat to its edge and round at it, a tube's radial normals, a weld
 // and its ripple, a bolt's flats), and a military class compiled at its class's true numbers, every face a material, its
 // normals worked out, within its budget, the same twice; read through the registry by the word people say, driven as a
-// realistic ride, and the classes whose bodies wait refused with what they need. One class per concept, chosen in code.
+// realistic ride, and the classes whose bodies wait refused with what they need; the slab (armour cut by its outlines,
+// its edges chamfered) and the carrier built of it. One class per concept, chosen in code.
 import { describe, it, expect } from 'vitest';
-import { plate, tube, bend, bolts, weld, flatNormals } from './mil-hull.js';
+import { plate, tube, bend, bolts, weld, flatNormals, slab } from './mil-hull.js';
 import { MILITARY_CLASSES, MIL_MATERIALS, militaryAxles, militaryBody, KITS } from './road-military.js';
 import { milWheel } from './mil-wheel.js';
 import { FITTINGS, fit } from './mil-fittings.js';
@@ -195,7 +196,7 @@ describe('through the registry', () => {
     expect(rideableRows()).toContain(id);
     expect(rideOf({ ride: id, tier: 'realistic' })).toMatchObject({ kind: 'loft', class: FIELD });
   });
-  it('a field class whose body waits is named and searchable, refused as a ride, and says what it needs', () => {
+  it('a class whose realistic body waits is named and searchable, refused as a ride, and says what it needs', () => {
     expect(WAITING.length).toBeGreaterThan(0);
     const wid = rowOfHandle('physics', WAITING[0]);
     expect(rideableRows()).not.toContain(wid);
@@ -241,7 +242,7 @@ describe('a field vehicle in its setting', () => {
 });
 
 describe('a field vehicle on more than two axles, under a canvas', () => {
-  const MULTI = Object.keys(MILITARY_CLASSES).find((k) => militaryAxles(k).length > 2);
+  const MULTI = Object.keys(MILITARY_CLASSES).find((k) => MILITARY_CLASSES[k] === 'cargo');
   const c = compileRealistic(rollVehicleSheet({ facets: { pole: 'realistic', class: MULTI }, seed: 3 }), { form: true, wear: 'pristine' });
   it('rolls on each axle\'s pair, its wheelbase to its rear axles\' middle, at its class\'s size', () => {
     const axles = militaryAxles(MULTI);
@@ -267,5 +268,69 @@ describe('a field vehicle on more than two axles, under a canvas', () => {
     const id = rowOfHandle('physics', MULTI);
     expect(rideableRows()).toContain(id);
     expect(rideOf({ ride: id })).toMatchObject({ kind: 'loft', class: MULTI });
+  });
+});
+
+describe('the slab: armour cut by its outlines', () => {
+  const vol = (fs) => fs.reduce((V, f) => { const c = f.corners; for (let i = 1; i + 1 < c.length; i++) { const [a, b, d] = [c[0], c[i], c[i + 1]]; V += (a[0] * (b[1] * d[2] - b[2] * d[1]) - a[1] * (b[0] * d[2] - b[2] * d[0]) + a[2] * (b[0] * d[1] - b[1] * d[0])) / 6; } return V; }, 0);
+  const wedge = { front: [[-1, 0], [1, 0], [1, 1], [-1, 1]], side: [[-2, 0], [2, 0], [2, 0.5], [1, 1], [-2, 1]] };
+  it('is the solid inside its outlines, closed and turned out, every face flat', () => {
+    const fs = slab({ ...wedge, chamfer: 0, look: LOOK });
+    expect(vol(fs)).toBeCloseTo(2 * (4 - 0.25), 6);
+    for (const f of fs) { expect(unitLen(f.outNormal)).toBe(true); expect(f.cornerNormals).toBeUndefined(); }
+    expect(fs.some((f) => f.outNormal[1] > 0.3 && f.outNormal[2] > 0.3)).toBe(true);
+  });
+  it('chamfers its sharp edges, a narrow face tagged as an edge, and leaves a shallow crease nearly whole', () => {
+    const sharp = slab({ ...wedge, chamfer: 0.03, look: LOOK }), plain = slab({ ...wedge, chamfer: 0, look: LOOK });
+    const edges = sharp.filter((f) => f.edge);
+    expect(edges.length).toBeGreaterThan(8);
+    expect(vol(sharp)).toBeLessThan(vol(plain));
+    expect(vol(plain) - vol(sharp)).toBeLessThan(0.02);
+    // (each chamfer narrower than the cut it takes off two faces at a right angle)
+    for (const f of edges) { const span = Math.min(...[0, 1, 2].map((k) => Math.max(...f.corners.map((p) => p[k])) - Math.min(...f.corners.map((p) => p[k])))); expect(span).toBeLessThan(0.05); }
+  });
+  it('a face left off is not drawn, nor its edges chamfered', () => {
+    const top = (t) => t.view === 'front' && t.n[2] > 0.99;
+    const fs = slab({ ...wedge, chamfer: 0.03, look: (t) => (top(t) ? null : LOOK) });
+    expect(fs.some((f) => f.outNormal[2] > 0.99)).toBe(false);
+    expect(fs.filter((f) => f.edge && f.outNormal[2] > 0.3 && f.outNormal[1] < 0.3)).toHaveLength(0);
+  });
+});
+
+describe('the armoured carrier: sloped plate on four axles', () => {
+  const CARRIER = Object.keys(MILITARY_CLASSES).find((k) => MILITARY_CLASSES[k] === 'carrier');
+  const roll = (o = {}) => compileRealistic(rollVehicleSheet({ facets: { pole: 'realistic', class: CARRIER }, seed: 3 }), { form: true, wear: 'pristine', ...o });
+  const c = roll(), faces = Object.values(c.form).flat(), tris = (fs) => fs.reduce((s, f) => s + f.corners.length - 2, 0);
+  it('rolls on four pairs, its wheelbase its first axle to its last, at its class\'s size', () => {
+    const axles = militaryAxles(CARRIER);
+    expect(axles).toHaveLength(4);
+    expect(c.figure.bones.filter((b) => b.id.startsWith('wheel'))).toHaveLength(8);
+    expect(c.figure.wheelbase).toBeCloseTo(PHYSICS[CARRIER].wheelbase, 3);
+    for (const k of ['L', 'W', 'H', 'wheelRadius']) { expect(c.census.against[k], k).toBeGreaterThan(0.99); expect(c.census.against[k], k).toBeLessThan(1.01); }
+  });
+  it('is plate: a glacis raked back, sides raked in over the wheels, its edges chamfered', () => {
+    const hull = c.form.root.filter((f) => f.part.startsWith('hull'));
+    expect(hull.some((f) => f.part === 'hull.glacis' && f.outNormal[1] > 0.3 && f.outNormal[2] > 0.5)).toBe(true);
+    expect(hull.some((f) => Math.abs(f.outNormal[0]) > 0.8 && f.outNormal[2] > 0.25)).toBe(true);
+    expect(hull.filter((f) => f.edge).length).toBeGreaterThan(20);
+  });
+  it('sees out through vision blocks in their own slot, and its mount ring is empty', () => {
+    expect(faces.some((f) => f.material === 'vision')).toBe(true);
+    expect(MIL_MATERIALS.vision).toBeDefined();
+    expect(c.figure.form.materials.vision).toBeDefined();
+    const parts = new Set(faces.map((f) => f.part));
+    for (const p of ['mount.ring', 'mount.well', 'ramp', 'cupola', 'hatch.driver']) expect(parts.has(p), p).toBe(true);
+    expect([...parts].some((p) => /^(gun|weapon|turret)/.test(p))).toBe(false);
+  });
+  it('within its budget, kept, worn and in camo', () => {
+    expect(tris(faces)).toBeLessThan(40000);
+    expect(tris(Object.values(roll({ wear: 'used' }).form).flat())).toBeLessThan(60000);
+    expect(tris(Object.values(roll({ wear: 'used', livery: CAMO_IDS.find((k) => !CAMO[k].cell) }).form).flat())).toBeLessThan(80000);
+  });
+  it('is driven by its registry row as a realistic ride', () => {
+    const id = rowOfHandle('physics', CARRIER);
+    expect(UNBUILT[CARRIER]).toBeUndefined();
+    expect(rideableRows()).toContain(id);
+    expect(rideOf({ ride: id })).toMatchObject({ kind: 'loft', class: CARRIER });
   });
 });

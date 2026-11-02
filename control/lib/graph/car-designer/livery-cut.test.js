@@ -4,7 +4,7 @@
 // digital pattern cut at its cells; mono a recolour; the stencils read left to right as one faces them. One pattern per
 // way of cutting, chosen in code.
 import { describe, it, expect } from 'vitest';
-import { readLivery, camoForSetting, paintLivery, stencilMarks, liveryBase, CAMO, CAMO_IDS, LIVERY_PATTERNS } from './livery-cut.js';
+import { readLivery, camoForSetting, paintLivery, stencilMarks, liveryBase, cutByField, CAMO, CAMO_IDS, LIVERY_PATTERNS } from './livery-cut.js';
 import { plate } from './mil-hull.js';
 import { flatNormals } from './mil-hull.js';
 
@@ -99,5 +99,17 @@ describe('the stencils', () => {
     for (const f of out) expect(f.outNormal[1]).toBeCloseTo(-1, 6);
     expect(stencilMarks([A('emblem', [0, -1, 0], [0, 0, 1])], readLivery(SMOOTH))).toHaveLength(2);
     expect(stencilMarks([A('number', [0, -1, 0], [0, 0, 1])], readLivery({ pattern: SMOOTH, marks: false }))).toEqual([]);
+  });
+});
+
+describe('a thin face of many corners (a chamfer, its ends cut)', () => {
+  it('is sliced along its length, not shattered, and keeps its area', () => {
+    const hex = { corners: [[0, 0, 0], [0.01, 0, -0.01], [4.79, 0, -0.01], [4.8, 0, 0], [4.79, 0, 0.02], [0.01, 0, 0.02]], part: 'p', material: 'milPaint', albedo: '#4b5320', outNormal: [0, -1, 0], edge: true };
+    const area = (c) => { const n = [0, 0, 0]; for (let i = 0; i < c.length; i++) { const a = c[i], b = c[(i + 1) % c.length]; n[0] += a[1] * b[2] - a[2] * b[1]; n[1] += a[2] * b[0] - a[0] * b[2]; n[2] += a[0] * b[1] - a[1] * b[0]; } return Math.hypot(...n) / 2; };
+    const out = cutByField([hex], { select: () => true, valueAt: (p) => Math.sin(p[0] * 9), levels: [0.5], hMax: 0.09, hMin: 0.035, stripH: 0.06, remake: (f, poly, band) => (band ? { part: 'p', material: 'worn', albedo: '#6f6d66' } : null) });
+    expect(out.some((f) => f.material === 'worn')).toBe(true);
+    expect(out.length).toBeLessThan(3 * Math.ceil(4.8 / 0.06));
+    expect(out.reduce((s, f) => s + area(f.corners), 0)).toBeCloseTo(area(hex.corners), 6);
+    expect(out.every((f) => f.edge)).toBe(true);
   });
 });
