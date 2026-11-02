@@ -16,7 +16,8 @@
  *
  *   hairGuides(B) → [{ id, kind, bone, root, dir, side, len, n, width, cards }]
  *   simulateHair(B, frameAt, { t0, t1, fps, loop, settle }) → { times, strands: [[points] per guide] per sample, guides }
- *   hairCards(guides, strands, { color }) → { vertices, quads, colors, twoSided }
+ *   hairCards(guides, strands, { color }) → { vertices, quads, colors, twoSided, at, normals } (the mane's and forelock's
+ *                                             cards; the tail ONE mass round its locks)
  */
 import { bodyPrims, bodyField, neckCrest } from './body.js';
 import { boneFrames } from './skin.js';
@@ -74,26 +75,19 @@ export function hairGuides(B) {
     out.push({ id: `forelock${sx}`, kind: 'forelock', bone: 'head', root: add(add(hd.head, mul(face, 0.03 * hh)), [sx * hh, 0, 0]), outward: face, dir: unit(add(mul(hdir, 0.95), mul(face, 0.05))),
       side: [1, 0, 0], len: 0.17 * hh, width: 0.04 * hh, cards: [0] });
   }
-  // THE TAIL: locks round the dock's top and sides along its length, ROOTED ON THE DOCK (on its skin, a hand off its axis:
-  // the dock hangs against the buttocks, and a root found farther out would start on the buttocks and hang as a curtain
-  // the width of the quarters); fewer and narrower over the tail's head (its hair lying back along the dock), more round the lower dock; to about the hocks, the
-  // outer locks shorter so the end tapers (lengths seeded); each lock its own sheen, so a dark tail is not one flat mass
+  // THE TAIL: a ring of locks round the tail's head (the dock's top and sides where it leaves the croup), lying back over
+  // the dock and falling to about the hocks, the outer ones a little shorter; they carry the swing, and the tail is drawn
+  // as ONE MASS round them (hairCards: a tied tail's principle, a core shape and its flows, never fibres)
   const hock = bn.tibiaR.tail[2];
-  let seed = 7;
-  const rnd = () => { seed = (seed * 1103515245 + 12345) & 0x7fffffff; return seed / 0x7fffffff; };
-  const ARCS = { tail0: [-45, 0, 45], tail1: [-70, -35, 0, 35, 70], tail2: [-80, -48, -16, 16, 48, 80], tail3: [-90, -60, -30, 0, 30, 60, 90] };
-  for (const [bi, b] of ['tail0', 'tail1', 'tail2', 'tail3'].entries()) {
+  const t0b = bn.tail0, d0 = unit(sub(t0b.tail, t0b.head)), up0 = unit(cross(d0, [1, 0, 0]));
+  for (const a of [-70, -35, 0, 35, 70]) {
     // (the dock's top: d runs back and down, so its top faces back and up, cross(d, x); cross(x, d) is its underside)
-    const t = bn[b], d = unit(sub(t.tail, t.head)), up = unit(cross(d, [1, 0, 0])), sideAx = [1, 0, 0];
-    const dockR = (0.0605 - 0.009 * bi) * k;                                            // (body.js: the dock's cone at its middle)
-    for (const a of ARCS[b]) {
-      const th = a * Math.PI / 180, out_ = unit(add(mul(up, Math.cos(th)), mul(sideAx, Math.sin(th))));   // round the dock's top
-      const root = add(add(t.head, mul(sub(t.tail, t.head), 0.5)), mul(out_, dockR + 0.004 * k));
-      const full = Math.max(0.3, root[2] - hock * 0.85), short = 1 - 0.3 * (Math.abs(a) / 90) ** 1.5 - 0.15 * rnd();
-      // (no strand long enough to sweep the ground: its tip a third of a metre clear at rest)
-      out.push({ id: `tail${b}${a}`, kind: 'tail', bone: b, root, outward: out_, dir: unit(add(d, mul(out_, 0.3))), side: unit(cross(d, out_)),
-        len: Math.min(full * short, root[2] - 0.35 * k), width: (bi === 0 ? 0.035 : 0.055) * k, cards: [-0.3, 0.3], cross: bi > 0, taper: 0.85, across: Math.sin(th), sheen: 0.85 + 0.45 * rnd() });
-    }
+    const th = a * Math.PI / 180, out_ = unit(add(mul(up0, Math.cos(th)), mul([1, 0, 0], Math.sin(th))));
+    const root = add(add(t0b.head, mul(sub(t0b.tail, t0b.head), 0.7)), mul(out_, 0.06 * k));
+    const full = Math.max(0.3, root[2] - hock * 0.85), short = 1 - 0.1 * (a / 70) ** 2;
+    // (no strand long enough to sweep the ground: its tip a third of a metre clear at rest)
+    out.push({ id: `tail${a}`, kind: 'tail', bone: 'tail0', root, inSkin: true, outward: out_, dir: unit(add(d0, mul(out_, 0.25))), side: unit(cross(d0, out_)),
+      len: Math.min(full * short, root[2] - 0.35 * k), width: 0.05 * k, cards: [], across: Math.max(-1, Math.min(1, Math.sin(th))) });
   }
   // each root ON the skin: along its outward direction to the surface where it crosses near (bisection), else down the
   // field's gradient (Newton's projection) from wherever it stands, inside or out
@@ -101,6 +95,9 @@ export function hairGuides(B) {
   const grad = (p) => { const e = 1e-4, f0 = field(p); return [(field(add(p, [e, 0, 0])) - f0) / e, (field(add(p, [0, e, 0])) - f0) / e, (field(add(p, [0, 0, e])) - f0) / e]; };
   for (const g of out) {
     g.n = HAIR.points;
+    // (the tail's ring stays round the dock, a little within the skin where the tail leaves the croup: carried out along
+    // its direction a side root would land on the croup's breadth; its mass's capped top starts there)
+    if (g.inSkin) continue;
     let lo = -0.12 * k, hi = 0.12 * k;
     const at = (x) => add(g.root, mul(g.outward, x));
     if (field(at(lo)) < 0 && field(at(hi)) > 0) { for (let i = 0; i < 40; i++) { const m = (lo + hi) / 2; if (field(at(m)) < 0) lo = m; else hi = m; } g.root = at(hi); }
@@ -243,26 +240,78 @@ export function simulateHair(B, frameAt, { t0 = 0, t1 = 1, fps = 60, loop = fals
 
 /** the cards: ribbons along each strand (a guide's cards side by side across it), tapering to the tip, two-sided */
 export function hairCards(guides, strands, { coat = 'bay' } = {}) {
-  const C = typeof coat === 'string' ? COATS[coat] : coat, vertices = [], quads = [], colors = [], twoSided = [], at = [];
+  const C = typeof coat === 'string' ? COATS[coat] : coat, vertices = [], quads = [], colors = [], twoSided = [], at = [], normals = [];
   const shade = (hex, f) => '#' + [1, 3, 5].map((i) => Math.max(0, Math.min(255, Math.round(parseInt(hex.slice(i, i + 2), 16) * f))).toString(16).padStart(2, '0')).join('');
   guides.forEach((g, gi) => {
     const s = strands[gi];
-    // (a crossed lock, `cross`: its cards again turned a quarter round the strand, so it has body from every side)
-    for (const [off, turned] of [...g.cards.map((o) => [o, false]), ...(g.cross ? g.cards.map((o) => [o, true]) : [])]) {
+    for (const off of g.cards) {
       const base = vertices.length;
       for (let i = 0; i < g.n; i++) {
         const along = unit(sub(s[Math.min(g.n - 1, i + 1)], s[Math.max(0, i - 1)]));
-        // the card's width across the strand, square to it, along the guide's side (or square to that, turned)
-        const sd0 = unit(sub(g.side, mul(along, dot(g.side, along)))), sd = turned ? unit(cross(along, sd0)) : sd0, w = g.width * (1 - (g.taper ?? 0.65) * i / (g.n - 1));
+        // the card's width across the strand, square to it, along the guide's side
+        const sd = unit(sub(g.side, mul(along, dot(g.side, along)))), w = g.width * (1 - (g.taper ?? 0.65) * i / (g.n - 1));
         const c = add(s[i], mul(sd, off * g.width));
         vertices.push(add(c, mul(sd, -w / 2)), add(c, mul(sd, w / 2)));
-        at.push([gi, i], [gi, i]);                                                 // (each vertex's guide and point: a skin's)
+        at.push([gi, i], [gi, i]); normals.push(null, null);                    // (each vertex's guide and point: a skin's)
       }
       for (let i = 0; i + 1 < g.n; i++) {
         quads.push([base + 2 * i, base + 2 * i + 1, base + 2 * i + 3, base + 2 * i + 2]);
-        colors.push(shade(C.mane, (off < 0 ? 0.85 : 1) * (g.sheen ?? 1))); twoSided.push(true);
+        colors.push(shade(C.mane, off < 0 ? 0.85 : 1)); twoSided.push(true);
       }
     }
   });
-  return { vertices, quads, colors, twoSided, at };
+  tailMass(guides, strands, C.mane, { vertices, quads, colors, twoSided, at, normals });
+  return { vertices, quads, colors, twoSided, at, normals };
+}
+
+/**
+ * THE TAIL AS ONE MASS (the hair principles: a few major flows, volume, detail as shape never paint; a tied tail a
+ * separate mass, a core round its bundle): a closed loft round the tail's locks, its section at each step an oval
+ * through them (as wide across the horse as they spread, a lock's thickness beyond them), grooved by `TAIL_MASS.flows`
+ * flows, narrowing to a point at its end; its top capped (it starts in the croup). Each vertex rides the lock nearest it,
+ * so the mass swings as its locks do. One colour, one-sided, its normals outward.
+ */
+export const TAIL_MASS = Object.freeze({ ring: 24, sub: 3, flows: 6, groove: 0.14, thick: [0.035, 0.016], deep: 1.4, point: 1.2 });
+function tailMass(guides, strands, colour, out) {
+  const tails = guides.flatMap((g, gi) => (g.kind === 'tail' ? [gi] : [])).sort((a, b) => (guides[a].across ?? 0) - (guides[b].across ?? 0));
+  if (tails.length < 2) return;
+  const n = guides[tails[0]].n, M = TAIL_MASS, last = (n - 1) * M.sub;
+  // a strand's point at a fractional index (Catmull-Rom through its points)
+  const ptAt = (gi, u) => {
+    const s = strands[gi], i = Math.min(n - 2, Math.floor(u)), t = u - i, p0 = s[Math.max(0, i - 1)], p1 = s[i], p2 = s[i + 1], p3 = s[Math.min(n - 1, i + 2)];
+    return [0, 1, 2].map((q) => 0.5 * (2 * p1[q] + (-p0[q] + p2[q]) * t + (2 * p0[q] - 5 * p1[q] + 4 * p2[q] - p3[q]) * t * t + (-p0[q] + 3 * p1[q] - 3 * p2[q] + p3[q]) * t * t * t));
+  };
+  const mean = (ps) => mul(ps.reduce((a, p) => add(a, p), [0, 0, 0]), 1 / ps.length);
+  const rings = [];
+  for (let f = 0; f <= last; f++) {
+    const u = f / M.sub, pts = tails.map((gi) => ptAt(gi, u)), c = mean(pts);
+    const along = unit(sub(mean(tails.map((gi) => ptAt(gi, Math.min(n - 1, u + 0.25)))), mean(tails.map((gi) => ptAt(gi, Math.max(0, u - 0.25))))));
+    const L = unit(sub(sub(pts[pts.length - 1], pts[0]), mul(along, dot(sub(pts[pts.length - 1], pts[0]), along)))), A = cross(along, L);
+    // (the end drawn to a point over its last `point` steps)
+    const v01 = u / (n - 1), r = M.thick[0] + (M.thick[1] - M.thick[0]) * v01, endK = Math.min(1, (n - 1 - u) / M.point), end = endK * endK * (3 - 2 * endK);
+    const hw = (Math.max(...pts.map((p) => Math.abs(dot(sub(p, c), L)))) + r) * end, hd = (Math.max(...pts.map((p) => Math.abs(dot(sub(p, c), A)))) + r * M.deep) * end;
+    rings.push({ u, c, L, A, along, hw, hd, pts });
+  }
+  const base = out.vertices.length;
+  for (const R of rings) for (let m = 0; m < M.ring; m++) {
+    const ph = 2 * Math.PI * m / M.ring, g = 1 + M.groove * Math.cos(M.flows * ph);
+    const v = add(add(R.c, mul(R.L, Math.cos(ph) * R.hw * g)), mul(R.A, Math.sin(ph) * R.hd * g));
+    // (it rides the lock nearest it there)
+    let bj = 0, bd = Infinity; R.pts.forEach((p, j) => { const d = len(sub(p, v)); if (d < bd) { bd = d; bj = j; } });
+    out.vertices.push(v); out.at.push([tails[bj], R.u]);
+    out.normals.push(unit(add(mul(R.L, Math.cos(ph) / Math.max(1e-6, R.hw)), mul(R.A, Math.sin(ph) / Math.max(1e-6, R.hd)))));
+  }
+  // the top cap's centre (in the croup) and the quads, each turned to face out
+  const cap = out.vertices.length; out.vertices.push(rings[0].c); out.at.push([tails[tails.length >> 1], 0]); out.normals.push(mul(rings[0].along, -1));
+  const face = (q, outward) => {
+    // (Newell's normal: a quad with a corner repeated, the cap's, still has one)
+    const V = q.map((i) => out.vertices[i]), nq = [0, 0, 0];
+    for (let i = 0; i < 4; i++) { const a = V[i], b = V[(i + 1) % 4]; nq[0] += (a[1] - b[1]) * (a[2] + b[2]); nq[1] += (a[2] - b[2]) * (a[0] + b[0]); nq[2] += (a[0] - b[0]) * (a[1] + b[1]); }
+    out.quads.push(dot(nq, outward) > 0 ? q : [q[0], q[3], q[2], q[1]]); out.colors.push(colour); out.twoSided.push(false);
+  };
+  for (let f = 0; f + 1 < rings.length; f++) for (let m = 0; m < M.ring; m++) {
+    const a = base + f * M.ring + m, b = base + f * M.ring + (m + 1) % M.ring;
+    face([a, b, b + M.ring, a + M.ring], sub(out.vertices[a], rings[f].c));
+  }
+  for (let m = 0; m < M.ring; m++) face([base + m, cap, cap, base + (m + 1) % M.ring], mul(rings[0].along, -1));
 }

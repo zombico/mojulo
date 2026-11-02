@@ -149,10 +149,10 @@ rather than over it (the fauna horse's rows stay byte-identical). Solo; the sadd
   wider blend so it still flows into the withers and the breast. The trunk's wide blend over the neck's overlapping
   masses had swelled it by a hand on every side. Mid-neck it now measures about 1.05 m round (0.42 m deep, 0.23 m
   wide), a riding horse's, where it was 1.36 m.
-- **A tail, not a fan**: the tail's locks are rooted on the dock, over its top and sides along its length. They used to
-  be pushed out to the skin of the buttocks and hung as a curtain the width of the quarters. They hang as one bundle,
-  each lock keeping its place across it: about 20 cm across from behind through the top and middle, narrowing to a few
-  centimetres at the end, and swinging together. The locks below the tail's head are crossed cards, so the tail has body
-  from every side; the outer locks are shorter so the end tapers; each lock has a sheen of its own, so a black tail is
-  not one flat mass. The dock blends tightly, joined to the quarters by a narrower blend, so it hangs as a dock rather
-  than swelling into the buttocks. The study sheet crops the quarters and the tail (`--crop tail`).
+- **The tail, one mass**: drawn by the hair principles (a few major flows, detail as shape, one colour, a tied tail a
+  separate mass) as a single closed loft rather than fibre cards. It grows from a ring round the dock where the tail
+  leaves the croup, about 17 cm across from behind, grooved by its flows, hanging close to the buttocks and drawing to a
+  point at its end. Five simulated locks carry its swing, each keeping its place across the tail, and every vertex rides
+  the lock nearest it, so it lifts and streams as one over a jump. It is one-sided, with smooth normals. The dock blends
+  tightly, joined to the quarters by a narrower blend, so it hangs as a dock rather than swelling into the buttocks. The
+  study sheet crops the quarters and the tail (`--crop tail`).

@@ -158,11 +158,13 @@ export function mountPack(B, { mesh, coat = 'bay', markings = {}, set = null, cl
       const col = hexLinear(hc.colors[qi]), V = q.map((i) => hc.vertices[i]);
       const n0 = (() => { const a = V[0], b = V[1], c = V[2], u = [b[0] - a[0], b[1] - a[1], b[2] - a[2]], v = [c[0] - a[0], c[1] - a[1], c[2] - a[2]], n = [u[1] * v[2] - u[2] * v[1], u[2] * v[0] - u[0] * v[2], u[0] * v[1] - u[1] * v[0]], l = Math.hypot(...n) || 1; return n.map((x) => x / l); })();
       const part = P[skinOf(hc.at[q[0]]).sort((x, y) => y[1] - x[1])[0][0]];
-      for (const [order, nrm] of [[[0, 1, 2, 0, 2, 3], n0], [[0, 2, 1, 0, 3, 2], n0.map((x) => -x)]]) {
+      // (a card both its faces, flat; the tail's mass one-sided, its own smooth normals)
+      const sides = hc.twoSided[qi] === false ? [[[0, 1, 2, 0, 2, 3], null]] : [[[0, 1, 2, 0, 2, 3], n0], [[0, 2, 1, 0, 3, 2], n0.map((x) => -x)]];
+      for (const [order, nrm] of sides) {
         part.faces += 2;
         for (const k of order) {
           const vi = q[k], w = [...skinOf(hc.at[vi]), ...Array(4).fill([0, 0])].slice(0, 4);
-          part.pos.push(...hc.vertices[vi]); part.col.push(...col); part.nrm.push(...nrm);
+          part.pos.push(...hc.vertices[vi]); part.col.push(...col); part.nrm.push(...(nrm ?? hc.normals?.[vi] ?? n0));
           part.jnt.push(...w.map(([j]) => j)); part.wgt.push(...w.map(([, x]) => x));
         }
       }

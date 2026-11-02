@@ -240,17 +240,28 @@ describe('the hair', () => {
   it('its guides: a mane along the crest falling to the off side, a forelock, a tail round the dock, each rooted on the skin', () => {
     const g = hairGuides(B), { field } = bodyField(B);
     for (const kind of ['mane', 'forelock', 'tail']) expect(g.some((x) => x.kind === kind), kind).toBe(true);
-    for (const x of g) expect(Math.abs(field(x.root)), x.id).toBeLessThan(0.002);
+    for (const x of g) expect(x.inSkin ? field(x.root) : Math.abs(field(x.root)), x.id).toBeLessThan(0.002);   // (the tail's ring within it)
     for (const x of g.filter((y) => y.kind === 'mane')) expect(x.dir[0]).toBeGreaterThan(0);          // the off (right) side
   });
 
-  it('its cards: a two-sided ribbon of quads along every strand, a guide\'s cards side by side (and crossed)', () => {
+  it('its cards: a two-sided ribbon of quads along every strand, a guide\'s cards side by side; the tail ONE mass', async () => {
+    const { TAIL_MASS } = await import('./hair.js');
     const g = hairGuides(B), strands = g.map((x) => Array.from({ length: x.n }, (_, i) => [x.root[0] + x.dir[0] * x.len * i / (x.n - 1), x.root[1] + x.dir[1] * x.len * i / (x.n - 1), x.root[2] + x.dir[2] * x.len * i / (x.n - 1)]));
-    const c = hairCards(g, strands);
-    // (a crossed lock, the tail's: its cards again a quarter turned)
-    expect(c.quads.length).toBe(g.reduce((s, x) => s + x.cards.length * (x.cross ? 2 : 1) * (x.n - 1), 0));
-    expect(g.some((x) => x.cross)).toBe(true);
-    expect(c.twoSided.every(Boolean)).toBe(true);
+    const c = hairCards(g, strands), cards = g.reduce((s2, x) => s2 + x.cards.length * (x.n - 1), 0);
+    // (the mane's and forelock's cards two-sided; the tail a closed loft round its locks, one-sided, its top capped)
+    const rings = (g.find((x) => x.kind === 'tail').n - 1) * TAIL_MASS.sub + 1;
+    expect(c.quads.length).toBe(cards + (rings - 1) * TAIL_MASS.ring + TAIL_MASS.ring);
+    expect(c.twoSided.slice(0, cards).every(Boolean)).toBe(true);
+    expect(c.twoSided.slice(cards).every((x) => x === false)).toBe(true);
+    expect(g.filter((x) => x.kind === 'tail').every((x) => x.cards.length === 0)).toBe(true);
+    // its quads face out: each one's normal away from the mass's axis (the nearest of its locks' mean line)
+    const tails = g.flatMap((x, i) => (x.kind === 'tail' ? [i] : []));
+    for (const q of c.quads.slice(cards, cards + (rings - 1) * TAIL_MASS.ring)) {
+      const V = q.map((i) => c.vertices[i]), n = [0, 0, 0];
+      for (let i = 0; i < 4; i++) { const a = V[i], b = V[(i + 1) % 4]; n[0] += (a[1] - b[1]) * (a[2] + b[2]); n[1] += (a[2] - b[2]) * (a[0] + b[0]); n[2] += (a[0] - b[0]) * (a[1] + b[1]); }
+      const m = V.reduce((s3, v) => s3.map((x, k) => x + v[k] / 4), [0, 0, 0]), u = c.at[q[0]][1], ax = tails.map((gi) => strands[gi][Math.min(g[gi].n - 1, Math.round(u))]).reduce((s3, v) => s3.map((x, k) => x + v[k] / tails.length), [0, 0, 0]);
+      expect(n[0] * (m[0] - ax[0]) + n[1] * (m[1] - ax[1]) + n[2] * (m[2] - ax[2])).toBeGreaterThan(-1e-9);
+    }
   });
 });
 
@@ -359,10 +370,10 @@ describe('the rider\'s modes', () => {
 // the tail a bundle, not a curtain: rooted on the dock (not out on the buttocks), and hanging from behind no wider than a
 // tail is (narrow from the dock, fuller through the middle, narrowing to its end)
 describe('the tail', () => {
-  it('is rooted on the dock and hangs as a bundle: narrow at the dock, fuller in the middle, narrowing to its end', async () => {
+  it('is rooted round the dock where it leaves the croup and hangs as a bundle: narrow there, fuller in the middle, narrowing to its end', async () => {
     const { simulateHair, hairGuides } = await import('./hair.js'), B = resolveMount('horse'), S = standPose(B);
     const g = hairGuides(B), tails = g.flatMap((x, i) => (x.kind === 'tail' ? [i] : []));
-    for (const i of tails) { const t = S.bones[g[i].bone], c = t.head.map((v, q) => (v + t.tail[q]) / 2); if (g[i].bone !== 'tail0') expect(Math.hypot(...g[i].root.map((v, q) => v - c[q])), g[i].id).toBeLessThan(0.12); }
+    for (const i of tails) { const t = S.bones[g[i].bone]; expect(g[i].bone).toBe('tail0'); expect(Math.abs(g[i].root[0]), g[i].id).toBeLessThan(0.08); }
     const sim = simulateHair(B, () => S, { t0: 0, t1: 0.5, fps: 4 }), last = sim.strands[sim.strands.length - 1];
     const widthAt = (u) => { const xs = tails.map((i) => last[i][Math.round(u * (g[i].n - 1))][0]); return Math.max(...xs) - Math.min(...xs); };
     // (about 20 cm across from behind through its top and middle, a few at its end; the curtain it was spanned the quarters)
