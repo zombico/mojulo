@@ -46,7 +46,7 @@ What each kind wears (a key it does not wear is refused, naming the ones it does
 
 ## Styles
 
-The room facades: `sofa`, `armchair`, `chesterfield`, `coffee-table`, `dining-table`, `chair`, `bookcase`, `media-console`, `sideboard`, `chest`, `nightstand`. Composed from the same forms: `tuxedo`, `english-roll-arm`, `mid-century-sofa`, `settee`, `club-chair`, `farmhouse-table`, `mid-century-table`, `windsor-side-chair`, `painted-dresser`.
+The room facades: `sofa`, `armchair`, `chesterfield`, `coffee-table`, `dining-table`, `chair`, `bookcase`, `media-console`, `sideboard`, `chest`, `nightstand`. Composed from the same forms: `tuxedo`, `english-roll-arm`, `mid-century-sofa`, `settee`, `club-chair`, `farmhouse-table`, `mid-century-table`, `windsor-side-chair`, `painted-dresser`. A town's furniture before the machine age, the same forms in dark oak and walnut (the fantasy skins a town's rooms are furnished in): `trestle-table`, `tavern-table`, `settle` (a long seat with a tall back), `high-seat`, `shop-shelves`, `counter`, `iron-bound-chest`.
 
 ```
 { like: 'chesterfield', forms: { legs: 'turned' }, finish: { fabric: 'tartan' } }
