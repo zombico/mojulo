@@ -244,6 +244,17 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     sketch = { ...sketch, manifest: withBuildingLevel(sketch.manifest, sketch.ref) };
   }
 
+  // parked vehicles (`parked`: [{ vehicle, at, heading?, livery?, wear?, seed? }], vehicle-registry/parked.js): each a
+  // static loft figure, and a box over its footprint added to whatever colliders the level carries. Opt-in; absent ⇒
+  // byte-identical.
+  let parkedColliders = [];
+  if (sketch.manifest?.parked !== undefined) {
+    const { withParked } = await import('@/lib/graph/vehicle-registry/parked.js');
+    const P = withParked(sketch.manifest);
+    sketch = { ...sketch, manifest: P.manifest };
+    parkedColliders = P.colliders;
+  }
+
   // declarative scene lighting — same normalization the /scene route uses.
   const scene = sketch.manifest.scene && typeof sketch.manifest.scene === 'object' ? sketch.manifest.scene : {};
   const time = sketch.manifest.time ?? scene.time;
@@ -891,6 +902,7 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     if (Array.isArray(sketch.manifest.colliders) && sketch.manifest.colliders.length) payload.colliders = sketch.manifest.colliders;
     // structures (above): a box for each tier and plinth step of each tower, so a walker stands on its terraces
     if (structureColliders.length) payload.colliders = [...(payload.colliders || []), ...structureColliders];
+    if (parkedColliders.length) payload.colliders = [...(payload.colliders || []), ...parkedColliders];
     // blocks (playscape/terrain.js standBlocks): forms the level stands in its stage, solid and drawn (a shooter's
     // cover: low walls, crates). Absent ⇒ byte-identical.
     if (Array.isArray(sketch.manifest.blocks) && sketch.manifest.blocks.length) {
@@ -1024,13 +1036,16 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
           continue;
         }
         // LOFT bodies (car-designer/realistic.js, the vehicle registry's realistic build): a figures-map entry may be a
-        // road class's realistic loft (`loft`: { class, era?, brief?, seed?, light? }, what a quick ride at the realistic tier
+        // road class's realistic loft (`loft`: { class, era?, brief?, seed?, light?, livery?, wear? }, what a quick ride at the realistic tier
         // writes), at its class's true numbers in metres, delivered as its vehicle rig (the hull the root, each wheel its
         // own bone). Absent ⇒ no loft is resolved, byte-identical.
         if (rawSpec.loft && typeof rawSpec.loft === 'object') {
           const { loftFigure } = await import('@/lib/graph/car-designer/race-families.js');
           // (read in the form render, gen-7, or asked for it by its light: its faces carry their materials for the page)
-          payload.figures[name] = await atRigFidelity(loftFigure(rawSpec.loft, { form: ERAS[era]?.surface === 'form' }));
+          // (a field vehicle lit as its world is: its sky, and wet when its weather is the wet family's; car-designer/military.js)
+          const { STATES } = await import('@/lib/graph/weather/weather.js');
+          const W = sketch.manifest.weather, wet = typeof W === 'string' && STATES[W]?.family === 'wet';
+          payload.figures[name] = await atRigFidelity(loftFigure(rawSpec.loft, { form: ERAS[era]?.surface === 'form', setting: { sky: payload.sky ?? null, wet } }));
           continue;
         }
         // TRANSFORMER bodies (transformation/: more-than-meets): a figures-map entry may be a body in two forms

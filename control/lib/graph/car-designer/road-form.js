@@ -127,6 +127,7 @@ export function bakeForm(faces) {
   return faces.flatMap((f) => {
     const ns = f.cornerNormals ?? f.corners.map(() => f.outNormal);
     const fans = f.corners.length <= 4 ? [[...f.corners.keys()]] : Array.from({ length: f.corners.length - 2 }, (_, j) => [0, j + 1, j + 2]);
-    return fans.map((ix) => ({ corners: ix.map((i) => f.corners[i]), fill: studioFill(f.albedo, f.material, f.outNormal), cornerFills: ix.map((i) => studioFill(f.albedo, f.material, ns[i])) }));
+    // (a face's own colour per corner where it carries one: a field vehicle's dust and grounding, mil-wear.js)
+    return fans.map((ix) => ({ corners: ix.map((i) => f.corners[i]), fill: studioFill(f.albedo, f.material, f.outNormal), cornerFills: ix.map((i) => studioFill(f.cornerAlbedo?.[i] ?? f.albedo, f.material, ns[i])) }));
   });
 }
