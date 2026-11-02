@@ -12,3 +12,9 @@ that is a glove. Built so far:
   away put `back`; without a way out, the clear wins at once (the elevator). Death (the gauntlet owns the player's `hp`,
   `hits` a hit) begins the arena again (its foes put away, its counts zeroed, hp full, the walker at `start`), or from
   the last `checkpoint` (every N arenas); `death: 'fail'` loses instead. Sounds and an engine sample.
+- **A level goal** `goal: { gauntlet: { arenas: [{ waves: [{ <bestiary id>: <count> }], after? }], checkpoint? } }`
+  (`gameworld/gauntlet.js`, `gameworld/gauntlet-cast.js`): the level's last stage an arena on the approach to its exit,
+  the exit its sealed way out, in place of reach-exit. Its foes are the bestiary's, stood asleep in a ring round the arena
+  (`foe-<id>-g<n>`, each as every hostile is: its class, figure and hp) and woken with their wave; they are fielded, so a
+  run makes their figures. Refused beside a boss or health (the gauntlet owns the hero's hp and ends the level), and on a
+  building (its arena is to come).
