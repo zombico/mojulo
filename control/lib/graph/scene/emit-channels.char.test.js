@@ -360,6 +360,11 @@ const sha = (s) => createHash('sha256').update(s).digest('hex');
 // driver (controls/xr-driver.js, inlined by its source on a page with `xr`) reads the poses OpenXR names beside the
 // sticks (`xrPoses`, `poseToWorld`, `turn`): additions only. No other page carries the driver; neither fixture has a
 // pilot, so neither carries the game-in-the-headset branch (channels/xr.js `ctrl`).
+// Re-pinned 2026-11-02 (the manual manipulator's controllers: a shot from the hand): every fixture that embeds the
+// controllable runtime (the 16: controllable, its lock, shadows, smoke, figure and hangar, cast-shadows, the two
+// live-shadows with actors, fx, shoot-live, the two toon-ink, capture-controllable and both kitchen sinks), for the
+// ranged weapon's opt-in `input.aim` (combat-ranged.js stepWeapon: a headset's held muzzle or controller ray, the round
+// leaving from it along it): additions only, and an input without `aim` fires as before.
 
 describe('emitThreeWorld characterization (byte-level pin over the fixture matrix)', () => {
   it.each(EMIT_FIXTURES.map(([name]) => name))('%s emits byte-identically', (name) => {

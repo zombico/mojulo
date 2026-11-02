@@ -21,3 +21,10 @@ held as a gun or VR boxing can be made.
   geometry on the page); what rides the hero's figure is a small table per finger, its bones at seven curls, played as
   the page plays any clip, and it rides only a world a headset plays (its `xr`, or `?xr=` on the live page). A hero
   with mitten hands, or a page without a headset, is unchanged.
+- **What the hands hold, and a shot from them**: a hero's held item (its `gear` right or left) is drawn in the headset
+  apart from the hand that holds it, re-held for a controller: a blade comes out of the fist past the thumb, its edge
+  leading with the knuckles; a gun is presented, its grip through the fist and its bore along the hand, raked a little
+  toward the thumb; a bow or a long staff keeps the hero's own hold. A hand that holds something closes round it from
+  the grip. The ranged weapon takes an opt-in aim (`input.aim`, `worlds/controllable/combat-ranged.js`): in the headset
+  the round leaves from the held gun's muzzle along its bore, or, where the hand holds no gun, along the controller's
+  own ray, so the controller is the gun whatever the body or the head faces. A game without a headset fires as before.

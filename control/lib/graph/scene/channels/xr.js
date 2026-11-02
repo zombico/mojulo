@@ -143,12 +143,24 @@ function __xrHandsMake(e){
       g.add(m); by[id] = { m, rest: rf.fig.bones[bi].head };
     };
     add(H.hand); for (const d in H.digits) for (const id of H.digits[d].bones) add(id);
+    // what the hand holds: its triangles, last in the hand's part, drawn apart (the same buffers, its own range) and moved
+    // from the hero's rest hold to the headset's (the bake's rehold); an indexed part keeps the rest hold in one mesh
+    const I = H.item, hb = rf.fig.bones.findIndex((b) => b.id === H.hand), part = hb >= 0 ? rf.fig.parts[hb] : null, src = hb >= 0 ? rf.boneMeshes[hb] : null;
+    let item = null;
+    if (I && part && src && by[H.hand] && !src.geometry.index && part.faces > I.tris) {
+      const first = part.faces - I.tris;
+      const span = (a, n) => { const q = new THREE.BufferGeometry(); for (const k in src.geometry.attributes) q.setAttribute(k, src.geometry.attributes[k]); q.setDrawRange(3 * a, 3 * n); return q; };
+      by[H.hand].m.geometry = span(0, first);
+      item = new THREE.Mesh(span(first, I.tris), src.material); item.matrixAutoUpdate = false; item.frustumCulled = false; item.raycast = function () {};
+      const r = I.rehold; item.matrix.set(r[0], r[1], r[2], r[3], r[4], r[5], r[6], r[7], r[8], r[9], r[10], r[11], 0, 0, 0, 1);
+      g.add(item);
+    }
     // the rest hand into the grip space: the rows its axes, its centre the origin, scaled as the body is
     const G = H.grip, o = G.o, row = (a) => [a[0] * k, a[1] * k, a[2] * k, -k * (a[0] * o[0] + a[1] * o[1] + a[2] * o[2])];
     const x = row(G.x), y = row(G.y), z = row(G.z);
     const inv = new THREE.Matrix4().set(x[0], x[1], x[2], x[3], y[0], y[1], y[2], y[3], z[0], z[1], z[2], z[3], 0, 0, 0, 1);
     __xrRig.add(g);
-    __xrHands[S] = { g, by, H, inv, thumb: H.poses.relaxed.thumb };
+    __xrHands[S] = { g, by, H, inv, item, thumb: (H.item ? H.poses.grip : H.poses.relaxed).thumb };
   }
 }
 // a digit at an angle (degrees): its bones from the curl table, a clip's frame-pair nlerp
@@ -185,8 +197,9 @@ function __xrHandsStep(dt){
     h.g.visible = true;
     __xrHV.set(gp.p[0], gp.p[1], gp.p[2]); __xrHQ.set(gp.q[0], gp.q[1], gp.q[2], gp.q[3]);
     h.g.matrix.compose(__xrHV, __xrHQ, __xrHONE).multiply(h.inv); h.g.matrixWorldNeedsUpdate = true;
-    const tr = ra(side + '.trigger'), sq = ra(side + '.squeeze'), W = h.H.poses, rl = W.relaxed, op = W.open, fi = W.fist;
-    const ix = rl.index + (op.index - rl.index) * sq;
+    // (a hand that holds something closes from the grip word, round it; an empty one from relaxed, pointing as it grips)
+    const tr = ra(side + '.trigger'), sq = ra(side + '.squeeze'), W = h.H.poses, rl = h.H.item ? W.grip : W.relaxed, op = W.open, fi = W.fist;
+    const ix = h.H.item ? rl.index : rl.index + (op.index - rl.index) * sq;
     __xrDigit(h, 'index', ix + (fi.index - ix) * tr);
     for (const d of ['middle', 'ring', 'little']) __xrDigit(h, d, rl[d] + (fi[d] - rl[d]) * sq);
     const want = __xrThumbDown(src, side) ? fi.thumb : rl.thumb;
@@ -247,6 +260,7 @@ function __xrInput(inp){
     inp.forward = wx * Math.cos(my) + wy * Math.sin(my); inp.strafe = wx * Math.sin(my) - wy * Math.cos(my);
   } else { inp.forward = p.moveY; inp.strafe = p.moveX; e.transform.heading = h; }
   e.transform.pitch = __xrPitch();
+  const aim = __xrAim(e); if (aim) inp.aim = aim;
   return inp;
 }
 // a step of the head moves the pilot, an axis at a time, never into a collider (one whose top is past a step above the
@@ -275,11 +289,30 @@ function __xrPlay(dt){
     __xrA.set(L.x - __xrHead0.x, 0, L.z - __xrHead0.z).applyQuaternion(__xrRig.quaternion);   // the step, in the world
     if (__xrA.x || __xrA.y) __xrShift(e, __xrA.x, __xrA.y);
   }
-  __xrHead0 = L;
-  stepControllable(dt);
-  __xrPlace(e, L);${hands ? `
+  __xrHead0 = L;${hands ? `
+  // (the hands first, in the rig: the step's aim reads the held muzzle; the rig, placed after it, carries them)
   if (e.id !== __xrHandsOf) __xrHandsMake(e);
   __xrHandsStep(dt);` : ''}
+  stepControllable(dt);
+  __xrPlace(e, L);
+}
+// the weapon hand's aim in the world (the kernel's input.aim, combat-ranged.js): a held gun's muzzle along its bore where
+// the hands draw one, else the controller's target ray; null before a pose
+const __xrAimO = new THREE.Vector3(), __xrAimD = new THREE.Vector3();
+function __xrAim(e){
+  const side = e.weapon && e.weapon.hand === 'left' ? 'left' : 'right';
+  __xrRig.updateMatrixWorld(true);${hands ? `
+  const h = __xrHands[side === 'left' ? 'L' : 'R'], M = h && h.g.visible && h.H.item && h.H.item.muzzle;
+  if (M) {
+    __xrAimO.set(M.p[0], M.p[1], M.p[2]).applyMatrix4(h.g.matrixWorld); __xrAimD.set(M.d[0], M.d[1], M.d[2]).transformDirection(h.g.matrixWorld);
+    return { from: __xrAimO.toArray(), dir: __xrAimD.toArray() };
+  }` : ''}
+  const s = renderer.xr.getSession(), f = renderer.xr.getFrame && renderer.xr.getFrame(), ref = renderer.xr.getReferenceSpace();
+  const a = __XRV.xrPoses(f, ref, s ? s.inputSources : [])[side].aim;
+  if (!a) return null;
+  __xrAimO.set(a.p[0], a.p[1], a.p[2]).applyMatrix4(__xrRig.matrixWorld);
+  __xrQ.set(a.q[0], a.q[1], a.q[2], a.q[3]); __xrAimD.set(0, 0, -1).applyQuaternion(__xrQ).transformDirection(__xrRig.matrixWorld);
+  return { from: __xrAimO.toArray(), dir: __xrAimD.toArray() };
 }
 ${hands ? HANDS : ''}`;
 

@@ -5,7 +5,9 @@
 import { describe, expect, it } from 'vitest';
 import { validateRig, rigNodesAt } from './station-loft-rig.js';
 import { heroRecord, expandLayeredManifest } from '../../mcp/tools/layered.js';
-import { xrHands, gripFrame } from './hero-xr-hands.js';
+import { xrHands, gripFrame, PRESENT } from './hero-xr-hands.js';
+import { gearMounts, gearPackParts, gearRestPoint } from './hero-gear.js';
+import { DEFAULT_LIGHT } from './vexar.js';
 
 const R = validateRig(expandLayeredManifest({ kind: 'layered', title: 't', hero: heroRecord({ cast: 'male', form: 'realistic' }) }).recipe.rig);
 const DZ = 0.05;
@@ -104,5 +106,61 @@ describe('the hands ride the hero’s figure only where a headset plays', () => 
       expect(plain.xrHands).toBeUndefined();
       expect(withHands.xrHands).toBe(H);
     } finally { WORLD_KINDS.layered.resolve = was; }
+  });
+});
+
+describe('what the hands hold, re-held for the headset', () => {
+  // (the gear's mounts on the same rig: the hero door's words, placed at rest as the pack places them)
+  const hero = heroRecord({ cast: 'male', form: 'realistic', gear: { right: { item: 'pistol' }, left: { item: 'sword', style: 'historical' } } });
+  const mounts = gearMounts(hero, R), HG = xrHands(R, { dz: DZ, gear: mounts });
+  const affine = (r, p) => [0, 1, 2].map((i) => r[4 * i] * p[0] + r[4 * i + 1] * p[1] + r[4 * i + 2] * p[2] + r[4 * i + 3]);
+  const rot = (r, v) => [0, 1, 2].map((i) => r[4 * i] * v[0] + r[4 * i + 1] * v[1] + r[4 * i + 2] * v[2]);
+  const rigid = (r) => {
+    const c = [0, 1, 2].map((j) => [r[j], r[4 + j], r[8 + j]]);
+    for (const a of c) expect(len(a)).toBeCloseTo(1, 5);
+    expect(dot(c[0], c[1])).toBeCloseTo(0, 5); expect(dot(c[1], c[2])).toBeCloseTo(0, 5);
+    const det = c[0][0] * (c[1][1] * c[2][2] - c[1][2] * c[2][1]) - c[1][0] * (c[0][1] * c[2][2] - c[0][2] * c[2][1]) + c[2][0] * (c[0][1] * c[1][2] - c[0][2] * c[1][1]);
+    expect(det).toBeCloseTo(1, 5);
+  };
+  const restOf = (G, q) => raise(gearRestPoint(G, q));
+
+  it('the item’s triangles are the ones the pack appends to the hand’s part', () => {
+    const packed = gearPackParts(mounts, { dz: DZ, light: DEFAULT_LIGHT });
+    expect(HG.R.item.tris).toBe(packed[mounts.findIndex((G) => G.slot === 'right')].tris.length);
+    expect(HG.L.item.tris).toBe(packed[mounts.findIndex((G) => G.slot === 'left')].tris.length);
+  });
+
+  it('a gun is presented: its grip in the fist, its bore along the hand raked toward the thumb, a shot from its muzzle', () => {
+    const G = mounts.find((g) => g.slot === 'right'), I = HG.R.item, g = HG.R.grip;
+    expect(I.hold).toBe('firearm');
+    rigid(I.rehold);
+    // the item's grip anchor lands on the grip space's origin
+    affine(I.rehold, restOf(G, G.o)).forEach((v, i) => expect(v).toBeCloseTo(g.o[i], 5));
+    const d = I.muzzle.d, a = PRESENT * Math.PI / 180;
+    expect(dot(d, g.y.map((v) => -v))).toBeCloseTo(Math.cos(a), 5);
+    expect(dot(d, g.z.map((v) => -v))).toBeCloseTo(Math.sin(a), 5);
+    // the muzzle is the tip socket carried by the same move, ahead of the hand along the bore
+    affine(I.rehold, restOf(G, G.sockets.tip.origin)).forEach((v, i) => expect(v).toBeCloseTo(I.muzzle.p[i], 5));
+    expect(dot(sub(I.muzzle.p, g.o), d)).toBeGreaterThan(0.05);
+    rot(I.rehold, [G.M[0][2], G.M[1][2], G.M[2][2]]).forEach((v, i) => expect(v).toBeCloseTo(d[i], 5));
+  });
+
+  it('a blade comes out of the fist past the thumb, along the grip’s −Z', () => {
+    const G = mounts.find((g) => g.slot === 'left'), I = HG.L.item, g = HG.L.grip;
+    expect(I.hold).toBe('blade');
+    expect(I.muzzle).toBeUndefined();
+    rigid(I.rehold);
+    affine(I.rehold, restOf(G, G.o)).forEach((v, i) => expect(v).toBeCloseTo(g.o[i], 5));
+    const tip = affine(I.rehold, restOf(G, G.sockets.tip.origin)), out = sub(tip, g.o);
+    expect(dot(unit(out), g.z.map((v) => -v))).toBeGreaterThan(0.99);
+    expect(len(out)).toBeGreaterThan(0.5);   // an arming sword's blade
+  });
+
+  it('an empty hand holds nothing; anything but a blade or a gun keeps the hero’s own hold', () => {
+    expect(H.R.item).toBeUndefined();
+    const bow = gearMounts(heroRecord({ cast: 'male', form: 'realistic', gear: { left: { item: 'bow' } } }), R);
+    const I = xrHands(R, { dz: DZ, gear: bow }).L.item;
+    expect(I.hold).toBe('bow');
+    expect(I.rehold).toEqual([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0]);
   });
 });

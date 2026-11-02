@@ -7,6 +7,7 @@ import { emitThreeWorld } from '../scene-three.js';
 import { validateRig, rigNodesAt } from '../../polygonizer/station-loft-rig.js';
 import { heroRecord, expandLayeredManifest } from '../../../mcp/tools/layered.js';
 import { xrHands } from '../../polygonizer/hero-xr-hands.js';
+import { gearMounts } from '../../polygonizer/hero-gear.js';
 
 // The headset's locomotion, run: the emitted block against the vendored three's math, a fake session whose sticks and
 // head the test moves, so "goes straight" and "turns in place" are measured, not read off the source. The eyes gate
@@ -255,19 +256,20 @@ describe('xr config', () => {
 // pilot. The head moves in the play space (position, yaw, pitch); the sticks and buttons are the test's.
 const K = composeLive();
 const FLAT = { ground: () => 0 };
-function gameUp(xr, { entities, camera = null, colliders = null } = {}) {
+function gameUp(xr, { entities, camera = null, colliders = null, aims = {} } = {}) {
   const cfg = xrConfig(xr, null, { ctrl: true });
   const pad = () => ({ axes: [0, 0, 0, 0], buttons: Array.from({ length: 6 }, () => ({ pressed: false, value: 0 })) });
   const pads = { left: pad(), right: pad() };
   const press = (side, i, on) => { pads[side].buttons[i] = { pressed: on, value: on ? 1 : 0 }; };
-  const session = { inputSources: [{ handedness: 'left', gamepad: pads.left }, { handedness: 'right', gamepad: pads.right }], addEventListener() {}, end() {} };
+  const session = { inputSources: [{ handedness: 'left', gamepad: pads.left, targetRaySpace: 'aim:left' }, { handedness: 'right', gamepad: pads.right, targetRaySpace: 'aim:right' }], addEventListener() {}, end() {} };
   const head = { x: 0, z: 0, yaw: 0, pitch: 0 };
   const frame = {
     getViewerPose: () => {
       const q = new THREE.Quaternion().setFromEuler(new THREE.Euler(head.pitch, head.yaw, 0, 'YXZ'));
       return { transform: { position: { x: head.x, y: 1.6, z: head.z }, orientation: { x: q.x, y: q.y, z: q.z, w: q.w } } };
     },
-    getPose: () => null,
+    // a controller's target ray: `aims[side]` = { p, q } (rig-local, y-up), set by the test
+    getPose: (sp) => { const a = aims[String(sp).slice(4)]; return a ? { transform: { position: { x: a.p[0], y: a.p[1], z: a.p[2] }, orientation: { x: a.q.x, y: a.q.y, z: a.q.z, w: a.q.w } } } : null; },
   };
   const renderer = { xr: { enabled: false, getSession: () => session, getFrame: () => frame, getReferenceSpace: () => ({}), setReferenceSpaceType() {}, async setSession() {} } };
   const camera3 = new THREE.PerspectiveCamera(); camera3.position.set(0, 0, 1.6); camera3.lookAt(1, 0, 1.6);
@@ -293,7 +295,7 @@ stepControllable = (dt) => {
 };
 return { enter: __xrEnter, step: __xrStep, rig: () => __xrRig, ctl: () => __xrCtl };`;
   const page = new Function(...Object.keys(env), body)(...Object.values(env));
-  return { pads, press, head, page, world, inputs };
+  return { pads, press, head, page, world, inputs, aims };
 }
 const hero = (over = {}, at = [0, 0, 0]) => ({ id: 'hero', pilotable: true, rule: { type: 'platform', eye: 0, speed: 4, collideRadius: 0.3, collideHeight: 1.7, ...over }, transform: { pos: [...at], heading: 0 } });
 // the head's world place: the rig carrying the viewer's
@@ -412,7 +414,7 @@ describe('the game page with a headset', () => {
 // controller asks; the grip's centre lands on the grip pose.
 const HR = validateRig(expandLayeredManifest({ kind: 'layered', title: 't', hero: heroRecord({ cast: 'male', form: 'realistic' }) }).recipe.rig);
 const HDZ = 0.04, HX = xrHands(HR, { dz: HDZ });
-function handsUp() {
+function handsUp({ X = HX, ent = hero(), parts = null } = {}) {
   const pad = () => ({ axes: [0, 0, 0, 0], buttons: Array.from({ length: 6 }, () => ({ pressed: false, touched: false, value: 0 })) });
   const pads = { left: pad(), right: pad() };
   const session = { inputSources: [{ handedness: 'left', gamepad: pads.left, gripSpace: 'grip:left' }, { handedness: 'right', gamepad: pads.right, gripSpace: 'grip:right' }], addEventListener() {}, end() {} };
@@ -426,10 +428,11 @@ function handsUp() {
     getPose: (sp) => { const g = grips[String(sp).slice(5)]; return g ? tf(g) : null; },
   };
   const renderer = { xr: { enabled: false, getSession: () => session, getFrame: () => frame, getReferenceSpace: () => ({}), setReferenceSpaceType() {}, async setSession() {} } };
-  const world = K.createWorld({ entities: [hero()] });
+  const world = K.createWorld({ entities: [ent] });
   const bones = HR.bones.map((b) => ({ id: b.id, head: HR.joints[b.head].map((v, i) => (i === 2 ? v + HDZ : v)) }));
   const boneMeshes = bones.map(() => new THREE.Mesh(new THREE.BufferGeometry(), new THREE.MeshBasicMaterial()));
-  const bodyGroup = new THREE.Group(); bodyGroup.userData.rigFig = { fig: { bones, xrHands: HX }, boneMeshes };
+  if (parts) for (const [bi, n] of Object.entries(parts)) boneMeshes[bi].geometry.setAttribute('position', new THREE.BufferAttribute(new Float32Array(9 * n), 3));
+  const bodyGroup = new THREE.Group(); bodyGroup.userData.rigFig = { fig: { bones, xrHands: X, parts: parts ? bones.map((b, i) => (parts[i] ? { faces: parts[i] } : null)) : [] }, boneMeshes };
   const env = {
     THREE, renderer, camera: new THREE.PerspectiveCamera(), scene: new THREE.Scene(), controls: { enabled: true }, hud: { appendChild() {} },
     document: { createElement: () => ({ classList: { add() {}, remove() {} }, hidden: false }), pointerLockElement: null },
@@ -438,10 +441,10 @@ function handsUp() {
   };
   const body = `let walkOn = false, __xrCtl = null, stepControllable = () => {};
 ${xrModeScript(xrConfig(true, null, { ctrl: true }), { ctrl: true, hands: true })}
-stepControllable = (dt) => { __K.stepWorld(__world, __xrCtl ? __xrCtl.input({ forward: 0, turn: 0, strafe: 0, lookDX: 0, lookDY: 0 }) : {}, dt, __FLAT); };
+stepControllable = (dt) => { const p = __xrCtl ? __xrCtl.pad() : null; __K.stepWorld(__world, __xrCtl ? __xrCtl.input({ forward: 0, turn: 0, strafe: 0, lookDX: 0, lookDY: 0, fire: p && p.fire ? 1 : 0 }) : {}, dt, __FLAT); };
 return { enter: __xrEnter, step: __xrStep, rig: () => __xrRig, hands: () => __xrHands, end: __xrExit };`;
   const page = new Function(...Object.keys(env), body)(...Object.values(env));
-  return { pads, grips, page, bones };
+  return { pads, grips, page, bones, world };
 }
 // a rest point of the pack carried by a hand mesh's matrix, then the hand's (the grip space's place in the rig)
 const carry = (h, id, p) => { const v = new THREE.Vector3(...p); if (id) v.applyMatrix4(h.by[id].m.matrix); return v; };
@@ -518,5 +521,78 @@ describe('the game page with the hands', () => {
     expect(emitThreeWorld({ faces: [floor], entities: ents, camera: cam, xr: true })).not.toContain('__xrHandsStep');
     expect(emitThreeWorld({ faces: [floor], entities: ents, camera: cam, xr: true, figures: { h: { rig: true, bones: [], parts: [], clips: {}, xrHands: HX } } })).toContain('__xrHandsStep(dt);');
     expect(emitThreeWorld({ faces: [floor], xr: true, figures: { h: { rig: true, bones: [], parts: [], clips: {}, xrHands: HX } } })).not.toContain('__xrHands');
+  });
+});
+
+// WHAT THE HANDS HOLD (P3), AND A SHOT FROM THEM: the kernel's ranged weapon (combat-ranged.js) takes the headset's aim,
+// the controller's ray where the hand holds no gun, the held gun's muzzle along its bore where it does.
+const gunner = (over = {}) => hero({ ...over }, [0, 0, 0]);
+const armed = (e) => ({ ...e, weapon: { fireClass: 'sight', range: 60, damage: 10, cooldown: 0.2, magazine: 30 } });
+const target = (at) => ({ id: 'target', rule: { type: 'clock' }, body: { type: 'box', hittable: true, hp: 100, egg: { a: 0.5, c: 1, cz: 1 } }, transform: { pos: at, heading: 0 } });
+const yawQ = (yaw, pitch = 0) => new THREE.Quaternion().setFromEuler(new THREE.Euler(pitch, yaw, 0, 'YXZ'));
+
+describe('a shot from the hand in the headset', () => {
+  it('the trigger fires along the controller’s ray, not where the body or the head faces', async () => {
+    // a target off to the left (+Y); the body faces +X. The right controller, held at chest height, points at it
+    const tgt = [0.3, 6, 1];
+    const g = gameUp(true, { entities: [armed(gunner()), target(tgt)] });
+    await g.page.enter();
+    run(g, 1);
+    // rig-local: the body faces −Z (= +X); +Y in the world is the play space's −X: a turn of +90° about its up
+    g.aims.right = { p: [0.2, 1.0, -0.3], q: yawQ(Math.PI / 2) };
+    g.press('right', 0, true);
+    run(g, 2);
+    const e = g.world.byId.hero, shot = e.lastShot;
+    expect(shot).toBeTruthy();
+    expect(shot.targetId).toBe('target');
+    expect(e.transform.heading).toBe(0);   // the body never turned
+    // from the controller, carried into the world (the rig under the hero, the head over its feet)
+    expect(shot.from[2]).toBeCloseTo(1.0, 6);
+  });
+
+  it('aimed away, the same trigger misses', async () => {
+    const g = gameUp(true, { entities: [armed(gunner()), target([0.3, 6, 1])] });
+    await g.page.enter();
+    run(g, 1);
+    g.aims.right = { p: [0.2, 1.0, -0.3], q: yawQ(-Math.PI / 2) };
+    g.press('right', 0, true);
+    run(g, 2);
+    expect(g.world.byId.hero.lastShot.targetId).toBeUndefined();
+  });
+});
+
+const HERO_GUN = heroRecord({ cast: 'male', form: 'realistic', gear: { right: { item: 'pistol' } } });
+const HXG = xrHands(HR, { dz: HDZ, gear: gearMounts(HERO_GUN, HR) });
+describe('the hands holding a gun', () => {
+  const hb = HR.boneIndex.handR, bodyTris = 40;
+  const gunUp = (ent) => handsUp({ X: HXG, ent, parts: { [hb]: bodyTris + HXG.R.item.tris } });
+
+  it('draws the hand without the gun and the gun apart, re-held; the fingers close round it from the grip word', async () => {
+    const u = gunUp(hero());
+    await u.page.enter(); u.page.step(1 / 60);
+    const h = u.page.hands().R;
+    expect(h.by.handR.m.geometry.drawRange).toEqual({ start: 0, count: 3 * bodyTris });
+    expect(h.item.geometry.drawRange).toEqual({ start: 3 * bodyTris, count: 3 * HXG.R.item.tris });
+    expect(h.item.parent).toBe(h.g);
+    const r = HXG.R.item.rehold;
+    expect(h.item.matrix.elements[12]).toBeCloseTo(r[3], 9); expect(h.item.matrix.elements[0]).toBeCloseTo(r[0], 9);
+    expect(tipNow(u, 'R', 'middle').distanceTo(tipAt('R', 'middle', HXG.R.poses.grip.middle))).toBeLessThan(0.002);
+    expect(tipNow(u, 'R', 'index').distanceTo(tipAt('R', 'index', HXG.R.poses.grip.index))).toBeLessThan(0.002);
+    // the empty left hand still rests relaxed
+    expect(u.page.hands().L.item).toBeNull();
+  });
+
+  it('a shot leaves from the held muzzle along its bore', async () => {
+    const u = gunUp(armed(hero()));
+    await u.page.enter(); u.page.step(1 / 60);
+    u.pads.right.buttons[0] = { pressed: true, touched: true, value: 1 };
+    u.page.step(1 / 60);
+    const h = u.page.hands().R, M = HXG.R.item.muzzle, shot = u.world.byId.hero.lastShot;
+    expect(shot).toBeTruthy();
+    // the muzzle where the step read it: the hands posed in the rig before the step, the rig not yet moved
+    const want = new THREE.Vector3(...M.p).applyMatrix4(h.g.matrixWorld);
+    expect(Math.hypot(shot.from[0] - want.x, shot.from[1] - want.y, shot.from[2] - want.z)).toBeLessThan(0.05);
+    const d = new THREE.Vector3(...M.d).transformDirection(h.g.matrixWorld), v = new THREE.Vector3(shot.to[0] - shot.from[0], shot.to[1] - shot.from[1], shot.to[2] - shot.from[2]).normalize();
+    expect(v.dot(d)).toBeGreaterThan(0.999);
   });
 });

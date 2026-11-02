@@ -981,7 +981,7 @@ export const WORLD_KINDS = {
         // (the realistic hero's pack written a corner a triangle: an export welds it, scene-gltf.js weldCorners)
         // THE HANDS IN A HEADSET (ctx.xrHands: a world a headset plays, channels/xr.js): the grip frame and the digits' curl
         // tables the page plays its own hand bones by (hero-xr-hands.js). Asked for only then; absent ⇒ byte-identical
-        const xh = ctx.xrHands && R.hands ? xrHands(R, { dz }) : null;
+        const xh = ctx.xrHands && R.hands ? xrHands(R, { dz, ...(gear?.length ? { gear } : {}) }) : null;
         scene.figures = { body: { ...pack, ...(face?.meta ? { face: face.meta } : face?.skipped ? { faceSkipped: face.skipped } : {}), ...(rim ? { rim } : {}), ...(m.hero?.form === 'realistic' ? { weld: true } : {}), ...(held ? { held } : {}), ...(xh ? { xrHands: xh } : {}), embodies: 'body', preview: { clips, hide: 'body', period: 3, ...(ink ? { ink: true } : {}), ...(stand ? { solid: 'stand' } : {}) } } };
       } else if (motioned) {
         // the animal's gaits and behaviors: the mesh bound to the species' skeleton, each gait a clip from the gait solver
