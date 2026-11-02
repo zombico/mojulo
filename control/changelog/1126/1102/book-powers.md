@@ -135,8 +135,9 @@ its resource, put on a look and showed a toast. This theme makes them act.
   - **The window.** The command menu stands in the lower-left corner while a member picks; the foes' box (their
     names, HP bars, the turn order) stands at the lower right. Each fighter's HP and MP ride on a bar over its head,
     with no name. The member picking is outlined and marked ▼, and its statuses (poison, asleep, silenced) are said
-    over its head. The foe aimed at is named over the pack's figure, and marked in the menu and the foes' box; an ally
-    aimed at is lit; clicking a head picks it. A blow's number, a miss or a heal rises over whoever it lands on. The
+    over its head. While a target is chosen, the menu stays on the list the action came from, the action set; the
+    target is chosen where it stands: in the foes' box (its cursor) or over an ally's head. Over the target only a ▼
+    marks who it is. Clicking a head picks it. A blow's number, a miss or a heal rises over whoever it lands on. The
     banner across the top says only an action's name or a status (a cast, a status taking, a fall, a level), never a
     number. While a round plays out, the window and the bars step aside for the bodies' acts, leaving the numbers
     and the banner, and come back for the next pick. The level's own HUD steps aside for the whole fight. The page

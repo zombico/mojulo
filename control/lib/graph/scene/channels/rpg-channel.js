@@ -45,7 +45,9 @@ export const RPG_CSS = `
 .moj-rpg-head .st{font-size:10px;letter-spacing:1px;text-transform:uppercase;color:#ffd76a}
 .moj-rpg-head.turn{outline:2px solid var(--moj-accent,#ffd76a)}.moj-rpg-head.turn::before{content:"\\25BC";position:absolute;left:50%;top:-15px;transform:translateX(-50%);color:var(--moj-accent,#ffd76a);font-size:12px}
 .moj-rpg-head.aim{outline:2px solid #ff8a5a;box-shadow:0 0 10px rgba(255,138,90,.7)}.moj-rpg-head.aim::after{content:"\\25BC";position:absolute;left:50%;top:-15px;transform:translateX(-50%);color:#ff8a5a}
-.moj-rpg-head.down{opacity:.45}.moj-rpg-head.foe{width:auto;min-width:60px;background:rgba(80,16,16,.72)}
+.moj-rpg-head.down{opacity:.45}.moj-rpg-head.foe{width:24px;min-height:4px;padding:0;background:transparent}.moj-rpg-head.foe.aim{outline:none;box-shadow:none}
+.moj-rpg-head.foe.aim::after{top:-6px;font-size:18px;text-shadow:0 0 6px rgba(0,0,0,.8)}
+.moj-rpg .opt.set{opacity:1;font-weight:700}
 .moj-rpg-head .moj-rpg-pop{top:-18px}
 .moj-rpg-bottom{transition:opacity .25s ease}.moj-rpg.acting .moj-rpg-bottom{opacity:0;pointer-events:none}
 .moj-rpg-heads.acting .moj-rpg-head{background:transparent;outline:none;box-shadow:none}.moj-rpg-heads.acting .moj-rpg-head::before,.moj-rpg-heads.acting .moj-rpg-head::after{display:none}
@@ -372,9 +374,18 @@ export function rpgPage(cfg, K, ctl, jk) {
     // (the command menu in the lower-left corner while a member picks; the foes' box at the lower right)
     let h = '<div class="moj-rpg-bottom">';
     if (phase === 'command') {
-      h += '<div class="moj-w moj-rpg-cmd"><div class="t">' + esc(memberName(active)) + (level !== 'cmd' ? ' · ' + (level === 'target' ? 'target' : CMD[level]) : '') + '</div>';
-      L.forEach((o, i) => { h += '<div class="opt' + (o.ok ? '' : ' off') + (i === f ? ' on-f' : '') + '" data-i="' + i + '"><span>' + esc(o.label) + '</span><span>' + esc(o.right || '') + '</span></div>'; });
-      if (!L.length) h += '<div class="opt off">—</div>';
+      // (choosing a target, the menu stays on the list the action came from, the action set; the target is chosen where
+      // it stands: in the foes' box, or over an ally's head)
+      const aiming = level === 'target' && pend, from = aiming ? (pend.act === 'attack' ? 'cmd' : pend.act) : level;
+      let M = L, at = f;
+      if (aiming) {
+        const was = level; level = from; M = cmdList(); level = was;
+        const named = pend.act === 'attack' ? CMD.attack : pend.act === 'skill' ? (cfg.skills[pend.skill] || {}).name : pend.act === 'item' ? (cfg.items[pend.item] || {}).name : null;
+        at = M.findIndex((o) => o.label === named);
+      }
+      h += '<div class="moj-w moj-rpg-cmd"><div class="t">' + esc(memberName(active)) + (from !== 'cmd' ? ' · ' + CMD[from] : '') + '</div>';
+      M.forEach((o, i) => { h += '<div class="opt' + (o.ok ? '' : ' off') + (i === at ? ' on-f' + (aiming ? ' set' : '') : '') + '"' + (aiming ? '' : ' data-i="' + i + '"') + '><span>' + esc(o.label) + '</span><span>' + esc(o.right || '') + '</span></div>'; });
+      if (!M.length) h += '<div class="opt off">—</div>';
       h += '</div>';
     }
     h += '<div class="moj-w moj-rpg-foes">';
@@ -406,7 +417,7 @@ export function rpgPage(cfg, K, ctl, jk) {
         + (S.mp > 0 ? '<div class="bar mp"><i style="width:' + pct(mp, S.mp) + '%"></i></div>' : '') + popsFor(m) + '</div>';
     }
     const aimedFoe = aimAt != null && !b.side[aimAt] ? b.foes.find((x) => x.uid === aimAt) : null, fp = b.foes.map((x) => popsFor(x.uid)).join(''), ff = figureOf((aimedFoe || b.foes[0] || {}).uid);
-    if (ff && (aimedFoe || fp)) h += '<div class="moj-rpg-head foe' + (aimedFoe ? ' aim' : '') + '" data-fig="' + ff + '" data-k="0"' + (aimedFoe ? ' data-aim="' + aimedFoe.uid + '"' : '') + '>' + (aimedFoe ? '<div class="n">' + esc(aimedFoe.name) + '</div>' : '') + fp + '</div>';
+    if (ff && (aimedFoe || fp)) h += '<div class="moj-rpg-head foe' + (aimedFoe ? ' aim' : '') + '" data-fig="' + ff + '" data-k="0"' + (aimedFoe ? ' data-aim="' + aimedFoe.uid + '"' : '') + '>' + fp + '</div>';
     heads.innerHTML = h;
   }
   // every frame: each head over its figure's head, by the scene's projection (hidden behind the eye)
