@@ -395,6 +395,8 @@ export function featurePlan(sheet, { title = 'a feature animal', reactions = fal
   };
   // (the forepaws planted on the floor, solved on the rig itself)
   if (build.fours) { landed(plan); looking(plan); planted(plan); if (L.tail) carried(plan, build.tail.carriage); }
+  // (an animal that goes on all fours RUNS on them: its `run` is the gallop; upright it only walks, slowly)
+  if (plan.clips.gallop) plan.clips.run = plan.clips.gallop;
   return { plan, H, height: L.top, ...(tune?.detail.bake ? { bake: detailBake(build.plan) } : {}) };
 }
 
@@ -429,7 +431,7 @@ function landed(plan) {
  *  animal holds it), the head taking `share` of the turn and the neck the rest (a neck pulled far back tucks the head
  *  into the shoulders), each within its range (figure-vajra.js LIMITS, × the key's `unbound`), solved on the rig. The
  *  downward dog keeps its own (the head lifted from a chest pitched further down) */
-export const FEATURE_LOOK = Object.freeze({ tilt: 15, share: 0.65, clips: ['fours', 'prowl', 'trot', 'gallop'] });
+export const FEATURE_LOOK = Object.freeze({ tilt: 15, share: 0.65, clips: ['fours', 'prowl', 'gallop'] });
 function looking(plan) {
   const R = validateRig(expandPlan(plan).rig), Lk = FEATURE_LOOK;
   const tipOf = (k) => { const n = rigNodesAt(R, k).nodes, c = [0, 1, 2].map((i) => n.headTop[i] - n.headBase[i]); return (Math.atan2(c[1], c[2]) * 180) / Math.PI; };
@@ -530,7 +532,7 @@ function carried(plan, carriage) {
  *  paw reaches the floor ahead, as far as the arm reaches (`FEATURE_PAWS.floor` of the height off it), the arm straight
  *  FORWARD in the downward dog (no share to the side) and a little out round the belly on all fours, a walk's and a
  *  gallop's swing kept; the aim corrected until the posed arm points there (`passes`) */
-export const FEATURE_PAWS = Object.freeze({ floor: 0.02, out: { fours: 0.15, prowl: 0.15, trot: 0.12, downDog: 0, gallop: 0.05 }, passes: 6 });
+export const FEATURE_PAWS = Object.freeze({ floor: 0.02, out: { fours: 0.15, prowl: 0.15, downDog: 0, gallop: 0.05 }, passes: 6 });
 function planted(plan) {
   const R = validateRig(expandPlan(plan).rig), h = plan.mascot.height, P = FEATURE_PAWS, fourY = plan.clips.fours?.[1]?.armR?.y ?? 0;
   const u = (v) => { const l = Math.hypot(v[0], v[1], v[2]) || 1; return [v[0] / l, v[1] / l, v[2] / l]; };

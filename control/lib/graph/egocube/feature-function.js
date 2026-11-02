@@ -15,8 +15,7 @@
  *                             reaches. `arms` and `legs` are a tune's asks (feature-tune.js: multipliers on what the fit
  *                             makes): honoured as far as the floor allows, `held` naming each the function kept longer;
  *                             a tuned `girth` (a deeper trunk, standing higher) lets the legs and the arms grow as far
- *   foursClips(F, { walk }) → the clips that play it: `fours` (dropping onto all fours, held), `trot` (the slow trot:
- *                             FEATURE_GAIT) and `prowl` (the walk on
+ *   foursClips(F, { walk }) → the clips that play it: `fours` (dropping onto all fours, held) and `prowl` (the walk on
  *                             all fours: the hind legs' own walk, the trunk hinged, the arms swinging against the legs)
  *
  * Head units (h), z up from the soles, y front. Pure: data and arithmetic.
@@ -198,12 +197,11 @@ export function functional(S, limbs = {}, { arms: A = 1, legs: Lg = 1, girth: G 
   return { S: T, fit: Object.fromEntries(Object.entries(fit).map(([k, v]) => [k, r4(v)])), fours: foursOf(T), dog: dogOf(T), ...(held.length ? { held } : {}) };
 }
 
-/** THE GAITS ON ALL FOURS: each foreleg plays a hind leg's own cycle (the hind feet take the biped's walk or run paths),
- *  `shift` of a cycle later on its own side: the WALK a four-beat lateral sequence (left hind, left fore, right hind,
- *  right fore: a quarter later), the slow TROT a two-beat diagonal (each fore with the other side's hind: half a cycle
- *  later). The forepaw goes from `under` of its reach (under the chest, the elbow folded) to all of it as the hind foot it
+/** THE WALK ON ALL FOURS: each foreleg plays a hind leg's own cycle (the hind feet take the biped's walk paths), `shift`
+ *  of a cycle later on its own side: a four-beat lateral sequence (left hind, left fore, right hind, right fore: a
+ *  quarter later). The forepaw goes from `under` of its reach (under the chest, the elbow folded) to all of it as the hind foot it
  *  copies does, on the floor in stance and lifted `lift` of the arm's length in swing (feature-body.js planted) */
-export const FEATURE_GAIT = Object.freeze({ prowl: Object.freeze({ shift: 0.25, under: 0.35, lift: 0.18 }), trot: Object.freeze({ shift: 0.5, under: 0.3, lift: 0.25 }) });
+export const FEATURE_GAIT = Object.freeze({ prowl: Object.freeze({ shift: 0.25, under: 0.35, lift: 0.18 }) });
 
 /** THE GALLOP: the run on all fours, the forward-facing downward dog its base (`dog`, the dog's key: the hips high, the
  *  chest low, the forepaws reaching, the head looking ahead). The hind feet take the biped run's paths (`run`, mascot-gait.js:
@@ -256,9 +254,7 @@ export function foursClips(F, { walk = [], ready = {}, dog = null, run = [] } = 
   return {
     ...bow,
     fours: [ready, on, on],
-    // (the walk and the slow trot on all fours: the hind feet the biped's walk's and run's paths (the run's lift dropped:
-    // a slow trot has no flight), the forelegs solved on the rig from them: FEATURE_GAIT)
+    // (the walk on all fours: the hind feet the biped's walk's paths, the forelegs solved on the rig from them: FEATURE_GAIT)
     prowl: walk.map((k) => ({ ...k, hinge: F.hinge, waist, crouch: F.crouch, spine: { ...(k.spine ?? {}), ...spine }, armR: down(1), armL: down(-1), elbowL: 'slight', elbowR: 'slight', neck, head })),
-    ...(run.length ? { trot: run.map(({ lift, ...k }) => ({ ...k, hinge: F.hinge, waist, crouch: F.crouch, spine: { ...(k.spine ?? {}), ...spine }, armR: down(1), armL: down(-1), elbowL: 'slight', elbowR: 'slight', neck, head })) } : {}),
   };
 }
