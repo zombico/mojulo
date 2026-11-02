@@ -29,6 +29,14 @@ export const CRAFT_PALETTES = {
   warbirdOlive: { paint: '#5a5f3c', trim: '#b9b39a', glass: '#8fb0c4', rubber: '#1b1c1e', chrome: '#9aa0a6', light: '#ffb347' },
   // a consumer drone's light grey moulding, its dark plastics
   droneConsumer: { paint: '#c8cbcd', trim: '#34373a', glass: '#1b2026', rubber: '#1d1f21', chrome: '#7d8287', light: '#ff5a3c' },
+  // a racer's bare carbon, aluminium standoffs, bright props (its 'rubber': the shelf's role for the props)
+  fpvCarbon: { paint: '#2a2c2f', trim: '#1b1c1e', glass: '#22303a', rubber: '#e8642a', chrome: '#a8adb2', light: '#7dff6a' },
+  // an enterprise drone's dark grey, rugged
+  droneEnterprise: { paint: '#3b3f43', trim: '#222427', glass: '#1a2128', rubber: '#18191b', chrome: '#8b9196', light: '#ff6a3d' },
+  // a crop sprayer's white tank and body, a blue cap
+  agriWhite: { paint: '#e4e6e4', trim: '#2a2d30', glass: '#1b2026', rubber: '#1b1c1e', chrome: '#9aa0a5', light: '#2f7fd0' },
+  // a delivery drone's white, its blue trim
+  droneParcel: { paint: '#e9ecee', trim: '#1f5fa8', glass: '#1b2026', rubber: '#1d1f21', chrome: '#8b9196', light: '#ffb000' },
   polishedAlu: { paint: '#c6ccd2', trim: '#20242a', glass: '#7ea8c4', rubber: '#181a1c', chrome: '#e3e7eb', light: '#e94b3c' },
   // space
   scoutIvory: { paint: '#d9d4c7', trim: '#a8473a', glass: '#2b3a44', rubber: '#3b3d40', chrome: '#8d9196', light: '#ff7a4a' },

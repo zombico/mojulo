@@ -50,3 +50,59 @@ markings and wear.
       closed and assembles both drones at their figures.
   - **Seen** (machine gate only; the eyes gate is open): the camera quad from three quarters, above, the side and the
     front; the sentry probe.
+- **The multirotor family** (the same files):
+  - **Frames:**
+    - a racer's carbon plate stack: plates on standoffs, the boards between, the battery strapped on top, the camera
+      tilted in its cage, the video antenna raked aft;
+    - a ruggedised box, flat-paneled with chamfered edges;
+    - a heavy lifter's round hub: plates, the core, the canopy's dome, the arms' seats.
+  - **Arms:**
+    - a racer's flat carbon arm;
+    - carbon tube arms with a folding clamp, folding down about their own horizontal (`fold.axis: 'y'`);
+    - a coaxial arm with a second motor plate under its tip.
+  - **Rotors:**
+    - folding rotors: a hub bar and the blades' pivots;
+    - the racer's tri-blades.
+
+    All are sold, as rotors are, a part number per hand.
+  - **Ducts:** open walls with rolled lips and struts.
+  - **Skids:** a new kind, `drone-gear`: struts splayed to a tube, where the drone stands.
+  - **Payloads:**
+    - a cargo box with its lid's seam, its latches and a winch point;
+    - a winch: drum, tether and hook;
+    - a spray tank with its filler, pump, hoses and a boom of nozzles;
+    - a LiDAR puck;
+    - a bigger zoom gimbal.
+  - **A folding antenna paddle.**
+  - **The drones**, each a layout written from its frame, arms, motor, rotor, skids, payloads and masts (the bill of
+    materials counted from it):
+    - a five-inch racing quad;
+    - an enterprise inspection quad;
+    - a heavy-lift hexacopter with a cargo box;
+    - a coaxial X8 mapper with a LiDAR: its lower rotors inverted under the arms, turning against those above;
+    - an agricultural spray hexacopter;
+    - a ducted parcel delivery quad with its box and winch.
+  - **New roles:** `racer`, `delivery` and `agriculture`, each with its starship drone: the dart probe, the cargo
+    probe, the seeder probe.
+  - **On the roster:**
+    - racing drone;
+    - inspection drone;
+    - heavy-lift drone;
+    - coaxial octocopter;
+    - crop-spraying drone;
+    - delivery drone;
+    - the three probes.
+  - **Palettes:** `fpvCarbon`, `droneEnterprise`, `agriWhite`, `droneParcel`.
+  - **Every straight lathe on a drone two cross-sections:** an X8 cost 56k triangles; it now costs 16k.
+  - **Held** (`drone.test.js`):
+    - no two rotors' discs overlapping in plan, a coaxial pair stacked;
+    - a coaxial pair counter-rotating;
+    - standing on skids;
+    - a tube arm folding down;
+    - a ducted rotor inside its duct;
+    - a small drone under 25k triangles, a heavy one under 50k.
+
+    The shelf's char test pins the new builder paths. The deep sweep builds every part closed and assembles every drone
+    at its figures.
+  - **Seen** (machine gate only; the eyes gate is open): every drone and probe from three quarters; the racer and the
+    dart probe close up.

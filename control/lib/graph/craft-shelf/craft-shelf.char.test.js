@@ -12,6 +12,9 @@
  *     hinged, gear and canopy joints, panel seams, cabin windows and doors, greebles, fan blades, nav
  *     lights, straight cabin barrels; every pin re-pinned.
  *   - The drone parts joined the shelf (drone-odm.js): their builder paths pinned; no existing pin moved.
+ *   - The multirotor family (unreleased, folded in): new builder paths pinned; the camera gimbal's glass given a real
+ *     thickness (it rounded to nothing on a bigger gimbal), the probe's vent its cowl, and every straight drone lathe
+ *     two cross-sections (a straight profile needs no more; an X8 cost 56k triangles), so the drone pins re-pinned.
  */
 import { createHash } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
@@ -60,14 +63,26 @@ const PINS = {
   'eng-radial-18': '304899c7427b23ad',
   // the drone parts (drone-parts.js): their builder paths pinned when they joined the shelf
   'frame-shell-camera': '38afd6e99918dcc5',
-  'arm-fold-camera-front': '7cf2a5ca4480fbd8',
-  'motor-1806': '4ffcfa5066596d5e',
+  'arm-fold-camera-front': '9aa99f9cd96cd86a',
+  'motor-1806': '9e29b764e6244eb6',
   'rotor-2-9in-ccw': 'e6b7a71a1d7d5142',
   'guard-ring-9in': '932f635320a34275',
-  'gimbal-3axis-camera': 'e2e10b39f714b1a2',
-  'mast-gps-puck': '304e003e68d3e794',
-  'motor-vent-probe': '69266e7be2707342',
-  'eye-probe': '78ec7574a243cd08',
+  'gimbal-3axis-camera': '9a132523b7a5b763',
+  'mast-gps-puck': 'c9596da31b70579d',
+  'frame-plate-fpv': 'ec3dc7444837a8d5',
+  'arm-plate-fpv': 'afb79a00457bdbb1',
+  'frame-box-enterprise': 'a4a86c41f2c051d6',
+  'arm-tube-enterprise': '4a99373dc741aa02',
+  'mast-paddle-enterprise': '86bb96701bc9aace',
+  'gear-skid-enterprise': '29817727afbb18a4',
+  'frame-hub-heavy': 'c4b9cc6b0b91b33b',
+  'box-cargo-heavy': '5ef4ac3f289cc5bb',
+  'lidar-puck': '6fe890cbfff115da',
+  'sprayer-10l': '50775e8131dbb96d',
+  'duct-15in': '00678fcf0fca31f7',
+  'winch-parcel': 'd5eacb29acc38c56',
+  'motor-vent-probe': 'e8d0ae806e057d3b',
+  'eye-probe': '6e299153a70e5b86',
   'craft:lightSingle': 'cbbad5fe3c255c1d',
 };
 

@@ -94,3 +94,45 @@ describe('in the form render and on the roster', () => {
     expect(handlesOf(resolveVehicle('quadcopter').id).craft).toEqual([QUAD]);
   });
 });
+
+describe('the multirotor family', () => {
+  const drones = Object.keys(A).filter((k) => A[k].realm === 'earth' && A[k].layout.some((e) => CRAFT_ODM[e.sku]?.kind === 'drone-rotor'));
+  const kindOf = (k, kind) => A[k].layout.filter((e) => CRAFT_ODM[e.sku]?.kind === kind);
+  const COAX = drones.find((k) => kindOf(k, 'drone-motor').some((e) => e.flip === 'z'));
+  const SKID = drones.find((k) => kindOf(k, 'drone-gear').length);
+  const DOWN = drones.find((k) => kindOf(k, 'drone-arm').some((e) => CRAFT_ODM[e.sku].build.fold?.axis === 'y'));
+  const DUCT = drones.find((k) => kindOf(k, 'drone-guard').some((e) => CRAFT_ODM[e.sku].build.family === 'duct'));
+  const tris = (k) => craftForm(k, { pose: { gear: 0 }, attitude: 'ground' }).items.flatMap((i) => i.faces).reduce((s, f) => s + f.corners.length - 2, 0);
+  it('no two rotors\' discs overlap in plan, a coaxial pair stacked one over the other', () => {
+    for (const k of drones) {
+      const { manifest } = assembleCraft(k), rs = manifest.items.filter((i) => i.source.garage.kind === 'drone-rotor');
+      for (let i = 0; i < rs.length; i++) for (let j = i + 1; j < rs.length; j++) {
+        const a = rs[i].at, b = rs[j].at, d = Math.hypot(a[0] - b[0], a[1] - b[1]);
+        if (d < 1e-3) { expect(Math.abs(a[2] - b[2]), `${k} ${rs[i].id}`).toBeGreaterThan(0.03); continue; }
+        expect(d, `${k} ${rs[i].id} ${rs[j].id}`).toBeGreaterThan(rs[i].source.garage.dims.diameter * 0.98);
+      }
+    }
+  });
+  it('a coaxial arm\'s lower motor and rotor hang inverted under it, turning against the one above', () => {
+    const { manifest } = assembleCraft(COAX), low = kindOf(COAX, 'drone-motor').find((e) => e.flip === 'z').id;
+    const up = itemOf(manifest, low.replace('Low', '') + '-r'), dn = itemOf(manifest, `${low}-r`);
+    expect(dn.at[2]).toBeLessThan(up.at[2] - 0.03);
+    expect(dn.flip).toContain('z');
+    const rU = itemOf(manifest, low.replace('MotorLow', 'Rotor') + '-r'), rD = itemOf(manifest, low.replace('Motor', 'Rotor') + '-r');
+    const turn = (it) => it.source.garage.joints[0].dir[2] * ((it.flip || '').includes('z') ? -1 : 1) * ((it.flip || '').includes('x') ? -1 : 1);
+    expect(turn(rD)).toBe(-turn(rU));
+  });
+  it('a skid drone stands on its skids; a tube arm folds down; a ducted rotor turns inside its duct', () => {
+    const { readout } = assembleCraft(SKID);
+    expect(readout.gear.length).toBe(2);
+    for (const g of readout.gear) expect(Math.abs(g.contact[2])).toBeLessThan(0.002);
+    const arm = kindOf(DOWN, 'drone-arm').find((e) => CRAFT_ODM[e.sku].build.fold?.axis === 'y');
+    const tip = (fold) => resolveCraftPart(arm.sku, { fold, seat: 'mount' }).garage.hardpoints.motor;
+    expect(tip(1)[2]).toBeLessThan(tip(0)[2] - 0.2);
+    const g = kindOf(DUCT, 'drone-guard')[0], r = kindOf(DUCT, 'drone-rotor')[0];
+    expect(CRAFT_ODM[r.sku].dims.diameter).toBeLessThan(CRAFT_ODM[g.sku].dims.diameter);
+  });
+  it('within budget: a small drone under 25k triangles, a heavy one under 50k', () => {
+    for (const k of drones) expect(tris(k), k).toBeLessThan(A[k].reference.mtow < 2 ? 25000 : 50000);
+  });
+});
