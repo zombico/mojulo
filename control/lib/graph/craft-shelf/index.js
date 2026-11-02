@@ -18,6 +18,7 @@ import { resolveAssemblerPlacements } from '../worlds/workbench-assembler.js';
 import { planAssemblyBom } from '../vehicle-designer/assembly-bom.js';
 import { CRAFT_COLOR_ROLES, CRAFT_PALETTES, DEG, clone, resolveCraftPalette, round3 } from './craft-common.js';
 import { CRAFT_BUILDERS } from './craft-parts.js';
+import { lookCard, lookSwap } from './drone-looks.js';
 import { CRAFT_KINDS, CRAFT_ODM, CRAFT_REALMS } from './craft-odm.js';
 import { CRAFT_ARCHETYPES, CRAFT_ROLES } from './craft-archetypes.js';
 
@@ -90,11 +91,12 @@ function lowestZ(recipe) {
  * `pose` moves what articulates — { pitch, roll, yaw (−1 … 1), flaps, gear, canopy (0 … 1), prop
  * (degrees) } — and `side` ('r' | 'l') says which copy of a pair this is (a left aileron throws the
  * other way; a left wingtip shows red). `finish: false` drops the material finishes to bare tints.
+ * `lights: 'covert'` darkens a drone arm's LEDs (a military look's).
  */
-export function resolveCraftPart(sku, { palette, colors = {}, seat = 'grid', fold = 0, pose = {}, side = null, finish = true, title, made = false } = {}) {
+export function resolveCraftPart(sku, { palette, colors = {}, seat = 'grid', fold = 0, pose = {}, side = null, finish = true, title, made = false, lights } = {}) {
   const row = partRow(sku);
   const { id: paletteId, colors: C } = resolveCraftPalette(palette, colors, REALM_PALETTE[row.realm]);
-  const geom = CRAFT_BUILDERS[row.kind](row, C, { fold, pose, side, sku, ...(made ? { made } : {}) });
+  const geom = CRAFT_BUILDERS[row.kind](row, C, { fold, pose, side, sku, ...(made ? { made } : {}), ...(lights ? { lights } : {}) });
   const monomers = Object.fromEntries(MONOMERS.filter((k) => geom[k] && geom[k].length).map((k) => [k, geom[k]]));
   const recipe = {
     kind: 'workbench',
@@ -166,7 +168,7 @@ function archetypeRow(id) {
  * Walk a layout: every part placed by its mount at the hardpoint `at` names, mirrors made. A part whose
  * parent was swapped for one without that hardpoint is left off and named (advice, not a refusal).
  */
-function placeLayout(row, { palette, colors, swap, fold, pose, finish, made }) {
+function placeLayout(row, { palette, colors, swap, fold, pose, finish, made, lights }) {
   const placed = new Map();
   const order = [];
   const skipped = new Set();
@@ -179,7 +181,7 @@ function placeLayout(row, { palette, colors, swap, fold, pose, finish, made }) {
       canopy: row.layout.map((e) => CRAFT_ODM[swap[e.id] || e.sku]).find((r) => r?.kind === 'craft-canopy') ?? null,
       mounts: row.layout.filter((e) => e.at?.split('.')[0] === entry.id).map((e) => ({ point: e.at.split('.')[1], row: CRAFT_ODM[swap[e.id] || e.sku] ?? null, pair: Boolean(e.pair) })),
     } : false;
-    const make = (side) => resolveCraftPart(sku, { palette, colors, seat: 'mount', fold, pose, side, finish, made: madeOf });
+    const make = (side) => resolveCraftPart(sku, { palette, colors, seat: 'mount', fold, pose, side, finish, made: madeOf, ...(lights ? { lights } : {}) });
     const recipe = make(entry.pair ? 'r' : null);
     let target = [0, 0, 0];
     let parent = null;
@@ -249,16 +251,21 @@ function toManifest(row, order, { pitch, lift, title }) {
 /**
  * An archetype → an assembler recipe of frozen craft parts, standing on its gear.
  * `swap: { <layout id>: <sku> }` puts another inventory part in a slot (audited, never refused).
+ * `look` (a drone's: drone-looks.js) dresses it in that card's palette, swaps its payloads and sets its lights.
  * `attitude: 'ground'` (default) rests the craft on all its gear, pitching a taildragger nose up;
  * `'level'` keeps the waterline level and rests it on its lowest contact. A craft with no gear
  * rests on its lowest point (a panel interceptor stands on its panels' lower corners). `fold` (0 … 1)
  * folds every folding wing; absent, the archetype's own stance (a shuttle lands with its wings up).
  * Returns `{ manifest, readout }`: the readout measures the craft as built.
  */
-export function assembleCraft(archetype, { palette, colors = {}, swap = {}, attitude = 'ground', fold, pose = {}, finish = true, title, made = false } = {}) {
+export function assembleCraft(archetype, { palette, colors = {}, swap: swapIn = {}, attitude = 'ground', fold, pose = {}, finish = true, title, made = false, look } = {}) {
   const row = archetypeRow(archetype);
+  let swap = swapIn;
   const foldNow = Math.max(0, Math.min(1, Number.isFinite(fold) ? fold : (row.fold || 0)));
-  const { order, warnings: placing } = placeLayout(row, { palette: palette || row.palette, colors, swap, fold: foldNow, pose, finish, made });
+  // (a drone asked for a look: that card's palette, its payloads' swaps under the operator's own, its lights)
+  const card = look ? lookCard(look) : null;
+  if (card) swap = { ...lookSwap(row, card, CRAFT_ODM), ...swapIn };
+  const { order, warnings: placing } = placeLayout(row, { palette: palette || card?.palette || row.palette, colors, swap, fold: foldNow, pose, finish, made, ...(card ? { lights: card.lights } : {}) });
   // gear fully up: the craft is in the air, so it does not stand on its wheels (it rests on its belly)
   const gearUp = Number(pose.gear) >= 1;
   const contacts = order
@@ -300,7 +307,7 @@ export function assembleCraft(archetype, { palette, colors = {}, swap = {}, atti
   const joints = manifest.items.flatMap((it) => (it.source.garage.joints || []).map((j) => ({
     item: it.id, name: j.name, control: j.control, kind: j.kind, range: j.range, ...(j.kind === 'slide' ? { travel: j.travel } : { angle: j.angle }),
   })));
-  return { manifest, readout: { ...readout, fold: foldNow, pose: clone(pose), gear, joints } };
+  return { manifest, readout: { ...readout, fold: foldNow, pose: clone(pose), gear, joints, ...(look ? { look } : {}) } };
 }
 
 /** What the assembled craft measures, weighs and pushes, beside its reference figure. */

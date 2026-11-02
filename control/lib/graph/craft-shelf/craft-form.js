@@ -16,10 +16,11 @@
  *   AIR_MATERIALS                                   the slots an aircraft is drawn in: a semi-gloss paint and its
  *                                                   trim, bare and hot metal, a canopy's tinted glass, the rubber, the
  *                                                   nav lights and the exhaust's glow
- *   craftForm(archetype, { palette?, colors?, pose?, attitude?, made?, livery?, wear? })   made: its skin's panel lines,
+ *   craftForm(archetype, { palette?, colors?, pose?, attitude?, made?, livery?, wear?, look? })   made: its skin's panel lines,
  *                                                   access panels and fasteners (air-kit.js); livery: its camo cut into
  *                                                   the paint and its marks; wear: soot, streaks, chips, fade, patches
- *                                                   (air-surface.js). Each absent adds nothing.
+ *                                                   (air-surface.js); look: a drone's card (drone-looks.js), its palette,
+ *                                                   slots, lights, payloads and livery. Each absent adds nothing.
  *     → { items: [{ id, head, faces }], length, span, height, readout }   the craft centred on x and y, its lowest
  *                                                   point on z = 0 (craft-rig.js craftPieces' frame)
  *   craftFormFigure(archetype, { …craftForm's, setting?, keys? }) → the rig figure, one bone per item, in the form
@@ -38,6 +39,7 @@ import { formLight, skyMood } from '../car-designer/form-light.js';
 import { CRAFT_ODM } from './craft-odm.js';
 import { PANEL_KINDS, itemFrame, skinPanels, fastenersOn } from './air-kit.js';
 import { readAirLivery, paintCraft, markCraft, wearCraft } from './air-surface.js';
+import { lookCard } from './drone-looks.js';
 import { readWear } from '../car-designer/mil-wear.js';
 
 export const AIR_MATERIALS = Object.freeze({
@@ -53,6 +55,8 @@ export const AIR_MATERIALS = Object.freeze({
   navRed: Object.freeze({ metalness: 0, roughness: 0.3, emissive: '#ff2a1a', emissiveIntensity: 0.9 }),
   navGreen: Object.freeze({ metalness: 0, roughness: 0.3, emissive: '#2bff6a', emissiveIntensity: 0.9 }),
   glow: Object.freeze({ metalness: 0, roughness: 0.6, emissive: '#ff8a3c', emissiveIntensity: 1.0 }),
+  // (a drone's moulded plastic: satin, no clearcoat; its carbon fibre is the road's own clear-coated black, `carbon`)
+  plastic: Object.freeze({ metalness: 0, roughness: 0.52 }),
 });
 
 const r4 = (v) => Math.round(v * 1e4) / 1e4 + 0;
@@ -102,12 +106,14 @@ function accessOf(F) {
 }
 
 /** The craft's faces in the form render, by item (see the head of this file). */
-export function craftForm(archetype, { palette, colors, pose = { gear: 1 }, attitude = 'level', made = false, livery, wear } = {}) {
+export function craftForm(archetype, { palette, colors, pose = { gear: 1 }, attitude = 'level', made = false, livery, wear, look } = {}) {
   const row = CRAFT_ARCHETYPES[archetype];
   if (!row) throw new Error(`craft-form: no archetype '${archetype}' on the shelf`);
-  const L = readAirLivery(livery), W = wear === undefined || wear === null ? null : readWear(wear);
-  const { manifest, readout } = assembleCraft(archetype, { palette, colors, pose, attitude, finish: true, ...(made ? { made } : {}) });
-  const P = resolveCraftPalette(palette ?? row.palette, colors).colors;
+  // (a drone's look: its stock card's slots, or the card asked for, with its palette and, unless one is named, its livery)
+  const card = look ? lookCard(look) : row.look ? lookCard(row.look) : null;
+  const L = readAirLivery(livery ?? (look ? card.livery : undefined)), W = wear === undefined || wear === null ? null : readWear(wear);
+  const { manifest, readout } = assembleCraft(archetype, { palette, colors, pose, attitude, finish: true, ...(made ? { made } : {}), ...(look ? { look } : {}) });
+  const P = resolveCraftPalette(palette ?? (look ? card.palette : row.palette), colors).colors;
   const { faces, placements } = lowerAssemblerBuild(manifest, { light: FLAT_LIGHT });
   let mn = [Infinity, Infinity, Infinity], mx = [-Infinity, -Infinity, -Infinity];
   for (const f of faces) for (const c of f.corners) for (let k = 0; k < 3; k++) { if (c[k] < mn[k]) mn[k] = c[k]; if (c[k] > mx[k]) mx[k] = c[k]; }
@@ -122,7 +128,7 @@ export function craftForm(archetype, { palette, colors, pose = { gear: 1 }, atti
     // seen from its back, so a face wound against its normal, as a mirrored part's are, would shade as its underside)
     const own = faces.slice(p.faceStart, p.faceStart + p.faceCount).map((f) => {
       const c = f.corners.map(N);
-      const material = slotOf(f.fill, f.pbr, P);
+      const material = card?.slots[slotOf(f.fill, f.pbr, P)] ?? slotOf(f.fill, f.pbr, P);
       // (made: a canopy's own glass the smoky gold of its coating, not the palette's tint)
       const albedo = made && id === 'canopy' && material === 'canopy' ? CANOPY_GOLD : String(f.fill).toLowerCase();
       return { corners: woundTo(c, f.outNormal), part: id, material, albedo, outNormal: f.outNormal, ...(f.group ? { fitting: f.group } : {}) };

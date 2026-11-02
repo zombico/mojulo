@@ -15,6 +15,7 @@
  *   - The multirotor family (unreleased, folded in): new builder paths pinned; the camera gimbal's glass given a real
  *     thickness (it rounded to nothing on a bigger gimbal), the probe's vent its cowl, and every straight drone lathe
  *     two cross-sections (a straight profile needs no more; an X8 cost 56k triangles), so the drone pins re-pinned.
+ *   - The drone looks: the EO/IR ball's builder path pinned; no other pin moved.
  */
 import { createHash } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
@@ -83,6 +84,7 @@ const PINS = {
   'winch-parcel': 'd5eacb29acc38c56',
   'motor-vent-probe': 'e8d0ae806e057d3b',
   'eye-probe': '6e299153a70e5b86',
+  'eoir-ball-small': 'a83be3ba6c538c86',
   'craft:lightSingle': 'cbbad5fe3c255c1d',
 };
 

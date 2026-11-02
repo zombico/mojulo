@@ -106,3 +106,41 @@ markings and wear.
     at its figures.
   - **Seen** (machine gate only; the eyes gate is open): every drone and probe from three quarters; the racer and the
     dart probe close up.
+- **The looks** (`craft-shelf/drone-looks.js`). A drone's look is a card, never a second airframe. Each card names:
+  - **its palette**;
+  - **the slots its painted parts are drawn in:**
+    - a moulded drone's `plastic`, a new satin slot;
+    - a racer's `carbon`;
+    - a military drone's matte paint, which a camo cuts into;
+  - **its lights:** the arms' LEDs lit, or dark (covert, an IR emitter's lens);
+  - **what its payloads become:** a military look's camera gimbal an EO/IR ball, the nearest in size (a new `eoir`
+    family in three sizes: its yaw collar, the ball, its windows in their bezels);
+  - **its livery when asked:**
+    - a civilian's registration on both sides of the frame (generic: three figures, a dash, four; never a real
+      register's format) and its serial plate on top;
+    - an enterprise drone's orange arm tips;
+    - a military drone's low-visibility number and emblem;
+    - a racer none.
+
+  The cards: `consumer | enterprise | racer | military`.
+  - **The words:**
+    - an earth drone names its stock look;
+    - `assembleCraft` and `craftForm` take `look`, which swaps in its palette, payloads and lights (the operator's own
+      swaps over it) and, unless a livery is named, its livery;
+    - absent, a drone wears its stock card's slots and nothing else;
+    - a craft that is no drone takes none.
+  - **The marks** (`air-surface.js`): a livery's marks take a `style` (`military | civil`) and `hiVis`. A drone's marks
+    are laid on its frame and arms, the same conforming decals.
+  - **A palette:** `droneMilitary`, a matte olive-grey.
+  - **Held** (`drone-looks.test.js`):
+    - the same airframe in every look, only its payloads changing;
+    - a military gimbal an EO/IR ball nearest its size, its LEDs dark;
+    - the slots per card, a camo cutting a military drone's paint;
+    - the civil marks both sides, the plate on top, an enterprise's orange arm tips;
+    - the military marks low-visibility, a racer's none;
+    - the stock look by default, no marks unless asked;
+    - an unknown look named.
+
+    The shelf's char test pins the EO/IR ball's path; no other pin moved.
+  - **Seen** (machine gate only; the eyes gate is open): the camera quad and the inspection quad in each look, and the
+    inspection quad military in camo, used.

@@ -142,8 +142,9 @@ function buildArm(row, C, opts = {}) {
   ];
   // a LED under the tip, inboard of the foot
   if (b.led) {
-    const x = L - pad - 0.004, tint = b.led === 'nav' ? NAV[opts.side || 'c'] : C.light;
-    lathes.push(lathe('led', P([x, 0, rise - h * 0.36]), P([x, 0, rise - h * 0.36 - 0.004]), [[0, 0.0045], [1, 0.0035]], tint, { material: 'neon', samples: 10, crossSections: 2 }));
+    // (a covert look's LEDs dark: an IR emitter's lens, no light)
+    const x = L - pad - 0.004, tint = opts.lights === 'covert' ? C.trim : b.led === 'nav' ? NAV[opts.side || 'c'] : C.light;
+    lathes.push(lathe('led', P([x, 0, rise - h * 0.36]), P([x, 0, rise - h * 0.36 - 0.004]), [[0, 0.0045], [1, 0.0035]], tint, { ...(opts.lights === 'covert' ? {} : { material: 'neon' }), samples: 10, crossSections: 2 }));
   }
   const hardpoints = { mount: [0, 0, 0], motor: r3v(P([tip[0], 0, zPad])) };
   // a foot under the tip: where the drone stands
@@ -181,8 +182,8 @@ function buildTubeArm(row, C, opts = {}) {
   const hardpoints = { mount: [0, 0, 0], motor: r3v(P([L, 0, r + 0.006])) };
   if (b.coax) { lathes.push(plate('pad_low', -r - 0.006, -r * 1.1)); hardpoints.motorLow = r3v(P([L, 0, -r - 0.006])); }
   if (b.led) {
-    const x = L - pad - 0.012, tint = b.led === 'nav' ? NAV[opts.side || 'c'] : C.light;
-    lathes.push(lathe('led', P([x, 0, -r * 0.9]), P([x, 0, -r * 0.9 - 0.006]), [[0, r * 0.5], [1, r * 0.4]], tint, { material: 'neon', samples: 10, crossSections: 2 }));
+    const x = L - pad - 0.012, tint = opts.lights === 'covert' ? C.trim : b.led === 'nav' ? NAV[opts.side || 'c'] : C.light;
+    lathes.push(lathe('led', P([x, 0, -r * 0.9]), P([x, 0, -r * 0.9 - 0.006]), [[0, r * 0.5], [1, r * 0.4]], tint, { ...(opts.lights === 'covert' ? {} : { material: 'neon' }), samples: 10, crossSections: 2 }));
   }
   const joints = b.fold ? [{ name: 'fold', control: 'fold', kind: 'hinge', at: [0, 0, 0], dir: b.fold.axis === 'y' ? [0, 1, 0] : [0, 0, 1], range: [0, b.fold.angle], angle: round3(angle) || 0 }] : [];
   return { lathes, extrudes, hardpoints, ...(joints.length ? { joints } : {}), ...(b.fold ? { fold: round3(angle) || 0 } : {}) };
@@ -290,6 +291,22 @@ function buildPayload(row, C) {
     const cw = w * 0.36, ch = h * 0.22, k = 0.35;
     const extrudes = [extrudeWorld('camera', [0, l * 0.3, zc], [0, -l * 0.32, zc], [[cw, 0, ch * (1 - k)], [cw * (1 - k), 0, ch], [-cw * (1 - k), 0, ch], [-cw, 0, ch * (1 - k)], [-cw, 0, -ch * (1 - k)], [-cw * (1 - k), 0, -ch], [cw * (1 - k), 0, -ch], [cw, 0, -ch * (1 - k)]], C.trim)];
     return { lathes, sweeps, extrudes, hardpoints: { mount: [0, 0, 0] } };
+  }
+  if (b.family === 'eoir') {
+    // an EO/IR ball: its yaw collar under the mount, the ball, its windows looking ahead (a day camera, a thermal one,
+    // a laser's), each a flat glass in a dark bezel
+    const D = row.dims.diameter, H = row.dims.height, R = D / 2, zc = -H + R;
+    const lathes = [
+      lathe('collar', [0, 0, 0], [0, 0, -(H - D) - R * 0.25], [[0, R * 0.62], [1, R * 0.56]], C.trim, { samples: 20, crossSections: 2 }),
+      lathe('ball', [0, 0, zc + R], [0, 0, zc - R], Array.from({ length: 9 }, (_, i) => { const t = i / 8, a = Math.PI * t; return [t, Math.max(R * 0.05, R * Math.sin(a))]; }), C.paint, { samples: 24, crossSections: 9 }),
+    ];
+    const n = b.windows || 2;
+    for (let i = 0; i < n; i++) {
+      const x = (i - (n - 1) / 2) * R * 0.5, z = zc + (i % 2 ? -R * 0.18 : R * 0.12), y = Math.sqrt(Math.max(0, R * R - x * x - (z - zc) ** 2)), r = R * (i === 0 ? 0.26 : 0.18);
+      lathes.push(lathe(`bezel_${i}`, [x, y - R * 0.06, z], [x, y + R * 0.02, z], [[0, r * 1.25], [1, r * 1.2]], C.rubber, { samples: 16, crossSections: 2 }));
+      lathes.push(lathe(`window_${i}`, [x, y + R * 0.02, z], [x, y + R * 0.02 + Math.max(0.0015, R * 0.02), z], [[0, r], [1, r]], C.glass, { material: 'glass', samples: 16, crossSections: 2 }));
+    }
+    return { lathes, hardpoints: { mount: [0, 0, 0] } };
   }
   if (b.family === 'eye') {
     // a starship drone's eye: its ring and its glass dome, looking ahead from under its mount

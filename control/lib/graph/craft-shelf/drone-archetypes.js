@@ -5,6 +5,8 @@
  * motor on each arm's pad, a rotor on each motor's shaft. Its diagonals turn the same way: the rear pair wears the
  * counter-handed rotor, so with the mirror front-right and rear-left turn one way, front-left and rear-right the other.
  *
+ * An earth drone names its stock look (`look`, drone-looks.js): the card it wears unless it is asked for another.
+ *
  * Every drone role has its earth drone and its starship drone (the shelf's rule: a game swaps the sky for the void and
  * keeps its cast); the starship drone is built from the same kinds of parts in the starship register.
  */
@@ -56,7 +58,7 @@ const probe = (row, { frame, arm, vent, yaw: [yf, yr], payload = null }) => {
 export const DRONE_ARCHETYPES = {
   // ===== earth =================================================================================
   cameraQuad: {
-    realm: 'earth', role: 'survey', palette: 'droneConsumer', class: 'camera quad', label: 'folding camera quad', classOf: 'folding camera quad class (0.9 kg)',
+    realm: 'earth', look: 'consumer', role: 'survey', palette: 'droneConsumer', class: 'camera quad', label: 'folding camera quad', classOf: 'folding camera quad class (0.9 kg)',
     reference: { span: 0.55, length: 0.44, height: 0.12, mtow: 0.9 },
     bom: { 'drone-frame': 1, 'drone-arm': 4, 'drone-motor': 4, 'drone-rotor': 4, 'drone-payload': 1 },
     layout: [
@@ -71,39 +73,39 @@ export const DRONE_ARCHETYPES = {
     ],
   },
   fpvRacer: multirotor({
-    realm: 'earth', role: 'racer', palette: 'fpvCarbon', class: 'racing quad', label: 'five-inch racing quad', classOf: '5-inch freestyle quad class (0.65 kg)',
+    realm: 'earth', look: 'racer', role: 'racer', palette: 'fpvCarbon', class: 'racing quad', label: 'five-inch racing quad', classOf: '5-inch freestyle quad class (0.65 kg)',
     reference: { span: 0.27, length: 0.31, height: 0.1, mtow: 0.65 },
   }, { frame: 'frame-plate-fpv', arms: [['armF', 'arm-plate-fpv', 'armFront', 45], ['armR', 'arm-plate-fpv', 'armRear', -45]], motor: 'motor-2207', rotor: 'rotor-3-5in' }),
   inspectionQuad: multirotor({
-    realm: 'earth', role: 'survey', palette: 'droneEnterprise', class: 'inspection quad', label: 'enterprise inspection quad', classOf: 'enterprise inspection quad class (6 kg)',
+    realm: 'earth', look: 'enterprise', role: 'survey', palette: 'droneEnterprise', class: 'inspection quad', label: 'enterprise inspection quad', classOf: 'enterprise inspection quad class (6 kg)',
     reference: { span: 1.24, length: 0.99, height: 0.45, mtow: 6 },
   }, {
     frame: 'frame-box-enterprise', arms: [['armF', 'arm-tube-enterprise', 'armFront', 45], ['armR', 'arm-tube-enterprise', 'armRear', -45]], motor: 'motor-4114', rotor: 'rotor-2-21in',
     gear: 'gear-skid-enterprise', payloads: [['gimbal', 'gimbal-3axis-zoom', 'frame.gimbal']], masts: [['gps', 'mast-gps-puck', 'frame.mast'], ['antenna', 'mast-paddle-enterprise', 'frame.antenna', true]],
   }),
   heavyHex: multirotor({
-    realm: 'earth', role: 'transport', palette: 'droneEnterprise', class: 'heavy-lift hexacopter', label: 'heavy-lift hexacopter', classOf: 'heavy-lift hexacopter class (25 kg)',
+    realm: 'earth', look: 'enterprise', role: 'transport', palette: 'droneEnterprise', class: 'heavy-lift hexacopter', label: 'heavy-lift hexacopter', classOf: 'heavy-lift hexacopter class (25 kg)',
     reference: { span: 1.58, length: 1.42, height: 0.6, mtow: 25 },
   }, {
     frame: 'frame-hub-heavy', arms: [['armA', 'arm-tube-heavy', 'armA', 60], ['armB', 'arm-tube-heavy', 'armB', 0], ['armC', 'arm-tube-heavy', 'armC', -60]], motor: 'motor-6215', rotor: 'rotor-2-22in',
     gear: 'gear-skid-heavy', payloads: [['cargo', 'box-cargo-heavy', 'frame.bay']], masts: [['gps', 'mast-gps-puck', 'frame.mast']],
   }),
   coaxX8: multirotor({
-    realm: 'earth', role: 'survey', palette: 'droneEnterprise', class: 'coaxial octocopter', label: 'coaxial X8 mapper', classOf: 'coaxial X8 class (15 kg)',
+    realm: 'earth', look: 'enterprise', role: 'survey', palette: 'droneEnterprise', class: 'coaxial octocopter', label: 'coaxial X8 mapper', classOf: 'coaxial X8 class (15 kg)',
     reference: { span: 1.21, length: 1.01, height: 0.54, mtow: 15 },
   }, {
     frame: 'frame-hub-x8', arms: [['armF', 'arm-tube-coax', 'armFront', 45], ['armR', 'arm-tube-coax', 'armRear', -45]], motor: 'motor-5010', rotor: 'rotor-2-18in', coax: true,
     gear: 'gear-skid-x8', payloads: [['lidar', 'lidar-puck', 'frame.bay']], masts: [['gps', 'mast-gps-puck', 'frame.mast']],
   }),
   cropSprayer: multirotor({
-    realm: 'earth', role: 'agriculture', palette: 'agriWhite', class: 'crop sprayer', label: 'agricultural spray hexacopter', classOf: 'agricultural spray hexacopter class (40 kg)',
+    realm: 'earth', look: 'enterprise', role: 'agriculture', palette: 'agriWhite', class: 'crop sprayer', label: 'agricultural spray hexacopter', classOf: 'agricultural spray hexacopter class (40 kg)',
     reference: { span: 2.25, length: 2.03, height: 0.88, mtow: 40 },
   }, {
     frame: 'frame-hub-agri', arms: [['armA', 'arm-tube-agri', 'armA', 60], ['armB', 'arm-tube-agri', 'armB', 0], ['armC', 'arm-tube-agri', 'armC', -60]], motor: 'motor-8120', rotor: 'rotor-2-30in',
     gear: 'gear-skid-agri', payloads: [['sprayer', 'sprayer-10l', 'frame.bay']], masts: [['gps', 'mast-gps-puck', 'frame.mast']],
   }),
   deliveryQuad: multirotor({
-    realm: 'earth', role: 'delivery', palette: 'droneParcel', class: 'delivery quad', label: 'ducted parcel delivery quad', classOf: 'parcel delivery quad class (9 kg)',
+    realm: 'earth', look: 'enterprise', role: 'delivery', palette: 'droneParcel', class: 'delivery quad', label: 'ducted parcel delivery quad', classOf: 'parcel delivery quad class (9 kg)',
     reference: { span: 1.12, length: 1.03, height: 0.51, mtow: 9 },
   }, {
     frame: 'frame-box-delivery', arms: [['armF', 'arm-tube-delivery', 'armFront', 40], ['armR', 'arm-tube-delivery', 'armRear', -40]], motor: 'motor-4114', rotor: 'rotor-2-15in', guard: 'duct-15in',

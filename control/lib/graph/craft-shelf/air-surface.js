@@ -10,10 +10,13 @@
  *               wraparound, desert and arctic are blotches over every face; splinter is hard-edged plan-view shards
  *     colours   ['#rrggbb', …] over the pattern's own (for a graded pattern, the belly's first)
  *     scale     a blotch's size in metres (1 to 8; the pattern's own grown with the craft by default)
- *     marks     { number?: '<1-4 digits>' | false, emblem?: 'disc' | 'bar' | false, warnings?: boolean } | false: a
- *               tail number on the fin, a side number on the nose, a generic emblem on the fuselage's sides and the
- *               wings (one up, one down), the ejection warning by the canopy and the walkways by the wing roots, all
- *               low-visibility against the paint
+ *     marks     { number?: '<1-4 digits>' | false, emblem?: 'disc' | 'bar' | false, warnings?: boolean, style?:
+ *               'military' | 'civil', hiVis?: boolean } | false: a tail number on the fin, a side number on the nose, a
+ *               generic emblem on the fuselage's sides and the wings (one up, one down), the ejection warning by the
+ *               canopy and the walkways by the wing roots, all low-visibility against the paint. A drone's: its number
+ *               on its frame's sides and its emblem on top (military); or its registration on its sides, its serial
+ *               plate on top and, `hiVis`, orange bands round its arms' tips (civil). A registration is generic, never a
+ *               real register's format
  *   wear    pristine | used | battered (mil-wear.js's words): soot aft of the guns and over the engine's end, grime
  *           streaks running aft, chips along the leading edges, the sun's fade on what faces up, repainted panels
  *
@@ -66,15 +69,17 @@ export function readAirLivery(livery) {
   const colours = P.colours.map((c, i) => (L.colours?.[i] ?? c)?.toLowerCase() ?? null);
   if (L.scale !== undefined && (typeof L.scale !== 'number' || !(L.scale >= 1 && L.scale <= 8))) throw fail('scale is a blotch\'s size in metres, 1 to 8');
   if (L.seed !== undefined && !Number.isInteger(L.seed)) throw fail('seed is an integer');
-  let marks = { number: null, emblem: 'disc', warnings: true };
+  let marks = { number: null, emblem: 'disc', warnings: true, style: 'military', hiVis: false };
   if (L.marks === false) marks = false;
   else if (L.marks !== undefined) {
-    if (!isObj(L.marks) || Object.keys(L.marks).some((k) => !['number', 'emblem', 'warnings'].includes(k))) throw fail('marks are { number?, emblem?, warnings? } or false');
-    const { number = null, emblem = 'disc', warnings = true } = L.marks;
+    if (!isObj(L.marks) || Object.keys(L.marks).some((k) => !['number', 'emblem', 'warnings', 'style', 'hiVis'].includes(k))) throw fail('marks are { number?, emblem?, warnings?, style?, hiVis? } or false');
+    const { number = null, emblem = 'disc', warnings = true, style = 'military', hiVis = false } = L.marks;
+    if (!['military', 'civil'].includes(style)) throw fail('a mark\'s style is military or civil');
+    if (typeof hiVis !== 'boolean') throw fail('hiVis is true or false');
     if (number !== null && number !== false && !(typeof number === 'string' && /^\d{1,4}$/.test(number))) throw fail('a mark\'s number is one to four digits, or false');
     if (emblem !== false && !AIR_EMBLEMS.includes(emblem)) throw fail(`an emblem is one of ${AIR_EMBLEMS.join(', ')}, or false`);
     if (typeof warnings !== 'boolean') throw fail('warnings are true or false');
-    marks = { number, emblem, warnings };
+    marks = { number, emblem, warnings, style, hiVis };
   }
   return { pattern, colours, ...(L.scale !== undefined ? { scale: L.scale } : {}), ...(L.seed !== undefined ? { seed: L.seed } : {}), marks };
 }
@@ -266,7 +271,8 @@ const ring = (r0, r1, k = 16) => Array.from({ length: k }, (_, i) => { const a =
 /** A number's figures, h high, centred: the stencil's segments as rectangles. */
 function digits(number, h) {
   const { SEG, DIGIT } = STENCIL, w = 0.6 * h, gap = 0.18 * h, W = number.length * w + (number.length - 1) * gap, out = [];
-  [...number].forEach((d, i) => { const x0 = -W / 2 + i * (w + gap); for (const sg of DIGIT[Number(d)]) { const [a, b, c, e] = SEG[sg]; out.push(rect(x0 + a * h, b * h - h / 2, x0 + c * h, e * h - h / 2)); } });
+  // (a dash its middle bar)
+  [...number].forEach((d, i) => { const x0 = -W / 2 + i * (w + gap); for (const sg of d === '-' ? 'g' : DIGIT[Number(d)]) { const [a, b, c, e] = SEG[sg]; out.push(rect(x0 + a * h, b * h - h / 2, x0 + c * h, e * h - h / 2)); } });
   return out;
 }
 const outline = (w, h, t) => [rect(-w / 2, -h / 2, w / 2, -h / 2 + t), rect(-w / 2, h / 2 - t, w / 2, h / 2), rect(-w / 2, -h / 2, -w / 2 + t, h / 2), rect(w / 2 - t, -h / 2, w / 2, h / 2)];
@@ -281,9 +287,11 @@ const lowVis = (albedo) => (lum(albedo) > 120 ? scaleBy(albedo, 0.72) : mixHex(a
 export function markCraft(stage, L, { seed = 1 } = {}) {
   if (!L?.marks) return stage;
   const M = L.marks, number = M.number === false ? null : M.number ?? String(100 + (((L.seed ?? seed) * 2654435761) >>> 0) % 900);
-  const skinOf = (it) => it.fs.filter((f) => !f.fitting && f.material === 'airPaint');
+  const skinOf = (it) => it.fs.filter((f) => !f.fitting && SKINS.includes(f.material));
   const lay = (it, A, shapes, look, opts) => { it.fs.push(...decal(skinOf(it), A, shapes, look, opts)); };
-  const mark = (f) => ({ material: 'airPaint', albedo: lowVis(f.albedo) });
+  const mark = (f) => ({ material: f.material, albedo: lowVis(f.albedo) });
+  const frame = stage.find((it) => it.kind === 'drone-frame');
+  if (frame) return markDrone(stage, frame, M, { number, seed: L.seed ?? seed, skinOf, lay, mark });
   const hull = stage.find((it) => it.kind === 'craft-fuselage');
   if (hull) {
     const fs = skinOf(hull), [y0, y1] = extentOf(fs, 1), [z0, z1] = extentOf(fs, 2), Lh = y1 - y0, H = z1 - z0, zc = (z0 + z1) / 2;
@@ -319,6 +327,43 @@ export function markCraft(stage, L, { seed = 1 } = {}) {
       if (M.warnings) lay(it, { at: [root + dir * 0.2 * span, y0 + 0.62 * (y1 - y0), z1], out: [0, 0, 1], up: [0, 1, 0] }, outline(Math.min(0.9, span * 0.22), Math.min(1.1, (y1 - y0) * 0.3), 0.035), () => ({ material: 'airTrim', albedo: WALK }), { depth: 2 });
     }
   }
+  return stage;
+}
+
+// what a mark is laid on: a skin's paint, a drone's moulding or its carbon
+const SKINS = Object.freeze(['airPaint', 'plastic', 'carbon']);
+const HIVIS = '#ff6a1a';
+const SERIAL = '#ece9e0';
+
+/** A drone's marks: military, its number low-visibility on its frame's sides and its emblem on top; civil, its
+ *  registration on its sides, its serial plate on top, and (hiVis) orange bands round its arms' tips. */
+function markDrone(stage, frame, M, { number, seed, skinOf, lay, mark }) {
+  const fs = skinOf(frame);
+  if (!fs.length) return stage;
+  const [x0, x1] = extentOf(fs, 0), [y0, y1] = extentOf(fs, 1), [z0, z1] = extentOf(fs, 2), Lf = y1 - y0, H = z1 - z0, W = x1 - x0, cx = (x0 + x1) / 2, cy = (y0 + y1) / 2, zc = (z0 + z1) / 2;
+  const dark = (f) => ({ material: f.material, albedo: lum(f.albedo) > 120 ? scaleBy(f.albedo, 0.32) : mixHex(f.albedo, '#e6e6e0', 0.75) });
+  if (M.style === 'civil') {
+    // a registration (generic: three figures, a dash, four), from the seed unless a number is named
+    const r = ((seed * 2654435761) >>> 0) % 10000000, code = M.number ? `${M.number}` : `${String(Math.floor(r / 10000)).padStart(3, '0')}-${String(r % 10000).padStart(4, '0')}`;
+    const h = Math.min(H * 0.26, Lf * 0.08);
+    for (const sx of [1, -1]) lay(frame, { at: [cx, cy, zc], out: [sx, 0, 0], up: [0, 0, 1] }, digits(code, h), dark, { depth: W });
+    // the serial plate on top, aft: a pale plate, its figures small on it
+    const pw = Math.min(W * 0.4, 0.09), ph = pw * 0.45, at = [cx, y0 + Lf * 0.22, z1];
+    lay(frame, { at, out: [0, 0, 1], up: [0, 1, 0] }, [rect(-pw / 2, -ph / 2, pw / 2, ph / 2)], (f) => ({ material: f.material, albedo: SERIAL }), { depth: H });
+    frame.fs.push(...decal(frame.fs.filter((f) => f.fitting === 'mark' && f.albedo === SERIAL), { at, out: [0, 0, 1], up: [0, 1, 0] }, digits(code.replace('-', '').slice(-4), ph * 0.5), () => ({ material: 'plastic', albedo: '#2a2a28' }), { lift: 0.0026, depth: H }));
+    if (M.hiVis) for (const arm of stage.filter((it) => it.kind === 'drone-arm')) {
+      // a band round the arm near its tip: the arm's own run out from the frame, the band across it, seen from above
+      const pts = skinOf(arm).flatMap((f) => f.corners);
+      if (!pts.length) continue;
+      const far = pts.reduce((b, p) => (Math.hypot(p[0] - cx, p[1] - cy) > Math.hypot(b[0] - cx, b[1] - cy) ? p : b)), d = Math.hypot(far[0] - cx, far[1] - cy) || 1;
+      const dir = [(far[0] - cx) / d, (far[1] - cy) / d, 0], len = Math.min(0.12, d * 0.18), at = [far[0] - dir[0] * len * 1.6, far[1] - dir[1] * len * 1.6, far[2]];
+      lay(arm, { at, out: [0, 0, 1], up: dir }, [rect(-len, -len / 2, len, len / 2)], (f) => ({ material: f.material, albedo: HIVIS }), { depth: 0.2 });
+    }
+    return stage;
+  }
+  // military: the number on both sides, low-visibility; the emblem on top
+  if (number) for (const sx of [1, -1]) lay(frame, { at: [cx, cy, zc], out: [sx, 0, 0], up: [0, 0, 1] }, digits(number.slice(-3), Math.min(H * 0.3, Lf * 0.1)), mark, { depth: W });
+  if (M.emblem) { const h = Math.min(W, Lf) * 0.32; lay(frame, { at: [cx, cy - Lf * 0.1, z1], out: [0, 0, 1], up: [0, 1, 0] }, M.emblem === 'disc' ? [...ring(h * 0.34, h * 0.5), ngon(h * 0.2, 14)] : [rect(-h * 0.5, -h * 0.09, h * 0.5, h * 0.09)], mark, { depth: H }); }
   return stage;
 }
 

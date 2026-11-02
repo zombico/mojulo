@@ -17,7 +17,8 @@
  *   drone-rotor    the blades on the shaft: `blades`, the diameter, the root's and the tip's pitch, chord and sweep; its
  *                  `hand` ('ccw' | 'cw' seen from above), a mirrored copy turning the other way (a pair counter-rotates)
  *   drone-guard    a prop guard: a ring round the rotor's disc on spokes from the motor
- *   drone-payload  a gimbal camera ('gimbal3'), a starship drone's eye ('eye'); its mount on top
+ *   drone-payload  a gimbal camera ('gimbal3'), an EO/IR ball ('eoir', a military look's camera), a starship drone's
+ *                  eye ('eye'); its mount on top
  *   drone-mast     a GPS mast and its puck ('gps'), a folding antenna paddle ('paddle')
  *   drone-gear     a skid: two struts down to a tube along the craft ('skid'), mounted in pairs under the frame
  *
@@ -108,6 +109,25 @@ export const DRONE_ODM = {
     aliases: ['gimbal camera', 'camera gimbal'],
     dims: { width: 0.042, length: 0.04, height: 0.046 }, mass: 0.06, mount: 'gimbal-plate',
     build: { family: 'gimbal3' },
+  },
+  // the EO/IR balls a military look hangs in place of a camera gimbal, the nearest in size
+  'eoir-ball-small': {
+    kind: 'drone-payload', realm: 'earth', label: 'small EO/IR ball', classOf: 'small-drone EO/IR turret',
+    aliases: ['eo ir ball', 'thermal ball', 'sensor ball'],
+    dims: { diameter: 0.05, height: 0.058 }, mass: 0.1, mount: 'gimbal-plate',
+    build: { family: 'eoir', windows: 2 },
+  },
+  'eoir-ball-medium': {
+    kind: 'drone-payload', realm: 'earth', label: 'medium EO/IR ball', classOf: 'tactical-drone EO/IR turret',
+    aliases: ['medium sensor ball'],
+    dims: { diameter: 0.12, height: 0.14 }, mass: 1.1, mount: 'gimbal-plate',
+    build: { family: 'eoir', windows: 3 },
+  },
+  'eoir-ball-large': {
+    kind: 'drone-payload', realm: 'earth', label: 'large EO/IR ball', classOf: 'long-endurance drone EO/IR turret',
+    aliases: ['large sensor ball', 'targeting ball'],
+    dims: { diameter: 0.38, height: 0.44 }, mass: 45, mount: 'gimbal-plate',
+    build: { family: 'eoir', windows: 4 },
   },
   'mast-gps-puck': {
     kind: 'drone-mast', realm: 'earth', label: 'GPS mast and puck', classOf: 'folding GPS mast',
