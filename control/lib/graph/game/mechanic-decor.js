@@ -17,6 +17,8 @@
  * `dec_*` so they never collide with hand-authored or mechanic-internal ids.
  */
 
+import { escapeNames } from './escape-room.js';
+
 // item name → glyph form. A small heuristic over the closed form shelf; unknowns default to a gem
 // (the canonical collectible). Extend by adding rows, not by opening the mapping.
 const ITEM_FORM = [
@@ -83,6 +85,20 @@ export function decorateMechanics(mechanics, ctx = {}) {
       const at = Array.isArray(m.at) ? m.at : [0, 0, 0];
       entities.push({ id: `dec_exit_${i}`, transform: { pos: at, heading: 0 }, rule: { type: 'clock', rate: 0 }, body: { type: 'glyph', form: 'flag' } });
       sfx.push({ verb: 'aura', at, color: [0.25, 1.0, 0.45], params: { base: 0.3, pulse: 0.35, r: 1.0, cz: 1.0 } });
+    } else if (m.kind === 'escape-room') {
+      // an escape room (game/escape-room.js): a glyph for each key (by its item), floating, burst when taken (its marker
+      // hidden); the locks and the seal keep their markers, toggled off as they open; a flag on the way out
+      const N = escapeNames(m.id === undefined ? 'room' : m.id);
+      (Array.isArray(m.locks) ? m.locks : []).forEach((L, k) => {
+        if (!L || !L.key || !Array.isArray(L.key.at)) return;
+        const zone = N.key(L.id === undefined ? String(k + 1) : L.id), gid = `dec_${zone}`;
+        entities.push({ id: gid, transform: { pos: L.key.at, heading: 0 }, rule: { type: 'clock', rate: 0 }, body: { type: 'glyph', form: formForItem(L.key.item ?? 'key') } });
+        states[gid] = 'float';
+        sfx.push({ verb: 'sparkle', at: L.key.at });
+        on[zone] = { gesture: 'burst', target: gid };
+        suppress.push(zone);
+      });
+      if (Array.isArray(m.at)) entities.push({ id: `dec_exit_${i}`, transform: { pos: m.at, heading: 0 }, rule: { type: 'clock', rate: 0 }, body: { type: 'glyph', form: 'flag' } });
     } else if (m.kind === 'hazard-damage') {
       const hazards = Array.isArray(m.hazards) ? m.hazards : [];
       hazards.forEach((hz) => {

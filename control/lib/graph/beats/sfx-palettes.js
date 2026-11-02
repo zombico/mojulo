@@ -155,6 +155,7 @@ export const MECHANIC_SFX = {
   board: { 'board-won': 'goal', 'board-lost': 'lose', 'board-draw': 'lose' },
   map: { 'map-go:*': 'door' },
   runner: { 'run-won': 'goal', 'runner:crash': 'death' },
+  'escape-room': { 'key:*': 'pickup', 'lock:locked': 'thud', 'lock:opened': 'checkpoint', 'escape:open:*': 'chime', 'escape:sealed:*': 'thud', 'escape:out:*': 'goal' },
 };
 
 // shift every pitched gesture by `k` semitones (note names only; Hz, materials sized in metres and noise stay put)

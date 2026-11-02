@@ -16,6 +16,7 @@
  * or it doesn't ship (no runtime mechanic code, ever).
  */
 import { heldVar, itemKey } from '../playscape/ui/items.js';
+import { lowerEscapeRoom } from './escape-room.js';
 
 const ARRAY_CHANNELS = ['entities', 'timers', 'reactions', 'watches', 'inputs', 'hud', 'sources', 'sequences', 'initial'];
 
@@ -1180,6 +1181,10 @@ const MECHANICS = {
       return { world };
     },
   },
+
+  // THE ESCAPE ROOM (a terminal): held in until its locks open, each by a key found inside or a step on the bus; its way
+  // out sealed until then (game/escape-room.js, its names recipe-derived for the handoff)
+  'escape-room': { role: 'terminal', ends: ['success'], requires: [], lower: lowerEscapeRoom },
 };
 
 export const MECHANIC_KINDS = Object.keys(MECHANICS);
