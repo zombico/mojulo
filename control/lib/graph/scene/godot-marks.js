@@ -187,6 +187,7 @@ export const PAGE_MARKS = Object.freeze({
   holo: m(A, 'the hologram arena (tabletop/holo-arena.client.js, scene/channels/holo.js) is the page\'s own: the tabletop kernel and its mind play in the page, nothing in the kernel plays it'),
   screen: m(P, 'project.godot\'s [display] holds the frame the game is made for (its viewport, stretch and handheld orientation) and an upright screen\'s cameras hold its width (kernel/level.gd); the touch pad and the safe-area zones are the page\'s'),
   runner: m(A, 'the endless run (its lanes, rows, hurdles and crash: worlds/controllable/runner.js) is the page\'s'),
+  tempo: m(A, 'the world clock (a moment slowing or holding the world while the camera keeps real time: worlds/controllable/world-clock.js) is the page\'s; the kernel steps its level on real time'),
   pixel: m(B, 'score.pixel: the 3D drawn at 1/scale and blown up without smoothing (the viewport\'s nearest scaling), the HUD crisp as the page\'s'),
   seats: m(A, 'the seats (a controller per player, their rings and strip: controls/seats-kernel.js) are the page\'s; the kernel seats one pilot, every other body on its AI'),
   science: m(A, 'a science world\'s readout, honesty panel and body labels (scene/channels/science.js) are the page\'s; no engine leg plays a science world'),
