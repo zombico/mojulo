@@ -34,7 +34,7 @@ import { heroOrders, castOrders } from './hero-looks.js';
 import { mechanicsOrders } from './mechanics.js';
 import { equipmentOrders, equippedHero } from './equipment.js';
 import { gearOrders } from './world-gear.js';
-import { battlePlan, battleCast as partyCast, roomOf, laidBattles, BATTLE_FOE } from './battles.js';
+import { battlePlan, battleCast as partyCast, roomOf, laidBattles, BATTLE_FOE, FOE_LOOKS, foeKindsOf } from './battles.js';
 import { minigamePlan, minigameCast, MINIGAME_KEEPER } from './minigames.js';
 import { composeExtras } from './stage-figures.js';
 import { stageFolk, folkExtra, folkMintKey, placeSidequests } from './folk-cast.js';
@@ -197,10 +197,12 @@ export function runSteps(world, { ref, lookup } = {}) {
     }
   }
   const GL = laidCasting(G);   // the rolled members in the book's cast: the story places them, the field party carries them
-  // party battles (battles.js): one foe figure, minted as a hero is, standing for every pack on the map (and for a
-  // level goal's boss, which is made at the same ref); without battles, a level goal's boss is made with the cast
-  const foeRef = G.battles ? childRef(ref, 'foe') : null;
-  if (foeRef && beastLook(G.battles.foe)) steps.push(beastStep('foe', foeRef, G.battles.foe, `${G.name ?? G.id} foe`));
+  // party battles (battles.js): where the world writes its own foe look, one foe figure, minted as a hero is, standing for
+  // every pack on the map (and for a level goal's boss, made at the same ref); else each foe kind its own figure (made
+  // once the plan says which, below), the boss's at this ref as without battles
+  const ownFoe = G.battles && G.battles.foe !== undefined, foeRef = G.battles ? childRef(ref, 'foe') : null;
+  if (foeRef && !ownFoe) { if (bossed(G)) steps.push(bossStep(G, ref, { ready: true })); }
+  else if (foeRef && beastLook(G.battles.foe)) steps.push(beastStep('foe', foeRef, G.battles.foe, `${G.name ?? G.id} foe`));
   else if (foeRef) {
     const spec = withReact(react, G.battles.foe ?? BATTLE_FOE), mint = { kind: 'layered', via: 'hero', title: `${G.name ?? G.id} foe`, spec, ...(spec.head === 'anime' ? { toon: { light: true } } : {}) };
     steps.push({ key: 'foe', ref: foeRef, ready: true, order: { spec, mint, motion: null }, print: fingerprint({ spec, ...lit(mint.toon) }) });
@@ -233,7 +235,7 @@ export function runSteps(world, { ref, lookup } = {}) {
   const pilot = equipped ? childRef(ref, 'hero-equipped') : heroRef;
   // (the people this run makes with their own reactions: the hero (and equipped), the foe, the keeper; an adopted hero
   // plays the ones it was made with)
-  const ownMoves = react ? Object.fromEntries([...(adopted ? [] : [heroRef]), ...(equipped ? [equipped.ref] : []), ...(foeRef && !beastLook(G.battles.foe) ? [foeRef] : []), ...(keeperRef ? [keeperRef] : [])].map((r) => [r, REACT_STATES])) : null;
+  const ownMoves = react ? Object.fromEntries([...(adopted ? [] : [heroRef]), ...(equipped ? [equipped.ref] : []), ...(foeRef && ownFoe && !beastLook(G.battles.foe) ? [foeRef] : []), ...(keeperRef ? [keeperRef] : [])].map((r) => [r, REACT_STATES])) : null;
   if (ownMoves && adopted) { const st = reactStatesOf(isObj(lookup?.heroSpec?.motion) ? Object.keys(lookup.heroSpec.motion) : []); if (st) ownMoves[heroRef] = st; }
   const heroGaits = gaitsOf(equipped ? equipped.order.spec : adopted ? lookup?.heroSpec : { ...hero.spec, ...(hero.motion ? motionFields(hero.motion) : {}) });
   // a building by ref is played as it was made: its ref is the level, and no step makes it
@@ -273,6 +275,16 @@ export function runSteps(world, { ref, lookup } = {}) {
   const lastOf = lastStages(stages);
   // the packs each stage meets, numbered across the game (battles.js)
   const plan = G.battles ? battlePlan(G, stages, (i) => roomOf(stageEnds(stages[i].manifest))) : null, packFrom = [];
+  // (each foe kind the packs stand its own figure, in its own look: a beast through the animal door, a person through the
+  // hero door with its own reactions where the world's people take blows)
+  const kindRefs = {};
+  if (plan && !ownFoe) for (const kind of foeKindsOf(G, plan)) {
+    const kref = kindRefs[kind] = childRef(ref, `foe-${kind}`), look = FOE_LOOKS[kind] ?? BATTLE_FOE, title = `${G.name ?? G.id} ${kind}`;
+    if (beastLook(look)) { steps.push(beastStep(`foe-${kind}`, kref, look, title)); continue; }
+    const spec = withReact(react, look), mint = { kind: 'layered', via: 'hero', title, spec, ...(spec.head === 'anime' ? { toon: { light: true } } : {}) };
+    steps.push({ key: `foe-${kind}`, ref: kref, ready: true, order: { spec, mint, motion: null }, print: fingerprint({ spec, ...lit(mint.toon) }) });
+    if (ownMoves) ownMoves[kref] = REACT_STATES;
+  }
   stages.reduce((n, _, i) => { packFrom[i] = n; return n + (plan?.[i]?.length ?? 0); }, 0);
   const games = G.minigames ? minigamePlan(G, stages) : null;
   // each area's skirmish (a battle on its first battle's ground, fought again as often as the party likes, drawing from
@@ -309,7 +321,7 @@ export function runSteps(world, { ref, lookup } = {}) {
       }
       return;
     }
-    const fight = plan?.[i] ? (ends) => partyCast(G, s, ends, { ref: foeRef, packs: plan[i], from: packFrom[i], seed: (Number.isInteger(G.seed) ? G.seed : 1) * 101 + i }) : null;
+    const fight = plan?.[i] ? (ends) => partyCast(G, s, ends, { ref: foeRef, ...(ownFoe ? {} : { refs: kindRefs }), packs: plan[i], from: packFrom[i], seed: (Number.isInteger(G.seed) ? G.seed : 1) * 101 + i }) : null;
     // its minigames' stalls beside its fights (the bag carried by the fights' when there are any)
     const stall = games?.[i] ? (ends) => minigameCast(G, s, ends, { ref: keeperRef, games: games[i], bag: !fight }) : null;
     // its foes (foes.js) and its town's folk beside them; either alone keeps its goal's own cast beside it (an extra

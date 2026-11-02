@@ -150,3 +150,18 @@ its resource, put on a look and showed a toast. This theme makes them act.
     the systems page's where it writes one, else proposed from one seed of the world's, so all of a game's levels roll
     the same guide; a sentence's JRPG, with no systems page, takes it too. The battle window wears the guide (its
     tokens, its register's frame and plate, its border) as the HUD does. The example hero's run moved for it.
+- **Each foe stands as what it is** (`gameworld/battles.js` `FOE_LOOKS`, `runner.js`, `playscape/rpg/rpg.js`, the
+  battle page). One figure, a man with a dagger, stood on the map for every pack ("Slime A and Slime B", "Wolf and
+  Bat"). Now:
+  - each foe of the presets has a look: a beast where the fauna has one, grown by the mutagen's ooze where it is more
+    than an animal (a wolf, a fruit bat, a crystal bear for the golem, a fire raptor for the drake), a person where
+    it is a person (a goblin, a bandit, a shaman, a skeleton);
+  - the run makes one figure per foe kind its packs stand;
+  - each foe of a pack stands as its own figure, the first on the beat and the rest a step aside and back. An
+    encounter's `who` names each foe's figure in the foes' order, and the win fells each.
+  In a fight:
+  - each foe stands in a wedge mirrored to the party's, facing it;
+  - each acts and falls on its own;
+  - the target's marker and the numbers rise over the foe's own figure.
+  A world that writes its own `battles.foe` stands that one look for every foe, as before.
+  - Kept as stand-ins: the spider is a venom-grown rat, the slime a venom-grown frog (the fauna has neither).

@@ -27,8 +27,9 @@
  *     gear?:      [ids] | { <item>: { name?, slot: weapon | armor | accessory, atk?, def?, mag?, spd?, hp?, mp?, classes? } }
  *                 what a member may wear, one item a slot, its numbers added to theirs (default: every preset); worn
  *                 items come from the bag and go back to it (held:bag:<item>); a class switch takes off what it forbids
- *     encounters?: [{ id, foes: [foe ids], at?: [x, y], who?: '<entity>', near?, flee? }]
- *                 at: walking up to it starts the fight (a visible foe: `who` is the one standing there, and it falls
+ *     encounters?: [{ id, foes: [foe ids], at?: [x, y], who?: '<entity>' | ['<entity>', …], near?, flee? }]
+ *                 at: walking up to it starts the fight (a visible foe: `who` is the one standing there, or each foe's
+ *                 own figure in the foes' order, the first standing at `at`; each falls
  *                 when the fight is won); without at, a cue starts it: `then: { emit: 'rpg-battle:<id>' }`
  *     random?:    { sets: [[foe ids]], every?: metres, chance?, after?: metres, in?: [{ at: [x, y], r }] }
  *                 a roll every `every` metres walked (in those zones, or anywhere), none in the first `after`
@@ -308,7 +309,8 @@ export function readRpg(play) {
     encSeen.add(e.id);
     if (!Array.isArray(e.foes) || !e.foes.length || e.foes.length > 6) throw err(`${at}.foes is 1 to 6 foe ids`);
     if (e.at !== undefined && !(Array.isArray(e.at) && e.at.length >= 2 && e.at.slice(0, 2).every(num))) throw err(`${at}.at is where it stands [x, y]`);
-    if (e.who !== undefined && (typeof e.who !== 'string' || !/^[a-z][a-z0-9_-]*$/i.test(e.who))) throw err(`${at}.who is the entity standing for it on the map`);
+    const ent = (v) => typeof v === 'string' && /^[a-z][a-z0-9_-]*$/i.test(v);
+    if (e.who !== undefined && !(ent(e.who) || (Array.isArray(e.who) && e.who.length === e.foes.length && e.who.every(ent)))) throw err(`${at}.who is the entity standing for it on the map, or one for each of its foes, in their order`);
     if (e.who !== undefined && e.at === undefined) throw err(`${at}.who stands somewhere: give its at`);
     optNum(e.near, `${at}.near`);
     if (e.flee !== undefined && typeof e.flee !== 'boolean') throw err(`${at}.flee is false for a fight with no escape`);
@@ -348,7 +350,7 @@ export function rpgCues(play) {
   const cues = [];
   for (const e of cfg.met) {
     cues.push({ id: `rpg-meet-${e.id}`, when: { enter: { at: e.at, r: e.near } }, if: [{ var: 'rpg.battle', eq: 0 }, { var: doneVar(e.id), eq: 0 }], then: { emit: `rpg-battle:${e.id}` } });
-    cues.push({ id: `rpg-beaten-${e.id}`, when: { on: `rpg-won:${e.id}` }, then: [{ set: doneVar(e.id), to: 1 }, ...(e.who ? [{ kill: e.who }] : [])] });
+    cues.push({ id: `rpg-beaten-${e.id}`, when: { on: `rpg-won:${e.id}` }, then: [{ set: doneVar(e.id), to: 1 }, ...[].concat(e.who ?? []).map((w) => ({ kill: w }))] });
   }
   // a member who joins on a flag: in the fights once the flag is set here or carried in (scenes.js flag events)
   for (const p of cfg.party) if (p.joins) {

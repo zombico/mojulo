@@ -1,3 +1,5 @@
+import { FOE_LOOKS } from './battles.js';
+import { beastLook, readBeastFoe } from './stage-figures.js';
 import { describe, it, expect } from 'vitest';
 import { runSteps, readGameworld, MEADOWMARK_HERO } from './index.js';
 import { readBattles, battleParty, battlePlan, PACKS } from './battles.js';
@@ -9,21 +11,28 @@ const levels = (w) => runSteps(w, { ref: 'gw' }).filter((s) => s.key.startsWith(
 const W = (battles, more = {}) => ({ ...MEADOWMARK_HERO, battles, ...more });
 
 describe('battles: the book\'s party battles, laid on its trails', () => {
-  it('a foe figure is made, each trail stage stands its packs on its beats, and the packs walk the ladder across the game', () => {
+  it('each foe kind its own figure, each trail stage stands its packs on its beats, and the packs walk the ladder across the game', () => {
     const S = runSteps(W({}), { ref: 'gw' });
-    expect(S.find((s) => s.key === 'foe')).toMatchObject({ ref: 'gw-foe', ready: true, order: { spec: { cast: 'male' } } });
+    // (a figure for each foe the plan stands, in its look: a beast through the animal door, a person through the hero's)
+    expect(S.find((s) => s.key === 'foe-wolf')).toMatchObject({ ref: 'gw-foe-wolf', ready: true, order: { animal: { species: 'wolf' } } });
+    expect(S.find((s) => s.key === 'foe-goblin')).toMatchObject({ ref: 'gw-foe-goblin', order: { spec: { cast: 'male' } } });
+    expect(S.some((s) => s.key === 'foe')).toBe(false);
     const L = levels(W({}));
     expect(L.length).toBe(5);
     const encs = L.flatMap((s) => s.order.manifest.play.rpg.encounters ?? []);
     expect(encs.map((e) => e.id)).toEqual(encs.map((_, k) => `pack-${k + 1}`));
     expect(encs.map((e) => e.foes)).toEqual(encs.map((_, k) => PACKS[Math.min(k, PACKS.length - 1)]));
     const first = L[0].order.manifest;
-    // the pack's foe stands where its fight starts, made of the foe figure
+    // each foe of a pack its own figure, the first where its fight starts, each made of its kind's
     for (const e of first.play.rpg.encounters) {
-      const ent = first.entities.find((x) => x.id === e.who);
-      expect(ent.transform.pos.slice(0, 2)).toEqual(e.at);
-      expect(first.figures[e.who].heroRef).toBe('gw-foe');
+      const who = [].concat(e.who);
+      expect(who.length).toBe(e.foes.length);
+      expect(first.entities.find((x) => x.id === who[0]).transform.pos.slice(0, 2)).toEqual(e.at);
+      who.forEach((id, j) => expect(first.figures[id].heroRef).toBe(`gw-foe-${e.foes[j]}`));
     }
+    // (a world that writes its own foe look stands that one figure for every pack, as before)
+    const own = levels(W({ foe: { cast: 'female' } }))[0].order.manifest;
+    for (const e of own.play.rpg.encounters) for (const id of [].concat(e.who)) expect(own.figures[id].heroRef).toBe('gw-foe');
     expect(first.play.rpg.party.map((p) => [p.id, p.class])).toEqual([['hero', 'fighter']]);
     // a rest at the start, the party carried, a wiped party fails the level
     expect(first.play.cues.some((c) => c.id === 'rpg-rest-spot')).toBe(true);
@@ -50,7 +59,7 @@ describe('battles: the book\'s party battles, laid on its trails', () => {
   it('a world that fights turn by turn is laid with them, written or not; P is in the level\'s legend', () => {
     const jrpg = { ...MEADOWMARK_HERO, intent: { from: 'jrpg' } };
     const S = runSteps(jrpg, { ref: 'gw' });
-    expect(S.some((s) => s.key === 'foe')).toBe(true);
+    expect(S.some((s) => /^foe-/.test(s.key))).toBe(true);
     const L = levels(jrpg);
     expect(L.flatMap((s) => s.order.manifest.play.rpg.encounters ?? []).length).toBeGreaterThan(0);
     expect(JSON.stringify(L[0].order.manifest.events)).toContain('P  party');
@@ -92,5 +101,12 @@ describe('battles: the book\'s party battles, laid on its trails', () => {
     const c = composeMechanics(M.game.mechanics, { storeSchema: store, player: 'hero' });
     expect(c.party).toEqual({ slice: 'party' });
     expect(c.produces).toContainEqual({ type: 'setStat', slice: 'party' });
+  });
+});
+
+describe('the battle foes\' looks', () => {
+  it('each beast look names a species the fauna grows, and its ooze one the mutagen has', () => {
+    const fail = (m) => new Error(m);
+    for (const [id, look] of Object.entries(FOE_LOOKS)) if (beastLook(look)) expect(() => readBeastFoe(look, null, id, fail), id).not.toThrow();
   });
 });

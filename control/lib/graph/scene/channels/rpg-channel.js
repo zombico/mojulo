@@ -159,14 +159,19 @@ export function rpgPage(cfg, K, ctl, jk) {
   const J = (cfg.juice && cfg.juice.on) || {};
   let linger = 0, popStyle = null, jolts = {};
   const W = () => window.__mojCtrl && window.__mojCtrl.world;
-  // the figure on the map a combatant stands for: a member's own (the pilot when they have none), a foe's pack figure
+  // the figure on the map a combatant stands for: a member's own (the pilot when they have none); a foe's own where its
+  // encounter stands one for each of its foes (in the foes' order), else the pack's one figure
   function figureOf(who) {
     const w = W();
     if (!w || who == null || !R.b) return null;
     if (R.b.side[who]) return w.byId[who] ? who : w.pilotId || null;
     const m = (cfg.met || []).find((x) => x.id === R.b.enc);
-    return m && m.who && w.byId[m.who] && !w.byId[m.who].gone ? m.who : null;
+    if (!m || !m.who) return null;
+    const i = R.b.foes.findIndex((x) => x.uid === who), id = Array.isArray(m.who) ? m.who[Math.max(0, i)] : m.who;
+    return id && w.byId[id] && !w.byId[id].gone ? id : null;
   }
+  // (a foe with a figure of its own: its fall is its own, not the pack's)
+  const ownFigure = (who) => { const m = (cfg.met || []).find((x) => x.id === R.b.enc); return !!(m && Array.isArray(m.who)); };
   function cast(ops) { try { if (window.__mojCtrl && window.__mojCtrl.cast) window.__mojCtrl.cast(ops); } catch (e) { /* a figure gone: no moment */ } }
   function flash(color, secs) {
     flashEl.style.transition = 'none'; flashEl.style.background = color || '#ffffff'; flashEl.style.opacity = '0.75';
@@ -191,7 +196,7 @@ export function rpgPage(cfg, K, ctl, jk) {
       // a pack's figure stands for all its foes, so a foe's fall is its recoil (it falls when the fight is won)
       const who = s.at === 'actor' ? b.by || b.who : b.target, w = W(), id = figureOf(who), e = id && w && w.byId[id];
       if (e) {
-        const is = s.act === 'fall' && !R.b.side[who] ? 'hurt' : s.act, to = is === 'strike' ? figureOf(b.target) : null;
+        const is = s.act === 'fall' && !R.b.side[who] && !ownFigure(who) ? 'hurt' : s.act, to = is === 'strike' ? figureOf(b.target) : null;
         e.act = { is, t0: w.time || 0, for: s.for || ACT_FOR[is], ...(to && to !== id ? { to } : {}) };
       }
     }
@@ -258,6 +263,16 @@ export function rpgPage(cfg, K, ctl, jk) {
       face(e, fp[0], fp[1]);
     });
     const cx = fp[0] + ux * STAGE.gap / 2, cy = fp[1] + uy * STAGE.gap / 2;
+    // (the pack's other figures, where each foe has its own: a wedge mirrored to the party's behind the first, each
+    // facing the party)
+    const met = (cfg.met || []).find((x) => x.id === R.b.enc), crew = met && Array.isArray(met.who) ? met.who.slice(1).filter(placed) : [];
+    crew.forEach((id, i) => {
+      const e = w.byId[id], [o, b] = WEDGE[i + 1] || [((i % 2) ? -1 : 1) * 1.1, 1 + i];
+      staged.at[id] = { pos: e.transform.pos.slice(), heading: e.transform.heading };
+      const x = fp[0] - ux * b + px * o, y = fp[1] - uy * b + py * o;
+      e.transform.pos = [x, y, ground(x, y, fp[2], e)]; e.staged = true;
+      face(e, fp[0] + ux * STAGE.gap, fp[1] + uy * STAGE.gap);
+    });
     if (F) { staged.at[fid] = { pos: F.transform.pos.slice(), heading: F.transform.heading }; F.staged = true; face(F, cx + ux * STAGE.gap / 2, cy + uy * STAGE.gap / 2); }
     if (C) {
       // three-quarters from the side, a step behind the party's line, on whichever side sees the fight past the ground
@@ -267,7 +282,7 @@ export function rpgPage(cfg, K, ctl, jk) {
       // on a slope the uphill side stays in the frame)
       // (the frame's middle the midpoint of the fight's two ends across it, the pack and the party's far rank, not the
       // fighters' centroid, which a party of four would pull to its own side and push the pack off the frame's edge)
-      const pts = [fp, ...ids.map((id) => w.byId[id].transform.pos)], zs = pts.map((q) => q[2]), zm = (Math.min(...zs) + Math.max(...zs)) / 2;
+      const pts = [fp, ...crew.map((id) => w.byId[id].transform.pos), ...ids.map((id) => w.byId[id].transform.pos)], zs = pts.map((q) => q[2]), zm = (Math.min(...zs) + Math.max(...zs)) / 2;
       const along = pts.map((q) => (q[0] - fp[0]) * ux + (q[1] - fp[1]) * uy), lo = Math.min(...along), hi = Math.max(...along);
       const across = pts.map((q) => (q[0] - fp[0]) * px + (q[1] - fp[1]) * py), mid = (Math.min(...across) + Math.max(...across)) / 2;
       const mx = fp[0] + ux * (lo + hi) / 2 + px * mid, my = fp[1] + uy * (lo + hi) / 2 + py * mid;
@@ -416,8 +431,10 @@ export function rpgPage(cfg, K, ctl, jk) {
         + (tags ? '<div class="st">' + tags + '</div>' : '') + '<div class="bar"><i' + (hp * 4 <= S.hp ? ' class="lo"' : '') + ' style="width:' + pct(hp, S.hp) + '%"></i></div>'
         + (S.mp > 0 ? '<div class="bar mp"><i style="width:' + pct(mp, S.mp) + '%"></i></div>' : '') + popsFor(m) + '</div>';
     }
-    const aimedFoe = aimAt != null && !b.side[aimAt] ? b.foes.find((x) => x.uid === aimAt) : null, fp = b.foes.map((x) => popsFor(x.uid)).join(''), ff = figureOf((aimedFoe || b.foes[0] || {}).uid);
-    if (ff && (aimedFoe || fp)) h += '<div class="moj-rpg-head foe' + (aimedFoe ? ' aim' : '') + '" data-fig="' + ff + '" data-k="0"' + (aimedFoe ? ' data-aim="' + aimedFoe.uid + '"' : '') + '>' + fp + '</div>';
+    // (over each foe's figure, or the pack's one: the marker where it is aimed at, the numbers that land on it)
+    const byFig = {};
+    for (const x of b.foes) { const ff = figureOf(x.uid); if (!ff) continue; const g = byFig[ff] || (byFig[ff] = { aim: null, pops: '' }); if (aimAt === x.uid) g.aim = x.uid; g.pops += popsFor(x.uid); }
+    for (const ff in byFig) { const g = byFig[ff]; if (g.aim || g.pops) h += '<div class="moj-rpg-head foe' + (g.aim ? ' aim' : '') + '" data-fig="' + ff + '" data-k="0"' + (g.aim ? ' data-aim="' + g.aim + '"' : '') + '>' + g.pops + '</div>'; }
     heads.innerHTML = h;
   }
   // every frame: each head over its figure's head, by the scene's projection (hidden behind the eye)

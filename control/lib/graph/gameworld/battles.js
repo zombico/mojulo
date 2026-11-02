@@ -42,6 +42,28 @@ export const PACKS = Object.freeze([
 ]);
 export const JOINER_CLASSES = Object.freeze(['mage', 'cleric', 'rogue', 'knight', 'monk']);
 export const BATTLE_FOE = Object.freeze({ cast: 'male', palette: { Top: '#6b2222' }, gear: { right: { item: 'dagger' } } });
+// THE BATTLE FOES' LOOKS: each foe of the presets (playscape/rpg/presets.js) stood on the map as what it is. A beast where
+// the fauna has one (its species, grown by the mutagen's ooze where it is more than an animal), a person where the foe
+// is a person; a foe with none here stands as the plain one (BATTLE_FOE). A world's own `battles.foe` stands for all.
+export const FOE_LOOKS = Object.freeze({
+  slime: { species: 'frog', ooze: 'venom' },
+  bat: { species: 'fruitBat' },
+  wolf: { species: 'wolf' },
+  spider: { species: 'rat', ooze: 'venom' },
+  shroom: { species: 'frog', ooze: 'mythical' },
+  wisp: { species: 'greatHornedOwl', ooze: 'shadow' },
+  golem: { species: 'brownBear', ooze: 'crystal' },
+  drake: { species: 'velociraptor', ooze: 'fire' },
+  goblin: { cast: 'male', palette: { Top: '#4c6b2a' }, gear: { right: { item: 'dagger' } } },
+  bandit: BATTLE_FOE,
+  shaman: { cast: 'male', palette: { Top: '#4a2f6b' }, gear: { right: { item: 'dagger' } } },
+  skeleton: { cast: 'male', palette: { Top: '#d9d2bf' }, gear: { right: { item: 'dagger' } } },
+});
+/** The look a foe stands in: the world's one foe look where it writes it, else the foe's own, else the plain one. */
+export const foeLookOf = (G, id) => G.battles?.foe ?? FOE_LOOKS[id] ?? BATTLE_FOE;
+/** The figure kinds a run makes for its battles: one per foe the plan stands (each its own look), or one for all where
+ * the world writes its own foe look. */
+export const foeKindsOf = (G, plan) => (G.battles?.foe !== undefined ? ['foe'] : [...new Set(Object.values(plan ?? {}).flat(2).filter(Boolean))]);
 export const PARTY_SLICE = 'party';
 // the bag the party's items, gear and gold are carried in (the bag mechanic), and what it holds as the game starts
 export const BAG_SLICE = 'bag';
@@ -185,21 +207,29 @@ export function battlePlan(G, stages, room = () => Infinity) {
 
 /**
  * A stage's battles: each pack stands on one of the trail's beats (evenly along it, the exit and the trailhead left
- * free), a foe figure facing back down the way; walking up to it starts the fight, and it falls when the fight is won.
- * A rest at the stage's start. `ref`: the foe figure; `packs`: the stage's; `from`: the game-wide number of its first.
+ * free), each of its foes its own figure in its own look (FOE_LOOKS), spread round the beat facing back down the way;
+ * walking up to the pack starts the fight, and each falls as the fight is won. A rest at the stage's start. `refs`: each
+ * foe kind's figure (`ref` the one figure where the world writes its own foe look); `packs`: the stage's; `from`: the
+ * game-wide number of its first.
  * → { figures, entities, play, mechanics } (the stage's extra: levels.js stageLevelOrder)
  */
-export function battleCast(G, stage, ends, { ref, packs = [], from = 0, seed = 1 } = {}) {
+export function battleCast(G, stage, ends, { ref, refs = null, packs = [], from = 0, seed = 1 } = {}) {
   const B = G.battles ?? {}, base = battleBase(G);
   const along = freeBeats(ends);
   const n = Math.min(packs.length, along.length);
   const picks = Array.from({ length: n }, (_, k) => along[Math.min(along.length - 1, Math.floor(((k + 0.5) * along.length) / n))]);
   const figures = {}, entities = [], encounters = [];
   picks.forEach((b, k) => {
-    const id = `foe-${k + 1}`, back = k ? picks[k - 1].at : ends.spawn;
-    stand({ figures, entities }, id, foeFigure(ref, B.foe), b.at, facing(b.at, back));
+    const id = `foe-${k + 1}`, back = k ? picks[k - 1].at : ends.spawn, h = facing(b.at, back);
+    // (each foe of the pack its own figure: the first on the beat, the rest a step aside on either side and a step back)
+    const who = packs[k].map((kind, j) => {
+      const fid = j ? `${id}-${j + 1}` : id, side = (j % 2 ? 1 : -1) * Math.ceil(j / 2) * 1.4, back1 = Math.ceil(j / 2) * 0.7;
+      const at = [r3(b.at[0] - Math.sin(h) * side - Math.cos(h) * back1), r3(b.at[1] + Math.cos(h) * side - Math.sin(h) * back1), b.at[2]];
+      stand({ figures, entities }, fid, foeFigure(refs?.[kind] ?? ref, foeLookOf(G, kind)), at, h);
+      return fid;
+    });
     const boss = B.boss && k === n - 1 && packs[k] === B.boss;
-    encounters.push({ id: `pack-${from + k + 1}`, foes: [...packs[k]], at: [b.at[0], b.at[1]], who: id, ...(boss ? { flee: false } : {}) });
+    encounters.push({ id: `pack-${from + k + 1}`, foes: [...packs[k]], at: [b.at[0], b.at[1]], who: who.length > 1 ? who : id, ...(boss ? { flee: false } : {}) });
   });
   const random = B.random ? { sets: packs.length ? packs.map((p) => [...p]) : [PACKS[0]], ...B.random } : null;
   const rpg = { ...base, ...(encounters.length ? { encounters } : {}), ...(random ? { random } : {}), rules: { ...base.rules, seed } };
