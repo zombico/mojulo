@@ -26,3 +26,10 @@ that is a glove. Built so far:
   laws beside. The foes card names the goal. A prompt's `horde` or `onslaught` holds the last level a boss does not end
   in a default gauntlet of two arenas (its last stage a trail, no health beside it); `gauntlet` and `waves` are not read
   from a prompt (a glove, a tower defence).
+- **Proved** (machine gates, standing in for eyes): after a run, `design_game`'s readout carries `gauntlet_proof`
+  (`gameworld/gauntlet-proof.js`): each gauntlet played on the bus on the level the run made, every foe given its fall
+  as it wakes (said as assumed: the proof cannot fight). And in an exported page: a `design_game` world of one level, two
+  arenas, three waves (2 walkers; 2 walkers and a charger; 2 walkers and 2 chargers), exported by `export_game` and
+  played headless through its shell: the way out tried first was sealed and turned the walker back to the arena; each
+  wave woke its own foes and no others until the cast's own kill downed them; after the ninth fall the seal lifted, the
+  way out won (`success`) and the shell showed it cleared.
