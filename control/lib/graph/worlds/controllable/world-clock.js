@@ -22,6 +22,13 @@
  * firing while another plays takes over if it is as slow or slower, eased from the scale the world is at; a weaker one
  * waits its turn (it is dropped). `state.tempo` says where it is: `{ scale, real, playing: { on, t } | null }`.
  *
+ * THE IMPACT CAM: a moment knows WHO (a strike: the striker and the struck; a down: the one who downed it and the downed;
+ * a dodge: the pilot), and a moment's `cam` (a frame word, or { frame, on?, side?, move?, lerp?, cut? }: the shot rule's,
+ * rules-basic.js; `on` names 'a' and 'b', the two it knows) takes the camera with the shot rule on them as it fires, eased
+ * in on real time while the world crawls, and hands it back as the moment ends (the follow camera lerps back from where the
+ * shot left it). It never takes the camera from a scene's shot (the camera's rule held aside already) or from the tackle
+ * cinematic; a moment that takes over without a cam hands the camera back.
+ *
  * Composed outermost (after hitstop), so a hitstop's frames run on the world's scaled clock. Import-free (the page runs
  * this source via toString(), compose.js); emitted only into a page whose world has a tempo, and a world without one
  * gets no state key: every other page and world keeps every byte.
@@ -32,11 +39,12 @@ export function buildWorldClock(E) {
   const ease = (u) => u * u * (3 - 2 * u);
   const num = (v, d) => (typeof v === 'number' && isFinite(v) ? v : d);
 
+  const camOf = (c) => (typeof c === 'string' ? { frame: c } : c && typeof c === 'object' ? c : null);
   E.registerStateInit((state, spec) => {
     const T = spec && spec.tempo;
     const moments = (T && Array.isArray(T.moments) ? T.moments : []).filter((m) => m && typeof m.on === 'string' && m.on).map((m) => ({
       on: m.on, scale: Math.max(0, Math.min(1, num(m.scale, 0.25))), hold: Math.max(0, num(m.hold, 1)),
-      ramp: Math.max(0, num(m.ramp, 0)), cooldown: Math.max(0, num(m.cooldown, 0)),
+      ramp: Math.max(0, num(m.ramp, 0)), cooldown: Math.max(0, num(m.cooldown, 0)), ...(camOf(m.cam) ? { cam: camOf(m.cam) } : {}),
     }));
     if (!moments.length) return;
     const downed = {};
@@ -59,8 +67,9 @@ export function buildWorldClock(E) {
     return null;
   }
 
-  // fire the moments listening for `on`: the slowest of them, if it is as slow as what plays and off its cooldown
-  function fire(state, on) {
+  // fire the moments listening for `on`: the slowest of them, if it is as slow as what plays and off its cooldown; `who`
+  // the two it is about ({ a, b }: ids), for its camera
+  function fire(state, on, who) {
     const T = state.tempo;
     if (!T) return false;
     let best = -1;
@@ -69,28 +78,51 @@ export function buildWorldClock(E) {
     const m = T.moments[best];
     if (T.playing && m.scale > T.playing.m.scale) return false;
     T.fired[best] = T.real;
-    T.playing = { on, m, t: 0, from: T.scale };
+    T.playing = { on, m, t: 0, from: T.scale, who: who || {} };
+    if (m.cam) takeCam(state, m.cam, T.playing.who); else giveCam(state);
     return true;
   }
 
+  // the impact cam: the shot rule on the two the moment knows, unless a scene or the tackle cinematic holds the camera
+  function takeCam(state, cam, who) {
+    const T = state.tempo, C = state.camera;
+    if (!C || state.cinematic || (C.heldRule && !T.cam)) return;
+    const ids = (Array.isArray(cam.on) ? cam.on : ['a', 'b']).map((k) => (k === 'a' || k === 'b' ? who[k] : k)).filter((id, i, all) => id && state.byId[id] && all.indexOf(id) === i);
+    if (!ids.length) { giveCam(state); return; }
+    const { on: _on, ...rest } = cam;
+    E.castOps(state, [{ op: 'shot', shot: { frame: ids.length > 1 ? 'two' : 'close', cut: false, lerp: 6, ...rest, on: ids } }]);
+    T.cam = true;
+  }
+  function giveCam(state) {
+    const T = state.tempo;
+    if (!T.cam) return;
+    E.castOps(state, [{ op: 'unshot' }]);
+    T.cam = false;
+  }
+
   // what happened in the step just run, as the names moments listen for
+  // (each with whom it is about: { a, b })
   function signals(state, t0) {
     const T = state.tempo, out = [], seen = T.seen;
-    let struck = false, downs = 0, foeDowns = 0;
+    let struck = null, down = null, foeDown = null;
     for (const e of state.entities) {
-      if (e.lastStrike && e.lastStrike.t === t0) struck = true;
-      if (e.downed && !seen.downed[e.id]) { seen.downed[e.id] = true; downs++; if (e.id !== state.pilotId && !e.isCamera) foeDowns++; }
-      else if (!e.downed && seen.downed[e.id]) delete seen.downed[e.id];   // up again (a respawn): it may go down again
+      if (e.lastStrike && e.lastStrike.t === t0 && !struck) struck = { a: e.id, b: e.lastStrike.targetId };
+      if (e.downed && !seen.downed[e.id]) {
+        seen.downed[e.id] = true;
+        const who = { a: e.lastHitBy || null, b: e.id };
+        if (!down) down = who;
+        if (e.id !== state.pilotId && !e.isCamera && !foeDown) foeDown = who;
+      } else if (!e.downed && seen.downed[e.id]) delete seen.downed[e.id];   // up again (a respawn): it may go down again
     }
-    if (struck) out.push('strike');
-    if (downs) out.push('down');
-    if (foeDowns) {
-      out.push('down:foe');
+    if (struck) out.push(['strike', struck]);
+    if (down) out.push(['down', down]);
+    if (foeDown) {
+      out.push(['down:foe', foeDown]);
       const foes = foesOf(state);
-      if (foes.length && foes.every((e) => e.downed || e.gone)) out.push('last-down');
+      if (foes.length && foes.every((e) => e.downed || e.gone)) out.push(['last-down', foeDown]);
     }
     const pilot = state.pilotId && state.byId[state.pilotId], n = (pilot && pilot.dodgeCount) || 0;
-    if (n > seen.dodges) out.push('dodge');
+    if (n > seen.dodges) out.push(['dodge', { a: state.pilotId }]);
     seen.dodges = n;
     return out;
   }
@@ -101,16 +133,16 @@ export function buildWorldClock(E) {
     if (!T) return step(state, input, dt, hooks);
     dt = dt || 1 / 60;
     T.real += dt;
-    if (T.playing) { T.playing.t += dt; const s = scaleOf(T.playing); if (s === null) { T.playing = null; T.scale = 1; } else T.scale = s; }
+    if (T.playing) { T.playing.t += dt; const s = scaleOf(T.playing); if (s === null) { T.playing = null; T.scale = 1; giveCam(state); } else T.scale = s; }
     const scale = Math.max(FROZEN, T.scale), cam = state.camera, R = E.RULES, type = cam && cam.rule && cam.rule.type, rule = type && R[type];
     // the camera keeps real time: its rule is handed the real step while the world's runs at the scale
     if (rule && scale < 1) R[type] = function cameraOnRealTime(e, inp, d, w) { return rule(e, inp, e === cam ? dt : d, w); };
     const t0 = state.time;
     try { step(state, input, dt * (scale < 1 ? scale : 1), hooks); } finally { if (rule) R[type] = rule; }
-    for (const on of signals(state, t0)) fire(state, on);
+    for (const [on, who] of signals(state, t0)) fire(state, on, who);
     return state;
   };
-  E.tempoMoment = (state, on) => fire(state, on);
+  E.tempoMoment = (state, on, who) => fire(state, on, who);
   E.tempoScale = (state) => (state.tempo ? state.tempo.scale : 1);
 }
 
@@ -121,16 +153,33 @@ export const TEMPO_SIGNALS = Object.freeze(['strike', 'down', 'down:foe', 'last-
 /** the words for a world's tempo, each its moments: the finisher's slow motion, the kill cam's longer one, a heavy blow's
  * freeze and the slow after a foe falls, bullet time on a dodge */
 export const TEMPO_PRESETS = Object.freeze({
-  finisher: [{ on: 'last-down', scale: 0.2, hold: 1.2, ramp: 0.25 }],
-  'kill-cam': [{ on: 'last-down', scale: 0.12, hold: 2, ramp: 0.3 }],
+  // (the finisher framed on the two of them; the kill cam low on the downed, pushing in)
+  finisher: [{ on: 'last-down', scale: 0.2, hold: 1.2, ramp: 0.25, cam: 'two' }],
+  'kill-cam': [{ on: 'last-down', scale: 0.12, hold: 2, ramp: 0.3, cam: { frame: 'low', on: ['b', 'a'], move: 'push' } }],
   impact: [{ on: 'strike', scale: 0, hold: 0.05, cooldown: 0.2 }, { on: 'down:foe', scale: 0.3, hold: 0.4, ramp: 0.1, cooldown: 1.5 }],
   bullet: [{ on: 'dodge', scale: 0.3, hold: 1.5, ramp: 0.2, cooldown: 3 }],
 });
 const LIMITS = { hold: 10, ramp: 3, cooldown: 60 };
+/** the impact cam's frames (the shot rule's words, rules-basic.js FRAMES and `over`) and moves */
+export const CAM_FRAMES = Object.freeze(['two', 'close', 'profile', 'low', 'wide', 'corner', 'overhead', 'over']);
+export const CAM_MOVES = Object.freeze(['hold', 'track', 'push', 'orbit']);
+
+function readCam(c) {
+  const C = typeof c === 'string' ? { frame: c } : c;
+  if (!C || typeof C !== 'object' || Array.isArray(C)) throw new Error(`tempo: a moment's cam is a frame (${CAM_FRAMES.join(', ')}) or { frame, on?, side?, move?, lerp? }`);
+  if (C.frame !== undefined && !CAM_FRAMES.includes(C.frame)) throw new Error(`tempo: a cam's frame is one of ${CAM_FRAMES.join(', ')}, not ${JSON.stringify(C.frame)}`);
+  if (C.move !== undefined && !CAM_MOVES.includes(C.move)) throw new Error(`tempo: a cam's move is one of ${CAM_MOVES.join(', ')}, not ${JSON.stringify(C.move)}`);
+  if (C.on !== undefined && !(Array.isArray(C.on) && C.on.length && C.on.every((x) => typeof x === 'string' && x))) throw new Error('tempo: a cam\'s on names whom it frames: \'a\' and \'b\' (the two the moment knows: the striker and the struck, the downer and the downed) or entity ids');
+  if (C.side !== undefined && C.side !== 1 && C.side !== -1) throw new Error('tempo: a cam\'s side is 1 or -1');
+  if (C.lerp !== undefined && !(typeof C.lerp === 'number' && C.lerp > 0 && C.lerp <= 60)) throw new Error('tempo: a cam\'s lerp is how fast it eases in, over 0 to 60');
+  const out = {};
+  for (const k of ['frame', 'on', 'side', 'move', 'lerp']) if (C[k] !== undefined) out[k] = Array.isArray(C[k]) ? C[k].slice() : C[k];
+  return typeof c === 'string' ? c : out;
+}
 
 /**
  * A world's `tempo` read into the kernel's spec, or throws naming what it takes: a preset word, a list of words, or
- * `{ moments: [{ on, scale, hold, ramp?, cooldown? }] }` (words and moments may mix in a list). Null for none.
+ * `{ moments: [{ on, scale, hold, ramp?, cooldown?, cam? }] }` (words and moments may mix in a list). Null for none.
  */
 export function readTempo(raw) {
   if (raw == null || raw === false) return null;
@@ -142,7 +191,7 @@ export function readTempo(raw) {
       moments.push(...TEMPO_PRESETS[it].map((m) => ({ ...m })));
       continue;
     }
-    if (!it || typeof it !== 'object' || typeof it.on !== 'string' || !it.on.trim()) throw new Error(`tempo: a moment is { on, scale, hold, ramp?, cooldown? }, on one of ${TEMPO_SIGNALS.join(', ')} or a name fired from outside`);
+    if (!it || typeof it !== 'object' || typeof it.on !== 'string' || !it.on.trim()) throw new Error(`tempo: a moment is { on, scale, hold, ramp?, cooldown?, cam? }, on one of ${TEMPO_SIGNALS.join(', ')} or a name fired from outside`);
     const m = { on: it.on.trim() };
     if (!(typeof it.scale === 'number' && it.scale >= 0 && it.scale <= 1)) throw new Error(`tempo: a moment's scale is the world's speed, 0 (held) to 1, not ${JSON.stringify(it.scale)}`);
     m.scale = it.scale;
@@ -152,6 +201,7 @@ export function readTempo(raw) {
       m[k] = it[k];
     }
     if (m.hold === undefined) throw new Error('tempo: a moment says how long it holds (`hold`, real seconds)');
+    if (it.cam !== undefined) m.cam = readCam(it.cam);
     moments.push(m);
   }
   return moments.length ? { moments: moments.slice(0, 8) } : null;
