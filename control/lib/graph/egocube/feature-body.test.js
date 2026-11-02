@@ -123,7 +123,7 @@ describe('the feature body', () => {
     // THE GALLOP, the dog its base: the run's cycle, the waist rounding at the gather and opening at the extension, the
     // forelegs swinging, the face ahead throughout, the forepaws reaching the floor
     const gal = plan.clips.gallop;
-    expect(gal.length).toBe(plan.clips.run.length + 1);                                              // (the run's keys and the vault)
+    expect(gal.length).toBe(plan.clips.run.length + 2);                                // (the run's keys, the vault and the landing)
     expect(Math.max(...gal.map((k) => k.waist)) - Math.min(...gal.map((k) => k.waist))).toBeGreaterThan(5);
     const posed = gal.map((k) => rigNodesAt(R, k).nodes), paw = posed.map((n) => n.knucklesR[1] - n.shoulderR[1]);
     expect(Math.max(...paw) - Math.min(...paw)).toBeGreaterThan(0.08 * height);
@@ -144,6 +144,17 @@ describe('the feature body', () => {
     expect(vi).toBeGreaterThan(0); expect(gal[vi - 1].hinge).toBe(Math.max(...gal.filter((k) => k.support !== 'none').map((k) => k.hinge)));
     expect(slope(vault)).toBeLessThan(slope(posed[vi - 1]));
     for (const S of ['R', 'L']) { expect(vault[`knuckles${S}`][2], S).toBeLessThan(0.05 * height); expect(Math.min(vault[`toeBase${S}`][2], vault[`toeTip${S}`][2]), S).toBeGreaterThan(FEATURE_GALLOP.vault.clear * height - 1e-3); expect(vault[`toeBase${S}`][1], S).toBeLessThan(vault[`hip${S}`][1]); }
+    // (THE LANDING, the second impact after it: still on the forepaws, the elbows bent their natural way, the hind feet
+    // behind the hips, off the floor and pointed back)
+    const land = posed[vi + 1], lk = gal[vi + 1];
+    expect(lk.support).toBe('none'); expect(lk.elbowR).toBe(FEATURE_GALLOP.land.elbow);
+    for (const S of ['R', 'L']) {
+      expect(land[`knuckles${S}`][2], S).toBeLessThan(0.05 * height);
+      expect(land[`hip${S}`][1] - land[`toeBase${S}`][1], S).toBeGreaterThan(0.2 * height);
+      expect(Math.min(land[`toeBase${S}`][2], land[`toeTip${S}`][2]), S).toBeGreaterThan(FEATURE_GALLOP.vault.clear * height - 1e-3);
+      const dir = (Math.atan2(land[`toeTip${S}`][2] - land[`toeBase${S}`][2], -(land[`toeTip${S}`][1] - land[`toeBase${S}`][1])) * 180) / Math.PI;
+      expect(Math.abs(dir), S).toBeLessThan(35);                                                     // (pointed back)
+    }
     const runTail = (n) => (Math.atan2(n.tailTip[2] - n.tailRoot[2], -(n.tailTip[1] - n.tailRoot[1])) * 180) / Math.PI;
     for (const n of posed) { expect(runTail(n)).toBeGreaterThan(FEATURE_CARRIAGE.run.least - 2); expect(runTail(n)).toBeLessThan(FEATURE_CARRIAGE.run.most + 2); }
     // (and straight: the tail's far half, on its own bone from the middle, in line with the near half)

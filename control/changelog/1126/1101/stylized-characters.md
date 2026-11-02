@@ -210,7 +210,12 @@ member, a quick game's hero). Code: `control/lib/graph/egocube/feature-tune.js`.
   - THE VAULT, a key of its own after the strike (`FEATURE_GALLOP.vault`): the trunk tipped 10° further (the spine 30°
     down to the front), the weight on both forepaws alone, the hind legs unsupported, swung back 40° from the hips with
     the knees bent 60°, raised behind and clear of the floor (the body lifted only where a hind foot would still touch
-    it: `vaulted`, solved on the rig), the head still looking ahead. The gallop is the run's keys and the vault;
+    it: `vaulted`, solved on the rig), the head still looking ahead;
+  - THE LANDING after it, the second impact (`FEATURE_GALLOP.land`): still on both forepaws, the elbows bent 35° their
+    natural way to take the weight (the body lowered only where the bent forelegs would not reach the floor), the hind
+    feet set behind the hips (a `feet` target each, a third of the height back) and POINTED BACK (the ankle turned
+    −70°, the toes −160°), the head ahead (`landed`, solved on the rig; the paws' solve keeps the landing's own elbow).
+    The gallop is the run's keys, the vault and the landing;
   - galloping, every tail is held back near level for balance (`FEATURE_CARRIAGE.run`, −25° to 10°), whatever its
     walking carriage: a cat's tail is up at a walk and back at a run;
   - and straightened: the tail rides two bones (`tail` from its root to its middle, `tailEnd` from there to its tip, each
@@ -307,8 +312,8 @@ member, a quick game's hero). Code: `control/lib/graph/egocube/feature-tune.js`.
     floor in some keys and through the air in others, the hind feet behind the hips, the face ahead and a little down in
     every key (never up), the tail's root at the rump (never up the back) and the tail held back near level and
     straight (its two halves in line), the tail's ring layer each point on one tail bone, a strike key, the front
-    tipped low on both forepaws, and after it the vault, tipped further on the forepaws alone, the hind feet off the
-    floor and behind the hips;
+    tipped low on both forepaws, after it the vault, tipped further on the forepaws alone, the hind feet off the floor
+    and behind the hips, and the landing, the elbows bent and the hind feet behind, off the floor and pointed back;
   - on all fours on the rig: the spine level, the tail carried at the roster's carriage less the mascot's share, and no
     standing clip turning the tail;
   - a rodent's buck teeth (none on the hedgehog), a chunky rodent's blunt face on whisker pads, a beaver's flat paddle on

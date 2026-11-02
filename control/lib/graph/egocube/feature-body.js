@@ -389,7 +389,7 @@ export function featurePlan(sheet, { title = 'a feature animal', reactions = fal
       : { EarInner: '#c9a19b', ...featurePalette(coatPalette(sheet, k, A, f), A.id, build) },
   };
   // (the forepaws planted on the floor, solved on the rig itself)
-  if (build.fours) { vaulted(plan); looking(plan); planted(plan); if (L.tail) carried(plan, build.tail.carriage); }
+  if (build.fours) { vaulted(plan); landed(plan); looking(plan); planted(plan); if (L.tail) carried(plan, build.tail.carriage); }
   return { plan, H, height: L.top, ...(tune?.detail.bake ? { bake: detailBake(build.plan) } : {}) };
 }
 
@@ -400,9 +400,28 @@ function vaulted(plan) {
   if (!Array.isArray(keys)) return;
   const R = validateRig(expandPlan(plan).rig), h = plan.mascot.height, need = FEATURE_GALLOP.vault.clear * h;
   keys.forEach((k, i) => {
-    if (k?.support !== 'none') return;
+    if (k?.support !== 'none' || typeof k.elbowR === 'number') return;
     const n = rigNodesAt(R, k).nodes, low = Math.min(n.toeBaseR[2], n.toeBaseL[2], n.toeTipR[2], n.toeTipL[2]);
     if (low < need) keys[i] = { ...k, lift: r4(need - low) };
+  });
+}
+
+/** THE LANDING placed: the gallop's second impact (its key on the forepaws with the elbows bent: FEATURE_GALLOP.land) is
+ *  lowered as far as its bent forelegs need to reach the floor, and its hind feet set behind the hips and a little under
+ *  them, pointed back, solved on the rig */
+function landed(plan) {
+  const keys = plan.clips.gallop;
+  if (!Array.isArray(keys)) return;
+  const R = validateRig(expandPlan(plan).rig), h = plan.mascot.height, P = FEATURE_PAWS, Ld = FEATURE_GALLOP.land;
+  const len = (a, b) => Math.hypot(b[0] - a[0], b[1] - a[1], b[2] - a[2]);
+  keys.forEach((k, i) => {
+    if (k?.support !== 'none' || typeof k.elbowR !== 'number') return;
+    // (lowered until the bent foreleg, nearly upright, reaches the floor)
+    const n0 = rigNodesAt(R, k).nodes, reach = len(n0.shoulderR, n0.knucklesR), sink = Math.max(0, n0.shoulderR[2] - P.floor * h - 0.97 * reach);
+    const k1 = sink ? { ...k, sink: r4(sink) } : k, n1 = rigNodesAt(R, k1).nodes;
+    // (the hind feet behind and above the hips: their toe bases' targets)
+    const foot = (S) => [r4(n1[`hip${S}`][0]), r4(n1[`hip${S}`][1] - Ld.back * h), r4(Math.max(FEATURE_GALLOP.vault.clear * h, n1[`hip${S}`][2] - Ld.low * h))];
+    keys[i] = { ...k1, feet: { R: foot('R'), L: foot('L') } };
   });
 }
 
@@ -486,7 +505,11 @@ function planted(plan) {
         // (the gallop's paw on the floor at a share of its full reach, `under` at the gather to all of it at the
         // extension, the elbow folded so the leg spans it: the law of cosines on the upper arm and the forearm)
         let span = null;
-        if (name === 'gallop') {
+        if (name === 'gallop' && typeof k0[`elbow${S}`] === 'number' && k0.support === 'none') {
+          // (the landing's elbow is its own: the paw set on the floor ahead as far as the bent foreleg reaches)
+          const n0 = rigNodesAt(R, k).nodes, sh = n0[`shoulder${S}`], L0 = len(sh, n0[`knuckles${S}`]), dz = Math.max(0, sh[2] - P.floor * h);
+          span = { dz, fwd: Math.sqrt(Math.max(0.0001, L0 * L0 - dz * dz)) };
+        } else if (name === 'gallop') {
           const n0 = rigNodesAt(R, { ...k, [`elbow${S}`]: 0 }).nodes, sh = n0[`shoulder${S}`], up = len(sh, n0[`elbow${S}`]), fore = len(n0[`elbow${S}`], n0[`knuckles${S}`]);
           const dz0 = Math.max(0, sh[2] - P.floor * h), full = Math.sqrt(Math.max(0, (up + fore) ** 2 - dz0 * dz0)), t = ts[i];
           // (swinging forward, the paw is lifted most at mid-swing; at full reach it strikes; swept back, it is on the floor)
