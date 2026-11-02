@@ -215,7 +215,7 @@ A cube that names no domains offers one per terrain and one per interior.
   row } }`: four lanes, a spacer on some, one-way pairs of three by the core, streetcars on the spines and some, the
   metro's round lamps, signals, signs, crosswalks, paint, rails and overhead drawn near the camera, with its benches,
   bins, hydrants, hydro poles, street trees and tiled ground, and the geotown's signs, post boxes, litter bins, court
-  dumpsters, lot donation bins and site skips); `lively` the share of each ring's blocks going up
+  dumpsters, lot donation bins and site skips; its parks the geotown's paths, playgrounds, pavilions, benches and trees); `lively` the share of each ring's blocks going up
   (scaffolding, a crane, hoarding, barriers), parked or vacant; `geotowns` the geotown composed in at any grain, anywhere:
   `{ 'D3': true | { neighbourhood: 'annex' } }` a neighbourhood laid by it (fitted by its ring), `{ 'D3.2.1': true |
   { segment: 'main-street' } }` one block laid by its segment, filled and cropped to the block, all on the metro's land;

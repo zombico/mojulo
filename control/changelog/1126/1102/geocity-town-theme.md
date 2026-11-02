@@ -59,6 +59,13 @@
   skips on its building sites (`geotown/receptacles.js`, askew in a toon register). A plain metro takes the same added
   pieces in the realistic register, as they are made, in their own colours, at the same places (`kit.js` `piece`);
   its lamps, signals, bins, hydrants and name signs are its own as they were.
+  Its parks are the geotown's (`park` in `geocity/scene.js`, from `geotown/sites.js`), on a plain cube and a loud one:
+  a park block on its terraces and a park neighbourhood on the land each a path across it each way, a playground on
+  its chips and a pavilion in two of its quarters, benches along its paths by turns with a bin by every other, and
+  trees clear of them; a loud one's paths in skewed pastel slabs, its playground's and its pavilion's parts each its
+  own ink (a toon register's playground exaggerated: `loudPlayground`, now exported). Its squares a tree at each of
+  their bed's corners; a loud one's bed striped in two greens and its paving in rows of skewed pastel slabs, each on
+  the terrace under it.
 - **A loud street** (`exaggerate.streets`, `geotown/street-loud.js`; the `street` hand carries one), by the shops'
   principles over a plan that never moves: the walks laid in big pastel slabs over their own ground, cut on skewed lines
   (their ends too: no slab square), each a tint other than its neighbour's, set in a grout of the walk; the kerbs in

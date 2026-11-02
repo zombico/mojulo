@@ -266,6 +266,20 @@ describe("a loud metro's street the geotown's: its lamps, signals, signs, post b
     expect(litter.length).toBeGreaterThan(1);
     expect(ts(X, 'geocity:roll-off').length).toBe(ts(X, 'geocity:bag-skip').length);
   });
+  it('gives its parks the geotown\'s: paths across, a playground, a pavilion, trees; a loud one\'s paths slabbed and its things inked', () => {
+    const g = (S, k) => S.faces.filter((f) => f.group === `geocity:${k}`);
+    for (const k of ['park-path', 'chips', 'canopy', 'slide', 'pavilion-roof', 'pavilion-slab']) expect(g(P, k).length).toBeGreaterThan(0);
+    expect(g(X, 'chips').length).toBe(g(P, 'chips').length);
+    expect(new Set(g(X, 'slide').map((f) => f.fill)).size).toBeGreaterThan(1);
+    // (its paths' slabs: the loud one's slabs outnumber the plain one's by the parks' and the squares')
+    expect(g(X, 'slab').length).toBeGreaterThan(g(P, 'slab').length + 100);
+    expect((P.repeats ?? []).some((r) => r.group.startsWith('geocity:tree-'))).toBe(true);
+  });
+  it('stripes a loud square\'s bed in two greens; the plain one\'s one bed', () => {
+    const bed = (S) => S.faces.filter((f) => f.group === 'geocity:planting');
+    expect(bed(X).length).toBeGreaterThan(bed(P).length);
+    expect(new Set(bed(X).map((f) => f.fill)).size).toBeGreaterThan(new Set(bed(P).map((f) => f.fill)).size);
+  });
   it('draws a toon register\'s lamps in shapes apart', () => {
     expect(reps(Tn, 'geocity:lamp').length).toBeGreaterThan(reps(X, 'geocity:lamp').length);
   });

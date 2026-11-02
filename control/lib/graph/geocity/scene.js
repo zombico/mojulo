@@ -12,7 +12,8 @@
  *              retaining face where it stands over its walk or the terrace below it; a park's pad its lawn, the city
  *              park the land as it lies
  *   buildings  by segment, on their terrace: a tower block's podium and its towers, a podium block, a square's lawn and
- *              kiosk, a mid-rise ring round its court, a slab on its lawn; in the outskirts semi pairs under gables to
+ *              kiosk (a tree at each of its bed's corners), a mid-rise ring round its court, a slab on its lawn; a park's
+ *              paths, playground, pavilion, benches and trees (geotown/sites.js); in the outskirts semi pairs under gables to
  *              the street in two rows back to back, an edge's or a main street's shops along its street, low-rises, a
  *              walk-up, a school and its field. Glass in the core, stone and brick outward (its grammar's skins)
  *   night      past dusk each tall wall's floors lit in runs (the grammar's share), panes no light shades: the room's own
@@ -45,7 +46,9 @@ import { assembleBoxCityScene } from '../scene/scene-css3d.js';
 import { kitTemplates, LOUD_VARIANTS } from './kit.js';
 import { RECEPTACLES } from '../geotown/receptacles.js';
 import { toonOf } from '../geotown/doodads.js';
-import { assembleGeotownScene } from '../geotown/scene.js';
+import { assembleGeotownScene, loudPlayground } from '../geotown/scene.js';
+import { playgroundOf, pavilionOf } from '../geotown/sites.js';
+import { proportions } from '../geotown/doodads.js';
 import { materialContext, wordTile } from '../era/arch-style.js';
 import { dressTownFace } from '../era/town-dress.js';
 import { plantPool, plantRepeats } from '../vegetation/pool.js';
@@ -82,7 +85,7 @@ const FINISHES = Object.freeze({
 const GLASS_SPEC = Object.freeze([0.55, 48]);
 // street trees: a pit's stride along a close-built arterial, a verge's along an outskirts street, their species, the
 // height they are grown to (m), the detail their template keeps and its faces' budget
-const TREE = Object.freeze({ pit: 12, verge: 11, species: { dense: ['maple', 'beech'], low: ['maple', 'cherry'] }, height: [12, 17], level: 'L1', budget: 400000, raise: 0.42 });
+const TREE = Object.freeze({ pit: 12, verge: 11, species: { dense: ['maple', 'beech'], low: ['maple', 'cherry'], park: ['beech', 'maple', 'cherry'] }, height: [12, 17], level: 'L1', budget: 400000, raise: 0.42 });
 const FAR_CELL = 160, TALL = Object.freeze(['tower', 'podium', 'midrise', 'slab']), DETAILED = Object.freeze(['tower', 'podium', 'midrise', 'slab']);
 
 const r5 = (v) => Math.round(v * 1e5) / 1e5 + 0;
@@ -96,6 +99,10 @@ const cuts = (a, b, step) => { const n = Math.max(1, Math.ceil((b - a) / step - 
 // the outskirts' palettes: brick and its trim, a shop's front, a roof
 // a parked car's paint as an instance's tint (linear rgb over its pale body): geotown/yards.js CAR_PAINTS
 // the street furniture a loud metro inks each its own
+// (a park's things' paints by role, geotown/sites.js)
+const PARK_PAINT = Object.freeze({ chips: '#8a6a4a', timber: '#8b6b4c', deck: '#9a7a58', metal: '#5c6166', seat: '#7b8a96', paving: '#b9b1a2', roof: '#4b4f55' });
+// (a park's things' groups where a role's own would be the metro's ground's: a pavilion's slab is not the paving)
+const PARK_GROUP = Object.freeze({ paving: 'pavilion-slab', roof: 'pavilion-roof' });
 const INKED_KIT = new Set(['bin', 'hydrant', 'bench', 'bollard', 'ring', 'papers']);
 // (the kinds an exaggerated metro stamps as the geotown's pieces: kit.js `piece`)
 const LITTER = Object.freeze(['recycling-three', 'solar-compactor', 'heritage-fluted', 'ashtray-top', 'mesh-basket']);
@@ -294,7 +301,7 @@ export function assembleGeocityScene(m, ctx = {}) {
   for (const r of d.regions) {
     if (r.geotown) { town(r, massed && !massed.has(r.id)); continue; }
     if (massed && !massed.has(r.id)) { backdrop(r); continue; }
-    if (r.park) { drape(r.rect, 'geocity:park', col.park); continue; }
+    if (r.park) { drape(r.rect, 'geocity:park', col.park); park(r.rect, null, r.id); continue; }
     drape(r.rect, 'geocity:road', col.road);
     for (const b of r.blocks) {
       const [x0, y0, x1, y1] = b.rect, Rb = streamOf(seed, 'scene', b.id), longY = y1 - y0 >= x1 - x0;
@@ -333,7 +340,7 @@ export function assembleGeocityScene(m, ctx = {}) {
           put([[p[0], p[1], zb(p)], [q[0], q[1], zb(q)], [q[0], q[1], t.z], [p[0], p[1], t.z]], 'geocity:retain', col.retain, nn);
         }
       });
-      if (b.kind === 'park') continue;
+      if (b.kind === 'park') { park(b.rect, terraces, b.id); continue; }
       if (!firstBlock || Math.hypot((x0 + x1) / 2 - d.seat[0], (y0 + y1) / 2 - d.seat[1]) < Math.hypot((firstBlock.rect[0] + firstBlock.rect[2]) / 2 - d.seat[0], (firstBlock.rect[1] + firstBlock.rect[3]) / 2 - d.seat[1])) firstBlock = b;
       if (detail.has(b.id) && DETAILED.includes(b.kind)) detailed(b, { x0, y0, x1, y1, zAt, Rb });
       else building(b, { x0, y0, x1, y1, longY, zAt, Rb });
@@ -563,6 +570,56 @@ export function assembleGeocityScene(m, ctx = {}) {
     ['clothing-drop', 'textile-bank', 'bottle-igloo'].forEach((k, i) => stamp(`${k}:${alongX ? 'n' : 'e'}`, alongX ? [a0 + 1.6 + i * 2.4, b0 + 1.3, z] : [a0 + 1.3, b0 + 1.6 + i * 2.4, z], 0));
   }
 
+  /** A park (a park block on its terraces, or a park neighbourhood on the land as it lies), the geotown's park
+   *  (geotown/sites.js): a path across it each way, trees clear of them, a playground on its chips and a pavilion in
+   *  two of its quarters, benches along its paths by turns and a bin by every other one. A loud one's paths in skewed
+   *  pastel slabs, its playground's parts and its pavilion's each its own ink (a toon register's playground exaggerated
+   *  and incongruent: geotown/scene.js loudPlayground), its benches and bins inked as the street's. */
+  function park([x0, y0, x1, y1], terraces, key) {
+    const w = x1 - x0, h = y1 - y0;
+    if (w < 24 || h < 24) return;
+    const zOf = terraces ? (x, yy) => (terraces.find((t) => x >= t.q[0] - 1e-6 && x <= t.q[2] + 1e-6 && yy >= t.q[1] - 1e-6 && yy <= t.q[3] + 1e-6) ?? terraces[terraces.length - 1]).z : (x, yy) => S(x, yy);
+    const cx = (x0 + x1) / 2, cy = (y0 + y1) / 2, PW = 3, R = streamOf(seed, 'park', key), pathHex = mix(col.plaza, '#c9b48f', 0.5);
+    const paths = [[x0, cy - PW / 2, x1, cy + PW / 2], [cx - PW / 2, y0, cx + PW / 2, y1]];
+    // (a path laid on its ground: on each terrace it crosses, at that terrace's level; or draped on the land)
+    const lay = (r, lift, fn) => { if (!terraces) { fn(r, (x, yy) => S(x, yy) + lift); return; } for (const t of terraces) { const q = [Math.max(r[0], t.q[0]), Math.max(r[1], t.q[1]), Math.min(r[2], t.q[2]), Math.min(r[3], t.q[3])]; if (q[2] - q[0] > 0.05 && q[3] - q[1] > 0.05) fn(q, () => t.z + lift); } };
+    paths.forEach((r, k) => lay(r, 0.02 + 0.004 * k, (q, z) => {
+      if (terraces) put([[q[0], q[1], z()], [q[2], q[1], z()], [q[2], q[3], z()], [q[0], q[3], z()]], 'geocity:park-path', pathHex); else drape(q, 'geocity:park-path', pathHex, 0.02 + 0.004 * k);
+      if (HY) for (const sl of slabsOf(q, q[2] - q[0] >= q[3] - q[1] ? 'x' : 'y', (x, yy) => z(x, yy) + 0.008, { skew: STL?.skew ?? 0.35, pop: 0.7 }, pathHex, streamOf(seed, 'park-slabs', `${key}:${k}:${r5(q[0])}:${r5(q[1])}`))) put(sl.corners, 'geocity:slab', sl.hex);
+    }));
+    // its playground in one quarter, its pavilion in the one across, each clear of the paths
+    const TOONP = !!EX && toonOf(cube.register), things = [];
+    const thing = (fs, z0, paint = null) => { for (const f of fs) put(f.corners.map(([x, yy, z]) => [x, yy, z0 + z]), `geocity:${PARK_GROUP[f.role] ?? f.role}`, (paint && paint(f)) ?? f.hex ?? PARK_PAINT[f.role] ?? '#6b7176', f.out); };
+    const topOf = (r) => Math.max(zOf(r[0], r[1]), zOf(r[2], r[1]), zOf(r[2], r[3]), zOf(r[0], r[3]));
+    if (w >= 40 && h >= 40) {
+      const pg = [cx + PW / 2 + 4, cy + PW / 2 + 4, cx + PW / 2 + 4 + Math.min(16, w / 2 - 8), cy + PW / 2 + 4 + Math.min(11, h / 2 - 8)];
+      const [chips, ...rest] = playgroundOf(pg, R);
+      thing([chips], topOf(pg));
+      const P9 = HY ? loudPlayground(rest, TOONP ? proportions(streamOf(seed, 'park-play', key), true) : null, streamOf(seed, 'park-play-ink', key), HY.pop) : null;
+      thing(P9 ? P9.faces : rest, topOf(pg), P9 ? P9.paint : null);
+      const pv = [cx - PW / 2 - 4 - Math.min(10, w / 2 - 8), cy - PW / 2 - 4 - Math.min(6, h / 2 - 8), cx - PW / 2 - 4, cy - PW / 2 - 4];
+      const pi = HY ? inkPicker(streamOf(seed, 'park-pavilion-ink', key), HY.pop) : null, inks = pi ? { timber: pi('post'), roof: pi('roof'), paving: popHex('#f2e2c8', HY.pop * 0.5) } : null;
+      thing(pavilionOf(pv), topOf(pv), inks ? (f) => (f.role === 'timber' && Math.max(...f.corners.map((c) => c[2])) < 1.2 ? pi('table') : inks[f.role] ?? null) : null);
+      things.push(pg, pv);
+    }
+    // benches along its paths, a side each by turns, clear of the crossing; a bin by every other
+    let k = 0;
+    for (const [along, a0, a1] of [['x', x0, x1], ['y', y0, y1]]) for (let s0 = a0 + 8; s0 <= a1 - 8; s0 += 16) {
+      if (Math.abs(s0 - (along === 'x' ? cx : cy)) < 8) continue;
+      const side = k++ % 2 ? 1 : -1, o = PW / 2 + 0.9, [bx, by] = along === 'x' ? [s0, cy + side * o] : [cx + side * o, s0];
+      if (things.some((r) => bx > r[0] - 2 && bx < r[2] + 2 && by > r[1] - 2 && by < r[3] + 2)) continue;
+      stamp(`bench:${along === 'x' ? (side > 0 ? 's' : 'n') : (side > 0 ? 'w' : 'e')}`, [bx, by, zOf(bx, by)], 0);
+      if (k % 2) { const [qx, qy] = along === 'x' ? [bx + 1.6, by] : [bx, by + 1.6]; stamp('bin', [qx, qy, zOf(qx, qy)], 0); }
+    }
+    // its trees, clear of its paths and its things, a park's few to the hectare
+    const want = Math.min(110, Math.round((w * h) / 10000 * 30));
+    for (let n = 0, tries = 0; n < want && tries < want * 6; tries++) {
+      const tx = x0 + 4 + (w - 8) * R(), ty = y0 + 4 + (h - 8) * R();
+      if (Math.abs(ty - cy) < PW / 2 + 3 || Math.abs(tx - cx) < PW / 2 + 3 || things.some((r) => tx > r[0] - 3 && tx < r[2] + 3 && ty > r[1] - 3 && ty < r[3] + 3)) continue;
+      plant('park', tx, ty, zOf(tx, ty), `${key}:${n}`); n++;
+    }
+  }
+
   /** A neighbourhood as the skyline sees it: its ground one coarse drape, its tall buildings standing on it. */
   function backdrop(r) {
     if (r.park) { drape(r.rect, 'geocity:park', col.park, 0, FAR_CELL); return; }
@@ -632,8 +689,21 @@ export function assembleGeocityScene(m, ctx = {}) {
       lights(q[0], q[1], q[2], q[3], zc, z1, office, Rb);
     } else if (b.kind === 'square') {
       const e = Math.min(w, h) * 0.18;
-      put([[x0 + e, y0 + e, zc + 0.02], [x1 - e, y0 + e, zc + 0.02], [x1 - e, y1 - e, zc + 0.02], [x0 + e, y1 - e, zc + 0.02]], 'geocity:planting', col.court);
+      // (a loud square's bed in stripes of two greens across it, its paving round it in skewed pastel slabs, each its
+      // neighbour's other tint: geotown/street-loud.js)
+      if (HY) {
+        const n = Math.max(2, Math.round((x1 - x0 - 2 * e) / 3)), sw = (x1 - x0 - 2 * e) / n, g2 = [popHex(col.court, HY.pop * 0.6), leanHue(col.court, '#9fe06a', 0.5)];
+        for (let k = 0; k < n; k++) put([[x0 + e + k * sw, y0 + e, zc + 0.02], [x0 + e + (k + 1) * sw, y0 + e, zc + 0.02], [x0 + e + (k + 1) * sw, y1 - e, zc + 0.02], [x0 + e + k * sw, y1 - e, zc + 0.02]], 'geocity:planting', g2[k % 2]);
+        const Rq = streamOf(seed, 'square-slabs', b.id);
+        // (each band of its paving cut into rows a walk wide, each row its slabs, on the terrace under it)
+        for (const q of [[x0, y0, x1, y0 + e], [x0, y1 - e, x1, y1], [x0, y0 + e, x0 + e, y1 - e], [x1 - e, y0 + e, x1, y1 - e]]) {
+          const ax = q[2] - q[0] >= q[3] - q[1] ? 'x' : 'y', [c0, c1] = ax === 'x' ? [q[1], q[3]] : [q[0], q[2]], n = Math.max(1, Math.round((c1 - c0) / WALK)), rw = (c1 - c0) / n;
+          for (let k = 0; k < n; k++) { const row = ax === 'x' ? [q[0], c0 + k * rw, q[2], c0 + (k + 1) * rw] : [c0 + k * rw, q[1], c0 + (k + 1) * rw, q[3]]; for (const sl of slabsOf(row, ax, (x, yy) => zAt(x, yy) + 0.012, { skew: STL?.skew ?? 0.35, pop: 0.7 }, col.plaza, Rq)) put(sl.corners, 'geocity:slab', sl.hex); }
+        }
+      } else put([[x0 + e, y0 + e, zc + 0.02], [x1 - e, y0 + e, zc + 0.02], [x1 - e, y1 - e, zc + 0.02], [x0 + e, y1 - e, zc + 0.02]], 'geocity:planting', col.court);
       box(cx - 4, cy - 4, cx + 4, cy + 4, zc, zc + 4, col.plaza, roofs[0], 'geocity:kiosk');
+      // (a tree at each of its bed's corners)
+      if (!far) for (const [tx, ty] of [[x0 + e + 3, y0 + e + 3], [x1 - e - 3, y0 + e + 3], [x1 - e - 3, y1 - e - 3], [x0 + e + 3, y1 - e - 3]]) if (Math.abs(tx - cx) > 7 || Math.abs(ty - cy) > 7) plant('dense', tx, ty, zc + 0.02, `${b.id}:sq:${r5(tx)}:${r5(ty)}`);
     } else if (b.kind === 'midrise') {
       const dp = Math.min(14, w / 3, h / 3), [, br] = famOf(brick, b.id), roof = roofs[strHash(b.id) % roofs.length], z1 = zc + med * resid;
       put([[x0 + dp, y0 + dp, zc + 0.02], [x1 - dp, y0 + dp, zc + 0.02], [x1 - dp, y1 - dp, zc + 0.02], [x0 + dp, y1 - dp, zc + 0.02]], 'geocity:court', col.court);

@@ -100,7 +100,7 @@ const dz0Top = (dz) => Math.max(...dz.faces.map((f) => Math.max(...f.corners.map
 /** A loud playground: its parts each its own ink (the tower's posts, its deck, its canopy, its slide, the swings'
  *  frame, their seats), and in a toon register (`D`) exaggerated and incongruent: the canopy's peak too tall, the slide
  *  run out too long from the deck, the swings' frame too high. Its parts stand where they stood. → { faces, paint } */
-function loudPlayground(fs, D, R, pop) {
+export function loudPlayground(fs, D, R, pop) {
   const pick = inkPicker(R, pop), inks = { timber: pick('post'), deck: pick('deck'), canopy: pick('canopy'), slide: pick('slide'), metal: pick('swing'), seat: pick('seat') };
   let faces = fs;
   if (D) {
