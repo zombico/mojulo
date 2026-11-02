@@ -188,6 +188,15 @@ member, a quick game's hero). Code: `control/lib/graph/egocube/feature-tune.js`.
   - the fit (`foursOf`, `functional`) models that bent trunk segment by segment, as the rig poses it.
   - The rig takes a new pose word for it, `waist` (degrees, + the chest forward over the navel), in `figure-posing.js`.
     Absent, nothing changes.
+- **The walk and the slow trot on all fours** (`FEATURE_GAIT`). The hind feet take the biped's walk and run paths, and
+  each foreleg plays its own side's hind foot's cycle a share of a cycle later: where that foot is fore and aft its paw
+  is (from under the chest, the elbow folded, to its full reach), and as that foot lifts so does the paw. The WALK
+  (`prowl`, the walk on all fours as before) is a four-beat lateral sequence, left hind, left fore, right hind, right
+  fore: each foreleg a quarter cycle after its hind. The slow TROT (a new `trot` clip, on the run's paths with its
+  flight dropped) is a two-beat diagonal: each foreleg with the other side's hind, half a cycle on. A paw in stance
+  rests on the floor; the head looks ahead and the tail is carried, low on the rump and clear of the floor, in both.
+  The paws' solve had mixed a unitless share to the side with metres, so a paw in stance stood a few centimetres off the
+  floor: the share is now taken of the target's own length (the gallop's paws, too, now rest exactly on it).
 - **The downward dog, facing forward** (a `downDog` clip, `FEATURE_DOG`, `dogOf`): the hips high, the hind legs as
   straight as the forepaws allow (bent only as far as they need to reach the floor), the trunk tipped past level and
   bent down at the waist (the rib ball under the pelvis ball), the forepaws straight out in front on the floor, the face
@@ -323,6 +332,8 @@ member, a quick game's hero). Code: `control/lib/graph/egocube/feature-tune.js`.
     `FEATURE_DOG.bow` under the pelvis ball, the trunk clear of the floor, the forepaws reaching it; on the rig the
     forepaws on the floor straight ahead (no share to the side), the hind feet planted, the chest under the hips, the
     face ahead (`feature-body.test.js`);
+  - the gaits on the rig: in the walk each foreleg lifted a quarter cycle after its own side's hind leg, in the trot with
+    the other side's hind leg, a paw in stance on the floor;
   - the gallop on the rig: the run's cycle, the waist working, the forepaw travelling fore and aft and reaching the
     floor in some keys and through the air in others, the hind feet behind the hips, the face ahead and a little down in
     every key (never up), the tail's root at the rump (never up the back) and the tail held back near level and

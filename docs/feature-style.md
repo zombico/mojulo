@@ -147,6 +147,11 @@ the rig itself (`FEATURE_PAWS`): the paw on the floor ahead of the shoulder. The
 as its animal carries it (`FEATURE_CARRIAGE`): turned on all fours until its line rises at the species' carriage off
 the fauna roster, a quarter of the way back toward the mascot's own; standing, it is as designed.
 
+**The walk and the slow trot on all fours** (`FEATURE_GAIT`): each foreleg plays its own side's hind foot's cycle, a
+quarter of a cycle later in the WALK (`prowl`: a four-beat lateral sequence, left hind, left fore, right hind, right
+fore) and half a cycle later in the slow TROT (`trot`: a two-beat diagonal, each fore with the other side's hind); a paw
+in stance on the floor, in swing lifted; the head ahead, the tail carried.
+
 **Everyone can downward dog, facing forward** (`downDog`, `FEATURE_DOG`): the hips high, the hind legs as straight as
 the forepaws allow, the trunk bent down at the waist (the rib ball under the pelvis ball), the forepaws straight out in
 front on the floor, the face looking ahead. A quadruped's spine and neck bend further than the human ranges the rig's

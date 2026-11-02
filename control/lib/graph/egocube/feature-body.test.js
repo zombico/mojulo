@@ -101,13 +101,27 @@ describe('the feature body', () => {
     // A DEFAULT GAME MODEL: every part's faces together within the budget; round the belly no clip hangs an arm into it
     expect(plan.segments.reduce((n, x) => n + Object.keys(x.mesh?.faces ?? {}).length, 0)).toBeLessThanOrEqual(FEATURE_TRIANGLES);
     // (on all fours the arms reach down to the floor, the trunk hinged out of their way)
-    for (const keys of Object.entries(plan.clips).filter(([n]) => !['fours', 'prowl', 'downDog', 'gallop'].includes(n)).map(([, c]) => (Array.isArray(c) ? c : c.keys ?? []))) for (const K of keys) for (const [a, s] of [['armR', 1], ['armL', -1]]) if (K?.[a]?.x !== undefined) expect((s * K[a].x) / Math.hypot(K[a].x, K[a].y, K[a].z)).toBeGreaterThan(0.6);
+    for (const keys of Object.entries(plan.clips).filter(([n]) => !['fours', 'prowl', 'trot', 'downDog', 'gallop'].includes(n)).map(([, c]) => (Array.isArray(c) ? c : c.keys ?? []))) for (const K of keys) for (const [a, s] of [['armR', 1], ['armL', -1]]) if (K?.[a]?.x !== undefined) expect((s * K[a].x) / Math.hypot(K[a].x, K[a].y, K[a].z)).toBeGreaterThan(0.6);
     // ON ALL FOURS, posed on the rig: the forepaws at the floor, the hind feet planted, the head held up to look ahead
     const R = validateRig(expandPlan(plan).rig), { nodes } = rigNodesAt(R, plan.clips.fours[1]), height = plan.mascot.height;
     for (const S of ['R', 'L']) { expect(Math.abs(nodes[`knuckles${S}`][2]), S).toBeLessThan(0.08 * height); expect(nodes[`toeBase${S}`][2]).toBeLessThan(0.03 * height); }
     const crown = nodes.headTop.map((v, k) => v - nodes.headBase[k]);
     expect(crown[2] / Math.hypot(...crown)).toBeGreaterThan(0.8);
     expect(plan.clips.prowl.length).toBe(plan.clips.walk.length);
+    // THE GAITS ON ALL FOURS, posed on the rig: the walk a lateral sequence (each foreleg lifted a quarter cycle after its
+    // own side's hind leg), the slow trot a diagonal (each foreleg lifted with the other side's hind leg); a paw in stance
+    // on the floor
+    expect(plan.clips.trot.length).toBe(plan.clips.run.length);
+    for (const [clip, shift] of [['prowl', 0.25], ['trot', 0.5]]) {
+      const ks = plan.clips[clip], n = ks.length, at = ks.map((k) => rigNodesAt(R, k).nodes), by = Math.round(shift * n);
+      for (const S of ['R', 'L']) {
+        const hind = at.map((x) => x[`toeBase${S}`][2] > 0.03 * height), fore = at.map((x) => x[`knuckles${S}`][2] > 0.04 * height);
+        expect(hind.some(Boolean), `${clip} ${S}`).toBe(true); expect(fore.some(Boolean), `${clip} ${S}`).toBe(true);
+        const miss = fore.filter((f, i) => f !== hind[(((i - by) % n) + n) % n]).length;
+        expect(miss, `${clip} ${S}`).toBeLessThanOrEqual(1);
+        expect(Math.min(...at.map((x) => x[`knuckles${S}`][2]))).toBeLessThan(0.025 * height);
+      }
+    }
     // THE DOWNWARD DOG, posed on the rig: the forepaws on the floor out in front, straight forward (no share to the side),
     // the hind feet planted, the chest bent down under the hips
     const dog = rigNodesAt(R, plan.clips.downDog[1]).nodes;
