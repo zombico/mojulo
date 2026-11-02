@@ -7,8 +7,8 @@
  *   swingEnds(lo, lo0, td, td1, k) → the swing's ends and their rates (per unit of swing)
  *   swingLeg(B, rig, l, bd, sw, v, { lift, fold }) → { sol, distal, xh }
  */
-import { MECHANICS, HIND_FETLOCK, LATERAL } from './reference.js';
-import { solveFore, solveHind, hoofAt, hindReach, foreReach, softReach, softMinReach, add, sub, mul, dir, ang } from './limb.js';
+import { MECHANICS, HIND_FETLOCK, LATERAL, HIP } from './reference.js';
+import { solveFore, solveHind, hoofAt, hindReach, hindChain, foreReach, softReach, softMinReach, add, sub, mul, dir, ang, DOWN } from './limb.js';
 import { bodyPoint, legPlane } from './pose.js';
 
 const DEG = Math.PI / 180;
@@ -57,7 +57,18 @@ export function legRig(B) {
   const reachH = hindReach(B.hindL, B.reciprocal.c0, B.reciprocal.k, B.reciprocal.hockMin, Math.PI - STANCE_OPEN.stifle);
   const reachHard = hindReach(B.hindL, B.reciprocal.c0, B.reciprocal.k, B.reciprocal.hockMin, 10 * DEG);   // the solver's own limit
   const reachClose = hindReach(B.hindL, B.reciprocal.c0, B.reciprocal.k, B.reciprocal.hockMin, Math.PI - SWING_CLOSE.stifle);
-  return { girdle3, planeOf, girdle, solve, swingX, reachF, reachH, reachHard, reachClose };
+  // THE HIP: the femur's angle against the pelvis's own line (the lumbosacral joint to the tail's root, as the pose has
+  // pitched and flexed it), in the leg's plane; `hipFlex` that angle less the stand's (+ the stifle forward)
+  const pelvisAng = (l, bd, xh = l.x) => {
+    const pl = planeOf(l, bd, xh), a = bodyPoint(B, bd, [0, B.trunk.lumbosacral[0], B.trunk.lumbosacral[1]], true), b = bodyPoint(B, bd, [0, B.trunk.tailRoot[0], B.trunk.tailRoot[1]], true);
+    const d = [b[0] - a[0], b[1] - a[1], b[2] - a[2]], ew = [(pl.G[0] - pl.xh) / pl.D, 0, pl.G[2] / pl.D];
+    return ang([d[1], d[0] * ew[0] + d[2] * ew[2]]);
+  };
+  const plS = legPlane([B.hind.girdleX, B.trunk.hip[0], B.trunk.hip[1]], B.hind.hoofX), ewS = B.trunk.hip[1] / plS.D;
+  const rel0 = B.stand.hind.angles.femur - ang([B.trunk.tailRoot[0] - B.trunk.lumbosacral[0], (B.trunk.tailRoot[1] - B.trunk.lumbosacral[1]) * ewS]);
+  // (the pelvis's line points back, near ±π: the difference wrapped)
+  const hipFlex = (l, bd, femur, xh = l.x) => { const a = femur - pelvisAng(l, bd, xh) - rel0; return Math.atan2(Math.sin(a), Math.cos(a)); };
+  return { girdle3, planeOf, girdle, solve, swingX, reachF, reachH, reachHard, reachClose, hipFlex };
 }
 
 const extOf = (st) => st.distal.pastern - st.solve.cannon;
@@ -107,7 +118,35 @@ export function swingLeg(B, rig, l, bd, sw, v, { lift, fold, x0, x1, follow = [0
   // `floor` (opt-in): a swinging fetlock kept above its hoof's hang by a smooth maximum, for a leg squeezed under a low
   // girdle (a take-off's crouch) that would otherwise be pushed through the ground; its floor the hoof hung toe-down
   // under the fetlock, and a margin
-  if (floor) { const zMin = (B[l.pair].pastern + B.hoof.coffin + Math.max(0.06 * B.scale, 0.5 * B.hoof.toe)) * fade, w = 0.03; target = [target[0], target[1] + w * Math.log1p(Math.exp((zMin - target[1]) / w))]; }
+  const floored = (tg) => { const zMin = (B[l.pair].pastern + B.hoof.coffin + Math.max(0.06 * B.scale, 0.5 * B.hoof.toe)) * fade, w = 0.03; return [tg[0], tg[1] + w * Math.log1p(Math.exp((zMin - tg[1]) / w))]; };
+  if (floor) target = floored(target);
+  if (l.pair === 'hind') {
+    // a swing that would flex the hip past its range: the femur HELD at the range (through a smooth knee HIP.knee
+    // short of it; below the knee nothing is touched) and the leg folded at the stifle and the hock to keep the hoof
+    // as high as it was to be, never below the floor (a tuck keeps its hooves up by folding, not by the hip). The
+    // fold found by bisection from the free leg's: with the femur held, the hoof rises as the stifle folds further. At the knee's foot the held
+    // leg is the free one, so nothing jumps; eased in away from the stance at either end, as the reach is.
+    const a0 = (HIP.flex - HIP.knee) * DEG, w = HIP.knee * DEG / 2, free = rig.solve(l, bd, target, 0, xh);
+    const flex = rig.hipFlex(l, bd, free.angles.femur, xh);
+    if (flex > a0) {
+      const held = flex < a0 + 2 * w ? flex - (flex - a0) ** 2 / (4 * w) : a0 + w, fem = free.angles.femur - (flex - held);
+      const hip = rig.girdle(l, bd, xh), R = B.reciprocal;
+      const tipAt = (s2) => { const v2 = hindChain(B.hindL, R.c0, R.k, R.hockMin, s2).v; return add(hip, mul(dir(fem - DOWN + ang(v2)), Math.hypot(v2[0], v2[1]))); };
+      // the height kept: a hoof high in its swing (a tuck over a rail) keeps its own; nearer the ground it need only stay
+      // may drop a little (folding a near-straight leg to hold a hoof a few millimetres up is ill-conditioned: it would
+      // fold far), easing between over the 0.3 m above its bare hang
+      const zg = B.hind.pastern + B.hoof.coffin, gH = Math.min(1, Math.max(0, (target[1] - zg) / (0.3 * B.scale)));
+      const zk = target[1] - (1 - gH * gH * (3 - 2 * gH)) * 0.1 * B.scale;   // (its own height; near the ground, 0.1 m under it)
+      // (from the free leg's own fold, folding further only: the root nearest the free leg, continuous with it)
+      let lo = free.stifleFlex, hi = Math.max(lo, Math.PI - SWING_CLOSE.stifle);   // (no further than a swing's stifle closes)
+      if (tipAt(lo)[1] < zk) {
+        if (tipAt(hi)[1] <= zk) lo = hi;                                 // folded as far as it goes: as high as it gets
+        else for (let i = 0; i < 48; i++) { const m = (lo + hi) / 2; if (tipAt(m)[1] < zk) lo = m; else hi = m; }
+      }
+      const heldT = tipAt(lo);
+      target = add(target, mul(sub(heldT, target), fade));
+    }
+  }
   const sol = rig.solve(l, bd, target, carpus, xh);
   const e = swingPath(sw.eLo, sw.deLo, sw.eTd, IMPACT * sw.deTd, v) - fold.fetlock * DEG * k * (l.pair === 'fore' ? 1 : HIND_FETLOCK) * B_(v / FETLOCK_OPEN, Math.min(0.95, fold.peak * 1.1) / FETLOCK_OPEN);
   const pastern = sol.cannon + e;

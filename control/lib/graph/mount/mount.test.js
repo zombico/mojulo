@@ -11,7 +11,8 @@ import { bodyField } from './body.js';
 import { jumpClip } from './jump.js';
 import { oneShot } from './motion.js';
 import { MOUNT_BONES } from './pose.js';
-import { GAITS } from './reference.js';
+import { GAITS, HIP } from './reference.js';
+import { legRig, SWING_CLOSE } from './legs.js';
 import { skinContext, implicitSkin, DRIVERS, jointAngle, bendJoint, correctiveKeys, correctiveWeights, applyCorrectives, fitCorrectives } from './correctives.js';
 
 // The mount's machine gate, one case per procedure: a gait always on the ground (the walk: the girdles' swaying vault),
@@ -140,6 +141,24 @@ describe('the jump', () => {
     const f = c.poseAt(c.flight.apex);
     expect(Object.values(f.contact).some(Boolean)).toBe(false);              // airborne at the apex
     expect(f.body.z).toBeGreaterThan(1.1 + 0.5);                              // the body well over the rail
+  });
+
+  it('the tuck folds at the stifle and the hock, not the hip: the hip in its range, in the air the stifle no closer than a swing\'s', () => {
+    const rig = legRig(B), c = jumpClip(B, { fence: 1.1 });
+    expect(rig.hipFlex({ pair: 'hind', side: 1, x: B.hind.hoofX }, stand.body, B.stand.hind.angles.femur, B.hind.hoofX)).toBeCloseTo(0, 9);
+    let hip = -Infinity, stifle = 0;
+    for (let i = 0; i <= 240; i++) {
+      const f = c.poseAt(c.duration * i / 240);
+      for (const [k, side] of [['LH', -1], ['RH', 1]]) {
+        const L = f.legs[k];
+        hip = Math.max(hip, rig.hipFlex({ pair: 'hind', side, x: L.plane.xh }, f.body, L.solve.angles.femur, L.plane.xh) * DEG);
+        const t = c.duration * i / 240;
+        if (t > c.flight.launch && t < c.flight.touchdown) stifle = Math.max(stifle, L.solve.stifleFlex);   // (the tuck: in the air)
+      }
+    }
+    expect(hip).toBeLessThanOrEqual(HIP.flex + 0.5);
+    expect(hip).toBeGreaterThan(HIP.flex - 2 * HIP.knee);                     // and it does tuck: the hip near its range
+    expect(stifle).toBeLessThanOrEqual(Math.PI - SWING_CLOSE.stifle + 1e-9);
   });
 
   it('a higher fence flies higher and longer; a spread one longer still', () => {

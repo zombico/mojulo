@@ -139,6 +139,15 @@ export const FOLD = Object.freeze({
  * deepest in the stance. Carpus: flexion at its height in the swing. Hock: its least angle (the most flexed) through
  * the stride. Scapula: its swing over the stride. All ≈, from BACK 1995 (trot) and BACK & CLAYTON 2013.
  */
+/**
+ * The hip: how far the femur turns against the pelvis from where it stands (degrees; flexion brings the stifle forward
+ * under the belly, extension takes it back). The record's hip moves some 30-50° through a stride, most in the gallop,
+ * and a jump's hind tuck folds mostly at the stifle and the hock, the hip adding a little; its extension is greatest in
+ * a jump's push (≈, BACK & CLAYTON 2013). A swing that would flex it further is turned back about the hip (legs.js),
+ * a jump's footfall is placed where its hip stays in range (jump.js); the gate holds every clip to it.
+ */
+export const HIP = Object.freeze({ flex: 45, extend: 55, knee: 5 });
+
 export const RANGES = Object.freeze({
   walk:   { fetlockFore: [30, 50], carpus: [50, 80], hockMin: [110, 150], scapula: [10, 25] },
   trot:   { fetlockFore: [45, 65], carpus: [70, 100], hockMin: [100, 140], scapula: [14, 30] },

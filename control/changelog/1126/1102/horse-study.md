@@ -61,10 +61,17 @@ rather than over it (the fauna horse's rows stay byte-identical). Solo; the sadd
   angle. On poses the fit never saw the corrected skin stands a quarter as far from the truth as linear blend at the
   folds, its volume no worse; with no correctives the skin is linear blend exactly. `--correctives` on the study sheet
   shows linear blend, corrected and the truth side by side, close up at each fold.
+- **The hip's range** (`HIP` in `mount/reference.js`): the femur against the pelvis held to some 45° of flexion and
+  55° of extension from the stand, as a horse's hip moves. A swing that would flex it further keeps the femur at the
+  range and folds the stifle and the hock to keep the hoof as high as it was to be (the jump's tuck over the rail folds
+  there now, where it had swung the femur level with the back); a jump's footfall is placed where the hip stays in
+  range; the body flies a little higher over the rail for the hip it no longer tucks. The gaits never reach the range
+  and are unchanged. Every clip's gate checks the hip.
 - **The machine gate** (`mount/gates.js`): footfalls and duty, suspensions, slip, ground, the flight at g, the joints'
-  ranges, reach, pops, rigid bones, brushing, the seams of a one-shot, the rail's clearance, a layer's loop. Every
+  ranges and the hip's, reach, pops, rigid bones, brushing, the seams of a one-shot, the rail's clearance, a layer's loop. Every
   gait at both band ends, both leads, both registers; every one-shot; every realistic jump; every idle layer pass it.
-  The stylized register's jump is a recorded gap (a centimetre or two short at the rail and the ground).
+  The stylized register's jump is a recorded gap (its hooves a centimetre or two under the ground, its spread jump's
+  push past the hip's extension); it clears the rail now.
 - **The eyes gate's contact sheets**: `node scripts/mount-study.mjs <dir> [--register stylized] [--view front]
   [--shots] [--jump] [--idle] [--body [--cells 96] [--coat bay] [--views side,front] [--big] [--crop head]] [--correctives] [--before] [--png]`, to
   lay beside Muybridge's plates; `--body` draws the shaded body from every view, in every coat, skinned in poses, with its mane and tail.

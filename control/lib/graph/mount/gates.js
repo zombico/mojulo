@@ -15,14 +15,24 @@
  *  smooth      no pop: a joint's velocity never jumps by more than half its speed between samples
  *  rigid       every bone keeps its length
  *  sideways    the sway and the girdles' roll inside a sane band (their read is the eyes gate's, from the front)
+ *  hip         the femur against the pelvis inside the hip's range (HIP), every clip
  */
-import { GAITS, RANGES, G } from './reference.js';
+import { GAITS, RANGES, G, HIP } from './reference.js';
 import { fromPlane } from './pose.js';
+import { legRig } from './legs.js';
 
 const DEG = 180 / Math.PI;
 const MIRROR = { LF: 'RF', RF: 'LF', LH: 'RH', RH: 'LH' };
 const dist = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
 const r3 = (x) => Math.round(x * 1000) / 1000;
+
+/** the hinds' hip over the frames: its most flexed and most extended against the stand (degrees), checked against HIP */
+function hipCheck(B, frames, add) {
+  const rig = legRig(B);
+  let flex = -Infinity, ext = Infinity, at = '';
+  frames.forEach((f, i) => { for (const k of ['LH', 'RH']) { const L = f.legs[k], a = rig.hipFlex({ pair: 'hind', side: k === 'RH' ? 1 : -1, x: L.plane.xh }, f.body, L.solve.angles.femur, L.plane.xh) * DEG; if (a > flex) { flex = a; at = `${k}, frame ${i}`; } ext = Math.min(ext, a); } });
+  add('hip', flex <= HIP.flex + 0.5 && -ext <= HIP.extend + 0.5, `the hip flexes to ${r3(flex)}° (${at}) and extends to ${r3(-ext)}° from the stand`, `≤ ${HIP.flex}° and ≤ ${HIP.extend}°`);
+}
 
 export function gaitGates(B, c, { n = 192 } = {}) {
   const spec = GAITS[c.gait];
@@ -154,6 +164,7 @@ export function gaitGates(B, c, { n = 192 } = {}) {
     rollF: r3(span(frames.map((f) => f.body.rollF || 0)) * DEG), rollH: r3(span(frames.map((f) => f.body.rollH || 0)) * DEG),
     neck: r3(span(frames.map((f) => f.body.lat || 0)) * DEG),
   };
+  hipCheck(B, frames, add);
   add('sideways', lateral.sway <= 0.1 && lateral.rollF <= 10 && lateral.rollH <= 10,
     `sway ${lateral.sway} m, roll ${lateral.rollF}° at the shoulders and ${lateral.rollH}° at the hips, neck ${lateral.neck}°`, 'sway ≤ 0.1 m, each roll ≤ 10° (range)');
   return { checks, measured: { down, duty, aerial, slip, low, brush, lateral } };
@@ -215,6 +226,7 @@ export function shotGates(B, clip, { hz, stand } = {}) {
     for (const f of frames) stretch = Math.max(stretch, Math.abs(dist(f.bones[id].head, f.bones[id].tail) - l0));
   }
   add('rigid', stretch <= 1e-6, `largest bone length change ${stretch.toExponential(1)} m`, '≤ 1e-6 m');
+  hipCheck(B, frames, add);
   return { checks, measured: { e0, e1, slip, low, standing, swinging, pop } };
 }
 
@@ -289,6 +301,7 @@ export function idleGates(B, clip, { hz = 60, loop = false } = {}) {
     for (let i = 0; i + 1 < v.length; i++) { const j = Math.hypot(...v[i + 1].map((x, d) => x - v[i][d])) / top; if (j > pop) { pop = j; popAt = `${id}.${end} at ${(i * dt).toFixed(2)} s`; } }
   }
   add('smooth', pop <= 0.5, `largest velocity jump ${r3(pop)} of its top speed (${popAt})`, '≤ 0.5');
+  hipCheck(B, frames, add);
   if (loop) {
     const e = Math.max(...Object.keys(frames[0].bones).flatMap((id) => ['head', 'tail'].map((x) => dist(frames[0].bones[id][x], frames[n].bones[id][x]))));
     add('loops', e <= 1e-9, `the loop closes ${e.toExponential(1)} m off its first frame`, '≤ 1e-9 m');

@@ -20,7 +20,7 @@
  *   jumpClip(B, { fence, spread, lead, speed }) → a one-shot: { kind: 'jump', duration, poseAt, rootAt, stances, fence,
  *   entry, exit, A, B } (fence in metres; spread the depth of an oxer, 0 an upright)
  */
-import { G, MECHANICS } from './reference.js';
+import { G, MECHANICS, HIP } from './reference.js';
 import { gaitCycle } from './gait.js';
 import { hoofForce } from './load.js';
 import { schedulePoser } from './schedule.js';
@@ -61,7 +61,7 @@ export function jumpClip(B, { fence = 1.0, spread = 0, lead = 'right', speed } =
   const limb = (id) => C.limbs.find((l) => l.id === id);
 
   // THE FLIGHT
-  const zCom = B.trunk.com[1], tuck = 0.85 * k;          // the centre of mass's margin over the rail: a folded body's depth
+  const zCom = B.trunk.com[1], tuck = 0.88 * k;          // the centre of mass's margin over the rail: a folded body's depth
   // the launch high (the hinds extended behind, the trunk pitched up), the first fore contact a little lower
   const zL = zCom + 0.20 * k, zTd = zCom + 0.10 * k;
   // a spread fence peaks higher too: its back rail is crossed with the body already falling
@@ -181,12 +181,16 @@ export function jumpClip(B, { fence = 1.0, spread = 0, lead = 'right', speed } =
     let best = null, bestU = Infinity;
     for (let dy = -1.2; dy <= 1.6 + 1e-9; dy += 0.04) {
       st.y = rootAt(st.on) + dy * k;
-      let u = -Infinity;
+      let u = -Infinity, over = 0;
       for (let j = 0; j <= 8; j++) {
         const t = st.on + (st.off - st.on) * (j / 8) * 0.999 + 1e-7, bd = bodyAt(t), s2 = poser.stanceState(id, st, t, bd);
         const from = id[1] === 'F' ? s2.solve.S : poser.rig.girdle({ ...limb(id), x: st.x }, bd, st.x);
         u = Math.max(u, len(sub(s2.distal.F, from)) - (id[1] === 'F' ? poser.rig.reachF : poser.rig.reachH));
+        // a hind's hip kept in its range through the stance (a footfall too far under a body pitched nose-down to land
+        // would flex it past it): the excess counts against the spot, in metres per radian of the hind's length
+        if (id[1] === 'H') over = Math.max(over, poser.rig.hipFlex({ ...limb(id), x: st.x }, bd, s2.solve.angles.femur, st.x) - (HIP.flex - HIP.knee) * DEG);
       }
+      if (over > 0) u += over * (B.hindL.femur + B.hindL.tibia + B.hindL.cannon);
       if (u < bestU) { bestU = u; best = st.y; }
     }
     st.y = best;

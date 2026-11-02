@@ -15,7 +15,7 @@
  *
  * Angles are radians, measured from +y counter-clockwise (so straight down is −π/2 and "forward" is counter-clockwise).
  */
-const DOWN = -Math.PI / 2;
+export const DOWN = -Math.PI / 2;
 export const dir = (a) => [Math.cos(a), Math.sin(a)];
 export const ang = (v) => Math.atan2(v[1], v[0]);
 export const add = (a, b) => [a[0] + b[0], a[1] + b[1]];
@@ -59,7 +59,7 @@ export function solveFore({ pivot, pitch = 0, L, rest, swing0, kS, target, carpu
 // the hock's floor met softly (a softplus `SOFT` wide): a hard max would kink the leg's shape as it straightens
 const SOFT = 4 * Math.PI / 180;
 const softFloor = (x, lo) => lo + SOFT * Math.log1p(Math.exp((x - lo) / SOFT));
-function hindChain(L, c0, k, hockMin, s, hockFixed) {
+export function hindChain(L, c0, k, hockMin, s, hockFixed) {
   const h = hockFixed ?? softFloor(c0 + k * s, hockMin);
   const tib = DOWN - s, can = tib + h;
   const v = add(add(mul(dir(DOWN), L.femur), mul(dir(tib), L.tibia)), mul(dir(can), L.cannon));

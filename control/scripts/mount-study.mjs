@@ -184,8 +184,12 @@ if (correctives) {
   const sb = m.stand.bones, joint = { armpit: sb.humerusR.tail, shoulder: sb.humerusR.head, stifle: sb.femurR.tail, throat: sb.head.head, hip: sb.femurR.head };
   const cropQ = (j, r) => m.quads.flatMap((q, qi) => { const c = q.map((i) => m.vertices[i]).reduce((a, b) => a.map((x, i) => x + b[i] / 4), [0, 0, 0]); return Math.hypot(c[0] - j[0], c[1] - j[1], c[2] - j[2]) < r ? [qi] : []; });
   const pick = (label) => corpus.find((c) => c.label.startsWith(label));
-  const shown = [['gallop, the fore reaching', pick('gallop 0.438'), 'armpit', 'lowQuarter'], ['the jump: the crouch', pick('jump 1.36'), 'armpit', 'lowQuarter'],
-    ['the jump: the tuck', pick('jump 1.93'), 'stifle', 'rearQuarter'], ['the trot', pick('trot 0.250'), 'stifle', 'rearQuarter'], ['grazing', pick('grazing'), 'throat', 'side']].filter((r) => r[1]);
+  // the jump's frames by time: the corpus's sample nearest the crouch (just before the launch) and the tuck (just
+  // before the touchdown)
+  const jf = jumpClip(B).flight, jumps = corpus.filter((c) => c.label.startsWith('jump')), tOf = (c) => parseFloat(c.label.slice(5));
+  const nearJ = (t) => jumps.reduce((a, c) => (Math.abs(tOf(c) - t) < Math.abs(tOf(a) - t) ? c : a), jumps[0]);
+  const shown = [['gallop, the fore reaching', pick('gallop 0.438'), 'armpit', 'lowQuarter'], ['the jump: the crouch', nearJ(jf.launch - 0.05), 'armpit', 'lowQuarter'],
+    ['the jump: the tuck', nearJ(jf.touchdown - 0.05), 'stifle', 'rearQuarter'], ['the trot', pick('trot 0.250'), 'stifle', 'rearQuarter'], ['grazing', pick('grazing'), 'throat', 'side']].filter((r) => r[1]);
   const crows = shown.map(([label, c, fold, cview]) => {
     const lbs = skinPose(m, ctx.rest, c.frames), co = applyCorrectives(ctx, set, c.frames), or = implicitSkin(ctx, c.frames, lbs);
     const qi = cropQ(joint[fold], 0.32 * B.scale), qs = qi.map((i) => m.quads[i]), cs = qi.map((i) => colors[i]);
