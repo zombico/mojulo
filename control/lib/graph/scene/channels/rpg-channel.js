@@ -205,7 +205,7 @@ export function rpgPage(cfg, K, ctl, jk) {
   // party's side, up, its field and the margin round the fighters it fits; low: how far below the frame's middle the
   // fighters' middle sits (a fraction of the half-frame), so they stand above the window's band; clear: how far a
   // sightline may pass over the ground)
-  const STAGE = { gap: 4.2, back: 1.0, up: 2.2, fov: 55, margin: 1.2, low: 0.3, clear: 0.4, near: 4.5, far: 12 };
+  const STAGE = { gap: 4.2, back: 1.0, up: 2.2, fov: 45, margin: 1.8, low: 0.3, clear: 0.4, near: 4.5, far: 12 };
   const WEDGE = [[0, 0], [-1.1, 1.0], [1.1, 1.0], [0, 2.0], [-2.2, 2.0], [2.2, 2.0], [-1.1, 3.0], [1.1, 3.0]];
   let staged = null;
   function stage() {
@@ -240,12 +240,16 @@ export function rpgPage(cfg, K, ctl, jk) {
       const gz = (x, y) => { const g = window.__mojCtrl && window.__mojCtrl.ground ? window.__mojCtrl.ground(x, y, fp[2] + 30) : null; return g == null ? fp[2] : g; };
       // (the fight's middle: the centroid of every fighter as staged, its height the middle of both lines' ground, so
       // on a slope the uphill side stays in the frame)
+      // (the frame's middle the midpoint of the fight's two ends across it, the pack and the party's far rank, not the
+      // fighters' centroid, which a party of four would pull to its own side and push the pack off the frame's edge)
       const pts = [fp, ...ids.map((id) => w.byId[id].transform.pos)], zs = pts.map((q) => q[2]), zm = (Math.min(...zs) + Math.max(...zs)) / 2;
-      const mx = pts.reduce((a, q) => a + q[0], 0) / pts.length, my = pts.reduce((a, q) => a + q[1], 0) / pts.length;
+      const along = pts.map((q) => (q[0] - fp[0]) * ux + (q[1] - fp[1]) * uy), lo = Math.min(...along), hi = Math.max(...along);
+      const across = pts.map((q) => (q[0] - fp[0]) * px + (q[1] - fp[1]) * py), mid = (Math.min(...across) + Math.max(...across)) / 2;
+      const mx = fp[0] + ux * (lo + hi) / 2 + px * mid, my = fp[1] + uy * (lo + hi) / 2 + py * mid;
       // (the distance that fits every fighter across the frame with a margin, from the camera's field and the page's
       // shape: the fighters fill it, no corner left empty; then the aim set low by the band's share of the frame)
       const vf = (C.fov || STAGE.fov) * Math.PI / 360, asp = (window.innerWidth || 16) / (window.innerHeight || 9), hf = Math.atan(Math.tan(vf) * asp);
-      const half = Math.max(...pts.map((q) => Math.abs((q[0] - mx) * ux + (q[1] - my) * uy))) + STAGE.margin;
+      const half = (hi - lo) / 2 + STAGE.margin;
       const dist = Math.max(STAGE.near, Math.min(STAGE.far, half / Math.tan(hf)));
       const look = [mx, my, zm + 1 - dist * Math.tan(vf) * STAGE.low], view = (sd, lift) => {
         // (its height the fight's own ground's, raised only to stand clear of the ground under it: a camera up a slope
