@@ -48,6 +48,8 @@ export const MIL_MATERIALS = Object.freeze({
   worn: Object.freeze({ metalness: 0.85, roughness: 0.42 }),
   weld: Object.freeze({ metalness: 0.1, roughness: 0.86 }),
   steel: Object.freeze({ metalness: 0.6, roughness: 0.55 }),
+  // (caked mud: the wear's, mil-wear.js)
+  mud: Object.freeze({ metalness: 0, roughness: 0.96 }),
 });
 
 // the colours, unlit (the page lights them): olive drab, its frame a shade down, the canvas, the black parts
@@ -225,7 +227,8 @@ function utility(cls) {
     { id: 'mark.bumper', kind: 'mark', role: 'number', at: [-0.2, yN, 0.57], out: Y, up: Z, h: 0.08 },
     { id: 'mark.rear', kind: 'mark', role: 'emblem', at: [0, yR - 0.03, 0.9], out: neg(Y), up: Z, h: 0.09 },
   ];
-  return { faces: out, anchors };
+  // (its zones, for the wear's grounding: mil-wear.js)
+  return { faces: out, anchors, zones: { floor: zF, tub: { x: hw, y: [yR, dA], z: [zF, zB] } } };
 }
 
 /** What each class carries, anchor by anchor (mil-fittings.js cards); `maybe` a share of the vehicles that carry it,
@@ -247,7 +250,7 @@ export function militaryBody(cls, { seed = 1, r, tyreW, livery } = {}) {
   const kind = MILITARY_CLASSES[cls];
   if (kind !== 'utility') throw new Error(`car-designer: '${cls}' is not a military class built yet (${Object.keys(MILITARY_CLASSES).join(', ')})`);
   const L = readLivery(livery);
-  const { faces, anchors } = utility(cls), byId = new Map(anchors.map((a) => [a.id, a]));
+  const { faces, anchors, zones } = utility(cls), byId = new Map(anchors.map((a) => [a.id, a]));
   const rnd = mulberry32((seed * 2654435761 + 31) >>> 0), v = VEHICLES[cls];
   const fittings = [];
   for (const [id, card, opts = {}] of KITS[kind]) {
@@ -259,10 +262,10 @@ export function militaryBody(cls, { seed = 1, r, tyreW, livery } = {}) {
     fittings.push(...fit(byId.get(id), card, ctx).map((f) => ({ ...f, fitting: card })));
   }
   const all = flatNormals([...faces, ...fittings]);
-  if (!L) return { hull: all.filter((f) => !f.fitting), fittings: all.filter((f) => f.fitting), anchors };
+  if (!L) return { hull: all.filter((f) => !f.fitting), fittings: all.filter((f) => f.fitting), anchors, zones };
   // (the frame and the running gear in the livery's base, a shade down: a sand body is not carried on an olive frame)
   const shade = `#${[1, 3, 5].map((i) => Math.round(parseInt(liveryBase(L).slice(i, i + 2), 16) * 0.62).toString(16).padStart(2, '0')).join('')}`;
   const cut = paintLivery(all, L, { base: C.olive, seed }).map((f) => (f.albedo === C.frame ? { ...f, albedo: shade } : f));
   const marks = stencilMarks(anchors, L, { seed }).map((f) => ({ ...f, fitting: 'mark' }));
-  return { hull: cut.filter((f) => !f.fitting), fittings: flatNormals([...cut.filter((f) => f.fitting), ...marks]), anchors, livery: L };
+  return { hull: cut.filter((f) => !f.fitting), fittings: flatNormals([...cut.filter((f) => f.fitting), ...marks]), anchors, zones, livery: L };
 }

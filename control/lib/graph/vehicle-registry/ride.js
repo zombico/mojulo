@@ -18,6 +18,7 @@
  *   rideableRows()     → the rows a ride can name by id (those with a driven assembly or loft build)
  *   loftCamera(dims)   the follow camera a loft ride is chased by, scaled to its length
  *   rideLivery(Q)      the ride's livery read (car-designer/livery-cut.js), or throws: a livery paints a field vehicle
+ *   rideWear(Q)        the ride's wear read (car-designer/mil-wear.js), or throws: a wear weathers a field vehicle
  *   settingLivery(Q, { style?, words? })   the camo a new quick world's field vehicle is stamped with at mint, read from
  *                      its setting (its kit's name, its words: a jungle's tiger stripe), or null: the operator's word, a
  *                      ride that is no field vehicle, or a setting no camo answers stamps nothing
@@ -29,6 +30,7 @@ import { buildsOf, buildOf } from './builds.js';
 import { RIDES } from '../gameworld/ride.js';
 import { MILITARY_CLASSES } from '../car-designer/road-military.js';
 import { readLivery, camoForSetting } from '../car-designer/livery-cut.js';
+import { readWear } from '../car-designer/mil-wear.js';
 
 const DRIVEN = ['ride', 'loft'];
 const drivable = (id) => buildsOf(id).some((b) => DRIVEN.includes(b.via) && b.uses.includes('driven'));
@@ -82,6 +84,14 @@ export function rideLivery(Q) {
     throw new Error(`gameworld: quick.livery paints a field vehicle (${field.join(', ')}); the ${r.id} is painted by its own build`);
   }
   return readLivery(Q.livery);
+}
+
+/** The ride's wear read, or null; a wear's words are a field vehicle's (a road car's is its sheet's brief). */
+export function rideWear(Q) {
+  if (Q?.wear === undefined) return null;
+  const r = rideOf(Q);
+  if (r.kind !== 'loft' || !MILITARY_CLASSES[r.class]) throw new Error(`gameworld: quick.wear weathers a field vehicle; the ${r.id} is weathered by its own build`);
+  return readWear(Q.wear);
 }
 
 /** The camo a new quick world's field vehicle is stamped with: its setting's, or null. */

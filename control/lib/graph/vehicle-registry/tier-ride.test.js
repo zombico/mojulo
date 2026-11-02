@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { vehicleTierOf, stampedTier } from './tier.js';
-import { rideOf, rideableRows, rideRowOf, rideClassOf, loftCamera, rideLivery, settingLivery } from './ride.js';
+import { rideOf, rideableRows, rideRowOf, rideClassOf, loftCamera, rideLivery, rideWear, settingLivery } from './ride.js';
 import { MILITARY_CLASSES } from '../car-designer/road-military.js';
 import { CAMO_IDS, camoForSetting } from '../car-designer/livery-cut.js';
 import { VEHICLES, handlesOf, rowOfHandle } from './roster.js';
@@ -102,5 +102,11 @@ describe('a field vehicle\'s livery: the operator\'s word, or its setting\'s cam
     expect(rideLivery({ ride: field, livery: own })).toMatchObject({ pattern: own.pattern, marks: false });
     expect(() => readQuick({ goal: 'reach', ride: both, livery: camo })).toThrow(/paints a field vehicle/);
     expect(() => readQuick({ goal: 'reach', livery: camo })).toThrow(/name a ride/);
+  });
+  it('takes a field vehicle\'s wear beside it, and refuses one on a ride its words do not weather', () => {
+    expect(rideWear({ ride: field, wear: 'battered' })).toMatchObject({ level: 'battered' });
+    expect(world({ goal: 'reach', ride: field, wear: 'pristine' }).quick.wear).toBe('pristine');
+    expect(() => readQuick({ goal: 'reach', ride: both, wear: 'used' })).toThrow(/weathers a field vehicle/);
+    expect(() => readQuick({ goal: 'reach', ride: field, wear: 'filthy' })).toThrow(/no level/);
   });
 });

@@ -101,6 +101,30 @@ render, from a kit of those solids, at their classes' true numbers.
   - **Not yet moved:** the road cars' sheet liveries and the supercar's keep their own words, unchanged.
   - **The budget:** under 40k triangles in camo (woodland about 30k for the body and its kit, digital about 24k), and
     under 25k plain.
+- **The wear** (`car-designer/mil-wear.js`). A field vehicle's history on its surface, after its livery. It is one word,
+  the vehicle sheet's own: `pristine | used | battered`, or `{ level, soil? }`. A field vehicle is `used` unless the
+  operator's word or its brief's (a beat-up jeep) says otherwise.
+  - **Caked mud:** cut into the body as geometry, in its own rough `mud` slot. Its line runs about 0.15 m under the
+    wear's mud top (a used vehicle's to its sills, a battered one's halfway up its flanks), broken up and down by the
+    field's noise, and in a ring round each arch where the tyres throw it.
+  - **Chips:** the paint off to bare steel (`worn`) cut into the top edges that are seen (the plates' rounds that face up
+    or out on the upper body) and wherever a hand or a boot goes: the grab bars, the steps, the latches, the rim, the
+    bumper and the carriers.
+  - **Per corner** (`cornerAlbedo`, carried to the page, the GLB and now the studio grid's bake):
+    - dust rising from the ground and settling on what faces up, broken by the field;
+    - sun fade on what faces the sky;
+    - grounding, laid at every wear, pristine too: the wells round the wheels, under the body, the tub's inside, and
+      what faces down.
+  - **The wheels:** the rubber darkened with the soil's mud (the tread most) and the rims dusted.
+  - **The soil:** the setting's, read from the livery's camo (a desert's dust, the snow's slush, a city's ash-grey grit,
+    a green land's mud), unless the wear names its own. The dried mud is lighter than the paint it cakes, so it reads on
+    a dark camo.
+  - **The doors:** `quick.wear` (a field vehicle's only), the loft's `wear`, and `mint_solid`'s `wear` beside the
+    vehicle's word. A road car's wear stays its sheet's, and a wear's words on one are refused.
+  - **The budget:** under 45k triangles at `used` (about 38k plain), under 55k in camo (woodland used about 47k,
+    battered about 46k), and under 25k pristine.
+  - **The packer:** `vehicle-rig.js` `packFormMesh` now takes a mesh's bounds by a loop, not by spreading every
+    corner, which overflowed the stack on a large mesh. Its output is the same.
 - **Composed:**
   - The quick race's card says a ride takes a registry vehicle (`'a jeep'`), its wording trimmed to keep the card
     under its ceiling now that the physics classes it lists have grown.
@@ -131,7 +155,16 @@ render, from a kit of those solids, at their classes' true numbers.
     - the stencils read left to right.
   - `tier-ride.test.js`: the setting's camo stamped at mint, nothing where the setting says none, the operator's word
     kept, a livery refused on a ride it does not paint.
-  - `preview-vehicle.test.js`: a field vehicle's livery carried in its loft's recipe, refused on a road loft.
+  - `preview-vehicle.test.js`: a field vehicle's livery and wear carried in its loft's recipe, refused on a road loft.
+  - `mil-wear.test.js`:
+    - the words and the soil read from a camo;
+    - mud cut low and round the arch, more the harder the wear, the area kept;
+    - chips only on seen edges and handled parts;
+    - dust nearer the soil low than high, and grounding darker nearer the hub at every wear;
+    - the same twice, another seed another way;
+    - a wheel's rubber muddied.
+  - `road-military.test.js`: the wear a working vehicle's by default, a brief's word and the operator's over it, and
+    refused on a road car.
   - The form render in the page (`form-render.live.test.js`, e2e): the 4x4's shaders compile, it is drawn and lit, and
     its shadows are cast.
   - The quick game end to end (`design-game.quick.test.js`, e2e): `ride: 'a jeep'` written as its row, its level's
@@ -142,11 +175,14 @@ render, from a kit of those solids, at their classes' true numbers.
     tyres all read.
   - Its camos: woodland, tiger, desert, winter, urban and digital in the review sheet, and woodland in the page's own
     light. A desert 4x4 from behind shows its chevron between the cans, and from the front its bumper number.
+  - Its wear: woodland used and battered, desert battered, and battered in the page's own light, low. The first pass was
+    too faint (the mud dark on a dark camo and under the body), so the dried mud was made lighter and its line raised:
+    a battered 4x4 carries a ragged mud line up its flanks, cowl and bumper.
   - In the page's own light, with shadows. The page's moving-actor shadows lay stripes of self-shadow on the flat plates
     that face away from the sun. They are the page's shadow channel's, shared by every world, and are left for the light
     phase.
 - **Not built yet, said:**
-  - Wear and grime.
+  - Streaks under the fittings (rain and rust runs) and a wet look: the wet goes with the light phase.
   - The light of the setting.
   - The canvas truck and the APC's bodies.
   - Composition: the military game's faction painting them, the base's yards, the engines.

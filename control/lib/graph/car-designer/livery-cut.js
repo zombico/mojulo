@@ -178,6 +178,62 @@ function strip(q, along, h) {
   return out;
 }
 
+// one face cut at a field's levels: a thin strip (a tube's side, a plate's round) sliced along its length, anything broader
+// divided fine only where a level's contour crosses it (`varies`); each piece handed on with its band (the levels below it)
+function cutFace(f, poly0, { valueAt, levels, hMax, hMin, stripH, varies }, onPiece) {
+  const e = poly0.map((q, k) => len(sub(poly0[(k + 1) % poly0.length].p, q.p)));
+  const thin = poly0.length === 4 && Math.min(Math.max(e[0], e[2]), Math.max(e[1], e[3])) < hMin;
+  const pieces = thin ? strip(poly0, e[0] + e[2] >= e[1] + e[3] ? 0 : 1, stripH) : divide(f.corners, poly0.map((q) => q.n), { hMax, hMin, varies });
+  for (const tri of pieces) {
+    let rest = tri.map((q) => ({ ...q, v: valueAt(q.p) }));
+    for (let b = 0; b < levels.length && rest.length >= 3; b++) {
+      const [lo, hi] = clip(rest, levels[b]);
+      if (lo.length >= 3 && areaOf(lo.map((q) => q.p)) >= 1e-9) onPiece(lo, b);
+      rest = hi;
+    }
+    if (rest.length >= 3 && areaOf(rest.map((q) => q.p)) >= 1e-9) onPiece(rest, levels.length);
+  }
+}
+
+/** Faces cut where a field crosses its levels: each face `select` takes divided along the contours (a thin strip sliced,
+ *  a face too small to carry a contour or facing the ground left whole, its middle's band) and each piece remade by
+ *  `remake(face, piece, band)` → { part, material, albedo } (the piece's look; the face's own when it returns null);
+ *  every other face as it was. A piece keeps its face's part, edge and fitting unless remade. */
+export function cutByField(faces, { select, valueAt, levels, hMax, hMin = hMax * 0.4, stripH = hMax * 0.5, remake }) {
+  const centre = (P3) => [0, 1, 2].map((k) => P3.reduce((s2, q) => s2 + q[k], 0) / P3.length);
+  const bandOf = (v) => levels.filter((t) => v >= t).length;
+  const varies = (a, b, c) => {
+    const pts = [a, b, c, centre([a, b]), centre([b, c]), centre([c, a]), centre([a, b, c])], b0 = bandOf(valueAt(pts[0]));
+    return pts.some((p) => bandOf(valueAt(p)) !== b0);
+  };
+  const out = [];
+  const piece = (f, poly, band) => {
+    const look = remake(f, poly, band) ?? { part: f.part, material: f.material, albedo: f.albedo };
+    const g = face(poly.map((q) => q.p), look, f.outNormal, poly.map((q) => q.n), f.edge ? { edge: true } : {});
+    if (g) out.push(f.fitting ? { ...g, fitting: f.fitting } : g);
+  };
+  for (const f of faces) {
+    if (!select(f)) { out.push(f); continue; }
+    const ns = f.cornerNormals ?? f.corners.map(() => f.outNormal), poly0 = f.corners.map((p, k) => ({ p, n: ns[k] }));
+    const tiny = Math.max(...f.corners.map((p, k) => len(sub(p, f.corners[(k + 1) % f.corners.length])))) < hMin;
+    if (tiny || f.outNormal[2] < -0.6) {
+      // (left whole: its band its middle's; a face no level reaches keeps its own look and its bytes)
+      const band = bandOf(valueAt(centre(f.corners)));
+      if (band === 0) out.push(f); else piece(f, poly0, band);
+      continue;
+    }
+    // (a face no level reaches anywhere it is sampled kept whole, its bytes its own)
+    const probe = [...f.corners, centre(f.corners), ...f.corners.map((p, k) => centre([p, f.corners[(k + 1) % f.corners.length]]))];
+    const reach = Math.max(...f.corners.map((p, k) => len(sub(p, f.corners[(k + 1) % f.corners.length]))));
+    if (reach <= 2 * hMax && probe.every((p) => bandOf(valueAt(p)) === 0)) { out.push(f); continue; }
+    cutFace(f, poly0, { valueAt, levels, hMax, hMin, stripH, varies }, (poly, band) => piece(f, poly, band));
+  }
+  return out;
+}
+
+/** The value noise the livery's fields are made of (hashed integer lattice, smoothed): [0, 1). */
+export const noise3 = (p, seed) => valueNoise(p[0], p[1], p[2], seed | 0);
+
 /** The faces in `base` paint cut into the livery's bands and coloured; every other face as it was. */
 export function paintLivery(faces, L, { base, seed = 1 } = {}) {
   if (!L) return faces;
@@ -228,20 +284,8 @@ export function paintLivery(faces, L, { base, seed = 1 } = {}) {
       for (const poly of polys) paint(f, poly, bandOf(valueAt(centre(poly.map((q) => q.p)))));
       continue;
     }
-    // a camo: a thin strip (a tube's side, a plate's round) sliced along its length, anything broader divided fine along
-    // the contours; each piece cut at the levels and coloured by its band
-    const e = poly0.map((q, k) => len(sub(poly0[(k + 1) % poly0.length].p, q.p)));
-    const thin = poly0.length === 4 && Math.min(Math.max(e[0], e[2]), Math.max(e[1], e[3])) < hMin;
-    const pieces = thin ? strip(poly0, e[0] + e[2] >= e[1] + e[3] ? 0 : 1, L.scale * 0.3) : divide(f.corners, ns, { hMax, hMin, varies });
-    for (const tri of pieces) {
-      let rest = tri.map((q) => ({ ...q, v: valueAt(q.p) }));
-      for (let b = 0; b < levels.length && rest.length >= 3; b++) {
-        const [lo, hi] = clip(rest, levels[b]);
-        if (lo.length >= 3) paint(f, lo, b);
-        rest = hi;
-      }
-      if (rest.length >= 3) paint(f, rest, levels.length);
-    }
+    // a camo: divided fine along its contours, each piece cut at the levels and coloured by its band
+    cutFace(f, poly0, { valueAt, levels, hMax, hMin, stripH: L.scale * 0.3, varies }, (poly, band) => paint(f, poly, band));
   }
   return out;
 }

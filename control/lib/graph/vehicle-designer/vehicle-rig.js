@@ -199,7 +199,9 @@ export function packFormMesh(faces) {
   const lin = (h) => [1, 3, 5].map((i) => { const c = parseInt(h.slice(i, i + 2), 16) / 255; return c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); });
   const mats = [...new Set(faces.map((f) => f.material))].sort();
   const all = faces.flatMap((f) => f.corners);
-  const lo = [0, 1, 2].map((k) => Math.min(...all.map((p) => p[k]))), hi = [0, 1, 2].map((k) => Math.max(...all.map((p) => p[k])));
+  // (the bounds by a loop: a spread of every corner overflows the stack on a large mesh)
+  const lo = [Infinity, Infinity, Infinity], hi = [-Infinity, -Infinity, -Infinity];
+  for (const p of all) for (let k = 0; k < 3; k++) { if (p[k] < lo[k]) lo[k] = p[k]; if (p[k] > hi[k]) hi[k] = p[k]; }
   const o = lo.map(r4), st = lo.map((v, k) => Number((((hi[k] - v) / 65535) || 0).toPrecision(8)));
   const qv = (v, k) => (st[k] ? Math.max(0, Math.min(65535, Math.round((v - o[k]) / st[k]))) : 0);
   const i8 = (v) => Math.max(-127, Math.min(127, Math.round(v * 127)));

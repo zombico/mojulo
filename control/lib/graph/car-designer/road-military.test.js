@@ -89,7 +89,9 @@ describe('a field vehicle compiled at its class\'s numbers', () => {
     expect(all.some((f) => f.edge)).toBe(true);
   });
   it('within a game\'s budget, the same twice, and its figure without the form render the same rig baked', () => {
-    expect(all.reduce((s, f) => s + f.corners.length - 2, 0)).toBeLessThan(25000);
+    // (a working vehicle's wear by default: its mud and chips cut in; kept, it is the hull kit's own count)
+    expect(all.reduce((s, f) => s + f.corners.length - 2, 0)).toBeLessThan(45000);
+    expect(Object.values(field({ form: true, wear: 'pristine' }).form).flat().reduce((s, f) => s + f.corners.length - 2, 0)).toBeLessThan(25000);
     expect(JSON.stringify(field({ form: true }).form)).toBe(JSON.stringify(c.form));
     const baked = field();
     expect(baked.form).toBeUndefined();
@@ -144,8 +146,9 @@ describe('the fittings: cards set on the anchors a body declares', () => {
 });
 
 describe('a field vehicle in its livery', () => {
-  const camo = CAMO_IDS.find((k) => !CAMO[k].cell), plain = field({ form: true }), painted = field({ form: true, livery: camo });
-  const all = Object.values(painted.form).flat();
+  // (kept, so the livery is seen alone: the wear dusts the rims and cuts mud into the paint)
+  const camo = CAMO_IDS.find((k) => !CAMO[k].cell), plain = field({ form: true, wear: 'pristine' }), painted = field({ form: true, livery: camo, wear: 'pristine' });
+  const all = Object.values(field({ form: true, livery: camo }).form).flat();
   it('its camo cut into the hull and its fittings alike, its rims in the base, its stencils on; its size unchanged', () => {
     const colours = new Set(CAMO[camo].colours);
     const hullBands = new Set(painted.form.root.filter((f) => f.material === 'milPaint' && !f.fitting).map((f) => f.albedo));
@@ -158,8 +161,24 @@ describe('a field vehicle in its livery', () => {
     expect(painted.census).toEqual(plain.census);
   });
   it('within a hero vehicle\'s budget, every face lit', () => {
-    expect(all.reduce((s, f) => s + f.corners.length - 2, 0)).toBeLessThan(40000);
+    expect(all.reduce((s, f) => s + f.corners.length - 2, 0)).toBeLessThan(55000);
     for (const f of all) expect(f.cornerNormals.every(unitLen)).toBe(true);
+  });
+});
+
+describe('a field vehicle\'s wear', () => {
+  const area = (fs, m) => fs.filter((f) => f.material === m).length;
+  it('is a working vehicle\'s unless asked: mud and chips cut in, the sheet\'s word when a brief asks one, the operator\'s over both', () => {
+    const used = Object.values(field({ form: true }).form).flat(), kept = Object.values(field({ form: true, wear: 'pristine' }).form).flat();
+    expect(area(used, 'mud')).toBeGreaterThan(0);
+    expect(area(kept, 'mud') + area(kept, 'worn')).toBe(0);
+    const briefed = compileRealistic(rollVehicleSheet({ brief: 'beat-up', facets: { pole: 'realistic', class: FIELD }, seed: 3 }), { form: true });
+    expect(area(Object.values(briefed.form).flat(), 'mud')).toBeGreaterThan(area(used, 'mud'));
+    expect(MIL_MATERIALS).toHaveProperty('mud');
+  });
+  it('is refused on a road car, whose wear is its sheet\'s', () => {
+    const road = Object.keys(PHYSICS).find((k) => !MILITARY_CLASSES[k] && !UNBUILT[k] && ['midsize', 'compact', 'pickup'].includes(k));
+    expect(() => compileRealistic(rollVehicleSheet({ facets: { pole: 'realistic', class: road }, seed: 1 }), { wear: 'used' })).toThrow(/a road car's wear is its sheet's/);
   });
 });
 

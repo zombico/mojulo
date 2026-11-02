@@ -53,13 +53,16 @@ describe('mint_solid vehicle: the registry is the way in', () => {
     const { payload } = await resolveWorldScene({ ref: row.ref, title: row.title, manifest: row.manifest });
     expect(payload.title).toMatch(/a loft/);
   });
-  it('carries a field vehicle\'s livery in its loft\'s recipe, and refuses one on a build its words do not paint', async () => {
+  it('carries a field vehicle\'s livery and wear in its loft\'s recipe, and refuses them on a build their words do not paint', async () => {
     const field = ids.find((id) => (handlesOf(id).physics ?? []).some((k) => MILITARY_CLASSES[k]) && buildsOf(id).some((b) => b.via === 'loft'));
     const camo = CAMO_IDS[0];
     const out = await previewVehicleInstanceHandler({ vehicle: VEHICLES[field].label, livery: camo, title: 'a painted field vehicle' });
     expect(SketchRepository.getByRef(out.ref).manifest.loft).toMatchObject({ class: handlesOf(field).physics[0], livery: camo });
     await expect(previewVehicleInstanceHandler({ vehicle: VEHICLES[lofted].label, livery: camo })).rejects.toThrow(/a livery paints a field vehicle/);
     await expect(previewVehicleInstanceHandler({ vehicle: VEHICLES[field].label, livery: 'paisley' })).rejects.toThrow(/no pattern/);
+    const worn = await previewVehicleInstanceHandler({ vehicle: VEHICLES[field].label, wear: 'battered', title: 'a worn field vehicle' });
+    expect(SketchRepository.getByRef(worn.ref).manifest.loft).toMatchObject({ wear: 'battered' });
+    await expect(previewVehicleInstanceHandler({ vehicle: VEHICLES[lofted].label, wear: 'battered' })).rejects.toThrow(/a wear weathers a field vehicle/);
   });
   it('mints a legacy type exactly as before, with the registry beside it in the readout only', async () => {
     const key = handlesOf(scenery).scenery[0];
