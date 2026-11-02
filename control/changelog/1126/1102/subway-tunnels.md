@@ -33,3 +33,12 @@
   entrance from its doorway to the pavement, both ways; its laws (every station reached, cover, grade, run) are in its
   readout. A terminus only ends a line; a line is all tubes or all boxes, its stations' tracks lined up. A rail
   tunnel's walkway may run along either wall (`walkSide`), its finish mirrored.
+- **A subway line played as a level, its tunnels real or a camera teleport** (a stage recipe's `subway` with a
+  `level`; `subway.tunnels: 'real' | 'teleport'`): the walker starts on the first station's platform and wins on the
+  street outside the last station's entrance; the route the audit walks runs along each platform, down the steps at
+  its end, through each running tunnel and up onto the next platform. As a TELEPORT, each station's tunnel runs out of
+  it as a 30 m stub into the dark, and a warp near the stub's end stands the walker on the next station's platform, on
+  its walking lane facing into its hall; the arrival is shown, a shot over the walker's shoulder down the platform
+  it has come out on (held 2.5 s, skippable). New mechanic `warp` (game/mechanics.js, its card): walking into its zone
+  moves the walker to `to` (the bus's own warp, as a fall caught moves it) and says `then`, an event a scene starts
+  on. Its stubs are held to the line's laws and its stations counted reached by their warps.

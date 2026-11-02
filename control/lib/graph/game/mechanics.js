@@ -89,6 +89,27 @@ const MECHANICS = {
     },
   },
 
+  // a WARP within the level: walking into its zone moves the walker to `to` (its position, as its spawn is given: a fall
+  // caught moves it the same way), and says `then` (an event a scene starts on: the arrival shown). Not an end: a
+  // subway's tunnel left at one station and its next station's platform arrived on.
+  warp: {
+    role: 'emitter', requires: [],
+    lower(p, ctx) {
+      const at = p.at ?? [0, 0, 0], to = p.to ?? at;
+      if (!Array.isArray(at) || at.length !== 3 || !Array.isArray(to) || to.length !== 3) throw new Error(`warp[${ctx.i}]: at and to are [x, y, z] (its zone; where it sends the walker)`);
+      const zone = `warp_${ctx.i}`, shape = Array.isArray(p.half) ? { half: p.half } : { radius: p.radius != null ? p.radius : 1.2 };
+      return {
+        world: {
+          sources: [{ type: 'zone', zone, at, ...shape, planar: p.planar !== false, watch: ctx.player }],
+          reactions: [
+            { on: 'enter', match: { zone }, do: 'move', target: ctx.player, to },
+            ...(typeof p.then === 'string' ? [{ on: 'enter', match: { zone }, do: 'emit', type: p.then }] : []),
+          ],
+        },
+      };
+    },
+  },
+
   // survive a countdown → success (modeled on the countdownClock idiom, self-gated).
   survive: {
     role: 'terminal', ends: ['success'], requires: [],

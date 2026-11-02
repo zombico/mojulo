@@ -32,6 +32,7 @@ const SAMPLE_STORE = { slices: [{ name: 'bag', kind: 'inventory' }, { name: 'her
 export const MECHANIC_SAMPLES = Object.freeze({
   'reach-exit': { at: [10, 0, 0] },
   door: { id: 'd', at: [5, 0, 0] },
+  warp: { at: [5, 0, 0], to: [20, 0, 0] },
   survive: { seconds: 10 },
   collect: { pickups: [{ item: 'coin', at: [3, 0, 0] }] },
   'hazard-damage': { hazards: [{ at: [4, 0, 0], damage: 10 }] },

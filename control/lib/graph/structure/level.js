@@ -24,6 +24,7 @@ import { buildNav } from '../worlds/controllable/nav.js';
 import { stageColliders } from '../era/anchors.js';
 import { stairColliders } from '../era/storeys.js';
 import { complexRoute } from '../network/complex.js';
+import { subwayLevel } from '../network/subway.js';
 
 // the kinds that lower their own level (a city's segment registers itself: city/plan/level.js), so a building's level
 // never imports them
@@ -301,10 +302,11 @@ export function stageLevel(m, { goal = 'deepest', from = null } = {}) {
 const STAGE_EYE = 1.7;   // m: the stage's own walk eye
 export const PROBE = 0.6;   // m: on storeys, the ground is looked for from this high over the feet (rules-basic.js `probe`)
 /** Does a stage recipe stand on storeys (its own rooms, or its program's; a complex's buildings always do)? */
-export const storeyed = (m) => m.complex !== undefined || (Array.isArray(m.rooms) ? m.rooms : m.program !== undefined ? withProgram(m).rooms : []).some((r) => r && r.storey);
+export const storeyed = (m) => m.complex !== undefined || m.subway !== undefined || (Array.isArray(m.rooms) ? m.rooms : m.program !== undefined ? withProgram(m).rooms : []).some((r) => r && r.storey);
 
 function withStageLevel(m, ref) {
   if (m.complex !== undefined) return withComplexLevel(m, ref);
+  if (m.subway !== undefined) return withSubwayLevel(m, ref);
   // a program names its goal room when the level does not
   const goal = m.level.goal ?? (m.program !== undefined ? withProgram(m).level.goal : undefined);
   const L = stageLevel(m, { goal, from: m.level.from });
@@ -346,6 +348,23 @@ function withComplexLevel(m, ref) {
   return {
     ...m,
     game,
+    entities: [{ id: 'player', pilotable: true, rule: { type: 'walk', speed: 4.5, turn: 4, eye: STAGE_EYE, turnMode: 'look', keyTurn: true, strafe: 1, collideRadius: 0.3, probe: PROBE }, body: { type: 'none' }, transform: { pos: [R.spawn[0], R.spawn[1], R.spawn[2] + STAGE_EYE], heading: R.heading } }],
+    camera: { rule: 'follow', target: 'player', dist: 0.05, height: 0, lookH: 0, lead: 2, turnMode: 'look' },
+  };
+}
+
+/**
+ * A subway line's level (network/subway.js subwayLevel): its walker on its first platform, its goal the street outside
+ * its last station; a teleport's warps beside it, each arrival a scene (`play`: a wide shot on where the walker is stood).
+ */
+function withSubwayLevel(m, ref) {
+  const pilot = Array.isArray(m.entities) ? m.entities.find((e) => e && e.pilotable) : null, R = subwayLevel(m, { player: pilot?.id ?? 'player' }), warps = R.warps.map((w) => ({ ...w, to: [w.to[0], w.to[1], r2(w.to[2] + STAGE_EYE)] }));
+  const exit = { kind: 'reach-exit', at: [R.goal[0], R.goal[1], r2(R.goal[2] + STAGE_EYE)], radius: m.level.radius ?? 1.5, planar: false, via: R.route };
+  const game = { levelRef: ref, mechanics: [...(m.level.mechanics ?? []), ...warps, ...(m.level.exit === false ? [] : [exit])], fall: { mode: 'respawn' } };
+  const play = R.scenes.length ? { play: { ...(m.play ?? {}), spots: [...(m.play?.spots ?? []), ...R.spots], scenes: [...(m.play?.scenes ?? []), ...R.scenes] } } : {};
+  if (Array.isArray(m.entities) && m.entities.some((e) => e && e.pilotable)) return { ...m, ...play, game };
+  return {
+    ...m, ...play, game,
     entities: [{ id: 'player', pilotable: true, rule: { type: 'walk', speed: 4.5, turn: 4, eye: STAGE_EYE, turnMode: 'look', keyTurn: true, strafe: 1, collideRadius: 0.3, probe: PROBE }, body: { type: 'none' }, transform: { pos: [R.spawn[0], R.spawn[1], R.spawn[2] + STAGE_EYE], heading: R.heading } }],
     camera: { rule: 'follow', target: 'player', dist: 0.05, height: 0, lookH: 0, lead: 2, turnMode: 'look' },
   };

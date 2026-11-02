@@ -36,7 +36,10 @@ import { groundLess } from '../geocity/podium.js';
 
 const r5 = (v) => Math.round(v * 1e5) / 1e5 + 0;
 const P3 = (p) => p.map(r5);
-const KEYS = ['stations', 'gap', 'depth', 'line', 'entrances'];
+const KEYS = ['stations', 'gap', 'depth', 'line', 'entrances', 'tunnels'];
+// a teleport's stub: how far a running tunnel runs out of a station before it ends in the dark, and how far short of
+// its end its warp's zone stands (m)
+const STUB = Object.freeze({ length: 30, zone: 4 });
 const S_KEYS = ['id', 'plan', 'line', 'length', 'train'];
 // an entrance: its stair's riser and going, its landings at the foot and the head, its head height, the pavilion over
 // its head (how far it reaches back down the stair, its height), its width round the stair (m)
@@ -68,6 +71,7 @@ export function readSubway(c) {
   if (c.depth !== undefined && !(Number.isFinite(c.depth) && c.depth >= 8 && c.depth <= 40)) no('depth is 8 to 40 (m)');
   if (c.line !== undefined && !LINES[c.line]) no(`line '${c.line}' is not a line (${Object.keys(LINES).join(', ')})`);
   if (c.entrances !== undefined && typeof c.entrances !== 'boolean') no('entrances is true or false');
+  if (c.tunnels !== undefined && !['real', 'teleport'].includes(c.tunnels)) no("tunnels is 'real' (walked from one platform to the next) or 'teleport' (a stub out of each station, a warp to the next's platform, its arrival shown)");
   return c;
 }
 
@@ -116,9 +120,30 @@ export function laySubway(c0, { z0: zBed = null, ground = () => 0, entrance = 'p
     const { id: sid, ...settings } = s;
     return stationOf({ ...settings, ...(s.line === undefined && c.line !== undefined ? { line: c.line } : {}) }, { id: sid, at: [0, ys[i]], z0: zs[i], portals, steps, ends, ...(exits[sid] ? { exits: exits[sid] } : {}), ...(mezzDepth ? { mezzDepth } : {}) });
   });
-  // the running tunnels: from each station's +y end to the next's -y end, one a group of tracks
-  const over = (x, y) => ({ z: ground(x, y), under: 'ground' }), tunnels = [];
-  for (let i = 0; i + 1 < stations.length; i++) {
+  // the running tunnels: from each station's +y end to the next's -y end, one a group of tracks (or, a teleport's, a
+  // stub out of each end into the dark, its warp's zone near its end sending the walker to the next's platform)
+  const over = (x, y) => ({ z: ground(x, y), under: 'ground' }), tunnels = [], stubs = [], warps = [];
+  if (c.tunnels === 'teleport') for (let i = 0; i + 1 < stations.length; i++) {
+    const A = stations[i], B = stations[i + 1], yA = A.box.max[1], yB = B.box.min[1], len = Math.min(STUB.length, (yB - yA - 10) / 2);
+    fits.forEach((f, k) => {
+      const wx = (f.walk[0] + f.walk[1]) / 2, stepOf = (St, end) => St.routes.steps.find((q) => q.end === end && Math.abs(q.foot[0] - wx) < 1e-3);
+      for (const [St, To, y0, dir, endFrom, endTo, zi, zj] of [[A, B, yA, 1, '+y', '-y', zs[i], zs[i + 1]], [B, A, yB, -1, '-y', '+y', zs[i + 1], zs[i]]]) {
+        // (its walkway on the same side of the street both ways: a stub run the other way has its left on the other side)
+        const id = `${St.id}-to-${To.id}${fits.length > 1 ? `-${k}` : ''}`, yE = y0 + dir * len;
+        const a = { z0: zi, lo: [f.span[0], y0], hi: [f.span[1], y0], top: STATION.portal, plane: y0 }, b = { z0: zi, lo: [f.axis, yE], hi: [f.axis, yE], top: 0, plane: yE };
+        const T = passageOf({ id, path: [[f.axis, y0], [f.axis, yE]], a, b, section: S, over, look: { light: 0.4 }, prefix: 'subway', walkSide: dir > 0 ? f.ws : -f.ws });
+        const sa = stepOf(St, endFrom), sb = stepOf(To, endTo), zone = T.line.filter((p) => Math.abs(p[1] - (yE - dir * STUB.zone)) < 1.01).at(-1) ?? T.line.at(-2);
+        const at = [zone[0], yE - dir * STUB.zone, zone[2]];
+        // (it sends the walker to the next station's platform end, a step in from its steps' top, on that platform's
+        // walking lane (clear of its columns and benches), facing into its hall)
+        const lane = To.routes.platforms.map((r) => r[0][0]).sort((p, q) => Math.abs(p - sb.top[0]) - Math.abs(q - sb.top[0]))[0];
+        const to = [lane, sb.top[1] + (endTo === '-y' ? 0.6 : -0.6), sb.top[2]];
+        stubs.push({ ...T, station: St.id });
+        warps.push({ id, from: St.id, to: To.id, at: at.map((v) => Math.round(v * 1e5) / 1e5), spot: to.map((v) => Math.round(v * 1e5) / 1e5), heading: endTo === '-y' ? Math.PI / 2 : -Math.PI / 2, walk: [sa.top, sa.foot, ...T.line.filter((p) => (p[1] - y0) * dir < len - STUB.zone + 0.01), at], then: `arrive:${To.id}` });
+      }
+    });
+  }
+  else for (let i = 0; i + 1 < stations.length; i++) {
     const A = stations[i], B = stations[i + 1], yA = A.box.max[1], yB = B.box.min[1];
     fits.forEach((f, k) => {
       const end = (yy, z) => ({ z0: z, lo: [f.span[0], yy], hi: [f.span[1], yy], top: STATION.portal, plane: yy });
@@ -131,7 +156,7 @@ export function laySubway(c0, { z0: zBed = null, ground = () => 0, entrance = 'p
   }
   // (a way out to the street takes an entrance; one another network meets, a `path-` way out, takes none)
   const entrances = c.entrances === false ? [] : stations.flatMap((St) => St.ports.walks.filter((q) => !q.id.startsWith('path-')).map((q) => (entrance === 'sidewalk' ? sidewalkEntrance(St, q, { out, ground, kerb }) : entranceOf(St, q))));
-  return { stations, tunnels, entrances, section: S.id, depth, gap };
+  return { stations, tunnels, stubs, warps, entrances, section: S.id, depth, gap, mode: c.tunnels ?? 'real' };
 }
 
 /**
@@ -289,8 +314,60 @@ function sidewalkEntrance(St, q, { out, ground, kerb = null }) {
   return { id, station: St.id, port: q.id, faces, colliders, footprint: well, well, walk, door: P3([xs, yH, gh]), N: [0, dir], rise: r5(gh - q.z0), steps: n };
 }
 
+// (a line laid once a recipe: its level's lowering and its scene both read it)
+const LAID = new Map();
+const laid = (c) => { const k = JSON.stringify(c); if (!LAID.has(k)) { if (LAID.size >= 4) LAID.delete(LAID.keys().next().value); LAID.set(k, laySubway(c)); } return LAID.get(k); };
+
+/**
+ * A line as a LEVEL (structure/level.js lowers a stage recipe's `subway` with a `level` by it): started on its first
+ * station's platform, won on the street outside its last station's entrance (or at its way out, without entrances);
+ * between them, along each platform to its end, down the steps, through the running tunnel to the next (or, a
+ * teleport's, along the stub to its warp: the walker stood on the next platform, its arrival shown); the route the
+ * audit walks; each arrival a scene, a shot over `player`'s shoulder down the platform it comes out on.
+ * → { spawn, heading, goal, route, warps (mechanics), spots, scenes }
+ */
+export function subwayLevel(manifest, { player = 'player' } = {}) {
+  const L = laid(manifest.subway), S0 = L.stations[0], last = L.stations[L.stations.length - 1];
+  const lane0 = S0.routes.platforms[0], route = [lane0[0]];
+  let at = lane0[0];
+  // (from where it stands to a point on a platform, along that platform's lane first, then across to it)
+  const along = (St, p) => { const lane = St.routes.platforms.map((r) => r[0][0]).sort((a, b) => Math.abs(a - p[0]) - Math.abs(b - p[0]))[0]; route.push([lane, at[1], at[2]], [lane, p[1], p[2]], p); at = p; };
+  for (let i = 0; i + 1 < L.stations.length; i++) {
+    const A = L.stations[i], B = L.stations[i + 1];
+    if (L.mode === 'teleport') {
+      const w = L.warps.find((x) => x.from === A.id && x.to === B.id);
+      along(A, w.walk[0]);
+      route.push(...w.walk.slice(1), w.spot);
+      at = w.spot;
+    } else {
+      const t = L.tunnels.find((x) => x.a === A.id && x.b === B.id);
+      along(A, t.walk[0]);
+      route.push(...t.walk.slice(1));
+      at = t.walk[t.walk.length - 1];
+    }
+  }
+  // (on the last platform to its first way out, up it, and up its entrance onto the street)
+  const up = last.routes.up[0], ent = L.entrances.find((e) => e.station === last.id && e.port === last.ports.walks[0].id);
+  along(last, up[0]);
+  route.push(...up.slice(1), ...(ent ? ent.walk.slice(1) : []));
+  const goal = route[route.length - 1];
+  const warps = L.warps.map((w) => ({ kind: 'warp', at: w.at, to: w.spot, then: w.then, radius: 1.4 }));
+  // (each arrival shown: a wide shot on where the walker is stood, held a moment)
+  // (one a station arrived at: its tracks' warps say the same arrival)
+  const arrivals = [...new Map(L.warps.map((w) => [w.then, w])).values()];
+  // (and a spot down the platform from it, 18 m into the hall: the arrival framed against where it leads)
+  const spots = arrivals.flatMap((w) => [
+    { id: `arrive-${w.to}-from-${w.from}`, at: [w.spot[0], w.spot[1], w.spot[2]], face: Math.round((w.heading * 180) / Math.PI) },
+    { id: `onward-${w.to}-from-${w.from}`, at: [w.spot[0], w.spot[1] + Math.sin(w.heading) * 18, w.spot[2]], face: Math.round((w.heading * 180) / Math.PI) },
+  ]);
+  // (the arrival shown over the walker's shoulder, down the platform it has come out on: a lone spot or a wide frame
+  // stands its camera outside the hall)
+  const scenes = arrivals.map((w) => ({ id: `arrive-${w.to}-from-${w.from}`, when: { on: w.then }, once: false, beats: [{ shot: { frame: 'over', on: [`onward-${w.to}-from-${w.from}`, player] }, for: 2.5 }] }));
+  return { spawn: lane0[0], heading: Math.PI / 2, goal, route: route.map((p) => p.map((v) => Math.round(v * 1e5) / 1e5)), warps, spots, scenes };
+}
+
 export function assembleSubwayScene(manifest = {}, ctx = {}) {
-  const L = laySubway(manifest.subway);
+  const L = laid(manifest.subway);
   // the street over it all, in cells, cut where a pavilion stands
   const xs = [...L.stations.flatMap((s) => [s.box.min[0], s.box.max[0]]), ...L.entrances.flatMap((e) => [e.footprint[0], e.footprint[2]])], ys = L.stations.flatMap((s) => [s.box.min[1], s.box.max[1]]);
   const site = [Math.min(...xs) - 30, Math.min(...ys) - 30, Math.max(...xs) + 30, Math.max(...ys) + 30].map(r5);
@@ -304,17 +381,21 @@ export function assembleSubwayScene(manifest = {}, ctx = {}) {
     street = street.flatMap((f) => groundLess(f, e.well));
   }
   const pass = L.tunnels, S0 = L.stations[0];
-  const laws = networkLaws(L.stations.map((s) => ({ id: s.id })), pass, { section: readSection(L.section), prefix: 'subway', noun: 'station' });
+  // (a teleport's stations joined by their warps; its stubs measured for their cover and grade as tunnels are)
+  const joins = [...pass, ...L.stubs.map((t) => ({ ...t, a: t.station, b: t.station })), ...L.warps.map((w) => ({ a: w.from, b: w.to, cover: Infinity, slab: Infinity, grade: 0, length: 0 }))];
+  const laws = networkLaws(L.stations.map((s) => ({ id: s.id })), joins, { section: readSection(L.section), prefix: 'subway', noun: 'station' });
   const cameras = [
     ...S0.cameras,
+    // (a teleport's: into its stub from the platform's end)
+    ...(!pass[0] && L.warps[0] ? [{ name: 'platform-end', worldFraming: { cameraPosition: P3([L.warps[0].walk[0][0] + 1.2, L.warps[0].walk[0][1] - Math.sign(L.warps[0].at[1] - L.warps[0].walk[0][1]) * 4, L.warps[0].walk[0][2] + 1.7]), lookAt: P3([L.warps[0].at[0], L.warps[0].at[1], L.warps[0].at[2] + 1]), horizontalFov: 70 } }] : []),
     ...(pass[0] ? [{ name: 'platform-end', worldFraming: { cameraPosition: P3([pass[0].walk[0][0] + 1.2, pass[0].walk[0][1] - 4, pass[0].walk[0][2] + 1.7]), lookAt: P3([pass[0].walk[1][0], pass[0].walk[1][1] + 12, pass[0].walk[1][2] + 1]), horizontalFov: 70 } }] : []),
     ...(pass[0] ? [{ name: 'tunnel', worldFraming: { cameraPosition: P3([pass[0].walk[3][0], pass[0].walk[3][1] + 6, pass[0].walk[3][2] + 1.7]), lookAt: P3([pass[0].axis, pass[0].walk[3][1] + 60, pass[0].walk[3][2] + 1.2]), horizontalFov: 70 } }] : []),
     ...(L.entrances[0] ? [{ name: 'entrance', worldFraming: { cameraPosition: P3([L.entrances[0].door[0] + L.entrances[0].N[0] * 14, L.entrances[0].door[1] - 6, 1.7]), lookAt: P3([L.entrances[0].door[0], L.entrances[0].door[1], 1.6]), horizontalFov: 65 } }, { name: 'stair', worldFraming: { cameraPosition: P3([L.entrances[0].walk[2][0] - L.entrances[0].N[0] * 0.3, L.entrances[0].walk[2][1], 1.7]), lookAt: P3([L.entrances[0].walk[1][0], L.entrances[0].walk[1][1], L.entrances[0].walk[1][2] + 1]), horizontalFov: 70 } }] : []),
   ];
   const start = S0.routes.platforms[0][0];
   return {
-    faces: [...street, ...L.stations.flatMap((s) => s.faces), ...pass.flatMap((t) => t.faces), ...L.entrances.flatMap((e) => e.faces)],
-    colliders: [...L.stations.flatMap((s) => s.colliders), ...pass.flatMap((t) => t.colliders), ...L.entrances.flatMap((e) => e.colliders)],
+    faces: [...street, ...L.stations.flatMap((s) => s.faces), ...pass.flatMap((t) => t.faces), ...L.stubs.flatMap((t) => t.faces), ...L.entrances.flatMap((e) => e.faces)],
+    colliders: [...L.stations.flatMap((s) => s.colliders), ...pass.flatMap((t) => t.colliders), ...L.stubs.flatMap((t) => t.colliders), ...L.entrances.flatMap((e) => e.colliders)],
     cameras, viewBox: { width: 1280, height: 720 }, title: ctx.title || manifest.title || 'a subway line',
     bg: '#c9d6e0', sky: { zenith: '#6f9ccc', horizon: '#d8e2ea', day: 1, stars: 0, seed: 1, sun: { dir: [0.42, -0.5, 0.76], size: 1.2, glow: 1.1 } },
     walk: { speed: 4.5, spawn: [start[0], start[1], start[2] + 1.7], minEye: 1.7, gravity: 22, radius: 0.3 },
@@ -322,11 +403,13 @@ export function assembleSubwayScene(manifest = {}, ctx = {}) {
       ...L.stations.map((s) => ({ id: `station-${s.id}`, kind: 'station', plan: s.plan, ports: s.ports, routes: s.routes })),
       ...pass.map((t) => ({ id: `tunnel-${t.id}`, kind: 'tunnel', from: `station-${t.a}`, to: `station-${t.b}`, length: t.length, walk: t.walk, section: L.section })),
       ...L.entrances.map((e) => ({ id: `entrance-${e.id}`, kind: 'entrance', station: `station-${e.station}`, port: e.port, door: e.door, walk: e.walk })),
+      ...L.warps.map((w) => ({ id: `warp-${w.id}`, kind: 'warp', from: `station-${w.from}`, to: `station-${w.to}`, at: w.at, spot: w.spot, heading: w.heading, walk: w.walk })),
     ],
     subway: {
-      section: L.section, depth: L.depth, gap: L.gap,
+      section: L.section, depth: L.depth, gap: L.gap, tunnels: L.mode,
       stations: L.stations.map((s) => s.readout && { id: s.id, ...s.readout }),
-      tunnels: pass.map((t) => ({ id: t.id, length: t.length, cover: t.cover, grade: t.grade, walkSide: t.walkSide, ...(t.findings.length ? { findings: t.findings } : {}) })),
+      ...(L.warps.length ? { warps: L.warps.map((w) => ({ id: w.id, from: w.from, to: w.to })) } : {}),
+      runs: pass.map((t) => ({ id: t.id, length: t.length, cover: t.cover, grade: t.grade, walkSide: t.walkSide, ...(t.findings.length ? { findings: t.findings } : {}) })),
       entrances: L.entrances.map((e) => ({ id: e.id, rise: e.rise, steps: e.steps })),
       laws: laws.map((l) => ({ law: l.law, ok: l.ok, value: l.value })),
     },
