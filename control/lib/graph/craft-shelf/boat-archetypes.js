@@ -18,6 +18,7 @@
 export const BOAT_ROLES = {
   utility: { label: 'utility boat', mission: 'a few people and their gear across a lake, a river or a harbour: fish, ferry, tend', realms: ['water'] },
   tender: { label: 'tender', mission: 'crew and stores between a boat at anchor and the shore: light, stable, hard to sink', realms: ['water'] },
+  runabout: { label: 'runabout', mission: 'a day on the water for a family or a fishing party: quick onto the plane, dry enough offshore', realms: ['water'] },
 };
 
 export const BOAT_ARCHETYPES = {
@@ -52,6 +53,19 @@ export const BOAT_ARCHETYPES = {
       { id: 'hull', sku: 'hull-rib-31' },
       { id: 'motor', sku: 'outboard-20-tiller', at: 'hull.motor' },
       { id: 'tank', sku: 'tank-portable-25l', at: 'hull.tank' },
+    ],
+  },
+  ccRunabout: {
+    realm: 'water', role: 'runabout', palette: 'ccWhite', class: 'centre console', label: '17 ft centre console', classOf: '17 ft centre console class (5.2 m, 90 hp remote)',
+    payload: 300,
+    reference: { span: 2.13, length: 5.9, height: 2.0, mtow: 1041, draft: 0.28 },
+    bom: { 'boat-hull': 1, 'boat-outboard': 1, 'boat-console': 1, 'boat-seat': 2 },
+    layout: [
+      { id: 'hull', sku: 'hull-cc-17' },
+      { id: 'motor', sku: 'outboard-90-remote', at: 'hull.motor' },
+      { id: 'console', sku: 'console-cc-17', at: 'hull.console' },
+      { id: 'helmSeat', sku: 'seat-cooler-120', at: 'hull.helmSeat' },
+      { id: 'frontSeat', sku: 'seat-cooler-120', at: 'hull.frontSeat' },
     ],
   },
 };

@@ -43,6 +43,25 @@ The first boat is a small motor skiff; bigger and different boats follow from th
     RIB settles onto its tubes.
   - The registry's `jon-boat` and `rib` rows (john boat, flat bottom boat, duck boat …; rib, rigid inflatable, inflatable
     boat, yacht tender …), their craft builds asleep.
+- **The centre console runabout** (`ccRunabout`): a 17 ft moulded deep-V hull, white with a navy stripe, a 90 hp remote
+  outboard on a 25 in transom, its console and two cooler seats on the sole, in a new `runabout` role. Each new thing is
+  a part or a word, absent adding nothing (the earlier boats' bytes held):
+  - **`boat-console`** (`craft-shelf/boat-helm.js`): the body pushed from its side's outline (its front, its dash sloping
+    aft to the helm); the access door; a windscreen in three panels (the middle and two wings swept aft) and its frame;
+    a grab rail round it on bent posts; on the dash a screen, two gauges and a compass; the helm's pod and a wheel on an
+    axis raked toward the helmsman (rim, hub, three spokes); the throttle's binnacle and lever on the starboard wall.
+  - **`boat-seat`**: a cooler seat, its lid's seam, its rope handles, its cushion.
+  - **The hull's new words:** `cap` (a moulded gunwale cap: the liner's top pulled inboard, level with the sheer),
+    `points` (named points on the sole where a console or a seat stands), `stripe`, `stations` (a longer, more flared
+    hull's station spacing, so a curved quad's twist stays under its skin), and fittings `bowRail` (stanchions and a
+    rail round ahead of the stem), `navLights` (sidelights on the bow, green to starboard and red to port; an all-round
+    light on a pole aft) and `rodHolders`. A moulded hull has no keel strip.
+  - **The outboard's `remote` family:** no tiller, shift lever or starter; bolted through the transom; its rigging's boot
+    and hose into the boat and a steering ram along its tilt tube; its brackets and swivel at its `leg` size, its pan
+    `cowl.lift` over the clamp and its cowl's colour role `tint.cowl` (a white 90 hp).
+  - It floats 1041 kg at a 30 cm draft with 34 cm of freeboard aft; tilted up, its cowl hangs in over the transom, clear
+    of the sole and the helm's seat.
+  - The registry's `center-console` row (centre console, runabout, bay boat, sport fishing boat …), its build asleep.
 - **Afloat by its weight** (`boat-parts.js` `hullVolume`, `hullFloat`). The hull's displacement is worked out from the
   same sections it is lofted from, so what floats is what is drawn. An assembled boat's readout says where it floats
   (`afloat`): its parts' mass and its payload, the draft that displaces them in fresh or salt water (`water`), the
@@ -64,5 +83,10 @@ The first boat is a small motor skiff; bigger and different boats follow from th
   - the boat role filled by boats, the skiff by its words, its build asleep, a transformer refusing it;
   - each hull variation on the hull that carries it: a flat bottom level across, a square bow, a sole, a collar outboard
     of the sheer that floats the boat once it is in the water; a smaller outboard's slimmer leg on the same shaft.
+  - a helm on the sole: the console and seats on the hull's points inside the cockpit, the wheel at a standing
+    helmsman's hands; the gunwale's cap; the sidelights' colours and sides, the bow rail ahead of the stem; the remote
+    outboard without a tiller, rigged, and clear of the transom tilted up.
 
-  The shelf's three new builder paths are pinned, and no existing pin moved.
+  The shelf's new builder paths (the remote outboard, the console, the seat) are pinned, and no existing pin moved.
+
+  The shelf's first three boat builder paths were pinned when they joined.

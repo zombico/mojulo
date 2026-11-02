@@ -26,6 +26,7 @@
  * Hull space: +y the bow, +z up, +x starboard, the keel's lowest point at z = 0, amidships at y = 0, metres. Pure.
  */
 import { DEG, lathe, loftWorld, sweep, extrudeWorld, section, planeUV, round3, tone } from './craft-common.js';
+import { HELM_BUILDERS } from './boat-helm.js';
 
 const r3v = (v) => v.map(round3);
 const clamp = (v, a, b) => Math.max(a, Math.min(b, Number.isFinite(v) ? v : 0));
@@ -193,12 +194,21 @@ export function hullFloat(row, kg, { rho = 1000 } = {}) {
 function buildHull(row, C) {
   const b = row.build;
   if (b.family !== 'vee') throw new Error(`Unknown boat-hull family '${b.family}'`);
+  // (a moulded gunwale cap, `cap` wide: the liner's top pulled inboard, level with the sheer, never past half the breadth)
+  const capped = (I, st) => {
+    if (!b.cap) return I;
+    const n = I.length, c = Math.min(b.cap, st.sheerHalf * 0.45), z = I[0][1];
+    const out = I.slice();
+    out[0] = [Math.max(I[0][0] - c, 0.002), z];
+    out[n - 1] = [Math.min(I[n - 1][0] + c, -0.002), z];
+    return out;
+  };
   const H = hullLines(row), { L } = H, Tt = b.transom.thickness, T1 = b.skin, T2 = b.skin + b.liner;
   const P0 = H.plane(0), P1 = H.plane(T1), P2 = H.plane(Tt);
   const deckZ = (st) => (b.deck && st.s >= b.deck.from ? st.sheer - b.deck.thickness : -Infinity);
   const lines = (s) => {
     const st = H.at(s), O = outerLine(st, b.flare);
-    const M = offsetLine(O, T1, 0.004), I = offsetLine(O, T2, 0.002);
+    const M = offsetLine(O, T1, 0.004), I = capped(offsetLine(O, T2, 0.002), st);
     // (a sole: the floor laid flat across the bottom at its height, the liner clipped to it the length of the boat)
     const Ic = clipUp(I, P2(st.y)), Is = Number.isFinite(b.sole) ? clipUp(Ic, b.sole) : Ic;
     return { st, O: clipUp(O, P0(st.y)), M: clipUp(M, P1(st.y)), I: clipUp(Is, deckZ(st)), Iopen: I };
@@ -212,9 +222,11 @@ function buildHull(row, C) {
   const stations = (s0) => {
     const S = [s0];
     for (let k = 1; k <= 10; k += 1) S.push(r4(s0 + ((run - s0) * k) / 10));
-    for (let s = run + 0.035; s < sD - 0.006; s += 0.035) S.push(r4(s));
+    // (`stations`: a longer or more flared hull's spacing, so a curved quad's twist stays under its skin)
+    const step = b.stations ?? { mid: 0.035, bow: 0.025 };
+    for (let s = run + step.mid; s < sD - 0.006; s += step.mid) S.push(r4(s));
     if (b.deck) S.push(r4(sD - 0.003), sD);
-    for (let s = sD + 0.025; s < 0.999; s += 0.025) S.push(r4(s));
+    for (let s = sD + step.bow; s < 0.999; s += step.bow) S.push(r4(s));
     S.push(1);
     return S;
   };
@@ -267,7 +279,8 @@ function buildHull(row, C) {
   // (a stem's strip runs up it; a square bow's ends at its foot)
   if (square) keel.push([0, L / 2 - 0.004, stem.keel - kr * 0.4]);
   else for (const f of [0, 0.4, 0.8]) keel.push([0, L / 2 + kr * 0.4, lerp(stem.keel, stem.sheer - 0.05, f)]);
-  sweeps.push(sweep('keel_strip', keel, kr, C.chrome, { sides: 6 }));
+  // (a moulded hull has none)
+  if (kr) sweeps.push(sweep('keel_strip', keel, kr, C.chrome, { sides: 6 }));
   // the strakes along the bottom, a fraction of the way from the keel to the chine
   const K = b.strakes;
   if (K) for (const [k, f] of K.at.entries()) for (const sx of [1, -1]) {
@@ -286,7 +299,7 @@ function buildHull(row, C) {
     sweeps.push(sweep('bow_handle', [[0, st.y - 0.09, zd - 0.004], [0, st.y - 0.08, zd + 0.05], [0, st.y + 0.06, zd + 0.05], [0, st.y + 0.07, zd - 0.004]], 0.008, C.chrome, { sides: 6 }));
   }
   if (F.cleats) for (const sx of [1, -1]) {
-    const st = H.at(F.cleats), x = sx * (st.sheerHalf - g * 0.6), z = st.sheer + g * 1.1, y = st.y;
+    const st = H.at(F.cleats), x = sx * (st.sheerHalf - (g ? g * 0.6 : Math.min(b.cap || 0.02, st.sheerHalf * 0.45) / 2)), z = st.sheer + (g ? g * 1.1 : 0.004), y = st.y;
     lathes.push(lathe(`cleat_post_${sx > 0 ? 'r' : 'l'}`, [x, y, z - 0.01], [x, y, z + 0.022], [[0, 0.012], [1, 0.009]], C.chrome, { samples: 10, crossSections: 2 }));
     sweeps.push(sweep(`cleat_${sx > 0 ? 'r' : 'l'}`, [[x, y - 0.075, z + 0.02], [x, y - 0.05, z + 0.032], [x, y + 0.05, z + 0.032], [x, y + 0.075, z + 0.02]], 0.0075, C.chrome, { sides: 6 }));
   }
@@ -305,6 +318,53 @@ function buildHull(row, C) {
   if (F.transomEyes) for (const sx of [1, -1]) {
     const z = 0.2, x = sx * (F.transomEyes === true ? 0.42 : F.transomEyes), y = faceY(z) + 0.004;
     sweeps.push(sweep(`transom_eye_${sx > 0 ? 'r' : 'l'}`, [[x - 0.028, y, z], [x - 0.026, y - 0.034, z], [x + 0.026, y - 0.034, z], [x + 0.028, y, z]], 0.0055, C.chrome, { sides: 6 }));
+  }
+  // (the gunwale's top: the cap's, or the rail's)
+  const top = (st) => st.sheer + (g ? g * 1.1 : 0.004);
+  const NAVC = { r: '#2fd36b', l: '#e23b3b', c: '#f4f6f8' };
+  // the bow rail: stanchions up from the gunwale either side, the rail along their tops and round ahead of the stem
+  if (F.bowRail) {
+    const R = F.bowRail, h = R.height, inset = (st) => Math.max(st.sheerHalf - (b.cap ? Math.min(b.cap, st.sheerHalf * 0.45) / 2 : g), 0.01);
+    const posts = Array.from({ length: R.posts }, (_, k) => R.from + ((R.to - R.from) * k) / Math.max(1, R.posts - 1));
+    const side = (sx) => posts.map((s) => { const st = H.at(s); return [sx * inset(st), st.y, top(st) + h]; });
+    for (const sx of [1, -1]) for (const [k, s] of posts.entries()) {
+      const st = H.at(s), x = sx * inset(st);
+      lathes.push(lathe(`stanchion_${sx > 0 ? 'r' : 'l'}${k}`, [x, st.y, top(st) - 0.01], [x, st.y, top(st) + h], [[0, 0.02], [0.04, 0.012], [1, 0.012]], C.chrome, { samples: 10, crossSections: 3 }));
+    }
+    const tip = H.at(1), nose = [0, tip.y - 0.03, top(tip) + h];
+    const st = side(1), last = st[st.length - 1];
+    const round = [[last[0] * 0.55, (last[1] + nose[1]) / 2 + 0.02, (last[2] + nose[2]) / 2], nose, [-last[0] * 0.55, (last[1] + nose[1]) / 2 + 0.02, (last[2] + nose[2]) / 2]];
+    sweeps.push(sweep('bow_rail', [...st, ...round, ...side(-1).reverse()], 0.013, C.chrome, { sides: 8 }));
+  }
+  // the nav lights: a sidelight pair on the bow (green to starboard, red to port), the all-round white light aft on a pole
+  if (F.navLights) {
+    const st = H.at(0.965), z = b.deck ? st.sheer - b.deck.thickness : top(st);
+    for (const sx of [1, -1]) {
+      const c = [sx * 0.035, st.y, z];
+      lathes.push(lathe(`sidelight_${sx > 0 ? 'r' : 'l'}`, c, add(c, [0, 0, 0.05]), [[0, 0.028], [0.4, 0.026], [0.6, 0.024], [1, 0.01]], NAVC[sx > 0 ? 'r' : 'l'], { material: 'neon', samples: 12, crossSections: 4 }));
+    }
+    const sa = H.at(0.05), x = -(sa.sheerHalf - (b.cap ? Math.min(b.cap, sa.sheerHalf * 0.45) / 2 : g)), zp = top(sa);
+    lathes.push(lathe('light_pole', [x, sa.y, zp - 0.01], [x, sa.y, zp + 0.95], [[0, 0.016], [0.03, 0.011], [1, 0.011]], C.chrome, { samples: 10, crossSections: 3 }));
+    lathes.push(lathe('all_round_light', [x, sa.y, zp + 0.95], [x, sa.y, zp + 1.01], [[0, 0.02], [0.5, 0.022], [1, 0.012]], NAVC.c, { material: 'neon', samples: 12, crossSections: 3 }));
+  }
+  // rod holders flush in the gunwale's top, raked aft and outboard
+  for (const [k, s] of (F.rodHolders || []).entries()) for (const sx of [1, -1]) {
+    const st = H.at(s), x = sx * (st.sheerHalf - (b.cap ? Math.min(b.cap, st.sheerHalf * 0.45) / 2 : g)), z = top(st);
+    lathes.push(lathe(`rod_holder_${sx > 0 ? 'r' : 'l'}${k}`, [x, st.y, z + 0.008], [x + sx * 0.03, st.y - 0.06, z - 0.2], [[0, 0.025], [0.04, 0.021], [1, 0.019]], C.chrome, { samples: 10, crossSections: 3 }));
+  }
+  // a stripe along the topsides, `at` of the way from the chine to the sheer
+  if (b.stripe) for (const sx of [1, -1]) {
+    const K = b.stripe, path = [];
+    for (let s = startOf(0) + 0.004; s < 0.97; s += 0.03) {
+      const st = H.at(s), bulge = (b.flare || 0) * Math.min(1, st.sheerHalf / 0.3) * (1 - Math.abs(2 * K.at - 1));
+      path.push([sx * (lerp(st.chineHalf, st.sheerHalf, K.at) + bulge + K.radius * 0.2), st.y, lerp(st.chine, st.sheer, K.at)]);
+    }
+    sweeps.push(sweep(`stripe_${sx > 0 ? 'r' : 'l'}`, path, K.radius, C[K.tint ?? 'trim'], { sides: 6 }));
+  }
+  // named points on the sole (or the floor) along the boat: where a console or a seat stands, on the centreline
+  for (const [name, s] of Object.entries(b.points || {})) {
+    const I = lines(s).I, mid = (I.length - 1) / 2;
+    hardpoints[name] = r3v([0, H.at(s).y, Number.isFinite(b.sole) ? b.sole : I[mid][1]]);
   }
   // where a tank stands on the floor (its outboard edge on the bottom, the V falling away under its inboard one)
   if (b.tank) {
@@ -363,12 +423,16 @@ function foilXY(chord, thick, k = 9) {
 
 function buildOutboard(row, C, opts = {}) {
   const b = row.build;
-  if (b.family !== 'tiller') throw new Error(`Unknown boat-outboard family '${b.family}'`);
+  if (b.family !== 'tiller' && b.family !== 'remote') throw new Error(`Unknown boat-outboard family '${b.family}'`);
+  // (a remote motor is steered and shifted from a helm: no tiller, no shift lever, no starter's cord; bolted through the
+  // transom, no clamp screws; its rigging into the boat and its steering ram along its tilt tube)
+  const remote = b.family === 'remote';
   const pose = opts.pose || {}, S = b.shaft, Tt = b.transom, rk = b.rake * DEG, tanR = Math.tan(rk);
   // its pose: tilted up about the tilt tube (0 … 1 of its travel), steered about the swivel (−1 … 1 of its lock: + the
   // tiller to port, the boat to starboard), its propeller turned (degrees)
   const tiltA = clamp(pose.tilt, 0, 1) * b.tilt * DEG, steerA = clamp(pose.yaw, -1, 1) * b.steer * DEG;
-  const TILT = [0, -0.06, -0.045], SWIVEL = [0, -0.115];
+  // (its brackets, its leg and its gearcase at `leg` of the 20 hp class's size)
+  const TILT = [0, -0.06, -0.045], SWIVEL = [0, -0.115], G = b.leg ?? 1;
   const rotX = (a, v) => [v[0], v[1] * Math.cos(a) - v[2] * Math.sin(a), v[1] * Math.sin(a) + v[2] * Math.cos(a)];
   const rotZ = (a, v) => [v[0] * Math.cos(a) - v[1] * Math.sin(a), v[0] * Math.sin(a) + v[1] * Math.cos(a), v[2]];
   const tiltD = (v) => rotX(-tiltA, v), tiltP = (p) => add(TILT, tiltD([p[0] - TILT[0], p[1] - TILT[1], p[2] - TILT[2]]));
@@ -384,46 +448,59 @@ function buildOutboard(row, C, opts = {}) {
   const E_ = (f, id, from, to, offsets, tint, extra) => { const a = FR[f].P(from), z = FR[f].P(to), o = offsets.map(FR[f].D); out.extrudes.push(extrudeWorld(id, a, z, ccw(a, z, o), tint, extra)); };
   const W_ = (f, id, path, r, tint, extra) => out.sweeps.push(sweep(id, path.map(FR[f].P), r, tint, extra));
   const F_ = (f, id, from, to, stations, tint, extra) => out.lofts.push(loftWorld(id, FR[f].P(from), FR[f].P(to), stations.map((st) => ({ t: st.t, points: st.points.map(FR[f].D) })), tint, extra));
-  const metal = tone(C.trim, -0.12), dark = tone(C.trim, -0.42);
+  // (its cowl in its colour role, `tint.cowl`: the palette's trim unless it says otherwise; its leg that colour, its pan darker)
+  const body = C[b.tint?.cowl ?? 'trim'], metal = tone(body, -0.12), dark = tone(body, -0.42);
 
   // -- with the boat: the clamp bracket over the transom (its back plate down the aft face, its top on the transom, its
   // lip down the inside), its two clamp screws and their handles, the tilt tube
   const down = [0, tanR, -1], d = Math.hypot(...down), dn = scale(down, 1 / d), nAft = [0, -Math.cos(rk), -Math.sin(rk)];
   const back = add([0, 0, 0.022], scale(nAft, 0.011)), backTo = add(back, scale(dn, 0.27));
-  E_('fixed', 'clamp_back', back, backTo, rect([1, 0, 0], nAft, 0.17, 0.022), C.chrome);
-  E_('fixed', 'clamp_top', [0, -0.022, 0.013], [0, Tt + 0.022, 0.013], rect([1, 0, 0], [0, 0, 1], 0.17, 0.026), C.chrome);
+  E_('fixed', 'clamp_back', back, backTo, rect([1, 0, 0], nAft, 0.17 * G, 0.022), C.chrome);
+  E_('fixed', 'clamp_top', [0, -0.022, 0.013], [0, Tt + 0.022, 0.013], rect([1, 0, 0], [0, 0, 1], 0.17 * G, 0.026), C.chrome);
   const lip = [0, Tt + 0.01, 0.022], lipTo = add(lip, scale(dn, 0.15));
-  E_('fixed', 'clamp_lip', lip, lipTo, rect([1, 0, 0], [0, Math.cos(rk), Math.sin(rk)], 0.17, 0.02), C.chrome);
-  for (const sx of [1, -1]) {
+  E_('fixed', 'clamp_lip', lip, lipTo, rect([1, 0, 0], [0, Math.cos(rk), Math.sin(rk)], 0.17 * G, 0.02), C.chrome);
+  if (!remote) for (const sx of [1, -1]) {
     const z = -0.09, y0 = Tt + 0.09 * tanR, x = sx * 0.055;
     L_('fixed', `clamp_screw_${sx > 0 ? 'r' : 'l'}`, [x, y0 - 0.004, z], [x, y0 + 0.07, z], [[0, 0.03], [0.12, 0.03], [0.16, 0.008], [1, 0.008]], C.chrome, { samples: 10, crossSections: 4 });
     W_('fixed', `clamp_handle_${sx > 0 ? 'r' : 'l'}`, [[x - 0.045, y0 + 0.07, z], [x + 0.045, y0 + 0.07, z]], 0.008, C.rubber, { sides: 6 });
   }
   // the stern bracket's cheeks, from the back plate aft to the tilt tube (they carry it clear of the transom, so the motor
   // tilts up outside the boat)
-  for (const sx of [1, -1]) E_('fixed', `stern_bracket_${sx > 0 ? 'r' : 'l'}`, [sx * 0.062, 0, 0], [sx * 0.084, 0, 0], [[0, -0.012, 0.01], [0, TILT[1] - 0.028, TILT[2] + 0.03], [0, TILT[1] - 0.028, TILT[2] - 0.035], [0, -0.012 + 0.16 * tanR, -0.16]], C.chrome);
-  L_('fixed', 'tilt_tube', [-0.11, TILT[1], TILT[2]], [0.11, TILT[1], TILT[2]], [[0, 0.017], [1, 0.017]], C.chrome, { samples: 12, crossSections: 2 });
+  for (const sx of [1, -1]) E_('fixed', `stern_bracket_${sx > 0 ? 'r' : 'l'}`, [sx * 0.062 * G, 0, 0], [sx * 0.084 * G, 0, 0], [[0, -0.012, 0.01], [0, TILT[1] - 0.028, TILT[2] + 0.03], [0, TILT[1] - 0.028, TILT[2] - 0.035], [0, -0.012 + 0.16 * tanR, -0.16]], C.chrome);
+  L_('fixed', 'tilt_tube', [-0.11 * G, TILT[1], TILT[2]], [0.11 * G, TILT[1], TILT[2]], [[0, 0.017], [1, 0.017]], C.chrome, { samples: 12, crossSections: 2 });
+  // (a remote motor's bolts through the transom; its steering ram along the tilt tube, its rods out either end)
+  if (remote) {
+    for (const [i, [x, z]] of [[0.05, -0.05], [-0.05, -0.05], [0.05, -0.17], [-0.05, -0.17]].entries()) {
+      const c = [x * G, Tt + 0.006 + (0.022 - z) * tanR, z];
+      L_('fixed', `transom_bolt_${i}`, c, add(c, [0, 0.025, 0]), [[0, 0.016], [0.4, 0.016], [0.45, 0.008], [1, 0.008]], C.chrome, { samples: 8, crossSections: 3 });
+    }
+    const zr = TILT[2] + 0.05;
+    L_('fixed', 'steering_ram', [-0.17 * G, TILT[1], zr], [0.17 * G, TILT[1], zr], [[0, 0.024], [0.06, 0.028], [0.94, 0.028], [1, 0.024]], C.rubber, { samples: 14, crossSections: 4 });
+    for (const sx of [1, -1]) L_('fixed', `ram_rod_${sx > 0 ? 'r' : 'l'}`, [sx * 0.165 * G, TILT[1], zr], [sx * 0.22 * G, TILT[1], zr], [[0, 0.01], [1, 0.01]], C.chrome, { samples: 8, crossSections: 2 });
+  }
   // -- tilting: the swivel bracket, its arms to the tilt tube, the swivel's tube down the steering axis
-  E_('tilt', 'swivel_arm', [0, TILT[1] + 0.01, TILT[2]], [0, SWIVEL[1] + 0.02, TILT[2]], rect([1, 0, 0], [0, 0, 1], 0.12, 0.05), metal);
-  L_('tilt', 'swivel', [0, SWIVEL[1], -0.25], [0, SWIVEL[1], 0.125], [[0, 0.031], [1, 0.031]], metal, { samples: 14, crossSections: 2 });
+  // (the pan stands `cowl.lift` over the clamp's top: a bigger motor's powerhead higher)
+  const zPan = b.cowl.lift ?? 0.13;
+  E_('tilt', 'swivel_arm', [0, TILT[1] + 0.01, TILT[2]], [0, SWIVEL[1] + 0.02, TILT[2]], rect([1, 0, 0], [0, 0, 1], 0.12 * G, 0.05), metal);
+  L_('tilt', 'swivel', [0, SWIVEL[1], -0.25], [0, SWIVEL[1], zPan - 0.005], [[0, 0.031 * G], [1, 0.031 * G]], metal, { samples: 14, crossSections: 2 });
   // -- the motor: its powerhead's pan and cowl, lofted front (over the transom) to back
-  const cw = b.cowl, yF = 0, yB = yF - cw.length, zPan = 0.13, panH = 0.15;
+  const cw = b.cowl, yF = 0, yB = yF - cw.length, panH = 0.15 * (cw.pan ?? 1);
   const ax = [[0, yF, 0], [0, yB, 0]];
   const sect = (a, hb, n, belly, zc) => section(a, hb, n, belly).map(([x, z]) => [x, 0, zc + z]);
   F_('motor', 'pan', ...ax, [[0, 0.7, 0.62], [0.1, 0.96, 0.9], [0.55, 1, 1], [0.9, 0.95, 0.92], [1, 0.72, 0.66]].map(([t, w, h]) => ({ t, points: sect((cw.width / 2) * w * 1.02, (panH / 2) * h, 4, 1, zPan + panH / 2) })), dark);
   const zTop = zPan + cw.height, zc = zPan + panH * 0.75;
-  F_('motor', 'cowl', ...ax, [[0, 0.5, 0.55], [0.12, 0.9, 0.85], [0.5, 1, 1], [0.86, 0.96, 0.96], [1, 0.66, 0.7]].map(([t, w, h]) => ({ t, points: sect((cw.width / 2) * w, (zTop - zc) * h, 2.6, 0.35, zc) })), C.trim, { interp: 'smooth', segments: 3 });
+  F_('motor', 'cowl', ...ax, [[0, 0.5, 0.55], [0.12, 0.9, 0.85], [0.5, 1, 1], [0.86, 0.96, 0.96], [1, 0.66, 0.7]].map(([t, w, h]) => ({ t, points: sect((cw.width / 2) * w, (zTop - zc) * h, 2.6, 0.35, zc) })), body, { interp: 'smooth', segments: 3 });
   // the cowl's intake on its top aft, its latch at the back, the starter's handle in front, the tell-tale at the back
   E_('motor', 'intake', [0, yB + cw.length * 0.36, zTop - 0.012], [0, yB + cw.length * 0.14, zTop - 0.012], rect([1, 0, 0], [0, 0, 1], 0.13, 0.03), dark);
   E_('motor', 'latch', [0, yB - 0.004, zPan + panH + 0.01], [0, yB + 0.02, zPan + panH + 0.01], rect([1, 0, 0], [0, 0, 1], 0.07, 0.03), dark);
-  E_('motor', 'starter', [0.07, yF + 0.012, zc + 0.12], [0.07, yF - 0.02, zc + 0.12], rect([1, 0, 0], [0, 0, 1], 0.075, 0.024), C.rubber);
+  if (!remote) E_('motor', 'starter', [0.07, yF + 0.012, zc + 0.12], [0.07, yF - 0.02, zc + 0.12], rect([1, 0, 0], [0, 0, 1], 0.075, 0.024), C.rubber);
   L_('motor', 'telltale', [0.06, yB + 0.02, zPan + 0.05], [0.06, yB - 0.008, zPan + 0.05], [[0, 0.007], [1, 0.005]], C.chrome, { samples: 8, crossSections: 2 });
   // the shift lever on the starboard side of the pan, its knob
-  W_('motor', 'shift', [[0.16, yF - 0.08, zPan + 0.08], [0.205, yF - 0.04, zPan + 0.12], [0.215, yF - 0.0, zPan + 0.16]], 0.008, C.rubber, { sides: 6 });
-  L_('motor', 'shift_knob', [0.215, yF - 0.0, zPan + 0.15], [0.215, yF + 0.005, zPan + 0.185], [[0, 0.014], [0.6, 0.014], [1, 0.006]], C.rubber, { samples: 10, crossSections: 3 });
+  if (!remote) W_('motor', 'shift', [[0.16, yF - 0.08, zPan + 0.08], [0.205, yF - 0.04, zPan + 0.12], [0.215, yF - 0.0, zPan + 0.16]], 0.008, C.rubber, { sides: 6 });
+  if (!remote) L_('motor', 'shift_knob', [0.215, yF - 0.0, zPan + 0.15], [0.215, yF + 0.005, zPan + 0.185], [[0, 0.014], [0.6, 0.014], [1, 0.006]], C.rubber, { samples: 10, crossSections: 3 });
   // the midsection from under the pan to the anti-ventilation plate: a foil, its chord along the boat
   // (the leg and the gearcase drawn at `leg` of the 20 hp class's size: a smaller motor's are slimmer)
-  const G = b.leg ?? 1, yLE = SWIVEL[1] - 0.024, mid = (chord, thick) => foilXY(chord * G, thick).map(([x, y]) => [x, y, 0]);
+  const yLE = SWIVEL[1] - 0.024, mid = (chord, thick) => foilXY(chord * G, thick).map(([x, y]) => [x, y, 0]);
   F_('motor', 'midsection', [0, yLE, zPan + 0.02], [0, yLE, -S], [[0, 0.24, 0.42], [0.25, 0.22, 0.4], [1, 0.2, 0.36]].map(([t, c, k]) => ({ t, points: mid(c, k) })), metal, { interp: 'smooth', segments: 3 });
   // the anti-ventilation plate, wrapping the leg and running aft over the propeller
   const plate = [[0.045, -0.02], [0.1, -0.08], [0.105, -0.22], [0.075, -0.29], [-0.075, -0.29], [-0.105, -0.22], [-0.1, -0.08], [-0.045, -0.02]];
@@ -458,10 +535,17 @@ function buildOutboard(row, C, opts = {}) {
   // the tiller from its bracket at the pan's front, forward over the transom into the boat; its twist grip. It folds up
   // about its bracket (the craft's `fold`, 0 out … 1 up): how a tilted motor's tiller is kept out of the boat
   const tl = b.tiller, zt = zPan + 0.06, TP = [0, yF - 0.01, zt], foldA = clamp(opts.fold, 0, 1) * (b.fold?.angle ?? 0) * DEG;
-  FR.tiller = { P: (p) => FR.motor.P(add(TP, rotX(foldA, [p[0] - TP[0], p[1] - TP[1], p[2] - TP[2]]))), D: (v) => FR.motor.D(rotX(foldA, v)) };
-  L_('motor', 'tiller_bracket', [-0.055, TP[1], zt], [0.055, TP[1], zt], [[0, 0.026], [1, 0.026]], dark, { samples: 12, crossSections: 2 });
-  W_('tiller', 'tiller', [TP, [0, yF + tl * 0.35, zt + 0.02], [0, yF + tl * 0.72, zt + 0.045]], 0.021, dark, { sides: 8 });
-  L_('tiller', 'grip', [0, yF + tl * 0.7, zt + 0.044], [0, yF + tl, zt + 0.06], [[0, 0.025], [0.1, 0.028], [0.9, 0.028], [1, 0.022]], C.rubber, { samples: 14, crossSections: 4 });
+  if (!remote) {
+    FR.tiller = { P: (p) => FR.motor.P(add(TP, rotX(foldA, [p[0] - TP[0], p[1] - TP[1], p[2] - TP[2]]))), D: (v) => FR.motor.D(rotX(foldA, v)) };
+    L_('motor', 'tiller_bracket', [-0.055, TP[1], zt], [0.055, TP[1], zt], [[0, 0.026], [1, 0.026]], dark, { samples: 12, crossSections: 2 });
+    W_('tiller', 'tiller', [TP, [0, yF + tl * 0.35, zt + 0.02], [0, yF + tl * 0.72, zt + 0.045]], 0.021, dark, { sides: 8 });
+    L_('tiller', 'grip', [0, yF + tl * 0.7, zt + 0.044], [0, yF + tl, zt + 0.06], [[0, 0.025], [0.1, 0.028], [0.9, 0.028], [1, 0.022]], C.rubber, { samples: 14, crossSections: 4 });
+  } else {
+    // the rigging's boot in the pan's front, its hose forward and down over the transom into the boat
+    const rb = [0, yF + 0.004, zPan + 0.06];
+    L_('motor', 'rigging_boot', add(rb, [0, -0.03, 0]), add(rb, [0, 0.05, 0]), [[0, 0.045], [0.5, 0.04], [1, 0.034]], C.rubber, { samples: 14, crossSections: 3 });
+    W_('motor', 'rigging', [add(rb, [0, 0.04, 0]), [0, Tt + 0.12, rb[2] - 0.02], [0, Tt + 0.3, -0.06], [0, Tt + 0.36, -0.2]], 0.026, C.rubber, { sides: 8 });
+  }
   const hub = FR.motor.P([0, (hubFrom[1] + hubTo[1]) / 2, zG]);
   const joints = [
     { name: 'tilt', control: 'tilt', kind: 'hinge', at: r3v(TILT), dir: [-1, 0, 0], range: [0, b.tilt], angle: round3(tiltA / DEG) || 0 },
@@ -494,4 +578,6 @@ export const BOAT_BUILDERS = {
   'boat-hull': buildHull,
   'boat-outboard': buildOutboard,
   'boat-tank': buildTank,
+  // (the console and the seat: boat-helm.js)
+  ...HELM_BUILDERS,
 };

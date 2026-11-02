@@ -3,8 +3,9 @@
 // raked); its displacement from its own sections, so a boat floats at the waterline its weight sets; an outboard rigged
 // with its plate at the keel, tilting, steering and turning its propeller about its own axes; a boat role filled by
 // boats; a boat by the words people say, its build asleep, never a transformer's craft. A hull's variations, each on the
-// hull that carries it: a flat bottom, a square bow, a sole, a collar that floats too; an outboard's leg at its size. The
-// cases are chosen from the shelf in code.
+// hull that carries it: a flat bottom, a square bow, a sole, a collar that floats too; an outboard's leg at its size. A
+// helm on the sole: a console and seats on the hull's points, a gunwale cap, the nav lights and the bow rail, a remote
+// outboard. The cases are chosen from the shelf in code.
 import { describe, it, expect } from 'vitest';
 import { assembleCraft, resolveCraftPart, CRAFT_ODM, CRAFT_ARCHETYPES, CRAFT_ROLES, craftRoleAnalogues } from './index.js';
 import { BOAT_KINDS, BOAT_ODM } from './boat-odm.js';
@@ -186,6 +187,60 @@ describe('a hull\'s variations, each on the hull that carries it', () => {
     const plate = (s) => resolveCraftPart(s, { seat: 'mount' }).garage.hardpoints.plate[2];
     expect(plate(small)).toBeCloseTo(-BOAT_ODM[small].build.shaft, 3);
     expect(plate(big)).toBeCloseTo(-BOAT_ODM[big].build.shaft, 3);
+  });
+});
+
+describe('a helm on the sole', () => {
+  // (a boat whose layout stands a console on its hull's points)
+  const CC = Object.keys(A).find((k) => A[k].realm === 'water' && A[k].layout.some((e) => CRAFT_ODM[e.sku]?.kind === 'boat-console'));
+  const { manifest } = assembleCraft(CC), hullItem = manifest.items[0], HROW = CRAFT_ODM[hullItem.source.garage.sku], H = hullLines(HROW);
+  it('its console and seats each on the sole, inside the cockpit, the wheel at a standing helmsman\'s hands', () => {
+    for (const e of A[CC].layout.filter((x) => ['boat-console', 'boat-seat'].includes(CRAFT_ODM[x.sku].kind))) {
+      const it = manifest.items.find((i) => i.id === e.id), s = (it.at[1] - hullItem.at[1] + H.L / 2) / H.L;
+      expect(it.at[2] - hullItem.at[2], e.id).toBeCloseTo(HROW.build.sole, 3);
+      const b = bounds(lowerObjectFaces(it.source));
+      expect(b.hi[0], e.id).toBeLessThan(H.at(s).sheerHalf);
+    }
+    const con = manifest.items.find((i) => CRAFT_ODM[i.source.garage.sku].kind === 'boat-console'), w = con.source.garage.hardpoints.wheel;
+    expect(w[2]).toBeGreaterThan(0.85);
+    expect(w[2]).toBeLessThan(1.15);
+    expect(w[1]).toBeLessThan(0);
+  });
+  it('its gunwale a cap: the liner\'s top pulled inboard by the cap, level with the sheer', () => {
+    const liner = resolveCraftPart(hullItem.source.garage.sku, { seat: 'mount' }).lofts.find((l) => l.id === 'liner');
+    const st = liner.stations.reduce((a, x) => (Math.abs(x.t - 0.5) < Math.abs(a.t - 0.5) ? x : a)), at = H.at(st.t);
+    // (a station's profile is [u, v]: u across, v the height)
+    const top = st.profile.filter(([, v]) => Math.abs(v - at.sheer) < 0.01).map(([u]) => Math.abs(u));
+    expect(Math.min(...top)).toBeCloseTo(at.sheerHalf - HROW.build.skin - HROW.build.liner - HROW.build.cap, 1);
+  });
+  it('its sidelights green to starboard and red to port, its bow rail round ahead of the stem', () => {
+    const src = resolveCraftPart(hullItem.source.garage.sku, { seat: 'mount' }), l = (id) => src.lathes.find((x) => x.id === id);
+    const hue = (hex) => [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
+    const [r, l2] = [hue(l('sidelight_r').tint), hue(l('sidelight_l').tint)];
+    expect(r[1]).toBeGreaterThan(r[0]);
+    expect(l2[0]).toBeGreaterThan(l2[1]);
+    expect(P(l('sidelight_r').axisFrom)[0]).toBeGreaterThan(0);
+    const rail = src.sweeps.find((x) => x.id === 'bow_rail').path, nose = rail[(rail.length - 1) / 2];
+    expect(nose[0]).toBeCloseTo(0, 6);
+    expect(nose[1]).toBeGreaterThan(H.at(0.96).y);
+  });
+  it('its outboard remote: no tiller, its rigging into the boat and its steering ram, clear of the transom tilted up', () => {
+    const sku = Object.keys(BOAT_ODM).find((x) => BOAT_ODM[x].build.family === 'remote'), m = resolveCraftPart(sku, { seat: 'mount' });
+    const ids = [...m.lathes, ...m.sweeps, ...m.extrudes].map((x) => x.id);
+    expect(ids).not.toContain('tiller');
+    expect(ids).not.toContain('shift');
+    expect(ids).toEqual(expect.arrayContaining(['rigging', 'steering_ram']));
+    expect(m.garage.joints.map((j) => j.name)).toEqual(['tilt', 'steer', 'prop']);
+    const motor = manifest.items.find((i) => i.source.garage.kind === 'boat-outboard'), hm = resolveCraftPart(hullItem.source.garage.sku, { seat: 'mount' }).garage.hardpoints.motor;
+    const up = resolveCraftPart(motor.source.garage.sku, { seat: 'mount', pose: { tilt: 1 } });
+    const still = /^(clamp|stern_bracket|tilt_tube|transom_bolt|steering_ram|ram_rod|rigging)/;
+    const moving = Object.fromEntries(['lathes', 'extrudes', 'sweeps', 'lofts'].map((k) => [k, (up[k] || []).filter((x) => !still.test(x.id))]));
+    const pts = lowerObjectFaces({ ...up, ...moving }).flatMap((f) => f.corners).map((p) => [p[0] + hm[0], p[1] + hm[1], p[2] + hm[2]]);
+    const Tt = HROW.build.transom.thickness;
+    expect(pts.filter((p) => p[1] > -H.L / 2 && p[1] < -H.L / 2 + Tt && p[2] < hm[2])).toEqual([]);
+    // (what hangs in over the transom stays over the sole and aft of the helm's seat)
+    const inside = pts.filter((p) => p[1] > -H.L / 2 + Tt);
+    expect(Math.min(...inside.map((p) => p[2]))).toBeGreaterThan(HROW.build.sole + 0.3);
   });
 });
 

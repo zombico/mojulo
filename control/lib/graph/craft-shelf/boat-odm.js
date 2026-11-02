@@ -26,20 +26,31 @@
  *                  Points: `mount` (the clamp's top on the transom's aft face), `prop` (the hub), `plate` (the
  *                  anti-ventilation plate under the leg)
  *   boat-tank      a portable fuel tank: a moulded body, its handle, its cap, its gauge and its fitting
+ *   boat-console   a console standing on a hull's point on its sole (boat-helm.js): its body, windscreen, grab rail,
+ *                  dash (a screen, gauges, a compass), helm (`helm`: where on the dash, its reach and rake, the wheel's
+ *                  diameter) and the throttle's binnacle. Points: `mount` (the middle of its foot), `wheel`
+ *   boat-seat      a seat on the sole: a cooler and its cushion. Points: `mount`, `seat` (its cushion's top)
  *
  * Hull families: 'vee' (a chine between the bottom and the side: a V-bottom by its deadrise, a flat bottom when the
  * chine is at the keel's height). Its bow: 'stem' (it comes to a stem) or 'square' (a jon boat's: the bottom's rocker
  * meets a small transom at the bow, its rail across it). A hull may also carry a `sole` (a floor laid flat across the
  * bottom at its height, the liner clipped to it), a `collar` (a RIB's tube round the sheer: its radius, how far it sits
  * out and up of the sheer, its rise at the bow, its cones aft of the transom, a lifeline along its top; no gunwale rails
- * then) and `tint` (the liner's colour role: 'chrome' bare metal, 'paint' a moulded hull). Outboard families: 'tiller'
- * (steered by its own tiller), its leg drawn at `leg` of the 20 hp class's size. Sized to a public class, every name generic: a class, never a product.
+ * then) and `tint` (the liner's colour role: 'chrome' bare metal, 'paint' a moulded hull); a moulded deck's `cap` (the
+ * gunwale's cap, its width: the liner's top pulled inboard), `points` (named points on the sole at fractions of its
+ * length, where a console or a seat stands), a `stripe` along the topsides; fittings `bowRail` (stanchions and a rail
+ * round the bow), `navLights` (the sidelights on the bow, the all-round light aft), `rodHolders` (at fractions of its
+ * length). Outboard families: 'tiller' (steered by its own tiller) and 'remote' (steered and shifted from a helm: its
+ * rigging into the boat, a steering ram along its tilt tube, bolted through the transom), its brackets, leg and gearcase
+ * drawn at `leg` of the 20 hp class's size, its pan `cowl.lift` over the clamp, its cowl's colour role `tint.cowl`. Sized to a public class, every name generic: a class, never a product.
  */
 
 export const BOAT_KINDS = Object.freeze({
   'boat-hull': 'a boat\'s hull: drawn from its lines, its skin and liner, its transom, deck, benches and fittings',
   'boat-outboard': 'an outboard motor on a boat\'s transom: its cowl, its leg, its propeller and its tiller',
   'boat-tank': 'a boat\'s portable fuel tank',
+  'boat-console': 'a boat\'s console: its windscreen, grab rail, helm, dash and throttle',
+  'boat-seat': 'a seat on a boat\'s sole: a cooler seat, a leaning post',
 });
 
 export const BOAT_ODM = {
@@ -142,6 +153,37 @@ export const BOAT_ODM = {
       tank: { at: 0.14, x: 0.18, width: 0.26 },
     },
   },
+  // ===== a 17 ft moulded centre console: a deep V, a sole, a casting deck forward ===============
+  'hull-cc-17': {
+    kind: 'boat-hull', realm: 'water', label: '17 ft centre console hull', classOf: '17 ft centre console class (5.2 m, 90 hp)',
+    aliases: ['centre console hull', 'center console hull', 'runabout hull'],
+    // (its depth amidships, keel to sheer)
+    dims: { length: 5.18, beam: 2.13, depth: 0.76 }, mass: 480, mount: 'keel',
+    perf: { persons: 6, load: 590, maxPower: 85 },
+    build: {
+      family: 'vee', bow: 'stem',
+      lines: {
+        keel: [[0, 0], [0.5, 0], [0.74, 0.06], [0.9, 0.24], [1, 0.58]],
+        sheer: [[0, 0.64], [0.4, 0.72], [0.7, 0.82], [0.9, 0.95], [1, 1.04]],
+        sheerHalf: [[0, 0.93], [0.35, 1.06], [0.6, 1.05], [0.8, 0.86], [0.93, 0.5], [1, 0]],
+        chine: [[0, 0.28], [0.5, 0.3], [0.75, 0.38], [0.9, 0.56], [1, 0.78]],
+        chineHalf: [[0, 0.86], [0.35, 0.95], [0.6, 0.9], [0.8, 0.66], [0.93, 0.3], [1, 0]],
+      },
+      // (moulded glass fibre: white inside, its gunwale a wide cap; a sole across the V, a casting deck forward)
+      tint: { liner: 'paint' }, cap: 0.13,
+      skin: 0.014, liner: 0.012, flare: 0.03, stations: { mid: 0.025, bow: 0.012 },
+      transom: { rake: 14, thickness: 0.06 },
+      sole: 0.26, deck: { from: 0.8, thickness: 0.24 },
+      gunwale: 0.02, keelStrip: 0,
+      strakes: { at: [0.35, 0.7], from: 0.15, to: 0.88, radius: 0.012 },
+      stripe: { at: 0.74, radius: 0.012, tint: 'trim' },
+      points: { console: 0.5, helmSeat: 0.33, frontSeat: 0.63 },
+      fittings: {
+        bowEye: 0.66, cleats: 0.04, drain: true, transomEyes: 0.62, navLights: true, rodHolders: [0.1, 0.19],
+        bowRail: { from: 0.83, to: 0.96, posts: 3, height: 0.42 },
+      },
+    },
+  },
   // ===== a 20 hp tiller outboard, short shaft ==================================================
   'outboard-20-tiller': {
     kind: 'boat-outboard', realm: 'water', label: '20 hp tiller outboard, short shaft', classOf: '20 hp four-stroke tiller outboard class',
@@ -168,6 +210,41 @@ export const BOAT_ODM = {
       prop: { blades: 3, diameter: 0.229, pitch: 0.229, hand: 'rh' },
       tiller: 0.56, tilt: 68, steer: 35, fold: { angle: 80 },
     },
+  },
+  // ===== a 90 hp remote outboard, 25 in shaft ==================================================
+  'outboard-90-remote': {
+    kind: 'boat-outboard', realm: 'water', label: '90 hp remote outboard, 25 in shaft', classOf: '90 hp four-stroke remote outboard class',
+    aliases: ['90 hp outboard', 'remote outboard', 'remote steer outboard'],
+    dims: { length: 0.98, width: 0.6, height: 1.86 }, mass: 162, mount: 'transom-bolt',
+    perf: { power: 66.2 },
+    build: {
+      family: 'remote', shaft: 0.635, transom: 0.06, rake: 14, leg: 1.45,
+      cowl: { length: 0.8, width: 0.47, height: 0.6, lift: 0.2, pan: 1.4 },
+      prop: { blades: 3, diameter: 0.356, pitch: 0.432, hand: 'rh' },
+      tilt: 70, steer: 30, tint: { cowl: 'paint' },
+    },
+  },
+  // ===== a centre console =====================================================================
+  'console-cc-17': {
+    kind: 'boat-console', realm: 'water', label: 'centre console with windscreen', classOf: '17 ft centre console class',
+    aliases: ['center console', 'helm console', 'console'],
+    dims: { width: 0.78, length: 0.66, height: 1.4 }, mass: 55, mount: 'sole',
+    build: {
+      family: 'moulded', height: 1.0,
+      // (the dash from its front top to its back: [y, z])
+      dash: [[0.2, 1.0], [-0.22, 0.86]],
+      windscreen: { width: 0.62, wing: 0.12, wingAft: 0.12, height: 0.36, rake: 34 },
+      rail: { height: 0.98, out: 0.05, radius: 0.0125 },
+      helm: { at: 0.72, reach: 0.1, rake: 0.25, diameter: 0.36 },
+      throttle: { at: -0.12, height: 0.78 },
+    },
+  },
+  // ===== a cooler seat ========================================================================
+  'seat-cooler-120': {
+    kind: 'boat-seat', realm: 'water', label: 'cooler seat, 120 litres', classOf: 'cooler seat class',
+    aliases: ['cooler seat', 'cooler', 'ice chest seat'],
+    dims: { width: 0.82, length: 0.44, height: 0.46 }, mass: 22, mount: 'sole',
+    build: { family: 'cooler', cushion: 0.07 },
   },
   // ===== a portable fuel tank ==================================================================
   'tank-portable-45l': {
