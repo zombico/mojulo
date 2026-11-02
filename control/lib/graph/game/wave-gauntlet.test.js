@@ -78,6 +78,11 @@ describe('a wave gauntlet on the bus', () => {
     expect(cp.spawned.filter((x) => x === 'g1')).toHaveLength(2);
   });
 
+  it('a death in the pause after a clear wakes no wave of the next: the arena begins again alone', () => {
+    const r = run([LIFT], [{ secs: 1.5 }, { down: ['g1', 'g2'] }, { secs: 0.5 }, { hit: 5 }, { secs: 3 }]);
+    expect(r.spawned).toEqual(['g1', 'g2', 'g1', 'g2']);
+  });
+
   it("death: 'fail' loses the level instead", () => {
     expect(composeMechanics([{ ...LIFT, death: 'fail' }], ctx).on).toMatchObject({ '__wg_lift:fell': { end: 'fail' } });
   });

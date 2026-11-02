@@ -82,7 +82,9 @@ export function lowerWaveGauntlet(p, ctx) {
     if (next) {
       const pause = next.arena !== x.arena ? (Number.isFinite(next.after) ? next.after : Number.isFinite(next.arenaAfter) ? next.arenaAfter : 4) : (Number.isFinite(next.after) ? next.after : 2);
       if (next.arena !== x.arena) world.reactions.push({ on: clearedE(k), do: 'emit', type: 'gauntlet:arena', arena: x.arena + 1, of: A });
-      world.sequences.push({ id: `${pre}:next:${k}`, trigger: { on: clearedE(k) }, steps: [{ await: { timer: pause } }, { do: 'emit', type: waveE(k + 1) }] });
+      // (after the pause, only if it is still cleared: a death in the pause zeroed it, and the arena begins again instead)
+      world.sequences.push({ id: `${pre}:next:${k}`, trigger: { on: clearedE(k) }, steps: [{ await: { timer: pause } }, { do: 'emit', type: `${pre}:on:${k}` }] });
+      world.reactions.push({ on: `${pre}:on:${k}`, if: { var: waveV(k), gte: x.foes.length }, do: 'emit', type: waveE(k + 1) });
     } else world.reactions.push({ on: clearedE(k), do: 'emit', type: clearE });
   });
   // death: the gauntlet's own hp, a hit's cost; at none, the arena (or its checkpoint) begins again, or the level is lost
