@@ -103,3 +103,7 @@ Built so far:
   objects carrying their records, and the developer's own scene kept across a re-handoff. Held to the World page at
   the same cameras, each engine reads within a few levels a channel on most of the land. Godot's room lamps were
   three times too bright, and are fixed.
+- **How close each engine is to the web build, measured.** A visual gate renders a level's own cameras on the World
+  page and in each engine on the machine, scores every shot (structure and colour, region by region) and writes a
+  contact sheet: the page beside each engine, the scores and a map of where they differ. It advises and never
+  refuses. `mojulo script visual-gate --ref <level>` runs it; a level's engine export names the command.

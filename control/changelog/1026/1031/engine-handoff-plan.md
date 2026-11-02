@@ -1,6 +1,6 @@
 ### Engine handoff plan (temporary: the working plan, parked here; delete before release)
 
-**Status:** phases 0 to 3 built; phase 4's Godot adapter built and run in a real Godot (4.7.2) on the operator's machine, the terrain shader with it; the sea as the engine's own water built; phases 5 to 7 done (one door; the runtimes culled; Godot, Unity, Unreal and Blender each an adapter on the contract, run in their engines on the operator's machine); phase 8 (the visual gate) next (1102).
+**Status:** phases 0 to 3 built; phase 4's Godot adapter built and run in a real Godot (4.7.2) on the operator's machine, the terrain shader with it; the sea as the engine's own water built; phases 5 to 7 done (one door; the runtimes culled; Godot, Unity, Unreal and Blender each an adapter on the contract, run in their engines on the operator's machine); phase 8's visual gate built and run; phase 9 (the copy) next (1102).
 `control/changelog/1026/1031/engine-handoff.md`. No release has carried the engine game runtimes this plan removes, so
 nothing here needs a deprecation path.
 
@@ -648,4 +648,21 @@ developer would want to wire. Never claimed by a machine.
     carry); the bay's indirect light, baked on the page, which no engine's lamps reproduce (the brick far darker in
     all four). CI runs only Godot's leg; Blender's, Unreal's and Unity's are local, advisory, with `MOJULO_BLENDER`,
     `MOJULO_UNREAL`, `MOJULO_UNITY`.
+- 1102, phase 8, the visual gate (`visual-gate.js`, `visual-gate-run.js`, `scripts/visual-gate.mjs`):
+  - The page framed exactly: the hand comparisons of phase 7 cropped the page's 1120×780 canvas in a 1280×720 window
+    (780/720 = 1.083× closer, ~30 px lower: the measured 1.087× and 26 px; `pictureCenter` was never read). A
+    capture-only `captureSize` on `emitThreeWorld` sizes the canvas from the first layout (zero bytes absent); the
+    driver checks each still through the bridge's `view()`. Every phase 7 page-vs-engine number was taken through that
+    crop: read them as content-matched approximations.
+  - Shots: camera markers, the shoot plan's shots at their first frame (roll not applied), explicit poses. Score:
+    SSIM on luminance over a box-filtered image (each renderer's anti-aliasing read alike), CIEDE2000 mean / p95 /
+    max, a 4×3 grid with the worst cell, a blank flag. Advisory; exit 0 unless it crashes.
+  - First run (SSIM / mean ΔE; Godot, Blender, Unreal, Unity): trail island .933/4.2, .962/2.9, .967/2.5, .976/2.1;
+    trail wide .890/4.7, .893/3.0, .918/2.4, .930/1.9; trail close ~.70/3-4.4 all four (fine texture; the page's hero
+    posed, the engines' at rest); trail top ~.71/3.6-4.6, Blender .415 (its parallax-kind Voronoi); trail seam .86/2.4
+    Blender, ~.67/19-22 the rest; bay ~.72-.80 / 6.5-8.4.
+  - Leads for the eyes gate, from the run: the `seam` camera stands in the hero's head, and Godot, Unreal and Unity
+    draw its insides (two-sided figure materials, likely); the page drops the cracked-earth network at distance where
+    every engine keeps it; the bay's lamps make specular spots and white windows the page's baked light has not; a
+    near wall the page cuts away; Unity's bay the darkest; Godot's faint line where the sea meets the far shallows.
 
