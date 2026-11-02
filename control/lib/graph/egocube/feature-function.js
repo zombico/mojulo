@@ -205,7 +205,7 @@ export function functional(S, limbs = {}, { arms: A = 1, legs: Lg = 1, girth: G 
  *  the chest at the gather and lifted reaching ahead as the hind feet push. The forepaws and the tail are solved on the rig after (feature-body.js planted, carried) */
 export const FEATURE_GALLOP = Object.freeze({ hinge: 80, gather: 0.15, open: 0.45, swing: 0.6, under: 0.25, back: 0.5, lift: 0.3, pitch: 20,
   vault: Object.freeze({ tip: 10, kick: 40, knee: 60, clear: 0.06 }),
-  land: Object.freeze({ elbow: 35, heel: -70, toe: -160, back: 0.35, low: 0.05 }) });
+  land: Object.freeze({ elbow: 35, heel: -70, toe: -160, reach: 0.95, drop: 20 }) });
 function galloping(run, dog, strike = 0) {
   const G = FEATURE_GALLOP, n = run.length, yR = run.map((k) => k.feet?.R?.[1] ?? 0), lo = Math.min(...yR), hi = Math.max(...yR), span = hi - lo || 1;
   const keys = run.map((k, i) => {
@@ -219,9 +219,10 @@ function galloping(run, dog, strike = 0) {
   // (the vault after the strike: the strike's key tipped further, on the forepaws alone, the hind legs raised behind)
   const at = keys.reduce((b, k, i) => (k.hinge > keys[b].hinge ? i : b), 0), S0 = keys[at], V = G.vault;
   const { feet, sink, lift, ...base } = S0;
-  const vault = { ...base, support: 'none', hinge: r4(Math.min(LIMITS.hinge * (dog.unbound ?? 1), S0.hinge + V.tip)), hipL: { pitch: -V.kick }, hipR: { pitch: -V.kick }, kneeL: V.knee, kneeR: V.knee };
+  const L2 = G.land, pointed = { heelL: L2.heel, heelR: L2.heel, toeTurnL: L2.toe, toeTurnR: L2.toe };
+  const vault = { ...base, support: 'none', hinge: r4(Math.min(LIMITS.hinge * (dog.unbound ?? 1), S0.hinge + V.tip)), hipL: { pitch: -V.kick }, hipR: { pitch: -V.kick }, kneeL: V.knee, kneeR: V.knee, ...pointed };
   // (the landing after it: the elbows bent their natural way, the hind feet pointed back; placed on the rig: landed)
-  const L2 = G.land, land = { ...vault, elbowL: L2.elbow, elbowR: L2.elbow, heelL: L2.heel, heelR: L2.heel, toeTurnL: L2.toe, toeTurnR: L2.toe };
+  const land = { ...vault, elbowL: L2.elbow, elbowR: L2.elbow };
   return [...keys.slice(0, at + 1), vault, land, ...keys.slice(at + 1)];
 }
 

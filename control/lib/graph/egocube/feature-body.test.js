@@ -146,6 +146,9 @@ describe('the feature body', () => {
     for (const S of ['R', 'L']) { expect(vault[`knuckles${S}`][2], S).toBeLessThan(0.05 * height); expect(Math.min(vault[`toeBase${S}`][2], vault[`toeTip${S}`][2]), S).toBeGreaterThan(FEATURE_GALLOP.vault.clear * height - 1e-3); expect(vault[`toeBase${S}`][1], S).toBeLessThan(vault[`hip${S}`][1]); }
     // (THE LANDING, the second impact after it: still on the forepaws, the elbows bent their natural way, the hind feet
     // behind the hips, off the floor and pointed back)
+    // (at the gallop's most forward lean, the vault and the landing, every hind foot stretched out behind and POINTED BACK)
+    const back = (n, S) => (Math.atan2(n[`toeTip${S}`][2] - n[`toeBase${S}`][2], -(n[`toeTip${S}`][1] - n[`toeBase${S}`][1])) * 180) / Math.PI;
+    for (const S of ['R', 'L']) { expect(Math.abs(back(vault, S)), S).toBeLessThan(35); expect(vault[`hip${S}`][1] - vault[`toeBase${S}`][1], S).toBeGreaterThan(0.2 * height); }
     const land = posed[vi + 1], lk = gal[vi + 1];
     expect(lk.support).toBe('none'); expect(lk.elbowR).toBe(FEATURE_GALLOP.land.elbow);
     for (const S of ['R', 'L']) {
@@ -156,7 +159,8 @@ describe('the feature body', () => {
       expect(Math.abs(dir), S).toBeLessThan(35);                                                     // (pointed back)
     }
     const runTail = (n) => (Math.atan2(n.tailTip[2] - n.tailRoot[2], -(n.tailTip[1] - n.tailRoot[1])) * 180) / Math.PI;
-    for (const n of posed) { expect(runTail(n)).toBeGreaterThan(FEATURE_CARRIAGE.run.least - 2); expect(runTail(n)).toBeLessThan(FEATURE_CARRIAGE.run.most + 2); }
+    // (near level running, RAISED in the leap, the keys on the forepaws alone, so the hind legs stretched out show under it)
+    posed.forEach((n, i) => { if (gal[i].support === 'none') expect(runTail(n)).toBeCloseTo(FEATURE_CARRIAGE.leap, 0); else { expect(runTail(n)).toBeGreaterThan(FEATURE_CARRIAGE.run.least - 2); expect(runTail(n)).toBeLessThan(FEATURE_CARRIAGE.run.most + 2); } });
     // (and straight: the tail's far half, on its own bone from the middle, in line with the near half)
     const half = (a, b) => (Math.atan2(b[2] - a[2], -(b[1] - a[1])) * 180) / Math.PI;
     for (const n of posed) expect(Math.abs(half(n.tailMid, n.tailTip) - half(n.tailRoot, n.tailMid))).toBeLessThan(3);

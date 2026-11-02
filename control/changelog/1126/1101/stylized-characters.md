@@ -208,14 +208,18 @@ member, a quick game's hero). Code: `control/lib/graph/egocube/feature-tune.js`.
     the chest clears the floor: `dogOf` `strike`), easing in and out: the front low on both forepaws, the rump raised,
     the head ahead;
   - THE VAULT, a key of its own after the strike (`FEATURE_GALLOP.vault`): the trunk tipped 10° further (the spine 30°
-    down to the front), the weight on both forepaws alone, the hind legs unsupported, swung back 40° from the hips with
-    the knees bent 60°, raised behind and clear of the floor (the body lifted only where a hind foot would still touch
-    it: `vaulted`, solved on the rig), the head still looking ahead;
+    down to the front), the weight on both forepaws alone, the hind legs unsupported and stretched out behind, the head
+    still looking ahead;
   - THE LANDING after it, the second impact (`FEATURE_GALLOP.land`): still on both forepaws, the elbows bent 35° their
-    natural way to take the weight (the body lowered only where the bent forelegs would not reach the floor), the hind
-    feet set behind the hips (a `feet` target each, a third of the height back) and POINTED BACK (the ankle turned
-    −70°, the toes −160°), the head ahead (`landed`, solved on the rig; the paws' solve keeps the landing's own elbow).
-    The gallop is the run's keys, the vault and the landing;
+    natural way to take the weight (the body lowered only where the bent forelegs would not reach the floor), the head
+    ahead (the paws' solve keeps the landing's own elbow). The gallop is the run's keys, the vault and the landing;
+  - at the gallop's most forward lean, the vault and the landing, every animal's hind legs are STRETCHED OUT BEHIND
+    (a `feet` target each, 0.95 of the leg's length from its hip, 20° under level, never nearer the floor than the
+    vault's clearance: `landed`, solved on the rig) with the feet POINTED BACK (the ankle turned −70°, the toes −160°),
+    and the tail RAISED 30° (`FEATURE_CARRIAGE.leap`), so the hind legs show under it, not hidden along it. The thigh's
+    skin blends into the pelvis's over a narrow hip (`FEATURE_SKIN.hip`, 0.4 of the usual width), so the haunch swings
+    with its leg. A raccoon's hind leg is barely longer than its hip's reach to the rump, so its shin and pointed foot
+    show past the rump and no more;
   - galloping, every tail is held back near level for balance (`FEATURE_CARRIAGE.run`, −25° to 10°), whatever its
     walking carriage: a cat's tail is up at a walk and back at a run;
   - and straightened: the tail rides two bones (`tail` from its root to its middle, `tailEnd` from there to its tip, each
@@ -312,8 +316,8 @@ member, a quick game's hero). Code: `control/lib/graph/egocube/feature-tune.js`.
     floor in some keys and through the air in others, the hind feet behind the hips, the face ahead and a little down in
     every key (never up), the tail's root at the rump (never up the back) and the tail held back near level and
     straight (its two halves in line), the tail's ring layer each point on one tail bone, a strike key, the front
-    tipped low on both forepaws, after it the vault, tipped further on the forepaws alone, the hind feet off the floor
-    and behind the hips, and the landing, the elbows bent and the hind feet behind, off the floor and pointed back;
+    tipped low on both forepaws, after it the vault, tipped further on the forepaws alone, and the landing, the elbows
+    bent; in both the hind feet stretched out behind, off the floor and pointed back, the tail raised;
   - on all fours on the rig: the spine level, the tail carried at the roster's carriage less the mascot's share, and no
     standing clip turning the tail;
   - a rodent's buck teeth (none on the hedgehog), a chunky rodent's blunt face on whisker pads, a beaver's flat paddle on

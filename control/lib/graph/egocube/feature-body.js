@@ -61,13 +61,14 @@ const mirrorX = (p) => [-p[0], p[1], p[2]];
 const twin = (s) => (typeof s === 'string' ? s.replace(/R$/, 'L') : s);
 
 /** the skin: its net's cell and its faces after simplifying; the weights' floor, the bones a point may name, the tail's
- *  collar (the share of the blend's width between a tail's shapes and the body's), a FIRM skin's (a striped coat's: the
+ *  collar (the share of the blend's width between a tail's shapes and the body's), the hip's (between a thigh's shapes and
+ *  the pelvis's: the haunch swings with its leg, so a short hind leg shows stretched out behind a round rump), a FIRM skin's (a striped coat's: the
  *  share of the blend's width between any two bones, so the skin under the stripes stretches only near the joints and
  *  the stripes keep their shape on the run), a stripe's point's weights sharpened (`stripe`: each to that power, the
  *  bone it rides most taking it over: a stripe follows its bones and the coat between takes the stretch), the eggs the
  *  field folds. And the whole figure's TRIANGLE BUDGET: a default game model's (skin, coat, face together) */
 export const FEATURE_TRIANGLES = 18000;
-export const FEATURE_SKIN = Object.freeze({ cell: 0.0075, faces: 8500, floor: 0.02, bones: 4, near: 3, collar: 0.33, firm: 0.5, stripe: 4 });
+export const FEATURE_SKIN = Object.freeze({ cell: 0.0075, faces: 8500, floor: 0.02, bones: 4, near: 3, collar: 0.33, hip: 0.4, firm: 0.5, stripe: 4 });
 
 export function egg({ c, u, r, e = 0, hint = [1, 0, 0], bone, group = 'Body', join, name }) {
   const U = unit(u), h0 = Math.abs(dot(unit(hint), U)) > 0.95 ? [0, 1, 0] : hint, Vv = unit(sub(h0, mul(U, dot(h0, U)))), W = cross(U, Vv);
@@ -135,12 +136,13 @@ export function eggField(eggs, { near = FEATURE_SKIN.near, bones = FEATURE_SKIN.
   // (THE TAIL'S COLLAR: between a tail's shape and the body's, the weights blend over `collar` of the usual width, so the
   // tail's skin rides its bones and the turn from the rump is taken in a short collar at its root: a tail's ring
   // pattern, riding its bone rigidly (feature-coat.js), moves with the skin under it)
-  const onTail = eggs.map((E) => E.bone === 'tail' || E.bone === 'tailEnd');
+  const onTail = eggs.map((E) => E.bone === 'tail' || E.bone === 'tailEnd'), onThigh = eggs.map((E) => /^thigh[LR]$/.test(E.bone ?? '')), onPelvis = eggs.map((E) => E.bone === 'pelvis');
+  const hipPair = (i, j) => (onThigh[i] && onPelvis[j]) || (onPelvis[i] && onThigh[j]);
   const weights = (p) => {
     measure(p);
     const i0 = order[0], d0 = D[i0], by = {};
     for (let m = 0; m < n; m++) {
-      const i = order[m], tau = 0.3 * Math.min(eggs[i].join, eggs[i0].join) * (onTail[i] !== onTail[i0] ? FEATURE_SKIN.collar : 1) * (eggs[i].bone !== eggs[i0].bone ? firm : 1), x = (D[i] - d0) / tau;
+      const i = order[m], tau = 0.3 * Math.min(eggs[i].join, eggs[i0].join) * (onTail[i] !== onTail[i0] ? FEATURE_SKIN.collar : 1) * (hipPair(i, i0) ? FEATURE_SKIN.hip : 1) * (eggs[i].bone !== eggs[i0].bone ? firm : 1), x = (D[i] - d0) / tau;
       if (x > 6) break;
       by[eggs[i].bone] = (by[eggs[i].bone] ?? 0) + Math.exp(-x);
     }
@@ -389,38 +391,32 @@ export function featurePlan(sheet, { title = 'a feature animal', reactions = fal
       : { EarInner: '#c9a19b', ...featurePalette(coatPalette(sheet, k, A, f), A.id, build) },
   };
   // (the forepaws planted on the floor, solved on the rig itself)
-  if (build.fours) { vaulted(plan); landed(plan); looking(plan); planted(plan); if (L.tail) carried(plan, build.tail.carriage); }
+  if (build.fours) { landed(plan); looking(plan); planted(plan); if (L.tail) carried(plan, build.tail.carriage); }
   return { plan, H, height: L.top, ...(tune?.detail.bake ? { bake: detailBake(build.plan) } : {}) };
 }
 
-/** THE VAULT lifted clear: the gallop's key on the forepaws alone (its hind legs unsupported, raised behind) is lifted
- *  as far as its lowest hind foot needs to clear the floor by FEATURE_GALLOP.vault.clear of the height, solved on the rig */
-function vaulted(plan) {
-  const keys = plan.clips.gallop;
-  if (!Array.isArray(keys)) return;
-  const R = validateRig(expandPlan(plan).rig), h = plan.mascot.height, need = FEATURE_GALLOP.vault.clear * h;
-  keys.forEach((k, i) => {
-    if (k?.support !== 'none' || typeof k.elbowR === 'number') return;
-    const n = rigNodesAt(R, k).nodes, low = Math.min(n.toeBaseR[2], n.toeBaseL[2], n.toeTipR[2], n.toeTipL[2]);
-    if (low < need) keys[i] = { ...k, lift: r4(need - low) };
-  });
-}
-
-/** THE LANDING placed: the gallop's second impact (its key on the forepaws with the elbows bent: FEATURE_GALLOP.land) is
- *  lowered as far as its bent forelegs need to reach the floor, and its hind feet set behind the hips and a little under
- *  them, pointed back, solved on the rig */
+/** THE GALLOP'S MOST FORWARD LEAN placed (its keys on the forepaws alone: the vault and the landing,
+ *  FEATURE_GALLOP.vault, .land): the landing lowered as far as its bent forelegs need to reach the floor, and in both the
+ *  hind legs stretched out behind, each foot's toe base set `land.reach` of the leg's length from its hip, `land.drop`
+ *  degrees under level (never nearer the floor than the vault's clearance), so a short leg shows past a round rump;
+ *  solved on the rig */
 function landed(plan) {
   const keys = plan.clips.gallop;
   if (!Array.isArray(keys)) return;
-  const R = validateRig(expandPlan(plan).rig), h = plan.mascot.height, P = FEATURE_PAWS, Ld = FEATURE_GALLOP.land;
-  const len = (a, b) => Math.hypot(b[0] - a[0], b[1] - a[1], b[2] - a[2]);
+  const R = validateRig(expandPlan(plan).rig), h = plan.mascot.height, P = FEATURE_PAWS, Ld = FEATURE_GALLOP.land, J = R.joints;
+  const len = (a, b) => Math.hypot(b[0] - a[0], b[1] - a[1], b[2] - a[2]), a = (Ld.drop * Math.PI) / 180;
+  const legOf = (S) => len(J[`hip${S}`], J[`knee${S}`]) + len(J[`knee${S}`], J[`ankle${S}`]) + len(J[`ankle${S}`], J[`toeBase${S}`]);
   keys.forEach((k, i) => {
-    if (k?.support !== 'none' || typeof k.elbowR !== 'number') return;
-    // (lowered until the bent foreleg, nearly upright, reaches the floor)
-    const n0 = rigNodesAt(R, k).nodes, reach = len(n0.shoulderR, n0.knucklesR), sink = Math.max(0, n0.shoulderR[2] - P.floor * h - 0.97 * reach);
-    const k1 = sink ? { ...k, sink: r4(sink) } : k, n1 = rigNodesAt(R, k1).nodes;
-    // (the hind feet behind and above the hips: their toe bases' targets)
-    const foot = (S) => [r4(n1[`hip${S}`][0]), r4(n1[`hip${S}`][1] - Ld.back * h), r4(Math.max(FEATURE_GALLOP.vault.clear * h, n1[`hip${S}`][2] - Ld.low * h))];
+    if (k?.support !== 'none') return;
+    // (the landing lowered until its bent foreleg, nearly upright, reaches the floor)
+    let k1 = k;
+    if (typeof k.elbowR === 'number') {
+      const n0 = rigNodesAt(R, k).nodes, reach = len(n0.shoulderR, n0.knucklesR), sink = Math.max(0, n0.shoulderR[2] - P.floor * h - 0.97 * reach);
+      if (sink) k1 = { ...k, sink: r4(sink) };
+    }
+    // (the hind feet stretched out behind: their toe bases' targets)
+    const n1 = rigNodesAt(R, k1).nodes;
+    const foot = (S) => { const hp = n1[`hip${S}`], d = Ld.reach * legOf(S); return [r4(hp[0]), r4(hp[1] - d * Math.cos(a)), r4(Math.max(FEATURE_GALLOP.vault.clear * h, hp[2] - d * Math.sin(a)))]; };
     keys[i] = { ...k1, feet: { R: foot('R'), L: foot('L') } };
   });
 }
@@ -455,9 +451,10 @@ function looking(plan) {
  *  from its root until its line from root to tip rises at the species' carriage (fauna roster: feature-function.js
  *  speciesTail; absent, `FEATURE_CARRIAGE.none`), a share (`keep`) of the way back toward where the mascot's own tail
  *  would point: a compromise between the regular animal and the mascot. Galloping, every tail is held back for balance,
- *  near level (`run`, whatever the walking carriage: a cat's up at a walk, back at a run) and STRAIGHTENED (the tail's
+ *  near level (`run`, whatever the walking carriage: a cat's up at a walk, back at a run), RAISED in the leap (`leap`
+ *  degrees, the gallop's keys on the forepaws alone: the hind legs stretched out under it show) and STRAIGHTENED (the tail's
  *  far half turned from its middle in line with the near half: a curled tip laid out behind). Standing, as designed */
-export const FEATURE_CARRIAGE = Object.freeze({ none: -15, keep: 0.25, most: 60, run: Object.freeze({ least: -25, most: 10 }) });
+export const FEATURE_CARRIAGE = Object.freeze({ none: -15, keep: 0.25, most: 60, run: Object.freeze({ least: -25, most: 10 }), leap: 30 });
 function carried(plan, carriage) {
   const R = validateRig(expandPlan(plan).rig), C = FEATURE_CARRIAGE, real = Math.max(-C.most, Math.min(C.most, carriage ?? C.none));
   const riseOf = (a, b) => (Math.atan2(b[2] - a[2], -(b[1] - a[1])) * 180) / Math.PI;
@@ -473,7 +470,7 @@ function carried(plan, carriage) {
       if (!k?.armR) return;
       const run = name === 'gallop', end = run ? straight(k) : 0, k1 = end ? { ...k, tailEnd: end } : k;
       const e0 = rise({ ...k1, tail: 0 }), per = (rise({ ...k1, tail: 10 }) - e0) / 10;
-      const want = run ? Math.max(C.run.least, Math.min(C.run.most, real)) : real + C.keep * (e0 - real);
+      const want = run && k.support === 'none' ? C.leap : run ? Math.max(C.run.least, Math.min(C.run.most, real)) : real + C.keep * (e0 - real);
       if (Math.abs(per) > 1e-6) keys[i] = { ...k1, tail: r4((want - e0) / per) };
     });
   }
