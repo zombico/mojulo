@@ -58,4 +58,5 @@ its resource, put on a look and showed a toast. This theme makes them act.
   waited on the stats (`mechanics:stats`), and a world with no systems page (a sentence's hero, which has no powers)
   never lays them. So the sword a crawler's hero carries for its strike was never made as gear, and the run's readout
   waited on it for good. The equipment now waits on the stats only where the world has a systems page; without one it
-  is made once the hero is settled. The character book says why.
+  is made once the hero is settled. The character book says why. Seen in a composed crawler's run: its sword made as
+  `gear-sword`, every step ready, nothing left waiting.
