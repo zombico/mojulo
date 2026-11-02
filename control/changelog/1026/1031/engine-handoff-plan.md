@@ -732,3 +732,6 @@ developer would want to wire. Never claimed by a machine.
     Unity 141 s -> 8 s, Unreal 475 s -> 77 s), `--fresh` rebuilds, a game's levels share one project per engine.
   - Plan paths dropped from tracked comments, cards and docs (about 1,000); the ones left sit inside emitted strings,
     serialized kernels or exported cards. No pin moved; outside the handoff, no bytes.
+- 1102, CI on the PR: the plugin's description and README edits (phase 9) wait for the release, which raises its version
+  (check-plugin-version refuses a changed plugin at the released version); land-read.char re-pinned to the hash CI's
+  Node 22 runners agree on, the merged candidate's land read having changed the payload.

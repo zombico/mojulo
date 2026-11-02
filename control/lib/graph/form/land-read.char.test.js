@@ -16,7 +16,9 @@ const island = () => assembleStageScene({ kind: 'stage', kit: 'isekai-meadow', m
 const hash = (o) => createHash('sha256').update(JSON.stringify(o)).digest('hex');
 
 // (an emission change to the land read moves this pin; its step says so)
-const PIN = 'd6823bc9e2699706340a525be0345dcc4d61281009afef91cf2c04fa78b94834';
+// Re-pinned 2026-11-02 merging 1026-consolidated (d6823bc9… -> 3956525d…): its far land, gen-7 grass placement and the
+// trail's ground (land-read.js) change the payload; the hash CI's Node 22 runners agree on (ubuntu, macOS, 22.14.0).
+const PIN = '3956525db3c66b578360a48e6167f2a41a94e92a9cb1c546012800bca6ba916e';
 
 describe('formPayload, pinned', () => {
   it('is the same bytes painted fresh and memoized, and on every reference run', () => {
