@@ -239,3 +239,33 @@ describe('a field vehicle in its setting', () => {
     expect(JSON.stringify(compileRealistic(S, { form: true, setting: { sky: sky(0.03), wet: true } }).figure)).toBe(JSON.stringify(compileRealistic(S, { form: true }).figure));
   });
 });
+
+describe('a field vehicle on more than two axles, under a canvas', () => {
+  const MULTI = Object.keys(MILITARY_CLASSES).find((k) => militaryAxles(k).length > 2);
+  const c = compileRealistic(rollVehicleSheet({ facets: { pole: 'realistic', class: MULTI }, seed: 3 }), { form: true, wear: 'pristine' });
+  it('rolls on each axle\'s pair, its wheelbase to its rear axles\' middle, at its class\'s size', () => {
+    const axles = militaryAxles(MULTI);
+    expect(c.figure.bones.filter((b) => b.id.startsWith('wheel'))).toHaveLength(2 * axles.length);
+    expect(c.figure.bones.map((b) => b.id)).toEqual(expect.arrayContaining(['wheelFL', 'wheelRR', 'wheel3L']));
+    expect(c.figure.wheelbase).toBeCloseTo(PHYSICS[MULTI].wheelbase, 3);
+    for (const k of ['L', 'W', 'H', 'wheelRadius']) { expect(c.census.against[k], k).toBeGreaterThan(0.99); expect(c.census.against[k], k).toBeLessThan(1.01); }
+  });
+  it('its canvas sags between its bows: its roof lower in a bay than over a bow, soft, a cloth\'s slot', () => {
+    const cloth = c.form.root.filter((f) => f.material === 'canvas' && f.outNormal[2] > 0.95);
+    expect(cloth.length).toBeGreaterThan(0);
+    const zs = cloth.flatMap((f) => f.corners.map((p) => p[2]));
+    expect(Math.max(...zs)).toBeCloseTo(PHYSICS[MULTI].H, 3);
+    expect(Math.min(...zs)).toBeLessThan(PHYSICS[MULTI].H - 0.03);
+    expect(cloth.some((f) => f.cornerNormals.some((n) => Math.abs(n[1]) > 0.02))).toBe(true);
+  });
+  it('within its budget, kept and worn, in camo', () => {
+    const tris = (o) => Object.values(compileRealistic(rollVehicleSheet({ facets: { pole: 'realistic', class: MULTI }, seed: 3 }), { form: true, ...o }).form).flat().reduce((s, f) => s + f.corners.length - 2, 0);
+    expect(Object.values(c.form).flat().reduce((s, f) => s + f.corners.length - 2, 0)).toBeLessThan(35000);
+    expect(tris({ livery: CAMO_IDS.find((k) => !CAMO[k].cell) })).toBeLessThan(80000);
+  });
+  it('is driven by its registry row as a realistic ride', () => {
+    const id = rowOfHandle('physics', MULTI);
+    expect(rideableRows()).toContain(id);
+    expect(rideOf({ ride: id })).toMatchObject({ kind: 'loft', class: MULTI });
+  });
+});

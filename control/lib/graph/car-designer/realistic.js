@@ -255,20 +255,23 @@ export function compileRealistic(sheet, { keys = 12, form = false, livery, wear,
 
 /** What was drawn, against the class: bounds (length along +y, width across x, height), wheelbase and track from the
  *  wheel bones' hubs, the wheels' drawn radius. */
+// (the largest and the least of many numbers by a loop: a spread of a large mesh's corners overflows the stack)
+const most = (xs) => xs.reduce((m, x) => (x > m ? x : m), -Infinity), least = (xs) => xs.reduce((m, x) => (x < m ? x : m), Infinity);
+export { most, least };
 export function realisticCensus(c) {
   const row = VEHICLES[c.class];
   const pts = [...c.faces.root, ...c.faces.wheels.flatMap((w) => w.faces)].flatMap((f) => f.corners);
-  const span = (i) => Math.max(...pts.map((p) => p[i])) - Math.min(...pts.map((p) => p[i]));
+  const span = (i) => most(pts.map((p) => p[i])) - least(pts.map((p) => p[i]));
   const hubs = c.faces.wheels.map((w) => w.hub), ys = [...new Set(hubs.map((h) => r4(h[1])))].sort((a, b) => b - a);
   // a wheel's radius: its tyre's vertices from its hub, in the wheel's own plane (a 12-gon's circumradius)
-  const w0 = c.faces.wheels[0], wheelR = Math.max(...w0.faces.flatMap((f) => f.corners).map((p) => Math.hypot(p[1] - w0.hub[1], p[2] - w0.hub[2])));
+  const w0 = c.faces.wheels[0], wheelR = most(w0.faces.flatMap((f) => f.corners).map((p) => Math.hypot(p[1] - w0.hub[1], p[2] - w0.hub[2])));
   const ratio = (a, b) => r4(a / b);
   return {
     class: c.class,
-    L: r3(span(1)), W: r3(span(0)), H: r3(Math.max(...pts.map((p) => p[2]))),
+    L: r3(span(1)), W: r3(span(0)), H: r3(most(pts.map((p) => p[2]))),
     wheelbase: r3(ys[0] - ys[1]), track: r3(Math.max(...hubs.map((h) => h[0])) - Math.min(...hubs.map((h) => h[0]))),
     wheelRadius: r3(wheelR),
-    against: { L: ratio(span(1), row.L), W: ratio(span(0), row.W), H: ratio(Math.max(...pts.map((p) => p[2])), row.H + (c.spec.lift || 0)), wheelbase: ratio(ys[0] - ys[1], row.wheelbase), wheelRadius: ratio(wheelR, c.spec.r) },
+    against: { L: ratio(span(1), row.L), W: ratio(span(0), row.W), H: ratio(most(pts.map((p) => p[2])), row.H + (c.spec.lift || 0)), wheelbase: ratio(ys[0] - ys[1], row.wheelbase), wheelRadius: ratio(wheelR, c.spec.r) },
     heavy: HEAVY.includes(c.class),
   };
 }

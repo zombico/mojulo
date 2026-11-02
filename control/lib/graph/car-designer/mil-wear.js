@@ -21,7 +21,8 @@
  *
  *   readWear(wear)                                   → { level, …the level's numbers, soil? } or throws
  *   soilFor(livery)                                  → the soil a livery's camo reads
- *   weather(faces, W, { hubs, r, zones, seed, soil }) → the body's faces worn
+ *   weather(faces, W, { hubs, r, zones, seed, soil, scale? }) → the body's faces worn (its heights by `scale`, the
+ *                                                    vehicle's wheel against a light 4x4's)
  *   weatherWheel(faces, W, { soil })                 → a wheel's faces worn (its tyre and rim)
  *   wetMaterials(materials), wetFaces(faces)         → in the rain: the slots glossier, the porous ones soaked darker
  *   groundOf(soil)                                   → the colour its ground bounces up, for the light (form-light.js)
@@ -75,8 +76,9 @@ const UNTOUCHED = Object.freeze(['glass', 'lamp', 'tail', 'marker', 'sign']);
 const MUDDABLE = Object.freeze(['milPaint', 'steel', 'primer', 'carbon']);
 
 /** The body's faces worn: mud and chips cut in, then dust, fade and grounding laid per corner. */
-export function weather(faces, W, { hubs = [], r = 0.4, zones = {}, seed = 1, soil = 'mud' } = {}) {
-  const S = SOILS[W.soil ?? soil], s = (seed * 7907 + 3) | 0;
+export function weather(faces, W, { hubs = [], r = 0.4, zones = {}, seed = 1, soil = 'mud', scale = 1 } = {}) {
+  // (its heights by the vehicle's size: a truck's mud climbs as far up its wheels as a 4x4's does up its own)
+  const S = SOILS[W.soil ?? soil], s = (seed * 7907 + 3) | 0, mudTop = W.mudTop * scale, top = W.top * scale;
   const nz = (p, k, f) => noise3([p[0] / k, p[1] / k, p[2] / k], s + f);
   // ── caked mud: low on the body and in a ring round each arch, where the tyres throw it
   let out = faces;
@@ -89,12 +91,12 @@ export function weather(faces, W, { hubs = [], r = 0.4, zones = {}, seed = 1, so
     const near = (p) => hubs.some((h) => Math.abs(p[0] - h[0]) < 0.5 && Math.hypot(p[1] - h[1], p[2] - h[2]) < r * 1.6);
     // (the mud's line about 0.15 m under mudTop, broken up and down by the noise: a working vehicle's to its sills, a
     // battered one's halfway up its flanks)
-    const valueAt = (p) => (W.mudTop - p[2]) / 0.35 + ring(p) + 0.9 * (nz(p, 0.22, 11) - 0.5) + 0.45 * (nz(p, 0.09, 13) - 0.5);
+    const valueAt = (p) => (mudTop - p[2]) / (0.35 * scale) + ring(p) + 0.9 * (nz(p, 0.22 * scale, 11) - 0.5) + 0.45 * (nz(p, 0.09 * scale, 13) - 0.5);
     const level = 0.45;
     out = cutByField(out, {
       // (low on the body, or close round a wheel)
-      select: (f) => MUDDABLE.includes(f.material) && f.part !== 'mark' && (Math.min(...f.corners.map((p) => p[2])) < W.mudTop + 0.1 || near(centre(f.corners))),
-      valueAt, levels: [level], hMax: 0.3, hMin: 0.1, stripH: 0.13,
+      select: (f) => MUDDABLE.includes(f.material) && f.part !== 'mark' && (Math.min(...f.corners.map((p) => p[2])) < mudTop + 0.1 * scale || near(centre(f.corners))),
+      valueAt, levels: [level], hMax: 0.3 * scale, hMin: 0.1 * scale, stripH: 0.13 * scale,
       remake: (f, poly, band) => (band ? { part: f.part, material: 'mud', albedo: S.caked } : null),
     });
   }
@@ -104,7 +106,7 @@ export function weather(faces, W, { hubs = [], r = 0.4, zones = {}, seed = 1, so
     const valueAt = (p) => 0.7 * nz(p, 0.07, 21) + 0.3 * nz(p, 0.18, 23);
     // (the edges one sees, the upper body's that face up or out, and whatever is handled)
     out = cutByField(out, {
-      select: (f) => f.material === 'milPaint' && (touched(f) || (f.edge && centre(f.corners)[2] > 0.7 && f.outNormal[2] > 0.15)),
+      select: (f) => f.material === 'milPaint' && (touched(f) || (f.edge && centre(f.corners)[2] > 0.7 * scale && f.outNormal[2] > 0.15)),
       valueAt, levels: [0.8 - 0.1 * W.chips], hMax: 0.09, hMin: 0.035, stripH: 0.06,
       remake: (f, poly, band) => (band ? { part: f.part, material: 'worn', albedo: '#6f6d66' } : null),
     });
@@ -113,7 +115,7 @@ export function weather(faces, W, { hubs = [], r = 0.4, zones = {}, seed = 1, so
   const dust = rgb(S.dust), tub = zones.tub ?? null, floor = zones.floor ?? 0.6;
   const occlusion = (p, n) => {
     let o = 0;
-    if (p[2] < floor) o += 0.3 * clamp((floor - p[2]) / 0.35);
+    if (p[2] < floor) o += 0.3 * clamp((floor - p[2]) / (0.35 * scale));
     if (n[2] < -0.4) o += 0.22;
     for (const h of hubs) {
       if (Math.abs(p[0] - h[0]) > 0.5) continue;
@@ -131,7 +133,7 @@ export function weather(faces, W, { hubs = [], r = 0.4, zones = {}, seed = 1, so
       let c = base;
       if (W.fade > 0 && n[2] > 0.4 && f.material === 'milPaint') { const l = (c[0] * 0.2126 + c[1] * 0.7152 + c[2] * 0.0722) * 1.12 + 10; c = mix(c, [l, l, l], W.fade * n[2]); }
       if (W.dust > 0 && f.material !== 'mud') {
-        const rise = W.dust * Math.pow(clamp((W.top - p[2]) / (W.top - 0.3)), 0.8) * (0.55 + 0.9 * nz(p, 0.35, 31));
+        const rise = W.dust * Math.pow(clamp((top - p[2]) / (top - 0.3 * scale)), 0.8) * (0.55 + 0.9 * nz(p, 0.35, 31));
         const settle = W.up * Math.max(0, n[2]) * (0.45 + nz(p, 0.5, 37));
         c = mix(c, dust, Math.min(0.85, (rise + settle) * (f.material === 'worn' ? 0.5 : 1)));
       }

@@ -29,7 +29,6 @@ const FROM_CLASS = Object.freeze(['silhouette', 'stance', 'cockpit', 'engine', '
  *  their bodies (car-designer/road-military.js). */
 export const UNBUILT = Object.freeze({
   dirtBike: 'a two-wheeler: its rider sits astride, a pose family not built yet',
-  cargo6x6: 'the military cargo truck: its body (a cab, a bed, a canvas tilt over bows) is not built yet',
   apc8x8: 'the armoured personnel carrier: its plate hull is not built yet',
 });
 

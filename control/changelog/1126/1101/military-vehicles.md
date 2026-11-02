@@ -142,6 +142,41 @@ render, from a kit of those solids, at their classes' true numbers.
   - **The shadow's stripes:** the page's shadow lights now carry a normal bias for a physical body
     (`channels/controllable/index.js`). A flat plate turned from the sun wore its own shadow's stripes, the shadow map's
     depth steps laid on it; that is gone for every realistic vehicle.
+- **The canvas truck** (`road-military.js` `cargo`; the six-wheeled class's realistic body, no longer waiting): the hull
+  kit's second body, built on what the first taught.
+  - **Underneath:** a ladder frame on three axles (the front under the bonnet, a tandem behind), each on stacked leaf
+    springs, with its differentials.
+  - **The front:**
+    - a heavy bumper with a winch behind it, its cable wound and its fairlead in the bumper;
+    - a long bonnet, louvred at its sides, its grille behind a tube guard;
+    - flat fenders with round lamps on their noses, in wire guards, beside blackout markers.
+  - **The cab:**
+    - a steel box on the frame: its doors' shut lines, framed glass and the screen's two panes in rubber;
+    - the wipers parked, the door handles and hinges, a round roof hatch, a small rear window;
+    - an exhaust stack up its back corner, sooted, under its shield.
+  - **The bed and the tilt:**
+    - plank drop sides between stakes, a headboard and a chained tailgate, the floor on its bearers, the rear fenders
+      over the tandem;
+    - five bows, and the canvas tilt over them: its section a rounded box, sagging between the bows (the roof down, the
+      sides in), smoothed as a cloth, roped and tied along its foot, its rear flap rolled and strapped.
+  - **Its kit** (new card: `stowageBox`, a box hung on brackets, its lid latched):
+    - the spare behind the cab and two cans on the bed's front corner;
+    - a saddle tank and a stowage box on the rails;
+    - the tools on the bed's side, and the whip on the cab;
+    - grab bars and steps at the doors, mud flaps behind each axle group;
+    - the D-rings, the pintle, and mirrors on both posts.
+  - **Composed with the rest:**
+    - the field's wheel on six bones;
+    - its livery, with the camo's blotches as much bigger than the 4x4's as its wheels are, unless the operator names
+      their size (`paintLivery`'s `size`);
+    - its wear, its heights by the same size (`weather`'s `scale`: a truck's mud climbs as far up its wheels);
+    - its setting's light;
+    - its stencils on the doors, the bumper, the bonnet and the tailgate.
+  - **The registry:** its realistic build is live, and `ride: 'a canvas truck'` drives it.
+  - **The figure's wheelbase** runs to its rear axles' middle (the jeep's unchanged).
+  - **The budget:** about 30k triangles kept, 60k used, 72k in woodland, six lugged wheels included.
+  - **Robustness:** the census and the figure's height take their extremes by a loop (`realistic.js` `most`,
+    `least`), the spread of a large mesh's corners having overflowed the stack. The output is the same.
 - **Composed:**
   - The quick race's card says a ride takes a registry vehicle (`'a jeep'`), its wording trimmed to keep the card
     under its ceiling now that the physics classes it lists have grown.
@@ -184,7 +219,9 @@ render, from a kit of those solids, at their classes' true numbers.
     - the wear a working vehicle's by default, a brief's word and the operator's over it, and refused on a road car;
     - in its setting: lit by its world's sky (full and warm by day, dim and cool at night, along the sun when it is up,
       noon with no world), its ground the soil's, wet in the rain (glossier, the mud darker, its size unchanged);
-    - a road car keeps its noon.
+    - a road car keeps its noon;
+    - a body on more than two axles: each axle's pair, its wheelbase to its rear axles' middle, at its class's size;
+      its canvas sagging between its bows; within its budget; driven by its row.
   - The form render in the page: each shadow light biased along the body's normals.
   - The quick game end to end: a night kit's jeep lit dimmer than the day valley's, under its world's own sky.
   - The form render in the page (`form-render.live.test.js`, e2e): the 4x4's shaders compile, it is drawn and lit, and
@@ -207,9 +244,12 @@ render, from a kit of those solids, at their classes' true numbers.
     - a golden low sun, warm and raking, with long shadows;
     - an overcast rain, darker and glossy, the sky in its wet paint;
     - the alien night, a dim purple moonlight.
+  - The canvas truck plain, from the three-quarter, the rear quarter and the side (the sag's wave along its roof), in
+    woodland worn, and in desert under a golden sun.
 - **Not built yet, said:**
   - Streaks under the fittings (rain and rust runs).
   - A race mood (`golden`, `dusk`…) named on a field vehicle's loft: its light is its world's sky, read.
   - Lamps lit at night: the head and blackout lamps are emissive slots as always, not yet switched by the hour.
-  - The canvas truck and the APC's bodies.
+  - The APC's body.
+  - A camo on the canvas: the tilt is plain canvas, as most are.
   - Composition: the military game's faction painting them, the base's yards, the engines.

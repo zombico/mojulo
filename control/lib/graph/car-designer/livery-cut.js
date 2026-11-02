@@ -18,7 +18,8 @@
  *                                                or throws naming what it takes; absent → null
  *   camoForSetting({ kit?, biome?, words? })   → the camo a setting reads (a jungle's tiger, a desert's sand), or null
  *   liveryBase(L)                              → the base colour (its first band)
- *   paintLivery(faces, L, { base, seed })      → the faces in `base` paint cut and coloured; every other face as it was
+ *   paintLivery(faces, L, { base, seed, size? }) → the faces in `base` paint cut and coloured (the pattern's own scale
+ *                                                times `size`, the vehicle's against a light 4x4's); every other face as it was
  *   stencilMarks(anchors, L, { seed, emblemAt?, numberAt? }) → the marks' faces on the body's mark anchors
  *
  * Pure and deterministic: the field is hashed integer noise (Math.imul), interpolated in plain arithmetic.
@@ -73,7 +74,8 @@ export function readLivery(livery) {
     if (emblem !== false && !EMBLEMS.includes(emblem)) throw fail(`a mark's emblem is one of ${EMBLEMS.join(', ')}, or false`);
     marks = { number, emblem };
   }
-  return { pattern, colours, scale, angle, ...(L.seed !== undefined ? { seed: L.seed } : {}), marks };
+  // (a scale the operator names is kept; the pattern's own grows with the vehicle it is sprayed on: paintLivery's size)
+  return { pattern, colours, scale, angle, ...(L.seed !== undefined ? { seed: L.seed } : {}), marks, ownScale: L.scale !== undefined };
 }
 
 export const liveryBase = (L) => L.colours[0];
@@ -235,8 +237,10 @@ export function cutByField(faces, { select, valueAt, levels, hMax, hMin = hMax *
 export const noise3 = (p, seed) => valueNoise(p[0], p[1], p[2], seed | 0);
 
 /** The faces in `base` paint cut into the livery's bands and coloured; every other face as it was. */
-export function paintLivery(faces, L, { base, seed = 1 } = {}) {
-  if (!L) return faces;
+export function paintLivery(faces, livery, { base, seed = 1, size = 1 } = {}) {
+  if (!livery) return faces;
+  // (a truck's blotches as much bigger than a 4x4's as its wheels are, unless the operator named their size)
+  const L = livery.ownScale || size === 1 ? livery : { ...livery, scale: livery.scale * size };
   const painted = (f) => f.material === 'milPaint' && String(f.albedo).toLowerCase() === String(base).toLowerCase();
   if (L.pattern === 'mono') return faces.map((f) => (painted(f) ? { ...f, albedo: L.colours[0] } : f));
   const P = CAMO[L.pattern], field = fieldOf(L, L.seed ?? seed);
