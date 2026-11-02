@@ -115,3 +115,33 @@ rather than over it (the fauna horse's rows stay byte-identical). Solo; the sadd
 - **The eyes gate's contact sheets**: `node scripts/mount-study.mjs <dir> [--register stylized] [--view front]
   [--shots] [--jump] [--idle] [--body [--cells 96] [--coat bay] [--views side,front] [--big] [--crop head]] [--correctives] [--before] [--png]`, to
   lay beside Muybridge's plates; `--body` draws the shaded body from every view, in every coat, skinned in poses, with its mane and tail.
+- **Getting on and off** (`mount/rider.js` `mountKeys`, `mountPose`): from the near side as riders do it. The rider
+  faces the horse at its shoulder, puts the left foot in the let-down iron, the left hand at the withers and the right
+  on the pommel, springs up to stand in that iron, swings the right leg over the croup as the body turns to face
+  forward, and settles into the halt's riding pose exactly, the reins taken up. The dismount runs the other way: both
+  feet out, leaning on the withers, the leg over the croup, sliding down the near side to land facing the horse. Each is
+  a keyframed path of the character's targets, scaled to the character and to this horse and solved on its own rig.
+  The ridden export carries them as `mount` and `dismount`, with the horse standing and its carriage taken up or let
+  go; the live viewer lists them.
+- **Horses in games** (a controllable world's `mounts`, or a `design_game` world's for every walking level: `mounts: 2`
+  or `[{ coat?, at?, heading? }]`; card `gameworld-mounts`): horses the hero gets on and rides.
+  - With interact in reach (the prompt says "ride"), the hero walks to the near side and gets on, and the horse becomes
+    the pilot, followed by the camera.
+  - W urges it up through walk, trot, canter and gallop. Its legs keep time with the ground, each gait's stride a cycle,
+    and a hysteresis keeps a speed between two gaits from flickering.
+  - Letting go halts it; S checks it and, halted, reins it back. A/D turn it, wider at speed and on the forehand at a
+    halt.
+  - Space jumps at a trot or faster, playing the jump's own take-off, flight and landing; a low wall is cleared in the
+    air.
+  - Interact at a walk or a halt ("get off") sets the rider down beside it, the pilot again.
+  - The rider plays the horse's clip of the same name at the same phase. Its riding clips are solved on its own rig to
+    this horse's saddle, irons and bit when the world is resolved (`mount/game.js`, once per hero and kept), so any hero
+    rides.
+  - The runtime is an opt-in builder (`worlds/controllable/mount.js`: the `ride` rule and the getting on and off), with
+    the reach prompt in `scene/channels/mount-ride.js`. A page without a horse keeps every byte.
+  - The bus hears `mounting`, `mounted` and `dismounted`.
+- **The skinned rig on the World page**: a figure with `skin` binds one skinned mesh to its bones instead of a rigid mesh
+  per bone. The horse is one welded skin and would tear at every joint otherwise. Its colours are lit at the pack; a
+  figure without `skin` is drawn as before, byte for byte.
+- **Engines**: the Godot and Roblox ledgers mark `ride` and `mounted` as the page's. An exported level stands its horses
+  where they were placed and leaves the hero on foot. The horse and its rider as assets are the ridden GLB's.

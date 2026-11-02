@@ -36,6 +36,8 @@ export const RULE_MARKS = Object.freeze({
   clock: m(P, 'a figure-frames body\'s self-playing loop (a glyph, a turntable): the body stands, its frames do not play'),
   mover: m(A, 'movers do not travel (skipped_movers): a moving platform or lift stands at rest'),
   launcher: m(A, 'no launcher: a catapult stands still'),
+  ride: m(A, 'a horse got on and ridden (worlds/controllable/mount.js: its gaits by speed, the turn, the jump) is the page\'s: the kernel stands it where it was placed'),
+  mounted: m(A, 'the rider carried on its horse (worlds/controllable/mount.js) is the page\'s: the kernel leaves the pilot on foot'),
   drive: m(B, 'kernel/rules.gd: the web drive rule (its power curve, brakes, steer, the ground followed down, walls, flight off a lip with `air`); the surface grip under it is the web\'s (PAGE_MARKS.driveSurface)'),
   racer: m(B, 'kernel/rules.gd: the rivals drive their lines as the web\'s (score.drivers), braking into bends, counting laps, backing off when held up'),
   fly: m(B, 'kernel/rules.gd: fixed-wing flight (taxi, takeoff, banked turns, stall, touchdown) and its dials since 0.27.0 (a glider, the throttle lever, space, the boost, the barrel roll, the assist, the map\'s bound)'),

@@ -110,7 +110,7 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 const META = ${JSON.stringify(meta).replace(/</g, '\\u003c')};
-const FAMILIES = [['Gaits', /^(walk|trot|canter|gallop|reinBack)$/], ['Transitions', /^[a-zA-Z]+-[a-zA-Z]+$/], ['The jump', /^jump$/], ['At rest', /^(idle|graze|idle-.*)$/]];
+const FAMILIES = [['Gaits', /^(walk|trot|canter|gallop|reinBack)$/], ['Transitions', /^[a-zA-Z]+-[a-zA-Z]+$/], ['The jump', /^jump$/], ['At rest', /^(idle|graze|idle-.*)$/], ['Getting on and off', /^(mount|dismount)$/]];
 const NAMES = { reinBack: 'rein-back', 'stand-walk': 'stand \\u2192 walk', 'walk-stand': 'walk \\u2192 halt', graze: 'grazing', idle: 'idle' };
 const nice = (n) => NAMES[n] ?? n.replace(/^idle-/, 'idle: ').replace(/-/g, ' \\u2192 ');
 const stage = document.getElementById('stage'), status = document.getElementById('status');

@@ -27,6 +27,8 @@ export const IRON_DROP = 0.055 + 0.06 * 0.85;
 
 /** a world point carried from the stand into a pose by a bone (rest and pose frames: skin.js boneFrames) */
 const carry = (rest, pose, bone, p) => { const r = rest[bone], q = pose[bone], d = sub(p, r.h), l = [dot(d, r.R[0]), dot(d, r.R[1]), dot(d, r.R[2])]; return add(add(add(mul(q.R[0], l[0]), mul(q.R[1], l[1])), mul(q.R[2], l[2])), q.h); };
+/** a point at the stand carried by a bone into a pose (rest and pose: skin.js boneFrames) */
+export const carryPoint = (rest, pose, bone, p) => carry(rest, pose, bone, p);
 const carryDir = (rest, pose, bone, v) => { const r = rest[bone], q = pose[bone], l = [dot(v, r.R[0]), dot(v, r.R[1]), dot(v, r.R[2])]; return add(add(mul(q.R[0], l[0]), mul(q.R[1], l[1])), mul(q.R[2], l[2])); };
 
 /** where the rider meets the horse in a pose: the seat (on the saddle's bone), its axes, the bars, the bits, the crest */
@@ -207,10 +209,12 @@ export function reinRig(restBits, restFists, length, { n = 4, width = 0.018, thi
   }
   return {
     joints, mesh: { vertices, quads, colors, skin },
-    keys: (bits, fists) => ['R', 'L'].flatMap((S) => {
-      const pts = reinCurve(bits[S], fists[S], length, n);
-      return Array.from({ length: n }, (_, j) => ({ R: between(unit(sub(rest[S][j + 1], rest[S][j])), unit(sub(pts[j + 1], pts[j]))), h: pts[j] }));
-    }),
+    keys: (bits, fists) => along(Object.fromEntries(['R', 'L'].map((S) => [S, reinCurve(bits[S], fists[S], length, n)]))),
+    // (laid along any line instead: each side's n + 1 points, a loose rein resting on the neck)
+    along: (P) => along(P),
   };
+  function along(P) {
+    return ['R', 'L'].flatMap((S) => Array.from({ length: n }, (_, j) => ({ R: between(unit(sub(rest[S][j + 1], rest[S][j])), unit(sub(P[S][j + 1], P[S][j]))), h: P[S][j] })));
+  }
 }
 void mv; void mm;

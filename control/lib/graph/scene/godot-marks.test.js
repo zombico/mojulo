@@ -13,7 +13,7 @@ import { mechanicMarks, MECHANIC_SAMPLES, carriedMechanics, carriedRules, assess
 import { BUS_ABI, BUS_VERBS, CAST_OPS, VERB_ROW, ctrlRow, busCoverage } from './bus-abi.js';
 import { extractEngineScore, engineReading } from './engine-score.js';
 import { corpus } from './bus-conformance.js';
-import { composeControllable, EMISSION_ENGINE } from '../worlds/controllable/compose.js';
+import { composeControllable, EMISSION_ENGINE, EMISSION_OPT_IN } from '../worlds/controllable/compose.js';
 import { MECHANIC_KINDS } from '../game/mechanics.js';
 import { STAT_OPS } from '../playscape/stats/kernel.js';
 import { capabilityRegistry } from '../cosmos/registry.js';
@@ -54,7 +54,8 @@ describe('every thing a world can ask of an engine carries a Godot mark', () => 
   });
 
   it('every controllable rule (compose.js RULES), and every camera the cosmos names', () => {
-    const rules = Object.keys(composeControllable(EMISSION_ENGINE).RULES);
+    // (the opt-in builders' rules too: a page that asks for one runs it)
+    const rules = Object.keys(composeControllable([...EMISSION_ENGINE, ...Object.values(EMISSION_OPT_IN)]).RULES);
     expect(rules.filter((k) => !marked(RULE_MARKS[k]))).toEqual([]);
     expect(Object.keys(RULE_MARKS).filter((k) => !rules.includes(k))).toEqual([]);
     for (const [cam, rule] of Object.entries(CAMERA_RULE)) expect(marked(RULE_MARKS[rule]), cam).toBe(true);

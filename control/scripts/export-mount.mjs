@@ -28,7 +28,7 @@ registerHook('./mcp-stdio-loader.mjs', import.meta.url);           // (a charact
 import { resolveMount } from '../lib/graph/mount/build.js';
 import { bodyMesh } from '../lib/graph/mount/body.js';
 import { skinContext, correctiveKeys, correctiveCorpus, fitCorrectives } from '../lib/graph/mount/correctives.js';
-import { mountClips, mountGlb, mountPack, MOUNT_CLIPS } from '../lib/graph/mount/export.js';
+import { mountClips, mountGlb, mountPack, MOUNT_CLIPS, RIDE_CLIPS } from '../lib/graph/mount/export.js';
 import { boneFrames } from '../lib/graph/mount/skin.js';
 import { standPose } from '../lib/graph/mount/gait.js';
 import { bodyField } from '../lib/graph/mount/body.js';
@@ -42,7 +42,8 @@ const opt = (k, d) => { const i = args.indexOf(`--${k}`); return i >= 0 ? args.s
 const register = opt('register', 'realistic'), cells = Number(opt('cells', 64)), coat = opt('coat', 'bay'), lit = flag('lit'), bare = flag('no-correctives');
 const riderSpec = opt('rider', null), ride = flag('ride') || !!riderSpec, tack = flag('tack') || ride;
 const cacheDir = opt('cache', os.tmpdir());
-const names = opt('clips', null)?.split(',') ?? MOUNT_CLIPS;
+// (ridden, the getting on and off too: mount.js's clips a game plays at the horse's near side)
+const names = opt('clips', null)?.split(',') ?? (ride ? [...MOUNT_CLIPS, ...RIDE_CLIPS] : MOUNT_CLIPS);
 const out = args[0] || '.';
 mkdirSync(out, { recursive: true });
 
@@ -173,6 +174,11 @@ lift, the carriage's share). To put an engine's own character on the horse, solv
 ${riderSpec ? `
 This file also carries a rider: the figure \`rider\`, solved to the same targets, with clips of the same names as the
 horse's. Play \`rider:trot\` together with \`mount:trot\`. The reins run on chains from the bit to its fists.` : ''}
+
+Getting on and off: \`mount:mount\` and \`mount:dismount\` stand the horse while its carriage is taken up or let go.${riderSpec ? `
+\`rider:mount\` starts standing on the ground at the near (left) shoulder, facing the horse, and ends in the halt's
+riding pose; \`rider:dismount\` runs the other way. Place the character's root at the horse's root and play the pair
+together, then hand over to the riding clips.` : ''}
 
 ` : ''}## Engines
 

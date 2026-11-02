@@ -4,7 +4,7 @@
  * link appears here the moment the source gains it, and every engine's marks module must then mark it.
  *
  *   pageInputs()        scene-three.js emitThreeWorld's parameters (a resolved payload spreads into it)
- *   controllableRules() worlds/controllable compose.js RULES
+ *   controllableRules() worlds/controllable compose.js RULES (the engine's and the opt-in builders')
  *   platformRuleKeys()  every `r.<key>` the platform rule's modules read (rules-platform, maneuvers, combat-melee)
  *   walkRuleKeys()      every `r.<key>` the walk rule reads (rules-basic.js walk)
  *   ledgerKeys()        every ledger row engine-score.js writes
@@ -15,7 +15,7 @@
  */
 import fs from 'node:fs';
 import path from 'node:path';
-import { composeControllable, EMISSION_ENGINE } from '../../worlds/controllable/compose.js';
+import { composeControllable, EMISSION_ENGINE, EMISSION_OPT_IN } from '../../worlds/controllable/compose.js';
 import { BUS_ABI } from '../bus-abi.js';
 import { SYSTEM_KINDS } from '../../gameworld/actions.js';
 import { LINK_KINDS } from '../../era/floormap.js';
@@ -29,7 +29,8 @@ export function pageInputs() {
   return [...sig[1].matchAll(/(?:^|,)\s*([A-Za-z_$][\w$]*)\s*=/g)].map((x) => x[1]);
 }
 
-export const controllableRules = () => Object.keys(composeControllable(EMISSION_ENGINE).RULES);
+// (the opt-in builders' rules too: a page that asks for one runs it, so every engine says what it makes of it)
+export const controllableRules = () => Object.keys(composeControllable([...EMISSION_ENGINE, ...Object.values(EMISSION_OPT_IN)]).RULES);
 
 export function platformRuleKeys() {
   const keys = new Set(['type']);

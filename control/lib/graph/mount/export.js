@@ -44,6 +44,8 @@ import { hairCards } from './hair.js';
 import { hairRig, bakeHairClip, hairJointKeys } from './hair-bake.js';
 import { tackPieces, tackSkin } from './tack.js';
 import { riderModeAt, carriageOf, riddenFrame } from './ridden.js';
+/** the getting-on and -off clips' seconds (rider.js MOUNTING holds the same) */
+const MOUNT_SECONDS = Object.freeze({ mount: 3.4, dismount: 2.8 });
 
 const r5 = (x) => Math.round(x * 1e5) / 1e5;
 const b64f32 = (a) => Buffer.from(Float32Array.from(a).buffer).toString('base64');
@@ -58,6 +60,8 @@ export const MOUNT_CLIPS = Object.freeze([
   'stand-walk', 'walk-trot', 'trot-canter', 'canter-gallop', 'gallop-canter', 'canter-trot', 'trot-walk', 'walk-stand',
   'jump', 'idle', ...Object.keys(IDLE_LAYERS).map((n) => `idle-${n}`), 'graze',
 ]);
+/** the clips a ridden horse adds: a rider getting on and off (the horse standing for it) */
+export const RIDE_CLIPS = Object.freeze(['mount', 'dismount']);
 
 /** each clip as a sampler of solved poses: `at(t)` the pose at t seconds, `s` its seconds, `once` a one-shot, `v` its
  * speed; a one-shot's `before(t)` (t < 0) the pose it is entered from (its entry gait running in: the hair's warm-up);
@@ -81,19 +85,26 @@ export function mountClips(B, { names = MOUNT_CLIPS, seed = 3, ridden = false } 
     } else if (/^idle-/.test(name)) {
       const c = idleLayer(B, name.slice(5), { seed });
       out[name] = { at: (t) => c.poseAt(t), s: c.duration, once: false };
+    } else if (name === 'mount' || name === 'dismount') {
+      // the horse standing while a rider gets on or off (its ridden carriage coming up as the reins are taken, let go as
+      // the rider leaves; the rider's side is rider.js mountPose)
+      const st = standPose(B), on = name === 'mount', s0 = on ? MOUNT_SECONDS.mount : MOUNT_SECONDS.dismount;
+      out[name] = { at: () => st, s: s0, once: true, ride: name };
     } else if (tr && !/^idle$/.test(tr[1])) {
       const c = oneShot(B, { from: tr[1], to: tr[2] }), A = c.A;
       // (before it starts: its entry gait running into its entry phase, or the stand it starts from)
       const before = A?.poseAt && A.f ? (t) => A.poseAt(((c.entry.phase + t * A.f) % 1 + 1) % 1) : () => c.poseAt(0);
       out[name] = { at: (t) => c.poseAt(t), before, s: c.duration, once: true };
-    } else throw new Error(`mount: no clip '${name}' (it knows: ${MOUNT_CLIPS.join(', ')})`);
+    } else throw new Error(`mount: no clip '${name}' (it knows: ${[...MOUNT_CLIPS, ...RIDE_CLIPS].join(', ')})`);
   }
   // RIDDEN (`ridden`): every frame in the ridden head carriage, by the share the moment's seat asks (ridden.js)
   if (ridden) {
     const turns = carriageOf(standPose(B));
     for (const [name, c] of Object.entries(out)) {
       const at = c.at, before = c.before, w0 = riderModeAt(name, c, 0).carriage;
-      out[name] = { ...c, ridden: true, at: (t) => riddenFrame(at(t), turns, riderModeAt(name, c, t).carriage), ...(before ? { before: (t) => riddenFrame(before(t), turns, w0) } : {}) };
+      // (getting on: the carriage taken up over the clip's last third; getting off: let go over its first third)
+      const wOf = c.ride === 'mount' ? (t) => Math.max(0, Math.min(1, (t / c.s - 0.66) / 0.3)) : c.ride === 'dismount' ? (t) => 1 - Math.max(0, Math.min(1, t / c.s / 0.33)) : (t) => riderModeAt(name, c, t).carriage;
+      out[name] = { ...c, ridden: true, at: (t) => riddenFrame(at(t), turns, wOf(t)), ...(before ? { before: (t) => riddenFrame(before(t), turns, w0) } : {}) };
     }
   }
   return out;
@@ -107,7 +118,7 @@ const turnOf = (r, p) => [0, 1, 2].map((a) => [0, 1, 2].map((b) => p.R[0][a] * r
  * (correctives.js fitCorrectives / correctiveKeys), or null for none (then no targets and no weights: plain LBS);
  * `clips` mountClips' samplers; `fps` the keys a second.
  */
-export function mountPack(B, { mesh, coat = 'bay', markings = {}, set = null, clips = {}, fps = 30, hair = 'baked', tack = false, extra = null } = {}) {
+export function mountPack(B, { mesh, coat = 'bay', markings = {}, set = null, clips = {}, fps = 30, hair = 'baked', tack = false, extra = null, shade = null } = {}) {
   if (hair === true) hair = 'baked';
   const stand = standPose(B), rest = boneFrames(B, stand), body = MOUNT_BONES.map((b) => b.id);
   const rig = hair ? hairRig(B) : null, ids = [...body, ...(rig ? rig.joints.map((J) => J.id) : []), ...(extra ? extra.joints.map((J) => J.id) : [])], index = new Map(ids.map((id, i) => [id, i]));
@@ -191,6 +202,11 @@ export function mountPack(B, { mesh, coat = 'bay', markings = {}, set = null, cl
       part.jnt.push(...w.map(([j]) => index.get(j))); part.wgt.push(...w.map(([, x]) => x));
     }
   });
+  // (`shade`: a page that draws its colours as they are, a light baked into them by each corner's normal, { dir, ambient })
+  if (shade) {
+    const L = shade.dir, l = Math.hypot(...L), a = shade.ambient ?? 0.5;
+    for (const p of P) for (let i = 0; i < p.col.length; i += 3) { const f = a + (1 - a) * Math.max(0, (p.nrm[i] * L[0] + p.nrm[i + 1] * L[1] + p.nrm[i + 2] * L[2]) / l); p.col[i] *= f; p.col[i + 1] *= f; p.col[i + 2] *= f; }
+  }
   const parts = P.map((p) => (p.faces ? {
     pos: b64f32(p.pos), col: b64u8(p.col), faces: p.faces, jnt: b64bytes(p.jnt), wgt: b64f32(p.wgt), nrm: b64f32(p.nrm),
     ...(p.ci.length ? { corrective: { i: b64u32(p.ci), d: b64f32(p.cd) } } : {}),
@@ -199,7 +215,7 @@ export function mountPack(B, { mesh, coat = 'bay', markings = {}, set = null, cl
   const packed = {};
   for (const [name, c] of Object.entries(clips)) {
     const K = c.once ? Math.max(2, Math.round(c.s * fps) + 1) : Math.max(2, Math.round(c.s * fps));
-    const b = [], cw = set ? [] : null, strands = rig && hair === 'baked' ? bakeHairClip(B, rig, c, K) : null;
+    const b = [], cw = set ? [] : null, strands = rig && hair === 'baked' && c.hair !== 'rigid' ? bakeHairClip(B, rig, c, K) : null;   // (a clip may keep its hair rigid: `hair: 'rigid'`)
     for (let k = 0; k < K; k++) {
       const t = c.once ? c.s * k / (K - 1) : c.s * k / K, f = boneFrames(B, c.at(t));
       for (const id of body) { const p = f[id]; b.push(...quatOfRows(turnOf(rest[id], p)).map(r5), ...p.h.map(r5)); }

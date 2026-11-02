@@ -220,19 +220,24 @@ export function tackPieces(B, { stirrups = 'up', reins = 'neck' } = {}) {
     const s = headAt(bitF, sd * 125 * DEG);
     if (s) piece(`bitRing${sd > 0 ? 'R' : 'L'}`, ring(add(s.p, mul(s.n, 0.01 * k)), [1, 0, 0], 0.033 * k, 0.005 * k, TACK_COLOURS.steel), 'rigid:head');
   }
-  // the reins: unridden, from the rings back along the neck's sides and over it at its base (a loop resting there)
-  if (reins === 'neck') {
+  // the reins: unridden, from the rings back along the neck's sides and over it at its base (a loop resting there); the
+  // two halves' lines are an anchor too (`neckReins`: each side's from its ring to the crest, a game's loose reins on it)
+  {
     // (over the crest a hand in front of the withers, the loop's bottom against the neck's sides)
-    const { crestAt, crestUp } = neckCrest(B, S), crest = add(crestAt(0.14), mul(crestUp, 0.012 * k)), pts = [], nrm = [];
+    const { crestAt, crestUp } = neckCrest(B, S), crest = add(crestAt(0.14), mul(crestUp, 0.012 * k)), pts = [], nrm = [], halves = {};
     for (const sd of [1, -1]) {
       const s = headAt(bitF, sd * 125 * DEG), a = add(s.p, mul(s.n, 0.035 * k)), side = surfaceOn(field, add(lerp(a, crest, 0.55), [sd * 0.6 * k, 0, -0.06 * k]), add(lerp(a, crest, 0.55), [0, 0, -0.06 * k]));
       const mid = side ? add(side.p, mul(side.n, 0.015 * k)) : lerp(a, crest, 0.55), top = add(crest, [sd * 0.035 * k, 0, 0]);
       // (through its mid point: a quadratic whose middle is `mid`)
       const ctl = sub(mul(mid, 2), mul(add(a, top), 0.5)), curve = Array.from({ length: 12 }, (_, i) => { const t = i / 11; return add(add(mul(a, (1 - t) ** 2), mul(ctl, 2 * t * (1 - t))), mul(top, t * t)); });
-      if (sd > 0) pts.push(...curve); else pts.push(...curve.reverse());
+      halves[sd > 0 ? 'R' : 'L'] = curve;
+      if (sd > 0) pts.push(...curve); else pts.push(...curve.slice().reverse());
     }
-    for (let i = 0; i < pts.length; i++) nrm.push(unit(sub(pts[i], [0, pts[i][1], pts[i][2] - 0.3 * k])));
-    piece('reins', ribbon(pts, nrm, { width: 0.018 * k, thick: 0.005 * k, colour: TACK_COLOURS.leather }), 'skin');
+    out.anchors.neckReins = halves;
+    if (reins === 'neck') {
+      for (let i = 0; i < pts.length; i++) nrm.push(unit(sub(pts[i], [0, pts[i][1], pts[i][2] - 0.3 * k])));
+      piece('reins', ribbon(pts, nrm, { width: 0.018 * k, thick: 0.005 * k, colour: TACK_COLOURS.leather }), 'skin');
+    }
   }
   return out;
 }

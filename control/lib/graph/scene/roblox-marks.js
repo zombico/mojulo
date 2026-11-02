@@ -27,7 +27,7 @@ const absent = (keys, how = YET) => Object.freeze(Object.fromEntries(keys.map((k
 
 // ── the controllable runtime's rules (worlds/controllable/compose.js RULES) ──────────────────────────────────────────
 export const RULE_MARKS = Object.freeze({
-  ...absent(['glide', 'overhead', 'side', 'fixed', 'shot', 'mover', 'launcher', 'drive', 'racer', 'fly', 'patrol']),
+  ...absent(['glide', 'overhead', 'side', 'fixed', 'shot', 'mover', 'launcher', 'drive', 'racer', 'fly', 'patrol', 'ride', 'mounted']),
   ai: m(B, 'kernel/mind.luau: the web mind (every motivation, perception and memory, cover, pathing in kernel/nav.luau, groups in kernel/group.luau, the blade, the roll, the charge, the loadout, the tier, a boss\'s phases), firing and swinging through kernel/combat.luau, held equal by the mind and levelcast corpora; each body a block figure (MojuloServer); the commander and the pilot\'s shove-down set piece stay the web\'s'),
   walk: m(P, HUMANOID),
   platform: m(P, `${HUMANOID}; roblox-marks.js PLATFORM_KEYS says what of the rule it takes`),

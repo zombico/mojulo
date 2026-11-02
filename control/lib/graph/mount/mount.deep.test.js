@@ -199,3 +199,40 @@ describe('a character on the mount', () => {
     }
   }, 600000);
 });
+
+// getting on and off (rider.js mountKeys / mountPose, a game's mount and dismount): from standing on the ground at the near
+// shoulder (mountStand) to the halt's riding pose exactly, and back; the near foot in the let-down iron while it springs
+// up; and the game's poses lowered by a pack's lift land where they were solved (mount/game.js lowered)
+describe('a character getting on and off', () => {
+  it('stands at the near side, ends in the riding pose, and comes down to stand again', async () => {
+    const { heroRecord, expandLayeredManifest } = await import('../../mcp/tools/layered.js');
+    const { validateRig, rigNodesAt } = await import('../polygonizer/station-loft-rig.js');
+    const { tackPieces } = await import('./tack.js'), { riderSeat, riderPose, mountPose, mountKeys, mountStand, ridingGeometry, RIDER_MODES, MOUNTING } = await import('./rider.js');
+    const { bodyField } = await import('./body.js'), { boneFrames: bf } = await import('./skin.js'), { carriageOf, riddenFrame } = await import('./ridden.js');
+    const { lowered } = await import('./game.js');
+    const recipe = expandLayeredManifest({ kind: 'layered', hero: heroRecord({ cast: 'female', form: 'realistic' }) }).recipe, H = { R: { ...validateRig(recipe.rig), reach: 'clamp' } };
+    const B = resolveMount('horse'), rest = bf(B, standPose(B)), anchors = tackPieces(B, { reins: false }).anchors;
+    const near = (q) => Math.hypot(q.c[0] - anchors.seat[0], q.c[1] - anchors.seat[1], q.c[2] - anchors.seat[2]) < 1 + (q.R ?? 0), F = bodyField(B, { only: near });
+    const cal = riderSeat(H, ridingGeometry(anchors, rest, rest), (p) => F.field(p));
+    const geo = ridingGeometry(anchors, bf(B, riddenFrame(standPose(B), carriageOf(standPose(B)))), rest), st = mountStand(geo);
+    const R = H.R, toes = (n) => ['R', 'L'].map((S) => n[R.legs[S].toeBase]), d2 = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1]);
+    for (const way of ['mount', 'dismount']) {
+      const keys = mountKeys(H, cal, geo, way), standU = way === 'mount' ? 0 : 1 - 1e-9, rideU = way === 'mount' ? 1 : 0;
+      // standing: the hub over the stand point, both toes on the ground
+      const n0 = rigNodesAt(R, mountPose(H, cal, geo, way, standU, { keys }).pose).nodes;
+      expect(d2(n0.pelvisHub, st.at)).toBeLessThan(0.03);
+      for (const t of toes(n0)) expect(Math.abs(t[2] - R.joints[R.legs.R.toeBase][2])).toBeLessThan(0.03);
+      // riding: the halt's riding pose itself
+      expect(mountPose(H, cal, geo, way, rideU, { keys }).pose).toEqual(riderPose(H, cal, geo, RIDER_MODES.sit).pose);
+    }
+    // getting on: the near foot in the let-down iron while it springs (a fifth to three fifths of the way)
+    const keys = mountKeys(H, cal, geo, 'mount'), iron = riderPose(H, cal, geo, RIDER_MODES.sit).contacts.irons.L;
+    for (const u of [0.25, 0.42, 0.55]) {
+      const n = rigNodesAt(R, mountPose(H, cal, geo, 'mount', u, { keys }).pose).nodes, t = n[R.legs.L.toeBase];
+      expect(Math.hypot(t[0] - iron[0], t[1] - iron[1], t[2] - (iron[2] - MOUNTING.letDown))).toBeLessThan(0.06);
+    }
+    // a pose lowered by a pack's lift lands, lifted, where it was solved
+    const p = riderPose(H, cal, geo, RIDER_MODES.sit).pose, a = rigNodesAt(R, p).nodes, b = rigNodesAt(R, lowered(p, 0.07)).nodes;
+    for (const j of ['pelvisHub', 'headTop', R.legs.L.toeBase, 'wristR']) for (let q = 0; q < 3; q++) expect(b[j][q] + (q === 2 ? 0.07 : 0)).toBeCloseTo(a[j][q], 5);
+  }, 600000);
+});
