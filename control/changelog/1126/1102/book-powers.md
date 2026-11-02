@@ -276,3 +276,26 @@ its resource, put on a look and showed a toast. This theme makes them act.
   entered was the one in reach, so the person in front of you never answered. Now, where usable zones overlap, the
   nearest to the walker is in reach (`interact-channel.js`). Only the overlapping zones carry their centres, and the
   nearest-pick is emitted only then, so a page with no overlapping uses is byte for byte as it was.
+- **The townsfolk dressed and standing their own way, and the shop part of the world** (a town's folk, the hub).
+  - **Garb by role:** the folk all wore the world's underlayer, one outfit repeated. Now each person's garb is cut
+    for their role, varied by their own dice within the town's culture (its cloth and its shoes,
+    `folk/garb.js`):
+    - the keeper's shirt under an open vest;
+    - the elder's long coat;
+    - the work floor's and the fields' short sleeves, shorter legs and boots;
+    - a child's short sleeves and knee-length legs;
+    - the townsfolk's sleeves, hems and legs of their own, a grown woman of the house in a long skirt as often as
+      not.
+  - **Stances:** each person holds a stand minted into their body (relaxed, a hand on the hip, a turn or a tilt of
+    the head; a child relaxed). While standing, they either hold it, breathe on the shared idle, or crouch at their
+    work (a worker, a farmhand, a child at play). The keeper and the elder hold theirs.
+  - **The underlayer on a geocube level:** folk on a cube-painted level now wear the underlayer of the cube's base
+    kit; before, they had none and kept their rolled detail.
+  - **Walk-in uses:** a street's `walk: [uses]` (`era/stage-buildings.js`, a level's `places.street.walk`) walks the
+    uses named into as part of the world, while the others entered keep their door into a scene of their own. Absent,
+    a street is as it was.
+  - **The hub's walk-in shop:** the composed hub enters its hall and its first shop (`walk: ['shop']`), their keepers
+    inside at their counters. The merchant now stands at the shop floor, not on the street. Each more building
+    walked into takes a later house's ground, so the hub enters two of six.
+  - **Interiors on a map:** a map world's ways no longer chain through a building's inside, which is joined only by
+    its door.

@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { composeGameworld } from './compose.js';
 import { readGameworld, runSteps } from './index.js';
-import { gameStages } from './levels.js';
+import { gameStages, stageEnds } from './levels.js';
 import { readGeocube, cubeStreetLook, CUBE_STREET_PAINT } from '../era/geocube.js';
 
 const S = (w) => runSteps(w, { ref: 'gw' });
@@ -12,7 +12,7 @@ describe('the hub: a town every way leads back to', () => {
     expect(w).toMatchObject({ topology: 'interconnected', hub: w.start });
     const G = readGameworld(w), others = G.ids.filter((id) => id !== G.hub);
     expect(w.links.map((l) => [l.from, l.to])).toEqual(others.map((id) => [G.hub, id]));
-    expect(w.levels[G.hub].places).toEqual({ town: true, street: true });
+    expect(w.levels[G.hub].places).toEqual({ town: true, street: { houses: 6, enter: 2, walk: ['shop'] } });
     const steps = S(w), L = steps.filter((s) => s.key.startsWith('level-'));
     const hub = L.filter((s) => s.key.startsWith(`level-${G.hub}-`)), wild = L.filter((s) => !s.key.startsWith(`level-${G.hub}-`));
     // (the town: no packs, the merchant and the inn beside where the party comes in)
@@ -41,6 +41,13 @@ describe('the hub: a town every way leads back to', () => {
     const game = steps.find((s) => s.key === 'game').order, exits = (lvl) => game.levels.find((l) => l.ref === `gw-level-${lvl}-0`).exits.map((e) => e.to);
     expect(exits(G.hub)).toEqual(others.map((id) => `gw-level-${id}-0`));
     for (const id of others) expect(exits(id)).toContain(`gw-level-${G.hub}-0`);
+    // (the shop walked into as part of the world: its keeper inside it, at its counter)
+    const E = stageEnds(gameStages(w).find((s) => s.level === G.hub).manifest), shop = E.townDoors.find((d) => d.id.includes('shop') && d.enter === 'walk');
+    const box = shop.rooms.find((r) => r.id === 'shopfloor').box, at = opens('merchant')[0].when.use.at;
+    expect(at[0] > box.min[0] && at[0] < box.max[0] && at[1] > box.min[1] && at[1] < box.max[1]).toBe(true);
+    // (and each townsperson stands their own way: their stand, the shared idle, or crouched)
+    const idles = H.entities.filter((e) => e.id.startsWith('folk-')).map((e) => (H.figures[e.id].moves?.idle === 'gesture' ? 'own' : H.figures[e.id].clips.idle));
+    expect(new Set(idles).size).toBeGreaterThan(1);
     // the centre is laid: the readout says so
     expect(w.brief.hub).toBe(G.hub);
   });

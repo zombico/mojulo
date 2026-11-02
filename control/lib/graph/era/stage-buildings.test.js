@@ -101,6 +101,13 @@ describe("a town's street", () => {
     expect(() => assembleStageScene({ ...TRAIL, town: { houses: 5, lanes: 2 } })).toThrow(/not a setting/);
     expect(() => assembleStageScene({ kind: 'stage', kit: 'trail-valley', trail: true, town: {} })).toThrow(/indexed for the outdoor kits/);
   });
+  it('walk: the uses named are walked into as part of the world; a shop entered without it changes the scene at its door', () => {
+    const doors = assembleStageScene({ ...TRAIL, town: { houses: 3, enter: 2 } }), walked = assembleStageScene({ ...TRAIL, town: { houses: 3, enter: 2, walk: ['shop'] } });
+    const shopOf = (P) => P.anchors.find((a) => (a.kind === 'building' || a.kind === 'house') && a.use === 'shop' && a.enter);
+    expect(shopOf(doors)).toMatchObject({ enter: 'door' });
+    expect(shopOf(walked)).toMatchObject({ enter: 'walk', entry: expect.any(String) });
+    expect(() => assembleStageScene({ ...TRAIL, town: { houses: 3, walk: 'shop' } })).toThrow(/town.walk/);
+  });
   it('goal: the first house walked into holds the level\'s end', () => {
     const g = assembleStageScene({ ...TRAIL, town: { houses: 3, enter: 1, goal: true } });
     expect(g.anchors.find((a) => a.kind === 'building')).toMatchObject({ isGoal: true, goal: 'dais' });

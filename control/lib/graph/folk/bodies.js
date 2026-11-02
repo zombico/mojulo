@@ -11,11 +11,13 @@
  *               dresses each person as their rolled look (a modern or a future world: egocube/plan.js KIT_ERAS)
  *     pool      how many people a pool mints as themselves (FOLK_POOL)
  *   mints     [{ key, of, tier, spec, toon?, recurring? }]   one per body to make: `of` the person it was rolled for
- *   people    [{ path, tier, body }]             every person and the mint they wear
+ *   people    [{ path, tier, body, idle? }]      every person, the mint they wear and how they stand (folk/garb.js:
+ *                                                'own' their stand held, 'library' the shared idle, 'crouch')
  *   uniforms  { <service>: key }                 the mint whose clothes a service's people wear
  *
  * THE DRESS. The CULTURE is the town's: its kit's underlayer and the ramps of its setting colour every person, so the
- * same role in two worlds dresses two ways. The ROLE is the service's: a uniform service (services.js) is worn by all
+ * same role in two worlds dresses two ways; the CUT is the person's (folk/garb.js): their role's garb (the keeper's
+ * vest, the elder's long coat, the work floor's short sleeves), varied by their own dice, and the stand they hold. The ROLE is the service's: a uniform service (services.js) is worn by all
  * its people as its first person (in lot order) wears it, each on their own face (cast-setting.js wearUniform): two
  * keepers in a town are one shop's colours, two faces. The watch carries the guard's gear for the era.
  *
@@ -30,6 +32,8 @@ import { UNDERLAYERS } from '../gameworld/hero-looks.js';
 import { wearUnderlayer, wearUniform, QUICK_FIGURES } from '../gameworld/cast-setting.js';
 import { SERVICES } from './services.js';
 import { FOLK_POOL } from './folk.js';
+import { garbOf, stanceOf } from './garb.js';
+import { baseOf } from '../era/style/looks.js';
 
 export const TIERS = Object.freeze({
   own: 'a body of their own: the people the player goes to (a service\'s first person) and the ones met in every town',
@@ -53,7 +57,8 @@ export function folkBodies(folk, { kit, setting, pool = FOLK_POOL.default } = {}
   if (!folk || !Array.isArray(folk.people)) throw new Error('folk bodies: give a folk sheet (folk.js folkOfTown)');
   if (!(Number.isInteger(pool) && pool >= 1 && pool <= FOLK_POOL.max)) throw new Error(`folk bodies: pool is a whole number from 1 to ${FOLK_POOL.max}`);
   const era = setting?.era;
-  const rail = era && KIT_ERAS.includes(era) ? null : UNDERLAYERS[kit] ?? null;
+  // (a kit a geocube painted is its look's base's: its underlayer is the base kit's)
+  const rail = era && KIT_ERAS.includes(era) ? null : UNDERLAYERS[kit] ?? UNDERLAYERS[baseOf(kit)] ?? null;
   const guard = QUICK_FIGURES.guard, gear = guard.era?.[era] ?? guard.gear;
   const pending = new Set();
   // a person's own body, dressed: the world's underlayer, the watch's gear, a uniform's clothes over its own face
@@ -62,7 +67,9 @@ export function folkBodies(folk, { kit, setting, pool = FOLK_POOL.default } = {}
     const P = planFromSheet(p.sheet);
     for (const r of P.ledger) if (r.pending && r.from.startsWith('setting.')) pending.add(`${r.channel}: ${r.pending}`);
     let spec = P.create.spec;
-    if (rail) spec = wearUnderlayer(spec, rail);
+    // (the culture's underlayer, cut for the person: their role's garb by their own dice, folk/garb.js; and the stand
+    // they hold, minted into their body)
+    if (rail) spec = { ...wearUnderlayer(spec, { ...rail, language: garbOf(p, rail) }), gesture: stanceOf(p).gesture };
     if (p.service === 'watch' && stageOf(p) === 'grown') spec = { ...spec, gear };
     if (p.uniform && SERVICES[p.uniform]?.uniform) {
       if (uniformSpec[p.uniform]) spec = wearUniform(spec, uniformSpec[p.uniform]);
@@ -70,13 +77,16 @@ export function folkBodies(folk, { kit, setting, pool = FOLK_POOL.default } = {}
     }
     return { spec, ...(P.create.toon ? { toon: P.create.toon } : {}) };
   };
+  // (how each stands while they stand: their stand held, the shared idle, or crouched; folk/garb.js. Only where the
+  // culture dresses them: a world the era dresses keeps the shared idle)
+  const idleOf = (p) => (rail ? { idle: stanceOf(p).idle } : {});
   const mints = [], people = [], pools = {};
   for (const p of folk.people) {
     const tier = tierOf(p);
     if (tier === 'own') {
       const key = mintKey(p.path);
       mints.push({ key, of: p.path, tier, ...(p.recurring ? { recurring: p.recurring } : {}), ...dress(p) });
-      people.push({ path: p.path, tier, body: key });
+      people.push({ path: p.path, tier, body: key, ...idleOf(p) });
       continue;
     }
     // (a pool for each sex too: a woman never wears a man's body for want of a woman's)
@@ -85,7 +95,7 @@ export function folkBodies(folk, { kit, setting, pool = FOLK_POOL.default } = {}
       const key = mintKey(p.path), d = dress(p);
       mints.push({ key, of: p.path, tier, ...d });
       P.mints.push({ key, age: ageOf(p), skin: skinOf(d.spec) });
-      people.push({ path: p.path, tier, body: key });
+      people.push({ path: p.path, tier, body: key, ...idleOf(p) });
       continue;
     }
     // past the pool: the mint nearest the person (their age, then their skin's lightness), the nearest few taken in
@@ -94,7 +104,7 @@ export function folkBodies(folk, { kit, setting, pool = FOLK_POOL.default } = {}
     const far = (m) => Math.abs(m.age - me.age) * AGE_STEP + Math.abs(m.skin - me.skin);
     const ranked = [...P.mints].sort((a, b) => far(a) - far(b)), best = far(ranked[0]);
     const near = ranked.filter((m) => far(m) <= best + NEAR), k = near.map((m) => m.key).join();
-    people.push({ path: p.path, tier, body: near[(P.worn[k] = (P.worn[k] ?? -1) + 1) % near.length].key });
+    people.push({ path: p.path, tier, body: near[(P.worn[k] = (P.worn[k] ?? -1) + 1) % near.length].key, ...idleOf(p) });
   }
   return { kit: kit ?? null, pool, mints, people, uniforms, pending: [...pending] };
 }

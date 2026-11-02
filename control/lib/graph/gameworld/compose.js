@@ -370,7 +370,9 @@ export function composeGameworld({ prompt, name, id, levels, seed = 1 } = {}) {
   const goals = Object.keys(goal).length ? goal : null;
   const decided = [];
   // a genre whose world is returned to (its cube's space.topology hub: a party RPG, a top-down adventure) is laid round a
-  // centre: the first level is the town (its street on the ground), every other level joined to it both ways (a map
+  // centre: the first level is the town (its street on the ground: its hall and its first shop walked into as part of
+  // the world, their keepers inside at their counters; each more one walked into takes a later house's ground), every other level joined to it both
+  // ways (a map
   // world, world.js hub), each
   // a stretch of the wilds; a building, a form or a single level is laid as before
   const hubbed = !!genre && !form && !indoors && n >= 2 && cubeOfWorld({ intent: { from: genre.id } }).cube.space?.topology === 'hub';
@@ -384,7 +386,7 @@ export function composeGameworld({ prompt, name, id, levels, seed = 1 } = {}) {
     const inside = indoors && i >= indoors.from && camera !== 'side';
     const nodes = { [`${SUFFIX[i] ?? 'stage'}-a`]: { trail: true }, [`${SUFFIX[i] ?? 'stage'}-b`]: { trail: true }, ...(climb ? { lookout: { meru: true } } : {}) };
     // (a genre's book form, genre-forms.js: its levels laid in it, a flight sim's courses; no town, no walk goal)
-    const L = hubbed && i === 0 ? { name: `${cap(landscape)} town`, walk: { nodes: { square: { trail: true } } }, places: { town: true, street: true } }
+    const L = hubbed && i === 0 ? { name: `${cap(landscape)} town`, walk: { nodes: { square: { trail: true } } }, places: { town: true, street: { houses: 6, enter: 2, walk: ['shop'] } } }
       : form ? { name: `${form.name} ${i + 1}`, ...form.level(i, n) }
       : inside ? { name: `${cap(indoors.use)} ${SUFFIX[i] ?? `stage ${i + 1}`}`, building: { use: indoors.use, kit: indoors.kit }, ...lgoal }
       : { name: `${cap(landscape)} ${SUFFIX[i] ?? `stage ${i + 1}`}`, walk: { nodes }, ...lgoal };

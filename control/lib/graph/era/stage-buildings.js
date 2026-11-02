@@ -207,16 +207,18 @@ export function streetLots(town, kitId, seed0, solid = false) {
 }
 function townStreet(town, kitId, seed0, solid = false) {
   if (!town || typeof town !== 'object') throw new Error('stage: town is { anchor?, seed?, houses?, enter?, goal?, recipe?, paint?, street? }');
-  for (const k of Object.keys(town)) if (!['anchor', 'seed', 'houses', 'enter', 'goal', 'doors', 'recipe', 'paint', 'dress', 'street'].includes(k)) throw new Error(`stage: town.${k} is not a setting (anchor, seed, houses, enter, goal, doors, recipe, paint, dress, street)`);
+  for (const k of Object.keys(town)) if (!['anchor', 'seed', 'houses', 'enter', 'goal', 'doors', 'walk', 'recipe', 'paint', 'dress', 'street'].includes(k)) throw new Error(`stage: town.${k} is not a setting (anchor, seed, houses, enter, goal, doors, walk, recipe, paint, dress, street)`);
+  if (town.walk !== undefined && !(Array.isArray(town.walk) && town.walk.every((u) => typeof u === 'string'))) throw new Error('stage: town.walk is the uses walked into as part of the world (a shop: [\'shop\']), the rest of those entered changing the scene at their door');
   if (town.street !== undefined && typeof town.street !== 'boolean') throw new Error('stage: town.street is true (the trail through the town laid as its language\'s street) or false');
   if (town.paint !== undefined && (typeof town.paint !== 'object' || town.paint === null || Array.isArray(town.paint) || !Object.values(town.paint).every((n) => typeof n === 'string'))) throw new Error('stage: town.paint is { <surface group>: <one of the kit\'s ramps> }: the street\'s houses re-pointed');
   const { seed, enter, lots } = streetLots(town, kitId, seed0, solid);
   // (a language written as its elements is spoken by the houses too; a seeded one, { seed }, only by the street)
   const anchor = typeof town.anchor === 'string' || town.anchor?.elements || town.anchor?.pieces ? town.anchor : STRUCTURE_RAILS[kitId]?.anchor ?? 'timber-hall';
   // how each is entered: a household or a counter changes the scene at its door; a hall, a tower, a barn, a work floor
-  // is walked into as terrain (the recipe's `doors: false` walks into all of them)
+  // is walked into as terrain (the recipe's `doors: false` walks into all of them; `walk` names the uses that are, a
+  // single room's shop part of the world while a house keeps its door)
   return lots.map(({ l }, n) => (n < enter
-    ? (town.doors !== false && DOOR_USES.has(l.use)
+    ? (town.doors !== false && DOOR_USES.has(l.use) && !(town.walk ?? []).includes(l.use)
       ? { id: `town-${l.use}-${n + 1}`, use: l.use, lot: l, enter: 'door', seed: seed + n, civilization: anchor }
       : { id: `town-${l.use}-${n + 1}`, use: l.use, seed: seed + n, civilization: anchor, ...(town.goal && n === 0 ? { goal: true } : {}) })
     : { id: `town-${l.use}-${n + 1}`, use: l.use, lot: l }));

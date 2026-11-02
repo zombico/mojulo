@@ -843,7 +843,8 @@ export function powerKeys(G) {
 export function mapPlan(G, stages, refs) {
   const plan = stages.map(() => ({ on: [], back: [], keys: [], powers: [] }));
   const isPower = new Set(powerKeys(G).map((p) => p.id));
-  const of = (lvl) => stages.map((s, i) => (s.level === lvl ? i : -1)).filter((i) => i >= 0);
+  // (a building's inside is joined to its outside by its door, levels.js gameStages: no way of the map's)
+  const of = (lvl) => stages.map((s, i) => (s.level === lvl && s.section !== 'interior' ? i : -1)).filter((i) => i >= 0);
   for (const id of G.ids) {
     const ix = of(id);
     // a city's segments join each other at their own portals (cityStages), not one after another

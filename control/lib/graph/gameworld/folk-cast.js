@@ -94,7 +94,7 @@ export function folkExtra(plan, refOf, { shops = null } = {}) {
     const doors = new Map((ends.townDoors ?? []).map((d) => [d.id, d]));
     const part = { figures: {}, entities: [] }, menus = [], cues = [];
     const z = (x, y, z0) => { const g = ends.ground?.(x, y); return r3(Number.isFinite(g) ? g : z0); };
-    const bodyOf = new Map(plan.bodies.people.map((p) => [p.path, p.body]));
+    const bodyOf = new Map(plan.bodies.people.map((p) => [p.path, p.body])), idleOf = new Map(plan.bodies.people.map((p) => [p.path, p.idle]));
     // each house's people in turn along its frontage
     const placed = new Map(), stood = new Map();
     for (const p of plan.folk.people) {
@@ -117,7 +117,10 @@ export function folkExtra(plan, refOf, { shops = null } = {}) {
         at = [r3(x), r3(y), z(x, y, door.at[2])];
         heading = r3(Math.atan2(ny, nx));
       }
-      stand(part, id, libraryFigure(refOf(bodyOf.get(p.path))), at, heading);
+      // (as they stand: their own stand held, the shared idle, or crouched at their work; folk/garb.js)
+      const idle = idleOf.get(p.path), fig = libraryFigure(refOf(bodyOf.get(p.path)), { moves: idle === 'own' ? { idle: 'gesture' } : null });
+      if (idle === 'crouch') fig.clips = { ...fig.clips, idle: 'Crouch_Idle_Loop' };
+      stand(part, id, fig, at, heading);
       stood.set(p.path, { id, at, heading, house: door.id });
     }
     if (!part.entities.length) return null;

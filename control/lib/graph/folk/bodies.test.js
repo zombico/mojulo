@@ -3,6 +3,7 @@ import { folkBodies, mintKey } from './bodies.js';
 import { folkOfTown } from './folk.js';
 import { settingOfGame, QUICK_FIGURES } from '../gameworld/cast-setting.js';
 import { UNDERLAYERS } from '../gameworld/hero-looks.js';
+import { validateOutfitBuild } from '../outfit/expand.js';
 
 // a lot per procedure: two houses, two counters (one uniform, two keepers), a workshop (its apprentice), the tower (its rank)
 const lot = (use, s, band = [2, 3]) => ({ use, route: 'lane', side: 'left', s, band });
@@ -90,8 +91,30 @@ describe('folk bodies: the role\'s uniform, the culture\'s cloth', () => {
   it('dresses the same role in two worlds two ways', () => {
     const other = Object.keys(UNDERLAYERS).find((k) => k !== KIT && UNDERLAYERS[k].style === UNDERLAYERS[KIT].style && JSON.stringify(UNDERLAYERS[k].language) !== JSON.stringify(UNDERLAYERS[KIT].language));
     const there = made(LOTS, other).B, keeper = F.people.find((p) => p.role === 'keeper').path;
-    expect(mint(B, mintKey(keeper)).spec.outfit.language).toEqual(UNDERLAYERS[KIT].language);
-    expect(mint(there, mintKey(keeper)).spec.outfit.language).toEqual(UNDERLAYERS[other].language);
+    // (the culture the town's: its cloth and its shoes; the cut the role's: the counter's vest over its shirt)
+    const here = mint(B, mintKey(keeper)).spec.outfit.language, away = mint(there, mintKey(keeper)).spec.outfit.language;
+    for (const [L, kit] of [[here, KIT], [away, other]]) {
+      expect(L.top.family).toBe(UNDERLAYERS[kit].language.top.family);
+      expect(L.outer).toMatchObject({ sleeve: 'none', open: true });
+    }
+    expect(away).not.toEqual(here);
+  });
+});
+
+describe('folk bodies: the wardrobe and the stances (folk/garb.js)', () => {
+  it('dresses the roles apart and the townsfolk each by their own dice; each stands one way, every outfit one the outfit door reads', () => {
+    const big = made(LOTS, KIT, { domicile: 'D of F (P + C2)', cap: 40 }, 3);
+    const who = (path) => big.F.people.find((p) => p.path === path);
+    const langs = big.B.mints.map((m) => JSON.stringify(m.spec.outfit.language));
+    // (more than one cut in a town: not one outfit repeated)
+    expect(new Set(langs).size).toBeGreaterThan(2);
+    for (const m of big.B.mints) expect(validateOutfitBuild(m.spec.outfit)).toEqual([]);
+    // every grown person holds a stand; a child's is relaxed; how each stands is one of the three
+    for (const m of big.B.mints) expect(m.spec.gesture).toBeTruthy();
+    for (const m of big.B.mints.filter((x) => who(x.of).sheet.facets.age === 'child')) expect(m.spec.gesture).toEqual(['relaxed']);
+    for (const p of big.B.people) expect(['own', 'library', 'crouch']).toContain(p.idle);
+    // (the keeper at the counter holds their stand; an elder too)
+    for (const p of big.B.people.filter((x) => ['keeper', 'elder'].includes(who(x.path).role) && !who(x.path).as)) expect(p.idle).toBe('own');
   });
 });
 
@@ -117,7 +140,8 @@ describe('folk bodies: one met in every town', () => {
     expect(a.tier).toBe('own');
     expect(b.spec).toEqual(a.spec);
     expect(face(c.spec)).toEqual(face(a.spec));
-    expect(c.spec.outfit.language).toEqual(UNDERLAYERS[other].language);
+    expect(c.spec.outfit.language.top.family).toBe(UNDERLAYERS[other].language.top.family);
+    expect(c.spec.outfit.language).not.toEqual(a.spec.outfit.language);
   });
 });
 
