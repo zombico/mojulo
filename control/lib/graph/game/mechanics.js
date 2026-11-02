@@ -16,6 +16,7 @@
  * or it doesn't ship (no runtime mechanic code, ever).
  */
 import { heldVar, itemKey } from '../playscape/ui/items.js';
+import { lowerTrade, lowerCargo, lowerDeliver } from './errand-mechanics.js';
 
 const ARRAY_CHANNELS = ['entities', 'timers', 'reactions', 'watches', 'inputs', 'hud', 'sources', 'sequences', 'initial'];
 
@@ -828,6 +829,12 @@ const MECHANICS = {
       };
     },
   },
+
+  // THE ERRAND'S verbs (game/errand-mechanics.js): a place an item is had (its price spent), a carried item's condition
+  // (fragile, perishable), the giver's hand-in; each on the bag's guarded transfer, so what is carried rides the store
+  trade: { role: 'emitter', requires: ['inventory'], lower: lowerTrade },
+  cargo: { role: 'emitter', requires: ['inventory'], lower: lowerCargo },
+  deliver: { role: 'terminal', ends: ['success'], requires: ['inventory'], lower: lowerDeliver },
 
   // the PARTY carried (an emitter): the battle party of play.rpg (playscape/rpg) goes from level to level in a party
   // slice: each member's level, xp, hp, mp, class, class ranks and points, and the skills learned (the kernel's save:

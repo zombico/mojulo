@@ -30,7 +30,7 @@ completability audit for verification.
 ## Roles + the one rule
 
 - **terminal** — ends the level (calls `end`). A level MUST have ≥1 terminal that can end in
-  `success` (`reach-exit`, `survive`, `win-when`, `defeat-all`), or it can never be won and is
+  `success` (`reach-exit`, `survive`, `win-when`, `defeat-all`, `deliver`), or it can never be won and is
   refused at resolve. `fail-on-death` is a terminal too, but a fail-only one — it doesn't
   satisfy the rule alone.
 - **emitter** — writes to the store / world during play (`collect` → grant, `hazard-damage` → hp).
@@ -51,6 +51,8 @@ plus the combat trio (mechanics-vocab V1): `win-when` (generic predicate win) ·
 (per-entity health, the `enemy:down` producer) · `defeat-all` (count downs to victory), and a match:
 `frags` (a deathmatch: kills credited, the fallen back, a frag or time limit, two sides with `teams`; it owns the
 player's death) and `control` (a point two sides hold for time).
+An errand's verbs: `trade` (an item had for its price), `cargo` (a carried item's condition: fragile, perishable)
+and `deliver` (the giver's hand-in, a terminal), each on the bag.
 Read each card for its parameter manual. (`melee-strike` — a declarative attack — is named
 future vocabulary, waiting on the entity-anchored zone; AI behavior stays runtime by doctrine.)
 
