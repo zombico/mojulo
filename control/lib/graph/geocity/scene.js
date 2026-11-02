@@ -4,7 +4,8 @@
  * The whole metro at once (a skyline seen from its water, a street walked from its seat); a neighbourhood at a building's
  * detail is an evocation's (later).
  *
- *   water      a plane along each shore, under the land's lowest, out to the horizon
+ *   water      a plane along each shore, under the land's lowest, out to the horizon; its shore a quay where the land
+ *              stands high, a beach where it lies low, a pier at the foot of each street that meets it
  *   streets    the arterials (a road between two walks, a kerb over it, an east-west one over a crossing), each
  *              neighbourhood's ground under its blocks on the streets' ground (its collectors and locals), a walk round
  *              every block, all draped on the land in cells along them
@@ -103,13 +104,13 @@ const cuts = (a, b, step) => { const n = Math.max(1, Math.ceil((b - a) / step - 
 const PARK_PAINT = Object.freeze({ chips: '#8a6a4a', timber: '#8b6b4c', deck: '#9a7a58', metal: '#5c6166', seat: '#7b8a96', paving: '#b9b1a2', roof: '#4b4f55' });
 // (a park's things' groups where a role's own would be the metro's ground's: a pavilion's slab is not the paving)
 const PARK_GROUP = Object.freeze({ paving: 'pavilion-slab', roof: 'pavilion-roof' });
-const INKED_KIT = new Set(['bin', 'hydrant', 'bench', 'bollard', 'ring', 'papers']);
+const INKED_KIT = new Set(['bin', 'hydrant', 'bench', 'bollard', 'ring', 'papers', 'railing']);
 // (the kinds an exaggerated metro stamps as the geotown's pieces: kit.js `piece`)
 const LITTER = Object.freeze(['recycling-three', 'solar-compactor', 'heritage-fluted', 'ashtray-top', 'mesh-basket']);
 // (those the metro takes from the geotown on any cube, realistic on a plain one: its signs to the traffic, its post
 // boxes and its receptacles; the rest the metro's own on a plain cube)
-const ADDED_KIT = (k) => (k.startsWith('sign-') && k !== 'sign-name') || k === 'postbox' || !!RECEPTACLES[k];
-const isLoudKind = (k) => ['lamp', 'signal', 'bin', 'hydrant', 'postbox'].includes(k) || k.startsWith('sign-') || !!RECEPTACLES[k];
+const ADDED_KIT = (k) => (k.startsWith('sign-') && k !== 'sign-name') || k === 'postbox' || k === 'mooring' || k === 'parasol' || !!RECEPTACLES[k];
+const isLoudKind = (k) => ['lamp', 'signal', 'bin', 'hydrant', 'postbox', 'mooring', 'parasol'].includes(k) || k.startsWith('sign-') || !!RECEPTACLES[k];
 /** A template's faces drawn pale: each its own light kept as a grey, so an instance's tint paints it and keeps its shade. */
 const paleFaces = (fs) => fs.map((f) => { if (typeof f.fill !== 'string') return f; const c = [1, 3, 5].map((k) => parseInt(f.fill.slice(k, k + 2), 16)), L = 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2], v = Math.round(Math.min(250, L * 1.4 + 45)).toString(16).padStart(2, '0'); return { ...f, fill: `#${v}${v}${v}` }; });
 const linC = (h) => [1, 3, 5].map((k) => { const c = parseInt(h.slice(k, k + 2), 16) / 255; return Math.round((c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4) * 1e4) / 1e4; });
@@ -297,7 +298,7 @@ export function assembleGeocityScene(m, ctx = {}) {
   let textures = null;
   // an evocation's tiers: its blocks at a building's detail, the neighbourhoods round them as massing, the rest its
   // skyline (each neighbourhood's ground one coarse drape, its tall buildings on it, nothing low)
-  const E = d.evoked, detail = new Set(E?.blocks ?? []), massed = E ? new Set(E.regions) : null, lots = [];
+  const E = d.evoked, detail = new Set(E?.blocks ?? []), massed = E ? new Set(E.regions) : null, lots = [], pads = [];
   for (const r of d.regions) {
     if (r.geotown) { town(r, massed && !massed.has(r.id)); continue; }
     if (massed && !massed.has(r.id)) { backdrop(r); continue; }
@@ -329,6 +330,7 @@ export function assembleGeocityScene(m, ctx = {}) {
       terraces.forEach((t, k) => {
         const [a0, b0, a1, b1] = t.q;
         put([[a0, b0, t.z], [a1, b0, t.z], [a1, b1, t.z], [a0, b1, t.z]], padGroup, padHex);
+        pads.push({ q: t.q, z: t.z, kind: b.kind });
         // its retaining faces: down to the walk on its street sides, down to the terrace below between them
         const edges = [[[a0, b0], [a1, b0], [0, -1, 0], 's'], [[a1, b0], [a1, b1], [1, 0, 0], 'e'], [[a1, b1], [a0, b1], [0, 1, 0], 'n'], [[a0, b1], [a0, b0], [-1, 0, 0], 'w']];
         for (const [p, q, nn, s] of edges) {
@@ -620,6 +622,91 @@ export function assembleGeocityScene(m, ctx = {}) {
     }
   }
 
+  /** THE SHORE, along each of its water's sides: where the land stands high over the water a quay, its wall down into
+   *  the water under a coping, a railing along its edge (a low one's mooring bollards instead), lamps and benches to
+   *  the water behind it where the ground is open; where the land lies low a beach, its sand down under the water and
+   *  parasols on it; at the foot of each street that meets the water a pier out over it on its piles, railed (none off a
+   *  bluff). A loud
+   *  one's wall in big askew blocks each its own pastel (the grout between them the wall's), its coping candy-striped,
+   *  its pier's planks skewed pastel slabs, each pile, railing, bollard and parasol its own ink; a toon register's piles
+   *  leaning. Near the camera its kit; its wall, sand and piers always. */
+  function shore() {
+    const SEG = 4, BEACH = 2.2, SAND = 14, PIER = [7, 36], BLOCKS = 4.5, PIER_H = 10, OUT = { s: [0, -1], n: [0, 1], w: [-1, 0], e: [1, 0] }, sand = mix('#d8c69a', col.walk, 0.25);
+    const padAt = (x, yy) => pads.find((p) => x >= p.q[0] - 1e-6 && x <= p.q[2] + 1e-6 && yy >= p.q[1] - 1e-6 && yy <= p.q[3] + 1e-6) ?? null;
+    const open = (x, yy) => { const p = padAt(x, yy); return !p || ['park', 'square', 'tower', 'podium', 'parking', 'vacant'].includes(p.kind); };
+    const TOONS = !!EX && toonOf(cube.register);
+    for (const w of d.water) {
+      const side = w.side, ns = side === 's' || side === 'n', out = OUT[side], [u0, u1] = ns ? [wx0, wx1] : [wy0, wy1];
+      const pt = (u, o) => (ns ? [u, side === 's' ? wy0 - o : wy1 + o] : [side === 'w' ? wx0 - o : wx1 + o, u]);
+      const topAt = (u) => { const [x, yy] = pt(u, 0); return S(x, yy) + KERB; };
+      const P3w = (u, o, z) => [...pt(u, o), z], wantOut = [out[0], out[1], 0];
+      const lines = d.lines.filter((l) => l.axis === (ns ? 'ns' : 'ew')), pierOf = (u) => lines.find((l) => Math.abs(u - l.at) < PIER[0] / 2 + 0.6);
+      const RQ = streamOf(seed, 'shore', side), ink = HY ? inkPicker(streamOf(seed, 'shore-ink', side), HY.pop) : null;
+      const along = ns ? (side === 's' ? 'n' : 's') : (side === 'w' ? 'e' : 'w');
+      let k = 0;
+      for (let u = u0; u < u1 - 1e-6; u += SEG, k++) {
+        const ue = Math.min(u1, u + SEG), ta = topAt(u), tb = topAt(ue), low = Math.max(ta, tb) - zWater < BEACH;
+        if (low) {
+          // (its beach: the sand from the land's edge down under the water, SAND out)
+          put([P3w(u, 0, ta), P3w(ue, 0, tb), P3w(ue, SAND, zWater - 0.5), P3w(u, SAND, zWater - 0.5)], 'geocity:beach', HY ? popHex(sand, HY.pop * 0.5) : sand, [out[0] * 0.15, out[1] * 0.15, 1]);
+          if (k % 2 === 0) { const o = 3 + 6 * RQ(), um = u + SEG * RQ(), zt = topAt(um), z = zt + (zWater - 0.5 - zt) * (o / SAND); if (z > zWater + 0.15) stamp('parasol', [...pt(um, o), z], 0); }
+          continue;
+        }
+        // (its wall: from its coping into the water; its coping a lip over it, a loud one's in stripes of ink and paper)
+        put([P3w(u, 0.05, zWater - 1), P3w(ue, 0.05, zWater - 1), P3w(ue, 0.05, tb), P3w(u, 0.05, ta)], 'geocity:quay', col.retain, wantOut);
+        const cop = ink ? (k % 2 ? '#f7f3ea' : ink('coping')) : mix(col.retain, '#e8e2d4', 0.45);
+        put([P3w(u, 0.45, ta + 0.06), P3w(ue, 0.45, tb + 0.06), P3w(ue, 0.05, tb + 0.06), P3w(u, 0.05, ta + 0.06)], 'geocity:coping', cop);
+        put([P3w(u, 0.45, ta - 0.16), P3w(ue, 0.45, tb - 0.16), P3w(ue, 0.45, tb + 0.06), P3w(u, 0.45, ta + 0.06)], 'geocity:coping', cop, wantOut);
+        // (a loud wall's blocks, rows of them each a row's height, slid and cut askew, each its own pastel, a hair proud;
+        // down from its coping BLOCKS metres at the most, a high bluff's lower wall its grout's)
+        if (HY) {
+          const top = Math.min(ta, tb) - 0.2, Rw = streamOf(seed, 'quay-blocks', `${side}:${k}`);
+          for (let z0 = Math.max(zWater - 0.4, top - BLOCKS); z0 + 0.5 < top; z0 += 0.95) {
+            const z1 = Math.min(top, z0 + 0.95);
+            for (const sl of slabsOf([u, z0, ue, z1], 'x', () => 0, { skew: STL?.skew ?? 0.35, pop: 0.6 }, col.retain, Rw)) put(sl.corners.map(([a, b]) => P3w(a, 0.1, b)), 'geocity:quay-block', sl.hex, wantOut);
+          }
+        }
+        if (pierOf(u + SEG / 2) && topAt(u + SEG / 2) - zWater <= PIER_H) continue;
+        // (its edge: a railing where the wall stands high, mooring bollards along a low one; lamps and benches behind)
+        const high = Math.min(ta, tb) - zWater > 3.2;
+        // (its railing's panels on their own stride along the whole shore, end to end over the segments)
+        if (high) for (let a = u0 + 1.25 + 2.5 * Math.ceil((u - u0 - 1.25) / 2.5 - 1e-9); a < ue - 1e-9; a += 2.5) stamp('railing', P3w(a, 0.22, topAt(a) + 0.06), ns ? 0 : Math.PI / 2);
+        else if (k % 3 === 0) stamp('mooring', P3w(u + SEG / 2, 0.26, topAt(u + SEG / 2) + 0.06), 0);
+        const um = u + SEG / 2;
+        if (Math.round(um / SEG) % Math.round(LAMP / SEG) === 0) { const [x, yy] = pt(um, -1.0); if (open(x, yy)) stamp(`lamp:${along}`, [x, yy, padAt(x, yy)?.z ?? S(x, yy) + KERB], 0); }
+        else if (Math.round(um / SEG) % 6 === 3) { const [x, yy] = pt(um, -2.2); if (open(x, yy)) stamp(`bench:${side}`, [x, yy, padAt(x, yy)?.z ?? S(x, yy) + KERB], 0); }
+      }
+      // its piers, at the foot of each street that meets it: a deck on piles out over the water, railed both sides
+      // (where its edge stands PIER_H or more over the water a bluff: no pier off it)
+      for (const l of lines) {
+        if (topAt(l.at) - zWater > PIER_H) continue;
+        const c = l.at, hw = PIER[0] / 2, L = PIER[1], z = topAt(c) + 0.06, Rp = streamOf(seed, 'pier', `${side}:${r5(c)}`);
+        const deck = [c - hw, 0.05, c + hw, L];
+        const corners = (a0, o0, a1, o1, zz) => [P3w(a0, o0, zz), P3w(a1, o0, zz), P3w(a1, o1, zz), P3w(a0, o1, zz)];
+        // (its deck in planks across it: a plain one's two woods by turns, a loud one's skewed pastel slabs)
+        if (HY) for (const sl of slabsOf([deck[1], deck[0], deck[3], deck[2]], 'x', () => z, { skew: STL?.skew ?? 0.35, pop: 0.75 }, '#9a7a58', Rp)) put(sl.corners.map(([o, a, zz]) => P3w(a, o, zz)), 'geocity:pier', sl.hex);
+        else for (let o = deck[1], i = 0; o < deck[3] - 1e-6; o += 1.2, i++) put(corners(deck[0], o, deck[2], Math.min(deck[3], o + 1.2), z), 'geocity:pier', i % 2 ? '#8a7458' : '#7f6a50');
+        // (its fascia, its end)
+        for (const a of [deck[0], deck[2]]) put([P3w(a, deck[1], z - 0.35), P3w(a, deck[3], z - 0.35), P3w(a, deck[3], z), P3w(a, deck[1], z)], 'geocity:pier', '#5a4a3a', a < c ? (ns ? [-1, 0, 0] : [0, -1, 0]) : (ns ? [1, 0, 0] : [0, 1, 0]));
+        put([P3w(deck[0], L, z - 0.35), P3w(deck[2], L, z - 0.35), P3w(deck[2], L, z), P3w(deck[0], L, z)], 'geocity:pier', '#5a4a3a', wantOut);
+        // (its piles: pairs every 4 m, into the water; a loud one's each its own ink, a toon one's leaning)
+        const pk = ink ? inkPicker(streamOf(seed, 'pile-ink', `${side}:${r5(c)}`), HY.pop) : null;
+        for (let o = 2; o <= L - 1; o += 4) for (const a of [deck[0] + 0.3, deck[2] - 0.3]) {
+          const lean = TOONS ? (Rp() - 0.5) * 0.8 : 0, hex = pk ? pk('pile') : '#4a3e33', r = 0.2 * (TOONS ? 0.8 + 0.6 * Rp() : 1);
+          const b0 = [a, o], b1 = [a + lean, o + lean * 0.5], z0 = zWater - 1.5, z1 = z - 0.35;
+          const sq = (p, zz) => [[p[0] - r, p[1] - r], [p[0] + r, p[1] - r], [p[0] + r, p[1] + r], [p[0] - r, p[1] + r]].map(([aa, oo]) => P3w(aa, oo, zz));
+          const lo = sq(b0, z0), hi = sq(b1, z1);
+          const [cx0, cy0] = pt(...b0);
+          for (let i = 0; i < 4; i++) { const j = (i + 1) % 4; put([lo[i], lo[j], hi[j], hi[i]], 'geocity:pile', hex, [(lo[i][0] + lo[j][0]) / 2 - cx0, (lo[i][1] + lo[j][1]) / 2 - cy0, 0]); }
+        }
+        // (its railings both sides, its end railed too; a mooring bollard at each corner of its end)
+        for (const a of [deck[0] + 0.1, deck[2] - 0.1]) for (let o = 1.3; o <= L - 1.2; o += 2.5) stamp('railing', P3w(a, o, z), ns ? Math.PI / 2 : 0);
+        for (let a = deck[0] + 1.3; a <= deck[2] - 1.2; a += 2.5) stamp('railing', P3w(a, L - 0.1, z), ns ? 0 : Math.PI / 2);
+        stamp(`lamp:${along}`, P3w(c, L - 2, z), 0);
+      }
+    }
+  }
+
   /** A neighbourhood as the skyline sees it: its ground one coarse drape, its tall buildings standing on it. */
   function backdrop(r) {
     if (r.park) { drape(r.rect, 'geocity:park', col.park, 0, FAR_CELL); return; }
@@ -847,6 +934,7 @@ export function assembleGeocityScene(m, ctx = {}) {
 
   street();
   streetsNear();
+  shore();
 
   // ── the blocks at a building's detail: their masses through the facade pipeline (its units), back to metres; at
   // night its windows lit on the facades' own grids (city/plan/night.js) ──

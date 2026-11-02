@@ -275,6 +275,28 @@ describe("a loud metro's street the geotown's: its lamps, signals, signs, post b
     expect(g(X, 'slab').length).toBeGreaterThan(g(P, 'slab').length + 100);
     expect((P.repeats ?? []).some((r) => r.group.startsWith('geocity:tree-'))).toBe(true);
   });
+  it('builds its shore: a quay into the water where the land stands high, a beach where it lies low, a pier at each street\'s foot; a loud one\'s in askew pastel blocks, its coping striped, its piles inked', () => {
+    const g = (S, k) => S.faces.filter((f) => f.group === `geocity:${k}`), water = g(P, 'water')[0].corners[0][2];
+    for (const k of ['quay', 'coping', 'beach', 'pier', 'pile']) expect(g(P, k).length).toBeGreaterThan(0);
+    // (its wall and its sand run down under the water; its piers stand on their piles out over it)
+    expect(Math.min(...g(P, 'quay').flatMap((f) => f.corners.map((c) => c[2])))).toBeLessThan(water);
+    expect(Math.min(...g(P, 'beach').flatMap((f) => f.corners.map((c) => c[2])))).toBeLessThan(water);
+    expect(Math.min(...g(P, 'pier').flatMap((f) => f.corners.map((c) => c[2])))).toBeGreaterThan(water);
+    const ns = D.lines.filter((l) => l.axis === 'ns').length;
+    expect(g(P, 'pile').length % ns).toBe(0);
+    for (const k of ['railing', 'parasol', 'mooring']) expect(ts(P, `geocity:${k}`).length).toBeGreaterThan(0);
+    expect(g(P, 'quay-block')).toEqual([]);
+    expect(g(X, 'quay-block').length).toBeGreaterThan(g(X, 'quay').length);
+    const hues = (S, k) => new Set(g(S, k).map((f) => f.fill)).size;
+    expect(hues(X, 'pile')).toBeGreaterThan(hues(P, 'pile'));
+    expect(hues(X, 'coping')).toBeGreaterThan(hues(P, 'coping'));
+    expect(ts(X, 'geocity:railing').every((t) => t.tint)).toBe(true);
+  });
+  it('keeps a loud island\'s high shore under the budget: its blocks near its coping, no pier off a bluff', () => {
+    const I = assembleGeocityScene({ ...M, cube: ex, seed: 3, geocity: { metro: 'harbour-island' } });
+    expect(I.geocity.laws.find((l) => l.law === 'faces').ok).toBe(true);
+    expect(I.faces.some((f) => f.group === 'geocity:quay-block')).toBe(true);
+  });
   it('stripes a loud square\'s bed in two greens; the plain one\'s one bed', () => {
     const bed = (S) => S.faces.filter((f) => f.group === 'geocity:planting');
     expect(bed(X).length).toBeGreaterThan(bed(P).length);

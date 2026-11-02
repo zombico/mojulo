@@ -66,6 +66,15 @@
   own ink (a toon register's playground exaggerated: `loudPlayground`, now exported). Its squares a tree at each of
   their bed's corners; a loud one's bed striped in two greens and its paving in rows of skewed pastel slabs, each on
   the terrace under it.
+  Its shore (`shore` in `geocity/scene.js`), on a plain cube and a loud one, where the land met its water as an open
+  edge: a quay where the land stands high (its wall down into the water under a coping, a railing along its edge, a
+  low one's mooring bollards instead, lamps and benches to the water behind it where the ground is open), a beach
+  where it lies low (its sand down under the water, parasols on it), and a pier at the foot of each street that meets
+  the water (a planked deck on pairs of piles, railed, a lamp at its end). A loud one's wall in big askew blocks each
+  its own pastel over the wall's grout, its coping in stripes of ink and paper, its pier's planks skewed pastel slabs,
+  each pile, railing panel, bollard and parasol its own ink; a toon register's piles leaning. A high bluff's blocks
+  stay near its coping and no pier leaves it, so an island's shore keeps the faces' budget. The kit's new pieces:
+  a railing panel, a mooring bollard and a parasol (`kit.js`).
 - **A loud street** (`exaggerate.streets`, `geotown/street-loud.js`; the `street` hand carries one), by the shops'
   principles over a plan that never moves: the walks laid in big pastel slabs over their own ground, cut on skewed lines
   (their ends too: no slab square), each a tint other than its neighbour's, set in a grout of the walk; the kerbs in

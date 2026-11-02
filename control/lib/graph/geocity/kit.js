@@ -34,7 +34,7 @@
 import { roundStreetKit, roundKitFaces, isRoundKitShape } from '../city/round-kit.js';
 import { litFactor, scaleHex } from '../polygonizer/vexar.js';
 import { leanFaces } from '../era/exaggerate.js';
-import { toyCarOf, proportions, lampOf, postOf, binOf, hydrantOf, postboxOf } from '../geotown/doodads.js';
+import { toyCarOf, proportions, lampOf, postOf, binOf, hydrantOf, postboxOf, lathe, tilted, tube } from '../geotown/doodads.js';
 import { signalHead, mastArm, signOf, place } from '../geotown/signs.js';
 import { receptacleOf, RECEPTACLES } from '../geotown/receptacles.js';
 import { popHex } from '../geotown/front-loud.js';
@@ -144,6 +144,12 @@ const ring = (L) => realize([
   { kind: 'street-sign', x: -0.04, y: -0.04, w: 0.08, d: 0.08, z0: 0, z1: 0.95, tint: '#6b7176' },
   { kind: 'tram-bracket', x: -0.3, y: -0.02, w: 0.6, d: 0.04, z0: 0.72, z1: 0.76, tint: '#6b7176' },
 ], L);
+/** A quay's railing panel, 2.5 m along x: its two posts, a top rail and a mid rail, galvanized (pale: a loud stamp's
+ *  ink paints it). */
+const railing = (L) => [
+  ...[-1.25, 1.19].map((x) => ({ x, y: -0.03, w: 0.06, d: 0.06, z0: 0, z1: 1.1 })), { x: -1.25, y: -0.035, w: 2.5, d: 0.07, z0: 1.04, z1: 1.12 },
+  { x: -1.25, y: -0.025, w: 2.5, d: 0.05, z0: 0.52, z1: 0.57 },
+].flatMap((b) => boxFaces({ ...b, tint: '#7c8288' }, L));
 /** A stainless bollard (the metro's drop-off bollard). */
 const bollard = (L) => realize([{ kind: 'drop-off-bollard', x: -0.11, y: -0.11, w: 0.22, d: 0.22, z0: 0, z1: 0.95, tint: '#9aa0a6' }], L);
 /** A wooden hydro pole (fractal-city.js's power pole at its size), its crossarm across the street it serves, and a lamp
@@ -203,10 +209,10 @@ const flat = (len, w, off, fill, L) => [quad([[0, off - w / 2, 0], [len, off - w
 // register each of LOUD_VARIANTS shapes exaggerated and incongruent, a stamp picking one ──
 export const LOUD_VARIANTS = 3;
 // (the paints of its signs' and signals' roles, signs.js; a loud street's popped but the dark and the white)
-const SIGN_PAINT = { pole: '#555b62', signal: '#26282b', plate: '#22252b', border: '#f2d23a', rim: '#1c1d20', 'lens-red': '#e0463a', 'lens-amber': '#e3b13a', 'lens-green': '#46c06a', 'sign-red': '#c8202a', 'sign-white': '#f4f2ea', 'sign-yellow': '#f2c21a', 'sign-blue': '#1f5aa8', 'sign-green': '#1f6e3a', slot: '#1d2023', streetbin: '#2f4a3a', hydrant: '#c8372b', yellow: '#e3b13a', cap: '#d8d4c8', postbox: '#c8372b', lamp: '#f0d982' };
-const KEEP = new Set(['plate', 'rim', 'slot', 'sign-white', 'signal', 'pole', 'cap']);
+const SIGN_PAINT = { bollard: '#24272b', 'canopy-a': '#f4f2ea', 'canopy-b': '#2f6fb0', pole: '#555b62', signal: '#26282b', plate: '#22252b', border: '#f2d23a', rim: '#1c1d20', 'lens-red': '#e0463a', 'lens-amber': '#e3b13a', 'lens-green': '#46c06a', 'sign-red': '#c8202a', 'sign-white': '#f4f2ea', 'sign-yellow': '#f2c21a', 'sign-blue': '#1f5aa8', 'sign-green': '#1f6e3a', slot: '#1d2023', streetbin: '#2f4a3a', hydrant: '#c8372b', yellow: '#e3b13a', cap: '#d8d4c8', postbox: '#c8372b', lamp: '#f0d982' };
+const KEEP = new Set(['plate', 'rim', 'slot', 'sign-white', 'signal', 'pole', 'cap', 'canopy-a', 'bollard']);
 // (the roles a stamp's ink paints: its body; the rest, its lenses, its glass, its sign's face, keep their own colours)
-const BODY = new Set(['pole', 'signal', 'streetbin', 'hydrant', 'postbox']);
+const BODY = new Set(['pole', 'signal', 'streetbin', 'hydrant', 'postbox', 'bollard', 'canopy-b']);
 /** Faces in the local frame turned so its −y (a receptacle's front) looks toward (vx, vy). */
 const facingOf = (fs, [vx, vy]) => { const a = Math.atan2(vy, vx) + Math.PI / 2, c = Math.cos(a), sn = Math.sin(a), T = ([x, y, z]) => [x * c - y * sn, x * sn + y * c, z]; return fs.map((f) => ({ ...f, corners: f.corners.map(T), out: f.out ? T(f.out) : f.out })); };
 const LAMP_H = 2.35 * U, SIG_TOP = 6.2, SIG_ARM = 5.5;
@@ -227,6 +233,21 @@ function loudPiece(kind, [dx, dy], D, R) {
   if (kind === 'hydrant') return hydrantOf(0, 0, 0, [dx, dy], D);
   if (kind === 'postbox') return postboxOf(0, 0, 0, D);
   if (kind.startsWith('sign-')) return place(signOf(kind.slice(5), D, R, kind === 'sign-diamond' ? 1 : 0), [0, 0, 0], [dx, dy]);
+  if (kind === 'mooring') {
+    // a quay's mooring bollard: a cast foot, its waist, its head swelling over it (a toon one's head too big, knocked
+    // off its line)
+    const r = 0.14 * Math.sqrt(D.body), h = 0.5 * D.height, hd = 0.22 * (D.toon ? D.head * 0.7 : 1);
+    return [...lathe(0, 0, 0, [[r * 1.6, 0], [r * 1.6, 0.06], [r, 0.1], [r * 0.92 * D.bulge, h * 0.5], [r, h]], 12, 'bollard', () => [0, 0], [false, false]),
+      ...tilted(0, 0, h, [[r, 0], [hd, 0.08], [hd, 0.16], [hd * 0.55, 0.22], [0, 0.23]], 12, 'bollard', D.tilt, dx, dy)];
+  }
+  if (kind === 'parasol') {
+    // a beach parasol: its pole, its canopy's eight gores in two colours by turns, under and over (a toon one's too
+    // big, tipped)
+    const H = 2.2 * (D.toon ? 0.8 + 0.3 * D.height : 1), rr = 1.1 * (D.toon ? D.head * 0.6 : 1), up = 0.42, t = D.toon ? D.tilt : 0, out = [...postOf(0, 0, 0, H + up, 0.025, 'pole', D)];
+    const rim = (i) => { const a = (Math.PI * 2 * i) / 8; return [rr * Math.cos(a), rr * Math.sin(a), H - rr * Math.sin(t) * Math.cos(a)]; }, ap = [0, 0, H + up];
+    for (let i = 0; i < 8; i++) { const a = rim(i), b = rim(i + 1), role = i % 2 ? 'canopy-a' : 'canopy-b'; out.push({ corners: [a, b, ap], out: [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2, rr], role }, { corners: [b, a, [0, 0, H + up - 0.05]], out: [0, 0, -1], role }); }
+    return out;
+  }
   if (RECEPTACLES[kind]) return facingOf(receptacleOf(kind, D, R), [dx, dy]);
   throw new Error(`geocity kit: no loud piece '${kind}'`);
 }
@@ -270,7 +291,7 @@ export function kitTemplates(L0, { gauge = 1.495, poleReach = 4, exaggerate = nu
     // a street tree's pit in the walk: its grate's dark square, centred
     pit: [quad([[-0.7, -0.7, 0], [0.7, -0.7, 0], [0.7, 0.7, 0], [-0.7, 0.7, 0]], [0, 0, 1], '#3b3a38', L)],
     bench: four((v) => bench(v, L)),
-    bin: bin(L), hydrant: hydrant(L), papers: four((v) => papers(v, L)), ring: ring(L), bollard: bollard(L),
+    bin: bin(L), hydrant: hydrant(L), papers: four((v) => papers(v, L)), ring: ring(L), bollard: bollard(L), railing: railing(L),
     hydro: four((v) => hydro(v, L)),
     // a site's and a lot's: scaffolding against a wall (facing out from it), fencing, hoarding, barriers, cones, a
     // parked car (along x for 'e'/'w', y for 'n'/'s'), a stall's line
