@@ -74,7 +74,7 @@
  *                   (geocity/podium.js), and the passages under the streets between their concourses (geocity/tunnels.js);
  *                   `at` one tower or podium block's alone, no passage
  *
- *     subway        true | { along?, stations?, plan?, line?, depth?, gap? }: an evocation's subway line under one of its
+ *     subway        true | { along?, stations?, plan?, line?, depth?, gap?, tunnels? }: an evocation's subway line under one of its
  *                   arterials (the spine by default), its stations in a row under the street, joined by running
  *                   tunnels, each station's way out a stair up to the sidewalk (geocity/subway.js, network/subway.js)
  *   readGeocity(spec) → { metro: { id, …card }, grammar, pattern, hills, evoke, at, along, play, geotowns, under?, subway? }
@@ -165,7 +165,7 @@ const KEYS = Object.freeze(['metro', 'extent', 'water', 'core', 'fall', 'hills',
 // (how the recipe is told, and what it composes, not a setting of its metro)
 const TOLD = Object.freeze(['evoke', 'at', 'along', 'play', 'geotowns', 'under', 'subway']);
 // a subway line under an evocation's street (geocity/subway.js): its settings
-const SUBWAY_KEYS = Object.freeze(['along', 'stations', 'plan', 'line', 'depth', 'gap']);
+const SUBWAY_KEYS = Object.freeze(['along', 'stations', 'plan', 'line', 'depth', 'gap', 'tunnels']);
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const no = (msg) => { throw new Error(`geocity: ${msg}`); };
@@ -286,6 +286,7 @@ export function readGeocity(spec = {}) {
     for (const k of Object.keys(subway)) if (!SUBWAY_KEYS.includes(k)) no(`subway.${k} is not a setting (${SUBWAY_KEYS.join(', ')})`);
     if (subway.along !== undefined && (typeof subway.along !== 'string' || !/^(spine|(ns|ew)(-spine|-[0-9]+))$/.test(subway.along))) no("subway.along names an arterial ('ns-2', 'ew-0'), or 'spine', 'ns-spine', 'ew-spine'");
     if (subway.stations !== undefined && !(Number.isInteger(subway.stations) && subway.stations >= 1 && subway.stations <= 4)) no('subway.stations is 1 to 4');
+    if (subway.tunnels !== undefined && !['real', 'teleport'].includes(subway.tunnels)) no("subway.tunnels is 'real' (walked from one platform to the next) or 'teleport' (a stub out of each station, a warp to the next's platform, its arrival shown)");
     if (!['neighbourhood', 'segment', 'corridor'].includes(evoke)) no('subway is an evocation\'s (a neighbourhood, a corridor or a segment): it is walked, drawn at a building\'s detail');
   }
   return { metro: M, grammar, pattern, hills, evoke, play, geotowns, ...(under ? { under } : {}), ...(subway ? { subway } : {}), ...(spec.at !== undefined ? { at: spec.at } : {}), ...(spec.along !== undefined ? { along: spec.along } : {}) };

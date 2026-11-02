@@ -33,3 +33,11 @@
 - **The streetcar's rails are the city metro's** (geocity/kit.js `rail`): every geocity streetcar track is laid as the
   city metro lays its own (city/roads.js streetcarTrack: a dark tie band between two steel rails standing proud of the
   street), at the metro's scale, on the city's own gauge and track lines.
+- **A geocity's subway as a teleport, and a geocity played as a level** (`geocity.subway.tunnels: 'teleport'`; a
+  geocube's `level`, geocity/subway.js withGeocitySubwayLevel, registered as the geocube's level kind): the city's line
+  takes the teleport as a stage's does, its stubs and warps under the street (warp anchors in the city's frame,
+  `subway.warps`, `subway.tunnels` the mode, `subway.runs` its running tunnels); a geocity with a subway asked to be a
+  level is played from its first platform to the pavement outside its last station, through its tunnels or by its
+  warps, each arrival shown over the walker's shoulder down the platform (network/subway.js levelOfLine, turned into
+  the city's frame). A line is left by the way out on the platform the walker arrived on. A geocube that is not a
+  geocity with a subway passes through.

@@ -67,10 +67,11 @@ import { passageOf } from '../network/passage.js';
 import { networkLaws } from '../network/laws.js';
 import { readSection } from '../network/sections.js';
 import { dressUnder, ROUTES } from './dress.js';
-import { subwayUnder, subwayPlan } from './subway.js';
+import { subwayUnder, subwayPlan, withGeocitySubwayLevel } from './subway.js';
+import { registerLevelKind } from '../structure/level.js';
 import { streetcarFaces, STREETCAR } from './streetcar.js';
 
-export const GEOCITY_KEYS = Object.freeze(['kind', 'cube', 'show', 'title', 'seed', 'hour', 'clouds', 'geocity', 'walk', 'shadows', 'occlusion', 'light', 'cone', 'air']);
+export const GEOCITY_KEYS = Object.freeze(['kind', 'cube', 'show', 'title', 'seed', 'hour', 'clouds', 'geocity', 'walk', 'shadows', 'occlusion', 'light', 'cone', 'air', 'level', 'game', 'entities', 'camera', 'play']);
 export const GEOCITY_FACES = 200000;
 // the section its passages under the streets are built to (network/sections.js)
 const SECTION = readSection('passage');
@@ -1058,3 +1059,7 @@ export function assembleGeocityScene(m, ctx = {}) {
     },
   };
 }
+
+// a geocity with a subway played as a level (geocity/subway.js): its walker, its line's tunnels or warps, its goal on
+// the street; any other geocube passes through
+registerLevelKind('geocube', (m, ref) => withGeocitySubwayLevel(m, ref, { designGeocity }));

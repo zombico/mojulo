@@ -8,6 +8,7 @@ import { assembleGeocityScene } from './scene.js';
 import { designGeocity } from './design.js';
 import { subwayStreet } from './subway.js';
 import { walker } from '../network/walk-gate.js';
+import { withBuildingLevel } from '../structure/level.js';
 
 const geocity = { metro: { from: 'lakeshore', rings: { core: 350, frame: 700 } }, extent: [1800, 1500], water: { sides: ['s'], depth: 200 }, core: [0.5, 0.2] };
 const M = { kind: 'geocube', cube: 'valley-morning', show: 'geocity', seed: 2, hour: 'noon' };
@@ -21,7 +22,7 @@ describe('a subway under an evocation\'s street', () => {
     expect(l.rank).toBe('spine');
     expect(U.stations).toHaveLength(2);
     expect(of('rail-tunnel')).toHaveLength(1);
-    for (const t of U.tunnels) { expect(t.grade).toBeLessThanOrEqual(1 / 30 + 1e-6); expect(t.findings).toBeUndefined(); }
+    for (const t of U.runs) { expect(t.grade).toBeLessThanOrEqual(1 / 30 + 1e-6); expect(t.findings).toBeUndefined(); }
     // (every platform lies under the street's carriageway, each its depth under it)
     const across = l.axis === 'ns' ? 0 : 1;
     for (const s of of('station')) for (const p of s.platforms.flat()) expect(Math.abs(p[across] - l.at)).toBeLessThan(l.road / 2);
@@ -89,6 +90,27 @@ describe('a subway under an evocation\'s street', () => {
     }
   });
 
+  it('as a teleport, is played as a level: its warps stand the walker on each next platform, its route walked a piece at a time to the street', () => {
+    const T = { ...M, geocity: { ...geocity, evoke: 'neighbourhood', subway: { tunnels: 'teleport', stations: 3 } }, level: {} };
+    const P = assembleGeocityScene(T), L = withBuildingLevel(T, 'ref');
+    expect(P.geocity.subway.tunnels).toBe('teleport');
+    expect(P.geocity.subway.runs).toEqual([]);
+    const anchors = P.anchors.filter((a) => a.kind === 'warp'), ws = L.game.mechanics.filter((m) => m.kind === 'warp'), exit = L.game.mechanics.find((m) => m.kind === 'reach-exit');
+    expect(anchors).toHaveLength(4);
+    expect(ws).toHaveLength(anchors.length);
+    for (const m of ws) expect(anchors.some((a) => Math.abs(a.at[0] - m.at[0]) < 1e-3 && Math.abs(a.at[1] - m.at[1]) < 1e-3)).toBe(true);
+    expect(L.entities[0].rule.probe).toBeGreaterThan(0);
+    expect(L.play.scenes.length).toBe(new Set(ws.map((m) => m.then)).size);
+    const walk = walker(P), pieces = [];
+    let piece = [exit.via[0]];
+    for (let i = 1; i < exit.via.length; i++) { if (ws.some((m) => Math.abs(m.at[0] - exit.via[i - 1][0]) < 1e-3 && Math.abs(m.at[1] - exit.via[i - 1][1]) < 1e-3)) { pieces.push(piece); piece = [exit.via[i]]; } else piece.push(exit.via[i]); }
+    pieces.push(piece);
+    expect(pieces).toHaveLength(3);
+    for (const c of pieces) { const r = walk(c); expect({ steepest: r.steepest <= 0.36, crossed: r.crossed, gaps: r.gaps, boxes: r.boxes }).toEqual({ steepest: true, crossed: [], gaps: [], boxes: [] }); }
+    // (won on the street: over the platforms by the street's height)
+    expect(exit.via.at(-1)[2] - exit.via[0][2]).toBeGreaterThan(5);
+  });
+
   it('is absent unless asked, and refuses a street it cannot run under, by name', () => {
     const plain = assembleGeocityScene({ ...M, geocity: { ...geocity, evoke: 'neighbourhood' } });
     expect(plain.geocity.subway).toBeUndefined();
@@ -96,6 +118,10 @@ describe('a subway under an evocation\'s street', () => {
     const d = designGeocity({ ...geocity, evoke: 'neighbourhood' }, { seed: 2 });
     expect(() => subwayStreet(d, 'ns-99')).toThrow(/is not one of its arterials/);
     expect(() => assembleGeocityScene({ ...M, geocity: { ...geocity, evoke: 'neighbourhood', subway: { lines: 2 } } })).toThrow(/subway.lines is not a setting/);
+    expect(() => assembleGeocityScene({ ...M, geocity: { ...geocity, evoke: 'neighbourhood', subway: { tunnels: 'warp' } } })).toThrow(/subway.tunnels is 'real'/);
+    // (a geocube with no subway asked to be a level passes through: nothing lowered)
+    const G = { ...M, geocity: { ...geocity, evoke: 'neighbourhood' }, level: {} };
+    expect(withBuildingLevel(G, 'ref')).toBe(G);
     expect(() => assembleGeocityScene({ ...M, geocity: { ...geocity, evoke: 'metro', subway: true } })).toThrow(/subway is an evocation's/);
   });
 });

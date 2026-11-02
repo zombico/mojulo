@@ -325,9 +325,15 @@ const laid = (c) => { const k = JSON.stringify(c); if (!LAID.has(k)) { if (LAID.
  * teleport's, along the stub to its warp: the walker stood on the next platform, its arrival shown); the route the
  * audit walks; each arrival a scene, a shot over `player`'s shoulder down the platform it comes out on.
  * → { spawn, heading, goal, route, warps (mechanics), spots, scenes }
+ *   levelOfLine(L, { player }) → the same from a line already laid (laySubway's), in its frame
  */
 export function subwayLevel(manifest, { player = 'player' } = {}) {
-  const L = laid(manifest.subway), S0 = L.stations[0], last = L.stations[L.stations.length - 1];
+  return levelOfLine(laid(manifest.subway), { player });
+}
+
+/** A laid line's level (laySubway's), in its own frame: what subwayLevel lowers, and a city's line turned into its own. */
+export function levelOfLine(L, { player = 'player' } = {}) {
+  const S0 = L.stations[0], last = L.stations[L.stations.length - 1];
   const lane0 = S0.routes.platforms[0], route = [lane0[0]];
   let at = lane0[0];
   // (from where it stands to a point on a platform, along that platform's lane first, then across to it)
@@ -346,8 +352,9 @@ export function subwayLevel(manifest, { player = 'player' } = {}) {
       at = t.walk[t.walk.length - 1];
     }
   }
-  // (on the last platform to its first way out, up it, and up its entrance onto the street)
-  const up = last.routes.up[0], ent = L.entrances.find((e) => e.station === last.id && e.port === last.ports.walks[0].id);
+  // (on the last platform to the way out to the street from the platform it is on, up it, and up its entrance)
+  const outs = last.routes.up.map((u, k) => ({ u, q: last.ports.walks[k] })).filter((c) => !c.q.id.startsWith('path-')).sort((a, b) => Math.abs(a.u[0][0] - at[0]) - Math.abs(b.u[0][0] - at[0]));
+  const up = outs[0].u, ent = L.entrances.find((e) => e.station === last.id && e.port === outs[0].q.id);
   along(last, up[0]);
   route.push(...up.slice(1), ...(ent ? ent.walk.slice(1) : []));
   const goal = route[route.length - 1];

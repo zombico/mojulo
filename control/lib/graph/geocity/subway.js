@@ -13,7 +13,7 @@
  *
  * Metres, z up. Pure: the line follows from its street, its evocation and its settings.
  */
-import { laySubway } from '../network/subway.js';
+import { laySubway, levelOfLine } from '../network/subway.js';
 import { STATION_PLANS } from '../network/station-plans.js';
 
 const r5 = (v) => Math.round(v * 1e5) / 1e5 + 0;
@@ -90,33 +90,38 @@ export function subwayUnder(d, { S, kerb = 0.15, plan = null, links = {} }) {
     return [st.id, [...streets, ...own]];
   }));
   const out = (l.road / 2 + l.half) / 2;
-  const L = laySubway({ stations, gap, ...(line ? { line } : {}) }, { z0, ground, entrance: 'sidewalk', out, kerb: { at: l.road / 2, h: kerb }, exits, mezzDepth: MEZZ });
+  const L = laySubway({ stations, gap, ...(line ? { line } : {}), ...(PL.SP.tunnels ? { tunnels: PL.SP.tunnels } : {}) }, { z0, ground, entrance: 'sidewalk', out, kerb: { at: l.road / 2, h: kerb }, exits, mezzDepth: MEZZ });
   // ── into the city's frame: every face, box, walk and camera ──
   const face = (f) => ({ ...f, corners: f.corners.map((c) => P3(W(c))), ...(f.normal ? { normal: P3(N(f.normal)) } : {}), ...(f.outNormal ? { outNormal: P3(N(f.outNormal)) } : {}) });
   const box = (c) => { const a = W(c.min), b = W(c.max); return { min: P3([Math.min(a[0], b[0]), Math.min(a[1], b[1]), Math.min(a[2], b[2])]), max: P3([Math.max(a[0], b[0]), Math.max(a[1], b[1]), Math.max(a[2], b[2])]), of: `subway:${c.of}` }; };
   const pts = (ps) => ps.map((p) => P3(W(p)));
   const rect = (q) => { const a = W([q[0], q[1], 0]), b = W([q[2], q[3], 0]); return P3([Math.min(a[0], b[0]), Math.min(a[1], b[1]), Math.max(a[0], b[0]), Math.max(a[1], b[1])]); };
-  const faces = [...L.stations.flatMap((s) => s.faces), ...L.tunnels.flatMap((t) => t.faces), ...L.entrances.flatMap((e) => e.faces)].map(face);
-  const colliders = [...L.stations.flatMap((s) => s.colliders), ...L.tunnels.flatMap((t) => t.colliders), ...L.entrances.flatMap((e) => e.colliders)].map(box);
+  const faces = [...L.stations.flatMap((s) => s.faces), ...L.tunnels.flatMap((t) => t.faces), ...L.stubs.flatMap((t) => t.faces), ...L.entrances.flatMap((e) => e.faces)].map(face);
+  const colliders = [...L.stations.flatMap((s) => s.colliders), ...L.tunnels.flatMap((t) => t.colliders), ...L.stubs.flatMap((t) => t.colliders), ...L.entrances.flatMap((e) => e.colliders)].map(box);
+  // (a heading in the line's frame, in the city's)
+  const turn = (h) => { const v = N([Math.cos(h), Math.sin(h), 0]); return r5(Math.atan2(v[1], v[0])); };
   const wells = L.entrances.map((e) => rect(e.well));
   const anchors = [
     ...L.stations.map((s) => ({ id: `station-${s.id}`, kind: 'station', plan: s.plan, platforms: s.routes.platforms.map(pts), up: s.routes.up.map(pts), exits: s.ports.walks.map((q) => q.id) })),
     ...L.tunnels.map((t) => ({ id: `rail-${t.id}`, kind: 'rail-tunnel', from: `station-${t.a}`, to: `station-${t.b}`, length: t.length, walk: pts(t.walk) })),
     ...L.entrances.map((e) => ({ id: `entrance-${e.id}`, kind: 'entrance', station: `station-${e.station}`, walk: pts(e.walk), door: P3(W(e.door)) })),
+    ...L.warps.map((w) => ({ id: `warp-${w.id}`, kind: 'warp', from: `station-${w.from}`, to: `station-${w.to}`, at: P3(W(w.at)), spot: P3(W(w.spot)), heading: turn(w.heading), walk: pts(w.walk) })),
   ];
   // (its cameras: down a platform, into a tunnel from a platform's end, the first entrance from the walk and down it)
   const cam = (name, from, to, fov = 70) => ({ name, worldFraming: { cameraPosition: P3(W(from)), lookAt: P3(W(to)), horizontalFov: fov } });
   const S0 = L.stations[0], lane = S0.routes.platforms[0], T0 = L.tunnels[0], E0 = L.entrances[0];
   const cameras = [
     cam('subway-platform', [lane[2][0], lane[2][1] - 1, lane[2][2] + 1.7], [lane[0][0] * 0.3, lane[0][1] + 10, lane[0][2] + 1.6]),
+    ...(!T0 && L.warps[0] ? [cam('subway-tunnel', [L.warps[0].walk[1][0], L.warps[0].walk[1][1] + Math.sign(L.warps[0].at[1] - L.warps[0].walk[1][1]) * 3, L.warps[0].walk[1][2] + 1.7], [L.warps[0].at[0], L.warps[0].at[1], L.warps[0].at[2] + 1.2])] : []),
     ...(T0 ? [cam('subway-tunnel', [T0.walk[3][0], T0.walk[3][1] + 6, T0.walk[3][2] + 1.7], [T0.axis, T0.walk[3][1] + 60, T0.walk[3][2] + 1.2])] : []),
     ...(E0 ? [cam('subway-entrance', [E0.door[0] - Math.sign(E0.door[0]) * 5, E0.door[1] + E0.N[1] * 9, E0.door[2] + 1.7], [E0.door[0], E0.door[1] - E0.N[1] * 4, E0.door[2] - 0.5], 65),
       cam('subway-stair', [E0.walk[3][0], E0.walk[3][1], E0.walk[3][2] + 1.7], [E0.walk[2][0], E0.walk[2][1], E0.walk[2][2] + 1])] : []),
   ];
   const readout = {
-    along: l.id, axis: l.axis, depth: r5(depth), z0, gap, section: L.section,
+    along: l.id, axis: l.axis, depth: r5(depth), z0, gap, section: L.section, tunnels: L.mode,
+    ...(L.warps.length ? { warps: L.warps.map((w) => ({ id: w.id, from: w.from, to: w.to })) } : {}),
     stations: L.stations.map((s) => ({ id: s.id, ...s.readout })),
-    tunnels: L.tunnels.map((t) => ({ id: t.id, length: t.length, cover: t.cover, grade: t.grade, ...(t.findings.length ? { findings: t.findings } : {}) })),
+    runs: L.tunnels.map((t) => ({ id: t.id, length: t.length, cover: t.cover, grade: t.grade, ...(t.findings.length ? { findings: t.findings } : {}) })),
     entrances: L.entrances.map((e) => ({ id: e.id, rise: e.rise, steps: e.steps })),
   };
   // (each link's way out in the city: its jambs, its plane, its floor and head, as a passage meets it)
@@ -124,5 +129,31 @@ export function subwayUnder(d, { S, kerb = 0.15, plan = null, links = {} }) {
     const a = W([q.lo[0], q.lo[1], 0]), b = W([q.hi[0], q.hi[1], 0]);
     return { station: St.id, id: q.id.slice('path-'.length), z0: q.z0, top: q.top, lo: P3([a[0], a[1]]), hi: P3([b[0], b[1]]), plane: r5(ns ? a[0] : a[1]) };
   }));
-  return { line: l, axis: l.axis, span: [t0, t0 + total].map(r5), faces, colliders, wells, anchors, cameras, readout, ports, tunnels: L.tunnels, stations: L.stations };
+  return { line: l, axis: l.axis, span: [t0, t0 + total].map(r5), faces, colliders, wells, anchors, cameras, readout, ports, tunnels: L.tunnels, stations: L.stations, laid: L, W, turn };
+}
+
+/**
+ * A geocity with a subway played as a LEVEL (structure/level.js lowers a geocube's `level` by it, registered by the
+ * scene): its walker on the line's first platform, its goal the pavement outside its last station's first entrance;
+ * between them the line's tunnels walked, or (`tunnels: 'teleport'`) its warps, each arrival shown over the walker's
+ * shoulder (network/subway.js levelOfLine, in the city's frame). A geocube that is not a geocity with a subway passes
+ * through.
+ */
+export function withGeocitySubwayLevel(m, ref, { designGeocity, eye = 1.7, probe = 0.6 } = {}) {
+  if (m.show !== 'geocity' || !m.geocity?.subway) return m;
+  const d = designGeocity(m.geocity, { seed: m.seed ?? 1 }), S = d.land.S, U = subwayUnder(d, { S, kerb: 0.15 });
+  const pilot = Array.isArray(m.entities) ? m.entities.find((e) => e && e.pilotable) : null, R = levelOfLine(U.laid, { player: pilot?.id ?? 'player' });
+  const w = (p) => P3(U.W(p)), lv = m.level ?? {};
+  const warps = R.warps.map((x) => { const to = w(x.to); return { ...x, at: w(x.at), to: [to[0], to[1], r5(to[2] + eye)] }; });
+  const goal = w(R.goal), exit = { kind: 'reach-exit', at: [goal[0], goal[1], r5(goal[2] + eye)], radius: lv.radius ?? 1.5, planar: false, via: R.route.map(w) };
+  const game = { levelRef: ref, mechanics: [...(lv.mechanics ?? []), ...warps, ...(lv.exit === false ? [] : [exit])], fall: { mode: 'respawn' } };
+  const spots = R.spots.map((sp) => { const at = w([sp.at[0], sp.at[1], sp.at[2] ?? 0]); const f = (U.turn((sp.face * Math.PI) / 180) * 180) / Math.PI; return { ...sp, at, face: Math.round(f) }; });
+  const play = R.scenes.length ? { play: { ...(m.play ?? {}), spots: [...(m.play?.spots ?? []), ...spots], scenes: [...(m.play?.scenes ?? []), ...R.scenes] } } : {};
+  if (pilot) return { ...m, ...play, game };
+  const sp = w(R.spawn);
+  return {
+    ...m, ...play, game,
+    entities: [{ id: 'player', pilotable: true, rule: { type: 'walk', speed: 4.5, turn: 4, eye, turnMode: 'look', keyTurn: true, strafe: 1, collideRadius: 0.3, probe }, body: { type: 'none' }, transform: { pos: [sp[0], sp[1], r5(sp[2] + eye)], heading: U.turn(R.heading) } }],
+    camera: { rule: 'follow', target: 'player', dist: 0.05, height: 0, lookH: 0, lead: 2, turnMode: 'look' },
+  };
 }
