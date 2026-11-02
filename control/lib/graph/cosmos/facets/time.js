@@ -25,8 +25,12 @@
  * Built 11-02 (the time map): Time is also the camera's clock. A shot shows the world's time on the screen's (shoot/time.js:
  * a stretch slowed and ramped, an instant held, the camera on the screen's clock while the world holds, the world on
  * twos), one map every channel of a rendered film reads: the shoot plan's cameras and world, a scene's actors, the
- * Blender pack. `tempo`, `replay` and `grain` say it. A live world plays on its own clock, so in play the map waits on a
- * world clock scale (per-body hitstop is built: worlds/controllable/hitstop.js); those values are partial until it lands.
+ * Blender pack. `tempo`, `replay` and `grain` say it.
+ *
+ * Built 11-02 (the world clock): in play, a world's `tempo` moments fire on what happens (a blow, a foe down, the last foe
+ * down, a dodge) and scale the world's step while the camera keeps real time (worlds/controllable/world-clock.js); a
+ * game's tempo is laid on every level (gameworld/tempo.js), and a firing moment cues the live shoot plan's shot waiting on
+ * it. Web only: Godot and Roblox step on real time. A replay in play waits on a recorded world clock.
  */
 const CUES = 'lib/graph/playscape/ui/cues.js';
 const QUEST_LOG = 'lib/graph/playscape/ui/quests.js';
@@ -39,7 +43,9 @@ const QUESTS = { status: 'partial', effort: 'M', pkg: 'quests', godot: 'built', 
 const SHOT = { status: 'partial', effort: 'L', pkg: 'shot', godot: 'built' };
 // the time map (11-02): built in a rendered film and a shoot plan's page; in play it waits on the world clock scale
 const TIME_MAP = 'lib/graph/shoot/time.js';
-const CLOCK = { status: 'partial', effort: 'M', pkg: 'world-clock', lowers: TIME_MAP, godot: 'absent', roblox: 'absent' };
+const WORLD_CLOCK = 'lib/graph/worlds/controllable/world-clock.js';
+const CLOCK = { status: 'built', lowers: WORLD_CLOCK, godot: 'absent', roblox: 'absent' };
+const REPLAY = { status: 'partial', effort: 'M', pkg: 'replay', lowers: TIME_MAP, godot: 'absent', roblox: 'absent' };
 const KEYED = { status: 'partial', effort: 'M', pkg: 'keying', lowers: TIME_MAP, godot: 'absent', roblox: 'absent' };
 // a passage ages the world between chapters, so it is built on them (built: playscape/ui/chapters.js)
 const AGED = { requires: ['time.chapters=overlays'], ...WEB };
@@ -116,10 +122,10 @@ export const TIME = Object.freeze({
       multi: true,
       values: {
         'real-time': { status: 'built', godot: 'built', roblox: 'built', note: 'a screen second a world second' },
-        slow: { ...CLOCK, note: 'a stretch of the world slowed (a shot\'s time: { span, speed }); a rendered film, an actor scene and a shoot plan\'s page play it; a live world plays in real time until a world clock scale exists' },
-        ramp: { ...CLOCK, note: 'a speed ramp: the speed eased down to a slow stretch and back (time: { span, speed, ramp }); offline as slow, in play waiting on the world clock' },
-        freeze: { ...CLOCK, note: 'an instant held (time: { at, hold }; the screenplay\'s Freeze.); in play a struck body and its striker hold for a hitstop (worlds/controllable/hitstop.js), the whole world does not' },
-        bullet: { ...CLOCK, requires: ['time.tempo=slow'], note: 'the camera on the screen\'s clock while the world holds or crawls (clock: \'screen\'); in play it waits on the world clock and a moment that starts it (a dodge, a finisher)' },
+        slow: { ...CLOCK, note: 'the world slowed: offline a shot\'s time ({ span, speed }: a film, an actor scene, a shoot plan\'s page); in play a tempo moment ({ on, scale, hold }: the finisher, the kill cam) while the camera keeps real time' },
+        ramp: { ...CLOCK, note: 'a speed ramp, eased down and back: offline time: { span, speed, ramp }; in play a moment\'s ramp' },
+        freeze: { ...CLOCK, note: 'the world held: offline time: { at, hold } (the screenplay\'s Freeze.); in play a moment at scale 0 (impact: a heavy blow holds the world for a beat), beside the per-body hitstop' },
+        bullet: { ...CLOCK, requires: ['time.tempo=slow'], note: 'the camera free while the world crawls: offline a shot\'s clock: \'screen\'; in play a dodge slows the world (tempo bullet), the camera on real time' },
       },
     },
     // the order and frequency of what the screen shows: the same world time again
@@ -128,7 +134,7 @@ export const TIME = Object.freeze({
       values: {
         none: { status: 'built', godot: 'built', roblox: 'built' },
         angles: { status: 'built', godot: 'absent', roblox: 'absent', lowers: 'lib/graph/shoot/plan.js', note: 'shots over the same span of the world: one action covered from several cameras, cut together' },
-        replay: { ...CLOCK, note: 'a moment shown again, slowed, after it played (a shot over world time already shown, with a speed); a live world cannot rewind (liveNotes), so in play it waits on a recorded world clock' },
+        replay: { ...REPLAY, note: 'a moment shown again, slowed, after it played (a shot over world time already shown, with a speed); a live world cannot rewind (liveNotes): in play it waits on a recorded world clock' },
       },
     },
     // the world's keying on screen: limited animation's ones, twos and threes
