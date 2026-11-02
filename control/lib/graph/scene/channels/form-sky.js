@@ -101,8 +101,10 @@ export function formSkyInput({ sun, zenith, horizon, clouds }) {
 }
 
 /** The sky's page source, in the form channel's scope (THREE, scene, D: the form input, its `sky`, `sun`, `light` and
- *  `clouds`, meshes: the page's painted groups). */
-export function formSkyScript() {
+ *  `clouds`, meshes: the page's painted groups). `capture` (a capture page's): the clouds' own clock is the capture's
+ *  (window.__mojClock, pinned by its frame()) when it is set, so a still is the same however long it took to draw; absent,
+ *  the page's bytes as they were. */
+export function formSkyScript({ capture = false } = {}) {
   return `
   // --- the form render's sky: the light that lights the land, seen (channels/form-sky.js) ---
   (function () {
@@ -144,7 +146,7 @@ export function formSkyScript() {
     scene.onBeforeRender = function (r, s, cam, rt) {
       if (prev) prev.call(this, r, s, cam, rt);
       dome.position.setFromMatrixPosition(cam.matrixWorld); dome.scale.setScalar(Math.min(FSK.radius, (cam.far || 8000) * 0.9)); dome.updateMatrixWorld();
-      const W2 = wind(); U.uTime.value = W2 && W2.uWindT ? W2.uWindT.value : performance.now() / 1000;
+      const W2 = wind(); U.uTime.value = W2 && W2.uWindT ? W2.uWindT.value : ${capture ? '(window.__mojClock != null ? window.__mojClock : performance.now()) / 1000' : 'performance.now() / 1000'};
     };
     window.__formSky = { kind: W.kind, cover, A };
   })();

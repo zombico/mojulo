@@ -69,6 +69,5 @@ A level's `game.complete` (level contract) shapes the in-level result card: `fal
 
 ## What does not travel yet
 
-score.json carries the widget list as `hud` (ledger `hud_declared`); the Godot / Unity
-kernels still paint their own default readout from `mechanics`. The match HUD of piloted
+An engine's handoff carries no HUD: it is the web build's. The match HUD of piloted
 (controllable) worlds is not yet in this vocabulary.

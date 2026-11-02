@@ -1,5 +1,6 @@
 // export-model.persona.test.js — a persona exported: played as its hero, its reads the realistic face's `face:<read>`
-// clips in the GLB, each read's captions and cue sheet written beside it. (On the E2E list: a hero minted whole.)
+// clips in the GLB, each read's captions and cue sheet written beside it; a read played in a style its body's `act:<read>`
+// beside its face's. (On the E2E list: a hero minted whole.)
 process.env.SQLITE_PATH = ':memory:';
 process.env.MOJULO_SEMANTIC_INDEX_DISABLED = '1';
 
@@ -35,5 +36,22 @@ describe('a persona exported', () => {
     expect(cues).toMatchObject({ id: 'lead', seconds, clips: { face: 'face:lead' } });
     expect(readFileSync(path.join(out.dir, 'captions/lead.srt'), 'utf8')).toMatch(/^1\n00:00:00,/);
     expect(readFileSync(path.join(out.dir, 'captions/lead.vtt'), 'utf8')).toMatch(/^WEBVTT/);
-  }, 600_000);
+    // (no style: no act, the answer and the cue sheet as before)
+    expect(out.persona.acts).toBeUndefined();
+    expect(cues.clips.act).toBeUndefined();
+    expect(doc.getRoot().listAnimations().some((a) => a.getName().startsWith('act:'))).toBe(false);
+
+    // A READ PLAYED IN A STYLE (actor/act.js): its body's take `act:<read>` beside its face's, on the same clock
+    const actor = await createCharacterHandler({ as: 'persona', spec: { hero: hero.ref, register: 'speech', style: 'thespian', reads: { scene: { script: NEWS } } } });
+    const acted = await exportModelHandler({ ref: actor.ref, format: 'glb', clips: '_all', skinned: true });
+    expect(acted.persona.acts).toEqual(['act:scene']);
+    const adoc = await new NodeIO().readBinary(new Uint8Array(readFileSync(acted.path))), anims = adoc.getRoot().listAnimations();
+    const act = anims.find((a) => a.getName() === 'act:scene'), face = anims.find((a) => a.getName() === 'face:scene');
+    expect(act).toBeTruthy();
+    expect(act.listChannels().every((c) => c.getTargetPath() !== 'weights')).toBe(true);
+    // (on one clock: the act ends at the read's seconds, the face's track on its 30 fps grid, within a frame)
+    expect(Math.abs(act.listSamplers()[0].getInput().getArray().at(-1) - face.listSamplers()[0].getInput().getArray().at(-1))).toBeLessThan(1 / 30);
+    expect(act.getExtras()['moj:act'].style).toBe('thespian');
+    expect(JSON.parse(readFileSync(path.join(acted.dir, 'cues/scene.json'), 'utf8')).clips).toEqual({ face: 'face:scene', act: 'act:scene' });
+  }, 900_000);
 });

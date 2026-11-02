@@ -29,7 +29,7 @@ in) does not exist. That half is the spike's real subject.
 | Hero clips | [hero-gesture.js](../control/lib/graph/polygonizer/hero-gesture.js), [hero-form.js](../control/lib/graph/polygonizer/hero-form.js) | `idle walk wave` plus gestures `relaxed hand-on-hip guard`. Hand words `relaxed open fist point grip`. |
 | VRM names | [figure-humanoid-map.js](../control/lib/graph/polygonizer/figure-humanoid-map.js) | `BONE_TO_VRM` (biped, 11), `HERO_BONE_TO_VRM` (hands, feet, jaw, fingers), `JOINT_TO_VRM` (inverse). |
 | Export | [scene-gltf.js](../control/lib/graph/scene/scene-gltf.js) | Per-clip glTF animation `<figure>:<clip>`. Skinned joints are **flat**, with absolute rotations. `VRMC_vrm` is written when `humanoid:true`. |
-| Godot | [godot-project.js](../control/lib/graph/scene/godot-project.js) | AnimationPlayer over the GLB clips, plus a blink layer through AnimationTree. |
+| Godot | [godot-humanoid.js](../control/lib/graph/scene/godot-humanoid.js) | A `BoneMap`, an `.import` and a post-import script beside a humanoid GLB, so Godot's importer maps the figure to its humanoid profile (see Godot below). |
 | Face | [anime-face-rig.js](../control/lib/graph/polygonizer/anime-face-rig.js), [humanoid-head.js](../control/lib/graph/polygonizer/humanoid-head.js) | Morphs `blink blinkLeft/Right smile mouthOpen browInnerRaise/Lower`, and the `jaw` bone. |
 | **Import** | [scene-gltf-read.js](../control/lib/graph/scene/scene-gltf-read.js) | Ignores animations, skins and morphs. **No BVH, VRMA, Mixamo or retarget code.** |
 
@@ -386,7 +386,7 @@ mojulo's own clips are unchanged. With them, `Dance_Loop` lands:
   stood on edge as a 20 m wall, and the World cameras tipped over. So the engine figure is a
   scene-level node, beside the root, with no transform of its own.
 - Godot imports a vertex-coloured GLB white (no `vertex_color_use_as_albedo`). So a post-import
-  script, `mojulo_import.gd`, ships beside the GLB and applies the kernel's G0 material contract.
+  script, `mojulo_import.gd`, ships beside the GLB and gives every surface its vertex colour as albedo.
 
 A GLB's own cameras can become the current camera in a scene that adds them first; a viewer should
 set its own camera current.

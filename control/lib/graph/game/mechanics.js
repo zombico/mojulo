@@ -1,6 +1,6 @@
 /**
- * game mechanics — reusable level verbs that lower into world + contract at once
- * (game-mechanics.plan.md, M0). A mechanic is a pure function of (params, ctx) → fragments:
+ * game mechanics — reusable level verbs that lower into world + contract at once.
+ * A mechanic is a pure function of (params, ctx) → fragments:
  *   world    — an events-manifest fragment (idiom-shaped: sources/reactions/watches/timers/
  *              entities/hud/vars), reusing the zone fact source (deriveZoneEvents) and the
  *              existing bus verbs. This is the world side a level used to hand-author.
@@ -1155,8 +1155,7 @@ const MECHANICS = {
   // CONTROL (a terminal): a point two sides fight over (`teams`, as frags' sides). Every second the side alone on it (a
   // ring `radius` round `at`, its standing bodies: a fallen one holds nothing) scores one; contested (both there) or
   // empty, nobody does. The first side to `hold` seconds wins it (the player's: `control:won`; the other's:
-  // `control:lost`). Lowers to a zone per contender, counts and flags, a timer and watches (the web's: a Godot export
-  // does not keep it yet). Kept: the player's side's seconds on the point.
+  // `control:lost`). Lowers to a zone per contender, counts and flags, a timer and watches. Kept: the player's side's seconds on the point.
   control: {
     role: 'terminal', ends: ['success', 'fail'], requires: [],
     lower(p, ctx) {

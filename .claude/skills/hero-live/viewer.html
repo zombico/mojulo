@@ -239,6 +239,20 @@ async function load(v) {
       if (tracks.length) actions[C.name] = { action: mixer.clipAction(new THREE.AnimationClip(C.name, C.seconds, tracks)), seconds: C.seconds, face: true };
     }
   }
+  // (each face take's BODY, the actor's (lib/graph/actor/body.js): the GLB's `act:<take>` (a persona's export) or the
+  // actor dailies' sidecar beside the GLB (control/scripts/spikes/actor/act-sidecar.mjs): the joints' absolute frames,
+  // played under its face take in place of the body's idle; a take with none keeps the idle)
+  const acts = {}, actSide = await fetch(`${v.id}.act.json`).then((r) => (r.ok ? r.json() : null)).catch(() => null);
+  // (the GLB's own, a persona's export: `act:<take>` beside `face:<take>`; a sidecar's of the same take wins, the tuning one)
+  for (const clip of gltf.animations) if (clip.name.startsWith('act:')) acts[`face:${clip.name.slice(4)}`] = { action: mixer.clipAction(clip), seconds: clip.duration };
+  for (const A of actSide?.acts ?? []) {
+    const tracks = [];
+    for (const J of A.joints) {
+      const o = root.getObjectByName(THREE.PropertyBinding.sanitizeNodeName(J.node)); if (!o) continue;
+      tracks.push(new THREE.QuaternionKeyframeTrack(`${o.name}.quaternion`, A.t, J.r), new THREE.VectorKeyframeTrack(`${o.name}.position`, A.t, J.p));
+    }
+    if (tracks.length) acts[A.of] = { action: mixer.clipAction(new THREE.AnimationClip(`act:${A.of}`, A.seconds, tracks)), seconds: A.seconds };
+  }
   // (each face clip's layers on the body, its BREATH and its HEAD (`breath:<clip>`, `head:<clip>`: face-acting/breath.js,
   // head.js), the GLB's and face.mjs's: played as additive layers over the body's idle with its clip, the rest pose their
   // reference, captured here before anything plays)
@@ -281,7 +295,7 @@ async function load(v) {
     const bytes = await gltf.parser.getDependency('bufferView', A.bufferView);
     (audio[P.clip] ??= []).push({ at: A.at, src: URL.createObjectURL(new Blob([bytes], { type: A.mimeType ?? 'audio/wav' })) });
   }
-  v.loaded = { layers, audio, root, body, mixer, actions, bones, under: underClip ? { action: mixer.clipAction(underClip), seconds: actions.idle?.seconds ?? underClip.duration } : null, morph: body?.morphTargetDictionary ?? {}, figure: { x: (box.min.x + box.max.x) / 2, z: (box.min.z + box.max.z) / 2, y0: box.min.y, h: box.max.y - box.min.y },
+  v.loaded = { layers, audio, acts, root, body, mixer, actions, bones, under: underClip ? { action: mixer.clipAction(underClip), seconds: actions.idle?.seconds ?? underClip.duration } : null, morph: body?.morphTargetDictionary ?? {}, figure: { x: (box.min.x + box.max.x) / 2, z: (box.min.z + box.max.z) / 2, y0: box.min.y, h: box.max.y - box.min.y },
     stats: `${body ? (body.geometry.index ? body.geometry.index.count / 3 : body.geometry.attributes.position.count / 3) | 0 : 0} triangles · ${body?.skeleton.bones.length ?? 0} bones · ${Object.keys(body?.morphTargetDictionary ?? {}).length} morph targets${v.mb ? ` · ${v.mb} MB` : ''}` };
   return v.loaded;
 }
@@ -339,7 +353,8 @@ function play(name, { phase = 0, fade = 0.35 } = {}) {
   const T = L.actions[name] ?? Object.values(L.actions)[0]; if (!T) return;
   const prev = S.take && L.actions[S.take]?.action, next = T.action;
   // (a face take plays over the body's idle, which runs under it; leaving it stops the idle it brought)
-  const under = T.face ? L.under : null;
+  const act = T.face ? L.acts?.[Object.keys(L.actions).find((k) => L.actions[k] === T)] : null, under = T.face ? (act ?? L.under) : null;
+  S.underAct = !!act;
   if (S.under && S.under !== under?.action) { S.under.stop(); S.under = null; }
   if (under && S.under !== under.action) { const u = under.action; u.reset(); u.setLoop(THREE.LoopRepeat, Infinity); u.timeScale = (u.getClip().duration / under.seconds) * S.speed; u.paused = S.paused; u.play(); S.under = u; }
   S.take = Object.keys(L.actions).find((k) => L.actions[k] === T);
@@ -389,7 +404,8 @@ function setClay(on) {
 
 // ─── the transport and the toggles ──────────────────────────────────────────
 /** the breath kept with its take: its time, its speed, paused with it */
-function syncBreath(a) { if (a) for (const x of S.layers ?? []) { x.time = a.time; x.timeScale = a.timeScale; x.paused = a.paused; } }
+// (the take's layers kept on its clock, and its body too where the body is the take's own (an act), not the idle)
+function syncBreath(a) { if (a) for (const x of [...(S.layers ?? []), ...(S.underAct && S.under ? [S.under] : [])]) { x.time = a.time; x.timeScale = a.timeScale; x.paused = a.paused; } }
 function setPaused(p) {
   S.paused = p; $('playPause').textContent = p ? 'Play' : 'Pause'; $('playPause').setAttribute('aria-label', p ? 'Play' : 'Pause');
   const L = cur(); if (L) for (const T of Object.values(L.actions)) T.action.paused = p;

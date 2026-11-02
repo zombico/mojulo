@@ -42,8 +42,7 @@ is the operator's.
   its beat (the music's clock says a beat early, so it walks that much longer); a cut in its direction and with its
   hand scores it and sends it away, a wrong one leaves it walking, and one that passes the line, or that something stops
   on its walk, is a miss. Every note scored or missed wins; `misses` can lose. A pool too small for its chart is
-  refused, naming the lane. The bus hears the headset's `cut` as a fact of its own (`scene/bus-abi.js`), the web's;
-  Godot and Roblox mark it absent.
+  refused, naming the lane.
 - **A saber level, as a concept** (the notes card, `mechanic-cards/notes.md`): a saber rhythm level is parts on any
   stage level, written out in the card: the level played in a headset, the hero holding two light blades (the `saber`
   equipment style: a neon blade, its own glow, out of a short machined hilt; red in the left hand, blue in the right),

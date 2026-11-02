@@ -16,7 +16,7 @@
  * the elite that tests what the hero learned, the boss a level ends on. Each role takes the class that scores best
  * against the world (`score`): its mind against the cube's Mind values (motivation, aggressiveness, perception,
  * pathing, a pack's squad), its attack against the cube's combat, its toll against the flavor (a platformer's stomp, a
- * realistic game's blows), whether the world's people can play it and what the intent's target engine carries; a class the cube's own
+ * realistic game's blows) and whether the world's people can play it; a class the cube's own
  * `mind.foes` names is cast before any it does not. Ties go
  * to the class's order. A role's people is rolled once for the world from its era's peoples (one force, not a zoo), on
  * a class that stands on two legs; a platformer's and a pinball table's cast stays the stand-in beasts. A person cast is
@@ -31,7 +31,7 @@ import { playOrder } from './graph.js';
 import { cubeOfWorld } from './intent.js';
 import { castStyleOf } from './foe-cast.js';
 import { settingOfGame } from './cast-setting.js';
-import { FOE_CLASSES, classStatus } from '../foes/index.js';
+import { FOE_CLASSES } from '../foes/index.js';
 import { ATTACKS, MOVES } from '../foes/vocab.js';
 import { resolveFoe } from '../foes/resolve.js';
 import { peopleSeed } from '../foes/people.js';
@@ -105,7 +105,6 @@ function scoreOf(c, ctx) {
   if (BEAST_FLAVORS.includes(ctx.flavor)) add(c.stomp === 'blow' && ATTACKS[c.attack.kind]?.verb === 'contact' ? 2 : 0, `a ${ctx.flavor}'s foe: a touch hurts, a stomp downs it`);
   if (ctx.flavor === 'realistic' && ATTACKS[c.attack.kind]?.verb === 'contact') add(-2, '');
   if (ctx.people && fitOfPeople(c.id, { people: ctx.people }).ok) add(1, `the world's people can play it (two legs)`);
-  if (ctx.target) add(classStatus(c).marks?.[ctx.target] === 'absent' ? -1 : 1, `${ctx.target} carries it`);
   return { s, why };
 }
 
@@ -126,7 +125,7 @@ export function castingCall(world) {
   const { cube, from: genre } = cubeOfWorld(world), mind = cube.mind ?? {}, combat = [].concat(cube.power?.combat ?? []);
   const named = [].concat(mind.foes ?? []);
   if (!named.length && !combat.some((k) => FIGHTS.combat.includes(k)) && !FIGHTS.motivation.includes(mind.motivation)) return null;
-  const style = castStyleOf(G), era = settingOfGame(G).era ?? null, target = world.intent?.target ?? null;
+  const style = castStyleOf(G), era = settingOfGame(G).era ?? null;
   // the people the cast is drawn as: one for the world, rolled from its era's
   const rnd = mulberry32(peopleSeed(G.seed, 'casting-call'));
   const peoples = !BEAST_FLAVORS.includes(style.flavor) && ERA_PEOPLES[era] ? ERA_PEOPLES[era] : null;
@@ -157,7 +156,7 @@ export function castingCall(world) {
     usedKinds.push(k);
     return k;
   };
-  const ctx = { mind: { ...mind, foes: named }, combat, flavor: style.flavor, target, people };
+  const ctx = { mind: { ...mind, foes: named }, combat, flavor: style.flavor, people };
   const scored = Object.values(FOE_CLASSES).map((c, k) => ({ c, k, ...scoreOf(c, ctx) }));
 
   // the roles, each its best class

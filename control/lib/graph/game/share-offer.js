@@ -95,8 +95,8 @@ function options({ ref, engine, playUrl }) {
       judge: (row, surface) => notOut(pageOut(row, surface), atHome),
     }] : []),
     {
-      id: 'godot', call: `export_game({ ref: ${q}, target: 'godot' })`, gives: 'a Godot 4 project, the fullest engine translation, with a portability report',
-      judge: (row, surface) => notOut(withHow(folderOut(row, surface), 'it opens in Godot 4.5 or newer'), atHome),
+      id: 'godot', call: `export_model({ ref: ${q}, engine: 'godot' })`, gives: 'its levels for a team\'s Godot, each a project of its assets, materials and markers (the game stays the web build)',
+      judge: (row, surface) => notOut(withHow(folderOut(row, surface), 'each opens in Godot 4 or newer'), atHome),
     },
   ];
 }

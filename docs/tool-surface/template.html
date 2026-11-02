@@ -406,16 +406,16 @@ document.getElementById('rails').innerHTML=RAILS.map(r=>`<article class="rail"><
         <div class="sbar">${ST.filter(s=>f.counts[s]).map(s=>`<span class="s-${s}" style="width:${100*f.counts[s]/tot}%" title="${s}: ${f.counts[s]}"></span>`).join('')}</div>
         <div class="scount">${ST.filter(s=>f.counts[s]).map(s=>`<span><i class="s-${s}"></i>${f.counts[s]} ${s}</span>`).join('')}<span>· ${f.settings} settings</span></div></div></article>`;}).join('');
   const v=C.verdicts;
-  document.getElementById('sweep-cap').textContent=`${C.n} rolled cubes: ${v.makeable} makeable (${pct(v.makeable)}%), ${v.gaps} with gaps, ${v.blocked} blocked. ${C.godotOk} (${pct(C.godotOk)}%) survive a Godot export.`;
+  document.getElementById('sweep-cap').textContent=`${C.n} rolled cubes: ${v.makeable} makeable (${pct(v.makeable)}%), ${v.gaps} with gaps, ${v.blocked} blocked.`;
   document.getElementById('vbar').innerHTML=['makeable','gaps','blocked'].map(k=>`<span class="v-${k}" style="width:${100*v[k]/C.n}%" title="${k}: ${v[k]} of ${C.n}">${k} ${v[k]}</span>`).join('');
-  document.getElementById('fixtures').innerHTML='<thead><tr><th>Game type</th><th>Verdict</th>'+ORDER.map(f=>`<th class="c">${f}</th>`).join('')+'<th class="c">Godot</th></tr></thead><tbody>'+
+  document.getElementById('fixtures').innerHTML='<thead><tr><th>Game type</th><th>Verdict</th>'+ORDER.map(f=>`<th class="c">${f}</th>`).join('')+'</tr></thead><tbody>'+
     C.fixtures.map(f=>`<tr><td><div style="font-weight:600">${esc(f.name)}${f.anchor?'<span class="anchor">anchor</span>':''}</div><div class="fwhy">${esc(f.why)}</div></td>
       <td><span class="verdict ${f.verdict}">${f.verdict}</span></td>`+ORDER.map(id=>{
         const mine=f.issues.filter(([k])=>k.startsWith(id+'.'));let w=null;for(const[,s]of mine)if(!w||WORST[s]>WORST[w])w=s;
         const touched=f.touched.includes(id);const cls=w?'s-'+w:touched?'s-built':'none';
         const tip=mine.length?mine.map(([k,s])=>`${k} (${s})`).join('\n'):touched?`${id}: every value built`:`${id}: not set`;
         return `<td class="c"><span class="sq ${cls}" title="${esc(tip)}"></span></td>`;}).join('')+
-      `<td class="c" style="font:12px var(--mono);color:${f.godot?'var(--built)':'var(--muted)'}">${f.godot?'yes':'no'}</td></tr>`).join('')+'</tbody>';
+      `</tr>`).join('')+'</tbody>';
   const priced=C.packages.filter(p=>p.perEffort!=null), unsized=C.packages.filter(p=>p.perEffort==null);
   const pmax=Math.max(1,...priced.map(p=>p.perEffort));
   document.getElementById('packages').innerHTML=priced.slice(0,15).map(p=>`<div class="rrow"><span class="k" title="${esc(p.name)}: lifts ${p.lifts}, makeable ${p.makeable}, cost ${p.cost}${p.needs.length?', needs '+esc(p.needs.join(', ')):''}">${p.effort} · ${esc(p.name)}</span><div class="t"><span style="width:${100*p.perEffort/pmax}%;background:var(--accent)"></span></div><span class="n">${p.perEffort}</span></div>`).join('')+
