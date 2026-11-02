@@ -33,6 +33,7 @@ describe('a level goal held as a wave gauntlet', () => {
     expect(() => readGameworld(withGoal({ gauntlet: { arenas: [{ waves: [{ dragon: 1 }] }] } }))).toThrow(/'dragon' is not in the bestiary/);
     expect(() => readGameworld(withGoal({ gauntlet: { arenas: [{ waves: [{ walker: 0 }] }] } }))).toThrow(/walker is how many/);
     expect(() => readGameworld(withGoal({ gauntlet: GOAL, health: true }))).toThrow(/no boss or health beside it/);
+    expect(() => readGameworld(withGoal({ gauntlet: GOAL, escape: true }))).toThrow(/escape room's way out ends the level, and so does a gauntlet's last wave/);
     expect(() => readGameworld({ ...W, levels: { lift: { name: 'Inn', building: { use: 'tavern' }, goal: { gauntlet: GOAL } } } })).toThrow(/a building's arena is to come/);
   });
 

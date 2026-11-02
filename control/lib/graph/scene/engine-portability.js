@@ -60,6 +60,7 @@ export const MECHANIC_SAMPLES = Object.freeze({
   board: { exit: 'map' },
   map: { dots: ['a', 'b'] },
   runner: { distance: 100 },
+  'escape-room': { locks: [{ at: [6, 0, 0], key: { at: [3, 0, 0] } }], at: [10, 0, 0], back: [8, 0, 0] },
 });
 // a mechanic only a page plays: its events come from a page no engine kernel runs (the strategy board's, board/*; the
 // endless runner's lanes, worlds/controllable/runner.js), so the bus rows it lowers to would run with nothing to feed them
