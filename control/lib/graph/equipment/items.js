@@ -13,6 +13,7 @@
 import { focalStone, recedeRole, focalGrow as growOf, lerp } from './principles.js';
 import { mulberry32, r3, P, A, circle, mat, mergeInto as merge, push, setStone, feather, ribbon, girdleOf } from './shapes.js';
 import { bladeLoft } from './sword.js';
+import { buildShield2, drawsShield2 } from './shields.js';
 
 export const ITEMS = Object.freeze({ staff: { L: 175, R: 1.6 }, bow: { L: 180, W: 3.0, T: 2.2, brace: 16 }, shield: { R: 38, H: 72, T: 1.8 } });
 /** the staff heads that carry no stone (every other head cradles one) */
@@ -283,7 +284,7 @@ function shield(m, { d, law, roles, gem, lang, minF, focalGrow }) {
  * The item's language is the card's `language[item]` under the build's `parts`; its focus is the build's dial, else
  * the language's, else the card's. → { monomers, sockets, trace }.
  */
-export function buildItem({ item, card, d, law, roles, gem: g, lang, seed }) {
+export function buildItem({ item, card, d, law, roles, gem: g, lang, seed, laws = 1 }) {
   const gem = g && ['head', 'riser', 'boss'].includes(d.focus) && !GEMLESS_HEADS.includes(lang.head) && lang.device !== 'spikes'
     ? { ...g, glow: (g.glow || 0) + 0.35 * d.stylize } : null;
   roles = { ...roles, shaft: lang.shaft || roles.shaft || ['wood', '#6b4a2e'], board: lang.board || roles.board || ['wood', '#6b4a2e'],
@@ -291,7 +292,9 @@ export function buildItem({ item, card, d, law, roles, gem: g, lang, seed }) {
   const minF = law.minFeature * (ITEMS[item].L || ITEMS[item].H * 1.5);
   const m = {};
   const rng = mulberry32(seed * 2654435761 + item.length * 97 + (card.id || '').length);
-  const r = ({ staff, bow, shield })[item](m, { d, law, roles, gem, lang, minF, focalGrow: growOf(d.stylize), rng, edge: card.edge ?? {} });
+  // laws 2: a shield with a new outline, a curve or a construction is shields.js's; else as laws 1 drew it
+  const build = item === 'shield' && laws >= 2 && drawsShield2(lang) ? buildShield2 : ({ staff, bow, shield })[item];
+  const r = build(m, { d, law, roles, gem, lang, minF, focalGrow: growOf(d.stylize), rng, edge: card.edge ?? {} });
   // law 7: a barked part (the shaft role on a shaft, a branch, a limb or a riser) wears the trees' bark. The tile is
   // in stem radii (crack spacing ∝ thickness), coarser when stylized (law 4); the monomer keeps its tint as the plain
   // colour for a consumer without textures.

@@ -18,6 +18,15 @@ Rows minted under laws 1 keep their bytes (their pins hold, now stamped). The ey
   gun turns off the thigh, a shield stands off the arm); the idle breathes through the weapon by its class and a haft
   stays upright by its wrist; every key of the stand, the idle and the walk is solved clear. The readout's
   `hero.gear.<slot>.clearance` says how near each item comes per clip.
+- **Staves and clubs** (`equipment/heads.js`, laws 2's own ends on any hilt): club, spiked club, flanged mace, war
+  hammer, maul, bone club, crook, orb, quarterstaff (an iron cap), trident and scythe, each sized by its haft.
+- **Curved and paneled shields** (`equipment/shields.js`): the scutum, the tower, the oval and the buckler; a barrel
+  bend or a dished dome (`curve`, `bend`); planks with their seams, bands and nails, or panels framed by riveted straps
+  (`construction`). A laws-2 shield naming none of them is the laws-1 shield.
+- **The armory** (`equipment/armory.js`): generic arms for a crowd in the new `grave` card (rusted iron, grey wood,
+  verdigris, chipped edges), a roster by name and kits by role (rabble, soldier, archer, warden, brute, captain). An
+  armed undead minted now is stamped (`undead.armory`) and draws its arms from its card's kit on its own seed, so a host
+  of skeletons is armed variously; one minted before keeps its card's arms, under equipment laws 1.
 - **A frozen copy of a held staff** (the World page, `scene-three.js`): a hero playing its clips hides its static solid,
   but the solid's textured faces (a barked staff, a printed board) kept no group tag and stayed, so a hero holding a
   barked staff stood beside a still copy of it. A previewed figure's hidden group now hides its textured faces too (a

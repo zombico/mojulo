@@ -80,7 +80,8 @@ for (const [name, b] of rows) {
   // a proper rotation (no mirror): a gun's up (+y) to the World's, its left side to the camera; a blade's flat to the
   // camera, its edge down
   const blade = ['knife', 'dagger', 'sword', 'greatsword', 'staff'].includes(b.item);
-  const turn = blade ? ([x, y, z]) => [z, y, -x] : ([x, y, z]) => [z, x, y];
+  // (a shield stands as it is built: its face toward −y, the camera's side, upright)
+  const turn = b.item === 'shield' ? ([x, y, z]) => [x, y, z] : blade ? ([x, y, z]) => [z, y, -x] : ([x, y, z]) => [z, x, y];
   const turned = faces.map((f) => ({ ...f, corners: f.corners.map(turn), ...(f.outNormal ? { outNormal: turn(f.outNormal) } : {}) }));
   const pts = turned.flatMap((f) => f.corners);
   const lo = [0, 1, 2].map((i) => Math.min(...pts.map((p) => p[i]))), hi = [0, 1, 2].map((i) => Math.max(...pts.map((p) => p[i])));

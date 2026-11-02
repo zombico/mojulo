@@ -63,6 +63,13 @@ const PINS = {
   'druid/staff': 'a96ca7b90a69e2af',
   'druid/bow': 'e21ecd9f4aaa449f',
   'druid/shield': 'c4d13ac48ea7210f',
+  // the grave's card (the armory's look: equipment/armory.js), a sample like the others
+  'grave/dagger': '8f4ce7b86780d369',
+  'grave/sword': '143ec31e0f12aab9',
+  'grave/greatsword': '76af018824c46576',
+  'grave/staff': '323b5b9083513398',
+  'grave/bow': '5486466d21203f5e',
+  'grave/shield': '319565d4f1b5ae41',
   'celestial/dagger': 'f3e6dee96ea892ba',
   'celestial/sword': '59222f4704034ffa',
   'celestial/greatsword': '3dc3f0219c00ec14',

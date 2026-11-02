@@ -24,7 +24,8 @@ import { SWORDS, buildSword } from './sword.js';
 import { ITEMS, GEMLESS_HEADS, buildItem } from './items.js';
 import { CRYSTAL_GEMS } from '../polygonizer/crystal-optics.js';
 import { r3 } from './shapes.js';
-import { composeItem, hiltAndEnd, stoneEnd, fociOf, HILT_WORDS, HILTS } from './compose.js';
+import { composeItem, hiltAndEnd, stoneEnd, fociOf, HILT_WORDS, HILTS, LAWS2_HEADS } from './compose.js';
+import { SHIELD_OUTLINES, SHIELD_CURVES, SHIELD_CONSTRUCTIONS } from './shields.js';
 import { FIREARM_ITEMS, FIREARM_STYLES, DEFAULT_FIREARM_STYLE, isFirearm, validateFirearmCard, firearmCardOf, buildFirearm } from './firearm.js';
 import { isArmsBuild, validateArmsBuild, buildArm, ARMS_ONLY_ITEMS, ARM_ITEMS, stampArms } from './arms/index.js';
 
@@ -39,7 +40,7 @@ const CUTS = ['natural', 'brilliant', 'cabochon'];
 const ITEM_KEYS = ['focus', 'bark', 'limbs', 'twigs', 'leaves', 'wings', 'shaft', 'board'];
 /** laws 2's own slots (a sword's or a staff's): the hilt and the end and their lengths (cm) */
 const COMPOSE_KEYS = ['hilt', 'end', 'hiltLength', 'endLength'];
-const END_WORDS = ['blade', ...VARIANTS.head];
+const END_WORDS = ['blade', ...VARIANTS.head, ...LAWS2_HEADS];
 const LENGTHS = { hiltLength: [3, 300], endLength: [3, 200] };
 const composes = (build) => (build.laws ?? LAWS_VERSION) >= 2 && ['dagger', 'sword', 'greatsword', 'staff'].includes(build.item);
 const MONOMER_ARRAYS = ['lathes', 'extrudes', 'sweeps', 'lofts', 'fields'];
@@ -77,7 +78,16 @@ export function validateBuild(build) {
       if (LENGTHS[slot] && !(Number.isFinite(v) && v >= LENGTHS[slot][0] && v <= LENGTHS[slot][1])) errs.push(`build.parts.${slot}: a length in centimetres, ${LENGTHS[slot][0]}–${LENGTHS[slot][1]}`);
       continue;
     }
-    if (VARIANTS[slot]) { if (!VARIANTS[slot].includes(v)) errs.push(`build.parts.${slot}: '${v}' is not one of ${VARIANTS[slot].join(', ')}`); }
+    if (build.item === 'shield' && ['curve', 'construction', 'bend'].includes(slot)) {
+      if ((build.laws ?? LAWS_VERSION) < 2) { errs.push(`build.parts.${slot}: a shield's ${slot} is laws 2's (this build is stamped laws 1)`); continue; }
+      if (slot === 'curve' && !SHIELD_CURVES.includes(v)) errs.push(`build.parts.curve: '${v}' is not one of ${SHIELD_CURVES.join(', ')}`);
+      if (slot === 'construction' && !SHIELD_CONSTRUCTIONS.includes(v)) errs.push(`build.parts.construction: '${v}' is not one of ${SHIELD_CONSTRUCTIONS.join(', ')}`);
+      if (slot === 'bend' && !(Number.isFinite(v) && v >= 0 && v <= 1)) errs.push('build.parts.bend: a number 0–1');
+      continue;
+    }
+    if (slot === 'outline' && SHIELD_OUTLINES.includes(v)) { if ((build.laws ?? LAWS_VERSION) < 2) errs.push(`build.parts.outline: '${v}' is laws 2's (this build is stamped laws 1)`); continue; }
+    if (slot === 'head' && LAWS2_HEADS.includes(v)) { if (!composes(build)) errs.push(`build.parts.head: '${v}' is laws 2's (a staff minted under laws 2; this build is ${build.laws === 1 ? 'stamped laws 1' : `a ${build.item}`})`); }
+    else if (VARIANTS[slot]) { if (!VARIANTS[slot].includes(v)) errs.push(`build.parts.${slot}: '${v}' is not one of ${VARIANTS[slot].join(', ')}${slot === 'head' && composes(build) ? `, ${LAWS2_HEADS.join(', ')}` : ''}`); }
     else if (slot === 'bark') { if (!BARK_SPECIES.includes(v)) errs.push(`build.parts.bark: '${v}' is not one of ${BARK_SPECIES.join(', ')}`); }
     else if (COUNTS[slot]) { const e = countError(slot, v, 'build.parts'); if (e) errs.push(e); }
     else if (!ITEM_KEYS.includes(slot)) errs.push(`build.parts.${slot}: not a slot — slots are ${[...Object.keys(VARIANTS), ...ITEM_KEYS, ...(composes(build) ? COMPOSE_KEYS : [])].join(', ')}`);
@@ -151,7 +161,7 @@ export function expandEquipment(build) {
   const base = card.gem || null;
   const gem = build.gem === null ? null : build.gem === undefined ? base
     : typeof build.gem === 'string' ? { gem: build.gem, cut: base?.cut ?? 'brilliant', glow: base?.glow ?? 0.2 } : { cut: 'brilliant', glow: 0.2, ...build.gem };
-  const ctx = { item, card: { ...card, language: card.language || {} }, d, law, lean, roles: card.roles, gem, parts, lang, seed };
+  const ctx = { item, card: { ...card, language: card.language || {} }, d, law, lean, roles: card.roles, gem, parts, lang, seed, laws: build.laws ?? LAWS_VERSION };
   // laws 2: a sword or a staff is a hilt carrying an end (compose.js); laws 1 its own chain, as it was minted
   const out = composes(build) ? composeItem(ctx) : SWORDS[item] ? buildSword(ctx) : buildItem(ctx);
   return { monomers: out.monomers, sockets: out.sockets, trace: { item, style: typeof build.style === 'string' ? build.style : card.id || 'inline', dials: d, laws: build.laws ?? LAWS_VERSION, ...out.trace } };

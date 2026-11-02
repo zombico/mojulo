@@ -4,7 +4,8 @@
 //          hand-and-half · two-hand, its grip counted in hands (law 8). Or a haft (heel → shaft → grip band(s) →
 //          collar): wand · arm · long · pole (a pole taken at two bands).
 //   end    what does the work, seated on the hilt's top: a `blade` (any outline: parts.blade) or a head (the staff's
-//          heads: plain · branch · claw · crescent · block · mace · ringed · spear · axe · halberd). A blade on a haft
+//          heads: plain · branch · claw · crescent · block · mace · ringed · spear · axe · halberd; and laws 2's own,
+//          heads.js: club · spiked · flanged · hammer · maul · bone · crook · orb · cap · trident · scythe). A blade on a haft
 //          is a glaive or a naginata; a head on a sword hilt rises on a neck (a sceptre, a sword-hilted mace).
 //
 // The item names are presets of the two: dagger (dagger + blade), sword (one-hand + blade), greatsword (two-hand +
@@ -18,6 +19,7 @@ import { focalStone, recedeRole, patternRole, focalGrow, guardSpanOf, pommelOf, 
 import { mulberry32, r3, P, A, mergeInto, setStone, push, ribbon } from './shapes.js';
 import { bladeLoft, guard, grip, pommel, BLADES } from './sword.js';
 import { staffHead, GEMLESS_HEADS } from './items.js';
+import { buildHead, LAWS2_HEADS } from './heads.js';
 import * as dmath from '../../util/dmath.js';
 
 /** The hilts (law 8): a sword hilt's grip and guard and the blade it is drawn for; a haft's length and where it is held. */
@@ -43,7 +45,8 @@ export function hiltAndEnd(item, parts = {}, lang = {}) {
   return { hilt, end };
 }
 /** Whether an end cradles a stone (it needs one to resolve: a gem with focus 'head'). */
-export const stoneEnd = (end) => end !== 'blade' && !GEMLESS_HEADS.includes(end);
+export const stoneEnd = (end) => end !== 'blade' && !GEMLESS_HEADS.includes(end) && !LAWS2_HEADS.includes(end);
+export { LAWS2_HEADS };
 /** The foci a hilt and an end take. */
 export function fociOf(hilt, end) {
   const sword = HILTS[hilt]?.kind === 'sword';
@@ -204,6 +207,12 @@ function bladeEnd(m, { variant, L, W, T, z0, edge: cardEdge, law, d, rng, roles,
 
 /** A head end on a shaft of radius R topped at z0, its budget from its haft (law 11). → its tip and focal. */
 function headEnd(m, { head, R, z0, gem, d, law, lang, rng, roles, minF, fg, edge, haftL, x0 = 0, y0 = 0 }) {
+  if (LAWS2_HEADS.includes(head)) {
+    // laws 2's own heads (heads.js): the clubs, the hammers, the crook, the orb, the trident, the scythe
+    const sub = {}, H = buildHead(sub, head, { R, z0, d, law, roles, minF, fg, haftL, rng });
+    for (const [k, list] of Object.entries(sub)) for (const s of list) (m[k] ||= []).push((x0 || y0) ? shift(s, x0, y0) : s);
+    return { z: z0 + H.HH, focal: { origin: A(H.focal[0] + x0, H.focal[1] + y0, H.focal[2]) } };
+  }
   const st = gem && stoneEnd(head) ? focalStone({ stylize: d.stylize, host: R * 2.6 }) : null;
   // a blade head (a spear's point, an axe's blade, a halberd's both) a share of its haft, never under the laws-1 size
   const own = { spear: R * 15 * fg, axe: R * 7 * fg, halberd: R * 15 * fg }[head];
