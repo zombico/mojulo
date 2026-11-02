@@ -128,6 +128,8 @@ import { WINGBEATS } from '@/lib/graph/bugs/gait';
 import { prepareStrokes, strokesLedger } from '@/lib/mcp/tools/layered-strokes';
 import { packRecipe } from '@/lib/graph/sketch/manifest-store';
 import { validateGear, gearRecord, gearMounts, gearReadout, gearBuild, gearTriangles } from '@/lib/graph/polygonizer/hero-gear';
+import { heldClips, holdsByLaws } from '@/lib/graph/polygonizer/hero-hold';
+import { ARMORY_VERSION } from '@/lib/graph/equipment/armory';
 import { validateAttach, attachRecord, attachMounts, attachReadout } from '@/lib/graph/polygonizer/hero-attach';
 import { isSwing, SWING_HAND, heroSwing } from '@/lib/graph/polygonizer/hero-swing';
 import { expandEquipment } from '@/lib/graph/equipment/expand';
@@ -220,7 +222,7 @@ export function expandLayeredManifest(manifest, { from = 'auto' } = {}) {
   if (!manifest?.plan && !manifest?.hero) return manifest;
   const hero = manifest.hero && from !== 'plan' ? normalizeHero(manifest.hero) : manifest.hero;
   const plan = manifest.hero && from !== 'plan' ? heroPlanOf(hero) : manifest.plan;
-  const recipe = expandHeroAwarePlan(plan, hero ? wornHero(hero) : hero, hero ? null : manifest.geocube);
+  const recipe = heldIdle(expandHeroAwarePlan(plan, hero ? wornHero(hero) : hero, hero ? null : manifest.geocube), hero);
   const known = new Set(Object.keys(recipe.dials || {}));
   const dials = Object.fromEntries(Object.entries(manifest.dials || {}).filter(([k]) => known.has(k)));
   return { ...manifest, ...(hero ? { hero } : {}), plan, recipe, dials: resolveLayeredDials(recipe.dials || {}, dials) };
@@ -1107,6 +1109,7 @@ export function validateHeroSpec(spec, { staleScale = false } = {}) {
     else {
       if (!UNDEAD_FORMS[U.form]) errs.push(`undead.form: one of ${Object.keys(UNDEAD_FORMS).join(', ')}`);
       if (U.seed !== undefined && !Number.isInteger(U.seed)) errs.push('undead.seed: an integer (the form\'s own dice)');
+      if (U.armory !== undefined && U.armory !== ARMORY_VERSION) errs.push(`undead.armory: ${U.armory} is unknown — the armory is version ${ARMORY_VERSION} (stamped at mint; leave it out)`);
       if (U.hobble !== undefined && typeof U.hobble !== 'boolean') errs.push('undead.hobble: true or false (one leg lame in its walk; absent, its walk\'s own odds on its dice)');
       for (const l of U.layers ?? []) if (!UNDEAD_LAYERS[l]) errs.push(`undead.layers: '${l}' is not a layer (${Object.keys(UNDEAD_LAYERS).join(', ')})`);
       if ((spec.form ?? 'tiered') !== 'tiered') errs.push("undead: the undead stand on the tiered body (form: 'tiered')");
@@ -1269,7 +1272,9 @@ export function heroRecord(spec, { staleScale = false } = {}) {
   // (a realistic child is the stylized figure: the realistic body depicts adults)
   spec = adultsOnly(spec);
   // the UNDEAD's words (undead/tiered.js) under the spec's own: bald, bare, one tone, a gaunt face, its rest; stored as
-  // any hero's words are, so an edit reaches them
+  // any hero's words are, so an edit reaches them. An armed undead minted now draws its arms from the armory
+  // (equipment/armory.js), stamped first so a later roster never re-arms it; one minted before keeps its card's own
+  if (spec.undead?.layers?.includes('armed') && spec.undead.armory === undefined && spec.gear === undefined) spec = { ...spec, undead: { ...spec.undead, armory: ARMORY_VERSION } };
   spec = undeadWords(spec);
   // the BEAST-KIN's words (beast/tiered.js) the same way: bald, bare in its coat, its rest
   spec = beastWords(spec);
@@ -1441,6 +1446,14 @@ function gripHands(plan, hero) {
   const held = ['right', 'left'].filter((s) => hero.gear?.[s]).map((s) => `fingers${s === 'right' ? 'R' : 'L'}`);
   if (!held.length || !plan?.rig?.hands || !plan.clips) return plan;
   return { ...plan, clips: Object.fromEntries(Object.entries(plan.clips).map(([name, keys]) => [name, keys.map((k) => ({ ...Object.fromEntries(held.filter((f) => k[f] === undefined).map((f) => [f, 'grip'])), ...k }))])) };
+}
+/** Laws-2 gear's handling (hero-hold.js) on an expanded recipe (its rig resolved): the idle breathes through the
+ * weapon, and no idle or walk key wears an item through the body. Gear minted before (equipment laws 1) keeps its
+ * clips byte for byte. */
+function heldIdle(recipe, hero) {
+  if (!hero?.gear || !recipe?.rig || !recipe.clips || !Object.values(hero.gear).some((g) => g && holdsByLaws(g))) return recipe;
+  const R = validateRig(recipe.rig);
+  return { ...recipe, clips: heldClips(recipe.clips, { mounts: gearMounts(hero, R), R, own: hero.clips || {} }).clips };
 }
 /** The anime hero's own colours per design base, under the operator's (its palette wins): the hair base's colour at a
  * mid-dark value, so its lit and shade tones both read under the character light and against the World's dark backdrop
@@ -1766,7 +1779,11 @@ export function heroReadout(hero, plan, stats, extraWarnings = [], { mesh, recip
     ...(core ? { core } : {}),
     ...(clips ? { clips } : {}),
     ...(hero.attach && recipe?.rig ? { attach: attachReadout(attachMounts(hero, validateRig(recipe.rig)), validateRig(recipe.rig)) } : {}),
-    ...(hero.gear && recipe?.rig ? { gear: (() => { const R = validateRig(recipe.rig); const out = gearReadout(gearMounts(hero, R), R); const sw = heroSwing(hero, { expand: expandEquipment, gearBuild });
+    ...(hero.gear && recipe?.rig ? { gear: (() => { const R = validateRig(recipe.rig), mounts = gearMounts(hero, R); const out = gearReadout(mounts, R);
+      // the clearance laws-2 gear keeps from the body through the idle and the walk (hero-hold.js): per slot, the
+      // nearest approach in metres (− inside) and whether it keeps the margin
+      const held = recipe.clips ? heldClips(recipe.clips, { mounts, R, own: recipe.clips }).clearance : null;
+      if (held) for (const c of Object.values(held)) if (out[c.slot]) (out[c.slot].clearance ??= {})[c.clip] = { m: c.m, at: c.at, clear: c.clear }; const sw = heroSwing(hero, { expand: expandEquipment, gearBuild });
       // the swing's contact data for a game's hit test (the clip never reads it): the impact's phase, the window, the reach
       if (sw && out[sw.hand]) out[sw.hand].swing = { word: sw.word, class: sw.cls, strike: sw.strike, window: sw.window, reachM: out[sw.hand].lengthM, cone: 70 };
       return out; })() } : {}),

@@ -934,6 +934,11 @@ export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 11
   // a previewed figure with the PAINTED face (face-paint-rig.js `paintTex`) hides its static textured face with the solid,
   // so the textured meshes carry their group's name as the plain ones do (absent ⇒ the same bytes)
   const previewPainted = previewList.some((pv) => pv.hide && previewBank[pv.figure]?.paintTex);
+  // …and any previewed figure hides its static TEXTURED faces with the solid (a barked staff, a printed board in its
+  // hand): the textured meshes carry their group's name whenever the hidden group has textured faces; before, only a
+  // painted face's did, and a hero holding a barked staff stood beside a frozen copy of it while its clips played
+  // (absent ⇒ the same bytes: a page with no preview, or no textured face in the hidden group)
+  const previewTextured = previewPainted || previewList.some((pv) => pv.hide && faces.some((f) => f && f.texture && (f.group === pv.hide || String(f.group).startsWith(pv.hide + ':'))));
   // DRAW LAYERS (channels/draw-layers.js): a page whose render groups carry a face `layer`, or whose previewed figure's
   // parts carry `ranges` (the same layers on the rig pack), draws the stencil rules — the layers block, the stencil
   // buffer, the toon hulls' tests and the preview's layered parts. The hair rule is on when some face or part is hair.
@@ -1212,7 +1217,7 @@ for (const grp of GROUPS) {
     const tm = new THREE.Mesh(tg, new THREE.MeshBasicMaterial({ map: tex, vertexColors: !!t.lit, side: THREE.DoubleSide${cutOpt} }));
     tm.renderOrder = 0.6; // over the form, under additive glow${resampled ? `
     if (__RESAMPLE[t.key]) __resample(tm.material, __RESAMPLE[t.key]);   // (read again so it does not repeat: channels/resample.js)` : ''}
-    ${swayBlock || grassBlock || toneBlock || previewPainted || formBlock || cone ? 'tm.userData.g = grp.name; ' : ''}${formBlock ? 'tm.userData.key = t.key; ' : ''}${creasesCfg ? "if (grp.crease) tm.userData.crease = grp.crease === 'land' ? 0.5 : 1; " : ''}${movedTex ? '(__MOVED[grp.name] ? m : scene).add(tm); ' : 'scene.add(tm); '}${cutKeys.length ? 'if (!__CUT[t.key]) ' : ''}solids.push(tm);${breakables ? " if (grp.name.indexOf('break:') === 0) (m.userData.tex || (m.userData.tex = [])).push(tm);   // a breakable's textured faces hide with it" : ''}${cutKeys.length ? ' // a cutout (leaves) is walked through, not into' : ''}
+    ${swayBlock || grassBlock || toneBlock || previewTextured || formBlock || cone ? 'tm.userData.g = grp.name; ' : ''}${formBlock ? 'tm.userData.key = t.key; ' : ''}${creasesCfg ? "if (grp.crease) tm.userData.crease = grp.crease === 'land' ? 0.5 : 1; " : ''}${movedTex ? '(__MOVED[grp.name] ? m : scene).add(tm); ' : 'scene.add(tm); '}${cutKeys.length ? 'if (!__CUT[t.key]) ' : ''}solids.push(tm);${breakables ? " if (grp.name.indexOf('break:') === 0) (m.userData.tex || (m.userData.tex = [])).push(tm);   // a breakable's textured faces hide with it" : ''}${cutKeys.length ? ' // a cutout (leaves) is walked through, not into' : ''}
   }
 }
 
