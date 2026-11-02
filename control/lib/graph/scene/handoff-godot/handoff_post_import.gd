@@ -20,6 +20,8 @@ extends EditorScenePostImport
 #     has no sky; the ambient, SSAO, the page's tone (linear below its shoulder), the haze as fog in its colour and
 #     density, over the land and not the sky) and the sun as a
 #     DirectionalLight3D casting shadows (a level with no sun and no lamps is given a default one, marked so)
+#   - stands each rigged figure as the page stands it when its clock reads zero (`stands`: the first frame of the clip it
+#     names, else its rest)
 #   - makes a camera current: the GLB's first, or one stood at the level's camera marker looking at what it looks at
 #   - stands every marker (the spawn, the entities with their part in the loop, the anchors, the cameras) and every
 #     seat as a Marker3D under MojuloMarkers and MojuloSeats, its record in its metadata ("mojulo"), and the whole level
@@ -78,6 +80,8 @@ func _post_import(scene: Node) -> Object:
 			mi.create_trimesh_collision()
 			own(mi, scene)
 	lamps(scene)
+	if typeof(H.get("stands")) == TYPE_DICTIONARY:
+		stand(scene, H["stands"])
 	if typeof(H.get("terrain")) == TYPE_DICTIONARY:
 		terrain(scene, H["terrain"])
 	if typeof(H.get("sea")) == TYPE_DICTIONARY:
@@ -91,6 +95,50 @@ func _post_import(scene: Node) -> Object:
 		scene.set_meta("mojulo_level", level)
 	scene.set_meta("mojulo_handoff", H.get("version", ""))
 	return scene
+
+# (a clip's name as a key: Godot's importer remakes a glTF animation's name, `dummy:forward` among them)
+func akey(s: String) -> String:
+	var o := ""
+	for c in s.to_lower():
+		if (c >= "a" and c <= "z") or (c >= "0" and c <= "9"):
+			o += c
+	return o
+
+# (each rigged figure stands as the page stands it when its clock reads zero: in the first frame of the clip `stands`
+# names, where Godot would show its rest; a figure not named keeps its rest, as on the page)
+func stand(scene: Node, stands: Dictionary) -> void:
+	var want := {}
+	for f in stands:
+		want[akey(String(stands[f]))] = true
+	for ap in scene.find_children("*", "AnimationPlayer", true, false):
+		var root: Node = ap.get_node_or_null(ap.root_node)
+		if root == null:
+			continue
+		for n in ap.get_animation_list():
+			if not want.has(akey(String(n))):
+				continue
+			var anim: Animation = ap.get_animation(n)
+			for t in range(anim.get_track_count()):
+				var p: NodePath = anim.track_get_path(t)
+				var at = root.get_node_or_null(NodePath(String(p.get_concatenated_names())))
+				var ty := anim.track_get_type(t)
+				if at is Skeleton3D and p.get_subname_count() > 0:
+					var b: int = at.find_bone(String(p.get_concatenated_subnames()))
+					if b < 0:
+						continue
+					if ty == Animation.TYPE_POSITION_3D:
+						at.set_bone_pose_position(b, anim.position_track_interpolate(t, 0.0))
+					elif ty == Animation.TYPE_ROTATION_3D:
+						at.set_bone_pose_rotation(b, anim.rotation_track_interpolate(t, 0.0))
+					elif ty == Animation.TYPE_SCALE_3D:
+						at.set_bone_pose_scale(b, anim.scale_track_interpolate(t, 0.0))
+				elif at is Node3D and p.get_subname_count() == 0:
+					if ty == Animation.TYPE_POSITION_3D:
+						at.position = anim.position_track_interpolate(t, 0.0)
+					elif ty == Animation.TYPE_ROTATION_3D:
+						at.quaternion = anim.rotation_track_interpolate(t, 0.0)
+					elif ty == Animation.TYPE_SCALE_3D:
+						at.scale = anim.scale_track_interpolate(t, 0.0)
 
 func raw(res: String) -> Image:
 	var img := Image.load_from_file(ProjectSettings.globalize_path(res))
@@ -196,6 +244,9 @@ func sea(scene: Node, S: Dictionary, env: Dictionary) -> void:
 	sm.set_shader_parameter("uDM", v2(R.get("metres", [1, 1])))
 	sm.set_shader_parameter("uDMax", float(R.get("max", 1.0)))
 	sm.set_shader_parameter("uOpacity", float(R.get("opacity", 0.9)))
+	# (the sky's light on its colour, linear: none where the handoff names none)
+	if R.has("irradiance"):
+		sm.set_shader_parameter("uIrr", v3(R["irradiance"]))
 	# (the sky it reflects: the level's, else its background)
 	var sky = env.get("sky", {})
 	var bg := String(env.get("background", "#c8d4e0"))

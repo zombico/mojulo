@@ -32,6 +32,8 @@
 //   - a Camera at each of the level's camera markers (MojuloCamera_<name>), the first one on
 //   - every marker and seat an empty GameObject under Mojulo/Markers and Mojulo/Seats carrying its record
 //     (MojuloMarker), the level's record on the root (MojuloLevel)
+//   - each rigged figure stood as the page stands it when its clock reads zero (`stands`: the first frame of the clip it
+//     names, else its rest)
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -416,6 +418,9 @@ namespace Mojulo.Handoff
             var pbr = Json.Obj(g, "pbrMetallicRoughness");
             var bc = Json.Floats(pbr, "baseColorFactor") ?? new[] { 0f, 0.29f, 0.45f, 1f };
             m.SetVector("Base", new Vector4(bc[0], bc[1], bc[2], 1f));
+            // (the sky's light on its colour, linear: none where the handoff names none)
+            var irr = Json.Floats(R, "irradiance");
+            if (irr != null && irr.Length >= 3) m.SetVector("Irr", new Vector4(irr[0], irr[1], irr[2], 1f));
             m.renderQueue = (int)RenderQueue.Transparent;
             AssetDatabase.CreateAsset(m, Built + "/Materials/M_MojuloSea.mat");
             return m;
@@ -706,6 +711,15 @@ namespace Mojulo.Handoff
                 var anims = inst.GetComponentsInChildren<Animator>(true);
                 if (anims.Length == 0) anims = new[] { inst.AddComponent<Animator>() };
                 foreach (var a in anims) if (a.runtimeAnimatorController == null) a.runtimeAnimatorController = ctl;
+                // (each rigged figure stands as the page stands it when its clock reads zero: in the first frame of the clip
+                // `stands` names, where the scene would keep its rest; glTFast names a clip as the GLB does or close to it)
+                var stands = Json.Obj(H, "stands");
+                if (stands != null)
+                {
+                    string Key(string n) => new string((n ?? "").ToLowerInvariant().Where(char.IsLetterOrDigit).ToArray());
+                    var want = new HashSet<string>(stands.Values.OfType<string>().Select(Key));
+                    foreach (var c in clips) if (want.Contains(Key(c.name))) c.SampleAnimation(inst, 0f);
+                }
             }
 
             Directory.CreateDirectory(Path.GetDirectoryName(scenePath));

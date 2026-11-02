@@ -7,7 +7,8 @@
  *     mojulo/level.glb.import        names the post-import script, so every (re)import of the GLB runs it
  *     mojulo/handoff.json            the level record and the ledger, and what glTF has no slot for: each material's
  *                                    height map for parallax (`materials`), the instanced sets (`instanced`, which get no
- *                                    collision) and the terrain's atlases and weights (`terrain`)
+ *                                    collision), the terrain's atlases and weights (`terrain`), the sea's (`sea`) and the
+ *                                    clip each rigged figure stands in (`stands`, handoff.js figureStands)
  *     mojulo/textures/*.png          those height maps, as files
  *     mojulo/terrain/*.png           the layered ground's images: its layers' atlases (imported as arrays, `.import` beside
  *                                    each), the scree's dice, the trail's mask, the grass's cover (kept as written)
@@ -124,7 +125,8 @@ export function handoffGodotFiles(h, { title = null } = {}) {
     return { part: seaSet.name, read, image: 'res://mojulo/terrain/sea_depth.png', shader: 'res://mojulo/handoff_sea.gdshader' };
   })() : null;
   const handoffJson = { version: HANDOFF_GODOT_VERSION, handoff: h.ledger?.version ?? null, level: h.level ?? null, ledger: h.ledger ?? null,
-    materials, instanced: [...HANDOFF_INSTANCED], ...(terrain ? { terrain } : {}), ...(sea ? { sea } : {}) };
+    materials, instanced: [...HANDOFF_INSTANCED], ...(terrain ? { terrain } : {}), ...(sea ? { sea } : {}),
+    ...(h.stands && Object.keys(h.stands).length ? { stands: h.stands } : {}) };
   files.push({ file: 'mojulo/level.glb', data: Buffer.from(h.exported.bytes) });
   files.push({ file: 'mojulo/level.glb.import', data: LEVEL_GLB_IMPORT });
   files.push({ file: 'mojulo/handoff.json', data: `${JSON.stringify(handoffJson, null, 1)}\n` });

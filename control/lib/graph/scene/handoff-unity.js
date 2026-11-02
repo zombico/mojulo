@@ -8,7 +8,8 @@
  *                                      imported by glTFast (com.unity.cloud.gltfast; Unity has no glTF importer of its own)
  *     Assets/Mojulo/handoff.json       the level record and the ledger, and what glTF has no slot for: each material's
  *                                      height map (`materials`), the instanced sets (`instanced`), the layered ground's
- *                                      read and images (`terrain`) and the sea's (`sea`)
+ *                                      read and images (`terrain`), the sea's (`sea`) and the clip each rigged figure
+ *                                      stands in (`stands`, handoff.js figureStands)
  *     Assets/Mojulo/Data~/…            those images as files, read by the importer as they are written (a folder Unity
  *                                      does not import): the height maps, each layer of the ground's atlases cut to its own
  *                                      image (stacked by the importer into a Texture2DArray, a layer a slice), the scree's
@@ -168,7 +169,8 @@ export function handoffUnityFiles(h, { title = null } = {}) {
     return { part: seaSet.name, read, image: 'Data~/terrain/sea_depth.png', shader: 'Mojulo/Sea' };
   })() : null;
   const handoffJson = { version: HANDOFF_UNITY_VERSION, handoff: h.ledger?.version ?? null, title: title ?? h.level?.title ?? null, paths: HANDOFF_UNITY_PATHS,
-    level: h.level ?? null, ledger: h.ledger ?? null, materials, instanced: [...HANDOFF_INSTANCED], ...(terrain ? { terrain } : {}), ...(sea ? { sea } : {}) };
+    level: h.level ?? null, ledger: h.ledger ?? null, materials, instanced: [...HANDOFF_INSTANCED], ...(terrain ? { terrain } : {}), ...(sea ? { sea } : {}),
+    ...(h.stands && Object.keys(h.stands).length ? { stands: h.stands } : {}) };
   const R = HANDOFF_UNITY_PATHS.root, at = (f) => `${R}/${f}`;
   // (an asset and its .meta; a folder's .meta beside it)
   const asset = (f, d) => { files.push({ file: at(f), data: d }, { file: `${at(f)}.meta`, data: unityMeta(at(f)) }); };

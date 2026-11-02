@@ -3,7 +3,9 @@
 // (handoff-unreal/handoff_sea.hlsl): see-through at its opacity and faded to nothing toward the shore by the depth under
 // it (the map's red over `max` metres; off the map, the open sea, whole), the sky in its reflection: the page's own dome
 // (from the horizon's colour to the zenith's by the reflected ray's height) at Schlick's Fresnel. Its colour is lit as a
-// Lambert surface (its base, no specular of the engine's: the sky is its reflection). It casts no shadow and writes its
+// Lambert surface (its base, no specular of the engine's: the sky is its reflection), and by the dome's light
+// (`irradiance`, handoff.js SEA_SKY_SHARE: three lights a standard material by its envMap's diffuse too) less what it
+// reflects. It casts no shadow and writes its
 // depth, so the tone pass hazes it by its own distance as the page does (the renderer copies depth after transparents).
 // Runs in mojulo's frame (MojuloLighting.hlsl). The depth map is loaded with its first row at v = 0 (a data texture).
 Shader "Mojulo/Sea"
@@ -16,6 +18,7 @@ Shader "Mojulo/Sea"
         Zenith ("Zenith (linear)", Vector) = (0.4, 0.55, 0.8, 1)
         Horizon ("Horizon (linear)", Vector) = (0.7, 0.8, 0.9, 1)
         Base ("Base (linear)", Vector) = (0, 0.29, 0.45, 1)
+        Irr ("Sky light (linear)", Vector) = (0, 0, 0, 1)
     }
     SubShader
     {
@@ -38,7 +41,7 @@ Shader "Mojulo/Sea"
             #include "MojuloLighting.hlsl"
             TEXTURE2D(_TDepth); SAMPLER(sampler_TDepth);
             CBUFFER_START(UnityPerMaterial)
-            float4 DOM, DMaxOp, Zenith, Horizon, Base;
+            float4 DOM, DMaxOp, Zenith, Horizon, Base, Irr;
             CBUFFER_END
             struct Attributes { float4 positionOS : POSITION; float3 normalOS : NORMAL; };
             struct Varyings { float4 positionCS : SV_POSITION; float3 positionWS : TEXCOORD0; float3 normalWS : TEXCOORD1; };
@@ -61,7 +64,8 @@ Shader "Mojulo/Sea"
                 float3 R = reflect(-V, float3(0.0, 0.0, 1.0));
                 float3 sky = lerp(Horizon.rgb, Zenith.rgb, pow(max(0.0, R.z), 0.6));
                 float nv = saturate(V.z);
-                float3 refl = sky * (0.04 + 0.96 * pow(1.0 - nv, 5.0));
+                float fr = 0.04 + 0.96 * pow(1.0 - nv, 5.0);
+                float3 refl = sky * fr + Base.rgb * Irr.rgb * (1.0 - fr);
                 // (the base lit as a Lambert surface: the sun, the lamps, the ambient)
                 InputData d = (InputData)0;
                 d.positionWS = i.positionWS;

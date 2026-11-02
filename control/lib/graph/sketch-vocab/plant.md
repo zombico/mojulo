@@ -133,7 +133,7 @@ plants: [{
   **brushy / sketchy** look rather than filled shapes. `'lines'` opts back to
   the wireframe vein/banding read.
   The form vectors are identical across all modes; only the print differs. See
-  [wave-to-world-paint.plan.md](../../../lite-template/integration/0609/wave-to-world-paint.plan.md).
+  `wave-to-world-paint.plan.md`.
 
 ## When to reach for it
 

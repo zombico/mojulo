@@ -10,10 +10,12 @@
  * it, worlds/world-scene.js), so a surface not yet built as form leaves as ALBEDO UNLIT: its own colour, no light baked
  * in, under a lit material the engine shades.
  *
- *   resolveHandoff(sketch, { what? }) → { kind, payload, exported, instances, ledger }
+ *   resolveHandoff(sketch, { what? }) → { kind, payload, exported, instances, ledger, stands }
  *     what      'level' (a world, default) | 'asset' (one thing by ref)
  *     exported  facesToGlb's result: the GLB, lit (glTF metal-rough, no unlit extension), the instances in it
  *     ledger    { version, era, what, carried: { faces, instances: { <set>: n } }, stays: [what stayed the web's] }
+ *     stands    figureStands: { <figure>: '<figure>:<clip>' }, the clip whose first frame each rigged figure stands in on
+ *               the page at its clock's zero (none: at its rest)
  *   stoneInstances(stones) → [instance set]: the form land's scree stones (form/land-stones.js), one set per shape, size
  *     and tone, each stone a node turned to its ground's normal and yawed by its index, as the World page stands them
  *   dressedMaterials(keys) → { <key>: { base, normal, orm, height, depth, metres, rough } }: each tile key painted by the
@@ -30,7 +32,8 @@
  *     along the face's dominant axis, by weight and by its own height, as the page does). The painted faces it stands for
  *     leave the export, its painted water too where it has a sea's depth (`seaPlane`), else the sea stays the painted one
  *   seaPlane(land) → [instance set]: the sea as the page draws it, one plane at the water's height over the bed, in the
- *     sea's colour at 0.9, its depth map and its fade toward the shore in its material's `extras.mojulo.sea`
+ *     sea's colour at 0.9, its depth map, its fade toward the shore and the sky's light on its colour (`irradiance`,
+ *     SEA_SKY_SHARE) in its material's `extras.mojulo.sea`
  *   roomLamps(room) → [glTF point light]: a room's lamps under the form render's solve (form/room-light.js): each where
  *     its flame is, its solved key as its colour and, in a renderer's units, its strength (π × the key's level: out =
  *     base × light, form/room-light.js), its reach its radius. With them its surfaces leave as their solved bases, so the
@@ -162,6 +165,12 @@ const seaOf = (land) => (land && land.depth && land.seabed && Number.isFinite(la
  *  `max` metres, 1 off the map), its roughness the water class's, the sky in its reflection. A plain reader sees the
  *  plane at 0.9; an engine's water reads `sea` (its depth map placed on the plan) in its material's extras. */
 export const SEA_OPACITY = 0.9;
+/** The sky's light on the sea's colour (`sea.irradiance`): the page's sea takes its envMap's diffuse light as three gives a
+ *  standard material (the sky dome's PMREM read at roughness 1 along the normal, × the base, less what it reflects), over
+ *  the ambient and the sun. For the page's dome, mix(horizon, zenith, max(z, 0)^0.6) in linear light, an up-facing
+ *  normal reads the horizon's colour this share of the way to the zenith's: measured off three r184's PMREM (the cosine-
+ *  weighted mean, 2 / 2.6 = 0.769, is a little more than three's filter gives). */
+export const SEA_SKY_SHARE = 0.72607;
 export function seaPlane(land) {
   const L = seaOf(land);
   if (!L) return [];
@@ -169,9 +178,12 @@ export function seaPlane(land) {
   const positions = Float32Array.from([x0, y0, z, x1, y0, z, x1, y1, z, x0, y0, z, x1, y1, z, x0, y1, z]);
   const normals = Float32Array.from({ length: 18 }, (_, i) => (i % 3 === 2 ? 1 : 0));
   const base = L.light?.sea?.base ?? '#2a6f8f', rgb = [1, 3, 5].map((i) => LIN8[parseInt(base.slice(i, i + 2), 16)]);
+  // (the dome's light on the up-facing plane, linear: what the page's envMap adds to the sea's colour)
+  const sky = L.sky && Array.isArray(L.sky.zenith) && Array.isArray(L.sky.horizon)
+    ? L.sky.horizon.map((h, k) => r5(LIN8[h] + (LIN8[L.sky.zenith[k]] - LIN8[h]) * SEA_SKY_SHARE)) : null;
   return [{ name: 'form:sea', positions, normals, transforms: [{ translation: [0, 0, 0] }], color: rgb.map(r5), roughness: L.classes?.water ?? 0.06, alpha: SEA_OPACITY,
     sea: { depth: pngUrl(encodePngRgba(Buffer.from(Q.px, 'base64'), Q.size[0], Q.size[1])), origin: Q.origin.map((v) => r5(v - Q.cell / 2)),
-      metres: Q.size.map((n) => r5(n * Q.cell)), max: Q.max, z: r5(z), opacity: SEA_OPACITY } }];
+      metres: Q.size.map((n) => r5(n * Q.cell)), max: Q.max, z: r5(z), opacity: SEA_OPACITY, ...(sky ? { irradiance: sky } : {}) } }];
 }
 
 // THE ROCK'S RELIEF AS GEOMETRY (the page's reliefPart, channels/form-land.js): a cliff's triangles cut into a finer
@@ -402,6 +414,25 @@ export function entityBodies(payload) {
   return out;
 }
 
+/** How the page stands each rigged figure when its clock reads zero, by the GLB animation whose first frame holds it
+ *  (`<figure>:<clip>`): an ambient walker in its walk at phase 0 (channels/walkers.js: `forward`, else its first clip),
+ *  a body standing still in its `idle` clip where it has one (channels/controllable). A figure not named stands at its
+ *  rest, as on the page. An adapter stands each so, where an engine would show the rest (Blender's importer already
+ *  holds a figure's first clip). */
+export function figureStands(payload) {
+  const figs = payload?.figures && typeof payload.figures === 'object' ? payload.figures : {}, out = {};
+  const clipsOf = (n) => { const f = typeof n === 'string' ? figs[n] : null; return f && f.rig === true && Array.isArray(f.bones) && Array.isArray(f.parts) && f.clips ? Object.keys(f.clips) : []; };
+  for (const e of Array.isArray(payload?.entities) ? payload.entities : []) {
+    const n = e?.body?.type === 'figure-rig' ? e.body.figure : null;
+    if (clipsOf(n).includes('idle')) out[n] = `${n}:idle`;
+  }
+  for (const w of Array.isArray(payload?.walkers) ? payload.walkers : []) {
+    const c = clipsOf(w?.figure);
+    if (c.length) out[w.figure] = `${w.figure}:${c.includes('forward') ? 'forward' : c[0]}`;
+  }
+  return Object.fromEntries(Object.keys(out).sort().map((k) => [k, out[k]]));
+}
+
 // --- the plants (the page's channels/form-flora.js, its merge and placement, without three) ---
 
 const f32 = (s) => { const b = Buffer.from(s, 'base64'); return new Float32Array(b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength)); };
@@ -528,5 +559,7 @@ export async function resolveHandoff(sketch, { what = 'level' } = {}) {
       ...(landSets.length ? { land: { parts: landSets.length, layered: landSets.filter((s) => s.terrain).length, vertices: landSets.reduce((a, s) => a + s.positions.length / 3, 0), reliefCut: landSets.reduce((a, s) => a + (s.relief ?? 0), 0) } } : {}), materials: { dressed: Object.keys(materials).length, painted: new Set(keys).size - Object.keys(materials).length } },
     stays: [...STAYS],
   };
-  return { kind, payload, exported, instances, materials, level, ledger };
+  // (how the page stands each rigged figure at its clock's zero: an adapter stands it so)
+  const stands = figureStands(handed);
+  return { kind, payload, exported, instances, materials, level, ledger, stands };
 }

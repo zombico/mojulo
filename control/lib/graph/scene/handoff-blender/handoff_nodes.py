@@ -898,7 +898,8 @@ def world(env):
 # ---- the sea ----------------------------------------------------------------------------------------------------
 
 def sea_material(S, env, image, base, rough):
-    """The page's sea: its colour lit, alpha its opacity faded by the depth under it, the sky in its reflection."""
+    """The page's sea: its colour lit (and by the dome's light, `irradiance`), alpha its opacity faded by the depth under
+    it, the sky in its reflection."""
     m = _tag(bpy.data.materials.new('mojulo:sea'))
     use_nodes(m)
     nt = m.node_tree
@@ -934,7 +935,14 @@ def sea_material(S, env, image, base, rough):
     # (its reflection is the sky's alone, as the page's: Blender's own would reflect the World, which every ray but the
     # camera's sees as the solve's ambient; the sun's glint goes with it)
     bsdf.inputs['Specular IOR Level'].default_value = 0.0
-    g.put(skyC * fres, bsdf.inputs['Emission Color'])
+    # (and the dome's light on its colour, less what it reflects: the page's envMap lights a standard material's diffuse
+    # too, handoff.js SEA_SKY_SHARE; none where the handoff names none)
+    irr = R.get('irradiance')
+    if isinstance(irr, list) and len(irr) >= 3:
+        lit = tuple(float(base[k]) * float(irr[k]) for k in range(3))
+        g.put(skyC * fres + mix(lit, (0.0, 0.0, 0.0), fres), bsdf.inputs['Emission Color'])
+    else:
+        g.put(skyC * fres, bsdf.inputs['Emission Color'])
     bsdf.inputs['Emission Strength'].default_value = 1.0
     g.put(alpha, bsdf.inputs['Alpha'])
     nt.links.new(bsdf.outputs[0], out.inputs['Surface'])

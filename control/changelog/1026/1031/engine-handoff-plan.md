@@ -672,9 +672,37 @@ developer would want to wire. Never claimed by a machine.
   emote-bridge, realistic-body, local-voice-worker, mcp-integration), the plugin, marketplace, glama and package
   descriptions, two HUD cards, the retired kernels' readers' headers; every dead link in those files fixed. No pin
   moved. Left: sixteen dead links in vocab cards under control/lib (plan paths, a moved module), not this theme's.
-- Open after phase 9 (each a lead, measured by the machine gate, for the eyes gate): the seam camera inside the hero's
-  head (Godot, Unreal, Unity draw its insides); the near sea darker in every engine; the page's contact occlusion and a
+- Open after phase 9 (each a lead, measured by the machine gate, for the eyes gate; the seam camera's figure and the near
+  sea were fixed in the tightening round below): the page's contact occlusion and a
   room's baked bounce not carried; the page dropping the cracked earth at distance; Blender's parallax kinds on its own
   Voronoi; the dunes' and snow's layers, the files beside the handoff (the soundtrack, the sound effects) and the
   handoff ledger replacing the marks, still to build.
 
+- 1102, after phase 9, four of its open leads closed (the visual gate before and after, trail and bay, all four engines; the page
+  rendered from the merged 1026-consolidated, its stills brighter than phase 8's, so the before numbers are this run's):
+  - The seam: not the materials' sides. The page draws the dummy walker double-sided too (channels/walkers.js,
+    MeshBasicMaterial DoubleSide); at the gate's t = 0 it stands in its walk's first frame, the head 8 cm lower than
+    the rig's rest, and every wall of it round the camera falls inside the near plane (rays through the frustum: all
+    hits 0.02-0.10 m; at the GLB's rest, up to 13 layers past 0.1 m). Blender's importer holds the first clip, which
+    is why it matched. `figureStands` (handoff.js): the clip whose first frame the page stands each rigged figure in
+    (a walker its walk, a body its idle clip where it has one, else none: the rest), carried as handoff.json's `stands`;
+    Godot's post-import, Unity's importer and Unreal's (a single-node animation held at 0) stand them so. No GLB
+    byte moves for it. Seam SSIM / ΔE before -> after: Godot .677/21.8 -> .858/7.2 (the rest is Godot's sky, a deeper
+    blue than the page's), Unreal .671/19.8 -> .877/3.1, Unity .665/20.0 -> .878/2.6, Blender .858/2.9 unchanged; close
+    .686 -> .697 in Godot, Unreal and Unity.
+  - The near sea: the envMap's diffuse. Measured on the page: the sea with three's IBL irradiance zeroed falls to
+    Unreal's and Unity's patch within 5 levels (island near sea 43,167,223 -> 38,154,194; Unreal 39,158,199). Three's
+    PMREM read for an up normal on the page's dome is the horizon 0.726 of the way to the zenith (the cosine-weighted
+    2/2.6 = 0.769 overstates it): `SEA_SKY_SHARE`, and seaPlane writes `irradiance` (linear) into the sea's record
+    (the handoff GLB's sea extras and every adapter's `read`). Each port adds base × irradiance × (1 - Fresnel) to its
+    emission. Island near sea (page 47,173,232): Godot 87,164,206 -> 86,178,237, Blender 75,159,200 -> 75,173,232,
+    Unreal 39,158,199 -> 43,173,232, Unity 39,160,202 -> 44,175,235; wide's right sea (page 64,173,230): Unreal and Unity
+    63,164-166,205-208 -> 65,176-177,231-235. Godot's and Blender's red stays ~30-40 high: their haze mixes in linear
+    light before the tone curve, the page's after the encode (a haze lead, not the sea's). Island mean ΔE 6.3/5.3/5.5/5.2
+    -> 6.2/4.8/4.3/4.1.
+  - Godot's line: Blender, Unreal and Unity make the sea whole off its depth map (the page's deep floor is not carried);
+    Godot let 10% of its sky through there. Godot now does the same; what is left is 1-3 levels where the map's deep
+    water has no floor under it.
+  - The bay unchanged in every engine (no sea, no figure). The handoff GLB moves only by the sea's `irradiance`; no pin
+    is on it. Sixteen dead links in vocab cards under control/lib fixed or dropped (plan links dropped, text kept), and
+    three plan links in mcp/tools/cad-aid.plan.md; no pin moved.

@@ -40,6 +40,8 @@ It builds the level in the project from mojulo/handoff.json and mojulo/level.glb
     exposure fixed, no bloom, vignette, grain or occlusion
   - a CameraActor at each of the level's camera markers (MojuloCamera_<name>), looking where it looks
   - every marker and seat a TargetPoint (folders Mojulo/Markers, Mojulo/Seats), its record in its tags ('mojulo:{json}')
+  - each rigged figure stood as the page stands it when its clock reads zero (`stands`: the first frame of the clip it
+    names, a single-node animation held there and not playing; else its rest)
 """
 import json
 import math
@@ -478,8 +480,10 @@ def sea_master():
            ('TDepth', tex_object(m, 'TDepth', -1200, -100), ''), ('DOM', vec_param(m, 'DOM', -1200, 0, (0, 0, 1, 1)), 'RGBA'),
            ('DMaxOp', vec_param(m, 'DMaxOp', -1200, 100, (1, 0.9, 0, 0)), 'RGBA'), ('Zen', vec_param(m, 'Zenith', -1200, 200, (0.4, 0.55, 0.8, 1)), 'RGBA'),
            ('Hor', vec_param(m, 'Horizon', -1200, 300, (0.7, 0.8, 0.9, 1)), 'RGBA')]
+    base = vec_param(m, 'Base', -1200, 400, (0, 0.29, 0.45, 1))
+    ins += [('Base', base, 'RGBA'), ('Irr', vec_param(m, 'Irr', -1200, 500, (0, 0, 0, 1)), 'RGBA')]
     cu = custom(m, 'handoff_sea.hlsl', ins, -700, 0, unreal.CustomMaterialOutputType.CMOT_FLOAT3, (('Alpha', unreal.CustomMaterialOutputType.CMOT_FLOAT1),), 'the sea (handoff_sea.hlsl)')
-    ML.connect_material_property(vec_param(m, 'Base', -400, -300, (0, 0.29, 0.45, 1)), '', unreal.MaterialProperty.MP_BASE_COLOR)
+    ML.connect_material_property(base, '', unreal.MaterialProperty.MP_BASE_COLOR)
     ML.connect_material_property(scalar_param(m, 'Roughness', -400, -200, 0.06), '', unreal.MaterialProperty.MP_ROUGHNESS)
     ML.connect_material_property(scalar_param(m, 'Specular', -400, -100, 0.0), '', unreal.MaterialProperty.MP_SPECULAR)
     ML.connect_material_property(cu, '', unreal.MaterialProperty.MP_EMISSIVE_COLOR)
@@ -800,8 +804,39 @@ def sea(S, env, glb):
     pbr = g.get('pbrMetallicRoughness', {})
     set_vec(mi, 'Base', list(pbr.get('baseColorFactor', [0.0, 0.29, 0.45, 1]))[:3] + [1.0])
     set_scalar(mi, 'Roughness', pbr.get('roughnessFactor', 0.06))
+    # (the sky's light on its colour, linear: none where the handoff names none)
+    if isinstance(R.get('irradiance'), list) and len(R['irradiance']) >= 3:
+        set_vec(mi, 'Irr', [float(v) for v in R['irradiance'][:3]] + [1.0])
     EAL.save_loaded_asset(mi)
     return mi
+
+
+def stand(new, stands):
+    """Each rigged figure stands as the page stands it when its clock reads zero: in the first frame of the clip `stands`
+    names (Interchange names a sequence after the GLB's animation, or close to it), held and not playing, where the level
+    would show its rest; a figure not named keeps its rest, as on the page."""
+    key = lambda n: ''.join(ch for ch in str(n).lower() if ch.isalnum())
+    want = [key(v) for v in stands.values()]
+    seqs = []
+    for d in unreal.AssetRegistryHelpers.get_asset_registry().get_assets_by_path(GLB_DIR, recursive=True):
+        if str(d.asset_class_path.asset_name) == 'AnimSequence' and any(key(d.asset_name).endswith(w) for w in want):
+            seqs.append(unreal.load_asset(str(d.package_name) + '.' + str(d.asset_name)))
+    n = 0
+    for a in new:
+        for c in a.get_components_by_class(unreal.SkeletalMeshComponent):
+            mesh = c.get_skeletal_mesh_asset()
+            sk = mesh.get_editor_property('skeleton') if mesh else None
+            for q in seqs:
+                if q is not None and sk is not None and q.get_editor_property('skeleton') == sk:
+                    c.set_animation_mode(unreal.AnimationMode.ANIMATION_SINGLE_NODE)
+                    c.override_animation_data(q, False, False, 0.0, 1.0)
+                    try:
+                        c.set_update_animation_in_editor(True)
+                    except Exception:  # noqa: BLE001 - named by version
+                        pass
+                    n += 1
+                    break
+    return n
 
 
 def sky_colours(env):
@@ -1065,6 +1100,11 @@ def build():
                 # haze reads, so the sea is hazed by its own distance as the page's is)
                 c.set_editor_property('render_custom_depth', True)
     nl, li = lamps(new, glb)
+    if isinstance(H.get('stands'), dict) and H['stands']:
+        try:
+            log('stood', stand(new, H['stands']), 'figures in their clip\'s first frame')
+        except Exception as e:  # noqa: BLE001 - a figure left at its rest is no failure
+            warn('stands', e)
     E = environment(env) if level else {}
     nm = ns = 0
     if level:

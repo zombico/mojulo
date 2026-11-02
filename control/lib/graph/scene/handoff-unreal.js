@@ -7,7 +7,8 @@
  *     mojulo/level.glb               the handoff's GLB (lit materials, instances, lights, the level record in its extras)
  *     mojulo/handoff.json            the level record and the ledger, and what glTF has no slot for: each material's
  *                                    height map (`materials`), the instanced sets (`instanced`), the layered ground's
- *                                    read and images (`terrain`) and the sea's (`sea`)
+ *                                    read and images (`terrain`), the sea's (`sea`) and the clip each rigged figure
+ *                                    stands in (`stands`, handoff.js figureStands)
  *     mojulo/textures/*.png          those height maps, as files
  *     mojulo/terrain/*.png           the layered ground's images: each layer of its atlases cut to its own image (the
  *                                    importer stacks them into a Texture2DArray, a layer a slice, as the page's arrays),
@@ -125,7 +126,8 @@ export function handoffUnrealFiles(h, { title = null } = {}) {
     return { part: seaSet.name, read, image: 'terrain/sea_depth.png', hlsl: 'handoff_sea.hlsl' };
   })() : null;
   const handoffJson = { version: HANDOFF_UNREAL_VERSION, handoff: h.ledger?.version ?? null, title: title ?? h.level?.title ?? null, paths: HANDOFF_UNREAL_PATHS,
-    level: h.level ?? null, ledger: h.ledger ?? null, materials, instanced: [...HANDOFF_INSTANCED], ...(terrain ? { terrain } : {}), ...(sea ? { sea } : {}) };
+    level: h.level ?? null, ledger: h.ledger ?? null, materials, instanced: [...HANDOFF_INSTANCED], ...(terrain ? { terrain } : {}), ...(sea ? { sea } : {}),
+    ...(h.stands && Object.keys(h.stands).length ? { stands: h.stands } : {}) };
   const at = (f) => `mojulo/${f}`;
   files.push({ file: at('level.glb'), data: Buffer.from(h.exported.bytes) });
   files.push({ file: at('handoff.json'), data: `${JSON.stringify(handoffJson, null, 1)}\n` });

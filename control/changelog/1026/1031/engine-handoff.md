@@ -107,5 +107,10 @@ Built so far:
   page and in each engine on the machine, scores every shot (structure and colour, region by region) and writes a
   contact sheet: the page beside each engine, the scores and a map of where they differ. It advises and never
   refuses. `mojulo script visual-gate --ref <level>` runs it; a level's engine export names the command.
+- **The engines closer to the page.** A level's figures now stand in Godot, Unreal and Unity as the web build stands
+  them when it starts (a walker in its walk's first step, as Blender already had it, not at the rig's rest), so a
+  camera at the hero's eye no longer looks out through the inside of its head. The near sea in every engine now takes the sky's light on its colour as
+  the page does, and is no longer 15 to 30 levels darker. Godot's sea is now solid past its depth map like the other
+  engines' sea, which removes a faint line where the shallows end.
 - **The copy.** The README, the docs, the plugin and the agent's own self-description say what is true now: the game
   plays in the browser or as a desktop app, and a team's engine gets a handoff of its levels and assets to wire.

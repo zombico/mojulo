@@ -6,7 +6,7 @@
  */
 import { describe, expect, it } from 'vitest';
 
-import { resolveHandoff, stoneInstances, floraInstances, mergeClumps, dressedMaterials, landParts, HANDOFF_VERSION, HANDOFF_LEVEL, SEA_OPACITY } from './handoff.js';
+import { resolveHandoff, stoneInstances, floraInstances, mergeClumps, dressedMaterials, landParts, figureStands, HANDOFF_VERSION, HANDOFF_LEVEL, SEA_OPACITY, SEA_SKY_SHARE } from './handoff.js';
 import { resolveWorldScene } from '../worlds/world-scene.js';
 import { generatedSpecOf } from '../landscape/surface-textures.js';
 import { decodePng } from '../era/tone.js';
@@ -70,6 +70,10 @@ describe('the engine handoff', () => {
     expect(seaMat.pbrMetallicRoughness.baseColorFactor[3]).toBe(SEA_OPACITY);
     expect(seaMat.extras.mojulo.sea).toMatchObject({ max: L0.depth.max, z: L0.waterZ, metres: L0.depth.size.map((n) => n * L0.depth.cell) });
     expect(seaMat.extras.mojulo.sea.depth.index).toBeGreaterThanOrEqual(0);
+    // (the dome's light on its colour, linear: the horizon's colour SEA_SKY_SHARE of the way to the zenith's, as three's
+    // PMREM gives an up-facing normal)
+    const lin = (v) => { const c = v / 255; return c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4; };
+    seaMat.extras.mojulo.sea.irradiance.forEach((v, k) => expect(v).toBeCloseTo(lin(L0.sky.horizon[k]) + (lin(L0.sky.zenith[k]) - lin(L0.sky.horizon[k])) * SEA_SKY_SHARE, 4));
     const seaPos = j.accessors[seaMesh.primitives[0].attributes.POSITION];
     expect(seaPos.min).toEqual([L0.seabed.x[0], L0.seabed.y[0], L0.waterZ].map((v) => Math.fround(v)));
     expect(seaPos.max).toEqual([L0.seabed.x[1], L0.seabed.y[1], L0.waterZ].map((v) => Math.fround(v)));
@@ -293,6 +297,15 @@ describe('the engine handoff', () => {
     const cam = L.markers.find((m) => m.kind === 'camera');
     if (cam) { expect(cam.look).toHaveLength(3); expect(cam.yfov).toBeGreaterThan(0); }
   }, 120_000);
+
+  it('a rigged figure stands as the page stands it at its clock\'s zero: a walker in its walk, a body with an idle clip in it, else at rest', () => {
+    const fig = (clips) => ({ rig: true, bones: [], parts: [], clips: Object.fromEntries(clips.map((c) => [c, {}])) });
+    const figures = { w: fig(['idle', 'forward']), v: fig(['run']), h: fig(['idle', 'forward']), b: fig(['forward']) };
+    expect(figureStands({ figures, walkers: [{ figure: 'w' }, { figure: 'v' }, { figure: 'nobody' }],
+      entities: [{ id: 'p1', body: { type: 'figure-rig', figure: 'h' } }, { id: 'p2', body: { type: 'figure-rig', figure: 'b' } }] }))
+      .toEqual({ h: 'h:idle', v: 'v:run', w: 'w:forward' });
+    expect(figureStands({})).toEqual({});
+  });
 
   it('a re-handoff is safe: change one thing, and every name of what did not change holds', async () => {
     const names = (h) => { const j = glbJson(h.exported.bytes); return { nodes: new Set(j.nodes.map((n) => n.name)), materials: new Set(j.materials.map((m) => m.name)), markers: new Set(h.level.markers.map((m) => m.name)) }; };
