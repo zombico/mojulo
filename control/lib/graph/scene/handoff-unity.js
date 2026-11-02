@@ -35,11 +35,9 @@
  * (Assets/Settings/) is made once if the project has none, and the tone's pass added to its renderer. Deterministic: the
  * same handoff, the same bytes. Unity's own files (Library/, Temp/, Logs/, UserSettings/) are its to write.
  */
-import { promises as fs, existsSync, readFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import path from 'node:path';
-import { atlasCells } from './handoff-blender.js';
-import { HANDOFF_INSTANCED } from './handoff-godot.js';
+import { dataUrlBytes, fileKey, heightMaterials, terrainLayers, seaOf, handoffJson, sortedFiles, packSource, writePack } from './handoff-common.js';
 
 export const HANDOFF_UNITY_VERSION = 'handoff-unity/0';
 /** Where mojulo writes and the importer builds in the project. */
@@ -59,9 +57,8 @@ export const HANDOFF_UNITY_PACKAGES = Object.freeze({
   'com.unity.modules.unitywebrequesttexture': '1.0.0',
 });
 
-// (the adapter's C# and shaders, beside this file; read from the cwd, as the other adapters read theirs: lib files may be bundled)
-const srcDir = () => path.join(process.cwd(), 'lib', 'graph', 'scene', 'handoff-unity');
-const src = (name) => readFileSync(path.join(srcDir(), name), 'utf8');
+// (the adapter's C# and shaders, beside this file: handoff-unity/, its shaders' shared fragments from handoff-hlsl/)
+const src = (name) => packSource('handoff-unity', name);
 /** Each source of handoff-unity/ and where it lands under Assets/Mojulo/. */
 export const HANDOFF_UNITY_SOURCES = Object.freeze({
   'MojuloImport.cs': 'Editor/MojuloImport.cs',
@@ -78,10 +75,6 @@ export const HANDOFF_UNITY_SOURCES = Object.freeze({
   'MojuloSky.shader': 'Shaders/MojuloSky.shader',
   'MojuloTone.shader': 'Shaders/MojuloTone.shader',
 });
-
-const glbJson = (bytes) => { const b = Buffer.from(bytes); return JSON.parse(b.subarray(20, 20 + b.readUInt32LE(12)).toString('utf8')); };
-const dataUrlBytes = (u) => Buffer.from(String(u).split(',')[1] ?? '', 'base64');
-const fileKey = (s) => String(s).replace(/[^A-Za-z0-9_-]/g, '_');
 
 /** A file's GUID in the project: from its path alone, so a re-handoff keeps every reference to it. */
 export const unityGuid = (assetPath) => createHash('sha256').update(`mojulo-unity-handoff:${assetPath}`).digest('hex').slice(0, 32);
@@ -134,51 +127,22 @@ PlayerSettings:
 `;
 
 export function handoffUnityFiles(h, { title = null } = {}) {
-  const j = glbJson(h.exported.bytes), files = [], data = new Map();
-  const dataFile = (name, bytes) => { const f = `Data~/${name}`; if (!data.has(f)) data.set(f, bytes); return f; };
-  // each material's height map, by the material's own name in the GLB: a dressed face's (its texture key, on every group
-  // that lays it) and a plant's bark (its set's name)
-  const materials = {};
-  for (const m of j.materials ?? []) {
-    const name = String(m.name ?? '');
-    const dressed = Object.entries(h.materials ?? {}).find(([k]) => name.endsWith(`:${k}`));
-    const set = (h.instances ?? []).find((s) => s.name === name && s.textures?.height);
-    if (dressed && dressed[1].height) materials[name] = { height: dataFile(`textures/${fileKey(`${dressed[0]}.height`)}.png`, dataUrlBytes(dressed[1].height)), depth: dressed[1].depth, metres: dressed[1].metres };
-    else if (set) materials[name] = { height: dataFile(`textures/${fileKey(`${set.name}.height`)}.png`, dataUrlBytes(set.textures.height)), depth: set.depth, metres: set.metres };
-  }
-  // the layered ground: its parts, its read, each layer of its atlases its own image (stacked by the importer into a
-  // Texture2DArray, a layer a slice, as the page's arrays), the scree's dice, the trail's mask and the grass's cover as
-  // written (read as data, so the mask keeps its packed bytes)
-  const parts = (h.instances ?? []).filter((s) => s.terrain), terrainFiles = [];
-  const terrain = parts.length ? (() => {
-    const T0 = parts[0].terrain, cells = T0.read.atlas?.cells ?? [], grid = T0.read.atlas?.grid ?? 3, layers = {}, images = {};
-    for (const [k, u] of Object.entries(T0.atlases)) {
-      if (['base', 'normal', 'orm'].includes(k)) {
-        const cut = atlasCells(u, grid, cells.length);
-        if (!cut) continue;
-        layers[k] = cut.map((b, i) => { const f = `Data~/terrain/${k}_${i}.png`; terrainFiles.push({ file: f, data: b }); return f; });
-      } else { const f = `Data~/terrain/${k}.png`; terrainFiles.push({ file: f, data: dataUrlBytes(u) }); images[k] = f; }
-    }
-    return { parts: parts.map((s) => s.name), read: T0.read, layers, images, shader: 'Mojulo/Terrain' };
-  })() : null;
-  // the sea: its plane's name, its read, its depth map as written (its red the depth over `max`)
-  const seaSet = (h.instances ?? []).find((s) => s.sea);
-  const sea = seaSet ? (() => {
-    const { depth, ...read } = seaSet.sea;
-    terrainFiles.push({ file: 'Data~/terrain/sea_depth.png', data: dataUrlBytes(depth) });
-    return { part: seaSet.name, read, image: 'Data~/terrain/sea_depth.png', shader: 'Mojulo/Sea' };
-  })() : null;
-  const handoffJson = { version: HANDOFF_UNITY_VERSION, handoff: h.ledger?.version ?? null, title: title ?? h.level?.title ?? null, paths: HANDOFF_UNITY_PATHS,
-    level: h.level ?? null, ledger: h.ledger ?? null, materials, instanced: [...HANDOFF_INSTANCED], ...(terrain ? { terrain } : {}), ...(sea ? { sea } : {}),
-    ...(h.stands && Object.keys(h.stands).length ? { stands: h.stands } : {}) };
-  const R = HANDOFF_UNITY_PATHS.root, at = (f) => `${R}/${f}`;
+  const data = new Map(), R = HANDOFF_UNITY_PATHS.root, at = (f) => `${R}/${f}`;
+  // each material's height map (handoff-common.js heightMaterials), under Data~/textures/
+  const materials = heightMaterials(h, (name, url) => { const f = `Data~/textures/${fileKey(name)}.png`; if (!data.has(f)) data.set(f, dataUrlBytes(url)); return f; });
+  // the layered ground: each layer of its atlases its own image, stacked by the importer into a Texture2DArray (a layer a
+  // slice, as the page's arrays), the rest as written (handoff-common.js terrainLayers); the sea's depth map as written
+  const T = terrainLayers(h, 'Data~/terrain'), S = seaOf(h);
+  const terrain = T ? { ...T.terrain, shader: 'Mojulo/Terrain' } : null;
+  const sea = S ? { part: S.part, read: S.read, image: 'Data~/terrain/sea_depth.png', shader: 'Mojulo/Sea' } : null;
+  const files = [];
   // (an asset and its .meta; a folder's .meta beside it)
   const asset = (f, d) => { files.push({ file: at(f), data: d }, { file: `${at(f)}.meta`, data: unityMeta(at(f)) }); };
   files.push({ file: `${R}.meta`, data: unityMeta(R, { folder: true }) });
   asset('level.glb', Buffer.from(h.exported.bytes));
-  asset('handoff.json', `${JSON.stringify(handoffJson, null, 1)}\n`);
-  for (const [f, b] of [...data].sort(([a], [b2]) => (a < b2 ? -1 : a > b2 ? 1 : 0))) files.push({ file: at(f), data: b });
-  for (const f of terrainFiles) files.push({ file: at(f.file), data: f.data });
+  asset('handoff.json', handoffJson(h, HANDOFF_UNITY_VERSION, { head: { title: title ?? h.level?.title ?? null, paths: HANDOFF_UNITY_PATHS }, materials, terrain, sea }));
+  files.push(...sortedFiles(data, at));
+  for (const f of [...(T?.files ?? []), ...(S ? [{ file: 'Data~/terrain/sea_depth.png', data: S.depth }] : [])]) files.push({ file: at(f.file), data: f.data });
   for (const dir of ['Editor', 'Runtime', 'Shaders']) files.push({ file: `${at(dir)}.meta`, data: unityMeta(at(dir), { folder: true }) });
   for (const [name, dest] of Object.entries(HANDOFF_UNITY_SOURCES)) asset(dest, src(name));
   asset('Shaders/MojuloSky.mat', materialAsset('MojuloSky', at('Shaders/MojuloSky.shader')));
@@ -190,17 +154,8 @@ export function handoffUnityFiles(h, { title = null } = {}) {
 }
 
 export async function writeHandoffUnity(h, outDir, opts = {}) {
-  const files = handoffUnityFiles(h, opts), written = [], kept = [];
   // (Assets/Mojulo/ is mojulo's: cleared and written whole, so nothing a previous handoff wrote or built is left over)
-  await fs.rm(path.join(outDir, HANDOFF_UNITY_PATHS.root), { recursive: true, force: true });
-  for (const f of files) {
-    const p = path.join(outDir, f.file);
-    if (f.keep && existsSync(p)) { kept.push(f.file); continue; }
-    await fs.mkdir(path.dirname(p), { recursive: true });
-    await fs.writeFile(p, f.data);
-    written.push(f.file);
-  }
-  return { written, kept };
+  return writePack(handoffUnityFiles(h, opts), outDir, HANDOFF_UNITY_PATHS.root);
 }
 
 /** The batchmode commands for a pack at `dir` (`bin` the Unity editor binary). */

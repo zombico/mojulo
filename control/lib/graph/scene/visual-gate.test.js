@@ -126,6 +126,19 @@ describe('the visual gate\'s shots', () => {
     expect(shots[3].yfov).toBeCloseTo((50 * Math.PI) / 180, 12);
   });
 
+  it('every shot\'s stills its own files: names that collide only as files take the next free suffix', async () => {
+    const { stillName } = await import('./visual-gate-run.js');
+    const P = (name, x) => ({ name, pos: [x, 0, 5], target: [0, 0, 0], vfov: 40 });
+    // (`shot:open` and `shot_open` are two names and one file's; `a b`, `a:b` and `a_b` three names and one file's)
+    const shots = gateShots({ markers: [] }, { poses: [P('shot:open', 1), P('shot_open', 2), P('a b', 3), P('a:b', 4), P('a_b', 5), P('a b', 6), P('a:b-2', 7)] });
+    expect(shots.map((s) => s.name)).toEqual(['shot:open', 'shot_open-2', 'a b', 'a:b-2', 'a_b-3', 'a b-4', 'a:b-2-2']);
+    const files = shots.map((s) => stillName(s, 'page'));
+    expect(new Set(files).size).toBe(shots.length);
+    expect(files[0]).toBe('shot_open.page.png');
+    // (names that are already their own files keep theirs: the fixtures' shots unchanged)
+    expect(gateShots({ markers: [] }, { poses: [P('close', 1), P('close', 2)] }).map((s) => s.name)).toEqual(['close', 'close-2']);
+  });
+
   it('every fixture names a sketch and its poses', () => {
     for (const [k, F] of Object.entries(GATE_FIXTURES)) {
       expect(F.sketch.manifest.kind, k).toBeTruthy();

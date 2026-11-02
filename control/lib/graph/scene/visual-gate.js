@@ -12,7 +12,8 @@
  *     `look`, `yfov`), each shot of the level's shoot plan where it has one (its camera at the shot's first frame, its
  *     lens as the GLB's shot cameras carry it: the horizontal fov over the viewBox's aspect), then any explicit `poses`
  *     ({ name?, pos | at, target | look, vfov (degrees) | yfov (radians) }). Every shot at one size (1280×720), the
- *     vertical fov held: an engine and the page frame the same pose at the same aspect
+ *     vertical fov held: an engine and the page frame the same pose at the same aspect. A name is the shot's own, and so
+ *     is its file's (shotKey): one taken, as a name or as a file's, takes the next free suffix (-2, -3, …)
  *   decodeImage(png) → { W, H, rgb }: an 8-bit PNG (grey, RGB or with alpha, the alpha over black) as RGB bytes
  *   compareImages(page, engine, { grid? }) → the scores of one engine's still against the page's (both decoded):
  *     ssim       the structural similarity of their luminance (Wang et al. 2004: an 11-tap Gaussian window, σ 1.5, K1
@@ -73,12 +74,18 @@ function trackAt(tr, t) {
   return { pos: [L(tr.pos, 3, 0), L(tr.pos, 3, 1), L(tr.pos, 3, 2)], look: [L(tr.look, 3, 0), L(tr.look, 3, 1), L(tr.look, 3, 2)], hfov: L(tr.hfov, 1, 0) };
 }
 
+/** A shot's name made a file's (its stills are `<key>.<who>.png`): gateShots keeps every shot's key its own. */
+export const shotKey = (name) => String(name).replace(/[^A-Za-z0-9_-]+/g, '_');
+
 export function gateShots(level, { payload = null, poses = [], size = GATE_SIZE } = {}) {
-  const out = [], seen = new Map();
+  const out = [], taken = new Set();
   const add = (name, source, at, look, yfov) => {
     if (!at || !look || !fin(yfov) || !(yfov > 0 && yfov < Math.PI) || Math.hypot(look[0] - at[0], look[1] - at[1], look[2] - at[2]) < 1e-6) return;
-    const n = seen.get(name) ?? 0; seen.set(name, n + 1);
-    out.push({ name: n ? `${name}-${n + 1}` : name, source, at, look, yfov, w: size.width, h: size.height });
+    // (a name taken, or one whose file another's already is, `shot:a` and `shot_a`, takes the next free -2, -3, …)
+    let as = name;
+    for (let n = 2; taken.has(shotKey(as)); n++) as = `${name}-${n}`;
+    taken.add(shotKey(as));
+    out.push({ name: as, source, at, look, yfov, w: size.width, h: size.height });
   };
   for (const m of level?.markers ?? []) {
     if (m?.kind !== 'camera') continue;

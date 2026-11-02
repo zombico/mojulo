@@ -1,6 +1,6 @@
 /**
- * export_game — materialize a stored game as a SELF-CONTAINED folder
- * (game-publish.plan.md phase 2): the sharing seam for playable artifacts.
+ * export_game — materialize a stored game as a SELF-CONTAINED folder:
+ * the sharing seam for playable artifacts.
  *
  * The served form of a game is loopback-bound by design (`/api/sketches/<ref>/game`,
  * no-store, levels iframed off live routes). This tool bakes the SAME recipes into a
@@ -382,7 +382,7 @@ export async function exportGameHandler(input, context = {}, deps = {}) {
     return html.slice(0, objStart) + shim + html.slice(objEnd + 1);
   };
 
-  // ── shared world-geometry bank (match-modes.plan.md M2) ──────────────────────────────────────
+  // ── shared world-geometry bank ──────────────────────────────────────
   // The figure hoist's sibling: with mapRef terrain inheritance, a map's mode-variant levels bake
   // IDENTICAL geometry literals (`const GROUPS/REPEATS/TEXTURES = …` — safeJson output, plain JSON)
   // into every page. Hoist any big one into a content-hashed `assets/geometry/` file + a fetch

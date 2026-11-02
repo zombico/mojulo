@@ -48,7 +48,7 @@ def param(mi, kind, name):
 def main():
     out = {'ok': True, 'unreal': unreal.SystemLibrary.get_engine_version(), 'handoff': None, 'level': False, 'map': MAP, 'streamed': False,
            'materials': 0, 'lit': 0, 'translucent': 0, 'vertex_colour': 0, 'normal': 0, 'orm': 0, 'height': 0, 'other_materials': 0,
-           'markers': 0, 'seats': 0, 'marker_records': 0, 'sun': False, 'sun_lux': None, 'sun_default': False, 'points': 0, 'point_cd': 0.0,
+           'markers': 0, 'seats': 0, 'marker_records': 0, 'sun': False, 'sun_lux': None, 'sun_default': False, 'points': 0, 'lamps': 0, 'point_cd': 0.0,
            'ambient': None, 'sky': False, 'tone': False, 'haze': None, 'cameras': 0, 'skeletal': 0, 'anims': 0, 'entity_meshes': 0,
            'terrain': 0, 'terrain_layers': 0, 'terrain_path': False, 'sea': 0, 'sea_depth': False, 'sea_shadow': None,
            'blocking': 0, 'no_collision': 0, 'objects': 0, 'developer': 0, 'actors': 0}
@@ -113,6 +113,7 @@ def main():
                 out['haze'] = round(hk.r, 6) if hk is not None and hk.r > 0 else None
         for c in a.get_components_by_class(unreal.PointLightComponent):
             out['points'] += 1
+            out['lamps'] += 0 if c.get_editor_property('cast_shadows') else 1
             out['point_cd'] = round(out['point_cd'] + c.get_editor_property('intensity'), 4)
         if isinstance(a, unreal.SkeletalMeshActor):
             out['skeletal'] += 1

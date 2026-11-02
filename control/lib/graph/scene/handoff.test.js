@@ -255,6 +255,9 @@ describe('the engine handoff', () => {
       expect(l.intensity).toBeCloseTo(Math.PI * Math.max(...room.lights[i].key), 4);
       expect(l.range).toBe(room.lights[i].radius);
     }
+    // (the lamps by their GLB node names: what each adapter lights by the list in handoff.json, never by a name's substring)
+    expect(h.lamps).toEqual(j.nodes.filter((n) => n.extensions?.KHR_lights_punctual).map((n) => n.name));
+    expect(h.lamps).toEqual(room.lights.map((_, i) => `light:form:lamp:${i}`));
     // (the solve's bases are not the paint: the same room read plainly unshaded paints other colours)
     const plain = (await resolveWorldScene(S, { unshaded: true, era: 'gen-7' })).payload;
     expect(plain.form?.room).toBeUndefined();

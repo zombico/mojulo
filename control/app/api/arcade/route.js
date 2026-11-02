@@ -1,5 +1,5 @@
 /**
- * GET /api/arcade — the Mojulo Arcade menu feed (game-developer.plan.md).
+ * GET /api/arcade — the Mojulo Arcade menu feed.
  *
  * One cabinet per playable standalone game: every sketch in the `game` bucket,
  * decorated with the manifest facts the menu shows (level count, tagline,

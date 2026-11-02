@@ -1,6 +1,6 @@
 /**
- * game mechanics — reusable level verbs that lower into world + contract at once
- * (game-mechanics.plan.md, M0). A mechanic is a pure function of (params, ctx) → fragments:
+ * game mechanics — reusable level verbs that lower into world + contract at once.
+ * A mechanic is a pure function of (params, ctx) → fragments:
  *   world    — an events-manifest fragment (idiom-shaped: sources/reactions/watches/timers/
  *              entities/hud/vars), reusing the zone fact source (deriveZoneEvents) and the
  *              existing bus verbs. This is the world side a level used to hand-author.

@@ -168,6 +168,8 @@ describe('the handoff as a Blender folder', () => {
     const lights = glbJson(h.exported.bytes).extensions.KHR_lights_punctual.lights;
     expect(line.sun, log).toBe(false);
     expect(line.points).toBe(lights.length);
+    // (the room's lamps found by handoff.json's list: every one unshadowed)
+    expect(line.lamps, log).toBe(h.lamps.length);
     expect(line.point_energy).toBeCloseTo(lights.reduce((a, l) => a + 4 * Math.PI * l.intensity, 0), 1);
     expect(line.world && !line.sky, log).toBe(true);
     expect(line.haze).toBe(line.materials);

@@ -200,6 +200,8 @@ describe('the handoff as an Unreal project', () => {
     const lights = glbJson(h.exported.bytes).extensions.KHR_lights_punctual.lights;
     expect(line.sun, log).toBe(false);
     expect(line.points).toBe(lights.length);
+    // (the room's lamps found by handoff.json's list: every one unshadowed)
+    expect(line.lamps, log).toBe(h.lamps.length);
     expect(line.point_cd).toBeCloseTo(lights.reduce((a, l) => a + l.intensity, 0), 2);
     h.level.environment.ambient.forEach((v, i) => expect(Math.abs(line.ambient[i] - v), 'ambient').toBeLessThan(Math.max(0.002, v * 0.02)));
     // (what is see-through takes no collision: the bay's sun patch, panes and wiring)

@@ -10,12 +10,14 @@
  * it, worlds/world-scene.js), so a surface not yet built as form leaves as ALBEDO UNLIT: its own colour, no light baked
  * in, under a lit material the engine shades.
  *
- *   resolveHandoff(sketch, { what? }) → { kind, payload, exported, instances, ledger, stands }
+ *   resolveHandoff(sketch, { what? }) → { kind, payload, exported, instances, materials, level, ledger, stands, lamps }
  *     what      'level' (a world, default) | 'asset' (one thing by ref)
  *     exported  facesToGlb's result: the GLB, lit (glTF metal-rough, no unlit extension), the instances in it
  *     ledger    { version, era, what, carried: { faces, instances: { <set>: n } }, stays: [what stayed the web's] }
  *     stands    figureStands: { <figure>: '<figure>:<clip>' }, the clip whose first frame each rigged figure stands in on
  *               the page at its clock's zero (none: at its rest)
+ *     lamps     the GLB node names of the room's lamps (roomLamps: `light:form:lamp:<i>`), carried as handoff.json's `lamps`
+ *     level     the level record (levelRecord), read off the level as it is played (worlds/world-scene.js levelSketch)
  *   stoneInstances(stones) → [instance set]: the form land's scree stones (form/land-stones.js), one set per shape, size
  *     and tone, each stone a node turned to its ground's normal and yawed by its index, as the World page stands them
  *   dressedMaterials(keys) → { <key>: { base, normal, orm, height, depth, metres, rough } }: each tile key painted by the
@@ -56,7 +58,7 @@
  * as geometry, a room's lamps over its solved bases, and the level record. Colliders as meshes and the files beside the
  * handoff (the web build, the sound) join as their phases land.
  */
-import { resolveWorldScene } from '../worlds/world-scene.js';
+import { resolveWorldScene, levelSketch } from '../worlds/world-scene.js';
 import { facesToGlb } from './scene-gltf.js';
 import { stoneForms } from '../form/land-stones.js';
 import { dressedMaterial } from '../matte-paint/dressed.js';
@@ -540,7 +542,9 @@ export async function resolveHandoff(sketch, { what = 'level' } = {}) {
     ...(lamps.length ? { lights: lamps } : {}) } : payload;
   const keys = (handed.faces || []).map((f) => f && f.texture).filter((k) => typeof k === 'string');
   const materials = dressedMaterials(keys);
-  const level = what === 'level' ? levelRecord(sketch, handed) : null;
+  // (the level record read off the level as it is played: a city segment's city merged in, a building that asks to be a
+  // level lowered, as the page and the game read it: its contract and its hour are the lowered recipe's)
+  const level = what === 'level' ? levelRecord(await levelSketch(sketch), handed) : null;
   // (the cast: a rigged body leaves as its figure, skinned, with every clip it plays; a primitive one as its mesh)
   const bodies = entityBodies(handed);
   const exported = facesToGlb(handed, { generator: `mojulo handoff ${sketch?.ref ?? ''}`.trim(), lit: true, handoff: true, instances, materials,
@@ -561,5 +565,7 @@ export async function resolveHandoff(sketch, { what = 'level' } = {}) {
   };
   // (how the page stands each rigged figure at its clock's zero: an adapter stands it so)
   const stands = figureStands(handed);
-  return { kind, payload, exported, instances, materials, level, ledger, stands };
+  // (the room's lamps by their GLB node names, scene-gltf.js addLightNode's `light:<name>`: their intensity is the solve's,
+  // in a renderer's units, where a kind's own lights are glTF's candela; an adapter lights these by the list, not by name)
+  return { kind, payload, exported, instances, materials, level, ledger, stands, lamps: lamps.map((l) => `light:${l.name}`) };
 }

@@ -102,7 +102,7 @@ function bounds3(arr) {
 
 const TRIS = [[0, 1, 2], [0, 2, 3]];
 
-// ── rig-figure animation export (interchange.plan.md I1) ─────────────────────
+// ── rig-figure animation export ─────────────────────
 // The packed rig clips are PHASE-normalized (gaitPhase advances by distance/stride in the live
 // runtime — no intrinsic period). The exported glTF needs seconds, so we map one full cycle to
 // the runtime's ambient default: the clock rule advances gaitPhase at `rate ?? 1` cycles/second
@@ -279,7 +279,7 @@ function weldCorners(n, cols, rows) {
  * single binary buffer, then `build()` packs the JSON + BIN chunks into a .glb.
  */
 class GlbBuilder {
-  // `quantize` (interchange-seams.plan.md seam 6a): KHR_mesh_quantization on the static
+  // `quantize`: KHR_mesh_quantization on the static
   // mesh paths — POSITION as normalized int16 under a per-mesh dequantizing node TRS
   // (centre + half-extents), NORMAL as int8, COLOR_0 as uint16, TEXCOORD_0 as uint16 when in
   // [0,1]. Roughly halves the geometry bytes with no dependency; every engine importer and
@@ -287,7 +287,7 @@ class GlbBuilder {
   // their own packed form either way.
   constructor(generator = 'mojulo scene-gltf', { quantize = false, lit = false, litRoughness = 0.85 } = {}) {
     this.quantize = !!quantize;
-    // LIT handoff (lit-handoff.plan.md step 1): every surface material is a real
+    // LIT handoff: every surface material is a real
     // pbrMetallicRoughness (no unlit extension) so the importer's light shades the
     // geometry; paired with an UNSHADED payload so that light is the only light.
     this.lit = !!lit;
@@ -449,8 +449,7 @@ class GlbBuilder {
     return this.json.materials.length - 1;
   }
 
-  // A REAL (lit) PBR material for faces tagged with material factors (material-response.plan.md
-  // P3): no unlit extension, so importers light it and the metallic/roughness read shows.
+  // A REAL (lit) PBR material for faces tagged with material factors: no unlit extension, so importers light it and the metallic/roughness read shows.
   // COLOR_0 still multiplies baseColor — the baked Lambert rides along as the albedo's shading,
   // the documented trade of exporting a baked world into a lit viewer.
   pbrMaterial({ metallic = 0, roughness = 0.9, alpha = null, alphaCutoff = null, baseColorTexture = null, normalTexture = null, ormTexture = null, extras = null, name, emissive = null, emissiveStrength = 1, baseColor = null } = {}) {
@@ -609,7 +608,7 @@ class GlbBuilder {
       attributes = { POSITION: posAcc };
       if (w.colors && w.colors.length) attributes.COLOR_0 = this.floatAccessor(w.colors, colorComponents);
       if (w.uvs && w.uvs.length) attributes.TEXCOORD_0 = this.floatAccessor(w.uvs, 2);
-      // Authored outward normals (export-normals.plan.md §3). No range needed (unit vectors).
+      // Authored outward normals. No range needed (unit vectors).
       // Absent ⇒ no NORMAL attribute, byte-identical to a normal-free export. The z-up→y-up root
       // node rotation (ZUP_TO_YUP) rotates NORMAL along with POSITION at import — no hand-rotate.
       if (w.normals && w.normals.length) attributes.NORMAL = this.floatAccessor(w.normals, 3);
@@ -773,7 +772,7 @@ class GlbBuilder {
   }
 
   /**
-   * SKINNED rig export (skin-over-mesh.plan.md phase 4) — the same packed rig
+   * SKINNED rig export — the same packed rig
    * as addRigFigure, exported as ONE SkinnedMesh + a glTF `skins` entry
    * instead of N rigid part nodes. The engine does the deformation; mojulo's
    * own runtime keeps rigid FK (the renderer-ladder decision stands — this is
@@ -846,7 +845,7 @@ class GlbBuilder {
     // support is uneven); the silhouette hull is the read. `ink` absent ⇒ byte-identical.
     const inkParts = ink ? [] : null;
 
-    // humanoid (interchange-seams.plan.md seam 3a): joints take their VRM names, weightless leaf
+    // humanoid: joints take their VRM names, weightless leaf
     // joints stand in for the hands / feet VRM requires, and the first humanoid figure carries the
     // VRMC_vrm extension so VRM-aware tools address it by name. Skeleton stays flat (see the map).
     const hb = humanoid ? humanoidBonesFor(bones) : null;
@@ -1332,7 +1331,7 @@ class GlbBuilder {
     channels.push({ sampler, target: { node, path: 'weights' } });
   }
 
-  // One glTF perspective camera + its posed node (interchange.plan.md I4). The node lives
+  // One glTF perspective camera + its posed node. The node lives
   // in the pre-root z-up frame like every other child — the y-up root rotation converts its
   // pose exactly like geometry, so Blender/Godot open with mojulo's own framing. yfov is in
   // radians (glTF §5.9); rotation is a lookAt solve (scene-gltf-level.js lookAtRotation).
@@ -1365,7 +1364,7 @@ class GlbBuilder {
     return node;
   }
 
-  // KHR_lights_punctual (lit-handoff.plan.md, pot lights): a positioned light node in the
+  // KHR_lights_punctual (pot lights): a positioned light node in the
   // pre-root z-up frame like every other child. A spot shines down its node's -Z, which under
   // the y-up root IS mojulo's -Z (down) — a ceiling downlight needs no rotation. Intensity is
   // candela for point/spot per the extension; Blender / Godot / Unreal convert on import.
@@ -1436,13 +1435,13 @@ class GlbBuilder {
  *
  * `payload` is the same object `emitThreeWorld` consumes (an `assemble*Scene`
  * return value): `{ faces, textures?, light? }`. Level semantics ride along by
- * default (interchange.plan.md I4): `cameras` become glTF perspective cameras,
+ * default: `cameras` become glTF perspective cameras,
  * `entities` become named placement nodes with `moj:` extras, and spawn /
  * colliders / game-contract summaries land as scene extras (scene-gltf-level.js).
  * Everything else on the payload (sky, movers, …) is ignored — screen/runtime
  * embellishments, not geometry.
  *
- * Opt-in `clips` (interchange.plan.md I1): an array of clip names (or '_all') adds every packed
+ * Opt-in `clips`: an array of clip names (or '_all') adds every packed
  * RIG figure on `payload.figures` as bone-part nodes plus glTF animations for the named clips
  * (see addRigFigure/addRigClip). Absent ⇒ byte-identical static export — rig figures stay
  * excluded exactly as before. When present the result additionally carries
@@ -1464,7 +1463,7 @@ export function facesToGlb(payload = {}, { generator, clips = null, skinned = fa
   const waterBodies = aquaWaterBodies(payload);
   if ((!Array.isArray(faces) || !faces.length) && !repeatList.length && !rigFigs.length && !waterBodies.some((w) => w.frame) && !(Array.isArray(instances) && instances.length)) return null;
 
-  // A rig may declare `embodies: '<group>'` (interchange.plan.md I2 — the figure kind):
+  // A rig may declare `embodies: '<group>'` (the figure kind):
   // the payload's static faces of that group depict the SAME body at rest, so when this
   // rig actually exports (the clips path) the static group is dropped — otherwise the
   // animated figure would ship with a frozen ghost of itself. clips absent ⇒ rigFigs is
@@ -1493,7 +1492,7 @@ export function facesToGlb(payload = {}, { generator, clips = null, skinned = fa
   // coincident faces that land in DIFFERENT render groups (separate glTF nodes, the worst
   // z-fight case in an importer) get lifted apart too. Groups below then mesh with
   // decollide:false; before this the .glb only de-collided per group and cross-group
-  // duplicates survived into the export (renderer-emitter.plan.md E4).
+  // duplicates survived into the export.
   const expanded1 = decollideFaces(expanded0);
   // Baked ambient occlusion — the same post-expansion, post-decollide pass emitThreeWorld
   // applies, so the .glb carries the identical darkening in its COLOR_0 vertex colours (and
@@ -1795,7 +1794,7 @@ export function facesToGlb(payload = {}, { generator, clips = null, skinned = fa
     triangleCount += (gm.positions.length / 9) * r.transforms.length;      // depicted N times
   });
 
-  // Animated rig figures (interchange.plan.md I1) — only when the caller opted in via `clips`;
+  // Animated rig figures — only when the caller opted in via `clips`;
   // the static export (clips absent) contributes zero bytes here and stays byte-identical.
   let animationCount = 0;
   const animatedFigures = [];
@@ -1807,7 +1806,7 @@ export function facesToGlb(payload = {}, { generator, clips = null, skinned = fa
     const clipNames = clipSel === '_all'
       ? Object.keys(fig.clips || {})
       : clipSel.filter((c) => fig.clips && fig.clips[c]);
-    // `skinned` (skin-over-mesh.plan.md phase 4): one SkinnedMesh + skins/IBM
+    // `skinned`: one SkinnedMesh + skins/IBM
     // per figure instead of rigid part nodes — export-only; absent, the rigid
     // path stays byte-identical.
     // toon.bake reaches skinned figures as a second, skin-bound ink primitive (rigid FK figures are
@@ -1858,7 +1857,7 @@ export function facesToGlb(payload = {}, { generator, clips = null, skinned = fa
 
   if (!b.children.length && !b.sceneRoots.length) return null; // expansion produced nothing exportable
 
-  // ── level-as-layout semantics (interchange.plan.md I4) — default-on ──────────────────────
+  // ── level-as-layout semantics — default-on ──────────────────────
   // A GLB is a derived snapshot regenerated on demand, so enriching the export needs no opt-in:
   // cameras, entity placement nodes, and `moj:` extras ride every world export. Geometry-only
   // payloads (no cameras/entities/colliders/game) add zero bytes here, and nothing below ever

@@ -64,6 +64,10 @@ describe("export_model engine: 'godot'", () => {
     // (an asset has no level, so no shots: no visual gate to run)
     expect(r.commands.visual).toBeUndefined();
     await expect(exportModelHandler({ ref: 'sk_xe_box', engine: 'godot', format: 'glb' })).rejects.toThrow(/omit `format`/);
+    // (every format, the folder products' and the building's among them: none of them takes `engine` silently)
+    for (const format of ['bundle', 'ifc', 'sheets', 'schedules', 'blender', 'unreal', 'bom']) {
+      await expect(exportModelHandler({ ref: 'sk_xe_box', engine: 'godot', format }), format).rejects.toThrow(/omit `format`/);
+    }
     await expect(exportModelHandler({ ref: 'sk_xe_box', engine: 'roblox' })).rejects.toThrow(/`engine` must be one of 'godot'/);
     await expect(exportModelHandler({ ref: 'sk_xe_box', engine: 'godot', what: 'game' })).rejects.toThrow(/`what` must be one of/);
     await expect(exportModelHandler({ ref: 'sk_xe_none', engine: 'godot' })).rejects.toThrow(/No sketch exists/);
@@ -201,6 +205,47 @@ describe("export_model engine: 'godot'", () => {
     expect(path.basename(g.dir)).toBe('unity-handoff');
     for (const l of g.levels) expect(existsSync(path.join(l.dir, 'Assets', 'Mojulo', 'level.glb')), l.ref).toBe(true);
     expect(g.note).toContain('Unity project');
+  }, 300_000);
+
+  it('every engine\'s result: its fields in order and its note, word for word (one world, and a game\'s levels)', async () => {
+    const tail = (name) => `What stayed the web's is in \`stays\`. ${name} runs on the operator's machine; mojulo did not launch it.`;
+    const NOTE = {
+      godot: (r) => `A Godot 4 project in ${r.dir}: open it and play level.tscn, which instances mojulo/level.glb. Its importer gives the materials, the static meshes collision, the level its environment and sun, and stands every marker and seat as a node carrying its record. What stayed the web's is in \`stays\`; the web build is the game. Godot runs on the operator's machine; mojulo did not launch it.`,
+      blender: (r) => `A Blender handoff in ${r.dir}: its importer (commands.import) builds level.blend from mojulo/, in mojulo's own collections: the materials, the World, haze and sun as the page lights it, a camera, and every marker and seat as an Empty carrying its record. A re-handoff replaces mojulo/ and rebuilds only mojulo's collections. ${tail('Blender')}`,
+      unreal: (r) => `An Unreal Engine 5 project in ${r.dir}: its importer (commands.import, headless, or from the editor's Output Log) builds /Game/Level, streaming mojulo's sublevel in: the materials, collision, the sun, lamps, sky light and dome, the page's tone and haze as a post-process, a camera per camera marker, and every marker and seat as a tagged TargetPoint. A re-handoff replaces mojulo/ and /Game/Mojulo/ only, and /Game/Level keeps what the developer added. ${tail('Unreal')}`,
+      unity: (r) => `A Unity 6 project (URP, glTFast) in ${r.dir}: its importer (commands.import, batchmode, or the editor's Mojulo menu) builds mojulo's scene and Assets/Scenes/Level.unity, which loads it: the materials, collision, the sun, lamps, ambient and sky dome, the page's tone and haze as a full-screen pass, a camera per camera marker, and every marker and seat as a GameObject carrying its record. A re-handoff replaces Assets/Mojulo/ only, and Assets/Scenes/Level.unity keeps what the developer added. ${tail('Unity')}`,
+    };
+    const EACH = { godot: 'each a Godot 4 project under <root>/<level>/ (open one and play its level.tscn). ', blender: 'each a Blender handoff under <root>/<level>/ (run its importer to build its level.blend). ',
+      unreal: 'each an Unreal project under <root>/<level>/ (run its importer to build its /Game/Level). ', unity: 'each a Unity project under <root>/<level>/ (run its importer to build its Assets/Scenes/Level.unity). ' };
+    const OWN = { godot: [], blender: [], unreal: ['map'], unity: ['scene'] };
+    const COMMANDS = { godot: ['open', 'gate', 'visual'], blender: ['import', 'open', 'gate', 'render', 'visual'], unreal: ['import', 'probe', 'open', 'render', 'visual'], unity: ['import', 'probe', 'open', 'render', 'visual'] };
+    const SUMMARY = ['kind', 'dir', 'files', 'kept', 'bytes', 'carried', 'stays', 'shaded', 'level'];
+    SketchRepository.create({ ref: 'sk_xe_note_a', title: 'a', manifest: COUCH });
+    SketchRepository.create({ ref: 'sk_xe_note_game', title: 'one', manifest: { kind: 'game', title: 'one', levels: [{ ref: 'sk_xe_note_a', title: 'A' }] } });
+    for (const e of ['godot', 'blender', 'unreal', 'unity']) {
+      const r = await exportModelHandler({ ref: `sk_xe_note_a`, engine: e });
+      expect(Object.keys(r), e).toEqual(['ok', 'ref', 'engine', 'what', ...SUMMARY, ...OWN[e], 'commands', 'note', 'versions']);
+      expect(Object.keys(r.commands), e).toEqual(COMMANDS[e]);
+      expect(r.note, e).toBe(NOTE[e](r));
+      const g = await exportModelHandler({ ref: 'sk_xe_note_game', engine: e });
+      expect(Object.keys(g), e).toEqual(['ok', 'ref', 'kind', 'engine', 'what', 'dir', 'levels', 'note', 'versions']);
+      expect(Object.keys(g.levels[0]), e).toEqual(['ref', ...SUMMARY, ...OWN[e], 'commands']);
+      expect(g.note, e).toBe(`1 level of the game, ${EACH[e].replace('<root>', g.dir)}The game itself (its rules, menu, score and flow between levels) is the web build's: \`export_game\` writes it. ${{ godot: 'Godot', blender: 'Blender', unreal: 'Unreal', unity: 'Unity' }[e]} runs on the operator's machine; mojulo did not launch it.`);
+    }
+  }, 600_000);
+
+  it('a game\'s level that is a building asking to be a level is handed off lowered, as the game plays it: its contract carried', async () => {
+    SketchRepository.create({ ref: 'sk_xe_office', title: 'Tower', manifest: { kind: 'office', title: 'Tower', storeys: 3, level: { goal: 'top' } } });
+    SketchRepository.create({ ref: 'sk_xe_office_game', title: 'climb', manifest: { kind: 'game', title: 'climb', levels: [{ ref: 'sk_xe_office', title: 'Tower' }] } });
+    const g = await exportModelHandler({ ref: 'sk_xe_office_game', engine: 'godot' });
+    expect(g.levels[0].level.contract).toBe(true);
+    const H = JSON.parse(readFileSync(path.join(g.levels[0].dir, 'mojulo/handoff.json'), 'utf8'));
+    // (the contract the game resolves for it: reach the top floor)
+    expect(H.level.contract).toBeTruthy();
+    expect(H.level.contract.unsynthesized).toBeUndefined();
+    expect(JSON.stringify(H.level.contract)).toContain('reach-exit');
+    // (the recipe keeps `level`: the channel is derived on every read)
+    expect(SketchRepository.getByRef('sk_xe_office').manifest.game).toBeUndefined();
   }, 300_000);
 
   it('a desktop app built from the same outcome folder leaves the engine packs out', () => {

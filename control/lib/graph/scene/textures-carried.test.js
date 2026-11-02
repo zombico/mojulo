@@ -1,5 +1,5 @@
 /**
- * Phase 3 of skin-over-mesh.plan.md: textures flip from an implicit gap to a
+ * Textures flip from an implicit gap to a
  * CARRIED line. The GLB already embeds them (facesToGlb reads
  * payload.textures); the score names the keys. Untextured worlds stay
  * byte-identical.

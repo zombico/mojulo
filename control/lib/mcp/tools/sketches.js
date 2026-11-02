@@ -15,7 +15,7 @@
  */
 
 
-// PHASE 1c (mojulo-2.0-pure-creative.plan.md): this file used to be 2038 lines
+// PHASE 1c: this file used to be 2038 lines
 // hosting six unrelated tool families. The handlers now live in focused siblings
 // — sketch-mint / sketch-vocab / sketch-diff-tool / sketch-polygonizer /
 // sketch-model-export / sketch-image-render — and what remains here is the

@@ -79,7 +79,7 @@ func _post_import(scene: Node) -> Object:
 		if not instanced and not see_through:
 			mi.create_trimesh_collision()
 			own(mi, scene)
-	lamps(scene)
+	lamps(scene, H.get("lamps", []))
 	if typeof(H.get("stands")) == TYPE_DICTIONARY:
 		stand(scene, H["stands"])
 	if typeof(H.get("terrain")) == TYPE_DICTIONARY:
@@ -265,13 +265,17 @@ func sea(scene: Node, S: Dictionary, env: Dictionary) -> void:
 				mesh.surface_set_material(s, sm)
 				mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 
-# (a room's lamps, form:lamp:*, carry π × the solve's level as their glTF intensity, the page's convention: Godot's
-# importer takes it as the light's energy, which Godot lights by as it does a sun's, so a lamp's energy is its level,
-# intensity / π, as the sun's is)
-func lamps(scene: Node) -> void:
+# (a room's lamps, handoff.json's `lamps` by their GLB node names, carry π × the solve's level as their glTF intensity,
+# the page's convention: Godot's importer takes it as the light's energy, which Godot lights by as it does a sun's, so a
+# lamp's energy is its level, intensity / π, as the sun's is; any other light keeps the importer's)
+func lamps(scene: Node, names: Array) -> void:
+	var want := {}
+	for n in names:
+		want[safe(String(n))] = true
 	for l in scene.find_children("*", "OmniLight3D", true, false):
-		if String(l.name).contains("form_lamp"):
+		if want.has(String(l.name)):
 			l.light_energy = l.light_energy / PI
+			l.set_meta("mojulo_lamp", true)
 
 func environment(scene: Node, env: Dictionary) -> void:
 	var e := Environment.new()

@@ -132,8 +132,7 @@ plants: [{
   plant (heaviest). `'brush'` renders each form as thin strand strokes — a
   **brushy / sketchy** look rather than filled shapes. `'lines'` opts back to
   the wireframe vein/banding read.
-  The form vectors are identical across all modes; only the print differs. See
-  `wave-to-world-paint.plan.md`.
+  The form vectors are identical across all modes; only the print differs.
 
 ## When to reach for it
 

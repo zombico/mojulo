@@ -1,6 +1,6 @@
 /**
  * operator-guide.js — the shared T-numbered operator-guide emitter
- * (export-blender.plan.md rev 3, D10: the lift the Unreal leg waited for).
+ * (the lift the Unreal leg waited for).
  *
  * The protocol, proven at two human seams (the Unreal guide, the Blender ARTPASS-GUIDE):
  * one step one line; `T###[.##]` lines are actions
@@ -36,7 +36,7 @@ export const guideLedger = (ledger, startAt = 101) => Object.entries(ledger)
 export const numberedFacts = (lines, startAt = 3) =>
   lines.map((line, i) => `#${String(startAt + i).padStart(3, '0')} ${line}`);
 
-// The greybox seam (skin-over-mesh.plan.md): stamped packs carry the handoff
+// The greybox seam: stamped packs carry the handoff
 // sentence as its own section; unstamped packs emit byte-identical text.
 export const greyboxSection = (stamped) => (stamped ? `## Greybox handoff
 

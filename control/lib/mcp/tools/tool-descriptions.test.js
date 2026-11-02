@@ -6,7 +6,7 @@ process.env.MOJULO_SEMANTIC_INDEX_DISABLED = '1';
 import { describe, it, expect } from 'vitest';
 
 // ---------------------------------------------------------------------------
-// Description budget ratchet (orientation-diet.plan.md thread A0).
+// Description budget ratchet.
 //
 // tools/list is the one surface that can't be drawerized from inside: on hosts
 // without deferred tool loading, every listed tool's description rides into
@@ -28,7 +28,7 @@ import { describe, it, expect } from 'vitest';
 const DESCRIPTION_CEILING = 700;
 
 // tool name → description length at ratchet time. Shrink freely; never grow.
-// The A1–A3 prose-diet phases in orientation-diet.plan.md work this list down
+// The prose-diet phases work this list down
 // (forge_motion → motion vocab cards; create_manji_tree → manji_program cards;
 // dna/energy/turntable → create_view kinds).
 const DESCRIPTION_ALLOWLIST = {
@@ -91,7 +91,7 @@ const DESCRIPTION_ALLOWLIST = {
   mint_solid: 915,
   create_view: 723,
   // custom_catalyst / list_catalysts / mint_catalyst allowlisted 2026-08-06 to
-  // bless the local-catalyst shelf (local-catalysts.plan.md): mint_catalyst is
+  // bless the local-catalyst shelf: mint_catalyst is
   // the new local-shelf write path, list_catalysts/custom_catalyst grew to
   // route curated + local origins and the mint author-guide hand-off.
   // Shrink-only from these snapshots.
@@ -107,13 +107,13 @@ const DESCRIPTION_ALLOWLIST = {
   export_game: 1290,
   // export_model re-pinned 2026-07-17: the STL print-handoff format
   // (format:'glb'|'stl' + scale → mm) rides the same tool. Re-pinned
-  // 2026-08-11 to bless the animated-GLB clause (interchange.plan.md I1:
+  // 2026-08-11 to bless the animated-GLB clause (
   // `clips` bakes rig clips into glTF animations). Re-pinned 2026-08-11
   // (2228 → 2285) to bless the I2 eligibility widening: posed figures,
   // carved-solid wordmarks, and css3d-turntable solids export. Shrink-only.
   export_model: 2285,
   // forge_motion re-pinned 2026-08-29 (1409 → 1560) to bless the RE-FORGE
-  // door (edit-3d-recipes.plan.md Phase 3): recipe/recipe_ref make the stored
+  // door: recipe/recipe_ref make the stored
   // recipe.json a legal input, closing the last mint-once 3D family.
   // Shrink-only from here.
   forge_motion: 1560,
@@ -162,10 +162,10 @@ const DESCRIPTION_ALLOWLIST = {
 // image-outcomes worker seam growth: get_image_render_packet +
 // bind_character_sheet + the cook comic-format creation pointer.
 // Re-pinned 2026-07-12 (was 324,000; measured 328,325) to bless the render
-// handoff (render-handoff.plan.md): request_/pull_/submit_/accept_/
+// handoff: request_/pull_/submit_/accept_/
 // reject_image_render — the durable render-worker bicycle.
-// Re-pinned 2026-07-13 (was 332,000; measured 333,814) to bless Mojulo Voice
-// (voice-worker.plan.md): create_voice / get_voice / get_voice_vocab.
+// Re-pinned 2026-07-13 (was 332,000; measured 333,814) to bless Mojulo Voice:
+// create_voice / get_voice / get_voice_vocab.
 // Re-pinned 2026-07-17 (was 336,000; measured 351,493) to bless the "dream,
 // borrow, keep" batch: create_edifice, emote_figure, sketch_polygomer,
 // get_skin_packet / skin_polygomer, bind_voice_sample, and the manji-tree
@@ -174,21 +174,20 @@ const DESCRIPTION_ALLOWLIST = {
 // print handoff on export_model (format:'glb'|'stl' + scale → mm).
 // Re-pinned 2026-07-19 (was 353,000; measured 353,675) to bless the in-flight
 // armory/vehicle tool growth riding the tree (~600 bytes) plus the Qwen
-// reweigh of the render-image-outcome-locally catalyst summary (~75 bytes,
-// local-render-worker.plan.md L4).
+// reweigh of the render-image-outcome-locally catalyst summary (~75 bytes).
 // Re-pinned 2026-07-24 (was 354,000; measured 359,539) to bless the five
-// game-project tools + create_game's project_ref (game-developer.plan.md
-// GP1, ~4.6k) — noting ~1.2k of other in-flight growth had already crossed
+// game-project tools + create_game's project_ref
+// (~4.6k) — noting ~1.2k of other in-flight growth had already crossed
 // the old pin before GP1 (measured 354,897 without it).
 // Re-pinned 2026-07-25 (360_000 → 362_000) to bless `create_pixelizer_game`
-// (pixelizer.plan.md P5 — the 2D reducer-game arcade mint; description already
+// (the 2D reducer-game arcade mint; description already
 // trimmed to lean routing prose, drawer teaches). Measured 360,962 with it.
 // Re-pinned 2026-08-04 (was 362,000; measured 371,050) to bless the 1.0
 // consolidation batch: create_cover (cover-composition phase B) + export_game
 // (game-publish phase 2) + create_sprite_sheet / bake_sprite_sheet
-// (sprite-sheet.plan.md P0/P1) + the sketch_polygomer growth.
+// + the sketch_polygomer growth.
 // Re-pinned 2026-08-06 (was 372,000; measured 374,898) to bless the
-// local-catalyst shelf (local-catalysts.plan.md): mint_catalyst + the
+// local-catalyst shelf: mint_catalyst + the
 // list_catalysts/custom_catalyst/get_catalyst growth for curated + local
 // origins and the mint/graduation hand-off.
 // Re-pinned 2026-08-09 (was 376,000; measured 379,549) to bless the key-free
@@ -207,7 +206,7 @@ const DESCRIPTION_ALLOWLIST = {
 // live in meta_embeddings behind semantic_search, not in tools/list — so the
 // payload is byte-identical to the consolidation baseline.
 // Re-pinned 2026-08-29 (was 255,000; measured 255,660) to bless the
-// iterate-surface batch (edit-3d-recipes.plan.md): update_sketch's game
+// iterate-surface batch: update_sketch's game
 // branch + broadened routing prose, mint_solid/edit_solid/create_edifice
 // update_sketch pointers, and forge_motion's recipe/recipe_ref re-forge
 // inputs. All additions were compressed to routing grade first (teach in
@@ -222,16 +221,16 @@ const DESCRIPTION_ALLOWLIST = {
 // this blesses the ~300-byte input-schema residue.
 //
 // Re-pinned 2026-09-03 (256_500 -> 257_000; measured 256,832) to bless the
-// greybox seam (skin-over-mesh.plan.md phase 0): export_game's `posture`
+// greybox seam: export_game's `posture`
 // input-schema property (~330 bytes — the handoff-posture routing lives in
 // the schema, not the description, which stayed at its allowlist snapshot
 // aside from the pre-existing engine-target growth blessed above).
 // Re-pinned 2026-09-03 (257_000 -> 257_500; measured 257,164) to bless the
-// skinned export seam (skin-over-mesh.plan.md phase 4): export_model's
+// skinned export seam: export_model's
 // `skinned` input-schema property. Same rule — schema routing only, the
 // description stayed at its allowlist snapshot.
 // Re-pinned 2026-09-04 (was 257,500; measured ~260,150) to bless the mesh
-// handoff (interchange-seams.plan.md seam 5): request_/pull_/submit_/accept_/
+// handoff: request_/pull_/submit_/accept_/
 // reject_mesh_render — the durable mesh-worker bicycle on the render-request
 // table (medium 'mesh'). The export_model growth of the same day (3mf / usda /
 // usdz / quantize / humanoid) was trimmed to routing grade and fit under the

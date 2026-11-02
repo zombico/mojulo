@@ -25,7 +25,7 @@ def main():
     out = {'ok': True, 'blender': bpy.app.version_string, 'handoff': sc.get('mojulo_handoff', ''), 'level': bool(sc.get('mojulo_level')),
            'materials': 0, 'principled': 0, 'vertex_colour': 0, 'normal': 0, 'orm': 0, 'height': 0, 'haze': 0,
            'markers': coll_count('Mojulo Markers'), 'seats': coll_count('Mojulo Seats'), 'marker_records': 0,
-           'world': False, 'sky': False, 'ambient': None, 'sun': False, 'sun_strength': None, 'sun_default': False, 'points': 0, 'point_energy': 0.0,
+           'world': False, 'sky': False, 'ambient': None, 'sun': False, 'sun_strength': None, 'sun_default': False, 'points': 0, 'lamps': 0, 'point_energy': 0.0,
            'camera': None, 'armatures': 0, 'actions': len([a for a in bpy.data.actions if a.get(TAG)]), 'skinned': 0, 'entity_meshes': 0,
            'terrain': 0, 'terrain_splat': 0, 'terrain_layers': 0, 'terrain_path': False, 'sea': 0, 'sea_depth': False, 'sea_shadow': None,
            'view_transform': sc.view_settings.view_transform, 'engine': sc.render.engine, 'objects': 0, 'artist': 0, 'fire': None}
@@ -81,6 +81,7 @@ def main():
             out['sun_default'] = bool(o.get('mojulo_default', False))
         if o.type == 'LIGHT' and o.data.type in ('POINT', 'SPOT'):
             out['points'] += 1
+            out['lamps'] += 0 if o.data.use_shadow else 1
             out['point_energy'] = round(out['point_energy'] + o.data.energy, 4)
         if o.get('mojulo'):
             try:

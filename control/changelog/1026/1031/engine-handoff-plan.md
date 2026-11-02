@@ -706,3 +706,29 @@ developer would want to wire. Never claimed by a machine.
   - The bay unchanged in every engine (no sea, no figure). The handoff GLB moves only by the sea's `irradiance`; no pin
     is on it. Sixteen dead links in vocab cards under control/lib fixed or dropped (plan links dropped, text kept), and
     three plan links in mcp/tools/cad-aid.plan.md; no pin moved.
+- 1102, the review round (a code review of origin/1026-consolidated...HEAD; the visual gate before and after, trail and
+  bay, all four engines):
+  - The door: `export_model { engine }` dispatches before every format's leg, so `format: 'bundle'` (or ifc, sheets,
+    schedules, bom) beside an engine is refused, never silently taken. One table of the four adapters
+    (`HANDOFF_ENGINES`: dials, write, own fields, commands, note, a game's line) replaces the four `handoff*To` and the
+    note ternaries; every result's fields and notes word for word as before (pinned in export-model.engine.test.js).
+  - A game's level, and any world, hands off its level record read off the level as it is played
+    (worlds/world-scene.js `levelSketch`, which resolveWorldScene now reads every world through): a building with
+    `level: { goal }` carried no contract before (its raw row has no `game`); now it carries the game's reach-exit.
+  - `handoff-common.js`: what every adapter writes alike (the instanced prefixes, the atlas cut, the height maps, the
+    terrain's layers, the sea, handoff.json's common fields, the pack writer, the sources); no adapter imports another.
+    Unreal's and Unity's terrain and sea are one HLSL source (`handoff-hlsl/`: the body and its noise), included by each
+    port's small wrapper at pack time (`// @mojulo-include`, deterministic). Unity's stills identical to the pixel,
+    Unreal's SSIM 1.0000, mean ΔE ≤ 0.02 still for still.
+  - The lamps' units: the room's lamps are π × the solve's level, display-referred (exposure 1, the sun's convention:
+    out = base × light), and the page lights them by its own windowed falloff, not three's PointLight; a kind's own
+    lights (pot lights, 400 cd) are physical candela for an engine's exposure. Two conventions, so the GLB stays;
+    handoff.json carries `lamps` (their GLB node names) and Godot, Blender and Unreal light by the list, not by a
+    name's substring (Unity lights every point light one way already). The bay identical in all four engines.
+  - The gate: still names unique as files (`shotKey`); the page's sky and plants clocked by the capture under
+    `capture` (form-sky.js, form-flora.js; frame() pins `__mojClock` on a form page): every trail still stable at 3
+    frames (4 of 5 never settled before), two runs within 0.06 % of pixels; no non-capture page byte moved. Engine
+    projects kept between runs, stamped with their pack's key: an unchanged pack skips its import (the trail again:
+    Unity 141 s -> 8 s, Unreal 475 s -> 77 s), `--fresh` rebuilds, a game's levels share one project per engine.
+  - Plan paths dropped from tracked comments, cards and docs (about 1,000); the ones left sit inside emitted strings,
+    serialized kernels or exported cards. No pin moved; outside the handoff, no bytes.

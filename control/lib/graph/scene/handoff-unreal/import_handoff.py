@@ -876,11 +876,12 @@ def collision(new, M):
 
 # ---- the lights --------------------------------------------------------------------------------------------------
 
-def lamps(new, glb):
+def lamps(new, glb, names):
     """The GLB's point lights (KHR_lights_punctual) at the page's strength: Unreal's candela is the glTF intensity
     (measured: 10 cd two metres over a white Lambert plane lights it 0.795 = 10 / (pi 4), as three's lamp does), its
-    reach the light's range under Unreal's inverse-squared window (three's own), no shadow (a lamp stands inside its
-    fitting)."""
+    reach the light's range under Unreal's inverse-squared window (three's own); a room's lamp (handoff.json's `lamps`,
+    by its GLB node name) casts no shadow (it stands inside its fitting)."""
+    names = set(names or [])
     nodes = {clean(n.get('name', '')): n for n in glb.get('nodes', [])}
     lights = glb.get('extensions', {}).get('KHR_lights_punctual', {}).get('lights', [])
     n, total = 0, 0.0
@@ -899,7 +900,7 @@ def lamps(new, glb):
                 c.set_editor_property('attenuation_radius', float(li['range']) * CM)
             if li.get('color'):
                 c.set_light_color(lin(li['color']))
-            if str((nd or {}).get('name', '')).startswith('light:form:lamp:'):
+            if str((nd or {}).get('name', '')) in names:
                 c.set_editor_property('cast_shadows', False)
             tag(a, 'mojulo:lamp')
             n += 1
@@ -1099,7 +1100,7 @@ def build():
                 # (the sea is see-through and writes no depth: its depth goes to the custom depth, which the tone's
                 # haze reads, so the sea is hazed by its own distance as the page's is)
                 c.set_editor_property('render_custom_depth', True)
-    nl, li = lamps(new, glb)
+    nl, li = lamps(new, glb, H.get('lamps'))
     if isinstance(H.get('stands'), dict) and H['stands']:
         try:
             log('stood', stand(new, H['stands']), 'figures in their clip\'s first frame')

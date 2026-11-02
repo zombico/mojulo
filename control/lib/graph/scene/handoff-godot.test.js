@@ -49,6 +49,9 @@ describe('the handoff as a Godot project', () => {
     expect(LEVEL_GLB_IMPORT).toContain('import_script/path="res://mojulo/handoff_post_import.gd"');
     const H = JSON.parse(fileOf(files, 'mojulo/handoff.json').data);
     expect(H.level).toEqual(JSON.parse(JSON.stringify(h.level)));
+    // (the room's lamps by their GLB node names: the importer lights them by this list)
+    expect(H.lamps).toEqual(h.lamps);
+    expect(H.lamps.length).toBeGreaterThan(0);
     // (every dressed face's material its height map, a file of the pack)
     const named = Object.entries(H.materials);
     expect(named.length).toBeGreaterThanOrEqual(Object.keys(h.materials).length);
@@ -65,6 +68,8 @@ describe('the handoff as a Godot project', () => {
 
   it('a layered ground: its shader, its layers\' atlases imported as arrays, its dice and mask kept as written', async () => {
     const h = await resolveHandoff(TRAIL), files = handoffGodotFiles(h), H = JSON.parse(fileOf(files, 'mojulo/handoff.json').data);
+    // (no room, no lamps: no list)
+    expect(H.lamps).toBeUndefined();
     expect(H.terrain.parts).toEqual(h.instances.filter((x) => x.terrain).map((x) => x.name));
     expect(H.terrain.shader).toBe('res://mojulo/handoff_terrain.gdshader');
     expect(fileOf(files, 'mojulo/handoff_terrain.gdshader').data).toContain('shader_type spatial');
@@ -134,6 +139,9 @@ describe('the handoff as a Godot project', () => {
     // (lit by its lamps: no sun; a camera current)
     expect(line.sun, log).toBe(false);
     expect(line.omni, log).toBeGreaterThan(0);
+    // (the room's lamps found by handoff.json's list, every one, none by a name's substring)
+    expect(h.lamps.length).toBeGreaterThan(0);
+    expect(line.lamps, log).toBe(h.lamps.length);
     expect(line.camera, log).toBe(true);
   }, 900_000);
 

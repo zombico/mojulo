@@ -119,9 +119,7 @@ goblets. The substrate's profile-control-point grammar captures the
 silhouette adequately for figurative rendering at this fidelity. For
 specific period pieces, override the profile inline.
 
-This is the first lathe shelf card. See
-`lathe-primitive.plan.md`
-for the design.
+This is the first lathe shelf card.
 
 ## Stays bespoke when
 

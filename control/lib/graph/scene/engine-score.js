@@ -39,7 +39,7 @@ export const manifestIdentity = (manifest = {}) => {
   return rest;
 };
 
-// Handoff posture (skin-over-mesh.plan.md, the greybox seam): an ADVISORY,
+// Handoff posture (the greybox seam): an ADVISORY,
 // operator-DECLARED stamp — never inferred from the absence of textures or
 // materials (the vertex-colour look is a legitimate final style; mojulo does
 // not grade its own output's finishedness). 'greybox' declares a blockout:
@@ -414,8 +414,8 @@ export function extractEngineScore(sketch, payload, { posture = null } = {}) {
     // at z=0 — the collider AABBs are obstacle hulls only, never the floor
     // (G1 finding: a promoted world without this plane is an infinite fall).
     ground: Number.isFinite(payload.walk?.ground) ? sn(payload.walk.ground) : 0,
-    // surface/atlas texture keys riding the payload (skin-over-mesh.plan.md
-    // phase 3): the GLB embeds them (TEXCOORD_0 + PNG), so engine packs CARRY
+    // surface/atlas texture keys riding the payload:
+    // the GLB embeds them (TEXCOORD_0 + PNG), so engine packs CARRY
     // them — the ledger states it. Absent textures ⇒ no key, byte-identical.
     ...(payload.textures && Object.keys(payload.textures).length
       ? { textures: Object.keys(payload.textures).sort() } : {}),

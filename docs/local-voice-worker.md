@@ -1,8 +1,6 @@
 # Local Voice Worker (optional)
 
 An **optional** local text-to-speech backend for the voice-worker seam.
-Design + build log:
-voice-worker.plan.md.
 
 **Who needs this:** nobody by default. The voice is a pluggable worker —
 if the operator's driving agent has native speech synthesis (a

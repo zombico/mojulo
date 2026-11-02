@@ -1,6 +1,6 @@
 /**
- * blender-pack.js — the Blender DESTINATION pack assembler (export-blender.plan.md rev 3,
- * B0). Front doors: scripts/export-blender.mjs (CLI, + the machine gate) and, at B5,
+ * blender-pack.js — the Blender DESTINATION pack assembler.
+ * Front doors: scripts/export-blender.mjs (CLI, + the machine gate) and, at B5,
  * `export_model({ target: 'blender' })`.
  *
  * One realizer: resolveWorldScene → facesToGlb — the same seam every export shares

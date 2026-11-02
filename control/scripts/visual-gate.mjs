@@ -16,8 +16,13 @@
  *   … --no-fixture-poses                     a fixture's camera markers only
  *   … --shots island,close                   only the shots named
  *   … --json                                 the report on stdout
+ *   … --fresh                                rebuild every engine's project, whatever its stamp says
  * Default --out: the ref's outcome folder's visual-gate/ (a game's: each level's own), a fixture's under the temp dir.
  * Unreal and Unity take minutes each (an import, then the editor): pick engines with --engines.
+ * The engine projects are kept under <out>/engines/<engine> (a game's levels share one: <out>/engines/, or the game's
+ * outcome folder's visual-gate/engines/), stamped with the pack they imported: a run whose pack is unchanged skips the
+ * import, a changed one imports over the same project (Unity's Library and Unreal's derived data kept). Delete that
+ * folder, or pass --fresh, to start over.
  * Env: MOJULO_GODOT, MOJULO_BLENDER, MOJULO_UNREAL (UnrealEditor-Cmd), MOJULO_UNITY name the engines (else the usual
  * places, lib/workers/find.js); MOJULO_CHROMIUM a browser.
  */
@@ -35,10 +40,10 @@ process.chdir(path.resolve(here, '..'));
 
 const { values: args } = parseArgs({ options: {
   ref: { type: 'string' }, fixture: { type: 'string' }, engines: { type: 'string' }, out: { type: 'string' },
-  pose: { type: 'string', multiple: true }, shots: { type: 'string' }, poses: { type: 'string' }, 'no-fixture-poses': { type: 'boolean' }, json: { type: 'boolean' },
+  pose: { type: 'string', multiple: true }, shots: { type: 'string' }, poses: { type: 'string' }, 'no-fixture-poses': { type: 'boolean' }, json: { type: 'boolean' }, fresh: { type: 'boolean' },
   help: { type: 'boolean', short: 'h' },
 } });
-const usage = 'usage: node scripts/visual-gate.mjs --ref <level | game> | --fixture trail|bay|couch [--engines godot,blender,unreal,unity] [--out <dir>] [--pose name:x,y,z:x,y,z:vfov]… [--poses <file>] [--shots a,b] [--json]';
+const usage = 'usage: node scripts/visual-gate.mjs --ref <level | game> | --fixture trail|bay|couch [--engines godot,blender,unreal,unity] [--out <dir>] [--pose name:x,y,z:x,y,z:vfov]… [--poses <file>] [--shots a,b] [--json] [--fresh]';
 if (args.help || (!args.ref === !args.fixture)) { console.error(usage); process.exit(args.help ? 0 : 2); }
 
 const { GATE_ENGINES, GATE_FIXTURES } = await import('@/lib/graph/scene/visual-gate.js');
@@ -75,7 +80,9 @@ if (args.fixture) {
   if (sk.manifest.kind === 'game') {
     const { normalizeGameManifest } = await import('@/lib/graph/game/game-manifest.js');
     const refs = [...new Set((normalizeGameManifest(sk.manifest).levels ?? []).map((lv) => lv.ref).filter((r) => typeof r === 'string'))];
-    levels = refs.map((r) => ({ sketch: SketchRepository.getByRef(r), out: outArg ? path.join(outArg, r) : path.join(outcomeDirFor(r), 'visual-gate'), poses })).filter((l) => l.sketch?.manifest);
+    // (the levels' engine projects shared, one per engine: each level imports over the last, its Library and derived data kept)
+    const projects = outArg ? path.join(outArg, 'engines') : path.join(outcomeDirFor(args.ref), 'visual-gate', 'engines');
+    levels = refs.map((r) => ({ sketch: SketchRepository.getByRef(r), out: outArg ? path.join(outArg, r) : path.join(outcomeDirFor(r), 'visual-gate'), projects, poses })).filter((l) => l.sketch?.manifest);
     log(`game ${args.ref}: ${levels.length} level${levels.length === 1 ? '' : 's'} (${levels.map((l) => l.sketch.ref).join(', ')})`);
   } else levels = [{ sketch: sk, out: outArg ?? path.join(outcomeDirFor(args.ref), 'visual-gate'), poses }];
 }
@@ -83,7 +90,7 @@ if (args.fixture) {
 const reports = [];
 for (const L of levels) {
   log(`${L.sketch.ref ?? L.sketch.title}: engines ${engines.join(', ')} → ${L.out}`);
-  const { report, json, html } = await runVisualGate(L.sketch, { engines, out: L.out, poses: L.poses, only: args.shots ? args.shots.split(',').map((x) => x.trim()) : null, log });
+  const { report, json, html } = await runVisualGate(L.sketch, { engines, out: L.out, projects: L.projects ?? null, fresh: !!args.fresh, poses: L.poses, only: args.shots ? args.shots.split(',').map((x) => x.trim()) : null, log });
   reports.push(report);
   log(`report ${json}`);
   log(`contact sheet ${html}`);

@@ -132,9 +132,7 @@ A row of three columns along an x-axis:
 The Doric order's column is the proto-typical classical column. Its
 defining features — fluted shaft, subtle entasis, columnar
 proportions — are precisely what the lathe primitive's profile +
-harmonics + axis grammar expresses. See
-`lathe-primitive.plan.md`
-for the substrate.
+harmonics + axis grammar expresses.
 
 ## Stays bespoke when
 

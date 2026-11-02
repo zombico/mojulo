@@ -12,7 +12,7 @@ func _init() -> void:
 		return
 	var scene: Node = packed.instantiate()
 	var out := { "ok": true, "materials": 0, "albedo": 0, "normal": 0, "orm": 0, "height": 0, "bodies": 0, "markers": 0, "seats": 0,
-		"environment": false, "sky": false, "background": false, "fog": false, "ssao": false, "sun": false, "sun_shadow": false, "sun_default": false, "omni": 0, "camera": false, "animated": 0, "skins": 0, "entity_meshes": 0, "terrain": 0, "terrain_splat": 0, "terrain_layers": 0, "terrain_path": false, "sea": false, "sea_depth": false, "handoff": scene.get_meta("mojulo_handoff", "") }
+		"environment": false, "sky": false, "background": false, "fog": false, "ssao": false, "sun": false, "sun_shadow": false, "sun_default": false, "omni": 0, "lamps": 0, "camera": false, "animated": 0, "skins": 0, "entity_meshes": 0, "terrain": 0, "terrain_splat": 0, "terrain_layers": 0, "terrain_path": false, "sea": false, "sea_depth": false, "handoff": scene.get_meta("mojulo_handoff", "") }
 	var seen := {}
 	for mi in scene.find_children("*", "MeshInstance3D", true, false):
 		if mi.mesh == null:
@@ -55,6 +55,9 @@ func _init() -> void:
 		out["sun_shadow"] = sun.shadow_enabled
 		out["sun_default"] = sun.get_meta("mojulo_default", false)
 	out["omni"] = scene.find_children("*", "OmniLight3D", true, false).size()
+	for l in scene.find_children("*", "OmniLight3D", true, false):
+		if l.get_meta("mojulo_lamp", false):
+			out["lamps"] += 1
 	out["animated"] = scene.find_children("*", "AnimationPlayer", true, false).size()
 	out["skins"] = scene.find_children("*", "Skeleton3D", true, false).size()
 	for mi in scene.find_children("entity_*", "MeshInstance3D", true, false):

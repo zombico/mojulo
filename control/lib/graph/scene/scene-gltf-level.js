@@ -1,6 +1,5 @@
 /**
- * scene-gltf-level — level-as-layout semantics for the GLB export
- * (interchange.plan.md I4).
+ * scene-gltf-level — level-as-layout semantics for the GLB export.
  *
  * facesToGlb historically exported geometry only; this module derives the
  * SCENE from the same resolved payload — glTF perspective cameras from the

@@ -218,7 +218,7 @@ Adapter discovery is handled by `list_adapters` / `get_adapter` from the adapter
 
 ## Local catalysts
 
-The operator's own shelf, minted over MCP (design + build log: local-catalysts.plan.md).
+The operator's own shelf, minted over MCP.
 
 - **Same spec, same gate.** `mint_catalyst` runs the exact validator the file loader runs (`validateCatalystMeta` — required fields, kind rules, the `destinationMcpCategory` → `destinationExamples` pairing, non-empty body). The six-section editorial template is advisory locally; it's enforced by maintainers only at PR graduation.
 - **Head + revisions.** The row is the live pointer; every update appends to `local_catalyst_revisions` with a required `note` (the commit message). For local catalysts `version` is derived — always the head `rev`. `get_catalyst({ id, rev })` reads history.

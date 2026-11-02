@@ -15,8 +15,6 @@
  * Cook folders (`cook_…`) live in the same base directory but are NOT scanned
  * here — they have a real table and a real inbox, and the lane reads them through
  * CookRepository so a cook keeps its aim and its publication kind.
- *
- * Design: components/3d-factory-ui.plan.md §5.
  */
 
 import fs from 'node:fs/promises';

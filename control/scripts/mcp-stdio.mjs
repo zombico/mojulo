@@ -113,8 +113,8 @@ process.chdir(CONTROL_DIR);
 console.log = console.error;
 console.info = console.error;
 
-// `npx mojulo orient|tools|packs|help <name>|call|pack_* …` — the CLI front door (P1+P2 of
-// [mojulo-cli.plan.md]). Branches AFTER the loader/paths/chdir/console pin
+// `npx mojulo orient|tools|packs|help <name>|call|pack_* …` — the CLI front door.
+// Branches AFTER the loader/paths/chdir/console pin
 // (the CLI reuses the same `@/` resolution and data layout, and wants stray
 // tool logs on stderr — its own output writes to process.stdout directly)
 // but BEFORE the embedder preload: a spot-check command must not kick off a

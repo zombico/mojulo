@@ -24,20 +24,12 @@
  *
  * Deterministic: the same handoff, the same bytes. Godot's own files (.godot/, .uid) are its to write.
  */
-import { promises as fs, existsSync, readFileSync } from 'node:fs';
-import path from 'node:path';
+import { dataUrlBytes, fileKey, heightMaterials, seaOf, handoffJson, sortedFiles, packSource, writePack } from './handoff-common.js';
 
 export const HANDOFF_GODOT_VERSION = 'handoff-godot/0';
-/** The GLB node names an instance set's copies start with: instanced, so the importer gives them no collision. */
-export const HANDOFF_INSTANCED = Object.freeze(['form:stones:', 'form:flora:']);
 
-// (the adapter's GDScript, beside this file; read from the cwd: lib files may be bundled)
-const gdDir = () => path.join(process.cwd(), 'lib', 'graph', 'scene', 'handoff-godot');
-const gd = (name) => readFileSync(path.join(gdDir(), name), 'utf8');
-
-const glbJson = (bytes) => { const b = Buffer.from(bytes); return JSON.parse(b.subarray(20, 20 + b.readUInt32LE(12)).toString('utf8')); };
-const dataUrlBytes = (u) => Buffer.from(String(u).split(',')[1] ?? '', 'base64');
-const fileKey = (s) => String(s).replace(/[^A-Za-z0-9_-]/g, '_');
+// (the adapter's GDScript, beside this file: handoff-godot/)
+const gd = (name) => packSource('handoff-godot', name);
 const gdStr = (s) => JSON.stringify(String(s));
 
 export const LEVEL_GLB_IMPORT = `[remap]
@@ -92,18 +84,9 @@ export const LEVEL_TSCN = `[gd_scene load_steps=2 format=3]
 `;
 
 export function handoffGodotFiles(h, { title = null } = {}) {
-  const j = glbJson(h.exported.bytes), files = [], tex = new Map();
-  const texFile = (name, url) => { const f = `mojulo/textures/${fileKey(name)}.png`; if (!tex.has(f)) tex.set(f, dataUrlBytes(url)); return `res://${f}`; };
-  // each material's height map, by the material's own name in the GLB: a dressed face's (its texture key, on every group
-  // that lays it) and a plant's bark (its set's name)
-  const materials = {};
-  for (const m of j.materials ?? []) {
-    const name = String(m.name ?? '');
-    const dressed = Object.entries(h.materials ?? {}).find(([k]) => name.endsWith(`:${k}`));
-    const set = (h.instances ?? []).find((s) => s.name === name && s.textures?.height);
-    if (dressed && dressed[1].height) materials[name] = { height: texFile(`${dressed[0]}.height`, dressed[1].height), depth: dressed[1].depth, metres: dressed[1].metres };
-    else if (set) materials[name] = { height: texFile(`${set.name}.height`, set.textures.height), depth: set.depth, metres: set.metres };
-  }
+  const files = [], tex = new Map();
+  // each material's height map (handoff-common.js heightMaterials), under mojulo/textures/
+  const materials = heightMaterials(h, (name, url) => { const f = `mojulo/textures/${fileKey(name)}.png`; if (!tex.has(f)) tex.set(f, dataUrlBytes(url)); return `res://${f}`; });
   // the layered ground: each part's name, its read and its images for the terrain shader (handoff_terrain.gdshader), under
   // mojulo/terrain/: the layers' atlases imported by Godot as arrays (its own importer, a cell a layer, lossless), the
   // scree's dice, the trail's mask and the grass's cover kept as written (the importer reads them as they are, so the
@@ -117,21 +100,14 @@ export function handoffGodotFiles(h, { title = null } = {}) {
       return [k, `res://${f}`];
     })),
   } : null;
-  // the sea: its plane's name, its read, its depth map kept as written (its red the depth over `max`) and its shader
-  const seaSet = (h.instances ?? []).find((s) => s.sea);
-  const sea = seaSet ? (() => {
-    const { depth, ...read } = seaSet.sea;
-    terrainFiles.push({ file: 'mojulo/terrain/sea_depth.png', data: dataUrlBytes(depth) }, { file: 'mojulo/terrain/sea_depth.png.import', data: KEEP_IMPORT });
-    return { part: seaSet.name, read, image: 'res://mojulo/terrain/sea_depth.png', shader: 'res://mojulo/handoff_sea.gdshader' };
-  })() : null;
-  const handoffJson = { version: HANDOFF_GODOT_VERSION, handoff: h.ledger?.version ?? null, level: h.level ?? null, ledger: h.ledger ?? null,
-    materials, instanced: [...HANDOFF_INSTANCED], ...(terrain ? { terrain } : {}), ...(sea ? { sea } : {}),
-    ...(h.stands && Object.keys(h.stands).length ? { stands: h.stands } : {}) };
+  // the sea: its plane's name, its read, its depth map kept as written and its shader
+  const S = seaOf(h);
+  if (S) terrainFiles.push({ file: 'mojulo/terrain/sea_depth.png', data: S.depth }, { file: 'mojulo/terrain/sea_depth.png.import', data: KEEP_IMPORT });
+  const sea = S ? { part: S.part, read: S.read, image: 'res://mojulo/terrain/sea_depth.png', shader: 'res://mojulo/handoff_sea.gdshader' } : null;
   files.push({ file: 'mojulo/level.glb', data: Buffer.from(h.exported.bytes) });
   files.push({ file: 'mojulo/level.glb.import', data: LEVEL_GLB_IMPORT });
-  files.push({ file: 'mojulo/handoff.json', data: `${JSON.stringify(handoffJson, null, 1)}\n` });
-  for (const [f, b] of [...tex].sort(([a], [b2]) => (a < b2 ? -1 : a > b2 ? 1 : 0))) files.push({ file: f, data: b });
-  files.push(...terrainFiles);
+  files.push({ file: 'mojulo/handoff.json', data: handoffJson(h, HANDOFF_GODOT_VERSION, { materials, terrain, sea }) });
+  files.push(...sortedFiles(tex), ...terrainFiles);
   if (terrain) files.push({ file: 'mojulo/handoff_terrain.gdshader', data: gd('handoff_terrain.gdshader') });
   if (sea) files.push({ file: 'mojulo/handoff_sea.gdshader', data: gd('handoff_sea.gdshader') });
   files.push({ file: 'mojulo/handoff_post_import.gd', data: gd('handoff_post_import.gd') });
@@ -142,15 +118,5 @@ export function handoffGodotFiles(h, { title = null } = {}) {
 }
 
 export async function writeHandoffGodot(h, outDir, opts = {}) {
-  const files = handoffGodotFiles(h, opts), written = [], kept = [];
-  // (mojulo/ is mojulo's: cleared and written whole, so nothing a previous handoff wrote is left over)
-  await fs.rm(path.join(outDir, 'mojulo'), { recursive: true, force: true });
-  for (const f of files) {
-    const p = path.join(outDir, f.file);
-    if (f.keep && existsSync(p)) { kept.push(f.file); continue; }
-    await fs.mkdir(path.dirname(p), { recursive: true });
-    await fs.writeFile(p, f.data);
-    written.push(f.file);
-  }
-  return { written, kept };
+  return writePack(handoffGodotFiles(h, opts), outDir, 'mojulo');
 }

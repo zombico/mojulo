@@ -2,8 +2,8 @@
 /**
  * mojulo-orient — practical orientation as a gallery of RECIPES.
  *
- * A separate, tiny stdio MCP beside the control-plane server
- * (lite-template/integration/0720/practical-orientation.plan.md). It mints
+ * A separate, tiny stdio MCP beside the control-plane server.
+ * It mints
  * nothing itself and duplicates no substrate state. What it owns is a curated
  * catalog of founding works — each carried as the RECIPE that mints it, with
  * a pinned stable ref, so the gallery is portable to any mojulo host — and
@@ -18,7 +18,7 @@
  *   list_works  → the whole gallery + toured state.
  *
  * Two kinds of work. An EXHIBIT carries `recipe` (a finished thing, minted on
- * consent). A BRIEF carries `brief` instead (chariot.plan.md, 2026-09-08): an
+ * consent). A BRIEF carries `brief` instead (2026-09-08): an
  * exercise the host agent drives cold — intent, phases with a machine exit
  * and an eyes exit each, the rules, and a filing convention. What a brief
  * produces is a SIGNATURE: an added work whose `answersBrief` names the brief,

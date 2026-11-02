@@ -9,9 +9,13 @@
  *     takes), emitted as a capture page whose canvas is the shot's size from its first layout (emitThreeWorld's
  *     `captureSize`), steered by its capture bridge (`frame({ pos, target, vfov })`) and checked by it (`view()`: the
  *     aspect and fov the frame was drawn at). Each shot is drawn until two stills in a row agree (textures load late).
- *   renderEngineShots(engine, handoff, shots, { dir, stills, bin?, sketch? }) → { ran, stills: { <shot>: png }, ... }
+ *   renderEngineShots(engine, handoff, shots, { dir, stills, bin?, sketch?, fresh? }) → { ran, stills: { <shot>: png }, cached?, ... }
  *     the adapter's pack written into `dir` (the gate's own copy: a developer's handoff folder is never touched), built by
- *     its importer and shot:
+ *     its importer and shot. The project is kept: once an import succeeds, `dir` is stamped with its pack's key (packKey:
+ *     the gate's version, the engine's binary and every file the adapter writes), and a later run whose pack has the same
+ *     key skips the write and the import (Unity's ~1.5 GB Library, Unreal's shader compile) and goes to its shots
+ *     (`cached`); a changed pack is written and imported over the same project (its Library and derived data kept).
+ *     `fresh` rebuilds whatever the stamp says; deleting `dir` clears it:
  *       godot    `--import` headless, then a window of its own: each shot through a SubViewport of the shot's size (the
  *                window's size and the display's scale never frame it), the level.tscn the developer gets
  *       blender  import_handoff.py builds level.blend; each shot a camera of the shot's vertical fov, rendered in the
@@ -19,35 +23,48 @@
  *       unreal   import_handoff.py (UnrealEditor-Cmd), then handoff_render.py in the editor offscreen (its `at`/`look`/
  *                `yfov` shots)
  *       unity    Mojulo.Handoff.Import.Run, then Mojulo.Handoff.Probe.Render (its `at`/`look`/`yfov` shots)
- *   runVisualGate(sketch, { engines?, out, poses?, size?, only? }) → { report, json, html }: the shots (visual-gate.js
- *     gateShots; `only` keeps the named ones), the page's stills, each engine's, the scores, the report (visual-gate.json) and the contact sheet
- *     (visual-gate.html) in `out`, with the stills under out/stills/ and each engine's project under out/engines/.
+ *   runVisualGate(sketch, { engines?, out, projects?, fresh?, poses?, size?, only? }) → { report, json, html }: the shots
+ *     (visual-gate.js gateShots; `only` keeps the named ones), the page's stills, each engine's, the scores, the report
+ *     (visual-gate.json) and the contact sheet (visual-gate.html) in `out`, with the stills under out/stills/ and each
+ *     engine's project under `projects`/<engine> (out/engines/ by default; a game's levels share one, scripts/visual-gate.mjs).
  */
 import { promises as fs, existsSync, readFileSync } from 'node:fs';
 import { spawn } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 
 import { resolveWorldScene } from '../worlds/world-scene.js';
 import { emitThreeWorld } from './scene-three.js';
 import { resolveHandoff, HANDOFF_ERA } from './handoff.js';
-import { writeHandoffGodot } from './handoff-godot.js';
-import { writeHandoffBlender, HANDOFF_BLEND } from './handoff-blender.js';
-import { writeHandoffUnreal, HANDOFF_UPROJECT } from './handoff-unreal.js';
-import { writeHandoffUnity } from './handoff-unity.js';
+import { handoffGodotFiles, writeHandoffGodot } from './handoff-godot.js';
+import { handoffBlenderFiles, writeHandoffBlender, HANDOFF_BLEND } from './handoff-blender.js';
+import { handoffUnrealFiles, writeHandoffUnreal, HANDOFF_UPROJECT } from './handoff-unreal.js';
+import { handoffUnityFiles, writeHandoffUnity } from './handoff-unity.js';
 import { resolveChromium, launchChromium, CHROMIUM_WEBGL_ARGS } from './chromium.js';
 import { loadPuppeteer } from './puppeteer-lazy.js';
 import { WORLD_HIDE_SELECTORS } from './capture-contract.js';
 import { findGodot, findBlender, findUnreal, findUnity } from '../../workers/find.js';
-import { GATE_SIZE, GATE_ENGINES, gateShots, decodeImage, compareImages, gateReport, contactSheet, heatPng, thumbPng } from './visual-gate.js';
+import { ENGINES } from './engines/registry.js';
+import { VISUAL_GATE_VERSION, GATE_SIZE, GATE_ENGINES, gateShots, shotKey, decodeImage, compareImages, gateReport, contactSheet, heatPng, thumbPng } from './visual-gate.js';
 
 const DEG = Math.PI / 180;
 const FINDERS = { godot: findGodot, blender: findBlender, unreal: findUnreal, unity: findUnity };
-const ENGINE_NAMES = { godot: 'Godot', blender: 'Blender', unreal: 'Unreal', unity: 'Unity' };
-/** A still's file name for a shot (its name made a file's). */
-export const stillName = (shot, who) => `${String(shot.name).replace(/[^A-Za-z0-9_-]+/g, '_')}.${who}.png`;
+/** A still's file name for a shot (its name made a file's: visual-gate.js shotKey, every shot's its own). */
+export const stillName = (shot, who) => `${shotKey(shot.name)}.${who}.png`;
 /** Two page stills in a row agree when no more than this share of their pixels differ. */
 export const PAGE_JITTER = 0.002;
+/** An engine project's stamp: the key of the pack its last import built (packKey), written once that import succeeded. */
+export const PROJECT_STAMP = 'mojulo-visual-gate.stamp';
+const PACK_FILES = { godot: handoffGodotFiles, blender: handoffBlenderFiles, unreal: handoffUnrealFiles, unity: handoffUnityFiles };
+/** A pack's key: the gate's version, the engine and its binary, and every file the adapter writes (a world's fire, which
+ *  Blender's writes beside them from the recipe, by the recipe). Equal keys, the same project. */
+export function packKey(engine, h, { title = null, sketch = null, bin = '' } = {}) {
+  const H = createHash('sha256').update(`${VISUAL_GATE_VERSION}\n${engine}\n${bin}\n`);
+  for (const f of PACK_FILES[engine](h, { title })) H.update(`${f.file}\n${f.keep ? 'keep' : ''}\n`).update(Buffer.from(f.data)).update('\n');
+  if (engine === 'blender' && sketch?.manifest?.fire) H.update(JSON.stringify(sketch.manifest));
+  return H.digest('hex');
+}
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 // (a program run to its end or its time, its output's tail kept)
@@ -64,6 +81,8 @@ function run(bin, args, { cwd, env = {}, timeoutMs = 1_800_000 } = {}) {
   });
 }
 const lastLines = (s, n = 12, re = null) => String(s).split(/\r?\n/).filter((l) => l.trim() && (!re || re.test(l))).slice(-n).join('\n');
+// (an engine that logs to its own file: that file's tail is the step's)
+const logTail = (r, file) => (existsSync(file) ? { ...r, tail: readFileSync(file, 'utf8').slice(-24000) } : r);
 
 // ---- the page -----------------------------------------------------------------------------------------------------
 
@@ -208,10 +227,10 @@ async function engineVersion(engine, bin) {
   return line ?? null;
 }
 
-export async function renderEngineShots(engine, h, shots, { dir, stills, bin: given, sketch = null, log = () => {}, timeoutMs = 3_600_000 } = {}) {
+export async function renderEngineShots(engine, h, shots, { dir, stills, bin: given, sketch = null, fresh = false, log = () => {}, timeoutMs = 3_600_000 } = {}) {
   if (!GATE_ENGINES.includes(engine)) return { ran: false, error: `no engine '${engine}' (${GATE_ENGINES.join(', ')})` };
   const bin = given ?? FINDERS[engine]();
-  if (!bin || !existsSync(bin)) return { ran: false, skipped: `no ${ENGINE_NAMES[engine]} on this machine${bin ? ` (${bin} is not there)` : ''}` };
+  if (!bin || !existsSync(bin)) return { ran: false, skipped: `no ${ENGINES[engine].name} on this machine${bin ? ` (${bin} is not there)` : ''}` };
   const t0 = Date.now();
   await fs.mkdir(dir, { recursive: true });
   await fs.mkdir(stills, { recursive: true });
@@ -222,48 +241,60 @@ export async function renderEngineShots(engine, h, shots, { dir, stills, bin: gi
   const version = await engineVersion(engine, bin);
   const steps = [];
   const step = async (label, args, opts = {}) => { log(`${engine}: ${label}`); const r = await run(opts.bin ?? bin, args, { timeoutMs, ...opts }); steps.push({ label, code: r.code, ...(r.error ? { error: r.error } : {}) }); return r; };
+  // (the project kept from the last run: a pack whose key is its stamp's is built already, so its write and its import are
+  // skipped; any other is written and imported, and stamped once its import succeeds)
+  const title = sketch?.title ?? null, key = packKey(engine, h, { title, sketch, bin }), stamp = path.join(dir, PROJECT_STAMP);
+  const cached = !fresh && existsSync(stamp) && readFileSync(stamp, 'utf8').trim() === key;
+  if (!cached) await fs.rm(stamp, { force: true });
+  else log(`${engine}: the project in ${dir} is this pack's already: no import`);
+  const imported = async (r, ok = r.code === 0) => { if (ok) await fs.writeFile(stamp, `${key}\n`); return r; };
   let last = null;
   if (engine === 'godot') {
-    await writeHandoffGodot(h, dir, { title: sketch?.title ?? null });
+    if (!cached) await writeHandoffGodot(h, dir, { title });
     await fs.writeFile(path.join(dir, 'visual_gate_shots.gd'), GODOT_SHOTS_GD);
-    await step('import', ['--headless', '--path', dir, '--import']);
+    if (!cached) await imported(await step('import', ['--headless', '--path', dir, '--import']));
     // (not headless: a headless Godot draws nothing. A window of its own, small: the shots are drawn off it)
     last = await step('shots', ['--path', dir, '--windowed', '--resolution', '320x180', '--script', 'res://visual_gate_shots.gd'], { env: { MOJULO_SHOTS: shotsFile }, timeoutMs: 900_000 });
   } else if (engine === 'blender') {
-    await writeHandoffBlender(h, dir, { title: sketch?.title ?? null, sketch });
+    if (!cached) {
+      await writeHandoffBlender(h, dir, { title, sketch });
+      const imp = await step('import', ['-b', '--python', path.join(dir, 'mojulo', 'import_handoff.py')]);
+      if (!existsSync(path.join(dir, HANDOFF_BLEND))) return { ran: false, error: `the importer built no ${HANDOFF_BLEND}`, bin, version, steps, log: lastLines(imp.tail, 16) };
+      await imported(imp);
+    }
     await fs.writeFile(path.join(dir, 'visual_gate_shots.py'), BLENDER_SHOTS_PY);
-    const imp = await step('import', ['-b', '--python', path.join(dir, 'mojulo', 'import_handoff.py')]);
-    if (!existsSync(path.join(dir, HANDOFF_BLEND))) return { ran: false, error: `the importer built no ${HANDOFF_BLEND}`, bin, version, steps, log: lastLines(imp.tail, 16) };
     last = await step('shots', ['-b', path.join(dir, HANDOFF_BLEND), '--python', path.join(dir, 'visual_gate_shots.py'), '--', shotsFile]);
   } else if (engine === 'unreal') {
-    await writeHandoffUnreal(h, dir, { title: sketch?.title ?? null });
     const proj = path.join(dir, HANDOFF_UPROJECT);
-    await step('import', [proj, '-run=pythonscript', `-script=${path.join(dir, 'mojulo', 'import_handoff.py')}`, '-unattended', '-nosplash', '-AllowCommandletRendering', '-RenderOffscreen', `-abslog=${path.join(dir, 'visual-gate-import.log')}`]);
+    if (!cached) {
+      await writeHandoffUnreal(h, dir, { title });
+      await imported(await step('import', [proj, '-run=pythonscript', `-script=${path.join(dir, 'mojulo', 'import_handoff.py')}`, '-unattended', '-nosplash', '-AllowCommandletRendering', '-RenderOffscreen', `-abslog=${path.join(dir, 'visual-gate-import.log')}`]));
+    }
     // (stills come from the full editor, offscreen: a commandlet never ticks the world)
     const ed = bin.replace(/-Cmd$/, '');
     last = await step('shots', [proj, '-RenderOffscreen', '-unattended', '-nosplash', '-nosound', `-ExecCmds=py ${path.join(dir, 'mojulo', 'handoff_render.py')}`, `-abslog=${path.join(dir, 'visual-gate-render.log')}`],
       { bin: ed, env: { MOJULO_SHOTS: shotsFile } });
-    const logf = path.join(dir, 'visual-gate-render.log');
-    if (existsSync(logf)) last = { ...last, tail: readFileSync(logf, 'utf8').slice(-24000) };
+    last = logTail(last, path.join(dir, 'visual-gate-render.log'));
   } else {
-    await writeHandoffUnity(h, dir, { title: sketch?.title ?? null });
     await fs.mkdir(path.join(dir, 'Logs'), { recursive: true });
     const unity = (method, name, env = {}) => step(name, ['-batchmode', '-projectPath', dir, '-executeMethod', method, '-quit', '-logFile', path.join(dir, 'Logs', `visual-gate-${name}.log`)], { env });
-    await unity('Mojulo.Handoff.Import.Run', 'import');
+    if (!cached) {
+      await writeHandoffUnity(h, dir, { title });
+      await imported(await unity('Mojulo.Handoff.Import.Run', 'import'));
+    }
     last = await unity('Mojulo.Handoff.Probe.Render', 'shots', { MOJULO_SHOTS: shotsFile });
-    const logf = path.join(dir, 'Logs', 'visual-gate-shots.log');
-    if (existsSync(logf)) last = { ...last, tail: readFileSync(logf, 'utf8').slice(-24000) };
+    last = logTail(last, path.join(dir, 'Logs', 'visual-gate-shots.log'));
   }
   const out = {}, missing = [];
   for (const s of wanted) { if (existsSync(s.out)) out[s.name] = s.out; else missing.push(s.name); }
-  const base = { bin, ...(version ? { version } : {}), ms: Date.now() - t0, steps };
-  if (!Object.keys(out).length) return { ran: false, error: `${ENGINE_NAMES[engine]} drew no still`, ...base, log: lastLines(last?.tail ?? '', 16) };
+  const base = { bin, ...(version ? { version } : {}), ms: Date.now() - t0, steps, ...(cached ? { cached: true } : {}) };
+  if (!Object.keys(out).length) return { ran: false, error: `${ENGINES[engine].name} drew no still`, ...base, log: lastLines(last?.tail ?? '', 16) };
   return { ran: true, ...base, stills: out, ...(missing.length ? { missing } : {}) };
 }
 
 // ---- the gate -----------------------------------------------------------------------------------------------------
 
-export async function runVisualGate(sketch, { engines = GATE_ENGINES, out, poses = [], size = GATE_SIZE, only = null, bins = {}, log = () => {}, handoff = null } = {}) {
+export async function runVisualGate(sketch, { engines = GATE_ENGINES, out, projects = null, fresh = false, poses = [], size = GATE_SIZE, only = null, bins = {}, log = () => {}, handoff = null } = {}) {
   if (!out) throw new Error('runVisualGate: `out` (a folder) is required');
   await fs.mkdir(out, { recursive: true });
   const stills = path.join(out, 'stills');
@@ -274,7 +305,7 @@ export async function runVisualGate(sketch, { engines = GATE_ENGINES, out, poses
   if (!page.ran) log(`page: ${page.skipped ?? page.error}`);
   const ran = {};
   for (const e of engines) {
-    const r = shots.length ? await renderEngineShots(e, h, shots, { dir: path.join(out, 'engines', e), stills, bin: bins[e], sketch, log }) : { ran: false, skipped: 'no shots' };
+    const r = shots.length ? await renderEngineShots(e, h, shots, { dir: path.join(projects ?? path.join(out, 'engines'), e), stills, bin: bins[e], sketch, fresh, log }) : { ran: false, skipped: 'no shots' };
     ran[e] = r;
     log(`${e}: ${r.ran ? `${Object.keys(r.stills).length} still${Object.keys(r.stills).length === 1 ? '' : 's'} in ${Math.round(r.ms / 1000)} s` : r.skipped ? `skipped (${r.skipped})` : `failed (${r.error})${r.log ? `\n${r.log}` : ''}`}`);
   }

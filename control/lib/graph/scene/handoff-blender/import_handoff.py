@@ -353,11 +353,12 @@ def environment(env, coll, first):
     return w, hz, sun
 
 
-def lamps(glb):
-    """The room's lamps (`form:lamp:*`) at the page's strength: three lights base x intensity / (π d²); Blender's point of
-    power P lights it P / (4π² d²): P = 4π x the glTF intensity (imported raw), its reach its cutoff, no shadow. Any
-    other light in the GLB (a kind's own pot lights) is candela, as the extension says: Blender's own conversion
-    (4π x cd / 683 W), as the glTF importer makes it."""
+def lamps(glb, names):
+    """The room's lamps (handoff.json's `lamps`, by their GLB node names) at the page's strength: three lights base x
+    intensity / (π d²); Blender's point of power P lights it P / (4π² d²): P = 4π x the glTF intensity (imported raw),
+    its reach its cutoff, no shadow. Any other light in the GLB (a kind's own pot lights) is candela, as the extension
+    says: Blender's own conversion (4π x cd / 683 W), as the glTF importer makes it."""
+    names = set(names or [])
     nodes = {n.get('name'): n for n in glb.get('nodes', [])}
     lights = glb.get('extensions', {}).get('KHR_lights_punctual', {}).get('lights', [])
     n = 0
@@ -370,7 +371,7 @@ def lamps(glb):
             k = nd.get('extensions', {}).get('KHR_lights_punctual', {}).get('light')
             li = lights[k] if k is not None and k < len(lights) else None
         inten = float(li.get('intensity', 1.0)) if li else float(o.data.energy)
-        if not base_name(o.name).startswith('light:form:lamp:'):
+        if base_name(o.name) not in names:
             o.data.energy = 4.0 * math.pi * inten / 683.0
             continue
         o.data.energy = 4.0 * math.pi * inten
@@ -536,7 +537,7 @@ def build():
     env = (level or {}).get('environment', {}) if level else {}
     t = terrain(H['terrain']) if isinstance(H.get('terrain'), dict) else 0
     s = sea(H['sea'], env) if isinstance(H.get('sea'), dict) else 0
-    nl = lamps(glb)
+    nl = lamps(glb, H.get('lamps'))
     w = hz = sun = None
     if level:
         w, hz, sun = environment(env, coll, first)

@@ -124,7 +124,7 @@ function communicationSettingsNotice({ register, disclosure, source }) {
   return `*Active communication settings: \`vocabulary_register: ${register}\`, \`procedural_disclosure: ${disclosure}\` (${sourceNote}). \`procedural_disclosure\` shapes how you narrate state gates (the disclosure directive below); \`vocabulary_register\` shapes the concept glossary's user-facing phrasing — that glossary lives in \`get_register_kit\`, pull it when you need to define a term. Concept names and tool descriptions are invariant.*`;
 }
 
-// --- Workshop pulse (R1, orientation-ramp.plan.md) ---
+// --- Workshop pulse ---
 //
 // One dynamic line appended to the opener so a cold agent knows whether to
 // ONBOARD (empty workshop → propose a first win) or RESUME (counts + last
@@ -358,7 +358,7 @@ const CONCEPT_GLOSSARY_VARIANTS = {
   mojulo: GLOSSARY_MOJULO,
 };
 
-// --- Refusal legend (R3b, orientation-ramp.plan.md) ---
+// --- Refusal legend ---
 //
 // The substrate refuses ON PURPOSE — the refusals are its best feature, but
 // each one is documented only at its own tool. This is the map: one row per
@@ -562,7 +562,7 @@ function buildCreativeToolsetMap(profile = pluginProfileActive()) {
 
 
 
-// --- Studio body (forward-context-grammar.plan.md, phase 1) ---
+// --- Studio body ---
 //
 // The creative wing's orientation, the DEFAULT read. GRAMMAR, NOT NARRATION:
 // the body is a call grammar — six verbs over one store, a dispatch table for
@@ -879,7 +879,7 @@ export async function forwardContextHandler(input, _ctx) {
     pulse: readWorkshopPulse(),
   });
   // Plain text content (not JSON-stringified) so the agent reads it as prose.
-  // The mode signal (routing-context-weaving.plan.md A1) is what lets the
+  // The mode signal is what lets the
   // first-hop cut in orientationGaps tell the reads apart (an 'office' read
   // since 3.1.0 is a caller that has not caught up); stripped from the wire by
   // instrumentedInvoke.
@@ -946,7 +946,7 @@ export async function toolIndexHandler(input, ctx) {
 
 // Ring 10 re-cut by FORM. No arg → the form map (~1.5K); { form } → that
 // family's per-tool lines. Keeps a creative lookup at ~2–6K instead of the
-// whole ~46K tool index. See creative-toolsets.plan.md.
+// whole ~46K tool index.
 export async function creativeToolsetHandler(input, _ctx) {
   const form = input?.form;
   if (form === undefined || form === null || form === '') {
@@ -1102,7 +1102,7 @@ function renderOrientationGaps(gaps, coverage) {
   return `${header}${sessionBlock}${hopBlock}${searchBlock}${missBlock}${coverageBlock}`;
 }
 
-// Routing-card coverage (routing-context-weaving.plan.md A3): which cards'
+// Routing-card coverage: which cards'
 // entry tools saw ANY call in the window. A card whose entry tool was never
 // called at all definitely never routed — the honest floor under "rows that
 // never route", answerable without per-call attribution. Fail-soft: a loader
@@ -1129,7 +1129,7 @@ export async function getToolTelemetryHandler(input, _ctx) {
   const sinceDays = Number.isFinite(input?.sinceDays) && input.sinceDays > 0 ? input.sinceDays : 7;
 
   // { orientation: true } mode → the orientation-gap cut (orientation-ramp R4)
-  // + the first-hop/coverage cut (routing-context-weaving.plan.md A2/A3).
+  // + the first-hop/coverage cut.
   if (input?.orientation === true) {
     const gaps = McpToolCallRepository.orientationGaps({
       sinceDays,

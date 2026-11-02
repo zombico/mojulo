@@ -33,10 +33,8 @@
  * adds to /Game/Level stays. Deterministic: the same handoff, the same bytes. Unreal's own files (Content/, Saved/,
  * Intermediate/, DerivedDataCache/) are its to write.
  */
-import { promises as fs, existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
-import { atlasCells } from './handoff-blender.js';
-import { HANDOFF_INSTANCED } from './handoff-godot.js';
+import { dataUrlBytes, fileKey, heightMaterials, terrainLayers, seaOf, handoffJson, sortedFiles, packSource, writePack } from './handoff-common.js';
 
 export const HANDOFF_UNREAL_VERSION = 'handoff-unreal/0';
 /** The project file a pack carries (written once and kept). */
@@ -46,15 +44,10 @@ export const HANDOFF_UNREAL_PATHS = Object.freeze({ map: '/Game/Level', root: '/
 /** The Unreal the adapter is built and measured against. */
 export const HANDOFF_UNREAL_TARGET = 'Unreal Engine 5 (measured on 5.8.2)';
 
-// (the adapter's Python and HLSL, beside this file; read from the cwd, as the other adapters read theirs: lib files may be bundled)
-const srcDir = () => path.join(process.cwd(), 'lib', 'graph', 'scene', 'handoff-unreal');
-const src = (name) => readFileSync(path.join(srcDir(), name), 'utf8');
+// (the adapter's Python and HLSL, beside this file: handoff-unreal/, its shaders' shared fragments from handoff-hlsl/)
+const src = (name) => packSource('handoff-unreal', name);
 export const HANDOFF_UNREAL_SOURCES = Object.freeze(['import_handoff.py', 'handoff_probe.py', 'handoff_render.py',
   'handoff_terrain.hlsl', 'handoff_sea.hlsl', 'handoff_sky.hlsl', 'handoff_tone.hlsl']);
-
-const glbJson = (bytes) => { const b = Buffer.from(bytes); return JSON.parse(b.subarray(20, 20 + b.readUInt32LE(12)).toString('utf8')); };
-const dataUrlBytes = (u) => Buffer.from(String(u).split(',')[1] ?? '', 'base64');
-const fileKey = (s) => String(s).replace(/[^A-Za-z0-9_-]/g, '_');
 
 /** A white sky as a Radiance RGBE long-lat (64 × 32, run-length scanlines): every texel 1.0. */
 export function whiteHdr(W = 64, H = 32) {
@@ -91,71 +84,28 @@ GameDefaultMap=${HANDOFF_UNREAL_PATHS.map}.Level
 `;
 
 export function handoffUnrealFiles(h, { title = null } = {}) {
-  const j = glbJson(h.exported.bytes), files = [], tex = new Map();
-  const texFile = (name, url) => { const f = `textures/${fileKey(name)}.png`; if (!tex.has(f)) tex.set(f, dataUrlBytes(url)); return f; };
-  // each material's height map, by the material's own name in the GLB: a dressed face's (its texture key, on every group
-  // that lays it) and a plant's bark (its set's name)
-  const materials = {};
-  for (const m of j.materials ?? []) {
-    const name = String(m.name ?? '');
-    const dressed = Object.entries(h.materials ?? {}).find(([k]) => name.endsWith(`:${k}`));
-    const set = (h.instances ?? []).find((s) => s.name === name && s.textures?.height);
-    if (dressed && dressed[1].height) materials[name] = { height: texFile(`${dressed[0]}.height`, dressed[1].height), depth: dressed[1].depth, metres: dressed[1].metres };
-    else if (set) materials[name] = { height: texFile(`${set.name}.height`, set.textures.height), depth: set.depth, metres: set.metres };
-  }
-  // the layered ground: its parts, its read, each layer of its atlases its own image (stacked by the importer into a
-  // Texture2DArray, a layer a slice), the scree's dice, the trail's mask and the grass's cover as written (read as data,
-  // so the mask keeps its packed bytes)
-  const parts = (h.instances ?? []).filter((s) => s.terrain), terrainFiles = [];
-  const terrain = parts.length ? (() => {
-    const T0 = parts[0].terrain, cells = T0.read.atlas?.cells ?? [], grid = T0.read.atlas?.grid ?? 3, layers = {}, images = {};
-    for (const [k, u] of Object.entries(T0.atlases)) {
-      if (['base', 'normal', 'orm'].includes(k)) {
-        const cut = atlasCells(u, grid, cells.length);
-        if (!cut) continue;
-        layers[k] = cut.map((b, i) => { const f = `terrain/${k}_${i}.png`; terrainFiles.push({ file: f, data: b }); return f; });
-      } else { const f = `terrain/${k}.png`; terrainFiles.push({ file: f, data: dataUrlBytes(u) }); images[k] = f; }
-    }
-    return { parts: parts.map((s) => s.name), read: T0.read, layers, images, hlsl: 'handoff_terrain.hlsl' };
-  })() : null;
-  // the sea: its plane's name, its read, its depth map as written (its red the depth over `max`)
-  const seaSet = (h.instances ?? []).find((s) => s.sea);
-  const sea = seaSet ? (() => {
-    const { depth, ...read } = seaSet.sea;
-    terrainFiles.push({ file: 'terrain/sea_depth.png', data: dataUrlBytes(depth) });
-    return { part: seaSet.name, read, image: 'terrain/sea_depth.png', hlsl: 'handoff_sea.hlsl' };
-  })() : null;
-  const handoffJson = { version: HANDOFF_UNREAL_VERSION, handoff: h.ledger?.version ?? null, title: title ?? h.level?.title ?? null, paths: HANDOFF_UNREAL_PATHS,
-    level: h.level ?? null, ledger: h.ledger ?? null, materials, instanced: [...HANDOFF_INSTANCED], ...(terrain ? { terrain } : {}), ...(sea ? { sea } : {}),
-    ...(h.stands && Object.keys(h.stands).length ? { stands: h.stands } : {}) };
-  const at = (f) => `mojulo/${f}`;
-  files.push({ file: at('level.glb'), data: Buffer.from(h.exported.bytes) });
-  files.push({ file: at('handoff.json'), data: `${JSON.stringify(handoffJson, null, 1)}\n` });
-  for (const [f, b] of [...tex].sort(([a], [b2]) => (a < b2 ? -1 : a > b2 ? 1 : 0))) files.push({ file: at(f), data: b });
-  for (const f of terrainFiles) files.push({ file: at(f.file), data: f.data });
-  files.push({ file: at('white.hdr'), data: whiteHdr() });
-  for (const name of HANDOFF_UNREAL_SOURCES) {
-    if (name === 'handoff_terrain.hlsl' && !terrain) continue;
-    if (name === 'handoff_sea.hlsl' && !sea) continue;
-    files.push({ file: at(name), data: src(name) });
-  }
-  files.push({ file: HANDOFF_UPROJECT, data: uproject(title ?? h.level?.title ?? 'mojulo handoff'), keep: true });
-  files.push({ file: 'Config/DefaultEngine.ini', data: HANDOFF_UNREAL_INI, keep: true });
-  return files;
+  const tex = new Map(), at = (f) => `mojulo/${f}`;
+  // each material's height map (handoff-common.js heightMaterials), under mojulo/textures/
+  const materials = heightMaterials(h, (name, url) => { const f = `textures/${fileKey(name)}.png`; if (!tex.has(f)) tex.set(f, dataUrlBytes(url)); return f; });
+  // the layered ground: each layer of its atlases its own image, stacked by the importer into a Texture2DArray (a layer a
+  // slice), the rest as written (handoff-common.js terrainLayers); the sea's depth map as written
+  const T = terrainLayers(h, 'terrain'), S = seaOf(h);
+  const terrain = T ? { ...T.terrain, hlsl: 'handoff_terrain.hlsl' } : null;
+  const sea = S ? { part: S.part, read: S.read, image: 'terrain/sea_depth.png', hlsl: 'handoff_sea.hlsl' } : null;
+  return [
+    { file: at('level.glb'), data: Buffer.from(h.exported.bytes) },
+    { file: at('handoff.json'), data: handoffJson(h, HANDOFF_UNREAL_VERSION, { head: { title: title ?? h.level?.title ?? null, paths: HANDOFF_UNREAL_PATHS }, materials, terrain, sea }) },
+    ...sortedFiles(tex, at),
+    ...[...(T?.files ?? []), ...(S ? [{ file: 'terrain/sea_depth.png', data: S.depth }] : [])].map((f) => ({ file: at(f.file), data: f.data })),
+    { file: at('white.hdr'), data: whiteHdr() },
+    ...HANDOFF_UNREAL_SOURCES.filter((name) => (name !== 'handoff_terrain.hlsl' || terrain) && (name !== 'handoff_sea.hlsl' || sea)).map((name) => ({ file: at(name), data: src(name) })),
+    { file: HANDOFF_UPROJECT, data: uproject(title ?? h.level?.title ?? 'mojulo handoff'), keep: true },
+    { file: 'Config/DefaultEngine.ini', data: HANDOFF_UNREAL_INI, keep: true },
+  ];
 }
 
 export async function writeHandoffUnreal(h, outDir, opts = {}) {
-  const files = handoffUnrealFiles(h, opts), written = [], kept = [];
-  // (mojulo/ is mojulo's: cleared and written whole, so nothing a previous handoff wrote is left over)
-  await fs.rm(path.join(outDir, 'mojulo'), { recursive: true, force: true });
-  for (const f of files) {
-    const p = path.join(outDir, f.file);
-    if (f.keep && existsSync(p)) { kept.push(f.file); continue; }
-    await fs.mkdir(path.dirname(p), { recursive: true });
-    await fs.writeFile(p, f.data);
-    written.push(f.file);
-  }
-  return { written, kept };
+  return writePack(handoffUnrealFiles(h, opts), outDir, 'mojulo');
 }
 
 /** The headless commands for a pack at `dir` (`bin` the UnrealEditor-Cmd; the render takes UnrealEditor beside it). */

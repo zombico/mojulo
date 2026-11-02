@@ -1,7 +1,5 @@
 /**
- * Split out of tools/sketches.js — see
- * lite-template/integration/_0828/mojulo-2.0-pure-creative.plan.md (Phase 1c).
- * sketches.js hosted six unrelated tool families in one 2038-line file; each
+ * Split out of tools/sketches.js: sketches.js hosted six unrelated tool families in one 2038-line file; each
  * now owns its own module and sketches.js is the registration surface.
  */
 // Model EXPORT (GLB, the print-purposed STL / 3MF, OpenUSD usda / usdz, OpenSCAD, IFC, and the
@@ -78,7 +76,7 @@ import { attachRecordings } from '@/lib/graph/face-acting/recordings';
  * slicers, colour and grouping deliberately dropped, `scale` mapping world units
  * to millimetres; `format: '3mf'` is the same printable set as a 3MF package —
  * millimetres declared IN the file, baked colours as basematerials, instanced
- * repeats as one object + build items (interchange-seams.plan.md seam 1);
+ * repeats as one object + build items;
  * `format: 'usda' | 'usdz'` is the OpenUSD interchange (seam 2) — z-up verbatim,
  * `metersPerUnit` from the recipe's declared units (true scale in AR Quick Look),
  * displayColor + PointInstancer + cameras + entity Xforms; usda writes its texture
@@ -86,7 +84,7 @@ import { attachRecordings } from '@/lib/graph/face-acting/recordings';
  * an on-disk path the host agent can open or move. Sketches with no World form
  * return { ok:false, eligible:false }.
  *
- * Provenance parity with export_game (interchange.plan.md I4): the written file
+ * Provenance parity with export_game: the written file
  * lands in the sketch's OUTCOME folder (`data/outcomes/<ref>/model.<format>`)
  * beside `recipe.json` (the sovereign manifest, export_game's exact pattern)
  * and a short `README.md` (refs, manifest sha256/16, re-mint + import notes).
@@ -475,50 +473,18 @@ async function engineExport(input) {
   if (engine === 'unreal' && (input.what ?? (isWorld(sketch.manifest) ? 'level' : 'asset')) === 'asset') {
     return { ...asEngine(await unrealExport({ ...input, lit: input.lit ?? true })), what: 'asset' };
   }
-  const what = input.what ?? 'level';
-  const to = engine === 'blender' ? blenderTo(fireOf(input)) : engine === 'unreal' ? handoffUnrealTo : engine === 'unity' ? handoffUnityTo : handoffGodotTo;
-  if (sketch.manifest.kind === 'game') return gameHandoff(sketch, what, engine, to);
-  const one = await to(sketch, what, path.join(outcomeDirFor(ref), ENGINES[engine].handoff));
-  const note = engine === 'blender' ? handoffBlenderNote : engine === 'unreal' ? handoffUnrealNote : engine === 'unity' ? handoffUnityNote : handoffNote;
-  return { ok: true, ref, engine, what, ...one, note: note(one) };
+  const what = input.what ?? 'level', E = HANDOFF_ENGINES[engine], opts = E.opts ? E.opts(input) : {};
+  if (sketch.manifest.kind === 'game') return gameHandoff(sketch, what, engine, opts);
+  const one = await handoffTo(engine, sketch, what, path.join(outcomeDirFor(ref), ENGINES[engine].handoff), opts);
+  return { ok: true, ref, engine, what, ...one, note: E.note(one) };
 }
 
-// one world handed to Unreal into `dir` (handoff-unreal.js): the project, the commands that import, probe and render it
-async function handoffUnrealTo(sketch, what, dir) {
-  const h = await resolveHandoff(sketch, { what });
-  const { written, kept } = await writeHandoffUnreal(h, dir, { title: sketch.title ?? null });
-  return { ...handoffSummary(h, dir, written, kept), map: HANDOFF_UNREAL_PATHS.map, commands: { ...handoffUnrealCommands(dir, findUnreal() ?? undefined), ...visualGate(sketch, h, 'unreal') } };
-}
-
-const handoffUnrealNote = (one) => `An Unreal Engine 5 project in ${one.dir}: its importer (commands.import, headless, or from the editor's Output Log) builds `
-  + `${one.map}, streaming mojulo's sublevel in: the materials, ${one.shaded.length ? `${one.shaded.join(' and ')} as HLSL ported from the page, ` : ''}`
-  + 'collision, the sun, lamps, sky light and dome, the page\'s tone and haze as a post-process, a camera per camera marker, and every marker and seat as a tagged TargetPoint. '
-  + `A re-handoff replaces mojulo/ and /Game/Mojulo/ only${one.kept.length ? `; kept: ${one.kept.join(', ')}` : ''}, and ${one.map} keeps what the developer added. What stayed the web's is in \`stays\`. Unreal runs on the operator's machine; mojulo did not launch it.`;
-
-// one world handed to Unity into `dir` (handoff-unity.js): the project, the batchmode commands that import, probe and render it
-async function handoffUnityTo(sketch, what, dir) {
-  const h = await resolveHandoff(sketch, { what });
-  const { written, kept } = await writeHandoffUnity(h, dir, { title: sketch.title ?? null });
-  return { ...handoffSummary(h, dir, written, kept), scene: HANDOFF_UNITY_PATHS.level, commands: { ...handoffUnityCommands(dir, findUnity() ?? undefined), ...visualGate(sketch, h, 'unity') } };
-}
-
-const handoffUnityNote = (one) => `A Unity 6 project (URP, glTFast) in ${one.dir}: its importer (commands.import, batchmode, or the editor's Mojulo menu) builds `
-  + `mojulo's scene and ${one.scene}, which loads it: the materials, ${one.shaded.length ? `${one.shaded.join(' and ')} as shaders ported from the page, ` : ''}`
-  + 'collision, the sun, lamps, ambient and sky dome, the page\'s tone and haze as a full-screen pass, a camera per camera marker, and every marker and seat as a GameObject carrying its record. '
-  + `A re-handoff replaces Assets/Mojulo/ only${one.kept.length ? `; kept: ${one.kept.join(', ')}` : ''}, and ${one.scene} keeps what the developer added. What stayed the web's is in \`stays\`. Unity runs on the operator's machine; mojulo did not launch it.`;
-
-// one world handed to Godot into `dir`: what it wrote and kept, what travelled and what stayed the web's
-async function handoffGodotTo(sketch, what, dir) {
-  const h = await resolveHandoff(sketch, { what });
-  const { written, kept } = await writeHandoffGodot(h, dir, { title: sketch.title ?? null });
-  return {
-    ...handoffSummary(h, dir, written, kept),
-    commands: {
-      open: `godot --editor --path '${dir}'`,
-      gate: `godot --headless --path '${dir}' --import && godot --headless --path '${dir}' --script res://mojulo/handoff_probe.gd`,
-      ...visualGate(sketch, h, 'godot'),
-    },
-  };
+// one world handed to an engine into `dir`, by its adapter: what it carried, wrote and kept, the adapter's own fields, the
+// commands that import, probe and render it, and the visual gate's
+async function handoffTo(engine, sketch, what, dir, opts) {
+  const E = HANDOFF_ENGINES[engine], h = await resolveHandoff(sketch, { what });
+  const w = await E.write(h, dir, { title: sketch.title ?? null, sketch, ...opts });
+  return { ...handoffSummary(h, dir, w.written, w.kept), ...(E.fields ? E.fields(w) : {}), commands: { ...E.commands(dir, w), ...visualGate(sketch, h, engine) } };
 }
 
 // (the visual gate on a level's handoff, scripts/visual-gate.mjs: its shots on the World page and in this engine, scored,
@@ -535,11 +501,6 @@ function handoffSummary(h, dir, written, kept) {
   };
 }
 
-const handoffNote = (one) => `A Godot 4 project in ${one.dir}: open it and play level.tscn, which instances mojulo/level.glb. Its importer gives the materials, `
-  + `${one.shaded.length ? `${one.shaded.join(' and ')} ${one.shaded.length > 1 ? 'their' : 'its'} shader${one.shaded.length > 1 ? 's' : ''} (ported from the page), ` : ''}`
-  + 'the static meshes collision, the level its environment and sun, and stands every marker and seat as a node carrying its record. '
-  + `${one.kept.length ? `Kept as the developer left them: ${one.kept.join(', ')}. ` : ''}What stayed the web's is in \`stays\`; the web build is the game. Godot runs on the operator's machine; mojulo did not launch it.`;
-
 // a world's fire for the Blender handoff: the art pack's own dials, checked as its `format` checks them
 function fireOf(input) {
   const { fire_t: fireT = null, fire_detail: fireDetail = 1 } = input;
@@ -548,47 +509,78 @@ function fireOf(input) {
   return { fireT, fireDetail };
 }
 
-// one world handed to Blender into `dir` (handoff-blender.js): the folder, the commands that build and probe its .blend
-const blenderTo = ({ fireT, fireDetail }) => async (sketch, what, dir) => {
-  const h = await resolveHandoff(sketch, { what });
-  const { written, kept, fire } = await writeHandoffBlender(h, dir, { title: sketch.title ?? null, sketch, fireT, fireDetail });
-  const imp = `blender -b --python '${dir}/mojulo/import_handoff.py'`;
-  return {
-    ...handoffSummary(h, dir, written, kept), ...(fire ? { fire } : {}),
-    commands: {
-      import: imp,
-      open: `blender '${dir}/level.blend'`,
-      gate: `${imp} && blender -b '${dir}/level.blend' --python '${dir}/mojulo/handoff_probe.py'`,
-      render: fire ? `${imp} -- --render '${dir}/fire.png' --camera Fire --engine cycles --res 3840x2160 --samples 512` : `${imp} -- --render '${dir}/still.png'`,
-      ...visualGate(sketch, h, 'blender'),
+// EVERY ENGINE'S ADAPTER, one row each: `opts` (the engine's own dials off the input, checked), `write` (its pack into
+// `dir`, handoff-<engine>.js), `fields` (its own result fields), `commands` (what imports, probes, opens and renders it),
+// `note` (one world's), `each` (a game's levels')
+const HANDOFF_ENGINES = Object.freeze({
+  godot: {
+    write: (h, dir, { title }) => writeHandoffGodot(h, dir, { title }),
+    commands: (dir) => ({
+      open: `godot --editor --path '${dir}'`,
+      gate: `godot --headless --path '${dir}' --import && godot --headless --path '${dir}' --script res://mojulo/handoff_probe.gd`,
+    }),
+    note: (one) => `A Godot 4 project in ${one.dir}: open it and play level.tscn, which instances mojulo/level.glb. Its importer gives the materials, `
+      + `${one.shaded.length ? `${one.shaded.join(' and ')} ${one.shaded.length > 1 ? 'their' : 'its'} shader${one.shaded.length > 1 ? 's' : ''} (ported from the page), ` : ''}`
+      + 'the static meshes collision, the level its environment and sun, and stands every marker and seat as a node carrying its record. '
+      + `${one.kept.length ? `Kept as the developer left them: ${one.kept.join(', ')}. ` : ''}What stayed the web's is in \`stays\`; the web build is the game. Godot runs on the operator's machine; mojulo did not launch it.`,
+    each: (root) => `each a Godot 4 project under ${root}/<level>/ (open one and play its level.tscn). `,
+  },
+  unreal: {
+    write: (h, dir, { title }) => writeHandoffUnreal(h, dir, { title }),
+    fields: () => ({ map: HANDOFF_UNREAL_PATHS.map }),
+    commands: (dir) => handoffUnrealCommands(dir, findUnreal() ?? undefined),
+    note: (one) => `An Unreal Engine 5 project in ${one.dir}: its importer (commands.import, headless, or from the editor's Output Log) builds `
+      + `${one.map}, streaming mojulo's sublevel in: the materials, ${one.shaded.length ? `${one.shaded.join(' and ')} as HLSL ported from the page, ` : ''}`
+      + 'collision, the sun, lamps, sky light and dome, the page\'s tone and haze as a post-process, a camera per camera marker, and every marker and seat as a tagged TargetPoint. '
+      + `A re-handoff replaces mojulo/ and /Game/Mojulo/ only${one.kept.length ? `; kept: ${one.kept.join(', ')}` : ''}, and ${one.map} keeps what the developer added. What stayed the web's is in \`stays\`. Unreal runs on the operator's machine; mojulo did not launch it.`,
+    each: (root) => `each an Unreal project under ${root}/<level>/ (run its importer to build its ${HANDOFF_UNREAL_PATHS.map}). `,
+  },
+  blender: {
+    opts: fireOf,
+    write: (h, dir, { title, sketch, fireT, fireDetail }) => writeHandoffBlender(h, dir, { title, sketch, fireT, fireDetail }),
+    fields: (w) => (w.fire ? { fire: w.fire } : {}),
+    commands: (dir, w) => {
+      const imp = `blender -b --python '${dir}/mojulo/import_handoff.py'`;
+      return {
+        import: imp,
+        open: `blender '${dir}/level.blend'`,
+        gate: `${imp} && blender -b '${dir}/level.blend' --python '${dir}/mojulo/handoff_probe.py'`,
+        render: w.fire ? `${imp} -- --render '${dir}/fire.png' --camera Fire --engine cycles --res 3840x2160 --samples 512` : `${imp} -- --render '${dir}/still.png'`,
+      };
     },
-  };
-};
-
-const handoffBlenderNote = (one) => `A Blender handoff in ${one.dir}: its importer (commands.import) builds level.blend from mojulo/, in mojulo's own collections: the materials, `
-  + `${one.shaded.length ? `${one.shaded.join(' and ')} as node trees ported from the page, ` : ''}`
-  + 'the World, haze and sun as the page lights it, a camera, and every marker and seat as an Empty carrying its record. '
-  + `${one.fire ? `It carries the fire at t = ${one.fire.t} s (commands.render makes a Cycles still). ` : ''}`
-  + `A re-handoff replaces mojulo/ and rebuilds only mojulo's collections${one.kept.length ? `; kept: ${one.kept.join(', ')}` : ''}. What stayed the web's is in \`stays\`. Blender runs on the operator's machine; mojulo did not launch it.`;
+    note: (one) => `A Blender handoff in ${one.dir}: its importer (commands.import) builds level.blend from mojulo/, in mojulo's own collections: the materials, `
+      + `${one.shaded.length ? `${one.shaded.join(' and ')} as node trees ported from the page, ` : ''}`
+      + 'the World, haze and sun as the page lights it, a camera, and every marker and seat as an Empty carrying its record. '
+      + `${one.fire ? `It carries the fire at t = ${one.fire.t} s (commands.render makes a Cycles still). ` : ''}`
+      + `A re-handoff replaces mojulo/ and rebuilds only mojulo's collections${one.kept.length ? `; kept: ${one.kept.join(', ')}` : ''}. What stayed the web's is in \`stays\`. Blender runs on the operator's machine; mojulo did not launch it.`,
+    each: (root) => `each a Blender handoff under ${root}/<level>/ (run its importer to build its level.blend). `,
+  },
+  unity: {
+    write: (h, dir, { title }) => writeHandoffUnity(h, dir, { title }),
+    fields: () => ({ scene: HANDOFF_UNITY_PATHS.level }),
+    commands: (dir) => handoffUnityCommands(dir, findUnity() ?? undefined),
+    note: (one) => `A Unity 6 project (URP, glTFast) in ${one.dir}: its importer (commands.import, batchmode, or the editor's Mojulo menu) builds `
+      + `mojulo's scene and ${one.scene}, which loads it: the materials, ${one.shaded.length ? `${one.shaded.join(' and ')} as shaders ported from the page, ` : ''}`
+      + 'collision, the sun, lamps, ambient and sky dome, the page\'s tone and haze as a full-screen pass, a camera per camera marker, and every marker and seat as a GameObject carrying its record. '
+      + `A re-handoff replaces Assets/Mojulo/ only${one.kept.length ? `; kept: ${one.kept.join(', ')}` : ''}, and ${one.scene} keeps what the developer added. What stayed the web's is in \`stays\`. Unity runs on the operator's machine; mojulo did not launch it.`,
+    each: (root) => `each a Unity project under ${root}/<level>/ (run its importer to build its ${HANDOFF_UNITY_PATHS.level}). `,
+  },
+});
 
 // a game's levels, each handed to the engine as its own folder under the game's (<game>/<engine handoff>/<level>/): the
 // game itself, its rules, menu and score, stays the web's
-async function gameHandoff(game, what, engine, to) {
+async function gameHandoff(game, what, engine, opts) {
   const refs = [...new Set((normalizeGameManifest(game.manifest).levels ?? []).map((lv) => lv.ref).filter((r) => typeof r === 'string'))];
   if (!refs.length) throw new Error(`Game '${game.ref}' names no levels to hand off`);
   const root = path.join(outcomeDirFor(game.ref), ENGINES[engine].handoff), levels = [];
   for (const r of refs) {
     const lv = SketchRepository.getByRef(r);
     if (!lv || !lv.manifest) throw new Error(`Game '${game.ref}': its level '${r}' has no sketch`);
-    const one = await to(lv, what, path.join(root, r));
-    levels.push({ ref: r, ...one });
+    levels.push({ ref: r, ...(await handoffTo(engine, lv, what, path.join(root, r), opts)) });
   }
-  const each = engine === 'blender' ? `each a Blender handoff under ${root}/<level>/ (run its importer to build its level.blend). `
-    : engine === 'unreal' ? `each an Unreal project under ${root}/<level>/ (run its importer to build its ${HANDOFF_UNREAL_PATHS.map}). `
-      : engine === 'unity' ? `each a Unity project under ${root}/<level>/ (run its importer to build its ${HANDOFF_UNITY_PATHS.level}). ` : `each a Godot 4 project under ${root}/<level>/ (open one and play its level.tscn). `;
   return {
     ok: true, ref: game.ref, kind: 'game', engine, what, dir: root, levels,
-    note: `${levels.length} level${levels.length > 1 ? 's' : ''} of the game, ${each}`
+    note: `${levels.length} level${levels.length > 1 ? 's' : ''} of the game, ${HANDOFF_ENGINES[engine].each(root)}`
       + `The game itself (its rules, menu, score and flow between levels) is the web build's: \`export_game\` writes it. ${ENGINES[engine].name} runs on the operator's machine; mojulo did not launch it.`,
   };
 }
@@ -965,8 +957,7 @@ function buildModelReadme({ sketch, ref, kind, format, hash, exported, clips, pr
 /**
  * resolvePrintScale({ payload, profile, units, scaleInput, targetMm }) → { scale, scaleNote } —
  * the world-units → mm dial, ONE answer shared by export_model and measure_solid
- * (continuous-guardrails.plan.md G2: the number the agent reads is the number the print would
- * be). Precedence: explicit `scale` > `target_mm` fit > the profile default (literal: `units`
+ * (the number the agent reads is the number the print would be). Precedence: explicit `scale` > `target_mm` fit > the profile default (literal: `units`
  * derivation — true scale is structural, not agent arithmetic; everything else: fit to
  * DEFAULT_TARGET_MM, because a city or a galaxy has no true millimetre and deriving from a stray
  * `units` label would print a building at building scale).
@@ -1046,14 +1037,15 @@ async function exportModel(input, context = {}) {
   // Only an EXPLICIT `cdn` on a non-html format is a mistake worth throwing on — the default must
   // stay silent for every mesh leg.
   if ('cdn' in input && format !== 'html') throw new Error("`cdn` applies to `format: 'html'` only");
+  // an engine is the handoff of a world (its assets, animation and level), not a format of its faces: dispatched before
+  // every format's leg, so a `format` beside it (any, the bundle's and the building's among them) is refused there
+  if ('engine' in input) return engineExport(input);
   // bundle is the legs zipped: it always writes (a folder product, like export_game).
   if (format === 'bundle') return bundleExport(input, context);
   // ifc is the building model, not the World's faces: it reads the house the recipe builds.
   if (format === 'ifc') return ifcExport(input, context);
   // the drawing set and the schedules are the building read as 2D: they read the house, not the World's faces
   if (format === 'sheets' || format === 'schedules') return structureExport(input, context, format);
-  // an engine is the handoff of a world (its assets, animation and level), not a format of its faces
-  if ('engine' in input) return engineExport(input);
   if (format === 'blender') return blenderExport(input);
   if (format === 'unreal') return unrealExport(input);
   // bom is what to buy: read off the plan and the frames, not the faces.
@@ -1075,38 +1067,38 @@ async function exportModel(input, context = {}) {
   if (targetMm != null && (!Number.isFinite(targetMm) || targetMm <= 0)) {
     throw new Error('`target_mm` must be a positive number if provided');
   }
-  // animated GLB (interchange.plan.md I1): opt-in clip selection. Absent ⇒ byte-identical
+  // animated GLB: opt-in clip selection. Absent ⇒ byte-identical
   // static export (the char-safety line). glb-only — STL is a shape handoff.
   if (clips != null && clips !== '_all' && !(Array.isArray(clips) && clips.every((c) => typeof c === 'string'))) {
     throw new Error("`clips` must be an array of clip names, or '_all', if provided");
   }
-  // skinned export (skin-over-mesh.plan.md phase 4): one SkinnedMesh + skins/IBM
+  // skinned export: one SkinnedMesh + skins/IBM
   // per rig figure — the ENGINE deforms smooth flesh; mojulo's runtime keeps
   // rigid FK. Rides the clips path (a skin without joints animating is inert).
   if (skinned !== false && skinned !== true) throw new Error('`skinned` must be a boolean if provided');
   if (skinned && (clips == null || format !== 'glb')) {
     throw new Error("`skinned: true` needs `format: 'glb'` and a `clips` selection — the skin binds the animated joints");
   }
-  // quantized GLB (interchange-seams.plan.md seam 6a): KHR_mesh_quantization on the static mesh
+  // quantized GLB: KHR_mesh_quantization on the static mesh
   // paths — about half the geometry bytes, no dependency. Off ⇒ byte-identical float export.
   if (quantize !== false && quantize !== true) throw new Error('`quantize` must be a boolean if provided');
   if (quantize && format !== 'glb') throw new Error("`quantize: true` applies to `format: 'glb'` only");
-  // lit handoff (lit-handoff.plan.md step 1): real PBR materials over an UNSHADED base
+  // lit handoff: real PBR materials over an UNSHADED base
   if (lit !== false && lit !== true) throw new Error('`lit` must be a boolean if provided');
   if (lit && format !== 'glb') throw new Error("`lit: true` applies to `format: 'glb'` only");
-  // humanoid (interchange-seams.plan.md seam 3a): VRM bone names on the skinned joints + the
+  // humanoid: VRM bone names on the skinned joints + the
   // VRMC_vrm extension. Rides the skinned path (names belong to skin joints).
   if (humanoid !== false && humanoid !== true) throw new Error('`humanoid` must be a boolean if provided');
   if (humanoid && !skinned) throw new Error("`humanoid: true` needs `skinned: true` (and a `clips` selection) — the VRM names belong to the skin joints");
   // the T-pose mold (docs/emote-bridge.md §3.6): re-rest each humanoid figure in the VRM T-pose the engines retarget from
   if (rest !== 'authored' && rest !== 'tpose') throw new Error("`rest` is 'authored' (the figure's own stand, the default) or 'tpose'");
   if (rest === 'tpose' && !humanoid) throw new Error("`rest: 'tpose'` needs `humanoid: true` (and `skinned: true`) — the T-pose is the VRM humanoid's rest");
-  // union (interchange-seams.plan.md seam 4a): a true CSG union of the printable shells via
+  // union: a true CSG union of the printable shells via
   // Manifold before the print file is written — one solid with a measured volume instead of
   // overlapping shells the slicer must repair. Opt-in; absent the package it reports and ships plain.
   if (union !== false && union !== true) throw new Error('`union` must be a boolean if provided');
   if (union && !isPrint) throw new Error("`union: true` applies to the print formats ('stl' | '3mf') only");
-  // continuous-guardrails.plan.md G3/G4: the printer profile words the advisories; `strict` is
+  // the printer profile words the advisories; `strict` is
   // the operator ASKING for a hard stop (opt-in — the default stays advisory, cad-aid doctrine).
   if (strict !== false && strict !== true) throw new Error('`strict` must be a boolean if provided');
   if (strict && !isPrint) throw new Error("`strict: true` applies to the print formats ('stl' | '3mf') only");
@@ -1239,9 +1231,9 @@ async function exportModel(input, context = {}) {
     ? `world.cdn.html is ${exported.byteLength} bytes with three.js on the CDN. ${HTML_CDN_NOTE}`
     : `world.html is self-contained (${exported.byteLength} bytes). ${HTML_FILE_NOTE} \`cdn: true\` writes world.cdn.html, which loads three.js from cdn.jsdelivr.net instead: the form an artifact host's page CSP runs.`;
   result.cdn = isHtml ? Boolean(cdn) : false;
-  // field solids (field-solids.plan.md F4): the honest ledger says in numbers what the recipe could
+  // field solids: the honest ledger says in numbers what the recipe could
   // not express sharply — every field edge rounds to about one grid cell. mm on the print formats.
-  // the code kind (expressiveness.plan.md E3): the ledger reads the EXPANDED manifest (the
+  // the code kind: the ledger reads the EXPANDED manifest (the
   // program's monomers are the ones that shipped) and says what ran, in numbers
   let ledgerManifest = withEquipment(sketch.manifest);
   if (hasCodeProgram(sketch.manifest)) {
@@ -1289,7 +1281,7 @@ async function exportModel(input, context = {}) {
           ? 'Every field solid here is `exact: true` — composed by Manifold, so its edges are sharp and its size is the declared one (curved primitives are faceted by `segments`).'
           : `${exactCount} of ${fieldSpecs.length} field solids are \`exact: true\` (Manifold: sharp edges, declared size); the rest round every edge to about one grid cell — raise \`cells\` (≤128) for a finer edge, or set \`exact: true\` on the entry when its terms allow it.`,
     };
-    // expressiveness.plan.md E1/E2: expression terms ride a versioned grammar, warps make the
+    // expression terms ride a versioned grammar, warps make the
     // field a bound rather than a distance — both are said here, in numbers.
     const walk = (terms, acc) => {
       for (const t of Array.isArray(terms) ? terms : []) {
@@ -1315,7 +1307,7 @@ async function exportModel(input, context = {}) {
     // The root carries the recipe's unit (scene-gltf rootScale, from resolveWorldScene's
     // metersPerUnit): report it, with the world-unit bounds, so the Blender verify gate
     // (usd-gate.js compareUsdGate) can check the imported size in metres — it read `null`
-    // here and passed a 9 m mug (launch-falls-short.plan.md P1). Absent a unit ⇒ no fields.
+    // here and passed a 9 m mug. Absent a unit ⇒ no fields.
     if (Number.isFinite(exported.metersPerUnit) && exported.metersPerUnit > 0) {
       result.meters_per_unit = exported.metersPerUnit;
       // bounds of what the GLB actually carries (every face, studio grid included — the reader
@@ -1372,7 +1364,7 @@ async function exportModel(input, context = {}) {
       + 'Not exported in v1: rig figures / clips (UsdSkel waits on the humanoid map), per-instance tints.'
       + (format === 'usda' && exported.sidecars.length ? ` Texture sidecars: ${exported.sidecars.map((s) => s.name).join(', ')} (written beside the file).` : '');
   } else if (isScad) {
-    // openscad-leg.plan.md phase 2. The ledger is the whole honesty surface here: the file
+    // The ledger is the whole honesty surface here: the file
     // claims sharp edges only for the terms that actually transpiled, and names every term
     // that did not. Nothing refuses the format (decision 6) — a kind with no manifest to
     // read arrives fully baked and the note says `stl` is the better file.
@@ -1498,7 +1490,7 @@ async function exportModel(input, context = {}) {
     }
   }
   if (write) {
-    // Provenance parity with export_game (interchange.plan.md I4): the model file lands in
+    // Provenance parity with export_game: the model file lands in
     // the sketch's outcome folder beside its sovereign recipe + README. Overwrite-in-place
     // on re-export (the model has always been a regenerated snapshot, and its provenance
     // pair tracks it); the folder's append-only convention applies to BOUND artifacts
@@ -1581,7 +1573,7 @@ async function exportModel(input, context = {}) {
 
 /**
  * bind_mesh_render — the bind-back door for INBOUND derived geometry
- * (interchange.plan.md I3). The operator's agent exports a world/figure via
+ *. The operator's agent exports a world/figure via
  * export_model, refines the .glb externally (Blender, typically driven over
  * blender-mcp), and hands the refined file back here: snapshotted append-only
  * into the sketch's outcome folder (`data/outcomes/<ref>/mesh-<n>.glb`) with a
@@ -1599,10 +1591,10 @@ const manifestHashOf = (manifest) => createHash('sha256').update(JSON.stringify(
  * — the shared bind-back door: strict GLB validation + a full decode (the
  * machine gate, BEFORE anything lands on disk), then the append-only mesh slot
  * + its provenance sidecar. bind_mesh_render (manual) and the mesh handoff's
- * submit (durable, interchange-seams.plan.md seam 5) both go through here.
+ * submit (durable) both go through here.
  *
- * The sidecar carries the HEAD manifest hash at bind time (export-blender.plan.md
- * D7 — `describeBoundMeshes` derives staleness from it later) and the decode
+ * The sidecar carries the HEAD manifest hash at bind time
+ * (`describeBoundMeshes` derives staleness from it later) and the decode
  * ledger (seam 6b: albedo textures carried, other maps counted). When a Blender
  * pack exists for the sketch (`<outcomes>/<ref>/blender/pack.json`), the return is
  * measured against its greybox contract (compareReturnContract) and the
@@ -1616,7 +1608,7 @@ export async function bindMeshBytes(sketch, bytes, { sourcePath = null, source =
   if (!faces.length) {
     throw new Error('the submitted GLB carries no triangle geometry — bind the refined mesh, not an empty scene');
   }
-  // text-to-cad-seam.plan.md T4: a CAD tool's GLB is exactly right in ITS unit (millimetres, by
+  // a CAD tool's GLB is exactly right in ITS unit (millimetres, by
   // construction); the conversion into the sketch's world units rides the SIDECAR, never the
   // bytes — the meshRef lowering composes `scale_applied` into the placement transform.
   const scaleApplied = Number.isFinite(scale) && scale > 0 && scale !== 1 ? scale : null;

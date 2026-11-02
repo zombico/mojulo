@@ -13,8 +13,8 @@
  * Execution context carries:
  *   - mcpSessionId — the transport's session id (client bindings, telemetry)
  *   - userId — 'local' by default (single-operator posture: one local
- *     operator, no accounts). With the roles pack enabled (MOJULO_ROLES,
- *     roles-pack.plan.md) a delegate key's context carries that user's id
+ *     operator, no accounts). With the roles pack enabled (MOJULO_ROLES)
+ *     a delegate key's context carries that user's id
  *     plus userRole; identity is minted only in the transport layer
  *     (buildContext in api/mcp/route.js).
  */
@@ -33,7 +33,7 @@ import { PACKS, SPINE, RETIRED_TOOLS, packsModeEnabled, packToolEntry, installed
 // Titles + behavior hints for every tool; pure data like packs.js.
 import { toolAnnotations } from '@/lib/mcp/tool-annotations';
 import { toolTier } from '@/lib/mcp/tool-tiers';
-// Authorization axis (roles-pack.plan.md Phase 2). authNotice is pure — grants
+// Authorization axis. authNotice is pure — grants
 // and flags ride the execution context, minted in api/mcp/route.js.
 import { authNotice, packGranted, toolListedForContext, ROLES_ADMIN_TOOLS } from '@/lib/roles/enforce';
 import { rolesEnabled, isAdminContext } from '@/lib/roles/keys';
@@ -210,7 +210,7 @@ export function listTools({ clientInfo, context } = {}) {
   // Opt-in UI tool is standalone in both modes; ordinary surfaces remain unchanged.
   const appExtras = appsEnabled() && isToolInstalled('export_model') && !authNotice('preview_world', context)
     ? [registeredTools.get('preview_world')].filter(Boolean).map(toEntry) : [];
-  // Packs mode (tool-packs.plan.md P1-R): the connect surface is the SPINE
+  // Packs mode: the connect surface is the SPINE
   // (full schemas) plus one dispatcher tool per pack. Everything else stays
   // registered and callable — through its pack's dispatch, or directly for
   // callers that already know the name — it just stops riding tools/list. Flat
@@ -221,7 +221,7 @@ export function listTools({ clientInfo, context } = {}) {
       .filter(Boolean)
       .filter((t) => !profile || !hiddenInPluginProfile(t.name))
       .map(toEntry);
-    // installedPacks (install-capabilities.plan.md P2): an uninstalled wing's
+    // installedPacks: an uninstalled wing's
     // packs drop from the connect surface. Default full install ⇒ all PACKS.
     // A privileged caller's list carries only their granted bays.
     const packs = installedPacks(process.env).filter(
@@ -452,7 +452,7 @@ async function handleToolCall(message, context) {
     });
   }
 
-  // Install gate (install-capabilities.plan.md P2): a registered tool whose
+  // Install gate: a registered tool whose
   // capability pack isn't installed on this host is treated as absent. No-op at
   // full install.
   const notice = installNotice(toolName);
@@ -460,7 +460,7 @@ async function handleToolCall(message, context) {
     return jsonRpcError(message.id, ErrorCodes.METHOD_NOT_FOUND, notice);
   }
 
-  // Authorization gate (roles-pack.plan.md Phase 2), beside the install gate
+  // Authorization gate, beside the install gate
   // and with its shape: a terminal advisory, METHOD_NOT_FOUND (the 404-not-403
   // discipline). No-op with roles off or for the operator.
   const denial = authNotice(toolName, context);
@@ -590,7 +590,7 @@ async function registerAllTools() {
   const { registerComposeWorldTools } = await import('@/lib/mcp/tools/compose-world');
   const { registerCreateViewTools } = await import('@/lib/mcp/tools/create-view');
   const { registerSaveRecipeTools } = await import('@/lib/mcp/tools/save-recipe');
-  // Attached recipe books (recipe-book.plan.md): load the operator's cookbook
+  // Attached recipe books: load the operator's cookbook
   // + cloned Door-2 builders BEFORE create_view registers, so its kind enum
   // and dispatch include book kinds from the first tools/list. Absent any
   // book this resolves the empty snapshot instantly.
@@ -700,8 +700,7 @@ async function registerAllTools() {
   // run_experiment_sweep — the parameter sweep as one deterministic call: N mechanics-view
   // mints + N provenance-carrying experiment binds + an auto-plotted param-vs-outcome
   // figure, all into one research book. Registers immediately after research-mode so the
-  // sweep verb reads beside the bind/synthesize verbs it composes. See
-  // research-science.plan.md (Phase 5).
+  // sweep verb reads beside the bind/synthesize verbs it composes.
   registerResearchSweepTools();
   // Ring 9 (stash mode) — the sharper-edged successor to research_sessions.
   // Gather/Stash/Drawer with a typed intake contract (seven item types, each
@@ -727,7 +726,7 @@ async function registerAllTools() {
   // a perspective-frame sketch to preload; pose → a figure dummy to re-pose), and
   // the cage it mints rides the same SketchRepository the illustration tools serve.
   // No vision key, no pixels-for-understanding over the wire — only the model's
-  // structured read. See lite-template/integration/0612/visual-reference.plan.md.
+  // structured read.
   registerVisualReferenceTools();
   // Sketchbook — agent-minted dynamic diagrams, viewable at /sketches/<ref>.
   // Deliberately not woven into forward_context / Ring 6; agents discover it
@@ -736,7 +735,7 @@ async function registerAllTools() {
   registerSketchTools();
   // mint_diagram — the KERNEL diagram maker (SPINE), always-on so a creative-
   // absent install can still mint a flowchart/chart. Shares lib/diagram-core with
-  // create_sketch. See kernel-diagram-surface.plan.md.
+  // create_sketch.
   registerDiagramTools();
   // mint_building — one door for the house (layout → dwelling → construction → BIM); mints
   // through the same mintSketch as create_sketch kind 'floorplan', so both store the same row.
@@ -744,11 +743,11 @@ async function registerAllTools() {
   // design_interior — the interior designer's door: one room of a house fitted out (lib/graph/interior/), beside the
   // building door whose house it decorates; mints through create_sketch's world-recipe path.
   registerInteriorTools();
-  // The render handoff (render-handoff.plan.md) — durable request → pull →
+  // The render handoff — durable request → pull →
   // submit → accept for the external image worker; registered right after the
   // sketch tools it extends (get_image_render_packet / bind_image_render).
   registerRenderHandoffTools();
-  // the mesh sibling (interchange-seams.plan.md seam 5): same table, medium 'mesh'
+  // the mesh sibling: same table, medium 'mesh'
   registerMeshHandoffTools();
   // render_handoff: the one listed door over both loops; the ten per-op names stay callable, unlisted
   registerRenderDoorTools();
@@ -763,7 +762,6 @@ async function registerAllTools() {
   // The per-type prose lives in solid-vocab cards behind semantic_search; the
   // retired per-type names remain callable as unlisted aliases. Mints into
   // SketchRepository unchanged — only the tools/list surface consolidated.
-  // See mint-solid-consolidation.plan.md.
   // create_character (3.1.0) — the Characters ring's door: a hero, a creature or an animal, dispatched to
   // the same mints mint_solid makes (create-character.js), so a character is not hunted for among solids.
   registerCreateCharacterTools();
@@ -776,8 +774,7 @@ async function registerAllTools() {
   registerFabricateTools();
   // create_cover — a publication COVER (illustration + title + subtext + metadata
   // composed under one art direction). Sits next to the other illustration mints;
-  // persists with kind `cover`, SVG face via /svg, raster composite via /cover.png
-  // (cover-composition.plan.md).
+  // persists with kind `cover`, SVG face via /svg, raster composite via /cover.png.
   registerCoverTools();
   // draft_figure_spec / get_figure_spec / resolve_figure_spec / build_figure_spec — the
   // character-from-dream propose→approve→build split (listed:false; the catalyst documents it).
@@ -785,17 +782,17 @@ async function registerAllTools() {
   // compose_world / list_world_themes — the generic world-composer: a BASE (geometry generator)
   // × a THEME (flavor pack from theme-registry) × overrides, minted through the same recipe→
   // render path as create_fractal_city. One tool → many worlds; themes extensible across
-  // earth/scifi/fantasy families. MVP base: 'city'. See world-composer.plan.md.
+  // earth/scifi/fantasy families. MVP base: 'city'.
   registerComposeWorldTools();
   // create_view / get_view_vocab — the consolidated study-object entry point
   // (science / math / bio explainers; the former 43 create_*_view tools) plus
   // the vocab-card reader that also serves compose_world's base manuals. The
-  // per-kind prose lives in view-vocab cards behind semantic_search — see
-  // tool-list-drawerization.plan.md. Registers right after compose_world so
+  // per-kind prose lives in view-vocab cards behind semantic_search.
+  // Registers right after compose_world so
   // the two consolidated visual entries read adjacently in tools/list. The
   // retired per-kind names remain callable as unlisted aliases.
   registerCreateViewTools();
-  // save_recipe — the cookbook write path (recipe-book.plan.md Phase 5):
+  // save_recipe — the cookbook write path:
   // promote a minted study object into the operator's own recallable catalog
   // entry. Registers beside create_view so mint and keep read adjacently.
   registerSaveRecipeTools();
@@ -804,7 +801,6 @@ async function registerAllTools() {
   // time-series in declared real units. Registers right after create_view so mint and
   // measure read adjacently in tools/list. Also exports recomputeViewStats — the
   // deterministic reviewer behind research mode's synthesize_abstract({ review:true }).
-  // See research-science.plan.md.
   registerMeasureViewTools();
   registerMachinaTools();
   // forge_motion — put a manji-tree subject IN MOTION and render it to an
@@ -815,7 +811,6 @@ async function registerAllTools() {
   // Motion Project resource group (ops tag + subject/recipe stash + outcome
   // folder), reusing existing primitives rather than a bespoke layer. Phase 1
   // ships subject-agnostic camera motions; performance motions land in Phase 2.
-  // See lite-template/integration/0609/motion-as-mcp-concern.plan.md.
   registerMotionTools();
   // the shoot plan (lib/graph/shoot/): cameras as visible, keyed objects in a world, in After Effects words; motion's
   // authored sibling — forge_motion renders what it plans
@@ -824,18 +819,18 @@ async function registerAllTools() {
   // generative soundtracks, explicit-score compositions, and gesture-built
   // foley cues, all synthesized-WebAudio recipes (no media bytes stored).
   // Registers after motion so picture → motion → sound read adjacent in
-  // tools/list. See lib/graph/beats/beats.plan.md.
+  // tools/list.
   registerBeatsTools();
   // Mojulo Voice — the SPEECH mint, sibling to beats: voice registers as
   // deterministic axis→blend recipes over stock Kokoro embeddings; rendering
   // stays with an external worker through the voice seam. Registers after
-  // beats so audio reads adjacent. See lib/graph/voice/voice-worker.plan.md.
+  // beats so audio reads adjacent.
   registerVoiceTools();
   // Mojulo Game Designer — the fifth creatable paradigm (composition over bots /
   // connected services / apps): a standalone game artifact = a shell owning a
   // typed store + levels that are worlds minted with a `game:` contract channel.
   // Registers after beats so the visual-mint cluster (world → view → motion →
-  // sound → game) reads adjacent in tools/list. See game-metacontext.plan.md.
+  // sound → game) reads adjacent in tools/list.
   // The game rail (design_game) leads the game cluster: a game designed top down (a hero, its gear, the systems) and
   // made through the doors below, which it calls.
   registerDesignGameTools();
@@ -845,25 +840,25 @@ async function registerAllTools() {
   registerPickPaletteTools();
   registerGameTools();
   // Game projects register immediately after the game mint — the project
-  // layer that ties one game's artifacts together (game-developer.plan.md).
+  // layer that ties one game's artifacts together.
   registerGameProjectTools();
   // Pixelizer reducer games (brickster & kin) — the 2D arcade register beside
   // the world/level games; a `kind:'game'` sketch served by the pixelizer
-  // branch of /api/sketches/<ref>/game (pixelizer.plan.md P5).
+  // branch of /api/sketches/<ref>/game.
   registerPixelizerGameTools();
   // create_sprite_sheet + bake_sprite_sheet — the bridge from the image-worker
-  // handoff loop to the pixelizer's 2D sprite substrate (sprite-sheet.plan.md):
+  // handoff loop to the pixelizer's 2D sprite substrate:
   // a `kind:'sprite-sheet'` director recipe whose accepted per-frame renders bake
   // into pixelizer {size,palette,cells} sprites.
   registerSpriteSheetTools();
-  // export_game — the self-contained-folder export beside the game mints
-  // (game-publish.plan.md phase 2): the sharing seam for playable artifacts.
+  // export_game — the self-contained-folder export beside the game mints:
+  // the sharing seam for playable artifacts.
   registerExportGameTools();
   // sign_asset / verify_asset — the creator's receipt for an exported file (docs/asset-receipts.md):
   // opt-in by use, the file itself untouched.
   const { registerAssetReceiptTools } = await import('@/lib/mcp/tools/asset-receipts');
   registerAssetReceiptTools();
-  // Roles-admin tools (roles-pack.plan.md Phase 1) — the operator's key mint
+  // Roles-admin tools — the operator's key mint
   // for delegated access. Activation-gated (MOJULO_ROLES=enabled), admin-only,
   // and listed:false for now: callable by name on every transport, off the
   // connect surface until Phase 2 promotes them into a listed pack alongside
@@ -877,7 +872,7 @@ async function registerAllTools() {
   // partition sweep's "member exists" assertion honest at this point in the
   // sequence. Always registered (listed:false), so pack dispatch works even
   // in flat mode; packs mode lists them via listTools() synthesis. See
-  // lib/mcp/packs.js and tool-packs.plan.md P1-R.
+  // lib/mcp/packs.js.
   const { registerPackTools } = await import('@/lib/mcp/tools/packs-tools');
   registerPackTools();
 }

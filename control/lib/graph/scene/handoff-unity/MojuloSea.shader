@@ -1,13 +1,10 @@
 // MojuloSea.shader - THE SEA IN UNITY (mojulo's scene/handoff.js seaPlane, bound by MojuloImport.cs from handoff.json's
-// `sea`): the World page's sea (scene/channels/form-land.js) as the Unreal and Godot ports have it
-// (handoff-unreal/handoff_sea.hlsl): see-through at its opacity and faded to nothing toward the shore by the depth under
-// it (the map's red over `max` metres; off the map, the open sea, whole), the sky in its reflection: the page's own dome
-// (from the horizon's colour to the zenith's by the reflected ray's height) at Schlick's Fresnel. Its colour is lit as a
-// Lambert surface (its base, no specular of the engine's: the sky is its reflection), and by the dome's light
-// (`irradiance`, handoff.js SEA_SKY_SHARE: three lights a standard material by its envMap's diffuse too) less what it
-// reflects. It casts no shadow and writes its
-// depth, so the tone pass hazes it by its own distance as the page does (the renderer copies depth after transparents).
-// Runs in mojulo's frame (MojuloLighting.hlsl). The depth map is loaded with its first row at v = 0 (a data texture).
+// `sea`): the fragment Unreal's port shares (handoff-hlsl/sea.hlsl: see-through, faded by its depth toward the shore, the
+// page's dome in its reflection, the dome's light on its colour), included here when the pack is written
+// (handoff-common.js packSource). Its colour is lit as a Lambert surface (its base, no specular of the engine's: the sky
+// is its reflection). It casts no shadow and writes its depth, so the tone pass hazes it by its own distance as the page
+// does (the renderer copies depth after transparents). Runs in mojulo's frame (MojuloLighting.hlsl). The depth map is
+// loaded with its first row at v = 0 (a data texture).
 Shader "Mojulo/Sea"
 {
     Properties
@@ -40,6 +37,7 @@ Shader "Mojulo/Sea"
             #pragma multi_compile _ _CLUSTER_LIGHT_LOOP
             #include "MojuloLighting.hlsl"
             TEXTURE2D(_TDepth); SAMPLER(sampler_TDepth);
+            #define MJ_SEA_DEPTH(uv) SAMPLE_TEXTURE2D_LOD(_TDepth, sampler_TDepth, uv, 0)
             CBUFFER_START(UnityPerMaterial)
             float4 DOM, DMaxOp, Zenith, Horizon, Base, Irr;
             CBUFFER_END
@@ -56,16 +54,9 @@ Shader "Mojulo/Sea"
             {
                 float3 vP = MojuloFromUnity(i.positionWS);
                 float3 vCam = MojuloFromUnity(_WorldSpaceCameraPos);
-                float2 du = (vP.xy - DOM.xy) / max(DOM.zw, 1e-4);
-                float dMax = max(DMaxOp.x, 1e-4);
-                float off = (du.x < 0.0 || du.y < 0.0 || du.x > 1.0 || du.y > 1.0) ? 1.0 : 0.0;
-                float alpha = off > 0.5 ? 1.0 : DMaxOp.y * smoothstep(0.0, dMax, SAMPLE_TEXTURE2D_LOD(_TDepth, sampler_TDepth, du, 0).r * dMax);
-                float3 V = normalize(vCam - vP);
-                float3 R = reflect(-V, float3(0.0, 0.0, 1.0));
-                float3 sky = lerp(Horizon.rgb, Zenith.rgb, pow(max(0.0, R.z), 0.6));
-                float nv = saturate(V.z);
-                float fr = 0.04 + 0.96 * pow(1.0 - nv, 5.0);
-                float3 refl = sky * fr + Base.rgb * Irr.rgb * (1.0 - fr);
+                float3 zen = Zenith.rgb;
+                float3 hor = Horizon.rgb;
+                // @mojulo-include sea.hlsl
                 // (the base lit as a Lambert surface: the sun, the lamps, the ambient)
                 InputData d = (InputData)0;
                 d.positionWS = i.positionWS;

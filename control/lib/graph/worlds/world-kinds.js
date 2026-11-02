@@ -1,5 +1,5 @@
 /**
- * world-kinds — one descriptor per world kind (world-scene-registry.plan.md).
+ * world-kinds — one descriptor per world kind.
  *
  * `resolveWorldScene` (world-scene.js) owns context normalization, the registry lookup +
  * room fallback, and the opt-in channel layering; THIS file owns everything world-scene
@@ -185,7 +185,7 @@ import { assembleCompleteSquareScene } from '@/lib/graph/views/math/complete-squ
 import { assembleConicsScene } from '@/lib/graph/views/math/conics-view';
 import { assembleDerivativeScene } from '@/lib/graph/views/math/derivative-view';
 import { assembleFtcScene } from '@/lib/graph/views/math/ftc-view';
-// math worlds — mathematical structures given walkable bodies (math-worlds.plan.md)
+// math worlds — mathematical structures given walkable bodies
 import { assembleMathStructureScene } from '@/lib/graph/structures/math-structure';
 import { assembleKoenigsbergScene } from '@/lib/graph/structures/koenigsberg';
 // renderStoredSketchSvg is imported LAZILY inside resolveWrapTextures (below): its transitive
@@ -253,10 +253,10 @@ const view = (assemble, title) => ({ title, resolve: (m, ctx) => assemble(m, { t
 const spread = (assemble, title) => ({ title, resolve: (m, ctx) => assemble({ ...m, title: ctx.title }) });
 
 // Fractal-city fog: which planFractalCity box kinds count as SOLID masses for the volumetric
-// fog overlay to clip against (effects-layer.plan.md / P3.5).
+// fog overlay to clip against.
 const FRACTAL_CITY_FOG_KINDS = new Set(['building', 'anchor', 'house', 'townhouse', 'midtower', 'garage']);
 
-// ambient walkers (city/walkers.plan.md P4): when the city plan produced walker loops, dress + bake a
+// ambient walkers: when the city plan produced walker loops, dress + bake a
 // small cast of CLOTHED walk rigs (tee + trousers) once and finalize the `walkers` payload the
 // scene-three walkers channel reads — a figure name + city-unit path + the scale that sizes the
 // (~1.8-unit) bake down to the city's ~0.6-unit people. Motion is /world (three.js) only; the CSS3D
@@ -490,14 +490,14 @@ export const WORLD_KINDS = {
     resolve: async (m, ctx) => attachCityCars(await attachCityWalkers(assembleCityScene(m, { title: ctx.title, creases: ctx.creases, ...(ctx.liveSun ? { liveSun: true } : {}) }))),
   },
   // a finite group as a walkable town: plazas are elements, generators are street types, and a
-  // walk that spells a relation returns to its start plaza (math-worlds.plan.md, Phase 1).
+  // walk that spells a relation returns to its start plaza.
   'math-structure': {
     title: 'mojulo Cayley city',
     walk: true,
     resolve: (m, ctx) => assembleMathStructureScene(m, { title: ctx.title }),
   },
   // a playable theorem: the Seven Bridges of Königsberg, where a crossed bridge retracts and the
-  // parity argument becomes the shape of the frustration (math-worlds.plan.md, Phase 2).
+  // parity argument becomes the shape of the frustration.
   koenigsberg: {
     title: 'mojulo Königsberg bridges',
     walk: true,
@@ -1024,7 +1024,7 @@ export const WORLD_KINDS = {
       ...m, title: ctx.title, textures: await resolveAssemblerWrapTextures(m), skin: await loadBoundSkin(ctx.ref), light: ctx.light, toon: ctx.toon,
     }),
   },
-  // ── interchange.plan.md I2: sketch kinds widened into the World/export form ──
+  // ── sketch kinds widened into the World/export form ──
   // A lone figure / wordmark / solid is an OBJECT STUDY (orbit, export), not a
   // traversable world — deliberately not `walk` (same posture as workbench /
   // vehicle-instance / manji-tree).
