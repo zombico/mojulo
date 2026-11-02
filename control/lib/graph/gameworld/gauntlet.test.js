@@ -8,7 +8,7 @@ import { MEADOWMARK } from './examples.js';
 import { readGameworld } from './world.js';
 import { gameStages, stageLevelOrder } from './levels.js';
 import { levelGoalMechanics } from './quick.js';
-import { gauntletPlacements, gauntletLaws, GAUNTLET_LAWS, readGauntletGoal, DEFAULT_GAUNTLET } from './gauntlet.js';
+import { gauntletPlacements, gauntletLaws, GAUNTLET_LAWS, readGauntletGoal, DEFAULT_GAUNTLET, DEFAULT_HOLDOUT } from './gauntlet.js';
 import { gauntletPage } from './gauntlet-page.js';
 import { proveGauntlets, lastStageManifests } from './gauntlet-proof.js';
 import { esc } from './bible-html.js';
@@ -129,5 +129,39 @@ describe('the gauntlet proved on the bus (machine gate)', () => {
     expect(proveGauntlets(W, {})[0]).toMatchObject({ proved: false, says: 'no stage made for it' });
     expect(proveGauntlets(MEADOWMARK, {})).toBeNull();
     expect(lastStageManifests([{ key: 'level-lift-0', order: { manifest: M } }, { key: 'game', order: {} }])).toEqual({ lift: M });
+  });
+});
+
+describe('a gauntlet to endure, as a level goal', () => {
+  const HOLD = { arenas: [{ waves: [{ walker: 3 }, { walker: 3, charger: 1 }, { walker: 4, charger: 1 }] }], pace: 'timed', every: 15, outlast: 60 };
+  const W2 = { ...W, levels: { lift: { ...W.levels.lift, goal: { gauntlet: HOLD } } } };
+  const G2 = readGameworld(W2);
+  const L2 = stageLevelOrder(G2, gameStages(W2)[0], { ref: 'lv_lift', goal: (ends) => levelGoalMechanics(G2.levels.lift.goal, ends, { last: true }), extra: (ends) => gauntletCast(G2, 'lift', ends, { refs: {}, hero: false }) });
+  it('reads its pace, clock and outlast; lays them on the mechanic; refuses checkpoints on it', () => {
+    expect(G2.levels.lift.goal.gauntlet).toMatchObject({ pace: 'timed', every: 15, outlast: 60 });
+    expect(L2.args.manifest.game.mechanics.find((m) => m.kind === 'wave-gauntlet')).toMatchObject({ pace: 'timed', every: 15, win: { outlast: 60 } });
+    expect(() => readGameworld({ ...W, levels: { lift: { ...W.levels.lift, goal: { gauntlet: { ...HOLD, checkpoint: 2 } } } } })).toThrow(/no checkpoints/);
+    expect(() => readGameworld({ ...W, levels: { lift: { ...W.levels.lift, goal: { gauntlet: { ...HOLD, pace: 'slow' } } } } })).toThrow(/pace is/);
+  });
+
+  it('its laws: bounded advises when timed waves stack past the cap; the book says when each wave comes', () => {
+    expect(gauntletLaws(G2.levels.lift.goal.gauntlet).find((l) => l.law === 'bounded')).toMatchObject({ holds: true });
+    const crowded = readGauntletGoal({ arenas: [{ waves: [{ walker: 9 }, { walker: 9 }] }], pace: 'timed', every: 10 }, 'x', null);
+    expect(gauntletLaws(crowded).find((l) => l.law === 'bounded')).toMatchObject({ holds: false, says: expect.stringMatching(/^18 woken within thirty seconds/) });
+    const html = gauntletPage(G2, esc);
+    expect(html).toMatch(/To endure: sealed in its last stage until 60 s have passed; a wave every 15 s/);
+    expect(html).toMatch(/@16 s/);
+  });
+
+  it('proved on the bus: each wave on the clock, the falls given, the clock outlasted, the way out won', () => {
+    const [P] = proveGauntlets(W2, { lift: L2.args.manifest });
+    expect(P).toMatchObject({ level: 'lift', proved: true });
+    expect(P.woke).toHaveLength(3);
+  });
+
+  it("a holdout in the prompt: the default to endure on the last level", () => {
+    const w = composeGameworld({ prompt: 'a holdout in a haunted forest', seed: 1 });
+    expect(w.levels[Object.keys(w.levels).at(-1)].goal.gauntlet).toEqual({ ...DEFAULT_HOLDOUT });
+    for (const l of gauntletLaws(readGauntletGoal(DEFAULT_HOLDOUT, 'x', null))) expect(l.holds, l.law).toBe(true);
   });
 });

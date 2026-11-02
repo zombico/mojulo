@@ -1,5 +1,5 @@
 ---
-{ "id": "wave-gauntlet", "name": "Wave gauntlet: sealed in until nothing is left alive (terminal)", "summary": "Arenas one after another, each a sequence of waves: a wave's foes are woken when the last wave is all down, and the way out stays sealed until every arena is cleared. N arenas × N waves, static (the elevator fight, a Bloody Palace) or moving. Death begins the arena again, or its checkpoint. Named apart from the gauntlet that is a glove.", "when": "a gauntlet of enemy waves, horde mode, an arena lock, survive the waves, an elevator fight, a wave room, bloody palace, enemies keep coming until you clear them, locked in until all enemies are dead, wave after wave, a hundred floors of fights" }
+{ "id": "wave-gauntlet", "name": "Wave gauntlet: sealed in until nothing is left alive (terminal)", "summary": "Arenas one after another, each a sequence of waves: a wave's foes are woken when the last wave is all down (or on a clock, to endure), and the way out stays sealed until every arena is cleared (or the time is outlasted). N arenas × N waves, static (the elevator fight, a Bloody Palace) or moving. Death begins the arena again, or its checkpoint. Named apart from the gauntlet that is a glove.", "when": "a gauntlet of enemy waves, horde mode, an arena lock, survive the waves, an elevator fight, a wave room, bloody palace, enemies keep coming until you clear them, locked in until all enemies are dead, wave after wave, a hundred floors of fights, a holdout, survive the night, hold out until the timer ends, defend the generator" }
 ---
 
 ## Role
@@ -24,6 +24,11 @@ compose it with `fail-on-death`.
 - `hp` (100), `hits` (20) — the player's hp and a hit's cost. At none, the arena begins again (its foes put away, its
   counts zeroed, hp full, the player at `start`); `checkpoint: N` from the last arena passed that is a multiple of N;
   `death: 'fail'` loses the level instead.
+- `pace` — `'clear'` (each wave when the last is down: a blocker to overcome) or `'timed'` (each wave `every` seconds,
+  20, whatever still stands: they stack, a holdout's pressure). `win` — `'clear'` (every wave down) or
+  `{ outlast: <seconds> }` (still standing when the clock runs out: horde mode, survive the night; the seal lifts then).
+  `hold` — the id of what must not fall (a generator, a payload): its `down` loses the level. A gauntlet to endure
+  (timed or outlast) fails on a death by default; a timed one cannot begin an arena again.
 - `audit` — hand-named only: none can fight.
 
 ## Lowers to

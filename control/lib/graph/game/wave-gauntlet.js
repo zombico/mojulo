@@ -13,11 +13,19 @@
  *   death        the gauntlet owns the player's hp (`hp`, 100; `hits` a hit, 20): at none the arena begins again (its foes
  *                vanished, its counts zeroed, hp full, the player put at `start`, its first wave after a pause); with
  *                `checkpoint: N`, from the last arena passed that is a multiple of N (Bloody Palace's every ten);
- *                `death: 'fail'` ends the level instead.
+ *                `death: 'fail'` ends the level instead (an endurance gauntlet's default).
+ *
+ * OVERCOME or ENDURE: the same schedule, two settings for what brings a wave and what ends it.
+ *   pace         'clear' (each wave when the last is down: a blocker to overcome) or 'timed' (each wave `every` seconds,
+ *                20, whatever stands: they stack, the pressure of a holdout; its death fails the level)
+ *   win          'clear' (every wave down) or { outlast: <seconds> } (still standing when the clock runs out: horde mode,
+ *                survive the night); the seal on the way out lifts at the win
+ *   hold         '<entity id>': what must not fall (a generator, a payload, a gate): its `down` loses the level
  *
  * Params:
  *   { id?: 'gauntlet', arenas: [{ waves: [{ foes: ['<entity id>' | { id, at }], after? }], after? }],
- *     at?, radius?, planar?, back?, start?, hp?, hits?, checkpoint?, death?: 'arena' | 'fail' }
+ *     at?, radius?, planar?, back?, start?, hp?, hits?, checkpoint?, death?: 'arena' | 'fail',
+ *     pace?: 'clear' | 'timed', every?, win?: 'clear' | { outlast }, hold? }
  *   `after` (a wave's, s): its pause before its spawns (2; an arena's first wave the arena's `after`, 4; the very first 1)
  *   a foe `{ id, at }`: where it is spawned (a reset stands it there again); a bare id spawns where it stands
  *
@@ -59,14 +67,26 @@ export function lowerWaveGauntlet(p, ctx) {
   for (const k of ['back', 'start']) if (p[k] !== undefined && !isVec(p[k])) fail(`${k} is [x, y, z]`);
   const cp = p.checkpoint === undefined ? null : p.checkpoint;
   if (cp !== null && !(Number.isInteger(cp) && cp >= 1)) fail('checkpoint is every how many arenas a checkpoint stands, from 1');
-  const death = p.death ?? 'arena';
+  const pace = p.pace ?? 'clear';
+  if (!['clear', 'timed'].includes(pace)) fail("pace is 'clear' (each wave when the last is down) or 'timed' (each wave `every` seconds)");
+  const every = p.every === undefined ? 20 : p.every;
+  if (!(Number.isFinite(every) && every > 0)) fail('every is the seconds between a timed gauntlet\'s waves, above 0');
+  const win = p.win ?? 'clear', outlast = win === 'clear' ? null : win?.outlast;
+  if (win !== 'clear' && !(win && Object.keys(win).join() === 'outlast' && Number.isFinite(outlast) && outlast > 0)) fail("win is 'clear' (every wave down) or { outlast: <seconds> } (still standing when the clock runs out)");
+  if (p.hold !== undefined && !(typeof p.hold === 'string' && p.hold)) fail("hold is the id of what must not fall (a generator, a payload)");
+  const endure = pace === 'timed' || outlast !== null;
+  const death = p.death ?? (endure ? 'fail' : 'arena');
   if (!['arena', 'fail'].includes(death)) fail("death is 'arena' (begin it again) or 'fail' (the level is lost)");
+  if (pace === 'timed' && death === 'arena') fail("a timed gauntlet's waves keep coming: its death fails the level (death: 'fail')");
   const hp0 = Number.isFinite(p.hp) && p.hp > 0 ? p.hp : 100, hits = Number.isFinite(p.hits) && p.hits > 0 ? p.hits : 20;
   const N = gauntletNames(id), A = p.arenas.length, pre = `__wg_${id}`, at = `${pre}_arena`, waveV = (k) => `${pre}_d${k}`;
   const waveE = (k) => `gauntlet:wave:${id}:${k}`, clearedE = (k) => `${pre}:cleared:${k}`, clearE = `gauntlet:clear:${id}`;
-  const world = { vars: { [at]: 0, [`${pre}_open`]: 0, hp: hp0 }, reactions: [], watches: [], sequences: [], hud: [], entities: [], sources: [], initial: [{ type: `${pre}:go` }] };
-  // the first wave, after a breath
-  world.sequences.push({ id: `${pre}:go`, trigger: { on: `${pre}:go` }, steps: [{ await: { timer: Number.isFinite(W[0].after) ? W[0].after : 1 } }, { do: 'emit', type: waveE(0) }] });
+  const world = { vars: { [at]: 0, [`${pre}_open`]: 0, [`${pre}_down`]: 0, hp: hp0 }, reactions: [], watches: [], sequences: [], hud: [], entities: [], sources: [], initial: [{ type: `${pre}:go` }] };
+  const first = Number.isFinite(W[0].after) ? W[0].after : 1;
+  // the waves' clock: cleared-paced, the first after a breath (each next on its clear, below); timed, every wave on it
+  if (pace === 'clear') world.sequences.push({ id: `${pre}:go`, trigger: { on: `${pre}:go` }, steps: [{ await: { timer: first } }, { do: 'emit', type: waveE(0) }] });
+  else world.sequences.push({ id: `${pre}:go`, trigger: { on: `${pre}:go` }, steps: W.flatMap((x, k) => [{ await: { timer: k ? (Number.isFinite(x.after) ? x.after : every) : first } }, { do: 'emit', type: waveE(k) }]) });
+  const total = W.reduce((n, x) => n + x.foes.length, 0);
   W.forEach((x, k) => {
     world.vars[waveV(k)] = 0;
     // the wave: its arena said, its foes woken (where it names them), its count of downs
@@ -74,11 +94,12 @@ export function lowerWaveGauntlet(p, ctx) {
     world.reactions.push({ on: waveE(k), do: 'emit', type: 'wave', n: x.wave + 1, of: p.arenas[x.arena].waves.length, arena: x.arena + 1, arenas: A });
     for (const f of x.foes) {
       world.reactions.push({ on: waveE(k), do: 'ctrl', op: 'spawn', who: f.id, fresh: true, ...(f.at ? { at: f.at.slice() } : {}) });
-      world.reactions.push({ on: 'down', match: { entity: f.id }, do: 'inc', var: waveV(k), by: 1 });
+      world.reactions.push({ on: 'down', match: { entity: f.id }, do: 'inc', var: waveV(k), by: 1 }, { on: 'down', match: { entity: f.id }, do: 'inc', var: `${pre}_down`, by: 1 });
     }
     world.watches.push({ type: clearedE(k), when: { var: waveV(k), gte: x.foes.length } });
     // cleared: the next wave after a pause (an arena's first after the arena's), or the gauntlet's end
     const next = W[k + 1];
+    if (pace === 'timed') { if (next && next.arena !== x.arena) world.reactions.push({ on: waveE(k + 1), do: 'emit', type: 'gauntlet:arena', arena: x.arena + 1, of: A }); return; }
     if (next) {
       const pause = next.arena !== x.arena ? (Number.isFinite(next.after) ? next.after : Number.isFinite(next.arenaAfter) ? next.arenaAfter : 4) : (Number.isFinite(next.after) ? next.after : 2);
       if (next.arena !== x.arena) world.reactions.push({ on: clearedE(k), do: 'emit', type: 'gauntlet:arena', arena: x.arena + 1, of: A });
@@ -87,10 +108,23 @@ export function lowerWaveGauntlet(p, ctx) {
       world.reactions.push({ on: `${pre}:on:${k}`, if: { var: waveV(k), gte: x.foes.length }, do: 'emit', type: waveE(k + 1) });
     } else world.reactions.push({ on: clearedE(k), do: 'emit', type: clearE });
   });
+  // timed: cleared when every foe of every wave is down (waves overlap; no one wave's clear is the end)
+  if (pace === 'timed') world.watches.push({ type: clearE, when: { var: `${pre}_down`, gte: total } });
+  // outlast: a clock down from its seconds, the win when it runs out (survive's)
+  const outlastE = `gauntlet:outlasted:${id}`, left = `${pre}_left`, endE = outlast !== null ? outlastE : clearE;
+  if (outlast !== null) {
+    world.vars[left] = outlast;
+    world.timers = [{ every: 1, emit: { type: `${pre}:tick` }, while: { var: left, gt: 0 } }];
+    world.reactions.push({ on: `${pre}:tick`, do: 'inc', var: left, by: -1, min: 0 });
+    world.watches.push({ type: outlastE, when: { var: left, lte: 0 } });
+    world.hud.push({ var: left, label: 'Hold out', as: 'counter' });
+  }
+  // hold: what must not fall; its fall loses the level
+  if (p.hold) world.reactions.push({ on: 'down', match: { entity: p.hold }, do: 'emit', type: `gauntlet:fallen:${id}`, what: p.hold });
   // death: the gauntlet's own hp, a hit's cost; at none, the arena (or its checkpoint) begins again, or the level is lost
   world.reactions.push({ on: `hit:${ctx.player}`, do: 'inc', var: 'hp', by: -hits, min: 0 });
   world.watches.push({ type: `${pre}:fell`, when: { var: 'hp', lte: 0 } });
-  const out = { world, on: {}, emits: [clearE, 'wave'] };
+  const out = { world, on: { ...(p.hold ? { [`gauntlet:fallen:${id}`]: { end: 'fail' } } : {}) }, emits: [clearE, 'wave'] };
   if (death === 'fail') out.on[`${pre}:fell`] = { end: 'fail' };
   else {
     for (let a = 0; a < A; a++) {
@@ -111,21 +145,22 @@ export function lowerWaveGauntlet(p, ctx) {
   if (p.at) {
     const outE = `gauntlet:out:${id}`, sealedE = `gauntlet:sealed:${id}`, open = `${pre}_open`;
     world.entities.push({ id: N.seal, type: 'seal', on: true, position: p.at.slice(), radius: 0.9, color: '#7a1f1a' });
-    world.reactions.push({ on: clearE, do: 'set', var: open, to: 1 }, { on: clearE, do: 'toggle', target: N.seal, to: false });
+    world.reactions.push({ on: endE, do: 'set', var: open, to: 1 }, { on: endE, do: 'toggle', target: N.seal, to: false });
     world.sources.push({ type: 'zone', zone: N.exit, at: p.at.slice(), radius: Number.isFinite(p.radius) ? p.radius : 2, planar: p.planar !== false, watch: ctx.player });
     world.reactions.push(
       { on: 'enter', match: { zone: N.exit }, if: { var: open, gte: 1 }, do: 'emit', type: outE },
       { on: 'enter', match: { zone: N.exit }, if: { var: open, lt: 1 }, do: 'emit', type: sealedE },
       ...(p.back ? [{ on: sealedE, do: 'move', target: ctx.player, to: p.back.slice() }] : []),
     );
-    world.hud.push({ on: sealedE, text: 'sealed: clear the arena', as: 'toast', ttl: 1.4 });
+    world.hud.push({ on: sealedE, text: outlast !== null ? 'sealed: hold out' : 'sealed: clear the arena', as: 'toast', ttl: 1.4 });
     out.on[outE] = { end: 'success' };
-  } else out.on[clearE] = { end: 'success' };
+  } else out.on[endE] = { end: 'success' };
   world.hud.push(
     { var: 'hp', label: 'HP', as: 'bar', max: hp0 },
     { on: 'wave', text: 'Arena {event.arena} of {event.arenas} · Wave {event.n} of {event.of}', ttl: 2 },
     { on: 'gauntlet:arena', text: 'Arena {event.arena} cleared', as: 'toast', ttl: 2 },
     { on: 'gauntlet:again', text: 'again: arena {event.arena}', as: 'toast', ttl: 2, color: 'harm' },
+    ...(p.hold ? [{ on: `gauntlet:fallen:${id}`, text: 'it fell', as: 'toast', ttl: 2, color: 'harm' }] : []),
   );
   for (const ch of ['entities', 'sources']) if (!world[ch].length) delete world[ch];
   if (p.audit !== undefined) {

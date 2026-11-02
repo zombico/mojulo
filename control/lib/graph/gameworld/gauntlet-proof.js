@@ -40,7 +40,10 @@ function play(manifest, level) {
   pump(ev.initial ?? []);
   const total = G.arenas.reduce((n, A) => n + A.waves.length, 0);
   // time enough for every pause (each at most its arena's breath), a tenth of a second a step
-  for (let k = 0; k < (total + 2) * 120 && !s.log.some((r) => r.type === `gauntlet:clear:${G.id}`); k++) { pump(B.tickTimers(s, 0.1)); pump(B.stepTime(s, 0.1)); }
+  // (an endurance gauntlet: its waves on the clock, its end the outlast's when it has one)
+  const endE = G.win?.outlast ? `gauntlet:outlasted:${G.id}` : `gauntlet:clear:${G.id}`;
+  const span = (total + 2) * 12 + (G.pace === 'timed' ? total * (G.every ?? 20) : 0) + (G.win?.outlast ?? 0);
+  for (let k = 0; k < span * 10 && !s.log.some((r) => r.type === endE); k++) { pump(B.tickTimers(s, 0.1)); pump(B.stepTime(s, 0.1)); }
   if (G.at) { let prev; for (let f = 0; f < 2; f++) { const z = B.deriveZoneEvents([{ id: player, position: G.at }], prev, ev.sources); prev = z.prev; pump(z.events); } }
   const log = s.log.map((r) => r.type), proved = won.some((t) => log.includes(t));
   const want = G.arenas.flatMap((A) => A.waves.map((W) => W.foes.map((f) => (typeof f === 'string' ? f : f.id))));

@@ -98,3 +98,42 @@ describe('a wave gauntlet on the bus', () => {
     bad({ id: 'Lift' }, /id is/);
   });
 });
+
+describe('a wave gauntlet to endure', () => {
+  const HOLD = { kind: 'wave-gauntlet', id: 'hold', arenas: [{ waves: [{ foes: ['z1', 'z2'] }, { foes: ['z3'] }, { foes: ['z4', 'z5'] }] }], pace: 'timed', every: 10 };
+  it('timed: each wave on the clock, whatever still stands; cleared when every foe of every wave is down', () => {
+    const r = run([HOLD], [{ secs: 1.5 }, { secs: 10 }, { secs: 10 }]);
+    expect(r.spawned).toEqual(['z1', 'z2', 'z3', 'z4', 'z5']);   // none downed, all came
+    expect(r.log).not.toContain('gauntlet:clear:hold');
+    const all = run([HOLD], [{ secs: 1.5 }, { down: ['z1', 'z2'] }, { secs: 10 }, { down: ['z3'] }, { secs: 10 }, { down: ['z4', 'z5'] }]);
+    expect(all.log).toContain('gauntlet:clear:hold');
+    expect(composeMechanics([HOLD], ctx).on).toMatchObject({ 'gauntlet:clear:hold': { end: 'success' }, '__wg_hold:fell': { end: 'fail' } });
+  });
+
+  it('outlast: still standing when the clock runs out wins, whatever still stands; the seal lifts then', () => {
+    const O = { ...HOLD, win: { outlast: 25 }, at: [12, 0, 0] };
+    const early = run([O], [{ secs: 20 }, { at: [12, 0, 0] }]);
+    expect(early.log).toContain('gauntlet:sealed:hold');
+    const late = run([O], [{ secs: 26 }, { at: [12, 0, 0] }]);
+    expect(late.log).toEqual(expect.arrayContaining(['gauntlet:outlasted:hold', 'gauntlet:out:hold']));
+    expect(late.s.vars.__wg_hold_left).toBe(0);
+    expect(composeMechanics([{ ...HOLD, win: { outlast: 25 } }], ctx).on).toMatchObject({ 'gauntlet:outlasted:hold': { end: 'success' } });
+  });
+
+  it('hold: the thing that must not fall loses the level when it does', () => {
+    const c = composeMechanics([{ ...HOLD, hold: 'generator' }], ctx);
+    expect(c.on['gauntlet:fallen:hold']).toEqual({ end: 'fail' });
+    const r = run([{ ...HOLD, hold: 'generator' }], [{ secs: 1.5 }, { down: ['generator'] }]);
+    expect(r.log).toContain('gauntlet:fallen:hold');
+  });
+
+  it('endurance fails on death by default, and a timed one refuses to begin an arena again', () => {
+    expect(() => composeMechanics([{ ...HOLD, death: 'arena' }], ctx)).toThrow(/timed gauntlet's waves keep coming/);
+    expect(() => composeMechanics([{ ...HOLD, pace: 'slow' }], ctx)).toThrow(/pace is/);
+    expect(() => composeMechanics([{ ...HOLD, win: { outlast: 0 } }], ctx)).toThrow(/win is/);
+    expect(() => composeMechanics([{ ...HOLD, hold: '' }], ctx)).toThrow(/hold is/);
+    // a clear-paced one keeps its arena reset unless told
+    const { pace: _p, every: _e, ...cleared } = HOLD;
+    expect(composeMechanics([cleared], ctx).on['__wg_hold:fell']).toBeUndefined();
+  });
+});

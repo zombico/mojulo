@@ -33,3 +33,11 @@ that is a glove. Built so far:
   played headless through its shell: the way out tried first was sealed and turned the walker back to the arena; each
   wave woke its own foes and no others until the cast's own kill downed them; after the ninth fall the seal lifted, the
   way out won (`success`) and the shell showed it cleared.
+- **To overcome or to endure**: the same schedule, two settings. `pace: 'timed'` brings each wave `every` seconds
+  whatever still stands (they stack: a holdout's pressure), `win: { outlast }` wins when the clock runs out with the
+  player still standing (horde mode, survive the night; the seal lifts then), and `hold` names what must not fall (a
+  generator, a payload: its fall loses the level). A gauntlet to endure fails on a death; a timed one cannot begin an
+  arena again. As a level goal: `pace`, `every`, `outlast` (no checkpoints). A new law, `bounded`: a timed gauntlet never
+  stands more than sixteen foes woken within half a minute (the worst case, none downed). The book's grid says when each
+  timed wave comes; the proof plays its clock. A prompt's `holdout` lays the default to endure: one arena, four waves
+  twenty seconds apart, ninety seconds to outlast. Tower defence stays `waves` (its path, base and leaks).

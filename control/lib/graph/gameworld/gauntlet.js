@@ -5,10 +5,12 @@
  * is stood dormant in a ring round the arena (gauntlet-cast.js stands them, by the same placements) and woken with its
  * wave. The arena stands on the approach to the stage's exit, which is its sealed way out.
  *
- *   goal: { gauntlet: { arenas: [{ waves: [{ <bestiary id>: <count> }], after? }], checkpoint? } }
+ *   goal: { gauntlet: { arenas: [{ waves: [{ <bestiary id>: <count> }], after? }], checkpoint?, pace?, every?, outlast? } }
+ *   to overcome (the default: each wave when the last is down, a death the arena again) or to endure (`pace: 'timed'`,
+ *   a wave each `every` seconds whatever stands; `outlast`: seconds to hold out; a death fails it)
  *
  *   GAUNTLET_LIMITS              the most arenas, waves an arena and foes a wave
- *   DEFAULT_GAUNTLET             the one a prompt's word (horde, onslaught) lays
+ *   DEFAULT_GAUNTLET             the one a prompt's word (horde, onslaught) lays; DEFAULT_HOLDOUT the holdout's (holdout)
  *   GAUNTLET_LAWS, gauntletLaws(E)   its principles, measured (advice: escalates, breathes, varied, checkpointed)
  *   readGauntletGoal(v, room, ids) → { arenas: [{ waves: [{ <id>: n }], after? }], checkpoint?, room }   ids: the bestiary's
  *   gauntletIds(G)                the bestiary ids any level's gauntlet wakes (they are fielded, so they are made)
@@ -19,6 +21,8 @@
  */
 
 export const GAUNTLET_LIMITS = Object.freeze({ arenas: 100, waves: 8, foes: 12 });
+/** The holdout a prompt's word asks for (compose.js): one arena, its waves on a clock, ninety seconds to outlast. */
+export const DEFAULT_HOLDOUT = Object.freeze({ arenas: [{ waves: [{ walker: 3 }, { walker: 3, charger: 1 }, { walker: 3, charger: 2 }, { walker: 4, charger: 2, brute: 1 }] }], pace: 'timed', every: 20, outlast: 90 });
 /** The gauntlet a prompt's word asks for (compose.js): two arenas of the class bestiary's foes, each heavier. */
 export const DEFAULT_GAUNTLET = Object.freeze({ arenas: [{ waves: [{ walker: 3 }, { walker: 2, charger: 1 }] }, { waves: [{ walker: 2, charger: 2 }, { walker: 3, brute: 1 }] }] });
 const r3 = (n) => Math.round(n * 1000) / 1000;
@@ -28,7 +32,12 @@ const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 export function readGauntletGoal(v, room, ids) {
   const no = (m) => { throw new Error(`goal.gauntlet${m}`); };
   if (!isObj(v)) no(' is { arenas: [{ waves: [{ <foe id>: <count> }] }], checkpoint? }');
-  for (const k of Object.keys(v)) if (!['arenas', 'checkpoint', 'room'].includes(k)) no(`.${k} is not a gauntlet setting (arenas, checkpoint)`);
+  for (const k of Object.keys(v)) if (!['arenas', 'checkpoint', 'pace', 'every', 'outlast', 'room'].includes(k)) no(`.${k} is not a gauntlet setting (arenas, checkpoint, pace, every, outlast)`);
+  // to endure: timed waves (each `every` seconds, whatever stands) and a clock to outlast
+  if (v.pace !== undefined && !['clear', 'timed'].includes(v.pace)) no(".pace is 'clear' (each wave when the last is down) or 'timed' (each wave on the clock)");
+  if (v.every !== undefined && !(Number.isFinite(v.every) && v.every > 0)) no('.every is the seconds between timed waves, above 0');
+  if (v.outlast !== undefined && !(Number.isFinite(v.outlast) && v.outlast > 0)) no('.outlast is the seconds to hold out, above 0');
+  if (v.checkpoint !== undefined && (v.pace === 'timed' || v.outlast !== undefined)) no(': a gauntlet to endure fails on a death, so it has no checkpoints');
   if (v.room !== undefined && v.room !== room) no('.room is the level\'s own');
   if (!Array.isArray(v.arenas) || !v.arenas.length || v.arenas.length > GAUNTLET_LIMITS.arenas) no(`.arenas is a list of arenas, 1 to ${GAUNTLET_LIMITS.arenas}`);
   const arenas = v.arenas.map((A, a) => {
@@ -49,7 +58,7 @@ export function readGauntletGoal(v, room, ids) {
     return { waves, ...(A.after !== undefined ? { after: A.after } : {}) };
   });
   if (v.checkpoint !== undefined && !(Number.isInteger(v.checkpoint) && v.checkpoint >= 1)) no('.checkpoint is every how many arenas, from 1');
-  return { arenas, ...(v.checkpoint !== undefined ? { checkpoint: v.checkpoint } : {}), room };
+  return { arenas, ...(v.checkpoint !== undefined ? { checkpoint: v.checkpoint } : {}), ...(v.pace !== undefined ? { pace: v.pace } : {}), ...(v.every !== undefined ? { every: v.every } : {}), ...(v.outlast !== undefined ? { outlast: v.outlast } : {}), room };
 }
 
 /** The bestiary ids every level's gauntlet wakes. */
@@ -87,15 +96,17 @@ export function gauntletMechanic(E, ends) {
   const P = gauntletPlacements(E, ends);
   let k = 0;
   const arenas = E.arenas.map((A) => ({ waves: A.waves.map(() => ({ foes: P.waves[k++].map((f) => ({ id: f.id, at: f.at })) })), ...(A.after !== undefined ? { after: A.after } : {}) }));
-  return { kind: 'wave-gauntlet', id: E.room, arenas, at: ends.exit.slice(), radius: 2.5, back: P.centre, start: P.centre, ...(E.checkpoint ? { checkpoint: E.checkpoint } : {}) };
+  return { kind: 'wave-gauntlet', id: E.room, arenas, at: ends.exit.slice(), radius: 2.5, back: P.centre, start: P.centre, ...(E.checkpoint ? { checkpoint: E.checkpoint } : {}), ...(E.pace ? { pace: E.pace } : {}), ...(E.every ? { every: E.every } : {}), ...(E.outlast ? { win: { outlast: E.outlast } } : {}) };
 }
 
 export const GAUNTLET_LAWS = Object.freeze({
   escalates: 'Escalates: no wave lighter than the one before it in its arena, no arena lighter than the last.',
   breathes: 'Breathes: a pause before each arena after the first, two seconds at least.',
   varied: 'Varied: no three arenas in a row with the same mix.',
+  bounded: 'Bounded: a timed gauntlet never stands more than sixteen foes woken within half a minute of each other.',
   checkpointed: 'Checkpointed: a gauntlet of more than ten arenas has checkpoints.',
 });
+export const GAUNTLET_ALIVE = 16;
 const law = (id, holds, says) => ({ law: id, holds, says });
 const weight = (W) => Object.values(W).reduce((n, c) => n + c, 0);
 const mix = (A) => JSON.stringify(A.waves.map((W) => Object.entries(W).sort()));
@@ -113,7 +124,15 @@ export function gauntletLaws(E) {
   const runs = [];
   for (let i = 2; i < A.length; i++) if (mix(A[i]) === mix(A[i - 1]) && mix(A[i]) === mix(A[i - 2])) runs.push(`arenas ${i - 1} to ${i + 1}`);
   out.push(law('varied', !runs.length, runs.length ? `${runs.join('; ')}: the same mix three times` : A.length < 3 ? 'too few arenas to repeat' : 'no three arenas in a row alike'));
-  const long = A.length > 10 && !E.checkpoint;
+  // bounded: timed waves stack; the most woken within any thirty seconds (none downed: the worst case) under the cap
+  if (E.pace === 'timed') {
+    const t = [], every = E.every ?? 20;
+    let clock = 0;
+    A.forEach((a) => a.waves.forEach((W, w) => { clock += t.length ? every : 1; t.push({ at: clock, n: weight(W) }); }));
+    const peak = Math.max(...t.map((x) => t.filter((y) => y.at >= x.at && y.at < x.at + 30).reduce((n, y) => n + y.n, 0)));
+    out.push(law('bounded', peak <= GAUNTLET_ALIVE, peak <= GAUNTLET_ALIVE ? `at most ${peak} woken within thirty seconds` : `${peak} woken within thirty seconds, over ${GAUNTLET_ALIVE}: space the waves (every) or thin them`));
+  } else out.push(law('bounded', true, 'each wave waits for the last to be down: they never stack'));
+  const long = A.length > 10 && !E.checkpoint && E.pace !== 'timed' && E.outlast === undefined;
   out.push(law('checkpointed', !long, long ? `${A.length} arenas and no checkpoint: a death sends the player back to arena 1` : E.checkpoint ? `a checkpoint every ${E.checkpoint}` : `${A.length} arena${A.length === 1 ? '' : 's'}: short enough to need none`));
   return out;
 }
