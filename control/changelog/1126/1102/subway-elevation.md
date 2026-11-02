@@ -27,3 +27,16 @@
   - An open station's ways out are ports at the street (`street: true`), and its readout gives its elevation and
     street. A stage lays the street round it, open over a cut. Walked along each platform and out to the street, and
     back.
+- **A line that rises out of the ground** (`subway.stations[].elevation`, network/subway.js). A station on a line can be
+  `cut` or `elevated`. Its track bed is then stood against the street over its middle: a cut's mezzanine at the
+  street, an elevated one's station house over it.
+  - The gap to the next station is lengthened to what the rail's grade wants for the climb between them; the readout
+    gives the `gaps` where they differ.
+  - A run out of or into an open station is laid open: tunnel, cut, grade and viaduct where it lies, its `spans` in
+    the readout. An open run also says where the ground must open over it (`openings`), and the street is opened over
+    each cut, a station's and a run's.
+  - An open station's ways out end at the street, so it takes no entrance; a deep station on the same line keeps its
+    pavilions. A teleport's stubs out of an open station are laid open too.
+  - New cameras: each open station from its street, and the line rising out of the ground.
+  - Walked through every run, down the cut's stairs and the el's flights; played as a level from the deep platform
+    to the street under the el. A line of deep stations is laid as before, byte for byte.

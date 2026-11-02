@@ -19,6 +19,8 @@
  *              each surface is baked at, a node's own), stripe?: its route's colour }
  *     prefix   its faces' groups' prefix (`<prefix>:tunnel-floor` …)
  *     walkSide a rail tunnel's walkway along its left wall (1, the default) or its right (-1): its finish mirrored
+ *     open     built where its track lies against the ground: tunnel, cut, grade or viaduct (`runs` the metres of each,
+ *              `openings` [[x0, y0, x1, y1]] where it lies open at or under the ground, the ground to be opened over it)
  *   → { id, faces, colliders, line (its middle walked, each point at its floor), length, level (its lowest floor), cover,
  *       slab (each the least it keeps, measured on what was built), grade (its steepest), turns, ends ([{ kind: flat |
  *       ramp | stair, drop, steps? }]), footprint ([[x0, y0, x1, y1]]: its legs and junctions in plan, its walls with
@@ -280,9 +282,18 @@ export function passageOf({ id, path, a, b, section: sec, over, look = {}, prefi
     footprint.push(P3([x - hw - WALL, y - hw - WALL, x + hw + WALL, y + hw + WALL]));
   });
   // ── a viaduct's columns: a pair under its deck's edges every few metres, on a cross-head, down to the ground ──
-  const runs = { tunnel: 0, cut: 0, grade: 0, viaduct: 0 };
+  const runs = { tunnel: 0, cut: 0, grade: 0, viaduct: 0 }, openings = [];
   if (open) {
-    for (const [p, q] of legSpans) runs[modeOf((p + q) / 2)] += q - p;
+    for (const [p, q] of legSpans) {
+      const m = modeOf((p + q) / 2);
+      runs[m] += q - p;
+      // (where it lies open at or under the ground, the ground over it opened: a run of such spans along one leg)
+      if (m !== 'cut' && m !== 'grade') continue;
+      const ps = [pos(p, -hw - WALL), pos(p, hw + WALL), pos(q, -hw - WALL), pos(q, hw + WALL)], r = [Math.min(...ps.map((v) => v[0])), Math.min(...ps.map((v) => v[1])), Math.max(...ps.map((v) => v[0])), Math.max(...ps.map((v) => v[1]))];
+      const last = openings.at(-1);
+      if (last && last.leg === legAt((p + q) / 2) && last.q >= p - 1e-6) { last.r = [Math.min(last.r[0], r[0]), Math.min(last.r[1], r[1]), Math.max(last.r[2], r[2]), Math.max(last.r[3], r[3])]; last.q = q; }
+      else openings.push({ leg: legAt((p + q) / 2), q, r });
+    }
     for (let s = OPEN.every / 2; s < L; s += OPEN.every) {
       if (modeOf(s) !== 'viaduct' || turnAt(s) || onFill(s, zf(s))) continue;
       const g = groundAt(s), zt = zf(s) - OPEN.deck, c = OPEN.column / 2, d = along(s);
@@ -311,7 +322,7 @@ export function passageOf({ id, path, a, b, section: sec, over, look = {}, prefi
   const endOf = (St, z) => (St ? { kind: 'stair', drop: r5(St.drop), steps: St.m } : { kind: Math.abs(Fat(LANDING + 2) - z) > 1e-3 || Math.abs(Fat(L - LANDING - 2) - z) > 1e-3 ? 'ramp' : 'flat', drop: r5(z - Math.min(...F)) });
   return {
     id, faces, colliders, line, length: r5(L), level: r5(Math.min(...F)), cover: r5(cover), slab: r5(slab), grade: r5(grade), turns: turns.length,
-    ends: [endOf(sa, a.z0), endOf(sb, b.z0)], footprint, top: r5(zHi), findings, ...(open ? { runs: Object.fromEntries(Object.entries(runs).map(([k, v]) => [k, r5(v)])) } : {}),
+    ends: [endOf(sa, a.z0), endOf(sb, b.z0)], footprint, top: r5(zHi), findings, ...(open ? { runs: Object.fromEntries(Object.entries(runs).map(([k, v]) => [k, r5(v)])), openings: openings.map((o) => o.r.map(r5)) } : {}),
   };
 }
 

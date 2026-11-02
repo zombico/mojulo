@@ -3,7 +3,9 @@
 // tube to each track of an island, ending at a terminus; one box over both tracks of side-platform stations). Each: the
 // tunnels' tracks on the stations' tracks, their walkways under a platform's end where steps are cut down to them, every
 // tunnel walked from one platform to the next and every entrance from its doorway to the street, and back, by the page's
-// ground probe over the payload's own faces and boxes.
+// ground probe over the payload's own faces and boxes. And a line that RISES out of the ground: a deep station, one in a
+// cut and one elevated, the gaps lengthened to the rail's grade for the climbs between them, its runs open where they
+// lie at or over the street.
 import { describe, it, expect } from 'vitest';
 import { assembleStageScene } from '../era/stage.js';
 import { readSubway } from './subway.js';
@@ -120,5 +122,55 @@ describe('a subway line played as a level', () => {
     expect(cuts.length).toBe(pairs + 1);
     for (const c of cuts) { const r = walk(c); expect({ crossed: r.crossed, gaps: r.gaps, boxes: r.boxes }).toEqual({ crossed: [], gaps: [], boxes: [] }); }
     expect(() => readSubway({ stations: [{ id: 'u' }], tunnels: 'magic' })).toThrow(/tunnels is 'real'/);
+  });
+});
+
+describe('a subway line that rises out of the ground', () => {
+  const spec = { stations: [{ id: 'a', plan: box }, { id: 'b', plan: box, elevation: 'cut' }, { id: 'c', plan: box, elevation: 'elevated' }], gap: 100 };
+  const P = assembleStageScene({ kind: 'stage', subway: spec }, {}), byId = Object.fromEntries(P.subway.stations.map((s) => [s.id, s]));
+
+  it('stands each open station against the street, lengthens its gaps to the rail\'s grade, and opens its runs where they rise', () => {
+    expect(byId.a.elevation).toBeUndefined();
+    expect(byId.b).toMatchObject({ elevation: 'cut', street: 0 });
+    expect(byId.c).toMatchObject({ elevation: 'elevated', street: 0 });
+    expect(P.subway.gaps.every((g) => g >= spec.gap)).toBe(true);
+    expect(P.subway.gaps.some((g) => g > spec.gap)).toBe(true);
+    for (const r of P.subway.runs) { expect(r.grade).toBeLessThanOrEqual(1 / 30 + 1e-6); expect(r.findings).toBeUndefined(); }
+    const [ab, bc] = P.subway.runs;
+    // (from the deep station to the cut one under the ground all the way; from the cut up over the street to the el)
+    expect(ab.spans.tunnel).toBeCloseTo(ab.length, 5);
+    expect(bc.spans.cut).toBeGreaterThan(0);
+    expect(bc.spans.viaduct).toBeGreaterThan(0);
+    for (const l of P.subway.laws) expect(l.ok, `${l.law}: ${l.value}`).toBe(true);
+  });
+
+  it('takes the deep station\'s ways out up entrances, the open ones\' to the street of their own, and opens the street over its cuts', () => {
+    const entrances = P.anchors.filter((a) => a.kind === 'entrance');
+    expect(entrances.length).toBeGreaterThan(0);
+    expect(entrances.every((e) => e.station === 'station-a')).toBe(true);
+    const B = P.anchors.find((a) => a.id === 'station-b');
+    for (const q of B.ports.walks) expect(q).toMatchObject({ street: true, z0: 0 });
+    // (no street over the cut station's platforms)
+    const lanes = B.routes.platforms.flat(), x0 = Math.min(...lanes.map((p) => p[0])), x1 = Math.max(...lanes.map((p) => p[0])), y0 = Math.min(...lanes.map((p) => p[1])), y1 = Math.max(...lanes.map((p) => p[1]));
+    const mid = (f) => [0, 1].map((k) => f.corners.reduce((a, c) => a + c[k], 0) / f.corners.length), hit = (f) => { const [x, y] = mid(f); return x > x0 && x < x1 && y > y0 && y < y1; };
+    expect(P.faces.filter((f) => f.group === 'subway:street' && hit(f))).toEqual([]);
+    // (nor over the run where it lies open in its cut: the street's faces there are none over its track)
+    const bc = P.anchors.find((a) => a.kind === 'tunnel' && a.from === 'station-b'), cutPts = bc.walk.filter((p) => p[2] < -1);
+    const over = (f, p) => [0, 1].every((k) => p[k] > Math.min(...f.corners.map((c) => c[k])) + 1e-6 && p[k] < Math.max(...f.corners.map((c) => c[k])) - 1e-6);
+    expect(cutPts.length).toBeGreaterThan(0);
+    for (const p of cutPts.filter((_, i) => i % 20 === 0)) expect(P.faces.some((f) => f.group === 'subway:street' && over(f, p))).toBe(false);
+  });
+
+  it('is walked through each run, down the cut\'s stairs and the el\'s flights, and played as a level to the street', () => {
+    const walk = walker(P), runs = P.anchors.filter((a) => a.kind === 'tunnel'), st = P.anchors.filter((a) => a.kind === 'station');
+    for (const r of [...runs.map((t) => t.walk), ...st.flatMap((s) => s.routes.up)]) for (const pts of [r, r.slice().reverse()]) {
+      const w = walk(pts);
+      expect({ steepest: w.steepest <= 0.36, crossed: w.crossed, gaps: w.gaps, boxes: w.boxes }).toEqual({ steepest: true, crossed: [], gaps: [], boxes: [] });
+    }
+    const M = { kind: 'stage', subway: spec, level: {} }, exit = withBuildingLevel(M, 'ref').game.mechanics.at(-1), w = walk(exit.via);
+    expect({ steepest: w.steepest <= 0.36, crossed: w.crossed, gaps: w.gaps, boxes: w.boxes }).toEqual({ steepest: true, crossed: [], gaps: [], boxes: [] });
+    // (won on the street under the el)
+    expect(exit.via.at(-1)[2]).toBeCloseTo(0, 5);
+    expect(() => readSubway({ stations: [{ id: 'u', elevation: 'sky' }] })).toThrow(/stations\[0\] \(u\).elevation is 'deep' \| 'cut' \| 'elevated'/);
   });
 });
