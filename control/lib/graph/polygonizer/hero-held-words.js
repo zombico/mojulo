@@ -8,3 +8,6 @@ export const GUARD_WORDS = Object.freeze(['chudan', 'chudanLeft', 'jodan', 'joda
 export const BOW_WORDS = Object.freeze(['bowDraw', 'bowLoose']);
 /** each shot's seconds (hero-bow.js reads them; the door lists them at load) */
 export const BOW_SECONDS = Object.freeze({ bowDraw: 1.6, bowLoose: 1.3 });
+/** the throws (hero-throw.js THROWS) by the door's words: one-shots played as a guard is, the ball a prop of the throwing
+ * hand until the release (the readout names when it leaves and how fast) */
+export const THROW_WORDS = Object.freeze({ throwOverhand: 'overhand', throwPass: 'quarterback', throwSidearm: 'sidearm', throwUnderhand: 'underhand', bowlRoll: 'bowl', chestPass: 'chestPass', setShot: 'setShot', throwIn: 'throwIn', tossServe: 'toss' });
