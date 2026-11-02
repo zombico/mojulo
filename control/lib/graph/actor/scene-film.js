@@ -21,7 +21,8 @@
  *                  each of the coverage's, each camera keyed every frame
  *     actors.py    builds the cast: each GLB imported under an empty `actor:<who>` keyed on its place and facing, its
  *                  body's act and its face's take bound and laid from frame 1, the scene's frame range set
- *     look.py      `-- --look film | anime`: the look on every actor
+ *     look.py      `-- --look film | anime`: the look on every actor, and the pack's `grade` (scene.json, the World
+ *                  page's dials: scene/channels/grade.js) as compositor nodes
  *     SCENE.md     the operator's page, the director's notes on the scene among it (notes.js)
  *
  * The scripts are constant text (everything per scene rides scene.json and the shot files). Pure and deterministic.
@@ -46,7 +47,7 @@ export function coverageCameraAt(coverage, t, shot = null) {
 }
 
 /** The pack's files (see the header) */
-export function sceneFilmFiles({ S, coverage, actors, fps = 24, width = 1920, height = 1080, title = 'scene' }) {
+export function sceneFilmFiles({ S, coverage, actors, fps = 24, width = 1920, height = 1080, title = 'scene', grade = null }) {
   // (a time map lays the film on the screen's clock: the program at the film's fps, a grain stepped at it)
   const program = coverage.shots.some(warped) ? programOf({ ...coverage, fps }) : null;
   const frames = Math.max(1, Math.round((program ? program.total : S.seconds) * fps));
@@ -70,6 +71,7 @@ export function sceneFilmFiles({ S, coverage, actors, fps = 24, width = 1920, he
   const scene = {
     source: 'mojulo', film_version: BLENDER_FILM_VERSION, title, seconds: S.seconds, fps, frames, width, height, up: 'z', units: 'metres',
     ...(clock ? { clock: clock.map((at) => r6(at.t)) } : {}),
+    ...(grade ? { grade } : {}),
     actors: Object.fromEntries(Object.entries(actors).map(([who, A]) => [who, { glb: `actors/${who}.glb`, act: `act:${A.take}`, face: `face:${A.take}`, root: rootOf(who) }])),
     turns: S.turns.map((T) => ({ who: T.who, at: T.at, end: T.end, text: T.text })),
     coverage,
@@ -79,7 +81,7 @@ export function sceneFilmFiles({ S, coverage, actors, fps = 24, width = 1920, he
     ...film.files.filter((f) => f.file !== 'FILM.md'),
     { file: 'actors.py', text: actorsPy() },
     { file: 'look.py', text: lookPy() },
-    { file: 'SCENE.md', text: sceneReadme({ title, S, coverage, frames, fps, notes: directorsNotes(S, coverage), shotFiles: film.files.filter((f) => f.file.startsWith('shots/')).map((f) => f.file) }) },
+    { file: 'SCENE.md', text: sceneReadme({ title, S, coverage, frames, fps, grade, notes: directorsNotes(S, coverage), shotFiles: film.files.filter((f) => f.file.startsWith('shots/')).map((f) => f.file) }) },
   ];
 }
 
@@ -250,6 +252,9 @@ Each material of every object under an "actor:<who>" empty is rebuilt over the c
 texture, its colour attribute, or its factor); run it again with the other look to switch. The ink is a Solidify
 modifier with flipped normals drawing a back-face-culled dark material.
 """
+import json
+import os
+
 import bpy
 import sys
 
@@ -388,6 +393,117 @@ def ink(obj, on):
     mod.material_offset = len(obj.data.materials) - 1
 
 
+def load_grade():
+    """The pack's grade (scene.json grade), or None."""
+    path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'scene.json')
+    if not os.path.exists(path):
+        return None
+    with open(path) as f:
+        return json.load(f).get('grade')
+
+
+def grade_tree(sc):
+    """The scene's compositor tree: Blender 5 a node group the scene names, Blender 4 the scene's own."""
+    if hasattr(sc, 'compositing_node_group'):
+        tree = sc.compositing_node_group or bpy.data.node_groups.new('mojulo grade', 'CompositorNodeTree')
+        sc.compositing_node_group = tree
+        return tree, True
+    sc.use_nodes = True
+    return sc.node_tree, False
+
+
+def grade(sc, G):
+    """The pack's grade (scene.json grade: the World page's dials, scene/channels/grade.js) as compositor nodes: the
+    exposure, the contrast, the saturation, the warmth as a colour balance, the aberration as the lens's dispersion, the
+    vignette and the bars as masks. The grain, the zoom, the flash and a moment's look are the page's alone. A node the
+    running Blender does not take is named in the log and left out (advisory)."""
+    tree, group = grade_tree(sc)
+    nodes, links = tree.nodes, tree.links
+    for n in list(nodes):
+        nodes.remove(n)
+    rl = nodes.new('CompositorNodeRLayers')
+    cur = [rl.outputs[0]]
+    made, missed = [], []
+
+    def step(kind, what, setup, inp=0):
+        try:
+            n = nodes.new(kind)
+            links.new(cur[0], n.inputs[inp])
+            setup(n)
+            cur[0] = n.outputs[0]
+            made.append(what)
+        except Exception as e:  # (a node or socket another Blender names otherwise)
+            missed.append('%s (%s)' % (what, e))
+
+    def set_in(n, names, v):
+        for name in names:
+            if name in n.inputs:
+                n.inputs[name].default_value = v
+                return
+        raise KeyError('no input %s' % '/'.join(names))
+
+    def multiply_by(mask_kind, what, mask_setup, fac):
+        try:
+            m = nodes.new(mask_kind)
+            mask_setup(m)
+            b = nodes.new('CompositorNodeBlur')
+            b.size_x = b.size_y = 200
+            b.use_relative = False
+            links.new(m.outputs[0], b.inputs[0])
+            mix = nodes.new('CompositorNodeMixRGB')
+            mix.blend_type = 'MULTIPLY'
+            mix.inputs[0].default_value = fac
+            links.new(cur[0], mix.inputs[1])
+            links.new(b.outputs[0], mix.inputs[2])
+            cur[0] = mix.outputs[0]
+            made.append(what)
+        except Exception as e:
+            missed.append('%s (%s)' % (what, e))
+
+    if G.get('exposure'):
+        step('CompositorNodeExposure', 'exposure', lambda n: set_in(n, ['Exposure'], G['exposure']))
+    if 'contrast' in G:
+        step('CompositorNodeBrightContrast', 'contrast', lambda n: set_in(n, ['Contrast'], (G['contrast'] - 1) * 100))
+    if 'saturation' in G:
+        step('CompositorNodeHueSat', 'saturation', lambda n: set_in(n, ['Saturation'], G['saturation']), inp='Image')
+    if G.get('warmth'):
+        w = G['warmth']
+
+        def warm(n):
+            n.correction_method = 'LIFT_GAMMA_GAIN'
+            n.gain = (1 + 0.15 * w, 1.0, 1 - 0.15 * w)
+            n.lift = (1 - 0.05 * w, 1.0, 1 + 0.05 * w)
+        step('CompositorNodeColorBalance', 'warmth', warm, inp='Image')
+    if G.get('aberration'):
+        step('CompositorNodeLensdist', 'aberration', lambda n: set_in(n, ['Dispersion'], min(1.0, G['aberration'] / 60.0)), inp='Image')
+    if G.get('vignette'):
+        def ellipse(m):
+            m.width, m.height = 1.15, 1.15
+        multiply_by('CompositorNodeEllipseMask', 'vignette', ellipse, G['vignette'])
+    if G.get('bars'):
+        def box(m):
+            m.width, m.height = 2.0, 1.0 - 2 * G['bars']
+        try:
+            m = nodes.new('CompositorNodeBoxMask')
+            box(m)
+            mix = nodes.new('CompositorNodeMixRGB')
+            mix.blend_type = 'MULTIPLY'
+            links.new(cur[0], mix.inputs[1])
+            links.new(m.outputs[0], mix.inputs[2])
+            cur[0] = mix.outputs[0]
+            made.append('bars')
+        except Exception as e:
+            missed.append('bars (%s)' % e)
+    if group:
+        out = nodes.new('NodeGroupOutput')
+        if not any(s.in_out == 'OUTPUT' for s in tree.interface.items_tree):
+            tree.interface.new_socket('Image', in_out='OUTPUT', socket_type='NodeSocketColor')
+        links.new(cur[0], out.inputs[0])
+    else:
+        links.new(cur[0], nodes.new('CompositorNodeComposite').inputs[0])
+    log('the grade: %s%s' % (', '.join(made) or 'nothing', ('; left out: ' + '; '.join(missed)) if missed else ''))
+
+
 def main():
     look = opt('--look', 'film')
     if look not in ('film', 'anime'):
@@ -419,6 +535,9 @@ def main():
         engines = [e.identifier for e in bpy.types.RenderSettings.bl_rna.properties['engine'].enum_items]
         sc.render.engine = 'BLENDER_EEVEE_NEXT' if 'BLENDER_EEVEE_NEXT' in engines else 'BLENDER_EEVEE'
     log('%s on %d objects, %d materials, %s' % (look, len(objs), len(done), sc.render.engine))
+    G = load_grade()
+    if G:
+        grade(sc, G)
 
 
 if __name__ == '__main__':
@@ -427,7 +546,7 @@ if __name__ == '__main__':
 }
 
 /** SCENE.md — the operator's page */
-export function sceneReadme({ title, S, coverage, frames, fps, notes = [], shotFiles }) {
+export function sceneReadme({ title, S, coverage, frames, fps, grade = null, notes = [], shotFiles }) {
   return `# ${title} — a mojulo scene for Blender
 
 ${Object.keys(S.actors).length} actors, ${S.seconds} s (${frames} frames at ${fps} fps), ${coverage.shots.length} shots on ${coverage.cameras.length} cameras.${coverage.shots.some(warped) ? `
@@ -451,7 +570,8 @@ Or open film.blend and run actors.py, film_shots.py and look.py from the Scripti
 - \`scene.json\`: the scene (the actors, their places, the lines, the coverage). \`shot.json\` and \`shots/\`: the
   coverage's cameras, each shot keyed every frame, cut at markers by \`film_shots.py\`.
 - \`look.py\`: the look. \`film\` is the production look in Cycles; \`anime\` is the cel look shaded live in EEVEE, the
-  bands moving with the scene's lights, with an ink outline.
+  bands moving with the scene's lights, with an ink outline.${grade ? ` It also builds the grade (\`scene.json\`'s \`grade\`: ${Object.entries(grade).map(([k, v]) => `${k} ${v}`).join(', ')}) as compositor
+  nodes; a node the running Blender does not take is named in its log and left out.` : ''}
 
 ## The shots
 

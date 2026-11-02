@@ -1,6 +1,6 @@
 ### The impact cam and the grade: a moment takes the camera and the look as it takes the clock
 
-In progress. The world clock's moments (a blow landing, a foe going down, the last foe going down, a dodge) also take
+The world clock's moments (a blow landing, a foe going down, the last foe going down, a dodge) also take
 the camera, as a framed shot on the striker and the struck handed back when the moment ends. They also take the look,
 through the page's first compositing stage, the grade: exposure, contrast, saturation, a split tone, a vignette, grain,
 chromatic aberration, a zoom blur, the letterbox, a flash and the impact frame. A world sets its base grade, and a
@@ -43,3 +43,18 @@ moment overlays its own, eased with the moment.
     - `impact` lands a blow on two inverted frames, a zoom toward the struck, a shake and a flash, and a foe going
       down greys a little;
     - `bullet` bleeds the colour, splits the channels and cools.
+- **A game's grade** (`design_game`, `control/lib/graph/gameworld/grade.js`). A gameworld's `grade` (a word, dials,
+  or `'auto'`) is laid on every level. `'auto'` takes the register's own: anime is graded `vivid`, western `film`. The
+  gameworld's juice card names it beside the tempo.
+- **The film's grade in Blender.** The actor scene's film pack carries the grade in `scene.json`, and `look.py` builds
+  it as compositor nodes, on Blender 4's scene tree or Blender 5's compositor node group. It covers the exposure, the
+  contrast, the saturation, the warmth as a colour balance, the aberration as the lens's dispersion, the vignette and
+  the bars as masks. Grain, zoom, flash and a moment's look stay the page's. A node the running Blender does not take
+  is named in its log and left out. `export-scene-blender.mjs --grade noir` sets it.
+- **The craft written down** (`docs/cinematics.md`):
+  - the moment in play: the clock, the camera and the look on one envelope; slow the world, not the camera; frame the
+    two it is about; cap the beat and cool it down; let the look carry the weight;
+  - compositing: grade the world once and the moment on top; bars for the watched beat, not for play; one impact frame
+    is enough.
+
+  The live world's manual names the cam, the look and the grade.
