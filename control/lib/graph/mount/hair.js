@@ -44,7 +44,10 @@ function onFloor(p, d, L, floor) {
 /** the hair's feel (≈): its points per strand, its damping per step, its pull toward the rest hang at the root (falling
  * to nothing at the tip), the margin it keeps off the skin, the step; the tail heavier and more damped than the mane */
 export const HAIR = Object.freeze({ points: 8, damping: { mane: 0.985, forelock: 0.985, tail: 0.97 }, follow: { mane: 0.08, forelock: 0.06, tail: 0.06 },
-  bend: { mane: 40, forelock: 30, tail: 30 }, margin: 0.006, hz: 240 });
+  bend: { mane: 40, forelock: 30, tail: 30 }, margin: 0.006, hz: 240,
+  // the tail's hair a BUNDLE, not a curtain: its locks held across the horse to their places in its half width (m: the
+  // dock's where it leaves the dock, fuller through the middle, narrowing to its end), as the hairs of a real tail lie together
+  bundle: { tail: { top: 0.055, mid: 0.1, tip: 0.03 } } });
 
 /** a bone's transform: a point (or a direction) from the stand into the pose, and back */
 const toPose = (r, p, q, isDir = false) => {
@@ -71,20 +74,25 @@ export function hairGuides(B) {
     out.push({ id: `forelock${sx}`, kind: 'forelock', bone: 'head', root: add(add(hd.head, mul(face, 0.03 * hh)), [sx * hh, 0, 0]), outward: face, dir: unit(add(mul(hdir, 0.95), mul(face, 0.05))),
       side: [1, 0, 0], len: 0.17 * hh, width: 0.04 * hh, cards: [0] });
   }
-  // THE TAIL: a bundle round the dock's top and sides, to about the hocks, the outer hairs shorter (lengths seeded)
+  // THE TAIL: locks round the dock's top and sides along its length, ROOTED ON THE DOCK (on its skin, a hand off its axis:
+  // the dock hangs against the buttocks, and a root found farther out would start on the buttocks and hang as a curtain
+  // the width of the quarters); fewer and narrower over the tail's head (its hair lying back along the dock), more round the lower dock; to about the hocks, the
+  // outer locks shorter so the end tapers (lengths seeded); each lock its own sheen, so a dark tail is not one flat mass
   const hock = bn.tibiaR.tail[2];
   let seed = 7;
   const rnd = () => { seed = (seed * 1103515245 + 12345) & 0x7fffffff; return seed / 0x7fffffff; };
-  for (const b of ['tail0', 'tail1', 'tail2', 'tail3']) {
+  const ARCS = { tail0: [-45, 0, 45], tail1: [-70, -35, 0, 35, 70], tail2: [-80, -48, -16, 16, 48, 80], tail3: [-90, -60, -30, 0, 30, 60, 90] };
+  for (const [bi, b] of ['tail0', 'tail1', 'tail2', 'tail3'].entries()) {
     // (the dock's top: d runs back and down, so its top faces back and up, cross(d, x); cross(x, d) is its underside)
     const t = bn[b], d = unit(sub(t.tail, t.head)), up = unit(cross(d, [1, 0, 0])), sideAx = [1, 0, 0];
-    for (const a of [-90, -60, -30, 0, 30, 60, 90]) {
+    const dockR = (0.0605 - 0.009 * bi) * k;                                            // (body.js: the dock's cone at its middle)
+    for (const a of ARCS[b]) {
       const th = a * Math.PI / 180, out_ = unit(add(mul(up, Math.cos(th)), mul(sideAx, Math.sin(th))));   // round the dock's top
-      const root = add(add(t.head, mul(sub(t.tail, t.head), 0.5)), mul(out_, 0.045 * k));
-      const full = Math.max(0.3, root[2] - hock * 0.85), short = 1 - 0.18 * Math.abs(a) / 90 - 0.12 * rnd();
+      const root = add(add(t.head, mul(sub(t.tail, t.head), 0.5)), mul(out_, dockR + 0.004 * k));
+      const full = Math.max(0.3, root[2] - hock * 0.85), short = 1 - 0.3 * (Math.abs(a) / 90) ** 1.5 - 0.15 * rnd();
       // (no strand long enough to sweep the ground: its tip a third of a metre clear at rest)
-      out.push({ id: `tail${b}${a}`, kind: 'tail', bone: b, root, outward: out_, dir: unit(add(d, mul(out_, 0.22))), side: unit(cross(d, out_)),
-        len: Math.min(full * short, root[2] - 0.35 * k), width: 0.05 * k, cards: [-0.3, 0.3], taper: 0.8 });
+      out.push({ id: `tail${b}${a}`, kind: 'tail', bone: b, root, outward: out_, dir: unit(add(d, mul(out_, 0.3))), side: unit(cross(d, out_)),
+        len: Math.min(full * short, root[2] - 0.35 * k), width: (bi === 0 ? 0.035 : 0.055) * k, cards: [-0.3, 0.3], cross: bi > 0, taper: 0.85, across: Math.sin(th), sheen: 0.85 + 0.45 * rnd() });
     }
   }
   // each root ON the skin: along its outward direction to the surface where it crosses near (bisection), else down the
@@ -143,7 +151,13 @@ export function simulateHair(B, frameAt, { t0 = 0, t1 = 1, fps = 60, loop = fals
   const P = guides.map((g, gi) => Array.from({ length: g.n }, (_, i) => add(g.root, mul(g.dir, seg[gi] * i))));
   const Q = P.map((st) => st.map((p) => p.slice()));
   const restHang = P.map((st) => st.map((p) => p.slice()));
+  // the bundles: each kind's guides that keep together, and each point's radius from their mean (by its share down)
+  const bundled = Object.fromEntries(Object.keys(HAIR.bundle).map((kd) => [kd, guides.flatMap((g, gi) => (g.kind === kd ? [gi] : []))]));
+  const bundleR = (kd, u) => { const R = HAIR.bundle[kd]; return k * (u < 0.55 ? R.top + (R.mid - R.top) * Math.sin(Math.PI / 2 * u / 0.55) : R.mid + (R.tip - R.mid) * ((u - 0.55) / 0.45) ** 1.5); };
   const step = (F, followOn = true) => {
+    // (each bundle's mean at each point, from where its locks stand now)
+    const centre = {};
+    for (const [kd, gis] of Object.entries(bundled)) if (gis.length) centre[kd] = Array.from({ length: HAIR.points }, (_, i) => mul(gis.reduce((a, gi) => add(a, P[gi][i]), [0, 0, 0]), 1 / gis.length));
     for (let gi = 0; gi < guides.length; gi++) {
       const g = guides[gi], r = rest[g.bone], f = F[g.bone], st = P[gi], o = Q[gi], hang = restHang[gi];
       const kf = HAIR.follow[g.kind];
@@ -153,6 +167,12 @@ export function simulateHair(B, frameAt, { t0 = 0, t1 = 1, fps = 60, loop = fals
         o[i] = st[i];
         let p = add(add(st[i], v), [0, 0, -G * h * h]);
         if (followOn) { const tgt = toPose(r, f, hang[i]), w = kf * (1 - i / g.n) ** 2; p = add(p, mul(sub(tgt, p), w)); }
+        // (a lock strayed SIDEWAYS past its bundle's half width drawn back toward the bundle's mean: across the horse only,
+        // so the bundle keeps its width from behind while its hang fore and aft is gravity's and the buttocks')
+        const C = centre[g.kind];
+        // each lock keeps its own place across it (`across`, its root's round the dock): the bundle fills out through the
+        // middle and narrows to its end as a tail's hair does, and swings as one
+        if (C && i >= 2) { const lat = toPose(r, f, [1, 0, 0], true), dl = dot(sub(p, C[i]), lat), want = (g.across ?? 0) * bundleR(g.kind, i / (g.n - 1)); p = sub(p, mul(lat, 0.25 * (dl - want))); }
         st[i] = p;
       }
       // the segments' lengths (fixed iterations, the root pinned)
@@ -227,19 +247,20 @@ export function hairCards(guides, strands, { coat = 'bay' } = {}) {
   const shade = (hex, f) => '#' + [1, 3, 5].map((i) => Math.max(0, Math.min(255, Math.round(parseInt(hex.slice(i, i + 2), 16) * f))).toString(16).padStart(2, '0')).join('');
   guides.forEach((g, gi) => {
     const s = strands[gi];
-    for (const off of g.cards) {
+    // (a crossed lock, `cross`: its cards again turned a quarter round the strand, so it has body from every side)
+    for (const [off, turned] of [...g.cards.map((o) => [o, false]), ...(g.cross ? g.cards.map((o) => [o, true]) : [])]) {
       const base = vertices.length;
       for (let i = 0; i < g.n; i++) {
         const along = unit(sub(s[Math.min(g.n - 1, i + 1)], s[Math.max(0, i - 1)]));
-        // the card's width across the strand, square to it, along the guide's side
-        const sd = unit(sub(g.side, mul(along, dot(g.side, along)))), w = g.width * (1 - (g.taper ?? 0.65) * i / (g.n - 1));
+        // the card's width across the strand, square to it, along the guide's side (or square to that, turned)
+        const sd0 = unit(sub(g.side, mul(along, dot(g.side, along)))), sd = turned ? unit(cross(along, sd0)) : sd0, w = g.width * (1 - (g.taper ?? 0.65) * i / (g.n - 1));
         const c = add(s[i], mul(sd, off * g.width));
         vertices.push(add(c, mul(sd, -w / 2)), add(c, mul(sd, w / 2)));
         at.push([gi, i], [gi, i]);                                                 // (each vertex's guide and point: a skin's)
       }
       for (let i = 0; i + 1 < g.n; i++) {
         quads.push([base + 2 * i, base + 2 * i + 1, base + 2 * i + 3, base + 2 * i + 2]);
-        colors.push(shade(C.mane, off < 0 ? 0.85 : 1)); twoSided.push(true);
+        colors.push(shade(C.mane, (off < 0 ? 0.85 : 1) * (g.sheen ?? 1))); twoSided.push(true);
       }
     }
   });

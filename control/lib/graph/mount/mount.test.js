@@ -244,10 +244,12 @@ describe('the hair', () => {
     for (const x of g.filter((y) => y.kind === 'mane')) expect(x.dir[0]).toBeGreaterThan(0);          // the off (right) side
   });
 
-  it('its cards: a two-sided ribbon of quads along every strand, a guide\'s cards side by side', () => {
+  it('its cards: a two-sided ribbon of quads along every strand, a guide\'s cards side by side (and crossed)', () => {
     const g = hairGuides(B), strands = g.map((x) => Array.from({ length: x.n }, (_, i) => [x.root[0] + x.dir[0] * x.len * i / (x.n - 1), x.root[1] + x.dir[1] * x.len * i / (x.n - 1), x.root[2] + x.dir[2] * x.len * i / (x.n - 1)]));
     const c = hairCards(g, strands);
-    expect(c.quads.length).toBe(g.reduce((s, x) => s + x.cards.length * (x.n - 1), 0));
+    // (a crossed lock, the tail's: its cards again a quarter turned)
+    expect(c.quads.length).toBe(g.reduce((s, x) => s + x.cards.length * (x.cross ? 2 : 1) * (x.n - 1), 0));
+    expect(g.some((x) => x.cross)).toBe(true);
     expect(c.twoSided.every(Boolean)).toBe(true);
   });
 });
@@ -352,4 +354,20 @@ describe('the rider\'s modes', () => {
     expect(jp.modes[apex].mode.lean).toBeCloseTo(RIDER_MODES.fold.lean, 1);
     expect(jp.modes[0].mode.lean).toBeLessThan(RIDER_MODES.fold.lean / 2);
   }, 60000);
+});
+
+// the tail a bundle, not a curtain: rooted on the dock (not out on the buttocks), and hanging from behind no wider than a
+// tail is (narrow from the dock, fuller through the middle, narrowing to its end)
+describe('the tail', () => {
+  it('is rooted on the dock and hangs as a bundle: narrow at the dock, fuller in the middle, narrowing to its end', async () => {
+    const { simulateHair, hairGuides } = await import('./hair.js'), B = resolveMount('horse'), S = standPose(B);
+    const g = hairGuides(B), tails = g.flatMap((x, i) => (x.kind === 'tail' ? [i] : []));
+    for (const i of tails) { const t = S.bones[g[i].bone], c = t.head.map((v, q) => (v + t.tail[q]) / 2); if (g[i].bone !== 'tail0') expect(Math.hypot(...g[i].root.map((v, q) => v - c[q])), g[i].id).toBeLessThan(0.12); }
+    const sim = simulateHair(B, () => S, { t0: 0, t1: 0.5, fps: 4 }), last = sim.strands[sim.strands.length - 1];
+    const widthAt = (u) => { const xs = tails.map((i) => last[i][Math.round(u * (g[i].n - 1))][0]); return Math.max(...xs) - Math.min(...xs); };
+    // (about 20 cm across from behind through its top and middle, a few at its end; the curtain it was spanned the quarters)
+    expect(widthAt(0.2)).toBeLessThan(0.25);
+    expect(widthAt(0.55)).toBeLessThan(0.25);
+    expect(widthAt(1)).toBeLessThan(0.5 * widthAt(0.55));
+  }, 120000);
 });

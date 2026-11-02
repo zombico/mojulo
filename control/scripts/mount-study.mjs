@@ -5,7 +5,7 @@
 // places) when `--png`.
 //
 //   node scripts/mount-study.mjs <outDir> [--register realistic|stylized] [--gaits walk,trot,canter,gallop,reinBack]
-//        [--lead right|left] [--view side|front] [--cols 8] [--before] [--shots] [--jump] [--idle] [--body [--cells 80] [--coat bay] [--views side,front] [--big] [--crop head]]
+//        [--lead right|left] [--view side|front] [--cols 8] [--before] [--shots] [--jump] [--idle] [--body [--cells 80] [--coat bay] [--views side,front] [--big] [--crop head|tail]]
 //        [--correctives [--cells 64]] [--tack] [--png]
 // `--shots` adds the one-shots' sheet (changes of gait, the halts, the move off); `--jump` the jump's; `--idle` the rest's.
 import path from 'node:path';
@@ -154,6 +154,15 @@ if (body) {
     const hname = `mount-head-${register}-${coat}`;
     writeFileSync(path.join(outDir, `${hname}.svg`), bodySheet(rowsH, { title: `the mount's head and neck (${cells} cells)`, cellW: 520, cellH: 520 }));
     files.push(`${hname}.svg`);
+  }
+  // a crop: the quarters and the tail alone (the quads behind the loin, above the stifle), for a close look
+  if (crop === 'tail') {
+    const keep = m.quads.map((q) => { const c = q.map((i) => m.vertices[i]).reduce((a, b) => a.map((x, i) => x + b[i] / 4), [0, 0, 0]); return c[1] < B.trunk.loin[0] - 0.05 && c[2] > B.trunk.com[1] - 0.25; });
+    const qs = m.quads.filter((_, i) => keep[i]), cs = colors.filter((_, i) => keep[i]), tailOnly = (gi) => standHair.guides[gi].kind === 'tail';
+    const rowsT = [{ label: `${register}, ${coat}: the quarters and the tail`, sub: '', cells: (views ? views.split(',') : ['back', 'side', 'rearQuarter', 'top']).map((view) => withHair({ vertices: m.vertices, quads: qs, colors: cs, view, caption: view }, standHair.guides.filter((_, gi) => tailOnly(gi)), restHairAt.filter((_, gi) => tailOnly(gi)))) }];
+    const tname = `mount-tail-${register}-${coat}`;
+    writeFileSync(path.join(outDir, `${tname}.svg`), bodySheet(rowsT, { title: `the mount's quarters and tail (${cells} cells)`, cellW: 520, cellH: 620 }));
+    files.push(`${tname}.svg`);
   }
   const rows = [{ label: `${register}, ${coat}`, sub: `${m.stats.triangles} triangles · ${m.stats.vertices} vertices · open edges ${m.stats.open} · non-manifold ${m.stats.nonManifold} · hair: ${standHair.guides.length} guides`, cells: (views ? views.split(',') : BODY_VIEWS).map((view) => withHair(withTack({ vertices: m.vertices, quads: m.quads, colors, view, caption: view }), standHair.guides, restHairAt)) }];
   // the coats: each card on the same body

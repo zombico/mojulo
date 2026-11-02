@@ -81,7 +81,9 @@ export const NECK_SHAPE = Object.freeze({ arch: 0.045, base: 0.15, throat: 0.08,
 
 // (the neck its own set, tighter than the trunk's: a wide blend over its overlapping masses swelled it by a hand on every
 // side; joined to the trunk by a blend wider than either, so it still flows into the withers and the breast)
-export const BLEND = Object.freeze({ trunk: 0.05, neck: 0.025, neckJoin: 0.06, head: 0.007, leg: 0.016, join: 0.03, detail: 0.012 });
+// (the dock the same: its own tight set, joined to the quarters by a narrower blend, so it hangs as a dock and the tail's
+// hair grows from it, not from the buttocks the trunk's blend swelled it into)
+export const BLEND = Object.freeze({ trunk: 0.05, neck: 0.025, neckJoin: 0.06, dock: 0.012, dockJoin: 0.025, head: 0.007, leg: 0.016, join: 0.03, detail: 0.012 });
 
 /** an egg: centre c, axes (unit rows u, v, w), radii along them */
 const egg = (c, u, v, r, extra) => { const w = cross(u, v); return { kind: 'egg', c, ax: [u, v, w], r, R: Math.max(...r), ...extra }; };
@@ -219,7 +221,7 @@ export function bodyPrims(B, { hair = true } = {}) {
   }
 
   // THE TAIL: the dock
-  for (let i = 0; i < 4; i++) { const t = bn[`tail${i}`]; put(cone(t.head, t.tail, (0.065 - 0.009 * i) * k, (0.056 - 0.009 * i) * k, trunk(`tail${i}`))); }
+  for (let i = 0; i < 4; i++) { const t = bn[`tail${i}`]; put(cone(t.head, t.tail, (0.065 - 0.009 * i) * k, (0.056 - 0.009 * i) * k, { ...trunk(`tail${i}`), set: 'dock' })); }
   // (the tail's hair is cards, hair.js; without them a stand-in mass)
   if (!hair) {
     put(cone(bn.tail1.head, bn.tailHair.tail, 0.04 * k, 0.03 * k, detail('tailHair', 'tail')));
@@ -240,7 +242,7 @@ export function bodyField(B, { register, only } = {}) {
   // `only` (a test on a mass): the field of those masses alone, blended the same way (a local field, for a strand)
   const all = bodyPrims(B), stand = all.stand, nostrils = only ? [] : all.nostrils, prims = only ? all.prims.filter(only) : all.prims;
   const soft = (register ?? B.register) === 'stylized' ? 1.6 : 1;
-  const k = B.scale, kN = BLEND.neck * k * soft, kNJ = BLEND.neckJoin * k * soft, kT = BLEND.trunk * k * soft, kH = BLEND.head * k * Math.sqrt(soft), kL = BLEND.leg * k * Math.sqrt(soft), kJ = BLEND.join * k * soft, kD = BLEND.detail * k;
+  const k = B.scale, kN = BLEND.neck * k * soft, kNJ = BLEND.neckJoin * k * soft, kDk = BLEND.dock * k * soft, kDJ = BLEND.dockJoin * k * soft, kT = BLEND.trunk * k * soft, kH = BLEND.head * k * Math.sqrt(soft), kL = BLEND.leg * k * Math.sqrt(soft), kJ = BLEND.join * k * soft, kD = BLEND.detail * k;
   const sets = [...new Set(prims.map((q) => q.set))];
   const distances = (p) => prims.map((q) => {
     // far from a mass its distance is bounded below by the distance to its bounding sphere: enough for the blend
@@ -252,8 +254,8 @@ export function bodyField(B, { register, only } = {}) {
   const compose = (ds, pn) => {
     const bySet = (set, kk) => softMin(prims.flatMap((q, i) => (q.set === set ? [ds[i]] : [])), kk);
     const legs = sets.filter((s2) => /^[RL][FH]$/.test(s2)).map((s2) => bySet(s2, kL));
-    const tn = [bySet('trunk', kT), bySet('neck', kN)].filter((x) => Number.isFinite(x));
-    const groups = [tn.length ? softMin(tn, kNJ) : Infinity, bySet('head', kH), ...legs].filter((x) => Number.isFinite(x));
+    const tn = [bySet('trunk', kT), bySet('neck', kN)].filter((x) => Number.isFinite(x)), tnd = [tn.length ? softMin(tn, kNJ) : Infinity, bySet('dock', kDk)].filter((x) => Number.isFinite(x));
+    const groups = [tnd.length ? softMin(tnd, kDJ) : Infinity, bySet('head', kH), ...legs].filter((x) => Number.isFinite(x));
     let d = groups.length ? softMin(groups, kJ) : Infinity;
     const det = prims.flatMap((q, i) => (q.set === 'detail' ? [ds[i]] : []));
     if (det.length) d = softMin([d, ...det].filter((x) => Number.isFinite(x)), kD);
