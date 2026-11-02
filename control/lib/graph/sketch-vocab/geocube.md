@@ -18,6 +18,9 @@ and routes are as they were. A geocity's buildings and every street's furniture 
 `plumb`) advise. `front: { chunk, sign, tilt, stripes, scallop, stickers, splats, pop, skew, step }` (the `street` hand's
 own) draws a geotown's shops LOUD: fat frames, a big askew sign, striped scalloped awnings, posters and ink, each shop
 its own wall hue and false front; no window square (`skew`), no two neighbours one height (`step`, law `rooflines`).
+`streets: { slabs, skew, kerb, splats, paint, pop, vary }` (the `street` hand's own) draws its walks, roads and furniture
+loud by the same principles: skewed pastel slabs, candy kerbs, ink, fat lines, each piece its own ink, lamps of
+alternating height. The plan never moves.
 
 ## The ingredients
 

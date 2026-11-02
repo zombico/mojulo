@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
- * SPIKE: ONE SHOP under the cube's exaggerate.front (geotown/front-loud.js) — a main street's shop square on, at three
- * quarters and down its row: one row plumb, one a hand (a name, or JSON terms), the same shop from the same places.
+ * SPIKE: ONE SHOP under the cube's exaggerate.front and .streets (geotown/front-loud.js, street-loud.js) — a main
+ * street's shop square on, at three quarters, down its row, and its street from over the walk: one row plumb, one a hand (a name, or JSON terms), the same shop from the same places.
  *
  *   cd control && node scripts/spikes/geotown/loud-front.mjs <out-dir> [hand …]   (default: a front of street's only)
  *     → <out-dir>/loud-front.png and .html
@@ -46,7 +46,7 @@ try {
       const h = shops[Math.min(SHOP, shops.length - 1)], N = h.N, T = [-N[1], N[0]];
       const at = (n, t, z) => [h.at[0] + N[0] * n + T[0] * t, h.at[1] + N[1] * n + T[1] * t, h.floor + z].map(r3);
       const cam = (name, from, to, fov) => ({ name, worldFraming: { cameraPosition: from, lookAt: to, horizontalFov: fov } });
-      cams = [cam('square on', at(8.5, 1.6, 2.4), at(0, 1.6, 3.2), 62), cam('three quarters', at(6.5, -6, 1.8), at(0, 1, 3), 64), cam('down the row', at(3.2, 9, 1.7), at(0.5, -12, 3), 70), cam('its crown', at(9, -3, 3), [h.at[0], h.at[1], h.box.max[2] - 1.5].map(r3), 60)];
+      cams = [cam('square on', at(8.5, 1.6, 2.4), at(0, 1.6, 3.2), 62), cam('three quarters', at(6.5, -6, 1.8), at(0, 1, 3), 64), cam('down the row', at(3.2, 9, 1.7), at(0.5, -12, 3), 70), cam('the street', at(3, 6, 5.5), at(14, -16, 0), 74)];
     }
     const cells = [];
     for (const c of cams) cells.push({ cap: c.name, src: await shoot(P, c) });

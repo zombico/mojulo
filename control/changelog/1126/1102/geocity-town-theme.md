@@ -25,6 +25,12 @@
   warped with it, the shop's glazing and its storeys' lights alike; `speak`'s `skew`) and **no two connected buildings
   one height** (`step`: the false front raised until it stands that far from its neighbour; the `rooflines` law). The
   door and the plan stay where they were.
+- **A loud street** (`exaggerate.streets`, `geotown/street-loud.js`; the `street` hand carries one), by the shops'
+  principles over a plan that never moves: the walks laid in big pastel slabs over their own ground, cut on skewed lines
+  (their ends too: no slab square), each a tint other than its neighbour's, set in a grout of the walk; the kerbs in
+  candy stripes a metre long; the roads splashed with ink; the lines fat (`paint`) and the yellow pushed; a crossing's
+  bars parallelograms; each hydrant, bin, post box, shelter and seat its own ink, never the last of its kind's; and
+  no two neighbouring streetlights one height (`vary`, their wires strung to each pole's own top).
 - **The language caricatured** (`elements`, 0 to 1; `exaggerateAnchor`, not yet worn by a town): every building
   element's number pushed away from the middle of its rail, inside the rail; doors and a household's rhythm kept.
 - **The style guide** draws the cube's exaggerate as a card.

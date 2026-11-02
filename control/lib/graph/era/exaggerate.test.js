@@ -177,6 +177,9 @@ describe('the loud front\'s principles: no window square, no two neighbours one 
     expect(readExaggerate('crooked').front).toBeUndefined();
     expect(() => readExaggerate({ front: { skew: 0.9 } })).toThrow(/front\.skew is a number from 0 to 0\.3/);
     expect(() => readExaggerate({ front: { stripes: 2 } })).toThrow(/stripes is 0 \(none\) or 3 to 16/);
+    expect(readExaggerate('street').streets).toMatchObject(EXAGGERATE_PRESETS.street.streets);
+    expect(readExaggerate({ from: 'street', streets: false }).streets).toBeUndefined();
+    expect(() => readExaggerate({ streets: { paint: 9 } })).toThrow(/streets\.paint is a number from 1 to 3/);
   });
 
   it('turns every window at least three corners off square, drawn inward, the same from the same seed', () => {

@@ -46,7 +46,8 @@ import { structureStyle, hasStructureRails } from '../era/out-structures.js';
 import { structurePaint, paintStop } from '../era/out-structures-paint.js';
 import { madeRamp } from '../era/style/swatches.js';
 import { townDressOf, dressTownFace, leanHue } from '../era/town-dress.js';
-import { LOUD_WALLS, CROWN_FORMS } from './front-loud.js';
+import { LOUD_WALLS, CROWN_FORMS, popHex } from './front-loud.js';
+import { slabsOf, groundSplat, inkPicker } from './street-loud.js';
 import { styleTownDress, styleReadout } from '../era/arch-style.js';
 import { plantPool, plantRepeats } from '../vegetation/pool.js';
 import { treeSizes } from '../form/flora-read.js';
@@ -237,6 +238,8 @@ export function assembleGeotownScene(m, ctx = {}) {
   const col = coloursOf(cube), faces = [], colliders = [], anchors = [], finish = finishesOf(P, cube);
   // (the cube's exaggerate, era/exaggerate.js: the street's furniture chunked and leant on the walk under it)
   const EX = cube.exaggerate ?? null, kitBends = [];
+  // (a loud street, the cube's exaggerate.streets: geotown/street-loud.js; its own dice)
+  const ST = EX?.streets ?? null, Rs = streamOf(seed, 'loud-street', 'town'), ink = ST ? inkPicker(Rs, ST.pop) : null;
   // a face, wound to `want` (else up), shaded by the cube's light, its ground's finish laid where it has one (a floor's
   // on a face that lies flat)
   const put = (corners, group, hex, want = null) => {
@@ -257,12 +260,23 @@ export function assembleGeotownScene(m, ctx = {}) {
       const q = [[xs[i], ys[j]], [xs[i + 1], ys[j]], [xs[i + 1], ys[j + 1]], [xs[i], ys[j + 1]]];
       put(q.map(([x, y]) => [x, y, S(x, y) + lift]), `geotown:${p.cls}`, hex);
     }
+    // (a loud walk laid in skewed slabs, each its own tint; a loud road splashed with ink)
+    if (ST && ST.slabs > 0 && p.cls === 'walk' && along) for (const sl of slabsOf(p.rect, along, (x, y) => S(x, y) + lift, { skew: ST.skew, pop: ST.slabs }, col.walk, Rs)) put(sl.corners, 'geotown:slab', sl.hex);
+    if (ST && ST.splats > 0 && p.cls === 'road') {
+      const area = (x1 - x0) * (y1 - y0), n = Math.floor(ST.splats * area / 140 + Rs());
+      for (let k = 0; k < n; k++) { const r = 0.5 + 0.8 * Rs(), px = x0 + r + Rs() * Math.max(0, x1 - x0 - 2 * r), py = y0 + r + Rs() * Math.max(0, y1 - y0 - 2 * r); for (const f of groundSplat(px, py, r, S, popHex(ink('splat'), ST.pop), Rs)) put(f.corners, 'geotown:decal', f.hex); }
+    }
     // the kerb's face along each road edge a walk or a verge stands on, toward the road
     for (const side of p.kerbs ?? []) {
       const ax = side.endsWith('x'), at = side.startsWith('-') ? (ax ? x0 : y0) : (ax ? x1 : y1), into = side.startsWith('-') ? 1 : -1, run = ax ? ys : xs;
       for (let k = 0; k + 1 < run.length; k++) {
         const a = ax ? [at, run[k]] : [run[k], at], b = ax ? [at, run[k + 1]] : [run[k + 1], at];
-        put([[...a, S(...a)], [...b, S(...b)], [...b, S(...b) + row.kerb], [...a, S(...a) + row.kerb]], 'geotown:kerb', col.kerb, ax ? [into, 0, 0] : [0, into, 0]);
+        // (a loud kerb in candy stripes of a metre, ink and paper in turn)
+        const m = ST?.kerb ? Math.max(1, Math.round(Math.hypot(b[0] - a[0], b[1] - a[1]))) : 1;
+        for (let j = 0; j < m; j++) {
+          const A = [a[0] + ((b[0] - a[0]) * j) / m, a[1] + ((b[1] - a[1]) * j) / m], B = [a[0] + ((b[0] - a[0]) * (j + 1)) / m, a[1] + ((b[1] - a[1]) * (j + 1)) / m];
+          put([[...A, S(...A)], [...B, S(...B)], [...B, S(...B) + row.kerb], [...A, S(...A) + row.kerb]], 'geotown:kerb', ST?.kerb ? ((Math.round(A[0] + A[1]) & 1) ? '#f7f3ea' : popHex('#e8344a', ST.pop)) : col.kerb, ax ? [into, 0, 0] : [0, into, 0]);
+        }
       }
     }
   }
@@ -597,10 +611,12 @@ export function assembleGeotownScene(m, ctx = {}) {
     const at = (s, o) => (ns ? [c + o, s] : [s, c + o]), tw = (Sc.lanes * Sc.lane) / 2;
     // (a strip from s0 to s1 along it, o0 to o1 across, in lengths of a cell)
     const strip = (s0, s1, o0, o1, group, hex, lift = 0.03) => { for (let s = s0; s < s1 - 1e-6; s += CELL) { const e = Math.min(s1, s + CELL), q = [at(s, o0), at(e, o0), at(e, o1), at(s, o1)]; put(q.map(([x, y]) => [x, y, S(x, y) + lift]), group, hex); } };
-    const solid = (o, w, hex) => strip(a0 + 0.5, a1 - 0.5, o - w / 2, o + w / 2, 'geotown:paint', hex);
-    const dashed = (o, w, hex, dash = 3, gap = 4.5) => { for (let s = a0 + 1; s + dash <= a1 - 1; s += dash + gap) strip(s, s + dash, o - w / 2, o + w / 2, 'geotown:paint', hex); };
-    if (Sc.lanes <= 2) dashed(0, 0.12, col.yellow);
-    else { solid(-0.1, 0.1, col.yellow); solid(0.1, 0.1, col.yellow); for (let i = 1; i < Sc.lanes / 2; i++) for (const sg of [-1, 1]) dashed(sg * i * Sc.lane, 0.12, col.line); }
+    // (a loud street's lines fat and its yellow pushed: exaggerate.streets.paint, .pop)
+    const PW = ST ? ST.paint : 1, YL = ST ? popHex(col.yellow, ST.pop) : col.yellow;
+    const solid = (o, w, hex) => strip(a0 + 0.5, a1 - 0.5, o - (w * PW) / 2, o + (w * PW) / 2, 'geotown:paint', hex);
+    const dashed = (o, w0, hex, dash = 3, gap = 4.5) => { const w = w0 * PW;  for (let s = a0 + 1; s + dash <= a1 - 1; s += dash + gap) strip(s, s + dash, o - w / 2, o + w / 2, 'geotown:paint', hex); };
+    if (Sc.lanes <= 2) dashed(0, 0.12, YL);
+    else { solid(-0.1 * PW, 0.1, YL); solid(0.1 * PW, 0.1, YL); for (let i = 1; i < Sc.lanes / 2; i++) for (const sg of [-1, 1]) dashed(sg * i * Sc.lane, 0.12, col.line); }
     for (const sg of [-1, 1]) {
       solid(sg * tw, 0.1, col.line);
       if (Sc.bike > 0) {
@@ -619,17 +635,19 @@ export function assembleGeotownScene(m, ctx = {}) {
   // at a signal, two lines at a stop), its stop lines, a stop sign on each stopped approach's right, a signal at each
   // corner facing its approach (a mast arm over a main or major street's road) ──
   // (a piece of it chunked by the cube's exaggerate: its thin dimensions thickened; leant with the rest below)
-  const fx = (fs) => { for (const f of EX ? chunkFaces(fs, EX.kit.chunk) : fs) put(f.corners, `geotown:${f.role}`, col[f.role] ?? col.metal, f.out); };
+  const fx = (fs, hex = null) => { for (const f of EX ? chunkFaces(fs, EX.kit.chunk) : fs) put(f.corners, `geotown:${f.role}`, hex ?? col[f.role] ?? col.metal, f.out); };
   const kitFrom = faces.length;
   // (a local street's lamp on a wooden hydro pole: the pole to its crossarm, the crossarm across the street's line, its
   // lamp's arm out over the road; three wires on from each crossarm to the next pole's along the walk, sagging between)
   const hydro = new Map();
+  let li = 0;
   for (const Lt of d.traffic?.lights ?? []) {
     const [x, y] = Lt.at, z = wk(x, y), [tx, ty] = Lt.toward, ax = x + tx * 1.9, ay = y + ty * 1.9, hl = tx ? [0.4, 0.17] : [0.17, 0.4], wood = Lt.kind === 'hydro';
-    const top = wood ? HYDRO.h : Lt.h;
+    // (a loud street's lamps never one height beside the next: each a step up or down by exaggerate.streets.vary)
+    const dh = ST?.vary ? ((li++ % 2 ? 1 : -1) * ST.vary * (0.6 + 0.4 * Rs())) / 2 : 0, Lh = Lt.h + dh, top = wood ? HYDRO.h + dh : Lh;
     fx(box(x - (wood ? 0.13 : 0.08), y - (wood ? 0.13 : 0.08), x + (wood ? 0.13 : 0.08), y + (wood ? 0.13 : 0.08), z, z + top, wood ? 'hydro' : 'pole'));
-    fx(box(Math.min(x, ax) - 0.05, Math.min(y, ay) - 0.05, Math.max(x, ax) + 0.05, Math.max(y, ay) + 0.05, z + Lt.h - 0.12, z + Lt.h, 'pole'));
-    fx(box(ax - hl[0], ay - hl[1], ax + hl[0], ay + hl[1], z + Lt.h - 0.3, z + Lt.h - 0.1, 'lamp'));
+    fx(box(Math.min(x, ax) - 0.05, Math.min(y, ay) - 0.05, Math.max(x, ax) + 0.05, Math.max(y, ay) + 0.05, z + Lh - 0.12, z + Lh, 'pole'));
+    fx(box(ax - hl[0], ay - hl[1], ax + hl[0], ay + hl[1], z + Lh - 0.3, z + Lh - 0.1, 'lamp'));
     if (wood) {
       const c = HYDRO.arm / 2;
       fx(box(x - (tx ? c : 0.06), y - (ty ? c : 0.06), x + (tx ? c : 0.06), y + (ty ? c : 0.06), z + top - 0.5, z + top - 0.38, 'hydro'));
@@ -657,12 +675,12 @@ export function assembleGeotownScene(m, ctx = {}) {
     fx(box(x - 0.02, y - 0.45, x + 0.02, y + 0.45, z + 2.78, z + 2.98, 'blade'));
   }
   for (const H of T9.hydrants ?? []) {
-    const [x, y] = H.at, z = wk(x, y);
-    fx(box(x - 0.13, y - 0.13, x + 0.13, y + 0.13, z, z + 0.62, 'hydrant'));
+    const [x, y] = H.at, z = wk(x, y), h = ink ? ink('hydrant') : null;
+    fx(box(x - 0.13, y - 0.13, x + 0.13, y + 0.13, z, z + 0.62, 'hydrant'), h);
     fx(box(x - 0.1, y - 0.1, x + 0.1, y + 0.1, z + 0.62, z + 0.76, 'yellow'));
-    fx(box(x - (H.toward[0] ? 0.2 : 0.05), y - (H.toward[1] ? 0.2 : 0.05), x + (H.toward[0] ? 0.2 : 0.05), y + (H.toward[1] ? 0.2 : 0.05), z + 0.38, z + 0.48, 'hydrant'));
+    fx(box(x - (H.toward[0] ? 0.2 : 0.05), y - (H.toward[1] ? 0.2 : 0.05), x + (H.toward[0] ? 0.2 : 0.05), y + (H.toward[1] ? 0.2 : 0.05), z + 0.38, z + 0.48, 'hydrant'), h);
   }
-  for (const Bn of T9.bins ?? []) { const [x, y] = Bn.at, z = wk(x, y); fx(box(x - 0.28, y - 0.28, x + 0.28, y + 0.28, z, z + 0.95, 'streetbin')); fx(box(x - 0.3, y - 0.3, x + 0.3, y + 0.3, z + 0.95, z + 1.02, 'pole')); }
+  for (const Bn of T9.bins ?? []) { const [x, y] = Bn.at, z = wk(x, y), h = ink ? ink('bin') : null; fx(box(x - 0.28, y - 0.28, x + 0.28, y + 0.28, z, z + 0.95, 'streetbin'), h); fx(box(x - 0.3, y - 0.3, x + 0.3, y + 0.3, z + 0.95, z + 1.02, 'pole')); }
   for (const Rg of T9.rings ?? []) {
     // (the city's post and ring: a post, a ring round it across the walk's line)
     const [x, y] = Rg.at, z = wk(x, y), al = Rg.along === 'x';
@@ -670,16 +688,16 @@ export function assembleGeotownScene(m, ctx = {}) {
     const R = 0.24, n = 8, ring = Array.from({ length: n + 1 }, (_, i) => [R * Math.cos((2 * Math.PI * i) / n), z + 0.72 + R * Math.sin((2 * Math.PI * i) / n)]);
     for (let i = 0; i < n; i++) { const [a, za] = ring[i], [b, zb] = ring[i + 1]; put(al ? [[x + a, y, za], [x + b, y, zb], [x + b, y, zb + 0.04], [x + a, y, za + 0.04]] : [[x, y + a, za], [x, y + b, zb], [x, y + b, zb + 0.04], [x, y + a, za + 0.04]], 'geotown:steel', col.steel, al ? [0, 1, 0] : [1, 0, 0]); }
   }
-  for (const Pb of T9.posts ?? []) { const [x, y] = Pb.at, z = wk(x, y); fx(box(x - 0.26, y - 0.24, x + 0.26, y + 0.24, z, z + 1.15, 'postbox')); fx(box(x - 0.28, y - 0.26, x + 0.28, y + 0.26, z + 1.15, z + 1.22, 'postbox')); }
+  for (const Pb of T9.posts ?? []) { const [x, y] = Pb.at, z = wk(x, y), h = ink ? ink('post') : null; fx(box(x - 0.26, y - 0.24, x + 0.26, y + 0.24, z, z + 1.15, 'postbox'), h); fx(box(x - 0.28, y - 0.26, x + 0.28, y + 0.26, z + 1.15, z + 1.22, 'postbox'), h); }
   for (const Sh of T9.shelters ?? []) {
     // (a bus shelter on the walk, its glass back to the houses and its sides, its roof, its bench, a stop's post by it)
-    const [x, y] = Sh.at, z = wk(x, y), al = Sh.along === 'x', L = 1.9, Dp = 0.7, [bx, by] = Sh.toward, back = al ? y - by * Dp : x - bx * Dp;
+    const [x, y] = Sh.at, z = wk(x, y), h = ink ? ink('shelter') : null, hs = ink ? ink('seat') : null, al = Sh.along === 'x', L = 1.9, Dp = 0.7, [bx, by] = Sh.toward, back = al ? y - by * Dp : x - bx * Dp;
     const rect = al ? [x - L, Math.min(y - by * Dp, y + by * Dp), x + L, Math.max(y - by * Dp, y + by * Dp)] : [Math.min(x - bx * Dp, x + bx * Dp), y - L, Math.max(x - bx * Dp, x + bx * Dp), y + L];
-    for (const [px, py] of [[rect[0], rect[1]], [rect[2], rect[1]], [rect[2], rect[3]], [rect[0], rect[3]]]) fx(box(px - 0.04, py - 0.04, px + 0.04, py + 0.04, z, z + 2.4, 'shelter'));
-    fx(box(rect[0] - 0.1, rect[1] - 0.1, rect[2] + 0.1, rect[3] + 0.1, z + 2.4, z + 2.5, 'shelter'));
+    for (const [px, py] of [[rect[0], rect[1]], [rect[2], rect[1]], [rect[2], rect[3]], [rect[0], rect[3]]]) fx(box(px - 0.04, py - 0.04, px + 0.04, py + 0.04, z, z + 2.4, 'shelter'), h);
+    fx(box(rect[0] - 0.1, rect[1] - 0.1, rect[2] + 0.1, rect[3] + 0.1, z + 2.4, z + 2.5, 'shelter'), h);
     put(al ? [[rect[0], back, z + 0.1], [rect[2], back, z + 0.1], [rect[2], back, z + 2.3], [rect[0], back, z + 2.3]] : [[back, rect[1], z + 0.1], [back, rect[3], z + 0.1], [back, rect[3], z + 2.3], [back, rect[1], z + 2.3]], 'geotown:glass', col.glass, al ? [0, by, 0] : [bx, 0, 0]);
     for (const e of al ? [rect[0], rect[2]] : [rect[1], rect[3]]) put(al ? [[e, rect[1], z + 0.1], [e, rect[3], z + 0.1], [e, rect[3], z + 2.3], [e, rect[1], z + 2.3]] : [[rect[0], e, z + 0.1], [rect[2], e, z + 0.1], [rect[2], e, z + 2.3], [rect[0], e, z + 2.3]], 'geotown:glass', col.glass, al ? [1, 0, 0] : [0, 1, 0]);
-    fx(al ? box(rect[0] + 0.3, Math.min(back, back + by * 0.45), rect[2] - 0.3, Math.max(back, back + by * 0.45), z + 0.42, z + 0.48, 'seat') : box(Math.min(back, back + bx * 0.45), rect[1] + 0.3, Math.max(back, back + bx * 0.45), rect[3] - 0.3, z + 0.42, z + 0.48, 'seat'));
+    fx(al ? box(rect[0] + 0.3, Math.min(back, back + by * 0.45), rect[2] - 0.3, Math.max(back, back + by * 0.45), z + 0.42, z + 0.48, 'seat') : box(Math.min(back, back + bx * 0.45), rect[1] + 0.3, Math.max(back, back + bx * 0.45), rect[3] - 0.3, z + 0.42, z + 0.48, 'seat'), hs);
   }
   for (const Xc of d.traffic?.crossings ?? []) {
     if (Xc.control === 'none') continue;
@@ -689,7 +707,8 @@ export function assembleGeotownScene(m, ctx = {}) {
       const out = { n: [0, 1], s: [0, -1], e: [1, 0], w: [-1, 0] }[a], lat = [-out[1], out[0]], ns = a === 'n' || a === 's';
       const Rr = ns ? Sx.R : Sy.R, Rb = ns ? Sy.R : Sx.R, arm = (ns ? Sy.half : Sx.half) - Rb, cw = Math.min(3, arm - 0.6), big = (ns ? Sx : Sy).rank !== 'street';
       const Pt = (t, s) => [cx + out[0] * t + lat[0] * s, cy + out[1] * t + lat[1] * s];
-      const paint = (t0, t1, s0, s1) => put([Pt(t0, s0), Pt(t1, s0), Pt(t1, s1), Pt(t0, s1)].map(([x, y]) => [x, y, S(x, y) + 0.025]), 'geotown:line', col.line);
+      // (a loud street's bars skewed: each a parallelogram, its far end slid along the arm)
+      const k9 = ST ? ST.skew * 1.6 : 0, paint = (t0, t1, s0, s1) => { const k = k9 * (s1 - s0); put([Pt(t0, s0), Pt(t1, s0), Pt(t1 + k, s1), Pt(t0 + k, s1)].map(([x, y]) => [x, y, S(x, y) + 0.025]), 'geotown:line', col.line); };
       const stop = Xc.stopped.includes(a), sig = Xc.control === 'signal';
       if (cw >= 1.2 && sig) for (let s = -Rr + 0.3; s + 0.5 <= Rr - 0.2; s += 1) paint(Rb + 0.3, Rb + 0.3 + cw, s, s + 0.5);
       else if (cw >= 1.2 && stop) { paint(Rb + 0.3, Rb + 0.45, -Rr, Rr); paint(Rb + 0.15 + cw, Rb + 0.3 + cw, -Rr, Rr); }

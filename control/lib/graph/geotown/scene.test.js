@@ -305,4 +305,15 @@ describe('a main street\'s shops drawn loud (the cube\'s exaggerate.front, geoto
     expect(A.geotown.laws.find((l) => l.law === 'rooflines')).toBeUndefined();
     expect(X.faces.some((f) => f.group === 'geotown:decal')).toBe(true);
   });
+  it('lays its walks in slabs none of them square, its kerbs in stripes; the plain town none', () => {
+    const slabs = X.faces.filter((f) => f.group === 'geotown:slab');
+    expect(slabs.length).toBeGreaterThan(20);
+    for (const f of slabs) expect(angles(f.corners).filter((a) => Math.abs(a - 90) > 3).length).toBeGreaterThanOrEqual(3);
+    expect(A.faces.some((f) => f.group === 'geotown:slab')).toBe(false);
+    const kerbs = (S) => new Set(S.faces.filter((f) => f.group === 'geotown:kerb').map((f) => f.fill)).size;
+    expect(kerbs(X)).toBeGreaterThan(kerbs(A));
+    // (the walk under them, the road and the kerbs' lines where the plan put them)
+    const ground = (S) => JSON.stringify(S.faces.filter((f) => f.group === 'geotown:walk' || f.group === 'geotown:road').map((f) => f.corners));
+    expect(ground(X)).toBe(ground(A));
+  });
 });
