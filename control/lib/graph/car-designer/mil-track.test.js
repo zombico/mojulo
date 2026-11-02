@@ -1,0 +1,89 @@
+// The field's running gear: a track of links evenly pitched and closed round its path, the path flat on the ground
+// under the road wheels and over them on the top run, resting on the rollers and sagging between; the wheels on it,
+// their guide horns between their tyres; what turns apart from what stands still; every face a material, the same
+// twice, within its budget. One running gear, built in the test at a light tank's proportions.
+import { describe, it, expect } from 'vitest';
+import { runningGear, trackPath, pinsAlong, TRACK_DEPTH } from './mil-track.js';
+
+const GEAR = {
+  x: 1.12, width: 0.4, hullX: 0.82,
+  sprocket: { y: -2.45, z: 0.62, r: 0.3 }, idler: { y: 2.55, z: 0.52, r: 0.27 },
+  wheels: [1.85, 0.95, 0.05, -0.85, -1.75].map((y) => ({ y, r: 0.32 })),
+  rollers: [{ y: 1.4, z: 0.8, r: 0.08 }, { y: 0, z: 0.8, r: 0.08 }, { y: -1.35, z: 0.8, r: 0.08 }],
+};
+const right = runningGear({ side: 1, ...GEAR }), left = runningGear({ side: -1, ...GEAR });
+const tris = (fs) => fs.reduce((s, f) => s + f.corners.length - 2, 0);
+const all = (g) => [...g.faces, ...g.spinners.flatMap((s) => s.faces)];
+const area2 = (P) => P.reduce((s, p, i) => { const q = P[(i + 1) % P.length]; return s + p[0] * q[1] - q[0] * p[1]; }, 0) / 2;
+
+describe('the track\'s path', () => {
+  it('a closed loop turning anticlockwise, flat on the ground under the road wheels', () => {
+    expect(area2(right.path)).toBeGreaterThan(0);
+    const ground = right.path.filter((p) => p[1] < TRACK_DEPTH + 1e-6);
+    expect(Math.min(...right.path.map((p) => p[1]))).toBeCloseTo(TRACK_DEPTH, 6);
+    const ys = ground.map((p) => p[0]);
+    expect(Math.min(...ys)).toBeLessThanOrEqual(GEAR.wheels.at(-1).y + 1e-6);
+    expect(Math.max(...ys)).toBeGreaterThanOrEqual(GEAR.wheels[0].y - 1e-6);
+  });
+  it('over the top it rests on each roller and sags between them, clear of every road wheel', () => {
+    const top = right.path.filter((p) => p[0] > GEAR.sprocket.y && p[0] < GEAR.idler.y && p[1] > 0.6);
+    for (const c of GEAR.rollers) {
+      const at = top.find((p) => Math.abs(p[0] - c.y) < 1e-6);
+      expect(at?.[1], `roller at ${c.y}`).toBeCloseTo(c.z + c.r, 6);
+    }
+    const between = top.filter((p) => p[0] > GEAR.rollers[1].y && p[0] < GEAR.rollers[0].y);
+    expect(Math.min(...between.map((p) => p[1]))).toBeLessThan(GEAR.rollers[0].z + GEAR.rollers[0].r - 0.005);
+    const wheelTop = Math.max(...GEAR.wheels.map((w) => w.r + TRACK_DEPTH + w.r));
+    expect(Math.min(...top.map((p) => p[1]))).toBeGreaterThan(wheelTop);
+  });
+  it('without rollers it runs straight over from the idler to the sprocket', () => {
+    const P = trackPath({ ...GEAR, wheels: GEAR.wheels.map((w) => ({ ...w, z: w.r + TRACK_DEPTH })), rollers: [], sag: 0 });
+    expect(area2(P)).toBeGreaterThan(0);
+  });
+});
+
+describe('the links', () => {
+  it('pinned evenly round the path and closed: every chord one length, near the pitch asked', () => {
+    const d = right.pins.map((p, i) => { const q = right.pins[(i + 1) % right.pins.length]; return Math.hypot(q[0] - p[0], q[1] - p[1]); });
+    expect(Math.max(...d) / Math.min(...d)).toBeLessThan(1.03);
+    expect(Math.abs(d.reduce((a, b) => a + b, 0) / d.length - 0.15)).toBeLessThan(0.01);
+    expect(pinsAlong([[0, 0], [1, 0], [1, 1], [0, 1]], 0.25)).toHaveLength(16);
+  });
+  it('each a shoe, its grouser on the ground and its guide horn in, between the road wheels\' tyres', () => {
+    const shoes = right.faces.filter((f) => f.part === 'track.shoe');
+    expect(Math.min(...shoes.flatMap((f) => f.corners.map((c) => c[2])))).toBeCloseTo(0, 3);
+    // (the horns rise inward from the ground run within the gap the dual tyres leave)
+    const horns = shoes.filter((f) => f.corners.every((c) => Math.abs(c[0] - GEAR.x) < 0.022 + 1e-6) && f.corners.some((c) => c[2] > TRACK_DEPTH + 0.05) && f.corners.every((c) => c[2] < 0.3));
+    expect(horns.length).toBeGreaterThan(0);
+    const tyres = right.spinners.filter((s) => s.kind === 'road').flatMap((s) => s.faces.filter((f) => f.material === 'rubber'));
+    for (const f of tyres) for (const c of f.corners) expect(Math.abs(c[0] - GEAR.x)).toBeGreaterThan(0.03);
+  });
+});
+
+describe('what turns and what stands', () => {
+  it('each road wheel, the sprocket, the idler and each roller a spinner on its hub, its radius its own', () => {
+    expect(right.spinners.map((s) => s.kind)).toEqual([...GEAR.wheels.map(() => 'road'), 'sprocket', 'idler', ...GEAR.rollers.map(() => 'roller')]);
+    expect(new Set(right.spinners.map((s) => s.id)).size).toBe(right.spinners.length);
+    for (const s of right.spinners) {
+      expect(s.hub[0]).toBeCloseTo(GEAR.x, 6);
+      const far = Math.max(...s.faces.flatMap((f) => f.corners.map((c) => Math.hypot(c[1] - s.hub[1], c[2] - s.hub[2]))));
+      // (a sprocket's tooth tips stand at its radius, their corners a hair past it)
+      expect(far, s.id).toBeLessThanOrEqual(s.r * 1.01);
+      expect(far, s.id).toBeGreaterThan(s.r * 0.95);
+    }
+    // (a road wheel stands on the track: its centre its radius above the track's inner face)
+    expect(right.spinners[0].hub[2]).toBeCloseTo(GEAR.wheels[0].r + TRACK_DEPTH, 6);
+  });
+  it('the left a mirror of the right: as many faces, its extent the right\'s across the middle', () => {
+    expect(all(left).length).toBe(all(right).length);
+    const box = (fs, k) => { const v = fs.flatMap((f) => f.corners.map((c) => c[k])); return [Math.min(...v), Math.max(...v)]; };
+    const [a, b] = box(all(right), 0), [c, d] = box(all(left), 0);
+    expect(c).toBeCloseTo(-b, 4); expect(d).toBeCloseTo(-a, 4);
+    for (const k of [1, 2]) expect(box(all(left), k)).toEqual(box(all(right), k));
+  });
+  it('every face a part and a material, its normal unit; the same twice; within its budget', () => {
+    for (const f of all(right)) { expect(f.part).toBeTruthy(); expect(f.material).toBeTruthy(); expect(Math.hypot(...f.outNormal)).toBeCloseTo(1, 4); }
+    expect(JSON.stringify(runningGear({ side: 1, ...GEAR }))).toBe(JSON.stringify(right));
+    expect(tris(all(right))).toBeLessThan(12000);
+  });
+});
