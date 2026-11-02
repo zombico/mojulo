@@ -47,4 +47,5 @@ its resource, put on a look and showed a toast. This theme makes them act.
   - A foe's touch takes the pilot's `rule.stomp.hurt` off a body with its own hp, downing it at none.
   - A level a battle plays on (a boss, the party's fights) keeps the level hp its battle reads, and a world without
     systems plays as before.
-  - The emission pins of the pages that stand a foe moved for it.
+  - Seen in an exported page: ten touches of a grunt took the one HP bar from 100 to 0, and the level ended in a fail,
+    with no level hp beside it.

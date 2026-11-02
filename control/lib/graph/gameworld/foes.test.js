@@ -136,7 +136,12 @@ describe('the run', () => {
     expect(beast.order.animal).toMatchObject(skin);
     const stood = steps.filter((s) => s.key.startsWith(`level-${lv0}-`)).map((s) => s.order.manifest).filter((m) => m.entities.some((e) => e.team === 'foes'));
     expect(stood.length).toBeGreaterThan(0);
-    for (const m of stood) expect(m.game.mechanics.find((x) => x.kind === 'fail-on-death').hits).toBe(LEVEL_GOAL.hit);
+    // (the hero's systems bind its hp stat to its body: the level is lost when the body is down, and a touch takes the
+    // share of the body's hp a hit took of the level's, foes.js onBody)
+    for (const m of stood) {
+      expect(m.game.mechanics.find((x) => x.kind === 'fail-on-death')).toEqual({ kind: 'fail-on-death', of: 'body' });
+      expect(m.entities.find((e) => e.pilotable).rule.stomp.hurt).toBe(LEVEL_GOAL.hit * 100 / LEVEL_GOAL.hp);
+    }
     // the other levels are as they were
     const plain = prints(runSteps(MEADOWMARK_HERO, { ref: 'gw' }));
     for (const s of steps.filter((x) => x.key.startsWith('level-') && !x.key.startsWith(`level-${lv0}-`))) expect(s.print).toBe(plain[s.key]);
