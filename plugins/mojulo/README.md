@@ -7,8 +7,8 @@ and sound, the foes and bosses, and the camera work and cutscenes. The same stud
 worlds, diagrams and music. Each one is a deterministic recipe: a few hundred bytes of JSON, or
 an OpenSCAD program, that compiles back to the same result every time. You edit and diff the
 recipe like code; every render is derived from it. From the recipe mojulo exports print-ready STL
-and 3MF at true scale, glTF, OpenUSD, a self-contained HTML page you can walk offline, and Godot,
-Blender and Unity packs, and Unreal asset packs. Everything stays on your machine under `~/.mojulo/`.
+and 3MF at true scale, glTF, OpenUSD, a self-contained HTML page you can walk offline, and a level
+handed to a team's Godot, Unity, Unreal or Blender as a project it opens. Everything stays on your machine under `~/.mojulo/`.
 
 **Runs on the Claude you already use.** Mojulo holds the recipes and does the geometry; the
 thinking is Claude's, in your session. It needs no account, no API key and no GPU. Nothing is sent
@@ -86,7 +86,8 @@ Each of these works on a fresh install. The result names the file it wrote under
   You get `world.html`, which opens from your disk with no server and no network.
 - "Make a tiny level with a few coins to collect and export it as a Godot project."
   Claude mints the level as a world with a collect-then-exit rule, proves it can be finished by
-  playing it through in your installed browser, and writes a Godot 4 project folder.
+  playing it through in your installed browser, and writes a Godot 4 project folder: the level's
+  layout, light and markers for a developer to wire, while the game itself plays in the browser.
 
 Then keep going in the same conversation: "make the handle thicker", "add a lighthouse", "move the
 exit further away". Claude edits the stored recipe in place and re-exports.

@@ -12,10 +12,10 @@ agent works through six departments: worlds and levels (art direction, light, se
 characters, props and vehicles (`create_character`, `mint_solid`), play modes, animation and sound (`create_game`, feel,
 juice, `create_beats`), foes and bosses, cameras and cutscenes (`forge_motion`, the scenes card), and game design and
 production (`design_game`, the bibles, plans and sweeps), which ties the rest into a game. The audit and the engine legs
-are how everything holds up, not departments. Every department writes into one tiny
-deterministic recipe (a `sketches` row) that regenerates on every read and exports to the web, Godot, Unreal, Blender,
-GLB, STL, 3MF, USD, which is why a game's bible, its levels and its export agree. Play, Print, Read, Hear and Observe
-are what the departments' combinations make; rooms, prints and science views are the same studio's other outcomes.
+are how everything holds up, not departments. Every department writes into one tiny deterministic recipe (a `sketches`
+row) that regenerates on every read and exports to the web, a team's engine (Godot, Unity, Unreal, Blender), GLB, STL,
+3MF, USD, which is why a game's bible, its levels and its export agree. Play, Print, Read, Hear and Observe are what
+the departments' combinations make; rooms, prints and science views are the same studio's other outcomes.
 Underneath, it is a 3D compiler for agents: that is how it works and what the agent is told, not what the person is
 sold. Mojulo is the agent-driven upstream that feeds those tools, never a fidelity rival and never "just an exporter."
 It makes single-player and couch-multiplayer games (online is out of scope) for two audiences: a solo creator gets the
@@ -198,10 +198,13 @@ Pointers only; each target carries its own design notes.
   The engine handoff (`export_model { engine }`): `handoff.js` and an adapter per engine, Godot's in `handoff-godot.js`
   (a project of a world's or a game's levels), Blender's in `handoff-blender.js` (the same, built into a .blend; the art
   pack, `format: 'blender'`, stays `blender-pack.js`); Unreal's in `handoff-unreal.js` (the same, a UE5 project its
-  Python importer builds; one thing by its ref stays the asset pack, `unreal-project.js`); Unity's in `handoff-unity.js`
+  Python importer builds; one thing by its ref stays the asset pack, `unreal-pack.js`); Unity's in `handoff-unity.js`
   (the same, a Unity 6 URP project its C# importer builds in batchmode); the registry in
-  `scene/engines/`. Gates are advisory and need `MOJULO_GODOT` / `MOJULO_BLENDER` / `MOJULO_UNREAL` / `MOJULO_UNITY`;
-  CI's `godot` job runs the handoff's Godot leg on a pinned Godot. The game runtimes (Godot's, Roblox's, Unity's) are retired.
+  `scene/engines/`. The visual gate (`scene/visual-gate.js`, `scripts/visual-gate.mjs`) renders a level's cameras on the
+  page and in each engine installed and scores each shot. Gates are advisory and need `MOJULO_GODOT` / `MOJULO_BLENDER` /
+  `MOJULO_UNREAL` / `MOJULO_UNITY`; CI's `godot` job runs Godot's legs (the handoff, a humanoid's import, the visual
+  gate's) on a pinned Godot; the others run locally. No engine runs a game: the game runtimes (Godot's, Roblox's,
+  Unity's) are retired, and the web build is the game.
 - The realistic hero body (`form: 'realistic'`, the form field's slice): [docs/realistic-body.md](docs/realistic-body.md).
   Its garments: the construction in [body-relational-tailor.js](control/lib/graph/polygonizer/body-relational-tailor.js), the
   principles a silhouette is read by in [docs/garment-principles.md](docs/garment-principles.md); skill: `/garment-design`.

@@ -1,6 +1,7 @@
 /**
- * THE FIGHT AS DATA: what an engine kernel needs to adjudicate the web's combat in the bus's frame (z-up, recipe units,
- * radians), beside the cast it fights over. It rides the bus fragment as `combat`.
+ * THE FIGHT AS DATA: what an engine kernel needed to adjudicate the web's combat in the bus's frame (z-up, recipe units,
+ * radians), beside the cast it fights over. It rides the bus fragment as `combat`. The engine kernels are retired and no
+ * kept export emits the bus (the engine handoff, handoff.js, carries a level's contract and markers, never its rules).
  *
  *   extractCombat(payload, player) → { version, hero, team?, eye, look, strike?, weapon?, colliders?, bodies } | null
  *     hero     the player's id (the seat engine-score names); team, its side when it has one (a blade spares its own)

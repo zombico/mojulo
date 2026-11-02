@@ -2,7 +2,7 @@
   "$schema": "https://glama.ai/mcp/schemas/server.json",
   "maintainers": ["zombico"],
   "name": "mojulo",
-  "description": "Turn your agent into a game studio: a local MCP server where you direct and your agent builds games, walkable worlds, characters and printable objects as small editable recipes, played in the browser and exported to Godot, Blender and STL/3MF. No account, no API key, no external telemetry.",
+  "description": "Turn your agent into a game studio: a local MCP server where you direct and your agent builds games, walkable worlds, characters and printable objects as small editable recipes, played in the browser, handed to a team's Godot, Unity, Unreal or Blender, and exported to STL/3MF. No account, no API key, no external telemetry.",
   "repository": "https://github.com/zombico/mojulo",
   "license": "Apache-2.0",
   "mcpServers": {

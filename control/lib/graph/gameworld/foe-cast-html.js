@@ -2,8 +2,8 @@
  * THE CAST SHEET — the world's foes as a casting call's sheet, for the creator who makes the world: the LINEUP (every foe
  * drawn at the size it reads at in the game, beside the hero, on a metre rule), a tile per foe by tier (its portrait once
  * a run has made its figure, its threat, its element, its modes, where it stands) and a card per foe (the lesson it
- * teaches, its stats in the words of the game's flavor, its mind as the Mind gem resolves it on its body, its shelves,
- * what an engine keeps). A world that keeps no bestiary shows what the casting call proposes (foe-casting.js), never
+ * teaches, its stats in the words of the game's flavor, its mind as the Mind gem resolves it on its body, its
+ * shelves). A world that keeps no bestiary shows what the casting call proposes (foe-casting.js), never
  * written.
  *
  * It is the APPROVAL GATE as the other books are: the cast and each foe carry a stamp (foe-cast.js foeState). What the

@@ -4,7 +4,9 @@
  *
  * The score is the engine-agnostic digest of a resolved world payload:
  * colliders, spawn, cameras, entities, declarative mechanics, audio binding,
- * plus the honest-loss ledger. Everything stays in mojulo's z-up frame with
+ * plus the honest-loss ledger. The engine kernels that read it are retired: the
+ * engine handoff (handoff.js) carries a level's record instead, and no kept
+ * export emits the score. Everything stays in mojulo's z-up frame with
  * raw world units (1 unit = 1 meter, the pinned constant) — each engine
  * emitter owns its own frame/unit conversion, exactly like facesToGlb owns
  * the y-up root. NOT an engine adapter: no engine names in here.

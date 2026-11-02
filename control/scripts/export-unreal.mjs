@@ -2,9 +2,9 @@
 /**
  * export-unreal.mjs — the Unreal ASSET CLI: one of mojulo's things (a character, a creature, a prop, a building, a
  * robot, anything assembled) as an Unreal asset pack. Thin front door over lib/graph/scene/unreal-pack.js, the same pack
- * export_model { ref, format: 'unreal' } writes; this script adds the MACHINE GATE: a scratch UE project (a plain-JSON
- * .uproject the driver writes itself — UE needs no -createProject step), the pack copied in as Mojulo/<ref>/, then two
- * headless passes — MOJULO_MODE=run (import the asset, build its preview map) and MOJULO_MODE=verify (assertions →
+ * export_model { ref, engine: 'unreal', what: 'asset' } writes; this script adds the MACHINE GATE: a scratch UE project
+ * (a plain-JSON .uproject the driver writes itself — UE needs no -createProject step), the pack copied in as
+ * Mojulo/<ref>/, then two headless passes — MOJULO_MODE=run (import the asset, build its preview map) and MOJULO_MODE=verify (assertions →
  * mojulo-gate.json: the preview map, the imported asset, its materials, its lights, a figure's mesh, clip and retarget
  * rig, and the diagnostics the run found). Env-located binary, watchdogged serial launches, log-grepped, stdout-JSON
  * handback.

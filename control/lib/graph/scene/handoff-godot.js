@@ -30,7 +30,7 @@ export const HANDOFF_GODOT_VERSION = 'handoff-godot/0';
 /** The GLB node names an instance set's copies start with: instanced, so the importer gives them no collision. */
 export const HANDOFF_INSTANCED = Object.freeze(['form:stones:', 'form:flora:']);
 
-// (the adapter's GDScript, beside this file; read from the cwd, as the Godot pack reads its kernel: lib files may be bundled)
+// (the adapter's GDScript, beside this file; read from the cwd: lib files may be bundled)
 const gdDir = () => path.join(process.cwd(), 'lib', 'graph', 'scene', 'handoff-godot');
 const gd = (name) => readFileSync(path.join(gdDir(), name), 'utf8');
 

@@ -1,6 +1,7 @@
 /**
- * THE MINDS AS DATA: what an engine kernel needs to run the web's minds (worlds/controllable/mind.js, the `ai` rule) in
+ * THE MINDS AS DATA: what an engine kernel needed to run the web's minds (worlds/controllable/mind.js, the `ai` rule) in
  * the bus's frame (z-up, recipe units, radians), beside the cast and the fight. It rides the bus fragment as `minds`.
+ * The engine kernels are retired and no kept export emits the bus (the engine handoff carries no rules).
  *
  *   extractMinds(payload, player) → { version, tier?, off?, rules, minds, food? } | null
  *     tier    the world's class tuning (aiDifficulty → the matrix's skill × aggressiveness), as the web seeds it

@@ -66,7 +66,7 @@ Reports that a `program` or a book builder can do what any local script can do a
 Reports about the following are welcome and treated as security issues:
 
 - **Path escape from the operator's data directory.** Any tool input, recipe field (other than a `program`, above), or export that reads or writes outside `~/.mojulo/` (or the configured `MOJULO_HOME`) without the operator naming that path.
-- **Artifact tampering.** Any way to inject code into a generated export — the self-contained HTML, a Godot project, an engine data pack, a Blender pack — that the operator did not put there through a tool call.
+- **Artifact tampering.** Any way to inject code into a generated export — the self-contained HTML, an engine's handoff project and its importer scripts, a Blender pack — that the operator did not put there through a tool call.
 - **Undisclosed traffic or writes.** Any network request, spawned process, or write outside the places the plugin README's "What it installs, fetches, runs and writes" section and substrate fact 3 name.
 - **API key extraction.** Any way to read decrypted provider keys (stored by `mojulo-config` for `mint_solid`'s optional `via:'prompt'` door) out of the control plane's `api_keys` table without filesystem access to the host.
 - **Dependency vulnerabilities** with a clear exploit path against it.
@@ -87,7 +87,7 @@ These are known design constraints, not vulnerabilities:
 
 If you are reviewing or fuzzing these areas, your reports are especially welcome:
 
-- Export writers — the self-contained HTML bundle, the Godot project writer, the engine data packs — and any path derived from a recipe field.
+- Export writers — the self-contained HTML bundle, the engine handoff's writers and importers, the engine packs — and any path derived from a recipe field.
 - API key encryption and decryption paths in the control plane.
 
 ## Disclosure
