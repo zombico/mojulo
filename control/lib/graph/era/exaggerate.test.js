@@ -129,12 +129,14 @@ describe('the pieces: chunked about their middle, leant over their reach', () =>
     expect(chunkFaces(arm, 1)).toBe(arm);
   });
 
-  it('chunks the geocity kit and leans its lamps over the road; the works\' pieces and the paint as they were', () => {
+  it('chunks the geocity kit and leans its lamps over the road; the works\' pieces and the paint as they were, its cars toys', () => {
     const L = makeLight({ direction: [0.3, 0.5, -0.8], ambient: 0.4, diffuse: 0.6 }), A = kitTemplates(L), B = kitTemplates(L, { exaggerate: crooked });
     const top = (fs) => fs.flatMap((f) => f.corners).reduce((a, c) => (c[2] > a[2] ? c : a));
     expect(top(B.lamp.e)[0]).toBeGreaterThan(top(A.lamp.e)[0]);   // (an east lamp leans east, over its road)
     expect(JSON.stringify(B.bin)).not.toBe(JSON.stringify(A.bin));
-    for (const k of ['car', 'scaffold', 'dash', 'rail', 'fence']) expect(JSON.stringify(B[k])).toBe(JSON.stringify(A[k]));
+    for (const k of ['scaffold', 'dash', 'rail', 'fence']) expect(JSON.stringify(B[k])).toBe(JSON.stringify(A[k]));
+    // (an exaggerated street's parked cars are toy cars, its paint as it was where the hand has no `streets`)
+    expect(JSON.stringify(B.car)).not.toBe(JSON.stringify(A.car));
     expect(JSON.stringify(kitTemplates(L, { exaggerate: null }))).toBe(JSON.stringify(A));
     expect(leanFaces(A.bin, [1, 0], 0)).toBe(A.bin);
   });

@@ -29,6 +29,8 @@
 import { roundStreetKit, roundKitFaces, isRoundKitShape } from '../city/round-kit.js';
 import { litFactor, scaleHex } from '../polygonizer/vexar.js';
 import { leanFaces } from '../era/exaggerate.js';
+import { toyCarOf, proportions } from '../geotown/doodads.js';
+import { popHex } from '../geotown/front-loud.js';
 import { tan } from '../../util/dmath.js';
 
 // the legacy metro's kit, at its scale (fractal-city.js: a city unit is 3.66 m; a kerb lamp's standard 2.35 units tall)
@@ -179,6 +181,12 @@ const car = ([dx], L) => {
   const along = !!dx, Lb = 4.3, Wb = 1.8, B = (l, w, z0, z1, tint, kind = 'car') => (along ? { kind, x: -l / 2, w: l, y: -w / 2, d: w, z0, z1, tint } : { kind, y: -l / 2, d: l, x: -w / 2, w, z0, z1, tint });
   return realize([B(Lb, Wb, 0.3, 0.95, '#e8e8e8'), B(2.3, 1.6, 0.95, 1.45, '#2a3038'), B(Lb - 0.6, Wb + 0.04, 0, 0.32, '#1c1d1f')], L);
 };
+/** A toy car along (dx, dy)'s axis, its faces lit as the kit's are: its body pale (an instance's tint paints it). */
+function toyCar([dx], L) {
+  const fs = toyCarOf(dx ? 'u' : 'v', '#e8e8e8', proportions(() => 0.5, false));
+  return fs.map((f) => { const c = f.corners, n = newellK(c), o = f.out ?? n, nn = n[0] * o[0] + n[1] * o[1] + n[2] * o[2] < 0 ? n.map((v) => -v) : n, hex = f.hex ?? (f.role === 'cabin' ? '#2a3038' : '#e8e8e8'); return { corners: nn === n ? c : c.slice().reverse(), normal: nn, fill: scaleHex(hex, litFactor(nn, L)) }; });
+}
+const newellK = (c) => { const n = [0, 0, 0]; for (let i = 0; i < c.length; i++) { const a = c[i], b = c[(i + 1) % c.length]; n[0] += (a[1] - b[1]) * (a[2] + b[2]); n[1] += (a[2] - b[2]) * (a[0] + b[0]); n[2] += (a[0] - b[0]) * (a[1] + b[1]); } const l = Math.hypot(...n) || 1; return n.map((v) => v / l); };
 /** A flat piece along +x, `len` long, `w` across at offset `off`, at z 0. */
 const flat = (len, w, off, fill, L) => [quad([[0, off - w / 2, 0], [len, off - w / 2, 0], [len, off + w / 2, 0], [0, off + w / 2, 0]], [0, 0, 1], fill, L)];
 
@@ -188,18 +196,21 @@ export function kitTemplates(L0, { gauge = 1.495, poleReach = 4, exaggerate = nu
   const X = exaggerate?.kit ?? null, L = X && X.chunk > 1 ? { ...L0 } : L0, tA = X ? tan((X.lean * Math.PI) / 180) : 0;
   if (L !== L0) CHUNKS.set(L, X.chunk);
   const leans = (fs, v) => (tA ? leanFaces(fs, v, tA, (n) => litFactor(n, L0)) : fs);
+  // (a loud street's lines: `paint` times as wide, its yellow pushed, its bars skewed by `skew`)
+  const SP = exaggerate?.streets ?? null, PW = SP ? SP.paint : 1, YL = SP ? popHex('#e3b13a', SP.pop) : '#e3b13a', SK = SP ? SP.skew * 1.6 * 0.6 : 0;
   return {
     lamp: four((v) => leans(lamp(v, L), v)),
     signal: four((v) => leans(signal(v, L), v)),
     sign: sign(L),
     pole: four((v) => pole(v, poleReach, L)),
     stop: four((v) => stop(v, L)),
-    dash: flat(3, 0.12, 0, '#e8e4d8', L),
-    line: flat(10, 0.12, 0, '#e8e4d8', L),
-    yellow: [...flat(10, 0.1, -0.12, '#e3b13a', L), ...flat(10, 0.1, 0.12, '#e3b13a', L)],
+    dash: flat(3, 0.12 * PW, 0, '#e8e4d8', L),
+    line: flat(10, 0.12 * PW, 0, '#e8e4d8', L),
+    yellow: [...flat(10, 0.1 * PW, -0.12 * PW, YL, L), ...flat(10, 0.1 * PW, 0.12 * PW, YL, L)],
     rail: [...flat(10, 0.1, -gauge / 2, '#b4b7bc', L), ...flat(10, 0.1, gauge / 2, '#b4b7bc', L)],
     wire: [quad([[0, -0.015, 0], [1, -0.015, 0], [1, 0.015, 0], [0, 0.015, 0]], [0, 0, 1], '#202224', L)],
-    bar: flat(3, 0.6, 0, '#e3ded0', L),
+    // (a loud street's crosswalk bar a parallelogram, its far side slid along it)
+    bar: SP ? [quad([[0, -0.3, 0], [3, -0.3, 0], [3 + SK, 0.3, 0], [SK, 0.3, 0]], [0, 0, 1], '#f2eee4', L)] : flat(3, 0.6, 0, '#e3ded0', L),
     // a street tree's pit in the walk: its grate's dark square, centred
     pit: [quad([[-0.7, -0.7, 0], [0.7, -0.7, 0], [0.7, 0.7, 0], [-0.7, 0.7, 0]], [0, 0, 1], '#3b3a38', L)],
     bench: four((v) => bench(v, L)),
@@ -209,6 +220,7 @@ export function kitTemplates(L0, { gauge = 1.495, poleReach = 4, exaggerate = nu
     // parked car (along x for 'e'/'w', y for 'n'/'s'), a stall's line
     // (a site's and a lot's pieces are the works', not the street's furniture: as they were)
     scaffold: four((v) => scaffold(v, L0)), fence: fence(L0), hoarding: hoarding(L0), barrier: barrier(L0), cone: cone(L0),
-    car: four((v) => car(v, L0)), stall: flat(5, 0.12, 0, '#e8e4d8', L),
+    // (an exaggerated street's parked cars toy cars: geotown/doodads.js, their bodies pale for an instance's tint)
+    car: four((v) => (exaggerate ? toyCar(v, L0) : car(v, L0))), stall: flat(5, 0.12 * PW, 0, '#e8e4d8', L),
   };
 }

@@ -35,6 +35,12 @@
   top, its roof's ridge or a sign above its wall included); its LANE is laid in a muted patchwork of skewed slabs and
   splashed with ink, each garage on it its own hue never the next one's, its door an ink, and a wheelie bin of the
   study out by each garage's door.
+- **A loud metro** (the geocity, by the same `homes` and `streets`): each mass (a house pair, a shop, a low-rise, a
+  walk-up, a tower) its own wall hue and roof ink, never the last one's; along a row of houses or shops no two
+  neighbours one height (the next raised by the step where the dice stood it level); its lane lines fat and its yellow
+  pushed, its crosswalk bars parallelograms, ink splashed along its arterials; an evoked block's walks in skewed pastel
+  slabs (the metro's others too far off to see them); its parked cars toy cars. Its composed geotowns are loud by
+  their own. (Its evoked facades' windows stay square: the facade pipeline does not tell its windows apart.)
 - **A loud street** (`exaggerate.streets`, `geotown/street-loud.js`; the `street` hand carries one), by the shops'
   principles over a plan that never moves: the walks laid in big pastel slabs over their own ground, cut on skewed lines
   (their ends too: no slab square), each a tint other than its neighbour's, set in a grout of the walk; the kerbs in

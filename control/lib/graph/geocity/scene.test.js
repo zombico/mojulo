@@ -182,3 +182,18 @@ describe('the geocity under the cube\'s exaggerate (era/exaggerate.js): the plan
     expect(lamp(X)).not.toBe(lamp(P));
   });
 });
+
+describe('a loud metro (the cube\'s exaggerate.homes and .streets): its masses each its own, ink on its roads', () => {
+  const X = assembleGeocityScene({ ...M, cube: { from: M.cube, exaggerate: { from: 'street', lean: 0, kit: { lean: 0, chunk: 1 } } } });
+  const fills = (S, g) => new Set(S.faces.filter((f) => f.group === g).map((f) => f.fill));
+  it('paints its houses and shops in more hues than the plain metro, on the ground the plan laid', () => {
+    expect(fills(X, 'geocity:house').size).toBeGreaterThan(fills(P, 'geocity:house').size);
+    const ground = (S) => JSON.stringify(S.faces.filter((f) => ['geocity:road', 'geocity:pad'].includes(f.group)).map((f) => f.corners));
+    expect(ground(X)).toBe(ground(P));
+    expect(X.route).toEqual(P.route);
+  });
+  it('splashes ink along its arterials', () => {
+    expect(X.faces.filter((f) => f.group === 'geocity:decal').length).toBeGreaterThan(0);
+    expect(P.faces.some((f) => f.group === 'geocity:decal')).toBe(false);
+  });
+});

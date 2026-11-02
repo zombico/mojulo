@@ -49,6 +49,9 @@ import { dressTownFace } from '../era/town-dress.js';
 import { plantPool, plantRepeats } from '../vegetation/pool.js';
 import { litFactor } from '../polygonizer/vexar.js';
 import { bendFaces, exaggerateLaws } from '../era/exaggerate.js';
+import { LOUD_WALLS, INK, popHex } from '../geotown/front-loud.js';
+import { slabsOf, groundSplat, inkPicker } from '../geotown/street-loud.js';
+import { leanHue } from '../era/town-dress.js';
 
 export const GEOCITY_KEYS = Object.freeze(['kind', 'cube', 'show', 'title', 'seed', 'hour', 'clouds', 'geocity', 'walk', 'shadows', 'occlusion', 'light', 'cone']);
 export const GEOCITY_FACES = 200000;
@@ -120,6 +123,16 @@ export function assembleGeocityScene(m, ctx = {}) {
   const col = coloursOf(cube), faces = [], counts = { towers: 0, buildings: 0, houses: 0, panes: 0, detailed: 0 };
   // (the cube's exaggerate, era/exaggerate.js: each mass, its lit panes and its facades bent on its foot, z0; a
   // construction frame kept plumb, its scaffold stamped on it)
+  // (a loud metro, the cube's exaggerate.homes / .streets: each mass its own wall hue and roof ink, never the last
+  // one's; a row never one height; its lines fat, its bars skewed, ink on its roads: geotown/front-loud.js, street-loud.js)
+  const HY = cube.exaggerate?.homes ?? null, STL = cube.exaggerate?.streets ?? null, RL = streamOf(seed, 'loud-metro', 'masses');
+  let lastWall = null, lastRoof = null;
+  const loudMass = (wall, roof) => {
+    if (!HY) return [wall, roof];
+    const pick = (list, not) => { const pool = list.filter((x) => x !== not); return pool[Math.floor(RL() * pool.length)]; };
+    lastWall = pick(LOUD_WALLS, lastWall); lastRoof = pick(INK, lastRoof);
+    return [leanHue(wall, lastWall, 0.8), popHex(lastRoof, HY.pop * 0.7)];
+  };
   const EX = cube.exaggerate ?? null, bends = [], bent = (z0, fn, group = null) => { const a = faces.length; fn(); if (EX && group !== 'geocity:frame') bends.push([a, faces.length, z0]); };
   const put = (corners, group, hex, want = null) => {
     let c = corners, n = newell(c);
@@ -146,7 +159,8 @@ export function assembleGeocityScene(m, ctx = {}) {
     const xs = cuts(r[0], r[2], cell), ys = cuts(r[1], r[3], cell);
     for (let j = 0; j + 1 < ys.length; j++) for (let i = 0; i + 1 < xs.length; i++) put([[xs[i], ys[j]], [xs[i + 1], ys[j]], [xs[i + 1], ys[j + 1]], [xs[i], ys[j + 1]]].map(([x, y]) => [x, y, S(x, y) + lift]), group, hex);
   };
-  const box = (x0, y0, x1, y1, z0, z1, wall, roof, group) => bent(z0, () => {
+  const box = (x0, y0, x1, y1, z0, z1, wall0, roof0, group) => bent(z0, () => {
+    const [wall, roof] = group === 'geocity:frame' || group === 'geocity:crane' ? [wall0, roof0] : loudMass(wall0, roof0);
     put([[x0, y0, z1], [x1, y0, z1], [x1, y1, z1], [x0, y1, z1]], `${group}:roof`, roof);
     put([[x0, y0, z0], [x1, y0, z0], [x1, y0, z1], [x0, y0, z1]], group, wall, [0, -1, 0]);
     put([[x1, y0, z0], [x1, y1, z0], [x1, y1, z1], [x1, y0, z1]], group, wall, [1, 0, 0]);
@@ -155,7 +169,8 @@ export function assembleGeocityScene(m, ctx = {}) {
     counts.buildings++;
   }, group);
   // a mass under a gable, its ridge along `axis` ('x' or 'y')
-  const gable = (x0, y0, x1, y1, z0, ze, zr, axis, wall, roof, group) => bent(z0, () => {
+  const gable = (x0, y0, x1, y1, z0, ze, zr, axis, wall0, roof0, group) => bent(z0, () => {
+    const [wall, roof] = loudMass(wall0, roof0);
     if (axis === 'y') {
       const xm = (x0 + x1) / 2;
       put([[x0, y0, z0], [x0, y1, z0], [x0, y1, ze], [x0, y0, ze]], group, wall, [-1, 0, 0]); put([[x1, y0, z0], [x1, y1, z0], [x1, y1, ze], [x1, y0, ze]], group, wall, [1, 0, 0]);
@@ -208,6 +223,8 @@ export function assembleGeocityScene(m, ctx = {}) {
     const R2 = l.road / 2;
     for (const [p, q] of l.axis === 'ns' ? runsNS : [[lx0, lx1]]) {
       drape(across(l, -R2, R2, p, q), 'geocity:road', col.road);
+      // (a loud metro's arterials splashed with ink, one splat every so far along: street-loud.js)
+      if (STL?.splats) { const Rr = streamOf(seed, 'loud-road', `${l.axis}:${r5(l.at)}:${r5(p)}`), pk = inkPicker(Rr, STL.pop); for (let t = p + 30 + 90 * Rr(); t < q - 10; t += (140 + 120 * Rr()) / STL.splats) { const o = (Rr() - 0.5) * (l.road - 2), [x, y] = l.axis === 'ns' ? [l.at + o, t] : [t, l.at + o], r = 0.8 + 1.2 * Rr(); for (const f of groundSplat(x, y, r, (a, b) => S(a, b) + 0.015, pk('splat'), Rr)) put(f.corners, 'geocity:decal', f.hex); } }
       drape(across(l, -l.half, -R2, p, q), 'geocity:walk', col.walk, KERB); drape(across(l, R2, l.half, p, q), 'geocity:walk', col.walk, KERB);
       for (const b of l.bands) {
         if (b.kind === 'median') drape(across(l, b.from, b.to, p, q), 'geocity:median', col.lawn, KERB);
@@ -236,10 +253,12 @@ export function assembleGeocityScene(m, ctx = {}) {
       const [x0, y0, x1, y1] = b.rect, Rb = streamOf(seed, 'scene', b.id), longY = y1 - y0 >= x1 - x0;
       // the walk round it (into the street, at a kerb over it), where the street is the neighbourhood's
       const wk = (s) => b.kind === 'park' || b.sides?.[s]?.kind === 'street';
-      if (wk('s')) drape([x0 - (wk('w') ? WALK : 0), y0 - WALK, x1 + (wk('e') ? WALK : 0), y0], 'geocity:walk', col.walk, KERB);
-      if (wk('n')) drape([x0 - (wk('w') ? WALK : 0), y1, x1 + (wk('e') ? WALK : 0), y1 + WALK], 'geocity:walk', col.walk, KERB);
-      if (wk('w')) drape([x0 - WALK, y0, x0, y1], 'geocity:walk', col.walk, KERB);
-      if (wk('e')) drape([x1, y0, x1 + WALK, y1], 'geocity:walk', col.walk, KERB);
+      // (an evoked block's walks, loud: skewed pastel slabs over them, its neighbours' too far off to see them: street-loud.js)
+      const walkAt = (r) => { drape(r, 'geocity:walk', col.walk, KERB); if (STL?.slabs && detail.has(b.id)) for (const sl of slabsOf(r, r[2] - r[0] >= r[3] - r[1] ? 'x' : 'y', (x, y) => S(x, y) + KERB, { skew: STL.skew, pop: STL.slabs }, col.walk, streamOf(seed, 'metro-slabs', `${b.id}:${r.map(r5).join(':')}`))) put(sl.corners, 'geocity:slab', sl.hex); };
+      if (wk('s')) walkAt([x0 - (wk('w') ? WALK : 0), y0 - WALK, x1 + (wk('e') ? WALK : 0), y0]);
+      if (wk('n')) walkAt([x0 - (wk('w') ? WALK : 0), y1, x1 + (wk('e') ? WALK : 0), y1 + WALK]);
+      if (wk('w')) walkAt([x0 - WALK, y0, x0, y1]);
+      if (wk('e')) walkAt([x1, y0, x1 + WALK, y1]);
       // the pad in terraces along its long side, each level over the walk at its highest corner
       const span = longY ? [y0, y1] : [x0, x1];
       const piece = (a, c) => (longY ? [x0, a, x1, c] : [a, y0, c, y1]);
@@ -630,9 +649,14 @@ export function assembleGeocityScene(m, ctx = {}) {
     const houses = (s, u0, u1) => {
       const len = u1 - u0, n = Math.max(1, Math.floor((len + GAP) / (PAIR + GAP))), f = (len - (n - 1) * GAP) / n, dpt = Math.min(HOUSE_D, deep / 2 - SETBACK - 4);
       if (dpt < 6) return;
+      let prevTop = null;
       for (let k = 0; k < n; k++) {
         const u = u0 + k * (f + GAP), q = rectOf(s, u, u + f, SETBACK, SETBACK + dpt), z0 = zAt((q[0] + q[2]) / 2, (q[1] + q[3]) / 2);
-        const st = Math.max(1, Math.min(b.storeys.rail[1], med + (Rb() < 0.3 ? 1 : 0) - (Rb() < 0.2 ? 1 : 0))), ze = z0 + st * STOREY, zr = ze + Math.min(4.5, 0.32 * f);
+        const st = Math.max(1, Math.min(b.storeys.rail[1], med + (Rb() < 0.3 ? 1 : 0) - (Rb() < 0.2 ? 1 : 0)));
+        // (a loud row's houses never one height: the next raised by the step where the dice stood it level)
+        let ze = z0 + st * STOREY, zr = ze + Math.min(4.5, 0.32 * f);
+        if (HY?.step && prevTop !== null && Math.abs(zr - prevTop) < HY.step) { ze += HY.step + 0.05; zr += HY.step + 0.05; }
+        prevTop = zr;
         // the gable to the street: its ridge runs into the block
         gable(q[0], q[1], q[2], q[3], z0, ze, zr, longY ? 'x' : 'y', brickOf(), ROOFS[Math.floor(Rb() * ROOFS.length)], 'geocity:house');
         counts.houses += 2;
@@ -640,9 +664,13 @@ export function assembleGeocityScene(m, ctx = {}) {
     };
     const shops = (s, storeys, group) => {
       const n = Math.max(1, Math.round(L / 30)), f = L / n;
+      let prevTop = null;
       for (let k = 0; k < n; k++) {
         const q = rectOf(s, k * f + 0.4, (k + 1) * f - 0.4, 0, Math.min(SHOP_D, deep / 2 - 2)), z0 = zAt((q[0] + q[2]) / 2, (q[1] + q[3]) / 2);
-        box(q[0], q[1], q[2], q[3], z0, z0 + (storeys + (Rb() < 0.3 ? 1 : 0)) * STOREY + 0.6, SHOP_FRONT[Math.floor(Rb() * SHOP_FRONT.length)], ROOFS[2], group);
+        let z1 = z0 + (storeys + (Rb() < 0.3 ? 1 : 0)) * STOREY + 0.6;
+        if (HY?.step && prevTop !== null && Math.abs(z1 - prevTop) < HY.step) z1 += HY.step + 0.05;
+        prevTop = z1;
+        box(q[0], q[1], q[2], q[3], z0, z1, SHOP_FRONT[Math.floor(Rb() * SHOP_FRONT.length)], ROOFS[2], group);
       }
     };
     const onLong = (rank) => sides.find((s) => (rank === 'arterial' ? b.sides[s].kind === 'arterial' : b.sides[s].rank === rank));
