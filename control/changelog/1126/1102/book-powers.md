@@ -79,3 +79,9 @@ its resource, put on a look and showed a toast. This theme makes them act.
   - the second ("Wolf and Bat") was won too, the hero rising to level 2;
   - no page errors.
   The sentence's party is the hero alone: the door casts no companions who join it yet.
+- **A JRPG's party from its sentence** (`gameworld/genre-forms.js` `heroFrameOf`). A genre that fights turn by turn is
+  laid with a casting page (`characters.casting: {}`). The cast's scale is read from the sentence's own words (a party,
+  companions, a crew) or a party by default (`casting.js`). Each companion is a cast member made by path, walks the
+  field beside the hero and fights in the party battles from the start, each in the class its sheet reads as. "A jrpg
+  where a party of heroes battles monsters" lays the hero (a monk) with a cleric, a fighter and a mage, where it laid
+  the hero alone.

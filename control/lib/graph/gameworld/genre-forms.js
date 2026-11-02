@@ -94,8 +94,11 @@ export function heroFrameOf(id, tradition) {
   // (a genre that fights arms its hero, in the right hand, for its own blow or its own shot (adornment.js BASIC_VERBS):
   // a blade where it fights in melee, a gun where it fights only at range; a climber's hands are its own)
   const item = moves ? null : combat.includes('melee') ? MELEE_ITEM : ranged ? { ...RANGED_ITEM, build: { item: GENRE_GUN[id] ?? 'carbine' } } : null;
+  // (a genre that fights turn by turn fights as a party: a casting page, its scale read from the sentence's own words
+  // or a party by default (casting.js), the rolled companions in the party battles from the start, each in its class)
+  const party = combat.includes('turn-based');
   return {
-    characters: { direction: { tradition, body: 'game' }, hero: { motion: { vibe: [vibe] }, actions: { none: true, ...(moves ? { moves: [...moves] } : {}) }, ...(item ? { adornment: { items: [{ ...item, build: { ...item.build }, serves: [...item.serves] }] } } : {}) } },
+    characters: { direction: { tradition, body: 'game' }, hero: { motion: { vibe: [vibe] }, actions: { none: true, ...(moves ? { moves: [...moves] } : {}) }, ...(item ? { adornment: { items: [{ ...item, build: { ...item.build }, serves: [...item.serves] }] } } : {}) }, ...(party ? { casting: {} } : {}) },
     camera, screen: 'screen',
   };
 }

@@ -361,6 +361,9 @@ const sha = (s) => createHash('sha256').update(s).digest('hex');
 // beam (worlds/controllable/cast.js) takes `to: { nearest: { range?, cone? } }` (the nearest standing foe in front of
 // its caster) and `hurt` (the hp it takes as it lands, in castFacts beside the struck fact), so a power's attack lands;
 // a beam with neither plays as before.
+// Re-pinned 2026-11-02 again (book powers), the same fixtures: a beam's `hurt` may be `{ by: 'power', per, base }`, its
+// caster's power stat as it fires (the stats bound to its body) × per, or base where it has none, so an attack follows
+// the power stat as the levels raise it; a number plays as before.
 describe('emitThreeWorld characterization (byte-level pin over the fixture matrix)', () => {
   it.each(EMIT_FIXTURES.map(([name]) => name))('%s emits byte-identically', (name) => {
     const [, opts] = EMIT_FIXTURES.find(([n]) => n === name);

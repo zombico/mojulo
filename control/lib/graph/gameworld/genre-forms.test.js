@@ -8,6 +8,7 @@ import { readActions, resolveActions } from './actions.js';
 import { GENRES } from './intent.js';
 import { composeGameworld } from './compose.js';
 import { readGameworld } from './world.js';
+import { runSteps } from './runner.js';
 
 describe('the genre\'s form', () => {
   it('names genres that exist, and each form\'s level is a level the book reads', () => {
@@ -74,6 +75,19 @@ describe('the hero frame: a genre on foot is laid with a hero, its camera and it
     expect(heroFrameOf('survival-horror', 'anime').characters.hero.adornment.items[0].build).toEqual({ item: 'pistol' });
     expect(heroFrameOf('collectathon', 'anime').characters.hero.adornment).toBeUndefined();
     expect(heroFrameOf('dungeon-crawler', 'western').camera).toBeNull();   // (third person: the hero's own chase)
+    expect(F.characters.casting).toBeUndefined();
+  });
+
+  it('a genre that fights turn by turn fights as a party: a casting page, its companions rolled from the sentence', () => {
+    expect(heroFrameOf('jrpg', 'anime').characters.casting).toEqual({});
+    const W = composeGameworld({ prompt: 'a jrpg where a party of heroes battles monsters across the wilds', seed: 1, levels: 1 });
+    expect(W.characters.casting).toEqual({});
+    expect(() => readGameworld(W)).not.toThrow();
+    // (each companion a cast member made by path, in the level's party battles beside the hero, each in a class)
+    const S = runSteps(W, { ref: 'gw' }), party = S.find((x) => x.key.startsWith('level')).order.manifest.play.rpg.party;
+    expect(party.length).toBeGreaterThan(1);
+    expect(party[0].id).toBe('hero');
+    for (const m of party.slice(1)) { expect(S.some((x) => x.key === `cast-${m.id}`), m.id).toBe(true); expect(typeof m.class).toBe('string'); }
   });
 
   it('no powers is an answer the actions page takes: nothing open, read twice the same, never beside a system', () => {
