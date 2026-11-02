@@ -18,11 +18,12 @@
  *     actors.py    builds the cast: each GLB imported under an empty `actor:<who>` keyed on its place and facing, its
  *                  body's act and its face's take bound and laid from frame 1, the scene's frame range set
  *     look.py      `-- --look film | anime`: the look on every actor
- *     SCENE.md     the operator's page
+ *     SCENE.md     the operator's page, the director's notes on the scene among it (notes.js)
  *
  * The scripts are constant text (everything per scene rides scene.json and the shot files). Pure and deterministic.
  */
 import { filmShot, emitBlenderFilm, BLENDER_FILM_VERSION } from '../../motion/blender-film.js';
+import { directorsNotes } from './notes.js';
 
 export const LOOKS = Object.freeze(['film', 'anime']);
 const r6 = (v) => Math.round(v * 1e6) / 1e6;
@@ -57,7 +58,7 @@ export function sceneFilmFiles({ S, coverage, actors, fps = 24, width = 1920, he
     ...film.files.filter((f) => f.file !== 'FILM.md'),
     { file: 'actors.py', text: actorsPy() },
     { file: 'look.py', text: lookPy() },
-    { file: 'SCENE.md', text: sceneReadme({ title, S, coverage, frames, fps, shotFiles: film.files.filter((f) => f.file.startsWith('shots/')).map((f) => f.file) }) },
+    { file: 'SCENE.md', text: sceneReadme({ title, S, coverage, frames, fps, notes: directorsNotes(S, coverage), shotFiles: film.files.filter((f) => f.file.startsWith('shots/')).map((f) => f.file) }) },
   ];
 }
 
@@ -371,7 +372,7 @@ if __name__ == '__main__':
 }
 
 /** SCENE.md — the operator's page */
-export function sceneReadme({ title, S, coverage, frames, fps, shotFiles }) {
+export function sceneReadme({ title, S, coverage, frames, fps, notes = [], shotFiles }) {
   return `# ${title} — a mojulo scene for Blender
 
 ${Object.keys(S.actors).length} actors, ${S.seconds} s (${frames} frames at ${fps} fps), ${coverage.shots.length} shots on ${coverage.cameras.length} cameras.
@@ -399,6 +400,10 @@ Or open film.blend and run actors.py, film_shots.py and look.py from the Scripti
 ## The shots
 
 ${coverage.shots.map((s) => `- ${s.span[0].toFixed(2)}–${s.span[1].toFixed(2)} s: ${s.name}`).join('\n')}
+
+## The director's notes
+
+${notes.length ? notes.map((n) => `- **${n.id}**${n.at !== undefined ? ` (${n.at} s)` : ''}: ${n.says} ${n.why} Try: ${n.try}`).join('\n') : 'None: the scene is free of the notes the department reads (docs/cinematics.md), which is not the same as good.'}
 
 ## The gates
 

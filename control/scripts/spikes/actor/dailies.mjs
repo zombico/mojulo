@@ -33,6 +33,8 @@ import { DELIVERY_NAMES } from '../../../lib/graph/persona/delivery.js';
 import { cueSheet } from '../../../lib/graph/persona/cues.js';
 import { rigFor, actSidecar, dzOf } from './act-sidecar.mjs';
 const { actScene } = await import('../../../lib/graph/actor/scene.js');
+const { coverScene } = await import('../../../lib/graph/actor/coverage.js');
+const { directorsNotes } = await import('../../../lib/graph/actor/notes.js');
 const { actBody } = await import('../../../lib/graph/actor/body.js');
 const { GESTURE_PRESETS } = await import('../../../lib/graph/polygonizer/hero-gesture.js');
 const { standOf } = await import('../../../lib/graph/actor/gestures.js');
@@ -89,12 +91,12 @@ const aloneOf = () => { const S = sceneReads(BASELINE.scene); return { S, blocki
 const blockedOf = (style) => {
   const B = BASELINE.blocked, S = actScene({ ...B, cast: Object.fromEntries(Object.entries(B.cast).map(([w, C]) => [w, { ...C, ...(style ? { style } : {}) }])) });
   const actors = Object.entries(S.actors).map(([who, A]) => takeCard({ id: `blocked-${style ?? 'plain'}-${who}`, label: who, sub: `${A.register}${style ? ` · ${style}` : ''}`, read: A.read, listens: A.listens, walks: A.walks, root: A.root }));
-  return { S, actors, blocking: { marks: S.marks, roots: Object.fromEntries(Object.entries(S.actors).map(([w, A]) => [w, A.root])), turns: S.turns.map((T) => ({ who: T.who, at: T.at })) } };
+  return { S, actors, notes: directorsNotes(S, coverScene(S)), blocking: { marks: S.marks, roots: Object.fromEntries(Object.entries(S.actors).map(([w, A]) => [w, A.root])), turns: S.turns.map((T) => ({ who: T.who, at: T.at })) } };
 };
 const variants = [{ style: undefined, alone: true, label: 'persona alone', sub: 'the unblocked two-hander: each speaker reads its lines, the partner\'s turns are pauses (phase 0)' },
   { style: null, label: 'blocked, no style', sub: 'the screenplay in a room: marks, a cross, a turn; each speaks to the other and listens' },
   ...STYLE_NAMES.map((style) => ({ style, label: `blocked, ${style}`, sub: 'both actors in this style, blocked' }))];
-const scene = variants.map((v) => { const { S, actors, blocking } = v.alone ? aloneOf() : blockedOf(v.style); return { label: v.label, sub: v.sub, seconds: S.seconds, actors, blocking }; });
+const scene = variants.map((v) => { const { S, actors, blocking, notes } = v.alone ? aloneOf() : blockedOf(v.style); return { label: v.label, sub: v.sub, seconds: S.seconds, actors, blocking, ...(notes ? { notes } : {}) }; });
 const data = { made: 'phase 3a', solo: { script: BASELINE.solo.script, cards: solo }, scene: { seconds: Math.max(...scene.map((v) => v.seconds)), lines: BASELINE.scene.lines, variants: scene } };
 
 // ─── the machine read, printed ───────────────────────────────────────────────────────────────────────────────────
@@ -230,7 +232,7 @@ function blockingSvg(B, vi) {
   return '<svg class="blocking" data-vi="' + vi + '" viewBox="0 0 ' + w + ' ' + h + '" style="max-width:320px"><defs><marker id="arr' + vi + '" viewBox="0 0 6 6" refX="5" refY="3" markerWidth="5" markerHeight="5" orient="auto"><path d="M0,0L6,3L0,6z" fill="var(--dim)"/></marker></defs>' + out.join('') + '</svg>';
 }
 const blockings = [];
-document.getElementById('scene').innerHTML = D.scene.variants.map((v, vi) => { if (v.blocking) blockings.push({ vi, B: v.blocking }); return '<div class="scene"><div class="sub"><b>' + esc(v.label) + '</b> · ' + esc(v.sub) + '</div>' + (v.blocking ? '<div class="card">' + blockingSvg(v.blocking, vi) + '<div class="sub">from above: the marks, the way each actor goes (dashed), the way each faces as its lines start (arrows); the dots move with the playhead</div></div>' : '') + v.actors.map((c) => (all.push(c), card(c, D.scene.seconds))).join('') + '</div>'; }).join('');
+document.getElementById('scene').innerHTML = D.scene.variants.map((v, vi) => { if (v.blocking) blockings.push({ vi, B: v.blocking }); return '<div class="scene"><div class="sub"><b>' + esc(v.label) + '</b> · ' + esc(v.sub) + '</div>' + (v.blocking ? '<div class="card">' + blockingSvg(v.blocking, vi) + '<div class="sub">from above: the marks, the way each actor goes (dashed), the way each faces as its lines start (arrows); the dots move with the playhead</div>' + (v.notes ? '<div class="sub"><b>Director\\u2019s notes</b> (lib/graph/actor/notes.js): ' + (v.notes.length ? v.notes.map((n) => '<br>· <b>' + esc(n.id) + '</b> ' + esc(n.says) + ' <i>Try:</i> ' + esc(n.try)).join('') : 'none') + '</div>' : '') + '</div>' : '') + v.actors.map((c) => (all.push(c), card(c, D.scene.seconds))).join('') + '</div>'; }).join('');
 function moveBlocking(t) {
   for (const { vi, B } of blockings) {
     const svg = document.querySelector('svg.blocking[data-vi="' + vi + '"]'), vb = svg.viewBox.baseVal;

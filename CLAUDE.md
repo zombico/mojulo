@@ -10,7 +10,8 @@ comments, docs, or the changelog: plans are working documents that move to
 A local MCP server with a dashboard that turns the operator's agent into a game studio. The person directs; the
 agent works through six departments: worlds and levels (art direction, light, set pieces, cities planned for play),
 characters, props and vehicles (`create_character`, `mint_solid`), play modes, animation and sound (`create_game`, feel,
-juice, `create_beats`), foes and bosses, cameras and cutscenes (`forge_motion`, the scenes card), and game design and
+juice, `create_beats`), foes and bosses, cinematics (the actor: a persona's `style` and `role`, scenes and their coverage,
+`forge_motion`, the scenes card; craft in [docs/cinematics.md](docs/cinematics.md)), and game design and
 production (`design_game`, the bibles, plans and sweeps), which ties the rest into a game. The audit and the engine legs
 are how everything holds up, not departments. Every department writes into one tiny
 deterministic recipe (a `sketches` row) that regenerates on every read and exports to Godot, Unity, Unreal, Blender,

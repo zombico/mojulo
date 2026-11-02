@@ -1,8 +1,26 @@
-### The scene actor: one kind of actor plays a role from a script, in a style
+### The cinematics department: one kind of actor plays a role from a script, in a style, and a director shoots it
 
 In progress. One actor for every character a scene shows: a hero that plays a role from a script in a playing style,
 its face, body and later its hands directed together on one clock, and its take played outside any game engine.
 
+- **Cameras and cutscenes become Cinematics.** The studio's sixth department now directs scenes the way a film crew does:
+  actors who play a role from a script in a style, speaking to each other and listening, walking their marks; the
+  coverage a director would shoot; directed moments in the game; flythroughs and recorded runs; and a scene exported to
+  Blender in a film look or an anime look. The README, the agent's one-breath answer, `CLAUDE.md` and the plugin say so.
+  Its craft is written down as principles, each naming the code that holds it (`docs/cinematics.md`).
+- **The director's notes** (`control/lib/graph/actor/notes.js`): suggestions read off a scene and its coverage, as a
+  director, a script supervisor or an editor would give them, each with the principle it rests on and a change to the
+  script that answers it:
+  - a shot held too long on one framing;
+  - a speaker facing away from whom it speaks to;
+  - a cross that flips the line;
+  - a scene where no one moves;
+  - speakers too close or too far apart;
+  - many lines and no close-up;
+  - a speaking part played as background.
+
+  They suggest and never refuse. The dailies and the Blender pack's `SCENE.md` carry them, and the scene export prints
+  them.
 - **One actor, three dials.** A role (who the character is: its resting state, its status, how it speaks; the
   persona's delivery registers are roles of speech), a style (how much it does and when: `thespian`, `action-star`,
   `anime-mocap`, `extra`, each a card tuned as `{ from, …overrides }`), and the keying and the look (continuous or on

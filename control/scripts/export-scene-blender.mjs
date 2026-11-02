@@ -63,6 +63,8 @@ for (const w of Object.keys(S.actors)) {
 const files = sceneFilmFiles({ S, coverage, actors, fps, title });
 for (const f of files) { mkdirSync(path.dirname(path.join(out, f.file)), { recursive: true }); writeFileSync(path.join(out, f.file), f.text); }
 console.log(`${out}: ${files.length} files, ${coverage.shots.length} shots, ${S.seconds} s; look ${look}`);
+const { directorsNotes } = await lib('graph/actor/notes.js');
+for (const n of directorsNotes(S, coverage)) console.log(`  note · ${n.id}${n.at !== undefined ? ` (${n.at} s)` : ''}: ${n.says} Try: ${n.try}`);
 
 // ─── the gate, advisory: only where a Blender is found ────────────────────────────────────────────────────────────────
 const { findBlender } = await lib('workers/find.js');
