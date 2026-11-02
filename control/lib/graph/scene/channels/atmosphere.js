@@ -23,7 +23,8 @@
 //              cannot draw to a half-float target, a camera that is not perspective and an XR session keep the plain frame.
 //
 // Absent `air` => NOT emitted: the page's fog chunk, its sky and its frame are untouched. `window.__mojAir` is the probe:
-// { kind, visibility, sigma, height, blur, sky (veiled), target (the blur's), passes, fog(), depth(ez, rx, ry, rz), set({ blur? }) }.
+// { kind, visibility, sigma, height, blur, sky (veiled), target (the blur's), passes, fog(), depth(ez, rx, ry, rz),
+// taken(ez, rx, ry, rz) (past ATMOSPHERE.cull), set({ blur? }) }.
 import { safeJson } from '../emit-util.js';
 
 /** The kinds of air and their measures. `outside` (a path, a trail, a town), `city` (a geocity: a metro kilometres across)
@@ -42,6 +43,9 @@ export const ATMOSPHERE = Object.freeze({
   blur: Object.freeze({ px: 3, taps: 16, from: 0.2 }),
   // how far the sky is read at (m): its veil's ray is the horizon's at this distance
   sky: 3000,
+  // the optical depth past which the air has taken a thing (a contrast of e^-6, a quarter of a percent): a page may leave
+  // it undrawn (the city's kit and trees, channels/city-cone.js; the far trees and buildings, form-flora.js, far-structures.js)
+  cull: 6,
 });
 
 const KEYS = ['kind', 'visibility', 'clear', 'height', 'glow', 'blur', 'colour'];
@@ -196,7 +200,9 @@ export function atmosphereEarlyScript(cfg) {
       if (AT.height === null) return sg * run;
       const h0 = Math.max(ez - AT.base, 0), h1 = Math.max(ez + rz - AT.base, 0), dh = (h1 - h0) / AT.height, e0 = Math.exp(-h0 / AT.height);
       return sg * run * (Math.abs(dh) > 1e-4 ? (e0 - Math.exp(-h1 / AT.height)) / dh : e0);
-    } };
+    },
+    // (taken: past the air's cull, nothing of it reaches the eye)
+    taken(ez, rx, ry, rz) { return this.depth(ez, rx, ry, rz) > ${ATMOSPHERE.cull}; } };
   // the blur: the frame into a target that holds what the canvas would, then laid on the canvas softened by the air
   const ext = renderer.extensions, canHalf = ext.has('EXT_color_buffer_float') || ext.has('EXT_color_buffer_half_float');
   if (!(AT.blur > 0 && canHalf)) return;

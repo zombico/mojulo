@@ -34,7 +34,7 @@ describe('the city on the view cone', () => {
   });
 
   it('leaves out what the air has fully taken, and keeps the ring for a tile without the cone', () => {
-    const fogged = { __mojCone: { reach: 40, px: 0.0015 }, __mojAir: { depth: (ez, x, y, z) => Math.hypot(x, y, z) * 0.05 } };
+    const fogged = { __mojCone: { reach: 40, px: 0.0015 }, __mojAir: { taken: (ez, x, y, z) => Math.hypot(x, y, z) * 0.05 > 6 } };
     const [near, far] = run([tile('kit', 0, 60), tile('kit', 0, 200)], { x: 0, y: 0, z: 1.7 }, fogged);
     expect(near).toBe(true);
     expect(far).toBe(false);

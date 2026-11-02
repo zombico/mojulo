@@ -9,15 +9,15 @@
 //         complementary by construction (one distance, one reach), so no tree is drawn twice and none goes missing
 //   kit   a thing that is only itself (a lamp, a bench): shown while its template's height covers `kitPx` pixels at the
 //         tile's nearest point, within the ring
-//   air   with the page's air (channels/atmosphere.js), a tile whose top lies under an optical depth of `fogTau` (a
-//         contrast of e^-6, a quarter of a percent) is not drawn at all: the fog has already taken it
+//   air   with the page's air (channels/atmosphere.js), a tile whose top lies past the air's cull (ATMOSPHERE.cull, an
+//         optical depth of 6: a quarter of a percent of contrast) is not drawn at all: the fog has already taken it
 //
 // Every rule stays within the ring a tile without the cone keeps (its centre within `near` and three quarters of a tile,
 // over the ground), so a high camera sees the street it saw. The pair's tiles are `tile` metres; the kit keeps the ring's.
 //
 // The reach and a pixel's size at a metre are the view cone's (`window.__mojCone`, set before the render list each frame);
 // a page without one falls back to `reach` metres and `px`. Absent any repeat with `cone`, not one byte of this is emitted.
-export const CITY_CONE = Object.freeze({ tile: 48, kitPx: 2, fogTau: 6, reach: 40, px: 0.0015 });
+export const CITY_CONE = Object.freeze({ tile: 48, kitPx: 2, reach: 40, px: 0.0015 });
 
 /** The tile record's extra fields, in `__nearRepeat`'s scope (r, T, ids, the box it gathered): its rule, its box over
  *  the instances' feet to their tops, and its height. */
@@ -34,7 +34,7 @@ export function cityConeRule() {
     const ring = (n.x - p.x) * (n.x - p.x) + (n.y - p.y) * (n.y - p.y) < n.r * n.r;
     let v = ring && (n.c === 'in' ? d < reach : n.c === 'out' ? d >= reach : d < n.h / (CC.kitPx * px));
     // (the air: the tile's top, the least fogged of it where the air lies low)
-    if (v && A && A.depth) v = A.depth(p.z, qx, qy, b[5] - p.z) < CC.fogTau;
+    if (v && A && A.taken) v = !A.taken(p.z, qx, qy, b[5] - p.z);
     n.im.visible = v;
   }`;
 }
