@@ -202,10 +202,22 @@ function heroMoves(G) {
   const ids = G.characters?.hero?.actions?.moves ?? [];
   return ids.length ? Object.assign({}, ...ids.map((id) => HERO_MOVES[id].rule)) : null;
 }
-function withMoves(P, moves) {
-  if (!moves) return P;
-  const figures = Object.fromEntries(Object.entries(P.figures || {}).map(([k, f]) => [k, { ...f, ...(f.clips ? { clips: traversalStates(f.clips) } : {}) }]));
-  return { ...P, figures, entities: P.entities.map((e, i) => (i === 0 ? { ...e, rule: { ...e.rule, ...moves } } : e)) };
+// THE POWERS' MOVES the hero starts with (actions.js TRAVERSAL_MOVES): a power with a `move` the hero gains at the early
+// stage (or any, where the page lays no stages) is granted from the first level, every level it plays; one that keys a
+// map's door is found there instead (game.powers), and one gained later waits on its stage. → the move ids, or []
+function startingGrants(G) {
+  const A = G.characters?.hero?.actions;
+  if (!A?.powers?.length) return [];
+  const keyed = new Set(powerKeys(G).map((p) => p.id)), staged = (A.progression ?? []).length > 0;
+  const early = new Set(staged ? (A.progression.find((s) => s.stage === 'early')?.gains ?? []) : A.powers.map((p) => p.id));
+  return A.powers.filter((p) => p.move && early.has(p.id) && !keyed.has(p.id)).map((p) => p.move);
+}
+function withMoves(P, moves, grants = []) {
+  if (!moves && !grants.length) return P;
+  const figures = moves ? Object.fromEntries(Object.entries(P.figures || {}).map(([k, f]) => [k, { ...f, ...(f.clips ? { clips: traversalStates(f.clips) } : {}) }])) : P.figures;
+  // (each grant over the rule as it stands: a high jump the hero's own half as high again, a second jump at least one)
+  const grant = (rule) => grants.reduce((r, m) => { const g = TRAVERSAL_MOVES[m].rule(r); return { ...r, ...g, ...(g.airJumps ? { airJumps: Math.max(r.airJumps ?? 0, g.airJumps) } : {}) }; }, rule);
+  return { ...P, figures, entities: P.entities.map((e, i) => (i === 0 ? { ...e, rule: grant({ ...e.rule, ...(moves ?? {}) }) } : e)) };
 }
 const movesLegend = (moves) => (moves && moves.gear ? ' · F  swing (in the air), zip (on the ground)' : '');
 
@@ -532,7 +544,7 @@ function levelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = null, me
     const rule = struck ? { ...(rule0 ?? {}), ...struck } : rule0;
     // (a mascot pilot, egocube/mascot-pilot.js: its own clips, capsule, stride, camera and eye)
     const moves = heroMoves(G);
-    const P = withMoves(playerWorld({ heroRef, ...(heroGaits ? { gaits: heroGaits } : {}), ...(pilot ? { pilot } : {}), id: 'hero', title: name, controls: `${controls}${movesLegend(moves)}`, ...(rule ? { rule } : {}) }), moves);
+    const P = withMoves(playerWorld({ heroRef, ...(heroGaits ? { gaits: heroGaits } : {}), ...(pilot ? { pilot } : {}), id: 'hero', title: name, controls: `${controls}${movesLegend(moves)}`, ...(rule ? { rule } : {}) }), moves, startingGrants(G));
     const events = { ...(P.events || {}), ...(mechanics?.inputs?.length ? { inputs: [...(P.events?.inputs ?? []), ...mechanics.inputs] } : {}) };
     const camera = look ? { rule: 'eye', target: 'hero', height: pilot ? pilot.eye : HERO_EYE, mouseLook: true, hideTarget: true }
       : top ? { rule: 'overhead', target: 'hero', ...OVERHEAD }
@@ -1039,7 +1051,7 @@ function buildingLevelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = 
   if (cam === 'side') throw new Error(`levels: a side camera runs a trail's lane, and '${stage.level}' is a building with none; play it top-down, fixed or third-person`);
   const controls = `${top ? 'W A S D  move' : 'W / S  run · A / D  turn'} · Space  jump${carriesStrike(G) ? ` · ${STRIKE_LEGEND}` : ''}${shotItem(G) ? ` · ${FIRE_LEGEND}` : ''}${movesLegend(moves)}${X?.legend ? ` · ${X.legend}` : ''}${mechanics?.legend ? ` · ${mechanics.legend}` : ''}`;
   const brule = { ...(top ? { move: 'world', moveYaw: OVERHEAD.yaw } : {}), ...(strikeWindow(G, null) ?? {}) };
-  const P = withMoves(playerWorld({ heroRef, ...(heroGaits ? { gaits: heroGaits } : {}), ...(pilot ? { pilot } : {}), id: 'hero', title: name, controls, ...(Object.keys(brule).length ? { rule: brule } : {}) }), moves);
+  const P = withMoves(playerWorld({ heroRef, ...(heroGaits ? { gaits: heroGaits } : {}), ...(pilot ? { pilot } : {}), id: 'hero', title: name, controls, ...(Object.keys(brule).length ? { rule: brule } : {}) }), moves, startingGrants(G));
   const inputs = [...(P.events?.inputs ?? []), ...(mechanics?.inputs ?? []), ...(X?.inputs ?? [])];
   const events = { ...(P.events || {}), ...(inputs.length > (P.events?.inputs?.length ?? 0) ? { inputs } : {}) };
   const A = armedPilot(G, { ...P.entities[0], transform: { pos: steppedIn(plan, spawn, heading), heading } }, cam);

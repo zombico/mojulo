@@ -54,3 +54,15 @@ describe('the pilot strikes and shoots with what the hero carries', () => {
     expect(hint(plain)).not.toMatch(/click {2}(strike|fire)/);
   });
 });
+
+describe('a power\'s move is the hero\'s from the stage that gains it', () => {
+  const withPowers = (actions) => ({ ...MEADOWMARK_HERO, characters: { ...MEADOWMARK_HERO.characters, hero: { ...H, actions } } });
+  const LEAP = { id: 'ash-leap', verb: 'leap', move: 'double-jump' }, LIFT = { id: 'updraft', verb: 'rise', move: 'high-jump' };
+  it('gained early (or with no stages laid), its move is granted from the first level; gained later, not yet', () => {
+    expect(pilot(firstLevel(withPowers({ powers: [LEAP] }))).rule.airJumps).toBe(1);
+    const staged = pilot(firstLevel(withPowers({ powers: [LEAP, LIFT], progression: [{ stage: 'early', gains: ['updraft'] }, { stage: 'mid', gains: ['ash-leap'] }] }))).rule;
+    expect(staged.airJumps ?? 0).toBe(0);
+    const plain = pilot(firstLevel(MEADOWMARK_HERO)).rule;
+    expect(staged.jumpSpeed).toBeCloseTo((plain.jumpSpeed ?? 8.5) * Math.sqrt(1.5), 2);
+  });
+});
