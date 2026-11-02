@@ -73,3 +73,9 @@ its resource, put on a look and showed a toast. This theme makes them act.
   - a genre that fights only turn by turn is not cast real-time foes;
   - on a stage the party battles are fought on, standing foes are cleared but take no second hp: the battle's
     `fail-on-death` is the level's end.
+- **Party battles proven in a page.** A JRPG composed from a sentence, run and exported, then played headless:
+  - walking up to the first pack opened its fight ("Slime A and Slime B appear!"), and accepting the commands won it
+    ("Victory! 8 XP and 6 gold.", `rpg-won:pack-1`), the pack's foe falling on the map;
+  - the second ("Wolf and Bat") was won too, the hero rising to level 2;
+  - no page errors.
+  The sentence's party is the hero alone: the door casts no companions who join it yet.
