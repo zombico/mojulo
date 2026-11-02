@@ -35,3 +35,8 @@ spoils while carried. Built so far:
   bag carried from level to level as the store carries it; a trade's place walked to and back, the giver's hand-in at the
   end, proved when the giver says `errand:done`. What it assumes is said (a bounty's fall is given: the proof cannot
   fight), what arrives against what is asked is said, and an errand out of reach or a level not made is not walked.
+- **Proved in an exported page** (machine gate, standing in for eyes): a `design_game` map world (home the giver, a
+  farm, a market, woods with a walker), exported by `export_game` and played headless through its shell across seven
+  level loads: the giver turned an empty bag away; 3 coin at the farm; 12 eggs for them at the market; a fall broke one;
+  the walker felled (the cast's own kill) dropped its pelt; home with 11 eggs and the pelt carried in the bag; 6 and the
+  pelt handed over for 5 gold, the level ending in `success` and the shell showing it cleared.
