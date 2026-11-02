@@ -240,6 +240,27 @@ member, a quick game's hero). Code: `control/lib/graph/egocube/feature-tune.js`.
   - keyed at the packer's samples (12), so every packed frame is a key and nothing is blended between two;
     `mascot.trot` carries the cycle's seconds, ground speed, stride and duty.
   Every animal that goes on all fours trots (the leggy, barrel, wedge, pear and noodle silhouettes).
+- **The standing walk, from the same mechanics** (the `walk` clip of every feature animal whose legs reach a stance,
+  `FEATURE_WALK` in `feature-walk.js`). In this design language a slow walk is done on two legs and the trot on all
+  fours is faster, so the walk is held under 0.7 of the animal's own trot: 0.35 to 0.45 m/s against the trot's 0.50
+  to 0.68. It replaces the mascot walk on the feature style, which had 8 keys, a smoothstep swing that popped at lift-off
+  and touchdown, and an energy's bob. The new walk has:
+  - THE BEAT: the feet half a stride apart, each down 0.6 of it, both down twice a stride;
+  - THE STRIDE: a person's stroll (Froude 0.15) at a cadence scaled to the leg by dynamic similarity (0.85 strides a
+    second at a 0.9 m leg: a raccoon-sized mascot takes about 1.45). The stance is cut to what a near-straight leg
+    reaches and to the trot's speed;
+  - ONE GROUND: every planted foot slides back at the one ground speed, and the swing is laid C1 between stances (the
+    trot's `swingPath`);
+  - THE VAULT: the standing leg kept straight, as the style stands (its knee 13 to 19°, breaking to about 32° only to
+    push off), the body riding over it. Solved on the rig as the least sink each standing leg needs, smoothed to the
+    stride's low harmonics, its dips exaggerated (`bob`);
+  - THE WADDLE: the body swung over the foot that bears it, an inverted pendulum driven by the feet's double-hump forces
+    (the horse study's sway, MERKENS 1993's walk), so the wide-hipped round bodies sway furthest (about 6% of the
+    height). The trunk leans over the bearing foot, the pelvis turns with the reaching leg and the chest against it;
+  - FOLLOW-THROUGH: the arms swing against the legs, a little late, each turned about its own side so it still clears
+    the belly; the head nods after the bob. The tail is as designed, since standing it is not carried;
+  - keyed at the packer's 12 samples. `mascot.walk` carries the cycle's seconds, ground speed, stride and duty. The
+    walk on all fours (`prowl`) still takes the mascot walk's paths.
 - **The downward dog, facing forward** (a `downDog` clip, `FEATURE_DOG`, `dogOf`): the hips high, the hind legs as
   straight as the forepaws allow (bent only as far as they need to reach the floor), the trunk tipped past level and
   bent down at the waist (the rib ball under the pelvis ball), the forepaws straight out in front on the floor, the face
@@ -383,6 +404,11 @@ member, a quick game's hero). Code: `control/lib/graph/egocube/feature-tune.js`.
     the hind legs in every key, the trunk's hinge held and within 6° of the all-fours pose's; and from the front, in every key, each foot on
     its own side under its girdle, the head on the middle, its crown ahead of upright and its eyes looking forward;
   - a keyed clip sampled at a key poses as the key (its feet's targets and its waist kept): `station-loft-rig.clip.test.js`;
+  - the standing walk, PLAYED as packed: slower than the trot; each foot on the floor in stance, clear of it in swing,
+    sliding back at the one ground speed; the feet half a stride apart, both down twice a stride; a leg bearing the
+    weight alone near straight (its knee under 25°), every knee bent forward and never out; the body rising and falling
+    a little; and from the front, the body over the foot that bears it alone and never past it, each foot on its own
+    side, the eyes looking forward; the arms swinging; the tail as designed;
   - the gallop on the rig: the run's cycle, the waist working, the forepaw travelling fore and aft and reaching the
     floor in some keys and through the air in others, the hind feet behind the hips, the face ahead and a little down in
     every key (never up), the tail's root at the rump (never up the back) and the tail held back near level and

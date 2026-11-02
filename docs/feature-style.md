@@ -166,6 +166,23 @@ stand together in a trot), solved on the rig and smoothed to the stride's low ha
 under the weight and the trunk never rocks. Keyed at the packer's samples, so every packed frame is a key. `mascot.trot` carries its cycle's seconds
 and ground speed.
 
+**The standing walk** (`walk`, `FEATURE_WALK` in `egocube/feature-walk.js`). In this design language a slow walk is
+done on two legs and the trot on all fours is faster: the walk is held under `slower` of the animal's own trot. It is
+laid out with the trot's tools:
+- the two feet half a stride apart, each down `duty` of it (both down twice a stride);
+- a person's stroll (`froude`) at a cadence scaled to the leg (`cadence` at `leg0`), the stance cut to what a
+  near-straight leg reaches;
+- every planted foot on the one ground, and the swing C1 between stances;
+- the body vaulting over the standing leg (kept `column` straight, as the style stands; it breaks at the knee only to
+  push off): solved on the rig and smoothed, highest as the leg passes under the hip, its dips exaggerated by `bob`;
+- the WADDLE: the body swung over the foot that bears it, an inverted pendulum driven by the feet's forces (the horse
+  study's sway), so the wider the hips the further it swings. The trunk leans over it (`lean`), the pelvis turns with
+  the reaching leg and the chest against it;
+- the arms swing against the legs, late, each turned about its own side so it still clears the belly, and the head
+  nods after the bob. The tail is as designed, since standing it is not carried.
+
+`mascot.walk` carries the walk's cycle seconds and its ground speed.
+
 **A keyed clip plays its keys.** Packed, a clip is blended between its keys (`layeredClip`). A `feet` target is
 blended as a point and the waist's bend survives the second resolve. Before, played or exported, a keyed gait's feet
 never stepped and a pose on all fours lost its waist.

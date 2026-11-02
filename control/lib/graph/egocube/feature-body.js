@@ -45,6 +45,7 @@ import { tuftColour } from './feature-tufts.js';
 import { attachAll } from './feature-attach.js';
 import { foursClips, FEATURE_GALLOP, FEATURE_GAIT } from './feature-function.js';
 import { FEATURE_TROT, trotMeasures, trotSignals, trotVault } from './feature-trot.js';
+import { FEATURE_WALK, walkMeasures, walkSignals } from './feature-walk.js';
 import { plumageOf, wingTones } from './feature-birds.js';
 import { speciesParams } from '../fauna/species.js';
 import { animalCard } from './mascot-animals.js';
@@ -396,6 +397,8 @@ export function featurePlan(sheet, { title = 'a feature animal', reactions = fal
   };
   // (the forepaws planted on the floor, solved on the rig itself)
   if (build.fours) { landed(plan); looking(plan); planted(plan); if (L.tail) carried(plan, build.tail.carriage); trotted(plan); }
+  // (upright, a slow walk on two legs, slower than the trot: feature-walk.js)
+  walked(plan);
   // (an animal that goes on all fours RUNS on them: its `run` is the gallop; upright it only walks, slowly)
   if (plan.clips.gallop) plan.clips.run = plan.clips.gallop;
   return { plan, H, height: L.top, ...(tune?.detail.bake ? { bake: detailBake(build.plan) } : {}) };
@@ -526,6 +529,53 @@ function carried(plan, carriage) {
       }
     });
   }
+}
+
+/** THE STANDING WALK (feature-walk.js), posed on the rig from the standing key (the idle's first): each foot on the ONE
+ *  ground, its ankle's stance centred under its hip; the body riding over the standing leg (the vault, solved on the rig:
+ *  how far the body must sink for each standing leg to reach its foot at `column` of its length, smoothed to the stride's
+ *  low harmonics, its dips exaggerated by `bob`); the waddle (the body swung over the bearing foot, the trunk leaning over
+ *  it, the pelvis turning with the reaching leg and the chest against it); the arms swinging against the legs, late,
+ *  each turned forward about its own side so it clears the belly as the standing arms do; the head nodding after the bob.
+ *  The tail as designed (standing, it is not carried). Keyed at the packer's samples; its measures ride `mascot.walk`, its
+ *  speed under the trot's. A body whose legs reach no stance keeps its walk. */
+function walked(plan, W = FEATURE_WALK) {
+  const base = plan.clips.idle?.[0];
+  if (!base) return;
+  const R = validateRig(expandPlan(plan).rig), J = R.joints, h = plan.mascot.height, n0 = rigNodesAt(R, base).nodes;
+  const len = (a, b) => Math.hypot(b[0] - a[0], b[1] - a[1], b[2] - a[2]);
+  const thigh = len(J.hipR, J.kneeR) + len(J.kneeR, J.ankleR), meta = sub(n0.ankleR, n0.toeBaseR), floor = n0.toeBaseR[2];
+  const leg = n0.hipR[2] - floor, col = W.column * thigh, dx = n0.hipR[0] - n0.ankleR[0], H = n0.hipR[2] - n0.ankleR[2];
+  // (how far fore and aft of under the hip a standing leg reaches its foot with the hip fallen no more than `vault`)
+  const span = Math.sqrt(Math.max(0, col * col - dx * dx - (Math.min(H, col) - W.vault * leg) ** 2));
+  const M = walkMeasures({ leg, span, trot: plan.mascot.trot?.speed ?? null }, W);
+  if (M.stance < 0.02 * h) return;
+  const S = walkSignals(M, { lift: W.lift * leg, footX: Math.abs(n0.toeBaseR[0]), h: n0.hipR[2] }, W), K = W.keys;
+  const at = (side) => [n0[`toeBase${side}`][0], n0[`hip${side}`][1] - meta[1], floor];
+  // (an arm swung forward or back about its own side: its share out kept, so it clears the belly as it stands)
+  const swung = (a, s) => { const y = a.y + W.arms.swing * s, z2 = Math.max(0.05, 1 - a.x * a.x - y * y); return { x: a.x, y: r4(y), z: r4(-Math.sqrt(z2)) }; };
+  const keyAt = (i, drop) => {
+    const t = i / K, sw = S.sway(t), ln = S.lean(t), k = { ...base, sink: r4(Math.max(0, drop)), shift: { x: r4(sw), y: 0 }, feet: {},
+      spine: { ...(base.spine ?? {}), sideBend: [ln >= 0 ? 'right' : 'left', r4(W.lean * Math.abs(ln))], twist: [S.arm('R', t) >= 0 ? 'left' : 'right', r4(W.twist * Math.abs(S.arm('R', t)))] },
+      pelvis: r4(W.pelvis * S.arm('L', t)), neck: { ...(base.neck ?? {}), pitch: r4((base.neck?.pitch ?? 0) + S.nod(t)) } };
+    for (const side of ['R', 'L']) { const [dy, dz] = S.feet(side, t), p = at(side); k.feet[side] = [r4(p[0]), r4(p[1] + dy), r4(p[2] + dz)]; }
+    for (const side of ['R', 'L']) if (base[`arm${side}`]?.x !== undefined) k[`arm${side}`] = swung(base[`arm${side}`], S.arm(side, i / K));
+    return k;
+  };
+  // (THE VAULT: the least the body sinks for each standing leg to reach its ankle at `column` of its length, the swinging
+  // leg its own at full reach)
+  const need = Array.from({ length: K }, (_, i) => {
+    const t = i / K, k = keyAt(i, 0), n = rigNodesAt(R, k).nodes;
+    return Math.max(0, ...['R', 'L'].map((side) => {
+      const hip = n[`hip${side}`], ankle = add(k.feet[side], meta), L = S.down(side, t) ? col : 0.99 * thigh;
+      const d2 = (hip[0] - ankle[0]) ** 2 + (hip[1] - ankle[1]) ** 2;
+      return d2 >= L * L ? 0.5 * leg : hip[2] - ankle[2] - Math.sqrt(L * L - d2);
+    }));
+  });
+  const smooth = trotVault((t) => need[Math.round(t * K) % K], 4), mean = need.reduce((a, b) => a + b, 0) / K;
+  const keys = Array.from({ length: K }, (_, i) => { const v = smooth(i / K); return keyAt(i, Math.max(need[i], v, mean + W.bob * (v - mean))); });
+  plan.clips.walk = keys;
+  plan.mascot.walk = { seconds: M.seconds, speed: M.speed, stride: M.stride, duty: M.duty, ...(M.cut ? { cut: M.cut } : {}) };
 }
 
 /** THE TROT ON ALL FOURS (feature-trot.js), posed on the rig from the settled all-fours pose (its waist, look, carried

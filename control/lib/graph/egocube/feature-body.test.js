@@ -7,6 +7,8 @@ import { describe, it, expect } from 'vitest';
 import { egg, eggDistance, eggField, eggSkin, tuft, FEATURE_BUILDS, FEATURE_TRIANGLES, FEATURE_CARRIAGE, FEATURE_TAIL_RUMP, featureShapes } from './feature-body.js';
 import { speciesTail, FEATURE_GALLOP } from './feature-function.js';
 import { FEATURE_TROT } from './feature-trot.js';
+import { FEATURE_WALK } from './feature-walk.js';
+import { KEYS as GAIT_KEYS } from './mascot-gait.js';
 import { layeredClip } from '../polygonizer/station-loft-rig.js';
 import { pieces, attachAll, gapOf } from './feature-attach.js';
 import { resolveTune } from './feature-tune.js';
@@ -109,7 +111,7 @@ describe('the feature body', () => {
     for (const S of ['R', 'L']) { expect(Math.abs(nodes[`knuckles${S}`][2]), S).toBeLessThan(0.08 * height); expect(nodes[`toeBase${S}`][2]).toBeLessThan(0.03 * height); }
     const crown = nodes.headTop.map((v, k) => v - nodes.headBase[k]);
     expect(crown[2] / Math.hypot(...crown)).toBeGreaterThan(0.8);
-    expect(plan.clips.prowl.length).toBe(plan.clips.walk.length);
+    expect(plan.clips.prowl.length).toBe(GAIT_KEYS);                                 // (the biped walk's paths, as gaitClips lays them)
     // THE WALK ON ALL FOURS, posed on the rig: a lateral sequence (each foreleg lifted a quarter cycle after its own side's
     // hind leg), a paw in stance on the floor (the trot has its own test below)
     {
@@ -136,7 +138,7 @@ describe('the feature body', () => {
     // THE GALLOP, the dog its base: the run's cycle, the waist rounding at the gather and opening at the extension, the
     // forelegs swinging, the face ahead throughout, the forepaws reaching the floor
     const gal = plan.clips.gallop;
-    expect(gal.length).toBe(plan.clips.walk.length + 2);                               // (the run's keys, the vault and the landing)
+    expect(gal.length).toBe(GAIT_KEYS + 2);                                          // (the run's keys, the vault and the landing)
     // (an animal on all fours RUNS on them: its `run` is the gallop; upright it only walks)
     expect(plan.clips.run).toEqual(gal);
     expect(Math.max(...gal.map((k) => k.waist)) - Math.min(...gal.map((k) => k.waist))).toBeGreaterThan(5);
@@ -259,6 +261,51 @@ describe('the feature body', () => {
       expect(tip, `${i}`).toBeGreaterThan(-5); expect(tip, `${i}`).toBeLessThan(35);
       for (const S of ['R', 'L']) { const g = x[`eyeTip${S}`].map((v, a) => v - x[`eyeC${S}`][a]); expect(g[1] / Math.hypot(...g), `${S} ${i}`).toBeGreaterThan(0.5); }
     });
+  });
+
+  it('the standing walk: slow, on two legs, slower than the trot; one ground, straight standing legs, the waddle', () => {
+    const plan = mascotPlanFromSheet(rollMascot({ brief: 'raccoon', facets: { style: 'feature' } })).create.spec.plan;
+    const R = validateRig(expandPlan(plan).rig), h = plan.mascot.height, keys = plan.clips.walk, K = FEATURE_WALK.keys, M = plan.mascot.walk;
+    expect(keys).toHaveLength(K);
+    // (THE DESIGN LANGUAGE: a slow walk on two legs, the trot on all fours faster)
+    expect(M.speed).toBeGreaterThan(0); expect(M.speed).toBeLessThan(plan.mascot.trot.speed);
+    const fn = layeredClip(keys, R), at = keys.map((_, i) => rigNodesAt(R, fn(i / K)).nodes), ground = -(M.speed * M.seconds) / K;
+    const down = {};
+    for (const S of ['R', 'L']) {
+      const n = `toeBase${S}`, z = at.map((x) => x[n][2]), z0 = Math.min(...z);
+      down[S] = z.map((v) => v < z0 + 0.004 * h);
+      // (ON THE FLOOR in stance, clear of it in swing, sliding back at the one ground speed)
+      expect(z0, S).toBeLessThan(0.03 * h); expect(Math.max(...z) - z0, S).toBeGreaterThan(0.02 * h);
+      for (let i = 0; i < K; i++) if (down[S][i] && down[S][(i + 1) % K] && down[S][(i + 2) % K]) expect(at[(i + 1) % K][n][1] - at[i][n][1], `${S} ${i}`).toBeCloseTo(ground, 2);
+    }
+    // (THE BEAT: each foot down about `duty` of the stride, the two half a stride apart, both down twice a stride)
+    for (const S of ['R', 'L']) expect(Math.abs(down[S].filter(Boolean).length - FEATURE_WALK.duty * K), S).toBeLessThanOrEqual(1.5);
+    expect(down.R.map((d, i) => d === down.L[(i + K / 2) % K]).filter(Boolean).length).toBeGreaterThanOrEqual(K - 1);
+    expect(down.R.filter((d, i) => d && down.L[i]).length).toBeGreaterThanOrEqual(2);
+    // (STANDING STRAIGHT: a leg bearing the weight alone is near straight (it breaks at the knee only to push off);
+    // its knee bends forward, never out)
+    const bend = (x, S) => { const u = x[`hip${S}`].map((v, a) => v - x[`knee${S}`][a]), w = x[`ankle${S}`].map((v, a) => v - x[`knee${S}`][a]); return 180 - (Math.acos(u.reduce((q, v, a) => q + v * w[a], 0) / Math.hypot(...u) / Math.hypot(...w)) * 180) / Math.PI; };
+    for (const S of ['R', 'L']) at.forEach((x, i) => {
+      if (down[S][i] && !down[S === 'R' ? 'L' : 'R'][i]) expect(bend(x, S), `${S} ${i}`).toBeLessThan(25);   // (bearing the weight alone)
+      const t = (x[`knee${S}`][2] - x[`hip${S}`][2]) / (x[`ankle${S}`][2] - x[`hip${S}`][2]), line = x[`hip${S}`].map((v, a) => v + (x[`ankle${S}`][a] - v) * t);
+      expect(Math.abs(x[`knee${S}`][0] - line[0]), `${S} ${i}`).toBeLessThan(0.005 * h); expect(x[`knee${S}`][1] - line[1], `${S} ${i}`).toBeGreaterThan(-0.005 * h);
+    });
+    // (THE VAULT: the body rises and falls through the stride, a little)
+    const hipZ = at.map((x) => x.pelvisHub[2]);
+    expect(Math.max(...hipZ) - Math.min(...hipZ)).toBeGreaterThan(0.004 * h); expect(Math.max(...hipZ) - Math.min(...hipZ)).toBeLessThan(0.05 * h);
+    // FROM THE FRONT: THE WADDLE, the body over the foot that bears it alone (to the right over the right foot), never
+    // past it; each foot on its own side; the eyes looking forward
+    at.forEach((x, i) => {
+      const sx = x.pelvisHub[0];
+      if (down.R[i] && !down.L[i]) expect(sx, `${i}`).toBeGreaterThan(0.01 * h);
+      if (down.L[i] && !down.R[i]) expect(sx, `${i}`).toBeLessThan(-0.01 * h);
+      expect(Math.abs(sx), `${i}`).toBeLessThan(Math.abs(x.toeBaseR[0]));
+      expect(x.toeBaseR[0], `${i}`).toBeGreaterThan(0.05 * h); expect(x.toeBaseL[0], `${i}`).toBeLessThan(-0.05 * h);
+      for (const S of ['R', 'L']) { const g = x[`eyeTip${S}`].map((v, a) => v - x[`eyeC${S}`][a]); expect(g[1] / Math.hypot(...g), `${S} ${i}`).toBeGreaterThan(0.5); }
+    });
+    // (the arms swing against the legs; the tail as designed, standing)
+    expect(Math.max(...keys.map((k) => k.armR.y)) - Math.min(...keys.map((k) => k.armR.y))).toBeGreaterThan(0.2);
+    for (const k of keys) expect(k.tail).toBeUndefined();
   });
 
   it('the attachment rule: every shape attached to the body or to something attached to it, a piece apart moved to it', () => {
