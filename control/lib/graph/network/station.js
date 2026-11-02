@@ -7,8 +7,11 @@
  * mezzanine across one end reached by a stair from the island, or a doorway through each side platform's wall.
  *
  *   readStation(c) → c, checked (refused by name)
- *   stationOf(c, { id, at, z0 }) → { id, plan, faces, colliders, ports: { tracks, walks }, routes: { platforms, up },
- *       box, cameras, readout }   `at` [x, y] the hall's -y end's middle, `z0` its track bed; the hall along +y
+ *   stationOf(c, { id, at, z0, portals, steps }) → { id, plan, faces, colliders, ports: { tracks, walks }, routes:
+ *       { platforms, up, steps }, box, cameras, readout }   `at` [x, y] the hall's -y end's middle, `z0` its track bed;
+ *       the hall along +y; `portals` { '-y' | '+y': [[x0, x1], …] } each end's portals as wide as the running tunnels
+ *       that meet them (the hall's x), `steps` [{ end, x0, x1 }] steps cut into a platform's end down to the track bed,
+ *       where a running tunnel's walkway meets it (routes.steps: each its top on the platform and its foot)
  *   assembleStationScene(manifest, ctx) → the World payload of a stage recipe's `station`
  *
  *   { kind: 'stage', station: { plan?: 'island' | 'side' | 'terminus', line?: 'blue' | 'red' | 'green' | 'orange',
@@ -44,7 +47,7 @@ export function readStation(c = {}) {
   return c;
 }
 
-export function stationOf(c0 = {}, { id = 'station', at = [0, 0], z0 = 0 } = {}) {
+export function stationOf(c0 = {}, { id = 'station', at = [0, 0], z0 = 0, portals = {}, steps = [] } = {}) {
   const c = readStation(c0), planId = c.plan ?? 'island', P = STATION_PLANS[planId], line = LINES[c.line ?? 'blue'], len = c.length ?? 72;
   const hw = P.width / 2, H = P.height, PH = STATION.platform, X = (x) => at[0] + x, Y = (s) => at[1] + s;
   const W = ([x, s, z]) => [X(x), Y(s), z0 + z];
@@ -79,8 +82,27 @@ export function stationOf(c0 = {}, { id = 'station', at = [0, 0], z0 = 0 } = {})
   for (const [a, b] of [...P.platforms].sort((p, q) => p[0] - q[0])) { if (a > u + 1e-6) troughs.push([u, a]); u = Math.max(u, b); }
   if (u < hw - 1e-6) troughs.push([u, hw]);
   for (const [a, b] of troughs) qz(0, a, b, 0, len, 1, 'trackbed', { hex: '#46433f', g: 0.9 });
+  const RUN = 1.2, NS = 4, rise = PH / NS;
   for (const [a, b] of P.platforms) {
-    qz(PH, a, b, 0, len, 1, 'platform', { hex: '#c9c2b4', g: 0.92 });
+    // (its top, but where steps are cut into its end: down to the track bed where a running tunnel's walkway meets it)
+    const mine = steps.filter((st) => st.x0 >= a - 1e-6 && st.x1 <= b + 1e-6);
+    for (const [s0, s1, end] of [[0, RUN, '-y'], [RUN, len - RUN, null], [len - RUN, len, '+y']]) {
+      const cut = mine.filter((st) => st.end === end).sort((p, q) => p.x0 - q.x0);
+      let x = a;
+      for (const st of cut) { if (st.x0 > x + 1e-6) qz(PH, x, st.x0, s0, s1, 1, 'platform', { hex: '#c9c2b4', g: 0.92 }); x = st.x1; }
+      if (b > x + 1e-6) qz(PH, x, b, s0, s1, 1, 'platform', { hex: '#c9c2b4', g: 0.92 });
+    }
+    for (const st of mine) {
+      const sg = st.end === '-y' ? 1 : -1, s0 = st.end === '-y' ? 0 : len;
+      for (let i = 0; i < NS; i++) {
+        // (riser i at RUN - i going from its end, its tread under it a riser lower; the last at the track bed)
+        const sr = s0 + sg * (RUN - (i * RUN) / NS), st1 = s0 + sg * (RUN - ((i + 1) * RUN) / NS), zt = PH - (i + 1) * rise;
+        qs(sr, st.x0, st.x1, zt, zt + rise, -sg, 'platform-edge', { hex: '#a8a296', g: 0.85 });
+        qz(zt, st.x0, st.x1, Math.min(sr, st1), Math.max(sr, st1), 1, i === NS - 1 ? 'trackbed' : 'stair', { hex: i === NS - 1 ? '#46433f' : '#c9c2b4', g: 0.92 });
+        if (i < NS - 1) qz(zt + 0.003, st.x0, st.x1, sg > 0 ? sr - 0.06 : sr, sg > 0 ? sr : sr + 0.06, 1, 'tactile', { hex: '#d8a52a', g: 0.95 });
+      }
+      for (const [xe, nx] of [[st.x0, 1], [st.x1, -1]]) if (xe > a + 1e-6 && xe < b - 1e-6) qx(xe, Math.min(s0, s0 + sg * RUN), Math.max(s0, s0 + sg * RUN), 0, PH, nx, 'platform-edge', { hex: '#7d786f', g: 0.8 });
+    }
     for (const [e, sg] of [[a, -1], [b, 1]]) {
       if (Math.abs(Math.abs(e) - hw) < 1e-6) continue;
       // (its edge over the track: its face down to the bed, a white line at its lip, the tactile strip behind it)
@@ -88,7 +110,13 @@ export function stationOf(c0 = {}, { id = 'station', at = [0, 0], z0 = 0 } = {})
       qz(PH + 0.004, e - sg * 0.12, e - sg * 0.02, 0, len, 1, 'edge', { hex: '#f2efe6', g: 1 });
       qz(PH + 0.005, e - sg * 1.1, e - sg * 0.6, 0, len, 1, 'tactile', { hex: '#d8a52a', g: 0.95 });
     }
-    for (const [s, ns] of [[0, -1], [len, 1]]) if (open(ns < 0 ? '-y' : '+y')) qs(s, a, b, 0, PH, ns, 'platform-edge', { hex: '#7d786f', g: 0.8 });
+    for (const [s, ns] of [[0, -1], [len, 1]]) {
+      const end = ns < 0 ? '-y' : '+y';
+      if (!open(end)) continue;
+      let x = a;
+      for (const st of mine.filter((q) => q.end === end).sort((p, q) => p.x0 - q.x0)) { if (st.x0 > x + 1e-6) qs(s, x, st.x0, 0, PH, ns, 'platform-edge', { hex: '#7d786f', g: 0.8 }); x = st.x1; }
+      if (b > x + 1e-6) qs(s, x, b, 0, PH, ns, 'platform-edge', { hex: '#7d786f', g: 0.8 });
+    }
   }
   // ── the tracks: laid as a running tunnel's, on through a portal at an open end, else to buffer stops ──
   const shut = P.ends.length < 2 ? (open('-y') ? '+y' : '-y') : null, tEnd = shut === '+y' ? len - 1 : len, tStart = shut === '-y' ? 1 : 0;
@@ -138,10 +166,11 @@ export function stationOf(c0 = {}, { id = 'station', at = [0, 0], z0 = 0 } = {})
     emit([[x + nx * 0.015, s - 0.62, z - 0.09], [x + nx * 0.015, s + 0.62, z - 0.09], [x + nx * 0.015, s + 0.62, z + 0.09], [x + nx * 0.015, s - 0.62, z + 0.09]], [nx, 0, 0], 'roundel', { hex: line.frieze, g: 1 });
   }
   // ── the end walls: tile over concrete, a portal to each track at an open end ──
-  const portals = [];
+  const gates = [];
   for (const [s, ns, end] of [[0, -1, '-y'], [len, 1, '+y']]) {
-    const spans = open(end) ? (P.tunnel === 'rail' ? [[Math.min(...P.tracks.map((t) => t.x)) - 2.15, Math.max(...P.tracks.map((t) => t.x)) + 2.15]] : P.tracks.map((t) => [t.x - 2.2, t.x + 2.2])) : [];
-    if (open(end)) P.tracks.forEach((t, i) => portals.push({ id: `${end}-${i}`, end, track: i, x: t.x, span: P.tunnel === 'rail' ? spans[0] : spans[i], s, ns }));
+    // (each as wide as its trough, or as the running tunnel that meets it: `portals[end]`, the spans the line asks for)
+    const spans = !open(end) ? [] : portals[end] ?? (P.tunnel === 'rail' ? [[Math.min(...P.tracks.map((t) => t.x)) - 2.15, Math.max(...P.tracks.map((t) => t.x)) + 2.15]] : P.tracks.map((t) => [t.x - 2.2, t.x + 2.2]));
+    if (open(end)) P.tracks.forEach((t, i) => gates.push({ id: `${end}-${i}`, end, track: i, x: t.x, span: spans.find(([p, q]) => t.x > p && t.x < q) ?? spans[0], s, ns }));
     const cuts = [...new Set([-hw, hw, ...spans.flat()])].sort((p, q) => p - q);
     for (let i = 0; i + 1 < cuts.length; i++) {
       const x0 = cuts[i], x1 = cuts[i + 1], hole = spans.some(([a, b]) => a <= x0 + 1e-6 && b >= x1 - 1e-6), zb = hole ? STATION.portal : 0;
@@ -226,7 +255,7 @@ export function stationOf(c0 = {}, { id = 'station', at = [0, 0], z0 = 0 } = {})
   }
   // ── its ports: a portal a track an open end, a doorway a way out ──
   const ports = {
-    tracks: portals.map((q) => ({ id: q.id, kind: 'track', end: q.end, track: q.track, x: r5(X(q.x)), lo: P3([X(q.span[0]), Y(q.s)]), hi: P3([X(q.span[1]), Y(q.s)]), plane: r5(Y(q.s)), z0: r5(z0), top: STATION.portal, N: [0, q.ns] })),
+    tracks: gates.map((q) => ({ id: q.id, kind: 'track', end: q.end, track: q.track, x: r5(X(q.x)), lo: P3([X(q.span[0]), Y(q.s)]), hi: P3([X(q.span[1]), Y(q.s)]), plane: r5(Y(q.s)), z0: r5(z0), top: STATION.portal, N: [0, q.ns] })),
     walks: doors.map((d, i) => ({ id: `exit-${i}`, kind: 'walk', side: d.side < 0 ? '-x' : '+x', lo: P3([X(d.side * hw), Y(d.s0)]), hi: P3([X(d.side * hw), Y(d.s1)]), plane: r5(X(d.side * hw)), z0: r5(z0 + d.z0), top: r5(d.z1 - d.z0), N: [d.side, 0] })),
   };
   // ── its walks: along each platform, end to end, clear of its columns, benches and stair; and up to each way out ──
@@ -246,10 +275,12 @@ export function stationOf(c0 = {}, { id = 'station', at = [0, 0], z0 = 0 } = {})
       return [pt(lanes[0], stair.foot + stair.out * 3, PH), pt(0, stair.foot + stair.out * 1.2, PH), pt(0, stair.edge - stair.out * 0.6, zM), pt(inside - d.side * 1.2, sm, zM), pt(inside, sm, zM)];
     }),
   };
+  // (each step cut into a platform's end: its top on the platform, its foot on the track bed at the end wall)
+  routes.steps = steps.map((st) => { const x = (st.x0 + st.x1) / 2, sg = st.end === '-y' ? 1 : -1, s0 = st.end === '-y' ? 0 : len; return { end: st.end, top: pt(x, s0 + sg * (RUN + 0.6), PH), foot: pt(x, s0 + sg * 0.15, 0) }; });
   const cameras = [
     { name: 'platform', worldFraming: { cameraPosition: pt(lanes[0], len - 2.5, PH + 1.7), lookAt: pt(lanes[0] * 0.3, len * 0.25, PH + 1.6), horizontalFov: 70 } },
     { name: 'hall', worldFraming: { cameraPosition: pt(-hw + 1, len - 1, H - 0.8), lookAt: pt(hw - 3, len * 0.3, PH), horizontalFov: 75 } },
-    ...(portals.length ? [{ name: 'portal', worldFraming: { cameraPosition: pt(portals[0].x, portals[0].s - portals[0].ns * 12, 2.0), lookAt: pt(portals[0].x, portals[0].s, 1.8), horizontalFov: 70 } }] : []),
+    ...(gates.length ? [{ name: 'portal', worldFraming: { cameraPosition: pt(gates[0].x, gates[0].s - gates[0].ns * 12, 2.0), lookAt: pt(gates[0].x, gates[0].s, 1.8), horizontalFov: 70 } }] : []),
     ...(mz ? [{ name: 'mezzanine', worldFraming: { cameraPosition: pt(hw - 1.2, (mz[0] + mz[1]) / 2, zM + 1.7), lookAt: pt(-hw / 2, P.mezzanine === '-y' ? len * 0.7 : len * 0.3, PH), horizontalFov: 75 } }] : []),
   ];
   const lo = W([-hw - 0.3, 0, 0]), hi = W([hw + 0.3, len, H]);

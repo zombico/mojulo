@@ -21,3 +21,15 @@
   marble mezzanine behind a glass balustrade). Its tracks are laid as a running tunnel's and run on through a portal
   at each open end: each portal is a port a running tunnel meets; each way out is a port a passage meets. Every
   platform is walked end to end and up to each way out, columns, benches, stair and train all standing.
+- **A subway line: stations joined by running tunnels, each with its way up to the street** (a stage recipe's
+  `subway`, network/subway.js): `{ kind: 'stage', subway: { stations: [{ id, plan?, line?, length?, train? }], gap?,
+  depth?, line?, entrances? } }` lays its stations in a row under the street at a depth (14 m by default), joined by
+  running tunnels a gap long (120 m by default): a tube to each track of an island (its walkway toward the island), one
+  twin box over both tracks of side-platform stations (its walkway under a platform). The tunnels' tracks run on the
+  stations' tracks; each station's portals open to the tunnel's width, and steps are cut in a platform's end down to
+  the track bed where a tunnel's walkway meets it. Each station's way out climbs an inclined stair in a tiled tunnel to
+  a glass pavilion on the street (its stairwell open under the glass behind a balustrade, a band of the line's colour
+  round its eaves); `entrances: false` leaves them out. Every tunnel is walked from one platform to the next and every
+  entrance from its doorway to the pavement, both ways; its laws (every station reached, cover, grade, run) are in its
+  readout. A terminus only ends a line; a line is all tubes or all boxes, its stations' tracks lined up. A rail
+  tunnel's walkway may run along either wall (`walkSide`), its finish mirrored.

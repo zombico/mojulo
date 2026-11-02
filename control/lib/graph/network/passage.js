@@ -18,6 +18,7 @@
  *     look     { floor, wall, ceiling: { texture, scale } (tiles), light: a number or { floor, wall, ceiling } (the light
  *              each surface is baked at, a node's own), stripe?: its route's colour }
  *     prefix   its faces' groups' prefix (`<prefix>:tunnel-floor` …)
+ *     walkSide a rail tunnel's walkway along its left wall (1, the default) or its right (-1): its finish mirrored
  *   → { id, faces, colliders, line (its middle walked, each point at its floor), length, level (its lowest floor), cover,
  *       slab (each the least it keeps, measured on what was built), grade (its steepest), turns, ends ([{ kind: flat |
  *       ramp | stair, drop, steps? }]), footprint ([[x0, y0, x1, y1]]: its legs and junctions in plan, its walls with
@@ -43,7 +44,7 @@ const LANDING = 1, WALL = 0.3;
 const grey = (g) => { const h = Math.round(255 * Math.max(0.08, Math.min(1, g))).toString(16).padStart(2, '0'); return `#${h}${h}${h}`; };
 const tint = (hex, g) => `#${[1, 3, 5].map((i) => Math.round(Math.max(0, Math.min(255, parseInt(hex.slice(i, i + 2), 16) * g))).toString(16).padStart(2, '0')).join('')}`;
 
-export function passageOf({ id, path, a, b, section: sec, over, look = {}, prefix = 'network' }) {
+export function passageOf({ id, path, a, b, section: sec, over, look = {}, prefix = 'network', walkSide = 1 }) {
   const hw = sec.width / 2, H = sec.height, findings = [];
   // ── its legs: each a start, a direction, its left, its length and where it lies along the whole ──
   const legs = [];
@@ -146,7 +147,8 @@ export function passageOf({ id, path, a, b, section: sec, over, look = {}, prefi
   const arcVs = Array.from({ length: ARC + 1 }, (_, i) => -hw + (2 * hw * i) / ARC);
   const wallTop = (s) => ceil(s) - H + spring;
   // a rail tunnel's walk: its safety walkway, raised a step along its left wall from a metre in at each end
-  const walk = sec.finish === 'rail' ? { v: hw - 0.5, w: 1, lift: 0.3, s0: 1, s1: L - 1 } : null;
+  // (along its left wall, or its right where `walkSide` is -1: toward the platform it meets)
+  const ws = walkSide < 0 ? -1 : 1, walk = sec.finish === 'rail' ? { v: hw - 0.5, w: 1, lift: 0.3, s0: 1, s1: L - 1, side: ws } : null;
   // ── its light: lamps down its middle under its ceiling, each surface at its node's light for it (`look.light`) and over
   // it under a lamp (a passage is narrow: the page's occlusion takes more of its light than of a room's) ──
   const lamps = [];
@@ -212,7 +214,9 @@ export function passageOf({ id, path, a, b, section: sec, over, look = {}, prefi
       }
     }
   }
-  const extra = finish(sec.finish, { emit, at, legSpans, turns, cut, ceil, zf, across, along, hw, H, L, G, look, legAt, sec, vault, arcZ, arcVs, spring, wallTop, inward, walk, clear: (s, r = 0.3) => !turns.some((c) => Math.abs(s - c.s) < hw + r) });
+  // (a finish drawn on its walkway's side: mirrored across where the walkway is on the right)
+  const atF = ws > 0 ? at : (s, v, z) => at(s, -v, z), acrossF = ws > 0 ? across : (s, sg) => across(s, -sg), inwardF = ws > 0 ? inward : (s, v) => inward(s, -v);
+  const extra = finish(sec.finish, { emit, at: atF, legSpans, turns, cut, ceil, zf, across: acrossF, along, hw, H, L, G, look, legAt, sec, vault, arcZ, arcVs, spring, wallTop, inward: inwardF, walk, clear: (s, r = 0.3) => !turns.some((c) => Math.abs(s - c.s) < hw + r) });
   // ── its walls held: a box down each side of each leg (to its junctions' bounds), and each junction's outer sides ──
   const colliders = [...(extra?.colliders ?? []).map((c) => ({ min: P3(c.min), max: P3(c.max), of: `tunnel:${id}:${c.of}` }))];
   const zLo = Math.min(...cut.map((c) => Math.min(c[2], c[3]))), zHi = Math.max(...cut.map(([p, q]) => Math.max(ceil(p), ceil(q))));
@@ -241,7 +245,7 @@ export function passageOf({ id, path, a, b, section: sec, over, look = {}, prefi
   // its middle walked, each point at its floor: from a's way out, over each tread and through each junction, to b's
   const marks = [...new Set([0, ...cut.map((c) => r5((c[0] + c[1]) / 2)), ...turns.map((c) => r5(c.s)), L])].sort((p, q) => p - q);
   // (a rail tunnel's along its walkway, on it where it is raised)
-  const line = marks.map((s) => P3(at(s, walk ? walk.v : 0, zf(s) + (walk && s > walk.s0 && s < walk.s1 && !turnAt(s) ? walk.lift : 0))));
+  const line = marks.map((s) => P3(at(s, walk ? ws * walk.v : 0, zf(s) + (walk && s > walk.s0 && s < walk.s1 && !turnAt(s) ? walk.lift : 0))));
   const endOf = (St, z) => (St ? { kind: 'stair', drop: r5(St.drop), steps: St.m } : { kind: Math.abs(Fat(LANDING + 2) - z) > 1e-3 || Math.abs(Fat(L - LANDING - 2) - z) > 1e-3 ? 'ramp' : 'flat', drop: r5(z - Math.min(...F)) });
   return {
     id, faces, colliders, line, length: r5(L), level: r5(Math.min(...F)), cover: r5(cover), slab: r5(slab), grade: r5(grade), turns: turns.length,
