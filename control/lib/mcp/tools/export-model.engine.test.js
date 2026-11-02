@@ -1,8 +1,9 @@
-// export_model engine: 'godot' | 'unreal' | 'blender' — the engine handoff from a tool call: a world's assets, animation
+// export_model engine: 'godot' | 'unreal' | 'blender' | 'unity' — the engine handoff from a tool call: a world's assets, animation
 // and level as a Godot 4 project under <ref>/godot-handoff/ (scene/handoff-godot.js), the developer's project and scene
 // kept on a re-handoff, as an Unreal project under <ref>/unreal-handoff/ (scene/handoff-unreal.js), the developer's
 // project files kept, or as a Blender folder under <ref>/blender-handoff/ (scene/handoff-blender.js), the artist's .blend
-// kept, a world's fire carried at `fire_t`; `engine` is its own export (no `format`), and a bad engine or `what` refuses.
+// kept, a world's fire carried at `fire_t`, or as a Unity 6 project under <ref>/unity-handoff/ (scene/handoff-unity.js), the
+// developer's packages, settings and scene kept; `engine` is its own export (no `format`), and a bad engine or `what` refuses.
 // Unreal's `what: 'asset'` (its default off a world) is its asset pack; `format: 'blender'` stays the Blender art pack.
 
 process.env.SQLITE_PATH = ':memory:';
@@ -168,8 +169,35 @@ describe("export_model engine: 'godot'", () => {
     await expect(exportModelHandler({ ref: 'sk_xe_fire', engine: 'blender', fire_detail: 9 })).rejects.toThrow(/fire_detail/);
   }, 300_000);
 
+  it('Unity takes a world\'s level as a Unity 6 project; a re-handoff keeps the developer\'s packages and scene', async () => {
+    const r = await exportModelHandler({ ref: 'sk_xe_couch', engine: 'unity' });
+    expect(r).toMatchObject({ ok: true, engine: 'unity', what: 'level', kept: [], scene: 'Assets/Scenes/Level.unity' });
+    expect(path.basename(r.dir)).toBe('unity-handoff');
+    for (const f of ['Assets/Mojulo/level.glb', 'Assets/Mojulo/level.glb.meta', 'Assets/Mojulo/handoff.json', 'Assets/Mojulo/Editor/MojuloImport.cs', 'Assets/Mojulo/Editor/MojuloProbe.cs',
+      'Assets/Mojulo/Runtime/MojuloMarker.cs', 'Assets/Mojulo/Shaders/MojuloLit.shader', 'Assets/Mojulo/Shaders/MojuloTone.shader', 'Packages/manifest.json', 'ProjectSettings/ProjectSettings.asset']) {
+      expect(r.files, f).toContain(f);
+      expect(existsSync(path.join(r.dir, f)), f).toBe(true);
+    }
+    expect(r.level.seats).toBe(2);
+    expect(r.commands.import).toMatch(/-batchmode -projectPath .* -executeMethod Mojulo\.Handoff\.Import\.Run -quit/);
+    expect(r.commands.probe).toContain('Mojulo.Handoff.Probe.Run');
+    expect(r.note).toContain('Assets/Scenes/Level.unity');
+    // (the developer's packages and scene, kept; mojulo's folder written again)
+    writeFileSync(path.join(r.dir, 'Packages', 'manifest.json'), '{"dependencies":{}}\n');
+    const again = await exportModelHandler({ ref: 'sk_xe_couch', engine: 'unity' });
+    expect(again.kept).toEqual(['Packages/manifest.json', 'ProjectSettings/ProjectVersion.txt', 'ProjectSettings/ProjectSettings.asset']);
+    expect(readFileSync(path.join(r.dir, 'Packages', 'manifest.json'), 'utf8')).toBe('{"dependencies":{}}\n');
+    // (a game: each level its own project)
+    const g = await exportModelHandler({ ref: 'sk_xe_game', engine: 'unity' });
+    expect(g).toMatchObject({ ok: true, kind: 'game', engine: 'unity', what: 'level' });
+    expect(g.levels.map((l) => path.relative(g.dir, l.dir))).toEqual(['sk_xe_lv_a', 'sk_xe_lv_b']);
+    expect(path.basename(g.dir)).toBe('unity-handoff');
+    for (const l of g.levels) expect(existsSync(path.join(l.dir, 'Assets', 'Mojulo', 'level.glb')), l.ref).toBe(true);
+    expect(g.note).toContain('Unity project');
+  }, 300_000);
+
   it('a desktop app built from the same outcome folder leaves the engine packs out', () => {
-    expect(ENGINE_HANDOFF_DIRS).toEqual(expect.arrayContaining(['godot-handoff', 'unreal-handoff', 'unreal', 'blender-handoff', 'blender']));
+    expect(ENGINE_HANDOFF_DIRS).toEqual(expect.arrayContaining(['godot-handoff', 'unreal-handoff', 'unreal', 'blender-handoff', 'blender', 'unity-handoff']));
     const pkg = JSON.parse(desktopPackageJson({ title: 't', ref: 'sk_x' }));
     for (const d of ENGINE_HANDOFF_DIRS) expect(pkg.scripts.package).toContain(d);
   });

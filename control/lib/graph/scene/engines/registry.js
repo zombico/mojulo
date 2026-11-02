@@ -2,7 +2,7 @@
  * THE ENGINE REGISTRY: the engines a team's work is handed off to, said once. The web build is the game; an engine takes
  * a handoff of it (export_model { engine }): Godot a project of a world's or a game's levels (assets, materials,
  * markers), Blender the same handoff built into a .blend, Unreal the same as a UE5 project (or one thing by its ref as
- * an asset pack). No engine runs a game: the game runtimes are retired.
+ * an asset pack), Unity the same as a Unity 6 project (URP). No engine runs a game: the game runtimes are retired.
  *
  *   proof    the env var a test names when it runs the engine (its gate)
  *   handoff  the folder export_model's pack for it lands in, under the outcome folder
@@ -19,6 +19,8 @@ export const ENGINES = Object.freeze({
   // building by its ref as its asset pack (`what: 'asset'`, unreal-pack.js)
   unreal: Object.freeze({ id: 'unreal', name: 'Unreal', proof: 'MOJULO_UNREAL', handoff: 'unreal-handoff', asset: 'unreal' }),
   blender: Object.freeze({ id: 'blender', name: 'Blender', proof: 'MOJULO_BLENDER', handoff: 'blender-handoff', art: 'blender' }),
+  // Unity takes a world's or a game's levels as a Unity 6 project, URP and glTFast (scene/handoff-unity.js)
+  unity: Object.freeze({ id: 'unity', name: 'Unity', proof: 'MOJULO_UNITY', handoff: 'unity-handoff' }),
 });
 
 /** The folders export_model's engine packs land in under an outcome folder, in registry order (an engine's handoff, then

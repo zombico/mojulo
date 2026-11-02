@@ -69,7 +69,7 @@ export const TOOL_LINES = {
   // ── worlds ────────────────────────────────────────────────────────────────
   compose_world: L('create', 'A traversable world: a BASE (city, transport-hub, controllable, action, dungeon, …) × a theme. Manual: `get_view_vocab`; themes: `list_world_themes`.'),
   list_world_themes: L('orient', 'The theme packs `compose_world` takes, optionally by family (earth / scifi / fantasy). Call before a themed world.'),
-  export_model: L('maintain', "A stored world or solid as a file: .glb, print STL / 3MF (mm, true scale), USD, IFC for a house; `engine` a team's Godot, Unreal or Blender."),
+  export_model: L('maintain', "A stored world or solid as a file: .glb, print STL / 3MF (mm, true scale), USD, IFC for a house; `engine` a team's Godot, Unity, Unreal or Blender."),
   bind_mesh_render: L('maintain', 'Bind a DCC-refined .glb of an `export_model` file back onto its sketch as a derived artifact; worlds place it by `meshRef`.'),
   translate_modeler_lingo: L('orient', 'Modeler words (blockout, kitbash, retopo, bake, rig, LOD) → what mojulo does and the `export_model` handoff for the rest.'),
 
