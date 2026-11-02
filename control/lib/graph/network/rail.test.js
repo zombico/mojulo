@@ -1,7 +1,9 @@
 // A RAIL TUNNEL (network/sections.js `rail`, `tube`; passage.js railFinish): a subway's running tunnel between two
 // stations' track levels, its tracks at standard gauge on their sleepers with a third rail each, its walkway raised a
 // step along its left wall, a box's columns between two tracks, a tube's vault on its rings; walked along its walkway
-// from one end to the other and back, straight and round a dog-leg. One case a profile: the box and the vault.
+// from one end to the other and back, straight and round a dog-leg. One case a profile: the box and the vault. And OPEN
+// (`open: true`): a run from under the ground up over it, a tunnel to its portal, a cut open to the sky, a stretch at
+// grade and a viaduct on its columns, nothing of a tunnel's roof over what is open.
 import { describe, it, expect } from 'vitest';
 import { passageOf } from './passage.js';
 import { readSection, SECTIONS } from './sections.js';
@@ -63,5 +65,60 @@ describe('a rail tunnel', () => {
   it('takes a profile on a section of its own, and refuses one it does not know', () => {
     expect(readSection({ from: 'service', profile: 'vault' })).toMatchObject({ profile: 'vault', finish: 'service' });
     expect(() => readSection({ from: box, profile: 'egg' })).toThrow(/profile is box \| vault/);
+  });
+});
+
+describe('an open rail run', () => {
+  for (const id of [box, vault]) {
+    // (from 14 m under flat ground up to 9 m over it in 720 m: under 1:30)
+    const S = readSection(id), lineEnd = (y, z) => ({ z0: z, lo: [-S.width / 2, y], hi: [S.width / 2, y], top: 4.2, plane: y });
+    const T = passageOf({ id, path: [[0, 0], [0, 720]], a: lineEnd(0, -14), b: lineEnd(720, 9), section: S, over: () => ({ z: 0, under: 'ground' }), look: {}, open: true });
+    const zAt = (y) => -14 + (23 * y) / 720, inBand = (y0, y1) => T.faces.filter((f) => f.corners.every((c) => c[1] > y0 && c[1] < y1));
+    const tunnelTo = 720 * (14 - S.height - 0.3) / 23, cutTo = 720 * 13.5 / 23, viaFrom = 720 * 14.5 / 23;
+
+    it(`(${id}) runs a tunnel to its portal, a cut, a stretch at grade and a viaduct, by where its track lies against the ground`, () => {
+      expect(Object.values(T.runs).every((v) => v > 0)).toBe(true);
+      expect(Object.values(T.runs).reduce((p, q) => p + q, 0)).toBeCloseTo(720, 0);
+      expect(T.runs.tunnel).toBeCloseTo(tunnelTo, -1);
+      expect(T.runs.viaduct).toBeCloseTo(720 - viaFrom, -1);
+      expect(T.grade).toBeLessThanOrEqual(S.grade + 1e-6);
+      expect(T.cover).toBeGreaterThanOrEqual(S.cover - 1e-6);
+      expect(T.findings).toEqual([]);
+      for (const p of T.line.filter((q) => q[1] > 5 && q[1] < 715)) expect(p[2]).toBeCloseTo(zAt(p[1]) + 0.3, 1);
+    });
+
+    it(`(${id}) roofs only its tunnel: its cut open to the sky between retaining walls, its viaduct between parapets on columns`, () => {
+      const groups = (fs) => new Set(fs.map((f) => f.group.slice('network:tunnel-'.length)));
+      const tun = groups(inBand(20, tunnelTo - 20)), cut = groups(inBand(tunnelTo + 10, cutTo - 10)), via = groups(inBand(viaFrom + 20, 700));
+      expect(tun.has('ceiling') && tun.has('lamp')).toBe(true);
+      // (a cut's walls carry its signals; nothing of a roof over either, nor a tunnel's walls)
+      for (const g of ['ceiling', 'soffit', 'ring', 'wall']) { expect(cut.has(g), `cut ${g}`).toBe(false); expect(via.has(g), `viaduct ${g}`).toBe(false); }
+      for (const g of ['lamp', 'signal', 'cable']) expect(via.has(g), `viaduct ${g}`).toBe(false);
+      expect(cut.has('retaining')).toBe(true);
+      expect(via.has('parapet') && via.has('girder') && via.has('column')).toBe(true);
+      // (nothing over the track in the cut faces down on it)
+      expect(inBand(tunnelTo + 10, cutTo - 10).filter((f) => f.normal[2] < -0.5 && f.corners.every((c) => Math.abs(c[0]) < S.width / 2 - 0.01))).toEqual([]);
+      // (the viaduct's columns stand on the ground under its deck, each held)
+      const cols = T.colliders.filter((c) => /:column-\d+-[lr]$/.test(c.of));
+      expect(cols.length).toBeGreaterThan(0);
+      for (const c of cols) { expect(c.min[2]).toBe(0); expect(c.max[2] - c.min[2]).toBeGreaterThanOrEqual(1.5); expect(c.min[1]).toBeGreaterThan(viaFrom); }
+    });
+
+    it(`(${id}) is walked from its tunnel up through its cut and out along its viaduct, and back`, () => {
+      for (const pts of [T.line, T.line.slice().reverse()]) {
+        const r = walker({ faces: T.faces, colliders: T.colliders })(pts);
+        expect({ steepest: r.steepest <= 0.31, crossed: r.crossed, gaps: r.gaps, boxes: r.boxes }).toEqual({ steepest: true, crossed: [], gaps: [], boxes: [] });
+      }
+    });
+  }
+
+  it('is a tunnel unless asked open, and says when its ends are too far apart in height for its grade', () => {
+    const S = readSection(box), e = (y, z) => ({ z0: z, lo: [-S.width / 2, y], hi: [S.width / 2, y], top: 4.2, plane: y });
+    const args = { id: 'x', path: [[0, 0], [0, 100]], a: e(0, 10), b: e(100, 10), section: S, over, look: {} };
+    // (a run under deep ground all the way built as the tunnel it would be shut)
+    expect(passageOf({ ...args, open: true }).faces).toEqual(passageOf(args).faces);
+    expect(passageOf(args).runs).toBeUndefined();
+    expect(passageOf({ ...args, open: true }).runs).toMatchObject({ tunnel: 100, cut: 0, grade: 0, viaduct: 0 });
+    expect(passageOf({ ...args, b: e(100, 20), open: true, over: () => ({ z: 0, under: 'ground' }) }).findings.join()).toMatch(/steeper than its section's 1:30/);
   });
 });

@@ -44,7 +44,7 @@ const LANDING = 1, WALL = 0.3;
 const grey = (g) => { const h = Math.round(255 * Math.max(0.08, Math.min(1, g))).toString(16).padStart(2, '0'); return `#${h}${h}${h}`; };
 const tint = (hex, g) => `#${[1, 3, 5].map((i) => Math.round(Math.max(0, Math.min(255, parseInt(hex.slice(i, i + 2), 16) * g))).toString(16).padStart(2, '0')).join('')}`;
 
-export function passageOf({ id, path, a, b, section: sec, over, look = {}, prefix = 'network', walkSide = 1 }) {
+export function passageOf({ id, path, a, b, section: sec, over, look = {}, prefix = 'network', walkSide = 1, open = false }) {
   const hw = sec.width / 2, H = sec.height, findings = [];
   // ── its legs: each a start, a direction, its left, its length and where it lies along the whole ──
   const legs = [];
@@ -82,7 +82,9 @@ export function passageOf({ id, path, a, b, section: sec, over, look = {}, prefi
   pass(env);
   // (a rail tunnel holds the line between its two track levels, deeper only where its cover wants it; a passage climbs
   // toward the ground as its envelope allows)
-  const F = grid.map((s, i) => Math.min(env[i], sec.finish === 'rail' ? a.z0 + ((b.z0 - a.z0) * s) / (L || 1) : Infinity, a.z0 + sec.grade * Math.max(0, s - LANDING), b.z0 + sec.grade * Math.max(0, L - s - LANDING)));
+  // (an OPEN run follows the line between its ends wherever it lies against the ground: it is held by nothing else)
+  const F = open ? grid.map((s) => a.z0 + ((b.z0 - a.z0) * s) / (L || 1)) : grid.map((s, i) => Math.min(env[i], sec.finish === 'rail' ? a.z0 + ((b.z0 - a.z0) * s) / (L || 1) : Infinity, a.z0 + sec.grade * Math.max(0, s - LANDING), b.z0 + sec.grade * Math.max(0, L - s - LANDING)));
+  if (open && Math.abs(b.z0 - a.z0) / (L || 1) > sec.grade + 1e-9) findings.push(`the run ${id} climbs ${r5(Math.abs(b.z0 - a.z0))} m in ${r5(L)} m, steeper than its section's 1:${r5(1 / sec.grade)}`);
   // (level through each turn: its lowest held across the junction, and the slope limit taken again round it)
   for (const c of turns) {
     const idx = grid.map((s, i) => (s >= c.s - hw - 1e-9 && s <= c.s + hw + 1e-9 ? i : -1)).filter((i) => i >= 0), m = Math.min(...idx.map((i) => F[i]));
@@ -146,7 +148,17 @@ export function passageOf({ id, path, a, b, section: sec, over, look = {}, prefi
   const vault = sec.profile === 'vault', rise = vault ? Math.min(hw, H * 0.6) : 0, spring = H - rise, ARC = 10;
   const arcZ = (v) => (vault ? spring + rise * Math.sqrt(Math.max(0, 1 - (v / hw) ** 2)) : H);
   const arcVs = Array.from({ length: ARC + 1 }, (_, i) => -hw + (2 * hw * i) / ARC);
-  const wallTop = (s) => ceil(s) - H + spring;
+  // an open run's each span by where its track lies against the ground over it: a TUNNEL where its ceiling is under the
+  // ground, a CUT where its track is (its ceiling would show), at GRADE at the ground, a VIADUCT over it
+  const groundAt = (s) => over(...pos(s, 0)).z;
+  const modeOf = (s) => { if (!open) return 'tunnel'; const g = groundAt(s), z = zf(s); return ceil(s) + 0.3 <= g ? 'tunnel' : z + 0.5 < g ? 'cut' : z > g + 0.5 ? 'viaduct' : 'grade'; };
+  const OPEN = Object.freeze({ rail: 1.1, fence: 1.6, deck: 0.9, column: 0.7, every: 12, clear: 1.5 });
+  // (where a wall stops: a tunnel's ceiling or springing; a cut's retaining wall a railing's height over the ground; a
+  // fence's height at grade; a viaduct's parapet)
+  // (a viaduct's deck too low over the ground to stand on columns sits on fill: its fascia down to the ground, no
+  // underside to see)
+  const onFill = (s, z) => z - OPEN.deck < groundAt(s) + OPEN.clear, low = (s, z) => (onFill(s, z) ? Math.min(groundAt(s), z - OPEN.deck) : z - OPEN.deck);
+  const wallTop = (s) => { const m = modeOf(s); return m === 'tunnel' ? ceil(s) - H + spring : m === 'cut' ? groundAt(s) + OPEN.rail : zf(s) + (m === 'grade' ? OPEN.fence : OPEN.rail); };
   // a rail tunnel's walk: its safety walkway, raised a step along its left wall from a metre in at each end
   // (along its left wall, or its right where `walkSide` is -1: toward the platform it meets)
   const ws = walkSide < 0 ? -1 : 1, walk = sec.finish === 'rail' ? { v: hw - 0.5, w: 1, lift: 0.3, s0: 1, s1: L - 1, side: ws } : null;
@@ -173,8 +185,24 @@ export function passageOf({ id, path, a, b, section: sec, over, look = {}, prefi
   const inward = (s, v) => { const g = legAt(s), nv = -(v / (hw * hw)), nz = -((arcZ(v) - spring) / (rise * rise || 1)), l = Math.hypot(nv, nz) || 1; return [g.n[0] * nv / l, g.n[1] * nv / l, nz / l]; };
   // its legs: floor, ceiling and walls, span by span
   for (const [p, q, za, zb] of legSpans) {
-    const m = (p + q) / 2;
+    const m = (p + q) / 2, mode = modeOf(m);
     emit([at(p, -hw, za), at(q, -hw, zb), at(q, hw, zb), at(p, hw, za)], [0, 0, 1], G('floor'), { surf: 'floor', tile: look.floor, uvOf: (w) => [w[0], w[1]] });
+    if (mode !== 'tunnel') {
+      // (open: a cut's retaining walls up past the ground to its railing; a fence at grade; a viaduct's deck on its
+      // girders under the track, its parapets, inside and out)
+      const top = (u) => wallTop(u);
+      for (const sg of [-1, 1]) {
+        emit([at(p, sg * hw, za), at(q, sg * hw, zb), at(q, sg * hw, top(q)), at(p, sg * hw, top(p))], across(m, sg), G(mode === 'cut' ? 'retaining' : mode === 'grade' ? 'fence' : 'parapet'), { hex: mode === 'cut' ? '#8f8a82' : mode === 'grade' ? '#6d7377' : '#9a958c', g: 0.85 });
+        if (mode === 'viaduct') {
+          emit([at(p, sg * (hw + 0.25), za), at(q, sg * (hw + 0.25), zb), at(q, sg * (hw + 0.25), zb + OPEN.rail), at(p, sg * (hw + 0.25), za + OPEN.rail)], across(m, -sg), G('parapet'), { hex: '#a39e94', g: 0.85 });
+          emit([at(p, sg * hw, za + OPEN.rail), at(q, sg * hw, zb + OPEN.rail), at(q, sg * (hw + 0.25), zb + OPEN.rail), at(p, sg * (hw + 0.25), za + OPEN.rail)], [0, 0, 1], G('parapet'), { hex: '#b4afa5', g: 0.9 });
+          emit([at(p, sg * (hw + 0.25), low(p, za)), at(q, sg * (hw + 0.25), low(q, zb)), at(q, sg * (hw + 0.25), zb), at(p, sg * (hw + 0.25), za)], across(m, -sg), G('girder'), { hex: '#4f5a63', g: 0.9 });
+        }
+        if (mode === 'cut') emit([at(p, sg * hw, top(p)), at(q, sg * hw, top(q)), at(q, sg * (hw + 0.3), top(q)), at(p, sg * (hw + 0.3), top(p))], [0, 0, 1], G('retaining'), { hex: '#a8a39a', g: 0.95 });
+      }
+      if (mode === 'viaduct' && !onFill(p, za) && !onFill(q, zb)) emit([at(p, -hw - 0.25, za - OPEN.deck), at(q, -hw - 0.25, zb - OPEN.deck), at(q, hw + 0.25, zb - OPEN.deck), at(p, hw + 0.25, za - OPEN.deck)], [0, 0, -1], G('girder'), { hex: '#46505a', g: 0.8 });
+      continue;
+    }
     if (!vault) emit([at(p, -hw, ceil(p)), at(q, -hw, ceil(q)), at(q, hw, ceil(q)), at(p, hw, ceil(p))], [0, 0, -1], G('ceiling'), { surf: 'ceiling', tile: look.ceiling, uvOf: (w) => [w[0], w[1]] });
     else for (let k = 0; k < ARC; k++) {
       // (the arch in its segments, each facing in toward its axis)
@@ -201,6 +229,7 @@ export function passageOf({ id, path, a, b, section: sec, over, look = {}, prefi
   }
   // each end: its section round its node's doorway, facing in
   for (const [s, E, dirIn] of [[0, a, 1], [L, b, -1]]) {
+    if (modeOf(Math.min(L, Math.max(0, s + dirIn * 0.5))) !== 'tunnel') continue;
     const g = legAt(s), o = pos(s, 0), vOf = (p) => (p[0] - o[0]) * g.n[0] + (p[1] - o[1]) * g.n[1], [vlo, vhi] = [vOf(E.lo), vOf(E.hi)].sort((p, q) => p - q), z = E.z0;
     if (!vault) {
       const strips = [[-hw, vlo, z, z + H], [vhi, hw, z, z + H], [vlo, vhi, z + E.top, z + H]].filter(([p, q, c0, c1]) => q - p > 1e-3 && c1 - c0 > 1e-3);
@@ -217,17 +246,28 @@ export function passageOf({ id, path, a, b, section: sec, over, look = {}, prefi
   }
   // (a finish drawn on its walkway's side: mirrored across where the walkway is on the right)
   const atF = ws > 0 ? at : (s, v, z) => at(s, -v, z), acrossF = ws > 0 ? across : (s, sg) => across(s, -sg), inwardF = ws > 0 ? inward : (s, v) => inward(s, -v);
-  const extra = finish(sec.finish, { emit, at: atF, legSpans, turns, cut, ceil, zf, across: acrossF, along, hw, H, L, G, look, legAt, sec, vault, arcZ, arcVs, spring, wallTop, inward: inwardF, walk, clear: (s, r = 0.3) => !turns.some((c) => Math.abs(s - c.s) < hw + r) });
+  const extra = finish(sec.finish, { emit, at: atF, legSpans, turns, cut, ceil, zf, across: acrossF, along, hw, H, L, G, look, legAt, sec, vault, arcZ, arcVs, spring, wallTop, inward: inwardF, walk, modeOf, clear: (s, r = 0.3) => !turns.some((c) => Math.abs(s - c.s) < hw + r) });
   // ── its walls held: a box down each side of each leg (to its junctions' bounds), and each junction's outer sides ──
   const colliders = [...(extra?.colliders ?? []).map((c) => ({ min: P3(c.min), max: P3(c.max), of: `tunnel:${id}:${c.of}` }))];
   const zLo = Math.min(...cut.map((c) => Math.min(c[2], c[3]))), zHi = Math.max(...cut.map(([p, q]) => Math.max(ceil(p), ceil(q))));
   const box = (p, q, of) => colliders.push({ min: P3([Math.min(p[0], q[0]), Math.min(p[1], q[1]), zLo]), max: P3([Math.max(p[0], q[0]), Math.max(p[1], q[1]), zHi]), of: `tunnel:${id}:${of}` });
   const footprint = [];
+  // (an open run's sides held run by run of one kind: a tunnel's walls, a cut's to its railing, a parapet or a fence)
+  const sides = (s0, s1, tag) => {
+    if (!open) { box(at(s0, -hw - WALL, 0), at(s1, -hw, 0), `${tag}l`); box(at(s0, hw, 0), at(s1, hw + WALL, 0), `${tag}r`); return; }
+    const marks = [s0];
+    for (let u = s0 + 1; u < s1; u += 1) if (modeOf(u + 0.5) !== modeOf(u - 0.5)) marks.push(u);
+    marks.push(s1);
+    for (let k = 0; k + 1 < marks.length; k++) {
+      const r0 = marks[k], r1 = marks[k + 1], probe = [r0, (r0 + r1) / 2, r1].map((u) => Math.min(r1 - 0.01, Math.max(r0 + 0.01, u)));
+      const lo = Math.min(...probe.map(zf)), hi = Math.max(...probe.map(wallTop));
+      for (const [v0, v1, sd] of [[-hw - WALL, -hw, 'l'], [hw, hw + WALL, 'r']]) { const a0 = at(r0, v0, 0), b0 = at(r1, v1, 0); colliders.push({ min: P3([Math.min(a0[0], b0[0]), Math.min(a0[1], b0[1]), lo]), max: P3([Math.max(a0[0], b0[0]), Math.max(a0[1], b0[1]), hi]), of: `tunnel:${id}:${tag}${sd}${k}` }); }
+    }
+  };
   legs.forEach((g, i) => {
     const s0 = g.s0 + (i > 0 ? hw : 0), s1 = g.s1 - (i < legs.length - 1 ? hw : 0);
     if (s1 - s0 < 1e-6) return;
-    box(at(s0, -hw - WALL, 0), at(s1, -hw, 0), `${i}l`);
-    box(at(s0, hw, 0), at(s1, hw + WALL, 0), `${i}r`);
+    sides(s0, s1, `${i}`);
     const p = at(s0, -hw - WALL, 0), q = at(s1, hw + WALL, 0);
     footprint.push(P3([Math.min(p[0], q[0]), Math.min(p[1], q[1]), Math.max(p[0], q[0]), Math.max(p[1], q[1])]));
   });
@@ -239,9 +279,30 @@ export function passageOf({ id, path, a, b, section: sec, over, look = {}, prefi
     }
     footprint.push(P3([x - hw - WALL, y - hw - WALL, x + hw + WALL, y + hw + WALL]));
   });
+  // ── a viaduct's columns: a pair under its deck's edges every few metres, on a cross-head, down to the ground ──
+  const runs = { tunnel: 0, cut: 0, grade: 0, viaduct: 0 };
+  if (open) {
+    for (const [p, q] of legSpans) runs[modeOf((p + q) / 2)] += q - p;
+    for (let s = OPEN.every / 2; s < L; s += OPEN.every) {
+      if (modeOf(s) !== 'viaduct' || turnAt(s) || onFill(s, zf(s))) continue;
+      const g = groundAt(s), zt = zf(s) - OPEN.deck, c = OPEN.column / 2, d = along(s);
+      for (const v of [-hw + 0.6, hw - 0.6]) {
+        for (const [ds, sg] of [[-c, -1], [c, 1]]) emit([at(s + ds, v - c, g), at(s + ds, v + c, g), at(s + ds, v + c, zt), at(s + ds, v - c, zt)], [d[0] * sg, d[1] * sg, 0], G('column'), { hex: '#56616a', g: 0.85 });
+        for (const sg of [-1, 1]) emit([at(s - c, v + sg * c, g), at(s + c, v + sg * c, g), at(s + c, v + sg * c, zt), at(s - c, v + sg * c, zt)], across(s, -sg), G('column'), { hex: '#5e6972', g: 0.9 });
+        const a0 = at(s - c, v - c, g), b0 = at(s + c, v + c, zt);
+        colliders.push({ min: P3([Math.min(a0[0], b0[0]), Math.min(a0[1], b0[1]), g]), max: P3([Math.max(a0[0], b0[0]), Math.max(a0[1], b0[1]), zt]), of: `tunnel:${id}:column-${Math.round(s)}-${v > 0 ? 'r' : 'l'}` });
+      }
+      // (its cross-head: a beam under the deck across, column to column)
+      for (const sg of [-1, 1]) emit([at(s + sg * 0.4, -hw - 0.25, zt - 0.6), at(s + sg * 0.4, hw + 0.25, zt - 0.6), at(s + sg * 0.4, hw + 0.25, zt), at(s + sg * 0.4, -hw - 0.25, zt)], [d[0] * sg, d[1] * sg, 0], G('column'), { hex: '#4a545c', g: 0.85 });
+      emit([at(s - 0.4, -hw - 0.25, zt - 0.6), at(s + 0.4, -hw - 0.25, zt - 0.6), at(s + 0.4, hw + 0.25, zt - 0.6), at(s - 0.4, hw + 0.25, zt - 0.6)], [0, 0, -1], G('column'), { hex: '#3e474e', g: 0.8 });
+    }
+  }
   // ── measured on what was built: its cover (under open ground and under a slab), its steepest ramp ──
   let cover = Infinity, slab = Infinity;
-  for (let s = 0; s <= L + 1e-6; s += 0.5) for (const v of [-hw, 0, hw]) { const o = over(...pos(s, v)), c = o.z - ceil(s); if (o.under === 'slab') slab = Math.min(slab, c); else cover = Math.min(cover, c); }
+  // (an open run's cover where it is a full tunnel: its portal's approach, where its ceiling comes up to meet its cut,
+  // is the cut's)
+  const fullTunnel = (s) => !open || ceil(s) + sec.cover <= groundAt(s) + 1e-6;
+  for (let s = 0; s <= L + 1e-6; s += 0.5) { if (modeOf(s) !== 'tunnel' || !fullTunnel(s)) continue; for (const v of [-hw, 0, hw]) { const o = over(...pos(s, v)), c = o.z - ceil(s); if (o.under === 'slab') slab = Math.min(slab, c); else cover = Math.min(cover, c); } }
   const grade = Math.max(0, ...cut.filter(([p, q, za, zb]) => q - p > 1e-6 && Math.abs(zb - za) > 1e-9).map(([p, q, za, zb]) => Math.abs(zb - za) / (q - p)));
   // its middle walked, each point at its floor: from a's way out, over each tread and through each junction, to b's
   const marks = [...new Set([0, ...cut.map((c) => r5((c[0] + c[1]) / 2)), ...turns.map((c) => r5(c.s)), L])].sort((p, q) => p - q);
@@ -250,12 +311,12 @@ export function passageOf({ id, path, a, b, section: sec, over, look = {}, prefi
   const endOf = (St, z) => (St ? { kind: 'stair', drop: r5(St.drop), steps: St.m } : { kind: Math.abs(Fat(LANDING + 2) - z) > 1e-3 || Math.abs(Fat(L - LANDING - 2) - z) > 1e-3 ? 'ramp' : 'flat', drop: r5(z - Math.min(...F)) });
   return {
     id, faces, colliders, line, length: r5(L), level: r5(Math.min(...F)), cover: r5(cover), slab: r5(slab), grade: r5(grade), turns: turns.length,
-    ends: [endOf(sa, a.z0), endOf(sb, b.z0)], footprint, top: r5(zHi), findings,
+    ends: [endOf(sa, a.z0), endOf(sb, b.z0)], footprint, top: r5(zHi), findings, ...(open ? { runs: Object.fromEntries(Object.entries(runs).map(([k, v]) => [k, r5(v)])) } : {}),
   };
 }
 
 /** A passage's finish, by its section's: what dresses its walls, its floor and its ceiling. */
-function finish(kind, { emit, at, legSpans, turns, ceil, zf, across, along, hw, H, L, G, look, clear, legAt, vault, arcZ, arcVs, wallTop, inward, walk }) {
+function finish(kind, { emit, at, legSpans, turns, ceil, zf, across, along, hw, H, L, G, look, clear, legAt, vault, arcZ, arcVs, wallTop, inward, walk, modeOf }) {
   // (a plain strip along a wall: `v` its line off the middle, from `z0` to `z1` over the floor, `d` off the wall)
   const band = (p, q, za, zb, sg, d, z0, z1, group, hex, g = 1) => emit([at(p, sg * (hw - d), za + z0), at(q, sg * (hw - d), zb + z0), at(q, sg * (hw - d), zb + z1), at(p, sg * (hw - d), za + z1)], across((p + q) / 2, sg), group, { hex, g });
   const flat = (p, q, za, zb, v0, v1, lift, group, hex, g = 1, n = [0, 0, 1]) => emit([at(p, v0, za + lift), at(q, v0, zb + lift), at(q, v1, zb + lift), at(p, v1, za + lift)], n, group, { hex, g });
@@ -313,7 +374,7 @@ function finish(kind, { emit, at, legSpans, turns, ceil, zf, across, along, hw, 
     }
     for (let s = 2; s < L - 3; s += 9) { if (!clear(s) || !clear(s + 3)) continue; const z = zf(s); flat(s, s + 3, z, zf(s + 3), -0.08, 0.08, 0.009, G('stripe'), '#e8e8e2', 0.9); }
     turnWalls((c, e) => junctionBand(c, e, 0.02, 0, 3.2, G('tile'), '#d8dcdc', 0.75));
-  } else if (kind === 'rail') return railFinish({ emit, at, legSpans, zf, across, along, hw, H, L, G, look, clear, legAt, vault, arcZ, arcVs, wallTop, inward, walk });
+  } else if (kind === 'rail') return railFinish({ emit, at, legSpans, zf, across, along, hw, H, L, G, look, clear, legAt, vault, arcZ, arcVs, wallTop, inward, walk, modeOf });
 }
 
 // a rail's measures (m): standard gauge, a rail's head and its height, a sleeper's length, depth, height and spacing,
@@ -328,7 +389,7 @@ const RAIL = Object.freeze({ gauge: 1.435, head: 0.07, rail: 0.17, sleeper: [2.5
  * on brackets, bulkhead lamps between them, a signal now and then over the walkway; a box's soffit dark, a tube's rings.
  * → { colliders } (its columns, its walkway's edge where it runs).
  */
-function railFinish({ emit, at, legSpans, zf, across, along, hw, H, L, G, look, clear, legAt, vault, arcZ, arcVs, wallTop, inward, walk }) {
+function railFinish({ emit, at, legSpans, zf, across, along, hw, H, L, G, look, clear, legAt, vault, arcZ, arcVs, wallTop, inward, walk, modeOf }) {
   const colliders = [];
   const flat = (p, q, za, zb, v0, v1, lift, group, hex, g = 1) => emit([at(p, v0, za + lift), at(q, v0, zb + lift), at(q, v1, zb + lift), at(p, v1, za + lift)], [0, 0, 1], group, { hex, g });
   // (a face square to the run at `s`, between v0 and v1, from z0 to z1 over the floor, facing along `dir`)
@@ -346,7 +407,7 @@ function railFinish({ emit, at, legSpans, zf, across, along, hw, H, L, G, look, 
   const tracks = Array.from({ length: n }, (_, i) => free0 + each * (i + 0.5)), colAt = n === 2 ? free0 + each : null;
   const run = (fn) => { for (const [p, q, za, zb] of legSpans) fn(p, q, za, zb); };
   for (const vt of tracks) layTrack({ emit, at, zf, along, across, clear, L, G, run }, vt, -1);
-  return railRest({ emit, at, legSpans, zf, across, along, hw, H, L, G, look, clear, legAt, vault, arcZ, arcVs, wallTop, inward, walk, run, flat, cross, side, colAt, colliders });
+  return railRest({ emit, at, legSpans, zf, across, along, hw, H, L, G, look, clear, legAt, vault, arcZ, arcVs, wallTop, inward, walk, run, flat, cross, side, colAt, colliders, modeOf });
 }
 
 /**
@@ -393,7 +454,10 @@ export function layTrack(ctx, vt, third = -1) {
 }
 
 /** The rest of a rail tunnel's finish: its walkway, walls, lamps, signals, columns, rings. */
-function railRest({ emit, at, legSpans, zf, across, along, hw, H, L, G, look, clear, legAt, vault, arcZ, arcVs, wallTop, inward, walk, run, flat, cross, side, colAt, colliders }) {
+function railRest({ emit, at, legSpans, zf, across, along, hw, H, L, G, look, clear, legAt, vault, arcZ, arcVs, wallTop, inward, walk, run, flat, cross, side, colAt, colliders, modeOf = () => 'tunnel' }) {
+  // (an open run's: its walls' dressing where it has walls, a tunnel's or a cut's; its roof's, its lamps' and its
+  // columns' and rings' only where it is roofed)
+  const walled = (s) => modeOf(s) === 'tunnel' || modeOf(s) === 'cut', roofed = (s) => modeOf(s) === 'tunnel';
   // the walkway: raised a step along the left wall from a metre in, its kerb, its yellow edge, a handrail on the wall
   run((p0, q0, za0, zb0) => {
     const p = Math.max(p0, walk.s0), q = Math.min(q0, walk.s1);
@@ -408,6 +472,7 @@ function railRest({ emit, at, legSpans, zf, across, along, hw, H, L, G, look, cl
   for (const [s, dir] of [[walk.s0, -1], [walk.s1, 1]]) if (clear(s, 0)) cross(s, hw - walk.w, hw, 0, walk.lift, dir, G('walkway'), '#a6a198', 0.8);
   // the walls: soot to a man's height, concrete over it, cable trays on brackets along both, lamps between
   run((p, q, za, zb) => {
+    if (!walled((p + q) / 2)) return;
     for (const sg of [-1, 1]) {
       const top = (u) => wallTop(u) - zf(u);
       emit([at(p, sg * (hw - 0.01), za), at(q, sg * (hw - 0.01), zb), at(q, sg * (hw - 0.01), zb + 1.4), at(p, sg * (hw - 0.01), za + 1.4)], across((p + q) / 2, sg), G('soot'), { hex: '#4b4844', g: 0.85 });
@@ -419,22 +484,22 @@ function railRest({ emit, at, legSpans, zf, across, along, hw, H, L, G, look, cl
       }
     }
     // (a box's soffit: soot over the trains)
-    if (!vault) emit([at(p, -hw, za + H - 0.01), at(q, -hw, zb + H - 0.01), at(q, hw, zb + H - 0.01), at(p, hw, za + H - 0.01)], [0, 0, -1], G('soffit'), { hex: '#3a3835', g: 0.9 });
+    if (!vault && roofed((p + q) / 2)) emit([at(p, -hw, za + H - 0.01), at(q, -hw, zb + H - 0.01), at(q, hw, zb + H - 0.01), at(p, hw, za + H - 0.01)], [0, 0, -1], G('soffit'), { hex: '#3a3835', g: 0.9 });
   });
   for (let s = 1.5; s < L - 0.5; s += 1.5) {
-    if (!clear(s, 0.2)) continue;
+    if (!clear(s, 0.2) || !walled(s)) continue;
     const top = wallTop(s) - zf(s), zc = top - 0.6;
     if (zc < 1.6) continue;
     for (const sg of [-1, 1]) cross(s, sg * (hw - 0.34), sg * (hw - 0.01), zc - 0.36, zc - 0.3, 1, G('cable'), '#55524e', 0.8);
   }
   for (let s = RAIL.lamps / 2; s < L - 1; s += RAIL.lamps) {
-    if (!clear(s, 0.5)) continue;
+    if (!clear(s, 0.5) || !roofed(s)) continue;
     const zl = Math.min(3.0, wallTop(s) - zf(s) - 0.3), z = zf(s);
     for (const sg of [-1, 1]) emit([at(s - 0.3, sg * (hw - 0.05), z + zl - 0.12), at(s + 0.3, sg * (hw - 0.05), z + zl - 0.12), at(s + 0.3, sg * (hw - 0.05), z + zl + 0.12), at(s - 0.3, sg * (hw - 0.05), z + zl + 0.12)], across(s, sg), G('lamp'), { hex: '#fff0c8', g: 1.6 });
   }
   // (a signal on the wall over the walkway: its black head and its aspect)
   for (let s = RAIL.signals / 2; s < L - 2; s += RAIL.signals) {
-    if (!clear(s, 1)) continue;
+    if (!clear(s, 1) || !walled(s)) continue;
     const z = zf(s) + Math.min(2.6, wallTop(s) - zf(s) - 0.8), plate = (s0, s1, z0, z1, v, group, hex, g) => emit([at(s0, v, z0), at(s1, v, z0), at(s1, v, z1), at(s0, v, z1)], across(s, 1), group, { hex, g });
     plate(s - 0.17, s + 0.17, z, z + 0.7, hw - 0.04, G('signal'), '#1c1d20', 1);
     plate(s - 0.07, s + 0.07, z + 0.46, z + 0.6, hw - 0.05, G('lamp'), '#e2382a', 1.6);
@@ -442,7 +507,7 @@ function railRest({ emit, at, legSpans, zf, across, along, hw, H, L, G, look, cl
   }
   // a box's columns between its two tracks; a tube's rings round its vault
   if (colAt !== null) for (let s = RAIL.columns / 2; s < L - 1; s += RAIL.columns) {
-    if (!clear(s, 0.6)) continue;
+    if (!clear(s, 0.6) || !roofed(s)) continue;
     const c = RAIL.column / 2, z = zf(s), top = wallTop(s) - z;
     cross(s - c, colAt - c, colAt + c, 0, top, -1, G('column'), '#8a857d', 0.8);
     cross(s + c, colAt - c, colAt + c, 0, top, 1, G('column'), '#8a857d', 0.8);
@@ -452,7 +517,7 @@ function railRest({ emit, at, legSpans, zf, across, along, hw, H, L, G, look, cl
     colliders.push({ min: [Math.min(a[0], b[0]), Math.min(a[1], b[1]), z], max: [Math.max(a[0], b[0]), Math.max(a[1], b[1]), z + top], of: `column-${Math.round(s * 10)}` });
   }
   if (vault) for (let s = 0.6; s < L - 0.3; s += 1.2) {
-    if (!clear(s, 0.2)) continue;
+    if (!clear(s, 0.2) || !roofed(s)) continue;
     const z = zf(s);
     for (let k = 0; k < arcVs.length - 1; k++) {
       const v0 = arcVs[k] * 0.985, v1 = arcVs[k + 1] * 0.985, N = inward(s, (v0 + v1) / 2), z0 = z + arcZ(arcVs[k]) - 0.04, z1 = z + arcZ(arcVs[k + 1]) - 0.04;
