@@ -39,6 +39,7 @@ import { facesToGlb } from '../scene/scene-gltf.js';
 import { hairCards } from './hair.js';
 import { hairRig, bakeHairClip, hairJointKeys } from './hair-bake.js';
 import { tackPieces, tackSkin } from './tack.js';
+import { riderModeAt, carriageOf, riddenFrame } from './ridden.js';
 
 const r5 = (x) => Math.round(x * 1e5) / 1e5;
 const b64f32 = (a) => Buffer.from(Float32Array.from(a).buffer).toString('base64');
@@ -55,8 +56,9 @@ export const MOUNT_CLIPS = Object.freeze([
 ]);
 
 /** each clip as a sampler of solved poses: `at(t)` the pose at t seconds, `s` its seconds, `once` a one-shot, `v` its
- * speed; a one-shot's `before(t)` (t < 0) the pose it is entered from (its entry gait running in: the hair's warm-up) */
-export function mountClips(B, { names = MOUNT_CLIPS, seed = 3 } = {}) {
+ * speed; a one-shot's `before(t)` (t < 0) the pose it is entered from (its entry gait running in: the hair's warm-up);
+ * `ridden`: the horse in its ridden head carriage (ridden.js riddenFrame, by the seat's share) */
+export function mountClips(B, { names = MOUNT_CLIPS, seed = 3, ridden = false } = {}) {
   const out = {};
   for (const name of names) {
     const tr = /^([a-zA-Z]+)-([a-zA-Z]+)$/.exec(name);
@@ -81,6 +83,14 @@ export function mountClips(B, { names = MOUNT_CLIPS, seed = 3 } = {}) {
       const before = A?.poseAt && A.f ? (t) => A.poseAt(((c.entry.phase + t * A.f) % 1 + 1) % 1) : () => c.poseAt(0);
       out[name] = { at: (t) => c.poseAt(t), before, s: c.duration, once: true };
     } else throw new Error(`mount: no clip '${name}' (it knows: ${MOUNT_CLIPS.join(', ')})`);
+  }
+  // RIDDEN (`ridden`): every frame in the ridden head carriage, by the share the moment's seat asks (ridden.js)
+  if (ridden) {
+    const turns = carriageOf(standPose(B));
+    for (const [name, c] of Object.entries(out)) {
+      const at = c.at, before = c.before, w0 = riderModeAt(name, c, 0).carriage;
+      out[name] = { ...c, ridden: true, at: (t) => riddenFrame(at(t), turns, riderModeAt(name, c, t).carriage), ...(before ? { before: (t) => riddenFrame(before(t), turns, w0) } : {}) };
+    }
   }
   return out;
 }

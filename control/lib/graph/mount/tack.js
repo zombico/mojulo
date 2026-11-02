@@ -81,7 +81,7 @@ function slab(grid, { off, thick, colour, rim = colour, lift = () => 0 }) {
 }
 
 /** a flat strap along a curve: `pts` its centre line, `nrm` the surface's normal at each (the strap lies flat on it) */
-function ribbon(pts, nrm, { width, thick, colour, closed = false }) {
+export function ribbon(pts, nrm, { width, thick, colour, closed = false }) {
   const vertices = [], quads = [], colors = [], n = pts.length;
   for (let k = 0; k < n; k++) {
     const t = unit(sub(pts[closed ? (k + 1) % n : Math.min(n - 1, k + 1)], pts[closed ? (k - 1 + n) % n : Math.max(0, k - 1)]));

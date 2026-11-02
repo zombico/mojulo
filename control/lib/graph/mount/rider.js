@@ -32,6 +32,8 @@ import '../polygonizer/hero-motion.js';                          // (first: hero
 import { rigNodesAt, HAND_POSES } from '../polygonizer/station-loft-rig.js';
 import { reachArm } from '../polygonizer/hero-stance.js';
 import { ischOf, turnOf } from '../polygonizer/hero-rest.js';
+import { RIDER_MODES, IRON_DROP, rideTargets } from './ridden.js';
+export { RIDER_MODES, riderModeAt, riderClipModes, CARRIAGE, carriageOf, riddenFrame, ridingGeometry, rideTargets, reinCurve, IRON_DROP } from './ridden.js';
 
 const add = (a, b) => [a[0] + b[0], a[1] + b[1], a[2] + b[2]];
 const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
@@ -41,42 +43,8 @@ const len = (a) => Math.hypot(a[0], a[1], a[2]);
 const unit = (a) => mul(a, 1 / (len(a) || 1));
 const lerp = (a, b, t) => add(a, mul(sub(b, a), t));
 const DEG = 180 / Math.PI;
-const sm = (x) => (x <= 0 ? 0 : x >= 1 ? 1 : x * x * (3 - 2 * x));
 
-export const KNEE = 118;
-/** the iron's tread under the leather's end (tack.js: the ring's centre 5.5 cm under it, its radius 6 cm squashed to 0.85) */
-export const IRON_DROP = 0.055 + 0.06 * 0.85;                                          // the knee's angle at the halt (degrees, inside)
-
-/** the modes' parameters: `lift` the seat above the saddle (m), `rise` the rising trot's height at its top (m: its arch
- * from the footfalls), `follow` the share of the saddle's motion the pelvis
- * takes, `lean` the trunk forward of upright (deg), `pelvis` its own forward tilt (deg), `stirrup` the leathers'
- * change (m: shorter is negative), `elbow` the shoulder's flexion: the upper arm forward of the TRUNK's own down (deg:
- * by the sides when sitting, reaching forward in two-point, the jump's release further: within the shoulder's 90°; the
- * hands go where the elbow and the bit put them) */
-export const RIDER_MODES = Object.freeze({
-  sit: { lift: 0, rise: 0, follow: 1, lean: 2, pelvis: 0, stirrup: 0, elbow: 15 },
-  rise: { lift: 0, rise: 0.085, follow: 1, lean: 12, pelvis: 4, stirrup: 0, elbow: 22 },
-  two: { lift: 0.11, rise: 0, follow: 0.35, lean: 34, pelvis: 12, stirrup: -0.05, elbow: 50 },
-  fold: { lift: 0.12, rise: 0, follow: 0.35, lean: 58, pelvis: 18, stirrup: -0.05, elbow: 70 },
-  graze: { lift: 0, rise: 0, follow: 1, lean: 4, pelvis: 0, stirrup: 0, elbow: 30 },
-});
-const KEYS = Object.keys(RIDER_MODES.sit);
-const blend = (a, b, w) => Object.fromEntries(KEYS.map((k2) => [k2, a[k2] + (b[k2] - a[k2]) * w]));
-
-/** a world point carried from the stand into a pose by a bone (rest and pose frames: skin.js boneFrames) */
-const carry = (rest, pose, bone, p) => { const r = rest[bone], q = pose[bone], d = sub(p, r.h), l = [dot(d, r.R[0]), dot(d, r.R[1]), dot(d, r.R[2])]; return add(add(add(mul(q.R[0], l[0]), mul(q.R[1], l[1])), mul(q.R[2], l[2])), q.h); };
-const carryDir = (rest, pose, bone, v) => { const r = rest[bone], q = pose[bone], l = [dot(v, r.R[0]), dot(v, r.R[1]), dot(v, r.R[2])]; return add(add(mul(q.R[0], l[0]), mul(q.R[1], l[1])), mul(q.R[2], l[2])); };
-
-/** where the rider meets the horse in a pose: the seat (on the saddle's bone), its axes, the bars, the bits, the crest */
-export function ridingGeometry(anchors, frames, rest) {
-  const fwd = unit(carryDir(rest, frames, 'saddle', [0, 1, 0])), side = unit(carryDir(rest, frames, 'saddle', [1, 0, 0]));
-  return {
-    seat: carry(rest, frames, 'saddle', anchors.seat), fwd, side, up: unit([side[1] * fwd[2] - side[2] * fwd[1], side[2] * fwd[0] - side[0] * fwd[2], side[0] * fwd[1] - side[1] * fwd[0]]),
-    bars: { R: carry(rest, frames, 'saddle', anchors.bars.R), L: carry(rest, frames, 'saddle', anchors.bars.L) },
-    bits: { R: carry(rest, frames, 'head', anchors.bits.R), L: carry(rest, frames, 'head', anchors.bits.L) },
-    crest: carry(rest, frames, 'neck0', anchors.crest),
-  };
-}
+export const KNEE = 118;                                          // the knee's angle at the halt (degrees, inside)
 
 const toUpright = (T, at, p) => { const d = sub(p, at), M = T.M; return add(at, [M[0][0] * d[0] + M[1][0] * d[1] + M[2][0] * d[2], M[0][1] * d[0] + M[1][1] * d[1] + M[2][1] * d[2], M[0][2] * d[0] + M[1][2] * d[1] + M[2][2] * d[2]]); };
 
@@ -98,21 +66,13 @@ export function riderPose(H, cal, geo, mode, { rise = 0, seatHold = null, seed =
   // (a foot an iron puts past the leg's reach is clamped to it, not refused: the rider's rig handle says so)
   if (H.R.reach !== 'clamp') H.R = { ...H.R, reach: 'clamp' };
   const { R } = H;
-  const pitchS = Math.atan2(geo.fwd[2], Math.hypot(geo.fwd[0], geo.fwd[1])) * DEG, rollS = Math.atan2(geo.side[2], Math.hypot(geo.side[0], geo.side[1])) * DEG;
-  // the pelvis: on the seat (following its pitch), or out of it by the mode's lift (and the rise), a share of the
-  // saddle's motion taken (the rest held steady by the legs)
-  const seatAt = seatHold ? lerp(seatHold, geo.seat, mode.follow) : geo.seat;
-  const up = [0, 0, 1], fwdFlat = unit([geo.fwd[0], geo.fwd[1], 0]);
-  const lift = mode.lift + rise, contact = add(add(seatAt, mul(up, lift)), mul(fwdFlat, 0.4 * lift));
-  const pitch = -pitchS * mode.follow + mode.pelvis, roll = rollS * mode.follow;
+  const T = rideTargets(geo, mode, cal, { rise, seatHold }), { seat: contact, pitch, roll, fwdFlat } = T;
   const root = rootAt(R, contact, pitch, roll);
   // the trunk over the pelvis to the mode's lean (the world's), the head level, looking ahead
   let pose = { ...root.words, hinge: Math.max(-30, Math.min(90, mode.lean - pitch)), spine: { sagittal: 0, lateral: 0, axial: 0 } };
   pose = { ...pose, ...headUp(R, pose, geo) };
-  // the feet on the irons: the leathers hang plumb from the bars, the ball of the foot on the tread
-  // (out from the bar by `cal.out`: the leather lies over the flap and hangs round the barrel, the iron outside it)
-  const L = cal.leather + mode.stirrup, feet = {};
-  for (const S of ['R', 'L']) feet[S] = add(add(geo.bars[S], mul(geo.side, (S === 'R' ? 1 : -1) * (cal.out ?? 0))), [0, 0, -(L + IRON_DROP)]);
+  // the feet on the irons (the balls of the feet on the treads)
+  const feet = T.irons;
   pose = { ...pose, feet: { R: toUpright(root.T, root.at, feet.R), L: toUpright(root.T, root.at, feet.L) }, splayR: cal.splay, splayL: cal.splay };
   // THE ARMS by the riding rule: the upper arm hangs from the shoulder by the side (forward of the trunk's own down by
   // the mode's `elbow`), and the forearm, the hand and the rein make ONE STRAIGHT LINE from the elbow to the bit: the hand is a
@@ -200,32 +160,3 @@ export function riderSeat(H, geo0, clear) {
   return cal;
 }
 
-/**
- * Each key's mode for a clip: the gait's seat, a transition's blended from the one it leaves to the one it reaches over
- * its middle, the jump's fold keyed to its flight; and the rising trot's rise from the footfalls (out of the saddle while
- * the left fore stands, a smooth arch over its stance). `frames` the clip's solved poses at its keys, `keyTime(k)`.
- */
-export function riderClipModes(name, clip, frames, keyTime) {
-  const gaitMode = (g) => (g === 'trot' ? 'rise' : g === 'gallop' ? 'two' : 'sit');
-  const M = RIDER_MODES, K = frames.length;
-  const tr = /^([a-zA-Z]+)-([a-zA-Z]+)$/.exec(name);
-  const modeAt = (t) => {
-    if (name === 'graze') { const u = t / clip.s; return blend(M.sit, M.graze, sm(u / 0.25) * sm((1 - u) / 0.25)); }
-    if (name === 'jump') {
-      const f = clip.flight, w = sm((t - (f.launch - 0.35)) / 0.3) * sm((f.touchdown + 0.4 - t) / 0.35), app = sm((t - 0.2) / 0.6) * sm((clip.s - 0.3 - t) / 0.6);
-      return blend(blend(M.sit, M.two, app), M.fold, w);
-    }
-    if (tr && !/^idle/.test(name)) { const a = M[gaitMode(tr[1])], b = M[gaitMode(tr[2])], w = sm((t / clip.s - 0.3) / 0.4); return blend(a, b, w); }
-    return M[gaitMode(name)];
-  };
-  // the left fore's stances over the keys (wrapping round a loop) → the rise's arch, sin² over each stance
-  const on = frames.map((f) => !!f.contact?.LF), loop = !clip.once, arch = new Array(K).fill(0);
-  for (let k = 0; k < K; k++) {
-    if (!on[k]) continue;
-    let a = k, b = k;
-    for (let i = 1; i < K && on[(k - i + K) % K] && (loop || k - i >= 0); i++) a = k - i;
-    for (let i = 1; i < K && on[(k + i) % K] && (loop || k + i < K); i++) b = k + i;
-    arch[k] = Math.sin(Math.PI * (k - a + 0.5) / (b - a + 1)) ** 2;
-  }
-  return frames.map((f, k) => { const m = modeAt(keyTime(k)); return { mode: m, rise: m.rise * arch[k] }; });
-}
