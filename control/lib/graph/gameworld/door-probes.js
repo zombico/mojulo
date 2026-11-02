@@ -9,9 +9,13 @@
  * every probe to its `now`, so a door that starts making a family's game, or stops, fails until `now` says so; the
  * hillclimb page's "from a sentence" column reads it (scripts/tool-surface.mjs).
  *
- * `reference` is the door that makes the family's game today where one does (a quick goal: design_game({ quick }), its
- * `world` keys laid over the quick world), held to the same concept so a concept that can never hold is caught; null
+ * `reference` is the door that makes the family's game today where one does: a book world (`book`, the gameworld a
+ * design_game({ world }) stores) where the book lays it, else a quick goal (`quick`, design_game({ quick }), its `world`
+ * keys laid over the quick world), held to the same concept so a concept that can never hold is caught; null
  * where the concept is a refusal or a hand-off rather than a level.
+ *
+ * `shows` is the hillclimb column's word for a probe that holds where its right answer is not a level (a refusal, a
+ * hand-off); 'yes' otherwise.
  *
  * A concept is a pure function of { world, steps }: `world` the gameworld the sentence composed (design-game.js
  * `composedWorld`), `steps` the run's steps (`refused` when composing refused the sentence, with no steps). Pure and
@@ -78,7 +82,8 @@ export const DOOR_PROBES = Object.freeze([
     concept: 'no 3D walk laid for it (the pixelizer plays it)',
     holds: (r) => madeNothing(r),
     reference: null,
-    now: 'not',
+    shows: 'handed off',   // (the hillclimb column's word when it holds: the right answer is not a level)
+    now: 'type',
   },
   {
     family: 'platform', genre: 'collectathon', prompt: 'a 3D platformer: run and jump across floating islands collecting coins',
@@ -98,8 +103,8 @@ export const DOOR_PROBES = Object.freeze([
     family: 'fly', genre: 'flight-sim', prompt: 'a flight sim: take off and fly through the rings',
     concept: 'an airspace level whose hero flies',
     holds: ({ steps }) => someLevel(steps, (m) => m.kind === 'airspace' && pilotsOf(m).some((e) => e.rule?.type === 'fly')),
-    reference: { quick: { goal: 'fly', craft: 'trainer' } },
-    now: 'not',
+    reference: { book: { id: 'ref', levels: { a: { airspace: { map: { craft: 'trainer' }, course: true } } } } },
+    now: 'type',
   },
   {
     family: 'seats', genre: 'co-op-platformer', prompt: 'a two-player co-op platformer to play with my friend',
@@ -113,7 +118,8 @@ export const DOOR_PROBES = Object.freeze([
     concept: 'refused with what it waits on, nothing made in its place',
     holds: (r) => madeNothing(r),
     reference: null,
-    now: 'not',
+    shows: 'refused',   // (the hillclimb column's word when it holds: the right answer is not a level)
+    now: 'type',
   },
 ]);
 

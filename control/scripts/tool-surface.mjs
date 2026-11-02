@@ -180,10 +180,11 @@ export function hillclimbMd(opts) {
   L.push('', '## The genre probes', '');
   L.push('Verdict: what the registry can express. From a sentence: what `design_game({ compose: { prompt } })` makes of the');
   L.push('sentence its family\'s door probe says (lib/graph/gameworld/door-probes.js, held by its e2e suite): yes, its family\'s');
-  L.push('game; no, something else; – where no probe stands for the genre (one probe a kernel family).', '');
+  L.push('game; refused or handed off, the right answer where it is not a level; no, something else; – where no probe');
+  L.push('stands for the genre (one probe a kernel family).', '');
   L.push(`| genre | verdict | from a sentence | ${plays.join(' | ')} | waits on |`, `|---|---|---|${bars.join('|')}|---|`);
   const cubes = Object.fromEntries(FIXTURES.map((x) => [x.id, x]));
-  const sentence = (id) => { const p = probeOfGenre(id); return p ? (p.now === 'type' ? 'yes' : 'no') : '–'; };
+  const sentence = (id) => { const p = probeOfGenre(id); return p ? (p.now === 'type' ? p.shows ?? 'yes' : 'no') : '–'; };
   for (const x of r.fixtures) L.push(`| ${cubes[x.id]?.name || x.id}${x.anchor ? ' (anchor)' : ''} | ${x.verdict} | ${sentence(x.id)} | ${MARKED_ENGINES.map((e) => (x.engines[e] ? 'yes' : 'no')).join(' | ')} | ${[...x.blocked, ...x.gaps].map(code).join(', ') || '–'} |`);
   // THE ENGINE SCOREBOARDS: what each engine's export plays, read from its marks module through the registry. A value the
   // web builds and the export loses fails a world; one it carries simpler does not.

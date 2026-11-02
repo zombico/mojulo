@@ -1,5 +1,5 @@
 // The door probes' concepts can hold: each family's concept (door-probes.js) holds on the door that makes its game today
-// (its `reference`, a quick goal, run through quickWorld and the run's steps as design_game({ quick }) runs it), and fails
+// (its `reference`: a book world, or a quick goal through quickWorld, through the run's steps as design_game runs it), and fails
 // on a bare walk. Without this a probe whose concept could never hold would read "not yet" forever. The sentence door
 // itself is probed in the e2e tier (door-probes.e2e.test.js).
 import { describe, expect, it } from 'vitest';
@@ -9,7 +9,7 @@ import { quickWorld } from './quick.js';
 import { runSteps } from './runner.js';
 import { FIXTURES } from '../cosmos/fixtures.js';
 
-const stepsOf = ({ quick, world = {} }) => runSteps({ ...quickWorld({ id: 'ref', quick }), ...world }, { ref: 'ref' });
+const stepsOf = ({ book, quick, world = {} }) => runSteps(book ?? { ...quickWorld({ id: 'ref', quick }), ...world }, { ref: 'ref' });
 const walk = stepsOf({ quick: { goal: 'reach' } });   // the bodiless first-person walk to an exit
 
 describe('each door probe\'s concept', () => {
@@ -19,7 +19,7 @@ describe('each door probe\'s concept', () => {
   });
 
   it.each(DOOR_PROBES.filter((p) => p.reference).map((p) => [p.family, p]))('%s holds on the door that makes it, not on a bare walk', (family, p) => {
-    expect(p.holds({ world: null, steps: stepsOf(p.reference), refused: null }), `${family} on ${JSON.stringify(p.reference.quick)}`).toBe(true);
+    expect(p.holds({ world: null, steps: stepsOf(p.reference), refused: null }), `${family} on ${JSON.stringify(p.reference.book ?? p.reference.quick)}`).toBe(true);
     expect(p.holds({ world: null, steps: walk, refused: null }), `${family} on a bare walk`).toBe(false);
   }, 60_000);
 
