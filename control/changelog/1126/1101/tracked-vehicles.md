@@ -35,3 +35,15 @@ Both carry the field's camo, wear and setting light, can be parked in a base and
     - within the budget.
   - **Seen** (machine gate only; the eyes gate is open): both sides round a stand-in hull, from the three-quarter and
     the side, and the sprocket and the idler close up.
+- **The classes and the rows:**
+  - **Physics classes** `lightTank` and `trackedCarrier` (`roads/vehicles.js`), from public spec ranges.
+    `running: 'track'` says what they run on. Their wheelbase is the track's length on the ground and their wheel a
+    road wheel; a tank's length is its hull's, its gun reaching past it.
+  - **The sheet:** their traits in the sheet's tables, both heavy. Their bodies wait (`UNBUILT`), each naming what is
+    built (the running gear) and what is not (the hull, the turret).
+  - **The rows:** `light-tank` (scout, recon, airborne tank) and `tracked-carrier` (tracked APC, tracked carrier),
+    role `armour`. The `tank` row stays the main battle tank, a concept.
+  - **Not a ride:** a tracked class's realistic loft serves parked and watched, never driven. The registry says
+    driving it needs skid steer, and `rideableRows` leaves them out.
+  - **Held** (`mil-track.test.js`): each tracked class has its row, found by its words; never a ride; its waiting body
+    refused by the sheet, naming what is built.

@@ -10,7 +10,8 @@
  * (m², drag area), Crr (rolling), cgH (m, centre of gravity), L × W × H, eye (m over the road), a governor (m/s) where
  * one is real, `band` (the share of peak power a gearbox holds on average: 0.75 a car's, 0.85 a many-geared diesel's),
  * `grip` (its tyres' μ on dry asphalt), `brakeEff` (the share of grip its brakes use: ABS 0.95, air brakes 0.65),
- * `turn` (m, kerb-to-kerb turning radius).
+ * `turn` (m, kerb-to-kerb turning radius). A tracked class says `running: 'track'` (its wheelbase the track's length
+ * on the ground, its wheel a road wheel): it is drawn and parked, not yet driven (skid steer is not built).
  *
  * Sources: published specifications for a representative of each class (rental kart, Corolla, Camry, RAV4, F-150,
  * Transit, 911 Carrera, a Rally2 car, a Dakar SSV, a trophy truck, a 450 motocross bike, a sport ATV, a box truck, a
@@ -52,6 +53,11 @@ export const VEHICLES = Object.freeze({
   utility4x4:    Object.freeze({ words: 'a military light utility 4x4', mass: 2400, power: 110, drive: 'all', share: 1, wheelbase: 2.75, track: 1.62, wheelRadius: 0.41, CdA: 1.9, Crr: 0.018, cgH: 0.82, L: 4.4, W: 1.95, H: 1.9, eye: 1.65, grip: 0.78, brakeEff: 0.9, turn: 6.6, band: 0.8, governor: kmh(110) }),
   cargo6x6:      Object.freeze({ words: 'a six-wheeled military cargo truck', mass: 9500, power: 220, drive: 'all', share: 1, wheelbase: 4.6, track: 2.0, wheelRadius: 0.6, CdA: 6.0, Crr: 0.02, cgH: 1.3, L: 7.6, W: 2.45, H: 3.0, eye: 2.3, grip: 0.7, brakeEff: 0.7, turn: 11, band: 0.85, governor: kmh(90) }),
   apc8x8:        Object.freeze({ words: 'an eight-wheeled armoured personnel carrier', mass: 19000, power: 330, drive: 'all', share: 1, wheelbase: 5.0, track: 2.3, wheelRadius: 0.6, CdA: 7.5, Crr: 0.022, cgH: 1.35, L: 7.8, W: 2.9, H: 2.6, eye: 2.2, grip: 0.72, brakeEff: 0.75, turn: 10.5, band: 0.85, governor: kmh(100) }),
+  // (the field's tracked: a light tank and a tracked carrier. `running: 'track'` says what they run on: their wheelbase
+  // the track's length on the ground, their track the tracks' centres apart, their wheel a road wheel; Crr a track's;
+  // their length the hull's, a tank's gun reaching past it. Drawn and parked; driven when skid steer is built)
+  lightTank:     Object.freeze({ words: 'a tracked light tank', mass: 25000, power: 440, drive: 'all', share: 1, wheelbase: 3.9, track: 2.3, wheelRadius: 0.32, CdA: 7.0, Crr: 0.045, cgH: 1.1, L: 6.4, W: 2.9, H: 2.5, eye: 2.3, grip: 0.75, brakeEff: 0.8, turn: 5, band: 0.8, governor: kmh(70), running: 'track' }),
+  trackedCarrier: Object.freeze({ words: 'a tracked armoured personnel carrier', mass: 15000, power: 300, drive: 'all', share: 1, wheelbase: 3.6, track: 2.2, wheelRadius: 0.3, CdA: 6.5, Crr: 0.045, cgH: 1.1, L: 6.0, W: 2.8, H: 2.3, eye: 2.1, grip: 0.75, brakeEff: 0.8, turn: 5, band: 0.8, governor: kmh(65), running: 'track' }),
 });
 
 export const CONDITIONS = Object.freeze({ dry: 1, wet: 0.62, snow: 0.28, ice: 0.1 });

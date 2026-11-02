@@ -1,9 +1,15 @@
 // The field's running gear: a track of links evenly pitched and closed round its path, the path flat on the ground
 // under the road wheels and over them on the top run, resting on the rollers and sagging between; the wheels on it,
 // their guide horns between their tyres; what turns apart from what stands still; every face a material, the same
-// twice, within its budget. One running gear, built in the test at a light tank's proportions.
+// twice, within its budget. One running gear, built in the test at a light tank's proportions. And the classes it carries:
+// their rows, their bodies waiting, never a ride.
 import { describe, it, expect } from 'vitest';
 import { runningGear, trackPath, pinsAlong, TRACK_DEPTH } from './mil-track.js';
+import { VEHICLES as PHYSICS } from '../roads/vehicles.js';
+import { VEHICLES, resolveVehicle, rowOfHandle } from '../vehicle-registry/roster.js';
+import { buildsOf, upscaleOf } from '../vehicle-registry/builds.js';
+import { rideableRows } from '../vehicle-registry/ride.js';
+import { rollVehicleSheet, UNBUILT } from './sheet.js';
 
 const GEAR = {
   x: 1.12, width: 0.4, hullX: 0.82,
@@ -85,5 +91,40 @@ describe('what turns and what stands', () => {
     for (const f of all(right)) { expect(f.part).toBeTruthy(); expect(f.material).toBeTruthy(); expect(Math.hypot(...f.outNormal)).toBeCloseTo(1, 4); }
     expect(JSON.stringify(runningGear({ side: 1, ...GEAR }))).toBe(JSON.stringify(right));
     expect(tris(all(right))).toBeLessThan(12000);
+  });
+});
+
+// the classes the running gear carries and their rows: named by the words people say, sized by their numbers, their
+// bodies waiting until built, and never a ride (skid steer is not built)
+
+describe('the tracked classes and their rows', () => {
+  const TRACKED = Object.keys(PHYSICS).filter((k) => PHYSICS[k].running === 'track');
+  it('each a class on a track pair, its row found by the words people say', () => {
+    expect(TRACKED.length).toBeGreaterThan(0);
+    for (const k of TRACKED) {
+      const id = rowOfHandle('physics', k);
+      expect(id, k).toBeTruthy();
+      expect(VEHICLES[id]).toMatchObject({ role: 'armour' });
+      expect(VEHICLES[id].uses).toContain('parked');
+      for (const w of [VEHICLES[id].label, ...VEHICLES[id].aliases]) expect(resolveVehicle(w)?.id, w).toBe(id);
+      // (its wheelbase the track's length on the ground: the road wheels' span inside its hull)
+      expect(PHYSICS[k].wheelbase).toBeLessThan(PHYSICS[k].L);
+    }
+  });
+  it('never a ride: a tracked class\'s realistic build serves no driving, and says what driving needs', () => {
+    for (const k of TRACKED) {
+      const id = rowOfHandle('physics', k);
+      expect(rideableRows()).not.toContain(id);
+      expect(buildsOf(id).filter((b) => b.via === 'loft').every((b) => !b.uses.includes('driven'))).toBe(true);
+      const up = upscaleOf(id);
+      expect(up.realistic).toBe('none');
+      expect(up.next).toMatch(UNBUILT[k] ? /not built yet|hull/ : /skid steer/);
+    }
+  });
+  it('a body not built yet is refused by the sheet, naming what is built and what waits', () => {
+    for (const k of TRACKED.filter((c) => UNBUILT[c])) {
+      expect(UNBUILT[k]).toMatch(/running gear is built/);
+      expect(() => rollVehicleSheet({ facets: { pole: 'realistic', class: k }, seed: 1 })).toThrow(/not built yet/);
+    }
   });
 });

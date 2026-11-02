@@ -190,6 +190,12 @@ export const VEHICLES = {
     { physics: 'cargo6x6', tech: 'truck' }),
   apc: row('armoured personnel carrier', ['apc', 'armoured car', 'armored car', 'personnel carrier', 'armored personnel carrier', 'wheeled apc', 'eight by eight', 'infantry carrier'], 'offroad', 'armour', M, FIGHT.concat('parked'),
     { physics: 'apc8x8', tech: 'apc' }),
+  // (the field's tracked: a light tank and a tracked carrier on the running gear, car-designer/mil-track.js; drawn and
+  // parked, driven when skid steer is built; the tank row stays the main battle tank, a concept)
+  'light-tank': row('light tank', ['scout tank', 'recon tank', 'airborne tank', 'light battle tank'], 'offroad', 'armour', M, FIGHT.concat('parked'),
+    { physics: 'lightTank', tech: 'tracked' }),
+  'tracked-carrier': row('tracked armoured carrier', ['tracked apc', 'tracked carrier', 'tracked personnel carrier', 'armoured carrier on tracks', 'armored tracked carrier'], 'offroad', 'armour', M, FIGHT.concat('parked'),
+    { physics: 'trackedCarrier', tech: 'tracked' }),
   tank: row('tank', ['battle tank', 'main battle tank', 'tracked vehicle', 'halftrack'], 'offroad', 'armour', M, FIGHT,
     { tech: 'tracked' }),
   mech: row('mech', ['walker', 'battle mech', 'mecha', 'strider'], 'offroad', 'armour', F, FIGHT,

@@ -56,7 +56,10 @@ const SERVES = Object.freeze({
   net: ['traffic', 'parked'], supercar: ['driven', 'parked', 'watched'], craft: ['driven', 'parked', 'watched', 'crewed'],
   fleet: ['traffic'], loft: ['driven', 'parked', 'watched'], tech: ['driven', 'traffic', 'parked', 'watched', 'crewed'],
 });
-const B = (tier, via, key, status, where, why) => ({ tier, via, key, status, uses: SERVES[via], where, why });
+const B = (tier, via, key, status, where, why, uses = SERVES[via]) => ({ tier, via, key, status, uses, where, why });
+// a tracked class (roads/vehicles.js `running: 'track'`) is drawn, parked and watched, not driven: skid steer is not built
+const tracked = (cls) => PHYSICS[cls]?.running === 'track';
+const UNDRIVEN = Object.freeze(SERVES.loft.filter((u) => u !== 'driven'));
 
 /** Every build a row has, toy first, then stylised, realistic, the concept last. */
 export function buildsOf(id) {
@@ -71,9 +74,12 @@ export function buildsOf(id) {
   for (const k of h.supercar ?? []) out.push(B('realistic', 'supercar', k, 'live', ['quick race (supercars)', 'mint_solid vehicle preview', 'transformer'], 'the supercar\'s surface compiler, streamlined in the form render'));
   for (const k of h.craft ?? []) out.push(B('realistic', 'craft', k, 'live', ['transformer'], 'the craft shelf\'s assembly at its class\'s true figures'));
   for (const k of h.fleet ?? []) out.push(B('realistic', 'fleet', k, 'live', ['roadway traffic'], 'the highway fleet\'s loft at true dimensions, at traffic distance'));
-  for (const k of (h.physics ?? []).filter(loftable).slice(0, 1)) out.push(B('realistic', 'loft', k, 'live', ['quick ride', 'mint_solid vehicle preview'], MILITARY_CLASSES[k]
-    ? 'the military hull kit\'s body of its class at its true numbers (road-military.js): plates, welds and fittings, driven on its class\'s own physics'
-    : 'the realistic pole\'s loft of its class at its true numbers (compileRealistic), driven on its class\'s own physics'));
+  for (const k of (h.physics ?? []).filter(loftable).slice(0, 1)) {
+    if (tracked(k)) { out.push(B('realistic', 'loft', k, 'live', ['mint_solid vehicle preview', 'a level\'s parked vehicles'], 'the military hull kit\'s body of its class on its running gear (road-military.js, mil-track.js), drawn and parked: not driven until skid steer is built', UNDRIVEN)); continue; }
+    out.push(B('realistic', 'loft', k, 'live', ['quick ride', 'mint_solid vehicle preview'], MILITARY_CLASSES[k]
+      ? 'the military hull kit\'s body of its class at its true numbers (road-military.js): plates, welds and fittings, driven on its class\'s own physics'
+      : 'the realistic pole\'s loft of its class at its true numbers (compileRealistic), driven on its class\'s own physics'));
+  }
   for (const k of h.tech ?? []) out.push(B(null, 'tech', k, 'concept', ['bible plates', 'RTS roster'], 'the technology crafter\'s block plan'));
   return out;
 }
@@ -107,6 +113,8 @@ export function upscaleOf(id) {
   if (real) return { id, use, realistic: real.status, via: real.via, next: `wire the ${real.via} build into the games (${real.why})` };
   const has = handlesOf(id);
   const cls = [has.physics ?? []].flat()[0];
+  // (a tracked class's body is live for what it serves; driving it is what it needs)
+  if (cls && tracked(cls) && atTier(builds, 'realistic')?.status === 'live') return { id, use, realistic: 'none', via: null, next: 'driving it: a tracked class steers by skid steer, not built yet (its realistic body is live, parked and watched)' };
   const next = cls && UNBUILT[cls] ? `its realistic body: ${UNBUILT[cls]}` : cls ? 'a realistic body for its physics class (the loft has no frame for it)' : 'a realistic body and its physics';
   return { id, use, realistic: 'none', via: null, next };
 }
