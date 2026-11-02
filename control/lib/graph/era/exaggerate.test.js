@@ -140,6 +140,21 @@ describe('the pieces: chunked about their middle, leant over their reach', () =>
     expect(JSON.stringify(kitTemplates(L, { exaggerate: null }))).toBe(JSON.stringify(A));
     expect(leanFaces(A.bin, [1, 0], 0)).toBe(A.bin);
   });
+
+  it('makes the geotown\'s pieces for an exaggerated metro, each a body its ink paints and the parts that keep their colours; a toon register\'s shapes apart', () => {
+    const L = makeLight({ direction: [0.3, 0.5, -0.8], ambient: 0.4, diffuse: 0.6 }), B = kitTemplates(L, { exaggerate: crooked }), T = kitTemplates(L, { exaggerate: crooked, toon: true });
+    expect(kitTemplates(L).loud).toBeUndefined();
+    const sig = B.loud('signal', 'e', 0), lamp = B.loud('lamp', 'e', 0);
+    for (const p of [sig, lamp]) { expect(p.body.length).toBeGreaterThan(0); expect(p.fixed.length).toBeGreaterThan(0); }
+    // (an east signal's arm and its lamp's head reach east, over the road; its heads hang off the arm)
+    const far = (fs) => Math.max(...fs.flatMap((f) => f.corners.map((c) => c[0])));
+    expect(far(sig.body)).toBeGreaterThan(4.5); expect(far(lamp.fixed)).toBeGreaterThan(1);
+    // (a receptacle is all body: its ink paints the whole of it)
+    expect(B.loud('front-load', 'n', 0).fixed).toEqual([]);
+    expect(B.loud('lamp', 'e', 0)).toBe(B.loud('lamp', 'e', 0));
+    expect(JSON.stringify(T.loud('lamp', 'e', 1))).not.toBe(JSON.stringify(T.loud('lamp', 'e', 0)));
+    expect(() => B.loud('bandstand', 'e', 0)).toThrow();
+  });
 });
 
 describe('the language caricatured: more itself, on its rails, its door and its rhythm kept', () => {

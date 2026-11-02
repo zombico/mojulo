@@ -21,7 +21,8 @@ its own wall hue and false front; no window square (`skew`), no two neighbours o
 `streets: { slabs, skew, kerb, splats, paint, pop, vary }` (the `street` hand's own) draws its walks, roads and furniture
 loud by the same principles: skewed pastel slabs, candy kerbs, ink, fat lines, each piece its own ink, lamps of
 alternating height. `homes: { skew, step, pop, yard }` draws its homes and yards so, and a geocity's masses and evoked
-facades (their windows made geometry, none square: law `windows`). The plan never moves.
+facades (their windows made geometry, none square: law `windows`). An exaggerated metro's street furniture is the
+geotown's, with its signs, post boxes, dumpsters, donation bins and skips where they belong. The plan never moves.
 
 ## The ingredients
 

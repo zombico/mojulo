@@ -47,6 +47,16 @@
   per window, its glass and a fat frame proud of it in its lot's ink (never the lot before it's), every window off
   square at three corners or more (a `windows` law), a night's lit rooms burning in the windows their panes cover;
   `skewCorners` takes a margin over the law's 3° for corners rounded again. The plain metro keeps its cards.
+  Its street is the geotown's (`geocity/kit.js` `loud`, any exaggerated cube): its lamps round and lathed, its signals
+  on a mast arm with a head at its end and one on its pole, its bins, hydrants and street-name signs the geotown's,
+  each a body a loud street inks, never the last of its kind's, and the parts that keep their colours (lenses, glass,
+  a sign's face) stamped with it; a loud street's lamps and signals never one height beside the next (`streets.vary`);
+  a toon register's pieces each one of three shapes, exaggerated and incongruent, never the last's. And what the
+  geotown has that the metro lacked, where it belongs: signs to the traffic on each kerb (a crossing's diamond ahead
+  of the next, the limit past the last, a close-built run's parking), a post box by the papers, a close-built run's
+  other litter bins (recycling, a solar compactor, a heritage bin, an ashtray bin, a mesh basket, never the last's),
+  dumpsters in its midrise courts, donation bins (a clothing drop, a textile bank, a bottle bank) at its parking lots,
+  skips on its building sites (`geotown/receptacles.js`, askew in a toon register). The plain metro as it was.
 - **A loud street** (`exaggerate.streets`, `geotown/street-loud.js`; the `street` hand carries one), by the shops'
   principles over a plan that never moves: the walks laid in big pastel slabs over their own ground, cut on skewed lines
   (their ends too: no slab square), each a tint other than its neighbour's, set in a grout of the walk; the kerbs in

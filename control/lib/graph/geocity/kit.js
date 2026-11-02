@@ -22,15 +22,22 @@
  * dimensions × kit.chunk about its middle: a post fatter, an arm as long) and a lamp and a signal lean out over their
  * reach by kit.lean, re-lit on their leaning faces (a pole that carries wires stands: its wires are strung to it). A
  * site's and a lot's pieces (scaffold, fencing, hoarding, barriers, cones, cars) are as they were. Absent, every byte
- * as it was.
+ * as it was. Exaggerated, `loud(kind, facing, v)` makes the geotown's pieces at the metro's size (geotown/doodads.js,
+ * signs.js, receptacles.js: a round lamp, a signal on its mast arm with a head at its end and one on its pole, a bin, a
+ * hydrant, a post box, a sign `sign-<kind>`, a receptacle by its RECEPTACLES id facing its front), as { body, fixed }:
+ * its body what a stamp's ink paints (drawn as made: the scene pales it), the rest (its lenses, its glass, a sign's
+ * face) keeping its own colours; in a `toon` register LOUD_VARIANTS shapes of each, each exaggerated and incongruent.
  *
- * Pure; no dice.
+ * Pure; a loud piece's shapes each by its own fixed dice.
  */
 import { roundStreetKit, roundKitFaces, isRoundKitShape } from '../city/round-kit.js';
 import { litFactor, scaleHex } from '../polygonizer/vexar.js';
 import { leanFaces } from '../era/exaggerate.js';
-import { toyCarOf, proportions } from '../geotown/doodads.js';
+import { toyCarOf, proportions, lampOf, postOf, binOf, hydrantOf, postboxOf } from '../geotown/doodads.js';
+import { signalHead, mastArm, signOf, place } from '../geotown/signs.js';
+import { receptacleOf, RECEPTACLES } from '../geotown/receptacles.js';
 import { popHex } from '../geotown/front-loud.js';
+import { mulberry32, strHash } from '../city/plan/dice.js';
 import { tan } from '../../util/dmath.js';
 
 // the legacy metro's kit, at its scale (fractal-city.js: a city unit is 3.66 m; a kerb lamp's standard 2.35 units tall)
@@ -183,14 +190,47 @@ const car = ([dx], L) => {
 };
 /** A toy car along (dx, dy)'s axis, its faces lit as the kit's are: its body pale (an instance's tint paints it). */
 function toyCar([dx], L) {
-  const fs = toyCarOf(dx ? 'u' : 'v', '#e8e8e8', proportions(() => 0.5, false));
-  return fs.map((f) => { const c = f.corners, n = newellK(c), o = f.out ?? n, nn = n[0] * o[0] + n[1] * o[1] + n[2] * o[2] < 0 ? n.map((v) => -v) : n, hex = f.hex ?? (f.role === 'cabin' ? '#2a3038' : '#e8e8e8'); return { corners: nn === n ? c : c.slice().reverse(), normal: nn, fill: scaleHex(hex, litFactor(nn, L)) }; });
+  return litKit(toyCarOf(dx ? 'u' : 'v', '#e8e8e8', proportions(() => 0.5, false)), (f) => f.hex ?? (f.role === 'cabin' ? '#2a3038' : '#e8e8e8'), L);
 }
+/** The geotown's faces ({ corners, out, role | hex }) lit as the kit's: each turned to its out, baked by its colour. */
+const litKit = (fs, hexOf, L) => fs.map((f) => { const c = f.corners, n = newellK(c), o = f.out ?? n, nn = n[0] * o[0] + n[1] * o[1] + n[2] * o[2] < 0 ? n.map((v) => -v) : n; return { corners: nn === n ? c : c.slice().reverse(), normal: nn, fill: scaleHex(hexOf(f), litFactor(nn, L)) }; });
 const newellK = (c) => { const n = [0, 0, 0]; for (let i = 0; i < c.length; i++) { const a = c[i], b = c[(i + 1) % c.length]; n[0] += (a[1] - b[1]) * (a[2] + b[2]); n[1] += (a[2] - b[2]) * (a[0] + b[0]); n[2] += (a[0] - b[0]) * (a[1] + b[1]); } const l = Math.hypot(...n) || 1; return n.map((v) => v / l); };
 /** A flat piece along +x, `len` long, `w` across at offset `off`, at z 0. */
 const flat = (len, w, off, fill, L) => [quad([[0, off - w / 2, 0], [len, off - w / 2, 0], [len, off + w / 2, 0], [0, off + w / 2, 0]], [0, 0, 1], fill, L)];
 
-export function kitTemplates(L0, { gauge = 1.495, poleReach = 4, exaggerate = null } = {}) {
+// ── an exaggerated metro's pieces, the geotown's (doodads.js, signs.js, receptacles.js): round, lathed; in a toon
+// register each of LOUD_VARIANTS shapes exaggerated and incongruent, a stamp picking one ──
+export const LOUD_VARIANTS = 3;
+// (the paints of its signs' and signals' roles, signs.js; a loud street's popped but the dark and the white)
+const SIGN_PAINT = { pole: '#555b62', signal: '#26282b', plate: '#22252b', border: '#f2d23a', rim: '#1c1d20', 'lens-red': '#e0463a', 'lens-amber': '#e3b13a', 'lens-green': '#46c06a', 'sign-red': '#c8202a', 'sign-white': '#f4f2ea', 'sign-yellow': '#f2c21a', 'sign-blue': '#1f5aa8', 'sign-green': '#1f6e3a', slot: '#1d2023', streetbin: '#2f4a3a', hydrant: '#c8372b', yellow: '#e3b13a', cap: '#d8d4c8', postbox: '#c8372b', lamp: '#f0d982' };
+const KEEP = new Set(['plate', 'rim', 'slot', 'sign-white', 'signal', 'pole', 'cap']);
+// (the roles a stamp's ink paints: its body; the rest, its lenses, its glass, its sign's face, keep their own colours)
+const BODY = new Set(['pole', 'signal', 'streetbin', 'hydrant', 'postbox']);
+/** Faces in the local frame turned so its −y (a receptacle's front) looks toward (vx, vy). */
+const facingOf = (fs, [vx, vy]) => { const a = Math.atan2(vy, vx) + Math.PI / 2, c = Math.cos(a), sn = Math.sin(a), T = ([x, y, z]) => [x * c - y * sn, x * sn + y * c, z]; return fs.map((f) => ({ ...f, corners: f.corners.map(T), out: f.out ? T(f.out) : f.out })); };
+const LAMP_H = 2.35 * U, SIG_TOP = 6.2, SIG_ARM = 5.5;
+function loudPiece(kind, [dx, dy], D, R) {
+  if (kind === 'lamp') return lampOf(0, 0, 0, [dx, dy], LAMP_H, D);
+  if (kind === 'signal') {
+    // its pole, a mast arm out over the lanes (dx, dy), a head at its end and one on the pole, each looking across the
+    // crossing (the arm's way turned a quarter left: the far side's approach)
+    const head = [-dy, dx], zA = SIG_TOP - 0.4;
+    return [
+      ...postOf(0, 0, 0, SIG_TOP, 0.16, 'pole', D),
+      ...place(mastArm(SIG_ARM, D), [0, 0, zA], [dy, -dx]),
+      ...place(signalHead(D, R), [dx * SIG_ARM * 0.9, dy * SIG_ARM * 0.9, zA - 0.3 - 1.12], head),
+      ...place(signalHead(D, R), [head[0] * 0.32, head[1] * 0.32, 2.6], head),
+    ];
+  }
+  if (kind === 'bin') return binOf(0, 0, 0, D);
+  if (kind === 'hydrant') return hydrantOf(0, 0, 0, [dx, dy], D);
+  if (kind === 'postbox') return postboxOf(0, 0, 0, D);
+  if (kind.startsWith('sign-')) return place(signOf(kind.slice(5), D, R, kind === 'sign-diamond' ? 1 : 0), [0, 0, 0], [dx, dy]);
+  if (RECEPTACLES[kind]) return facingOf(receptacleOf(kind, D, R), [dx, dy]);
+  throw new Error(`geocity kit: no loud piece '${kind}'`);
+}
+
+export function kitTemplates(L0, { gauge = 1.495, poleReach = 4, exaggerate = null, toon = false } = {}) {
   const four = (f) => Object.fromEntries(Object.entries(FACE).map(([k, v]) => [k, f(v)]));
   // (an exaggerated kit: its own light object carries the chunk to realize; a piece that reaches leans out over it)
   const X = exaggerate?.kit ?? null, L = X && X.chunk > 1 ? { ...L0 } : L0, tA = X ? tan((X.lean * Math.PI) / 180) : 0;
@@ -198,7 +238,22 @@ export function kitTemplates(L0, { gauge = 1.495, poleReach = 4, exaggerate = nu
   const leans = (fs, v) => (tA ? leanFaces(fs, v, tA, (n) => litFactor(n, L0)) : fs);
   // (a loud street's lines: `paint` times as wide, its yellow pushed, its bars skewed by `skew`)
   const SP = exaggerate?.streets ?? null, PW = SP ? SP.paint : 1, YL = SP ? popHex('#e3b13a', SP.pop) : '#e3b13a', SK = SP ? SP.skew * 1.6 * 0.6 : 0;
+  // (an exaggerated metro's piece by kind, facing and shape: { body (its stamp's ink paints it), fixed }, made once;
+  // a toon register's shapes each its own fixed dice, a plain hand's one, chunked)
+  const loudMade = new Map(), paintOf = (role) => (SP && !KEEP.has(role) ? popHex(SIGN_PAINT[role], SP.pop) : SIGN_PAINT[role]) ?? '#6b7176';
+  const loud = exaggerate ? (kind, facing, v = 0) => {
+    const key = `${kind}:${facing}:${v}`;
+    if (loudMade.has(key)) return loudMade.get(key);
+    const R = mulberry32(strHash(`${kind}|${v}|shape`)), D = toon ? proportions(R, true) : { ...proportions(R, false), body: X ? X.chunk : 1 };
+    const fs = loudPiece(kind, FACE[facing] ?? [1, 0], D, mulberry32(strHash(`${kind}|${v}|parts`)));
+    const reaches = kind === 'lamp' || kind === 'signal', v2 = FACE[facing] ?? [1, 0], lean = (q) => (reaches ? leans(q, v2) : q);
+    const whole = !!RECEPTACLES[kind], hexOf = (f) => f.hex ?? paintOf(f.role);
+    const T = { body: lean(litKit(fs.filter((f) => whole || BODY.has(f.role)), hexOf, L0)), fixed: lean(litKit(fs.filter((f) => !whole && !BODY.has(f.role)), hexOf, L0)) };
+    loudMade.set(key, T);
+    return T;
+  } : null;
   return {
+    ...(loud ? { loud } : {}),
     lamp: four((v) => leans(lamp(v, L), v)),
     signal: four((v) => leans(signal(v, L), v)),
     sign: sign(L),

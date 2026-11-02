@@ -234,3 +234,36 @@ describe("a loud metro's furniture and facades: each its own", () => {
     expect(panes(Xn).filter((f) => offSquare(flat(f.corners)) >= OFF_SQUARE).length).toBe(panes(Xn).length);
   });
 });
+
+describe("a loud metro's street the geotown's: its lamps, signals, signs, post boxes and receptacles", () => {
+  const ex = { from: M.cube, exaggerate: { from: 'street', lean: 0, kit: { lean: 0, chunk: 1 } } };
+  const X = assembleGeocityScene({ ...M, cube: ex }), Tn = assembleGeocityScene({ ...M, cube: { ...ex, register: 'cel' } });
+  const reps = (S, g) => (S.repeats ?? []).filter((r) => r.group === g), ts = (S, g) => reps(S, g).flatMap((r) => r.transforms);
+  it('inks each lamp and signal, never as the last; keeps their lenses and glass; never stands a lamp at the last one\'s height', () => {
+    for (const g of ['geocity:lamp', 'geocity:signal']) {
+      // (a stamp's list is a facing's: the street's order is across them, so the list shows the inks' spread)
+      const t = ts(X, g).map((x) => JSON.stringify(x.tint));
+      expect(t.length).toBeGreaterThan(4);
+      expect(t.every((x) => x !== undefined && x !== 'null')).toBe(true);
+      expect(new Set(t).size).toBeGreaterThan(3);
+      expect(ts(X, `${g}-lit`).every((x) => !x.tint)).toBe(true);
+      expect(ts(X, `${g}-lit`).length).toBe(t.length);
+    }
+    const h = ts(X, 'geocity:lamp').map((x) => x.scale[2]);
+    expect(h.some((v) => v > 1)).toBe(true); expect(h.some((v) => v < 1)).toBe(true);
+    expect(ts(P, 'geocity:lamp').every((x) => !x.tint && !x.scale)).toBe(true);
+    expect(reps(P, 'geocity:lamp-lit')).toEqual([]);
+  });
+  it('puts the geotown\'s pieces where they belong: signs to the traffic, a post box by the papers, other litter bins, dumpsters in its courts, donation bins at its lots, skips on its sites; the plain metro none', () => {
+    for (const k of ['sign-diamond', 'sign-speed', 'sign-parking', 'postbox', 'front-load', 'eurobin-1100', 'clothing-drop', 'bottle-igloo']) {
+      expect(ts(X, `geocity:${k}`).length).toBeGreaterThan(0);
+      expect(reps(P, `geocity:${k}`)).toEqual([]);
+    }
+    const litter = ['recycling-three', 'solar-compactor', 'heritage-fluted', 'ashtray-top', 'mesh-basket'].filter((k) => ts(X, `geocity:${k}`).length);
+    expect(litter.length).toBeGreaterThan(1);
+    expect(ts(X, 'geocity:roll-off').length).toBe(ts(X, 'geocity:bag-skip').length);
+  });
+  it('draws a toon register\'s lamps in shapes apart', () => {
+    expect(reps(Tn, 'geocity:lamp').length).toBeGreaterThan(reps(X, 'geocity:lamp').length);
+  });
+});
