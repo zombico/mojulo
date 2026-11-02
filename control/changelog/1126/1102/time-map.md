@@ -1,6 +1,6 @@
 ### The time map: a shot shows the world's time on the screen's time, and every channel plays the same map
 
-In progress. A shot's time map says how the world's clock plays on the screen's. It covers a stretch slowed or sped up,
+A shot's time map says how the world's clock plays on the screen's. It covers a stretch slowed or sped up,
 ramped in and out; an instant held; the camera moving on the screen's clock while the world holds (bullet time); and
 the world on twos. One map, read by the camera, the world and the actors alike (`control/lib/graph/shoot/time.js`).
 
@@ -35,5 +35,15 @@ the world on twos. One map, read by the camera, the world and the actors alike (
   - **A director's note, `slowed-line`**: slow motion over a line slows the picture, not the voice. Slow the move, the
     look or the silence, and play the words in real time.
   - `docs/cinematics.md` gains a section on time.
+- **The cosmos cube's Time is also the camera's clock.** The Time facet gains three settings:
+  - `tempo`: real time, slow, ramp, freeze, bullet;
+  - `replay`: none, angles, replay;
+  - `grain`: ones, twos, threes, mixed.
+
+  Each is built offline (the shoot plan and the actor scene). In play each waits on the packages they are priced
+  under: the world clock scale (`world-clock`: a live world's time slowed, ramped, held and replayed, the camera exempt)
+  and keying (`keying`: a body's clips on twos in play, a grain a layer). A probe genre, `cinematic-action`, asks for
+  them in the brief's words (bullet time, slow motion, a kill cam, set pieces). On the hillclimb page the world clock
+  ranks second of all packages by worlds lifted per effort.
 - **Absent, nothing changes.** A plan without a map normalizes, plays, lowers and emits its page byte for byte as
   before.
