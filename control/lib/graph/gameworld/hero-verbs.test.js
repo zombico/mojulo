@@ -13,6 +13,7 @@ import { runSteps } from './runner.js';
 import { readCastEffect } from '../playscape/ui/cast.js';
 import { validateLevelContract } from '../game/level-contract.js';
 import { synthesizeLevel } from '../game/level-synth.js';
+import { powerRecord } from './power-record.js';
 
 const H = MEADOWMARK_HERO.characters.hero;
 const carrying = (items, more = {}) => ({ ...MEADOWMARK_HERO, ...more, characters: { ...MEADOWMARK_HERO.characters, hero: { ...H, adornment: { items } } } });
@@ -109,5 +110,27 @@ describe('a power fires only once it is the hero\'s and when its spend is there'
     expect(validateLevelContract(synthesizeLevel(m).game)).toEqual({ ok: true, errors: [] });
     const { bought, ...bare } = m.game.powers;
     expect(validateLevelContract({ ...synthesizeLevel(m).game, powers: bare }).errors[0]).toMatch(/absent only beside bought/);
+  });
+});
+
+describe('a level\'s powers read back as data, for a reader that does not run its cues', () => {
+  const levelOf = (W) => runSteps(W, { ref: 'm' }).find((s) => s.key.startsWith('level')).order.manifest;
+  it('each power its key, when it is gained, its refusal, its look and its attack, as the level plays them', () => {
+    const R = powerRecord(levelOf(MEADOWMARK_HERO));
+    expect(R.map((r) => [r.id, r.key])).toEqual([['gust-step', '1'], ['wind-orb', '2'], ['cyclone', '3']]);
+    expect(R[0]).toMatchObject({ holder: 'hero', gained: { at: 'start' } });
+    expect(R[0].refusal).toBeUndefined();
+    expect(R[1]).toMatchObject({ gained: { at: 'stats', var: 'hero.wind-orb', gte: 1 }, refusal: 'wind-orb: not gained yet', attack: { is: 'orb', from: 'hero', at: 'nearest-foe', range: 24, cone: 0.7, hurt: 12 } });
+    expect(R[0].attack).toBeUndefined();
+  });
+
+  it('a spend where the system has a resource; a later power\'s move with the stats that grant it', () => {
+    const W = { ...MEADOWMARK_HERO, links: [], characters: { ...MEADOWMARK_HERO.characters, hero: { ...H, actions: { ...H.actions, system: { kind: 'transform', resource: 'ki' }, powers: H.actions.powers.map((p) => (p.id === 'cyclone' ? { ...p, move: 'high-jump' } : p)) } } } };
+    const R = powerRecord(levelOf(W)), cy = R.find((r) => r.id === 'cyclone');
+    expect(R.every((r) => r.spends && r.spends.ki > 0)).toBe(true);
+    expect(cy.refusal).toMatch(/not gained yet, or not enough ki/);
+    expect(cy.move).toEqual({ grants: { jumpSpeed: expect.any(Number) }, on: ['stats'] });
+    // (a level with no powers reads none)
+    expect(powerRecord({ play: { cues: [{ id: 'level-up', when: { levelled: 'hero' }, then: { say: 'Level up' } }] } })).toEqual([]);
   });
 });

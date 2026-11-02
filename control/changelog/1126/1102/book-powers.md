@@ -29,3 +29,8 @@ its resource, put on a look and showed a toast. This theme makes them act.
   its node, the example hero's `wind-orb` said "not gained yet" and fired nothing; with `hero.wind-orb` at 1 its orb
   took a grunt from 20 to 8. A game with no later power emits as before, byte for byte. The level contract takes
   `game.powers` without a slice beside `bought` (`game/level-contract.js`), so a level whose map keys no door renders.
+- **A level's powers read back as data** (`gameworld/power-record.js` `powerRecord`): each power's key, its holder, when
+  it is gained (the start, or its node in the stats), its spend, the toast it refuses with, its look, its attack (a beam
+  at the nearest foe in front, its reach and hurt) and its move with what grants it (the held slice, a pickup, the
+  stats), read from the level's own keys, cues and `game.powers`. It is for a reader that does not run the page's cues,
+  the engine handoff's level record first, and it imports nothing.
