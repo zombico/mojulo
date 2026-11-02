@@ -23,7 +23,7 @@ Name the item and its direction; the laws do the rest. These are display and gam
   units?: 'cm' (the default), title?, lathes? / sweeps? / … (your own parts beside the built item) }
 ```
 
-Stored as `{ kind: 'workbench', build: { type: 'equipment', …, laws: 1 } }`. Edit it with a patch on `/build/…`:
+Stored as `{ kind: 'workbench', build: { type: 'equipment', …, laws: 2 } }` (laws 2: a hilt carrying an end, below). Edit it with a patch on `/build/…`:
 `set /build/dials/stylize 0.9`, `set /build/style 'celestial'`, `set /build/parts/head 'claw'`, `set /build/gem 'ruby'`.
 
 ## The dials
@@ -42,6 +42,33 @@ Stored as `{ kind: 'workbench', build: { type: 'equipment', …, laws: 1 } }`. E
 5. **Contrast spends on the focal.** Fittings recede toward neutral as stylization rises; the stone takes the glow.
 6. **The focal sits where the eye already goes:** a staff's head, a bow's riser, a shield's boss. Leading lines (rays, bands, vines, feathers) run from the frame into it.
 7. **Organic forms grow.** A branching head shares its shaft's cross-section among its limbs (r² = Σ rᵢ²), so twigs taper by construction; barked parts carry `bark: { species, tile }` with the tile scaled to the stem.
+
+### Laws 2: a hilt carrying an end
+
+Laws 2 (current; stamped at mint, so a row minted under laws 1 keeps its bytes) draws a sword or a staff as a **hilt**
+(what the hand holds) carrying an **end** (what does the work), chosen apart:
+
+- `parts.hilt` — a sword hilt (pommel, grip, guard): `dagger` · `one-hand` · `hand-and-half` · `two-hand`; or a haft:
+  `wand` · `arm` · `long` · `pole` (a pole taken at two bands). `parts.hiltLength` (cm) sets the grip's or the haft's
+  length.
+- `parts.end` — `blade` (its outline the `blade` word) or a head (`plain` · `branch` · `claw` · `crescent` · `block` ·
+  `mace` · `ringed` · `spear` · `axe` · `halberd`). `parts.endLength` (cm) sets a blade's length (a head on a sword
+  hilt: the neck it rises on).
+
+The item names are presets: `dagger` (dagger + blade), `sword` (one-hand + blade), `greatsword` (two-hand + blade),
+`staff` (its `reach`'s haft + its `head`). So `{ item: 'staff', parts: { hilt: 'pole', end: 'blade', blade: 'sabre' } }`
+is a glaive, `{ item: 'sword', parts: { hilt: 'hand-and-half' } }` a longsword, `{ item: 'sword', parts: { end: 'mace' } }`
+a sword-hilted mace, `{ item: 'staff', parts: { hilt: 'long', end: 'axe' } }` a long axe. Four more laws size them:
+
+8. **The grip is counted in hands:** one-hand 11.5 cm, hand-and-half 19, two-hand 30.
+9. **The guard is sized by the blade it stops:** its span a multiple of the blade's base width (2.3 dagger → 5.4 two-hand),
+   never more than 0.42 of the blade's length (more as it stylizes); its rise (horns, wings, spikes) bounded by its span.
+10. **The pommel balances the blade:** its radius from the blade's mass, between 1.15 and about twice the grip's.
+11. **A head is sized by its haft:** a spear's point 0.16 of it, a halberd 0.26, an axe 0.2, a blade on a haft 0.24; a
+   grip band and a collar sit on a grown shaft wherever it wanders.
+
+`stats.equipment.variants` names the hilt and the end; the readout's `guard`, `pommel`, `grip`, `blade` or `haft`
+give their sizes. The bow and the shield are not hilts and ends: laws 2 draws them as laws 1 did.
 
 ## Items and their slots (`parts`)
 

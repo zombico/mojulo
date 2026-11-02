@@ -128,6 +128,7 @@ import { WINGBEATS } from '@/lib/graph/bugs/gait';
 import { prepareStrokes, strokesLedger } from '@/lib/mcp/tools/layered-strokes';
 import { packRecipe } from '@/lib/graph/sketch/manifest-store';
 import { validateGear, gearRecord, gearMounts, gearReadout, gearBuild, gearTriangles } from '@/lib/graph/polygonizer/hero-gear';
+import { heldClips, holdsByLaws } from '@/lib/graph/polygonizer/hero-hold';
 import { validateAttach, attachRecord, attachMounts, attachReadout } from '@/lib/graph/polygonizer/hero-attach';
 import { isSwing, SWING_HAND, heroSwing } from '@/lib/graph/polygonizer/hero-swing';
 import { expandEquipment } from '@/lib/graph/equipment/expand';
@@ -220,7 +221,7 @@ export function expandLayeredManifest(manifest, { from = 'auto' } = {}) {
   if (!manifest?.plan && !manifest?.hero) return manifest;
   const hero = manifest.hero && from !== 'plan' ? normalizeHero(manifest.hero) : manifest.hero;
   const plan = manifest.hero && from !== 'plan' ? heroPlanOf(hero) : manifest.plan;
-  const recipe = expandHeroAwarePlan(plan, hero ? wornHero(hero) : hero, hero ? null : manifest.geocube);
+  const recipe = heldIdle(expandHeroAwarePlan(plan, hero ? wornHero(hero) : hero, hero ? null : manifest.geocube), hero);
   const known = new Set(Object.keys(recipe.dials || {}));
   const dials = Object.fromEntries(Object.entries(manifest.dials || {}).filter(([k]) => known.has(k)));
   return { ...manifest, ...(hero ? { hero } : {}), plan, recipe, dials: resolveLayeredDials(recipe.dials || {}, dials) };
@@ -1442,6 +1443,14 @@ function gripHands(plan, hero) {
   if (!held.length || !plan?.rig?.hands || !plan.clips) return plan;
   return { ...plan, clips: Object.fromEntries(Object.entries(plan.clips).map(([name, keys]) => [name, keys.map((k) => ({ ...Object.fromEntries(held.filter((f) => k[f] === undefined).map((f) => [f, 'grip'])), ...k }))])) };
 }
+/** Laws-2 gear's handling (hero-hold.js) on an expanded recipe (its rig resolved): the idle breathes through the
+ * weapon, and no idle or walk key wears an item through the body. Gear minted before (equipment laws 1) keeps its
+ * clips byte for byte. */
+function heldIdle(recipe, hero) {
+  if (!hero?.gear || !recipe?.rig || !recipe.clips || !Object.values(hero.gear).some((g) => g && holdsByLaws(g))) return recipe;
+  const R = validateRig(recipe.rig);
+  return { ...recipe, clips: heldClips(recipe.clips, { mounts: gearMounts(hero, R), R, own: hero.clips || {} }).clips };
+}
 /** The anime hero's own colours per design base, under the operator's (its palette wins): the hair base's colour at a
  * mid-dark value, so its lit and shade tones both read under the character light and against the World's dark backdrop
  * — a warm dark brown on the male (CIE L* ≈ 33), a blue-black on the female (L* ≈ 35, so her shade side, floored at
@@ -1766,7 +1775,11 @@ export function heroReadout(hero, plan, stats, extraWarnings = [], { mesh, recip
     ...(core ? { core } : {}),
     ...(clips ? { clips } : {}),
     ...(hero.attach && recipe?.rig ? { attach: attachReadout(attachMounts(hero, validateRig(recipe.rig)), validateRig(recipe.rig)) } : {}),
-    ...(hero.gear && recipe?.rig ? { gear: (() => { const R = validateRig(recipe.rig); const out = gearReadout(gearMounts(hero, R), R); const sw = heroSwing(hero, { expand: expandEquipment, gearBuild });
+    ...(hero.gear && recipe?.rig ? { gear: (() => { const R = validateRig(recipe.rig), mounts = gearMounts(hero, R); const out = gearReadout(mounts, R);
+      // the clearance laws-2 gear keeps from the body through the idle and the walk (hero-hold.js): per slot, the
+      // nearest approach in metres (− inside) and whether it keeps the margin
+      const held = recipe.clips ? heldClips(recipe.clips, { mounts, R, own: recipe.clips }).clearance : null;
+      if (held) for (const c of Object.values(held)) if (out[c.slot]) (out[c.slot].clearance ??= {})[c.clip] = { m: c.m, at: c.at, clear: c.clear }; const sw = heroSwing(hero, { expand: expandEquipment, gearBuild });
       // the swing's contact data for a game's hit test (the clip never reads it): the impact's phase, the window, the reach
       if (sw && out[sw.hand]) out[sw.hand].swing = { word: sw.word, class: sw.cls, strike: sw.strike, window: sw.window, reachM: out[sw.hand].lengthM, cone: 70 };
       return out; })() } : {}),

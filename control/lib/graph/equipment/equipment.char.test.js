@@ -1,5 +1,6 @@
 /**
- * equipment characterization net: one hash per seeded style × item, seed 3, the laws at LAWS_VERSION.
+ * equipment characterization net: one hash per seeded style × item, seed 3, under laws 1 (stamped: the rows minted
+ * under them keep these bytes; laws 2's own pins are compose.char.test.js).
  *
  * A stored equipment build regenerates on every read, so its expansion is a compatibility promise over minted rows.
  * The pins hash the expanded MONOMERS (the lowerers under them have their own pins). They were computed by the
@@ -75,7 +76,8 @@ describe('equipment characterization (byte pins per seeded style × item)', () =
   for (const [key, pin] of Object.entries(PINS)) {
     it(key, () => {
       const [style, item] = key.split('/');
-      expect(hash(expandEquipment({ type: 'equipment', item, style, seed: 3 }).monomers)).toBe(pin);
+      // laws 1, stamped: a row minted under them keeps these bytes whatever laws are current (laws 2: compose.js)
+      expect(hash(expandEquipment({ type: 'equipment', item, style, seed: 3, laws: 1 }).monomers)).toBe(pin);
     });
   }
   it('pins every seeded style × item', () => {

@@ -45,6 +45,19 @@ function staff(m, { d, law, roles, gem, lang, minF, focalGrow, rng, edge }) {
   push(m, 'lathes', { group: 'collar', axisFrom: P(0, 0, zTop - 3 * law.hilt), axisTo: P(0, 0, zTop + 1), profile: [{ t: 0, radius: r3(R * 0.95) }, { t: 0.4, radius: r3(R * 1.3) }, { t: 1, radius: r3(R * 1.15) }], ...acc });
   const sockets = { grip: { origin: A(0, 0, gz), axis: [0, 0, 1], length: gl }, tip: { origin: A(0, 0, L) }, heel: { origin: A(0, 0, 0) } };
 
+  const focal = staffHead(m, { head, R, zTop, L, st, gem, law, lang, rng, d, roles, minF, focalGrow, blade, edge });
+  if (focal) sockets.focal = focal;
+  return { sockets, trace, length: L };
+}
+
+/**
+ * A staff's head on a haft of radius R whose top is at zTop, the head's own top at L (its budget from the head: the
+ * focal stone's, a blade's `blade`). Shared by the staff (laws 1, as it always drew) and by any haft or sword hilt that
+ * carries a head (compose.js, laws 2). → the focal's socket, or null.
+ */
+export function staffHead(m, { head, R, zTop, L, st, gem, law, lang, rng, d, roles, minF, focalGrow, blade, edge }) {
+  const fit = mat(roles.fittings), acc = mat(roles.accent);
+  const sockets = {};
   if (head === 'plain') {
     push(m, 'lathes', { group: 'head', axisFrom: P(0, 0, zTop), axisTo: P(0, 0, L), profile: [{ t: 0, radius: r3(R * 1.08) }, { t: 0.8, radius: r3(R * 1.12) }, { t: 1, radius: r3(R * 0.55) }], ...fit });
   } else if (head === 'branch') {
@@ -158,7 +171,7 @@ function staff(m, { d, law, roles, gem, lang, minF, focalGrow, rng, edge }) {
       sockets.focal = { origin: A(R + reachX, 0, zc) };
     } else sockets.focal = { origin: A(0, 0, zPoint + (blade - R * 3.5) * 0.4) };
   }
-  return { sockets, trace, length: L };
+  return sockets.focal ?? null;
 }
 
 // ---------------------------------------------------------------- bow

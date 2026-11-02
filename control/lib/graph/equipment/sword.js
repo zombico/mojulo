@@ -14,7 +14,7 @@ export const SWORDS = Object.freeze({
 });
 
 // widths(t) → [right, left] half-widths as fractions of W/2; path(t) → lateral x offset (cm); thick(t) → fraction of T
-const BLADES = {
+export const BLADES = {
   straight: { w: (t) => { const b = 1 - 0.2 * t; const tip = t > 0.84 ? Math.sqrt(Math.max(0, 1 - ((t - 0.84) / 0.16) ** 2)) : 1; return [b * tip, b * tip]; } },
   broad: { w: (t) => { const tip = t > 0.9 ? Math.max(0, 1 - ((t - 0.9) / 0.1) ** 1.2) : 1; return [tip * (1 - 0.08 * t), tip * (1 - 0.08 * t)]; } },
   leaf: { w: (t) => { const s = t < 0.7 ? 0.78 + 0.42 * Math.sin(Math.PI * (t / 0.7) * 0.85) : 0; const tip = t >= 0.7 ? Math.max(0, 1 - (t - 0.7) / 0.3) ** 0.8 * (0.78 + 0.42 * Math.sin(Math.PI * 0.85)) : s; return [tip, tip]; } },
@@ -50,7 +50,7 @@ export function bladeLoft({ variant, L, W, T, z0, edge, rng, role }) {
 
 
 
-function guard(variant, { span, H, D, z0, roles, minF }) {
+export function guard(variant, { span, H, D, z0, roles, minF }) {
   const fit = mat(roles.fittings), acc = mat(roles.accent);
   const out = { lathes: [], extrudes: [], sweeps: [], lofts: [], fields: [] };
   const zc = z0 + H / 2, h = span / 2;
@@ -89,7 +89,7 @@ function guard(variant, { span, H, D, z0, roles, minF }) {
 }
 
 // ---------------------------------------------------------------- grips
-function grip(variant, { L, R, z0, roles, pitch, minF }) {
+export function grip(variant, { L, R, z0, roles, pitch, minF }) {
   const w = mat(roles.wrap), fit = mat(roles.fittings), acc = mat(roles.accent);
   const out = { lathes: [], sweeps: [] };
   const core = (bands = 0) => { const prof = []; const n = bands ? bands * 2 + 1 : 3;
@@ -112,7 +112,7 @@ function grip(variant, { L, R, z0, roles, pitch, minF }) {
 }
 
 // ---------------------------------------------------------------- pommels (built downward from z = top)
-function pommel(variant, { R, top, roles, stone, gem, gripR }) {
+export function pommel(variant, { R, top, roles, stone, gem, gripR }) {
   const fit = mat(roles.fittings), acc = mat(roles.accent);
   const out = { lathes: [], extrudes: [], sweeps: [], fields: [] };
   let H = R * 1.2;

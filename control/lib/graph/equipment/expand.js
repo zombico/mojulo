@@ -11,17 +11,20 @@
 //     parts   slot → variant ({ blade: 'leaf', head: 'claw', … }); for staff / bow / shield also focus, bark, limbs,
 //             twigs, leaves, wings
 //     gem     a gem name, { gem, cut?, glow? }, or null for none; absent → the card's stone
-//     laws    the version of principles.js the build was minted under (stamped at mint; absent → current)
+//     laws    the version of principles.js the build was minted under (stamped at mint; absent → current). Laws 1 draws
+//             the item names' own chains (sword.js, items.js) byte for byte; laws 2 draws a sword or a staff as a hilt
+//             carrying an end (compose.js): parts.hilt, parts.end, parts.hiltLength, parts.endLength (cm)
 //
 // The recipe stores these words; `withEquipment` merges the expansion BEFORE any explicit monomer arrays (so an author
 // can add a hand-made part beside a built item), exactly where a `program` expands (worlds/workbench-program.js).
 // Absent a build, the manifest passes through by identity. Pure and deterministic: seeded dice, fixed order.
-import { proportion, LAWS_VERSION } from './principles.js';
+import { proportion, LAWS_VERSION, LAWS_VERSIONS } from './principles.js';
 import { SEEDED_STYLES, VARIANTS, BARK_SPECIES, COUNTS, countError, validateStyleCard } from './styles.js';
 import { SWORDS, buildSword } from './sword.js';
 import { ITEMS, GEMLESS_HEADS, buildItem } from './items.js';
 import { CRYSTAL_GEMS } from '../polygonizer/crystal-optics.js';
 import { r3 } from './shapes.js';
+import { composeItem, hiltAndEnd, stoneEnd, fociOf, HILT_WORDS, HILTS } from './compose.js';
 import { FIREARM_ITEMS, FIREARM_STYLES, DEFAULT_FIREARM_STYLE, isFirearm, validateFirearmCard, firearmCardOf, buildFirearm } from './firearm.js';
 import { isArmsBuild, validateArmsBuild, buildArm, ARMS_ONLY_ITEMS, ARM_ITEMS, stampArms } from './arms/index.js';
 
@@ -34,6 +37,11 @@ export const FOCI = Object.freeze({ dagger: ['guard', 'pommel', 'blade', 'none']
   staff: ['head', 'none'], bow: ['riser', 'tips', 'curve', 'none'], shield: ['boss', 'none'] });
 const CUTS = ['natural', 'brilliant', 'cabochon'];
 const ITEM_KEYS = ['focus', 'bark', 'limbs', 'twigs', 'leaves', 'wings', 'shaft', 'board'];
+/** laws 2's own slots (a sword's or a staff's): the hilt and the end and their lengths (cm) */
+const COMPOSE_KEYS = ['hilt', 'end', 'hiltLength', 'endLength'];
+const END_WORDS = ['blade', ...VARIANTS.head];
+const LENGTHS = { hiltLength: [3, 300], endLength: [3, 200] };
+const composes = (build) => (build.laws ?? LAWS_VERSION) >= 2 && ['dagger', 'sword', 'greatsword', 'staff'].includes(build.item);
 const MONOMER_ARRAYS = ['lathes', 'extrudes', 'sweeps', 'lofts', 'fields'];
 
 export function hasEquipment(manifest) {
@@ -58,12 +66,21 @@ export function validateBuild(build) {
   if (d.mass !== undefined && !(Number.isFinite(d.mass) && d.mass >= 0.5 && d.mass <= 2)) errs.push('build.dials.mass: a number 0.5–2');
   if (d.ornament !== undefined && !(Number.isInteger(d.ornament) && d.ornament >= 0 && d.ornament <= 3)) errs.push('build.dials.ornament: an integer 0–3');
   const focus = d.focus ?? build.parts?.focus;
-  if (focus !== undefined && FOCI[build.item] && !FOCI[build.item].includes(focus)) errs.push(`build focus: '${focus}' is not one of ${FOCI[build.item].join(', ')} for a ${build.item}`);
+  const he = composes(build) ? hiltAndEnd(build.item, build.parts || {}, { ...((typeof style === 'string' ? SEEDED_STYLES[style] : style)?.language?.[build.item] || {}), ...(build.parts || {}) }) : null;
+  const foci = he && HILTS[he.hilt] ? fociOf(he.hilt, he.end) : FOCI[build.item];
+  if (focus !== undefined && foci && !foci.includes(focus)) errs.push(`build focus: '${focus}' is not one of ${foci.join(', ')} for ${he ? `a ${he.hilt} hilt carrying a ${he.end}` : `a ${build.item}`}`);
   for (const [slot, v] of Object.entries(build.parts || {})) {
+    if (COMPOSE_KEYS.includes(slot)) {
+      if (!composes(build)) { errs.push(`build.parts.${slot}: a hilt and an end are laws 2's (a dagger, sword, greatsword or staff minted under laws 2; this build is ${build.laws === 1 ? 'stamped laws 1' : `a ${build.item}`})`); continue; }
+      if (slot === 'hilt' && !HILT_WORDS.includes(v)) errs.push(`build.parts.hilt: '${v}' is not one of ${HILT_WORDS.join(', ')}`);
+      if (slot === 'end' && !END_WORDS.includes(v)) errs.push(`build.parts.end: '${v}' is not one of ${END_WORDS.join(', ')}`);
+      if (LENGTHS[slot] && !(Number.isFinite(v) && v >= LENGTHS[slot][0] && v <= LENGTHS[slot][1])) errs.push(`build.parts.${slot}: a length in centimetres, ${LENGTHS[slot][0]}–${LENGTHS[slot][1]}`);
+      continue;
+    }
     if (VARIANTS[slot]) { if (!VARIANTS[slot].includes(v)) errs.push(`build.parts.${slot}: '${v}' is not one of ${VARIANTS[slot].join(', ')}`); }
     else if (slot === 'bark') { if (!BARK_SPECIES.includes(v)) errs.push(`build.parts.bark: '${v}' is not one of ${BARK_SPECIES.join(', ')}`); }
     else if (COUNTS[slot]) { const e = countError(slot, v, 'build.parts'); if (e) errs.push(e); }
-    else if (!ITEM_KEYS.includes(slot)) errs.push(`build.parts.${slot}: not a slot — slots are ${[...Object.keys(VARIANTS), ...ITEM_KEYS].join(', ')}`);
+    else if (!ITEM_KEYS.includes(slot)) errs.push(`build.parts.${slot}: not a slot — slots are ${[...Object.keys(VARIANTS), ...ITEM_KEYS, ...(composes(build) ? COMPOSE_KEYS : [])].join(', ')}`);
   }
   if (build.gem !== undefined && build.gem !== null) {
     const g = typeof build.gem === 'string' ? { gem: build.gem } : build.gem;
@@ -72,7 +89,7 @@ export function validateBuild(build) {
     if (g?.glow !== undefined && !(Number.isFinite(g.glow) && g.glow >= 0 && g.glow <= 1)) errs.push('build.gem.glow: a number 0–1');
   }
   if (build.seed !== undefined && !Number.isInteger(build.seed)) errs.push('build.seed: an integer');
-  if (build.laws !== undefined && build.laws !== LAWS_VERSION) errs.push(`build.laws: ${build.laws} is unknown — this kernel carries laws ${LAWS_VERSION}`);
+  if (build.laws !== undefined && !LAWS_VERSIONS.includes(build.laws)) errs.push(`build.laws: ${build.laws} is unknown — this kernel carries laws ${LAWS_VERSIONS.join(' and ')}`);
   if (!errs.length) errs.push(...resolvedErrors(build));
   return errs;
 }
@@ -84,7 +101,7 @@ function firearmErrors(build) {
   else errs.push(...validateFirearmCard(style, 'build.style'));
   for (const k of ['parts', 'gem']) if (build[k] !== undefined && build[k] !== null) errs.push(`build.${k}: a firearm takes none (its style card is its look)`);
   if (build.seed !== undefined && !Number.isInteger(build.seed)) errs.push('build.seed: an integer');
-  if (build.laws !== undefined && build.laws !== LAWS_VERSION) errs.push(`build.laws: ${build.laws} is unknown — this kernel carries laws ${LAWS_VERSION}`);
+  if (build.laws !== undefined && !LAWS_VERSIONS.includes(build.laws)) errs.push(`build.laws: ${build.laws} is unknown — this kernel carries laws ${LAWS_VERSIONS.join(' and ')}`);
   return errs;
 }
 
@@ -93,6 +110,16 @@ function firearmErrors(build) {
 function resolvedErrors(build) {
   const card = cardOf(build.style ?? 'historical'), parts = build.parts || {};
   const lang = { ...(card.language?.[build.item] || {}), ...parts };
+  if (composes(build)) {
+    // laws 2: an end that cradles a stone needs one, on any hilt
+    const { hilt, end } = hiltAndEnd(build.item, parts, lang);
+    if (stoneEnd(end)) {
+      const focus = build.dials?.focus ?? parts.focus ?? lang.focus ?? card.dials?.focus ?? 'none';
+      const gem = build.gem === null ? null : build.gem ?? card.gem ?? null;
+      if (!gem || focus !== 'head') return [`build.parts.${parts.end !== undefined ? 'end' : 'head'}: '${end}' cradles a stone, and none resolves here (${!gem ? (build.gem === null ? 'gem: null' : `the '${card.id || 'inline'}' card carries no gem`) : `focus '${focus}'`}) — give it a gem (${CRYSTAL_GEMS.join(', ')}) with focus 'head', or an end that carries none (blade, ${GEMLESS_HEADS.join(', ')})`];
+    }
+    return HILTS[hilt] ? [] : [`build.parts.hilt: '${hilt}' is not one of ${HILT_WORDS.join(', ')}`];
+  }
   if (build.item === 'staff' && lang.head && !GEMLESS_HEADS.includes(lang.head)) {
     const focus = build.dials?.focus ?? parts.focus ?? lang.focus ?? card.dials?.focus ?? 'none';
     const gem = build.gem === null ? null : build.gem ?? card.gem ?? null;
@@ -125,7 +152,8 @@ export function expandEquipment(build) {
   const gem = build.gem === null ? null : build.gem === undefined ? base
     : typeof build.gem === 'string' ? { gem: build.gem, cut: base?.cut ?? 'brilliant', glow: base?.glow ?? 0.2 } : { cut: 'brilliant', glow: 0.2, ...build.gem };
   const ctx = { item, card: { ...card, language: card.language || {} }, d, law, lean, roles: card.roles, gem, parts, lang, seed };
-  const out = SWORDS[item] ? buildSword(ctx) : buildItem(ctx);
+  // laws 2: a sword or a staff is a hilt carrying an end (compose.js); laws 1 its own chain, as it was minted
+  const out = composes(build) ? composeItem(ctx) : SWORDS[item] ? buildSword(ctx) : buildItem(ctx);
   return { monomers: out.monomers, sockets: out.sockets, trace: { item, style: typeof build.style === 'string' ? build.style : card.id || 'inline', dials: d, laws: build.laws ?? LAWS_VERSION, ...out.trace } };
 }
 

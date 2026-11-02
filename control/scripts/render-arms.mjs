@@ -17,7 +17,7 @@ const control = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 process.chdir(control);
 register(pathToFileURL(path.join(control, 'scripts/mcp-stdio-loader.mjs')).href);
 const { expandEquipment, stampArms } = await import('../lib/graph/equipment/expand.js');
-const { lowerObjectFaces } = await import('../lib/graph/worlds/workbench.js');
+const { resolveWorldScene } = await import('../lib/graph/worlds/world-scene.js');
 const { emitThreeWorld } = await import('../lib/graph/scene/scene-three.js');
 const { renderWorldToPng } = await import('../lib/graph/scene/scene-png.js');
 
@@ -72,12 +72,14 @@ const report = [];
 for (const [name, b] of rows) {
   const build = { type: 'equipment', ...b };
   const e = expandEquipment(stampArms(build));
-  const faces = lowerObjectFaces({ kind: 'workbench', units: 'cm', build: stampArms(build) });
+  // the workbench's own scene (its faces and the textures they wear: a barked shaft, a printed board), studio left out
+  const { payload } = await resolveWorldScene({ ref: name, kind: 'workbench', manifest: { kind: 'workbench', units: 'cm', build: stampArms(build) } });
+  const faces = payload.faces.filter((f) => !f.studio), textures = payload.textures ?? {};
   const tris = faces.reduce((n, f) => n + f.corners.length - 2, 0);
   // bounds → cameras that frame it (cm; the item's frame is +z along it, +y up; the World is z-up, so turn it: x→x, y→z, z→y)
   // a proper rotation (no mirror): a gun's up (+y) to the World's, its left side to the camera; a blade's flat to the
   // camera, its edge down
-  const blade = b.item === 'knife' || ['dagger', 'sword', 'greatsword'].includes(b.item);
+  const blade = ['knife', 'dagger', 'sword', 'greatsword', 'staff'].includes(b.item);
   const turn = blade ? ([x, y, z]) => [z, y, -x] : ([x, y, z]) => [z, x, y];
   const turned = faces.map((f) => ({ ...f, corners: f.corners.map(turn), ...(f.outNormal ? { outNormal: turn(f.outNormal) } : {}) }));
   const pts = turned.flatMap((f) => f.corners);
@@ -93,7 +95,7 @@ for (const [name, b] of rows) {
   };
   gallery += `<h2>${name}</h2><p>${tris.toLocaleString('en-US')} triangles · ${e.trace.length} cm · ${JSON.stringify(e.trace.variants)}</p><p>${JSON.stringify(e.trace.arms ?? {})}</p><section>`;
   for (const view of viewList) {
-    const html = emitThreeWorld({ faces: turned, inline: true, hud: false, title: name, bg: '#cfd5da', metersPerUnit: 0.01, cameras: [{ name: view, worldFraming: { cameraPosition: cams[view], lookAt: mid, horizontalFov: 38, pictureCenter: [width / 2, height / 2] } }], viewBox: { width, height } });
+    const html = emitThreeWorld({ faces: turned, textures, inline: true, hud: false, title: name, bg: '#cfd5da', metersPerUnit: payload.metersPerUnit ?? 0.01, cameras: [{ name: view, worldFraming: { cameraPosition: cams[view], lookAt: mid, horizontalFov: 38, pictureCenter: [width / 2, height / 2] } }], viewBox: { width, height } });
     const png = await renderWorldToPng(html, { width, height, deviceScaleFactor: 1 });
     writeFileSync(path.join(outDir, `${name}-${view}.png`), png);
     writeFileSync(path.join(outDir, `${name}-${view}.html`), html);
