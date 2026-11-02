@@ -317,6 +317,8 @@ const SEG = Object.freeze({
   e: [0, 0.08, 0.14, 0.46], f: [0, 0.54, 0.14, 0.92], g: [0.08, 0.43, 0.52, 0.57],
 });
 const DIGIT = Object.freeze(['abcdef', 'bc', 'abged', 'abgcd', 'fgbc', 'afgcd', 'afgedc', 'abc', 'abcdefg', 'abcdfg']);
+/** The stencil's figures, for other surfaces' marks (an aircraft's, craft-shelf/air-surface.js). */
+export const STENCIL = Object.freeze({ SEG, DIGIT });
 /** The marks' colour against the base: a dark stencil on a pale camo, a pale one on a dark. */
 const markColour = (L) => { const [r, g, b] = [1, 3, 5].map((i) => parseInt(L.colours[0].slice(i, i + 2), 16) / 255); return 0.2126 * r + 0.7152 * g + 0.0722 * b > 0.45 ? '#1f201c' : '#d8d3bf'; };
 

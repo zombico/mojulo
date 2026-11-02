@@ -16,8 +16,10 @@
  *   AIR_MATERIALS                                   the slots an aircraft is drawn in: a semi-gloss paint and its
  *                                                   trim, bare and hot metal, a canopy's tinted glass, the rubber, the
  *                                                   nav lights and the exhaust's glow
- *   craftForm(archetype, { palette?, colors?, pose?, attitude?, made? })   made: its skin's panel lines, access panels
- *                                                   and fasteners (air-kit.js)
+ *   craftForm(archetype, { palette?, colors?, pose?, attitude?, made?, livery?, wear? })   made: its skin's panel lines,
+ *                                                   access panels and fasteners (air-kit.js); livery: its camo cut into
+ *                                                   the paint and its marks; wear: soot, streaks, chips, fade, patches
+ *                                                   (air-surface.js). Each absent adds nothing.
  *     → { items: [{ id, head, faces }], length, span, height, readout }   the craft centred on x and y, its lowest
  *                                                   point on z = 0 (craft-rig.js craftPieces' frame)
  *   craftFormFigure(archetype, { …craftForm's, setting?, keys? }) → the rig figure, one bone per item, in the form
@@ -35,6 +37,8 @@ import { packVehicleFigure } from '../vehicle-designer/vehicle-rig.js';
 import { formLight, skyMood } from '../car-designer/form-light.js';
 import { CRAFT_ODM } from './craft-odm.js';
 import { PANEL_KINDS, itemFrame, skinPanels, fastenersOn } from './air-kit.js';
+import { readAirLivery, paintCraft, markCraft, wearCraft } from './air-surface.js';
+import { readWear } from '../car-designer/mil-wear.js';
 
 export const AIR_MATERIALS = Object.freeze({
   ...ROAD_MATERIALS,
@@ -98,9 +102,10 @@ function accessOf(F) {
 }
 
 /** The craft's faces in the form render, by item (see the head of this file). */
-export function craftForm(archetype, { palette, colors, pose = { gear: 1 }, attitude = 'level', made = false } = {}) {
+export function craftForm(archetype, { palette, colors, pose = { gear: 1 }, attitude = 'level', made = false, livery, wear } = {}) {
   const row = CRAFT_ARCHETYPES[archetype];
   if (!row) throw new Error(`craft-form: no archetype '${archetype}' on the shelf`);
+  const L = readAirLivery(livery), W = wear === undefined || wear === null ? null : readWear(wear);
   const { manifest, readout } = assembleCraft(archetype, { palette, colors, pose, attitude, finish: true, ...(made ? { made } : {}) });
   const P = resolveCraftPalette(palette ?? row.palette, colors).colors;
   const { faces, placements } = lowerAssemblerBuild(manifest, { light: FLAT_LIGHT });
@@ -110,7 +115,7 @@ export function craftForm(archetype, { palette, colors, pose = { gear: 1 }, atti
   const N = (c) => [r4(c[0] - cx), r4(c[1] - cy), r4(c[2] - z0)];
   // (each item's part number: its layout row's, a pair's two sides the one part)
   const skuOf = new Map(row.layout.flatMap((e) => (e.pair ? [[`${e.id}-r`, e.sku], [`${e.id}-l`, e.sku]] : [[e.id, e.sku]])));
-  const items = [];
+  const stage = [];
   placements.forEach((p, i) => {
     const id = p.id || `item${i}`;
     // (each face wound to agree with its normal: the page draws both sides and turns a face's normal round when it is
@@ -123,18 +128,33 @@ export function craftForm(archetype, { palette, colors, pose = { gear: 1 }, atti
       return { corners: woundTo(c, f.outNormal), part: id, material, albedo, outNormal: f.outNormal, ...(f.group ? { fitting: f.group } : {}) };
     });
     if (!own.length) return;
-    let fs = smoothForm(own, { crease: 35 });
+    const fs = smoothForm(own, { crease: 35 });
     if (!fs.length) return;
-    // (made: its skin's panel lines cut in, its access panels' fasteners set on it: air-kit.js)
-    if (made) {
-      // (on its skin only: a fitting, the made pieces on it, is passed by)
-      const skin = fs.filter((f) => !f.fitting), kind = CRAFT_ODM[skuOf.get(id)]?.kind, F = itemFrame(skin, PANEL_KINDS[kind]);
-      const access = kind === 'craft-fuselage' && F ? accessOf(F) : [];
-      fs = [...skinPanels(skin, F, { access }), ...fastenersOn(skin, F, access), ...fs.filter((f) => f.fitting)];
-    }
+    const odm = CRAFT_ODM[skuOf.get(id)];
+    stage.push({ id, kind: odm?.kind, family: odm?.build?.family ?? null, fs });
+  });
+  // (the livery: its camo cut into the paint before the skin's seams, so a seam is the camo's own colour darkened;
+  // graded by the hull's height, its waist the middle of its skin)
+  const seed = [...archetype].reduce((h, ch) => Math.imul(h ^ ch.charCodeAt(0), 16777619), 2166136261) >>> 0;
+  if (L) {
+    const hull = stage.find((it) => it.kind === 'craft-fuselage');
+    let zl = Infinity, zh = -Infinity;
+    for (const f of (hull ?? stage[0]).fs) if (!f.fitting) for (const c of f.corners) { if (c[2] < zl) zl = c[2]; if (c[2] > zh) zh = c[2]; }
+    paintCraft(stage, L, { base: P.paint.toLowerCase(), seed, waist: (zl + zh) / 2, half: Math.max(0.2, (zh - zl) / 2), length: mx[1] - mn[1] });
+  }
+  // (made: its skin's panel lines cut in, its access panels' fasteners set on it: air-kit.js)
+  if (made) for (const it of stage) {
+    // (on its skin only: a fitting, the made pieces on it, is passed by)
+    const skin = it.fs.filter((f) => !f.fitting), F = itemFrame(skin, PANEL_KINDS[it.kind]);
+    const access = it.kind === 'craft-fuselage' && F ? accessOf(F) : [];
+    it.fs = [...skinPanels(skin, F, { access }), ...fastenersOn(skin, F, access), ...it.fs.filter((f) => f.fitting)];
+  }
+  if (L) markCraft(stage, L, { seed });
+  if (W) wearCraft(stage, W, { seed: L?.seed ?? seed });
+  const items = stage.map(({ id, fs }) => {
     const lo = [Infinity, Infinity, Infinity], hi = [-Infinity, -Infinity, -Infinity];
     for (const f of fs) for (const c of f.corners) for (let k = 0; k < 3; k++) { if (c[k] < lo[k]) lo[k] = c[k]; if (c[k] > hi[k]) hi[k] = c[k]; }
-    items.push({ id, head: lo.map((v, k) => r4((v + hi[k]) / 2)), faces: fs });
+    return { id, head: lo.map((v, k) => r4((v + hi[k]) / 2)), faces: fs };
   });
   return { items, length: r4(mx[1] - mn[1]), span: r4(mx[0] - mn[0]), height: r4(mx[2] - mn[2]), readout };
 }

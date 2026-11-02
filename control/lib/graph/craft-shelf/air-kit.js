@@ -35,6 +35,8 @@ const SEAM_W = 0.0065;
 const r6 = (v) => Math.round(v * 1e6) / 1e6 + 0;
 const rgb = (h) => [1, 3, 5].map((i) => parseInt(String(h).slice(i, i + 2), 16));
 const hex = (c) => `#${c.map((v) => Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2, '0')).join('')}`;
+// (a coordinate's least and greatest over many points: a loop, a spread overflows the stack on a big hull)
+const span = (P, k) => { let lo = Infinity, hi = -Infinity; for (const p of P) { if (p[k] < lo) lo = p[k]; if (p[k] > hi) hi = p[k]; } return [lo, hi]; };
 const centre = (P) => [0, 1, 2].map((k) => P.reduce((s, q) => s + q[k], 0) / P.length);
 
 /** An item's frame: a tube's centre and radius station by station; a plate's chord span by span (its leading and
@@ -43,7 +45,7 @@ export function itemFrame(faces, frame) {
   if (!frame) return null;
   const pts = faces.flatMap((f) => f.corners);
   if (frame === 'tube') {
-    const ys = pts.map((p) => p[1]), y0 = Math.min(...ys), y1 = Math.max(...ys), n = Math.max(4, Math.ceil((y1 - y0) / 0.25));
+    const [y0, y1] = span(pts, 1), n = Math.max(4, Math.ceil((y1 - y0) / 0.25));
     const bins = Array.from({ length: n + 1 }, () => ({ x: [Infinity, -Infinity], z: [Infinity, -Infinity] }));
     for (const p of pts) { const b = bins[Math.round(((p[1] - y0) / (y1 - y0 || 1)) * n)]; b.x = [Math.min(b.x[0], p[0]), Math.max(b.x[1], p[0])]; b.z = [Math.min(b.z[0], p[2]), Math.max(b.z[1], p[2])]; }
     // (a station with no corner borrows its neighbour's)
@@ -52,7 +54,7 @@ export function itemFrame(faces, frame) {
     return { kind: 'tube', y0, y1, st, at: (y) => st[Math.max(0, Math.min(n, Math.round(((y - y0) / (y1 - y0 || 1)) * n)))] };
   }
   // a plate: its span axis across (a wing's x, its side's sign kept) or up (a fin's z); its chord along y
-  const ax = frame === 'fin' ? 2 : 0, sp = pts.map((p) => p[ax]), s0 = Math.min(...sp), s1 = Math.max(...sp), n = Math.max(4, Math.ceil((s1 - s0) / 0.2));
+  const ax = frame === 'fin' ? 2 : 0, [s0, s1] = span(pts, ax), n = Math.max(4, Math.ceil((s1 - s0) / 0.2));
   const bins = Array.from({ length: n + 1 }, () => [Infinity, -Infinity]);
   for (const p of pts) { const b = bins[Math.round(((p[ax] - s0) / (s1 - s0 || 1)) * n)]; b[0] = Math.min(b[0], p[1]); b[1] = Math.max(b[1], p[1]); }
   for (let i = 0; i <= n; i++) if (!Number.isFinite(bins[i][0])) bins[i] = [...(bins[i - 1] ?? bins.find((b) => Number.isFinite(b[0])))];

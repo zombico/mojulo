@@ -67,9 +67,9 @@ export function madeHull({ b, L, zp, ringAt, skinX, skinZ, C }) {
   HEAT.forEach((tint, k) => {
     const s0 = 0.9 + k * 0.03, s1 = s0 + 0.03;
     const st = [s0, s1].map((s, i) => ({ t: i, points: proud(ringAt(s), 0.0015).map(([x, z]) => [x, 0, z - zp]) }));
-    lofts.push(loftWorld(`heat_band_${k}`, [0, -s0 * L, zp], [0, -s1 * L, zp], st, mix(C.paint, tint, 0.3 + 0.08 * k), { caps: false }));
+    lofts.push(loftWorld(`heat_band_${k}`, [0, -s0 * L, zp], [0, -s1 * L, zp], st, mix(C.paint, tint, 0.3 + 0.08 * k), { caps: false, group: 'heat' }));
   });
-  // (the bands are the skin's own, tinted; the rest are fittings)
+  // (the bands their own group, the heat's: a seam and a livery pass them by; the rest are fittings)
   return { lofts, ...asFitting({ sweeps, extrudes }) };
 }
 

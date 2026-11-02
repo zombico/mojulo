@@ -143,3 +143,42 @@ exported to a valid GLB.
     `air-kit.test.js` holds a seam to the made hull's own skin of its slot.
   - **Seen** (machine gate only; the eyes gate is open): the fighter close up before and after (the nose, the intake,
     the canopy, the wing, the tail, the gear and their wells from below), and the other military rows made.
+- **The surface: camo, markings and wear** (`craft-shelf/air-surface.js`). `craftForm(archetype, { livery, wear })`, each
+  absent adding nothing, all of it geometry and slots.
+  - **The livery:** a pattern word or `{ pattern, colours?, scale?, seed?, marks? }`.
+    - **Graded** (counterShaded, naval): by the hull's height, the line softened by noise; a wing by its face, darker
+      above.
+    - **Blotched** (wraparound, desert, arctic): a warped field cut into the paint (`cutByField`), each band its share
+      of the craft's painted area.
+    - **Splinter:** plan-view lines across the craft, each face split exactly where one crosses it, a shard's colour
+      from its side of every line.
+
+    A control surface keeps its shade in its band's colour. A store keeps its own paint. The camo is cut before the
+    made skin's seams, so a seam is the camo's colour darkened. The heat's bands tint the camo under them.
+  - **The marks** (generic, never a nation's), low-visibility against the paint: a tail number on both sides of each
+    fin, a side number on the nose, a disc or bar emblem on the fuselage's sides and the wings (one up, one down), the
+    red ejection warning by the canopy, the walkways by the wing roots.
+    - Each is a conforming decal (`decal`): convex shapes clipped onto every skin face turned toward them, on its plane,
+      a millimetre or two proud.
+    - `marks: { number?, emblem?, warnings? }`, or false.
+  - **The wear** (`pristine | used | battered`, the field's words): the sun's fade on what faces up and the engine's soot
+    over the hull's end, per corner; as decals, the gun's soot plume beside its muzzle, repainted panels, grime streaks
+    running aft, and chips to bare metal along the leading edges and the intake's lip.
+  - **Fixed in the kernel** (`worlds/workbench-assembler.js`): an item turned or mirrored was relit without the flat
+    light's `flat` marker. Under the unshaded light a mirrored part (a left wing, its stabilizer, its gear, its missile)
+    lowered shaded where its twin was raw albedo, and the form render slotted it as trim. Now the marker is kept.
+  - **Budget:** every military row in any pattern, battered, under 130k triangles (the fighter about 46k to 53k).
+  - **Held** (`air-surface.test.js`):
+    - a pair's two sides alike;
+    - the livery's words;
+    - graded darker on top and on a wing's upper face;
+    - blotched in every band, the first the most;
+    - splinter's shards, the stores spared;
+    - seams the camo darkened;
+    - the marks on the skin's planes, both sides of the fin, low-visibility, the warning red;
+    - a decal only on faces turned toward it;
+    - wear more battered than used, chips on what faces ahead, soot over the engine's end;
+    - pristine and absent words adding nothing;
+    - within budget, wound, the same twice.
+  - **Seen** (machine gate only; the eyes gate is open): the fighter in each pattern from above and the side, and
+    battered close up (the tail, the wing's leading edge, the gun).
