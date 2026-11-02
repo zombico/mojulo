@@ -45,7 +45,8 @@ import { townLanguage } from '../era/out-town.js';
 import { structureStyle, hasStructureRails } from '../era/out-structures.js';
 import { structurePaint, paintStop } from '../era/out-structures-paint.js';
 import { madeRamp } from '../era/style/swatches.js';
-import { townDressOf, dressTownFace } from '../era/town-dress.js';
+import { townDressOf, dressTownFace, leanHue } from '../era/town-dress.js';
+import { LOUD_WALLS, CROWN_FORMS } from './front-loud.js';
 import { styleTownDress, styleReadout } from '../era/arch-style.js';
 import { plantPool, plantRepeats } from '../vegetation/pool.js';
 import { treeSizes } from '../form/flora-read.js';
@@ -59,7 +60,7 @@ import { pitchOf, trackOf, diamondOf, courtsOf, hoopsOf, lotOf, fieldhouseOf, bl
 import { backTouch } from './laws.js';
 import { materialContext, wordTile } from '../era/arch-style.js';
 import { WALK } from '../era/out-ikebana.js';
-import { bendFaces, chunkFaces, exaggerateAnchor, exaggerateLaws } from '../era/exaggerate.js';
+import { bendFaces, chunkFaces, exaggerateLaws } from '../era/exaggerate.js';
 import { litFactor } from '../polygonizer/vexar.js';
 
 export const GEOTOWN_KEYS = Object.freeze(['kind', 'cube', 'show', 'title', 'seed', 'hour', 'clouds', 'style', 'geotown', 'walk', 'shadows', 'occlusion', 'light']);
@@ -234,8 +235,8 @@ export function assembleGeotownScene(m, ctx = {}) {
   const paint = readPaint({ geocube: m.cube, amount: 1, ...(m.hour !== undefined ? { hour: m.hour } : {}), ...(m.clouds !== undefined ? { clouds: m.clouds } : {}) });
   const spec = cubeLookSpec(paint), lit = lookLight(spec, paint), LIGHT = lit.light, sun = LIGHT.toLight, air = spec.air ?? spec.ref.air;
   const col = coloursOf(cube), faces = [], colliders = [], anchors = [], finish = finishesOf(P, cube);
-  // (the cube's exaggerate, era/exaggerate.js: each built plot's faces bent on its pad, the furniture on the walk under it)
-  const EX = cube.exaggerate ?? null, bends = [], kitBends = [];
+  // (the cube's exaggerate, era/exaggerate.js: the street's furniture chunked and leant on the walk under it)
+  const EX = cube.exaggerate ?? null, kitBends = [];
   // a face, wound to `want` (else up), shaded by the cube's light, its ground's finish laid where it has one (a floor's
   // on a face that lies flat)
   const put = (corners, group, hex, want = null) => {
@@ -268,7 +269,7 @@ export function assembleGeotownScene(m, ctx = {}) {
   // ── the buildings' languages: the recipe's style, else the pattern's, else the cube's buildings', else the timber hall ──
   const { style, anchor: a0 } = settlementStyle(cube, null, m.style ?? P.style), anchor = a0 ?? cubeBuildings(cube)?.anchor ?? 'timber-hall';
   const kitId = hasStructureRails(cube.outside.base) ? cube.outside.base : 'isekai-meadow';
-  const sStyle = structureStyle(kitId, seed), L = townLanguage(sStyle, exaggerateAnchor(anchor, EX)), Pt = housePaint(kitId);
+  const sStyle = structureStyle(kitId, seed), L = townLanguage(sStyle, anchor), Pt = housePaint(kitId);
   const dress = style ? styleTownDress(style, cube, townDressOf(cube)) : townDressOf(cube);
   const litV = (n) => 0.55 + 0.45 * Math.max(0, n[0] * sun[0] + n[1] * sun[1] + n[2] * sun[2]);
   const [sLo, sHi] = P.house.storeys, spoken = new Map();
@@ -315,6 +316,8 @@ export function assembleGeotownScene(m, ctx = {}) {
   };
   let built = 0, hedges = 0, gated = 0, padCars = 0;
   const shopPrev = new Map();
+  // (each row's last built top, absolute: a loud shop's false front stands clear of it by the cube's exaggerate.front.step)
+  const rowTop = new Map(), steps = [];
   const builtOf = {};
   for (const pl of d.plots) {
     const { w, d: dep, setback: F, pad } = pl, { env, depth: Hd } = pl.house, envW = env[2] - env[0];
@@ -325,7 +328,9 @@ export function assembleGeotownScene(m, ctx = {}) {
       const key = pl.pair ?? pl.id, R0 = streamOf(seed, 'house', key), K = kits ? kits.kit(familyOf(pl), types.get(key)) : null;
       if (!spoken.has(key)) {
         const s = Math.floor(R0() * 1e6) + 1, [b0, b1] = K ? K.band : [sLo, sHi];
-        spoken.set(key, speak(K ? K.L : L, K ? K.use : pl.use ?? 'dwelling', { w: r5(envW), d: r5(Hd) }, K ? kits.sStyle : sStyle, s, { ring: 'near', band: [b0, b1], ...(K?.accent ? { accent: true } : {}), over: { front: 0, side: 0, rear: 0, area: envW * Hd * b0 } }));
+        // (a loud shop's lights off square: the cube's exaggerate.front.skew, era/exaggerate.js)
+        const skew = K?.front?.shop && EX?.front?.skew ? { skew: EX.front.skew } : {};
+        spoken.set(key, speak(K ? K.L : L, K ? K.use : pl.use ?? 'dwelling', { w: r5(envW), d: r5(Hd) }, K ? kits.sStyle : sStyle, s, { ring: 'near', band: [b0, b1], ...(K?.accent ? { accent: true } : {}), over: { front: 0, side: 0, rear: 0, area: envW * Hd * b0 }, ...skew }));
       }
       const dz = spoken.get(key), mirror = pl.half === 'R';
       const door = dz.faces.find((f) => f.part === 'door' || f.part === 'accent'), dx = door ? door.corners.reduce((a, c) => a + c[0], 0) / door.corners.length : envW / 2;
@@ -333,6 +338,18 @@ export function assembleGeotownScene(m, ctx = {}) {
       // (a shop's front its own, never its row neighbour's sign and awning both; a split house's two doors and porches)
       let Kf = K?.front;
       if (Kf?.shop) { const rk = `${pl.block}:${pl.side}`; Kf = { ...Kf, shop: shopfrontOf(P.shopfronts, streamOf(seed, 'shopfront', pl.id), shopPrev.get(rk)) }; shopPrev.set(rk, Kf.shop); pl.shopfront = Kf.shop; }
+      // (a shop under the cube's exaggerate.front drawn loud, its own dice: geotown/front-loud.js)
+      // (its false front: a crown of its own height, raised further where it would stand within `step` of its neighbour)
+      if (Kf?.shop && EX?.front) {
+        const Rl = streamOf(seed, 'loud', pl.id), sd = Math.floor(Rl() * 1e9) + 1, was = rowTop.get(`${pl.block}:${pl.side}`), prev = was?.top, base = pad + dz.dims.n * dz.dims.storeyH, step = EX.front.step;
+        let crown = step > 0 ? 0.5 + 1.1 * Rl() : 0;
+        if (step > 0 && prev !== undefined && Math.abs(base + crown * 1.45 - prev) < step) crown = prev + step - base > 0.4 * 1.45 ? (prev + step - base) / 1.45 + 0.05 : crown + (step + 0.1) / 1.45;
+        // (each its own: its walls' hue and its false front's form, never its row neighbour's)
+        const other = (list, not) => { const pool = list.filter((x) => x !== not); return pool[Math.floor(Rl() * pool.length)]; };
+        pl.loudWall = other(LOUD_WALLS, was?.wall); pl.crownForm = other(CROWN_FORMS, was?.form);
+        Kf = { ...Kf, shop: { ...(Kf.shop === true ? {} : Kf.shop), loud: EX.front, seed: sd, ...(crown ? { crown: r5(crown), crownForm: pl.crownForm } : {}) } };
+        pl.loud = true;
+      }
       if (pl.duplex) Kf = { ...Kf, doors: 2, porch2: true, porch: Kf?.porch ?? 'door' };
       const front = K ? frontOf(fitFront(Kf, env[1]), { W: dz.dims.W0, n: dz.dims.n, storeyH: dz.dims.storeyH, doorX: dx, doorW: dz.dims.doorW }) : null;
       house = { design: dz, mirror, doorU: env[0] + (mirror ? envW - dx : dx), kit: K, front, porch: front?.porch ?? 0 };
@@ -451,16 +468,17 @@ export function assembleGeotownScene(m, ctx = {}) {
     // the building on its pad: its faces (and an evocation's its tile's marks too: its lights a budget put there) from
     // its design, a semi's second half mirrored; painted and lit as a stage's town
     if (house) {
-      const bentFrom = faces.length;
       built++; builtOf[familyOf(pl)] = (builtOf[familyOf(pl)] ?? 0) + 1;
       const dz = house.design, X = (x) => env[0] + (house.mirror ? envW - x : x), toW = (c) => W(pl, X(c[0]), env[1] + c[1], pad + c[2]);
       let top = 0, lo = [Infinity, Infinity], hi = [-Infinity, -Infinity];
       const Dr = house.kit ? house.kit.dress : dress;
+      // (a loud shop's walls in its own hue, leant after the dress so the style's colour never takes it back)
+      const loudLean = (F, wall) => (pl.loudWall && wall ? { ...F, fill: leanHue(F.fill, pl.loudWall, 0.85), ...(F.cornerFills ? { cornerFills: F.cornerFills.map((c) => leanHue(c, pl.loudWall, 0.85)) } : {}) } : F);
       for (const f of evoked ? [...dz.faces, ...dz.tile] : dz.faces) {
         const cs = (house.mirror ? f.corners.slice().reverse() : f.corners).map(toW), nl = f.normal ?? [0, 0, 1], nn = unit([pl.ex[0] * (house.mirror ? -nl[0] : nl[0]) + pl.ey[0] * nl[1], pl.ex[1] * (house.mirror ? -nl[0] : nl[0]) + pl.ey[1] * nl[1], nl[2]]);
         for (const c of cs) { top = Math.max(top, c[2] - pad); lo = [Math.min(lo[0], c[0]), Math.min(lo[1], c[1])]; hi = [Math.max(hi[0], c[0]), Math.max(hi[1], c[1])]; }
         const fill = Pt(f.group, Math.min(1, (f.value ?? 0.6) * litV(nn))), F0 = { corners: cs.map(P3), group: `town:${f.part}`, fill, cornerFills: cs.map(() => fill), normal: P3(nn), outNormal: P3(nn) };
-        faces.push(Dr ? dressTownFace(F0, f.group, Dr) : F0);
+        faces.push(loudLean(Dr ? dressTownFace(F0, f.group, Dr) : F0, f.part === 'wall'));
       }
       // its front: the bay's walls in their storey's own wall, its lights, its trim and its top; the porch's deck, posts
       // and roof; a shopfront's glazing, sign and awning; a canopy
@@ -476,10 +494,11 @@ export function assembleGeotownScene(m, ctx = {}) {
           const [grp, v] = f.hex ? [null, 0] : f.role === 'wall' ? [W0.group, W0.value] : f.role === 'roof' ? [dz.dims.covering, 0.34] : f.role === 'trim' ? ['str:paint', 0.92] : f.role === 'deck' ? ['str:timber', 0.5] : [null, 0];
           const own = f.hex ?? (f.role === 'sign' ? house.kit.sign ?? col.door : f.role === 'canvas' ? house.kit.awning ?? col.canvas : f.role === 'door' ? col.door : f.role === 'canopy' ? col.metal : col.glass);
           const fill = grp ? Pt(grp, Math.min(1, v * litV(nf))) : shadeHex(own, nf, LIGHT), F0 = { corners: cw.map(P3), group: `geotown:${f.role === 'glass' ? 'glass' : f.role === 'wall' ? 'bay' : f.role === 'deck' ? 'porch' : f.role}`, fill, cornerFills: cw.map(() => fill), normal: P3(nf), outNormal: P3(nf) };
-          faces.push(grp && Dr && f.role !== 'deck' ? dressTownFace(F0, grp, Dr) : F0);
+          faces.push(loudLean(grp && Dr && f.role !== 'deck' ? dressTownFace(F0, grp, Dr) : F0, f.role === 'wall'));
         }
       }
       colliders.push({ min: P3([lo[0], lo[1], pad]), max: P3([hi[0], hi[1], pad + top]), of: `${pl.id}:house` });
+      if (EX?.front) { const rk = `${pl.block}:${pl.side}`, prev = rowTop.get(rk); if (prev && (prev.loud || pl.loud)) steps.push(Math.abs(pad + top - prev.top)); rowTop.set(rk, { top: pad + top, loud: !!pl.loud, wall: pl.loudWall, form: pl.crownForm }); }
       anchors.push({ id: `house-${pl.id}`, kind: 'house', use: house.kit?.use ?? pl.use ?? 'dwelling', row: pl.kind, ...(pl.form === 'mansion' ? { mansion: true } : {}), at: P3(W(pl, house.doorU, env[1], pad)), N: P3([-pl.ey[0], -pl.ey[1], 0]), floor: r5(pad), box: { min: P3([lo[0], lo[1], pad]), max: P3([hi[0], hi[1], pad + top]) }, ...(house.kit ? { type: house.kit.type } : {}) });
       // an evocation's rear: a house's back yard its own program, a shop's service yard, a walk-up's lot
       if (evoked) {
@@ -537,7 +556,6 @@ export function assembleGeotownScene(m, ctx = {}) {
           for (const f of serviceOf(pl.kind, { w, v0, v1: dep, R: Ry }).faces) yardFace(pl, f);
         }
       }
-      if (EX) bends.push([bentFrom, faces.length, pad]);
     }
   }
   // ── where pads meet: along each row, at a corner's flank, and at a block's back line ──
@@ -1009,13 +1027,14 @@ export function assembleGeotownScene(m, ctx = {}) {
   const budget = evoked ? Math.max(SEGMENT_FACES * d.blocks.length, BUILDING_FACES * built) : GEOTOWN_FACES;
   const hard = Object.entries(growth).filter(([on]) => !(SURFACES[on]?.grows ?? []).some((g) => g === 'tree' || g === 'street-tree')).reduce((a, [, n]) => a + n, 0);
   const laws = [...d.laws, ...exaggerateLaws(EX),
+    ...(EX?.front?.step ? [{ law: 'rooflines', ok: steps.every((v) => v >= EX.front.step - 1e-3), value: steps.length ? `neighbours ${Math.round(Math.min(...steps) * 100) / 100} m apart at the least (step ${EX.front.step} m)` : 'no row', want: 'no two connected buildings one height' }] : []),
     { law: 'bare', ok: hard === 0, value: `trees ${Object.entries(growth).map(([k, n]) => `${k} ${n}`).join(', ') || 'none'}; ${hard} on a hard surface`, want: 'nothing grows on a road, a walk, a path, a side yard or a building\'s footprint' },
     { law: 'room', ok: nearest >= TREE_GAP - 1e-6, value: `every crown at least ${Number.isFinite(nearest) ? Math.round(nearest * 100) / 100 : '—'} m off a building; every crown raised to ${TREE_CLEAR} m (the least tree ${Math.round(TREE_LEAST * 10) / 10} m); ${crowded} trees without room to stand that tall not planted`, want: 'no tree\'s crown reaches into a building: each held to its room, its crown starting at least twice a person\'s height up' },
     { law: 'faces', ok: faces.length <= budget, value: `${faces.length} faces (budget ${budget}); trees ${form ? 'grown as form' : `${treeFaces} faces as repeats`}`, want: 'only what the map needs is drawn' }];
   const night = lit.night, bg = night ? air.fog.color : rgbToHex(air.dome.horizon);
   const counts = { plots: d.plots.length, units: d.units ?? d.plots.length, duplexes: d.plots.filter((pl) => pl.duplex).length, buildings: built, ...builtOf, hedges, gated, parked, pads: d.parking?.pads ?? 0, padCars, lights: d.traffic?.lights.length ?? 0, signals: d.traffic?.signals ?? 0, stops: d.traffic?.stops ?? 0, trees: Object.values(kept).reduce((a, l) => a + l.length, 0), crowded, faces: faces.length, treeFaces };
-  // (the cube's exaggerate: the buildings bent on their pads, re-lit as they were lit; the furniture leant on its walk)
-  if (EX) { bendFaces(faces, bends, EX, { lit: (n) => litV(n) }); bendFaces(faces, kitBends, EX, { kit: true, lit: (n) => litFactor(n, LIGHT) }); }
+  // (the cube's exaggerate: the furniture leant on its walk, re-lit on its leaning faces)
+  if (EX) bendFaces(faces, kitBends, EX, { kit: true, lit: (n) => litFactor(n, LIGHT) });
   // (read by the seventh generation: its soft ground the form's own, `isekai:ground`, its land read draws it and grows its
   // grass there (form/land-read.js, worlds/world-scene.js); its trees the form's, `plants`)
   if (form) for (const f of faces) if (FORM_GROUND.includes(f.group)) f.group = 'isekai:ground';

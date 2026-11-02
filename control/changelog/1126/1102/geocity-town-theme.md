@@ -11,11 +11,20 @@
   wall two buildings share moves once (a terrace never cracks). Laid after the tiles, so the courses lean with their
   wall; the faces re-lit on their bent normals. Its laws advise: `foot` (what a door's head moves), `fold` (under 1 the
   bend can open no crack and push no two buildings together: a gap g stays at least (1 − fold)·g) and `plumb`.
-- **The language caricatured** (`elements`, 0 to 1): every building element's number pushed away from the middle of its
-  rail toward the end it leans to, inside the rail, so a steep gable gets steeper and a low eave lower: a style becomes
-  more itself, never another. Its dice are kept, so the town is the same town.
-- **The geotown and the geocity bent**: a geotown's houses, fronts and yards on their pads; a geocity's masses, night
-  panes and an evocation's facades on their feet (a construction frame stays plumb under its scaffold). **The street's
-  furniture exaggerated** hardest (small things exaggerate most): the geocity kit's lamps, signals, poles, bins and
-  hydrants chunked and leant over their reach, a geotown's lamps, signals, signs and hydrants chunked and leant.
+- **The geocity bent**: its masses, night panes and an evocation's facades on their feet (a construction frame stays
+  plumb under its scaffold). **The street's furniture exaggerated** hardest (small things exaggerate most): the geocity
+  kit's lamps, signals, poles, bins and hydrants chunked, its lamps and signals leant over their reach; a geotown's
+  lamps, signals, signs and hydrants chunked and leant. A geotown's houses stay as they were.
+- **A loud shopfront** (`exaggerate.front`, `geotown/front-loud.js`; the `street` hand carries one): a shop's front as a
+  toy street draws it, the same shop pushed. Fat frames and mullions proud of glass set deep, a kick plate in its own
+  ink, the door in fat jambs; the sign too big and a little askew in a dark rim, its letters blocks that read against
+  it; the awning striped with a scalloped valance; posters slapped on the glass; ink splashed across the front; every
+  colour pushed toward saturation. Each shop is its OWN: its walls leant to a hue of their own and a false front of its
+  own form (stepped, an arch, a gable, battlements), neither its row neighbour's. Two principles hold on it: **no
+  window square** (`skew`: every light's corners drawn inward, at least three off 90°, its frame, bars, sill and lintel
+  warped with it, the shop's glazing and its storeys' lights alike; `speak`'s `skew`) and **no two connected buildings
+  one height** (`step`: the false front raised until it stands that far from its neighbour; the `rooflines` law). The
+  door and the plan stay where they were.
+- **The language caricatured** (`elements`, 0 to 1; `exaggerateAnchor`, not yet worn by a town): every building
+  element's number pushed away from the middle of its rail, inside the rail; doors and a household's rhythm kept.
 - **The style guide** draws the cube's exaggerate as a card.

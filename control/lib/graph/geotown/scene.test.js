@@ -268,20 +268,41 @@ describe('the geotown built: its map stood on the cube\'s land, levelled', () =>
   });
 });
 
-describe('the geotown under the cube\'s exaggerate (era/exaggerate.js): the plan kept, the shape bent', () => {
+describe('the geotown under the cube\'s exaggerate (era/exaggerate.js): the plan kept, the street\'s furniture leant', () => {
   const X = assembleGeotownScene({ ...M, cube: { from: M.cube, exaggerate: 'crooked' } });
   it('keeps every door, floor and footing where the plan put it', () => {
     expect(X.anchors.map((a) => [a.id, a.at, a.floor])).toEqual(P.anchors.map((a) => [a.id, a.at, a.floor]));
     expect(X.colliders.map((c) => [c.of, c.min[2]])).toEqual(P.colliders.map((c) => [c.of, c.min[2]]));
   });
-  it('bends its houses off plumb and leans its furniture, the ground under them as it lay', () => {
-    const tops = (S) => S.faces.filter((f) => f.group === 'town:wall').flatMap((f) => f.corners).filter((c) => c[2] > 6);
-    expect(tops(X).length).toBeGreaterThan(0);
+  it('leans its furniture; its houses and the ground under them as they were', () => {
+    const walls = (S) => JSON.stringify(S.faces.filter((f) => f.group === 'town:wall').map((f) => f.corners));
+    expect(walls(X)).toBe(walls(P));
     const ground = (S) => JSON.stringify(S.faces.filter((f) => f.group === 'geotown:road' || f.group === 'geotown:walk').map((f) => f.corners));
     expect(ground(X)).toBe(ground(P));
     const poles = (S) => S.faces.filter((f) => f.group === 'geotown:hydro').flatMap((f) => f.corners).filter((c) => c[2] > 5).map((c) => c.join());
     expect(poles(X)).not.toEqual(poles(P));
     for (const id of ['foot', 'fold', 'plumb']) expect(X.geotown.laws.find((l) => l.law === id)).toBeDefined();
     expect(P.geotown.laws.find((l) => l.law === 'fold')).toBeUndefined();
+  });
+});
+
+describe('a main street\'s shops drawn loud (the cube\'s exaggerate.front, geotown/front-loud.js)', () => {
+  const S = { kind: 'geocube', show: 'geotown', seed: 3, geotown: { segment: 'main-street', hills: { height: 2 } } };
+  const A = assembleGeotownScene({ ...S, cube: 'valley-morning' }), X = assembleGeotownScene({ ...S, cube: { from: 'valley-morning', exaggerate: { from: 'street', lean: 0, kit: { lean: 0, chunk: 1 } } } });
+  const angles = (cs) => cs.map((p, i) => { const a = cs[(i + cs.length - 1) % cs.length], b = cs[(i + 1) % cs.length], u = a.map((v, k) => v - p[k]), v = b.map((w, k) => w - p[k]); return (Math.acos((u[0] * v[0] + u[1] * v[1] + u[2] * v[2]) / (Math.hypot(...u) * Math.hypot(...v))) * 180) / Math.PI; });
+  it('keeps the plan: every door where it was', () => {
+    expect(X.anchors.map((a) => [a.id, a.at, a.floor])).toEqual(A.anchors.map((a) => [a.id, a.at, a.floor]));
+  });
+  it('turns a shop\'s lights off square and stands no two neighbours one height', () => {
+    const shop = X.anchors.find((a) => a.row === 'shops'), near = (f) => f.corners.every((c) => c[0] >= shop.box.min[0] - 0.5 && c[0] <= shop.box.max[0] + 0.5 && c[1] >= shop.box.min[1] - 2 && c[1] <= shop.box.max[1] + 0.5);
+    const lights = X.faces.filter((f) => f.group === 'town:opening' && f.corners.length === 4 && near(f));
+    expect(lights.length).toBeGreaterThan(0);
+    for (const f of lights) expect(angles(f.corners).filter((a) => Math.abs(a - 90) > 3).length).toBeGreaterThanOrEqual(3);
+    const plain = A.faces.filter((f) => f.group === 'town:opening' && f.corners.length === 4);
+    expect(plain.every((f) => angles(f.corners).every((a) => Math.abs(a - 90) < 0.5))).toBe(true);
+    const law = X.geotown.laws.find((l) => l.law === 'rooflines');
+    expect(law.ok).toBe(true);
+    expect(A.geotown.laws.find((l) => l.law === 'rooflines')).toBeUndefined();
+    expect(X.faces.some((f) => f.group === 'geotown:decal')).toBe(true);
   });
 });

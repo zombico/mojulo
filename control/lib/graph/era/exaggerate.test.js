@@ -4,7 +4,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   readExaggerate, exaggerateField, bendFaces, chunkFaces, leanFaces, exaggerateAnchor, exaggerateLaws, exaggerateCard,
-  EXAGGERATE_PRESETS, EXAGGERATE_NAMES,
+  EXAGGERATE_PRESETS, EXAGGERATE_NAMES, skewCorners, skewWarp, offSquare, OFF_SQUARE,
 } from './exaggerate.js';
 import { readGeocube, GEOCUBE_PRESETS } from './geocube.js';
 import { ELEMENT_SETS, ELEMENT_KINDS } from './out-anchor-elements.js';
@@ -166,5 +166,33 @@ describe('the language caricatured: more itself, on its rails, its door and its 
     expect(L.id).toBe(id);
     expect(exaggerateAnchor(id, null)).toBe(id);
     expect(exaggerateAnchor(id, { ...E, elements: 0 })).toBe(id);
+  });
+});
+
+describe('the loud front\'s principles: no window square, no two neighbours one height', () => {
+  it('reads a front over its hand, and refuses one off its rails by name', () => {
+    expect(readExaggerate('street').front).toMatchObject(EXAGGERATE_PRESETS.street.front);
+    expect(readExaggerate({ from: 'street', front: { skew: 0.25 } }).front).toMatchObject({ ...EXAGGERATE_PRESETS.street.front, skew: 0.25 });
+    expect(readExaggerate({ from: 'street', front: false }).front).toBeUndefined();
+    expect(readExaggerate('crooked').front).toBeUndefined();
+    expect(() => readExaggerate({ front: { skew: 0.9 } })).toThrow(/front\.skew is a number from 0 to 0\.3/);
+    expect(() => readExaggerate({ front: { stripes: 2 } })).toThrow(/stripes is 0 \(none\) or 3 to 16/);
+  });
+
+  it('turns every window at least three corners off square, drawn inward, the same from the same seed', () => {
+    for (let seed = 1; seed <= 60; seed++) {
+      const w = 0.8 + (seed % 7) * 0.2, h = 1 + (seed % 5) * 0.25, off = skewCorners(seed, w, h, 0.05 + (seed % 6) * 0.05);
+      const pts = [[0, 0], [w, 0], [w, h], [0, h]].map((p, i) => [p[0] + off[i][0], p[1] + off[i][1]]);
+      expect(offSquare(pts)).toBeGreaterThanOrEqual(OFF_SQUARE);
+      for (const [x, z] of pts) { expect(x).toBeGreaterThanOrEqual(-1e-9); expect(x).toBeLessThanOrEqual(w + 1e-9); expect(z).toBeGreaterThanOrEqual(-1e-9); expect(z).toBeLessThanOrEqual(h + 1e-9); }
+    }
+    expect(skewCorners(9, 1, 1.4, 0.2)).toEqual(skewCorners(9, 1, 1.4, 0.2));
+    expect(offSquare([[0, 0], [1, 0], [1, 1], [0, 1]])).toBe(0);
+  });
+
+  it('carries a window\'s frame with the edge nearest it', () => {
+    const off = skewCorners(4, 1, 1.5, 0.2), warp = skewWarp(off, 2, 1, 1, 1.5);
+    expect(warp(2, 1)).toEqual([2 + off[0][0], 1 + off[0][1]]);
+    expect(warp(1.8, 0.9)).toEqual([1.8 + off[0][0], 0.9 + off[0][1]]);   // (the sill's corner past the glass's)
   });
 });

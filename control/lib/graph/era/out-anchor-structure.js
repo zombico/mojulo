@@ -36,6 +36,25 @@
 import { STRUCTURE_USES, STRUCTURE_USE_IDS, STRUCTURE_RINGS, STRUCTURE_RING_IDS, STRUCTURE_LAWS, COVERINGS, eyeSpot, geometry as G } from './out-structures.js';
 import { ELEMENT_SETS, seedElements, composeAnchor, deriveSecondary, build as EB, OPENING_WORDS, ENTRY_WORDS } from './out-anchor-elements.js';
 import { lightDress, doorDress, shutterDress } from './out-openings.js';
+import { skewCorners, skewWarp } from './exaggerate.js';
+
+/** The faces made since a mark, each of `lists` ([list, from]), warped in a wall W's plane by a light's skew (its corners'
+ *  offsets over its rect u0, z0, w, h): a point near the light (its frame's and its sill's reach) moved with it. */
+function skewLight(W, lists, off, u0, z0, w, h) {
+  const warp = skewWarp(off, u0, z0, w, h);
+  const o = W.at(0, 0, 0), tu = W.at(1, 0, 0).map((v, i) => v - o[i]), td = W.at(0, 0, 1).map((v, i) => v - o[i]), M = 0.45;
+  const r5 = (v) => Math.round(v * 1e5) / 1e5 + 0;
+  for (const [list, from] of lists) for (let k = from; k < list.length; k++) {
+    const f = list[k];
+    if (!f?.corners) continue;
+    list[k] = { ...f, corners: f.corners.map((p) => {
+      const q = [p[0] - o[0], p[1] - o[1], p[2] - o[2]], u = q[0] * tu[0] + q[1] * tu[1] + q[2] * tu[2], z = p[2], d = q[0] * td[0] + q[1] * td[1] + q[2] * td[2];
+      if (u < u0 - M || u > u0 + w + M || z < z0 - M || z > z0 + h + M) return p;
+      const [u2, z2] = warp(u, z);
+      return [r5(o[0] + u2 * tu[0] + d * td[0]), r5(o[1] + u2 * tu[1] + d * td[1]), r5(z2)];
+    }) };
+  }
+}
 const pickOf = (o, keys) => Object.fromEntries(keys.filter((k) => o[k] !== undefined).map((k) => [k, o[k]]));
 
 const { face, roof, wallOf, wallQuad, wallPoly, SIDES, shellAt, shellFaces, lens, disc, point, basis, add3, sub, unit, dice, subSeed, r3, clamp, within } = G;
@@ -128,7 +147,7 @@ const SCALE_LAWS = ['storey', 'door', 'one-leads', 'value-order', 'eye-spot', 'b
  * interest (a focus, a landmark or the accent at 3; near 3, mid 2, far 0). `band` [lo, hi] is the town's heartbeat
  * here: a citizen's storeys inside it (a shell as far as its rise allows). Returns the shape the town places.
  */
-export function speak(L, use, lot, style, seed = 1, { ring = 'near', corner = false, accent = false, crown = 0, over = {}, depth = null, band = null, solid = false } = {}) {
+export function speak(L, use, lot, style, seed = 1, { ring = 'near', corner = false, accent = false, crown = 0, over = {}, depth = null, band = null, solid = false, skew = 0 } = {}) {
   const U = STRUCTURE_USES[use];
   if (!U) throw new Error(`structures: '${use}' is not a use (${STRUCTURE_USE_IDS.join(', ')})`);
   if (!STRUCTURE_RINGS[ring]) throw new Error(`structures: '${ring}' is not a ring (${STRUCTURE_RING_IDS.join(', ')})`);
@@ -340,6 +359,7 @@ export function speak(L, use, lot, style, seed = 1, { ring = 'near', corner = fa
       const doorBay = bays % 2 || mirror > 0 ? Math.floor(bays / 2) : bays / 2 - 1, faceArea = fw * eaveZ, open = () => openings.reduce((a, [w, hh]) => a + w * hh, 0);
       const putLight = (W, uc, z0, w, hh, i) => {
         if (open() + w * hh > 0.35 * faceArea && W.n[1] === -1 && i === 0) return;
+        const sf0 = faces.length, st0 = tile.length;
         const ok = geo && gate('light', Math.min(w, hh), 'tile'), out = ok ? faces : tile, ex = ok ? {} : { tile: true };
         if (OP.kind === 'round' || V.opening === 'round') disc(out, W.at(uc, z0 + hh / 2, 0), W.n, w / 2, Lv.sides + 2, 'opening', VA.opening.value, ex);
         else if (V.opening === 'lens') { if (ok) lens(out, W.at(uc, z0 + hh / 2, 0), W.n, w / 2, Lv.sides, 'lens', VA.opening.value, ring === 'near' ? 2 : 1); else disc(out, W.at(uc, z0 + hh / 2, 0), W.n, w / 2, 6, 'lens', VA.opening.value, ex); }
@@ -367,6 +387,9 @@ export function speak(L, use, lot, style, seed = 1, { ring = 'near', corner = fa
           }
           used.add('shutters');
         }
+        // (a light off square, the cube's exaggerate.front.skew: its glass, frame, bars, sill and lintel warped together in
+        // the wall's plane, its corners drawn inward: era/exaggerate.js skewCorners)
+        if (skew > 0) skewLight(W, [[faces, sf0], [tile, st0]], skewCorners(seed * 7919 + Math.round(uc * 1000) * 31 + Math.round(z0 * 1000) * 17 + (W.n[0] + 2) * 5 + W.n[1] + 2, w, hh, skew), uc - w / 2, z0, w, hh);
         if (W.n[1] === -1 && i === 0) openings.push([w, hh]);
         lights++;
       };

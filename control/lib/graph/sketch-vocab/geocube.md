@@ -14,8 +14,10 @@ it, in the cube's style. A different style is a different cube (`{ from: <preset
 `crooked`, `street`, `{ from, …changes }` or `{ lean (°), sway (m), sag, reach (m), elements (0–1), kit: { chunk, lean } }`.
 Walls lean off plumb in one field over the world (a shared wall moves once), eaves wander, the language is pushed toward
 its rails' ends, the street's lamps and signals chunked and leant. The plan never moves: streets, pads, doors, colliders
-and routes are as they were. A geotown's and a geocity's buildings and streets take it; its laws (`foot`, `fold`,
-`plumb`) advise.
+and routes are as they were. A geocity's buildings and every street's furniture take it; its laws (`foot`, `fold`,
+`plumb`) advise. `front: { chunk, sign, tilt, stripes, scallop, stickers, splats, pop, skew, step }` (the `street` hand's
+own) draws a geotown's shops LOUD: fat frames, a big askew sign, striped scalloped awnings, posters and ink, each shop
+its own wall hue and false front; no window square (`skew`), no two neighbours one height (`step`, law `rooflines`).
 
 ## The ingredients
 

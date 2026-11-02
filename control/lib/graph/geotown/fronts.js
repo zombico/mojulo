@@ -18,8 +18,10 @@
  *   box(x0, y0, x1, y1, z0, z1, role) → the five faces of a box (no floor), each facing out
  *
  * The bay stands on the side of the front away from the door; under a porch across the front it is the porch's
- * (no higher than its roof) or, `upper`, an oriel over it. Pure: no dice.
+ * (no higher than its roof) or, `upper`, an oriel over it. A shop with `loud` (the cube's exaggerate.front, and its
+ * `seed`) is drawn LOUD by front-loud.js. Pure: no dice (a loud shop's are its seed's).
  */
+import { loudShopfront } from './front-loud.js';
 export const FRONT = Object.freeze({
   porch: Object.freeze({ door: 1.8, full: 2.2, beside: 0.8, post: 0.18, stride: 2.6, skirt: 0.7, slab: 0.12, over: 0.3, rail: 0.9 }),
   // a shopfront: its glazing's head under the storey's top, its kick plate, its mullions' stride, the sign band, the awning
@@ -127,7 +129,10 @@ export function frontOf(front = {}, house) {
   }
   // ── a shopfront: the ground storey glazed between its frame and mullions, the door in it; its sign and its awning
   // its own (`shop`: true, the band and the sloped canvas, or { sign, awning, frame, signHex, awningHex, kick }) ──
-  if (front.shop) {
+  // (a LOUD one, the cube's exaggerate.front: front-loud.js draws the same shop pushed, in place of what follows)
+  const loud = front.shop && front.shop !== true && front.shop.loud ? front.shop : null;
+  if (loud) { const Sf = FRONT.shop; out.push(...loudShopfront(loud.loud, loud, { W, sh, n, doorX, doorW, zt: sh - Sf.head, gaps: [[Sf.edge, doorX - doorW / 2 - 0.12], [doorX + doorW / 2 + 0.12, W - Sf.edge]], kick: loud.kick ?? Sf.kick, Sf })); }
+  else if (front.shop) {
     const Sf = FRONT.shop, V = front.shop === true ? {} : front.shop, kick = V.kick ?? Sf.kick, zt = sh - Sf.head, gaps = [[Sf.edge, doorX - doorW / 2 - 0.12], [doorX + doorW / 2 + 0.12, W - Sf.edge]];
     const fr = V.frame ? { hex: V.frame } : {}, sg = V.signHex ? { hex: V.signHex } : {}, aw = V.awningHex ? { hex: V.awningHex } : {};
     for (const [a, b] of gaps) {
