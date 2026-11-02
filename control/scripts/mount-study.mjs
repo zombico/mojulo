@@ -5,7 +5,7 @@
 // places) when `--png`.
 //
 //   node scripts/mount-study.mjs <outDir> [--register realistic|stylized] [--gaits walk,trot,canter,gallop,reinBack]
-//        [--lead right|left] [--view side|front] [--cols 8] [--before] [--shots] [--jump] [--idle] [--png]
+//        [--lead right|left] [--view side|front] [--cols 8] [--before] [--shots] [--jump] [--idle] [--body [--cells 80] [--coat bay] [--views side,front] [--big]] [--png]
 // `--shots` adds the one-shots' sheet (changes of gait, the halts, the move off); `--jump` the jump's; `--idle` the rest's.
 import path from 'node:path';
 import { mkdirSync, writeFileSync, existsSync } from 'node:fs';
@@ -16,6 +16,11 @@ import { gaitGates, shotGates, jumpGates } from '../lib/graph/mount/gates.js';
 import { jumpClip } from '../lib/graph/mount/jump.js';
 import { idleClip, idleLayer, grazeClip, IDLE_LAYERS } from '../lib/graph/mount/idle.js';
 import { idleGates } from '../lib/graph/mount/gates.js';
+import { bodyMesh } from '../lib/graph/mount/body.js';
+import { coatColor, COATS } from '../lib/graph/mount/coats.js';
+import { bodySheet, BODY_VIEWS } from '../lib/graph/mount/body-sheet.js';
+import { boneFrames, skinPose, skinMeasures } from '../lib/graph/mount/skin.js';
+import { restState } from '../lib/graph/mount/idle.js';
 import { oneShot } from '../lib/graph/mount/motion.js';
 import { standPose } from '../lib/graph/mount/gait.js';
 
@@ -24,7 +29,8 @@ const flag = (k) => { const i = args.indexOf(`--${k}`); if (i < 0) return false;
 const opt = (k, d) => { const i = args.indexOf(`--${k}`); return i >= 0 ? args.splice(i, 2)[1] : d; };
 const register = opt('register', 'realistic'), lead = opt('lead', 'right'), cols = Number(opt('cols', 8)), view = opt('view', 'side');
 const gaits = opt('gaits', 'walk,trot,canter,gallop,reinBack').split(',');
-const before = flag('before'), png = flag('png'), shots = flag('shots'), jumps = flag('jump'), idles = flag('idle');
+const before = flag('before'), png = flag('png'), shots = flag('shots'), jumps = flag('jump'), idles = flag('idle'), body = flag('body');
+const cells = Number(opt('cells', 80)), coat = opt('coat', 'bay'), views = opt('views', null), big = flag('big');
 const outDir = args[0] || '.';
 mkdirSync(outDir, { recursive: true });
 
@@ -104,6 +110,32 @@ if (idles) {
   const iname = `mount-horse-${register}-idle${view === 'front' ? '-front' : ''}`;
   writeFileSync(path.join(outDir, `${iname}.svg`), contactSheet(irows, { title: `the mount at rest, ${register}: the layers loop at 3 s × φⁿ`, view, cellW: view === 'front' ? 130 : 200 }));
   files.push(`${iname}.svg`);
+}
+
+if (body) {
+  // the body: the mesh from every view, in a coat (a star and a sock to show the markings)
+  const m = bodyMesh(B, { cells });
+  const colors = m.quads.map((q) => { const c = q.map((i) => m.vertices[i]).reduce((a, b) => a.map((x, i) => x + b[i] / 4), [0, 0, 0]); return coatColor(coat, m.parts[q[0]], c, { stand: m.stand, markings: { star: true, sock: ['LH'] } }); });
+  const rows = [{ label: `${register}, ${coat}`, sub: `${m.stats.triangles} triangles · ${m.stats.vertices} vertices · open edges ${m.stats.open} · non-manifold ${m.stats.nonManifold}`, cells: (views ? views.split(',') : BODY_VIEWS).map((view) => ({ vertices: m.vertices, quads: m.quads, colors, view, caption: view })) }];
+  // the coats: each card on the same body
+  if (!views) {
+    const coatCells = Object.keys(COATS).map((c) => ({ vertices: m.vertices, quads: m.quads, view: 'threeQuarter', caption: c,
+      colors: m.quads.map((q) => { const ctr = q.map((i) => m.vertices[i]).reduce((a, b) => a.map((x, i) => x + b[i] / 4), [0, 0, 0]); return coatColor(c, m.parts[q[0]], ctr, { stand: m.stand, markings: c === 'chestnut' ? { blaze: true, stocking: ['LH', 'RH'] } : c === 'black' ? { star: true } : {} }); }) }));
+    rows.push({ label: 'coats', sub: 'cards: a new coat is data (a chestnut with a blaze and two stockings, a black with a star)', cells: coatCells });
+  }
+  // the body skinned into poses: a stride of the trot and of the gallop, the jump's apex and landing, grazing, resting
+  if (!views) {
+    const rest = boneFrames(B, standPose(B));
+    const posed = (label, fr) => { const p = skinPose(m, rest, boneFrames(B, fr)), st = skinMeasures(m, p); return { vertices: p, quads: m.quads, colors, view: 'side', caption: `${label} · stretch p99 ${st.stretch.p99.toFixed(2)} · volume ${st.volume.toFixed(3)}` }; };
+    const tr = gaitCycle(B, 'trot'), ga = gaitCycle(B, 'gallop'), jp = jumpClip(B, { fence: 1.1 });
+    rows.push({ label: 'trot', sub: 'skinned (linear blend, the masses\' own weights)', cells: [0, 0.125, 0.25, 0.375, 0.5].map((t) => posed(`trot ${t}`, tr.poseAt(t))) });
+    rows.push({ label: 'gallop', sub: '', cells: [0, 0.2, 0.4, 0.6, 0.8].map((t) => posed(`gallop ${t}`, ga.poseAt(t))) });
+    rows.push({ label: 'jump, grazing, resting', sub: '', cells: [posed('take-off', jp.poseAt(jp.flight.launch - 0.1)), posed('apex', jp.poseAt(jp.flight.apex)), posed('landing', jp.poseAt(jp.flight.touchdown + 0.05)), posed('grazing', restState(B, { graze: 1 })), posed('resting a hind', restState(B, { restHind: 'L', rest: 1 }))] });
+  }
+  const bname = `mount-body-${register}-${coat}`;
+  writeFileSync(path.join(outDir, `${bname}.svg`), bodySheet(rows, { title: `the mount's body: the masses from the solved stand (${cells} cells)`, ...(big ? { cellW: 900, cellH: 720 } : {}) }));
+  files.push(`${bname}.svg`);
+  console.log(`body: ${JSON.stringify(m.stats)}`);
 }
 
 if (before) {

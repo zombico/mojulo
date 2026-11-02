@@ -3,6 +3,9 @@ import { resolveMount } from './build.js';
 import { gaitCycle, standPose, strideOf, swingPath, bump } from './gait.js';
 import { gaitGates, shotGates, jumpGates, idleGates } from './gates.js';
 import { restState, idleLayer, idleClip, grazeClip, herdOffset, IDLE_LAYERS, PHI } from './idle.js';
+import { bodyMesh } from './body.js';
+import { boneFrames, skinPose, skinMeasures } from './skin.js';
+import { coatColor, COATS } from './coats.js';
 import { jumpClip } from './jump.js';
 import { oneShot } from './motion.js';
 import { MOUNT_BONES } from './pose.js';
@@ -168,5 +171,43 @@ describe('at rest', () => {
     expect(IDLE_LAYERS.head / IDLE_LAYERS.ears).toBeCloseTo(PHI, 9);
     const offs = Array.from({ length: 12 }, (_, i) => herdOffset(i, 1)).sort((a, b) => a - b);
     for (let i = 1; i < offs.length; i++) expect(offs[i] - offs[i - 1]).toBeGreaterThan(0.02);
+  });
+});
+
+describe('the body', () => {
+  const B = resolveMount('horse'), m = bodyMesh(B, { cells: 48 }), rest = boneFrames(B, standPose(B));
+
+  it('is one closed skin, every vertex on at most four of the rig\'s bones, its weights summing to one', () => {
+    expect(m.stats.open).toBe(0);
+    const bones = new Set(MOUNT_BONES.map((b) => b.id));
+    for (const w of m.weights) {
+      expect(w.length).toBeGreaterThan(0); expect(w.length).toBeLessThanOrEqual(4);
+      expect(Math.abs(w.reduce((s, [, x]) => s + x, 0) - 1)).toBeLessThan(1e-9);
+      for (const [bone] of w) expect(bones.has(bone), bone).toBe(true);
+    }
+  });
+
+  it('a vertex never follows the other side\'s limbs', () => {
+    for (let i = 0; i < m.vertices.length; i++) {
+      const sides = new Set(m.weights[i].map(([b]) => (/^(scapula|humerus|radius|cannon|pastern|hoof|femur|tibia)/.test(b) ? b.slice(-1) : null)).filter(Boolean));
+      expect(sides.size).toBeLessThanOrEqual(1);
+    }
+  });
+
+  it('skinned into the stand it is its rest; into a trot it keeps its volume and most of its edges', () => {
+    const still = skinPose(m, rest, boneFrames(B, standPose(B)));
+    expect(Math.max(...still.map((v, i) => Math.hypot(v[0] - m.vertices[i][0], v[1] - m.vertices[i][1], v[2] - m.vertices[i][2])))).toBeLessThan(1e-9);
+    const s = skinMeasures(m, skinPose(m, rest, boneFrames(B, gaitCycle(B, 'trot').poseAt(0.25))));
+    expect(Math.abs(s.volume - 1)).toBeLessThan(0.06);
+    expect(s.stretch.p05).toBeGreaterThan(0.8); expect(s.stretch.p95).toBeLessThan(1.3);
+  });
+
+  it('a coat is a card: its points, its markings', () => {
+    const p = [0, 0, 1];
+    expect(coatColor('bay', 'points', p)).toBe(COATS.bay.points);
+    expect(coatColor('chestnut', 'mane', p)).toBe(COATS.chestnut.mane);
+    const sock = m.stand.bones.hoofHL.head;                                   // just over the hoof of the left hind
+    expect(coatColor('bay', 'points', [sock[0], sock[1], sock[2] + 0.03], { stand: m.stand, markings: { sock: ['LH'] } })).toBe('#f2efe8');
+    expect(coatColor('bay', 'points', [-sock[0], sock[1], sock[2] + 0.03], { stand: m.stand, markings: { sock: ['LH'] } })).toBe(COATS.bay.points);
   });
 });
