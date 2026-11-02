@@ -271,3 +271,8 @@ its resource, put on a look and showed a toast. This theme makes them act.
     their skin's lightness, the nearest few in turn. Before, it was whichever came next, so six young men of three
     ancestries stood in one pale youth's body and an elder could wear a youth's. On the test town, the bodies minted
     went from 11 to 14 and the young men from one body to three.
+- **The one you face answers** (the page's reach prompt). A town's folk stand a step apart (1.1 m), and each can be
+  talked to from 1.6 m. Walking up to one entered their zone first and their neighbours' after, and the last zone
+  entered was the one in reach, so the person in front of you never answered. Now, where usable zones overlap, the
+  nearest to the walker is in reach (`interact-channel.js`). Only the overlapping zones carry their centres, and the
+  nearest-pick is emitted only then, so a page with no overlapping uses is byte for byte as it was.
