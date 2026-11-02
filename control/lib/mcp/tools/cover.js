@@ -18,7 +18,7 @@ import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { SketchFolderRepository } from '@/lib/db/repositories/sketch-folders';
 import { normalizeCoverManifest, coverRenderTargets } from '@/lib/graph/image-outcomes/cover-manifest';
 import { renderCoverSvg } from '@/lib/graph/image-outcomes/cover-preview';
-import { checkUploadedArt, readUploadFrom } from '@/lib/graph/image-outcomes/cover-upload';
+import { checkUploadedArt, fileArt, readArtFile, readUploadFrom } from '@/lib/graph/image-outcomes/cover-upload';
 import { readPaletteSpec, solvePalette } from '@/lib/graph/color-theorist/solve.js';
 import { coverPalette } from '@/lib/graph/color-theorist/adapters.js';
 import { freshPaletteSeed } from '@/lib/graph/color-theorist/stamp.js';
@@ -59,12 +59,17 @@ export function createCoverHandler(input) {
   if (profile && titleRealizer === 'painted') throw new Error(pluginProfileNotice("create_cover title_realizer 'painted'"));
   if (profile && renderBrief) throw new Error(pluginProfileNotice('create_cover render_brief'));
   const realizer = titleRealizer || (profile ? 'flat' : 'painted');
-  // the illustration: an uploaded picture when `art` maps one (cover-upload.js); else, with no image worker (the
-  // plugin profile), the palette placeholder the operator replaces by uploading; else painted, as before
+  // the illustration: a picture when `art` gives one (cover-upload.js: a file, filed into a stash, or a stash image item);
+  // else, with no image worker (the plugin profile), the palette placeholder a picture replaces; else painted, as before
+  let from = null, picture = null;
   if (art !== undefined) {
-    readUploadFrom(art);
-    const bad = checkUploadedArt(art);
-    if (bad.length) throw new Error(`art: ${bad.join('; ')}`);
+    const read = readUploadFrom(art);
+    if (read.path) picture = readArtFile(read.path); // checked now, filed once the cover's own words are
+    else {
+      const bad = checkUploadedArt(art);
+      if (bad.length) throw new Error(`art: ${bad.join('; ')}`);
+      from = read;
+    }
   }
   const illustrationRealizer = art !== undefined ? 'upload' : profile ? 'placeholder' : 'painted';
   if (!['painted', 'carved', 'flat'].includes(realizer)) {
@@ -90,6 +95,7 @@ export function createCoverHandler(input) {
     ...(isbn ? [{ kind: 'barcode', value: isbn }] : []),
     ...(note ? [{ kind: 'note', value: note }] : []),
   ];
+  if (picture) from = fileArt(picture, { title });
 
   const input2 = {
     for_kind: forKind,
@@ -98,7 +104,7 @@ export function createCoverHandler(input) {
     slots: {
       illustration: {
         realizer: illustrationRealizer,
-        ...(art !== undefined ? { from: { stash: art.stash, item: art.item } } : {}),
+        ...(from ? { from } : {}),
         brief: illustrationBrief == null ? {}
           : typeof illustrationBrief === 'string' ? { subject: illustrationBrief } : illustrationBrief,
       },
@@ -127,10 +133,11 @@ export function createCoverHandler(input) {
       coverUrl: `/api/sketches/${enc}/cover.png`,
       archetype: manifest.artDirection.composition.archetype,
       for_kind: manifest.for_kind,
+      ...(from ? { art: from } : {}),
       ...(manifest.format ? { format: manifest.format } : {}),
       next: illustrationRealizer === 'upload'
         ? `Cover renders now at coverUrl: the uploaded picture and a ${realizer} title.`
-        : `Cover renders now at coverUrl: a palette placeholder illustration and a ${realizer} title. For real art, ask the operator to upload the picture into a stash on the dashboard (add image), find its item id with get_stash, then map it: update_sketch this cover, patch /slots/illustration = { realizer: 'upload', from: { stash, item } } (or create_cover art: { stash, item }).`,
+        : `Cover renders now at coverUrl: a palette placeholder illustration and a ${realizer} title. For real art, pass the picture's file: create_cover art: { path: '<absolute PNG or JPEG path>' } (mojulo files it into a stash), or for a stash image item already gathered, update_sketch this cover with patch /slots/illustration = { realizer: 'upload', from: { stash, item } }.`,
     };
   }
   return {
@@ -141,6 +148,7 @@ export function createCoverHandler(input) {
     coverUrl: `/api/sketches/${enc}/cover.png`,
     archetype: manifest.artDirection.composition.archetype,
     for_kind: manifest.for_kind,
+    ...(from ? { art: from } : {}),
     ...(manifest.format ? { format: manifest.format } : {}),
     render_targets: targets,
     next: illustrationRealizer === 'upload' ? `Cover renders now at coverUrl with the uploaded picture and a ${realizer} title.` : `Cover renders now at coverUrl with a placeholder illustration and a ${realizer} title. Painting the illustration${targets.includes('title') ? " and an alpha'd title mark" : ''} rides the render bicycle (a later phase); the recipe is unchanged when those bind.`,
@@ -159,7 +167,7 @@ export function registerCoverTools() {
         title: { type: 'string', description: 'Sketch title (also the default cover title).' },
         cover_title: { type: 'string', description: 'The title text shown on the cover (defaults to `title`).' },
         for_kind: { type: 'string', description: "Publication kind that seeds aspect/archetype/slots: 'novel' (default), 'picture_book' or 'game'." },
-        art: { type: 'object', description: 'An uploaded picture as the illustration: { stash, item } (a stash image item).', properties: { stash: { type: 'string' }, item: { type: 'integer' } } },
+        art: { type: 'object', description: "A picture as the illustration: { path } (an absolute PNG or JPEG path on this host; mojulo files it into a stash), or { stash, item } (a stash image item).", properties: { path: { type: 'string' }, stash: { type: 'string' }, item: { type: 'integer' } } },
         format: { type: 'string', enum: ['key-art', 'capsule', 'box', 'icon'], description: "A game cover's format (default key-art: a title screen's backdrop; its archetype leaves the menu room)." },
         author: { type: 'string', description: 'Author byline (convenience → subtext role author).' },
         series: { type: 'string', description: 'Series/edition line (convenience → subtext role series).' },
@@ -185,7 +193,7 @@ export function registerCoverTools() {
     edits: [
       [
         'renders immediately (a palette placeholder illustration + a carved title) with NO image worker, then swaps in painted layers later without changing the recipe.',
-        "renders immediately: a placeholder illustration (until the operator uploads a picture to a stash and you map it: `art`) and a title set from mojulo's own letterforms.",
+        "renders immediately: a placeholder illustration (until you pass a picture: `art`) and a title set from mojulo's own letterforms.",
       ],
       [
         "Title: `title_realizer` picks how the title becomes pixels — 'painted' (default; a worker paints an alpha'd letter mark onto mojulo-carved letterforms), 'carved' (metalified 3D wordmark), or 'flat' (filled outline). mojulo always owns the letter SHAPES (from the font shelf), so spelling/forms are fixed; the worker only paints style.",

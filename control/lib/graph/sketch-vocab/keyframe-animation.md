@@ -45,16 +45,16 @@ otherwise say plainly that a raster-character animation needs an image worker.
    walk / …), K key poses, fps, on-twos, cycles, character identity (a ref or a
    character sheet), optional `blink` / `speech`. The recipe stores the plan, not
    pixels — the meru guides are DERIVED per key.
-2. **Request renders** — `request_image_render` parks one row per cel target
+2. **Request renders** — `render_handoff({ medium: 'image', op: 'request' })` parks one row per cel target
    (`key-0…key-{K-1}` + per-key face variants). The render packet serves each
    key's **meru guide** (the rig mannequin at declared scale/pose) as the
    scaffold the worker paints OVER — covering it, removing the register lines.
-3. **Worker paints** — `pull_image_render` → the worker renders the cel over the
-   guide (its identity locked to the character key) → `submit_image_render`. The
+3. **Worker paints** — `render_handoff` op `pull` → the worker renders the cel over the
+   guide (its identity locked to the character key) → op `submit`. The
    **MERU gate** runs here (deterministic scale/ground audit, auto-heals pure
    scale, RETRY on violation). The register/identity READ is the accepting
    agent's eyes.
-4. **Accept** — `accept_image_render` per cel, and it is enforced two-eyes:
+4. **Accept** — op `accept` per cel, and it is enforced two-eyes:
    pass `accept_audit.register` (a one-line attestation that the cel is a
    painted register — not a vector tracing — with identity/facing/props read
    correctly) and `source` (the acceptor's identity, which must differ from
@@ -72,7 +72,7 @@ otherwise say plainly that a raster-character animation needs an image worker.
   An unknown name (e.g. `"custom"`) is REJECTED at mint with the valid set — it is
   not a free-text label.
 - **Custom key poses:** `motion: { keyframes: [pose, …], loop? }` where each `pose`
-  is exactly a `create_figure` pose — **numeric joint dials, not prose**
+  is exactly a figure pose (`mint_solid` kind `figure`) — **numeric joint dials, not prose**
   (`{ elbowR: 120, shR: { pitch: -85 }, spine: { axial: 0.2 } }`). A natural-language
   beat like `"arm extends to point"` is NOT a pose and will not render.
 - There is **no top-level `poses` / `keyframes` field.** Authored poses go INSIDE
@@ -80,7 +80,7 @@ otherwise say plainly that a raster-character animation needs an image worker.
   be silently dropped, minting an empty animation).
 
 This is how you get a two-beat clip (e.g. think → point) as ONE outcome: author
-`motion: { keyframes: [thinkPose, holdPose, pointPose] }`. (Contrast: `emote_figure`
+`motion: { keyframes: [thinkPose, holdPose, pointPose] }`. (Contrast: `edit_solid` op `emote`
 plays ONE named emote and returns a sketch ref + side GIF — **not** a `mo_` — so you
 cannot `stitch_motion` two emotes into a sequence.)
 

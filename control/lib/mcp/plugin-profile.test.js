@@ -464,7 +464,7 @@ describe('every served card, catalyst, form and manual under the profile', () =>
     const snippets = s.scripted.filter(([name]) => name === 'semantic_search').flatMap(([, , r]) => JSON.parse(r.text).results);
     const wardrobe = snippets.find((row) => row.source_kind === 'sketch_vocab' && row.source_ref === 'wardrobe-construction');
     expect(wardrobe, 'the wardrobe card comes back for a garment query').toBeTruthy();
-    expect(wardrobe.snippet).toMatch(/on a create_figure body/);
+    expect(wardrobe.snippet).toMatch(/on a figure \(mint_solid kind figure\) body/);
   });
 });
 
