@@ -35,7 +35,7 @@ render, from a kit of those solids, at their classes' true numbers.
     Rivets run along its foot, welds up its rear corners, and the rear panel carries its lamps.
   - **Inside:** canvas seats, a dash and its gauges, the wheel on its column.
   - **Roll bar:** braced to the rear, its feet bolted down.
-  - **Wheels:** the lathed road wheel on the heavy dish.
+  - **Wheels:** the field's own (below).
   - **Materials:** the field's own slots (`MIL_MATERIALS`): matte paint with no clearcoat, canvas, bare steel, weld, and
     the frame's dark steel.
 - **The field's wheel** (`car-designer/mil-wheel.js` `milWheel`):
@@ -65,6 +65,8 @@ render, from a kit of those solids, at their classes' true numbers.
     rear panel stands short of the tail, so the cans and the pintle hang inside the class's length.
   - **The budget:** about 21.6k triangles with its kit and its four lugged wheels and the spare.
 - **Composed:**
+  - The quick race's card says a ride takes a registry vehicle (`'a jeep'`), its wording trimmed to keep the card
+    under its ceiling now that the physics classes it lists have grown.
   - The class's realistic build is live: a quick game's `ride: 'a jeep'` drives it, `mint_solid({ kind: 'vehicle',
     spec: { vehicle: 'jeep' } })` shows it on the studio grid, and a world draws it in the form render or baked.
   - The registry says what the truck and the carrier need (`upscaleOf`).
