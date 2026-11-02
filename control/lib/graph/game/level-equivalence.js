@@ -1,21 +1,21 @@
 /**
- * LEVEL EQUIVALENCE — one level played by a script in the web runtime (level-sim.js) and in the Godot kernel
- * (scripts/godot-level-sim.gd), at the same fixed step, compared frame by frame. The hollow-game catcher: a level that
- * imports clean and runs can still not be the game, and only playing it in both says so.
+ * LEVEL EQUIVALENCE — one level played by a script in the web runtime (level-sim.js) at a fixed step, a canonical key a
+ * frame, so two runs compare frame by frame. It was written to hold the Godot kernel's twin of a level to the web's;
+ * that kernel is retired (no engine runs a game: the web build is the game), and outside this file only `faceGround`
+ * is read now (the page's ground hook, in a test). The web half stays as it was.
  *
  * The script is INPUT, never outcome. A WIN script is steered once here, in the web runtime, toward the goal's own
  * anchors (the contract's audits: a walkto's via points then its target, round again for laps; an idle's seconds),
- * and recorded as the pilot's held input, frame by frame; the Godot twin replays exactly that input. The STAY-PUT
- * control holds no input at all, for as long. Both engines print one canonical KEY a frame (frameKey here, level.gd
- * sim_key there):
+ * and recorded as the pilot's held input, frame by frame; a replay plays exactly that input. The STAY-PUT control
+ * holds no input at all, for as long. Each run prints one canonical KEY a frame (frameKey):
  *
  *   <hashState of the bus> | <pilot> | <each ruled entity>      an entity: id:x,y,z,h in quanta
  *
  * TOLERANCE: positions are quantized to POS_Q (5 cm) and headings to HEAD_Q (0.05 rad), both in the recipe's z-up
  * frame, a position as its FEET (the walk rule's pos stands its eye above them). Two frames are equal when their keys
- * are equal; the bus half is exact (the reducers are held equal by the conformance corpus), the transform half is
- * equal within a quantum. A position on a quantum's edge can flip between engines whose numbers differ in the last
- * bits; the matrix reports the first unequal frame and the field, so such a flip is read for what it is.
+ * are equal; the bus half is exact, the transform half is equal within a quantum. A position on a quantum's edge can
+ * flip between runtimes whose numbers differ in the last bits; compareKeys reports the first unequal frame and the
+ * field, so such a flip is read for what it is.
  *
  *   SIM_DT, POS_Q, HEAD_Q
  *   faceGround(faces)                 → (pos) => z | null   the page's ground hook (channels/controllable __ground): the

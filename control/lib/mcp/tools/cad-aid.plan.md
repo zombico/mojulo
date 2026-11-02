@@ -2,7 +2,7 @@
 
 Status: analysis + roadmap (2026-08-30). Phases 0 + 1 and the
 housekeeping items LANDED same day (see the phase notes); phases 2–4
-open. Sibling of [edit-3d-recipes.plan.md](../../../../lite-template/integration/plan-archive/edit-3d-recipes.plan.md)
+open. Sibling of `edit-3d-recipes.plan.md`
 (which owns the solids edit-path documentation gap; phase 3 here leans
 on it).
 
@@ -69,7 +69,7 @@ and one SEAM stops one instantiation short of general.
   atomic claim, two audit blobs, no-self-accept), semantically hardwired
   to PNGs. House precedent is copy-the-pattern-per-media (the voice plan
   plans a sibling table), not generalize-the-table.
-  [interchange.plan.md](../../../../lite-template/integration/plan-archive/interchange.plan.md)
+  `interchange.plan.md`
   pins the graduation trigger: "the durable queue graduates only if
   unattended workers ever show up."
 - **Catalysts / mcp-orbit** — fully generic over operator MCPs, audit-only,
@@ -216,7 +216,7 @@ into sibling refs:
   profile changed, height +2cm"), the shape `diff_beats` already proves;
   `diff_sketches` stays the visual sibling.
 - Revisions ride on edit-in-place, which is
-  [edit-3d-recipes.plan.md](../../../../lite-template/integration/plan-archive/edit-3d-recipes.plan.md) phase 2's territory
+  `edit-3d-recipes.plan.md` phase 2's territory
   (document the existing `update_sketch` path first); a
   `sketch_revisions` table mirroring `beats_revisions` is the natural
   landing, decided there, consumed here.

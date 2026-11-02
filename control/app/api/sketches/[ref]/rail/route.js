@@ -33,7 +33,7 @@ export async function GET(request, { params }) {
       return NextResponse.json({ eligible: false, reason: `'${sketch.manifest?.kind}' is on no rail and draws no sheet` }, { status: 422 });
     }
     // what it and its parts were taken out as: each outcome folder that holds anything, whole (a building's sheets and
-    // schedules, a game's levels and Godot pack, the game a world's run made)
+    // schedules, a game's levels and its engine handoffs, the game a world's run made)
     const owners = [{ ref, role: null }, ...rail.parts.filter((p) => p.state !== 'missing' && p.state !== 'taken').map((p) => ({ ref: p.ref, role: p.role }))];
     const shipped = [];
     for (const o of owners) {

@@ -1,5 +1,3 @@
-import { readFileSync } from 'node:fs';
-import path from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
@@ -85,21 +83,5 @@ describe('aquaWaterBodies + the GLB + the engine score', () => {
     expect(m.sigma[0]).toBeCloseTo(body.look.sigma[0] / 0.3048, 3);
     expect(m.shore).toBeCloseTo(body.look.shore * 0.3048, 3);
     expect(m.frozen).toBe(false);
-  });
-});
-
-describe('the Godot kernel carries the water lowering', () => {
-  const dir = path.join(process.cwd(), 'lib', 'graph', 'scene', 'godot-kernel');
-  it('ships water.gdshader and level.gd applies it from score.water', () => {
-    const shader = readFileSync(path.join(dir, 'water.gdshader'), 'utf8'), level = readFileSync(path.join(dir, 'level.gd'), 'utf8');
-    expect(shader).toMatch(/hint_depth_texture/);
-    expect(shader).toMatch(/hint_screen_texture/);
-    expect(level).toMatch(/func _fix_water\(\)/);
-    expect(level).toMatch(/res:\/\/kernel\/water\.gdshader/);
-    // every uniform level.gd sets exists in the shader
-    const body = level.slice(level.indexOf('func _fix_water'), level.indexOf('static func _vec3'));
-    const set = [...body.matchAll(/set_shader_parameter\("([a-z_]+)"/g)].map((m) => m[1]);
-    expect(set.length).toBeGreaterThan(10);
-    for (const u of set) expect(shader).toMatch(new RegExp(`uniform [a-z0-9]+ ${u}\\b`));
   });
 });

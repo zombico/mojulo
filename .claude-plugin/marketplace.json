@@ -9,7 +9,7 @@
     {
       "name": "mojulo",
       "source": "./plugins/mojulo",
-      "description": "Turn Claude into a game studio: you direct, Claude builds the levels, the cast, the feel, the look and the sound as small recipes on your machine, played in the browser and exported to Godot, glTF or STL/3MF. No account, no external telemetry.",
+      "description": "Turn Claude into a game studio: you direct, Claude builds the levels, the cast, the feel, the look and the sound as small recipes on your machine, played in the browser, handed to a team's Godot, Unity, Unreal or Blender, and exported to glTF or STL/3MF. No account, no external telemetry.",
       "author": {
         "name": "Franz Ombico"
       }

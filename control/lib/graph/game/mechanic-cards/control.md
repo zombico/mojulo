@@ -28,8 +28,7 @@ limit) for the respawns and the player's hp: control decides the match, frags ke
 - contract: `on: { "control:won": { end: "success" }, "control:lost": { end: "fail" } }`, `keep` the held seconds.
 - HUD: Point (ours) n / hold, Point (theirs) n / hold.
 
-It is the web's: a Godot export does not keep it yet (its zones would each watch a body of the cast, and the
-kernel's watch the hero). The minds go for it with
+The minds go for it with
 `rule.objective` (a match player with no foe in sight, and nothing it wants, heads for the point and stands on it).
 
 Not yet: capture the flag (a flag carried is a body following a body: the cast cannot yet carry), a point that moves

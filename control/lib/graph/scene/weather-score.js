@@ -1,5 +1,6 @@
 /**
- * The WEATHER as the engine score carries it: what an engine kernel needs to play the sky the web build plays, as data.
+ * The WEATHER as the engine score carries it: what an engine kernel needed to play the sky the web build plays, as data
+ * (the engine kernels are retired, and no kept export emits the score; the engine handoff lights a level at one hour).
  * The web build runs weather/weather.js's pure schedule off its clock; an engine does not run that code, so the score
  * carries what the schedule WOULD say for its first half hour (`timeline`: runs of states, `blend` seconds easing each
  * into the next) and what each state IS in this style's air (`states`: fog factor, colour from the air card, the light taken
