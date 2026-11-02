@@ -1,6 +1,9 @@
 ### The manual manipulator: arms that hit targets, hands that grasp by role
 
-In progress. The realistic hero's arms and hands, solved from targets rather than picked from a pose library.
+The realistic hero's arms and hands, solved from targets rather than picked from a pose library. This lands the
+studies, the arm's and the hand's servos, the arm solver with the body joining in and its target drill, the wider hand
+and the hand solver. Still to come: the arm and the hand moving as one, and the words a person asks for them by; until
+then none of it is reachable from the hero door (the scripts under `control/scripts/spikes/manipulator/` drive it).
 
 - **Space boxer (the arm).** The shoulder, elbow, forearm and wrist as servos (a hard range, a comfortable range, a
   rest and a speed each, from published adult norms), and an exact solver that brings a chosen surface of the hand
@@ -14,7 +17,7 @@ In progress. The realistic hero's arms and hands, solved from targets rather tha
   every hero and clip minted before is unchanged.
 - **The studies** (`control/scripts/spikes/manipulator/`): `hand-measures.mjs` (the hand's controls, each word's bends,
   the thumb's path, opposition tip to tip) and `arm-envelope.mjs` (seeded targets through today's arm solver from the
-  guard: error, elbows, the punch line, time). The baseline: today's thumb curls in a fixed arc 35–46 mm in front of
+  guard: error, elbows, the punch line, time). The baseline: today's thumb curls in a fixed arc 29–46 mm in front of
   the palm and cannot meet the middle finger; the arm reaches within about a millimetre at most distances but takes
   about 0.2 s a solve, misses some cross-body and high targets at full reach, and lands near targets with the forearm
   45–66° off the line a straight punch needs.
