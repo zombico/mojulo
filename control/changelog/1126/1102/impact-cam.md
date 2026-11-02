@@ -19,3 +19,15 @@ moment overlays its own, eased with the moment.
   - **The presets**:
     - `finisher` frames the two of them;
     - `kill-cam` stands low on the downed and pushes in.
+- **The grade** (`control/lib/graph/scene/channels/grade.js`): the World page's first compositing stage, the last thing
+  laid over the frame. It rides the frame pass beside the far's softening, so the page keeps one full-frame pass.
+  - **The dials**:
+    - exposure, contrast, saturation;
+    - warmth (a split tone: the highlights toward amber and the shadows toward blue, or the other way);
+    - a vignette, film grain, chromatic aberration;
+    - a zoom blur toward a point;
+    - the letterbox bars, a flash, the inverted impact frame, a screen shake.
+  - **The words**: `film`, `noir`, `bleach`, `vivid`, `dream`, `cold`, `warm`, or `{ from: word, …dials }`.
+  - **A world's `grade`** reaches its page. `window.__mojGrade` sets it by hand and overlays a moment's look.
+  - **The pass draws only while the grade is off its rest.** Godot and Roblox grade with their own post stacks (marked
+    absent).
