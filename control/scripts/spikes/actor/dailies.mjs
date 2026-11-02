@@ -34,6 +34,7 @@ import { cueSheet } from '../../../lib/graph/persona/cues.js';
 import { rigFor, actSidecar, dzOf } from './act-sidecar.mjs';
 const { actBody } = await import('../../../lib/graph/actor/body.js');
 const { GESTURE_PRESETS } = await import('../../../lib/graph/polygonizer/hero-gesture.js');
+const { standOf } = await import('../../../lib/graph/actor/gestures.js');
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const argv = process.argv.slice(2), opt = {};
@@ -44,8 +45,8 @@ for (let i = 0; i < argv.length; i++) {
 }
 const out = path.resolve(opt.out ?? path.join(os.tmpdir(), 'actor-dailies'));
 mkdirSync(out, { recursive: true });
-// (the baseline hero's rig and its stand: the relaxed preset of its cast)
-const RIG = await rigFor(BASELINE.hero, path.join(out, 'rig.json')), STAND = GESTURE_PRESETS.relaxed[BASELINE.hero.cast] ?? GESTURE_PRESETS.relaxed.male;
+// (the baseline hero's rig and its stand: the relaxed preset's trunk and legs, the arms hanging, found on the rig)
+const RIG = await rigFor(BASELINE.hero, path.join(out, 'rig.json')), STAND = standOf(RIG, GESTURE_PRESETS.relaxed[BASELINE.hero.cast] ?? GESTURE_PRESETS.relaxed.male);
 
 // ─── the takes: one actor's read and its face's take, measured ─────────────────────────────────────────────────────
 const r3 = (v) => Math.round(v * 1000) / 1000;

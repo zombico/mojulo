@@ -1,10 +1,10 @@
 // the actor's body: gestures solved on the rig, placed on the read's clock, the stand living between them; read law by law
 import { describe, it, expect } from 'vitest';
 import { validateRig, rigNodesAt } from '../polygonizer/station-loft-rig.js';
-import { landmark, liteOf } from '../polygonizer/hero-grip.js';
+import { landmark, liteOf, holdArm } from '../polygonizer/hero-grip.js';
 import { GESTURE_PRESETS } from '../polygonizer/hero-gesture.js';
 import { heroRecord, expandLayeredManifest } from '../../mcp/tools/layered.js';
-import { GESTURES, GESTURE_NAMES, strokeOf, armsOf } from './gestures.js';
+import { GESTURES, GESTURE_NAMES, strokeOf, armsOf, standOf, STAND_ARMS } from './gestures.js';
 import { actBody, poseAt, actClip, GAP, LEAD } from './body.js';
 import { flatten, unflatten, SPEED } from './tracks.js';
 import { bodyLaws } from './readings.js';
@@ -14,7 +14,7 @@ import { BASELINE } from './baseline.js';
 
 // (the smallest rig with hands: a stylised hero's, expanded in milliseconds; the realistic one is the dailies')
 const R = validateRig(expandLayeredManifest({ kind: 'layered', title: 't', hero: heroRecord({ cast: 'female' }) }).recipe.rig);
-const STAND = GESTURE_PRESETS.relaxed.female;
+const STAND = standOf(R, GESTURE_PRESETS.relaxed.female);
 // (one gesture of each kind, chosen from the library: one hand, both hands, the head alone, the trunk)
 const kind = (f) => GESTURE_NAMES.find(f);
 const ONE = kind((w) => armsOf(w).length === 1), BOTH = kind((w) => armsOf(w).length === 2), HEAD = kind((w) => !GESTURES[w].arms && !GESTURES[w].spine && GESTURES[w].head), TRUNK = kind((w) => GESTURES[w].spine);
@@ -30,9 +30,27 @@ describe('the gestures', () => {
     }
   });
 
+  it('as played, a stroke puts each wrist where its solve aimed it (the elbows-down roll carried in its channels)', () => {
+    for (const w of [ONE, BOTH]) {
+      const S = strokeOf(R, w, 'R', STAND), n = rigNodesAt(liteOf(R), { ...STAND, ...S.channels }).nodes;
+      for (const [side, a] of Object.entries(S.arms)) expect(Math.hypot(...n[`wrist${side}`].map((v, i) => v - a.goal[i])), `${w} ${side}`).toBeLessThan(0.01);
+    }
+  });
+
+  it('the stand hangs both arms at the sides, each wrist clear of its hip, the stand\'s trunk and legs kept', () => {
+    const n = rigNodesAt(liteOf(R), STAND).nodes;
+    for (const [S, out] of [['R', 1], ['L', -1]]) {
+      expect(out * (n[`wrist${S}`][0] - n[`hip${S}`][0])).toBeGreaterThanOrEqual(STAND_ARMS.clear - 1e-9);
+      expect(n[`wrist${S}`][2]).toBeLessThan(n[`hip${S}`][2] + 0.1);
+      expect(STAND[`elbow${S}`]).toBe(STAND_ARMS.elbow);
+    }
+    for (const k of ['support', 'spine', 'pelvis']) expect(STAND[k]).toEqual(GESTURE_PRESETS.relaxed.female[k]);
+  });
+
   it('a one-handed gesture done with the left hand is the right\'s, mirrored', () => {
-    const r = strokeOf(R, ONE, 'R', STAND), l = strokeOf(R, ONE, 'L', STAND);
-    const n = rigNodesAt(liteOf(R), { ...STAND, ...r.channels }).nodes, m = rigNodesAt(liteOf(R), { ...STAND, ...l.channels }).nodes;
+    // (on the symmetric rest body: a stand's twist and weight are its own)
+    const r = strokeOf(R, ONE, 'R', {}), l = strokeOf(R, ONE, 'L', {});
+    const n = rigNodesAt(liteOf(R), r.channels).nodes, m = rigNodesAt(liteOf(R), l.channels).nodes;
     const mid = landmark(n, 'chest')[0];
     expect(Math.abs((n.wristR[0] - mid) + (m.wristL[0] - mid))).toBeLessThan(0.05);
     expect(Math.abs(n.wristR[2] - m.wristL[2])).toBeLessThan(0.05);
@@ -41,6 +59,18 @@ describe('the gestures', () => {
   it('the head and the trunk gestures move only their channels', () => {
     expect(Object.keys(strokeOf(R, HEAD, 'R', STAND).channels)).toEqual(['head']);
     expect(Object.keys(strokeOf(R, TRUNK, 'R', STAND).channels).sort()).toEqual(Object.keys({ ...GESTURES[TRUNK].spine && { spine: 1 }, ...GESTURES[TRUNK].head && { head: 1 } }).sort());
+  });
+});
+
+describe('holdArm\'s placed elbow', () => {
+  it('pulls the elbow to its place and still lands the wrist; absent, the arm is solved as before', () => {
+    const n = rigNodesAt(liteOf(R), {}).nodes, goal = [n.shoulderR[0] + 0.05, n.shoulderR[1] + 0.25, n.shoulderR[2] - 0.25], I = [[1, 0, 0], [0, 1, 0], [0, 0, 1]];
+    const elbowAt = [n.shoulderR[0] + 0.2, n.shoulderR[1] + 0.05, n.shoulderR[2] - 0.18];
+    const plain = holdArm(R, {}, 'R', goal, I), placed = holdArm(R, {}, 'R', goal, I, { elbowAt, elbowWeight: 40 });
+    expect(holdArm(R, {}, 'R', goal, I, { elbowWeight: Math.SQRT1_2 })).toEqual(plain);
+    const elbowOf = (a) => rigNodesAt(liteOf(R), { shR: a.sh, elbowR: a.elbow }).nodes.elbowR, off = (p) => Math.hypot(...p.map((v, i) => v - elbowAt[i]));
+    expect(placed.err).toBeLessThan(0.01);
+    expect(off(elbowOf(placed))).toBeLessThan(off(elbowOf(plain)));
   });
 });
 
@@ -80,7 +110,9 @@ describe('the body take', () => {
   });
 
   it('pose words survive the round trip through the channels', () => {
-    expect(unflatten(flatten(STAND).num, flatten(STAND).words)).toEqual(JSON.parse(JSON.stringify({ ...STAND })));
+    const P = GESTURE_PRESETS.relaxed.female;
+    expect(unflatten(flatten(P).num, flatten(P).words)).toEqual(JSON.parse(JSON.stringify({ ...P })));
+    expect(flatten(unflatten(flatten(STAND).num, flatten(STAND).words)).num).toEqual(flatten(STAND).num);
   });
 });
 

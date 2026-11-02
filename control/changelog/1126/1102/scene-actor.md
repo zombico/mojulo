@@ -27,7 +27,13 @@ its face, body and later its hands directed together on one clock, and its take 
     but never so fast that a joint turns faster than its limit. The shoulder, elbow, wrist and fingers arrive one
     after another. No two uses of a gesture are alike, and a gesture too close to the last on the same limbs is
     dropped or carries straight on from it.
-  - **The stand**: between gestures it shifts its carriage every few seconds, less often the stiller the style.
+  - **Near the trunk**: a hand there (a shrug, a hand to the chin, a clap, an offered palm) says where its elbow goes,
+    so the arm goes round the chest rather than through it (`holdArm` takes the elbow's place, `elbowAt`). An arm keeps
+    the place its solve found, whatever the style. A bigger style carries further past it at the apex and moves the
+    head and the trunk more.
+  - **The stand**: the actor stands with the preset's trunk and legs and its arms hanging at the sides, found on the
+    rig it plays on (`standOf`). Between gestures it shifts its carriage every few seconds, less often the stiller the
+    style.
   - **The machine gate**: the dailies read each body take law by law (the joints in order, the stroke on its word,
     the stand's life, the variation, the speeds and ranges). A dailies run beside a minted hero plays each take's body
     under its face in the hero-live viewer.
