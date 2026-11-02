@@ -18,3 +18,13 @@ its resource, put on a look and showed a toast. This theme makes them act.
   mind, not its own team, never a seat) and takes `hurt` as it lands, beside the struck fact, as a blow does (a hit, its
   flash, downed at 0). A beam with neither plays as before. The emission pins of every fixture that embeds the
   controllable runtime moved for it.
+- **A power fires only once it is the hero's, and only when its spend is there** (`mechanics.js`, the systems page). A
+  power gained at a later stage waits on its node in the stats (`hero.<power>` at rank 1 at least, bought on the stats
+  page or carried in); a power that spends a resource waits on it. Refused, the key says why in a toast ("wind-orb: not
+  gained yet", "not enough <resource>") and nothing fires or is spent. The starting stage's powers are the hero's kit. It used
+  to fire whether gained or not, the limit the systems page said.
+- **A later power's move is granted when its node is gained** (`levels.js` `laterGrants`, the game channel's
+  `powers.bought`). The page hears the stats: the moment the bus holds the power's node, its move (a double jump, a high
+  jump…) is the hero's, on a level whose map keys no door as much as on one that does. Seen in an exported page: before
+  its node, the example hero's `wind-orb` said "not gained yet" and fired nothing; with `hero.wind-orb` at 1 its orb
+  took a grunt from 20 to 8. A game with no later power emits as before, byte for byte.

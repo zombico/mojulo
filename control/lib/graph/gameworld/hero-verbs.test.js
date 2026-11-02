@@ -86,3 +86,22 @@ describe('an attack power lands on the nearest foe in front', () => {
     expect(() => readCastEffect('beam', { beam: { who: 'hero', to: 'b', hurt: -1 } }, 'then', ctx)).toThrow(/hurt is the hp it takes/);
   });
 });
+
+describe('a power fires only once it is the hero\'s and when its spend is there', () => {
+  const lv = runSteps(MEADOWMARK_HERO, { ref: 'm' }).find((s) => s.key.startsWith('level')).order.manifest, cue = (id) => lv.play.cues.find((c) => c.id === `power-${id}`);
+  it('the starting stage\'s power is the hero\'s kit; a later one waits on its node; refused, it says why', () => {
+    // (gust-step is the early stage's: no gained check; wind-orb the mid's: its node, hero.wind-orb, at 1 at least)
+    expect((cue('gust-step').if ?? []).some((c) => c.var === 'hero.gust-step')).toBe(false);
+    expect(cue('wind-orb').if).toContainEqual({ var: 'hero.wind-orb', gte: 1 });
+    expect(cue('wind-orb').else).toMatchObject({ as: 'toast', say: expect.stringMatching(/^wind-orb: not gained yet/) });
+  });
+
+  it('a later power\'s move is granted when its node is gained (the page hears the stats), an early one\'s from the start', () => {
+    const W = { ...MEADOWMARK_HERO, links: [], characters: { ...MEADOWMARK_HERO.characters, hero: { ...H, actions: { ...H.actions, powers: H.actions.powers.map((p) => (p.id === 'cyclone' ? { ...p, move: 'high-jump' } : p.id === 'gust-step' ? { ...p, move: 'double-jump' } : p)) } } } };
+    const m = runSteps(W, { ref: 'm' }).find((s) => s.key.startsWith('level')).order.manifest;
+    expect(m.game.powers).toMatchObject({ target: pilot(m).id, bought: 'hero', grants: { cyclone: { jumpSpeed: expect.any(Number) } } });
+    expect(m.game.powers.slice).toBeUndefined();
+    expect(m.game.powers.grants['gust-step']).toBeUndefined();
+    expect(pilot(m).rule.airJumps).toBe(1);
+  });
+});

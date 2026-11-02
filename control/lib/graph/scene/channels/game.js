@@ -164,7 +164,9 @@ ${game.chapters ? `  // CHAPTERS carried in (playscape/ui/chapters.js): a chapte
     const prevP = __BUS.processEvents;
     __BUS.processEvents = function (state, events) {
       const n0 = state.log.length, out = prevP(state, events);
-      for (let i = n0; i < state.log.length; i++) { const ev = state.log[i]; if (ev && typeof ev.type === 'string' && ev.type.indexOf('pickup:') === 0) __grant(ev.type.slice(7)); }
+      for (let i = n0; i < state.log.length; i++) { const ev = state.log[i]; if (ev && typeof ev.type === 'string' && ev.type.indexOf('pickup:') === 0) __grant(ev.type.slice(7)); }${game.powers.bought ? `
+      // (a power gained by the stats, its node bought or carried in at a rank: its move the moment the bus holds it)
+      for (const id in __GAME.powers.grants) if (!__pw.on[id] && ((state.vars && state.vars[__GAME.powers.bought + '.' + id]) || 0) >= 1) __grant(id);` : ''}
       return out;
     };
   }

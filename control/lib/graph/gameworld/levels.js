@@ -36,6 +36,7 @@ import { TRAVERSAL_MOVES, HERO_MOVES } from './actions.js';
 import { RIDE_H } from './ride.js';
 import { fixedStations, uprightCamera } from './cameras.js';
 import { SHOOT, PERSON, shoulderOf } from './quick.js';
+import { HOLDER } from './mechanics.js';
 import { readScreen } from '../game/screen.js';
 import { cubeOfWorld } from './intent.js';
 import { concernIds } from './concerns.js';
@@ -211,6 +212,15 @@ function startingGrants(G) {
   const keyed = new Set(powerKeys(G).map((p) => p.id)), staged = (A.progression ?? []).length > 0;
   const early = new Set(staged ? (A.progression.find((s) => s.stage === 'early')?.gains ?? []) : A.powers.map((p) => p.id));
   return A.powers.filter((p) => p.move && early.has(p.id) && !keyed.has(p.id)).map((p) => p.move);
+}
+// THE LATER POWERS' MOVES: a power with a `move` gained after the starting stage (not one that keys a map's door) is the
+// hero's the moment its node is gained (the stats' `bought`), and from the start of a level where it already is
+// (game.powers `bought`, scene/channels/game.js). → [{ id, move }]
+function laterGrants(G) {
+  const A = G.characters?.hero?.actions, prog = A?.progression ?? [];
+  if (!A?.powers?.length || !prog.length) return [];
+  const keyed = new Set(powerKeys(G).map((p) => p.id)), early = new Set(prog.find((s) => s.stage === 'early')?.gains ?? []);
+  return A.powers.filter((p) => p.move && !early.has(p.id) && !keyed.has(p.id) && prog.some((s) => s.gains.includes(p.id))).map((p) => ({ id: p.id, move: p.move }));
 }
 function withMoves(P, moves, grants = []) {
   if (!moves && !grants.length) return P;
@@ -637,12 +647,12 @@ function levelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = null, me
     pilotPart = { ...pilotPart, events: { ...ev, reactions: [...(Array.isArray(ev.reactions) ? ev.reactions : []), ...moves] } };
   }
   // POWER KEYS (a map world): every stage hears what the hero holds, and a held power with a move changes the hero's rule
-  const pk = map ? powerKeys(G) : [];
-  if (pk.length) {
-    game.consumes = [{ slice: 'powers' }];
+  const pk = map ? powerKeys(G) : [], later = heroRef ? laterGrants(G) : [];
+  if (pk.length || later.length) {
+    if (pk.length) game.consumes = [{ slice: 'powers' }];
     const base = heroRef ? pilotPart.entities[0].rule : null;
-    const grants = Object.fromEntries(base ? pk.filter((p) => p.move).map((p) => [p.id, TRAVERSAL_MOVES[p.move].rule(base)]) : []);
-    if (Object.keys(grants).length) game.powers = { slice: 'powers', target: pilotPart.entities[0].id, grants };
+    const grants = Object.fromEntries(base ? [...pk, ...later].filter((p) => p.move).map((p) => [p.id, TRAVERSAL_MOVES[p.move].rule(base)]) : []);
+    if (Object.keys(grants).length) game.powers = { ...(pk.length ? { slice: 'powers' } : {}), target: pilotPart.entities[0].id, grants, ...(later.length ? { bought: HOLDER } : {}) };
     // a power that gives the wall or the line: the pilot's figure plays their states' fallbacks from the start
     if (Object.values(grants).some((g) => g.wall || g.gear) && pilotPart.figures) pilotPart = { ...pilotPart, figures: Object.fromEntries(Object.entries(pilotPart.figures).map(([k, f]) => [k, f && f.clips ? { ...f, clips: traversalStates(f.clips) } : f])) };
   }

@@ -240,7 +240,7 @@ export function resolveMechanics(G, { actions, equipment, adornment = null }) {
     if (own.spends === 0) delete p.spends; else p.spends = { [res]: own.spends };
   }
   // what the runtime cannot do yet: said on the page, never an advice the creator could act on
-  const limits = ['a power fires on its key whether it has been gained or can be afforded: the bus has no such guard yet (the resource is held at 0)', 'an attack lands by the power stat\'s base: the levels\' raises do not reach it yet', 'the HP bar is designed on the UI board: the page draws it once the body publishes its hp to the bus (only the piloted shooter does today)'];
+  const limits = ['an attack lands by the power stat\'s base: the levels\' raises do not reach it yet', 'the HP bar is designed on the UI board: the page draws it once the body publishes its hp to the bus (only the piloted shooter does today)'];
 
   const play = { stats: statsOut, ui: M.ui ?? 'propose' };
   const hud = M.hud ?? 'derive';
@@ -248,8 +248,14 @@ export function resolveMechanics(G, { actions, equipment, adornment = null }) {
   else if (hud === 'derive') Object.assign(play, deriveHud(statsOut, res, epochs));
   // the keys: each power, and the status page when the HUD has one
   const inputs = [...powers.filter((p) => p.key).map((p) => ({ on: 'key', key: p.key, emit: { type: `power-${p.id}` } })), ...(play.menus ? [{ on: 'key', key: KEYS.status, emit: { type: 'status' } }] : [])];
+  // (a power fires only once it is the hero's and when its spend is there: the starting stage's powers are the hero's
+  // kit from the first level, a later one once its node is gained, as the system gains it; refused, it says so)
+  const gate = (p) => {
+    const later = stageIx(stageOf.get(p.id)) > 0, ifs = [...(later ? [{ var: statVar(HOLDER, p.id), gte: 1 }] : []), ...(p.spends ? [{ var: statVar(HOLDER, res), gte: p.spends[res] }] : [])];
+    return ifs.length ? { if: ifs, else: { say: `${p.id}: ${later && p.spends ? `not gained yet, or not enough ${res}` : later ? 'not gained yet' : `not enough ${res}`}`, as: 'toast' } } : {};
+  };
   play.cues = [...(play.cues ?? []), ...powers.filter((p) => p.key).map((p) => ({
-    id: `power-${p.id}`, when: { on: `power-${p.id}` },
+    id: `power-${p.id}`, when: { on: `power-${p.id}` }, ...gate(p),
     then: [...(p.spends ? [{ grant: { res, by: -p.spends[res] } }] : []), ...(p.look ? [{ status: { who: HOLDER, is: p.id, look: p.look, for: 1.5 } }] : []),
       // (an attack lands: its beam from the hero's hand at the nearest foe in front, taking the hero's power × its per)
       ...(p.hurt && p.attack ? [{ beam: { who: HOLDER, to: { nearest: POWER_REACH }, is: p.attack, hurt: r2(statsOut.stats.find((x) => x.id === p.hurt.stat)?.base * p.hurt.per || p.hurt.per) } }] : []),
