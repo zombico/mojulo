@@ -30,6 +30,11 @@
   each shop's front by its own dice (its sign, its members, its tilt, its stripes, its posters), no two agreeing. Its
   service yard holds the study's receptacles (a front-load dumpster where it has the room, else wheelie bins: true to
   size, askew in a toon register) and its car is a toy car.
+  An EDGE's avenue row (shops, offices, a converted house) is built attached and even: its offices and its converted
+  houses each raise a false front of their own, so no two stand one height (a crown is chosen from the building's real
+  top, its roof's ridge or a sign above its wall included); its LANE is laid in a muted patchwork of skewed slabs and
+  splashed with ink, each garage on it its own hue never the next one's, its door an ink, and a wheelie bin of the
+  study out by each garage's door.
 - **A loud street** (`exaggerate.streets`, `geotown/street-loud.js`; the `street` hand carries one), by the shops'
   principles over a plan that never moves: the walks laid in big pastel slabs over their own ground, cut on skewed lines
   (their ends too: no slab square), each a tint other than its neighbour's, set in a grout of the walk; the kerbs in

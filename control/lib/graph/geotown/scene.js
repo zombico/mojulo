@@ -84,6 +84,16 @@ const CELL = 6, PARK_CELL = 6, MARGIN_CELL = 6;
 // the finishes laid on a face standing up (a kerb's, a fence's) rather than on the ground
 const UPRIGHT = new Set(['kerb', 'fence-board', 'fence-brick', 'fence-stone']);
 const FINISH_SEEDS = { 'fence-board': 163, 'fence-brick': 165, 'fence-stone': 167, road: 151, walk: 141, furnish: 143, path: 145, side: 147, service: 149, 'park-path': 153, step: 155, kerb: 157, drive: 161 };
+/** A false front's crown `c` (its peak 1.45·c over the wall's top `base`) so the building's top, the higher of that
+ *  peak and its own roof's (`roofTop`), stands at least `step` from its row neighbour's (`prev`), its cap's thickness
+ *  allowed for; raised clear over both where the dice's own falls within. */
+function crownClear(c, prev, base, roofTop, step) {
+  const top = (k) => Math.max(roofTop, base + 1.45 * k + 0.3), m = 0.15;
+  if (prev === undefined || Math.abs(top(c) - prev) >= step + m) return c;
+  // (the lower way first, where the roof itself already stands clear below; else over both)
+  if (prev - roofTop >= step + m && prev - (base + 1.45 * 0.35 + 0.3) >= step + m) return Math.max(0.35, (prev - step - m - 0.3 - base) / 1.45);
+  return (Math.max(prev, roofTop) + step + m - 0.3 - base) / 1.45 + 0.02;
+}
 // a design's eave (its walls' top) and its top, in its own frame (a loud pair's second half is raised over the eave)
 const dz0Eave = (dz) => dz.dims.n * dz.dims.storeyH;
 const dz0Top = (dz) => Math.max(...dz.faces.map((f) => Math.max(...f.corners.map((c) => c[2]))));
@@ -129,7 +139,7 @@ function siteLoud(R, pop) {
   };
 }
 // the rows of flats: built even, so a loud one raises a false front of its own
-const FLATS = new Set(['lowrise', 'apartments', 'school']);
+const FLATS = new Set(['lowrise', 'apartments', 'school', 'avenue']);
 // a language's trims: what a loud home paints in its own ink
 const TRIM_PARTS = new Set(['surround', 'sill', 'lintel', 'frame', 'trim', 'shutter', 'cornice']);
 // a building's kit family: a mansion's its own
@@ -384,7 +394,8 @@ export function assembleGeotownScene(m, ctx = {}) {
   const yardLoud = (pl, f) => {
     if (!pl.loudHome || !HY?.yard) return null;
     if (FENCE_ROLES.has(f.role)) return pl.loudFence;
-    if (f.role === 'shed') return pl.loudShed;
+    if (f.role === 'shed' || f.role === 'garage') return pl.loudShed;
+    if (f.role === 'door') return pl.loudTrim;
     if (f.role === 'roof' || f.role === 'timber' || f.role === 'trampoline' || f.role === 'play') return pl.loudThing;
     if (f.role === 'line') { const cu = f.corners.reduce((a, c) => a + c[0], 0) / f.corners.length; return Math.round(cu / 2.6) % 2 ? '#f7f3ea' : pl.loudThing; }
     if (f.role === 'deck') { const cu = f.corners.reduce((a, c) => a + c[0], 0) / f.corners.length; return Math.floor(cu / 0.45) % 2 ? pl.loudDeck[0] : pl.loudDeck[1]; }
@@ -431,15 +442,14 @@ export function assembleGeotownScene(m, ctx = {}) {
         pl.loudWall = other(LOUD_WALLS, [last.wall, pairWall.get(pl.pair)].filter(Boolean));
         // (the picks kept raw, an ink of INK, so the next home's `never the last one's` compares like with like; painted popped)
         pl.loudTrimInk = other(INK, [last.trim].filter(Boolean)); pl.loudTrim = popHex(pl.loudTrimInk, HY.pop);
-        pl.loudFenceInk = other(INK, [last.fence].filter(Boolean)); pl.loudFence = popHex(pl.loudFenceInk, HY.pop); pl.loudShed = other(LOUD_WALLS, [pl.loudWall]); pl.loudThing = popHex(other(INK, [pl.loudFenceInk]), HY.pop);
+        pl.loudFenceInk = other(INK, [last.fence].filter(Boolean)); pl.loudFence = popHex(pl.loudFenceInk, HY.pop); pl.loudShed = other(LOUD_WALLS, [pl.loudWall, last.shed].filter(Boolean)); pl.loudThing = popHex(other(INK, [pl.loudFenceInk]), HY.pop);
         const tint = other(SLAB_TINTS, []); pl.loudDeck = [popHex('#b08050', HY.pop * 0.5), leanHue('#b08050', tint, 0.8)];
-        homePrev.set(`${pl.block}:${pl.side}`, { wall: pl.loudWall, trim: pl.loudTrimInk, fence: pl.loudFenceInk });
+        homePrev.set(`${pl.block}:${pl.side}`, { wall: pl.loudWall, trim: pl.loudTrimInk, fence: pl.loudFenceInk, shed: pl.loudShed });
         // (a block of flats, a low-rise's or a walk-up's: its rows built even, so each raises a false front of its own
         // form, its top at least `step` from its row neighbour's: front-loud.js)
         if (HY.step > 0 && FLATS.has(familyOf(pl))) {
           const was = rowTop.get(`${pl.block}:${pl.side}`), base = pad + dz.dims.n * dz.dims.storeyH;
-          let c = 0.6 + 1.2 * Rh();
-          if (was && Math.abs(base + c * 1.45 - was.top) < HY.step) c = was.top + HY.step - base > 0.4 * 1.45 ? (was.top + HY.step - base) / 1.45 + 0.05 : c + (HY.step + 0.1) / 1.45;
+          const c = crownClear(0.6 + 1.2 * Rh(), was?.top, base, pad + dz0Top(dz), HY.step);
           pl.crownForm = other(CROWN_FORMS, [was?.form].filter(Boolean)); pl.loud = true;
           pl.loudCrown = { c: r5(c), form: pl.crownForm, frame: pl.loudTrim };
         }
@@ -455,7 +465,7 @@ export function assembleGeotownScene(m, ctx = {}) {
       if (Kf?.shop && EX?.front) {
         const Rl = streamOf(seed, 'loud', pl.id), sd = Math.floor(Rl() * 1e9) + 1, was = rowTop.get(`${pl.block}:${pl.side}`), prev = was?.top, base = pad + dz.dims.n * dz.dims.storeyH, step = EX.front.step;
         let crown = step > 0 ? 0.5 + 1.1 * Rl() : 0;
-        if (step > 0 && prev !== undefined && Math.abs(base + crown * 1.45 - prev) < step) crown = prev + step - base > 0.4 * 1.45 ? (prev + step - base) / 1.45 + 0.05 : crown + (step + 0.1) / 1.45;
+        if (step > 0) crown = crownClear(crown, prev, base, pad + dz0Top(dz), step);
         // (each its own: its walls' hue and its false front's form, never its row neighbour's)
         const other = (list, not) => { const pool = list.filter((x) => x !== not); return pool[Math.floor(Rl() * pool.length)]; };
         pl.loudWall = other(LOUD_WALLS, was?.wall); pl.crownForm = other(CROWN_FORMS, was?.form);
@@ -537,7 +547,14 @@ export function assembleGeotownScene(m, ctx = {}) {
     for (const q of lessRects([0, F3, w, dep], [apron, Mn?.garage, mApron, Mu?.garage].filter(Boolean))) quadAt(...q, pl.rear, pl.rear === 'back' ? lawn : col.service);
     if (apron) { quadAt(...apron, 'drive', col.drive); quadAt(...Mn.garage, 'drive', col.drive); for (const f of garageOf(Mn.garage)) yardFace(pl, f); }
     if (mApron) { quadAt(...mApron, 'drive', col.drive); quadAt(...Mu.garage, 'drive', col.drive); if (pl.built) for (const f of garageOf(Mu.garage)) yardFace(pl, f); }
-    if (pl.laneGarage && pl.built) for (const f of garageOf(pl.laneGarage, 'v1')) yardFace(pl, f);
+    if (pl.laneGarage && pl.built) {
+      for (const f of garageOf(pl.laneGarage, 'v1')) yardFace(pl, f);
+      // (a loud home's lane garage has its bin out by its door: the study's wheelie bin, askew in a toon register)
+      if (pl.loudHome) {
+        const [g0, , g1, gv1] = pl.laneGarage, bu = g1 + 0.55 < pl.w ? g1 + 0.45 : g0 - 0.45, bv = gv1 - 0.45, Rr = streamOf(seed, 'lane-bin', pl.id);
+        for (const f of receptacleOf('wheelie-240', proportions(Rr, TOON_CARS), Rr)) yardFace(pl, { ...f, role: 'bin', corners: f.corners.map(([x, y, z]) => [bu - x, bv - y, z]), out: [-f.out[0], -f.out[1], f.out[2]] });
+      }
+    }
     // a hedge along a house's front line, a share of the households keep one (not across the path)
     if (pl.kind === 'houses' && F > 1.5 && R() < P.grow.front) {
       hedges++;
@@ -910,6 +927,13 @@ export function assembleGeotownScene(m, ctx = {}) {
     if (!B.lane) continue;
     const [x0, y0, x1, y1] = B.lane, ax = x1 - x0 >= y1 - y0, xs = ax ? breaks(x0, x1, plotXs, CELL) : [x0, x1], ys = ax ? [y0, y1] : breaks(y0, y1, plotYs, CELL);
     for (let j = 0; j + 1 < ys.length; j++) for (let i = 0; i + 1 < xs.length; i++) put([[xs[i], ys[j]], [xs[i + 1], ys[j]], [xs[i + 1], ys[j + 1]], [xs[i], ys[j + 1]]].map(([x, y]) => [x, y, S(x, y)]), 'geotown:lane', col.lane);
+    // (a loud lane: a patchwork of skewed slabs over it, muted (a lane is driven), and ink splashed on it: street-loud.js)
+    if (HY) {
+      const Rl = streamOf(seed, 'loud-lane', B.id);
+      for (const sl of slabsOf(B.lane, ax ? 'x' : 'y', S, { skew: 0.4, pop: 0.35 }, col.lane, Rl)) put(sl.corners, 'geotown:slab', sl.hex);
+      const n = Math.floor(((x1 - x0) * (y1 - y0)) / 90 + Rl()), pk = inkPicker(Rl, HY.pop);
+      for (let k = 0; k < n; k++) { const r = 0.4 + 0.6 * Rl(), px = x0 + r + Rl() * Math.max(0, x1 - x0 - 2 * r), py = y0 + r + Rl() * Math.max(0, y1 - y0 - 2 * r); for (const f of groundSplat(px, py, r, (x, y) => S(x, y) + 0.01, pk('splat'), Rl)) put(f.corners, 'geotown:decal', f.hex); }
+    }
     for (const pl of d.plots.filter((q) => q.block === B.id)) {
       const a = W(pl, 0, pl.d, 0), b = W(pl, pl.w, pl.d, 0), za = S(a[0], a[1]), zb = S(b[0], b[1]);
       if (Math.abs(pl.pad - (za + zb) / 2) < 0.01) continue;

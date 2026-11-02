@@ -420,3 +420,22 @@ describe('a loud row never hands its neighbour its own trim', () => {
     expect(pairs).toBeGreaterThan(0);
   });
 });
+
+describe("an edge and its lane drawn loud: the avenue's row never one height, the lane patched and inked, a bin by each garage", () => {
+  const S0 = { kind: 'geocube', show: 'geotown', seed: 3, geotown: { segment: 'edge', hills: { height: 2 } } };
+  const A = assembleGeotownScene({ ...S0, cube: 'valley-morning' }), X = assembleGeotownScene({ ...S0, cube: { from: 'valley-morning', exaggerate: { from: 'street', lean: 0, kit: { lean: 0, chunk: 1 } } } });
+  it('keeps every door where it was, and stands no two of the row one height', () => {
+    expect(X.anchors.map((a) => [a.id, a.at])).toEqual(A.anchors.map((a) => [a.id, a.at]));
+    expect(X.geotown.laws.find((l) => l.law === 'rooflines').ok).toBe(true);
+  });
+  it('lays its lane in slabs and ink over the lane as it was, and puts a bin out by each garage', () => {
+    const lane = (S) => JSON.stringify(S.faces.filter((f) => f.group === 'geotown:lane').map((f) => f.corners));
+    expect(lane(X)).toBe(lane(A));
+    expect(X.faces.filter((f) => f.group === 'geotown:slab').length).toBeGreaterThan(A.faces.filter((f) => f.group === 'geotown:slab').length);
+    const garages = (S) => new Set(S.faces.filter((f) => f.group === 'geotown:garage').map((f) => f.fill));
+    if (A.faces.some((f) => f.group === 'geotown:garage')) {
+      expect(garages(X).size).toBeGreaterThan(garages(A).size);
+      expect(X.faces.filter((f) => f.group === 'geotown:bin').length).toBeGreaterThan(A.faces.filter((f) => f.group === 'geotown:bin').length);
+    }
+  });
+});
