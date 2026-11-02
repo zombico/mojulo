@@ -45,7 +45,8 @@
  *                         target. `to: { nearest: { range?, cone? } }`: the nearest standing foe (a mind, not its own
  *                         team) in front of who (within cone radians of its heading, 0.7) within range (30 m), or, with
  *                         none, straight ahead at range. `hurt`: the hp it takes when it lands, as a blow does (a hit,
- *                         its flash; downed at 0)
+ *                         its flash; downed at 0); `{ by: 'power', per, base }` its caster's power as it fires (the
+ *                         stats bound to its body) × per, or base where it has none
  *   castFacts(state, prev) → { events, prev }   edge-detected happenings, as bus events with `entity`:
  *     down · gone · spawned · arrive { at: the point's name, last: 1 | 0, pose? } · stuck · faded { is } (a status ran
  *     out, here, or was lifted) · struck { by, beam } (a beam reached it) · hit:<id> { by, dmg?, harm?, head? } once per
@@ -193,7 +194,9 @@ export function buildCast(E) {
         const reach = N && Number.isFinite(N.range) ? N.range : 30;
         const to = T ? T.transform.pos.slice() : N ? [f[0] + Math.cos(h) * reach, f[1] + Math.sin(h) * reach, f[2] + 1.15] : pt3(o.to, 0), D = Math.hypot(to[0] - from[0], to[1] - from[1], to[2] - from[2]);
         const hit = t + Math.min(...(o.land || [[0, 0]]).map(([a, b]) => a + b * D));
-        moment(state, { is: 'beam', at: from, from, to, ...(T ? { target: T.id } : {}), by: e.id, name: o.name || null, spec: o.spec, ...(o.color !== undefined ? { color: o.color } : {}), ...(T && Number.isFinite(o.hurt) && o.hurt > 0 ? { hurt: o.hurt } : {}), hit, until: hit + 8 });
+        // (a hurt by the caster's power, `{ by: 'power', per, base }`: its power stat as it fires, × per; base without one)
+        const hu = o.hurt && typeof o.hurt === 'object' ? Math.round((Number.isFinite(e.power) ? e.power * o.hurt.per : o.hurt.base) * 100) / 100 : o.hurt;
+        moment(state, { is: 'beam', at: from, from, to, ...(T ? { target: T.id } : {}), by: e.id, name: o.name || null, spec: o.spec, ...(o.color !== undefined ? { color: o.color } : {}), ...(T && Number.isFinite(hu) && hu > 0 ? { hurt: hu } : {}), hit, until: hit + 8 });
         const land = T ? feet(T) : to;
         if (o.spec.impact) puff(state, { is: o.spec.impact, ...(o.spec.impactSpec ? { spec: o.spec.impactSpec } : {}), ...(o.color !== undefined ? { color: o.color } : {}) }, land, hit);
         if (o.spec.shake) moment(state, { is: 'shake', at: land, k: o.spec.shake, for: 0.4, t0: hit });

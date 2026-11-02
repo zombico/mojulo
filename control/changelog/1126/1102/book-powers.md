@@ -60,3 +60,16 @@ its resource, put on a look and showed a toast. This theme makes them act.
   waited on it for good. The equipment now waits on the stats only where the world has a systems page; without one it
   is made once the hero is settled. The character book says why. Seen in a composed crawler's run: its sword made as
   `gear-sword`, every step ready, nothing left waiting.
+- **An attack's hurt follows the power stat as it rises** (`gameworld/mechanics.js`, `playscape/stats`,
+  `worlds/controllable/cast.js`). An attack power took the power stat's base × its `per`, fixed when the level was laid,
+  so a hero ten levels on hit as hard as at the start. The systems now bind the power stat to the hero's body
+  (`play.stats.bodies.power`, beside `hpMax`), and an attack's beam takes `hurt: { by: 'power', per, base }`: the
+  caster's power stat as it fires, raised by every level, × per, or `base` where no stat is bound. The systems page no
+  longer lists it as a limit.
+- **A JRPG from a sentence runs** (`gameworld/foe-casting.js`, `runner.js`). The casting call cast real-time foes for
+  every genre whose hero fights, a JRPG included, whose foes are its party battles' packs. A stage then laid two
+  `fail-on-death` (the foes' hits and the battle's own) and the run refused its level ("var 'hp' conflicts (20 vs 1)").
+  Now:
+  - a genre that fights only turn by turn is not cast real-time foes;
+  - on a stage the party battles are fought on, standing foes are cleared but take no second hp: the battle's
+    `fail-on-death` is the level's end.

@@ -78,7 +78,9 @@ describe('an attack power lands on the nearest foe in front', () => {
     const lv = runSteps(MEADOWMARK_HERO, { ref: 'm' }).find((s) => s.key.startsWith('level')).order.manifest;
     const cue = lv.play.cues.find((c) => c.id === 'power-wind-orb'), beam = cue.then.find((t) => t.beam)?.beam;
     expect(beam).toMatchObject({ who: 'hero', to: { nearest: { range: 24, cone: 0.7 } }, is: 'orb' });
-    expect(beam.hurt).toBeGreaterThan(0);
+    // (the hero's power stat as it fires, raised by its levels, × the power's per: 1.2 for the second; 10 × 1.2 at the base)
+    expect(beam.hurt).toEqual({ by: 'power', per: 1.2, base: 12 });
+    expect(lv.play.stats.bodies).toMatchObject({ hpMax: 'hp', power: 'power' });
     // (a power with no attack fires none)
     expect(lv.play.cues.find((c) => c.id === 'power-gust-step').then.some((t) => t.beam)).toBe(false);
   });
@@ -88,6 +90,8 @@ describe('an attack power lands on the nearest foe in front', () => {
     expect(readCastEffect('beam', { beam: { who: 'hero', to: { nearest: { range: 10 } }, hurt: 3 } }, 'then', ctx)).toMatchObject({ to: { nearest: { range: 10 } }, hurt: 3 });
     expect(() => readCastEffect('beam', { beam: { who: 'hero', to: { nearest: { reach: 10 } } } }, 'then', ctx)).toThrow(/nearest: \{ range\?: metres, cone\?: radians \}/);
     expect(() => readCastEffect('beam', { beam: { who: 'hero', to: 'b', hurt: -1 } }, 'then', ctx)).toThrow(/hurt is the hp it takes/);
+    expect(readCastEffect('beam', { beam: { who: 'hero', to: 'b', hurt: { by: 'power', per: 2, base: 4 } } }, 'then', ctx)).toMatchObject({ hurt: { by: 'power', per: 2, base: 4 } });
+    expect(() => readCastEffect('beam', { beam: { who: 'hero', to: 'b', hurt: { by: 'might', per: 2, base: 4 } } }, 'then', ctx)).toThrow(/\{ by: 'power', per, base \}/);
   });
 });
 
@@ -121,7 +125,7 @@ describe('a level\'s powers read back as data, for a reader that does not run it
     expect(R.map((r) => [r.id, r.key])).toEqual([['gust-step', '1'], ['wind-orb', '2'], ['cyclone', '3']]);
     expect(R[0]).toMatchObject({ holder: 'hero', gained: { at: 'start' } });
     expect(R[0].refusal).toBeUndefined();
-    expect(R[1]).toMatchObject({ gained: { at: 'stats', var: 'hero.wind-orb', gte: 1 }, refusal: 'wind-orb: not gained yet', attack: { is: 'orb', from: 'hero', at: 'nearest-foe', range: 24, cone: 0.7, hurt: 12 } });
+    expect(R[1]).toMatchObject({ gained: { at: 'stats', var: 'hero.wind-orb', gte: 1 }, refusal: 'wind-orb: not gained yet', attack: { is: 'orb', from: 'hero', at: 'nearest-foe', range: 24, cone: 0.7, hurt: { by: 'power', per: 1.2, base: 12 } } });
     expect(R[0].attack).toBeUndefined();
   });
 

@@ -317,7 +317,7 @@ export function runSteps(world, { ref, lookup } = {}) {
     // (the hero's hp is its body's own where the systems bind the hp stat to it and no battle on the stage reads the
     // level's: fail-on-death and the hazards on the body, a touch's cost the same share of its hp; foes.js onBody)
     const hpBase = !fight && !G.levels[s.level]?.goal?.boss ? bodyHpBase(B.mechanics) : null;
-    const GA0 = goalArgs(G, s, lastOf, ref), GA = hpBase && GA0.goal ? { ...GA0, goal: (ends) => onBody(GA0.goal(ends), hpBase).mechanics } : GA0;
+    const GA0 = goalArgs(G, s, lastOf, ref, { fought: !!fight }), GA = hpBase && GA0.goal ? { ...GA0, goal: (ends) => onBody(GA0.goal(ends), hpBase).mechanics } : GA0;
     const hostile = hostileOf(G, s, foeRefs, true, hpBase ? onBody([{ kind: 'fail-on-death', hits: LEVEL_GOAL.hit }], hpBase).hurt : null);
     const mintOf = folks[i] ? new Map(folks[i].bodies.mints.map((m) => [m.key, m])) : null;
     const folk = folks[i] ? folkExtra(folks[i], (k) => folkRef[folkMintKey(folks[i], mintOf.get(k))]) : null;
@@ -388,7 +388,7 @@ const bossed = (G) => G.ids.some((id) => G.levels[id].goal?.boss);
 const HERO_CAMERAS = Object.freeze(['top-down', 'side', 'third-person', 'fixed']);
 const guarded = (G) => G.ids.some((id) => G.levels[id].goal?.guards);
 const lastStages = (stages) => { const out = {}; for (const s of stages) if (s.section !== 'interior' && !s.building?.ref) out[s.level] = s.index; return out; };
-function goalArgs(G, s, lastOf, ref) {
+function goalArgs(G, s, lastOf, ref, { fought = false } = {}) {
   const goal = G.levels[s.level]?.goal, foes = G.levels[s.level]?.foes !== undefined;
   if (!goal && !foes) return {};
   const last = lastOf[s.level] === s.index;
@@ -400,9 +400,10 @@ function goalArgs(G, s, lastOf, ref) {
   }
   if (!foes) return own;
   // a level's foes (foes.js): on a stage where they stand, the hero's hp takes their hits (the goal's own hp when it has
-  // one); a stage they do not reach plays its goal as before
+  // one); a stage they do not reach plays its goal as before. On a stage the party battles are fought on, the battle's
+  // own fail-on-death is the level's end: the foes stand and are cleared, their hits taking no second hp
   const mech = (ends) => levelGoalMechanics(goal ?? {}, ends, { last });
-  return { ...own, goal: (ends) => (foePlacements(G, s.level, ends).length ? withFoeWin(G, s.level, ends, withFoeHits(mech(ends))) : mech(ends)) };
+  return { ...own, goal: (ends) => (foePlacements(G, s.level, ends).length ? withFoeWin(G, s.level, ends, fought ? mech(ends) : withFoeHits(mech(ends))) : mech(ends)) };
 }
 /** The bestiary's figures (foes.js): a beast for each entry some level stands, at `<ref>-foes-<id>`, made through the
  * animal door with its skin's oozes (a person dressed as a crew's through the hero door), in the WORLD'S LOOK (cast-setting.js settingOfGame: its tradition's light, and what

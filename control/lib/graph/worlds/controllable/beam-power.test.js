@@ -44,6 +44,18 @@ describe('a power\'s attack finds the nearest foe in front and lands on it', () 
     expect(v.byId.behind.body.hp).toBe(20);
   });
 
+  it('a hurt by the caster\'s power takes its power stat as it fires × per, its base where it has none', () => {
+    const by = { by: 'power', per: 1.5, base: 6 };
+    // (the stats kernel binds it onto the body after the world is made: applyStatBodies)
+    const w = E.createWorld({ entities: [at('hero', [0, 0, 0], { pilotable: true }), foe('near', [6, 0, 0])] });
+    w.byId.hero.power = 12;
+    fire(w, by); until(w);
+    expect(w.byId.near.body.hp).toBe(2);              // 20 - 12 × 1.5
+    const v = E.createWorld({ entities: [at('hero', [0, 0, 0], { pilotable: true }), foe('near', [6, 0, 0])] });
+    fire(v, by); until(v);
+    expect(v.byId.near.body.hp).toBe(14);             // 20 - 6
+  });
+
   it('a beam without hurt lands as it always did: struck, no hp taken', () => {
     const w = E.createWorld({ entities: [at('hero', [0, 0, 0], { pilotable: true }), foe('near', [6, 0, 0])] });
     E.castOps(w, [{ op: 'beam', who: 'hero', to: 'near', spec, land: beamLanding(spec) }]);

@@ -64,7 +64,7 @@ export const CAST_THEN = Object.freeze({
   puff: `{ puff: who | { who? | at: place, is?, color?, shake?: 0..1 } } a moment at a character's feet or a place: is ${PUFFS.join(', ')} (smoke by default); shake shakes the camera too`,
   shake: '{ shake: k | { k, for? } } the camera shakes, k 0..1 (0.5 a thump, 1 a quake), over for seconds (0.4), dying away',
   explode: `{ explode: who | { who? | at: place, is?, color?, scale? } } an explosion at a character's feet or a place: is a preset (${EXPLOSION_NAMES.join(', ')}), a name in play.explosions, or its parts (blast by default); scale sizes it`,
-  beam: `{ beam: { who, to: who | place | { nearest: { range?, cone? } }, is?, color?, hurt? } } who fires an attack from its hand at a character, a place, or the nearest foe in front of it (within range m, 30, and cone radians, 0.7; none, straight ahead): is a preset (${BEAM_NAMES.join(', ')}), a name in play.beams, or its strands (orb by default); struck fires when it lands on a character, and hurt is the hp it takes then`,
+  beam: `{ beam: { who, to: who | place | { nearest: { range?, cone? } }, is?, color?, hurt? } } who fires an attack from its hand at a character, a place, or the nearest foe in front of it (within range m, 30, and cone radians, 0.7; none, straight ahead): is a preset (${BEAM_NAMES.join(', ')}), a name in play.beams, or its strands (orb by default); struck fires when it lands on a character, and hurt is the hp it takes then (a number, or { by: 'power', per, base }: the caster's power stat as it fires × per)`,
 });
 // how a character comes or goes (the page plays it on the body, or on a ghost of it as it goes)
 export const TRANSITS = Object.freeze(['smoke', 'hologram', 'scan', 'transporter', 'galvatron']);
@@ -199,7 +199,12 @@ export function readCastEffect(k, t, where, ctx = {}) {
       if (Object.keys(o.to).join() !== 'nearest' || !N || typeof N !== 'object' || Array.isArray(N) || Object.keys(N).some((k) => !['range', 'cone'].includes(k)) || [N.range, N.cone].some((v) => v !== undefined && !(Number.isFinite(v) && v > 0))) throw new Error(`${w}.to: the nearest foe is { nearest: { range?: metres, cone?: radians } }`);
       out.to = { nearest: { ...(N.range !== undefined ? { range: N.range } : {}), ...(N.cone !== undefined ? { cone: N.cone } : {}) } };
     } else out.to = isStr(o.to) ? o.to : readPlace(o.to, `${w}.to`);
-    if (o.hurt !== undefined) { if (!(Number.isFinite(o.hurt) && o.hurt > 0)) throw new Error(`${w}.hurt is the hp it takes when it lands, above 0`); out.hurt = o.hurt; }
+    if (o.hurt !== undefined) {
+      // (a number, or by the caster's power as it fires: { by: 'power', per, base })
+      const H = o.hurt, byPower = H && typeof H === 'object' && !Array.isArray(H);
+      if (byPower ? !(H.by === 'power' && Object.keys(H).every((k) => ['by', 'per', 'base'].includes(k)) && Number.isFinite(H.per) && H.per > 0 && Number.isFinite(H.base) && H.base > 0) : !(Number.isFinite(H) && H > 0)) throw new Error(`${w}.hurt is the hp it takes when it lands, above 0, or { by: 'power', per, base } (its caster's power stat × per; base where it has none)`);
+      out.hurt = byPower ? { by: 'power', per: H.per, base: H.base } : H;
+    }
     out.spec = readBeam(o.is ?? 'orb', `${w}.is`, ctx.beams, ctx.explosions);
     if (isStr(o.is)) out.name = o.is;
     if (o.color !== undefined) out.color = readColor(o.color, `${w}.color`);

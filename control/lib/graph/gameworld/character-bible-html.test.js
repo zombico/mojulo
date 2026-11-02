@@ -90,7 +90,8 @@ describe('the character bible', () => {
     expect(html).toMatch(/Banners: Level up · The mid stage · The late stage\./);
     expect(html).toMatch(/<td><b>2<\/b><\/td><td><b>wind-orb<\/b><\/td><td><span class="muted">—<\/span><\/td><td>look wind<\/td>/);
     expect(html).toMatch(/A status page \(I\)/);
-    expect(html).toMatch(/Not yet: an attack lands by the power stat/);
+    // (an attack's hurt follows the power stat as it rises: no longer a limit the page says)
+    expect(html).not.toMatch(/an attack lands by the power stat/);
     expect(html).toContain('mid · ornament 2, mass 1.1 · power +3');
     expect(html).toContain('&quot;tool&quot;: &quot;create_sketch&quot;');
     const { mechanics, ...without } = MEADOWMARK_HERO;

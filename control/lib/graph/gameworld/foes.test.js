@@ -9,6 +9,9 @@ import { MADE_KEY } from './made.js';
 import { settingOfGame } from './cast-setting.js';
 import { readGameworld, runSteps, MEADOWMARK_HERO } from './index.js';
 import { LEVEL_GOAL } from './quick.js';
+import { castingCall } from './foe-casting.js';
+import { composeGameworld } from './compose.js';
+import { composeMechanics } from '../game/mechanics.js';
 import { FOE_CLASSES } from '../foes/index.js';
 import { MOVES } from '../foes/vocab.js';
 import { resolveFoe } from '../foes/resolve.js';
@@ -117,6 +120,17 @@ describe('a stage\'s foes', () => {
 
 describe('the run', () => {
   const prints = (steps) => Object.fromEntries(steps.map((s) => [s.key, s.print]));
+  it('a turn-based game meets its foes as its packs; a stage both battles and stands foes on ends by the battle alone', () => {
+    // (a jrpg's sentence: its fights the party's battles, no real-time cast beside them)
+    expect(castingCall(composeGameworld({ prompt: 'a jrpg where a party of heroes battles monsters across the wilds', seed: 1, levels: 1 }))).toBeNull();
+    // (a world that writes both: every stage composes, with one fail-on-death, the battle's)
+    const W = { ...heroWith({ a: { class: SOLO.id } }, true), battles: {} };
+    for (const s of runSteps(W, { ref: 'gw' }).filter((x) => x.key.startsWith(`level-${lv0}-`))) {
+      const m = s.order.manifest, deaths = m.game.mechanics.filter((x) => x.kind === 'fail-on-death');
+      expect(deaths.length, s.key).toBeLessThanOrEqual(1);
+      expect(() => composeMechanics(m.game.mechanics, { player: m.entities.find((e) => e.pilotable).id }), s.key).not.toThrow();
+    }
+  });
   it('a bestiary no level stands mints nothing and moves no print', () => {
     const W = heroWith({ a: { class: SOLO.id } });
     expect(fieldedIds(readGameworld(W))).toEqual([]);
