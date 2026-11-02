@@ -41,7 +41,7 @@ export function compileMilitary(sheet, { keys = 12, form = false, livery, wear, 
   if (!MILITARY_CLASSES[cls]) throw new Error(`car-designer: compileMilitary reads a military class (${Object.keys(MILITARY_CLASSES).join(', ')}), not ${cls}`);
   const spec = { kind: MILITARY_CLASSES[cls], L: v.L, W: v.W, H: v.H, wb: v.wheelbase, track: v.track, r: v.wheelRadius, tyreW: tyreWidth(v.wheelRadius), lift: 0 };
   const tracked = v.running === 'track';
-  const { hull, fittings, zones, livery: L, spinners, bones: parts = {} } = militaryBody(cls, { seed: sheet.seed, r: spec.r, tyreW: spec.tyreW, livery });
+  const { hull, fittings, zones, livery: L, spinners, bones: parts = {} } = militaryBody(cls, { seed: sheet.seed, r: spec.r, tyreW: spec.tyreW, livery, words: sheet.unread?.words ?? [] });
   // the wheels: each axle's pair, the front pair first, left (−x) and right; or a tracked body's spinners (its road
   // wheels first, the sprocket, the idler and the rollers), each its own bone
   const axles = tracked ? trackedGear(cls).wheels.map((w) => w.y) : militaryAxles(cls);

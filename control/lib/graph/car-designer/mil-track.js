@@ -48,13 +48,16 @@ function hull2(pts) {
 }
 const ring = (c, k = 48) => Array.from({ length: k }, (_, i) => [c.y + c.r * Math.cos((2 * Math.PI * i) / k), c.z + c.r * Math.sin((2 * Math.PI * i) / k)]);
 
-/** The track's inner line: the lower hull of its wheels from the sprocket's top round to the idler's, then back over
- *  the return rollers, sagging between each support. A closed loop [y, z], anticlockwise seen from +x. */
+/** The track's inner line: the lower hull of its wheels from the rear one's top (the sprocket's or the idler's) round
+ *  to the front one's, then back over the return rollers, sagging between each support. A closed loop [y, z],
+ *  anticlockwise seen from +x. */
 export function trackPath({ sprocket, idler, wheels, rollers = [], sag = 0.03 }) {
   const H = hull2([sprocket, idler, ...wheels].flatMap((c) => ring(c)));
   const near = (q) => H.reduce((b, p, i) => (Math.hypot(p[0] - q[0], p[1] - q[1]) < Math.hypot(H[b][0] - q[0], H[b][1] - q[1]) ? i : b), 0);
-  const s = near([sprocket.y, sprocket.z + sprocket.r]), e = near([idler.y, idler.z + idler.r]);
-  // (the chain from the sprocket's top, anticlockwise: down its back, along the ground, up the front to the idler's top)
+  // (the sprocket at either end: a tank's aft, a carrier's forward; the rear one's top and the front one's)
+  const [aft, fore] = sprocket.y < idler.y ? [sprocket, idler] : [idler, sprocket];
+  const s = near([aft.y, aft.z + aft.r]), e = near([fore.y, fore.z + fore.r]);
+  // (the chain from the rear wheel's top, anticlockwise: down its back, along the ground, up the front to the fore's top)
   const chain = [];
   for (let i = s; ; i = (i + 1) % H.length) { chain.push(H[i]); if (i === e) break; }
   // the top run: from the idler's top back over the rollers to the sprocket's, a sag between each pair of supports

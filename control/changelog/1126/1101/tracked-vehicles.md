@@ -111,3 +111,37 @@ Both carry the field's camo, wear and setting light, can be parked in a base and
     The GLB and parked sweeps take it too: its GLB is valid by the Khronos validator.
   - **Seen** (machine gate only; the eyes gate is open): plain from the three-quarter, the side, the rear quarter and
     above; woodland used under a golden sun; desert battered at noon.
+- **The tracked carrier** (`road-military.js` `trackedCarrier`), a high troop box on the running gear:
+  - **The running gear:** its sprocket forward by its engine and its idler aft under its ramp. `trackPath` wraps the
+    track from the rear wheel's top, whichever that is.
+  - **The hull:**
+    - a lower hull, and a troop box with raked sides and a steep glacis, welded at its corners;
+    - fenders and bins (fewer carriers wear skirts).
+  - **The glacis:** a folded trim vane on its hinges, the engine's grille on the right, lamps in their guards.
+  - **The roof:**
+    - the driver's hatch and its blocks;
+    - the commander's cupola, ringed by its blocks and by an empty mount rail on its posts;
+    - the big troop hatch aft on its hinges, and grab rails.
+  - **The rear:** the ramp, the door in it with its block and handle, the tail lamps in guards. The exhaust's louvred
+    shield is on the right side, forward.
+  - **Its kit:** cans each side of the ramp, the tools, two whips, four shackles, a tarp roll (half carry one).
+  - **The sheet builds it.** Parked and watched, never a ride.
+  - **The budget:** about 32k triangles kept, 47k used and 61k in camo. L, W and H are within 1%.
+- **The light tank's variations, by its brief** (`trackedWords`: the sheet's unread words): "a short gun",
+  "long gun", "skirts", "no skirts", "basket", "without basket".
+  - What the brief does not say, the dice choose: most are skirted, most carry the long gun, every one its basket.
+  - The short gun is stubbier and wider, its evacuator near the mantlet, its brake bigger.
+  - A loft's `brief` carries the words, so `{ loft: { class: 'lightTank', brief: 'a short gun, no skirts' } }` draws
+    that tank.
+- **Shared:** the fenders, skirts and bins are one helper (`trackedFenders`). A kit's anchor that a body does not lay
+  this time (a basket it does not carry) fits nothing.
+- **Held** (`mil-track.test.js`):
+  - a forward sprocket's track closed, flat and on its rollers;
+  - the carrier's sprocket forward, its ramp, cupola, mount ring, trim vane, hatch and grille, no turret; at its size;
+    within its budget; never a ride;
+  - the brief's words read, and chosen on the tank (a shorter muzzle, no skirt, no basket); the dice choosing both
+    guns among a dozen.
+
+  The GLB and parked sweeps take the carrier too.
+- **Seen** (machine gate only; the eyes gate is open): the carrier plain from the three-quarter, the side and the rear
+  quarter, and desert used under a golden sun; the light tank from "a short gun, no skirts, no basket".

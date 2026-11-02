@@ -25,11 +25,9 @@ export const SPEC_KEYS = Object.freeze(['pole', 'class', 'silhouette', 'stance',
 const TABLES = { pole: POLES, class: CLASS_TRAITS, silhouette: SILHOUETTES, stance: STANCES, cockpit: COCKPITS, engine: ENGINES, era: ERAS, motif: MOTIF_READS, drive: DRIVES, wear: WEARS, livery: LIVERIES };
 /** What a realistic sheet takes from its class unless asked. */
 const FROM_CLASS = Object.freeze(['silhouette', 'stance', 'cockpit', 'engine', 'motif', 'drive']);
-/** Classes not built yet: a bike's rider sits astride, another pose family; the tracked carrier waits for its hull on
- *  the running gear (car-designer/mil-track.js). */
+/** Classes not built yet: a bike's rider sits astride, another pose family. */
 export const UNBUILT = Object.freeze({
   dirtBike: 'a two-wheeler: its rider sits astride, a pose family not built yet',
-  trackedCarrier: 'the tracked carrier: its running gear is built (mil-track.js), its hull not yet',
 });
 
 /** The seed's priors per pole: weights per value (absent weighs 0); exaggeration is uniform in the pole's band. */

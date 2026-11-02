@@ -57,7 +57,7 @@ import { runningGear, linkFaces, TRACK_DEPTH } from './mil-track.js';
 import { readLivery, paintLivery, stencilMarks, liveryBase } from './livery-cut.js';
 import { mulberry32 } from '../vegetation/grow.js';
 
-export const MILITARY_CLASSES = Object.freeze({ utility4x4: 'utility', cargo6x6: 'cargo', apc8x8: 'carrier', lightTank: 'lightTank' });
+export const MILITARY_CLASSES = Object.freeze({ utility4x4: 'utility', cargo6x6: 'cargo', apc8x8: 'carrier', lightTank: 'lightTank', trackedCarrier: 'trackedCarrier' });
 
 /** A field vehicle's size for its surface: its camo's blotches and its mud's heights by it (a wheel's radius over a
  *  4x4's; a tracked class by its wheeled peer's, its road wheels being small). */
@@ -609,15 +609,60 @@ function carrier(cls) {
  *  sprocket aft and the idler forward inside the hull, the return rollers between. */
 export function trackedGear(cls) {
   const v = VEHICLES[cls], r = v.wheelRadius, n = 5, half = v.wheelbase / 2, yN = v.L / 2, yT = -v.L / 2;
+  // (a tank's sprocket aft by its engine; a carrier's forward by its engine, its ramp aft over the idler)
+  const fore = MILITARY_CLASSES[cls] === 'trackedCarrier';
+  const drive = { z: 0.62, r: 0.3 }, idle = { z: 0.5, r: 0.27 };
   return {
     x: v.track / 2, width: 0.42, hullX: 0.86,
-    sprocket: { y: yT + 0.5, z: 0.62, r: 0.3 }, idler: { y: yN - 0.5, z: 0.5, r: 0.27 },
+    sprocket: { y: fore ? yN - 0.48 : yT + 0.5, ...drive }, idler: { y: fore ? yT + 0.48 : yN - 0.5, ...idle },
     wheels: Array.from({ length: n }, (_, k) => ({ y: half - (2 * half * k) / (n - 1), r })),
     rollers: [half * 0.75, 0, -half * 0.75].map((y) => ({ y, z: 2 * r + TRACK_DEPTH + 0.09, r: 0.08 })),
   };
 }
 
-function lightTank(cls, { seed = 1 } = {}) {
+/** A tracked body's words from its brief (the sheet's unread words): its gun long or short, its skirts and its basket
+ *  on or off ("a short gun, no skirts"); a word not said is left to the dice. */
+export function trackedWords(words = []) {
+  const W = words.map((w) => String(w).toLowerCase()), out = {};
+  const said = (stems) => W.findIndex((w) => stems.includes(w));
+  const denied = (i) => i > 0 && ['no', 'without', 'unskirted'].includes(W[i - 1]);
+  const gun = said(['short', 'stubby']), long = said(['long']);
+  if (gun >= 0) out.gun = 'short'; else if (long >= 0) out.gun = 'long';
+  const sk = said(['skirts', 'skirt', 'skirted']);
+  if (sk >= 0) out.skirts = !denied(sk);
+  if (said(['unskirted', 'bare']) >= 0) out.skirts = false;
+  const bk = said(['basket']);
+  if (bk >= 0) out.basket = !denied(bk);
+  return out;
+}
+
+// the fenders over the tracks, their fronts bent down; the skirts hung from their edges; the bins along them
+function trackedFenders(out, { hw, x0, zF, yN, yT, skirted, bins, front = 0.3 }) {
+  const P = (o) => out.push(...plate(o));
+  for (const s of [-1, 1]) {
+    const [a, b] = xs(s, x0 - 0.02, hw - 0.012);
+    P({ axis: 'y', profile: rect(a, b, zF - 0.015, zF + 0.005), from: yT + 0.1, to: yN - front, r: 0.005, seg: 1, look: paint('fender') });
+    P({ axis: 'x', profile: [[yN - front, zF - 0.015], [yN, zF - 0.14], [yN, zF - 0.12], [yN - front, zF + 0.005]], from: a, to: b, r: 0.004, seg: 1, look: paint('fender') });
+    out.push(...bolts([yT + 0.4, (yT + 0.4) / 2, 0, (yN - 0.5) / 2, yN - 0.5].map((y) => [s * (hw - 0.03), y, zF + 0.005]), [0, 0, 1], { r: 0.011, h: 0.007, look: paint('bolt') }));
+    if (skirted) {
+      const segs = 4, y0 = yT + 0.35, y1 = yN - 0.45, step = (y1 - y0) / segs, [c, d] = xs(s, hw - 0.012, hw);
+      for (let k = 0; k < segs; k++) {
+        const ya = y0 + k * step + 0.012, yb = y0 + (k + 1) * step - 0.012;
+        P({ axis: 'x', profile: [[ya, 0.6], [yb, 0.6], [yb, zF - 0.01], [ya, zF - 0.01]], from: c, to: d, r: 0.006, seg: 1, look: paint('skirt') });
+        out.push(...bolts([ya + 0.08, (ya + yb) / 2, yb - 0.08].map((y) => [s * hw, y, zF - 0.05]), [s, 0, 0], { r: 0.012, h: 0.008, look: paint('bolt') }));
+      }
+    }
+    // the bins along the fender, their lids lipped and latched
+    for (const [ya, yb] of bins) {
+      const [e, f] = xs(s, x0 + 0.03, hw - 0.03);
+      P({ axis: 'y', profile: rect(e, f, zF + 0.005, zF + 0.31), from: ya, to: yb, r: 0.012, seg: 1, look: paint('bin') });
+      P({ axis: 'y', profile: rect(e - 0.01, f + 0.01, zF + 0.3, zF + 0.335), from: ya - 0.01, to: yb + 0.01, r: 0.01, seg: 1, look: paint('bin.lid') });
+      for (const y of [ya + (yb - ya) * 0.25, ya + (yb - ya) * 0.75]) P({ axis: 'x', profile: rect(y - 0.03, y + 0.03, zF + 0.2, zF + 0.32), from: s * (hw - 0.03), to: s * (hw - 0.02), r: 0.003, seg: 1, look: M('bin.latch', 'steel', C.steel) });
+    }
+  }
+}
+
+function lightTank(cls, { seed = 1, words = [] } = {}) {
   const v = VEHICLES[cls], hw = v.W / 2, gear = trackedGear(cls), rnd = mulberry32((seed * 7919 + 101) >>> 0);
   const yN = v.L / 2, yT = -v.L / 2, out = [];
   const P = (o) => out.push(...plate(o));
@@ -648,28 +693,10 @@ function lightTank(cls, { seed = 1 } = {}) {
   weldOn([-x1 + 0.05, yG, zR + 0.002], [x1 - 0.05, yG, zR + 0.002], [0, 0.3, 1]);
   weldOn([-x0 + 0.21, yN - 0.05, zF + 0.01], [x0 - 0.21, yN - 0.05, zF + 0.01], [0, 1, 0.2]);
   // ── the fenders over the tracks, their fronts bent down; the skirts hung from their edges (most carry them)
-  const skirted = rnd() < 0.6;
-  for (const s of [-1, 1]) {
-    const [a, b] = xs(s, x0 - 0.02, hw - 0.012);
-    P({ axis: 'y', profile: rect(a, b, zF - 0.015, zF + 0.005), from: yT + 0.1, to: yN - 0.3, r: 0.005, seg: 1, look: paint('fender') });
-    P({ axis: 'x', profile: [[yN - 0.3, zF - 0.015], [yN, zF - 0.14], [yN, zF - 0.12], [yN - 0.3, zF + 0.005]], from: a, to: b, r: 0.004, seg: 1, look: paint('fender') });
-    out.push(...bolts([yT + 0.4, -1.6, 0, 1.6, yN - 0.5].map((y) => [s * (hw - 0.03), y, zF + 0.005]), [0, 0, 1], { r: 0.011, h: 0.007, look: paint('bolt') }));
-    if (skirted) {
-      const segs = 4, y0 = yT + 0.35, y1 = yN - 0.45, step = (y1 - y0) / segs, [c, d] = xs(s, hw - 0.012, hw);
-      for (let k = 0; k < segs; k++) {
-        const ya = y0 + k * step + 0.012, yb = y0 + (k + 1) * step - 0.012;
-        P({ axis: 'x', profile: [[ya, 0.6], [yb, 0.6], [yb, zF - 0.01], [ya, zF - 0.01]], from: c, to: d, r: 0.006, seg: 1, look: paint('skirt') });
-        out.push(...bolts([ya + 0.08, (ya + yb) / 2, yb - 0.08].map((y) => [s * hw, y, zF - 0.05]), [s, 0, 0], { r: 0.012, h: 0.008, look: paint('bolt') }));
-      }
-    }
-    // the bins along the fender, their lids lipped and latched
-    for (const [ya, yb] of [[-2.0, -0.5], [-0.3, 1.0]]) {
-      const [e, f] = xs(s, x0 + 0.03, hw - 0.03);
-      P({ axis: 'y', profile: rect(e, f, zF + 0.005, 1.31), from: ya, to: yb, r: 0.012, seg: 1, look: paint('bin') });
-      P({ axis: 'y', profile: rect(e - 0.01, f + 0.01, 1.3, 1.335), from: ya - 0.01, to: yb + 0.01, r: 0.01, seg: 1, look: paint('bin.lid') });
-      for (const y of [ya + (yb - ya) * 0.25, ya + (yb - ya) * 0.75]) P({ axis: 'x', profile: rect(y - 0.03, y + 0.03, 1.2, 1.32), from: s * (hw - 0.03), to: s * (hw - 0.02), r: 0.003, seg: 1, look: M('bin.latch', 'steel', C.steel) });
-    }
-  }
+  // (its variations: what its brief says, else the dice: most are skirted, most carry the long gun and a basket)
+  const said = trackedWords(words), dice = [rnd(), rnd()];
+  const skirted = said.skirts ?? dice[0] < 0.6, longGun = (said.gun ?? (dice[1] < 0.7 ? 'long' : 'short')) === 'long', basketed = said.basket ?? true;
+  trackedFenders(out, { hw, x0, zF, yN, yT, skirted, bins: [[-2.0, -0.5], [-0.3, 1.0]] });
   // ── the turret's ring, bolted: the turret stands on it (its own bone)
   const ring = (cx, cy, rr, k) => Array.from({ length: k }, (_, i) => [cx + rr * Math.cos((2 * Math.PI * i) / k), cy + rr * Math.sin((2 * Math.PI * i) / k)]);
   const yM = 0.05;
@@ -730,14 +757,17 @@ function lightTank(cls, { seed = 1 } = {}) {
   // the mantlet and the gun: its sleeve, the barrel and its thermal sleeve's bands, the bore evacuator, the muzzle brake
   const gz = 1.86, g0 = yM + 1.3, gun = (p) => paint(p);
   T({ axis: 'x', profile: rect(yM + 1.05, g0 + 0.04, 1.7, 2.02), from: -0.34, to: 0.34, r: 0.05, seg: 2, look: paint('mantlet') });
+  // (the long gun: a slender barrel, banded, its evacuator two thirds along; the short: a stubbier, wider one, its
+  // evacuator near the mantlet, its brake bigger)
+  const G = longGun ? { len: 3.15, r: 0.068, ev: 1.75, bands: [0.8, 1.15, 1.5, 2.25, 2.6], brake: 0.27, br: 0.105 } : { len: 2.05, r: 0.08, ev: 0.85, bands: [0.65, 1.45], brake: 0.32, br: 0.125 };
   tr.push(...tube([[0, g0, gz], [0, g0 + 0.55, gz]], 0.1, { sides: 14, look: gun('gun.sleeve') }));
-  tr.push(...tube([[0, g0 + 0.55, gz], [0, g0 + 3.15, gz]], 0.068, { sides: 12, look: gun('gun.barrel') }));
-  for (const y of [0.8, 1.15, 1.5, 2.25, 2.6]) tr.push(...tube([[0, g0 + y, gz], [0, g0 + y + 0.03, gz]], 0.076, { sides: 12, look: gun('gun.band') }));
-  tr.push(...tube([[0, g0 + 1.75, gz], [0, g0 + 1.8, gz]], 0.088, { sides: 14, look: gun('gun.evacuator') }));
-  tr.push(...tube([[0, g0 + 1.8, gz], [0, g0 + 2.12, gz]], 0.105, { sides: 14, look: gun('gun.evacuator') }));
-  tr.push(...tube([[0, g0 + 2.12, gz], [0, g0 + 2.17, gz]], 0.088, { sides: 14, look: gun('gun.evacuator') }));
-  T({ axis: 'y', profile: rect(-0.105, 0.105, gz - 0.075, gz + 0.075), from: g0 + 3.15, to: g0 + 3.42, r: 0.012, seg: 1, look: gun('gun.brake') });
-  for (const s of [-1, 1]) for (const y of [3.2, 3.31]) T({ axis: 'x', profile: rect(g0 + y, g0 + y + 0.06, gz - 0.055, gz + 0.055), from: s * 0.105, to: s * 0.109, look: M('gun.brake.port', 'carbon', C.black) });
+  tr.push(...tube([[0, g0 + 0.55, gz], [0, g0 + G.len, gz]], G.r, { sides: 12, look: gun('gun.barrel') }));
+  for (const y of G.bands) tr.push(...tube([[0, g0 + y, gz], [0, g0 + y + 0.03, gz]], G.r + 0.008, { sides: 12, look: gun('gun.band') }));
+  tr.push(...tube([[0, g0 + G.ev, gz], [0, g0 + G.ev + 0.05, gz]], G.r + 0.02, { sides: 14, look: gun('gun.evacuator') }));
+  tr.push(...tube([[0, g0 + G.ev + 0.05, gz], [0, g0 + G.ev + 0.37, gz]], G.r + 0.037, { sides: 14, look: gun('gun.evacuator') }));
+  tr.push(...tube([[0, g0 + G.ev + 0.37, gz], [0, g0 + G.ev + 0.42, gz]], G.r + 0.02, { sides: 14, look: gun('gun.evacuator') }));
+  T({ axis: 'y', profile: rect(-G.br, G.br, gz - G.br * 0.72, gz + G.br * 0.72), from: g0 + G.len, to: g0 + G.len + G.brake, r: 0.012, seg: 1, look: gun('gun.brake') });
+  for (const s of [-1, 1]) for (const y of [0.05, 0.05 + G.brake * 0.42]) T({ axis: 'x', profile: rect(g0 + G.len + y, g0 + G.len + y + G.brake * 0.22, gz - G.br * 0.52, gz + G.br * 0.52), from: s * G.br, to: s * (G.br + 0.004), look: M('gun.brake.port', 'carbon', C.black) });
   tr.push(...tube([[0.24, g0 + 0.02, gz - 0.05], [0.24, g0 + 0.06, gz - 0.05]], 0.026, { sides: 8, look: (role) => (role === 'cap' ? M('gun.coax', 'carbon', C.black) : paint('mantlet')) }));
   // the commander's cupola ringed with blocks, its lid and an empty pintle mount; the loader's hatch; the gunner's sight
   const [cx, cy] = [0.45, yM - 0.42];
@@ -771,10 +801,12 @@ function lightTank(cls, { seed = 1 } = {}) {
   // the grab rails along its sides; the basket on the bustle, its rails and its floor
   for (const s of [-1, 1]) tr.push(...tube(bend([[s * tx(1.98), yM - 0.7, 1.98], [s * (tx(1.98) + 0.06), yM - 0.7, 1.98], [s * (tx(1.98) + 0.06), yM + 0.25, 1.98], [s * tx(1.98), yM + 0.25, 1.98]], 0.03, 2), 0.013, { sides: 6, look: paint('grab') }));
   const bk = yM - 1.3, bk1 = bk - 0.36, basket = paint('basket');
-  T({ axis: 'z', profile: rect(-0.78, 0.78, bk1, bk + 0.05), from: 1.74, to: 1.76, r: 0.004, seg: 1, look: basket });
-  for (const z of [1.76, 1.92, 2.08]) tr.push(...tube(bend([[-0.78, bk + 0.02, z], [-0.78, bk1, z], [0.78, bk1, z], [0.78, bk + 0.02, z]], 0.05, 2), 0.012, { sides: 6, look: basket }));
-  for (const x of [-0.78, -0.39, 0, 0.39, 0.78]) tr.push(...tube([[x, bk1, 1.74], [x, bk1, 2.09]], 0.011, { sides: 6, look: basket }));
-  for (const s of [-1, 1]) for (const y of [bk1 + 0.12, bk1 + 0.25]) tr.push(...tube([[s * 0.78, y, 1.74], [s * 0.78, y, 2.09]], 0.011, { sides: 6, look: basket }));
+  if (basketed) {
+    T({ axis: 'z', profile: rect(-0.78, 0.78, bk1, bk + 0.05), from: 1.74, to: 1.76, r: 0.004, seg: 1, look: basket });
+    for (const z of [1.76, 1.92, 2.08]) tr.push(...tube(bend([[-0.78, bk + 0.02, z], [-0.78, bk1, z], [0.78, bk1, z], [0.78, bk + 0.02, z]], 0.05, 2), 0.012, { sides: 6, look: basket }));
+    for (const x of [-0.78, -0.39, 0, 0.39, 0.78]) tr.push(...tube([[x, bk1, 1.74], [x, bk1, 2.09]], 0.011, { sides: 6, look: basket }));
+    for (const s of [-1, 1]) for (const y of [bk1 + 0.12, bk1 + 0.25]) tr.push(...tube([[s * 0.78, y, 1.74], [s * 0.78, y, 2.09]], 0.011, { sides: 6, look: basket }));
+  }
   out.push(...tr.map((f) => ({ ...f, bone: 'turret' })));
   // ── the anchors
   const X = [1, 0, 0], Y = [0, 1, 0], Z = [0, 0, 1], neg = (a) => a.map((q) => -q);
@@ -796,13 +828,125 @@ function lightTank(cls, { seed = 1 } = {}) {
     { id: 'mark.rear', kind: 'mark', role: 'number', at: [0, yRp(1.22) - 0.003, 1.22], out: neg(Y), up: Z, h: 0.11 },
     { id: 'mark.glacis', kind: 'mark', role: 'emblem', at: [0, 2.15, glacisZ(2.15) + 0.003], out: gn, up: gu, h: 0.12 },
     // (on the turret: they turn with it)
-    { id: 'basket', kind: 'top', bone: 'turret', at: [0, bk - 0.18, 1.76], out: Z, up: neg(Y) },
+    ...(basketed ? [{ id: 'basket', kind: 'top', bone: 'turret', at: [0, bk - 0.18, 1.76], out: Z, up: neg(Y) }] : []),
     ...[-1, 1].map((s) => {
       const n = [s * (zT - tz), 0, 0.14], d = Math.hypot(...n), out = n.map((q) => q / d), up = [-s * 0.14 / d, 0, (zT - tz) / d];
       return { id: `mark.turret.${s < 0 ? 'L' : 'R'}`, kind: 'mark', role: 'number', bone: 'turret', at: [s * (tx(1.82) + 0.003), yM - 0.25, 1.82], out, up, h: 0.15 };
     }),
   ];
   return { faces: out.filter(Boolean), anchors, zones: { floor: zF - 0.05 }, gear, bones: { turret: [0, yM, tz] } };
+}
+
+// ── the tracked carrier: a high troop box on the running gear, its engine forward, its ramp aft ───────────────────
+function trackedCarrier(cls, { seed = 1, words = [] } = {}) {
+  const v = VEHICLES[cls], hw = v.W / 2, gear = trackedGear(cls), rnd = mulberry32((seed * 7919 + 211) >>> 0);
+  const yN = v.L / 2, yT = -v.L / 2, out = [];
+  const P = (o) => out.push(...plate(o));
+  // the hull's numbers: its belly, the fenders, the troop box's roof, its sides at their foot and at the roof, the
+  // glacis from the nose up to the roof's front, the rear plate (the ramp on it)
+  const zB = 0.42, zF = 1.0, zR = 2.02, xL = gear.hullX, x0 = 1.1, x1 = 1.0, yG = yN - 1.35, zN = 1.1, yR = yT + 0.1;
+  const glacisZ = (y) => zR - ((zR - zN) * (y - yG)) / (yN - 0.05 - yG);
+  const xSide = (z) => x0 - ((x0 - x1) * (z - zF)) / (zR - zF);
+  const armour = (name, hide) => (t) => {
+    if (hide && hide(t)) return null;
+    const n = t.n, part = n[2] < -0.5 ? 'hull.belly' : n[1] > 0.3 && n[2] > 0.3 ? 'hull.glacis' : n[2] > 0.9 ? `${name}.roof` : n[1] < -0.9 ? 'hull.rear' : name;
+    return paint(part);
+  };
+  const weldOn = (a, b, n) => out.push(...weld(a, b, n, { look: M('weld', 'weld', C.olive) }));
+  // ── the lower hull between the tracks, and the troop box over it
+  out.push(...slab({
+    front: [[-xL, zB], [xL, zB], [xL, zF], [-xL, zF]],
+    side: [[yR, zF], [yR, 0.6], [yR + 0.25, zB], [yN - 0.75, zB], [yN - 0.05, zF - 0.04], [yN - 0.05, zF]],
+    chamfer: 0.025, look: armour('hull.lower', (t) => t.view === 'front' && t.n[2] > 0.99),
+  }));
+  out.push(...slab({
+    front: [[-x0, zF], [x0, zF], [x1, zR], [-x1, zR]],
+    side: [[yR, zF], [yR, zR - 0.06], [yR + 0.06, zR], [yG, zR], [yN - 0.05, zN], [yN - 0.05, zF]],
+    plan: [[-x0, yR], [x0, yR], [x0, yN - 0.35], [x0 - 0.18, yN - 0.05], [-x0 + 0.18, yN - 0.05], [-x0, yN - 0.35]],
+    chamfer: 0.03, look: armour('hull.upper', (t) => t.view === 'front' && t.n[2] < -0.99),
+  }));
+  weldOn([-x1 + 0.05, yG, zR + 0.002], [x1 - 0.05, yG, zR + 0.002], [0, 0.4, 1]);
+  for (const s of [-1, 1]) weldOn([s * x0, yR + 0.01, zF + 0.02], [s * x1, yR + 0.01, zR - 0.08], [s, -1, 0]);
+  // ── the fenders, the skirts (fewer carry them), the bins
+  const said = trackedWords(words), skirted = said.skirts ?? rnd() < 0.35;
+  trackedFenders(out, { hw, x0, zF, yN, yT, skirted, bins: [[-1.9, -0.6], [-0.4, 0.8]], front: 0.32 });
+  // ── the glacis: the trim vane folded on it, the engine's grilles on its right, the lamps in their guards
+  const gn = (() => { const d = Math.hypot(zR - zN, yN - 0.05 - yG); return [0, (zR - zN) / d, (yN - 0.05 - yG) / d]; })(), gu = [0, -gn[2], gn[1]];
+  const onGlacis = (fs, y, x = 0) => place(fs, { origin: [x, y, glacisZ(y)], ex: [1, 0, 0], ey: gn, ez: gu });
+  out.push(...onGlacis([...plate({ axis: 'y', profile: rect(-0.95, 0.95, -0.2, 0.2), from: 0.0, to: 0.03, r: 0.01, seg: 1, look: paint('trim.vane') }),
+    ...[-0.7, 0, 0.7].flatMap((x) => tube([[x - 0.08, 0.035, -0.2], [x + 0.08, 0.035, -0.2]], 0.025, { sides: 8, look: paint('trim.hinge') })),
+    ...bolts([-0.8, -0.4, 0.4, 0.8].map((x) => [x, 0.03, 0.14]), [0, 1, 0], { r: 0.012, h: 0.008, look: paint('bolt') })], yN - 0.42));
+  const grille = [...plate({ axis: 'y', profile: rect(-0.42, 0.42, -0.3, 0.3), from: 0, to: 0.02, r: 0.01, seg: 1, look: paint('engine.deck') })];
+  for (let z = -0.24; z < 0.26; z += 0.09) grille.push(...plate({ axis: 'z', profile: rect(-0.36, 0.36, 0.02, 0.034), from: z - 0.03, to: z + 0.03, r: 0.004, seg: 1, look: M('engine.grille', 'carbon', C.black) }));
+  out.push(...onGlacis(grille, yG + 0.55, 0.48));
+  for (const s of [-1, 1]) {
+    const x = s * 0.88, y = yN - 0.2, z = glacisZ(y) + 0.13;
+    out.push(...tube([[x, y - 0.1, z], [x, y + 0.04, z]], 0.075, { sides: 16, look: (role) => (role === 'cap' ? M('headlamp', 'lamp', C.lamp) : paint('headlamp.bucket')) }));
+    out.push(...tube([[x, y - 0.04, glacisZ(y - 0.04) - 0.01], [x, y - 0.04, z - 0.06]], 0.02, { sides: 8, look: paint('headlamp.stem') }));
+    for (const ddx of [-0.045, 0, 0.045]) out.push(...tube(bend([[x + ddx, y + 0.02, z - 0.09], [x + ddx, y + 0.09, z - 0.085], [x + ddx, y + 0.09, z + 0.085], [x + ddx, y + 0.02, z + 0.09]], 0.025, 3), 0.007, { sides: 6, look: paint('headlamp.guard') }));
+  }
+  // ── the roof: the driver's hatch and blocks forward on the left, the commander's cupola ringed by an empty mount,
+  // the big troop hatch aft on its hinges
+  const ring = (cx, cy, rr, k) => Array.from({ length: k }, (_, i) => [cx + rr * Math.cos((2 * Math.PI * i) / k), cy + rr * Math.sin((2 * Math.PI * i) / k)]);
+  const [dx, dy] = [-0.5, yG - 0.35];
+  P({ axis: 'z', profile: ring(dx, dy, 0.26, 16), from: zR - 0.01, to: zR + 0.04, r: 0.012, seg: 1, look: paint('hatch.driver') });
+  for (const x of [dx - 0.18, dx, dx + 0.18]) {
+    P({ axis: 'z', profile: rect(x - 0.065, x + 0.065, yG - 0.12, yG - 0.02), from: zR - 0.01, to: zR + 0.075, r: 0.008, seg: 1, look: M('vision.frame', 'carbon', C.black) });
+    out.push(face([[x - 0.05, yG - 0.018, zR + 0.012], [x + 0.05, yG - 0.018, zR + 0.012], [x + 0.05, yG - 0.018, zR + 0.06], [x - 0.05, yG - 0.018, zR + 0.06]], M('vision', 'vision', C.vision), [0, 1, 0]));
+  }
+  const [cx, cy] = [0.42, yG - 0.55];
+  P({ axis: 'z', profile: ring(cx, cy, 0.34, 18), from: zR - 0.02, to: 2.2, r: 0.015, seg: 1, look: paint('cupola') });
+  P({ axis: 'z', profile: ring(cx, cy, 0.3, 18), from: 2.2, to: 2.27, r: 0.012, seg: 1, look: paint('cupola.hatch') });
+  out.push(...tube(bend([[cx - 0.09, cy, 2.268], [cx - 0.09, cy, 2.288], [cx + 0.09, cy, 2.288], [cx + 0.09, cy, 2.268]], 0.008, 2), 0.012, { sides: 6, look: paint('cupola.handle') }));
+  for (let k = 0; k < 5; k++) {
+    const a = Math.PI / 2 + ((k - 2) * Math.PI) / 4, ox = Math.cos(a), oy = Math.sin(a);
+    const block = plate({ axis: 'y', profile: rect(-0.055, 0.055, 2.07, 2.16), from: 0, to: 0.045, r: 0.005, seg: 1, look: (role) => (role === 'cap' ? M('vision', 'vision', C.vision) : M('vision.frame', 'carbon', C.black)) });
+    out.push(...place(block.filter((f) => f.outNormal[1] > -0.5), { origin: [cx + 0.33 * ox, cy + 0.33 * oy, 0], ex: [oy, -ox, 0], ey: [ox, oy, 0], ez: [0, 0, 1] }));
+  }
+  // (the mount ring round the cupola, empty: a rail on its posts)
+  out.push(...tube([...ring(cx, cy, 0.5, 24), ring(cx, cy, 0.5, 24)[0]].map(([x, y]) => [x, y, 2.16]), 0.022, { sides: 8, caps: false, look: paint('mount.ring') }));
+  for (let k = 0; k < 4; k++) { const a = Math.PI / 4 + (k * Math.PI) / 2; out.push(...tube([[cx + 0.5 * Math.cos(a), cy + 0.5 * Math.sin(a), zR], [cx + 0.5 * Math.cos(a), cy + 0.5 * Math.sin(a), 2.16]], 0.02, { sides: 8, look: paint('mount.ring') })); }
+  const [h0, h1] = [yR + 0.35, yR + 1.45];
+  P({ axis: 'z', profile: rect(-0.68, 0.68, h0, h1), from: zR - 0.01, to: zR + 0.035, r: 0.015, seg: 1, look: paint('hatch') });
+  for (const x of [-0.45, 0.45]) out.push(...tube([[x - 0.1, h0 - 0.02, zR + 0.03], [x + 0.1, h0 - 0.02, zR + 0.03]], 0.026, { sides: 8, look: paint('hatch.hinge') }));
+  out.push(...tube(bend([[-0.15, h1 - 0.12, zR + 0.035], [-0.15, h1 - 0.12, zR + 0.075], [0.15, h1 - 0.12, zR + 0.075], [0.15, h1 - 0.12, zR + 0.035]], 0.015, 2), 0.011, { sides: 6, look: paint('hatch.handle') }));
+  for (const s of [-1, 1]) out.push(...tube(bend([[s * 0.9, h1 + 0.1, zR], [s * 0.9, h1 + 0.1, zR + 0.08], [s * 0.9, yG - 1.0, zR + 0.08], [s * 0.9, yG - 1.0, zR]], 0.04, 3), 0.014, { sides: 8, look: paint('grab') }));
+  // ── the rear: the ramp on its hinges, the door in it with its block and handle; the tail lamps in their guards; the
+  // exhaust's shield on the right side forward
+  const yr = yR - 0.04;
+  P({ axis: 'y', profile: rect(-0.75, 0.75, 0.55, 1.9), from: yr, to: yR + 0.01, r: 0.015, seg: 1, look: paint('ramp') });
+  for (const x of [-0.55, 0, 0.55]) out.push(...tube([[x - 0.11, yR - 0.05, 0.57], [x + 0.11, yR - 0.05, 0.57]], 0.035, { sides: 10, look: paint('ramp.hinge') }));
+  const seam = M('seam', 'seal', '#151614'), back = (x0b, x1b, z0, z1, look) => out.push(face([[x0b, yr - 0.002, z0], [x1b, yr - 0.002, z0], [x1b, yr - 0.002, z1], [x0b, yr - 0.002, z1]], look, [0, -1, 0]));
+  back(0.04, 0.58, 0.7, 0.712, seam); back(0.04, 0.58, 1.8, 1.812, seam); back(0.04, 0.052, 0.7, 1.812, seam); back(0.568, 0.58, 0.7, 1.812, seam);
+  P({ axis: 'y', profile: rect(0.18, 0.44, 1.48, 1.64), from: yr - 0.03, to: yr, r: 0.006, seg: 1, look: (role) => (role === 'cap' ? M('vision', 'vision', C.vision) : M('vision.frame', 'carbon', C.black)) });
+  out.push(...tube(bend([[0.5, yr, 1.15], [0.5, yr - 0.045, 1.15], [0.5, yr - 0.045, 1.33], [0.5, yr, 1.33]], 0.015, 2), 0.012, { sides: 6, look: paint('door.handle') }));
+  for (const s of [-1, 1]) {
+    const x = s * 0.93;
+    P({ axis: 'y', profile: rect(x - 0.06, x + 0.06, 1.75, 1.83), from: yR - 0.016, to: yR, r: 0.005, seg: 1, look: (role) => (role === 'cap' ? M('taillamp', 'tail', C.tail) : M('taillamp.bezel', 'carbon', C.black)) });
+    out.push(...tube(bend([[x - 0.09, yR, 1.79], [x - 0.09, yR - 0.07, 1.79], [x + 0.09, yR - 0.07, 1.79], [x + 0.09, yR, 1.79]], 0.03, 2), 0.007, { sides: 6, look: paint('taillamp.guard') }));
+  }
+  const ex = [...plate({ axis: 'y', profile: rect(-0.28, 0.28, -0.16, 0.16), from: 0, to: 0.06, r: 0.01, seg: 1, look: M('exhaust.shield', 'carbon', C.soot) })];
+  for (let x = -0.22; x <= 0.23; x += 0.055) ex.push(...plate({ axis: 'x', profile: rect(0.06, 0.066, -0.12, 0.12), from: x - 0.012, to: x + 0.012, look: M('exhaust.slot', 'carbon', '#0e0e0d') }));
+  out.push(...place(ex, { origin: [xSide(1.55), yG + 0.2, 1.55], ex: [0, -1, 0], ey: [1, 0, 0], ez: [0, 0, 1] }));
+  // ── the anchors
+  const X = [1, 0, 0], Y = [0, 1, 0], Z = [0, 0, 1], neg = (a) => a.map((q) => -q);
+  const anchors = [
+    ...[-1, 1].flatMap((s) => {
+      const L = s < 0 ? 'L' : 'R', side = s < 0 ? neg(X) : X;
+      return [
+        { id: `rear.${L}`, kind: 'panel', at: [s * 0.95, yR, 1.08], out: neg(Y), up: Z },
+        { id: `antenna.${L}`, kind: 'panel', at: [s * 0.95, yR, 1.95], out: neg(Y), up: Z },
+        { id: `tools.${L}`, kind: 'flank', at: [s * xSide(1.45), 1.5, 1.45], out: side, up: Z },
+        { id: `bumper.F${L}`, kind: 'bumper', at: [s * 0.55, yN - 0.12, 0.86], out: Y, up: Z },
+        { id: `bumper.R${L}`, kind: 'bumper', at: [s * 0.8, yR, 0.62], out: neg(Y), up: Z },
+        { id: `mark.${L}`, kind: 'mark', role: 'number', at: [s * (xSide(1.7) + 0.003), -0.2, 1.7], out: side, up: Z, h: 0.13 },
+      ];
+    }),
+    { id: 'top', kind: 'top', at: [0, (h0 + h1) / 2 - 0.85, zR + 0.035], out: Z, up: neg(Y) },
+    { id: 'mark.rear', kind: 'mark', role: 'number', at: [-0.38, yr - 0.003, 1.62], out: neg(Y), up: Z, h: 0.12 },
+    { id: 'mark.glacis', kind: 'mark', role: 'emblem', at: [-0.45, yG + 0.55, glacisZ(yG + 0.55) + 0.003], out: gn, up: gu, h: 0.12 },
+  ];
+  return { faces: out.filter(Boolean), anchors, zones: { floor: zF - 0.05 }, gear };
 }
 
 /** What each class carries, anchor by anchor (mil-fittings.js cards); `maybe` a share of the vehicles that carry it,
@@ -827,6 +971,10 @@ export const KITS = Object.freeze({
     ['bumper.FL', 'shackle'], ['bumper.FR', 'shackle'], ['bumper.RL', 'shackle'], ['bumper.RR', 'shackle'], ['bumper.RC', 'pintle'],
     ['basket', 'tarpRoll', { maybe: 0.8, width: 1.2 }],
   ]),
+  trackedCarrier: Object.freeze([
+    ['rear.L', 'jerryCans'], ['rear.R', 'jerryCans'], ['tools.L', 'pioneerTools'], ['antenna.L', 'antenna', { lean: 1 }], ['antenna.R', 'antenna', { lean: -1 }],
+    ['bumper.FL', 'shackle'], ['bumper.FR', 'shackle'], ['bumper.RL', 'shackle'], ['bumper.RR', 'shackle'], ['top', 'tarpRoll', { maybe: 0.5 }],
+  ]),
   carrier: Object.freeze([
     ['rear.L', 'jerryCans'], ['rear.R', 'jerryCans'], ['slope.R', 'pioneerTools'],
     ['antenna.L', 'antenna', { lean: 1 }], ['antenna.R', 'antenna', { lean: -1 }], ['grab.L', 'grabHandle', { width: 0.4 }], ['grab.R', 'grabHandle', { width: 0.4 }],
@@ -837,16 +985,16 @@ export const KITS = Object.freeze({
 });
 const CAN_TONES = Object.freeze(['#4f5726', '#4f5726', '#8a7a55']);
 // the bodies built here, by their kind
-const BODIES = Object.freeze({ utility, cargo, carrier, lightTank });
+const BODIES = Object.freeze({ utility, cargo, carrier, lightTank, trackedCarrier });
 
 /** A military class's body (its hull, every face with its corner normals: a plate's own, worked out; a fitting's flat)
  *  and its fittings, its kit's cards on its anchors, rolled from the seed; its livery (livery-cut.js) cut into the paint
  *  of both at once, so a blotch runs on from the hull onto what is fitted to it, and its stencils on its mark anchors. */
-export function militaryBody(cls, { seed = 1, r, tyreW, livery } = {}) {
+export function militaryBody(cls, { seed = 1, r, tyreW, livery, words = [] } = {}) {
   const kind = MILITARY_CLASSES[cls];
   if (!BODIES[kind]) throw new Error(`car-designer: '${cls}' is not a military class built yet (${Object.keys(MILITARY_CLASSES).join(', ')})`);
   const L = readLivery(livery);
-  const { faces: own, anchors, zones, gear, bones } = BODIES[kind](cls, { seed }), byId = new Map(anchors.map((a) => [a.id, a]));
+  const { faces: own, anchors, zones, gear, bones } = BODIES[kind](cls, { seed, words }), byId = new Map(anchors.map((a) => [a.id, a]));
   // (a tracked body's running gear, each side: what stands still joins the hull, what turns its spinners, their discs in
   // the livery's base as a wheel's rim is)
   const sides = gear ? [-1, 1].map((side) => ({ side, ...runningGear({ side, ...gear, paint: L ? liveryBase(L) : C.olive }) })) : [];
@@ -857,6 +1005,8 @@ export function militaryBody(cls, { seed = 1, r, tyreW, livery } = {}) {
   for (const [id, card, opts = {}] of KITS[kind]) {
     const { maybe, ...words } = opts, roll = rnd();
     if (maybe !== undefined && roll >= maybe) continue;
+    // (an anchor the body did not lay this time, a basket it does not carry: nothing fitted there)
+    if (!byId.has(id)) continue;
     const ctx = { r: r ?? v.wheelRadius, tyreW: tyreW ?? 0.3, paint: C.olive, seed, ...words };
     if (card === 'jerryCans') ctx.tones = Array.from({ length: ctx.count ?? 1 }, () => CAN_TONES[Math.floor(rnd() * CAN_TONES.length)]);
     if (card === 'antenna') ctx.whip = 1.3 + 0.4 * rnd();

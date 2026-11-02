@@ -12,7 +12,7 @@ import { rideableRows } from '../vehicle-registry/ride.js';
 import { rollVehicleSheet, UNBUILT } from './sheet.js';
 import { compileMilitary } from './military.js';
 import { compileRealistic } from './realistic.js';
-import { MILITARY_CLASSES, militaryBody, trackedGear } from './road-military.js';
+import { MILITARY_CLASSES, militaryBody, trackedGear, trackedWords } from './road-military.js';
 import { CAMO, CAMO_IDS } from './livery-cut.js';
 
 const GEAR = {
@@ -212,5 +212,42 @@ describe('the light tank\'s turret and gun', () => {
     const tris = (x) => Object.values(x.form).flat().reduce((s, f) => s + f.corners.length - 2, 0);
     expect(tris(c)).toBeLessThan(50000);
     expect(tris(make({ wear: 'used', livery: CAMO_IDS.find((k) => !CAMO[k].cell) }))).toBeLessThan(90000);
+  });
+});
+
+describe('the tracked carrier and the light tank\'s variations', () => {
+  const kindOf = (kind) => Object.keys(MILITARY_CLASSES).find((k) => MILITARY_CLASSES[k] === kind);
+  const CARRIER = kindOf('trackedCarrier'), TANK = kindOf('lightTank');
+  const roll = (cls, { seed = 3, brief = '', ...o } = {}) => compileRealistic(rollVehicleSheet({ brief, facets: { pole: 'realistic', class: cls }, seed }), { form: true, wear: 'pristine', ...o });
+  it('a track with its sprocket forward wraps the same way: closed, anticlockwise, flat on the ground, on its rollers', () => {
+    const fore = { ...GEAR, sprocket: { ...GEAR.idler, r: 0.3, z: 0.62, y: 2.5 }, idler: { ...GEAR.sprocket, r: 0.27, z: 0.5, y: -2.4 } };
+    const P = trackPath({ ...fore, wheels: fore.wheels.map((w) => ({ ...w, z: w.r + TRACK_DEPTH })) });
+    expect(area2(P)).toBeGreaterThan(0);
+    expect(Math.min(...P.map((p) => p[1]))).toBeCloseTo(TRACK_DEPTH, 6);
+    for (const c of fore.rollers) expect(P.some((p) => Math.abs(p[0] - c.y) < 1e-6 && Math.abs(p[1] - (c.z + c.r)) < 1e-6), `roller ${c.y}`).toBe(true);
+  });
+  it('the carrier: its sprocket forward, a ramp, a cupola in an empty mount ring, at its class\'s size, within its budget, never a ride', () => {
+    const c = roll(CARRIER), bone = (id) => c.figure.bones.find((b) => b.id === id).head;
+    expect(bone('sprocketL')[1]).toBeGreaterThan(bone('idlerL')[1]);
+    const parts = new Set(c.form.root.map((f) => f.part));
+    for (const p of ['ramp', 'cupola', 'mount.ring', 'trim.vane', 'hatch.driver', 'engine.grille']) expect(parts.has(p), p).toBe(true);
+    expect([...parts].some((p) => /^(gun|turret)/.test(p))).toBe(false);
+    for (const k of ['L', 'W', 'H', 'wheelRadius']) { expect(c.census.against[k], k).toBeGreaterThan(0.99); expect(c.census.against[k], k).toBeLessThan(1.01); }
+    expect(Object.values(c.form).flat().reduce((s, f) => s + f.corners.length - 2, 0)).toBeLessThan(40000);
+    expect(rideableRows()).not.toContain(rowOfHandle('physics', CARRIER));
+  });
+  it('a brief\'s words choose the tank\'s gun, skirts and basket; what it does not say, its dice', () => {
+    expect(trackedWords(['a', 'short', 'gun', 'no', 'skirts'])).toEqual({ gun: 'short', skirts: false });
+    expect(trackedWords(['long', 'gun', 'with', 'skirts', 'and', 'a', 'basket'])).toEqual({ gun: 'long', skirts: true, basket: true });
+    expect(trackedWords(['without', 'basket', 'skirted'])).toEqual({ skirts: true, basket: false });
+    const muzzle = (x) => Math.max(...x.form.turret.filter((f) => f.part.startsWith('gun')).flatMap((f) => f.corners.map((p) => p[1])));
+    const has = (x, p) => Object.values(x.form).flat().some((f) => f.part === p);
+    const short = roll(TANK, { brief: 'a short gun, no skirts, no basket' }), long = roll(TANK, { brief: 'a long gun with skirts and a basket' });
+    expect(muzzle(short)).toBeLessThan(muzzle(long) - 0.8);
+    expect(has(short, 'skirt')).toBe(false); expect(has(long, 'skirt')).toBe(true);
+    expect(has(short, 'basket')).toBe(false); expect(has(long, 'basket')).toBe(true);
+    // (the dice, where nothing is said: both guns among a dozen tanks)
+    const guns = new Set(Array.from({ length: 12 }, (_, k) => Math.round(muzzle(roll(TANK, { seed: k + 1 })))));
+    expect(guns.size).toBeGreaterThan(1);
   });
 });
