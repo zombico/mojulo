@@ -1005,7 +1005,7 @@ scene.add(__eQuad${i});${fxDepth ? ` __fxQuads.push(__eQuad${i});` : ''}
   // a body in the form render (gen-7: a figure's `form`) is lit along the world's sun, the live light's own travel
   const formSun = Object.values(packedFigures || {}).some((f) => f && f.rig && f.form)
     ? (Array.isArray(shadows && shadows.toLight) && shadows.toLight.length === 3 ? shadows.toLight : light && Array.isArray(light.toLight) && light.toLight[2] > 0.05 ? light.toLight : [0.55, 0.4, 0.72]) : null;
-  const controllableBlock = hasControllable ? controllableChannelScript(entityList, camera, packedFigures, { exposeBodies: !!fxNorm || !!(fire && Array.isArray(fire.sources) && fire.sources.some((x) => x.follow && Number.isFinite(x.char))) || (hasEvents && events.cast === true && (statusElements(events).length > 0 || transitKinds(events).length > 0 || bodiesWanted(events))) || (hasEvents && (events.wreck === true || events.layer0 === true || Array.isArray(events.arrive))), pilot, spectate, ai, colliders, breakables, breakPieces, hangar, match, shadows, smoke, wreckExplodes, tutorial, aiDifficulty, lock, commander, key: shadowKey, toonInk: toonInkCfg, driveSurface, ...(screen ? { touch: true } : {}), ...(runner ? { runner } : {}), ...(seats ? { seats } : {}), gearGranted: !!(game && game.powers && Object.values(game.powers.grants || {}).some((g) => g && g.gear)), ...(formSun ? { formSun } : {})  }) : '';
+  const controllableBlock = hasControllable ? controllableChannelScript(entityList, camera, packedFigures, { exposeBodies: !!capture || !!fxNorm || !!(fire && Array.isArray(fire.sources) && fire.sources.some((x) => x.follow && Number.isFinite(x.char))) || (hasEvents && events.cast === true && (statusElements(events).length > 0 || transitKinds(events).length > 0 || bodiesWanted(events))) || (hasEvents && (events.wreck === true || events.layer0 === true || Array.isArray(events.arrive))), pilot, spectate, ai, colliders, breakables, breakPieces, hangar, match, shadows, smoke, wreckExplodes, tutorial, aiDifficulty, lock, commander, key: shadowKey, toonInk: toonInkCfg, driveSurface, ...(screen ? { touch: true } : {}), ...(runner ? { runner } : {}), ...(seats ? { seats } : {}), gearGranted: !!(game && game.powers && Object.values(game.powers.grants || {}).some((g) => g && g.gear)), ...(formSun ? { formSun } : {})  }) : '';
   // bespoke channels hand their finished blocks into the registry-ordered runtime section
   chBlocks.physics = physicsBlock;
   chBlocks.actions = actionsBlock;
@@ -1679,7 +1679,9 @@ if (_capture) {
     // Emitted on a capture page only (the first-frame check reads it), so a live page carries not one byte of it.
     ${CAPTURE_VIEW}() {
       const d = camera.getWorldDirection(new THREE.Vector3());
-      return { eye: camera.position.toArray(), dir: d.toArray(), fov: camera.fov, aspect: camera.aspect };
+      // bg: the level's own background (its sky colour, a space level's black), the look a first frame is judged against
+      const bg = scene.background && scene.background.isColor ? '#' + scene.background.getHexString() : null;
+      return { eye: camera.position.toArray(), dir: d.toArray(), fov: camera.fov, aspect: camera.aspect, bg };
     },
     ` : ''}// WAYPOINT COMPILER (renderer-convergence step 3): compile "walk to [x,y]" into the tick
     // script Phase-3 traversals replay. Greedy closed-loop steering against the LIVE rule —
