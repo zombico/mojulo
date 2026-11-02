@@ -198,6 +198,27 @@ describe('the feature grammar', () => {
     expect(c.marks.find((x) => x.name === 'throat').eggs).toEqual(expect.arrayContaining(['padR', 'padL', 'chin']));
   });
 
+  it('a rodent has buck teeth; a chunky one a blunt face on whisker pads and its own tail', () => {
+    const rodents = Object.keys(SPECIES).filter((id) => SPECIES[id].family === 'rodent');
+    const plain = rodents.find((id) => !SPECIES_KIT[id]), b = featureBuild(animalCard(plain));
+    const tooth = b.eggs.find((e) => e.name === 'incisorR');
+    expect(tooth.group).toBe('Teeth'); expect(tooth.c[2]).toBeLessThan(b.mouth.centre[2]);       // (under the mouth)
+    expect(featureBuild(animalCard('hedgehog')).eggs.some((e) => e.group === 'Teeth')).toBe(false); // (no rodent)
+    // (the chunky ones, each its own face and tail: chosen from the species kit)
+    const chunky = rodents.filter((id) => SPECIES_KIT[id]?.muzzle === 'blunt');
+    expect(chunky.length).toBeGreaterThanOrEqual(3);
+    for (const id of chunky) { const c = featureBuild(animalCard(id)); expect(c.eggs.some((e) => e.name === 'padR'), id).toBe(true); expect(c.eggs.some((e) => e.group === 'Teeth'), id).toBe(true); }
+    const paddle = rodents.find((id) => SPECIES_KIT[id]?.tail === 'paddle'), p = featureBuild(animalCard(paddle));
+    const pad = p.eggs.find((e) => e.name === 'tail0'); expect(pad.c[2] - pad.r[2]).toBeLessThan(0.1);   // (lying on the ground)
+    expect(Math.min(...pad.r)).toBeLessThan(Math.max(...pad.r) / 4);                                     // (flat)
+    const tailless = rodents.find((id) => SPECIES_KIT[id]?.tail === 'none');
+    expect(featureBuild(animalCard(tailless)).eggs.some((e) => /^tail/.test(e.name))).toBe(false);
+    // (the capybara: the roster's own, its boxy head longer than a stander's, its coat short: no crown)
+    const capy = featureBuild(animalCard('capybara'));
+    expect(capy.eggs.find((e) => e.name === 'cranium').r[0]).toBeGreaterThan(featureBuild(animalCard(plain)).eggs.find((e) => e.name === 'cranium').r[0]);
+    expect(capy.tufts.some((t) => /^crown/.test(t.name))).toBe(false);
+  });
+
   it('a bird rests open and bright: its default face a bright one, its lids more open and its brows higher, every clip the same', () => {
     // (the roll leans a feature bird bright; an asked face wins; one bird chosen in code)
     const bird = Object.keys(SPECIES).find((i) => PLAN_OF[SPECIES[i].family] === 'bird');

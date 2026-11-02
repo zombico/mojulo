@@ -39,7 +39,11 @@ export function speciesMetrics(id) {
 
 /** the silhouette a species' body reads as, in its plan: the order is the decision (a long low body before a heavy front,
  *  a heavy front before long legs, the rest round, rear-heavy or even) */
+/** a species whose roster body the rules misread (a wombat's long low body reads as a noodle; it is a barrel) */
+export const SILHOUETTE_OF = Object.freeze({ wombat: 'barrel' });
+
 export function silhouetteOf(id, family, plan) {
+  if (SILHOUETTE_OF[id]) return SILHOUETTE_OF[id];
   const m = speciesMetrics(id), lg = m.lenGirth ?? 3, fb = m.frontBack ?? 1, leg = m.leg, nk = m.neck ?? 0.6;
   if (plan === 'bird') return lg < 1 ? 'teardrop' : (leg ?? 0) >= 2.6 || nk >= 1.8 ? 'wader' : 'perch';
   if (family === 'anuran') return 'squat';
@@ -190,6 +194,22 @@ export function rounded(S) {
   });
   const belly = Object.fromEntries(Object.entries(S.belly).map(([k, e]) => [k, { ...e, c: [e.c[0], deep(e.c[1]), e.c[2]], r: [e.r[0] * F.lowUp, e.r[1] * F.low, e.r[2] * F.low] }]));
   return { ...S, body, belly, thighScale: F.thigh };
+}
+
+/** SIDE HIPS (a prototype, opt-in: `tune.hips: 'side'`): a round animal's legs set on the SIDES of its ball at its
+ *  centre's height, the thighs reaching forward along the flanks, the shins folded back under to the feet, in place of
+ *  legs from the bottom of the ball. On all fours the ball then pitches about its own centre and rolls in place, never
+ *  swinging forward and down over hips at the floor, and the arms reach the floor from where the legs do: the biped and
+ *  the quadruped are one body. The silhouettes it suits (`SIDE_HIPS`): the round ones, whose legs are at the bottom */
+export const SIDE_HIPS = Object.freeze(['pear', 'barrel']);
+/** how far forward a side hip's knee reaches (a share of the ball's depth): far, and the animal stands as if seated */
+export const SIDE_HIP_REACH = 0.4;
+export function sideHips(S) {
+  const belly = S.body.find((e) => e.name === 'belly'), c = belly.c, R = belly.r;
+  const x = R[1] * 0.78, hip = [x, c[1], c[2] - R[0] * 0.15], knee = [x * 1.06, c[1] + R[2] * SIDE_HIP_REACH, hip[2] * 0.45], foot = [x * 1.02, c[1] + R[2] * 0.2];
+  const th = [knee[0] - hip[0], knee[1] - hip[1], knee[2] - hip[2]], L = Math.hypot(...th), u = unit(th);
+  const haunch = { name: 'haunchR', c: [hip[0] + th[0] / 2 + 0.06, hip[1] + th[1] / 2, hip[2] + th[2] / 2], u, r: [L / 2 + 0.14, 0.4, 0.38], e: 0.25, hint: [1, 0, 0], bone: 'thighR', join: 0.24 };
+  return { ...S, hip, knee, foot, legs: 'cones', body: [...S.body.filter((e) => e.name !== 'haunchR'), haunch], sideHips: true };
 }
 
 /** THE BELLIES: what a pale (or dark) underside is on each silhouette. A belly is a species' feature, read from the roster

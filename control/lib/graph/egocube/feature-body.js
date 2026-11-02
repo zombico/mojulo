@@ -264,6 +264,8 @@ function coatOf(skin, F, eggs, layers) {
 function featurePalette(pal, id, build) {
   // (a coat's patches in their own colour, the roster's: a giraffe's brown, never the near-black of a mask)
   const spot = build.marks?.some((m) => m.group === 'Spot') ? { Spot: speciesParams(id)?.colors?.ashAlt ?? pal.Patch } : {};
+  // (a rodent's buck teeth in the roster's own tooth colour: a beaver's orange, a groundhog's cream)
+  if (build.eggs.some((e) => e.group === 'Teeth')) spot.Teeth = speciesParams(id)?.colors?.teeth ?? '#f2ead8';
   if (build.plan !== 'bird') return { ...pal, Sock: pal.Beak, Wing: pal.Body, Flight: pal.Body, ...spot };
   const P = plumageOf(id), C = speciesParams(id)?.colors ?? {}, own = build.belly !== 'none' && build.belly !== 'tuxedo' && C.belly;
   return { ...pal, ...wingTones(pal.Body, P), Sock: P.sock ?? pal.Beak, ...(P.crown ? { Crown: P.crown } : {}), ...(P.neck ? { Mane: P.neck } : {}), ...(P.bar ? { Bar: P.bar } : {}), ...(P.tip ? { Tip: P.tip } : {}), ...(own ? { Belly: C.belly } : {}) };

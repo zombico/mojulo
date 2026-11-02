@@ -158,4 +158,25 @@ describe('the feature tune', () => {
     // (the brief says it)
     expect(rollMascot({ brief: `a stylized ${pear} with a mohawk` }).tune.tuft).toBe('mohawk');
   });
+
+  it('side hips (a prototype): a round animal\'s legs on the sides of its ball, so it drops onto all fours rolling in place', () => {
+    // (one round species, chosen in code: the pear's own, a family the style draws as designed)
+    const below = featureBuild(animalCard(pear)), side = featureBuild(animalCard(pear), { tune: resolveTune({ hips: 'side' }) });
+    expect(validateTune({ hips: 'sideways' }).join(' ')).toMatch(/tune\.hips/);
+    expect(resolveTune({}).hips).toBeUndefined();                                    // (absent: the legs from the bottom)
+    const belly = side.eggs.find((e) => e.name === 'belly');
+    expect(side.joints.hip[0]).toBeGreaterThan(belly.r[1] * 0.6);                    // (on the ball's side)
+    expect(side.joints.hip[2]).toBeGreaterThan(below.joints.hip[2]);                 // (up at its centre, not its bottom)
+    expect(side.joints.knee[1]).toBeGreaterThan(side.joints.hip[1]);                 // (the thigh reaching forward)
+    // (the transition: the fit raises the legs far less, the trunk's centre travels less, and the function holds)
+    expect(side.fit.rise).toBeLessThan(below.fit.rise / 2);
+    const centre = (b) => { const es = b.eggs.filter((e) => ['belly', 'chest'].includes(e.name)); return es.reduce((a, e) => a.map((x, k) => x + e.c[k] / es.length), [0, 0, 0]); };
+    const travel = (b) => { const c = centre(b), hz = b.joints.hip[2], a = (b.fours.hinge * Math.PI) / 180, y = c[1], z = c[2] - hz;
+      return Math.hypot(y * Math.cos(a) + z * Math.sin(a) - y, hz - b.fours.crouch * 0.45 * (hz - 0.05) + z * Math.cos(a) - y * Math.sin(a) - c[2]); };
+    expect(travel(side)).toBeLessThan(travel(below) * 0.7);
+    expect(side.fours.clearance).toBeGreaterThan(-FEATURE_FOURS.brush - 1e-6); expect(side.fours.shoulder).toBeLessThanOrEqual(side.fours.reach + 1e-6);
+    // (a silhouette that is no ball is left as it is)
+    const leggy = first((id) => PLAN_OF[SPECIES[id].family] === 'stander' && sil(id) === 'leggy' && !FAMILY_SIZES[SPECIES[id].family]);
+    if (leggy) expect(featureBuild(animalCard(leggy), { tune: resolveTune({ hips: 'side' }) }).joints.hip).toEqual(featureBuild(animalCard(leggy)).joints.hip);
+  });
 });

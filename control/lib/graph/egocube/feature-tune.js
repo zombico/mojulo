@@ -118,7 +118,8 @@ export function validateTune(tune) {
   if (tune === undefined) return [];
   if (!isPlain(tune)) return ['tune: { structure?: { <dial>: a multiplier }, decoration?: { <dial>: 0–3 }, tuft?: a style or { style, colour?, size? }, detail?: \'game\' | \'gen7\' }'];
   const errs = [...validateTuft(tune.tuft)];
-  for (const k of Object.keys(tune)) if (!['structure', 'decoration', 'tuft', 'detail'].includes(k)) errs.push(`tune.${k}: not a tune word (structure, decoration, tuft, detail)`);
+  for (const k of Object.keys(tune)) if (!['structure', 'decoration', 'tuft', 'detail', 'hips'].includes(k)) errs.push(`tune.${k}: not a tune word (structure, decoration, tuft, detail, hips)`);
+  if (tune.hips !== undefined && !['below', 'side'].includes(tune.hips)) errs.push("tune.hips: 'below' (the legs from the bottom of a round body, as designed) or 'side' (a prototype: on its sides at its centre)");
   const dials = (o, name, keys, range) => {
     if (o === undefined) return;
     if (!isPlain(o)) { errs.push(`tune.${name}: { ${keys.join(' | ')}: a number }`); return; }
@@ -138,7 +139,7 @@ export function resolveTune(tune) {
   const errs = validateTune(tune);
   if (errs.length) throw new Error(`mascot: the tune refused:\n - ${errs.join('\n - ')}`);
   const T = tune ?? {}, id = T.detail ?? 'game';
-  return { structure: { ...Object.fromEntries(STRUCTURE_KEYS.map((k) => [k, 1])), ...(T.structure ?? {}) }, decor: { ...(T.decoration ?? {}) }, tuft: resolveTuft(T.tuft), detail: { ...FEATURE_DETAIL[id], id } };
+  return { structure: { ...Object.fromEntries(STRUCTURE_KEYS.map((k) => [k, 1])), ...(T.structure ?? {}) }, decor: { ...(T.decoration ?? {}) }, tuft: resolveTuft(T.tuft), ...(T.hips === 'side' ? { hips: 'side' } : {}), detail: { ...FEATURE_DETAIL[id], id } };
 }
 
 /** the longest tuning phrase, in words */
@@ -170,8 +171,8 @@ export function readTuneBrief(brief = '') {
 export function mergeTune(a, b) {
   if (!a) return b ?? undefined;
   if (!b) return a;
-  const structure = { ...(a.structure ?? {}), ...(b.structure ?? {}) }, decoration = { ...(a.decoration ?? {}), ...(b.decoration ?? {}) }, detail = b.detail ?? a.detail, tuft = b.tuft ?? a.tuft;
-  return { ...(Object.keys(structure).length ? { structure } : {}), ...(Object.keys(decoration).length ? { decoration } : {}), ...(tuft ? { tuft } : {}), ...(detail ? { detail } : {}) };
+  const structure = { ...(a.structure ?? {}), ...(b.structure ?? {}) }, decoration = { ...(a.decoration ?? {}), ...(b.decoration ?? {}) }, detail = b.detail ?? a.detail, tuft = b.tuft ?? a.tuft, hips = b.hips ?? a.hips;
+  return { ...(Object.keys(structure).length ? { structure } : {}), ...(Object.keys(decoration).length ? { decoration } : {}), ...(tuft ? { tuft } : {}), ...(hips ? { hips } : {}), ...(detail ? { detail } : {}) };
 }
 
 /** an egg's lowest point (its extent down the z axis, its frame as feature-body.js egg() makes it) */

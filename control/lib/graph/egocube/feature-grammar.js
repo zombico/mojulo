@@ -25,7 +25,7 @@
  */
 
 import { speciesParams } from '../fauna/species.js';
-import { SILHOUETTES, silhouetteOf, bellyOf, rounded } from './feature-silhouettes.js';
+import { SILHOUETTES, silhouetteOf, bellyOf, rounded, sideHips, SIDE_HIPS } from './feature-silhouettes.js';
 import { functional, speciesLimbs } from './feature-function.js';
 import { PHI, beakOf, beakParts, headOf, plumageOf, extentAlong } from './feature-birds.js';
 import { tunedSilhouette, detailClumps, sizesOf } from './feature-tune.js';
@@ -112,7 +112,8 @@ export const PLANS = Object.freeze({
 export const FAMILY_TUNE = Object.freeze({
   procyonid: { fingers: 'long', paws: 'dark', rings: true, belly: 'oval' },
   primate: { fingers: 'long', body: 0.92 },
-  rodent: { fingers: 'long', body: 0.95, head: 1.04 },
+  // (a rodent's BUCK TEETH: its name, on every species of it)
+  rodent: { kit: { teeth: 'buck' }, fingers: 'long', body: 0.95, head: 1.04 },
   ursine: { body: 1.05, tail: 'pom' },
   canine: { body: 0.86, belly: 'bib' },
   mustelid: { body: 0.84 },
@@ -132,6 +133,14 @@ export const FAMILY_TUNE = Object.freeze({
   anuran: { kit: { muzzle: 'frog' }, hands: 'fingers', fingers: 'frog', headShape: [0.92, 1.32, 0.74], eye: { az: 27, el: 42, r: 0.21, proud: 0.66, rest: BIRD_REST }, eyeDomes: true },
 });
 
+/** a species' own tuning over its family's (FAMILY_TUNE's words, and `decor`: its own decoration dials): a capybara's long
+ *  boxy head, its eyes set high (it swims with them above water) and its coarse short coat (no crown, short tufts), a
+ *  hamster's cheek pouches */
+export const SPECIES_TUNE = Object.freeze({
+  capybara: { headShape: [1.16, 0.96, 0.9], eye: { az: 30, el: 16 }, decor: { crown: 0, tufts: 0.5 } },
+  hamster: { pouches: 1.4 },
+});
+
 /** A SPECIES' OWN MEASURES, read from the fauna roster's realistic animal (fauna/species.js speciesParams): its ears'
  *  size against its head, against the raccoon's (the style's designed reference), and their roundness (how little the
  *  ear's profile tapers to its tip: 0 a point, 1 a disc). They size and shape the ear module (never below its designed
@@ -147,7 +156,11 @@ export function speciesMeasures(id) {
 
 /** a species' own kit over its family card's, where its name is a feature the family's rule misses (the squirrel is its
  *  brush) or gets wrong (a hippo has no trunk; a great ape no tail) */
-export const SPECIES_KIT = Object.freeze({ moose: { horns: 'palmate', muzzle: 'moose' }, giraffe: { pattern: 'reticulated' }, zebra: { mane: 'crest', tail: 'tuft' }, donkey: { mane: 'crest', tail: 'tuft' }, squirrel: { tail: 'brush' }, hippo: { muzzle: 'wide' }, rhino: { muzzle: 'wide' }, gorilla: { tail: 'none' }, chimpanzee: { tail: 'none' }, orangutan: { tail: 'none' }, frog: { tail: 'none' }, toad: { tail: 'none' } });
+export const SPECIES_KIT = Object.freeze({
+  // (the chunky rodents: a blunt muzzle on puffy whisker pads over buck teeth, each its own tail; the hedgehog is no rodent)
+  beaver: { muzzle: 'blunt', tail: 'paddle', feet: 'webbed' }, groundhog: { muzzle: 'blunt', tail: 'stub' }, capybara: { muzzle: 'capybara', tail: 'none' },
+  guineaPig: { muzzle: 'blunt', tail: 'none' }, hamster: { muzzle: 'blunt', tail: 'none' }, wombat: { muzzle: 'blunt', tail: 'none' }, hedgehog: { teeth: 'none' },
+  moose: { horns: 'palmate', muzzle: 'moose' }, giraffe: { pattern: 'reticulated' }, zebra: { mane: 'crest', tail: 'tuft' }, donkey: { mane: 'crest', tail: 'tuft' }, squirrel: { tail: 'brush' }, hippo: { muzzle: 'wide' }, rhino: { muzzle: 'wide' }, gorilla: { tail: 'none' }, chimpanzee: { tail: 'none' }, orangutan: { tail: 'none' }, frog: { tail: 'none' }, toad: { tail: 'none' } });
 
 /** a wing's fold on a silhouette that is not a standing bird's (an owl's teardrop): back and down along the side */
 const WING_FOLD = unit([0.4, -0.55, -0.73]);
@@ -176,7 +189,8 @@ function structure(S, P, T, shape = [1, 1, 1], Z = null) {
     // (the head's lower volume filled out round: in profile a figure eight; from the front a football lying across)
     { name: 'jaw', c: head([0, 0.14, 2.57]), u: [0, 1, -0.1], r: sc([0.48, 0.7, 0.36], hd).map((x, k) => x * shape[k]), e: 0.1, hint: [1, 0, 0], bone: 'head', join: 0.2 },
     // (the jowls carrying the football's points out and a little up, never drooping)
-    { name: 'jowlR', c: head([0.38, 0.26, 2.55]), u: [0.86, 0.35, -0.12], r: sc([0.25, 0.21, 0.19], hd), e: 0.45, hint: [0, 1, 0], bone: 'head', group: 'Belly', join: 0.14 },
+    // (a hamster's cheek pouches: the jowls grown, SPECIES_TUNE `pouches`)
+    { name: 'jowlR', c: head(T.pouches ? [0.38 * T.pouches, 0.26, 2.52] : [0.38, 0.26, 2.55]), u: [0.86, 0.35, -0.12], r: T.pouches ? sc([0.25, 0.21, 0.19], hd * T.pouches) : sc([0.25, 0.21, 0.19], hd), e: 0.45, hint: [0, 1, 0], bone: 'head', group: 'Belly', join: 0.14 },
     ...(P.ruffs ? [{ name: 'ruffR', c: head([0.5, 0.08, 2.53]), u: [0.84, 0.05, -0.48], r: sc([0.34, 0.3, 0.26], hd), e: 0.85, hint: [0, 1, 0], bone: 'head', join: 0.2 }] : []),
     // (the neck by the silhouette: the pinch where the head's ball meets the body's (a figure eight), a visible slender
     // neck, a long one, or none: the head merged into the body's top)
@@ -301,6 +315,21 @@ const MUZZLES = {
     { name: 'chin', c: [0, 0.92, 2.2], u: [0, 1, 0], r: [0.18, 0.22, 0.12], hint: [1, 0, 0], bone: 'head', join: 0.08 },
     { name: 'nostrilR', c: [0.15, 1.24, 2.44], u: unit([0.3, 1, 0.3]), r: [0.07, 0.06, 0.035], hint: [0, 0, 1], bone: 'head', group: 'Ink', join: 0.02 }],
     mouth: { nose: [0, 1.25, 2.32], centre: [0, 1.22, 2.2], corner: [0.2, 1.04, 2.22], pivot: [0, 0.92, 2.26] }, nose: null }),
+  // (a chunky rodent's: a broad blunt snout, two puffy pale whisker pads and a chin, a small nose at the top of the pads;
+  // its buck teeth are its kit's, under the mouth)
+  blunt: () => ({ eggs: [
+    { name: 'muzzle', c: [0, 0.42, 2.5], u: unit([0, 1, -0.1]), r: [0.28, 0.3, 0.24], e: 0.1, hint: [1, 0, 0], bone: 'head', join: 0.12 },
+    { name: 'padR', c: [0.12, 0.6, 2.46], u: unit([0.3, 1, -0.1]), r: [0.15, 0.15, 0.13], hint: [0, 0, 1], bone: 'head', group: 'Belly', join: 0.08 },
+    { name: 'chin', c: [0, 0.48, 2.28], u: [0, 1, 0], r: [0.12, 0.13, 0.08], hint: [1, 0, 0], bone: 'head', group: 'Belly', join: 0.08 },
+    { name: 'nose', c: [0, 0.69, 2.57], u: unit([0, 0.3, -1]), r: [0.06, 0.1, 0.05], e: 0.5, hint: [1, 0, 0], bone: 'head', group: 'Nose', join: 0.03 }],
+    mouth: { nose: [0, 0.72, 2.52], centre: [0, 0.72, 2.4], corner: [0.17, 0.62, 2.4], pivot: [0, 0.45, 2.47] }, nose: 'nose', pale: ['padR', 'padL', 'chin'] }),
+  // (a capybara's: a long deep BOXY snout ending square, a wide flat nose high on its front, a deep chin)
+  capybara: () => ({ eggs: [
+    { name: 'muzzle', c: [0, 0.6, 2.55], u: unit([0, 1, -0.15]), r: [0.5, 0.36, 0.36], e: 0.05, hint: [1, 0, 0], bone: 'head', join: 0.12 },
+    { name: 'snoutTip', c: [0, 1.0, 2.5], u: [0, 1, 0], r: [0.2, 0.34, 0.32], hint: [1, 0, 0], bone: 'head', join: 0.1 },
+    { name: 'nose', c: [0, 1.17, 2.68], u: unit([0, 0.5, -1]), r: [0.05, 0.16, 0.05], hint: [1, 0, 0], bone: 'head', group: 'Nose', join: 0.03 },
+    { name: 'chin', c: [0, 0.82, 2.2], u: [0, 1, 0], r: [0.16, 0.2, 0.1], hint: [1, 0, 0], bone: 'head', join: 0.08 }],
+    mouth: { nose: [0, 1.2, 2.5], centre: [0, 1.18, 2.32], corner: [0.2, 0.98, 2.3], pivot: [0, 0.8, 2.35] }, nose: 'nose' }),
   // (a cat's: a bridge down from the brow, two puffy whisker pads and a chin, pale, and an inverted triangle of a nose at
   // the top of the pads, its point down to the mouth's line that parts them)
   feline: () => ({ eggs: [
@@ -368,6 +397,13 @@ const TAILS = {
   tuft: () => ({ eggs: [], tufts: [{ name: 'tail', root: [0, -0.88, 0.62], aim: [0, -1, -0.2], len: 1.2, r: 0.09, tip: 0.5, curl: 40, bend: [0, 0, 1], bone: 'pelvis', join: 0.08 }],
     tip: { name: 'tailTip', root: [0, -1.78, 0.72], aim: [0, -0.6, 0.8], len: 0.3, r: 0.13, curl: 20, bend: [0, -1, 0], bone: 'pelvis', join: 0.06, group: 'Mane' } }),
   thick: () => ({ eggs: [], tufts: [{ name: 'tail', root: [0, -0.78, 0.6], aim: [0, -1, -0.25], len: 1.7, r: 0.36, tip: 0.12, curl: 22, bend: [0, 0, 1], bone: 'pelvis', join: 0.2 }] }),
+  // (a groundhog's: short, bushy and a little flattened, carried low, its tip a tuft)
+  stub: () => ({ eggs: [{ name: 'tail0', c: [0, -1.08, 0.55], u: unit([0, -1, -0.3]), r: [0.36, 0.22, 0.16], e: 0.3, hint: [1, 0, 0], bone: 'pelvis', join: 0.12 }],
+    tip: { name: 'tailTip', root: [0, -1.36, 0.47], aim: [0, -1, -0.2], len: 0.2, r: 0.12, curl: 15, bend: [0, 0, -1], bone: 'pelvis', join: 0.06 } }),
+  // (a beaver's: the broad flat scaly PADDLE, dark, lying on the ground behind)
+  paddle: () => ({ ground: true, eggs: [
+    { name: 'tailRoot', c: [0, -0.86, 0.36], u: unit([0, -0.3, -1]), r: [0.26, 0.15, 0.11], bone: 'pelvis', group: 'Mane', join: 0.1 },
+    { name: 'tail0', c: [0, -1.3, 0.12], u: [0, -1, -0.1], r: [0.62, 0.38, 0.07], e: 0.15, hint: [1, 0, 0], bone: 'pelvis', group: 'Mane', join: 0.12 }] }),
   flat: () => ({ eggs: [{ name: 'tail0', c: [0, -1.25, 0.32], u: [0, -1, -0.2], r: [0.52, 0.32, 0.08], hint: [1, 0, 0], bone: 'pelvis', join: 0.12 }] }),
   brushThin: () => TAILS.brush(),
   fan: () => ({ eggs: [], fan: true }),
@@ -419,10 +455,15 @@ function tuneRead(tune, fn) {
 
 export function featureBuild(card, { decor = {}, tune = null } = {}) {
   // (the structure's sizes: the family's designed ones and the operator's tune, multiplied: feature-tune.js)
-  const Z = sizesOf(card.family, tune?.structure ?? null), D = { ...FEATURE_DECOR, ...decor, ...(tune?.decor ?? {}) }, plan = PLAN_OF[card.family] ?? 'stander', P = PLANS[plan], T = FAMILY_TUNE[card.family] ?? {};
+  // (the decoration: the style's dials, a species' own (SPECIES_TUNE `decor`), the caller's, the operator's tune)
+  const Z = sizesOf(card.family, tune?.structure ?? null), D = { ...FEATURE_DECOR, ...(SPECIES_TUNE[card.id]?.decor ?? {}), ...decor, ...(tune?.decor ?? {}) }, plan = PLAN_OF[card.family] ?? 'stander', P = PLANS[plan];
+  // (the family's tuning, a species' own over it: SPECIES_TUNE)
+  const T = { ...(FAMILY_TUNE[card.family] ?? {}), ...(SPECIES_TUNE[card.id] ?? {}) };
   // THE SILHOUETTE, read from the species' own body (feature-silhouettes.js)
   // (the style's rounding: every silhouette bottom-heavy and round, feature-silhouettes.js)
-  const silhouette = silhouetteOf(card.id, card.family, plan), Sd = rounded(SILHOUETTES[silhouette]);
+  // (side hips, a prototype the tune asks for: a round animal's legs on the sides of its ball, feature-silhouettes.js)
+  const silhouette = silhouetteOf(card.id, card.family, plan), Sr = rounded(SILHOUETTES[silhouette]);
+  const Sd = tune?.hips === 'side' && SIDE_HIPS.includes(silhouette) ? sideHips(Sr) : Sr;
   // THE FUNCTION (feature-function.js): a quadruped stands for the acting and drops onto all fours to move, so its
   // silhouette is fitted to its limbs (the species' hind against its fore) and to the floor
   // (a sitter, a frog, sits on its own all fours: SILHOUETTES squat)
@@ -458,6 +499,9 @@ export function featureBuild(card, { decor = {}, tune = null } = {}) {
   for (const l of mz.limbs ?? []) B.limbs.push(mzR === 1 ? { ...l, a: onHead(l.a), b: onHead(l.b) } : { ...l, a: onHead(l.a), b: onHead(l.b), ra: l.ra * mzR, rb: l.rb * mzR });
   for (const t of mz.tufts ?? []) B.tufts.push(mzTuft(t));
   const mouth = { ...Object.fromEntries(Object.entries(mz.mouth).map(([k, p]) => [k, onHead(p)])), rise: 0.05, sag: 0.012 };
+  // (BUCK TEETH, a rodent's: two incisors side by side just under the mouth's middle, standing a little proud of the lip,
+  // in the roster's own tooth colour (a beaver's orange))
+  if (K.teeth === 'buck') { const m = mz.mouth.centre; B.eggs.push(headEgg({ name: 'incisorR', c: [0.042, m[1] - 0.05, m[2] - 0.09], u: unit([0, 0.25, -1]), r: [0.095, 0.042, 0.03], hint: [1, 0, 0], bone: 'head', group: 'Teeth', join: 0.01 })); }
   // THE EARS
   const ear = K.ears ? EARS[K.ears]?.() : null;
   // (the species' own ears: sized and rounded from its measures, the module's place and aim kept)
@@ -477,6 +521,14 @@ export function featureBuild(card, { decor = {}, tune = null } = {}) {
   if (ear) { B.eggs.push(headEgg(ear.egg)); if (ear.tuft && D.tufts > 0) B.tufts.push(headTuft(dialled(ear.tuft, D.tufts))); }
   // THE TAIL (the kit's, else the plan's)
   const kT = Z?.tail ?? 1, tl = tailAt((TAILS[K.tail] ?? TAILS[T.tail] ?? TAILS[P.tail])(), S.tail, kT);
+  // (a tail that rests on the GROUND, a beaver's paddle: laid on the floor however high the body stands, its root
+  // spanning down from the rump to it)
+  if (tl.ground) {
+    const pad = tl.eggs.find((e) => e.name === 'tail0'), root = tl.eggs.find((e) => e.name === 'tailRoot');
+    pad.c = [pad.c[0], pad.c[1], pad.r[2] + 0.02];
+    const front = [0, pad.c[1] + pad.r[0] * 0.8, pad.c[2]], d = sub3(S.tail, front), L = Math.hypot(...d);
+    Object.assign(root, { c: add(front, mul(d, 0.6)), u: unit(d), r: [L * 0.6 + 0.12, root.r[1], root.r[2]] });
+  }
   B.eggs.push(...tl.eggs);
   for (const t of tl.tufts ?? []) B.tufts.push(t);
   if (tl.tip && D.tufts > 0) B.tufts.push(dialled(tl.tip, D.tufts));

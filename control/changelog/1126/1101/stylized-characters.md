@@ -144,6 +144,33 @@ member, a quick game's hero). Code: `control/lib/graph/egocube/feature-tune.js`.
   - A new `feline` muzzle for the cat family (tiger, lion, house cat, cougar): a bridge down from the brow, two puffy
     pale whisker pads and a pale chin, and an inverted triangle of a nose at the top of the pads in the roster's nose
     colour. The cats had a `button` nose, a small dot the tiger's orange swallowed.
+- **The chunky rodents: the groundhog, the capybara, the beaver and their kind.**
+  - Two new species in the fauna roster's rodent family (`fauna/families/rodent.js`, with their search cards, and the
+    generated behaviour table regenerated). The groundhog is the beaver's build smaller and stouter, with plain
+    digging feet, a short bushy tail and cream incisors. The capybara is a guinea pig's build grown big on longer legs,
+    with a long boxy head, its eyes and ears set high, and no tail. They mint on the realistic door too.
+  - In the feature style every rodent has BUCK TEETH (a kit word on the family, `teeth: 'buck'`): two incisors under
+    the mouth in the roster's own tooth colour, a beaver's orange. The hedgehog, filed with the rodents but no rodent,
+    has none.
+  - The chunky ones (the beaver, groundhog, guinea pig, hamster, and the wombat though it is no rodent) wear a new
+    `blunt` muzzle: a broad snout, puffy pale whisker pads and a chin, a small nose at the top of the pads. The capybara
+    wears its own `capybara` muzzle: a long deep boxy snout ending square, a wide flat nose high on its front.
+  - Each wears its own tail where they all had a rat's. The beaver has a dark flat scaly paddle lying on the ground
+    (`ground` tails rest on the floor however high the body stands) and webbed feet. The groundhog has a short bushy
+    stub. The capybara, guinea pig, hamster and wombat have none.
+  - `SPECIES_TUNE`: a species' own tuning over its family's. The capybara's long boxy head, high-set eyes and coarse
+    short coat (no crown, short tufts); the hamster's cheek pouches. The wombat is drawn as the barrel it is
+    (`SILHOUETTE_OF`: its long low roster body read as a noodle).
+- **Side hips, a prototype** (opt-in: `tune.hips: 'side'`). A round animal's legs (the pear and the barrel silhouettes)
+  set on the sides of its ball at its centre's height, the thighs reaching a little forward along the flanks, in place
+  of legs from the bottom of the ball (`sideHips` in `feature-silhouettes.js`). On all fours the ball pitches about its
+  own centre and rolls in place, instead of swinging forward and down over hips at the floor. On six round animals:
+  - the fit raises the legs 0.05 to 0.10 head units, where it raised them 0.45;
+  - the trunk's centre travels 0.66 to 0.68 between standing and all fours, where it travelled 1.21 to 1.31;
+  - the arms lengthen as before; the function holds.
+  Standing, they take a wider plush-toy stance, legs showing on the sides. A knee reaching further forward
+  (`SIDE_HIP_REACH`) made them look seated, so it reaches 0.4 of the ball's depth. It is not the default yet: the eyes
+  gate decides.
 - **QA.** `scripts/spikes/feature-roster.mjs` takes `--tune` (every species minted with it) and `--tunes` (each species
   once per tune, side by side).
 - **Stored mascots keep their look.** A minted mascot stores its compiled plan. An untuned sheet compiles as before,
@@ -169,6 +196,10 @@ member, a quick game's hero). Code: `control/lib/graph/egocube/feature-tune.js`.
     the jaw (rings on the legs, arcs from the spine to the belly above them, a cat's stopping short), and a giraffe's
     seeded network of patches in its own colour, both cut into the skin within the budget, the markings' dial still
     ruling them;
+  - side hips: a round animal's hips on its ball's sides at its centre, the fit's rise less than half and the trunk's
+    travel under 0.7 of the legs-below build, the function holding, a silhouette that is no ball untouched;
+  - a rodent's buck teeth (none on the hedgehog), a chunky rodent's blunt face on whisker pads, a beaver's flat paddle on
+    the ground, a tailless rodent tailless, a capybara's longer head and short coat;
   - a moose's flat palms (broad face to the front, points on the rim, not the deer's tines) and its big droopy nose
     (past the end of its face and hanging below it, dark nostrils), and a cat's pointed nose
     on pale whisker pads;
