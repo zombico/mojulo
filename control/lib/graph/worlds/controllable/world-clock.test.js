@@ -202,3 +202,36 @@ describe('the impact cam: a moment takes the camera on the two it knows', () => 
     expect(() => readTempo({ moments: [{ on: 'strike', scale: 0, hold: 0.1, cam: { move: 'zoom' } }] })).toThrow(/move is one of/);
   });
 });
+
+describe('a moment\'s look: grade dials eased by the moment\'s weight', () => {
+  it('the weight eases in over the ramp, holds at 1, eases out, and is 0 when no moment plays', () => {
+    const w = world({ moments: [{ on: 'go', scale: 0.5, hold: 0.2, ramp: 0.2, look: { saturation: 0 } }] });
+    expect(CW.tempoWeight(w)).toBe(0);
+    CW.tempoMoment(w, 'go');
+    const ws = [];
+    for (let i = 0; i < 40; i++) { run(w, 1); ws.push(CW.tempoWeight(w)); }
+    expect(Math.max(...ws)).toBe(1);
+    for (let i = 1; i < ws.length; i++) expect(Math.abs(ws[i] - ws[i - 1])).toBeLessThan(0.15);
+    expect(ws.at(-1)).toBe(0);
+    expect(w.tempo.moments[0].look).toEqual({ saturation: 0 });
+  });
+
+  it('reads a look (grade dials and impact frames); every preset\'s look is a look', async () => {
+    const { readTempo, TEMPO_PRESETS } = await import('./world-clock.js');
+    expect(readTempo({ moments: [{ on: 'strike', scale: 0, hold: 0.05, look: { impact: 2, zoom: 0.4 } }] }).moments[0].look).toEqual({ zoom: 0.4, impact: 2 });
+    expect(() => readTempo({ moments: [{ on: 'strike', scale: 0, hold: 0.05, look: { impact: 9 } }] })).toThrow(/1 to 6 frames/);
+    expect(() => readTempo({ moments: [{ on: 'strike', scale: 0, hold: 0.05, look: { sepia: 1 } }] })).toThrow(/not a dial/);
+    for (const [word, ms] of Object.entries(TEMPO_PRESETS)) expect(readTempo(word).moments.map((m) => m.look)).toEqual(ms.map((m) => m.look));
+  });
+
+  it('the page lays a moment\'s look over the grade only when a moment carries one', async () => {
+    const { emitThreeWorld } = await import('@/lib/graph/scene/scene-three');
+    const floor = { corners: [[-20, -20, 0], [20, -20, 0], [20, 20, 0], [-20, 20, 0]], fill: '#556' };
+    const base = { faces: [floor], entities: [{ id: 'p', rule: { type: 'walk', speed: 4 }, pilotable: true, body: body() }], camera: { rule: 'follow', target: 'p' } };
+    const looked = emitThreeWorld({ ...base, tempo: { moments: [{ on: 'strike', scale: 0, hold: 0.05, look: { impact: 2 } }] } });
+    expect(looked).toContain('window.__mojGrade.moment(');
+    expect(looked).toContain('gradeFrame');
+    const bare = emitThreeWorld({ ...base, tempo: { moments: [{ on: 'strike', scale: 0, hold: 0.05 }] } });
+    expect(bare).not.toContain('__mojGrade');
+  });
+});

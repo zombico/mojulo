@@ -31,3 +31,15 @@ moment overlays its own, eased with the moment.
   - **A world's `grade`** reaches its page. `window.__mojGrade` sets it by hand and overlays a moment's look.
   - **The pass draws only while the grade is off its rest.** Godot and Roblox grade with their own post stacks (marked
     absent).
+- **A moment's look.** A tempo moment's `look` holds grade dials, plus `impact`: frames of the inverted impact frame
+  as it fires. It is laid over the world's grade by the moment's weight, eased in over its ramp, held, and eased out.
+  - **The impact frame** is hard for its frames.
+  - **The zoom blur** aims at whom the moment is about, where they stand on screen.
+  - **A world with a looked moment and no grade of its own** gets the grade at its rest, drawn only while the moment
+    plays.
+  - **The presets now carry a look**:
+    - `finisher` drains the colour, vignettes and draws the bars;
+    - `kill-cam` does the same, nearer grey and grained;
+    - `impact` lands a blow on two inverted frames, a zoom toward the struck, a shake and a flash, and a foe going
+      down greys a little;
+    - `bullet` bleeds the colour, splits the channels and cools.

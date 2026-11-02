@@ -29,6 +29,10 @@
  * shot left it). It never takes the camera from a scene's shot (the camera's rule held aside already) or from the tackle
  * cinematic; a moment that takes over without a cam hands the camera back.
  *
+ * THE LOOK: a moment's `look` (grade dials, channels/grade.js, and `impact`: frames of the inverted impact frame as it
+ * fires) is the page's to lay: `tempoWeight` is the moment's envelope (0 as it fires and ramps, 1 held, back to 0), and
+ * the page eases the look over the world's grade by it, the zoom aimed at whom the moment is about.
+ *
  * Composed outermost (after hitstop), so a hitstop's frames run on the world's scaled clock. Import-free (the page runs
  * this source via toString(), compose.js); emitted only into a page whose world has a tempo, and a world without one
  * gets no state key: every other page and world keeps every byte.
@@ -45,6 +49,7 @@ export function buildWorldClock(E) {
     const moments = (T && Array.isArray(T.moments) ? T.moments : []).filter((m) => m && typeof m.on === 'string' && m.on).map((m) => ({
       on: m.on, scale: Math.max(0, Math.min(1, num(m.scale, 0.25))), hold: Math.max(0, num(m.hold, 1)),
       ramp: Math.max(0, num(m.ramp, 0)), cooldown: Math.max(0, num(m.cooldown, 0)), ...(camOf(m.cam) ? { cam: camOf(m.cam) } : {}),
+      ...(m.look && typeof m.look === 'object' ? { look: m.look } : {}),
     }));
     if (!moments.length) return;
     const downed = {};
@@ -65,6 +70,15 @@ export function buildWorldClock(E) {
     if (p.t < r + m.hold) return m.scale;
     if (p.t < 2 * r + m.hold) return m.scale + (1 - m.scale) * ease((p.t - r - m.hold) / r);
     return null;
+  }
+
+  // how far into its look the playing moment is: eased in over its ramp, held, eased out; 0 when none plays
+  function weightOf(p) {
+    const m = p.m, r = m.ramp;
+    if (p.t < r) return ease(p.t / r);
+    if (p.t < r + m.hold) return 1;
+    if (p.t < 2 * r + m.hold) return 1 - ease((p.t - r - m.hold) / r);
+    return 0;
   }
 
   // fire the moments listening for `on`: the slowest of them, if it is as slow as what plays and off its cooldown; `who`
@@ -144,9 +158,11 @@ export function buildWorldClock(E) {
   };
   E.tempoMoment = (state, on, who) => fire(state, on, who);
   E.tempoScale = (state) => (state.tempo ? state.tempo.scale : 1);
+  E.tempoWeight = (state) => (state.tempo && state.tempo.playing ? weightOf(state.tempo.playing) : 0);
 }
 
 // ── reading a world's tempo (Node only: the builder above is what the page runs) ─────────────────────────────────────
+import { readGrade, GRADE_DIAL_NAMES } from '../../scene/channels/grade.js';
 
 /** what a moment fires on, read off the world (any other name is fired from outside: a cue, the bus, the page) */
 export const TEMPO_SIGNALS = Object.freeze(['strike', 'down', 'down:foe', 'last-down', 'dodge']);
@@ -154,15 +170,27 @@ export const TEMPO_SIGNALS = Object.freeze(['strike', 'down', 'down:foe', 'last-
  * freeze and the slow after a foe falls, bullet time on a dodge */
 export const TEMPO_PRESETS = Object.freeze({
   // (the finisher framed on the two of them; the kill cam low on the downed, pushing in)
-  finisher: [{ on: 'last-down', scale: 0.2, hold: 1.2, ramp: 0.25, cam: 'two' }],
-  'kill-cam': [{ on: 'last-down', scale: 0.12, hold: 2, ramp: 0.3, cam: { frame: 'low', on: ['b', 'a'], move: 'push' } }],
-  impact: [{ on: 'strike', scale: 0, hold: 0.05, cooldown: 0.2 }, { on: 'down:foe', scale: 0.3, hold: 0.4, ramp: 0.1, cooldown: 1.5 }],
-  bullet: [{ on: 'dodge', scale: 0.3, hold: 1.5, ramp: 0.2, cooldown: 3 }],
+  // (the finisher framed on the two of them, its colour drained and the bars drawn; the kill cam low on the downed,
+  // pushing in, near grey and grained; a blow lands on an impact frame, a zoom toward the struck and a shake; bullet
+  // time bleeds its colour and splits its channels)
+  finisher: [{ on: 'last-down', scale: 0.2, hold: 1.2, ramp: 0.25, cam: 'two', look: { saturation: 0.35, contrast: 1.15, vignette: 0.45, bars: 0.1 } }],
+  'kill-cam': [{ on: 'last-down', scale: 0.12, hold: 2, ramp: 0.3, cam: { frame: 'low', on: ['b', 'a'], move: 'push' }, look: { saturation: 0.2, contrast: 1.2, vignette: 0.55, bars: 0.12, grain: 0.2 } }],
+  impact: [{ on: 'strike', scale: 0, hold: 0.05, cooldown: 0.2, look: { impact: 2, zoom: 0.35, shake: 0.6, flash: 0.12 } }, { on: 'down:foe', scale: 0.3, hold: 0.4, ramp: 0.1, cooldown: 1.5, look: { saturation: 0.6, vignette: 0.3 } }],
+  bullet: [{ on: 'dodge', scale: 0.3, hold: 1.5, ramp: 0.2, cooldown: 3, look: { saturation: 0.45, aberration: 4, vignette: 0.35, warmth: -0.15 } }],
 });
 const LIMITS = { hold: 10, ramp: 3, cooldown: 60 };
 /** the impact cam's frames (the shot rule's words, rules-basic.js FRAMES and `over`) and moves */
 export const CAM_FRAMES = Object.freeze(['two', 'close', 'profile', 'low', 'wide', 'corner', 'overhead', 'over']);
 export const CAM_MOVES = Object.freeze(['hold', 'track', 'push', 'orbit']);
+
+// a moment's look: grade dials (channels/grade.js) and `impact`, the inverted impact frame's frames as it fires (1 to 6)
+function readLook(L) {
+  if (!L || typeof L !== 'object' || Array.isArray(L)) throw new Error(`tempo: a moment's look is grade dials (${GRADE_DIAL_NAMES.join(', ')}) and impact (frames of the impact frame)`);
+  const { impact, ...dials } = L;
+  if (impact !== undefined && !(Number.isInteger(impact) && impact >= 1 && impact <= 6)) throw new Error(`tempo: a look's impact is 1 to 6 frames of the inverted impact frame, not ${JSON.stringify(impact)}`);
+  const G = Object.keys(dials).length ? readGrade(dials, 'tempo: a moment\'s look') : null;
+  return { ...(G || {}), ...(impact !== undefined ? { impact } : {}) };
+}
 
 function readCam(c) {
   const C = typeof c === 'string' ? { frame: c } : c;
@@ -179,7 +207,7 @@ function readCam(c) {
 
 /**
  * A world's `tempo` read into the kernel's spec, or throws naming what it takes: a preset word, a list of words, or
- * `{ moments: [{ on, scale, hold, ramp?, cooldown?, cam? }] }` (words and moments may mix in a list). Null for none.
+ * `{ moments: [{ on, scale, hold, ramp?, cooldown?, cam?, look? }] }` (words and moments may mix in a list). Null for none.
  */
 export function readTempo(raw) {
   if (raw == null || raw === false) return null;
@@ -202,6 +230,7 @@ export function readTempo(raw) {
     }
     if (m.hold === undefined) throw new Error('tempo: a moment says how long it holds (`hold`, real seconds)');
     if (it.cam !== undefined) m.cam = readCam(it.cam);
+    if (it.look !== undefined) m.look = readLook(it.look);
     moments.push(m);
   }
   return moments.length ? { moments: moments.slice(0, 8) } : null;

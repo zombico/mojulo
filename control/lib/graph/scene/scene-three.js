@@ -711,7 +711,9 @@ export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 11
   // (and the frame pass, the far softened by the air's blur and past the crust by the cone's `soften`, channels/frame-pass.js:
   // wrapped round three's render first; asked by neither, not a byte)
   // (and the grade, channels/grade.js: the page's compositing stage, the frame pass's last; asked by nothing, not a byte)
-  const frameEarly = framePassScript({ air: airOn ? air : null, soften: Number.isFinite(soften) && soften > 0 ? soften : 0, ...(grade ? { grade } : {}) });
+  // (a tempo moment with a look asks for the grade too, at its rest when the world sets none: worlds/controllable/world-clock.js)
+  const gradeOn = grade || (tempo && Array.isArray(tempo.moments) && tempo.moments.some((m) => m && m.look) ? {} : null);
+  const frameEarly = framePassScript({ air: airOn ? air : null, soften: Number.isFinite(soften) && soften > 0 ? soften : 0, ...(gradeOn ? { grade: gradeOn } : {}) });
   // the world's weather (channels/weather.js): fog that moves, a fall round the camera, lightning; absent ⇒ no bytes
   const weatherBlock = weather && weather.weather ? weatherScript({ radius: mesh.radius || 40, fog: haze && Number.isFinite(haze.density) && typeof haze.color === 'string' ? { color: haze.color, density: haze.density } : null, forces: weatherForces(events), ...weather }) : '';
   // a stage's tone (channels/tone.js): each surface lit first, coloured off its ramp after; none → not one byte
