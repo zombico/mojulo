@@ -12,3 +12,9 @@ In progress. The realistic hero's arms and hands, solved from targets rather tha
   hand grips a haft around its own size and forms shapes such as a crane beak, a tiger claw or sword fingers.
 - **Opt-in, byte for byte.** The hand words `relaxed`, `open`, `fist`, `point` and `grip` run exactly as before, and
   every hero and clip minted before is unchanged.
+- **The studies** (`control/scripts/spikes/manipulator/`): `hand-measures.mjs` (the hand's controls, each word's bends,
+  the thumb's path, opposition tip to tip) and `arm-envelope.mjs` (seeded targets through today's arm solver from the
+  guard: error, elbows, the punch line, time). The baseline: today's thumb curls in a fixed arc 35–46 mm in front of
+  the palm and cannot meet the middle finger; the arm reaches within about a millimetre at most distances but takes
+  about 0.2 s a solve, misses some cross-body and high targets at full reach, and lands near targets with the forearm
+  45–66° off the line a straight punch needs.
