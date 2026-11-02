@@ -31,6 +31,13 @@
   candy stripes a metre long; the roads splashed with ink; the lines fat (`paint`) and the yellow pushed; a crossing's
   bars parallelograms; each hydrant, bin, post box, shelter and seat its own ink, never the last of its kind's; and
   no two neighbouring streetlights one height (`vary`, their wires strung to each pole's own top).
+- **Loud homes** (`exaggerate.homes`; the `street` hand carries one): a geotown's houses and their back yards by the
+  shops' principles. Each half of a pair (a semi, a split duplex) its own wall hue and its trims (its lights' surrounds,
+  sills and lintels, its front's trim) its own ink, never its partner's nor the last home's in its row; no window square
+  (`skew`); the two halves of a pair never one height, its second half's roof raised over its eave by `step` (its two
+  gables still meeting at the party wall's eave; the `rooflines` law reads each pair). Its yard (`yard`): the patio and
+  the pool's terrace in skewed pastel slabs over their paving, the deck in striped boards, the fence, the shed and the
+  yard's things each its own ink, the pool bright. Every door and plot where the plan put it.
 - **The street's doodads round** (`geotown/doodads.js`), a cube's exaggerate drawing them: a hydrant on its flange with
   its barrel, domed bonnet and nozzles; a bin a drum under its lid; a post box a pillar under its dome and slot band; a
   streetlight a tapered standard on its collar, its arm and its bell; a sign's and a signal's posts round. In the cube's

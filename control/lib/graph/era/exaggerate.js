@@ -26,6 +26,11 @@
  *                vary (m, 0–1.5: neighbouring streetlights' heights apart) }: the walks, roads and furniture drawn LOUD
  *                (geotown/street-loud.js) by the same principles as a loud front: no slab square, no two neighbours
  *                alike (a slab's tint, a piece's ink, a lamp's height). The plan never moves
+ *     homes      { skew (0–0.3), step (m, 0–3), pop (0–1), yard (bool) }: a house and its back yard drawn LOUD by the shops'
+ *                principles: each half of a pair its own wall hue and trims, never its partner's; no window square;
+ *                the two halves of a pair never one height (one half's roof raised over its eave by `step`); its yard's
+ *                patio in skewed pastel slabs, its deck in striped boards, its fence, its shed and its things each its own
+ *                ink, its pool bright. A house's door and its plot never move
  *     seed       the field's own dice (an integer)
  *
  * THE BEND is one field over the world, never a tilt per building, so a wall two buildings share moves once and a
@@ -60,10 +65,12 @@ const r5 = (v) => Math.round(v * 1e5) / 1e5 + 0;
 const DEG = Math.PI / 180;
 
 export const EXAGGERATE_TERMS = Object.freeze({
-  lean: [0, 8], sway: [8, 200], sag: [0, 0.12], reach: [2, 60], elements: [0, 1], seed: null, kit: null, front: null, streets: null,
+  lean: [0, 8], sway: [8, 200], sag: [0, 0.12], reach: [2, 60], elements: [0, 1], seed: null, kit: null, front: null, streets: null, homes: null,
 });
 const FRONT_TERMS = Object.freeze({ chunk: [1, 3], sign: [1, 2], tilt: [0, 12], stripes: [0, 16], scallop: 'bool', stickers: [0, 1], splats: [0, 1], pop: [0, 1], skew: [0, 0.3], step: [0, 3] });
 const STREET_TERMS = Object.freeze({ slabs: [0, 1], skew: [0, 0.6], kerb: 'bool', splats: [0, 1], paint: [1, 3], pop: [0, 1], vary: [0, 1.5] });
+const HOME_TERMS = Object.freeze({ skew: [0, 0.3], step: [0, 3], pop: [0, 1], yard: 'bool' });
+const HOME_PLAIN = Object.freeze({ skew: 0, step: 0, pop: 0, yard: false });
 const STREET_PLAIN = Object.freeze({ slabs: 0, skew: 0, kerb: false, splats: 0, paint: 1, pop: 0, vary: 0 });
 /** A loud shopfront's terms, where a hand names no own: plumb (the front as it was is no `front` at all). */
 const FRONT_PLAIN = Object.freeze({ chunk: 1, sign: 1, tilt: 0, stripes: 0, scallop: false, stickers: 0, splats: 0, pop: 0, skew: 0, step: 0 });
@@ -80,7 +87,8 @@ export const EXAGGERATE_PRESETS = Object.freeze({
   // urban art: the masses near plumb, the language pushed to its ends, the street's furniture fat and loud
   street: Object.freeze({ lean: 1.2, sway: 48, sag: 0.015, reach: 8, elements: 0.85, kit: Object.freeze({ chunk: 1.7, lean: 2 }), seed: 1,
     front: Object.freeze({ chunk: 2.2, sign: 1.6, tilt: 4, stripes: 7, scallop: true, stickers: 0.55, splats: 0.6, pop: 0.85, skew: 0.16, step: 0.9 }),
-    streets: Object.freeze({ slabs: 0.7, skew: 0.35, kerb: true, splats: 0.5, paint: 2.2, pop: 0.85, vary: 0.6 }) }),
+    streets: Object.freeze({ slabs: 0.7, skew: 0.35, kerb: true, splats: 0.5, paint: 2.2, pop: 0.85, vary: 0.6 }),
+    homes: Object.freeze({ skew: 0.16, step: 0.9, pop: 0.85, yard: true }) }),
 });
 export const EXAGGERATE_NAMES = Object.freeze(Object.keys(EXAGGERATE_PRESETS));
 
@@ -120,6 +128,17 @@ export function readExaggerate(spec, no = fail) {
     }
     if (front.stripes && front.stripes < 3) no('exaggerate.front.stripes is 0 (none) or 3 to 16');
   }
+  // the loud homes, the same way
+  let homes = null;
+  if (rest.homes !== undefined && rest.homes !== false && !isObj(rest.homes)) no(`exaggerate.homes is { ${Object.keys(HOME_TERMS).join(', ')} } or false: the houses and their yards drawn loud`);
+  if (rest.homes !== false && (base.homes || isObj(rest.homes))) {
+    homes = { ...HOME_PLAIN, ...(base.homes ?? {}), ...(isObj(rest.homes) ? rest.homes : {}) };
+    for (const k of Object.keys(homes)) if (!HOME_TERMS[k]) no(`exaggerate.homes.${k} is not a term (homes: ${Object.keys(HOME_TERMS).join(', ')})`);
+    for (const [k, rail] of Object.entries(HOME_TERMS)) {
+      if (rail === 'bool') { if (typeof homes[k] !== 'boolean') no(`exaggerate.homes.${k} is true or false`); continue; }
+      if (!(typeof homes[k] === 'number' && homes[k] >= rail[0] && homes[k] <= rail[1])) no(`exaggerate.homes.${k} is a number from ${rail[0]} to ${rail[1]}`);
+    }
+  }
   // the loud street, the same way
   let streets = null;
   if (rest.streets !== undefined && rest.streets !== false && !isObj(rest.streets)) no(`exaggerate.streets is { ${Object.keys(STREET_TERMS).join(', ')} } or false: the walks, roads and furniture drawn loud`);
@@ -131,7 +150,7 @@ export function readExaggerate(spec, no = fail) {
       if (!(typeof streets[k] === 'number' && streets[k] >= rail[0] && streets[k] <= rail[1])) no(`exaggerate.streets.${k} is a number from ${rail[0]} to ${rail[1]}`);
     }
   }
-  const out = { ...(name || rest.name ? { name: rest.name ?? name } : {}), lean: E.lean, sway: E.sway, sag: E.sag, reach: E.reach, elements: E.elements, kit: { chunk: E.kit.chunk, lean: E.kit.lean }, seed: E.seed, ...(front ? { front } : {}), ...(streets ? { streets } : {}) };
+  const out = { ...(name || rest.name ? { name: rest.name ?? name } : {}), lean: E.lean, sway: E.sway, sag: E.sag, reach: E.reach, elements: E.elements, kit: { chunk: E.kit.chunk, lean: E.kit.lean }, seed: E.seed, ...(front ? { front } : {}), ...(streets ? { streets } : {}), ...(homes ? { homes } : {}) };
   return out;
 }
 

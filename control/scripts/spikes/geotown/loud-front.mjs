@@ -4,7 +4,8 @@
  * street's shop square on, at three quarters, down its row, and its street from over the walk: one row plumb, one a hand (a name, or JSON terms), the same shop from the same places.
  *
  *   CLOSE='<caption>=<face group>[|<another>][=<distance ×>],…' the close cameras (each on the face of that group nearest the shop);
- *   GEOTOWN='{…}' another geotown (a building, not a shop, anchors the cameras where it has no shop)
+ *   VIEWS='[[name, [n, t, z], [n, t, z], fov], …]' cameras in the anchor building's frame instead of the close ones;
+ *   SHOP=<k> the k-th shop (or building) the cameras anchor on; GEOTOWN='{…}' another geotown (a building, not a shop, anchors the cameras where it has no shop)
  *   cd control && node scripts/spikes/geotown/loud-front.mjs <out-dir> [hand …]   (default: a front of street's only)
  *     → <out-dir>/loud-front.png and .html
  */
@@ -53,8 +54,12 @@ try {
       const mid = (f) => f.corners.reduce((a, c) => a.map((v, k) => v + c[k] / f.corners.length), [0, 0, 0]);
       const nearest = (g) => P.faces.filter((f) => g.split('|').includes(f.group)).map(mid).sort((a, b) => Math.hypot(a[0] - h.at[0], a[1] - h.at[1]) - Math.hypot(b[0] - h.at[0], b[1] - h.at[1]))[0];
       const close = (name, g, far = 1) => { const q = nearest(g); const lift = q ? Math.max(0.6, q[2] - h.floor) : 0; return q ? cam(name, [q[0] + N[0] * 2.4 * far + T[0] * 1.6 * far, q[1] + N[1] * 2.4 * far + T[1] * 1.6 * far, h.floor + Math.max(1.5 * Math.sqrt(far), lift + 0.2)].map(r3), [q[0], q[1], h.floor + lift].map(r3), 60) : null; };
+      // (VIEWS='[[name, [n, t, z], [n, t, z], fov], …]': cameras in the anchor's own frame, n out to its street, t along it)
+      if (process.env.VIEWS) cams = JSON.parse(process.env.VIEWS).map(([nm, a, b, fov]) => cam(nm, at(...a), at(...b), fov));
+      else {
       cams = (process.env.CLOSE || 'a hydrant=geotown:hydrant,a bin=geotown:streetbin,a post box=geotown:postbox').split(',').map((kv) => { const [n, g, f] = kv.split('='); return close(n, g, f ? Number(f) : 1); }).filter(Boolean);
       cams.push(cam('three quarters', at(6.5, -6, 1.8), at(0, 1, 3), 64), cam('the street', at(3, 6, 5.5), at(14, -16, 0), 74));
+      }
     }
     const cells = [];
     for (const c of cams) cells.push({ cap: c.name, src: await shoot(P, c) });

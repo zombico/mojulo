@@ -320,3 +320,23 @@ describe('a main street\'s shops drawn loud (the cube\'s exaggerate.front, geoto
     expect(per(X, 'geotown:hydrant')).toBeGreaterThan(per(A, 'geotown:hydrant'));
   });
 });
+
+describe('a pair of houses and their yards drawn loud (the cube\'s exaggerate.homes)', () => {
+  const X = assembleGeotownScene({ ...M, cube: { from: M.cube, exaggerate: { from: 'street', lean: 0, kit: { lean: 0, chunk: 1 } } } });
+  it('keeps every door where the plan put it, and stands a pair\'s halves at two heights', () => {
+    expect(X.anchors.map((a) => [a.id, a.at, a.floor])).toEqual(P.anchors.map((a) => [a.id, a.at, a.floor]));
+    const law = X.geotown.laws.find((l) => l.law === 'rooflines');
+    expect(law.ok).toBe(true);
+    const pairs = new Map();
+    for (const pl of D.plots.filter((q) => q.pair)) { const c = X.colliders.find((k) => k.of === `${pl.id}:house`); if (c) (pairs.get(pl.pair) ?? pairs.set(pl.pair, []).get(pl.pair)).push(c.max[2]); }
+    const two = [...pairs.values()].filter((v) => v.length === 2);
+    expect(two.length).toBeGreaterThan(0);
+    for (const [a, b] of two) expect(Math.abs(a - b)).toBeGreaterThanOrEqual(0.9 - 1e-3);
+  });
+  it('lays its yards\' patios in slabs, and paints its fences in inks the plain town has not', () => {
+    const fills = (S, g) => new Set(S.faces.filter((f) => f.group === g).map((f) => f.fill));
+    const fence = (S) => new Set([...fills(S, 'geotown:fence-board'), ...fills(S, 'geotown:picket'), ...fills(S, 'geotown:slat')]);
+    expect([...fence(X)].some((h) => !fence(P).has(h))).toBe(true);
+    expect(fills(X, 'town:wall').size).toBeGreaterThan(fills(P, 'town:wall').size);
+  });
+});

@@ -47,7 +47,8 @@ import { structurePaint, paintStop } from '../era/out-structures-paint.js';
 import { madeRamp } from '../era/style/swatches.js';
 import { townDressOf, dressTownFace, leanHue } from '../era/town-dress.js';
 import { LOUD_WALLS, CROWN_FORMS, popHex } from './front-loud.js';
-import { slabsOf, groundSplat, inkPicker } from './street-loud.js';
+import { slabsOf, groundSplat, inkPicker, SLAB_TINTS } from './street-loud.js';
+import { INK } from './front-loud.js';
 import { toonOf, proportions, hydrantOf, binOf, postboxOf, lampOf, postOf, ringOf, shelterOf, toyCarOf } from './doodads.js';
 import { signalHead, signOf, mastArm, place } from './signs.js';
 import { styleTownDress, styleReadout } from '../era/arch-style.js';
@@ -82,6 +83,11 @@ const CELL = 6, PARK_CELL = 6, MARGIN_CELL = 6;
 // the finishes laid on a face standing up (a kerb's, a fence's) rather than on the ground
 const UPRIGHT = new Set(['kerb', 'fence-board', 'fence-brick', 'fence-stone']);
 const FINISH_SEEDS = { 'fence-board': 163, 'fence-brick': 165, 'fence-stone': 167, road: 151, walk: 141, furnish: 143, path: 145, side: 147, service: 149, 'park-path': 153, step: 155, kerb: 157, drive: 161 };
+// a design's eave (its walls' top) and its top, in its own frame (a loud pair's second half is raised over the eave)
+const dz0Eave = (dz) => dz.dims.n * dz.dims.storeyH;
+const dz0Top = (dz) => Math.max(...dz.faces.map((f) => Math.max(...f.corners.map((c) => c[2]))));
+// a language's trims: what a loud home paints in its own ink
+const TRIM_PARTS = new Set(['surround', 'sill', 'lintel', 'frame', 'trim', 'shutter']);
 // a building's kit family: a mansion's its own
 const familyOf = (pl) => (pl.form === 'mansion' ? 'mansions' : pl.kind);
 /** A rect less some rects inside it, as rects (u0, v0, u1, v1). */
@@ -239,7 +245,7 @@ export function assembleGeotownScene(m, ctx = {}) {
   const spec = cubeLookSpec(paint), lit = lookLight(spec, paint), LIGHT = lit.light, sun = LIGHT.toLight, air = spec.air ?? spec.ref.air;
   const col = coloursOf(cube), faces = [], colliders = [], anchors = [], finish = finishesOf(P, cube);
   // (the cube's exaggerate, era/exaggerate.js: the street's furniture chunked and leant on the walk under it)
-  const EX = cube.exaggerate ?? null, kitBends = [];
+  const EX = cube.exaggerate ?? null, kitBends = [], HY = EX?.homes ?? null;
   // (a loud street, the cube's exaggerate.streets: geotown/street-loud.js; its own dice)
   const ST = EX?.streets ?? null, Rs = streamOf(seed, 'loud-street', 'town'), ink = ST ? inkPicker(Rs, ST.pop) : null;
   // (a car: the plain one, or an exaggerated cube's toy, at (u, v) along `along`; its paint popped on a loud street, its
@@ -327,9 +333,28 @@ export function assembleGeotownScene(m, ctx = {}) {
   const treeH = (sp, f, top = Infinity) => { const hh = Math.max(TREE_LEAST, Math.min(SPECIES[sp].heights[1], top)); return TREE_LEAST + (hh - TREE_LEAST) * f; };
   // a yard's or a fence's face, in its plot's frame (u, v, z over its pad), painted by its role (or its own paint)
   const yardPrev = new Map(), yardsOf = {};
+  // (a loud home's yard, the cube's exaggerate.homes.yard: its patio in skewed pastel slabs, its deck in striped boards,
+  // its fence, its shed and its things each its own ink, its pool bright; the yard's plan as it was)
+  const LOUD_YARD = { water: '#2fd6ff', pool: '#8fe8ff', coping: '#f7f3ea', trampoline: null, play: null };
+  const FENCE_ROLES = new Set(['fence-board', 'picket', 'slat', 'mesh', 'iron', 'fence-brick', 'fence-stone']);
+  const yardLoud = (pl, f) => {
+    if (!pl.loudHome || !HY?.yard) return null;
+    if (FENCE_ROLES.has(f.role)) return pl.loudFence;
+    if (f.role === 'shed') return pl.loudShed;
+    if (f.role === 'roof' || f.role === 'timber' || f.role === 'trampoline' || f.role === 'play') return pl.loudThing;
+    if (f.role === 'deck') { const cu = f.corners.reduce((a, c) => a + c[0], 0) / f.corners.length; return Math.floor(cu / 0.45) % 2 ? pl.loudDeck[0] : pl.loudDeck[1]; }
+    return LOUD_YARD[f.role] ?? null;
+  };
   const yardFace = (pl, f, shedHex = col.shed) => {
     // (read by the seventh generation, a planter's or a bed's painted leaves are its plants, grown from the library)
     if (form && HP && f.role === 'leaf') return;
+    const lh = yardLoud(pl, f);
+    if (lh) f = { ...f, hex: lh };
+    // (a loud yard's paving laid in slabs over it, the paving its grout)
+    if (pl.loudHome && HY?.yard && f.role === 'paving' && f.corners.length === 4) {
+      const us = f.corners.map((c) => c[0]), vs = f.corners.map((c) => c[1]), z = f.corners[0][2], r = [Math.min(...us), Math.min(...vs), Math.max(...us), Math.max(...vs)];
+      for (const sl of slabsOf(r, r[2] - r[0] >= r[3] - r[1] ? 'x' : 'y', () => z, { skew: 0.35, pop: 0.75 }, col.paving ?? '#cfc8b8', streamOf(seed, 'yard-slabs', `${pl.id}:${r.join(':')}`))) yardFace(pl, { corners: sl.corners, out: [0, 0, 1], role: 'slab', hex: sl.hex });
+    }
     const cs = f.corners.map(([u, v, z]) => W(pl, u, v, pl.pad + z)), o = f.out, want = unit([pl.ex[0] * o[0] + pl.ey[0] * o[1], pl.ex[1] * o[0] + pl.ey[1] * o[1], o[2]]);
     put(cs, `geotown:${f.role}`, f.hex ?? (f.role === 'shed' ? shedHex : col[f.role] ?? col.timber), want);
     claim(cs, f.role, o);
@@ -337,7 +362,7 @@ export function assembleGeotownScene(m, ctx = {}) {
   let built = 0, hedges = 0, gated = 0, padCars = 0;
   const shopPrev = new Map();
   // (each row's last built top, absolute: a loud shop's false front stands clear of it by the cube's exaggerate.front.step)
-  const rowTop = new Map(), steps = [];
+  const rowTop = new Map(), steps = [], homePrev = new Map(), pairWall = new Map(), pairTop = new Map();
   const builtOf = {};
   for (const pl of d.plots) {
     const { w, d: dep, setback: F, pad } = pl, { env, depth: Hd } = pl.house, envW = env[2] - env[0];
@@ -349,10 +374,22 @@ export function assembleGeotownScene(m, ctx = {}) {
       if (!spoken.has(key)) {
         const s = Math.floor(R0() * 1e6) + 1, [b0, b1] = K ? K.band : [sLo, sHi];
         // (a loud shop's lights off square: the cube's exaggerate.front.skew, era/exaggerate.js)
-        const skew = K?.front?.shop && EX?.front?.skew ? { skew: EX.front.skew } : {};
+        const skew = K?.front?.shop && EX?.front?.skew ? { skew: EX.front.skew } : HY?.skew && !K?.front?.shop && familyOf(pl) !== 'shops' ? { skew: HY.skew } : {};
         spoken.set(key, speak(K ? K.L : L, K ? K.use : pl.use ?? 'dwelling', { w: r5(envW), d: r5(Hd) }, K ? kits.sStyle : sStyle, s, { ring: 'near', band: [b0, b1], ...(K?.accent ? { accent: true } : {}), over: { front: 0, side: 0, rear: 0, area: envW * Hd * b0 }, ...skew }));
       }
       const dz = spoken.get(key), mirror = pl.half === 'R';
+      // (a loud home, the cube's exaggerate.homes: its wall's hue and its trims' ink never its partner's nor the last
+      // home's in its row; its yard's fence, shed, things and deck its own)
+      if (HY && !K?.front?.shop && familyOf(pl) !== 'shops') {
+        const Rh = streamOf(seed, 'loud-home', pl.id), other = (list, not) => { const pool = list.filter((x) => !not.includes(x)); return pool[Math.floor(Rh() * pool.length)]; }, last = homePrev.get(`${pl.block}:${pl.side}`) ?? {};
+        pl.loudHome = true;
+        pl.loudWall = other(LOUD_WALLS, [last.wall, pairWall.get(pl.pair)].filter(Boolean));
+        pl.loudTrim = popHex(other(INK, [last.trim].filter(Boolean)), HY.pop);
+        pl.loudFence = popHex(other(INK, [last.fence].filter(Boolean)), HY.pop); pl.loudShed = other(LOUD_WALLS, [pl.loudWall]); pl.loudThing = popHex(other(INK, [pl.loudFence]), HY.pop);
+        const tint = other(SLAB_TINTS, []); pl.loudDeck = [popHex('#b08050', HY.pop * 0.5), leanHue('#b08050', tint, 0.8)];
+        homePrev.set(`${pl.block}:${pl.side}`, { wall: pl.loudWall, trim: pl.loudTrim, fence: pl.loudFence });
+        if (pl.pair) pairWall.set(pl.pair, pl.loudWall);
+      }
       const door = dz.faces.find((f) => f.part === 'door' || f.part === 'accent'), dx = door ? door.corners.reduce((a, c) => a + c[0], 0) / door.corners.length : envW / 2;
       // (its front: a bay and a porch, a shopfront, a canopy, fronts.js, in its own frame; a semi's halves mirrored)
       // (a shop's front its own, never its row neighbour's sign and awning both; a split house's two doors and porches)
@@ -489,16 +526,20 @@ export function assembleGeotownScene(m, ctx = {}) {
     // its design, a semi's second half mirrored; painted and lit as a stage's town
     if (house) {
       built++; builtOf[familyOf(pl)] = (builtOf[familyOf(pl)] ?? 0) + 1;
-      const dz = house.design, X = (x) => env[0] + (house.mirror ? envW - x : x), toW = (c) => W(pl, X(c[0]), env[1] + c[1], pad + c[2]);
+      // (a loud pair's halves never one height: its second half's roof raised over its eave by exaggerate.homes.step)
+      const eave = dz0Eave(house.design), riseK = pl.loudHome && HY.step > 0 && pl.pair && pl.half === 'R' ? 1 + (HY.step + 0.05) / Math.max(0.5, dz0Top(house.design) - eave) : 1;
+      const dz = house.design, X = (x) => env[0] + (house.mirror ? envW - x : x), toW = (c) => W(pl, X(c[0]), env[1] + c[1], pad + (c[2] > eave ? eave + (c[2] - eave) * riseK : c[2]));
       let top = 0, lo = [Infinity, Infinity], hi = [-Infinity, -Infinity];
       const Dr = house.kit ? house.kit.dress : dress;
       // (a loud shop's walls in its own hue, leant after the dress so the style's colour never takes it back)
-      const loudLean = (F, wall) => (pl.loudWall && wall ? { ...F, fill: leanHue(F.fill, pl.loudWall, 0.85), ...(F.cornerFills ? { cornerFills: F.cornerFills.map((c) => leanHue(c, pl.loudWall, 0.85)) } : {}) } : F);
+      const lean2 = (F, hex, k) => ({ ...F, fill: leanHue(F.fill, hex, k), ...(F.cornerFills ? { cornerFills: F.cornerFills.map((c) => leanHue(c, hex, k)) } : {}) });
+      // (a loud home's trims, its lights' surrounds, sills and lintels and its front's trim, in its own ink)
+      const loudLean = (F, wall, trim = false) => (pl.loudWall && wall ? lean2(F, pl.loudWall, 0.85) : pl.loudTrim && trim ? lean2(F, pl.loudTrim, 0.9) : F);
       for (const f of evoked ? [...dz.faces, ...dz.tile] : dz.faces) {
         const cs = (house.mirror ? f.corners.slice().reverse() : f.corners).map(toW), nl = f.normal ?? [0, 0, 1], nn = unit([pl.ex[0] * (house.mirror ? -nl[0] : nl[0]) + pl.ey[0] * nl[1], pl.ex[1] * (house.mirror ? -nl[0] : nl[0]) + pl.ey[1] * nl[1], nl[2]]);
         for (const c of cs) { top = Math.max(top, c[2] - pad); lo = [Math.min(lo[0], c[0]), Math.min(lo[1], c[1])]; hi = [Math.max(hi[0], c[0]), Math.max(hi[1], c[1])]; }
         const fill = Pt(f.group, Math.min(1, (f.value ?? 0.6) * litV(nn))), F0 = { corners: cs.map(P3), group: `town:${f.part}`, fill, cornerFills: cs.map(() => fill), normal: P3(nn), outNormal: P3(nn) };
-        faces.push(loudLean(Dr ? dressTownFace(F0, f.group, Dr) : F0, f.part === 'wall'));
+        faces.push(loudLean(Dr ? dressTownFace(F0, f.group, Dr) : F0, f.part === 'wall', TRIM_PARTS.has(f.part)));
       }
       // its front: the bay's walls in their storey's own wall, its lights, its trim and its top; the porch's deck, posts
       // and roof; a shopfront's glazing, sign and awning; a canopy
@@ -514,10 +555,11 @@ export function assembleGeotownScene(m, ctx = {}) {
           const [grp, v] = f.hex ? [null, 0] : f.role === 'wall' ? [W0.group, W0.value] : f.role === 'roof' ? [dz.dims.covering, 0.34] : f.role === 'trim' ? ['str:paint', 0.92] : f.role === 'deck' ? ['str:timber', 0.5] : [null, 0];
           const own = f.hex ?? (f.role === 'sign' ? house.kit.sign ?? col.door : f.role === 'canvas' ? house.kit.awning ?? col.canvas : f.role === 'door' ? col.door : f.role === 'canopy' ? col.metal : col.glass);
           const fill = grp ? Pt(grp, Math.min(1, v * litV(nf))) : shadeHex(own, nf, LIGHT), F0 = { corners: cw.map(P3), group: `geotown:${f.role === 'glass' ? 'glass' : f.role === 'wall' ? 'bay' : f.role === 'deck' ? 'porch' : f.role}`, fill, cornerFills: cw.map(() => fill), normal: P3(nf), outNormal: P3(nf) };
-          faces.push(loudLean(grp && Dr && f.role !== 'deck' ? dressTownFace(F0, grp, Dr) : F0, f.role === 'wall'));
+          faces.push(loudLean(grp && Dr && f.role !== 'deck' ? dressTownFace(F0, grp, Dr) : F0, f.role === 'wall', f.role === 'trim'));
         }
       }
       colliders.push({ min: P3([lo[0], lo[1], pad]), max: P3([hi[0], hi[1], pad + top]), of: `${pl.id}:house` });
+      if (pl.loudHome && pl.pair && HY.step > 0) { const t0 = pairTop.get(pl.pair); if (t0 === undefined) pairTop.set(pl.pair, pad + top); else steps.push(Math.abs(pad + top - t0)); }
       if (EX?.front) { const rk = `${pl.block}:${pl.side}`, prev = rowTop.get(rk); if (prev && (prev.loud || pl.loud)) steps.push(Math.abs(pad + top - prev.top)); rowTop.set(rk, { top: pad + top, loud: !!pl.loud, wall: pl.loudWall, form: pl.crownForm }); }
       anchors.push({ id: `house-${pl.id}`, kind: 'house', use: house.kit?.use ?? pl.use ?? 'dwelling', row: pl.kind, ...(pl.form === 'mansion' ? { mansion: true } : {}), at: P3(W(pl, house.doorU, env[1], pad)), N: P3([-pl.ey[0], -pl.ey[1], 0]), floor: r5(pad), box: { min: P3([lo[0], lo[1], pad]), max: P3([hi[0], hi[1], pad + top]) }, ...(house.kit ? { type: house.kit.type } : {}) });
       // an evocation's rear: a house's back yard its own program, a shop's service yard, a walk-up's lot
@@ -1101,7 +1143,7 @@ export function assembleGeotownScene(m, ctx = {}) {
   const budget = evoked ? Math.max(SEGMENT_FACES * d.blocks.length, BUILDING_FACES * built) : GEOTOWN_FACES;
   const hard = Object.entries(growth).filter(([on]) => !(SURFACES[on]?.grows ?? []).some((g) => g === 'tree' || g === 'street-tree')).reduce((a, [, n]) => a + n, 0);
   const laws = [...d.laws, ...exaggerateLaws(EX),
-    ...(EX?.front?.step ? [{ law: 'rooflines', ok: steps.every((v) => v >= EX.front.step - 1e-3), value: steps.length ? `neighbours ${Math.round(Math.min(...steps) * 100) / 100} m apart at the least (step ${EX.front.step} m)` : 'no row', want: 'no two connected buildings one height' }] : []),
+    ...(EX?.front?.step || HY?.step ? [{ law: 'rooflines', ok: steps.every((v) => v >= Math.min(EX.front?.step ?? Infinity, HY?.step ?? Infinity) - 1e-3), value: steps.length ? `neighbours ${Math.round(Math.min(...steps) * 100) / 100} m apart at the least (step ${Math.min(EX.front?.step ?? Infinity, HY?.step ?? Infinity)} m)` : 'no row', want: 'no two connected buildings one height' }] : []),
     { law: 'bare', ok: hard === 0, value: `trees ${Object.entries(growth).map(([k, n]) => `${k} ${n}`).join(', ') || 'none'}; ${hard} on a hard surface`, want: 'nothing grows on a road, a walk, a path, a side yard or a building\'s footprint' },
     { law: 'room', ok: nearest >= TREE_GAP - 1e-6, value: `every crown at least ${Number.isFinite(nearest) ? Math.round(nearest * 100) / 100 : '—'} m off a building; every crown raised to ${TREE_CLEAR} m (the least tree ${Math.round(TREE_LEAST * 10) / 10} m); ${crowded} trees without room to stand that tall not planted`, want: 'no tree\'s crown reaches into a building: each held to its room, its crown starting at least twice a person\'s height up' },
     { law: 'faces', ok: faces.length <= budget, value: `${faces.length} faces (budget ${budget}); trees ${form ? 'grown as form' : `${treeFaces} faces as repeats`}`, want: 'only what the map needs is drawn' }];
