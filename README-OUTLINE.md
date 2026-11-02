@@ -53,7 +53,7 @@ maintainer's call.
 Turn your agent into a game studio.
 
 You direct; it builds the worlds and levels, the characters, props and vehicles, the play modes with their animation
-and sound, the foes and bosses, the camera work and cutscenes, and the game bible that ties them into one game.
+and sound, the foes and bosses, the cinematics, and the game bible that ties them into one game.
 ```
 
 - Keep the badges (npm, license, node).
@@ -96,7 +96,7 @@ works and Where it goes.
 | Characters, props and vehicles | Heads and bodies in realistic, cartoon or anime looks; hair, wardrobe, armour, footwear and the gear a hero carries, fitted to the body and customized; named heroes; race machines and craft. | a hero in three looks; one hero bare and armoured | `create_character`, `update_character`, `mint_solid` (gear, vehicles) |
 | Play modes, animation and sound | The principles a game loop is composed from: the game types, how the controls feel, moves and clips, hit effects, local multiplayer, a score and sound effects. | a jump or a swing in motion, with its sound | `create_game`, the gameworld's `feel` and `juice`, `create_beats`, `create_voice` (an optional speech worker) |
 | Foes and bosses | Who stands in each level and how hard: grunts, harriers, elites and a boss on the last; how each attacks, from its wind-up to its recovery; enemy crews, beasts and oozes in the game's look. | the foe cast sheet beside a fight | `design_game`'s `foes` step, the casting call, the foe classes |
-| Cameras and cutscenes | Directed moments in the game (a boss entrance, an arrival, two characters talking), shots keyed for Godot and Blender, flythroughs and recorded runs joined into a video, and a picture of anything being built, from any angle, whenever asked. | a boss entrance; a contact sheet of one thing from many angles | the `ui-scenes` card, `forge_motion` (shoot plans, runs, flythroughs), `stitch_motion` |
+| Cinematics | Scenes directed as a film crew directs them: actors who play a role from a script in a style, speaking and listening, walking their marks; the coverage a director would shoot; directed moments in the game (a boss entrance, an arrival, two characters talking); flythroughs and recorded runs joined into a video; a scene exported to Blender in a film or an anime look; and a picture of anything being built, from any angle, whenever asked. | two actors in a scene, cut by their coverage; a boss entrance | `create_character({ as: 'persona' })` with `style` and `role`, the `ui-scenes` card, `forge_motion` (shoot plans, runs, flythroughs), `stitch_motion` |
 | Game design and production | The game's bible (its world, cast, levels and feel) drafted from a pitch for approval, each step built on a yes, and the record of what is made and what is left, for bigger games; the runtime turns the bible into the game. | the bible's pages | `design_game` (`run: true`), the bibles, plans, sweeps |
 
 Under the cards, one paragraph: every department writes into the same recipe, so they compose (a place, a cast, a play
@@ -187,7 +187,7 @@ replaces it.
 The compiler, told once, for the reader who asks "what's under it?":
 
 ```
-DEPARTMENTS   worlds · characters · play modes · foes · cameras · game design
+DEPARTMENTS   worlds · characters · play modes · foes · cinematics · game design
                  │  every department writes the same recipe
 COMPILER      recipe → geometry · deterministic · true scale · diffable
                  │
