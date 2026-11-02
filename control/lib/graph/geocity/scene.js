@@ -26,8 +26,13 @@
  *   GEOCITY_KEYS              the settings of the geocube kind's geocity
  *   GEOCITY_FACES             the face budget a geocity is held to (a law, advice)
  *   assembleGeocityScene(m, ctx) → the payload: faces, cameras, sky and haze, the walk and a route round the block
- *                                  nearest the seat (the dummy's), and `geocity`: the metro, its counts, its ledger, its
- *                                  laws, its neighbourhoods and its region graph (a Quest Open World's)
+ *                                  nearest the seat (the dummy's), its colliders, and `geocity`: the metro, its counts,
+ *                                  its ledger, its laws, its neighbourhoods and its region graph (a Quest Open World's)
+ *
+ *   held       every mass a walker can reach in a box (`colliders`, { min, max, of: '<block>:<group>' }): each mass of a
+ *              neighbourhood built at block scale, each evoked lot, each composed geotown's houses in the metro's frame
+ *              (a block town's cut to its block); the skyline's backdrop and a far town none. The walk-clear law: the
+ *              dummy's route and the walk's spawn in no box
  *
  * Metres, the design's frame (x east, y north, z up). Pure; seeded dice only.
  */
@@ -117,6 +122,12 @@ export function assembleGeocityScene(m, ctx = {}) {
   const MX = materialContext(cube), FIN = {};
   Object.entries(FINISHES).forEach(([group, [word, as]], k) => { const T = wordTile(word, MX, 211 + 17 * k); if (T) FIN[group] = { spec: T.spec, metres: T.metres, ...(as === 'floor' ? { floor: true } : {}) }; });
   const col = coloursOf(cube), faces = [], counts = { towers: 0, buildings: 0, houses: 0, panes: 0, detailed: 0 };
+  // the analytic hull (worlds/controllable/core.js resolveBlocking, an engine's static boxes, the route audit): a box
+  // round every mass a walker can reach, `of` its block and its group; `holder` the block being built at block scale
+  // (none while the skyline's backdrop or a far town is drawn: nothing walks there)
+  const colliders = [];
+  let holder = null;
+  const hold = (x0, y0, x1, y1, z0, z1, of) => { if (holder !== null) colliders.push({ min: P3([x0, y0, z0]), max: P3([x1, y1, z1]), of }); };
   const put = (corners, group, hex, want = null) => {
     let c = corners, n = newell(c);
     if (want && n[0] * want[0] + n[1] * want[1] + n[2] * want[2] < 0) { c = c.slice().reverse(); n = n.map((x) => -x); }
@@ -143,6 +154,7 @@ export function assembleGeocityScene(m, ctx = {}) {
     for (let j = 0; j + 1 < ys.length; j++) for (let i = 0; i + 1 < xs.length; i++) put([[xs[i], ys[j]], [xs[i + 1], ys[j]], [xs[i + 1], ys[j + 1]], [xs[i], ys[j + 1]]].map(([x, y]) => [x, y, S(x, y) + lift]), group, hex);
   };
   const box = (x0, y0, x1, y1, z0, z1, wall, roof, group) => {
+    hold(x0, y0, x1, y1, z0, z1, `${holder}:${group.slice(8)}`);
     put([[x0, y0, z1], [x1, y0, z1], [x1, y1, z1], [x0, y1, z1]], `${group}:roof`, roof);
     put([[x0, y0, z0], [x1, y0, z0], [x1, y0, z1], [x0, y0, z1]], group, wall, [0, -1, 0]);
     put([[x1, y0, z0], [x1, y1, z0], [x1, y1, z1], [x1, y0, z1]], group, wall, [1, 0, 0]);
@@ -152,6 +164,7 @@ export function assembleGeocityScene(m, ctx = {}) {
   };
   // a mass under a gable, its ridge along `axis` ('x' or 'y')
   const gable = (x0, y0, x1, y1, z0, ze, zr, axis, wall, roof, group) => {
+    hold(x0, y0, x1, y1, z0, zr, `${holder}:${group.slice(8)}`);
     if (axis === 'y') {
       const xm = (x0 + x1) / 2;
       put([[x0, y0, z0], [x0, y1, z0], [x0, y1, ze], [x0, y0, ze]], group, wall, [-1, 0, 0]); put([[x1, y0, z0], [x1, y1, z0], [x1, y1, ze], [x1, y0, ze]], group, wall, [1, 0, 0]);
@@ -262,8 +275,10 @@ export function assembleGeocityScene(m, ctx = {}) {
       });
       if (b.kind === 'park') continue;
       if (!firstBlock || Math.hypot((x0 + x1) / 2 - d.seat[0], (y0 + y1) / 2 - d.seat[1]) < Math.hypot((firstBlock.rect[0] + firstBlock.rect[2]) / 2 - d.seat[0], (firstBlock.rect[1] + firstBlock.rect[3]) / 2 - d.seat[1])) firstBlock = b;
+      holder = b.id;
       if (detail.has(b.id) && DETAILED.includes(b.kind)) detailed(b, { x0, y0, x1, y1, zAt, Rb });
       else building(b, { x0, y0, x1, y1, longY, zAt, Rb });
+      holder = null;
     }
   }
 
@@ -432,6 +447,8 @@ export function assembleGeocityScene(m, ctx = {}) {
     const P = assembleGeotownScene({ kind: 'geocube', cube: m.cube, show: 'geotown', seed: T.seed, ...(m.hour !== undefined ? { hour: m.hour } : {}), ...(m.clouds !== undefined ? { clouds: m.clouds } : {}), geotown: T.spec, walk: false }, { field: T.field });
     const mv = (p) => [r5(p[0] + ox), r5(p[1] + oy), p[2]];
     for (const f of P.faces) faces.push({ ...f, corners: f.corners.map(mv) });
+    // (its houses' boxes, in the metro's frame)
+    for (const c of P.colliders ?? []) colliders.push({ ...c, min: P3(mv(c.min)), max: P3(mv(c.max)), of: `${r.id}:${c.of}` });
     for (const rp of P.repeats ?? []) townRepeats.push({ ...rp, group: `geocity:town-${rp.group ?? 'repeat'}`, transforms: rp.transforms.map((t) => ({ ...t, pos: mv(t.pos) })), near: NEAR });
     if (P.textures) textures = { ...(textures || {}), ...P.textures };
     towns[r.id] = { grid: T.design.spec.grid ?? null, streetscape: T.design.pattern.streetscape, frame: T.frame, origin: T.origin, counts: P.geotown.counts, laws: P.geotown.laws.filter((l) => !l.ok).map((l) => `${l.law}: ${l.value}`) };
@@ -457,6 +474,13 @@ export function assembleGeocityScene(m, ctx = {}) {
     for (const f of P.faces) {
       const c = f.corners, cx = c.reduce((a, p) => a + p[0], 0) / c.length, cy = c.reduce((a, p) => a + p[1], 0) / c.length;
       if (inside(cx, cy)) faces.push({ ...f, corners: c.map(mv) });
+    }
+    // (the boxes of what stands on its block, in the metro's frame, cut to the block: a front's steps the crop leaves
+    // out never stand on the metro's walk)
+    for (const c of P.colliders ?? []) {
+      if (!inside((c.min[0] + c.max[0]) / 2, (c.min[1] + c.max[1]) / 2)) continue;
+      const lo = mv(c.min), hi = mv(c.max), mn = [Math.max(lo[0], x0), Math.max(lo[1], y0), lo[2]], mx = [Math.min(hi[0], x1), Math.min(hi[1], y1), hi[2]];
+      if (mx[0] > mn[0] && mx[1] > mn[1]) colliders.push({ ...c, min: P3(mn), max: P3(mx), of: `${b.id}:${c.of}` });
     }
     for (const rp of P.repeats ?? []) {
       const ts = rp.transforms.filter((t) => inside(t.pos[0], t.pos[1]));
@@ -683,6 +707,8 @@ export function assembleGeocityScene(m, ctx = {}) {
     }
     if (sc.textures && Object.keys(sc.textures).length) textures = sc.textures;
     counts.buildings += lots.length;
+    // (each lot held by its own box: a tower's shape stands inside its lot's)
+    for (const l of lots) colliders.push({ min: P3([l.x0, l.y0, l.z0]), max: P3([l.x1, l.y1, l.z0 + l.h]), of: l.id });
   }
 
   // ── the cameras: the skyline from its water (or from past its land's edge), over the metro, the core, up its spine ──
@@ -739,6 +765,11 @@ export function assembleGeocityScene(m, ctx = {}) {
 
   // ── the laws the scene adds: the faces' budget ──
   const laws = [...d.laws, { law: 'faces', ok: faces.length <= GEOCITY_FACES, value: `${faces.length} faces (budget ${GEOCITY_FACES})${night ? `, ${counts.panes} lit panes` : ''}`, want: 'the metro as massing' }];
+  // the walk clear of the hull: the dummy's route and the walk's spawn stand in no building's box
+  const within = (p, c) => p[0] > c.min[0] && p[0] < c.max[0] && p[1] > c.min[1] && p[1] < c.max[1] && p[2] > c.min[2] && p[2] < c.max[2];
+  const blocked = [...route, P3(eye)].filter((p) => colliders.some((c) => within([p[0], p[1], p[2] + 0.5], c))).length;
+  laws.push({ law: 'walk-clear', ok: blocked === 0, value: blocked ? `${blocked} of the walk's points inside a building's box` : `the walk clear of ${colliders.length} boxes`, want: 'the route round the seat\'s block and the spawn outside every box' });
+  counts.colliders = colliders.length;
   const bg = night ? air.fog.color : rgbToHex(air.dome.horizon);
   const kinds = d.regions.flatMap((r) => r.blocks).reduce((acc, b) => ({ ...acc, [b.kind]: (acc[b.kind] ?? 0) + 1 }), {});
   // (the kit's repeats, each drawn near the camera only; the skyline draws none)
@@ -779,7 +810,7 @@ export function assembleGeocityScene(m, ctx = {}) {
   repeats.push(...townRepeats.map((r) => ({ ...r, ...kit })));
   counts.kit = repeats.reduce((a, r) => a + r.transforms.length, 0);
   return {
-    faces, ...(repeats.length ? { repeats } : {}), ...(textures ? { textures } : {}), cameras, viewBox: { width: 1280, height: 720 }, title: ctx.title || `${cube.title} · geocity`,
+    faces, ...(repeats.length ? { repeats } : {}), ...(textures ? { textures } : {}), ...(colliders.length ? { colliders } : {}), cameras, viewBox: { width: 1280, height: 720 }, title: ctx.title || `${cube.title} · geocity`,
     // (the city's haze is laid per its world unit, city/plan/scene.js; this world's unit is the metre)
     bg, haze: { color: air.fog.color, density: r5((air.fog.density * CITY_HAZE) / CITY_METERS_PER_UNIT) },
     sky: { zenith: air.dome.zenith, horizon: air.dome.horizon, day: night ? 0 : 1, stars: 0, seed: 1, ...(night ? {} : { sun: { dir: P3(sun), size: 1.4, glow: 1.3 } }), ...(spec.air ? hourSky(spec.air) : {}) },
