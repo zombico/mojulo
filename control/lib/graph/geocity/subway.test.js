@@ -20,7 +20,7 @@ describe('a subway under an evocation\'s street', () => {
     const d = designGeocity({ ...geocity, evoke: 'neighbourhood', subway: true }, { seed: 2 }), l = d.lines.find((x) => x.id === U.along);
     expect(l.rank).toBe('spine');
     expect(U.stations).toHaveLength(2);
-    expect(of('rail-tunnel')).toHaveLength(2);
+    expect(of('rail-tunnel')).toHaveLength(1);
     for (const t of U.tunnels) { expect(t.grade).toBeLessThanOrEqual(1 / 30 + 1e-6); expect(t.findings).toBeUndefined(); }
     // (every platform lies under the street's carriageway, each its depth under it)
     const across = l.axis === 'ns' ? 0 : 1;
@@ -41,16 +41,16 @@ describe('a subway under an evocation\'s street', () => {
     for (const r of N.repeats ?? []) for (const t of r.transforms) for (const w of wells) expect(Math.hypot(t.pos[0] - w[0], t.pos[1] - w[1]) < 0.3).toBe(false);
   });
 
-  it('stands a streetcar at its stop on each track of the streetcar line crossing over it, its pantograph to the wire', () => {
+  it('stands the metro\'s streetcar at its stop on each track of the streetcar line crossing over it, under the wire', () => {
     const d = designGeocity({ ...geocity, evoke: 'neighbourhood', subway: true }, { seed: 2 }), l = d.lines.find((x) => x.id === U.along);
     const across = d.lines.filter((x) => x.axis !== l.axis && x.tracks.length);
     expect(across.length).toBeGreaterThan(0);
     expect(U.streetcars.length).toBeGreaterThan(0);
     for (const c of U.streetcars) { const x = d.lines.find((q) => q.id === c.line); expect(x.axis).not.toBe(l.axis); expect(Math.abs(c.at[x.axis === 'ns' ? 0 : 1] - x.at)).toBeLessThan(x.road / 2); }
-    // (its collector bar just under the contact wire, 5.6 m over its street)
+    // (as tall as the metro's car stands, under the contact wire, 5.6 m over its street)
     for (const c of U.streetcars) {
       const near = N.faces.filter((f) => f.group === 'geocity:streetcar' && f.corners.every((p) => Math.hypot(p[0] - c.at[0], p[1] - c.at[1]) < 20)).flatMap((f) => f.corners.map((p) => p[2]));
-      expect(Math.max(...near) - c.at[2]).toBeGreaterThan(5.2);
+      expect(Math.max(...near) - c.at[2]).toBeGreaterThan(4.5);
       // (over its lowest corner: the street falls along its 30 m)
       expect(Math.max(...near) - c.at[2]).toBeLessThan(7.2);
     }
@@ -60,10 +60,32 @@ describe('a subway under an evocation\'s street', () => {
 
   it('is walked along its platforms, from one platform to the next, and up to the sidewalk, and back', () => {
     const walk = walker(N);
-    const routes = [...of('station').flatMap((s) => s.platforms), ...of('rail-tunnel').map((t) => t.walk), ...of('station').flatMap((s) => s.up.map((u, i) => [...u, ...of('entrance').filter((e) => e.station === s.id)[i].walk.slice(1)]))];
+    // (each way out to the street walked on up its entrance: the entrance named for its station and way out)
+    const entranceOf = (s, x) => of('entrance').find((e) => e.id === `entrance-${s.id.slice('station-'.length)}-${x}`);
+    const routes = [...of('station').flatMap((s) => s.platforms), ...of('rail-tunnel').map((t) => t.walk), ...of('station').flatMap((s) => s.up.map((u, i) => [s, s.exits[i], u]).filter(([, x]) => x.startsWith('street-')).map(([st, x, u]) => [...u, ...entranceOf(st, x).walk.slice(1)]))];
     for (const r of routes) for (const pts of [r, r.slice().reverse()]) {
       const w = walk(pts);
       expect({ steepest: w.steepest <= 0.36, crossed: w.crossed, gaps: w.gaps, boxes: w.boxes }).toEqual({ steepest: true, crossed: [], gaps: [], boxes: [] });
+    }
+  });
+
+  it('meets the PATH under the city: a passage from a concourse down to a platform, walked from the platform to the podium\'s plaza and back', () => {
+    const P = assembleGeocityScene({ ...M, geocity: { ...geocity, evoke: 'neighbourhood', under: true, subway: true } });
+    const byId = new Map(P.anchors.map((a) => [a.id, a])), links = P.anchors.filter((a) => a.kind === 'tunnel' && [a.from, a.to].some((x) => x.startsWith('station-')) && [a.from, a.to].some((x) => x.startsWith('podium-')));
+    expect(links.length).toBeGreaterThan(0);
+    // (every concourse and station reached: the stations from each other by their running tunnels)
+    expect(P.geocity.laws.find((l) => l.law === 'under-reached').ok).toBe(true);
+    const walk = walker(P);
+    for (const t of links) {
+      const sid = [t.from, t.to].find((x) => x.startsWith('station-')), pid = [t.from, t.to].find((x) => x.startsWith('podium-')), St = byId.get(sid), Pd = byId.get(pid), id = t.id.slice('tunnel-'.length);
+      const up = St.up[St.exits.indexOf(`path-${id}`)], line = t.from === sid ? t.line : t.line.slice().reverse(), port = Pd.ports.find((p) => p.id === id);
+      const way = [...up, ...line.slice(1), ...port.reach.slice().reverse().slice(1), ...Pd.down.slice().reverse().slice(1)];
+      for (const pts of [way, way.slice().reverse()]) {
+        const w = walk(pts);
+        expect({ id, steepest: w.steepest <= 0.36, crossed: w.crossed, gaps: w.gaps, boxes: w.boxes }).toEqual({ id, steepest: true, crossed: [], gaps: [], boxes: [] });
+      }
+      // (from the platform's level up to the plaza's)
+      expect(way.at(-1)[2] - way[0][2]).toBeGreaterThan(4);
     }
   });
 

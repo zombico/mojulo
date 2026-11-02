@@ -11,7 +11,10 @@
  *       { platforms, up, steps }, box, cameras, readout }   `at` [x, y] the hall's -y end's middle, `z0` its track bed;
  *       the hall along +y; `portals` { '-y' | '+y': [[x0, x1], …] } each end's portals as wide as the running tunnels
  *       that meet them (the hall's x), `steps` [{ end, x0, x1 }] steps cut into a platform's end down to the track bed,
- *       where a running tunnel's walkway meets it (routes.steps: each its top on the platform and its foot)
+ *       where a running tunnel's walkway meets it (routes.steps: each its top on the platform and its foot); `exits`
+ *       [{ side: ±1, s0, s1, id? }] its ways out as asked (the mezzanine's floor, or the platforms'), `mezzDepth` how
+ *       far its mezzanine reaches along the hall; `ends` the ends its tracks run on through (its plan's by default: a
+ *       through station at a line's end is closed there, its tracks at buffer stops)
  *   assembleStationScene(manifest, ctx) → the World payload of a stage recipe's `station`
  *
  *   { kind: 'stage', station: { plan?: 'island' | 'side' | 'terminus', line?: 'blue' | 'red' | 'green' | 'orange',
@@ -47,7 +50,7 @@ export function readStation(c = {}) {
   return c;
 }
 
-export function stationOf(c0 = {}, { id = 'station', at = [0, 0], z0 = 0, portals = {}, steps = [] } = {}) {
+export function stationOf(c0 = {}, { id = 'station', at = [0, 0], z0 = 0, portals = {}, steps = [], exits = null, mezzDepth = STATION.depth, ends = null } = {}) {
   const c = readStation(c0), planId = c.plan ?? 'island', P = STATION_PLANS[planId], line = LINES[c.line ?? 'blue'], len = c.length ?? 72;
   const hw = P.width / 2, H = P.height, PH = STATION.platform, X = (x) => at[0] + x, Y = (s) => at[1] + s;
   const W = ([x, s, z]) => [X(x), Y(s), z0 + z];
@@ -72,8 +75,9 @@ export function stationOf(c0 = {}, { id = 'station', at = [0, 0], z0 = 0, portal
   const box = (x0, x1, s0, s1, za, zb, group, o) => {
     qz(zb, x0, x1, s0, s1, 1, group, o); qx(x0, s0, s1, za, zb, -1, group, o); qx(x1, s0, s1, za, zb, 1, group, o); qs(s0, x0, x1, za, zb, -1, group, o); qs(s1, x0, x1, za, zb, 1, group, o);
   };
-  const open = (end) => P.ends.includes(end);
-  const mz = P.exit === 'mezzanine' ? (P.mezzanine === '-y' ? [0, STATION.depth] : [len - STATION.depth, len]) : null;
+  // (its open ends: its plan's, or those a line runs on through: a through station at the line's end is closed there)
+  const open = (end) => (ends ?? P.ends).includes(end);
+  const mz = P.exit === 'mezzanine' ? (P.mezzanine === '-y' ? [0, mezzDepth] : [len - mezzDepth, len]) : null;
   const zM = PH + STATION.mezz;
 
   // ── the troughs and the platforms ──
@@ -119,25 +123,27 @@ export function stationOf(c0 = {}, { id = 'station', at = [0, 0], z0 = 0, portal
     }
   }
   // ── the tracks: laid as a running tunnel's, on through a portal at an open end, else to buffer stops ──
-  const shut = P.ends.length < 2 ? (open('-y') ? '+y' : '-y') : null, tEnd = shut === '+y' ? len - 1 : len, tStart = shut === '-y' ? 1 : 0;
+  const shuts = ['-y', '+y'].filter((e) => !open(e)), tEnd = shuts.includes('+y') ? len - 1 : len, tStart = shuts.includes('-y') ? 1 : 0;
   const ctx = {
     emit, at: (s, v, z) => [v, s, z], zf: () => 0, along: () => [0, 1, 0], across: (s, sg) => [-sg, 0, 0], clear: () => true, L: tEnd, G: (k) => k,
     run: (fn) => { for (let s = tStart; s < tEnd - 1e-6; s += 4) fn(s, Math.min(tEnd, s + 4), 0, 0); },
   };
   for (const t of P.tracks) {
     layTrack(ctx, t.x, t.third);
-    if (shut) {
-      const s0 = shut === '+y' ? tEnd - 0.9 : tStart, s1 = s0 + 0.9;
+    for (const sh of shuts) {
+      const s0 = sh === '+y' ? tEnd - 0.9 : tStart, s1 = s0 + 0.9;
       box(t.x - 1.2, t.x + 1.2, s0, s1, 0, 1.1, 'buffer', { hex: '#b8322a', g: 0.9 });
-      qs(shut === '+y' ? s0 - 0.002 : s1 + 0.002, t.x - 1.2, t.x + 1.2, 0.75, 0.95, shut === '+y' ? -1 : 1, 'buffer', { hex: '#f2efe6' });
+      qs(sh === '+y' ? s0 - 0.002 : s1 + 0.002, t.x - 1.2, t.x + 1.2, 0.75, 0.95, sh === '+y' ? -1 : 1, 'buffer', { hex: '#f2efe6' });
     }
   }
   // ── the side walls: the trough's concrete under the platform's level, then a stainless kick, a glazed dado in the
   // line's frieze colour, white tile, the line's band with its roundels, back-painted glass between steel battens over
   // it to a steel cornice; a doorway where the way out is ──
   const doors = [];
-  if (P.exit === 'sides') for (const [a, b] of P.platforms) { const sg = Math.abs(a + hw) < 1e-6 ? -1 : Math.abs(b - hw) < 1e-6 ? 1 : 0; if (sg) doors.push({ side: sg, s0: len / 2 - 1.5, s1: len / 2 + 1.5, z0: PH, z1: PH + 3 }); }
-  if (mz) doors.push({ side: 1, s0: mz[0] + 1.5, s1: mz[0] + 4.5, z0: zM, z1: zM + 3 });
+  // (its ways out as asked: each on a side at a span along the hall, at the mezzanine's floor or the platforms')
+  if (exits) for (const e of exits) doors.push({ side: e.side < 0 ? -1 : 1, s0: e.s0, s1: e.s1, z0: mz ? zM : PH, z1: (mz ? zM : PH) + 3, ...(e.id ? { id: e.id } : {}) });
+  else if (P.exit === 'sides') for (const [a, b] of P.platforms) { const sg = Math.abs(a + hw) < 1e-6 ? -1 : Math.abs(b - hw) < 1e-6 ? 1 : 0; if (sg) doors.push({ side: sg, s0: len / 2 - 1.5, s1: len / 2 + 1.5, z0: PH, z1: PH + 3 }); }
+  if (!exits && mz) doors.push({ side: 1, s0: mz[0] + 1.5, s1: mz[0] + 4.5, z0: zM, z1: zM + 3 });
   const layers = (base) => [
     ...(base < PH ? [{ z0: base, z1: PH, hex: '#55524d', g: 0.85, group: 'concrete' }] : []),
     { z0: PH, z1: PH + 0.15, hex: '#8a9096', g: 0.9, group: 'steel' },
@@ -256,7 +262,7 @@ export function stationOf(c0 = {}, { id = 'station', at = [0, 0], z0 = 0, portal
   // ── its ports: a portal a track an open end, a doorway a way out ──
   const ports = {
     tracks: gates.map((q) => ({ id: q.id, kind: 'track', end: q.end, track: q.track, x: r5(X(q.x)), lo: P3([X(q.span[0]), Y(q.s)]), hi: P3([X(q.span[1]), Y(q.s)]), plane: r5(Y(q.s)), z0: r5(z0), top: STATION.portal, N: [0, q.ns] })),
-    walks: doors.map((d, i) => ({ id: `exit-${i}`, kind: 'walk', side: d.side < 0 ? '-x' : '+x', lo: P3([X(d.side * hw), Y(d.s0)]), hi: P3([X(d.side * hw), Y(d.s1)]), plane: r5(X(d.side * hw)), z0: r5(z0 + d.z0), top: r5(d.z1 - d.z0), N: [d.side, 0] })),
+    walks: doors.map((d, i) => ({ id: d.id ?? `exit-${i}`, kind: 'walk', side: d.side < 0 ? '-x' : '+x', lo: P3([X(d.side * hw), Y(d.s0)]), hi: P3([X(d.side * hw), Y(d.s1)]), plane: r5(X(d.side * hw)), z0: r5(z0 + d.z0), top: r5(d.z1 - d.z0), N: [d.side, 0] })),
   };
   // ── its walks: along each platform, end to end, clear of its columns, benches and stair; and up to each way out ──
   const pt = (x, s, z) => P3(W([x, s, z]));

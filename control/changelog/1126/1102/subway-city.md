@@ -14,8 +14,19 @@
   A rail tunnel's fall over a landing is its ramp's, not a drop needing a stair. Absent, a city is as it was.
 - **A streetcar across the subway** (geocity/streetcar.js): a city asked for a subway runs streetcars on its two-way
   spines, so one crosses the line over it; on each streetcar line crossing the subway's street along its run, a car
-  stands at the stop each way past the crossing: a low-floor car in three articulated sections, red over a dark skirt
-  under a white roof, its windows in a band, double doors on its kerb side, a cab, windscreen, headlights and a
-  destination sign at each end, its pantograph raised to the overhead's contact wire; each held by its own box, a
-  camera on the first from across its street. Each sidewalk entrance closes the walk's kerb along its stair's run, so
+  stands at the stop each way past the crossing: the city metro's own streetcar (the car fractal-city's tram corridors
+  run, vehicles/vehicles-css3d.js), at the metro's scale, on the street's ground; each held by its own box, a camera on
+  the first from across its street. Each sidewalk entrance closes the walk's kerb along its stair's run, so
   nothing under the walk shows under its edge, and opens its well before the stair's ceiling nears the walk.
+- **The subway meets the PATH: platforms lead into the network under the city** (`geocity: { under, subway }`): a
+  line's stations are nodes of the network under the city beside its podiums' concourses, so a passage joins a
+  concourse across the street to a station: from a side platform through a doorway in its wall (or a mezzanine's), up
+  the passage's stair into the concourse, up the podium's stair and out of its lobby onto its plaza: a tower's lobby is
+  a station's larger entrance from the street above. A station has several ways in: a sidewalk entrance from each side
+  platform, on each side of the street, and a passage from each concourse that faces it; the network's laws count the
+  stations reached from each other by their running tunnels, and no passage between two concourses runs through a
+  station. A city's line is cut and cover by default (side platforms, 10 m under the street); an island lies deeper (14
+  m). A line's station whose tracks do not run on at an end (the line's first or last) is closed there, its tracks at
+  buffer stops (a through station had left a portal open onto nothing). Walked from a platform through the passage to
+  the podium's plaza and back. A station takes its ways out (`exits`) and its mezzanine's reach (`mezzDepth`) from
+  the line, and its open `ends`.

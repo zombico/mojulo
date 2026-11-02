@@ -67,7 +67,7 @@ import { passageOf } from '../network/passage.js';
 import { networkLaws } from '../network/laws.js';
 import { readSection } from '../network/sections.js';
 import { dressUnder, ROUTES } from './dress.js';
-import { subwayUnder } from './subway.js';
+import { subwayUnder, subwayPlan } from './subway.js';
 import { streetcarFaces, STREETCAR } from './streetcar.js';
 
 export const GEOCITY_KEYS = Object.freeze(['kind', 'cube', 'show', 'title', 'seed', 'hour', 'clouds', 'geocity', 'walk', 'shadows', 'occlusion', 'light', 'cone', 'air']);
@@ -723,6 +723,10 @@ export function assembleGeocityScene(m, ctx = {}) {
   // door stands off its floor by more than a kerb ──
   const UN = d.spec.under ?? null, podia = [], tunnels = [], netLaws = [];
   let underWhy = null, dressed = null;
+  // (the subway placed first, geocity/subway.js: its stations are nodes of the network under the city, so the PATH's
+  // passages meet its mezzanines)
+  const SUBP = d.spec.subway ? subwayPlan(d, { S, kerb: KERB }) : null;
+  let SUB = null;
   if (UN) {
     const all = lots.filter((l) => l.id.endsWith(':podium')), seatD = (l) => Math.hypot((l.x0 + l.x1) / 2 - d.seat[0], (l.y0 + l.y1) / 2 - d.seat[1]);
     const cands = all.filter((l) => UN.at === undefined || l.id === `${UN.at}:podium`).sort((p, q) => seatD(p) - seatD(q) || (p.id < q.id ? -1 : 1));
@@ -745,12 +749,12 @@ export function assembleGeocityScene(m, ctx = {}) {
     // the network (lib/graph/network): a passage between each two concourses facing each other across one street,
     // straight where they overlap along it and a dog-leg where they do not, kept where both their plans hold its way out
     // (one podium named by `at` stands alone)
-    const nodes = fits.map((f) => ({ id: f.block, rect: f.rect, room: f.fit.concourse, door: PODIUM.door.width }));
+    const nodes = [...fits.map((f) => ({ id: f.block, rect: f.rect, room: f.fit.concourse, door: PODIUM.door.width })), ...(SUBP && UN.at === undefined ? SUBP.nodes : [])];
     const fitOf = new Map(fits.map((f) => [f.block, f])), portsOf = (id, es) => es.flatMap((e) => (e.a === id ? [{ id: `${e.a}-${e.b}`, side: e.sideA, u: e.uA }] : e.b === id ? [{ id: `${e.a}-${e.b}`, side: e.sideB, u: e.uB }] : []));
     let edges = [];
-    if (UN.at === undefined) for (const e of networkEdges(nodes, { section: SECTION, blocks: [...blockOf.values()].map((b) => b.rect) })) {
+    if (UN.at === undefined) for (const e of networkEdges(nodes, { section: SECTION, blocks: [...[...blockOf.values()].map((b) => b.rect), ...(SUBP ? SUBP.nodes.map((q) => q.rect) : [])] })) {
       const next = [...edges, e];
-      if ([e.a, e.b].every((id) => portsHold(fitOf.get(id).fit, portsOf(id, next)))) edges = next;
+      if ([e.a, e.b].filter((id) => fitOf.has(id)).every((id) => portsHold(fitOf.get(id).fit, portsOf(id, next)))) edges = next;
     }
     for (const f of fits) podia.push({ ...f, I: podiumInside(f.lot, { padZ: f.padZ, fit: f.fit, ports: portsOf(f.block, edges) }) });
     // each passage between its two concourses' ways out, in the concourse's own tiles and at its floor's light
@@ -772,7 +776,9 @@ export function assembleGeocityScene(m, ctx = {}) {
     // (what stands over a point: a block's plaza, where a slab's cover is wanted; else the street's land)
     const blocksBuilt = [...blockOf.values()].filter((b) => zOf.has(b.id));
     const over = (x, y) => { const b = blocksBuilt.find((q) => x >= q.rect[0] && x <= q.rect[2] && y >= q.rect[1] && y <= q.rect[3]); return b ? { z: zOf.get(b.id)(x, y), under: 'slab' } : { z: S(x, y), under: 'ground' }; };
+    const stationEdges = edges.filter((e) => !podOf.has(e.a) || !podOf.has(e.b));
     for (const e of edges) {
+      if (!podOf.has(e.a) || !podOf.has(e.b)) continue;
       const A = podOf.get(e.a), B = podOf.get(e.b), id = `${e.a}-${e.b}`;
       const look = { floor: tileOf(A.I, 'stage:floor'), wall: tileOf(A.I, 'stage:wall'), ceiling: tileOf(A.I, 'stage:soffit'), light: { floor: lumOf(A.I, 'stage:floor'), wall: lumOf(A.I, 'stage:wall'), ceiling: lumOf(A.I, 'stage:soffit') }, stripe: ROUTES[e.axis === 'y' ? 'ns' : 'ew'] };
       // (each end: its way out's floor, its jambs on its outer face, its head)
@@ -780,10 +786,25 @@ export function assembleGeocityScene(m, ctx = {}) {
       const pa = end(A.I.ports.find((p) => p.id === id)), pb = end(B.I.ports.find((p) => p.id === id));
       tunnels.push({ ...passageOf({ id, path: pathOf(e, pa, pb), a: pa, b: pb, section: SECTION, over, look, prefix: 'geocity' }), a: e.a, b: e.b, kind: e.kind });
     }
-    if (UN.at === undefined && podia.length) netLaws.push(...networkLaws(nodes, tunnels, { section: SECTION, prefix: 'under', noun: 'concourse' }));
+    // the subway built with the ways out its links ask of it, and each link's passage from a concourse down to its
+    // mezzanine: its platforms lead on into the PATH's lower level
+    if (SUBP) {
+      const links = {};
+      for (const e of stationEdges) for (const [sid, side, u, width] of [[e.a, e.sideA, e.uA, e.doorA], [e.b, e.sideB, e.uB, e.doorB]]) if (!podOf.has(sid)) (links[sid] ??= []).push({ side, u, width, id: `${e.a}-${e.b}` });
+      SUB = subwayUnder(d, { S, kerb: KERB, plan: SUBP, links });
+      for (const e of stationEdges) {
+        const id = `${e.a}-${e.b}`, P0 = podOf.get(podOf.has(e.a) ? e.a : e.b);
+        const look = { floor: tileOf(P0.I, 'stage:floor'), wall: tileOf(P0.I, 'stage:wall'), ceiling: tileOf(P0.I, 'stage:soffit'), light: { floor: lumOf(P0.I, 'stage:floor'), wall: lumOf(P0.I, 'stage:wall'), ceiling: lumOf(P0.I, 'stage:soffit') }, stripe: ROUTES[e.axis === 'y' ? 'ns' : 'ew'] };
+        const endOf = (nid) => { if (podOf.has(nid)) { const q = podOf.get(nid).I.ports.find((p) => p.id === id), ax = q.side.endsWith('y') ? 0 : 1, P = (u) => { const pp = [0, 0]; pp[ax] = u; pp[1 - ax] = q.plane; return pp; }; return { z0: q.z0, lo: P(q.lo), hi: P(q.hi), top: q.top, plane: q.plane }; } const q = SUB.ports.find((p) => p.id === id); return { z0: q.z0, lo: q.lo, hi: q.hi, top: q.top, plane: q.plane }; };
+        const pa = endOf(e.a), pb = endOf(e.b);
+        tunnels.push({ ...passageOf({ id, path: pathOf(e, pa, pb), a: pa, b: pb, section: SECTION, over, look, prefix: 'geocity' }), a: e.a, b: e.b, kind: e.kind, station: true });
+      }
+    }
+    // (its laws over its passages; a line's stations reached from each other by their own running tunnels)
+    if (UN.at === undefined && podia.length) netLaws.push(...networkLaws(nodes, [...tunnels, ...(SUBP && UN.at === undefined ? SUBP.rails : [])], { section: SECTION, prefix: 'under', noun: 'concourse' }));
     // dressed (geocity/dress.js): shopfronts along the concourses, a sign over each way out in its route's colour, a food
     // court in the hub
-    if (podia.length) dressed = dressUnder({ podia, tunnels, seed });
+    if (podia.length) dressed = dressUnder({ podia, tunnels: tunnels.filter((t) => !t.station), seed });
   }
   // the ground under each cut round it: its pads (the lobby's floor is the plaza's there, its stair's well open under it,
   // a higher terrace's pad and the retaining face up to it would stand in the lobby) and the land's own drape under the
@@ -809,20 +830,21 @@ export function assembleGeocityScene(m, ctx = {}) {
   for (const t of tunnels) for (const R of t.footprint) groundCut(R, (f) => Math.min(...f.corners.map((cc) => cc[2])) >= t.top + 0.2);
   // the subway under its street (geocity/subway.js): its stations, tunnels and entrances, the walk open over each
   // entrance's stairwell
-  const SUB = d.spec.subway ? subwayUnder(d, { S, kerb: KERB }) : null, streetcars = [];
+  if (SUBP && !SUB) SUB = subwayUnder(d, { S, kerb: KERB, plan: SUBP });
+  const streetcars = [];
   if (SUB) {
     for (const R of SUB.wells) groundCut(R, () => false);
     // (nothing of the street's stands in a stairwell: its trees, its lamps, poles and signs kept out of each, by a margin)
     const inWell = (x, y) => SUB.wells.some((R) => x > R[0] - 0.6 && x < R[2] + 0.6 && y > R[1] - 0.6 && y < R[3] + 0.6);
     for (const [k, list] of stamps) stamps.set(k, list.filter((t) => !inWell(t.pos[0], t.pos[1])));
     for (const [k, list] of trees) trees.set(k, list.filter((t) => !inWell(t.x, t.y)));
-    // the streetcars across it: on each streetcar line crossing its street along its run, a car at the stop each way
-    // past the crossing, its pantograph to the wire (geocity/streetcar.js)
+    // the streetcars across it: on each streetcar line crossing its street along its run, the metro's own streetcar at
+    // the stop each way past the crossing (geocity/streetcar.js)
     const run = SUB.span, o = SUB.line;
     for (const l of d.lines) {
       if (l.axis === o.axis || !l.tracks.length || l.at < run[0] - 40 || l.at > run[1] + 40) continue;
       for (const t of l.tracks) {
-        const s0 = o.at + t.dir * (o.half + 4), car = streetcarFaces({ axis: l.axis, at: l.at + t.at, s0: s0 + t.dir * 29.8, dir: t.dir, side: Math.sign(t.at) || 1, z: S });
+        const s0 = o.at + t.dir * (o.half + 4), car = streetcarFaces({ axis: l.axis, at: l.at + t.at, s0: s0 + t.dir * (STREETCAR.length + 1), dir: t.dir, z: S });
         for (const f of car) if (f.hex) put(f.corners, f.group, f.hex, f.normal); else faces.push(f);
         const xs = car.flatMap((f) => f.corners.map((c) => c[0])), ys = car.flatMap((f) => f.corners.map((c) => c[1])), zs = car.flatMap((f) => f.corners.map((c) => c[2]));
         colliders.push({ min: P3([Math.min(...xs), Math.min(...ys), Math.min(...zs)]), max: P3([Math.max(...xs), Math.max(...ys), Math.min(...zs) + STREETCAR.height]), of: `streetcar:${l.id}:${t.dir}` });
@@ -935,6 +957,12 @@ export function assembleGeocityScene(m, ctx = {}) {
   }
   // (the subway's: down a platform, into a tunnel, an entrance from the walk and down its stair)
   if (SUB) cameras.push(...SUB.cameras);
+  // (from a PATH passage that meets a station, looking out through its doorway onto the platform)
+  const tl = tunnels.find((t) => t.station);
+  if (tl) {
+    const toSt = !podia.some((P) => P.block === tl.b) ? tl.line : tl.line.slice().reverse(), a = toSt[Math.max(0, toSt.length - 4)], b = toSt[toSt.length - 1];
+    cameras.push({ name: 'subway-path', worldFraming: { cameraPosition: P3([a[0], a[1], a[2] + 1.7]), lookAt: P3([b[0] + (b[0] - a[0]) * 2, b[1] + (b[1] - a[1]) * 2, b[2] + 1.0]), horizontalFov: 75 } });
+  }
   // (the first streetcar from across its street, the subway's street behind it)
   if (streetcars[0]) {
     const c = streetcars[0], l = d.lines.find((x) => x.id === c.line), ax = l.axis === 'ns' ? 0 : 1, from = [...c.at];
@@ -1005,7 +1033,7 @@ export function assembleGeocityScene(m, ctx = {}) {
       ...(SUB?.anchors ?? []),
       ...(dressed?.readout.court ? [{ id: `food-court-${dressed.readout.court.podium}`, kind: 'food-court', podium: `podium-${dressed.readout.court.podium}`, tables: dressed.readout.court.tables }] : []),
       ...podia.map((P) => ({ id: `podium-${P.block}`, kind: 'building', use: 'podium', enter: 'walk', at: P.I.door.at, N: P.I.door.N, floor: P.I.door.z0, rise: P.I.rise, storeys: 2, rooms: P.I.rooms, through: P.I.through, down: P.I.down, ports: P.I.ports.map((q) => ({ id: q.id, side: q.side, at: P3(q.side.endsWith('y') ? [q.u, q.plane, q.z0] : [q.plane, q.u, q.z0]), reach: q.reach })) })),
-      ...tunnels.map((t) => ({ id: `tunnel-${t.id}`, kind: 'tunnel', from: `podium-${t.a}`, to: `podium-${t.b}`, length: t.length, line: t.line })),
+      ...tunnels.map((t) => { const end = (id) => (podia.some((P) => P.block === id) ? `podium-${id}` : `station-${id}`); return { id: `tunnel-${t.id}`, kind: 'tunnel', from: end(t.a), to: end(t.b), length: t.length, line: t.line }; }),
     ] } : {}),
     walk: m.walk === false ? false : { speed: 6, spawn: P3(eye), minEye: 1.7, gravity: 22, radius: 0.4 },
     route,

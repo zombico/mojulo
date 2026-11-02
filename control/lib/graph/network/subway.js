@@ -14,7 +14,8 @@
  *   laySubway(c, { z0?, ground?, entrance?, out? }) → { stations, tunnels, entrances }   `z0` its track bed (else -depth),
  *       one level or each station's own (the tunnels between graded),
  *       `ground(x, y)` the street over it (0), `entrance` 'pavilion' (a glass pavilion out from each way out) or 'sidewalk'
- *       (a stair up along the street to the sidewalk `out` m off its middle)   placed, joined: each tunnel its passage, its walkway's side, and
+ *       (a stair up along the street to the sidewalk `out` m off its middle); `exits` { <station id>: [{ side, s0, s1,
+ *       id }] } each station's ways out (an id `path-…` another network meets: no entrance), `mezzDepth` its mezzanines'   placed, joined: each tunnel its passage, its walkway's side, and
  *       its walk from one platform to the next (`walk`: down the steps cut in the first's platform end, along the
  *       walkway, up the steps of the next's)
  *   assembleSubwayScene(manifest, ctx) → the World payload: the street over it all, each station, each tunnel, each
@@ -98,7 +99,7 @@ function fitTunnels(P, S) {
   });
 }
 
-export function laySubway(c0, { z0: zBed = null, ground = () => 0, entrance = 'pavilion', out = null, kerb = null } = {}) {
+export function laySubway(c0, { z0: zBed = null, ground = () => 0, entrance = 'pavilion', out = null, kerb = null, exits = {}, mezzDepth } = {}) {
   // (its track bed: one level, or each station's own, the tunnels graded between them)
   const c = readSubway(c0), gap = c.gap ?? 120, depth = c.depth ?? 14, zs = c.stations.map((_, i) => (Array.isArray(zBed) ? zBed[i] : zBed ?? -depth)), z0 = Math.min(...zs);
   const plans = c.stations.map((s) => STATION_PLANS[s.plan ?? 'island']), S = readSection(plans[0].tunnel), fits = fitTunnels(plans[0], S);
@@ -113,7 +114,7 @@ export function laySubway(c0, { z0: zBed = null, ground = () => 0, entrance = 'p
     const portals = Object.fromEntries(ends.map((e) => [e, fits.map((f) => f.span)]));
     const steps = ends.flatMap((e) => fits.map((f) => ({ end: e, x0: f.walk[0], x1: f.walk[1] })));
     const { id: sid, ...settings } = s;
-    return stationOf({ ...settings, ...(s.line === undefined && c.line !== undefined ? { line: c.line } : {}) }, { id: sid, at: [0, ys[i]], z0: zs[i], portals, steps });
+    return stationOf({ ...settings, ...(s.line === undefined && c.line !== undefined ? { line: c.line } : {}) }, { id: sid, at: [0, ys[i]], z0: zs[i], portals, steps, ends, ...(exits[sid] ? { exits: exits[sid] } : {}), ...(mezzDepth ? { mezzDepth } : {}) });
   });
   // the running tunnels: from each station's +y end to the next's -y end, one a group of tracks
   const over = (x, y) => ({ z: ground(x, y), under: 'ground' }), tunnels = [];
@@ -128,7 +129,8 @@ export function laySubway(c0, { z0: zBed = null, ground = () => 0, entrance = 'p
       tunnels.push({ ...T, a: A.id, b: B.id, axis: f.axis, walkSide: f.ws, walk: [sa.top, sa.foot, ...T.line, sb.foot, sb.top] });
     });
   }
-  const entrances = c.entrances === false ? [] : stations.flatMap((St) => St.ports.walks.map((q) => (entrance === 'sidewalk' ? sidewalkEntrance(St, q, { out, ground, kerb }) : entranceOf(St, q))));
+  // (a way out to the street takes an entrance; one another network meets, a `path-` way out, takes none)
+  const entrances = c.entrances === false ? [] : stations.flatMap((St) => St.ports.walks.filter((q) => !q.id.startsWith('path-')).map((q) => (entrance === 'sidewalk' ? sidewalkEntrance(St, q, { out, ground, kerb }) : entranceOf(St, q))));
   return { stations, tunnels, entrances, section: S.id, depth, gap };
 }
 
