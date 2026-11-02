@@ -42,6 +42,8 @@ describe("export_model engine: 'godot'", () => {
     expect(r.level.contract).toBe(true);
     expect(r.level.markers).toBeGreaterThan(0);
     expect(r.commands.gate).toContain('res://mojulo/handoff_probe.gd');
+    // (the visual gate, advisory, the operator's to run: the level's shots on the page and in Godot, scored)
+    expect(r.commands.visual).toBe("mojulo script visual-gate --ref 'sk_xe_couch' --engines godot");
     expect(Array.isArray(r.stays)).toBe(true);
     // (the developer wires their scene; the recipe changes; a re-handoff replaces mojulo/ and keeps theirs)
     const mine = `${LEVEL_TSCN}\n[node name="MyDoor" type="Node" parent="."]\n`;
@@ -59,6 +61,8 @@ describe("export_model engine: 'godot'", () => {
     expect(r).toMatchObject({ ok: true, what: 'asset' });
     expect(r.level).toBeUndefined();
     expect(JSON.parse(readFileSync(path.join(r.dir, 'mojulo/handoff.json'), 'utf8')).level).toBeNull();
+    // (an asset has no level, so no shots: no visual gate to run)
+    expect(r.commands.visual).toBeUndefined();
     await expect(exportModelHandler({ ref: 'sk_xe_box', engine: 'godot', format: 'glb' })).rejects.toThrow(/omit `format`/);
     await expect(exportModelHandler({ ref: 'sk_xe_box', engine: 'roblox' })).rejects.toThrow(/`engine` must be one of 'godot'/);
     await expect(exportModelHandler({ ref: 'sk_xe_box', engine: 'godot', what: 'game' })).rejects.toThrow(/`what` must be one of/);
@@ -109,6 +113,7 @@ describe("export_model engine: 'godot'", () => {
     expect(r.level.seats).toBe(2);
     expect(r.commands.import).toContain('-run=pythonscript');
     expect(r.commands.probe).toContain('mojulo/handoff_probe.py');
+    expect(r.commands.visual).toBe("mojulo script visual-gate --ref 'sk_xe_couch' --engines unreal");
     expect(r.note).toContain('/Game/Level');
     writeFileSync(path.join(r.dir, 'Config', 'DefaultEngine.ini'), '; mine\n');
     const again = await exportModelHandler({ ref: 'sk_xe_couch', engine: 'unreal', what: 'level' });
@@ -137,6 +142,7 @@ describe("export_model engine: 'godot'", () => {
     expect(r.level.seats).toBe(2);
     expect(r.commands.import).toContain('mojulo/import_handoff.py');
     expect(r.commands.gate).toContain('mojulo/handoff_probe.py');
+    expect(r.commands.visual).toBe("mojulo script visual-gate --ref 'sk_xe_couch' --engines blender");
     expect(r.fire).toBeUndefined();
     expect(r.note).toContain('level.blend');
     writeFileSync(path.join(r.dir, 'level.blend'), 'the artist\'s');
@@ -181,6 +187,7 @@ describe("export_model engine: 'godot'", () => {
     expect(r.level.seats).toBe(2);
     expect(r.commands.import).toMatch(/-batchmode -projectPath .* -executeMethod Mojulo\.Handoff\.Import\.Run -quit/);
     expect(r.commands.probe).toContain('Mojulo.Handoff.Probe.Run');
+    expect(r.commands.visual).toBe("mojulo script visual-gate --ref 'sk_xe_couch' --engines unity");
     expect(r.note).toContain('Assets/Scenes/Level.unity');
     // (the developer's packages and scene, kept; mojulo's folder written again)
     writeFileSync(path.join(r.dir, 'Packages', 'manifest.json'), '{"dependencies":{}}\n');

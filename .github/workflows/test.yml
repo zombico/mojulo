@@ -99,7 +99,10 @@ jobs:
   # and cached, so MOJULO_GODOT names a real engine somewhere that runs. It runs the handoff's Godot leg (its pack
   # imported, and the probe holding what the importer built, materials, the sun, the environment, markers, seats, to it)
   # and export_model's humanoid GLB imported (its BoneMap retargeting the engine skeleton, its clips, its bones on the
-  # flat figure's). No game runtime is run: they are retired. Unreal stays a local gate (its editor needs an account).
+  # flat figure's), then the visual gate's Godot leg (the trail drawn on the World page in the runner's Chrome and in
+  # Godot under a virtual display, scored: advisory, it fails only on a crash or a blank still, and skips saying why
+  # where Godot cannot draw). No game runtime is run: they are retired. Unreal stays a local gate (its editor needs an
+  # account).
   godot:
     name: godot gate / ubuntu-latest / node 22 / Godot ${{ vars.GODOT_VERSION || '4.7.2' }}
     runs-on: ubuntu-latest
@@ -146,6 +149,13 @@ jobs:
       - name: The handoff's Godot legs
         working-directory: control
         run: npx vitest run lib/graph/scene/handoff-godot.test.js lib/mcp/tools/export-model.godot-humanoid.test.js
+
+      - name: The visual gate's Godot leg (advisory)
+        working-directory: control
+        # (Godot draws only with a display: Xvfb's, and Mesa's software Vulkan where apt has it, else its GL fallback)
+        run: |
+          sudo apt-get install -y --no-install-recommends xvfb mesa-vulkan-drivers > /dev/null || true
+          xvfb-run -a -s '-screen 0 1280x720x24' npx vitest run lib/graph/scene/visual-gate.godot.test.js
 
   lint-hygiene:
     name: lint hygiene (node --check + locale validator + manifest pins)

@@ -89,6 +89,7 @@
     "scripts/bake-world-gi.mjs",
     "scripts/bake-world-gi.py",
     "scripts/export-blender.mjs",
+    "scripts/visual-gate.mjs",
     "public/vendor/**"
   ],
   "scripts": {

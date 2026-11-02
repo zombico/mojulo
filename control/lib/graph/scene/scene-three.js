@@ -246,7 +246,7 @@ const SCREEN_ZONES_CSS = [
   '  html[data-orientation=portrait] .moj-rpg-field{flex-direction:column}html[data-orientation=portrait] .moj-rpg-field .mem{width:auto}',
 ].join('\n');
 
-export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 1120, height: 780 }, title = 'mojulo world', bg = '#0e1014', inline = false, cdn = false, glow = true, light = null, sky = null, textures = {}, wireframe = false, walk = false, spin = false, hud = true, picks = [], tracers = [], planets = [], movers = [], comets = [], fields = [], surfaces = [], heatSpheres = [], starSurfaces = [], buildups = [], transports = [], deforms = [], raymarch = null, decollide = true, capture = false, signs = [], physics = null, actions = [], entities = [], camera = null, pilot = null, spectate = null, seats = null, ai = null, colliders = null, breakables = null, breakPieces = null, hangar = null, match = null, shadows = null, smoke = null, wreckExplodes = null, tutorial = null, aiDifficulty = null, lock = null, commander = null, figures = {}, events = null, fog = null, ao = null, repeats = [], splats = [], audio = null, fx = null, effects = [], spriteSfx = [], marks = [], driveSurface = null, shoot = null, game = null, backdrop = null, walkers = [], cars = [], carMeshes = {}, signals = null, trafficLanes = null, trafficConstants = null, xr = null, toon = null, stream = null, haze = null, strokeOverlay = null, terrain = null, crystalLight = null, fire = null, metersPerUnit = null, cutouts = null, doors = null, items = null, shallows = null, wetSand = null, softGround = null, jets = null, jetLight = null, sway = null, flicker = null, motes = null, wetRoad = null, weather = null, tone = null, liveGrass = null, pack = false, soft = null, pixel = null , versus = null, vertexContrast = null, board = null, screen = null, runner = null, science = null, hazeHeight = null, snowPrints = null, fauna = null, fabric = null, resample = null, creases = null, occlusion = null, lightTier = null, meet = null, court = null, turns = null, pitch = null, holo = null, innings = null, form = null } = {}) {
+export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 1120, height: 780 }, title = 'mojulo world', bg = '#0e1014', inline = false, cdn = false, glow = true, light = null, sky = null, textures = {}, wireframe = false, walk = false, spin = false, hud = true, picks = [], tracers = [], planets = [], movers = [], comets = [], fields = [], surfaces = [], heatSpheres = [], starSurfaces = [], buildups = [], transports = [], deforms = [], raymarch = null, decollide = true, capture = false, captureSize = null, signs = [], physics = null, actions = [], entities = [], camera = null, pilot = null, spectate = null, seats = null, ai = null, colliders = null, breakables = null, breakPieces = null, hangar = null, match = null, shadows = null, smoke = null, wreckExplodes = null, tutorial = null, aiDifficulty = null, lock = null, commander = null, figures = {}, events = null, fog = null, ao = null, repeats = [], splats = [], audio = null, fx = null, effects = [], spriteSfx = [], marks = [], driveSurface = null, shoot = null, game = null, backdrop = null, walkers = [], cars = [], carMeshes = {}, signals = null, trafficLanes = null, trafficConstants = null, xr = null, toon = null, stream = null, haze = null, strokeOverlay = null, terrain = null, crystalLight = null, fire = null, metersPerUnit = null, cutouts = null, doors = null, items = null, shallows = null, wetSand = null, softGround = null, jets = null, jetLight = null, sway = null, flicker = null, motes = null, wetRoad = null, weather = null, tone = null, liveGrass = null, pack = false, soft = null, pixel = null , versus = null, vertexContrast = null, board = null, screen = null, runner = null, science = null, hazeHeight = null, snowPrints = null, fauna = null, fabric = null, resample = null, creases = null, occlusion = null, lightTier = null, meet = null, court = null, turns = null, pitch = null, holo = null, innings = null, form = null } = {}) {
   if (board && !capture) walk = false;   // a board owns the keys and the view: no walking over it
   // (a room in the form render, channels/form.js: its faces' baked light rides each mesh as `aLit`; none, none packed)
   const litPack = !!(form && form.room && Array.isArray(form.room.lights));
@@ -315,6 +315,14 @@ export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 11
   if (raymarch && raymarch.frag) return emitRaymarchWorld({ ...raymarch, viewBox, title, bg, inline, cdn });
   const W = viewBox.width, H = viewBox.height;
   const aspect = W / H;
+  // `captureSize` (a capture page only; the visual gate's, scene/visual-gate.js): the canvas at exactly { width, height }
+  // pixels, from the page's first layout, in place of the viewBox's letterboxed studio size (and over a screen's fit),
+  // so a pose framed by the capture bridge is the pose an engine frames at that size. Absent, or without `capture`: no
+  // bytes.
+  const capSize = capture && captureSize && Number.isInteger(captureSize.width) && Number.isInteger(captureSize.height) && captureSize.width > 0 && captureSize.height > 0 ? captureSize : null;
+  const captureCss = capSize ? `  #wrap{width:${capSize.width}px!important;height:${capSize.height}px!important;max-width:none!important;aspect-ratio:auto!important;flex:none!important}
+  html,body{overflow:hidden}body{margin:0;align-items:flex-start!important;justify-content:flex-start!important}
+` : '';
   const importmap = cdn ? CDN_IMPORTMAP : inline ? inlineImportmap() : VENDOR_IMPORTMAP;
   // `light` lets facade frame-bars self-shade their return cheeks (concrete/brick mass);
   // null is safe — the realizer falls back to a fixed asymmetry.
@@ -1078,7 +1086,7 @@ ${spin ? `  /* ?spin=1 is the EMBED read (a preview pane iframes this page): fil
   body{background:#000;justify-content:center;height:100dvh}
   #wrap{max-width:none;aspect-ratio:auto;flex:none}
 ${SCREEN_ZONES_CSS}
-` : ''}  canvas{display:block;width:100%;height:100%}
+` : ''}${captureCss}  canvas{display:block;width:100%;height:100%}
   .hud{position:absolute;left:8px;top:8px;display:flex;gap:6px;flex-wrap:wrap}
   .hud button{color:#9cc4ff;background:rgba(11,18,32,.6);border:1px solid #24324a;border-radius:5px;padding:4px 10px;cursor:pointer;font:inherit}
   .hud button.on{background:#1b2740;color:#fff}

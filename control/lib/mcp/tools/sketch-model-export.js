@@ -481,7 +481,7 @@ async function engineExport(input) {
 async function handoffUnrealTo(sketch, what, dir) {
   const h = await resolveHandoff(sketch, { what });
   const { written, kept } = await writeHandoffUnreal(h, dir, { title: sketch.title ?? null });
-  return { ...handoffSummary(h, dir, written, kept), map: HANDOFF_UNREAL_PATHS.map, commands: handoffUnrealCommands(dir, findUnreal() ?? undefined) };
+  return { ...handoffSummary(h, dir, written, kept), map: HANDOFF_UNREAL_PATHS.map, commands: { ...handoffUnrealCommands(dir, findUnreal() ?? undefined), ...visualGate(sketch, h, 'unreal') } };
 }
 
 const handoffUnrealNote = (one) => `An Unreal Engine 5 project in ${one.dir}: its importer (commands.import, headless, or from the editor's Output Log) builds `
@@ -493,7 +493,7 @@ const handoffUnrealNote = (one) => `An Unreal Engine 5 project in ${one.dir}: it
 async function handoffUnityTo(sketch, what, dir) {
   const h = await resolveHandoff(sketch, { what });
   const { written, kept } = await writeHandoffUnity(h, dir, { title: sketch.title ?? null });
-  return { ...handoffSummary(h, dir, written, kept), scene: HANDOFF_UNITY_PATHS.level, commands: handoffUnityCommands(dir, findUnity() ?? undefined) };
+  return { ...handoffSummary(h, dir, written, kept), scene: HANDOFF_UNITY_PATHS.level, commands: { ...handoffUnityCommands(dir, findUnity() ?? undefined), ...visualGate(sketch, h, 'unity') } };
 }
 
 const handoffUnityNote = (one) => `A Unity 6 project (URP, glTFast) in ${one.dir}: its importer (commands.import, batchmode, or the editor's Mojulo menu) builds `
@@ -510,9 +510,14 @@ async function handoffGodotTo(sketch, what, dir) {
     commands: {
       open: `godot --editor --path '${dir}'`,
       gate: `godot --headless --path '${dir}' --import && godot --headless --path '${dir}' --script res://mojulo/handoff_probe.gd`,
+      ...visualGate(sketch, h, 'godot'),
     },
   };
 }
+
+// (the visual gate on a level's handoff, scripts/visual-gate.mjs: its shots on the World page and in this engine, scored,
+// stamped in the level's outcome folder's visual-gate/; advisory, run by the operator, never by the export)
+const visualGate = (sketch, h, engine) => (h.level && sketch.ref ? { visual: `mojulo script visual-gate --ref '${sketch.ref}' --engines ${engine}` } : {});
 
 // (what a handoff carried, wrote and kept, for any engine's result)
 function handoffSummary(h, dir, written, kept) {
@@ -549,6 +554,7 @@ const blenderTo = ({ fireT, fireDetail }) => async (sketch, what, dir) => {
       open: `blender '${dir}/level.blend'`,
       gate: `${imp} && blender -b '${dir}/level.blend' --python '${dir}/mojulo/handoff_probe.py'`,
       render: fire ? `${imp} -- --render '${dir}/fire.png' --camera Fire --engine cycles --res 3840x2160 --samples 512` : `${imp} -- --render '${dir}/still.png'`,
+      ...visualGate(sketch, h, 'blender'),
     },
   };
 };

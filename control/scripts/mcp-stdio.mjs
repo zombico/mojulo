@@ -125,9 +125,9 @@ console.info = console.error;
 // `mojulo script <name> [args…]` — run one of the shipped worker scripts from the package
 // root, so the floor-plan card's `node scripts/bake-world-gi.mjs …` has a door on an install
 // where scripts/ sits inside the npx cache (house-compose-language). Allowlisted to the
-// three that ship in `files`; the child inherits stdio and the paths env resolved above.
+// ones that ship in `files`; the child inherits stdio and the paths env resolved above.
 // `script` is one more reserved word on the bin.
-const SCRIPT_COMMANDS = ['bake-world-gi', 'blender-bake', 'export-blender'];
+const SCRIPT_COMMANDS = ['bake-world-gi', 'blender-bake', 'export-blender', 'visual-gate'];
 if (process.argv[2] === 'script') {
   const name = process.argv[3];
   if (!SCRIPT_COMMANDS.includes(name)) {
