@@ -26,6 +26,16 @@ the spawn without a lock), sideways (no region the only way between two others),
 the quests not one corridor), seen (every region within sight of a landmark), streamed (a region's ring under its
 blocks), spread (the quests in more than one ring of the city).
 
+## Errands
+
+The QOW's element, as the escape room is the WCD's: sent out with a list, home with the goods. A map world's `errands`
+(`gameworld/errand.js`): each a giver's level, a reward, and a list of items, each had in a level by a trade (a shelf, or
+a shop that spends its `needs`) or as a bounty's proof (`from: { foe }`, a foe's fall). What is carried accumulates in
+the bag and rides from level to level; a cargo has a state (`fragile`: a unit lost to each hit and fall; `perishable`: a
+unit each period while carried), and the giver asks for at least its `min`. The verbs are mechanics (`trade`, `cargo`,
+`bounty`, `deliver`: `game/errand-mechanics.js`); each level's last stage lays its legs on beats of their own. Laws in
+the readout (`advice.errands`): solvable, varied, survivable. The book draws each errand as its route, out and home.
+
 ## Not yet
 
 The page does not stream by region yet: the rings are the hook (the geocity's far regions draw as its skyline, its

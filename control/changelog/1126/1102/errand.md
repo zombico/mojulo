@@ -25,3 +25,8 @@ spoils while carried. Built so far:
   level), `survivable` (a cargo carries a margin). Each level's last stage lays its legs beside the bag, each trade and
   the giver's hand-in on a beat of its own past the ways' and the keys'; a bounty for `from: { foe }`; every level the
   cargo; the giver asks for the list's roots. The game's store carries a bag when a world has errands.
+- **In the readout and the book**: an errand's laws that advise are `design_game`'s `advice.errands`, each named by its
+  errand. The book's errands section (`gameworld/errand-page.js`) draws each as its route (out from the giver through
+  its legs in order, home again) with a row a leg: what is had, where, how (a shelf, a shop and its price, a bounty and
+  its foe), its cargo's state, what the giver asks; the reward and the laws. The `gameworld-qow` card carries the
+  recipe and answers "an errand, a fetch quest, a delivery run, a bounty board"; docs/quest-open-world.md says it.

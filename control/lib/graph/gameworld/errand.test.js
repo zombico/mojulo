@@ -8,6 +8,8 @@ import { MEADOWMARK_HERO } from './examples.js';
 import { readGameworld } from './world.js';
 import { gameStages, stageLevelOrder, gameStore, mapPlan } from './levels.js';
 import { composeMechanics } from '../game/mechanics.js';
+import { errandPage } from './errand-page.js';
+import { gameworldBibleHtml, esc } from './bible-html.js';
 import { buildBus } from '../worlds/event-bus.js';
 
 const { review, ...base } = MEADOWMARK_HERO;
@@ -118,5 +120,23 @@ describe('an errand played level by level', () => {
     const home = visit('home', woods.bag, [{ at: spotOf('home', 'deliver') }]);
     expect(home.log).toContain('errand:done:eggs-run');
     expect(home.bag).toMatchObject({ 'held:bag:eggs': 5, 'held:bag:pelt': 0, 'held:bag:gold': 5 });
+  });
+});
+
+describe('the book draws it', () => {
+  it('its route out and home, a row a leg (how it is had, its cargo, what is asked), its reward and laws; none, nothing', () => {
+    const html = errandPage(G, esc);
+    expect(html).toMatch(/The errands/);
+    expect(html).toMatch(/eggs-run/);
+    expect(html).toMatch(/shop: for 3 coin/);
+    expect(html).toMatch(/bounty: a walker's fall/);
+    expect(html).toMatch(/fragile/);
+    expect(html).toMatch(/6 to the giver/);
+    expect(html).toMatch(/spent on the way/);
+    expect(html).toMatch(/Reward: 5 gold/);
+    expect(html.match(/<circle/g)).toHaveLength(5);   // the giver, three legs, home
+    const { errands: _e, ...plain } = MAP;
+    expect(errandPage(readGameworld(plain), esc)).toBe('');
+    expect(gameworldBibleHtml(MAP)).toMatch(/id="errands"/);
   });
 });
