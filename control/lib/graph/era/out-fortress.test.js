@@ -1,8 +1,10 @@
 import { describe, it, expect } from 'vitest';
 import { structureStyle, STRUCTURE_KITS } from './out-structures.js';
-import { FORT_SETS, FORT_SET_IDS, RAMPART, composeFort, seedFort, fortDial, octagon, build } from './out-fortress.js';
-import { designTown, fortFaces, distTo } from './out-town.js';
+import { FORT_SETS, FORT_SET_IDS, RAMPART, composeFort, seedFort, fortDial, octagon, build, fortOfLanguage } from './out-fortress.js';
+import { designTown, fortFaces, distTo, townLanguage } from './out-town.js';
 import { SURFACE_GROUP_IDS } from './out-structures-paint.js';
+import { ANCHOR_IDS } from './out-anchor-structure.js';
+const langs = { townLanguage, structureStyle, ANCHOR_IDS };
 
 // the fortified town: a town drawn tighter by one dial, the lord's land in its inmost ward; the fortification designed elements first, the bay its citizen,
 // the tower derived from the bay (era/out-fortress.js, laid on the town by era/out-town.js)
@@ -82,5 +84,23 @@ describe('out-fortress', () => {
     expect(floor.length).toBeGreaterThan(8);
     // nothing on the way through a gate: the curtain is open where the route crosses
     for (const g of F.gates) for (const r of t.routes.filter((x) => x.id === g.route)) expect(distTo(r.pts, ...g.at)).toBeLessThan(1);
+  });
+});
+
+describe('a town\'s own fortification, from its building language', () => {
+  it('stands in its stone, crowns its towers as its houses are roofed, and composes; the same town the same walls', () => {
+    const { townLanguage } = langs;
+    // (one language per roof form: a hip, a gable, none)
+    const forms = { hip: null, gable: null, none: null };
+    for (const id of langs.ANCHOR_IDS) { const L = townLanguage(langs.structureStyle('isekai-meadow', 1), id); if (forms[L.elements.roof?.form] === null) forms[L.elements.roof.form] = L; }
+    const crowns = { hip: 'hip', gable: 'cone', none: 'dome' };
+    for (const [form, L] of Object.entries(forms)) {
+      if (!L) continue;
+      const F = composeFort(fortOfLanguage(L, 3));
+      expect(F.tower.crown, form).toBe(crowns[form]);
+      expect(F.tower.plan).toBe(form === 'hip' ? 'square' : 'round');
+      expect(JSON.stringify(fortOfLanguage(L, 3))).toBe(JSON.stringify(fortOfLanguage(L, 3)));
+    }
+    expect(Object.values(forms).filter(Boolean).length).toBeGreaterThan(1);
   });
 });

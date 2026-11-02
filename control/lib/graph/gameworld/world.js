@@ -606,7 +606,7 @@ export function readGameworld(W) {
           const St = L.places.street;
           if (St !== true && !isObj(St)) throw new Error(`gameworld: ${at}.places.street is true or { houses?, enter?, goal?, doors?, walk? }`);
           if (isObj(St)) for (const kk of Object.keys(St)) if (!['houses', 'enter', 'goal', 'doors', 'walk', 'walls'].includes(kk)) throw new Error(`gameworld: ${at}.places.street.${kk} is not a street setting (houses, enter, goal, doors, walk, walls)`);
-          if (isObj(St) && St.walls !== undefined && !(typeof St.walls === 'boolean' || typeof St.walls === 'string')) throw new Error(`gameworld: ${at}.places.street.walls is true (the town's own fortification, its civilization's fort) or a fortification's id (crenellated, battered)`);
+          if (isObj(St) && St.walls !== undefined && !(typeof St.walls === 'boolean' || typeof St.walls === 'string')) throw new Error(`gameworld: ${at}.places.street.walls is true (the town's own fortification, from its builders' language) or a fortification's id (crenellated, battered)`);
           if (isObj(St) && St.walk !== undefined && !(Array.isArray(St.walk) && St.walk.every((u) => typeof u === 'string'))) throw new Error(`gameworld: ${at}.places.street.walk is the uses walked into as part of the world ([\'shop\']), the rest of those entered at a door into a scene of their own`);
           if (isObj(St) && St.houses !== undefined && !(Number.isInteger(St.houses) && St.houses >= 1 && St.houses <= 12)) throw new Error(`gameworld: ${at}.places.street.houses is 1 to 12`);
           if (isObj(St) && St.enter !== undefined && !(Number.isInteger(St.enter) && St.enter >= 0 && St.enter <= 4)) throw new Error(`gameworld: ${at}.places.street.enter is 0 to 4 (the houses walked into)`);
@@ -839,8 +839,9 @@ export function resolveLevel(world, id) {
   // stands on. The civilization's language (the book's builders, its tunnelled words) wins over the cube's builders'
   const street = P.street && town ? (() => {
     const { castle: _k, anchor, ...recipe } = town, S0 = P.street === true ? {} : P.street;
-    // (its walls the town's builders' own fortification: their civilization's fort, crenellated where it names none)
-    const S = S0.walls === true ? { ...S0, walls: G.civilizations[built?.town ?? style.civilization]?.fort ?? 'crenellated' } : S0.walls === false ? (({ walls: _w, ...x }) => x)(S0) : S0;
+    // (its walls true: the town's own, derived from its builders' language as the street is drawn, era/out-fortress.js
+    // fortOfLanguage; a fortification's id chooses one)
+    const S = S0.walls === false ? (({ walls: _w, ...x }) => x)(S0) : S0;
     const look = style.geocube !== undefined ? cubeStreetLook(readGeocube(cubeInPalette(style.geocube, style.palette))) : null;
     const lang = anchor ?? look?.anchor;
     return { ...S, ...(lang !== undefined ? { anchor: lang } : {}), recipe, ...(look ? { street: true, paint: look.paint, ...(look.dress ? { dress: look.dress } : {}) } : {}), ...(S.walls ? { street: true } : {}) };

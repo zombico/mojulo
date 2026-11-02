@@ -15,7 +15,8 @@
  * spoken higher than everything. Heights are game-scaled: a rampart of 5–9 m, about two thirds of a historical one,
  * so a ward still reads as a town from its wall-walk.
  *
- *   FORT_KINDS / FORT_SETS     the elements and the authored compositions (crenellated, battered); seedFort(seed)
+ *   FORT_KINDS / FORT_SETS     the elements and the authored compositions (crenellated, battered); seedFort(seed);
+ *                              fortOfLanguage(L, seed) a town's own, from its building language
  *   composeFort(F)             the elements checked against their rails, the tower derived, the gate composed
  *   TOWER_RULES                the contrast rules the tower is derived by
  *   FORTIFY / fortDial(f)      what each reach of the dial closes
@@ -79,6 +80,34 @@ export function seedFort(seed = 1) {
     tower: { plan, crown, cover: pick(['str:slate', 'str:tile', 'str:shingle']), value: roll([0.28, 0.42]), ...(crown === 'tiers' ? { upper: 'str:plaster', upperValue: 0.9 } : {}) },
     gate: { form: plan === 'round' ? 'twin' : pick(WORDS.gate), clear: roll([4, 4.6]) },
     ditch: { w: roll([5, 11]), depth: roll([2, 3.5]) },
+  };
+}
+
+/**
+ * A town's OWN fortification, from its building language (era/out-town.js townLanguage): its curtain in the stone its
+ * houses stand on (their lowest storey's, a stone town's coursing; a plastered or timbered town's walls a battered
+ * fitted-stone base under plaster), its parapet as its walls speak (crenels over stone, loopholes under its roofs'
+ * tile over plaster), its towers crowned as its houses are roofed (a hipped town's square towers under hips, a gabled
+ * town's drums under cones, a domed one's under domes) in its roofs' cover, and its gate as its towers are (twin
+ * drums, or a box gate-tower under a hip). The dice (`seed`) only choose inside what the language leaves open.
+ */
+export function fortOfLanguage(L, seed = 1) {
+  const D = dice(subSeed(seed, 'fort-of')), roll = (r) => D.roll(r), V = L?.values ?? {}, ground = V.storeys?.[0] ?? { group: 'str:stone', value: 0.6 };
+  const roof = L?.elements?.roof ?? {}, cover = ['str:tile', 'str:slate', 'str:shingle', 'str:thatch'].includes(roof.group) ? (roof.group === 'str:thatch' ? 'str:shingle' : roof.group) : 'str:slate';
+  const stone = ground.group === 'str:stone', plastered = (V.storeys ?? []).some((s) => s.group === 'str:plaster') || ['str:timber', 'str:shell'].includes(ground.group);
+  const hipped = roof.form === 'hip', domed = roof.form === 'none' || roof.form === 'dome', plan = hipped ? 'square' : 'round';
+  const crown = hipped ? 'hip' : domed ? 'dome' : roof.form === 'gable' ? 'cone' : 'crenel', base = stone && !plastered ? 'straight' : 'battered';
+  const parapet = plastered ? 'loophole' : 'crenel', t = r3(roll([2.2, 3]));
+  const bond = stone ? (L?.bonds?.find((b) => ['coursed', 'rubble', 'ashlar'].includes(b)) ?? 'coursed') : 'rubble';
+  return {
+    read: `the town's own fortification (its ${L?.id ?? 'language'}): a ${base} curtain of ${bond} stone, a ${parapet === 'crenel' ? 'crenellated' : 'loopholed'} parapet, ${plan} towers under ${crown === 'hip' ? 'hipped roofs' : `${crown}s`} of ${cover.replace('str:', '')}`,
+    curtain: { base, batter: base === 'battered' ? r3(roll([0.2, 0.3])) : 0, t, group: 'str:stone', value: r3(Math.max(0.5, Math.min(0.66, ground.group === 'str:stone' ? ground.value : 0.58))), bond },
+    parapet: plastered ? { form: 'loophole', h: r3(roll([1.7, 2])), group: 'str:plaster', value: r3(Math.max(0.85, V.storeys?.find((s) => s.group === 'str:plaster')?.value ?? 0.9)), cope: cover === 'str:slate' ? 'str:slate' : 'str:tile', copeValue: r3(V.cap?.value ?? 0.3) }
+      : { form: 'crenel', h: r3(roll([1.4, 1.7])), merlon: r3(roll([0.9, 1.2])), crenel: r3(roll([0.6, 0.8])), group: 'str:stone', value: r3(Math.min(0.72, (ground.value ?? 0.6) + 0.06)) },
+    walk: { w: r3(Math.min(t - 0.5, roll([1.4, 1.8]))) },
+    tower: { plan, crown, ...(crown === 'crenel' ? {} : { cover, value: r3(Math.max(0.28, Math.min(0.42, V.cap?.value ?? 0.36))) }) },
+    gate: { form: hipped ? 'box' : 'twin', clear: r3(roll([4, 4.6])) },
+    ditch: { w: r3(roll([5, 9])), depth: r3(roll([2, 3])) },
   };
 }
 

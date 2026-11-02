@@ -52,6 +52,7 @@ import { stepsLift } from './out-openings.js';
 import { townLanguage } from './out-town.js';
 import { streetSpan, layStreet } from './stage-street.js';
 import { streetWalls } from './stage-walls.js';
+import { fortOfLanguage } from './out-fortress.js';
 import { outTrailOf } from './out-trail-board.js';
 import { slabOf } from './solid.js';
 import { exteriorOf, stairConcrete } from './style/bay-exterior.js';
@@ -209,7 +210,7 @@ export function streetLots(town, kitId, seed0, solid = false) {
 function townStreet(town, kitId, seed0, solid = false) {
   if (!town || typeof town !== 'object') throw new Error('stage: town is { anchor?, seed?, houses?, enter?, goal?, recipe?, paint?, street? }');
   for (const k of Object.keys(town)) if (!['anchor', 'seed', 'houses', 'enter', 'goal', 'doors', 'walk', 'walls', 'recipe', 'paint', 'dress', 'street'].includes(k)) throw new Error(`stage: town.${k} is not a setting (anchor, seed, houses, enter, goal, doors, walk, walls, recipe, paint, dress, street)`);
-  if (town.walls !== undefined && !(town.walls === true || typeof town.walls === 'string' || (town.walls && typeof town.walls === 'object'))) throw new Error('stage: town.walls is true (the crenellated curtain), a fortification\'s id (crenellated, battered), { seed }, or its elements: a gatehouse at each end of the street, its curtain behind the houses');
+  if (town.walls !== undefined && !(town.walls === true || typeof town.walls === 'string' || (town.walls && typeof town.walls === 'object'))) throw new Error('stage: town.walls is true (the town\'s own, from its building language), a fortification\'s id (crenellated, battered), { seed }, or its elements: a gatehouse at each end of the street, its curtain behind the houses');
   if (town.walls !== undefined && !town.street) throw new Error('stage: town.walls closes the street: give the town its street (town.street: true)');
   if (town.walk !== undefined && !(Array.isArray(town.walk) && town.walk.every((u) => typeof u === 'string'))) throw new Error('stage: town.walk is the uses walked into as part of the world (a shop: [\'shop\']), the rest of those entered changing the scene at their door');
   if (town.street !== undefined && typeof town.street !== 'boolean') throw new Error('stage: town.street is true (the trail through the town laid as its language\'s street) or false');
@@ -454,8 +455,9 @@ export function withBuildings(payload, manifest, ctx = {}) {
   const offStreet = (x, y) => ST && Math.abs(x - ST.site.trailX(y)) < ST.span.half + 0.2;
   // the street's stretch: from before its first house to past its last, along the trail
   const streetRange = (ys) => [Math.max(0, Math.min(...ys) - 6), Math.min(ST.site.D, Math.max(...ys) + 6)], planned = [];
-  // the walls a fortified street closes it with (town.walls): its fortification the town's (true: crenellated)
-  const wallsOf = (y0, y1) => streetWalls(ST.site, ST.span, { y0, y1, taken, ground: (x, y) => ground(x, y), fort: manifest.town.walls === true ? 'crenellated' : manifest.town.walls, seed: manifest.town.seed ?? manifest.seed ?? 1 });
+  // the walls a fortified street closes it with (town.walls): true, the town's own, from its building language
+  // (out-fortress.js fortOfLanguage); else the fortification named
+  const wallsOf = (y0, y1) => streetWalls(ST.site, ST.span, { y0, y1, taken, ground: (x, y) => ground(x, y), fort: manifest.town.walls === true ? fortOfLanguage(ST.L, manifest.town.seed ?? manifest.seed ?? 1) : manifest.town.walls, seed: manifest.town.seed ?? manifest.seed ?? 1 });
   list.forEach((b, i) => {
     if (!b || typeof b.use !== 'string') throw new Error(`stage: buildings[${i}] needs a use`);
     const id = b.id ?? `${b.use}-${i + 1}`, anchor = anchorOf(b, kitId), t = 0.25;

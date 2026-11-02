@@ -306,5 +306,9 @@ its resource, put on a look and showed a toast. This theme makes them act.
   - a gatehouse over the trail before the first house and after the last;
   - the curtain behind the houses on both sides, with towers at its corners and along it;
   - all of it in the town's paint and light, each a collider, its gates open, its ground kept clear of what grows.
-  A street writes `walls: true | <fortification>` (`places.street.walls` on a level: `true` is its builders' own
-  fortification, their civilization's `fort`). The composed hub is walled; absent, a street is as it was.
+  A street writes `walls: true | <fortification>` (`places.street.walls` on a level). `true` is the town's own
+  fortification, derived from its building language rather than a preset (`out-fortress.js fortOfLanguage`): the
+  curtain in the stone its houses stand on, a crenellated parapet over a stone town or a loopholed one under its roofs'
+  tile over plaster, and towers crowned as its houses are roofed (square towers under hips, drums under cones or
+  domes) in its roofs' cover. Naming a fortification still chooses one. The composed hub is walled; absent, a street
+  is as it was.
