@@ -92,8 +92,9 @@ describe('composed goals: what a level is played for, read from the prompt', () 
     expect(fingerprint(unaudited(runSteps({ ...MEADOWMARK, mode: 'autonomous', review: undefined }, { ref: 'gw' }).map((s) => s.order)))).toBe('9ad2a5b7');
     // (re-pinned 2026-11-02, 1102-book-powers: the hero's powers act. Its attack power's key fires its beam at the
     // nearest foe in front (0b5f8e90 -> f11ad354), and a later stage's power fires only once its node is gained, its
-    // refusal said (f11ad354 -> bef8c054); the levels' cues moved, nothing else)
-    expect(fingerprint(unaudited(runSteps(MEADOWMARK_HERO, { ref: 'gw' }).map((s) => s.order)))).toBe('bef8c054');
+    // refusal said (f11ad354 -> bef8c054); its attack's hurt follows the power stat as it rises, the stats binding the
+    // power stat to the hero's body (bef8c054 -> 88aa4298); the levels' cues and stats moved, nothing else)
+    expect(fingerprint(unaudited(runSteps(MEADOWMARK_HERO, { ref: 'gw' }).map((s) => s.order)))).toBe('88aa4298');
   }, 300000);
 
   it('a dungeon is indoors: building levels in a room kit, the goals laid in their rooms, made by the run', () => {

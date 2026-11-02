@@ -90,3 +90,23 @@ its resource, put on a look and showed a toast. This theme makes them act.
   (`hairToss`) did so, and the run refused its cast sheet. A miss under a millimetre (`REACH_SLACK`) is float noise,
   clamped as `reach: 'clamp'` does; a pose that misses by more is refused as before. A pose that reached renders byte
   for byte as it did.
+- **The bodies act a party battle out** (`playscape/rpg/juice.js`, `scene/channels/rpg-channel.js`,
+  `scene/channels/controllable/index.js`). A fight was told in its window (a number's pop, a row's jolt, a puff) while
+  the figures on the map stood as props. The battle juice takes an act, `{ act: strike | cast | hurt | fall, at?, for? }`.
+  The figure plays its own clip for it at the act's phase on the world's clock, while the fight holds the world still:
+  - a strike plays its swing (`swing_neutral`), leaning toward its target and back;
+  - a recoil plays its stagger;
+  - a fall plays its topple and holds its last frame.
+  The defaults bind them: a blow makes its striker swing and its target recoil, a KO a fall. A pack's single figure
+  recoils for each of its foes and falls when the fight is won. A figure without the clip plays nothing new. A fight's
+  acts end with it. The renderer's part is emitted only into a page that plays party battles (`acts`), so every other
+  page is byte for byte as it was.
+
+  Seen in an exported page, the party of four fighting two packs:
+  - the fighter and the mage struck with `swing_neutral`;
+  - the fighter and the cleric recoiled with `stagger`;
+  - the hero and the packs' figures had no such clips, and played none.
+- **A genre that fights is played by people who take its blows** (`genre-forms.js` `heroFrameOf`, `compose.js`). A
+  sentence whose genre fights (in melee, at range or turn by turn) writes the world's `moves: true`, so the hero, its
+  foes and its keepers are made with their own hit, stagger, fall and rise. A turn-based hero carries the blade it
+  swings in the party battles.

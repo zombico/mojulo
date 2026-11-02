@@ -79,6 +79,8 @@ export function rpgPage(cfg, K, ctl, jk) {
   const CMD = { attack: 'Attack', skill: 'Skill', item: 'Item', guard: 'Guard', flee: 'Flee' };
   const WHY = { battle: 'Not during a fight.', rules: 'Classes are fixed here.', same: 'Already that class.', locked: 'That class is not open yet.', member: 'Not a class they can take.', sp: 'Not enough class points.', requires: 'Learn what it builds on first.', learned: 'Already learned.', class: 'Take that class first.', unknown: '' };
   const BEAT = 650;
+  // how long each act plays (seconds), within a beat
+  const ACT_FOR = { strike: 0.55, cast: 0.55, hurt: 0.4, fall: 0.6 };
   // mode: null | 'battle' | 'field'; the battle's own phase: intro | command | play | end
   let mode = null, phase = null, beats = [], bi = 0, bt = 0, shown = {}, msg = '', picks = {}, mi = 0, level = 'cmd', f = 0, pend = null, pops = [], dirty = true;
   let fm = 0, ftab = 0, flevel = 'members', ff = 0, fmsg = '', seen = 0, walked = 0, lastPos = null, rolls = 0, lastT = 0;
@@ -160,6 +162,15 @@ export function rpgPage(cfg, K, ctl, jk) {
     else if (s.pop) popStyle = s;
     else if (s.hold) linger += s.hold * 1000;
     else if (s.emit) __inputQueue.push({ type: s.emit });
+    else if (s.act) {
+      // the body acts it out (the controllable channel plays e.act: its own clip at the act's phase on the world clock);
+      // a pack's figure stands for all its foes, so a foe's fall is its recoil (it falls when the fight is won)
+      const who = s.at === 'actor' ? b.by || b.who : b.target, w = W(), id = figureOf(who), e = id && w && w.byId[id];
+      if (e) {
+        const is = s.act === 'fall' && !R.b.side[who] ? 'hurt' : s.act, to = is === 'strike' ? figureOf(b.target) : null;
+        e.act = { is, t0: w.time || 0, for: s.for || ACT_FOR[is], ...(to && to !== id ? { to } : {}) };
+      }
+    }
   }
   function juice(b) {
     linger = 0; popStyle = null;
@@ -224,6 +235,7 @@ export function rpgPage(cfg, K, ctl, jk) {
       keep(); bagSay();
       for (const e of ev) __inputQueue.push(e);
       mode = null; phase = null; root.classList.remove('on'); root.innerHTML = '';
+      { const w = W(); if (w) for (const e of w.entities) if (e.act) e.act = null; }   // the fight's acts end with it
       release(); dirty = true;
     }
   }

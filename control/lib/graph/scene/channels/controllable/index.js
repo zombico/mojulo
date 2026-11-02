@@ -148,7 +148,7 @@ window.__mojSeatRings = () => Object.keys(__seatRing).map((n) => ({ n: +n, color
 `;
 }
 
-export function controllableChannelScript(entities, camera, figures, { exposeBodies = false, pilot = null, spectate = null, ai = null, colliders = null, breakables = null, breakPieces = null, hangar = null, match = null, shadows = null, smoke = null, wreckExplodes = null, tutorial = null, aiDifficulty = null, lock = null, commander = null, key = null, toonInk = null, driveSurface = null, touch = false, runner = null, gearGranted = false, seats = null, formSun = null } = {}) {
+export function controllableChannelScript(entities, camera, figures, { exposeBodies = false, pilot = null, spectate = null, ai = null, colliders = null, breakables = null, breakPieces = null, hangar = null, match = null, shadows = null, smoke = null, wreckExplodes = null, tutorial = null, aiDifficulty = null, lock = null, commander = null, key = null, toonInk = null, driveSurface = null, touch = false, runner = null, gearGranted = false, seats = null, formSun = null, acts = false } = {}) {
   // per-vertex specular (material-response): inject the aSpec wiring into the rig-figure
   // builder ONLY when some packed figure carries a spec buffer (a material-finished suit).
   // Absent → the emitted controllable channel is byte-identical (the char-net pin holds),
@@ -1373,6 +1373,20 @@ function __formMode(fig, e, mode) {
   const k = f + ':' + mode;
   return fig.clips[k] ? k : f + ':idle';
 }
+` : ''}${acts ? `// a battle act's clip among the figure's own: the first it has of the act's names (its swing, its recoil, its fall)
+const __ACT_CLIPS = { strike: ['strike', 'swing_neutral', 'swing', 'attack', 'punch'], cast: ['cast', 'strike', 'swing_neutral'], hurt: ['stagger', 'hitHigh', 'flinch'], fall: ['topple', 'knockedOutDown', 'fall'] };
+function __actClip(fig, is) { const L = __ACT_CLIPS[is] || []; for (let i = 0; i < L.length; i++) if (fig.clips[L[i]]) return L[i]; return null; }
+// A BATTLE ACT (the party battles' juice, rpg-channel.js: e.act { is, t0, for, to? }): the figure plays its own clip for it
+// at the act's phase on the world's clock (a fight holds the world still, its clock running), a strike leaning toward its
+// target and back; a fall holds its last frame; a figure without the clip plays nothing new (A.clip says which it played)
+function __actMode(fig, e, m) {
+  const A = e.act, at = A ? ((__world.time || 0) - A.t0) / A.for : -1;
+  if (!(A && at >= 0 && (at <= 1 || A.is === 'fall'))) { if (A && at > 1) e.act = null; return null; }
+  const c = __actClip(fig, A.is); A.clip = c;
+  const T = A.to && A.is === 'strike' ? __world.byId[A.to] : null;
+  if (T && at <= 1) { const dx = T.transform.pos[0] - e.transform.pos[0], dy = T.transform.pos[1] - e.transform.pos[1], d = Math.hypot(dx, dy) || 1, k = Math.sin(Math.PI * at) * Math.min(1.2, d * 0.4) / d; m.position.x += dx * k; m.position.y += dy * k; }
+  return c ? { mode: c, phase: Math.min(at, 0.999) } : null;
+}
 ` : ''}function __syncRigEntity(e, m, rig, dt) {
   const yawA = e.transform.heading + rig.yaw;
   if (e.tumble && e.tumble.angle) {
@@ -1395,9 +1409,11 @@ function __formMode(fig, e, mode) {
     else ` : ''}m.rotation.set(0, 0, yawA);
   }
   const fig = rig.fig;
-  ${figHasForms ? 'let' : 'const'} mode = e.moving ? e.locomotion : 'idle';${figHasForms ? `
-  if (fig.forms) mode = __formMode(fig, e, mode);` : ''}
-  const mix = __CW.advanceGaitMix(rig.mix, mode, e.gaitPhase, dt || 0, rig.blendTime);
+  ${figHasForms || acts ? 'let' : 'const'} mode = e.moving ? e.locomotion : 'idle';${figHasForms ? `
+  if (fig.forms) mode = __formMode(fig, e, mode);` : ''}${acts ? `
+  const act = __actMode(fig, e, m), phase = act ? act.phase : e.gaitPhase;
+  if (act) mode = act.mode;` : ''}
+  const mix = __CW.advanceGaitMix(rig.mix, mode, ${acts ? 'phase' : 'e.gaitPhase'}, dt || 0, rig.blendTime);
   const w = mix.prevMode ? mix.w * mix.w * (3 - 2 * mix.w) : 1;
   // head-look-at overlay (renderer-convergence step 2, procedural rung): ease the head bone's
   // yaw toward a tracked entity, clamped to a natural range — a runtime joint override no
@@ -1641,10 +1657,11 @@ function __syncEntity(e, dt) {
   const fig = m.userData && m.userData.fig;
   if (fig) {
     m.rotation.set(0, 0, e.transform.heading + fig.yaw);
-    if (!fig.lerpable) {   // mismatched clip topologies → legacy frame snapping
-      const clip = __figClipOf(fig, e, e.moving ? e.locomotion : 'idle');
-      const N = clip.length, ph = ((e.gaitPhase % 1) + 1) % 1;
-      const frame = e.moving ? (Math.floor(ph * N) % N) : 0;
+${acts ? `    const act = __actMode(fig, e, m);
+` : ''}    if (!fig.lerpable) {   // mismatched clip topologies → legacy frame snapping
+      const clip = __figClipOf(fig, e, ${acts ? "act ? act.mode : " : ''}e.moving ? e.locomotion : 'idle');
+      const N = clip.length, ph = ((${acts ? '(act ? act.phase : e.gaitPhase)' : 'e.gaitPhase'} % 1) + 1) % 1;
+      const frame = ${acts ? 'act || ' : ''}e.moving ? (Math.floor(ph * N) % N) : 0;
       const attr = fig.mesh.geometry.getAttribute('position');
       if (attr.array.length === clip[frame].pos.length) {
         attr.array.set(clip[frame].pos); attr.needsUpdate = true;
@@ -1656,8 +1673,8 @@ function __syncEntity(e, dt) {
       }
       return;
     }
-    const mode = e.moving ? e.locomotion : 'idle';
-    const mix = __CW.advanceGaitMix(fig.mix, mode, e.gaitPhase, dt || 0, fig.blendTime);
+    const mode = ${acts ? 'act ? act.mode : ' : ''}e.moving ? e.locomotion : 'idle';
+    const mix = __CW.advanceGaitMix(fig.mix, mode, ${acts ? 'act ? act.phase : ' : ''}e.gaitPhase, dt || 0, fig.blendTime);
     const attr = fig.mesh.geometry.getAttribute('position');
     const out = attr.array;
     out.fill(0);
@@ -3575,7 +3592,9 @@ ${hangarHook}  __msHookParams();
     __updateRacerJuice(dt);` : ''}${shadowHook}${smokeHook}${gearHook}${breakables ? `
     __updateBreaks(dt);` : ''}${runner ? `
     __updateRunner(dt);` : ''}
-  }
+  }${acts ? `
+  // (a fight holds the world, but its bodies act: a figure with a battle act is drawn on, the rest stand as they were)
+  else if (dt > 0) for (const e of __world.entities) if (e.act) __syncEntity(e, dt);` : ''}
   if (__ctrlOwnsCamera) __driveCamera(dt);
   __updateWepHud();   // after the camera is positioned, so the reticle projects onto the current frame
   __updateBoostHud();

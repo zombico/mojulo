@@ -468,6 +468,7 @@ export function composeGameworld({ prompt, name, id, levels, seed = 1 } = {}) {
   if (frame) {
     const tradition = settingOfGame(readGameworld(world)).tradition ?? 'anime';
     world.characters = { ...frame.characters, direction: { ...frame.characters.direction, tradition } };
+    if (frame.moves) world.moves = true;
     world.brief.hero = { genre: genre.id, vibe: frame.characters.hero.motion.vibe, powers: 'none', camera: camera ?? 'third-person', tradition };
   }
   return world;
