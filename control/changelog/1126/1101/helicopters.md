@@ -56,3 +56,36 @@ In progress. Helicopters on the craft shelf:
     assembles the helicopter at its figures.
   - **Seen** (machine gate only; the eyes gate is open): the helicopter from three quarters, the side and the front, its
     rotor head close up, its cabin.
+- **The cockpit, a part of its own** (`craft-shelf/cockpit-parts.js`, the shelf's new kind `craft-cockpit`, the
+  operator having seen the bubble empty). Drawn by default wherever a craft's glass lets one see in, sized by its row
+  and seated on a hull point at the cabin's floor.
+  - **Layouts:** `side` (side by side: one panel across, a centre console between) or `tandem` (down the centreline, the
+    rear seat raised, a panel before each).
+  - **Its pieces:**
+    - the floor;
+    - the panel's coaming and glare shield, with its displays (`glass`) or its dials (`dials`) facing aft;
+    - each seat's base, its cushion a seat's height off the floor, its raked back, its headrest, its harness (shoulder
+      straps and a lap belt);
+    - each seat's controls: a helicopter's cyclic between the knees and its collective by the left hand (`heli`), a
+      stick, or a yoke on its column, and its pedals;
+    - a bench behind (`bench`).
+  - **On the light helicopter:** two seats, a glass panel, helicopter controls, a three-seat bench. Its tub was lowered
+    so the sill sits at elbow height and the bubble comes down to it.
+  - **An open hull** (a fuselage's `open: { from, to, sill, wall }`, the operator having seen the fuselage's egg take
+    the cabin's room).
+    - Over its span the hull is an open tub: its walls an outer skin and an inner one a `wall` in from it, joined at
+      their rim at the sill.
+    - Its nose is closed ahead of it, its cabin closed from its bulkhead aft.
+    - The same stations, the same skin outside; its seams pass the open span by.
+
+    Absent, a fuselage is lofted as it always was, one closed skin. The light helicopter's tub is open under its bubble,
+    so its cockpit stands inside it.
+  - **Held** (`heli.test.js`):
+    - side by side: each seat's pieces and controls, the panel, console and bench;
+    - tandem: the rear seat raised and aft, a panel before each, a stick or a yoke when asked;
+    - in the helicopter: inside its cabin, under its bubble, no skin across it over its seats (the closed egg had 42
+      faces there);
+    - a hull without the word one closed skin, one with it a nose, a tub and a hull.
+
+    The shelf's char test pins its builder path.
+  - **Seen** (machine gate only; the eyes gate is open): through the bubble from the front, the side and above.

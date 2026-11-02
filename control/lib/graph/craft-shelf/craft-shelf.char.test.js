@@ -17,6 +17,7 @@
  *     two cross-sections (a straight profile needs no more; an X8 cost 56k triangles), so the drone pins re-pinned.
  *   - The drone looks: the EO/IR ball's builder path pinned; no other pin moved.
  *   - The helicopter parts joined the shelf (heli-odm.js): their builder paths pinned; no other pin moved.
+ *   - The cockpit as a part of its own (cockpit-parts.js): its builder path pinned; no other pin moved.
  */
 import { createHash } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
@@ -91,6 +92,8 @@ const PINS = {
   'rotor-heli-light': '6bec5da09c4bc8ba',
   'tail-rotor-light': 'fdb5f4979a12e93f',
   'fan-heli-ducted': 'd2c588b7caf3d68e',
+  // the cockpit, a part of its own (cockpit-parts.js)
+  'cockpit-heli-light': '05a3c9a9af39f335',
   'craft:lightSingle': 'cbbad5fe3c255c1d',
 };
 

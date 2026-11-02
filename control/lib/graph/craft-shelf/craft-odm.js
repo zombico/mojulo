@@ -44,6 +44,7 @@ export const CRAFT_KINDS = {
   'craft-weapon': 'a gun, cannon, missile, launcher or turret on a hardpoint',
   'craft-thruster': 'a reaction-control thruster block',
   'craft-intake': 'an air intake on the fuselage (a chin scoop, a side duct, a half-cone with its shock cone)',
+  'craft-cockpit': 'a cockpit\'s interior seen through its glass: seats (side by side or tandem), the panel, the controls, a bench',
 };
 
 export const CRAFT_REALMS = ['earth', 'space'];

@@ -2,12 +2,14 @@
 // mast, the swashplate's two rings, a pitch link and a grip per blade, the hub and its cap) and its blades (drooping toward
 // their tips, washing out, banded), spun by the pose with its hub still, folding aft; a tail rotor and a ducted fan; a
 // tail rotor's thrust against its main rotor's torque; a helicopter standing on its skids, its rotor clear above its
-// head, its rotors spinning in its figure, within its budget; a helicopter by the words people say. The cases are chosen
-// from the shelf in code.
+// head, its rotors spinning in its figure, within its budget; a helicopter by the words people say; its cockpit, a part
+// of its own (side by side or tandem, its seats, panel and controls), inside its cabin under its bubble. The cases are
+// chosen from the shelf in code.
 import { describe, it, expect } from 'vitest';
 import { assembleCraft, resolveCraftPart, CRAFT_ODM, CRAFT_ARCHETYPES } from './index.js';
 import { craftForm, craftFormFigure } from './craft-form.js';
 import { HELI_ODM, HELI_KINDS } from './heli-odm.js';
+import { buildCockpit } from './cockpit-parts.js';
 import { resolveVehicle, handlesOf } from '../vehicle-registry/roster.js';
 
 const A = CRAFT_ARCHETYPES;
@@ -88,5 +90,42 @@ describe('a helicopter', () => {
     expect(JSON.stringify(craftForm(LIGHT))).toBe(JSON.stringify(craftForm(LIGHT)));
     expect(handlesOf(resolveVehicle('news helicopter').id).craft).toEqual([LIGHT]);
     expect(Object.keys(HELI_KINDS).every((k) => Object.values(HELI_ODM).some((r) => r.kind === k))).toBe(true);
+  });
+});
+
+describe('the cockpit, a part of its own', () => {
+  const ck = (row) => buildCockpit(row, {});
+  const idsOf = (g) => ['lathes', 'sweeps', 'extrudes'].flatMap((k) => (g[k] ?? []).map((m) => m.id));
+  it('side by side: a seat and its controls each, one panel across, a console between, a bench behind', () => {
+    const g = ck({ dims: { length: 2.6, width: 1.4, height: 1.1 }, build: { layout: 'side', seats: 2, panel: 'glass', controls: 'heli', bench: 3 } }), got = idsOf(g);
+    for (const i of [0, 1]) for (const p of ['seat_%_pan', 'seat_%_back', 'seat_%_headrest', 'seat_%_strap_l', 'ctl_%_cyclic', 'ctl_%_collective', 'ctl_%_pedal_r']) expect(got, p.replace('%', i)).toContain(p.replace('%', i));
+    for (const p of ['panel', 'panel_shield', 'console', 'bench', 'bench_back']) expect(got, p).toContain(p);
+    expect(got.filter((i) => /^panel_display_/.test(i)).length).toBeGreaterThan(1);
+  });
+  it('tandem: the seats down the centreline, the rear one raised, a panel before each; a stick or a yoke when asked', () => {
+    const g = ck({ dims: { length: 3.2, width: 0.9, height: 1.2 }, build: { layout: 'tandem', seats: 2, panel: 'dials', controls: 'stick' } }), got = idsOf(g);
+    for (const p of ['panel_0', 'panel_1', 'seat_0_pan', 'seat_1_pan', 'ctl_0_stick', 'ctl_1_stick', 'deck_1']) expect(got, p).toContain(p);
+    const pan = (i) => g.extrudes.find((e) => e.id === `seat_${i}_pan`).axisFrom;
+    expect(pan(1).z).toBeGreaterThan(pan(0).z + 0.2);
+    expect(pan(1).y).toBeLessThan(pan(0).y);
+    expect(idsOf(ck({ dims: { length: 2, width: 1.3, height: 1.1 }, build: { layout: 'side', seats: 2, panel: 'dials', controls: 'yoke' } }))).toContain('ctl_0_yoke');
+  });
+  it('in the helicopter: inside its cabin under its bubble, its seats\' cushions a seat\'s height off its floor', () => {
+    const C = craftForm(LIGHT), fs = (id) => C.items.find((i) => i.id === id).faces;
+    const ext = (faces, k) => { let lo = Infinity, hi = -Infinity; for (const f of faces) for (const c of f.corners) { lo = Math.min(lo, c[k]); hi = Math.max(hi, c[k]); } return [lo, hi]; };
+    const ck2 = A[LIGHT].layout.find((e) => CRAFT_ODM[e.sku].kind === 'craft-cockpit').id, hull = fs('hull'), canopy = fs('canopy'), cp = fs(ck2);
+    for (const k of [0, 1]) { const [a, b] = ext(cp, k), [c, d] = ext(hull, k); expect(a).toBeGreaterThan(c); expect(b).toBeLessThan(d); }
+    expect(ext(cp, 2)[1]).toBeLessThan(ext(canopy, 2)[1]);
+    // (its hull open over it: no skin across the cockpit between its seats' cushions and the bubble)
+    // (over its seats: behind its panel, under the bubble's length, inside its walls, above its floor by a seat's height)
+    const [cx0, cx1] = ext(cp, 0), [gy0] = ext(canopy, 1), [, cy1] = ext(cp, 1), [floor] = ext(cp, 2);
+    const lid = hull.filter((f) => { const c = [0, 1, 2].map((k) => f.corners.reduce((t, q) => t + q[k], 0) / f.corners.length); return Math.abs(c[0] - (cx0 + cx1) / 2) < (cx1 - cx0) * 0.2 && c[1] > gy0 + 0.3 && c[1] < cy1 - 0.3 && c[2] > floor + 0.3; });
+    expect(lid).toEqual([]);
+  });
+  it('a hull with no open span is lofted as it always was: one closed skin', () => {
+    const plain = Object.keys(CRAFT_ODM).find((sku) => CRAFT_ODM[sku].kind === 'craft-fuselage' && !CRAFT_ODM[sku].build.open && CRAFT_ODM[sku].build.family === 'tube');
+    expect(resolveCraftPart(plain).lofts.filter((l) => /^(tub|hull_nose)$/.test(l.id))).toEqual([]);
+    const open = Object.keys(CRAFT_ODM).find((sku) => CRAFT_ODM[sku].build.open);
+    expect(resolveCraftPart(open).lofts.map((l) => l.id).slice(0, 3)).toEqual(['hull_nose', 'tub', 'hull']);
   });
 });

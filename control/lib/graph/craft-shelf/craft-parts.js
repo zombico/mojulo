@@ -11,6 +11,7 @@
 import { cockpit } from './air-kit-parts.js';
 import { DRONE_BUILDERS } from './drone-parts.js';
 import { HELI_BUILDERS } from './heli-parts.js';
+import { buildCockpit } from './cockpit-parts.js';
 import { asFitting, madeHull, madeCanopy, madeIntake, madeNozzle, madeWheel, madeLeg, madeWell, madeSurface, madeMissile } from './air-made.js';
 import { DEG, airfoil, airfoilAft, extrudeWorld, facetSection, foilAt, lathe, loftWorld, mulberry32, hashSeed, planeUV, round3, section, sweep, tone, turnAbout } from './craft-common.js';
 
@@ -33,6 +34,40 @@ function stationAt(rows, s) {
   }
   const last = rows[rows.length - 1];
   return { w: last[1], h: last[2], z: last[3] };
+}
+
+/**
+ * An open hull (`open: { from, to, sill, wall }`): ahead of `from` its nose closed; over `from`..`to` an open tub (its walls an outer skin and an inner
+ * one a `wall` in from it, joined at their rim at the sill, `sill` in its stations' half-heights above their centres),
+ * a cockpit seen into from above; the hull closed from `to` aft, its front the cabin's bulkhead. The same stations, the
+ * same skin outside.
+ */
+function openHull({ b, rows, shape, W, H, L, zMin, zp, smooth, C }) {
+  const { from: s0, to: s1, sill = 0.9, wall = 0.03 } = b.open, M = 13;
+  const opts = smooth ? { interp: 'smooth', segments: b.segments || 5 } : {};
+  // (a station's section as a U: the outer skin from its right sill down round its belly to its left, the inner back)
+  const uOf = (st) => {
+    const a = Math.max((st.w * W) / 2, 0.005), hb = Math.max((st.h * H) / 2, 0.005), n = st.n || b.n || 2, belly = b.belly || 1, zc = st.z * H - zMin;
+    const thS = Math.asin(Math.max(-0.999, Math.min(0.999, Math.sign(sill) * Math.abs(sill) ** (n / 2))));
+    const ring = (aa, bb) => Array.from({ length: M }, (_, i) => {
+      const th = thS - (i / (M - 1)) * (Math.PI + 2 * thS), c = Math.cos(th), sn = Math.sin(th);
+      const x = aa * Math.sign(c) * Math.abs(c) ** (2 / n), z = bb * Math.sign(sn) * Math.abs(sn) ** (2 / n);
+      return [x, z < 0 ? z * belly : z];
+    });
+    const outer = ring(a, hb), inner = ring(Math.max(0.002, a - wall), Math.max(0.002, hb - wall)).reverse();
+    return [...outer, ...inner].map(([x, z]) => [x, 0, zc + z - zp]);
+  };
+  const at = (s) => { const st = stationAt(rows, s), r = rows.find((q) => Math.abs(q[0] - s) < 1e-9); return { ...st, n: r?.[4] }; };
+  const tubS = [...new Set([s0, ...rows.map((r) => r[0]).filter((s) => s > s0 && s < s1), s1])];
+  const tub = loftWorld('tub', [0, -s0 * L, zp], [0, -s1 * L, zp], tubS.map((s) => ({ t: (s - s0) / (s1 - s0), points: uOf(at(s)) })), C.paint, opts);
+  // (the hull closed from the tub's end aft: its front the bulkhead, its stations the hull's own from there)
+  const restS = [s1, ...rows.map((r) => r[0]).filter((s) => s > s1 + 1e-6)];
+  const ring = (s) => { const st = at(s); return shape(Math.max((st.w * W) / 2, 0.005), Math.max((st.h * H) / 2, 0.005), st.n || b.n || 2).map(([x, zz]) => [x, 0, st.z * H - zMin + zz - zp]); };
+  const body = loftWorld('hull', [0, -s1 * L, zp], [0, -L, zp], restS.map((s) => ({ t: (s - s1) / (1 - s1), points: ring(s) })), C.paint, opts);
+  if (!(s0 > 0)) return [tub, body];
+  // (a nose closed ahead of the tub, its back the tub's front wall)
+  const noseS = [0, ...rows.map((r) => r[0]).filter((s) => s > 1e-6 && s < s0), s0];
+  return [loftWorld('hull_nose', [0, 0, zp], [0, -s0 * L, zp], noseS.map((s) => ({ t: s / s0, points: ring(s) })), C.paint, opts), tub, body];
 }
 
 /**
@@ -77,7 +112,7 @@ function buildFuselage(row, C, opts = {}) {
       .map(([x, zz]) => [x, 0, z * H - zMin + zz - zp]),
   }));
   const smooth = !b.facets;
-  const lofts = [loftWorld('hull', from, to, stations, C.paint, smooth ? { interp: 'smooth', segments: b.segments || 5 } : {})];
+  const lofts = b.open ? openHull({ b, rows, shape, W, H, L, zMin, zp, smooth, C }) : [loftWorld('hull', from, to, stations, C.paint, smooth ? { interp: 'smooth', segments: b.segments || 5 } : {})];
   const point = ([s, xf, zf]) => {
     const st = stationAt(rows, s);
     const halfH = (st.h * H) / 2;
@@ -243,7 +278,7 @@ function hullDetail({ b, L, zp, stations, smooth, point, C, sku }) {
   };
   const seam = tone(C.paint, -0.28);
   const pitch = b.seams === false ? 0 : (b.seams || Math.max(1, Math.min(3, L / 10)));
-  const clear = [[0, (b.nose || 0) + 0.02], ...(b.windscreen ? [[b.windscreen[0] - 0.01, b.windscreen[1] + 0.01]] : [])];
+  const clear = [[0, (b.nose || 0) + 0.02], ...(b.windscreen ? [[b.windscreen[0] - 0.01, b.windscreen[1] + 0.01]] : []), ...(b.open ? [[b.open.from - 0.01, b.open.to + 0.01]] : [])];
   // what a window must not sit across: a door's frame, a seam
   const doorsAt = (b.doors || []).map(([sf, , w]) => [sf * L - w / 2 - 0.08, sf * L + w / 2 + 0.08]);
   const seamsAt = [];
@@ -1181,6 +1216,7 @@ export const CRAFT_BUILDERS = {
   'craft-pylon': buildPylon,
   'craft-weapon': buildWeapon,
   'craft-intake': buildIntake,
+  'craft-cockpit': buildCockpit,
 };
 
 // the drone parts' builders (drone-parts.js)

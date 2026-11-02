@@ -9,10 +9,11 @@ export const HELI_ARCHETYPES = {
   lightHeli: {
     realm: 'earth', role: 'courier', palette: 'heliCivil', class: 'light helicopter', label: 'light single-engine helicopter', classOf: 'light single-engine helicopter class (1.4 t)',
     reference: { span: 9.35, length: 10.01, height: 3.72, mtow: 1400 },
-    bom: { 'craft-fuselage': 1, 'craft-canopy': 1, 'heli-cowl': 1, 'heli-rotor': 1, 'heli-tail': 1, 'craft-stabilizer': 2, 'craft-fin': 2, 'drone-gear': 2 },
+    bom: { 'craft-fuselage': 1, 'craft-canopy': 1, 'craft-cockpit': 1, 'heli-cowl': 1, 'heli-rotor': 1, 'heli-tail': 1, 'craft-stabilizer': 2, 'craft-fin': 2, 'drone-gear': 2 },
     layout: [
       { id: 'hull', sku: 'fus-heli-light' },
       { id: 'canopy', sku: 'canopy-heli-bubble', at: 'hull.canopy' },
+      { id: 'cockpit', sku: 'cockpit-heli-light', at: 'hull.cockpit' },
       { id: 'cowl', sku: 'cowl-heli-light', at: 'hull.cowl' },
       { id: 'rotor', sku: 'rotor-heli-light', at: 'cowl.mast' },
       { id: 'tailRotor', sku: 'tail-rotor-light', at: 'hull.tailRotor' },

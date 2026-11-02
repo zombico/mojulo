@@ -27,7 +27,7 @@ export const HELI_KINDS = Object.freeze({
 
 // a light helicopter's cabin running into its boom: a low tub forward under its bubble, the cabin full height behind
 // it, the boom tapering aft from its top
-const LIGHT_POD = [[0, 0.4, 0.3, 0.3], [0.05, 0.82, 0.48, 0.32], [0.16, 0.98, 0.56, 0.34], [0.27, 1, 0.6, 0.35], [0.31, 0.97, 0.96, 0.52], [0.42, 0.62, 0.6, 0.64], [0.5, 0.2, 0.22, 0.72], [1, 0.12, 0.13, 0.74]];
+const LIGHT_POD = [[0, 0.4, 0.26, 0.26], [0.05, 0.82, 0.38, 0.27], [0.16, 0.98, 0.42, 0.28], [0.27, 1, 0.44, 0.29], [0.31, 0.97, 0.96, 0.52], [0.42, 0.62, 0.6, 0.64], [0.5, 0.2, 0.22, 0.72], [1, 0.12, 0.13, 0.74]];
 
 export const HELI_ODM = {
   // ===== a light single-engine helicopter =====================================================
@@ -36,15 +36,22 @@ export const HELI_ODM = {
     aliases: ['helicopter cabin', 'light helicopter fuselage'], dims: { length: 9.3, width: 1.75, height: 1.85 }, mass: 420, mount: null,
     build: {
       family: 'tube', n: 2.6, belly: 0.85, seams: 1.2, stations: LIGHT_POD,
+      // (the cockpit's tub open under its bubble, its walls up to the sill; the cabin closed from its bulkhead aft)
+      open: { from: 0.05, to: 0.29, sill: 0.9, wall: 0.035 },
       // (its rear doors framed in the cabin's sides; the front glazed under its bubble)
       doors: [[0.36, 0.05, 0.62, 0.9]],
-      points: { canopy: [0.012, 0, 0.92], cowl: [0.37, 0, 0.98], tailRotor: [0.985, 0, 0.6], stabRoot: [0.86, 0, 0], finRoot: [0.9, 0, 0.9], ventral: [0.94, 0, -0.9], skid: [0.2, 0.62, -0.92] },
+      points: { canopy: [0.012, 0, 0.92], cockpit: [0.07, 0, -0.62], cowl: [0.37, 0, 0.98], tailRotor: [0.985, 0, 0.6], stabRoot: [0.86, 0, 0], finRoot: [0.9, 0, 0.9], ventral: [0.94, 0, -0.9], skid: [0.2, 0.62, -0.92] },
     },
   },
   'canopy-heli-bubble': {
     kind: 'craft-canopy', realm: 'earth', label: 'light helicopter bubble', classOf: 'light single-engine helicopter class (1.4 t)',
-    aliases: ['helicopter bubble', 'cockpit bubble'], dims: { length: 2.75, width: 1.72, height: 0.98 }, mass: 40, mount: 'sill',
+    aliases: ['helicopter bubble', 'cockpit bubble'], dims: { length: 2.75, width: 1.72, height: 1.06 }, mass: 40, mount: 'sill',
     build: { family: 'bubble', opens: false, stations: [[0, 0.42, 0.2], [0.14, 0.86, 0.68], [0.42, 1, 0.98], [0.85, 0.99, 1], [1, 0.96, 0.95]] },
+  },
+  'cockpit-heli-light': {
+    kind: 'craft-cockpit', realm: 'earth', label: 'light helicopter cockpit', classOf: 'light single-engine helicopter class (1.4 t)',
+    aliases: ['helicopter cockpit', 'helicopter cabin interior'], dims: { length: 2.75, width: 1.45, height: 1.15 }, mass: 60, mount: 'cabin-floor',
+    build: { layout: 'side', seats: 2, panel: 'glass', controls: 'heli', bench: 3 },
   },
   'cowl-heli-light': {
     kind: 'heli-cowl', realm: 'earth', label: 'light helicopter roof cowling', classOf: 'light single-engine helicopter class (1.4 t)',
