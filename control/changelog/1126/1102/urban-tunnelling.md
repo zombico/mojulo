@@ -81,3 +81,13 @@
   passage is clad in back-painted glass panels between steel battens over a stainless kick band, a brushed steel frieze
   to its ceiling, a steel handrail each side following its floor, and a lit glass strip in a steel edge down its
   ceiling in place of its lamps.
+- **The food court seated, and the concourses fitted** (`geocity/court-kit.js`): the furniture is turned where a hand or a
+  hip meets it. The food court seats a mix of sets by its dice (`SETS`): round cafe tables on a pedestal with four chairs
+  whose curved backs turn to them on slim steel legs, high round bistro tables with three tall round stools, long
+  communal tables with rounded ends and a bench down each side, and booths (a table between two upholstered benches with
+  high backs), in one upholstery and one table top a court. Every concourse is fitted (`FITTINGS`): a waste and a
+  recycling bin side by side (round, coloured lids) beside each way out and at the court's corners, a lit wayfinding
+  directory (its route's colour in a band) by the stair's foot, and slatted backless benches down its long middle between
+  round steel planters of shrubs. Each set and fitting is a box the walk is held out of, laid where it stands clear of
+  every walk, the shopfronts, the court and the stair. A shopfront now keeps 1.7 m from a way out's frame, room for its
+  bins. The readout carries each concourse's fittings and the court's sets.

@@ -22,6 +22,7 @@
  * Metres, the design's frame (x east, y north, z up). Pure; seeded dice only (a shop's sign colour).
  */
 import { streamOf } from '../city/plan/dice.js';
+import { setFaces, fitFaces, SETS, FITTINGS } from './court-kit.js';
 
 const r5 = (v) => Math.round(v * 1e5) / 1e5 + 0;
 const P3 = (p) => p.map(r5);
@@ -32,8 +33,9 @@ export const ROUTES = Object.freeze({ ns: '#2f8fb0', ew: '#d9a03a' });
 // end jambs), a deeper sign bulkhead over it in the shop's colour, dark steel returns either end
 export const SHOP = Object.freeze({
   bay: 5, least: 3, gap: 0.4, kick: 0.45, glass: 2.75, bulkhead: 3.35, mullion: 1.75, depth: 0.5, proud: 0.04,
-  // how far a shopfront keeps from a way out's frame and from the stair's flight (m)
-  clear: 1.2,
+  // how far a shopfront keeps from a way out's frame and from the stair's flight (m: room for a pair of bins beside a
+  // way out)
+  clear: 1.7,
 });
 // the mall's glass and steel: display glass light enough to read the shop through, brushed steel, a darker mullion, the
 // kick's dark steel (polygonizer/floorplan-mall.js)
@@ -43,7 +45,10 @@ const CLAD = Object.freeze({ stone: '#d6cfc0', module: 1.5 });
 // the sign bands' colours (a shop's, by its dice), the food court's warmer
 const SIGNS = ['#c8433a', '#2f6db0', '#e0b13c', '#3f8f5a', '#8a4fb0', '#d9733a', '#2a2a2e', '#b03a6d'];
 const FOOD = ['#d9733a', '#c8433a', '#e0b13c', '#7a9a3a'];
-const COURT = Object.freeze({ step: 3.2, margin: 2.2, clear: 1.3, most: 16 });
+// the food court: its cells, its margin to the walls, its clearance to a walk (m), the most sets it seats, the mix its
+// dice draw a set from, its upholstery and its tables' tops
+const COURT = Object.freeze({ step: 3.4, margin: 2, clear: 0.6, most: 14, mix: ['cafe', 'cafe', 'bistro', 'communal', 'booth'],
+  seats: ['#c8433a', '#2f6f8a', '#d9a03a', '#3f7f5a'], woods: ['#b08a5a', '#8a6a48', '#c9b08a'] });
 // the laylight: how far under the concourse's ceiling's height it hangs from its floor (m), its glow, its frame, its ribs
 const LAYLIGHT = Object.freeze({ under: 3.82, glow: '#eef4f7', frame: '#6c7176', rib: 2.4 });
 // the entrance canopy: its width, its reach out from the facade, its height over the plaza (m)
@@ -249,31 +254,87 @@ export function dressUnder({ podia, tunnels = [], seed = 1 }) {
       }
     }
   }
-  // ── the food court: tables and their stools in the hub, on the cells clear of every walk through it ──
+  // ── the food court in the hub: its seating sets by its dice (round cafe tables and their chairs, high bistro tables
+  // and their stools, long communal tables and their benches, booths), each on a cell clear of the stair and a body's
+  // width and more of every walk through it ──
   let court = null;
+  const fitted = {};
   if (hub && hub.I.ports.length) {
-    const I = hub.I, cb = I.rooms.find((r) => r.id === 'concourse').box, z0 = cb.min[2];
-    const walks = walksOf(I);
+    const I = hub.I, cb = I.rooms.find((r) => r.id === 'concourse').box, z0 = cb.min[2], R = streamOf(seed, 'under-court', hub.block);
+    const walks = walksOf(I), la = cb.max[0] - cb.min[0] >= cb.max[1] - cb.min[1] ? 0 : 1;
     const F = I.flight, x0 = cb.min[0] + COURT.margin, y0 = cb.min[1] + COURT.margin, x1 = cb.max[0] - COURT.margin, y1 = cb.max[1] - COURT.margin;
     const nx = Math.floor((x1 - x0) / COURT.step), ny = Math.floor((y1 - y0) / COURT.step), cx = (x0 + x1) / 2, cy = (y0 + y1) / 2;
-    const cells = [];
+    const look = { seat: COURT.seats[Math.floor(R() * COURT.seats.length)], wood: COURT.woods[Math.floor(R() * COURT.woods.length)] };
+    const sets = [];
     for (let i = 0; i <= nx; i++) for (let j = 0; j <= ny; j++) {
-      const p = [cx + (i - nx / 2) * COURT.step, cy + (j - ny / 2) * COURT.step];
-      // (a table and its stools, 1.9 m across: clear of the flight and a body's width and more from every walk)
-      const clearFlight = p[0] + 0.95 < F[0] - 1 || p[0] - 0.95 > F[2] + 1 || p[1] + 0.95 < F[1] - 1 || p[1] - 0.95 > F[3] + 1;
-      if (clearFlight && walks.every((l) => toLine(p, l) > 0.95 + COURT.clear)) cells.push(p);
+      if (sets.length >= COURT.most) break;
+      const p = [cx + (i - nx / 2) * COURT.step, cy + (j - ny / 2) * COURT.step], type = COURT.mix[Math.floor(R() * COURT.mix.length)];
+      // (a long set runs down the concourse's long way)
+      const turn = (type === 'communal' || type === 'booth') && la === 1 ? 1 : 0, [hx, hy] = turn ? [SETS[type].half[1], SETS[type].half[0]] : SETS[type].half;
+      const rect = [p[0] - hx, p[1] - hy, p[0] + hx, p[1] + hy];
+      if (!(rect[2] < F[0] - 1 || rect[0] > F[2] + 1 || rect[3] < F[1] - 1 || rect[1] > F[3] + 1)) continue;
+      if (walks.some((l) => toRect(l, rect) < COURT.clear)) continue;
+      sets.push(type);
+      faces.push(...setFaces(type, [p[0], p[1], z0], turn, look));
+      colliders.push({ min: P3([rect[0], rect[1], z0]), max: P3([rect[2], rect[3], z0 + (type === 'booth' ? 1.26 : type === 'bistro' ? 1.09 : 0.8)]), of: `${hub.block}:court` });
     }
-    const kept = cells.slice(0, COURT.most);
-    for (const [x, y] of kept) {
-      box(faces, [x - 0.45, y - 0.45, z0 + 0.72], [x + 0.45, y + 0.45, z0 + 0.76], 'geocity:food-court', '#b8a07a');
-      box(faces, [x - 0.07, y - 0.07, z0], [x + 0.07, y + 0.07, z0 + 0.72], 'geocity:food-court', '#4a4a4e');
-      for (const [dx, dy] of [[-0.75, 0], [0.75, 0], [0, -0.75], [0, 0.75]]) {
-        box(faces, [x + dx - 0.19, y + dy - 0.19, z0 + 0.42], [x + dx + 0.19, y + dy + 0.19, z0 + 0.46], 'geocity:food-court', '#c8433a');
-        box(faces, [x + dx - 0.04, y + dy - 0.04, z0], [x + dx + 0.04, y + dy + 0.04, z0 + 0.42], 'geocity:food-court', '#4a4a4e');
-      }
-      colliders.push({ min: P3([x - 0.95, y - 0.95, z0]), max: P3([x + 0.95, y + 0.95, z0 + 0.8]), of: `${hub.block}:court` });
-    }
-    court = { podium: hub.block, tables: kept.length };
+    court = { podium: hub.block, tables: sets.length, sets: Object.fromEntries(Object.keys(SETS).map((k) => [k, sets.filter((t) => t === k).length]).filter(([, n]) => n)) };
   }
-  return { faces, street, colliders, readout: { routes: { ...ROUTES }, shops, ...(court ? { court } : {}) } };
+  // ── each concourse's fittings: a waste and a recycling bin beside each way out and at the food court's corners, a
+  // directory by the stair's foot, benches down its long middle between planters; each where it stands clear of the
+  // walks, the shopfronts, the court and the stair ──
+  for (const P of podia) {
+    const I = P.I, cb = I.rooms.find((r) => r.id === 'concourse').box, z0 = cb.min[2], walks = walksOf(I), F = I.flight;
+    const mine = colliders.filter((c) => c.of.startsWith(`${P.block}:`)).map((c) => [c.min[0], c.min[1], c.max[0], c.max[1]]);
+    const taken = [...mine, [F[0] - 0.6, F[1] - 0.6, F[2] + 0.6, F[3] + 0.6]], room = [cb.min[0] + 0.3, cb.min[1] + 0.3, cb.max[0] - 0.3, cb.max[1] - 0.3];
+    // (in front of each way out, the zone a walker comes through it in)
+    for (const q of I.ports) { const ax = q.side.endsWith('y') ? 0 : 1, inner = q.plane - q.N[1 - ax] * 0.5, d = -q.N[1 - ax], lo = [0, 0], hi = [0, 0]; lo[ax] = q.lo - 0.1; hi[ax] = q.hi + 0.1; lo[1 - ax] = Math.min(inner, inner + d * 3); hi[1 - ax] = Math.max(inner, inner + d * 3); taken.push([lo[0], lo[1], hi[0], hi[1]]); }
+    const count = {};
+    const fit = (kind, at, turn, h, extra = {}) => {
+      const [hx, hy] = turn % 2 ? [FITTINGS[kind].half[1], FITTINGS[kind].half[0]] : FITTINGS[kind].half, rect = [at[0] - hx, at[1] - hy, at[0] + hx, at[1] + hy];
+      if (rect[0] < room[0] || rect[1] < room[1] || rect[2] > room[2] || rect[3] > room[3]) return false;
+      if (taken.some((t) => rect[0] < t[2] + 0.3 && rect[2] > t[0] - 0.3 && rect[1] < t[3] + 0.3 && rect[3] > t[1] - 0.3)) return false;
+      if (walks.some((l) => toRect(l, rect) < 0.5)) return false;
+      faces.push(...fitFaces(kind, [at[0], at[1], z0], turn, extra));
+      colliders.push({ min: P3([rect[0], rect[1], z0]), max: P3([rect[2], rect[3], z0 + h]), of: `${P.block}:${kind}` });
+      taken.push(rect);
+      count[kind] = (count[kind] ?? 0) + 1;
+      return true;
+    };
+    // bins beside each way out, end on to its wall, either side of the zone a walker comes through
+    for (const q of I.ports) {
+      const ax = q.side.endsWith('y') ? 0 : 1, d = -q.N[1 - ax], inner = q.plane - q.N[1 - ax] * 0.5, turn = ax === 0 ? (d > 0 ? 1 : 3) : (d > 0 ? 0 : 2);
+      for (const u of [q.lo - 0.8, q.hi + 0.8]) { const at = [0, 0]; at[ax] = u; at[1 - ax] = inner + d * 0.95; if (fit('bins', at, turn, 0.97)) break; }
+    }
+    // a directory by the stair's foot, turned to the room
+    {
+      const foot = [(F[0] + F[2]) / 2, (F[1] + F[3]) / 2], mid = [(cb.min[0] + cb.max[0]) / 2, (cb.min[1] + cb.max[1]) / 2], toward = [mid[0] - foot[0], mid[1] - foot[1]];
+      const turn = Math.abs(toward[0]) > Math.abs(toward[1]) ? (toward[0] > 0 ? 1 : 3) : (toward[1] > 0 ? 2 : 0), off = Math.hypot(...toward) || 1;
+      const band = ROUTES[I.ports[0] ? (routeOf.get(I.ports[0].id) ?? 'ns') : 'ns'];
+      for (const k of [2.2, 3, 4]) if (fit('directory', [foot[0] + (toward[0] / off) * k, foot[1] + (toward[1] / off) * k], turn, 2.1, { band })) break;
+    }
+    // benches down the long middle, a planter at either end of each where it fits
+    {
+      const la = cb.max[0] - cb.min[0] >= cb.max[1] - cb.min[1] ? 0 : 1, sa = 1 - la, mid = (cb.min[sa] + cb.max[sa]) / 2, turn = la === 0 ? 0 : 1;
+      for (let a = cb.min[la] + 3; a <= cb.max[la] - 3; a += 1) {
+        for (const off of [0, -2.2, 2.2]) {
+          const at = [0, 0]; at[la] = a; at[sa] = mid + off;
+          if (!fit('bench', at, turn, 0.47, { wood: COURT.woods[0] })) continue;
+          for (const e of [-2.05, 2.05]) { const pp = [...at]; pp[la] += e; fit('planter', pp, 0, 1.1); }
+          a += 4;
+          break;
+        }
+      }
+    }
+    // (and at the food court's corners, a pair of bins)
+    if (court && P === hub) {
+      const C = colliders.filter((c) => c.of === `${P.block}:court`);
+      if (C.length) {
+        const bx = [Math.min(...C.map((c) => c.min[0])), Math.min(...C.map((c) => c.min[1])), Math.max(...C.map((c) => c.max[0])), Math.max(...C.map((c) => c.max[1]))];
+        for (const [x, y] of [[bx[0] - 0.9, bx[1] - 0.6], [bx[2] + 0.9, bx[3] + 0.6], [bx[0] - 0.9, bx[3] + 0.6], [bx[2] + 0.9, bx[1] - 0.6]]) fit('bins', [x, y], 0, 0.97);
+      }
+    }
+    fitted[P.block] = count;
+  }
+  return { faces, street, colliders, readout: { routes: { ...ROUTES }, shops, fittings: fitted, ...(court ? { court } : {}) } };
 }

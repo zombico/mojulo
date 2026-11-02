@@ -37,17 +37,20 @@ describe('a concourse dressed', () => {
     expect(new Set(signs.map((f) => f.fill)).size).toBe(2);
   });
 
-  it('seats its food court in the hub, every table a body\'s width and more clear of every walk through it', () => {
+  it('seats its food court in the hub in more than one kind of set, every set and fitting clear of every walk through it', () => {
     expect(D.readout.court).toMatchObject({ podium: 'X1.0.0' });
     expect(D.readout.court.tables).toBeGreaterThan(0);
+    expect(Object.keys(D.readout.court.sets).length).toBeGreaterThan(1);
     const walks = [I.through, I.down, ...I.ports.map((q) => q.reach)];
-    for (const c of D.colliders.filter((x) => x.of.endsWith(':court'))) {
-      const mid = [(c.min[0] + c.max[0]) / 2, (c.min[1] + c.max[1]) / 2];
-      for (const w of walks) for (let k = 0; k + 1 < w.length; k++) {
-        const a = w[k], b = w[k + 1], dx = b[0] - a[0], dy = b[1] - a[1], l2 = dx * dx + dy * dy, t = l2 ? Math.max(0, Math.min(1, ((mid[0] - a[0]) * dx + (mid[1] - a[1]) * dy) / l2)) : 0;
-        expect(Math.hypot(mid[0] - a[0] - t * dx, mid[1] - a[1] - t * dy)).toBeGreaterThan(0.95 + 1);
+    // (each walk sampled a tenth of a metre apart, never within a body's width and a hand of a set's or a fitting's box)
+    for (const c of D.colliders.filter((x) => !x.of.endsWith(':shop'))) for (const w of walks) for (let k = 0; k + 1 < w.length; k++) {
+      const a = w[k], b = w[k + 1], n = Math.max(1, Math.ceil(Math.hypot(b[0] - a[0], b[1] - a[1]) / 0.1));
+      for (let i = 0; i <= n; i++) {
+        const x = a[0] + ((b[0] - a[0]) * i) / n, y = a[1] + ((b[1] - a[1]) * i) / n;
+        expect(Math.hypot(Math.max(c.min[0] - x, 0, x - c.max[0]), Math.max(c.min[1] - y, 0, y - c.max[1]))).toBeGreaterThan(0.45);
       }
     }
+    expect(Object.values(D.readout.fittings['X1.0.0']).reduce((p, q) => p + q, 0)).toBeGreaterThan(2);
   });
 
   it('is the same concourse for the same seed, its signs by its dice', () => {
