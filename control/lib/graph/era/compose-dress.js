@@ -24,8 +24,12 @@
 import { box, r5 } from './geom.js';
 import { STAIR_PROFILES } from '../construction/circulation.js';
 import { STOCK, GREAT, EXTINGUISHER, roleOf, stockLaws, TOWN_STOCK, TOWN_GREAT } from './stocking.js';
+import { resolveFurniture } from '../furnishings/forms.js';
+import { lockedFurnitureFaces } from '../construction/facades.js';
 
 const B = (u0, u1, v0, v1, z0, z1, s) => [u0, u1, v0, v1, z0, z1, s];
+// a furniture-door piece turned from facing +y to face its way: [xx, xy, yx, yy]
+const TURN = Object.freeze({ '+y': [1, 0, 0, 1], '-y': [-1, 0, 0, -1], '+x': [0, 1, -1, 0], '-x': [0, -1, 1, 0] });
 export const PIECES = Object.freeze({
   crate: { class: 'crate', w: 1, d: 1, h: 0.9, stack: 3, parts: [B(0.03, 0.97, 0.03, 0.97, 0.08, 0.82, 'cabinet'), B(0, 1, 0, 1, 0, 0.08, 'beam'), B(0, 1, 0, 1, 0.82, 0.9, 'beam')] },
   'ammo-can': { class: 'crate', w: 0.5, d: 0.3, h: 0.35, stack: 4, parts: [B(0, 0.5, 0, 0.3, 0, 0.3, 'paint'), B(0.02, 0.48, 0.02, 0.28, 0.3, 0.35, 'trim')] },
@@ -76,21 +80,19 @@ export const PIECES = Object.freeze({
   sign: { class: 'sign', w: 1.4, d: 0.06, h: 0.5, solid: false, parts: [B(0, 1.4, 0, 0.06, 0, 0.5, 'paint')] },
   // A TOWN'S FURNITURE (the vernacular register: stocking.js TOWN_STOCK): boards and timber (`cabinet` the boards, `beam`
   // the dark timber), stone (`concrete`), cloth and goods (`paint`)
-  counter: { class: 'bench', w: 2.6, d: 0.75, h: 1.0, parts: [B(0, 2.6, 0, 0.75, 0.94, 1.0, 'beam'), B(0.04, 2.56, 0.04, 0.2, 0.08, 0.94, 'cabinet'), B(0.04, 2.56, 0.04, 0.71, 0, 0.08, 'beam'),
-    B(0.04, 0.12, 0.2, 0.71, 0.08, 0.94, 'cabinet'), B(2.48, 2.56, 0.2, 0.71, 0.08, 0.94, 'cabinet'), B(0.12, 2.48, 0.5, 0.71, 0.45, 0.5, 'cabinet'), B(0.3, 0.6, 0.55, 0.7, 1.0, 1.18, 'paint'), B(1.9, 2.3, 0.5, 0.7, 1.0, 1.12, 'paint')] },
-  shelves: { class: 'rack', w: 1.8, d: 0.45, h: 2.1, parts: [B(0, 0.06, 0, 0.45, 0, 2.1, 'beam'), B(1.74, 1.8, 0, 0.45, 0, 2.1, 'beam'), B(0.06, 1.74, 0, 0.04, 0.1, 2.05, 'cabinet'),
-    ...[0.12, 0.62, 1.12, 1.62, 2.06].map((z) => B(0.06, 1.74, 0, 0.45, z, z + 0.04, 'cabinet')),
-    B(0.15, 0.55, 0.08, 0.4, 0.16, 0.5, 'paint'), B(0.7, 1.0, 0.1, 0.38, 0.16, 0.42, 'paint'), B(1.15, 1.6, 0.08, 0.4, 0.66, 0.98, 'paint'), B(0.2, 0.7, 0.1, 0.38, 1.16, 1.42, 'paint'), B(1.0, 1.5, 0.08, 0.4, 1.66, 1.98, 'paint')] },
+  // (drawn from the furniture door, furnishings/forms.js: its style's locked build, filled to the piece's size, its
+  // finish its own (the fantasy styles: trestle-table, tavern-table, settle, high-seat, shop-shelves, counter,
+  // iron-bound-chest); no parts of its own)
+  counter: { class: 'bench', w: 2.4, d: 0.7, h: 1.0, furniture: 'counter', parts: [] },
+  shelves: { class: 'rack', w: 1.8, d: 0.42, h: 2.0, furniture: 'shop-shelves', parts: [] },
+  table: { class: 'bench', w: 1.5, d: 0.9, h: 0.76, furniture: 'tavern-table', parts: [] },
+  'long-table': { class: 'bench', w: 2.2, d: 0.85, h: 0.76, furniture: 'trestle-table', parts: [] },
+  settle: { class: 'bench', w: 1.7, d: 0.52, h: 1.15, furniture: 'settle', parts: [] },
+  'high-seat': { class: 'set-piece', w: 0.72, d: 0.64, h: 1.5, furniture: 'high-seat', parts: [] },
+  chest: { class: 'crate', w: 1.0, d: 0.56, h: 0.62, furniture: 'iron-bound-chest', parts: [] },
   barrel: { class: 'barrel', w: 0.62, d: 0.62, h: 0.86, stack: 1, parts: [['prism', 0.31, 0.31, 0.27, 0, 0.86, 10, 'cabinet'], ['prism', 0.31, 0.31, 0.31, 0.18, 0.24, 10, 'beam'], ['prism', 0.31, 0.31, 0.31, 0.62, 0.68, 10, 'beam']] },
   sack: { class: 'crate', w: 0.55, d: 0.45, h: 0.6, stack: 2, parts: [B(0.02, 0.53, 0.02, 0.43, 0, 0.5, 'paint'), B(0.12, 0.43, 0.1, 0.35, 0.5, 0.6, 'paint')] },
-  table: { class: 'bench', w: 1.6, d: 0.9, h: 0.76, parts: [B(0, 1.6, 0, 0.9, 0.7, 0.76, 'cabinet'), B(0.06, 0.14, 0.06, 0.14, 0, 0.7, 'beam'), B(1.46, 1.54, 0.06, 0.14, 0, 0.7, 'beam'),
-    B(0.06, 0.14, 0.76, 0.84, 0, 0.7, 'beam'), B(1.46, 1.54, 0.76, 0.84, 0, 0.7, 'beam'), B(0.3, 0.55, 0.3, 0.55, 0.76, 0.86, 'paint')] },
-  'long-table': { class: 'bench', w: 3.6, d: 1.9, h: 0.78, parts: [B(0, 3.6, 0.5, 1.4, 0.72, 0.78, 'cabinet'), B(0.15, 0.25, 0.55, 1.35, 0, 0.72, 'beam'), B(3.35, 3.45, 0.55, 1.35, 0, 0.72, 'beam'), B(0.25, 3.35, 0.9, 1.0, 0.2, 0.28, 'beam'),
-    B(0, 3.6, 0.05, 0.38, 0.42, 0.47, 'cabinet'), B(0, 3.6, 1.52, 1.85, 0.42, 0.47, 'cabinet'), B(0.2, 0.28, 0.1, 0.33, 0, 0.42, 'beam'), B(3.32, 3.4, 0.1, 0.33, 0, 0.42, 'beam'), B(0.2, 0.28, 1.57, 1.8, 0, 0.42, 'beam'), B(3.32, 3.4, 1.57, 1.8, 0, 0.42, 'beam')] },
-  settle: { class: 'bench', w: 1.8, d: 0.5, h: 1.1, parts: [B(0, 1.8, 0.05, 0.5, 0.42, 0.47, 'cabinet'), B(0, 1.8, 0, 0.06, 0.42, 1.1, 'cabinet'), B(0, 0.06, 0, 0.5, 0, 0.75, 'beam'), B(1.74, 1.8, 0, 0.5, 0, 0.75, 'beam'), B(0.06, 1.74, 0.06, 0.5, 0, 0.42, 'cabinet')] },
-  'high-seat': { class: 'set-piece', w: 0.9, d: 0.8, h: 1.6, parts: [B(0, 0.9, 0, 0.8, 0, 0.12, 'concrete'), B(0.05, 0.85, 0.05, 0.75, 0.12, 0.55, 'cabinet'), B(0.05, 0.85, 0, 0.12, 0.55, 1.6, 'beam'), B(0, 0.1, 0.05, 0.75, 0.55, 0.85, 'beam'), B(0.8, 0.9, 0.05, 0.75, 0.55, 0.85, 'beam'), B(0.15, 0.75, 0.12, 0.7, 0.55, 0.62, 'paint')] },
   bed: { class: 'bench', w: 2.1, d: 1.1, h: 0.95, parts: [B(0, 2.1, 0, 1.1, 0.25, 0.35, 'beam'), B(0.05, 2.05, 0.05, 1.05, 0.35, 0.55, 'paint'), B(0, 0.08, 0, 1.1, 0, 0.95, 'beam'), B(2.02, 2.1, 0, 1.1, 0, 0.6, 'beam'), B(0.1, 0.5, 0.15, 0.95, 0.55, 0.66, 'paint')] },
-  chest: { class: 'crate', w: 1.0, d: 0.55, h: 0.6, parts: [B(0, 1, 0, 0.55, 0, 0.5, 'cabinet'), B(0, 1, 0, 0.55, 0.5, 0.6, 'beam'), B(0.45, 0.55, 0.55, 0.57, 0.3, 0.45, 'trim')] },
   hearth: { class: 'set-piece', w: 2.2, d: 0.9, h: 2.6, parts: [B(0, 0.45, 0, 0.9, 0, 1.5, 'concrete'), B(1.75, 2.2, 0, 0.9, 0, 1.5, 'concrete'), B(0.45, 1.75, 0, 0.2, 0, 1.5, 'trim'), B(0, 2.2, 0, 0.9, 1.5, 1.7, 'beam'),
     B(0.3, 1.9, 0, 0.7, 1.7, 2.6, 'concrete'), B(0.5, 1.7, 0.2, 0.75, 0, 0.12, 'concrete'), B(0.8, 1.4, 0.35, 0.6, 0.12, 0.35, 'paint')] },
   workbench: { class: 'bench', w: 2.0, d: 0.8, h: 0.9, parts: [B(0, 2, 0, 0.8, 0.82, 0.9, 'beam'), B(0.05, 0.15, 0.05, 0.75, 0, 0.82, 'beam'), B(1.85, 1.95, 0.05, 0.75, 0, 0.82, 'beam'), B(0.15, 1.85, 0.1, 0.7, 0.25, 0.3, 'cabinet'), B(0.3, 0.8, 0.2, 0.6, 0.9, 1.05, 'trim'), B(1.2, 1.7, 0.3, 0.55, 0.9, 0.98, 'paint')] },
@@ -340,7 +342,17 @@ export function propFaces(plan, items, surf) {
     if (!r || !P) continue;
     // (a wall piece over the doorway's head, under the ceiling)
     const k = it.scale ?? 1, z0 = (r.z0 ?? 0) + (it.level ?? 0) * P.h * k + (it.wall ? Math.min(r.h - P.h * k - 0.1, (plan.kit?.door?.height ?? 2.7) + 0.2) : 0), out = [];
-    for (const p of P.parts) {
+    // a piece from the furniture door: its locked build drawn, filled to the piece's size, turned to face the way it
+    // faces (the door draws it facing +y) and set on its footprint
+    if (P.furniture) {
+      const L = resolveFurniture({ like: P.furniture, size: [P.w, P.d, P.h].map((v) => Math.round(v * k * 1000)) }).locked, f = footprintOf(it);
+      const cx = (f.min[0] + f.max[0]) / 2, cy = (f.min[1] + f.max[1]) / 2, T = TURN[it.facing], turn = ([x, y, z]) => [r5(cx + T[0] * x + T[1] * y), r5(cy + T[2] * x + T[3] * y), r5(z0 + z)];
+      for (const fc of lockedFurnitureFaces(L, { unitMm: 1000, fit: true })) {
+        const n = fc.outNormal ? [r5(T[0] * fc.outNormal[0] + T[1] * fc.outNormal[1]), r5(T[2] * fc.outNormal[0] + T[3] * fc.outNormal[1]), fc.outNormal[2]] : null;
+        out.push({ corners: fc.corners.map(turn), fill: fc.fill, cornerFills: fc.corners.map(() => fc.fill), ...(n ? { normal: n, outNormal: n } : {}), ...(fc.doubleSided ? { doubleSided: true } : {}), group: 'stage:furniture' });
+      }
+    }
+    for (const p of P.furniture ? [] : P.parts) {
       if (p[0] === 'prism') {
         const [, cu, cv, rad, pz0, pz1, sides, s] = p, [mn] = partBox(it, [cu, cu, cv, cv, pz0, pz1], z0);
         prism(out, [mn[0], mn[1]], rad * k, z0 + pz0 * k, z0 + pz1 * k, sides, surf(s));

@@ -341,3 +341,10 @@ its resource, put on a look and showed a toast. This theme makes them act.
   outside as the street's houses do: its language's wall and roof, painted and dressed as theirs. Its windows are cut
   through for its leaded lights, each under a lintel and over a sill in its language's ornament. Absent the vernacular,
   a building is as it was.
+- **A town's furniture from the furniture door, in fantasy skins.** The furniture door (`mint_solid` kind `furniture`,
+  `furnishings/forms.js`) gains a town's furniture before the machine age, styles over the same forms in dark oak and
+  walnut: `trestle-table`, `tavern-table`, `settle`, `high-seat`, `shop-shelves`, `counter` and `iron-bound-chest`.
+  Each mints as a display piece. In a town's rooms, a counter, shelves, tables, a settle, the high seat and a chest are
+  now drawn from these styles' locked builds (`compose-dress.js`). Each is filled to its piece's size, turned to face
+  into the room, and keeps its own finish, in place of the boxes. Barrels, sacks, crates, the hearth, the bed and the
+  workbench stay boxes for now.

@@ -25,6 +25,16 @@ describe('a town building\'s inside', () => {
     expect(house.some((p) => p.kind === 'bed')).toBe(true);
   });
 
+  it('draws its furniture from the furniture door: the fantasy styles, filled to each piece and turned into the room', () => {
+    const P = room('shop'), F = P.faces.filter((f) => f.group === 'stage:furniture');
+    expect(F.length).toBeGreaterThan(0);
+    // (the counter, drawn from its locked build: its timber's dark stain, on the shop floor)
+    const counter = P.anchors.find((a) => a.kind === 'prop' && /\/counter-/.test(a.id));
+    const near = F.filter((f) => f.node === counter.id);
+    expect(near.length).toBeGreaterThan(0);
+    for (const f of near) for (const c of f.corners) { expect(Math.abs(c[0] - counter.at[0])).toBeLessThan(1.5); expect(Math.abs(c[1] - counter.at[1])).toBeLessThan(1.5); }
+  });
+
   it('takes a made palette (the town\'s own colours) beside the authored ones, never in place of one', () => {
     const spec = { ...PALETTES.vernacular, wall: [{ stone: [200, 180, 150], mortar: [180, 160, 130] }] };
     const id = registerPalette('town-test', spec);
