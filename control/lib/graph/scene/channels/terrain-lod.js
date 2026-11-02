@@ -177,7 +177,7 @@ function __tSelect() {
   }
   return { show, queue: queue.sort((a, b) => a[4] - b[4]), keep };
 }
-const __tShown = new Set();
+const __lodShown = new Set();
 let __tSel = null, __tLastSel = -1e9, __tFog0 = null, __tSpace = false;
 // the sky dome, stars, sun and moon (render order < 0, background-drawn) ride with the camera
 const __tSky = []; scene.traverse((o) => { if (o !== scene && o.renderOrder < 0 && o.parent === scene) __tSky.push(o); });
@@ -200,9 +200,9 @@ function __tTick() {
   }
   if (built) __tLastSel = -1e9;                                   // refine as soon as a family is complete
   const show = new Set(__tSel.show);
-  for (const k of __tShown) if (!show.has(k)) { const r = __tChunks.get(k); if (r) { r.mesh.visible = false; r.mesh.layers.set(1); } }
+  for (const k of __lodShown) if (!show.has(k)) { const r = __tChunks.get(k); if (r) { r.mesh.visible = false; r.mesh.layers.set(1); } }
   for (const k of show) { const r = __tChunks.get(k); if (r) { r.mesh.visible = true; r.mesh.layers.set(0); r.used = now; } }
-  __tShown.clear(); for (const k of show) __tShown.add(k);
+  __lodShown.clear(); for (const k of show) __lodShown.add(k);
   for (const k of __tSel.keep) { const r = __tChunks.get(k); if (r) r.used = now; }
   // the least recently wanted go first; the drawn tree, its ancestors and the queue stay. The cap never falls below what
   // the view keeps (a continent's deep tree at the ground can keep more than maxChunks): under it, chunks about to be

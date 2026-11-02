@@ -352,6 +352,10 @@ const sha = (s) => createHash('sha256').update(s).digest('hex');
 // only. The prepass draws a material that moves its vertices (a plant's wind, a spray's growth) by the vertex shader it
 // names (`userData.prepass`), so its occlusion and ink fall where the frame draws it, not beside it where it would
 // stand still. A page without such a material draws every mesh as before.
+// Re-pinned 2026-11-01 (game breakers): `court`, `turns`, `pitch`, `meet`, `innings`, `versus` and `holo` only. Each
+// arena's client posts its outcome with the wire's `contractVersion`, which the play shell requires to apply it (it
+// refused every match's outcome before); the contest kernel the court, turns, pitch, meet and innings inline takes a
+// ladder's `tiebreak` (tennis's set at six all). No other page inlines an arena client or the kernel.
 
 describe('emitThreeWorld characterization (byte-level pin over the fixture matrix)', () => {
   it.each(EMIT_FIXTURES.map(([name]) => name))('%s emits byte-identically', (name) => {

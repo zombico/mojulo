@@ -54,7 +54,7 @@ import {
   rigPreviewChannelScript, drawLayersScript, drawLayerGroup,
   strokeOverlayChannelScript, versusChannelScript, boardChannelScript, meetChannelScript, courtChannelScript, turnsChannelScript, pitchChannelScript, holoChannelScript, inningsChannelScript, broadcastScreenScript,
 } from './channels/index.js';
-import { xrModeScript } from './channels/xr.js';
+import { xrModeScript, xrConfig } from './channels/xr.js';
 import { resampleScript } from './channels/resample.js';
 import { readCreases, creasesChannelScript } from './channels/creases.js';
 import { readLiveShadows, readOcclusion } from './live-light.js';
@@ -716,15 +716,11 @@ export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 11
   const fabricBlock = fabric && Array.isArray(fabric.sets) && fabric.sets.length && Array.isArray(fabric.groups) ? fabricScript(fabric) : '';
   // a stage's live grass and swaying crowns (channels/stage-grass.js); absent ⇒ zero bytes
   const grassBlock = liveGrass && liveGrass.grid && liveGrass.wind ? stageGrassScript(liveGrass) : '';
-  // WebXR (opt-in, interchange-seams.plan.md seam 7): `xr: true` or { eye, speed, snap(deg) }. The
-  // headset supplies the real eye height under 'local-floor'; `eye` is only the fallback offset when
-  // no walk ground probe is emitted. Speed rides the walk speed when one exists. Absent ⇒ no block.
-  const xk = xr && typeof xr === 'object' ? xr : {};
-  const xrCfg = xr ? {
-    eye: Number.isFinite(xk.eye) ? xk.eye : 1.6,
-    speed: Number.isFinite(xk.speed) ? xk.speed : (walkCfg ? walkCfg.speed * 0.5 : 3),
-    snap: (Number.isFinite(xk.snap) ? xk.snap : 30) * Math.PI / 180,
-  } : null;
+  // WebXR (opt-in, interchange-seams.plan.md seam 7): `xr: true` or { eye, speed, turn, snap(deg), turnSpeed(deg/s),
+  // move, dead, axial(deg), bind } (channels/xr.js xrConfig). The headset supplies the real eye height under
+  // 'local-floor'; `eye` is only the fallback offset when no walk ground probe is emitted. Speed rides the walk speed
+  // when one exists. Absent ⇒ no block.
+  const xrCfg = xrConfig(xr, walkCfg);
   const xrBlock = xrCfg ? xrModeScript(xrCfg) : '';
   // World streaming (opt-in, the fractal city's large-city page — city-tiles.js cityStreamPayload):
   // the inlined faces are only the horizon (base + per-tile `massing:i,j` groups); this block fetches

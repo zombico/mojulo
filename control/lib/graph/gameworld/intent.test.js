@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { GENRES, QUICK_GENRE, suggestGenres, readIntent, cubeOfWorld, intentReport, quickGenre } from './intent.js';
+import { GENRES, QUICK_GENRE, suggestGenres, readGenre, readIntent, cubeOfWorld, intentReport, quickGenre } from './intent.js';
 import { CONCERNS, concernsOf } from './concerns.js';
 import { QUICK_GOALS, quickWorld } from './quick.js';
 import { composeGameworld } from './compose.js';
@@ -215,8 +215,21 @@ describe('the intent written on the quick and compose paths', () => {
       const W = composeGameworld({ prompt, seed: 1 });
       expect(W.intent, prompt).toBeUndefined();
     }
+    // (two genres' names said alike: a tie, none written)
+    expect(readGenre('a stealth game in a tennis club')).toBeNull();
+    expect(composeGameworld({ prompt: 'a stealth game in a tennis club', seed: 1 }).intent).toBeUndefined();
+  });
+
+  it('a genre\'s own name is a clear read on its own, ahead of another genre\'s plain words', () => {
+    // (one name, where one plain word says too little)
+    expect(readGenre('a metroidvania')).toMatchObject({ id: 'metroidvania', by: 'name' });
+    expect(readGenre('two-player tennis')).toMatchObject({ id: 'net-game', by: 'name' });
+    expect(readGenre('misty hills with towers')).toBeNull();
+    // (a name over plain words that tie: "stealth" names its genre, "race" and "cars" are only racing's words)
     const [a, b] = suggestGenres('stealth guards and a race with cars');
     expect(a.matched.length).toBe(b.matched.length);
-    expect(composeGameworld({ prompt: 'stealth guards and a race with cars', seed: 1 }).intent).toBeUndefined();
+    expect(readGenre('stealth guards and a race with cars')).toMatchObject({ id: 'stealth', by: 'name' });
+    // (plain words alone still need two, the first ahead)
+    expect(readGenre('a dungeon crawl through crypt rooms')).toMatchObject({ id: 'dungeon-crawler', by: 'words' });
   });
 });

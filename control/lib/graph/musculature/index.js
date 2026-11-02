@@ -1,0 +1,244 @@
+/** musculature — THE MUSCLE SHIRT: a flat body puts it on and its muscles show up. The fourth wearable library, built as
+ * footwear, handwear and plating are (docs/plating.md): a CARD (cards.js: a tree of muscle masses by group and level),
+ * the PASSES that lay it (passes.js: densify, seat, articulate, displace), the LAWS they obey (principles.js: the
+ * definition dial, form to detail) and an ADAPTER per body (adapters/loft.js: the lofted hero body).
+ *
+ * `muscleShirt(recipe, spec)` returns the recipe with its body's skin re-sampled at the shirt's grain and carried out to
+ * the muscles: the wearer's frame and proportions kept, its rig, its bind's shares and its dials carried, the pectoral
+ * layer taken off, the hands scaled about the wrists and the feet about the ground under the ankles to follow the limbs
+ * (their joints with them), the nipples drawn when asked, and nothing else touched (the head, the clips). Pure and
+ * deterministic. */
+import { MUSCLE_CARDS, MUSCLE_CARD_NAMES, validateMuscleCard } from './cards.js';
+import { swapRL } from '../polygonizer/body-relational-resample.js';
+import { loftPart } from '../polygonizer/station-loft.js';
+import { densify, grainOf, frames, seatMass, displace, symmetrize, mirrorPart, mirrorEgg, girthOf, handsScaled, feetScaled, nipplesOn, activeMass, offsetsOf, domeKeys, endsInside, keptInOrder, UNDER_GAP, taperedTo, endsMeeting, welded, hipWrapped, hipHidden, lengthened, clothSamples, clothedOver, repinned, garmentDense } from './passes.js';
+import { HAND_SHARE, FOOT_SHARE, NIPPLE, ACTIVITY_JOINTS, WRIST_FROM } from './principles.js';
+import { skinOf, sideOf, TAKEN_OFF, TUCK, DOMES, UNDER, UNDER_GIRTH, OVER, ABUT, handParts, handJoints, handRamp, footParts, footJoints, legParts, legJoint, garmentBase, CLOTH_OVER } from './adapters/loft.js';
+
+export { MUSCLE_CARDS, MUSCLE_CARD_NAMES, validateMuscleCard } from './cards.js';
+export { FORM_GAIN, DETAIL_GAIN, BLEND, presence, articulation } from './principles.js';
+
+const r6 = (x) => Math.round(x * 1e6) / 1e6;
+
+/** the spec resolved: { card, word, definition, groups, nipples, activity } (a word, or an object of SPEC_KEYS) */
+export function resolveMuscleShirt(spec, cast = null, bodyCard = null) {
+  const s = typeof spec === 'string' ? { card: spec } : spec ?? {};
+  // (no card named: the body codename's own, its muscular form over its simplified form's base; else the base's)
+  const word = typeof s.card === 'string' || s.card === undefined ? (s.card ?? bodyCard ?? 'saikyo') : null;
+  // (a card word names the cast's own card where the card carries one: 'saikyo' on a female wearer, her card)
+  const named = word ? MUSCLE_CARDS[word] : s.card, card = (cast && named?.casts?.[cast]) || named;
+  return { card, word, definition: s.definition ?? 0.5, groups: s.groups ?? {}, nipples: s.nipples === true, activity: s.activity !== false };
+}
+
+/** a spec's keys: the card, its definition (0 form … 1 detail), a group's own, the nipples (off unless true) and the
+ * muscles' activity (their squash and stretch as the joints close: on unless false) */
+const SPEC_KEYS = Object.freeze(['card', 'definition', 'groups', 'nipples', 'activity']);
+/** a spec's errors (empty = valid) */
+export function validateMuscleShirt(spec, label = 'muscleShirt') {
+  if (spec === undefined || spec === null) return [];
+  if (typeof spec === 'string') return MUSCLE_CARDS[spec] ? [] : [`${label}: one of ${MUSCLE_CARD_NAMES.join(', ')}, or { card, definition, groups }`];
+  if (typeof spec !== 'object' || Array.isArray(spec)) return [`${label}: a card word (${MUSCLE_CARD_NAMES.join(', ')}) or { ${SPEC_KEYS.join(', ')} }`];
+  const errs = [];
+  for (const k of Object.keys(spec)) if (!SPEC_KEYS.includes(k)) errs.push(`${label}.${k}: not a muscle shirt key (${SPEC_KEYS.join(', ')})`);
+  if (spec.nipples !== undefined && typeof spec.nipples !== 'boolean') errs.push(`${label}.nipples: true (drawn on the chest) or false (none, the default)`);
+  if (spec.activity !== undefined && typeof spec.activity !== 'boolean') errs.push(`${label}.activity: true (the muscles bunch and stretch as the joints close, the default) or false (held as at rest)`);
+  if (typeof spec.card === 'string' && !MUSCLE_CARDS[spec.card]) errs.push(`${label}.card: one of ${MUSCLE_CARD_NAMES.join(', ')}`);
+  else if (spec.card !== undefined && typeof spec.card !== 'string') errs.push(...validateMuscleCard(spec.card, `${label}.card`));
+  const inUnit = (x) => Number.isFinite(x) && x >= 0 && x <= 1;
+  if (spec.definition !== undefined && !inUnit(spec.definition)) errs.push(`${label}.definition: 0 (form: a few key shapes, exaggerated) … 1 (detail: every muscle separated)`);
+  // (a group of the card or of a cast's card: 'saikyo' names her bust)
+  const { card } = resolveMuscleShirt(spec), gids = [...new Set([card, ...Object.values(card?.casts ?? {})].flatMap((c) => (c?.groups ?? []).map((g) => g.id)))];
+  if (spec.groups !== undefined) {
+    if (typeof spec.groups !== 'object' || Array.isArray(spec.groups)) errs.push(`${label}.groups: { <group>: definition } (${gids.join(', ')})`);
+    else for (const [g, v] of Object.entries(spec.groups)) {
+      if (!gids.includes(g)) errs.push(`${label}.groups.${g}: not a group of the card (${gids.join(', ')})`);
+      else if (!inUnit(v)) errs.push(`${label}.groups.${g}: a definition, 0 … 1`);
+    }
+  }
+  return errs;
+}
+
+/** THE MUSCLE SHIRT PUT ON: `recipe` a lofted hero's (its rig's joints, its body's closed lofts), `spec` as above.
+ * Returns { recipe, report: { card, definition, masses, missed, moved, points } } */
+export function muscleShirt(recipe, spec, { cast = null, card: bodyCard = null } = {}) {
+  const errs = validateMuscleShirt(spec); if (errs.length) throw new Error(`musculature: ${errs.join('; ')}`);
+  const { card, word, definition, groups: own, nipples, activity } = resolveMuscleShirt(spec, cast, bodyCard);
+  const F = frames(recipe.rig), skin = skinOf(recipe), grain = card.grain ?? 0.011;
+  // 1. DENSIFY the midline parts and the right limbs (their left partners mirrored at the end)
+  const dense = {};
+  // (only the shells a group wears: one no muscle reaches keeps its authored rings, the shoulder's cone among them, which
+  // the smooth cage folded in places over its turning rings)
+  const wornParts = new Set(card.groups.flatMap((g) => g.parts));
+  for (const n of [...skin.mid, ...skin.right]) if (wornParts.has(sideOf(n).base)) dense[n] = densify(recipe.parts[n], { ...grainOf(recipe.parts[n], grain), grain, domes: DOMES[sideOf(n).base] ?? [] });
+  // 2 + 3. SEAT each mass on the dense skin, articulated at its group's definition
+  const masses = [], missed = [];
+  for (const g of card.groups) {
+    const d = own[g.id] ?? definition, finest = Math.max(...g.masses.map((m) => m.level));
+    for (const m of g.masses) {
+      const e = seatMass(m, g, F, dense, d, finest);
+      if (!e) { missed.push(m.id); continue; }
+      masses.push({ ...e, d, parts: g.parts, mid: !!m.mid });
+    }
+  }
+  // 4. DISPLACE each part by the masses its group wears it by (a midline part both sides', a right limb's its own)
+  const both = masses.flatMap((e) => (e.mid ? [e] : [e, mirrorEgg(e)]));
+  const out = {}, raw = {}, moved = {}, held = {};
+  // (which ends of each shell lie BURIED in a shell that shows over it, a smaller tuck's: the thigh's top in the pelvis,
+  // the pelvis's top in the torso; the shells under the arm's skin, UNDER, are tucked whole already)
+  const tuckOf = (n) => TUCK[sideOf(n).base] ?? 0;
+  const ownersOf = Object.fromEntries(Object.keys(dense).map((n) => { const { base, side } = sideOf(n); return [n, (OVER[base] ?? []).map((a) => (dense[`${a}${side ?? ''}`] ? `${a}${side ?? ''}` : a)).filter((a) => dense[a])]; }));
+  const ends = Object.fromEntries(Object.keys(dense).map((n) => [n, ownersOf[n].length ? endsInside(dense[n], ownersOf[n].map((a) => dense[a])) : [false, false]]));
+  // (each joint's bridge WELDED to the shells it meets ring to ring, and their meeting ends flush: ABUT)
+  const welds = {};
+  for (const n of Object.keys(dense)) {
+    const { base, side } = sideOf(n);
+    for (const a0 of ABUT[base] ?? []) {
+      const a = dense[`${a0}${side ?? ''}`] ? `${a0}${side ?? ''}` : a0; if (!dense[a]) continue;
+      for (const { b, a: ae } of endsMeeting(dense[n], dense[a])) { (welds[n] ??= [null, null])[b] = { a, end: ae }; ends[a][ae] = 'flush'; }
+    }
+  }
+  const weldOf = (n, P, shape) => (welds[n] ? welded(P, welds[n].map((w) => (w ? (({ stations, slots }) => slots.map((sl) => stations[w.end ? stations.length - 1 : 0].points[sl]))(shape(w.a)) : null))) : P);
+  // (a hidden shell KEPT IN ORDER with the shells that show over it, as they were displaced: `shape` names each owner's shape)
+  const underOwners = (n, P, shape) => (ownersOf[n].length ? keptInOrder(dense[n], P, ownersOf[n].map((a) => ({ A0: dense[a], A: shape(a), gap: Math.max(UNDER_GAP, tuckOf(n) - tuckOf(a)) }))) : P);
+  // (the shells under the arm's skin tucked in proportion to the arm's girth over the base's: Armstrong's web, a
+  // broader arm's, stood level with the arm's dome at the shoulder's top)
+  const underScale = Math.max(1, girthOf(recipe.parts.upperArmR ?? { stations: [] }) / UNDER_GIRTH);
+  const displaced = (n, worn) => {
+    const { base } = sideOf(n), ds = [...new Set(worn.map((e) => e.d))], d = ds.length === 1 ? ds[0] : definition;
+    // (each group at its own definition: the union's blends read the group's, so a part's masses are displaced together
+    // at the definition of the most of them; a part worn by groups at different definitions takes the shirt's)
+    const tk = (TUCK[base] ?? 0) * (UNDER.includes(base) ? underScale : 1);
+    return displace(dense[n], worn, d, tk, null, UNDER.includes(base), ends[n]);
+  };
+  for (const n of Object.keys(dense)) {
+    const { side } = sideOf(n), { part, moved: k, capped } = displaced(n, (side ? masses : both).filter((e) => e.parts.includes(sideOf(n).base)));
+    raw[n] = part; out[n] = side ? part : symmetrize(part); moved[n] = k; held[n] = capped;
+  }
+  { const shown = { ...out }; for (const n of Object.keys(dense)) { const P = weldOf(n, underOwners(n, raw[n], (a) => shown[a]), (a) => shown[a]); if (P !== raw[n]) { raw[n] = P; out[n] = sideOf(n).side ? P : symmetrize(P); } } }
+  // THE HIP JOINED (hipWrapped): the pelvis re-laid round itself and both thighs' tops, one surface down to a level over
+  // the crotch, the thighs' tops hidden under it; `hip` applies it to a pelvis and a right thigh (rest or active), the
+  // left thigh the rest's mirror
+  const thighL = recipe.parts.thighL && (typeof recipe.parts.thighL.bind === 'string' ? { ...recipe.parts.thighL, bind: { bone: recipe.parts.thighL.bind } } : recipe.parts.thighL);
+  const hipZ = F.limb.thigh?.h?.[2];
+  const hip = (pelvis, thighR, restR) => {
+    if (!pelvis || !thighR || !thighL || hipZ === undefined) return { pelvis, thighR };
+    const { part, level, rim, L } = hipWrapped(pelvis, { R: thighR, L: mirrorPart(restR, thighL) }, hipZ);
+    return level === undefined ? { pelvis, thighR } : { pelvis: part, thighR: hipHidden(thighR, level, rim, L) };
+  };
+  const hipFree = { thighR: raw.thighR };
+  if (raw.pelvis && raw.thighR) { const j = hip(raw.pelvis, raw.thighR, raw.thighR); raw.pelvis = j.pelvis; out.pelvis = symmetrize(j.pelvis); raw.thighR = out.thighR = j.thighR; }
+  // SQUASH AND STRETCH (a group's `act`): per joint, its flexors bunched and its extensors stretched (activeMass) on the
+  // right side, the parts they are worn by displaced again, and the difference worn as a CORRECTIVE on the rest, driven
+  // by the joint (principles.js ACTIVITY_JOINTS); the left side's the mirror. Hands and feet and bridges a scale moves
+  // after are not in it
+  const correctives = [];
+  const actOf = Object.fromEntries(card.groups.map((g) => [g.id, g.act ?? []]));
+  // (a joint that REVERTS, `revert`: near it the active skin eased back to the wearer's own, wholly within `near` of the
+  // half biacromial of the joint and none past `far`: the arm raised overhead folded the deltoid's bulk at its root, on
+  // weights shared across the joint, into holes, where the flat body's own shoulder raises clean)
+  const reverted = (A, D, { near, far }) => {
+    const J = (F.limb.upperArm?.h) ?? [0, 0, 0], a = near * F.W, b = far * F.W;
+    const ease = (p) => { const x = (Math.hypot(p[0] - J[0], p[1] - J[1], p[2] - J[2]) - a) / (b - a); const y = x <= 0 ? 0 : x >= 1 ? 1 : x * x * (3 - 2 * x); return 1 - y; };
+    const lerp = (p, q, w) => (w <= 0 ? p : [0, 1, 2].map((k) => r6(p[k] + (q[k] - p[k]) * w)));
+    return { ...A, stations: A.stations.map((x, i) => ({ ...x, points: Object.fromEntries(A.slots.map((sl) => { const q = D.stations[i].points[sl]; return [sl, lerp(x.points[sl], q, ease(q))]; })) })), ...(A.caps ? { caps: Object.fromEntries(Object.entries(A.caps).map(([k, p]) => [k, D.caps?.[k] ? lerp(p, D.caps[k], ease(D.caps[k])) : p])) } : {}) };
+  };
+  for (const [joint, driver] of activity ? Object.entries(ACTIVITY_JOINTS) : []) {
+    const swap = new Map();
+    for (const e of masses) { const a = actOf[e.group].find((x) => x.joint === joint); if (a) swap.set(e, activeMass(e, a.role, a, F.W)); }
+    if (!swap.size) continue;
+    const touched = [...new Set([...swap.keys()].flatMap((e) => e.parts))].flatMap((b) => [b, `${b}R`]).filter((n) => dense[n] && !/^wristBridge/.test(n));
+    const right = {}, left = {}, cap = joint[0].toUpperCase() + joint.slice(1);
+    const acts = {};
+    for (const n of touched) {
+      // (the right side's masses active, the left's as they were: a midline part takes the right arm's or leg's alone)
+      const { base, side } = sideOf(n);
+      const set = masses.map((e) => swap.get(e) ?? e), worn = (side ? set : [...set, ...masses.filter((e) => !e.mid).map(mirrorEgg)]).filter((e) => e.parts.includes(base));
+      acts[n] = displaced(n, worn);
+    }
+    for (const n of touched) {
+      const { base, side } = sideOf(n);
+      // (a point held at the move's cap at rest or active, its ray grazing a mass, keeps its rest place: posed, such rays
+      // swung out in shards; a joint that reverts eases every point back, the held ones too, or they stood out in frills
+      // round the skin it eased)
+      const { capped } = acts[n], shape = (a) => acts[a]?.part ?? out[a];
+      let act = weldOf(n, underOwners(n, acts[n].part, shape), shape);
+      // (the hip joined on the active shapes as on the rest: the pelvis round the active right thigh, the thigh under it)
+      if (n === 'pelvis' || n === 'thighR') { const j = hip(n === 'pelvis' ? act : (acts.pelvis?.part ?? raw.pelvis), n === 'thighR' ? act : (acts.thighR?.part ?? hipFree.thighR), hipFree.thighR); act = n === 'pelvis' ? j.pelvis : j.thighR; }
+      const keep = driver.revert ? [] : [...(driver.held === false ? [] : [...held[n], ...capped]), ...(driver.domes ? [] : domeKeys(dense[n]))];
+      const o = offsetsOf(n, raw[n], driver.revert ? reverted(act, dense[n], driver.revert) : act, side ? `${base}L` : n, new Set(keep));
+      Object.assign(right, o.R); Object.assign(left, o.L);
+    }
+    const swapD = (D) => ({ ...D, joint: D.joint.replace(/R$/, 'L'), to: D.to.replace(/R$/, 'L'), ...(D.bend ? { bend: D.bend.replace(/R$/, 'L') } : {}) });
+    const { revert: _r, domes: _d, held: _h, ...drv } = driver;
+    if (Object.keys(right).length) correctives.push({ id: `muscle${cap}R`, driver: drv, d: right });
+    if (Object.keys(left).length) correctives.push({ id: `muscle${cap}L`, driver: swapD(drv), d: left });
+  }
+  // the NIPPLES (`nipples: true`): marks on the chest the muscles made, seated on it and worn after them under their own
+  // tight blend (the chest group's definition)
+  if (nipples && out.torso) {
+    const marks = nipplesOn(out.torso, F, card.nipple ?? NIPPLE.on, NIPPLE), dc = own.chest ?? definition;
+    if (marks.length) { out.torso = symmetrize(displace(out.torso, marks, dc, 0, NIPPLE.k).part); moved.nipples = marks.length / 2; }   // (the marks a side: the areola and the papilla)
+  }
+  for (const [rn, ln] of Object.entries(skin.left)) if (out[rn]) out[ln] = mirrorPart(out[rn], typeof recipe.parts[ln].bind === 'string' ? { ...recipe.parts[ln], bind: { bone: recipe.parts[ln].bind } } : recipe.parts[ln]);
+  // the recipe: the skin replaced, the pectoral layer off, the dials' station blends carried by u (as the form field's
+  // slice carries them), the body's rounding dropped (the shirt's grain is its own rounding)
+  const worn0 = Object.fromEntries(Object.entries(recipe.parts).filter(([n]) => !TAKEN_OFF.test(n)).map(([n, p]) => [n, out[n] ?? p]));
+  // THE CLOTHES OVER THE SHIRT (passes.js clothedOver): each garment, built from the plain body, carried out over the
+  // muscled skin under it (its part's, and the shells beside it there: CLOTH_OVER); a left one by the right's samples,
+  // mirrored. And the body's correctives ride onto the cloth, each garment point the offset of the body point under it
+  const sampleSets = new Map(), samplesOf = (over) => {
+    const k = over.join(','); if (sampleSets.has(k)) return sampleSets.get(k);
+    const pairs = over.flatMap((o) => [o, `${o}R`]).filter((n) => dense[n] && out[n]).map((n) => [n, dense[n], out[n]]);
+    const S = pairs.length ? clothSamples(pairs) : null; sampleSets.set(k, S); return S;
+  };
+  const worn = { ...worn0 }, clothed = [], clothFlat = {};
+  for (const [n, G] of Object.entries(worn0)) {
+    const b = G.stations && garmentBase(n); if (!b) continue;
+    const { base, side } = sideOf(b), S = samplesOf(CLOTH_OVER[base] ?? [base]); if (!S) continue;
+    // (re-sampled at the shirt's grain first: between its own coarse rings a flat face cut under the muscle's bumps)
+    // (a skirt is a hull hung round the legs, not a tube on one part: fitted on its own rings, its seat's room its own)
+    const D = /_skirt$/.test(n) ? G : garmentDense(G.bind ? G : { ...G, bind: { bone: base } }, { ...grainOf(G, grain), grain, domes: [] });
+    if (D !== G) clothFlat[n] = D;
+    const { part, on } = clothedOver(D, S, { mirror: side === 'L', hangs: /_skirt$/.test(n) });
+    worn[n] = part; clothed.push([n, on, side === 'L']);
+  }
+  const counterpart = (key) => { const [pn, rest] = key.split('/'), [st, sl] = rest.split('.'), { base, side } = sideOf(pn); return side === 'R' ? `${base}L/${st}.${swapRL(sl)}` : `${pn}/${st}.${swapRL(sl)}`; };
+  for (const c of correctives) for (const [n, on, left] of clothed) for (const [id, key] of Object.entries(on)) {
+    const o = c.d[left ? counterpart(key) : key]; if (o) c.d[`${n}/${id}`] = o;
+  }
+  // 5. THE HANDS after the arms: about each wrist by the card's `hands`, else HAND_SHARE of the forearm's growth in girth
+  const fore = recipe.parts.foreArmR && out.foreArmR ? girthOf(out.foreArmR) / girthOf(recipe.parts.foreArmR) : 1;
+  const hands = r6(typeof card.hands === 'number' ? card.hands : Math.max(1, 1 + HAND_SHARE * (fore - 1)));
+  // (the forearm's wrist tapered out to the hand's scale, each side about its own bone: the wrist's bridge then grows
+  // whole with the hand, no ramp; a forearm only as the shirt left it where the hand is not grown)
+  const FA = { R: frames(recipe.rig).limb.foreArm };
+  if (FA.R) FA.L = { ...FA.R, h: [-FA.R.h[0], FA.R.h[1], FA.R.h[2]], ax: [-FA.R.ax[0], FA.R.ax[1], FA.R.ax[2]] };
+  const tapered = hands === 1 || !FA.R ? worn : { ...worn, ...Object.fromEntries(['R', 'L'].filter((S) => worn[`foreArm${S}`]).map((S) => [`foreArm${S}`, taperedTo(worn[`foreArm${S}`], FA[S], hands, WRIST_FROM)])) };
+  const H = handsScaled(tapered, recipe.rig, hands, handParts, handJoints, hands === 1 || !FA.R ? handRamp : (k) => handRamp(k) && 'anchored');
+  // 6. THE FEET after the legs: about the ground under each ankle by the card's `feet`, else FOOT_SHARE of the shank's
+  // growth in girth (the sole stays on the ground)
+  const shank = recipe.parts.shankR && out.shankR ? girthOf(out.shankR) / girthOf(recipe.parts.shankR) : 1;
+  const feet = r6(typeof card.feet === 'number' ? card.feet : Math.max(1, 1 + FOOT_SHARE * (shank - 1)));
+  const FS = feetScaled(H.parts, H.rig, feet, footParts, footJoints);
+  // 7. THE LEGS LENGTHENED by the card's `legs`: the feet on the ground, the body taller in the legs
+  const LG = lengthened(FS.parts, FS.rig, card.legs ?? 1, legParts, legJoint), rig = LG.rig;
+  // 8. THE PINS RE-ADDRESSED (passes.js repinned): every pinned part on a part the shirt re-sampled (an adornment, a
+  // crease, a stud on a garment) found again on it, where it was, so it rides where the shirt carried its face
+  const flat = { ...dense, ...clothFlat };
+  for (const [rn, ln] of Object.entries(skin.left)) if (dense[rn]) flat[ln] = mirrorPart(dense[rn], typeof recipe.parts[ln].bind === 'string' ? { ...recipe.parts[ln], bind: { bone: recipe.parts[ln].bind } } : recipe.parts[ln]);
+  const parts = repinned(LG.parts, recipe.parts, flat, loftPart);
+  const gone = Object.keys(recipe.parts).filter((n) => TAKEN_OFF.test(n)), done = [...Object.keys(out), ...Object.keys(clothFlat)];
+  const dials = structuredClone(recipe.dials || {});
+  for (const dl of Object.values(dials)) {
+    if (Array.isArray(dl.parts)) dl.parts = dl.parts.filter((p) => !gone.includes(p));
+    if (dl.blend && dl.parts?.some((p) => done.includes(p))) for (const pn of done) for (const s of parts[pn].stations) if (dl.blend[s.id] === undefined) {
+      const lo = dl.blend[`st${Math.floor(s.u)}`] ?? 0, hi = dl.blend[`st${Math.ceil(s.u)}`] ?? 0, t = s.u - Math.floor(s.u);
+      dl.blend[s.id] = r6(lo * (1 - t) + hi * t);
+    }
+  }
+  const { smoothBody: _s, ...rest } = recipe;
+  return {
+    recipe: { ...rest, parts, dials, rig, ...(correctives.length ? { correctives: [...(recipe.correctives ?? []), ...correctives] } : {}) },
+    report: { card: word ?? 'own', definition, masses: masses.length, missed, moved, hands, feet, nipples, correctives: correctives.map((c) => `${c.id}:${Object.keys(c.d).length}`), points: Object.values(out).reduce((a, p) => a + p.stations.length * p.slots.length, 0) },
+  };
+}

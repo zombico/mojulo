@@ -1,0 +1,113 @@
+/** musculature/principles.js — THE LAWS the muscle shirt's passes obey, written once: how the definition dial reads a mass's
+ * level (the fractal articulation, form to detail), each level's blend, and the smooth union they are summed by.
+ *
+ * The dial `definition` runs 0 … 1. At 0 the FORM end: each group is its level-0 masses alone, grown (`FORM_GAIN`), under
+ * loose blends: a few key shapes in a bodybuilder's proportions (the 3D bodies of David Production's JoJo openings). As it
+ * rises each finer level rises out of its parent (level 1 over the first half, level 2 over the second), the parent sunk
+ * under its children as they come, so the silhouette holds while the groups break into their muscles and the muscles into
+ * their heads; every level's blend tightens and the finest stand a little prouder (`DETAIL_GAIN`). At 1 the DETAIL end:
+ * every head separate, the harmony made by the shadows their grooves collect (Tekken's definition). The same rule at
+ * every level, so a group may be held at its own definition. Pure; no dice. */
+
+/** the deepest level a card may author (0 a group's silhouette, 1 its muscles, 2 their heads) */
+export const LEVELS = 2;
+
+/** the level-0 masses' growth at the form end (their radii and their proud × 1 + FORM_GAIN · (1 − d)) */
+export const FORM_GAIN = 0.14;
+/** the finest level's growth at the detail end (its proud × 1 + DETAIL_GAIN · d): the grooves read deeper */
+export const DETAIL_GAIN = 0.35;
+/** how far a parent sinks under its children as they rise (a share of its depth radius, at their full presence) */
+export const SINK = 0.45;
+
+/** THE HANDS follow the arms: scaled about the wrist by this share of the forearm's growth in girth (1 + share · (g −
+ * 1)), so a fist reads with the forearm the shirt grew without becoming a mitt; a card's `hands` (a number) names its own */
+export const HAND_SHARE = 0.75;
+
+/** THE FEET follow the legs: scaled about the ground under the ankle (the sole stays on it) by this share of the
+ * shank's growth in girth; a card's `feet` (a number) names its own */
+/** where down the forearm (a share of the bone from the elbow) its taper toward the hand's scale begins: from there to
+ * the wrist the forearm's skin is grown out from the bone, eased, to the hand's scale at the wrist */
+export const WRIST_FROM = 0.4;
+export const FOOT_SHARE = 0.6;
+
+/** THE NIPPLES (the shirt's `nipples: true`): a mark on the muscle's skin, worn after the muscles, seated `on` the
+ * displaced chest (a card's `nipple` names its own): the areola a low disc and the papilla a small bump on it (each [across,
+ * across, depth] and proud, in W, sized to read at the shirt's grain: a papilla under it barely moved a point), under
+ * their own tight blend `k` (m), so the pectoral's blend never washes them out */
+export const NIPPLE = Object.freeze({
+  // (where: on the mid-clavicular line, about half the shoulder joint's distance out, low on the pectoral, over its
+  // lower border's rise)
+  on: Object.freeze({ x: 0.47, t: 0.45 }),
+  areola: Object.freeze({ r: [0.1, 0.1, 0.03], proud: 0.012 }),
+  papilla: Object.freeze({ r: [0.042, 0.042, 0.03], proud: 0.032 }),
+  k: 0.002,
+});
+
+/** SQUASH AND STRETCH: a muscle in activity, read off the joint it crosses. As the joint closes its FLEXOR bunches
+ * (shorter along its fibre, fuller across and deeper, prouder, its belly sliding `slide` of its bone toward its origin:
+ * the biceps' peak rising as the elbow closes) and its EXTENSOR stretches (longer, narrower, flatter, nearer the bone:
+ * the triceps drawn long), each about as much muscle as it was. Factors at the joint's full drive */
+/** a group's act may carry its own factors over its role's (along, across, depth, proud, slide) and three more, each at
+ * the joint's full drive: `spread` (W) the mass carried away from the midline, `drop` (W) down the trunk, `turn`
+ * (degrees) its fibre turned about the skin's normal, outward and down on the right (the glutes in a squat: drawn long
+ * and flat over the flexed hip, the cheeks spreading apart and their bulk dropping toward the femur) */
+export const ACT_KEYS = Object.freeze(['along', 'across', 'depth', 'proud', 'slide', 'spread', 'drop', 'turn']);
+export const ACTIVITY = Object.freeze({
+  flexor: Object.freeze({ along: 0.8, across: 1.04, depth: 1.25, proud: 1.5, slide: 0.05 }),
+  extensor: Object.freeze({ along: 1.12, across: 0.96, depth: 0.85, proud: 0.72, slide: 0 }),
+});
+/** the JOINTS a muscle acts at, and the driver that reads each (the right side's; the left swaps the side): the elbow's
+ * and the knee's by their flexion (`bend` the joint before, 0 straight), the shoulder's by the arm's raise from the
+ * trunk's down; `from` where the activity begins and `full` where it is whole (degrees). A joint at rest drives nothing.
+ * `revert` (the shoulder's): near the joint the skin eased back to the wearer's own as it closes, wholly within `near`
+ * of the half biacromial and none past `far` (the deltoid's bulk at the arm's root, on weights shared across the joint,
+ * folded into holes raised overhead; the flat body's shoulder raises clean). `domes` (the shoulder's): its corrective
+ * moves the domes that close the shoulder's shells; another joint's leaves them (the elbow's biceps, slid toward its
+ * origin, grazed the arm's dome and lifted it 7 cm) */
+export const ACTIVITY_JOINTS = Object.freeze({
+  elbow: Object.freeze({ joint: 'elbowR', to: 'wristR', bend: 'shoulderR', from: 15, full: 135 }),
+  knee: Object.freeze({ joint: 'kneeR', to: 'ankleR', bend: 'hipR', from: 15, full: 135 }),
+  shoulder: Object.freeze({ joint: 'shoulderR', to: 'elbowR', from: 20, full: 120, revert: Object.freeze({ near: 0.5, far: 1.1 }), domes: true }),
+  // (the hip's by the thigh's raise from the trunk's down: a squat, a high knee, a wide stance's abduction)
+  // (`held: false`: its points held at the move's cap move with it too; left at rest, the pelvis's at the cheek's side
+  // stayed put while the thigh's top under them was carried out, and came through in flat patches)
+  hip: Object.freeze({ joint: 'hipR', to: 'kneeR', from: 10, full: 75, held: false }),
+});
+
+/** each level's blend `k` in metres, [at the form end, at the detail end]: the masses of one level summed by it, then
+ * summed with their parent's level by the parent's; and the skin's (`skin`), how the union meets the wearer's skin */
+export const BLEND = Object.freeze({
+  0: Object.freeze([0.02, 0.01]),
+  1: Object.freeze([0.014, 0.006]),
+  2: Object.freeze([0.01, 0.004]),
+  skin: Object.freeze([0.018, 0.01]),
+});
+
+const clamp01 = (x) => (x < 0 ? 0 : x > 1 ? 1 : x);
+const mix = ([a, b], d) => a + (b - a) * d;
+
+/** a level's presence at definition `d`: 1 for level 0; level ℓ rises over the ℓ-th share of the dial */
+export const presence = (level, d) => (level === 0 ? 1 : clamp01(d * LEVELS - (level - 1)));
+/** a level's blend at definition `d` (metres) */
+export const blendOf = (level, d) => mix(BLEND[level], d);
+/** the blend of the union into the skin at definition `d` (metres) */
+export const skinBlendOf = (d) => mix(BLEND.skin, d);
+
+/** a mass's articulation at definition `d`, as the passes read it: `grow` its radii's factor, `proud` its proud's,
+ * `bury` how far (of its depth radius plus its proud) it is held under the skin (1 wholly: it adds nothing), `sink`
+ * how far (of its depth radius) it is sunk under its children. `finest` is the deepest level its group authors */
+export function articulation(level, d, finest) {
+  const p = presence(level, d), child = level < finest ? presence(level + 1, d) : 0;
+  const grow = level === 0 ? 1 + FORM_GAIN * (1 - d) : 1;
+  const proud = grow * (level === finest && level > 0 ? 1 + DETAIL_GAIN * d : 1);
+  return { grow, proud, bury: 1 - p, sink: SINK * child };
+}
+
+/** the polynomial smooth minimum of two distances, blend `k`: exactly the lesser where they differ by `k` or more, so a
+ * mass out of reach adds nothing at all (the skin past every mass's reach keeps its place, byte for byte) */
+export function smin(a, b, k) {
+  if (!(k > 0)) return a < b ? a : b;
+  const h = k - Math.abs(a - b);
+  if (h <= 0) return a < b ? a : b;
+  return (a < b ? a : b) - (h * h) / (4 * k);
+}

@@ -44,12 +44,12 @@ describe('the egocube kind', () => {
 
   it('previews the character at each age, side by side, every camera holding the lineup', async () => {
     const scene = await assembleEgocubeScene(THREAD, { title: 'Wren' }, (m, c) => WORLD_KINDS.layered.resolve(m, c));
-    const xs = scene.faces.filter((f) => !f.studio).flatMap((f) => f.corners.map((c) => c[0]));
-    expect(Math.max(...xs) - Math.min(...xs)).toBeGreaterThan(2 * LINEUP_GAP - 0.2);
+    const xs = scene.faces.filter((f) => !f.studio).flatMap((f) => f.corners.map((c) => c[0])), lo = xs.reduce((a, b) => Math.min(a, b)), hi = xs.reduce((a, b) => Math.max(a, b));
+    expect(hi - lo).toBeGreaterThan(2 * LINEUP_GAP - 0.2);
     expect(scene.figures).toBeUndefined();
     const front = scene.cameras.find((c) => c.name === 'front').worldFraming;
     const dist = Math.hypot(...front.cameraPosition.map((v, i) => v - front.lookAt[i]));
-    expect(2 * dist * Math.tan((front.horizontalFov * Math.PI) / 360)).toBeGreaterThanOrEqual(Math.max(...xs) - Math.min(...xs));
+    expect(2 * dist * Math.tan((front.horizontalFov * Math.PI) / 360)).toBeGreaterThanOrEqual(hi - lo);
   }, 300_000);
 
   it('previews a mascot output as its model sheet\'s turnaround: one character, four turns', async () => {
@@ -111,7 +111,7 @@ describe('a cast as a cube (cast.js)', () => {
   it('previews the cast standing in a line, the beast among them', async () => {
     const people = await assembleEgocubeScene({ ...CAST, cast: { seed: 4, cast: { rival: CAST.cast.cast.rival } } }, { title: 'Cast' }, (m, c) => WORLD_KINDS.layered.resolve(m, c));
     const all = await assembleEgocubeScene(CAST, { title: 'Cast' }, (m, c) => WORLD_KINDS.layered.resolve(m, c), (m, c) => WORLD_KINDS.animal.resolve(m, c));
-    const span = (S) => { const xs = S.faces.filter((f) => !f.studio).flatMap((f) => f.corners.map((c) => c[0])); return Math.max(...xs) - Math.min(...xs); };
+    const span = (S) => { let lo = Infinity, hi = -Infinity; for (const f of S.faces) if (!f.studio) for (const c of f.corners) { lo = Math.min(lo, c[0]); hi = Math.max(hi, c[0]); } return hi - lo; };   // (a loop: a rounded lineup has too many corners to spread)
     expect(span(all)).toBeGreaterThan(span(people) + LINEUP_GAP / 2);
   }, 300_000);
 });

@@ -31,7 +31,10 @@
  *       scoring: { points?: 'rally' (every rally scores; default) | 'serve' (only the serving side scores: side-out),
  *                  ladder: [{ unit, to?, by?, names? }, …] } the lowest unit first; winning a unit (to, ahead by `by`, 1)
  *                  resets it and adds one to the next; the top unit's win ends the match; a unit with no `to` is won by
- *                  the clock (the most at the end); names: what each count is called (tennis's 0 15 30 40)
+ *                  the clock (the most at the end); names: what each count is called (tennis's 0 15 30 40);
+ *                  tiebreak?: { at, to, by? } on a unit above the lowest: tied at `at`, the unit is decided by one more of
+ *                  the unit below, counted plainly and won at `to` ahead by `by` (2), its winner taking the unit (tennis's
+ *                  set at six all, a game to seven); its serve changes hands after the first point and every two after
  *       serve?: { into: <region> | [regions, cycled by the game's points], faults?: 2, let?: true, rotate?: 'game' | 'point'
  *                 | 'side-out', every?: n (points a 'point' rotation serves in a row; 1), by?: 'points' (the regions cycled
  *                 by the game's points played) | 'score' (by the server's own score: even the first, odd the second,
@@ -164,12 +167,22 @@ export function buildContest() {
     if (!Array.isArray(l) || !l.length) fail('scoring.ladder is a list of units, the lowest first: [{ unit, to?, by?, names? }]');
     return l.map((u, i) => {
       if (!isObj(u) || typeof u.unit !== 'string' || !u.unit) fail(`scoring.ladder[${i}] is { unit, to?, by?, names? }`);
-      only(u, ['unit', 'to', 'by', 'names'], `scoring.ladder[${i}]`);
+      only(u, ['unit', 'to', 'by', 'names', 'tiebreak'], `scoring.ladder[${i}]`);
       if (u.to !== undefined && !isCount(u.to)) fail(`scoring.ladder[${i}].to is a whole number of ${u.unit}s`);
       if (u.by !== undefined && !isCount(u.by)) fail(`scoring.ladder[${i}].by is a whole number: the lead that wins`);
       if (u.to === undefined && i < l.length - 1) fail(`scoring.ladder[${i}] (${u.unit}) has no 'to': only the top unit may be won by the clock`);
       if (u.names !== undefined && (!Array.isArray(u.names) || !u.names.every((n) => typeof n === 'string'))) fail(`scoring.ladder[${i}].names is a list of words`);
-      return { unit: u.unit, to: u.to ?? null, by: u.by ?? 1, names: u.names ? u.names.slice() : null };
+      let tiebreak = null;
+      if (u.tiebreak !== undefined) {
+        const T = u.tiebreak, at = `scoring.ladder[${i}].tiebreak`;
+        if (!isObj(T)) fail(`${at} is { at, to, by? }: tied at \`at\` ${u.unit}s, one more of the unit below decides it`);
+        only(T, ['at', 'to', 'by'], at);
+        if (i === 0) fail(`${at}: the lowest unit has no unit below it to break its tie`);
+        if (u.to === undefined) fail(`${at}: a unit won by the clock is not tied by a count`);
+        if (!isCount(T.at) || !isCount(T.to) || (T.by !== undefined && !isCount(T.by))) fail(`${at} takes whole numbers: at (the tie), to and by (the unit below's count that breaks it)`);
+        tiebreak = { at: T.at, to: T.to, by: T.by ?? 2 };
+      }
+      return { unit: u.unit, to: u.to ?? null, by: u.by ?? 1, names: u.names ? u.names.slice() : null, ...(tiebreak ? { tiebreak } : {}) };
     });
   }
 
@@ -530,14 +543,19 @@ export function buildContest() {
     S.restart = { kind: 'serve', side: S.server, who: serverId(C, S) };
   }
 
+  /** The rung whose tie the unit below is breaking (its tiebreak's `at` reached by both sides), or -1. */
+  const tieAt = (L, a, b) => L.findIndex((u, i) => u.tiebreak && a[i] === u.tiebreak.at && b[i] === u.tiebreak.at);
+
   /** The ladder climbed by one unit for `side`: the calls it makes (a game, a set …) and whether the match is over. */
   function climb(C, S, side, calls) {
     const L = C.scoring.ladder, me = S.score[side], them = S.score[opp(side)];
+    const tb = tieAt(L, me, them);   // (read before the point: a tied unit is decided by the tiebreak's own count)
     let gameOver = false;
     for (let i = 0; i < L.length; i++) {
       me[i] += 1;
       if (L[i].to === null) break;   // won by the clock, never by a count
-      if (!(me[i] >= L[i].to && me[i] - them[i] >= L[i].by)) break;
+      const rule = i === tb - 1 ? L[tb].tiebreak : L[i];
+      if (i !== tb && !(me[i] >= rule.to && me[i] - them[i] >= rule.by)) break;
       if (i === L.length - 1) { S.winner = side; S.phase = 'over'; S.restart = null; calls.push({ kind: 'over', winner: side, score: clone(S.score) }); return true; }
       calls.push({ kind: L[i].unit, side, score: [me[i], them[i]] });
       me[i] = 0; them[i] = 0; gameOver = gameOver || i === 0;
@@ -554,8 +572,11 @@ export function buildContest() {
     S.last = { kind: 'point', side, why, scored: scores };
     calls.push({ kind: 'point', side, why, scored: scores });
     S.played += 1;
+    const L = C.scoring.ladder, tb = C.serve && C.serve.rotate === 'game' ? tieAt(L, S.score.a, S.score.b) : -1;
     if (scores && climb(C, S, side, calls)) return;
     if (C.serve) {
+      // (in a tiebreak still running the serve changes hands after its first point and every two after)
+      if (tb > 0 && tieAt(L, S.score.a, S.score.b) === tb && (S.score.a[tb - 1] + S.score.b[tb - 1]) % 2 === 1) { S.server = opp(S.server); S.serverIndex[S.server] += 1; S.served = 0; }
       if (C.serve.rotate === 'side-out' && side !== S.server) { S.server = side; S.serverIndex[side] += 1; S.served = 0; }
       else if (C.serve.rotate === 'point') { S.served += 1; if (S.served >= C.serve.every) { S.server = opp(S.server); S.serverIndex[S.server] += 1; S.served = 0; } }
       if (S.phase !== 'over') nextServe(C, S, calls);
@@ -1059,10 +1080,11 @@ export function buildContest() {
     if (C.shape === 'meet') return { phase: S.phase, t: S.t, lanes: clone(S.lanes), placings: S.placings ? clone(S.placings) : null };
     if (C.shape === 'turns') return displayTurns(C, S);
     if (C.shape === 'innings') return displayInnings(C, S);
-    const L = C.scoring.ladder, out = { a: [], b: [] };
+    const L = C.scoring.ladder, out = { a: [], b: [] }, tb = tieAt(L, S.score.a, S.score.b);
     for (let i = 0; i < L.length; i++) {
       const a = S.score.a[i], b = S.score.b[i], u = L[i];
-      if (u.names && u.to !== null && u.by > 1 && a >= u.to - 1 && b >= u.to - 1) {
+      if (i === tb - 1) { out.a.push(String(a)); out.b.push(String(b)); }   // a tiebreak is counted plainly
+      else if (u.names && u.to !== null && u.by > 1 && a >= u.to - 1 && b >= u.to - 1) {
         const w = a === b ? ['deuce', 'deuce'] : a > b ? ['advantage', '-'] : ['-', 'advantage'];
         out.a.push(w[0]); out.b.push(w[1]);
       } else { out.a.push(u.names && a < u.names.length ? u.names[a] : String(a)); out.b.push(u.names && b < u.names.length ? u.names[b] : String(b)); }

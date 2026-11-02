@@ -91,7 +91,8 @@ async function createFromEgocube({ egocube, years, member, dress, output, as, sp
   }
   if (spec !== undefined && C.create.as !== 'hero') throw new Error('create_character: `spec` lays a hero\'s words over the sheet; a creature from an egocube is revised after, with update_character patch ops');
   const dials = dialsAfter(C.after);
-  const own = { ...C.create.spec, ...(spec || {}), ...(Object.keys(dials).length ? { dials } : {}) };
+  // (a word set to null in `spec` leaves the sheet's word off: the body a game lays over a foe's sheet, runner.js)
+  const own = Object.fromEntries(Object.entries({ ...C.create.spec, ...(spec || {}), ...(Object.keys(dials).length ? { dials } : {}) }).filter(([, v]) => v !== null));
   const made = { ref: egocube, rev: (SketchRevisionRepository.head(egocube)?.rev ?? 0) + 1, print: egocubePrint(row.manifest), ...(C.node.years !== undefined ? { years: C.node.years } : {}), ...(C.node.path ? { member: C.node.path } : {}) };
   // an anime game's person wears the character light (egocube/plan.js), a mint argument beside the spec as a book hero's
   const out = throughDoor(await mintSolidHandler({ ...CHARACTER_DOORS[C.create.as].route(own), spec: { ...own, egocube: made }, ...(C.create.toon ? { toon: C.create.toon } : {}), title: title ?? C.create.title, ref, folder_ref: folderRef }));

@@ -31,14 +31,18 @@ import { heroRecord, expandLayeredManifest } from '../../mcp/tools/layered.js';
 // polygonizer/shirt-collar.js: `collar: true` a shirt collar, closed); and the tucked case's laws and rings
 // rewritten in place (1029, unreleased, at the operator's word: "are the chest fits too wide … the corrected method"):
 // a collared woven shirt worn outermost is fitted as a jacket is (the expander's `tailoring.shirt`, authored-jacket.js
-// fitShirt)
+// fitShirt); and the rings again for the hero laws 20, the anime form's rounded body: a garment over it eases out by
+// the rounding, outfit-plan.js ROUND_EASE, so every case's pieces but the out-shirt's move a few millimetres off the skin;
+// and the rings again for the hero laws 22, the anime frame (hero-form.js ANIME_FRAME): the wrist deeper through the
+// hand, the shoe's heel and the shoulder's cone under the torso's skin move the anime female's rings the garments follow,
+// the laws as they were
 const PINS = {
   1: {
-    'out': { laws: 'c3f82aeccde0da38', rings: 'a9f475582083f731' },
-    'tucked': { laws: '073a4630d0cf5381', rings: 'c0c778e90ca68f5c' },
-    'dress': { laws: 'bb1fe989040c0422', rings: '3788f9213ce322f3' },
-    'outer': { laws: '127769bbfdd8e767', rings: '2404c186875fb4d7' },
-    'panels': { laws: 'd114d51d72f13d3b', rings: '8d4abf177cd7aa55' },
+    'out': { laws: 'c3f82aeccde0da38', rings: '60bedc5fd6405b56' },
+    'tucked': { laws: '073a4630d0cf5381', rings: '4441eb37826397f3' },
+    'dress': { laws: 'bb1fe989040c0422', rings: '6ddf4d3aa9afd248' },
+    'outer': { laws: '127769bbfdd8e767', rings: '8f4d4ce6c555f2f5' },
+    'panels': { laws: 'd114d51d72f13d3b', rings: 'b1b985a1eea41afa' },
   },
 };
 

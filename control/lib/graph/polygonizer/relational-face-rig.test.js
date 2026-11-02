@@ -5,7 +5,7 @@
 import { describe, it, expect, beforeAll } from 'vitest';
 import { heroRecord, expandLayeredManifest } from '../../mcp/tools/layered.js';
 import { compileLayered } from './station-loft.js';
-import { relationalFaceRig, relationalWeights, facsWeights, performanceTrack, gazeWeights, GAZE_TURN, RELATIONAL_FACE_TARGETS } from './relational-face-rig.js';
+import { relationalFaceRig, relationalWeights, facsWeights, performanceTrack, gazeWeights, GAZE_TURN, RELATIONAL_FACE_TARGETS, SQUINT_SQUEEZE, squeezeInto } from './relational-face-rig.js';
 import { perform } from '../face-acting/perform.js';
 import { westernState } from './western-face-rig.js';
 import { EXPRESSIONS, CHANNEL_RANGES } from './humanoid-head.js';
@@ -66,6 +66,22 @@ describe('a take on the realistic face', () => {
   });
 });
 
+describe('the squint\'s squeeze', () => {
+  // (two globes and a point at each height over the left one: the lid's crease, the brow, the forehead's top, the
+  // temple, the skull behind; a globe's own point too)
+  const S = SQUINT_SQUEEZE, balls = [{ c: [-0.03, 0.08, 1.5] }, { c: [0.03, 0.08, 1.5] }], at = (dx, dz, dy = 0.01) => [-0.03 + dx, 0.08 + dy, 1.5 + dz];
+  const V0 = [at(0, S.crease[0] * 0.5), at(0, (S.crease[1] + S.top[0]) / 2), at(0, S.top[1] + 0.01), at(-(S.side[1] + 0.01), 0.03), at(0, 0.03, -S.front - 0.01), at(0, 0.011)];
+  const globe = new Uint8Array(V0.length); globe[5] = 1;
+  it('slides the mass over the eye down onto it, whole over the brow; the lid, the forehead\'s top, the temple, the skull behind and the globe still', () => {
+    const d = new Float64Array(V0.length * 3); squeezeInto(d, V0, balls, 1, globe);
+    const row = (i) => [d[i * 3], d[i * 3 + 1], d[i * 3 + 2]];
+    expect(row(1)).toEqual([...S.slide]);
+    expect(S.slide[2]).toBeLessThan(0);
+    for (const i of [0, 2, 3, 4, 5]) expect(row(i), `point ${i}`).toEqual([0, 0, 0]);
+    const h = new Float64Array(V0.length * 3); squeezeInto(h, V0, balls, 0.5, globe); expect(h[5]).toBeCloseTo(d[5] / 2, 12);
+  });
+});
+
 describe('the realistic face rig', () => {
   let m, mesh, F, W;
   const move = (t, re) => { const ti = F.targets.indexOf(t); let mx = 0; mesh.vertices.forEach((_, i) => { const k = F.sub[i]; if (k < 0 || !re.test(mesh.provenance[i].part)) return; const o = k * W + 3 + ti * 3; mx = Math.max(mx, Math.hypot(F.rows[o], F.rows[o + 1], F.rows[o + 2])); }); return mx; };
@@ -73,6 +89,15 @@ describe('the realistic face rig', () => {
     const hero = heroRecord({ form: 'realistic', cast: 'female', face: { seed: 10, ethnicity: 'western' } });
     m = { ...expandLayeredManifest({ kind: 'layered', hero }), hero }; mesh = compileLayered(m.recipe);
     F = relationalFaceRig(m, mesh); W = (1 + F.targets.length) * 3;
+  }, 600_000);
+  it('squeezes the squint under realistic laws 15: the brows\' hairs ride the mass slid down over the eyes, the lashes as the lids draw them', () => {
+    expect(m.recipe.headFit.relations?.squeeze).toBe(1);
+    const ti = F.targets.indexOf('eyeSquint'); let down = 0;
+    mesh.vertices.forEach((_, i) => { const k = F.sub[i]; if (k >= 0 && /^hairBrows/.test(mesh.provenance[i].part)) down = Math.min(down, F.rows[k * W + 3 + ti * 3 + 2]); });
+    expect(down).toBeLessThan(0.75 * SQUINT_SQUEEZE.slide[2]);
+    // (a row stamped before laws 15 keeps the squint it had: no squeeze in its head's relations)
+    const old = heroRecord({ form: 'realistic', cast: 'female', face: { seed: 10, ethnicity: 'western' }, physique: { from: 'athletic', laws: 14 } });
+    expect(expandLayeredManifest({ kind: 'layered', hero: old }).recipe.headFit.relations?.squeeze).toBeUndefined();
   }, 600_000);
   it('builds its targets on the head the figure carries (the rest rebuilt is the stored face, within a millimetre: the rows carry the rest)', () => {
     expect(F.skipped).toBeUndefined();

@@ -111,6 +111,38 @@ export function suggestGenres(text, n = 3) {
     .slice(0, n);
 }
 
+// the names a genre goes by (each among its words): one said is a clear read on its own, where two of its other words
+// are needed ("towers" or "map" says too little; "tower defence" or "metroidvania" says it)
+const NAMES = Object.freeze({
+  'dungeon-crawler': ['crawler'], collectathon: ['collectathon'], shooter: ['fps', 'first-person shooter'],
+  'arena-shooter': ['deathmatch', 'death match', 'arena shooter'], jrpg: ['rpg', 'jrpg', 'role-playing'], metroidvania: ['metroidvania'],
+  'survival-horror': ['survival horror'], 'arena-brawler': ['brawler', 'beat-em-up'], stealth: ['stealth'], racing: ['racing', 'time trial'],
+  'kart-racer': ['kart', 'karts', 'kart racer', 'go-kart'], 'flight-sim': ['flight sim'], 'space-shooter': ['space shooter', 'starfighter'],
+  'air-combat': ['dogfight', 'dogfights', 'dogfighting', 'air combat'], rhythm: ['rhythm'], 'endless-runner': ['endless'], 'match-3-saga': ['match-3'],
+  roguelike: ['roguelike', 'roguelite'], farming: ['farming', 'life sim'], 'tower-defense': ['tower defence', 'tower defense'],
+  'block-puzzle': ['sokoban', 'block puzzle'], tactics: ['tactics', 'srpg', 'strategy rpg', 'final fantasy tactics', 'fire emblem'],
+  rts: ['rts', 'real-time strategy', 'real time strategy'], 'versus-fighter': ['fighting game', 'street fighter', 'tekken'],
+  'co-op-kitchen': ['co-op cooking', 'overcooked'], 'party-mash': ['party game', 'party games', 'mario party'],
+  'co-op-platformer': ['co-op platformer', 'couch co-op', 'local co-op'], 'co-op-brawler': ['beat em up', "beat 'em up", 'street brawler'],
+  'co-op-scroller': ['bullet hell', 'shmup', 'shoot em up', "shoot 'em up", 'scrolling shooter'], 'driver-and-gunner': ['driver and gunner'],
+  'split-deathmatch': ['split screen', 'split-screen', 'splitscreen'], 'city-stalker': ['web swing', 'web-swing', 'web-slinging'],
+  'athletics-meet': ['athletics', 'track and field', 'decathlon', 'olympics'],
+  'net-game': ['tennis', 'volleyball', 'badminton', 'table tennis', 'ping pong', 'pickleball', 'squash'],
+  'turn-sport': ['golf', 'mini golf', 'minigolf', 'bowling', 'curling', 'darts', 'billiards', 'snooker', 'baseball', 'softball'],
+  'team-goal-game': ['soccer', 'football', 'futsal', 'hockey', 'basketball', 'handball', 'lacrosse', 'rugby', 'water polo', 'dodgeball'],
+});
+
+/** The genre a brief's words clearly name, or null: a genre's own name said once (one genre named, or the one named with
+ * the most of its words), else the first genre ahead of the second on two of its words at least. `by` says which. */
+export function readGenre(text) {
+  const all = suggestGenres(text, Infinity);
+  const named = all.filter((g) => g.matched.some((w) => (NAMES[g.id] ?? []).includes(w)));
+  if (named.length === 1 || (named.length > 1 && named[0].matched.length > named[1].matched.length)) return { ...named[0], by: 'name' };
+  if (named.length > 1) return null;
+  const [lead, next] = all, words = new Set((lead?.matched ?? []).flatMap((w) => w.split(/[^a-z0-9-]+/)));
+  return lead && words.size >= 2 && !(next && next.matched.length === lead.matched.length) ? { ...lead, by: 'words' } : null;
+}
+
 export function readIntent(v) {
   if (v === undefined) return null;
   if (!isObj(v)) throw fail(' is { from?: <genre>, cube?: { <facet>: { <setting>: value } }, why?, target?: <engine> }');

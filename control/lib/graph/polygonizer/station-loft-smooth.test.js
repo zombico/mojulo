@@ -45,7 +45,9 @@ describe('smooth shading under the studio light', () => {
   it('cloth shades smoothly: a garment\'s faces and a second skin\'s weld at $cloth, the rest as before; no cloth, no change', () => {
     const at = (mm, M, crease) => layeredShadingNormals(M, mm.recipe, { crease, proxy: false });
     const distinct = (M, N, pick) => { const s = new Set(); M.faces.forEach((t, fi) => { if (pick(fi)) t.forEach((vi, k) => s.add(`${key(M.vertices[vi])}|${key(N[fi][k])}`)); }); return s.size; };
-    const dressed = hero({ cast: 'female', detail: 'swimsuit', outfit: ['trousers', 'tee', 'boots'], paint: 'gloves' }), M = meshOf(dressed);
+    // (on the faceted body, before the form body, hero laws 21, hero-form.js FORM_BODY: over the rounded one the garments'
+    // faces start smoother, and the weld is what this reads)
+    const dressed = hero({ cast: 'female', detail: 'swimsuit', outfit: ['trousers', 'tee', 'boots'], paint: 'gloves', laws: 20 }), M = meshOf(dressed);
     const part = (fi) => M.provenance[M.faces[fi][0]].part, garment = (fi) => /_/.test(part(fi)), glove = (fi) => M.groups[fi] === 'Glove';
     const on = at(dressed, M, STUDIO_SMOOTH_CREASE), off = at(dressed, M, { Skin: 70, default: 35 });
     expect(distinct(M, on, garment)).toBeLessThan(distinct(M, off, garment) * 0.8);

@@ -35,7 +35,8 @@ import { ELEMENT_WORDS } from './element-words.js';
 import { CRAFTED } from './world.js';
 import { suggestFeels, FEEL_WORDS } from './feel/suggest.js';
 import { GEOCUBE_PRESETS, readGeocube, geocubeDomains } from '../era/geocube.js';
-import { suggestGenres, cubeOfWorld } from './intent.js';
+import { suggestGenres, readGenre, cubeOfWorld, GENRES } from './intent.js';
+import { GENRE_FORMS, HAND_OFFS, refusalOf } from './genre-forms.js';
 import { readHour, referenceHour } from '../era/geocube-hours.js';
 import { glyphOf } from './glyph-words.js';
 import { PALETTE_PRESETS } from '../color-theorist/solve.js';
@@ -311,11 +312,17 @@ export function composeGameworld({ prompt, name, id, levels, seed = 1 } = {}) {
   // world plays it; its words are read. A prompt that names none writes none
   const said = suggestFeels(prompt, 1)[0], feelWords = new Set((said?.matched ?? []).flatMap((w) => w.split(/[^a-z0-9-]+/)));
   if (said) tunnels.feel = said.matched;
-  // what game it is (intent.js): the genre the words name, written as the feel is, before the levels are laid so they
-  // are laid for it. Only a clear read: the first genre ahead of the second, on two of its words at least (one word,
-  // "towers" or "map", says too little). Otherwise none, and design_game asks, naming the genres the words point at
-  const [lead, next] = suggestGenres(prompt, 2), leadWords = new Set((lead?.matched ?? []).flatMap((w) => w.split(/[^a-z0-9-]+/)));
-  const genre = lead && leadWords.size >= 2 && !(next && next.matched.length === lead.matched.length) ? lead : null;
+  // what game it is (intent.js readGenre): the genre the words name, written as the feel is, before the levels are laid
+  // so they are laid for it. Only a clear read: a genre's own name, or the first genre ahead of the second on two of its
+  // words (one word, "towers" or "map", says too little). Otherwise none, and design_game asks, naming the genres the
+  // words point at
+  const genre = readGenre(prompt), leadWords = new Set((genre?.matched ?? []).flatMap((w) => w.split(/[^a-z0-9-]+/)));
+  // a genre that is another door's medium is said, not laid; one the registry cannot make yet is refused with what it
+  // waits on (genre-forms.js), nothing laid in its place
+  if (genre && HAND_OFFS[genre.id]) throw new Error(`gameworld: compose: ${GENRES[genre.id].name.toLowerCase()} is made by ${HAND_OFFS[genre.id].door}: ${HAND_OFFS[genre.id].why}. Nothing is laid here.`);
+  const refused = genre ? refusalOf(genre.id, suggestGenres(prompt, Infinity).map((g) => g.id)) : null;
+  if (refused) throw new Error(`gameworld: compose: ${GENRES[genre.id].name.toLowerCase()} is ${refused.verdict === 'blocked' ? 'not makeable yet' : 'not wholly makeable yet'}: it waits on ${refused.waits.join(', ')}. Nothing is laid in its place.${refused.others.length ? ` The words also point at ${refused.others.map((g) => GENRES[g].name.toLowerCase()).join(', ')}, which can be made.` : ''}`);
+  const form = genre ? GENRE_FORMS[genre.id] ?? null : null;
   // the form (resonance.js): what the genre's cube asks of the world that the composer can fill, written before the
   // levels are laid (a co-op platformer's side camera, its walks laid without climbs); the hero it asks is the creator's
   const fills = genre ? composerFills(cubeOfWorld({ intent: { from: genre.id } }).cube) : {};
@@ -341,9 +348,11 @@ export function composeGameworld({ prompt, name, id, levels, seed = 1 } = {}) {
     const lgoal = lg && Object.keys(lg).length ? { goal: lg } : {};
     const inside = indoors && i >= indoors.from;
     const nodes = { [`${SUFFIX[i] ?? 'stage'}-a`]: { trail: true }, [`${SUFFIX[i] ?? 'stage'}-b`]: { trail: true }, ...(climb ? { lookout: { meru: true } } : {}) };
-    const L = inside ? { name: `${cap(indoors.use)} ${SUFFIX[i] ?? `stage ${i + 1}`}`, building: { use: indoors.use, kit: indoors.kit }, ...lgoal }
+    // (a genre's book form, genre-forms.js: its levels laid in it, a flight sim's courses; no town, no walk goal)
+    const L = form ? { name: `${form.name} ${i + 1}`, ...form.level(i, n) }
+      : inside ? { name: `${cap(indoors.use)} ${SUFFIX[i] ?? `stage ${i + 1}`}`, building: { use: indoors.use, kit: indoors.kit }, ...lgoal }
       : { name: `${cap(landscape)} ${SUFFIX[i] ?? `stage ${i + 1}`}`, walk: { nodes }, ...lgoal };
-    if (i > 0 && !inside) L.places = { town: true, ...(last || n === 1 ? { castle: civIds[1] ? { civilization: civIds[1] } : true } : {}) };
+    if (i > 0 && !inside && !form) L.places = { town: true, ...(last || n === 1 ? { castle: civIds[1] ? { civilization: civIds[1] } : true } : {}) };
     // the agent checks its own work: a level whose town's laws advise is laid again on the next seed
     let s = seed * 100 + i * 7 + 1, tries = 0, laws = [];
     for (; tries < 6; tries++, s++) {
@@ -357,10 +366,12 @@ export function composeGameworld({ prompt, name, id, levels, seed = 1 } = {}) {
   }
   world.brief.levels = decided;
   // what the levels are played for, and which are buildings: said only when a word decided it
-  if (goals) world.brief.goal = { ...goals, ...(goals.boss ? { boss: `${wid}-${n}`.slice(0, 48) } : {}) };
+  // (a genre's form: what its levels were laid as, said in the brief)
+  if (form) world.brief.levelForm = { genre: genre.id, form: form.form };
+  if (goals && !form) world.brief.goal = { ...goals, ...(goals.boss ? { boss: `${wid}-${n}`.slice(0, 48) } : {}) };
   // what the composer filled of the genre's form: said only when it filled something
   if (Object.keys(fills).length) world.brief.form = fills;
-  if (indoors) {
+  if (indoors && !form) {
     world.brief.indoors = { use: indoors.use, kit: indoors.kit, levels: Object.keys(world.levels).slice(indoors.from) };
     // the word that named the use is read (as a cube's word is): it decides the building's use
     if (indoors.useWord) {

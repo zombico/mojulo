@@ -72,7 +72,9 @@ const TWIST_MIN_RADIUS = 0.01;
  */
 export function shellRings(mesh, recipe) {
   const at = new Map();
-  mesh.provenance.forEach((p, i) => { if (p.layer === 1 && p.station && p.slot) at.set(`${p.part}/${p.station}.${p.slot}`, i); });
+  // (a rounded body's new points, body-smooth.js, carry their edge's first corner's station and slot with `mix`: never a
+  // ring's own point)
+  mesh.provenance.forEach((p, i) => { if (p.layer === 1 && p.station && p.slot && !p.mix) at.set(`${p.part}/${p.station}.${p.slot}`, i); });
   const rings = [];
   for (const [part, P] of Object.entries(recipe.parts)) {
     if (P.layer !== 1 || P.closure !== 'closed' || !Array.isArray(P.slots)) continue;

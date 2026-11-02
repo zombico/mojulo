@@ -75,8 +75,9 @@ describe('the skinned GLB carries the anime face', () => {
     expect(mesh.extras.face.words.authored).toEqual(authored);
     expect(mesh.extras.face.words.happy).toEqual(faceWeights(faceState(resolveAnimeExpression('happy'))));
     // the default weights: POSITION (the neutral head) + Σ w · target lands on the stored face within the blend's own
-    // accuracy, the words' 0.3 mm (the open and smile channels combine not quite linearly at the mouth's rim: 0.246 mm on
-    // this male's wide mouth, 0.175 mm on the female base's)
+    // accuracy, the words' 0.6 mm (the open and smile channels combine not quite linearly at the mouth's rim: 0.246 mm on
+    // this male's wide mouth, 0.175 mm on the female base's; near 0.4 mm since hero laws 19's jaw curved in, which narrows
+    // the lower face by height: anime-face-rig.test.js)
     const P = floats(G, body.attributes.POSITION), P0 = floats(N, nBody.attributes.POSITION), T = body.targets.map((t) => floats(G, t.POSITION));
     let rebased = 0, worst = 0;
     for (let v = 0; v < nV; v++) {
@@ -84,7 +85,7 @@ describe('the skinned GLB carries the anime face', () => {
       worst = Math.max(worst, Math.hypot(o[0] - P0[v * 3], o[1] - P0[v * 3 + 1], o[2] - P0[v * 3 + 2]));
       if (P[v * 3] !== P0[v * 3] || P[v * 3 + 1] !== P0[v * 3 + 1] || P[v * 3 + 2] !== P0[v * 3 + 2]) rebased++;
     }
-    expect(worst).toBeLessThan(0.0003); expect(rebased).toBeGreaterThan(0);
+    expect(worst).toBeLessThan(0.0006); expect(rebased).toBeGreaterThan(0);
     // everything else is the export without the face, byte for byte
     for (const k of ['COLOR_0', 'JOINTS_0', 'WEIGHTS_0']) expect(bytesOf(G, body.attributes[k]).equals(bytesOf(N, nBody.attributes[k])), k).toBe(true);
     expect(bytesOf(G, body.indices).equals(bytesOf(N, nBody.indices))).toBe(true);
@@ -103,7 +104,7 @@ describe('the skinned GLB carries the anime face', () => {
     const w = G.json.meshes.find((m) => m.name === 'body:skinned').weights;
     const P = floats(G, body.attributes.POSITION), P0 = floats(N, nBody.attributes.POSITION), T = body.targets.map((t) => floats(G, t.POSITION));
     let worst = 0; for (let v = 0; v < P.length / 3; v++) worst = Math.max(worst, Math.hypot(...[0, 1, 2].map((c) => P[v * 3 + c] + w.reduce((s, x, t) => s + x * T[t][v * 3 + c], 0) - P0[v * 3 + c])));
-    expect(worst).toBeLessThan(0.0003);
+    expect(worst).toBeLessThan(0.0006);
     expect(bytesOf(G, body.attributes.COLOR_0).equals(bytesOf(N, nBody.attributes.COLOR_0))).toBe(true);
   });
 
@@ -126,7 +127,7 @@ describe('the skinned GLB carries the anime face', () => {
     expect(mesh.weights.slice(-2)).toEqual([1, 1]); expect(mesh.weights[0]).toBe(0.35);
     const P = floats(G, body.attributes.POSITION), P0 = floats(N, nBody.attributes.POSITION), T = body.targets.map((t) => floats(G, t.POSITION));
     let worst = 0; for (let v = 0; v < P.length / 3; v++) worst = Math.max(worst, Math.hypot(...[0, 1, 2].map((c) => P[v * 3 + c] + mesh.weights.reduce((s, x, t) => s + x * T[t][v * 3 + c], 0) - P0[v * 3 + c])));
-    expect(worst).toBeLessThan(0.0003);
+    expect(worst).toBeLessThan(0.0006);
   });
 
   // Re-pinned for the plain path's PALETTE (station-loft-rig packLayeredRig `palette`, world-kinds: a hero's packed rig on the
@@ -172,7 +173,7 @@ describe('the skinned GLB carries the anime face', () => {
     // 0.05 mm at a smile)
     const P = floats(G, body.attributes.POSITION), P0 = floats(N, nBody.attributes.POSITION), T = body.targets.map((t) => floats(G, t.POSITION));
     let worst = 0; for (let v = 0; v < P.length / 3; v++) worst = Math.max(worst, Math.hypot(...[0, 1, 2].map((c) => P[v * 3 + c] + mesh.weights.reduce((s, x, t) => s + x * T[t][v * 3 + c], 0) - P0[v * 3 + c])));
-    expect(worst).toBeLessThan(0.0003);
+    expect(worst).toBeLessThan(0.0006);
     for (const k of ['COLOR_0', 'JOINTS_0', 'WEIGHTS_0']) expect(bytesOf(G, body.attributes[k]).equals(bytesOf(N, nBody.attributes[k])), k).toBe(true);
     // the clips: each a weights channel more, and the ambient blink; the cheer's track draws its keys' faces
     expect(G.json.animations.map((a) => a.name)).toEqual([...N.json.animations.map((a) => a.name), 'face:ambientBlink']);
