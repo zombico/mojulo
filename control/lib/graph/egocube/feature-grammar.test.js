@@ -235,6 +235,18 @@ describe('the feature grammar', () => {
     if (bird) expect(featureBuild(animalCard(bird)).dog).toBeUndefined();
   });
 
+  it('a species may wear another species\' face (its nose and its pale muzzle): the house cat the tiger\'s', () => {
+    // (each species kit's face, chosen in code: it names a roster species whose nose the palette takes)
+    const faced = Object.entries(SPECIES_KIT).filter(([, k]) => k.face);
+    expect(faced.length).toBeGreaterThan(0);
+    for (const [id, k] of faced) {
+      expect(featureBuild(animalCard(id)).face, id).toBe(k.face);
+      expect(SPECIES[k.face], id).toBeTruthy();
+    }
+    expect(SPECIES_KIT.houseCat.face).toBe('tiger');
+    expect(featureBuild(animalCard('tiger')).face).toBeUndefined();               // (a face of its own: no word)
+  });
+
   it('a rodent has buck teeth; a chunky one a blunt face on whisker pads and its own tail', () => {
     const rodents = Object.keys(SPECIES).filter((id) => SPECIES[id].family === 'rodent');
     const plain = rodents.find((id) => !SPECIES_KIT[id]), b = featureBuild(animalCard(plain));

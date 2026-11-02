@@ -160,6 +160,9 @@ export const SPECIES_KIT = Object.freeze({
   // (the chunky rodents: a blunt muzzle on puffy whisker pads over buck teeth, each its own tail; the hedgehog is no rodent)
   beaver: { muzzle: 'blunt', tail: 'paddle', feet: 'webbed' }, groundhog: { muzzle: 'blunt', tail: 'stub' }, capybara: { muzzle: 'capybara', tail: 'none' },
   guineaPig: { muzzle: 'blunt', tail: 'none' }, hamster: { muzzle: 'blunt', tail: 'none' }, wombat: { muzzle: 'blunt', tail: 'none' }, hedgehog: { teeth: 'none' },
+  // (`face`: another species' face worn over its own coat, its nose and its pale muzzle (feature-body.js featurePalette):
+  // the house cat's the tiger's, a dark nose over bright whisker pads)
+  houseCat: { face: 'tiger' },
   moose: { horns: 'palmate', muzzle: 'moose' }, giraffe: { pattern: 'reticulated' }, zebra: { mane: 'crest', tail: 'tuft' }, donkey: { mane: 'crest', tail: 'tuft' }, squirrel: { tail: 'brush' }, hippo: { muzzle: 'wide' }, rhino: { muzzle: 'wide' }, gorilla: { tail: 'none' }, chimpanzee: { tail: 'none' }, orangutan: { tail: 'none' }, frog: { tail: 'none' }, toad: { tail: 'none' } });
 
 /** a wing's fold on a silhouette that is not a standing bird's (an owl's teardrop): back and down along the side */
@@ -770,7 +773,7 @@ export function featureBuild(card, { decor = {}, tune = null } = {}) {
   // (the marks' strokes are given in the head's frame already: `on: 'head'` lifts them with the head over the neck)
   const muzzle = mz.eggs.find((e) => e.name === 'muzzle');
   return Object.freeze({
-    family: card.family, plan, silhouette, belly: belly.kind, ...(fn ? { fit: fn.fit, fours: fn.fours, dog: fn.dog } : {}),
+    family: card.family, plan, silhouette, belly: belly.kind, ...(K.face ? { face: K.face } : {}), ...(fn ? { fit: fn.fit, fours: fn.fours, dog: fn.dog } : {}),
     ...(tune ? { tune: tuneRead(tune, fn) } : {}),
     heads: S.heads, splay: FEATURE_PROPORTION.splay, ...(handKind === 'wings' ? { fold: B.ARM.map(r4) } : {}), seam: P.seam * S.seam, headLift,
     eggs: B.eggs.filter(Boolean), tufts: B.tufts.filter(Boolean), limbs: B.limbs, ...(B.digits ? { digits: B.digits } : {}), ...(B.tail ? { tail: B.tail } : {}), marks: B.marks,

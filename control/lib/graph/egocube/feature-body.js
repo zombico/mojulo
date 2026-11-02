@@ -282,6 +282,10 @@ function featurePalette(pal, id, build) {
   const spot = build.marks?.some((m) => m.group === 'Spot') ? { Spot: speciesParams(id)?.colors?.ashAlt ?? pal.Patch } : {};
   // (a rodent's buck teeth in the roster's own tooth colour: a beaver's orange, a groundhog's cream)
   if (build.eggs.some((e) => e.group === 'Teeth')) spot.Teeth = speciesParams(id)?.colors?.teeth ?? '#f2ead8';
+  // (a face worn from another species (feature-grammar.js SPECIES_KIT `face`): its nose and its pale muzzle, the roster's)
+  const F = build.face ? speciesParams(build.face)?.colors : null;
+  if (F?.nose) spot.Nose = F.nose;
+  if (F?.ash) spot.Belly = F.ash;
   if (build.plan !== 'bird') return { ...pal, Sock: pal.Beak, Wing: pal.Body, Flight: pal.Body, ...spot };
   const P = plumageOf(id), C = speciesParams(id)?.colors ?? {}, own = build.belly !== 'none' && build.belly !== 'tuxedo' && C.belly;
   return { ...pal, ...wingTones(pal.Body, P), Sock: P.sock ?? pal.Beak, ...(P.crown ? { Crown: P.crown } : {}), ...(P.neck ? { Mane: P.neck } : {}), ...(P.bar ? { Bar: P.bar } : {}), ...(P.tip ? { Tip: P.tip } : {}), ...(own ? { Belly: C.belly } : {}) };

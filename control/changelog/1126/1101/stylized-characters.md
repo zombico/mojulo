@@ -203,6 +203,9 @@ member, a quick game's hero). Code: `control/lib/graph/egocube/feature-tune.js`.
   of the way back toward where the mascot's own tail would point, a compromise between the regular animal and the
   mascot (`FEATURE_CARRIAGE`). Standing, the tail is as designed. Its root sits low on the round of the rump and it is
   drooped back about it (`FEATURE_TAIL`), so standing it sweeps out behind.
+- **A face worn from another species** (`face` in `SPECIES_KIT`): its nose and its pale muzzle and belly, the roster's
+  colours, over the animal's own coat. The house cat wears the tiger's: a dark nose over bright whisker pads, where
+  its own pink nose and dull pads blurred into its grey.
 - **Thigh : body : thigh as 1 : 4 : 1 from the front.** A standing four-legged animal (the pear, barrel, wedge, leggy
   and noodle silhouettes) is proportioned across its hips within the width its body had (`fronted`, `FRONT_RATIO` in
   `feature-silhouettes.js`):
