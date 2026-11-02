@@ -11,6 +11,8 @@ import { readEquipment } from './equipment.js';
 import { SHOOT, SHOULDER } from './quick.js';
 import { runSteps } from './runner.js';
 import { readCastEffect } from '../playscape/ui/cast.js';
+import { validateLevelContract } from '../game/level-contract.js';
+import { synthesizeLevel } from '../game/level-synth.js';
 
 const H = MEADOWMARK_HERO.characters.hero;
 const carrying = (items, more = {}) => ({ ...MEADOWMARK_HERO, ...more, characters: { ...MEADOWMARK_HERO.characters, hero: { ...H, adornment: { items } } } });
@@ -103,5 +105,9 @@ describe('a power fires only once it is the hero\'s and when its spend is there'
     expect(m.game.powers.slice).toBeUndefined();
     expect(m.game.powers.grants['gust-step']).toBeUndefined();
     expect(pilot(m).rule.airJumps).toBe(1);
+    // (the level's contract holds without a slice: the page renders it; a powers block with neither is still refused)
+    expect(validateLevelContract(synthesizeLevel(m).game)).toEqual({ ok: true, errors: [] });
+    const { bought, ...bare } = m.game.powers;
+    expect(validateLevelContract({ ...synthesizeLevel(m).game, powers: bare }).errors[0]).toMatch(/absent only beside bought/);
   });
 });

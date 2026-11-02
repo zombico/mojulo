@@ -27,4 +27,5 @@ its resource, put on a look and showed a toast. This theme makes them act.
   `powers.bought`). The page hears the stats: the moment the bus holds the power's node, its move (a double jump, a high
   jump…) is the hero's, on a level whose map keys no door as much as on one that does. Seen in an exported page: before
   its node, the example hero's `wind-orb` said "not gained yet" and fired nothing; with `hero.wind-orb` at 1 its orb
-  took a grunt from 20 to 8. A game with no later power emits as before, byte for byte.
+  took a grunt from 20 to 8. A game with no later power emits as before, byte for byte. The level contract takes
+  `game.powers` without a slice beside `bought` (`game/level-contract.js`), so a level whose map keys no door renders.
