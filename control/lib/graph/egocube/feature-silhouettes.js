@@ -67,9 +67,11 @@ export const SILHOUETTES = Object.freeze({
   // THE PEAR (the raccoon's): the body the dominant mass, low, rear-heavy; the head a ball on it (a figure eight)
   pear: { heads: 3.3, hz: 2.82, hy: 0, neck: 'pinch', seam: 1, knee: [0.56, 0.08, 0.32],
     body: [
-      { name: 'chest', c: [0, 0.05, 1.86], u: [0, 0, 1], r: [0.46, 0.88, 0.78], e: 0.25, bone: 'torso', join: 0.35 },
-      { name: 'belly', c: [0, 0.12, 1.12], u: [0, 0, 1], r: [0.95, 1.2, 1.02], e: 0.25, bone: 'pelvis', join: 0.35 },
-      { name: 'front', c: [0, 0.5, 1.2], u: [0, 0, 1], r: [0.85, 0.85, 0.62], e: 0.15, bone: 'pelvis', group: 'Belly', join: 0.3 },
+      // (TWO BALLS, superposed: the rib ball over the waist on the torso, the pelvis ball under it on the pelvis, so on
+      // all fours the ribs bend down at the waist while the pelvis tips less: RIB_BALLS)
+      { name: 'chest', c: [0, 0.05, 1.7], u: [0, 0, 1], r: [0.62, 0.95, 0.85], e: 0.25, bone: 'torso', join: 0.35 },
+      { name: 'belly', c: [0, 0.12, 1.03], u: [0, 0, 1], r: [0.85, 1.18, 1.0], e: 0.25, bone: 'pelvis', join: 0.35 },
+      { name: 'front', c: [0, 0.5, 1.05], u: [0, 0, 1], r: [0.75, 0.85, 0.62], e: 0.15, bone: 'pelvis', group: 'Belly', join: 0.3 },
       { name: 'haunchR', c: [0.62, 0.0, 0.5], u: [0, 0, 1], r: [0.4, 0.42, 0.45], e: 0.2, bone: 'thighR', join: 0.28 }],
     legs: 'hidden', hip: [0.58, 0, 0.55], foot: [0.56, 0.28], arm: { sh: [0.84, 0.1, 1.95], dir: ARM_OUT, len: [0.42, 0.38], r: [0.2, 0.16, 0.13] },
     neckZ: 2.3, tail: [0, -0.88, 0.6], back: [[3.2, -0.3], [2.6, -0.72], [1.9, -1.0], [1.2, -1.12], [0.75, -1.25]],
@@ -77,17 +79,19 @@ export const SILHOUETTES = Object.freeze({
   // THE WEDGE (top-heavy: a gorilla, a boar): the chest and the shoulders the mass, the hips small, the head forward and low
   wedge: { heads: 3.2, hz: 2.66, hy: 0.16, neck: 'pinch', seam: 1,
     body: [
-      { name: 'chest', c: [0, 0.12, 1.92], u: [0, 0, -1], r: [0.66, 1.2, 0.92], e: 0.3, bone: 'torso', join: 0.35 },
+      // (two balls: the big rib ball kept over the waist, so it bends down under the pelvis ball as the pear's does)
+      { name: 'chest', c: [0, 0.12, 2.0], u: [0, 0, -1], r: [0.56, 1.2, 0.92], e: 0.3, bone: 'torso', join: 0.35 },
       { name: 'belly', c: [0, 0.14, 1.02], u: [0, 0, 1], r: [0.68, 0.8, 0.76], e: 0.15, bone: 'pelvis', join: 0.32 },
       { name: 'haunchR', c: [0.46, 0.0, 0.55], u: [0, 0, 1], r: [0.34, 0.36, 0.4], e: 0.2, bone: 'thighR', join: 0.24 }],
     legs: 'cones', legR: [0.22, 0.16], hip: [0.44, 0, 0.6], foot: [0.46, 0.28], arm: { sh: [1.06, 0.14, 2.08], dir: ARM_OUT, len: [0.5, 0.46], r: [0.26, 0.22, 0.17] },
     neckZ: 2.36, tail: [0, -0.7, 0.75], back: [[3.0, -0.3], [2.5, -0.85], [1.9, -0.95], [1.2, -0.8], [0.8, -0.75]],
     belly: { oval: { c: [0, 0.82, 1.3], u: [0, -0.1, 1], r: [0.75, 0.6, 0.42], e: 0.2 }, strip: { c: [0, 0.95, 1.5], u: [0, -0.1, 1], r: [0.95, 0.4, 0.42], e: 0.2 }, bib: { c: [0, 1.0, 2.1], u: [0, 0.1, -1], r: [0.5, 0.56, 0.4], e: 0.5 } } },
-  // THE BARREL (even and round: a bear, a hippo, a pig): one round mass, short thick legs showing, broad shoulders
+  // THE BARREL (even and round: a bear, a hippo, a pig): a round rib ball and pelvis ball, superposed, short thick legs showing, broad shoulders
   barrel: { heads: 3.1, hz: 2.62, hy: 0.04, neck: 'pinch', seam: 1,
     body: [
-      { name: 'chest', c: [0, 0.06, 1.92], u: [0, 0, 1], r: [0.5, 1.0, 0.9], e: 0.15, bone: 'torso', join: 0.38 },
-      { name: 'belly', c: [0, 0.08, 1.22], u: [0, 0, 1], r: [1.0, 1.16, 1.1], e: 0.1, bone: 'pelvis', join: 0.38 },
+      // (two balls superposed, as the pear's)
+      { name: 'chest', c: [0, 0.06, 1.74], u: [0, 0, 1], r: [0.66, 1.02, 0.95], e: 0.15, bone: 'torso', join: 0.38 },
+      { name: 'belly', c: [0, 0.08, 1.11], u: [0, 0, 1], r: [0.88, 1.14, 1.08], e: 0.1, bone: 'pelvis', join: 0.38 },
       { name: 'haunchR', c: [0.64, 0.0, 0.56], u: [0, 0, 1], r: [0.38, 0.4, 0.42], e: 0.15, bone: 'thighR', join: 0.26 }],
     legs: 'cones', legR: [0.28, 0.24], hip: [0.62, 0, 0.55], foot: [0.62, 0.24], arm: { sh: [0.98, 0.1, 1.98], dir: ARM_OUT, len: [0.4, 0.36], r: [0.25, 0.22, 0.19] },
     neckZ: 2.36, tail: [0, -1.0, 0.75], back: [[3.0, -0.3], [2.5, -0.8], [1.9, -1.0], [1.2, -1.15], [0.75, -1.1]],

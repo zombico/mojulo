@@ -134,10 +134,22 @@ hind against the fore, the hind foot against the hind leg). `functional` fits th
 3. **The forepaws reach the floor.** The arms are lengthened until they reach it from the shoulders: over a level back
    on straight hind legs, or, on big hind legs, with the hind legs folded under it.
 
-The pose it reaches (`foursOf`: the hinge, the hind legs' crouch, the shoulder's height against the arm's reach, the
-clearance) becomes two clips: `fours` (dropping onto all fours, held, the head turned up to look ahead) and `prowl` (the
-walk on all fours: the hind legs' own walk under the hinged trunk, the arms swinging against them, each forepaw angled
-forward where the arm is longer than the shoulder is high). Birds, snakes and the orb are not quadrupeds.
+The pose it reaches (`foursOf`: the hinge, the spine's curl and the waist's bend, the hind legs' crouch, the shoulder's
+height against the arm's reach, the clearance) becomes two clips: `fours` (dropping onto all fours, held) and `prowl`
+(the walk on all fours: the hind legs' own walk, the arms swinging against them). Birds, snakes and the orb are not
+quadrupeds.
+
+**On all fours as a regular animal.** The trunk is TWO BALLS, a rib ball over the waist on the torso and a pelvis ball
+under it on the pelvis, so it bends at the waist as an animal's does: the hips tip (`FEATURE_FOURS.hinges`), the spine
+curls and the core bends at the waist (`curl`, `waist`: the rig's `waist` pose word), so the spine runs level from the
+hips to the neck's root, and the head is carried out in front of the chest looking ahead. The forepaws are solved on
+the rig itself (`FEATURE_PAWS`): the paw on the floor ahead of the shoulder. The tail rides its own bone and is CARRIED
+as its animal carries it (`FEATURE_CARRIAGE`): turned on all fours until its line rises at the species' carriage off
+the fauna roster, a quarter of the way back toward the mascot's own; standing, it is as designed.
+
+**Everyone can downward dog** (`downDog`, `FEATURE_DOG`): the hind legs straight, the hips high, the trunk bent down at
+the waist (the rib ball under the pelvis ball), the forepaws straight out in front on the floor, the head between the
+arms. It is the two-ball trunk's test: the fit lengthens the legs where a big rib ball on short legs needs it.
 
 ## Birds
 

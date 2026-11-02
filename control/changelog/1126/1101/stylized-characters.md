@@ -165,7 +165,7 @@ member, a quick game's hero). Code: `control/lib/graph/egocube/feature-tune.js`.
   the barrel silhouettes) are set on the sides of its ball at its centre's height, in place of legs from the bottom of the
   ball (`sideHips` in `feature-silhouettes.js`). On all fours the ball pitches about its own centre and rolls in place,
   instead of swinging forward and down over hips at the floor. On six round animals, against legs from the bottom:
-  - the fit raises the legs 0.21 to 0.26 head units, where it raised them 0.60 to 0.62;
+  - the fit raises the legs about 0.31 head units, where it raised them about 0.57 (on the bent all-fours pose);
   - the belly's bottom sits 0.28 to 0.39 head units off the ground, where it sat 0.69 to 0.80: the butt low;
   - the arms lengthen as before; the function holds.
   A prototype first (opt-in), it was made the default once the operator saw it.
@@ -177,6 +177,32 @@ member, a quick game's hero). Code: `control/lib/graph/egocube/feature-tune.js`.
   no knee and stand the feet under the hips (a sturdy idle's wide stance had splayed a bear's straight legs out), a motion clip starting and ending on a straight stand (`straightened` in `feature-body.js`; a hop's or a
   squat's own crouch kept). On all fours the hind legs keep their natural bend (`FEATURE_FOURS.natural`, 0.3): the
   fours pose starts there, and the fit counts the hips that much lower when it clears the trunk.
+- **Two balls in the trunk.** The round animals (the pear and the barrel silhouettes) are drawn as a rib ball over the
+  waist, riding the torso, superposed on a pelvis ball under it, riding the pelvis, in place of one ball with a cap on
+  it. The wedge's big rib ball is kept over the waist too. So the trunk can bend at the waist.
+- **On all fours as a regular animal.** The all-fours pose is no longer the whole trunk tipped stiffly over the hips:
+  - the hips tip 70°, the spine curls (`FEATURE_FOURS.curl`, as the rig's spine bends) and the core bends at the waist
+    (`waist`, 15°), so the spine runs level from the hips to the neck's root and the rib ball comes down in front;
+  - the head is carried out in front of the chest, turned up to look ahead (the neck back `FEATURE_FOURS.neck`, 30°,
+    the head as far as it goes);
+  - the fit (`foursOf`, `functional`) models that bent trunk segment by segment, as the rig poses it.
+  - The rig takes a new pose word for it, `waist` (degrees, + the chest forward over the navel), in `figure-posing.js`.
+    Absent, nothing changes.
+- **The downward dog** (a `downDog` clip, `FEATURE_DOG`, `dogOf`): the hind legs straight with the hips high, the trunk
+  tipped as far as the floor allows and bent down at the waist (the rib ball under the pelvis ball), the forepaws out in
+  front on the floor, the head between the arms. Every animal that goes on all fours takes it. Where a big rib ball on
+  short legs cannot get under the pelvis ball (a gorilla's), the fit lengthens the legs until it does, before fitting
+  the arms.
+- **The forepaws planted on the rig.** A clip's arm aim is read partly in the bent trunk's frame, so an aim written as
+  a world direction landed the paws behind and above the floor, and splayed. Each key on all fours is now solved on the
+  rig (`planted`, `FEATURE_PAWS`): the paw reaches the floor ahead, the arm straight forward in the downward dog and a
+  little out round the belly on all fours, a walk's swing kept.
+- **The tail carried as its animal carries it.** The tail rides its own bone (`tail`, a chain turned from its root). On
+  all fours, the walk on them and the downward dog, it is turned until its line rises at the species' carriage, read
+  off the fauna roster's tail stations (`speciesTail`: a wolf's low, a cat's up; absent, −15°). It is carried a quarter
+  of the way back toward where the mascot's own tail would point, a compromise between the regular animal and the
+  mascot (`FEATURE_CARRIAGE`). Standing, the tail is as designed. Its root sits low on the round of the rump and it is
+  drooped back about it (`FEATURE_TAIL`), so standing it sweeps out behind.
 - **Thigh : body : thigh as 1 : 4 : 1 from the front.** A standing four-legged animal (the pear, barrel, wedge, leggy
   and noodle silhouettes) is proportioned across its hips within the width its body had (`fronted`, `FRONT_RATIO` in
   `feature-silhouettes.js`):
@@ -223,6 +249,12 @@ member, a quick game's hero). Code: `control/lib/graph/egocube/feature-tune.js`.
     (the inner edge straight, the ankle leaning in, the foot ahead), its thigh a drumstick (deeper than broad, its end under the ball), its belly lower than the legs-below build's, the fit's rise less than half and the trunk's travel under 0.7 of it, on
     all fours the natural bend, the function holding, a silhouette that is no ball untouched; no standing clip bends a
     knee or widens the stance and the fours clip bends one (`feature-body.test.js`);
+  - everyone on all fours can downward dog (one species per silhouette, chosen in code): the rib ball at least
+    `FEATURE_DOG.bow` under the pelvis ball, the trunk clear of the floor, the forepaws reaching it; on the rig the
+    forepaws on the floor straight ahead (no share to the side), the hind feet planted, the chest under the hips
+    (`feature-body.test.js`);
+  - on all fours on the rig: the spine level, the tail carried at the roster's carriage less the mascot's share, and no
+    standing clip turning the tail;
   - a rodent's buck teeth (none on the hedgehog), a chunky rodent's blunt face on whisker pads, a beaver's flat paddle on
     the ground, a tailless rodent tailless, a capybara's longer head and short coat;
   - a moose's flat palms (broad face to the front, points on the rim, not the deer's tines) and its big droopy nose

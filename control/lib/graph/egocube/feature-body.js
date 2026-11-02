@@ -33,7 +33,8 @@
  */
 import { netSkin, soundMesh, simplifyMesh, fieldNormals, closeHoles } from '../polygonizer/skin-net.js';
 import { smin, sdRoundCone } from '../polygonizer/vajra.js';
-import { PLAN_SCHEMA } from '../polygonizer/station-loft-plan.js';
+import { PLAN_SCHEMA, expandPlan } from '../polygonizer/station-loft-plan.js';
+import { validateRig, rigNodesAt } from '../polygonizer/station-loft-rig.js';
 import { featureFace } from './feature-face.js';
 import { cutSkin, coatLayers, stroke, band, cells } from './feature-coat.js';
 import { measuresOf, rigOf, coatPalette } from './mascot-form.js';
@@ -220,7 +221,7 @@ function laidOut(build, height) {
     ...(m.cells ? { cells: m.cells.map((C) => cells({ seeds: C.seeds.map(S), line: C.line * h, top: C.top * h })) } : {}) }));
   const ell = (E) => ({ C: S(U0(E.C)), rx: r4(E.rx * h), ry: r4(E.ry * h), rz: r4(E.rz * h) });
   const mouth = build.mouth && { nose: S(U0(build.mouth.nose)), centre: S(U0(build.mouth.centre)), corner: S(U0(build.mouth.corner)), pivot: S(U0(build.mouth.pivot)), rise: build.mouth.rise * h, sag: build.mouth.sag * h };
-  return { h, eggs, marks, mouth, seam: (build.seam ?? 0) * h, digits: digits.map((d) => ({ i: d.i, base: S(d.base), mid: S(d.mid), tip: S(d.tip) })), eye: { ...build.eye, r: build.eye.r * h }, J: Object.fromEntries(Object.entries(build.joints).map(([k, p]) => [k, S(p)])), hipZ: r4(build.hipZ * h), neckZ: r4(build.neckZ * h), top: r4((build.top + up) * h), H: ell(build.head), muzzle: ell(build.muzzle) };
+  return { h, eggs, marks, mouth, seam: (build.seam ?? 0) * h, digits: digits.map((d) => ({ i: d.i, base: S(d.base), mid: S(d.mid), tip: S(d.tip) })), ...(build.tail ? { tail: { root: S(build.tail.root), tip: S(build.tail.tip) } } : {}), eye: { ...build.eye, r: build.eye.r * h }, J: Object.fromEntries(Object.entries(build.joints).map(([k, p]) => [k, S(p)])), hipZ: r4(build.hipZ * h), neckZ: r4(build.neckZ * h), top: r4((build.top + up) * h), H: ell(build.head), muzzle: ell(build.muzzle) };
 }
 
 /** A build's shapes laid out in metres at the style's height, under THE ATTACHMENT RULE: every shape attached to the body
@@ -334,12 +335,18 @@ export function featurePlan(sheet, { title = 'a feature animal', reactions = fal
   // clip starts and ends on a straight stand; its own crouches (a hop's, a squat's) kept)
   straightened(clips);
   // (a quadruped's clips on all fours, its legs in their natural bend: feature-function.js)
-  Object.assign(clips, foursClips(build.fours, { walk: clips.walk, ready: clips.idle?.[0] }));
+  Object.assign(clips, foursClips(build.fours, { walk: clips.walk, ready: clips.idle?.[0], dog: build.dog }));
   // the fingers' bones: two links a finger from its knuckle (each tail riding its bone's parent, as the knuckles do)
   for (const d of L.digits) for (const [S0, m] of [['R', (p) => p], ['L', mirrorX]]) {
     const n = (x) => `digit${d.i}${x}${S0}`;
     rig.joints[n('Base')] = { at: m(d.base).map(r4), rides: `hand${S0}` }; rig.joints[n('Mid')] = { at: m(d.mid).map(r4), rides: `hand${S0}` }; rig.joints[n('Tip')] = { at: m(d.tip).map(r4), rides: n('a') };
     rig.bones.push({ id: n('a'), head: n('Base'), tail: n('Mid') }, { id: n('b'), head: n('Mid'), tail: n('Tip') });
+  }
+  // (the tail's own bone, turned from its root on all fours: carried)
+  if (L.tail) {
+    rig.joints.tailRoot = { at: L.tail.root.map(r4), rides: 'pelvis' }; rig.joints.tailTip = { at: L.tail.tip.map(r4), rides: 'pelvis' };
+    rig.bones.push({ id: 'tail', head: 'tailRoot', tail: 'tailTip' });
+    rig.chains = { ...(rig.chains ?? {}), tail: { axis: 'x', sign: 1, links: [{ pivot: 'tailRoot', joints: ['tailTip'] }] } };
   }
   const joints = { ...L.J };
   for (const s of segments) { for (const [n, p] of Object.entries(s.joints || {})) joints[n] = p; delete s.joints; }
@@ -352,5 +359,59 @@ export function featurePlan(sheet, { title = 'a feature animal', reactions = fal
     palette: tune?.tuft ? (() => { const pal = featurePalette(coatPalette(sheet, k, A, f), A.id, build); return { EarInner: '#c9a19b', ...pal, Tuft: tuftColour(tune.tuft, pal) }; })()
       : { EarInner: '#c9a19b', ...featurePalette(coatPalette(sheet, k, A, f), A.id, build) },
   };
+  // (the forepaws planted on the floor, solved on the rig itself)
+  if (build.fours) { planted(plan); if (L.tail) carried(plan, build.tail.carriage); }
   return { plan, H, height: L.top, ...(tune?.detail.bake ? { bake: detailBake(build.plan) } : {}) };
+}
+
+/** THE TAIL CARRIED as its animal carries it, on all fours: the pelvis tips forward and swings a tail designed for the
+ *  standing animal up toward the sky, so each key on all fours (the walk on them, the downward dog) turns the tail's bone
+ *  from its root until its line from root to tip rises at the species' carriage (fauna roster: feature-function.js
+ *  speciesTail; absent, `FEATURE_CARRIAGE.none`), a share (`keep`) of the way back toward where the mascot's own tail
+ *  would point: a compromise between the regular animal and the mascot. Standing, the tail is as designed */
+export const FEATURE_CARRIAGE = Object.freeze({ none: -15, keep: 0.25, most: 60 });
+function carried(plan, carriage) {
+  const R = validateRig(expandPlan(plan).rig), C = FEATURE_CARRIAGE, real = Math.max(-C.most, Math.min(C.most, carriage ?? C.none));
+  const rise = (k) => { const n = rigNodesAt(R, k).nodes, a = n.tailRoot, b = n.tailTip; return (Math.atan2(b[2] - a[2], -(b[1] - a[1])) * 180) / Math.PI; };
+  for (const name of Object.keys(FEATURE_PAWS.out)) {
+    const keys = plan.clips[name];
+    if (!Array.isArray(keys)) continue;
+    keys.forEach((k, i) => {
+      if (!k?.armR) return;
+      const e0 = rise({ ...k, tail: 0 }), per = (rise({ ...k, tail: 10 }) - e0) / 10, want = real + C.keep * (e0 - real);
+      if (Math.abs(per) > 1e-6) keys[i] = { ...k, tail: r4((want - e0) / per) };
+    });
+  }
+}
+
+/** THE FOREPAWS PLANTED: a clip's arm aim is read partly in the bent trunk's frame (figure-vajra.js swivels the arm from
+ *  where the trunk carried it), so an aim written as a world direction lands the paw behind and above the floor, and
+ *  splayed, once the trunk bends. Each key on all fours is solved on the rig: from where the posed shoulder stands the
+ *  paw reaches the floor ahead, as far as the arm reaches (`FEATURE_PAWS.floor` of the height off it), the arm straight
+ *  FORWARD in the downward dog (no share to the side) and a little out round the belly on all fours, a walk's swing
+ *  kept; the aim corrected until the posed arm points there (`passes`) */
+export const FEATURE_PAWS = Object.freeze({ floor: 0.02, out: { fours: 0.15, prowl: 0.15, downDog: 0 }, passes: 6 });
+function planted(plan) {
+  const R = validateRig(expandPlan(plan).rig), h = plan.mascot.height, P = FEATURE_PAWS, base = plan.clips.fours?.[1]?.armR?.y ?? 0;
+  const u = (v) => { const l = Math.hypot(v[0], v[1], v[2]) || 1; return [v[0] / l, v[1] / l, v[2] / l]; };
+  const dir = (a, b) => u([b[0] - a[0], b[1] - a[1], b[2] - a[2]]), len = (a, b) => Math.hypot(b[0] - a[0], b[1] - a[1], b[2] - a[2]);
+  for (const [name, out] of Object.entries(P.out)) {
+    const keys = plan.clips[name];
+    if (!Array.isArray(keys)) continue;
+    keys.forEach((k0, i) => {
+      if (!k0?.armR || !k0?.armL) return;
+      let k = k0;
+      for (const [S, sx] of [['R', 1], ['L', -1]]) {
+        const arm = `arm${S}`, swing = name === 'prowl' ? (k0.armR.y ?? 0) - base : 0;
+        let a = [k[arm].x, k[arm].y, k[arm].z];
+        for (let pass = 0; pass < P.passes; pass++) {
+          const n = rigNodesAt(R, k).nodes, sh = n[`shoulder${S}`], kn = n[`knuckles${S}`], L = len(sh, kn);
+          const d = Math.max(0.05, Math.min(1, (sh[2] - P.floor * h) / L)), want = u([sx * out, Math.sqrt(1 - d * d) + swing, -d]), got = dir(sh, kn);
+          a = u([a[0] + want[0] - got[0], a[1] + want[1] - got[1], a[2] + want[2] - got[2]]);
+          k = { ...k, [arm]: { x: r4(a[0]), y: r4(a[1]), z: r4(a[2]) } };
+        }
+      }
+      keys[i] = k;
+    });
+  }
 }

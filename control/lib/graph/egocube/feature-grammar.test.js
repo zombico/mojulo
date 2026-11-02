@@ -10,7 +10,7 @@ import { describe, it, expect } from 'vitest';
 import { featureBuild, PLAN_OF, PLANS, speciesMeasures, FEATURE_PROPORTION, FEATURE_EXCLUDES, BIRD_REST, SPECIES_KIT } from './feature-grammar.js';
 import { featureFace } from './feature-face.js';
 import { FEATURE_BIRD_LEAN } from './mascot.js';
-import { FEATURE_FOURS, speciesLimbs } from './feature-function.js';
+import { FEATURE_FOURS, FEATURE_DOG, speciesLimbs } from './feature-function.js';
 import { PHI, beakParts, plumageOf, extentAlong } from './feature-birds.js';
 import { SILHOUETTES, silhouetteOf, speciesMetrics, BELLY_CONTRAST, FRONT_RATIO, FRONT_SILHOUETTES } from './feature-silhouettes.js';
 import { animalCard } from './mascot-animals.js';
@@ -213,6 +213,26 @@ describe('the feature grammar', () => {
       expect(b.joints.hip[0] - h.r[1] * (1 - FRONT_RATIO.overlap), `${sil}: ${id}`).toBeCloseTo(belly.r[1], 2);
       expect(h.r[1], `${sil}: ${id}`).toBeGreaterThanOrEqual(FRONT_RATIO.least - 1e-9);
     }
+  });
+
+  it('everyone on all fours can downward dog: the hips high on straight legs, the rib ball bent down under the pelvis ball, the forepaws on the floor', () => {
+    // (one species per silhouette of an animal that goes on all fours, chosen in code: the two-ball trunk's test)
+    const seen = new Set();
+    for (const id of Object.keys(SPECIES)) {
+      let b; try { b = featureBuild(animalCard(id)); } catch { continue; }
+      if (!b.fours || seen.has(b.silhouette)) continue;
+      seen.add(b.silhouette);
+      expect(b.dog, `${b.silhouette}: ${id}`).toBeTruthy();
+      expect(b.dog.bow, `${b.silhouette}: ${id}`).toBeGreaterThanOrEqual(FEATURE_DOG.bow - 1e-9);
+      expect(b.dog.clearance, `${b.silhouette}: ${id}`).toBeGreaterThan(-FEATURE_FOURS.brush - 1e-6);
+      expect(b.dog.shoulder, `${b.silhouette}: ${id}`).toBeLessThanOrEqual(b.dog.reach + 1e-6);
+      // (and on all fours the trunk bends at the waist too: the push-up's)
+      expect(b.fours.waist, `${b.silhouette}: ${id}`).toBeGreaterThan(0);
+    }
+    expect(seen.size).toBeGreaterThanOrEqual(4);
+    // (an animal that does not go on all fours (a bird) takes no dog)
+    const bird = Object.keys(SPECIES).find((i) => PLAN_OF[SPECIES[i].family] === 'bird');
+    if (bird) expect(featureBuild(animalCard(bird)).dog).toBeUndefined();
   });
 
   it('a rodent has buck teeth; a chunky one a blunt face on whisker pads and its own tail', () => {

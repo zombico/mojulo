@@ -4,7 +4,8 @@
 // it; the mascot sheet in the feature style compiles to that skin on the mascot's rig, shaded smooth, its lids shells
 // turning about their globes; a sheet in any other style compiles as it did.
 import { describe, it, expect } from 'vitest';
-import { egg, eggDistance, eggField, eggSkin, tuft, FEATURE_BUILDS, FEATURE_TRIANGLES, featureShapes } from './feature-body.js';
+import { egg, eggDistance, eggField, eggSkin, tuft, FEATURE_BUILDS, FEATURE_TRIANGLES, FEATURE_CARRIAGE, featureShapes } from './feature-body.js';
+import { speciesTail } from './feature-function.js';
 import { pieces, attachAll, gapOf } from './feature-attach.js';
 import { resolveTune } from './feature-tune.js';
 import { animalCard } from './mascot-animals.js';
@@ -100,13 +101,31 @@ describe('the feature body', () => {
     // A DEFAULT GAME MODEL: every part's faces together within the budget; round the belly no clip hangs an arm into it
     expect(plan.segments.reduce((n, x) => n + Object.keys(x.mesh?.faces ?? {}).length, 0)).toBeLessThanOrEqual(FEATURE_TRIANGLES);
     // (on all fours the arms reach down to the floor, the trunk hinged out of their way)
-    for (const keys of Object.entries(plan.clips).filter(([n]) => !['fours', 'prowl'].includes(n)).map(([, c]) => (Array.isArray(c) ? c : c.keys ?? []))) for (const K of keys) for (const [a, s] of [['armR', 1], ['armL', -1]]) if (K?.[a]?.x !== undefined) expect((s * K[a].x) / Math.hypot(K[a].x, K[a].y, K[a].z)).toBeGreaterThan(0.6);
+    for (const keys of Object.entries(plan.clips).filter(([n]) => !['fours', 'prowl', 'downDog'].includes(n)).map(([, c]) => (Array.isArray(c) ? c : c.keys ?? []))) for (const K of keys) for (const [a, s] of [['armR', 1], ['armL', -1]]) if (K?.[a]?.x !== undefined) expect((s * K[a].x) / Math.hypot(K[a].x, K[a].y, K[a].z)).toBeGreaterThan(0.6);
     // ON ALL FOURS, posed on the rig: the forepaws at the floor, the hind feet planted, the head held up to look ahead
     const R = validateRig(expandPlan(plan).rig), { nodes } = rigNodesAt(R, plan.clips.fours[1]), height = plan.mascot.height;
     for (const S of ['R', 'L']) { expect(Math.abs(nodes[`knuckles${S}`][2]), S).toBeLessThan(0.08 * height); expect(nodes[`toeBase${S}`][2]).toBeLessThan(0.03 * height); }
     const crown = nodes.headTop.map((v, k) => v - nodes.headBase[k]);
     expect(crown[2] / Math.hypot(...crown)).toBeGreaterThan(0.8);
     expect(plan.clips.prowl.length).toBe(plan.clips.walk.length);
+    // THE DOWNWARD DOG, posed on the rig: the forepaws on the floor out in front, straight forward (no share to the side),
+    // the hind feet planted, the chest bent down under the hips
+    const dog = rigNodesAt(R, plan.clips.downDog[1]).nodes;
+    for (const S of ['R', 'L']) {
+      expect(Math.abs(dog[`knuckles${S}`][2]), S).toBeLessThan(0.05 * height); expect(dog[`toeBase${S}`][2]).toBeLessThan(0.03 * height);
+      const arm = dog[`knuckles${S}`].map((v, k) => v - dog[`shoulder${S}`][k]);
+      expect(Math.abs(arm[0]) / Math.hypot(...arm), S).toBeLessThan(0.15); expect(arm[1], S).toBeGreaterThan(0);
+    }
+    expect(dog.navel[2] - dog.neckHub[2]).toBeGreaterThan(0.08 * height);
+    // AS A REGULAR ANIMAL ON ALL FOURS: the spine level from the hips to the neck's root, the tail carried behind at its
+    // animal's carriage (the roster's), a share back toward the mascot's own; standing, the tail as designed (no turn)
+    const fours = rigNodesAt(R, plan.clips.fours[1]).nodes, rise = (a, b) => (Math.atan2(b[2] - a[2], Math.abs(b[1] - a[1])) * 180) / Math.PI;
+    expect(Math.abs(rise(fours.pelvisHub, fours.neckHub))).toBeLessThan(15);
+    const tailRise = (n) => (Math.atan2(n.tailTip[2] - n.tailRoot[2], -(n.tailTip[1] - n.tailRoot[1])) * 180) / Math.PI;
+    const real = speciesTail('raccoon') ?? FEATURE_CARRIAGE.none, mascot = tailRise(rigNodesAt(R, { ...plan.clips.fours[1], tail: 0 }).nodes);
+    expect(tailRise(fours)).toBeCloseTo(real + FEATURE_CARRIAGE.keep * (mascot - real), 0);
+    expect(tailRise(fours)).toBeLessThan(45); expect(mascot).toBeGreaterThan(90);         // (uncarried, it would aim over the back)
+    for (const n of ['idle', 'blink', 'happy']) for (const k of plan.clips[n]) expect(k.tail, n).toBeUndefined();
     // (standing, the legs straight: no standing pose bends a knee; on all fours the hind legs keep their bend)
     for (const n of ['idle', 'blink', 'happy']) for (const k of plan.clips[n]) { expect(k.crouch ?? 0, n).toBe(0); expect(k.stance ?? 1, n).toBe(1); }
     expect(Math.max(...plan.clips.fours.map((k) => k.crouch ?? 0))).toBeGreaterThan(0);

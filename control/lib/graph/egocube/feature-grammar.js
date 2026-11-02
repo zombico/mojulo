@@ -26,7 +26,7 @@
 
 import { speciesParams } from '../fauna/species.js';
 import { SILHOUETTES, silhouetteOf, bellyOf, rounded, sideHips, SIDE_HIPS, fronted, FRONT_SILHOUETTES, FRONT_RATIO } from './feature-silhouettes.js';
-import { functional, speciesLimbs } from './feature-function.js';
+import { functional, speciesLimbs , speciesTail } from './feature-function.js';
 import { PHI, beakOf, beakParts, headOf, plumageOf, extentAlong } from './feature-birds.js';
 import { tunedSilhouette, detailClumps, sizesOf } from './feature-tune.js';
 import { tuftLocks } from './feature-tufts.js';
@@ -426,6 +426,23 @@ const dialled = (t, k) => (k > 0 ? { ...t, len: t.len * k, r: t.r * (0.6 + 0.4 *
 
 /** a tail module moved from the raccoon's root to the silhouette's */
 const TAIL0 = [0, -0.88, 0.6];
+/** THE TAIL OF AN ANIMAL ON ALL FOURS: it rides the pelvis, which tips forward on all fours, so a tail rooted high and
+ *  swept up behind the standing animal would aim at the sky, or over the back. Its root sits LOW on the round of the
+ *  rump (`low` degrees under the pelvis ball's middle, on its back, `off` behind its surface) and the tail is drooped
+ *  back about its root (`droop` degrees): standing it sweeps out behind, on all fours it rises behind */
+export const FEATURE_TAIL = Object.freeze({ low: 35, droop: 25, off: 0.04 });
+function tailRootOn(S) {
+  const b = S.body.find((e) => e.name === 'belly'), a = (FEATURE_TAIL.low * Math.PI) / 180;
+  return [0, b.c[1] - b.r[2] * Math.cos(a) - FEATURE_TAIL.off, b.c[2] - b.r[0] * (1 - (b.e ?? 0) / 2) * Math.sin(a)];
+}
+/** a tail module turned back and down about its root by `deg` (its masses, its axes, its locks and its rings) */
+function drooped(tl, deg) {
+  const a = (-deg * Math.PI) / 180, c = Math.cos(a), sn = Math.sin(a);
+  const turn = (v) => (v ? [v[0], v[1] * c + v[2] * sn, v[2] * c - v[1] * sn] : v), at = (p) => add(TAIL0, turn(sub3(p, TAIL0)));
+  const lock = (t) => ({ ...t, root: at(t.root), ...(t.aim ? { aim: turn(t.aim) } : {}), ...(t.bend ? { bend: turn(t.bend) } : {}) });
+  return { ...tl, eggs: tl.eggs.map((e) => ({ ...e, c: at(e.c), ...(e.u ? { u: turn(e.u) } : {}), ...(e.hint ? { hint: turn(e.hint) } : {}) })),
+    ...(tl.tufts ? { tufts: tl.tufts.map(lock) } : {}), ...(tl.tip ? { tip: lock(tl.tip) } : {}), ...(tl.rings ? { rings: tl.rings.map(([p, axis, ...x]) => [at(p), turn(axis), ...x]) } : {}) };
+}
 function tailAt(tl, anchor, k = 1) {
   if (k !== 1) {
     // (a tuned tail: the module grown about its root, its masses, its locks and its rings together)
@@ -529,7 +546,17 @@ export function featureBuild(card, { decor = {}, tune = null } = {}) {
   }
   if (ear) { B.eggs.push(headEgg(ear.egg)); if (ear.tuft && D.tufts > 0) B.tufts.push(headTuft(dialled(ear.tuft, D.tufts))); }
   // THE TAIL (the kit's, else the plan's)
-  const kT = Z?.tail ?? 1, tl = tailAt((TAILS[K.tail] ?? TAILS[T.tail] ?? TAILS[P.tail])(), S.tail, kT);
+  // (on an animal that goes on all fours, low on the rump and drooped back: FEATURE_TAIL)
+  const kT = Z?.tail ?? 1, tl0 = (TAILS[K.tail] ?? TAILS[T.tail] ?? TAILS[P.tail])(), fourTail = quad && !tl0.ground;
+  const root = fourTail ? tailRootOn(S) : S.tail, tl1 = tailAt(fourTail ? drooped(tl0, FEATURE_TAIL.droop) : tl0, root, kT);
+  // (an animal on all fours carries its tail as its animal does: the tail rides its own bone, turned on all fours from
+  // its root (feature-body.js carried), its shapes riding it)
+  const onTail = (o) => ({ ...o, bone: 'tail' }), tl = fourTail ? { ...tl1, eggs: tl1.eggs.map(onTail), ...(tl1.tufts ? { tufts: tl1.tufts.map(onTail) } : {}), ...(tl1.tip ? { tip: onTail(tl1.tip) } : {}) } : tl1;
+  if (fourTail) {
+    const ends = [...tl.eggs.map((e) => e.c), ...(tl.tufts ?? []).map((t) => add(t.root, mul(unit(t.aim), t.len))), ...(tl.tip ? [add(tl.tip.root, mul(unit(tl.tip.aim), tl.tip.len))] : [])];
+    const tip = ends.reduce((a, p) => (Math.hypot(...sub3(p, root)) > Math.hypot(...sub3(a, root)) ? p : a), root);
+    if (Math.hypot(...sub3(tip, root)) > 0.05) B.tail = { root, tip, carriage: speciesTail(card.id) };
+  }
   // (a tail that rests on the GROUND, a beaver's paddle: laid on the floor however high the body stands, its root
   // spanning down from the rump to it)
   if (tl.ground) {
@@ -743,10 +770,10 @@ export function featureBuild(card, { decor = {}, tune = null } = {}) {
   // (the marks' strokes are given in the head's frame already: `on: 'head'` lifts them with the head over the neck)
   const muzzle = mz.eggs.find((e) => e.name === 'muzzle');
   return Object.freeze({
-    family: card.family, plan, silhouette, belly: belly.kind, ...(fn ? { fit: fn.fit, fours: fn.fours } : {}),
+    family: card.family, plan, silhouette, belly: belly.kind, ...(fn ? { fit: fn.fit, fours: fn.fours, dog: fn.dog } : {}),
     ...(tune ? { tune: tuneRead(tune, fn) } : {}),
     heads: S.heads, splay: FEATURE_PROPORTION.splay, ...(handKind === 'wings' ? { fold: B.ARM.map(r4) } : {}), seam: P.seam * S.seam, headLift,
-    eggs: B.eggs.filter(Boolean), tufts: B.tufts.filter(Boolean), limbs: B.limbs, ...(B.digits ? { digits: B.digits } : {}), marks: B.marks,
+    eggs: B.eggs.filter(Boolean), tufts: B.tufts.filter(Boolean), limbs: B.limbs, ...(B.digits ? { digits: B.digits } : {}), ...(B.tail ? { tail: B.tail } : {}), marks: B.marks,
     eye, mouth, joints: B.joints, hipZ: r4(B.hipZ), neckZ: r4(B.neckZ), top: r4(B.top + (K.ears === 'tall' ? 0.5 : 0)),
     head: B.head, muzzle: muzzle ? { C: muzzle.c, rx: muzzle.r[1], ry: muzzle.r[0], rz: muzzle.r[2] } : { C: onHead([0, 0.5, 2.5]), rx: 0.2, ry: 0.25, rz: 0.16 },
   });
