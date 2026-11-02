@@ -50,6 +50,16 @@ describe('the mount: a horse', () => {
     for (const [r, l] of [['LH', 'RH'], ['RF', 'LF']]) expect(left.measured.down[l]).toBeCloseTo(right.measured.down[r], 6);
   });
 
+  it('from the front: the track narrows as it quickens, the walk sways toward its standing side, the trot holds its line', () => {
+    const walk = gate(B, 'walk'), trot = gate(B, 'trot');
+    const toeX = (g) => Math.abs(gaitCycle(B, g).poseAt(0).bones.hoofHL.tail[0]);
+    expect(toeX('gallop')).toBeLessThan(toeX('trot'));
+    expect(toeX('trot')).toBeLessThan(toeX('walk'));
+    expect(walk.measured.lateral.sway).toBeGreaterThan(0.02);                 // a few centimetres at the walk
+    expect(trot.measured.lateral.sway).toBeLessThan(walk.measured.lateral.sway / 3);   // the diagonals cancel
+    expect(walk.measured.lateral.rollH).toBeGreaterThan(2);                   // the hip drops over the swinging hind
+  });
+
   it('is deterministic: the same stride twice is the same numbers', () => {
     const a = gaitCycle(B, 'trot').poseAt(0.37), b = gaitCycle(resolveMount('horse'), 'trot').poseAt(0.37);
     expect(JSON.stringify(a.bones)).toBe(JSON.stringify(b.bones));

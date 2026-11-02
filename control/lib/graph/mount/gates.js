@@ -5,16 +5,19 @@
  *
  *  footfalls   each hoof's touchdown phase against the table's (relative to LH), its duty against the stride's
  *  aerial      the stride's suspensions, counted
- *  slip        a planted hoof's toe moving with the ground (m/s of slip at the worst sample)
+ *  slip        a planted hoof's toe moving with the ground, on its line (m/s of slip at the worst sample, in the world)
  *  ground      no hoof below the ground, planted or swinging
+ *  brush       the lower legs of a pair never closer than a cannon's width (the near single file of the gallop)
  *  flight      in a suspension the centre of mass falls at g (realistic register; the stylized exaggerates by design)
  *  ranges      at the gait's preferred speed: the fore fetlock's deepest extension, the knee's fold, the hock's least
  *              angle, the blade's swing on the trunk
  *  reach       no standing leg out of reach (a swing at full reach is reported, not failed)
  *  smooth      no pop: a joint's velocity never jumps by more than half its speed between samples
  *  rigid       every bone keeps its length
+ *  sideways    the sway and the girdles' roll inside a sane band (their read is the eyes gate's, from the front)
  */
 import { GAITS, RANGES, G } from './reference.js';
+import { fromPlane } from './pose.js';
 
 const DEG = 180 / Math.PI;
 const MIRROR = { LF: 'RF', RF: 'LF', LH: 'RH', RH: 'LH' };
@@ -48,21 +51,41 @@ export function gaitGates(B, c, { n = 192 } = {}) {
   for (let i = 0; i < n; i++) if (none[i] && !none[(i - 1 + n) % n]) aerial++;
   add('aerial', aerial === spec.aerial, `${aerial} suspension(s)`, `${spec.aerial}`);
 
-  // slip: a planted toe moves back with the ground at L per stride
+  // slip: a planted toe (in the world) moves back with the ground at L per stride and holds its line
+  const HOOF = { LF: 'hoofFL', RF: 'hoofFR', LH: 'hoofHL', RH: 'hoofHR' };
   let slip = 0;
   const ground = -c.L / n;
   for (const k of ['LF', 'RF', 'LH', 'RH']) for (let i = 0; i < n; i++) {
     const j = (i + 1) % n;
     if (!frames[i].contact[k] || !frames[j].contact[k]) continue;
-    const dy = frames[j].legs[k].distal.toe[0] - frames[i].legs[k].distal.toe[0];
-    slip = Math.max(slip, Math.abs(dy - ground) * n / c.T);
+    const a = frames[i].bones[HOOF[k]].tail, b = frames[j].bones[HOOF[k]].tail;
+    slip = Math.max(slip, Math.hypot(b[0] - a[0], b[1] - a[1] - ground) * n / c.T);
   }
   add('slip', slip <= 0.05, `worst planted toe slip ${r3(slip)} m/s`, '≤ 0.05 m/s');
 
-  // ground
+  // ground: the toe and the heel of every hoof, in the world
   let low = Infinity;
-  for (const f of frames) for (const k of ['LF', 'RF', 'LH', 'RH']) low = Math.min(low, f.legs[k].distal.toe[1], f.legs[k].distal.heel[1]);
+  for (const f of frames) for (const k of ['LF', 'RF', 'LH', 'RH']) {
+    const L = f.legs[k];
+    low = Math.min(low, fromPlane(L.plane, L.distal.toe)[2], fromPlane(L.plane, L.distal.heel)[2]);
+  }
   add('ground', low >= -0.01, `lowest hoof point ${r3(low)} m`, '≥ −0.01 m');
+
+  // brush: the lower legs of a pair (knee or hock down) never meet, centre line to centre line, closer than a cannon
+  const seg = (f, ids) => ids.map((id) => f.bones[id]);
+  const segDist = (a, b) => {
+    let m = Infinity;
+    for (let i = 0; i <= 6; i++) for (let j = 0; j <= 6; j++) {
+      const p = a.head.map((v, d) => v + (a.tail[d] - v) * i / 6), q = b.head.map((v, d) => v + (b.tail[d] - v) * j / 6);
+      m = Math.min(m, Math.hypot(p[0] - q[0], p[1] - q[1], p[2] - q[2]));
+    }
+    return m;
+  };
+  let brush = Infinity, brushAt = '';
+  for (const f of frames) for (const [L, R] of [[['cannonFL', 'pasternFL', 'hoofFL'], ['cannonFR', 'pasternFR', 'hoofFR']], [['cannonHL', 'pasternHL', 'hoofHL'], ['cannonHR', 'pasternHR', 'hoofHR']]]) {
+    for (const a of seg(f, L)) for (const b of seg(f, R)) { const d = segDist(a, b); if (d < brush) { brush = d; brushAt = `${L[0].slice(0, 7)} pair at ${f.t.toFixed(3)}`; } }
+  }
+  add('brush', brush >= 0.06 * B.scale, `the lower legs of a pair pass ${r3(brush)} m apart at the closest (${brushAt})`, `≥ ${r3(0.06 * B.scale)} m`);
 
   // flight: the centre of mass's acceleration in the suspensions' middle samples
   if (spec.aerial > 0 && B.register === 'realistic') {
@@ -124,5 +147,14 @@ export function gaitGates(B, c, { n = 192 } = {}) {
   }
   add('rigid', stretch <= 1e-6, `largest bone length change ${stretch.toExponential(1)} m`, '≤ 1e-6 m');
 
-  return { checks, measured: { down, duty, aerial, slip, low } };
+  // the sideways motion, reported (the eyes judge it from the front)
+  const span = (xs) => Math.max(...xs) - Math.min(...xs);
+  const lateral = {
+    sway: r3(span(frames.map((f) => f.body.sway || 0))),
+    rollF: r3(span(frames.map((f) => f.body.rollF || 0)) * DEG), rollH: r3(span(frames.map((f) => f.body.rollH || 0)) * DEG),
+    neck: r3(span(frames.map((f) => f.body.lat || 0)) * DEG),
+  };
+  add('sideways', lateral.sway <= 0.1 && lateral.rollF <= 10 && lateral.rollH <= 10,
+    `sway ${lateral.sway} m, roll ${lateral.rollF}° at the shoulders and ${lateral.rollH}° at the hips, neck ${lateral.neck}°`, 'sway ≤ 0.1 m, each roll ≤ 10° (range)');
+  return { checks, measured: { down, duty, aerial, slip, low, brush, lateral } };
 }

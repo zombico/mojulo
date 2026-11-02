@@ -3,7 +3,8 @@
  *
  * A card is the mount's BUILD at its standing pose, in its body frame: metres, +y its front, +z up, the centre of
  * mass at y = 0 over the ground, every trunk landmark [y, z] on the mid-plane; the limbs as bone lengths (a limb's
- * standing angles are solved, never authored); the hooves where they stand. The gait solver reads nothing else.
+ * standing angles are solved, never authored); the hooves where they stand (`hoofY` fore-aft, `hoofX` out from the
+ * mid-plane), and each girdle's joint out from it (`girdleX`: the scapula's pivot on the ribs, the hip joint). The gait solver reads nothing else.
  *
  * THE HORSE — a light riding horse of 16 hands, the reference the gaits were measured on (reference.js). The masses:
  * the withers at 1.63 m; the hip joint at 1.32 m; the forehand carrying 58 % (the hooves 1.20 m apart either side of
@@ -33,8 +34,8 @@ export const MOUNTS = Object.freeze({
     scapula: Object.freeze({ length: 0.42, slope: 57, pivot: 1 / 3 }),
     head: Object.freeze({ length: 0.60, carriage: 42, ear: 0.16, jaw: 0.38 }),
     tail: Object.freeze({ dock: 0.45, hair: 0.62 }),
-    fore: Object.freeze({ x: 0.14, humerus: 0.30, radius: 0.37, cannon: 0.32, pastern: 0.155, hoofY: 0.48, slope: 55 }),
-    hind: Object.freeze({ x: 0.15, femur: 0.43, tibia: 0.38, cannon: 0.37, pastern: 0.155, hoofY: -0.66, slope: 57, hock: 30 }),
+    fore: Object.freeze({ girdleX: 0.17, hoofX: 0.13, humerus: 0.30, radius: 0.37, cannon: 0.32, pastern: 0.155, hoofY: 0.48, slope: 55 }),
+    hind: Object.freeze({ girdleX: 0.19, hoofX: 0.14, femur: 0.43, tibia: 0.38, cannon: 0.37, pastern: 0.155, hoofY: -0.66, slope: 57, hock: 30 }),
     // the hoof about its coffin joint, flat on the ground: the toe, the heel (the ground at -coffin)
     hoof: Object.freeze({ toe: 0.08, heel: -0.05, coffin: 0.065 }),
     // where the tack and the rider will hang (the next spike), carried by every clip from the start

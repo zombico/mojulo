@@ -11,6 +11,11 @@
  *    canter's and the gallop's rock come out of the footfalls.
  *  - PENDULUMS: the neck (and the tail) as a damped oscillator on the withers (the croup), driven by its base's
  *    vertical acceleration and the trunk's pitch: the nod's size and its lag behind the forehand are the response.
+ *  - SWAY: a standing leg pushes the body along itself, away from its hoof (an inverted pendulum): sideways
+ *    x'' = (g/h)·Σ F·(x − x_hoof), solved about its mean, so the body swings toward the side bearing the weight.
+ *  - ROLL: each girdle sags toward its unloaded side (the hip drops over a swinging hind), a damped oscillator driven
+ *    by its pair's load difference: the walk rolls, the trot's diagonals twist the trunk between its girdles.
+ *  - The neck's sideways swing is a pendulum on the body's sway.
  */
 import { G } from './reference.js';
 
@@ -54,7 +59,7 @@ export function hoofForce(u, A, b) { return u < 0 || u >= 1 ? 0 : A * (Math.sin(
  * `T` its period (s), `b` the force's double hump, `k` the radius of gyration, `arms` { withers, croup } fore-aft of the
  * centre of mass, `neck` / `tail` { omega, zeta, gain, r }. Returns the harmonics and the per-limb force function.
  */
-export function strideLoads({ limbs, duty, L, T, b = 0, k = 0.75, arms, neck, tail }) {
+export function strideLoads({ limbs, duty, L, T, b = 0, k = 0.75, arms, neck, tail, lateral }) {
   const Is = 2 / Math.PI + b * 2 / (3 * Math.PI);
   const amp = Object.fromEntries(limbs.map((l) => [l.id, l.share / (duty * Is)]));
   const forceOf = (l, t) => hoofForce(frac(t - l.phase) / duty, amp[l.id], b);
@@ -74,5 +79,20 @@ export function strideLoads({ limbs, duty, L, T, b = 0, k = 0.75, arms, neck, ta
   const drive = (arm, P) => zAcc.map((c, kk) => [(-P.gain * (c[0] + pAcc[kk][0] * arm) / P.r) - pAcc[kk][0], (-P.gain * (c[1] + pAcc[kk][1] * arm) / P.r) - pAcc[kk][1]]);
   const nod = neck ? oscillate(drive(arms.withers, neck), T, neck.omega, neck.zeta) : null;
   const swish = tail ? oscillate(drive(arms.croup, tail), T, tail.omega, tail.zeta) : null;
-  return { heave, pitch, nod, swish, zAcc, pAcc, forceOf, yOf, amp };
+  let side = null;
+  if (lateral) {
+    const S = [], dF = [], dH = [];
+    for (let n = 0; n < N; n++) {
+      const t = n / N, F = Object.fromEntries(limbs.map((l) => [l.id, forceOf(l, t)]));
+      S.push(limbs.reduce((s, l) => s + F[l.id] * l.x, 0));
+      dF.push(-lateral.roll.gain.fore * (F.RF - F.LF)); dH.push(-lateral.roll.gain.hind * (F.RH - F.LH));
+    }
+    const gh = G / lateral.h;
+    const sway = filter(harmonics(S), (kk) => [gh / ((TAU * kk / T) ** 2 + gh), 0]);
+    const rollF = oscillate(harmonics(dF), T, lateral.roll.omega, lateral.roll.zeta);
+    const rollH = oscillate(harmonics(dH), T, lateral.roll.omega, lateral.roll.zeta);
+    const lat = oscillate(filter(accel(sway, T), () => [-lateral.neck.gain / lateral.neck.r, 0]), T, neck.omega, neck.zeta);
+    side = { sway, rollF, rollH, lat };
+  }
+  return { heave, pitch, nod, swish, zAcc, pAcc, forceOf, yOf, amp, side };
 }

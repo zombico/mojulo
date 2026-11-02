@@ -1,10 +1,12 @@
 /**
- * pose — a mount's skeleton at one instant, from the solved state: the trunk heaved and pitched about the centre of
- * mass, the pelvis turned about the lumbosacral joint, the neck swung about its base and the head counter-turned, the
+ * pose — a mount's skeleton at one instant, from the solved state: the trunk heaved, pitched, rolled (twisting between
+ * its girdles) and swayed about the centre of mass, the pelvis turned about the lumbosacral joint, the neck swung about its base and the head counter-turned, the
  * tail swung about its root, each leg as its solve placed it. Every bone as { head, tail } in metres [x, y, z], the
  * mount's right at +x. The bones are the rig's: the clips pack them as they are named here.
  *
  *   MOUNT_BONES   [{ id, parent }] in parent-first order (the rig's order)
+ *   bodyPoint(B, state, p, pelvic)   a body-frame point in the world
+ *   legPlane(G, xh), fromPlane(plane, p)   a leg's plane and its points in the world
  *   assemble(B, state) → { bones, points }
  */
 import { add, sub, mul, rot, dir } from './limb.js';
@@ -40,63 +42,109 @@ function tailRest(B) {
 }
 
 /**
- * `state` = { z, pitch, psi, nu, tau, legs: { LF|RF|LH|RH: { solve, distal: { coffin, toe, heel } } } }: z the centre
- * of mass's height, pitch the trunk's (+ nose up), psi the lumbosacral flexion (+ rounding), nu the neck's swing
- * (+ raising), tau the tail's.
+ * The body frame to the world: a body point [x, y, z] (the centre of mass over the origin) rolled about the spine's line
+ * by the roll at its place along the trunk (the hind girdle's at the hip, the fore's at the shoulder, eased between:
+ * the trunk twists about its spine), turned by the lumbosacral flexion if it rides the pelvis, pitched about the centre
+ * of mass, then swayed sideways and heaved. Every point of the trunk, neck, head, tail and girdles passes through it.
+ */
+export function bodyPoint(B, st, p, pelvic = false) {
+  const T = B.trunk, cz = T.com[1];
+  let x = p[0], y = p[1], z = p[2];
+  // the roll first, about the spine's own line (the axis the trunk twists about), so the spine's bones keep their length
+  const yH = T.hip[0], yF = T.scapulaPivot[0];
+  const w = Math.min(1, Math.max(0, (p[1] - yH) / (yF - yH)));
+  const roll = (st.rollH || 0) + ((st.rollF || 0) - (st.rollH || 0)) * w;
+  if (roll) {
+    const za = spineHeight(T, p[1]), c = Math.cos(roll), sn = Math.sin(roll);
+    const xr = x * c + (z - za) * sn; z = za - x * sn + (z - za) * c; x = xr;
+  }
+  if (pelvic && st.psi) { const r = rot([y - T.lumbosacral[0], z - T.lumbosacral[1]], st.psi); y = T.lumbosacral[0] + r[0]; z = T.lumbosacral[1] + r[1]; }
+  const q = rot([y, z - cz], st.pitch || 0);
+  return [x + (st.sway || 0), q[0], q[1] + st.z];
+}
+
+/** the spine's height at y, piecewise along tail root, lumbosacral, loin, back, withers (held beyond the ends) */
+function spineHeight(T, y) {
+  const pts = [T.tailRoot, T.lumbosacral, T.loin, T.back, T.withers];
+  if (y <= pts[0][0]) return pts[0][1];
+  for (let i = 1; i < pts.length; i++) if (y <= pts[i][0]) { const a = pts[i - 1], b = pts[i]; return a[1] + (b[1] - a[1]) * (y - a[0]) / (b[0] - a[0]); }
+  return pts[pts.length - 1][1];
+}
+
+/** a leg's plane: through its girdle G (world) and the line its hoof stands on (x = xh, z = 0); the in-plane height D */
+export function legPlane(G, xh) { return { G, xh, D: Math.hypot(G[0] - xh, G[2]) }; }
+/** an in-plane point [y, h] (h the height in the plane above the hoof's line) to the world: an exact rotation */
+export const fromPlane = (pl, p) => [pl.xh + (pl.G[0] - pl.xh) * p[1] / pl.D, p[0], pl.G[2] * p[1] / pl.D];
+
+/**
+ * `state` = { z, pitch, psi, rollF, rollH, sway, nu, lat, tau, legs: { LF|RF|LH|RH: { solve, distal, plane } } }: z the
+ * centre of mass's height, pitch the trunk's (+ nose up), psi the lumbosacral flexion (+ rounding), rollF / rollH the
+ * girdles' roll (+ the top to the right), sway the body's sideways shift (+ right), nu the neck's swing (+ raising),
+ * lat its sideways swing (+ right), tau the tail's. A leg's solve and distal are in its plane (legPlane).
  */
 export function assemble(B, state) {
-  const T = B.trunk, com = T.com;
-  const body = (p) => add([0, state.z], rot(sub(p, com), state.pitch));
-  const pelvis = (p) => body(add(T.lumbosacral, rot(sub(p, T.lumbosacral), state.psi || 0)));
+  const T = B.trunk;
+  const W = (p, x = 0, pelvic = false) => bodyPoint(B, state, [x, p[0], p[1]], pelvic);
   const P = {};
-  for (const k of ['withers', 'back', 'loin', 'lumbosacral', 'scapulaPivot']) P[k] = body(T[k]);
-  for (const k of ['croup', 'buttock', 'tailRoot', 'hip']) P[k] = pelvis(T[k]);
-  P.saddle = body(B.sockets.saddle);
-  // the neck: each link turned by its share of the swing, accumulated from the base
-  const nu = state.nu || 0, neck = [body(T.neck[0])];
-  let acc = 0;
+  for (const k of ['withers', 'back', 'loin', 'lumbosacral']) P[k] = W(T[k]);
+  for (const k of ['croup', 'buttock', 'tailRoot']) P[k] = W(T[k], 0, true);
+  P.saddle = W(B.sockets.saddle);
+  // the neck in the body frame: each link turned by its share of the nod (in the mid-plane) and of the sideways swing
+  // (about the vertical), accumulated from the base; then into the world with the body
+  const nu = state.nu || 0, lat = state.lat || 0;
+  const nb = [[0, T.neck[0][0], T.neck[0][1]]];
+  let acc = 0, accL = 0;
   for (let i = 1; i < T.neck.length; i++) {
-    acc += NECK_W[i - 1] * nu;
-    neck.push(add(neck[i - 1], rot(rot(sub(T.neck[i], T.neck[i - 1]), state.pitch), acc)));
+    acc += NECK_W[i - 1] * nu; accL += NECK_W[i - 1] * lat;
+    const d = rot(sub(T.neck[i], T.neck[i - 1]), acc);            // [dy, dz] nodded
+    const prev = nb[i - 1];
+    nb.push([prev[0] + Math.sin(accL) * d[0], prev[1] + Math.cos(accL) * d[0], prev[2] + d[1]]);
   }
-  const poll = neck[neck.length - 1];
-  const headA = -(90 - B.head.carriage) * DEG + state.pitch + acc * (1 - (state.headCounter ?? 0.5));
-  const muzzle = add(poll, mul(dir(headA), B.head.length));
-  const jawFrom = add(poll, mul(dir(headA - 90 * DEG), 0.12 * B.head.length / 0.6));
-  const jawTo = add(poll, mul(dir(headA - 8 * DEG), B.head.jaw + 0.18 * B.head.length));
-  const ear = add(poll, mul(dir(headA + 125 * DEG), B.head.ear));
-  const bitAt = add(add(poll, mul(dir(headA), B.head.length * B.sockets.bit)), mul(dir(headA - 90 * DEG), 0.05 * B.head.length / 0.6));
-  // the tail: the rest chain pelvis-borne, each link swung by its share
-  const tr = tailRest(B), tail = [pelvis(tr[0])];
+  const neck = nb.map((p) => bodyPoint(B, state, p));
+  const pollB = nb[nb.length - 1];
+  const headA = -(90 - B.head.carriage) * DEG + acc * (1 - (state.headCounter ?? 0.5));
+  const yawH = accL * (1 - (state.headCounter ?? 0.5));
+  // a point along the head at (forward, down) from the poll, in the body frame, then the world
+  const H = (fwd, down = 0, side = 0) => {
+    const d = add(mul(dir(headA), fwd), mul(dir(headA - 90 * DEG), down));
+    const c = Math.cos(yawH), sn = Math.sin(yawH);   // the head turned about the vertical: its side offset turns with it
+    return bodyPoint(B, state, [pollB[0] + sn * d[0] + c * side, pollB[1] + c * d[0] - sn * side, pollB[2] + d[1]]);
+  };
+  const Lh = B.head.length, k6 = Lh / 0.6;
+  const poll = neck[neck.length - 1], muzzle = H(Lh);
+  const jawFrom = H(0, 0.12 * k6), jawTo = H((B.head.jaw + 0.18 * Lh) * Math.cos(8 * DEG), (B.head.jaw + 0.18 * Lh) * Math.sin(8 * DEG));
+  const earTip = (side) => H(B.head.ear * Math.cos(125 * DEG), -B.head.ear * Math.sin(125 * DEG), side);
+  const bitAt = H(Lh * B.sockets.bit, 0.05 * k6), bitTo = H(Lh * B.sockets.bit + 0.04, 0.05 * k6);
+  // the tail: the rest chain on the pelvis, each link swung by its share (in the mid-plane)
+  const tr = tailRest(B), tb = [tr[0]];
   let ta = 0;
-  for (let i = 1; i < tr.length; i++) {
-    ta += TAIL_W[i - 1] * (state.tau || 0);
-    tail.push(add(tail[i - 1], rot(rot(sub(tr[i], tr[i - 1]), state.pitch + (state.psi || 0)), ta)));
-  }
-  const hairEnd = add(tail[4], mul(dir(-92 * DEG + ta * 0.5), B.tail.hair));
+  for (let i = 1; i < tr.length; i++) { ta += TAIL_W[i - 1] * (state.tau || 0); tb.push(add(tb[i - 1], rot(sub(tr[i], tr[i - 1]), ta))); }
+  // the hair hangs: its end straight down from the dock's end in the world, swung by half the dock's swing
+  const tail = tb.map((p) => W(p, 0, true));
+  const hairEnd = add3(tail[4], [0, Math.sin(ta * 0.5 + 2 * DEG) * -B.tail.hair, -Math.cos(ta * 0.5 + 2 * DEG) * B.tail.hair]);
 
-  const X = (p, x = 0) => [x, p[0], p[1]];
   const bones = {};
-  const put = (id, a, b, x = 0) => { bones[id] = { head: X(a, x), tail: X(b, x) }; };
+  const put = (id, a, b) => { bones[id] = { head: a, tail: b }; };
   put('spine1', P.lumbosacral, P.loin); put('spine2', P.loin, P.back); put('spine3', P.back, P.withers);
   put('spine0', P.lumbosacral, P.tailRoot);
   for (let i = 0; i < 5; i++) put(`neck${i}`, neck[i], neck[i + 1]);
   put('head', poll, muzzle); put('jaw', jawFrom, jawTo);
-  bones.earR = { head: X(poll, 0.05), tail: X(ear, 0.07) }; bones.earL = { head: X(poll, -0.05), tail: X(ear, -0.07) };
+  put('earR', H(0, 0, 0.05), earTip(0.07)); put('earL', H(0, 0, -0.05), earTip(-0.07));
   for (let i = 0; i < 4; i++) put(`tail${i}`, tail[i], tail[i + 1]);
   put('tailHair', tail[4], hairEnd);
   for (const s of ['R', 'L']) {
-    const sx = s === 'R' ? 1 : -1;
     const f = state.legs[`${s}F`], h = state.legs[`${s}H`];
-    const xf = sx * B.fore.x, xh = sx * B.hind.x;
-    put(`scapula${s}`, f.solve.top, f.solve.S, xf); put(`humerus${s}`, f.solve.S, f.solve.E, xf);
-    put(`radius${s}`, f.solve.E, f.solve.C, xf); put(`cannonF${s}`, f.solve.C, f.solve.F, xf);
-    put(`pasternF${s}`, f.solve.F, f.distal.coffin, xf); put(`hoofF${s}`, f.distal.coffin, f.distal.toe, xf);
-    put(`femur${s}`, P.hip, h.solve.St, xh); put(`tibia${s}`, h.solve.St, h.solve.Ho, xh);
-    put(`cannonH${s}`, h.solve.Ho, h.solve.F, xh); put(`pasternH${s}`, h.solve.F, h.distal.coffin, xh);
-    put(`hoofH${s}`, h.distal.coffin, h.distal.toe, xh);
+    const F = (p) => fromPlane(f.plane, p), Hh = (p) => fromPlane(h.plane, p);
+    put(`scapula${s}`, F(f.solve.top), F(f.solve.S)); put(`humerus${s}`, F(f.solve.S), F(f.solve.E));
+    put(`radius${s}`, F(f.solve.E), F(f.solve.C)); put(`cannonF${s}`, F(f.solve.C), F(f.solve.F));
+    put(`pasternF${s}`, F(f.solve.F), F(f.distal.coffin)); put(`hoofF${s}`, F(f.distal.coffin), F(f.distal.toe));
+    put(`femur${s}`, h.plane.G, Hh(h.solve.St)); put(`tibia${s}`, Hh(h.solve.St), Hh(h.solve.Ho));
+    put(`cannonH${s}`, Hh(h.solve.Ho), Hh(h.solve.F)); put(`pasternH${s}`, Hh(h.solve.F), Hh(h.distal.coffin));
+    put(`hoofH${s}`, Hh(h.distal.coffin), Hh(h.distal.toe));
   }
-  put('saddle', P.saddle, add(P.saddle, rot([0, 0.1], state.pitch)));
-  put('bit', bitAt, add(bitAt, mul(dir(headA), 0.04)));
+  put('saddle', P.saddle, W(add(B.sockets.saddle, [0, 0.1])));
+  put('bit', bitAt, bitTo);
   return { bones, points: { ...P, poll, muzzle, neck, tail } };
 }
+
+const add3 = (a, b) => [a[0] + b[0], a[1] + b[1], a[2] + b[2]];

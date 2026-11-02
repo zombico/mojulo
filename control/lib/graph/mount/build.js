@@ -7,6 +7,7 @@
 import { MOUNTS, REGISTERS } from './cards.js';
 import { MECHANICS, REFERENCE_HORSE } from './reference.js';
 import { solveFore, solveHind, hoofOnGround, swingAngle, dir, sub, mul, add } from './limb.js';
+import { legPlane } from './pose.js';
 
 const DEG = Math.PI / 180;
 
@@ -64,15 +65,19 @@ export function resolveMount(word = 'horse', { register = 'realistic' } = {}) {
   B.hindL = { femur: hind.femur, tibia: hind.tibia, cannon: hind.cannon };
   B.bladeRest = -scap.slope * DEG;
 
-  // THE STAND, solved: the hooves flat where they stand, each pair under its standing load
+  // THE STAND, solved: the hooves flat where they stand, each pair under its standing load, each leg in its plane
+  // (through its girdle's joint and its hoof's line: the in-plane height of the girdle a little over its height)
+  const planeF = legPlane([fore.girdleX, T.scapulaPivot[0], T.scapulaPivot[1]], fore.hoofX);
+  const planeH = legPlane([hind.girdleX, T.hip[0], T.hip[1]], hind.hoofX);
+  const pivot2 = [T.scapulaPivot[0], planeF.D], hip2 = [T.hip[0], planeH.D];
   B.swing0 = 0; B.hindSwing0 = 0;
-  const foreTo = (F) => solveFore({ pivot: T.scapulaPivot, L: B.foreL, rest: B.bladeRest, swing0: B.swing0, kS: MECHANICS.scapula, target: F });
+  const foreTo = (F) => solveFore({ pivot: pivot2, L: B.foreL, rest: B.bladeRest, swing0: B.swing0, kS: MECHANICS.scapula, target: F });
   // the blade's standing swing is the limb's own: solve once for the line, then hold it as the rest
-  B.swing0 = swingAngle(T.scapulaPivot, standOn(B, 'fore', fore.hoofY, share.fore / 2, 0, foreTo).distal.F);
+  B.swing0 = swingAngle(pivot2, standOn(B, 'fore', fore.hoofY, share.fore / 2, 0, foreTo).distal.F);
   const sf = standOn(B, 'fore', fore.hoofY, share.fore / 2, 0, foreTo);
-  const sh = standOn(B, 'hind', hind.hoofY, share.hind / 2, 0, (F) => solveHind({ hip: T.hip, L: B.hindL, target: F, hockFixed: hind.hock * DEG }));
+  const sh = standOn(B, 'hind', hind.hoofY, share.hind / 2, 0, (F) => solveHind({ hip: hip2, L: B.hindL, target: F, hockFixed: hind.hock * DEG }));
   B.reciprocal = { k: MECHANICS.reciprocal, c0: hind.hock * DEG - MECHANICS.reciprocal * sh.solve.stifleFlex, hockMin: 5 * DEG };
-  B.hindSwing0 = swingAngle(T.hip, sh.distal.F);
+  B.hindSwing0 = swingAngle(hip2, sh.distal.F);
   B.stand = { fore: { ...sf.solve, distal: sf.distal }, hind: { ...sh.solve, distal: sh.distal } };
   return B;
 }
