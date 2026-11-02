@@ -47,7 +47,16 @@ export const DOOR_PROBES = Object.freeze([
     concept: 'a level whose hero carries a weapon',
     holds: ({ steps }) => someLevel(steps, (m) => pilotsOf(m).some(armed)),
     reference: { quick: { goal: 'shoot' } },
-    now: 'not',
+    now: 'type',
+  },
+  {
+    family: 'strike', genre: 'dungeon-crawler', prompt: 'a dungeon crawler: fight skeletons through crypt rooms',
+    concept: 'a level whose hero swings what it holds (its contact window, a right-hand item), with foes to strike',
+    holds: ({ steps }) => !!(steps ?? []).find((s) => s.key === 'hero-equipped')?.order?.spec?.gear?.right
+      && someLevel(steps, (m) => pilotsOf(m).some((e) => Array.isArray(e.rule?.strikeContact)) && (m.entities ?? []).some((e) => !e.pilotable && e.rule?.type === 'ai')),
+    reference: { book: { id: 'ref', foes: { grunt: { class: 'walker' } }, levels: { a: { walk: { nodes: { a: { trail: {} }, b: { trail: {} } } }, foes: { from: ['grunt'] } } },
+      characters: { direction: { tradition: 'anime' }, hero: { motion: { vibe: ['bold'] }, actions: { none: true }, adornment: { items: [{ id: 'blade', slot: 'right', build: { item: 'sword' }, serves: ['strike'] }] } } } } },
+    now: 'type',
   },
   {
     family: 'defend', genre: 'tower-defense', prompt: 'a tower defence game: build towers along the path to stop waves of enemies',

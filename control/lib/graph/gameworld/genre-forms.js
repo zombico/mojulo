@@ -43,12 +43,11 @@ export const HAND_OFFS = Object.freeze({
  * side camera and seats, a party's battles, each played once the world has a hero.) */
 export const WAITS = Object.freeze({
   ride: 'a ride the book drives (the hero as a vehicle, on a roadway level with a race goal)',
-  weapon: 'the hero\'s weapon (a strike or a gun from what it carries)',
   form: 'its kernel as a book level (today it plays as one level alone)',
 });
 export const PENDING = Object.freeze({
   racing: 'ride', 'kart-racer': 'ride',
-  shooter: 'weapon', 'arena-shooter': 'weapon', 'arena-brawler': 'weapon', 'co-op-brawler': 'weapon',
+  'arena-shooter': 'form',
   'tower-defense': 'form', rts: 'form', tactics: 'form', farming: 'form', rhythm: 'form', roguelike: 'form', 'block-puzzle': 'form',
   'pixel-puzzle': 'form', 'versus-fighter': 'form', 'athletics-meet': 'form', 'net-game': 'form', 'turn-sport': 'form', 'team-goal-game': 'form',
 });
@@ -68,21 +67,35 @@ const GENRE_VIBE = Object.freeze({
   'dungeon-crawler': 'stoic', 'top-down-adventure': 'spirited', metroidvania: 'nimble', 'survival-horror': 'weary',
   'story-adventure': 'composed', stealth: 'nimble', 'co-op-platformer': 'bouncy', jrpg: 'spirited', collectathon: 'bouncy',
 });
+// the blade a melee genre's hero carries for its own blow (its swing, reach and damage the held strike's: world-scene.js)
+const MELEE_ITEM = Object.freeze({ id: 'blade', slot: 'right', build: Object.freeze({ item: 'sword' }), serves: Object.freeze(['strike']) });
+// the gun a ranged genre's hero carries for its own shot (the arms library's: a long gun the rifle's numbers, a pistol
+// the handgun's), by genre where its fiction names one
+const RANGED_ITEM = Object.freeze({ id: 'gun', slot: 'right', serves: Object.freeze(['shoot']) });
+const GENRE_GUN = Object.freeze({ 'survival-horror': 'pistol' });
 // the cameras a world names (cameras.js) that the genre's cube asks of its hero; third person is the hero's own default
-const NAMED_CAMERAS = new Set(['side', 'top-down', 'fixed']);
+const NAMED_CAMERAS = new Set(['side', 'top-down', 'fixed', 'first-person']);
 
 /** The frame a genre's sentence is laid in when its cube asks a hero on foot: the hero the book makes by default (its
  * body the game's, game-bodies.js; it moves by the genre's vibe; no powers, said (`actions.none`), so the book has
  * nothing open to hold its levels back), the camera the cube asks (side, top-down, fixed; null for third person) and the
  * screen it is made for (a monitor's 16:9: a chase, a side-scroller or an overhead reads across, not up a phone). A genre
- * whose hero is a vehicle or an aircraft is laid by its form, not a book hero: null. `tradition` is the world's register. */
+ * whose hero is a vehicle or an aircraft is laid by its form, not a book hero: null. A genre that fights arms the hero:
+ * a blade for its own blow where it fights in melee (`serves: ['strike']`), a gun for its own shot where it fights only at
+ * range (`serves: ['shoot']`; a first-person shooter is played from the armed hero's eyes). `tradition` is the world's
+ * register. */
 export function heroFrameOf(id, tradition) {
   const cube = genreCube(id);
-  if (!cube || cube.soul?.hero !== 'hero' || cube.space?.camera === 'first-person') return null;
+  const combat = [].concat(cube?.power?.combat ?? []), ranged = combat.includes('ranged') && !combat.includes('melee');
+  // (a first-person genre is laid with a hero only when it fights at range: you look out of the armed hero's eyes)
+  if (!cube || cube.soul?.hero !== 'hero' || (cube.space?.camera === 'first-person' && !ranged)) return null;
   const vibe = cube.soul?.vibe ?? GENRE_VIBE[id] ?? 'spirited', camera = NAMED_CAMERAS.has(cube.space?.camera) ? cube.space.camera : null;
   const moves = GENRE_FORMS[id]?.hero?.moves;
+  // (a genre that fights arms its hero, in the right hand, for its own blow or its own shot (adornment.js BASIC_VERBS):
+  // a blade where it fights in melee, a gun where it fights only at range; a climber's hands are its own)
+  const item = moves ? null : combat.includes('melee') ? MELEE_ITEM : ranged ? { ...RANGED_ITEM, build: { item: GENRE_GUN[id] ?? 'carbine' } } : null;
   return {
-    characters: { direction: { tradition, body: 'game' }, hero: { motion: { vibe: [vibe] }, actions: { none: true, ...(moves ? { moves: [...moves] } : {}) } } },
+    characters: { direction: { tradition, body: 'game' }, hero: { motion: { vibe: [vibe] }, actions: { none: true, ...(moves ? { moves: [...moves] } : {}) }, ...(item ? { adornment: { items: [{ ...item, build: { ...item.build }, serves: [...item.serves] }] } } : {}) } },
     camera, screen: 'screen',
   };
 }
