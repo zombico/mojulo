@@ -91,3 +91,17 @@
   round steel planters of shrubs. Each set and fitting is a box the walk is held out of, laid where it stands clear of
   every walk, the shopfronts, the court and the stair. A shopfront now keeps 1.7 m from a way out's frame, room for its
   bins. The readout carries each concourse's fittings and the court's sets.
+- **A network of passages, its own module** (`lib/graph/network/`): what the geocity's tunnels were, made general, the
+  geocity its first client. `sections.js`: what a passage is, by what it carries, a row each (`passage`, the pedestrian
+  passage under a downtown in glass and steel; `service`, a building's service tunnel in concrete with its conduits,
+  edge lines and caged lamps, steeper; `vehicle`, a two-lane road tunnel with a raised walkway behind a kerb each side,
+  a tiled band down each wall and its lamp lines, deep and gentle, no stair), each its box, its cover under open ground
+  and its slab under a plaza or a floor, its grade, whether a stair may take it down, its lamps, its longest run and its
+  finish; `readSection` takes a row or a row changed (`{ from, …changes }`). `edges.js`: which nodes a network joins and
+  by what path: straight across a gap where two rooms overlap along it, a DOG-LEG where their sites face each other but
+  their rooms do not (out of each to the gap's middle line and along it, the jog a section wide), never a run down a
+  street to a site round a corner, never under another site. `passage.js`: one passage built to its section along a
+  path of legs square to the axes, turning at square junctions held level (its floor the slope-limited envelope under
+  its cover, levelled through each turn and limited again), its finish carried round each junction's outer walls.
+  `laws.js` (reached, cover, grade, run, by a prefix and a noun), `walk-gate.js` (moved from the geocity). On the
+  lakeshore neighbourhood every concourse is now reached: four passages, one a 62.6 m dog-leg with two turns.

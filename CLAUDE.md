@@ -249,6 +249,10 @@ Pointers only; each target carries its own design notes.
 - Walled-core dungeons: [docs/walled-core-dungeon.md](docs/walled-core-dungeon.md) (layers on a critical path toward a
   core, a `design_game` world's `wcd`; its principles as laws; a space builds its level; a military base's buildings,
   stocked by `era/stocking.js`).
+- Networks of passages: [network/](control/lib/graph/network/) (buildings or rooms joined by passages: `sections.js`, what
+  a passage is, a new kind a row; `edges.js`, which nodes join and by what path, straight or a dog-leg; `passage.js`, one
+  built to its section along its path, at its cover, level through its turns; `laws.js`; `walk-gate.js`, a payload walked
+  as the page walks it). Its first client is the geocity's `under` (podiums and their concourses: `geocity/podium.js`).
 - Quest open worlds: [docs/quest-open-world.md](docs/quest-open-world.md) (the WCD's opposite pole: a geocity's regions
   joined sideways, never gated on the way on; a `design_game` world's `qow`; its principles as laws). The metro it is
   laid on: [geocity/](control/lib/graph/geocity/) (the geocube's `show: 'geocity'`: major streets first, rings, roads,

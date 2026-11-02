@@ -7,7 +7,7 @@ import { describe, it, expect } from 'vitest';
 import { podiumInside, podiumRecipe, cutFace, PODIUM } from './podium.js';
 import { assembleGeocityScene } from './scene.js';
 import { planStage } from '../era/stage.js';
-import { walker } from './walk-gate.js';
+import { walker } from '../network/walk-gate.js';
 
 const geocity = { metro: { from: 'lakeshore', rings: { core: 350, frame: 700 } }, extent: [1800, 1500], water: { sides: ['s'], depth: 200 }, core: [0.5, 0.2] };
 const M = { kind: 'geocube', cube: 'valley-morning', show: 'geocity', seed: 2, hour: 'noon' };

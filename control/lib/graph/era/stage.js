@@ -453,7 +453,7 @@ export function planStage(m = {}) {
   // side (a building standing in open ground is walked into by it); the side must face out (no room against it there). A
   // room on an upper storey has one too: a building set into its slope is walked into at the ground its storey stands on.
   // `along`: the doorway's middle along its side (plan metres, off the grid), where a passage outside meets it (a
-  // tunnel under a street, geocity/tunnels.js); absent, the side's middle on the grid
+  // tunnel under a street, network/passage.js); absent, the side's middle on the grid
   const ways = (m.ways || []).map((w) => {
     const r = byId.get(w.room);
     if (!r) throw new Error(`stage: way out of '${w.room}', which is not a room`);
