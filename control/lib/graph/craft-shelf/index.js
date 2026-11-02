@@ -21,10 +21,13 @@ import { CRAFT_BUILDERS } from './craft-parts.js';
 import { lookCard, lookSwap } from './drone-looks.js';
 import { CRAFT_KINDS, CRAFT_ODM, CRAFT_REALMS } from './craft-odm.js';
 import { CRAFT_ARCHETYPES, CRAFT_ROLES } from './craft-archetypes.js';
+import { hullFloat } from './boat-parts.js';
 
 export { CRAFT_ARCHETYPES, CRAFT_COLOR_ROLES, CRAFT_KINDS, CRAFT_ODM, CRAFT_PALETTES, CRAFT_REALMS, CRAFT_ROLES };
 
-const REALM_PALETTE = { earth: 'airlinerWhite', space: 'scoutIvory' };
+// the water a boat floats in, its density in kg/m³
+const WATER = Object.freeze({ fresh: 1000, salt: 1025 });
+const REALM_PALETTE = { earth: 'airlinerWhite', space: 'scoutIvory', water: 'skiffGreen' };
 
 // What each colour role is made of, by realm: painted skins satin on an aircraft and matte on a
 // starship's plating, bare metal brushed aluminium or blasted steel, and every hot section (a nozzle,
@@ -36,6 +39,8 @@ const PLATE = { preset: 'matte', ambient: 0.48, diffuse: 0.58, specular: 0.06, s
 const FINISH = {
   earth: { paint: GLOSS, trim: SHEEN, glass: 'glass', rubber: 'rubber', chrome: { metal: 'aluminium', finish: 'brushed' }, light: 'neon' },
   space: { paint: PLATE, trim: SHEEN, glass: 'glass', rubber: 'rubber', chrome: { metal: 'steel', finish: 'blasted' }, light: 'neon' },
+  // (a boat's: a marine enamel's sheen over its hull, its bare metal marine aluminium, brushed)
+  water: { paint: GLOSS, trim: SHEEN, glass: 'glass', rubber: 'rubber', chrome: { metal: 'aluminium', finish: 'brushed' }, light: 'neon' },
 };
 const HOT = { metal: 'titanium', film: { temper: 330 } };
 const HOT_ID = /^(plug|nozzle|bell|exhaust|stack_)/;
@@ -254,11 +259,14 @@ function toManifest(row, order, { pitch, lift, title }) {
  * `look` (a drone's: drone-looks.js) dresses it in that card's palette, swaps its payloads and sets its lights.
  * `attitude: 'ground'` (default) rests the craft on all its gear, pitching a taildragger nose up;
  * `'level'` keeps the waterline level and rests it on its lowest contact. A craft with no gear
- * rests on its lowest point (a panel interceptor stands on its panels' lower corners). `fold` (0 … 1)
- * folds every folding wing; absent, the archetype's own stance (a shuttle lands with its wings up).
- * Returns `{ manifest, readout }`: the readout measures the craft as built.
+ * rests on its lowest point (a panel interceptor stands on its panels' lower corners; a boat on its keel, or its
+ * outboard's skeg). `fold` (0 … 1) folds every folding wing; absent, the archetype's own stance (a shuttle lands with
+ * its wings up). Returns `{ manifest, readout }`: the readout measures the craft as built. A boat's readout says where it
+ * floats (`afloat`): the waterline its weight sets, its parts' mass and its payload displaced by its hull
+ * (boat-parts.js hullFloat) in `water` 'fresh' (default) or 'salt'; `waterline` is that line's height in the manifest's
+ * frame, where a level lays its water.
  */
-export function assembleCraft(archetype, { palette, colors = {}, swap: swapIn = {}, attitude = 'ground', fold, pose = {}, finish = true, title, made = false, look } = {}) {
+export function assembleCraft(archetype, { palette, colors = {}, swap: swapIn = {}, attitude = 'ground', fold, pose = {}, finish = true, title, made = false, look, water = 'fresh' } = {}) {
   const row = archetypeRow(archetype);
   let swap = swapIn;
   const foldNow = Math.max(0, Math.min(1, Number.isFinite(fold) ? fold : (row.fold || 0)));
@@ -293,6 +301,15 @@ export function assembleCraft(archetype, { palette, colors = {}, swap: swapIn = 
     lift = -Math.min(...probe.map((p) => p.bounds.min[2]));
   }
   const manifest = toManifest(row, order, { pitch, lift, title });
+  // (a boat: the waterline its weight sets, every part placed and its payload aboard, on its hull's lines)
+  const hull = order.find((p) => p.recipe.garage.kind === 'boat-hull');
+  let afloat = null;
+  if (hull) {
+    if (!WATER[water]) throw new Error(`craft water must be ${Object.keys(WATER).join(' or ')}; received ${JSON.stringify(water)}`);
+    const kg = order.reduce((s, p) => s + p.recipe.garage.mass, 0) + (row.payload || 0);
+    const f = hullFloat(CRAFT_ODM[hull.recipe.garage.sku], kg, { rho: WATER[water] });
+    afloat = { water, displacement: Math.round(kg), draft: f.draft, waterline: round3(rotX(pitch, hull.at)[2] + lift + f.draft), freeboard: f.freeboard, volume: f.volume, ...(f.swamped ? { swamped: true } : {}) };
+  }
   // where each wheel or pad meets the ground, in the craft's world frame (a fly rule's taxi points)
   const gear = order
     .filter((p) => !gearUp && p.recipe.garage.hardpoints.contact)
@@ -307,7 +324,7 @@ export function assembleCraft(archetype, { palette, colors = {}, swap: swapIn = 
   const joints = manifest.items.flatMap((it) => (it.source.garage.joints || []).map((j) => ({
     item: it.id, name: j.name, control: j.control, kind: j.kind, range: j.range, ...(j.kind === 'slide' ? { travel: j.travel } : { angle: j.angle }),
   })));
-  return { manifest, readout: { ...readout, fold: foldNow, pose: clone(pose), gear, joints, ...(look ? { look } : {}) } };
+  return { manifest, readout: { ...readout, fold: foldNow, pose: clone(pose), gear, joints, ...(look ? { look } : {}), ...(afloat ? { afloat } : {}) } };
 }
 
 /** What the assembled craft measures, weighs and pushes, beside its reference figure. */
@@ -406,10 +423,12 @@ export function listCraftShelf({ realm, kind } = {}) {
     .map(([sku, r]) => ({ sku, kind: r.kind, realm: r.realm, label: r.label, classOf: r.classOf, dims: clone(r.dims), mass: r.mass, ...(r.perf ? { perf: clone(r.perf) } : {}) }));
 }
 
-/** A role and its craft in both realms: the earth machine and its starship analogue, side by side. */
+/** A role and its craft in both realms: the earth machine and its starship analogue, side by side. A boat's role (its
+ *  `realms`, the water's) holds its boats instead: `{ water }`. */
 export function craftRoleAnalogues(role) {
   const r = CRAFT_ROLES[role];
   if (!r) throw new Error(`Unknown craft role '${role}'; expected one of: ${Object.keys(CRAFT_ROLES).join(', ')}`);
   const of = (realm) => Object.entries(CRAFT_ARCHETYPES).filter(([, a]) => a.role === role && a.realm === realm).map(([id]) => id);
+  if (r.realms) return { role, label: r.label, mission: r.mission, realms: [...r.realms], ...Object.fromEntries(r.realms.map((k) => [k, of(k)])) };
   return { role, label: r.label, mission: r.mission, earth: of('earth'), space: of('space') };
 }

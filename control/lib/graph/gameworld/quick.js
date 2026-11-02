@@ -301,6 +301,7 @@ function readQuickTransformer(Q) {
     if (!isObj(V) || ks.length !== 1 || !['supercar', 'ride', 'racer', 'craft'].includes(ks[0])) throw fail(shape);
     if (V.ride !== undefined && !RIDES[V.ride]) throw fail(`.transformer.vehicle.ride is one of ${Object.keys(RIDES).join(', ')}`);
     if (V.craft !== undefined && !CRAFT_ARCHETYPES[V.craft]) throw fail(`.transformer.vehicle.craft is a craft archetype (${Object.keys(CRAFT_ARCHETYPES).slice(0, 6).join(', ')}, …)`);
+    if (V.craft !== undefined && CRAFT_ARCHETYPES[V.craft].realm === 'water') throw fail(`.transformer.vehicle.craft flies: '${V.craft}' is a boat on the craft shelf, which no transformer folds from yet`);
     if (V.supercar !== undefined && !(isObj(V.supercar) && (V.supercar.preset === undefined || SUPERCAR_LIBRARY[V.supercar.preset]))) throw fail(`.transformer.vehicle.supercar is { preset?: ${Object.keys(SUPERCAR_LIBRARY).join(' | ')} }`);
     if (V.racer !== undefined && !isObj(V.racer)) throw fail('.transformer.vehicle.racer is a racer\'s recipe ({ seed?, facets?, brief? })');
   }

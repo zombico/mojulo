@@ -16,6 +16,7 @@
  *     thickness (it rounded to nothing on a bigger gimbal), the probe's vent its cowl, and every straight drone lathe
  *     two cross-sections (a straight profile needs no more; an X8 cost 56k triangles), so the drone pins re-pinned.
  *   - The drone looks: the EO/IR ball's builder path pinned; no other pin moved.
+ *   - The boat parts joined the shelf (boat-odm.js): their builder paths pinned; no existing pin moved.
  */
 import { createHash } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
@@ -85,6 +86,10 @@ const PINS = {
   'motor-vent-probe': 'e8d0ae806e057d3b',
   'eye-probe': '6e299153a70e5b86',
   'eoir-ball-small': 'a83be3ba6c538c86',
+  // the boat parts (boat-parts.js): their builder paths pinned when they joined the shelf
+  'hull-skiff-v14': '204500e874a8e297',
+  'outboard-20-tiller': '7102b33c3fef79a4',
+  'tank-portable-45l': '9567ccfb41323421',
   'craft:lightSingle': 'cbbad5fe3c255c1d',
 };
 

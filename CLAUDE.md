@@ -229,6 +229,8 @@ Pointers only; each target carries its own design notes.
   tracked class's running gear `mil-track.js`.
 - Flight parts: [craft-shelf/](control/lib/graph/craft-shelf/) (the ODM inventory of aircraft and spacecraft parts → whole
   craft by archetype; a new part is a row first); the flight-game map is [docs/flight-games.md](docs/flight-games.md).
+  Boats are on the same shelf (`boat-odm.js`, `boat-parts.js`, `boat-archetypes.js`): a hull drawn from its lines and
+  floated by its weight, its drive, its fittings; review: `scripts/render-boats.mjs`.
 - Books: [book/](control/lib/graph/book/) (the press: a style library of looks, formats and faces from the font shelf,
   one self-contained page a book, printed to PDF by headless Chromium): [docs/books.md](docs/books.md).
 - Table RPG: [table-rpg/](control/lib/graph/table-rpg/) (a pen-and-paper module played in text: rules as procedures, a

@@ -1,0 +1,162 @@
+// The boat parts on the craft shelf (boat-odm.js, boat-parts.js, boat-archetypes.js): every boat kind a builder and a
+// row, each part the same twice; a hull drawn from its lines (its envelope its dims, its halves mirrored, its transom
+// raked); its displacement from its own sections, so a boat floats at the waterline its weight sets; an outboard rigged
+// with its plate at the keel, tilting, steering and turning its propeller about its own axes; a boat role filled by
+// boats; a boat by the words people say, its build asleep, never a transformer's craft. The cases are chosen from the
+// shelf in code.
+import { describe, it, expect } from 'vitest';
+import { assembleCraft, resolveCraftPart, CRAFT_ODM, CRAFT_ARCHETYPES, CRAFT_ROLES, craftRoleAnalogues } from './index.js';
+import { BOAT_KINDS, BOAT_ODM } from './boat-odm.js';
+import { BOAT_ROLES } from './boat-archetypes.js';
+import { hullLines, hullSection, hullVolume, hullFloat } from './boat-parts.js';
+import { lowerObjectFaces } from '../worlds/workbench.js';
+import { resolveVehicle, handlesOf } from '../vehicle-registry/roster.js';
+import { buildOf } from '../vehicle-registry/builds.js';
+import { quickVehicleWords } from '../vehicle-registry/doors.js';
+import { quickWorld } from '../gameworld/quick.js';
+
+const A = CRAFT_ARCHETYPES;
+const of = (kind) => Object.keys(BOAT_ODM).find((s) => BOAT_ODM[s].kind === kind);
+const HULL = BOAT_ODM[of('boat-hull')];
+// (a boat on the shelf driven by an outboard on its hull's transom)
+const BOAT = Object.keys(A).find((k) => A[k].realm === 'water' && A[k].layout.some((e) => CRAFT_ODM[e.sku]?.kind === 'boat-outboard'));
+const motorEntry = A[BOAT].layout.find((e) => CRAFT_ODM[e.sku].kind === 'boat-outboard');
+const bounds = (faces) => {
+  const lo = [Infinity, Infinity, Infinity], hi = [-Infinity, -Infinity, -Infinity];
+  for (const f of faces) for (const c of f.corners) for (let k = 0; k < 3; k++) { lo[k] = Math.min(lo[k], c[k]); hi[k] = Math.max(hi[k], c[k]); }
+  return { lo, hi };
+};
+const lathe = (src, id) => src.lathes.find((l) => l.id === id);
+const P = (p) => [p.x, p.y, p.z];
+
+describe('the boat parts', () => {
+  it('every boat kind on the shelf with a row, each building the same part twice', () => {
+    for (const kind of Object.keys(BOAT_KINDS)) {
+      const skus = Object.keys(BOAT_ODM).filter((s) => BOAT_ODM[s].kind === kind);
+      expect(skus.length, kind).toBeGreaterThan(0);
+      for (const sku of skus) {
+        expect(CRAFT_ODM[sku], sku).toBe(BOAT_ODM[sku]);
+        expect(JSON.stringify(resolveCraftPart(sku)), sku).toBe(JSON.stringify(resolveCraftPart(sku)));
+      }
+    }
+  });
+});
+
+describe('a hull drawn from its lines', () => {
+  const hull = resolveCraftPart(of('boat-hull'), { seat: 'mount' });
+  const skin = bounds(lowerObjectFaces({ ...hull, extrudes: [], sweeps: [], lathes: [], lofts: hull.lofts.filter((l) => l.id === 'skin') }));
+  it('its skin\'s envelope is its length, its beam and its depth at the bow', () => {
+    const { length: L, beam: B } = HULL.dims, H = hullLines(HULL);
+    expect(skin.hi[1] - skin.lo[1]).toBeCloseTo(L, 1);
+    expect(skin.hi[0] - skin.lo[0]).toBeGreaterThan(B * 0.97);
+    expect(skin.hi[0] - skin.lo[0]).toBeLessThan(B * 1.03);
+    expect(skin.lo[2]).toBeCloseTo(0, 2);
+    expect(skin.hi[2]).toBeCloseTo(H.at(1).sheer, 2);
+  });
+  it('its halves mirror each other, every section a starboard side and its port twin', () => {
+    for (const s of [0.3, 0.7]) {
+      const sec = hullSection(HULL, s), n = sec.length;
+      for (let i = 0; i < n; i++) { expect(sec[n - 1 - i][0]).toBeCloseTo(-sec[i][0], 6); expect(sec[n - 1 - i][1]).toBeCloseTo(sec[i][1], 6); }
+    }
+  });
+  it('its transom raked: the keel meets it forward of its top by its height times the rake', () => {
+    const H = hullLines(HULL), foot = H.zT * Math.tan(HULL.build.transom.rake * Math.PI / 180) / H.L;
+    // (aft of the foot the bottom is the transom's face, lifted off the keel; forward of it the keel is on z = 0)
+    expect(Math.min(...hullSection(HULL, foot * 0.5).map((p) => p[1]))).toBeGreaterThan(0.05);
+    expect(Math.min(...hullSection(HULL, foot * 1.2).map((p) => p[1]))).toBeCloseTo(0, 3);
+    expect(hull.garage.hardpoints.motor[1]).toBeCloseTo(-H.L / 2, 3);
+  });
+  it('its benches sit inside it, under its sheer, each a seat named among its points', () => {
+    const H = hullLines(HULL);
+    for (const bn of HULL.build.benches) {
+      const loft = hull.lofts.find((l) => l.id === `bench_${bn.name}`), b = bounds(lowerObjectFaces({ ...hull, extrudes: [], sweeps: [], lathes: [], lofts: [loft] }));
+      const st = H.at(bn.at);
+      expect(b.hi[0], bn.name).toBeLessThan(st.sheerHalf);
+      expect(b.hi[2], bn.name).toBeLessThan(st.sheer);
+      expect(hull.garage.hardpoints[bn.name][2], bn.name).toBeCloseTo(bn.top + 0.022, 3);
+    }
+  });
+});
+
+describe('its displacement: a boat floats at the waterline its weight sets', () => {
+  it('displaces more the deeper it sits; the waterline it is bisected to displaces its weight', () => {
+    expect(hullVolume(HULL, 0.2)).toBeGreaterThan(hullVolume(HULL, 0.1));
+    expect(hullVolume(HULL, 0)).toBeLessThan(0.001);
+    const kg = 300, f = hullFloat(HULL, kg);
+    expect(Math.abs(hullVolume(HULL, f.draft) * 1000 / kg - 1)).toBeLessThan(0.01);
+    expect(hullFloat(HULL, kg + 150).draft).toBeGreaterThan(f.draft);
+    expect(hullFloat(HULL, kg, { rho: 1025 }).draft).toBeLessThan(f.draft);
+    expect(f.freeboard).toBeCloseTo(hullLines(HULL).zT - f.draft, 2);
+  });
+  it('says when the load would put its sheer under water', () => {
+    expect(hullFloat(HULL, 1e5)).toMatchObject({ swamped: true, freeboard: 0 });
+  });
+  it('the boat assembled: its parts and its payload displaced, its waterline in the manifest\'s frame', () => {
+    const { manifest, readout } = assembleCraft(BOAT);
+    const hull = manifest.items.find((i) => i.source.garage.kind === 'boat-hull');
+    expect(readout.afloat.displacement).toBe(readout.partsMass + A[BOAT].payload);
+    expect(readout.afloat.waterline).toBeCloseTo(hull.at[2] + readout.afloat.draft, 3);
+    expect(readout.afloat.freeboard).toBeGreaterThan(0.15);
+    expect(Math.abs(readout.afloat.draft / readout.reference.draft - 1)).toBeLessThan(0.1);
+    expect(assembleCraft(BOAT, { water: 'salt' }).readout.afloat.draft).toBeLessThan(readout.afloat.draft);
+    expect(() => assembleCraft(BOAT, { water: 'mud' })).toThrow(/fresh or salt/);
+  });
+});
+
+describe('an outboard on the transom', () => {
+  const { manifest, readout } = assembleCraft(BOAT);
+  const item = manifest.items.find((i) => i.id === motorEntry.id), hull = manifest.items.find((i) => i.source.garage.kind === 'boat-hull');
+  it('rigged with its anti-ventilation plate at the keel\'s height, its propeller under the water', () => {
+    const plate = item.at[2] + item.source.garage.hardpoints.plate[2];
+    expect(Math.abs(plate - hull.at[2])).toBeLessThan(0.06);
+    expect(item.at[2] + item.source.garage.hardpoints.prop[2]).toBeLessThan(readout.afloat.waterline - 0.1);
+  });
+  it('tilts up about its tilt tube, steers about its swivel, its clamp staying on the transom', () => {
+    const sku = motorEntry.sku, down = resolveCraftPart(sku, { seat: 'mount' });
+    const up = resolveCraftPart(sku, { seat: 'mount', pose: { tilt: 1 } }), turned = resolveCraftPart(sku, { seat: 'mount', pose: { yaw: 1 } });
+    expect(up.garage.hardpoints.prop[2]).toBeGreaterThan(down.garage.hardpoints.prop[2] + 0.3);
+    expect(up.garage.hardpoints.prop[1]).toBeLessThan(down.garage.hardpoints.prop[1]);
+    expect(P(lathe(up, 'tilt_tube').axisFrom)).toEqual(P(lathe(down, 'tilt_tube').axisFrom));
+    // (yaw + the tiller to port and the propeller to starboard: the boat turns to starboard)
+    expect(turned.garage.hardpoints.prop[0]).toBeGreaterThan(0.05);
+    expect(P(lathe(turned, 'grip').axisTo)[0]).toBeLessThan(-0.05);
+    expect(turned.garage.joints.find((j) => j.name === 'steer').angle).toBe(CRAFT_ODM[sku].build.steer);
+  });
+  it('tilted up, its tiller folded, it stays out of the boat: nothing that moves inside its transom or its aft bench', () => {
+    const hull = resolveCraftPart(of('boat-hull'), { seat: 'mount' }), m = hull.garage.hardpoints.motor;
+    const up = resolveCraftPart(motorEntry.sku, { seat: 'mount', pose: { tilt: 1 }, fold: 1 });
+    // (the clamp bracket and its tilt tube wrap the transom by design: what tilts and steers is the rest)
+    const still = /^(clamp|stern_bracket|tilt_tube)/, moving = Object.fromEntries(['lathes', 'extrudes', 'sweeps', 'lofts'].map((k) => [k, (up[k] || []).filter((x) => !still.test(x.id))]));
+    const pts = lowerObjectFaces({ ...up, ...moving }).flatMap((f) => f.corners).map((p) => [p[0] + m[0], p[1] + m[1], p[2] + m[2]]);
+    const { length: L } = HULL.dims, Tt = HULL.build.transom.thickness, aft = HULL.build.benches.reduce((a, b) => (b.at < a.at ? b : a));
+    expect(pts.filter((p) => p[1] > -L / 2 && p[1] < -L / 2 + Tt && p[2] < m[2])).toEqual([]);
+    const y0 = -L / 2 + aft.at * L;
+    expect(pts.filter((p) => p[1] > y0 && p[1] < y0 + aft.depth && p[2] < aft.top + 0.022)).toEqual([]);
+    expect(up.garage.joints.find((j) => j.name === 'tiller').angle).toBe(CRAFT_ODM[motorEntry.sku].build.fold.angle);
+  });
+  it('its propeller turns about its shaft, its hub staying put', () => {
+    const sku = motorEntry.sku, a = resolveCraftPart(sku, { seat: 'mount' }), b = resolveCraftPart(sku, { seat: 'mount', pose: { prop: 40 } });
+    expect(lathe(b, 'prop_hub')).toEqual(lathe(a, 'prop_hub'));
+    expect(P(b.lofts.find((l) => l.id === 'blade_0').axisTo)).not.toEqual(P(a.lofts.find((l) => l.id === 'blade_0').axisTo));
+    expect(b.garage.joints.find((j) => j.name === 'prop')).toMatchObject({ kind: 'spin', angle: 40 });
+  });
+});
+
+describe('on the roster and among the roles', () => {
+  it('every boat role is filled by boats', () => {
+    for (const role of Object.keys(BOAT_ROLES)) {
+      expect(CRAFT_ROLES[role].realms).toEqual(['water']);
+      expect(craftRoleAnalogues(role).water.length, role).toBeGreaterThan(0);
+    }
+  });
+  it('a boat by the words people say; its build on the shelf asleep until a door draws it', () => {
+    const hit = resolveVehicle('skiff');
+    expect(handlesOf(hit.id).craft).toEqual([BOAT]);
+    expect(buildOf(hit.id, 'realistic')).toMatchObject({ tier: 'realistic', build: { via: 'craft', key: BOAT, status: 'asleep' } });
+  });
+  it('is never a transformer\'s craft: it does not fly', () => {
+    const { quick } = quickVehicleWords({ goal: 'fly', transformer: { vehicle: { craft: 'skiff' } } });
+    expect(quick.transformer.vehicle.craft).toBe(BOAT);
+    for (const craft of ['skiff', BOAT]) expect(() => quickWorld({ quick: { goal: 'fly', transformer: { vehicle: { craft } } } }), craft).toThrow(/is a boat on the craft shelf/);
+  });
+});

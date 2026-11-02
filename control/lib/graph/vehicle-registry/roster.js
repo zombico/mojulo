@@ -213,8 +213,11 @@ export const VEHICLES = {
   chariot: row('chariot', ['war chariot', 'racing chariot'], 'road', 'racer', ['myth'], ['driven', 'crewed', 'watched'],
     { tech: 'chariot' }),
   // ── on the water ────────────────────────────────────────────────────────────
-  boat: row('boat', ['rowboat', 'rowing boat', 'dinghy', 'canoe', 'skiff', 'raft'], 'water', 'work', ['rustic', 'myth', 'modern'], ['driven', 'parked'],
+  boat: row('boat', ['rowboat', 'rowing boat', 'dinghy', 'canoe', 'raft'], 'water', 'work', ['rustic', 'myth', 'modern'], ['driven', 'parked'],
     { tech: 'boat' }),
+  // (the first of the craft shelf's boats, boat-archetypes.js: a hull from its lines, its outboard, floated by its weight)
+  'motor-skiff': row('motor skiff', ['skiff', 'motorboat', 'motor boat', 'outboard boat', 'tiller boat', 'utility boat', 'aluminium boat', 'aluminum boat', 'tinny', 'fishing boat'], 'water', 'work', M, ['driven', 'parked', 'watched'],
+    { craft: 'motorSkiff', tech: 'boat' }),
   ship: row('ship', ['steamship', 'ferry', 'freighter', 'warship', 'galley', 'longship'], 'water', 'transport', ['myth', 'modern'], ['driven', 'watched', 'crewed'],
     { tech: 'ship' }),
   'sailing-ship': row('sailing ship', ['galleon', 'frigate', 'schooner', 'clipper', 'sloop', 'tall ship', 'junk', 'dhow'], 'water', 'transport', ['rustic', 'myth'], ['driven', 'watched', 'crewed'],

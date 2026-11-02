@@ -29,6 +29,8 @@ export const CRAFT_PALETTES = {
   warbirdOlive: { paint: '#5a5f3c', trim: '#b9b39a', glass: '#8fb0c4', rubber: '#1b1c1e', chrome: '#9aa0a6', light: '#ffb347' },
   // a consumer drone's light grey moulding, its dark plastics
   droneConsumer: { paint: '#c8cbcd', trim: '#34373a', glass: '#1b2026', rubber: '#1d1f21', chrome: '#7d8287', light: '#ff5a3c' },
+  // water: a skiff's marine green over bare aluminium, its outboard's graphite
+  skiffGreen: { paint: '#4c6047', trim: '#3b3f43', glass: '#26323c', rubber: '#1a1b1d', chrome: '#b9c0c6', light: '#e94b3c' },
   // a racer's bare carbon, aluminium standoffs, bright props (its 'rubber': the shelf's role for the props)
   fpvCarbon: { paint: '#2a2c2f', trim: '#1b1c1e', glass: '#22303a', rubber: '#e8642a', chrome: '#a8adb2', light: '#7dff6a' },
   // an enterprise drone's dark grey, rugged
