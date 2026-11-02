@@ -9,9 +9,12 @@
  */
 
 import { cockpit } from './air-kit-parts.js';
+import { asFitting, madeHull, madeCanopy, madeIntake, madeNozzle, madeWheel, madeLeg, madeWell, madeSurface, madeMissile } from './air-made.js';
 import { DEG, airfoil, airfoilAft, extrudeWorld, facetSection, foilAt, lathe, loftWorld, mulberry32, hashSeed, planeUV, round3, section, sweep, tone, turnAbout } from './craft-common.js';
 
 const r3v = (v) => v.map(round3);
+// the made finish (air-made.js) is an aircraft's: a spacecraft's language is its own
+const madeFor = (row, opts) => Boolean(opts?.made) && row.realm === 'earth';
 
 // ---- fuselage / hull ---------------------------------------------------------------------------
 
@@ -92,7 +95,7 @@ function buildFuselage(row, C, opts = {}) {
     const deck = Math.max(...[0.22, 0.4, 0.6, 0.8, 0.9].map(topAt));
     // (inside the canopy at a fraction of its length: its half-width at the deck's height, its roof over the deck)
     const fit = (f) => { const p = prof(f), hw = (p.w * cr.dims.width) / 2, roof = p.h * cr.dims.height - (deck - at[2]); return { half: Math.max(0, hw * Math.sqrt(Math.max(0, 1 - ((deck - at[2]) / Math.max(roof + (deck - at[2]), 1e-3)) ** 2)) - 0.02), roof: Math.max(0, roof - 0.02) }; };
-    made.push(cockpit('cockpit', { front: at, len: cl, deck, fit }, { dark: '#26292c', console: '#2f3336', glass: C.glass, metal: C.chrome, seat: '#3b4232', accent: '#d8b02a' }));
+    made.push(asFitting(cockpit('cockpit', { front: at, len: cl, deck, fit }, { dark: '#26292c', console: '#2f3336', glass: C.glass, metal: C.chrome, seat: '#3b4232', accent: '#d8b02a' })));
   }
   // A glazed band (an airliner's flight deck, a shuttle's windscreen): a thin loft hugging the skin.
   if (b.windscreen) {
@@ -124,6 +127,39 @@ function buildFuselage(row, C, opts = {}) {
   }
   const detail = hullDetail({ b, L, zp, stations, smooth, point, C, sku: opts.sku });
   lofts.push(...detail.lofts);
+  if (madeFor(row, opts)) {
+    const ringAt = (s) => skinRing(stations, s, smooth, zp);
+    const mh = madeHull({ b, L, zp, ringAt, skinX, skinZ, C });
+    lofts.push(...mh.lofts);
+    made.push({ extrudes: mh.extrudes, sweeps: mh.sweeps });
+    // its gear's wells and doors on its own skin, or under a chin intake's duct where a leg stands in it (the duct's
+    // bottom as the intake lofts it: its mouth's ring, swelling a little, then narrowing aft)
+    const mounts = opts.made?.mounts ?? [];
+    const chin = mounts.find((m) => m.row?.kind === 'craft-intake' && m.row.build.family === 'chin' && b.points?.[m.point]);
+    const duct = chin && (() => {
+      const ip = point(b.points[chin.point]), { length: dl, width: dw, height: dh } = chin.row.dims;
+      const kOf = (t) => (t < 0.35 ? 1 + (0.02 * t) / 0.35 : 1.02 - (0.42 * (t - 0.35)) / 0.65);
+      return { y0: ip[1], y1: ip[1] - dl, half: dw / 2, bottom: (y) => ip[2] - dh / 2 - (dh / 2) * kOf((ip[1] - y) / dl) };
+    })();
+    const up = clamp01(opts.pose && opts.pose.gear) * 90;
+    for (const m of mounts) {
+      const g = m.row?.kind === 'craft-gear' ? m.row.build : null;
+      const how = g && (g.retract === undefined ? (g.family === 'spring' ? false : 'forward') : g.retract);
+      if (!how || !g.tyre || !b.points?.[m.point]) continue;
+      const p = point(b.points[m.point]);
+      for (const sx of m.pair ? [1, -1] : [1]) {
+        const x = p[0] * sx, inDuct = Boolean(duct) && p[1] <= duct.y0 && p[1] >= duct.y1 && Math.abs(x) < duct.half;
+        const belly = (y) => (inDuct ? duct.bottom(y) : (skinZ(ringAt(Math.max(0, Math.min(1, -y / L))), x, -1) ?? p[2]));
+        const z = belly(p[1]), D = g.tyre[0], len = g.strut + D * 0.75;
+        // (a well lies the way its leg folds where the belly (or the duct) stays flat over it; where it would run off the
+        // nose or the duct, or where the belly rises, it lies the other way)
+        const off = (dir) => { const y = p[1] + dir * (len - D * 0.35); return inDuct && (y > duct.y0 || y < duct.y1) ? Infinity : y > 0 || y < -L ? Infinity : Math.abs(belly(y) - z) + Math.abs(belly(p[1] + dir * (len - D * 0.35) * 0.5) - z); };
+        const turn = { forward: 'aft', aft: 'forward' }[how];
+        const lie = turn && off(how === 'forward' ? 1 : -1) > 0.08 && off(how === 'forward' ? -1 : 1) < off(how === 'forward' ? 1 : -1) ? turn : how;
+        made.push(madeWell({ id: `well_${m.point}${m.pair ? (sx > 0 ? '_r' : '_l') : ''}`, at: [x, p[1], z], inboard: x > 0 ? -1 : 1, b: g, S: g.strut, D, W: g.tyre[1], how: lie, angle: up, C }));
+      }
+    }
+  }
   if (!made.length) return { lofts, ...(detail.extrudes.length ? { extrudes: detail.extrudes } : {}), ...(detail.sweeps.length ? { sweeps: detail.sweeps } : {}), hardpoints };
   const extrudes = [...detail.extrudes, ...made.flatMap((m) => m.extrudes ?? [])], sweeps = [...detail.sweeps, ...made.flatMap((m) => m.sweeps ?? [])], lathes = made.flatMap((m) => m.lathes ?? []);
   return { lofts, ...(extrudes.length ? { extrudes } : {}), ...(sweeps.length ? { sweeps } : {}), ...(lathes.length ? { lathes } : {}), hardpoints };
@@ -536,7 +572,8 @@ function buildLiftingSurface(row, C, opts = {}) {
   }
   if (extra.lofts) lofts.push(...extra.lofts);
   const lathes = [];
-  if (row.realm === 'earth' && row.kind === 'craft-wing' && b.navLight !== false) {
+  const nav = row.realm === 'earth' && row.kind === 'craft-wing' && b.navLight !== false;
+  if (nav && !madeFor(row, opts)) {
     const tipLe = toWorld(place(1, 0.05, 0), true);
     const out = toWorld(place(1, 0.05, 0).map((v, i) => (i === 0 ? v + 0.09 : v)), true);
     lathes.push(lathe('nav_light', tipLe, out, [[0, 0.06], [0.6, 0.055], [1, 0.005]], NAV_LIGHT[opts.side || 'c'], { material: 'neon', samples: 12, crossSections: 4 }));
@@ -549,6 +586,14 @@ function buildLiftingSurface(row, C, opts = {}) {
   };
   const hardpoints = { mount: [0, 0, 0] };
   for (const [name, spec] of Object.entries(b.points || {})) hardpoints[name] = point(spec);
+  if (madeFor(row, opts)) {
+    // made: its hinges' gaps, its actuators' fairings, its leading-edge flap's line; a fin's cap and beacon; the nav light
+    // in its cover (air-made.js)
+    const world = (f, p) => toWorld(p, Boolean(fold) && f > hingeF);
+    const ms = madeSurface({ place, world, foil: (f, c) => foilAt(c, foilOpts(f)), surfaces, kind: row.kind, nav, vertical, side: opts.side, span, at, C });
+    lathes.push(...ms.lathes);
+    return { lofts, ...(lathes.length ? { lathes } : {}), ...(ms.sweeps.length ? { sweeps: ms.sweeps } : {}), hardpoints, joints, ...(fold ? { fold: round3(foldA / DEG) } : {}) };
+  }
   return { lofts, ...(lathes.length ? { lathes } : {}), hardpoints, joints, ...(fold ? { fold: round3(foldA / DEG) } : {}) };
 }
 
@@ -615,7 +660,7 @@ function buildPanel(row, C) {
 
 // ---- propulsion -------------------------------------------------------------------------------
 
-function buildEngine(row, C) {
+function buildEngine(row, C, opts = {}) {
   const b = row.build;
   const L = row.dims.length;
   const R = row.dims.diameter / 2;
@@ -684,6 +729,11 @@ function buildEngine(row, C) {
       lathe('nozzle', [0, -L * 0.82, 0], [0, -L, 0], [[0, R * 0.9], [1, R * 0.78]], C.trim, { harmonics: [{ n: 15, amplitude: 0.03 }] }),
       lathe('burner', [0, -L * 0.97, 0], [0, -L * 0.995, 0], [[0, R * 0.7], [1, R * 0.7]], C.light, { material: 'neon' }),
     ];
+    if (madeFor(row, opts)) {
+      // made: the petal nozzle, its flameholder dark inside, in place of the turned one and its glow (air-made.js)
+      const nz = madeNozzle({ L, R, C });
+      return { lathes: [lathes[0], ...nz.lathes], extrudes: nz.extrudes, sweeps: nz.sweeps, hardpoints: { mount: [0, 0, 0], nozzle: [0, round3(-L), 0] } };
+    }
     return { lathes, hardpoints: { mount: [0, 0, 0], nozzle: [0, round3(-L), 0] } };
   }
   if (fam === 'pod') {
@@ -800,7 +850,7 @@ function buildThruster(row, C) {
 
 // ---- undercarriage ----------------------------------------------------------------------------
 
-function wheel(id, x, y, z, D, Wt, C) {
+function plainWheel(id, x, y, z, D, Wt, C) {
   const R = D / 2;
   return [
     lathe(`${id}_tyre`, [x - Wt / 2, y, z], [x + Wt / 2, y, z], [[0, R * 0.62], [0.12, R * 0.93], [0.5, R], [0.88, R * 0.93], [1, R * 0.62]], C.rubber, { crossSections: 8, samples: 22 }),
@@ -812,13 +862,15 @@ function wheel(id, x, y, z, D, Wt, C) {
  * Landing gear, mount at the top of the strut (the gear well). `contact` is where the tyre (or
  * the skid pad) meets the ground in the part's frame: the assembler lifts the craft by it.
  */
-function gearGeometry(row, C) {
+function gearGeometry(row, C, opts = {}) {
   const b = row.build;
   const S = b.strut;
   const D = b.tyre ? b.tyre[0] : 0;
   const Wt = b.tyre ? b.tyre[1] : 0;
   const sweeps = [];
   const lathes = [];
+  // made: a treaded tyre on its hub and brake disc (air-made.js)
+  const wheel = madeFor(row, opts) ? madeWheel : plainWheel;
   let axle;
   if (b.family === 'spring') {
     // a light aircraft's spring-steel leg splaying outboard to one wheel
@@ -839,6 +891,12 @@ function gearGeometry(row, C) {
       const half = (Wt + b.oleo * 3) / 2;
       lathes.push(lathe('axle', [-half, axle[1], -S], [half, axle[1], -S], [[0, b.oleo * 0.7], [1, b.oleo * 0.7]], C.chrome));
       lathes.push(...wheel('wl', -half, axle[1], -S, D, Wt, C), ...wheel('wr', half, axle[1], -S, D, Wt, C));
+    }
+    if (madeFor(row, opts)) {
+      // made: its brake line, a nose leg's taxi light
+      const ml = madeLeg({ b, axle, S, nose: /nose/.test(opts.sku || ''), C });
+      sweeps.push(...ml.sweeps);
+      lathes.push(...ml.lathes);
     }
   } else if (b.family === 'bogie') {
     // a main-gear truck: one oleo onto a beam carrying `rows` axles of two wheels
@@ -888,7 +946,7 @@ const turnPt = (p, k, a) => {
  * 90° into its well.
  */
 function buildGear(row, C, opts = {}) {
-  const g = gearGeometry(row, C);
+  const g = gearGeometry(row, C, opts);
   const how = row.build.retract === undefined ? (row.build.family === 'spring' ? false : 'forward') : row.build.retract;
   if (!how) return g;
   const [k, sign] = RETRACT[how];
@@ -912,7 +970,7 @@ function buildGear(row, C, opts = {}) {
  * the rear sill 40°; `'slide'` runs it back half its length on its rails.
  */
 function buildCanopy(row, C, opts = {}) {
-  const g = canopyGeometry(row, C);
+  const g = canopyGeometry(row, C, madeFor(row, opts));
   const b = row.build;
   if (b.family === 'roundWindow' || b.opens === false) return g;
   const L = row.dims.length;
@@ -938,7 +996,7 @@ function buildCanopy(row, C, opts = {}) {
   };
 }
 
-function canopyGeometry(row, C) {
+function canopyGeometry(row, C, made = false) {
   const { length: L, width: W, height: H } = row.dims;
   const b = row.build;
   if (b.family === 'roundWindow') {
@@ -971,6 +1029,8 @@ function canopyGeometry(row, C) {
     for (let i = 0; i <= 6; i += 1) { const th = (i / 6) * Math.PI; path.push([Math.cos(th) * a, -f * L, Math.sin(th) * h]); }
     sweeps.push(sweep(`bow_${Math.round(f * 100)}`, path, 0.025, C.trim));
   }
+  // made: its frame, its sill rails and arches (air-made.js)
+  if (made) sweeps.push(...madeCanopy({ rows, L, W, H, bows: b.bows, C }).sweeps);
   return { lofts, ...(sweeps.length ? { sweeps } : {}), hardpoints: { mount: [0, 0, 0] } };
 }
 
@@ -979,7 +1039,7 @@ function canopyGeometry(row, C) {
  * edge), a dark face inside the lip, and for `halfCone` the shock cone standing in it. `side` sits
  * outboard of the mount (a left one is its mirror); `chin` hangs below it.
  */
-function buildIntake(row, C) {
+function buildIntake(row, C, opts = {}) {
   const { length: L, width: w, height: h } = row.dims;
   const b = row.build;
   const n = b.n || 4;
@@ -991,6 +1051,11 @@ function buildIntake(row, C) {
   if (b.family === 'halfCone') {
     const r = Math.min(w, h) * 0.32;
     lathes.push(lathe('cone', [off[0] - w * 0.12, w * 0.55, off[1]], [off[0] - w * 0.12, -0.08, off[1]], [[0, 0.01], [0.75, r * 0.9], [1, r]], C.chrome));
+  }
+  if (madeFor(row, opts)) {
+    // made: its rolled lip, its duct lined dark back to a deep face, a side intake's splitter (air-made.js)
+    const mi = madeIntake({ ring, family: b.family, w, h, L, duct: lofts[0], C });
+    return { lofts: mi.lofts, extrudes: mi.extrudes, sweeps: mi.sweeps, ...(lathes.length ? { lathes } : {}), hardpoints: { mount: [0, 0, 0] } };
   }
   return { lofts, extrudes, ...(lathes.length ? { lathes } : {}), hardpoints: { mount: [0, 0, 0] } };
 }
@@ -1029,7 +1094,7 @@ function buildPylon(row, C) {
 }
 
 /** A weapon on a hardpoint: the mount is its breech; barrels point +y. */
-function buildWeapon(row, C) {
+function buildWeapon(row, C, opts = {}) {
   const b = row.build;
   const L = row.dims.length;
   const D = row.dims.diameter;
@@ -1063,6 +1128,11 @@ function buildWeapon(row, C) {
       const fin = [[0, R], [L * 0.1, R], [L * 0.04, R * 2.6], [0, R * 2.6]];
       return extrudeWorld(`fin_${i}`, [s * t, 0.02, -c * t], [-s * t, 0.02, c * t], fin.map(([y, r]) => [c * r, y, s * r]), C.trim);
     });
+    if (madeFor(row, opts)) {
+      // made: its bands, its seeker's dome, its canards (air-made.js)
+      const mm = madeMissile({ L, R, C });
+      return { lathes: [...lathes, ...mm.lathes], extrudes: [...extrudes, ...mm.extrudes], hardpoints: { mount: [0, 0, 0], muzzle: [0, round3(L), 0] } };
+    }
     return { lathes, extrudes, hardpoints: { mount: [0, 0, 0], muzzle: [0, round3(L), 0] } };
   }
   if (b.family === 'launcher') {

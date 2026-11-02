@@ -80,8 +80,9 @@ export function treadTyre(id, hub, axis, { D, W, grooves = 3 }, { rubber, metal 
   pairs.push([0.86, R * 0.97], [0.94, R * 0.86], [1, R * 0.62]);
   const lathes = [lathe(`${id}_tyre`, from, to, pairs, rubber, { samples: 24, crossSections: pairs.length })];
   // (the wheel: its hub, its bolts' boss, the brake disc inboard)
-  lathes.push(lathe(`${id}_hub`, add(hub, mul(A, -W * 0.42)), add(hub, mul(A, W * 0.45)), [[0, R * 0.6], [0.2, R * 0.58], [0.8, R * 0.58], [1, R * 0.3]], metal, { samples: 20 }));
-  lathes.push(lathe(`${id}_brake`, add(hub, mul(A, -W * 0.48)), add(hub, mul(A, -W * 0.4)), [[0, R * 0.52], [1, R * 0.52]], metal, { samples: 20 }));
+  // (standing a little proud of the tyre's faces, so the wheel shows inside the sidewall)
+  lathes.push(lathe(`${id}_hub`, add(hub, mul(A, -W * 0.54)), add(hub, mul(A, W * 0.55)), [[0, R * 0.5], [0.12, R * 0.58], [0.88, R * 0.58], [1, R * 0.3]], metal, { samples: 20 }));
+  lathes.push(lathe(`${id}_brake`, add(hub, mul(A, -W * 0.62)), add(hub, mul(A, -W * 0.55)), [[0, R * 0.5], [1, R * 0.5]], metal, { samples: 20 }));
   return { lathes };
 }
 
@@ -107,7 +108,7 @@ export function coveredLight(id, at, normal, { r = 0.045, light, glass }) {
   const N = unit(normal);
   return {
     lathes: [
-      lathe(`${id}_bulb`, add(at, mul(N, -0.005)), add(at, mul(N, r * 0.5)), [[0, r * 0.45], [1, r * 0.2]], light, { samples: 10, crossSections: 2 }),
+      lathe(`${id}_bulb`, add(at, mul(N, -0.005)), add(at, mul(N, r * 0.5)), [[0, r * 0.45], [1, r * 0.2]], light, { samples: 10, crossSections: 2, material: 'neon' }),
       lathe(`${id}_cover`, at, add(at, mul(N, r * 0.9)), [[0, r], [0.5, r * 0.9], [1, r * 0.2]], glass, { samples: 14, crossSections: 3, material: 'glass' }),
     ],
   };

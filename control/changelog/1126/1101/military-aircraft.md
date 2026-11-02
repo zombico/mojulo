@@ -100,3 +100,46 @@ exported to a valid GLB.
   - **Held** (`air-kit.test.js`): the seat, its handle, the HUD's glass, all inside the canopy and under its roof; the
     gold glass when made; none without the word or on a craft with no canopy.
   - **Seen** (machine gate only; the eyes gate is open): from the side and from over the nose.
+- **The fighter recomposed, part by part** (`craft-shelf/air-made.js`). The made finish each of the shelf's builders adds
+  under the word, drawn with the kit's parts. Earth craft only: a spacecraft's language is its own. By part kind:
+  - **The hull:**
+    - the radome's dark break ring;
+    - the angle-of-attack vanes and the IFF blades;
+    - the bands the engine's heat leaves over its end (straw, blue, brown, a tint over the paint).
+  - **The gear's wells and doors, the airframe's:**
+    - The layout hands the hull the parts set on its hardpoints. Each retracting leg's well is laid on the hull's own
+      skin: its roof in primer, ribbed, its plumbing. Its doors hang open with the leg down and lie shut with it up.
+    - A leg standing in a chin intake's duct has its well under the duct.
+    - A well lies the way its leg folds where the belly (or the duct) stays flat over it. Where it would run off the
+      nose or the duct, it lies the other way.
+  - **The canopy's frame:** its sill rails, the windscreen's bow (where the row names none), its aft frame, moving with
+    it as it opens.
+  - **The intake:**
+    - a polished rolled lip;
+    - its duct opened and lined dark back to a deep face, so the mouth reads deep;
+    - a side intake's splitter plate on its struts.
+  - **The afterburning engine:** the petal nozzle (its petals, rods, flameholder and spray bars) in place of the turned
+    one, the engine's face dark behind it.
+  - **The gear:** treaded tyres on hubs that show inside the sidewall, the brake disc, a brake line down each leg, the
+    nose leg's taxi light.
+  - **The wings and the tail:**
+    - each control surface's hinge gap on both faces;
+    - actuator fairings under a wing's surfaces;
+    - the leading-edge flap's line;
+    - the nav light in its clear cover;
+    - a fin's cap and its beacon.
+  - **A missile:** its warhead's and motor's bands, its seeker's dome, its canards.
+  - **Fittings, not skin.** Every made piece carries its monomer's group to its faces (`fitting`), so the skin's panel
+    lines, its fasteners and a livery pass it by.
+  - **Budget:** the made fighter about 43k triangles, within the plan's 80k.
+  - **Held** (`air-made.test.js`):
+    - each part kind's pieces on the fighter;
+    - the wells on the hull, not the swinging leg;
+    - the doors open down and shut up;
+    - the nose well under the chin duct;
+    - a spacecraft's parts and the fighter without the word carrying none of it;
+    - a folding-wing fighter made, within budget, the same twice.
+
+    `air-kit.test.js` holds a seam to the made hull's own skin of its slot.
+  - **Seen** (machine gate only; the eyes gate is open): the fighter close up before and after (the nose, the intake,
+    the canopy, the wing, the tail, the gear and their wells from below), and the other military rows made.

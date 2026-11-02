@@ -172,8 +172,12 @@ function placeLayout(row, { palette, colors, swap, fold, pose, finish, made }) {
   const warnings = [];
   for (const entry of row.layout) {
     const sku = swap[entry.id] || entry.sku;
-    // (made: a hull is handed the canopy the layout sets on it, to fit its cockpit under)
-    const madeOf = made ? { canopy: row.layout.map((e) => CRAFT_ODM[swap[e.id] || e.sku]).find((r) => r?.kind === 'craft-canopy') ?? null } : false;
+    // (made: a hull is handed the canopy the layout sets on it, to fit its cockpit under, and the parts set on its own
+    // hardpoints, to lay their wells and doors on its skin)
+    const madeOf = made ? {
+      canopy: row.layout.map((e) => CRAFT_ODM[swap[e.id] || e.sku]).find((r) => r?.kind === 'craft-canopy') ?? null,
+      mounts: row.layout.filter((e) => e.at?.split('.')[0] === entry.id).map((e) => ({ point: e.at.split('.')[1], row: CRAFT_ODM[swap[e.id] || e.sku] ?? null, pair: Boolean(e.pair) })),
+    } : false;
     const make = (side) => resolveCraftPart(sku, { palette, colors, seat: 'mount', fold, pose, side, finish, made: madeOf });
     const recipe = make(entry.pair ? 'r' : null);
     let target = [0, 0, 0];

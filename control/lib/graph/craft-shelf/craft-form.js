@@ -120,16 +120,17 @@ export function craftForm(archetype, { palette, colors, pose = { gear: 1 }, atti
       const material = slotOf(f.fill, f.pbr, P);
       // (made: a canopy's own glass the smoky gold of its coating, not the palette's tint)
       const albedo = made && id === 'canopy' && material === 'canopy' ? CANOPY_GOLD : String(f.fill).toLowerCase();
-      return { corners: woundTo(c, f.outNormal), part: id, material, albedo, outNormal: f.outNormal };
+      return { corners: woundTo(c, f.outNormal), part: id, material, albedo, outNormal: f.outNormal, ...(f.group ? { fitting: f.group } : {}) };
     });
     if (!own.length) return;
     let fs = smoothForm(own, { crease: 35 });
     if (!fs.length) return;
     // (made: its skin's panel lines cut in, its access panels' fasteners set on it: air-kit.js)
     if (made) {
-      const kind = CRAFT_ODM[skuOf.get(id)]?.kind, F = itemFrame(fs, PANEL_KINDS[kind]);
+      // (on its skin only: a fitting, the made pieces on it, is passed by)
+      const skin = fs.filter((f) => !f.fitting), kind = CRAFT_ODM[skuOf.get(id)]?.kind, F = itemFrame(skin, PANEL_KINDS[kind]);
       const access = kind === 'craft-fuselage' && F ? accessOf(F) : [];
-      fs = [...skinPanels(fs, F, { access }), ...fastenersOn(fs, F, access)];
+      fs = [...skinPanels(skin, F, { access }), ...fastenersOn(skin, F, access), ...fs.filter((f) => f.fitting)];
     }
     const lo = [Infinity, Infinity, Infinity], hi = [-Infinity, -Infinity, -Infinity];
     for (const f of fs) for (const c of f.corners) for (let k = 0; k < 3; k++) { if (c[k] < lo[k]) lo[k] = c[k]; if (c[k] > hi[k]) hi[k] = c[k]; }

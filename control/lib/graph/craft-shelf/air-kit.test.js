@@ -18,25 +18,29 @@ const newell = (c) => { const n = [0, 0, 0]; for (let i = 0; i < c.length; i++) 
 const lum = (h) => [1, 3, 5].reduce((s, i) => s + parseInt(h.slice(i, i + 2), 16), 0);
 
 describe('the skin\'s panel lines', () => {
+  // (a seam: the colour of the skin's paint under it darkened, on a face that is not a fitting; the made pieces on the
+  // skin, a door, a blade, a fairing, are fittings and carry none)
+  const darkOf = (h) => '#' + [1, 3, 5].map((i) => Math.round(parseInt(h.slice(i, i + 2), 16) * 0.68).toString(16).padStart(2, '0')).join('');
+  const seamsOf = (fs) => { const dark = new Set(fs.filter((f) => !f.fitting && f.material === 'airPaint').map((f) => darkOf(f.albedo))); return fs.filter((f) => !f.fitting && dark.has(f.albedo)); };
   it('laid on the hull and the wings: more faces than the plain skin, each a seam darker than the paint under it, in its slot', () => {
     for (const id of ['hull', 'wing-r', 'fin']) {
       const p = itemOf(plain, id).faces, m = itemOf(made, id).faces;
-      expect(m.length, id).toBeGreaterThan(p.length + 20);
-      const paints = new Set(p.map((f) => f.albedo)), seams = m.filter((f) => !paints.has(f.albedo) && ['airPaint', 'airTrim'].includes(f.material));
+      expect(m.filter((f) => !f.fitting).length, id).toBeGreaterThan(p.length + 20);
+      const seams = seamsOf(m);
       expect(seams.length, id).toBeGreaterThan(20);
-      for (const f of seams.slice(0, 50)) expect(lum(f.albedo)).toBeLessThan(Math.max(...[...paints].map(lum)));
+      for (const f of seams) expect(['airPaint', 'airTrim'], id).toContain(f.material);
+      // (none on a fitting: every fitting keeps its own colour)
+      expect(m.filter((f) => f.fitting).some((f) => seams.includes(f)), id).toBe(false);
     }
   });
   it('a seam lies on the skin: within a few millimetres of the plane of the skin face nearest it', () => {
-    const hull = itemOf(plain, 'hull').faces, cen = (f) => [0, 1, 2].map((k) => f.corners.reduce((s, q) => s + q[k], 0) / f.corners.length);
-    const skin = hull.map((f) => ({ c: cen(f), p: f.corners[0], n: f.outNormal }));
-    // (the ribbons: the paint's own colour darkened, not the cockpit's pieces nor the fasteners)
-    const dark = new Set(hull.filter((f) => f.material === 'airPaint').map((f) => '#' + [1, 3, 5].map((i) => Math.round(parseInt(f.albedo.slice(i, i + 2), 16) * 0.68).toString(16).padStart(2, '0')).join('')));
-    const seams = itemOf(made, 'hull').faces.slice(hull.length).filter((f) => f.part === 'hull' && dark.has(f.albedo));
+    const cen = (f) => [0, 1, 2].map((k) => f.corners.reduce((s, q) => s + q[k], 0) / f.corners.length);
+    const all = itemOf(made, 'hull').faces, seams = seamsOf(all), set = new Set(seams);
+    const skin = all.filter((f) => !f.fitting && !set.has(f) && f.part === 'hull').map((f) => ({ c: cen(f), p: f.corners[0], n: f.outNormal, m: f.material }));
     expect(seams.length).toBeGreaterThan(50);
     for (const f of seams.filter((_, i) => i % 7 === 0).slice(0, 120)) {
-      // (the nearest of the planes of the six skin faces nearest it: on a curved hull its own face is among them)
-      const c = cen(f), near = skin.map((g) => ({ g, e: Math.hypot(g.c[0] - c[0], g.c[1] - c[1], g.c[2] - c[2]) })).sort((a, b) => a.e - b.e).slice(0, 6);
+      // (the nearest of the planes of the six skin faces of its slot nearest it: on a curved hull its own face is among them)
+      const c = cen(f), near = skin.filter((g) => g.m === f.material).map((g) => ({ g, e: Math.hypot(g.c[0] - c[0], g.c[1] - c[1], g.c[2] - c[2]) })).sort((a, b) => a.e - b.e).slice(0, 6);
       const d = Math.min(...near.map(({ g }) => Math.abs((c[0] - g.p[0]) * g.n[0] + (c[1] - g.p[1]) * g.n[1] + (c[2] - g.p[2]) * g.n[2])));
       expect(d).toBeLessThan(0.004);
     }
@@ -51,7 +55,8 @@ describe('the skin\'s panel lines', () => {
     }
   });
   it('within its budget, the same twice', () => {
-    expect(tris(made)).toBeLessThan(40000);
+    // (the plan's budget for a fighter made: its skin, its cockpit and its parts' made finish)
+    expect(tris(made)).toBeLessThan(80000);
     expect(JSON.stringify(craftForm(JET, { made: true }))).toBe(JSON.stringify(made));
   });
 });
