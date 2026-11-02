@@ -7,6 +7,7 @@ import { readParked, parkIn, withParked, paintOfDress, readBuildingParked, parka
 import { VEHICLES, rowOfHandle } from './roster.js';
 import { VEHICLES as PHYSICS } from '../roads/vehicles.js';
 import { MILITARY_CLASSES } from '../car-designer/road-military.js';
+import { UNBUILT } from '../car-designer/sheet.js';
 import { CAMO } from '../car-designer/livery-cut.js';
 import { GRUNT_STYLES } from '../cosmos/packs/comic-hero/grunts.js';
 import { readGameworld, MEADOWMARK } from '../gameworld/index.js';
@@ -15,7 +16,8 @@ import { resolveWorldScene } from '../worlds/world-scene.js';
 import { FOE_CLASSES } from '../foes/index.js';
 import { MOVES } from '../foes/vocab.js';
 
-const FIELD = Object.keys(MILITARY_CLASSES).map((k) => rowOfHandle('physics', k));
+// (the field's bodies the sheet builds: one still waiting for its parts cannot park)
+const FIELD = Object.keys(MILITARY_CLASSES).filter((k) => !UNBUILT[k]).map((k) => rowOfHandle('physics', k));
 const ROAD = rowOfHandle('physics', 'pickup');
 const room = { x: 10, y: 0, w: 24, d: 30, z: 0 };
 

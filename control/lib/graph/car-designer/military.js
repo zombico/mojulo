@@ -27,7 +27,7 @@ import { smoothForm, bakeForm } from './road-form.js';
 import { wheelWell } from './road-wheel.js';
 import { milWheel } from './mil-wheel.js';
 import { formLight, skyMood } from './form-light.js';
-import { militaryBody, militaryAxles, MILITARY_CLASSES, MIL_MATERIALS } from './road-military.js';
+import { militaryBody, militaryAxles, trackedGear, sizeOf, MILITARY_CLASSES, MIL_MATERIALS } from './road-military.js';
 import { liveryBase } from './livery-cut.js';
 import { readWear, soilFor, weather, weatherWheel, wetMaterials, wetFaces, groundOf } from './mil-wear.js';
 import { realisticCensus, most } from './realistic.js';
@@ -40,20 +40,25 @@ export function compileMilitary(sheet, { keys = 12, form = false, livery, wear, 
   const cls = sheet.facets.class, v = VEHICLES[cls];
   if (!MILITARY_CLASSES[cls]) throw new Error(`car-designer: compileMilitary reads a military class (${Object.keys(MILITARY_CLASSES).join(', ')}), not ${cls}`);
   const spec = { kind: MILITARY_CLASSES[cls], L: v.L, W: v.W, H: v.H, wb: v.wheelbase, track: v.track, r: v.wheelRadius, tyreW: tyreWidth(v.wheelRadius), lift: 0 };
-  const axles = militaryAxles(cls);
-  // the wheels: each axle's pair, the front pair first; left (−x) and right
-  const wheels = axles.flatMap((y, axle) => [1, -1].map((side) => ({ axle, side, hub: [-side * spec.track / 2, y, spec.r] })));
-  const name = (w) => { const lr = w.side > 0 ? 'L' : 'R'; return w.axle === 0 ? `wheelF${lr}` : w.axle === 1 ? `wheelR${lr}` : `wheel${w.axle + 1}${lr}`; };
-  const { hull, fittings, zones, livery: L } = militaryBody(cls, { seed: sheet.seed, r: spec.r, tyreW: spec.tyreW, livery });
-  const wells = smoothForm(wheels.flatMap((w) => wheelWell({ hub: w.hub, r: spec.r, width: spec.tyreW })));
+  const tracked = v.running === 'track';
+  const { hull, fittings, zones, livery: L, spinners } = militaryBody(cls, { seed: sheet.seed, r: spec.r, tyreW: spec.tyreW, livery });
+  // the wheels: each axle's pair, the front pair first, left (−x) and right; or a tracked body's spinners (its road
+  // wheels first, the sprocket, the idler and the rollers), each its own bone
+  const axles = tracked ? trackedGear(cls).wheels.map((w) => w.y) : militaryAxles(cls);
+  const wheels = tracked
+    ? [...spinners].sort((a, b) => (a.kind === 'road') === (b.kind === 'road') ? 0 : a.kind === 'road' ? -1 : 1).map((sp) => ({ id: sp.id, side: -sp.side, hub: sp.hub, faces: sp.faces }))
+    : axles.flatMap((y, axle) => [1, -1].map((side) => ({ axle, side, hub: [-side * spec.track / 2, y, spec.r] })));
+  const name = (w) => { if (w.id) return w.id; const lr = w.side > 0 ? 'L' : 'R'; return w.axle === 0 ? `wheelF${lr}` : w.axle === 1 ? `wheelR${lr}` : `wheel${w.axle + 1}${lr}`; };
+  // (a track runs under no arch: its fenders are its body's)
+  const wells = tracked ? [] : smoothForm(wheels.flatMap((w) => wheelWell({ hub: w.hub, r: spec.r, width: spec.tyreW })));
   // its wear (mil-wear.js): the operator's word, else the sheet's when a brief asked one, else a working vehicle's; its
   // soil the setting's, read from the livery's camo
   const W = readWear(wear ?? (sheet.given?.includes('wear') ? sheet.facets.wear : 'used')), soil = soilFor(L);
   // (in the rain, its setting's: the porous slots soaked darker, every slot glossier: mil-wear.js)
   const wet = !!setting?.wet, soak = (fs) => (wet ? wetFaces(fs) : fs);
-  const body = soak(weather([...hull, ...wells, ...fittings], W, { hubs: wheels.map((w) => w.hub), r: spec.r, zones, seed: sheet.seed, soil, scale: spec.r / 0.41 }));
-  // (the rims in the livery's base: a camo's first colour, a mono's own)
-  const wheelForm = wheels.map((w) => soak(weatherWheel(milWheel({ hub: w.hub, r: spec.r, width: spec.tyreW, ...(L ? { paint: liveryBase(L) } : {}) }), W, { soil })));
+  const body = soak(weather([...hull, ...wells, ...fittings], W, { hubs: wheels.map((w) => w.hub), r: spec.r, zones, seed: sheet.seed, soil, scale: sizeOf(cls) }));
+  // (the rims in the livery's base: a camo's first colour, a mono's own; a tracked body's spinners its own)
+  const wheelForm = wheels.map((w) => soak(weatherWheel(w.faces ?? milWheel({ hub: w.hub, r: spec.r, width: spec.tyreW, ...(L ? { paint: liveryBase(L) } : {}) }), W, { soil })));
   // centred on its footprint (the body is built centred; the census holds it)
   const bones = [{ id: 'root', head: [0, 0, 0] }, ...wheels.map((w) => ({ id: name(w), head: w.hub.map(r4) }))];
   const formOf = new Map([['root', body], ...wheels.map((w, k) => [name(w), wheelForm[k]])]);
@@ -66,8 +71,8 @@ export function compileMilitary(sheet, { keys = 12, form = false, livery, wear, 
     ...(form ? { form: formLight(skyMood(setting?.sky), wet ? wetMaterials(MIL_MATERIALS) : MIL_MATERIALS, { ground: groundOf(soil) }) } : {}),
     figH: r4(most(body.flatMap((f) => f.corners.map((c) => c[2])))),
     // (as its sheet quotes it: a 4x4's axle to axle, a truck's front axle to its tandem's middle, a carrier's first axle
-    // to its last)
-    wheelbase: r4(axles.length > 3 ? axles[0] - axles[axles.length - 1] : axles[0] - axles.slice(1).reduce((t, y) => t + y, 0) / (axles.length - 1)),
+    // to its last, a tracked body's first road wheel to its last: its track on the ground)
+    wheelbase: r4(tracked || axles.length > 3 ? axles[0] - axles[axles.length - 1] : axles[0] - axles.slice(1).reduce((t, y) => t + y, 0) / (axles.length - 1)),
     wheelRadius: r4(spec.r),
     warnings: [],
   };

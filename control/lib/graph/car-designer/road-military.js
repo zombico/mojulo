@@ -53,10 +53,15 @@ import { VEHICLES } from '../roads/vehicles.js';
 import { ROAD_MATERIALS, smoothForm } from './road-form.js';
 import { plate, tube, bend, bolts, weld, flatNormals, face, slab, place } from './mil-hull.js';
 import { fit } from './mil-fittings.js';
+import { runningGear, linkFaces, TRACK_DEPTH } from './mil-track.js';
 import { readLivery, paintLivery, stencilMarks, liveryBase } from './livery-cut.js';
 import { mulberry32 } from '../vegetation/grow.js';
 
-export const MILITARY_CLASSES = Object.freeze({ utility4x4: 'utility', cargo6x6: 'cargo', apc8x8: 'carrier' });
+export const MILITARY_CLASSES = Object.freeze({ utility4x4: 'utility', cargo6x6: 'cargo', apc8x8: 'carrier', lightTank: 'lightTank' });
+
+/** A field vehicle's size for its surface: its camo's blotches and its mud's heights by it (a wheel's radius over a
+ *  4x4's; a tracked class by its wheeled peer's, its road wheels being small). */
+export const sizeOf = (cls) => (VEHICLES[cls].running === 'track' ? 0.6 : VEHICLES[cls].wheelRadius) / 0.41;
 
 export const MIL_MATERIALS = Object.freeze({
   ...ROAD_MATERIALS,
@@ -599,6 +604,141 @@ function carrier(cls) {
   return { faces: out.filter(Boolean), anchors, zones: { floor: zS - 0.05 } };
 }
 
+// ── the light tank: its hull on its running gear (its turret its own, a bone) ─────────────────────────────────────
+/** A tracked class's running gear stations (mil-track.js): its road wheels over the track's length on the ground, the
+ *  sprocket aft and the idler forward inside the hull, the return rollers between. */
+export function trackedGear(cls) {
+  const v = VEHICLES[cls], r = v.wheelRadius, n = 5, half = v.wheelbase / 2, yN = v.L / 2, yT = -v.L / 2;
+  return {
+    x: v.track / 2, width: 0.42, hullX: 0.86,
+    sprocket: { y: yT + 0.5, z: 0.62, r: 0.3 }, idler: { y: yN - 0.5, z: 0.5, r: 0.27 },
+    wheels: Array.from({ length: n }, (_, k) => ({ y: half - (2 * half * k) / (n - 1), r })),
+    rollers: [half * 0.75, 0, -half * 0.75].map((y) => ({ y, z: 2 * r + TRACK_DEPTH + 0.09, r: 0.08 })),
+  };
+}
+
+function lightTank(cls, { seed = 1 } = {}) {
+  const v = VEHICLES[cls], hw = v.W / 2, gear = trackedGear(cls), rnd = mulberry32((seed * 7919 + 101) >>> 0);
+  const yN = v.L / 2, yT = -v.L / 2, out = [];
+  const P = (o) => out.push(...plate(o));
+  // the hull's numbers: its belly, the fenders over the tracks, the roof; the superstructure's side at its foot and at
+  // its roof; the glacis from the nose up to the roof; the rear plate
+  const zB = 0.42, zF = 1.0, zR = 1.55, xL = gear.hullX, x0 = 1.1, x1 = 1.04, yG = 1.75, zN = 1.06, yR = yT + 0.18;
+  const glacisZ = (y) => zR - ((zR - zN) * (y - yG)) / (yN - 0.05 - yG);
+  const armour = (name, hide) => (t) => {
+    if (hide && hide(t)) return null;
+    // (a tank's glacis is shallow: it faces forward before it faces up)
+    const n = t.n, part = n[2] < -0.5 ? 'hull.belly' : n[1] > 0.3 && n[2] > 0.3 ? 'hull.glacis' : n[2] > 0.9 ? `${name}.roof` : n[1] < -0.9 ? 'hull.rear' : name;
+    return paint(part);
+  };
+  const weldOn = (a, b, n) => out.push(...weld(a, b, n, { look: M('weld', 'weld', C.olive) }));
+  // ── the lower hull between the tracks: a flat belly, the lower glacis raked back to the nose
+  out.push(...slab({
+    front: [[-xL, zB], [xL, zB], [xL, zF], [-xL, zF]],
+    side: [[yR, zF], [yR, 0.62], [yR + 0.3, zB], [yN - 0.8, zB], [yN - 0.05, zF - 0.04], [yN - 0.05, zF]],
+    chamfer: 0.025, look: armour('hull.lower', (t) => t.view === 'front' && t.n[2] > 0.99),
+  }));
+  // ── the superstructure over it: its sides raked in a little, the long shallow glacis, the rear plate raked
+  out.push(...slab({
+    front: [[-x0, zF], [x0, zF], [x1, zR], [-x1, zR]],
+    side: [[yR, zF], [yR + 0.07, zR - 0.1], [yR + 0.2, zR], [yG, zR], [yN - 0.05, zN], [yN - 0.05, zF]],
+    plan: [[-x0, yR], [x0, yR], [x0, yN - 0.4], [x0 - 0.2, yN - 0.05], [-x0 + 0.2, yN - 0.05], [-x0, yN - 0.4]],
+    chamfer: 0.03, look: armour('hull.upper', (t) => t.view === 'front' && t.n[2] < -0.99),
+  }));
+  weldOn([-x1 + 0.05, yG, zR + 0.002], [x1 - 0.05, yG, zR + 0.002], [0, 0.3, 1]);
+  weldOn([-x0 + 0.21, yN - 0.05, zF + 0.01], [x0 - 0.21, yN - 0.05, zF + 0.01], [0, 1, 0.2]);
+  // ── the fenders over the tracks, their fronts bent down; the skirts hung from their edges (most carry them)
+  const skirted = rnd() < 0.6;
+  for (const s of [-1, 1]) {
+    const [a, b] = xs(s, x0 - 0.02, hw - 0.012);
+    P({ axis: 'y', profile: rect(a, b, zF - 0.015, zF + 0.005), from: yT + 0.1, to: yN - 0.3, r: 0.005, seg: 1, look: paint('fender') });
+    P({ axis: 'x', profile: [[yN - 0.3, zF - 0.015], [yN, zF - 0.14], [yN, zF - 0.12], [yN - 0.3, zF + 0.005]], from: a, to: b, r: 0.004, seg: 1, look: paint('fender') });
+    out.push(...bolts([yT + 0.4, -1.6, 0, 1.6, yN - 0.5].map((y) => [s * (hw - 0.03), y, zF + 0.005]), [0, 0, 1], { r: 0.011, h: 0.007, look: paint('bolt') }));
+    if (skirted) {
+      const segs = 4, y0 = yT + 0.35, y1 = yN - 0.45, step = (y1 - y0) / segs, [c, d] = xs(s, hw - 0.012, hw);
+      for (let k = 0; k < segs; k++) {
+        const ya = y0 + k * step + 0.012, yb = y0 + (k + 1) * step - 0.012;
+        P({ axis: 'x', profile: [[ya, 0.6], [yb, 0.6], [yb, zF - 0.01], [ya, zF - 0.01]], from: c, to: d, r: 0.006, seg: 1, look: paint('skirt') });
+        out.push(...bolts([ya + 0.08, (ya + yb) / 2, yb - 0.08].map((y) => [s * hw, y, zF - 0.05]), [s, 0, 0], { r: 0.012, h: 0.008, look: paint('bolt') }));
+      }
+    }
+    // the bins along the fender, their lids lipped and latched
+    for (const [ya, yb] of [[-2.0, -0.5], [-0.3, 1.0]]) {
+      const [e, f] = xs(s, x0 + 0.03, hw - 0.03);
+      P({ axis: 'y', profile: rect(e, f, zF + 0.005, 1.31), from: ya, to: yb, r: 0.012, seg: 1, look: paint('bin') });
+      P({ axis: 'y', profile: rect(e - 0.01, f + 0.01, 1.3, 1.335), from: ya - 0.01, to: yb + 0.01, r: 0.01, seg: 1, look: paint('bin.lid') });
+      for (const y of [ya + (yb - ya) * 0.25, ya + (yb - ya) * 0.75]) P({ axis: 'x', profile: rect(y - 0.03, y + 0.03, 1.2, 1.32), from: s * (hw - 0.03), to: s * (hw - 0.02), r: 0.003, seg: 1, look: M('bin.latch', 'steel', C.steel) });
+    }
+  }
+  // ── the turret's ring, bolted: the turret stands on it (its own bone)
+  const ring = (cx, cy, rr, k) => Array.from({ length: k }, (_, i) => [cx + rr * Math.cos((2 * Math.PI * i) / k), cy + rr * Math.sin((2 * Math.PI * i) / k)]);
+  const yM = 0.05;
+  P({ axis: 'z', profile: ring(0, yM, 0.98, 32), from: zR - 0.01, to: zR + 0.05, r: 0.015, seg: 1, look: paint('turret.ring') });
+  out.push(...bolts(ring(0, yM, 0.93, 24).map(([x, y]) => [x, y, zR + 0.05]), [0, 0, 1], { r: 0.012, h: 0.008, look: paint('bolt') }));
+  // ── the driver's hatch forward on the left, its blocks looking over the glacis
+  const [dx, dy] = [-0.55, 1.33];
+  P({ axis: 'z', profile: ring(dx, dy, 0.27, 16), from: zR - 0.01, to: zR + 0.04, r: 0.012, seg: 1, look: paint('hatch.driver') });
+  P({ axis: 'x', profile: rect(dy - 0.33, dy - 0.24, zR, zR + 0.07), from: dx - 0.12, to: dx + 0.12, r: 0.01, seg: 1, look: paint('hatch.hinge') });
+  for (const x of [dx - 0.2, dx, dx + 0.2]) {
+    P({ axis: 'z', profile: rect(x - 0.07, x + 0.07, yG - 0.15, yG - 0.04), from: zR - 0.01, to: zR + 0.08, r: 0.008, seg: 1, look: M('vision.frame', 'carbon', C.black) });
+    out.push(face([[x - 0.055, yG - 0.038, zR + 0.015], [x + 0.055, yG - 0.038, zR + 0.015], [x + 0.055, yG - 0.038, zR + 0.065], [x - 0.055, yG - 0.038, zR + 0.065]], M('vision', 'vision', C.vision), [0, 1, 0]));
+  }
+  // ── the engine deck aft: two grilles in their frames, an access plate bolted, the lifting eyes
+  for (const s of [-1, 1]) {
+    const [a, b] = xs(s, 0.06, 0.92), [ya, yb] = [yT + 0.35, -1.15];
+    P({ axis: 'z', profile: rect(a, b, ya, yb), from: zR - 0.01, to: zR + 0.02, r: 0.01, seg: 1, look: paint('engine.deck') });
+    for (let y = ya + 0.08; y < yb - 0.04; y += 0.1) P({ axis: 'x', profile: rect(y - 0.03, y + 0.03, zR + 0.02, zR + 0.033), from: a + 0.05, to: b - 0.05, r: 0.004, seg: 1, look: M('engine.grille', 'carbon', C.black) });
+    out.push(...tube(bend([[s * 0.98, yT + 0.4, zR], [s * 0.98, yT + 0.4, zR + 0.07], [s * 0.98, yT + 0.55, zR + 0.07], [s * 0.98, yT + 0.55, zR]], 0.02, 2), 0.014, { sides: 6, look: paint('lifting.eye') }));
+  }
+  P({ axis: 'z', profile: rect(-0.6, 0.6, -1.08, -0.98), from: zR - 0.01, to: zR + 0.012, r: 0.006, seg: 1, look: paint('access.plate') });
+  // ── the glacis: spare track links bolted across it, the lamps on their stems in guards, the blackout markers
+  const gn = (() => { const d = Math.hypot(zR - zN, yN - 0.05 - yG); return [0, (zR - zN) / d, (yN - 0.05 - yG) / d]; })(), gu = [0, -gn[2], gn[1]];
+  const onGlacis = (fs, y, x = 0) => place(fs, { origin: [x, y, glacisZ(y)], ex: [1, 0, 0], ey: gn, ez: gu });
+  const spare = [];
+  for (let k = 0; k < 5; k++) spare.push(...place(linkFaces(0.42, 0.15), { origin: [-0.32 + k * 0.16, 0, 0], ex: [0, -1, 0], ey: [1, 0, 0], ez: [0, 0, 1] }).map((f) => ({ ...f, part: f.part.replace('track.', 'spare.') })));
+  spare.push(...plate({ axis: 'x', profile: rect(-0.24, -0.2, 0, 0.07), from: -0.42, to: 0.42, r: 0.006, seg: 1, look: paint('spare.rack') }));
+  // (the links lie on the glacis, their grousers out: the frame's y up the glacis is the link's across)
+  out.push(...onGlacis(place(spare, { origin: [0, 0, 0.075], ex: [1, 0, 0], ey: [0, 0, -1], ez: [0, 1, 0] }), 2.55));
+  for (const s of [-1, 1]) {
+    const x = s * 0.88, y = yN - 0.32, z = glacisZ(y) + 0.13;
+    out.push(...tube([[x, y - 0.1, z], [x, y + 0.04, z]], 0.08, { sides: 16, look: (role) => (role === 'cap' ? M('headlamp', 'lamp', C.lamp) : paint('headlamp.bucket')) }));
+    out.push(...tube([[x, y - 0.04, glacisZ(y - 0.04) - 0.01], [x, y - 0.04, z - 0.065]], 0.02, { sides: 8, look: paint('headlamp.stem') }));
+    for (const ddx of [-0.05, 0, 0.05]) out.push(...tube(bend([[x + ddx, y + 0.02, z - 0.095], [x + ddx, y + 0.1, z - 0.09], [x + ddx, y + 0.1, z + 0.09], [x + ddx, y + 0.02, z + 0.095]], 0.025, 3), 0.007, { sides: 6, look: paint('headlamp.guard') }));
+    out.push(...onGlacis(plate({ axis: 'y', profile: rect(-0.04, 0.04, -0.022, 0.022), from: 0, to: 0.02, r: 0.004, seg: 1, look: (role) => (role === 'cap' ? M('marker', 'marker', C.amber) : M('marker.bezel', 'carbon', C.black)) }), yN - 0.25, s * 0.62));
+  }
+  // ── the rear: the exhausts' sooted boxes, the tail lamps in their guards
+  const yRp = (z) => yR + (0.07 * (z - zF)) / (zR - 0.1 - zF);
+  for (const s of [-1, 1]) {
+    const x = s * 0.45, z0 = 1.12, z1 = 1.4;
+    P({ axis: 'z', profile: rect(x - 0.17, x + 0.17, yRp(z0) - 0.17, yRp(z0) + 0.01), from: z0, to: z1, r: 0.012, seg: 1, look: M('exhaust', 'carbon', C.soot) });
+    for (let z = z0 + 0.04; z < z1 - 0.02; z += 0.045) P({ axis: 'z', profile: rect(x - 0.14, x + 0.14, yRp(z0) - 0.172, yRp(z0) - 0.168), from: z, to: z + 0.018, look: M('exhaust.slot', 'carbon', '#0e0e0d') });
+    const xl = s * 0.88, zl = 1.2, yl = yRp(zl);
+    P({ axis: 'y', profile: rect(xl - 0.06, xl + 0.06, zl - 0.04, zl + 0.04), from: yl - 0.016, to: yl + 0.01, r: 0.005, seg: 1, look: (role) => (role === 'cap' ? M('taillamp', 'tail', C.tail) : M('taillamp.bezel', 'carbon', C.black)) });
+    out.push(...tube(bend([[xl - 0.09, yl, zl], [xl - 0.09, yl - 0.07, zl], [xl + 0.09, yl - 0.07, zl], [xl + 0.09, yl, zl]], 0.03, 2), 0.007, { sides: 6, look: paint('taillamp.guard') }));
+  }
+  // ── the anchors
+  const X = [1, 0, 0], Y = [0, 1, 0], Z = [0, 0, 1], neg = (a) => a.map((q) => -q);
+  const xSide = (z) => x0 - ((x0 - x1) * (z - zF)) / (zR - zF);
+  const anchors = [
+    ...[-1, 1].flatMap((s) => {
+      const L = s < 0 ? 'L' : 'R', side = s < 0 ? neg(X) : X;
+      return [
+        { id: `cans.${L}`, kind: 'flank', at: [s * xSide(zF), yT + 0.62, zF + 0.005], out: side, up: Z },
+        { id: `tools.${L}`, kind: 'flank', at: [s * xSide(1.25), 1.75, 1.25], out: side, up: Z },
+        { id: `grab.${L}`, kind: 'flank', at: [s * xSide(1.45), -0.75, 1.45], out: side, up: Z },
+        { id: `antenna.${L}`, kind: 'panel', at: [s * 0.88, yRp(1.36), 1.36], out: neg(Y), up: Z },
+        { id: `bumper.F${L}`, kind: 'bumper', at: [s * 0.55, yN - 0.12, 0.84], out: Y, up: Z },
+        { id: `bumper.R${L}`, kind: 'bumper', at: [s * 0.62, yR, 0.8], out: neg(Y), up: Z },
+        { id: `mark.${L}`, kind: 'mark', role: 'number', at: [s * (xSide(1.43) + 0.003), 0.35, 1.43], out: side, up: Z, h: 0.1 },
+      ];
+    }),
+    { id: 'bumper.RC', kind: 'bumper', at: [0, yR, 0.7], out: neg(Y), up: Z },
+    { id: 'mark.rear', kind: 'mark', role: 'number', at: [0, yRp(1.22) - 0.003, 1.22], out: neg(Y), up: Z, h: 0.11 },
+    { id: 'mark.glacis', kind: 'mark', role: 'emblem', at: [0, 2.15, glacisZ(2.15) + 0.003], out: gn, up: gu, h: 0.12 },
+  ];
+  return { faces: out.filter(Boolean), anchors, zones: { floor: zF - 0.05 }, gear };
+}
+
 /** What each class carries, anchor by anchor (mil-fittings.js cards); `maybe` a share of the vehicles that carry it,
  *  rolled from the seed, and `opts` the card's own words. */
 export const KITS = Object.freeze({
@@ -615,6 +755,11 @@ export const KITS = Object.freeze({
     ['flap.FL', 'mudFlap', { drop: 0.7 }], ['flap.FR', 'mudFlap', { drop: 0.7 }], ['flap.RL', 'mudFlap', { drop: 0.75 }], ['flap.RR', 'mudFlap', { drop: 0.75 }],
     ['bumper.FL', 'shackle'], ['bumper.FR', 'shackle'], ['bumper.RC', 'pintle'], ['post.L', 'mirror'], ['post.R', 'mirror'],
   ]),
+  lightTank: Object.freeze([
+    ['cans.L', 'jerryCans', { count: 2 }], ['tools.R', 'pioneerTools'], ['antenna.L', 'antenna', { lean: 1 }], ['antenna.R', 'antenna', { lean: -1 }],
+    ['grab.L', 'grabHandle', { width: 0.36 }], ['grab.R', 'grabHandle', { width: 0.36 }],
+    ['bumper.FL', 'shackle'], ['bumper.FR', 'shackle'], ['bumper.RL', 'shackle'], ['bumper.RR', 'shackle'], ['bumper.RC', 'pintle'],
+  ]),
   carrier: Object.freeze([
     ['rear.L', 'jerryCans'], ['rear.R', 'jerryCans'], ['slope.R', 'pioneerTools'],
     ['antenna.L', 'antenna', { lean: 1 }], ['antenna.R', 'antenna', { lean: -1 }], ['grab.L', 'grabHandle', { width: 0.4 }], ['grab.R', 'grabHandle', { width: 0.4 }],
@@ -625,7 +770,7 @@ export const KITS = Object.freeze({
 });
 const CAN_TONES = Object.freeze(['#4f5726', '#4f5726', '#8a7a55']);
 // the bodies built here, by their kind
-const BODIES = Object.freeze({ utility, cargo, carrier });
+const BODIES = Object.freeze({ utility, cargo, carrier, lightTank });
 
 /** A military class's body (its hull, every face with its corner normals: a plate's own, worked out; a fitting's flat)
  *  and its fittings, its kit's cards on its anchors, rolled from the seed; its livery (livery-cut.js) cut into the paint
@@ -634,7 +779,12 @@ export function militaryBody(cls, { seed = 1, r, tyreW, livery } = {}) {
   const kind = MILITARY_CLASSES[cls];
   if (!BODIES[kind]) throw new Error(`car-designer: '${cls}' is not a military class built yet (${Object.keys(MILITARY_CLASSES).join(', ')})`);
   const L = readLivery(livery);
-  const { faces, anchors, zones } = BODIES[kind](cls), byId = new Map(anchors.map((a) => [a.id, a]));
+  const { faces: own, anchors, zones, gear } = BODIES[kind](cls, { seed }), byId = new Map(anchors.map((a) => [a.id, a]));
+  // (a tracked body's running gear, each side: what stands still joins the hull, what turns its spinners, their discs in
+  // the livery's base as a wheel's rim is)
+  const sides = gear ? [-1, 1].map((side) => ({ side, ...runningGear({ side, ...gear, paint: L ? liveryBase(L) : C.olive }) })) : [];
+  const faces = [...own, ...sides.flatMap((g) => g.faces)];
+  const spinners = sides.flatMap((g) => g.spinners.map((sp) => ({ ...sp, id: `${sp.id}${g.side < 0 ? 'L' : 'R'}`, side: g.side, faces: flatNormals(sp.faces) })));
   const rnd = mulberry32((seed * 2654435761 + 31) >>> 0), v = VEHICLES[cls];
   const fittings = [];
   for (const [id, card, opts = {}] of KITS[kind]) {
@@ -646,10 +796,11 @@ export function militaryBody(cls, { seed = 1, r, tyreW, livery } = {}) {
     fittings.push(...fit(byId.get(id), card, ctx).map((f) => ({ ...f, fitting: card })));
   }
   const all = flatNormals([...faces, ...fittings]);
-  if (!L) return { hull: all.filter((f) => !f.fitting), fittings: all.filter((f) => f.fitting), anchors, zones };
+  const turning = spinners.length ? { spinners } : {};
+  if (!L) return { hull: all.filter((f) => !f.fitting), fittings: all.filter((f) => f.fitting), anchors, zones, ...turning };
   // (the frame and the running gear in the livery's base, a shade down: a sand body is not carried on an olive frame)
   const shade = `#${[1, 3, 5].map((i) => Math.round(parseInt(liveryBase(L).slice(i, i + 2), 16) * 0.62).toString(16).padStart(2, '0')).join('')}`;
-  const cut = paintLivery(all, L, { base: C.olive, seed, size: v.wheelRadius / 0.41 }).map((f) => (f.albedo === C.frame ? { ...f, albedo: shade } : f));
+  const cut = paintLivery(all, L, { base: C.olive, seed, size: sizeOf(cls) }).map((f) => (f.albedo === C.frame ? { ...f, albedo: shade } : f));
   const marks = stencilMarks(anchors, L, { seed }).map((f) => ({ ...f, fitting: 'mark' }));
-  return { hull: cut.filter((f) => !f.fitting), fittings: flatNormals([...cut.filter((f) => f.fitting), ...marks]), anchors, zones, livery: L };
+  return { hull: cut.filter((f) => !f.fitting), fittings: flatNormals([...cut.filter((f) => f.fitting), ...marks]), anchors, zones, livery: L, ...turning };
 }

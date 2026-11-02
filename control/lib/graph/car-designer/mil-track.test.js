@@ -10,6 +10,9 @@ import { VEHICLES, resolveVehicle, rowOfHandle } from '../vehicle-registry/roste
 import { buildsOf, upscaleOf } from '../vehicle-registry/builds.js';
 import { rideableRows } from '../vehicle-registry/ride.js';
 import { rollVehicleSheet, UNBUILT } from './sheet.js';
+import { compileMilitary } from './military.js';
+import { MILITARY_CLASSES, militaryBody, trackedGear } from './road-military.js';
+import { CAMO, CAMO_IDS } from './livery-cut.js';
 
 const GEAR = {
   x: 1.12, width: 0.4, hullX: 0.82,
@@ -126,5 +129,48 @@ describe('the tracked classes and their rows', () => {
       expect(UNBUILT[k]).toMatch(/running gear is built/);
       expect(() => rollVehicleSheet({ facets: { pole: 'realistic', class: k }, seed: 1 })).toThrow(/not built yet/);
     }
+  });
+});
+
+// the light tank's hull on its running gear, compiled as the realistic pole compiles a field vehicle (its sheet waits
+// for its turret, so the test hands the compiler its class)
+
+describe('the light tank\'s hull on its tracks', () => {
+  const TANK = Object.keys(MILITARY_CLASSES).find((k) => PHYSICS[k].running === 'track');
+  const make = (seed = 3, o = {}) => compileMilitary({ facets: { pole: 'realistic', class: TANK }, seed, given: [] }, { form: true, wear: 'pristine', ...o });
+  const c = make(), faces = Object.values(c.form).flat(), gear = trackedGear(TANK);
+  it('rolls on its running gear: each wheel, sprocket, idler and roller a bone, its wheelbase its track on the ground, at its class\'s length and width', () => {
+    const turning = 2 * (gear.wheels.length + 2 + gear.rollers.length);
+    expect(c.figure.bones.filter((b) => b.id !== 'root')).toHaveLength(turning);
+    expect(c.figure.bones.map((b) => b.id)).toEqual(expect.arrayContaining(['road1L', 'road1R', 'sprocketL', 'idlerR', 'roller1L']));
+    expect(c.figure.wheelbase).toBeCloseTo(PHYSICS[TANK].wheelbase, 3);
+    for (const k of ['L', 'W', 'wheelRadius']) { expect(c.census.against[k], k).toBeGreaterThan(0.99); expect(c.census.against[k], k).toBeLessThan(1.01); }
+  });
+  it('its fenders over the tracks, clear of them; its hull plate, raked and chamfered; the track bare steel', () => {
+    const fender = c.form.root.filter((f) => f.part === 'fender' && !f.edge && f.outNormal[2] < -0.99);
+    const trackTop = Math.max(...c.form.root.filter((f) => f.part.startsWith('track')).flatMap((f) => f.corners.map((p) => p[2])));
+    expect(Math.min(...fender.flatMap((f) => f.corners.map((p) => p[2])))).toBeGreaterThan(trackTop);
+    expect(c.form.root.some((f) => f.part === 'hull.glacis' && f.outNormal[1] > 0.2 && f.outNormal[2] > 0.8)).toBe(true);
+    expect(c.form.root.filter((f) => f.part.startsWith('hull') && f.edge).length).toBeGreaterThan(10);
+    expect(c.form.root.filter((f) => f.part.startsWith('track')).every((f) => f.material === 'steel')).toBe(true);
+  });
+  it('skirted by its dice or not, the same size either way', () => {
+    const skirts = (seed) => militaryBody(TANK, { seed }).hull.some((f) => f.part === 'skirt');
+    const seeds = Array.from({ length: 12 }, (_, k) => k + 1);
+    expect(seeds.some(skirts)).toBe(true);
+    expect(seeds.some((s) => !skirts(s))).toBe(true);
+    const bare = make(seeds.find((s) => !skirts(s)));
+    expect(bare.census.against.W).toBeGreaterThan(0.99 * 0.985);
+    expect(bare.census.against.L).toBeCloseTo(c.census.against.L, 6);
+  });
+  it('its camo on its plate, never on its track; within its budget, kept, worn and in camo', () => {
+    const camo = make(3, { livery: CAMO_IDS.find((k) => !CAMO[k].cell) });
+    const links = camo.form.root.filter((f) => f.part.startsWith('track'));
+    expect(new Set(links.map((f) => f.albedo))).toEqual(new Set(c.form.root.filter((f) => f.part.startsWith('track')).map((f) => f.albedo)));
+    expect(new Set(camo.form.root.filter((f) => f.part.startsWith('hull')).map((f) => f.albedo)).size).toBeGreaterThan(2);
+    const tris = (x) => Object.values(x.form).flat().reduce((s, f) => s + f.corners.length - 2, 0);
+    expect(tris(c)).toBeLessThan(40000);
+    expect(tris(make(3, { wear: 'used' }))).toBeLessThan(75000);
+    expect(tris(camo)).toBeLessThan(85000);
   });
 });

@@ -47,3 +47,35 @@ Both carry the field's camo, wear and setting light, can be parked in a base and
     driving it needs skid steer, and `rideableRows` leaves them out.
   - **Held** (`mil-track.test.js`): each tracked class has its row, found by its words; never a ride; its waiting body
     refused by the sheet, naming what is built.
+- **The light tank's hull** (`road-military.js` `lightTank`, on `trackedGear`'s stations):
+  - **The hull:**
+    - a lower hull between the tracks on a flat belly, its lower glacis raked to the nose;
+    - a superstructure over it, its sides raked a little, its long shallow glacis and its raked rear plate;
+    - welds at the glacis and the nose.
+  - **The fenders** over the tracks, their fronts bent down. Side skirts in four bolted segments hang from them by the
+    seed's dice (most carry them).
+  - **On the hull:**
+    - bins along the fenders, lipped and latched;
+    - the turret's ring, bolted (the turret is phase 4);
+    - the driver's hatch and its three vision blocks over the glacis;
+    - the engine deck's two grilles, an access plate and the lifting eyes;
+    - five spare track links racked across the glacis (`mil-track.js` `linkFaces`), the lamps in their guards and
+      the blackout markers;
+    - the exhausts' sooted louvred boxes and the tail lamps in their guards on the rear plate.
+  - **Its kit:** two cans on the left fender, the tools on the right, two whips at the rear, grab handles, four
+    shackles and the pintle.
+  - **Compiled** (`military.js`): a tracked body's spinners are its bones, its road wheels first, with no wheel wells.
+    Its wheelbase is its first road wheel to its last. Its camo and its mud are sized as its wheeled peer's (`sizeOf`:
+    a tracked class's road wheels are small).
+  - **Its glacis** faces forward before it faces up (a shallow glacis is not a roof).
+  - **The budget:** about 35k triangles kept, 64k used and 65k in camo, before the turret.
+  - **The sheet** still waits for its turret (`UNBUILT`).
+  - **The wear's cutter** and the existing bodies are unchanged; their sizes and budgets hold.
+  - **Held** (`mil-track.test.js`):
+    - a bone each wheel, sprocket, idler and roller; its wheelbase and its length and width;
+    - the fenders clear of the track; the glacis raked; chamfered;
+    - the track bare steel and uncamouflaged;
+    - skirted or not by its dice, the same length;
+    - within its budget, kept, worn and in camo.
+  - **Seen** (machine gate only; the eyes gate is open): plain from the three-quarter, the side, the rear quarter and
+    the nose, skirted and bare; woodland used under a golden sun, desert battered at noon.

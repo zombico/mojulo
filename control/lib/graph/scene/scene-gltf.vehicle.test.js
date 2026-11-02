@@ -11,6 +11,7 @@ import { ARCHETYPES } from '../egocube/facets.js';
 import { loftFigure } from '../car-designer/race-families.js';
 import { FLEET } from '../roads/fleet.js';
 import { MILITARY_CLASSES } from '../car-designer/road-military.js';
+import { UNBUILT } from '../car-designer/sheet.js';
 import { validateBytes } from 'gltf-validator';
 
 function gltfJson(buf) {
@@ -70,7 +71,8 @@ describe('a race machine in the form render exports to GLB', () => {
 // a field vehicle (road-military.js: each body the hull kit builds, in camo and worn) as the engines get it: the
 // Khronos validator finds no error and no warning, its camo and grime in its vertex colours, its slots its own
 describe('a field vehicle exports to a valid GLB', () => {
-  for (const cls of Object.keys(MILITARY_CLASSES)) {
+  // (each body the sheet builds: one still waiting for its parts is not yet a figure)
+  for (const cls of Object.keys(MILITARY_CLASSES).filter((k) => !UNBUILT[k])) {
     it(`the ${MILITARY_CLASSES[cls]} body`, async () => {
       const { out, json } = exported(loftFigure({ class: cls, seed: 3, light: 'form', livery: 'woodland' }));
       const report = await validateBytes(new Uint8Array(out.bytes), { maxIssues: 50 });

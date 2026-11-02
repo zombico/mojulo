@@ -13,6 +13,7 @@
  *                  road wheels, straight up to the idler and down from the sprocket), and over the top from the idler to
  *                  the sprocket resting on the return rollers and sagging between them
  *
+ *   linkFaces(W, P)                    one link in its own frame (x across, y along, z out): the spares a hull carries
  *   TRACK_DEPTH                        the track's thickness under a road wheel: its shoe and its grouser (a road wheel's
  *                                      centre stands its radius and this above the ground)
  *   runningGear({ side, x, width, hullX, sprocket, idler, wheels, rollers, pitch?, sag?, paint? })
@@ -82,7 +83,9 @@ export function pinsAlong(path, pitch) {
 }
 
 // ── a link, in its own frame: x across, y along its chord, z out from the track's inner face ───────────────────
-function linkFaces(W, P) {
+/** One track link `W` across and `P` long, in its own frame (x across, y along, z out of the track's inner face): what
+ *  a track is laid of, and the spares a hull carries bolted on. */
+export function linkFaces(W, P) {
   const shoe = M('track.shoe', 'steel', C.link), dark = M('track.pin', 'steel', C.pin), out = [];
   const h = (P - 0.014) / 2;
   out.push(...plate({ axis: 'z', profile: [[-W / 2, -h], [W / 2, -h], [W / 2, h], [-W / 2, h]], from: 0, to: SHOE, look: shoe }));
