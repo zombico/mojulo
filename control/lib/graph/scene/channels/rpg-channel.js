@@ -432,7 +432,7 @@ export function rpgPage(cfg, K, ctl, jk) {
       mode = null; phase = null; root.classList.remove('on'); root.innerHTML = '';
       { const w = W(); if (w) for (const e of w.entities) if (e.act) e.act = null; }   // the fight's acts end with it
       unstage();
-      root.classList.remove('placed'); for (const c of CORNERS) { root.classList.remove('cmd-' + c); root.classList.remove('foes-' + c); }
+      unplace();
       release(); dirty = true;
     }
   }
@@ -520,9 +520,12 @@ export function rpgPage(cfg, K, ctl, jk) {
   // screen is measured by the scene's projection, and the command menu and the foes' box take the two corners that cover
   // the party least (the foes' figures next); the banner keeps the top's middle
   let placeDue = 0;
+  function unplace() { root.classList.remove('placed'); for (const c of CORNERS) { root.classList.remove('cmd-' + c); root.classList.remove('foes-' + c); } }
   const CORNERS = ['bl', 'br', 'tl', 'tr'], BOX = { cmd: [230, 160], foes: [230, 96] };
   function placeBoxes() {
     const w = W(), proj = window.__mojCtrl && window.__mojCtrl.project, b = R.b;
+    // (the side view keeps the window's own layout: the menu at the lower left, the foes' box at the lower right)
+    if ((viewOver || (cfg.rules && cfg.rules.view) || 'side') === 'side') { unplace(); return true; }
     if (!w || !proj || !b) return false;
     const W0 = window.innerWidth || 960, H0 = window.innerHeight || 540;
     const rectOf = (ids) => {

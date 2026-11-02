@@ -197,4 +197,5 @@ its resource, put on a look and showed a toast. This theme makes them act.
   corners whatever the view, so in the front and three-quarter views they stood over the party. Now, once a fight is
   staged (and when its view changes), where its fighters stand on the screen is measured by the scene's projection.
   The two boxes take the corners that cover the party least, the foes' figures next, a low corner over a high one.
-  The banner keeps the top's middle.
+  The banner keeps the top's middle. The side view keeps the window's own layout: the menu at the lower left, the
+  foes' box at the lower right.
