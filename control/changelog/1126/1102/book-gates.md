@@ -60,7 +60,3 @@ and its gates saying things the made game does not do. Each item below was seen 
 - **An approval given before the first mint holds** (`character-review.js` `keepApproval`). Approving the hero's base
   before a run was undone by the run's own pin (the run then waited on "hero:base (changed)"); an approval current on
   the book as it was is kept on the base the run pinned from it. An approval already stale stays stale.
-- **An honest Godot verdict** (`scene/engines/marks.js` `COSMETIC_EVENTS`). An absent dressing (a downed body's fade, a
-  wreck's pieces, a trail, a rim light, the style floor, a register's motion, a carved title, the layer-0 looks) makes
-  an export plays-partly, never hollow: a shooter whose downed bodies do not fade was called hollow, against the
-  hillclimb's "plays in Godot".
