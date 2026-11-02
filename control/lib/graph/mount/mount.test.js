@@ -332,3 +332,24 @@ describe('the tack', () => {
     expect(g.checks.filter((c) => !c.pass).map((c) => c.saw)).toEqual([]);
   }, 120000);
 });
+
+// the rider's seat as the horse asks it, from the horse's own clips (no rider needed): the trot risen only while the left
+// fore stands (out of the saddle on that diagonal, sitting as it leaves the ground), the gallop in two-point, a transition
+// blending the seat it leaves into the one it reaches, the jump folded about its flight
+describe('the rider\'s modes', () => {
+  it('rises on the diagonal, galloping in two-point, folding over the fence', async () => {
+    const { riderClipModes, RIDER_MODES } = await import('./rider.js'), { mountClips } = await import('./export.js');
+    const B = resolveMount('horse'), clips = mountClips(B, { names: ['trot', 'gallop', 'walk-trot', 'jump'] });
+    const run = (name) => { const c = clips[name], K = c.once ? Math.round(c.s * 30) + 1 : Math.round(c.s * 30), kt = (k) => (c.once ? c.s * k / (K - 1) : c.s * k / K), frames = Array.from({ length: K }, (_, k) => c.at(kt(k))); return { c, K, kt, frames, modes: riderClipModes(name, c, frames, kt) }; };
+    const tr = run('trot');
+    tr.frames.forEach((f, k) => { if (!f.contact.LF) expect(tr.modes[k].rise).toBe(0); });
+    expect(Math.max(...tr.modes.map((m) => m.rise))).toBeGreaterThan(0.9 * RIDER_MODES.rise.rise);
+    const ga = run('gallop');
+    expect(ga.modes.every((m) => m.mode.lift === RIDER_MODES.two.lift && m.rise === 0)).toBe(true);
+    const wt = run('walk-trot'), lean = wt.modes.map((m) => m.mode.lean);
+    expect(lean[0]).toBeCloseTo(RIDER_MODES.sit.lean, 9); expect(lean[lean.length - 1]).toBeCloseTo(RIDER_MODES.rise.lean, 9);
+    const jp = run('jump'), apex = Math.round(jp.c.flight.apex / jp.c.s * (jp.K - 1));
+    expect(jp.modes[apex].mode.lean).toBeCloseTo(RIDER_MODES.fold.lean, 1);
+    expect(jp.modes[0].mode.lean).toBeLessThan(RIDER_MODES.fold.lean / 2);
+  }, 60000);
+});

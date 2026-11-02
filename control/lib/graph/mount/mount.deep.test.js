@@ -133,3 +133,42 @@ describe('the mount\'s tack', () => {
     expect(g.checks.filter((c) => !c.pass).map((c) => c.saw)).toEqual([]);
   }, 900000);
 });
+
+// the rider seated (the realistic hero, minted: some forty seconds): the sit bones on the saddle's seat, the knee at the
+// halt's angle, the balls of the feet on the irons (hung round the barrel), the knees outside the horse
+describe('the rider on the mount', () => {
+  it('sits the classical seat at the halt', async () => {
+    const { heroRecord, expandLayeredManifest } = await import('../../mcp/tools/layered.js');
+    const { validateRig, rigNodesAt } = await import('../polygonizer/station-loft-rig.js');
+    const { tackPieces } = await import('./tack.js'), { ridingGeometry, riderSeat, riderPose, RIDER_MODES, KNEE } = await import('./rider.js');
+    const { bodyField } = await import('./body.js'), { boneFrames: bf } = await import('./skin.js');
+    const recipe = expandLayeredManifest({ kind: 'layered', hero: heroRecord({ cast: 'male', form: 'realistic' }) }).recipe, H = { R: { ...validateRig(recipe.rig), reach: 'clamp' } };
+    const B = resolveMount('horse'), F = bodyField(B), rest = bf(B, standPose(B)), geo = ridingGeometry(tackPieces(B, { reins: false }).anchors, rest, rest);
+    const cal = riderSeat(H, geo, (p) => F.field(p)), r = riderPose(H, cal, geo, RIDER_MODES.sit), n = rigNodesAt(H.R, r.pose).nodes, R = H.R;
+    const d = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
+    for (const S of ['R', 'L']) {
+      const L = R.legs[S], a = n[L.hip].map((x, i) => x - n[L.knee][i]), b = n[L.hock].map((x, i) => x - n[L.knee][i]);
+      expect(Math.abs(Math.acos((a[0] * b[0] + a[1] * b[1] + a[2] * b[2]) / (Math.hypot(...a) * Math.hypot(...b))) * 180 / Math.PI - KNEE)).toBeLessThan(2);
+      expect(d(n[L.toeBase], r.contacts.irons[S])).toBeLessThan(0.02);
+      expect(F.field(n[L.knee])).toBeGreaterThan(0);
+    }
+    // the sit bones: the pelvis hub a sit bone's depth over the seat, upright
+    expect(Math.abs(n.pelvisHub[2] - (geo.seat[2] + 0.1))).toBeLessThan(0.02);
+    expect(n.headTop[2] - n.pelvisHub[2]).toBeGreaterThan(0.75);
+    // the head held up in every seat (the rider sees where it goes), within what the neck extends; the arms by the rule:
+    // the upper arm where the seat sets it, the forearm aimed at the bit (the elbow, the fist and the bit near one line)
+    const { NECK } = await import('./rider.js');
+    for (const [name, mode] of Object.entries(RIDER_MODES)) {
+      const q = riderPose(H, cal, geo, mode), nn = rigNodesAt(H.R, q.pose).nodes, u = nn.headTop.map((x, i) => x - nn.headBase[i]);
+      expect(Math.atan2(u[1], u[2]) * 180 / Math.PI, name).toBeLessThan(NECK.tilt + 1);
+      expect(q.pose.neck.pitch).toBeLessThanOrEqual(NECK.neck); expect(q.pose.head.pitch).toBeLessThanOrEqual(NECK.head);
+      for (const S of ['R', 'L']) {
+        // (the posed forearm itself: the elbow is a hinge, so it points at the bit within its plane's reach)
+        const e = nn[`elbow${S}`], f1 = nn[`wrist${S}`].map((x, i) => x - e[i]), f2 = geo.bits[S].map((x, i) => x - e[i]);
+        // (not over the fence: the fold's hands press on the crest, the release that breaks the line by design)
+        if (name !== 'fold') expect(Math.acos(Math.min(1, (f1[0] * f2[0] + f1[1] * f2[1] + f1[2] * f2[2]) / (Math.hypot(...f1) * Math.hypot(...f2)))) * 180 / Math.PI, `${name} ${S}`).toBeLessThan(20);
+        expect(d(e, q.contacts.elbows[S])).toBeLessThan(0.03);
+      }
+    }
+  }, 600000);
+});

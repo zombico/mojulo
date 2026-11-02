@@ -84,6 +84,17 @@ rather than over it (the fauna horse's rows stay byte-identical). Solo; the sadd
   field, a few millimetres proud). The bridle rides the head; the rest rides the skin under it, its weights and its
   corrective shapes, so it lifts where a fold lifts the skin. Its gate: no piece under the rendered skin in any pose
   the clips make. On the study sheet (`--tack`) and in the export (`--tack`).
+- **The rider** (`mount/rider.js`, `node scripts/mount-rider.mjs <dir>`): the realistic hero in the saddle, its pose
+  solved every frame from where the horse puts the seat, the irons and the bit. The classical seat: the sit bones on
+  the seat's middle, the stirrup leathers the rider's own (the knee at 118° at the halt), the irons hung round the
+  barrel, the knees out over the flaps. Its seat as the horse asks it: following the saddle at the walk and the canter,
+  rising on the diagonal at the trot (out of the saddle while the left fore stands, from the horse's own footfalls),
+  two-point at the gallop (the seat held steady while the legs take the heave), folded over the fence with the hands
+  released on the crest; a transition blends the seat it leaves into the one it reaches. The arms by the riding rule:
+  the upper arm set against the trunk, the forearm aimed at the bit, the fists closed and the wrists straight. The head
+  held up in every seat, the neck and head extending against the trunk's lean within what the neck holds, so the rider
+  sees where it is going. The tack's anchors (the seat, the stirrup bars, the bit's rings, the crest) are where it meets
+  the horse.
 - **The machine gate** (`mount/gates.js`): footfalls and duty, suspensions, slip, ground, the flight at g, the joints'
   ranges and the hip's, reach, pops, rigid bones, brushing, the seams of a one-shot, the rail's clearance, a layer's loop. Every
   gait at both band ends, both leads, both registers; every one-shot; every realistic jump; every idle layer pass it.

@@ -19,7 +19,8 @@
  * corrective shapes, so the tack moves exactly as the skin it lies on: where a fold's correction lifts the skin, the
  * pad and the saddle lift with it).
  *
- *   tackPieces(B, { stirrups: 'up' | { length }, reins: 'neck' }) → [{ name, vertices, quads, colors, rides }]
+ *   tackPieces(B, { stirrups: 'up' | { length, out }, reins: 'neck' | false }) → [{ name, vertices, quads, colors, rides }]
+ *     with `.anchors` { seat, bars: { R, L }, bits: { R, L }, crest } (world, at the stand): where a rider meets it
  */
 import { bodyField, HEAD_PROFILE, neckCrest } from './body.js';
 import { standPose } from './gait.js';
@@ -173,8 +174,8 @@ export function tackPieces(B, { stirrups = 'up', reins = 'neck' } = {}) {
   // them; run up (unridden: the iron at the top of the leather) or hung to a length
   const yBar = seatF - 0.06 * k;
   for (const sd of [1, -1]) {
-    const bar = back(yBar, sd * 40 * DEG), top = add(bar.p, mul(bar.n, padTop + 0.016 * k));
-    const L = stirrups === 'up' ? 0.07 * k : stirrups.length, foot = add(top, [sd * 0.028 * k, 0, -L]);
+    const bar = back(yBar, sd * 28 * DEG), top = add(bar.p, mul(bar.n, padTop + 0.016 * k));
+    const L = stirrups === 'up' ? 0.07 * k : stirrups.length, foot = add(top, [sd * (0.028 * k + (stirrups === 'up' ? 0 : stirrups.out ?? 0)), 0, -L]);
     const pts = Array.from({ length: 6 }, (_, i) => lerp(top, foot, i / 5)), nrm = pts.map(() => [sd, 0, 0]);
     piece(`leather${sd > 0 ? 'R' : 'L'}`, ribbon(pts, nrm, { width: 0.025 * k, thick: 0.005 * k, colour: TACK_COLOURS.leather }), 'skin');
     piece(`iron${sd > 0 ? 'R' : 'L'}`, ring(add(foot, [0, 0, -0.055 * k]), [sd, 0, 0], 0.06 * k, 0.007 * k, TACK_COLOURS.steel, { squash: 0.85 }), 'skin');
@@ -199,6 +200,21 @@ export function tackPieces(B, { stirrups = 'up', reins = 'neck' } = {}) {
   strap('noseband', arc(0.56, 0.56, -180, 180, 26), { width: 0.026 * k, rides: 'skin' });   // (round the jaw too: the skin)
   strap('throatlash', arc(0.07, 0.03, 105, 255, 12), { width: 0.016 * k, rides: 'skin' });   // (round the throat: it rides the skin)
   const bitF = B.sockets.bit + 0.04;
+  // THE ANCHORS a rider meets (at the stand, world): the seat's lowest point on its centre line, the stirrup bars (the
+  // leathers' tops), the bit's rings, the crest a hand before the withers
+  {
+    // (the seat's middle, between its twist and its cantle's rise: where the sit bones sit, the stirrup bar a hand and a
+    // half before it, so the leathers hang plumb under a rider's heel; the back's own lowest point falls behind it)
+    const s0 = -0.05, b = back(seatB + (seatF - seatB) * (s0 + 1) / 2, 0), seat = add(b.p, mul(b.n, 0.003 * k + padTop + 0.008 * k + 0.03 * k));
+    const bars = {}, bits = {};
+    for (const sd of [1, -1]) {
+      const bar = back(yBar, sd * 28 * DEG), top = add(bar.p, mul(bar.n, padTop + 0.016 * k));
+      bars[sd > 0 ? 'R' : 'L'] = add(top, [sd * 0.028 * k, 0, 0]);
+      const r = headAt(bitF, sd * 125 * DEG); bits[sd > 0 ? 'R' : 'L'] = add(r.p, mul(r.n, 0.01 * k));
+    }
+    const { crestAt, crestUp } = neckCrest(B, S);
+    out.anchors = { seat, bars, bits, crest: add(crestAt(0.14), mul(crestUp, 0.012 * k)) };
+  }
   for (const sd of [1, -1]) {
     strap(`cheek${sd > 0 ? 'R' : 'L'}`, arc(0.05, bitF - 0.04, sd * 105, sd * 118, 12), { width: 0.022 * k });
     const s = headAt(bitF, sd * 125 * DEG);
