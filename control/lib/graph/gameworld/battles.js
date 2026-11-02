@@ -264,7 +264,7 @@ export function battlePlan(G, stages, room = () => Infinity) {
   const B = G.battles ?? {}, packs = B.packs ?? PACKS, per = B.per ?? 2, plan = {};
   let k = 0;
   // (none in the hub: the town is where the party comes back to)
-  const fought = stages.map((s, i) => [s, i]).filter(([s]) => FOUGHT(s) && s.level !== G.hub).map(([, i]) => i);
+  const fought = stages.map((s, i) => [s, i]).filter(([s]) => FOUGHT(s) && !(G.hub && s.level === G.hub)).map(([, i]) => i);
   const last = B.boss ? [...fought].reverse().find((i) => Math.min(per || 1, room(i)) > 0) : undefined;
   for (const i of fought) {
     const n = Math.min(i === last ? Math.max(per, 1) : per, room(i)), own = i === last ? n - 1 : n;
