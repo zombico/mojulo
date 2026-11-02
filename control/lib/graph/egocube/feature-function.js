@@ -203,10 +203,11 @@ export function functional(S, limbs = {}, { arms: A = 1, legs: Lg = 1, girth: G 
  *  the hind feet come forward under the belly (the gather, `FEATURE_GALLOP.gather` of the dog's bend more) and opens as
  *  they push back (the extension, `open` of it less); the forelegs swing against the hind legs (`swing`), planted under
  *  the chest at the gather and lifted reaching ahead as the hind feet push. The forepaws and the tail are solved on the rig after (feature-body.js planted, carried) */
-export const FEATURE_GALLOP = Object.freeze({ hinge: 80, gather: 0.15, open: 0.45, swing: 0.6, under: 0.25, back: 0.5, lift: 0.3, pitch: 20 });
+export const FEATURE_GALLOP = Object.freeze({ hinge: 80, gather: 0.15, open: 0.45, swing: 0.6, under: 0.25, back: 0.5, lift: 0.3, pitch: 20,
+  vault: Object.freeze({ tip: 10, kick: 40, knee: 60, clear: 0.06 }) });
 function galloping(run, dog, strike = 0) {
   const G = FEATURE_GALLOP, n = run.length, yR = run.map((k) => k.feet?.R?.[1] ?? 0), lo = Math.min(...yR), hi = Math.max(...yR), span = hi - lo || 1;
-  return run.map((k, i) => {
+  const keys = run.map((k, i) => {
     const prev = run[(i - 1 + n) % n], fwd = (yR[i] - lo) / span, w = dog.waist * (1 - G.open + (G.open + G.gather) * fwd);
     // (a forepaw planted under the chest at the gather, lifted reaching ahead at the extension: never swung back through the floor)
     const sw = G.swing * (1 - fwd), arm = (a) => ({ x: a.x, y: r4(a.y + sw), z: a.z });
@@ -214,6 +215,11 @@ function galloping(run, dog, strike = 0) {
     const feet = k.feet ? { R: bk(k.feet.R), L: bk(prev.feet?.R ? [-prev.feet.R[0], prev.feet.R[1], prev.feet.R[2]] : k.feet.L) } : undefined;
     return { ...dog, hinge: r4(Math.min(dog.hinge, G.hinge) + strike * (1 - fwd) ** 2), ...(feet ? { feet } : {}), ...(k.sink != null ? { sink: k.sink } : {}), ...(k.lift != null ? { lift: k.lift } : {}), waist: r4(w), armR: arm(dog.armR), armL: arm(dog.armL) };
   });
+  // (the vault after the strike: the strike's key tipped further, on the forepaws alone, the hind legs raised behind)
+  const at = keys.reduce((b, k, i) => (k.hinge > keys[b].hinge ? i : b), 0), S0 = keys[at], V = G.vault;
+  const { feet, sink, lift, ...base } = S0;
+  const vault = { ...base, support: 'none', hinge: r4(Math.min(LIMITS.hinge * (dog.unbound ?? 1), S0.hinge + V.tip)), hipL: { pitch: -V.kick }, hipR: { pitch: -V.kick }, kneeL: V.knee, kneeR: V.knee };
+  return [...keys.slice(0, at + 1), vault, ...keys.slice(at + 1)];
 }
 
 /** the clips on all fours. `walk` the biped's walk (mascot-gait.js gaitClips) the prowl's hind legs take; `ready` the

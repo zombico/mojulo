@@ -156,7 +156,8 @@ and opens at the extension, each forepaw swings forward through the air from und
 strikes the floor at its full reach (straight) and sweeps back along it, the hind legs tilted back to drive from behind
 the hips, the face ahead, the tail held back near level for balance and straightened (its far half, on its own bone
 from the tail's middle, turned in line with the near half). At the strike the trunk tips forward over the
-hips: the front low on both forepaws, the rump raised. Running, the hips tip no further than `FEATURE_GALLOP.hinge`, so the tail comes out of the
+hips: the front low on both forepaws, the rump raised. Then the VAULT (`FEATURE_GALLOP.vault`): tipped further, on the
+forepaws alone, the hind legs unsupported and raised behind, clear of the floor, the head still ahead. Running, the hips tip no further than `FEATURE_GALLOP.hinge`, so the tail comes out of the
 rump. On all fours, walking and running, the head is turned up until its crown tips `FEATURE_LOOK.tilt` ahead of upright,
 the head taking most of the turn so it is never tucked into the shoulders.
 

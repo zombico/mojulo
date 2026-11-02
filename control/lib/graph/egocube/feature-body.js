@@ -389,8 +389,21 @@ export function featurePlan(sheet, { title = 'a feature animal', reactions = fal
       : { EarInner: '#c9a19b', ...featurePalette(coatPalette(sheet, k, A, f), A.id, build) },
   };
   // (the forepaws planted on the floor, solved on the rig itself)
-  if (build.fours) { looking(plan); planted(plan); if (L.tail) carried(plan, build.tail.carriage); }
+  if (build.fours) { vaulted(plan); looking(plan); planted(plan); if (L.tail) carried(plan, build.tail.carriage); }
   return { plan, H, height: L.top, ...(tune?.detail.bake ? { bake: detailBake(build.plan) } : {}) };
+}
+
+/** THE VAULT lifted clear: the gallop's key on the forepaws alone (its hind legs unsupported, raised behind) is lifted
+ *  as far as its lowest hind foot needs to clear the floor by FEATURE_GALLOP.vault.clear of the height, solved on the rig */
+function vaulted(plan) {
+  const keys = plan.clips.gallop;
+  if (!Array.isArray(keys)) return;
+  const R = validateRig(expandPlan(plan).rig), h = plan.mascot.height, need = FEATURE_GALLOP.vault.clear * h;
+  keys.forEach((k, i) => {
+    if (k?.support !== 'none') return;
+    const n = rigNodesAt(R, k).nodes, low = Math.min(n.toeBaseR[2], n.toeBaseL[2], n.toeTipR[2], n.toeTipL[2]);
+    if (low < need) keys[i] = { ...k, lift: r4(need - low) };
+  });
 }
 
 /** THE HEAD LOOKING AHEAD on all fours: each key of the pose, the walk and the gallop turns the head up from a trunk

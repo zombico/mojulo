@@ -5,7 +5,7 @@
 // turning about their globes; a sheet in any other style compiles as it did.
 import { describe, it, expect } from 'vitest';
 import { egg, eggDistance, eggField, eggSkin, tuft, FEATURE_BUILDS, FEATURE_TRIANGLES, FEATURE_CARRIAGE, featureShapes } from './feature-body.js';
-import { speciesTail } from './feature-function.js';
+import { speciesTail, FEATURE_GALLOP } from './feature-function.js';
 import { pieces, attachAll, gapOf } from './feature-attach.js';
 import { resolveTune } from './feature-tune.js';
 import { animalCard } from './mascot-animals.js';
@@ -123,20 +123,27 @@ describe('the feature body', () => {
     // THE GALLOP, the dog its base: the run's cycle, the waist rounding at the gather and opening at the extension, the
     // forelegs swinging, the face ahead throughout, the forepaws reaching the floor
     const gal = plan.clips.gallop;
-    expect(gal.length).toBe(plan.clips.run.length);
+    expect(gal.length).toBe(plan.clips.run.length + 1);                                              // (the run's keys and the vault)
     expect(Math.max(...gal.map((k) => k.waist)) - Math.min(...gal.map((k) => k.waist))).toBeGreaterThan(5);
     const posed = gal.map((k) => rigNodesAt(R, k).nodes), paw = posed.map((n) => n.knucklesR[1] - n.shoulderR[1]);
     expect(Math.max(...paw) - Math.min(...paw)).toBeGreaterThan(0.08 * height);
     // (the face ahead, a little down, never tipped up: FEATURE_LOOK; the tail out of the rump, not up the back)
     for (const n of posed) { expect(crownTip(n)).toBeGreaterThan(5); expect(crownTip(n)).toBeLessThan(30); }
-    // (0.1: at the strike the trunk tips forward and the rump rises with it, the root still behind the hips)
-    for (const n of posed) { expect(n.tailRoot[2] - n.pelvisHub[2]).toBeLessThan(0.1 * height); expect(n.tailRoot[1]).toBeLessThan(n.pelvisHub[1] - 0.1 * height); }
+    // (0.12: at the strike and further at the vault the trunk tips forward and the rump rises with it, the root still
+    // behind the hips)
+    for (const n of posed) { expect(n.tailRoot[2] - n.pelvisHub[2]).toBeLessThan(0.12 * height); expect(n.tailRoot[1]).toBeLessThan(n.pelvisHub[1] - 0.1 * height); }
     // (THE STRIKE: one key the trunk tipped forward, the front low on both forepaws, the rump raised, the tail held back
     // near level for balance, the face ahead)
     const slope = (n) => (Math.atan2(n.neckHub[2] - n.pelvisHub[2], n.neckHub[1] - n.pelvisHub[1]) * 180) / Math.PI;
     const strike = posed.reduce((a, n) => (slope(n) < slope(a) ? n : a));
     expect(slope(strike)).toBeLessThan(Math.max(...posed.map(slope)) - 8);
     for (const S of ['R', 'L']) expect(strike[`knuckles${S}`][2], S).toBeLessThan(0.05 * height);
+    // (THE VAULT: one key after the strike, the trunk tipped further on the forepaws alone, the hind legs unsupported and
+    // raised behind, clear of the floor, the head still ahead)
+    const vi = gal.findIndex((k) => k.support === 'none'), vault = posed[vi];
+    expect(vi).toBeGreaterThan(0); expect(gal[vi - 1].hinge).toBe(Math.max(...gal.filter((k) => k.support !== 'none').map((k) => k.hinge)));
+    expect(slope(vault)).toBeLessThan(slope(posed[vi - 1]));
+    for (const S of ['R', 'L']) { expect(vault[`knuckles${S}`][2], S).toBeLessThan(0.05 * height); expect(Math.min(vault[`toeBase${S}`][2], vault[`toeTip${S}`][2]), S).toBeGreaterThan(FEATURE_GALLOP.vault.clear * height - 1e-3); expect(vault[`toeBase${S}`][1], S).toBeLessThan(vault[`hip${S}`][1]); }
     const runTail = (n) => (Math.atan2(n.tailTip[2] - n.tailRoot[2], -(n.tailTip[1] - n.tailRoot[1])) * 180) / Math.PI;
     for (const n of posed) { expect(runTail(n)).toBeGreaterThan(FEATURE_CARRIAGE.run.least - 2); expect(runTail(n)).toBeLessThan(FEATURE_CARRIAGE.run.most + 2); }
     // (and straight: the tail's far half, on its own bone from the middle, in line with the near half)
