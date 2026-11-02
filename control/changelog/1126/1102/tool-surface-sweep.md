@@ -2,7 +2,7 @@
 
 A sweep of every registered tool for the ones nothing wires in: names an agent is told to call but cannot reach, doors
 nothing points to, and aliases kept long past their release. This first wave fixes what agents were being sent to that
-does not exist; it changes no door an agent can call. Built so far:
+does not exist and deletes what was dead; it changes no door an agent can call. Built so far:
 
 - **No dead pointers.** A tool registered unlisted and homed in no pack (a folded alias, a per-op name behind a door,
   a retired pack's member) cannot be called by a host that calls only what it lists, so a surface that names one sends
@@ -26,3 +26,8 @@ does not exist; it changes no door an agent can call. Built so far:
   an image item and maps it onto the illustration (the result's `art` says where); `art: { stash, item }` maps one
   already gathered, as before. And `capture_reference` no longer tells the agent to anchor a build with
   `bind_stash({ role: 'reference' })`: no build reads that link.
+- **The pre-3.0 aliases are gone.** The per-kind names `mint_solid`, `edit_solid`, `compose_world` and `create_view`
+  replaced in 1.0.0 and 1.1.0 (`create_figure`, `create_workbench`, `skin_polygomer`, `create_fractal_city`, the
+  `create_*_view` family and the rest) were unlisted aliases for two majors; they are no longer registered,
+  and a stored plan that names one compiles back to a draft that names it. With them go about a thousand lines of
+  `register*Tools` functions nothing called. Every kind they made is made by its door, unchanged.

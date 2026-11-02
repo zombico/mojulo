@@ -9,7 +9,6 @@
  */
 
 import { SketchRepository } from '@/lib/db/repositories/sketches';
-import { registerTool } from '@/lib/mcp/server';
 import { planDnaProcess, DNA_PROCESSES } from '@/lib/graph/views/bio/dna-process';
 
 const TITLE = {
@@ -43,38 +42,7 @@ export function mintDnaProcess({ title, process, scene, viewBox, ref, folderRef 
 }
 
 export async function createDnaProcessHandler(input) {
-  if (!input || typeof input !== 'object') throw new Error('create_dna_process requires a recipe object');
+  if (!input || typeof input !== 'object') throw new Error('create_view({ kind: "dna-process" }) requires a recipe object');
   const { title, process, scene, viewBox, ref, folder_ref: folderRef } = input;
   return mintDnaProcess({ title, process, scene, viewBox, ref, folderRef });
-}
-
-export function registerDnaProcessTools() {
-  registerTool({
-    name: 'create_dna_process',
-    description:
-      "Mint an ANIMATED DNA-BIOLOGY explainer as a live, traversable World at `/api/sketches/<ref>/world` "
-      + "(drag to ORBIT; the animation loops). Pick `process`: 'meiosis' (the whole gamete-making sequence — "
-      + "homologous pairs cross over into mosaics, then segregate, keeping one recombined copy of each "
-      + "chromosome and discarding the rest), 'conception' (FERTILIZATION — a maternal + paternal helix converge "
-      + "into a homologous pair / the diploid zygote), 'recombination' (CROSSING-OVER — a recombined mosaic gamete "
-      + "is kept while the remainder is ejected as a polar body), or 'assortment' (INDEPENDENT ASSORTMENT — four "
-      + "chromosome pairs each randomly keep one copy for the gamete (up) and discard the other (down)). "
-      + "Chromosomes are taiji-lowered lit double helices (maternal = warm, paternal = cool); motion is the world's "
-      + "mover channel. CLICK a chromosome for a popup. Recipe-only; the substrate stores `manifest.kind === "
-      + "'dna-process'` + `process` and regenerates the scene. For the STATIC double helix use create_dna_view "
-      + "instead. Reach for this on framing like 'animate meiosis / show fertilization / how DNA recombines / "
-      + "independent assortment'.",
-    inputSchema: {
-      type: 'object',
-      properties: {
-        process: { type: 'string', enum: [...DNA_PROCESSES], description: "Which process to animate: 'meiosis' (default), 'conception', 'recombination', or 'assortment'." },
-        title: { type: 'string', description: 'Title for the resulting sketch artifact.' },
-        scene: { type: 'object', description: 'Optional scene options, e.g. { bg: "#0a0f1c" }.' },
-        viewBox: { type: 'object', description: 'Optional render size { width, height } (default 1200×760).' },
-        ref: { type: 'string', description: 'Optional stable sketch ref.' },
-        folder_ref: { type: 'string', description: 'Optional sketch folder to file under.' },
-      },
-    },
-    handler: createDnaProcessHandler,
-  });
 }

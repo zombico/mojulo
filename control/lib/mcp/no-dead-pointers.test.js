@@ -35,6 +35,27 @@ const SWITCHED = new Set([...ROLES_ADMIN_TOOLS, 'preview_world']);
 // A line that says the name is gone is history, not an instruction.
 const HISTORY = /formerly|retired|deprecated|\balias|folded|was renamed|no longer/i;
 
+// Names deleted from the registry: an agent told to call one meets an unknown tool. Frozen; a fold that deletes names
+// adds them here, so a pointer to a deleted name fails like one to an unreachable name.
+const GONE = [
+  'create_action_world', 'create_assembler', 'create_atmosphere_view', 'create_atom_view', 'create_black_hole_view',
+  'create_carved_solid', 'create_cascade_view', 'create_cellular_view', 'create_cherenkov_view', 'create_comet_view',
+  'create_complete_square_view', 'create_complex_view', 'create_conics_view', 'create_controllable_world',
+  'create_derivative_view', 'create_dna_process', 'create_dna_view', 'create_double_slit_view', 'create_edifice',
+  'create_energy_cycle', 'create_field_flow_view', 'create_field_view', 'create_figure', 'create_fission_view',
+  'create_fluid_view', 'create_fractal_city', 'create_ftc_view', 'create_fusion_view', 'create_galaxy_view',
+  'create_gravity_wave_view', 'create_heat_sphere_view', 'create_lightning_storm_view', 'create_manji_tree',
+  'create_mechanics_view', 'create_molecule_view', 'create_ocean_view', 'create_orbit_view',
+  'create_painted_landscape', 'create_parallel_transport_view', 'create_planetary', 'create_plasma_globe_view',
+  'create_polygonized_sketch', 'create_probability_view', 'create_pulsar_view', 'create_pythagoras_view',
+  'create_quadratic_view', 'create_reactor_view', 'create_saturn_view', 'create_series_view',
+  'create_solid_turntable', 'create_star_birth_view', 'create_star_surface_view', 'create_surface_view',
+  'create_transform_view', 'create_transformer_view', 'create_transportation_hub', 'create_trig_circle_view',
+  'create_vector_match_view', 'create_wavepacket_view', 'create_windmill_view', 'create_workbench', 'emote_figure',
+  'get_polygonizer_packet', 'get_skin_packet', 'preview_vehicle_instance', 'sketch_polygomer', 'skin_polygomer',
+  'submit_polygonizer_manifest',
+];
+
 // Pointers known dead when the guard landed, to be fixed by the tool-surface sweep. Shrink-only: `file::tool`.
 const KNOWN_DEAD = [
   // the Blender art pack's return step names the mesh handoff's per-op names (the engine handoff's area)
@@ -80,10 +101,11 @@ function walk(dir, keep, out = []) {
   return out;
 }
 
-/** Registered tools a host that calls only what it lists cannot reach. */
+/** Tools a host that calls only what it lists cannot reach: registered but unreachable, or deleted. */
 function unreachableTools() {
   const reachable = new Set([...SPINE, ...FOLDED, ...SWITCHED, ...PACKS.flatMap((p) => dispatchTargets(p))]);
-  return listRegisteredToolNames().filter((n) => !isPackId(n) && !isToolListed(n) && !reachable.has(n));
+  const unreachable = listRegisteredToolNames().filter((n) => !isPackId(n) && !isToolListed(n) && !reachable.has(n));
+  return [...new Set([...unreachable, ...GONE])];
 }
 
 /** Strip // and block comments from source, keeping line breaks so line numbers hold. */
