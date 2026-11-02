@@ -26,21 +26,25 @@ export const RPG_CSS = `
 .moj-rpg{position:fixed;inset:0;pointer-events:none;z-index:31;font:14px/1.35 var(--moj-font,system-ui,sans-serif);color:var(--moj-ink,#eef2ff);display:none}
 .moj-rpg.on{display:block}
 :where(.moj-rpg) .moj-w{background:var(--moj-panel,rgba(14,22,58,.94));border:1px solid var(--moj-line,#c9d3ff);border-radius:8px;padding:8px 12px;pointer-events:auto;box-sizing:border-box}
-.moj-rpg-foes{width:250px;flex:none;display:flex;flex-direction:column;gap:2px}
-.moj-rpg-foes .say{min-height:2.7em;padding:0 0 5px;margin-bottom:3px;border-bottom:1px solid var(--moj-line,#c9d3ff);opacity:.95}
+.moj-rpg-foes{width:230px;flex:none;display:flex;flex-direction:column;gap:3px}
 .moj-rpg-foe{position:relative;padding:1px 4px 1px 16px;cursor:pointer}
+.moj-rpg-msg{position:absolute;left:50%;top:14px;transform:translateX(-50%);max-width:min(560px,calc(100vw - 32px));padding:5px 16px;text-align:center}
 .moj-rpg-foe.down{opacity:.3;text-decoration:line-through}
 .moj-rpg-foe .bar,.moj-rpg-row .bar{height:4px;margin-top:3px;background:rgba(255,255,255,.15);border-radius:2px;overflow:hidden}
 .moj-rpg-foe .bar i,.moj-rpg-row .bar i{display:block;height:100%;background:var(--moj-accent,#ffd76a)}
 .moj-rpg-turns{display:flex;flex-wrap:wrap;gap:4px;margin-top:4px;font-size:11px}.moj-rpg-turns span{padding:1px 6px;border-radius:3px;background:rgba(0,0,0,.35)}.moj-rpg-turns span:first-child{outline:1px solid var(--moj-accent,#ffd76a)}.moj-rpg-turns .f{opacity:.7}
-.moj-rpg-bottom{position:absolute;left:50%;bottom:12px;transform:translateX(-50%);display:flex;gap:10px;width:min(860px,calc(100vw - 24px));align-items:stretch}
+.moj-rpg-bottom{position:absolute;left:50%;bottom:12px;transform:translateX(-50%);display:flex;justify-content:space-between;gap:10px;width:min(960px,calc(100vw - 24px));align-items:flex-end}
 .moj-rpg-cmd{position:absolute;left:0;bottom:calc(100% + 8px);width:250px}
-.moj-rpg-party{flex:1;min-width:0}
+.moj-rpg-row .bar i.lo{background:var(--moj-harm,#ff6b6b)}
+.moj-rpg-party{width:250px;flex:none;display:flex;flex-direction:column;gap:3px}
 .moj-rpg-cmd .t,.moj-rpg-field .t{font-size:11px;letter-spacing:2px;text-transform:uppercase;opacity:.75;margin-bottom:4px}
 .moj-rpg .opt{display:flex;justify-content:space-between;gap:10px;padding:1px 0 1px 16px;position:relative;cursor:pointer}
 .moj-rpg .opt.off{opacity:.42}
 .moj-rpg .on-f::before{content:"\\25B6";position:absolute;left:0;font-size:11px;top:3px;color:var(--moj-accent,#ffd76a)}
-.moj-rpg-row{display:grid;grid-template-columns:minmax(70px,1.2fr) 1fr 1fr;gap:10px;padding:2px 4px 2px 16px;position:relative;align-items:center}
+.moj-rpg-row{padding:2px 4px 2px 16px;position:relative}
+.moj-rpg-row .n{display:flex;justify-content:space-between;gap:8px}.moj-rpg-row .n small{opacity:.8;font-size:11px;font-variant-numeric:tabular-nums}
+.moj-rpg-row .bar i{background:var(--moj-hp,#5ccf7e)}.moj-rpg-row .mp{height:3px;margin-top:2px}.moj-rpg-row .mp i{background:var(--moj-mp,#5aa8ff)}
+body.moj-in-battle .moj-hud:not(.moj-rpg){display:none}
 .moj-rpg-row.act{background:rgba(255,255,255,.08);border-radius:4px}
 .moj-rpg-row.down{color:#ff8a8a}
 .moj-rpg-row .n small,.moj-rpg-field small{opacity:.7;font-size:11px;margin-left:5px}
@@ -60,7 +64,7 @@ export const RPG_CSS = `
 .moj-rpg-field .tab.sel{opacity:1;background:var(--moj-accent,#ffd76a);color:var(--moj-panel,#0e163a);border-color:var(--moj-accent,#ffd76a)}
 .moj-rpg-field table{border-collapse:collapse;font-size:13px}.moj-rpg-field td{padding:1px 10px 1px 0}
 .moj-rpg-field .note{font-size:12px;opacity:.75;margin-top:6px}
-@media (max-width:560px){.moj-rpg-bottom{flex-direction:column}.moj-rpg-foes{width:auto}.moj-rpg-cmd{width:auto;right:0}.moj-rpg-field{flex-direction:column}.moj-rpg-field .mem{width:auto}}
+@media (max-width:560px){.moj-rpg-bottom{flex-direction:column;align-items:stretch}.moj-rpg-foes,.moj-rpg-party{width:auto}.moj-rpg-cmd{width:auto;right:0}.moj-rpg-field{flex-direction:column}.moj-rpg-field .mem{width:auto}}
 `;
 
 // (:where keeps the defaults below the world's UI guide: its register and border rules, .moj-hud .moj-w, win)
@@ -354,20 +358,22 @@ export function rpgPage(cfg, K, ctl, jk) {
       if (!L.length) h += '<div class="opt off">—</div>';
       h += '</div>';
     }
-    h += '<div class="moj-w moj-rpg-foes"><div class="say">' + (msg ? esc(msg) : '&nbsp;') + '</div>';
+    // (the party on the left: each a name over its HP bar and its MP bar, no class; the foes on the right)
+    h += '<div class="moj-w moj-rpg-party">';
+    if (b) for (const m of b.ids) {
+      const M = R.m[m], S = K.statsOf(cfg, R, m), hp = shown[m] != null ? shown[m] : M.hp, mp = shown[m + ':mp'] != null ? shown[m + ':mp'] : M.mp;
+      const s = b.side[m].st, tag = M.poison ? ' psn' : s.sleep ? ' slp' : s.silence ? ' sil' : '', pct = (v, of) => Math.round(100 * Math.max(0, v) / Math.max(1, of));
+      h += '<div class="moj-rpg-row' + (m === active ? ' act' : '') + (hp <= 0 ? ' down' : '') + (aimAt === m ? ' on-f' : '') + joltOf(m) + '" data-aim="' + m + '"><div class="n"><span>' + esc(memberName(m)) + tag + '</span><small>' + hp + '/' + S.hp + '</small></div>'
+        + '<div class="bar"><i' + (hp * 4 <= S.hp ? ' class="lo"' : '') + ' style="width:' + pct(hp, S.hp) + '%"></i></div>' + (S.mp > 0 ? '<div class="bar mp"><i style="width:' + pct(mp, S.mp) + '%"></i></div>' : '') + popsFor(m) + '</div>';
+    }
+    h += '</div><div class="moj-w moj-rpg-foes">';
     if (b) b.foes.forEach((x) => {
       const hp = shown[x.uid] != null ? shown[x.uid] : x.hp;
       h += '<div class="moj-rpg-foe' + (hp <= 0 ? ' down' : '') + (aimAt === x.uid ? ' on-f' : '') + joltOf(x.uid) + '" data-aim="' + x.uid + '">' + esc(x.name) + (cfg.rules.foeHp === 'bar' ? '<div class="bar"><i style="width:' + Math.round(100 * Math.max(0, hp) / x.max) + '%"></i></div>' : '') + popsFor(x.uid) + '</div>';
     });
     const next = K.preview(cfg, R, 6);
     if (next.length) h += '<div class="moj-rpg-turns">' + next.map((x) => '<span class="' + (x.party ? 'p' : 'f') + '">' + esc(x.name) + '</span>').join('') + '</div>';
-    h += '</div><div class="moj-w moj-rpg-party">';
-    if (b) for (const m of b.ids) {
-      const M = R.m[m], S = K.statsOf(cfg, R, m), hp = shown[m] != null ? shown[m] : M.hp, mp = shown[m + ':mp'] != null ? shown[m + ':mp'] : M.mp;
-      const s = b.side[m].st, tag = M.poison ? ' psn' : s.sleep ? ' slp' : s.silence ? ' sil' : '';
-      h += '<div class="moj-rpg-row' + (m === active ? ' act' : '') + (hp <= 0 ? ' down' : '') + (aimAt === m ? ' on-f' : '') + joltOf(m) + '" data-aim="' + m + '"><span class="n">' + esc(memberName(m)) + '<small>' + esc(cfg.classes[M.cls].name) + tag + '</small></span><span class="v">' + hp + '/' + S.hp + ' HP</span><span class="v">' + mp + '/' + S.mp + ' MP</span>' + popsFor(m) + '</div>';
-    }
-    root.innerHTML = h + '</div></div>';   // (the party, the band)
+    root.innerHTML = h + '</div></div>' + (msg ? '<div class="moj-w moj-rpg-msg">' + esc(msg) + '</div>' : '');   // (the foes, the band; the narration across the top)
     pops = []; jolts = {};
   }
   function popsFor(id) { return pops.filter((p) => p.at === id).map((p) => '<span class="moj-rpg-pop ' + p.cls + '"' + (p.color ? ' style="color:' + esc(p.color) + '"' : '') + '>' + esc(p.txt) + '</span>').join(''); }
@@ -508,8 +514,9 @@ export function rpgPage(cfg, K, ctl, jk) {
     padPrev = now;
   }
 
-  function hold() { window.__mojFreeze = true; window.__mojMenuOpen = true; }
-  function release() { window.__mojFreeze = false; window.__mojMenuOpen = false; }
+  // (a fight or the party menu holds the world; a fight's own window stands in for the level's HUD while it is up)
+  function hold() { window.__mojFreeze = true; window.__mojMenuOpen = true; if (document.body && document.body.classList) document.body.classList[mode === 'battle' ? 'add' : 'remove']('moj-in-battle'); }
+  function release() { window.__mojFreeze = false; window.__mojMenuOpen = false; if (document.body && document.body.classList) document.body.classList.remove('moj-in-battle'); }
 
   // ── the bus, and the walk ──
   // the bus's new events: joins, openings and rests first, then a battle (the bus sorts what arrives together, so a

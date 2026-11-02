@@ -132,9 +132,10 @@ its resource, put on a look and showed a toast. This theme makes them act.
   pack on the right, the hero's swing landing, all above the panels.
 - **The battle window, the formation and the camera reworked** (`scene/channels/rpg-channel.js`, `events.js`,
   `gameworld/levels.js`).
-  - **The window.** One band along the bottom: the foes (names, HP bars, the turn order) under the fight's narration
-    on the left, the party on the right. The command menu stands above the band only while a member picks. Nothing
-    covers the top of the scene, and there is no empty box beside the party.
+  - **The window.** The party's box on the bottom left: each member's name over its HP bar (green, red when low) and its
+    MP bar (blue), no class. The foes' box on the bottom right: their names, HP bars and the turn order. The fight's
+    narration is a slim banner across the top. The command menu stands above the party's box only while a member picks.
+    There is no empty box, and the level's own HUD (its controls, its readouts) steps aside while the fight is up.
   - **The formation.** The party stands in a wedge (the hero at its point, the rest in ranks behind on either side),
     never a line.
   - **The camera.** Its distance is fitted to the fighters' spread across the frame (its field, the page's shape, a
