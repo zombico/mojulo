@@ -1,6 +1,6 @@
 ### Engine handoff plan (temporary: the working plan, parked here; delete before release)
 
-**Status:** phases 0 to 3 built; phase 4's Godot adapter built and run in a real Godot (4.7.2) on the operator's machine, the terrain shader with it; the sea as the engine's own water built; phases 5 to 7 done (one door; the runtimes culled; Godot, Unity, Unreal and Blender each an adapter on the contract, run in their engines on the operator's machine); phase 8's visual gate built and run; phase 9 (the copy) next (1102).
+**Status:** phases 0 to 3 built; phase 4's Godot adapter built and run in a real Godot (4.7.2) on the operator's machine, the terrain shader with it; the sea as the engine's own water built; phases 5 to 7 done (one door; the runtimes culled; Godot, Unity, Unreal and Blender each an adapter on the contract, run in their engines on the operator's machine); phases 0 to 9 built (1102); left: the eyes gate (the operator's), the open findings below, and this plan's deletion before release.
 `control/changelog/1026/1031/engine-handoff.md`. No release has carried the engine game runtimes this plan removes, so
 nothing here needs a deprecation path.
 
@@ -665,4 +665,16 @@ developer would want to wire. Never claimed by a machine.
     draw its insides (two-sided figure materials, likely); the page drops the cracked-earth network at distance where
     every engine keeps it; the bay's lamps make specular spots and white windows the page's baked light has not; a
     near wall the page cuts away; Unity's bay the darkest; Godot's faint line where the sea meets the far shallows.
+- 1102, phase 9, the copy: get_substrate's ladder (what each adapter carries), the README's opening, "Where it goes" and
+  the kart-racer's export, control/README, README-OUTLINE, CONTRIBUTING's engine section, CLAUDE.md, SECURITY.md, the
+  docs (AGENT-REFERENCE, tech-requirements with an adapter table, tour, ursa — its L3 now "hands off", an attestation
+  that each engine's import probe found the level's record: the operator to confirm it fits the standard — foes,
+  emote-bridge, realistic-body, local-voice-worker, mcp-integration), the plugin, marketplace, glama and package
+  descriptions, two HUD cards, the retired kernels' readers' headers; every dead link in those files fixed. No pin
+  moved. Left: sixteen dead links in vocab cards under control/lib (plan paths, a moved module), not this theme's.
+- Open after phase 9 (each a lead, measured by the machine gate, for the eyes gate): the seam camera inside the hero's
+  head (Godot, Unreal, Unity draw its insides); the near sea darker in every engine; the page's contact occlusion and a
+  room's baked bounce not carried; the page dropping the cracked earth at distance; Blender's parallax kinds on its own
+  Voronoi; the dunes' and snow's layers, the files beside the handoff (the soundtrack, the sound effects) and the
+  handoff ledger replacing the marks, still to build.
 

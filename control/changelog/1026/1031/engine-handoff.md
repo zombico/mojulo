@@ -107,3 +107,5 @@ Built so far:
   page and in each engine on the machine, scores every shot (structure and colour, region by region) and writes a
   contact sheet: the page beside each engine, the scores and a map of where they differ. It advises and never
   refuses. `mojulo script visual-gate --ref <level>` runs it; a level's engine export names the command.
+- **The copy.** The README, the docs, the plugin and the agent's own self-description say what is true now: the game
+  plays in the browser or as a desktop app, and a team's engine gets a handoff of its levels and assets to wire.
