@@ -159,8 +159,10 @@ from the tail's middle, turned in line with the near half). At the strike the tr
 hips: the front low on both forepaws, the rump raised. Then the VAULT (`FEATURE_GALLOP.vault`): tipped further, on the
 forepaws alone, the head still ahead. Then the LANDING (`FEATURE_GALLOP.land`): still on the forepaws, the elbows bent
 their natural way to take the weight. In both the hind legs are stretched out behind with the feet pointed back and the
-tail raised, so the legs show under it; the haunch swings with its leg (`FEATURE_SKIN.hip`). However far the gallop tips the hips,
-the tail's base keeps to the rump: a `rump` chain turns the whole tail about the pelvis ball's middle. Running, the hips tip no further than `FEATURE_GALLOP.hinge`, so the tail comes out of the
+tail raised, so the legs show under it; the haunch swings with its leg (`FEATURE_SKIN.hip`). On all fours, however far the hips tip,
+the tail leaves the LOWER RUMP (`FEATURE_TAIL_RUMP` under its rearmost point): a `rump` chain turns the whole tail about
+the pelvis ball's middle and the skin about the root rides the `rump` bone, so the junction slides round the ball. The
+brush tail has a neck, so tail and body read as a figure eight, never a keel off the back; no tail drags on the floor. Running, the hips tip no further than `FEATURE_GALLOP.hinge`, so the tail comes out of the
 rump. On all fours, walking and running, the head is turned up until its crown tips `FEATURE_LOOK.tilt` ahead of upright,
 the head taking most of the turn so it is never tucked into the shoulders.
 

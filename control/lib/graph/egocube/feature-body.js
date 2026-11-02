@@ -347,7 +347,7 @@ export function featurePlan(sheet, { title = 'a feature animal', reactions = fal
   const face = featureFace({ field: F.field, H, eye: L.eye, rest: f.expression, mouth: L.mouth,
     groups: { lid: ['mask', 'patches'].includes(K.pattern) ? 'Patch' : crowned ? 'Crown' : 'Body', lip: 'Belly', brow: 'Belly' } });
   const segments = [
-    { name: 'skin', kind: 'mesh', group: 'Body', mesh: skin.mesh, bind: { bone: 'pelvis', blend: skin.blend } },
+    { name: 'skin', kind: 'mesh', group: 'Body', mesh: skin.mesh, bind: { bone: 'pelvis', blend: L.tail ? rumped(skin, L.tail) : skin.blend } },
     ...coat,
     ...face.segments,
   ];
@@ -375,7 +375,7 @@ export function featurePlan(sheet, { title = 'a feature animal', reactions = fal
   // (two bones: the tail's from its root to its middle, the tail's end from there to its tip, each turned by its chain)
   if (L.tail) {
     for (const [n, p] of [['rumpHub', L.tail.hub], ['tailRoot', L.tail.root], ['tailMid', L.tail.mid], ['tailTip', L.tail.tip]]) rig.joints[n] = { at: p.map(r4), rides: 'pelvis' };
-    rig.bones.push({ id: 'tail', head: 'tailRoot', tail: 'tailMid' }, { id: 'tailEnd', head: 'tailMid', tail: 'tailTip' });
+    rig.bones.push({ id: 'rump', head: 'rumpHub', tail: 'tailRoot' }, { id: 'tail', head: 'tailRoot', tail: 'tailMid' }, { id: 'tailEnd', head: 'tailMid', tail: 'tailTip' });
     // (`rump` first: the whole tail turned about the pelvis ball's middle, its base kept to the rump however far the hips
     // tip; then the tail from its root and its end from its middle)
     rig.chains = { ...(rig.chains ?? {}), rump: { axis: 'x', sign: 1, links: [{ pivot: 'rumpHub', joints: ['tailRoot', 'tailMid', 'tailTip'] }] },
@@ -454,37 +454,72 @@ function looking(plan) {
  *  from its root until its line from root to tip rises at the species' carriage (fauna roster: feature-function.js
  *  speciesTail; absent, `FEATURE_CARRIAGE.none`), a share (`keep`) of the way back toward where the mascot's own tail
  *  would point: a compromise between the regular animal and the mascot. Galloping, every tail is held back for balance,
- *  near level (`run`, whatever the walking carriage: a cat's up at a walk, back at a run), its base kept to the RUMP
- *  (galloping, the hips tipped past the pose's own: the whole tail turned about the pelvis ball's middle by the `rump`
- *  chain, back to where the pose on all fours has its root), RAISED in the leap (`leap`
+ *  near level (`run`, whatever the walking carriage: a cat's up at a walk, back at a run), never dragged (lifted until
+ *  its middle and its tip clear the floor by `clear` of the height, room for a brush's thickness), its base kept LOW ON THE RUMP
+ *  (FEATURE_TAIL_RUMP under its rearmost point: the whole tail turned about the pelvis ball's middle by the `rump` chain,
+ *  however far the hips tip), RAISED in the leap (`leap`
  *  degrees, the gallop's keys on the forepaws alone: the hind legs stretched out under it show) and STRAIGHTENED (the tail's
  *  far half turned from its middle in line with the near half: a curled tip laid out behind). Standing, as designed */
-export const FEATURE_CARRIAGE = Object.freeze({ none: -15, keep: 0.25, most: 60, run: Object.freeze({ least: -25, most: 10 }), leap: 30 });
+/** THE RUMP'S PATCH: the skin of the pelvis ball about a tail's root rides the `rump` bone (from the ball's middle to the
+ *  root, turned with the tail by the `rump` chain), wholly within `inner` degrees of the root about the ball's middle and
+ *  less to none by `outer`: a ball turned about its middle maps onto itself, so the tail's junction slides round the
+ *  rump with it, never stretched across it as a web */
+export const FEATURE_RUMP = Object.freeze({ inner: 20, outer: 70 });
+function rumped(skin, T) {
+  const ax = [T.root[0] - T.hub[0], T.root[1] - T.hub[1], T.root[2] - T.hub[2]], al = Math.hypot(...ax) || 1;
+  const c0 = Math.cos((FEATURE_RUMP.inner * Math.PI) / 180), c1 = Math.cos((FEATURE_RUMP.outer * Math.PI) / 180), out = {};
+  skin.V.forEach((p, v) => {
+    const key = `st0.v${v}`, w = skin.blend[key], pel = w.pelvis ?? 0;
+    if (!pel) { out[key] = w; return; }
+    const d = [p[0] - T.hub[0], p[1] - T.hub[1], p[2] - T.hub[2]], c = (d[0] * ax[0] + d[1] * ax[1] + d[2] * ax[2]) / ((Math.hypot(...d) || 1) * al);
+    const t = Math.max(0, Math.min(1, (c - c1) / (c0 - c1))), f = t * t * (3 - 2 * t);
+    if (f <= 0) { out[key] = w; return; }
+    const n = { ...w, pelvis: pel * (1 - f), rump: (w.rump ?? 0) + pel * f };
+    if (n.pelvis < FEATURE_SKIN.floor) { n.rump += n.pelvis; delete n.pelvis; }
+    // (at most the bones a point may name: the least folded into the most)
+    const e = Object.entries(n).sort((a, b) => b[1] - a[1]), kept = e.slice(0, FEATURE_SKIN.bones), lost = e.slice(FEATURE_SKIN.bones).reduce((a, [, x]) => a + x, 0);
+    kept[0][1] += lost; const W = kept.map(([b, x]) => [b, r4(x)]); W[0][1] = r4(W[0][1] + 1 - W.reduce((a, [, x]) => a + x, 0));
+    out[key] = Object.fromEntries(W);
+  });
+  return out;
+}
+
+/** where a tail leaves the rump on all fours: degrees under its rearmost point, about the pelvis ball's middle */
+export const FEATURE_TAIL_RUMP = -25;
+export const FEATURE_CARRIAGE = Object.freeze({ none: -15, keep: 0.25, most: 60, run: Object.freeze({ least: -25, most: 10 }), leap: 30, clear: 0.12 });
 function carried(plan, carriage) {
-  const R = validateRig(expandPlan(plan).rig), C = FEATURE_CARRIAGE, real = Math.max(-C.most, Math.min(C.most, carriage ?? C.none));
+  const h = plan.mascot.height, R = validateRig(expandPlan(plan).rig), C = FEATURE_CARRIAGE, real = Math.max(-C.most, Math.min(C.most, carriage ?? C.none));
   const riseOf = (a, b) => (Math.atan2(b[2] - a[2], -(b[1] - a[1])) * 180) / Math.PI;
   const rise = (k) => { const n = rigNodesAt(R, k).nodes; return riseOf(n.tailRoot, n.tailTip); };
   // (the far half's turn that lines it up with the near half: a straight tail; the root's chain carries both halves, so
   // the bend between them is the far chain's alone)
   const bendOf = (k) => { const n = rigNodesAt(R, k).nodes; return riseOf(n.tailMid, n.tailTip) - riseOf(n.tailRoot, n.tailMid); };
   const straight = (k) => { const b0 = bendOf({ ...k, tail: 0, tailEnd: 0 }), per = (bendOf({ ...k, tail: 0, tailEnd: 10 }) - b0) / 10; return Math.abs(per) > 1e-6 ? r4(-b0 / per) : 0; };
-  // (THE RUMP: the root's angle about the pelvis ball's middle on all fours is the gallop's too, however far its hips tip)
+  // (THE RUMP: on all fours, walking, galloping and in the dog the tail's root sits FEATURE_TAIL_RUMP degrees under the
+  // rump's rearmost point (about the pelvis ball's middle), however far the hips tip: the tail leaves the rump's lower
+  // half, a figure eight with the body, never a keel run on from the back)
   const about = (n) => (Math.atan2(n.tailRoot[2] - n.rumpHub[2], -(n.tailRoot[1] - n.rumpHub[1])) * 180) / Math.PI;
-  const fours = plan.clips.fours?.[1], rumpAt = fours ? about(rigNodesAt(R, fours).nodes) : null;
+  const rumpAt = FEATURE_TAIL_RUMP;
   for (const name of Object.keys(FEATURE_PAWS.out)) {
     const keys = plan.clips[name];
     if (!Array.isArray(keys)) continue;
     keys.forEach((k0, i) => {
       if (!k0?.armR) return;
       let k = k0;
-      if (name === 'gallop' && rumpAt !== null) {
+      {
         const a0 = about(rigNodesAt(R, { ...k, rump: 0 }).nodes), per = (about(rigNodesAt(R, { ...k, rump: 10 }).nodes) - a0) / 10;
         if (Math.abs(per) > 1e-6 && Math.abs(a0 - rumpAt) > 0.5) k = { ...k, rump: r4((rumpAt - a0) / per) };
       }
       const run = name === 'gallop', end = run ? straight(k) : 0, k1 = end ? { ...k, tailEnd: end } : k;
       const e0 = rise({ ...k1, tail: 0 }), per = (rise({ ...k1, tail: 10 }) - e0) / 10;
       const want = run && k.support === 'none' ? C.leap : run ? Math.max(C.run.least, Math.min(C.run.most, real)) : real + C.keep * (e0 - real);
-      if (Math.abs(per) > 1e-6) keys[i] = { ...k1, tail: r4((want - e0) / per) };
+      if (Math.abs(per) > 1e-6) {
+        // (never dragged: a tail carried low is lifted, a few degrees at a time, until its tip clears the floor)
+        let turn = (want - e0) / per;
+        const tipZ = (t) => { const n = rigNodesAt(R, { ...k1, tail: t }).nodes; return Math.min(n.tailTip[2], n.tailMid[2]); };
+        for (let it = 0; it < 12 && tipZ(turn) < C.clear * h; it++) turn += 5 / per;
+        keys[i] = { ...k1, tail: r4(turn) };
+      }
     });
   }
 }

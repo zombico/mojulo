@@ -4,7 +4,7 @@
 // it; the mascot sheet in the feature style compiles to that skin on the mascot's rig, shaded smooth, its lids shells
 // turning about their globes; a sheet in any other style compiles as it did.
 import { describe, it, expect } from 'vitest';
-import { egg, eggDistance, eggField, eggSkin, tuft, FEATURE_BUILDS, FEATURE_TRIANGLES, FEATURE_CARRIAGE, featureShapes } from './feature-body.js';
+import { egg, eggDistance, eggField, eggSkin, tuft, FEATURE_BUILDS, FEATURE_TRIANGLES, FEATURE_CARRIAGE, FEATURE_TAIL_RUMP, featureShapes } from './feature-body.js';
 import { speciesTail, FEATURE_GALLOP } from './feature-function.js';
 import { pieces, attachAll, gapOf } from './feature-attach.js';
 import { resolveTune } from './feature-tune.js';
@@ -129,11 +129,14 @@ describe('the feature body', () => {
     expect(Math.max(...paw) - Math.min(...paw)).toBeGreaterThan(0.08 * height);
     // (the face ahead, a little down, never tipped up: FEATURE_LOOK; the tail out of the rump, not up the back)
     for (const n of posed) { expect(crownTip(n)).toBeGreaterThan(5); expect(crownTip(n)).toBeLessThan(30); }
-    // (the tail's base KEPT TO THE RUMP: however far the gallop tips the hips, its root is where the pose on all fours has
-    // it about the pelvis ball's middle (the `rump` chain), never carried up the back)
+    // (the tail's base LOW ON THE RUMP: on all fours and however far the gallop tips the hips, its root sits
+    // FEATURE_TAIL_RUMP under the rump's rearmost point about the pelvis ball's middle (the `rump` chain), never carried up
+    // the back; the skin about it rides the `rump` bone, so the junction slides round with it)
     const rumpOf = (n) => (Math.atan2(n.tailRoot[2] - n.rumpHub[2], -(n.tailRoot[1] - n.rumpHub[1])) * 180) / Math.PI;
-    const onFours = rumpOf(rigNodesAt(R, plan.clips.fours[1]).nodes);
-    for (const n of posed) expect(Math.abs(rumpOf(n) - onFours)).toBeLessThan(2);
+    for (const n of [...posed, rigNodesAt(R, plan.clips.fours[1]).nodes]) expect(Math.abs(rumpOf(n) - FEATURE_TAIL_RUMP)).toBeLessThan(2);
+    expect(Object.values(plan.segments[0].bind.blend).some((w) => (w.rump ?? 0) > 0.9)).toBe(true);
+    // (and never dragged: the tail's middle and tip clear the floor on all fours and through the gallop)
+    for (const n of [...posed, rigNodesAt(R, plan.clips.fours[1]).nodes]) expect(Math.min(n.tailMid[2], n.tailTip[2])).toBeGreaterThan(FEATURE_CARRIAGE.clear * height - 1e-3);
     // (0.12: at the strike and further at the vault the trunk tips forward and the rump rises with it, the root still
     // behind the hips)
     for (const n of posed) { expect(n.tailRoot[2] - n.pelvisHub[2]).toBeLessThan(0.12 * height); expect(n.tailRoot[1]).toBeLessThan(n.pelvisHub[1] - 0.1 * height); }
@@ -171,10 +174,11 @@ describe('the feature body', () => {
     for (const n of posed) expect(Math.abs(half(n.tailMid, n.tailTip) - half(n.tailRoot, n.tailMid))).toBeLessThan(3);
     expect(plan.rig.bones.some((b) => b.id === 'tailEnd')).toBe(true);
     for (const n of ['idle', 'blink']) for (const k of plan.clips[n]) expect(k.tailEnd, n).toBeUndefined();
-    // (the tail's ring pattern a layer riding the tail's bones rigidly, each point one bone: it never stretches)
+    // (the tail's ring pattern a layer riding the tail's bones alone, never the rump's or the pelvis's: it never stretches
+    // across the root)
     const rings = plan.segments.find((x) => x.name === 'coatRings');
     expect(rings).toBeTruthy();
-    for (const w of Object.values(rings.bind.blend)) { const b = Object.keys(w); expect(b.length).toBe(1); expect(['tail', 'tailEnd']).toContain(b[0]); }
+    for (const w of Object.values(rings.bind.blend)) for (const b of Object.keys(w)) expect(['tail', 'tailEnd']).toContain(b);
     expect(Math.min(...posed.map((n) => n.knucklesR[2]))).toBeLessThan(0.05 * height);                // (the strike)
     expect(Math.max(...posed.map((n) => n.knucklesR[2]))).toBeGreaterThan(0.06 * height);             // (swung through the air)
     expect(Math.min(...posed.map((n) => n.toeBaseR[1] - n.hipR[1]))).toBeLessThan(-0.1 * height);     // (the hind legs tilted back)
@@ -184,8 +188,9 @@ describe('the feature body', () => {
     expect(Math.abs(rise(fours.pelvisHub, fours.neckHub))).toBeLessThan(15);
     const tailRise = (n) => (Math.atan2(n.tailTip[2] - n.tailRoot[2], -(n.tailTip[1] - n.tailRoot[1])) * 180) / Math.PI;
     const real = speciesTail('raccoon') ?? FEATURE_CARRIAGE.none, mascot = tailRise(rigNodesAt(R, { ...plan.clips.fours[1], tail: 0 }).nodes);
-    expect(tailRise(fours)).toBeCloseTo(real + FEATURE_CARRIAGE.keep * (mascot - real), 0);
-    expect(tailRise(fours)).toBeLessThan(45); expect(mascot).toBeGreaterThan(90);         // (uncarried, it would aim over the back)
+    // (at that carriage, or lifted from it as far as the floor needs: never lowered)
+    expect(tailRise(fours)).toBeGreaterThan(real + FEATURE_CARRIAGE.keep * (mascot - real) - 0.5);
+    expect(tailRise(fours)).toBeLessThan(45); expect(mascot).toBeGreaterThan(60);         // (uncarried, it would aim up over the back)
     for (const n of ['idle', 'blink', 'happy']) for (const k of plan.clips[n]) expect(k.tail, n).toBeUndefined();
     // (standing, the legs straight: no standing pose bends a knee; on all fours the hind legs keep their bend)
     for (const n of ['idle', 'blink', 'happy']) for (const k of plan.clips[n]) { expect(k.crouch ?? 0, n).toBe(0); expect(k.stance ?? 1, n).toBe(1); }
@@ -228,7 +233,9 @@ describe('the feature body', () => {
     const zs = z.segments.find((x) => x.name === 'skin'), inS = new Set(), inC = new Set();
     for (const [f, t] of Object.entries(zs.mesh.faces)) for (const v of t) (zs.mesh.groups[f] === 'Patch' ? inS : inC).add(v);
     for (const v of inS) inC.delete(v);
-    const loose = (S) => [...S].filter((v) => Math.max(...Object.values(zs.bind.blend[`st0.${v}`])) < 0.8).length / S.size;
+    // (the rump's patch and the pelvis one: the rump bone turns the ball's skin about its own middle, the ball onto itself)
+    const top = (w) => Math.max(...Object.entries(w).reduce((a, [b, x]) => { const k = b === 'rump' ? 'pelvis' : b; a.set(k, (a.get(k) ?? 0) + x); return a; }, new Map()).values());
+    const loose = (S) => [...S].filter((v) => top(zs.bind.blend[`st0.${v}`]) < 0.8).length / S.size;
     expect(loose(inS)).toBeLessThan(loose(inC) / 2 + 0.01);
     expect(z.segments.reduce((n, x) => n + Object.keys(x.mesh?.faces ?? {}).length, 0)).toBeLessThanOrEqual(FEATURE_TRIANGLES);
     // (a giraffe's network of patches: cut into the skin in its own colour, the roster's, within the budget)

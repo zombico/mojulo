@@ -15,8 +15,8 @@
  *                                (its width × 1 − (angle / end)^taper: the larger the taper, the later the pinch), each
  *                                side alike (at 180 the
  *                                two sides' points meet under the body: a chevron). With a `bone` (a tail's ring) the
- *                                band RIDES that bone rigidly (coatLayers): it never stretches where the skin under it
- *                                blends between bones
+ *                                band RIDES the tail's bones (coatLayers: the skin's weights among them alone, its own
+ *                                bone where the skin names none): it never stretches across the blend into the body
  *   cells({ seeds, line, top })  a NETWORK of patches (a giraffe's): each point the patch of its nearest seed, the patches
  *                                parted by lines `line` wide, below `top`
  *   cutSkin({ V, F }, marks, { field, shapes })   → { V, F, groups }: a ZONE (a mark of territories alone: the muzzle, the
@@ -174,7 +174,11 @@ export function coatLayers({ V, F, field, shapes, weights }, marks, { lift = FEA
     // piece, never stretched across the blend at the tail's root; every other point takes the skin's weights there)
     const ridden = (mark.bands ?? []).filter((B) => B.bone), boneAt = (p) => { if (!ridden.length) return null;
       let best = null, bd = Infinity; for (const B of ridden) { const d = Math.abs(dot(sub(p, B.c), B.axis)); if (d < bd) { bd = d; best = B; } } return best.bone; };
-    S.V.forEach((p, i) => { points[`v${i}`] = add(p, mul(N[i], h)).map(r6); normals[`v${i}`] = N[i].map(r4); const b = boneAt(p); blend[`st0.v${i}`] = b ? { [b]: 1 } : weights(p); });
+    // (a ridden band follows the skin's own weights among the bones the band rides (a tail's two), the rest (the rump's,
+    // the pelvis's) dropped: it bends with the tail as the skin under it does, never pulled back across the root)
+    const ridingBones = new Set(ridden.map((B) => B.bone)), riding = (p, b) => { const w = Object.entries(weights(p)).filter(([k]) => ridingBones.has(k)), t = w.reduce((a, [, x]) => a + x, 0);
+      if (!t) return { [b]: 1 }; const W = w.map(([k, x]) => [k, r4(x / t)]); W[0][1] = r4(W[0][1] + 1 - W.reduce((a, [, x]) => a + x, 0)); return Object.fromEntries(W); };
+    S.V.forEach((p, i) => { points[`v${i}`] = add(p, mul(N[i], h)).map(r6); normals[`v${i}`] = N[i].map(r4); const b = boneAt(p); blend[`st0.v${i}`] = b ? riding(p, b) : weights(p); });
     S.F.forEach((t, i) => { faces[`f${i}`] = t.map((v) => `v${v}`); });
     const E2 = new Map(); for (const t of S.F) for (let k = 0; k < 3; k++) { const a = t[k], b = t[(k + 1) % 3]; E2.set(`${a}|${b}`, true); }
     const boundary = []; let w = 0;

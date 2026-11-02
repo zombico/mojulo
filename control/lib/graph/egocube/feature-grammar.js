@@ -394,13 +394,15 @@ const EARS = {
 
 /** THE TAILS: the masses, a tip tuft (a decoration), the zone of its tip */
 const TAILS = {
+  // (a NECK at the base, then the brush: the base slim and the thick of it held out from the rump, so tail and body read
+  // as a figure eight, pinched where they meet, never a keel run on from the back)
   brush: () => ({ eggs: [
-    { name: 'tail0', c: [0, -1.05, 0.62], u: [0, -1, 0.3], r: [0.4, 0.36, 0.36], bone: 'pelvis', join: 0.3 },
-    { name: 'tail1', c: [0, -1.55, 0.84], u: [0, -0.9, 0.45], r: [0.5, 0.5, 0.48], bone: 'pelvis', join: 0.3 },
-    { name: 'tail2', c: [0, -1.95, 1.22], u: [0, -0.6, 0.8], r: [0.5, 0.5, 0.48], bone: 'pelvis', join: 0.3 },
-    { name: 'tail3', c: [0, -2.12, 1.72], u: [0, -0.15, 1], r: [0.42, 0.4, 0.38], e: 0.5, bone: 'pelvis', join: 0.3 }],
-    tip: { name: 'tailTip', root: [0, -2.16, 2.02], aim: [0, -0.35, 1], len: 0.34, r: 0.2, curl: 30, bend: [0, -1, 0], bone: 'pelvis', join: 0.1 },
-    rings: [[[0, -1.5, 0.82], [0, -0.9, 0.45], 0.09, 0.65], [[0, -1.92, 1.2], [0, -0.6, 0.8], 0.09, 0.65], [[0, -2.12, 1.68], [0, -0.2, 1], 0.08, 0.55]] }),
+    { name: 'tail0', c: [0, -1.07, 0.62], u: [0, -1, 0.3], r: [0.42, 0.26, 0.26], bone: 'pelvis', join: 0.2 },
+    { name: 'tail1', c: [0, -1.85, 0.89], u: [0, -0.9, 0.45], r: [0.5, 0.5, 0.48], bone: 'pelvis', join: 0.3 },
+    { name: 'tail2', c: [0, -2.25, 1.27], u: [0, -0.6, 0.8], r: [0.5, 0.5, 0.48], bone: 'pelvis', join: 0.3 },
+    { name: 'tail3', c: [0, -2.42, 1.77], u: [0, -0.15, 1], r: [0.42, 0.4, 0.38], e: 0.5, bone: 'pelvis', join: 0.3 }],
+    tip: { name: 'tailTip', root: [0, -2.46, 2.07], aim: [0, -0.35, 1], len: 0.34, r: 0.2, curl: 30, bend: [0, -1, 0], bone: 'pelvis', join: 0.1 },
+    rings: [[[0, -1.8, 0.87], [0, -0.9, 0.45], 0.09, 0.65], [[0, -2.22, 1.25], [0, -0.6, 0.8], 0.09, 0.65], [[0, -2.42, 1.73], [0, -0.2, 1], 0.08, 0.55]] }),
   thin: () => ({ eggs: [], tufts: [{ name: 'tail', root: [0, -0.88, 0.6], aim: [0, -1, 0.15], len: 1.5, r: 0.11, tip: 0.3, curl: 75, bend: [0, 0, 1], bone: 'pelvis', join: 0.08 }] }),
   pom: () => ({ eggs: [{ name: 'tail0', c: [0, -1.02, 0.7], u: [0, -1, 0.3], r: [0.24, 0.24, 0.24], bone: 'pelvis', group: 'Belly', join: 0.1 }] }),
   tuft: () => ({ eggs: [], tufts: [{ name: 'tail', root: [0, -0.88, 0.62], aim: [0, -1, -0.2], len: 1.2, r: 0.09, tip: 0.5, curl: 40, bend: [0, 0, 1], bone: 'pelvis', join: 0.08 }],
@@ -434,7 +436,7 @@ const TAIL0 = [0, -0.88, 0.6];
  *  rump (`low` degrees under the pelvis ball's middle, on its back, `off` behind its surface: where the pelvis tipped on
  *  all fours turns it into the rump, never up the back) and the tail is drooped
  *  back about its root (`droop` degrees): standing it sweeps out behind, on all fours it rises behind */
-export const FEATURE_TAIL = Object.freeze({ low: 75, droop: 25, off: 0.04 });
+export const FEATURE_TAIL = Object.freeze({ low: 80, droop: 25, off: 0.04 });
 function tailRootOn(S) {
   const b = S.body.find((e) => e.name === 'belly'), a = (FEATURE_TAIL.low * Math.PI) / 180;
   return [0, b.c[1] - b.r[2] * Math.cos(a) - FEATURE_TAIL.off, b.c[2] - b.r[0] * (1 - (b.e ?? 0) / 2) * Math.sin(a)];
