@@ -70,7 +70,7 @@ export function actRead({ script, register = 'anchor', style, role, seed = 1 } =
     for (const L of read.lines) {
       if (L.aside) { if (X.aside) body.push({ t: L.at, gesture: prefer(D.body.aside, 'think', 'shrug'), cause: 'aside' }); continue; }
       if (rnd() < X.line) body.push({ t: L.at, gesture: pick(X.vocab), cause: 'line' });
-      for (const w of L.words) if (w.emph && rnd() < X.stress) body.push({ t: w.t, gesture: prefer(D.body.stress, 'point', 'nod'), cause: 'stress' });
+      for (const w of L.words) if (w.emph && rnd() < X.stress) body.push({ t: w.t, gesture: prefer(D.body.stress, 'beat', 'point', 'nod'), cause: 'stress' });
     }
     if (X.close) { const last = read.lines.at(-1); body.push({ t: r3(Math.max(last.at, last.end - 0.3)), gesture: prefer(D.body.close, 'nod', 'bow'), cause: 'close' }); }
     body.sort((a, b) => a.t - b.t);

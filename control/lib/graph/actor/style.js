@@ -9,7 +9,7 @@
  *   • `gaze`    `glance` the share of lines broken by a glance off and back; a `line`, `para` or `aside` target
  *               (persona/delivery.js GAZE_TARGETS) over the register's own
  *   • `gesture` which moments a gesture marks (`stress` the share of stressed words, `line` the share of lines that
- *               open with one, `aside`, `close`) and from which words (`vocab`, figure-emotes.js EMOTES); an empty
+ *               open with one, `aside`, `close`) and from which words (`vocab`, GESTURE_WORDS); an empty
  *               vocabulary gestures nowhere
  *   • `voice`   `rate` and `articulation`, each a factor on the register's
  *   • `body`    the body's dials (figure-posing.js performance(): `exaggerate`, `anticipation`, `followThrough`, `idle`;
@@ -27,8 +27,10 @@ import { GAZE_TARGETS } from '../persona/delivery.js';
 /** the feel flavors a style's moves may take (gameworld/feel/flavor.js FLAVORS' names, held equal by style.test.js: that
  * module carries the hero's solvers, too heavy for a card's check) */
 export const STYLE_FLAVORS = Object.freeze(['realistic', 'action', 'platformer', 'pinball']);
-/** the gestures a style may name: the body's emotes (figure-emotes.js EMOTES), as delivery's `body` does */
-export const GESTURE_WORDS = Object.freeze(['nod', 'headshake', 'bow', 'shrug', 'cheer', 'point', 'clap', 'think']);
+/** the gestures a style may name: the body's (actor/gestures.js GESTURES, held equal by a test: that module carries the
+ * arm's solver, too heavy for a card's check), the body's emotes' names among them (figure-emotes.js EMOTES, as a
+ * delivery register's `body` names them) */
+export const GESTURE_WORDS = Object.freeze(['beat', 'offer', 'point', 'shrug', 'cheer', 'clap', 'think', 'nod', 'headshake', 'bow']);
 
 const card = (o) => Object.freeze(Object.fromEntries(Object.entries(o).map(([k, v]) => [k, v && typeof v === 'object' && !Array.isArray(v) ? Object.freeze(v) : Array.isArray(v) ? Object.freeze(v) : v])));
 
@@ -37,7 +39,7 @@ export const STYLES = Object.freeze({
     reads: 'the stage actor: big and readable, every stressed word carried by the hands, lines opened with the brows, the eyes held on whoever is listening; crisp and unhurried',
     face: { intensity: 1.25, onset: 'spontaneous', flash: 0.4, tells: ['eyeSmile', 'knit', 'widen'], tell: 0.3 },
     gaze: { glance: 0.1 },
-    gesture: { stress: 1, line: 0.5, aside: true, close: true, vocab: ['point', 'shrug', 'nod', 'bow'] },
+    gesture: { stress: 1, line: 0.5, aside: true, close: true, vocab: ['beat', 'point', 'offer', 'shrug', 'nod', 'bow'] },
     voice: { rate: 0.92, articulation: 1.15 },
     body: { exaggerate: 1.3, anticipation: 0.35, followThrough: 1.2, idle: 1, stillness: 0.2, hold: 0.3 }, time: 'realistic',
   }),
@@ -53,7 +55,7 @@ export const STYLES = Object.freeze({
     reads: 'the anime game\'s captured cutscene: a big clear face that snaps into place, a gesture a line held at its end, every line lifted',
     face: { intensity: 1.4, onset: 'posed', flash: 0.4, tells: ['widen', 'eyeSmile'], tell: 0.35 },
     gaze: { glance: 0.05 },
-    gesture: { stress: 0.5, line: 1, aside: true, close: true, vocab: ['point', 'cheer', 'think', 'shrug', 'nod'] },
+    gesture: { stress: 0.5, line: 1, aside: true, close: true, vocab: ['point', 'cheer', 'think', 'offer', 'shrug', 'nod'] },
     voice: { rate: 1.05, articulation: 1.2 },
     body: { exaggerate: 1.4, anticipation: 0.3, followThrough: 1, idle: 0.8, stillness: 0.4, hold: 0.5 }, time: 'action',
   }),

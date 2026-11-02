@@ -76,8 +76,30 @@ Styles:
 A style sets the face's intensity and onset (`spontaneous` eases in, `posed` snaps), the share of lines opened by a brow
 flash or showing a tell, how often a line is broken by a glance off and back, which moments a gesture marks and from
 which words, and the voice's rate and articulation as factors on the register's. A tune is `{ from: 'thespian', face: {
-intensity: 1 } }`. The body's dials (`body`, `time`) are carried for the body's phase and played nowhere yet: the
-gestures are still the body track's cues.
+intensity: 1 } }`.
+
+A read played in a style is also ACTED by the body. Its gestures are played on the hero's rig from the actor's stand
+(the arms hanging at the sides, found on that hero):
+- each gesture peaks just before its stressed word;
+- it is wound up and let go at the style's pace, each joint within its speed;
+- the shoulder, then the elbow, the wrist and the fingers arrive in turn;
+- the stand shifts its weight between gestures.
+
+A skinned export (`export_model({ ref, format: 'glb', skinned: true, clips: '_all' })`) writes the body's take as
+`act:<read>` beside the face's `face:<read>`, on the same clock. It carries the joints alone (no morph weights), and
+`moj:act` names its gestures. Play it as the body clip under the face take, with the face's breath and head layers
+added over it. The cue sheet names both clips. A read with no style is not acted, and the World page plays neither
+clip.
+
+The gestures, which a style's vocabulary names:
+- `beat`: the baton on a stressed word;
+- `offer`: the open palm;
+- `point`;
+- `shrug`;
+- `cheer`;
+- `clap`;
+- `think`: the hand to the chin;
+- `nod`, `headshake` and `bow`.
 
 A role is `{ emote?, face?, status? }`: `emote` a held state under every beat (`rest`, `absorbed`, `waiting`,
 `listening`, `wary` and the rest of the face's held states), `face` a resting emotion over the register's, `status` `high` (head up and still,

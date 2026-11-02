@@ -9,6 +9,7 @@ import { readScript, READ_GAZE } from '../persona/read.js';
 import { deliveryOf } from '../persona/delivery.js';
 import { perform } from '../face-acting/perform.js';
 import { EMOTES } from '../polygonizer/figure-emotes.js';
+import { GESTURE_NAMES } from './gestures.js';
 import { FLAVORS } from '../gameworld/feel/flavor.js';
 import { readFileSync } from 'node:fs';
 import { personaManifest, personaReads, personaTakes, readSummary, personaErrors } from '../persona/persona.js';
@@ -30,8 +31,9 @@ describe('the style cards', () => {
     expect(styleErrors({ from: STYLE_NAMES[0], mood: 1 })[0]).toMatch(/not mood/);
   });
 
-  it('name only the body\'s gestures and the feel\'s flavors', () => {
-    expect([...GESTURE_WORDS].sort()).toEqual(Object.keys(EMOTES).sort());
+  it('name the body\'s gestures (the emotes among them) and the feel\'s flavors', () => {
+    expect([...GESTURE_WORDS].sort()).toEqual([...GESTURE_NAMES].sort());
+    for (const e of Object.keys(EMOTES)) expect(GESTURE_WORDS).toContain(e);
     expect([...STYLE_FLAVORS].sort()).toEqual(Object.keys(FLAVORS).sort());
   });
 

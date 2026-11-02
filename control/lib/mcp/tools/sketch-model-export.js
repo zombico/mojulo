@@ -14,7 +14,8 @@ import { createHash } from 'node:crypto';
 import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { getServerVersion } from '@/lib/server-version';
 import { outcomeDirFor, outcomeUrlFor } from '@/lib/outcomes-paths';
-import { isPersonaKind } from '@/lib/graph/persona/persona.js';
+import { isPersonaKind, personaReads } from '@/lib/graph/persona/persona.js';
+import { actsOf } from '@/lib/graph/actor/act.js';
 import { personaFiles, personaHasFace } from '@/lib/graph/persona/bundle.js';
 import { resolveWorldScene, WALK_KINDS } from '@/lib/graph/worlds/world-scene';
 import { emitThreeWorld } from '@/lib/graph/scene/scene-three';
@@ -1379,7 +1380,9 @@ async function exportModel(input, context = {}) {
         await fs.mkdir(path.dirname(path.join(dir, f.name)), { recursive: true });
         await fs.writeFile(path.join(dir, f.name), f.text);
       }
-      result.persona = { files: files.map((f) => f.name), face: personaHasFace(hero.manifest) ? Object.keys(sketch.manifest.persona.reads).map((id) => `face:${id}`) : 'none: the hero is not the realistic head; the captions and cue sheets carry the reads' };
+      // (and its ACTS, actor/act.js: the reads played in a style, each the body's take `act:<read>` in a skinned export)
+      const acted = skinned ? Object.keys(actsOf(sketch.manifest.persona, personaReads(sketch.manifest.persona))) : [];
+      result.persona = { files: files.map((f) => f.name), face: personaHasFace(hero.manifest) ? Object.keys(sketch.manifest.persona.reads).map((id) => `face:${id}`) : 'none: the hero is not the realistic head; the captions and cue sheets carry the reads', ...(acted.length ? { acts: acted.map((id) => `act:${id}`) } : {}) };
     }
     await fs.writeFile(
       path.join(dir, 'README.md'),

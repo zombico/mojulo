@@ -146,11 +146,12 @@ export function bodyLaws(take, read) {
   const weight = { reads: { shifts: Math.floor(shifts), perMin: r3((Math.floor(shifts) * 60) / take.seconds), stillest: r3(still) }, note: 'the trunk\'s carriage shifting between gestures; stillest: the longest stretch it holds still (s). The rig has no sideways root shift: the support word carries a true weight transfer, later' };
   // 4: two uses of a gesture: how far apart their strokes are (degrees summed over the channels)
   const byWord = {};
-  for (const g of take.gestures) (byWord[g.word] ??= []).push(g);
+  // (a repeat on the other hand is no copy: the same word on the same limbs is compared)
+  for (const g of take.gestures) (byWord[`${g.word}|${g.side}`] ??= []).push(g);
   const apart = Object.values(byWord).filter((gs) => gs.length > 1).flatMap((gs) => gs.slice(1).map((g, i) => {
     const a = gs[i]; return r3(a.paths.reduce((s, p) => s + Math.abs(a.peak[p] - (g.peak[p] ?? a.peak[p])), 0));
   }));
-  const variation = apart.length ? { reads: { repeats: apart.length, least: Math.min(...apart) }, note: 'the least distance between two strokes of one gesture (degrees over the channels): 0 is a copy' } : { reads: null, note: 'no gesture used twice' };
+  const variation = apart.length ? { reads: { repeats: apart.length, least: Math.min(...apart) }, note: 'the least distance between two strokes of one gesture on the same limbs (degrees over the channels): 0 is a copy' } : { reads: null, note: 'no gesture used twice on the same limbs' };
   // 6: the quickest each joint turns (degrees a second) against its limit, and any channel out of its range
   const fastest = {}, over = [];
   for (const j of Object.keys(SPEED)) { const ps = Object.keys(S.paths).filter((p) => jointOf(p) === j); if (!ps.length) continue; let m = 0; for (const p of ps) for (let i = 1; i < S.t.length; i++) m = Math.max(m, Math.abs(S.paths[p][i] - S.paths[p][i - 1]) * FPS); fastest[j] = Math.round(m); if (m > SPEED[j]) over.push(`${j} ${Math.round(m)} °/s`); }

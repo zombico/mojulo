@@ -37,7 +37,13 @@ its face, body and later its hands directed together on one clock, and its take 
   - **The machine gate**: the dailies read each body take law by law (the joints in order, the stroke on its word,
     the stand's life, the variation, the speeds and ranges). A dailies run beside a minted hero plays each take's body
     under its face in the hero-live viewer.
-  - **Next**: the take exported as the GLB clip `act:<id>` beside the face's `face:<id>`.
+  - **The export**: a skinned export of a persona (`export_model({ format: 'glb', skinned: true })`) writes each read
+    played in a style as `act:<read>` beside the face's `face:<read>`, on the same clock. It carries the joints alone,
+    one-shot, with `moj:act` naming its style and each gesture's word, cause, hand and timing. The cue sheet names both
+    clips, and the export's answer lists the acts. A read with no style is not acted, and the World page's payload is
+    unchanged. The hero-live viewer plays a GLB's acts under their face takes.
+  - **The vocabulary**: a style's gestures are the body's ten: `beat` and `offer` join the eight emote words, and a
+    stressed word takes the baton where the register names none the style has.
 - **Two actors in a scene.** Marks, walking to them, looking at each other, the one not speaking listening, and cameras
   that frame actors.
 - **Blender film export.** A scene's actors, their takes and its cameras as a Blender pack, in a film look or an anime

@@ -239,10 +239,12 @@ async function load(v) {
       if (tracks.length) actions[C.name] = { action: mixer.clipAction(new THREE.AnimationClip(C.name, C.seconds, tracks)), seconds: C.seconds, face: true };
     }
   }
-  // (each face take's BODY, the actor's (lib/graph/actor/body.js, written beside the GLB by the actor dailies,
-  // control/scripts/spikes/actor/act-sidecar.mjs): the joints' absolute frames, played under its face take in place of
-  // the body's idle; a take with none keeps the idle)
+  // (each face take's BODY, the actor's (lib/graph/actor/body.js): the GLB's `act:<take>` (a persona's export) or the
+  // actor dailies' sidecar beside the GLB (control/scripts/spikes/actor/act-sidecar.mjs): the joints' absolute frames,
+  // played under its face take in place of the body's idle; a take with none keeps the idle)
   const acts = {}, actSide = await fetch(`${v.id}.act.json`).then((r) => (r.ok ? r.json() : null)).catch(() => null);
+  // (the GLB's own, a persona's export: `act:<take>` beside `face:<take>`; a sidecar's of the same take wins, the tuning one)
+  for (const clip of gltf.animations) if (clip.name.startsWith('act:')) acts[`face:${clip.name.slice(4)}`] = { action: mixer.clipAction(clip), seconds: clip.duration };
   for (const A of actSide?.acts ?? []) {
     const tracks = [];
     for (const J of A.joints) {

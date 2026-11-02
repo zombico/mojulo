@@ -64,7 +64,8 @@ moves between their eyes and mouth), and are never crossed (`face-acting/gaze.js
 idle with its clip; the Bust and Side views show the chest and the shoulders. And its head (`head:<clip>`,
 `face-acting/head.js`: the neck's turn and tilt, the head following the larger looks), another additive layer with it.
 
-AN ACTOR'S BODY under its face (`<id>.act.json` beside the GLB, written by the actor dailies,
+AN ACTOR'S BODY under its face (the GLB's own `act:<take>`, a persona's read played in a style, or `<id>.act.json` beside
+the GLB, written by the actor dailies,
 `control/scripts/spikes/actor/dailies.mjs --hero <out>`, from `control/lib/graph/actor/body.js`): each take's joints
 keyed as the GLB keys its own clips, played under the face take of the same name in place of the body's idle, on the
 take's clock. A take with none plays over the idle as before.

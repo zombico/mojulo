@@ -77,6 +77,7 @@ import { animePerformanceTrack } from '@/lib/graph/face-acting/anime-read';
 import { animeFormed } from '@/lib/graph/polygonizer/anime-looks';
 import { formBodied } from '@/lib/graph/polygonizer/hero-form';
 import { emoteTake, emoteClips } from '@/lib/graph/face-acting/emotes';
+import { actClipOn } from '@/lib/graph/actor/act';
 /** a packed face part's rows (`morph: { i, d }`, f32) as 16-bit steps of their largest offset (`{ i, q, s }`): the page's
  * players read `q × s` (rig-preview.js, controllable) */
 function quantMorph({ i, d }) {
@@ -946,6 +947,11 @@ export const WORLD_KINDS = {
         // (the ANIME face's: each take read as drawings, face-acting/anime-read.js, a STEP track on its targets: the 7G
         // drawings where its rig draws them, anime-face-rig.js sevenG, else lowered to its four channels, painted or drawn)
         else if (face?.meta && m.hero.head === 'anime' && m.hero.perform) face.meta.performances = Object.fromEntries(Object.entries(m.hero.perform).map(([k, P]) => [k, animePerformanceTrack(perform(P), face.K ?? faceKnots(face.authored), { sevenG: !!face.sevenG })]));
+        // THE ACTOR'S ACTS (a persona's reads played in a style, actor/act.js, carried by persona/bundle.js personaHero): each
+        // the body's take on this rig from the actor's stand, a one-shot clip on its read's clock, packed apart from the
+        // clips (`acts`) and written beside the face's take as `act:<take>`. Only when the export asks (ctx.face, as the
+        // face's blend shapes): the World page's payload is the one before them. Absent ⇒ as before.
+        const acts = ctx.face && m.hero?.acts ? Object.fromEntries(Object.entries(m.hero.acts).map(([k, A]) => [k, actClipOn(A, R, m.hero)])) : null;
         // THE FACE'S EMOTES (the door's `emote`, face-acting/emotes.js): each a held state's seamless loop on the same targets
         // (`emote:<clip>`), and the mouth's ownership for an engine's lip-sync over them. Absent ⇒ as before.
         if (face?.meta && m.hero.head === 'relational' && m.hero.emote) { face.meta.emotes = Object.fromEntries(Object.entries(emoteClips(m.hero.emote)).map(([k, E]) => [k, { ...performanceTrack(emoteTake(E)), emote: typeof E === 'string' ? E : E.emote }])); face.meta.mouth = mouthTargets(); }
@@ -974,7 +980,7 @@ export const WORLD_KINDS = {
         // THE COVER (beast/cover.js): a beast-kin's fur, scales, chitin or feathers as a tiling material over its coat, on
         // the same lit, skinned export (its tile's UVs, each corner's tangent; the GLB's maps). Any other figure: none
         const coverKind = engineLit && ctx.face && !paintPack ? beastCoverStyleOf(m.hero) : null, cover = coverKind ? coverMap(mesh, m.recipe, engineLit, coverKind, beastCoatOf(m.hero)) : null;
-        const pack = packLayeredRig(mesh, skin, R, { clips: clipsIn, ...(correctives ? { correctives } : {}), ...(engineLit ? { engineLit: true } : {}), ...(relief ? { relief } : {}), ...(cover ? { cover } : {}), keys: 12, dz, hullShade: m.hullShade || null, ...(smooth ? { normals: shown === mesh ? smooth : layeredShadingNormals(mesh, m.recipe, { crease, proxy: false, ellipsoid }) } : engineLit ? { normals: engineLit } : {}), ...(character ? { character: { pieces: stand ? piecesAt(litPieces, mesh, dz) : litPieces, hairInk: !!ink } } : {}), ...(face?.rows ? { face } : {}), ...(paintPack ? { paint: paintPack } : {}), ...(seconds ? { seconds } : {}), ...(speeds ? { speeds } : {}), ...(gear?.length ? { gear: gearPackParts(gear, { light: figLight, dz }) } : {}), ...(figLight !== light ? { cast: figLight } : {}), ...(!character && palette ? { palette } : {}), ...(tint ? { tint } : {}), ...(!character && fields ? { fields } : {}), ...(!character && cellTint ? { cellTint } : {}), ...(!character && Array.isArray(m.recipe.emissive) && m.recipe.emissive.length ? { emissive: m.recipe.emissive } : {}), ...(!character && m.recipe.surfaces ? { surfaces: m.recipe.surfaces } : {}) });
+        const pack = packLayeredRig(mesh, skin, R, { clips: clipsIn, ...(acts ? { acts } : {}), ...(correctives ? { correctives } : {}), ...(engineLit ? { engineLit: true } : {}), ...(relief ? { relief } : {}), ...(cover ? { cover } : {}), keys: 12, dz, hullShade: m.hullShade || null, ...(smooth ? { normals: shown === mesh ? smooth : layeredShadingNormals(mesh, m.recipe, { crease, proxy: false, ellipsoid }) } : engineLit ? { normals: engineLit } : {}), ...(character ? { character: { pieces: stand ? piecesAt(litPieces, mesh, dz) : litPieces, hairInk: !!ink } } : {}), ...(face?.rows ? { face } : {}), ...(paintPack ? { paint: paintPack } : {}), ...(seconds ? { seconds } : {}), ...(speeds ? { speeds } : {}), ...(gear?.length ? { gear: gearPackParts(gear, { light: figLight, dz }) } : {}), ...(figLight !== light ? { cast: figLight } : {}), ...(!character && palette ? { palette } : {}), ...(tint ? { tint } : {}), ...(!character && fields ? { fields } : {}), ...(!character && cellTint ? { cellTint } : {}), ...(!character && Array.isArray(m.recipe.emissive) && m.recipe.emissive.length ? { emissive: m.recipe.emissive } : {}), ...(!character && m.recipe.surfaces ? { surfaces: m.recipe.surfaces } : {}) });
         // (the page's face rows as 16-bit steps of each part's own scale, about a micron: an export keeps its floats)
         if (pageFace && face?.rows) pack.parts = pack.parts.map((P) => (P?.morph ? { ...P, morph: quantMorph(P.morph) } : P));
         const clips = Object.keys(clipsIn).filter((c) => !(stand && c === GESTURE_CLIP));

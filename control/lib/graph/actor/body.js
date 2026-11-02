@@ -44,8 +44,9 @@ export const CHAIN = Object.freeze({ sh: 0, elbow: 0.03, wrist: 0.05, fingers: 0
 /** the stand's life: a shift every `every` seconds (seeded within it, the stiller the style the rarer), of `pelvis`
  * degrees, a sideways bend of the spine and a roll of the head, eased over `ease` seconds */
 export const IDLE = Object.freeze({ every: [2.6, 4.4], pelvis: 3, sideBend: 0.06, roll: 1.5, ease: 0.9 });
-/** the most an arm's stroke is scaled (its solved place, a little past for the variation) */
-export const ARM_MOST = 1.05;
+/** an arm's stroke scaled by the variation alone, the seeded spread mapped onto this (its solved place, a little short or
+ * past; never a clamp, so no two strokes coincide) */
+export const ARM_VARY = Object.freeze([0.88, 1.05]);
 /** the seeded spread of a gesture's amplitude about the style's */
 export const VARY = Object.freeze([0.82, 1.12]);
 /** smoothstep peaks at 1.5× its mean speed: a move of d degrees over s seconds turns at most 1.5 d / s */
@@ -82,10 +83,10 @@ export function actBody(read, { R, base = {}, style, seed = 1 } = {}) {
     if (before && apex - before.apex < GAP) { dropped.push({ ...cue, why: `within ${GAP} s of the ${before.word} before it` }); continue; }
     const vary = VARY[0] + (VARY[1] - VARY[0]) * rnd(), amp = B.exaggerate * vary, anti = B.anticipation, ft = B.followThrough, over = 1 + 0.1 * ft * Math.max(1, B.exaggerate);
     // (the goal: the stroke scaled by the amplitude, kept in each channel's range with the overshoot's room. An arm's
-    // stroke is the place its solve found: past ARM_MOST it would be another arm, not a bigger gesture (a shoulder's
+    // stroke is the place its solve found: past its solved place it would be another arm, not a bigger gesture (a shoulder's
     // roll scaled is not a hand further out), so the arm keeps its stroke and the style's size goes to its overshoot,
     // its head and its trunk)
-    const armAmp = Math.min(1, B.exaggerate) * Math.min(ARM_MOST, vary), ampOf = (p) => (/^(sh|elbow|wrist|fingers)[LR]/.test(p) ? armAmp : amp);
+    const armAmp = Math.min(1, B.exaggerate) * (ARM_VARY[0] + ((ARM_VARY[1] - ARM_VARY[0]) * (vary - VARY[0])) / (VARY[1] - VARY[0])), ampOf = (p) => (/^(sh|elbow|wrist|fingers)[LR]/.test(p) ? armAmp : amp);
     const goal = Object.fromEntries(paths.map((p) => { const r = restOf(p), g = clampTo(p, r + ampOf(p) * (num[p] - r)); return [p, r + (clampTo(p, r + over * (g - r)) - r) / over]; }));
     // (the timings: the flavor's, stretched where a joint would turn past its speed)
     const chained0 = !!before && apex - TIMING.prep * f < before.end;
