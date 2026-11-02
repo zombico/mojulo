@@ -31,6 +31,8 @@ import { FLEET } from '../roads/fleet.js';
 import { CRAFT_ARCHETYPES } from '../craft-shelf/craft-archetypes.js';
 import { OPEN_FRAME } from '../car-designer/realistic.js';
 import { CLASS_TRAITS } from '../car-designer/facets.js';
+import { UNBUILT } from '../car-designer/sheet.js';
+import { MILITARY_CLASSES } from '../car-designer/road-military.js';
 
 export const TIERS = Object.freeze({
   toy: 'cartoon, chibi, mascot, kart: the racer\'s parts grammar',
@@ -44,8 +46,9 @@ export const STATUSES = Object.freeze(['live', 'preview', 'asleep', 'concept']);
 const FALLS = Object.freeze({ toy: ['stylised', 'realistic'], stylised: ['realistic', 'toy'], realistic: ['stylised', 'toy'] });
 
 /** A physics class the realistic loft (car-designer/realistic.js compileRealistic) builds: a sheet class with a body to
- *  loft (not an open frame, whose body is the racer's, nor a class the sheet has no traits for: the dirt bike). */
-export const loftable = (cls) => Boolean(CLASS_TRAITS[cls]) && !OPEN_FRAME.includes(cls);
+ *  loft (not an open frame, whose body is the racer's, nor a class the sheet has no traits for: the dirt bike, nor one
+ *  whose body is not built yet: the field's truck and carrier), or a military class, whose body is the hull kit's. */
+export const loftable = (cls) => Boolean(CLASS_TRAITS[cls]) && !OPEN_FRAME.includes(cls) && !UNBUILT[cls];
 
 // the uses each builder serves (roster.js USES): a traffic loft is not a car a hero drives
 const SERVES = Object.freeze({
@@ -68,7 +71,9 @@ export function buildsOf(id) {
   for (const k of h.supercar ?? []) out.push(B('realistic', 'supercar', k, 'live', ['quick race (supercars)', 'mint_solid vehicle preview', 'transformer'], 'the supercar\'s surface compiler, streamlined in the form render'));
   for (const k of h.craft ?? []) out.push(B('realistic', 'craft', k, 'live', ['transformer'], 'the craft shelf\'s assembly at its class\'s true figures'));
   for (const k of h.fleet ?? []) out.push(B('realistic', 'fleet', k, 'live', ['roadway traffic'], 'the highway fleet\'s loft at true dimensions, at traffic distance'));
-  for (const k of (h.physics ?? []).filter(loftable).slice(0, 1)) out.push(B('realistic', 'loft', k, 'live', ['quick ride', 'mint_solid vehicle preview'], 'the realistic pole\'s loft of its class at its true numbers (compileRealistic), driven on its class\'s own physics'));
+  for (const k of (h.physics ?? []).filter(loftable).slice(0, 1)) out.push(B('realistic', 'loft', k, 'live', ['quick ride', 'mint_solid vehicle preview'], MILITARY_CLASSES[k]
+    ? 'the military hull kit\'s body of its class at its true numbers (road-military.js): plates, welds and fittings, driven on its class\'s own physics'
+    : 'the realistic pole\'s loft of its class at its true numbers (compileRealistic), driven on its class\'s own physics'));
   for (const k of h.tech ?? []) out.push(B(null, 'tech', k, 'concept', ['bible plates', 'RTS roster'], 'the technology crafter\'s block plan'));
   return out;
 }
@@ -101,7 +106,8 @@ export function upscaleOf(id) {
   if (real?.status === 'live') return { id, use, realistic: 'live', via: real.via, next: null };
   if (real) return { id, use, realistic: real.status, via: real.via, next: `wire the ${real.via} build into the games (${real.why})` };
   const has = handlesOf(id);
-  const next = has.physics ? 'a realistic body for its physics class (the loft has no frame for it)' : 'a realistic body and its physics';
+  const cls = [has.physics ?? []].flat()[0];
+  const next = cls && UNBUILT[cls] ? `its realistic body: ${UNBUILT[cls]}` : cls ? 'a realistic body for its physics class (the loft has no frame for it)' : 'a realistic body and its physics';
   return { id, use, realistic: 'none', via: null, next };
 }
 

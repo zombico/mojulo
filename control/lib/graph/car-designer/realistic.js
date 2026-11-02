@@ -23,6 +23,8 @@
  *                  material, its albedo and its crease-aware normals, the page lighting it, and the named faces by bone
  *                  returned as `form`; absent, as it was
  *   realisticCensus(compiled)           → measured bounds, wheelbase, track and wheel radius against the class
+ *   (a military class, road-military.js MILITARY_CLASSES, is compiled by military.js compileMilitary: the hull kit's body
+ *   at the class's numbers, in the same shape)
  *
  * The figure is the browser's rig-figure (vehicle-designer/vehicle-rig.js packVehicleFigure): the hull the root, each
  * wheel its own bone, turning in the `roll` clip; vehicle space (+y forward). Pure and deterministic.
@@ -41,6 +43,8 @@ import { formLight } from './form-light.js';
 import { readDerive } from './channels.js';
 import { HEAVY } from './facets.js';
 import { mulberry32 } from '../vegetation/grow.js';
+import { MILITARY_CLASSES } from './road-military.js';
+import { compileMilitary } from './military.js';
 
 const r3 = (v) => Math.round(v * 1000) / 1000;
 const r4 = (n) => Math.round(n * 1e4) / 1e4 + 0;
@@ -177,6 +181,8 @@ function fan(faces) {
 
 /** Compile a realistic sheet. */
 export function compileRealistic(sheet, { keys = 12, form = false } = {}) {
+  // (a military class's body is the hull kit's, not a loft: military.js, the same shape returned)
+  if (MILITARY_CLASSES[sheet.facets.class]) return compileMilitary(sheet, { keys, form });
   const spec = realisticSpec(sheet), cls = sheet.facets.class;
   // the loft in vehicle space: the fleet builds +x forward; a quarter turn puts the nose on +y
   const wheels = [];

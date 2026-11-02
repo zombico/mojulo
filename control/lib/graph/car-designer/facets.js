@@ -35,10 +35,14 @@ export const CLASS_TRAITS = Object.freeze({
   bus:           { silhouette: 'brick', stance: 'level', cockpit: 'closed', engine: 'hidden', motif: 'smooth', drive: 'rear', derives: { frame: ['bodyplan = bus'] } },
   tractorTrailer: { silhouette: 'brick', stance: 'raised', cockpit: 'closed', engine: 'hidden', motif: 'riveted', drive: 'rear', derives: { frame: ['bodyplan = truck'] } },
   tractorTrailerLoaded: { silhouette: 'brick', stance: 'raised', cockpit: 'closed', engine: 'hidden', motif: 'riveted', drive: 'rear', derives: { frame: ['bodyplan = truck'] } },
+  // (the field's: their bodies are the military hull kit's, car-designer/road-military.js, not a loft)
+  utility4x4:    { silhouette: 'brick', stance: 'raised', cockpit: 'open', engine: 'hidden', motif: 'riveted', drive: 'all', derives: { frame: ['chassis = ladderFrame'] } },
+  cargo6x6:      { silhouette: 'brick', stance: 'raised', cockpit: 'closed', engine: 'hidden', motif: 'riveted', drive: 'all', derives: { frame: ['chassis = ladderFrame', 'bodyplan = truck'] } },
+  apc8x8:        { silhouette: 'brick', stance: 'raised', cockpit: 'closed', engine: 'hidden', motif: 'faceted', drive: 'all', derives: { frame: ['bodyplan = apc'] } },
 });
 export const CLASS_IDS = Object.freeze(Object.keys(CLASS_TRAITS));
 /** The heavy classes: a cab, never an open seat. */
-export const HEAVY = Object.freeze(['straightTruck', 'bus', 'tractorTrailer', 'tractorTrailerLoaded']);
+export const HEAVY = Object.freeze(['straightTruck', 'bus', 'tractorTrailer', 'tractorTrailerLoaded', 'cargo6x6', 'apc8x8']);
 
 export const SILHOUETTES = Object.freeze({
   wedge:  v('a wedge: low at the nose, rising to the tail', { silhouette: 'the nose at the road, the line climbing back' }, { silhouette: ['proportion.height -', 'proportion.bonnet +'], handling: ['physics.CdA -'], frame: ['body = coupeThree'] }),

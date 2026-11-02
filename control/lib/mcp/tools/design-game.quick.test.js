@@ -386,6 +386,13 @@ describe('design_game quick', () => {
     await designGameHandler({ quick: { goal: 'reach', ride: 'a pickup truck', world: { id: 'truck', style: { kit: 'trail-valley' } } }, ref: 'pk' });
     expect(stored('pk').quick.ride).toBe('pickup');
     expect(stored('pk-level-run-0').figures.ride).toEqual({ loft: { class: 'pickup', seed: 1, light: 'form' } });
+    // a field vehicle by the word people say: its body the military hull kit's, in the field's materials
+    await designGameHandler({ quick: { goal: 'reach', ride: 'a jeep', world: { id: 'field', style: { kit: 'trail-valley' } } }, ref: 'jp' });
+    expect(stored('jp').quick.ride).toBe('utility-4x4');
+    expect(stored('jp-level-run-0').figures.ride).toEqual({ loft: { class: 'utility4x4', seed: 1, light: 'form' } });
+    const jeep = (await resolveWorldScene(SketchRepository.getByRef('jp-level-run-0'))).payload.figures.ride;
+    expect(jeep.form.materials).toHaveProperty('milPaint');
+    expect(jeep.bones.map((b) => b.id)).toEqual(expect.arrayContaining(['root', 'wheelFL', 'wheelRR']));
   }, 240_000);
 
   it('kart race: rivals in the same car round a loop on the trail\'s land, the place on the HUD, a podium to win', async () => {

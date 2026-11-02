@@ -59,6 +59,7 @@ export const ROLES = Object.freeze({
   service: 'it answers a call or tends to something',
   'ground-crew': 'it works an airfield beside the aircraft',
   patrol: 'it keeps the peace',
+  scout: 'a light field vehicle: it scouts, patrols and carries a few',
   armour: 'armoured and armed: it fights',
   work: 'it works a field, a yard or a dock',
   trainer: 'a craft to learn to fly in',
@@ -180,8 +181,15 @@ export const VEHICLES = {
     { tech: 'car' }),
   forklift: row('forklift', ['fork lift', 'lift truck'], 'road', 'work', M, ['driven', 'parked'],
     { tech: 'car' }),
-  apc: row('armoured car', ['apc', 'armored car', 'personnel carrier'], 'offroad', 'armour', M, FIGHT,
-    { tech: 'apc' }),
+  // (the field's: a light utility 4x4, a canvas-topped cargo truck, an eight-wheeled carrier; their realistic bodies
+  // are the military hull kit's, car-designer/road-military.js; "jeep" is said of any light military 4x4, so it is a
+  // word here, the one maker's name the roster keeps)
+  'utility-4x4': row('military utility vehicle', ['jeep', 'military jeep', 'army jeep', 'light utility vehicle', 'field car', 'command car', 'scout car', 'military four by four'], 'offroad', 'scout', M, FIGHT.concat('parked'),
+    { physics: 'utility4x4', tech: 'car' }),
+  'cargo-truck': row('military cargo truck', ['canvas truck', 'military truck', 'army truck', 'troop truck', 'troop carrier', 'covered truck', 'six by six', 'deuce and a half', 'supply truck'], 'offroad', 'transport', M, ['driven', 'crewed', 'parked', 'traffic'],
+    { physics: 'cargo6x6', tech: 'truck' }),
+  apc: row('armoured personnel carrier', ['apc', 'armoured car', 'armored car', 'personnel carrier', 'armored personnel carrier', 'wheeled apc', 'eight by eight', 'infantry carrier'], 'offroad', 'armour', M, FIGHT.concat('parked'),
+    { physics: 'apc8x8', tech: 'apc' }),
   tank: row('tank', ['battle tank', 'main battle tank', 'tracked vehicle', 'halftrack'], 'offroad', 'armour', M, FIGHT,
     { tech: 'tracked' }),
   mech: row('mech', ['walker', 'battle mech', 'mecha', 'strider'], 'offroad', 'armour', F, FIGHT,
