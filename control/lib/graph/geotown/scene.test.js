@@ -315,5 +315,8 @@ describe('a main street\'s shops drawn loud (the cube\'s exaggerate.front, geoto
     // (the walk under them, the road and the kerbs' lines where the plan put them)
     const ground = (S) => JSON.stringify(S.faces.filter((f) => f.group === 'geotown:walk' || f.group === 'geotown:road').map((f) => f.corners));
     expect(ground(X)).toBe(ground(A));
+    // (its furniture round, lathed: a hydrant many faces, not a box's few; the plain town's boxes)
+    const per = (S, g) => S.faces.filter((f) => f.group === g).length / Math.max(1, (S.geotown.counts.hydrants ?? 1));
+    expect(per(X, 'geotown:hydrant')).toBeGreaterThan(per(A, 'geotown:hydrant'));
   });
 });

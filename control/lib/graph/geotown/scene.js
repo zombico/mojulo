@@ -48,6 +48,7 @@ import { madeRamp } from '../era/style/swatches.js';
 import { townDressOf, dressTownFace, leanHue } from '../era/town-dress.js';
 import { LOUD_WALLS, CROWN_FORMS, popHex } from './front-loud.js';
 import { slabsOf, groundSplat, inkPicker } from './street-loud.js';
+import { toonOf, proportions, hydrantOf, binOf, postboxOf, lampOf, postOf } from './doodads.js';
 import { styleTownDress, styleReadout } from '../era/arch-style.js';
 import { plantPool, plantRepeats } from '../vegetation/pool.js';
 import { treeSizes } from '../form/flora-read.js';
@@ -635,6 +636,11 @@ export function assembleGeotownScene(m, ctx = {}) {
   // at a signal, two lines at a stop), its stop lines, a stop sign on each stopped approach's right, a signal at each
   // corner facing its approach (a mast arm over a main or major street's road) ──
   // (a piece of it chunked by the cube's exaggerate: its thin dimensions thickened; leant with the rest below)
+  // (an exaggerated cube's furniture ROUND, lathed, geotown/doodads.js; in its toon register each piece exaggerated and
+  // incongruent, each its own dice by where it stands; a plain cube's as it was)
+  const ROUND = !!EX, TOON = ROUND && toonOf(cube.register);
+  const dials = (kind, x, y) => { const D = proportions(streamOf(seed, 'doodad', `${kind}:${r5(x)}:${r5(y)}`), TOON); return TOON ? D : { ...D, body: EX.kit.chunk }; };
+  const fr = (fs, hex = null) => { for (const f of fs) put(f.corners, `geotown:${f.role}`, hex ?? col[f.role] ?? (f.role === 'slot' ? '#1d2023' : col.metal), f.out); };
   const fx = (fs, hex = null) => { for (const f of EX ? chunkFaces(fs, EX.kit.chunk) : fs) put(f.corners, `geotown:${f.role}`, hex ?? col[f.role] ?? col.metal, f.out); };
   const kitFrom = faces.length;
   // (a local street's lamp on a wooden hydro pole: the pole to its crossarm, the crossarm across the street's line, its
@@ -645,9 +651,13 @@ export function assembleGeotownScene(m, ctx = {}) {
     const [x, y] = Lt.at, z = wk(x, y), [tx, ty] = Lt.toward, ax = x + tx * 1.9, ay = y + ty * 1.9, hl = tx ? [0.4, 0.17] : [0.17, 0.4], wood = Lt.kind === 'hydro';
     // (a loud street's lamps never one height beside the next: each a step up or down by exaggerate.streets.vary)
     const dh = ST?.vary ? ((li++ % 2 ? 1 : -1) * ST.vary * (0.6 + 0.4 * Rs())) / 2 : 0, Lh = Lt.h + dh, top = wood ? HYDRO.h + dh : Lh;
-    fx(box(x - (wood ? 0.13 : 0.08), y - (wood ? 0.13 : 0.08), x + (wood ? 0.13 : 0.08), y + (wood ? 0.13 : 0.08), z, z + top, wood ? 'hydro' : 'pole'));
-    fx(box(Math.min(x, ax) - 0.05, Math.min(y, ay) - 0.05, Math.max(x, ax) + 0.05, Math.max(y, ay) + 0.05, z + Lh - 0.12, z + Lh, 'pole'));
-    fx(box(ax - hl[0], ay - hl[1], ax + hl[0], ay + hl[1], z + Lh - 0.3, z + Lh - 0.1, 'lamp'));
+    if (ROUND && !wood) fr(lampOf(x, y, z, [tx, ty], Lh, dials('lamp', x, y)));
+    else {
+      if (ROUND) fr(postOf(x, y, z, top, 0.13, 'hydro', dials('hydro', x, y)));
+      else fx(box(x - (wood ? 0.13 : 0.08), y - (wood ? 0.13 : 0.08), x + (wood ? 0.13 : 0.08), y + (wood ? 0.13 : 0.08), z, z + top, wood ? 'hydro' : 'pole'));
+      fx(box(Math.min(x, ax) - 0.05, Math.min(y, ay) - 0.05, Math.max(x, ax) + 0.05, Math.max(y, ay) + 0.05, z + Lh - 0.12, z + Lh, 'pole'));
+      fx(box(ax - hl[0], ay - hl[1], ax + hl[0], ay + hl[1], z + Lh - 0.3, z + Lh - 0.1, 'lamp'));
+    }
     if (wood) {
       const c = HYDRO.arm / 2;
       fx(box(x - (tx ? c : 0.06), y - (ty ? c : 0.06), x + (tx ? c : 0.06), y + (ty ? c : 0.06), z + top - 0.5, z + top - 0.38, 'hydro'));
@@ -668,19 +678,34 @@ export function assembleGeotownScene(m, ctx = {}) {
   // ── the street's own furniture: street-name signs, hydrants, a main street's bins, bike rings and post box, a major
   // street's bus shelters ──
   const T9 = d.traffic ?? {};
+  const h9 = (kind) => (ink ? ink(kind) : null);
   for (const Sg of T9.signs ?? []) {
     const [x, y] = Sg.at, z = wk(x, y);
-    fx(box(x - 0.04, y - 0.04, x + 0.04, y + 0.04, z, z + 2.95, 'pole'));
-    fx(box(x - 0.45, y - 0.02, x + 0.45, y + 0.02, z + 2.55, z + 2.75, 'blade'));
-    fx(box(x - 0.02, y - 0.45, x + 0.02, y + 0.45, z + 2.78, z + 2.98, 'blade'));
+    if (ROUND) {
+      // (a round post; a toon one's blades too big and turned off the street's lines, each its own way)
+      const D = dials('sign', x, y), bl = D.toon ? D.head * 0.75 : 1, tw = (a) => (D.toon ? a * D.tilt : 0);
+      fr(postOf(x, y, z, 2.95, 0.045, 'pole', D));
+      const blade = (cx, cy, lx, ly, z0, z1, rot) => { const c = Math.cos(rot), s2 = Math.sin(rot), P2 = (u, v) => [cx + u * c - v * s2, cy + u * s2 + v * c]; return [[P2(-lx, -ly), P2(lx, -ly), P2(lx, ly), P2(-lx, ly)]].flatMap((q) => [
+        { corners: q.map(([u, v]) => [u, v, z1]), out: [0, 0, 1], role: 'blade' }, { corners: q.map(([u, v]) => [u, v, z0]).reverse(), out: [0, 0, -1], role: 'blade' },
+        ...q.map((a, i) => { const b = q[(i + 1) % 4], n = [b[1] - a[1], -(b[0] - a[0]), 0], l = Math.hypot(n[0], n[1]) || 1; return { corners: [[...a, z0], [...b, z0], [...b, z1], [...a, z1]], out: [n[0] / l, n[1] / l, 0], role: 'blade' }; })]); };
+      fr(blade(x, y, 0.45 * bl, 0.02 * Math.max(1, bl), z + 2.55, z + 2.55 + 0.2 * bl, tw(0.6)), h9('blade'));
+      fr(blade(x, y, 0.02 * Math.max(1, bl), 0.45 * bl, z + 2.6 + 0.22 * bl, z + 2.6 + 0.42 * bl, tw(-0.9)), h9('blade'));
+    } else {
+      fx(box(x - 0.04, y - 0.04, x + 0.04, y + 0.04, z, z + 2.95, 'pole'));
+      fx(box(x - 0.45, y - 0.02, x + 0.45, y + 0.02, z + 2.55, z + 2.75, 'blade'));
+      fx(box(x - 0.02, y - 0.45, x + 0.02, y + 0.45, z + 2.78, z + 2.98, 'blade'));
+    }
   }
   for (const H of T9.hydrants ?? []) {
     const [x, y] = H.at, z = wk(x, y), h = ink ? ink('hydrant') : null;
-    fx(box(x - 0.13, y - 0.13, x + 0.13, y + 0.13, z, z + 0.62, 'hydrant'), h);
-    fx(box(x - 0.1, y - 0.1, x + 0.1, y + 0.1, z + 0.62, z + 0.76, 'yellow'));
-    fx(box(x - (H.toward[0] ? 0.2 : 0.05), y - (H.toward[1] ? 0.2 : 0.05), x + (H.toward[0] ? 0.2 : 0.05), y + (H.toward[1] ? 0.2 : 0.05), z + 0.38, z + 0.48, 'hydrant'), h);
+    if (ROUND) { for (const f of hydrantOf(x, y, z, H.toward, dials('hydrant', x, y))) fr([f], f.role === 'hydrant' ? h : f.role === 'yellow' && ST ? popHex(col.yellow, ST.pop) : null); }
+    else {
+      fx(box(x - 0.13, y - 0.13, x + 0.13, y + 0.13, z, z + 0.62, 'hydrant'), h);
+      fx(box(x - 0.1, y - 0.1, x + 0.1, y + 0.1, z + 0.62, z + 0.76, 'yellow'));
+      fx(box(x - (H.toward[0] ? 0.2 : 0.05), y - (H.toward[1] ? 0.2 : 0.05), x + (H.toward[0] ? 0.2 : 0.05), y + (H.toward[1] ? 0.2 : 0.05), z + 0.38, z + 0.48, 'hydrant'), h);
+    }
   }
-  for (const Bn of T9.bins ?? []) { const [x, y] = Bn.at, z = wk(x, y), h = ink ? ink('bin') : null; fx(box(x - 0.28, y - 0.28, x + 0.28, y + 0.28, z, z + 0.95, 'streetbin'), h); fx(box(x - 0.3, y - 0.3, x + 0.3, y + 0.3, z + 0.95, z + 1.02, 'pole')); }
+  for (const Bn of T9.bins ?? []) { const [x, y] = Bn.at, z = wk(x, y), h = ink ? ink('bin') : null; if (ROUND) { for (const f of binOf(x, y, z, dials('bin', x, y))) fr([f], f.role === 'streetbin' ? h : null); } else { fx(box(x - 0.28, y - 0.28, x + 0.28, y + 0.28, z, z + 0.95, 'streetbin'), h); fx(box(x - 0.3, y - 0.3, x + 0.3, y + 0.3, z + 0.95, z + 1.02, 'pole')); } }
   for (const Rg of T9.rings ?? []) {
     // (the city's post and ring: a post, a ring round it across the walk's line)
     const [x, y] = Rg.at, z = wk(x, y), al = Rg.along === 'x';
@@ -688,7 +713,7 @@ export function assembleGeotownScene(m, ctx = {}) {
     const R = 0.24, n = 8, ring = Array.from({ length: n + 1 }, (_, i) => [R * Math.cos((2 * Math.PI * i) / n), z + 0.72 + R * Math.sin((2 * Math.PI * i) / n)]);
     for (let i = 0; i < n; i++) { const [a, za] = ring[i], [b, zb] = ring[i + 1]; put(al ? [[x + a, y, za], [x + b, y, zb], [x + b, y, zb + 0.04], [x + a, y, za + 0.04]] : [[x, y + a, za], [x, y + b, zb], [x, y + b, zb + 0.04], [x, y + a, za + 0.04]], 'geotown:steel', col.steel, al ? [0, 1, 0] : [1, 0, 0]); }
   }
-  for (const Pb of T9.posts ?? []) { const [x, y] = Pb.at, z = wk(x, y), h = ink ? ink('post') : null; fx(box(x - 0.26, y - 0.24, x + 0.26, y + 0.24, z, z + 1.15, 'postbox'), h); fx(box(x - 0.28, y - 0.26, x + 0.28, y + 0.26, z + 1.15, z + 1.22, 'postbox'), h); }
+  for (const Pb of T9.posts ?? []) { const [x, y] = Pb.at, z = wk(x, y), h = ink ? ink('post') : null; if (ROUND) { for (const f of postboxOf(x, y, z, dials('post', x, y))) fr([f], f.role === 'postbox' ? h : null); } else { fx(box(x - 0.26, y - 0.24, x + 0.26, y + 0.24, z, z + 1.15, 'postbox'), h); fx(box(x - 0.28, y - 0.26, x + 0.28, y + 0.26, z + 1.15, z + 1.22, 'postbox'), h); } }
   for (const Sh of T9.shelters ?? []) {
     // (a bus shelter on the walk, its glass back to the houses and its sides, its roof, its bench, a stop's post by it)
     const [x, y] = Sh.at, z = wk(x, y), h = ink ? ink('shelter') : null, hs = ink ? ink('seat') : null, al = Sh.along === 'x', L = 1.9, Dp = 0.7, [bx, by] = Sh.toward, back = al ? y - by * Dp : x - bx * Dp;
@@ -726,7 +751,7 @@ export function assembleGeotownScene(m, ctx = {}) {
       }
       if (sig && inside(Rb + 0.9, Rr + 0.9)) {
         const t0 = Rb + 0.9, s0 = Rr + 0.9, [px, py] = Pt(t0, s0), z = wk(px, py);
-        fx(box(px - 0.09, py - 0.09, px + 0.09, py + 0.09, z, z + (big ? 6 : 4.2), 'pole'));
+        if (ROUND) fr(postOf(px, py, z, big ? 6 : 4.2, 0.1, 'pole', dials('signal', px, py))); else fx(box(px - 0.09, py - 0.09, px + 0.09, py + 0.09, z, z + (big ? 6 : 4.2), 'pole'));
         // its head: a box, its three lamps on the face to the approach (red over amber over green)
         const head = (s, zb) => { const [hx, hy] = Pt(t0, s); fx(box(hx - 0.18, hy - 0.18, hx + 0.18, hy + 0.18, zb, zb + 1, 'signal')); [['red', 0.72], ['amber', 0.42], ['green', 0.12]].forEach(([role, h]) => face(t0 + 0.19, s - 0.1, s + 0.1, zb + h, zb + h + 0.2, role)); };
         head(s0, z + 2.6);

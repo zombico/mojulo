@@ -31,6 +31,13 @@
   candy stripes a metre long; the roads splashed with ink; the lines fat (`paint`) and the yellow pushed; a crossing's
   bars parallelograms; each hydrant, bin, post box, shelter and seat its own ink, never the last of its kind's; and
   no two neighbouring streetlights one height (`vary`, their wires strung to each pole's own top).
+- **The street's doodads round** (`geotown/doodads.js`), a cube's exaggerate drawing them: a hydrant on its flange with
+  its barrel, domed bonnet and nozzles; a bin a drum under its lid; a post box a pillar under its dome and slot band; a
+  streetlight a tapered standard on its collar, its arm and its bell; a sign's and a signal's posts round. In the cube's
+  TOON register (a cel register, or bands and an outline) each piece is EXAGGERATED and INCONGRUENT: every part sized by
+  its own dice and knocked off its body's line (a mushroom bonnet on a squat barrel, a bottle of a bin under a cone, a
+  standard bent in an S under an oversized bell), no two alike. Each stands on its foot where it stood (an S-bend's top
+  back on its axis, so wires still meet their pole). A plain cube's furniture is as it was.
 - **The language caricatured** (`elements`, 0 to 1; `exaggerateAnchor`, not yet worn by a town): every building
   element's number pushed away from the middle of its rail, inside the rail; doors and a household's rhythm kept.
 - **The style guide** draws the cube's exaggerate as a card.

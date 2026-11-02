@@ -37,7 +37,8 @@ const rows = [];
 let cams = null;
 try {
   for (const hand of hands) {
-    const cube = hand === 'plumb' ? CUBE : { from: CUBE, exaggerate: hand.startsWith('{') ? JSON.parse(hand) : hand };
+    // (a hand ending '@<register>' is drawn in that register too: '@cel' its toon)
+    const [h0, reg] = hand.split('@'), cube = h0 === 'plumb' ? (reg ? { from: CUBE, register: reg } : CUBE) : { from: CUBE, exaggerate: h0.startsWith('{') ? JSON.parse(h0) : h0, ...(reg ? { register: reg } : {}) };
     const { payload: P } = await resolveWorldScene({ title: 'shop', manifest: { kind: 'geocube', cube, show: 'geotown', seed: 3, hour: 'afternoon', walk: false, geotown: GEOTOWN } });
     P.walkers = (P.walkers || []).map((w) => ({ ...w, follow: false })); delete P.walk; delete P.route;
     if (!cams) {
@@ -46,7 +47,12 @@ try {
       const h = shops[Math.min(SHOP, shops.length - 1)], N = h.N, T = [-N[1], N[0]];
       const at = (n, t, z) => [h.at[0] + N[0] * n + T[0] * t, h.at[1] + N[1] * n + T[1] * t, h.floor + z].map(r3);
       const cam = (name, from, to, fov) => ({ name, worldFraming: { cameraPosition: from, lookAt: to, horizontalFov: fov } });
-      cams = [cam('square on', at(8.5, 1.6, 2.4), at(0, 1.6, 3.2), 62), cam('three quarters', at(6.5, -6, 1.8), at(0, 1, 3), 64), cam('down the row', at(3.2, 9, 1.7), at(0.5, -12, 3), 70), cam('the street', at(3, 6, 5.5), at(14, -16, 0), 74)];
+      // (the doodads up close: the hydrant and the bin nearest the shop, from a walker's eye)
+      const mid = (f) => f.corners.reduce((a, c) => a.map((v, k) => v + c[k] / f.corners.length), [0, 0, 0]);
+      const nearest = (g) => P.faces.filter((f) => f.group === g).map(mid).sort((a, b) => Math.hypot(a[0] - h.at[0], a[1] - h.at[1]) - Math.hypot(b[0] - h.at[0], b[1] - h.at[1]))[0];
+      const close = (name, g) => { const q = nearest(g); return q ? cam(name, [q[0] + N[0] * 2.4 + T[0] * 1.6, q[1] + N[1] * 2.4 + T[1] * 1.6, h.floor + 1.5].map(r3), [q[0], q[1], h.floor + 0.6].map(r3), 60) : null; };
+      cams = [close('a hydrant', 'geotown:hydrant'), close('a bin', 'geotown:streetbin'), close('a post box', 'geotown:postbox')].filter(Boolean);
+      cams.push(cam('three quarters', at(6.5, -6, 1.8), at(0, 1, 3), 64), cam('the street', at(3, 6, 5.5), at(14, -16, 0), 74));
     }
     const cells = [];
     for (const c of cams) cells.push({ cap: c.name, src: await shoot(P, c) });
@@ -54,9 +60,9 @@ try {
     console.log(rows[rows.length - 1].cap, P.faces.length, 'faces');
   }
 } finally { await browser.close(); }
-const page = `<!doctype html><meta charset=utf-8><style>body{margin:0;padding:12px;background:#2b2a28;color:#ddd;font:14px system-ui}.r{display:grid;grid-template-columns:repeat(4,${W}px);gap:8px;margin-bottom:16px}img{display:block;width:${W}px}figure{margin:0}figcaption{opacity:.7;margin-top:3px}h3{margin:6px 0;font-weight:500}</style>
+const page = `<!doctype html><meta charset=utf-8><style>body{margin:0;padding:12px;background:#2b2a28;color:#ddd;font:14px system-ui}.r{display:grid;grid-template-columns:repeat(5,${W}px);gap:8px;margin-bottom:16px}img{display:block;width:${W}px}figure{margin:0}figcaption{opacity:.7;margin-top:3px}h3{margin:6px 0;font-weight:500}</style>
 ${rows.map((r) => `<h3>${r.cap}</h3><div class=r>${r.cells.map((c) => `<figure><img src="${c.src}"><figcaption>${c.cap}</figcaption></figure>`).join('')}</div>`).join('')}`;
 writeFileSync(path.join(outDir, 'loud-front.html'), page);
 const b2 = await launchChromium({ executablePath: await resolveChromium(), args: CHROMIUM_LAUNCH_ARGS });
-try { const p = await b2.newPage(); await p.setViewport({ width: 4 * W + 60, height: 900 }); await p.setContent(page); await new Promise((r) => setTimeout(r, 400)); writeFileSync(path.join(outDir, 'loud-front.png'), await p.screenshot({ type: 'png', fullPage: true })); } finally { await b2.close(); }
+try { const p = await b2.newPage(); await p.setViewport({ width: 5 * W + 70, height: 900 }); await p.setContent(page); await new Promise((r) => setTimeout(r, 400)); writeFileSync(path.join(outDir, 'loud-front.png'), await p.screenshot({ type: 'png', fullPage: true })); } finally { await b2.close(); }
 console.log('→', path.join(outDir, 'loud-front.png'));
