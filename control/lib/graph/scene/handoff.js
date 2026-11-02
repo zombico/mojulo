@@ -38,8 +38,10 @@
  *   levelRecord(sketch, payload) → the LEVEL a developer wires (the GLB's scene extras `moj:handoff`, and the handoff's
  *     `level`): its environment (the sky, the sun at the level's hour, the ambient, the hour itself), its markers (the
  *     spawn, every entity as the node `entity:<id>` carries it, with its part in the loop: the pilot, a seat's body, a
- *     foe with its mind's rank and skill, a thing; the anchors; the cameras), its CONTRACT (the level's game channel,
- *     synthesized from its mechanics as the game resolves it: what it produces, consumes and audits, its doors), its SEATS
+ *     foe with its mind's rank and skill, a thing; a pilot's or a seat's moves and arms; the anchors; the cameras), its
+ *     CONTRACT (the level's game channel, synthesized from its mechanics as the game resolves it: what it produces,
+ *     consumes and audits, its doors), its POWERS (gameworld/power-record.js: each power's key, when it is gained, its
+ *     spend and refusal, its attack, its move; absent where the level has none), its SEATS
  *     (a couch level: each seat's number, label, colour, body and spawn, the screen they share, their lives) and its
  *     REFERENCE (the web build and the bible pages of the same recipe). Every name derives from the recipe (an entity's
  *     id, an anchor's id, a camera's name), never from an order, so a re-handoff of a changed recipe names what did not
@@ -64,6 +66,7 @@ import { GROUND_PARALLAX } from './channels/form-land.js';
 import { levelSceneExtras, levelCameras } from './scene-gltf-level.js';
 import { synthesizeLevel } from '../game/level-synth.js';
 import { normalizeLevelContract } from '../game/level-contract.js';
+import { powerRecord } from '../gameworld/power-record.js';
 import { buildSeatsKernel } from '../controls/seats-kernel.js';
 
 export const HANDOFF_VERSION = 'handoff/0';
@@ -79,7 +82,7 @@ const STAYS = Object.freeze([
   'a tile painted other than from relief (its light painted in): it leaves as its paint',
   'the grass and its drifts',
   'a room\'s baked bounce and ambient (its lamps leave as lights, its surfaces as their solved bases)',
-  'a level\'s rules (its cues, its HUD, its minds\' decisions): its contract, markers and seats are carried as data for a developer to wire',
+  'a level\'s rules (its cues, its HUD, its minds\' decisions): its contract, markers, seats and powers are carried as data for a developer to wire',
 ]);
 
 // (the page's per-stone jitter, channels/form-land.js: the same hash, so a stone stands as wide and as deep as on the page)
@@ -322,6 +325,15 @@ function environmentOf(sketch, payload) {
   return env;
 }
 
+// (what a pilot or a seat moves and fights by, from its rule and what it carries: its moves the knobs a power grants
+// and the walk's own, its strike the contact window of a swing, its weapon what it fires)
+const MOVE_KNOBS = ['speed', 'jumpSpeed', 'airJumps', 'glideFall', 'wall'];
+function bodyOf(e) {
+  const r = e.rule ?? {}, moves = Object.fromEntries(MOVE_KNOBS.filter((k) => r[k] !== undefined && r[k] !== null).map((k) => [k, r[k]]));
+  const arms = { ...(Array.isArray(r.strikeContact) ? { strike: { contact: r.strikeContact } } : {}), ...(e.weapon && typeof e.weapon === 'object' ? { weapon: e.weapon } : {}) };
+  return { ...(Object.keys(moves).length ? { moves } : {}), ...(Object.keys(arms).length ? { arms } : {}) };
+}
+
 function contractOf(sketch) {
   const M = sketch?.manifest;
   if (!M || !M.game || typeof M.game !== 'object') return null;
@@ -338,8 +350,11 @@ export function levelRecord(sketch, payload) {
     return { name: `entity:${id}`, role, ...(seat ? { seat } : {}), ...(e.rule?.type ? { rule: e.rule.type } : {}),
       at: v3(e.transform?.pos) ?? [0, 0, 0], ...(Number.isFinite(e.transform?.heading) ? { heading: r5(e.transform.heading) } : {}),
       ...(mind ? { mind: Object.fromEntries(['rank', 'skill', 'group', 'motivation'].filter((k) => mind[k] !== undefined).map((k) => [k, mind[k]])) } : {}),
-      ...(e.rule?.foe ? { attack: e.rule.foe } : {}) };
+      ...(e.rule?.foe ? { attack: e.rule.foe } : {}), ...(seat ? bodyOf(e) : {}) };
   });
+  // (the powers the level's holder carries, as the level plays them: each its key, when it is gained, its spend, its
+  // refusal, its attack and its move; its cues stay the web's)
+  const powers = powerRecord(sketch?.manifest);
   const ex = levelSceneExtras(payload) ?? {};
   const markers = [
     ...(ex['moj:spawn'] ? [{ name: 'spawn', kind: 'spawn', at: v3(ex['moj:spawn']) }] : []),
@@ -359,6 +374,7 @@ export function levelRecord(sketch, payload) {
     environment: environmentOf(sketch, payload),
     markers,
     contract: contractOf(sketch),
+    ...(powers.length ? { powers } : {}),
     ...(seatRows ? { seats: { rows: seatRows, screen: 'shared', lives: seats.lives ?? null, pool: seats.pool ?? null, join: seats.join ?? 'drop-in', drop: seats.drop ?? null } } : {}),
     ...(sketch?.ref ? { reference: { web: `/api/sketches/${sketch.ref}/world`, play: `/api/sketches/${sketch.ref}/play`, bible: `/api/sketches/${sketch.ref}/bible` } } : {}),
   };
@@ -524,7 +540,7 @@ export async function resolveHandoff(sketch, { what = 'level' } = {}) {
     version: HANDOFF_VERSION, era: HANDOFF_ERA, what,
     carried: { faces: Array.isArray(handed.faces) ? handed.faces.length : 0, instances: counts, ...(lamps.length ? { lamps: lamps.length } : {}),
       ...(Object.keys(bodies).length ? { bodies: Object.keys(bodies).length } : {}), ...(exported.animatedFigures ? { figures: exported.animatedFigures, clips: exported.animationCount } : {}),
-      ...(level ? { level: { markers: level.markers.length, contract: !!level.contract, seats: level.seats ? level.seats.rows.length : 0, environment: Object.keys(level.environment) } } : {}),
+      ...(level ? { level: { markers: level.markers.length, contract: !!level.contract, powers: level.powers ? level.powers.length : 0, seats: level.seats ? level.seats.rows.length : 0, environment: Object.keys(level.environment) } } : {}),
       ...(landSets.length ? { land: { parts: landSets.length, layered: landSets.filter((s) => s.terrain).length, vertices: landSets.reduce((a, s) => a + s.positions.length / 3, 0), reliefCut: landSets.reduce((a, s) => a + (s.relief ?? 0), 0) } } : {}), materials: { dressed: Object.keys(materials).length, painted: new Set(keys).size - Object.keys(materials).length } },
     stays: [...STAYS],
   };

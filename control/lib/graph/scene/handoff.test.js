@@ -6,7 +6,7 @@
  */
 import { describe, expect, it } from 'vitest';
 
-import { resolveHandoff, stoneInstances, floraInstances, mergeClumps, dressedMaterials, landParts, HANDOFF_VERSION, HANDOFF_LEVEL, SEA_OPACITY } from './handoff.js';
+import { resolveHandoff, levelRecord, stoneInstances, floraInstances, mergeClumps, dressedMaterials, landParts, HANDOFF_VERSION, HANDOFF_LEVEL, SEA_OPACITY } from './handoff.js';
 import { resolveWorldScene } from '../worlds/world-scene.js';
 import { generatedSpecOf } from '../landscape/surface-textures.js';
 import { decodePng } from '../era/tone.js';
@@ -293,6 +293,31 @@ describe('the engine handoff', () => {
     const cam = L.markers.find((m) => m.kind === 'camera');
     if (cam) { expect(cam.look).toHaveLength(3); expect(cam.yfov).toBeGreaterThan(0); }
   }, 120_000);
+
+  it('a hero\'s powers travel as data: each its key, when it is gained, its spend, its refusal, its attack and its move; the pilot its moves and arms', () => {
+    const manifest = { kind: 'controllable', title: 'powers',
+      events: { inputs: [{ on: 'key', key: '1', emit: { type: 'power-leap' } }, { on: 'key', key: '2', emit: { type: 'power-orb' } }] },
+      play: { cues: [
+        { id: 'power-leap', when: { on: 'power-leap' }, then: [{ status: { who: 'hero', is: 'leap', look: 'spiral', for: 1.5 } }, { say: 'leap', as: 'toast' }] },
+        { id: 'power-orb', when: { on: 'power-orb' }, if: [{ var: 'hero.orb', gte: 1 }, { var: 'hero.ki', gte: 20 }], else: { say: 'orb: not gained yet, or not enough ki', as: 'toast' },
+          then: [{ grant: { res: 'ki', by: -20 } }, { beam: { who: 'hero', to: { nearest: { range: 24, cone: 0.7 } }, is: 'orb', hurt: 12 } }, { say: 'orb', as: 'toast' }] },
+        { id: 'level-up', when: { levelled: 'hero' }, then: { say: 'Level up', as: 'banner' } }] },
+      game: { levelRef: 'powers', powers: { slice: 'powers', target: 'hero', grants: { leap: { airJumps: 1 } }, bought: 'hero' }, consumes: [{ slice: 'powers' }], mechanics: [{ kind: 'reach-exit', at: [8, 0, 0] }] } };
+    const payload = { entities: [
+      { id: 'hero', pilotable: true, rule: { type: 'platform', speed: 3.6, jumpSpeed: 6.5, airJumps: 1, strikeContact: [0.28, 0.62] }, weapon: { mag: 30, rate: 8 }, transform: { pos: [0, 0, 0] } },
+      { id: 'grunt', rule: { type: 'ai' }, transform: { pos: [6, 0, 0] } }] };
+    const L = levelRecord({ ref: 'sk_p', manifest }, payload);
+    expect(L.powers).toEqual([
+      { id: 'leap', key: '1', holder: 'hero', gained: { at: 'start' }, look: 'spiral', move: { grants: { airJumps: 1 }, on: ['held', 'pickup', 'stats'] } },
+      { id: 'orb', key: '2', holder: 'hero', gained: { at: 'stats', var: 'hero.orb', gte: 1 }, spends: { ki: 20 }, refusal: 'orb: not gained yet, or not enough ki',
+        attack: { is: 'orb', from: 'hero', at: 'nearest-foe', range: 24, cone: 0.7, hurt: 12 } },
+    ]);
+    const by = Object.fromEntries(L.markers.filter((m) => m.kind === 'entity').map((m) => [m.name, m]));
+    expect(by['entity:hero']).toMatchObject({ role: 'pilot', moves: { speed: 3.6, jumpSpeed: 6.5, airJumps: 1 }, arms: { strike: { contact: [0.28, 0.62] }, weapon: { mag: 30, rate: 8 } } });
+    // (a foe carries neither; a level with no powers carries no powers key)
+    expect(by['entity:grunt'].moves).toBeUndefined();
+    expect(levelRecord({ ref: 'sk_q', manifest: { kind: 'controllable', game: manifest.game.mechanics ? { levelRef: 'q', mechanics: manifest.game.mechanics } : {} } }, payload).powers).toBeUndefined();
+  });
 
   it('a re-handoff is safe: change one thing, and every name of what did not change holds', async () => {
     const names = (h) => { const j = glbJson(h.exported.bytes); return { nodes: new Set(j.nodes.map((n) => n.name)), materials: new Set(j.materials.map((m) => m.name)), markers: new Set(h.level.markers.map((m) => m.name)) }; };
