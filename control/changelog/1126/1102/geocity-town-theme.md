@@ -25,6 +25,11 @@
   warped with it, the shop's glazing and its storeys' lights alike; `speak`'s `skew`) and **no two connected buildings
   one height** (`step`: the false front raised until it stands that far from its neighbour; the `rooflines` law). The
   door and the plan stay where they were.
+  Along a main street's ROW the shops' storeys are each its own too: its lights' surrounds, sills and lintels and its
+  cornice in its own ink, never its neighbour's (the row's cornice no longer one band across it); in the toon register
+  each shop's front by its own dice (its sign, its members, its tilt, its stripes, its posters), no two agreeing. Its
+  service yard holds the study's receptacles (a front-load dumpster where it has the room, else wheelie bins: true to
+  size, askew in a toon register) and its car is a toy car.
 - **A loud street** (`exaggerate.streets`, `geotown/street-loud.js`; the `street` hand carries one), by the shops'
   principles over a plan that never moves: the walks laid in big pastel slabs over their own ground, cut on skewed lines
   (their ends too: no slab square), each a tint other than its neighbour's, set in a grout of the walk; the kerbs in

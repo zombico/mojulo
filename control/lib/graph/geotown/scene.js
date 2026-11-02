@@ -51,6 +51,7 @@ import { slabsOf, groundSplat, inkPicker, SLAB_TINTS } from './street-loud.js';
 import { INK } from './front-loud.js';
 import { toonOf, proportions, hydrantOf, binOf, postboxOf, lampOf, postOf, ringOf, shelterOf, toyCarOf, tube } from './doodads.js';
 import { signalHead, signOf, mastArm, place } from './signs.js';
+import { receptacleOf } from './receptacles.js';
 import { styleTownDress, styleReadout } from '../era/arch-style.js';
 import { plantPool, plantRepeats } from '../vegetation/pool.js';
 import { treeSizes } from '../form/flora-read.js';
@@ -130,7 +131,7 @@ function siteLoud(R, pop) {
 // the rows of flats: built even, so a loud one raises a false front of its own
 const FLATS = new Set(['lowrise', 'apartments', 'school']);
 // a language's trims: what a loud home paints in its own ink
-const TRIM_PARTS = new Set(['surround', 'sill', 'lintel', 'frame', 'trim', 'shutter']);
+const TRIM_PARTS = new Set(['surround', 'sill', 'lintel', 'frame', 'trim', 'shutter', 'cornice']);
 // a building's kit family: a mansion's its own
 const familyOf = (pl) => (pl.form === 'mansion' ? 'mansions' : pl.kind);
 /** A rect less some rects inside it, as rects (u0, v0, u1, v1). */
@@ -459,6 +460,14 @@ export function assembleGeotownScene(m, ctx = {}) {
         pl.loudWall = other(LOUD_WALLS, was?.wall); pl.crownForm = other(CROWN_FORMS, was?.form);
         Kf = { ...Kf, shop: { ...(Kf.shop === true ? {} : Kf.shop), loud: EX.front, seed: sd, ...(crown ? { crown: r5(crown), crownForm: pl.crownForm } : {}) } };
         pl.loud = true;
+        // (its storeys' trims, its lights' surrounds, sills, lintels and its cornice, its own ink, never its neighbour's: the
+        // row's cornice no longer one band across it)
+        pl.loudTrim = popHex(other(INK, was?.trim), EX.front.pop);
+        // (a toon register's fronts each by its own dice, no two agreeing: its sign, its members, its tilt, its stripes)
+        if (TOON_CARS) {
+          const u = (lo, hi) => lo + (hi - lo) * Rl(), F = EX.front, cl = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+          Kf.shop.loud = { ...F, sign: r5(cl(F.sign * u(0.7, 1.35), 1, 2)), chunk: r5(cl(F.chunk * u(0.65, 1.4), 1, 3)), tilt: r5(cl(F.tilt * u(0.4, 2.6), 0, 12)), stripes: F.stripes ? Math.round(cl(F.stripes * u(0.6, 1.8), 3, 16)) : 0, stickers: r5(cl(F.stickers * u(0.5, 1.6), 0, 1)) };
+        }
       }
       if (pl.duplex) Kf = { ...Kf, doors: 2, porch2: true, porch: Kf?.porch ?? 'door' };
       if (pl.loudCrown) Kf = { ...Kf, crown: pl.loudCrown };
@@ -611,12 +620,12 @@ export function assembleGeotownScene(m, ctx = {}) {
           const [grp, v] = f.hex ? [null, 0] : f.role === 'wall' ? [W0.group, W0.value] : f.role === 'roof' ? [dz.dims.covering, 0.34] : f.role === 'trim' ? ['str:paint', 0.92] : f.role === 'deck' ? ['str:timber', 0.5] : [null, 0];
           const own = f.hex ?? (f.role === 'sign' ? house.kit.sign ?? col.door : f.role === 'canvas' ? house.kit.awning ?? col.canvas : f.role === 'door' ? col.door : f.role === 'canopy' ? col.metal : col.glass);
           const fill = grp ? Pt(grp, Math.min(1, v * litV(nf))) : shadeHex(own, nf, LIGHT), F0 = { corners: cw.map(P3), group: `geotown:${f.role === 'glass' ? 'glass' : f.role === 'wall' ? 'bay' : f.role === 'deck' ? 'porch' : f.role}`, fill, cornerFills: cw.map(() => fill), normal: P3(nf), outNormal: P3(nf) };
-          faces.push(loudLean(grp && Dr && f.role !== 'deck' ? dressTownFace(F0, grp, Dr) : F0, f.role === 'wall', f.role === 'trim' && !f.balcony));
+          faces.push(loudLean(grp && Dr && f.role !== 'deck' ? dressTownFace(F0, grp, Dr) : F0, f.role === 'wall', f.role === 'trim' && !f.balcony && !f.hex));
         }
       }
       colliders.push({ min: P3([lo[0], lo[1], pad]), max: P3([hi[0], hi[1], pad + top]), of: `${pl.id}:house` });
       if (pl.loudHome && pl.pair && HY.step > 0) { const t0 = pairTop.get(pl.pair); if (t0 === undefined) pairTop.set(pl.pair, pad + top); else steps.push(Math.abs(pad + top - t0)); }
-      if (EX?.front || HY) { const rk = `${pl.block}:${pl.side}`, prev = rowTop.get(rk); if (prev && (prev.loud || pl.loud)) steps.push(Math.abs(pad + top - prev.top)); rowTop.set(rk, { top: pad + top, loud: !!pl.loud, wall: pl.loudWall, form: pl.crownForm }); }
+      if (EX?.front || HY) { const rk = `${pl.block}:${pl.side}`, prev = rowTop.get(rk); if (prev && (prev.loud || pl.loud)) steps.push(Math.abs(pad + top - prev.top)); rowTop.set(rk, { top: pad + top, loud: !!pl.loud, wall: pl.loudWall, form: pl.crownForm, trim: pl.loudTrim }); }
       anchors.push({ id: `house-${pl.id}`, kind: 'house', use: house.kit?.use ?? pl.use ?? 'dwelling', row: pl.kind, ...(pl.form === 'mansion' ? { mansion: true } : {}), at: P3(W(pl, house.doorU, env[1], pad)), N: P3([-pl.ey[0], -pl.ey[1], 0]), floor: r5(pad), box: { min: P3([lo[0], lo[1], pad]), max: P3([hi[0], hi[1], pad + top]) }, ...(house.kit ? { type: house.kit.type } : {}) });
       // an evocation's rear: a house's back yard its own program, a shop's service yard, a walk-up's lot
       if (evoked) {
@@ -671,7 +680,11 @@ export function assembleGeotownScene(m, ctx = {}) {
           pl.yard = drawn.length ? drawn.join(', ') : 'lawn';
         } else {
           pl.fence = 'board';
-          for (const f of serviceOf(pl.kind, { w, v0, v1: dep, R: Ry, ...(pl.loudHome ? { car: (u, v, al, hex) => carFaces(u, v, al, hex, `${pl.id}:lot:${r5(u)}`) } : {}) }).faces) yardFace(pl, f);
+          // (a loud plot's lot: its cars toy cars, its bins the study's receptacles, a dumpster where it has the room, true
+          // to size, askew in a toon register: geotown/receptacles.js)
+          const loudLot = pl.loudHome || pl.loud;
+          const binOfLot = loudLot ? (u, v, wide) => { const id = wide ? 'front-load' : 'wheelie-240', Rr = streamOf(seed, 'lot-bin', `${pl.id}:${r5(u)}`); return receptacleOf(id, proportions(Rr, TOON_CARS), Rr).map((f) => ({ ...f, role: 'bin', corners: f.corners.map(([x, y, z]) => [u - x, v - y, z]), out: [-f.out[0], -f.out[1], f.out[2]] })); } : null;
+          for (const f of serviceOf(pl.kind, { w, v0, v1: dep, R: Ry, ...(loudLot ? { car: (u, v, al, hex) => carFaces(u, v, al, hex, `${pl.id}:lot:${r5(u)}`), bin: binOfLot } : {}) }).faces) yardFace(pl, f);
         }
       }
     }

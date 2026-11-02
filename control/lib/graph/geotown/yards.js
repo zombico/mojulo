@@ -303,7 +303,7 @@ export function carOf(u, v, along, hex) {
 }
 
 /** A shop's service yard or a walk-up's lot, built. */
-export function serviceOf(kind, { w, v0, v1, R, car = carOf }) {
+export function serviceOf(kind, { w, v0, v1, R, car = carOf, bin = null }) {
   // (`car` the car a stall holds: carOf, or a loud home's toy car)
   const out = [], depth = v1 - v0;
   if (kind === 'apartments' || kind === 'lowrise') {
@@ -316,7 +316,9 @@ export function serviceOf(kind, { w, v0, v1, R, car = carOf }) {
     return { faces: out };
   }
   // a shop: two bins by its back wall, and a car in its yard now and then
-  for (const k of [0, 1]) { const u = 0.8 + k * 1.1; if (u + 0.9 < w) out.push(...box(u, v0 + 0.4, u + 0.9, v0 + 1.4, 0, 1.2, 'bin')); }
+  // (`bin` a loud plot's receptacle at (u, v), a dumpster where the yard is `wide`; else its two bins as boxes)
+  if (bin) { if (w >= 3.4) out.push(...bin(w / 2, v0 + 1.1, true)); else for (const k of [0, 1]) { const u = 0.65 + k * 0.85; if (u + 0.6 < w) out.push(...bin(u, v0 + 0.6, false)); } }
+  else for (const k of [0, 1]) { const u = 0.8 + k * 1.1; if (u + 0.9 < w) out.push(...box(u, v0 + 0.4, u + 0.9, v0 + 1.4, 0, 1.2, 'bin')); }
   if (depth > 6.5 && w > 2.6 && R() < 0.5) out.push(...car(w / 2, v0 + Math.min(depth - 2.5, 4.5), 'v', CAR_PAINTS[Math.floor(R() * CAR_PAINTS.length)]));
   return { faces: out };
 }

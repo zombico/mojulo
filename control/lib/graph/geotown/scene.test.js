@@ -388,3 +388,17 @@ describe('a park and its playground drawn loud: its paths slabbed, its things ea
     expect(fills(X, 'geotown:seat').size).toBeGreaterThan(1);
   });
 });
+
+describe("a main street's shops row drawn loud: each shop's storeys its own, its yard's bins the study's", () => {
+  const S0 = { kind: 'geocube', show: 'geotown', seed: 3, geotown: { segment: 'main-street', hills: { height: 2 } } };
+  const A = assembleGeotownScene({ ...S0, cube: 'valley-morning' }), X = assembleGeotownScene({ ...S0, cube: { from: 'valley-morning', exaggerate: { from: 'street', lean: 0, kit: { lean: 0, chunk: 1 } } } });
+  it("paints its cornices and its lights' trims in more inks than the plain row, every door where it was", () => {
+    expect(X.anchors.map((a) => [a.id, a.at])).toEqual(A.anchors.map((a) => [a.id, a.at]));
+    const trims = (S) => new Set(S.faces.filter((f) => f.group === 'town:cornice' || f.group === 'town:surround').map((f) => f.fill));
+    expect(trims(X).size).toBeGreaterThan(trims(A).size);
+  });
+  it('stands receptacles of the study in its service yards', () => {
+    const bins = (S) => S.faces.filter((f) => f.group === 'geotown:bin').length;
+    expect(bins(X)).toBeGreaterThan(bins(A));
+  });
+});
