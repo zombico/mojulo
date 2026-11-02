@@ -40,6 +40,7 @@ import { feelSuggestion } from '@/lib/graph/gameworld/feel/suggest.js';
 import { juiceOfGame, juiceSuggestion } from '@/lib/graph/gameworld/juice.js';
 import { railOfGame } from '@/lib/graph/gameworld/game-bodies.js';
 import { quickWorld, sportConceptOf } from '@/lib/graph/gameworld/quick.js';
+import { quickVehicleWords, patchVehicleWords } from '@/lib/graph/vehicle-registry/doors.js';
 import { composeGameworld } from '@/lib/graph/gameworld/compose.js';
 import './palette-ledger.js';
 import { stampWorldPalette, stampGeocubes } from '@/lib/graph/color-theorist/stamp.js';
@@ -467,10 +468,14 @@ export async function designGameHandler(input, context = {}) {
     const row = SketchRepository.getByRef(ref);
     if (!row) throw new Error(`design_game: no sketch at '${ref}'`);
     if (!isGameworldKind(row.manifest?.kind)) throw new Error(`design_game: '${ref}' is a '${row.manifest?.kind}', not a gameworld`);
-    if (patch !== undefined) await updateSketchHandler({ ref, patch, ...(title ? { title } : {}) });
+    // a quick game's vehicle word is read through the vehicle registry first, as the quick path reads it (doors.js)
+    if (patch !== undefined) await updateSketchHandler({ ref, patch: patchVehicleWords(patch).patch, ...(title ? { title } : {}) });
   }
+  // what the vehicle registry read: a word written as its table's key (absent when none was)
+  const redirected = [...(quick !== undefined ? quickVehicleWords(quick).redirects : []), ...(patch !== undefined ? patchVehicleWords(patch).redirects : [])];
   try {
-    return await afterWrite(ref, { approve, revise, note, run, force, compare, before, shape }, context);
+    const out = await afterWrite(ref, { approve, revise, note, run, force, compare, before, shape }, context);
+    return redirected.length ? { ...out, vehicles: { registry: redirected } } : out;
   } catch (err) {
     // the recipe is stored; the call failed after it: say where, so the next call fixes it in place
     throw new Error(`${err.message}\n— the gameworld is stored at '${ref}' as written; fix it with design_game({ ref: '${ref}', patch }) rather than starting a new one.`);
