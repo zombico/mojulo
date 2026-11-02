@@ -11,6 +11,7 @@
  *   - Detail pass (unreleased, folded in): material finishes by colour role, control surfaces cut out and
  *     hinged, gear and canopy joints, panel seams, cabin windows and doors, greebles, fan blades, nav
  *     lights, straight cabin barrels; every pin re-pinned.
+ *   - The drone parts joined the shelf (drone-odm.js): their builder paths pinned; no existing pin moved.
  */
 import { createHash } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
@@ -57,6 +58,16 @@ const PINS = {
   'intake-chin': '4f4aaee982b5285d',
   'intake-side-d': '3459babb4c86b684',
   'eng-radial-18': '304899c7427b23ad',
+  // the drone parts (drone-parts.js): their builder paths pinned when they joined the shelf
+  'frame-shell-camera': '38afd6e99918dcc5',
+  'arm-fold-camera-front': '7cf2a5ca4480fbd8',
+  'motor-1806': '4ffcfa5066596d5e',
+  'rotor-2-9in-ccw': 'e6b7a71a1d7d5142',
+  'guard-ring-9in': '932f635320a34275',
+  'gimbal-3axis-camera': 'e2e10b39f714b1a2',
+  'mast-gps-puck': '304e003e68d3e794',
+  'motor-vent-probe': '69266e7be2707342',
+  'eye-probe': '78ec7574a243cd08',
   'craft:lightSingle': 'cbbad5fe3c255c1d',
 };
 

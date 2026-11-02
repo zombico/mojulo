@@ -71,6 +71,7 @@ export const ROLES = Object.freeze({
   strike: 'it attacks what is on the ground',
   carrier: 'flown from a carrier',
   stealth: 'it is not seen coming',
+  survey: 'a drone that films, maps or watches from above',
 });
 
 /** The world ages a vehicle belongs to (gameworld/cast-setting.js ERA_OF_KIT's words). */
@@ -249,6 +250,8 @@ export const VEHICLES = {
     { scenery: 'airliner', craft: 'narrowbody', tech: 'winged' }),
   widebody: row('widebody airliner', ['widebody', 'jumbo jet', 'jumbo', 'long-haul jet', 'twin-aisle jet'], 'air', 'liner', M, AIR,
     { scenery: 'widebody', craft: 'widebody', tech: 'winged' }),
+  'camera-drone': row('camera drone', ['quadcopter', 'camera quad', 'quad drone', 'consumer drone'], 'air', 'survey', M, AIR,
+    { craft: 'cameraQuad', tech: 'rotor' }),
   helicopter: row('helicopter', ['chopper', 'gunship', 'rotorcraft', 'copter', 'gyrocopter'], 'air', 'transport', M, FIGHT,
     { tech: 'rotor' }),
   airship: row('airship', ['zeppelin', 'dirigible', 'blimp', 'balloon'], 'air', 'liner', ['myth', 'modern'], ['driven', 'watched'],
@@ -256,6 +259,8 @@ export const VEHICLES = {
   // ── in the void ─────────────────────────────────────────────────────────────
   'space-fighter': row('space fighter', ['starfighter', 'space plane'], 'space', 'superiority', F, FIGHT,
     { sky: 'fighter', tech: 'winged' }),
+  'sentry-probe': row('sentry probe', ['survey probe', 'probe drone', 'hover probe'], 'space', 'survey', F, ['watched', 'parked', 'crewed'],
+    { craft: 'sentryProbe', tech: 'hover' }),
   'strike-foil': row('four-foil snubfighter', ['snubfighter', 'foil fighter'], 'space', 'superiority', F, FIGHT,
     { craft: 'strikeFoil', tech: 'winged' }),
   'twin-panel': row('twin-panel interceptor', ['panel fighter'], 'space', 'superiority', F, FIGHT,

@@ -146,6 +146,7 @@ const vec3 = (M, v) => M.map((row) => row[0] * v[0] + row[1] * v[1] + row[2] * v
 const flipM = (s) => [[s.has('x') ? -1 : 1, 0, 0], [0, s.has('y') ? -1 : 1, 0], [0, 0, s.has('z') ? -1 : 1]];
 const rotXM = (a) => [[1, 0, 0], [0, Math.cos(a), -Math.sin(a)], [0, Math.sin(a), Math.cos(a)]];
 const rotYM = (a) => [[Math.cos(a), 0, Math.sin(a)], [0, 1, 0], [-Math.sin(a), 0, Math.cos(a)]];
+const rotZM = (a) => [[Math.cos(a), -Math.sin(a), 0], [Math.sin(a), Math.cos(a), 0], [0, 0, 1]];
 const rotX = (a, v) => vec3(rotXM(a), v);
 const orient = (p, v) => vec3(p.R, applyFlip(p.flip, v));
 /** R = Rz·Ry·Rx → [rx, ry, rz] in degrees, the assembler's `rotate`. */
@@ -200,10 +201,11 @@ function placeLayout(row, { palette, colors, swap, fold, pose, finish, made }) {
       const w = orient(parent, [v[0] + off[0], v[1] + off[1], v[2] + off[2]]);
       target = [parent.at[0] + w[0], parent.at[1] + w[1], parent.at[2] + w[2]];
     }
-    // the part's own flip and `roll` (degrees about the long axis, + turns +x down), under its parent's
+    // the part's own flip, `roll` (degrees about the long axis, + turns +x down) and `yaw` (degrees about the vertical, +
+    // turns +x toward the nose: a multirotor's radial arms), under its parent's
     const pF = parent ? parent.flip : new Set();
     const pR = parent ? parent.R : I3;
-    const ownR = entry.roll ? rotYM(entry.roll * DEG) : I3;
+    const ownR = entry.roll && entry.yaw ? mul3(rotYM(entry.roll * DEG), rotZM(entry.yaw * DEG)) : entry.roll ? rotYM(entry.roll * DEG) : entry.yaw ? rotZM(entry.yaw * DEG) : I3;
     const R = mul3(pR, mul3(flipM(pF), mul3(ownR, flipM(pF))));
     const flip = flipXor(pF, flipSet(entry.flip));
     const mount = vec3(R, applyFlip(flip, recipe.garage.hardpoints.mount));

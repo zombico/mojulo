@@ -28,6 +28,8 @@
  * are `[s, xf, zf]` on the local section; wing points `[span fraction, chord fraction, face]`.
  */
 
+import { DRONE_KINDS, DRONE_ODM } from './drone-odm.js';
+
 export const CRAFT_KINDS = {
   'craft-fuselage': 'the fuselage or hull: the airframe every other part hangs from',
   'craft-wing': 'a wing panel, a starfighter foil or a panel wing (one side; the other is its mirror)',
@@ -1197,3 +1199,7 @@ export const CRAFT_ODM = {
     build: { section: 'facet', planform: [[0, 2.2, 0], [0.55, 4.8, -1.3], [1, 3.6, -0.6]], thickness: 0.07, points: { gun: [1, 0.05] } },
   },
 };
+
+// the drone parts (drone-odm.js): their kinds and rows on the one shelf
+Object.assign(CRAFT_KINDS, DRONE_KINDS);
+Object.assign(CRAFT_ODM, DRONE_ODM);

@@ -27,6 +27,8 @@ export const CRAFT_PALETTES = {
   navyGrey: { paint: '#8c949c', trim: '#5f676f', glass: '#5e6f45', rubber: '#1c1d1f', chrome: '#6c737a', light: '#ff8a3c' },
   trainerYellow: { paint: '#e9b524', trim: '#202326', glass: '#7fa6bf', rubber: '#1b1c1e', chrome: '#c4c8cc', light: '#e94b3c' },
   warbirdOlive: { paint: '#5a5f3c', trim: '#b9b39a', glass: '#8fb0c4', rubber: '#1b1c1e', chrome: '#9aa0a6', light: '#ffb347' },
+  // a consumer drone's light grey moulding, its dark plastics
+  droneConsumer: { paint: '#c8cbcd', trim: '#34373a', glass: '#1b2026', rubber: '#1d1f21', chrome: '#7d8287', light: '#ff5a3c' },
   polishedAlu: { paint: '#c6ccd2', trim: '#20242a', glass: '#7ea8c4', rubber: '#181a1c', chrome: '#e3e7eb', light: '#e94b3c' },
   // space
   scoutIvory: { paint: '#d9d4c7', trim: '#a8473a', glass: '#2b3a44', rubber: '#3b3d40', chrome: '#8d9196', light: '#ff7a4a' },

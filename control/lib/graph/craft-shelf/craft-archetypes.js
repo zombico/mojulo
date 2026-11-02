@@ -3,7 +3,7 @@
  * of this type needs at all (`bom`, the veh-* shelf's contract, audited by the same
  * `planAssemblyBom`), and the stock LAYOUT that fills it from the inventory.
  *
- * A layout entry: `{ id, sku, at?, pair?, flip?, roll?, offset? }`.
+ * A layout entry: `{ id, sku, at?, pair?, flip?, roll?, yaw?, offset? }`.
  *  - `at` names where the part's mount lands: `'<item>.<hardpoint>'` (the hull's stations, a
  *    wing's engine point, a pylon's carry end). The first entry is the hull, at the origin.
  *  - `pair: true` makes the part and its mirror: `<id>-r` where `at` says, `<id>-l` mirrored
@@ -11,6 +11,7 @@
  *  - `flip` mirrors the part in its own frame (`'z'`: a lower starfighter foil).
  *  - `roll` turns the part about the craft's long axis, degrees (+ turns +x down): three wings at
  *    120° around a hull. A part on a rolled parent rolls with it.
+ *  - `yaw` turns the part about the vertical, degrees (+ turns +x toward the nose): a multirotor's radial arms.
  *  - `offset` is a spacer at the mount, metres in the parent's frame: how a stock gear leg is set
  *    deeper in its well so the craft sits level.
  *
@@ -20,6 +21,8 @@
  * height in metres; maximum take-off mass in kg). Earth rows quote the named class; space rows
  * quote the register as this shelf sizes it.
  */
+
+import { DRONE_ROLES, DRONE_ARCHETYPES } from './drone-archetypes.js';
 
 // The jobs a flying machine does, the same in air and in space: each role holds at least one craft
 // of each realm, so a game can swap the sky for the void and keep its cast.
@@ -483,3 +486,7 @@ export const CRAFT_ARCHETYPES = {
     ],
   },
 };
+
+// the drones (drone-archetypes.js): their roles and rows on the one shelf
+Object.assign(CRAFT_ROLES, DRONE_ROLES);
+Object.assign(CRAFT_ARCHETYPES, DRONE_ARCHETYPES);
