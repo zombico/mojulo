@@ -16,4 +16,10 @@ its face, body and later its hands directed together on one clock, and its take 
   that frame actors.
 - **Blender film export.** A scene's actors, their takes and its cameras as a Blender pack, in a film look or an anime
   look shaded live rather than baked.
+- **The dailies.** One page (`control/scripts/spikes/actor/dailies.mjs`) shows the takes side by side on one clock,
+  each with its timeline and its readings law by law (`control/lib/graph/actor/readings.js`). The readings cover how
+  much the face moves, the blinks, the pace, where the eyes rest, the gestures, and whether a gesture lands on its
+  stressed word. In a scene they also cover how much each actor regards its partner and stays live while the other
+  speaks. The baseline is the persona alone, with one speech for one speaker (`actor/baseline.js`) and a short scene
+  for two, and its outputs are pinned. In that scene the persona never looks at its partner.
 - **Opt-in, byte for byte.** A hero or persona with no actor data, and every clip minted before, is unchanged.
