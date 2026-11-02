@@ -1,4 +1,5 @@
 import { safeJson } from '../emit-util.js';
+import { clocksAt } from '../../shoot/time.js';
 
 // In-page SHOOT channel: a world's shoot plan (lib/graph/shoot/) drawn as objects. Per camera: its motion path, a
 // dot per frame along it (their spacing is the ease, as in an After Effects motion path), a diamond per key (white
@@ -20,6 +21,9 @@ export function shootChannelScript(shoot, { scale = 1, aspect = 16 / 9, panel = 
   const live = !!shoot.live, liveCams = shoot.cameras.some((c) => c.live), cues = live && Array.isArray(shoot.cues) && shoot.cues.length > 0;
   // a shot with a speed plays its span stretched (slow motion); a plan without one emits the line it always did
   const stretched = shoot.shots.some((s) => s.speed);
+  // a shot with a time map (shoot/time.js) plays it through the kernel's own clocksAt, and its camera may run on a clock
+  // of its own (bullet time, a grain's camera on ones); a live world plays on its own clock, so it never warps
+  const warp = !live && shoot.shots.some((s) => s.tl);
   return `
 // --- shoot channel (a shoot plan's cameras and paths) ---
 {
@@ -133,10 +137,12 @@ ${liveCams ? `  // a live camera's keys against where its entities are now: the 
     const x = (((sec - __shBase) % __shCycle) + __shCycle) % __shCycle;
     return Math.min(SH.total, x);
   };
-  const __shShot = (tau) => {
+${warp ? `  const __shWarp = ${clocksAt.toString()};
+` : ''}  const __shShot = (tau) => {
     let i = 0;
     while (i + 1 < SH.shots.length && SH.shots[i + 1].start <= tau) i++;
-    const s = SH.shots[i];
+    const s = SH.shots[i];${warp ? `
+    if (s.tl) { const c = __shWarp(s.tl, s.span, tau - s.start); return { i, s, t: c.t, ct: c.camera_t }; }` : ''}
     return { i, s, t: s.span[0] + ${stretched ? 'Math.min(s.span[1] - s.span[0], (tau - s.start) * (s.speed || 1))' : 'Math.min(s.length, tau - s.start)'} };
   };
   const __shView = (v) => {
@@ -252,7 +258,7 @@ ${liveCams ? `  // a live camera's keys against where its entities are now: the 
     __shNow = { shot: at.s.name, camera: at.s.camera, tau, t: at.t };
     for (const r of __shRigs) {
       const live = r.c.id === at.s.camera;
-      const v = ${liveCams ? `r.c.live ? __shLive(r.c, ${live ? 'at.t' : 'live ? at.t : r.rest'}) : ` : ''}__shAt(r.c, ${live ? 'at.t' : 'live ? at.t : r.rest'});${liveCams ? `
+      const v = ${liveCams ? `r.c.live ? __shLive(r.c, ${live ? 'at.t' : 'live ? at.t : r.rest'}) : ` : ''}__shAt(r.c, ${live ? 'at.t' : warp ? 'live ? (at.ct ?? at.t) : r.rest' : 'live ? at.t : r.rest'});${liveCams ? `
       if (r.trail && live) {   // the trail: where the live eye has been
         const tp = r.trail.line.geometry.attributes.position, k = r.trail.n % 300;
         tp.setXYZ(k, v.pos[0], v.pos[1], v.pos[2]); tp.needsUpdate = true; r.trail.n++;
