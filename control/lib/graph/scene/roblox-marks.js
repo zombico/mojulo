@@ -201,7 +201,7 @@ export const BUS_MARKS = Object.freeze({
     hit: m(B, 'kernel/combat.luau deals the hits (the hero\'s blade on the left mouse button, its rounds and their splash, the minds\' own) and kernel/cast.luau tells the bus, a round\'s with what it dealt'),
     struck: m(B, 'kernel/cast.luau: a beam is a moment that lands after its distance, and its target hears struck'),
     seen: m(B, 'kernel/mind.luau counts sightings and kernel/cast.luau facts says them'),
-    ...absent(['use', 'contact', 'aim', 'menu', 'beat']),
+    ...absent(['use', 'contact', 'aim', 'menu', 'beat', 'cut']),
   }),
   effects: Object.freeze({
     logic: m(B, 'the reducer itself (kernel/bus.luau), held equal'),

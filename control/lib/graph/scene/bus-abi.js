@@ -38,6 +38,7 @@ export const BUS_ABI = Object.freeze({
     menu: { about: 'a menu\'s pick or close (menu-pick:<menu>:<n>, menu-close:<menu>)', web: B },
     seen: { about: 'a character with sight newly sees its target (seen: what unseen ends on)', web: B },
     beat: { about: 'the music\'s beat, said early by its own clock (beat: what on-beat judges)', web: B },
+    cut: { about: 'a swing in a headset cuts a character: its direction in the player\'s view, its hand and speed (cut, cut:<id>: what notes judge)', web: B },
   }),
   effects: Object.freeze({
     logic: { about: 'emit, set, inc, toggle, spawn, move on the bus\'s own entities and vars', web: B },
@@ -92,6 +93,7 @@ function usedRows(ev) {
     menu: on.some((t) => t.startsWith('menu-pick:') || t.startsWith('menu-close:')),
     seen: on.includes('seen'),
     beat: on.includes('beat') || (ev.sequences || []).some((q) => q && q.trigger && q.trigger.on === 'beat'),
+    cut: on.some((t) => t === 'cut' || t.startsWith('cut:')),
   };
   // every verb a reaction or a sequence's step performs, by its row
   const doers = [...reactions, ...(ev.sequences || []).flatMap((q) => (q && Array.isArray(q.steps) ? q.steps : []))].filter((r) => r && r.do);

@@ -310,6 +310,7 @@ export const BUS_MARKS = Object.freeze({
     menu: m(B, 'level.gd: arrows or W / S, Enter / Space / E, Esc'),
     seen: m(B, 'kernel/mind.gd counts sightings (perceive) and kernel/cast.gd facts says them (since 0.26.0)'),
     beat: m(B, 'kernel/level.gd _beat_tick from the music player\'s position and score.beat, the page\'s clock as one function (beats/beat-clock.js); equal on the bus at the harness\'s fixed step'),
+    cut: m(A, 'the headset and its swings are the page\'s (channels/xr.js, worlds/controllable/sweep.js); no XR rig in the project yet'),
   }),
   effects: Object.freeze({
     logic: m(B, 'the reducer itself, conformance-tested equal'),

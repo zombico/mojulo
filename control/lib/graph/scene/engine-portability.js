@@ -44,6 +44,7 @@ export const MECHANIC_SAMPLES = Object.freeze({
   laps: { checkpoints: [{ at: [5, 0, 0] }, { at: [10, 0, 0] }], laps: 2 },
   'on-beat': { misses: 3 },
   waves: { waves: [{ foes: ['foe-1'] }], path: [[0, 0], [10, 0]] },
+  notes: { bpm: 120, lanes: { a: { from: [12, 0], to: [1, 0], pool: ['note-1'] } }, chart: [{ beat: 4, lane: 'a', dir: 'down' }] },
   push: { origin: [0, 0, 0], cols: 3, rows: 3, blocks: [[1, 1]], plates: [[2, 2]] },
   clock: {},
   crops: { plots: [{ at: [2, 2, 0] }] },

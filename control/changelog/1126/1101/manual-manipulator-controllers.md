@@ -35,3 +35,10 @@ held as a gun or VR boxing can be made.
   does (the flash, the damage, the stagger, a spark at the point of contact), and the game hears the CUT, its
   direction in the player's view (up, down, left, right), its speed and the hand, as `cut` and `cut:<id>` beside the
   hit. The pass is composed only into a page a headset plays; every other page keeps every byte.
+- **Notes to cut on the beat** (the `notes` mechanic, `game/mechanics.js`; its card `mechanic-cards/notes.md`): a rhythm
+  chart played by note bodies the level mints asleep, a small pool per lane, each floating at its lane's height. A note
+  wakes `lead` beats before its own at its lane's far end and walks in at the pace that puts it on the cutting line on
+  its beat (the music's clock says a beat early, so it walks that much longer); a cut in its direction and with its
+  hand scores it and sends it away, a wrong one leaves it walking, and one that passes the line is a miss. Every note
+  scored or missed wins; `misses` can lose. A pool too small for its chart is refused, naming the lane. The bus hears
+  the headset's `cut` as a fact of its own (`scene/bus-abi.js`), the web's; Godot and Roblox mark it absent.
