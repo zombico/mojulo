@@ -129,7 +129,16 @@ describe('the feature body', () => {
     expect(Math.max(...paw) - Math.min(...paw)).toBeGreaterThan(0.08 * height);
     // (the face ahead, a little down, never tipped up: FEATURE_LOOK; the tail out of the rump, not up the back)
     for (const n of posed) { expect(crownTip(n)).toBeGreaterThan(5); expect(crownTip(n)).toBeLessThan(30); }
-    for (const n of posed) { expect(n.tailRoot[2] - n.pelvisHub[2]).toBeLessThan(0.06 * height); expect(n.tailRoot[1]).toBeLessThan(n.pelvisHub[1]); }
+    // (0.1: at the strike the trunk tips forward and the rump rises with it, the root still behind the hips)
+    for (const n of posed) { expect(n.tailRoot[2] - n.pelvisHub[2]).toBeLessThan(0.1 * height); expect(n.tailRoot[1]).toBeLessThan(n.pelvisHub[1] - 0.1 * height); }
+    // (THE STRIKE: one key the trunk tipped forward, the front low on both forepaws, the rump raised, the tail held back
+    // near level for balance, the face ahead)
+    const slope = (n) => (Math.atan2(n.neckHub[2] - n.pelvisHub[2], n.neckHub[1] - n.pelvisHub[1]) * 180) / Math.PI;
+    const strike = posed.reduce((a, n) => (slope(n) < slope(a) ? n : a));
+    expect(slope(strike)).toBeLessThan(Math.max(...posed.map(slope)) - 8);
+    for (const S of ['R', 'L']) expect(strike[`knuckles${S}`][2], S).toBeLessThan(0.05 * height);
+    const runTail = (n) => (Math.atan2(n.tailTip[2] - n.tailRoot[2], -(n.tailTip[1] - n.tailRoot[1])) * 180) / Math.PI;
+    for (const n of posed) { expect(runTail(n)).toBeGreaterThan(FEATURE_CARRIAGE.run.least - 2); expect(runTail(n)).toBeLessThan(FEATURE_CARRIAGE.run.most + 2); }
     expect(Math.min(...posed.map((n) => n.knucklesR[2]))).toBeLessThan(0.05 * height);                // (the strike)
     expect(Math.max(...posed.map((n) => n.knucklesR[2]))).toBeGreaterThan(0.06 * height);             // (swung through the air)
     expect(Math.min(...posed.map((n) => n.toeBaseR[1] - n.hipR[1]))).toBeLessThan(-0.1 * height);     // (the hind legs tilted back)

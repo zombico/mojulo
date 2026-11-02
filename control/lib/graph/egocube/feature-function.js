@@ -141,7 +141,11 @@ export function dogOf(S, { arms = 1, reaching = true } = {}) {
     if (z0 + H.low < -F.brush) break;
     if (reaching && sh > reach) continue;
     const B = bentTrunk(S, hinge, D.curl, D.waist), zOf = (e) => B.at([e.c[0], e.c[1], e.c[2] - hz], segOf(e))[2];
-    return { hinge, curl: D.curl, waist: D.waist, crouch: r4(c), shoulder: r4(sh), reach: r4(reach), clearance: r4(z0 + H.low), bow: r4(zOf(pelvis) - zOf(chest)) };
+    // (the gallop's strike: how much further the trunk may tip over the hips at the extension's waist, the chest clear)
+    const G = FEATURE_GALLOP, at = Math.min(hinge, G.hinge), wS = D.waist * (1 - G.open);
+    let strike = 0;
+    for (let a = G.pitch; a > 0; a -= 2.5) if (z0 + bentLow(S, at + a, D.curl, wS).low >= -F.brush) { strike = a; break; }
+    return { hinge, curl: D.curl, waist: D.waist, crouch: r4(c), shoulder: r4(sh), reach: r4(reach), clearance: r4(z0 + H.low), bow: r4(zOf(pelvis) - zOf(chest)), strike };
   }
   return null;
 }
@@ -199,8 +203,8 @@ export function functional(S, limbs = {}, { arms: A = 1, legs: Lg = 1, girth: G 
  *  the hind feet come forward under the belly (the gather, `FEATURE_GALLOP.gather` of the dog's bend more) and opens as
  *  they push back (the extension, `open` of it less); the forelegs swing against the hind legs (`swing`), planted under
  *  the chest at the gather and lifted reaching ahead as the hind feet push. The forepaws and the tail are solved on the rig after (feature-body.js planted, carried) */
-export const FEATURE_GALLOP = Object.freeze({ hinge: 80, gather: 0.15, open: 0.45, swing: 0.6, under: 0.25, back: 0.5, lift: 0.3 });
-function galloping(run, dog) {
+export const FEATURE_GALLOP = Object.freeze({ hinge: 80, gather: 0.15, open: 0.45, swing: 0.6, under: 0.25, back: 0.5, lift: 0.3, pitch: 20 });
+function galloping(run, dog, strike = 0) {
   const G = FEATURE_GALLOP, n = run.length, yR = run.map((k) => k.feet?.R?.[1] ?? 0), lo = Math.min(...yR), hi = Math.max(...yR), span = hi - lo || 1;
   return run.map((k, i) => {
     const prev = run[(i - 1 + n) % n], fwd = (yR[i] - lo) / span, w = dog.waist * (1 - G.open + (G.open + G.gather) * fwd);
@@ -208,7 +212,7 @@ function galloping(run, dog) {
     const sw = G.swing * (1 - fwd), arm = (a) => ({ x: a.x, y: r4(a.y + sw), z: a.z });
     const bk = (p) => [p[0], r4(p[1] - G.back * span), p[2]];
     const feet = k.feet ? { R: bk(k.feet.R), L: bk(prev.feet?.R ? [-prev.feet.R[0], prev.feet.R[1], prev.feet.R[2]] : k.feet.L) } : undefined;
-    return { ...dog, hinge: Math.min(dog.hinge, G.hinge), ...(feet ? { feet } : {}), ...(k.sink != null ? { sink: k.sink } : {}), ...(k.lift != null ? { lift: k.lift } : {}), waist: r4(w), armR: arm(dog.armR), armL: arm(dog.armL) };
+    return { ...dog, hinge: r4(Math.min(dog.hinge, G.hinge) + strike * (1 - fwd) ** 2), ...(feet ? { feet } : {}), ...(k.sink != null ? { sink: k.sink } : {}), ...(k.lift != null ? { lift: k.lift } : {}), waist: r4(w), armR: arm(dog.armR), armL: arm(dog.armL) };
   });
 }
 
@@ -230,7 +234,7 @@ export function foursClips(F, { walk = [], ready = {}, dog = null, run = [] } = 
   // from shoulders that low, the head lifted)
   const bow = dog ? (() => { const d = clamp(dog.shoulder / dog.reach, 0.05, 1), f = Math.sqrt(Math.max(0, 1 - d * d)), aim = (sx) => { const v = unit([0.2 * sx, f, -d]); return { x: r4(v[0]), y: r4(v[1]), z: r4(v[2]) }; };
     const U = FEATURE_DOG.unbound, k = { ...ready, unbound: U, hinge: dog.hinge, waist: dog.waist, crouch: dog.crouch, spine: { curl: dog.curl }, armL: aim(-1), armR: aim(1), elbowL: 'straight', elbowR: 'straight', neck: { pitch: LIMITS.neck * U }, head: { pitch: LIMITS.head * U } };
-    return { downDog: [ready, k, k], ...(run.length ? { gallop: galloping(run, k) } : {}) }; })() : {};
+    return { downDog: [ready, k, k], ...(run.length ? { gallop: galloping(run, k, dog.strike ?? 0) } : {}) }; })() : {};
   return {
     ...bow,
     fours: [ready, on, on],

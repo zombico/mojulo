@@ -154,7 +154,8 @@ limits are set for, so the pose takes them `unbound`. It is the two-ball trunk's
 (`gallop`, `FEATURE_GALLOP`): the hind feet take the biped run's paths as a half-bound, the waist rounds at the gather
 and opens at the extension, each forepaw swings forward through the air from under the chest (the elbow folded),
 strikes the floor at its full reach (straight) and sweeps back along it, the hind legs tilted back to drive from behind
-the hips, the face ahead, the tail carried. Running, the hips tip no further than `FEATURE_GALLOP.hinge`, so the tail comes out of the
+the hips, the face ahead, the tail held back near level for balance. At the strike the trunk tips forward over the
+hips: the front low on both forepaws, the rump raised. Running, the hips tip no further than `FEATURE_GALLOP.hinge`, so the tail comes out of the
 rump. On all fours, walking and running, the head is turned up until its crown tips `FEATURE_LOOK.tilt` ahead of upright,
 the head taking most of the turn so it is never tucked into the shoulders.
 

@@ -398,8 +398,9 @@ function looking(plan) {
  *  standing animal up toward the sky, so each key on all fours (the walk on them, the downward dog) turns the tail's bone
  *  from its root until its line from root to tip rises at the species' carriage (fauna roster: feature-function.js
  *  speciesTail; absent, `FEATURE_CARRIAGE.none`), a share (`keep`) of the way back toward where the mascot's own tail
- *  would point: a compromise between the regular animal and the mascot. Standing, the tail is as designed */
-export const FEATURE_CARRIAGE = Object.freeze({ none: -15, keep: 0.25, most: 60 });
+ *  would point: a compromise between the regular animal and the mascot. Galloping, every tail is held back for balance,
+ *  near level (`run`, whatever the walking carriage: a cat's up at a walk, back at a run). Standing, as designed */
+export const FEATURE_CARRIAGE = Object.freeze({ none: -15, keep: 0.25, most: 60, run: Object.freeze({ least: -25, most: 10 }) });
 function carried(plan, carriage) {
   const R = validateRig(expandPlan(plan).rig), C = FEATURE_CARRIAGE, real = Math.max(-C.most, Math.min(C.most, carriage ?? C.none));
   const rise = (k) => { const n = rigNodesAt(R, k).nodes, a = n.tailRoot, b = n.tailTip; return (Math.atan2(b[2] - a[2], -(b[1] - a[1])) * 180) / Math.PI; };
@@ -408,7 +409,8 @@ function carried(plan, carriage) {
     if (!Array.isArray(keys)) continue;
     keys.forEach((k, i) => {
       if (!k?.armR) return;
-      const e0 = rise({ ...k, tail: 0 }), per = (rise({ ...k, tail: 10 }) - e0) / 10, want = real + C.keep * (e0 - real);
+      const e0 = rise({ ...k, tail: 0 }), per = (rise({ ...k, tail: 10 }) - e0) / 10;
+      const want = name === 'gallop' ? Math.max(C.run.least, Math.min(C.run.most, real)) : real + C.keep * (e0 - real);
       if (Math.abs(per) > 1e-6) keys[i] = { ...k, tail: r4((want - e0) / per) };
     });
   }

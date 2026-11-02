@@ -204,6 +204,11 @@ member, a quick game's hero). Code: `control/lib/graph/egocube/feature-tune.js`.
     full reach, then swept back along it under the chest;
   - the hind legs are tilted back: their feet half the run's fore-aft span behind its paths, so they drive from behind
     the hips;
+  - THE STRIKE: at full reach the trunk tips forward over the hips (up to 20° more, `FEATURE_GALLOP.pitch`, as far as
+    the chest clears the floor: `dogOf` `strike`), easing in and out: the front low on both forepaws, the rump raised,
+    the head ahead;
+  - galloping, every tail is held back near level for balance (`FEATURE_CARRIAGE.run`, −25° to 10°), whatever its
+    walking carriage: a cat's tail is up at a walk and back at a run;
   - the hips tip no further than 80° (`FEATURE_GALLOP.hinge`: the dog's tip past level carries the tail's root up the
     back), so running, the tail comes out of the rump;
   - the tail is carried as on all fours.
@@ -277,7 +282,8 @@ member, a quick game's hero). Code: `control/lib/graph/egocube/feature-tune.js`.
     face ahead (`feature-body.test.js`);
   - the gallop on the rig: the run's cycle, the waist working, the forepaw travelling fore and aft and reaching the
     floor in some keys and through the air in others, the hind feet behind the hips, the face ahead and a little down in
-    every key (never up), the tail's root at the rump (never up the back);
+    every key (never up), the tail's root at the rump (never up the back) and the tail held back near level, and a
+    strike key, the front tipped low on both forepaws;
   - on all fours on the rig: the spine level, the tail carried at the roster's carriage less the mascot's share, and no
     standing clip turning the tail;
   - a rodent's buck teeth (none on the hedgehog), a chunky rodent's blunt face on whisker pads, a beaver's flat paddle on
