@@ -60,10 +60,11 @@ const unit = (a) => { const l = Math.hypot(a[0], a[1], a[2]) || 1; return [a[0] 
 const mirrorX = (p) => [-p[0], p[1], p[2]];
 const twin = (s) => (typeof s === 'string' ? s.replace(/R$/, 'L') : s);
 
-/** the skin: its net's cell and its faces after simplifying; the weights' floor, the bones a point may name, the eggs the
+/** the skin: its net's cell and its faces after simplifying; the weights' floor, the bones a point may name, the tail's
+ *  collar (the share of the blend's width between a tail's shapes and the body's), the eggs the
  *  field folds. And the whole figure's TRIANGLE BUDGET: a default game model's (skin, coat, face together) */
 export const FEATURE_TRIANGLES = 18000;
-export const FEATURE_SKIN = Object.freeze({ cell: 0.0075, faces: 8500, floor: 0.02, bones: 4, near: 3 });
+export const FEATURE_SKIN = Object.freeze({ cell: 0.0075, faces: 8500, floor: 0.02, bones: 4, near: 3, collar: 0.33 });
 
 export function egg({ c, u, r, e = 0, hint = [1, 0, 0], bone, group = 'Body', join, name }) {
   const U = unit(u), h0 = Math.abs(dot(unit(hint), U)) > 0.95 ? [0, 1, 0] : hint, Vv = unit(sub(h0, mul(U, dot(h0, U)))), W = cross(U, Vv);
@@ -128,11 +129,15 @@ export function eggField(eggs, { near = FEATURE_SKIN.near, bones = FEATURE_SKIN.
     return d;
   };
   const nearest = (p) => { measure(p); return order[0]; };
+  // (THE TAIL'S COLLAR: between a tail's shape and the body's, the weights blend over `collar` of the usual width, so the
+  // tail's skin rides its bones and the turn from the rump is taken in a short collar at its root: a tail's ring
+  // pattern, riding its bone rigidly (feature-coat.js), moves with the skin under it)
+  const onTail = eggs.map((E) => E.bone === 'tail' || E.bone === 'tailEnd');
   const weights = (p) => {
     measure(p);
     const i0 = order[0], d0 = D[i0], by = {};
     for (let m = 0; m < n; m++) {
-      const i = order[m], tau = 0.3 * Math.min(eggs[i].join, eggs[i0].join), x = (D[i] - d0) / tau;
+      const i = order[m], tau = 0.3 * Math.min(eggs[i].join, eggs[i0].join) * (onTail[i] !== onTail[i0] ? FEATURE_SKIN.collar : 1), x = (D[i] - d0) / tau;
       if (x > 6) break;
       by[eggs[i].bone] = (by[eggs[i].bone] ?? 0) + Math.exp(-x);
     }
@@ -218,7 +223,7 @@ function laidOut(build, height) {
     ...(m.eggs ? { eggs: m.eggs } : {}),
     ...(m.regions ? { regions: m.regions.map((E) => egg({ c: S(E.c), u: E.u, r: E.r.map((v) => v * h), e: E.e ?? 0, hint: E.hint, bone: null, group: m.group, join: 0 })) } : {}),
     ...(m.strokes ? { strokes: m.strokes.flatMap((x) => { const one = (pts) => stroke({ points: pts.map((p) => SH(p, m.on)), r: x.r.map((v) => r6(v * h)) }); return x.both ? [one(x.points), one(x.points.map(mirrorX))] : [one(x.points)]; }) } : {}),
-    ...(m.bands ? { bands: m.bands.map((B) => band({ c: S(B.c), axis: B.axis, w: B.w * h, R: B.R * h, teeth: B.teeth, depth: (B.depth ?? 0) * h, ...(B.arc ? { arc: B.arc } : {}) })) } : {}),
+    ...(m.bands ? { bands: m.bands.map((B) => band({ c: S(B.c), axis: B.axis, w: B.w * h, R: B.R * h, teeth: B.teeth, depth: (B.depth ?? 0) * h, ...(B.arc ? { arc: B.arc } : {}), ...(B.bone ? { bone: B.bone } : {}) })) } : {}),
     ...(m.cells ? { cells: m.cells.map((C) => cells({ seeds: C.seeds.map(S), line: C.line * h, top: C.top * h })) } : {}) }));
   const ell = (E) => ({ C: S(U0(E.C)), rx: r4(E.rx * h), ry: r4(E.ry * h), rz: r4(E.rz * h) });
   const mouth = build.mouth && { nose: S(U0(build.mouth.nose)), centre: S(U0(build.mouth.centre)), corner: S(U0(build.mouth.corner)), pivot: S(U0(build.mouth.pivot)), rise: build.mouth.rise * h, sag: build.mouth.sag * h };

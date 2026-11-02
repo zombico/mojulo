@@ -144,6 +144,10 @@ describe('the feature body', () => {
     for (const n of posed) expect(Math.abs(half(n.tailMid, n.tailTip) - half(n.tailRoot, n.tailMid))).toBeLessThan(3);
     expect(plan.rig.bones.some((b) => b.id === 'tailEnd')).toBe(true);
     for (const n of ['idle', 'blink']) for (const k of plan.clips[n]) expect(k.tailEnd, n).toBeUndefined();
+    // (the tail's ring pattern a layer riding the tail's bones rigidly, each point one bone: it never stretches)
+    const rings = plan.segments.find((x) => x.name === 'coatRings');
+    expect(rings).toBeTruthy();
+    for (const w of Object.values(rings.bind.blend)) { const b = Object.keys(w); expect(b.length).toBe(1); expect(['tail', 'tailEnd']).toContain(b[0]); }
     expect(Math.min(...posed.map((n) => n.knucklesR[2]))).toBeLessThan(0.05 * height);                // (the strike)
     expect(Math.max(...posed.map((n) => n.knucklesR[2]))).toBeGreaterThan(0.06 * height);             // (swung through the air)
     expect(Math.min(...posed.map((n) => n.toeBaseR[1] - n.hipR[1]))).toBeLessThan(-0.1 * height);     // (the hind legs tilted back)

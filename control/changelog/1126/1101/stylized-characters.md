@@ -213,6 +213,10 @@ member, a quick game's hero). Code: `control/lib/graph/egocube/feature-tune.js`.
     turned by its own chain; a tuft tail cut in two at its middle, `halved`, the halves continuing one another), and at
     a run the far half is turned in line with the near half, so a curled tip (a cat's) lies out straight behind.
     Standing and walking, the tail keeps its designed curl;
+  - the raccoon's tail rings never stretch: the ring pattern, a layer over the skin, rides the tail's bones rigidly (each
+    band the bone it sits on: a band's `bone`, feature-coat.js), where it had taken the skin's weights and smeared across
+    the blend at the tail's root; and the tail's skin blends into the rump over a short collar (`FEATURE_SKIN.collar`, a
+    third of the usual width), so the skin under a ring moves with it;
   - the hips tip no further than 80° (`FEATURE_GALLOP.hinge`: the dog's tip past level carries the tail's root up the
     back), so running, the tail comes out of the rump;
   - the tail is carried as on all fours.
@@ -288,7 +292,7 @@ member, a quick game's hero). Code: `control/lib/graph/egocube/feature-tune.js`.
   - the gallop on the rig: the run's cycle, the waist working, the forepaw travelling fore and aft and reaching the
     floor in some keys and through the air in others, the hind feet behind the hips, the face ahead and a little down in
     every key (never up), the tail's root at the rump (never up the back) and the tail held back near level and
-    straight (its two halves in line), and a
+    straight (its two halves in line), the tail's ring layer each point on one tail bone, and a
     strike key, the front tipped low on both forepaws;
   - on all fours on the rig: the spine level, the tail carried at the roster's carriage less the mascot's share, and no
     standing clip turning the tail;

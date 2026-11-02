@@ -584,7 +584,9 @@ export function featureBuild(card, { decor = {}, tune = null } = {}) {
       const onEnd = (o) => ({ ...o, bone: 'tailEnd' }), eggs = tl.eggs.map((e) => (far(e.c) > half ? onEnd(e) : e));
       // (the middle joint on the tail itself: a cut tuft's middle, else the egg nearest half the tail's reach)
       const mid = cut.length ? cut[0].mid : tl.eggs.reduce((a, e) => (Math.abs(far(e.c) - half) < Math.abs(far(a) - half) ? e.c : a), tl.eggs[0]?.c ?? add(root, mul(sub3(tip, root), 0.5)));
-      tl = { ...tl, eggs, ...(cut.length ? { tufts: cut.flatMap((h) => [h.near, h.far]) } : {}), ...(tl.tip ? { tip: onEnd(tl.tip) } : {}) };
+      // (a tail's rings each RIDE the bone their band sits on, rigidly: feature-coat.js, a band's `bone`)
+      const rings = tl.rings?.map(([c, axis, w, R]) => [c, axis, w, R, far(c) > half ? 'tailEnd' : 'tail']);
+      tl = { ...tl, eggs, ...(cut.length ? { tufts: cut.flatMap((h) => [h.near, h.far]) } : {}), ...(tl.tip ? { tip: onEnd(tl.tip) } : {}), ...(rings ? { rings } : {}) };
       B.tail = { root, mid, tip, carriage: speciesTail(card.id) };
     }
   }
@@ -787,7 +789,7 @@ export function featureBuild(card, { decor = {}, tune = null } = {}) {
     B.marks.push({ name: 'network', group: 'Spot', cut: true, cells: [{ seeds, line: N.line, top }] });
   }
   if (ear?.inner) layers.push({ name: 'ears', group: 'EarInner', on: 'head', strokes: [{ both: true, points: ear.inner.map(onHead), r: ear.ir }] });
-  if (tl.rings && T.rings) layers.push({ name: 'rings', group: 'Patch', levels: 0, bands: tl.rings.map(([c, axis, w, R]) => ({ c, axis, w, R, teeth: 9, depth: 0.035 })) });
+  if (tl.rings && T.rings) layers.push({ name: 'rings', group: 'Patch', levels: 0, bands: tl.rings.map(([c, axis, w, R, bone]) => ({ c, axis, w, R, teeth: 9, depth: 0.035, ...(bone ? { bone } : {}) })) });
   // (a bird's wing bars: two strokes across the folded wing's coverts, a value step of its own greys)
   const wing = B.eggs.find((e) => e.name === 'wingR');
   if (plume.bar && wing) {

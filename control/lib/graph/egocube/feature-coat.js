@@ -14,7 +14,9 @@
  *                                holding its width down the flank and pinching to a point `end` degrees from it
  *                                (its width × 1 − (angle / end)^taper: the larger the taper, the later the pinch), each
  *                                side alike (at 180 the
- *                                two sides' points meet under the body: a chevron)
+ *                                two sides' points meet under the body: a chevron). With a `bone` (a tail's ring) the
+ *                                band RIDES that bone rigidly (coatLayers): it never stretches where the skin under it
+ *                                blends between bones
  *   cells({ seeds, line, top })  a NETWORK of patches (a giraffe's): each point the patch of its nearest seed, the patches
  *                                parted by lines `line` wide, below `top`
  *   cutSkin({ V, F }, marks, { field, shapes })   → { V, F, groups }: a ZONE (a mark of territories alone: the muzzle, the
@@ -50,11 +52,11 @@ const lerp = (a, b, t) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a
 const P3 = (p) => ({ x: p[0], y: p[1], z: p[2] });
 
 export const stroke = ({ points, r }) => Object.freeze({ kind: 'stroke', points, r });
-export const band = ({ c, axis, w, R, teeth = 0, depth = 0, arc }) => {
+export const band = ({ c, axis, w, R, teeth = 0, depth = 0, arc, bone }) => {
   const A = unit(axis);
   // (the arc's spine direction square to the axis)
   const back = arc ? unit(sub(arc.back, mul(A, dot(arc.back, A)))) : null;
-  return Object.freeze({ kind: 'band', c, axis: A, w, R, teeth, depth, ...(arc ? { arc: Object.freeze({ back, end: arc.end, taper: arc.taper ?? 1 }) } : {}) });
+  return Object.freeze({ kind: 'band', c, axis: A, w, R, teeth, depth, ...(arc ? { arc: Object.freeze({ back, end: arc.end, taper: arc.taper ?? 1 }) } : {}), ...(bone ? { bone } : {}) });
 };
 export const cells = ({ seeds, line, top }) => Object.freeze({ kind: 'cells', seeds, line, top });
 
@@ -168,7 +170,11 @@ export function coatLayers({ V, F, field, shapes, weights }, marks, { lift = FEA
     // 4. lifted off the skin, the later over the earlier; its edge walled down to the skin
     const h = lift + order * step, points = {}, normals = {}, faces = {}, blend = {};
     const N = S.V.map((p) => grad(p));
-    S.V.forEach((p, i) => { points[`v${i}`] = add(p, mul(N[i], h)).map(r6); normals[`v${i}`] = N[i].map(r4); blend[`st0.v${i}`] = weights(p); });
+    // (a point of a band that names its bone rides that bone alone, the nearest band's: a tail's ring moves as one
+    // piece, never stretched across the blend at the tail's root; every other point takes the skin's weights there)
+    const ridden = (mark.bands ?? []).filter((B) => B.bone), boneAt = (p) => { if (!ridden.length) return null;
+      let best = null, bd = Infinity; for (const B of ridden) { const d = Math.abs(dot(sub(p, B.c), B.axis)); if (d < bd) { bd = d; best = B; } } return best.bone; };
+    S.V.forEach((p, i) => { points[`v${i}`] = add(p, mul(N[i], h)).map(r6); normals[`v${i}`] = N[i].map(r4); const b = boneAt(p); blend[`st0.v${i}`] = b ? { [b]: 1 } : weights(p); });
     S.F.forEach((t, i) => { faces[`f${i}`] = t.map((v) => `v${v}`); });
     const E2 = new Map(); for (const t of S.F) for (let k = 0; k < 3; k++) { const a = t[k], b = t[(k + 1) % 3]; E2.set(`${a}|${b}`, true); }
     const boundary = []; let w = 0;
