@@ -16,6 +16,7 @@
  *     thickness (it rounded to nothing on a bigger gimbal), the probe's vent its cowl, and every straight drone lathe
  *     two cross-sections (a straight profile needs no more; an X8 cost 56k triangles), so the drone pins re-pinned.
  *   - The drone looks: the EO/IR ball's builder path pinned; no other pin moved.
+ *   - The helicopter parts joined the shelf (heli-odm.js): their builder paths pinned; no other pin moved.
  */
 import { createHash } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
@@ -85,6 +86,11 @@ const PINS = {
   'motor-vent-probe': 'e8d0ae806e057d3b',
   'eye-probe': '6e299153a70e5b86',
   'eoir-ball-small': 'a83be3ba6c538c86',
+  // the helicopter parts (heli-parts.js): their builder paths pinned when they joined the shelf
+  'cowl-heli-light': '7bafeb880b3e84c1',
+  'rotor-heli-light': '6bec5da09c4bc8ba',
+  'tail-rotor-light': 'fdb5f4979a12e93f',
+  'fan-heli-ducted': 'd2c588b7caf3d68e',
   'craft:lightSingle': 'cbbad5fe3c255c1d',
 };
 

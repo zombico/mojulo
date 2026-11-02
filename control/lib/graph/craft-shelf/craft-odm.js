@@ -29,6 +29,7 @@
  */
 
 import { DRONE_KINDS, DRONE_ODM } from './drone-odm.js';
+import { HELI_KINDS, HELI_ODM } from './heli-odm.js';
 
 export const CRAFT_KINDS = {
   'craft-fuselage': 'the fuselage or hull: the airframe every other part hangs from',
@@ -1203,3 +1204,6 @@ export const CRAFT_ODM = {
 // the drone parts (drone-odm.js): their kinds and rows on the one shelf
 Object.assign(CRAFT_KINDS, DRONE_KINDS);
 Object.assign(CRAFT_ODM, DRONE_ODM);
+// the helicopter parts (heli-odm.js)
+Object.assign(CRAFT_KINDS, HELI_KINDS);
+Object.assign(CRAFT_ODM, HELI_ODM);

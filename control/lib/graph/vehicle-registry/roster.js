@@ -276,6 +276,8 @@ export const VEHICLES = {
     { craft: 'quadplane', tech: 'winged' }),
   'loitering-munition': row('loitering munition', ['kamikaze drone', 'suicide drone', 'loitering drone'], 'air', 'strike', M, ['crewed', 'watched'],
     { craft: 'loiterMunition', tech: 'winged' }),
+  'light-helicopter': row('light helicopter', ['news helicopter', 'police helicopter', 'private helicopter', 'light chopper'], 'air', 'courier', M, AIR,
+    { craft: 'lightHeli', tech: 'rotor' }),
   helicopter: row('helicopter', ['chopper', 'gunship', 'rotorcraft', 'copter', 'gyrocopter'], 'air', 'transport', M, FIGHT,
     { tech: 'rotor' }),
   airship: row('airship', ['zeppelin', 'dirigible', 'blimp', 'balloon'], 'air', 'liner', ['myth', 'modern'], ['driven', 'watched'],

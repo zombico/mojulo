@@ -39,6 +39,8 @@ export const CRAFT_PALETTES = {
   droneParcel: { paint: '#e9ecee', trim: '#1f5fa8', glass: '#1b2026', rubber: '#1d1f21', chrome: '#8b9196', light: '#ffb000' },
   // a military drone's matte olive-grey, its dark fittings
   droneMilitary: { paint: '#5a5f52', trim: '#2c2f2b', glass: '#1a2026', rubber: '#1a1b1a', chrome: '#6d7268', light: '#c05030' },
+  // a civilian helicopter's white, its blue stripe
+  heliCivil: { paint: '#e8eaec', trim: '#1d4f91', glass: '#24303a', rubber: '#1b1c1e', chrome: '#9aa0a6', light: '#ff4a3a' },
   polishedAlu: { paint: '#c6ccd2', trim: '#20242a', glass: '#7ea8c4', rubber: '#181a1c', chrome: '#e3e7eb', light: '#e94b3c' },
   // space
   scoutIvory: { paint: '#d9d4c7', trim: '#a8473a', glass: '#2b3a44', rubber: '#3b3d40', chrome: '#8d9196', light: '#ff7a4a' },

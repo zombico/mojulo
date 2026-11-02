@@ -163,7 +163,7 @@ export function craftForm(archetype, { palette, colors, pose = { gear: 1 }, atti
     return { id, head: lo.map((v, k) => r4((v + hi[k]) / 2)), faces: fs };
   });
   // (a drone's rotors and propellers: each one's hub, its axis and the way it turns, so its figure can spin it)
-  const spins = row.look ? spinsOf(manifest, placements, N) : [];
+  const spins = row.look || row.layout.some((e) => CRAFT_ODM[e.sku]?.kind === 'heli-rotor') ? spinsOf(manifest, placements, N) : [];
   return { items, length: r4(mx[1] - mn[1]), span: r4(mx[0] - mn[0]), height: r4(mx[2] - mn[2]), readout, ...(spins.length ? { spins } : {}) };
 }
 
@@ -173,12 +173,14 @@ function spinsOf(manifest, placements, N) {
   const out = [];
   manifest.items.forEach((it, i) => {
     const g = it.source.garage, j = (g.joints ?? []).find((x) => x.kind === 'spin');
-    if (!j || !['drone-rotor', 'craft-propeller'].includes(g.kind)) return;
-    const f = it.flip || '', ax = g.kind === 'drone-rotor' ? 2 : 1;
+    if (!j || !['drone-rotor', 'craft-propeller', 'heli-rotor', 'heli-tail'].includes(g.kind)) return;
+    const f = it.flip || '', ax = g.kind === 'craft-propeller' ? 1 : g.kind === 'heli-tail' ? 0 : 2;
     const turn = Math.sign(j.dir[ax]) * ['x', 'y', 'z'].reduce((t, c) => (f.includes(c) ? -t : t), 1) * (f.includes('xyz'[ax]) ? -1 : 1);
     const axis = [0, 0, 0];
     axis[ax] = 1;
-    out.push({ id: it.id, hub: N(placements[i].translate), axis, turn });
+    // (a main rotor turns about its mast, its hub at the mast's top: its joint's own `at`)
+    const at = j.at ? [0, 1, 2].map((k) => placements[i].translate[k] + (j.at[k] ?? 0) * (f.includes('xyz'[k]) ? -1 : 1)) : placements[i].translate;
+    out.push({ id: it.id, hub: N(at), axis, turn });
   });
   return out;
 }

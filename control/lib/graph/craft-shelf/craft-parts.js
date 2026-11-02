@@ -10,6 +10,7 @@
 
 import { cockpit } from './air-kit-parts.js';
 import { DRONE_BUILDERS } from './drone-parts.js';
+import { HELI_BUILDERS } from './heli-parts.js';
 import { asFitting, madeHull, madeCanopy, madeIntake, madeNozzle, madeWheel, madeLeg, madeWell, madeSurface, madeMissile } from './air-made.js';
 import { DEG, airfoil, airfoilAft, extrudeWorld, facetSection, foilAt, lathe, loftWorld, mulberry32, hashSeed, planeUV, round3, section, sweep, tone, turnAbout } from './craft-common.js';
 
@@ -1184,3 +1185,5 @@ export const CRAFT_BUILDERS = {
 
 // the drone parts' builders (drone-parts.js)
 Object.assign(CRAFT_BUILDERS, DRONE_BUILDERS);
+// the helicopter parts' builders (heli-parts.js)
+Object.assign(CRAFT_BUILDERS, HELI_BUILDERS);
