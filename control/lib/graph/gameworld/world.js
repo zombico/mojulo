@@ -37,10 +37,11 @@
  *       walk: { layout?, root?, nodes, edges?, spawn? },   // the level graph (level/graph.js) less its kit and seed
  *       ground?: { cell?, tune?, edits? },   // the level's ground on a top-down grid of cells (level/ground.js)
  *       places?: { town?: true | { civilization?, … }, castle?: true | false | { civilization?, … } },
- *       goal?: { collect?: true | '<pickup>', boss?: true, health?: true, guards?: true },   // the level's own goal on
+ *       goal?: { collect?: true | '<pickup>', boss?: true, health?: true, guards?: true, escape?: true | 1…4 },   // the level's own goal on
  *                                         // its walk or building (quick.js levelGoalMechanics): pickups along it, a boss
  *                                         // at its end fought turn by turn, hp on the HUD, guards who see to get past
- *                                         // unseen; none: reach the exit
+ *                                         // unseen, its last stage an escape room (escape.js: its way out sealed
+ *                                         // until its locks open, their keys along the way); none: reach the exit
  *       foes?: true | { from?, count? },  // the bestiary's foes on its trail stages (or a building's rooms), one a free beat (foes.js): hostile
  *                                         // classes in the hero's way; its hp then takes their hits
  *       building?: { use, seed?, rooms?, add?, kit? | geocube?, goal?, from?, civilization? } | { ref, goal? },
@@ -127,6 +128,7 @@ import { readRunner } from '../worlds/controllable/runner.js';
 import { readEquipment } from './equipment.js';
 import { readMade } from './made.js';
 import { readQuick, LEVEL_GOAL_PARTS } from './quick.js';
+import { readEscapeGoal } from './escape.js';
 import { readBestiary, readLevelFoes } from './foes.js';
 import { readIntent, cubeOfWorld } from './intent.js';
 import { concernIds } from './concerns.js';
@@ -506,13 +508,18 @@ export function readGameworld(W) {
     // the level's own goal (quick.js levelGoalMechanics): quick's goals laid together on a walk's stages or a building's
     // rooms; a quick game's goal is its own (quick.goal), and a building by ref is played as it was made
     if (L.goal !== undefined) {
-      const Gl = L.goal, shape = `${at}.goal is { collect?: true | '<pickup word>', boss?: true, health?: true, guards?: true }, at least one`;
+      const Gl = L.goal, shape = `${at}.goal is { collect?: true | '<pickup word>', boss?: true, health?: true, guards?: true, escape?: true | 1…4 }, at least one`;
       if (W.quick !== undefined && W.quick !== null) throw new Error(`gameworld: ${at}.goal: a quick game's goal is quick.goal`);
       if (L.walk === undefined && (L.building === undefined || L.building?.ref !== undefined)) throw new Error(`gameworld: ${at}.goal is laid on a walk's stages or a building's rooms`);
       if (!isObj(Gl) || !Object.keys(Gl).length) throw new Error(`gameworld: ${shape}`);
       for (const k of Object.keys(Gl)) if (!LEVEL_GOAL_PARTS.includes(k)) throw new Error(`gameworld: ${at}.goal.${k} is not a level goal (${LEVEL_GOAL_PARTS.join(', ')})`);
       if (Gl.collect !== undefined && Gl.collect !== true && !(typeof Gl.collect === 'string' && /^[a-z][a-z-]{0,23}$/.test(Gl.collect))) throw new Error(`gameworld: ${at}.goal.collect is true (gems) or what lies along the way, one lower-case word (relic, coin, key…)`);
       for (const k of ['boss', 'health', 'guards']) if (Gl[k] !== undefined && Gl[k] !== true) throw new Error(`gameworld: ${at}.goal.${k} is true`);
+      // an escape room (escape.js): its way out the level's end, as a boss's fall is another; one or the other
+      if (Gl.escape !== undefined) {
+        try { readEscapeGoal(Gl.escape, id); } catch (e) { throw new Error(`gameworld: ${at}.${e.message}`); }
+        if (Gl.boss) throw new Error(`gameworld: ${at}.goal: an escape room's way out ends the level, and so does a boss's fall: one or the other`);
+      }
     }
     // the level's foes (foes.js): which of the bestiary stand on its trails, or in a building's rooms
     if (L.foes !== undefined) {
@@ -646,7 +653,8 @@ export function readGameworld(W) {
       try { readScenes({ scenes: bare }); } catch (e) { throw new Error(`gameworld: ${at}.${e.message.replace(/^play\./, '')}`); }
       sceneSets[id] = sc.map((s) => ({ ...s }));
     }
-    levels[id] = { ...lv, style: st };
+    // (an escape goal read to its locks and its room, the level's id: what its keys and locks are named by)
+    levels[id] = { ...lv, ...(lv.goal?.escape !== undefined ? { goal: { ...lv.goal, escape: readEscapeGoal(lv.goal.escape, id) } } : {}), style: st };
   }
   const links = (W.links ?? []).map((e, i) => {
     if (!isObj(e)) throw new Error(`gameworld: links[${i}] is { from, to, kind? }`);
@@ -690,7 +698,7 @@ export function readGameworld(W) {
   // advise (design_game's readout), a malformed one is refused here
   // the book's skin (book-skin.js): how the world's book looks, authored as data; none, the book as it was
   const book = (() => { try { return readBookSkin(W.book); } catch (e) { throw new Error(`gameworld: ${e.message}`); } })();
-  const wcd = W.wcd === undefined || W.wcd === null ? null : (() => { try { return readWcd(W.wcd, { levels: ids }); } catch (e) { throw new Error(`gameworld: ${e.message}`); } })();
+  const wcd = W.wcd === undefined || W.wcd === null ? null : (() => { try { return readWcd(W.wcd, { levels: ids, escapes: ids.filter((id) => W.levels[id]?.goal?.escape !== undefined) }); } catch (e) { throw new Error(`gameworld: ${e.message}`); } })();
   // the quest open world (qow/qow.js), the WCD's opposite pole: its regions a geocity's, joined sideways; its principles
   // advise (design_game's readout), a malformed one is refused here
   const qow = W.qow === undefined || W.qow === null ? null : (() => { try { return readQow(W.qow, { levels: ids }); } catch (e) { throw new Error(`gameworld: ${e.message}`); } })();
