@@ -53,6 +53,7 @@ import { materialContext, wordTile } from '../era/arch-style.js';
 import { dressTownFace } from '../era/town-dress.js';
 import { plantPool, plantRepeats } from '../vegetation/pool.js';
 import { litFactor } from '../polygonizer/vexar.js';
+import { podiumInside, cutFace, groundLess } from './podium.js';
 
 export const GEOCITY_KEYS = Object.freeze(['kind', 'cube', 'show', 'title', 'seed', 'hour', 'clouds', 'geocity', 'walk', 'shadows', 'occlusion', 'light', 'cone', 'air']);
 export const GEOCITY_FACES = 200000;
@@ -85,6 +86,12 @@ const FAR_CELL = 160, TALL = Object.freeze(['tower', 'podium', 'midrise', 'slab'
 
 const r5 = (v) => Math.round(v * 1e5) / 1e5 + 0;
 const P3 = (p) => p.map(r5);
+/** A rectangle [x0, y0, x1, y1] less another: the strips of it round the other (none where it covers it). */
+function rectLess(q, c) {
+  const [x0, y0, x1, y1] = q, a0 = Math.max(x0, c[0]), b0 = Math.max(y0, c[1]), a1 = Math.min(x1, c[2]), b1 = Math.min(y1, c[3]);
+  if (a1 <= a0 || b1 <= b0) return [q];
+  return [[x0, y0, a0, y1], [a1, y0, x1, y1], [a0, y0, a1, b0], [a0, b1, a1, y1]].filter((r) => r[2] - r[0] > 1e-3 && r[3] - r[1] > 1e-3);
+}
 const newell = (c) => { const n = [0, 0, 0]; for (let i = 0; i < c.length; i++) { const a = c[i], b = c[(i + 1) % c.length]; n[0] += (a[1] - b[1]) * (a[2] + b[2]); n[1] += (a[2] - b[2]) * (a[0] + b[0]); n[2] += (a[0] - b[0]) * (a[1] + b[1]); } const l = Math.hypot(...n) || 1; return n.map((v) => v / l); };
 const mix = (a, b, t) => rgbToHex(hexToRgb(a).map((v, i) => v + (hexToRgb(b)[i] - v) * t));
 const no = (msg) => { throw new Error(`geocube: ${msg}`); };
@@ -233,6 +240,8 @@ export function assembleGeocityScene(m, ctx = {}) {
   // an evocation's tiers: its blocks at a building's detail, the neighbourhoods round them as massing, the rest its
   // skyline (each neighbourhood's ground one coarse drape, its tall buildings on it, nothing low)
   const E = d.evoked, detail = new Set(E?.blocks ?? []), massed = E ? new Set(E.regions) : null, lots = [];
+  // (each block's terraces, read again by what is walked into: geocity/podium.js)
+  const zOf = new Map();
   for (const r of d.regions) {
     if (r.geotown) { town(r, massed && !massed.has(r.id)); continue; }
     if (massed && !massed.has(r.id)) { backdrop(r); continue; }
@@ -275,7 +284,7 @@ export function assembleGeocityScene(m, ctx = {}) {
       });
       if (b.kind === 'park') continue;
       if (!firstBlock || Math.hypot((x0 + x1) / 2 - d.seat[0], (y0 + y1) / 2 - d.seat[1]) < Math.hypot((firstBlock.rect[0] + firstBlock.rect[2]) / 2 - d.seat[0], (firstBlock.rect[1] + firstBlock.rect[3]) / 2 - d.seat[1])) firstBlock = b;
-      holder = b.id;
+      holder = b.id; zOf.set(b.id, zAt);
       if (detail.has(b.id) && DETAILED.includes(b.kind)) detailed(b, { x0, y0, x1, y1, zAt, Rb });
       else building(b, { x0, y0, x1, y1, longY, zAt, Rb });
       holder = null;
@@ -691,6 +700,44 @@ export function assembleGeocityScene(m, ctx = {}) {
 
   // ── the blocks at a building's detail: their masses through the facade pipeline (its units), back to metres; at
   // night its windows lit on the facades' own grids (city/plan/night.js) ──
+  // ── under it (`under`, geocity/podium.js): a podium walked into from its street, a lobby level with its plaza and a
+  // concourse under it; the one `at` names, else the evoked one nearest the seat whose plaza at its door is its floor ──
+  const UN = d.spec.under ?? null;
+  let inside = null, underWhy = null;
+  if (UN) {
+    const podia = lots.filter((l) => l.id.endsWith(':podium')), seatD = (l) => Math.hypot((l.x0 + l.x1) / 2 - d.seat[0], (l.y0 + l.y1) / 2 - d.seat[1]);
+    const cands = podia.filter((l) => UN.at === undefined || l.id === `${UN.at}:podium`).sort((p, q) => seatD(p) - seatD(q) || (p.id < q.id ? -1 : 1));
+    if (UN.at !== undefined && !cands.length) no(`under.at '${UN.at}' is not an evoked tower or podium block (${podia.map((l) => `'${l.id.split(':')[0]}'`).join(', ') || 'none is evoked'})`);
+    const tried = [];
+    for (const l of cands) {
+      const bid = l.id.split(':')[0], zA = zOf.get(bid);
+      const avoid = lots.filter((x) => x.id.startsWith(`${bid}:t`)).map((x) => [x.x0, x.y0, x.x1, x.y1]);
+      let I = podiumInside(l, { padZ: l.z0, avoid });
+      if (!I) { tried.push(`${bid}: its podium holds no lobby clear of its towers`); continue; }
+      // (its lobby's floor is the plaza's at its door, within a kerb of the podium's own: one standing over a terrace's
+      // step is passed over)
+      const o = [I.door.at[0] + I.door.N[0] * 1.5, I.door.at[1] + I.door.N[1] * 1.5], zp = zA(o[0], o[1]);
+      if (Math.abs(zp - l.z0) > KERB + 1e-6) { tried.push(`${bid}: its plaza stands ${r5(zp - l.z0)} m off its floor at its door`); continue; }
+      if (Math.abs(zp - l.z0) > 1e-6) I = podiumInside(l, { padZ: zp, avoid });
+      inside = { lot: l, block: bid, I };
+      break;
+    }
+    if (!inside) {
+      underWhy = tried.join('; ') || 'no tower or podium block is evoked';
+      if (UN.at !== undefined) no(`under.at '${UN.at}' cannot be walked into: ${underWhy}`);
+    }
+  }
+  if (inside) {
+    // the ground under it cut round its footprint: its pad (the lobby's floor is the plaza's there, its stair's well open
+    // under it) and the land's own drape under the block (it would run through the concourse); nothing over the plaza
+    const top = inside.I.door.z0 + 0.3;
+    for (let i = faces.length - 1; i >= 0; i--) {
+      const f = faces[i];
+      if (!((f.normal?.[2] ?? 0) > 0.5) || Math.max(...f.corners.map((c) => c[2])) > top) continue;
+      const cut = groundLess(f, inside.I.footprint);
+      if (cut.length !== 1 || cut[0] !== f) faces.splice(i, 1, ...cut);
+    }
+  }
   if (lots.length) {
     const U = CITY_METERS_PER_UNIT, u = (v) => Math.round((v / U) * 1000) / 1000;
     const boxes = lots.map((l) => {
@@ -702,14 +749,25 @@ export function assembleGeocityScene(m, ctx = {}) {
     const fs = night ? nightFaces(sc.faces, boxes, new Map(lots.map((l) => [l.id, l])), G.night, seed) : sc.faces;
     for (const f of fs) {
       if (f.group === 'city:night-window' || f.group === 'city:night-shop') counts.panes++;
-      // (a facade's own faces come untagged: they are the detail's)
-      faces.push({ ...f, group: f.group ?? 'geocity:facade', corners: f.corners.map((c) => c.map((v) => r5(v * U))) });
+      // (a facade's own faces come untagged: they are the detail's; the podium walked into cut at its door)
+      const F1 = { ...f, group: f.group ?? 'geocity:facade', corners: f.corners.map((c) => c.map((v) => r5(v * U))) };
+      if (inside) faces.push(...cutFace(F1, inside.I.door)); else faces.push(F1);
     }
     if (sc.textures && Object.keys(sc.textures).length) textures = sc.textures;
     counts.buildings += lots.length;
     // (each lot held by its own box: a tower's shape stands inside its lot's)
-    for (const l of lots) colliders.push({ min: P3([l.x0, l.y0, l.z0]), max: P3([l.x1, l.y1, l.z0 + l.h]), of: l.id });
+    for (const l of lots) {
+      if (inside?.lot !== l) { colliders.push({ min: P3([l.x0, l.y0, l.z0]), max: P3([l.x1, l.y1, l.z0 + l.h]), of: l.id }); continue; }
+      // (the podium walked into: its mass round its inside, its inside's own walls, the mass over its lobby to its roof)
+      const fp = inside.I.footprint, top = Math.max(...inside.I.rooms.map((r) => r.box.max[2])) + 0.3;
+      for (const r of rectLess([l.x0, l.y0, l.x1, l.y1], fp)) colliders.push({ min: P3([r[0], r[1], l.z0]), max: P3([r[2], r[3], l.z0 + l.h]), of: l.id });
+      if (l.z0 + l.h > top) colliders.push({ min: P3([Math.max(l.x0, fp[0]), Math.max(l.y0, fp[1]), top]), max: P3([Math.min(l.x1, fp[2]), Math.min(l.y1, fp[3]), l.z0 + l.h]), of: `${l.id}:over` });
+      colliders.push(...inside.I.colliders);
+    }
   }
+  // the inside's own faces, baked in its own lamps (the page's live sun takes none of their light)
+  const inFaces = new Set(inside ? inside.I.faces : []);
+  if (inside) { faces.push(...inside.I.faces); counts.buildings++; }
 
   // ── the cameras: the skyline from its water (or from past its land's edge), over the metro, the core, up its spine ──
   const [sx, sy] = d.seat, zs = S(sx, sy), toward = d.metro.fall.toward, out = { s: [0, -1], n: [0, 1], w: [-1, 0], e: [1, 0] }[toward];
@@ -757,6 +815,13 @@ export function assembleGeocityScene(m, ctx = {}) {
       ...cameras.filter((c) => c.name === 'skyline' || c.name === 'over'),
     ];
   } else if (E) cameras = cameras.filter((c) => c.name === 'skyline' || c.name === 'over');
+  // (the podium walked into: from its plaza into its lobby, and along its concourse from its stair's foot)
+  if (inside) {
+    // (the concourse from beside the stair's foot, clear of its flight, across to its far side: the way through's last leg)
+    const Dr = inside.I.door, o = [Dr.at[0] + Dr.N[0] * 7, Dr.at[1] + Dr.N[1] * 7], [off, far] = inside.I.through.slice(-2);
+    cameras.push({ name: 'lobby', worldFraming: { cameraPosition: P3([o[0], o[1], Dr.z0 + 1.7]), lookAt: P3([Dr.at[0] - Dr.N[0] * 8, Dr.at[1] - Dr.N[1] * 8, Dr.z0 + 1.4]), horizontalFov: 70 } },
+      { name: 'concourse', worldFraming: { cameraPosition: P3([off[0], off[1], off[2] + 1.7]), lookAt: P3([far[0], far[1], far[2] + 1.3]), horizontalFov: 75 } });
+  }
   // ── the route round the block nearest the seat (the dummy's), or the evoked block's, on its walk ──
   const o = WALK / 2;
   const ring = [[fb[0] - o, fb[1] - o], [fb[2] + o, fb[1] - o], [fb[2] + o, fb[3] + o], [fb[0] - o, fb[3] + o]], route = [];
@@ -804,6 +869,7 @@ export function assembleGeocityScene(m, ctx = {}) {
   if (ctx.liveSun) for (let i = 0; i < faces.length; i++) {
     const f = faces[i];
     if (f.group === 'geocity:night-window' || f.group === 'city:night-window' || f.group === 'city:night-shop') continue;
+    if (inFaces.has(f)) { faces[i] = { ...f, sunShare: 0 }; continue; }
     const N = Array.isArray(f.normal) ? f.normal : newell(f.corners), key = LIGHT.diffuse * Math.max(0, N[0] * LIGHT.toLight[0] + N[1] * LIGHT.toLight[1] + N[2] * LIGHT.toLight[2]), all = litFactor(N, LIGHT);
     faces[i] = { ...f, sunShare: all > 1e-9 ? Math.round(Math.min(1, key / all) * 1000) / 1000 : 0 };
   }
@@ -814,6 +880,7 @@ export function assembleGeocityScene(m, ctx = {}) {
     // (the city's haze is laid per its world unit, city/plan/scene.js; this world's unit is the metre)
     bg, haze: { color: air.fog.color, density: r5((air.fog.density * CITY_HAZE) / CITY_METERS_PER_UNIT) },
     sky: { zenith: air.dome.zenith, horizon: air.dome.horizon, day: night ? 0 : 1, stars: 0, seed: 1, ...(night ? {} : { sun: { dir: P3(sun), size: 1.4, glow: 1.3 } }), ...(spec.air ? hourSky(spec.air) : {}) },
+    ...(inside ? { lights: inside.I.lights, anchors: [{ id: `podium-${inside.block}`, kind: 'building', use: 'podium', enter: 'walk', at: inside.I.door.at, N: inside.I.door.N, floor: inside.I.door.z0, rise: inside.I.rise, storeys: 2, rooms: inside.I.rooms, through: inside.I.through }] } : {}),
     walk: m.walk === false ? false : { speed: 6, spawn: P3(eye), minEye: 1.7, gravity: 22, radius: 0.4 },
     route,
     geocube: geocubeReadout(cube, 'geocity', null, m),
@@ -824,6 +891,7 @@ export function assembleGeocityScene(m, ctx = {}) {
       neighbourhoods: d.regions.map((r) => ({ id: r.id, ring: r.ring, builds: r.builds, storeys: r.storeys.median, blocks: r.blocks.length, park: r.park || !!r.parkRect, ...(r.node ? { node: r.node } : {}), ...(r.beyond.length ? { beyond: r.beyond } : {}) })),
       graph: { nodes: d.graph.nodes.length, edges: d.graph.edges.length, beyond: d.graph.beyond },
       ...(Object.keys(towns).length ? { geotowns: towns } : {}),
+      ...(UN ? { under: inside ? { podium: inside.block, plan: inside.I.plan, rise: inside.I.rise, faces: inside.I.faces.length, colliders: inside.I.colliders.length, lights: inside.I.lights.length, findings: inside.I.findings } : { podium: null, why: underWhy } } : {}),
       ledger: d.ledger, laws: laws.map((l) => ({ law: l.law, ok: l.ok, value: l.value })),
     },
   };

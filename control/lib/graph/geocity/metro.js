@@ -69,7 +69,11 @@
  *                   BLOCK ('D3.2.1') laid by one of the geotown's block segments (true: the block's own if it is one,
  *                   else its ring's; or `{ segment: 'main-street' }`), cropped to its block and centred in the metro's
  *
- *   readGeocity(spec) → { metro: { id, …card }, grammar, pattern, hills, evoke, at, along, play, geotowns }
+ *     under         true | { at?: '<block id>' }: a core podium walked into from its street, a lobby at the walk and a
+ *                   concourse under it down a stair (geocity/podium.js); an evocation's (its blocks at a building's
+ *                   detail), the tower or podium block `at` names, else the evoked one nearest the seat
+ *
+ *   readGeocity(spec) → { metro: { id, …card }, grammar, pattern, hills, evoke, at, along, play, geotowns, under? }
  *
  * Metres throughout. Anything off the card is refused by name; nothing here rolls a die.
  */
@@ -153,9 +157,9 @@ export const EVOKE_IDS = Object.freeze(Object.keys(EVOKES));
 export const PLAY = Object.freeze({ real: null, game: Object.freeze({ pitch: 0.6, depth: 0.8 }) });
 export const DEFAULT_METRO = 'lakeshore';
 // what a recipe may say beside its metro: each a card's setting laid over the card's
-const KEYS = Object.freeze(['metro', 'extent', 'water', 'core', 'fall', 'hills', 'heights', 'green', 'streets', 'segments', 'lively', 'roads', 'grammar', 'outskirts', 'evoke', 'at', 'along', 'play', 'geotowns']);
+const KEYS = Object.freeze(['metro', 'extent', 'water', 'core', 'fall', 'hills', 'heights', 'green', 'streets', 'segments', 'lively', 'roads', 'grammar', 'outskirts', 'evoke', 'at', 'along', 'play', 'geotowns', 'under']);
 // (how the recipe is told, and what it composes, not a setting of its metro)
-const TOLD = Object.freeze(['evoke', 'at', 'along', 'play', 'geotowns']);
+const TOLD = Object.freeze(['evoke', 'at', 'along', 'play', 'geotowns', 'under']);
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const no = (msg) => { throw new Error(`geocity: ${msg}`); };
@@ -246,7 +250,12 @@ export function readGeocity(spec = {}) {
   if (!isObj(Rd.median) || !num(Rd.median.share, 0, 1) || !num(Rd.median.w, 1, 20)) no('roads.median is { share: 0–1, w: metres }');
   if (!isObj(Rd.oneway) || !(Number.isInteger(Rd.oneway.pairs) && Rd.oneway.pairs >= 0 && Rd.oneway.pairs <= 4) || !(Number.isInteger(Rd.oneway.lanes) && Rd.oneway.lanes >= 1 && Rd.oneway.lanes <= 5)) no('roads.oneway is { pairs: 0–4, lanes: 1–5 }');
   if (!isObj(Rd.streetcar) || typeof Rd.streetcar.spine !== 'boolean' || !num(Rd.streetcar.share, 0, 1) || !num(Rd.streetcar.gauge, 0.6, 2) || !num(Rd.streetcar.row, 4, 20)) no('roads.streetcar is { spine: boolean, share: 0–1, gauge: metres, row: metres }');
-  if (!num(M.grade, 0.01, 0.3)) no('grade is the steepest arterial, rise over run, 0.01 to 0.3');
+  if (!num(M.grade, 0.01, 0.3)) no('grade is the steepest arterial, rise over run, 0.01 to 0.3');  // what is under it (geocity/podium.js): a podium walked into, its concourse below the street; an evocation's, at a
+  // building's detail
+  const under = spec.under === undefined ? null : spec.under === true ? {} : spec.under;
+  if (under !== null && (!isObj(under) || Object.keys(under).some((k) => k !== 'at') || (under.at !== undefined && (typeof under.at !== 'string' || !/^[A-Z]+[0-9]+\.[0-9]+\.[0-9]+$/.test(under.at))))) no('under is true or { at?: \'<block id>\' }: the podium walked into from its street, down to its concourse under it');
+  if (under !== null && !['neighbourhood', 'segment', 'corridor'].includes(evoke)) no('under is an evocation\'s (a neighbourhood, a corridor or a segment): what is walked into is drawn at a building\'s detail');
+
   if (!PATTERNS[M.outskirts]) no(`outskirts is a geotown pattern (${PATTERN_IDS.join(', ')})`);
   let grammar = resolveGrammar(M.grammar, 'geocity.grammar'), pattern = { id: M.outskirts, ...PATTERNS[M.outskirts] };
   // at game scale what a walker covers is compressed (checked to scale above, so a card holds either way)
@@ -264,5 +273,5 @@ export function readGeocity(spec = {}) {
     grammar = grammarAtPlay(grammar, 'game');
     pattern = { ...pattern, block: { long: pattern.block.long.map(p), depth: pattern.block.depth.map(q) } };
   }
-  return { metro: M, grammar, pattern, hills, evoke, play, geotowns, ...(spec.at !== undefined ? { at: spec.at } : {}), ...(spec.along !== undefined ? { along: spec.along } : {}) };
+  return { metro: M, grammar, pattern, hills, evoke, play, geotowns, ...(under ? { under } : {}), ...(spec.at !== undefined ? { at: spec.at } : {}), ...(spec.along !== undefined ? { along: spec.along } : {}) };
 }
