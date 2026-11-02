@@ -164,4 +164,9 @@ its resource, put on a look and showed a toast. This theme makes them act.
   - each acts and falls on its own;
   - the target's marker and the numbers rise over the foe's own figure.
   A world that writes its own `battles.foe` stands that one look for every foe, as before.
+  - A beast stands at a monster's height, not its animal's (`FOE_HEIGHT`: a slime knee-high, a golem over a person):
+    its body scaled from its species' measure (`foes/fit.js` `bodyOf`), with its collision and where it is hit.
   - Kept as stand-ins: the spider is a venom-grown rat, the slime a venom-grown frog (the fauna has neither).
+  - Made it run: `design_game` makes a person foe kind's figure as a hero (`foe-<kind>`), and a run's record takes
+    the key. Seen in an exported JRPG: the slimes and the wolf each recoiled and fell on their own figure, a real wolf
+    facing the party. A bat has no reactions and no foe a strike clip yet, so those play nothing.
