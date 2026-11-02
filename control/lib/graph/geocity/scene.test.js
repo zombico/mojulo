@@ -4,6 +4,7 @@ import { describe, it, expect } from 'vitest';
 import { assembleGeocityScene, GEOCITY_FACES } from './scene.js';
 import { designGeocity } from './design.js';
 import { WORLD_KINDS } from '../worlds/world-kinds.js';
+import { offSquare, OFF_SQUARE } from '../era/exaggerate.js';
 
 const geocity = { metro: { from: 'lakeshore', rings: { core: 350, frame: 700 } }, extent: [1800, 1500], water: { sides: ['s'], depth: 200 }, core: [0.5, 0.2] };
 const M = { kind: 'geocube', cube: 'valley-morning', show: 'geocity', seed: 2, hour: 'noon', geocity };
@@ -214,5 +215,22 @@ describe("a loud metro's furniture and facades: each its own", () => {
   it('leans each evoked lot\'s facade to a hue of its own', () => {
     const fills = (S) => new Set(S.faces.filter((f) => f.group === 'geocity:facade' && typeof f.fill === 'string').map((f) => f.fill));
     expect(fills(X).size).toBeGreaterThan(fills(A).size);
+  });
+  it('makes each evoked wall\'s windows geometry, every one off square at three corners or more; the plain metro keeps its cards', () => {
+    expect(A.faces.some((f) => f.card)).toBe(true);
+    expect(X.faces.some((f) => f.card)).toBe(false);
+    const w = X.geocity.laws.find((l) => l.law === 'windows');
+    expect(w.ok).toBe(true);
+    expect(Number(w.value.split(' ')[0])).toBeGreaterThan(100);
+    expect(A.geocity.laws.some((l) => l.law === 'windows')).toBe(false);
+  });
+  it('burns a night\'s lit rooms in its skewed windows, never a square pane over them', () => {
+    const night = { ...M, hour: 'night', geocity: ev }, An = assembleGeocityScene(night), Xn = assembleGeocityScene({ ...night, cube: ex });
+    const panes = (S) => S.faces.filter((f) => f.group === 'city:night-window');
+    expect(panes(An).length).toBeGreaterThan(0);
+    expect(panes(Xn).length).toBeGreaterThan(panes(An).length);
+    // (its corners in its wall's plane: along the wall, and up)
+    const flat = (pts) => { const dx = pts[1][0] - pts[0][0], dy = pts[1][1] - pts[0][1], l = Math.hypot(dx, dy) || 1; return pts.map(([x, y, z]) => [((x - pts[0][0]) * dx + (y - pts[0][1]) * dy) / l, z]); };
+    expect(panes(Xn).filter((f) => offSquare(flat(f.corners)) >= OFF_SQUARE).length).toBe(panes(Xn).length);
   });
 });

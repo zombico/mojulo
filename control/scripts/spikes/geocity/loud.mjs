@@ -3,6 +3,7 @@
  * SPIKE: a geocity plumb and under each hand (a name, or JSON terms), from its own cameras (its skyline, over it, its
  * core, its street) and two near its first block: one row a hand.
  *
+ *   LOOK='[[name, [x, y, z], [x, y, z], fov], …]' cameras of its own (metres) in place of the two near its houses; HOUR=<hour>
  *   CAMS=<name,…> which of its own cameras (an evoked metro's: evoked, street, crossing); GEOCITY='{…}' another metro
  *   cd control && node scripts/spikes/geocity/loud.mjs <out-dir> [hand …]   → <out-dir>/loud.png and .html
  */
@@ -35,13 +36,16 @@ let cams = null;
 try {
   for (const hand of hands) {
     const [h0, reg] = hand.split('@'), cube = h0 === 'plumb' ? 'valley-morning' : { from: 'valley-morning', exaggerate: h0.startsWith('{') ? JSON.parse(h0) : h0, ...(reg ? { register: reg } : {}) };
-    const { payload: P } = await resolveWorldScene({ title: 'metro', manifest: { kind: 'geocube', cube, show: 'geocity', seed: 2, hour: 'afternoon', walk: false, geocity: GEOCITY } });
+    const { payload: P } = await resolveWorldScene({ title: 'metro', manifest: { kind: 'geocube', cube, show: 'geocity', seed: 2, hour: process.env.HOUR || 'afternoon', walk: false, geocity: GEOCITY } });
     P.walkers = (P.walkers || []).map((w) => ({ ...w, follow: false })); delete P.walk; delete P.route;
     if (!cams) {
       // (its own cameras, and two near a house of its outskirts: a corner of houses and the walk before them)
       const own = (P.cameras || []).filter((c) => (process.env.CAMS ? process.env.CAMS.split(',') : ['over', 'core', 'street']).includes(c.name));
       const mid = (f) => f.corners.reduce((a, c) => a.map((v, k) => v + c[k] / f.corners.length), [0, 0, 0]);
       const hs = P.faces.filter((f) => f.group === 'geocity:house').map(mid), q = hs[Math.floor(hs.length / 3)];
+      // (LOOK='[[name, [x, y, z], [x, y, z], fov], …]': cameras of its own, in metres, after its named ones)
+      const look = process.env.LOOK ? JSON.parse(process.env.LOOK).map(([name, from, to, fov]) => ({ name, worldFraming: { cameraPosition: from, lookAt: to, horizontalFov: fov } })) : [];
+      if (look.length) { cams = [...own, ...look]; } else
       cams = [...own, ...(q ? [{ name: 'its houses', worldFraming: { cameraPosition: [q[0] + 40, q[1] - 35, q[2] + 22], lookAt: q, horizontalFov: 60 } }, { name: 'a row of them', worldFraming: { cameraPosition: [q[0] + 14, q[1] - 22, q[2] + 2], lookAt: [q[0] - 10, q[1] + 20, q[2]], horizontalFov: 68 } }] : [])];
     }
     const cells = [];

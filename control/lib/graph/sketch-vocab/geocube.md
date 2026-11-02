@@ -20,7 +20,8 @@ own) draws a geotown's shops LOUD: fat frames, a big askew sign, striped scallop
 its own wall hue and false front; no window square (`skew`), no two neighbours one height (`step`, law `rooflines`).
 `streets: { slabs, skew, kerb, splats, paint, pop, vary }` (the `street` hand's own) draws its walks, roads and furniture
 loud by the same principles: skewed pastel slabs, candy kerbs, ink, fat lines, each piece its own ink, lamps of
-alternating height. The plan never moves.
+alternating height. `homes: { skew, step, pop, yard }` draws its homes and yards so, and a geocity's masses and evoked
+facades (their windows made geometry, none square: law `windows`). The plan never moves.
 
 ## The ingredients
 

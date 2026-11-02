@@ -51,6 +51,7 @@ import { litFactor } from '../polygonizer/vexar.js';
 import { bendFaces, exaggerateLaws } from '../era/exaggerate.js';
 import { LOUD_WALLS, INK, popHex } from '../geotown/front-loud.js';
 import { slabsOf, groundSplat, inkPicker } from '../geotown/street-loud.js';
+import { loudFacade, loudWindowsOk } from './facade-loud.js';
 import { leanHue } from '../era/town-dress.js';
 
 export const GEOCITY_KEYS = Object.freeze(['kind', 'cube', 'show', 'title', 'seed', 'hour', 'clouds', 'geocity', 'walk', 'shadows', 'occlusion', 'light', 'cone']);
@@ -124,7 +125,7 @@ export function assembleGeocityScene(m, ctx = {}) {
   // (the finishes in the cube's material context, each a tile; geotown/scene.js finishesOf)
   const MX = materialContext(cube), FIN = {};
   Object.entries(FINISHES).forEach(([group, [word, as]], k) => { const T = wordTile(word, MX, 211 + 17 * k); if (T) FIN[group] = { spec: T.spec, metres: T.metres, ...(as === 'floor' ? { floor: true } : {}) }; });
-  const col = coloursOf(cube), faces = [], counts = { towers: 0, buildings: 0, houses: 0, panes: 0, detailed: 0 };
+  const col = coloursOf(cube), faces = [], counts = { towers: 0, buildings: 0, houses: 0, panes: 0, detailed: 0 }, loudWin = { windows: 0, square: 0 };
   // (the cube's exaggerate, era/exaggerate.js: each mass, its lit panes and its facades bent on its foot, z0; a
   // construction frame kept plumb, its scaffold stamped on it)
   // (a loud metro, the cube's exaggerate.homes / .streets: each mass its own wall hue and roof ink, never the last
@@ -731,9 +732,42 @@ export function assembleGeocityScene(m, ctx = {}) {
     const hueOf = new Map();
     if (HY) { const Rh = streamOf(seed, 'lot-hue', 'evoked'); let last = null; for (const l of lots) { const pool = LOUD_WALLS.filter((h) => h !== last); last = pool[Math.floor(Rh() * pool.length)]; hueOf.set(l.id, last); } }
     const leanHex = (str, hue, k) => str.replace(/#[0-9a-fA-F]{6}/g, (h) => leanHue(h, hue, k));
+    // (and, skewed, each wall's windows made geometry (facade-loud.js): its card's grid, each window off square and
+    // framed fat in its lot's ink, never the lot before it; a night's lit panes on that wall burn in the windows they
+    // cover, the night's dice kept)
+    const SKW = HY?.skew ? HY.skew : 0, inkOf = new Map(), lightsOf = new Map(), lit = new Set();
+    if (SKW) {
+      const Ri = streamOf(seed, 'lot-ink', 'evoked'); let last = null;
+      for (const l of lots) { const pool = INK.filter((h) => h !== last && h !== hueOf.get(l.id)); last = pool[Math.floor(Ri() * pool.length)]; inkOf.set(l.id, last); }
+      const panes = fs.filter((f) => f.group === 'city:night-window' || f.group === 'city:night-shop');
+      for (const w of panes.length ? fs.filter((f) => f.card) : []) {
+        const c = w.corners, A = [0, 1, 2].map((j) => c[1][j] - c[0][j]), B = [0, 1, 2].map((j) => c[3][j] - c[0][j]), AA = A[0] ** 2 + A[1] ** 2 + A[2] ** 2, BB = B[0] ** 2 + B[1] ** 2 + B[2] ** 2;
+        const nx = [A[1] * B[2] - A[2] * B[1], A[2] * B[0] - A[0] * B[2], A[0] * B[1] - A[1] * B[0]], nl = Math.hypot(...nx) || 1, n = nx.map((v) => v / nl);
+        const uvOf = (p) => { const d = [0, 1, 2].map((j) => p[j] - c[0][j]); return [(d[0] * A[0] + d[1] * A[1] + d[2] * A[2]) / AA, (d[0] * B[0] + d[1] * B[1] + d[2] * B[2]) / BB, d[0] * n[0] + d[1] * n[1] + d[2] * n[2]]; };
+        const mine = [];
+        for (const q of panes) {
+          if (lit.has(q)) continue;
+          const uv = q.corners.map(uvOf);
+          if (uv.some(([u, v, h]) => u < -0.01 || u > 1.01 || v < -0.01 || v > 1.01 || Math.abs(h) > 0.5)) continue;
+          mine.push([Math.min(...uv.map((x) => x[0])), Math.max(...uv.map((x) => x[0])), Math.min(...uv.map((x) => x[1])), Math.max(...uv.map((x) => x[1])), q.fill, q.group]); lit.add(q);
+        }
+        lightsOf.set(w, mine);
+      }
+    }
     for (const f0 of fs) {
+      if (lit.has(f0)) continue;
       const lot = HY && f0.group !== 'city:night-window' && f0.group !== 'city:night-shop' ? lotOf(f0) : null, hue = lot ? hueOf.get(lot.id) : null;
       const f = hue ? { ...f0, ...(typeof f0.fill === 'string' ? { fill: leanHue(f0.fill, hue, 0.7) } : {}), ...(typeof f0.bg === 'string' ? { bg: leanHex(f0.bg, hue, 0.55) } : {}) } : f0;
+      if (SKW && lot && f.card) {
+        const L = loudFacade(f.corners.map((c) => c.map((v) => r5(v * U))), f.card, { lit: f.lit ?? 1, hue, ink: popHex(inkOf.get(lot.id), HY.pop), k: SKW, seed: strHash(`${seed}|loud-window|${lot.id}|${f.corners[0].map(r5).join(':')}`), lights: lightsOf.get(f0) ?? [] });
+        if (L) {
+          const a = faces.length;
+          for (const q of L.faces) { if (q.group === 'city:night-window' || q.group === 'city:night-shop') counts.panes++; const { part, ...rest } = q; faces.push({ ...rest, group: q.group ?? 'geocity:facade' }); }
+          loudWin.windows += L.windows.length; if (!loudWindowsOk(L.windows)) loudWin.square++;
+          if (EX) { const z0 = footAt(f); if (z0 !== null) bends.push([a, faces.length, z0]); }
+          continue;
+        }
+      }
       if (EX) { const z0 = footAt(f); if (z0 !== null) bends.push([faces.length, faces.length + 1, z0]); }
       if (f.group === 'city:night-window' || f.group === 'city:night-shop') counts.panes++;
       // (a facade's own faces come untagged: they are the detail's)
@@ -796,7 +830,8 @@ export function assembleGeocityScene(m, ctx = {}) {
   route.push(route[0]);
 
   // ── the laws the scene adds: the faces' budget ──
-  const laws = [...d.laws, ...exaggerateLaws(EX), { law: 'faces', ok: faces.length <= GEOCITY_FACES, value: `${faces.length} faces (budget ${GEOCITY_FACES})${night ? `, ${counts.panes} lit panes` : ''}`, want: 'the metro as massing' }];
+  // (a loud metro's evoked windows, made geometry, each off square at three corners or more: facade-loud.js)
+  const laws = [...d.laws, ...exaggerateLaws(EX), ...(loudWin.windows ? [{ law: 'windows', ok: loudWin.square === 0, value: `${loudWin.windows} evoked windows, ${loudWin.square} walls with one square`, want: 'every window off square at three corners or more' }] : []), { law: 'faces', ok: faces.length <= GEOCITY_FACES, value: `${faces.length} faces (budget ${GEOCITY_FACES})${night ? `, ${counts.panes} lit panes` : ''}`, want: 'the metro as massing' }];
   const bg = night ? air.fog.color : rgbToHex(air.dome.horizon);
   const kinds = d.regions.flatMap((r) => r.blocks).reduce((acc, b) => ({ ...acc, [b.kind]: (acc[b.kind] ?? 0) + 1 }), {});
   // (the kit's repeats, each drawn near the camera only; the skyline draws none)

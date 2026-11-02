@@ -27,7 +27,8 @@
  *                (geotown/street-loud.js) by the same principles as a loud front: no slab square, no two neighbours
  *                alike (a slab's tint, a piece's ink, a lamp's height). The plan never moves
  *     homes      { skew (0–0.3), step (m, 0–3), pop (0–1), yard (bool) }: a house and its back yard drawn LOUD by the shops'
- *                principles: each half of a pair its own wall hue and trims, never its partner's; no window square;
+ *                principles: each half of a pair its own wall hue and trims, never its partner's; no window square
+ *                (a geocity's evoked facades too, their window cards made geometry: geocity/facade-loud.js);
  *                the two halves of a pair never one height (one half's roof raised over its eave by `step`); its yard's
  *                patio in skewed pastel slabs, its deck in striped boards, its fence, its shed and its things each its own
  *                ink, its pool bright. A house's door and its plot never move
@@ -273,8 +274,9 @@ export const offSquare = (pts, tol = 3) => cornerAngles(pts).filter((a) => Math.
 /** Corner offsets [[du, dz] × 4] (u0z0, u1z0, u1z1, u0z1) for a w × h window pulled off square by `k` (0.12 at the least:
  *  a window turned less reads square): each corner drawn inward, so the window never grows past its frame's place, the
  *  two corners of each side drawn by different amounts (one a little, one a lot) so the side leans, rerolled until at
- *  least OFF_SQUARE of its corners are off 90°. `seed` its own dice. */
-export function skewCorners(seed, w, h, k) {
+ *  least OFF_SQUARE of its corners are off 90° (by `tol` degrees: a caller whose corners are rounded again asks a margin
+ *  over the law's 3). `seed` its own dice. */
+export function skewCorners(seed, w, h, k, tol = 3) {
   const R = mulberry32((seed * 2654435761) >>> 0 || 1);
   for (let tries = 0, kk = Math.max(k, 0.12); tries < 40; tries++, kk *= tries % 8 ? 1 : 1.25) {
     // (along u a side's lean, by the window's height; along z a head's or a sill's tilt, by its width; each held inside a
@@ -284,7 +286,7 @@ export function skewCorners(seed, w, h, k) {
     // u0z0, u1z0, u1z1, u0z1: the left side's (l0 low, l1 high), the right's, the sill's (b0 left, b1 right), the head's
     const off = [[U * l0, Z * b0], [-U * r0, Z * b1], [-U * r1, -Z * t1], [U * l1, -Z * t0]].map((p) => p.map(r5));
     const pts = [[0, 0], [w, 0], [w, h], [0, h]].map((p, i) => [p[0] + off[i][0], p[1] + off[i][1]]);
-    if (offSquare(pts) >= OFF_SQUARE) return off;
+    if (offSquare(pts, tol) >= OFF_SQUARE) return off;
   }
   throw new Error(`exaggerate: no window off square found for ${w} × ${h} at ${k}`);
 }
