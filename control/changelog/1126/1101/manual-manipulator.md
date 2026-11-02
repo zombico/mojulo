@@ -18,3 +18,11 @@ In progress. The realistic hero's arms and hands, solved from targets rather tha
   the palm and cannot meet the middle finger; the arm reaches within about a millimetre at most distances but takes
   about 0.2 s a solve, misses some cross-body and high targets at full reach, and lands near targets with the forearm
   45–66° off the line a straight punch needs.
+- **The arm's servos** (`lib/graph/polygonizer/hero-servo.js`): the shoulder read as swing and rotation off the posed
+  skeleton (a plane of elevation and an elevation held to a cone that reaches differently by direction, the rotation
+  external +), the girdle's turn, the elbow and the wrist each with a hard range and an ease range from adult norms
+  (estimates marked), and the speeds the hero's own strikes and swings reach. `servoRead` reads a pose and
+  `servoReport` a clip; advisory, nothing refuses. Read over every stance, strike, guard and swing
+  (`scripts/spikes/manipulator/servo-audit.mjs`): the shoulder's rotation is the joint the clips push past its range
+  most (a thrust's rear arm thrown back about 35° past it), then the forearm's turn in three sword guards; no clip
+  bends an elbow past its stop.

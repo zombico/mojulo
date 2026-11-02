@@ -10,3 +10,6 @@ They read the rig a mint makes; no kernel changes.
   direction, the search's bounds, the punch line (the forearm against the shoulder → target line), and the time.
 
 The pictures: `/body-study male --hero '{"form":"realistic"}' --crop hand --acts '[{}, {"pose":{"fingersR":"fist"}}]'`.
+- `servo-audit.mjs [--cast …] [--samples 40] [--json out.json]`: every stance, strike, guard and swing read against the
+  arm's servos (`lib/graph/polygonizer/hero-servo.js`): what leaves its hard range and for how long, what leaves ease,
+  and the peak speeds the strikes and the swings reach (the source of `SERVO_SPEEDS`).
