@@ -257,7 +257,7 @@ describe('xr config', () => {
 // pilot. The head moves in the play space (position, yaw, pitch); the sticks and buttons are the test's.
 const K = composeLive();
 const FLAT = { ground: () => 0 };
-function gameUp(xr, { entities, camera = null, colliders = null, aims = {}, grips = {} } = {}) {
+function gameUp(xr, { entities, camera = null, colliders = null, aims = {}, grips = {}, document: doc = null, window: win = null } = {}) {
   const cfg = xrConfig(xr, null, { ctrl: true });
   const pad = () => ({ axes: [0, 0, 0, 0], buttons: Array.from({ length: 6 }, () => ({ pressed: false, value: 0 })) });
   const pads = { left: pad(), right: pad() };
@@ -279,9 +279,9 @@ function gameUp(xr, { entities, camera = null, colliders = null, aims = {}, grip
   const inputs = [];
   const env = {
     THREE, renderer, camera: camera3, scene: new THREE.Scene(), controls: { enabled: true }, hud: { appendChild() {} },
-    document: { createElement: () => ({ classList: { add() {}, remove() {} }, hidden: false }), pointerLockElement: null },
+    document: doc ?? { createElement: () => ({ classList: { add() {}, remove() {} }, hidden: false }), pointerLockElement: null },
     navigator: { xr: { requestSession: async () => session, isSessionSupported: () => Promise.resolve(true) } },
-    __world: world, __K: K, __FLAT: FLAT, __inputs: inputs,
+    __world: world, __K: K, __FLAT: FLAT, __inputs: inputs, ...(win ? { window: win } : {}),
   };
   // the page's input read in miniature: the pad (the headset's while a session plays), a tank-turn world's shape, the
   // jump's press edge; then the headset finishes it on the body
@@ -295,7 +295,7 @@ stepControllable = (dt) => {
   __inputs.push(inp);
   __K.stepWorld(__world, inp, dt, __FLAT);
 };
-return { enter: __xrEnter, step: __xrStep, rig: () => __xrRig, ctl: () => __xrCtl };`;
+return { enter: __xrEnter, step: __xrStep, rig: () => __xrRig, ctl: () => __xrCtl, panel: () => __xrPanel, exit: __xrExit };`;
   const page = new Function(...Object.keys(env), body)(...Object.values(env));
   return { pads, press, head, page, world, inputs, aims, grips };
 }
@@ -642,5 +642,75 @@ describe('the game page with swings', () => {
     const src = buildSweep.toString().slice(0, 200);
     expect(emitThreeWorld({ faces: [floor], entities: ents, camera: cam, xr: true })).toContain(src);
     expect(emitThreeWorld({ faces: [floor], entities: ents, camera: cam })).not.toContain('buildSweep');
+  });
+});
+
+// THE HUD IN THE HEADSET: the page's own HUD layer (events.js `.moj-hud`), mirrored onto a panel in the play space. A
+// small stand-in DOM: columns of widgets as the HUD draws them (a readout's spans, a fading toast, a hidden banner), and
+// a canvas whose 2D context records what is written on it.
+function hudDom() {
+  const node = (text) => ({ textContent: text });
+  const el = (cls, kids, style = {}) => ({ className: cls, classList: { contains: (c) => cls.split(' ').includes(c) }, children: kids, childNodes: kids, style });
+  const val = node('12'), readout = el('moj-w moj-w-readout moj-w-counter', [val, node('Notes')]);
+  const toast = el('moj-w moj-w-toast', [node('miss')], { color: 'var(--moj-harm)', opacity: '0.5' });
+  const banner = el('moj-w moj-w-banner moj-hidden', [node('Cleared!')]);
+  const best = el('moj-w moj-w-readout moj-w-text', [node('Score'), node('340')]);
+  const legend = el('moj-w moj-w-legend', [node('W / S  run · mouse  look')]);
+  const layer = el('moj-hud', [el('moj-hud-col moj-hud-top-left', [readout]), el('moj-hud-col moj-hud-center', [toast, banner]), el('moj-hud-col moj-hud-top-right', [best]), el('moj-hud-col moj-hud-bottom', [legend])]);
+  const drawn = [], ctx = new Proxy({ fillText: (t, x, y) => drawn.push({ t, x, y, color: ctx.fillStyle, a: ctx.globalAlpha, align: ctx.textAlign }) }, { get: (o, k) => (k in o ? o[k] : () => {}), set: (o, k, v) => { o[k] = v; return true; } });
+  const canvas = { width: 0, height: 0, getContext: () => ctx };
+  const document = { createElement: (tag) => (tag === 'canvas' ? canvas : { classList: { add() {}, remove() {} }, hidden: false }), querySelector: (q) => (q === '.moj-hud' ? layer : null), documentElement: {}, pointerLockElement: null };
+  const window = { getComputedStyle: () => ({ getPropertyValue: (n) => (n === '--moj-harm' ? '#ff4d4d' : '') }) };
+  return { document, window, drawn, val, toast, banner };
+}
+
+describe('the HUD in the headset', () => {
+  it('the game\'s HUD is drawn on a panel in the play space: each side its own column, each widget its text and colour', async () => {
+    const D = hudDom(), g = gameUp(true, { entities: [hero()], document: D.document, window: D.window });
+    await g.page.enter();
+    const P = g.page.panel();
+    expect(P.m.parent).toBe(g.page.rig());
+    run(g, 1);
+    expect(P.m.visible).toBe(true);
+    expect(P.tex.version).toBeGreaterThan(0);   // (needsUpdate bumps it)
+    const texts = D.drawn.map((d) => d.t);
+    expect(texts).toEqual(['12  Notes', 'miss', 'Score  340']);   // the hidden banner is not on it, nor the keyboard's legend
+    const at = (t) => D.drawn.find((d) => d.t === t);
+    expect(at('12  Notes').align).toBe('left');
+    expect(at('Score  340').align).toBe('right');
+    expect(at('miss')).toMatchObject({ align: 'center', color: '#ff4d4d', a: 0.5 });   // its own colour, read off the page; its fade
+  });
+
+  it('drawn again only when what it says changes', async () => {
+    const D = hudDom(), g = gameUp(true, { entities: [hero()], document: D.document, window: D.window });
+    await g.page.enter();
+    run(g, 1);
+    const n = D.drawn.length;
+    run(g, 30);
+    expect(D.drawn.length).toBe(n);
+    D.val.textContent = '13';
+    run(g, 7);   // read ten times a second
+    expect(D.drawn.length).toBe(2 * n);
+    expect(D.drawn.at(-3).t).toBe('13  Notes');
+  });
+
+  it('it lies on the floor ahead of the body, tilted up to the eye; it goes with the session; `hud: false` has none', async () => {
+    const D = hudDom(), g = gameUp(true, { entities: [hero()], document: D.document, window: D.window });
+    await g.page.enter();
+    run(g, 1);
+    const P = g.page.panel(), w = new THREE.Vector3();
+    g.page.rig().updateMatrixWorld(true); P.m.getWorldPosition(w);
+    expect(w.x).toBeCloseTo(2.4, 6);                 // ahead: the body faces +X
+    expect(Math.abs(w.y)).toBeLessThan(1e-9);
+    expect(w.z).toBeCloseTo(0.3, 6);                  // near the floor, under what comes at the player
+    const n = new THREE.Vector3(0, 0, 1).transformDirection(P.m.matrixWorld);
+    expect(n.z).toBeGreaterThan(0.5); expect(n.x).toBeLessThan(0);   // facing up and back toward the player
+    const rig = g.page.rig();
+    g.page.exit();
+    expect(g.page.panel()).toBeNull();
+    expect(rig.children.includes(P.m)).toBe(false);
+    const off = gameUp({ hud: false }, { entities: [hero()], document: hudDom().document });
+    await off.page.enter();
+    expect(off.page.panel()).toBeNull();
   });
 });

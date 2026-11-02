@@ -53,3 +53,9 @@ held as a gun or VR boxing can be made.
   missed wins; `misses` loses; the best score is kept. Two pieces any game can use came with it: the light blade, a
   `saber` equipment style (a neon blade, its own glow, out of a short machined hilt), and `xr` at the world (and the
   quick game's) level, carried onto every stage level so its page opens a session that plays it.
+- **The HUD in the headset** (`scene/channels/xr.js`): a game played in a headset shows its HUD there. The page's HUD is
+  drawn on a panel in the play space, low on the floor ahead of the player and tilted up to the eye, under where a
+  game's things come at the player: its left slots on the left, its right on the right, the rest in the middle, each
+  widget its own text in its own colour and fade. It is the HUD the game already has (a saber game's notes and score, a
+  shooter's rounds, a toast, a banner), not its keyboard legend; it is drawn again only when what it says changes.
+  `xr: { hud: false }` leaves it out.

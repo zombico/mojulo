@@ -92,6 +92,8 @@ export function xrConfig(xr, walk, { ctrl = false } = {}) {
     dead: clamp(num(k.dead, 0.2), 0, 0.9),
     axial: clamp(num(k.axial, 12), 0, 44) * Math.PI / 180,
     bind: { xr: bind },
+    // (the game's HUD on a panel in the headset, PANEL below: on unless `hud: false`)
+    ...(ctrl && k.hud === false ? { hud: false } : {}),
   };
 }
 
@@ -209,6 +211,83 @@ function __xrHandsStep(dt){
 }
 `;
 
+// THE HUD IN THE HEADSET (`ctrl`, unless `hud: false`): the page's HUD is DOM (events.js's layer, `.moj-hud`), which a
+// session does not show. A panel in the play space does: a canvas texture on a plane low in front of the body (on the
+// floor 2.4 m ahead, tilted up to the eye: under where a game's things come at the player, never across them), the
+// HUD's own columns drawn on it (the left slots left, the right right, the rest in the middle), each visible widget a
+// line of its own text in its own colour (a CSS variable read off the page) and fade. It is the HUD the game already
+// has: readouts, bars, clocks, banners, toasts, whatever a game's mechanics put there; not its legend (the keyboard's). Read ten times a second; drawn
+// again only when what it says has changed. Made on entering, gone on leaving.
+const PANEL = `// --- the HUD in the headset: the page's own HUD mirrored onto a panel low in front of the body ---
+let __xrPanel = null, __xrPanelSig = '', __xrPanelT = 0;
+const __XRP = { w: 1024, h: 512, size: [1.4, 0.7], at: [0, 0.3, -2.4], tilt: 0.95, every: 0.1 };
+function __xrPanelMake(){
+  if (__xrPanel || !document.createElement) return;
+  const cv = document.createElement('canvas'), ctx = cv && cv.getContext ? cv.getContext('2d') : null;
+  if (!ctx) return;
+  cv.width = __XRP.w; cv.height = __XRP.h;
+  const tex = new THREE.CanvasTexture(cv);
+  const m = new THREE.Mesh(new THREE.PlaneGeometry(__XRP.size[0], __XRP.size[1]), new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false, side: THREE.DoubleSide }));
+  m.position.set(__XRP.at[0], __XRP.at[1], __XRP.at[2]); m.rotation.x = -__XRP.tilt; m.renderOrder = 990; m.raycast = function () {};
+  m.visible = false; __xrRig.add(m);
+  __xrPanel = { m, cv, ctx, tex }; __xrPanelSig = ''; __xrPanelT = 0;
+}
+function __xrPanelDrop(){
+  if (!__xrPanel) return;
+  if (__xrPanel.m.parent) __xrPanel.m.parent.remove(__xrPanel.m);
+  if (__xrPanel.tex.dispose) __xrPanel.tex.dispose();
+  __xrPanel = null; __xrPanelSig = '';
+}
+// a CSS colour as the canvas takes it: a page variable read off the root
+function __xrPanelColor(c){
+  const v = /^var\\((--[\\w-]+)\\)/.exec(c || '');
+  if (!v) return c || '#ffffff';
+  const got = typeof window !== 'undefined' && window.getComputedStyle ? window.getComputedStyle(document.documentElement).getPropertyValue(v[1]).trim() : '';
+  return got || '#ffffff';
+}
+// the HUD's visible widgets, by side: { left, center, right } of { text, color, a }; null without a HUD
+function __xrPanelRows(){
+  const layer = document.querySelector ? document.querySelector('.moj-hud') : null;
+  if (!layer) return null;
+  const out = { left: [], center: [], right: [] };
+  for (const col of Array.from(layer.children || [])) {
+    const slot = (/\\bmoj-hud-(?!col\\b)([a-z-]+)/.exec(col.className || '') || [0, 'center'])[1];   // (not its moj-hud-col)
+    const side = /left$/.test(slot) ? 'left' : /right$/.test(slot) ? 'right' : 'center';
+    for (const el of Array.from(col.children || [])) {
+      const cl = el.classList;
+      // (a legend teaches the keyboard and the mouse, which a headset does not hold)
+      if (cl && (cl.contains('moj-hidden') || cl.contains('moj-off') || cl.contains('moj-w-legend'))) continue;
+      const a = el.style && el.style.opacity !== '' && el.style.opacity != null ? +el.style.opacity : 1;
+      if (!(a > 0.05)) continue;
+      const text = Array.from(el.childNodes || []).map((n) => String(n.textContent || '').trim()).filter(Boolean).join('  ');
+      if (text) out[side].push({ text, color: __xrPanelColor(el.style && el.style.color), a: Math.round(a * 10) / 10 });
+    }
+  }
+  return out;
+}
+function __xrPanelStep(dt){
+  if (!__xrPanel) return;
+  __xrPanelT -= dt || 0; if (__xrPanelT > 0) return; __xrPanelT = __XRP.every;
+  const R = __xrPanelRows(), sig = R ? JSON.stringify(R) : '';
+  if (sig === __xrPanelSig) return;
+  __xrPanelSig = sig;
+  const n = R ? R.left.length + R.center.length + R.right.length : 0;
+  __xrPanel.m.visible = n > 0;
+  if (!n) return;
+  const c = __xrPanel.ctx, W = __XRP.w, H = __XRP.h, pad = 36, line = 62;
+  c.clearRect(0, 0, W, H);
+  c.globalAlpha = 1; c.fillStyle = 'rgba(10,12,16,0.62)'; c.fillRect(0, 0, W, H);
+  c.font = 'bold 46px sans-serif'; c.textBaseline = 'top';
+  const col = (rows, x, align) => {
+    c.textAlign = align;
+    rows.slice(0, 7).forEach((r, k) => { c.globalAlpha = r.a; c.fillStyle = r.color; c.fillText(r.text, x, pad + k * line, W / 2 - pad); });
+  };
+  col(R.left, pad, 'left'); col(R.center, W / 2, 'center'); col(R.right, W - pad, 'right');
+  c.globalAlpha = 1;
+  __xrPanel.tex.needsUpdate = true;
+}
+`;
+
 // the game in the headset (`ctrl`): the controllable channel declares `__xrCtl` (null: the page reads its own pad and
 // drives its own camera) and reads it in its input read, its camera drive and its body sync (controllable/index.js `xr`)
 const ctrlScript = ({ hands = false } = {}) => `// --- the game in the headset: the session drives the pilot, the rig stands under it ---
@@ -296,7 +375,9 @@ function __xrPlay(dt){
   __xrHandsStep(dt);` : ''}
   stepControllable(dt);
   __xrPlace(e, L);
+  __xrPanelStep(dt);
 }
+${PANEL}
 // what each hand strikes with, in the world (the kernel's input.sweeps, worlds/controllable/sweep.js): ${hands ? `a held blade
 // from its guard to its tip, an empty hand its fist's knuckles (a gun's hand none), where the hands draw them; else` : 'without the hands drawn,'}
 // the grip pose's centre, a fist
@@ -436,7 +517,7 @@ function __xrExit(){
   camera.position.copy(__xrSaved.pos); camera.quaternion.copy(__xrSaved.quat);
   controls.enabled = __xrSaved.controls; walkOn = __xrSaved.walkOn; __xrSaved = null;
   __xrBtn.classList.remove('on');${ctrl ? `
-  __xrCtl = null; __xrHead0 = null; __xrPad0 = null;${hands ? ' __xrHandsDrop();' : ''}` : ''}
+  __xrCtl = null; __xrHead0 = null; __xrPad0 = null;${hands ? ' __xrHandsDrop();' : ''} __xrPanelDrop();` : ''}
 }
 async function __xrEnter(){
   if (__xrOn) { const s = renderer.xr.getSession(); if (s) s.end(); return; }
@@ -459,7 +540,7 @@ async function __xrEnter(){
   if (document.pointerLockElement) document.exitPointerLock();
   __xrOn = true; __xrBtn.classList.add('on');${ctrl ? `
   // a page with a pilot: the session plays the game (the body faces the pilot's way, the rig stands under it)
-  { const e = __xrPilot(); if (e) { __xrYaw = e.transform.heading || 0; __xrSetYaw(__xrRig, __xrYaw); __xrHead0 = null; __xrPlace(e, null); __xrCtl = { pad: __xrPadRead, input: __xrInput, hides: (b) => b === __xrPilot() }; } }` : ''}
+  { const e = __xrPilot(); if (e) { __xrYaw = e.transform.heading || 0; __xrSetYaw(__xrRig, __xrYaw); __xrHead0 = null; __xrPlace(e, null); __xrCtl = { pad: __xrPadRead, input: __xrInput, hides: (b) => b === __xrPilot() }; if (XR.hud !== false) __xrPanelMake(); } }` : ''}
   session.addEventListener('end', __xrExit);
   await renderer.xr.setSession(session);
 }
