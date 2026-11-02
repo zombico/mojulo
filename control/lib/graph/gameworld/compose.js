@@ -493,7 +493,9 @@ export function composeGameworld({ prompt, name, id, levels, seed = 1 } = {}) {
   // the brief beside the words that asked for it
   if (frame) {
     const tradition = settingOfGame(readGameworld(world)).tradition ?? 'anime';
-    world.characters = { ...frame.characters, direction: { ...frame.characters.direction, tradition } };
+    // (a hub's town is lived in: its folk (folk-cast.js), each to talk to, its shopkeeper the merchant and a keeper
+    // the inn where the world's battles have them)
+    world.characters = { ...frame.characters, direction: { ...frame.characters.direction, tradition }, ...(world.hub ? { folk: true } : {}) };
     if (frame.moves) world.moves = true;
     world.brief.hero = { genre: genre.id, vibe: frame.characters.hero.motion.vibe, powers: 'none', camera: camera ?? 'third-person', tradition };
   }

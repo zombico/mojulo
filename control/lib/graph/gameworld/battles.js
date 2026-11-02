@@ -368,6 +368,13 @@ function shopsAt(G, ends, figures, entities, keeper, wares, inn) {
   return Object.keys(shops).length ? { shops, cues, inn: stood } : null;
 }
 
+// the shops a town's folk keep (no figure, no cue: the folk's own use opens them, folk-cast.js folkExtra)
+const folkShops = (wares, inn) => {
+  const shops = { ...(wares.length ? { merchant: { name: 'Merchant', wares } } : {}), ...(inn != null ? { innkeeper: { name: 'Inn', inn } } : {}) };
+  return Object.keys(shops).length ? { shops, cues: [], inn: inn != null } : null;
+};
+/** The shops a hub's folk keep, as folk-cast.js folkExtra takes them: { merchant?, inn?: { id, prompt } }. */
+export const hubFolkShops = (G) => (shopsOn(G) && G.hub ? { ...(waresFor(G, 0, HUB_WARES).length ? { merchant: { id: 'merchant', prompt: 'Shop' } } : {}), ...(innOf(G, 0) != null ? { inn: { id: 'innkeeper', prompt: 'Inn' } } : {}) } : null);
 // the hub's merchant sells the first two tiers' wares at once (the gold says what the party can have yet)
 export const HUB_WARES = Object.freeze([...new Set([...SHOP_WARES[0], ...SHOP_WARES[1]])]);
 /**
@@ -375,9 +382,12 @@ export const HUB_WARES = Object.freeze([...new Set([...SHOP_WARES[0], ...SHOP_WA
  * town, the party and the bag carried there as on a stage that fights; null on any other stage, or with no shops.
  * → { figures, entities, play: { rpg, cues }, mechanics } (the stage's extra: levels.js stageLevelOrder)
  */
-export function hubCast(G, stage, ends, { keeper } = {}) {
-  if (!keeper || !shopsOn(G) || stage.level !== G.hub) return null;
-  const figures = {}, entities = [], shop = shopsAt(G, ends, figures, entities, keeper, waresFor(G, 0, HUB_WARES), innOf(G, 0));
+export function hubCast(G, stage, ends, { keeper, folk = false } = {}) {
+  if (!shopsOn(G) || stage.level !== G.hub || (!keeper && !folk)) return null;
+  const wares = waresFor(G, 0, HUB_WARES), inn = innOf(G, 0);
+  // (a town with folk keeps them itself: its shopkeeper and an innkeeper among its people, folk-cast.js; no keeper
+  // stands of its own)
+  const figures = {}, entities = [], shop = folk ? folkShops(wares, inn) : shopsAt(G, ends, figures, entities, keeper, wares, inn);
   if (!shop) return null;
   const base = battleBase(G);
   const mechanics = [{ kind: 'party', slice: PARTY_SLICE }, { kind: 'bag', slice: BAG_SLICE }];

@@ -251,3 +251,15 @@ its resource, put on a look and showed a toast. This theme makes them act.
   word names who builds, now takes the builders of the cube the levels stand on instead of rolling one, so a town no
   longer contradicts the land it stands on. The seed's roll is still made, so nothing else it decides moves. The
   book's geocube colour key says what each colour paints on its streets.
+- **The hub town's folk, and faces that vary** (`design_game`, a composed hub). A composed hub now asks for its folk
+  (`characters.folk`): the town's people, grown from its houses in the game's setting, each to talk to.
+  - **Who keeps the shops:** the town's own shopkeeper opens the shop, and a second shopkeeper (or the head of the
+    first house, letting a bed) the inn. No keeper of the shops' own stands there, and none is made.
+  - **Folk on a geocube level:** they now stand on a level a geocube paints. They read the cube's look as the street
+    is drawn in it; before, the folk could not be laid there at all.
+  - **Pooled bodies by sex:** the pooled bodies (the households, the apprentices, the watch) are now pooled by sex
+    too, so a woman never wears a man's body for want of a woman's.
+  - **The nearest body:** past a pool's own bodies, each person wears the one nearest them, their age first and then
+    their skin's lightness, the nearest few in turn. Before, it was whichever came next, so six young men of three
+    ancestries stood in one pale youth's body and an elder could wear a youth's. On the test town, the bodies minted
+    went from 11 to 14 and the young men from one body to three.

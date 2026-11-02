@@ -19,8 +19,10 @@
  * its people as its first person (in lot order) wears it, each on their own face (cast-setting.js wearUniform): two
  * keepers in a town are one shop's colours, two faces. The watch carries the guard's gear for the era.
  *
- * THE POOLS are keyed by what a body cannot lend: its uniform (a watchman never wears a townie's clothes) and its
- * stage (a child never wears a grown body). A pooled person wears a mint of their own pole when the pool has one.
+ * THE POOLS are keyed by what a body cannot lend: its uniform (a watchman never wears a townie's clothes), its stage (a
+ * child never wears a grown body) and its sex (a woman never wears a man's body). Past a pool's own mints, a pooled
+ * person wears the one nearest them, their age first and then their skin's lightness, the nearest few in turn: a pale
+ * youth's body is not lent to a dark-skinned elder while a nearer one stands in the pool.
  * Mints are keyed by the path they were rolled for, and pools fill in people order, so a town only grows.
  */
 import { planFromSheet, KIT_ERAS } from '../egocube/plan.js';
@@ -38,6 +40,12 @@ const hash = (text) => { let h = 0x811c9dc5; for (let i = 0; i < text.length; i+
 /** A mint's key: the person it was rolled for, short and stable. */
 export const mintKey = (path) => `folk-${hash(path).toString(36)}`;
 
+// how near a pooled person's body must be to their own to stand in for it: an age step outweighs any skin (lightness
+// runs 0 to 255), so the age decides and the skin chooses among the bodies of the nearest age; NEAR the skin's slack
+const NEAR = 24, AGE_STEP = 300, AGES = ['child', 'youth', 'adult', 'seasoned', 'elder'];
+const ageOf = (p) => Math.max(0, AGES.indexOf(p.sheet.facets.age ?? 'adult'));
+// a body's skin as its lightness (0 to 255): what a pooled body is matched on beside the age
+const skinOf = (spec) => { const h = spec?.palette?.Skin; if (typeof h !== 'string' || !/^#[0-9a-f]{6}$/i.test(h)) return 128; const n = parseInt(h.slice(1), 16); return Math.round(0.299 * (n >> 16) + 0.587 * ((n >> 8) & 255) + 0.114 * (n & 255)); };
 const tierOf = (p) => (!p.parent && (p.service || p.recurring) ? 'own' : 'pooled');
 const stageOf = (p) => (p.sheet.facets.age === 'child' ? 'child' : 'grown');
 
@@ -71,17 +79,22 @@ export function folkBodies(folk, { kit, setting, pool = FOLK_POOL.default } = {}
       people.push({ path: p.path, tier, body: key });
       continue;
     }
-    const P = (pools[`${p.uniform ?? 'plain'}:${stageOf(p)}`] ??= { mints: [], worn: 0 });
+    // (a pool for each sex too: a woman never wears a man's body for want of a woman's)
+    const P = (pools[`${p.uniform ?? 'plain'}:${stageOf(p)}:${p.sheet.facets.pole ?? '-'}`] ??= { mints: [], worn: {} });
     if (P.mints.length < pool) {
-      const key = mintKey(p.path);
-      mints.push({ key, of: p.path, tier, ...dress(p) });
-      P.mints.push({ key, pole: p.sheet.facets.pole });
+      const key = mintKey(p.path), d = dress(p);
+      mints.push({ key, of: p.path, tier, ...d });
+      P.mints.push({ key, age: ageOf(p), skin: skinOf(d.spec) });
       people.push({ path: p.path, tier, body: key });
       continue;
     }
-    // past the pool: one of its mints, of the person's own pole when it has one, taken in turn
-    const same = P.mints.filter((m) => m.pole === p.sheet.facets.pole), from = same.length ? same : P.mints;
-    people.push({ path: p.path, tier, body: from[P.worn++ % from.length].key });
+    // past the pool: the mint nearest the person (their age, then their skin's lightness), the nearest few taken in
+    // turn so the same body does not stand twice in a row where another is as near
+    const me = { age: ageOf(p), skin: skinOf(planFromSheet(p.sheet).create.spec) };
+    const far = (m) => Math.abs(m.age - me.age) * AGE_STEP + Math.abs(m.skin - me.skin);
+    const ranked = [...P.mints].sort((a, b) => far(a) - far(b)), best = far(ranked[0]);
+    const near = ranked.filter((m) => far(m) <= best + NEAR), k = near.map((m) => m.key).join();
+    people.push({ path: p.path, tier, body: near[(P.worn[k] = (P.worn[k] ?? -1) + 1) % near.length].key });
   }
   return { kit: kit ?? null, pool, mints, people, uniforms, pending: [...pending] };
 }

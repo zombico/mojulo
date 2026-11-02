@@ -19,7 +19,17 @@ describe('the hub: a town every way leads back to', () => {
     const H = hub[0].order.manifest;
     expect(H.play.rpg.encounters ?? []).toEqual([]);
     expect(Object.keys(H.play.rpg.shops)).toEqual(['merchant', 'innkeeper']);
-    expect(H.figures.merchant.heroRef).toBe('gw-keeper');
+    // (kept by the town's own folk: using its shopkeeper opens the shop, another of its people the inn; no keeper of
+    // its own stands, and none is made)
+    expect(w.characters.folk).toBe(true);
+    const opens = (id) => H.play.cues.filter((c) => c.then?.emit === `rpg-shop:${id}`);
+    for (const id of ['merchant', 'innkeeper']) {
+      expect(opens(id)).toHaveLength(1);
+      const at = opens(id)[0].when.use.at, who = H.entities.find((e) => e.id.startsWith('folk-') && Math.hypot(e.transform.pos[0] - at[0], e.transform.pos[1] - at[1]) < 0.01);
+      expect(who).toBeTruthy();
+    }
+    expect(H.entities.some((e) => e.id === 'merchant' || e.id === 'innkeeper')).toBe(false);
+    expect(steps.some((s) => s.key === 'keeper')).toBe(false);
     // (the wilds: the packs, and no shop or free rest of their own)
     const fights = wild.flatMap((s) => s.order.manifest.play?.rpg?.encounters ?? []);
     expect(fights.length).toBeGreaterThan(0);

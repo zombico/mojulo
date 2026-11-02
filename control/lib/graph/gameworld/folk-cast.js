@@ -10,8 +10,10 @@
  *                                  (the same kit, recipe and seed) is minted once and is the same people; one met in
  *                                  every town (folk.js RECURRING), by their look, so towns that dress them alike share it
  *   placeSidequests(plans)         each of `folk.sidequests` to the first stage whose town holds it (→ the ids none holds)
- *   folkExtra(plan, refOf)         → (ends) → a stage extra (stage-figures.js): figures, entities, their talk and the
- *                                  stage's sidequests (folk/sidequests.js: the journal's quests, their menus, the cues)
+ *   folkExtra(plan, refOf, { shops? }) → (ends) → a stage extra (stage-figures.js): figures, entities, their talk and the
+ *                                  stage's sidequests (folk/sidequests.js: the journal's quests, their menus, the cues);
+ *                                  `shops`: { merchant?, inn?: { id, prompt } } the world's shops kept by the town's own
+ *                                  (its shopkeeper the merchant; the inn a second shopkeeper, else the first house's head)
  *
  * WHERE THEY STAND. By their house (`town-<use>-<n>`, the stage's `townDoors`): a service's first person inside at
  * its room when the house is walked into (the elder on the dais, the master at the work floor), else beside the door;
@@ -25,6 +27,7 @@
  * Pure.
  */
 import { streetLots } from '../era/stage-buildings.js';
+import { withGeocube } from '../era/geocube.js';
 import { folkOfTown, lotKey } from '../folk/folk.js';
 import { folkBodies } from '../folk/bodies.js';
 import { linesFor, speakerOf } from '../folk/lines.js';
@@ -45,7 +48,9 @@ const STROLL = 1.4;
 export function stageFolk(G, stage) {
   const ask = G?.characters?.folk, town = stage?.manifest?.town;
   if (!ask || !town) return null;
-  const kit = stage.manifest.kit;
+  // (the kit the street is drawn in: the stage's own, or on a stage a geocube paints the cube's look, as the stage's
+  // builder lowers it (era/stage.js assembleStageScene): the same lots, so the folk stand by the houses drawn)
+  const kit = stage.manifest.kit ?? (stage.manifest.geocube !== undefined ? withGeocube(stage.manifest).kit : undefined);
   const street = streetLots(town, kit, stage.manifest.seed);
   const lots = street.lots.map(({ l }) => l), houseOf = {};
   street.lots.forEach(({ l }, n) => { houseOf[lotKey(l)] = `town-${l.use}-${n + 1}`; });
@@ -76,7 +81,15 @@ export function placeSidequests(plans) {
   return left.map((q) => q.id);
 }
 
-export function folkExtra(plan, refOf) {
+export function folkExtra(plan, refOf, { shops = null } = {}) {
+  // (the town's keepers a world's shops are kept by, battles.js hubCast: its shopkeeper the merchant, the inn a second
+  // shop's keeper, else the head of the first house, letting a bed)
+  const heads = plan.folk.people.filter((p) => !p.parent), useOf = (p) => /^town-([a-z]+)-/.exec(plan.houseOf[p.lot] ?? '')?.[1];
+  const sellers = heads.filter((p) => p.service === 'merchant');
+  const keeps = !shops ? new Map() : new Map([
+    ...(shops.merchant && sellers[0] ? [[sellers[0].path, shops.merchant]] : []),
+    ...(shops.inn ? (() => { const w = sellers[1] ?? heads.find((p) => useOf(p) === 'dwelling'); return w ? [[w.path, shops.inn]] : []; })() : []),
+  ]);
   return (ends) => {
     const doors = new Map((ends.townDoors ?? []).map((d) => [d.id, d]));
     const part = { figures: {}, entities: [] }, menus = [], cues = [];
@@ -137,6 +150,9 @@ export function folkExtra(plan, refOf) {
         continue;
       }
       const own = SQ?.talks[id];
+      // (a keeper of the world's shops: using them opens the shop, or the inn)
+      const sh = keeps.get(p.path);
+      if (sh && !own) { cues.push({ id: `${id}-talk`, when: { use: { at: [at[0], at[1]], r: REACH }, prompt: sh.prompt }, then: { emit: `rpg-shop:${sh.id}` } }); continue; }
       if (!own) { cues.push({ id: `${id}-talk`, when: { use: { at: [at[0], at[1]], r: REACH }, prompt: 'Talk' }, then: { open: chat } }); continue; }
       // (its use cue opens nothing itself: its `cue:<id>` event is the press the dispatch reads)
       cues.push({ id: `${id}-talk`, when: { use: { at: [at[0], at[1]], r: REACH }, prompt: 'Talk' }, then: { emit: `folk-talk:${id}` } }, ...dispatchCues(id, own, chat, `${id}-talk`).cues);

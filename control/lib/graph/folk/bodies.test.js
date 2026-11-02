@@ -30,6 +30,25 @@ describe('folk bodies: who gets one of their own', () => {
     expect(B.mints.length).toBeLessThan(B.people.length);
   });
 
+  it('never lends a body across a sex; past the pool, each wears the body nearest their age, the near ones in turn', () => {
+    const AGES = ['child', 'youth', 'adult', 'seasoned', 'elder'], age = (p) => AGES.indexOf(p.sheet.facets.age ?? 'adult');
+    const big = made(LOTS, KIT, { domicile: 'D of F (P + C2)', cap: 40 }, 1);
+    const who = (path) => big.F.people.find((p) => p.path === path), of = (b) => who(big.B.mints.find((m) => m.key === b).of);
+    const pooled = big.B.people.filter((x) => x.tier === 'pooled');
+    for (const p of pooled) expect(of(p.body).sheet.facets.pole).toBe(who(p.path).sheet.facets.pole);
+    // (with one body a pool, no nearer one: each pool's people wear its one, of their own sex)
+    const minted = new Set(big.B.mints.map((m) => m.key));
+    for (const p of pooled) expect(minted.has(p.body)).toBe(true);
+    // with room for three, a pooled person's body is never further from their age than the pool's nearest
+    const three = made(LOTS, KIT, { domicile: 'D of F (P + C2)', cap: 40 }, 3);
+    const w3 = (path) => three.F.people.find((p) => p.path === path), of3 = (b) => w3(three.B.mints.find((m) => m.key === b).of);
+    const key = (p) => `${p.uniform ?? 'plain'}:${p.sheet.facets.age === 'child' ? 'child' : 'grown'}:${p.sheet.facets.pole}`;
+    for (const x of three.B.people.filter((q) => q.tier === 'pooled')) {
+      const me = w3(x.path), pool = three.B.mints.filter((m) => m.tier === 'pooled' && key(w3(m.of)) === key(me)).map((m) => w3(m.of));
+      expect(Math.abs(age(of3(x.body)) - age(me))).toBe(Math.min(...pool.map((q) => Math.abs(age(q) - age(me)))));
+    }
+  });
+
   it('never lends a body across a uniform or from a grown person to a child', () => {
     const stage = (p) => (p.sheet.facets.age === 'child' ? 'child' : 'grown');
     for (const p of B.people.filter((x) => x.tier === 'pooled')) {

@@ -34,7 +34,7 @@ import { heroOrders, castOrders } from './hero-looks.js';
 import { mechanicsOrders } from './mechanics.js';
 import { equipmentOrders, equippedHero } from './equipment.js';
 import { gearOrders } from './world-gear.js';
-import { battlePlan, battleCast as partyCast, roomOf, laidBattles, BATTLE_FOE, foeKindsOf, foeLookOf, isPeopleLook, battlePeopleRoll, shopsOn, SHOP_KEEPER, hubCast } from './battles.js';
+import { battlePlan, battleCast as partyCast, roomOf, laidBattles, BATTLE_FOE, foeKindsOf, foeLookOf, isPeopleLook, battlePeopleRoll, shopsOn, SHOP_KEEPER, hubCast, hubFolkShops } from './battles.js';
 import { minigamePlan, minigameCast, MINIGAME_KEEPER } from './minigames.js';
 import { composeExtras } from './stage-figures.js';
 import { stageFolk, folkExtra, folkMintKey, placeSidequests } from './folk-cast.js';
@@ -220,7 +220,8 @@ export function runSteps(world, { ref, lookup } = {}) {
   // the minigames' keepers (minigames.js): one figure, minted as a hero is, standing at every stall
   // (and the shops' merchant and innkeeper on the battle stages, battles.js: the same figure where the minigames stand
   // one, else the shopkeeper's)
-  const keeperRef = G.minigames || shopsOn(G) ? childRef(ref, 'keeper') : null;
+  // (none for the shops where a hub's folk keep them)
+  const keeperRef = G.minigames || (shopsOn(G) && !(G.hub && G.characters?.folk)) ? childRef(ref, 'keeper') : null;
   if (keeperRef) {
     const spec = withReact(react, G.minigames ? MINIGAME_KEEPER : SHOP_KEEPER), mint = { kind: 'layered', via: 'hero', title: `${G.name ?? G.id} keeper`, spec };
     steps.push({ key: 'keeper', ref: keeperRef, ready: true, order: { spec, mint, motion: null }, print: fingerprint({ spec }) });
@@ -341,7 +342,7 @@ export function runSteps(world, { ref, lookup } = {}) {
     // its minigames' stalls beside its fights (the bag carried by the fights' when there are any)
     const stall = games?.[i] ? (ends) => minigameCast(G, s, ends, { ref: keeperRef, games: games[i], bag: !fight }) : null;
     // the hub's market: its merchant and inn on the hub's first stage (battles.js hubCast)
-    const market = G.hub === s.level && keeperRef && shopsOn(G) && stages.findIndex((x) => x.level === s.level) === i ? (ends) => hubCast(G, s, ends, { keeper: keeperRef }) : null;
+    const market = G.hub === s.level && shopsOn(G) && (keeperRef || folks[i]) && stages.findIndex((x) => x.level === s.level) === i ? (ends) => hubCast(G, s, ends, { keeper: keeperRef, folk: !!folks[i] }) : null;
     // its foes (foes.js) and its town's folk beside them; either alone keeps its goal's own cast beside it (an extra
     // stands in place of the goal's cast: levels.js)
     // (the hero's hp is its body's own where the systems bind the hp stat to it and no battle on the stage reads the
@@ -350,7 +351,7 @@ export function runSteps(world, { ref, lookup } = {}) {
     const GA0 = goalArgs(G, s, lastOf, ref, { fought: !!fight }), GA = hpBase && GA0.goal ? { ...GA0, goal: (ends) => onBody(GA0.goal(ends), hpBase).mechanics } : GA0;
     const hostile = hostileOf(G, s, foeRefs, true, hpBase ? onBody([{ kind: 'fail-on-death', hits: LEVEL_GOAL.hit }], hpBase).hurt : null);
     const mintOf = folks[i] ? new Map(folks[i].bodies.mints.map((m) => [m.key, m])) : null;
-    const folk = folks[i] ? folkExtra(folks[i], (k) => folkRef[folkMintKey(folks[i], mintOf.get(k))]) : null;
+    const folk = folks[i] ? folkExtra(folks[i], (k) => folkRef[folkMintKey(folks[i], mintOf.get(k))], { shops: market ? hubFolkShops(G) : null }) : null;
     const goalCast = (hostile || folk) && !fight && !stall && !market ? GA.goalCast : null;
     const extra = composeExtras(fight, stall, market, goalCast, folk, hostile);
     const fights = extra ? { extra, ...(fight ? { legend: 'P  party' } : {}) } : {};
