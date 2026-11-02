@@ -20,13 +20,15 @@
  *                   its own (a parenthetical)
  *   extra-speaks    a speaking part played as an extra, whose eyes stay off whoever speaks: give it a style that regards
  *                   its partner, unless it is meant to be background
+ *   slowed-line     a line under slow motion or a freeze (the scene's time map, shoot/time.js): the voice is not slowed with
+ *                   the picture, so mouth and words part; slow the move, the look or the silence, not the words
  *
  * Pure and deterministic.
  */
 import { styleOf } from './style.js';
 
 /** the notes' ids, in the order the header gives them (docs/cinematics.md names each; held by notes.test.js) */
-export const NOTE_IDS = Object.freeze(['long-take', 'back-turned', 'line-flips', 'static', 'distance', 'no-close', 'extra-speaks']);
+export const NOTE_IDS = Object.freeze(['long-take', 'back-turned', 'line-flips', 'static', 'distance', 'no-close', 'extra-speaks', 'slowed-line']);
 export const LONG_TAKE = 8, BACK_TURNED = 100, STATIC = 20, CLOSE = 0.7, FAR = 4, CLOSE_LINES = 4;
 const r2 = (v) => Math.round(v * 100) / 100;
 const wrap = (d) => ((((d + 180) % 360) + 360) % 360) - 180;
@@ -74,6 +76,11 @@ export function directorsNotes(S, coverage) {
   for (const w of names) {
     const st = S.actors[w].style;
     if (st && S.actors[w].speaks.length && styleOf(st).gaze.line && styleOf(st).gaze.line !== 'lens') notes.push({ id: 'extra-speaks', who: w, says: `${cap(w)} speaks but plays as ${st}: its eyes stay off whoever speaks.`, why: 'A partner\'s eyes are half of every line; a background player\'s wander on purpose.', try: `Give ${cap(w)} a style that regards its partner (thespian, action-star, anime-mocap), unless it is meant to be background.` });
+  }
+  // a line under the time map: slowed or held while it is spoken
+  for (const T of S.turns) {
+    const m = (S.time ?? []).find((x) => (x.span ? x.span[0] < T.end && x.span[1] > T.at : x.at > T.at && x.at < T.end));
+    if (m) notes.push({ id: 'slowed-line', at: r2(T.at), who: T.who, says: `${cap(T.who)}'s line plays ${m.span ? `at ${m.speed} speed` : `through a ${m.hold} s freeze`}.`, why: 'Slow motion stretches the picture, not the voice: the words run at their own pace while the mouth crawls, or stop mid-word on a freeze. A film slows the action round a line (the move, the look, the silence after) and plays the line itself in real time.', try: m.span ? `Bring real time back before ${cap(T.who)} speaks ("Real time."), and start the slow motion after the line.` : `Freeze after ${cap(T.who)}'s line ends, on the look that answers it.` });
   }
   return notes.sort((a, b) => (a.at ?? -1) - (b.at ?? -1));
 }

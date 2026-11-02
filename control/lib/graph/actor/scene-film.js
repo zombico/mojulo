@@ -11,6 +11,10 @@
  *
  *   sceneFilmFiles({ S, coverage, actors, fps, width, height, title }) → [{ file, text }] (no GLBs: the caller writes
  *     each actor's as `actors/<who>.glb`)
+ *     A coverage with a time map (shoot/time.js: the screenplay's slow motion and freezes, a grain) is laid on the
+ *     screen's clock: the film runs its screen frames, each camera keyed at its own clock, scene.json's `clock` the
+ *     scene's time each frame shows, each actor's place keyed every frame, and actors.py plays the takes through an NLA
+ *     strip whose time is keyed to that clock. Without one, all is as it was.
  *     scene.json   the scene: its seconds and fps, each actor's GLB, take and place over time ([{ t, x, y, yaw }], metres,
  *                  yaw 0 facing +y), the coverage, the turns (who, when, the words)
  *     shot.json, shots/*.json, film_shots.py, film_light.py, film_render.py   the film layer (blender-film.js), a shot
@@ -24,13 +28,17 @@
  */
 import { filmShot, emitBlenderFilm, BLENDER_FILM_VERSION } from '../../motion/blender-film.js';
 import { directorsNotes } from './notes.js';
+import { programOf, shotAt } from '../shoot/sample.js';
+import { warped } from '../shoot/time.js';
+import { placeOn } from './scene.js';
 
 export const LOOKS = Object.freeze(['film', 'anime']);
 const r6 = (v) => Math.round(v * 1e6) / 1e6;
 
-/** the coverage's camera at t: its shot's two keys eased linearly, as the shoot plan's linear path plays them */
-export function coverageCameraAt(coverage, t) {
-  const s = coverage.shots.find((x) => t >= x.span[0] && t < x.span[1]) ?? coverage.shots.at(-1);
+/** the coverage's camera at t: its shot's two keys eased linearly, as the shoot plan's linear path plays them (the shot
+ * given, or the one whose span holds t) */
+export function coverageCameraAt(coverage, t, shot = null) {
+  const s = shot ?? coverage.shots.find((x) => t >= x.span[0] && t < x.span[1]) ?? coverage.shots.at(-1);
   const cam = coverage.cameras.find((c) => c.id === s.camera), ks = cam.keys.filter((k) => k.t >= s.span[0] - 1e-3 && k.t <= s.span[1] + 1e-3);
   const a = ks[0], b = ks.at(-1), u = b.t > a.t ? Math.min(1, Math.max(0, (t - a.t) / (b.t - a.t))) : 0, lerp = (p, q) => p.map((v, i) => v + (q[i] - v) * u);
   const focal = a.focal_mm + (b.focal_mm - a.focal_mm) * u, film = cam.film_mm ?? 36;
@@ -39,17 +47,30 @@ export function coverageCameraAt(coverage, t) {
 
 /** The pack's files (see the header) */
 export function sceneFilmFiles({ S, coverage, actors, fps = 24, width = 1920, height = 1080, title = 'scene' }) {
-  const frames = Math.max(1, Math.round(S.seconds * fps));
+  // (a time map lays the film on the screen's clock: the program at the film's fps, a grain stepped at it)
+  const program = coverage.shots.some(warped) ? programOf({ ...coverage, fps }) : null;
+  const frames = Math.max(1, Math.round((program ? program.total : S.seconds) * fps));
+  const clock = program ? Array.from({ length: frames }, (_, f) => shotAt(program, f / fps)) : null;
   // (each shot of the coverage a film shot, its camera keyed every frame it holds)
   const shots = coverage.shots.map((s, k) => {
-    const f0 = Math.round(s.span[0] * fps), f1 = Math.max(f0 + 1, Math.round(s.span[1] * fps)), cameras = [];
-    for (let f = f0; f < f1; f++) cameras.push(coverageCameraAt(coverage, Math.min(S.seconds - 1e-6, f / fps)).framing);
+    const cameras = [];
+    if (program) {
+      const P = program.shots[k], f0 = Math.round(P.start * fps), f1 = Math.max(f0 + 1, Math.round((P.start + P.length) * fps));
+      for (let f = f0; f < f1; f++) { const at = clock[Math.min(frames - 1, f)]; cameras.push(coverageCameraAt(coverage, at.camera_t ?? at.t, s).framing); }
+    } else {
+      const f0 = Math.round(s.span[0] * fps), f1 = Math.max(f0 + 1, Math.round(s.span[1] * fps));
+      for (let f = f0; f < f1; f++) cameras.push(coverageCameraAt(coverage, Math.min(S.seconds - 1e-6, f / fps)).framing);
+    }
     return filmShot({ motionRef: `${title}-${String(k + 1).padStart(2, '0')}`, worldRef: title, title: s.name, motion: 'scene', fps, width, height, cameras });
   });
+  // (an actor's place: its root keys on the scene's clock, or, under a time map, sampled every screen frame)
+  const rootOf = (who) => (clock ? clock.map((at, f) => ({ ...placeOn(S.actors[who].root, at.t), t: f / fps })) : S.actors[who].root)
+    .map((k) => ({ t: r6(k.t), x: r6(k.x), y: r6(k.y), yaw: r6(k.yaw) }));
   const film = emitBlenderFilm({ shot: shots[0], shots, title });
   const scene = {
     source: 'mojulo', film_version: BLENDER_FILM_VERSION, title, seconds: S.seconds, fps, frames, width, height, up: 'z', units: 'metres',
-    actors: Object.fromEntries(Object.entries(actors).map(([who, A]) => [who, { glb: `actors/${who}.glb`, act: `act:${A.take}`, face: `face:${A.take}`, root: S.actors[who].root.map((k) => ({ t: r6(k.t), x: r6(k.x), y: r6(k.y), yaw: r6(k.yaw) })) }])),
+    ...(clock ? { clock: clock.map((at) => r6(at.t)) } : {}),
+    actors: Object.fromEntries(Object.entries(actors).map(([who, A]) => [who, { glb: `actors/${who}.glb`, act: `act:${A.take}`, face: `face:${A.take}`, root: rootOf(who) }])),
     turns: S.turns.map((T) => ({ who: T.who, at: T.at, end: T.end, text: T.text })),
     coverage,
   };
@@ -129,6 +150,36 @@ def bind(datablock_owner, prefix, wants, actions):
     return None
 
 
+def remap(owner, name, clock, fps):
+    """Play an owner's bound action through an NLA strip whose time is keyed to the scene's clock (scene.json clock:
+    the scene's time each screen frame shows, under a time map): slow motion, a freeze, the world on twos."""
+    ad = owner.animation_data
+    act = bpy.data.actions.get(name)
+    if ad is None or act is None:
+        return
+    ad.action = None
+    track = ad.nla_tracks.new()
+    track.name = 'time map'
+    start = act.frame_range[0]
+    strip = track.strips.new(name, int(start), act)
+    if hasattr(strip, 'action_slot') and getattr(act, 'slots', None):
+        strip.action_slot = act.slots[0]
+    strip.extrapolation = 'HOLD'
+    end = 1 + len(clock)
+    if strip.frame_end < end:
+        if hasattr(strip, 'frame_end_ui'):
+            strip.frame_end_ui = end
+        else:
+            strip.frame_end = end
+    strip.use_animated_time = True
+    for i, t in enumerate(clock):
+        strip.strip_time = start + t * fps
+        strip.keyframe_insert('strip_time', frame=1 + i)
+    for fc in strip.fcurves:
+        for kp in fc.keyframe_points:
+            kp.interpolation = 'LINEAR'
+
+
 def build(S):
     sc = bpy.context.scene
     sc.render.fps = int(S['fps'])
@@ -168,10 +219,14 @@ def build(S):
         bound = []
         for o in new:
             if o.type == 'ARMATURE':
-                bound.append(bind(o, A['act'], 'pose.bones', mine))
+                bound.append((o, bind(o, A['act'], 'pose.bones', mine)))
             if o.type == 'MESH' and o.data.shape_keys is not None:
-                bound.append(bind(o.data.shape_keys, A['face'], 'key_blocks', mine))
-        log('%s: %d objects, bound %s' % (name, len(new), [b for b in bound if b]))
+                bound.append((o.data.shape_keys, bind(o.data.shape_keys, A['face'], 'key_blocks', mine)))
+        if S.get('clock'):
+            for owner, b in bound:
+                if b:
+                    remap(owner, b, S['clock'], fps)
+        log('%s: %d objects, bound %s%s' % (name, len(new), [b for _, b in bound if b], ' on the time map' if S.get('clock') else ''))
     sc.frame_set(1)
 
 
@@ -375,7 +430,8 @@ if __name__ == '__main__':
 export function sceneReadme({ title, S, coverage, frames, fps, notes = [], shotFiles }) {
   return `# ${title} — a mojulo scene for Blender
 
-${Object.keys(S.actors).length} actors, ${S.seconds} s (${frames} frames at ${fps} fps), ${coverage.shots.length} shots on ${coverage.cameras.length} cameras.
+${Object.keys(S.actors).length} actors, ${S.seconds} s (${frames} frames at ${fps} fps), ${coverage.shots.length} shots on ${coverage.cameras.length} cameras.${coverage.shots.some(warped) ? `
+The scene plays on a time map (its slow motion, its freezes${coverage.shots.some((s) => s.grain) ? ', the world on twos' : ''}): ${S.seconds} s of the scene in ${frames} frames on screen. \`scene.json\`'s \`clock\` is the scene's time each frame shows; \`actors.py\` plays each take through an NLA strip keyed to it.` : ''}
 
 ## Build it (once, in an empty film.blend beside these files)
 
@@ -399,7 +455,7 @@ Or open film.blend and run actors.py, film_shots.py and look.py from the Scripti
 
 ## The shots
 
-${coverage.shots.map((s) => `- ${s.span[0].toFixed(2)}–${s.span[1].toFixed(2)} s: ${s.name}`).join('\n')}
+${coverage.shots.map((s) => `- ${s.span[0].toFixed(2)}–${s.span[1].toFixed(2)} s: ${s.name}${s.time ? ` (${s.time.map((m) => (m.span ? `slowed to ${m.speed} over ${m.span[0]}–${m.span[1]} s` : `held ${m.hold} s at ${m.at} s`)).join(', ')})` : ''}`).join('\n')}
 
 ## The director's notes
 

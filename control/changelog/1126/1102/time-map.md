@@ -23,5 +23,17 @@ the world on twos. One map, read by the camera, the world and the actors alike (
   map's world instants with its span and keeps its holds. The readout gives each warped shot its world seconds, its
   slowest speed, the seconds it holds and its grain. The shoot manual says all of it in After Effects terms (time remap,
   speed ramp, freeze frame).
+- **The actor scene plays on it** (the cinematics department).
+  - **The screenplay**: `Slow motion.` (or `Slow motion 0.1.`) until `Real time.`; `Freeze.` (or `Freeze 2 seconds.`).
+    They take none of the scene's time.
+  - **The coverage** carries them onto the shots they fall in, cut at the shots' edges.
+  - **The Blender film pack** lays the scene on the screen's clock. Each camera is keyed at its own clock, `scene.json`'s
+    `clock` holds the scene's time each frame shows, each actor's place is keyed every frame, and `actors.py` plays each
+    take through an NLA strip whose time is keyed to that clock. `export-scene-blender.mjs --grain twos` shows the
+    scene on twos.
+  - **The preview** (`scene-film.mjs --script`) plays the same map.
+  - **A director's note, `slowed-line`**: slow motion over a line slows the picture, not the voice. Slow the move, the
+    look or the silence, and play the words in real time.
+  - `docs/cinematics.md` gains a section on time.
 - **Absent, nothing changes.** A plan without a map normalizes, plays, lowers and emits its page byte for byte as
   before.
