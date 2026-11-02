@@ -4,12 +4,14 @@
  * realistic.js compileRealistic returns, so every door that draws a loft draws it: the quick ride, the studio grid, a
  * world's figure, the GLB.
  *
- *   compileMilitary(sheet, { keys?, form?, livery?, wear? }) → { spec, faces: { root, wheels }, figure, census, rule, envelope,
+ *   compileMilitary(sheet, { keys?, form?, livery?, wear?, setting? }) → { spec, faces: { root, wheels }, figure, census, rule, envelope,
  *                                              class, form? }
  *     livery       its paint as words (livery-cut.js: mono or a camo, its stencils), cut into the hull and its fittings;
  *                  absent, plain olive drab and no stencils, as it always was
  *     wear         its history (mil-wear.js: pristine | used | battered, or { level, soil }): caked mud and chips cut
  *                  in, dust, sun fade and grounding per corner; absent, the sheet's when a brief asked it, else `used`
+ *     setting      the world it stands in, when a world draws it ({ sky?, wet? }: world-scene.js): lit by that world's
+ *                  sky (form-light.js skyMood), its ground bounce the soil's, its slots wet in the rain; absent, noon
  *     form: true   the figure in the form render (each face its material, albedo and normals, the page lighting it, under
  *                  the field's materials, MIL_MATERIALS); absent, its faces baked under the studio's light (road-form.js
  *                  bakeForm), the figure a world without the form render draws
@@ -24,17 +26,17 @@ import { packVehicleFigure } from '../vehicle-designer/vehicle-rig.js';
 import { smoothForm, bakeForm } from './road-form.js';
 import { wheelWell } from './road-wheel.js';
 import { milWheel } from './mil-wheel.js';
-import { formLight } from './form-light.js';
+import { formLight, skyMood } from './form-light.js';
 import { militaryBody, militaryAxles, MILITARY_CLASSES, MIL_MATERIALS } from './road-military.js';
 import { liveryBase } from './livery-cut.js';
-import { readWear, soilFor, weather, weatherWheel } from './mil-wear.js';
+import { readWear, soilFor, weather, weatherWheel, wetMaterials, wetFaces, groundOf } from './mil-wear.js';
 import { realisticCensus } from './realistic.js';
 
 const r4 = (n) => Math.round(n * 1e4) / 1e4 + 0;
 // a field tyre's width, by its radius (a light 4x4's, a truck's)
 const tyreWidth = (r) => (r > 0.5 ? 0.38 : 0.3);
 
-export function compileMilitary(sheet, { keys = 12, form = false, livery, wear } = {}) {
+export function compileMilitary(sheet, { keys = 12, form = false, livery, wear, setting = null } = {}) {
   const cls = sheet.facets.class, v = VEHICLES[cls];
   if (!MILITARY_CLASSES[cls]) throw new Error(`car-designer: compileMilitary reads a military class (${Object.keys(MILITARY_CLASSES).join(', ')}), not ${cls}`);
   const spec = { kind: MILITARY_CLASSES[cls], L: v.L, W: v.W, H: v.H, wb: v.wheelbase, track: v.track, r: v.wheelRadius, tyreW: tyreWidth(v.wheelRadius), lift: 0 };
@@ -47,9 +49,11 @@ export function compileMilitary(sheet, { keys = 12, form = false, livery, wear }
   // its wear (mil-wear.js): the operator's word, else the sheet's when a brief asked one, else a working vehicle's; its
   // soil the setting's, read from the livery's camo
   const W = readWear(wear ?? (sheet.given?.includes('wear') ? sheet.facets.wear : 'used')), soil = soilFor(L);
-  const body = weather([...hull, ...wells, ...fittings], W, { hubs: wheels.map((w) => w.hub), r: spec.r, zones, seed: sheet.seed, soil });
+  // (in the rain, its setting's: the porous slots soaked darker, every slot glossier: mil-wear.js)
+  const wet = !!setting?.wet, soak = (fs) => (wet ? wetFaces(fs) : fs);
+  const body = soak(weather([...hull, ...wells, ...fittings], W, { hubs: wheels.map((w) => w.hub), r: spec.r, zones, seed: sheet.seed, soil }));
   // (the rims in the livery's base: a camo's first colour, a mono's own)
-  const wheelForm = wheels.map((w) => weatherWheel(milWheel({ hub: w.hub, r: spec.r, width: spec.tyreW, ...(L ? { paint: liveryBase(L) } : {}) }), W, { soil }));
+  const wheelForm = wheels.map((w) => soak(weatherWheel(milWheel({ hub: w.hub, r: spec.r, width: spec.tyreW, ...(L ? { paint: liveryBase(L) } : {}) }), W, { soil })));
   // centred on its footprint (the body is built centred; the census holds it)
   const bones = [{ id: 'root', head: [0, 0, 0] }, ...wheels.map((w) => ({ id: name(w), head: w.hub.map(r4) }))];
   const formOf = new Map([['root', body], ...wheels.map((w, k) => [name(w), wheelForm[k]])]);
@@ -57,7 +61,9 @@ export function compileMilitary(sheet, { keys = 12, form = false, livery, wear }
   const baked = new Map([...formOf].map(([b, fs]) => [b, bakeForm(fs)]));
   const figure = {
     ...packVehicleFigure(bones, baked, { keys, ...(form ? { form: formOf } : {}) }),
-    ...(form ? { form: formLight(null, MIL_MATERIALS) } : {}),
+    // (lit as its world is: the world's own sky read as its light when it stands in one, else noon; its ground the soil's
+    // bounce; its slots wet in the rain: form-light.js skyMood)
+    ...(form ? { form: formLight(skyMood(setting?.sky), wet ? wetMaterials(MIL_MATERIALS) : MIL_MATERIALS, { ground: groundOf(soil) }) } : {}),
     figH: r4(Math.max(...body.flatMap((f) => f.corners.map((c) => c[2])))),
     wheelbase: r4(axles[0] - axles[1]),
     wheelRadius: r4(spec.r),

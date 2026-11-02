@@ -125,6 +125,23 @@ render, from a kit of those solids, at their classes' true numbers.
     battered about 46k), and under 25k pristine.
   - **The packer:** `vehicle-rig.js` `packFormMesh` now takes a mesh's bounds by a loop, not by spreading every
     corner, which overflowed the stack on a large mesh. Its output is the same.
+- **The light of the setting.** Until now a realistic vehicle carried noon's light, and the page lit it so (its key's
+  colour and strength over the world's shadow lights). A jeep in a night world was lit at noon.
+  - **The sky's light** (`car-designer/form-light.js` `skyMood`): a field vehicle a world draws is lit by that world's
+    own sky (its zenith, horizon, day and sun), passed in by `world-scene.js` as the loft's `setting`:
+    - by day, a full warm key;
+    - as the sun sinks, the key toward the horizon's colour;
+    - at night, a dim moonlight in the zenith's cool, an eighth of the day's;
+    - the ambient the sky's share of it, the reflected sky the world's own, its travel the world's sun when it is up.
+  - **Ground bounce:** the hemisphere bounces the soil's colour up under it (`formLight`'s `ground`; `groundOf`).
+  - **Wet:** in a world whose weather is of the wet family (drizzle, rain, downpour, storm), its slots take the rain:
+    the paint glossier under a thin coat of water, the rubber glossier, and the mud and canvas soaked darker
+    (`wetMaterials`, `wetFaces`).
+  - **Only the field's:** a road car and a supercar keep their noon or their race's mood, so no existing world's
+    vehicle changes. With no world (the studio grid, an export), a field vehicle is lit at noon as before.
+  - **The shadow's stripes:** the page's shadow lights now carry a normal bias for a physical body
+    (`channels/controllable/index.js`). A flat plate turned from the sun wore its own shadow's stripes, the shadow map's
+    depth steps laid on it; that is gone for every realistic vehicle.
 - **Composed:**
   - The quick race's card says a ride takes a registry vehicle (`'a jeep'`), its wording trimmed to keep the card
     under its ceiling now that the physics classes it lists have grown.
@@ -163,8 +180,13 @@ render, from a kit of those solids, at their classes' true numbers.
     - dust nearer the soil low than high, and grounding darker nearer the hub at every wear;
     - the same twice, another seed another way;
     - a wheel's rubber muddied.
-  - `road-military.test.js`: the wear a working vehicle's by default, a brief's word and the operator's over it, and
-    refused on a road car.
+  - `road-military.test.js`:
+    - the wear a working vehicle's by default, a brief's word and the operator's over it, and refused on a road car;
+    - in its setting: lit by its world's sky (full and warm by day, dim and cool at night, along the sun when it is up,
+      noon with no world), its ground the soil's, wet in the rain (glossier, the mud darker, its size unchanged);
+    - a road car keeps its noon.
+  - The form render in the page: each shadow light biased along the body's normals.
+  - The quick game end to end: a night kit's jeep lit dimmer than the day valley's, under its world's own sky.
   - The form render in the page (`form-render.live.test.js`, e2e): the 4x4's shaders compile, it is drawn and lit, and
     its shadows are cast.
   - The quick game end to end (`design-game.quick.test.js`, e2e): `ride: 'a jeep'` written as its row, its level's
@@ -178,11 +200,16 @@ render, from a kit of those solids, at their classes' true numbers.
   - Its wear: woodland used and battered, desert battered, and battered in the page's own light, low. The first pass was
     too faint (the mud dark on a dark camo and under the body), so the dried mud was made lighter and its line raised:
     a battered 4x4 carries a ragged mud line up its flanks, cowl and bumper.
-  - In the page's own light, with shadows. The page's moving-actor shadows lay stripes of self-shadow on the flat plates
-    that face away from the sun. They are the page's shadow channel's, shared by every world, and are left for the light
-    phase.
+  - In the page's own light, with shadows. The stripes of self-shadow on the flat plates turned from the sun are gone
+    with the normal bias.
+  - Its settings, a battered woodland 4x4 in the page under four skies:
+    - noon;
+    - a golden low sun, warm and raking, with long shadows;
+    - an overcast rain, darker and glossy, the sky in its wet paint;
+    - the alien night, a dim purple moonlight.
 - **Not built yet, said:**
-  - Streaks under the fittings (rain and rust runs) and a wet look: the wet goes with the light phase.
-  - The light of the setting.
+  - Streaks under the fittings (rain and rust runs).
+  - A race mood (`golden`, `dusk`…) named on a field vehicle's loft: its light is its world's sky, read.
+  - Lamps lit at night: the head and blackout lamps are emissive slots as always, not yet switched by the hour.
   - The canvas truck and the APC's bodies.
   - Composition: the military game's faction painting them, the base's yards, the engines.

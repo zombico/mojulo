@@ -8,6 +8,8 @@ import { MILITARY_CLASSES, MIL_MATERIALS, militaryAxles, militaryBody, KITS } fr
 import { milWheel } from './mil-wheel.js';
 import { FITTINGS, fit } from './mil-fittings.js';
 import { CAMO, CAMO_IDS } from './livery-cut.js';
+import { skyMood } from './form-light.js';
+import { groundOf } from './mil-wear.js';
 import { compileRealistic } from './realistic.js';
 import { rollVehicleSheet, UNBUILT } from './sheet.js';
 import { VEHICLES as PHYSICS } from '../roads/vehicles.js';
@@ -200,5 +202,40 @@ describe('through the registry', () => {
     expect(upscaleOf(wid)).toMatchObject({ realistic: 'none' });
     expect(upscaleOf(wid).next).toMatch(/not built yet/);
     expect(() => rollVehicleSheet({ facets: { pole: 'realistic', class: WAITING[0] }, seed: 1 })).toThrow(/not built yet/);
+  });
+});
+
+describe('a field vehicle in its setting', () => {
+  const sky = (day, sun = null) => ({ zenith: [40, 60, 120], horizon: [230, 160, 110], day, ...(sun ? { sun: { dir: sun } } : {}) });
+  const lit = (setting) => field({ form: true, setting }).figure.form;
+  it('is lit by its world\'s own sky: full and warm by day, dim and cool at night, along the world\'s sun when it is up', () => {
+    const day = skyMood(sky(1)), night = skyMood(sky(0.03)), up = skyMood(sky(0.6, [0.5, -0.3, 0.6])), down = skyMood(sky(0.6, [0.5, -0.3, -0.2]));
+    expect(Math.max(...day.key)).toBeGreaterThan(4 * Math.max(...night.key));
+    expect(night.key[2]).toBeGreaterThan(night.key[0]);
+    expect(day.key[0]).toBeGreaterThanOrEqual(day.key[2]);
+    expect(up.toLight).toEqual([0.5, -0.3, 0.6]);
+    expect(down.toLight).toBeUndefined();
+    expect(skyMood(null)).toBe(null);
+    const D = lit({ sky: sky(1) }), N = lit({ sky: sky(0.03) });
+    expect(N.keyIntensity).toBeLessThan(D.keyIntensity);
+    expect(N.ambient).toBeLessThan(D.ambient);
+    expect(D.sky).toMatchObject({ zenith: sky(1).zenith, horizon: sky(1).horizon });
+    // (no world: noon, as it was)
+    expect(lit(null)).toEqual(field({ form: true }).figure.form);
+  });
+  it('bounces its soil up from the ground, and wets its slots in the rain: glossier, the porous ones darker', () => {
+    expect(lit(null).sky.ground).toEqual(groundOf('mud'));
+    const dry = field({ form: true }), wet = field({ form: true, setting: { wet: true } });
+    expect(wet.figure.form.materials.milPaint.roughness).toBeLessThan(dry.figure.form.materials.milPaint.roughness);
+    expect(wet.figure.form.materials.mud.roughness).toBeLessThan(dry.figure.form.materials.mud.roughness);
+    const lum = (h) => [1, 3, 5].reduce((s, i) => s + parseInt(h.slice(i, i + 2), 16), 0);
+    const mudOf = (c) => c.form.root.find((f) => f.material === 'mud');
+    expect(lum(mudOf(wet).albedo)).toBeLessThan(lum(mudOf(dry).albedo));
+    expect(wet.census).toEqual(dry.census);
+  });
+  it('a road car keeps its noon: the world lights a field vehicle only', () => {
+    const road = Object.keys(PHYSICS).find((k) => ['midsize', 'compact'].includes(k));
+    const S = rollVehicleSheet({ facets: { pole: 'realistic', class: road }, seed: 1 });
+    expect(JSON.stringify(compileRealistic(S, { form: true, setting: { sky: sky(0.03), wet: true } }).figure)).toBe(JSON.stringify(compileRealistic(S, { form: true }).figure));
   });
 });

@@ -23,6 +23,8 @@
  *   soilFor(livery)                                  → the soil a livery's camo reads
  *   weather(faces, W, { hubs, r, zones, seed, soil }) → the body's faces worn
  *   weatherWheel(faces, W, { soil })                 → a wheel's faces worn (its tyre and rim)
+ *   wetMaterials(materials), wetFaces(faces)         → in the rain: the slots glossier, the porous ones soaked darker
+ *   groundOf(soil)                                   → the colour its ground bounces up, for the light (form-light.js)
  *
  * Pure and deterministic.
  */
@@ -149,3 +151,36 @@ export function weatherWheel(faces, W, { soil = 'mud' } = {}) {
     return f;
   });
 }
+
+// ── wet ─────────────────────────────────────────────────────────────────────────
+// how each slot takes the rain: a film of water on paint and rubber (glossier, a little darker), porous canvas and mud
+// soaked (darker, a dull sheen); bare steel and glass as they are
+const WET = Object.freeze({
+  milPaint: Object.freeze({ roughness: 0.34, clearcoat: 0.35, clearcoatRoughness: 0.2, dark: 0.86 }),
+  mud: Object.freeze({ roughness: 0.32, dark: 0.66 }),
+  canvas: Object.freeze({ roughness: 0.68, dark: 0.7 }),
+  rubber: Object.freeze({ roughness: 0.42, dark: 0.9 }),
+  primer: Object.freeze({ roughness: 0.4, dark: 0.85 }),
+  weld: Object.freeze({ roughness: 0.45, dark: 0.88 }),
+});
+/** The slots' response in the rain: each wet slot its film's roughness (and the paint a thin coat of water). */
+export function wetMaterials(materials) {
+  return Object.freeze(Object.fromEntries(Object.entries(materials).map(([k, m]) => {
+    const w = WET[k];
+    if (!w) return [k, m];
+    const { dark, ...film } = w;
+    void dark;
+    return [k, Object.freeze({ ...m, ...film })];
+  })));
+}
+/** Faces darkened as their slots soak (their colour and their corners' alike). */
+export function wetFaces(faces) {
+  const dim = (h, k) => hex(rgb(h).map((v) => v * k));
+  return faces.map((f) => {
+    const k = WET[f.material]?.dark;
+    if (!k) return f;
+    return { ...f, albedo: dim(f.albedo, k), ...(f.cornerAlbedo ? { cornerAlbedo: f.cornerAlbedo.map((c) => dim(c, k)) } : {}) };
+  });
+}
+/** The colour the ground bounces up under a vehicle on this soil ([r, g, b]). */
+export const groundOf = (soil) => rgb(SOILS[soil].dust).map((v) => Math.round(v * 0.8));

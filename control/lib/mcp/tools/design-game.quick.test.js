@@ -396,6 +396,11 @@ describe('design_game quick', () => {
     const jeep = (await resolveWorldScene(SketchRepository.getByRef('jp-level-run-0'))).payload.figures.ride;
     expect(jeep.form.materials).toHaveProperty('milPaint');
     expect(jeep.bones.map((b) => b.id)).toEqual(expect.arrayContaining(['root', 'wheelFL', 'wheelRR']));
+    // lit as its world is: a night kit's jeep under its own dim sky, the day valley's under its full one
+    await designGameHandler({ quick: { goal: 'reach', ride: 'a jeep', world: { id: 'field-night', style: { kit: 'alien-night' } } }, ref: 'jn' });
+    const night = (await resolveWorldScene(SketchRepository.getByRef('jn-level-run-0'))).payload;
+    expect(night.figures.ride.form.keyIntensity).toBeLessThan(jeep.form.keyIntensity);
+    expect(night.figures.ride.form.sky.zenith).toEqual(night.sky.zenith);
   }, 240_000);
 
   it('kart race: rivals in the same car round a loop on the trail\'s land, the place on the HUD, a podium to win', async () => {

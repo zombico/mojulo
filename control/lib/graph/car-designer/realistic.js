@@ -17,7 +17,7 @@
  *   livery.* / livery facet / wear facet   the paint: a second colour on the roof, stripes, a number, a patched panel
  *   physics.*      read in the readout only: a realistic vehicle drives its class's own row (roads/vehicles.js)
  *
- *   compileRealistic(sheet, { keys?, form?, livery?, wear? }) → { spec, faces: { root, wheels: [{ bone, faces, hub }] }, figure, census,
+ *   compileRealistic(sheet, { keys?, form?, livery?, wear?, setting? }) → { spec, faces: { root, wheels: [{ bone, faces, hub }] }, figure, census,
  *                                          rule, envelope, reads }
  *                  form: true draws the figure in the FORM render (gen-7, road-form.js): each face named and given its
  *                  material, its albedo and its crease-aware normals, the page lighting it, and the named faces by bone
@@ -180,10 +180,11 @@ function fan(faces) {
 }
 
 /** Compile a realistic sheet. */
-export function compileRealistic(sheet, { keys = 12, form = false, livery, wear } = {}) {
+export function compileRealistic(sheet, { keys = 12, form = false, livery, wear, setting } = {}) {
   // (a military class's body is the hull kit's, not a loft: military.js, the same shape returned; its livery and its
   // wear the words)
-  if (MILITARY_CLASSES[sheet.facets.class]) return compileMilitary(sheet, { keys, form, livery, wear });
+  // (a road car keeps its noon: the world it stands in lights a field vehicle only)
+  if (MILITARY_CLASSES[sheet.facets.class]) return compileMilitary(sheet, { keys, form, livery, wear, setting });
   if (livery !== undefined) throw new Error('car-designer: a road car\'s livery is its sheet\'s (mono, two-tone, striped, numbered); a livery\'s words are a field vehicle\'s');
   if (wear !== undefined) throw new Error('car-designer: a road car\'s wear is its sheet\'s (its brief\'s word); a wear\'s words are a field vehicle\'s');
   const spec = realisticSpec(sheet), cls = sheet.facets.class;
