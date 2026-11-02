@@ -7,8 +7,16 @@ its face, body and later its hands directed together on one clock, and its take 
   persona's delivery registers are roles of speech), a style (how much it does and when: `thespian`, `action-star`,
   `anime-mocap`, `extra`, each a card tuned as `{ from, …overrides }`), and the keying and the look (continuous or on
   twos, film or anime), kept apart so any style can be shaded either way.
-- **The persona is the first role.** A broadcaster reading to the lens is an actor in one role; every persona minted
-  before reads byte for byte as it did.
+- **The persona is the actor.** A persona's spec takes a `style` and a `role`, for the whole persona or for one read
+  (`create_character({ as: 'persona', spec: { hero, register, style: 'action-star', role: { status: 'high' }, reads }
+  })`; `control/lib/graph/actor/`).
+  - **The style** tunes the voice's rate and articulation and sets how strongly and how fast the face moves (eased in,
+    or snapped into place). It decides how often a line opens with a brow flash, shows a tell or breaks for a glance
+    off and back, and which moments a gesture marks, from which words. The extra never meets the lens.
+  - **The role** sets the state of mind held under every line, a resting face, and a status: high keeps the head up
+    and the eyes still, low drops the head and lets the eyes go.
+  - **Absent, nothing changes.** A persona with neither reads byte for byte as before.
+  - **The body waits.** Each style's body dials are carried, but the body plays them only from the next phase.
 - **The body on the timeline.** The gestures a read already names played on the skinned hero, solved as hand targets in
   the body's own frame so they fit any proportions, their strokes on the stressed words, weight shifts and breath
   between, no two alike; a take exported as the GLB clip `act:<id>` beside the face's `face:<id>`.

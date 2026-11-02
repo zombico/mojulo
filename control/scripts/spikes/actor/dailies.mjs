@@ -2,8 +2,9 @@
 // actor dailies — the eyes gate's page for the scene actor: the baseline's takes side by side on one clock, each with
 // its timeline (the lines and their words, the stresses, where the eyes are, the body's gestures, how much the face
 // moves, the blinks, and, in a scene, the partner's turns) and its readings, law by law (lib/graph/actor/readings.js).
-// One self-contained page, no network. Phase 0: the persona's registers stand in for the styles, and the scene is the
-// persona alone (actor/baseline.js sceneReads); each later phase adds its takes as columns beside these.
+// One self-contained page, no network. Solo: the four playing styles on the baseline's register (lib/graph/actor/style.js),
+// then the persona's own registers with no style. Scene: the persona alone (actor/baseline.js sceneReads), then each
+// style; each later phase adds its takes beside these.
 //
 //   node scripts/spikes/actor/dailies.mjs [--out dir] [--hero <hero-live out dir>]
 //
@@ -20,7 +21,10 @@ import { fileURLToPath } from 'node:url';
 
 import { BASELINE, sceneReads } from '../../../lib/graph/actor/baseline.js';
 import { actorReadings } from '../../../lib/graph/actor/readings.js';
-import { readScript, takeOf } from '../../../lib/graph/persona/read.js';
+import { readScript } from '../../../lib/graph/persona/read.js';
+import { actRead } from '../../../lib/graph/actor/interpret.js';
+import { STYLE_NAMES, STYLES } from '../../../lib/graph/actor/style.js';
+import { perform } from '../../../lib/graph/face-acting/perform.js';
 import { DELIVERY_NAMES } from '../../../lib/graph/persona/delivery.js';
 import { cueSheet } from '../../../lib/graph/persona/cues.js';
 
@@ -44,7 +48,8 @@ function energySeries(take) {
   return { dt: step / take.fps, v: out };
 }
 function takeCard({ id, label, sub, read, seed = 1, listens = null }) {
-  const take = takeOf(read, { seed }), sheet = cueSheet(id, read, { face: true });
+  const P = { beats: read.beats, seconds: read.seconds, seed, ...(read.intensity !== undefined ? { intensity: read.intensity } : {}) };
+  const take = perform(P), sheet = cueSheet(id, read, { face: true });
   return {
     id, label, sub, seconds: read.seconds,
     lines: sheet.lines, words: sheet.words, gaze: sheet.gaze.map((g) => ({ ...g })), body: sheet.body,
@@ -52,14 +57,19 @@ function takeCard({ id, label, sub, read, seed = 1, listens = null }) {
     blinks: take.events.blinks.map((b) => b.t), micro: take.events.micro.map((m) => m.t), flashes: take.events.flashes.map((f) => f.t),
     energy: energySeries(take), listens,
     readings: actorReadings({ read, take, listens }),
-    perform: { beats: read.beats, seconds: read.seconds, seed },
+    perform: P,
   };
 }
 
-const solo = DELIVERY_NAMES.map((register) => takeCard({ id: `solo-${register}`, label: register, sub: register === BASELINE.solo.register ? 'persona · the baseline\'s register' : 'persona', read: readScript({ script: BASELINE.solo.script, register }) }));
-const S = sceneReads(BASELINE.scene);
-const scene = [{ label: 'persona alone', sub: 'each speaker reads its lines; the partner\'s turns are pauses', actors: Object.entries(S.actors).map(([who, A]) => takeCard({ id: `scene-${who}`, label: who, sub: A.register, read: A.read, listens: A.listens })) }];
-const data = { made: 'phase 0', solo: { script: BASELINE.solo.script, cards: solo }, scene: { seconds: S.seconds, lines: BASELINE.scene.lines, variants: scene } };
+// (phase 1: the four styles on the baseline's register, beside the persona's registers alone)
+const solo = [
+  ...STYLE_NAMES.map((style) => takeCard({ id: `solo-${style}`, label: style, sub: `style on ${BASELINE.solo.register} · ${STYLES[style].reads}`, read: actRead({ ...BASELINE.solo, style }) })),
+  ...DELIVERY_NAMES.map((register) => takeCard({ id: `solo-${register}`, label: register, sub: register === BASELINE.solo.register ? 'persona · the baseline\'s register, no style' : 'persona register, no style', read: readScript({ script: BASELINE.solo.script, register }) })),
+];
+const sceneOf = (style) => { const S = sceneReads(BASELINE.scene, style ? { style } : {}); return { S, actors: Object.entries(S.actors).map(([who, A]) => takeCard({ id: `scene-${style ? `${style}-` : ''}${who}`, label: who, sub: `${A.register}${style ? ` · ${style}` : ''}`, read: A.read, listens: A.listens })) }; };
+const variants = [{ style: null, label: 'persona alone', sub: 'each speaker reads its lines; the partner\'s turns are pauses' }, ...STYLE_NAMES.map((style) => ({ style, label: style, sub: 'both actors in this style; the partner\'s turns are still pauses (phase 3 directs the listener)' }))];
+const scene = variants.map((v) => { const { S, actors } = sceneOf(v.style); return { label: v.label, sub: v.sub, seconds: S.seconds, actors }; });
+const data = { made: 'phase 1', solo: { script: BASELINE.solo.script, cards: solo }, scene: { seconds: Math.max(...scene.map((v) => v.seconds)), lines: BASELINE.scene.lines, variants: scene } };
 
 // ─── the machine read, printed ───────────────────────────────────────────────────────────────────────────────────
 const row = (c) => {
@@ -110,10 +120,10 @@ details{margin-top:6px}summary{cursor:pointer;color:var(--dim);font-size:12px}pr
 .scene{display:flex;flex-direction:column;gap:8px;max-width:760px}
 </style></head><body><main>
 <h1>Actor dailies</h1>
-<p class="lede">The scene actor's baseline (${D.made}): the persona's takes on one clock, each with its timeline and its readings law by law. The persona's registers stand in for the playing styles until phase 1; the scene is the persona alone, with the partner's turns read as pauses. The machine readings are advisory. Whether a take reads as acting is the eyes gate's call.</p>
+<p class="lede">The scene actor's baseline (${D.made}): the persona's takes on one clock, each with its timeline and its readings law by law. The four playing styles on the baseline's register first, then the persona's own registers with no style. The scene is played once by the persona alone and once per style, with the partner's turns read as pauses (the listener is phase 3's). The machine readings are advisory. Whether a take reads as acting is the eyes gate's call.</p>
 <div class="bar"><button id="play">Play</button><input id="scrub" type="range" min="0" max="1000" value="0"><span class="t" id="time">0.00 s</span>
 <span class="legend"><span><i style="background:var(--lens)"></i>lens</span><span><i style="background:var(--notes)"></i>notes</span><span><i style="background:var(--away)"></i>away</span><span><i style="background:var(--partner)"></i>partner</span><span><i style="background:var(--listen);border:1px solid var(--partner)"></i>the partner's turn</span><span><i style="background:var(--accent)"></i>stress · gesture</span><span><i style="background:var(--energy)"></i>face motion</span></span></div>
-<h2>Solo: one speech, the persona's registers</h2>
+<h2>Solo: one speech, the styles and the persona's registers</h2>
 <details><summary>the script</summary><pre>${esc(D.solo.script)}</pre></details>
 <div class="grid" id="solo"></div>
 <h2>Scene: a two-hander</h2>

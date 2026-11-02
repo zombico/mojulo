@@ -8,8 +8,8 @@
  *   BASELINE.solo   { register, script }: one speaker, two paragraphs, a stress, a pause and an aside
  *   BASELINE.scene  { cast: { <who>: { register } }, lines: [{ who, line }] }: a two-hander, each line a turn
  *
- *   sceneReads(scene) → { seconds, actors: { <who>: { register, read, speaks: [[at, end]], listens: [[at, end]] } } }
- *     the scene as the persona alone can play it: each speaker reads its own lines in its register, the partner's
+ *   sceneReads(scene, { style? }) → { seconds, actors: { <who>: { register, read, speaks: [[at, end]], listens: [[at, end]] } } }
+ *     the scene as the persona alone can play it (every actor in `style` where one is given, interpret.js): each speaker reads its own lines in its register, the partner's
  *     turns held as pauses of the partner's length, so every actor's read is on the scene's one clock. The persona has
  *     no partner to look at and no listening: while the other speaks it holds its register's look (the lens). That is
  *     the gap the actor fills, measured by readings.js.
@@ -17,7 +17,8 @@
  * The fixtures are frozen: the pins rest on them. A new case is a new fixture beside these, never an edit.
  * Pure and deterministic.
  */
-import { readScript, READ_PAD } from '../persona/read.js';
+import { READ_PAD } from '../persona/read.js';
+import { actRead } from './interpret.js';
 import { deliveryOf } from '../persona/delivery.js';
 
 const freeze = (o) => { for (const v of Object.values(o)) if (v && typeof v === 'object') freeze(v); return Object.freeze(o); };
@@ -44,22 +45,22 @@ My father fixed the ones that climbed. [pause] He never asked where they had bee
 
 const r3 = (v) => Math.round(v * 1000) / 1000;
 
-/** how long a turn holds the scene's clock: its words read in its speaker's register, and the gap after it */
-function turnSeconds(line, register) {
-  const R = readScript({ script: line, register });
+/** how long a turn holds the scene's clock: its words read in its speaker's register (and style), and the gap after it */
+function turnSeconds(line, register, style) {
+  const R = actRead({ script: line, register, ...(style !== undefined ? { style } : {}) });
   return r3(R.lines.at(-1).end - READ_PAD.lead + deliveryOf(register).gap.sentence);
 }
 
 /** The scene as the persona alone plays it: each speaker's read on the scene's clock (see the header) */
-export function sceneReads(scene) {
+export function sceneReads(scene, { style } = {}) {
   const cast = Object.keys(scene.cast);
   for (const L of scene.lines) if (!cast.includes(L.who)) throw new Error(`baseline: '${L.who}' speaks but is not in the cast (${cast.join(', ')})`);
-  const turns = scene.lines.map((L) => ({ who: L.who, line: L.line, seconds: turnSeconds(L.line, scene.cast[L.who].register) }));
+  const turns = scene.lines.map((L) => ({ who: L.who, line: L.line, seconds: turnSeconds(L.line, scene.cast[L.who].register, style) }));
   const actors = {};
   for (const who of cast) {
     if (!turns.some((T) => T.who === who)) continue;   // (a cast member with no line has no read: the extra the actor adds)
     const script = turns.map((T) => (T.who === who ? T.line : `[pause ${T.seconds}]`)).join(' ');
-    const read = readScript({ script, register: scene.cast[who].register });
+    const read = actRead({ script, register: scene.cast[who].register, ...(style !== undefined ? { style } : {}) });
     actors[who] = { register: read.register, read };
   }
   // (who speaks when: each actor's own lines; who listens when: everyone else's)
