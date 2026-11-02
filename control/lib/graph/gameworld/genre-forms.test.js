@@ -1,9 +1,9 @@
 // The genre's form (genre-forms.js): what the sentence door lays for a genre it reads. One case per procedure: a form
-// laid (the flight courses), a hand-off said and nothing laid, a refusal with what it waits on, and a genre with no form
-// laid as it was.
+// laid (the flight courses), a hand-off said and nothing laid, a refusal with what it waits on (the registry's, or the
+// book's: a genre it cannot lay from a sentence yet), and a genre the book lays in its own walks laid as it was.
 import { describe, expect, it } from 'vitest';
 
-import { GENRE_FORMS, HAND_OFFS, refusalOf } from './genre-forms.js';
+import { GENRE_FORMS, HAND_OFFS, PENDING, WAITS, pendingOf, refusalOf } from './genre-forms.js';
 import { GENRES } from './intent.js';
 import { composeGameworld } from './compose.js';
 import { readGameworld } from './world.js';
@@ -37,9 +37,26 @@ describe('the genre\'s form', () => {
     expect(() => composeGameworld({ prompt: 'a co-op kitchen game: four friends cook the orders together', seed: 1 })).toThrow(new RegExp(`waits on ${R.waits[0].replace(/[.=]/g, '\\$&')}`));
   });
 
-  it('a genre with no form is laid as before: walks and buildings, its words\' goals', () => {
+  it('a genre the book lays in its own walks is laid as before: walks and buildings, its words\' goals', () => {
     const W = composeGameworld({ prompt: 'a dungeon crawler through crypt rooms full of loot', seed: 1 });
     expect(W.brief.levelForm).toBeUndefined();
     expect(Object.values(W.levels).every((L) => L.walk || L.building)).toBe(true);
+  });
+});
+
+describe('a genre the book cannot lay from a sentence yet', () => {
+  it('is refused with what it waits on and the one level it plays alone, nothing laid in its place', () => {
+    for (const [id, why] of Object.entries(PENDING)) { expect(GENRES[id], id).toBeTruthy(); expect(WAITS[why], id).toBeTruthy(); expect(GENRE_FORMS[id], id).toBeUndefined(); }
+    expect(pendingOf('kart-racer')).toEqual({ waits: WAITS.ride, one: 'race' });
+    expect(() => composeGameworld({ prompt: 'a kart racer: three laps against rival drivers', seed: 1 })).toThrow(/waits on a ride the book drives[\s\S]*design_game\(\{ quick: \{ goal: 'race' \} \}\)/);
+    // (one per kind of wait: a weapon, a form, the hero)
+    expect(() => composeGameworld({ prompt: 'a first-person shooter: clear a warehouse of armed guards', seed: 1 })).toThrow(/waits on the hero's weapon/);
+    expect(() => composeGameworld({ prompt: 'a tower defence game', seed: 1 })).toThrow(/waits on its kernel as a book level/);
+    expect(() => composeGameworld({ prompt: 'an endless runner down three lanes', seed: 1 })).toThrow(/waits on a hero by default/);
+  });
+
+  it('the genres a hero completes are laid: stealth\'s guards, a co-op platformer\'s side camera, a party\'s world', () => {
+    for (const id of ['stealth', 'co-op-platformer', 'jrpg', 'dungeon-crawler', 'collectathon', 'metroidvania']) expect(pendingOf(id), id).toBeNull();
+    expect(composeGameworld({ prompt: 'a stealth game sneaking past guards in a castle', seed: 1 }).intent).toEqual({ from: 'stealth' });
   });
 });

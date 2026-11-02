@@ -26,10 +26,20 @@ door reach them, one layer at a time, measured on the door people use.
   - **Refusal:** a genre the registry cannot make yet (the cosmos dry run's verdict: co-op kitchen, party mash,
     split-screen deathmatch, driver and gunner, the co-op scroller) is refused with the values it waits on and the
     makeable genres the same words point at. Nothing is laid in its place; it used to be laid as single-player walks.
-  - Every other genre is laid as before.
+  - The genres the book lays in its own walks and buildings are laid as before.
   - **Racing waits on the vehicle registry's ride.** A runner, stealth and the seats wait on phase 2's hero.
 - **A genre's own name is a clear read on its own** (`intent.js` `readGenre`): "metroidvania", "tennis" or "tower
   defence" said once writes the genre, ahead of another genre's plain words. Plain words still need two, and two
   genres' names said alike are a tie. "stealth guards and a race with cars" reads as stealth now.
 - The fly, pixel and blocked probes hold (`now: 'type'`). The fly probe's reference is a book world. The hillclimb
   column says "refused" and "handed off" where that is the right answer.
+- **A genre the book cannot lay from a sentence yet is refused until its form lands** (`genre-forms.js` `PENDING`), not
+  laid as walks. Each refusal says what it waits on and the one level it plays alone today (`design_game({ quick: { goal } })`):
+  - racing and kart racing: a ride the book drives
+  - the shooters and the brawlers: the hero's weapon
+  - tower defence, RTS, tactics, farming, rhythm, roguelike, the puzzles, the versus fighter and the sports: the
+    kernel as a book level
+  - the endless runner and the city stalker: a hero by default and their level form
+  - Laid as before: the genres of the book's own walks and buildings (dungeon crawler, collectathon, top-down adventure,
+    metroidvania, survival horror, story), and the ones a hero completes (stealth's guards, a co-op platformer's side
+    camera and seats, a party's battles).

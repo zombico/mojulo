@@ -36,7 +36,7 @@ import { CRAFTED } from './world.js';
 import { suggestFeels, FEEL_WORDS } from './feel/suggest.js';
 import { GEOCUBE_PRESETS, readGeocube, geocubeDomains } from '../era/geocube.js';
 import { suggestGenres, readGenre, cubeOfWorld, GENRES } from './intent.js';
-import { GENRE_FORMS, HAND_OFFS, refusalOf } from './genre-forms.js';
+import { GENRE_FORMS, HAND_OFFS, refusalOf, pendingOf } from './genre-forms.js';
 import { readHour, referenceHour } from '../era/geocube-hours.js';
 import { glyphOf } from './glyph-words.js';
 import { PALETTE_PRESETS } from '../color-theorist/solve.js';
@@ -322,6 +322,8 @@ export function composeGameworld({ prompt, name, id, levels, seed = 1 } = {}) {
   if (genre && HAND_OFFS[genre.id]) throw new Error(`gameworld: compose: ${GENRES[genre.id].name.toLowerCase()} is made by ${HAND_OFFS[genre.id].door}: ${HAND_OFFS[genre.id].why}. Nothing is laid here.`);
   const refused = genre ? refusalOf(genre.id, suggestGenres(prompt, Infinity).map((g) => g.id)) : null;
   if (refused) throw new Error(`gameworld: compose: ${GENRES[genre.id].name.toLowerCase()} is ${refused.verdict === 'blocked' ? 'not makeable yet' : 'not wholly makeable yet'}: it waits on ${refused.waits.join(', ')}. Nothing is laid in its place.${refused.others.length ? ` The words also point at ${refused.others.map((g) => GENRES[g].name.toLowerCase()).join(', ')}, which can be made.` : ''}`);
+  const pending = genre ? pendingOf(genre.id) : null;
+  if (pending) throw new Error(`gameworld: compose: ${GENRES[genre.id].name.toLowerCase()} is not laid from a sentence yet: it waits on ${pending.waits}. Nothing is laid in its place.${pending.one ? ` One level of it alone is design_game({ quick: { goal: '${pending.one}' } }).` : ''}`);
   const form = genre ? GENRE_FORMS[genre.id] ?? null : null;
   // the form (resonance.js): what the genre's cube asks of the world that the composer can fill, written before the
   // levels are laid (a co-op platformer's side camera, its walks laid without climbs); the hero it asks is the creator's
