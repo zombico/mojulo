@@ -193,3 +193,8 @@ its resource, put on a look and showed a toast. This theme makes them act.
   Each shot is a camera placed every frame by its figures, the beat held until its shots have run; between films, the
   staged view. A juice step `{ shot: closeup | behind | target | view, at?, for? }` scripts a shot of the author's own.
   Absent, a fight plays as before.
+- **The battle's boxes placed by its view** (the battle page). The command menu and the foes' box took the same
+  corners whatever the view, so in the front and three-quarter views they stood over the party. Now, once a fight is
+  staged (and when its view changes), where its fighters stand on the screen is measured by the scene's projection.
+  The two boxes take the corners that cover the party least, the foes' figures next, a low corner over a high one.
+  The banner keeps the top's middle.

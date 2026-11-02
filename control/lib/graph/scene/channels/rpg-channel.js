@@ -36,6 +36,9 @@ export const RPG_CSS = `
 .moj-rpg-bottom{position:absolute;left:50%;bottom:12px;transform:translateX(-50%);display:flex;justify-content:space-between;gap:10px;width:min(960px,calc(100vw - 24px));align-items:flex-end}
 .moj-rpg-cmd{width:230px;flex:none}
 .moj-rpg-bottom .moj-rpg-foes{margin-left:auto}
+.moj-rpg.placed .moj-rpg-bottom{position:static;transform:none;width:auto;display:block}.moj-rpg.placed .moj-rpg-cmd,.moj-rpg.placed .moj-rpg-foes{position:absolute;margin:0}
+.moj-rpg.cmd-tl .moj-rpg-cmd,.moj-rpg.foes-tl .moj-rpg-foes{top:12px;left:12px}.moj-rpg.cmd-tr .moj-rpg-cmd,.moj-rpg.foes-tr .moj-rpg-foes{top:12px;right:12px}
+.moj-rpg.cmd-bl .moj-rpg-cmd,.moj-rpg.foes-bl .moj-rpg-foes{bottom:12px;left:12px}.moj-rpg.cmd-br .moj-rpg-cmd,.moj-rpg.foes-br .moj-rpg-foes{bottom:12px;right:12px}
 .moj-rpg-heads{position:fixed;inset:0;pointer-events:none;z-index:31;display:none;font:12px/1.25 var(--moj-font,system-ui,sans-serif);color:var(--moj-ink,#eef2ff)}
 .moj-rpg-heads.on{display:block}
 .moj-rpg-head{position:absolute;transform:translate(-50%,-100%);width:64px;padding:3px 4px;transition:opacity .25s ease,background .25s ease;border-radius:5px;background:var(--moj-panel-a,rgba(14,22,58,.72));pointer-events:auto;cursor:pointer;text-align:center}
@@ -279,7 +282,7 @@ export function rpgPage(cfg, K, ctl, jk) {
     if (!out.length) return false;
     mode = 'battle'; phase = 'intro'; beats = out; bi = 0; bt = 0; shown = {}; picks = {}; mi = 0; level = 'cmd'; f = 0; pend = null;
     msg = out[0].text; show(out[0]); dirty = true;
-    stage();
+    stage(); placeDue = 3;
     return true;
   }
 
@@ -429,6 +432,7 @@ export function rpgPage(cfg, K, ctl, jk) {
       mode = null; phase = null; root.classList.remove('on'); root.innerHTML = '';
       { const w = W(); if (w) for (const e of w.entities) if (e.act) e.act = null; }   // the fight's acts end with it
       unstage();
+      root.classList.remove('placed'); for (const c of CORNERS) { root.classList.remove('cmd-' + c); root.classList.remove('foes-' + c); }
       release(); dirty = true;
     }
   }
@@ -511,6 +515,39 @@ export function rpgPage(cfg, K, ctl, jk) {
     for (const x of b.foes) { const ff = figureOf(x.uid); if (!ff) continue; const g = byFig[ff] || (byFig[ff] = { aim: null, pops: '' }); if (aimAt === x.uid) g.aim = x.uid; g.pops += popsFor(x.uid); }
     for (const ff in byFig) { const g = byFig[ff]; if (g.aim || g.pops) h += '<div class="moj-rpg-head foe' + (g.aim ? ' aim' : '') + '" data-fig="' + ff + '" data-k="0"' + (g.aim ? ' data-aim="' + g.aim + '"' : '') + '>' + g.pops + '</div>'; }
     heads.innerHTML = h;
+  }
+  // THE BOXES PLACED BY THE VIEW: once a fight is staged (and when its view changes), where its fighters stand on the
+  // screen is measured by the scene's projection, and the command menu and the foes' box take the two corners that cover
+  // the party least (the foes' figures next); the banner keeps the top's middle
+  let placeDue = 0;
+  const CORNERS = ['bl', 'br', 'tl', 'tr'], BOX = { cmd: [230, 160], foes: [230, 96] };
+  function placeBoxes() {
+    const w = W(), proj = window.__mojCtrl && window.__mojCtrl.project, b = R.b;
+    if (!w || !proj || !b) return false;
+    const W0 = window.innerWidth || 960, H0 = window.innerHeight || 540;
+    const rectOf = (ids) => {
+      let r = null;
+      for (const id of ids) {
+        const e = id && w.byId[id]; if (!e || !e.transform) continue;
+        const h = (e.rule && e.rule.collideHeight) || 1.7, z = e.transform.pos[2] - ((e.rule && e.rule.eye) || 0);
+        for (const zz of [z, z + h + 0.4]) { const p = proj(e.transform.pos[0], e.transform.pos[1], zz); if (!(p[2] < 1)) continue; r = r ? [Math.min(r[0], p[0]), Math.min(r[1], p[1]), Math.max(r[2], p[0]), Math.max(r[3], p[1])] : [p[0], p[1], p[0], p[1]]; }
+      }
+      return r && [r[0] - 30, r[1] - 20, r[2] + 30, r[3] + 10];
+    };
+    const party = rectOf([...new Set(b.ids.map((m) => figureOf(m)))]), foes = rectOf([...new Set(b.foes.map((x) => figureOf(x.uid)))]);
+    const box = (c, [bw, bh]) => [c[1] === 'l' ? 12 : W0 - 12 - bw, c[0] === 't' ? 12 : H0 - 12 - bh, c[1] === 'l' ? 12 + bw : W0 - 12, c[0] === 't' ? 12 + bh : H0 - 12];
+    const over = (a, r) => (!a || !r ? 0 : Math.max(0, Math.min(a[2], r[2]) - Math.max(a[0], r[0])) * Math.max(0, Math.min(a[3], r[3]) - Math.max(a[1], r[1])));
+    let best = null;
+    for (const c of CORNERS) for (const f of CORNERS) {
+      if (c === f) continue;
+      const bc = box(c, BOX.cmd), bf = box(f, BOX.foes);
+      // (the party covered weighs most, the foes next; a box low is a little better than one high, as a pad's thumbs are)
+      const cost = 3 * (over(bc, party) + over(bf, party)) + over(bc, foes) + over(bf, foes) + (c[0] === 't' ? 400 : 0) + (f[0] === 't' ? 200 : 0);
+      if (!best || cost < best.cost) best = { cost, c, f };
+    }
+    for (const c of CORNERS) { root.classList.remove('cmd-' + c); root.classList.remove('foes-' + c); }
+    root.classList.add('placed'); root.classList.add('cmd-' + best.c); root.classList.add('foes-' + best.f);
+    return true;
   }
   // every frame: each head over its figure's head, by the scene's projection (hidden behind the eye)
   function placeHeads() {
@@ -729,6 +766,7 @@ export function rpgPage(cfg, K, ctl, jk) {
       if (phase === 'play') film1(); else if (film) endFilm();
       for (const lv of ['none', 'numbers', 'all']) { root.classList[filmUi === lv ? 'add' : 'remove']('cine-' + lv); heads.classList[filmUi === lv ? 'add' : 'remove']('cine-' + lv); }
       heads.classList.add('on'); placeHeads();
+      if (placeDue > 0 && --placeDue === 0 && !placeBoxes()) placeDue = 1;
       // (a round playing out: the window and the bars step aside for the bodies' acts, back for the next pick)
       const acting = phase === 'play'; root.classList[acting ? 'add' : 'remove']('acting'); heads.classList[acting ? 'add' : 'remove']('acting');
     } else if (heads.innerHTML) { heads.classList.remove('on'); heads.innerHTML = ''; }
@@ -738,7 +776,7 @@ export function rpgPage(cfg, K, ctl, jk) {
     state: () => ({ mode, phase, msg, level, member: mode === 'battle' && phase === 'command' ? commanders()[mi] : null, options: mode === 'battle' && phase === 'command' ? cmdList().map((o) => ({ label: o.label, ok: o.ok })) : [] }),
     start: startBattle, act, advance, open: openField, close: () => (mode === 'field' ? closeField() : null),
     // (the view a fight is seen from, over the book's: for a preview of the views, the next fight staged in it)
-    view: (name) => { viewOver = VIEWS[name] ? name : null; if (mode === 'battle' && staged) { unstage(); stage(); dirty = true; } return viewOver; },
+    view: (name) => { viewOver = VIEWS[name] ? name : null; if (mode === 'battle' && staged) { unstage(); stage(); placeDue = 3; dirty = true; } return viewOver; },
   };
   window.__mojRpg = api;
   return api;
