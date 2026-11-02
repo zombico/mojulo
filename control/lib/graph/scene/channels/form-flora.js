@@ -15,7 +15,6 @@
  */
 import { safeJson } from '../emit-util.js';
 import { WIND_AT_GLSL } from './terrain-wind.js';
-import { CARD_SMOOTH, cardSmoothSource, cardAlphaGlsl } from './card-smooth.js';
 
 /**
  * The plants in the wind: a tree's trunk stands, its limbs bend from where they leave it (each vertex's weight its
@@ -354,10 +353,8 @@ ${snow ? `    // (under snow, era/snow.js capOf: a leaf turned up past its cap c
       for (let k = 0; k < IB; k++) {
         const th = (2 * Math.PI * k) / IB, rx = -Math.sin(th), ry = Math.cos(th), tx = Math.cos(th), ty = Math.sin(th);
         depth.fill(-Infinity);
-        // (a texel: its normal, its tone (a leaf's, never over a half), the wood marked by a whole tone; its alpha the mark
-        // the smoothing turns into coverage, channels/card-smooth.js)
         const put = (iu, iv, f, nx, ny, tone, kind) => { const q = iv * IW + iu; if (f <= depth[q]) return; depth[q] = f; const o = (((row * IH + iv) * IB + k) * IW + iu) * 4;
-          atlas[o] = Math.round((Math.max(-1, Math.min(1, nx)) * 0.5 + 0.5) * 255); atlas[o + 1] = Math.round((Math.max(-1, Math.min(1, ny)) * 0.5 + 0.5) * 255); atlas[o + 2] = kind === 128 ? 255 : Math.round(Math.min(0.5, tone) * 255); atlas[o + 3] = 255; };
+          atlas[o] = Math.round((Math.max(-1, Math.min(1, nx)) * 0.5 + 0.5) * 255); atlas[o + 1] = Math.round((Math.max(-1, Math.min(1, ny)) * 0.5 + 0.5) * 255); atlas[o + 2] = Math.round(Math.min(1, tone) * 255); atlas[o + 3] = kind; };
         // (a triangle over its box: a texel whose centre is inside it, or within its grow of texels, is its; front-most wins)
         const tri = (a0, a1, a2, grow, nu, nv, tone, kind) => {
           const V = [a0, a1, a2].map((a) => [(a[0] * rx + a[1] * ry + R) / du0, a[2] / dv0, a[0] * tx + a[1] * ty]);
@@ -384,14 +381,12 @@ ${snow ? `    // (under snow, era/snow.js capOf: a leaf turned up past its cap c
         }
       }
     });
-    // (the cards smoothed: coverage at their edges, dilated, mipmapped and filtered, drawn as coverage)
-    ${cardSmoothSource().replace(/\n/g, '\n    ')}
-    const impTex = __cardTex(atlas, IW, IH, IB, Math.max(1, rows));
+    const impTex = new THREE.DataTexture(atlas, IB * IW, Math.max(1, rows) * IH, THREE.RGBAFormat); impTex.magFilter = impTex.minFilter = THREE.NearestFilter; impTex.needsUpdate = true;
     const ig = new THREE.InstancedBufferGeometry(); ig.setAttribute('position', new THREE.Float32BufferAttribute([-1, 0, 0, 1, 0, 0, 1, 0, 1, -1, 0, 1], 3)); ig.setIndex([0, 1, 2, 0, 2, 3]);
     const iPos = new Float32Array(Math.max(1, N) * 4), iTR = new Float32Array(Math.max(1, N) * 2), iLeaf = new Float32Array(Math.max(1, N) * 3), iBark = new Float32Array(Math.max(1, N) * 3);
     for (const [k, a, w] of [['aPos', iPos, 4], ['aTR', iTR, 2], ['aLeaf', iLeaf, 3], ['aBark', iBark, 3]]) ig.setAttribute(k, new THREE.InstancedBufferAttribute(a, w).setUsage(THREE.DynamicDrawUsage));
     ig.instanceCount = 0;
-    const IU = { tImp: { value: impTex }, uTpl: { value: tpl }, uImpRows: { value: Math.max(1, rows) }, uImpSize: { value: new THREE.Vector2(IB * IW, Math.max(1, rows) * IH) } };
+    const IU = { tImp: { value: impTex }, uTpl: { value: tpl }, uImpRows: { value: Math.max(1, rows) } };
     // (the card: turned to the eye about its foot, its bearing the nearest baked one in the plant's own turn)
     const IMP_VERT = 'attribute vec4 aPos;\\nattribute vec2 aTR;\\nattribute vec3 aLeaf;\\nattribute vec3 aBark;\\nuniform vec4 uTpl[ ' + Math.max(1, T.length) + ' ];\\nuniform float uImpRows;\\nvarying vec2 vAt;\\nvarying vec3 vLeaf, vBark, vRt, vTw;\\n';
     const IMP_PLACE = [
@@ -399,15 +394,15 @@ ${snow ? `    // (under snow, era/snow.js capOf: a leaf turned up past its cap c
       'float bk = mod( floor( ( atan( tw.y, tw.x ) - aTR.x ) / 6.2831853 * ' + IB.toFixed(1) + ' + 0.5 ), ' + IB.toFixed(1) + ' );',
       'vec3 transformed = vec3( aPos.xy + rt * position.x * Tp.x * aPos.w, aPos.z + position.z * Tp.y * aPos.w );',
       'vAt = vec2( ( bk + position.x * 0.5 + 0.5 ) / ' + IB.toFixed(1) + ', ( Tp.z + position.z ) / uImpRows ); vLeaf = aLeaf; vBark = aBark; vRt = vec3( rt, 0.0 ); vTw = vec3( tw, 0.0 );'].join('\\n');
-    const im = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.85, metalness: 0, side: THREE.DoubleSide, alphaToCoverage: true });
+    const im = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.85, metalness: 0, side: THREE.DoubleSide });
     im.onBeforeCompile = (sh) => {
       Object.assign(sh.uniforms, IU);
       sh.vertexShader = IMP_VERT + sh.vertexShader.replace('#include <begin_vertex>', IMP_PLACE);
-      sh.fragmentShader = 'uniform sampler2D tImp;\\nuniform vec2 uImpSize;\\nvarying vec2 vAt;\\nvarying vec3 vLeaf, vBark, vRt, vTw;\\n' + sh.fragmentShader
-        .replace('#include <color_fragment>', '#include <color_fragment>\\n  vec4 impA = texture2D( tImp, vAt );\\n  ' + ${JSON.stringify(cardAlphaGlsl('tImp', 'vAt', 'uImpSize', 'impC'))} + '\\n  if ( impC < ${CARD_SMOOTH.cut} ) discard;\\n  float impW = smoothstep( 0.62, 0.9, impA.b );\\n  diffuseColor.rgb *= mix( vLeaf, vBark, impW ) * mix( impA.b, 0.5, impW ) * 2.0; diffuseColor.a = impC;')
+      sh.fragmentShader = 'uniform sampler2D tImp;\\nvarying vec2 vAt;\\nvarying vec3 vLeaf, vBark, vRt, vTw;\\n' + sh.fragmentShader
+        .replace('#include <color_fragment>', '#include <color_fragment>\\n  vec4 impA = texture2D( tImp, vAt ); if ( impA.a < 0.25 ) discard;\\n  diffuseColor.rgb *= ( impA.a > 0.75 ? vLeaf : vBark ) * impA.b * 2.0;')
         .replace('#include <normal_fragment_begin>', '#include <normal_fragment_begin>\\n  { vec2 nn = impA.rg * 2.0 - 1.0; normal = normalize( ( viewMatrix * vec4( normalize( vRt * nn.x + vec3( 0.0, 0.0, 1.0 ) * nn.y + vTw * sqrt( max( 0.0, 1.0 - dot( nn, nn ) ) ) ), 0.0 ) ).xyz ); }')
         // (a leaf the light through it as the near crown's leaves have it, leafMat)
-        .replace('#include <lights_fragment_end>', '#include <lights_fragment_end>\\n  reflectedLight.indirectDiffuse += diffuseColor.rgb * 0.22 * ( 1.0 - impW );');
+        .replace('#include <lights_fragment_end>', '#include <lights_fragment_end>\\n  if ( impA.a > 0.75 ) reflectedLight.indirectDiffuse += diffuseColor.rgb * 0.22;');
     };
     im.customProgramCacheKey = () => 'form-flora-far';
     // (its shadow: the card turned to the sun, its silhouette from that side)
@@ -415,7 +410,7 @@ ${snow ? `    // (under snow, era/snow.js capOf: a leaf turned up past its cap c
     idm.onBeforeCompile = (sh) => {
       Object.assign(sh.uniforms, IU);
       sh.vertexShader = IMP_VERT + sh.vertexShader.replace('#include <begin_vertex>', IMP_PLACE);
-      sh.fragmentShader = 'uniform sampler2D tImp;\\nvarying vec2 vAt;\\n' + sh.fragmentShader.replace('void main() {', 'void main() {\\n  if ( texture2D( tImp, vAt ).a < ${CARD_SMOOTH.shadow} ) discard;');
+      sh.fragmentShader = 'uniform sampler2D tImp;\\nvarying vec2 vAt;\\n' + sh.fragmentShader.replace('void main() {', 'void main() {\\n  if ( texture2D( tImp, vAt ).a < 0.25 ) discard;');
     };
     idm.customProgramCacheKey = () => 'form-flora-far-depth';
     const impMesh = new THREE.Mesh(ig, im); impMesh.customDepthMaterial = idm; impMesh.castShadow = impMesh.receiveShadow = true; impMesh.frustumCulled = false; impMesh.userData.ink = true; scene.add(impMesh);

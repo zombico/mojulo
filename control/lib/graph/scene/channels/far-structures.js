@@ -21,8 +21,6 @@
 //                 cull is neither: the fog has taken it
 //
 // `window.__formStructures()` → { tiles, cards, batches } what is drawn now.
-import { CARD_SMOOTH, cardSmoothSource, cardAlphaGlsl } from './card-smooth.js';
-
 export const FAR_STRUCTURES = Object.freeze({ tile: 16, most: 128, cell: 2, ground: 0.5, tall: 60, bearings: 8, texels: Object.freeze([64, 96]), px: 1, step: 0.5 });
 
 /** The far structures' page source, after the form's land (its POS, the land's triangles) in the form channel's scope
@@ -95,21 +93,19 @@ export function farStructuresScript() {
       }
       t.tris = null;
     });
-    // (the cards smoothed: coverage at their edges, dilated, mipmapped and filtered, drawn as coverage: channels/card-smooth.js)
-    ${cardSmoothSource().replace(/\n/g, '\n    ')}
-    const tex = __cardTex(atlas, IW, IH, IB, Math.max(1, L.length));
+    const tex = new THREE.DataTexture(atlas, IB * IW, Math.max(1, L.length) * IH, THREE.RGBAFormat); tex.magFilter = tex.minFilter = THREE.NearestFilter; tex.needsUpdate = true;
     const cg = new THREE.InstancedBufferGeometry(); cg.setAttribute('position', new THREE.Float32BufferAttribute([-1, 0, 0, 1, 0, 0, 1, 0, 1, -1, 0, 1], 3)); cg.setIndex([0, 1, 2, 0, 2, 3]);
     const aT = new Float32Array(Math.max(1, L.length) * 4), aS = new Float32Array(Math.max(1, L.length) * 3);
     cg.setAttribute('aTile', new THREE.InstancedBufferAttribute(aT, 4).setUsage(THREE.DynamicDrawUsage)); cg.setAttribute('aSize', new THREE.InstancedBufferAttribute(aS, 3).setUsage(THREE.DynamicDrawUsage)); cg.instanceCount = 0;
-    const U = { tCard: { value: tex }, uRows: { value: Math.max(1, L.length) }, uCardSize: { value: new THREE.Vector2(IB * IW, Math.max(1, L.length) * IH) } };
+    const U = { tCard: { value: tex }, uRows: { value: Math.max(1, L.length) } };
     const VH = 'attribute vec4 aTile;\\nattribute vec3 aSize;\\nuniform float uRows;\\nvarying vec2 vAt;\\n';
     const PLACE = ['vec2 to = cameraPosition.xy - aTile.xy; float Lt = length( to ); vec2 tw = Lt > 1e-4 ? to / Lt : vec2( 1.0, 0.0 ), rt = vec2( -tw.y, tw.x );',
       'float bk = mod( floor( atan( tw.y, tw.x ) / 6.2831853 * ' + FS.bearings.toFixed(1) + ' + 0.5 ), ' + FS.bearings.toFixed(1) + ' );',
       'vec3 transformed = vec3( aTile.xy + rt * position.x * aSize.x, aTile.z + position.z * aSize.y );',
       'vAt = vec2( ( bk + position.x * 0.5 + 0.5 ) / ' + FS.bearings.toFixed(1) + ', ( aSize.z + position.z ) / uRows );'].join('\\n');
-    const cm = new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.DoubleSide, alphaToCoverage: true });
+    const cm = new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.DoubleSide });
     cm.onBeforeCompile = (sh) => { Object.assign(sh.uniforms, U); sh.vertexShader = VH + sh.vertexShader.replace('#include <begin_vertex>', PLACE);
-      sh.fragmentShader = 'uniform sampler2D tCard;\\nuniform vec2 uCardSize;\\nvarying vec2 vAt;\\n' + sh.fragmentShader.replace('#include <color_fragment>', '#include <color_fragment>\\n  vec4 cA = texture2D( tCard, vAt );\\n  ' + ${JSON.stringify(cardAlphaGlsl('tCard', 'vAt', 'uCardSize', 'cC'))} + '\\n  if ( cC < ${CARD_SMOOTH.cut} ) discard;\\n  diffuseColor.rgb *= cA.rgb * cA.rgb; diffuseColor.a = cC;'); };
+      sh.fragmentShader = 'uniform sampler2D tCard;\\nvarying vec2 vAt;\\n' + sh.fragmentShader.replace('#include <color_fragment>', '#include <color_fragment>\\n  vec4 cA = texture2D( tCard, vAt ); if ( cA.a < 0.5 ) discard;\\n  diffuseColor.rgb *= cA.rgb * cA.rgb;'); };
     cm.customProgramCacheKey = () => 'far-structure-card';
     const cdm = new THREE.MeshDepthMaterial({ depthPacking: THREE.RGBADepthPacking });
     cdm.onBeforeCompile = (sh) => { Object.assign(sh.uniforms, U); sh.vertexShader = VH + sh.vertexShader.replace('#include <begin_vertex>', PLACE);
