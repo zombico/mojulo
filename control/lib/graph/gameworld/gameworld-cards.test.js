@@ -30,7 +30,7 @@ describe('the rail\'s cards', () => {
 
   it('the guide first, then a card per page in the loop\'s order, each small', () => {
     expect(GAMEWORLD_CARD_IDS[0]).toBe('gameworld-guide');
-    expect(GAMEWORLD_CARD_IDS).toEqual(['gameworld-guide', 'gameworld-quick', 'gameworld-intent', 'gameworld-world', 'gameworld-wcd', 'gameworld-qow', 'gameworld-direction', 'gameworld-looks', 'gameworld-motion', 'gameworld-feel', 'gameworld-juice', 'gameworld-actions', 'gameworld-adornment', 'gameworld-equipment', 'gameworld-systems', 'gameworld-battles', 'gameworld-foes', 'gameworld-story', 'gameworld-folk', 'gameworld-next']);
+    expect(GAMEWORLD_CARD_IDS).toEqual(['gameworld-guide', 'gameworld-quick', 'gameworld-intent', 'gameworld-world', 'gameworld-wcd', 'gameworld-qow', 'gameworld-direction', 'gameworld-looks', 'gameworld-motion', 'gameworld-feel', 'gameworld-juice', 'gameworld-actions', 'gameworld-adornment', 'gameworld-equipment', 'gameworld-systems', 'gameworld-mounts', 'gameworld-battles', 'gameworld-foes', 'gameworld-story', 'gameworld-folk', 'gameworld-next']);
     // the guide alone may run to 4224 bytes: its loop gained the battles page (10-16) with 3 bytes to spare under 4096;
     // 4480 since 2026-10-29 (1029-tac-com-simulator-interior: SHOWN FIRST, a draft's book as the approval sheet, 4407 bytes);
     // the world card too (2026-10-25, merging 1024-geocube-composition-update: its line per ground kit took geocube's

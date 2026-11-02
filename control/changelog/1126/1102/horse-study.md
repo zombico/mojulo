@@ -149,8 +149,10 @@ rather than over it (the fauna horse's rows stay byte-identical). Solo; the sadd
   wider blend so it still flows into the withers and the breast. The trunk's wide blend over the neck's overlapping
   masses had swelled it by a hand on every side. Mid-neck it now measures about 1.05 m round (0.42 m deep, 0.23 m
   wide), a riding horse's, where it was 1.36 m.
-- **The tail, one mass**: drawn by the hair principles (a few major flows, detail as shape, one colour, a tied tail a
-  separate mass) as a single closed loft rather than fibre cards. It grows from a ring round the dock where the tail
+- **The mane and the tail as masses**: drawn by the hair principles (a few major flows, detail as shape, one colour, a
+  tied tail a separate mass) as closed lofts rather than fibre cards. The mane is five flows along the crest, each a
+  lofted lock lying down the off side and drawn to a point. Each shares its end lock with the next, so they overlap as
+  shingles and no neck shows between them. The forelock is one flow between the ears. The tail is a single mass. It grows from a ring round the dock where the tail
   leaves the croup, about 17 cm across from behind, grooved by its flows, hanging close to the buttocks and drawing to a
   point at its end. Five simulated locks carry its swing, each keeping its place across the tail, and every vertex rides
   the lock nearest it, so it lifts and streams as one over a jump. It is one-sided, with smooth normals. The dock blends

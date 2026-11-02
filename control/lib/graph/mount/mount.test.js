@@ -244,23 +244,22 @@ describe('the hair', () => {
     for (const x of g.filter((y) => y.kind === 'mane')) expect(x.dir[0]).toBeGreaterThan(0);          // the off (right) side
   });
 
-  it('its cards: a two-sided ribbon of quads along every strand, a guide\'s cards side by side; the tail ONE mass', async () => {
-    const { TAIL_MASS } = await import('./hair.js');
+  it('its masses: each flow a closed loft round its locks (five mane flows, the forelock, the tail), one-sided, facing out', async () => {
+    const { TAIL_MASS, MANE_MASS, MANE_FLOWS } = await import('./hair.js');
     const g = hairGuides(B), strands = g.map((x) => Array.from({ length: x.n }, (_, i) => [x.root[0] + x.dir[0] * x.len * i / (x.n - 1), x.root[1] + x.dir[1] * x.len * i / (x.n - 1), x.root[2] + x.dir[2] * x.len * i / (x.n - 1)]));
-    const c = hairCards(g, strands), cards = g.reduce((s2, x) => s2 + x.cards.length * (x.n - 1), 0);
-    // (the mane's and forelock's cards two-sided; the tail a closed loft round its locks, one-sided, its top capped)
-    const rings = (g.find((x) => x.kind === 'tail').n - 1) * TAIL_MASS.sub + 1;
-    expect(c.quads.length).toBe(cards + (rings - 1) * TAIL_MASS.ring + TAIL_MASS.ring);
-    expect(c.twoSided.slice(0, cards).every(Boolean)).toBe(true);
-    expect(c.twoSided.slice(cards).every((x) => x === false)).toBe(true);
-    expect(g.filter((x) => x.kind === 'tail').every((x) => x.cards.length === 0)).toBe(true);
-    // its quads face out: each one's normal away from the mass's axis (the nearest of its locks' mean line)
-    const tails = g.flatMap((x, i) => (x.kind === 'tail' ? [i] : []));
-    for (const q of c.quads.slice(cards, cards + (rings - 1) * TAIL_MASS.ring)) {
-      const V = q.map((i) => c.vertices[i]), n = [0, 0, 0];
-      for (let i = 0; i < 4; i++) { const a = V[i], b = V[(i + 1) % 4]; n[0] += (a[1] - b[1]) * (a[2] + b[2]); n[1] += (a[2] - b[2]) * (a[0] + b[0]); n[2] += (a[0] - b[0]) * (a[1] + b[1]); }
-      const m = V.reduce((s3, v) => s3.map((x, k) => x + v[k] / 4), [0, 0, 0]), u = c.at[q[0]][1], ax = tails.map((gi) => strands[gi][Math.min(g[gi].n - 1, Math.round(u))]).reduce((s3, v) => s3.map((x, k) => x + v[k] / tails.length), [0, 0, 0]);
-      expect(n[0] * (m[0] - ax[0]) + n[1] * (m[1] - ax[1]) + n[2] * (m[2] - ax[2])).toBeGreaterThan(-1e-9);
+    const c = hairCards(g, strands), n = g[0].n, per = (M) => (n - 1) * M.sub * M.ring + M.ring;
+    expect(g.every((x) => x.cards.length === 0)).toBe(true);
+    // (a flow's rings, its quads between them and its capped root: the mane's, the forelock's, the tail's)
+    expect(c.quads.length).toBe(MANE_FLOWS.length * per(MANE_MASS) + per(MANE_MASS) + per(TAIL_MASS));
+    expect(c.twoSided.every((x) => x === false)).toBe(true);
+    expect(c.normals.every((v) => v && Math.abs(Math.hypot(...v) - 1) < 1e-6)).toBe(true);
+    // each quad faces out: its normal along its own vertices' outward normals
+    for (const q of c.quads) {
+      const V = q.map((i) => c.vertices[i]), nq = [0, 0, 0];
+      for (let i = 0; i < 4; i++) { const a = V[i], b = V[(i + 1) % 4]; nq[0] += (a[1] - b[1]) * (a[2] + b[2]); nq[1] += (a[2] - b[2]) * (a[0] + b[0]); nq[2] += (a[0] - b[0]) * (a[1] + b[1]); }
+      if (Math.hypot(...nq) < 1e-12) continue;
+      const nv = q.map((i) => c.normals[i]).reduce((a, v) => a.map((x, k) => x + v[k]), [0, 0, 0]);
+      expect(nq[0] * nv[0] + nq[1] * nv[1] + nq[2] * nv[2]).toBeGreaterThan(0);
     }
   });
 });
