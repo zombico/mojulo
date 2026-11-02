@@ -235,7 +235,7 @@ its resource, put on a look and showed a toast. This theme makes them act.
   - **The layout:** a genre whose cube's topology is a hub (the party RPG, the top-down adventure, the story adventure)
     is now laid round a town. The first level is the town, and every other level is a stretch of the wilds joined to
     it both ways. The game leaves the town by a way to each and comes back by the way behind each one's start.
-  - **The town:** no battles are fought there. The merchant and the inn stand in it, so the wilds have no shops and
+  - **The town:** its street stands on the ground. No battles are fought there. The merchant and the inn stand in it, so the wilds have no shops and
     no free rest. The last stretch of the wilds still raises its castle.
   - **The world key:** `hub: '<level>'` names a map world's centre (topology `interconnected`). The "a centre to
     return to" concern now reads as laid.
