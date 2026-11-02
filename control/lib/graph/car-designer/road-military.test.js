@@ -4,7 +4,9 @@
 // realistic ride, and the classes whose bodies wait refused with what they need. One class per concept, chosen in code.
 import { describe, it, expect } from 'vitest';
 import { plate, tube, bend, bolts, weld, flatNormals } from './mil-hull.js';
-import { MILITARY_CLASSES, MIL_MATERIALS, militaryAxles } from './road-military.js';
+import { MILITARY_CLASSES, MIL_MATERIALS, militaryAxles, militaryBody, KITS } from './road-military.js';
+import { milWheel } from './mil-wheel.js';
+import { FITTINGS, fit } from './mil-fittings.js';
 import { compileRealistic } from './realistic.js';
 import { rollVehicleSheet, UNBUILT } from './sheet.js';
 import { VEHICLES as PHYSICS } from '../roads/vehicles.js';
@@ -64,8 +66,11 @@ describe('the hull kit', () => {
 describe('a field vehicle compiled at its class\'s numbers', () => {
   const c = field({ form: true });
   const all = Object.values(c.form).flat();
-  it('is the class\'s size, its wheels where the class puts them', () => {
-    for (const k of ['L', 'W', 'H', 'wheelbase', 'wheelRadius']) { expect(c.census.against[k], k).toBeGreaterThan(0.99); expect(c.census.against[k], k).toBeLessThan(1.01); }
+  it('is the class\'s size, its wheels where the class puts them (the hull measured: its fittings hang off it)', () => {
+    for (const k of ['W', 'H', 'wheelbase', 'wheelRadius']) { expect(c.census.against[k], k).toBeGreaterThan(0.99); expect(c.census.against[k], k).toBeLessThan(1.01); }
+    // (its length the class's with what hangs off its ends: the hull a little short of it)
+    expect(c.census.against.L).toBeGreaterThan(0.96);
+    expect(c.census.against.L).toBeLessThanOrEqual(1);
     const axles = militaryAxles(FIELD);
     expect(axles[0] - axles[1]).toBeCloseTo(PHYSICS[FIELD].wheelbase, 6);
     expect(c.rule).toMatchObject({ type: 'drive', vehicle: FIELD });
@@ -90,6 +95,50 @@ describe('a field vehicle compiled at its class\'s numbers', () => {
     expect(baked.figure.form).toBeUndefined();
     expect(baked.figure.bones.map((b) => b.id)).toEqual(c.figure.bones.map((b) => b.id));
     expect(baked.census).toEqual(c.census);
+  });
+});
+
+describe('the field\'s wheel', () => {
+  const r = 0.41, w = 0.3, wheel = milWheel({ hub: [0.81, 0, r], r, width: w, lugs: 20 });
+  it('its tread is lugs standing proud of the crown, two rows offset and angled, a block\'s five faces each', () => {
+    const lugs = wheel.filter((f) => f.part === 'tyre.lug');
+    expect(lugs).toHaveLength(20 * 2 * 5);
+    const rad = (p) => Math.hypot(p[1], p[2] - r);
+    expect(Math.max(...lugs.flatMap((f) => f.corners.map(rad)))).toBeCloseTo(r, 3);
+    expect(Math.max(...wheel.filter((f) => f.part === 'tyre').flatMap((f) => f.corners.map(rad)))).toBeLessThan(r * 0.96);
+  });
+  it('its rim in the paint, bolted; every face a material and its normals unit; its face along the axis asked', () => {
+    const mats = new Set(wheel.map((f) => f.material));
+    for (const m of ['rubber', 'milPaint', 'steel']) expect(mats.has(m), m).toBe(true);
+    for (const f of wheel) expect(f.cornerNormals.every(unitLen)).toBe(true);
+    // (the valve's cap looks out along the axle, +x for a right-hand wheel)
+    expect(Math.max(...wheel.filter((f) => f.part === 'wheel.valve').map((f) => f.outNormal[0]))).toBeCloseTo(1, 3);
+    const lying = milWheel({ hub: [0, 0, 1], r, width: w, axis: [0, 0, 1] });
+    expect(Math.max(...lying.flatMap((f) => f.corners.map((p) => p[2]))) - 1).toBeGreaterThan(w / 2);
+    expect(Math.min(...lying.flatMap((f) => f.corners.map((p) => p[2]))) - 1).toBeGreaterThan(-w);
+  });
+});
+
+describe('the fittings: cards set on the anchors a body declares', () => {
+  const ctx = { r: 0.41, tyreW: 0.3, paint: '#4b5320', seed: 1 };
+  it('each card builds on the outward side of an anchor of a kind it fits, and refuses a kind it does not', () => {
+    for (const [card, F] of Object.entries(FITTINGS)) {
+      const A = { id: 'a', kind: F.fits[0], at: [0.2, -0.4, 0.9], out: [0, -1, 0], up: [0, 0, 1] };
+      const faces = fit(A, card, ctx);
+      expect(faces.length, card).toBeGreaterThan(0);
+      for (const f of faces) for (const p of f.corners) expect(-(p[1] - A.at[1]), card).toBeGreaterThan(-0.025);
+      const other = Object.keys(FITTINGS).flatMap((k) => FITTINGS[k].fits).find((k) => !F.fits.includes(k));
+      expect(() => fit({ ...A, kind: other }, card, ctx), card).toThrow(/fits a/);
+    }
+  });
+  it('a body\'s kit sets each card on an anchor it declares, and its dice choose among the kit', () => {
+    const kind = MILITARY_CLASSES[FIELD], B = militaryBody(FIELD, { seed: 1 }), ids = new Set(B.anchors.map((a) => a.id));
+    for (const [id] of KITS[kind]) expect(ids.has(id), id).toBe(true);
+    const maybe = KITS[kind].find(([, , o]) => o?.maybe !== undefined)[1];
+    const carries = Array.from({ length: 40 }, (_, k) => militaryBody(FIELD, { seed: k + 1 }).fittings.some((f) => f.fitting === maybe));
+    expect(carries).toContain(true);
+    expect(carries).toContain(false);
+    expect(B.fittings.every((f) => f.fitting && f.cornerNormals)).toBe(true);
   });
 });
 

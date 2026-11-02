@@ -10,13 +10,16 @@
  *                  the field's materials, MIL_MATERIALS); absent, its faces baked under the studio's light (road-form.js
  *                  bakeForm), the figure a world without the form render draws
  *
- * The wheels are the road wheel lathed (road-wheel.js) on the heavy dish, each its own bone turning in the `roll` clip;
- * each arch its liner on the body. Vehicle space (+y forward). Pure and deterministic.
+ * The wheels are the field's (mil-wheel.js: a lugged cross-country tyre on a split steel rim), each its own bone
+ * turning in the `roll` clip; each arch its liner on the body; the kit's fittings on the body too (road-military.js
+ * KITS), outside the census, which measures the hull against the class. Vehicle space (+y forward). Pure and
+ * deterministic.
  */
 import { VEHICLES, vehicleRule, envelope } from '../roads/vehicles.js';
 import { packVehicleFigure } from '../vehicle-designer/vehicle-rig.js';
 import { smoothForm, bakeForm } from './road-form.js';
-import { roadWheel, wheelWell } from './road-wheel.js';
+import { wheelWell } from './road-wheel.js';
+import { milWheel } from './mil-wheel.js';
 import { formLight } from './form-light.js';
 import { militaryBody, militaryAxles, MILITARY_CLASSES, MIL_MATERIALS } from './road-military.js';
 import { realisticCensus } from './realistic.js';
@@ -33,8 +36,10 @@ export function compileMilitary(sheet, { keys = 12, form = false } = {}) {
   // the wheels: each axle's pair, the front pair first; left (−x) and right
   const wheels = axles.flatMap((y, axle) => [1, -1].map((side) => ({ axle, side, hub: [-side * spec.track / 2, y, spec.r] })));
   const name = (w) => { const lr = w.side > 0 ? 'L' : 'R'; return w.axle === 0 ? `wheelF${lr}` : w.axle === 1 ? `wheelR${lr}` : `wheel${w.axle + 1}${lr}`; };
-  const body = [...militaryBody(cls, { seed: sheet.seed }), ...smoothForm(wheels.flatMap((w) => wheelWell({ hub: w.hub, r: spec.r, width: spec.tyreW })))];
-  const wheelForm = wheels.map((w) => smoothForm(roadWheel({ hub: w.hub, r: spec.r, width: spec.tyreW, style: 'heavyDuty' })));
+  const { hull, fittings } = militaryBody(cls, { seed: sheet.seed, r: spec.r, tyreW: spec.tyreW });
+  const wells = smoothForm(wheels.flatMap((w) => wheelWell({ hub: w.hub, r: spec.r, width: spec.tyreW })));
+  const body = [...hull, ...wells, ...fittings];
+  const wheelForm = wheels.map((w) => milWheel({ hub: w.hub, r: spec.r, width: spec.tyreW }));
   // centred on its footprint (the body is built centred; the census holds it)
   const bones = [{ id: 'root', head: [0, 0, 0] }, ...wheels.map((w) => ({ id: name(w), head: w.hub.map(r4) }))];
   const formOf = new Map([['root', body], ...wheels.map((w, k) => [name(w), wheelForm[k]])]);
@@ -52,5 +57,7 @@ export function compileMilitary(sheet, { keys = 12, form = false } = {}) {
     spec, class: cls, figure, rule: vehicleRule(cls), envelope: envelope(cls),
     faces: { root: baked.get('root'), wheels: wheels.map((w) => ({ bone: name(w), faces: baked.get(name(w)), hub: w.hub.map(r4) })) },
   };
-  return { ...compiled, census: realisticCensus(compiled), ...(form ? { form: Object.fromEntries(formOf) } : {}) };
+  // (the census measures the hull and its wheels against the class: the fittings hang off it, as a mirror does a car)
+  const measured = { ...compiled, faces: { ...compiled.faces, root: bakeForm([...hull, ...wells]) } };
+  return { ...compiled, census: realisticCensus(measured), ...(form ? { form: Object.fromEntries(formOf) } : {}) };
 }

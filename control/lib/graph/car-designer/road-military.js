@@ -10,20 +10,30 @@
  *              open tub whose sides and doorways are rimmed by a rolled edge, its rear wheels in wheelhouses, a rear
  *              panel with its lamps; canvas seats, a dash and its gauges, the wheel on its column; a roll bar braced to
  *              the rear; welds at the tub's corners and the fenders' roots, bolts and rivets along the beams and plates
+ *              Its kit (KITS): the spare on the bonnet, a jerry can racked each side of the rear panel, a shovel and an
+ *              axe along the left flank, the whip at the right rear, grab bars, steps under the doorways, mud flaps, red
+ *              D-rings on the front bumper and the pintle behind, a mirror on the screen post, a rolled tarp on the rear
+ *              panel (most carry one), a saddle tank under the right doorway
  *
  *   MILITARY_CLASSES                  physics class → its body (the classes built here; the others wait, sheet.js
  *                                     UNBUILT)
  *   militaryAxles(cls)                → the axles' stations along the body (+y forward, the body centred)
- *   militaryBody(cls, { seed? })      → form faces { corners, part, material, albedo, outNormal, cornerNormals, edge? }
+ *   militaryBody(cls, { seed?, r?, tyreW? }) → { hull, fittings, anchors }: form faces { corners, part, material, albedo,
+ *                                     outNormal, cornerNormals, edge?, fitting? }, the hull at the class's size and the
+ *                                     fittings its kit sets on its anchors (KITS, mil-fittings.js cards), rolled from the
+ *                                     seed
+ *   KITS                              each body's kit: [anchor, card, { maybe?, …the card's words }]
  *   MIL_MATERIALS                     the road car's slots and the field's own: its matte paint, canvas, bare steel,
  *                                     weld, the frame's dark steel
  *
  * Vehicle space (+y forward, x across, +x the right side, z up), metres, the wheels' contact at z = 0. Pure and
- * deterministic (no dice yet: the seed is the surface's, camo and grime).
+ * deterministic (the seed's dice choose among the kit: a can's tone, a whip's length, whether it carries a tarp).
  */
 import { VEHICLES } from '../roads/vehicles.js';
 import { ROAD_MATERIALS } from './road-form.js';
 import { plate, tube, bend, bolts, weld, flatNormals } from './mil-hull.js';
+import { fit } from './mil-fittings.js';
+import { mulberry32 } from '../vegetation/grow.js';
 
 export const MILITARY_CLASSES = Object.freeze({ utility4x4: 'utility' });
 
@@ -62,7 +72,8 @@ const rect = (u0, u1, v0, v1) => [[u0, v0], [u1, v0], [u1, v1], [u0, v1]];
 // ── the light utility 4x4 ───────────────────────────────────────────────────────
 function utility(cls) {
   const v = VEHICLES[cls], hw = v.W / 2, [yf, yr] = militaryAxles(cls), r = v.wheelRadius;
-  const yN = v.L / 2, yT = -v.L / 2, out = [];
+  // (the tub's rear panel stands short of the tail: the cans and the pintle hang behind it, inside the class's length)
+  const yN = v.L / 2, yT = -v.L / 2, yR = yT + 0.2, out = [];
   const P = (o) => out.push(...plate(o));
   // ── the frame and the running gear, seen from low
   for (const s of [-1, 1]) { const [a, b] = xs(s, 0.38, 0.48); P({ axis: 'y', profile: rect(a, b, 0.4, 0.56), from: yT + 0.18, to: yN - 0.2, r: 0.01, seg: 1, look: M('frame', 'milPaint', C.frame) }); }
@@ -74,7 +85,7 @@ function utility(cls) {
   // ── the bumpers: steel channel beams, bolted to the frame
   P({ axis: 'x', profile: rect(yN - 0.14, yN, 0.48, 0.66), from: -hw, to: hw, r: 0.012, seg: 1, look: paint('bumper') });
   out.push(...bolts([-0.46, -0.4, 0.4, 0.46].flatMap((x) => [[x, yN, 0.53], [x, yN, 0.61]]), [0, 1, 0], { look: paint('bolt') }));
-  P({ axis: 'x', profile: rect(yT, yT + 0.08, 0.48, 0.62), from: -0.72, to: 0.72, r: 0.012, seg: 1, look: paint('bumper') });
+  P({ axis: 'x', profile: rect(yR - 0.11, yR - 0.03, 0.48, 0.62), from: -0.72, to: 0.72, r: 0.012, seg: 1, look: paint('bumper') });
   // ── the bonnet: a flat plate on a piano hinge at the cowl, its rubber latches at the sides
   // (as wide as the engine between the front tyres: the fenders cover the wheels)
   const yb = yN - 0.14, yc = 0.64, bw = v.track / 2 - v.wheelRadius * 0.42;
@@ -134,7 +145,7 @@ function utility(cls) {
     out.push(...tube([[s * (wx - 0.04), S0[0], S0[1] + 0.01], [s * (wx + 0.02), S0[0], S0[1] + 0.01]], 0.018, { sides: 8, look: paint('screen.hinge') }));
   }
   // ── the tub: its floor, its sides open at the doorways, the rear panel, the wheelhouses; a rolled rim round its top
-  const yR = yT + 0.08, zF = 0.62, zB = 1.1, dA = 0.33, dB = -0.3, aA = yr + 0.5, aB = yr - 0.5, zA = 0.95;
+  const zF = 0.62, zB = 1.1, dA = 0.33, dB = -0.3, aA = yr + 0.5, aB = yr - 0.5, zA = 0.95;
   P({ axis: 'z', profile: rect(-hw + 0.03, hw - 0.03, yR + 0.02, yd), from: zF - 0.03, to: zF, look: paint('tub.floor') });
   for (const s of [-1, 1]) {
     const [a, b] = xs(s, hw - 0.03, hw), side = (y0, y1, z0, z1) => P({ axis: 'x', profile: rect(y0, y1, z0, z1), from: a, to: b, r: 0.012, seg: 1, look: paint('tub.side') });
@@ -181,13 +192,59 @@ function utility(cls) {
       out.push(...bolts([[-0.032, -0.032], [0.032, -0.032], [0.032, 0.032], [-0.032, 0.032]].map(([dx, dy]) => [s * xh + dx, y + dy, zB + 0.012]), [0, 0, 1], { r: 0.008, h: 0.006, look: paint('bolt') }));
     }
   }
-  return out;
+  // ── the anchors its fittings are set on (mil-fittings.js): where a field vehicle carries what it carries
+  const X = [1, 0, 0], Y = [0, 1, 0], Z = [0, 0, 1], neg = (a) => a.map((q) => -q);
+  const bonnetZ = (y) => 1.13 - ((y - yc) / (yb - 0.06 - yc)) * 0.06;
+  const postT = 0.6, post = [S0[0] + au[0] * al * postT, S0[1] + au[1] * al * postT];
+  const anchors = [
+    { id: 'bonnet', kind: 'bonnet', at: [0, 1.3, bonnetZ(1.3)], out: Z, up: Y },
+    ...[-1, 1].flatMap((s) => {
+      const L = s < 0 ? 'L' : 'R', side = s < 0 ? neg(X) : X;
+      return [
+        { id: `rear.${L}`, kind: 'panel', at: [s * 0.5, yR - 0.03, zF + 0.04], out: neg(Y), up: Z },
+        { id: `flank.${L}`, kind: 'flank', at: [s * hw, s < 0 ? yr + 0.05 : yR + 0.15, s < 0 ? 1.03 : 0.98], out: side, up: Z },
+        { id: `grab.${L}`, kind: 'flank', at: [s * hw, (aA + dB) / 2, 0.98], out: side, up: Z },
+        { id: `sill.${L}`, kind: 'sill', at: [s * hw, (dA + dB) / 2, 0.55], out: side, up: Z },
+        { id: `flap.${L}`, kind: 'flap', at: [s * v.track / 2, yR + 0.12, zF], out: neg(Y), up: Z },
+        { id: `bumper.F${L}`, kind: 'bumper', at: [s * 0.62, yN, 0.57], out: Y, up: Z },
+        { id: `bumper.R${L}`, kind: 'bumper', at: [s * 0.55, yR - 0.11, 0.55], out: neg(Y), up: Z },
+        { id: `post.${L}`, kind: 'post', at: [s * wx, post[0], post[1]], out: side, up: Z },
+        { id: `rail.${L}`, kind: 'rail', at: [s * 0.48, 0, 0.56], out: side, up: Z },
+      ];
+    }),
+    { id: 'bumper.RC', kind: 'bumper', at: [0, yR - 0.11, 0.55], out: neg(Y), up: Z },
+    { id: 'top', kind: 'top', at: [0, yR - 0.015, zB], out: Z, up: neg(Y) },
+  ];
+  return { faces: out, anchors };
 }
 
-/** A military class's body, every face with its corner normals (a plate's own, worked out; a fitting's flat). */
-export function militaryBody(cls, { seed = 1 } = {}) {
-  void seed;
+/** What each class carries, anchor by anchor (mil-fittings.js cards); `maybe` a share of the vehicles that carry it,
+ *  rolled from the seed, and `opts` the card's own words. */
+export const KITS = Object.freeze({
+  utility: Object.freeze([
+    ['bonnet', 'spareWheel'], ['rear.L', 'jerryCans'], ['rear.R', 'jerryCans'], ['flank.L', 'pioneerTools'],
+    ['flank.R', 'antenna', { lean: -1 }], ['grab.L', 'grabHandle'], ['grab.R', 'grabHandle'], ['sill.L', 'step'], ['sill.R', 'step'],
+    ['flap.L', 'mudFlap'], ['flap.R', 'mudFlap'], ['bumper.FL', 'shackle'], ['bumper.FR', 'shackle'], ['bumper.RC', 'pintle'],
+    ['post.L', 'mirror'], ['top', 'tarpRoll', { maybe: 0.7 }], ['rail.R', 'fuelTank'],
+  ]),
+});
+const CAN_TONES = Object.freeze(['#4f5726', '#4f5726', '#8a7a55']);
+
+/** A military class's body (its hull, every face with its corner normals: a plate's own, worked out; a fitting's flat)
+ *  and its fittings, its kit's cards on its anchors, rolled from the seed. */
+export function militaryBody(cls, { seed = 1, r, tyreW } = {}) {
   const kind = MILITARY_CLASSES[cls];
-  if (kind === 'utility') return flatNormals(utility(cls));
-  throw new Error(`car-designer: '${cls}' is not a military class built yet (${Object.keys(MILITARY_CLASSES).join(', ')})`);
+  if (kind !== 'utility') throw new Error(`car-designer: '${cls}' is not a military class built yet (${Object.keys(MILITARY_CLASSES).join(', ')})`);
+  const { faces, anchors } = utility(cls), byId = new Map(anchors.map((a) => [a.id, a]));
+  const rnd = mulberry32((seed * 2654435761 + 31) >>> 0), v = VEHICLES[cls];
+  const fittings = [];
+  for (const [id, card, opts = {}] of KITS[kind]) {
+    const { maybe, ...words } = opts, roll = rnd();
+    if (maybe !== undefined && roll >= maybe) continue;
+    const ctx = { r: r ?? v.wheelRadius, tyreW: tyreW ?? 0.3, paint: C.olive, seed, ...words };
+    if (card === 'jerryCans') ctx.tones = [CAN_TONES[Math.floor(rnd() * CAN_TONES.length)]];
+    if (card === 'antenna') ctx.whip = 1.3 + 0.4 * rnd();
+    fittings.push(...fit(byId.get(id), card, ctx).map((f) => ({ ...f, fitting: card })));
+  }
+  return { hull: flatNormals(faces), fittings: flatNormals(fittings), anchors };
 }

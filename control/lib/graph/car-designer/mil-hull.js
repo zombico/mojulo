@@ -19,6 +19,7 @@
  *   bolts(points, n, { r?, h?, look })                      → faces
  *   weld(a, b, n, { w?, h?, step?, look })                  → faces
  *   flatNormals(faces)                                      → each face without corner normals given its own
+ *   place(faces, { origin, ex, ey, ez })                    → faces built in a local frame, in vehicle space
  *
  * A look is { part, material, albedo } or a function (role: 'face' | 'edge' | 'cap') → a look (null: left off).
  * axis 'x': the profile is [y, z], extruded across; 'y': [x, z], extruded along; 'z': [x, y] (a plan), extruded up.
@@ -216,4 +217,12 @@ export function weld(a, b, n, { w = 0.014, h = 0.006, step = 0.035, look } = {})
     }
   }
   return out;
+}
+
+/** Faces built in a local frame carried into vehicle space: a corner [x, y, z] to origin + x·ex + y·ey + z·ez, its
+ *  normals turned by the same basis (orthonormal and right-handed, so a face keeps its winding). */
+export function place(faces, { origin, ex, ey, ez }) {
+  const at = (p) => P6([origin[0] + p[0] * ex[0] + p[1] * ey[0] + p[2] * ez[0], origin[1] + p[0] * ex[1] + p[1] * ey[1] + p[2] * ez[1], origin[2] + p[0] * ex[2] + p[1] * ey[2] + p[2] * ez[2]]);
+  const turn = (n) => unit([n[0] * ex[0] + n[1] * ey[0] + n[2] * ez[0], n[0] * ex[1] + n[1] * ey[1] + n[2] * ez[1], n[0] * ex[2] + n[1] * ey[2] + n[2] * ez[2]]).map(r6);
+  return faces.map((f) => ({ ...f, corners: f.corners.map(at), outNormal: turn(f.outNormal), ...(f.cornerNormals ? { cornerNormals: f.cornerNormals.map(turn) } : {}) }));
 }

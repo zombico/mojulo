@@ -38,6 +38,32 @@ render, from a kit of those solids, at their classes' true numbers.
   - **Wheels:** the lathed road wheel on the heavy dish.
   - **Materials:** the field's own slots (`MIL_MATERIALS`): matte paint with no clearcoat, canvas, bare steel, weld, and
     the frame's dark steel.
+- **The field's wheel** (`car-designer/mil-wheel.js` `milWheel`):
+  - **The tyre:** a cross-country tyre. Its carcass is lathed and sits a lug's depth under the tread. Its tread lugs
+    are geometry: chevron blocks proud of the crown, two rows offset half a pitch and angled opposite, running out over
+    the shoulder.
+  - **The rim:** a split steel rim in the vehicle's paint. A flange and its ring, a pressed dish, the beadlock bolts
+    round it, the wheel nuts, and the tyre-inflation hub's cap and valve.
+  - **Any axis:** it faces along the axis asked, so the same wheel is a spare on a panel or lying on a bonnet
+    (`mil-hull.js` `place`).
+- **The fittings as cards** (`car-designer/mil-fittings.js`). A card builds in the frame of an anchor a body declares
+  (its point, its outward normal, its up), and refuses an anchor of a kind it does not fit. A new fitting is a card.
+  - **What it carries:** the spare on its carrier; jerry cans (each with its pressed X, three handles and a spout) in a
+    rack with its tray, posts, strap and buckle; a shovel and an axe in their clips; a saddle fuel tank, strapped on its
+    cradle, its filler capped.
+  - **On its ends:** a D-ring through its tab, painted red; the pintle hook on its block, its latch red.
+  - **On its sides:** a whip antenna on a sprung base; grab bars; a holed tread step; mud flaps on their bars; a round
+    mirror on its arm; a rolled tarp, strapped.
+- **The 4x4's kit** (`road-military.js` `KITS`):
+  - **On the hull:** the spare on the bonnet, a can racked each side of the rear panel, the shovel and axe along the
+    left flank, the whip at the right rear, grab bars beside the doorways, the steps under them.
+  - **On the ends and underneath:** red D-rings on the front bumper, the pintle behind, mud flaps behind the rear
+    wheels, a saddle tank under the right doorway.
+  - **At the top:** a mirror on the screen post, and a rolled tarp on the rear panel, which most carry.
+  - **The seed's dice:** a can's tone (olive or sand), the whip's length, and whether it carries the tarp.
+  - **The census:** it measures the hull against the class, since the fittings hang off it as a mirror does a car. The
+    rear panel stands short of the tail, so the cans and the pintle hang inside the class's length.
+  - **The budget:** about 21.6k triangles with its kit and its four lugged wheels and the spare.
 - **Composed:**
   - The class's realistic build is live: a quick game's `ride: 'a jeep'` drives it, `mint_solid({ kind: 'vehicle',
     spec: { vehicle: 'jeep' } })` shows it on the studio grid, and a world draws it in the form render or baked.
@@ -47,6 +73,10 @@ render, from a kit of those solids, at their classes' true numbers.
     - a plate flat to its edge and round at it, its area the rounded box's;
     - a round shrunk to fit;
     - a tube's normals, a bolt's flats, a weld's ripple;
+    - the wheel's lugs proud of the crown (two rows, five faces a block), its rim's materials, its face along the axis
+      asked;
+    - each fitting card built outward of an anchor it fits, and refusing one it does not;
+    - a body's kit on the anchors it declares, its dice choosing among it;
     - the compile true to its class, every face a material the figure carries with unit normals, within its budget
       (25k triangles), the same twice, and the baked figure the same rig;
     - the word, the build, the ride, and a waiting class refused with what it needs.
@@ -55,13 +85,13 @@ render, from a kit of those solids, at their classes' true numbers.
   - The quick game end to end (`design-game.quick.test.js`, e2e): `ride: 'a jeep'` written as its row, its level's
     figure the 4x4's in the field's materials.
 - **Seen** (machine gate only; the eyes gate is open):
-  - The 4x4 in a review sheet: the three-quarter, the side, the rear quarter, from above and from the front.
+  - The 4x4 in a review sheet: the three-quarter, the side, the rear quarter, from above and from the front. With its
+    kit, the spare on the bonnet, the racked cans, the red D-rings, the tools along the flank, the whip and the lugged
+    tyres all read.
   - In the page's own light, with shadows. The page's moving-actor shadows lay stripes of self-shadow on the flat plates
     that face away from the sun. They are the page's shadow channel's, shared by every world, and are left for the light
     phase.
 - **Not built yet, said:**
-  - The military wheel and the fittings (spare wheels, jerry cans, fuel tanks, handles, tow shackles, antennas,
-    stowage).
   - Camo by the setting.
   - Wear and grime.
   - The light of the setting.
