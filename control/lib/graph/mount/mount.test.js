@@ -12,6 +12,7 @@ import { jumpClip } from './jump.js';
 import { oneShot } from './motion.js';
 import { MOUNT_BONES } from './pose.js';
 import { GAITS } from './reference.js';
+import { skinContext, implicitSkin, DRIVERS, jointAngle, bendJoint, correctiveKeys, correctiveWeights, applyCorrectives, fitCorrectives } from './correctives.js';
 
 // The mount's machine gate, one case per procedure: a gait always on the ground (the walk: the girdles' swaying vault),
 // a gait with a lead and one suspension (the canter: the constant vault, a flight at g), and the stylized register (the
@@ -229,5 +230,66 @@ describe('the hair', () => {
     const c = hairCards(g, strands);
     expect(c.quads.length).toBe(g.reduce((s, x) => s + x.cards.length * (x.n - 1), 0));
     expect(c.twoSided.every(Boolean)).toBe(true);
+  });
+});
+
+// the folds: the posed field (the masses carried, re-blended), a span (a muscle between two bones), a joint bent alone,
+// the keys' weights and their bind space; one driver, a small skin (how much nearer the oracle the keys bring it, over
+// the clips' poses, is mount.deep.test.js's)
+describe('the folds', () => {
+  const B = resolveMount('horse'), m = bodyMesh(B, { cells: 36 }), ctx = skinContext(B, m), F = ctx.F;
+  const elbow = DRIVERS.find((d) => d.id === 'elbowR');
+
+  it('the posed field at the stand is the field; a span keeps its volume as it stretches', () => {
+    const at = F.posed(ctx.rest, ctx.rest);
+    for (const v of m.vertices.slice(0, 300)) expect(Math.abs(at(v) - F.field(v))).toBeLessThan(1e-12);
+    // the triceps, the scapula to the elbow's point: the elbow bent one way it stretches and thins, the other it shortens and bulges, its volume kept
+    const q = F.prims.find((p) => p.span?.[0] === 'scapulaR' && p.span[1] === 'radiusR');
+    expect(q).toBeTruthy();
+    const spanAt = (a) => F.posed(ctx.rest, bendJoint(ctx.rest, elbow, a)).spans[F.prims.indexOf(q)];
+    const long = spanAt(0.4), short = spanAt(-0.4), e = short;
+    expect(long.r[0]).toBeGreaterThan(q.r[0] * 1.02); expect(long.r[1]).toBeLessThan(q.r[1]);       // stretched: thinner
+    expect(short.r[0]).toBeLessThan(q.r[0] * 0.98); expect(short.r[1]).toBeGreaterThan(q.r[1]);     // shortened: it bulges
+    for (const s2 of [long, short]) expect(s2.r[0] * s2.r[1] * s2.r[2]).toBeCloseTo(q.r[0] * q.r[1] * q.r[2], 12);
+    // its poles each where its own bone carried them
+    const lo = q.c.map((x, i) => x - q.ax[0][i] * q.r[0]), loP = e.c.map((x, i) => x - e.ax[0][i] * e.r[0]);
+    expect(Math.hypot(...lo.map((x, i) => x - loP[i]))).toBeLessThan(1e-12);   // the scapula did not move
+  });
+
+  it('a joint bent alone: its angle is the bend, only its subtree moves', () => {
+    for (const a of [-0.6, 0.3, 1.1]) {
+      const pose = bendJoint(ctx.rest, elbow, a);
+      expect(Math.abs(jointAngle(ctx.rest, pose, elbow) - a)).toBeLessThan(1e-9);
+      expect(pose.humerusR).toBe(ctx.rest.humerusR);
+      expect(pose.radiusR).not.toBe(ctx.rest.radiusR);
+      expect(Math.hypot(...pose.radiusR.h.map((x, i) => x - ctx.rest.radiusR.h[i]))).toBeLessThan(1e-12);   // about its own head
+      expect(Math.abs(jointAngle(ctx.rest, pose, DRIVERS.find((d) => d.id === 'shoulderR')))).toBeLessThan(1e-12);
+    }
+  });
+
+  it('the oracle at the stand is the stand', () => {
+    const x = implicitSkin(ctx, ctx.rest, m.vertices);
+    expect(Math.max(...x.map((p, i) => Math.hypot(p[0] - m.vertices[i][0], p[1] - m.vertices[i][1], p[2] - m.vertices[i][2])))).toBeLessThan(2e-3);
+  });
+
+  it('a key: in bind space (added before skinning it lands the oracle\'s correction), weighted piecewise in its angle', () => {
+    const corpus = [bendJoint(ctx.rest, elbow, 1.2), bendJoint(ctx.rest, elbow, -0.3)];
+    const set = correctiveKeys(ctx, { drivers: [elbow], corpus, fractions: [1] });
+    expect(set.drivers[0].keys.map((k) => k.angle)).toEqual([-0.3, 1.2].map((a) => expect.closeTo(a, 9)));
+    // at a key's angle the key alone at weight one, and LBS with it is the oracle (to its sparsity floor)
+    const pose = corpus[0], w = correctiveWeights(set, ctx.rest, pose);
+    expect(w).toEqual([{ driver: 'elbowR', key: 1, w: expect.closeTo(1, 9) }]);
+    const corrected = applyCorrectives(ctx, set, pose), or = implicitSkin(ctx, pose, skinPose(m, ctx.rest, pose), {});
+    const region = new Set(set.drivers[0].keys[1].deltas.map(([i]) => i));
+    let off = 0; for (const i of region) off = Math.max(off, Math.hypot(...corrected[i].map((x, j) => x - or[i][j])));
+    expect(off).toBeLessThan(0.02 * B.scale);
+    // halfway there, half the key; at the stand nothing, and nothing added
+    expect(correctiveWeights(set, ctx.rest, bendJoint(ctx.rest, elbow, 0.6))[0].w).toBeCloseTo(0.5, 9);
+    expect(correctiveWeights(set, ctx.rest, ctx.rest)).toEqual([]);
+    const still = applyCorrectives(ctx, set, ctx.rest), lbs = skinPose(m, ctx.rest, ctx.rest);
+    expect(still).toEqual(lbs);
+    // refit on its own key poses it stays where it was (the poses are what the key was made from)
+    const fit = fitCorrectives(ctx, set, corpus, { lambda: 0.05 });
+    expect(fit.drivers[0].keys[1].deltas.length).toBe(set.drivers[0].keys[1].deltas.length);
   });
 });

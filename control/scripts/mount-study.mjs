@@ -5,7 +5,8 @@
 // places) when `--png`.
 //
 //   node scripts/mount-study.mjs <outDir> [--register realistic|stylized] [--gaits walk,trot,canter,gallop,reinBack]
-//        [--lead right|left] [--view side|front] [--cols 8] [--before] [--shots] [--jump] [--idle] [--body [--cells 80] [--coat bay] [--views side,front] [--big] [--crop head]] [--png]
+//        [--lead right|left] [--view side|front] [--cols 8] [--before] [--shots] [--jump] [--idle] [--body [--cells 80] [--coat bay] [--views side,front] [--big] [--crop head]]
+//        [--correctives [--cells 64]] [--png]
 // `--shots` adds the one-shots' sheet (changes of gait, the halts, the move off); `--jump` the jump's; `--idle` the rest's.
 import path from 'node:path';
 import { mkdirSync, writeFileSync, existsSync } from 'node:fs';
@@ -24,13 +25,14 @@ import { simulateHair, hairCards } from '../lib/graph/mount/hair.js';
 import { restState } from '../lib/graph/mount/idle.js';
 import { oneShot } from '../lib/graph/mount/motion.js';
 import { standPose } from '../lib/graph/mount/gait.js';
+import { skinContext, implicitSkin, correctiveKeys, correctiveCorpus, fitCorrectives, applyCorrectives, correctiveGates } from '../lib/graph/mount/correctives.js';
 
 const args = process.argv.slice(2);
 const flag = (k) => { const i = args.indexOf(`--${k}`); if (i < 0) return false; args.splice(i, 1); return true; };
 const opt = (k, d) => { const i = args.indexOf(`--${k}`); return i >= 0 ? args.splice(i, 2)[1] : d; };
 const register = opt('register', 'realistic'), lead = opt('lead', 'right'), cols = Number(opt('cols', 8)), view = opt('view', 'side');
 const gaits = opt('gaits', 'walk,trot,canter,gallop,reinBack').split(',');
-const before = flag('before'), png = flag('png'), shots = flag('shots'), jumps = flag('jump'), idles = flag('idle'), body = flag('body');
+const before = flag('before'), png = flag('png'), shots = flag('shots'), jumps = flag('jump'), idles = flag('idle'), body = flag('body'), correctives = flag('correctives');
 const cells = Number(opt('cells', 80)), coat = opt('coat', 'bay'), views = opt('views', null), big = flag('big'), crop = opt('crop', null);
 const outDir = args[0] || '.';
 mkdirSync(outDir, { recursive: true });
@@ -162,6 +164,37 @@ if (body) {
   writeFileSync(path.join(outDir, `${bname}.svg`), bodySheet(rows, { title: `the mount's body: the masses from the solved stand (${cells} cells)`, ...(big ? { cellW: 900, cellH: 720 } : {}) }));
   files.push(`${bname}.svg`);
   console.log(`body: ${JSON.stringify(m.stats)}`);
+}
+
+if (correctives) {
+  // the folds: one-joint keys, refit over the clips' even poses, gated on the odd ones; LBS, corrected and the oracle
+  // side by side, whole and cropped to the pose's fold
+  const m = bodyMesh(B, { cells }), ctx = skinContext(B, m), t0 = Date.now();
+  const colors = m.quads.map((q) => { const c = q.map((i) => m.vertices[i]).reduce((a, b) => a.map((x, i) => x + b[i] / 4), [0, 0, 0]); return coatColor(coat, m.parts[q[0]], c, { stand: m.stand }); });
+  const corpus = correctiveCorpus(B, { phases: 16, jumpSamples: 24 }), train = corpus.filter((_, i) => i % 2 === 0), test = corpus.filter((_, i) => i % 2 === 1);
+  const keys = correctiveKeys(ctx, { corpus: corpus.map((c) => c.frames) });
+  const set = fitCorrectives(ctx, keys, train.map((c) => c.frames));
+  const g = correctiveGates(ctx, set, test.map((c) => c.frames));
+  const shapes = set.drivers.reduce((t, d) => t + d.keys.length, 0), nz = set.drivers.reduce((t, d) => t + d.keys.reduce((u, kk) => u + kk.deltas.length, 0), 0);
+  console.log(`correctives: ${set.drivers.length} drivers, ${shapes} shapes, ${nz} vertex deltas (${m.vertices.length} vertices); built in ${((Date.now() - t0) / 1000).toFixed(0)} s`);
+  for (const x of g.checks) console.log(`  ${x.pass ? 'ok  ' : 'FAIL'} ${x.name}: ${x.saw} (want ${x.want})`);
+  console.log(`  worst vertex (reported): ${(g.worst.fit * 100).toFixed(1)} cm (LBS ${(g.worst.lbs * 100).toFixed(1)} cm)`);
+  writeFileSync(path.join(outDir, `mount-correctives-${register}.gates.json`), JSON.stringify({ checks: g.checks, worst: g.worst, shapes, deltas: nz, held: test.map((c, i) => ({ label: c.label, lbs: g.rows[i].lbs, fit: g.rows[i].fit })) }, null, 2));
+  // a crop: the quads whose rest centre lies within r of a joint (the right side's)
+  const sb = m.stand.bones, joint = { armpit: sb.humerusR.tail, shoulder: sb.humerusR.head, stifle: sb.femurR.tail, throat: sb.head.head, hip: sb.femurR.head };
+  const cropQ = (j, r) => m.quads.flatMap((q, qi) => { const c = q.map((i) => m.vertices[i]).reduce((a, b) => a.map((x, i) => x + b[i] / 4), [0, 0, 0]); return Math.hypot(c[0] - j[0], c[1] - j[1], c[2] - j[2]) < r ? [qi] : []; });
+  const pick = (label) => corpus.find((c) => c.label.startsWith(label));
+  const shown = [['gallop, the fore reaching', pick('gallop 0.438'), 'armpit', 'lowQuarter'], ['the jump: the crouch', pick('jump 1.36'), 'armpit', 'lowQuarter'],
+    ['the jump: the tuck', pick('jump 1.93'), 'stifle', 'rearQuarter'], ['the trot', pick('trot 0.250'), 'stifle', 'rearQuarter'], ['grazing', pick('grazing'), 'throat', 'side']].filter((r) => r[1]);
+  const crows = shown.map(([label, c, fold, cview]) => {
+    const lbs = skinPose(m, ctx.rest, c.frames), co = applyCorrectives(ctx, set, c.frames), or = implicitSkin(ctx, c.frames, lbs);
+    const qi = cropQ(joint[fold], 0.32 * B.scale), qs = qi.map((i) => m.quads[i]), cs = qi.map((i) => colors[i]);
+    const whole = (v, cap) => ({ vertices: v, quads: m.quads, colors, view: 'side', caption: cap }), part = (v, cap) => ({ vertices: v, quads: qs, colors: cs, view: cview, ownScale: true, caption: `${cap}: the ${fold} (close)` });
+    return { label, sub: `${c.label}`, cells: [whole(lbs, 'LBS'), whole(co, 'corrected'), part(lbs, 'LBS'), part(co, 'corrected'), part(or, 'the oracle')] };
+  });
+  const cname = `mount-correctives-${register}`;
+  writeFileSync(path.join(outDir, `${cname}.svg`), bodySheet(crows, { title: `the folds: LBS, corrected (${shapes} shapes, refit over the clips), the oracle (the masses carried and re-blended)`, cellW: 400, cellH: 320 }));
+  files.push(`${cname}.svg`);
 }
 
 if (before) {

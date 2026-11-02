@@ -4,7 +4,8 @@
  * colours from a coat card (coats.js). Pure: a string of SVG.
  *
  *   VIEWS   side (its right side, the mount facing right) | front | threeQuarter (front right, from above) | back | top
- *   bodySheet(rows, { title }) where rows = [{ label, sub, cells: [{ vertices, quads, colors, view, ground? }] }]
+ *   bodySheet(rows, { title }) where rows = [{ label, sub, cells: [{ vertices, quads, colors, view, ownScale?, twoSided? }] }]
+ *   (one scale for the sheet, but a cell `ownScale` fits its own extent: a close-up)
  */
 const VIEWS = Object.freeze({
   side: { yaw: 0, pitch: 0 },
@@ -82,14 +83,16 @@ export function bodySheet(rows, { title = '', cellW = 360, cellH = 300 } = {}) {
     const used = new Set(); for (const q of c.quads) for (const k of q) used.add(k);   // the drawn quads' extent (a crop's)
     for (const k of used) { const v = c.vertices[k], q = P(v); x0 = Math.min(x0, q[0]); x1 = Math.max(x1, q[0]); y0 = Math.min(y0, q[1]); y1 = Math.max(y1, q[1]); }
     c._fit = { cx: (x0 + x1) / 2, floor: y0 };
-    s = Math.min(s, (cellW - 30) / (x1 - x0), (cellH - 30) / (y1 - y0));
+    const own = Math.min((cellW - 30) / (x1 - x0), (cellH - 30) / (y1 - y0));
+    if (c.ownScale) c._fit.s = own;                                             // a close-up: its own scale
+    else s = Math.min(s, own);
   }
   rows.forEach((r, ri) => {
     const y = 46 + ri * rowH;
     out.push(`<text x="14" y="${y + 14}" font-size="13" font-weight="bold" fill="#212529">${r.label}</text>`);
     if (r.sub) out.push(`<text x="${18 + 7.5 * r.label.length}" y="${y + 14}" font-size="11" fill="#495057">${r.sub}</text>`);
     r.cells.forEach((c, ci) => {
-      out.push(cellSvg(c, 10 + ci * cellW, y + 20, cellW, cellH, { ...c._fit, s }));
+      out.push(cellSvg(c, 10 + ci * cellW, y + 20, cellW, cellH, { s, ...c._fit }));
       if (c.caption) out.push(`<text x="${18 + ci * cellW}" y="${y + 34}" font-size="10" fill="#868e96">${c.caption}</text>`);
     });
   });

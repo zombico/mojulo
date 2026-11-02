@@ -9,6 +9,8 @@ import { standPose } from './gait.js';
 import { GAITS } from './reference.js';
 import { REGISTERS } from './cards.js';
 import { simulateHair } from './hair.js';
+import { bodyMesh } from './body.js';
+import { skinContext, correctiveKeys, correctiveCorpus, fitCorrectives, correctiveGates } from './correctives.js';
 
 // The deep sweep: every gait at both ends of its speed band, on both leads where it has one, in every register, held to
 // the machine gate (the joint ranges are the preferred speed's, so they are checked in mount.test.js, not here).
@@ -80,4 +82,16 @@ describe('the mount\'s hair', () => {
       expect(Math.max(...a.flatMap((s, gi) => s.map((p, i) => Math.hypot(p[0] - b[gi][i][0], p[1] - b[gi][i][1], p[2] - b[gi][i][2]))))).toBeLessThan(1e-9);
     });
   }
+});
+
+// the folds: the one-joint keys refit over the clips' poses (every other one), held to the machine gate on the poses the
+// fit never saw: nearer the oracle than LBS (median and worst), the volume no worse, an absent corrective adding nothing
+describe('the mount\'s folds', () => {
+  it('the correctives on held-out poses', () => {
+    const B = resolveMount('horse'), ctx = skinContext(B, bodyMesh(B, { cells: 40 }));
+    const corpus = correctiveCorpus(B, { phases: 8, jumpSamples: 12 }), train = corpus.filter((_, i) => i % 2 === 0), test = corpus.filter((_, i) => i % 2 === 1);
+    const set = fitCorrectives(ctx, correctiveKeys(ctx, { corpus: corpus.map((c) => c.frames) }), train.map((c) => c.frames));
+    const g = correctiveGates(ctx, set, test.map((c) => c.frames));
+    expect(g.checks.filter((c) => !c.pass).map((c) => `${c.name}: ${c.saw}`)).toEqual([]);
+  }, 600000);
 });

@@ -122,11 +122,11 @@ export function bodyPrims(B, { hair = true } = {}) {
     const side = s > 0 ? 'R' : 'L';
     put(egg(W([T.lumbosacral[0] - 0.06, T.lumbosacral[1] - 0.03 * k], s * 0.22 * k), Y, X, [0.08 * k, 0.07 * k, 0.07 * k], trunk('spine0')));   // the point of the hip
     put(egg(W([T.hip[0] - 0.05, T.hip[1] - 0.10 * k], s * 0.14 * k), Y, X, [0.27 * k, 0.12 * k, 0.28 * k], trunk('spine0')));   // the quarters
-    put(eggAlong(W(T.buttock, s * 0.10 * k), W([T.buttock[0] + 0.14 * k, T.buttock[1] - 0.40 * k], s * 0.12 * k), 0, 1, 0.10 * k, 0.12 * k, X, trunk(`femur${side}`)));   // the buttock
+    put(eggAlong(W(T.buttock, s * 0.10 * k), W([T.buttock[0] + 0.14 * k, T.buttock[1] - 0.40 * k], s * 0.12 * k), 0, 1, 0.10 * k, 0.12 * k, X, { ...trunk(`femur${side}`), span: ['spine0', `tibia${side}`] }));   // the buttock: the hamstrings, the pelvis to the gaskin
     // THE FOREHAND: the scapula's muscles over the blade, the triceps in the angle behind the shoulder, the elbow's point
     const sc = bn[`scapula${side}`], hu = bn[`humerus${side}`];
     put(eggAlong(sc.head, sc.tail, 0, 1, 0.06 * k, 0.14 * k, X, trunk(`scapula${side}`), [s * 0.02 * k, 0, 0]));
-    put(eggAlong(hu.head, hu.tail, -0.15, 1.0, 0.11 * k, 0.15 * k, X, trunk(`humerus${side}`), [s * 0.01 * k, -0.07 * k, 0.02 * k]));
+    put(eggAlong(hu.head, hu.tail, -0.15, 1.0, 0.11 * k, 0.15 * k, X, { ...trunk(`humerus${side}`), span: [`scapula${side}`, `radius${side}`] }, [s * 0.01 * k, -0.07 * k, 0.02 * k]));   // the triceps: the blade to the elbow's point
     put(egg(add(hu.tail, [0, -0.06 * k, 0.02 * k]), Z, X, [0.06 * k, 0.05 * k, 0.05 * k], trunk(`humerus${side}`)));
     // THE THIGH and the stifle, part of the hindquarters' mass
     const fe = bn[`femur${side}`];
@@ -140,14 +140,17 @@ export function bodyPrims(B, { hair = true } = {}) {
   const { crestAt, crestUp } = neckCrest(B, S);
   // (the throatlatch: a narrow waist under and behind the poll, BEHIND the jaw's rear edge, so the jowl stands clear)
   const under0 = W([T.neck[0][0] + 0.15 * k, T.neck[0][1] - 0.06 * k]), under1 = add(poll, [0, -0.13 * h, -0.16 * h]);
-  const NS = 7, neckBone = (t) => `neck${Math.min(4, Math.floor(t * 5))}`;
+  const NS = 7, neckBone = (t) => `neck${Math.min(4, Math.floor(t * 5))}`, poleBone = (t) => (t < 0 ? 'spine3' : t > 1 ? 'head' : neckBone(t));
   const ctr = (t) => mul(add(crestAt(t), lerp3(under0, under1, t)), 0.5);
   const depth = (t) => len(sub(crestAt(t), lerp3(under0, under1, t))) / 2;
   const width = (t) => (NECK_SHAPE.base + (NECK_SHAPE.throat - NECK_SHAPE.base) * t) * k;
   for (let i = 0; i < NS; i++) {
     const t0 = i / NS, t1 = (i + 1) / NS, tm = (t0 + t1) / 2;
-    put(eggAlong(ctr(t0), ctr(t1), -0.2, i === NS - 1 ? 1.0 : 1.2, width(tm), depth(tm) * 0.98, X, trunk(neckBone(tm))));
-    put(eggAlong(crestAt(t0), crestAt(t1), -0.25, 1.25, 0.035 * k, 0.045 * k, X, trunk(neckBone(tm), 'mane'), mul(crestUp, -0.01 * k)));
+    // (each a span between the bones at its two ends, the base's from the withers: the neck bends along its masses and
+    // its crest stretches over the withers as it drops, where masses each riding one bone would part at the joints)
+    const spanAt = (f0, f1) => ({ span: [poleBone(t0 + (t1 - t0) * f0), poleBone(t0 + (t1 - t0) * f1)] });
+    put(eggAlong(ctr(t0), ctr(t1), -0.2, i === NS - 1 ? 1.0 : 1.2, width(tm), depth(tm) * 0.98, X, { ...trunk(neckBone(tm)), ...spanAt(-0.2, i === NS - 1 ? 1.0 : 1.2) }));
+    put(eggAlong(crestAt(t0), crestAt(t1), -0.25, 1.25, 0.035 * k, 0.045 * k, X, { ...trunk(neckBone(tm), 'mane'), ...spanAt(-0.25, 1.25) }, mul(crestUp, -0.01 * k)));
   }
 
   // THE HEAD: a loft of cross-sections along the head bone (the poll to the muzzle), each between the face's top line
@@ -242,19 +245,50 @@ export function bodyField(B, { register, only } = {}) {
     const far = len(sub(p, q.c)) - q.R;
     return far > 0.25 ? far : primDistance(q, p);
   });
-  const field = (p0) => {
-    const p = Array.isArray(p0) ? p0 : [p0.x, p0.y, p0.z];
-    const ds = distances(p);
+  // the blend of the masses' distances (at a point p, the nostrils cut at pn: the same point at the stand, the head's
+  // rest-frame point in a pose)
+  const compose = (ds, pn) => {
     const bySet = (set, kk) => softMin(prims.flatMap((q, i) => (q.set === set ? [ds[i]] : [])), kk);
     const legs = sets.filter((s2) => /^[RL][FH]$/.test(s2)).map((s2) => bySet(s2, kL));
     const groups = [bySet('trunk', kT), bySet('head', kH), ...legs].filter((x) => Number.isFinite(x));
     let d = groups.length ? softMin(groups, kJ) : Infinity;
     const det = prims.flatMap((q, i) => (q.set === 'detail' ? [ds[i]] : []));
     if (det.length) d = softMin([d, ...det].filter((x) => Number.isFinite(x)), kD);
-    for (const n of nostrils) d = smax(d, -sdEgg(p, n), 0.005 * k);
+    for (const n of nostrils) d = smax(d, -sdEgg(pn, n), 0.005 * k);
     return d;
   };
-  return { field, prims, distances, stand, blend: { kT, kH, kL, kJ, kD } };
+  const field = (p0) => {
+    const p = Array.isArray(p0) ? p0 : [p0.x, p0.y, p0.z];
+    return compose(distances(p), p);
+  };
+  // THE POSED FIELD: every mass carried rigidly by its bone from the stand (`rest`, boneFrames) into a pose (`pose`):
+  // its distance at p is its distance at the stand from p taken back into its bone's rest frame; blended as at the
+  // stand, so where a fold brings masses together the blend unions them and where it parts them the blend spans the gap
+  const posed = (rest, pose) => {
+    const back = {};
+    for (const id of Object.keys(rest)) {
+      const r = rest[id], f = pose[id];
+      if (!f) continue;
+      back[id] = (x) => { const q = sub(x, f.h), l = [dot(q, f.R[0]), dot(q, f.R[1]), dot(q, f.R[2])]; return add(add(add(mul(r.R[0], l[0]), mul(r.R[1], l[1])), mul(r.R[2], l[2])), r.h); };
+    }
+    const id3 = (x) => x, carry = prims.map((q) => back[q.bone] ?? id3);
+    const fwd = (id, x) => { const r = rest[id], f = pose[id]; if (!r || !f) return x; const q = sub(x, r.h), l = [dot(q, r.R[0]), dot(q, r.R[1]), dot(q, r.R[2])]; return add(add(add(mul(f.R[0], l[0]), mul(f.R[1], l[1])), mul(f.R[2], l[2])), f.h); };
+    const turnOf = (id, v) => { const r = rest[id], f = pose[id]; if (!r || !f) return v; const l = [dot(v, r.R[0]), dot(v, r.R[1]), dot(v, r.R[2])]; return add(add(mul(f.R[0], l[0]), mul(f.R[1], l[1])), mul(f.R[2], l[2])); };
+    // a SPAN (a muscle from its origin on one bone to its insertion on another): its poles carried each by its own bone,
+    // the egg rebuilt between them, its girth changed as its length is (its volume kept: it thins as it stretches)
+    const spans = prims.map((q) => {
+      if (!q.span) return null;
+      const u = q.ax[0], r0 = q.r[0], a = fwd(q.span[0], sub(q.c, mul(u, r0))), b = fwd(q.span[1], add(q.c, mul(u, r0)));
+      const u2 = unit(sub(b, a)), L = len(sub(b, a)) / 2, g = Math.sqrt(r0 / L), v0 = turnOf(q.span[0], q.ax[1]), v2 = unit(sub(v0, mul(u2, dot(v0, u2))));
+      return { kind: 'egg', c: lerp3(a, b, 0.5), ax: [u2, v2, cross(u2, v2)], r: [L, q.r[1] * g, q.r[2] * g] };
+    });
+    const centres = prims.map((q, i) => spans[i]?.c ?? fwd(q.bone, q.c)), nose = back.head ?? id3;
+    const dsAt = (p) => prims.map((q, i) => { const far = len(sub(p, centres[i])) - q.R * (spans[i] ? Math.max(1, spans[i].r[0] / q.r[0]) : 1); return far > 0.25 ? far : spans[i] ? sdEgg(p, spans[i]) : primDistance(q, carry[i](p)); });
+    const fn = (p0) => { const p = Array.isArray(p0) ? p0 : [p0.x, p0.y, p0.z]; return compose(dsAt(p), nose(p)); };
+    fn.spans = spans;                                                             // (the spans as rebuilt in the pose)
+    return fn;
+  };
+  return { field, posed, prims, distances, stand, blend: { kT, kH, kL, kJ, kD } };
 }
 
 /** the body's bounds: the stand's extent, padded */
@@ -298,12 +332,18 @@ export function bodyMesh(B, { cells = 96, register } = {}) {
     const own = sideOf(F.prims[best].bone) ?? (Math.abs(v[0]) < 0.06 * B.scale ? null : v[0] > 0 ? 'R' : 'L');
     const byBone = new Map();
     ds.forEach((d, i) => {
-      const bone = F.prims[i].bone, sd = sideOf(bone);
-      if (sd && sd !== own) return;                                                 // never the other side's limbs
-      const g = gate(v, bone);                                                      // nor a limb bone out of its reach
-      if (g <= 0) return;
-      const w = Math.exp(-(d - m) / kw) * g;
-      if (w > 1e-4) byBone.set(bone, (byBone.get(bone) || 0) + w);
+      const q = F.prims[i], w0 = Math.exp(-(d - m) / kw);
+      // a span's share split along it: its origin's bone at one pole, its insertion's at the other (smoothly between)
+      let shares = [[q.bone, 1]];
+      if (q.span) { const t = Math.min(1, Math.max(0, (dot(sub(v, q.c), q.ax[0]) / q.r[0] + 1) / 2)), sm = t * t * (3 - 2 * t); shares = [[q.span[0], 1 - sm], [q.span[1], sm]]; }
+      for (const [bone, sh] of shares) {
+        const sd = sideOf(bone);
+        if (sd && sd !== own) continue;                                             // never the other side's limbs
+        const g = gate(v, bone);                                                    // nor a limb bone out of its reach
+        if (g <= 0) continue;
+        const w = w0 * sh * g;
+        if (w > 1e-4) byBone.set(bone, (byBone.get(bone) || 0) + w);
+      }
     });
     if (!byBone.size) byBone.set(F.prims[best].bone, 1);
     raw.push(byBone); owns.push(own);

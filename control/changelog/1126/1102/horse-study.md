@@ -38,8 +38,7 @@ rather than over it (the fauna horse's rows stay byte-identical). Solo; the sadd
   side's limbs, a limb bone only within its reach, smoothed over the folds), skinned by linear blend into any frame of
   the cycles, the one-shots, the jump and the rest. Coats as cards (bay, chestnut, black, grey, palomino, buckskin)
   with markings as rules (star, blaze, snip, sock, stocking). The skin keeps its volume within a few percent in the
-  gaits; the folds (the armpit, the stifle, the throat) stretch most, and the jump's landing creases the quarters: the
-  correctives are the next step.
+  gaits; the folds (the armpit, the stifle, the throat) stretch most, and the jump's landing creases the quarters.
 - **The head and neck** (`mount/body.js`): the head lofted from a profile of stations from poll to lip (the forehead's
   flat, the dished or straight face, the nasal bone, the muzzle's lift and the chin), the jowls deep and round under the
   cheek, the throatlatch clean between them and the neck; the neck set on the withers by its crest's arch and its
@@ -51,10 +50,21 @@ rather than over it (the fauna horse's rows stay byte-identical). Solo; the sadd
   gait's loop runs warm periods and closes exactly (the residual drawn back through the period and every segment's
   length re-imposed); a one-shot settles at its first frame. Each guide becomes a two-sided ribbon of cards in the coat's
   mane colour: the mane falls in locks on the off side, the forelock down the face, the tail streams in the gallop.
+- **The folds** (`mount/correctives.js`): the skin where joints bend far (the armpit, the stifle, the throat, the
+  neck's base). The truth is the body's own masses carried by their bones into the pose and re-blended (implicit
+  skinning: the linear-blend skin drawn onto that field and relaxed in its tangent plane); muscles that cross a joint
+  (the hamstrings, the triceps, the neck's segments and its crest over the withers) are SPANS, rebuilt between their
+  origin's bone and their insertion's with their volume kept, thinning as they stretch and bulging as they shorten.
+  What ships is corrective shapes an engine plays as morph targets: sixteen drivers (per side the withers, shoulder,
+  elbow, knee, hip, stifle, hock; the neck's base and the poll), keys at the angles the clips reach each way, made one
+  joint at a time and then refit together over the clips' poses, stored in bind space, weighted piecewise by the joint's
+  angle. On poses the fit never saw the corrected skin stands a quarter as far from the truth as linear blend at the
+  folds, its volume no worse; with no correctives the skin is linear blend exactly. `--correctives` on the study sheet
+  shows linear blend, corrected and the truth side by side, close up at each fold.
 - **The machine gate** (`mount/gates.js`): footfalls and duty, suspensions, slip, ground, the flight at g, the joints'
   ranges, reach, pops, rigid bones, brushing, the seams of a one-shot, the rail's clearance, a layer's loop. Every
   gait at both band ends, both leads, both registers; every one-shot; every realistic jump; every idle layer pass it.
   The stylized register's jump is a recorded gap (a centimetre or two short at the rail and the ground).
 - **The eyes gate's contact sheets**: `node scripts/mount-study.mjs <dir> [--register stylized] [--view front]
-  [--shots] [--jump] [--idle] [--body [--cells 96] [--coat bay] [--views side,front] [--big] [--crop head]] [--before] [--png]`, to
+  [--shots] [--jump] [--idle] [--body [--cells 96] [--coat bay] [--views side,front] [--big] [--crop head]] [--correctives] [--before] [--png]`, to
   lay beside Muybridge's plates; `--body` draws the shaded body from every view, in every coat, skinned in poses, with its mane and tail.
