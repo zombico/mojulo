@@ -112,9 +112,93 @@ export function xrFromParam(param, own) {
   return Object.keys(base).length ? base : (own || true);
 }
 
+// THE HANDS (`hands`: the pilot's figure carries `xrHands`, polygonizer/hero-xr-hands.js): the hero's own hand and digit
+// bones, their meshes shared with the body's (no new geometry rides the page), drawn on each controller's grip pose: the
+// rest hand carried into the grip space by the bake's grip frame (its centre at the grip's origin, its axes the grip's)
+// and the body's scale, the digits posed from their curl tables as the page poses any rig bone (head' + q·(v − restHead),
+// nlerp between samples). The controller curls them: the index relaxed → open as the grip closes (a point), then → fist by
+// the trigger; the middle, ring and little fingers relaxed → fist by the grip; the thumb to the fist while it rests on a
+// thumb button (touched or pressed), eased. A hand with no grip pose this frame is hidden.
+const HANDS = `// --- the hero's hands on the controllers ---
+const __xrHands = { R: null, L: null }, __xrHONE = new THREE.Vector3(1, 1, 1);
+const __xrHQ = new THREE.Quaternion(), __xrHV = new THREE.Vector3(), __xrHW = new THREE.Vector3();
+let __xrHandsOf = null;
+function __xrHandsDrop(){
+  for (const S of ['R', 'L']) { const h = __xrHands[S]; if (h && h.g.parent) h.g.parent.remove(h.g); __xrHands[S] = null; }
+  __xrHandsOf = null;
+}
+function __xrHandsMake(e){
+  __xrHandsDrop(); __xrHandsOf = e.id;
+  const body = __bodies[e.id], rf = body && body.userData && body.userData.rigFig, X = rf && rf.fig && rf.fig.xrHands;
+  if (!X) return;
+  const k = body.scale && body.scale.x ? body.scale.x : 1;
+  for (const S of ['R', 'L']) {
+    const H = X[S]; if (!H) continue;
+    const g = new THREE.Group(); g.matrixAutoUpdate = false; g.visible = false;
+    const by = {};
+    const add = (id) => {
+      const bi = rf.fig.bones.findIndex((b) => b.id === id), src = bi >= 0 ? rf.boneMeshes[bi] : null;
+      if (!src || !src.geometry) return;
+      const m = new THREE.Mesh(src.geometry, src.material); m.matrixAutoUpdate = false; m.frustumCulled = false; m.raycast = function () {};
+      g.add(m); by[id] = { m, rest: rf.fig.bones[bi].head };
+    };
+    add(H.hand); for (const d in H.digits) for (const id of H.digits[d].bones) add(id);
+    // the rest hand into the grip space: the rows its axes, its centre the origin, scaled as the body is
+    const G = H.grip, o = G.o, row = (a) => [a[0] * k, a[1] * k, a[2] * k, -k * (a[0] * o[0] + a[1] * o[1] + a[2] * o[2])];
+    const x = row(G.x), y = row(G.y), z = row(G.z);
+    const inv = new THREE.Matrix4().set(x[0], x[1], x[2], x[3], y[0], y[1], y[2], y[3], z[0], z[1], z[2], z[3], 0, 0, 0, 1);
+    __xrRig.add(g);
+    __xrHands[S] = { g, by, H, inv, thumb: H.poses.relaxed.thumb };
+  }
+}
+// a digit at an angle (degrees): its bones from the curl table, a clip's frame-pair nlerp
+function __xrDigit(h, d, a){
+  const D = h.H.digits[d]; if (!D) return;
+  const n = D.bones.length, B = D.b, f = Math.min(1, Math.max(0, (a - D.lo) / (D.hi - D.lo))) * (D.k - 1), i0 = Math.min(D.k - 2, Math.floor(f)), t = f - i0;
+  for (let j = 0; j < n; j++) {
+    const b = h.by[D.bones[j]]; if (!b) continue;
+    const o0 = (i0 * n + j) * 7, o1 = ((i0 + 1) * n + j) * 7;
+    const s = (B[o0] * B[o1] + B[o0 + 1] * B[o1 + 1] + B[o0 + 2] * B[o1 + 2] + B[o0 + 3] * B[o1 + 3]) < 0 ? -1 : 1;
+    __xrHQ.set(B[o0] + (s * B[o1] - B[o0]) * t, B[o0 + 1] + (s * B[o1 + 1] - B[o0 + 1]) * t, B[o0 + 2] + (s * B[o1 + 2] - B[o0 + 2]) * t, B[o0 + 3] + (s * B[o1 + 3] - B[o0 + 3]) * t).normalize();
+    __xrHW.set(b.rest[0], b.rest[1], b.rest[2]).applyQuaternion(__xrHQ);
+    __xrHV.set(B[o0 + 4] + (B[o1 + 4] - B[o0 + 4]) * t - __xrHW.x, B[o0 + 5] + (B[o1 + 5] - B[o0 + 5]) * t - __xrHW.y, B[o0 + 6] + (B[o1 + 6] - B[o0 + 6]) * t - __xrHW.z);
+    b.m.matrix.compose(__xrHV, __xrHQ, __xrHONE); b.m.matrixWorldNeedsUpdate = true;
+  }
+}
+// a thumb at rest on a thumb button (the stick, A / X, B / Y): touched or pressed
+function __xrThumbDown(src, side){
+  const X = __XRD.xr.buttons;
+  for (const q of src) {
+    if (!q || q.handedness !== side || !q.gamepad) continue;
+    const bs = q.gamepad.buttons || [];
+    for (const i of [X.thumbstick, X.primary, X.secondary]) if (bs[i] && (bs[i].touched || bs[i].pressed)) return true;
+  }
+  return false;
+}
+function __xrHandsStep(dt){
+  const s = renderer.xr.getSession(), src = s ? s.inputSources : [], f = renderer.xr.getFrame && renderer.xr.getFrame(), ref = renderer.xr.getReferenceSpace();
+  const P = __XRV.xrPoses(f, ref, src), ra = __XRV.xrRead(src, __XRD, true);
+  for (const S of ['R', 'L']) {
+    const h = __xrHands[S]; if (!h) continue;
+    const side = S === 'R' ? 'right' : 'left', gp = P[side].grip;
+    if (!gp) { h.g.visible = false; continue; }
+    h.g.visible = true;
+    __xrHV.set(gp.p[0], gp.p[1], gp.p[2]); __xrHQ.set(gp.q[0], gp.q[1], gp.q[2], gp.q[3]);
+    h.g.matrix.compose(__xrHV, __xrHQ, __xrHONE).multiply(h.inv); h.g.matrixWorldNeedsUpdate = true;
+    const tr = ra(side + '.trigger'), sq = ra(side + '.squeeze'), W = h.H.poses, rl = W.relaxed, op = W.open, fi = W.fist;
+    const ix = rl.index + (op.index - rl.index) * sq;
+    __xrDigit(h, 'index', ix + (fi.index - ix) * tr);
+    for (const d of ['middle', 'ring', 'little']) __xrDigit(h, d, rl[d] + (fi[d] - rl[d]) * sq);
+    const want = __xrThumbDown(src, side) ? fi.thumb : rl.thumb;
+    h.thumb += (want - h.thumb) * (1 - Math.exp(-14 * (dt || 0)));
+    __xrDigit(h, 'thumb', h.thumb);
+  }
+}
+`;
+
 // the game in the headset (`ctrl`): the controllable channel declares `__xrCtl` (null: the page reads its own pad and
 // drives its own camera) and reads it in its input read, its camera drive and its body sync (controllable/index.js `xr`)
-const CTRL = `// --- the game in the headset: the session drives the pilot, the rig stands under it ---
+const ctrlScript = ({ hands = false } = {}) => `// --- the game in the headset: the session drives the pilot, the rig stands under it ---
 let __xrHead0 = null, __xrPad0 = null;
 // the body the headset plays: the world's pilot, else the camera's target
 function __xrPilot(){
@@ -193,11 +277,13 @@ function __xrPlay(dt){
   }
   __xrHead0 = L;
   stepControllable(dt);
-  __xrPlace(e, L);
+  __xrPlace(e, L);${hands ? `
+  if (e.id !== __xrHandsOf) __xrHandsMake(e);
+  __xrHandsStep(dt);` : ''}
 }
-`;
+${hands ? HANDS : ''}`;
 
-export function xrModeScript(cfg, { ctrl = false } = {}) {
+export function xrModeScript(cfg, { ctrl = false, hands = false } = {}) {
   return `
 // --- WebXR immersive-vr (opt-in): the z-up rig carries the y-up XR space through the same scene ---
 const XR = ${safeJson(cfg)};
@@ -291,7 +377,7 @@ function __xrExit(){
   camera.position.copy(__xrSaved.pos); camera.quaternion.copy(__xrSaved.quat);
   controls.enabled = __xrSaved.controls; walkOn = __xrSaved.walkOn; __xrSaved = null;
   __xrBtn.classList.remove('on');${ctrl ? `
-  __xrCtl = null; __xrHead0 = null; __xrPad0 = null;` : ''}
+  __xrCtl = null; __xrHead0 = null; __xrPad0 = null;${hands ? ' __xrHandsDrop();' : ''}` : ''}
 }
 async function __xrEnter(){
   if (__xrOn) { const s = renderer.xr.getSession(); if (s) s.end(); return; }
@@ -350,7 +436,7 @@ ${ctrl ? `  if (__xrCtl) { __xrPlay(dt); return; }   // the game steps the pilot
     if (g != null) __xrRig.position.z = g;
   }
 }
-${ctrl ? CTRL : ''}renderer.xr.enabled = true;
+${ctrl ? ctrlScript({ hands }) : ''}renderer.xr.enabled = true;
 const __xrBtn = document.createElement('button'); __xrBtn.textContent = 'vr'; __xrBtn.hidden = true;
 __xrBtn.onclick = () => { __xrEnter(); };
 hud.appendChild(__xrBtn);

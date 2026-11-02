@@ -13,3 +13,11 @@ held as a gun or VR boxing can be made.
   headset estimates and looks where the head looks, a step in the play space moves the pilot (a wall stops it), the
   view stands where the pilot stands, and the pilot's body is hidden (first person). Any game level's live page takes it
   with `?xr=1`. A page without a pilot walks as before; a page without `xr` is unchanged byte for byte.
+- **The hero's hands on the controllers** (`polygonizer/hero-xr-hands.js`): in the headset the hero's own hands are drawn
+  where the controllers are, each on its grip pose (the hand's grip centre on the grip's origin, through the fist toward
+  the thumb along its −Z, the back of the right hand along its +X, as WebXR defines the grip), its fingers following
+  the controller: the grip closes the middle, ring and little fingers and points the index, the trigger closes the
+  index, and the thumb comes down while it rests on a thumb button. The hands reuse the body's own bone meshes (no new
+  geometry on the page); what rides the hero's figure is a small table per finger, its bones at seven curls, played as
+  the page plays any clip, and it rides only a world a headset plays (its `xr`, or `?xr=` on the live page). A hero
+  with mitten hands, or a page without a headset, is unchanged.

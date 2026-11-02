@@ -149,7 +149,7 @@ export function readSeats(seats, entities, pilot = null) {
   return { bodies: seats.bodies.slice(), max, ...(seats.join ? { join: seats.join } : {}), ...(seats.drop ? { drop: seats.drop } : {}), ...(seats.floor !== undefined ? { floor: seats.floor } : {}), ...(seats.lives !== undefined ? { lives: seats.lives, pool: seats.pool ?? 'own' } : {}) };
 }
 
-export async function heroFigure(name, spec, { swing = null, swings = null } = {}) {
+export async function heroFigure(name, spec, { swing = null, swings = null, hands = false } = {}) {
   let manifest, body;
   // a MODEL made elsewhere (`modelRef`: a sketch a rigged humanoid .glb is bound onto, stood `height` metres): its pack read
   // by scene/rig-import.js, played as a hero's is (worlds/controllable/model-figure.js)
@@ -169,7 +169,8 @@ export async function heroFigure(name, spec, { swing = null, swings = null } = {
   // `swing`: the world's game type (its composed juice's flavor), the timing the hero's swing plays at (hero-swing.js);
   // `swings`: the contact window of a body that strikes with what the hero holds (the held strike: its swing directions)
   if (!body) {
-    const scene = await WORLD_KINDS.layered.resolve(manifest, { title: name, ...(swing ? { swing } : {}), ...(swings ? { swings } : {}) });
+    // `hands`: a world a headset plays: the hero's hands as the headset draws them ride the pack (hero-xr-hands.js)
+    const scene = await WORLD_KINDS.layered.resolve(manifest, { title: name, ...(swing ? { swing } : {}), ...(swings ? { swings } : {}), ...(hands ? { xrHands: true } : {}) });
     body = scene.figures && scene.figures.body;
     if (!body) throw new Error(`figures.${name}: the hero has no rig with clips to play`);
   }
@@ -976,7 +977,8 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
           // class's seconds and damage (any the rule names stand). Nothing held ⇒ the body as it was.
           const wields = (e) => e && e.body && e.body.figure === name && e.rule && e.rule.type === 'platform' && Array.isArray(e.rule.strikeContact) && e.rule.strike == null;
           const wielder = (payload.entities || []).find(wields);
-          const { held, ...figure } = await heroFigure(name, rawSpec, { swing, ...(wielder ? { swings: { contact: wielder.rule.strikeContact } } : {}) });
+          // (a world a headset plays, its own `xr` or the page's `?xr=`: the hero's hands ride its figure, hero-xr-hands.js)
+          const { held, ...figure } = await heroFigure(name, rawSpec, { swing, ...(wielder ? { swings: { contact: wielder.rule.strikeContact } } : {}), ...(sketch.manifest.xr || viewOpts.xr ? { hands: true } : {}) });
           // (a body destroyed in it, `vanish.die` a dismantle or a cleave: each bone's parent rides the figure, the joints the
           // page's wreck cuts: figures/rig-tpose.js humanoidParents, read off the rest bones; a rig not a humanoid's, none)
           // (and one CLEAVED in it: its parts cut in two by a slash, scene/rig-cleave.js, seeded by the figure's name, the

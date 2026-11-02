@@ -4,6 +4,9 @@ import * as THREE from '../../../../public/vendor/three/three.core.min.js';
 import { xrConfig, xrFromParam, xrModeScript } from './xr.js';
 import { composeLive } from '../../worlds/controllable/compose.js';
 import { emitThreeWorld } from '../scene-three.js';
+import { validateRig, rigNodesAt } from '../../polygonizer/station-loft-rig.js';
+import { heroRecord, expandLayeredManifest } from '../../../mcp/tools/layered.js';
+import { xrHands } from '../../polygonizer/hero-xr-hands.js';
 
 // The headset's locomotion, run: the emitted block against the vendored three's math, a fake session whose sticks and
 // head the test moves, so "goes straight" and "turns in place" are measured, not read off the source. The eyes gate
@@ -400,5 +403,120 @@ describe('the game page with a headset', () => {
     const walk = emitThreeWorld({ faces: [floor], xr: true });
     expect(walk).not.toContain('__xrCtl');
     expect(walk).not.toContain('__xrPlay');
+  });
+});
+
+// THE HANDS (P2): the hero's own hand bones on the controllers, played by the emitted block from the real bake (a realistic
+// hero's rig), the body's bone meshes stood in by empty ones (the hands share their geometry, so only their matrices
+// matter). A digit's tip, carried by its mesh's matrix, lands where the rig's own kinematics put it for the angle the
+// controller asks; the grip's centre lands on the grip pose.
+const HR = validateRig(expandLayeredManifest({ kind: 'layered', title: 't', hero: heroRecord({ cast: 'male', form: 'realistic' }) }).recipe.rig);
+const HDZ = 0.04, HX = xrHands(HR, { dz: HDZ });
+function handsUp() {
+  const pad = () => ({ axes: [0, 0, 0, 0], buttons: Array.from({ length: 6 }, () => ({ pressed: false, touched: false, value: 0 })) });
+  const pads = { left: pad(), right: pad() };
+  const session = { inputSources: [{ handedness: 'left', gamepad: pads.left, gripSpace: 'grip:left' }, { handedness: 'right', gamepad: pads.right, gripSpace: 'grip:right' }], addEventListener() {}, end() {} };
+  const grips = {
+    right: { p: [0.25, 1.1, -0.35], q: new THREE.Quaternion().setFromEuler(new THREE.Euler(-0.6, 0.3, 0.2, 'YXZ')) },
+    left: { p: [-0.25, 1.05, -0.3], q: new THREE.Quaternion().setFromEuler(new THREE.Euler(-0.4, -0.2, -0.1, 'YXZ')) },
+  };
+  const tf = (g) => ({ transform: { position: { x: g.p[0], y: g.p[1], z: g.p[2] }, orientation: { x: g.q.x, y: g.q.y, z: g.q.z, w: g.q.w } } });
+  const frame = {
+    getViewerPose: () => ({ transform: { position: { x: 0, y: 1.6, z: 0 }, orientation: { x: 0, y: 0, z: 0, w: 1 } } }),
+    getPose: (sp) => { const g = grips[String(sp).slice(5)]; return g ? tf(g) : null; },
+  };
+  const renderer = { xr: { enabled: false, getSession: () => session, getFrame: () => frame, getReferenceSpace: () => ({}), setReferenceSpaceType() {}, async setSession() {} } };
+  const world = K.createWorld({ entities: [hero()] });
+  const bones = HR.bones.map((b) => ({ id: b.id, head: HR.joints[b.head].map((v, i) => (i === 2 ? v + HDZ : v)) }));
+  const boneMeshes = bones.map(() => new THREE.Mesh(new THREE.BufferGeometry(), new THREE.MeshBasicMaterial()));
+  const bodyGroup = new THREE.Group(); bodyGroup.userData.rigFig = { fig: { bones, xrHands: HX }, boneMeshes };
+  const env = {
+    THREE, renderer, camera: new THREE.PerspectiveCamera(), scene: new THREE.Scene(), controls: { enabled: true }, hud: { appendChild() {} },
+    document: { createElement: () => ({ classList: { add() {}, remove() {} }, hidden: false }), pointerLockElement: null },
+    navigator: { xr: { requestSession: async () => session, isSessionSupported: () => Promise.resolve(true) } },
+    __world: world, __K: K, __FLAT: FLAT, __bodies: { hero: bodyGroup },
+  };
+  const body = `let walkOn = false, __xrCtl = null, stepControllable = () => {};
+${xrModeScript(xrConfig(true, null, { ctrl: true }), { ctrl: true, hands: true })}
+stepControllable = (dt) => { __K.stepWorld(__world, __xrCtl ? __xrCtl.input({ forward: 0, turn: 0, strafe: 0, lookDX: 0, lookDY: 0 }) : {}, dt, __FLAT); };
+return { enter: __xrEnter, step: __xrStep, rig: () => __xrRig, hands: () => __xrHands, end: __xrExit };`;
+  const page = new Function(...Object.keys(env), body)(...Object.values(env));
+  return { pads, grips, page, bones };
+}
+// a rest point of the pack carried by a hand mesh's matrix, then the hand's (the grip space's place in the rig)
+const carry = (h, id, p) => { const v = new THREE.Vector3(...p); if (id) v.applyMatrix4(h.by[id].m.matrix); return v; };
+const tipNow = (u, S, d) => { const h = u.page.hands()[S], D = h.H.digits[d], id = D.bones[D.bones.length - 1], bone = HR.bones[HR.boneIndex[id]]; return carry(h, id, HR.joints[bone.tail].map((v, i) => (i === 2 ? v + HDZ : v))); };
+const tipAt = (S, d, a) => { const n = rigNodesAt(HR, { [`fingers${S}`]: { [d]: a } }).nodes[`${d}Tip${S}`]; return new THREE.Vector3(n[0], n[1], n[2] + HDZ); };
+
+describe('the hero’s hands on the controllers', () => {
+  it('each hand stands on its grip pose: the grip’s centre on its origin, the grip’s axes its axes', async () => {
+    const u = handsUp();
+    await u.page.enter(); u.page.step(1 / 60);
+    for (const [S, side] of [['R', 'right'], ['L', 'left']]) {
+      const h = u.page.hands()[S], G = HX[S].grip;
+      expect(h.g.visible).toBe(true);
+      expect(h.g.parent).toBe(u.page.rig());
+      const o = new THREE.Vector3(...G.o).applyMatrix4(h.g.matrix);
+      o.toArray().forEach((v, i) => expect(v).toBeCloseTo(u.grips[side].p[i], 9));
+      // the hand's −Z (toward its thumb) is the grip pose's −Z
+      const dir = new THREE.Vector3(...G.z).transformDirection(h.g.matrix), want = new THREE.Vector3(0, 0, 1).applyQuaternion(u.grips[side].q);
+      expect(dir.distanceTo(want)).toBeLessThan(1e-5);   // (the bake keeps six decimals)
+    }
+  });
+
+  it('nothing pressed: a relaxed hand; the grip closes three fingers and points the index; the trigger closes the index', async () => {
+    const u = handsUp();
+    await u.page.enter(); u.page.step(1 / 60);
+    const W = HX.R.poses, near = (a, b) => a.distanceTo(b);
+    expect(near(tipNow(u, 'R', 'index'), tipAt('R', 'index', W.relaxed.index))).toBeLessThan(0.002);
+    expect(near(tipNow(u, 'R', 'middle'), tipAt('R', 'middle', W.relaxed.middle))).toBeLessThan(0.002);
+    u.pads.right.buttons[1] = { pressed: true, touched: true, value: 1 };     // the grip
+    u.page.step(1 / 60);
+    expect(near(tipNow(u, 'R', 'index'), tipAt('R', 'index', W.open.index))).toBeLessThan(0.002);    // pointing
+    for (const d of ['middle', 'ring', 'little']) expect(near(tipNow(u, 'R', d), tipAt('R', d, W.fist[d]))).toBeLessThan(0.002);
+    u.pads.right.buttons[0] = { pressed: false, touched: true, value: 0.5 };  // the trigger half in
+    u.page.step(1 / 60);
+    expect(near(tipNow(u, 'R', 'index'), tipAt('R', 'index', (W.open.index + W.fist.index) / 2))).toBeLessThan(0.002);
+    // the other hand never moved
+    expect(near(tipNow(u, 'L', 'middle'), tipAt('L', 'middle', W.relaxed.middle))).toBeLessThan(0.002);
+  });
+
+  it('the thumb comes down onto a thumb button it rests on, eased, and lifts again', async () => {
+    const u = handsUp();
+    await u.page.enter(); u.page.step(1 / 60);
+    const W = HX.R.poses;
+    u.pads.right.buttons[4] = { pressed: false, touched: true, value: 0 };   // resting on A
+    u.page.step(1 / 60);
+    const part = u.page.hands().R.thumb;
+    expect(part).toBeGreaterThan(W.relaxed.thumb); expect(part).toBeLessThan(W.fist.thumb);
+    run(u, 60);
+    expect(tipNow(u, 'R', 'thumb').distanceTo(tipAt('R', 'thumb', W.fist.thumb))).toBeLessThan(0.002);
+    u.pads.right.buttons[4] = { pressed: false, touched: false, value: 0 };
+    run(u, 60);
+    expect(tipNow(u, 'R', 'thumb').distanceTo(tipAt('R', 'thumb', W.relaxed.thumb))).toBeLessThan(0.002);
+  });
+
+  it('a hand with no grip pose is hidden; leaving the headset takes the hands away', async () => {
+    const u = handsUp();
+    await u.page.enter(); u.page.step(1 / 60);
+    u.grips.left = null;
+    u.page.step(1 / 60);
+    expect(u.page.hands().L.g.visible).toBe(false);
+    expect(u.page.hands().R.g.visible).toBe(true);
+    const rig = u.page.rig();
+    u.page.end();
+    expect(u.page.hands().R).toBeNull();
+    expect(rig.children.some((c) => c.isGroup && c !== rig)).toBe(false);
+  });
+});
+
+describe('the game page with the hands', () => {
+  const floor = { corners: [[-4, -4, 0], [4, -4, 0], [4, 4, 0], [-4, 4, 0]], fill: '#445566' };
+  const ents = [{ id: 'hero', pilotable: true, rule: { type: 'platform', eye: 0, speed: 4 }, body: { type: 'box', size: [0.5, 0.5, 1.8] }, transform: { pos: [0, 0, 0], heading: 0 } }];
+  const cam = { id: 'cam', rule: { type: 'follow', target: 'hero', dist: 5 } };
+  it('the hands are drawn only where a figure carries them and the headset plays the game', () => {
+    expect(emitThreeWorld({ faces: [floor], entities: ents, camera: cam, xr: true })).not.toContain('__xrHandsStep');
+    expect(emitThreeWorld({ faces: [floor], entities: ents, camera: cam, xr: true, figures: { h: { rig: true, bones: [], parts: [], clips: {}, xrHands: HX } } })).toContain('__xrHandsStep(dt);');
+    expect(emitThreeWorld({ faces: [floor], xr: true, figures: { h: { rig: true, bones: [], parts: [], clips: {}, xrHands: HX } } })).not.toContain('__xrHands');
   });
 });
