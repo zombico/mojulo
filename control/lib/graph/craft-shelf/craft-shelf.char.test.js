@@ -20,7 +20,9 @@
  *   - The cockpit as a part of its own (cockpit-parts.js): its builder path pinned; no other pin moved.
  *   - The helicopter airframes: the twin cowling, the rotor pylon and the kit's builder paths pinned, and two whole
  *     helicopters (the attack helicopter for a faceted hull opened over its cockpit, the tandem for its ramp and its
- *     pylon's engines, neither a path of its own); no other pin moved.
+ *     pylon's engines, neither a path of its own); no other pin moved. Then the attack helicopter re-pinned: its faceted
+ *     tub carries its corners only (points between them lay on straight edges, and its concave caps dropped the
+ *     slivers they made, leaving holes the deep sweep found).
  */
 import { createHash } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
@@ -104,7 +106,7 @@ const PINS = {
   'rack-heli-missiles': 'bbe4f2cd4e926027',
   'gun-heli-chin': 'e3325ac1fa00a443',
   'craft:lightSingle': 'cbbad5fe3c255c1d',
-  'craft:attackHeli': '17b1cf6d9cb426d4',
+  'craft:attackHeli': '6fd997f866eb5a48',
   'craft:tandemHeli': 'c0d9f84060eca38f',
 };
 const CRAFTS = Object.keys(PINS).filter((k) => k.startsWith('craft:'));

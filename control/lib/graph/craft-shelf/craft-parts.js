@@ -38,8 +38,9 @@ function stationAt(rows, s) {
 
 /**
  * A faceted section's U in its unit square: its polygon (counter-clockwise, x right, z up) cut at `sill`, from the right
- * cut down round its belly to the left one, `M` points, every corner one of them and the rest shared out by the unit
- * polygon's edge lengths (the same at every station, so a corner meets a corner down the loft and its panels stay flat).
+ * cut down round its belly to the left one: its cuts and corners, and up to `M` points in all, the rest shared out by the
+ * unit polygon's edge lengths (the same at every station, so a corner meets a corner down the loft and its panels stay
+ * flat).
  */
 function facetU(shape, sill, M) {
   const n = shape.length, cut = (i) => { const p = shape[i], q = shape[(i + 1) % n], t = (sill - p[1]) / (q[1] - p[1]); return [p[0] + t * (q[0] - p[0]), sill]; };
@@ -70,8 +71,9 @@ function openHull({ b, rows, shape, W, H, L, zMin, zp, smooth, C }) {
   const { from: s0, to: s1, sill = 0.9, wall = 0.03 } = b.open, M = 13;
   const opts = smooth ? { interp: 'smooth', segments: b.segments || 5 } : {};
   // (a station's section as a U: the outer skin from its right sill down round its belly to its left, the inner back)
-  // (a faceted hull's U: its polygon cut at the sill, the same points at every station so its panels stay flat)
-  const fu = b.facets ? facetU(b.facets, sill, M) : null;
+  // (a faceted hull's U: its polygon cut at the sill, its corners only, the same at every station so its panels stay flat;
+  // a point between two corners would lie on a straight edge, and a concave cap drops the sliver it makes)
+  const fu = b.facets ? facetU(b.facets, sill, 0) : null;
   const uOf = (st) => {
     const a = Math.max((st.w * W) / 2, 0.005), hb = Math.max((st.h * H) / 2, 0.005), n = st.n || b.n || 2, belly = b.belly || 1, zc = st.z * H - zMin;
     if (fu) return [...fu.map(([u, v]) => [u * a, v * hb]), ...fu.map(([u, v]) => [u * Math.max(0.002, a - wall), v * Math.max(0.002, hb - wall)]).reverse()].map(([x, z]) => [x, 0, zc + z - zp]);
