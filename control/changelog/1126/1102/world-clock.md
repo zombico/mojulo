@@ -38,5 +38,5 @@ the clock the impact cam will ride (`control/lib/graph/worlds/controllable/world
   through the world clock. A replay in play is the gap left: a recorded world clock, a moment shown again from another
   camera. Its package (`replay`) replaces the world clock's on the hillclimb page.
   - Of 500 random worlds, 160 are now makeable (129 before).
-  - Of 500 worlds near the genre probes, 343 are (329 before).
+  - Of 500 worlds near the genre probes, 344 are (330 before).
 - **Absent, nothing changes.** A world without a tempo gets no state, and its page keeps every byte.
