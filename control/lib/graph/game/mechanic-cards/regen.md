@@ -17,4 +17,4 @@
 ## Lowers to
 
 - world: a quarter-second timer, a calm var reset by every hit on the player, and a guarded `inc` of `hp` (to `max`)
-  once calm, only while hp is above 0. Every verb is one Godot's bus performs.
+  once calm, only while hp is above 0.

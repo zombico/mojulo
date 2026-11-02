@@ -5,25 +5,33 @@
  * to its hero's face (it points, it does not copy).
  *
  *   THE RECORD: { kind: 'persona', persona: { hero: <ref>, voice?: <ref> (a voice register, create_voice), register:
- *   <a delivery register: a name or { from, …tune }, delivery.js>, reads: { <id>: { script, register?, seed? } } } }
+ *   <a delivery register: a name or { from, …tune }, delivery.js>, style?: <a playing style, actor/style.js>, role?:
+ *   <a role, actor/role.js>, reads: { <id>: { script, register?, style?, role?, seed? } } } }
  *
- *   A READ (`personaReads`): its script read in its register (its own, else the persona's): read.js `readScript`, on
- *   every read of the record (a recipe: the scripts are kept, the timings regenerate). A read's FACE take is the hero's
+ *   THE PERSONA IS THE ACTOR: one kind of actor, a hero playing a role from a script. Its register is its role of
+ *   speech; a STYLE (thespian, action-star, anime-mocap, extra) says how much it does and when, and a ROLE its state of
+ *   mind, resting face and status (actor/). With neither, a read is the persona's as it always was, byte for byte.
+ *
+ *   A READ (`personaReads`): its script read in its register, played in its style by its role (each its own, else the
+ *   persona's): actor/interpret.js `actRead`, on every read of the record (a recipe: the scripts are kept, the timings
+ *   regenerate). A read's FACE take is the hero's
  *   `perform` take of the same name (`personaTakes`), played where the face is drawn (fidelity.js); its captions and its
  *   body track are everywhere's.
  *
  * Pure: the door (create_character as 'persona') looks the refs up; this module checks shapes and compiles.
  */
-import { readScript } from './read.js';
 import { deliveryErrors } from './delivery.js';
 import { captionCues } from './captions.js';
+import { actRead } from '../actor/interpret.js';
+import { styleErrors } from '../actor/style.js';
+import { roleErrors } from '../actor/role.js';
 
 export const PERSONA_KIND = 'persona';
 export const isPersonaKind = (kind) => kind === PERSONA_KIND;
 /** a read's id: a word, as a take's name is (it becomes the hero's `face:<id>` clip) */
 export const READ_ID = /^[A-Za-z][A-Za-z0-9_-]{0,31}$/;
-const PERSONA_KEYS = ['hero', 'voice', 'register', 'reads'];
-const READ_KEYS = ['script', 'register', 'seed'];
+const PERSONA_KEYS = ['hero', 'voice', 'register', 'style', 'role', 'reads'];
+const READ_KEYS = ['script', 'register', 'style', 'role', 'seed'];
 
 const isPlain = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 
@@ -36,6 +44,8 @@ export function personaErrors(P) {
   if (typeof P.hero !== 'string' || !P.hero) errs.push("hero: a hero's ref (create_character { as: 'hero' })");
   if (P.voice !== undefined && (typeof P.voice !== 'string' || !P.voice)) errs.push("voice: a voice register's ref");
   if (P.register !== undefined) errs.push(...deliveryErrors(P.register, 'register'));
+  if (P.style !== undefined) errs.push(...styleErrors(P.style, 'style'));
+  if (P.role !== undefined) errs.push(...roleErrors(P.role, 'role'));
   if (P.reads !== undefined) {
     if (!isPlain(P.reads)) errs.push('reads: { <id>: { script, register?, seed? } }');
     else for (const [id, R] of Object.entries(P.reads)) {
@@ -46,9 +56,11 @@ export function personaErrors(P) {
       if (extra.length) errs.push(`${at}: a read takes ${READ_KEYS.join(', ')} (not ${extra.join(', ')})`);
       if (typeof R.script !== 'string' || !R.script.trim()) errs.push(`${at}.script: text (a blank line a new paragraph; *stress*, [pause], [pause 1.5], (aside))`);
       else {
-        try { readScript({ script: R.script, register: R.register ?? P.register ?? 'anchor' }); } catch (e) { errs.push(`${at}: ${e.message}`); }
+        try { actOf(P, R); } catch (e) { errs.push(`${at}: ${e.message}`); }
       }
       if (R.register !== undefined) errs.push(...deliveryErrors(R.register, `${at}.register`));
+      if (R.style !== undefined) errs.push(...styleErrors(R.style, `${at}.style`));
+      if (R.role !== undefined) errs.push(...roleErrors(R.role, `${at}.role`));
       if (R.seed !== undefined && !(Number.isInteger(R.seed) && R.seed >= 0)) errs.push(`${at}.seed: a whole number (the face's blinks and glances)`);
     }
   }
@@ -59,23 +71,31 @@ export function personaErrors(P) {
 export function personaManifest(P) {
   const errs = personaErrors(P);
   if (errs.length) throw new Error(`persona: ${errs.join('; ')}`);
-  return { kind: PERSONA_KIND, persona: { hero: P.hero, ...(P.voice ? { voice: P.voice } : {}), register: P.register ?? 'anchor', reads: P.reads ?? {} } };
+  return { kind: PERSONA_KIND, persona: { hero: P.hero, ...(P.voice ? { voice: P.voice } : {}), register: P.register ?? 'anchor', ...(P.style !== undefined ? { style: P.style } : {}), ...(P.role !== undefined ? { role: P.role } : {}), reads: P.reads ?? {} } };
 }
 
-/** Each read compiled: { <id>: read.js's read } (its register its own, else the persona's) */
+/** A read compiled as its actor plays it (actor/interpret.js): its register, style and role its own, else the persona's;
+ * with no style and no role, read.js's read as it always was */
+function actOf(persona, R) {
+  const style = R.style ?? persona.style, role = R.role ?? persona.role;
+  return actRead({ script: R.script, register: R.register ?? persona.register ?? 'anchor', ...(style !== undefined ? { style } : {}), ...(role !== undefined ? { role } : {}), seed: R.seed ?? 1 });
+}
+
+/** Each read compiled: { <id>: the read } (interpret.js actRead: read.js's read played in a style by a role, where the
+ * persona or the read names one) */
 export function personaReads(persona) {
-  return Object.fromEntries(Object.entries(persona.reads ?? {}).map(([id, R]) => [id, readScript({ script: R.script, register: R.register ?? persona.register })]));
+  return Object.fromEntries(Object.entries(persona.reads ?? {}).map(([id, R]) => [id, actOf(persona, R)]));
 }
 
 /** The hero's face takes a persona's reads make: { <id>: a `perform` take ({ beats, seconds, seed }) }, as the hero's door
  * takes them (layered.js `perform`), so a read plays wherever a hero's take does (its GLB's face:<id> clip) */
 export function personaTakes(persona, reads = personaReads(persona)) {
-  return Object.fromEntries(Object.entries(reads).map(([id, R]) => [id, { beats: R.beats, seconds: R.seconds, seed: persona.reads[id].seed ?? 1 }]));
+  return Object.fromEntries(Object.entries(reads).map(([id, R]) => [id, { beats: R.beats, seconds: R.seconds, seed: persona.reads[id].seed ?? 1, ...(R.intensity !== undefined ? { intensity: R.intensity } : {}) }]));
 }
 
 /** A read in short, as the door reports it: its length, its lines and words, its stresses, captions and gestures */
 export function readSummary(id, R) {
   const words = R.lines.reduce((n, L) => n + L.words.length, 0), cues = captionCues(R);
-  return { id, register: R.register, seconds: R.seconds, lines: R.lines.length, words, stressed: R.lines.flatMap((L) => L.words.filter((w) => w.emph).map((w) => w.w)), captions: cues.length, gestures: R.body.map((b) => b.gesture) };
+  return { id, register: R.register, ...(R.style ? { style: R.style } : {}), ...(R.role ? { role: R.role.status } : {}), seconds: R.seconds, lines: R.lines.length, words, stressed: R.lines.flatMap((L) => L.words.filter((w) => w.emph).map((w) => w.w)), captions: cues.length, gestures: R.body.map((b) => b.gesture) };
 }
 

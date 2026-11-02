@@ -115,8 +115,7 @@ the strike's blow). All four flavors run on both casts. Every check holds on mal
 - A `flavor` word on the world, defaulting from the genre (a cube setting beside `soul.vibe`), with dials over the preset,
   as vibe does.
 - The clip half applied before `packLayeredRig`, with beat-aligned keys.
-- The live half as rules in the controllable world (`hitstop`, `knockback`, `rateBySpeed`), mirrored in the Godot kernel
-  and held equal by `conformance.mjs`.
+- The live half as rules in the controllable world (`hitstop`, `knockback`, `rateBySpeed`).
 - `REACTS`' authored hold moved out of the clip and into the action flavor.
 - A characterization pin on the packed `b` arrays for each flavor, with realistic byte-identical to today's clips.
 

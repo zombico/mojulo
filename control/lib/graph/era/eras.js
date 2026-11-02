@@ -8,7 +8,7 @@
  * world, the era a choice of the read and the export (worlds/world-scene.js `era`, as the engine is), the cube's own its
  * default. Each era names its SURFACE MODEL: `paint` (the light held in the colour: vertex light, painted tiles, ramp
  * stops, drawn unlit) or `form` (material and geometry, lit by the renderer). What each era gives each World page input
- * is its row in the era marks (era/era-marks.js), as an engine's is in its marks.
+ * is its row in the era marks (era/era-marks.js).
  *
  * Each era `extends` the one before and adds its conventions. Every convention carries a status (`built`: mojulo makes
  * it today; `partial`: made for part of the cast, its `note` says which; `planned`: named so a readout can say it is

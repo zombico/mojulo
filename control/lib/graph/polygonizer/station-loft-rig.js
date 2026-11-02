@@ -914,7 +914,7 @@ const sub3 = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
  * patch) and its TANGENT (`cover.tangentAt(fi, k)`), the pack the maps (`coverTex`: { base, normal, orm, height, size,
  * depth }, each a PNG data URL).
  */
-export function packLayeredRig(mesh, skin, R, { clips = {}, keys = 12, dz = 0, light = [0.35, -0.55, 0.75], hullShade = null, normals = null, character = null, face = null, paint = null, seconds = null, speeds = null, gear = null, emissive = null, cast = null, tint = null, palette = null, fields = null, cellTint = null, surfaces = null, correctives = null, engineLit = false, relief = null, cover = null } = {}) {
+export function packLayeredRig(mesh, skin, R, { clips = {}, acts = null, keys = 12, dz = 0, light = [0.35, -0.55, 0.75], hullShade = null, normals = null, character = null, face = null, paint = null, seconds = null, speeds = null, gear = null, emissive = null, cast = null, tint = null, palette = null, fields = null, cellTint = null, surfaces = null, correctives = null, engineLit = false, relief = null, cover = null } = {}) {
   // `surfaces` (recipe.surfaces: a hero wearing its cube's materials, the plain path): each part whose triangles include
   // a metal group's packs the metal channel's per-vertex data (`metal`, face-mesh.js), so the page's metal shades the
   // moving parts as it shades the static solid. No metal surface ⇒ nothing tracked, byte-identical
@@ -1016,15 +1016,20 @@ export function packLayeredRig(mesh, skin, R, { clips = {}, keys = 12, dz = 0, l
   // on that bone, after its own faces (outside its ink and draw-layer spans). Absent ⇒ the pack is byte-identical.
   if (Array.isArray(gear)) for (const g of gear) { const P = parts[g.bone]; if (!P) continue; for (const t of g.tris) { P.faces++; if (P.tg) P.tg.push(null); const gn = P.nrm ? cross(sub(t.p[1], t.p[0]), sub(t.p[2], t.p[0])) : null, gl = gn ? len(gn) || 1 : 1; for (const p of t.p) { if (gn) P.nrm.push(gn[0] / gl, gn[1] / gl, gn[2] / gl); if (P.tan) P.tan.push(...axisTangent([gn[0] / gl, gn[1] / gl, gn[2] / gl])); P.pos.push(p[0], p[1], p[2]); P.col.push(t.col[0], t.col[1], t.col[2]); P.jnt.push(g.bone, 0, 0, 0); P.wgt.push(1, 0, 0, 0); if (P.uv) P.uv.push(...(carryC ? cover.uvAt(-1, 0) : paint.white)); } } }
   const packedClips = {}, props = [];
-  for (const [name, clip] of Object.entries(clips)) {
+  // an actor's ACTS (actor/act.js: a persona's reads played as body takes) pack as its clips do, apart (`acts`): one-shot,
+  // their seconds their own, never among the clips a preview lists. Absent ⇒ the pack is byte-identical
+  const packedActs = {};
+  for (const [name, clip, into] of [...Object.entries(clips).map(([k, c]) => [k, c, packedClips]), ...Object.entries(acts ?? {}).map(([k, c]) => [k, c, packedActs])]) {
     // a function clip may carry its own key count (a gait's: hero-motion.js locomotionClips, dense so the stance holds)
     // a function clip may also be ONE-SHOT (`once`: a jump's, sampled 0 … 1 inclusive) and carry its `air` (hero-jump.js)
     // (the posed nodes, raised by dz, keep every turn rigNodesAt records — the body's, a stance's facing, the legs' splay —
     // so each bone's frame here is the one the skin is posed with: dropping the facing left a turned stance's head and
     // jaw on different spins, the seam under the chin open in the export)
-    const fn = typeof clip === 'function' ? clip : layeredClip(clip, R); const K = typeof clip === 'function' && clip.keys > 0 ? clip.keys : keys; const once = fn.once === true; const flat = [], cw = corr ? [] : null;
+    const fn = typeof clip === 'function' ? clip : layeredClip(clip, R); const K = typeof clip === 'function' && clip.keys > 0 ? clip.keys : keys; const once = fn.once === true; const flat = [], cw = corr && into !== packedActs ? [] : null;   // (an act carries no correctives' weights: its GLB clip drives the bones alone, the face's take the weights)
     for (let k = 0; k < K; k++) { const { nodes } = rigNodesAt(R, fn(once ? k / (K - 1) : k / K)); if (cw) for (const c of correctives) cw.push(r4(correctiveWeight(c.driver, nodes))); const shifted = Object.fromEntries(Object.entries(nodes).map(([n, v]) => [n, [v[0], v[1], v[2] + dz]])); for (const m of ['$body', '$facing', '$legYaw']) if (nodes[m]) Object.defineProperty(shifted, m, { value: nodes[m], enumerable: false }); for (const f of boneFrames(R, rest, shifted)) flat.push(...f.q.map(r4), ...f.head.map(r4)); }
-    packedClips[name] = { k: K, b: flat, ...(cw ? { cw } : {}), ...(seconds?.[name] > 0 ? { s: seconds[name] } : {}), ...(speeds?.[name] > 0 ? { v: speeds[name] } : {}), ...(once ? { once: true } : {}), ...(typeof clip === 'function' && clip.air ? { air: clip.air } : {}), ...(typeof clip === 'function' && clip.roll ? { roll: clip.roll } : {}), ...(typeof clip === 'function' && clip.stop ? { stop: clip.stop } : {}), ...(typeof clip === 'function' && clip.move ? { move: clip.move } : {}), ...(typeof clip === 'function' && clip.rest ? { rest: clip.rest } : {}), ...(typeof clip === 'function' && clip.vault ? { vault: clip.vault } : {}), ...(typeof clip === 'function' && clip.held ? { held: clip.held } : {}) };
+    // (an act's seconds and what it is are its own, `act`; a clip's from the maps)
+    const isAct = into === packedActs, own = isAct && typeof clip === 'function' ? clip.act : null;
+    into[name] = { k: K, b: flat, ...(cw ? { cw } : {}), ...(own ? { s: own.seconds, act: own } : !isAct && seconds?.[name] > 0 ? { s: seconds[name] } : {}), ...(!isAct && speeds?.[name] > 0 ? { v: speeds[name] } : {}), ...(once ? { once: true } : {}), ...(typeof clip === 'function' && clip.air ? { air: clip.air } : {}), ...(typeof clip === 'function' && clip.roll ? { roll: clip.roll } : {}), ...(typeof clip === 'function' && clip.stop ? { stop: clip.stop } : {}), ...(typeof clip === 'function' && clip.move ? { move: clip.move } : {}), ...(typeof clip === 'function' && clip.rest ? { rest: clip.rest } : {}), ...(typeof clip === 'function' && clip.vault ? { vault: clip.vault } : {}), ...(typeof clip === 'function' && clip.held ? { held: clip.held } : {}) };
     // a held thing's PROPS (hero-motion.js: a hold's or a guard's things at rest on their hand's bone, raised by dz): each its
     // own record, the clip's, so the export draws it as a mesh of its own on the figure's skin
     if (typeof clip === 'function' && typeof clip.props === 'function') for (const pr of clip.props(dz, cast ?? character?.light ?? undefined)) if (pr.tris?.length) {
@@ -1045,7 +1050,7 @@ export function packLayeredRig(mesh, skin, R, { clips = {}, keys = 12, dz = 0, l
     rig: true, layered: true,
     bones: R.bones.map((b) => ({ id: b.id, head: rest[b.head].map(r4), tail: rest[b.tail].map(r4) })),
     parts: parts.map((P) => (P.faces ? { pos: b64f32(P.pos), col: b64u8(P.col), faces: P.faces, jnt: Buffer.from(Uint8Array.from(P.jnt).buffer).toString('base64'), wgt: b64f32(P.wgt), ...(P.inkFaces !== undefined ? { inkFaces: P.inkFaces } : {}), ...(P.ranges ? { ranges: P.ranges } : {}), ...(P.mph?.length ? { morph: packMorph(P.mph) } : {}), ...(P.uv ? { uv: b64f32(P.uv) } : {}), ...(P.metal ? { metal: P.metal } : {}), ...(P.cph?.length ? { corrective: packMorph(P.cph) } : {}), ...(P.nrm ? { nrm: b64f32(P.nrm) } : {}), ...(P.tan ? { tan: b64f32(P.tan) } : {}) } : null)),
-    clips: packedClips, figH: r4(mxz - mnz), ...(props.length ? { props } : {}),
+    clips: packedClips, ...(Object.keys(packedActs).length ? { acts: packedActs } : {}), figH: r4(mxz - mnz), ...(props.length ? { props } : {}),
     ...(paint ? { paintTex: { ...paint.atlas, white: paint.white, ...(paint.alphaMask ? { alphaMask: true } : {}) } } : {}),
     ...(corr ? { correctives: corr.meta } : {}),
     ...(carryT && !carryC && relief.atlas ? { normalTex: relief.atlas } : {}),

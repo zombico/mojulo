@@ -4,7 +4,8 @@
  * (fidelity.js), else on the read's own clock for its audio and the body's gestures.
  *
  *   personaHero(persona, heroManifest) → the hero's stored manifest with the persona's reads as its `perform` takes
- *     (a read of the same name as one of the hero's own takes is the persona's); the hero as it is where it has no face
+ *     (a read of the same name as one of the hero's own takes is the persona's); the hero as it is where it has no face;
+ *     and the reads played in a style as its `acts` (actor/act.js: the body's takes, the GLB's `act:<id>`), on any hero
  *   personaFiles(persona, heroManifest) → [{ name, text }]
  *
  * Pure and deterministic.
@@ -13,14 +14,17 @@ import { personaReads, personaTakes } from './persona.js';
 import { captionCues, srt, vtt } from './captions.js';
 import { cueSheet } from './cues.js';
 import { speakerFidelity, FACE_ERA } from './fidelity.js';
+import { actsOf } from '../actor/act.js';
 
 /** does the hero carry a face its reads can move (the realistic head, in a game that draws it) */
 export const personaHasFace = (heroManifest) => speakerFidelity({ era: FACE_ERA }, heroManifest?.hero) === 'face';
 
 export function personaHero(persona, heroManifest, reads = personaReads(persona)) {
   if (!heroManifest?.hero) throw new Error("persona: its hero is a hero's record");
-  if (!personaHasFace(heroManifest) || !Object.keys(reads).length) return heroManifest;
-  return { ...heroManifest, hero: { ...heroManifest.hero, perform: { ...(heroManifest.hero.perform ?? {}), ...personaTakes(persona, reads) } } };
+  // (the reads played in a style are ACTS: the body's takes on the hero, actor/act.js, whatever its face; none without)
+  const acts = actsOf(persona, reads), acted = Object.keys(acts).length ? { acts } : {};
+  if (!personaHasFace(heroManifest) || !Object.keys(reads).length) return Object.keys(acted).length ? { ...heroManifest, hero: { ...heroManifest.hero, ...acted } } : heroManifest;
+  return { ...heroManifest, hero: { ...heroManifest.hero, perform: { ...(heroManifest.hero.perform ?? {}), ...personaTakes(persona, reads) }, ...acted } };
 }
 
 export function personaFiles(persona, heroManifest, reads = personaReads(persona)) {

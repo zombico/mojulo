@@ -151,8 +151,8 @@ world, character and feel books. It reads only what the shelves already say (`ga
   costs. "How to beat it" is rows (`COUNSEL` in `gameworld/foe-cast.js`): a line for each word the foe carries that a
   player can answer (its attack, its tell's seconds, its stomp, its sight and gaze, its memory, cover, a pack, a
   duelist's switches, its modes, its summons or its pair, a state), never a line written for one foe. Then who it is,
-  its numbers and its attack, its shelves and where it stands; its mind as the Mind facet resolves it (each situation),
-  what each engine keeps and its gate are folded away, for the designer.
+  its numbers and its attack, its shelves and where it stands; its mind as the Mind facet resolves it (each situation)
+  and its gate are folded away, for the designer.
 - **The photographs.** A foe a run has made is photographed as the table game's book photographs its cast (its World
   page in headless Chromium, a figure and a bust framed by its own body, kept per its revision:
   `lib/mcp/tools/foe-portraits.js`), and shown on its tile and its card, a downloaded sheet included. A foe not made yet,
@@ -184,7 +184,7 @@ class that scores best against the world:
 - its mind against the intent cube's Mind values (motivation, aggressiveness, perception, pathing, a pack's squad);
 - its attack against the cube's combat;
 - its toll against the flavor (a platformer's foe is touched and stomped; a realistic game's is not a touch);
-- whether the world's people can play it, and what the intent's target engine carries.
+- whether the world's people can play it.
 
 A class the cube's own `mind.foes` names is cast before any other. The world's era rolls one people for the whole cast
 (`ERA_PEOPLES`, seeded by the world), worn by every class that stands on two legs; a platformer's and a pinball table's
@@ -223,8 +223,8 @@ class is left off and said.
 2. A new thing on a shelf is a row, pointing at a primitive the page or the runtime already has.
 3. Absent, it costs nothing: the page code is emitted only when a body asks for it, and every other page keeps every
    byte.
-4. A page-only effect gets an engine mark (`scene/godot-marks.js`, `scene/roblox-marks.js`), so an export says what it
-   leaves out.
+4. A page-only effect is the web's: an engine's handoff carries the foe as a marker with its record, and its ledger
+   (`stays`) says the level's rules stayed on the web.
 5. Each shelf carries a law test that crosses a mode swap: the proof that layer 0 carries it, in place of a list of
    foes.
 
