@@ -146,6 +146,7 @@ export const MECHANIC_SFX = {
   laps: { checkpoint: 'checkpoint', lap: 'chime', 'race:won': 'goal', 'race:lost': 'lose', 'laps:done': 'goal' },
   'on-beat': { 'beat:hit': 'beat-hit', 'beat:miss': 'beat-miss', offbeat: 'lose' },
   waves: { wave: 'wave', leak: 'hit', 'base:fallen': 'lose', 'waves:cleared': 'goal' },
+  'wave-gauntlet': { wave: 'wave', 'gauntlet:arena': 'chime', 'gauntlet:again': 'lose', 'gauntlet:sealed:*': 'thud', 'gauntlet:clear:*': 'chime', 'gauntlet:out:*': 'goal' },
   push: { pushed: 'thud', 'plates:held': 'goal' },
   clock: { dawn: 'chime', dusk: 'chime' },
   crops: { planted: 'thud', harvested: 'pickup', 'crops:late': 'lose' },

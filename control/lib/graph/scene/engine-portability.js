@@ -44,6 +44,7 @@ export const MECHANIC_SAMPLES = Object.freeze({
   laps: { checkpoints: [{ at: [5, 0, 0] }, { at: [10, 0, 0] }], laps: 2 },
   'on-beat': { misses: 3 },
   waves: { waves: [{ foes: ['foe-1'] }], path: [[0, 0], [10, 0]] },
+  'wave-gauntlet': { arenas: [{ waves: [{ foes: ['foe-1'] }, { foes: ['foe-2', 'foe-3'] }] }, { waves: [{ foes: ['foe-4'] }] }], at: [10, 0, 0], checkpoint: 1 },
   push: { origin: [0, 0, 0], cols: 3, rows: 3, blocks: [[1, 1]], plates: [[2, 2]] },
   clock: {},
   crops: { plots: [{ at: [2, 2, 0] }] },
