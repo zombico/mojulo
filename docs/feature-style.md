@@ -143,7 +143,7 @@ quadrupeds.
 under it on the pelvis, so it bends at the waist as an animal's does: the hips tip (`FEATURE_FOURS.hinges`), the spine
 curls and the core bends at the waist (`curl`, `waist`: the rig's `waist` pose word), so the spine runs level from the
 hips to the neck's root, and the head is carried out in front of the chest looking ahead. The forepaws are solved on
-the rig itself (`FEATURE_PAWS`): the paw on the floor ahead of the shoulder. The tail rides its own bone and is CARRIED
+the rig itself (`FEATURE_PAWS`): the paw on the floor ahead of the shoulder. The tail rides two bones (root to middle, middle to tip) and is CARRIED
 as its animal carries it (`FEATURE_CARRIAGE`): turned on all fours until its line rises at the species' carriage off
 the fauna roster, a quarter of the way back toward the mascot's own; standing, it is as designed.
 
@@ -154,7 +154,8 @@ limits are set for, so the pose takes them `unbound`. It is the two-ball trunk's
 (`gallop`, `FEATURE_GALLOP`): the hind feet take the biped run's paths as a half-bound, the waist rounds at the gather
 and opens at the extension, each forepaw swings forward through the air from under the chest (the elbow folded),
 strikes the floor at its full reach (straight) and sweeps back along it, the hind legs tilted back to drive from behind
-the hips, the face ahead, the tail held back near level for balance. At the strike the trunk tips forward over the
+the hips, the face ahead, the tail held back near level for balance and straightened (its far half, on its own bone
+from the tail's middle, turned in line with the near half). At the strike the trunk tips forward over the
 hips: the front low on both forepaws, the rump raised. Running, the hips tip no further than `FEATURE_GALLOP.hinge`, so the tail comes out of the
 rump. On all fours, walking and running, the head is turned up until its crown tips `FEATURE_LOOK.tilt` ahead of upright,
 the head taking most of the turn so it is never tucked into the shoulders.

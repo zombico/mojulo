@@ -439,6 +439,24 @@ function tailRootOn(S) {
   const b = S.body.find((e) => e.name === 'belly'), a = (FEATURE_TAIL.low * Math.PI) / 180;
   return [0, b.c[1] - b.r[2] * Math.cos(a) - FEATURE_TAIL.off, b.c[2] - b.r[0] * (1 - (b.e ?? 0) / 2) * Math.sin(a)];
 }
+/** a tuft spec's path as feature-body.js tuft() lays it: its points, root to end (three links, each along the turned
+ *  aim at its middle), and its direction along it */
+function tuftPath(t, { dirs = false } = {}) {
+  const A = unit(t.aim), bend = t.bend ?? [0, 0, -1], B0 = sub3(bend, mul(A, dot(bend, A))), Bn = Math.hypot(...B0) > 1e-9 ? unit(B0) : [0, 0, 0];
+  const dirAt = (s) => unit(add(mul(A, Math.cos(((t.curl ?? 0) * s * Math.PI) / 180)), mul(Bn, Math.sin(((t.curl ?? 0) * s * Math.PI) / 180))));
+  const pts = [t.root];
+  for (let i = 0; i < 3; i++) pts.push(add(pts[i], mul(dirAt((i + 0.5) / 3), t.len / 3)));
+  return dirs ? { pts, dirAt } : pts;
+}
+/** a tuft spec cut in two at its middle, the halves continuing one another (the same path, half the curl each, the
+ *  radius met at the cut): the near half and the far half (on `tailEnd`), and the cut */
+function halved(t) {
+  const { dirAt } = tuftPath(t, { dirs: true }), tip = t.tip ?? 0.22, rm = t.r * (1 - (1 - tip) * Math.pow(0.5, 0.85));
+  const near = { ...t, len: t.len / 2, curl: (t.curl ?? 0) / 2, tip: rm / t.r }, mid = tuftPath(near).at(-1);
+  const far = { ...t, name: `${t.name}End`, root: mid, aim: dirAt(0.5), len: t.len / 2, curl: (t.curl ?? 0) / 2, r: rm, tip: (t.r * tip) / rm, bone: 'tailEnd' };
+  return { near, far, mid };
+}
+
 /** a tail module turned back and down about its root by `deg` (its masses, its axes, its locks and its rings) */
 function drooped(tl, deg) {
   const a = (-deg * Math.PI) / 180, c = Math.cos(a), sn = Math.sin(a);
@@ -553,13 +571,22 @@ export function featureBuild(card, { decor = {}, tune = null } = {}) {
   // (on an animal that goes on all fours, low on the rump and drooped back: FEATURE_TAIL)
   const kT = Z?.tail ?? 1, tl0 = (TAILS[K.tail] ?? TAILS[T.tail] ?? TAILS[P.tail])(), fourTail = quad && !tl0.ground;
   const root = fourTail ? tailRootOn(S) : S.tail, tl1 = tailAt(fourTail ? drooped(tl0, FEATURE_TAIL.droop) : tl0, root, kT);
-  // (an animal on all fours carries its tail as its animal does: the tail rides its own bone, turned on all fours from
-  // its root (feature-body.js carried), its shapes riding it)
-  const onTail = (o) => ({ ...o, bone: 'tail' }), tl = fourTail ? { ...tl1, eggs: tl1.eggs.map(onTail), ...(tl1.tufts ? { tufts: tl1.tufts.map(onTail) } : {}), ...(tl1.tip ? { tip: onTail(tl1.tip) } : {}) } : tl1;
+  // (an animal on all fours carries its tail as its animal does: the tail rides TWO bones, turned on all fours from its
+  // root and from its middle (feature-body.js carried), the near half's shapes on `tail`, the far half's on `tailEnd`, a
+  // tuft cut in two at its middle (halved), so a curled tip can be straightened at a run)
+  const onTail = (o) => ({ ...o, bone: 'tail' });
+  let tl = fourTail ? { ...tl1, eggs: tl1.eggs.map(onTail), ...(tl1.tufts ? { tufts: tl1.tufts.map(onTail) } : {}), ...(tl1.tip ? { tip: onTail(tl1.tip) } : {}) } : tl1;
   if (fourTail) {
-    const ends = [...tl.eggs.map((e) => e.c), ...(tl.tufts ?? []).map((t) => add(t.root, mul(unit(t.aim), t.len))), ...(tl.tip ? [add(tl.tip.root, mul(unit(tl.tip.aim), tl.tip.len))] : [])];
-    const tip = ends.reduce((a, p) => (Math.hypot(...sub3(p, root)) > Math.hypot(...sub3(a, root)) ? p : a), root);
-    if (Math.hypot(...sub3(tip, root)) > 0.05) B.tail = { root, tip, carriage: speciesTail(card.id) };
+    const far = (p) => Math.hypot(...sub3(p, root)), cut = (tl.tufts ?? []).map(halved);
+    const ends = [...tl.eggs.map((e) => e.c), ...cut.map((h) => tuftPath(h.far).at(-1)), ...(tl.tip ? [tuftPath(tl.tip).at(-1)] : [])];
+    const tip = ends.reduce((a, p) => (far(p) > far(a) ? p : a), root), half = far(tip) / 2;
+    if (far(tip) > 0.05) {
+      const onEnd = (o) => ({ ...o, bone: 'tailEnd' }), eggs = tl.eggs.map((e) => (far(e.c) > half ? onEnd(e) : e));
+      // (the middle joint on the tail itself: a cut tuft's middle, else the egg nearest half the tail's reach)
+      const mid = cut.length ? cut[0].mid : tl.eggs.reduce((a, e) => (Math.abs(far(e.c) - half) < Math.abs(far(a) - half) ? e.c : a), tl.eggs[0]?.c ?? add(root, mul(sub3(tip, root), 0.5)));
+      tl = { ...tl, eggs, ...(cut.length ? { tufts: cut.flatMap((h) => [h.near, h.far]) } : {}), ...(tl.tip ? { tip: onEnd(tl.tip) } : {}) };
+      B.tail = { root, mid, tip, carriage: speciesTail(card.id) };
+    }
   }
   // (a tail that rests on the GROUND, a beaver's paddle: laid on the floor however high the body stands, its root
   // spanning down from the rump to it)

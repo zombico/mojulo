@@ -132,7 +132,8 @@ describe('the feature grammar', () => {
     expect(horse.tufts.filter((t) => /^mane\d$/.test(t.name) && t.group === 'Mane').length).toBe(6);
     expect(horse.tufts.some((t) => t.name === 'forelock')).toBe(true); expect(horse.tufts.some((t) => /^crown/.test(t.name))).toBe(false);
     expect(horse.tufts.find((t) => t.name === 'tail')).toMatchObject({ group: 'Mane' });
-    expect(horse.tufts.find((t) => t.name === 'tail').len).toBeGreaterThan(1);
+    // (its length over both halves: a tail on all fours is cut at its middle onto two bones)
+    expect(horse.tufts.filter((t) => /^tail(End)?$/.test(t.name)).reduce((a, t) => a + t.len, 0)).toBeGreaterThan(1);
     expect(deer.tufts.filter((t) => /^antler/.test(t.name)).length).toBe(4);     // (a beam and its three tines)
     const ear = deer.eggs.find((e) => e.name === 'earR');
     expect(ear.u[0]).toBeGreaterThan(0.6);                                        // (out to the side)

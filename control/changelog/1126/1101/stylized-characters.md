@@ -209,6 +209,10 @@ member, a quick game's hero). Code: `control/lib/graph/egocube/feature-tune.js`.
     the head ahead;
   - galloping, every tail is held back near level for balance (`FEATURE_CARRIAGE.run`, −25° to 10°), whatever its
     walking carriage: a cat's tail is up at a walk and back at a run;
+  - and straightened: the tail rides two bones (`tail` from its root to its middle, `tailEnd` from there to its tip, each
+    turned by its own chain; a tuft tail cut in two at its middle, `halved`, the halves continuing one another), and at
+    a run the far half is turned in line with the near half, so a curled tip (a cat's) lies out straight behind.
+    Standing and walking, the tail keeps its designed curl;
   - the hips tip no further than 80° (`FEATURE_GALLOP.hinge`: the dog's tip past level carries the tail's root up the
     back), so running, the tail comes out of the rump;
   - the tail is carried as on all fours.
@@ -220,7 +224,8 @@ member, a quick game's hero). Code: `control/lib/graph/egocube/feature-tune.js`.
   a world direction landed the paws behind and above the floor, and splayed. Each key on all fours is now solved on the
   rig (`planted`, `FEATURE_PAWS`): the paw reaches the floor ahead, the arm straight forward in the downward dog and a
   little out round the belly on all fours, a walk's swing kept.
-- **The tail carried as its animal carries it.** The tail rides its own bone (`tail`, a chain turned from its root). On
+- **The tail carried as its animal carries it.** The tail rides its own bones (`tail` and `tailEnd`, chains turned from
+  its root and its middle). On
   all fours, the walk on them and the downward dog, it is turned until its line rises at the species' carriage, read
   off the fauna roster's tail stations (`speciesTail`: a wolf's low, a cat's up; absent, −15°). It is carried a quarter
   of the way back toward where the mascot's own tail would point, a compromise between the regular animal and the
@@ -282,7 +287,8 @@ member, a quick game's hero). Code: `control/lib/graph/egocube/feature-tune.js`.
     face ahead (`feature-body.test.js`);
   - the gallop on the rig: the run's cycle, the waist working, the forepaw travelling fore and aft and reaching the
     floor in some keys and through the air in others, the hind feet behind the hips, the face ahead and a little down in
-    every key (never up), the tail's root at the rump (never up the back) and the tail held back near level, and a
+    every key (never up), the tail's root at the rump (never up the back) and the tail held back near level and
+    straight (its two halves in line), and a
     strike key, the front tipped low on both forepaws;
   - on all fours on the rig: the spine level, the tail carried at the roster's carriage less the mascot's share, and no
     standing clip turning the tail;

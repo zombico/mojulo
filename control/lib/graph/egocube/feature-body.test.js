@@ -139,6 +139,11 @@ describe('the feature body', () => {
     for (const S of ['R', 'L']) expect(strike[`knuckles${S}`][2], S).toBeLessThan(0.05 * height);
     const runTail = (n) => (Math.atan2(n.tailTip[2] - n.tailRoot[2], -(n.tailTip[1] - n.tailRoot[1])) * 180) / Math.PI;
     for (const n of posed) { expect(runTail(n)).toBeGreaterThan(FEATURE_CARRIAGE.run.least - 2); expect(runTail(n)).toBeLessThan(FEATURE_CARRIAGE.run.most + 2); }
+    // (and straight: the tail's far half, on its own bone from the middle, in line with the near half)
+    const half = (a, b) => (Math.atan2(b[2] - a[2], -(b[1] - a[1])) * 180) / Math.PI;
+    for (const n of posed) expect(Math.abs(half(n.tailMid, n.tailTip) - half(n.tailRoot, n.tailMid))).toBeLessThan(3);
+    expect(plan.rig.bones.some((b) => b.id === 'tailEnd')).toBe(true);
+    for (const n of ['idle', 'blink']) for (const k of plan.clips[n]) expect(k.tailEnd, n).toBeUndefined();
     expect(Math.min(...posed.map((n) => n.knucklesR[2]))).toBeLessThan(0.05 * height);                // (the strike)
     expect(Math.max(...posed.map((n) => n.knucklesR[2]))).toBeGreaterThan(0.06 * height);             // (swung through the air)
     expect(Math.min(...posed.map((n) => n.toeBaseR[1] - n.hipR[1]))).toBeLessThan(-0.1 * height);     // (the hind legs tilted back)
