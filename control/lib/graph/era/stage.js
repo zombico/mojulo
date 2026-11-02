@@ -48,6 +48,7 @@ import { plotLights, keyTuner } from './compose-plot.js';
 import { composeReport } from './compose-report.js';
 import { PIECES, layProps, propFaces, dressLaws } from './compose-dress.js';
 import { assembleComplexScene } from '../network/complex.js';
+import { assembleStationScene } from '../network/station.js';
 import { labDress } from './lab-dress.js';
 import { readDecay, pickDecay } from './decay.js';
 import { cardMask } from './leaf-cards.js';
@@ -1051,6 +1052,7 @@ export function assembleStageScene(manifest = {}, ctx = {}) {
   if (manifest.hall !== undefined) return assembleHall(manifest, ctx);
   // a recipe's `complex` (network/complex.js): several buildings on one site, each with a basement, joined below grade
   if (manifest.complex !== undefined) return assembleComplexScene(manifest, ctx);
+  if (manifest.station !== undefined) return assembleStationScene(manifest, ctx);
   // a recipe's `program` (programs.js): a building's rooms and doorways laid from its use, before its cube lowers
   if (manifest.program !== undefined) return assembleStageScene(withProgram(manifest), ctx);
   // a recipe's `geocube` (geocube.js): the cube's inside or outside lowered under the recipe's own keys

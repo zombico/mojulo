@@ -339,9 +339,28 @@ function railFinish({ emit, at, legSpans, zf, across, along, hw, H, L, G, look, 
   // the tracks: across what the walkway leaves, two where each has 4 m, the column line between them in a box
   const free0 = -hw, free1 = hw - walk.w, n = !vault && free1 - free0 >= 8 ? 2 : 1, each = (free1 - free0) / n;
   const tracks = Array.from({ length: n }, (_, i) => free0 + each * (i + 0.5)), colAt = n === 2 ? free0 + each : null;
-  const legs = legSpans;
-  const run = (fn) => { for (const [p, q, za, zb] of legs) fn(p, q, za, zb); };
-  for (const vt of tracks) {
+  const run = (fn) => { for (const [p, q, za, zb] of legSpans) fn(p, q, za, zb); };
+  for (const vt of tracks) layTrack({ emit, at, zf, along, across, clear, L, G, run }, vt, -1);
+  return railRest({ emit, at, legSpans, zf, across, along, hw, H, L, G, look, clear, legAt, vault, arcZ, arcVs, wallTop, inward, walk, run, flat, cross, side, colAt, colliders });
+}
+
+/**
+ * A track laid along a run (a rail tunnel's, a station's): its concrete bed and drain, two running rails at standard
+ * gauge on sleepers, its third rail outboard toward `third` (-1 the -v side, +1 the +v side) on insulators under its
+ * cover board. `ctx` the run's own frame: `at(s, v, z)`, `zf(s)` its floor, `along`, `across`, `clear(s, r)` (where a
+ * detail may stand), `run(fn)` over its spans [p, q, za, zb], `emit`, `G(name)` its groups, `L` its length.
+ */
+export function layTrack(ctx, vt, third = -1) {
+  const { emit, at, zf, along, across, clear, L, G, run } = ctx;
+  const flat = (p, q, za, zb, v0, v1, lift, group, hex, g = 1) => emit([at(p, v0, za + lift), at(q, v0, zb + lift), at(q, v1, zb + lift), at(p, v1, za + lift)], [0, 0, 1], group, { hex, g });
+  const cross = (s, v0, v1, z0, z1, dir, group, hex, g = 1) => { const z = zf(s), d = along(s); emit([at(s, v0, z + z0), at(s, v1, z + z0), at(s, v1, z + z1), at(s, v0, z + z1)], [d[0] * dir, d[1] * dir, 0], group, { hex, g }); };
+  const side = (p, q, za, zb, v, z0, z1, sg, group, hex, g = 1) => emit([at(p, v, za + z0), at(q, v, zb + z0), at(q, v, zb + z1), at(p, v, za + z1)], across((p + q) / 2, -sg), group, { hex, g });
+  const block = (s, v0, v1, ds, z0, z1, group, hex, g = 1) => {
+    flat(s - ds, s + ds, zf(s - ds), zf(s + ds), v0, v1, z1, group, hex, g);
+    cross(s - ds, v0, v1, z0, z1, -1, group, hex, g * 0.8); cross(s + ds, v0, v1, z0, z1, 1, group, hex, g * 0.8);
+    side(s - ds, s + ds, zf(s - ds), zf(s + ds), v0, z0, z1, -1, group, hex, g * 0.7); side(s - ds, s + ds, zf(s - ds), zf(s + ds), v1, z0, z1, 1, group, hex, g * 0.7);
+  };
+  {
     run((p, q, za, zb) => {
       // (its bed: a darker concrete slab, a drain down its middle)
       flat(p, q, za, zb, vt - 1.45, vt + 1.45, 0.004, G('trackbed'), '#5a5650', 0.85);
@@ -352,10 +371,10 @@ function railFinish({ emit, at, legSpans, zf, across, along, hw, H, L, G, look, 
         flat(p, q, za, zb, vt + r - RAIL.head / 2, vt + r + RAIL.head / 2, z1, G('rail'), '#c9cdd1', 1.1);
         for (const sg of [-1, 1]) side(p, q, za, zb, vt + r + sg * RAIL.head / 2, z0, z1, sg, G('rail'), '#5e564e', 0.9);
       }
-      // (the third rail, outboard toward the left wall, and its cover board over it)
-      const v3 = vt - RAIL.third;
+      // (the third rail, outboard, and its cover board over it)
+      const v3 = vt + third * RAIL.third;
       flat(p, q, za, zb, v3 - 0.05, v3 + 0.05, RAIL.thirdTop, G('third-rail'), '#8d9298', 0.9);
-      side(p, q, za, zb, v3 + 0.05, RAIL.thirdTop - 0.12, RAIL.thirdTop, 1, G('third-rail'), '#6a6e72', 0.8);
+      side(p, q, za, zb, v3 - third * 0.05, RAIL.thirdTop - 0.12, RAIL.thirdTop, -third, G('third-rail'), '#6a6e72', 0.8);
       flat(p, q, za, zb, v3 - RAIL.board / 2, v3 + RAIL.board / 2, RAIL.thirdTop + 0.1, G('third-rail'), '#cdb45c', 0.85);
     });
     // (the sleepers, and the third rail's insulators every fourth)
@@ -363,9 +382,13 @@ function railFinish({ emit, at, legSpans, zf, across, along, hw, H, L, G, look, 
     for (let s = RAIL.every / 2; s < L - 0.2; s += RAIL.every, k++) {
       if (!clear(s, 0.4)) continue;
       block(s, vt - RAIL.sleeper[0] / 2, vt + RAIL.sleeper[0] / 2, RAIL.sleeper[1] / 2, 0, RAIL.sleeper[2], G('sleeper'), '#7a746b', 0.8);
-      if (k % 4 === 0) block(s, vt - RAIL.third - 0.06, vt - RAIL.third + 0.06, 0.06, 0, RAIL.thirdTop - 0.12, G('third-rail'), '#e6e1d4', 0.9);
+      if (k % 4 === 0) block(s, vt + third * RAIL.third - 0.06, vt + third * RAIL.third + 0.06, 0.06, 0, RAIL.thirdTop - 0.12, G('third-rail'), '#e6e1d4', 0.9);
     }
   }
+}
+
+/** The rest of a rail tunnel's finish: its walkway, walls, lamps, signals, columns, rings. */
+function railRest({ emit, at, legSpans, zf, across, along, hw, H, L, G, look, clear, legAt, vault, arcZ, arcVs, wallTop, inward, walk, run, flat, cross, side, colAt, colliders }) {
   // the walkway: raised a step along the left wall from a metre in, its kerb, its yellow edge, a handrail on the wall
   run((p0, q0, za0, zb0) => {
     const p = Math.max(p0, walk.s0), q = Math.min(q0, walk.s1);
