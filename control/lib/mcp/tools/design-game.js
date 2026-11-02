@@ -128,7 +128,7 @@ async function realize(step, action) {
     return {};
   }
   // (a bestiary person dressed as a crew's, gameworld/foes.js isDressed: the hero door's grunt, made as a guard is)
-  if (HERO_STEP.test(key) || (key.startsWith('foes-') && order.mint)) {
+  if ((HERO_STEP.test(key) && !(key.startsWith('foe-') && !order.mint)) || (key.startsWith('foes-') && order.mint)) {
     if (action === 'make') await mintSolidHandler({ ...heroMintArgs(order.mint), ref });
     // (a quick game's mascot hero, runner.js: a ring plan through the creature door, remade by its plan whole)
     else if (order.mascot) await updateSketchHandler({ ref, patch: [{ op: 'set', path: '/plan', value: order.mint.spec.plan }], note: 'design_game: the mascot hero' });
@@ -150,14 +150,14 @@ async function realize(step, action) {
     else await updateSketchHandler({ ref, title: order.title, manifest: order.manifest });
     return {};
   }
-  if (/^(fighter|foes)-.+-sheet$/.test(key)) {
+  if (/^(fighter|foes?)-.+-sheet$/.test(key)) {
     // a fighter's sheet, or a bestiary people's (an egocube): rolled where it is written; a changed roll rolls it anew in
     // place
     if (action === 'make') await createSketchHandler({ ...order, ref });
     else await updateSketchHandler({ ref, title: order.title, manifest: order.manifest });
     return {};
   }
-  if (key.startsWith('fighter-') || (key.startsWith('foes-') && order.egocube)) {
+  if (key.startsWith('fighter-') || (/^foes?-/.test(key) && order.egocube)) {
     // a fighter, or a bestiary people (gameworld/foes.js): the character its sheet makes (create_character { egocube }),
     // a people with its moves on it. Remade (its sheet rolled anew, the
     // character not edited by hand since): made beside it from the sheet as it is now and moved into its own row, so

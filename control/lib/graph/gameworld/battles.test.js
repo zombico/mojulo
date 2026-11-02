@@ -1,5 +1,6 @@
 import { FOE_LOOKS } from './battles.js';
 import { beastLook, readBeastFoe } from './stage-figures.js';
+import { readPeopleSkin } from '../foes/people.js';
 import { describe, it, expect } from 'vitest';
 import { runSteps, readGameworld, MEADOWMARK_HERO } from './index.js';
 import { readBattles, battleParty, battlePlan, PACKS } from './battles.js';
@@ -15,7 +16,9 @@ describe('battles: the book\'s party battles, laid on its trails', () => {
     const S = runSteps(W({}), { ref: 'gw' });
     // (a figure for each foe the plan stands, in its look: a beast through the animal door, a person through the hero's)
     expect(S.find((s) => s.key === 'foe-wolf')).toMatchObject({ ref: 'gw-foe-wolf', ready: true, order: { animal: { species: 'wolf' } } });
-    expect(S.find((s) => s.key === 'foe-goblin')).toMatchObject({ ref: 'gw-foe-goblin', order: { spec: { cast: 'male' } } });
+    // (a people, the goblin's orcish kin: its sheet, then the character the character door makes from it, its moves on it)
+    expect(S.find((s) => s.key === 'foe-goblin-sheet')).toMatchObject({ ref: 'gw-foe-goblin-sheet', order: { manifest: { kind: 'egocube', moves: true } } });
+    expect(S.find((s) => s.key === 'foe-goblin')).toMatchObject({ ref: 'gw-foe-goblin', order: { egocube: 'gw-foe-goblin-sheet' } });
     expect(S.some((s) => s.key === 'foe')).toBe(false);
     const L = levels(W({}));
     expect(L.length).toBe(5);
@@ -108,5 +111,24 @@ describe('the battle foes\' looks', () => {
   it('each beast look names a species the fauna grows, and its ooze one the mutagen has', () => {
     const fail = (m) => new Error(m);
     for (const [id, look] of Object.entries(FOE_LOOKS)) if (beastLook(look)) expect(() => readBeastFoe(look, null, id, fail), id).not.toThrow();
+  });
+  it('each people look names a people the character doors make, and stands from its own sheet at its own stature', () => {
+    for (const [id, look] of Object.entries(FOE_LOOKS)) if (look.people !== undefined) expect(() => readPeopleSkin(look, id), id).not.toThrow();
+    // (the undead: a skeleton's pack, its foe drawn from its own sheet's character, standing at the sheet's stature)
+    const w = W({ packs: [['skeleton', 'zombie']] }), S = runSteps(w, { ref: 'gw' });
+    for (const kind of ['skeleton', 'zombie']) {
+      const sheet = S.find((s) => s.key === `foe-${kind}-sheet`);
+      expect(sheet.order.manifest.roll).toBeTruthy();
+      expect(S.find((s) => s.key === `foe-${kind}`).order).toMatchObject({ egocube: `gw-foe-${kind}-sheet` });
+    }
+    // (two kinds, two sheets: each rolled on its own seed)
+    expect(S.find((s) => s.key === 'foe-skeleton-sheet').print).not.toBe(S.find((s) => s.key === 'foe-zombie-sheet').print);
+    const M = levels(w)[0].order.manifest, e = M.play.rpg.encounters[0], who = [].concat(e.who);
+    who.forEach((id, j) => expect(M.figures[id].heroRef).toBe(`gw-foe-${e.foes[j]}`));
+    expect(M.entities.find((x) => x.id === who[0]).rule.collideHeight).toBeGreaterThan(1);
+    // a book's own look per foe, in the doors' words; a people the doors do not make is refused
+    const own = runSteps(W({ packs: [['wolf']], looks: { wolf: { people: 'lupine' } } }), { ref: 'gw' });
+    expect(own.find((s) => s.key === 'foe-wolf-sheet')).toBeTruthy();
+    expect(() => readBattles({ looks: { wolf: { people: 'nope-kin' } } })).toThrow(/looks\.wolf/);
   });
 });

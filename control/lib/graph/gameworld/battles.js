@@ -15,7 +15,10 @@
  *                          the last again (default PACKS)
  *     per?: n,             packs on each trail stage (2), on its beats
  *     boss?: [foe ids],    the last trail stage's last pack, no escape from it
- *     foe?: <hero-door spec>,   how a foe on the map looks (a plain one, by default)
+ *     foe?: <hero-door spec>,   how every foe on the map looks (each its own, FOE_LOOKS, by default)
+ *     looks?: { <foe id>: beast | people | person },   each foe's own look in a character door's words (FOE_LOOKS):
+ *                          { species, ooze?, stylism? } a beast; { people, facets?, dress? } a people (a lineage, the
+ *                          beast-kin, the undead: skeleton, zombie, ragged, rotting…); a person through the hero door
  *     rest?: false,        no rest at each stage's start (default: E there restores HP and MP)
  *     random?: { every?, chance?, after? },   random encounters on the trails, drawn from that stage's packs
  *     classes?, skills?, foes?, items?, gear?, juice?, rules?,   play.rpg's own (playscape/rpg/rpg.js), over the presets
@@ -36,6 +39,13 @@ import { cubeOfWorld } from './intent.js';
 import { castingOf, castingIds } from './casting.js';
 import { foeFigure, beastLook, readBeastFoe, stand, facing } from './stage-figures.js';
 import { bodyOf } from '../foes/fit.js';
+import { readPeopleSkin, peopleRoll, peopleSeed } from '../foes/people.js';
+import { foeClass } from '../foes/index.js';
+import { rollEgocube } from '../egocube/egocube.js';
+import { statureOf } from '../egocube/cast.js';
+import { fieldOf } from './casting.js';
+import { settingOfGame } from './cast-setting.js';
+import { fieldFigure } from './stage-figures.js';
 
 export const PACKS = Object.freeze([
   ['slime', 'slime'], ['wolf', 'bat'], ['goblin', 'spider', 'slime'], ['skeleton', 'wolf'],
@@ -43,9 +53,12 @@ export const PACKS = Object.freeze([
 ]);
 export const JOINER_CLASSES = Object.freeze(['mage', 'cleric', 'rogue', 'knight', 'monk']);
 export const BATTLE_FOE = Object.freeze({ cast: 'male', palette: { Top: '#6b2222' }, gear: { right: { item: 'dagger' } } });
-// THE BATTLE FOES' LOOKS: each foe of the presets (playscape/rpg/presets.js) stood on the map as what it is. A beast where
-// the fauna has one (its species, grown by the mutagen's ooze where it is more than an animal), a person where the foe
-// is a person; a foe with none here stands as the plain one (BATTLE_FOE). A world's own `battles.foe` stands for all.
+// THE BATTLE FOES' LOOKS: each foe of the presets (playscape/rpg/presets.js) stood on the map as what it is, in the
+// character doors' own words: a BEAST where the fauna has one ({ species, ooze?, stylism? }: grown by the mutagen's ooze
+// where it is more than an animal); a PEOPLE ({ people, facets?, dress? }, foes/people.js: a lineage of the egocube's,
+// the beast-kin, the undead form library's skeleton, zombie, ragged or rotting one, made from its sheet as a bestiary
+// people is); a PERSON through the hero door (its spec). A book names its own per foe (`battles.looks`); a world's one
+// `battles.foe` stands for all; a foe with none stands as the plain one (BATTLE_FOE).
 export const FOE_LOOKS = Object.freeze({
   slime: { species: 'frog', ooze: 'venom' },
   bat: { species: 'fruitBat' },
@@ -55,23 +68,33 @@ export const FOE_LOOKS = Object.freeze({
   wisp: { species: 'greatHornedOwl', ooze: 'shadow' },
   golem: { species: 'brownBear', ooze: 'crystal' },
   drake: { species: 'velociraptor', ooze: 'fire' },
-  goblin: { cast: 'male', palette: { Top: '#4c6b2a' }, gear: { right: { item: 'dagger' } } },
+  goblin: { people: 'orcish' },
+  shaman: { people: 'orcish' },
   bandit: BATTLE_FOE,
-  shaman: { cast: 'male', palette: { Top: '#4a2f6b' }, gear: { right: { item: 'dagger' } } },
-  skeleton: { cast: 'male', palette: { Top: '#d9d2bf' }, gear: { right: { item: 'dagger' } } },
+  skeleton: { people: 'skeleton' },
+  zombie: { people: 'zombie' },
 });
+const isPeopleLook = (look) => !!look && typeof look === 'object' && look.people !== undefined;
+// a battle people's sheet: its skin rolled in the game's setting as a caster where its foe fights by magic, else as a
+// frontline fighter (foes/people.js peopleRole), its seed the world's moved by the foe's kind (one sheet per kind)
+export function battlePeopleRoll(G, kind, look) {
+  const P = FOE_PRESETS[kind] || {}, caster = (P.mag ?? 0) > (P.atk ?? 0);
+  return peopleRoll(look, foeClass(caster ? 'lobber' : 'walker'), { seed: peopleSeed(G.seed, `battle:${kind}`), setting: settingOfGame(G) });
+}
 // the height a beast foe stands at in a fight (metres), whatever its species' own: a monster's presence, not the animal's
 // (a slime grown from a frog stands knee-high, a golem from a bear over a person); a foe not here stands at its own size
 export const FOE_HEIGHT = Object.freeze({ slime: 0.7, bat: 0.9, spider: 0.8, shroom: 0.9, wisp: 1.2, golem: 2.3, drake: 2.6 });
 // how far a foe kind reaches round its middle as it stands (metres): a beast at its fight height by its species' build
 const reachOf = (G, kind) => {
   const look = foeLookOf(G, kind);
+  if (isPeopleLook(look)) return 0.35;
   if (!beastLook(look) || !FOE_HEIGHT[kind] || G.battles?.foe) return 0.3;
   const m = bodyOf(look.species, { ooze: look.ooze });
   return Math.min(2.5, Math.max(0.15, m.extent * (FOE_HEIGHT[kind] / Math.max(0.05, m.height)) * 0.5));
 };
 /** The look a foe stands in: the world's one foe look where it writes it, else the foe's own, else the plain one. */
-export const foeLookOf = (G, id) => G.battles?.foe ?? FOE_LOOKS[id] ?? BATTLE_FOE;
+export const foeLookOf = (G, id) => G.battles?.foe ?? G.battles?.looks?.[id] ?? FOE_LOOKS[id] ?? BATTLE_FOE;
+export { isPeopleLook };
 /** The figure kinds a run makes for its battles: one per foe the plan stands (each its own look), or one for all where
  * the world writes its own foe look. */
 export const foeKindsOf = (G, plan) => (G.battles?.foe !== undefined ? ['foe'] : [...new Set(Object.values(plan ?? {}).flat(2).filter(Boolean))]);
@@ -81,7 +104,7 @@ export const BAG_SLICE = 'bag';
 export const BAG_START = Object.freeze({ potion: 2 });
 // where battles are fought: a stage walked along a trail (its beats); a building, a city and a roadway have none
 const FOUGHT = (s) => !['building', 'interior', 'city', 'roadway'].includes(s.section);
-const KEYS = ['on', 'board', 'party', 'packs', 'per', 'boss', 'foe', 'rest', 'random', 'classes', 'skills', 'foes', 'items', 'gear', 'juice', 'rules'];
+const KEYS = ['on', 'board', 'party', 'packs', 'per', 'boss', 'foe', 'looks', 'rest', 'random', 'classes', 'skills', 'foes', 'items', 'gear', 'juice', 'rules'];
 const BOARD_KEYS = ['cols', 'rows', 'cap', 'rules', 'skirmish', 'epochs', 'talk'];
 const MEMBER_KEYS = ['class', 'name', 'level', 'bonus', 'classes', 'gear'];
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
@@ -127,8 +150,18 @@ export function readBattles(v, characters = null, ids = null) {
   const packs = v.packs === undefined ? null : (Array.isArray(v.packs) && v.packs.length ? v.packs.map((p, i) => packOf(p, `.packs[${i}]`)) : (() => { throw err('.packs is a list of packs, each 1 to 6 foe ids'); })());
   if (v.per !== undefined && !(Number.isInteger(v.per) && v.per >= 0 && v.per <= 6)) throw err('.per is the packs on each trail stage, 0 to 6');
   const boss = v.boss === undefined ? null : packOf(v.boss, '.boss');
-  if (v.foe !== undefined && !isObj(v.foe)) throw err('.foe is a hero-door spec (how a foe on the map looks), or { species, ooze?, stylism? } for a beast');
+  if (v.foe !== undefined && !isObj(v.foe)) throw err('.foe is a hero-door spec (how a foe on the map looks), { species, ooze?, stylism? } for a beast, or { people, facets?, dress? } for a people');
   if (beastLook(v.foe)) readBeastFoe(v.foe, null, '.foe', err);
+  else if (isPeopleLook(v.foe)) { try { readPeopleSkin(v.foe, 'battles.foe'); } catch (e) { throw err(`.foe: ${e.message.replace(/^[^:]*: /, '')}`); } }
+  // (each foe's own look, in a character door's words: a beast, a people, or a person's spec)
+  if (v.looks !== undefined) {
+    if (!isObj(v.looks)) throw err('.looks is { <foe id>: a beast { species, ooze?, stylism? } | a people { people, facets?, dress? } | a person (the hero door\'s spec) }');
+    for (const [id, L] of Object.entries(v.looks)) {
+      if (!isObj(L)) throw err(`.looks.${id} is a beast, a people or a person`);
+      if (beastLook(L)) readBeastFoe(L, null, `.looks.${id}`, err);
+      else if (L.people !== undefined) { try { readPeopleSkin(L, `battles.looks.${id}`); } catch (e) { throw err(`.looks.${id}: ${e.message.replace(/^[^:]*: /, '')}`); } }
+    }
+  }
   if (v.rest !== undefined && typeof v.rest !== 'boolean') throw err('.rest is false for no rest at each stage\'s start');
   if (v.random !== undefined) {
     if (!isObj(v.random)) throw err('.random is { every?, chance?, after? }: random encounters on the trails, drawn from each stage\'s packs');
@@ -238,8 +271,16 @@ export function battleCast(G, stage, ends, { ref, refs = null, packs = [], from 
     const who = packs[k].map((kind, j) => {
       const fid = j ? `${id}-${j + 1}` : id, side = (j % 2 ? 1 : -1) * Math.ceil(j / 2) * span, back1 = Math.ceil(j / 2) * span * 0.5;
       const at = [r3(b.at[0] - Math.sin(h) * side - Math.cos(h) * back1), r3(b.at[1] + Math.cos(h) * side - Math.sin(h) * back1), b.at[2]];
-      const look = foeLookOf(G, kind);
-      stand({ figures, entities }, fid, foeFigure(refs?.[kind] ?? ref, look), at, h);
+      const look = foeLookOf(G, kind), fref = refs?.[kind] ?? ref;
+      if (isPeopleLook(look)) {
+        // (a people from its sheet, as a bestiary people stands: a person or a beast-kin on its own moves, at its stature)
+        const sheet = rollEgocube(battlePeopleRoll(G, G.battles?.foe !== undefined ? 'foe' : kind, look));
+        stand({ figures, entities }, fid, fieldFigure(fref, fieldOf({ body: 'person', sheet })), at, h);
+        const e = entities.at(-1);
+        e.rule = { ...e.rule, collideHeight: r3(statureOf({ body: 'person', sheet })) };
+        return fid;
+      }
+      stand({ figures, entities }, fid, foeFigure(fref, look), at, h);
       // (a beast drawn at its foe's height: its body scaled, what it collides with and where it is hit with it)
       if (beastLook(look) && FOE_HEIGHT[kind] && !G.battles?.foe) {
         const m = bodyOf(look.species, { ooze: look.ooze }), k = FOE_HEIGHT[kind] / Math.max(0.05, m.height), x = m.extent * k, e = entities.at(-1);

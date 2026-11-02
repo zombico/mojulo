@@ -34,7 +34,7 @@ import { heroOrders, castOrders } from './hero-looks.js';
 import { mechanicsOrders } from './mechanics.js';
 import { equipmentOrders, equippedHero } from './equipment.js';
 import { gearOrders } from './world-gear.js';
-import { battlePlan, battleCast as partyCast, roomOf, laidBattles, BATTLE_FOE, FOE_LOOKS, foeKindsOf } from './battles.js';
+import { battlePlan, battleCast as partyCast, roomOf, laidBattles, BATTLE_FOE, foeKindsOf, foeLookOf, isPeopleLook, battlePeopleRoll } from './battles.js';
 import { minigamePlan, minigameCast, MINIGAME_KEEPER } from './minigames.js';
 import { composeExtras } from './stage-figures.js';
 import { stageFolk, folkExtra, folkMintKey, placeSidequests } from './folk-cast.js';
@@ -203,6 +203,12 @@ export function runSteps(world, { ref, lookup } = {}) {
   const ownFoe = G.battles && G.battles.foe !== undefined, foeRef = G.battles ? childRef(ref, 'foe') : null;
   if (foeRef && !ownFoe) { if (bossed(G)) steps.push(bossStep(G, ref, { ready: true })); }
   else if (foeRef && beastLook(G.battles.foe)) steps.push(beastStep('foe', foeRef, G.battles.foe, `${G.name ?? G.id} foe`));
+  else if (foeRef && isPeopleLook(G.battles.foe)) {
+    // (a people standing for every pack: its sheet, then the character from it, as each kind's is below)
+    const roll = battlePeopleRoll(G, 'foe', G.battles.foe), manifest = { kind: 'egocube', roll, moves: true }, sheetRef = childRef(ref, 'foe-sheet');
+    steps.push({ key: 'foe-sheet', ref: sheetRef, ready: true, order: { title: `${G.name ?? G.id} foe (sheet)`, manifest }, print: fingerprint(manifest) });
+    steps.push({ key: 'foe', ref: foeRef, ready: true, order: { egocube: sheetRef, title: `${G.name ?? G.id} foe` }, print: fingerprint({ roll, moves: true }) });
+  }
   else if (foeRef) {
     const spec = withReact(react, G.battles.foe ?? BATTLE_FOE), mint = { kind: 'layered', via: 'hero', title: `${G.name ?? G.id} foe`, spec, ...(spec.head === 'anime' ? { toon: { light: true } } : {}) };
     steps.push({ key: 'foe', ref: foeRef, ready: true, order: { spec, mint, motion: null }, print: fingerprint({ spec, ...lit(mint.toon) }) });
@@ -279,8 +285,16 @@ export function runSteps(world, { ref, lookup } = {}) {
   // hero door with its own reactions where the world's people take blows)
   const kindRefs = {};
   if (plan && !ownFoe) for (const kind of foeKindsOf(G, plan)) {
-    const kref = kindRefs[kind] = childRef(ref, `foe-${kind}`), look = FOE_LOOKS[kind] ?? BATTLE_FOE, title = `${G.name ?? G.id} ${kind}`;
+    const kref = kindRefs[kind] = childRef(ref, `foe-${kind}`), look = foeLookOf(G, kind), title = `${G.name ?? G.id} ${kind}`;
     if (beastLook(look)) { steps.push(beastStep(`foe-${kind}`, kref, look, title)); continue; }
+    // (a people, foes/people.js: a lineage, the beast-kin, the undead: its sheet rolled in the game's setting, then the
+    // character the loop makes from it through its own door, its moves on it, as a bestiary people is made)
+    if (isPeopleLook(look)) {
+      const roll = battlePeopleRoll(G, kind, look), manifest = { kind: 'egocube', roll, moves: true }, sheetRef = childRef(ref, `foe-${kind}-sheet`);
+      steps.push({ key: `foe-${kind}-sheet`, ref: sheetRef, ready: true, order: { title: `${title} (sheet)`, manifest }, print: fingerprint(manifest) });
+      steps.push({ key: `foe-${kind}`, ref: kref, ready: true, order: { egocube: sheetRef, title }, print: fingerprint({ roll, moves: true }) });
+      continue;
+    }
     const spec = withReact(react, look), mint = { kind: 'layered', via: 'hero', title, spec, ...(spec.head === 'anime' ? { toon: { light: true } } : {}) };
     steps.push({ key: `foe-${kind}`, ref: kref, ready: true, order: { spec, mint, motion: null }, print: fingerprint({ spec, ...lit(mint.toon) }) });
     if (ownMoves) ownMoves[kref] = REACT_STATES;

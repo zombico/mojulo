@@ -199,3 +199,16 @@ its resource, put on a look and showed a toast. This theme makes them act.
   The two boxes take the corners that cover the party least, the foes' figures next, a low corner over a high one.
   The banner keeps the top's middle. The side view keeps the window's own layout: the menu at the lower left, the
   foes' box at the lower right.
+- **The battle foes made through the character doors** (`design_game`, party battles). The goblin, the shaman and the
+  skeleton were one plain person each in another shirt colour. Now each foe of a pack stands in the look the character
+  doors make:
+  - a beast through the animal door (`{ species, ooze?, stylism? }`);
+  - a people from its own sheet (`{ people, facets?, dress? }`), rolled in the game's setting as the egocube rolls one.
+    A people is a lineage, the beast-kin (feline, lupine, ursine, avian…) or the undead (skeleton, zombie, ragged,
+    rotting, risen…). It is rolled as a caster where its foe fights by magic, else as a fighter, and made by
+    `create_character { egocube }` with its moves, at its sheet's stature;
+  - a person through the hero door.
+  The goblin and its shaman are orcish, the skeleton is a skeleton, and a new `zombie` foe (slow, tough, weak to fire
+  and light, bites) is a zombie. A book names its own look per foe with `battles.looks: { <foe>: … }`. The one
+  `battles.foe` that stands for every pack may now be a people too. Each kind's sheet is its own row
+  (`foe-<kind>-sheet`), so the whole depth of the character doors (facets, build, age, role) is open on it.

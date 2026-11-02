@@ -113,6 +113,7 @@ export const FOE_PRESETS = Object.freeze({
   spider: { name: 'Cave Spider', hp: 18, atk: 8, def: 4, mag: 4, spd: 8, xp: 6, gold: 4, weak: ['fire'], skills: ['venom'], drops: [drop('antidote', 0.3)] },
   shroom: { name: 'Fungoid', hp: 24, mp: 12, atk: 7, def: 5, mag: 6, spd: 3, xp: 7, gold: 5, weak: ['fire'], resist: ['ice'], skills: ['spores'], drops: [drop('ether', 0.15)] },
   skeleton: { name: 'Skeleton', hp: 30, atk: 12, def: 7, mag: 3, spd: 6, xp: 11, gold: 9, weak: ['light', 'fire'], absorb: ['dark'], immune: ['poison', 'sleep'], drops: [drop('feather', 0.1)] },
+  zombie: { name: 'Zombie', hp: 34, atk: 11, def: 5, mag: 2, spd: 3, xp: 10, gold: 6, weak: ['fire', 'light'], absorb: ['dark'], immune: ['poison', 'sleep'], skills: ['bite'], drops: [drop('antidote', 0.25)] },
   bandit: { name: 'Bandit', hp: 28, atk: 11, def: 6, mag: 3, spd: 10, xp: 10, gold: 18, skills: ['venom'], drops: [drop('potion', 0.4), drop('firebomb', 0.15)] },
   wisp: { name: 'Wisp', hp: 20, mp: 30, atk: 5, def: 9, mag: 12, spd: 9, xp: 12, gold: 10, weak: ['light'], resist: ['fire', 'ice', 'thunder'], absorb: ['dark'], skills: ['dark-bolt'] },
   golem: { name: 'Stone Golem', hp: 55, atk: 15, def: 14, mag: 2, spd: 2, xp: 18, gold: 15, cp: 2, weak: ['thunder'], resist: ['fire', 'ice'], immune: ['poison', 'sleep'] },

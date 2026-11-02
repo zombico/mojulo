@@ -54,11 +54,12 @@ describe('the casting page: the people rolled for the game, as many as it asks f
 
   it('a journey cast waits on its page: the members are made once characters:cast is approved', () => {
     const world = { ...W({ scale: 'journey', n: 1 }), mode: 'gated' };
-    const wait = runSteps(world, { ref: 'gw' }).filter((s) => s.order?.egocube);
+    // (the cast's members: a battle's people foes are made from their own sheets, waiting on nothing)
+    const wait = runSteps(world, { ref: 'gw' }).filter((s) => s.order?.egocube && s.key.startsWith('cast-'));
     expect(wait.length).toBeGreaterThan(4);
     expect(wait.every((s) => !s.ready && s.waiting.some((x) => x.id === CAST_PART))).toBe(true);
     const approved = { ...world, review: approveCharacter(world, CAST_PART) };
-    expect(runSteps(approved, { ref: 'gw' }).filter((s) => s.order?.egocube).every((s) => s.ready)).toBe(true);
+    expect(runSteps(approved, { ref: 'gw' }).filter((s) => s.order?.egocube && s.key.startsWith('cast-')).every((s) => s.ready)).toBe(true);
   });
 
   it('the page is a review part only where a book has one; it shows each member\'s reading and class', () => {
