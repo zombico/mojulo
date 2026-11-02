@@ -174,7 +174,7 @@ describe('the feature grammar', () => {
     expect(featureBuild(animalCard(net)).marks.find((m) => m.name === 'network').cells[0].seeds).toEqual(mk.cells[0].seeds);   // (seeded: the same every time)
   });
 
-  it('a moose wears broad flat palms; a cat has a nose on pale whisker pads', () => {
+  it('a moose wears broad flat palms and a big droopy nose; a cat has a nose on pale whisker pads', () => {
     const palmate = Object.keys(SPECIES_KIT).find((id) => SPECIES_KIT[id].horns === 'palmate'), m = featureBuild(animalCard(palmate));
     const palm = m.eggs.find((e) => e.name === 'palmR');
     expect(palm.group).toBe('Horn');
@@ -185,6 +185,11 @@ describe('the feature grammar', () => {
     const U = palm.u.map((x) => x / Math.hypot(...palm.u)), h = palm.hint, d = h[0] * U[0] + h[1] * U[1] + h[2] * U[2];
     const V = [h[0] - U[0] * d, h[1] - U[1] * d, h[2] - U[2] * d].map((x, _, a) => x / Math.hypot(...a)), W = [U[1] * V[2] - U[2] * V[1], U[2] * V[0] - U[0] * V[2], U[0] * V[1] - U[1] * V[0]];
     expect(Math.abs(W[1])).toBeGreaterThan(0.8);
+    // (its big droopy nose: a bulb past the end of its face and hanging below it, fat at its foot, its nostrils dark)
+    const face = m.eggs.find((e) => e.name === 'muzzle'), bulb = m.eggs.find((e) => e.name === 'noseBulb');
+    expect(bulb.c[1]).toBeGreaterThan(face.c[1]); expect(bulb.c[2]).toBeLessThan(face.c[2]);
+    expect(Math.max(...bulb.r)).toBeGreaterThan(Math.max(face.r[1], face.r[2])); expect(bulb.u[2]).toBeGreaterThan(0.8);
+    expect(m.eggs.find((e) => e.name === 'nostrilR').group).toBe('Ink');
     // (one cat, chosen in code: its nose an inverted triangle at the top of two pale whisker pads and a pale chin)
     const cat = Object.keys(SPECIES).find((id) => SPECIES[id].family === 'feline' && !SPECIES_KIT[id]), c = featureBuild(animalCard(cat));
     const nose = c.eggs.find((e) => e.name === 'nose');

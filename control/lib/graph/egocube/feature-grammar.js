@@ -147,7 +147,7 @@ export function speciesMeasures(id) {
 
 /** a species' own kit over its family card's, where its name is a feature the family's rule misses (the squirrel is its
  *  brush) or gets wrong (a hippo has no trunk; a great ape no tail) */
-export const SPECIES_KIT = Object.freeze({ moose: { horns: 'palmate' }, giraffe: { pattern: 'reticulated' }, zebra: { mane: 'crest', tail: 'tuft' }, donkey: { mane: 'crest', tail: 'tuft' }, squirrel: { tail: 'brush' }, hippo: { muzzle: 'wide' }, rhino: { muzzle: 'wide' }, gorilla: { tail: 'none' }, chimpanzee: { tail: 'none' }, orangutan: { tail: 'none' }, frog: { tail: 'none' }, toad: { tail: 'none' } });
+export const SPECIES_KIT = Object.freeze({ moose: { horns: 'palmate', muzzle: 'moose' }, giraffe: { pattern: 'reticulated' }, zebra: { mane: 'crest', tail: 'tuft' }, donkey: { mane: 'crest', tail: 'tuft' }, squirrel: { tail: 'brush' }, hippo: { muzzle: 'wide' }, rhino: { muzzle: 'wide' }, gorilla: { tail: 'none' }, chimpanzee: { tail: 'none' }, orangutan: { tail: 'none' }, frog: { tail: 'none' }, toad: { tail: 'none' } });
 
 /** a wing's fold on a silhouette that is not a standing bird's (an owl's teardrop): back and down along the side */
 const WING_FOLD = unit([0.4, -0.55, -0.73]);
@@ -309,6 +309,15 @@ const MUZZLES = {
     { name: 'chin', c: [0, 0.44, 2.32], u: [0, 1, 0], r: [0.12, 0.13, 0.09], hint: [1, 0, 0], bone: 'head', group: 'Belly', join: 0.08 },
     { name: 'nose', c: [0, 0.68, 2.62], u: unit([0, 0.3, -1]), r: [0.08, 0.13, 0.06], e: 0.6, hint: [1, 0, 0], bone: 'head', group: 'Nose', join: 0.03 }],
     mouth: { nose: [0, 0.7, 2.53], centre: [0, 0.68, 2.41], corner: [0.18, 0.57, 2.41], pivot: [0, 0.42, 2.48] }, nose: 'nose', pale: ['padR', 'padL', 'chin'] }),
+  // (a moose's: a long face ending in a big bulbous nose that overhangs and droops past the lip, fat at its foot, its big
+  // nostrils on its front; a small lip tucked back under it. (Its bell is not drawn: its head sits low on its shoulders,
+  // where a flap under the throat would hang into the chest and never show))
+  moose: () => ({ eggs: [
+    { name: 'muzzle', c: [0, 0.6, 2.5], u: unit([0, 1, -0.35]), r: [0.52, 0.3, 0.28], e: 0.1, hint: [1, 0, 0], bone: 'head', join: 0.14 },
+    { name: 'noseBulb', c: [0, 1.1, 2.14], u: unit([0, -0.45, 1]), r: [0.42, 0.4, 0.35], e: 0.4, hint: [1, 0, 0], bone: 'head', join: 0.12 },
+    { name: 'nostrilR', c: [0.16, 1.42, 2.08], u: unit([0.3, 1, -0.2]), r: [0.09, 0.08, 0.045], hint: [0, 0, 1], bone: 'head', group: 'Ink', join: 0.02 },
+    { name: 'chin', c: [0, 0.82, 1.9], u: [0, 1, 0], r: [0.15, 0.17, 0.1], hint: [1, 0, 0], bone: 'head', join: 0.08 }],
+    mouth: { nose: [0, 1.12, 1.88], centre: [0, 1.08, 1.85], corner: [0.2, 0.86, 1.92], pivot: [0, 0.8, 2.0] }, nose: null }),
   // (a deer's: a narrow snout tapering to a black nose, a pale chin under it)
   cervid: () => ({ eggs: [
     { name: 'muzzle', c: [0, 0.6, 2.52], u: unit([0, 1, -0.28]), r: [0.5, 0.26, 0.24], e: 0.4, hint: [1, 0, 0], bone: 'head', join: 0.12 },

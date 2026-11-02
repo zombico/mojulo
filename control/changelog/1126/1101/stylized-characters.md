@@ -138,6 +138,9 @@ member, a quick game's hero). Code: `control/lib/graph/egocube/feature-tune.js`.
   - A new `palmate` antler (the moose's, `SPECIES_KIT`): a short beam out from each side of the head carrying a broad
     flat palm, held up and out like an open hand, its broad face to the front, with points along its outer and upper
     rim. The moose had worn the deer's branching antlers.
+  - A new `moose` muzzle: a long face ending in a big bulbous nose that overhangs and droops past the lip, fat at its
+    foot, its big dark nostrils on its front, a small lip tucked under it. The moose had the deer's narrow snout. Its
+    bell is not drawn: its head sits low on its shoulders, where a flap under the throat would never show.
   - A new `feline` muzzle for the cat family (tiger, lion, house cat, cougar): a bridge down from the brow, two puffy
     pale whisker pads and a pale chin, and an inverted triangle of a nose at the top of the pads in the roster's nose
     colour. The cats had a `button` nose, a small dot the tiger's orange swallowed.
@@ -166,7 +169,8 @@ member, a quick game's hero). Code: `control/lib/graph/egocube/feature-tune.js`.
     the jaw (rings on the legs, arcs from the spine to the belly above them, a cat's stopping short), and a giraffe's
     seeded network of patches in its own colour, both cut into the skin within the budget, the markings' dial still
     ruling them;
-  - a moose's flat palms (broad face to the front, points on the rim, not the deer's tines) and a cat's pointed nose
+  - a moose's flat palms (broad face to the front, points on the rim, not the deer's tines) and its big droopy nose
+    (past the end of its face and hanging below it, dark nostrils), and a cat's pointed nose
     on pale whisker pads;
   - a horse's long face, flowing mane, forelock and hair tail, and a deer's antlers, side-set ears and pale chin, with
     the dials still ruling them;
