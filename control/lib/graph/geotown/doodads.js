@@ -172,7 +172,7 @@ export function shelterOf(rect, z, al, back, inward, D, Rd) {
 
 /** A side profile [[s, z], …] (s along the car, a closed polygon) extruded across its width, each point's width its
  *  own (`wAt(z)`: the tumblehome), its two side faces fans from the profile's middle. In the car's frame, s along `along`. */
-function extrude(prof, wAt, along, role) {
+export function extrude(prof, wAt, along, role) {
   const out = [], n = prof.length, m = prof.reduce((a, p) => [a[0] + p[0] / n, a[1] + p[1] / n], [0, 0]);
   const at = (s, side, zz) => { const w = (wAt(zz) / 2) * side; return P(along === 'u' ? [s, w, zz] : [w, s, zz]); };
   for (let i = 0; i < n; i++) {

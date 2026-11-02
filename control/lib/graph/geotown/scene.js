@@ -49,6 +49,7 @@ import { townDressOf, dressTownFace, leanHue } from '../era/town-dress.js';
 import { LOUD_WALLS, CROWN_FORMS, popHex } from './front-loud.js';
 import { slabsOf, groundSplat, inkPicker } from './street-loud.js';
 import { toonOf, proportions, hydrantOf, binOf, postboxOf, lampOf, postOf, ringOf, shelterOf, toyCarOf } from './doodads.js';
+import { signalHead, signOf, mastArm, place } from './signs.js';
 import { styleTownDress, styleReadout } from '../era/arch-style.js';
 import { plantPool, plantRepeats } from '../vegetation/pool.js';
 import { treeSizes } from '../form/flora-read.js';
@@ -644,7 +645,11 @@ export function assembleGeotownScene(m, ctx = {}) {
   // incongruent, each its own dice by where it stands; a plain cube's as it was)
   const ROUND = !!EX, TOON = ROUND && toonOf(cube.register);
   const dials = (kind, x, y) => { const D = proportions(streamOf(seed, 'doodad', `${kind}:${r5(x)}:${r5(y)}`), TOON); return TOON ? D : { ...D, body: EX.kit.chunk }; };
-  const fr = (fs, hex = null) => { for (const f of fs) put(f.corners, `geotown:${f.role}`, hex ?? col[f.role] ?? (f.role === 'slot' ? '#1d2023' : col.metal), f.out); };
+  // (the signs' and the signals' paints: geotown/signs.js's roles; a loud street's popped)
+  const SC0 = { plate: '#22252b', border: '#f2d23a', rim: '#1c1d20', 'lens-red': col.red, 'lens-amber': col.amber, 'lens-green': col.green, 'sign-red': '#c8202a', 'sign-white': '#f4f2ea', 'sign-yellow': '#f2c21a', 'sign-blue': '#1f5aa8', 'sign-green': '#1f6e3a', slot: '#1d2023' };
+  const SC = ST ? Object.fromEntries(Object.entries(SC0).map(([k, v]) => [k, ['plate', 'rim', 'slot', 'sign-white'].includes(k) ? v : popHex(v, ST.pop)])) : SC0;
+  const fr = (fs, hex = null) => { for (const f of fs) put(f.corners, `geotown:${f.role}`, hex ?? SC[f.role] ?? col[f.role] ?? col.metal, f.out); };
+  const sd = (kind, x, y) => streamOf(seed, 'sign', `${kind}:${r5(x)}:${r5(y)}`);
   const fx = (fs, hex = null) => { for (const f of EX ? chunkFaces(fs, EX.kit.chunk) : fs) put(f.corners, `geotown:${f.role}`, hex ?? col[f.role] ?? col.metal, f.out); };
   const kitFrom = faces.length;
   // (a local street's lamp on a wooden hydro pole: the pole to its crossarm, the crossarm across the street's line, its
@@ -686,14 +691,9 @@ export function assembleGeotownScene(m, ctx = {}) {
   for (const Sg of T9.signs ?? []) {
     const [x, y] = Sg.at, z = wk(x, y);
     if (ROUND) {
-      // (a round post; a toon one's blades too big and turned off the street's lines, each its own way)
-      const D = dials('sign', x, y), bl = D.toon ? D.head * 0.75 : 1, tw = (a) => (D.toon ? a * D.tilt : 0);
-      fr(postOf(x, y, z, 2.95, 0.045, 'pole', D));
-      const blade = (cx, cy, lx, ly, z0, z1, rot) => { const c = Math.cos(rot), s2 = Math.sin(rot), P2 = (u, v) => [cx + u * c - v * s2, cy + u * s2 + v * c]; return [[P2(-lx, -ly), P2(lx, -ly), P2(lx, ly), P2(-lx, ly)]].flatMap((q) => [
-        { corners: q.map(([u, v]) => [u, v, z1]), out: [0, 0, 1], role: 'blade' }, { corners: q.map(([u, v]) => [u, v, z0]).reverse(), out: [0, 0, -1], role: 'blade' },
-        ...q.map((a, i) => { const b = q[(i + 1) % 4], n = [b[1] - a[1], -(b[0] - a[0]), 0], l = Math.hypot(n[0], n[1]) || 1; return { corners: [[...a, z0], [...b, z0], [...b, z1], [...a, z1]], out: [n[0] / l, n[1] / l, 0], role: 'blade' }; })]); };
-      fr(blade(x, y, 0.45 * bl, 0.02 * Math.max(1, bl), z + 2.55, z + 2.55 + 0.2 * bl, tw(0.6)), h9('blade'));
-      fr(blade(x, y, 0.02 * Math.max(1, bl), 0.45 * bl, z + 2.6 + 0.22 * bl, z + 2.6 + 0.42 * bl, tw(-0.9)), h9('blade'));
+      // (two blades across each other in their rims, their letters, a cap on a round post: geotown/signs.js; a toon one's
+      // too big, squashed and turned in its plane)
+      fr(place(signOf('name', dials('sign', x, y), sd('name', x, y)), [x, y, z], [1, 0]));
     } else {
       fx(box(x - 0.04, y - 0.04, x + 0.04, y + 0.04, z, z + 2.95, 'pole'));
       fx(box(x - 0.45, y - 0.02, x + 0.45, y + 0.02, z + 2.55, z + 2.75, 'blade'));
@@ -751,22 +751,45 @@ export function assembleGeotownScene(m, ctx = {}) {
       const inside = (t, s) => { const [x, y] = Pt(t, s); return x > 0 && y > 0 && x < d.frame.W && y < d.frame.D; };
       if (stop && inside(tl + 0.6, Rr + 0.7)) {
         const [px, py] = Pt(tl + 0.6, Rr + 0.7), z = wk(px, py), r = 0.38, c = (q) => { const [s, h] = q; const w0 = Pt(tl + 0.6 + 0.05, Rr + 0.7 + s); return [w0[0], w0[1], z + 2.45 + h]; };
-        fx(box(px - 0.04, py - 0.04, px + 0.04, py + 0.04, z, z + 2.1, 'pole'));
-        const o = Array.from({ length: 8 }, (_, i) => { const th = (Math.PI / 8) * (2 * i + 1); return [r * Math.cos(th), r * Math.sin(th)]; });
-        for (const q of [[o[0], o[1], o[2], o[3]], [o[4], o[5], o[6], o[7]], [o[0], o[3], o[4], o[7]]]) put(q.map(c), 'geotown:stop', col.stop, [out[0], out[1], 0]);
+        if (ROUND) fr(place(signOf('stop', dials('stop', px, py), sd('stop', px, py)), [px, py, z], out));
+        else {
+          fx(box(px - 0.04, py - 0.04, px + 0.04, py + 0.04, z, z + 2.1, 'pole'));
+          const o = Array.from({ length: 8 }, (_, i) => { const th = (Math.PI / 8) * (2 * i + 1); return [r * Math.cos(th), r * Math.sin(th)]; });
+          for (const q of [[o[0], o[1], o[2], o[3]], [o[4], o[5], o[6], o[7]], [o[0], o[3], o[4], o[7]]]) put(q.map(c), 'geotown:stop', col.stop, [out[0], out[1], 0]);
+        }
       }
       if (sig && inside(Rb + 0.9, Rr + 0.9)) {
         const t0 = Rb + 0.9, s0 = Rr + 0.9, [px, py] = Pt(t0, s0), z = wk(px, py);
         if (ROUND) fr(postOf(px, py, z, big ? 6 : 4.2, 0.1, 'pole', dials('signal', px, py))); else fx(box(px - 0.09, py - 0.09, px + 0.09, py + 0.09, z, z + (big ? 6 : 4.2), 'pole'));
         // its head: a box, its three lamps on the face to the approach (red over amber over green)
-        const head = (s, zb) => { const [hx, hy] = Pt(t0, s); fx(box(hx - 0.18, hy - 0.18, hx + 0.18, hy + 0.18, zb, zb + 1, 'signal')); [['red', 0.72], ['amber', 0.42], ['green', 0.12]].forEach(([role, h]) => face(t0 + 0.19, s - 0.1, s + 0.1, zb + h, zb + h + 0.2, role)); };
+        const head = (s, zb) => { const [hx, hy] = Pt(t0, s); if (ROUND) { fr(place(signalHead(dials('head', hx, hy), sd('head', hx, hy)), [hx, hy, zb], out)); return; } fx(box(hx - 0.18, hy - 0.18, hx + 0.18, hy + 0.18, zb, zb + 1, 'signal')); [['red', 0.72], ['amber', 0.42], ['green', 0.12]].forEach(([role, h]) => face(t0 + 0.19, s - 0.1, s + 0.1, zb + h, zb + h + 0.2, role)); };
         head(s0, z + 2.6);
         if (big) {
           const [mx, my] = Pt(t0, Rr * 0.3);
-          fx(box(Math.min(px, mx) - 0.07, Math.min(py, my) - 0.07, Math.max(px, mx) + 0.07, Math.max(py, my) + 0.07, z + 5.7, z + 5.85, 'pole'));
+          if (ROUND) fr(place(mastArm(s0 - Rr * 0.3, dials('mast', px, py)), [px, py, z + 5.78], [-out[0], -out[1]]));
+          else fx(box(Math.min(px, mx) - 0.07, Math.min(py, my) - 0.07, Math.max(px, mx) + 0.07, Math.max(py, my) + 0.07, z + 5.7, z + 5.85, 'pole'));
           head(Rr * 0.3, z + 4.65);
         }
       }
+      // (an exaggerated street's warning ahead of a signal: a crossing's diamond out along the approach)
+      if (ROUND && sig && inside(tl + 9, Rr + 0.7)) { const [qx, qy] = Pt(tl + 9, Rr + 0.7); fr(place(signOf('diamond', dials('diamond', qx, qy), sd('diamond', qx, qy), 1), [qx, qy, wk(qx, qy)], out)); }
+    }
+  }
+  // (an exaggerated street's other signs: a speed limit at the start of each walk along a street, by its kerb, facing the
+  // traffic coming; a parking sign at the head of each parking lane, on its walk)
+  if (ROUND) {
+    for (const p of d.pieces) {
+      if (p.cls !== 'walk' || !p.street || !(p.kerbs ?? []).length) continue;
+      const [x0, y0, x1, y1] = p.rect, ax = p.street.startsWith('ns') ? 'y' : 'x', k = p.kerbs[0], at = k.startsWith('-') ? 0.35 : -0.35;
+      if ((ax === 'x' ? x1 - x0 : y1 - y0) < 12) continue;
+      const kx = k.endsWith('x') ? (k.startsWith('-') ? x0 : x1) + at : null, ky = k.endsWith('y') ? (k.startsWith('-') ? y0 : y1) + at : null;
+      const [qx, qy] = ax === 'x' ? [x0 + 4, ky ?? (y0 + y1) / 2] : [kx ?? (x0 + x1) / 2, y0 + 4];
+      fr(place(signOf('speed', dials('speed', qx, qy), sd('speed', qx, qy)), [qx, qy, wk(qx, qy)], ax === 'x' ? [-1, 0] : [0, -1]));
+    }
+    for (const L of d.parking?.lanes ?? []) {
+      const [x0, y0, x1, y1] = L.rect, ns = L.axis === 'y', c = ns ? d.X[Number(L.street.slice(3))] : d.Y[Number(L.street.slice(3))], mid = ns ? (x0 + x1) / 2 : (y0 + y1) / 2, away = Math.sign(mid - c) || 1;
+      const [qx, qy] = ns ? [(away > 0 ? x1 : x0) + away * 0.5, y0 + 1] : [x0 + 1, (away > 0 ? y1 : y0) + away * 0.5];
+      if (qx > 0 && qy > 0 && qx < d.frame.W && qy < d.frame.D) fr(place(signOf('parking', dials('parking', qx, qy), sd('parking', qx, qy)), [qx, qy, wk(qx, qy)], ns ? [0, -1] : [-1, 0]));
     }
   }
   if (EX) kitBends.push([kitFrom, faces.length, wk]);
