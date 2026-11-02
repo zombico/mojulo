@@ -6,7 +6,7 @@
  * weights. Writes `<out>/mount-<register>-<coat>.glb`, its README (how each engine takes it) and its numbers.
  *
  *   node scripts/export-mount.mjs <out> [--register realistic|stylized] [--cells 64] [--coat bay] [--lit]
- *        [--no-correctives] [--clips walk,trot,…]
+ *        [--no-correctives] [--clips walk,trot,…] [--tack]
  *
  * The correctives are fit over every pose the clips make (correctives.js); their machine gate on poses the fit never
  * saw is the study sheet's (scripts/mount-study.mjs --correctives) and mount.deep.test.js's. That the GLB plays what
@@ -22,7 +22,7 @@ import { mountClips, mountGlb, MOUNT_CLIPS } from '../lib/graph/mount/export.js'
 const args = process.argv.slice(2);
 const flag = (k) => { const i = args.indexOf(`--${k}`); if (i < 0) return false; args.splice(i, 1); return true; };
 const opt = (k, d) => { const i = args.indexOf(`--${k}`); return i >= 0 ? args.splice(i, 2)[1] : d; };
-const register = opt('register', 'realistic'), cells = Number(opt('cells', 64)), coat = opt('coat', 'bay'), lit = flag('lit'), bare = flag('no-correctives');
+const register = opt('register', 'realistic'), cells = Number(opt('cells', 64)), coat = opt('coat', 'bay'), lit = flag('lit'), bare = flag('no-correctives'), tack = flag('tack');
 const names = opt('clips', null)?.split(',') ?? MOUNT_CLIPS;
 const out = args[0] || '.';
 mkdirSync(out, { recursive: true });
@@ -38,8 +38,8 @@ if (!bare) {
   lap(`correctives: ${set.drivers.length} drivers, ${set.drivers.reduce((t, d) => t + d.keys.length, 0)} shapes, fit over ${corpus.length} poses`);
 }
 const clips = mountClips(B, { names });
-const g = mountGlb(B, { mesh, set, clips, coat, lit });
-const name = `mount-${register}-${coat}`;
+const g = mountGlb(B, { mesh, set, clips, coat, lit, tack });
+const name = `mount-${register}-${coat}${tack ? '-tacked' : ''}`;
 writeFileSync(path.join(out, `${name}.glb`), g.bytes);
 lap(`${name}.glb: ${(g.byteLength / 1e6).toFixed(1)} MB, ${g.vertexCount} vertices, ${g.triangleCount} triangles, ${g.animationCount} clips`);
 

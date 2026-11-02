@@ -121,3 +121,15 @@ describe('the mount\'s baked hair', () => {
     expect(errs[Math.floor(errs.length * 0.95)]).toBeLessThan(0.035);
   }, 300000);
 });
+
+// the tack over every pose the clips make, against the body as the export renders it (LBS and its correctives)
+describe('the mount\'s tack', () => {
+  it('no piece under the rendered skin in any pose', async () => {
+    const { tackPieces, tackSkin, tackGates } = await import('./tack.js'), { skinContext, correctiveCorpus, correctiveKeys, fitCorrectives, applyCorrectives, bindDeltas } = await import('./correctives.js');
+    const { bodyMesh: mesh } = await import('./body.js'), { boneFrames: bf } = await import('./skin.js');
+    const B = resolveMount('horse'), m = mesh(B, { cells: 40 }), ctx = skinContext(B, m), corpus = correctiveCorpus(B, { phases: 8, jumpSamples: 12 }).map((c) => c.frames);
+    const set = fitCorrectives(ctx, correctiveKeys(ctx, { corpus }), corpus.filter((_, i) => i % 2 === 0)), pcs = tackPieces(B);
+    const rest = bf(B, standPose(B)), g = tackGates(m, pcs, tackSkin(pcs, m), corpus, { rest, skinAt: (pose) => applyCorrectives(ctx, set, pose), deltaAt: (pose) => bindDeltas(set, rest, pose) });
+    expect(g.checks.filter((c) => !c.pass).map((c) => c.saw)).toEqual([]);
+  }, 900000);
+});

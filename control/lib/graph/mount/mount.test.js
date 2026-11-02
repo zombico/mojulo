@@ -312,3 +312,23 @@ describe('the folds', () => {
     expect(fit.drivers[0].keys[1].deltas.length).toBe(set.drivers[0].keys[1].deltas.length);
   });
 });
+
+// the tack: fitted to this body (each piece's surface a few millimetres proud of the skin at the stand, the seat on the
+// back behind the withers, the bit at the mouth's corners), and riding it: no piece under the rendered skin in the
+// poses that fold it most (the take-off's crouch, the gallop's reach, grazing); every pose of the clips is the deep tier's
+describe('the tack', () => {
+  it('fits this horse and rides it', async () => {
+    const { tackPieces, tackSkin, tackGates } = await import('./tack.js'), { correctiveCorpus } = await import('./correctives.js');
+    const B = resolveMount('horse'), m = bodyMesh(B, { cells: 48 }), pcs = tackPieces(B), F = bodyField(B), names = pcs.map((p) => p.name);
+    for (const n of ['pad', 'saddle', 'flapR', 'girth', 'leatherL', 'ironR', 'crownpiece', 'browband', 'noseband', 'throatlash', 'cheekL', 'bitRingR', 'reins']) expect(names).toContain(n);
+    // the pad's underside 3 mm proud; the saddle's whole underside over the back, between the withers and the loin
+    const pad = pcs.find((p) => p.name === 'pad'), under = pad.vertices.slice(0, pad.vertices.length / 2).map((v) => F.field(v));
+    expect(Math.min(...under)).toBeGreaterThan(0.0015); expect(Math.max(...under)).toBeLessThan(0.006);
+    const seat = pcs.find((p) => p.name === 'saddle').vertices.map((v) => v[1]);
+    expect(Math.max(...seat)).toBeLessThan(B.trunk.withers[0] + 0.02); expect(Math.min(...seat)).toBeGreaterThan(B.trunk.loin[0]);
+    const rest = boneFrames(B, standPose(B)), corpus = correctiveCorpus(B, { phases: 4, jumpSamples: 12 });
+    const hard = ['jump', 'gallop', 'grazing'].map((w) => corpus.find((c) => c.label.startsWith(w)).frames);
+    const g = tackGates(m, pcs, tackSkin(pcs, m), hard, { rest, skinAt: (pose) => skinPose(m, rest, pose) });
+    expect(g.checks.filter((c) => !c.pass).map((c) => c.saw)).toEqual([]);
+  }, 120000);
+});

@@ -24,6 +24,7 @@
  *   fitCorrectives(ctx, set, poses, { lambda }) → the keys refit over many poses at once (least squares, per vertex)
  *   correctiveWeights(set, rest, pose) → [{ driver, key, w }]
  *   applyCorrectives(ctx, set, pose) → the corrected vertices (LBS with the keys added in bind space)
+ *   bindDeltas(set, rest, pose) → vertex → its keys' offset in bind space
  *   skinContext(B, mesh) → { B, mesh, F, rest, iso, nbr }
  *   correctiveCorpus(B, { phases }) → [{ label, frames }] (every gait round its cycle, the jump, grazing, resting a hind)
  *   foldMeasures(ctx, pose, x, oracle) → { off: { p95, max } (from the oracle, at the folds), volume, inverted }
@@ -291,6 +292,13 @@ export function correctiveWeights(set, rest, pose) {
       prev = ak;
     }
   }
+  return out;
+}
+
+/** the weighted keys' offsets in bind space, per vertex they move (vertex → [dx, dy, dz]) */
+export function bindDeltas(set, rest, pose, weights = correctiveWeights(set, rest, pose)) {
+  const out = new Map(), byId = Object.fromEntries(set.drivers.map((d) => [d.id, d]));
+  for (const { driver, key, w } of weights) for (const [i, dv] of byId[driver].keys[key].deltas) out.set(i, add(out.get(i) ?? [0, 0, 0], mul(dv, w)));
   return out;
 }
 

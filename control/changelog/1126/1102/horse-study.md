@@ -77,6 +77,13 @@ rather than over it (the fauna horse's rows stay byte-identical). Solo; the sadd
   README says how Godot, Unity, Unreal and Blender take it. Re-skinned from its own buffers the file is the solver's
   skin to a fraction of a millimetre. `node scripts/mount-live.mjs <glb> <dir> [--local]` plays it in a live viewer
   (three.js): the clips by family, the shapes on or off, the skeleton, the ground passing at the gait's speed.
+- **The tack** (`mount/tack.js`): an all-purpose saddle on its pad (the pommel behind the withers, the seat's dip, the
+  cantle; the flaps cut forward), the girth in the girth groove, the stirrup leathers and irons (run up, or hung to a
+  length), and a snaffle bridle (crownpiece, browband, cheekpieces, cavesson noseband, throatlash, the bit's rings at
+  the corners of the mouth) with its reins over the neck, each fitted to this horse's own body (rays into its form
+  field, a few millimetres proud). The bridle rides the head; the rest rides the skin under it, its weights and its
+  corrective shapes, so it lifts where a fold lifts the skin. Its gate: no piece under the rendered skin in any pose
+  the clips make. On the study sheet (`--tack`) and in the export (`--tack`).
 - **The machine gate** (`mount/gates.js`): footfalls and duty, suspensions, slip, ground, the flight at g, the joints'
   ranges and the hip's, reach, pops, rigid bones, brushing, the seams of a one-shot, the rail's clearance, a layer's loop. Every
   gait at both band ends, both leads, both registers; every one-shot; every realistic jump; every idle layer pass it.

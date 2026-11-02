@@ -38,6 +38,7 @@ import { b64u8 } from '../figures/rig-bake.js';
 import { facesToGlb } from '../scene/scene-gltf.js';
 import { hairCards } from './hair.js';
 import { hairRig, bakeHairClip, hairJointKeys } from './hair-bake.js';
+import { tackPieces, tackSkin } from './tack.js';
 
 const r5 = (x) => Math.round(x * 1e5) / 1e5;
 const b64f32 = (a) => Buffer.from(Float32Array.from(a).buffer).toString('base64');
@@ -92,7 +93,7 @@ const turnOf = (r, p) => [0, 1, 2].map((a) => [0, 1, 2].map((b) => p.R[0][a] * r
  * (correctives.js fitCorrectives / correctiveKeys), or null for none (then no targets and no weights: plain LBS);
  * `clips` mountClips' samplers; `fps` the keys a second.
  */
-export function mountPack(B, { mesh, coat = 'bay', markings = {}, set = null, clips = {}, fps = 30, hair = 'baked' } = {}) {
+export function mountPack(B, { mesh, coat = 'bay', markings = {}, set = null, clips = {}, fps = 30, hair = 'baked', tack = false } = {}) {
   if (hair === true) hair = 'baked';
   const stand = standPose(B), rest = boneFrames(B, stand), body = MOUNT_BONES.map((b) => b.id);
   const rig = hair ? hairRig(B) : null, ids = [...body, ...(rig ? rig.joints.map((J) => J.id) : [])], index = new Map(ids.map((id, i) => [id, i]));
@@ -140,6 +141,26 @@ export function mountPack(B, { mesh, coat = 'bay', markings = {}, set = null, cl
         }
       }
     });
+  }
+  // the tack (tack.js; `tack`: true or its options): each piece's quads on the joints it rides, its quads' own normals
+  if (tack) {
+    const pieces = tackPieces(B, tack === true ? {} : tack), skins = tackSkin(pieces, mesh);
+    pieces.forEach((pc, k) => pc.quads.forEach((q, qi) => {
+      const col = hexLinear(pc.colors[qi]), V = q.map((i) => pc.vertices[i]);
+      const n = (() => { const u = [V[2][0] - V[0][0], V[2][1] - V[0][1], V[2][2] - V[0][2]], v = [V[3][0] - V[1][0], V[3][1] - V[1][1], V[3][2] - V[1][2]], c = [u[1] * v[2] - u[2] * v[1], u[2] * v[0] - u[0] * v[2], u[0] * v[1] - u[1] * v[0]], l = Math.hypot(...c); return l > 1e-12 ? c.map((x) => x / l) : null; })();
+      if (!n) return;                                                   // (a degenerate quad)
+      const votes = new Map(); for (const i of q) for (const [b, w] of skins[k][i]) votes.set(b, (votes.get(b) || 0) + w);
+      const part = P[index.get([...votes.entries()].sort((a2, b2) => b2[1] - a2[1] || (a2[0] < b2[0] ? -1 : 1))[0][0])];
+      part.faces += 2;
+      for (const c of [0, 1, 2, 0, 2, 3]) {
+        const i = q[c], w = [...skins[k][i], ...Array(4).fill(['spine1', 0])].slice(0, 4);
+        part.pos.push(...pc.vertices[i]); part.col.push(...col); part.nrm.push(...n);
+        part.jnt.push(...w.map(([bn]) => index.get(bn))); part.wgt.push(...w.map(([, x]) => x));
+        // (a piece on the skin takes its body vertex's corrective rows: it moves as the skin under it moves)
+        const row = skins[k].near[i] >= 0 ? rowOf.get(skins[k].near[i]) : null;
+        if (row) { part.ci.push(part.pos.length / 3 - 1); part.cd.push(...row); }
+      }
+    }));
   }
   const parts = P.map((p) => (p.faces ? {
     pos: b64f32(p.pos), col: b64u8(p.col), faces: p.faces, jnt: b64bytes(p.jnt), wgt: b64f32(p.wgt), nrm: b64f32(p.nrm),

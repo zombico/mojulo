@@ -6,7 +6,7 @@
 //
 //   node scripts/mount-study.mjs <outDir> [--register realistic|stylized] [--gaits walk,trot,canter,gallop,reinBack]
 //        [--lead right|left] [--view side|front] [--cols 8] [--before] [--shots] [--jump] [--idle] [--body [--cells 80] [--coat bay] [--views side,front] [--big] [--crop head]]
-//        [--correctives [--cells 64]] [--png]
+//        [--correctives [--cells 64]] [--tack] [--png]
 // `--shots` adds the one-shots' sheet (changes of gait, the halts, the move off); `--jump` the jump's; `--idle` the rest's.
 import path from 'node:path';
 import { mkdirSync, writeFileSync, existsSync } from 'node:fs';
@@ -25,6 +25,7 @@ import { simulateHair, hairCards } from '../lib/graph/mount/hair.js';
 import { restState } from '../lib/graph/mount/idle.js';
 import { oneShot } from '../lib/graph/mount/motion.js';
 import { standPose } from '../lib/graph/mount/gait.js';
+import { tackPieces, tackSkin } from '../lib/graph/mount/tack.js';
 import { skinContext, implicitSkin, correctiveKeys, correctiveCorpus, fitCorrectives, applyCorrectives, correctiveGates } from '../lib/graph/mount/correctives.js';
 
 const args = process.argv.slice(2);
@@ -32,7 +33,7 @@ const flag = (k) => { const i = args.indexOf(`--${k}`); if (i < 0) return false;
 const opt = (k, d) => { const i = args.indexOf(`--${k}`); return i >= 0 ? args.splice(i, 2)[1] : d; };
 const register = opt('register', 'realistic'), lead = opt('lead', 'right'), cols = Number(opt('cols', 8)), view = opt('view', 'side');
 const gaits = opt('gaits', 'walk,trot,canter,gallop,reinBack').split(',');
-const before = flag('before'), png = flag('png'), shots = flag('shots'), jumps = flag('jump'), idles = flag('idle'), body = flag('body'), correctives = flag('correctives');
+const before = flag('before'), png = flag('png'), shots = flag('shots'), jumps = flag('jump'), idles = flag('idle'), body = flag('body'), correctives = flag('correctives'), tack = flag('tack');
 const cells = Number(opt('cells', 80)), coat = opt('coat', 'bay'), views = opt('views', null), big = flag('big'), crop = opt('crop', null);
 const outDir = args[0] || '.';
 mkdirSync(outDir, { recursive: true });
@@ -125,6 +126,23 @@ if (body) {
     return { ...cell, vertices: [...cell.vertices, ...hc.vertices], quads: [...cell.quads, ...hc.quads.map((q) => q.map((i) => i + off))],
       colors: [...cell.colors, ...hc.colors], twoSided: [...cell.quads.map(() => false), ...hc.twoSided] };
   };
+  // the tack (`--tack`): its pieces on the body, skinned as the export skins them into a pose
+  const T = tack ? tackPieces(B) : null, TS = T ? tackSkin(T, m) : null, rest0 = boneFrames(B, standPose(B));
+  const withTack = (cell, frames = null) => {
+    if (!T) return cell;
+    const V = [...cell.vertices], Q = [...cell.quads], C = [...cell.colors], two = cell.twoSided ? [...cell.twoSided] : cell.quads.map(() => false);
+    T.forEach((pc, k) => {
+      const o = V.length;
+      for (const [j, v] of pc.vertices.entries()) {
+        if (!frames) { V.push(v); continue; }
+        let p = [0, 0, 0];
+        for (const [bone, w] of TS[k][j]) { const r = rest0[bone], q = frames[bone], d = v.map((x, i) => x - r.h[i]), l = [0, 1, 2].map((a2) => d[0] * r.R[a2][0] + d[1] * r.R[a2][1] + d[2] * r.R[a2][2]); for (let a2 = 0; a2 < 3; a2++) p[a2] += w * (q.h[a2] + q.R[0][a2] * l[0] + q.R[1][a2] * l[1] + q.R[2][a2] * l[2]); }
+        V.push(p);
+      }
+      Q.push(...pc.quads.map((q) => q.map((i) => i + o))); C.push(...pc.colors); two.push(...pc.quads.map(() => true));
+    });
+    return { ...cell, vertices: V, quads: Q, colors: C, twoSided: two };
+  };
   const standHair = simulateHair(B, () => standPose(B), { t0: 0, t1: 0.5, fps: 10 });
   const simHold = (fr) => { const h = simulateHair(B, () => fr, { t0: 0, t1: 0.5, fps: 10 }); return { guides: h.guides, strands: h.strands[h.strands.length - 1] }; };
   const restHairAt = standHair.strands[standHair.strands.length - 1];
@@ -137,7 +155,7 @@ if (body) {
     writeFileSync(path.join(outDir, `${hname}.svg`), bodySheet(rowsH, { title: `the mount's head and neck (${cells} cells)`, cellW: 520, cellH: 520 }));
     files.push(`${hname}.svg`);
   }
-  const rows = [{ label: `${register}, ${coat}`, sub: `${m.stats.triangles} triangles · ${m.stats.vertices} vertices · open edges ${m.stats.open} · non-manifold ${m.stats.nonManifold} · hair: ${standHair.guides.length} guides`, cells: (views ? views.split(',') : BODY_VIEWS).map((view) => withHair({ vertices: m.vertices, quads: m.quads, colors, view, caption: view }, standHair.guides, restHairAt)) }];
+  const rows = [{ label: `${register}, ${coat}`, sub: `${m.stats.triangles} triangles · ${m.stats.vertices} vertices · open edges ${m.stats.open} · non-manifold ${m.stats.nonManifold} · hair: ${standHair.guides.length} guides`, cells: (views ? views.split(',') : BODY_VIEWS).map((view) => withHair(withTack({ vertices: m.vertices, quads: m.quads, colors, view, caption: view }), standHair.guides, restHairAt)) }];
   // the coats: each card on the same body
   if (!views) {
     const coatCells = Object.keys(COATS).map((c) => ({ vertices: m.vertices, quads: m.quads, view: 'threeQuarter', caption: c,
@@ -147,7 +165,7 @@ if (body) {
   // the body skinned into poses: a stride of the trot and of the gallop, the jump's apex and landing, grazing, resting
   if (!views) {
     const rest = boneFrames(B, standPose(B));
-    const posed = (label, fr, hair) => { const p = skinPose(m, rest, boneFrames(B, fr)), st = skinMeasures(m, p); const cell = { vertices: p, quads: m.quads, colors, view: 'side', caption: `${label} · stretch p99 ${st.stretch.p99.toFixed(2)} · volume ${st.volume.toFixed(3)}` }; return hair ? withHair(cell, hair.guides, hair.strands) : cell; };
+    const posed = (label, fr, hair) => { const p = skinPose(m, rest, boneFrames(B, fr)), st = skinMeasures(m, p); const cell = withTack({ vertices: p, quads: m.quads, colors, view: 'side', caption: `${label} · stretch p99 ${st.stretch.p99.toFixed(2)} · volume ${st.volume.toFixed(3)}` }, boneFrames(B, fr)); return hair ? withHair(cell, hair.guides, hair.strands) : cell; };
     // the hair through each clip: a cycle's looped, a one-shot's from its first frame; sampled where the cells are
     const hairOf = (sim, t) => ({ guides: sim.guides, strands: sim.strands[Math.round((t - sim.times[0]) / (sim.times[1] - sim.times[0]))] });
     const tr = gaitCycle(B, 'trot'), ga = gaitCycle(B, 'gallop'), jp = jumpClip(B, { fence: 1.1 });
