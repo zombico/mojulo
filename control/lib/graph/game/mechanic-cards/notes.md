@@ -37,3 +37,22 @@ The beat is the level's music's (`audio: { soundtrack, beat: true }`, as `on-bea
 on a game level played with `xr` (or `?xr=` on its live page), each hand's held blade, or its fist, strikes what it
 crosses at a swing's pace, and the bus hears `cut` with its direction. A wrong direction or hand leaves the note
 walking; it becomes a miss at the end of its lane.
+
+## A saber level, as a concept
+
+A saber rhythm level is these parts on any stage level, nothing of its own:
+
+- the level played in a headset: `xr: true` (or `{ move: 'standing' }`) on the level, or on the gameworld for every level;
+- the hero holding two light blades: hero door `gear: { right: { item: 'sword', style: 'saber' }, left: { item: 'sword',
+  style: <the saber card with roles.blade ['neon', '#e0383e']> } }` (equipment style `saber`);
+- the note blocks: per lane and cut, bodies minted `dormant: true`, each `body: { type: 'glyph', form: 'note-<dir>', tint,
+  hittable: true, hp: 100, egg: { a: 0.3, c: 0.3, cz: 0.25 } }` (hp: waking restores a body's hittable only with hp to
+  restore; a cut's blow never fells one) and `rule: { type: 'static', eye: <the block's middle height − 0.25>,
+  collideHeight: 1 }`, asleep at the lane's far end; a lane per height and cut, so each block wears its own arrow;
+- the music with a beat known when the chart is written: a club score with its seed fixed (`audio: { soundtrack: { score:
+  { mood: 'drive', style: 'club', seed: 1 } }, beat: true }`), its `every` and `lead` the notes' `every` and `early`
+  (beats-world.js resolveWorldAudio says them); a field score's tempo moves with the level's ref;
+- `notes` with those lanes and the chart, and `score` on `note:hit` to keep the best.
+
+The headset cuts with the held blades (worlds/controllable/sweep.js), and the HUD reads on a panel in the play space.
+Keep a lane's corridor clear: a note something stops is a miss.

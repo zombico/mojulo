@@ -5,7 +5,7 @@
  * game's own decoration (glyph forms chosen by the pickup's word, sparkles, the exit's marker) and the shell's theme.
  *
  *   gameworld.quick: {
- *     goal: 'reach' | 'collect' | 'survive' | 'avoid' | 'race' | 'sneak' | 'rhythm' | 'saber' | 'defend' | 'puzzle' | 'farm' | 'battle' | 'fly',
+ *     goal: 'reach' | 'collect' | 'survive' | 'avoid' | 'race' | 'sneak' | 'rhythm' | 'defend' | 'puzzle' | 'farm' | 'battle' | 'fly',
  *     hero?: <a hero-door spec> | false,    // false or absent: first person, you are the camera
  *     body?: '<rail>' | 'game' | { rail, style?, muscle? },   // the body the game puts in its people (game-bodies.js):
  *                                           // the rail's hero under the hero spec's own words, its henchman under each
@@ -69,10 +69,9 @@
  *                                           // the mood each level's place and play call for, beats/score-suggest.js)
  *     sfx?: 'auto' | '<palette>',           // action sounds wired to the goal's events, in the music's key ('auto': the
  *                                           // palette the score implies; arcade, foley, orchestral, synth; beats/sfx-palettes.js)
- *     misses?: n,                           // rhythm: how many presses off the beat end it (none: no limit); saber: how
- *                                           // many notes missed end it
- *     xr?: true | false | { move?, turn? }, // played in a headset (scene/channels/xr.js), written to the world's own
- *                                           // `xr` (each level carries it); the saber goal's default { move: 'standing' }
+ *     misses?: n,                           // rhythm: how many presses off the beat end it (none: no limit)
+ *     xr?: true | false | { move?, turn?, hud? },   // played in a headset (scene/channels/xr.js), written to the world's
+ *                                           // own `xr` (each level carries it)
  *     waves?: n, lives?: n, pads?: n,       // defend: how many waves (3), lives (5), tower pads by the trail (4)
  *     foe?, tower?: <a hero-door spec>      // defend: what a foe and a tower's archer look like (rolled by default)
  *     board?: true | { cols?, rows?, gold? }   // conquer: the skirmish's board and its purse (board/board-rts.js)
@@ -172,8 +171,6 @@ import { SCORE_MOODS } from '../beats/field-score.js';
 import { CLUB_MOODS } from '../beats/club-score.js';
 import { suggestScore, levelScoreContext } from '../beats/score-suggest.js';
 import { SFX_PALETTE_NAMES } from '../beats/sfx-palettes.js';
-import { resolveWorldAudio } from '../beats/beats-world.js';
-import { SEEDED_STYLES } from '../equipment/styles.js';
 import { CRAFT } from '../skyscape/eye.js';
 import { quickGenre } from './intent.js';
 import { VARIABLE_PALETTES } from '../transformation/variable-suit.js';
@@ -216,7 +213,6 @@ export const QUICK_GOALS = Object.freeze({
   race: 'run the trail\'s checkpoints in order (its beats) to the finish (its end), against the clock; the best time is kept. On a loop (track), laps round it; with rivals, finish on the podium',
   sneak: 'reach the end past guards who keep the trail, sweeping their gaze: seen, and it is over',
   rhythm: 'run the trail to the music: jump on its beat for points (off the beat is a miss); the best score is kept',
-  saber: 'a saber rhythm game in a headset: notes ride in down lanes on the music\'s beat, each to be cut its arrow\'s way with the saber in its hand (red left, blue right); every note cut or missed ends it, misses can lose it; the best score is kept',
   defend: 'foes walk the trail in waves to your base (its start); build archers\' towers on the pads beside it (E, for gold) and hold',
   puzzle: 'push the boulders on a grid by the trail\'s start onto their plates (walk into one to push it a cell)',
   farm: 'plant the plots by the start (E), let the days ripen them, harvest and sell: make the gold before the day runs out',
@@ -263,18 +259,6 @@ export const FARM = Object.freeze({ cost: 2, price: 6, gold: 6, rate: 4, start: 
 export const DEFEND = Object.freeze({ cost: 5, gold: 10, bounty: 2, perWave: [3, 5, 7, 9, 11, 13], hp: 3 });
 // the field scores a rhythm game runs to (each a steady tempo, beats-world's audio.beat)
 export const RHYTHM_MOODS = Object.freeze(['wayfarer', 'expedition', 'tavern', 'village', 'plains', 'forest', 'highlands', 'desert']);
-// THE SABER GAME (the saber goal): its music (an electronic club score, seeded, so its beat is known when the chart is
-// written: beats/club-score.js), and its stage: lanes from `run` metres out to the cutting `line` ahead of the player,
-// in four columns (metres right of the way it faces: the left two the left hand's, red; the right two the right's,
-// blue) and two heights (the blocks' middles), a note walking `lead` beats and on `beyond` metres past the line; the
-// chart `notes` long from beat `start` (the music's first two bars clear)
-export const SABER_MOODS = Object.freeze(['drive', 'rave', 'peak', 'drift']);
-export const SABER = Object.freeze({ cols: [-0.45, -0.15, 0.15, 0.45], rows: [0.95, 1.4], line: 1.1, run: 14, lead: 4, beyond: 2, notes: 40, start: 8, seed: 1, red: '#e0383e', blue: '#2f7fe0',
-  // the lanes' corridor kept clear (saberLanes): this far either side of the outer lanes (a block's half and a margin),
-  // from just ahead of the player to past the miss line; anything solid between a step above the feet and `over` above
-  // them blocks it; the land at the line within `near` of the feet, no stretch steeper than `grade`; the headings tried,
-  // off the stage's
-  turns: [0, 15, -15, 30, -30, 45, -45, 60, -60, 90, -90, 120, -120, 150, -150, 180], margin: 0.45, over: 2.0, near: 0.25, grade: 0.35 });
 const KEYS = ['xr', 'body', 'goal', 'craft', 'assist', 'airspace', 'hero', 'ride', 'tier', 'livery', 'wear', 'transformer', 'racers', 'supercars', 'series', 'mood', 'vehicle', 'tuning', 'conditions', 'track', 'roadway', 'laps', 'rivals', 'climb', 'building', 'pickup', 'seconds', 'theme', 'camera', 'screen', 'runner', 'distance', 'guards', 'guard', 'alarms', 'music', 'sfx', 'misses', 'waves', 'lives', 'pads', 'foe', 'tower', 'board', 'sides', 'doctrine', 'match', 'boulders', 'plots', 'target', 'days', 'folk', 'farmhand', 'run', 'foes', 'bots', 'frags', 'arena', 'pole', 'weapons', 'mode', 'roster', 'arenas', 'stages', 'rounds', 'timer', 'rules', 'cast', 'moves', 'event', 'lanes', 'sport', 'players', 'register', 'level', 'seats', 'sets', 'periods', 'attempts', 'athletes', 'kits', 'broadcast', 'game', 'human', 'lift', 'venue', 'surface', 'preset', 'innings', 'overs', 'concept', 'teams'];
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const fail = (m) => new Error(`gameworld: quick${m}`);
@@ -511,16 +495,11 @@ export function readQuick(Q) {
   if (Q.alarms !== undefined && !(Number.isInteger(Q.alarms) && Q.alarms >= 1 && Q.alarms <= 9)) throw fail('.alarms is how many sightings end the run, 1 to 9');
   if (Q.guard !== undefined && !isObj(Q.guard)) throw fail('.guard is a hero-door spec, as .hero is');
   if (Q.building !== undefined && (Q.goal === 'race' || Q.goal === 'sneak' || Q.goal === 'rhythm')) throw fail(`.building: ${Q.goal} runs a trail, not a building`);
-  if (Q.goal !== 'rhythm' && Q.goal !== 'saber' && Q.misses !== undefined) throw fail('.misses belongs to the rhythm and saber goals');
+  if (Q.goal !== 'rhythm' && Q.misses !== undefined) throw fail('.misses belongs to the rhythm goal');
   if (Q.goal === 'rhythm' && Q.music !== undefined && !RHYTHM_MOODS.includes(Q.music)) throw fail(`.music is a field score with a steady beat: ${RHYTHM_MOODS.join(', ')}`);
-  if (Q.goal === 'saber' && Q.music !== undefined && !SABER_MOODS.includes(Q.music)) throw fail(`.music is a club score with a steady beat: ${SABER_MOODS.join(', ')}`);
   if (Q.xr !== undefined && Q.xr !== true && Q.xr !== false && !isObj(Q.xr)) throw fail('.xr is true (played in a headset), false, or { move?: seated | standing, turn?: smooth | snap }');
-  if (Q.goal === 'saber') {
-    for (const k of ['climb', 'building', 'run', 'ride', 'racers', 'supercars', 'roadway', 'transformer', 'craft']) if (Q[k] !== undefined && Q[k] !== false) throw fail(`.${k}: a saber game stands the player before its lanes (no ${k})`);
-    if (Q.camera !== undefined && Q.camera !== 'first-person') throw fail('.saber is played from the eye, in a headset: camera first-person');
-  }
   if (Q.sfx !== undefined && Q.sfx !== 'auto' && !SFX_PALETTE_NAMES.includes(Q.sfx)) throw fail(`.sfx is 'auto' (the palette the music implies) or a palette: ${SFX_PALETTE_NAMES.join(', ')}`);
-  if (Q.goal !== 'rhythm' && Q.goal !== 'saber' && Q.music !== undefined && Q.music !== 'auto' && !Object.prototype.hasOwnProperty.call(SCORE_MOODS, Q.music) && !Object.prototype.hasOwnProperty.call(CLUB_MOODS, Q.music)) throw fail(`.music is 'auto' (each level's place and play pick its score) or a mood: ${Object.keys(SCORE_MOODS).join(', ')}; electronic: ${Object.keys(CLUB_MOODS).join(', ')}`);
+  if (Q.goal !== 'rhythm' && Q.music !== undefined && Q.music !== 'auto' && !Object.prototype.hasOwnProperty.call(SCORE_MOODS, Q.music) && !Object.prototype.hasOwnProperty.call(CLUB_MOODS, Q.music)) throw fail(`.music is 'auto' (each level's place and play pick its score) or a mood: ${Object.keys(SCORE_MOODS).join(', ')}; electronic: ${Object.keys(CLUB_MOODS).join(', ')}`);
   if (Q.misses !== undefined && !(Number.isInteger(Q.misses) && Q.misses >= 1 && Q.misses <= 99)) throw fail('.misses is how many presses off the beat end the run, 1 to 99');
   for (const k of ['lives', 'pads', 'tower']) if (Q.goal !== 'defend' && Q[k] !== undefined) throw fail(`.${k} belongs to the defend goal`);
   // (waves: a defence's, or a dogfight's wings: shoot with a craft)
@@ -840,13 +819,11 @@ export function quickWorld({ quick: asked, id, name, seed, style, ...rest } = {}
   const given = camo ? { ...tiered, livery: camo } : tiered;
   // the camera is the world's setting, not the goal's: it moves up to the world, where both run paths read it
   // (and the screen it is made for, beside it: game/screen.js)
-  const { camera: named, moves, screen, xr: xrNamed, ...given0 } = given;
-  // (a saber game's hero holds its two sabers, unless it names its own gear or is adopted, a mascot or none)
-  const quick = given0.goal === 'saber' ? { ...given0, hero: saberHero(given0.hero) } : given0;
-  // a shooter aims: without a camera named, from the eye (and a saber game is played from it, in a headset)
-  const camera = named ?? ((quick.goal === 'shoot' && quick.craft === undefined) || quick.goal === 'deathmatch' || quick.goal === 'saber' ? 'first-person' : quick.goal === 'fight' ? 'side' : undefined);
-  // played in a headset: the world's own setting (each level carries it), a saber game's by default, standing
-  const xr = xrNamed === false ? undefined : xrNamed ?? (quick.goal === 'saber' ? { move: 'standing' } : undefined);
+  const { camera: named, moves, screen, xr: xrNamed, ...quick } = given;
+  // a shooter aims: without a camera named, from the eye
+  const camera = named ?? ((quick.goal === 'shoot' && quick.craft === undefined) || quick.goal === 'deathmatch' ? 'first-person' : quick.goal === 'fight' ? 'side' : undefined);
+  // played in a headset: the world's own setting (each level carries it)
+  const xr = xrNamed === false ? undefined : xrNamed;
   if (typeof id !== 'string') throw fail(': the world needs an id (a short lower-case name)');
   // what game it is (intent.js): the genre its cube is read from, written so the creator sees it and can change it; the
   // cube is the same either way. A goal with no genre, or an intent the caller wrote, writes none
@@ -948,11 +925,6 @@ export function goalMechanics(quick, ends) {
     }
     case 'rhythm':
       return [{ kind: 'on-beat', ...(quick.misses ? { misses: quick.misses } : {}) }, { kind: 'score', label: 'Beats', points: [{ on: 'beat:hit' }] }, exit];
-    case 'saber': {
-      // the chart on the stage's own lanes (saberPlan), its notes the cast's sleeping blocks (saberCast); the best kept
-      const P = saberPlan(quick, ends);
-      return [{ kind: 'notes', every: P.every, early: P.early, lead: SABER.lead, beyond: SABER.beyond, lanes: P.lanes, chart: P.chart, ...(quick.misses ? { misses: quick.misses } : {}) }, { kind: 'score', label: 'Score', points: [{ on: 'note:hit' }] }];
-    }
     case 'defend': {
       // the foes' walk: from the trail's end, back down its beats, to the start (the base)
       const W = quick.waves ?? 3, path = [ends.exit, ...along.slice().reverse().map((b) => b.at), ends.spawn].map((p) => [p[0], p[1]]);
@@ -1470,129 +1442,6 @@ export function bagPlay(quick) {
   };
 }
 
-/** A saber game's hero: its own spec with the two sabers in its hands (the right's blue, the left's red), its own gear
- * winning; an adopted hero, a mascot or none (false) as they are. */
-export function saberHero(h) {
-  if (h === false || (isObj(h) && (h.ref !== undefined || h.mascot !== undefined))) return h;
-  const own = isObj(h) ? h : {}, S = SEEDED_STYLES.saber;
-  const red = { ...S, id: 'saber-red', roles: { ...S.roles, blade: ['neon', SABER.red] } };
-  return { ...own, gear: { right: { item: 'sword', style: 'saber' }, left: { item: 'sword', style: red }, ...(isObj(own.gear) ? own.gear : {}) } };
-}
-/** A saber game's music: a club score, its seed fixed, so its tempo is the chart's (beats/club-score.js). */
-export const saberSoundtrack = (quick) => ({ score: { mood: quick.music ?? 'drive', style: 'club', seed: SABER.seed } });
-
-/**
- * THE SABER GAME'S STAGE, in front of the player (`ends`: stageEnds' spawn and heading): its lanes (one per column,
- * height and cut, so each block wears its own arrow), the chart (seeded by where the player stands: hands taking turns,
- * a beat or two apart, now and then both at once; cuts mostly down and up), the music's beat (every, early), and the
- * sleeping blocks each lane's pool needs (its notes in turn, a block back only once its note before has walked past the
- * line: game/mechanics.js `notes`). → { lanes, chart, bodies: [{ id, lane, dir, hand, height, from }], every, early }
- */
-/**
- * Where a saber game's lanes run (saberPlan): of SABER.turns off the stage's own heading, the ones whose corridor (the
- * lanes' width and a margin, from just ahead of the player to past the miss line) holds: no collider in it between a
- * step over the feet and SABER.over above them (the stage's own walls too: a corridor and a box tested exactly, on the
- * four axes they could part on) and no rock standing out of the land in it, land under every lane all the way, the land at the cutting line within SABER.near of
- * the feet (a note reaches the player at its own height) and no stretch steeper than SABER.grade (a note rides the land).
- * Of those, the smoothest, then the least turned. None holds: the one least in the way, said.
- * → { heading, turned (degrees off the stage's), clear, blocked (colliders in it), off (samples off the land), steep
- * (samples too steep or too far off at the line), rough (metres of rise and fall along it), says }
- */
-export function saberLanes(ends) {
-  const h0 = Number.isFinite(ends.heading) ? ends.heading : 0, S = ends.spawn, ground = typeof ends.ground === 'function' ? ends.ground : null;
-  const C = Array.isArray(ends.colliders) ? ends.colliders : [], g0 = (ground && ground(S[0], S[1])) ?? S[2];
-  // (a rock is the land's, not a collider: its top over the land, stageEnds' `rocks`, a note would climb)
-  const rocks = typeof ends.rocks === 'function' ? ends.rocks : null;
-  const half = Math.max(...SABER.cols.map(Math.abs)) + SABER.margin, near = 0.3, far = SABER.line + SABER.run + SABER.beyond + 0.5, step = 0.5;
-  const proj = (pts, a) => { let lo = Infinity, hi = -Infinity; for (const p of pts) { const d = p[0] * a[0] + p[1] * a[1]; if (d < lo) lo = d; if (d > hi) hi = d; } return [lo, hi]; };
-  const tried = SABER.turns.map((deg) => {
-    const h = h0 + (deg * Math.PI) / 180, f = [Math.cos(h), Math.sin(h)], rt = [Math.sin(h), -Math.cos(h)];
-    const strip = [[near, -half], [far, -half], [far, half], [near, half]].map(([u, v]) => [S[0] + f[0] * u + rt[0] * v, S[1] + f[1] * u + rt[1] * v]);
-    let blocked = 0;
-    for (const c of C) {
-      if (!(c.max[2] > g0 + 0.3 && c.min[2] < g0 + SABER.over)) continue;
-      const box = [[c.min[0], c.min[1]], [c.max[0], c.min[1]], [c.max[0], c.max[1]], [c.min[0], c.max[1]]];
-      if ([[1, 0], [0, 1], f, rt].every((a) => { const A = proj(strip, a), B = proj(box, a); return A[1] > B[0] && B[1] > A[0]; })) blocked++;
-    }
-    let off = 0, steep = 0, rough = 0;
-    // (the lanes, and the corridor's two edges for a rock between them)
-    for (const c of [...SABER.cols, -half + 0.1, half - 0.1]) {
-      const lane = SABER.cols.includes(c);
-      let prev = null;
-      for (let d = near; d <= far + 1e-9; d += step) {
-        const x = S[0] + f[0] * d + rt[0] * c, y = S[1] + f[1] * d + rt[1] * c, z = ground ? ground(x, y) : g0;
-        const rz = rocks ? rocks(x, y) : null;
-        if (rz != null && rz > (z ?? g0) + 0.15 && rz < g0 + SABER.over) blocked++;
-        if (!lane) continue;
-        if (z == null) { off++; prev = null; continue; }
-        if (Math.abs(d - SABER.line) <= 0.6 && Math.abs(z - g0) > SABER.near) steep++;
-        if (prev != null) { if (Math.abs(z - prev) / step > SABER.grade) steep++; rough += Math.abs(z - prev); }
-        prev = z;
-      }
-    }
-    return { heading: r3(h), turned: deg, blocked, off, steep, rough: r3(rough) };
-  });
-  const holds = tried.filter((t) => !t.blocked && !t.off && !t.steep);
-  const cost = (t) => t.rough + 0.02 * Math.abs(t.turned);
-  const pick = holds.length ? holds.reduce((a, t) => (cost(t) < cost(a) ? t : a))
-    : tried.reduce((a, t) => ((t.blocked * 1000 + t.off * 10 + t.steep) < (a.blocked * 1000 + a.off * 10 + a.steep) ? t : a));
-  const says = holds.length ? `the lanes run clear down ${pick.turned ? `a way ${pick.turned}° off the stage's` : 'the stage\'s way'}: nothing in them, land under them, the line at the player's height (${pick.rough} m of rise and fall along them)`
-    : `no way from the spawn runs clear: the lanes face the one least in the way (${pick.blocked} solid thing${pick.blocked === 1 ? '' : 's'} across them, ${pick.off} stretch${pick.off === 1 ? '' : 'es'} off the land, ${pick.steep} too steep); a note stopped on its way counts as a miss`;
-  return { ...pick, clear: holds.length > 0, says };
-}
-
-export function saberPlan(quick, ends) {
-  const lanes0 = saberLanes(ends), h = lanes0.heading, S = ends.spawn;
-  const f = [Math.cos(h), Math.sin(h)], rt = [Math.sin(h), -Math.cos(h)];
-  const at = (c, d) => [r3(S[0] + f[0] * d + rt[0] * c), r3(S[1] + f[1] * d + rt[1] * c)];
-  let seed = 7; for (const v of S) seed = (Math.imul(seed, 31) + Math.round(v * 1000)) >>> 0;
-  const rnd = mulberry32(seed), notes = [];
-  for (let beat = SABER.start, hand = 0; notes.length < SABER.notes; hand = 1 - hand, beat += rnd() < 0.25 ? 2 : 1) {
-    for (const H of rnd() < 0.12 ? [0, 1] : [hand]) {
-      const col = H ? 2 + (rnd() < 0.5 ? 0 : 1) : rnd() < 0.5 ? 0 : 1, row = rnd() < 0.6 ? 0 : 1, x = rnd();
-      notes.push({ beat, col, row, hand: H ? 'right' : 'left', dir: x < 0.35 ? 'down' : x < 0.6 ? 'up' : x < 0.75 ? 'left' : x < 0.9 ? 'right' : 'any' });
-    }
-  }
-  notes.length = SABER.notes;
-  const laneOf = (n) => `c${n.col}r${n.row}-${n.dir}`, past = Math.ceil((SABER.beyond / SABER.run) * SABER.lead) + 1;
-  const beatsOf = {};
-  for (const n of notes) (beatsOf[laneOf(n)] ??= { n, beats: [] }).beats.push(n.beat);
-  // the fewest blocks a lane can take its notes in turn with
-  const poolFor = (B) => { for (let P = 1; ; P++) if (B.every((b, k) => k < P || b - SABER.lead >= B[k - P] + past)) return P; };
-  const lanes = {}, bodies = [];
-  for (const [id, { n, beats }] of Object.entries(beatsOf)) {
-    const c = SABER.cols[n.col], xy = at(c, SABER.line + SABER.run), pool = Array.from({ length: poolFor(beats) }, (_, k) => `note-${id}-${k + 1}`);
-    // (its far end at the note's own height over the land there: a note wakes there, and its walk keeps it so)
-    const gz = (typeof ends.ground === 'function' ? ends.ground(xy[0], xy[1]) : null) ?? S[2], from = [xy[0], xy[1], r3(gz + SABER.rows[n.row] - 0.25)];
-    lanes[id] = { from, to: at(c, SABER.line), pool };
-    for (const b of pool) bodies.push({ id: b, lane: id, dir: n.dir, hand: n.hand, height: SABER.rows[n.row], from });
-  }
-  const B = resolveWorldAudio({ soundtrack: saberSoundtrack(quick), beat: true }, {}).beat;
-  return { lanes, chart: notes.map((n) => ({ beat: n.beat, lane: laneOf(n), dir: n.dir, hand: n.hand })), bodies, every: B.every, early: B.lead, facing: lanes0 };
-}
-/** A saber game's cast (stageLevelOrder's `extra`): its notes' blocks, asleep at their lanes' far ends, each a note
- * glyph wearing its cut's arrow in its hand's colour, floating at its lane's height (its rule's eye over the land: a
- * walk keeps it there), hittable once woken, and solid to nothing; the player turned to face down the lanes
- * (saberLanes), and whether they run clear, a law. */
-export function saberCast(quick, ends) {
-  const P = saberPlan(quick, ends), ground = typeof ends.ground === 'function' ? ends.ground : () => null;
-  const entities = P.bodies.map((b) => {
-    const eye = r3(b.height - 0.25), gz = ground(b.from[0], b.from[1]) ?? ends.spawn[2];   // (asleep where it wakes)
-    return {
-      id: b.id, dormant: true,
-      // (collideHeight: the walk's ground probe starts that far over the block's foot, so a rise in the land is found)
-      rule: { type: 'static', eye, collideRadius: 0.05, collideHeight: 1.0, step: 0.3 },
-      // (hp: a sleeping body is unhittable, and waking makes it hittable again only with hp to restore, cast.js; a cut's
-      // blow is a tenth of it, so a note is never felled, only scored)
-      body: { type: 'glyph', form: `note-${b.dir}`, tint: b.hand === 'left' ? SABER.red : SABER.blue, hittable: true, hp: 100, egg: { a: 0.3, c: 0.3, cz: 0.25 } },
-      transform: { pos: [b.from[0], b.from[1], r3(gz + eye)], heading: r3((Number.isFinite(ends.heading) ? ends.heading : 0) + Math.PI) },
-    };
-  });
-  // (the player faces down the lanes; how clear they run is the level's law, advice in the run's readout)
-  const F = P.facing;
-  return { figures: {}, entities, pilot: { heading: F.heading }, laws: [{ concern: 'saber', law: 'lanes-clear', holds: F.clear, says: F.says }] };
-}
-
 /**
  * A level's audio (null: none). A rhythm game's music, its beat said on the bus. Any other goal with `music`: a field
  * score under the level, every level sharing the game's identity (`game`, a seed); 'auto' asks score-suggest for the
@@ -1603,7 +1452,6 @@ export function goalAudio(quick, { manifest = {}, final = false, game } = {}) {
   const sfx = quick.sfx === undefined ? null : quick.sfx === 'auto' ? 'auto' : { auto: quick.sfx };
   const withSfx = (a) => (sfx ? { ...(a || {}), sfx } : a);
   if (quick.goal === 'rhythm') return withSfx({ soundtrack: `field:${quick.music ?? 'wayfarer'}`, beat: true });
-  if (quick.goal === 'saber') return withSfx({ soundtrack: saberSoundtrack(quick), beat: true });
   if (quick.music === undefined) return withSfx(null);
   const s = quick.music === 'auto' ? suggestScore(levelScoreContext(manifest, { goal: quick.goal, final })) : null;
   const mood = quick.music === 'auto' ? s?.mood : quick.music;

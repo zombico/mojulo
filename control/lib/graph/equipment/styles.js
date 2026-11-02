@@ -122,7 +122,7 @@ export const SEEDED_STYLES = Object.freeze({
     "gem": { "gem": "diamond", "glow": 0.2, "cut": "brilliant" }
   },
   // a light blade: a long round edge of light (the shelf's neon, its own glow) out of a short machined hilt; a saber
-  // rhythm game's (gameworld/quick.js `saber`) red in the left hand, this blue in the right
+  // rhythm level's (mechanic-cards/notes.md) red in the left hand, this blue in the right
   saber: {
     "id": "saber",
     "dials": { "stylize": 0.2, "mass": 0.7, "focus": "none", "ornament": 0 },

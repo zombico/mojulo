@@ -579,8 +579,7 @@ function levelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = null, me
   }
   // EXTRA: what a goal stands in the stage beside the pilot (a defence's foes and towers: quick.js), the play it
   // brings (its cues), the blocks it stands (a shooter's cover) and what it gives the pilot (a shooter's rifle).
-  // `extra(ends)` → { figures?, entities?, play?, blocks?, pilot?: { rule?, body?, weapon?, heading? }, camera?, posts?, pads?, inputs?, laws? }
-  // (`pilot.heading`: the way the pilot faces at the start, a saber game's down its lanes; `laws`: advice of its own)
+  // `extra(ends)` → { figures?, entities?, play?, blocks?, pilot?: { rule?, body?, weapon? }, camera?, posts?, pads?, inputs? }
   // (`camera`: laid over the pilot's own: a shooter's over the shoulder, a dogfight's mouse look)
   // (a level's own goal, `goalCast`: quick.js levelGoalCast, the same shape, or null when it stands nothing; its play
   // laid beside the systems' own, never over it)
@@ -590,9 +589,7 @@ function levelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = null, me
     const p0 = pilotPart.entities[0];
     // (a written feel wins over a goal's own feet: a deathmatch's shooter pole moves the pilot only where no feel is written)
     const feelOver = X.pilot?.rule && G.feel ? lowerFeel(feelCard(G.feel)).rule : null;
-    const { heading: faceTo, ...pilotX } = X.pilot ?? {};
-    const P0 = X.pilot ? { ...p0, ...pilotX, rule: { ...p0.rule, ...(X.pilot.rule ?? {}), ...(feelOver ?? {}) }, body: { ...p0.body, ...(X.pilot.body ?? {}) } } : p0;
-    const pilot = Number.isFinite(faceTo) ? { ...P0, transform: { ...P0.transform, heading: faceTo } } : P0;
+    const pilot = X.pilot ? { ...p0, ...X.pilot, rule: { ...p0.rule, ...(X.pilot.rule ?? {}), ...(feelOver ?? {}) }, body: { ...p0.body, ...(X.pilot.body ?? {}) } } : p0;
     const figures = { ...(pilotPart.figures ?? {}), ...(X.figures ?? {}) };
     pilotPart = { ...pilotPart, ...(Object.keys(figures).length ? { figures } : {}), entities: [pilot, ...pilotPart.entities.slice(1), ...(X.entities ?? [])], ...(X.camera && pilotPart.camera ? { camera: { ...pilotPart.camera, ...X.camera } } : {}) };
     extraPlay = X.play ?? null;
@@ -649,9 +646,7 @@ function levelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = null, me
   // the concerns' laws over what was laid (lay-concerns.js): advisory, for the run's readout
   // a roadway's laws are its own (its census: roads/track.js trackLaws); a trail's, its concerns'
   const laws = stage.section === 'roadway' ? ends.roadLaws : stage.section === 'airspace' ? ends.airLaws : stage.section === 'runner' ? [] : concerns.length ? concernLaws(concerns, { ends, blocks: blocks ?? [], posts: posts ?? [], watchers: watched ?? [], pads: pads ?? [], raised, jump, mechanics: game.mechanics, loop: ends.loop, arena: ends.arena }) : [];
-  // (and what the goal's cast advises: a saber game's lanes; a fresh list, a stage's own laws are memoised)
-  const told = X?.laws?.length ? [...laws, ...X.laws] : laws;
-  return { tool: 'create_sketch', args: { title: name, manifest }, ends, ...(told.length ? { laws: told } : {}) };
+  return { tool: 'create_sketch', args: { title: name, manifest }, ends, ...(laws.length ? { laws } : {}) };
 }
 
 /** SEATS (docs/local-multiplayer-principles.md): a world whose cube says soul.seats two or four lays,

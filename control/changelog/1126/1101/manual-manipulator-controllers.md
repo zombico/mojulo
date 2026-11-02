@@ -1,8 +1,9 @@
 ### The manual manipulator's controllers: hands in the headset
 
-In progress. The headset's controllers become the player's hands: their poses are input, the game runs in the headset,
-and (next) the hero's own hands, and what they hold, are drawn where the controllers are, so a saber rhythm game, a gun
-held as a gun or VR boxing can be made.
+The headset's controllers become the player's hands: their poses are input, the game runs in the headset, the hero's
+own hands, and what they hold, are drawn where the controllers are, and a swing or a shot from them lands in the game,
+so a saber rhythm level, a gun held as a gun or VR boxing can be made. Played on a Quest by no one yet: the eyes gate
+is the operator's.
 
 - **Poses are input** (`controls/xr-driver.js`): the `xr` family carries the poses OpenXR names (`head`, each hand's
   `grip` and `aim`) beside its buttons and sticks; `xrPoses` reads them from a frame and `poseToWorld` carries one from
@@ -39,31 +40,20 @@ held as a gun or VR boxing can be made.
   chart played by note bodies the level mints asleep, a small pool per lane, each floating at its lane's height. A note
   wakes `lead` beats before its own at its lane's far end and walks in at the pace that puts it on the cutting line on
   its beat (the music's clock says a beat early, so it walks that much longer); a cut in its direction and with its
-  hand scores it and sends it away, a wrong one leaves it walking, and one that passes the line is a miss. Every note
-  scored or missed wins; `misses` can lose. A pool too small for its chart is refused, naming the lane. The bus hears
-  the headset's `cut` as a fact of its own (`scene/bus-abi.js`), the web's; Godot and Roblox mark it absent.
-- **The saber game** (`design_game({ quick: { goal: 'saber' } })`, `gameworld/quick.js`; the genre `saber-rhythm`): a
-  saber rhythm game from one call. The player stands before lanes of note blocks, in a headset (standing; `xr` names
-  another stance, or none), the hero holding a red saber left and a blue right (its own gear wins; `hero: false`
-  punches with the controllers). Four columns by two heights, the left two the left hand's; each lane and cut has its
-  own pool of blocks, each block wearing its arrow on every side in its hand's colour (the glyph forms `note-up`,
-  `note-down`, `note-left`, `note-right`, `note-any`). The chart is written on the stage (seeded by where the player
-  stands: hands taking turns, now and then both, cuts mostly down and up) and on the music: an electronic club score
-  (`music`: drive, rave, peak, drift), its seed fixed so its beat is the chart's whatever the level. Every note cut or
-  missed wins; `misses` loses; the best score is kept. Two pieces any game can use came with it: the light blade, a
-  `saber` equipment style (a neon blade, its own glow, out of a short machined hilt), and `xr` at the world (and the
-  quick game's) level, carried onto every stage level so its page opens a session that plays it.
+  hand scores it and sends it away, a wrong one leaves it walking, and one that passes the line, or that something stops
+  on its walk, is a miss. Every note scored or missed wins; `misses` can lose. A pool too small for its chart is
+  refused, naming the lane. The bus hears the headset's `cut` as a fact of its own (`scene/bus-abi.js`), the web's;
+  Godot and Roblox mark it absent.
+- **A saber level, as a concept** (the notes card, `mechanic-cards/notes.md`): a saber rhythm level is parts on any
+  stage level, written out in the card: the level played in a headset, the hero holding two light blades (the `saber`
+  equipment style: a neon blade, its own glow, out of a short machined hilt; red in the left hand, blue in the right),
+  note blocks minted asleep per lane and cut (the glyph forms `note-up`, `note-down`, `note-left`, `note-right`,
+  `note-any`: a cube with its arrow on every side; a glyph body now keeps its other fields, `hittable` and `egg`), a
+  club score with its seed fixed so its beat is the chart's, and `notes` with `score`. And `xr` at the world (and the
+  quick game's) level, carried onto every stage level, so any game's pages open a session that plays it.
 - **The HUD in the headset** (`scene/channels/xr.js`): a game played in a headset shows its HUD there. The page's HUD is
   drawn on a panel in the play space, low on the floor ahead of the player and tilted up to the eye, under where a
   game's things come at the player: its left slots on the left, its right on the right, the rest in the middle, each
   widget its own text in its own colour and fade. It is the HUD the game already has (a saber game's notes and score, a
   shooter's rounds, a toast, a banner), not its keyboard legend; it is drawn again only when what it says changes.
   `xr: { hud: false }` leaves it out.
-- **The saber game keeps its lanes clear** (`gameworld/quick.js` saberLanes): the lanes run where nothing is in their
-  way. Of the stage's own way and the turns off it, each corridor (the lanes' width and a margin, from just ahead of the
-  player to past the miss line) is tried: no solid thing in it (the stage's walls too, a long wall tested exactly where
-  it crosses), no rock standing out of the land, land under every lane, the cutting line at the player's height and no
-  stretch too steep for a note to ride; of those, the smoothest, then the least turned. The player faces down them (a
-  goal's cast may now turn the pilot: `pilot.heading`), and the level says how clear they run (a law in the run's
-  readout). A note something stops anyway is a miss, so a chart always ends; and a note wakes at its own height over
-  the land at its lane's end (it woke at ground level before, and a high one on low land never rose).

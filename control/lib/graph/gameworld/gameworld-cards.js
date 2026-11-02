@@ -37,7 +37,7 @@ import { STAGE_KITS, resolveKitId, GROUND_KITS } from '../era/stage.js';
 import { STRUCTURE_KITS } from '../era/out-structures.js';
 import { ISEKAI_STYLES } from '../era/isekai.js';
 import { SEEDED_STYLES } from '../equipment/styles.js';
-import { QUICK_GOALS, RHYTHM_MOODS, SABER_MOODS, RACE, DEFEND, DEATHMATCH_MODES } from './quick.js';
+import { QUICK_GOALS, RHYTHM_MOODS, RACE, DEFEND, DEATHMATCH_MODES } from './quick.js';
 import { CAMERAS } from './cameras.js';
 import { FOE_CLASSES, classStatus } from '../foes/index.js';
 import { MOVES, ATTACKS, STOMPS, FOE_RANKS } from '../foes/vocab.js';
@@ -410,7 +410,6 @@ const QUICK_LEVERS = {
   ],
   sneak: () => [`  guards: n (1..8, 3), guard: ${HERO_WORDS}, alarms: n (1..9, 1)   sightings that end the run`],
   rhythm: () => [`  music: ${RHYTHM_MOODS.join(' | ')}   a field score with a steady beat; misses: n (1..99) presses off the beat that end it`],
-  saber: () => [`  music: ${SABER_MOODS.join(' | ')}   a club score with a steady beat (drive); misses: n (1..99) notes missed that end it`, '  xr: true | false | { move?: seated | standing, turn?: smooth | snap }   played in a headset (any goal takes it; here standing unless named)', '  the hero holds a red saber left and a blue right (its own gear wins); hero: false punches with the controllers'],
   defend: () => [`  waves: n (1..${DEFEND.perWave.length}, 3), lives: n (1..20, 5), pads: n (1..8, 4), foe / tower: ${HERO_WORDS}   no climb, no building`,
     '  board: true | { cols?, rows?, gold? }: a TOWER DEFENCE on the stage\'s spots instead: towers (arrow, cannon, frost) on any',
     '  free spot that keeps the road open (the foes walk round them), waves 1..5, no hero, no pads'],
