@@ -15,7 +15,9 @@ import { heavyBody, HEAVY_KINDS } from './road-heavy.js';
 const carClass = Object.keys(FLEET).find((c) => FLEET[c].kind === 'car');
 const heavyClass = Object.keys(FLEET).find((c) => FLEET[c].kind === 'semi' || FLEET[c].kind === 'straight');
 const sheet = (cls, seed = 1) => rollVehicleSheet({ facets: { pole: 'realistic', class: cls }, seed });
-const parsedB64 = (s, T) => new T(Buffer.from(s, 'base64').buffer.slice(0));
+// (a copy of the decoded bytes alone: a small Buffer is cut from node's shared pool, whose ArrayBuffer holds other bytes
+// before and after it, and how small is small differs between Node majors)
+const parsedB64 = (s, T) => { const b = Buffer.from(s, 'base64'); return new T(b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength)); };
 
 describe('the albedo recorder: what each face was asked in, beside it', () => {
   it('records every face and changes none', () => {
