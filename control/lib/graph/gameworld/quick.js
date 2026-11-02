@@ -11,6 +11,15 @@
  *                                           // the rail's hero under the hero spec's own words, its henchman under each
  *                                           // foe, guard, gunner and tower the run rolls; 'game' the rail its goal reads
  *     ride?: 'car' | 'coupe' | 'van',        // the hero is a vehicle (ride.js): driven, its feel derived from its build
+ *                                           // (ride, vehicle, craft and the transformer's vehicle.ride / .craft also take
+ *                                           // any word the vehicle registry names, written as the table's key at the door:
+ *                                           // vehicle-registry/doors.js; a ride also takes any row it can drive by the
+ *                                           // row's id, 'pickup', 'bus', 'box-truck', drawn as its realistic loft)
+ *     tier?: 'toy' | 'stylised' | 'realistic',   // ride: the fidelity it is drawn at (vehicle-registry/ride.js): the
+ *                                           // assembled ride (stylised) or its class's realistic loft, compiled in place on
+ *                                           // the class's own physics; stamped at mint from what the game reads
+ *                                           // (vehicle-registry/tier.js: a realistic hero, the juice's form render, the
+ *                                           // pole) when that is not stylised, so a world minted before drives as it did
  *     transformer?: { robot?, vehicle?, scheme?, fold?, legs?, height? },   // the hero TRANSFORMS (transformation/: B,
  *                                           // the pad's L3): a robot that is a vehicle too. robot: { variable: { palette? } }
  *                                           // a variable suit folding into its waverider, { alien: { palette? } } an alien
@@ -161,6 +170,10 @@ import { VARIABLE_PALETTES } from '../transformation/variable-suit.js';
 import { ALIEN_PALETTES } from '../transformation/alien-body.js';
 import { SCHEME_DIALS } from '../transformation/schemes.js';
 import { CRAFT_ARCHETYPES } from '../craft-shelf/craft-archetypes.js';
+import { quickVehicleWords } from '../vehicle-registry/doors.js';
+import { rideRowOf, rideClassOf, rideableRows } from '../vehicle-registry/ride.js';
+import { stampedTier } from '../vehicle-registry/tier.js';
+import { TIER_IDS } from '../vehicle-registry/builds.js';
 import { flightLaps } from '../skyscape/course.js';
 import { dogfightCast, waveIds, WING } from '../skyscape/dogfight.js';
 import { solveFighter } from '../versus/versus-solver.js';
@@ -238,7 +251,7 @@ export const FARM = Object.freeze({ cost: 2, price: 6, gold: 6, rate: 4, start: 
 export const DEFEND = Object.freeze({ cost: 5, gold: 10, bounty: 2, perWave: [3, 5, 7, 9, 11, 13], hp: 3 });
 // the field scores a rhythm game runs to (each a steady tempo, beats-world's audio.beat)
 export const RHYTHM_MOODS = Object.freeze(['wayfarer', 'expedition', 'tavern', 'village', 'plains', 'forest', 'highlands', 'desert']);
-const KEYS = ['body', 'goal', 'craft', 'assist', 'airspace', 'hero', 'ride', 'transformer', 'racers', 'supercars', 'series', 'mood', 'vehicle', 'tuning', 'conditions', 'track', 'roadway', 'laps', 'rivals', 'climb', 'building', 'pickup', 'seconds', 'theme', 'camera', 'screen', 'runner', 'distance', 'guards', 'guard', 'alarms', 'music', 'sfx', 'misses', 'waves', 'lives', 'pads', 'foe', 'tower', 'board', 'sides', 'doctrine', 'match', 'boulders', 'plots', 'target', 'days', 'folk', 'farmhand', 'run', 'foes', 'bots', 'frags', 'arena', 'pole', 'weapons', 'mode', 'roster', 'arenas', 'stages', 'rounds', 'timer', 'rules', 'cast', 'moves', 'event', 'lanes', 'sport', 'players', 'register', 'level', 'seats', 'sets', 'periods', 'attempts', 'athletes', 'kits', 'broadcast', 'game', 'human', 'lift', 'venue', 'surface', 'preset', 'innings', 'overs', 'concept', 'teams'];
+const KEYS = ['body', 'goal', 'craft', 'assist', 'airspace', 'hero', 'ride', 'tier', 'transformer', 'racers', 'supercars', 'series', 'mood', 'vehicle', 'tuning', 'conditions', 'track', 'roadway', 'laps', 'rivals', 'climb', 'building', 'pickup', 'seconds', 'theme', 'camera', 'screen', 'runner', 'distance', 'guards', 'guard', 'alarms', 'music', 'sfx', 'misses', 'waves', 'lives', 'pads', 'foe', 'tower', 'board', 'sides', 'doctrine', 'match', 'boulders', 'plots', 'target', 'days', 'folk', 'farmhand', 'run', 'foes', 'bots', 'frags', 'arena', 'pole', 'weapons', 'mode', 'roster', 'arenas', 'stages', 'rounds', 'timer', 'rules', 'cast', 'moves', 'event', 'lanes', 'sport', 'players', 'register', 'level', 'seats', 'sets', 'periods', 'attempts', 'athletes', 'kits', 'broadcast', 'game', 'human', 'lift', 'venue', 'surface', 'preset', 'innings', 'overs', 'concept', 'teams'];
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const fail = (m) => new Error(`gameworld: quick${m}`);
 
@@ -347,10 +360,15 @@ export function readQuick(Q) {
   if (Q.cast !== undefined) readQuickCast(Q);
   if (Q.moves !== undefined && typeof Q.moves !== 'boolean') throw fail('.moves is true: every person the run makes takes a blow on its own rig (a hit, a stagger, a fall and a rise)');
   if (Q.ride !== undefined) {
-    if (!RIDES[Q.ride]) throw fail(`.ride is one of ${Object.entries(RIDES).map(([k, v]) => `${k} (${v.words})`).join('; ')}`);
+    if (!rideRowOf(Q.ride)) throw fail(`.ride is one of ${Object.entries(RIDES).map(([k, v]) => `${k} (${v.words})`).join('; ')}; or a vehicle the registry can drive, by its id (${rideableRows().join(', ')})`);
     if (Q.hero) throw fail('.ride and .hero: the ride is the hero (one or the other)');
     if (Q.climb || Q.building !== undefined) throw fail('.ride drives a trail: no climb, no building');
     if (Q.camera !== undefined && Q.camera !== 'third-person') throw fail('.ride is followed from behind (camera third-person)');
+  }
+  // the tier the ride is drawn at (vehicle-registry/tier.js: stamped at mint from what the game says, or the operator's)
+  if (Q.tier !== undefined) {
+    if (!TIER_IDS.includes(Q.tier)) throw fail(`.tier is one of ${TIER_IDS.join(', ')}`);
+    if (Q.ride === undefined) throw fail('.tier is the tier the ride is drawn at: name a ride');
   }
   if (Q.transformer !== undefined) readQuickTransformer(Q);
   if (Q.racers !== undefined) {
@@ -767,7 +785,14 @@ export function quickVersus(Q, { title, theme, arenas, roster } = {}) {
 }
 
 /** A quick game's gameworld: the creator's own settings (id, name, seed, style …) kept, one level written. */
-export function quickWorld({ quick: given, id, name, seed, style, ...rest } = {}) {
+export function quickWorld({ quick: asked, id, name, seed, style, ...rest } = {}) {
+  // a vehicle word is read through the vehicle registry first (vehicle-registry/doors.js): a word it names is written as
+  // its key in the table this door reads (`ride: 'sedan'` is stored as `ride: 'car'`), so the recipe is the legacy key's
+  const read = quickVehicleWords(asked).quick;
+  // a ride is drawn at the tier the game reads (vehicle-registry/tier.js), stamped here at mint when it is not the
+  // stylised default: a world minted before carries none and drives what it always drove
+  const tier = isObj(read) && read.ride !== undefined && read.tier === undefined ? stampedTier({ quick: read, style, juice: rest.juice, characters: rest.characters }) : null;
+  const given = tier ? { ...read, tier } : read;
   readQuick(given);
   // the camera is the world's setting, not the goal's: it moves up to the world, where both run paths read it
   // (and the screen it is made for, beside it: game/screen.js)
@@ -1017,7 +1042,7 @@ export function raceCast(quick, ends, ride) {
   rivals.forEach((id, k) => {
     // (a field of racers: each rival in its own machine, on its own rule)
     const mine = ride.field?.[k + 1];
-    figures[id] = mine ? (mine.figure ?? { racer: mine.spec }) : { vehicleRef: ride.ref, targetH: RIDE_H };
+    figures[id] = mine ? (mine.figure ?? { racer: mine.spec }) : ride.ref ? { vehicleRef: ride.ref, targetH: RIDE_H } : ride.figure;
     const pace = r3(RACE.pace[0] - ((RACE.pace[0] - RACE.pace[1]) * k) / Math.max(1, rivals.length - 1));
     const rule = { ...(mine ? mine.rule : ride.rule), type: 'racer', line, closed: !!loop, lane: k % 2 ? -RACE.lane : RACE.lane, pace };
     entities.push({ id, team: 'rivals', rule, body: { type: 'figure-rig', figure: id }, transform: { pos: slot(k), heading: h } });
@@ -1025,13 +1050,14 @@ export function raceCast(quick, ends, ride) {
   return { figures, entities, pilot: { transform: { pos: slot(rivals.length), heading: h } } };
 }
 
-/** The class a ride plays when the quick game asks for a tuning or conditions but names no vehicle. */
+/** The class a ride plays when the quick game asks for a tuning or conditions but names no vehicle (a ride named by a
+ *  registry id plays its row's own class). */
 export const RIDE_CLASS = Object.freeze({ car: 'midsize', coupe: 'sports', van: 'van' });
 /** The ride's rule: its build's (ride.js) unless the quick game names a vehicle, a tuning or conditions, then the
  *  class's (roads/vehicles.js), in its look. */
 export function quickRideRule(Q, built) {
   if (Q.vehicle === undefined && Q.tuning === undefined && Q.conditions === undefined) return built;
-  return vehicleRule(Q.vehicle ?? RIDE_CLASS[Q.ride], { ...(Q.tuning ? { tuning: Q.tuning } : {}), ...(Q.conditions ? { conditions: Q.conditions } : {}) });
+  return vehicleRule(Q.vehicle ?? RIDE_CLASS[Q.ride] ?? rideClassOf(Q.ride), { ...(Q.tuning ? { tuning: Q.tuning } : {}), ...(Q.conditions ? { conditions: Q.conditions } : {}) });
 }
 
 /** A race's cast on a roadway: every car on the contract's grid (the player behind the rivals), each rival on the racer
@@ -1043,7 +1069,7 @@ function roadwayCast(rivals, T, ride) {
   const figures = {}, entities = [];
   rivals.forEach((id, k) => {
     const mine = ride.field?.[k + 1];
-    figures[id] = mine ? (mine.figure ?? { racer: mine.spec }) : { vehicleRef: ride.ref, targetH: RIDE_H };
+    figures[id] = mine ? (mine.figure ?? { racer: mine.spec }) : ride.ref ? { vehicleRef: ride.ref, targetH: RIDE_H } : ride.figure;
     const pace = r3(RACE.pace[0] - ((RACE.pace[0] - RACE.pace[1]) * k) / Math.max(1, rivals.length - 1));
     const rule = { ...(mine ? mine.rule : ride.rule), type: 'racer', line, closed: T.closed, lane: k % 2 ? -RACE.roadLane : RACE.roadLane, pace, collideRadius: mine ? mine.rule.collideRadius : RACE.body, ...(ramps.length ? { ramps } : {}) };
     entities.push({ id, team: 'rivals', rule, body: { type: 'figure-rig', figure: id }, transform: { pos: slot(k).at, heading: slot(k).heading } });

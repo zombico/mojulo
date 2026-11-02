@@ -6,6 +6,18 @@ import { makeLight, shadeHex, scaleHex, newellNormal } from '../polygonizer/vexa
 
 export const LIGHT = makeLight({ direction: [0.35, 0.55, -0.76], ambient: 0.52, diffuse: 0.55 });
 
+// THE ALBEDO RECORDER (opt-in, for the form render: car-designer/realistic.js). While `withAlbedo` runs, every face the
+// helpers below make is noted in a side table with the colour it was asked in (no light in it) and its outward normal.
+// The face itself is unchanged, so every kernel that never asks keeps its bytes.
+let RECORD = null;
+const note = (f, hex, n) => { if (RECORD) RECORD.set(f, { hex, n }); return f; };
+/** Run `build` with the recorder on → { out: build's result, albedo: WeakMap face → { hex, n } }. */
+export function withAlbedo(build) {
+  const prev = RECORD, table = new WeakMap();
+  RECORD = table;
+  try { return { out: build(), albedo: table }; } finally { RECORD = prev; }
+}
+
 export function upQuad(c) {
   const n = newellNormal(c);
   return n[2] < 0 ? { c: [c[0], c[3], c[2], c[1]], n: [-n[0], -n[1], -n[2]] } : { c, n };
@@ -13,7 +25,7 @@ export function upQuad(c) {
 export function face(corners, hex, extra = {}) {
   const { c, n } = extra.keepWinding ? { c: corners, n: newellNormal(corners) } : upQuad(corners);
   const { keepWinding, ...rest } = extra;
-  return { corners: c, fill: shadeHex(hex, n, LIGHT), ...rest };
+  return note({ corners: c, fill: shadeHex(hex, n, LIGHT), ...rest }, hex, n);
 }
 /** A face whose normal is turned away from `inside` (walls, where "up" says nothing). */
 export function faceOut(corners, hex, inside) {
@@ -24,7 +36,7 @@ export function faceOut(corners, hex, inside) {
   // road grime: the foot of a wall is darker than its head (splash and tyre spray)
   const zs = c.map((p) => p[2]), z0 = Math.min(...zs), z1 = Math.max(...zs), lit = shadeHex(hex, n, LIGHT);
   const cornerFills = z1 - z0 > 0.2 ? c.map((p) => scaleHex(lit, 0.74 + 0.26 * (p[2] - z0) / (z1 - z0))) : null;
-  return { corners: c, fill: lit, ...(cornerFills ? { cornerFills } : {}) };
+  return note({ corners: c, fill: lit, ...(cornerFills ? { cornerFills } : {}) }, hex, n);
 }
 export function texFace(corners, hex, texture, uv) {
   const n = newellNormal(corners);

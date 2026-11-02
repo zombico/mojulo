@@ -345,6 +345,13 @@ export function composeGameworld({ prompt, name, id, levels, seed = 1 } = {}) {
     const outside = P.read.some((r) => r.decides.some((d) => d === 'kit' || d.startsWith('land.')));
     return { use, kit: roomKit ?? ROOM_KIT_OF_USE[use] ?? 'gothic-stone', useWord, from: outside && n > 1 ? 1 : 0 };
   })() : null;
+  // (a genre that fights, its cube's combat melee or ranged, fights its guards: they are its foes, the casting call's, not
+  // watchers the level is lost to; the watchers' goal stays the sneak's)
+  if (goal.guards && genre && [].concat(cubeOfWorld({ intent: { from: genre.id } }).cube.power?.combat ?? []).some((c) => c === 'melee' || c === 'ranged')) {
+    delete goal.guards;
+    const r = P.read.find((x) => x.decides.includes('goal.guards'));
+    if (r) r.decides = r.decides.map((d) => (d === 'goal.guards' ? 'foes (a fighting genre\'s guards are fought)' : d));
+  }
   const goals = Object.keys(goal).length ? goal : null;
   const decided = [];
   for (let i = 0; i < n; i++) {
