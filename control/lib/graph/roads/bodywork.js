@@ -101,7 +101,9 @@ export function bodyShape(spec) {
   for (const q of raw) if (!pts.length || q[0] > pts[pts.length - 1][0] + 0.005) pts.push(q);
   const topAt = monotone(pts);
   const insetAt = (f) => f < nl ? N.inset * s * ellipse(1 - f / nl) : f > 1 - tl ? Tl.inset * s * ellipse(1 - (1 - f) / tl) : 0;
-  const zR = r * 0.68, archR = r * lang.arch + 0.02, archX = [wb / 2, -wb / 2];
+  // (a pickup's axles sit back under its bed by PICKUP_AXLE_SHIFT, fleet.js: its arches over them, where its wheels are)
+  const shift = spec.kind === 'pickup' ? PICKUP_AXLE_SHIFT : 0;
+  const zR = r * 0.68, archR = r * lang.arch + 0.02, archX = [wb / 2 + shift, -wb / 2 + shift];
   const x = (f) => L / 2 - f * L;
   // the sill's line (lifted at the ends: the bumpers), and the arch cut out of the side over each wheel
   const sillAt = (f) => zR + (f < nl ? N.rise * ellipse(1 - f / nl) ** 0.5 : 0) + (f > 1 - tl ? Tl.rise * ellipse(1 - (1 - f) / tl) ** 0.5 : 0);
@@ -150,7 +152,9 @@ export function bodyShape(spec) {
 }
 /** What each run of a section is, from its first point to the next. */
 const SEGMENTS = Object.freeze(['floor', 'clad', 'side', 'side', 'side', 'glass', 'glass', 'roof', 'roof', 'roof', 'roof', 'glass', 'glass', 'side', 'side', 'side', 'clad']);
-const SMOKE = '#2b3036';   // a lamp's housing: smoked, its light a line along it
+/** How far a pickup's axles sit back of its wheelbase's centre (under the bed): the fleet seats its wheels there. */
+export const PICKUP_AXLE_SHIFT = 0.25;
+export const SMOKE = '#2b3036';   // a lamp's housing: smoked, its light a line along it
 
 /** Loft the body in its language: paint (tinted) and trim (glass, plastics, lamps) face lists. */
 export function loftLanguage(paint, trim, R, spec, T) {

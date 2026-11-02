@@ -158,7 +158,8 @@ export const VEHICLE_FAMILIES = {
 const BACKEND_TO_FAMILY = Object.fromEntries(
   Object.values(VEHICLE_FAMILIES).filter((f) => f.backend).map((f) => [f.backend, f.id]),
 );
-const RACE_KINDS = ['racer', 'supercar'];
+// (and the realistic loft of a road class: the vehicle registry's realistic build, car-designer/realistic.js, loaded the same way)
+const RACE_KINDS = ['racer', 'supercar', 'loft'];
 const raceKindOf = (instance) => RACE_KINDS.find((k) => instance && instance[k] !== undefined) ?? null;
 
 // ===========================================================================
@@ -270,8 +271,8 @@ async function buildRaceInstance(instance) {
   if (instance.type !== undefined) throw new Error(`meta-fabricator: an instance is a registered type or a ${kind}, not both`);
   const spec = instance[kind];
   if (!spec || typeof spec !== 'object' || Array.isArray(spec)) throw new Error(`meta-fabricator: a ${kind} instance is its recipe { … } (describeFamily('${kind}').tunables)`);
-  const { racerInstanceFaces, supercarInstanceFaces } = await import('./car-designer/race-families.js');
-  return { kind, ...(kind === 'racer' ? racerInstanceFaces(spec) : supercarInstanceFaces(spec)) };
+  const { racerInstanceFaces, supercarInstanceFaces, loftInstanceFaces } = await import('./car-designer/race-families.js');
+  return { kind, ...(kind === 'racer' ? racerInstanceFaces(spec) : kind === 'loft' ? loftInstanceFaces(spec) : supercarInstanceFaces(spec)) };
 }
 
 /** Lower an instance ({ type, decoration }) to faces at a pose — the seam to the
@@ -302,7 +303,7 @@ export function buildInstanceFaces(instance, pose = {}) {
  */
 export function assembleInstanceStudio(instance, opts = {}) {
   if (raceKindOf(instance)) {
-    return buildRaceInstance(instance).then(({ kind, faces, stats }) => studioSceneFromFaces(faces, { viewBox: opts.viewBox, title: opts.title || `workbench · ${stats.archetype ?? stats.preset} · ${kind}` }));
+    return buildRaceInstance(instance).then(({ kind, faces, stats }) => studioSceneFromFaces(faces, { viewBox: opts.viewBox, title: opts.title || `workbench · ${stats.archetype ?? stats.preset ?? stats.class} · ${kind}` }));
   }
   const faces = buildInstanceFaces(instance, opts.pose || {});
   const label = [instance?.type, instance?.family].filter(Boolean).join(' · ');
