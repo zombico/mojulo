@@ -51,8 +51,8 @@ export const TECH_STYLES = Object.freeze({
 export const TECH_STYLE_IDS = Object.freeze(Object.keys(TECH_STYLES));
 export const DEFAULT_TECH_STYLE = 'wc3';
 
-// where the hero is seen from and where each tier of tech is met, by camera (metres). Third person: the exported
-// chase boom sits max(3.5 × eye, 2 × height) behind the hero (scene/godot-kernel/level.gd), about 6 m; the hero's own
+// where the hero is seen from and where each tier of tech is met, by camera (metres). Third person: a chase boom
+// at max(3.5 × eye, 2 × height) behind the hero, about 6 m; the hero's own
 // gear is seen from there. First person has no hero on screen: the hero's density at arm's reach is the standard.
 const M = (part, held, tool, machine, automation, installation, vessel, landmark) => Object.freeze({ part, held, tool, machine, automation, installation, vessel, landmark });
 export const TECH_CAMERAS = Object.freeze({

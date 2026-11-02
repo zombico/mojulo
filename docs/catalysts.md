@@ -56,7 +56,7 @@ This split matters most for **workflow catalysts**, whose output leaves mojulo. 
 
 If your body sentence is something the Codex adapter and the Claude Code adapter would phrase differently, it belongs in the adapter, not the catalyst.
 
-Two exemplars, one per shape. Workflow: [refresh-connected-services.md](../control/lib/mcp/catalysts/refresh-connected-services.md) — its Materialization section hands scheduling and the report sink to the bound host adapter and proceeds with host-neutral steps. Making: [design-object-workbench.md](../control/lib/mcp/catalysts/design-object-workbench.md) — numbered domain sections (decompose by manufacturing process → author each monomer → package → mint + iterate → pitfalls) and no adapter section at all.
+Two exemplars, one per shape. Workflow: [research-mcp-vendor.md](../control/lib/mcp/catalysts/research-mcp-vendor.md) — its Materialization section asks its parameters in one round, proceeds with host-neutral steps, and hands the resolved workflow to the bound host adapter. Making: [design-object-workbench.md](../control/lib/mcp/catalysts/design-object-workbench.md) — numbered domain sections (decompose by manufacturing process → author each monomer → package → mint + iterate → pitfalls) and no adapter section at all.
 
 ---
 
@@ -218,7 +218,7 @@ Adapter discovery is handled by `list_adapters` / `get_adapter` from the adapter
 
 ## Local catalysts
 
-The operator's own shelf, minted over MCP (design + build log: local-catalysts.plan.md).
+The operator's own shelf, minted over MCP.
 
 - **Same spec, same gate.** `mint_catalyst` runs the exact validator the file loader runs (`validateCatalystMeta` — required fields, kind rules, the `destinationMcpCategory` → `destinationExamples` pairing, non-empty body). The six-section editorial template is advisory locally; it's enforced by maintainers only at PR graduation.
 - **Head + revisions.** The row is the live pointer; every update appends to `local_catalyst_revisions` with a required `note` (the commit message). For local catalysts `version` is derived — always the head `rev`. `get_catalyst({ id, rev })` reads history.

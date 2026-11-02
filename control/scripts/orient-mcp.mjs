@@ -2,8 +2,8 @@
 /**
  * mojulo-orient — practical orientation as a gallery of RECIPES.
  *
- * A separate, tiny stdio MCP beside the control-plane server
- * (lite-template/integration/0720/practical-orientation.plan.md). It mints
+ * A separate, tiny stdio MCP beside the control-plane server.
+ * It mints
  * nothing itself and duplicates no substrate state. What it owns is a curated
  * catalog of founding works — each carried as the RECIPE that mints it, with
  * a pinned stable ref, so the gallery is portable to any mojulo host — and
@@ -18,7 +18,7 @@
  *   list_works  → the whole gallery + toured state.
  *
  * Two kinds of work. An EXHIBIT carries `recipe` (a finished thing, minted on
- * consent). A BRIEF carries `brief` instead (chariot.plan.md, 2026-09-08): an
+ * consent). A BRIEF carries `brief` instead (2026-09-08): an
  * exercise the host agent drives cold — intent, phases with a machine exit
  * and an eyes exit each, the rules, and a filing convention. What a brief
  * produces is a SIGNATURE: an added work whose `answersBrief` names the brief,
@@ -247,7 +247,7 @@ const BRIEFS = [
       'mint_solid kind assembler — the chariot, every item carrying an id',
       'update_sketch — the one fix, the exploded variant, the subtractions',
       'export_model — .glb and .stl',
-      'optional rungs: scripts/export-godot.mjs (engine), request_mesh_render → pull → submit → accept (upscaler)',
+      'optional rungs: export_model { engine } (engine), request_mesh_render → pull → submit → accept (upscaler)',
     ],
     brief: [
       'A Roman racing biga at real scale a person could stand in. units: cm. What makes it read Roman: a D-shaped floor ' +
@@ -297,7 +297,7 @@ const BRIEFS = [
       },
       {
         id: 'C4', title: 'Hand it on',
-        do: 'export_model as glb and as stl. Optional rung: an engine pack (scripts/export-godot.mjs --ref). Optional rung: the mesh upscaler ' +
+        do: 'export_model as glb and as stl. Optional rung: an engine pack (export_model { ref, engine }). Optional rung: the mesh upscaler ' +
           '(request_mesh_render → pull_mesh_render → an external sculptor → submit_mesh_render → accept_mesh_render by a DIFFERENT source). ' +
           'A missing binary or sculptor degrades the rung, never the exercise — say which rungs ran.',
         machine: 'Bytes and triangle count; the closure advisory; the size gate on any sculpted mesh.',

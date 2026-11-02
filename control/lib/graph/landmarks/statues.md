@@ -104,8 +104,8 @@ height ≈ 1:1 reads right.
    drops the normalised figure on top (copy `statueOfLibertyBuilding`). Register the
    shape in `LANDMARK_SHAPES`, `LANDMARK_HEIGHTS` (torch/finial tip as a multiple of
    the short side — Liberty is 3.0), dispatch in `renderLandmarkBuilding`, and add a
-   `LANDMARK_FOOTPRINT` entry in [`fractal-city.js`](../fractal-city.js).
-3. Add a placement + alias test in [`fractal-city.test.js`](../fractal-city.test.js).
+   `LANDMARK_FOOTPRINT` entry in [`fractal-city.js`](../city/fractal-city.js).
+3. Add a placement + alias test in [`fractal-city.test.js`](../city/fractal-city.test.js).
    The figure makes a huge vertex count, so assert max-height with a `reduce`, never
    `Math.max(...spread)` (the spread overflows the call stack).
 

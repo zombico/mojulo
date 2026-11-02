@@ -5,7 +5,6 @@ import { capabilityRegistry } from './registry.js';
 import { EFFORT_WEIGHT } from './packages.js';
 import { validateCube, dryRun } from './cosmos.js';
 import { FIXTURES } from './fixtures.js';
-import { MARKED_ENGINES } from '../scene/engines/registry.js';
 
 describe('rollCube', () => {
   it('rolls valid cubes, and the same seed rolls the same cube', () => {
@@ -70,7 +69,7 @@ describe('sweep', () => {
 
   it('counts every rolled cube once', () => {
     expect(r.verdicts.makeable + r.verdicts.gaps + r.verdicts.blocked).toBe(200);
-    for (const e of MARKED_ENGINES) expect(r.engines[e].ok).toBeLessThanOrEqual(200);
+    expect(r).not.toHaveProperty('engines');
   });
 
   it('reports every fixture, with its verdict as the dry run gives it', () => {
@@ -152,37 +151,6 @@ describe('sweep', () => {
     expect(JSON.stringify(sweep({ n: 100, seed: 2, around: 'probes' }))).toBe(JSON.stringify(a));
     expect(a.verdicts.makeable + a.verdicts.gaps + a.verdicts.blocked).toBe(100);
     expect(() => sweep({ n: 1, around: 'mmo' })).toThrow(/no fixture 'mmo'/);
-  });
-
-  it('recounts each engine\'s counterfactual by hand: a value, a setting, a ladder that climbs to its facet', () => {
-    for (const [args, roll] of [[{ n: 200, seed: 3 }, (rand) => rollCube(rand)], [{ n: 200, seed: 3, around: 'probes' }, null]]) {
-      const s = sweep(args);
-      for (const e of MARKED_ENGINES) {
-      const g = s.engines[e].unlock, ok = s.engines[e].ok, lost = [];
-      if (roll) {
-        const rand = mulberry32(3);
-        for (let i = 0; i < 200; i++) { const d = dryRun(roll(rand)).engines[e]; if (!d.ok) lost.push(d.lost); }
-      } else {
-        const bases = FIXTURES.filter((f) => !f.anchor).map((f) => f.cube), rand = mulberry32(3);
-        for (let i = 0; i < 200; i++) { const d = dryRun(nudgeCube(rand, bases[i % bases.length])).engines[e]; if (!d.ok) lost.push(d.lost); }
-      }
-      expect(lost.length).toBe(200 - ok);
-      const key = (x) => `${x.facet}.${x.setting}=${x.value}`, set = (x) => `${x.facet}.${x.setting}`;
-      // the top setting: the cubes whose every loss is in it
-      const top = g.settings[0];
-      expect(top.survives).toBe(lost.filter((l) => l.every((x) => set(x) === top.setting)).length);
-      // the top value: the cubes that lose it and nothing else
-      const v = g.values[0];
-      expect(v.survives).toBe(lost.filter((l) => l.some((x) => key(x) === v.key) && l.every((x) => key(x) === v.key)).length);
-      for (const row of [...g.values, ...g.settings]) expect(row.survives).toBeLessThanOrEqual(row.touches);
-      for (const [facet, ladder] of Object.entries(g.ladders)) {
-        expect(ladder[0].survives - ladder[0].gain).toBe(ok);
-        for (let i = 1; i < ladder.length; i++) expect(ladder[i].survives).toBe(ladder[i - 1].survives + ladder[i].gain);
-        // the top of a facet's ladder: every cube whose losses are all in that facet
-        expect(ladder.at(-1).survives, facet).toBe(ok + lost.filter((l) => l.every((x) => x.facet === facet)).length);
-      }
-      }
-    }
   });
 });
 

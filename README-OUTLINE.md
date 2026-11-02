@@ -15,7 +15,7 @@ print and people designing rooms arrive through the same studio's other outcomes
 
 **The lift.** Someone who can only describe what they want can now design it, and the result is real: the craft of a
 level designer, an animator, a tailor, an architect or a carpenter is built in; what they make plays through, prints at
-true size and opens in Godot or Blender; and it stays theirs to change by asking. *You bring the taste; it brings the
+true size and hands off to a team's Godot, Unity, Unreal or Blender; and it stays theirs to change by asking. *You bring the taste; it brings the
 craft.* (The two gates, said for the person: the machine checks the craft, only the director judges the look.)
 
 **Source of truth.** `CLAUDE.md` names the `get_substrate` drawer (`SUBSTRATE_POSITIONING` in
@@ -53,7 +53,7 @@ maintainer's call.
 Turn your agent into a game studio.
 
 You direct; it builds the worlds and levels, the characters, props and vehicles, the play modes with their animation
-and sound, the foes and bosses, the camera work and cutscenes, and the game bible that ties them into one game.
+and sound, the foes and bosses, the cinematics, and the game bible that ties them into one game.
 ```
 
 - Keep the badges (npm, license, node).
@@ -78,7 +78,8 @@ The pairs, in order:
 4. The feel book → a jump or a swing, in motion.
 5. The title card, carved in the game's look.
 6. The change: one sentence; the bible page and the screen both update.
-7. Where it goes: the Godot project open, with its `plays` stamp; the browser build as a desktop app.
+7. Where it goes: the browser build as a desktop app; a level's handoff open in an engine beside the page at the same
+   camera, with its visual gate's contact sheet.
 
 `[asset]` all of it. `[verify]` each pair is one recipe's two views, captured from the same ref.
 
@@ -95,15 +96,15 @@ works and Where it goes.
 | Characters, props and vehicles | Heads and bodies in realistic, cartoon or anime looks; hair, wardrobe, armour, footwear and the gear a hero carries, fitted to the body and customized; named heroes; race machines and craft. | a hero in three looks; one hero bare and armoured | `create_character`, `update_character`, `mint_solid` (gear, vehicles) |
 | Play modes, animation and sound | The principles a game loop is composed from: the game types, how the controls feel, moves and clips, hit effects, local multiplayer, a score and sound effects. | a jump or a swing in motion, with its sound | `create_game`, the gameworld's `feel` and `juice`, `create_beats`, `create_voice` (an optional speech worker) |
 | Foes and bosses | Who stands in each level and how hard: grunts, harriers, elites and a boss on the last; how each attacks, from its wind-up to its recovery; enemy crews, beasts and oozes in the game's look. | the foe cast sheet beside a fight | `design_game`'s `foes` step, the casting call, the foe classes |
-| Cameras and cutscenes | Directed moments in the game (a boss entrance, an arrival, two characters talking), shots keyed for Godot and Blender, flythroughs and recorded runs joined into a video, and a picture of anything being built, from any angle, whenever asked. | a boss entrance; a contact sheet of one thing from many angles | the `ui-scenes` card, `forge_motion` (shoot plans, runs, flythroughs), `stitch_motion` |
+| Cinematics | Scenes directed as a film crew directs them: actors who play a role from a script in a style, speaking and listening, walking their marks; the coverage a director would shoot; directed moments in the game (a boss entrance, an arrival, two characters talking); flythroughs and recorded runs joined into a video; a scene exported to Blender in a film or an anime look; and a picture of anything being built, from any angle, whenever asked. | two actors in a scene, cut by their coverage; a boss entrance | `create_character({ as: 'persona' })` with `style` and `role`, the `ui-scenes` card, `forge_motion` (shoot plans, runs, flythroughs), `stitch_motion` |
 | Game design and production | The game's bible (its world, cast, levels and feel) drafted from a pitch for approval, each step built on a yes, and the record of what is made and what is left, for bigger games; the runtime turns the bible into the game. | the bible's pages | `design_game` (`run: true`), the bibles, plans, sweeps |
 
 Under the cards, one paragraph: every department writes into the same recipe, so they compose (a place, a cast, a play
 mode, its foes and its shots make one game), and one sentence changes the game wherever it shows.
 
 Then one plain line on what the studio does not have, so the word "studio" does not overpromise: painted concept art is
-handed to image tools you bring; voices need an optional local speech worker; multiplayer is local, not online; Unreal
-takes assets, not whole games; whether it looks good is the director's call, not a gate.
+handed to image tools you bring; voices need an optional local speech worker; multiplayer is local, not online; no
+engine runs a game's rules (the web build is the game; an engine gets its levels and assets); whether it looks good is the director's call, not a gate.
 
 `[verify]` boss phases: the foe roles, tiers and attack timing (wind-up, strike, recovery) are built; a boss that
 changes phase mid-fight is not, so the README says "a boss", not "boss phases", until it is.
@@ -186,11 +187,11 @@ replaces it.
 The compiler, told once, for the reader who asks "what's under it?":
 
 ```
-DEPARTMENTS   worlds · characters · play modes · foes · cameras · game design
+DEPARTMENTS   worlds · characters · play modes · foes · cinematics · game design
                  │  every department writes the same recipe
 COMPILER      recipe → geometry · deterministic · true scale · diffable
                  │
-DESTINATIONS  the browser · Godot · Unity · Roblox · Blender · glTF / USD · STL / 3MF · drawing set + IFC
+DESTINATIONS  the browser · the desktop · a handoff to Godot, Unity, Unreal, Blender · glTF / USD · STL / 3MF · drawing set + IFC
 ```
 
 - **The recipe is the source.** A few hundred bytes of JSON, or an OpenSCAD program. Edit it, diff it, keep it. Renders
@@ -206,12 +207,12 @@ DESTINATIONS  the browser · Godot · Unity · Roblox · Blender · glTF / USD �
 
 ## 6. Destinations
 
-- Keep the current "Where it goes" table almost as is: Browser, glTF / OpenUSD, Godot, Unity, Roblox, Unreal (assets),
-  Blender, STL / 3MF, `.scad`.
+- Keep the current "Where it goes" table almost as is: Browser, desktop app, glTF / OpenUSD, the engine handoff (Godot,
+  Unity, Unreal, Blender), Unreal's one asset, Blender's art pass, STL / 3MF, `.scad`.
 - **Add a row:** **IFC4 + drawing set** · sheets, schedules, takeoff · gate: `[verify]` whether any IFC validator is
   wired in; if not, "advisory checks in the structure book".
-- Keep the ladder honest: Godot the fullest engine translation, Roblox the young one, Unity a gated leg, Unreal an
-  asset target. Every export works with nothing installed, and installing the tool adds the machine gate. Gates advise
+- Keep the ladder honest: the game plays in the browser or as a desktop app; a team's engine gets its levels and
+  assets to wire, never the game. Every export works with nothing installed, and installing the tool adds the machine gate. Gates advise
   and stamp, none refuse, and none ever claims a human looked.
 
 ## 7. What stays on your machine (five bullets, kept in the README)

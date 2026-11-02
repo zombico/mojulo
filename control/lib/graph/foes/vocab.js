@@ -7,7 +7,7 @@
  *   MOVES        how it moves: each its line, what it needs of a body (`needs`: ground | wings), what it lays on the
  *                mind (`mind`) and on the rule (`rule`), its own move's numbers (`own`, the rule's `foe` record:
  *                worlds/controllable/foe.js plays a move the mind does not), and what lowers it today (`status`,
- *                `lowers`, an engine's mark read from the mind it rides on, `rides`, or written per engine)
+ *                `lowers`)
  *   ATTACKS      how it hurts: each its line, the Power verb it holds (`verb`: what the mind measures; `contact` a
  *                touch, `during` when only then), its default timing in the lab's words (feel/kernel.js SPAR: startup,
  *                active, recovery in frames at 60 Hz; startup is the telegraph), and what lowers it
@@ -41,104 +41,101 @@ const MIND = 'lib/graph/worlds/controllable/mind.js';
 const GROUP = 'lib/graph/worlds/controllable/group.js';
 const PKG = 'hostile-encounters';
 
-// a foe's own moves (worlds/controllable/foe.js): played on the web; no engine kernel plays them yet
+// a foe's own moves (worlds/controllable/foe.js)
 const FOE = 'lib/graph/worlds/controllable/foe.js';
 const SUMMON = 'lib/graph/worlds/controllable/summon.js';
-const WEB_ONLY = { godot: 'absent', roblox: 'absent' };
 
 export const MOVES = Object.freeze({
   hold: {
     line: 'stands where it is put and turns to the hero in range',
-    needs: [], mind: { motivation: 'sentry' }, rides: ['motivation', 'sentry'],
+    needs: [], mind: { motivation: 'sentry' },
     status: 'built', lowers: MIND,
   },
   pace: {
     line: 'walks a stretch and turns at its ends, at a ledge and at a wall',
     needs: ['ground'], mind: { motivation: 'ambient' }, own: { stretch: 6, drop: 1 },
-    status: 'built', lowers: FOE, ...WEB_ONLY,
+    status: 'built', lowers: FOE,
   },
   patrol: {
     line: 'walks its round between two posts and back; once it sees the hero the mind has it, and it walks its round again when it has seen no one for a while',
     needs: ['ground'], mind: { motivation: 'guard' }, own: { stretch: 10, drop: 1, patrol: { calm: 4 } },
-    status: 'built', lowers: FOE, ...WEB_ONLY,
+    status: 'built', lowers: FOE,
   },
   chase: {
     line: 'hunts the hero down, sliding along what is in its way',
-    needs: ['ground'], mind: { motivation: 'hunt' }, rides: ['motivation', 'hunt'],
+    needs: ['ground'], mind: { motivation: 'hunt' },
     status: 'built', lowers: MIND,
   },
   hop: {
     line: 'moves in hops, each a short leap toward where it is going',
     needs: ['ground'], mind: { motivation: 'ambient' }, own: { stretch: 6, drop: 1, hop: { period: 0.8, air: 0.6, height: 0.8 } },
-    status: 'built', lowers: FOE, ...WEB_ONLY,
+    status: 'built', lowers: FOE,
   },
   drift: {
     line: 'hangs in the air and weaves, circling what it fights',
-    needs: ['wings'], mind: { motivation: 'wander' }, rule: { flier: true }, rides: ['motivation', 'wander'],
+    needs: ['wings'], mind: { motivation: 'wander' }, rule: { flier: true },
     status: 'built', lowers: MIND,
   },
   dive: {
     line: 'drifts, then swoops at the hero on a telegraph and climbs back',
     needs: ['wings'], mind: { motivation: 'hunt' }, rule: { flier: true }, own: { dive: { altitude: 3, radius: 9, speed: 9, cooldown: 2 } },
-    status: 'built', lowers: FOE, ...WEB_ONLY,
+    status: 'built', lowers: FOE,
   },
   rush: {
     line: 'sees the hero, braces, and charges in a straight line; a wall stuns it',
     needs: ['ground'], mind: { motivation: 'hunt' }, own: { drop: 1, rush: { range: 14, speed: 10, run: 16, stun: 1.5 } },
-    status: 'built', lowers: FOE, ...WEB_ONLY,
+    status: 'built', lowers: FOE,
   },
   lurk: {
     line: 'lies still and unseen until the hero is near, then wakes and hunts',
     needs: ['ground'], mind: { motivation: 'hunt' }, own: { lurk: { radius: 4 } },
-    status: 'built', lowers: FOE, ...WEB_ONLY,
+    status: 'built', lowers: FOE,
   },
   swarm: {
     line: 'many as one: a pack that fans out, rings the hero and closes, a few at a time',
-    needs: ['ground'], mind: { motivation: 'hunt' }, group: { plan: 'pack-hunt', attackers: 2 }, rides: ['squad', 'pack'],
+    needs: ['ground'], mind: { motivation: 'hunt' }, group: { plan: 'pack-hunt', attackers: 2 },
     status: 'built', lowers: GROUP,
   },
 });
 
 const MELEE = 'lib/graph/worlds/controllable/combat-melee.js';
 const RANGED = 'lib/graph/worlds/controllable/combat-ranged.js';
-// the hero's swings and rounds are kernel/combat.gd's; every AI's attack stays the web's (cosmos/facets/power.js combat)
-const AI_ATTACK = { godot: 'approximated', roblox: 'approximated' };
 
 export const ATTACKS = Object.freeze({
   contact: {
     line: 'touching it hurts',
     verb: 'contact',
-    status: 'built', lowers: FOE, ...WEB_ONLY,
+    status: 'built', lowers: FOE,
   },
   strike: {
     line: 'a blow at blade range, telegraphed by its wind-up',
     verb: 'melee', timing: { startup: 30, active: 4, recovery: 20 }, reach: 1.2,
-    status: 'built', lowers: MELEE, ...AI_ATTACK,
+    status: 'built', lowers: MELEE,
   },
   shot: {
     line: 'fires at the hero in a pattern from the action lab\'s shots (one aimed, a spread, a ring to jump)',
     verb: 'ranged', fireClass: 'sight', pattern: 'aimed', timing: { startup: 20 },
-    status: 'built', lowers: RANGED, ...AI_ATTACK,
+    status: 'built', lowers: RANGED,
   },
   lob: {
     line: 'lobs at where the hero stood; it bursts where it lands',
     verb: 'lob', fireClass: 'lob', pattern: 'lob', timing: { startup: 30 },
-    status: 'built', lowers: RANGED, ...AI_ATTACK,
+    status: 'built', lowers: RANGED,
   },
   spray: {
     line: 'sprays a cone at close range',
     verb: 'area', fireClass: 'area', timing: { startup: 24 },
-    status: 'built', lowers: RANGED, ...AI_ATTACK,
+    status: 'built', lowers: RANGED,
   },
   charge: {
     line: 'its charge is the blow: whatever it runs into is hit',
     verb: 'contact', during: 'charge', timing: { startup: 36, recovery: 30 },
-    status: 'built', lowers: FOE, ...WEB_ONLY,
+    status: 'built', lowers: FOE,
   },
   call: {
     line: 'it calls its summons into the fight on a wind-up: its blow is them (its entry\'s `summons`)',
     verb: null, timing: { startup: 45, recovery: 30 },
-    status: 'built', lowers: SUMMON, ...WEB_ONLY,
+    status: 'built', lowers: SUMMON,
   },
   none: {
     line: 'it does not attack',

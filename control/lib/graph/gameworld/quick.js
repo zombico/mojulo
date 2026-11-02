@@ -182,6 +182,7 @@ import { stampedTier } from '../vehicle-registry/tier.js';
 import { TIER_IDS } from '../vehicle-registry/builds.js';
 import { flightLaps } from '../skyscape/course.js';
 import { dogfightCast, waveIds, WING } from '../skyscape/dogfight.js';
+import { escapeRoomOf } from './escape.js';
 import { solveFighter } from '../versus/versus-solver.js';
 import { compileFighter } from '../versus/versus-compile.js';
 import { readRules } from '../versus/versus-core.js';
@@ -1222,11 +1223,13 @@ function standFoe(figures, entities, id, ref, at, back, look = null) {
  *   health    hp on the HUD, the level lost at none (fail-on-death), the stage's hazards hurting (avoid's)
  *   guards    watchers on each stage's beats who see (a sneak's guards: guardPosts), the level lost when one sees the
  *             hero (unseen); their figure is the world's (`goalCast`'s caller stands them: levels.js GUARDS)
+ *   escape    the level's last stage an escape room (escape.js): its way out sealed until its locks open, each by a key
+ *             lying along the way; in place of the exit (`{ locks, room }`, world.js readEscapeGoal)
  * Numbers: the hero's hp a battle's, a hazard's bite a quarter of it, the boss the last foe's hp, a blow short of its
  * atk, so a fight fought by attacks alone is won with hp to spare.
  */
 export const LEVEL_GOAL = Object.freeze({ hp: BATTLE.hp, hit: BATTLE.atk, hazard: BATTLE.hp / 4, boss: { hp: BATTLE.foeHp.at(-1), atk: BATTLE.foeAtk.at(-1) - 1 } });
-export const LEVEL_GOAL_PARTS = Object.freeze(['collect', 'boss', 'health', 'guards']);
+export const LEVEL_GOAL_PARTS = Object.freeze(['collect', 'boss', 'health', 'guards', 'escape']);
 
 /** A level goal's mechanics on one stage (`ends`: stageEnds'); `last`: the level's last stage, where its boss stands. */
 export function levelGoalMechanics(goal, ends, { last = false } = {}) {
@@ -1242,7 +1245,8 @@ export function levelGoalMechanics(goal, ends, { last = false } = {}) {
   // the boss's blows take the hp a battle's fail-on-death owns; health shows it on the HUD (a hit's cost named)
   if (goal.health || boss) out.push({ kind: 'fail-on-death', startHp: LEVEL_GOAL.hp, ...(goal.health ? { hits: LEVEL_GOAL.hit } : {}) });
   if (goal.guards) out.push({ kind: 'unseen' });
-  out.push(boss ? { kind: 'win-when', when: { var: 'won', gte: 1 }, event: 'battles:won' } : exit);
+  // escape: the last stage a room held sealed until its locks open (escape.js), its way out the level's
+  out.push(boss ? { kind: 'win-when', when: { var: 'won', gte: 1 }, event: 'battles:won' } : goal.escape && last ? escapeRoomOf(goal.escape, ends) : exit);
   return out;
 }
 
