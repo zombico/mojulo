@@ -742,15 +742,27 @@ export function assembleGeocityScene(m, ctx = {}) {
   const bg = night ? air.fog.color : rgbToHex(air.dome.horizon);
   const kinds = d.regions.flatMap((r) => r.blocks).reduce((acc, b) => ({ ...acc, [b.kind]: (acc[b.kind] ?? 0) + 1 }), {});
   // (the kit's repeats, each drawn near the camera only; the skyline draws none)
-  const repeats = E?.evoke === 'skyline' ? [] : [...stamps].map(([key, transforms]) => ({ group: `geocity:${key.split(':')[0]}`, template: templateOf(key), transforms, near: NEAR }));
+  // (the URBAN PIZZA VIEWER, a live page whose world asks for the view cone, scene/channels/city-cone.js: the kit drawn by
+  // the cone's rule rather than the ring; an export, and a page without the cone, as before)
+  const coned = !!ctx.live && m.cone !== undefined && m.cone !== null, kit = coned ? { cone: 'kit' } : {};
+  const repeats = E?.evoke === 'skyline' ? [] : [...stamps].map(([key, transforms]) => ({ group: `geocity:${key.split(':')[0]}`, template: templateOf(key), transforms, near: NEAR, ...kit }));
   // the street trees grown (vegetation/pool.js): a few variants a species, each at the detail the cameras see it at,
   // their crowns raised over the walk, drawn near the camera only like the kit
   if (E?.evoke !== 'skyline' && trees.size) {
     const eyes = cameras.map(({ worldFraming: wf }) => ({ pos: wf.cameraPosition, focalPx: 1280 / (2 * Math.tan((wf.horizontalFov * Math.PI) / 360)) }));
     for (const sp of [...trees.keys()].sort()) {
       const pool = plantPool({ species: sp, variants: 2, seed: `geocity::${sp}`, light: LIGHT, maxLevel: TREE.level, group: `geocity:tree-${sp}`, clear: TREE.raise });
-      const placed = plantRepeats(pool, trees.get(sp), { eyes, level: TREE.level, budget: Math.round(TREE.budget / trees.size), sink: 0.05 });
-      repeats.push(...placed.repeats.map((r) => ({ ...r, group: `geocity:tree-${r.group}`, near: NEAR })));
+      if (coned) {
+        // (on the cone every tree twice, on one grid of tiles: its near level inside the reach, its far one past it to
+        // the ring, the page choosing by the live eye rather than the scene's bookmarks)
+        for (const [level, side] of [[TREE.level, 'in'], ['L0', 'out']]) {
+          const placed = plantRepeats(pool, trees.get(sp), { level, sink: 0.05 });
+          repeats.push(...placed.repeats.map((r) => ({ ...r, group: `geocity:tree-${r.group}`, near: NEAR, cone: side })));
+        }
+      } else {
+        const placed = plantRepeats(pool, trees.get(sp), { eyes, level: TREE.level, budget: Math.round(TREE.budget / trees.size), sink: 0.05 });
+        repeats.push(...placed.repeats.map((r) => ({ ...r, group: `geocity:tree-${r.group}`, near: NEAR })));
+      }
       if (pool.textures) textures = { ...(textures || {}), ...pool.textures };
       counts.trees = (counts.trees ?? 0) + trees.get(sp).length;
     }
@@ -764,7 +776,7 @@ export function assembleGeocityScene(m, ctx = {}) {
     const N = Array.isArray(f.normal) ? f.normal : newell(f.corners), key = LIGHT.diffuse * Math.max(0, N[0] * LIGHT.toLight[0] + N[1] * LIGHT.toLight[1] + N[2] * LIGHT.toLight[2]), all = litFactor(N, LIGHT);
     faces[i] = { ...f, sunShare: all > 1e-9 ? Math.round(Math.min(1, key / all) * 1000) / 1000 : 0 };
   }
-  repeats.push(...townRepeats);
+  repeats.push(...townRepeats.map((r) => ({ ...r, ...kit })));
   counts.kit = repeats.reduce((a, r) => a + r.transforms.length, 0);
   return {
     faces, ...(repeats.length ? { repeats } : {}), ...(textures ? { textures } : {}), cameras, viewBox: { width: 1280, height: 720 }, title: ctx.title || `${cube.title} · geocity`,

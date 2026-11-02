@@ -210,7 +210,7 @@ A cube that names no domains offers one per terrain and one per interior.
   default the core's nearest the seat), `corridor` (`along` an arterial, by default the spine from the shore) or
   `segment` (`at` one block, by default a tower block by the seat): the evoked blocks wear facades (curtainwall,
   punched stone, brick, a tower's shape, lit windows at night), the neighbourhoods round them massing, the rest the
-  skyline; `play` `game` (an evocation's default: what a walker covers compressed, never a storey) or `real`. The
+  skyline; `play` `game` (an evocation's default: what a walker covers compressed, never a storey) or `real`. On the live page `cone` (true, or the reach in metres) draws its street on the view cone: its trees whole inside the reach and at their light level past it, its kit while it covers a few pixels, what the `air` has fully taken not at all. The
   answer's `geocity` carries the counts, the ledger, the neighbourhoods (ring, storeys, park, the beyond where a
   geotown joins later), the region graph and the laws (an evocation's `evokes`: the metro to scale's measures);
 - a `stage`: `{ geocube, domain }` alone is the whole level: an island, a street on a trail (a domain with a town), or

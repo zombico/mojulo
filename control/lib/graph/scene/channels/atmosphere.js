@@ -23,7 +23,7 @@
 //              cannot draw to a half-float target, a camera that is not perspective and an XR session keep the plain frame.
 //
 // Absent `air` => NOT emitted: the page's fog chunk, its sky and its frame are untouched. `window.__mojAir` is the probe:
-// { kind, visibility, sigma, height, blur, sky (veiled), target (the blur's), passes, fog(), set({ blur? }) }.
+// { kind, visibility, sigma, height, blur, sky (veiled), target (the blur's), passes, fog(), depth(ez, rx, ry, rz), set({ blur? }) }.
 import { safeJson } from '../emit-util.js';
 
 /** The kinds of air and their measures. `outside` (a path, a trail, a town), `city` (a geocity: a metro kilometres across)
@@ -188,7 +188,15 @@ export function atmosphereEarlyScript(cfg) {
     .replace('gl_FragColor.rgb = mix( gl_FragColor.rgb, fogColor, fogFactor );', 'gl_FragColor.rgb = mix( gl_FragColor.rgb, airColour( vAirRay, fogColor ), fogFactor );');
   const probe = window.__mojAir = { kind: AT.kind, visibility: AT.visibility, sigma: AT.sigma, height: AT.height, blur: AT.blur, sky: false, passes: 0, target: false,
     set(o) { if (o && Number.isFinite(o.blur)) this.blur = Math.max(0, o.blur); return this; },
-    fog: () => (scene.fog ? { density: scene.fog.density, color: '#' + scene.fog.color.getHexString(), chunk: C.fog_fragment.indexOf('airDepth') >= 0 } : null) };
+    fog: () => (scene.fog ? { density: scene.fog.density, color: '#' + scene.fog.color.getHexString(), chunk: C.fog_fragment.indexOf('airDepth') >= 0 } : null),
+    // (the optical depth along a ray r from an eye at height ez, at the page's fog now: the GLSL's airDepth, for what a
+    // page may leave undrawn where the air has taken it, channels/city-cone.js)
+    depth(ez, rx, ry, rz) {
+      const sg = scene.fog ? scene.fog.density : AT.sigma, run = Math.max(Math.hypot(rx, ry, rz) - AT.clear, 0);
+      if (AT.height === null) return sg * run;
+      const h0 = Math.max(ez - AT.base, 0), h1 = Math.max(ez + rz - AT.base, 0), dh = (h1 - h0) / AT.height, e0 = Math.exp(-h0 / AT.height);
+      return sg * run * (Math.abs(dh) > 1e-4 ? (e0 - Math.exp(-h1 / AT.height)) / dh : e0);
+    } };
   // the blur: the frame into a target that holds what the canvas would, then laid on the canvas softened by the air
   const ext = renderer.extensions, canHalf = ext.has('EXT_color_buffer_float') || ext.has('EXT_color_buffer_half_float');
   if (!(AT.blur > 0 && canHalf)) return;
