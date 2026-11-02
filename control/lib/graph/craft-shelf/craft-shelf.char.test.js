@@ -18,6 +18,9 @@
  *   - The drone looks: the EO/IR ball's builder path pinned; no other pin moved.
  *   - The helicopter parts joined the shelf (heli-odm.js): their builder paths pinned; no other pin moved.
  *   - The cockpit as a part of its own (cockpit-parts.js): its builder path pinned; no other pin moved.
+ *   - The helicopter airframes: the twin cowling, the rotor pylon and the kit's builder paths pinned, and two whole
+ *     helicopters (the attack helicopter for a faceted hull opened over its cockpit, the tandem for its ramp and its
+ *     pylon's engines, neither a path of its own); no other pin moved.
  */
 import { createHash } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
@@ -94,8 +97,17 @@ const PINS = {
   'fan-heli-ducted': 'd2c588b7caf3d68e',
   // the cockpit, a part of its own (cockpit-parts.js)
   'cockpit-heli-light': '05a3c9a9af39f335',
+  // the helicopter airframes: a twin's cowling, a tandem's rotor pylon, the kit
+  'cowl-heli-twin': '82590683e8b33d01',
+  'pylon-heli-tandem-front': '3cd7828470712c67',
+  'rockets-heli-19': '4d85a3fa776b574e',
+  'rack-heli-missiles': 'bbe4f2cd4e926027',
+  'gun-heli-chin': 'e3325ac1fa00a443',
   'craft:lightSingle': 'cbbad5fe3c255c1d',
+  'craft:attackHeli': '17b1cf6d9cb426d4',
+  'craft:tandemHeli': 'c0d9f84060eca38f',
 };
+const CRAFTS = Object.keys(PINS).filter((k) => k.startsWith('craft:'));
 
 const PROCEDURES = (() => {
   const seen = new Map();
@@ -108,14 +120,14 @@ const PROCEDURES = (() => {
 
 describe('craft shelf emission pins', () => {
   it('pins exactly one part per builder path', () => {
-    expect(Object.keys(PINS).filter((k) => k !== 'craft:lightSingle').sort()).toEqual([...PROCEDURES].sort());
+    expect(Object.keys(PINS).filter((k) => !CRAFTS.includes(k)).sort()).toEqual([...PROCEDURES].sort());
   });
 
   it.each(PROCEDURES)('%s', (sku) => {
     expect(hash(resolveCraftPart(sku, { seat: 'mount' }))).toBe(PINS[sku]);
   });
 
-  it('craft:lightSingle', () => {
-    expect(hash(assembleCraft('lightSingle').manifest)).toBe(PINS['craft:lightSingle']);
+  it.each(CRAFTS)('%s', (k) => {
+    expect(hash(assembleCraft(k.slice('craft:'.length)).manifest)).toBe(PINS[k]);
   });
 });

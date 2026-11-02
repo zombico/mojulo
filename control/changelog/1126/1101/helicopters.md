@@ -89,3 +89,59 @@ In progress. Helicopters on the craft shelf:
 
     The shelf's char test pins its builder path.
   - **Seen** (machine gate only; the eyes gate is open): through the bubble from the front, the side and above.
+- **The airframes** (`craft-shelf/heli-odm.js`, `heli-parts.js`, `heli-archetypes.js`), three helicopters beside the light
+  one, each in a military palette (`heliMilitary`) until the looks dress them:
+  - **A medium twin utility helicopter** (`utilityHeli`):
+    - its cockpit's tub open under its glazing, two seats side by side with a glass panel and helicopter controls;
+    - the cabin's slab-sided box with its sliding doors' frames and its windows;
+    - the boom rising aft to a tall tail pylon carrying a four-blade tail rotor, a stabilator low on the boom;
+    - a twin-engine roof cowling, a four-blade 16.4 m rotor;
+    - main wheels under the cabin and a tail wheel under the boom.
+  - **An armoured tandem attack helicopter** (`attackHeli`):
+    - a faceted hull of chamfered slabs, narrow under its two seats, wide at its engines;
+    - a flat-paned canopy stepping up over the rear seat, its cockpit tandem (the rear seat raised, each with its panel and
+      controls);
+    - a nose sensor turret, a chin gun;
+    - stub wings drooping outboard, a pylon at each station, a rocket pod inboard and a missile rack outboard each side;
+    - a twin cowling, a four-blade rotor, a tail pylon and its tail rotor, wheels.
+
+    Its weapons are modelled, never fired.
+  - **A heavy tandem-rotor transport** (`tandemHeli`):
+    - a long box hull, its rounded nose glazed over its flight deck (two seats side by side), windows down the hold, its
+      tail sweeping up over its ramp;
+    - fuel sponsons down its sides carrying four wheels;
+    - a rotor pylon over the flight deck and a taller one at the tail with an engine each side of it;
+    - two three-blade 18.3 m rotors, the aft one the forward one's mirror, so they turn against each other and their
+      torques cancel.
+
+    Its blades are meshed, never meeting as they turn, and the aft disc is above the forward one.
+  - **New words:**
+    - a faceted fuselage may be `open` (its U cut from its polygon at the sill, a corner meeting a corner down its length
+      so its panels stay flat);
+    - a fuselage's `ramp: { from, to, w }` (a rear ramp's hinge, sides and lip on the aft underside);
+    - a `heli-cowl` of family `pylon` (a tandem's rotor pylon, `pods` its engines);
+    - the shelf's new kind `heli-kit`, each mounted on its top: a rocket pod (`rockets`), a missile rack (`rack`) and a
+      chin gun (`chin`);
+    - a nose sensor turret (the drones' EO/IR ball at a helicopter's size).
+
+    Absent, none adds a byte.
+  - **On the roster:** `utility helicopter` (medevac, assault, troop helicopter), `attack helicopter` (helicopter gunship,
+    attack chopper) and `tandem-rotor helicopter` (heavy lift, twin rotor, cargo helicopter), each before the `helicopter`
+    concept row.
+  - **Held** (`heli.test.js`):
+    - each helicopter level on its gear, its rotors well clear above it, within its budget (80k triangles);
+    - each cockpit inside its hull under its glass, its hull open over its seats;
+    - each found by its words;
+    - the attack helicopter's tandem seats under flat panes, its kit hung under its stub wings, its gun under its nose;
+    - the tandem's rotors turning against each other, the aft disc higher, their blades more than a chord apart seen
+      from above over a blade's spacing of turn (a tandem with both rotors one hand fails it);
+    - its ramp, and a hull without one has none;
+    - a faceted tub's corners lining up down its length;
+    - the kit's parts, each hanging below its mount.
+
+    The shelf's char test pins the twin cowling, the rotor pylon and the kit's builder paths and the attack and tandem
+    helicopters whole; no other pin moved. The deep sweep assembles each at its figures (a parked rotor's envelope: its
+    blades at rest, inside the disc they sweep).
+  - **Seen** (machine gate only; the eyes gate is open): each from three quarters, the side and the front, each cockpit
+    close up through its glass, the tandem from behind and above.
+

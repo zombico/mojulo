@@ -3,8 +3,10 @@
 // their tips, washing out, banded), spun by the pose with its hub still, folding aft; a tail rotor and a ducted fan; a
 // tail rotor's thrust against its main rotor's torque; a helicopter standing on its skids, its rotor clear above its
 // head, its rotors spinning in its figure, within its budget; a helicopter by the words people say; its cockpit, a part
-// of its own (side by side or tandem, its seats, panel and controls), inside its cabin under its bubble. The cases are
-// chosen from the shelf in code.
+// of its own (side by side or tandem, its seats, panel and controls), inside its cabin under its bubble; the airframes (a
+// utility machine on its wheels, an armoured tandem attack helicopter with its kit on its stub wings and its gun under its
+// nose, a tandem-rotor transport whose rotors turn against each other with their blades meshed); a faceted hull opened
+// with its panels flat; the kit. The cases are chosen from the shelf in code.
 import { describe, it, expect } from 'vitest';
 import { assembleCraft, resolveCraftPart, CRAFT_ODM, CRAFT_ARCHETYPES } from './index.js';
 import { craftForm, craftFormFigure } from './craft-form.js';
@@ -110,10 +112,10 @@ describe('the cockpit, a part of its own', () => {
     expect(pan(1).y).toBeLessThan(pan(0).y);
     expect(idsOf(ck({ dims: { length: 2, width: 1.3, height: 1.1 }, build: { layout: 'side', seats: 2, panel: 'dials', controls: 'yoke' } }))).toContain('ctl_0_yoke');
   });
-  it('in the helicopter: inside its cabin under its bubble, its seats\' cushions a seat\'s height off its floor', () => {
-    const C = craftForm(LIGHT), fs = (id) => C.items.find((i) => i.id === id).faces;
+  it.each(HELIS)('in %s: inside its cabin under its glass, its hull open over its seats', (k) => {
+    const C = craftForm(k), fs = (id) => C.items.find((i) => i.id === id).faces;
     const ext = (faces, k) => { let lo = Infinity, hi = -Infinity; for (const f of faces) for (const c of f.corners) { lo = Math.min(lo, c[k]); hi = Math.max(hi, c[k]); } return [lo, hi]; };
-    const ck2 = A[LIGHT].layout.find((e) => CRAFT_ODM[e.sku].kind === 'craft-cockpit').id, hull = fs('hull'), canopy = fs('canopy'), cp = fs(ck2);
+    const ck2 = A[k].layout.find((e) => CRAFT_ODM[e.sku].kind === 'craft-cockpit').id, hull = fs('hull'), canopy = fs('canopy'), cp = fs(ck2);
     for (const k of [0, 1]) { const [a, b] = ext(cp, k), [c, d] = ext(hull, k); expect(a).toBeGreaterThan(c); expect(b).toBeLessThan(d); }
     expect(ext(cp, 2)[1]).toBeLessThan(ext(canopy, 2)[1]);
     // (its hull open over it: no skin across the cockpit between its seats' cushions and the bubble)
@@ -127,5 +129,101 @@ describe('the cockpit, a part of its own', () => {
     expect(resolveCraftPart(plain).lofts.filter((l) => /^(tub|hull_nose)$/.test(l.id))).toEqual([]);
     const open = Object.keys(CRAFT_ODM).find((sku) => CRAFT_ODM[sku].build.open);
     expect(resolveCraftPart(open).lofts.map((l) => l.id).slice(0, 3)).toEqual(['hull_nose', 'tub', 'hull']);
+  });
+});
+
+describe('the airframes', () => {
+  const byKind = (k, kind) => A[k].layout.filter((e) => CRAFT_ODM[e.sku]?.kind === kind);
+  const ext = (faces, i) => { let lo = Infinity, hi = -Infinity; for (const f of faces) for (const c of f.corners) { lo = Math.min(lo, c[i]); hi = Math.max(hi, c[i]); } return [lo, hi]; };
+  it.each(HELIS)('%s stands level on its gear, its rotors clear above it, within its budget', (k) => {
+    const { readout } = assembleCraft(k);
+    expect(readout.gear.length).toBeGreaterThanOrEqual(2);
+    for (const g of readout.gear) expect(Math.abs(g.contact[2])).toBeLessThan(0.002);
+    expect(Math.abs(readout.pitch)).toBeLessThan(1);
+    expect(readout.clearance['heli-rotor']).toBeGreaterThan(2);
+    expect(readout.audit.ok).toBe(true);
+    const C = craftForm(k, { pose: { gear: 0 }, attitude: 'ground' });
+    expect(C.items.flatMap((i) => i.faces).reduce((t, f) => t + f.corners.length - 2, 0)).toBeLessThan(k === LIGHT ? 50000 : 80000);
+  });
+  it('found by the words people say', () => {
+    for (const [w, kind] of [['medevac helicopter', 'craft-cockpit'], ['helicopter gunship', 'heli-kit'], ['heavy lift helicopter', 'heli-rotor']]) {
+      const [k] = handlesOf(resolveVehicle(w).id).craft;
+      expect(byKind(k, kind).length, w).toBeGreaterThan(0);
+    }
+  });
+  const ATTACK = HELIS.find((k) => byKind(k, 'heli-kit').length && byKind(k, 'craft-wing').length);
+  it('the attack helicopter: tandem seats under flat panes, its kit hung under its stub wings, its gun under its nose', () => {
+    const ck = CRAFT_ODM[byKind(ATTACK, 'craft-cockpit')[0].sku], cn = CRAFT_ODM[byKind(ATTACK, 'craft-canopy')[0].sku];
+    expect(ck.build.layout).toBe('tandem');
+    expect(cn.build.facets).toBe(true);
+    expect(CRAFT_ODM[A[ATTACK].layout[0].sku].build.facets).toBeTruthy();
+    const C = craftForm(ATTACK), item = (id) => C.items.find((i) => i.id === id);
+    const stub = byKind(ATTACK, 'craft-wing')[0].id, [wz] = ext(item(`${stub}-r`).faces, 2);
+    for (const e of byKind(ATTACK, 'heli-kit')) {
+      const it = item(e.pair ? `${e.id}-r` : e.id), [, top] = ext(it.faces, 2);
+      if (e.pair) expect(top, e.id).toBeLessThan(wz);
+      else { const [, nose] = ext(item('hull').faces, 1), [lo] = ext(item('hull').faces, 2); expect(ext(it.faces, 1)[1], e.id).toBeGreaterThan(nose - 2); expect(ext(it.faces, 2)[0], e.id).toBeLessThan(lo + 0.3); }
+    }
+  });
+  const TANDEM = HELIS.find((k) => byKind(k, 'heli-rotor').length === 2);
+  it('the tandem: two rotors turning against each other, the aft disc above the forward one', () => {
+    const { manifest } = assembleCraft(TANDEM), rotors = manifest.items.filter((i) => i.source.garage.kind === 'heli-rotor');
+    const turn = (i) => i.source.garage.joints[0].dir[2] * ((i.flip || '').includes('x') ? -1 : 1) * ((i.flip || '').includes('y') ? -1 : 1);
+    expect(turn(rotors[0]) + turn(rotors[1])).toBe(0);
+    const [fore, aft] = rotors.slice().sort((a, b) => b.at[1] - a.at[1]);
+    expect(aft.at[2] + aft.source.garage.hardpoints.hub[2]).toBeGreaterThan(fore.at[2] + fore.source.garage.hardpoints.hub[2] + 0.4);
+  });
+  it('the tandem: its blades meshed, never meeting as they turn (seen from above, a chord and more apart)', () => {
+    const lines = (it) => {
+      const fl = it.flip || '', P = (p) => [it.at[0] + (fl.includes('x') ? -p.x : p.x), it.at[1] + p.y, it.at[2] + p.z], L = it.source.lofts;
+      return L.filter((l) => /^blade_\d+$/.test(l.id)).flatMap((l) => { const a = P(l.axisFrom), b = P(L.find((t) => t.id === `${l.id}_tip`).axisTo); return Array.from({ length: 21 }, (_, i) => a.map((v, j) => v + ((b[j] - v) * i) / 20)); });
+    };
+    const chord = Math.max(...byKind(TANDEM, 'heli-rotor').map((e) => CRAFT_ODM[e.sku].build.chord));
+    const n = CRAFT_ODM[byKind(TANDEM, 'heli-rotor')[0].sku].build.blades;
+    let plan = Infinity;
+    // (over one blade's spacing: the rotors' meeting repeats every 360/n degrees)
+    for (let a = 0; a < 360 / n; a += 6) {
+      const [f, r] = assembleCraft(TANDEM, { pose: { rotor: a } }).manifest.items.filter((i) => i.source.garage.kind === 'heli-rotor').map(lines);
+      for (const p of f) for (const q of r) plan = Math.min(plan, Math.hypot(p[0] - q[0], p[1] - q[1]));
+    }
+    expect(plan).toBeGreaterThan(chord);
+  });
+  it('the tandem: its ramp\'s hinge, sides and lip on the hull\'s aft underside; absent, none', () => {
+    const sku = A[TANDEM].layout[0].sku, src = resolveCraftPart(sku), got = ids(src);
+    for (const p of ['ramp_hinge', 'ramp_lip', 'ramp_side_r', 'ramp_side_l']) expect(got, p).toContain(p);
+    const hinge = src.sweeps.find((m) => m.id === 'ramp_hinge').path, lip = src.sweeps.find((m) => m.id === 'ramp_lip').path;
+    expect(lip[4][2]).toBeGreaterThan(hinge[4][2] + 0.5);
+    expect(ids(resolveCraftPart(A[LIGHT].layout[0].sku)).some((i) => /^ramp_/.test(i))).toBe(false);
+  });
+  it('a faceted hull opened over its cockpit: its tub\'s corners line up down its length, so its panels stay flat', () => {
+    const sku = A[ATTACK].layout[0].sku, tub = resolveCraftPart(sku).lofts.find((l) => l.id === 'tub'), M = tub.stations[0].profile.length / 2;
+    const norm = (pts) => { const o = pts.slice(0, M), xs = o.map((p) => p[0]), ys = o.map((p) => p[1]), mx = Math.max(...xs.map(Math.abs)), y0 = Math.min(...ys), y1 = Math.max(...ys); return o.map(([x, y]) => [x / mx, (y - y0) / (y1 - y0)]); };
+    const ref = norm(tub.stations[0].profile);
+    for (const st of tub.stations) norm(st.profile).forEach((p, i) => { expect(Math.abs(p[0] - ref[i][0])).toBeLessThan(0.03); expect(Math.abs(p[1] - ref[i][1])).toBeLessThan(0.03); });
+    expect(resolveCraftPart(sku).lofts.map((l) => l.id).slice(0, 3)).toEqual(['hull_nose', 'tub', 'hull']);
+  });
+});
+
+describe('the kit (modelled, never fired)', () => {
+  const kit = (fam) => { const sku = skuOf('heli-kit', fam); return { row: HELI_ODM[sku], src: resolveCraftPart(sku, { seat: 'mount' }) }; };
+  it('a rocket pod: its body and bands, a mouth per tube at its face, its lugs on top', () => {
+    const { row, src } = kit('rockets'), got = ids(src);
+    expect(got.filter((i) => /^tube_/.test(i)).length).toBe(row.build.tubes);
+    for (const p of ['body', 'band_front', 'band_aft', 'lug_f', 'lug_a']) expect(got, p).toContain(p);
+  });
+  it('a missile rack: its beam and spine, its rounds each side row under row, each with its seeker and fins', () => {
+    const { row, src } = kit('rack'), got = ids(src);
+    expect(got.filter((i) => /^round_\d+[rl]$/.test(i)).length).toBe(row.build.rows * 2);
+    expect(got.filter((i) => /_seeker$/.test(i)).length).toBe(row.build.rows * 2);
+    for (const p of ['beam', 'spine']) expect(got, p).toContain(p);
+  });
+  it('a chin gun: its ring, drum and cheeks, its barrel ahead to its muzzle; every kit hangs below its mount', () => {
+    const { row, src } = kit('chin'), got = ids(src);
+    for (const p of ['ring', 'drum', 'receiver', 'barrel', 'brake', 'cheek_r', 'cheek_l']) expect(got, p).toContain(p);
+    expect(src.garage.hardpoints.muzzle[1]).toBeCloseTo(row.dims.length, 2);
+    for (const fam of ['rockets', 'rack', 'chin']) {
+      const s2 = kit(fam).src, zs = ['lathes', 'extrudes'].flatMap((k) => (s2[k] ?? []).flatMap((m) => [m.axisFrom.z, m.axisTo.z]));
+      expect(Math.max(...zs), fam).toBeLessThan(0.02);
+    }
   });
 });

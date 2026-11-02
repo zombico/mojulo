@@ -12,6 +12,12 @@
  *                            (spaced unevenly, as a quiet fan's are), the stators behind them; a fin's root on its top
  *   heli-cowl   single|twin  the cowling on the roof, its intakes' grilles each side, its exhaust or two, the transmission's
  *                            fairing round the mast
+ *               pylon        a tandem's rotor pylon: a fairing rising from the roof to its mast, the transmission's fairing
+ *                            round the mast's foot; `pods` its engines each side (intake, nacelle, exhaust) on their struts
+ *   heli-kit    rockets      a rocket pod: its body, its bands, a tube's mouth in a ring of rings at its face, its lugs on top
+ *               rack         a missile rack: its rail beam, its spine down, its rounds in rows each side of the spine
+ *               chin         a chin gun's turret: its ring, its drum and cheeks, the gun's receiver and its barrel and brake
+ *                            (all modelled, never fired); each kit's mount on its top, where a pylon or the nose carries it
  *
  * Craft space: +y forward, +z up, +x right, metres. Pure.
  */
@@ -128,8 +134,33 @@ function buildTail(row, C, opts = {}) {
   throw new Error(`Unknown heli-tail family '${b.family}'`);
 }
 
+/** A tandem's rotor pylon: a fairing rising from the roof (its mount under the mast) to the mast's foot, its engines' pods
+ *  each side on their struts. */
+function buildPylonCowl(row, C) {
+  const { length: L, width: W, height: H } = row.dims, b = row.build, yF = b.mastAt * L, yc = yF - L / 2;
+  // (its plan a rounded box at the roof, narrowing and shortening as it rises; its top round the mast)
+  const plan = (k, l) => section((k * W) / 2, (l * L) / 2, 3, 1).map(([x, y]) => [x, y, 0]);
+  const st = [[0, 1, 1], [0.55, 0.9, 0.9], [0.88, 0.72, 0.7], [1, 0.5, 0.48]].map(([t, k, l]) => ({ t, points: plan(k, l) }));
+  const lofts = [loftWorld('pylon', [0, yc, -0.02], [0, yc, H], st, C.paint, { interp: 'smooth' })];
+  const lathes = [lathe('fairing', [0, 0, H - 0.04], [0, 0, H + 0.12], [[0, W * 0.24], [0.6, W * 0.2], [1, W * 0.14]], C.paint, { samples: 22, crossSections: 3 })];
+  const extrudes = [];
+  if (b.pods) {
+    // its engines each side: a nacelle along the craft, its intake's dark face and lip ahead, its exhaust aft, on a strut
+    const { diameter: D, length: pl, at = 0.5 } = b.pods, R = D / 2, z = H * at, half = ((0.9 * W) / 2), x0 = half + R + 0.12;
+    for (const sx of [1, -1]) {
+      const x = sx * x0, side = sx > 0 ? 'r' : 'l', y0 = yc + pl / 2;
+      lathes.push(lathe(`nacelle_${side}`, [x, y0, z], [x, y0 - pl, z], [[0, R * 0.92], [0.08, R], [0.75, R * 0.96], [1, R * 0.7]], C.paint, { samples: 20, crossSections: 4 }));
+      lathes.push(lathe(`intake_${side}`, [x, y0 + 0.004, z], [x, y0 - 0.02, z], [[0, R * 0.8], [1, R * 0.8]], C.rubber, { samples: 20, crossSections: 2 }));
+      lathes.push(lathe(`exhaust_${side}`, [x, y0 - pl + 0.02, z], [x, y0 - pl - R * 0.6, z], [[0, R * 0.62], [1, R * 0.5]], C.chrome, { samples: 18, crossSections: 2 }));
+      extrudes.push(box(`strut_${side}`, [sx * (half - 0.06), y0 - pl * 0.5, z], [x - sx * R * 0.6, y0 - pl * 0.5, z], [0, 1, 0], [0, 0, 1], pl * 0.4, R * 0.35, C.paint));
+    }
+  }
+  return { lofts, lathes, ...(extrudes.length ? { extrudes } : {}), hardpoints: { mount: [0, 0, 0], mast: [0, 0, round3(H + 0.12)] } };
+}
+
 function buildCowl(row, C) {
   const { length: L, width: W, height: H } = row.dims, b = row.build;
+  if (b.family === 'pylon') return buildPylonCowl(row, C);
   if (b.family !== 'single' && b.family !== 'twin') throw new Error(`Unknown heli-cowl family '${b.family}'`);
   // the cowling lofted nose to tail on the roof (its mount the roof under its mast)
   const yF = b.mastAt * L, yA = yF - L;
@@ -150,8 +181,68 @@ function buildCowl(row, C) {
   return { lofts, lathes, extrudes, sweeps, hardpoints: { mount: [0, 0, 0], mast: [0, 0, round3(H + 0.12)] } };
 }
 
+const shift = (m, d) => {
+  const p = (q) => ({ x: round3(q.x + d[0]), y: round3(q.y + d[1]), z: round3(q.z + d[2]) });
+  return m.path ? { ...m, path: m.path.map((q) => r3v([q[0] + d[0], q[1] + d[1], q[2] + d[2]])) } : { ...m, axisFrom: p(m.axisFrom), axisTo: p(m.axisTo) };
+};
+
+/** A helicopter's kit, its mount on its top where a pylon (or the nose) carries it. Modelled, never fired. */
+function buildKit(row, C) {
+  const b = row.build, y = [0, 1, 0], z = [0, 0, 1], x = [1, 0, 0];
+  if (b.family === 'rockets') {
+    // a rocket pod: its body hung under its lugs, banded fore and aft, a ring of rings of tubes' mouths at its face
+    const { length: L, diameter: D } = row.dims, R = D / 2, zc = -R - 0.02, yF = L / 2;
+    const lathes = [
+      lathe('body', [0, -yF, zc], [0, yF, zc], [[0, R * 0.78], [0.05, R * 0.97], [0.5, R], [0.95, R * 0.98], [1, R * 0.9]], C.paint, { samples: 20, crossSections: 5 }),
+      lathe('band_front', [0, yF - L * 0.06, zc], [0, yF - L * 0.02, zc], [[0, R * 1.015], [1, R * 1.015]], C.trim, { samples: 20, crossSections: 2 }),
+      lathe('band_aft', [0, -yF + L * 0.03, zc], [0, -yF + L * 0.07, zc], [[0, R * 1.015], [1, R * 1.015]], C.trim, { samples: 20, crossSections: 2 }),
+    ];
+    const rt = R * 0.13, d = R * 0.3, tubes = [[0, 0]];
+    for (let k = 0; k < 6; k++) tubes.push([d * Math.cos((k * Math.PI) / 3), d * Math.sin((k * Math.PI) / 3)]);
+    for (let k = 0; k < 12; k++) tubes.push([2 * d * Math.cos((k * Math.PI) / 6 + Math.PI / 12), 2 * d * Math.sin((k * Math.PI) / 6 + Math.PI / 12)]);
+    tubes.slice(0, b.tubes || 19).forEach(([u, v], i) => lathes.push(lathe(`tube_${i}`, [u, yF - 0.01, zc + v], [u, yF + 0.006, zc + v], [[0, rt], [1, rt]], C.rubber, { samples: 10, crossSections: 2 })));
+    const extrudes = [-1, 1].map((s) => box(`lug_${s > 0 ? 'f' : 'a'}`, [0, s * L * 0.18, -0.03], [0, s * L * 0.18, 0], x, y, R * 0.25, 0.06, C.trim));
+    return { lathes, extrudes, hardpoints: { mount: [0, 0, 0] } };
+  }
+  if (b.family === 'rack') {
+    // a missile rack: its rail beam under the mount, its spine down, its rounds each side of the spine, row under row
+    const { length: L, diameter: D } = row.dims, R = D / 2, rows = b.rows || 2, gap = D * 1.25, depth = rows * gap;
+    const extrudes = [
+      box('beam', [0, L * 0.3, -0.04], [0, -L * 0.3, -0.04], x, z, D * 0.9, 0.08, C.trim),
+      box('spine', [0, 0, -0.06], [0, 0, -0.08 - depth + gap * 0.3], x, y, 0.04, L * 0.44, C.trim),
+    ];
+    const lathes = [];
+    for (let r = 0; r < rows; r++) for (const sx of [1, -1]) {
+      const id = `round_${r}${sx > 0 ? 'r' : 'l'}`, c = [sx * (R + 0.04), 0, -0.08 - gap * (r + 0.5)];
+      const m = [
+        lathe(`${id}`, [0, -L / 2, 0], [0, L / 2 - L * 0.08, 0], [[0, R * 0.9], [0.04, R], [1, R]], C.paint, { samples: 14, crossSections: 3 }),
+        lathe(`${id}_seeker`, [0, L / 2 - L * 0.08, 0], [0, L / 2, 0], [[0, R], [0.6, R * 0.75], [1, R * 0.12]], C.trim, { samples: 14, crossSections: 3 }),
+      ];
+      lathes.push(...m.map((q) => shift(q, c)));
+      // (its fins crossed at its tail)
+      for (const [k, [u, v]] of [[x, z], [z, x]].entries()) extrudes.push(shift(box(`${id}_fin_${k}`, [0, -L / 2 + L * 0.02, 0], [0, -L / 2 + L * 0.14, 0], u, v, D * 2.1, 0.008, C.trim), c));
+    }
+    return { lathes, extrudes, hardpoints: { mount: [0, 0, 0] } };
+  }
+  if (b.family === 'chin') {
+    // a chin gun: its turret's ring under the mount, its drum across between its cheeks, its receiver and barrel ahead
+    const { length: L, diameter: D } = row.dims, R = D / 2, zc = -R * 1.05;
+    const lathes = [
+      lathe('ring', [0, 0, 0.01], [0, 0, -R * 0.35], [[0, R * 0.95], [1, R * 0.88]], C.trim, { samples: 22, crossSections: 2 }),
+      lathe('drum', [-R * 0.62, 0, zc], [R * 0.62, 0, zc], [[0, R * 0.55], [0.5, R * 0.6], [1, R * 0.55]], C.paint, { samples: 20, crossSections: 3 }),
+      lathe('receiver', [0, -R * 0.1, zc], [0, R * 1.1, zc], [[0, R * 0.26], [1, R * 0.22]], C.trim, { samples: 14, crossSections: 2 }),
+      lathe('barrel', [0, R * 1.1, zc], [0, L, zc], [[0, R * 0.09], [1, R * 0.08]], C.chrome, { samples: 12, crossSections: 2 }),
+      lathe('brake', [0, L - 0.12, zc], [0, L + 0.02, zc], [[0, R * 0.13], [1, R * 0.12]], C.trim, { samples: 12, crossSections: 2 }),
+    ];
+    const extrudes = [-1, 1].map((s) => box(`cheek_${s > 0 ? 'r' : 'l'}`, [s * R * 0.62, R * 0.25, -R * 0.3], [s * R * 0.62, R * 0.25, zc - R * 0.35], y, x, R * 1.0, 0.04, C.paint));
+    return { lathes, extrudes, hardpoints: { mount: [0, 0, 0], muzzle: [0, round3(L), round3(zc)] } };
+  }
+  throw new Error(`Unknown heli-kit family '${b.family}'`);
+}
+
 export const HELI_BUILDERS = {
   'heli-rotor': buildRotor,
   'heli-tail': buildTail,
   'heli-cowl': buildCowl,
+  'heli-kit': buildKit,
 };

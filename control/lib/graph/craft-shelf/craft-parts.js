@@ -37,6 +37,30 @@ function stationAt(rows, s) {
 }
 
 /**
+ * A faceted section's U in its unit square: its polygon (counter-clockwise, x right, z up) cut at `sill`, from the right
+ * cut down round its belly to the left one, `M` points, every corner one of them and the rest shared out by the unit
+ * polygon's edge lengths (the same at every station, so a corner meets a corner down the loft and its panels stay flat).
+ */
+function facetU(shape, sill, M) {
+  const n = shape.length, cut = (i) => { const p = shape[i], q = shape[(i + 1) % n], t = (sill - p[1]) / (q[1] - p[1]); return [p[0] + t * (q[0] - p[0]), sill]; };
+  let r = -1;
+  for (let i = 0; i < n; i += 1) { const p = shape[i], q = shape[(i + 1) % n]; if (p[1] < sill && q[1] >= sill && cut(i)[0] > 0) r = i; }
+  if (r < 0) throw new Error(`An open faceted hull's sill ${sill} cuts no side of its polygon`);
+  const pts = [cut(r)];
+  let i = r;
+  for (let k = 0; k < n && shape[i][1] < sill; k += 1) { pts.push(shape[i]); i = (i - 1 + n) % n; }
+  pts.push(cut(i));
+  const len = pts.slice(1).map((q, j) => Math.hypot(q[0] - pts[j][0], q[1] - pts[j][1])), total = len.reduce((t, l) => t + l, 0);
+  const spare = Math.max(0, M - pts.length), raw = len.map((l) => (l / total) * spare), extra = raw.map(Math.floor);
+  let left = spare - extra.reduce((t, k) => t + k, 0);
+  raw.map((v, j) => [v - Math.floor(v), j]).sort((p, q) => q[0] - p[0] || p[1] - q[1]).forEach(([, j]) => { if (left > 0) { extra[j] += 1; left -= 1; } });
+  const out = [];
+  len.forEach((_, j) => { const p = pts[j], q = pts[j + 1]; for (let k = 0; k <= extra[j]; k += 1) { const t = k / (extra[j] + 1); out.push([p[0] + t * (q[0] - p[0]), p[1] + t * (q[1] - p[1])]); } });
+  out.push(pts[pts.length - 1]);
+  return out;
+}
+
+/**
  * An open hull (`open: { from, to, sill, wall }`): ahead of `from` its nose closed; over `from`..`to` an open tub (its walls an outer skin and an inner
  * one a `wall` in from it, joined at their rim at the sill, `sill` in its stations' half-heights above their centres),
  * a cockpit seen into from above; the hull closed from `to` aft, its front the cabin's bulkhead. The same stations, the
@@ -46,8 +70,11 @@ function openHull({ b, rows, shape, W, H, L, zMin, zp, smooth, C }) {
   const { from: s0, to: s1, sill = 0.9, wall = 0.03 } = b.open, M = 13;
   const opts = smooth ? { interp: 'smooth', segments: b.segments || 5 } : {};
   // (a station's section as a U: the outer skin from its right sill down round its belly to its left, the inner back)
+  // (a faceted hull's U: its polygon cut at the sill, the same points at every station so its panels stay flat)
+  const fu = b.facets ? facetU(b.facets, sill, M) : null;
   const uOf = (st) => {
     const a = Math.max((st.w * W) / 2, 0.005), hb = Math.max((st.h * H) / 2, 0.005), n = st.n || b.n || 2, belly = b.belly || 1, zc = st.z * H - zMin;
+    if (fu) return [...fu.map(([u, v]) => [u * a, v * hb]), ...fu.map(([u, v]) => [u * Math.max(0.002, a - wall), v * Math.max(0.002, hb - wall)]).reverse()].map(([x, z]) => [x, 0, zc + z - zp]);
     const thS = Math.asin(Math.max(-0.999, Math.min(0.999, Math.sign(sill) * Math.abs(sill) ** (n / 2))));
     const ring = (aa, bb) => Array.from({ length: M }, (_, i) => {
       const th = thS - (i / (M - 1)) * (Math.PI + 2 * thS), c = Math.cos(th), sn = Math.sin(th);
@@ -262,6 +289,7 @@ function skinZ(ring, x, side) {
  *    a shade darker than the paint; `seams: false` for none;
  *  - `windows: { from, to, pitch, zf, w, h }`: a cabin row each side; `doors: [[s, zf, w, h]]`:
  *    framed doors each side;
+ *  - `ramp: { from, to, w }`: a rear ramp's hinge across the belly, its sides up the aft underside, its lip;
  *  - `antennas: [[s, xf, zf, length, kind]]`: 'blade' standing off the skin, 'pitot' ahead of the nose;
  *  - `greebles: { top, sides, span: [s0, s1] }`: seeded plant on a starship's plating (boxes of
  *    machinery), the same every time for the same part number.
@@ -323,6 +351,16 @@ function hullDetail({ b, L, zp, stations, smooth, point, C, sku }) {
   for (const [i, [sf, zf, w, h]] of (b.doors || []).entries()) {
     sideStrip(`door_frame_${i}`, sf, zf, w + 0.07, h + 0.07, 0.006, seam);
     sideStrip(`door_${i}`, sf, zf, w, h, 0.012, C.paint);
+  }
+  // a rear ramp (`ramp: { from, to, w }`): its hinge across the belly at `from`, its sides up the aft underside to `to`
+  // (`w` of the belly's half-width either side), its lip across there; the seams stand just proud of the skin
+  if (b.ramp) {
+    const { from: r0, to: r1, w: rw = 0.8 } = b.ramp, n = 8;
+    const under = (sf, xf) => { const ring = ringAt(sf), x = xf * rw * frame(ring).hw, z = skinZ(ring, x, -1); return [x, -sf * L, (z ?? frame(ring).c[1]) - 0.01]; };
+    const across = (sf) => Array.from({ length: n + 1 }, (_, k) => under(sf, -1 + (2 * k) / n));
+    sweeps.push(sweep('ramp_hinge', across(r0), 0.035, C.trim, { sides: 8 }));
+    sweeps.push(sweep('ramp_lip', across(r1), 0.02, seam, { sides: 6 }));
+    for (const xf of [1, -1]) sweeps.push(sweep(`ramp_side_${xf > 0 ? 'r' : 'l'}`, Array.from({ length: n + 1 }, (_, k) => under(r0 + ((r1 - r0) * k) / n, xf)), 0.02, seam, { sides: 6 }));
   }
   for (const [i, [sf, xf, zf, len, kind]] of (b.antennas || []).entries()) {
     const at = point([sf, xf, zf]);
