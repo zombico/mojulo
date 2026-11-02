@@ -6,8 +6,9 @@
 //
 //   rigFor(spec, cacheFile) → the validated rig of a hero spec (expanded once, cached as JSON: a realistic hero's
 //     expansion takes most of a minute)
-//   actSidecar(take, R, { dz, fps }) → { seconds, t, joints: [{ node, r, p }] } (fps 15 by default: the viewer
-//     blends between keys, and a sidecar of many takes stays a few megabytes a take)
+//   actSidecar(take, R, { dz, fps, root }) → { seconds, t, joints: [{ node, r, p }] } (fps 15 by default: the viewer
+//     blends between keys, and a sidecar of many takes stays a few megabytes a take; `root`, a scene's blocking
+//     (actor/scene.js: [{ t, x, y, yaw }]), carries the whole body where the actor stands and turns it as it faces)
 //   dzOf(glbFile, R) → the GLB's rest height over the rig's (m)
 import { createRequire, register } from 'node:module';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
@@ -35,7 +36,14 @@ export async function dzOf(glbFile, R) {
 }
 
 const r4 = (x) => Math.round(x * 1e4) / 1e4;
-export function actSidecar(take, R, { dz = 0, fps = 15 } = {}) {
+const smooth = (u) => u * u * (3 - 2 * u), wrap = (d) => ((((d + 180) % 360) + 360) % 360) - 180;
+/** a blocking's place at t: eased as actor/scene.js eases it (the yaw smoothed, the walk at its pace) */
+function placeAt(K, s) {
+  if (s <= K[0].t) return K[0];
+  for (let k = 1; k < K.length; k++) if (s <= K[k].t) { const a = K[k - 1], c = K[k], u = (s - a.t) / Math.max(1e-6, c.t - a.t); return { x: a.x + (c.x - a.x) * u, y: a.y + (c.y - a.y) * u, yaw: a.yaw + wrap(c.yaw - a.yaw) * smooth(u) }; }
+  return K.at(-1);
+}
+export function actSidecar(take, R, { dz = 0, fps = 15, root = null } = {}) {
   const n = Math.max(2, Math.round(take.seconds * fps) + 1), t = Array.from({ length: n }, (_, k) => r4(Math.min(take.seconds, k / fps)));
   const rest = Object.fromEntries(Object.entries(R.joints).map(([k, v]) => [k, [v[0], v[1], v[2] + dz]]));
   const joints = R.bones.map((b) => ({ node: `body:${b.id}`, r: [], p: [] }));
@@ -43,7 +51,12 @@ export function actSidecar(take, R, { dz = 0, fps = 15 } = {}) {
     const { nodes } = rigNodesAt(R, poseAt(take, x));
     const shifted = Object.fromEntries(Object.entries(nodes).map(([k, v]) => [k, [v[0], v[1], v[2] + dz]]));
     for (const m of ['$body', '$facing', '$legYaw']) if (nodes[m]) Object.defineProperty(shifted, m, { value: nodes[m], enumerable: false });
-    boneFrames(R, rest, shifted).forEach((F, i) => { joints[i].r.push(...F.q.map(r4)); joints[i].p.push(...F.head.map(r4)); });
+    // (the blocking: the body turned about the vertical by its facing (yaw 0 the rig's own +y; 90 faces +x: a turn of
+    // −90° about +z) and set on its place)
+    const P = root ? placeAt(root, x) : null, a = P ? (-P.yaw * Math.PI) / 180 : 0, c = Math.cos(a), sn = Math.sin(a), qz = [0, 0, Math.sin(a / 2), Math.cos(a / 2)];
+    const turn = (q) => (P ? [qz[3] * q[0] - qz[2] * q[1], qz[3] * q[1] + qz[2] * q[0], qz[3] * q[2] + qz[2] * q[3], qz[3] * q[3] - qz[2] * q[2]] : q);
+    const place = (h) => (P ? [c * h[0] - sn * h[1] + P.x, sn * h[0] + c * h[1] + P.y, h[2]] : h);
+    boneFrames(R, rest, shifted).forEach((F, i) => { joints[i].r.push(...turn(F.q).map(r4)); joints[i].p.push(...place(F.head).map(r4)); });
   }
   // (a quaternion's sign kept continuous, so the viewer's linear blend never takes the long way round)
   for (const J of joints) for (let k = 4; k < J.r.length; k += 4) if (J.r[k] * J.r[k - 4] + J.r[k + 1] * J.r[k - 3] + J.r[k + 2] * J.r[k - 2] + J.r[k + 3] * J.r[k - 1] < 0) for (let i = 0; i < 4; i++) J.r[k + i] = -J.r[k + i];

@@ -44,8 +44,25 @@ its face, body and later its hands directed together on one clock, and its take 
     unchanged. The hero-live viewer plays a GLB's acts under their face takes.
   - **The vocabulary**: a style's gestures are the body's ten: `beat` and `offer` join the eight emote words, and a
     stressed word takes the baton where the register names none the style has.
-- **Two actors in a scene.** Marks, walking to them, looking at each other, the one not speaking listening, and cameras
-  that frame actors.
+- **Actors in a scene** (`control/lib/graph/actor/scene.js`, `screenplay.js`). A scene is a cast, the marks of a room
+  and a screenplay.
+  - **The screenplay**: `NAME: the line` (with the persona's markup), `NAME (worried): the line` for that line's face,
+    and directions such as "Mara crosses to the table.", "Jon turns to Mara.", "Mara looks at the door.",
+    "Jon waits 2 seconds.". Anything else is a note.
+  - **The clock**: every line and direction is played in order on one clock.
+  - **Looking and listening**: a speaker talks to whom it addresses, not to the lens. The others look at the speaker,
+    listening, and nod on its stressed words as their style nods. While someone crosses, the others watch them go.
+  - **Walking**: a cross turns the actor to its path and walks it with the hero's own walk cycle, the feet keeping
+    their place on the floor, then the actor stands at the mark. A turn faces its target.
+  - **Where it can be seen**: each actor's position and facing over time come with its take. The dailies draw the
+    blocking from above and play each actor walking the floor in the hero-live viewer.
+  - **Coverage** (`control/lib/graph/actor/coverage.js`): a scene comes with the shots a director would take. An
+    establishing wide; over the listener's shoulder onto each speaker; a close on a line with a face of its own; the
+    wide again for a cross. Every camera stays on one side of the actors' line as it turns. It is written as a shoot
+    plan (cameras keyed in time, shots that cut between them), in the scenes card's own framings.
+  - **Preview**: `control/scripts/spikes/actor/scene-film.mjs` plays a blocked scene beside a minted hero: both actors
+    at once, each with its body and face, cut by its coverage, with captions.
+  - **Next**: the scene's export.
 - **Blender film export.** A scene's actors, their takes and its cameras as a Blender pack, in a film look or an anime
   look shaded live rather than baked.
 - **The dailies.** One page (`control/scripts/spikes/actor/dailies.mjs`) shows the takes side by side on one clock,

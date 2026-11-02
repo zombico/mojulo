@@ -13,6 +13,12 @@ node scripts/spikes/actor/dailies.mjs --out /abs/out/dir --hero /abs/hero-live/d
 #   face:<take> on the hero, its body under its face; re-write the viewer page with live.mjs --reuse after a change to it
 ```
 
+```sh
+node scripts/spikes/actor/scene-film.mjs --hero /abs/hero-live/dir [--style thespian]
+#   after a dailies run with --hero: scene.html beside the hero, the blocked scene (BASELINE.blocked) with both actors at
+#   once, each its body (its blocking carried) and its face, cut by its coverage (lib/graph/actor/coverage.js)
+```
+
 Every take's body (`lib/graph/actor/body.js`) is played on the baseline hero's rig in its relaxed stand. The rig is
 expanded once, which takes most of a minute, and cached in `--out` as `rig.json`.
 

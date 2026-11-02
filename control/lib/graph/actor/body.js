@@ -3,7 +3,9 @@
  * the body plays them: each gesture prepared, struck on its word, held and let go, the joints of a chain arriving in
  * turn, the stand living between them; the style's body dials (style.js `body`, `time`) shaping all of it.
  *
- *   actBody(read, { R, base?, style?, seed? }) → the take: { seconds, base, tracks, idle, gestures, dropped }
+ *   actBody(read, { R, base?, style?, seed?, walks?, pole? }) → the take: { seconds, base, tracks, idle, gestures, dropped,
+ *     walk? } (`walks`: the crosses a scene blocks, scene.js, each played as the hero's walk cycle phased by the ground
+ *     it covers, blended in and out over WALK_BLEND, the head and neck the act's; an arm gesture on one is let go)
  *     R       the rig (station-loft-rig.js validateRig); `base` the stand (pose words, hero-gesture.js GESTURE_PRESETS)
  *     tracks  the gestures' channels, absolute: { <path>: [{ t, v }] } (tracks.js paths), eased key to key, the stand's
  *             value where no gesture moves them
@@ -29,6 +31,7 @@ import { mulberry32 } from '../polygonizer/floorplan-glyphs.js';
 import { GESTURES, strokeOf, armsOf } from './gestures.js';
 import { styleOf } from './style.js';
 import { flatten, unflatten, trackAt, jointOf, clampTo, SPEED, FPS } from './tracks.js';
+import { motionPlan, stampHeroMotion, heroLocomotion } from '../polygonizer/hero-motion.js';
 
 export { FPS };
 /** the body of a read with no style: the gestures done plainly */
@@ -61,7 +64,20 @@ const chainOf = (path) => CHAIN[jointOf(path)] ?? 0;
 const leastTime = (moves) => Math.max(0, ...Object.entries(moves).map(([p, d]) => (PEAK * Math.abs(d)) / (SPEED[jointOf(p)] ?? 1e9)));
 
 /** The read's body take (see the header) */
-export function actBody(read, { R, base = {}, style, seed = 1 } = {}) {
+/** a cross's walk on a rig: the hero's own walk cycle (hero-motion.js, its silhouette's `pole`), cached per rig */
+const gaits = new WeakMap();
+export function walkOn(R, pole = null) {
+  const memo = gaits.get(R) ?? new Map(); gaits.set(R, memo);
+  if (!memo.has(pole)) { const W = motionPlan(stampHeroMotion({ walk: true }, { pole })).walk; memo.set(pole, heroLocomotion(W.spec, R, { tilt: W.tilt })); }
+  return memo.get(pole);
+}
+/** the channels of the legs and of what carries them (switched whole between the stand and the walk) */
+const LEGS = /^(hip|knee|ankle|toe|heel|feet|crouch|sink|support|stance|stagger|lift|pelvis|shift|facing)/;
+/** how long a walk takes to come in from the stand and to go back to it (s) */
+export const WALK_BLEND = 0.3;
+const inWalk = (walks, t, pad = 0) => (walks ?? []).find((w) => t >= w.start - pad && t <= w.end + pad);
+
+export function actBody(read, { R, base = {}, style, seed = 1, walks = null, pole = null } = {}) {
   const S = style === undefined || style === null ? null : styleOf(style), B = S ? S.body : NEUTRAL, f = FLAVOR_TIME[S?.time ?? 'realistic'] ?? 1;
   const rnd = mulberry32(((seed >>> 0) * 104729 + 7) >>> 0), seconds = read.seconds;
   const { num: baseNum, words: baseWords } = flatten(base);
@@ -73,6 +89,8 @@ export function actBody(read, { R, base = {}, style, seed = 1 } = {}) {
   for (const cue of [...read.body].sort((a, b) => a.t - b.t)) {
     const G = GESTURES[cue.gesture];
     if (!G) { dropped.push({ ...cue, why: 'no such gesture on the body' }); continue; }
+    // (a walk has the arms: a gesture of the arms on a cross is let go; the head's still nods)
+    if (G.arms && inWalk(walks, cue.t, WALK_BLEND + TIMING.prep)) { dropped.push({ ...cue, why: 'the arms are walking' }); continue; }
     // (a one-handed gesture is the right hand's, now and then the left's)
     const arms = armsOf(cue.gesture), side = arms.length === 1 && rnd() < 0.3 ? 'L' : 'R';
     const { num } = flatten(strokeOf(R, cue.gesture, side, base).channels);
@@ -127,7 +145,18 @@ export function actBody(read, { R, base = {}, style, seed = 1 } = {}) {
       sign = -sign;
     }
   }
-  return { seconds, base: { num: baseNum, words: baseWords }, tracks, idle, gestures: placed, dropped };
+  // (the crosses: the walk cycle over each, phased by the ground it covers, so the feet keep their place)
+  const walk = walks?.length ? { cycle: walkOn(R, pole), walks: walks.map((w) => ({ ...w })) } : null;
+  return { seconds, base: { num: baseNum, words: baseWords }, tracks, idle, gestures: placed, dropped, ...(walk ? { walk } : {}) };
+}
+
+/** the walk's weight at t (0 off a cross, 1 within it, eased in and out over WALK_BLEND) and its pose, or null */
+function walkAt(take, t) {
+  const W = take.walk; if (!W) return null;
+  const w = inWalk(W.walks, t, WALK_BLEND); if (!w) return null;
+  const smooth = (u) => u * u * (3 - 2 * u), k = t < w.start ? smooth((t - (w.start - WALK_BLEND)) / WALK_BLEND) : t > w.end ? smooth(((w.end + WALK_BLEND) - t) / WALK_BLEND) : 1;
+  const speed = w.distance / Math.max(1e-6, w.end - w.start), ground = Math.max(0, Math.min(w.end, t) - w.start) * speed;
+  return { k, pose: W.cycle.fn((ground / W.cycle.travel) % 1) };
 }
 
 /** The pose at t seconds: the stand, the gestures' channels over it, the idle added */
@@ -135,7 +164,20 @@ export function poseAt(take, t) {
   const num = { ...take.base.num };
   for (const [p, k] of Object.entries(take.tracks)) num[p] = trackAt(k, t, num[p] ?? 0);
   for (const [p, k] of Object.entries(take.idle)) num[p] = (num[p] ?? 0) + trackAt(k, t, 0);
-  return unflatten(num, take.base.words);
+  // (a cross: the walk's channels blended over the act's, all but the head and neck, which keep the act's nods and looks)
+  const W = walkAt(take, t);
+  if (!W) return unflatten(num, take.base.words);
+  // (the legs: the walk's own words (its feet's targets, no weight leg) once it is more than half in: a snap mid-blend)
+  // (the legs and what carries them switch whole at mid-blend: a leg half the stand's and half the walk's can be asked to
+  // reach a planted toe past its length; the trunk and arms blend)
+  const { num: wn, words: ww } = flatten(W.pose), walking = W.k > 0.5, words = walking ? ww : take.base.words;
+  for (const p of new Set([...Object.keys(wn), ...Object.keys(num)])) {
+    if (/^(head|neck)\b/.test(p)) continue;
+    if (LEGS.test(p)) { if (walking) num[p] = wn[p] ?? 0; else if (!(p in num)) num[p] = 0; continue; }
+    num[p] = (num[p] ?? 0) + ((wn[p] ?? 0) - (num[p] ?? 0)) * W.k;
+  }
+  if (walking) for (const p of Object.keys(num)) if (LEGS.test(p) && !(p in wn)) delete num[p];
+  return unflatten(num, words);
 }
 
 /** The take as a one-shot clip, 30 keys a second */

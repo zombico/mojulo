@@ -10,11 +10,13 @@
  */
 import { READ_GAZE } from './read.js';
 
-/** the reader's look at each beat that moves it: [{ t, target }] (`lens` | `notes` | `away`, read.js READ_GAZE) */
+/** the reader's look at each beat that moves it: [{ t, target }] (`lens` | `notes` | `away`, read.js READ_GAZE; in a
+ * scene `partner:<who>`) */
 function gazeCues(read) {
   const out = [], names = Object.entries(READ_GAZE);
   for (const b of read.beats) {
-    const target = names.find(([, g]) => g === b.gaze)?.[0] ?? 'lens';
+    // (in a scene, actor/scene.js: a look at an actor is named for them)
+    const target = b.gaze?.partner ? `partner:${b.gaze.partner}` : names.find(([, g]) => g === b.gaze)?.[0] ?? 'lens';
     if (out.at(-1)?.target !== target) out.push({ t: b.at, target });
   }
   return out;

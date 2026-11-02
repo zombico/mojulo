@@ -32,6 +32,7 @@ import { perform } from '../../../lib/graph/face-acting/perform.js';
 import { DELIVERY_NAMES } from '../../../lib/graph/persona/delivery.js';
 import { cueSheet } from '../../../lib/graph/persona/cues.js';
 import { rigFor, actSidecar, dzOf } from './act-sidecar.mjs';
+const { actScene } = await import('../../../lib/graph/actor/scene.js');
 const { actBody } = await import('../../../lib/graph/actor/body.js');
 const { GESTURE_PRESETS } = await import('../../../lib/graph/polygonizer/hero-gesture.js');
 const { standOf } = await import('../../../lib/graph/actor/gestures.js');
@@ -58,10 +59,10 @@ function energySeries(take) {
   for (let i = 0; i < raw.length; i += step) { let s = 0, n = 0; for (let j = Math.max(0, i - win); j <= Math.min(raw.length - 1, i + win); j++) { s += raw[j]; n++; } out.push(r3(s / n)); }
   return { dt: step / take.fps, v: out };
 }
-function takeCard({ id, label, sub, read, seed = 1, listens = null }) {
+function takeCard({ id, label, sub, read, seed = 1, listens = null, walks = null, root = null }) {
   const P = { beats: read.beats, seconds: read.seconds, seed, ...(read.intensity !== undefined ? { intensity: read.intensity } : {}) };
   const take = perform(P), sheet = cueSheet(id, read, { face: true });
-  const body = actBody(read, { R: RIG, base: STAND, ...(read.style ? { style: read.style } : {}), seed });
+  const body = actBody(read, { R: RIG, base: STAND, ...(read.style ? { style: read.style } : {}), seed, ...(walks?.length ? { walks, pole: BASELINE.hero.cast } : {}) });
   return {
     id, label, sub, seconds: read.seconds,
     lines: sheet.lines, words: sheet.words, gaze: sheet.gaze.map((g) => ({ ...g })), body: sheet.body,
@@ -72,7 +73,8 @@ function takeCard({ id, label, sub, read, seed = 1, listens = null }) {
     moves: body.gestures.map((g) => ({ word: g.word, start: g.start, apex: g.apex, end: g.end, side: g.side, cause: g.cause, ...(g.chained ? { chained: true } : {}) })),
     dropped: body.dropped.map((d) => ({ t: d.t, gesture: d.gesture, why: d.why })),
     shifts: (body.idle.pelvis ?? []).filter((_, i) => i % 2 === 1).map((k) => k.t),
-    perform: P, _body: body,
+    ...(walks?.length ? { walks: walks.map((w) => ({ start: w.start, end: w.end })) } : {}),
+    perform: P, _body: body, _root: root,
   };
 }
 
@@ -81,10 +83,19 @@ const solo = [
   ...STYLE_NAMES.map((style) => takeCard({ id: `solo-${style}`, label: style, sub: `style on ${BASELINE.solo.register} · ${STYLES[style].reads}`, read: actRead({ ...BASELINE.solo, style }) })),
   ...DELIVERY_NAMES.map((register) => takeCard({ id: `solo-${register}`, label: register, sub: register === BASELINE.solo.register ? 'persona · the baseline\'s register, no style' : 'persona register, no style', read: readScript({ script: BASELINE.solo.script, register }) })),
 ];
-const sceneOf = (style) => { const S = sceneReads(BASELINE.scene, style ? { style } : {}); return { S, actors: Object.entries(S.actors).map(([who, A]) => takeCard({ id: `scene-${style ? `${style}-` : ''}${who}`, label: who, sub: `${A.register}${style ? ` · ${style}` : ''}`, read: A.read, listens: A.listens })) }; };
-const variants = [{ style: null, label: 'persona alone', sub: 'each speaker reads its lines; the partner\'s turns are pauses' }, ...STYLE_NAMES.map((style) => ({ style, label: style, sub: 'both actors in this style; the partner\'s turns are still pauses (phase 3 directs the listener)' }))];
-const scene = variants.map((v) => { const { S, actors } = sceneOf(v.style); return { label: v.label, sub: v.sub, seconds: S.seconds, actors }; });
-const data = { made: 'phase 2a', solo: { script: BASELINE.solo.script, cards: solo }, scene: { seconds: Math.max(...scene.map((v) => v.seconds)), lines: BASELINE.scene.lines, variants: scene } };
+// (the scene: the persona alone on the unblocked two-hander, phase 0's baseline; then the blocked scene (actor/scene.js:
+// marks, a cross, a turn, the partner regarded and listened to), plain and in each style)
+const aloneOf = () => { const S = sceneReads(BASELINE.scene); return { S, blocking: null, actors: Object.entries(S.actors).map(([who, A]) => takeCard({ id: `scene-${who}`, label: who, sub: A.register, read: A.read, listens: A.listens })) }; };
+const blockedOf = (style) => {
+  const B = BASELINE.blocked, S = actScene({ ...B, cast: Object.fromEntries(Object.entries(B.cast).map(([w, C]) => [w, { ...C, ...(style ? { style } : {}) }])) });
+  const actors = Object.entries(S.actors).map(([who, A]) => takeCard({ id: `blocked-${style ?? 'plain'}-${who}`, label: who, sub: `${A.register}${style ? ` · ${style}` : ''}`, read: A.read, listens: A.listens, walks: A.walks, root: A.root }));
+  return { S, actors, blocking: { marks: S.marks, roots: Object.fromEntries(Object.entries(S.actors).map(([w, A]) => [w, A.root])), turns: S.turns.map((T) => ({ who: T.who, at: T.at })) } };
+};
+const variants = [{ style: undefined, alone: true, label: 'persona alone', sub: 'the unblocked two-hander: each speaker reads its lines, the partner\'s turns are pauses (phase 0)' },
+  { style: null, label: 'blocked, no style', sub: 'the screenplay in a room: marks, a cross, a turn; each speaks to the other and listens' },
+  ...STYLE_NAMES.map((style) => ({ style, label: `blocked, ${style}`, sub: 'both actors in this style, blocked' }))];
+const scene = variants.map((v) => { const { S, actors, blocking } = v.alone ? aloneOf() : blockedOf(v.style); return { label: v.label, sub: v.sub, seconds: S.seconds, actors, blocking }; });
+const data = { made: 'phase 3a', solo: { script: BASELINE.solo.script, cards: solo }, scene: { seconds: Math.max(...scene.map((v) => v.seconds)), lines: BASELINE.scene.lines, variants: scene } };
 
 // ─── the machine read, printed ───────────────────────────────────────────────────────────────────────────────────
 const row = (c) => {
@@ -97,7 +108,7 @@ console.log('scene:'); for (const v of scene) for (const c of v.actors) console.
 
 // ─── the page ────────────────────────────────────────────────────────────────────────────────────────────────────
 mkdirSync(out, { recursive: true });
-const clean = (k, v) => (k === '_body' ? undefined : v);
+const clean = (k, v) => (k === '_body' || k === '_root' ? undefined : v);
 writeFileSync(path.join(out, 'takes.json'), JSON.stringify(data, clean));
 writeFileSync(path.join(out, 'index.html'), page(JSON.parse(JSON.stringify(data, clean))));
 console.log(`\n${path.join(out, 'index.html')}`);
@@ -113,7 +124,7 @@ if (opt.hero) {
     const dz = await dzOf(path.join(path.resolve(opt.hero), f), RIG);
     // (the styles' takes and the persona's own on the baseline's register: the rest of the registers' are on the page)
     const bodied = [...solo, ...scene.flatMap((v) => v.actors)].filter((c) => !DELIVERY_NAMES.some((r) => c.id === `solo-${r}`) || c.id === `solo-${BASELINE.solo.register}`);
-    const acts = bodied.map((c) => ({ of: `face:${c.id}`, ...actSidecar(c._body, RIG, { dz }) }));
+    const acts = bodied.map((c) => ({ of: `face:${c.id}`, ...actSidecar(c._body, RIG, { dz, ...(c._root ? { root: c._root } : {}) }) }));
     writeFileSync(path.join(path.resolve(opt.hero), f.replace(/\.glb$/, '.act.json')), JSON.stringify({ acts }));
     console.log(`${f}: ${acts.length} body takes (dz ${dz.toFixed(4)} m) → ${f.replace(/\.glb$/, '.act.json')}`);
   }
@@ -153,7 +164,7 @@ details{margin-top:6px}summary{cursor:pointer;color:var(--dim);font-size:12px}pr
 <h2>Solo: one speech, the styles and the persona's registers</h2>
 <details><summary>the script</summary><pre>${esc(D.solo.script)}</pre></details>
 <div class="grid" id="solo"></div>
-<h2>Scene: a two-hander</h2>
+<h2>Scene: a two-hander, then blocked</h2>
 <details><summary>the script</summary><pre>${esc(D.scene.lines.map((L) => `${L.who.toUpperCase()}: ${L.line}`).join('\n'))}</pre></details>
 <div class="grid" id="scene"></div>
 </main>
@@ -177,6 +188,7 @@ function timeline(c, seconds) {
   for (const m of c.moves ?? []) s.push('<rect x="' + x(m.start) + '" y="' + (my + 2) + '" width="' + Math.max(1, x(m.end) - x(m.start)) + '" height="' + (mh - 4) + '" rx="3" fill="var(--accent)" opacity=".18" stroke="var(--accent)" stroke-width=".5"' + (m.chained ? ' stroke-dasharray="2 2"' : '') + '/><rect x="' + (x(m.apex) - 0.75) + '" y="' + my + '" width="1.5" height="' + mh + '" fill="var(--accent)"/><text x="' + (x(m.start) + 2) + '" y="' + (my + 10) + '" font-size="8" fill="var(--ink)">' + esc(m.word) + (m.side && m.side !== 'R' ? ' ' + m.side : '') + '</text>');
   for (const d of c.dropped ?? []) s.push('<text x="' + x(d.t) + '" y="' + (my + 10) + '" font-size="10" fill="var(--dim)" text-anchor="middle"><title>' + esc(d.gesture + ': ' + d.why) + '</title>×</text>');
   for (const t of c.shifts ?? []) s.push('<rect x="' + x(t) + '" y="' + (my + mh - 3) + '" width="1" height="3" fill="var(--dim)"/>');
+  for (const w of c.walks ?? []) s.push('<rect x="' + x(w.start) + '" y="' + (my + mh - 5) + '" width="' + Math.max(1, x(w.end) - x(w.start)) + '" height="5" fill="var(--partner)" opacity=".6"><title>walking</title></rect>');
   const E = c.energy, top = Math.max(1, ...E.v), [ey, eh] = ROWS.energy;
   s.push('<path d="M0 ' + (ey + eh) + E.v.map((v, i) => 'L' + x(i * E.dt).toFixed(1) + ' ' + (ey + eh - (v / top) * eh).toFixed(1)).join('') + 'L' + x(E.v.length * E.dt) + ' ' + (ey + eh) + 'z" fill="var(--energy)" opacity=".35" stroke="var(--energy)" stroke-width=".6"/>');
   for (const t of c.blinks) s.push('<rect x="' + x(t) + '" y="' + ROWS.blinks[0] + '" width="1.5" height="' + ROWS.blinks[1] + '" fill="var(--blink)"/>');
@@ -199,13 +211,41 @@ function card(c, seconds) {
 const all = [];
 const soloMax = Math.max(...D.solo.cards.map((c) => c.seconds));
 document.getElementById('solo').innerHTML = D.solo.cards.map((c) => (all.push(c), card(c, soloMax))).join('');
-document.getElementById('scene').innerHTML = D.scene.variants.map((v) => '<div class="scene"><div class="sub"><b>' + esc(v.label) + '</b> · ' + esc(v.sub) + '</div>' + v.actors.map((c) => (all.push(c), card(c, D.scene.seconds))).join('') + '</div>').join('');
+// (the blocking from above: the marks, each actor's way, its facing at each of its lines; a dot each on the playhead)
+const COLOURS = ['var(--lens)', 'var(--partner)', 'var(--away)', 'var(--notes)'];
+const swrap = (d) => ((((d + 180) % 360) + 360) % 360) - 180, ssmooth = (u) => u * u * (3 - 2 * u);
+const placeAt = (K, s) => { if (s <= K[0].t) return K[0]; for (let k = 1; k < K.length; k++) if (s <= K[k].t) { const a = K[k - 1], c = K[k], u = (s - a.t) / Math.max(1e-6, c.t - a.t); return { x: a.x + (c.x - a.x) * u, y: a.y + (c.y - a.y) * u, yaw: a.yaw + swrap(c.yaw - a.yaw) * ssmooth(u) }; } return K.at(-1); };
+function blockingSvg(B, vi) {
+  const pts = [...Object.values(B.marks), ...Object.values(B.roots).flat().map((k) => [k.x, k.y])], xs = pts.map((p) => p[0]), ys = pts.map((p) => p[1]);
+  const pad = 0.6, x0 = Math.min(...xs) - pad, x1 = Math.max(...xs) + pad, y0 = Math.min(...ys) - pad, y1 = Math.max(...ys) + pad, S = 280 / Math.max(x1 - x0, y1 - y0);
+  const X = (x) => (x - x0) * S, Y = (y) => (y1 - y) * S, w = (x1 - x0) * S, h = (y1 - y0) * S, out = [];
+  for (const [m, p] of Object.entries(B.marks)) out.push('<circle cx="' + X(p[0]) + '" cy="' + Y(p[1]) + '" r="4" fill="none" stroke="var(--dim)"/><text x="' + (X(p[0]) + 6) + '" y="' + (Y(p[1]) + 12) + '" font-size="10" fill="var(--dim)">' + esc(m) + '</text>');
+  Object.entries(B.roots).forEach(([who, K], i) => {
+    const col = COLOURS[i % COLOURS.length], path = [];
+    for (let s = 0; s <= K.at(-1).t + 0.01; s += 0.1) { const P = placeAt(K, s); path.push(X(P.x) + ',' + Y(P.y)); }
+    out.push('<polyline points="' + path.join(' ') + '" fill="none" stroke="' + col + '" stroke-width="1.5" stroke-dasharray="3 3"/>');
+    for (const T of B.turns.filter((T) => T.who === who)) { const P = placeAt(K, T.at), a = (P.yaw * Math.PI) / 180; out.push('<line x1="' + X(P.x) + '" y1="' + Y(P.y) + '" x2="' + X(P.x + 0.35 * Math.sin(a)) + '" y2="' + Y(P.y + 0.35 * Math.cos(a)) + '" stroke="' + col + '" stroke-width="1.5" marker-end="url(#arr' + vi + ')"/>'); }
+    out.push('<g class="who" data-who="' + who + '"><circle r="7" fill="' + col + '"/><line class="face" x1="0" y1="0" stroke="var(--ink)" stroke-width="2"/><text y="-10" font-size="10" text-anchor="middle" fill="var(--ink)">' + esc(who) + '</text></g>');
+  });
+  return '<svg class="blocking" data-vi="' + vi + '" viewBox="0 0 ' + w + ' ' + h + '" style="max-width:320px"><defs><marker id="arr' + vi + '" viewBox="0 0 6 6" refX="5" refY="3" markerWidth="5" markerHeight="5" orient="auto"><path d="M0,0L6,3L0,6z" fill="var(--dim)"/></marker></defs>' + out.join('') + '</svg>';
+}
+const blockings = [];
+document.getElementById('scene').innerHTML = D.scene.variants.map((v, vi) => { if (v.blocking) blockings.push({ vi, B: v.blocking }); return '<div class="scene"><div class="sub"><b>' + esc(v.label) + '</b> · ' + esc(v.sub) + '</div>' + (v.blocking ? '<div class="card">' + blockingSvg(v.blocking, vi) + '<div class="sub">from above: the marks, the way each actor goes (dashed), the way each faces as its lines start (arrows); the dots move with the playhead</div></div>' : '') + v.actors.map((c) => (all.push(c), card(c, D.scene.seconds))).join('') + '</div>'; }).join('');
+function moveBlocking(t) {
+  for (const { vi, B } of blockings) {
+    const svg = document.querySelector('svg.blocking[data-vi="' + vi + '"]'), vb = svg.viewBox.baseVal;
+    const pts = [...Object.values(B.marks), ...Object.values(B.roots).flat().map((k) => [k.x, k.y])], xs = pts.map((p) => p[0]), ys = pts.map((p) => p[1]);
+    const x0 = Math.min(...xs) - 0.6, y1 = Math.max(...ys) + 0.6, S = vb.width / (Math.max(...xs) + 0.6 - x0);
+    for (const g of svg.querySelectorAll('g.who')) { const P = placeAt(B.roots[g.dataset.who], t), a = (P.yaw * Math.PI) / 180; g.setAttribute('transform', 'translate(' + ((P.x - x0) * S) + ',' + ((y1 - P.y) * S) + ')'); const f = g.querySelector('.face'); f.setAttribute('x2', 14 * Math.sin(a)); f.setAttribute('y2', -14 * Math.cos(a)); }
+  }
+}
 const longest = Math.max(soloMax, D.scene.seconds);
 let t = 0, playing = false, last = 0;
 function seek(s) {
   t = Math.max(0, Math.min(longest, s));
   document.getElementById('time').textContent = t.toFixed(2) + ' s';
   document.getElementById('scrub').value = Math.round((t / longest) * 1000);
+  moveBlocking(t);
   for (const c of all) {
     const el = document.querySelector('[data-id="' + c.id + '"]'), svg = el.querySelector('svg'), sec = +svg.dataset.seconds, h = svg.querySelector('.head'), xx = (Math.min(t, sec) / sec) * W;
     h.setAttribute('x1', xx); h.setAttribute('x2', xx);

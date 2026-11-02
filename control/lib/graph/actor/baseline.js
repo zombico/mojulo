@@ -7,6 +7,7 @@
  *   BASELINE.hero   the hero spec the dailies mint (a realistic gen-7 head, the one a persona's face is drawn on)
  *   BASELINE.solo   { register, script }: one speaker, two paragraphs, a stress, a pause and an aside
  *   BASELINE.scene  { cast: { <who>: { register } }, lines: [{ who, line }] }: a two-hander, each line a turn
+ *   BASELINE.blocked { marks, cast, script }: the two-hander as a screenplay in a room (actor/scene.js): a cross, a turn
  *
  *   sceneReads(scene, { style? }) → { seconds, actors: { <who>: { register, read, speaks: [[at, end]], listens: [[at, end]] } } }
  *     the scene as the persona alone can play it (every actor in `style` where one is given, interpret.js): each speaker reads its own lines in its register, the partner's
@@ -40,6 +41,18 @@ My father fixed the ones that climbed. [pause] He never asked where they had bee
       { who: 'jon', line: 'I wrote them. (Every week.) I just never sent them.' },
       { who: 'mara', line: 'Then send one *now*.' },
     ],
+  },
+  // the two-hander BLOCKED (actor/scene.js): marks in a room, a cross and a turn, the parentheticals' faces
+  blocked: {
+    marks: { door: [-1.3, 0.2], window: [1.1, 0.7], table: [0.1, 0.35] },
+    cast: { mara: { register: 'briefing', mark: 'door' }, jon: { register: 'documentary', mark: 'window' } },
+    script: `MARA: You kept the *key*.
+JON (worried): I kept everything. [pause] That was the trouble.
+Mara crosses to the table.
+MARA: Three years, Jon. Not one letter.
+Jon turns to Mara.
+JON: I wrote them. (Every week.) I just never sent them.
+MARA (determined): Then send one *now*.`,
   },
 });
 
