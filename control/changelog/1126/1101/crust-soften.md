@@ -10,3 +10,7 @@
 - **One frame pass** (`scene/channels/frame-pass.js`): the air's blur (`air.blur`, channels/atmosphere.js) moved into it, so
   the air and the soften share one target and one composite, each pixel taking the larger. `window.__mojFrame` is its probe
   ({ air, soften, passes, set }); `__mojAir.set({ blur })` reaches it.
+- **A cavern's page draws again** (`form/land-read.js`, `scene/channels/form-land.js`): an underground trail has no sky
+  colours, and the form land built its reflections' dome and the gen-7 sky from them, so every gen-7 cavern page threw
+  before its view cone, its air or its soften could start. A land with no sky now carries `sky: null`: no gen-7 sky over
+  it, its reflections in the rock's dark.
