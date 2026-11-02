@@ -129,6 +129,11 @@ describe('the feature body', () => {
     expect(Math.max(...paw) - Math.min(...paw)).toBeGreaterThan(0.08 * height);
     // (the face ahead, a little down, never tipped up: FEATURE_LOOK; the tail out of the rump, not up the back)
     for (const n of posed) { expect(crownTip(n)).toBeGreaterThan(5); expect(crownTip(n)).toBeLessThan(30); }
+    // (the tail's base KEPT TO THE RUMP: however far the gallop tips the hips, its root is where the pose on all fours has
+    // it about the pelvis ball's middle (the `rump` chain), never carried up the back)
+    const rumpOf = (n) => (Math.atan2(n.tailRoot[2] - n.rumpHub[2], -(n.tailRoot[1] - n.rumpHub[1])) * 180) / Math.PI;
+    const onFours = rumpOf(rigNodesAt(R, plan.clips.fours[1]).nodes);
+    for (const n of posed) expect(Math.abs(rumpOf(n) - onFours)).toBeLessThan(2);
     // (0.12: at the strike and further at the vault the trunk tips forward and the rump rises with it, the root still
     // behind the hips)
     for (const n of posed) { expect(n.tailRoot[2] - n.pelvisHub[2]).toBeLessThan(0.12 * height); expect(n.tailRoot[1]).toBeLessThan(n.pelvisHub[1] - 0.1 * height); }

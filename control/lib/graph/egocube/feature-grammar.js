@@ -587,7 +587,8 @@ export function featureBuild(card, { decor = {}, tune = null } = {}) {
       // (a tail's rings each RIDE the bone their band sits on, rigidly: feature-coat.js, a band's `bone`)
       const rings = tl.rings?.map(([c, axis, w, R]) => [c, axis, w, R, far(c) > half ? 'tailEnd' : 'tail']);
       tl = { ...tl, eggs, ...(cut.length ? { tufts: cut.flatMap((h) => [h.near, h.far]) } : {}), ...(tl.tip ? { tip: onEnd(tl.tip) } : {}), ...(rings ? { rings } : {}) };
-      B.tail = { root, mid, tip, carriage: speciesTail(card.id) };
+      // (the rump's hub: the pelvis ball's middle, about which the tail's base keeps to the rump: feature-body.js rumped)
+      B.tail = { root, mid, tip, hub: S.body.find((e) => e.name === 'belly').c, carriage: speciesTail(card.id) };
     }
   }
   // (a tail that rests on the GROUND, a beaver's paddle: laid on the floor however high the body stands, its root

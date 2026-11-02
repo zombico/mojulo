@@ -216,7 +216,10 @@ member, a quick game's hero). Code: `control/lib/graph/egocube/feature-tune.js`.
   - at the gallop's most forward lean, the vault and the landing, every animal's hind legs are STRETCHED OUT BEHIND
     (a `feet` target each, 0.95 of the leg's length from its hip, 20° under level, never nearer the floor than the
     vault's clearance: `landed`, solved on the rig) with the feet POINTED BACK (the ankle turned −70°, the toes −160°),
-    and the tail RAISED 30° (`FEATURE_CARRIAGE.leap`), so the hind legs show under it, not hidden along it. The thigh's
+    and the tail RAISED 30° (`FEATURE_CARRIAGE.leap`), so the hind legs show under it, not hidden along it. The tail's
+    base is KEPT TO THE RUMP: a `rump` chain turns the whole tail about the pelvis ball's middle (a round rump's
+    rearmost point is behind its middle however it tips), so each gallop key turns it back by however far its hips
+    tip past the pose on all fours, where the strike's and the vault's tip had carried the root 25 to 35° up the back. The thigh's
     skin blends into the pelvis's over a narrow hip (`FEATURE_SKIN.hip`, 0.4 of the usual width), so the haunch swings
     with its leg. A raccoon's hind leg is barely longer than its hip's reach to the rump, so its shin and pointed foot
     show past the rump and no more;
@@ -317,7 +320,8 @@ member, a quick game's hero). Code: `control/lib/graph/egocube/feature-tune.js`.
     every key (never up), the tail's root at the rump (never up the back) and the tail held back near level and
     straight (its two halves in line), the tail's ring layer each point on one tail bone, a strike key, the front
     tipped low on both forepaws, after it the vault, tipped further on the forepaws alone, and the landing, the elbows
-    bent; in both the hind feet stretched out behind, off the floor and pointed back, the tail raised;
+    bent; in both the hind feet stretched out behind, off the floor and pointed back, the tail raised; the tail's root
+    in every key where the pose on all fours has it, about the pelvis ball's middle;
   - on all fours on the rig: the spine level, the tail carried at the roster's carriage less the mascot's share, and no
     standing clip turning the tail;
   - a rodent's buck teeth (none on the hedgehog), a chunky rodent's blunt face on whisker pads, a beaver's flat paddle on

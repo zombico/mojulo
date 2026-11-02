@@ -244,7 +244,7 @@ function laidOut(build, height) {
     ...(m.cells ? { cells: m.cells.map((C) => cells({ seeds: C.seeds.map(S), line: C.line * h, top: C.top * h })) } : {}) }));
   const ell = (E) => ({ C: S(U0(E.C)), rx: r4(E.rx * h), ry: r4(E.ry * h), rz: r4(E.rz * h) });
   const mouth = build.mouth && { nose: S(U0(build.mouth.nose)), centre: S(U0(build.mouth.centre)), corner: S(U0(build.mouth.corner)), pivot: S(U0(build.mouth.pivot)), rise: build.mouth.rise * h, sag: build.mouth.sag * h };
-  return { h, eggs, marks, mouth, seam: (build.seam ?? 0) * h, digits: digits.map((d) => ({ i: d.i, base: S(d.base), mid: S(d.mid), tip: S(d.tip) })), ...(build.tail ? { tail: { root: S(build.tail.root), mid: S(build.tail.mid), tip: S(build.tail.tip) } } : {}), eye: { ...build.eye, r: build.eye.r * h }, J: Object.fromEntries(Object.entries(build.joints).map(([k, p]) => [k, S(p)])), hipZ: r4(build.hipZ * h), neckZ: r4(build.neckZ * h), top: r4((build.top + up) * h), H: ell(build.head), muzzle: ell(build.muzzle) };
+  return { h, eggs, marks, mouth, seam: (build.seam ?? 0) * h, digits: digits.map((d) => ({ i: d.i, base: S(d.base), mid: S(d.mid), tip: S(d.tip) })), ...(build.tail ? { tail: { root: S(build.tail.root), mid: S(build.tail.mid), tip: S(build.tail.tip), hub: S(build.tail.hub) } } : {}), eye: { ...build.eye, r: build.eye.r * h }, J: Object.fromEntries(Object.entries(build.joints).map(([k, p]) => [k, S(p)])), hipZ: r4(build.hipZ * h), neckZ: r4(build.neckZ * h), top: r4((build.top + up) * h), H: ell(build.head), muzzle: ell(build.muzzle) };
 }
 
 /** A build's shapes laid out in metres at the style's height, under THE ATTACHMENT RULE: every shape attached to the body
@@ -374,9 +374,12 @@ export function featurePlan(sheet, { title = 'a feature animal', reactions = fal
   // (the tail's own bone, turned from its root on all fours: carried)
   // (two bones: the tail's from its root to its middle, the tail's end from there to its tip, each turned by its chain)
   if (L.tail) {
-    for (const [n, p] of [['tailRoot', L.tail.root], ['tailMid', L.tail.mid], ['tailTip', L.tail.tip]]) rig.joints[n] = { at: p.map(r4), rides: 'pelvis' };
+    for (const [n, p] of [['rumpHub', L.tail.hub], ['tailRoot', L.tail.root], ['tailMid', L.tail.mid], ['tailTip', L.tail.tip]]) rig.joints[n] = { at: p.map(r4), rides: 'pelvis' };
     rig.bones.push({ id: 'tail', head: 'tailRoot', tail: 'tailMid' }, { id: 'tailEnd', head: 'tailMid', tail: 'tailTip' });
-    rig.chains = { ...(rig.chains ?? {}), tail: { axis: 'x', sign: 1, links: [{ pivot: 'tailRoot', joints: ['tailMid', 'tailTip'] }] },
+    // (`rump` first: the whole tail turned about the pelvis ball's middle, its base kept to the rump however far the hips
+    // tip; then the tail from its root and its end from its middle)
+    rig.chains = { ...(rig.chains ?? {}), rump: { axis: 'x', sign: 1, links: [{ pivot: 'rumpHub', joints: ['tailRoot', 'tailMid', 'tailTip'] }] },
+      tail: { axis: 'x', sign: 1, links: [{ pivot: 'tailRoot', joints: ['tailMid', 'tailTip'] }] },
       tailEnd: { axis: 'x', sign: 1, links: [{ pivot: 'tailMid', joints: ['tailTip'] }] } };
   }
   const joints = { ...L.J };
@@ -451,7 +454,9 @@ function looking(plan) {
  *  from its root until its line from root to tip rises at the species' carriage (fauna roster: feature-function.js
  *  speciesTail; absent, `FEATURE_CARRIAGE.none`), a share (`keep`) of the way back toward where the mascot's own tail
  *  would point: a compromise between the regular animal and the mascot. Galloping, every tail is held back for balance,
- *  near level (`run`, whatever the walking carriage: a cat's up at a walk, back at a run), RAISED in the leap (`leap`
+ *  near level (`run`, whatever the walking carriage: a cat's up at a walk, back at a run), its base kept to the RUMP
+ *  (galloping, the hips tipped past the pose's own: the whole tail turned about the pelvis ball's middle by the `rump`
+ *  chain, back to where the pose on all fours has its root), RAISED in the leap (`leap`
  *  degrees, the gallop's keys on the forepaws alone: the hind legs stretched out under it show) and STRAIGHTENED (the tail's
  *  far half turned from its middle in line with the near half: a curled tip laid out behind). Standing, as designed */
 export const FEATURE_CARRIAGE = Object.freeze({ none: -15, keep: 0.25, most: 60, run: Object.freeze({ least: -25, most: 10 }), leap: 30 });
@@ -463,11 +468,19 @@ function carried(plan, carriage) {
   // the bend between them is the far chain's alone)
   const bendOf = (k) => { const n = rigNodesAt(R, k).nodes; return riseOf(n.tailMid, n.tailTip) - riseOf(n.tailRoot, n.tailMid); };
   const straight = (k) => { const b0 = bendOf({ ...k, tail: 0, tailEnd: 0 }), per = (bendOf({ ...k, tail: 0, tailEnd: 10 }) - b0) / 10; return Math.abs(per) > 1e-6 ? r4(-b0 / per) : 0; };
+  // (THE RUMP: the root's angle about the pelvis ball's middle on all fours is the gallop's too, however far its hips tip)
+  const about = (n) => (Math.atan2(n.tailRoot[2] - n.rumpHub[2], -(n.tailRoot[1] - n.rumpHub[1])) * 180) / Math.PI;
+  const fours = plan.clips.fours?.[1], rumpAt = fours ? about(rigNodesAt(R, fours).nodes) : null;
   for (const name of Object.keys(FEATURE_PAWS.out)) {
     const keys = plan.clips[name];
     if (!Array.isArray(keys)) continue;
-    keys.forEach((k, i) => {
-      if (!k?.armR) return;
+    keys.forEach((k0, i) => {
+      if (!k0?.armR) return;
+      let k = k0;
+      if (name === 'gallop' && rumpAt !== null) {
+        const a0 = about(rigNodesAt(R, { ...k, rump: 0 }).nodes), per = (about(rigNodesAt(R, { ...k, rump: 10 }).nodes) - a0) / 10;
+        if (Math.abs(per) > 1e-6 && Math.abs(a0 - rumpAt) > 0.5) k = { ...k, rump: r4((rumpAt - a0) / per) };
+      }
       const run = name === 'gallop', end = run ? straight(k) : 0, k1 = end ? { ...k, tailEnd: end } : k;
       const e0 = rise({ ...k1, tail: 0 }), per = (rise({ ...k1, tail: 10 }) - e0) / 10;
       const want = run && k.support === 'none' ? C.leap : run ? Math.max(C.run.least, Math.min(C.run.most, real)) : real + C.keep * (e0 - real);
