@@ -8,6 +8,7 @@
  * read a seed: an inventory row is one part number and always makes the same part.
  */
 
+import { cockpit } from './air-kit-parts.js';
 import { DEG, airfoil, airfoilAft, extrudeWorld, facetSection, foilAt, lathe, loftWorld, mulberry32, hashSeed, planeUV, round3, section, sweep, tone, turnAbout } from './craft-common.js';
 
 const r3v = (v) => v.map(round3);
@@ -79,6 +80,20 @@ function buildFuselage(row, C, opts = {}) {
   };
   const hardpoints = { mount: [0, 0, 0] };
   for (const [name, spec] of Object.entries(b.points || {})) hardpoints[name] = point(spec);
+  // made: a fighter's cockpit under its canopy (air-kit-parts.js), built up from the hull's top and fitted to the
+  // canopy's own section where each piece stands (its row, which the layout hands its hull)
+  const made = [];
+  const cr = opts.made?.canopy;
+  if (cr && b.points?.canopy && cr.build?.family !== 'roundWindow') {
+    const at = point(b.points.canopy), cl = cr.dims.length, s0 = b.points.canopy[0];
+    const rowsC = cr.build.stations || [[0, 0.3, 0.25], [0.3, 1, 0.92], [0.7, 0.95, 1], [1, 0.6, 0.55]];
+    const prof = (f) => { let i = 1; while (i < rowsC.length - 1 && f > rowsC[i][0]) i += 1; const [a, c] = [rowsC[i - 1], rowsC[i]], k = Math.max(0, Math.min(1, (f - a[0]) / (c[0] - a[0] || 1))); return { w: a[1] + k * (c[1] - a[1]), h: a[2] + k * (c[2] - a[2]) }; };
+    const topAt = (f) => point([s0 + (f * cl) / L, 0, 1])[2];
+    const deck = Math.max(...[0.22, 0.4, 0.6, 0.8, 0.9].map(topAt));
+    // (inside the canopy at a fraction of its length: its half-width at the deck's height, its roof over the deck)
+    const fit = (f) => { const p = prof(f), hw = (p.w * cr.dims.width) / 2, roof = p.h * cr.dims.height - (deck - at[2]); return { half: Math.max(0, hw * Math.sqrt(Math.max(0, 1 - ((deck - at[2]) / Math.max(roof + (deck - at[2]), 1e-3)) ** 2)) - 0.02), roof: Math.max(0, roof - 0.02) }; };
+    made.push(cockpit('cockpit', { front: at, len: cl, deck, fit }, { dark: '#26292c', console: '#2f3336', glass: C.glass, metal: C.chrome, seat: '#3b4232', accent: '#d8b02a' }));
+  }
   // A glazed band (an airliner's flight deck, a shuttle's windscreen): a thin loft hugging the skin.
   if (b.windscreen) {
     const [s0, s1] = b.windscreen;
@@ -109,7 +124,9 @@ function buildFuselage(row, C, opts = {}) {
   }
   const detail = hullDetail({ b, L, zp, stations, smooth, point, C, sku: opts.sku });
   lofts.push(...detail.lofts);
-  return { lofts, ...(detail.extrudes.length ? { extrudes: detail.extrudes } : {}), ...(detail.sweeps.length ? { sweeps: detail.sweeps } : {}), hardpoints };
+  if (!made.length) return { lofts, ...(detail.extrudes.length ? { extrudes: detail.extrudes } : {}), ...(detail.sweeps.length ? { sweeps: detail.sweeps } : {}), hardpoints };
+  const extrudes = [...detail.extrudes, ...made.flatMap((m) => m.extrudes ?? [])], sweeps = [...detail.sweeps, ...made.flatMap((m) => m.sweeps ?? [])], lathes = made.flatMap((m) => m.lathes ?? []);
+  return { lofts, ...(extrudes.length ? { extrudes } : {}), ...(sweeps.length ? { sweeps } : {}), ...(lathes.length ? { lathes } : {}), hardpoints };
 }
 
 // The hull's skin ring at s exactly as the loft draws it: the same Catmull-Rom over the stations for a

@@ -624,8 +624,8 @@ function __formLights(F) {
     const key = new THREE.Color(F.key[0], F.key[1], F.key[2]), casters = [];
     scene.traverse((o) => { if (o.isDirectionalLight && o.castShadow) casters.push(o); });
     // (and a normal bias on each for the physical body: a flat plate turned from the sun would wear its own shadow's
-    // stripes, the map's depth steps laid on it)
-    if (casters.length) for (const l of casters) { l.color.copy(key); l.intensity = F.keyIntensity / casters.length; l.shadow.normalBias = Math.max(l.shadow.normalBias, 0.05); }
+    // stripes, the map's depth steps laid on it; a big body, a craft, asks for more by its own normalBias)
+    if (casters.length) for (const l of casters) { l.color.copy(key); l.intensity = F.keyIntensity / casters.length; l.shadow.normalBias = Math.max(l.shadow.normalBias, F.normalBias || 0.05); }
     else { const l = new THREE.DirectionalLight(key, F.keyIntensity); l.position.fromArray(F.toLight || __FORM_SUN).normalize().multiplyScalar(100); scene.add(l); scene.add(l.target); }
     const hemi = new THREE.HemisphereLight(__formSrgb(F.sky.zenith), __formSrgb(F.sky.ground), F.ambient * 1.6); hemi.position.set(0, 0, 1); scene.add(hemi);
   }, 0);

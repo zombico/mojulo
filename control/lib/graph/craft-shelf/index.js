@@ -91,10 +91,10 @@ function lowestZ(recipe) {
  * (degrees) } — and `side` ('r' | 'l') says which copy of a pair this is (a left aileron throws the
  * other way; a left wingtip shows red). `finish: false` drops the material finishes to bare tints.
  */
-export function resolveCraftPart(sku, { palette, colors = {}, seat = 'grid', fold = 0, pose = {}, side = null, finish = true, title } = {}) {
+export function resolveCraftPart(sku, { palette, colors = {}, seat = 'grid', fold = 0, pose = {}, side = null, finish = true, title, made = false } = {}) {
   const row = partRow(sku);
   const { id: paletteId, colors: C } = resolveCraftPalette(palette, colors, REALM_PALETTE[row.realm]);
-  const geom = CRAFT_BUILDERS[row.kind](row, C, { fold, pose, side, sku });
+  const geom = CRAFT_BUILDERS[row.kind](row, C, { fold, pose, side, sku, ...(made ? { made } : {}) });
   const monomers = Object.fromEntries(MONOMERS.filter((k) => geom[k] && geom[k].length).map((k) => [k, geom[k]]));
   const recipe = {
     kind: 'workbench',
@@ -165,14 +165,16 @@ function archetypeRow(id) {
  * Walk a layout: every part placed by its mount at the hardpoint `at` names, mirrors made. A part whose
  * parent was swapped for one without that hardpoint is left off and named (advice, not a refusal).
  */
-function placeLayout(row, { palette, colors, swap, fold, pose, finish }) {
+function placeLayout(row, { palette, colors, swap, fold, pose, finish, made }) {
   const placed = new Map();
   const order = [];
   const skipped = new Set();
   const warnings = [];
   for (const entry of row.layout) {
     const sku = swap[entry.id] || entry.sku;
-    const make = (side) => resolveCraftPart(sku, { palette, colors, seat: 'mount', fold, pose, side, finish });
+    // (made: a hull is handed the canopy the layout sets on it, to fit its cockpit under)
+    const madeOf = made ? { canopy: row.layout.map((e) => CRAFT_ODM[swap[e.id] || e.sku]).find((r) => r?.kind === 'craft-canopy') ?? null } : false;
+    const make = (side) => resolveCraftPart(sku, { palette, colors, seat: 'mount', fold, pose, side, finish, made: madeOf });
     const recipe = make(entry.pair ? 'r' : null);
     let target = [0, 0, 0];
     let parent = null;
@@ -247,10 +249,10 @@ function toManifest(row, order, { pitch, lift, title }) {
  * folds every folding wing; absent, the archetype's own stance (a shuttle lands with its wings up).
  * Returns `{ manifest, readout }`: the readout measures the craft as built.
  */
-export function assembleCraft(archetype, { palette, colors = {}, swap = {}, attitude = 'ground', fold, pose = {}, finish = true, title } = {}) {
+export function assembleCraft(archetype, { palette, colors = {}, swap = {}, attitude = 'ground', fold, pose = {}, finish = true, title, made = false } = {}) {
   const row = archetypeRow(archetype);
   const foldNow = Math.max(0, Math.min(1, Number.isFinite(fold) ? fold : (row.fold || 0)));
-  const { order, warnings: placing } = placeLayout(row, { palette: palette || row.palette, colors, swap, fold: foldNow, pose, finish });
+  const { order, warnings: placing } = placeLayout(row, { palette: palette || row.palette, colors, swap, fold: foldNow, pose, finish, made });
   // gear fully up: the craft is in the air, so it does not stand on its wheels (it rests on its belly)
   const gearUp = Number(pose.gear) >= 1;
   const contacts = order

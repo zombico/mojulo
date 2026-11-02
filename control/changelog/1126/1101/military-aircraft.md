@@ -35,3 +35,68 @@ exported to a valid GLB.
   - **Seen** (machine gate only; the eyes gate is open): the multirole fighter at noon and under a golden sun, and the
     close-support jet at noon, in the page's own light and shadows.
 
+- **The study** (after the craft in the form render): the aircraft, close up, were nowhere near the vehicles' made
+  detail.
+  - **What they lacked:** smooth lofts with ring seams only; an opaque canopy; a smooth scoop; hinge lines that barely
+    read; box petals; a torus tyre; a plastic sheen; the mirrored half of every pair shading as its underside.
+  - **The breakdown:** what each part kind must carry, the recomposition's order (the plan).
+- **The aircraft detail kit:**
+  - **The skin** (`craft-shelf/air-kit.js`). Panel lines laid on each item's own faces along the planes they lie on:
+    - a ribbon a centimetre and a half wide, a millimetre proud, a quad on each face a line crosses;
+    - darker than the paint and in its slot, so a livery's cut passes it by.
+
+    By part kind:
+    - **A tube** (a fuselage, a nacelle, an intake, a store): its frames round it, closer over its forward third; its
+      longerons (the spine, the chines, the waterline, the keel); its access panels outlined, their fasteners set on
+      the skin where a ray from the axis meets it.
+    - **A wing or a tailplane:** its ribs across the span, its front and rear spars.
+    - **A fin:** the same, up its span.
+
+    `craftForm(archetype, { made: true })` lays them. The fighter's made skin costs about 7.5k triangles.
+  - **The parts** (`craft-shelf/air-kit-parts.js`), the shelf's own monomers for the builders' made finish (the
+    recomposition, next):
+    - a rolled lip;
+    - a hinge line and its knuckles;
+    - a door with its hinge and actuator;
+    - a gear's well (boxed, ribbed, its plumbing);
+    - a treaded tyre on its hub and brake disc;
+    - a petal nozzle (petals with gaps, their rods, the flameholder's rings and spray bars inside, a heat-tinted
+      throat);
+    - a light in its clear cover;
+    - a blister;
+    - a raked blade.
+
+    Their tints give their materials through the shelf's own finish.
+  - **The light:**
+    - the paint's sheen lowered;
+    - the canopy's glass seen into (transparent);
+    - a big figure's own shadow bias (the form's `normalBias`, the page taking the deeper of its own and the
+      figure's);
+    - every form face wound to agree with its normal. The page draws both sides and turns a back face's normal round,
+      so a mirrored part's faces, wound against theirs, shaded as their underside.
+  - **Held** (`air-kit.test.js`):
+    - the seams laid on the hull, the wings and the fin, darker, in their slot, on the skin;
+    - the fasteners;
+    - every face wound to its normal;
+    - the made fighter within 40k triangles, the same twice;
+    - each kit part lowering in its tints at its size (a tyre's tread ribbed, a nozzle's petals);
+    - the light's materials and bias.
+  - **Seen** (machine gate only; the eyes gate is open): the made fighter whole and from above (the spine's bay and its
+    fasteners, the wing's ribs and spars, the mirrored wing lit), and the nose.
+- **The cockpit** (the operator saw the glass empty). A fighter's cockpit under its canopy (`air-kit-parts.js`
+  `cockpit`), the hull's own under the made finish, so it stays put when the canopy opens.
+  - **Built up from a dark deck over the hull's top:** the hull is a closed skin, and what is under it is never seen.
+  - **Fitted to the canopy's own section where each piece stands.** The layout hands the hull the canopy it sets on
+    it, and a bubble narrows and drops toward its nose.
+  - **Its pieces:**
+    - the coaming and its glare shield over the instrument panel, its two displays and its dials;
+    - the HUD's combiner on its posts;
+    - low side consoles;
+    - the stick;
+    - the ejection seat: its pan, its raked back, its headrest under the roof, the yellow pull handle, its rails.
+  - **The canopy's own glass,** made, the smoky gold of its coating.
+  - **Threaded:** `made` runs through `assembleCraft`, the layout and `resolveCraftPart` to a builder (absent, its
+    recipe as it was).
+  - **Held** (`air-kit.test.js`): the seat, its handle, the HUD's glass, all inside the canopy and under its roof; the
+    gold glass when made; none without the word or on a craft with no canopy.
+  - **Seen** (machine gate only; the eyes gate is open): from the side and from over the nose.
