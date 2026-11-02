@@ -51,6 +51,7 @@ import { dressTownFace } from './town-dress.js';
 import { stepsLift } from './out-openings.js';
 import { townLanguage } from './out-town.js';
 import { streetSpan, layStreet } from './stage-street.js';
+import { streetWalls } from './stage-walls.js';
 import { outTrailOf } from './out-trail-board.js';
 import { slabOf } from './solid.js';
 import { exteriorOf, stairConcrete } from './style/bay-exterior.js';
@@ -207,7 +208,9 @@ export function streetLots(town, kitId, seed0, solid = false) {
 }
 function townStreet(town, kitId, seed0, solid = false) {
   if (!town || typeof town !== 'object') throw new Error('stage: town is { anchor?, seed?, houses?, enter?, goal?, recipe?, paint?, street? }');
-  for (const k of Object.keys(town)) if (!['anchor', 'seed', 'houses', 'enter', 'goal', 'doors', 'walk', 'recipe', 'paint', 'dress', 'street'].includes(k)) throw new Error(`stage: town.${k} is not a setting (anchor, seed, houses, enter, goal, doors, walk, recipe, paint, dress, street)`);
+  for (const k of Object.keys(town)) if (!['anchor', 'seed', 'houses', 'enter', 'goal', 'doors', 'walk', 'walls', 'recipe', 'paint', 'dress', 'street'].includes(k)) throw new Error(`stage: town.${k} is not a setting (anchor, seed, houses, enter, goal, doors, walk, walls, recipe, paint, dress, street)`);
+  if (town.walls !== undefined && !(town.walls === true || typeof town.walls === 'string' || (town.walls && typeof town.walls === 'object'))) throw new Error('stage: town.walls is true (the crenellated curtain), a fortification\'s id (crenellated, battered), { seed }, or its elements: a gatehouse at each end of the street, its curtain behind the houses');
+  if (town.walls !== undefined && !town.street) throw new Error('stage: town.walls closes the street: give the town its street (town.street: true)');
   if (town.walk !== undefined && !(Array.isArray(town.walk) && town.walk.every((u) => typeof u === 'string'))) throw new Error('stage: town.walk is the uses walked into as part of the world (a shop: [\'shop\']), the rest of those entered changing the scene at their door');
   if (town.street !== undefined && typeof town.street !== 'boolean') throw new Error('stage: town.street is true (the trail through the town laid as its language\'s street) or false');
   if (town.paint !== undefined && (typeof town.paint !== 'object' || town.paint === null || Array.isArray(town.paint) || !Object.values(town.paint).every((n) => typeof n === 'string'))) throw new Error('stage: town.paint is { <surface group>: <one of the kit\'s ramps> }: the street\'s houses re-pointed');
@@ -451,6 +454,8 @@ export function withBuildings(payload, manifest, ctx = {}) {
   const offStreet = (x, y) => ST && Math.abs(x - ST.site.trailX(y)) < ST.span.half + 0.2;
   // the street's stretch: from before its first house to past its last, along the trail
   const streetRange = (ys) => [Math.max(0, Math.min(...ys) - 6), Math.min(ST.site.D, Math.max(...ys) + 6)], planned = [];
+  // the walls a fortified street closes it with (town.walls): its fortification the town's (true: crenellated)
+  const wallsOf = (y0, y1) => streetWalls(ST.site, ST.span, { y0, y1, taken, ground: (x, y) => ground(x, y), fort: manifest.town.walls === true ? 'crenellated' : manifest.town.walls, seed: manifest.town.seed ?? manifest.seed ?? 1 });
   list.forEach((b, i) => {
     if (!b || typeof b.use !== 'string') throw new Error(`stage: buildings[${i}] needs a use`);
     const id = b.id ?? `${b.use}-${i + 1}`, anchor = anchorOf(b, kitId), t = 0.25;
@@ -770,6 +775,11 @@ export function withBuildings(payload, manifest, ctx = {}) {
     const [y0, y1] = streetRange(planned);
     for (let y = y0; y < y1; y += 2) { const xs = [y, y + 1, y + 2].map((q) => ST.site.trailX(Math.min(q, y1))), h = ST.span.half + 0.5; reserved.push([r5(Math.min(...xs) - h), r5(y), r5(Math.max(...xs) + h), r5(Math.min(y + 2, y1))]); }
   }
+  // (planning: the walls' ground too, era/stage-walls.js)
+  if (ctx.planOnly && ST && planned.length && manifest.town.walls) {
+    const [y0, y1] = streetRange(planned);
+    reserved.push(...wallsOf(y0, y1).keep.map((B) => B.map(r5)));
+  }
   if (ctx.planOnly) return { reserved, ...(grades.length ? { grade: grades, placed } : {}) };
   // the street, once its houses stand: from before the first to past the last along the trail, the land's growth and
   // the trail under it cleared, a path of slabs to each door
@@ -789,6 +799,16 @@ export function withBuildings(payload, manifest, ctx = {}) {
       const under = (f) => f.corners.every((c) => paved(c[0], c[1])) && paved(...mid(f));
       faces = [...faces.filter((f) => { const g = f.group || ''; if (GROUND.test(g) && under(f)) return false; if (!(CLEARED.test(g) || PATH.test(g))) return true; const [cx, cy] = mid(f); return !clear(cx, cy) && !(CLEARED.test(g) && near(cx, cy)); }), ...SF];
       if (payload.liveGrass) liveGrass = offPaving(payload.liveGrass, paved);
+      // THE WALLS (town.walls, era/stage-walls.js): the street closed by its fortification, a gatehouse at each end, its
+      // curtain and towers behind the houses, painted in the town's paint and light, each a collider (its gates open)
+      if (manifest.town.walls) {
+        const Wl = wallsOf(y0, y1), Pw = paintRaw(kitId, manifest.town?.paint);
+        for (const P of Wl.pieces) {
+          for (const f of P.faces) { const nn = unit(cross(sub3(f.corners[1], f.corners[0]), sub3(f.corners[f.corners.length - 1], f.corners[0]))); faces.push({ ...quad(f.corners, 'town:wall', Pw(f.group ?? 'str:stone', Math.min(1, (f.value ?? 0.6) * lit(nn)))), normal: P3(nn), outNormal: P3(nn) }); }
+          for (const B of P.boxes) colliders.push({ min: P3([B[0], B[1], P.z0]), max: P3([B[2], B[3], P.z1]), of: `town:walls${P.gatehouse ? ':gate' : P.tower ? ':tower' : ''}` });
+        }
+        anchors.push({ id: 'town-walls', kind: 'walls', fort: Wl.fort.read ?? null, gates: Wl.pieces.filter((P) => P.gatehouse).length, height: Wl.H });
+      }
     }
   }
   // (no grass through the paths of slabs to a building set into its slope)

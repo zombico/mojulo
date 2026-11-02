@@ -108,6 +108,22 @@ describe("a town's street", () => {
     expect(shopOf(walked)).toMatchObject({ enter: 'walk', entry: expect.any(String) });
     expect(() => assembleStageScene({ ...TRAIL, town: { houses: 3, walk: 'shop' } })).toThrow(/town.walk/);
   });
+  it('walls: the street closed by its fortification, a gatehouse over the trail at each end, its gates open', () => {
+    const W = assembleStageScene({ ...TRAIL, town: { houses: 4, enter: 1, street: true, walls: true } });
+    const C = W.colliders.filter((c) => String(c.of).startsWith('town:walls'));
+    expect(W.anchors.find((a) => a.kind === 'walls')).toMatchObject({ gates: 2 });
+    expect(W.faces.some((f) => f.group === 'town:wall')).toBe(true);
+    // (each house inside the walls' sides; the trail through each gate clear of every wall collider)
+    const sides = C.filter((c) => c.of === 'town:walls'), xs = sides.flatMap((c) => [c.min[0], c.max[0]]);
+    for (const h of W.anchors.filter((a) => a.kind === 'house' || a.kind === 'building')) expect(h.at[0] > Math.min(...xs) && h.at[0] < Math.max(...xs)).toBe(true);
+    const ends = W.anchors.filter((a) => a.kind === 'house' || a.kind === 'building').map((a) => a.at[1]), trail = (y) => W.anchors.filter((a) => a.kind === 'beat').sort((a, b) => Math.abs(a.at[1] - y) - Math.abs(b.at[1] - y))[0].at[0];
+    for (const y of [Math.min(...ends) - 6, Math.max(...ends) + 6]) {
+      const x = trail(y);
+      expect(C.some((c) => x > c.min[0] && x < c.max[0] && y > c.min[1] - 0.5 && y < c.max[1] + 0.5)).toBe(false);
+    }
+    // absent, the street as it was; walls without a street refused
+    expect(() => assembleStageScene({ ...TRAIL, town: { houses: 3, walls: true } })).toThrow(/town.walls closes the street/);
+  });
   it('goal: the first house walked into holds the level\'s end', () => {
     const g = assembleStageScene({ ...TRAIL, town: { houses: 3, enter: 1, goal: true } });
     expect(g.anchors.find((a) => a.kind === 'building')).toMatchObject({ isGoal: true, goal: 'dais' });

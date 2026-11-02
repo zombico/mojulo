@@ -13,7 +13,7 @@ describe('the hub: a town every way leads back to', () => {
     expect(w).toMatchObject({ topology: 'interconnected', hub: w.start });
     const G = readGameworld(w), others = G.ids.filter((id) => id !== G.hub);
     expect(w.links.map((l) => [l.from, l.to])).toEqual(others.map((id) => [G.hub, id]));
-    expect(w.levels[G.hub].places).toEqual({ town: true, street: { houses: 6, enter: 2, walk: ['shop'] } });
+    expect(w.levels[G.hub].places).toEqual({ town: true, street: { houses: 6, enter: 2, walk: ['shop'], walls: true } });
     const steps = S(w), L = steps.filter((s) => s.key.startsWith('level-'));
     const hub = L.filter((s) => s.key.startsWith(`level-${G.hub}-`)), wild = L.filter((s) => !s.key.startsWith(`level-${G.hub}-`));
     // (the town: no packs, the merchant and the inn beside where the party comes in)

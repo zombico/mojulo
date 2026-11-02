@@ -299,3 +299,12 @@ its resource, put on a look and showed a toast. This theme makes them act.
     walked into takes a later house's ground, so the hub enters two of six.
   - **Interiors on a map:** a map world's ways no longer chain through a building's inside, which is joined only by
     its door.
+- **The walled town** (a town's street on a stage, the hub). The fortified town (the town's `fortified` dial, its
+  curtain, towers, gatehouse and ditch: `era/out-fortress.js`) was drawn only in the book's sheets. A game's town is
+  its street, its houses seated beside the trail rather than on the town's plan, so its walls are now the street's
+  (`era/stage-walls.js`):
+  - a gatehouse over the trail before the first house and after the last;
+  - the curtain behind the houses on both sides, with towers at its corners and along it;
+  - all of it in the town's paint and light, each a collider, its gates open, its ground kept clear of what grows.
+  A street writes `walls: true | <fortification>` (`places.street.walls` on a level: `true` is its builders' own
+  fortification, their civilization's `fort`). The composed hub is walled; absent, a street is as it was.
