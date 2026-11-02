@@ -1,9 +1,10 @@
 // The genre's form (genre-forms.js): what the sentence door lays for a genre it reads. One case per procedure: a form
-// laid (the flight courses), a hand-off said and nothing laid, a refusal with what it waits on, and a genre with no form
-// laid as it was.
+// laid (the flight courses), a hand-off said and nothing laid, a refusal with what it waits on (the registry's, or the
+// book's: a genre it cannot lay from a sentence yet), and a genre the book lays in its own walks laid as it was.
 import { describe, expect, it } from 'vitest';
 
-import { GENRE_FORMS, HAND_OFFS, refusalOf } from './genre-forms.js';
+import { GENRE_FORMS, HAND_OFFS, PENDING, WAITS, pendingOf, refusalOf, heroFrameOf } from './genre-forms.js';
+import { readActions, resolveActions } from './actions.js';
 import { GENRES } from './intent.js';
 import { composeGameworld } from './compose.js';
 import { readGameworld } from './world.js';
@@ -37,9 +38,70 @@ describe('the genre\'s form', () => {
     expect(() => composeGameworld({ prompt: 'a co-op kitchen game: four friends cook the orders together', seed: 1 })).toThrow(new RegExp(`waits on ${R.waits[0].replace(/[.=]/g, '\\$&')}`));
   });
 
-  it('a genre with no form is laid as before: walks and buildings, its words\' goals', () => {
+  it('a genre the book lays in its own walks is laid as before: walks and buildings, its words\' goals', () => {
     const W = composeGameworld({ prompt: 'a dungeon crawler through crypt rooms full of loot', seed: 1 });
     expect(W.brief.levelForm).toBeUndefined();
     expect(Object.values(W.levels).every((L) => L.walk || L.building)).toBe(true);
+  });
+});
+
+describe('a genre the book cannot lay from a sentence yet', () => {
+  it('is refused with what it waits on and the one level it plays alone, nothing laid in its place', () => {
+    for (const [id, why] of Object.entries(PENDING)) { expect(GENRES[id], id).toBeTruthy(); expect(WAITS[why], id).toBeTruthy(); expect(GENRE_FORMS[id], id).toBeUndefined(); }
+    expect(pendingOf('kart-racer')).toEqual({ waits: WAITS.ride, one: 'race' });
+    expect(() => composeGameworld({ prompt: 'a kart racer: three laps against rival drivers', seed: 1 })).toThrow(/waits on a ride the book drives[\s\S]*design_game\(\{ quick: \{ goal: 'race' \} \}\)/);
+    // (one per kind of wait: a ride, a form)
+    expect(() => composeGameworld({ prompt: 'an arena shooter: a deathmatch against bots', seed: 1 })).toThrow(/waits on its kernel as a book level[\s\S]*goal: 'deathmatch'/);
+    expect(() => composeGameworld({ prompt: 'a tower defence game', seed: 1 })).toThrow(/waits on its kernel as a book level/);
+  });
+
+  it('the genres a hero completes are laid: stealth\'s guards, a co-op platformer\'s side camera, a party\'s world', () => {
+    for (const id of ['stealth', 'co-op-platformer', 'jrpg', 'dungeon-crawler', 'collectathon', 'metroidvania']) expect(pendingOf(id), id).toBeNull();
+    expect(composeGameworld({ prompt: 'a stealth game sneaking past guards in a castle', seed: 1 }).intent).toEqual({ from: 'stealth' });
+  });
+});
+
+describe('the hero frame: a genre on foot is laid with a hero, its camera and its screen', () => {
+  it('a hero by default: the game\'s body, the genre\'s vibe, no powers said; none for a vehicle or an aircraft', () => {
+    const F = heroFrameOf('metroidvania', 'anime');
+    expect(F).toEqual({ characters: { direction: { tradition: 'anime', body: 'game' }, hero: { motion: { vibe: ['nimble'] }, actions: { none: true }, adornment: { items: [{ id: 'blade', slot: 'right', build: { item: 'sword' }, serves: ['strike'] }] } } }, camera: 'side', screen: 'screen' });
+    expect(heroFrameOf('flight-sim', 'anime')).toBeNull();
+    // (armed by how the genre fights: a gun for its shot where it fights only at range, a first-person shooter from the
+    // armed hero's eyes; a pistol where its fiction names one; nothing for a genre that does not fight)
+    const S = heroFrameOf('shooter', 'anime');
+    expect(S.camera).toBe('first-person');
+    expect(S.characters.hero.adornment.items).toEqual([{ id: 'gun', slot: 'right', serves: ['shoot'], build: { item: 'carbine' } }]);
+    expect(heroFrameOf('survival-horror', 'anime').characters.hero.adornment.items[0].build).toEqual({ item: 'pistol' });
+    expect(heroFrameOf('collectathon', 'anime').characters.hero.adornment).toBeUndefined();
+    expect(heroFrameOf('dungeon-crawler', 'western').camera).toBeNull();   // (third person: the hero's own chase)
+  });
+
+  it('no powers is an answer the actions page takes: nothing open, read twice the same, never beside a system', () => {
+    const A = readActions({ none: true, moves: ['wall'] });
+    expect(A).toEqual({ moves: ['wall'], none: true, powers: [] });
+    expect(readActions(A)).toEqual(A);
+    expect(resolveActions({ none: true }).open).toEqual([]);
+    expect(() => readActions({ none: true, idiom: 'metroidvania-like' })).toThrow(/no powers \(none: true\) has no idiom/);
+    expect(() => readActions({ none: 'yes' })).toThrow(/\.none is true/);
+  });
+
+  it('a composed side-scroller: the side camera, no climb to run, a monitor\'s screen, its hero', () => {
+    const W = composeGameworld({ prompt: 'a metroidvania in a ruined castle', seed: 1, levels: 2 });
+    expect(W.camera).toBe('side');
+    expect(W.screen).toBe('screen');
+    expect(W.characters.hero.actions).toEqual({ none: true });
+    expect(W.brief.hero).toMatchObject({ genre: 'metroidvania', camera: 'side', powers: 'none' });
+    for (const L of Object.values(W.levels)) expect(Object.values(L.walk?.nodes ?? {}).some((n) => n.meru)).toBe(false);
+    expect(() => readGameworld(W)).not.toThrow();
+  });
+
+  it('the forms a hero plays: a runner\'s lanes on a phone, a city\'s rooftops with the wall and the line', () => {
+    const R = composeGameworld({ prompt: 'an endless runner down three lanes', seed: 1, levels: 1 });
+    expect(Object.values(R.levels)[0]).toMatchObject({ runner: true });
+    expect(R.screen).toBe('phone');
+    expect(R.characters.hero.actions).toEqual({ none: true });
+    const C = composeGameworld({ prompt: 'a city stalker: swing between rooftops at night', seed: 1, levels: 1 });
+    expect(Object.values(C.levels)[0]).toMatchObject({ city: { stalker: true } });
+    expect(C.characters.hero.actions).toEqual({ none: true, moves: ['wall', 'swinger'] });
   });
 });

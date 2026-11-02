@@ -208,6 +208,9 @@ Pointers only; each target carries its own design notes.
   [plating/](control/lib/graph/plating/) (card → passes → laws → adapter; a new look is a card): [docs/plating.md](docs/plating.md).
   On the head, [headgear/](control/lib/graph/headgear/): the cards (masks, cowls, eyegear, helmets) worn by the hero door's
   `headgear` word, and the helmets by tradition an outfit's `language.head` wears; a new look is a card.
+- Arms: [equipment/arms/](control/lib/graph/equipment/arms/) (modern and future guns and knives for the gen-7 look: a
+  model row and its builder → tunable parts → a finish card, held to the laws in `laws.js`; a new look is a finish card,
+  a new archetype a model row). Manual: the `equipment` solid-vocab card; review: `scripts/render-arms.mjs`.
 - Solids: [polygonizer/](control/lib/graph/polygonizer/) (`field-terms.js`, `code-realm.js`,
   `field-exact.js` for `exact: true` through Manifold), [worlds/workbench.js](control/lib/graph/worlds/workbench.js);
   manuals are the `solid-vocab/` cards. OpenSCAD both ways: [scad/scad-render.js](control/lib/graph/scad/scad-render.js)

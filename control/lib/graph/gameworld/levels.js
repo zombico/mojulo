@@ -35,6 +35,7 @@ import { outTrailOf } from '../era/out-trail-board.js';
 import { TRAVERSAL_MOVES, HERO_MOVES } from './actions.js';
 import { RIDE_H } from './ride.js';
 import { fixedStations, uprightCamera } from './cameras.js';
+import { SHOOT, PERSON, shoulderOf } from './quick.js';
 import { readScreen } from '../game/screen.js';
 import { cubeOfWorld } from './intent.js';
 import { concernIds } from './concerns.js';
@@ -63,6 +64,37 @@ import { standFoe } from './foes.js';
 /** A sneak's guard: a guard in a person's skin (foes/classes/guard.js), and what the sneak plays it at: a watcher whose
  * sighting ends the run (the `unseen` mechanic reads its team), never fought, kept near its post. */
 const SNEAK_GUARD = Object.freeze({ class: 'guard', skin: { people: 'human' } });
+// THE BODY'S OWN BLOW (adornment.js BASIC_VERBS 'strike'): a hero carrying an item in its right hand for its strike
+// swings it. The pilot's rule takes the runtime's own contact window (combat-melee.js meleeSwingSpec's: the downstroke of
+// the swing clip) where no feel names one; the world's page arms the rule with what the figure holds, its reach, seconds
+// and damage (world-scene.js, the held strike). A hero carrying nothing for it, as it was.
+const HELD_CONTACT = Object.freeze([0.28, 0.62]);
+const carriesStrike = (G) => (G.characters?.hero?.adornment?.items ?? []).some((it) => it.slot === 'right' && (it.serves ?? []).includes('strike'));
+const strikeWindow = (G, rule) => (carriesStrike(G) && !Array.isArray(rule?.strikeContact) ? { strikeContact: [...HELD_CONTACT] } : null);
+const STRIKE_LEGEND = 'click  strike';
+// THE BODY'S OWN SHOT (adornment.js BASIC_VERBS 'shoot'): a hero carrying a firearm in its right hand for its shot fires
+// it as the quick shooter's player does (quick.js shootCast): a pistol the handgun's numbers, a long gun the rifle's,
+// fired from the eye; its body hittable; played third person, over the shoulder (its rounds converging on the
+// crosshair). A hero carrying nothing for it, as it was.
+const shotItem = (G) => (G.characters?.hero?.adornment?.items ?? []).find((it) => it.slot === 'right' && (it.serves ?? []).includes('shoot')) ?? null;
+const FIRE_LEGEND = 'click  fire';
+// A STEP IN: a building's way in has the wall at its back, and the hero's chase is pulled in against it
+// (follow-pull-in.js) until the hero's back fills the frame. The hero starts a few steps into the entry room, along its
+// heading, where the room holds that point (half a metre clear of its walls); the level's own ends stay at the door
+const STEP_IN = 2.5;
+function steppedIn(plan, spawn, heading) {
+  const r = plan.rooms.find((x) => x.id === plan._program.entry), q = [r3(spawn[0] + Math.cos(heading) * STEP_IN), r3(spawn[1] + Math.sin(heading) * STEP_IN), spawn[2]];
+  return r && q[0] > r.x + 0.5 && q[0] < r.x + r.w - 0.5 && q[1] > r.y + 0.5 && q[1] < r.y + r.d - 0.5 ? q : spawn;
+}
+function armedPilot(G, entity, cam) {
+  const it = shotItem(G);
+  if (!it) return { entity, camera: null };
+  const over = shoulderOf(cam ?? 'third-person', true), gun = it.build?.item === 'pistol' ? SHOOT.gun : SHOOT.rifle;
+  return {
+    entity: { ...entity, weapon: { ...gun, eye: 1.5, ...(over ? { converge: true } : {}) }, body: { ...entity.body, hittable: true, radius: 0.5, egg: { ...PERSON, cz: PERSON.c } } },
+    camera: over ? { rule: 'follow', target: entity.id, ...over } : null,
+  };
+}
 const SNEAK_TUNE = Object.freeze({ team: 'guards', rule: { guardRadius: 10, speed: 3, turnRate: 2.2 }, body: { hittable: false } });
 import { feelCard, lowerFeel } from './feel/lower.js';
 import { juiceOfGame } from './juice.js';
@@ -440,7 +472,7 @@ function levelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = null, me
   if (cam === 'fixed' && !heroRef) throw new Error('levels: fixed cameras watch a hero walk past them; give the world a hero, or play it first-person');
   const look = cam === 'first-person', top = cam === 'top-down', lane = cam === 'side' ? stageLane(stage) : null;
   const moveWords = stage.section === 'runner' ? 'A / D  change lane · S  slide' : lane ? 'A / D  run' : top ? 'W A S D  move' : look ? `W / S  ${heroRef ? 'run' : 'walk'} · A / D  step aside · mouse  look` : `W / S  ${heroRef ? 'run' : 'walk'} · A / D  turn`;
-  const controls = `${moveWords}${heroRef ? ' · Space  jump' : ''}${legend ? ` · ${legend}` : ''}${mechanics?.legend ? ` · ${mechanics.legend}` : ''}`;
+  const controls = `${moveWords}${heroRef ? ' · Space  jump' : ''}${heroRef && carriesStrike(G) ? ` · ${STRIKE_LEGEND}` : ''}${heroRef && shotItem(G) ? ` · ${FIRE_LEGEND}` : ''}${legend ? ` · ${legend}` : ''}${mechanics?.legend ? ` · ${mechanics.legend}` : ''}`;
   // (a runner's own goal is the run: a crash ends it, the score its result)
   const placed0 = goal ? goal(ends) : stage.section === 'runner' ? [{ kind: 'runner' }] : [{ kind: 'reach-exit', at: ends.exit, radius: 2.5, ...(ends.planar ? {} : { planar: false }), ...(ends.via ? { via: ends.via } : {}) }];
   // the doors of its buildings whose scene changes there (stage-buildings.js): each a `door` mechanic, its inside a level
@@ -497,7 +529,8 @@ function levelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = null, me
     // the world's feel (feel/lower.js): its template's card lowered over the hero's platform rule, the camera's way of
     // moving kept; no feel, the hero's own rule as it was
     const feelRule = G.feel ? lowerFeel(feelCard(G.feel)).rule : null;
-    const rule = feelRule ? { ...feelRule, ...(camRule ?? {}) } : camRule;
+    const rule0 = feelRule ? { ...feelRule, ...(camRule ?? {}) } : camRule, struck = strikeWindow(G, rule0);
+    const rule = struck ? { ...(rule0 ?? {}), ...struck } : rule0;
     // (a mascot pilot, egocube/mascot-pilot.js: its own clips, capsule, stride, camera and eye)
     const moves = heroMoves(G);
     const P = withMoves(playerWorld({ heroRef, ...(heroGaits ? { gaits: heroGaits } : {}), ...(pilot ? { pilot } : {}), id: 'hero', title: name, controls: `${controls}${movesLegend(moves)}`, ...(rule ? { rule } : {}) }), moves);
@@ -508,7 +541,8 @@ function levelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = null, me
         : cam === 'fixed' ? { rule: 'fixed', target: 'hero', stations: fixedStations(ends) }
         : stage.section === 'runner' ? { rule: 'follow', target: 'hero', ...RUNNER_CAMERA }
         : P.camera;
-    pilotPart = { figures: P.figures, entities: [{ ...P.entities[0], transform: { pos: ends.spawn, heading: ends.heading } }], camera, events };
+    const A = armedPilot(G, { ...P.entities[0], transform: { pos: ends.spawn, heading: ends.heading } }, cam);
+    pilotPart = { figures: P.figures, entities: [A.entity], camera: cam && cam !== 'third-person' ? camera : A.camera ?? camera, events };
     seatable = !look;
   } else {
     // FIRST PERSON: no hero; you are the camera, a walker held at the stage's own eye height (with a body the walls of
@@ -999,11 +1033,19 @@ function buildingLevelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = 
   // a hero with the wall or the line (actions.moves) plays it under its rooms' ceilings, laid as colliders (era/anchors.js)
   const moves = heroMoves(G);
   if (moves) base = { ...base, ceilings: true };
-  const controls = `W / S  run · A / D  turn · Space  jump${movesLegend(moves)}${X?.legend ? ` · ${X.legend}` : ''}${mechanics?.legend ? ` · ${mechanics.legend}` : ''}`;
-  const P = withMoves(playerWorld({ heroRef, ...(heroGaits ? { gaits: heroGaits } : {}), ...(pilot ? { pilot } : {}), id: 'hero', title: name, controls }), moves);
+  // the world's camera (cameras.js) over the rooms as over a trail: top-down moves the hero in the screen's frame under
+  // the overhead camera, fixed cameras stand over the rooms in order; a side camera has no lane in a building; absent
+  // (or third person), the hero's own chase, every arg as it was
+  const cam = G.camera ?? null, top = cam === 'top-down';
+  if (cam === 'side') throw new Error(`levels: a side camera runs a trail's lane, and '${stage.level}' is a building with none; play it top-down, fixed or third-person`);
+  const controls = `${top ? 'W A S D  move' : 'W / S  run · A / D  turn'} · Space  jump${carriesStrike(G) ? ` · ${STRIKE_LEGEND}` : ''}${shotItem(G) ? ` · ${FIRE_LEGEND}` : ''}${movesLegend(moves)}${X?.legend ? ` · ${X.legend}` : ''}${mechanics?.legend ? ` · ${mechanics.legend}` : ''}`;
+  const brule = { ...(top ? { move: 'world', moveYaw: OVERHEAD.yaw } : {}), ...(strikeWindow(G, null) ?? {}) };
+  const P = withMoves(playerWorld({ heroRef, ...(heroGaits ? { gaits: heroGaits } : {}), ...(pilot ? { pilot } : {}), id: 'hero', title: name, controls, ...(Object.keys(brule).length ? { rule: brule } : {}) }), moves);
   const inputs = [...(P.events?.inputs ?? []), ...(mechanics?.inputs ?? []), ...(X?.inputs ?? [])];
   const events = { ...(P.events || {}), ...(inputs.length > (P.events?.inputs?.length ?? 0) ? { inputs } : {}) };
-  const pilot0 = { figures: X?.figures ? { ...P.figures, ...X.figures } : P.figures, entities: [piloted({ ...P.entities[0], transform: { pos: spawn, heading } }), ...(X?.entities ?? [])], camera: P.camera, events };
+  const A = armedPilot(G, { ...P.entities[0], transform: { pos: steppedIn(plan, spawn, heading), heading } }, cam);
+  const camera = top ? { rule: 'overhead', target: 'hero', ...OVERHEAD } : cam === 'fixed' ? { rule: 'fixed', target: 'hero', stations: fixedStations(ends) } : A.camera ?? P.camera;
+  const pilot0 = { figures: X?.figures ? { ...P.figures, ...X.figures } : P.figures, entities: [piloted(A.entity), ...(X?.entities ?? [])], camera, events };
   // the story's share (its quests, its party; its moments bind to a building's start and goal), as a stage's
   const play0 = base.play ?? null, { pilotPart, play } = storyPart(G, stage, ends, null, pilot0, play0, { story, carryFrom, party, castFigures });
   const manifest = { ...base, ...pilotPart, ...(play !== play0 ? { play } : {}), ...juiceOf(G) };

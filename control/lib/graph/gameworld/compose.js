@@ -36,7 +36,8 @@ import { CRAFTED } from './world.js';
 import { suggestFeels, FEEL_WORDS } from './feel/suggest.js';
 import { GEOCUBE_PRESETS, readGeocube, geocubeDomains } from '../era/geocube.js';
 import { suggestGenres, readGenre, cubeOfWorld, GENRES } from './intent.js';
-import { GENRE_FORMS, HAND_OFFS, refusalOf } from './genre-forms.js';
+import { GENRE_FORMS, HAND_OFFS, refusalOf, pendingOf, heroFrameOf } from './genre-forms.js';
+import { settingOfGame } from './cast-setting.js';
 import { readHour, referenceHour } from '../era/geocube-hours.js';
 import { glyphOf } from './glyph-words.js';
 import { PALETTE_PRESETS } from '../color-theorist/solve.js';
@@ -322,11 +323,16 @@ export function composeGameworld({ prompt, name, id, levels, seed = 1 } = {}) {
   if (genre && HAND_OFFS[genre.id]) throw new Error(`gameworld: compose: ${GENRES[genre.id].name.toLowerCase()} is made by ${HAND_OFFS[genre.id].door}: ${HAND_OFFS[genre.id].why}. Nothing is laid here.`);
   const refused = genre ? refusalOf(genre.id, suggestGenres(prompt, Infinity).map((g) => g.id)) : null;
   if (refused) throw new Error(`gameworld: compose: ${GENRES[genre.id].name.toLowerCase()} is ${refused.verdict === 'blocked' ? 'not makeable yet' : 'not wholly makeable yet'}: it waits on ${refused.waits.join(', ')}. Nothing is laid in its place.${refused.others.length ? ` The words also point at ${refused.others.map((g) => GENRES[g].name.toLowerCase()).join(', ')}, which can be made.` : ''}`);
+  const pending = genre ? pendingOf(genre.id) : null;
+  if (pending) throw new Error(`gameworld: compose: ${GENRES[genre.id].name.toLowerCase()} is not laid from a sentence yet: it waits on ${pending.waits}. Nothing is laid in its place.${pending.one ? ` One level of it alone is design_game({ quick: { goal: '${pending.one}' } }).` : ''}`);
   const form = genre ? GENRE_FORMS[genre.id] ?? null : null;
+  // the frame a genre on foot is laid in (genre-forms.js heroFrameOf): a hero by default, the camera its cube asks, a
+  // monitor's screen; written before the levels are laid (a side camera runs a trail's line: no climbs)
   // the form (resonance.js): what the genre's cube asks of the world that the composer can fill, written before the
   // levels are laid (a co-op platformer's side camera, its walks laid without climbs); the hero it asks is the creator's
   const fills = genre ? composerFills(cubeOfWorld({ intent: { from: genre.id } }).cube) : {};
-  const world = { id: wid, name: title, seed, mode: 'autonomous', brief: { prompt, read: P.read, unread: P.unread.filter((w) => !tunnelled.has(w) && !feelWords.has(w) && !(genre && leadWords.has(w))), tunnels }, ...(genre ? { intent: { from: genre.id } } : {}), ...(fills.camera ? { camera: fills.camera } : {}), ...(said ? { feel: said.pole } : {}), juice: 'auto', style, civilizations, levels: {}, links: [] };
+  const frame = genre && (!form || form.hero) ? heroFrameOf(genre.id, null) : null, camera = fills.camera ?? frame?.camera ?? null;
+  const world = { id: wid, name: title, seed, mode: 'autonomous', brief: { prompt, read: P.read, unread: P.unread.filter((w) => !tunnelled.has(w) && !feelWords.has(w) && !(genre && leadWords.has(w))), tunnels }, ...(genre ? { intent: { from: genre.id } } : {}), ...(camera ? { camera } : {}), ...(frame || form ? { screen: form?.screen ?? frame?.screen ?? 'screen' } : {}), ...(said ? { feel: said.pole } : {}), juice: 'auto', style, civilizations, levels: {}, links: [] };
   // the words that named the genre are read: they decide the intent
   for (const w of genre?.matched ?? []) {
     const says = `intent.from=${genre.id}`, r = world.brief.read.find((x) => x.word === w);
@@ -339,14 +345,22 @@ export function composeGameworld({ prompt, name, id, levels, seed = 1 } = {}) {
     const outside = P.read.some((r) => r.decides.some((d) => d === 'kit' || d.startsWith('land.')));
     return { use, kit: roomKit ?? ROOM_KIT_OF_USE[use] ?? 'gothic-stone', useWord, from: outside && n > 1 ? 1 : 0 };
   })() : null;
+  // (a genre that fights, its cube's combat melee or ranged, fights its guards: they are its foes, the casting call's, not
+  // watchers the level is lost to; the watchers' goal stays the sneak's)
+  if (goal.guards && genre && [].concat(cubeOfWorld({ intent: { from: genre.id } }).cube.power?.combat ?? []).some((c) => c === 'melee' || c === 'ranged')) {
+    delete goal.guards;
+    const r = P.read.find((x) => x.decides.includes('goal.guards'));
+    if (r) r.decides = r.decides.map((d) => (d === 'goal.guards' ? 'foes (a fighting genre\'s guards are fought)' : d));
+  }
   const goals = Object.keys(goal).length ? goal : null;
   const decided = [];
   for (let i = 0; i < n; i++) {
-    const lid = `${wid}-${i + 1}`.slice(0, 48), last = i === n - 1, climb = i % 2 === 0 && fills.climb !== false;
+    const lid = `${wid}-${i + 1}`.slice(0, 48), last = i === n - 1, climb = i % 2 === 0 && fills.climb !== false && camera !== 'side';
     // the level's goal: what is collected and the health on every level, the boss at the end of the last
     const lg = goals ? (({ boss, ...g }) => ({ ...g, ...(boss && last ? { boss } : {}) }))(goals) : null;
     const lgoal = lg && Object.keys(lg).length ? { goal: lg } : {};
-    const inside = indoors && i >= indoors.from;
+    // (a side camera runs a trail's lane: a side-scroller's levels stay out of doors)
+    const inside = indoors && i >= indoors.from && camera !== 'side';
     const nodes = { [`${SUFFIX[i] ?? 'stage'}-a`]: { trail: true }, [`${SUFFIX[i] ?? 'stage'}-b`]: { trail: true }, ...(climb ? { lookout: { meru: true } } : {}) };
     // (a genre's book form, genre-forms.js: its levels laid in it, a flight sim's courses; no town, no walk goal)
     const L = form ? { name: `${form.name} ${i + 1}`, ...form.level(i, n) }
@@ -449,5 +463,12 @@ export function composeGameworld({ prompt, name, id, levels, seed = 1 } = {}) {
     world.brief.unread = world.brief.unread.filter((x) => x !== w);
   }
   readGameworld(world);
+  // the hero the frame makes by default, drawn in the world's own tradition (its kit's pole: cast-setting.js), said in
+  // the brief beside the words that asked for it
+  if (frame) {
+    const tradition = settingOfGame(readGameworld(world)).tradition ?? 'anime';
+    world.characters = { ...frame.characters, direction: { ...frame.characters.direction, tradition } };
+    world.brief.hero = { genre: genre.id, vibe: frame.characters.hero.motion.vibe, powers: 'none', camera: camera ?? 'third-person', tradition };
+  }
   return world;
 }

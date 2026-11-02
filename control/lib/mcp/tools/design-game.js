@@ -405,7 +405,13 @@ export function composedWorld(c) {
   for (const k of Object.keys(c)) if (!['prompt', 'levels', 'seed', 'name'].includes(k)) throw new Error(`design_game: compose.${k} is not a setting (prompt, levels, seed, name)`);
   if (c.levels !== undefined && !(Number.isInteger(c.levels) && c.levels >= 1 && c.levels <= 6)) throw new Error('design_game: compose.levels is 1 to 6');
   if (c.seed !== undefined && !(Number.isInteger(c.seed) && c.seed >= 1)) throw new Error('design_game: compose.seed is a whole number from 1');
-  return composeGameworld({ prompt: c.prompt, ...(c.levels !== undefined ? { levels: c.levels } : {}), ...(c.seed !== undefined ? { seed: c.seed } : {}), ...(c.name !== undefined ? { name: String(c.name) } : {}) });
+  const world = composeGameworld({ prompt: c.prompt, ...(c.levels !== undefined ? { levels: c.levels } : {}), ...(c.seed !== undefined ? { seed: c.seed } : {}), ...(c.name !== undefined ? { name: String(c.name) } : {}) });
+  // a composed world with its hero whose genre fights (foe-casting.js: melee or ranged, a hunting mind) is cast: the
+  // casting call's proposal written (its foes, each level's stand), the brief naming it; the creator revises it as any part
+  const call = world.characters ? castingCall(world) : null;
+  if (!call) return world;
+  const levels = Object.fromEntries(Object.entries(world.levels).map(([id, L]) => [id, call.levels[id] ? { ...L, foes: call.levels[id] } : L]));
+  return { ...world, foes: call.foes, levels, brief: { ...world.brief, foes: call.roles.map((r) => r.id) } };
 }
 // what a composed world's words decided (its brief): each word read and what it decided, the cube, what nothing read
 const composedOf = (b) => ({ prompt: b.prompt, read: b.read.map((r) => `${r.word}: ${r.decides.join(', ')}`), ...(b.cube ? { cube: b.cube } : {}), ...(b.unread?.length ? { unread: b.unread } : {}) });

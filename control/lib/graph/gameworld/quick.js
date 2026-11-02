@@ -150,6 +150,7 @@ import { libraryFigure, foeFigure, beastLook, readBeastFoe, standRule, stand, fa
 import { standFoe as standHostile } from './foes.js';
 import { mulberry32 } from '../vegetation/grow.js';
 import { beatPosts, padSites, askBoxes } from './lay-concerns.js';
+import { SIGHTS } from '../mind/vocab.js';
 import { shooterPole, readPole } from './shooter-pole.js';
 import { poleArmory, roleLoadout } from './weapon-roles.js';
 import { racerSpec, solveRoster, racerRule } from '../car-designer/roster.js';
@@ -1079,8 +1080,15 @@ function roadwayCast(rivals, T, ride) {
 }
 
 export function guardPosts(quick, ends) {
-  return beatPosts(ends, quick.guards ?? 3).map((p, k) => ({ ...p, id: `guard-${k + 1}` }));
+  // (a guard holds a beat it cannot see the start from: a post whose beam reaches the spawn loses the level before the
+  // hero moves. Only the beats past a guard's sight from the spawn are posted, where the way has any; a stage whose
+  // beats all lie within it is posted as before)
+  const s = ends.spawn, far = (ends.beats ?? []).filter((b) => b.beat === 'exit' || b.beat === 'trailhead' || Math.hypot(b.at[0] - s[0], b.at[1] - s[1]) > GUARD_SIGHT);
+  const clear = far.some((b) => b.beat !== 'exit' && b.beat !== 'trailhead') ? { ...ends, beats: far } : ends;
+  return beatPosts(clear, quick.guards ?? 3).map((p, k) => ({ ...p, id: `guard-${k + 1}` }));
 }
+// how far a guard's narrow beam sees (mind/vocab.js SIGHTS: the guard class's), and a step beyond it
+const GUARD_SIGHT = SIGHTS.narrow.knobs.sightRange + 2;
 
 /** A puzzle's grid by the trail (5 × 5 cells of 2.5 m, square to the world), centred on the first of its beats (then
  * the start, then 10 m on from it) where every cell lies on the land and the land is fairly level (2 m from its lowest

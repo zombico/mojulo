@@ -107,7 +107,8 @@ describe('composed goals: what a level is played for, read from the prompt', () 
       expect(w.levels[id].goal).toEqual({ collect: 'relic', ...(id === ids.at(-1) ? { boss: true } : {}) });
     }
     const S = runSteps(w, { ref: 'gw' }), L = levelSteps(S);
-    expect(S.map((s) => s.key)).toEqual(['foe', ...ids.map((id) => `level-${id}-0`), 'game']);
+    // (a crawler's sentence comes with its hero, genre-forms.js heroFrameOf: made first, the levels' pilot)
+    expect(S.map((s) => s.key)).toEqual(['hero', 'foe', ...ids.map((id) => `level-${id}-0`), 'game']);
     for (const s of L) {
       expect(s.order.manifest).toMatchObject({ kind: 'stage', kit: 'gothic-stone', program: { use: 'crypt' } });
       const C = gameOf(s).mechanics.find((m) => m.kind === 'collect');
@@ -115,12 +116,12 @@ describe('composed goals: what a level is played for, read from the prompt', () 
       expect(C.pickups.length).toBeGreaterThan(0);
       expect(C.pickups.every((p) => p.item === 'relic')).toBe(true);
     }
-    // the boss in the last crypt's tomb, beside the level's own walker: its fall ends it, the tomb no longer the exit
+    // the boss in the last crypt's tomb, beside the hero: its fall ends it, the tomb no longer the exit
     const end = L.at(-1);
     expect(kinds(end)).toEqual(['collect', 'bag', 'fail-on-death', 'win-when']);
     expect(end.order.manifest.level.exit).toBe(false);
-    expect(end.order.manifest.entities.map((e) => [e.id, !!e.pilotable])).toEqual([['player', true], ['boss', false]]);
-    expect(withBuildingLevel(end.order.manifest, end.ref).entities.map((e) => e.id)).toEqual(['player', 'boss']);
+    expect(end.order.manifest.entities.map((e) => [e.id, !!e.pilotable])).toEqual([['hero', true], ['boss', false]]);
+    expect(withBuildingLevel(end.order.manifest, end.ref).entities.map((e) => e.id)).toEqual(['hero', 'boss']);
     expect(readBattle(end.order.manifest.play).foes[0].who).toBe('boss');
     for (const s of L.slice(0, -1)) expect(kinds(s)).toEqual(['collect', 'bag', 'reach-exit']);
     composes(S);

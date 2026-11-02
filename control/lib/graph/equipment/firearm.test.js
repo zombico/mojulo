@@ -7,6 +7,7 @@ import { createHash } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
 
 import { expandEquipment, validateBuild, GEAR_ITEMS, EQUIPMENT_ITEMS } from './expand.js';
+import { ARMS_ONLY_ITEMS } from './arms/models.js';
 import { FIREARM_ITEMS, FIREARM_STYLES, validateFirearmCard } from './firearm.js';
 import { FIREARM_SHAPES } from './firearm-shapes.js';
 import { CARRIED } from '../polygonizer/hero-carry.js';
@@ -22,9 +23,9 @@ const PINS = {
 };
 
 describe('firearms as equipment', () => {
-  it('are their own family: the myth catalogue is unchanged, the gear catalogue holds both', () => {
+  it('are their own family: the myth catalogue is unchanged, the gear catalogue holds them and the arms', () => {
     expect(EQUIPMENT_ITEMS).not.toContain('pistol');
-    expect(GEAR_ITEMS).toEqual([...EQUIPMENT_ITEMS, ...FIREARM_ITEMS]);
+    expect(GEAR_ITEMS).toEqual([...EQUIPMENT_ITEMS, ...FIREARM_ITEMS, ...ARMS_ONLY_ITEMS]);
   });
   it('the carry and the gear draw the same boxes', () => {
     for (const item of FIREARM_ITEMS) expect(CARRIED[item]).toBe(FIREARM_SHAPES[item]);
@@ -47,10 +48,11 @@ describe('firearms as equipment', () => {
       expect(trace.length).toBeGreaterThan(sockets.tip.origin[2] - sockets.stock.origin[2] - 1);
     }
   });
-  it('refuses by name: a myth sample, a stone, parts, an incomplete card', () => {
+  it('refuses by name: a myth sample, a stone, a part no model takes, an incomplete card', () => {
     expect(validateBuild({ type: 'equipment', item: 'pistol', style: 'elven' }).join('\n')).toMatch(/not a firearm sample \(service, future\)/);
     expect(validateBuild({ type: 'equipment', item: 'carbine', gem: 'ruby' }).join('\n')).toMatch(/build\.gem: a firearm takes none/);
-    expect(validateBuild({ type: 'equipment', item: 'carbine', parts: { blade: 'leaf' } }).join('\n')).toMatch(/build\.parts: a firearm takes none/);
+    // parts open the arms kernel (equipment/arms), whose model names the slots it takes
+    expect(validateBuild({ type: 'equipment', item: 'carbine', parts: { blade: 'leaf' } }).join('\n')).toMatch(/build\.parts\.blade: an assault carbine takes barrel, stock/);
     expect(validateFirearmCard({ roles: { metal: ['gunmetal', '#333333'] } }).join('\n')).toMatch(/roles\.body: required/);
     expect(validateBuild({ type: 'equipment', item: 'sword', style: 'service' }).join('\n')).toMatch(/not a sample/);
   });

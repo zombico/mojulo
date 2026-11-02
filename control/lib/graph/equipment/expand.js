@@ -1,9 +1,12 @@
 // equipment/expand — an equipment `build` on a workbench manifest, expanded into plain monomers on every read.
 //
 //   build: { type: 'equipment', item, style, dials?, parts?, gem?, seed?, laws? }
-//     item    dagger | sword | greatsword | staff | bow | shield, or a firearm: pistol | carbine | shotgun
+//     item    dagger | sword | greatsword | staff | bow | shield, or a firearm: pistol | carbine | shotgun, or an arm
+//             the arms kernel alone draws: rifle | smg | knife
 //     style   a seeded sample name (styles.js) or an inline style card; a firearm's are its own (firearm.js:
-//             service, the default, or future)
+//             service, the default, or future); an arm's a finish (arms/finishes.js)
+//     model, line   an arm's archetype and its line (arms/index.js): a pistol, a carbine or a shotgun naming either
+//             (or parts) is drawn by the arms kernel, as a rifle, an smg and a knife always are
 //     dials   { stylize 0–1, mass, focus, ornament } over the card's own
 //     parts   slot → variant ({ blade: 'leaf', head: 'claw', … }); for staff / bow / shield also focus, bark, limbs,
 //             twigs, leaves, wings
@@ -20,12 +23,13 @@ import { ITEMS, GEMLESS_HEADS, buildItem } from './items.js';
 import { CRYSTAL_GEMS } from '../polygonizer/crystal-optics.js';
 import { r3 } from './shapes.js';
 import { FIREARM_ITEMS, FIREARM_STYLES, DEFAULT_FIREARM_STYLE, isFirearm, validateFirearmCard, firearmCardOf, buildFirearm } from './firearm.js';
+import { isArmsBuild, validateArmsBuild, buildArm, ARMS_ONLY_ITEMS, ARM_ITEMS, stampArms } from './arms/index.js';
 
 export { LAWS_VERSION };
 export const EQUIPMENT_ITEMS = Object.freeze([...Object.keys(SWORDS), ...Object.keys(ITEMS)]);
 /** every item a build may name: the myth's (EQUIPMENT_ITEMS, the samples' catalogue) and the firearms (firearm.js) */
-export const GEAR_ITEMS = Object.freeze([...EQUIPMENT_ITEMS, ...FIREARM_ITEMS]);
-export { FIREARM_ITEMS, FIREARM_STYLES, isFirearm };
+export const GEAR_ITEMS = Object.freeze([...EQUIPMENT_ITEMS, ...FIREARM_ITEMS, ...ARMS_ONLY_ITEMS]);
+export { FIREARM_ITEMS, FIREARM_STYLES, isFirearm, isArmsBuild, ARM_ITEMS, stampArms };
 export const FOCI = Object.freeze({ dagger: ['guard', 'pommel', 'blade', 'none'], sword: ['guard', 'pommel', 'blade', 'none'], greatsword: ['guard', 'pommel', 'blade', 'none'],
   staff: ['head', 'none'], bow: ['riser', 'tips', 'curve', 'none'], shield: ['boss', 'none'] });
 const CUTS = ['natural', 'brilliant', 'cabochon'];
@@ -43,6 +47,7 @@ export function validateBuild(build) {
   const errs = [];
   if (!build || typeof build !== 'object') return ['build: { type: "equipment", item, style, … }'];
   if (build.type !== 'equipment') errs.push(`build.type: '${build.type}' — the workbench knows 'equipment'`);
+  if (isArmsBuild(build)) return [...errs, ...validateArmsBuild(build)];
   if (isFirearm(build.item)) return [...errs, ...firearmErrors(build)];
   if (!EQUIPMENT_ITEMS.includes(build.item)) errs.push(`build.item: '${build.item}' is not one of ${GEAR_ITEMS.join(', ')}`);
   const style = build.style ?? 'historical';
@@ -101,6 +106,10 @@ function resolvedErrors(build) {
 export function expandEquipment(build) {
   const errs = validateBuild(build);
   if (errs.length) throw new Error(`Invalid equipment build:\n- ${errs.join('\n- ')}`);
+  if (isArmsBuild(build)) {
+    const out = buildArm(build);
+    return { monomers: out.monomers, sockets: out.sockets, trace: { item: build.item, style: out.trace.variants.finish, dials: { stylize: build.dials?.stylize ?? 0, mass: build.dials?.mass ?? 1, ornament: 0, focus: 'none' }, laws: build.laws ?? out.trace.arms.laws, ...out.trace } };
+  }
   if (isFirearm(build.item)) {
     const style = build.style ?? DEFAULT_FIREARM_STYLE, out = buildFirearm(build.item, firearmCardOf(style));
     return { monomers: out.monomers, sockets: out.sockets, trace: { item: build.item, style: typeof style === 'string' ? style : style.id || 'inline', dials: { stylize: 0, mass: 1, ornament: 0, focus: 'none' }, laws: build.laws ?? LAWS_VERSION, ...out.trace } };
@@ -135,5 +144,5 @@ export function withEquipment(manifest) {
 /** The readout for `stats.equipment`: the focal, the sockets, the variants, the laws. */
 export function equipmentReadout(build) {
   const { sockets, trace } = expandEquipment(build);
-  return { item: trace.item, style: trace.style, laws: trace.laws, dials: { ...trace.dials, stylize: r3(trace.dials.stylize) }, variants: trace.variants, focal: trace.focal || null, sockets, length: trace.length, minFeature: trace.minFeature, ...(trace.bark ? { bark: trace.bark } : {}) };
+  return { item: trace.item, style: trace.style, laws: trace.laws, dials: { ...trace.dials, stylize: r3(trace.dials.stylize) }, variants: trace.variants, focal: trace.focal || null, sockets, length: trace.length, minFeature: trace.minFeature, ...(trace.bark ? { bark: trace.bark } : {}), ...(trace.arms ? { arms: trace.arms } : {}) };
 }
