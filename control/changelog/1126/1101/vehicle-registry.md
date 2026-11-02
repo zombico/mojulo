@@ -88,7 +88,9 @@ still measure, so no stored recipe changes by a byte.
 - **The tier read** (`vehicle-registry/tier.js` `vehicleTierOf`): the fidelity a game's vehicles are drawn at, read
   from what the game already says, the first that speaks winning:
   - the game's own word (`quick.tier`);
-  - a realistic hero (the quick hero's, the book's or an adopted hero's `form: 'realistic'`);
+  - a realistic hero (the quick hero's, the book's or an adopted hero's `form: 'realistic'`), or the people's body
+    rail (the quick game's `body`, the book's direction: `gameworld/game-bodies.js`) laying the realistic body in the
+    world's tradition and look;
   - the juice's written drawing (form → realistic, voxel → toy);
   - a shooter pole on the realistic side;
   - a voxel kit (→ toy);

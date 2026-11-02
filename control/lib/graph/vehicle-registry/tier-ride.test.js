@@ -6,6 +6,7 @@ import { buildsOf } from './builds.js';
 import { RIDES } from '../gameworld/ride.js';
 import { quickWorld, readQuick } from '../gameworld/quick.js';
 import { quickVehicleWords } from './doors.js';
+import { GAME_BODY_NAMES, gameBody } from '../gameworld/game-bodies.js';
 
 // rows chosen in code: an assembled ride whose row also has a realistic loft, and a row with only the loft
 const ids = Object.keys(VEHICLES);
@@ -19,6 +20,11 @@ describe('the tier read: what the game says, first that speaks', () => {
     expect(vehicleTierOf({ quick: { hero: { form: 'realistic' } }, juice: { fidelity: 'voxel' } })).toMatchObject({ tier: 'realistic', from: 'hero' });
     expect(vehicleTierOf({ quick: {} }, { heroSpec: { form: 'realistic' } })).toMatchObject({ tier: 'realistic', from: 'hero' });
     expect(vehicleTierOf({ characters: { hero: { form: 'realistic' } } }).from).toBe('hero');
+    // the people's body rail: one rail that lays the realistic body and one that does not, found in code
+    const realRail = GAME_BODY_NAMES.find((r) => gameBody(r, 'hero').spec.form === 'realistic'), otherRail = GAME_BODY_NAMES.find((r) => gameBody(r, 'hero').spec.form !== 'realistic');
+    expect(vehicleTierOf({ quick: { body: realRail } })).toMatchObject({ tier: 'realistic', from: 'body' });
+    expect(vehicleTierOf({ quick: { body: otherRail } }).from).not.toBe('body');
+    expect(vehicleTierOf({ characters: { direction: { body: realRail } } }).from).toBe('body');
     expect(vehicleTierOf({ juice: { fidelity: 'form' } })).toMatchObject({ tier: 'realistic', from: 'juice' });
     expect(vehicleTierOf({ juice: { fidelity: 'voxel' } })).toMatchObject({ tier: 'toy', from: 'juice' });
     expect(vehicleTierOf({ quick: { pole: 'realistic' } })).toMatchObject({ tier: 'realistic', from: 'pole' });
