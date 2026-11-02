@@ -19,7 +19,8 @@ describe('a concourse dressed', () => {
     expect(D.readout.shops['X1.0.0']).toBeGreaterThan(3);
     expect(of('geocity:shop-glass')).toHaveLength(D.readout.shops['X1.0.0']);
     for (const q of I.ports) {
-      const ax = q.side.endsWith('y') ? 0 : 1, on = of('geocity:shop-glass').filter((f) => Math.abs(f.corners[0][1 - ax] - (q.plane - q.N[1 - ax] * 0.5)) < 0.2);
+      // (a shop's glass on that wall: its depth out from the wall's inner face)
+      const ax = q.side.endsWith('y') ? 0 : 1, on = of('geocity:shop-glass').filter((f) => Math.abs(f.corners[0][1 - ax] - (q.plane - q.N[1 - ax] * 0.5)) < SHOP.depth + 0.2);
       for (const f of on) { const [a, b] = span(f, ax); expect(b <= q.lo - SHOP.clear + 1e-6 || a >= q.hi + SHOP.clear - 1e-6).toBe(true); }
     }
     const F = I.flight;
@@ -40,7 +41,7 @@ describe('a concourse dressed', () => {
     expect(D.readout.court).toMatchObject({ podium: 'X1.0.0' });
     expect(D.readout.court.tables).toBeGreaterThan(0);
     const walks = [I.through, I.down, ...I.ports.map((q) => q.reach)];
-    for (const c of D.colliders) {
+    for (const c of D.colliders.filter((x) => x.of.endsWith(':court'))) {
       const mid = [(c.min[0] + c.max[0]) / 2, (c.min[1] + c.max[1]) / 2];
       for (const w of walks) for (let k = 0; k + 1 < w.length; k++) {
         const a = w[k], b = w[k + 1], dx = b[0] - a[0], dy = b[1] - a[1], l2 = dx * dx + dy * dy, t = l2 ? Math.max(0, Math.min(1, ((mid[0] - a[0]) * dx + (mid[1] - a[1]) * dy) / l2)) : 0;

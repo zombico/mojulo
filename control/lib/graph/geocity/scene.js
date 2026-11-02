@@ -826,7 +826,8 @@ export function assembleGeocityScene(m, ctx = {}) {
   const inFaces = new Set([...podia.flatMap((P) => P.I.faces), ...tunnels.flatMap((t) => t.faces), ...(dressed?.faces ?? [])]);
   for (const P of podia) { faces.push(...P.I.faces); counts.buildings++; }
   for (const t of tunnels) { faces.push(...t.faces); colliders.push(...t.colliders); }
-  if (dressed) { faces.push(...dressed.faces); colliders.push(...dressed.colliders); }
+  // (its canopies stand outside, over the street doors: in the sun, not among the faces under the city)
+  if (dressed) { faces.push(...dressed.faces, ...dressed.street); colliders.push(...dressed.colliders); }
   const inside = podia[0] ?? null;
 
   // ── the cameras: the skyline from its water (or from past its land's edge), over the metro, the core, up its spine ──

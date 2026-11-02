@@ -42,6 +42,11 @@ export const PODIUM = Object.freeze({
   margin: 2,
   // the least plan that still holds a stair beside a way across the lobby (m)
   least: Object.freeze({ w: 12, d: 10 }),
+  // its finish, composed on the bay axes (era/style/bay-axes.js) as a mall's public space reads: the clean
+  // construction (terrazzo or a poured floor, panels or glazed tile, a coffered ceiling) in the everyday palette's warm
+  // whites and neutral greys, lit and dressed as an everyday room (white light, warm downlights; no grating, no crane),
+  // nothing laid on its floor and no hazard band at its doors (a lab's, not a concourse's)
+  compose: Object.freeze({ construction: 'science', palette: 'everyday', plot: 'everyday', dressing: 'everyday' }),
 });
 // the stage's wall: each room's interior a half wall inside its box (era/stage.js STAGE_KITS)
 const T = 0.25;
@@ -58,7 +63,7 @@ function turnFor(facing) {
  *  front. `w` along the front, `d` into the lot, `h` the lobby's height. */
 export function podiumRecipe(w, d, h, ports = []) {
   return {
-    kind: 'stage', kit: PODIUM.kit,
+    kind: 'stage', kit: PODIUM.kit, compose: { ...PODIUM.compose }, props: false,
     rooms: [{ id: 'concourse', x: 0, y: 0, w, d, h: PODIUM.concourse.h }, { id: 'lobby', x: 0, y: 0, w, d, h, storey: 1 }],
     links: [{ from: 'concourse', to: 'lobby' }],
     ways: [{ room: 'lobby', side: '-y', width: PODIUM.door.width }, ...ports.map((p) => ({ room: 'concourse', side: p.side, width: p.width ?? PODIUM.door.width, along: p.along }))],
@@ -138,7 +143,7 @@ export function podiumInside(lot, { padZ, avoid = [], ports = [], fit: F0 = null
   const W = (p) => [...toWorld(p), p[2] + base];
   const turnN = (n) => { const [x, y] = rot([n[0], n[1]]); return [x, y, n[2]]; };
   const box = (lo, hi) => { const a = W(lo), c = W(hi); return { min: P3([Math.min(a[0], c[0]), Math.min(a[1], c[1]), Math.min(a[2], c[2])]), max: P3([Math.max(a[0], c[0]), Math.max(a[1], c[1]), Math.max(a[2], c[2])]) }; };
-  const faces = P.faces.filter((f) => f.group !== 'stage:sky' && f.group !== 'stage:sunpatch').map((f) => ({ ...f, corners: f.corners.map((c) => P3(W(c))), ...(f.normal ? { normal: P3(turnN(f.normal)) } : {}), ...(f.outNormal ? { outNormal: P3(turnN(f.outNormal)) } : {}) }));
+  const faces = P.faces.filter((f) => f.group !== 'stage:sky' && f.group !== 'stage:sunpatch' && f.group !== 'stage:hazard').map((f) => ({ ...f, corners: f.corners.map((c) => P3(W(c))), ...(f.normal ? { normal: P3(turnN(f.normal)) } : {}), ...(f.outNormal ? { outNormal: P3(turnN(f.outNormal)) } : {}) }));
   const colliders = (P.colliders || []).map((c) => ({ ...box(c.min, c.max), of: `${lot.id}:in:${c.of}` }));
   const lights = (P.lights || []).map((l) => ({ ...l, name: `${lot.id}-${l.name}`, position: P3(W(l.position)) }));
   // each way's threshold: its floor across the wall's depth, from the wall's outer face to the room's own floor, in the

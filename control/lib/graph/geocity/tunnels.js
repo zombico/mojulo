@@ -169,12 +169,38 @@ export function tunnelOf(edge, A, B, ctx) {
     const strips = [[u - half, P.lo, z, z + H], [P.hi, u + half, z, z + H], [P.lo, P.hi, z + P.top, z + H]].filter(([a, b, c, d]) => b - a > 1e-3 && d - c > 1e-3);
     for (const [a, b, c, d] of strips) face([[s, a, c], [s, b, c], [s, b, d], [s, a, d]], [dir, 0, 0], 'geocity:tunnel-wall', look.wall, ([, v, zz]) => [v, zz]);
   }
-  // its lamps: a bright strip under the ceiling over its middle
-  for (const ls of lamps) {
-    const z = ceil(ls) - 0.04, cs = [[ls - 0.6, u - 0.15, z], [ls + 0.6, u - 0.15, z], [ls + 0.6, u + 0.15, z], [ls - 0.6, u + 0.15, z]].map((p) => W(...p)), N = [0, 0, -1];
-    const flip = ((cs[1][0] - cs[0][0]) * (cs[3][1] - cs[0][1]) - (cs[1][1] - cs[0][1]) * (cs[3][0] - cs[0][0])) > 0;
-    const c4 = flip ? cs.slice().reverse() : cs;
-    faces.push({ corners: c4, normal: N, outNormal: N, group: 'geocity:tunnel-lamp', fill: '#f4f6ff', cornerFills: c4.map(() => '#f4f6ff') });
+  // its finish, as a mall's glass and steel (polygonizer/floorplan-mall.js) dresses a passage: back-painted glass panels
+  // down each wall over a stainless kick band, a steel batten between each two, a steel handrail at a hand's height
+  // following its floor, and a lit glass strip down its ceiling's middle in a steel edge (where its lamps hang)
+  const zf = (s) => { const sp = cut.find(([a, b]) => s >= a - 1e-6 && s <= b + 1e-6) ?? cut[cut.length - 1]; return sp[2] + ((sp[3] - sp[2]) * (s - sp[0])) / ((sp[1] - sp[0]) || 1); };
+  const plain = (cs, n, group, hex, g = 1) => {
+    const c = cs.map((p) => W(...p)), N = P3([k === 0 ? n[0] : n[1], k === 0 ? n[1] : n[0], n[2]]), fills = cs.map(([ss, v, z]) => tint(hex, g * near(ss, v, z)));
+    const e1 = [c[1][0] - c[0][0], c[1][1] - c[0][1], c[1][2] - c[0][2]], e2 = [c[3][0] - c[0][0], c[3][1] - c[0][1], c[3][2] - c[0][2]];
+    const cr = [e1[1] * e2[2] - e1[2] * e2[1], e1[2] * e2[0] - e1[0] * e2[2], e1[0] * e2[1] - e1[1] * e2[0]], flip = cr[0] * N[0] + cr[1] * N[1] + cr[2] * N[2] < 0;
+    faces.push({ corners: flip ? c.slice().reverse() : c, normal: N, outNormal: N, group, fill: fills[0], cornerFills: flip ? fills.slice().reverse() : fills });
+  };
+  for (const sg of [-1, 1]) {
+    const wv = u + sg * half, inn = [0, -sg, 0], at = (d) => wv - sg * d;
+    for (const [a, b, za, zb] of cut) {
+      // (each span's kick band, glass and handrail: the floor's line, a little off the wall)
+      plain([[a, at(0.02), za], [b, at(0.02), zb], [b, at(0.02), zb + 0.15], [a, at(0.02), za + 0.15]], inn, 'geocity:tunnel-steel', '#7a7f86', 0.9);
+      plain([[a, at(0.03), za + 0.15], [b, at(0.03), zb + 0.15], [b, at(0.03), zb + 2.45], [a, at(0.03), za + 2.45]], inn, 'geocity:tunnel-glass', '#b9c4ca', 0.62);
+      // (over the glass to the ceiling, a band of brushed steel)
+      plain([[a, at(0.03), za + 2.45], [b, at(0.03), zb + 2.45], [b, at(0.03), ceil(b) - 0.01], [a, at(0.03), ceil(a) - 0.01]], inn, 'geocity:tunnel-steel', '#8a9096', 0.7);
+      plain([[a, at(0.17), za + 0.95], [b, at(0.17), zb + 0.95], [b, at(0.12), zb + 0.95], [a, at(0.12), za + 0.95]], [0, 0, 1], 'geocity:tunnel-steel', '#b4b9be');
+      plain([[a, at(0.17), za + 0.9], [b, at(0.17), zb + 0.9], [b, at(0.17), zb + 0.95], [a, at(0.17), za + 0.95]], inn, 'geocity:tunnel-steel', '#9aa0a6');
+    }
+    // (a steel batten between each two panels, a hand proud of the glass)
+    for (let ss = 2.4; ss < L - 0.3; ss += 2.4) {
+      const z = zf(ss);
+      plain([[ss - 0.04, at(0.07), z + 0.15], [ss + 0.04, at(0.07), z + 0.15], [ss + 0.04, at(0.07), z + 2.45], [ss - 0.04, at(0.07), z + 2.45]], inn, 'geocity:tunnel-steel', '#8a9096');
+    }
+  }
+  // its ceiling's lit glass strip, in a steel edge
+  for (const [a, b] of cut) {
+    const ca = ceil(a) - 0.03, cb = ceil(b) - 0.03;
+    plain([[a, u - 0.35, ca], [b, u - 0.35, cb], [b, u + 0.35, cb], [a, u + 0.35, ca]], [0, 0, -1], 'geocity:tunnel-lamp', '#f4f8fb', 1.6);
+    for (const e of [-0.42, 0.35]) plain([[a, u + e, ca - 0.01], [b, u + e, cb - 0.01], [b, u + e + 0.07, cb - 0.01], [a, u + e + 0.07, ca - 0.01]], [0, 0, -1], 'geocity:tunnel-steel', '#6c7176');
   }
   // its walls held: a box down each side, its floor's lowest to its ceiling's highest
   const zLo = Math.min(...cut.map((c) => Math.min(c[2], c[3]))), zHi = Math.max(...cut.map(([a, b]) => Math.max(ceil(a), ceil(b))));

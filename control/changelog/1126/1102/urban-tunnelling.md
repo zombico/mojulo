@@ -68,3 +68,16 @@
   light), so nothing of the sky reaches below grade; on a page taking the live sun, every face under the city carries a
   sun share of none, so a shadow on the street never reaches it. The payload gains a `food-court` camera and anchor and
   `geocity.under.dress` (the routes' colours, each concourse's shopfronts, the court's tables).
+- **Glass and steel, as a mall builds them** (after `polygonizer/floorplan-mall.js`): a podium's lobby and concourse are
+  now composed on the bay axes (`compose`: the clean construction, its terrazzo or poured floor and coffered ceiling, in
+  the everyday palette's warm whites, lit and dressed as an everyday room; no props, no hazard band). A shopfront is the
+  mall's glazed front: a translucent display pane (the page's glass pass) half a metre out from its lit display and
+  shelves, a steel frame of real members (a dark kick plinth, a brushed head rail, slim mullions, end jambs), a deeper
+  sign bulkhead in its shop's colour, dark steel returns; a body is held off it, and a bay a walk passes is left as
+  wall. The walls between the fronts, and the lobby's round its door and its stair, are clad in large-format pale stone
+  panels with steel reveals, a steel skirting and a steel band. A laylight runs down each concourse's middle (lit glass
+  in a steel frame of edge beams and ribs), the stair's well in the lobby is behind glass under a steel cap, and a glass
+  canopy on a steel frame, tied back to the facade, stands over each street door (in the sun, with the street). A
+  passage is clad in back-painted glass panels between steel battens over a stainless kick band, a brushed steel frieze
+  to its ceiling, a steel handrail each side following its floor, and a lit glass strip in a steel edge down its
+  ceiling in place of its lamps.
