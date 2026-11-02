@@ -6,7 +6,8 @@ its face, body and later its hands directed together on one clock, and its take 
 - **Cameras and cutscenes become Cinematics.** The studio's sixth department now directs scenes the way a film crew does:
   actors who play a role from a script in a style, speaking to each other and listening, walking their marks; the
   coverage a director would shoot; directed moments in the game; flythroughs and recorded runs; and a scene exported to
-  Blender in a film look or an anime look. The README, the agent's one-breath answer, `CLAUDE.md` and the plugin say so.
+  Blender in a film look or an anime look. The README, the agent's one-breath answer and `CLAUDE.md` say so;
+  the plugin's README says so at the next release, which raises its version (installed copies key on it).
   Its craft is written down as principles, each naming the code that holds it (`docs/cinematics.md`).
 - **The director's notes** (`control/lib/graph/actor/notes.js`): suggestions read off a scene and its coverage, as a
   director, a script supervisor or an editor would give them, each with the principle it rests on and a change to the
