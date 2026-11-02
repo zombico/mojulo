@@ -10,6 +10,9 @@
  *             lamps, steeper
  *   bunker    a military base's tunnel between hardened buildings: a service tunnel's box under a metre of slab where it
  *             passes under a building, and more cover than a service tunnel's under open ground
+ *   rail      a subway's running tunnel, cut and cover: two tracks, a line of columns between them, a raised safety
+ *             walkway along one wall, deep and gentle, no stair (a station's track level is its floor)
+ *   tube      a bored tube: one track in a vault on a ring of segments
  *   vehicle   a road tunnel under a block or a river: two lanes and a walkway each side, deep, gentle, no stair
  *
  *   SECTIONS            the rows
@@ -22,9 +25,13 @@ export const SECTIONS = Object.freeze({
   service: Object.freeze({ width: 3, height: 2.7, door: 2, cover: 1, slab: 0.3, grade: 1 / 8, stair: true, lamp: 5, longest: 200, finish: 'service' }),
   bunker: Object.freeze({ width: 3, height: 2.6, door: 2, cover: 1.2, slab: 1, grade: 1 / 8, stair: true, lamp: 6, longest: 300, finish: 'service' }),
   vehicle: Object.freeze({ width: 10, height: 5.5, door: 8, cover: 2.5, slab: 1, grade: 1 / 16, stair: false, lamp: 8, longest: 2000, finish: 'road' }),
+  rail: Object.freeze({ width: 9.6, height: 5.2, door: 9.6, cover: 2, slab: 1, grade: 1 / 30, stair: false, lamp: 10, longest: 2000, finish: 'rail', profile: 'box' }),
+  tube: Object.freeze({ width: 5.6, height: 5.4, door: 5.6, cover: 4, slab: 2, grade: 1 / 30, stair: false, lamp: 8, longest: 2000, finish: 'rail', profile: 'vault' }),
 });
 export const SECTION_IDS = Object.freeze(Object.keys(SECTIONS));
-export const FINISHES = Object.freeze(['concourse', 'service', 'road']);
+export const FINISHES = Object.freeze(['concourse', 'service', 'road', 'rail']);
+// a section's shape across: a box (flat ceiling) or a vault (walls to its springing, an arch over them)
+export const PROFILES = Object.freeze(['box', 'vault']);
 
 /** A section by its id, or a row changed from one (`{ from, width?, … }`). */
 export function readSection(s = 'passage') {
@@ -36,8 +43,8 @@ export function readSection(s = 'passage') {
   const base = SECTIONS[s.from], out = { id: `${s.from}+`, ...base };
   for (const [k, v] of Object.entries(s)) {
     if (k === 'from') continue;
-    if (!(k in base)) throw new Error(`network: '${k}' is not a setting of a section (${Object.keys(base).join(', ')})`);
-    if (k === 'finish' ? !FINISHES.includes(v) : k === 'stair' ? typeof v !== 'boolean' : !(typeof v === 'number' && v > 0)) throw new Error(`network: section.${k} is ${k === 'finish' ? FINISHES.join(' | ') : k === 'stair' ? 'true or false' : 'a positive number'}`);
+    if (!(k in base) && k !== 'profile') throw new Error(`network: '${k}' is not a setting of a section (${[...new Set([...Object.keys(base), 'profile'])].join(', ')})`);
+    if (k === 'finish' ? !FINISHES.includes(v) : k === 'profile' ? !PROFILES.includes(v) : k === 'stair' ? typeof v !== 'boolean' : !(typeof v === 'number' && v > 0)) throw new Error(`network: section.${k} is ${k === 'finish' ? FINISHES.join(' | ') : k === 'profile' ? PROFILES.join(' | ') : k === 'stair' ? 'true or false' : 'a positive number'}`);
     out[k] = v;
   }
   return out;
