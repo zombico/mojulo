@@ -26,7 +26,7 @@
  * Pure: reads the measuring tables, never writes them.
  */
 import { VEHICLES as ROWS, handlesOf } from './roster.js';
-import { VEHICLES as PHYSICS } from '../roads/vehicles.js';
+import { VEHICLES as PHYSICS, wheelLayout } from '../roads/vehicles.js';
 import { FLEET } from '../roads/fleet.js';
 import { CRAFT_ARCHETYPES } from '../craft-shelf/craft-archetypes.js';
 import { OPEN_FRAME } from '../car-designer/realistic.js';
@@ -59,6 +59,8 @@ const SERVES = Object.freeze({
 const B = (tier, via, key, status, where, why, uses = SERVES[via]) => ({ tier, via, key, status, uses, where, why });
 // a tracked class (roads/vehicles.js `running: 'track'`) is drawn, parked and watched, not driven: skid steer is not built
 const tracked = (cls) => PHYSICS[cls]?.running === 'track';
+// a cycle class (two in line, or a three-wheeler) is the cycle shelf's to build, never the car loft's
+const cycleClass = (cls) => Boolean(PHYSICS[cls]) && wheelLayout(PHYSICS[cls]) !== 'axles';
 const UNDRIVEN = Object.freeze(SERVES.loft.filter((u) => u !== 'driven'));
 
 /** Every build a row has, toy first, then stylised, realistic, the concept last. */
@@ -115,7 +117,9 @@ export function upscaleOf(id) {
   const cls = [has.physics ?? []].flat()[0];
   // (a tracked class's body is live for what it serves; driving it is what it needs)
   if (cls && tracked(cls) && atTier(builds, 'realistic')?.status === 'live') return { id, use, realistic: 'none', via: null, next: 'driving it: a tracked class steers by skid steer, not built yet (its realistic body is live, parked and watched)' };
-  const next = cls && UNBUILT[cls] ? `its realistic body: ${UNBUILT[cls]}` : cls ? 'a realistic body for its physics class (the loft has no frame for it)' : 'a realistic body and its physics';
+  const next = cls && UNBUILT[cls] ? `its realistic body: ${UNBUILT[cls]}`
+    : cls && cycleClass(cls) ? `its realistic body: the cycle shelf's (cycle-shelf/), a ${wheelLayout(PHYSICS[cls])} machine ridden astride, not built yet`
+      : cls ? 'a realistic body for its physics class (the loft has no frame for it)' : 'a realistic body and its physics';
   return { id, use, realistic: 'none', via: null, next };
 }
 

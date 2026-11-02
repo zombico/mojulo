@@ -32,6 +32,7 @@
  *     racer     true: the cartoon racer's parts grammar is its build
  *     craft     craft-shelf CRAFT_ARCHETYPES
  *     sky       skyscape/eye.js CRAFT: the fly goal's flight model
+ *     cycle     cycle-shelf CYCLE_ARCHETYPES: a machine ridden astride, or a three-wheeler made of one and its add-ons
  *     tech      tech-crafter's vehicle trait: the concept it falls back to at every tier (many rows may share one)
  *
  * Pure data and pure functions: no clock, no dice.
@@ -140,10 +141,38 @@ export const VEHICLES = {
     { physics: 'buggy', tech: 'car' }),
   atv: row('quad bike', ['atv', 'quad', 'four-wheeler', 'all-terrain vehicle'], 'offroad', 'trail', M, ['driven', 'parked'],
     { physics: 'atv', tech: 'car' }),
-  motorcycle: row('motorcycle', ['motorbike', 'dirt bike', 'dirtbike', 'motocross bike', 'scooter', 'moped'], 'offroad', 'trail', M, ROAD,
+  // ── ridden astride: two wheels in line, and the three-wheelers made of them (the cycle shelf builds them) ────
+  // (a road bike is a bicycle's word, so the motorcycle is the standard road machine by its own words; 'chopper' is the
+  // helicopter's and 'cruiser' the police car's, so the cruiser is said in full; 'rickshaw' alone is the cart's, pulled
+  // on foot: the cycle and auto rickshaws are said in full)
+  motorcycle: row('motorcycle', ['motorbike', 'road motorcycle', 'standard motorcycle', 'naked bike', 'street bike'], 'road', 'commuter', M, ROAD,
+    { physics: 'streetBike', tech: 'motorcycle' }),
+  'dirt-bike': row('dirt bike', ['dirtbike', 'motocross bike', 'mx bike', 'enduro bike', 'trail bike', 'motocrosser'], 'offroad', 'trail', M, ROAD,
     { physics: 'dirtBike', tech: 'motorcycle' }),
+  'sport-bike': row('sport bike', ['sportbike', 'superbike', 'sports motorcycle', 'supersport'], 'road', 'sport', M, ROAD,
+    { physics: 'sportBike', tech: 'motorcycle' }),
+  'race-bike': row('race bike', ['racebike', 'racing motorcycle', 'grand prix bike', 'gp bike', 'prototype racer'], 'road', 'racer', M, ['driven', 'watched'],
+    { physics: 'raceBike', tech: 'motorcycle' }),
+  'cruiser-bike': row('cruiser motorcycle', ['cruiser bike', 'v-twin', 'bobber', 'custom bike', 'chopper bike'], 'road', 'commuter', M, ROAD,
+    { physics: 'cruiserBike', tech: 'motorcycle' }),
+  scooter: row('scooter', ['motor scooter', 'maxi scooter', 'step-through scooter'], 'road', 'commuter', M, ROAD,
+    { physics: 'scooter', tech: 'motorcycle' }),
+  moped: row('moped', ['underbone', 'step-through', 'motor bicycle'], 'road', 'commuter', M, ROAD,
+    { physics: 'moped', tech: 'motorcycle' }),
+  'e-bike': row('e-bike', ['ebike', 'electric bike', 'electric bicycle', 'pedelec'], 'road', 'commuter', M, ROAD,
+    { physics: 'eBike', tech: 'bicycle' }),
   bicycle: row('bicycle', ['bike', 'cyclist', 'pushbike', 'push bike'], 'road', 'commuter', ['rustic', 'modern'], ['driven', 'traffic', 'parked'],
-    { scenery: 'cyclist', tech: 'bicycle' }),
+    { scenery: 'cyclist', physics: 'bicycle', tech: 'bicycle' }),
+  'sidecar-outfit': row('sidecar outfit', ['sidecar', 'motorcycle and sidecar', 'motorcycle with sidecar', 'sidecar rig'], 'road', 'commuter', M, ROAD,
+    { physics: 'sidecarOutfit', tech: 'motorcycle' }),
+  'motor-trike': row('motor trike', ['trike', 'motor tricycle', 'motorcycle trike', 'three-wheeled motorcycle'], 'road', 'commuter', M, ROAD,
+    { physics: 'motorTrike', tech: 'motorcycle' }),
+  'tuk-tuk': row('tuk-tuk', ['tuktuk', 'auto rickshaw', 'autorickshaw', 'three-wheeler taxi'], 'road', 'hire', M, ROAD,
+    { physics: 'tukTuk', tech: 'motorcycle' }),
+  'cycle-rickshaw': row('cycle rickshaw', ['pedicab', 'trishaw', 'bike taxi', 'pedal rickshaw'], 'road', 'hire', ['rustic', 'modern'], ROAD,
+    { physics: 'cycleRickshaw', tech: 'bicycle' }),
+  tricycle: row('tricycle', ['cargo trike', 'box trike', 'cargo tricycle', 'adult tricycle', 'pedal trike'], 'road', 'hauler', ['rustic', 'modern'], ROAD,
+    { physics: 'cargoTrike', tech: 'bicycle' }),
   // ── haulers ─────────────────────────────────────────────────────────────────
   pickup: row('pickup truck', ['pickup', 'pick-up', 'ute', 'full-size pickup'], 'road', 'hauler', M, ROAD,
     { physics: 'pickup', fleet: 'pickup', tech: 'truck' }),
@@ -342,6 +371,7 @@ export const HANDLE_TABLES = Object.freeze({
   racer: { claim: 'one', table: 'car-designer racer grammar (racer.js)' },
   craft: { claim: 'one', table: 'craft-shelf/craft-archetypes.js CRAFT_ARCHETYPES' },
   sky: { claim: 'one', table: 'skyscape/eye.js CRAFT' },
+  cycle: { claim: 'one', table: 'cycle-shelf/cycle-archetypes.js CYCLE_ARCHETYPES' },
   tech: { claim: 'shared', table: 'gameworld/tech-crafter.js CRAFT_TRAITS.vehicle (a form\'s variant)' },
 });
 

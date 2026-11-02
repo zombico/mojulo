@@ -16,7 +16,7 @@ import { VEH_LIGHTS_FAMILIES } from '../vehicle-designer/veh-lights.js';
 import { MOTIFS } from '../gameworld/tech-direction.js';
 import { ADORNMENT_PIECES } from '../gameworld/tech-adornment.js';
 import { BODY_PLANS } from '../gameworld/tech-bodyplan.js';
-import { VEHICLES } from '../roads/vehicles.js';
+import { VEHICLES, wheelLayout } from '../roads/vehicles.js';
 
 const keysOf = (o) => Object.keys(o).sort();
 
@@ -31,8 +31,8 @@ describe('every derive names a live dial', () => {
     expect([...DIALS.motif.keys].sort()).toEqual(keysOf(MOTIFS));
     for (const k of DIALS.adorn.keys) expect(ADORNMENT_PIECES, k).toHaveProperty(k);
     expect([...DIALS.bodyplan.keys].sort()).toEqual(BODY_PLANS['vehicle/wheeled'].variants.map((x) => x.name).sort());
-    // the classes are the physics rows, but a two-wheeler (not built yet)
-    expect([...DIALS.class.keys].sort()).toEqual(keysOf(VEHICLES).filter((k) => VEHICLES[k].track > 0));
+    // the classes are the physics rows on axles: a cycle, two in line or a three-wheeler, is the cycle shelf's
+    expect([...DIALS.class.keys].sort()).toEqual(keysOf(VEHICLES).filter((k) => wheelLayout(VEHICLES[k]) === 'axles'));
     expect([...new Set(Object.values(VEHICLES).map((r) => r.drive))].sort()).toEqual([...DIALS.drive.keys].sort());
     for (const k of DIALS.physics.keys) expect(VEHICLES.compact, k).toHaveProperty(k === 'share' ? 'share' : k);
     expect(DIALS.proportion.keys).toBe(PROPORTION_KEYS);

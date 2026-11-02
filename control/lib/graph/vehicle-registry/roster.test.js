@@ -14,6 +14,7 @@ import { RIDES } from '../gameworld/ride.js';
 import { SUPERCAR_LIBRARY } from '../car-designer/vehicle-library.js';
 import { CRAFT_ARCHETYPES } from '../craft-shelf/craft-archetypes.js';
 import { CRAFT } from '../skyscape/eye.js';
+import { CYCLE_ARCHETYPES } from '../cycle-shelf/cycle-archetypes.js';
 import { CRAFT_TRAITS } from '../gameworld/tech-crafter.js';
 
 const IDS = Object.keys(VEHICLES);
@@ -31,6 +32,7 @@ const TABLES = {
   supercar: Object.keys(SUPERCAR_LIBRARY),
   craft: Object.keys(CRAFT_ARCHETYPES),
   sky: Object.keys(CRAFT),
+  cycle: Object.keys(CYCLE_ARCHETYPES),
 };
 const NETS = [...Object.keys(CAR_NETS), ...Object.keys(SMOOTH_BOX_NETS), ...Object.keys(AIRCRAFT_FUSELAGE_NETS)];
 
