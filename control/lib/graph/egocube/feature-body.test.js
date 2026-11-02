@@ -236,8 +236,16 @@ describe('the feature body', () => {
     // (THE BEAT: each forepaw down with the other side's hind foot, and the two diagonals half a stride apart)
     for (const [f, hd] of [['RF', 'LH'], ['LF', 'RH']]) expect(down[f].filter((d, i) => d !== down[hd][i]).length, f).toBeLessThanOrEqual(2);
     expect(down.LH.filter((d, i) => d === down.RH[i]).length).toBeLessThanOrEqual(2);
-    // (THE COLUMN: a standing foreleg nearly straight, its elbow never closing past 50°)
-    for (const [S, id] of [['R', 'RF'], ['L', 'LF']]) keys.forEach((k, i) => { if (down[id][i]) expect(k[`elbow${S}`], `${S} ${i}`).toBeLessThan(50); });
+    // (THE COLUMN: a standing foreleg nearly straight, the body vaulting over it, its elbow never closing past 45°)
+    for (const [S, id] of [['R', 'RF'], ['L', 'LF']]) keys.forEach((k, i) => { if (down[id][i]) expect(k[`elbow${S}`], `${S} ${i}`).toBeLessThan(45); });
+    // (FROM THE SIDE, the legs apart: in every key the forelegs (elbow, wrist, paw), raked ahead, stand clear in front of
+    // the hind legs (knee, ankle, toes), however the diagonals swing; the trunk tipped forward near the all-fours pose's
+    // hinge, and holding it: the body vaults, it does not rock)
+    at.forEach((x, i) => {
+      const F = ['elbow', 'wrist', 'knuckles'].flatMap((p) => ['R', 'L'].map((S) => x[p + S][1])), H = ['knee', 'ankle', 'toeBase', 'toeTip'].flatMap((p) => ['R', 'L'].map((S) => x[p + S][1]));
+      expect(Math.min(...F) - Math.max(...H), `${i}`).toBeGreaterThan(0.05 * h);
+    });
+    for (const k of keys) { expect(k.hinge).toBeGreaterThan(plan.clips.fours[1].hinge - 6); expect(k.hinge).toBe(keys[0].hinge); }
     // (THE BOUNCE: the body lowest as the diagonals stand, the head nodding after it)
     const hipZ = at.map((x) => x.hipR[2]);
     expect(Math.max(...hipZ) - Math.min(...hipZ)).toBeGreaterThan(0.01 * h);

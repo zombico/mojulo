@@ -44,7 +44,7 @@ import { resolveTune, detailBake } from './feature-tune.js';
 import { tuftColour } from './feature-tufts.js';
 import { attachAll } from './feature-attach.js';
 import { foursClips, FEATURE_GALLOP, FEATURE_GAIT } from './feature-function.js';
-import { FEATURE_TROT, trotMeasures, trotSignals } from './feature-trot.js';
+import { FEATURE_TROT, trotMeasures, trotSignals, trotVault } from './feature-trot.js';
 import { plumageOf, wingTones } from './feature-birds.js';
 import { speciesParams } from '../fauna/species.js';
 import { animalCard } from './mascot-animals.js';
@@ -528,12 +528,14 @@ function carried(plan, carriage) {
   }
 }
 
-/** THE TROT ON ALL FOURS (feature-trot.js), posed on the rig from the settled all-fours pose (its hinge, waist, look,
- *  carried tail): the hind feet's targets and each forepaw solved to its point on the ONE ground every planted foot slides
- *  back on (the elbow by the law of cosines on the upper arm and the forearm, the aim corrected until the posed paw is
- *  there), the body sunk by the stride's heave, the trunk twisted between its girdles, the neck nodding and the tail
- *  swishing after the bounce. Keyed at the packer's samples (FEATURE_TROT.keys). Its measures ride `mascot.trot` (the
- *  cycle's seconds and the ground speed a game plays it at). An animal whose legs reach no stance does not trot. */
+/** THE TROT ON ALL FOURS (feature-trot.js), posed on the rig from the settled all-fours pose (its waist, look, carried
+ *  tail): the trunk tipped forward until a standing foreleg rakes ahead (the legs apart from the side) and holding that
+ *  lean; the hind feet's targets and each forepaw solved to its point on the ONE ground every planted foot slides back
+ *  on (the elbow by the law of cosines on the upper arm and the forearm, the aim corrected until the posed paw is
+ *  there); the body vaulting over the standing foreleg and bouncing, the trunk twisted between its girdles, the neck
+ *  nodding and the tail swishing after the bounce. Keyed at the packer's samples (FEATURE_TROT.keys). Its measures ride
+ *  `mascot.trot` (the cycle's seconds and the ground speed a game plays it at). An animal whose legs reach no stance does
+ *  not trot. */
 function trotted(plan, T = FEATURE_TROT) {
   const base = plan.clips.fours?.[1];
   if (!base?.armR) return;
@@ -541,42 +543,42 @@ function trotted(plan, T = FEATURE_TROT) {
   const len = (a, b) => Math.hypot(b[0] - a[0], b[1] - a[1], b[2] - a[2]), hip0 = rigNodesAt(R, base).nodes;
   // (the trot crouches a little, `crouch` of the hip's height: what the stance is measured at, the body's highest)
   const hip = hip0.hipR[2] - hip0.toeBaseR[2], crouch = T.crouch * hip, up = len(J.shoulderR, J.elbowR), fore = len(J.elbowR, J.knucklesR);
-  // (THE CARRIAGE: a stance foreleg is a column, near straight (the horse's loaded elbow never closes far): the trunk tipped
-  // up over the hips, no more than `rise` degrees, until the shoulder stands `column` of the arm over the floor, and the
-  // head turned again to look ahead. An arm shorter than that keeps the all-fours carriage)
-  const floorF = hip0.knucklesR[2], shoulderAt = (hg) => rigNodesAt(R, { ...base, hinge: hg, sink: r4(crouch) }).nodes.shoulderR[2] - floorF, tall = T.column * (up + fore);
-  let hinge = base.hinge;
-  if (shoulderAt(hinge) < tall) { let lo = base.hinge - T.rise, hi = base.hinge; if (shoulderAt(lo) <= tall) hinge = lo; else { for (let it = 0; it < 24; it++) { const m = (lo + hi) / 2; (shoulderAt(m) > tall ? (lo = m) : (hi = m)); } hinge = lo; } }
-  const carriage = hinge === base.hinge ? base : lookAhead(R, { ...base, hinge: r4(hinge) }), n0 = rigNodesAt(R, { ...carriage, sink: r4(crouch) }).nodes;
-  const tallAt = rigNodesAt(R, { ...carriage, sink: r4(crouch) }).nodes.shoulderR[2] - floorF;
-  // (each stance centred where its leg reaches evenly fore and aft (the horse study's footfall): the forepaw under its
-  // shoulder, the hind's ankle under its hip; across, where the all-fours pose stands them. How far fore and aft of it
-  // the leg reaches: the ankle within `reach` of the femur and tibia, the paw within it of the arm)
-  // (the forepaw under its shoulder, or ahead of it as far as an arm too long for the shoulder's height reaches the floor)
+  // (THE CARRIAGE: the trunk tipped forward over the hips until a standing foreleg, a COLUMN `column` of its arm, rakes
+  // `rake` degrees ahead of its shoulder to the floor: the chest out over the forepaws, the forelegs clear of the hind
+  // legs from the side; the head turned again to look ahead)
+  const floorF = hip0.knucklesR[2], Dc = T.column * (up + fore), rk = (T.rake * Math.PI) / 180;
+  const heightAt = (hg) => rigNodesAt(R, { ...base, hinge: hg, sink: r4(crouch) }).nodes.shoulderR[2] - floorF;
+  let lo0 = base.hinge - 30, hi0 = base.hinge + 15;
+  for (let it = 0; it < 24; it++) { const m = (lo0 + hi0) / 2; (heightAt(m) > Dc * Math.cos(rk) ? (lo0 = m) : (hi0 = m)); }
+  const carriage = lookAhead(R, { ...base, hinge: r4((lo0 + hi0) / 2) }), n0 = rigNodesAt(R, { ...carriage, sink: r4(crouch) }).nodes;
+  // (each stance where its leg reaches it (the horse study's footfall): the hind's ankle `back` of the hip's height
+  // behind it (the hind legs driving from behind, apart from the forelegs), how far fore and aft its ankle stays within
+  // `reach` of the femur and tibia; the forepaw where the column rakes to, as far fore and aft as the shoulder vaulting
+  // over it falls no more than `vault` of the arm; across, where the all-fours pose stands them)
   const thigh = len(J.hipR, J.kneeR) + len(J.kneeR, J.ankleR), meta = sub(n0.ankleR, n0.toeBaseR), floorH = hip0.toeBaseR[2];
-  const ahead = (side) => { const sh = n0[`shoulder${side}`], dx = hip0[`knuckles${side}`][0] - sh[0]; return Math.sqrt(Math.max(0, tall ** 2 - (sh[2] - floorF) ** 2 - dx * dx)); };
-  const at = { H: (side) => [hip0[`toeBase${side}`][0], n0[`hip${side}`][1] - meta[1], floorH], F: (side) => [hip0[`knuckles${side}`][0], n0[`shoulder${side}`][1] + ahead(side), floorF] };
+  const dx = hip0.knucklesR[0] - n0.shoulderR[0], arc = Math.sqrt(Math.max(1e-9, Dc * Dc - dx * dx));
+  const ahead = arc * Math.sin(rk), standF = (d) => Math.sqrt(Math.max(0, arc * arc - d * d));
+  const at = { H: (side) => [hip0[`toeBase${side}`][0], n0[`hip${side}`][1] - meta[1] - T.back * hip, floorH], F: (side) => [hip0[`knuckles${side}`][0], n0[`shoulder${side}`][1] + ahead, floorF] };
   const spanOf = (from, to, L) => { const d = sub(to, from), A = Math.sqrt(Math.max(0, (T.reach * L) ** 2 - d[0] ** 2 - d[2] ** 2)); return Math.max(0, A - Math.abs(d[1])); };
-  const spanH = spanOf(n0.hipR, add(at.H('R'), meta), thigh), spanF = spanOf(n0.shoulderR, at.F('R'), up + fore);
+  const spanH = spanOf(n0.hipR, add(at.H('R'), meta), thigh), spanF = Math.max(0, standF(standF(ahead) - T.vault * (up + fore)) - ahead);
   const M = trotMeasures({ hip, spanH, spanF }, T);
   if (M.stance < 0.02 * h) return;
   const s = M.scale * T.show, lift = { fore: Math.min(T.lift.fore * s, 0.35 * hip), hind: Math.min(T.lift.hind * s, 0.25 * hip) };
   const S = trotSignals(M, lift, T), K = T.keys, heaves = Array.from({ length: K }, (_, i) => S.heave(i / K)), top = Math.max(...heaves);
   const ID = { R: { hind: 'RH', fore: 'RF' }, L: { hind: 'LH', fore: 'LF' } };
-  const keys = [];
-  for (let i = 0; i < K; i++) {
-    const t = i / K, tw = S.twist(t), sw = S.swish(t);
-    // (the front girdle takes `give` of the bounce: the trunk tipped about the hips, key by key, to hold the shoulder
-    // there, so the standing foreleg stays a column and the haunches take the rest)
-    const sink = crouch + top - heaves[i], zs = tallAt - T.give * (top - heaves[i]), shoulderZ = (hg) => rigNodesAt(R, { ...carriage, hinge: hg, sink: r4(sink) }).nodes.shoulderR[2] - floorF;
-    let lo = carriage.hinge - 20, hi = carriage.hinge + 20;
-    for (let it = 0; it < 22; it++) { const m = (lo + hi) / 2; (shoulderZ(m) > zs ? (lo = m) : (hi = m)); }
-    let k = { ...carriage, hinge: r4((lo + hi) / 2), sink: r4(sink), spine: { ...(base.spine ?? {}), twist: [tw >= 0 ? 'left' : 'right', r4(T.twist * Math.abs(tw))] },
-      neck: { ...(carriage.neck ?? {}), pitch: r4((carriage.neck?.pitch ?? 0) - S.nod(t)) }, ...(typeof base.tail === 'number' ? { tail: r4(base.tail + sw) } : {}), feet: {} };
+  // (each key's body at a height `drop` under the carriage (+ down), its legs on their marks)
+  const keyAt = (i, drop) => {
+    const t = i / K, tw = S.twist(t), k = { ...carriage, ...(drop >= 0 ? { sink: r4(drop) } : { lift: r4(-drop) }), spine: { ...(base.spine ?? {}), twist: [tw >= 0 ? 'left' : 'right', r4(T.twist * Math.abs(tw))] },
+      neck: { ...(carriage.neck ?? {}), pitch: r4((carriage.neck?.pitch ?? 0) - S.nod(t)) }, ...(typeof base.tail === 'number' ? { tail: r4(base.tail + S.swish(t)) } : {}), feet: {} };
     for (const side of ['R', 'L']) { const [dy, dz] = S.feet(ID[side].hind, t), p = at.H(side); k.feet[side] = [r4(p[0]), r4(p[1] + dy), r4(p[2] + dz)]; }
-    // (each forepaw to its point on the ground: the elbow first, then the aim corrected until the posed paw is there)
+    return k;
+  };
+  const pawAt = (i, side) => { const [dy, dz] = S.feet(ID[side].fore, i / K), p0 = at.F(side); return [p0[0], p0[1] + dy, p0[2] + dz]; };
+  // (each forepaw to its point on the ground: the elbow first, then the aim corrected until the posed paw is there)
+  const pawed = (k0, i) => {
+    let k = k0;
     for (const side of ['R', 'L']) {
-      const [dy, dz] = S.feet(ID[side].fore, t), p0 = at.F(side), want = [p0[0], p0[1] + dy, p0[2] + dz], arm = `arm${side}`;
+      const want = pawAt(i, side), arm = `arm${side}`;
       for (let pass = 0; pass < 8; pass++) {
         const n = rigNodesAt(R, k).nodes, sh = n[`shoulder${side}`], D = Math.min(up + fore, len(sh, want));
         const bend = (Math.acos(Math.max(-1, Math.min(1, (D * D - up * up - fore * fore) / (2 * up * fore)))) * 180) / Math.PI;
@@ -584,8 +586,23 @@ function trotted(plan, T = FEATURE_TROT) {
         k = { ...k, [`elbow${side}`]: r4(bend), [arm]: { x: r4(a[0]), y: r4(a[1]), z: r4(a[2]) } };
       }
     }
-    keys.push(k);
-  }
+    return k;
+  };
+  // (THE VAULT, solved on the rig: the trunk holds its lean, never rocking, and the body as a whole rides over the
+  // standing foreleg (both girdles stand together in a trot): the height at which that foreleg is its column, its arm
+  // posed; with no forepaw down, eased across; the whole smoothed to the stride's low harmonics, the bounce added, and
+  // the elbow giving what is left)
+  const stands = (i) => ['R', 'L'].find((S1) => S.force(ID[S1].fore, i / K) > 0);
+  const vault = Array.from({ length: K }, (_, i) => {
+    const side = stands(i);
+    if (!side) return null;
+    const miss = (d) => len(rigNodesAt(R, pawed(keyAt(i, d), i)).nodes[`shoulder${side}`], pawAt(i, side)) - Dc;
+    let lo = -0.3 * hip, hi = 0.5 * hip;   // (lower the body, shorter the arm)
+    for (let it = 0; it < 18; it++) { const m = (lo + hi) / 2; (miss(m) > 0 ? (lo = m) : (hi = m)); }
+    return (lo + hi) / 2;
+  });
+  const smooth = trotVault((t) => vault[Math.round(t * K) % K] ?? null, T.harmonics);
+  const keys = Array.from({ length: K }, (_, i) => pawed(keyAt(i, smooth(i / K) + (top - heaves[i])), i));
   plan.clips.trot = keys;
   plan.mascot.trot = { seconds: M.seconds, speed: M.speed, stride: M.stride, duty: M.duty, ...(M.cut ? { cut: M.cut } : {}) };
 }

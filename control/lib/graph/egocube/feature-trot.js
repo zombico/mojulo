@@ -32,20 +32,25 @@ export const TROT_REFERENCE_HIP = 1.32;
 
 /**
  * The trot's numbers. `feet` each foot's touchdown in the stride (LH = 0); `f` and `duty` as lines in the reference
- * speed (m/s), the horse's trot (CLAYTON 1994); `froude` where in the trot the stylized body goes (the reference horse's
- * working trot is ≈ 1.2; 0.6 a jog, its suspension short); `lift` the swing's clearance at the reference (m, fore and
- * hind, ≈ BACK 1995), `show` its exaggeration for the style; `peak` where in the swing it peaks; `impact` the share of the
- * ground's speed a paw matches before it lands; `reach` the share of a leg the stance may stretch it to; `column` the share of its arm a standing foreleg's shoulder stands over the floor, `rise` the most the trunk is tipped up
- * for it (degrees), `give` the share of the bounce the front girdle takes (the forelegs a column, the haunches the rest); `crouch` how far the body sinks for it, a share of the hip; `bounce` the
- * heave's exaggeration; `twist` the trunk's twist at full diagonal load (the spine's axial drive); `nod` and `swish` the
- * pendulums (ω at the reference, scaled by √(g/leg); ζ; gain; the result's limit in degrees); `keys` the clip's keys, the
- * packer's sample count, so every packed sample is a key and nothing is blended between two.
+ * speed (m/s), the horse's trot (CLAYTON 1994); `froude` where in the trot the stylized body goes (the reference
+ * horse's working trot is ≈ 1.2; 0.6 a jog, its suspension short); `lift` the swing's clearance at the reference (m,
+ * fore and hind, ≈ BACK 1995), `show` its exaggeration for the style; `peak` where in the swing it peaks; `impact` the
+ * share of the ground's speed a paw matches before it lands; `reach` the share of a hind leg the stance may stretch it
+ * to; `column` the share of its arm a standing foreleg keeps (near straight); `rake` how far ahead of the shoulder its
+ * paw stands mid-stance (degrees: the trunk is tipped forward until it does, so the forelegs stand clear of the hind
+ * legs from the side); `vault` how far the shoulder may fall over it toward the stance's ends (a share of the arm: what
+ * sets the forelegs' stride); `back` how far behind the hip the hind stance is centred (a share of the hip's height);
+ * `harmonics` how smooth the body's vault over its forelegs is (the stride's harmonics kept); `crouch` how far the body
+ * sinks for the trot (a share of the hip); `bounce` the heave's exaggeration (more folds the standing foreleg); `twist`
+ * the trunk's twist at full diagonal load (the spine's axial drive); `nod` and `swish` the pendulums (ω at the
+ * reference, scaled by √(g/leg); ζ; gain; the result's limit in degrees); `keys` the clip's keys, the packer's sample
+ * count, so every packed sample is a key and nothing is blended between two.
  */
 export const FEATURE_TROT = Object.freeze({
   feet: Object.freeze({ LH: 0, RF: 0.015, RH: 0.5, LF: 0.515 }),
   f: [1.2, 0.06], duty: [0.5, -0.02], froude: 0.6,
   lift: Object.freeze({ fore: 0.16, hind: 0.11 }), show: 1.8, peak: 0.4, impact: 0.7,
-  reach: 0.995, column: 0.97, rise: 35, give: 0.25, crouch: 0.06, bounce: 2.5, twist: 0.12,
+  reach: 0.995, column: 0.97, rake: 30, vault: 0.1, back: 0.3, harmonics: 4, crouch: 0.06, bounce: 1, twist: 0.12,
   nod: Object.freeze({ omega: TAU * 1.6, zeta: 0.6, gain: 2.2, most: 7 }),
   swish: Object.freeze({ omega: TAU * 1.2, zeta: 0.3, gain: 3, most: 12 }),
   keys: 12,
@@ -108,4 +113,19 @@ export function trotSignals(M, lift, T = FEATURE_TROT) {
   const nod = pend(T.nod), swish = pend(T.swish);
   const limit = (C, most) => { let a = 0; for (let n = 0; n < 64; n++) a = Math.max(a, Math.abs(evaluate(C, n / 64))); const s = a > 0 ? Math.min(1, (most * Math.PI) / 180 / a) : 0; return (t) => (evaluate(C, t) * s * 180) / Math.PI; };
   return { feet, heave: (t) => T.bounce * evaluate(heave, t), twist: (t) => evaluate(twist, t), nod: limit(nod, T.nod.most), swish: limit(swish, T.swish.most), force };
+}
+
+/** THE VAULT: a girdle's height through the stride from where its standing leg holds it (`stand(t)`, m, or null while no
+ *  leg of the pair stands), eased across the gaps between stances and smoothed to the stride's low harmonics (the horse
+ *  study's gait.js: a girdle over a stiff standing leg falls toward the ends of that leg's stance) */
+export function trotVault(stand, most = 4) {
+  const n = 96, v = Array.from({ length: n }, (_, i) => stand(i / n)), on = v.map((x) => x != null);
+  if (!on.some(Boolean)) return () => 0;
+  for (let i = 0; i < n; i++) if (!on[i]) {
+    let a = i, b = i; while (!on[(a + n) % n]) a--; while (!on[b % n]) b++;
+    v[i] = v[(a + n) % n] + ((v[b % n] - v[(a + n) % n]) * (i - a)) / (b - a);
+  }
+  const C = [];
+  for (let k = 0; k <= most; k++) { let re = 0, im = 0; for (let j = 0; j < n; j++) { const a = (-TAU * k * j) / n; re += v[j] * Math.cos(a); im += v[j] * Math.sin(a); } C.push([(re * (k ? 2 : 1)) / n, (im * (k ? 2 : 1)) / n]); }
+  return (t) => evaluate(C, t);
 }

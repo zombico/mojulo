@@ -159,10 +159,11 @@ by dynamic similarity and cut to what the shorter pair of legs reaches: short le
 planted foot, fore and hind, slides back at ONE ground speed, so nothing skates. The swing is laid C1 between the
 stance it leaves and the one it lands in (a quintic, plus the stance's own speed at each end), lifted by a bump that
 peaks early. The body's bounce is integrated from the feet's forces (`bounce` its exaggeration), and the trunk twists
-between its girdles. The head nods and the tail swishes after the bounce, as damped pendulums. A standing foreleg is a
-COLUMN: the trunk is tipped up over the hips until the shoulder stands `column` of the arm over the floor, the paw
-under it, and the front takes only `give` of the bounce, so the elbow never folds under the weight. The haunches take
-the rest. Keyed at the packer's samples, so every packed frame is a key. `mascot.trot` carries its cycle's seconds
+between its girdles. The head nods and the tail swishes after the bounce, as damped pendulums. From the side, the legs stand apart. The trunk is tipped forward (near the all-fours pose) until a standing foreleg, a
+COLUMN `column` of its arm, rakes `rake` degrees ahead to the floor. The hind feet stand `back` behind the hips, and
+the trunk holds that lean. The body as a whole VAULTS over the standing foreleg (the horse study's vault: both girdles
+stand together in a trot), solved on the rig and smoothed to the stride's low harmonics, so the elbow never folds
+under the weight and the trunk never rocks. Keyed at the packer's samples, so every packed frame is a key. `mascot.trot` carries its cycle's seconds
 and ground speed.
 
 **A keyed clip plays its keys.** Packed, a clip is blended between its keys (`layeredClip`). A `feet` target is

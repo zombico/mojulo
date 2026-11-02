@@ -218,15 +218,25 @@ member, a quick game's hero). Code: `control/lib/graph/egocube/feature-tune.js`.
   - ONE GROUND: every planted foot, fore and hind, slides back at the one ground speed, so nothing skates. The swing
     is laid between the stance it leaves and the one it lands in: a quintic C1 at both ends (the horse study's
     `swingPath`), lifted by a bump peaking at 0.40 of the swing, the paw swung back to meet the ground;
-  - THE BOUNCE: the heave integrated from the feet's half-sine forces (z'' = g·(ΣF − 1), two dips a stride,
-    `bounce` 2.5 for the style), the trunk twisting between its girdles as the diagonals take the weight;
+  - THE BOUNCE: the heave integrated from the feet's half-sine forces (z'' = g·(ΣF − 1), two dips a stride), the
+    trunk twisting between its girdles as the diagonals take the weight;
   - FOLLOW-THROUGH: the nod and the tail's swish as damped pendulums driven by the heave (the horse study's `NECK`),
     their frequency scaled to the leg;
-  - THE COLUMN: a stance foreleg stands near straight, as a horse's loaded elbow never closes far. These bodies' arms
-    were lengthened to reach the floor ahead, so they are longer than the shoulders are high. So the trunk is tipped up
-    over the hips until the shoulder stands `column` (0.97) of the arm over the floor, with the paw under it and the
-    head turned again to look ahead. The front then takes only `give` (a quarter) of the bounce, the hinge solved key
-    by key, and the haunches take the rest. The fox's stance elbow had swung 30 to 67°; it is now 14 to 45°;
+  - THE CARRIAGE, the legs apart from the side: these bodies' arms were lengthened to reach the floor ahead, so they
+    are long for the shoulders' height. Tipping the trunk up to stand the foreleg straight (the first cut, a hinge of
+    57 to 60°) drew the forelegs back over the hind legs: on the round bodies they crossed. Leaning the trunk barely
+    moves the shoulders forward (the shoulder stays about 0.22 of the height ahead of the hip at any hinge). So the
+    trunk is tipped forward, near the all-fours pose (66 to 67°), until a standing foreleg, a COLUMN of `column` (0.97)
+    of its arm, rakes `rake` (30°) ahead to the floor, and the hind stance is centred `back` (0.3 of the hip's height)
+    behind the hips. From the side the forelegs clear the hind legs by 13 to 17% of the height in every key, where the
+    raccoon's, the bear's and the pig's had crossed;
+  - THE VAULT (the horse study's: a girdle over a stiff standing leg falls toward the ends of its stance): the trunk
+    holds its lean, and the body as a whole rides over the standing foreleg (both girdles stand together in a trot).
+    Its height is solved on the rig, key by key, where that foreleg is its column (the shoulder moves with its own
+    arm's aim, so the arm is posed inside the solve), eased across the moments no forepaw stands, smoothed to the
+    stride's low harmonics (`trotVault`) and given the bounce on top (`bounce` 1: a stylised 2.5 folded the foreleg
+    to 73° at mid-stance). A standing foreleg's elbow stays at 29 to 41°. Tipping the trunk instead to hold the column
+    rocked it 10° each step;
   - keyed at the packer's samples (12), so every packed frame is a key and nothing is blended between two;
     `mascot.trot` carries the cycle's seconds, ground speed, stride and duty.
   Every animal that goes on all fours trots (the leggy, barrel, wedge, pear and noodle silhouettes).
@@ -369,7 +379,8 @@ member, a quick game's hero). Code: `control/lib/graph/egocube/feature-tune.js`.
     on the floor; the `run` of an animal on all fours is its gallop;
   - the trot, PLAYED as packed: every foot on the floor in stance and clear of it in swing, sliding back at the one
     ground speed; each forepaw down with the other side's hind foot, the diagonals half a stride apart; a standing
-    foreleg's elbow under 50°; the body bouncing and the head nodding; and from the front, in every key, each foot on
+    foreleg's elbow under 45°; the body bouncing and the head nodding; from the side, the forelegs clear in front of
+    the hind legs in every key, the trunk's hinge held and within 6° of the all-fours pose's; and from the front, in every key, each foot on
     its own side under its girdle, the head on the middle, its crown ahead of upright and its eyes looking forward;
   - a keyed clip sampled at a key poses as the key (its feet's targets and its waist kept): `station-loft-rig.clip.test.js`;
   - the gallop on the rig: the run's cycle, the waist working, the forepaw travelling fore and aft and reaching the
