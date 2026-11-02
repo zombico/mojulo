@@ -402,3 +402,21 @@ describe("a main street's shops row drawn loud: each shop's storeys its own, its
     expect(bins(X)).toBeGreaterThan(bins(A));
   });
 });
+
+describe('a loud row never hands its neighbour its own trim', () => {
+  it('paints no two shops side by side in one trim ink', () => {
+    const X = assembleGeotownScene({ kind: 'geocube', show: 'geotown', seed: 3, geotown: { segment: 'main-street', hills: { height: 2 } }, cube: { from: 'valley-morning', exaggerate: { from: 'street', lean: 0, kit: { lean: 0, chunk: 1 } } } });
+    const D2 = designGeotown({ segment: 'main-street', hills: { height: 2 } }, { seed: 3 });
+    // (each shop's cornice ink, read off its cornice faces inside its plot, in row order)
+    const inPlot = (pl, f) => f.corners.every(([x, y]) => x >= pl.rect[0] - 0.6 && x <= pl.rect[2] + 0.6 && y >= pl.rect[1] - 0.6 && y <= pl.rect[3] + 0.6);
+    const rows = new Map();
+    for (const pl of D2.plots.filter((q) => q.kind === 'shops').sort((a, b) => a.k - b.k)) (rows.get(`${pl.block}:${pl.side}`) ?? rows.set(`${pl.block}:${pl.side}`, []).get(`${pl.block}:${pl.side}`)).push(pl);
+    let pairs = 0;
+    for (const row of rows.values()) for (let i = 0; i + 1 < row.length; i++) {
+      const hue = (pl) => { const f = X.faces.find((g) => g.group === 'town:cornice' && inPlot(pl, g)); return f ? f.normal && f.fill : null; };
+      const a = hue(row[i]), b = hue(row[i + 1]);
+      if (a && b) { pairs++; expect(a).not.toBe(b); }
+    }
+    expect(pairs).toBeGreaterThan(0);
+  });
+});

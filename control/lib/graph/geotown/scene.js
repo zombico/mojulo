@@ -429,10 +429,11 @@ export function assembleGeotownScene(m, ctx = {}) {
         const Rh = streamOf(seed, 'loud-home', pl.id), other = (list, not) => { const pool = list.filter((x) => !not.includes(x)); return pool[Math.floor(Rh() * pool.length)]; }, last = homePrev.get(`${pl.block}:${pl.side}`) ?? {};
         pl.loudHome = true;
         pl.loudWall = other(LOUD_WALLS, [last.wall, pairWall.get(pl.pair)].filter(Boolean));
-        pl.loudTrim = popHex(other(INK, [last.trim].filter(Boolean)), HY.pop);
-        pl.loudFence = popHex(other(INK, [last.fence].filter(Boolean)), HY.pop); pl.loudShed = other(LOUD_WALLS, [pl.loudWall]); pl.loudThing = popHex(other(INK, [pl.loudFence]), HY.pop);
+        // (the picks kept raw, an ink of INK, so the next home's `never the last one's` compares like with like; painted popped)
+        pl.loudTrimInk = other(INK, [last.trim].filter(Boolean)); pl.loudTrim = popHex(pl.loudTrimInk, HY.pop);
+        pl.loudFenceInk = other(INK, [last.fence].filter(Boolean)); pl.loudFence = popHex(pl.loudFenceInk, HY.pop); pl.loudShed = other(LOUD_WALLS, [pl.loudWall]); pl.loudThing = popHex(other(INK, [pl.loudFenceInk]), HY.pop);
         const tint = other(SLAB_TINTS, []); pl.loudDeck = [popHex('#b08050', HY.pop * 0.5), leanHue('#b08050', tint, 0.8)];
-        homePrev.set(`${pl.block}:${pl.side}`, { wall: pl.loudWall, trim: pl.loudTrim, fence: pl.loudFence });
+        homePrev.set(`${pl.block}:${pl.side}`, { wall: pl.loudWall, trim: pl.loudTrimInk, fence: pl.loudFenceInk });
         // (a block of flats, a low-rise's or a walk-up's: its rows built even, so each raises a false front of its own
         // form, its top at least `step` from its row neighbour's: front-loud.js)
         if (HY.step > 0 && FLATS.has(familyOf(pl))) {
@@ -462,7 +463,7 @@ export function assembleGeotownScene(m, ctx = {}) {
         pl.loud = true;
         // (its storeys' trims, its lights' surrounds, sills, lintels and its cornice, its own ink, never its neighbour's: the
         // row's cornice no longer one band across it)
-        pl.loudTrim = popHex(other(INK, was?.trim), EX.front.pop);
+        pl.loudTrimInk = other(INK, was?.trim); pl.loudTrim = popHex(pl.loudTrimInk, EX.front.pop);
         // (a toon register's fronts each by its own dice, no two agreeing: its sign, its members, its tilt, its stripes)
         if (TOON_CARS) {
           const u = (lo, hi) => lo + (hi - lo) * Rl(), F = EX.front, cl = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
@@ -625,7 +626,7 @@ export function assembleGeotownScene(m, ctx = {}) {
       }
       colliders.push({ min: P3([lo[0], lo[1], pad]), max: P3([hi[0], hi[1], pad + top]), of: `${pl.id}:house` });
       if (pl.loudHome && pl.pair && HY.step > 0) { const t0 = pairTop.get(pl.pair); if (t0 === undefined) pairTop.set(pl.pair, pad + top); else steps.push(Math.abs(pad + top - t0)); }
-      if (EX?.front || HY) { const rk = `${pl.block}:${pl.side}`, prev = rowTop.get(rk); if (prev && (prev.loud || pl.loud)) steps.push(Math.abs(pad + top - prev.top)); rowTop.set(rk, { top: pad + top, loud: !!pl.loud, wall: pl.loudWall, form: pl.crownForm, trim: pl.loudTrim }); }
+      if (EX?.front || HY) { const rk = `${pl.block}:${pl.side}`, prev = rowTop.get(rk); if (prev && (prev.loud || pl.loud)) steps.push(Math.abs(pad + top - prev.top)); rowTop.set(rk, { top: pad + top, loud: !!pl.loud, wall: pl.loudWall, form: pl.crownForm, trim: pl.loudTrimInk }); }
       anchors.push({ id: `house-${pl.id}`, kind: 'house', use: house.kit?.use ?? pl.use ?? 'dwelling', row: pl.kind, ...(pl.form === 'mansion' ? { mansion: true } : {}), at: P3(W(pl, house.doorU, env[1], pad)), N: P3([-pl.ey[0], -pl.ey[1], 0]), floor: r5(pad), box: { min: P3([lo[0], lo[1], pad]), max: P3([hi[0], hi[1], pad + top]) }, ...(house.kit ? { type: house.kit.type } : {}) });
       // an evocation's rear: a house's back yard its own program, a shop's service yard, a walk-up's lot
       if (evoked) {
