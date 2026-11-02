@@ -142,6 +142,20 @@ describe('body to body', () => {
     expect(lo.byId.p.vel[2]).toBeGreaterThan(0);
     expect(hi.byId.p.vel[2]).toBeGreaterThan(lo.byId.p.vel[2]);
   });
+  it('a short foe is touched by a hero standing on its ground, and stomped by one landing on it', () => {
+    // (a foe a quarter of a metre tall: a hero beside it on the same ground has its feet below its top, never on it)
+    const short = { ...still, rule: { collideHeight: 0.24 } };
+    const st = world([pilot([0, 0, 0]), foe('t', TOUCH, [0.3, 0, 0], Math.PI, short)]);
+    st.byId.p.vel = [0, 0, 0];
+    run(st, 1);
+    expect(st.byId.p.hits).toBe(1);
+    expect(st.byId.t.hits || 0).toBe(0);
+    const fell = world([pilot([0, 0, 0.6]), foe('t', TOUCH, [0, 0, 0], 0, short)]);
+    fell.byId.p.vel = [0, 0, -4]; fell.byId.p.grounded = false;
+    for (let i = 0; i < 20 && !(fell.byId.p.vel[2] > 0); i++) run(fell, 1);
+    expect(fell.byId.t.hits).toBe(1);
+    expect(fell.byId.p.hits || 0).toBe(0);
+  });
   it('a spiny one hurts the stomper; a big one only bounces it', () => {
     const spiny = classBy('that hurts a stomper', (c) => c.stomp === 'hurts'), big = classBy('that only bounces', (c) => c.stomp === 'bounce');
     const s = fall(spiny, false), b = fall(big, false);

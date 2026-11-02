@@ -49,3 +49,8 @@ its resource, put on a look and showed a toast. This theme makes them act.
     systems plays as before.
   - Seen in an exported page: ten touches of a grunt took the one HP bar from 100 to 0, and the level ended in a fail,
     with no level hp beside it.
+- **A short foe is touched, not stood on** (`worlds/controllable/foe.js`). A pilot stomped a foe whenever its feet were
+  within 0.3 m of the foe's top, standing or falling. A foe shorter than that (a grunt of a quarter of a metre) was
+  stomped by a hero walking into it on the same ground, so its touch never hurt. The reach is now half the foe's height
+  (0.3 m still on a foe taller than 0.6 m): a hero beside a short foe takes its touch, and one landing on it stomps it.
+  Seen in an exported page: the example hero's own 0.24 m grunt took the HP bar from 100 to 0 in ten touches.
