@@ -64,6 +64,11 @@ moves between their eyes and mouth), and are never crossed (`face-acting/gaze.js
 idle with its clip; the Bust and Side views show the chest and the shoulders. And its head (`head:<clip>`,
 `face-acting/head.js`: the neck's turn and tilt, the head following the larger looks), another additive layer with it.
 
+AN ACTOR'S BODY under its face (`<id>.act.json` beside the GLB, written by the actor dailies,
+`control/scripts/spikes/actor/dailies.mjs --hero <out>`, from `control/lib/graph/actor/body.js`): each take's joints
+keyed as the GLB keys its own clips, played under the face take of the same name in place of the body's idle, on the
+take's clock. A take with none plays over the idle as before.
+
 TUNE THE FACE WITHOUT A MINT: an emote or a performance changes the face's weights alone, so `face.mjs` recomputes its
 clips over a hero `live.mjs` already minted, in seconds, beside its GLB (`<id>.face.json`, played over the GLB's own clip
 of its name), reads each by the numbers on the hero's own mesh, and shoots a contact sheet:

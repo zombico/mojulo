@@ -79,8 +79,8 @@ which words, and the voice's rate and articulation as factors on the register's.
 intensity: 1 } }`. The body's dials (`body`, `time`) are carried for the body's phase and played nowhere yet: the
 gestures are still the body track's cues.
 
-A role is `{ emote?, face?, status? }`: `emote` a held state under every beat (rest, vacant, daydream, absorbed,
-waiting, drowsy, listening, wary), `face` a resting emotion over the register's, `status` `high` (head up and still,
+A role is `{ emote?, face?, status? }`: `emote` a held state under every beat (`rest`, `absorbed`, `waiting`,
+`listening`, `wary` and the rest of the face's held states), `face` a resting emotion over the register's, `status` `high` (head up and still,
 fewer glances), `even` or `low` (head down, more glances). A read's own `style` and `role` override the persona's.
 
 ## On a screen in a world

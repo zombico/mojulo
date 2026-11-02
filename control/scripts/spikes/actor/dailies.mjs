@@ -10,7 +10,11 @@
 //
 //   --out   where index.html and takes.json go (default <tmp>/actor-dailies)
 //   --hero  a hero-live out dir with a minted realistic hero (.claude/skills/hero-live/live.mjs): every take is written
-//           there as a face clip (face.mjs --perform), so hero-live's viewer plays them on the hero's own face
+//           there as a face clip (face.mjs --perform) and its body as `<variant>.act.json` (act-sidecar.mjs), so
+//           hero-live's viewer plays each take on the hero, its body under its face
+//
+// Every take's BODY (lib/graph/actor/body.js) is played on the baseline hero's rig in its relaxed stand (the rig expanded
+// once and cached in --out as rig.json: most of a minute the first time), drawn as its own lane, and read law by law.
 //
 // The machine read prints per take; whether it reads as acting is the operator's.
 import { spawnSync } from 'node:child_process';
@@ -27,6 +31,9 @@ import { STYLE_NAMES, STYLES } from '../../../lib/graph/actor/style.js';
 import { perform } from '../../../lib/graph/face-acting/perform.js';
 import { DELIVERY_NAMES } from '../../../lib/graph/persona/delivery.js';
 import { cueSheet } from '../../../lib/graph/persona/cues.js';
+import { rigFor, actSidecar, dzOf } from './act-sidecar.mjs';
+const { actBody } = await import('../../../lib/graph/actor/body.js');
+const { GESTURE_PRESETS } = await import('../../../lib/graph/polygonizer/hero-gesture.js');
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const argv = process.argv.slice(2), opt = {};
@@ -36,6 +43,9 @@ for (let i = 0; i < argv.length; i++) {
   opt[k] = argv[++i];
 }
 const out = path.resolve(opt.out ?? path.join(os.tmpdir(), 'actor-dailies'));
+mkdirSync(out, { recursive: true });
+// (the baseline hero's rig and its stand: the relaxed preset of its cast)
+const RIG = await rigFor(BASELINE.hero, path.join(out, 'rig.json')), STAND = GESTURE_PRESETS.relaxed[BASELINE.hero.cast] ?? GESTURE_PRESETS.relaxed.male;
 
 // ─── the takes: one actor's read and its face's take, measured ─────────────────────────────────────────────────────
 const r3 = (v) => Math.round(v * 1000) / 1000;
@@ -50,14 +60,18 @@ function energySeries(take) {
 function takeCard({ id, label, sub, read, seed = 1, listens = null }) {
   const P = { beats: read.beats, seconds: read.seconds, seed, ...(read.intensity !== undefined ? { intensity: read.intensity } : {}) };
   const take = perform(P), sheet = cueSheet(id, read, { face: true });
+  const body = actBody(read, { R: RIG, base: STAND, ...(read.style ? { style: read.style } : {}), seed });
   return {
     id, label, sub, seconds: read.seconds,
     lines: sheet.lines, words: sheet.words, gaze: sheet.gaze.map((g) => ({ ...g })), body: sheet.body,
     // (a scene's gaze names its partner where a beat looks at the listener; the persona's never does)
     blinks: take.events.blinks.map((b) => b.t), micro: take.events.micro.map((m) => m.t), flashes: take.events.flashes.map((f) => f.t),
     energy: energySeries(take), listens,
-    readings: actorReadings({ read, take, listens }),
-    perform: P,
+    readings: actorReadings({ read, take, listens, body }),
+    moves: body.gestures.map((g) => ({ word: g.word, start: g.start, apex: g.apex, end: g.end, side: g.side, cause: g.cause, ...(g.chained ? { chained: true } : {}) })),
+    dropped: body.dropped.map((d) => ({ t: d.t, gesture: d.gesture, why: d.why })),
+    shifts: (body.idle.pelvis ?? []).filter((_, i) => i % 2 === 1).map((k) => k.t),
+    perform: P, _body: body,
   };
 }
 
@@ -69,20 +83,22 @@ const solo = [
 const sceneOf = (style) => { const S = sceneReads(BASELINE.scene, style ? { style } : {}); return { S, actors: Object.entries(S.actors).map(([who, A]) => takeCard({ id: `scene-${style ? `${style}-` : ''}${who}`, label: who, sub: `${A.register}${style ? ` · ${style}` : ''}`, read: A.read, listens: A.listens })) }; };
 const variants = [{ style: null, label: 'persona alone', sub: 'each speaker reads its lines; the partner\'s turns are pauses' }, ...STYLE_NAMES.map((style) => ({ style, label: style, sub: 'both actors in this style; the partner\'s turns are still pauses (phase 3 directs the listener)' }))];
 const scene = variants.map((v) => { const { S, actors } = sceneOf(v.style); return { label: v.label, sub: v.sub, seconds: S.seconds, actors }; });
-const data = { made: 'phase 1', solo: { script: BASELINE.solo.script, cards: solo }, scene: { seconds: Math.max(...scene.map((v) => v.seconds)), lines: BASELINE.scene.lines, variants: scene } };
+const data = { made: 'phase 2a', solo: { script: BASELINE.solo.script, cards: solo }, scene: { seconds: Math.max(...scene.map((v) => v.seconds)), lines: BASELINE.scene.lines, variants: scene } };
 
 // ─── the machine read, printed ───────────────────────────────────────────────────────────────────────────────────
 const row = (c) => {
   const F = c.readings.face, R = c.readings.read, L = c.readings.laws;
-  return `  ${c.id.padEnd(22)} ${String(c.seconds).padStart(6)} s  face ${String(F.energy).padStart(6)}/s  blinks ${String(F.blinks).padStart(6)}/min  wpm ${String(R.wordsPerMin).padStart(7)}  gestures ${R.gestures.count}  lens ${R.gaze.share.lens ?? 0}${L.listening.reads ? `  regard ${L.listening.reads.regard}  live ${L.listening.reads.live}` : ''}`;
+  const st = L.stroke.reads, ov = L.overlap.reads, po = L.possible.reads;
+  return `  ${c.id.padEnd(22)} ${String(c.seconds).padStart(6)} s  face ${String(F.energy).padStart(6)}/s  wpm ${String(R.wordsPerMin).padStart(7)}  moves ${c.moves.length} (dropped ${c.dropped.length})  lens ${R.gaze.share.lens ?? 0}${ov ? `  in order ${ov.inOrder}` : ''}${st ? `  stroke lead ${st.lead.mean}` : ''}  stillest ${L.weight.reads.stillest} s${po.over.length ? `  OVER ${po.over.join(', ')}` : ''}${L.listening.reads ? `  regard ${L.listening.reads.regard}` : ''}`;
 };
 console.log('solo:'); for (const c of solo) console.log(row(c));
 console.log('scene:'); for (const v of scene) for (const c of v.actors) console.log(row(c));
 
 // ─── the page ────────────────────────────────────────────────────────────────────────────────────────────────────
 mkdirSync(out, { recursive: true });
-writeFileSync(path.join(out, 'takes.json'), JSON.stringify(data));
-writeFileSync(path.join(out, 'index.html'), page(data));
+const clean = (k, v) => (k === '_body' ? undefined : v);
+writeFileSync(path.join(out, 'takes.json'), JSON.stringify(data, clean));
+writeFileSync(path.join(out, 'index.html'), page(JSON.parse(JSON.stringify(data, clean))));
 console.log(`\n${path.join(out, 'index.html')}`);
 
 // ─── the hero, where one is minted: every take as a face clip on it ────────────────────────────────────────────────
@@ -90,6 +106,16 @@ if (opt.hero) {
   const performs = Object.fromEntries([...solo, ...scene.flatMap((v) => v.actors)].map((c) => [c.id, c.perform]));
   const r = spawnSync(process.execPath, [path.resolve(HERE, '../../../../.claude/skills/hero-live/face.mjs'), '--out', path.resolve(opt.hero), '--perform', JSON.stringify(performs)], { stdio: 'inherit' });
   if (r.status) process.exit(r.status);
+  // (each take's body as the GLB's joints play it, beside each variant's GLB: <variant>.act.json)
+  const { readdirSync } = await import('node:fs');
+  for (const f of readdirSync(path.resolve(opt.hero)).filter((x) => x.endsWith('.glb'))) {
+    const dz = await dzOf(path.join(path.resolve(opt.hero), f), RIG);
+    // (the styles' takes and the persona's own on the baseline's register: the rest of the registers' are on the page)
+    const bodied = [...solo, ...scene.flatMap((v) => v.actors)].filter((c) => !DELIVERY_NAMES.some((r) => c.id === `solo-${r}`) || c.id === `solo-${BASELINE.solo.register}`);
+    const acts = bodied.map((c) => ({ of: `face:${c.id}`, ...actSidecar(c._body, RIG, { dz }) }));
+    writeFileSync(path.join(path.resolve(opt.hero), f.replace(/\.glb$/, '.act.json')), JSON.stringify({ acts }));
+    console.log(`${f}: ${acts.length} body takes (dz ${dz.toFixed(4)} m) → ${f.replace(/\.glb$/, '.act.json')}`);
+  }
   console.log(`\nthe takes play as face:<id> in ${path.join(path.resolve(opt.hero), 'index.html')} (live.mjs --out ${opt.hero} --reuse --serve)`);
 }
 
@@ -120,9 +146,9 @@ details{margin-top:6px}summary{cursor:pointer;color:var(--dim);font-size:12px}pr
 .scene{display:flex;flex-direction:column;gap:8px;max-width:760px}
 </style></head><body><main>
 <h1>Actor dailies</h1>
-<p class="lede">The scene actor's baseline (${D.made}): the persona's takes on one clock, each with its timeline and its readings law by law. The four playing styles on the baseline's register first, then the persona's own registers with no style. The scene is played once by the persona alone and once per style, with the partner's turns read as pauses (the listener is phase 3's). The machine readings are advisory. Whether a take reads as acting is the eyes gate's call.</p>
+<p class="lede">The scene actor's baseline (${D.made}): the persona's takes on one clock, each with its timeline and its readings law by law. Each take's body is played on the baseline hero's rig in its relaxed stand (phase 2a: the gestures solved by holdArm on the rig, the stand's life between them). The four playing styles on the baseline's register first, then the persona's own registers with no style. The scene is played once by the persona alone and once per style, with the partner's turns read as pauses (the listener is phase 3's). The machine readings are advisory. Whether a take reads as acting is the eyes gate's call.</p>
 <div class="bar"><button id="play">Play</button><input id="scrub" type="range" min="0" max="1000" value="0"><span class="t" id="time">0.00 s</span>
-<span class="legend"><span><i style="background:var(--lens)"></i>lens</span><span><i style="background:var(--notes)"></i>notes</span><span><i style="background:var(--away)"></i>away</span><span><i style="background:var(--partner)"></i>partner</span><span><i style="background:var(--listen);border:1px solid var(--partner)"></i>the partner's turn</span><span><i style="background:var(--accent)"></i>stress · gesture</span><span><i style="background:var(--energy)"></i>face motion</span></span></div>
+<span class="legend"><span><i style="background:var(--lens)"></i>lens</span><span><i style="background:var(--notes)"></i>notes</span><span><i style="background:var(--away)"></i>away</span><span><i style="background:var(--partner)"></i>partner</span><span><i style="background:var(--listen);border:1px solid var(--partner)"></i>the partner's turn</span><span><i style="background:var(--accent)"></i>stress · gesture cue · the body's move (going to letting go, the apex a line)</span><span><i style="background:var(--energy)"></i>face motion</span></span></div>
 <h2>Solo: one speech, the styles and the persona's registers</h2>
 <details><summary>the script</summary><pre>${esc(D.solo.script)}</pre></details>
 <div class="grid" id="solo"></div>
@@ -133,7 +159,7 @@ details{margin-top:6px}summary{cursor:pointer;color:var(--dim);font-size:12px}pr
 <script>
 const D = ${JSON.stringify(D).replace(/</g, '\\u003c')};
 const LAWS = { overlap: '1 overlap', stroke: '2 stroke on stress', weight: '3 weight', variation: '4 variation', listening: '5 listening', possible: '6 humanly possible', absent: '7 absent adds nothing' };
-const W = 600, ROWS = { lines: [4, 20], words: [28, 14], gaze: [46, 8], body: [58, 14], energy: [76, 30], blinks: [110, 8] }, H = 122;
+const W = 600, ROWS = { lines: [4, 20], words: [28, 14], gaze: [46, 8], body: [58, 14], moves: [76, 14], energy: [94, 30], blinks: [128, 8] }, H = 140;
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
 const gazeColour = (g) => ({ lens: 'var(--lens)', notes: 'var(--notes)', away: 'var(--away)' })[g] ?? 'var(--partner)';
 function timeline(c, seconds) {
@@ -144,6 +170,12 @@ function timeline(c, seconds) {
   for (const w of c.words) s.push('<rect x="' + x(w.t) + '" y="' + (ROWS.words[0] + (w.emph ? 0 : 6)) + '" width="' + Math.max(1, x(w.t + w.dur) - x(w.t) - 1) + '" height="' + (w.emph ? ROWS.words[1] : ROWS.words[1] - 6) + '" fill="' + (w.emph ? 'var(--accent)' : 'var(--dim)') + '" opacity="' + (w.emph ? 1 : 0.45) + '"/>');
   c.gaze.forEach((g, i) => { const e = c.gaze[i + 1]?.t ?? c.seconds; s.push('<rect x="' + x(g.t) + '" y="' + ROWS.gaze[0] + '" width="' + (x(e) - x(g.t)) + '" height="' + ROWS.gaze[1] + '" fill="' + gazeColour(g.target) + '"/>'); });
   for (const b of c.body) s.push('<path d="M' + x(b.t) + ' ' + ROWS.body[0] + 'l5 6 -5 6 -5 -6z" fill="var(--accent)"/><text x="' + (x(b.t) + 7) + '" y="' + (ROWS.body[0] + 10) + '" font-size="9" fill="var(--dim)">' + esc(b.gesture) + '</text>');
+  // (the body: each gesture from its going to its letting go, its apex marked; a chained one joined to the last; a
+  // dropped cue a cross; the stand's shifts small ticks)
+  const [my, mh] = ROWS.moves;
+  for (const m of c.moves ?? []) s.push('<rect x="' + x(m.start) + '" y="' + (my + 2) + '" width="' + Math.max(1, x(m.end) - x(m.start)) + '" height="' + (mh - 4) + '" rx="3" fill="var(--accent)" opacity=".18" stroke="var(--accent)" stroke-width=".5"' + (m.chained ? ' stroke-dasharray="2 2"' : '') + '/><rect x="' + (x(m.apex) - 0.75) + '" y="' + my + '" width="1.5" height="' + mh + '" fill="var(--accent)"/><text x="' + (x(m.start) + 2) + '" y="' + (my + 10) + '" font-size="8" fill="var(--ink)">' + esc(m.word) + (m.side && m.side !== 'R' ? ' ' + m.side : '') + '</text>');
+  for (const d of c.dropped ?? []) s.push('<text x="' + x(d.t) + '" y="' + (my + 10) + '" font-size="10" fill="var(--dim)" text-anchor="middle"><title>' + esc(d.gesture + ': ' + d.why) + '</title>×</text>');
+  for (const t of c.shifts ?? []) s.push('<rect x="' + x(t) + '" y="' + (my + mh - 3) + '" width="1" height="3" fill="var(--dim)"/>');
   const E = c.energy, top = Math.max(1, ...E.v), [ey, eh] = ROWS.energy;
   s.push('<path d="M0 ' + (ey + eh) + E.v.map((v, i) => 'L' + x(i * E.dt).toFixed(1) + ' ' + (ey + eh - (v / top) * eh).toFixed(1)).join('') + 'L' + x(E.v.length * E.dt) + ' ' + (ey + eh) + 'z" fill="var(--energy)" opacity=".35" stroke="var(--energy)" stroke-width=".6"/>');
   for (const t of c.blinks) s.push('<rect x="' + x(t) + '" y="' + ROWS.blinks[0] + '" width="1.5" height="' + ROWS.blinks[1] + '" fill="var(--blink)"/>');

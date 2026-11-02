@@ -17,9 +17,21 @@ its face, body and later its hands directed together on one clock, and its take 
     and the eyes still, low drops the head and lets the eyes go.
   - **Absent, nothing changes.** A persona with neither reads byte for byte as before.
   - **The body waits.** Each style's body dials are carried, but the body plays them only from the next phase.
-- **The body on the timeline.** The gestures a read already names played on the skinned hero, solved as hand targets in
-  the body's own frame so they fit any proportions, their strokes on the stressed words, weight shifts and breath
-  between, no two alike; a take exported as the GLB clip `act:<id>` beside the face's `face:<id>`.
+- **The body on the timeline.** The gestures a read names are played on the hero's rig
+  (`control/lib/graph/actor/body.js`, `gestures.js`).
+  - **The gestures**: a beat, an offered palm, a point, a shrug, a cheer, a clap, a hand to the chin, a nod, a
+    headshake and a bow. Each is said as where the hand goes on the body (the chest, the belly, the chin), which way
+    the fingers point and the palm faces, and the hand's shape, and is solved on the rig it plays on, so one word fits
+    any proportions.
+  - **The timing**: each gesture peaks just before its stressed word. It is wound up and let go at the style's pace,
+    but never so fast that a joint turns faster than its limit. The shoulder, elbow, wrist and fingers arrive one
+    after another. No two uses of a gesture are alike, and a gesture too close to the last on the same limbs is
+    dropped or carries straight on from it.
+  - **The stand**: between gestures it shifts its carriage every few seconds, less often the stiller the style.
+  - **The machine gate**: the dailies read each body take law by law (the joints in order, the stroke on its word,
+    the stand's life, the variation, the speeds and ranges). A dailies run beside a minted hero plays each take's body
+    under its face in the hero-live viewer.
+  - **Next**: the take exported as the GLB clip `act:<id>` beside the face's `face:<id>`.
 - **Two actors in a scene.** Marks, walking to them, looking at each other, the one not speaking listening, and cameras
   that frame actors.
 - **Blender film export.** A scene's actors, their takes and its cameras as a Blender pack, in a film look or an anime

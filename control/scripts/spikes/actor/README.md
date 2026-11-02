@@ -9,8 +9,12 @@ take reads as acting is the operator's call.
 node scripts/spikes/actor/dailies.mjs --out /abs/out/dir                 # index.html + takes.json, one self-contained page
 node scripts/spikes/actor/dailies.mjs --out /abs/out/dir --hero /abs/hero-live/dir
 #   with a hero minted by .claude/skills/hero-live/live.mjs: every take is also written to that hero as a face clip
-#   (face.mjs --perform), so hero-live's viewer plays face:<take> on the hero's own face
+#   (face.mjs --perform) and its body as <variant>.act.json (act-sidecar.mjs), so hero-live's viewer plays
+#   face:<take> on the hero, its body under its face; re-write the viewer page with live.mjs --reuse after a change to it
 ```
+
+Every take's body (`lib/graph/actor/body.js`) is played on the baseline hero's rig in its relaxed stand. The rig is
+expanded once, which takes most of a minute, and cached in `--out` as `rig.json`.
 
 ## What it shows
 
@@ -24,7 +28,9 @@ node scripts/spikes/actor/dailies.mjs --out /abs/out/dir --hero /abs/hero-live/d
   - the body's gestures;
   - the face's motion (its action units' summed speed);
   - the blinks and the micro-expressions.
-- **Each table**: the face, the delivery, and the seven laws. A body law reads `—` with its reason until the body plays.
+- **The body lane**: each gesture from its preparation to its let-go, with its apex marked. A chained gesture is
+  dashed, a dropped cue is a cross, and the stand's shifts are ticks.
+- **Each table**: the face, the delivery, and the seven laws, the body's read on its take.
 
 ## The baseline (phase 0)
 
