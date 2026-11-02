@@ -124,7 +124,7 @@ const scalar = (v, { range, ease }) => ({ value: r1(v), range: [...range], ease:
 
 /**
  * Every arm servo of a pose, read: { R: { girdle, shoulder: { swing, twist }, elbow, wrist: { flex, deviation, twist },
- * girdleRise }, L: {…} }. Each entry { value, range, ease, margin (degrees to the nearer hard stop; − past it), inRange,
+ * girdleRise, hand (handRead: null unless the hand's joints are posed) }, L: {…} }. Each entry { value, range, ease, margin (degrees to the nearer hard stop; − past it), inRange,
  * inEase }; the swing's value is its elevation against the cone at its plane. `nodes` may be passed if already posed.
  */
 export function servoRead(R, pose, nodes = null) {
@@ -149,7 +149,85 @@ export function servoRead(R, pose, nodes = null) {
       elbow: scalar(elbowFlex, SERVOS.elbow),
       wrist: Object.fromEntries(['flex', 'deviation', 'twist'].map((k) => [k, scalar(w[k], SERVOS.wrist[k])])),
       girdleRise: clav ? r1(90 - angle(T.up, clav)) : null,
+      hand: handRead(R, n, S),
     };
+  }
+  return out;
+}
+
+/**
+ * THE HAND'S SERVOS: each joint's angle read off the posed skeleton in the hand's own frame (the hand bone's rest → posed
+ * turn undone, so it reads the same wherever the arm holds the hand): degrees, + closing.
+ *   finger   `mcp` (the proximal phalanx off the metacarpal's line, wrist → knuckle, in the finger's plane), `pip`, `dip`
+ *            (each phalanx off the one before), `spread` (the proximal phalanx out of that plane, + away from the middle
+ *            finger: the index and the middle toward the thumb)
+ *   thumb    `radial` (the metacarpal off the index's metacarpal in the palm's plane: radial abduction), `palmar` (the
+ *            metacarpal out of the palm's plane, + to the palm's front: palmar abduction), `mcp`, `ip`
+ * Sources: the finger's knuckle flexion 90, its middle joint 100, its last joint 90 (AAOS norms; a hand at rest reads 0
+ * hyperextension, a passive 30 at the knuckle an estimate), the thumb's knuckle 50 and last joint 80 (AAOS), each
+ * finger's spread about 20 (AAOS's abduction; the little finger's wider, an estimate); the thumb's two root angles are
+ * estimates around the rig's own rest thumb. Ease is the range less a margin where no functional range is in hand.
+ */
+export const HAND_SERVOS = Object.freeze({
+  finger: Object.freeze({
+    mcp: Object.freeze({ range: [-30, 90], ease: [-10, 80], source: 'norm; hyperextension estimate' }),
+    pip: Object.freeze({ range: [-5, 105], ease: [0, 95], source: 'norm' }),
+    dip: Object.freeze({ range: [-10, 90], ease: [0, 80], source: 'norm' }),
+    spread: Object.freeze({ range: [-15, 25], ease: [-8, 18], source: 'norm (abduction 20); adduction past the line an estimate' }),
+  }),
+  little: Object.freeze({ spread: Object.freeze({ range: [-15, 35], ease: [-8, 25], source: 'estimate' }) }),
+  thumb: Object.freeze({
+    radial: Object.freeze({ range: [0, 75], ease: [10, 60], source: 'estimate' }),
+    palmar: Object.freeze({ range: [-15, 75], ease: [-5, 60], source: 'estimate' }),
+    mcp: Object.freeze({ range: [-15, 55], ease: [-5, 50], source: 'norm (50); hyperextension estimate' }),
+    ip: Object.freeze({ range: [-20, 80], ease: [-10, 70], source: 'norm (80); hyperextension estimate' }),
+  }),
+});
+const SPREAD_OF = Object.freeze({ index: 1, middle: 1, ring: -1, little: -1 });
+const handFrames = new WeakMap();
+/** the hand's rest frame for side S: { A (wrist → middle knuckle), V (across, toward the thumb), N (out of the palm's
+ * front), hinge (the fingers' closing axis, + closing) } */
+function handFrame(R, S) {
+  const memo = handFrames.get(R) || {}; if (memo[S]) return memo[S];
+  const J = R.joints, at = (j) => J[`${j}${S}`];
+  const A = unit(sub(at('middleMcp'), at('wrist')));
+  let V = sub(at('indexMcp'), at('littleMcp')); V = unit(sub(V, mul(A, dot(V, A))));
+  const g = R.hands[S].digits.index, hinge = unit(g.links[0].axis ?? g.axis);
+  // the palm's front: the side a finger closing about its hinge moves toward
+  let N = unit(cross(A, V)); if (dot(cross(hinge, A), N) < 0) N = mul(N, -1);
+  memo[S] = { A, V, N, hinge }; handFrames.set(R, memo);
+  return memo[S];
+}
+/** the signed angle (degrees) from a to b about the unit k */
+const about = (a, b, k) => Math.atan2(dot(cross(a, b), k), dot(a, b)) * DEG;
+/**
+ * The hand of side S read off a posed skeleton `n` (the whole rig: the hand's joints posed): { <digit>: { <joint>:
+ * { value, range, ease, margin, inRange, inEase } } }, or null when the hand's joints are not there.
+ */
+export function handRead(R, n, S) {
+  const H = R.hands?.[S], hb = R.bones[R.boneIndex?.[`hand${S}`]];
+  if (!H || !hb || ![hb.head, hb.tail, ...(hb.aux || []), `indexMcp${S}`].every((j) => n[j])) return null;
+  const m = boneFrames({ bones: [hb] }, R.joints, n)[0].m, back = (v) => [m[0][0] * v[0] + m[1][0] * v[1] + m[2][0] * v[2], m[0][1] * v[0] + m[1][1] * v[1] + m[2][1] * v[2], m[0][2] * v[0] + m[1][2] * v[1] + m[2][2] * v[2]];
+  const F = handFrame(R, S), rel = (a, b) => unit(back(sub(n[b], n[a]))), J = R.joints, out = {};
+  for (const [d, g] of Object.entries(H.digits)) {
+    const chain = [g.links[0].pivot, ...g.links.slice(1).map((l) => l.pivot), g.links.at(-1).joints.at(-1)];
+    const seg = chain.slice(1).map((j, i) => rel(chain[i], j));
+    if (d === 'thumb') {
+      const meta = seg[0], inPlane = unit(sub(meta, mul(F.N, dot(meta, F.N)))), ixMeta = unit(sub(sub(J[`indexMcp${S}`], J[`wrist${S}`]), mul(F.N, dot(sub(J[`indexMcp${S}`], J[`wrist${S}`]), F.N))));
+      const kAx = unit(g.links[1].axis ?? g.axis), hk = (a, b) => { const c = cross(a, b); return len(c) < 1e-9 ? kAx : (dot(c, kAx) >= 0 ? unit(c) : mul(unit(c), -1)); };
+      const vals = { radial: Math.acos(Math.max(-1, Math.min(1, dot(inPlane, ixMeta)))) * DEG, palmar: Math.asin(Math.max(-1, Math.min(1, dot(meta, F.N)))) * DEG, mcp: about(seg[0], seg[1], hk(seg[0], seg[1])), ip: about(seg[1], seg[2], hk(seg[1], seg[2])) };
+      // (a joint turned past straight the other way reads − : the hinge's own axis signs it)
+      vals.mcp = Math.sign(dot(cross(seg[0], seg[1]), kAx) || 1) * Math.abs(vals.mcp); vals.ip = Math.sign(dot(cross(seg[1], seg[2]), kAx) || 1) * Math.abs(vals.ip);
+      out[d] = Object.fromEntries(Object.entries(vals).map(([k, v]) => [k, scalar(v, HAND_SERVOS.thumb[k])]));
+      continue;
+    }
+    // the metacarpal's line (the wrist to the knuckle), the finger's plane through it and the hinge
+    const meta = rel(`wrist${S}`, g.links[0].pivot), h = F.hinge;
+    const p = seg[0], pIn = unit(sub(p, mul(h, dot(p, h))));
+    const flexOf = (a, b) => about(a, b, h);
+    const vals = { mcp: flexOf(unit(sub(meta, mul(h, dot(meta, h)))), pIn), pip: flexOf(seg[0], seg[1]), dip: flexOf(seg[1], seg[2]), spread: Math.asin(Math.max(-1, Math.min(1, dot(p, F.V)))) * DEG * (SPREAD_OF[d] ?? 1) };
+    const sv = { ...HAND_SERVOS.finger, ...(HAND_SERVOS[d] || {}) };
+    out[d] = Object.fromEntries(Object.entries(vals).map(([k, v]) => [k, scalar(v, sv[k])]));
   }
   return out;
 }

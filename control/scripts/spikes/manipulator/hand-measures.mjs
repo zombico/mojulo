@@ -14,6 +14,8 @@
 //     two channels take (thumb −20 … 90, finger −30 … 110, every 10° then refined to 2°), against the two pads' radii: whether the
 //     thumb can meet each finger tip to tip with today's one-curl thumb (tips only: whether the pads FACE is not read)
 //   • the thumb's one curl as a path: its tip in the palm's frame every 15°
+//   • --wide: opposition again with the wider hand (the rig's digit objects), each finger by a search held to the
+//     hand's servos
 import { register } from 'node:module';
 import path from 'node:path';
 import { writeFileSync } from 'node:fs';
@@ -27,7 +29,8 @@ const { heroRecord, expandLayeredManifest } = await import('@/lib/mcp/tools/laye
 const { validateRig, rigNodesAt, HAND_POSES } = await import('@/lib/graph/polygonizer/station-loft-rig.js');
 const { HAND_FORM, DIGITS } = await import('@/lib/graph/polygonizer/hero-hand.js');
 
-const { values: opt } = parseArgs({ options: { cast: { type: 'string', multiple: true }, json: { type: 'string' } } });
+const { values: opt } = parseArgs({ options: { cast: { type: 'string', multiple: true }, json: { type: 'string' }, wide: { type: 'boolean', default: false } } });
+const { handRead } = await import('@/lib/graph/polygonizer/hero-servo.js');
 const casts = opt.cast?.length ? opt.cast : ['male', 'female'];
 
 const sub = (a, b) => a.map((x, i) => x - b[i]), add = (a, b) => a.map((x, i) => x + b[i]), mul = (a, s) => a.map((x) => x * s);
@@ -98,7 +101,25 @@ function measure(cast) {
   const palmFront = mm(Math.max(...F.palm.rings.map((r) => r[3])));
 
   const controls = { perHand: Object.keys(H.digits).length + 3, digits: Object.keys(H.digits).map((d) => `${d}: 1 curl over ${H.digits[d].links.length} joints`), wrist: Object.keys(H.axes), spread: false, bones: H.joints.filter((j) => /(Mcp|Pip|Dip|Ip|Cmc)R$/.test(j)).length };
-  return { cast, controls, rest: restHand, words, opposition, thumbSweep, palmFront };
+  // --wide: OPPOSITION with the wider hand (station-loft-rig.js digit objects: the thumb's two root turns, its knuckle and
+  // last joint; the finger's knuckle, middle joint and spread): the closest the thumb's tip comes to each finger's,
+  // found by coordinate descent from three seeds, every servo past its hard range a cost (hero-servo.js handRead)
+  let wide = null;
+  if (opt.wide) {
+    wide = {};
+    const fingersOf = (x, d) => ({ thumb: { cmc: [x[0], x[1]], mcp: x[2], ip: x[3] }, [d]: { mcp: x[4], pip: x[5], spread: x[6] } });
+    for (const d of DIGITS.filter((x) => x !== 'thumb')) {
+      const cost = (x) => { const n = nodesAt(fingersOf(x, d)), h = handRead(R, n, S); let pen = 0; for (const j of Object.values(h)) for (const v of Object.values(j)) if (!v.inRange) pen += Math.abs(v.margin); const g = dist(n[`thumbTip${S}`], n[`${d}Tip${S}`]); return { c: g * 1000 + pen * 2, g }; };
+      let best = null;
+      for (const s0 of [[20, 0, 0, 10, 20, 50, 0], [40, 20, 20, 20, 30, 50, 0], [55, 25, 30, 20, 40, 60, 0]]) {
+        let x = [...s0], c = cost(x);
+        for (const step of [10, 5, 2, 1]) { let moved = true, guard = 0; while (moved && guard++ < 40) { moved = false; for (let i = 0; i < x.length; i++) for (const sg of [1, -1]) { const y = [...x]; y[i] += sg * step; const cy = cost(y); if (cy.c < c.c - 1e-6) { x = y; c = cy; moved = true; } } } }
+        if (!best || c.c < best.c.c) best = { x, c };
+      }
+      wide[d] = { closest: mm(best.c.g), pads: mm(padSum(d)), meets: best.c.g <= padSum(d), fingers: fingersOf(best.x, d) };
+    }
+  }
+  return { cast, controls, rest: restHand, words, opposition, thumbSweep, palmFront, wide };
 }
 
 const out = casts.map(measure);
@@ -114,6 +135,7 @@ for (const r of out) {
   console.log(`  the thumb's curl, its tip [along, across, out of the palm front] mm (the palm's front ${r.palmFront} mm off its axis):`);
   for (const t of r.thumbSweep) console.log(`    ${String(t.curl).padStart(4)}°  ${t.tip.map((x) => String(x).padStart(6)).join(' ')}`);
   console.log('  opposition (thumb tip to finger tip, the closest over both curls):');
+  if (r.wide) { console.log('  opposition with the wider hand (each a search; the servos held):'); for (const [d, v] of Object.entries(r.wide)) console.log(`    ${d.padEnd(7)} ${String(v.closest).padStart(5)} mm (pads ${v.pads} mm) ${v.meets ? 'meets' : 'MISSES'} at ${JSON.stringify(v.fingers)}`); }
   for (const [d, v] of Object.entries(r.opposition)) console.log(`    ${d.padEnd(7)} ${String(v.closest).padStart(5)} mm (pads ${v.pads} mm) ${v.meets ? 'meets' : 'MISSES'} at thumb ${v.atThumb}°, finger ${v.atFinger}°`);
 }
 if (opt.json) writeFileSync(opt.json, JSON.stringify(out, null, 2));

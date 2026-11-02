@@ -46,5 +46,12 @@ In progress. The realistic hero's arms and hands, solved from targets rather tha
   an uppercut along an arc that meets the target along its approach, the trunk coiling into it; a step lifts the foot
   and sets it down. `--page` writes a review page that plays the drill's skeleton with the targets and their drives
   drawn.
+- **The wider hand** (the rig's `fingers<S>`): a digit may be given as an object, each joint by its own angle (the
+  knuckle, the middle joint and the last, a middle joint alone bringing the last at two thirds), each finger spread
+  away from the middle, and the thumb turned across the palm and in toward it on a second axis. A number or a word is
+  the curl it always was, to the bit, and nothing is added to the rig, so every hero minted before is unchanged. With
+  it the thumb meets every fingertip, the middle's included, which the one-curl thumb could not reach.
+- **The hand's servos** (`hero-servo.js` `handRead`): each finger joint's angle, its spread and the thumb's read off the
+  posed hand in its own frame, held to adult norms (estimates marked); every hand word lies within them.
 - **Fixed in the studies:** the arm envelope now stands in the guard (it stood at rest), the servo audit plays swings
   with the elbows-down roll and reads the wrist as anatomy.
