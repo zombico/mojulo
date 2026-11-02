@@ -13,7 +13,7 @@
 //   --hero   the hero spec every actor without its own plays (default the baseline's realistic hero)
 //   --grain  the scene shown on twos or threes, the camera on ones (shoot/time.js), as an anime look is often keyed;
 //            the screenplay's slow motion and freezes play on the same time map whatever the grain
-//   --grade  the film's grade, built as compositor nodes by look.py: a word (film, noir, bleach, vivid, dream, cold,
+//   --grade  the film's grade, built as compositor nodes by look.py: a word (film, noir, bleach, vivid, pastel, cold,
 //            warm) or the dials as JSON (scene/channels/grade.js, the World page's own)
 //
 // With a Blender found (MOJULO_BLENDER, lib/workers/find.js), the advisory gate builds film.blend, the cast, the shots and

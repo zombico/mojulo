@@ -27,7 +27,7 @@ moment overlays its own, eased with the moment.
     - a vignette, film grain, chromatic aberration;
     - a zoom blur toward a point;
     - the letterbox bars, a flash, the inverted impact frame, a screen shake.
-  - **The words**: `film`, `noir`, `bleach`, `vivid`, `dream`, `cold`, `warm`, or `{ from: word, …dials }`.
+  - **The words**: `film`, `noir`, `bleach`, `vivid`, `pastel`, `cold`, `warm`, or `{ from: word, …dials }`.
   - **A world's `grade`** reaches its page. `window.__mojGrade` sets it by hand and overlays a moment's look.
   - **The pass draws only while the grade is off its rest.**
 - **A moment's look.** A tempo moment's `look` holds grade dials, plus `impact`: frames of the inverted impact frame

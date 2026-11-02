@@ -16,7 +16,7 @@
 //     invert      the IMPACT FRAME: the frame inverted, hard, 0 … 1
 //     shake       the frame shaken in the screen's plane, 0 … 1 (a share of a hundredth of the frame)
 //
-//   a world's `grade`: a word (GRADE_PRESETS: film, noir, bleach, vivid, dream, cold, warm), dials, or { from: word,
+//   a world's `grade`: a word (GRADE_PRESETS: film, noir, bleach, vivid, pastel, cold, warm), dials, or { from: word,
 //   …dials } (a word's dials, some changed). A moment's look (world-clock.js) overlays its own dials on the base, eased by
 //   the moment's weight.
 //
@@ -39,7 +39,7 @@ export const GRADE_PRESETS = Object.freeze({
   noir: { contrast: 1.35, saturation: 0, vignette: 0.5, grain: 0.25 },
   bleach: { contrast: 1.3, saturation: 0.45, vignette: 0.2, grain: 0.1 },
   vivid: { contrast: 1.1, saturation: 1.3 },
-  dream: { exposure: 0.2, contrast: 0.88, saturation: 1.1, warmth: 0.12, vignette: 0.32 },
+  pastel: { exposure: 0.2, contrast: 0.88, saturation: 1.1, warmth: 0.12, vignette: 0.32 },
   cold: { saturation: 0.85, warmth: -0.35, vignette: 0.15 },
   warm: { saturation: 1.05, warmth: 0.3, vignette: 0.15 },
 });

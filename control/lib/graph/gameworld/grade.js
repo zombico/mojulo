@@ -4,7 +4,7 @@
  *
  *   gameworld.grade: 'auto' | false | a word | dials | { from: word, …dials }
  *     'auto'   the register's own (its juice, juice.js): anime is drawn vivid, western on film
- *     words    grade.js GRADE_PRESETS: film, noir, bleach, vivid, dream, cold, warm
+ *     words    grade.js GRADE_PRESETS: film, noir, bleach, vivid, pastel, cold, warm
  *
  *   readGameGrade(raw)   → raw, or throws naming what it takes (the world's read)
  *   gradeOfGame(G)       → { grade, from, why } every level's `grade` (its dials), or null (none written, or false)

@@ -152,7 +152,7 @@ It takes three things at once, on one envelope: the clock, the camera and the lo
 
 The World page's grade (`scene/channels/grade.js`) is its compositing stage, the last thing laid over the frame, on the
 same full-frame pass that softens the far. A world sets its own `grade`: a word (`film`, `noir`, `bleach`, `vivid`,
-`dream`, `cold`, `warm`) or dials. A moment overlays its look on it.
+`pastel`, `cold`, `warm`) or dials. A moment overlays its look on it.
 
 - **Grade the world once, the moment on top.** The base grade is the world's register: film's gentle contrast, warmth
   and grain, noir's grey. A moment pushes from there and returns to it.
