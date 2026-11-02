@@ -162,21 +162,58 @@ export function craftForm(archetype, { palette, colors, pose = { gear: 1 }, atti
     for (const f of fs) for (const c of f.corners) for (let k = 0; k < 3; k++) { if (c[k] < lo[k]) lo[k] = c[k]; if (c[k] > hi[k]) hi[k] = c[k]; }
     return { id, head: lo.map((v, k) => r4((v + hi[k]) / 2)), faces: fs };
   });
-  return { items, length: r4(mx[1] - mn[1]), span: r4(mx[0] - mn[0]), height: r4(mx[2] - mn[2]), readout };
+  // (a drone's rotors and propellers: each one's hub, its axis and the way it turns, so its figure can spin it)
+  const spins = row.look ? spinsOf(manifest, placements, N) : [];
+  return { items, length: r4(mx[1] - mn[1]), span: r4(mx[0] - mn[0]), height: r4(mx[2] - mn[2]), readout, ...(spins.length ? { spins } : {}) };
+}
+
+// each rotor's and propeller's hub (its mount: its axis runs through it), its axis in the craft (a rotor's the vertical,
+// a propeller's along the craft) and its turn (+1 anticlockwise about that axis), its joint's own, mirrored with its copy
+function spinsOf(manifest, placements, N) {
+  const out = [];
+  manifest.items.forEach((it, i) => {
+    const g = it.source.garage, j = (g.joints ?? []).find((x) => x.kind === 'spin');
+    if (!j || !['drone-rotor', 'craft-propeller'].includes(g.kind)) return;
+    const f = it.flip || '', ax = g.kind === 'drone-rotor' ? 2 : 1;
+    const turn = Math.sign(j.dir[ax]) * ['x', 'y', 'z'].reduce((t, c) => (f.includes(c) ? -t : t), 1) * (f.includes('xyz'[ax]) ? -1 : 1);
+    const axis = [0, 0, 0];
+    axis[ax] = 1;
+    out.push({ id: it.id, hub: N(placements[i].translate), axis, turn });
+  });
+  return out;
+}
+
+const SPIN_KEYS = 12;
+function spinOf(bones, spins) {
+  const by = new Map(spins.map((s) => [s.id, s])), flat = [];
+  for (let k = 0; k < SPIN_KEYS; k++) {
+    for (const b of bones) {
+      const s = by.get(b.id);
+      if (!s) { flat.push(0, 0, 0, 1, ...b.head); continue; }
+      const th = (2 * Math.PI * k * s.turn) / SPIN_KEYS, sn = r4(Math.sin(th / 2));
+      flat.push(r4(s.axis[0] * sn), r4(s.axis[1] * sn), r4(s.axis[2] * sn), r4(Math.cos(th / 2)), ...b.head);
+    }
+  }
+  return { k: SPIN_KEYS, b: flat };
 }
 
 /** The craft as a rig figure in the form render: one bone per item, still (a craft's parts turn by their own clips
  *  when a game moves them), lit by its world's sky when it stands in one, else noon. */
-export function craftFormFigure(archetype, { setting = null, keys = 2, ...opts } = {}) {
+export function craftFormFigure(archetype, { setting = null, keys = 2, spin = false, ...opts } = {}) {
   // (a craft is big: its own shadow's steps on its curved skin want a deeper bias than a car's)
-  const { items, length, span, height } = craftForm(archetype, opts);
-  const bones = items.map((it) => ({ id: it.id, head: it.head }));
+  const { items, length, span, height, spins = [] } = craftForm(archetype, opts);
+  // (a drone's rotor or propeller turns about its hub: its bone's head there)
+  const hubOf = new Map(spins.map((s) => [s.id, s.hub]));
+  const bones = items.map((it) => ({ id: it.id, head: hubOf.get(it.id) ?? it.head }));
   const formOf = new Map(items.map((it) => [it.id, it.faces]));
   const baked = new Map(items.map((it) => [it.id, bakeForm(it.faces)]));
   const fig = packVehicleFigure(bones, baked, { keys, rolls: [], form: formOf });
+  // a drone's `spin` clip: each rotor and propeller a turn about its axis the way it turns, the rest still; `spin: true`
+  // its idle
+  const spinClip = spins.length ? spinOf(bones, spins) : null;
   return {
     ...fig,
-    clips: { idle: fig.clips.roll },
+    clips: { idle: spin && spinClip ? spinClip : fig.clips.roll, ...(spinClip ? { spin: spinClip } : {}) },
     form: { ...formLight(skyMood(setting?.sky), AIR_MATERIALS, {}), normalBias: 0.14 },
     figH: r4(height), length, span, height,
   };

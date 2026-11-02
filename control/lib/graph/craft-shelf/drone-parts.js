@@ -20,6 +20,7 @@
  *
  * Craft space: +y forward, +z up, +x right, metres. Pure.
  */
+import { madeDrone } from './drone-made.js';
 import { DEG, lathe, loftWorld, sweep, extrudeWorld, section, facetSection, planeUV, round3, tone } from './craft-common.js';
 
 const r3v = (v) => v.map(round3);
@@ -394,13 +395,22 @@ function buildGear(row, C) {
   return { sweeps, lathes, hardpoints: { mount: [0, 0, 0], contact: [round3(sx), 0, round3(-h)] } };
 }
 
+// (under the made finish, each part's own fittings laid over its geometry: drone-made.js; absent, the part as it was)
+const withMade = (kind, build) => (row, C, opts = {}) => {
+  const g = build(row, C, opts), m = madeDrone(kind, row, C, opts);
+  if (!m) return g;
+  const out = { ...g };
+  for (const k of ['lathes', 'sweeps', 'extrudes', 'lofts']) if (m[k]?.length) out[k] = [...(g[k] ?? []), ...m[k]];
+  return out;
+};
+
 export const DRONE_BUILDERS = {
   'drone-gear': buildGear,
-  'drone-frame': buildFrame,
-  'drone-arm': buildArm,
-  'drone-motor': buildMotor,
-  'drone-rotor': buildRotor,
+  'drone-frame': withMade('drone-frame', buildFrame),
+  'drone-arm': withMade('drone-arm', buildArm),
+  'drone-motor': withMade('drone-motor', buildMotor),
+  'drone-rotor': withMade('drone-rotor', buildRotor),
   'drone-guard': buildGuard,
-  'drone-payload': buildPayload,
+  'drone-payload': withMade('drone-payload', buildPayload),
   'drone-mast': buildMast,
 };

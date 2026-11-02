@@ -99,7 +99,7 @@ const r6 = (v) => Math.round(v * 1e6) / 1e6 + 0;
 const extentOf = (fs, k) => { let lo = Infinity, hi = -Infinity; for (const f of fs) for (const c of f.corners) { if (c[k] < lo) lo = c[k]; if (c[k] > hi) hi = c[k]; } return [lo, hi]; };
 
 // what the paint is sprayed on: the paint's slot, not a store's (a missile keeps its own), not the heat's bands
-const SPRAYED = (it) => !['craft-weapon', 'craft-propeller', 'craft-canopy'].includes(it.kind);
+const SPRAYED = (it) => !['craft-weapon', 'craft-propeller', 'craft-canopy', 'drone-rotor', 'drone-motor', 'drone-payload'].includes(it.kind);
 const painted = (f) => f.material === 'airPaint' && f.fitting !== 'heat' && f.fitting !== 'mark';
 const PLATE = Object.freeze({ 'craft-wing': 'wing', 'craft-stabilizer': 'wing', 'craft-fin': 'fin' });
 
@@ -382,6 +382,8 @@ export function wearCraft(stage, W, { seed = 1 } = {}) {
   const A = AIR_WEAR[W?.level];
   if (!A || W.level === 'pristine') return stage;
   const rnd = mulberry32(((seed * 9173) + 29) | 0);
+  // (its marks of wear its own size: a drone's streaks, patches and chips a fraction of an aircraft's, and fewer)
+  const [cy0, cy1] = extentOf(stage.flatMap((it) => it.fs), 1), g = Math.max(0.06, Math.min(1, (cy1 - cy0) / 12)), count = (n) => Math.round(n * Math.max(0.25, g));
   // ── per corner: the sun's fade on what faces up; the engine's soot over the hull's end and on its nozzle
   const eng = stage.filter((it) => it.kind === 'craft-engine'), hull = stage.find((it) => it.kind === 'craft-fuselage');
   const exits = eng.map((it) => { const [y0] = extentOf(it.fs, 1); return { y: y0, x: centre(it.fs.flatMap((f) => f.corners))[0] }; });
@@ -399,7 +401,7 @@ export function wearCraft(stage, W, { seed = 1 } = {}) {
       return corner.every((h) => h === f.albedo) ? f : { ...f, cornerAlbedo: corner };
     });
   }
-  const skinOf = (it) => it.fs.filter((f) => !f.fitting && ['airPaint', 'airTrim'].includes(f.material));
+  const skinOf = (it) => it.fs.filter((f) => !f.fitting && ['airPaint', 'airTrim', 'plastic', 'carbon'].includes(f.material));
   // ── the gun's soot: a plume aft of each gun's muzzle on the hull beside it
   if (hull) for (const g of stage.filter((it) => it.kind === 'craft-weapon' && ['rotary', 'cannon'].includes(it.family))) {
     const pts = g.fs.flatMap((f) => f.corners), [, my1] = extentOf(g.fs, 1), c = centre(pts), sx = c[0] >= 0 ? 1 : -1;
@@ -414,24 +416,26 @@ export function wearCraft(stage, W, { seed = 1 } = {}) {
     const { f, it } = cands[i], P = f.corners, a = rnd(), b = rnd() * (1 - a), k = 1 + Math.floor(rnd() * (P.length - 2));
     return { it, f, p: [0, 1, 2].map((j) => P[0][j] * (1 - a - b) + P[k][j] * a + P[k + 1][j] * b) };
   };
-  const skins = stage.filter((it) => it.kind === 'craft-fuselage' || PLATE[it.kind] || it.kind === 'craft-engine');
-  const faceUp = skins.flatMap((it) => skinOf(it).filter((f) => f.outNormal[2] > -0.3 && f.material === 'airPaint').map((f) => ({ f, it })));
+  // (an aircraft's hull, wings and nacelles; a drone's frame and arms)
+  const skins = stage.filter((it) => it.kind === 'craft-fuselage' || PLATE[it.kind] || it.kind === 'craft-engine' || it.kind === 'drone-frame' || it.kind === 'drone-arm');
+  const faceUp = skins.flatMap((it) => skinOf(it).filter((f) => f.outNormal[2] > -0.3 && ['airPaint', 'plastic', 'carbon'].includes(f.material)).map((f) => ({ f, it })));
   // flow: aft along the skin (-y laid into the face)
   const aftOn = (n) => { const d = [0, -1, 0], t = sub(d, n.map((v) => v * dot(d, n))); return Math.hypot(...t) < 0.2 ? [0, 0, -1] : unit(t); };
   // ── repainted panels: a rectangle of fresher paint (the colour under it, less faded)
-  for (let i = 0; i < A.patches && faceUp.length; i++) {
-    const { it, f, p } = pick(faceUp), w = 0.3 + rnd() * 0.5, h = 0.25 + rnd() * 0.45;
-    it.fs.push(...decal(skinOf(it), { at: p, out: f.outNormal, up: aftOn(f.outNormal) }, [rect(-w / 2, -h / 2, w / 2, h / 2)], (g) => (g.material === 'airPaint' ? { material: 'airPaint', albedo: scaleBy(g.albedo, 1.07) } : null), { lift: 0.0009, depth: 0.4, fitting: 'wear' }));
+  for (let i = 0; i < count(A.patches) && faceUp.length; i++) {
+    const { it, f, p } = pick(faceUp), w = (0.3 + rnd() * 0.5) * g, h = (0.25 + rnd() * 0.45) * g;
+    it.fs.push(...decal(skinOf(it), { at: p, out: f.outNormal, up: aftOn(f.outNormal) }, [rect(-w / 2, -h / 2, w / 2, h / 2)], (g) => (['airPaint', 'plastic'].includes(g.material) ? { material: g.material, albedo: scaleBy(g.albedo, 1.07) } : null), { lift: 0.0009, depth: 0.4, fitting: 'wear' }));
   }
   // ── grime streaks: from a point on the skin, aft with the flow, tapering
-  for (let i = 0; i < A.streaks && faceUp.length; i++) {
-    const { it, f, p } = pick(faceUp), len = 0.5 + rnd() * (0.6 + 1.2 * A.soot), w = 0.02 + rnd() * 0.045, k = 0.84 + rnd() * 0.09;
+  for (let i = 0; i < count(A.streaks) && faceUp.length; i++) {
+    const { it, f, p } = pick(faceUp), len = (0.5 + rnd() * (0.6 + 1.2 * A.soot)) * g, w = (0.02 + rnd() * 0.045) * Math.max(0.2, g), k = 0.84 + rnd() * 0.09;
     it.fs.push(...decal(skinOf(it), { at: p, out: f.outNormal, up: aftOn(f.outNormal) }, [[[-w, 0], [w, 0], [w * 0.35, len], [-w * 0.35, len]]], (g) => ({ material: g.material, albedo: scaleBy(g.albedo, k) }), { lift: 0.0021, depth: 0.3, fitting: 'wear' }));
   }
   // ── chips: the paint off to bare metal along the leading edges (what faces the air ahead) and the intake's lip
-  const ahead = stage.filter((it) => PLATE[it.kind] || it.kind === 'craft-intake').flatMap((it) => skinOf(it).filter((f) => f.outNormal[1] > 0.45).map((f) => ({ f, it })));
-  for (let i = 0; i < A.chips && ahead.length; i++) {
-    const { it, f, p } = pick(ahead), r = 0.008 + rnd() * 0.022, k = 5 + Math.floor(rnd() * 3);
+  // (what meets the air or the ground first: a wing's leading edge, an intake's lip, a drone's arms and its frame's nose)
+  const ahead = stage.filter((it) => PLATE[it.kind] || it.kind === 'craft-intake' || it.kind === 'drone-arm' || it.kind === 'drone-frame').flatMap((it) => skinOf(it).filter((f) => f.outNormal[1] > 0.45).map((f) => ({ f, it })));
+  for (let i = 0; i < count(A.chips) && ahead.length; i++) {
+    const { it, f, p } = pick(ahead), r = (0.008 + rnd() * 0.022) * Math.max(0.25, g), k = 5 + Math.floor(rnd() * 3);
     const chip = Array.from({ length: k }, (_, j) => { const a = (2 * Math.PI * j) / k, rr = r * (0.6 + 0.4 * rnd()); return [rr * Math.cos(a), rr * Math.sin(a)]; });
     it.fs.push(...decal(skinOf(it), { at: p, out: f.outNormal, up: aftOn(f.outNormal) }, [chip], () => ({ material: 'airMetal', albedo: BARE }), { lift: 0.0025, depth: 0.2, fitting: 'wear' }));
   }

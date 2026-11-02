@@ -119,7 +119,8 @@ describe('the multirotor family', () => {
     expect(dn.at[2]).toBeLessThan(up.at[2] - 0.03);
     expect(dn.flip).toContain('z');
     const rU = itemOf(manifest, low.replace('MotorLow', 'Rotor') + '-r'), rD = itemOf(manifest, low.replace('Motor', 'Rotor') + '-r');
-    const turn = (it) => it.source.garage.joints[0].dir[2] * ((it.flip || '').includes('z') ? -1 : 1) * ((it.flip || '').includes('x') ? -1 : 1);
+    // (a turn is a pseudovector: a mirror reverses it, save for its own axis's part, which a mirror along that axis keeps)
+    const turn = (it) => { const f = it.flip || '', n = [...f].length; return it.source.garage.joints[0].dir[2] * (n % 2 ? -1 : 1) * (f.includes('z') ? -1 : 1); };
     expect(turn(rD)).toBe(-turn(rU));
   });
   it('a skid drone stands on its skids; a tube arm folds down; a ducted rotor turns inside its duct', () => {

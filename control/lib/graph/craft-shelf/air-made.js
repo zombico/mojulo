@@ -48,23 +48,26 @@ const proud = (ring, d) => { const { c } = centreOf(ring); return ring.map(([x, 
 
 export function madeHull({ b, L, zp, ringAt, skinX, skinZ, C }) {
   const lofts = [], sweeps = [], extrudes = [];
+  // (a craft's fittings its own size: a drone's hull a fraction of a fighter's; from 10 m up, as they are)
+  const k = Math.min(1, L / 10);
   // the radome's break: a dark ring where the composite nose meets the metal
   if (b.nose) {
     const y = -b.nose * L;
-    sweeps.push(sweep('radome_break', closed(proud(ringAt(b.nose), 0.004).map(([x, z]) => [x, y, z])), 0.009, tone(C.trim, -0.4), { sides: 5 }));
+    sweeps.push(sweep('radome_break', closed(proud(ringAt(b.nose), 0.004).map(([x, z]) => [x, y, z])), 0.009 * Math.max(0.3, k), tone(C.trim, -0.4), { sides: 5 }));
   }
   // the angle-of-attack vanes each side of the nose, the IFF blades over and under it
   const sv = Math.min(0.97, (b.nose || 0.06) + 0.035), ring = ringAt(sv), { c, hh } = centreOf(ring);
   for (const side of [1, -1]) {
     const z = c[1] + 0.2 * hh, x = skinX(ring, z, side);
-    if (x !== null) extrudes.push(...blade(`aoa_${side > 0 ? 'r' : 'l'}`, [x - side * 0.004, -sv * L, z], [side, 0, 0], [0, 1, 0], { len: 0.08, chord: 0.06, rake: 0.5, tint: C.chrome }).extrudes);
+    if (x !== null) extrudes.push(...blade(`aoa_${side > 0 ? 'r' : 'l'}`, [x - side * 0.004, -sv * L, z], [side, 0, 0], [0, 1, 0], { len: 0.08 * k, chord: 0.06 * k, rake: 0.5, tint: C.chrome }).extrudes);
   }
   for (const [k, s, up] of [['iff_top', sv + 0.02, 1], ['iff_belly', sv + 0.07, -1]]) {
     const z = skinZ(ringAt(s), 0, up);
-    if (z !== null) extrudes.push(...blade(k, [0, -s * L, z - up * 0.004], [0, 0, up], [0, 1, 0], { len: 0.11, chord: 0.09, rake: 0.4, tint: C.trim }).extrudes);
+    if (z !== null) extrudes.push(...blade(k, [0, -s * L, z - up * 0.004], [0, 0, up], [0, 1, 0], { len: 0.11 * k, chord: 0.09 * k, rake: 0.4, tint: C.trim }).extrudes);
   }
   // the bands the engine's heat leaves over its end: straw, then blue, then brown toward the tail
-  HEAT.forEach((tint, k) => {
+  // (the heat's bands where an engine's heat reaches the skin: not on a small electric drone)
+  if (L >= 5) HEAT.forEach((tint, k) => {
     const s0 = 0.9 + k * 0.03, s1 = s0 + 0.03;
     const st = [s0, s1].map((s, i) => ({ t: i, points: proud(ringAt(s), 0.0015).map(([x, z]) => [x, 0, z - zp]) }));
     lofts.push(loftWorld(`heat_band_${k}`, [0, -s0 * L, zp], [0, -s1 * L, zp], st, mix(C.paint, tint, 0.3 + 0.08 * k), { caps: false, group: 'heat' }));
@@ -117,9 +120,9 @@ export function madeLeg({ b, axle, S, nose, C }) {
   const sweeps = [], lathes = [];
   // the brake line down the leg's side to the hub
   const o = b.oleo * 1.25;
-  sweeps.push(sweep('brake_line', [[o, 0, -0.05], [o, axle[1] * 0.5, -S * 0.5], [o * 0.8, axle[1], -S + b.oleo]], 0.007, GAP, { sides: 5 }));
+  sweeps.push(sweep('brake_line', [[o, 0, -0.05], [o, axle[1] * 0.5, -S * 0.5], [o * 0.8, axle[1], -S + b.oleo]], Math.min(0.007, b.oleo * 0.12), GAP, { sides: 5 }));
   // a nose leg's taxi light facing ahead
-  if (nose) lathes.push(...coveredLight('taxi_light', [0, axle[1] * 0.4 + b.oleo * 1.1, -S * 0.42], [0, 1, 0], { r: 0.05, light: '#fff4d8', glass: C.glass }).lathes);
+  if (nose) lathes.push(...coveredLight('taxi_light', [0, axle[1] * 0.4 + b.oleo * 1.1, -S * 0.42], [0, 1, 0], { r: Math.min(0.05, S * 0.06), light: '#fff4d8', glass: C.glass }).lathes);
   return asFitting({ sweeps, lathes });
 }
 
@@ -173,7 +176,7 @@ export function madeSurface({ place, world, foil, surfaces, kind, nav = false, n
       for (let k = 0; k < n; k++) {
         const f = sf.span[0] + ((k + 0.5) * (sf.span[1] - sf.span[0])) / n;
         const p = skin(f, cut - 0.04, 'lower'), down = sub(skin(f, cut - 0.04, 'lower'), skin(f, cut - 0.04, 'upper')), aft = sub(skin(f, cut + 0.02, 'lower'), skin(f, cut - 0.1, 'lower'));
-        lathes.push(...blister(`actuator_${sf.control}_${k}_${Math.round(sf.span[0] * 100)}`, p, down, aft, { len: 0.42, wid: 0.07, h: 0.04, tint: tone(C.paint, -0.05) }).lathes);
+        lathes.push(...blister(`actuator_${sf.control}_${k}_${Math.round(sf.span[0] * 100)}`, p, down, aft, { len: Math.min(0.42, at(f).chord * 0.3), wid: Math.min(0.07, at(f).chord * 0.05), h: Math.min(0.04, at(f).chord * 0.03), tint: tone(C.paint, -0.05) }).lathes);
       }
     }
   }
@@ -184,9 +187,10 @@ export function madeSurface({ place, world, foil, surfaces, kind, nav = false, n
   }
   // a fin's cap: its antenna housing along the tip and the beacon on it
   if (vertical) {
-    const tip = at(1), front = world(1, place(1, 0.15, 0)), back = world(1, place(1, 0.85, 0));
-    lathes.push(...blister('cap', world(1, place(1, 0.5, 0)), out, sub(front, back), { len: tip.chord * 0.75, wid: Math.max(0.06, tip.chord * 0.07), h: 0.04, tint: C.trim }).lathes);
-    lathes.push(...coveredLight('beacon', world(1, place(1, 0.72, 0)).map((v, i) => v + out[i] * 0.03), out, { r: 0.045, light: NAV.l, glass: C.glass }).lathes);
+    // (a fin's cap and beacon its own size: a drone's fin a fraction of a fighter's)
+    const tip = at(1), kc = Math.min(1, tip.chord), front = world(1, place(1, 0.15, 0)), back = world(1, place(1, 0.85, 0));
+    lathes.push(...blister('cap', world(1, place(1, 0.5, 0)), out, sub(front, back), { len: tip.chord * 0.75, wid: Math.max(0.06 * kc, tip.chord * 0.07), h: 0.04 * kc, tint: C.trim }).lathes);
+    lathes.push(...coveredLight('beacon', world(1, place(1, 0.72, 0)).map((v, i) => v + out[i] * 0.03 * kc), out, { r: 0.045 * kc, light: NAV.l, glass: C.glass }).lathes);
   }
   // a wing's nav light in its clear cover at the tip (in place of the bare one)
   if (nav) {

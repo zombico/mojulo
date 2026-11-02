@@ -28,14 +28,15 @@ export const DRONE_ROLES = {
 const MULTI = ({ frame, arms, motor, rotor, coax = null, guard = null, gear = null, payloads = [], masts = [] }) => [
   { id: 'frame', sku: frame },
   ...arms.flatMap(([id, sku, at, yaw], i) => {
-    // (a coaxial pair: the lower the same part inverted with its motor, so it turns against the one above)
-    const hand = i % 2 === 0 ? 'ccw' : 'cw';
+    // (a coaxial pair: the lower the other hand's part, inverted with its motor; a mirror through its own plane keeps a
+    // rotor's turn seen from above, so the other hand turns it against the one above)
+    const hand = i % 2 === 0 ? 'ccw' : 'cw', other = hand === 'ccw' ? 'cw' : 'ccw';
     return [
       { id, sku, at: `frame.${at}`, pair: true, yaw },
       { id: `${id}Motor`, sku: motor, at: `${id}.motor`, pair: true },
       { id: `${id}Rotor`, sku: `${rotor}-${hand}`, at: `${id}Motor.shaft`, pair: true },
       ...(guard ? [{ id: `${id}Guard`, sku: guard, at: `${id}.motor`, pair: true }] : []),
-      ...(coax ? [{ id: `${id}MotorLow`, sku: motor, at: `${id}.motorLow`, pair: true, flip: 'z' }, { id: `${id}RotorLow`, sku: `${rotor}-${hand}`, at: `${id}MotorLow.shaft`, pair: true }] : []),
+      ...(coax ? [{ id: `${id}MotorLow`, sku: motor, at: `${id}.motorLow`, pair: true, flip: 'z' }, { id: `${id}RotorLow`, sku: `${rotor}-${other}`, at: `${id}MotorLow.shaft`, pair: true }] : []),
     ];
   }),
   ...(gear ? [{ id: 'gear', sku: gear, at: 'frame.gear', pair: true }] : []),

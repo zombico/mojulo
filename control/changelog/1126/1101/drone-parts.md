@@ -187,3 +187,44 @@ markings and wear.
 
     No existing pin moved.
   - **Seen** (machine gate only; the eyes gate is open): every new drone from three quarters and the side.
+- **The made finish and the language on drones:**
+  - **Each drone kind's made fittings** (`craft-shelf/drone-made.js`), laid over its builder's own geometry, computed
+    from the same row and turned by the same fold, every piece a fitting; earth drones only:
+    - a moulded shell's or a box's parting line round its waist and the screws under its belly;
+    - a box's accessory rails;
+    - a plate stack's top screws, a hub's ring of screws;
+    - an arm's motor cable (under a beam or a tube; three wires along a racer's flat arm), a tube's clamp bolts;
+    - a motor's three wires toward the arm's root;
+    - a rotor's hub screws;
+    - a gimbal's lens ring and flex cable.
+  - **The aircraft's made fittings their craft's size** (`air-made.js`):
+    - on a hull under 10 m, the radome's break, the vanes and the blades scaled, and the heat's bands only from 5 m;
+    - a wing's actuator fairings by its chord;
+    - a fin's cap and beacon by its tip;
+    - a nose leg's taxi light and a leg's brake line by the leg.
+
+    Every aircraft-sized part keeps its size.
+  - **Spinning:** a drone's rotors and propellers spin in its figure. `craftForm` names each one's hub, axis and turn
+    (`spins`): a mirror reverses a turn save along its own axis, so a coaxial pair's lower rotor is the other hand's
+    part. `craftFormFigure` sets each one's bone at its hub and gives a drone a `spin` clip, a full turn over twelve
+    keys, each the way it turns; `spin: true` makes it the idle. A craft that is no drone carries none.
+  - **Fixed in passing:** phase 2's coaxial test read a mirror through the rotor's own plane as reversing its turn, and
+    the X8 had been changed to suit it (its pairs turned alike). The lower rotors are the other hand's part again, and
+    the test reads the turn as the pseudovector it is.
+  - **The surface on drones:**
+    - a camo passes a drone's rotors, motors and payloads by;
+    - the wear reaches its frame and arms in any slot (paint, plastic, carbon), its chips their faces that meet the air;
+    - its streaks, patches and chips are its own size, and fewer (an aircraft from 12 m up as it was).
+  - **Held** (`drone-made.test.js`):
+    - each kind's fittings, all fittings, none without the word or on a starship drone;
+    - a small fixed-wing drone's fairings shorter than its wing is deep;
+    - a rotor's bone at its hub, a quarter turn a quarter through, the idle still unless asked;
+    - a mirrored pair and a coaxial pair counter-rotating;
+    - a craft that is no drone without spins;
+    - a battered quad's wear in the hundreds;
+    - every earth drone made, in camo and battered, within 1.6 times its budget.
+  - **Seen** (machine gate only; the eyes gate is open):
+    - the hand-launched and twin-boom drones made;
+    - the camera quad made, and made and used;
+    - the inspection quad military in splinter, battered;
+    - the racer made.
