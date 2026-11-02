@@ -40,9 +40,23 @@ import { SCHEMES } from '../../controls/schemes.js';
 // Frame: WebXR's reference space is y-up with -Z forward; mojulo is z-up. The rig quaternion is
 // Qz(yaw − π/2) · Qx(+π/2): local +Y → world +Z, local −Z → world heading `yaw`. three composes
 // the headset pose under the rig's matrixWorld, so moving/turning the rig moves/turns the player.
-// Honest limits: no wall collision in XR (v1); a game's hero is not driven in the session (the
-// rig replaces the controllable step); overlays (fog/effects) are camera-fed per eye by three but
-// were tuned for the mono view.
+// THE GAME IN THE HEADSET (`ctrl`: the page has a controllable channel with a pilot; emitted only then). The session
+// drives the PILOT (the world's pilot, else the camera's target) instead of walking the rig alone, so the game, its
+// foes, its mechanics and its contract run in the headset:
+//   - the controllers are a PAD: read through the pilot scheme's `xr` bindings into the shape the page's pad read gives
+//     (moveX, moveY, fire, jump, interact …), handed to the controllable's input read (`__xrCtl.pad`), so every press
+//     edge, the weapon and the interact count go the way they go for a gamepad;
+//   - ON FOOT the left stick walks and strafes on the BODY (the stance's: the rig yaw seated, the torso standing, the
+//     latched, gaze or hand heading in those modes): the pilot's heading is the body's and its pitch the head's
+//     (`__xrCtl.input`); a world-move pilot (`move: 'world'`) gets the same vector in its camera's frame, a lane pilot
+//     runs its lane on the stick's X; a VEHICLE keeps the pad's own semantics and carries the rig (yaw and all);
+//   - the head's own STEP in the play space moves the pilot, each axis kept out of the world's colliders (a wall holds
+//     the body and the view is pushed back), then the rig is placed under the pilot: the head over its feet, the floor
+//     at them. The kernel steps, the camera entity stands down (three poses the camera from the headset), and the
+//     pilot's body is hidden (first person).
+// A page without a pilot walks as above. Absent `ctrl`, none of this is emitted.
+// Honest limits: no wall collision in the free walk (v1); the page's HUD is DOM and the headset does not show it;
+// overlays (fog/effects) are camera-fed per eye by three but were tuned for the mono view.
 
 const MOVES = ['seated', 'standing', 'latch', 'head', 'hand'];
 const TURNS = ['smooth', 'snap', 'off'];
@@ -55,15 +69,17 @@ const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
 // `xr`: true | { eye, speed, move, turn, snap (deg), turnSpeed (deg/s), neck (deg), reach (m), dead, axial (deg), bind }.
 // `turn` defaults to smooth seated and snap standing; `snap` given without `turn` means snap turning (what `{ snap }`
 // always meant). `walk` is the page's walk config (its speed
-// halved is the headset's: a walk speed is tuned for a sprint across a monitor). Absent `xr` ⇒ null.
-export function xrConfig(xr, walk) {
+// halved is the headset's: a walk speed is tuned for a sprint across a monitor). `ctrl`: the page plays a game (its
+// pilot reads every action the pilot scheme binds on the xr family, not only the locomotion). Absent `xr` ⇒ null.
+export function xrConfig(xr, walk, { ctrl = false } = {}) {
   if (!xr) return null;
   const k = typeof xr === 'object' ? xr : {};
   const move = MOVES.includes(k.move) ? k.move : 'seated';
   const turn = TURNS.includes(k.turn) ? k.turn : (Number.isFinite(k.snap) || move === 'standing' ? 'snap' : 'smooth');
   const K = buildControlsKernel();
   const B = K.resolve(SCHEMES.pilot, { xr: DEVICES.xr }, k.bind && typeof k.bind === 'object' ? { xr: k.bind } : null);
-  const bind = Object.fromEntries(LOCO.map((id) => [id, B.bind.xr[id]]));
+  const ids = ctrl ? Object.keys(B.bind.xr).filter((id) => LOCO.includes(id) || (B.bind.xr[id] || []).length) : LOCO;
+  const bind = Object.fromEntries(ids.map((id) => [id, B.bind.xr[id]]));
   return {
     eye: num(k.eye, 1.6),
     speed: num(k.speed, walk ? walk.speed * 0.5 : 3),
@@ -96,7 +112,92 @@ export function xrFromParam(param, own) {
   return Object.keys(base).length ? base : (own || true);
 }
 
-export function xrModeScript(cfg) {
+// the game in the headset (`ctrl`): the controllable channel declares `__xrCtl` (null: the page reads its own pad and
+// drives its own camera) and reads it in its input read, its camera drive and its body sync (controllable/index.js `xr`)
+const CTRL = `// --- the game in the headset: the session drives the pilot, the rig stands under it ---
+let __xrHead0 = null, __xrPad0 = null;
+// the body the headset plays: the world's pilot, else the camera's target
+function __xrPilot(){
+  const W = __world, t = W.camera && W.camera.rule && W.camera.rule.target;
+  return (W.pilotId && W.byId[W.pilotId]) || (t && W.byId[t]) || null;
+}
+const __xrVehicle = (e) => !!(e.rule && (e.rule.type === 'drive' || e.rule.type === 'fly'));
+// the head, rig-local (y-up), or null before a pose
+function __xrHeadLocal(){ const p = __xrViewer(); return p ? { x: p.transform.position.x, z: p.transform.position.z } : null; }
+// the head's pitch (radians, + up): its forward's rise, the rig only turning about the world's up
+function __xrPitch(){
+  const p = __xrViewer(); if (!p) return 0;
+  const o = p.transform.orientation; __xrQ.set(o.x, o.y, o.z, o.w); __xrB.set(0, 0, -1).applyQuaternion(__xrQ);
+  return Math.asin(Math.max(-1, Math.min(1, __xrB.y)));
+}
+// the body's heading, as the stance says (the walk's own headings)
+function __xrBody(){
+  return XR.move === 'standing' ? __xrYaw + (__xrTorso || 0) : XR.move === 'latch' ? (__xrLatch !== null ? __xrLatch : __xrYaw)
+    : XR.move === 'hand' ? __xrHandHeading() : XR.move === 'head' ? __xrHeading() : __xrYaw;
+}
+// the controllers as the page's pad: the pilot scheme's xr bindings, the left stick shaped as the walk shapes it
+function __xrPadRead(){
+  const s = renderer.xr.getSession(), src = s ? s.inputSources : [], rd = __XRV.xrRead(src, __XRD), ra = __XRV.xrRead(src, __XRD, true);
+  const m = __XRV.stick(__XRK.axis(XR, 'strafeRight', 'strafeLeft', 'xr', rd), __XRK.axis(XR, 'moveForward', 'moveBack', 'xr', rd), XR.dead, XR.axial);
+  const h = (id) => __XRK.held(XR, id, 'xr', rd);
+  __xrPad0 = {
+    moveX: m[0], moveY: m[1], lookX: 0, lookY: 0,
+    fire: h('fire'), boost: h('boost'), rt: __XRK.value(XR, 'fire', 'xr', ra), lt: __XRK.value(XR, 'boost', 'xr', ra),
+    tackle: h('tackle'), kneel: h('kneel'), jump: h('jump'), cycle: false, slot: 0,
+    swap: h('swapSuit'), ai: h('aiToggle'), lock: h('lock'), transform: h('transform'), interact: h('interact'),
+  };
+  return __xrPad0;
+}
+// the input read, finished: on foot the stick walks on the body, the pilot faces the body's way and looks where the head
+// looks (the kernel turns nothing itself); a vehicle drives as the pad drives it
+function __xrInput(inp){
+  const e = __xrPilot(), p = __xrPad0;
+  if (!e || !p || __xrVehicle(e)) return inp;
+  const r = e.rule || {}, h = __xrBody();
+  inp.turn = 0; inp.lookDX = 0; inp.lookDY = 0;
+  if (r.move === 'lane') { inp.forward = 0; inp.strafe = p.moveX; }
+  else if (r.move === 'world') {
+    // the body's vector, in the frame of the camera the world moves by
+    const my = r.moveYaw !== undefined ? r.moveYaw : Math.PI / 2;
+    const wx = Math.cos(h) * p.moveY + Math.sin(h) * p.moveX, wy = Math.sin(h) * p.moveY - Math.cos(h) * p.moveX;
+    inp.forward = wx * Math.cos(my) + wy * Math.sin(my); inp.strafe = wx * Math.sin(my) - wy * Math.cos(my);
+  } else { inp.forward = p.moveY; inp.strafe = p.moveX; e.transform.heading = h; }
+  e.transform.pitch = __xrPitch();
+  return inp;
+}
+// a step of the head moves the pilot, an axis at a time, never into a collider (one whose top is past a step above the
+// feet): the body stays out of the wall and the view is pushed back
+function __xrShift(e, dx, dy){
+  const r = e.rule || {}, p = e.transform.pos, rad = r.collideRadius || 0.3, foot = p[2] - (r.eye || 0), top = foot + (r.collideHeight || 1.7);
+  const free = (x, y) => {
+    for (const c of (__world.colliders || [])) if (x > c.min[0] - rad && x < c.max[0] + rad && y > c.min[1] - rad && y < c.max[1] + rad && top > c.min[2] && c.max[2] > foot + (r.step || 0.3)) return false;
+    return true;
+  };
+  if (free(p[0] + dx, p[1])) p[0] += dx;
+  if (free(p[0], p[1] + dy)) p[1] += dy;
+}
+// the rig under the pilot: the head (rig-local L) over its feet, the floor at them; a vehicle carries the rig's yaw too
+function __xrPlace(e, L){
+  const p = e.transform.pos, foot = p[2] - ((e.rule && e.rule.eye) || 0);
+  if (__xrVehicle(e)) { __xrYaw = e.transform.heading || 0; __xrSetYaw(__xrRig, __xrYaw); }
+  __xrA.set(L ? L.x : 0, 0, L ? L.z : 0).applyQuaternion(__xrRig.quaternion);
+  __xrRig.position.set(p[0] - __xrA.x, p[1] - __xrA.y, foot);
+}
+function __xrPlay(dt){
+  const e = __xrPilot();
+  if (!e) return;
+  const L = __xrHeadLocal();
+  if (L && __xrHead0 && !__xrVehicle(e)) {
+    __xrA.set(L.x - __xrHead0.x, 0, L.z - __xrHead0.z).applyQuaternion(__xrRig.quaternion);   // the step, in the world
+    if (__xrA.x || __xrA.y) __xrShift(e, __xrA.x, __xrA.y);
+  }
+  __xrHead0 = L;
+  stepControllable(dt);
+  __xrPlace(e, L);
+}
+`;
+
+export function xrModeScript(cfg, { ctrl = false } = {}) {
   return `
 // --- WebXR immersive-vr (opt-in): the z-up rig carries the y-up XR space through the same scene ---
 const XR = ${safeJson(cfg)};
@@ -189,7 +290,8 @@ function __xrExit(){
   __xrRig.remove(camera); scene.remove(__xrRig); __xrRig = null; __xrLatch = null;
   camera.position.copy(__xrSaved.pos); camera.quaternion.copy(__xrSaved.quat);
   controls.enabled = __xrSaved.controls; walkOn = __xrSaved.walkOn; __xrSaved = null;
-  __xrBtn.classList.remove('on');
+  __xrBtn.classList.remove('on');${ctrl ? `
+  __xrCtl = null; __xrHead0 = null; __xrPad0 = null;` : ''}
 }
 async function __xrEnter(){
   if (__xrOn) { const s = renderer.xr.getSession(); if (s) s.end(); return; }
@@ -210,7 +312,9 @@ async function __xrEnter(){
   __xrRig.add(camera); camera.position.set(0, 0, 0); camera.quaternion.identity();
   walkOn = false; controls.enabled = false; __xrLatch = null; __xrSnapCool = 0; __xrTorso = null;
   if (document.pointerLockElement) document.exitPointerLock();
-  __xrOn = true; __xrBtn.classList.add('on');
+  __xrOn = true; __xrBtn.classList.add('on');${ctrl ? `
+  // a page with a pilot: the session plays the game (the body faces the pilot's way, the rig stands under it)
+  { const e = __xrPilot(); if (e) { __xrYaw = e.transform.heading || 0; __xrSetYaw(__xrRig, __xrYaw); __xrHead0 = null; __xrPlace(e, null); __xrCtl = { pad: __xrPadRead, input: __xrInput, hides: (b) => b === __xrPilot() }; } }` : ''}
   session.addEventListener('end', __xrExit);
   await renderer.xr.setSession(session);
 }
@@ -234,7 +338,8 @@ function __xrStep(dt){
     const t = __XRV.stick(turn, 0, XR.dead, 0)[0];
     if (t) __xrTurn(-t * XR.turnSpeed * dt);
   }
-  if (walking) {
+${ctrl ? `  if (__xrCtl) { __xrPlay(dt); return; }   // the game steps the pilot; the rig follows it
+` : ''}  if (walking) {
     const h = XR.move === 'seated' ? __xrYaw : XR.move === 'standing' ? __xrYaw + (__xrTorso || 0) : XR.move === 'latch' ? __xrLatch : XR.move === 'hand' ? __xrHandHeading() : __xrHeading();
     const v = XR.speed * dt, fx = Math.cos(h), fy = Math.sin(h), rx = Math.sin(h), ry = -Math.cos(h);
     __xrRig.position.x += (m[1] * fx + m[0] * rx) * v;
@@ -245,7 +350,7 @@ function __xrStep(dt){
     if (g != null) __xrRig.position.z = g;
   }
 }
-renderer.xr.enabled = true;
+${ctrl ? CTRL : ''}renderer.xr.enabled = true;
 const __xrBtn = document.createElement('button'); __xrBtn.textContent = 'vr'; __xrBtn.hidden = true;
 __xrBtn.onclick = () => { __xrEnter(); };
 hud.appendChild(__xrBtn);

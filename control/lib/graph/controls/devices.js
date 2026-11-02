@@ -74,6 +74,10 @@ export const DEVICES = {
     sticks: { thumbstick: ['thumbstickX', 'thumbstickY'], touchpad: ['touchpadX', 'touchpadY'] },
     // primary / secondary print per hand as the profile names them (Touch: A B on the right hand, X Y on the left)
     labels: { trigger: 'trigger', squeeze: 'grip', touchpad: 'touchpad', thumbstick: 'thumbstick click', primary: { left: 'X', right: 'A' }, secondary: { left: 'Y', right: 'B' }, thumbstick_stick: 'thumbstick', touchpad_stick: 'touchpad' },
+    // the POSES beside the controls, named as OpenXR names its pose actions (xr-driver.js xrPoses reads them; a pose is
+    // read, never bound): the viewer, and per hand the grip (the closed fist's centre, −Z along the hole it closes round:
+    // where a held thing sits) and the aim (the target ray: where a pointer or a muzzle points)
+    poses: { head: 'XRFrame.getViewerPose', grip: 'XRInputSource.gripSpace', aim: 'XRInputSource.targetRaySpace' },
   },
 
   sim: {

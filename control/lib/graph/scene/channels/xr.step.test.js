@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 
 import * as THREE from '../../../../public/vendor/three/three.core.min.js';
 import { xrConfig, xrFromParam, xrModeScript } from './xr.js';
+import { composeLive } from '../../worlds/controllable/compose.js';
+import { emitThreeWorld } from '../scene-three.js';
 
 // The headset's locomotion, run: the emitted block against the vendored three's math, a fake session whose sticks and
 // head the test moves, so "goes straight" and "turns in place" are measured, not read off the source. The eyes gate
@@ -242,5 +244,161 @@ describe('xr config', () => {
     expect(xrFromParam('snap,hand', { eye: 1.7 })).toEqual({ eye: 1.7, turn: 'snap', move: 'hand' });
     expect(xrFromParam('standing', { turn: 'smooth' })).toEqual({ move: 'standing' });   // the stance picks its own turn
     expect(xrFromParam('standing,smooth', null)).toEqual({ move: 'standing', turn: 'smooth' });
+  });
+});
+
+// THE GAME IN THE HEADSET (`ctrl`): the emitted block against a REAL kernel world (composeLive), its input read standing
+// in for the page's (a pad's tank-turn shape: the stick's X turns), so what the session hands the kernel is what moves the
+// pilot. The head moves in the play space (position, yaw, pitch); the sticks and buttons are the test's.
+const K = composeLive();
+const FLAT = { ground: () => 0 };
+function gameUp(xr, { entities, camera = null, colliders = null } = {}) {
+  const cfg = xrConfig(xr, null, { ctrl: true });
+  const pad = () => ({ axes: [0, 0, 0, 0], buttons: Array.from({ length: 6 }, () => ({ pressed: false, value: 0 })) });
+  const pads = { left: pad(), right: pad() };
+  const press = (side, i, on) => { pads[side].buttons[i] = { pressed: on, value: on ? 1 : 0 }; };
+  const session = { inputSources: [{ handedness: 'left', gamepad: pads.left }, { handedness: 'right', gamepad: pads.right }], addEventListener() {}, end() {} };
+  const head = { x: 0, z: 0, yaw: 0, pitch: 0 };
+  const frame = {
+    getViewerPose: () => {
+      const q = new THREE.Quaternion().setFromEuler(new THREE.Euler(head.pitch, head.yaw, 0, 'YXZ'));
+      return { transform: { position: { x: head.x, y: 1.6, z: head.z }, orientation: { x: q.x, y: q.y, z: q.z, w: q.w } } };
+    },
+    getPose: () => null,
+  };
+  const renderer = { xr: { enabled: false, getSession: () => session, getFrame: () => frame, getReferenceSpace: () => ({}), setReferenceSpaceType() {}, async setSession() {} } };
+  const camera3 = new THREE.PerspectiveCamera(); camera3.position.set(0, 0, 1.6); camera3.lookAt(1, 0, 1.6);
+  const world = K.createWorld({ entities, camera, colliders });
+  const inputs = [];
+  const env = {
+    THREE, renderer, camera: camera3, scene: new THREE.Scene(), controls: { enabled: true }, hud: { appendChild() {} },
+    document: { createElement: () => ({ classList: { add() {}, remove() {} }, hidden: false }), pointerLockElement: null },
+    navigator: { xr: { requestSession: async () => session, isSessionSupported: () => Promise.resolve(true) } },
+    __world: world, __K: K, __FLAT: FLAT, __inputs: inputs,
+  };
+  // the page's input read in miniature: the pad (the headset's while a session plays), a tank-turn world's shape, the
+  // jump's press edge; then the headset finishes it on the body
+  const body = `let walkOn = false, __xrCtl = null, stepControllable = () => {}, __prevJump = false;
+${xrModeScript(cfg, { ctrl: true })}
+stepControllable = (dt) => {
+  const p = __xrCtl ? __xrCtl.pad() : null;
+  const jump = !!(p && p.jump) && !__prevJump ? 1 : 0; __prevJump = !!(p && p.jump);
+  let inp = { forward: p ? p.moveY : 0, turn: p ? p.moveX : 0, strafe: 0, lookDX: 0, lookDY: 0, jump, jumpHeld: p && p.jump ? 1 : 0, fire: p && p.fire ? 1 : 0 };
+  if (__xrCtl) inp = __xrCtl.input(inp);
+  __inputs.push(inp);
+  __K.stepWorld(__world, inp, dt, __FLAT);
+};
+return { enter: __xrEnter, step: __xrStep, rig: () => __xrRig, ctl: () => __xrCtl };`;
+  const page = new Function(...Object.keys(env), body)(...Object.values(env));
+  return { pads, press, head, page, world, inputs };
+}
+const hero = (over = {}, at = [0, 0, 0]) => ({ id: 'hero', pilotable: true, rule: { type: 'platform', eye: 0, speed: 4, collideRadius: 0.3, collideHeight: 1.7, ...over }, transform: { pos: [...at], heading: 0 } });
+// the head's world place: the rig carrying the viewer's
+const headAt = (g) => { const v = new THREE.Vector3(g.head.x, 1.6, g.head.z); g.page.rig().updateMatrixWorld(); return g.page.rig().localToWorld(v); };
+const run = (g, n) => { for (let i = 0; i < n; i++) g.page.step(1 / 60); };
+
+describe('the game in the headset', () => {
+  it('the left stick walks the pilot on the body\'s heading, and the head rides over its feet', async () => {
+    const g = gameUp(true, { entities: [hero()] });
+    await g.page.enter();
+    expect(g.page.ctl()).not.toBeNull();
+    g.pads.left.axes = [0, 0, 0.12, -1];          // forward, a worn stick's drift to the right
+    run(g, 60);
+    const p = g.world.byId.hero.transform.pos;
+    expect(p[0]).toBeGreaterThan(2);               // walked down +X, the body's heading
+    expect(Math.abs(p[1])).toBeLessThan(1e-9);     // and not a hair off it
+    expect(g.world.byId.hero.transform.heading).toBe(0);
+    const h = headAt(g);
+    expect(h.x).toBeCloseTo(p[0], 9); expect(h.y).toBeCloseTo(p[1], 9);
+    expect(g.page.rig().position.z).toBeCloseTo(p[2], 9);   // the floor at its feet
+  });
+
+  it('the stick\'s X strafes on the body (a tank world\'s turn is the body\'s, never the stick\'s)', async () => {
+    const g = gameUp(true, { entities: [hero()] });
+    await g.page.enter();
+    g.pads.left.axes = [0, 0, 1, 0];
+    run(g, 60);
+    const e = g.world.byId.hero;
+    expect(e.transform.heading).toBe(0);
+    expect(e.transform.pos[1]).toBeLessThan(-2);   // to the right of +X is −Y
+    expect(Math.abs(e.transform.pos[0])).toBeLessThan(1e-9);
+    expect(g.inputs.at(-1).turn).toBe(0);
+  });
+
+  it('the right stick turns the body, and the pilot with it; the head looks without steering, its pitch the pilot\'s', async () => {
+    const g = gameUp(true, { entities: [hero()] });
+    await g.page.enter();
+    g.pads.right.axes = [0, 0, 1, 0];
+    run(g, 30);                                     // half a second at 120°/s: 60° to the right
+    g.pads.right.axes = [0, 0, 0, 0];
+    g.head.yaw = 0.9; g.head.pitch = 0.35;          // a look up and to the left
+    run(g, 1);
+    const e = g.world.byId.hero;
+    expect(e.transform.heading).toBeCloseTo(-Math.PI / 3, 6);
+    expect(e.transform.pitch).toBeCloseTo(0.35, 9);
+    const p0 = [...e.transform.pos];
+    g.pads.left.axes = [0, 0, 0, -1];
+    run(g, 30);
+    const d = [e.transform.pos[0] - p0[0], e.transform.pos[1] - p0[1]];
+    expect(Math.atan2(d[1], d[0])).toBeCloseTo(-Math.PI / 3, 6);   // forward is where the body faces, not the gaze
+  });
+
+  it('the buttons are the scheme\'s: A jumps, the right trigger fires', async () => {
+    const g = gameUp(true, { entities: [hero({ jump: 6 })] });
+    await g.page.enter();
+    g.press('right', 4, true); g.press('right', 0, true);
+    run(g, 1);
+    expect(g.inputs.at(-1).jump).toBe(1);
+    expect(g.inputs.at(-1).fire).toBe(1);
+    run(g, 10);
+    expect(g.world.byId.hero.transform.pos[2]).toBeGreaterThan(0.1);   // in the air
+  });
+
+  it('a step in the play space moves the pilot; a wall stops it and the view is pushed back', async () => {
+    const wall = { min: [-5, -1.2, 0], max: [5, -0.45, 3] };   // a wall just to the hero's right (−Y)
+    const g = gameUp(true, { entities: [hero()], colliders: [wall] });
+    await g.page.enter();
+    run(g, 1);
+    g.head.z = -0.4;                                // a step forward in the play space: +X in the world
+    run(g, 1);
+    const e = g.world.byId.hero;
+    expect(e.transform.pos[0]).toBeCloseTo(0.4, 9);
+    g.head.x = 0.5;                                 // a step to the right, into the wall
+    run(g, 1);
+    expect(e.transform.pos[1]).toBeCloseTo(0, 9);   // the body stays out of it
+    const h = headAt(g);
+    expect(h.x).toBeCloseTo(e.transform.pos[0], 9); expect(h.y).toBeCloseTo(e.transform.pos[1], 9);   // the view with it
+  });
+
+  it('without a pilot the headset walks as it always did', async () => {
+    const g = gameUp(true, { entities: [{ id: 'turntable', rule: { type: 'clock' }, transform: { pos: [0, 0, 0], heading: 0 } }] });
+    await g.page.enter();
+    expect(g.page.ctl()).toBeNull();
+    g.pads.left.axes = [0, 0, 0, -1];
+    run(g, 60);
+    expect(g.page.rig().position.x).toBeGreaterThan(1);   // the rig walked; the world's turntable is not the player
+  });
+});
+
+describe('the game page with a headset', () => {
+  const ents = [{ id: 'hero', pilotable: true, rule: { type: 'platform', eye: 0, speed: 4 }, body: { type: 'box', size: [0.5, 0.5, 1.8] }, transform: { pos: [0, 0, 0], heading: 0 } }];
+  const cam = { id: 'cam', rule: { type: 'follow', target: 'hero', dist: 5 } };
+  const floor = { corners: [[-4, -4, 0], [4, -4, 0], [4, 4, 0], [-4, 4, 0]], fill: '#445566' };
+  it('a controllable page with `xr` hands its pad, its input, its camera and its body to the session', () => {
+    const page = emitThreeWorld({ faces: [floor], entities: ents, camera: cam, xr: true });
+    expect(page).toContain('let __xrCtl = null;');
+    expect(page).toContain('const __pad = __xrCtl ? __xrCtl.pad() : __pollPad();');
+    expect(page).toContain('return __xrCtl ? __xrCtl.input(inp) : inp;');
+    expect(page).toContain('if (__ctrlOwnsCamera && !__xrCtl) __driveCamera(dt);');
+    expect(page).toContain('if (__xrCtl) { __xrPlay(dt); return; }');
+    expect(page).toContain('"fire":["right.trigger"]');   // the pilot reads every action the scheme binds on the headset
+  });
+  it('without `xr` the controllable page carries none of it; a world without a pilot channel, no game branch', () => {
+    const plain = emitThreeWorld({ faces: [floor], entities: ents, camera: cam });
+    expect(plain).not.toContain('__xrCtl');
+    expect(plain).toContain('const __pad = __pollPad();');
+    const walk = emitThreeWorld({ faces: [floor], xr: true });
+    expect(walk).not.toContain('__xrCtl');
+    expect(walk).not.toContain('__xrPlay');
   });
 });
