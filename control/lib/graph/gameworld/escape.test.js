@@ -115,8 +115,8 @@ describe('the walled-core dungeon reads it', () => {
     expect(R.laws.find((l) => l.law === 'gated').holds).toBe(true);
     expect(readWcd(spec, { levels: ['cell', 'inn'] }).laws.find((l) => l.law === 'keys-inside')).toMatchObject({ holds: false, says: expect.stringMatching(/no escape room/) });
     expect(() => readWcd({ ...spec, doors: [{ ...spec.doors[0], gate: { keys: 2 } }] })).toThrow(/keys is true/);
-    // a dungeon with no keyed door reads no such law
-    expect(readWcd({ ...spec, doors: [{ ...spec.doors[0], gate: { clearance: 2 } }] }).laws.map((l) => l.law)).not.toContain('keys-inside');
+    // a dungeon with no keyed door holds it, saying so
+    expect(readWcd({ ...spec, doors: [{ ...spec.doors[0], gate: { clearance: 2 } }] }).laws.find((l) => l.law === 'keys-inside')).toMatchObject({ holds: true, says: 'no door is opened by keys' });
     // in a world: its escape levels are what the gate is read by
     expect(readGameworld({ ...W, wcd: spec }).wcd.laws.find((l) => l.law === 'keys-inside').holds).toBe(true);
   });

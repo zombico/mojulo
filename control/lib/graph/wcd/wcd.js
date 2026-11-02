@@ -34,7 +34,7 @@
  *   distinct      two spaces a door joins differ in construction or palette (the light is the theme's, set once)
  *   same-level    a lift or a teleporter joins spaces in one level
  *   keys-inside   a door gated `{ keys: true }` leaves a space whose level is an escape room (a level goal's `escape`:
- *                 its way out sealed until the keys found inside open its locks); read only where a door is keyed
+ *                 its way out sealed until the keys found inside open its locks)
  *
  *   WCD_KINDS, WCD_VIAS, WCD_PRINCIPLES
  *   readWcd(spec, { levels?, escapes? }) → { core, spaces, doors, path, unbuilt, laws }   levels: the world's level ids, to check
@@ -64,7 +64,7 @@ export const WCD_PRINCIPLES = Object.freeze({
   gated: 'Every gate is an intermediary: a space past the outermost is entered through a door that says what opens it.',
   distinct: 'A layer looks unlike the last: two spaces a door joins differ in construction or palette.',
   'same-level': 'A lift or a teleporter moves you within one level.',
-  'keys-inside': 'A door opened by keys leaves an escape room: its keys are found inside it.',
+  'keys-inside': 'Keys open a door out of an escape room.',
 });
 const KEYS = ['core', 'spaces', 'doors'];
 const SPACE_KEYS = ['kind', 'depth', 'level', 'use', 'look', 'tone', 'built'];
@@ -198,12 +198,9 @@ export function wcdLaws(W) {
   const split = W.doors.filter((d) => (d.via === 'lift' || d.via === 'teleporter') && S[d.from].level && S[d.to].level && S[d.from].level !== S[d.to].level).map((d) => `${d.via} ${d.from} (${S[d.from].level}) → ${d.to} (${S[d.to].level})`);
   out.push(law('same-level', !split.length, split.length ? `${split.join('; ')}: a lift or a teleporter moves within one level` : 'every lift and teleporter moves within one level'));
   // keys-inside: a door opened by keys leaves a space whose level is an escape room, where they are found (read where
-  // the world says which levels are; measured only where a door is keyed)
-  const keyed = W.doors.filter((d) => d.gate?.keys);
-  if (keyed.length) {
-    const esc = new Set(W.escapes ?? []);
-    const bare = keyed.filter((d) => !(S[d.from].level && esc.has(S[d.from].level))).map((d) => `${d.from} → ${d.to}: '${d.from}' ${S[d.from].level ? `(${S[d.from].level}) is no escape room` : 'names no level'}`);
-    out.push(law('keys-inside', !bare.length, bare.length ? `${bare.join('; ')}: its keys are found nowhere` : `every keyed door leaves an escape room, its keys found inside (${keyed.map((d) => d.from).join(', ')})`));
-  }
+  // the world says which levels are)
+  const keyed = W.doors.filter((d) => d.gate?.keys), esc = new Set(W.escapes ?? []);
+  const bare = keyed.filter((d) => !(S[d.from].level && esc.has(S[d.from].level))).map((d) => `${d.from} → ${d.to}: '${d.from}' ${S[d.from].level ? `(${S[d.from].level}) is no escape room` : 'names no level'}`);
+  out.push(law('keys-inside', !bare.length, bare.length ? `${bare.join('; ')}: its keys are found nowhere` : keyed.length ? `every keyed door leaves an escape room, its keys found inside (${keyed.map((d) => d.from).join(', ')})` : 'no door is opened by keys'));
   return out;
 }
