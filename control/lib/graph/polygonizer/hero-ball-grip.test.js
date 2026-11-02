@@ -4,13 +4,13 @@
 import { describe, expect, it } from 'vitest';
 import { validateRig } from './station-loft-rig.js';
 import { heroRecord, expandLayeredManifest } from '../../mcp/tools/layered.js';
-import { ballGrip, gripFor, ballOf, BALL_GRIPS, BALL_GRIP_NAMES } from './hero-ball-grip.js';
+import { ballGrip, gripFor, ballOf, BALL_GRIPS, BALL_GRIP_NAMES, HAND_BALLS } from './hero-ball-grip.js';
 import { BALLS } from '../contest/ball-card.js';
 
 const rigOf = (cast) => validateRig(expandLayeredManifest({ kind: 'layered', title: 't', hero: heroRecord({ cast, head: 'anime' }) }).recipe.rig);
 const RIGS = { male: rigOf('male'), female: rigOf('female') };
 // a ball each grip is for: the first ball whose own grip it is, else (the cradle names no ball) a big ball on the palm
-const ballFor = (g) => Object.keys(BALLS).find((b) => gripFor(b) === g) ?? 'volleyball';
+const ballFor = (g) => [...Object.keys(BALLS), ...Object.keys(HAND_BALLS)].find((b) => gripFor(b) === g) ?? 'volleyball';
 
 describe('hero-ball-grip', () => {
   it('every grip holds its ball: the digits it names on the skin, none pressed in (a hole\'s aside); the casts alternate', () => {

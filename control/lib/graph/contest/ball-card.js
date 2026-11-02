@@ -61,10 +61,6 @@ export const BALLS = Object.freeze({
   // MLB: 5 to 5.25 oz (142 to 149 g), 9 to 9.25 in round (radius 36.6 to 37.3 mm); its coefficient of restitution off
   // a wall at 58 mph is 0.514 to 0.578 (mid 0.546)
   baseball: { mass: 0.145, radius: 0.0369, restitution: 0.546, friction: 0.5, aero: null, cited: false, words: 'a baseball' },
-  // WBSC 12-inch: 178 to 198 g, 30.2 to 30.8 cm round (radius about 48.5 mm); a COR of 0.44 to 0.47 off a wall
-  softball: { mass: 0.188, radius: 0.0485, restitution: 0.455, friction: 0.5, aero: null, cited: false, words: 'a softball' },
-  // IHF size 3 (men): 425 to 475 g, 58 to 60 cm round; no rebound rule in the rules, e ≈ 0.65 as measured on a hall floor
-  handball: { mass: 0.45, radius: 0.094, restitution: 0.65, friction: 0.6, aero: null, cited: false, words: 'a handball' },
   // MCC Law 4: 155.9 to 163 g, 22.4 to 22.9 cm round (radius about 36 mm); a hard ball, its bounce off a pitch about 0.5
   cricket: { mass: 0.16, radius: 0.036, restitution: 0.5, friction: 0.6, aero: null, cited: false, words: 'a cricket ball' },
   // BWF: 4.74 to 5.50 g, a skirt 58 to 68 mm across; a shuttle is no sphere and its air is its own in EVERY register

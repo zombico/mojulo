@@ -46,9 +46,17 @@ export const BALL_GRIPS = Object.freeze({
 });
 export const BALL_GRIP_NAMES = Object.freeze(Object.keys(BALL_GRIPS));
 
-/** a ball: a BALLS id or { radius, mass? } */
+/** balls a hand throws that no contest plays yet (the sports' pages inline the ball card: these stay off it until a sport
+ * needs them): a softball (WBSC 12-inch: 178 to 198 g, 30.2 to 30.8 cm round) and a handball (IHF size 3: 425 to 475 g,
+ * 58 to 60 cm round) */
+export const HAND_BALLS = Object.freeze({
+  softball: { mass: 0.188, radius: 0.0485, restitution: 0.455, words: 'a softball' },
+  handball: { mass: 0.45, radius: 0.094, restitution: 0.65, words: 'a handball' },
+});
+const ALL_BALLS = { ...BALLS, ...HAND_BALLS };
+/** a ball: a ball-card id (contest/ball-card.js BALLS), a HAND_BALLS id, or { radius, mass? } */
 export function ballOf(ball) {
-  if (typeof ball === 'string') { const b = BALLS[ball]; if (!b) throw new Error(`hero-ball-grip: no ball '${ball}' (have ${Object.keys(BALLS).join(', ')})`); return { id: ball, ...b }; }
+  if (typeof ball === 'string') { const b = ALL_BALLS[ball]; if (!b) throw new Error(`hero-ball-grip: no ball '${ball}' (have ${Object.keys(ALL_BALLS).join(', ')})`); return { id: ball, ...b }; }
   if (!ball || !(ball.radius > 0)) throw new Error('hero-ball-grip: a ball is a ball-card id or { radius (m), mass? (kg) }');
   return { id: 'own', mass: 0.2, ...ball };
 }

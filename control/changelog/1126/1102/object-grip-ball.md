@@ -11,8 +11,9 @@ page (`scripts/spikes/manipulator/throws.mjs --page`).
   across a big ball, the palm a finger off it: a basketball, a handball, a football), `cradle` (on the open palm),
   `pinch` (thumb, index and middle pads: a golf ball, a table-tennis ball), `bowling` (the thumb and two fingers in the
   holes). Each digit closes until it touches (hero-digits), a digit the solve left in the ball is opened back onto its
-  skin, and the laws read every named digit on the ball and none pressed in. `gripFor(ball)` picks a ball's own.
-  Softball and handball join the ball card (`contest/ball-card.js BALLS`).
+  skin, and the laws read every named digit on the ball and none pressed in. `gripFor(ball)` picks a ball's own. A
+  softball and a handball are held beside the ball card (`HAND_BALLS`: the sports' pages inline the card, so it is
+  left as it was until a sport plays them).
 - **Throws** (`lib/graph/polygonizer/hero-throw.js`, `THROWS`): overhand (a pitch), the quarterback's pass, sidearm,
   underhand, the bowling delivery, the chest pass, the set shot, the throw-in, the toss to serve. Each is a ball, a
   grip, a stance, one or two hands, keyed phases (the body's channels and each hand's place, way and palm) and a
