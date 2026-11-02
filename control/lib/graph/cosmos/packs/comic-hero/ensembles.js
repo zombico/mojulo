@@ -1,5 +1,5 @@
 /**
- * THE COMIC HERO PACK'S ENSEMBLES: the body that answers a head. A helmet or a mask (headgear.js) sets an archetype's
+ * THE COMIC HERO PACK'S ENSEMBLES: the body that answers a head. A helmet or a mask (headgear/cards.js) sets an archetype's
  * language (its segments, its plates, its glow, its trim) and its colours; an ensemble dresses the rest of the figure in
  * the same language from the hero door's own words: an undersuit and its cloth (an outfit build: a bodysuit, a tunic, a
  * long coat, a cape, a sash), and over it the armour (the hardsuit with its archetype words, armor/hardsuit.js
@@ -14,7 +14,7 @@
  *                                 read off the headgear card's palette (its own defaults where the head names none);
  *                                 a group SKIN_TONE is bare: the wearer's own skin
  */
-import { HEADGEAR } from './headgear.js';
+import { HEADGEAR } from '../../../headgear/cards.js';
 
 // (a colour stepped toward black, `f` of the way: an undersuit a shade under the shell)
 const shade = (hex, f) => '#' + [1, 3, 5].map((i) => Math.round(parseInt(hex.slice(i, i + 2), 16) * (1 - f)).toString(16).padStart(2, '0')).join('');

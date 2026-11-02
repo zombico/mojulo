@@ -209,8 +209,17 @@ Pointers only; each target carries its own design notes.
   Its garments: the construction in [body-relational-tailor.js](control/lib/graph/polygonizer/body-relational-tailor.js), the
   principles a silhouette is read by in [docs/garment-principles.md](docs/garment-principles.md); skill: `/garment-design`.
   Played as an engine gets it (the skinned GLB, its clips and face morphs, variants bare and armoured): `/hero-live`.
+- The anime face's principles (the brow never covers the eye, no line where the form carries it, drawings snap):
+  [docs/anime-face-principles.md](docs/anime-face-principles.md); its head casts (Shonen High the default; siblings by figure and theme, never by game type): `anime-styles.js`; its
+  bodies (codenames, each a simplified form and a muscular form over the same base): `anime-bodies.js`, the muscles in
+  `musculature/`; the socket each brow drawing carries: `anime-sockets.js`.
 - What it wears: the wearable libraries [footwear/](control/lib/graph/footwear/), [handwear/](control/lib/graph/handwear/) and
   [plating/](control/lib/graph/plating/) (card → passes → laws → adapter; a new look is a card): [docs/plating.md](docs/plating.md).
+  On the head, [headgear/](control/lib/graph/headgear/): the cards (masks, cowls, eyegear, helmets) worn by the hero door's
+  `headgear` word, and the helmets by tradition an outfit's `language.head` wears; a new look is a card.
+- Arms: [equipment/arms/](control/lib/graph/equipment/arms/) (modern and future guns and knives for the gen-7 look: a
+  model row and its builder → tunable parts → a finish card, held to the laws in `laws.js`; a new look is a finish card,
+  a new archetype a model row). Manual: the `equipment` solid-vocab card; review: `scripts/render-arms.mjs`.
 - Solids: [polygonizer/](control/lib/graph/polygonizer/) (`field-terms.js`, `code-realm.js`,
   `field-exact.js` for `exact: true` through Manifold), [worlds/workbench.js](control/lib/graph/worlds/workbench.js);
   manuals are the `solid-vocab/` cards. OpenSCAD both ways: [scad/scad-render.js](control/lib/graph/scad/scad-render.js)

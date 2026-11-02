@@ -56,13 +56,13 @@ import { studioSceneFromFaces, WORKBENCH_LIGHT } from '@/lib/graph/worlds/workbe
 import { withBands, resolveToon } from '@/lib/graph/polygonizer/vexar';
 import { layeredFaces, layeredSeat } from '@/lib/graph/polygonizer/station-loft-faces';
 import { resolveCharacterLight, layeredShadingNormals, characterLitPieces, characterLitFaces, characterInk, piecesAt, STUDIO_SMOOTH_CREASE } from '@/lib/graph/polygonizer/station-loft-shade';
-import { standPose, poseLayered, rigidParts, GESTURE_CLIP, heroClipSeconds, STRUCTURED_SWING_BASE } from '@/lib/graph/polygonizer/hero-gesture';
+import { standPose, showcaseStand, poseLayered, rigidParts, GESTURE_CLIP, heroClipSeconds, STRUCTURED_SWING_BASE } from '@/lib/graph/polygonizer/hero-gesture';
 import { locomotionClips } from '@/lib/graph/polygonizer/hero-motion';
 import { validateRig, bindLayered, packLayeredRig, rigNodesAt, boneFrames, layeredClip } from '@/lib/graph/polygonizer/station-loft-rig';
 import { isSwing, SWING_HAND, swingClassOfKeys, swingPhases, swingTiming, swingClass, HELD_SWINGS, HELD_STRIKE, swingClipKeys, fitSwing } from '@/lib/graph/polygonizer/hero-swing';
 import { faunaBones, packFaunaRig } from '@/lib/graph/fauna/rig';
 import { bugBones, packBugRig } from '@/lib/graph/bugs/rig';
-import { heroFaceRig } from '@/lib/graph/polygonizer/anime-face-rig';
+import { heroFaceRig, faceKnots } from '@/lib/graph/polygonizer/anime-face-rig';
 import { facePaintOf } from '@/lib/graph/polygonizer/face-paint';
 import { skinPaintOf } from '@/lib/graph/polygonizer/skin-paint';
 import { heroSkinPaint, heroHidden } from '@/lib/graph/epidermis/dermal-hero';
@@ -73,6 +73,9 @@ import { beastCoverStyleOf, beastCoatOf, coverMap } from '@/lib/graph/beast/cove
 import { beastCoatPaint, coatRelief } from '@/lib/graph/beast/coat-atlas';
 import { relationalFaceRig, performanceTrack, mouthTargets } from '@/lib/graph/polygonizer/relational-face-rig';
 import { perform } from '@/lib/graph/face-acting/perform';
+import { animePerformanceTrack } from '@/lib/graph/face-acting/anime-read';
+import { animeFormed } from '@/lib/graph/polygonizer/anime-looks';
+import { formBodied } from '@/lib/graph/polygonizer/hero-form';
 import { emoteTake, emoteClips } from '@/lib/graph/face-acting/emotes';
 /** a packed face part's rows (`morph: { i, d }`, f32) as 16-bit steps of their largest offset (`{ i, q, s }`): the page's
  * players read `q × s` (rig-preview.js, controllable) */
@@ -93,6 +96,7 @@ import { paintFaceRig, paintFaceBase } from '@/lib/graph/polygonizer/face-paint-
 import { heroFaceTracks } from '@/lib/graph/polygonizer/anime-face-tracks';
 import { westernFaceRig } from '@/lib/graph/polygonizer/western-face-rig';
 import { gearMounts, gearFaces, gearPackParts, gearRestPoint } from '@/lib/graph/polygonizer/hero-gear';
+import { attachMounts } from '@/lib/graph/polygonizer/hero-attach';
 import { statueBaseOf } from '@/lib/graph/statue/expand';
 import { statueBaseFaces } from '@/lib/graph/statue/base';
 import { creatureStatue, mountedStatue, riderSeat, validateCreatureStatue, carveCreatureRecipe, creatureBaseOf } from '@/lib/graph/statue/creature';
@@ -729,7 +733,9 @@ export const WORLD_KINDS = {
       // the REST floor its planted toes hold; the light below is baked on that posed mesh. Keyed on the hero record, so a
       // plan's own clip of that name stays an ordinary clip. No stand ⇒ the rest mesh, byte-identical.
       const rig = rigged ? (() => { const R = validateRig(m.recipe.rig); return { R, skin: bindLayered(mesh, m.recipe, R) }; })() : null;
-      const stand = rig && m.hero ? standPose(m.recipe, rig.R) : null;
+      // (a showcase word as the stand, hero-gesture.js showcaseStand: the pose's hit solved on the rig, the hands on the
+      // body's own surfaces; any other stand is the recipe's `gesture` clip)
+      const stand = rig && m.hero ? standPose(m.recipe, rig.R) ?? showcaseStand(m.hero, rig.R, { mesh, skin: rig.skin }) : null;
       const shown = stand ? poseLayered(mesh, m.recipe, stand, rig).mesh : mesh; const restDz = layeredSeat(mesh, seat);
       // The character light (station-loft-shade.js): ctx.light (FLAT_LIGHT under the unshaded / lit export) wins, then
       // the manifest's `toon.light`, then the anime head's read-time default; the static faces then take the step (two
@@ -825,7 +831,9 @@ export const WORLD_KINDS = {
       // HELD GEAR (hero-gear.js): a hero's `gear` is placed on its bones at rest and carried by the stand's frames, baked
       // by the studio light turned into each item's frame, in the body's group (a clip preview hides it with the body;
       // the pack carries it). Absent ⇒ nothing here, byte-identical.
-      const gear = rig && m.hero?.gear ? gearMounts(m.hero, rig.R) : null;
+      // and the objects it WEARS of its own (hero-attach.js: a workbench recipe or a solid by ref on a bone), carried the
+      // same way. Absent both ⇒ nothing here, byte-identical.
+      const gear = rig && (m.hero?.gear || m.hero?.attach) ? [...(m.hero.gear ? gearMounts(m.hero, rig.R) : []), ...attachMounts(m.hero, rig.R)] : null;
       const gearShown = gear?.length ? gearFaces(gear, { frames: stand ? boneFrames(rig.R, rig.R.joints, rigNodesAt(rig.R, stand).nodes) : null, light: figLight, dz: restDz, group: 'body' }) : null;
       if (gearShown) faces.push(...gearShown);
       // A STATUE's BASE (statue/base.js): a hero carrying a statue build stands on its base, built under the posed
@@ -934,6 +942,9 @@ export const WORLD_KINDS = {
         // targets as a LINEAR weights track, a face-only clip an engine layers over a body's (`face:<take>`), derived here
         // and never stored. Absent ⇒ as before.
         if (face?.meta && m.hero.head === 'relational' && m.hero.perform) face.meta.performances = Object.fromEntries(Object.entries(m.hero.perform).map(([k, P]) => [k, performanceTrack(perform(P))]));
+        // (the ANIME face's: each take read as drawings, face-acting/anime-read.js, a STEP track on its targets: the 7G
+        // drawings where its rig draws them, anime-face-rig.js sevenG, else lowered to its four channels, painted or drawn)
+        else if (face?.meta && m.hero.head === 'anime' && m.hero.perform) face.meta.performances = Object.fromEntries(Object.entries(m.hero.perform).map(([k, P]) => [k, animePerformanceTrack(perform(P), face.K ?? faceKnots(face.authored), { sevenG: !!face.sevenG })]));
         // THE FACE'S EMOTES (the door's `emote`, face-acting/emotes.js): each a held state's seamless loop on the same targets
         // (`emote:<clip>`), and the mouth's ownership for an engine's lip-sync over them. Absent ⇒ as before.
         if (face?.meta && m.hero.head === 'relational' && m.hero.emote) { face.meta.emotes = Object.fromEntries(Object.entries(emoteClips(m.hero.emote)).map(([k, E]) => [k, { ...performanceTrack(emoteTake(E)), emote: typeof E === 'string' ? E : E.emote }])); face.meta.mouth = mouthTargets(); }
@@ -947,8 +958,11 @@ export const WORLD_KINDS = {
         // THE REALISTIC BODY LIT BY AN ENGINE (the flat light: the lit export): its pack carries the studio weld's normals per
         // corner and no baked shade, so the engine's light shades one smooth skin, once. Any other figure as before.
         // (and a beast-kin on the tiered body, beast/tiered.js: its coat lit by the engine over its cover's maps, below; and a
-        // creature that asks to be one smooth form, `smooth: true`)
-        const engineLit = light.flat && (m.hero?.form === 'realistic' || m.hero?.beast || m.smooth === true) && !character ? layeredShadingNormals(mesh, m.recipe, { crease, proxy: false, ellipsoid }) : null;
+        // creature that asks to be one smooth form, `smooth: true`; and the ANIME hero minted under hero laws 19, anime-looks.js
+        // animeFormed: its face one smooth form, as a painted figure's, not its triangles; a row before keeps its export, byte
+        // for byte; and the landmark hero on the form body, hero-form.js formBodied: one smooth figure whatever its head)
+        const landmarkFormBody = (m.hero?.head ?? 'landmark') === 'landmark' && formBodied(m.hero);
+        const engineLit = light.flat && (m.hero?.form === 'realistic' || m.hero?.beast || m.smooth === true || (m.hero?.head === 'anime' && animeFormed(m.hero)) || landmarkFormBody) && !character ? layeredShadingNormals(mesh, m.recipe, { crease, proxy: false, ellipsoid }) : null;
         // THE RELIEF (epidermis/dermal-relief.js), on a realistic hero minted under realistic laws 5, lit by its engine and
         // exported skinned (ctx.face: the export that asks for the figure's blend shapes): the one skin's relief baked from
         // its own field into a normal map on the skin's atlas, each corner's tangent beside it (the GLB's normalTexture and

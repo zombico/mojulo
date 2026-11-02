@@ -274,6 +274,33 @@ function turnLashes(B, V0, d) {
 }
 
 /**
+ * THE SQUINT'S SQUEEZE (realistic laws 15, the head's `squeeze` relation): as the orbicularis's lower fibres raise the
+ * lower lids, the orbit closes from above too: the mass over each eye, the brow and the forehead's foot, slid down onto
+ * it and a touch forward, as the anime head's squint slides its brow's mass (anime-form.js skullShift, anime-sockets.js
+ * `rise`), so the skin between the brow and the lid's crease gathers while the lids, their corners and the lashes stay
+ * as the squint draws them. A weight on the rest's points about each eye's globe (m off its centre): none below the
+ * crease (`crease` its ramp up), whole over the brow, gone up the forehead (`top`) and out at the temple (`side`); the
+ * brows' hairs and cards ride it as they stand. Driven through the head's field, the brow pad's dip moved the eye's inner
+ * corner, a valley where the pad meets the lid, four times as far as the brow, and the skin folded there.
+ */
+export const SQUINT_SQUEEZE = Object.freeze({ slide: Object.freeze([0, 0.0006, -0.003]), crease: Object.freeze([0.009, 0.022]), top: Object.freeze([0.045, 0.08]), side: Object.freeze([0.035, 0.055]), front: 0.03 });
+const smooth01 = (x, a, b) => { const t = Math.max(0, Math.min(1, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
+/** the squeeze added into the squint's target `d` (rows of `V0`), each point by its nearer eye's weight, × `q`; the
+ * globes' points (`globe`) still */
+export function squeezeInto(d, V0, balls, q, globe) {
+  const S = SQUINT_SQUEEZE;
+  for (let i = 0; i < V0.length; i++) {
+    if (globe[i]) continue;
+    const p = V0[i], b = Math.abs(p[0] - balls[0].c[0]) < Math.abs(p[0] - balls[1].c[0]) ? balls[0] : balls[1];
+    const dz = p[2] - b.c[2], dx = Math.abs(p[0] - b.c[0]);
+    // (the face's front only: the skull's back and sides past the temple keep still)
+    if (p[1] < b.c[1] - S.front) continue;
+    const w = smooth01(dz, S.crease[0], S.crease[1]) * (1 - smooth01(dz, S.top[0], S.top[1])) * (1 - smooth01(dx, S.side[0], S.side[1]));
+    if (w > 0) for (let c = 0; c < 3; c++) d[i * 3 + c] += q * w * S.slide[c];
+  }
+}
+
+/**
  * The face rig of a realistic hero's row: `m` the manifest (`hero`, `recipe` with its `headFit`), `mesh` its compiled
  * figure at rest. → null | { skipped } | { targets, sub, rows, authored, K, meta } as westernFaceRig's.
  */
@@ -330,6 +357,8 @@ export function relationalFaceRig(m, mesh) {
           if (cards.length) wholeCards(cards, d);
           D[name] = d;
         }
+        // (realistic laws 15, the `squeeze` relation: the squint's squeeze, SQUINT_SQUEEZE, added to its target)
+        if (fit.relations?.squeeze && balls.length === 2) squeezeInto(D.eyeSquint, V0, balls, fit.relations.squeeze, V.globe);
         // (the gaze: each eye's globe turned about its centre; a figure without its own globes, none)
         for (const name of GAZE_TARGETS) D[name] = new Float64Array(n * 3);
         for (const b of balls) {

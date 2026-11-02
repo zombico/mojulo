@@ -9,7 +9,7 @@
  *                     envelope), each one the door wears on a person's landmarks (layered.js sortPieces); a word-list
  *                     outfit (the Movie era's plating suits on the realistic body) and an armour build take none, and
  *                     the call says so, as `withPieces` does
- *   EYEGEAR           the headgear's goggle cast (headgear.js EYEGEAR, the eyegear kit's `shift`) moved up onto the
+ *   EYEGEAR           the headgear's goggle cast (headgear/cards.js EYEGEAR, the eyegear kit's `shift`) moved up onto the
  *                     forehead, as the aviator's cap wears it; the tiered body's landmark head only (the realistic
  *                     head takes no cranium kit yet), and an armour build carries it in its `with`
  * The gaps, worn things the door has no word for yet, are ACCESSORY_GAPS: said, never approximated.
@@ -21,7 +21,7 @@
  *   accessoryFits(id, body)            → whether the card is worn on that body ('tiered' | 'realistic')
  *   withAccessories(frag, ids, body)   → the fragment wearing those cards; no ids ⇒ the fragment itself
  */
-import { eyegearKit, withKit } from './headgear.js';
+import { eyegearKit, withKit } from '../../../headgear/cards.js';
 
 const BOTH = Object.freeze(['tiered', 'realistic']);
 // (goggles PUSHED UP: the eyegear's cast shifted two eye-heights up onto the forehead, its strap round the crown with it)

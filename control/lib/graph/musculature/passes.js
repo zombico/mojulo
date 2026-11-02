@@ -1,0 +1,947 @@
+/** musculature/passes.js — THE PASSES that put the muscle shirt on a body, in their order:
+ *
+ *   1. DENSIFY   each body part (a closed loft) re-sampled at the shirt's grain on its own SMOOTH cage (Catmull-Rom
+ *                round each ring and along the part), its bind's shares carried as the form field's re-sampling carries
+ *                them (body-relational-resample.js resamplePart); a right limb's left partner its mirror.
+ *   2. SEAT      each mass of the card placed by the wearer's joints (a trunk mass by its height up the torso bone and
+ *                its azimuth; a limb's by its share down the bone and its azimuth round it) on the dense skin, where a ray
+ *                from the axis leaves it, standing `proud` of it, its depth along the skin's normal there.
+ *   3. ARTICULATE the definition dial read per level (principles.js articulation): grown, buried, sunk.
+ *   4. DISPLACE  each dense point carried out along its ring's ray (from the ring's centre through the point) to the
+ *                smooth union of the skin and the masses its part wears: the skin a plane through the point, the masses
+ *                summed group by group, finest level first (principles.js smin). Past every mass's reach the union is
+ *                the skin itself, and the point keeps its place.
+ *
+ * Pure and deterministic: no dice; the trigonometry is dmath's. */
+import * as dmath from '../../util/dmath.js';
+import { sdEgg } from '../polygonizer/body-relational-field.js';
+import { resamplePart, mirrorPart, swapRL, mixW } from '../polygonizer/body-relational-resample.js';
+import { articulation, blendOf, skinBlendOf, smin, ACTIVITY } from './principles.js';
+
+const add = (a, b) => [a[0] + b[0], a[1] + b[1], a[2] + b[2]];
+const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
+const scl = (a, s) => [a[0] * s, a[1] * s, a[2] * s];
+const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+const cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
+const len = (a) => Math.sqrt(dot(a, a));
+const unit = (a) => { const l = len(a); return l > 1e-12 ? scl(a, 1 / l) : [0, 0, 1]; };
+const r6 = (x) => Math.round(x * 1e6) / 1e6;
+const at = (j) => (Array.isArray(j) ? j : j.at);
+
+/** a part's bind as an object (`'shoulderFoldR'` is { bone: 'shoulderFoldR' }) */
+const bindOf = (P) => (typeof P.bind === 'string' ? { ...P, bind: { bone: P.bind } } : P);
+
+// ─── 1. DENSIFY ────────────────────────────────────────────────────────────────────────────────────────────────────
+
+/** uniform Catmull-Rom between p1 and p2 at t */
+const cr = (p0, p1, p2, p3, t) => {
+  const t2 = t * t, t3 = t2 * t;
+  return [0, 1, 2].map((k) => 0.5 * (2 * p1[k] + (-p0[k] + p2[k]) * t + (2 * p0[k] - 5 * p1[k] + 4 * p2[k] - p3[k]) * t2 + (-p0[k] + 3 * p1[k] - 3 * p2[k] + p3[k]) * t3));
+};
+/** the part's SMOOTH cage: (u, q) → the point at u along the part (its stations' own u) and q round it (0 … 1, the
+ * authored slots at q = k / n), Catmull-Rom round each ring (closed) and along the part (its end stations continued) */
+export function smoothCage(P) {
+  const st = P.stations.map((x, i) => ({ u: x.u ?? i, pts: P.slots.map((s) => x.points[s]) })), n = P.slots.length, last = st.length - 1;
+  const ringAt = (s, q) => { const f = q * n, k = Math.floor(f), t = f - k, P0 = s.pts; return cr(P0[(k + n - 1) % n], P0[k % n], P0[(k + 1) % n], P0[(k + 2) % n], t); };
+  return (u, q) => {
+    let i = 0; while (i < last - 1 && st[i + 1].u < u) i++;
+    const a = st[i], b = st[i + 1], t = b.u > a.u ? Math.max(0, Math.min(1, (u - a.u) / (b.u - a.u))) : 0;
+    const pa = ringAt(a, q), pb = ringAt(b, q);
+    // (past an end, the end continued straight: its mirror through the end station)
+    const p0 = i > 0 ? ringAt(st[i - 1], q) : sub(scl(pa, 2), pb), p3 = i + 2 <= last ? ringAt(st[i + 2], q) : sub(scl(pb, 2), pa);
+    return cr(p0, pa, pb, p3, t);
+  };
+}
+
+/** the shirt's ring counts for a part at `grain` metres: round its middle ring, and along it by its stations' centres */
+export function grainOf(P, grain, { maxAround = 96, maxRings = 120 } = {}) {
+  const centre = (x) => scl(P.slots.reduce((a, s) => add(a, x.points[s]), [0, 0, 0]), 1 / P.slots.length);
+  const mid = P.stations[Math.floor(P.stations.length / 2)], n = P.slots.length;
+  let per = 0; for (let k = 0; k < n; k++) per += len(sub(mid.points[P.slots[(k + 1) % n]], mid.points[P.slots[k]]));
+  let run = 0; for (let i = 1; i < P.stations.length; i++) run += len(sub(centre(P.stations[i]), centre(P.stations[i - 1])));
+  const even = (x) => 2 * Math.round(x / 2);
+  return { around: Math.max(n, Math.min(maxAround, even(per / grain))), rings: Math.max(P.stations.length, Math.min(maxRings, Math.round(run / grain) + 1)) };
+}
+
+/** how far round its quarter a dome's rings run (radians): the last bit to the pole is the cap's fan, since the compiler
+ * winds a shell by its first band (station-loft.js loft), which a ring collapsed onto the pole cannot answer */
+const DOME_REACH = (70 * Math.PI) / 180;
+/** a dome's least rise past its end ring (of the ring's radius): a flat cap's */
+const DOME_RISE = 0.5;
+
+/** where a dense part's DOME rings and poles cast from (displace): the end ring's centre, by station and by cap */
+const ORIGIN = new WeakMap();
+
+/** a part DENSIFIED: `around` × `rings` on its smooth cage, its bind's shares, slots' addresses and bands as
+ * resamplePart carries them (cast onto no field: its rays keep the cage, whose points are then the smooth cage's); and
+ * each end the adapter names (`domes`: an end that shows, the shoulder's top) CLOSED IN A DOME of rings toward its pole (a quarter ellipse from the end ring to the pole, run to
+ * DOME_REACH), so the
+ * shirt can be worn over an end as over the sides (the shoulder's drum and the arm's top had ended in flat fans the
+ * shirt never moved). A dome ring and its pole ride as the end ring does; its `u` just past the end */
+export function densify(P0, { around, rings, grain = 0.011, domes = [] }) {
+  const P = bindOf(P0), Q = resamplePart(P, () => 1, { around, rings }), cage = smoothCage(P);
+  let stations = Q.stations.map((x) => ({ ...x, points: Object.fromEntries(Q.slots.map((sl, j) => [sl, cage(x.u, j / around).map(r6)])) }));
+  const blend = { ...Q.bind.blend, ...smoothShares(P, Q, around) }, own = { [Q.bind.bone]: 1 }, origins = {}, caps = { ...Q.caps };
+  const centre = (x) => scl(Q.slots.reduce((a, sl) => add(a, x.points[sl]), [0, 0, 0]), 1 / Q.slots.length);
+  for (const end of domes) {
+    const pole = Q.caps?.[end]; if (!pole) continue;
+    const E = end === 'back' ? stations[0] : stations[stations.length - 1], C = centre(E), rise = sub(pole, C);
+    const rad = Q.slots.reduce((a, sl) => a + len(sub(E.points[sl], C)), 0) / Q.slots.length;
+    // (the dome rises along the part's axis, to the pole's height or, a flat cap's pole on its ring's centre, DOME_RISE
+    // of the ring's radius; a pole off the axis, leaning the dome over, folded its front: the cap's fan carries the rest)
+    const N = centre(end === 'back' ? stations[1] : stations[stations.length - 2]), out = unit(sub(C, N));
+    const up = scl(out, Math.max(dot(rise, out), DOME_RISE * rad));
+    const K = Math.max(2, Math.min(10, Math.round(((len(rise) + rad) * Math.PI) / 4 / grain)));
+    const dome = [];
+    for (let k = 1; k <= K; k++) {
+      const th = (k / K) * DOME_REACH, co = dmath.cos(th), si = dmath.sin(th), id = `${E.id}_${end}${k}`, w = k / (K + 1);
+      const points = Object.fromEntries(Q.slots.map((sl) => [sl, add(C, add(scl(sub(E.points[sl], C), co), scl(up, si))).map(r6)]));
+      // (a dome's ring rides as its end ring does: eased toward the cap's shares, the collarbone's fifth on the arm's top,
+      // its points, carried out by the deltoid, sheared into flaps and holes as the arm rose)
+      for (const sl of Q.slots) { const a = blend[`${E.id}.${sl}`] ?? blend[E.id] ?? own; blend[`${id}.${sl}`] = mixW(a, a, w); }
+      const x = { id, u: r6(E.u + (end === 'back' ? -1 : 1) * 0.001 * k), points }; ORIGIN.set(x, C); dome.push(x);
+    }
+    // (the pole at the dome's apex: a flat cap's, on its ring's centre, would fold the fan back down under the dome)
+    caps[end] = add(C, up).map(r6); origins[end] = C; blend[end] = blend[E.id] ?? own;
+    stations = end === 'back' ? [...dome.reverse(), ...stations] : [...stations, ...dome];
+  }
+  const out = { ...Q, stations, ...(Q.caps ? { caps } : {}), bind: { ...Q.bind, blend } };
+  ORIGIN.set(out, origins);
+  return out;
+}
+
+/** a part's per-slot shares (an authored bind naming slots, `<station>.<slot>`) carried onto the dense grid BETWEEN
+ * the authored slots and stations (bilinear), where resamplePart takes the nearest authored slot's: round the shoulder
+ * the anime body binds slot by slot, and a step in the shares between two dense neighbours tore the skin into shards
+ * as the arm rose. A part with a hard zone, or none named by slot, keeps resamplePart's */
+function smoothShares(P, Q, around) {
+  const b = P.bind; if (b.zone > 0 || !Object.keys(b.blend || {}).some((k) => k.includes('.'))) return {};
+  const st = P.stations.map((x, i) => ({ id: x.id, u: x.u ?? i })), SL = P.slots, n0 = SL.length, own = { [b.bone]: 1 };
+  const share = (a, k) => b.blend[`${a.id}.${SL[k % n0]}`] ?? b.blend[a.id] ?? own;
+  const out = {};
+  for (const x of Q.stations) {
+    let i = 0; while (i < st.length - 2 && st[i + 1].u < x.u) i++;
+    const a = st[i], c = st[i + 1], tu = c.u > a.u ? Math.max(0, Math.min(1, (x.u - a.u) / (c.u - a.u))) : 0;
+    Q.slots.forEach((sl, j) => {
+      const f = (j / around) * n0, k = Math.floor(f), tf = f - k;
+      const w = mixW(mixW(share(a, k), share(a, k + 1), tf), mixW(share(c, k), share(c, k + 1), tf), tu);
+      if (!(Object.keys(w).length === 1 && w[b.bone] === 1)) out[`${x.id}.${sl}`] = w;
+    });
+  }
+  return out;
+}
+
+// ─── 2. SEAT ───────────────────────────────────────────────────────────────────────────────────────────────────────
+
+/** the first crossing of a ray (origin `o`, unit `d`) with a dense part's skin, outward: { p, n, t } or null */
+export function rayHit(P, o, d) {
+  const n = P.slots.length; let best = null;
+  for (let i = 0; i + 1 < P.stations.length; i++) {
+    const A = P.stations[i].points, B = P.stations[i + 1].points;
+    for (let j = 0; j < n; j++) {
+      const a = A[P.slots[j]], b = A[P.slots[(j + 1) % n]], c = B[P.slots[(j + 1) % n]], e = B[P.slots[j]];
+      for (const [v0, v1, v2] of [[a, b, c], [a, c, e]]) {
+        // (Möller–Trumbore)
+        const e1 = sub(v1, v0), e2 = sub(v2, v0), h = cross(d, e2), det = dot(e1, h); if (Math.abs(det) < 1e-14) continue;
+        const f = 1 / det, s = sub(o, v0), u = f * dot(s, h); if (u < 0 || u > 1) continue;
+        const qv = cross(s, e1), v = f * dot(d, qv); if (v < 0 || u + v > 1) continue;
+        const t = f * dot(e2, qv); if (!(t > 1e-6) || (best && t >= best.t)) continue;
+        let nn = unit(cross(e1, e2)); if (dot(nn, d) < 0) nn = scl(nn, -1);
+        best = { p: add(o, scl(d, t)), n: nn, t };
+      }
+    }
+  }
+  return best;
+}
+
+/** the wearer's frames: the trunk (its axis, the torso bone's height T over the navel, W the half biacromial) and each
+ * right limb (its bone, the world's forward laid square to it, the outside) */
+export function frames(R) {
+  const J = R.joints, navel = at(J.navel), neck = at(J.neckHub), W = Math.abs(at(J.shoulderR)[0]);
+  const LIMBS = { upperArm: ['shoulderR', 'elbowR'], foreArm: ['elbowR', 'wristR'], thigh: ['hipR', 'kneeR'], shank: ['kneeR', 'ankleR'] };
+  const limb = Object.fromEntries(Object.entries(LIMBS).filter(([, [a, b]]) => J[a] && J[b]).map(([k, [a, b]]) => {
+    const h = at(J[a]), tl = at(J[b]), ax = unit(sub(tl, h)), fr = unit(sub([0, 1, 0], scl(ax, ax[1]))), out = unit(cross(ax, fr));
+    return [k, { h, ax, fr, out, L: len(sub(tl, h)) }];
+  }));
+  return { W, trunk: { z0: navel[2], T: neck[2] - navel[2] }, limb };
+}
+
+/** a mass of the card seated on the wearer, articulated at definition `d` (its group's `finest` level): an egg
+ * { id, c, ax, r, level, group } in metres, or null when its ray finds no skin (named in the report) */
+export function seatMass(m, g, F, dense, d, finest) {
+  const W = F.W, rad = (deg) => (deg * Math.PI) / 180;
+  let o, dir, along;
+  if (g.frame === 'trunk') {
+    o = [0, 0, F.trunk.z0 + m.on.t * F.trunk.T];
+    const ce = m.on.el ? dmath.cos(rad(m.on.el)) : 1;
+    dir = [dmath.sin(rad(m.on.az)) * ce, dmath.cos(rad(m.on.az)) * ce, m.on.el ? dmath.sin(rad(m.on.el)) : 0];
+    along = m.along ? unit(m.along) : [0, 0, 1];
+  } else {
+    const L = F.limb[g.frame]; if (!L) return null;
+    o = add(L.h, scl(L.ax, m.on.s * L.L));
+    const ce = m.on.el ? dmath.cos(rad(m.on.el)) : 1;
+    dir = add(scl(add(scl(L.fr, dmath.cos(rad(m.on.az))), scl(L.out, dmath.sin(rad(m.on.az)))), ce), m.on.el ? scl(L.ax, -dmath.sin(rad(m.on.el))) : [0, 0, 0]);
+    along = L.ax;
+  }
+  // the skin under the mass: the first of its group's parts its ray leaves
+  let hit = null;
+  for (const pn of g.parts) { const P = dense[pn] ?? dense[`${pn}R`]; if (!P) continue; hit = rayHit(P, o, dir); if (hit) break; }
+  if (!hit) return null;
+  const n = hit.n, A = articulation(m.level, d, finest);
+  // the fibre laid into the skin's tangent plane, and turned `spin` degrees about the normal
+  let a = unit(sub(along, scl(n, dot(along, n)))); if (m.spin) { const s = rad(m.spin), b = cross(n, a); a = unit(add(scl(a, dmath.cos(s)), scl(b, dmath.sin(s)))); }
+  const b = cross(n, a), r = m.r.map((x) => x * W * A.grow), proud = m.proud * W * A.proud;
+  // the mass stands `proud` of the skin, sunk under its children as they rise and buried while its level has not come
+  const depth = proud - r[2] - A.bury * (r[2] + proud) - A.sink * r[2];
+  return { id: m.id, group: g.id, level: m.level, c: add(hit.p, scl(n, depth)), ax: [a, b, n], r, proud, bone: g.frame === 'trunk' ? 0 : F.limb[g.frame].L };
+}
+
+/** a seated egg mirrored across x = 0 (the left side's) */
+const mirrorEgg = (e) => ({ ...e, id: `${e.id}L`, c: [-e.c[0], e.c[1], e.c[2]], ax: e.ax.map(([x, y, z]) => [-x, y, z]) });
+
+// ─── 4. DISPLACE ───────────────────────────────────────────────────────────────────────────────────────────────────
+
+/** the union of a set of seated masses at definition `d`: each group summed finest level first (a level's masses by
+ * its blend, then with the finer levels' union by the same), the groups by level 0's */
+export function unionOf(masses, d, k = null) {
+  // (a level none of a group's masses seated on is empty, never a hole: Array.from, since map skips one)
+  const groups = new Map();
+  for (const e of masses) { let g = groups.get(e.group); if (!g) groups.set(e.group, g = []); (g[e.level] ??= []).push(e); }
+  const k0 = k ?? blendOf(0, d), G = [...groups.values()].map((levels) => Array.from(levels, (es, l) => ({ es: es ?? [], k: k ?? blendOf(l, d) })));
+  return (q) => {
+    let all = Infinity;
+    for (const levels of G) {
+      let acc = Infinity;
+      for (let l = levels.length - 1; l >= 0; l--) {
+        const { es, k } = levels[l]; let s = acc;
+        for (const e of es) s = smin(s, sdEgg(q, e), k);
+        acc = s;
+      }
+      all = smin(all, acc, k0);
+    }
+    return all;
+  };
+}
+
+/** how far a shell's ENDS dive under their neighbours (metres), over how long a run from each end (metres): the shell
+ * that shows along an overlap would otherwise end on the muscle in a rim a few millimetres proud of the one it overlaps
+ * (the torso's over the pelvis, the arm's over the elbow's bridge), a step at every joint */
+export const END_TUCK = 0.0015, END_BAND = 0.018;
+/** how far an end BURIED inside a shell that shows over it dives (m), over how long a run (m): it never shows */
+export const BURIED_TUCK = 0.008, BURIED_BAND = 0.025, BURIED_IN = 0.01;
+/** which ends of a dense part (its first station's, its last's) lie inside one of `owners` (dense parts that show over
+ * it): the end ring's centre within an owner's run along its axis and within its rings' reach of it */
+export function endsInside(B, owners) {
+  const centre = (A, x) => scl(A.slots.reduce((a, s) => add(a, x.points[s]), [0, 0, 0]), 1 / A.slots.length);
+  // (at least BURIED_IN within the owner's run from its ends: a bridge's end only meets its neighbour's, ring to ring,
+  // and dived as buried it sank the elbow's band under both)
+  const inside = (p) => owners.some((A) => {
+    const C = A.stations.map((x) => centre(A, x)), R = A.stations.map((x, i) => A.slots.reduce((a, s) => a + len(sub(x.points[s], C[i])), 0) / A.slots.length);
+    const run = [0]; for (let i = 1; i < C.length; i++) run.push(run[i - 1] + len(sub(C[i], C[i - 1])));
+    for (let i = 0; i + 1 < C.length; i++) {
+      const e = sub(C[i + 1], C[i]), l2 = dot(e, e); if (l2 < 1e-12) continue;
+      const t = dot(sub(p, C[i]), e) / l2; if (t < 0 || t > 1) continue;
+      const s = run[i] + (run[i + 1] - run[i]) * t; if (s < BURIED_IN || run[run.length - 1] - s < BURIED_IN) continue;
+      if (len(sub(p, add(C[i], scl(e, t)))) < R[i] + (R[i + 1] - R[i]) * t) return true;
+    }
+    return false;
+  });
+  return [inside(centre(B, B.stations[0])), inside(centre(B, B.stations[B.stations.length - 1]))];
+}
+/** the most the shirt carries a point (m): past every muscle's stand off the skin */
+export const MOST_MOVE = 0.065;
+/** the most the shirt carries a dome's point on a shell that shows (m): the deltoid's crown lifts the arm's top about 5 cm,
+ * and a dome's inner ray grazing along it toward the torso had run out 10 cm in a fin */
+export const DOME_MOST = 0.07;
+
+/** a dense part DISPLACED onto the union of the skin and `masses`: each point carried out along its ring's ray to the
+ * union's surface (the skin a plane through the point, square to the ray), less its `tuck` and, near its ends, its end
+ * tuck (each never more than the point moved). A point no mass reaches keeps its place. `k` one blend for every level
+ * and the skin (a mark's: the nipples'), its march finer. `whole`: the tuck taken whole, moved or not (adapters/loft.js UNDER) */
+export function displace(P, masses, d, tuck = 0, k = null, whole = false, ends = [false, false]) {
+  if (!masses.length) return { part: P, moved: 0, capped: new Set() };
+  const M = unionOf(masses, d, k), kS = k ?? skinBlendOf(d), STEP = k ? 0.0005 : 0.002, REACH = k ? 0.03 : 0.16;
+  const centres = P.stations.map((x) => scl(P.slots.reduce((a, s) => add(a, x.points[s]), [0, 0, 0]), 1 / P.slots.length));
+  // (each ring's run from the part's nearer end, along its rings' centres)
+  const run = [0]; for (let i = 1; i < centres.length; i++) run.push(run[i - 1] + len(sub(centres[i], centres[i - 1])));
+  // (an end closed in a dome is no end: the dome runs on over it, and a tuck there cut a groove round the arm under it)
+  const domedBack = ORIGIN.has(P.stations[0]), domedTip = ORIGIN.has(P.stations[P.stations.length - 1]);
+  // (an end BURIED inside a shell that shows over it dives deeper and longer, BURIED_TUCK: at END_TUCK the thigh's top
+  // lay a millimetre under the pelvis and flickered through it in strips at the hip, the pelvis's top through the torso)
+  const total = run[run.length - 1], dive = (x, deep) => { const b = deep ? BURIED_BAND : END_BAND, t = deep ? BURIED_TUCK : END_TUCK; if (x >= b) return 0; const y = 1 - x / b; return t * y * y * (3 - 2 * y); };
+  // (`ends`, each end's: true BURIED, 'flush' WELDED to a bridge's end, ring to ring, so it does not dive at all)
+  const endOf = (i) => Math.max(domedBack || ends[0] === 'flush' ? 0 : dive(run[i], ends[0] === true), domedTip || ends[1] === 'flush' ? 0 : dive(total - run[i], ends[1] === true));
+  let moved = 0, held = false;
+  const capped = new Set();
+  // (a point carried out along its ray from `c` onto the union, less its tuck; unmoved where no mass reaches)
+  // (a DOME's point, the shirt's own surface and none of the wearer's, takes its tuck whole: the shoulder web's dome lay on
+  // the arm's, the two shells showing through each other in patches)
+  const carry = (p0, c, tk, dome = false) => {
+    const t0 = len(sub(p0, c)), dir = unit(sub(p0, c));
+    const f = (s) => smin(s - t0, M(add(c, scl(dir, s))), kS);
+    if (f(t0) >= 0) return dome && tk ? add(c, scl(dir, t0 - tk)).map(r6) : p0;
+    let lo = t0, hi = t0 + STEP; while (hi < t0 + REACH && f(hi) < 0) { lo = hi; hi += STEP; }
+    // (a ray that leaves no surface within its reach, one a long mass engulfs along it, or one carried past MOST_MOVE, a
+    // ray that grazed along a mass, is held AT the cap: one that kept its point had sunk patches of the skin flat under
+    // the muscles round them, plates, most at the form end, where the level-0 shapes stand furthest out; the posed
+    // shards these rays made are kept out of a corrective by `capped`)
+    // (a dome's ray, from its end ring's centre over the end, is the shirt's own and carries its point further, DOME_MOST,
+    // on a shell that shows; a dome under another shell's, `whole`, carried far had swung out in flaps as the arm rose)
+    const most = dome && !whole ? DOME_MOST : MOST_MOVE;
+    if (f(hi) < 0 || lo - t0 > most) { held = true; moved++; return add(c, scl(dir, t0 + most - (dome ? tk : Math.min(tk, most)))).map(r6); }
+    for (let it = 0; it < 30 && hi - lo > 1e-7; it++) { const m = (lo + hi) / 2; if (f(m) < 0) lo = m; else hi = m; }
+    // (a shell that should not show tucked in by as much as it moved, up to its tuck: adapters/loft.js TUCK)
+    const s = (lo + hi) / 2; moved++;
+    return add(c, scl(dir, s - (dome ? tk : Math.min(tk, s - t0)))).map(r6);
+  };
+  const origins = P.stations.map((x, i) => ORIGIN.get(x) ?? centres[i]);
+  const carried = P.stations.map((x, i) => {
+    // (a dome ring casts from its end ring's centre, so its rays leave over the end, not across it)
+    const dome = ORIGIN.has(x), c = origins[i], points = {}, tk = dome ? tuck : Math.max(tuck, endOf(i));
+    for (const sl of P.slots) { held = false; points[sl] = carry(x.points[sl], c, tk, dome || whole); if (held) capped.add(`${x.id}.${sl}`); }
+    return { ...x, points };
+  });
+  const stations = sloped(P, carried, origins, capped);
+  // (a point carried far past its neighbours on the grid takes their mean: rays that grazed along a mass stood a column
+  // of the arm's inner side out as a fin, hidden in the torso at rest, swung out as the arm rose)
+  const smoothed = unfinned(P, stations);
+  const from = ORIGIN.get(P) ?? {}, caps = P.caps ? Object.fromEntries(Object.entries(P.caps).map(([k, q]) => [k, from[k] ? carry(q, from[k], tuck, true) : q])) : P.caps;
+  return { part: { ...P, stations: smoothed, ...(caps ? { caps } : {}) }, moved, capped };
+}
+
+/** the steepest the shirt's skin climbs from one grid point to the next (its move's rise over their distance): a mass
+ * meeting the skin square on, or a ray slanting past a mass's edge, left a step of centimetres between two neighbours
+ * (34 mm over one slot on the back at the form end, read as plates); a lower point is raised along its ray to the ramp */
+export const SLOPE = 0.8;
+/** a displaced grid's steps eased to SLOPE: each point's move along its ray raised (never lowered) to its neighbours'
+ * less SLOPE times their distance, swept until it holds; a point `capped` (its ray grazed a mass) raises none */
+function sloped(P, S, C, capped) {
+  const n = P.slots.length, rows = S.length;
+  const dir = P.stations.map((x, i) => P.slots.map((sl) => unit(sub(x.points[sl], C[i]))));
+  const m = S.map((x, i) => P.slots.map((sl, j) => dot(sub(x.points[sl], P.stations[i].points[sl]), dir[i][j])));
+  const src = P.stations.map((x) => P.slots.map((sl) => !capped.has(`${x.id}.${sl}`)));
+  const dist = (i, j, a, b) => len(sub(P.stations[i].points[P.slots[j]], P.stations[a].points[P.slots[b]]));
+  const up = new Set();
+  for (let pass = 0, changed = true; changed && pass < 16; pass++) {
+    changed = false;
+    const order = pass % 2 ? [...Array(rows).keys()].reverse() : [...Array(rows).keys()];
+    for (const i of order) for (let jj = 0; jj < n; jj++) {
+      const j = pass % 2 ? n - 1 - jj : jj;
+      for (const [a, b] of [[i - 1, j], [i + 1, j], [i, (j + 1) % n], [i, (j + n - 1) % n]]) {
+        if (a < 0 || a >= rows || !src[a][b]) continue;
+        const v = m[a][b] - SLOPE * dist(i, j, a, b);
+        if (v > m[i][j] + 1e-6) { m[i][j] = v; up.add(i * n + j); changed = true; }
+      }
+    }
+  }
+  if (!up.size) return S;
+  return S.map((x, i) => ({ ...x, points: Object.fromEntries(P.slots.map((sl, j) => [sl, up.has(i * n + j) ? add(P.stations[i].points[sl], scl(dir[i][j], m[i][j])).map(r6) : x.points[sl]])) }));
+}
+
+/** which ends of a dense part `B` MEET an end of `A` ring to ring (their end rings' centres within 1 cm): [{ b, a }],
+ * each 0 for a part's first station's end, 1 for its last's */
+export function endsMeeting(B, A) {
+  const cen = (P, i) => { const x = P.stations[i]; return scl(P.slots.reduce((a, s) => add(a, x.points[s]), [0, 0, 0]), 1 / P.slots.length); };
+  const out = [];
+  for (const b of [0, 1]) for (const a of [0, 1]) if (len(sub(cen(B, b ? B.stations.length - 1 : 0), cen(A, a ? A.stations.length - 1 : 0))) < 0.01) out.push({ b, a });
+  return out;
+}
+/** over how long a run from its end (m) a bridge is eased onto the end ring it is welded to */
+export const WELD_BAND = 0.025;
+/** a dense part `B` (a joint's bridge) WELDED at its ends to the end rings it meets (`rings`: [back, tip], each an array of
+ * points round the neighbour's end ring, or null): each point carried out from its ring's centre to the neighbour's
+ * ring's reach in its direction, wholly at the end and eased off over WELD_BAND. The shirt carried a bridge and its
+ * neighbours each by its own muscles: where the plain body's ring was one, two stood a few millimetres apart, a crisp
+ * line round the elbow and the knee */
+export function welded(B, rings) {
+  const C = B.stations.map((x) => scl(B.slots.reduce((a, s) => add(a, x.points[s]), [0, 0, 0]), 1 / B.slots.length));
+  const run = [0]; for (let i = 1; i < C.length; i++) run.push(run[i - 1] + len(sub(C[i], C[i - 1])));
+  const total = run[run.length - 1];
+  // (a ring's reach from `c` along the unit `u`, in the ring's own plane: the farthest crossing of its polygon)
+  const reach = (ring, c, u, nrm) => {
+    const v = unit(sub(u, scl(nrm, dot(u, nrm)))), w = cross(nrm, v); let best = -1;
+    for (let k = 0; k < ring.length; k++) {
+      const p = sub(ring[k], c), q = sub(ring[(k + 1) % ring.length], c), px = dot(p, v), py = dot(p, w), qx = dot(q, v), qy = dot(q, w);
+      const den = py - qy; if (Math.abs(den) < 1e-12) continue;
+      const t = py / den; if (t < 0 || t > 1) continue;
+      const x = px + (qx - px) * t; if (x > best) best = x;
+    }
+    return best;
+  };
+  const ends = rings.map((ring, e) => {
+    if (!ring) return null;
+    const c = scl(ring.reduce((a, p) => add(a, p), [0, 0, 0]), 1 / ring.length), i0 = e ? C.length - 1 : 0, i1 = e ? C.length - 2 : 1;
+    return { ring, c, nrm: unit(sub(C[i0], C[i1])) };
+  });
+  const stations = B.stations.map((x, i) => {
+    let points = x.points;
+    ends.forEach((E, e) => {
+      if (!E) return;
+      const y = (e ? total - run[i] : run[i]) / WELD_BAND; if (y >= 1) return;
+      const w = 1 - y * y * (3 - 2 * y);
+      points = Object.fromEntries(B.slots.map((sl) => {
+        const p = points[sl], u = unit(sub(p, C[i])), r = reach(E.ring, E.c, u, E.nrm); if (r <= 0) return [sl, p];
+        const own = len(sub(p, C[i])), to = own + (r - own) * w;
+        return [sl, add(C[i], scl(u, to)).map(r6)];
+      }));
+    });
+    return points === x.points ? x : { ...x, points };
+  });
+  const caps = B.caps ? Object.fromEntries(Object.entries(B.caps).map(([k, p]) => [k, p])) : B.caps;
+  return { ...B, stations, ...(caps ? { caps } : {}) };
+}
+
+/** the least a hidden shell lies under the one that shows over it (m), past their tucks' difference */
+export const UNDER_GAP = 0.002;
+/** how much deeper (m) a hidden shell lies under the one over it away from that one's open edge, reached DEEP_BAND (m) in:
+ * at the gap alone, the thigh under the pelvis came through it over a broad patch as the leg moved (the two shells' skins
+ * move a few millimetres apart in a pose), torn edges round the hem */
+export const KEEP_DEEP = 0.006, DEEP_BAND = 0.03;
+/** how near the shell over it (m, along the ray from its axis, on the flat body) a hidden shell's point keeps its ORDER */
+export const KEEP_NEAR = 0.02;
+/** a displaced part `B` (from its flat dense `B0`) KEPT IN ORDER with the shells that show over it (`owners`: [{ A0, A,
+ * gap }], each's flat dense and displaced): each point of B that lay within KEEP_NEAR of an owner's skin on the flat body
+ * is held at least its offset along the owner's normal from the same place on the owner (its nearest face and the place in
+ * it), as the shirt carried the owner, less `gap` (deeper, KEEP_DEEP, away from the owner's open ends); eased to its own
+ * displacement as it lay further off, or off the face's edge. Only ever IN: a point the shirt left under the owner stays
+ * where it was (moved out to the owner's offset, the thigh's hidden top followed the pelvis's muscles out and sheared
+ * through the crotch in a wide stance).
+ * Two shells the shirt carried onto one surface from two axes had flickered through each other (the thigh's top in strips
+ * over the pelvis at the hip, a jagged waist); the flat body's own order keeps the line where one passes out of the other
+ * (the pelvis's brief over the thigh) where it was, and a hidden shell its gap under the other */
+export function keptInOrder(B0, B, owners) {
+  const O = owners.map(({ A0, A, gap }) => {
+    const n = A0.slots.length, T = [];
+    for (let i = 0; i + 1 < A0.stations.length; i++) for (let j = 0; j < n; j++) {
+      const k = [[i, j], [i, (j + 1) % n], [i + 1, (j + 1) % n], [i + 1, j]];
+      T.push([k[0], k[1], k[2]], [k[0], k[2], k[3]]);
+    }
+    const at = (P, [i, j]) => P.stations[i].points[P.slots[j]];
+    // (each row's run from the owner's nearer open end: the hidden shell held deeper the further in, KEEP_DEEP)
+    const C = A0.stations.map((x) => scl(A0.slots.reduce((a, s) => add(a, x.points[s]), [0, 0, 0]), 1 / n));
+    const run = [0]; for (let i = 1; i < C.length; i++) run.push(run[i - 1] + len(sub(C[i], C[i - 1])));
+    const total = run[run.length - 1], domed = [ORIGIN.has(A0.stations[0]), ORIGIN.has(A0.stations[A0.stations.length - 1])];
+    const deep = C.map((_, i) => { const r = i + 1 < C.length ? (run[i] + run[i + 1]) / 2 : run[i], x = Math.min(domed[0] ? Infinity : r, domed[1] ? Infinity : total - r) / DEEP_BAND; return x >= 1 ? KEEP_DEEP : KEEP_DEEP * x * x * (3 - 2 * x); });
+    // (the faces' winding read outward from the shell's middle ring's centre)
+    const mid = A0.stations[Math.floor(A0.stations.length / 2)], mc = scl(A0.slots.reduce((a, s) => add(a, mid.points[s]), [0, 0, 0]), 1 / n);
+    let sgn = 0;
+    for (let j = 0; j < n; j++) { const t = T[2 * (Math.floor(A0.stations.length / 2) * n + j)]; if (!t) break; const [a, b, c] = t.map((v) => at(A0, v)); sgn += dot(cross(sub(b, a), sub(c, a)), sub(a, mc)); }
+    const out = sgn < 0 ? -1 : 1;
+    // (a grid of the faces by their centres, 4 cm cells)
+    const cell = 0.04, grid = new Map(), key = (p) => p.map((v) => Math.floor(v / cell)).join(',');
+    T.forEach((t, f) => { const c = scl(t.reduce((a, v) => add(a, at(A0, v)), [0, 0, 0]), 1 / 3), k = key(c); if (!grid.has(k)) grid.set(k, []); grid.get(k).push(f); });
+    return { A0, A, gap, T, at, out, grid, cell, deep };
+  });
+  // (the nearest place on a triangle to p: its barycentrics, clamped onto the triangle)
+  const nearest = (p, a, b, c) => {
+    const ab = sub(b, a), ac = sub(c, a), ap = sub(p, a), d1 = dot(ab, ap), d2 = dot(ac, ap);
+    if (d1 <= 0 && d2 <= 0) return [1, 0, 0];
+    const bp = sub(p, b), d3 = dot(ab, bp), d4 = dot(ac, bp); if (d3 >= 0 && d4 <= d3) return [0, 1, 0];
+    const vc = d1 * d4 - d3 * d2; if (vc <= 0 && d1 >= 0 && d3 <= 0) { const v = d1 / (d1 - d3); return [1 - v, v, 0]; }
+    const cp = sub(p, c), d5 = dot(ab, cp), d6 = dot(ac, cp); if (d6 >= 0 && d5 <= d6) return [0, 0, 1];
+    const vb = d5 * d2 - d1 * d6; if (vb <= 0 && d2 >= 0 && d6 <= 0) { const w = d2 / (d2 - d6); return [1 - w, 0, w]; }
+    const va = d3 * d6 - d5 * d4; if (va <= 0 && d4 - d3 >= 0 && d5 - d6 >= 0) { const w = (d4 - d3) / (d4 - d3 + d5 - d6); return [0, 1 - w, w]; }
+    const den = 1 / (va + vb + vc), v = vb * den, w = vc * den; return [1 - v - w, v, w];
+  };
+  const mix = (a, b, c, [u, v, w]) => [0, 1, 2].map((k) => a[k] * u + b[k] * v + c[k] * w);
+  const ease = (x) => (x <= 0 ? 1 : x >= 1 ? 0 : 1 - x * x * (3 - 2 * x));
+  let changed = false;
+  const stations = B.stations.map((x, bi) => {
+    if (ORIGIN.has(B0.stations[bi])) return x;
+    const points = {};
+    for (const sl of B.slots) {
+      const p0 = B0.stations[bi].points[sl];
+      let p = x.points[sl];
+      for (const { A0, A, gap, T, at, out, grid, cell, deep } of O) {
+        const g = p0.map((v) => Math.floor(v / cell));
+        let best = null;
+        for (let dx = -1; dx <= 1; dx++) for (let dy = -1; dy <= 1; dy++) for (let dz = -1; dz <= 1; dz++) {
+          for (const f of grid.get(`${g[0] + dx},${g[1] + dy},${g[2] + dz}`) ?? []) {
+            const [a, b, c] = T[f].map((v) => at(A0, v)), w = nearest(p0, a, b, c), q = mix(a, b, c, w), dd = len(sub(p0, q));
+            if (!best || dd < best.dd) best = { f, w, q, dd };
+          }
+        }
+        if (!best || best.dd >= KEEP_NEAR) continue;
+        const [a0, b0, c0] = T[best.f].map((v) => at(A0, v)), n0 = scl(unit(cross(sub(b0, a0), sub(c0, a0))), out);
+        const d0 = dot(sub(p0, best.q), n0), off = len(sub(sub(p0, best.q), scl(n0, d0)));
+        const wt = ease(Math.abs(d0) / KEEP_NEAR * 2 - 1) * ease(off / 0.01);
+        if (wt <= 0) continue;
+        const [a1, b1, c1] = T[best.f].map((v) => at(A, v)), n1 = scl(unit(cross(sub(b1, a1), sub(c1, a1))), out);
+        const target = add(mix(a1, b1, c1, best.w), scl(n1, Math.min(d0, 0) - gap - deep[T[best.f][0][0]]));
+        // (only ever IN: a point the shirt left under the owner already stays where it is; moved out to the owner's
+        // offset, the thigh's hidden top followed the pelvis's muscles out and sheared through the crotch in a stance)
+        if (dot(sub(p, target), n1) > 0) { p = [0, 1, 2].map((k) => r6(p[k] + (target[k] - p[k]) * wt)); changed = true; }
+        break;
+      }
+      points[sl] = p;
+    }
+    return { ...x, points };
+  });
+  return changed ? { ...B, stations } : B;
+}
+
+// ─── THE HIP JOINED ────────────────────────────────────────────────────────────────────────────────────────────────
+
+/** how far over the crotch (m) the pelvis hands the skin to the thighs, and how deep (m) each hides on its other side,
+ * eased in over HIP_BAND (m) */
+export const HIP_ABOVE = 0.012, HIP_DEEP = 0.006, HIP_BAND = 0.012;
+/** how far under the level (m) a thigh's skin is eased out to the joined hip's lowest ring where that stands further out
+ * (the cheek's underside running into the thigh), and how square to the trunk's axis a point must face to be (the
+ * inner thighs, facing each other, keep their own) */
+export const HIP_DROP = 0.04, HIP_FACING = 0.5;
+/** the furthest (m) a thigh's point is eased out to the joined hip's ring: past it the ring is another form's (the
+ * belly's front at the crotch, the form end's especially), and the inner thigh's front drawn out to it spiked posed */
+export const HIP_REACH = 0.025;
+/** how far out (a share of the hip joint's half width) the joined hip takes the thigh's weights wholly (none on the
+ * midline, so the crotch moves with the pelvis) */
+export const HIP_SIDE = 0.35;
+/** how far the handover rises at the outer hip (a share of the run from the level to the hip joint): out at the side the
+ * thigh is the skin up toward the greater trochanter, the pelvis's lowest outer rings under it. Level all round, those
+ * rings carried the thigh's weights on the closing side of an abducted hip and bunched into a knot; the fold and the
+ * groin's line rise toward the outside as well */
+export const HIP_RISE = 0.6;
+/** the handover's height at a point (`L`, hipWrapped's): the level, risen out at the side by HIP_RISE, by how far out
+ * (past half the hip's half width) and how square to the side (the azimuth from the trunk's axis) the point stands */
+export const hipLevelAt = (L, p) => {
+  // (a smooth diagonal from the crotch out to the hip, as the groin's line runs: a step past half the width had drawn a
+  // brief's square corners at rest)
+  const ax = Math.abs(p[0]), y = Math.min(1, Math.max(0, (ax / L.hipX - 0.15) / 0.85)), s = y * y * (3 - 2 * y);
+  const v = [p[0], p[1] - L.cy], r = Math.hypot(v[0], v[1]) || 1, side = Math.abs(v[0]) / r;
+  return L.level + L.rise * s * side;
+};
+
+const ringCentre = (P, x) => scl(P.slots.reduce((a, s) => add(a, x.points[s]), [0, 0, 0]), 1 / P.slots.length);
+/** a dense part's faces as triangles with their z range */
+const trisOf = (P) => {
+  const n = P.slots.length, out = [];
+  for (let i = 0; i + 1 < P.stations.length; i++) for (let j = 0; j < n; j++) {
+    const a = P.stations[i].points[P.slots[j]], b = P.stations[i].points[P.slots[(j + 1) % n]], c = P.stations[i + 1].points[P.slots[(j + 1) % n]], e = P.stations[i + 1].points[P.slots[j]];
+    for (const t of [[a, b, c], [a, c, e]]) out.push({ t, lo: Math.min(t[0][2], t[1][2], t[2][2]), hi: Math.max(t[0][2], t[1][2], t[2][2]), i });
+  }
+  return out;
+};
+/** the farthest crossing of the ray from `o` along unit `d` with triangles `T`: { t, k } (k the triangle's tag) or null */
+function farthestHit(o, d, T) {
+  let best = null;
+  for (const { t: [v0, v1, v2], tag } of T) {
+    const e1 = sub(v1, v0), e2 = sub(v2, v0), h = cross(d, e2), det = dot(e1, h); if (Math.abs(det) < 1e-14) continue;
+    const f = 1 / det, s0 = sub(o, v0), u = f * dot(s0, h); if (u < 0 || u > 1) continue;
+    const q = cross(s0, e1), v = f * dot(d, q); if (v < 0 || u + v > 1) continue;
+    const t = f * dot(e2, q); if (t > 1e-6 && (!best || t > best.t)) best = { t, tag };
+  }
+  return best;
+}
+
+/** THE HIP JOINED: the pelvis's rings under the hip joint (`hipZ`) re-laid round the union of itself and both thighs
+ * (`thighs`: { R, L }, displaced, the left the right's mirror with its own bind), so the pelvis wraps the tops of both
+ * legs as one surface down to a level HIP_ABOVE over the crotch, where it hands the skin to the thighs. Each ring a
+ * horizontal section at its height, each slot the farthest crossing along its azimuth (the kept ring's over the hip
+ * joint) from the trunk's axis; the lowest ring closes over the crotch under the level. The rings take, out at the
+ * sides, the weights of the thigh under them at their height (none on the midline), so the wrap moves with the legs.
+ * The thighs' tops then hide under it (hipHidden). The pelvis was a brief over the thighs, each shell bound its own way:
+ * in a wide stance the thighs' tops tore out through its leg openings, the plain body's as well. Returns { part, level }
+ * or { part: P } where it has too few rings under the hip */
+export function hipWrapped(P, thighs, hipZ) {
+  const zc = P.stations.map((x) => ringCentre(P, x)[2]);
+  // (the wrap re-lays the rings up to the hip joint, or past it to over the thighs' tops where they rise higher, the
+  // anime female's: the thigh's top carried out by the hip's muscles had come through the pelvis over the wrap in bars)
+  const top = Math.max(...[thighs.R, thighs.L].flatMap((X) => X.stations.flatMap((x) => X.slots.map((sl) => x.points[sl][2]))));
+  const kHip = zc.findIndex((z) => z >= hipZ); if (kHip < 3) return { part: P };
+  const kTop = zc.findIndex((z) => z >= top + 0.005), k = kTop < 0 ? zc.length - 1 : Math.max(kHip, kTop);
+  let crotch = Infinity; for (const sl of P.slots) { const q = P.stations[0].points[sl]; if (Math.abs(q[0]) < 0.03) crotch = Math.min(crotch, q[2]); }
+  if (!Number.isFinite(crotch)) return { part: P };
+  const level = crotch + HIP_ABOVE, K = P.stations[kHip], cK = ringCentre(P, K);
+  if (zc[kHip] - level < 0.02) return { part: P };
+  const th = P.slots.map((sl) => { const q = K.points[sl]; return Math.atan2(q[0], q[1] - cK[1]); });
+  const tagged = (X, tag) => trisOf(X).map((t) => ({ ...t, tag }));
+  const all = [...tagged(P, 'pelvis'), ...tagged(thighs.R, 'R'), ...tagged(thighs.L, 'L')].filter((t) => t.lo <= zc[k] + 0.01 && t.hi >= crotch - 0.01);
+  const zOf = (i) => (i === 0 ? crotch : level + ((i - 1) / (k - 1)) * (zc[k] - level));
+  const rings = [];
+  for (let i = 0; i < k; i++) {
+    const z = i === 0 ? level : zOf(i), o = [0, cK[1], z], T = all.filter((t) => t.lo <= z && t.hi >= z);
+    rings.push(P.slots.map((sl, j) => { const d = [Math.sin(th[j]), Math.cos(th[j]), 0], h = farthestHit(o, d, T); return h ? add(o, scl(d, h.t)) : null; }));
+  }
+  // (the lowest ring goes on straight down under the level, HIP_DEEP in from the level's ring, inside the thighs that
+  // take the skin there; the cap closes it over the crotch. Drawn sharply in toward the crotch, it had turned the level
+  // ring's shading down into a dark band all round)
+  const c0 = ringCentre(P, P.stations[0]), cr = [0, c0[1], crotch];
+  rings[0] = rings[0].map((q) => { if (!q) return null; const v = [q[0], q[1] - cK[1]], r = Math.hypot(v[0], v[1]) || 1, g = Math.max(0, r - 2 * HIP_DEEP) / r; return [q[0] * g, cK[1] + v[1] * g, crotch]; });
+  // (out at the side, under the risen handover, the wrap drawn in under the thigh, as the thigh is drawn in over it)
+  const L = { level, rise: HIP_RISE * (zc[kHip] - level), hipX: Math.max(...P.slots.map((sl) => Math.abs(K.points[sl][0]))), cy: cK[1] };
+  for (let i = 1; i < k; i++) rings[i] = rings[i].map((q) => {
+    if (!q) return q; const y = (hipLevelAt(L, q) - q[2]) / HIP_BAND; if (y <= 0) return q;
+    const w = y >= 1 ? 1 : y * y * (3 - 2 * y), v = [q[0], q[1] - L.cy], r = Math.hypot(v[0], v[1]) || 1, g = Math.max(0, r - HIP_DEEP * w) / r;
+    return [q[0] * g, L.cy + v[1] * g, q[2]];
+  });
+  const hipX = Math.max(...P.slots.map((sl) => Math.abs(K.points[sl][0])));
+  // (a thigh's weights at a height: the share of its station whose ring's centre is nearest it)
+  const shareAt = (X, z) => { let best = null; for (const x of X.stations) { const d = Math.abs(ringCentre(X, x)[2] - z); if (!best || d < best.d) best = { d, x }; } return X.bind?.blend?.[best.x.id] ?? { [X.bind?.bone]: 1 }; };
+  const blend = { ...P.bind.blend }, own = (id, sl) => P.bind.blend[`${id}.${sl}`] ?? P.bind.blend[id] ?? { [P.bind.bone]: 1 };
+  const stations = P.stations.map((x, i) => {
+    if (i >= k) return x;
+    const points = {};
+    P.slots.forEach((sl, j) => {
+      const q = rings[i][j] ?? x.points[sl]; points[sl] = q.map(r6);
+      const side = q[0] >= 0 ? thighs.R : thighs.L, y = Math.min(1, Math.abs(q[0]) / (HIP_SIDE * hipX)), w = y * y * (3 - 2 * y);
+      blend[`${x.id}.${sl}`] = w > 0 ? mixW(own(x.id, sl), shareAt(side, i === 0 ? level : q[2]), w) : own(x.id, sl);
+    });
+    return { ...x, points };
+  });
+  const caps = P.caps?.back ? { ...P.caps, back: cr.map(r6) } : P.caps;
+  // (the level's ring by azimuth from the trunk's axis: the thighs' skin under it eased out to it, hipHidden)
+  const rim = { cy: cK[1], at: P.slots.map((_, j) => [th[j], rings[1][j] ? Math.hypot(rings[1][j][0], rings[1][j][1] - cK[1]) : null]).filter(([, r]) => r !== null).sort((a, b) => a[0] - b[0]) };
+  return { part: { ...P, stations, ...(caps ? { caps } : {}), bind: { ...P.bind, blend } }, level, rim, L };
+}
+
+/** a thigh HANDED the skin at the joined hip's `level`: each point over it drawn in toward its ring's centre by HIP_DEEP,
+ * eased in over HIP_BAND (hidden under the pelvis); each under it, within HIP_DROP and facing out from the trunk's axis,
+ * eased out to the level's ring (`rim`, by azimuth from the axis) where that stands further out, wholly at the level and
+ * none HIP_DROP under it: the pelvis's lower cheek stood past the thigh's skin, a ledge under the seat */
+export function hipHidden(T, level, rim, L = null) {
+  const rimAt = (a) => {
+    const A = rim.at, n = A.length; if (!n) return null;
+    let k = A.findIndex(([t]) => t > a); if (k < 0) k = n;
+    const [t0, r0] = A[(k - 1 + n) % n], [t1, r1] = A[k % n], span = ((t1 - t0 + 2 * Math.PI) % (2 * Math.PI)) || 1e-9, f = ((a - t0 + 2 * Math.PI) % (2 * Math.PI)) / span;
+    return r0 + (r1 - r0) * Math.min(1, Math.max(0, f));
+  };
+  let changed = false;
+  const stations = T.stations.map((x) => {
+    const c = ringCentre(T, x); let any = false;
+    const points = Object.fromEntries(T.slots.map((sl) => {
+      let p = x.points[sl]; const r0 = len(sub(p, c)); if (r0 < 1e-9) return [sl, p];
+      // (the handover here: the level, risen out at the side, hipLevelAt; where risen, no easing out, the thigh the side)
+      const at = L ? hipLevelAt(L, p) : level, risen = L && L.rise > 0 ? (at - level) / L.rise : 0;
+      // (under the level: eased out to the level's ring where it stands further out)
+      const yd = (level - p[2]) / HIP_DROP;
+      if (rim && risen < 0.5 && yd > -1e-9 && yd < 1) {
+        const v = [p[0], p[1] - rim.cy], rv = Math.hypot(v[0], v[1]), out = [(p[0] - c[0]) / r0, (p[1] - c[1]) / r0];
+        const facing = rv > 1e-9 ? (out[0] * v[0] + out[1] * v[1]) / (Math.hypot(out[0], out[1]) || 1) / rv : 0, R = facing >= HIP_FACING ? rimAt(Math.atan2(v[0], v[1])) : null;
+        if (R !== null && R > rv && R - rv <= HIP_REACH) { const e = 1 - Math.max(0, yd), w = e * e * (3 - 2 * e) * Math.min(1, (facing - HIP_FACING) / 0.2) * (1 - 2 * risen), g = (rv + (R - rv) * w) / rv; p = [r6(p[0] * g), r6(rim.cy + (p[1] - rim.cy) * g), p[2]]; any = true; }
+      }
+      // (drawn in from half a band under the level, so at the level it lies under the pelvis's ring and just under it over
+      // the pelvis's inturned edge: the two crossing at a slope, not lying on each other in teeth)
+      const y = (p[2] - at) / HIP_BAND + 0.5;
+      if (y > 0) { const w = y >= 1 ? 1 : y * y * (3 - 2 * y), r = len(sub(p, c)); any = true; p = add(c, scl(sub(p, c), Math.max(0, r - HIP_DEEP * w) / r)).map(r6); }
+      return [sl, p];
+    }));
+    if (any) changed = true;
+    return any ? { ...x, points } : x;
+  });
+  return changed ? { ...T, stations } : T;
+}
+
+/** the points of a dense part's DOMES (densify's rings closing an end), as `<station>.<slot>` */
+export const domeKeys = (P) => new Set(P.stations.filter((x) => ORIGIN.has(x)).flatMap((x) => P.slots.map((sl) => `${x.id}.${sl}`)));
+
+/** a displaced grid with its FINS taken out: each point's move (from `P`'s point to `S`'s) set to its grid neighbours'
+ * mean where it is more than twice their median and FIN more, twice over; a point that did not move stays exactly */
+export const FIN = 0.004;
+function unfinned(P, S) {
+  const n = P.slots.length, rows = S.length;
+  let D = S.map((x, i) => P.slots.map((sl) => sub(x.points[sl], P.stations[i].points[sl])));
+  for (let pass = 0; pass < 2; pass++) {
+    D = D.map((row, i) => row.map((o, j) => {
+      const lo = len(o); if (lo < 1e-9) return o;
+      const nb = [[i - 1, j], [i + 1, j], [i, (j + 1) % n], [i, (j + n - 1) % n]].filter(([a]) => a >= 0 && a < rows).map(([a, b]) => D[a][b]);
+      const m = nb.map(len).sort((a, b) => a - b)[Math.floor(nb.length / 2)];
+      return lo > 2 * m + FIN ? scl(nb.reduce((a, q) => add(a, q), [0, 0, 0]), 1 / nb.length) : o;
+    }));
+  }
+  return S.map((x, i) => ({ ...x, points: Object.fromEntries(P.slots.map((sl, j) => [sl, len(D[i][j]) < 1e-9 ? P.stations[i].points[sl] : add(P.stations[i].points[sl], D[i][j]).map(r6)])) }));
+}
+/** a midline part made exactly symmetric: each left slot the mirror of its right partner, the midline slots on x = 0 */
+export function symmetrize(P) {
+  const stations = P.stations.map((x) => ({ ...x, points: Object.fromEntries(P.slots.map((sl) => {
+    const p = x.points[sl];
+    if (/L$/.test(sl)) { const q = x.points[swapRL(sl)]; return [sl, [r6(-q[0]), q[1], q[2]]]; }
+    return [sl, /R$/.test(sl) ? p : [0, p[1], p[2]]];
+  })) }));
+  return { ...P, stations };
+}
+
+export { mirrorPart, mirrorEgg };
+
+// ─── 5. THE HANDS ──────────────────────────────────────────────────────────────────────────────────────────────────
+
+/** a part's widest ring's girth (its own rings, not a dome's) */
+export function girthOf(P) {
+  let best = 0;
+  for (const x of P.stations) {
+    if (/_(back|tip)\d+$/.test(x.id)) continue;
+    let g = 0; for (let k = 0; k < P.slots.length; k++) g += len(sub(x.points[P.slots[(k + 1) % P.slots.length]], x.points[P.slots[k]]));
+    if (g > best) best = g;
+  }
+  return best;
+}
+
+/** the recipe's hands scaled `f` about each wrist: the parts `partsOf(S)` names (their stations and caps) and the joints
+ * `jointsOf(S)` names, so the fingers still turn in their knuckles; a part `ramp` names eased from 1 at its back to `f`
+ * (the form field's physique `hands`, body-relational.js) */
+export const handsScaled = (parts, rig, f, partsOf, jointsOf, ramp = () => false) => scaledAbout(parts, rig, f, (S) => rig.joints[`wrist${S}`] && at(rig.joints[`wrist${S}`]), partsOf, jointsOf, ramp);
+
+/** the recipe's feet scaled `f` about the ground under each ankle (the lowest point of the side's foot parts, under the
+ * ankle joint), so the sole stays on it and the foot grows forward, back and up */
+export function feetScaled(parts, rig, f, partsOf, jointsOf) {
+  const ground = (S) => {
+    const a = rig.joints[`ankle${S}`]; if (!a) return null;
+    let z = Infinity; const re = partsOf(S);
+    for (const [k, P] of Object.entries(parts)) if (re.test(k)) for (const x of P.stations) for (const p of Object.values(x.points)) if (p[2] < z) z = p[2];
+    return Number.isFinite(z) ? [at(a)[0], at(a)[1], z] : null;
+  };
+  return scaledAbout(parts, rig, f, ground, partsOf, jointsOf);
+}
+
+// ─── THE CLOTHES OVER THE SHIRT ────────────────────────────────────────────────────────────────────────────────────
+
+/** how far to the side of a garment point (m) the cloth reads the muscle under it: the highest within it holds the
+ * cloth, so a groove narrower than twice this is bridged, not followed (cloth does not enter a groove a finger wide) */
+export const CLOTH_SPAN = 0.025;
+/** the least the cloth stands off the muscled skin (m) where the muscle carried it */
+export const CLOTH_EASE = 0.004;
+/** the most clearance (m) the cloth keeps over the muscled skin from what it had over the plain body */
+export const CLOTH_ROOM = 0.02;
+
+/** the body's SAMPLES the cloth is fitted over: each point of a part as the plain body had it (`p0`) and as the shirt
+ * carried it (`p1`), its point id (`key`), on a grid by `p0` (4 cm cells) */
+export function clothSamples(pairs) {
+  const cell = 0.04, grid = new Map(), all = [];
+  for (const [name, P0, P1] of pairs) P0.stations.forEach((x, i) => P0.slots.forEach((sl) => {
+    const p0 = x.points[sl], p1 = P1.stations[i]?.points?.[sl]; if (!p1) return;
+    const s = { p0, p1, key: `${name}/${x.id}.${sl}` }, k = p0.map((v) => Math.floor(v / cell)).join(',');
+    all.push(s); if (!grid.has(k)) grid.set(k, []); grid.get(k).push(s);
+  }));
+  const near = (q, r) => { const g = q.map((v) => Math.floor(v / cell)), n = Math.ceil(r / cell), out = []; for (let a = -n; a <= n; a++) for (let b = -n; b <= n; b++) for (let c = -n; c <= n; c++) for (const s of grid.get(`${g[0] + a},${g[1] + b},${g[2] + c}`) ?? []) out.push(s); return out; };
+  return { all, near };
+}
+
+/** a GARMENT RE-SAMPLED at the shirt's grain (densify): a garment covers part of its body part's run, its stations' `u`
+ * starting past 0 (a vest's at 1.4), and the re-sampling reads a run from 0 (every ring under its first collapsed onto
+ * it, the first band no band, and the compiler wound the vest inside out by it); so its run taken from 0 and given back,
+ * and each new station named by its `u` (`c1400`), apart from the body's by name as a dial's blends are keyed */
+export function garmentDense(G, opts) {
+  const u0 = G.stations[0].u ?? 0, shifted = { ...G, stations: G.stations.map((x, i) => ({ ...x, u: (x.u ?? i) - u0 })) };
+  const D = densify(shifted, opts), name = new Map(D.stations.map((x) => [x.id, `c${Math.round(((x.u ?? 0) + u0) * 1000)}`]));
+  const rn = (k) => { const [a, ...rest] = k.split('.'); return name.has(a) ? [name.get(a), ...rest].join('.') : k; };
+  const blend = D.bind?.blend ? Object.fromEntries(Object.entries(D.bind.blend).map(([k, w]) => [rn(k), w])) : undefined;
+  const bandGroups = D.bandGroups ? Object.fromEntries(Object.entries(D.bandGroups).map(([k, v]) => [k.split('-').map((x) => name.get(x) ?? x).join('-'), v])) : undefined;
+  return { ...D, stations: D.stations.map((x) => ({ ...x, id: name.get(x.id), u: r6((x.u ?? 0) + u0) })), ...(blend ? { bind: { ...D.bind, blend } } : {}), ...(bandGroups ? { bandGroups } : {}) };
+}
+
+/** a GARMENT fitted OVER the shirt: each of its points carried out along its ring's ray to clear the muscled skin under
+ * it (the samples within CLOTH_SPAN of the ray, behind the cloth or a little ahead of it) by CLOTH_EASE, never in; a
+ * point the muscle does not reach stays. Returns { part, on }: `on` each point's (`<station>.<slot>`) body point under
+ * it, the nearest, by which the body's correctives ride onto the cloth. `mirror` fits a left garment by the right body's
+ * samples (the left the right's mirror). Garments were built from the plain body before the shirt, and the muscles came
+ * through them */
+export function clothedOver(G, S, { mirror = false, hangs = false } = {}) {
+  const f = (p) => (mirror ? [-p[0], p[1], p[2]] : p);
+  const on = {};
+  const fit = (g0, c0, id) => {
+    const g = f(g0), c = f(c0), u = unit(sub(g, c)); if (!Number.isFinite(u[0])) return g0;
+    let push = 0, best = null;
+    for (const s of S.near(g, 0.16)) {
+      const v = sub(s.p0, g), along = dot(v, u); if (along > 0.03 || along < -0.16) continue;
+      const side = len(sub(v, scl(u, along))); if (side > CLOTH_SPAN) continue;
+      // (the cloth keeps the clearance it had over the plain body there, at least CLOTH_EASE and at most CLOTH_ROOM: a
+      // layer over another keeps its order, a loose one is pushed only where the muscle comes within its room)
+      const room = Math.min(Math.max(-along, CLOTH_EASE), CLOTH_ROOM), need = dot(sub(s.p1, g), u) + room; if (need > push) push = need;
+      const d = side + Math.abs(along); if (!best || d < best.d) best = { d, key: s.key };
+    }
+    if (best) on[id] = best.key;
+    return push > 0 ? f(add(g, scl(u, push))).map(r6) : g0;
+  };
+  const centres = G.stations.map((x) => scl(G.slots.reduce((a, sl) => add(a, x.points[sl]), [0, 0, 0]), 1 / G.slots.length));
+  // (a HANGING garment, a skirt, is a closed shell with its thickness: its rings run down its outside to the hem and back
+  // up its inside. Its outside is fitted and then falls straight from its widest point, each ring at least as far out as
+  // the ring over it, slot by slot, about its own centre (pushed out over the seat and not below it, its rings had
+  // folded over each other); its inside carried out as its outside is at the same height, so it keeps its thickness)
+  const zc = centres.map((c) => c[2]), hem = hangs ? zc.indexOf(Math.min(...zc)) : G.stations.length - 1;
+  const stations = G.stations.map((x, i) => (i > hem ? x : { ...x, points: Object.fromEntries(G.slots.map((sl) => [sl, fit(x.points[sl], centres[i], `${x.id}.${sl}`)])) }));
+  if (hangs) {
+    const descend = zc[0] >= zc[hem], order = [...Array(hem + 1).keys()]; if (!descend) order.reverse();
+    const reach = {}, grew = {};
+    for (const i of order) {
+      const c = centres[i];
+      stations[i] = { ...stations[i], points: Object.fromEntries(G.slots.map((sl) => {
+        const p = stations[i].points[sl], h = [p[0] - c[0], p[1] - c[1]], r = Math.hypot(h[0], h[1]), R = Math.max(r, reach[sl] ?? 0); reach[sl] = R;
+        const q0 = G.stations[i].points[sl]; (grew[i] ??= {})[sl] = R - Math.hypot(q0[0] - c[0], q0[1] - c[1]);
+        return [sl, R > r + 1e-6 && r > 1e-9 ? [r6(c[0] + (h[0] * R) / r), r6(c[1] + (h[1] * R) / r), p[2]] : p];
+      })) };
+    }
+    for (let j = hem + 1; j < stations.length; j++) {
+      let k = 0; for (let i = 1; i <= hem; i++) if (Math.abs(zc[i] - zc[j]) < Math.abs(zc[k] - zc[j])) k = i;
+      const c = centres[j];
+      stations[j] = { ...stations[j], points: Object.fromEntries(G.slots.map((sl) => {
+        const p = G.stations[j].points[sl], h = [p[0] - c[0], p[1] - c[1]], r = Math.hypot(h[0], h[1]), d = grew[k]?.[sl] ?? 0;
+        return [sl, d > 1e-6 && r > 1e-9 ? [r6(c[0] + (h[0] * (r + d)) / r), r6(c[1] + (h[1] * (r + d)) / r), p[2]] : p];
+      })) };
+    }
+  }
+  const caps = G.caps ? Object.fromEntries(Object.entries(G.caps).map(([k, q]) => [k, fit(q, centres[k === 'back' ? 0 : centres.length - 1], k)])) : G.caps;
+  return { part: { ...G, stations, ...(caps ? { caps } : {}) }, on };
+}
+
+// ─── PINS RE-ADDRESSED ─────────────────────────────────────────────────────────────────────────────────────────────
+
+/** the nearest place on triangle (a, b, c) to p: its barycentrics */
+function nearestOn(p, a, b, c) {
+  const ab = sub(b, a), ac = sub(c, a), ap = sub(p, a), d1 = dot(ab, ap), d2 = dot(ac, ap);
+  if (d1 <= 0 && d2 <= 0) return [1, 0, 0];
+  const bp = sub(p, b), d3 = dot(ab, bp), d4 = dot(ac, bp); if (d3 >= 0 && d4 <= d3) return [0, 1, 0];
+  const vc = d1 * d4 - d3 * d2; if (vc <= 0 && d1 >= 0 && d3 <= 0) { const v = d1 / (d1 - d3); return [1 - v, v, 0]; }
+  const cp = sub(p, c), d5 = dot(ab, cp), d6 = dot(ac, cp); if (d6 >= 0 && d5 <= d6) return [0, 0, 1];
+  const vb = d5 * d2 - d1 * d6; if (vb <= 0 && d2 >= 0 && d6 <= 0) { const w = d2 / (d2 - d6); return [1 - w, 0, w]; }
+  const va = d3 * d6 - d5 * d4; if (va <= 0 && d4 - d3 >= 0 && d5 - d6 >= 0) { const w = (d4 - d3) / (d4 - d3 + d5 - d6); return [0, 1 - w, w]; }
+  const den = 1 / (va + vb + vc), v = vb * den, w = vc * den; return [1 - v - w, v, w];
+}
+const mirrorPointId = (id) => id.replace(/\.([^./]+)$/, (m, sl) => `.${swapRL(sl)}`);
+
+/** the PINS on the parts the shirt re-sampled RE-ADDRESSED: a pinned part (an adornment, a crease, a stud on a garment)
+ * names its parent's face by its stations and slots, which the re-sampling renamed. Each pin's place on the parent as it
+ * was (`olds`) found on the parent re-sampled but not yet carried (`flat`: the same shape, the final part's ids), the
+ * nearest face there and its weights, so the pin rides on that face wherever the shirt carried it; its tangent edge the
+ * face's edge across the rings, its mirror (a midline detail's) the face's mirror. `loft` builds a part's faces */
+export function repinned(parts, olds, flat, loft) {
+  const built = new Map(), faceList = new Map();
+  const of = (name, P) => { const k = P; if (!built.has(k)) built.set(k, loft(name, P)); return built.get(k); };
+  const listOf = (name, P) => { if (!faceList.has(P)) { const B = of(name, P); faceList.set(P, Object.entries(B.faces).filter(([id]) => !/\/(back|tip)\.k/.test(id)).map(([id, tri]) => [id, tri, tri.map((q) => B.points[q])])); } return faceList.get(P); };
+  const out = { ...parts };
+  for (const [name, P] of Object.entries(parts)) {
+    const pin = P.pin, par = pin?.parent; if (!par || !flat[par] || !olds[par]?.stations) continue;
+    const O = of(par, olds[par]), tri = O.faces[pin.face]; if (!tri || !Array.isArray(pin.weights)) continue;
+    const X = tri.reduce((a, q, k) => add(a, scl(O.points[q], pin.weights[k])), [0, 0, 0]);
+    let best = null;
+    for (const [id, t, pts] of listOf(par, flat[par])) {
+      const w = nearestOn(X, ...pts), q = add(add(scl(pts[0], w[0]), scl(pts[1], w[1])), scl(pts[2], w[2])), d = len(sub(q, X));
+      if (!best || d < best.d) best = { d, id, t, w };
+    }
+    if (!best) continue;
+    const ids = flat[par].stations.map((x) => x.id), stOf = (q) => ids.indexOf(q.slice(q.indexOf('/') + 1, q.lastIndexOf('.')));
+    const slotOf = (q) => q.slice(q.lastIndexOf('.') + 1);
+    let edge = null;
+    for (let a = 0; a < 3 && !edge; a++) for (let b = 0; b < 3; b++) if (a !== b && slotOf(best.t[a]) === slotOf(best.t[b]) && stOf(best.t[a]) < stOf(best.t[b])) { edge = [best.t[a], best.t[b]]; break; }
+    edge ??= [best.t[0], best.t[1]];
+    const n = flat[par].slots.length;
+    const face = best.id.slice(0), mirror = pin.mirror ? { ...pin.mirror, face: face.replace(/\.k(\d+)(\.[ab])?$/, (m, k, ab) => `.k${n - 1 - Number(k)}${ab || ''}`), tangentEdge: edge.map(mirrorPointId) } : undefined;
+    // (two weights rounded and the third their complement, so they sum to one exactly as a surface pin asks)
+    const w0 = Math.max(0, r6(best.w[0])), w1 = Math.max(0, Math.min(1 - w0, r6(best.w[1]))), weights = [w0, w1, 1 - w0 - w1];
+    out[name] = { ...P, pin: { ...pin, face, weights, tangentEdge: edge, ...(mirror ? { mirror } : {}) } };
+  }
+  return out;
+}
+
+/** the legs LENGTHENED by `f` (the card's `legs`): the leg's shells, its joints and the pelvis stretched up from the ankle
+ * to the hip joint, and everything over the hip lifted by as much, so the feet stay on the ground and the body stands
+ * taller in the legs, where a heroic figure takes its height. The shells a loft of stations (a pinned mesh rides its
+ * parent); the hanging hands lifted with the arms, not stretched. The hands and feet grown with the arms and legs had
+ * read the figure stocky. `legParts` and `legJoint` name the leg's */
+export function lengthened(parts, rig, f, legParts, legJoint) {
+  if (!(f > 1)) return { parts, rig };
+  const J = rig.joints, at = (j) => (Array.isArray(j) ? j : j.at), hipJ = J.hipR && at(J.hipR), ankJ = J.ankleR && at(J.ankleR);
+  if (!hipJ || !ankJ) return { parts, rig };
+  const a = ankJ[2], h = hipJ[2], D = (f - 1) * (h - a);
+  const map = (z) => (z <= a ? z : z >= h ? z + D : z + (D * (z - a)) / (h - a));
+  const leg = (p) => [p[0], p[1], r6(map(p[2]))], lift = (p) => [p[0], p[1], r6(p[2] + D)];
+  const moved = (P, g) => ({ ...P, stations: P.stations.map((x) => ({ ...x, points: Object.fromEntries(Object.entries(x.points).map(([sl, p]) => [sl, g(p)])) })), ...(P.caps ? { caps: Object.fromEntries(Object.entries(P.caps).map(([k, p]) => [k, g(p)])) } : {}) });
+  const out = Object.fromEntries(Object.entries(parts).map(([n, P]) => [n, P.stations ? moved(P, legParts.test(n) ? leg : lift) : P]));
+  const joints = Object.fromEntries(Object.entries(J).map(([k, v]) => { const g = legJoint(k) ? leg : lift; return [k, Array.isArray(v) ? g(v) : { ...v, at: g(v.at) }]; }));
+  // (a fold's axis down the thigh, the knee from the hip, grown as the thigh is)
+  const kf = 1 + D / (h - a);
+  const folds = rig.folds ? Object.fromEntries(Object.entries(rig.folds).map(([k, F]) => [k, F.inAxis && /^hipFold/.test(k) ? { ...F, inAxis: [F.inAxis[0], F.inAxis[1], r6(F.inAxis[2] * kf)] } : F])) : rig.folds;
+  return { parts: out, rig: { ...rig, joints, ...(folds ? { folds } : {}) }, lift: D };
+}
+
+/** parts and joints scaled `f` about each side's centre `centreOf(S)`: the parts `partsOf(S)` names (their stations and
+ * caps; one `ramp` names eased from 1 at its back to `f`) and the joints `jointsOf(S)` names */
+/** a limb's shell TAPERED out from its bone toward `f` at its tail: each point's offset from the bone grown by 1 + (f − 1)
+ * eased in from `from` (a share of the bone, 0 at its head) to the tail. The forearm's wrist toward the hand's scale:
+ * the hand grown with the arm and the forearm's slim end not, the wrist had read as a stalk under a cuff */
+export function taperedTo(P, L, f, from) {
+  if (f === 1) return P;
+  const k = (p) => { const s = dot(sub(p, L.h), L.ax), t = (s / L.L - from) / (1 - from); const y = t <= 0 ? 0 : t >= 1 ? 1 : t * t * (3 - 2 * t); return [s, 1 + (f - 1) * y]; };
+  const at = (p) => { const [s, g] = k(p); if (g === 1) return p; const q = add(L.h, scl(L.ax, s)); return add(q, scl(sub(p, q), g)).map(r6); };
+  return { ...P, stations: P.stations.map((x) => ({ ...x, points: Object.fromEntries(Object.entries(x.points).map(([sl, p]) => [sl, at(p)])) })), ...(P.caps ? { caps: Object.fromEntries(Object.entries(P.caps).map(([q, p]) => [q, at(p)])) } : {}) };
+}
+
+export function scaledAbout(parts, rig, f, centreOf, partsOf, jointsOf, ramp = () => false) {
+  if (f === 1) return { parts, rig };
+  const P = { ...parts }, joints = { ...rig.joints };
+  for (const S of ['R', 'L']) {
+    const c = centreOf(S); if (!c) continue;
+    const re = partsOf(S), rj = jointsOf(S), toAt = (g) => (p) => add(c, scl(sub(p, c), g)).map(r6);
+    for (const [k, Pt] of Object.entries(parts)) if (re.test(k)) {
+      // (a bridge from the forearm, `ramp`, grows from none at its forearm end to the hand's at its hand end: grown whole, it
+      // stood over the forearm's slim end as a cuff; ramp 'anchored', a forearm tapered to the hand's scale: grown whole
+      // out from its own rings' centres, its forearm end kept where it was along the arm and its hand end carried with the
+      // hand, or slid up over the forearm's end it flickered through it in teeth)
+      const n = Pt.stations.length, mode = ramp(k), by = (i) => (mode === true ? 1 + ((f - 1) * i) / (n - 1) : f);
+      if (mode === 'anchored') {
+        const cen = (x) => scl(Object.values(x.points).reduce((a, p) => add(a, p), [0, 0, 0]), 1 / Object.keys(x.points).length);
+        const C = Pt.stations.map(cen), to = (i) => { const cc = C[i], moved = toAt(f)(cc); return add(cc, scl(sub(moved, cc), i / (n - 1))); };
+        const grow = (i) => (p) => add(to(i), scl(sub(p, C[i]), f)).map(r6);
+        P[k] = { ...Pt, stations: Pt.stations.map((x, i) => ({ ...x, points: Object.fromEntries(Object.entries(x.points).map(([sl, p]) => [sl, grow(i)(p)])) })), ...(Pt.caps ? { caps: Object.fromEntries(Object.entries(Pt.caps).map(([q, p]) => [q, q === 'back' ? grow(0)(p) : grow(n - 1)(p)])) } : {}) };
+        continue;
+      }
+      P[k] = { ...Pt, stations: Pt.stations.map((x, i) => ({ ...x, points: Object.fromEntries(Object.entries(x.points).map(([sl, p]) => [sl, toAt(by(i))(p)])) })), ...(Pt.caps ? { caps: Object.fromEntries(Object.entries(Pt.caps).map(([q, p]) => [q, toAt(q === 'back' ? by(0) : by(n - 1))(p)])) } : {}) };
+    }
+    for (const j of Object.keys(joints)) if (rj.test(j)) { const v = joints[j]; joints[j] = Array.isArray(v) ? toAt(f)(v) : { ...v, at: toAt(f)(v.at) }; }
+  }
+  return { parts: P, rig: { ...rig, joints } };
+}
+
+// ─── 6. MARKS ON THE SKIN ──────────────────────────────────────────────────────────────────────────────────────────
+
+/** the NIPPLES seated on a displaced trunk part (the right; the left its mirror): where a ray forward from `on` (its
+ * `x` of the half biacromial out, `t` up the torso bone) leaves it, the areola and the papilla (principles.js NIPPLE) laid square to its skin, each standing proud of it */
+export function nipplesOn(P, F, on, N) {
+  // (on the mid-clavicular line: `x` of the half biacromial out, the ray cast straight forward from there; an `az` from
+  // the axis landed them by the sternum, 7 cm apart)
+  const rad = (deg) => (deg * Math.PI) / 180, z = F.trunk.z0 + on.t * F.trunk.T;
+  const o = on.x !== undefined ? [on.x * F.W, 0, z] : [0, 0, z], dir = on.x !== undefined ? [0, 1, 0] : [dmath.sin(rad(on.az)), dmath.cos(rad(on.az)), 0];
+  const hit = rayHit(P, o, dir); if (!hit) return [];
+  const n = hit.n, a = unit(sub([0, 0, 1], scl(n, n[2]))), b = cross(n, a);
+  const egg = (id, m) => { const r = m.r.map((x) => x * F.W); return { id, group: 'nipple', level: 0, c: add(hit.p, scl(n, m.proud * F.W - r[2])), ax: [a, b, n], r }; };
+  const R = [egg('areola', N.areola), egg('papilla', N.papilla)];
+  return [...R, ...R.map(mirrorEgg)];
+}
+
+// ─── 7. SQUASH AND STRETCH ─────────────────────────────────────────────────────────────────────────────────────────
+
+/** a seated mass IN ACTIVITY (principles.js ACTIVITY[role], at the joint's full drive): its radii along, across and
+ * deep scaled, standing prouder or nearer the bone on the skin it was seated on, and slid toward its origin along its
+ * fibre (`slide` of its bone) */
+export function activeMass(e, role, own = {}, W = 0) {
+  const A = { ...ACTIVITY[role], ...Object.fromEntries(Object.entries(own).filter(([k, v]) => k !== 'joint' && k !== 'role' && Number.isFinite(v))) };
+  const [a0, b0, n] = e.ax, r = [e.r[0] * A.along, e.r[1] * A.across, e.r[2] * A.depth];
+  const lift = e.proud * (A.proud - 1) - (r[2] - e.r[2]), slide = -A.slide * (e.bone ?? 0);
+  // (its fibre turned about the skin's normal, outward on the right: the mirror turns it on the left)
+  let a = a0, b = b0;
+  if (A.turn) { const t = (A.turn * Math.PI) / 180 * (e.c[0] < 0 ? -1 : 1), cs = Math.cos(t), sn = Math.sin(t); a = add(scl(a0, cs), scl(b0, sn)); b = cross(n, a); }
+  const side = e.c[0] < 0 ? -1 : 1, carry = [side * (A.spread ?? 0) * W, 0, -(A.drop ?? 0) * W];
+  return { ...e, r, ax: [a, b, n], c: add(add(add(e.c, scl(n, lift)), scl(a0, slide)), carry) };
+}
+
+/** the most a corrective moves a point (m): past it a ray found another surface, not the muscle's squash or a revert
+ * (the move caps, MOST_MOVE and DOME_MOST, hold the rays themselves) */
+export const ACT_MOST = 0.08;
+/** how far past twice its neighbours' median a corrective's point may move before it takes their mean (m) */
+export const SPIKE = 0.004;
+
+/** a corrective's offsets, a side each: { R, L } by point id: each point of `active` less the same point of `rest` (a
+ * part, its stations' slots and its caps) on the right (`name`), and their mirror on the left (`L`: the left part's
+ * name, or a midline part's own, its slots swapped); a point that did not move, or moved past ACT_MOST, or one `capped`
+ * (its `<station>.<slot>`: held at the move's cap at rest or active, its ray grazing a mass) is left out */
+export function offsetsOf(name, rest, active, L, capped = null) {
+  const R = {}, Lf = {}, put = (id, idL, o) => { const l = len(o); if (l > 1e-6 && l <= ACT_MOST && !capped?.has(id.slice(name.length + 1))) { R[id] = o.map(r6); Lf[idL] = [-o[0], o[1], o[2]].map(r6); } };
+  // (a point moved far past its neighbours on the grid, a ray that found another surface, takes their mean: more than
+  // twice their median, and SPIKE more)
+  const n = rest.slots.length, O = rest.stations.map((x, i) => rest.slots.map((sl) => sub(active.stations[i].points[sl], x.points[sl])));
+  const near = (i, j) => [[i - 1, j], [i + 1, j], [i, (j + 1) % n], [i, (j + n - 1) % n]].filter(([a]) => a >= 0 && a < O.length).map(([a, b]) => O[a][b]);
+  const F = O.map((row, i) => row.map((o, j) => {
+    const nb = near(i, j), m = nb.map(len).sort((a, b) => a - b)[Math.floor(nb.length / 2)];
+    return len(o) > 2 * m + SPIKE ? scl(nb.reduce((a, q) => add(a, q), [0, 0, 0]), 1 / nb.length) : o;
+  }));
+  rest.stations.forEach((x, i) => rest.slots.forEach((sl, j) => put(`${name}/${x.id}.${sl}`, `${L}/${x.id}.${swapRL(sl)}`, F[i][j])));
+  for (const k of Object.keys(rest.caps ?? {})) put(`${name}/${k}`, `${L}/${k}`, sub(active.caps[k], rest.caps[k]));
+  return { R, L: Lf };
+}

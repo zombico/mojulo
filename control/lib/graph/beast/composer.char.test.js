@@ -4,6 +4,7 @@
 // frame's additions (an abdomen, a second pair of arms, the arm-wings). The stored record and the plan, byte for byte.
 // A change is legitimate only when the step says the presets' emission changes. And the composer itself: a beast of its
 // words alone (no kin), a word over its preset's, every new word refused by name.
+// Re-pinned for the hero laws 19 (anime-looks.js ANIME_FORM): each record carries the new laws; no plan moves.
 import { describe, it, expect } from 'vitest';
 import { createHash } from 'node:crypto';
 import { BEAST_KINS, BEAST_BASE } from './cards.js';
@@ -26,10 +27,13 @@ const CASES = {
   frame: { cast: 'male', beast: { kin: kinWith((c) => c.abdomen === 'gaster'), arms: 4 } },
   winged: { cast: 'female', beast: { kin: kinWith((c) => c.keel > 0.5), legs: 'digitigrade', wings: 'arms' } },
 };
+// (records re-pinned for the hero laws 20, anime-sockets.js: each record carries the new laws; no plan moves)
+// (and for the hero laws 21, hero-form.js FORM_BODY: each record carries the new laws; a beast-kin keeps its own body,
+// so no plan moves; and for the hero laws 22, hero-form.js ANIME_FRAME, the same: each record its stamp, no plan)
 const PINS = {
-  plantigrade: ['c41bb0eb0ae443b1', 'd7f91ee2a0c8ebed'], digitigrade: ['3d4175a71c6a8150', '075b0200012951a1'],
-  coil: ['b39ad544cde718e3', '3f1e7c335efbfed4'], ridged: ['c4b932beabe405a8', '21c75f71c17b6632'],
-  frame: ['3170050a18c41127', 'e2804beb1c150914'], winged: ['6a072679f6f5dfb7', '4f1319463ecd6e2f'],
+  plantigrade: ['56382d64c57a956e', 'd7f91ee2a0c8ebed'], digitigrade: ['3604c87641cc8688', '075b0200012951a1'],
+  coil: ['46014eb57d05b19b', '3f1e7c335efbfed4'], ridged: ['0d464d97275e0633', '21c75f71c17b6632'],
+  frame: ['bf522026e05f8daa', 'e2804beb1c150914'], winged: ['e23b2b33b8aa5ae4', '4f1319463ecd6e2f'],
 };
 
 describe('the kin presets compose what their cards made', () => {

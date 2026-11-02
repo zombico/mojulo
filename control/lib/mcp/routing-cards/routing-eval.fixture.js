@@ -143,9 +143,16 @@ export const FIXTURE = [
   // cast: the people around a hero rolled as one cast (egocube/cast.js), each then made by its path
   ['roll the other characters for my story: a rival, a mentor, and a villain with his lieutenant', 'create_sketch'],
   ['make the rival from my cast sheet', 'create_character'],
+  // the comic hero pack's characters by name (create_character { pack }) and headgear by word on any hero
+  ['I need a caped crusader type and a couple of goons for him to beat up', 'create_character'],
+  ['stick a motorcycle helmet on the character I made earlier', 'update_character'],
   // mascot: a cartoony, head-heavy character rolled from a promise (create_character { as: 'mascot' })
   ['I need a speedy blue cartoon guy with spikes for my platformer', 'create_character'],
   ['a round pink blob mascot with big eyes that floats around', 'create_character'],
+  // persona: a hero cast as a speaker, reading scripts in a delivery register (create_character { as: 'persona' })
+  ['I want my realistic guy to read out the nightly news in my game with subtitles', 'create_character'],
+  ['get my character to deliver the mission briefing to camera, crisp and serious', 'create_character'],
+  ['put a TV in my game level that plays the evening news read by my anchor', 'create_character'],
   // hero (layered): a human character as a rigged mesh in one art-style register
   ['a low-poly hero for my game with a face and a ponytail I can rig', 'create_character'],
   ['a boxy pixel knight that walks and exports skinned', 'create_character'],

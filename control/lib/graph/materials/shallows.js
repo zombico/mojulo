@@ -38,6 +38,13 @@ function pondRadius(body, th) {
  * Depth of water below the still level at (x, y): > 0 inside the body, ≤ 0 outside (a pond's bank rises out of it,
  * so the negative value is the bank height above the level — the bowl the page's terrain follows).
  */
+// a pond's own bed (`bed`, a world's carved basin): its depth under the level at a point, bilinear in its grid, its
+// edge's value past it (the bank)
+function bedSample(B, x, y) {
+  const u = Math.max(0, Math.min(B.nx - 1.000001, (x - B.x0) / B.dx)), v = Math.max(0, Math.min(B.ny - 1.000001, (y - B.y0) / B.dy)), i = Math.floor(u), j = Math.floor(v), fu = u - i, fv = v - j;
+  const d = (a, b) => B.depth[b * B.nx + a], top = d(i, j) + (d(i + 1, j) - d(i, j)) * fu, bot = d(i, j + 1) + (d(i + 1, j + 1) - d(i, j + 1)) * fu;
+  return top + (bot - top) * fv;
+}
 export function bedDepth(body, x, y) {
   const dx = x - body.center[0], dy = y - body.center[1];
   if (body.kind === 'basin') {
@@ -53,6 +60,7 @@ export function bedDepth(body, x, y) {
     const s = u < 0.45 ? 0 : u > 0.7 ? 1 : (u - 0.45) / 0.25;
     return body.shallow + (body.deep - body.shallow) * s * s * (3 - 2 * s);
   }
+  if (body.bed) return bedSample(body.bed, x, y);
   const ux = dx / body.radii[0], uy = dy / body.radii[1], q = dmath.hypot(ux, uy) / pondRadius(body, dmath.atan2(uy, ux));
   if (q < 1) return body.deep * (1 - q * q) * (1 - 0.35 * q * q);           // a bowl, steepest just inside the shore
   return -body.freeboard * Math.min(1, (q - 1) / 0.18);                      // the bank climbs to the ground (within the reach)
@@ -82,6 +90,13 @@ export function normalizeShallows(list, { sky, bg, metersPerUnit = 1 } = {}) {
       body.coping = r4(0.4 * L);
       body.shallow = r4(Math.min(body.deep, num(raw.shallow, 0.1, 6, K.shallow) * L));
       half = [body.size[0] / 2, body.size[1] / 2];
+    } else if (raw.bed && Array.isArray(raw.bed.depth) && raw.bed.nx >= 2 && raw.bed.ny >= 2 && raw.bed.depth.length === raw.bed.nx * raw.bed.ny) {
+      // a pond in a world's own carved basin: its bed the world's grid of depths under its level (metres, + under the
+      // water, − the bank over it), world units x0, y0, dx, dy; its centre and its reach the grid's
+      const B = raw.bed, bx = num(B.dx, 1e-3, 100, 0.25), by = num(B.dy, 1e-3, 100, 0.25);
+      body.bed = { x0: r4(num(B.x0, -1e5, 1e5, 0)), y0: r4(num(B.y0, -1e5, 1e5, 0)), dx: r4(bx), dy: r4(by), nx: B.nx | 0, ny: B.ny | 0, depth: B.depth.map((v) => r4(num(v, -50, 50, 0) * L)) };
+      half = [((body.bed.nx - 1) * body.bed.dx) / 2, ((body.bed.ny - 1) * body.bed.dy) / 2];
+      center[0] = r4(body.bed.x0 + half[0]); center[1] = r4(body.bed.y0 + half[1]);
     } else {
       // `radius` for a round pond, `size: [w, d]` for one that fills a w × d plot (its bank reaching the plot's edge)
       const r = num(raw.radius, 0.5 * L, 60 * L, 7 * L);

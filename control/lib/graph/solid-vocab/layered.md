@@ -494,6 +494,20 @@ GLB's baked ink (`bake: true`) cannot stencil: it leaves out only the outline of
   nothing. It composes with every other word (the dress, the gear and the clips fit the body it makes; read the
   clearance warnings as for any tune). The readout says `genki`.
 <!-- /section -->
+<!-- section: hero-anime-style | Anime head casts | the anime head's sibling casts, Shonen High the default -->
+  ANIME HEAD CASTS (the anime head only). `animeStyle` names a HEAD CAST (`anime-styles.js`): a figure's scale and
+  theme, sculpted as an action figure is, never a kind of game; every cast is lit alike, so any game fields any of them.
+  A minted adult anime hero wears `shonen-high` unless it names another; `null` is the form's bare head (a child, a
+  chibi and the studio's face wear none). The cast sits under the child's face, the look, the hero's own words and
+  genki, which compose on it, and is the base `/hero/face/<control>` moves off; its body tune follows the head.
+  `shonen-high` (high-school-sized, action-themed): a long, narrow face, flat cheeks, a narrow V chin; small eyes under a
+  hard lid angled to its tail; thin, low brows; a lean body under a smaller head. `z-fighter` (grown-hero-sized,
+  martial-arts-themed): a broad, square-jawed head, wide low eyes under heavy lids, thick brows angled to the bridge, on
+  a heavy frame. `school-kid-hero` (schoolkid-sized, action-themed): a big round head, a soft elliptical face to a small
+  pointed chin, large crisp eyes, a small mouth, on a short, slight frame. The feature advice reads the cast's bands. Stored as the word beside
+  its resolved stamp (a re-tuned cast never moves the row); `/hero/animeStyle null` takes it off. The readout says
+  `animeStyle`.
+<!-- /section -->
 <!-- section: hero-dress | The dress and second skin | detail and adorn passes, and paint: skintight garments as colour -->
   THE DRESS. `detail` and `adorn` put the dragon's BODY DETAIL and ADORNMENT passes on the hero, the same operators with
   the hero's parameters (`hero-dress.js`). `detail: 'clothed'` is a garment read: elbows and knees refined, the masses a
@@ -695,6 +709,12 @@ GLB's baked ink (`bake: true`) cannot stencil: it leaves out only the outline of
   `hero.gesture` says the word, the support, the hand and forearm against the torso, bust, thighs, neck and head
   (`clearance`, millimetres past their rest overlap) and the free sole against the floor; past 5 mm it advises, as does
   `lean` or `stance` off rest beside a stand (the rig poses the rest joints, so the dial is posed twice).
+  A SHOWCASE word as the stand (`heroHips`, `crossedArms`, `fistToSky`, `peaceWink`, `pocketsCool`, `jotaroPoint` …,
+  each with its `…Left` mirror; the motion card lists them as the showcase poses) holds that pose's hit: solved on the
+  rig, the hands resting on the body's own surfaces. It stands alone, not in a list. What a game shows by default, the
+  cover's showcase and the live demo's stand and idle per kind of game, is the pose rails' (gameworld/game-poses.js): a
+  fighter in its bouncing guard, a hero chest out, a person at ease shifting its weight, a mascot bobbing; a live idle
+  is a door clip `idle` (in place of the form's breathing loop).
 <!-- /section -->
 <!-- section: hero-clips | Clips | the operator's motion as keys, durations, the ambient blink -->
   THE CLIPS. `clips: { <name>: [keys] | false }` adds the operator's motion to the hero's own (`idle`, `walk`, `wave`;
@@ -792,9 +812,11 @@ GLB's baked ink (`bake: true`) cannot stencil: it leaves out only the outline of
   through the fist, its tip forward and down (a raised forearm carries it upright: the hand has no roll, so the rest
   hold is the one the arm's swing reads best from); a staff or a bow near upright, its lower end just above the floor; a
   shield along the forearm, its face outward; `back` across the shoulder blades (a blade hilt-up over the right
-  shoulder); `hip` at the left hip. Firearms: `pistol`, `carbine`, `shotgun` (generic, no make or model; styles
-  `service`, the default, and `future`, smooth with a lit band) at low ready in a hand, muzzle forward and down; slung on
-  `back` muzzle down; a pistol on `hip` holstered at the right thigh (a long gun has no hip). The gear is rigid on its bone, so the stand, the clips, the preview and the skinned
+  shoulder); `hip` at the left hip. Firearms: `pistol`, `carbine`, `shotgun`, `rifle`, `smg` (generic, no make or
+  model; the arms library's models, lines and finishes, the equipment card's arms section: `{ item: 'rifle', model:
+  'bullpup', style: 'fde', parts: { optic: 'scope' } }`, a new hero's guns stamped with their item's default model) at
+  low ready in a hand, muzzle forward and down; slung on `back` muzzle down; a pistol on `hip` holstered at the right
+  thigh (a long gun has no hip). A `knife` (combat, tanto, dagger, karambit) is held as a blade. The gear is rigid on its bone, so the stand, the clips, the preview and the skinned
   GLB carry it. An anime hero's gear takes `stylize: 0.7` unless its build says. The readout's `hero.gear` names each
   slot's item, hold, bone, length (m) and share of the figure's height.
   THE SWING. A swing word as the gesture: `chop`, `thrust`, `rising` (a low-to-high diagonal), `cleave` (two hands),
@@ -806,6 +828,32 @@ GLB's baked ink (`bake: true`) cannot stencil: it leaves out only the outline of
   cock, a greatsword (or a `mass` ≥ 1.2, or an item past three quarters of the figure) strikes late from a held, higher
   cock. The readout's `hero.gear.<hand>.swing` gives the impact's phase, the contact `window`, `reachM` and `cone` for
   a game's hit test. No bow draw yet: the hand has no wrist, so a bow raised to draw would point at the archer.
+<!-- /section -->
+<!-- section: hero-attach | Worn objects of your own | attach: any workbench recipe, or a solid by ref, worn on a bone -->
+  ATTACH. What no catalogue has (a horned crown, a bracer with a crystal, a jetpack, a tail ornament, a halo): make it
+  and wear it. `attach: [{ object | ref, at, t?, bone?, size?, fit?, anchor?, offset?, rotate?, align?, mirror?, id? }]`.
+  `object` is a workbench recipe inline (`{ units?, lathes?, extrudes?, sweeps?, lofts?, fields?, shells?, program?,
+  cuts? }`: the workbench card's whole language, fields and code included), or `ref` names a solid already made with
+  `mint_solid { kind: 'workbench' }`, copied in at the door so a later edit of that solid never moves this hero until the
+  ref is set again. `at` is a rig joint (`headTop`, `neckHub`, `shoulderR`, `elbowL`, `wristR`, `hipL`, `kneeR`,
+  `ankleL` …) or `[a, b]` with `t` (0 to 1) along it; it rides the bone that starts there (or ends there; a pair's
+  a → b; or `bone` by id). `size` is metres along `fit` (`height` | `width` | `depth` | `max`); absent, the object's own
+  size in its `units`. `anchor` (`center` | `base` | `top`) lands on the mount; `rotate` is degrees about the object's own
+  axes first; `align: 'bone'` turns its +z down the bone; `offset` nudges in metres (x right, y forward, z up); `mirror:
+  true` wears a reflected twin on the other side (pauldrons, earrings, wings). Rigid on its bone, so the stand, the clips
+  and the skinned GLB carry it as gear; it layers over whatever the hero wears. The readout's `hero.attach` names each
+  object's bone, length (m) and share of the figure's height. Patch one: `/hero/attach/0/size`; add one:
+  `{ op: 'add', path: '/hero/attach/-', value: {…} }`.
+<!-- /section -->
+<!-- section: hero-headgear | Headgear | headgear: a mask, a cowl, eyegear, a helmet by word, swapped in place -->
+  THE HEADGEAR. `headgear: '<word>'`: a mask, a cowl, eyegear, a mouthpiece, a helmet, a respirator or a visor, each a
+  word from the headgear library; the words, by family, with the bodies each fits: get_solid_vocab({ id: 'headgear' }).
+  The word is kept on the hero and lowered on every read, so `update_character { spec: { headgear: '<another>' } }`
+  swaps it in place and `null` takes it off. Every word fits the game body; the realistic body wears the domino and the
+  cowl, and refuses another by name. A helmet drops the hair; a cowl rides an outfit build's cloak. The card's colours
+  sit beneath `palette`: name a group (Helmet, HelmetVisor, HelmetTrim, Mask, MaskLens, EyeLens, EyeGlow …) to recolour
+  it. A helmet by tradition (the steel pot, the K-pot …) is the outfit build's `language.head`, by word here too.
+  Comic-book characters wearing them, by name: get_solid_vocab({ id: 'comic-hero' }).
 <!-- /section -->
   THE BUDGET. `hero.budget`, on every hero's readout: triangles and vertices per palette group, the plan and recipe in
   bytes.

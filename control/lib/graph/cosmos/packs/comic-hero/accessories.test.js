@@ -5,7 +5,7 @@
 // from the catalogue in code; comic-hero.deep.test.js validates and wears every card.
 import { describe, it, expect } from 'vitest';
 import { ACCESSORIES, ACCESSORY_IDS, ACCESSORY_GAPS, accessoryFits, withAccessories } from './accessories.js';
-import { EYEGEAR } from './headgear.js';
+import { EYEGEAR } from '../../../headgear/cards.js';
 import { costumeOf, ERA_IDS } from './costumes.js';
 import { memberOrders, bodyOf } from './characters.js';
 import { OUTFIT_KIND_NAMES } from '../../../polygonizer/outfit-plan.js';

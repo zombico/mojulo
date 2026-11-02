@@ -1,7 +1,7 @@
 // hero-gear — equipment on the hero: `gear: { right?, left?, back?, hip? }` on the hero door, each slot the same build
 // words an item takes (equipment/expand.js). An item is placed by its sockets at true size (cm → m, times the figure's
 // height over the canonical cast's), held by its class, and rigid on one bone:
-//   blade   (dagger, sword, greatsword) the grip through the fist, the tip forward and 45° down out of the fingers'
+//   blade   (dagger, sword, greatsword, knife) the grip through the fist, the tip forward and 45° down out of the fingers'
 //           perpendicular (less when the tip would reach the floor), the edge in the plane the arm swings in. The hand
 //           bone has no roll, so the rest hold is chosen for where the arc carries it: tip-down at the side swings to
 //           upright when the forearm is raised (a guard), where a tip-up rest hold would swing over the shoulder
@@ -12,14 +12,15 @@
 //   forearm (shield) its height along the forearm, its face outward, its back grip at the hand
 //   back    across the shoulder blades on the torso: a blade hilt-up over the right shoulder, anything else head-up
 //   hip     at the left hip on the pelvis, hilt forward and up, the tip back and down
-//   firearm (pistol, carbine, shotgun) at LOW READY in the hand: the grip's line along the fist's (the thumb's side up
+//   firearm (pistol, carbine, shotgun, rifle, smg) at LOW READY in the hand: the grip's line along the fist's (the thumb's side up
 //           the grip toward the bore), the muzzle down along the arm and forward out of it, its end kept above the
 //           floor; on the back slung across the shoulder blades muzzle down, its side flat to the back; a pistol on the
 //           hip in a holster at the RIGHT thigh (the strong side), muzzle down, the grip back. A long gun has no hip.
 // Gear is placed at the REST pose and carried by its bone's frame, so the stand, the clips, the rig preview and the
 // skinned export carry it the same way. The mounting rules come from the mecha arm's hold families (a fixed rotation
 // per class, the grip on the wrist line, attach at rest then pose). Pure: no dice, no clock.
-import { expandEquipment, validateBuild, LAWS_VERSION, withEquipment } from '../equipment/expand.js';
+import { expandEquipment, validateBuild, LAWS_VERSION, withEquipment, stampArms, isArmsBuild } from '../equipment/expand.js';
+import { ARMS_LAWS_VERSION } from '../equipment/arms/laws.js';
 import { tierMonomers } from '../equipment/tier.js';
 import { heroTarget } from '../era/cast-light.js';
 import { readTarget, pxPerMetre, DEFAULT_TARGET } from '../era/target.js';
@@ -30,7 +31,7 @@ import { rigNodesAt } from './station-loft-rig.js';
 import { DEFAULT_LIGHT } from './vexar.js';
 
 export const GEAR_SLOTS = Object.freeze(['right', 'left', 'back', 'hip']);
-const HOLD_OF = Object.freeze({ dagger: 'blade', sword: 'blade', greatsword: 'blade', staff: 'haft', bow: 'bow', shield: 'forearm', pistol: 'firearm', carbine: 'firearm', shotgun: 'firearm' });
+const HOLD_OF = Object.freeze({ dagger: 'blade', sword: 'blade', greatsword: 'blade', knife: 'blade', staff: 'haft', bow: 'bow', shield: 'forearm', pistol: 'firearm', carbine: 'firearm', shotgun: 'firearm', rifle: 'firearm', smg: 'firearm' });
 /** the firearm's muzzle forward of straight down along the arm at low ready (°), more when the floor asks */
 const READY = 25;
 /** the firearms carried on the hip (a holster): the pistol alone */
@@ -39,7 +40,7 @@ const TILT = Object.freeze({ blade: 45, haft: 75, bow: 78 });
 /** the staff reaches held as a blade is (equipment/items.js REACH) */
 const SWUNG = new Set(['arm', 'wand']);
 const FLOOR = 0.03;   // m a lower end keeps above the rest floor
-const BLADES = new Set(['dagger', 'sword', 'greatsword']);
+const BLADES = new Set(['dagger', 'sword', 'greatsword', 'knife']);
 /** the canonical cast's head top (m): gear scales with the figure's height over it */
 import { CANON_HEIGHT } from './hero-canon.js';
 export { CANON_HEIGHT };
@@ -84,10 +85,15 @@ export function validateGear(gear) {
   }
   return errs;
 }
-/** The stored gear: each slot's words with the laws stamped (a later refinement never moves a stored hero's gear). */
+/** The stored gear: each slot's words with the laws stamped (a later refinement never moves a stored hero's gear), an
+ * arm with its item's default model (equipment/arms/index.js stampArms: a new hero's guns are the arms kernel's). */
 export function gearRecord(gear) {
   const out = {};
-  for (const slot of GEAR_SLOTS) { const s = gear?.[slot]; if (s) { const { type: _t, ...words } = s; out[slot] = { ...words, laws: words.laws ?? LAWS_VERSION }; } }
+  for (const slot of GEAR_SLOTS) {
+    const s = gear?.[slot]; if (!s) continue;
+    const { type: _t, ...words } = s; const w = stampArms(words);
+    out[slot] = { ...w, laws: w.laws ?? (isArmsBuild(w) ? ARMS_LAWS_VERSION : LAWS_VERSION) };
+  }
   return Object.keys(out).length ? out : null;
 }
 /** A slot's build as the kernel reads it; an anime hero's gear leans stylized unless the build says otherwise. */
@@ -184,13 +190,16 @@ function lightIn(light, W) {
 function carry(f, G, frame, dz) {
   const P = (q) => { const p = gearRestPoint(G, q); const w = frame ? ride(frame, p) : p; return [w[0], w[1], w[2] + dz]; };
   const V = (v) => { const w = mv(G.M, v); return frame ? mv(frame.m, w) : w; };
-  const out = { ...f, corners: f.corners.map(P) };
+  // (a mirrored attachment, hero-attach.js, is reflected: its faces wound back so they still face out)
+  const out = { ...f, corners: G.flip ? f.corners.map(P).reverse() : f.corners.map(P) };
   if (Array.isArray(f.outNormal)) out.outNormal = unit(V(f.outNormal));
   if (f.crystal && Array.isArray(f.crystal.c)) out.crystal = { ...f.crystal, c: P(f.crystal.c), ...(Array.isArray(f.crystal.axis) ? { axis: unit(V(f.crystal.axis)) } : {}), ...(Number.isFinite(f.crystal.r) ? { r: f.crystal.r * G.k } : {}) };
   if (f.metal && Array.isArray(f.metal.p)) out.metal = { ...f.metal, p: f.metal.p.map((c) => c.map((v) => r5(v * G.k))) };   // the billet in metres
   return out;
 }
 function lowered(G, light, W) {
+  // a worn object of the operator's own (hero-attach.js): its recipe lowered as it is, a failure costing only itself
+  if (G.object) { try { return lowerObjectFaces({ kind: 'workbench', ...G.object }, lightIn(light, W)).filter((f) => Array.isArray(f?.corners) && f.corners.length >= 3); } catch { return []; } }
   const m = { kind: 'workbench', units: 'cm', build: G.build };
   return lowerObjectFaces(G.detail ? tierMonomers(withEquipment(m), G.detail) : m, lightIn(light, W));
 }

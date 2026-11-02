@@ -10,6 +10,7 @@ import { createWorkbenchHandler } from './workbench.js';
 import { createAssemblerHandler } from './assembler.js';
 import { updateSketchHandler } from './sketches.js';
 import { LAWS_VERSION } from '@/lib/graph/equipment/expand';
+import { ARMS_LAWS_VERSION } from '@/lib/graph/equipment/arms/laws';
 
 beforeEach(() => { closeDb(); });
 const STAFF = { type: 'equipment', item: 'staff', style: 'druid', seed: 3 };
@@ -24,6 +25,15 @@ describe('mint_solid workbench { build }', () => {
     expect(r.stats.equipment.sockets.grip.origin).toHaveLength(3);
     expect(r.stats.ledger.closed).toBe(true);
     expect(r.stats.ledger.recipe_bytes).toBeLessThan(300);
+  });
+  it('an arm takes its item\'s default model at mint, its arms laws, and reads out the laws it was built by', async () => {
+    const r = await createWorkbenchHandler({ title: 'sidearm', ref: 'eq-pistol', units: 'cm', build: { type: 'equipment', item: 'pistol', style: 'fde' } });
+    const stored = SketchRepository.getByRef('eq-pistol').manifest;
+    expect(stored.build).toEqual({ type: 'equipment', item: 'pistol', style: 'fde', model: 'service', laws: ARMS_LAWS_VERSION });
+    expect(r.stats.equipment.arms.advice).toEqual([]);
+    expect(r.stats.equipment.variants.optic).toBe('irons');
+    const p = await updateSketchHandler({ ref: 'eq-pistol', patch: [{ op: 'set', path: '/build/parts', value: { optic: 'reddot', underbarrel: 'light' } }] });
+    expect(p.ok).toBe(true);
   });
   it('a dial patch restyles in place', async () => {
     await createWorkbenchHandler({ title: 'sword', ref: 'eq-sword', units: 'cm', build: { type: 'equipment', item: 'sword', style: 'celestial', seed: 3 } });

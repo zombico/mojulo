@@ -57,7 +57,7 @@ export function sameness(world) {
   }
   // a page that is a served sample verbatim
   const D = world.characters?.direction, H = world.characters?.hero ?? {};
-  const pageOf = { direction: D ? { tradition: lower(D.tradition), primary: lower(D.primary), secondary: lower(D.secondary), motif: motifWords(D.motif) } : null, actions: H.actions?.powers ? sortedJson(H.actions.powers.map((p) => [verbOf(p), p.look ?? p.attack ?? null])) : null, motion: H.motion?.vibe ? sortedJson(H.motion.vibe.map(lower)) : null };
+  const pageOf = { direction: D ? { tradition: lower(D.tradition), primary: lower(D.primary), secondary: lower(D.secondary), motif: motifWords(D.motif) } : null, actions: H.actions?.powers?.length ? sortedJson(H.actions.powers.map((p) => [verbOf(p), p.look ?? p.attack ?? null])) : null, motion: H.motion?.vibe ? sortedJson(H.motion.vibe.map(lower)) : null };
   for (let seed = 1; seed <= SAMPLE_SEEDS; seed += 1) {
     for (const page of ['direction', 'actions', 'motion']) {
       if (!pageOf[page]) continue;
@@ -98,7 +98,7 @@ export function authorship(world) {
     page('direction', Object.keys(D).some((k) => k !== 'tradition'));
     for (const k of ['body', 'head', 'hair', 'colour', 'underlayer']) page(`looks.${k}`, L[k] !== undefined);
     page('motion', !!H?.motion);
-    page('actions', !!H?.actions?.powers?.length);
+    page('actions', !!(H?.actions?.powers?.length || H?.actions?.none));
     page('adornment', !!H?.adornment);
   }
   if (world.equipment || world.characters) page('equipment', !!(world.equipment?.style || Object.keys(world.equipment?.classes ?? {}).length));

@@ -19,6 +19,6 @@ describe('the cast sheet\'s photographs', () => {
     expect(out.portraits).toEqual({});
     expect(out.missing).toEqual([{ foe: 'a', why: expect.stringMatching(/not made yet/) }]);
     expect((await foePortraits(world())).missing).toEqual([]);
-    expect(await foePortraits({ id: 'w', levels: { one: { ...walk } } })).toEqual({ portraits: {}, key: '', missing: [] });
+    expect(await foePortraits({ id: 'w', levels: { one: { ...walk } } })).toEqual({ portraits: {}, poses: {}, key: '', missing: [] });
   });
 });

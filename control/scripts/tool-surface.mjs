@@ -22,6 +22,7 @@ if (!process.env.VITEST) register('./mcp-stdio-loader.mjs', import.meta.url);
 const { FACETS, STATUSES } = await import('../lib/graph/cosmos/facets/index.js');
 const { capabilityRegistry } = await import('../lib/graph/cosmos/registry.js');
 const { FIXTURES } = await import('../lib/graph/cosmos/fixtures.js');
+const { probeOfGenre } = await import('../lib/graph/gameworld/door-probes.js');
 const { sweep } = await import('../lib/graph/cosmos/sweep.js');
 const { composeCandidates } = await import('../lib/graph/cosmos/compose.js');
 
@@ -168,9 +169,14 @@ export function hillclimbMd(opts) {
   L.push('| synergy | worlds | cost | pair |', '|---|---|---|---|');
   for (const p of c.pairs.filter((x) => x.synergy).slice(0, 15)) L.push(`| ${p.synergy} | ${p.worlds} | ${p.cost ?? '–'} | ${name(p.a)} + ${name(p.b)} |`);
   L.push('', '## The genre probes', '');
-  L.push('| genre | verdict | waits on |', '|---|---|---|');
+  L.push('Verdict: what the registry can express. From a sentence: what `design_game({ compose: { prompt } })` makes of the');
+  L.push('sentence its family\'s door probe says (lib/graph/gameworld/door-probes.js, held by its e2e suite): yes, its family\'s');
+  L.push('game; refused or handed off, the right answer where it is not a level; no, something else; – where no probe');
+  L.push('stands for the genre (one probe a kernel family).', '');
+  L.push('| genre | verdict | from a sentence | waits on |', '|---|---|---|---|');
   const cubes = Object.fromEntries(FIXTURES.map((x) => [x.id, x]));
-  for (const x of r.fixtures) L.push(`| ${cubes[x.id]?.name || x.id}${x.anchor ? ' (anchor)' : ''} | ${x.verdict} | ${[...x.blocked, ...x.gaps].map(code).join(', ') || '–'} |`);
+  const sentence = (id) => { const p = probeOfGenre(id); return p ? (p.now === 'type' ? p.shows ?? 'yes' : 'no') : '–'; };
+  for (const x of r.fixtures) L.push(`| ${cubes[x.id]?.name || x.id}${x.anchor ? ' (anchor)' : ''} | ${x.verdict} | ${sentence(x.id)} | ${[...x.blocked, ...x.gaps].map(code).join(', ') || '–'} |`);
   L.push('', '## The matrix', '');
   L.push('Every setting of every facet, its values by status. Statuses: ' + STATUSES.join(', ') + '.', '');
   for (const { id, asks } of FACETS) {

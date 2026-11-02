@@ -48,6 +48,7 @@ import { readWeather } from '@/lib/graph/weather/weather';
 const SEASON_CLIMATES = ['spring-blossom', 'temperate', 'autumn', 'alpine'];
 import { airCard } from '@/lib/graph/era/air';
 import { geocubeContrastOf, geocubeRegisterOf, geocubeStructures, geocubeEraOf, readGeocube } from '@/lib/graph/era/geocube';
+import { lowerWaterworks } from '@/lib/graph/era/water-live';
 import { readBiocube } from '@/lib/graph/era/biocube';
 import { readHour } from '@/lib/graph/era/geocube-hours';
 import { landRead, formPayload, DRESS_DEFAULT, GRASS_CARDS } from '@/lib/graph/form/land-read';
@@ -56,6 +57,9 @@ import { snowBase, readSnow } from '@/lib/graph/era/snow';
 import { readDrifts } from '@/lib/graph/form/grass-drifts';
 import { tagCreaseRoles } from '@/lib/graph/scene/crease-roles';
 import { readCreases } from '@/lib/graph/scene/channels/creases';
+import { readCone } from '@/lib/graph/scene/channels/view-cone';
+import { readAtmosphere, atmosphereInput, roomAirColour } from '@/lib/graph/scene/channels/atmosphere';
+import { readClouds, CLOUDS_OF_WEATHER } from '@/lib/graph/matte-paint/sky';
 import { wantsSunShare, readOcclusion, liveLightDefaults } from '@/lib/graph/scene/live-light';
 import { readEra, ERAS } from '@/lib/graph/era/eras';
 import { seedOfRef } from '@/lib/graph/beats/field-cue';
@@ -206,6 +210,16 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     }
     const { applyMapRef } = await import('@/lib/graph/worlds/map-ref.js');
     sketch = { ...sketch, manifest: applyMapRef(sketch.manifest, src.manifest) };
+  }
+
+  // a PERSONA (persona/persona.js) is played as its hero, its reads the hero's face takes where the hero has the realistic
+  // face (persona/bundle.js personaHero): the hero's World and its GLB's face:<read> clips, from the persona's scripts
+  if (sketch.manifest?.kind === 'persona') {
+    const { SketchRepository } = await import('@/lib/db/repositories/sketches');
+    const hero = SketchRepository.getByRef(sketch.manifest.persona?.hero);
+    if (!hero?.manifest?.hero) throw new Error(`persona '${sketch.ref}': its hero '${sketch.manifest.persona?.hero}' is not a stored hero (create_character { as: 'hero' })`);
+    const { personaHero } = await import('@/lib/graph/persona/bundle.js');
+    sketch = { ...sketch, manifest: personaHero(sketch.manifest.persona, hero.manifest) };
   }
 
   // a stage drawn in a composed look (a gameworld's look words or palette) carries the recipes that make it: composed here, once per
@@ -726,6 +740,21 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
   if (payload && liveL && liveL.tier) payload.lightTier = liveL.tier;
   // (a read in another era than its cube's says so where the cube's look is read back)
   if (payload && payload.geocube && viewOpts.era !== undefined && payload.geocube.era !== era) payload.geocube = { ...payload.geocube, era };
+  // THE WATER, LIVE (era/water-live.js): a 'form' era's read on the page draws a trail's river and falls as they move,
+  // the landscape views' own water (the surface channel's river, a sheet jet into a shallows pond), in the place of the
+  // painted sheets it leaves out of the faces (so the form render never reads them). Any other read, a still's paint and
+  // the exports: the painted water. Either way the plan and its tags are the builder's, never a page's
+  if (payload && payload.waterworks) {
+    const W = !unshaded && viewOpts.paint !== true && ERAS[era]?.surface === 'form' ? lowerWaterworks(payload.waterworks, { sky: payload.sky, bg: payload.bg }) : null;
+    const drawn = new Set(W ? W.drawn : []);
+    payload.faces = payload.faces.filter((f) => !(f.waterBody && drawn.has(f.waterBody))).map((f) => { if (!f.waterBody) return f; const { waterBody: _w, ...rest } = f; return rest; });
+    if (W) {
+      if (W.surfaces) payload.surfaces = [...(payload.surfaces || []), ...W.surfaces];
+      if (W.shallows) payload.shallows = { bodies: [...(payload.shallows?.bodies || []), ...W.shallows.bodies], floaters: [...(payload.shallows?.floaters || []), ...W.shallows.floaters] };
+      if (W.jets) payload.jets = [...(payload.jets || []), ...W.jets];
+    }
+    delete payload.waterworks;
+  }
   // THE FORM RENDER'S LAND (gen-7): a 'form' era's read of a geocube's island or trail carries its land as material
   // (form/land-read.js: the cube's light solved for its palette, the layers, the trail's dress, the scree's stones, the
   // biocube's moss), drawn
@@ -749,6 +778,11 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     const S0 = payload.snowMap ? readSnow(cube.snow) : null, winter = !!S0 && (S0.line === undefined || S0.line === null);
     const read = landRead(payload, cube, { ...(M.hour !== undefined ? { hour: readHour(M.hour) } : {}), dress, grass: winter ? false : 'map', ...(moss ? { moss } : {}), ...(sward !== undefined ? { sward } : {}), ...(drifts.length ? { drifts } : {}), ...(grown ? { grown } : {}), ...(payload.snowMap ? { snow: payload.snowMap } : {}) });
     if (read) payload.form = { ...(payload.form || {}), land: formPayload(read) };
+    // (the recipe's weather for the form's sky, channels/form-sky.js: its clouds, or the weather's own; absent, the sky reads
+    // what the stage painted)
+    if (read && M.clouds !== undefined) payload.form.land.clouds = M.clouds === 'weather' ? { kind: CLOUDS_OF_WEATHER[M.weather] || 'fair', cover: 0.5, seed: 1 } : readClouds(M.clouds);
+    // (the view cone's reach fixed in metres, channels/view-cone.js; absent, the screen's)
+    if (read && M.cone !== undefined && M.cone !== null) payload.form.land.cone = readCone(M.cone);
     // (and its dunes' sand drawn by the wind that laid them: ripples, slip faces, glint; era/out-dunes.js duneMap)
     if (read && payload.dunes) payload.form = { ...payload.form, land: { ...payload.form.land, dunes: payload.dunes } };
     // (and its snow laid over the ground as it lies: era/snow.js snowMap, its colour solved under the cube's light)
@@ -769,6 +803,30 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     }
     // (and its blade cards, never walked on: gone from the page, not only hidden)
     if (read) payload.faces = payload.faces.filter((f) => f.group !== GRASS_CARDS);
+  }
+  // (a gen-7 geocube page without the form render, a geocity: the form's sky over it, channels/form-sky.js, its light the
+  // cube's own sky colours, its sun the page's, its clouds the recipe's)
+  if (payload && !payload.form && sketch.manifest.kind === 'geocube' && ERAS[era]?.surface === 'form' && payload.sky && !payload.sky.space && Array.isArray(payload.sky.zenith) && Array.isArray(payload.sky.sun?.dir)) {
+    const Mc = sketch.manifest.clouds;
+    payload.formSky = { sun: payload.sky.sun.dir, zenith: payload.sky.zenith, horizon: payload.sky.horizon,
+      ...(Mc !== undefined ? { clouds: Mc === 'weather' ? { kind: CLOUDS_OF_WEATHER[sketch.manifest.weather] || 'fair', cover: 0.5, seed: 1 } : readClouds(Mc) } : {}) };
+  }
+  // (a page without the form render carries the view cone and its far structures only when its world asks: `cone`)
+  if (payload && !payload.form && sketch.manifest.cone !== undefined && sketch.manifest.cone !== null) payload.cone = readCone(sketch.manifest.cone);
+  // THE AIR of a gen-7 geocube page (channels/atmosphere.js): the recipe's `air`, a fog by its visibility over the outside
+  // (lying low over the walk's ground, glowing toward the sun) or the inside (a hall, a room, a cavern: even), the gen-7
+  // sky veiled to it and the far softened past the view cone. Read on any geocube read (a bad word refuses there too);
+  // drawn on a gen-7 page alone: a painted page keeps its haze, and the unshaded export its faces
+  if (payload && sketch.manifest.kind === 'geocube' && sketch.manifest.air !== undefined) {
+    const sun = payload.sky && !payload.sky.space && Array.isArray(payload.sky.sun?.dir) ? payload.sky.sun.dir : null;
+    const inside = !!payload.form?.room || !sun;
+    const A = readAtmosphere(sketch.manifest.air, { where: inside ? 'inside' : sketch.manifest.show === 'geocity' ? 'city' : 'outside' });
+    if (A && !unshaded && viewOpts.paint !== true && ERAS[era]?.surface === 'form') {
+      const spawn = Array.isArray(payload.walk?.spawn) ? payload.walk.spawn : null;
+      // (a room's air is the colour of the room's own light, not the sky's: roomAirColour; a cavern keeps its page's dark)
+      const room = payload.form?.room, colour = room && Array.isArray(room.ambient) ? roomAirColour(room) : null;
+      payload.air = atmosphereInput(A, { base: spawn && Number.isFinite(spawn[2]) ? spawn[2] : 0, sun: inside ? null : sun, unit: payload.metersPerUnit || 1, colour });
+    }
   }
   // (where the plants stand is the form render's read alone: never on a page)
   if (payload && payload.plants) delete payload.plants;
@@ -1558,6 +1616,14 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     const { athleteBodies } = await import('@/lib/graph/contest/athletes.js');
     payload.innings = inningsArenaData(sketch.manifest.innings, { bodies: await athleteBodies(sketch.manifest.innings.athletes) });
   }
+  // a persona's read on a SCREEN in the world (persona/screen.js: the news broadcast): each screen its read compiled, its
+  // captions cued, the fidelity the world's era gives its hero; the page's broadcasts channel plays it. Absent ⇒ nothing.
+  if (payload && sketch.manifest.broadcasts !== undefined) {
+    const { SketchRepository } = await import('@/lib/db/repositories/sketches');
+    const { broadcastScreens } = await import('@/lib/graph/persona/screen.js');
+    payload.broadcasts = broadcastScreens(sketch.manifest.broadcasts, { era, lookup: (r) => SketchRepository.getByRef(r) });
+  }
+
   // a board game lifted into a hologram arena (tabletop/holo-arena.js): the game dealt, its board on the stage, each
   // kind's body, the level wire's names; the page's holo channel plays it. Absent ⇒ nothing (scene/channels/holo.js).
   if (payload && sketch.manifest.holo && typeof sketch.manifest.holo === 'object') {

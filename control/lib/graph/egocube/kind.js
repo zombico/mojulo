@@ -53,7 +53,10 @@ export function isMascotRoll(roll = {}) {
   const personal = Object.keys(roll.facets || {}).some((k) => !MASCOT_KEYS.includes(k)) || roll.years !== undefined || roll.chapters !== undefined || roll.lineages !== undefined;
   return !personal && asksForMascot(roll.brief || '');
 }
-const KEYS = ['kind', 'title', 'roll', 'cast', 'dress', 'output', 'sheet', 'thread', 'castSheet', 'moves'];
+const KEYS = ['kind', 'title', 'roll', 'cast', 'dress', 'output', 'sheet', 'thread', 'castSheet', 'moves', 'lineup'];
+/** how a cast's preview stands its members: each striking the showcase its role picks on its game's rail (game-poses.js
+ * lineupPoses), stamped on a cast when it is first written; absent (a cast written before), each in its own stand */
+export const LINEUPS = Object.freeze(['showcase']);
 /** what the cube makes by default: the character as rolled, or its MASCOT (a person's read into a mascot's facets) */
 export const OUTPUTS = Object.freeze(['character', 'mascot']);
 const DRESS = ['designed', 'kit'];
@@ -71,8 +74,10 @@ export function readEgocubeKind(m) {
     for (const k of ['sheet', 'thread']) if (m[k] !== undefined) throw fail(`a cast keeps its members in castSheet, not ${k}`);
     if (m.output !== undefined && !OUTPUTS.includes(m.output)) throw fail(`output is ${OUTPUTS.map((o) => `'${o}'`).join(' or ')}`);
     if (m.dress !== undefined && !DRESS.includes(m.dress)) throw fail(`dress is ${DRESS.map((d) => `'${d}'`).join(' or ')}`);
+    if (m.lineup !== undefined && !LINEUPS.includes(m.lineup)) throw fail(`lineup is ${LINEUPS.map((l) => `'${l}'`).join(' or ')} (the members striking the showcases their roles pick), or left out (each in its own stand)`);
     return m;
   }
+  if (m.lineup !== undefined) throw fail('lineup is a cast\'s (how its members stand in its preview)');
   if (m.castSheet !== undefined) throw fail('castSheet is a cast\'s (write `cast`, which rolls it)');
   if (!isObj(m.roll)) throw fail(`roll is { ${ROLL_KEYS.join(', ')} } (rollEgocube's words; years and chapters make a fate thread)`);
   for (const k of Object.keys(m.roll)) if (!ROLL_KEYS.includes(k)) throw fail(`roll.${k} is not a roll word (${ROLL_KEYS.join(', ')})`);
@@ -171,16 +176,21 @@ export const egocubePrint = (m) => fingerprint(m.castSheet ?? m.thread ?? m.shee
  */
 export async function assembleEgocubeScene(m, ctx, layered, animal = null) {
   const { heroRecord, expandLayeredManifest } = await import('@/lib/mcp/tools/layered.js');
+  const { asShowcase } = await import('../polygonizer/hero-gesture.js');
+  const posed = (lm, word) => (word ? asShowcase(lm, word) : lm);
   const nodes = egocubeNodes(rollStored(m)), cast = m.cast !== undefined;
   // a mascot's preview is its model sheet's turnaround: the one character four times, turned (mascots do not age)
   const turnaround = !cast && (nodes[0].sheet.tuning === 'mascot' || (m.output ?? 'character') === 'mascot');
   const scenes = [];
+  // a showcase lineup (game-poses.js): each member's pose by its relation's role on its game's rail, read off the cast's
+  // setting (its genre a quick game's goal); the beasts stand as the animal door makes them
+  const poses = cast && m.lineup === 'showcase' ? await showcaseLineup(m, nodes) : null;
   for (const n of turnaround ? nodes.slice(0, 1) : nodes) {
     const C = egocubeCreate(rollStored(m), cast ? { member: n.path } : { years: n.years });
     // a cast's beast stands in the line as the animal door makes it (left out where no animal resolve is handed in)
     if (C.create.as === 'animal') { if (animal) scenes.push(await animal({ kind: 'animal', title: C.create.title, ...C.create.spec }, { ...ctx, title: `${ctx.title ?? 'egocube'} · ${n.path}` })); continue; }
     const manifest = C.create.as === 'hero'
-      ? expandLayeredManifest({ kind: 'layered', hero: heroRecord(C.create.spec), ...(C.create.toon ? { toon: C.create.toon } : {}) })
+      ? posed(expandLayeredManifest({ kind: 'layered', hero: heroRecord(C.create.spec), ...(C.create.toon ? { toon: C.create.toon } : {}) }), poses?.[n.path])
       : expandLayeredManifest({ kind: 'layered', plan: C.create.spec.plan, ...(C.create.spec.toon ? { toon: C.create.spec.toon } : {}), ...(C.create.spec.hullShade ? { hullShade: C.create.spec.hullShade } : {}) });
     scenes.push(await layered(manifest, { ...ctx, title: `${ctx.title ?? 'egocube'} · ${n.path ?? n.years ?? n.band}` }));
   }
@@ -200,4 +210,15 @@ export async function assembleEgocubeScene(m, ctx, layered, animal = null) {
     return k === 1 ? c : { ...c, worldFraming: { ...F, cameraPosition: F.lookAt.map((v, i) => v + d[i] * k) } };
   });
   return { ...first, title: ctx.title ?? first.title, faces: [...first.faces.filter((f) => f.studio), ...body], cameras };
+}
+
+/** A showcase lineup's poses by member path: the members a person or a mascot on the hero door (a beast stands as the
+ * animal door makes it), their roles by relation (game-poses.js RELATION_ROLE; the anchor the hero), the rail its
+ * game's genre reads (cast.setting.genre, a quick goal), the cast's seed choosing. */
+async function showcaseLineup(m, nodes) {
+  const [{ lineupPoses, RELATION_ROLE }, { railOfGame }] = await Promise.all([import('../gameworld/game-poses.js'), import('../gameworld/game-bodies.js')]);
+  const people = nodes.filter((n) => n.band !== 'beast');
+  const rail = railOfGame({ goal: m.cast?.setting?.genre ?? null })?.rail ?? null;
+  const P = lineupPoses(people.map((n) => ({ path: n.path, role: n.path === 'hero' ? 'hero' : RELATION_ROLE[n.member?.relation] ?? 'hero' })), { rail, seed: m.cast?.seed ?? 1 });
+  return Object.fromEntries(P.map((x) => [x.path, x.gesture]));
 }
