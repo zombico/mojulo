@@ -24,7 +24,7 @@
  * half (ring6 3, ring8 4), so a kit written as fractions of H sits in the same place in every register. Metres scale
  * with the cast. Tones that detail needs (folds, quilt, cuffs) are derived from the palette's own Top / Bottom / Shoes,
  * so a palette change carries them; any tone the operator names wins. */
-import { SLOT_FAMILIES } from './station-loft-plan.js';
+import { SLOT_FAMILIES, segmentShape } from './station-loft-plan.js';
 import { isArmorBuild, validateArmor, expandArmor, armorTones } from '../armor/expand.js';
 import { validatePaint } from './body-paint.js';
 import { FOOTWEAR, footwearCard } from '../footwear/index.js';
@@ -82,6 +82,31 @@ function dropPectorals(plan) {
  * belt, an operator's own kit): the pelvis is the surface under the hips there. Absent a pelvis, the kit as given. */
 const overPelvis = (kit, ctx) => (!ctx.pelvis || !Array.isArray(kit) ? kit
   : kit.map((A) => (Array.isArray(A.over) && A.over.some((n) => /^thigh[RL]$/.test(n)) && !A.over.includes('pelvis') && A.part !== 'pelvis' ? { ...A, over: [...A.over, 'pelvis'] } : A)));
+
+/** The clothed detail's cuffs and wraps on the stations the body has: one at a station its limb lacks (a child's
+ *  limb, on the chibi form's rings, has no mid-ring between its first two) sits at the limb's ring nearest the one it
+ *  names instead; a body that has them is as it was. */
+function onOwnStations(body, plan) {
+  if (!Array.isArray(body.collars)) return body;
+  // (a part's stations by name and place along it, u: a segment's three rings and its shaping rings (station-loft-plan.js
+  // segmentPart, segmentShape); a part whose stations it names itself, as written)
+  const at = (j) => { const v = plan.joints?.[j]; return Array.isArray(v) ? v : Array.isArray(v?.at) ? v.at : null; };
+  const stationsOf = (part) => {
+    const seg = (plan.segments || []).find((x) => x.name === part || x.name === part.replace(/L$/, 'R'));
+    if (!seg) return null;
+    if (Array.isArray(seg.stations)) return seg.stations.map((st, i) => ({ id: st.id ?? `st${i}`, u: st.u ?? i }));
+    if (seg.kind !== 'segment' || !at(seg.from) || !at(seg.to)) return null;
+    try { return [0, 1, 2].map((u) => ({ id: `st${u}`, u })).concat(segmentShape(at(seg.from), at(seg.to), seg.rA, seg.rB, { over: seg.over, mid: seg.mid, shape: seg.shape || [] }).map((x) => ({ id: x.id, u: x.u }))); } catch { return null; }
+  };
+  // (a station named `stA_stB_NN` sits NN% of the way from ring A to ring B)
+  const uOf = (id) => { const m = /^st(\d+)(?:_st(\d+)_(\d+))?$/.exec(id); return !m ? null : m[2] === undefined ? Number(m[1]) : Number(m[1]) + (Number(m[2]) - Number(m[1])) * Number(m[3]) / 100; };
+  return { ...body, collars: body.collars.map((C) => {
+    const S = stationsOf(C.part), want = C.at ?? 'st1', u = uOf(want);
+    if (!S || S.some((x) => x.id === want) || u === null) return C;
+    const near = [...S].sort((a, b) => Math.abs(a.u - u) - Math.abs(b.u - u))[0];
+    return near ? { ...C, at: near.id } : C;
+  }) };
+}
 
 /** BODY DATA for the clothed hero */
 export function clothedBody({ Ht, Hl, scale: k, pelvis: structured = false, dense = false }) {
@@ -335,7 +360,7 @@ export function dressPlan(plan, { detail, adorn, paint, outfit, operatorPalette 
   if (detail === 'clothed') dropPectorals(plan);
   const ctx = dressContext(plan.style, scale, plan, laws);
   if (detail === 'swimsuit') swimsuit(plan, figure);
-  else if (wantDetail) plan.body = typeof detail === 'string' ? clothedBody(ctx) : detail;
+  else if (wantDetail) plan.body = typeof detail === 'string' ? onOwnStations(clothedBody(ctx), plan) : detail;
   // an armour build expands on every read into a kit (armor/expand.js), from the register's ring halves and the scale
   // (`with`: a kit worn over the build, after it; a head piece in it (on the cranium: a helmet, a mask) replaces the
   // armour's own helm)

@@ -258,6 +258,11 @@ its resource, put on a look and showed a toast. This theme makes them act.
   - **Built through `design_game`:** a town's folk bodies (`folk-<town>-<body>`) were never routed by
     `design_game`. They fell through to the gear door and failed, and the made record refused their keys, so a book's
     folk could not be built. They are now minted through the hero door, as a guard is.
+  - **A clothed child mints:** the hero door's `detail: 'clothed'` refused a child's body. Its cuffs and leg
+    wraps sit on the ring halfway down the forearm and the shank, and the child build's limbs (on the chibi form's
+    rings) have no such ring. So a town's children, dressed like everyone else, could not be made. Now the cuffs and
+    wraps sit on the limb's own ring nearest the one they name (`polygonizer/hero-dress.js`). Every body that has the
+    ring is as it was.
   - **Folk on a geocube level:** they now stand on a level a geocube paints. They read the cube's look as the street
     is drawn in it; before, the folk could not be laid there at all.
   - **Pooled bodies by sex:** the pooled bodies (the households, the apprentices, the watch) are now pooled by sex
