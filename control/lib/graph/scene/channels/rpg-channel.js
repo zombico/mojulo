@@ -193,7 +193,73 @@ export function rpgPage(cfg, K, ctl, jk) {
     if (!out.length) return false;
     mode = 'battle'; phase = 'intro'; beats = out; bi = 0; bt = 0; shown = {}; picks = {}; mi = 0; level = 'cmd'; f = 0; pend = null;
     msg = out[0].text; show(out[0]); dirty = true;
+    stage();
     return true;
+  }
+
+  // ── the staging: a fight lines its sides up and frames them. The party stands abreast a few metres from the pack's
+  // figure, each facing it, the pack facing them; the camera stands off to the side, three-quarters, both lines in
+  // frame. All of it put back as the fight closes (the world is held through it: nothing else moves) ──
+  // (gap: the lines apart; abreast and diag: each member a step aside and a step back, a diagonal the camera sees past;
+  // side, back and up: the camera off the fight's middle; aim: below the middle, so the fighters stand above the
+  // window's panels; clear: how far a sightline may pass over the ground)
+  const STAGE = { gap: 4.5, abreast: 1.5, diag: 0.8, side: 9, back: 1.2, up: 2.6, aim: -0.4, clear: 0.4 };
+  let staged = null;
+  function stage() {
+    const w = W();
+    if (!w || !R.b) return;
+    // (a figure the page cannot place, one with no transform, stands where it is)
+    const placed = (id) => !!(id && w.byId[id] && w.byId[id].transform && w.byId[id].transform.pos);
+    const fid0 = figureOf(R.b.foes && R.b.foes[0] && R.b.foes[0].uid), fid = placed(fid0) ? fid0 : null, pid = placed(w.pilotId) ? w.pilotId : null, P = pid && w.byId[pid];
+    const ids = [...new Set(R.b.ids.map((m) => figureOf(m)).filter(placed))], F = fid && w.byId[fid];
+    if (!P || !ids.length) return;
+    const fp = F ? F.transform.pos : [P.transform.pos[0] + Math.cos(P.transform.heading) * STAGE.gap, P.transform.pos[1] + Math.sin(P.transform.heading) * STAGE.gap, P.transform.pos[2]];
+    let ux = P.transform.pos[0] - fp[0], uy = P.transform.pos[1] - fp[1];
+    const n = Math.hypot(ux, uy);
+    if (n < 1e-3) { ux = -Math.cos(P.transform.heading); uy = -Math.sin(P.transform.heading); } else { ux /= n; uy /= n; }
+    // (each fighter stood on the ground found from well above it: a probe from under a slope's surface finds the one below)
+    const px = -uy, py = ux, ground = (x, y, z, e) => { const g = window.__mojCtrl && window.__mojCtrl.ground ? window.__mojCtrl.ground(x, y, z + 30) : null; return g == null ? z : g + ((e.rule && e.rule.eye) || 0); };
+    const C = w.camera && w.camera.transform ? w.camera : null;
+    staged = { at: {}, cam: C ? { pos: C.transform.pos.slice(), heading: C.transform.heading, pitch: C.transform.pitch, lookAt: C.lookAt ? C.lookAt.slice() : null, rule: C.rule } : null };
+    const face = (e, x, y) => { e.transform.heading = Math.atan2(y - e.transform.pos[1], x - e.transform.pos[0]); };
+    ids.forEach((id, i) => {
+      const e = w.byId[id], k = i - (ids.length - 1) / 2, o = k * STAGE.abreast, b = k * STAGE.diag;
+      staged.at[id] = { pos: e.transform.pos.slice(), heading: e.transform.heading };
+      const x = fp[0] + ux * (STAGE.gap + b) + px * o, y = fp[1] + uy * (STAGE.gap + b) + py * o;
+      e.transform.pos = [x, y, ground(x, y, fp[2], e)]; e.staged = true;
+      face(e, fp[0], fp[1]);
+    });
+    const cx = fp[0] + ux * STAGE.gap / 2, cy = fp[1] + uy * STAGE.gap / 2;
+    if (F) { staged.at[fid] = { pos: F.transform.pos.slice(), heading: F.transform.heading }; F.staged = true; face(F, cx + ux * STAGE.gap / 2, cy + uy * STAGE.gap / 2); }
+    if (C) {
+      // three-quarters from the side, a step behind the party's line, on whichever side sees the fight past the ground
+      // (a rock, a rise): each side's sightline sampled against the ground under it, the clearer taken, raised if neither
+      const gz = (x, y) => { const g = window.__mojCtrl && window.__mojCtrl.ground ? window.__mojCtrl.ground(x, y, fp[2] + 30) : null; return g == null ? fp[2] : g; };
+      // (the fight's middle: the centroid of every fighter as staged, its height the middle of both lines' ground, so
+      // on a slope the uphill side stays in the frame)
+      const pts = [fp, ...ids.map((id) => w.byId[id].transform.pos)], zs = pts.map((q) => q[2]), zm = (Math.min(...zs) + Math.max(...zs)) / 2;
+      const mx = pts.reduce((a, q) => a + q[0], 0) / pts.length, my = pts.reduce((a, q) => a + q[1], 0) / pts.length;
+      const look = [mx, my, zm + STAGE.aim], view = (sd, lift) => {
+        // (its height the fight's own ground's, raised only to stand clear of the ground under it: a camera up a slope
+        // looking down would set the fighters on the frame's top edge; one inside the slope is a blocked side)
+        const x = mx + px * STAGE.side * sd + ux * STAGE.back, y = my + py * STAGE.side * sd + uy * STAGE.back, g = gz(x, y), z = Math.max(zm + STAGE.up + lift, g + 1.2);
+        // (every fighter's chest seen past the ground: a sightline sampled against the ground under it)
+        let hit = g + 1.2 > zm + STAGE.up + lift + 1.5 ? 4 * pts.length : 0;
+        for (const q of pts) for (let k = 1; k < 7; k++) { const t = k / 7, sx = x + (q[0] - x) * t, sy = y + (q[1] - y) * t, sz = z + (q[2] + 1.2 - z) * t; if (gz(sx, sy) + STAGE.clear > sz) hit++; }
+        return { pos: [x, y, z], hit };
+      };
+      let best = null;
+      for (const lift of [0, 2, 4]) { for (const sd of [1, -1]) { const v = view(sd, lift); if (!best || v.hit < best.hit) best = v; } if (best.hit === 0) break; }
+      C.transform.pos = best.pos; C.lookAt = look; C.rule = null;
+    }
+  }
+  function unstage() {
+    const w = W();
+    if (!w || !staged) { staged = null; return; }
+    for (const id in staged.at) { const e = w.byId[id], s = staged.at[id]; if (e) { e.transform.pos = s.pos; e.transform.heading = s.heading; e.staged = false; } }
+    const C = w.camera, s = staged.cam;
+    if (C && s) { C.transform.pos = s.pos; C.transform.heading = s.heading; C.transform.pitch = s.pitch; C.lookAt = s.lookAt; C.rule = s.rule; }
+    staged = null;
   }
   function pickNow(pick) {
     const ids = commanders(), m = ids[mi];
@@ -236,6 +302,7 @@ export function rpgPage(cfg, K, ctl, jk) {
       for (const e of ev) __inputQueue.push(e);
       mode = null; phase = null; root.classList.remove('on'); root.innerHTML = '';
       { const w = W(); if (w) for (const e of w.entities) if (e.act) e.act = null; }   // the fight's acts end with it
+      unstage();
       release(); dirty = true;
     }
   }

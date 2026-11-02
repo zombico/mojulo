@@ -117,3 +117,16 @@ its resource, put on a look and showed a toast. This theme makes them act.
   Two strikes still have no clip of their own: a pack figure's (no swing) and a caster's.
   The fight keeps the level's follow camera behind the hero, with the pack's figure a metre off, so an exchange does
   not yet read as one: staging the sides and a battle camera are next.
+- **A party battle is staged and framed** (`scene/channels/rpg-channel.js`, the controllable channel's `acts`). A fight
+  was seen through the level's follow camera behind the hero, the pack's figure a metre off and the party out of frame.
+  Now, as a fight opens:
+  - the party stands abreast 4.5 m from the pack's figure, each a step aside and a step back of the next (a diagonal a
+    side camera sees past), each facing it, on its own ground, and the pack turns to them;
+  - the camera stands off to the side, three-quarters, aimed at all the fighters' middle and below it, so they stand
+    above the window's panels; its height is both lines' ground, so the uphill side of a slope stays in frame;
+  - of its two sides and three heights, it takes the one whose sightlines to every fighter pass clearest over the
+    ground (a rock, a rise).
+  While the fight holds the world, the staged figures are drawn where they stand and the acting ones play their acts.
+  As it closes, every figure and the camera are put back. The page exposes `__mojCtrl.ground` to the battle where
+  battles are. Seen in an exported page, a JRPG's two fights: the party of four in a diagonal on the left facing the
+  pack on the right, the hero's swing landing, all above the panels.

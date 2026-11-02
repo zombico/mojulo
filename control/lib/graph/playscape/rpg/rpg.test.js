@@ -296,3 +296,34 @@ describe('the party carried between levels (the party mechanic)', () => {
     expect(g2.out).toEqual([]);
   });
 });
+
+describe('the staging: a fight lines its sides up and frames them, and puts them back', () => {
+  // (a world with its figures where they stand on the field: the hero, a member, the pack's figure, the follow camera)
+  const world = () => {
+    const E = [{ id: 'hero', transform: { pos: [0, 0, 0], heading: 0 }, rule: { type: 'platform' } }, { id: 'ayla', transform: { pos: [-1, 1, 0], heading: 0 }, rule: { type: 'ai' } }, { id: 'wolf-1', transform: { pos: [8, 0, 0], heading: Math.PI }, rule: { type: 'static' } }];
+    const camera = { transform: { pos: [-5, 0, 2], heading: 0, pitch: 0 }, lookAt: null, rule: { type: 'follow', target: 'hero' } };
+    return { pilotId: 'hero', time: 0, entities: E, byId: Object.fromEntries(E.map((e) => [e.id, e])), camera };
+  };
+  it('the party abreast a few metres from the pack, facing it; the camera off to the side on the fight; all put back at the close', () => {
+    const w = world(), before = JSON.parse(JSON.stringify({ at: w.entities.map((e) => e.transform), cam: w.camera }));
+    const P = page(PLAY, {}, null, { __mojCtrl: { world: w, cast() {}, ground: () => 0 } });
+    processEvents(P.bus, [{ type: 'rpg-battle:wolves' }]);
+    P.frames();
+    expect(P.api.state().mode).toBe('battle');
+    const [hero, ayla, wolf] = w.entities, d = (e) => Math.hypot(e.transform.pos[0] - 8, e.transform.pos[1]);
+    // (each a gap off the pack, a step aside and a step back of the next, turned to it; the pack turned to them)
+    for (const e of [hero, ayla]) { expect(d(e)).toBeGreaterThan(3.5); expect(d(e)).toBeLessThan(6); expect(e.staged).toBe(true); expect(Math.cos(Math.atan2(-e.transform.pos[1], 8 - e.transform.pos[0]) - e.transform.heading)).toBeCloseTo(1, 5); }
+    expect(Math.hypot(hero.transform.pos[0] - ayla.transform.pos[0], hero.transform.pos[1] - ayla.transform.pos[1])).toBeGreaterThan(1);
+    expect(Math.cos(wolf.transform.heading - Math.PI)).toBeGreaterThan(0.9);
+    // (the camera taken off its follow, off to the side of the fight, looking at it)
+    expect(w.camera.rule).toBeNull();
+    expect(Array.isArray(w.camera.lookAt)).toBe(true);
+    expect(Math.abs(w.camera.transform.pos[1])).toBeGreaterThan(5);
+    // the fight played out: everything back where it stood, the camera following again
+    for (let k = 0; k < 400 && P.api.state().mode === 'battle'; k++) { P.api.act('accept'); P.frames(); }
+    expect(P.api.state().mode).toBeNull();
+    expect(w.entities.map((e) => e.transform)).toEqual(before.at);
+    expect(w.camera).toEqual(before.cam);
+    expect(w.entities.some((e) => e.staged || e.act)).toBe(false);
+  });
+});
