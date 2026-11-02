@@ -50,7 +50,11 @@ describe('the runner makes it', () => {
     expect(lowered.entities[0].rule.type).toBe('walk');
     const hero = stageLevelOrder(G, st, { ref: 'lv_inn', heroRef: 'gw-hero' });
     expect(hero.args.manifest.entities[0].id).toBe('hero');
-    expect(hero.args.manifest.entities[0].transform.pos).toEqual(plain.ends.spawn);
+    // (the hero a step into the entry room along its heading, where the room holds it, so its chase is not pulled in
+    // against the wall at the door; the level's ends stay at the door)
+    const h0 = hero.args.manifest.entities[0].transform, s0 = plain.ends.spawn, d = Math.hypot(h0.pos[0] - s0[0], h0.pos[1] - s0[1]);
+    expect([0, 2.5].some((x) => Math.abs(d - x) < 0.01)).toBe(true);
+    expect(hero.ends.spawn).toEqual(s0);
     // lowered, the hero keeps the controls: the game channel is added, the pilot is not replaced
     const h = withBuildingLevel(hero.args.manifest, 'lv_inn');
     expect(h.entities[0].id).toBe('hero');
@@ -67,7 +71,7 @@ describe('the runner makes it', () => {
     const fixed = at('fixed');
     expect(fixed.camera.rule).toBe('fixed');
     expect(fixed.camera.stations.length).toBeGreaterThan(1);
-    // (third person, named or not, is the hero's own chase, as it was)
+    // (none named, or third person: the hero's own chase, as it was)
     expect(at('third-person').camera).toEqual(chase.camera);
     expect(() => at('side')).toThrow(/a side camera runs a trail's lane/);
   });

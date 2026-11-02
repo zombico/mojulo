@@ -180,6 +180,7 @@ export const PAGE_MARKS = Object.freeze({
   pitch: m(A, 'the team goal game (contest/team-sim.js, scene/channels/contest.js) is the page\'s own frame simulation: nothing in the kernel plays it'),
   formSky: m(A, 'the gen-7 sky over a page without the form render (channels/form-sky.js) is the page\'s own shader; an engine draws its own sky'),
   air: m(A, 'a gen-7 page\'s air (channels/atmosphere.js: its fog lying low by a visibility, the sky veiled to it, the far softened) is the page\'s own fog chunk and frame pass; an engine draws its own fog'),
+  soften: m(A, 'the crust softened past the view cone\'s reach (channels/frame-pass.js) is the page\'s own frame pass over its impressions: an engine draws the level whole, under its own levels of detail'),
   cone: m(A, 'the view cone and its far impressions (channels/view-cone.js, far-structures.js) are a web page\'s camera trick: an engine draws the level whole, under its own levels of detail'),
   innings: m(A, 'the bat-and-ball game (contest/bat-sim.js, scene/channels/contest.js) is the page\'s own frame simulation: nothing in the kernel plays it'),
   broadcasts: m(A, 'a persona\'s read on a screen (persona/screen.js, scene/channels/broadcast-screen.js) is the page\'s own canvas: the kernel draws no screen; the persona\'s export carries its face:<read> clips, captions and cue sheets'),

@@ -22,4 +22,9 @@
   onto the far behind it, and nothing near is softened. The target holds what the canvas would (tone-mapped and encoded as
   on screen); a renderer without half-float targets, a non-perspective camera and an XR session keep the plain frame.
   `window.__mojAir` is the probe (`set({ blur })` live).
+- **Its own colour** (`colour`, #rrggbb): the air as the eye sees it where it is not the page's (a neon night's glow over
+  its streets); a room's own light otherwise, as above.
+- **Every show takes it**: the geocity's, the geotown's and the micro-city's own settings gates take `air` (they refused it),
+  and inside is what the page is (a room's form, a cavern) rather than the sun's absence, so a night outside keeps the
+  outside's measures and lies low.
 - An engine export draws its own fog (`godot-marks.js` `air`); absent `air`, the page is byte for byte as it was.

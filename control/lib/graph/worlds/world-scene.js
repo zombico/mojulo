@@ -244,6 +244,17 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     sketch = { ...sketch, manifest: withBuildingLevel(sketch.manifest, sketch.ref) };
   }
 
+  // parked vehicles (`parked`: [{ vehicle, at, heading?, livery?, wear?, seed? }], vehicle-registry/parked.js): each a
+  // static loft figure, and a box over its footprint added to whatever colliders the level carries. Opt-in; absent ⇒
+  // byte-identical.
+  let parkedColliders = [];
+  if (sketch.manifest?.parked !== undefined) {
+    const { withParked } = await import('@/lib/graph/vehicle-registry/parked.js');
+    const P = withParked(sketch.manifest);
+    sketch = { ...sketch, manifest: P.manifest };
+    parkedColliders = P.colliders;
+  }
+
   // declarative scene lighting — same normalization the /scene route uses.
   const scene = sketch.manifest.scene && typeof sketch.manifest.scene === 'object' ? sketch.manifest.scene : {};
   const time = sketch.manifest.time ?? scene.time;
@@ -809,18 +820,22 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
   }
   // (a page without the form render carries the view cone and its far structures only when its world asks: `cone`)
   if (payload && !payload.form && sketch.manifest.cone !== undefined && sketch.manifest.cone !== null) payload.cone = readCone(sketch.manifest.cone);
+  // (the crust softened past the cone's reach, `cone.soften`: the page's frame pass, channels/frame-pass.js; a page's read only)
+  { const C = payload ? (payload.form?.land?.cone ?? payload.cone) : null; if (C && C.soften && !unshaded && viewOpts.paint !== true) payload.soften = C.soften; }
   // THE AIR of a gen-7 geocube page (channels/atmosphere.js): the recipe's `air`, a fog by its visibility over the outside
   // (lying low over the walk's ground, glowing toward the sun) or the inside (a hall, a room, a cavern: even), the gen-7
   // sky veiled to it and the far softened past the view cone. Read on any geocube read (a bad word refuses there too);
   // drawn on a gen-7 page alone: a painted page keeps its haze, and the unshaded export its faces
   if (payload && sketch.manifest.kind === 'geocube' && sketch.manifest.air !== undefined) {
     const sun = payload.sky && !payload.sky.space && Array.isArray(payload.sky.sun?.dir) ? payload.sky.sun.dir : null;
-    const inside = !!payload.form?.room || !sun;
+    // (inside is what the page is, a room's form or a cavern, never the sun's absence: a night outside has none)
+    const inside = !!payload.form?.room || (payload.anchors || []).some((a) => a && a.kind === 'cavern');
     const A = readAtmosphere(sketch.manifest.air, { where: inside ? 'inside' : sketch.manifest.show === 'geocity' ? 'city' : 'outside' });
     if (A && !unshaded && viewOpts.paint !== true && ERAS[era]?.surface === 'form') {
       const spawn = Array.isArray(payload.walk?.spawn) ? payload.walk.spawn : null;
       // (a room's air is the colour of the room's own light, not the sky's: roomAirColour; a cavern keeps its page's dark)
-      const room = payload.form?.room, colour = room && Array.isArray(room.ambient) ? roomAirColour(room) : null;
+      // (the recipe's own colour wins: a neon night's air the glow of its lights)
+      const room = payload.form?.room, colour = A.colour ?? (room && Array.isArray(room.ambient) ? roomAirColour(room) : null);
       payload.air = atmosphereInput(A, { base: spawn && Number.isFinite(spawn[2]) ? spawn[2] : 0, sun: inside ? null : sun, unit: payload.metersPerUnit || 1, colour });
     }
   }
@@ -887,6 +902,7 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     if (Array.isArray(sketch.manifest.colliders) && sketch.manifest.colliders.length) payload.colliders = sketch.manifest.colliders;
     // structures (above): a box for each tier and plinth step of each tower, so a walker stands on its terraces
     if (structureColliders.length) payload.colliders = [...(payload.colliders || []), ...structureColliders];
+    if (parkedColliders.length) payload.colliders = [...(payload.colliders || []), ...parkedColliders];
     // blocks (playscape/terrain.js standBlocks): forms the level stands in its stage, solid and drawn (a shooter's
     // cover: low walls, crates). Absent ⇒ byte-identical.
     if (Array.isArray(sketch.manifest.blocks) && sketch.manifest.blocks.length) {
@@ -1017,6 +1033,19 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
           const { supercarFigure } = await import('@/lib/graph/car-designer/supercar-figure.js');
           // (read in the form render, gen-7, its body and wheels carry their materials for the page to light)
           payload.figures[name] = await atRigFidelity(supercarFigure(rawSpec.supercar, { form: ERAS[era]?.surface === 'form' }));
+          continue;
+        }
+        // LOFT bodies (car-designer/realistic.js, the vehicle registry's realistic build): a figures-map entry may be a
+        // road class's realistic loft (`loft`: { class, era?, brief?, seed?, light?, livery?, wear? }, what a quick ride at the realistic tier
+        // writes), at its class's true numbers in metres, delivered as its vehicle rig (the hull the root, each wheel its
+        // own bone). Absent ⇒ no loft is resolved, byte-identical.
+        if (rawSpec.loft && typeof rawSpec.loft === 'object') {
+          const { loftFigure } = await import('@/lib/graph/car-designer/race-families.js');
+          // (read in the form render, gen-7, or asked for it by its light: its faces carry their materials for the page)
+          // (a field vehicle lit as its world is: its sky, and wet when its weather is the wet family's; car-designer/military.js)
+          const { STATES } = await import('@/lib/graph/weather/weather.js');
+          const W = sketch.manifest.weather, wet = typeof W === 'string' && STATES[W]?.family === 'wet';
+          payload.figures[name] = await atRigFidelity(loftFigure(rawSpec.loft, { form: ERAS[era]?.surface === 'form', setting: { sky: payload.sky ?? null, wet } }));
           continue;
         }
         // TRANSFORMER bodies (transformation/: more-than-meets): a figures-map entry may be a body in two forms

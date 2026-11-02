@@ -7,7 +7,14 @@
  * each on one frame rendered from the level's own camera (first-frame-check.js renders it):
  *
  *   one colour  the frame's pixels quantized coarsely (FIRST_FRAME.bits per channel); one bin over `oneColour` of the
- *               frame → failed (the camera is inside something, or looking at nothing)
+ *               frame → failed (the camera is inside something, or looking at nothing). Judged against the level's own
+ *               look: a bin that is the level's own background (its sky, or a space level's black: `scene.bg`) is the
+ *               level, not a wall, and only warns when it is nearly all of it (`ownBackground`). A transparent pixel is
+ *               the page's backdrop showing through (an image sky): no colour of the level's, counted apart
+ *   drawn       the hero's projected box compared with the same frame rendered with the hero's body hidden
+ *               (`scene.hidden`): a hero whose box is in the frame and not one pixel of it changes is not drawn → failed
+ *   asked       where the game asks a ride or an aircraft (its cube's soul.hero: `scene.expect`), the pilot the camera
+ *               watches runs that rule (drive, fly) → else failed: a racer laid without its car
  *   eye inside  the camera's eye inside an entity's body (its collision volume, as the runtime holds it) → failed;
  *               a first-person camera rides its own target's eye, so that target is never counted
  *   hero size   the hero's on-screen size: the square root of its projected bounding box's share of the frame (a
@@ -26,7 +33,12 @@ export const FIRST_FRAME = Object.freeze({
   bits: 3,             // per channel: 8 levels of each, 512 bins
   oneColour: 0.85,     // one bin over this share of the frame → failed
   hero: Object.freeze([0.08, 0.35]),   // the hero's linear on-screen size outside this band → warn
+  ownBackground: 0.98, // the level's own background over this share of the frame → warn (it sees almost none of the level)
+  near: 40,            // a colour within this of the level's background on every channel is that background
 });
+
+/** What the game asks its pilot to be (cubeOfWorld's soul.hero), and the rule that plays it. */
+export const ASKED_RULE = Object.freeze({ vehicle: { rule: 'drive', name: 'a ride' }, aircraft: { rule: 'fly', name: 'an aircraft' } });
 
 const RANK = { pass: 0, warn: 1, failed: 2 };
 /** The worse of two statuses (pass < warn < failed). */
@@ -43,16 +55,42 @@ export function dominantColour(rgba, { bits = FIRST_FRAME.bits } = {}) {
   const n = Math.floor((rgba?.length ?? 0) / 4);
   if (!n) return { share: 0, color: null };
   const shift = 8 - bits, levels = 1 << bits, counts = new Uint32Array(levels * levels * levels);
-  let best = 0, at = 0;
+  let best = 0, at = 0, clear = 0;
   for (let i = 0; i < n; i++) {
     const o = i * 4;
+    // (a pixel the canvas leaves transparent is the page's backdrop showing through: no colour of the frame's)
+    if (rgba[o + 3] < 128) { clear++; continue; }
     const k = ((rgba[o] >> shift) * levels + (rgba[o + 1] >> shift)) * levels + (rgba[o + 2] >> shift);
     const c = ++counts[k];
     if (c > best) { best = c; at = k; }
   }
   const step = 1 << shift, mid = (q) => q * step + step / 2;
   const r = Math.floor(at / (levels * levels)), g = Math.floor(at / levels) % levels, b = at % levels;
-  return { share: best / n, color: hex(mid(r), mid(g), mid(b)) };
+  return { share: best / n, color: best ? hex(mid(r), mid(g), mid(b)) : null, ...(clear ? { clear: r4(clear / n) } : {}) };
+}
+
+/** Is a bin's colour the level's own background (each channel within `near`)? */
+export function sameColour(a, b, near = FIRST_FRAME.near) {
+  const rgb = (h) => (typeof h === 'string' && /^#[0-9a-f]{6}$/i.test(h) ? [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16)) : null);
+  const A = rgb(a), B = rgb(b);
+  return !!(A && B && A.every((v, i) => Math.abs(v - B[i]) <= near));
+}
+
+/**
+ * How much of the hero's box changes when its body is hidden: the share of the box's pixels that differ between the frame
+ * and the same frame without the hero. `box` is in normalized device coordinates ({ x0, x1, y0, y1 }, −1..1).
+ */
+export function drawnShare(rgba, hidden, width, height, box) {
+  if (!rgba || !hidden || rgba.length !== hidden.length || !(width > 0) || !(height > 0) || !box) return null;
+  const px = (v, n) => Math.max(0, Math.min(n, Math.round(((v + 1) / 2) * n)));
+  const c0 = px(box.x0, width), c1 = px(box.x1, width), r0 = height - px(box.y1, height), r1 = height - px(box.y0, height);
+  let all = 0, moved = 0;
+  for (let y = r0; y < r1; y++) for (let x = c0; x < c1; x++) {
+    const o = (y * width + x) * 4;
+    all++;
+    if (Math.abs(rgba[o] - hidden[o]) > 6 || Math.abs(rgba[o + 1] - hidden[o + 1]) > 6 || Math.abs(rgba[o + 2] - hidden[o + 2]) > 6) moved++;
+  }
+  return all ? r4(moved / all) : null;
 }
 
 /**
@@ -112,7 +150,8 @@ export function heroOnScreen({ eye, look, vfov, aspect }, body) {
   if (front < 8) { x0 = Math.min(x0, -1); x1 = Math.max(x1, 1); y0 = Math.min(y0, -1); y1 = Math.max(y1, 1); }
   const w = Math.max(0, Math.min(1, x1) - Math.max(-1, x0)), h = Math.max(0, Math.min(1, y1) - Math.max(-1, y0));
   const area = (w * h) / 4;
-  return { area: r4(area), size: r4(Math.sqrt(area)), visible: area > 0 };
+  const box = area > 0 ? { x0: r4(Math.max(-1, x0)), x1: r4(Math.min(1, x1)), y0: r4(Math.max(-1, y0)), y1: r4(Math.min(1, y1)) } : null;
+  return { area: r4(area), size: r4(Math.sqrt(area)), visible: area > 0, ...(box ? { box } : {}) };
 }
 
 /**
@@ -125,9 +164,21 @@ export function judgeFrame({ rgba, scene = {} }, T = FIRST_FRAME) {
   let status = 'pass';
   const colour = dominantColour(rgba, { bits: T.bits });
   colour.share = r4(colour.share);
-  if (colour.share > T.oneColour) {
+  const own = colour.share > T.oneColour && sameColour(colour.color, scene.bg, T.near);
+  if (own) {
+    // the level's own background (its sky, a space level's black): the level as it looks, unless it is nearly all of it
+    if (colour.share > T.ownBackground) { status = worse(status, 'warn'); says.push(`the level's own background (${scene.bg}) covers ${pct(colour.share)} of the frame: the camera sees almost nothing of the level`); }
+  } else if (colour.share > T.oneColour) {
     status = 'failed';
     says.push(`one colour (${colour.color}) covers ${pct(colour.share)} of the frame: the camera is inside something or looking at nothing`);
+  }
+  if ((colour.clear ?? 0) > T.oneColour) { status = worse(status, 'warn'); says.push(`the page's backdrop alone shows over ${pct(colour.clear)} of the frame: the camera sees almost nothing of the level`); }
+  // what the game asks its pilot to be: a racer's car, a flight's aircraft
+  const asked = ASKED_RULE[scene.expect];
+  if (asked) {
+    const pilot = (scene.entities ?? []).find((e) => e.id === scene.heroId);
+    if (!pilot) { status = 'failed'; says.push(`the game asks ${asked.name} and the camera watches no pilot`); }
+    else if (pilot.rule !== asked.rule) { status = 'failed'; says.push(`the game asks ${asked.name} and its pilot '${pilot.id}' runs the ${pilot.rule ?? 'no'} rule, not ${asked.rule}`); }
   }
   const bodies = (scene.entities ?? []).map(bodyOf).filter(Boolean);
   const inside = eyeInside(scene.eye, bodies, { skip: scene.firstPerson ? scene.heroId : null });
@@ -145,6 +196,13 @@ export function judgeFrame({ rgba, scene = {} }, T = FIRST_FRAME) {
       status = worse(status, 'warn');
       says.push(`the hero is ${pct(hero.size)} of the frame across (${pct(lo)}–${pct(hi)} reads): ${hero.size < lo ? 'too far to read' : 'too close'}`);
     }
+    // its body drawn: the box against the frame rendered without it (a body the page never built changes nothing)
+    const drawn = hero.visible ? drawnShare(rgba, scene.hidden, scene.width, scene.height, hero.box) : null;
+    if (drawn != null) {
+      hero.drawn = drawn;
+      if (drawn === 0) { status = 'failed'; says.push(`the hero '${hero.id}' stands in the frame and nothing of it is drawn`); }
+    }
+    delete hero.box;
   }
   return { status, colour, eye_inside: inside, hero, says };
 }

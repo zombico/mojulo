@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { FIRST_FRAME, dominantColour, bodyOf, eyeInside, heroOnScreen, judgeFrame, worse } from './first-frame.js';
+import { FIRST_FRAME, dominantColour, bodyOf, eyeInside, heroOnScreen, judgeFrame, worse, drawnShare } from './first-frame.js';
 
 // The opening-frame measures on synthetic pixel buffers and plain scene numbers: no browser.
 const W = 64, H = 48;
@@ -71,6 +71,39 @@ describe('first frame: the measures', () => {
     expect(heroOnScreen({ eye: [5, 0, 0.85], look: [10, 0, 0.85], vfov: 45, aspect: 1 }, body).visible).toBe(false);
     // a camera straight overhead still has a frame to project into
     expect(heroOnScreen({ eye: [0, 0, 14], look: [0, 0, 0], vfov: 45, aspect: 4 / 3 }, body).visible).toBe(true);
+  });
+
+  it('dark against the level\'s own look (2026-11-02): its own sky or a space level\'s black is the level; a backdrop showing through is no colour', () => {
+    const black = frame(() => [8, 8, 8]);
+    expect(judgeFrame({ rgba: black }).status).toBe('failed');
+    // a space level whose background is black, the frame mostly space with a ship
+    const space = frame((x, y) => (x > 24 && x < 40 && y > 16 && y < 32 ? [200, 200, 210] : [5, 5, 8]));   // a ship a twelfth of it
+    expect(judgeFrame({ rgba: space, scene: { bg: '#000000' } })).toMatchObject({ status: 'pass', says: [] });
+    // the same black on a level whose background is a blue sky: a wall in front of the camera
+    expect(judgeFrame({ rgba: space, scene: { bg: '#7aa8e6' } }).status).toBe('failed');
+    // nothing but the level's own sky: it sees none of the level
+    expect(judgeFrame({ rgba: black, scene: { bg: '#000000' } })).toMatchObject({ status: 'warn', says: [expect.stringMatching(/own background/)] });
+    // a transparent frame (an image backdrop) is no colour of the level's, said apart
+    const clear = new Uint8Array(W * H * 4);
+    expect(dominantColour(clear)).toMatchObject({ share: 0, clear: 1 });
+    expect(judgeFrame({ rgba: clear })).toMatchObject({ status: 'warn', says: [expect.stringMatching(/backdrop/)] });
+  });
+
+  it('the hero drawn: its box against the frame without it; a game that asks a ride checks its pilot drives', () => {
+    const scene = { ...chase(5.5), width: W, height: H };
+    const seen = judgeFrame({ rgba: normal, scene }).hero;
+    expect(seen.box).toBeUndefined();
+    // a hero hidden changes its box: drawn; nothing changes: not drawn
+    const without = frame((x, y) => (y < 20 ? [120, 170, 230 - y] : [70, 150, 40]));
+    const box = heroOnScreen({ ...scene }, bodyOf(hero)).box;
+    expect(drawnShare(normal, without, W, H, box)).toBeGreaterThan(0);
+    expect(judgeFrame({ rgba: normal, scene: { ...scene, hidden: without } }).status).toBe('pass');
+    expect(judgeFrame({ rgba: normal, scene: { ...scene, hidden: normal } })).toMatchObject({ status: 'failed', says: [expect.stringMatching(/nothing of it is drawn/)] });
+    // a racer whose pilot walks: failed; one whose pilot drives: as before
+    const walker = { ...hero, rule: 'platform' };
+    expect(judgeFrame({ rgba: normal, scene: { ...scene, entities: [walker], expect: 'vehicle' } }).says).toEqual([expect.stringMatching(/asks a ride .* runs the platform rule, not drive/)]);
+    expect(judgeFrame({ rgba: normal, scene: { ...scene, entities: [{ ...hero, rule: 'drive' }], expect: 'vehicle' } }).status).toBe('pass');
+    expect(judgeFrame({ rgba: normal, scene: { ...scene, heroId: null, expect: 'aircraft' } }).says).toEqual([expect.stringMatching(/asks an aircraft and the camera watches no pilot/)]);
   });
 
   it('statuses order pass < warn < failed', () => {

@@ -418,7 +418,9 @@ ${snow ? `    // (under snow, era/snow.js capOf: a leaf turned up past its cap c
     // needled crown and a culm their own far form); every copy's matrix and colours set into the pieces it is drawn in
     let stat = {};
     function sortPlants() {
-      eye.value.copy(camera.position); let near = 0, far = 0, sprays = 0, tris = 0, imps = 0;
+      eye.value.copy(camera.position); let near = 0, far = 0, sprays = 0, tris = 0, imps = 0, taken = 0;
+      // (the page's air, channels/atmosphere.js: a plant whose top it has taken is not drawn, whole or as its card)
+      const AIR = window.__mojAir && window.__mojAir.taken ? window.__mojAir : null;
       // (gameplay's camera: a plant is whole inside the view cone's reach and until its card's texel is under the cone's
       // grain, then its card; an aerial camera's reach FLORA_LOD.mid)
       const CO = window.__mojCone, FFd = window.__formFar, pov = !!CO && CO.reach < 1e5 && (!FFd || FFd.pov()) && (!window.__formFarField || window.__formFarField.on);
@@ -431,6 +433,8 @@ ${snow ? `    // (under snow, era/snow.js capOf: a leaf turned up past its cap c
         const c = { wood: 0, woodFar: 0, crown: 0, crownFar: 0, sprays: 0, adorn: 0 }, cardAt = impOf[ti] && CO ? (tpl[ti].w) / ((CO.grain || FF0.px) * CO.px) : Infinity;
         for (const i of list) {
           const b = i * STRIDE, sc = P[b + 3], d = Math.hypot(P[b] - camera.position.x, P[b + 1] - camera.position.y, P[b + 2] + t.height * sc * 0.5 - camera.position.z);
+          if (AIR) { const hx = P[b] - camera.position.x, hy = P[b + 1] - camera.position.y, hl = Math.hypot(hx, hy), k = hl > 1e-6 ? Math.max(0, hl - t.radius * sc) / hl : 0;
+            if (AIR.taken(camera.position.z, hx * k, hy * k, P[b + 2] + t.height * sc - camera.position.z)) { taken++; continue; } }
           q.setFromAxisAngle(AXZ, P[b + 4]); m4.compose(pv.set(P[b], P[b + 1], P[b + 2]), q, sv.set(sc, sc, sc));
           const card = d >= Math.max(mid, cardAt * sc), isNear = !card && (impOf[ti] || d < mid), put = (k, col) => { const X = parts[k]; if (!X) return; X.im.setMatrixAt(c[k], m4); if (col) X.im.setColorAt(c[k], col); X.slot[c[k]] = i; c[k]++; };
           const leafC = cv.setRGB(P[b + 5], P[b + 6], P[b + 7], THREE.LinearSRGBColorSpace).clone(), barkC = new THREE.Color().setRGB(P[b + 8], P[b + 9], P[b + 10], THREE.LinearSRGBColorSpace);
@@ -442,7 +446,7 @@ ${snow ? `    // (under snow, era/snow.js capOf: a leaf turned up past its cap c
         for (const [k, X] of Object.entries(parts)) { X.im.count = c[k]; X.im.instanceMatrix.needsUpdate = true; if (X.im.instanceColor) X.im.instanceColor.needsUpdate = true; tris += c[k] * X.tris; }
       }
       ig.instanceCount = imps; for (const k of ['aPos', 'aTR', 'aLeaf', 'aBark']) ig.getAttribute(k).needsUpdate = true; tris += imps * 2;
-      stat = { templates: T.length, plants: N, near, far, impressions: imps, sprays, triangles: tris, wind: !!(window.__mojTerrain && window.__mojTerrain.wind),
+      stat = { templates: T.length, plants: N, near, far, impressions: imps, sprays, triangles: tris, taken, wind: !!(window.__mojTerrain && window.__mojTerrain.wind),
         // (the trunks stand: each template's share of its wood held still, and of its leaves at full sway)
         rigid: T.map(({ t, parts }) => { const w = parts.wood.im.geometry.getAttribute('aSway').array, l = parts.crown.im.geometry.getAttribute('aSway').array; let a = 0, b = 0; for (const v of w) if (v < 0.05) a++; for (const v of l) if (v > 0.95) b++; return { name: t.name, wood: +(a / w.length).toFixed(2), leaves: +(b / l.length).toFixed(2) }; }) };
     }

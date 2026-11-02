@@ -203,24 +203,40 @@ export function readPrompt(prompt, { scene = false } = {}) {
  * and what the crafted things share (a motif, the elements named) its direction. → { technology?, tunnels }, technology
  * absent when the words name nothing it makes.
  */
+// a clause names a thing when it is a noun phrase: the thing's word among its first few ("tracked haulers", "a great
+// lighthouse", "iron truss bridges"), never a sentence that mentions one ("a cursed knight guards the gate")
+const NOUN_LEAD = 3;
+// → the noun phrase ("great lighthouse"), or null when the clause is not one
+const named = (clause, word) => {
+  const ws = clause.replace(/^(an?|the)\s+/i, '').split(/[^A-Za-z0-9-]+/).filter(Boolean), w = String(word).toLowerCase();
+  const at = ws.findIndex((x) => x.toLowerCase() === w || x.toLowerCase().startsWith(w));
+  if (at < 0 || at > NOUN_LEAD) return null;
+  // a short clause is the phrase whole ("zeppelin airships", "solar arrays"); a long one is cut after the thing's word
+  return ws.length <= NOUN_LEAD + 3 ? clause.replace(/^(an?|the)\s+/i, '') : ws.slice(0, at + 1).join(' ');
+};
+
 export function technologyOfWords(prompt) {
   const things = {}, crafted = {}, tunnels = {};
   for (const clause of String(prompt).split(/[,;:]|\band\b/i).map((c) => c.trim()).filter(Boolean)) {
     // (a clause about buildings is the building tunnel's; its fittings, a mast or wings, do not make it one)
     if (readIntent(buildingDomain(), clause).traits.some((t) => !['solar', 'mast'].includes(t.id))) continue;
     const fn = readIntent(techDomain(), clause).traits.filter((t) => TECH_TRAITS[t.id].fn);
+    const thing = fn.length ? named(clause, fn.at(-1).word) : null;
+    if (fn.length && !thing) continue;
     if (fn.length) {
       const id = slug(fn.at(-1).word.replace(/s$/, ''));
-      if (!things[id]) things[id] = clause.replace(/^(an?|the)\s+/i, '');
+      if (!things[id]) things[id] = thing;
       continue;
     }
     // no machine: a clause that names a vehicle, a tech-structure or a weapon ("war galleys", "a stargate") is the crafter's
     const kind = craftKindOf(clause);
     if (!kind) continue;
     const list = Object.keys(CRAFTED).find((k) => CRAFTED[k] === kind), form = readIntent(craftDomain(kind), clause).traits.filter((t) => CRAFT_TRAITS[kind][t.id].form);
+    const phrase = form.length ? named(clause, form.at(-1).word) : null;
+    if (!phrase) continue;
     const id = slug(form.at(-1).word.replace(/s$/, ''));
     crafted[list] ??= {};
-    if (!crafted[list][id]) crafted[list][id] = clause.replace(/^(an?|the)\s+/i, '');
+    if (!crafted[list][id]) crafted[list][id] = phrase;
   }
   let technology = null;
   if (Object.keys(things).length) { technology = { things }; tunnels.things = Object.keys(things); }
@@ -345,6 +361,13 @@ export function composeGameworld({ prompt, name, id, levels, seed = 1 } = {}) {
     const outside = P.read.some((r) => r.decides.some((d) => d === 'kit' || d.startsWith('land.')));
     return { use, kit: roomKit ?? ROOM_KIT_OF_USE[use] ?? 'gothic-stone', useWord, from: outside && n > 1 ? 1 : 0 };
   })() : null;
+  // (a genre that fights, its cube's combat melee or ranged, fights its guards: they are its foes, the casting call's, not
+  // watchers the level is lost to; the watchers' goal stays the sneak's)
+  if (goal.guards && genre && [].concat(cubeOfWorld({ intent: { from: genre.id } }).cube.power?.combat ?? []).some((c) => c === 'melee' || c === 'ranged')) {
+    delete goal.guards;
+    const r = P.read.find((x) => x.decides.includes('goal.guards'));
+    if (r) r.decides = r.decides.map((d) => (d === 'goal.guards' ? 'foes (a fighting genre\'s guards are fought)' : d));
+  }
   const goals = Object.keys(goal).length ? goal : null;
   const decided = [];
   for (let i = 0; i < n; i++) {
