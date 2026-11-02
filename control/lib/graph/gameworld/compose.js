@@ -364,8 +364,13 @@ export function composeGameworld({ prompt, name, id, levels, seed = 1 } = {}) {
   }
   const goals = Object.keys(goal).length ? goal : null;
   const decided = [];
+  // a genre whose world is returned to (its cube's space.topology hub: a party RPG, a top-down adventure) is laid round a
+  // centre: the first level is the town, every other level joined to it both ways (a map world, world.js hub), each
+  // a stretch of the wilds; a building, a form or a single level is laid as before
+  const hubbed = !!genre && !form && !indoors && n >= 2 && cubeOfWorld({ intent: { from: genre.id } }).cube.space?.topology === 'hub';
+  const hubId = `${wid}-1`.slice(0, 48);
   for (let i = 0; i < n; i++) {
-    const lid = `${wid}-${i + 1}`.slice(0, 48), last = i === n - 1, climb = i % 2 === 0 && fills.climb !== false && camera !== 'side';
+    const lid = `${wid}-${i + 1}`.slice(0, 48), last = i === n - 1, climb = !hubbed && i % 2 === 0 && fills.climb !== false && camera !== 'side';
     // the level's goal: what is collected and the health on every level, the boss at the end of the last
     const lg = goals ? (({ boss, ...g }) => ({ ...g, ...(boss && last ? { boss } : {}) }))(goals) : null;
     const lgoal = lg && Object.keys(lg).length ? { goal: lg } : {};
@@ -373,10 +378,13 @@ export function composeGameworld({ prompt, name, id, levels, seed = 1 } = {}) {
     const inside = indoors && i >= indoors.from && camera !== 'side';
     const nodes = { [`${SUFFIX[i] ?? 'stage'}-a`]: { trail: true }, [`${SUFFIX[i] ?? 'stage'}-b`]: { trail: true }, ...(climb ? { lookout: { meru: true } } : {}) };
     // (a genre's book form, genre-forms.js: its levels laid in it, a flight sim's courses; no town, no walk goal)
-    const L = form ? { name: `${form.name} ${i + 1}`, ...form.level(i, n) }
+    const L = hubbed && i === 0 ? { name: `${cap(landscape)} town`, walk: { nodes: { square: { trail: true } } }, places: { town: true } }
+      : form ? { name: `${form.name} ${i + 1}`, ...form.level(i, n) }
       : inside ? { name: `${cap(indoors.use)} ${SUFFIX[i] ?? `stage ${i + 1}`}`, building: { use: indoors.use, kit: indoors.kit }, ...lgoal }
       : { name: `${cap(landscape)} ${SUFFIX[i] ?? `stage ${i + 1}`}`, walk: { nodes }, ...lgoal };
-    if (i > 0 && !inside && !form) L.places = { town: true, ...(last || n === 1 ? { castle: civIds[1] ? { civilization: civIds[1] } : true } : {}) };
+    if (i > 0 && !inside && !form && !hubbed) L.places = { town: true, ...(last || n === 1 ? { castle: civIds[1] ? { civilization: civIds[1] } : true } : {}) };
+    // (round a hub, the wilds: no town of their own, the last raising its castle)
+    if (i > 0 && hubbed && last) L.places = { castle: civIds[1] ? { civilization: civIds[1] } : true };
     // the agent checks its own work: a level whose town's laws advise is laid again on the next seed
     let s = seed * 100 + i * 7 + 1, tries = 0, laws = [];
     for (; tries < 6; tries++, s++) {
@@ -386,8 +394,10 @@ export function composeGameworld({ prompt, name, id, levels, seed = 1 } = {}) {
       if (!laws.length) break;
     }
     decided.push({ level: lid, seed: s, tries: tries + 1, laws });
-    if (i > 0) world.links.push({ from: `${wid}-${i}`.slice(0, 48), to: lid, kind: last && n > 2 ? 'gate' : 'road' });
+    if (i > 0) world.links.push({ from: hubbed ? hubId : `${wid}-${i}`.slice(0, 48), to: lid, kind: last && n > 2 ? 'gate' : 'road' });
   }
+  if (hubbed) Object.assign(world, { topology: 'interconnected', hub: hubId, start: hubId });
+  if (hubbed) world.brief.hub = hubId;
   world.brief.levels = decided;
   // what the levels are played for, and which are buildings: said only when a word decided it
   // (a genre's form: what its levels were laid as, said in the brief)

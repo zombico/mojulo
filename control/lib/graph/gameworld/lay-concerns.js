@@ -22,7 +22,8 @@
  *     watchers   a wall on each watcher's approach, off the line, with a spot behind it the watcher cannot see
  *                (blindBlocks): a sneak can wait there and time the sweep
  *
- *   LAID                                 { <concern id>: ['ground' | 'stage'] } what is laid where
+ *   LAID                                 { <concern id>: ['ground' | 'stage' | 'world'] } what is laid where ('world':
+ *                                          how the levels join, compose.js: a hub's town and its links)
  *   groundLays(ids, level, frame)        → { tune?, edits, laid: [concern id] } for a level (layLevel's recipe)
  *   fieldSite(frame) / boardSite(frame)  → { at: '<cells>', centre: [x, y] } the field, the board, in the level's frame
  *   loopSite(frame)                      → { at: '<cells>', line: [[x, y]], start, heading, median, width, keep } the
@@ -44,7 +45,7 @@ import { buildNav } from '../worlds/controllable/nav.js';
 
 const r3 = (v) => Math.round(v * 1000) / 1000;
 
-export const LAID = Object.freeze({ fields: ['ground', 'stage'], drivable: ['ground'], loop: ['ground', 'stage'], circuit: ['stage'], cover: ['stage'], watchers: ['stage'], 'road-to-base': ['stage'], board: ['ground', 'stage'], reachable: ['stage'], arena: ['ground', 'stage'], encounters: ['stage'] });
+export const LAID = Object.freeze({ fields: ['ground', 'stage'], drivable: ['ground'], loop: ['ground', 'stage'], circuit: ['stage'], cover: ['stage'], watchers: ['stage'], 'road-to-base': ['stage'], board: ['ground', 'stage'], reachable: ['stage'], arena: ['ground', 'stage'], encounters: ['stage'], 'a-centre': ['world'] });
 export const SIGHT = 14;             // metres a watcher's sight is measured over (a sneak guard's sightRange)
 export const EYE = 1.275;            // a person's eye over its feet (the minds' collideHeight 1.7 × 0.75)
 export const SPACING = 12;           // metres a checkpoint keeps from the last

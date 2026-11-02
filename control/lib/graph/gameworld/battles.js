@@ -263,7 +263,8 @@ export const roomOf = (ends) => freeBeats(ends).length;
 export function battlePlan(G, stages, room = () => Infinity) {
   const B = G.battles ?? {}, packs = B.packs ?? PACKS, per = B.per ?? 2, plan = {};
   let k = 0;
-  const fought = stages.map((s, i) => [s, i]).filter(([s]) => FOUGHT(s)).map(([, i]) => i);
+  // (none in the hub: the town is where the party comes back to)
+  const fought = stages.map((s, i) => [s, i]).filter(([s]) => FOUGHT(s) && s.level !== G.hub).map(([, i]) => i);
   const last = B.boss ? [...fought].reverse().find((i) => Math.min(per || 1, room(i)) > 0) : undefined;
   for (const i of fought) {
     const n = Math.min(i === last ? Math.max(per, 1) : per, room(i)), own = i === last ? n - 1 : n;
@@ -319,9 +320,11 @@ export function battleCast(G, stage, ends, { ref, refs = null, keeper = null, pa
   });
   const random = B.random ? { sets: packs.length ? packs.map((p) => [...p]) : [PACKS[0]], ...B.random } : null;
   // the merchant and the innkeeper, beside where the party comes in (none where the book says no shops, or none stands)
-  const shop = keeper && shopsOn(G) && encounters.length ? shopsAt(G, ends, from, figures, entities, keeper) : null;
+  // (in a hub world they stand in the hub instead, hubCast)
+  const shop = keeper && shopsOn(G) && !G.hub && encounters.length ? shopsAt(G, ends, figures, entities, keeper, waresFor(G, from), innOf(G, tierOf(from))) : null;
   const rpg = { ...base, ...(encounters.length ? { encounters } : {}), ...(random ? { random } : {}), ...(shop ? { shops: shop.shops } : {}), rules: { ...base.rules, seed } };
-  const rest = B.rest === false || shop?.inn ? [] : [{ id: 'rpg-rest-spot', when: { use: { at: [ends.spawn[0], ends.spawn[1]], r: 2.5 }, prompt: 'rest' }, then: [{ emit: 'rpg-rest' }, { say: 'Rested', as: 'toast' }] }];
+  // (a hub world's rest is its inn: none on the way unless the book asks for one)
+  const rest = (B.rest ?? !G.hub) === false || shop?.inn ? [] : [{ id: 'rpg-rest-spot', when: { use: { at: [ends.spawn[0], ends.spawn[1]], r: 2.5 }, prompt: 'rest' }, then: [{ emit: 'rpg-rest' }, { say: 'Rested', as: 'toast' }] }];
   if (shop) rest.push(...shop.cues);
   // the party and the bag carried (the party and bag mechanics); a wiped party fails the level under defeat: 'fail'
   const mechanics = [{ kind: 'party', slice: PARTY_SLICE }, { kind: 'bag', slice: BAG_SLICE }, ...(rpg.rules.defeat === 'fail' ? [{ kind: 'fail-on-death', startHp: 1 }] : [])];
@@ -329,8 +332,8 @@ export function battleCast(G, stage, ends, { ref, refs = null, keeper = null, pa
 }
 
 // the wares the world can sell: the tier's (or the book's own), less what the world's items and gear leave out
-function waresFor(G, from) {
-  const B = G.battles, list = B.shops?.wares ?? SHOP_WARES[tierOf(from)];
+function waresFor(G, from, list0 = null) {
+  const B = G.battles, list = B.shops?.wares ?? list0 ?? SHOP_WARES[tierOf(from)];
   const has = (v, k) => v === undefined || (Array.isArray(v) ? v.includes(k) : isObj(v) && k in v);
   return list.filter((w) => (ITEM_PRESETS[w] || (isObj(B.items) && B.items[w]) ? has(B.items, w) : has(B.gear, w)));
 }
@@ -347,9 +350,10 @@ function besideStart(ends, side) {
   }
   return null;
 }
-function shopsAt(G, ends, from, figures, entities, keeper) {
-  const B = G.battles, k = tierOf(from), shops = {}, cues = [];
-  const wares = waresFor(G, from), inn = B.shops?.inn === false ? null : B.shops?.inn ?? INN_PRICE + INN_STEP * k;
+// a night's price at tier k: the book's, else dearer further on; null for no inn
+const innOf = (G, k) => (G.battles.shops?.inn === false ? null : G.battles.shops?.inn ?? INN_PRICE + INN_STEP * k);
+function shopsAt(G, ends, figures, entities, keeper, wares, inn) {
+  const shops = {}, cues = [];
   const put = (id, side, S, word, hello) => {
     const p = besideStart(ends, side);
     if (!p) return false;
@@ -362,6 +366,22 @@ function shopsAt(G, ends, from, figures, entities, keeper) {
   if (wares.length) put('merchant', 1, { name: 'Merchant', wares }, 'shop', 'Wares for the road?');
   const stood = inn != null && put('innkeeper', -1, { name: 'Inn', inn }, 'stay', `A bed for ${inn} gold.`);
   return Object.keys(shops).length ? { shops, cues, inn: stood } : null;
+}
+
+// the hub's merchant sells the first two tiers' wares at once (the gold says what the party can have yet)
+export const HUB_WARES = Object.freeze([...new Set([...SHOP_WARES[0], ...SHOP_WARES[1]])]);
+/**
+ * The hub's market (a world's `hub`, battles.js shops): its merchant and its inn beside where the party comes into the
+ * town, the party and the bag carried there as on a stage that fights; null on any other stage, or with no shops.
+ * → { figures, entities, play: { rpg, cues }, mechanics } (the stage's extra: levels.js stageLevelOrder)
+ */
+export function hubCast(G, stage, ends, { keeper } = {}) {
+  if (!keeper || !shopsOn(G) || stage.level !== G.hub) return null;
+  const figures = {}, entities = [], shop = shopsAt(G, ends, figures, entities, keeper, waresFor(G, 0, HUB_WARES), innOf(G, 0));
+  if (!shop) return null;
+  const base = battleBase(G);
+  const mechanics = [{ kind: 'party', slice: PARTY_SLICE }, { kind: 'bag', slice: BAG_SLICE }];
+  return { figures, entities, play: { rpg: { ...base, shops: shop.shops }, cues: shop.cues }, mechanics };
 }
 
 /** The party slice's roster as the game starts: each member as the battle kernel saves it (numbers only). */

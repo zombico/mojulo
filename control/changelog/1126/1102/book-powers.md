@@ -230,3 +230,13 @@ its resource, put on a look and showed a toast. This theme makes them act.
   - The page's shop window has Buy, Sell and Stay, the party and the gold beside, keys, pad and mouse.
   - Every deal goes through the bag, so it is carried between levels.
   - Items and gear have a `price`, the presets theirs. A world with no shops carries no prices.
+- **A town every way leads back to** (`design_game` composing a game that is returned to). The party RPG's cube asks
+  for a hub ("a centre to return to"), and its levels were a line.
+  - **The layout:** a genre whose cube's topology is a hub (the party RPG, the top-down adventure, the story adventure)
+    is now laid round a town. The first level is the town, and every other level is a stretch of the wilds joined to
+    it both ways. The game leaves the town by a way to each and comes back by the way behind each one's start.
+  - **The town:** no battles are fought there. The merchant and the inn stand in it, so the wilds have no shops and
+    no free rest. The last stretch of the wilds still raises its castle.
+  - **The world key:** `hub: '<level>'` names a map world's centre (topology `interconnected`). The "a centre to
+    return to" concern now reads as laid.
+  - **What stays as before:** a single level, a building, or a genre with its own form of levels.

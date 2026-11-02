@@ -34,7 +34,7 @@ import { heroOrders, castOrders } from './hero-looks.js';
 import { mechanicsOrders } from './mechanics.js';
 import { equipmentOrders, equippedHero } from './equipment.js';
 import { gearOrders } from './world-gear.js';
-import { battlePlan, battleCast as partyCast, roomOf, laidBattles, BATTLE_FOE, foeKindsOf, foeLookOf, isPeopleLook, battlePeopleRoll, shopsOn, SHOP_KEEPER } from './battles.js';
+import { battlePlan, battleCast as partyCast, roomOf, laidBattles, BATTLE_FOE, foeKindsOf, foeLookOf, isPeopleLook, battlePeopleRoll, shopsOn, SHOP_KEEPER, hubCast } from './battles.js';
 import { minigamePlan, minigameCast, MINIGAME_KEEPER } from './minigames.js';
 import { composeExtras } from './stage-figures.js';
 import { stageFolk, folkExtra, folkMintKey, placeSidequests } from './folk-cast.js';
@@ -340,6 +340,8 @@ export function runSteps(world, { ref, lookup } = {}) {
     const fight = plan?.[i] ? (ends) => partyCast(G, s, ends, { ref: foeRef, keeper: keeperRef, ...(ownFoe ? {} : { refs: kindRefs }), packs: plan[i], from: packFrom[i], seed: (Number.isInteger(G.seed) ? G.seed : 1) * 101 + i }) : null;
     // its minigames' stalls beside its fights (the bag carried by the fights' when there are any)
     const stall = games?.[i] ? (ends) => minigameCast(G, s, ends, { ref: keeperRef, games: games[i], bag: !fight }) : null;
+    // the hub's market: its merchant and inn on the hub's first stage (battles.js hubCast)
+    const market = G.hub === s.level && keeperRef && shopsOn(G) && stages.findIndex((x) => x.level === s.level) === i ? (ends) => hubCast(G, s, ends, { keeper: keeperRef }) : null;
     // its foes (foes.js) and its town's folk beside them; either alone keeps its goal's own cast beside it (an extra
     // stands in place of the goal's cast: levels.js)
     // (the hero's hp is its body's own where the systems bind the hp stat to it and no battle on the stage reads the
@@ -349,8 +351,8 @@ export function runSteps(world, { ref, lookup } = {}) {
     const hostile = hostileOf(G, s, foeRefs, true, hpBase ? onBody([{ kind: 'fail-on-death', hits: LEVEL_GOAL.hit }], hpBase).hurt : null);
     const mintOf = folks[i] ? new Map(folks[i].bodies.mints.map((m) => [m.key, m])) : null;
     const folk = folks[i] ? folkExtra(folks[i], (k) => folkRef[folkMintKey(folks[i], mintOf.get(k))]) : null;
-    const goalCast = (hostile || folk) && !fight && !stall ? GA.goalCast : null;
-    const extra = composeExtras(fight, stall, goalCast, folk, hostile);
+    const goalCast = (hostile || folk) && !fight && !stall && !market ? GA.goalCast : null;
+    const extra = composeExtras(fight, stall, market, goalCast, folk, hostile);
     const fights = extra ? { extra, ...(fight ? { legend: 'P  party' } : {}) } : {};
     // a walked stage's story slots: its before at its start, its after (and its epoch's end) at its exit
     const sl = walkedSlots(st, endOf[i], s);
