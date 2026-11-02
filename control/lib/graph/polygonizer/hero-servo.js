@@ -14,16 +14,17 @@
  *   • THE GIRDLE: the rig's `shoulders` turn (± LIMITS.shoulders), read from the pose; its elevation and the scapula's
  *     rhythm follow the raise automatically (figure-vajra.js) and are reported, not checked.
  *   • THE ELBOW is a hinge: the rig's `elbow<S>` channel is its flexion.
- *   • THE FOREARM AND THE WRIST: the rig's `wrist<S>` channel (hero-grip.js WRIST_RANGE and WRIST_EASE, the forearm's
- *     turn its `twist`), in the rig's own signs.
+ *   • THE FOREARM AND THE WRIST: as hero-grip.js's laws read them (WRIST_RANGE and WRIST_EASE, the forearm's turn its
+ *     `twist`): the hand's posed frame against the forearm as the elbow carries it (anatomicalForearm), when the pose
+ *     has the hand's joints (the whole rig); else the rig's `wrist<S>` channel.
  * Sources: the shoulder's cardinal planes from adult normal ranges (flexion 180, extension 60, abduction 180, horizontal
  * adduction 135 and abduction 45 at the level, rotation 70 internal and 90 external: AAOS norms), its ease from the
  * functional ranges daily tasks use (Namdari et al. 2012: flexion 121, extension 46, abduction 128, cross-body 116,
  * external 59); the planes between interpolated; the elbow's 150 from AAOS. Values marked `estimate` are this module's
  * own, to be replaced when a source is in hand. Pure and deterministic.
  */
-import { rigNodesAt, handValue } from './station-loft-rig.js';
-import { WRIST_RANGE, WRIST_EASE, humeralTurn } from './hero-grip.js';
+import { rigNodesAt, handValue, boneFrames } from './station-loft-rig.js';
+import { WRIST_RANGE, WRIST_EASE, humeralTurn, wristFor, anatomicalForearm } from './hero-grip.js';
 import { LIMITS } from './figure-vajra.js';
 
 const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
@@ -71,11 +72,12 @@ export const SERVOS = Object.freeze({
  * THE SERVOS' SPEEDS per register, degrees a second: the peaks the hero's own attacks already reach, measured off the
  * straight strikes (hero-strike.js) and the swings (hero-swing.js, the normal class) at their authored lengths on the
  * realistic male and female (`scripts/spikes/manipulator/servo-audit.mjs`), the higher of the two families. They are
- * what the clips do, not measured people. The shoulder's is its swing (the humerus's own turn) and its rotation. The
- * wrist's are null: no clip moves the wrist channel (it is only ever held), so there is nothing to measure yet.
+ * what the clips do, not measured people. The shoulder's is its swing (the humerus's own turn) and its rotation; the
+ * wrist's is the forearm's turn as the anatomy reads it (the arm's roll carries it), its flex and deviation null: no
+ * clip bends the hand on its wrist (the channel is only ever held), so there is nothing to measure yet.
  */
 export const SERVO_SPEEDS = Object.freeze({
-  realistic: Object.freeze({ girdle: 890, shoulderSwing: 1750, shoulderTwist: 4360, elbow: 3670, wrist: null }),
+  realistic: Object.freeze({ girdle: 890, shoulderSwing: 1750, shoulderTwist: 5030, elbow: 3670, wrist: Object.freeze({ flex: null, deviation: null, twist: 7010 }) }),
 });
 
 /** the cone's reach at a plane: { hard, ease } */
@@ -134,7 +136,11 @@ export function servoRead(R, pose, nodes = null) {
     const cone = sh.plane === null ? { hard: 180, ease: 180 } : coneAt(sh.plane);
     const swing = { plane: sh.plane, value: sh.elevation, range: [0, r1(cone.hard)], ease: [0, r1(cone.ease)], margin: r1(cone.hard - sh.elevation), inRange: sh.elevation <= cone.hard + 1e-9, inEase: sh.elevation <= cone.ease + 1e-9 };
     const twist = sh.twist === null ? null : scalar(sh.twist, SERVOS.shoulder.twist);
-    const w = R.hands?.[S] ? handValue(R, `wrist${S}`, pose[`wrist${S}`] ?? 0) : { flex: 0, deviation: 0, twist: 0 };
+    // the wrist as anatomy (the hand's posed frame against the forearm as the elbow carries it: hero-grip.js's laws read
+    // it so), when the hand's joints are posed; else its channel
+    const hb = R.bones[R.boneIndex?.[`hand${S}`]], seen = hb && [hb.head, hb.tail, ...(hb.aux || [])].every((j) => n[j]);
+    const w = seen ? wristFor(R, S, anatomicalForearm(R, n, S), boneFrames({ bones: [hb] }, R.joints, n)[0].m)
+      : R.hands?.[S] ? handValue(R, `wrist${S}`, pose[`wrist${S}`] ?? 0) : { flex: 0, deviation: 0, twist: 0 };
     // the girdle's rise: the clavicle's line above the thorax's level, as the raise lifts it (read, not checked)
     const T = thoraxFrame(n), clav = n[`clavicle${S}`] ? sub(n[`shoulder${S}`], n[`clavicle${S}`]) : null;
     out[S] = {
@@ -172,7 +178,8 @@ export function servoReport(R, clip, { seconds = 1, samples = 40 } = {}) {
       const xs = reads.map((r) => at(r[S], p)), seen = xs.filter(Boolean);
       if (!seen.length) { s[p] = null; continue; }
       let peak = 0;
-      for (let i = 1; i < xs.length; i++) if (xs[i] && xs[i - 1]) peak = Math.max(peak, Math.abs(xs[i].value - xs[i - 1].value) / dt);
+      // (a reading that wraps round ±180 between frames turns the short way)
+      for (let i = 1; i < xs.length; i++) if (xs[i] && xs[i - 1]) peak = Math.max(peak, Math.abs((((xs[i].value - xs[i - 1].value) % 360) + 540) % 360 - 180) / dt);
       s[p] = { min: r1(Math.min(...seen.map((x) => x.value))), max: r1(Math.max(...seen.map((x) => x.value))), worstMargin: r1(Math.min(...seen.map((x) => x.margin))), outOfRange: seen.filter((x) => !x.inRange).length, outOfEase: r1(seen.filter((x) => !x.inEase).length / seen.length * 100) / 100, read: seen.length, peakSpeed: r1(p === 'shoulder.swing' ? null : peak) };
     }
     let sw = 0; for (let i = 1; i < hum[S].length; i++) sw = Math.max(sw, angle(hum[S][i - 1], hum[S][i]) / dt);

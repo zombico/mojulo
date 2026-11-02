@@ -13,3 +13,9 @@ The pictures: `/body-study male --hero '{"form":"realistic"}' --crop hand --acts
 - `servo-audit.mjs [--cast …] [--samples 40] [--json out.json]`: every stance, strike, guard and swing read against the
   arm's servos (`lib/graph/polygonizer/hero-servo.js`): what leaves its hard range and for how long, what leaves ease,
   and the peak speeds the strikes and the swings reach (the source of `SERVO_SPEEDS`).
+- `arm-envelope.mjs --strike`: the same targets also through space boxer (`lib/graph/polygonizer/hero-reach.js`
+  strikeTarget) as the knuckles' contact: its error on the whole rig, the force line, the servos past a stop, the
+  approach chosen, the time.
+- `drill.mjs [--cast male] [--seed 1] [--count 6] [--surfaces knuckles,palmHeel] [--sheet dir] [--json out.json]`: the
+  target drill and its checks on the clip as played; `--sheet` renders the guard and each contact frame through
+  `/body-study` (the eyes gate's pictures).

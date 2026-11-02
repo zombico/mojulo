@@ -26,3 +26,17 @@ In progress. The realistic hero's arms and hands, solved from targets rather tha
   (`scripts/spikes/manipulator/servo-audit.mjs`): the shoulder's rotation is the joint the clips push past its range
   most (a thrust's rear arm thrown back about 35° past it), then the forearm's turn in three sword guards; no clip
   bends an elbow past its stop.
+- **Space boxer, the arm** (`lib/graph/polygonizer/hero-reach.js`): a target is reached by bringing a surface of the
+  hand (knuckles, the back of the fist, the palm heel, the knife edge, the fingertips) to it, facing along its approach,
+  the arm held to its servos. The solve keeps hero-grip's way (the hand placed first, the arm solved to serve it) and
+  adds the hand's roll, its aim and the force line (the wrist as its surface wants it, so a fist lands with the forearm
+  behind it). Each strike tries a straight, a hook and an uppercut and keeps the cheapest, so a near target is hooked
+  or uppercut and a far one punched straight without being told. From the guard, against today's arm solver on the
+  same targets: every target within reach landed within a millimetre (today's within 5 mm for about four in five,
+  missing by up to 8 cm), the forearm a median 5–9° off the line of the strike (today's 22–67°); but about twice as slow
+  cold. Targets past reach still fall short: the body does not join in yet.
+- **The target drill** (`targetDrill`; `scripts/spikes/manipulator/drill.mjs`): seeded targets around the shoulder, each
+  struck, driven the last 15 cm straight and recovered to the guard, timed by the servos' speeds, and checked on the
+  clip as played (the contact, the facing, the servos, the drive's straightness).
+- **Fixed in the studies:** the arm envelope now stands in the guard (it stood at rest), the servo audit plays swings
+  with the elbows-down roll and reads the wrist as anatomy.

@@ -25,14 +25,16 @@ const { heroStance, STANCES } = await import('@/lib/graph/polygonizer/hero-stanc
 const { heroStrike, STRIKES } = await import('@/lib/graph/polygonizer/hero-strike.js');
 const { heroGuard, GUARDS } = await import('@/lib/graph/polygonizer/hero-grip.js');
 const { swingClipKeys, SWING_WORDS, HELD_STRIKE } = await import('@/lib/graph/polygonizer/hero-swing.js');
+const { elbowsDown } = await import('@/lib/graph/polygonizer/hero-elbow.js');
 
 const { values: opt } = parseArgs({ options: { cast: { type: 'string', multiple: true }, samples: { type: 'string', default: '40' }, json: { type: 'string' } } });
 const casts = opt.cast?.length ? opt.cast : ['male'];
 const samples = Number(opt.samples);
 const PATHS = ['girdle', 'shoulder.swing', 'shoulder.twist', 'elbow', 'wrist.flex', 'wrist.deviation', 'wrist.twist'];
 
-/** keys played evenly over the clip and back to the first, smoothstep between (the rig's clip player's spacing) */
-function evenClip(keys) {
+/** keys played evenly over the clip and back to the first, smoothstep between (the rig's clip player's spacing), a raised
+ * arm bent with its elbow down as the clip player bends it (hero-jump.js keyedClip) */
+function evenClip(keys, R) {
   const mix = (a, b, f) => {
     if (typeof a === 'number' || typeof b === 'number') return (a ?? 0) + ((b ?? 0) - (a ?? 0)) * f;
     if (Array.isArray(a) || Array.isArray(b)) { const A = a ?? b, B = b ?? a; return A.map((x, i) => mix(x, B[i], f)); }
@@ -41,7 +43,7 @@ function evenClip(keys) {
     return f < 0.5 ? a : b;
   };
   const n = keys.length;
-  return { fn: (t) => { const x = Math.min(n - 1e-9, Math.max(0, t * n)), i = Math.floor(x), f = x - i, s = f * f * (3 - 2 * f); return mix(keys[i], keys[(i + 1) % n], s); } };
+  return { fn: (t) => { const x = Math.min(n - 1e-9, Math.max(0, t * n)), i = Math.floor(x), f = x - i, s = f * f * (3 - 2 * f); return elbowsDown(R, mix(keys[i], keys[(i + 1) % n], s)); } };
 }
 
 function audit(cast) {
@@ -52,7 +54,7 @@ function audit(cast) {
   for (const s of Object.keys(STANCES)) add('stance', s, () => ({ clip: heroStance(s, R).clip, seconds: 0.7 }));
   for (const s of Object.keys(STRIKES)) add('strike', s, () => { const K = heroStrike(s, R); return { clip: K.clip, seconds: K.seconds }; });
   for (const g of Object.keys(GUARDS)) add('guard', g, () => ({ clip: heroGuard(g, R).clip, seconds: 0.9 }));
-  for (const w of SWING_WORDS) add('swing', w, () => ({ clip: evenClip(swingClipKeys(w, 'normal')), seconds: HELD_STRIKE.normal.seconds }));
+  for (const w of SWING_WORDS) add('swing', w, () => ({ clip: evenClip(swingClipKeys(w, 'normal'), R), seconds: HELD_STRIKE.normal.seconds }));
   // the speeds: the peak per servo over the strikes and over the swings (the shoulder's as its swing: the humerus's own
   // turn), each family apart
   const speeds = {};
