@@ -7,8 +7,9 @@
  *                   at: the class rank the skill comes at (learned for good); cost: class points on the tree
  *   SKILL_PRESETS   id → { name, about, mp, target, power?, stat?, scale?, element?, heal?, revive?, cure?, status?, buff?, carry? }
  *   FOE_PRESETS     id → { name, hp, mp?, atk, def, mag, spd, xp, gold, cp?, weak?, resist?, absorb?, immune?, skills?, drops?, boss? }
- *   ITEM_PRESETS    id → { name, heal?, mp?, revive?, cure?, hurt?, element?, target }
- *   GEAR_PRESETS    id → { name, slot: weapon | armor | accessory, atk?, def?, mag?, spd?, hp?, mp?, classes? }
+ *   ITEM_PRESETS    id → { name, price, heal?, mp?, revive?, cure?, hurt?, element?, target }
+ *   GEAR_PRESETS    id → { name, price, slot: weapon | armor | accessory, atk?, def?, mag?, spd?, hp?, mp?, classes? }
+ *                   price: the gold a shop asks for it (playscape/rpg/rpg.js shops); it buys back at half
  *                   worn by one member in its slot, its numbers added to theirs; classes: who may wear it (any, unnamed)
  *   GEAR_SLOTS      the slots, in the order the party menu lists them
  *   a class's `start`: { <slot>: gear } what a member of it wears when the party starts
@@ -122,28 +123,28 @@ export const FOE_PRESETS = Object.freeze({
 });
 
 export const ITEM_PRESETS = Object.freeze({
-  potion: { name: 'Potion', heal: 30, target: 'ally' },
-  'hi-potion': { name: 'Hi-Potion', heal: 90, target: 'ally' },
-  ether: { name: 'Ether', mp: 15, target: 'ally' },
-  antidote: { name: 'Antidote', cure: ['poison'], target: 'ally' },
-  remedy: { name: 'Remedy', cure: ['poison', 'sleep', 'silence'], target: 'ally' },
-  feather: { name: 'Revival Feather', revive: true, target: 'ally' },
-  firebomb: { name: 'Firebomb', hurt: 25, element: 'fire', target: 'foes' },
+  potion: { name: 'Potion', price: 8, heal: 30, target: 'ally' },
+  'hi-potion': { name: 'Hi-Potion', price: 30, heal: 90, target: 'ally' },
+  ether: { name: 'Ether', price: 20, mp: 15, target: 'ally' },
+  antidote: { name: 'Antidote', price: 6, cure: ['poison'], target: 'ally' },
+  remedy: { name: 'Remedy', price: 18, cure: ['poison', 'sleep', 'silence'], target: 'ally' },
+  feather: { name: 'Revival Feather', price: 40, revive: true, target: 'ally' },
+  firebomb: { name: 'Firebomb', price: 15, hurt: 25, element: 'fire', target: 'foes' },
 });
 
 export const GEAR_SLOTS = Object.freeze(['weapon', 'armor', 'accessory']);
 const BLADES = ['fighter', 'knight', 'rogue'], CASTERS = ['mage', 'cleric'], HEAVY = ['fighter', 'knight'];
 export const GEAR_PRESETS = Object.freeze({
-  'bronze-sword': { name: 'Bronze Sword', slot: 'weapon', atk: 4, classes: BLADES },
-  'iron-sword': { name: 'Iron Sword', slot: 'weapon', atk: 9, classes: BLADES },
-  dagger: { name: 'Dagger', slot: 'weapon', atk: 3, spd: 2, classes: ['rogue', 'fighter', 'mage'] },
-  'oak-staff': { name: 'Oak Staff', slot: 'weapon', atk: 1, mag: 3, classes: CASTERS },
-  'silver-staff': { name: 'Silver Staff', slot: 'weapon', atk: 2, mag: 7, classes: CASTERS },
-  cestus: { name: 'Cestus', slot: 'weapon', atk: 4, classes: ['monk'] },
-  'leather-armor': { name: 'Leather Armor', slot: 'armor', def: 3 },
-  'chain-mail': { name: 'Chain Mail', slot: 'armor', def: 6, spd: -1, classes: HEAVY },
-  robe: { name: 'Robe', slot: 'armor', def: 2, mag: 2 },
-  gi: { name: 'Gi', slot: 'armor', def: 3, spd: 1, classes: ['monk'] },
-  'swift-ring': { name: 'Swift Ring', slot: 'accessory', spd: 3 },
-  'mana-charm': { name: 'Mana Charm', slot: 'accessory', mp: 8 },
+  'bronze-sword': { name: 'Bronze Sword', price: 25, slot: 'weapon', atk: 4, classes: BLADES },
+  'iron-sword': { name: 'Iron Sword', price: 70, slot: 'weapon', atk: 9, classes: BLADES },
+  dagger: { name: 'Dagger', price: 18, slot: 'weapon', atk: 3, spd: 2, classes: ['rogue', 'fighter', 'mage'] },
+  'oak-staff': { name: 'Oak Staff', price: 22, slot: 'weapon', atk: 1, mag: 3, classes: CASTERS },
+  'silver-staff': { name: 'Silver Staff', price: 65, slot: 'weapon', atk: 2, mag: 7, classes: CASTERS },
+  cestus: { name: 'Cestus', price: 24, slot: 'weapon', atk: 4, classes: ['monk'] },
+  'leather-armor': { name: 'Leather Armor', price: 20, slot: 'armor', def: 3 },
+  'chain-mail': { name: 'Chain Mail', price: 60, slot: 'armor', def: 6, spd: -1, classes: HEAVY },
+  robe: { name: 'Robe', price: 18, slot: 'armor', def: 2, mag: 2 },
+  gi: { name: 'Gi', price: 22, slot: 'armor', def: 3, spd: 1, classes: ['monk'] },
+  'swift-ring': { name: 'Swift Ring', price: 55, slot: 'accessory', spd: 3 },
+  'mana-charm': { name: 'Mana Charm', price: 50, slot: 'accessory', mp: 8 },
 });

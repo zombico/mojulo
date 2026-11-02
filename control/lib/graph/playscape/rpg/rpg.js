@@ -33,6 +33,10 @@
  *                 when the fight is won); without at, a cue starts it: `then: { emit: 'rpg-battle:<id>' }`
  *     random?:    { sets: [[foe ids]], every?: metres, chance?, after?: metres, in?: [{ at: [x, y], r }] }
  *                 a roll every `every` metres walked (in those zones, or anywhere), none in the first `after`
+ *     shops?:     { <id>: { name?, wares?: [item or gear ids], buys?: false, inn?: gold } }   a merchant's wares at their
+ *                 price (an item's or gear's `price`, else the preset's), bought into the bag with `rules.gold`, and the
+ *                 bag's priced things bought back at half unless `buys: false`; `inn`: a night's stay for that gold (full
+ *                 HP and MP, cured). A cue opens one: `then: { emit: 'rpg-shop:<id>' }`
  *     juice?:     false | { on?: { <happening>: juice }, <name>: [steps] }   what the fight's moments feel like, over the
  *                 defaults (juice.js); a skill's own `juice` too. Every beat says rpg-on:<happening> on the bus
  *     rules?:     { gold?: '<var>', defeat?: 'fail' | 'retry', switch?: 'anywhere' | 'never', carry?: 'class' | 'all',
@@ -51,7 +55,8 @@
  *
  * On the bus: `rpg.battle` (1 while a fight is up), `rpg.won` (fights won), `rpg.<member>.<hp|mp|level|class>`; the
  * events `rpg-won`, `rpg-fled`, `rpg-lost`, each also with `:<encounter>` (a random one's id is `random`). A cue
- * may emit `rpg-battle:<encounter>`, `rpg-rest` (full HP and MP), `rpg-join:<member>`, `rpg-open:<class>`.
+ * may emit `rpg-battle:<encounter>`, `rpg-rest` (full HP and MP), `rpg-join:<member>`, `rpg-open:<class>`,
+ * `rpg-shop:<shop>`; a purchase says `rpg-bought:<shop>:<item>`, a sale `rpg-sold:<shop>:<item>`, a stay `rpg-stayed:<shop>`.
  *
  *   readRpg(play)       → the kernel's cfg, or null; throws, teaching
  *   rpgCues(play)       → the cues: walking up to an encounter, a won fight's foe falling, a lost one failing the level
@@ -162,8 +167,8 @@ function readFoe(k, d, where) {
 }
 
 function readItem(k, d, where) {
-  keysOnly(d, ['name', 'heal', 'mp', 'revive', 'cure', 'hurt', 'element', 'target'], where);
-  for (const s of ['heal', 'mp', 'hurt']) optNum(d[s], `${where}.${s}`);
+  keysOnly(d, ['name', 'price', 'heal', 'mp', 'revive', 'cure', 'hurt', 'element', 'target'], where);
+  for (const s of ['heal', 'mp', 'hurt', 'price']) optNum(d[s], `${where}.${s}`);
   const cure = listOf(d.cure, `${where}.cure`, 'statuses');
   for (const s of cure) if (!RPG_STATUSES[s]) throw err(`${where}.cure: '${s}' is not a status`);
   if (!d.heal && !d.mp && !d.revive && !cure.length && !d.hurt) throw err(`${where} does nothing in a fight: heal, mp, revive, cure or hurt`);
@@ -177,7 +182,7 @@ export function readRpg(play) {
   const P = play && play.rpg;
   if (P === undefined) return null;
   if (!isObj(P)) throw err(' is { party, classes?, skills?, foes?, items?, encounters?, random?, rules? }');
-  keysOnly(P, ['party', 'classes', 'skills', 'foes', 'items', 'gear', 'encounters', 'random', 'rules', 'juice'], '');
+  keysOnly(P, ['party', 'classes', 'skills', 'foes', 'items', 'gear', 'encounters', 'random', 'shops', 'rules', 'juice'], '');
 
   // the rules
   const Ru = P.rules ?? {};
@@ -303,7 +308,8 @@ export function readRpg(play) {
   for (const [k0, d0] of Object.entries(gearGiven)) {
     const k = itemKey(k0), d = d0 ?? GEAR_PRESETS[k], at = `.gear.${k0}`;
     if (!d) throw err(`${at}: '${k0}' is no preset gear (${Object.keys(GEAR_PRESETS).join(', ')}): define it ({ slot, atk?, def?, … })`);
-    keysOnly(d, ['name', 'slot', ...RPG_STATS, 'classes'], at);
+    keysOnly(d, ['name', 'price', 'slot', ...RPG_STATS, 'classes'], at);
+    optNum(d.price, `${at}.price`);
     if (!GEAR_SLOTS.includes(d.slot)) throw err(`${at}.slot is ${GEAR_SLOTS.join(', ')}`);
     for (const st of RPG_STATS) if (d[st] !== undefined && !num(d[st])) throw err(`${at}.${st} is a number it adds`);
     if (items[k]) throw err(`${at}: '${k}' is a battle item too; an item is worn or used, not both`);
@@ -352,9 +358,37 @@ export function readRpg(play) {
     random = { sets: R0.sets.map((s) => [...s]), every: R0.every ?? 9, chance: R0.chance ?? 0.3, after: R0.after ?? 6, in: zones };
   }
 
+  // the shops: what each sells at its price (the world's own, else the preset's), whether it buys back at half, and an
+  // inn's stay; only a world with shops carries them (absent: zero bytes)
+  let shops = null;
+  if (P.shops !== undefined) {
+    if (!isObj(P.shops) || !Object.keys(P.shops).length) throw err('.shops is { <id>: { name?, wares?: [item or gear ids], buys?: false, inn?: gold } }');
+    shops = {};
+    const priceOf = (k) => {
+      const own = isObj(play.items) && isObj(play.items[k]) ? play.items[k].price : isObj(play.gear) && isObj(play.gear[k]) ? play.gear[k].price : undefined;
+      return own ?? (ITEM_PRESETS[k] ?? GEAR_PRESETS[k])?.price;
+    };
+    for (const [sid, S] of Object.entries(P.shops)) {
+      const at = `.shops.${sid}`;
+      id(sid, at);
+      if (!isObj(S)) throw err(`${at} is { name?, wares?, buys?, inn? }`);
+      keysOnly(S, ['name', 'wares', 'buys', 'inn'], at);
+      const wares = listOf(S.wares, `${at}.wares`, 'item or gear ids').map((w0, i) => {
+        const w = itemKey(w0), kind = items[w] ? 'item' : gear[w] ? 'gear' : null, price = priceOf(w0);
+        if (!kind) throw err(`${at}.wares[${i}]: '${w0}' is none of the world's items or gear`);
+        if (!(num(price) && price > 0)) throw err(`${at}.wares[${i}]: '${w0}' has no price: give it one (items.${w0}.price or gear.${w0}.price)`);
+        return { item: w, kind, price: Math.round(price) };
+      });
+      if (S.buys !== undefined && typeof S.buys !== 'boolean') throw err(`${at}.buys is false for a shop that buys nothing back`);
+      if (S.inn !== undefined && !(Number.isInteger(S.inn) && S.inn >= 0)) throw err(`${at}.inn is the gold a night's stay costs (0 or more)`);
+      if (!wares.length && S.inn === undefined) throw err(`${at} sells nothing and is no inn: give it wares or an inn's price`);
+      shops[sid] = { name: typeof S.name === 'string' && S.name ? S.name : S.inn !== undefined && !wares.length ? 'Inn' : 'Shop', wares, buys: wares.length ? S.buys !== false : false, inn: S.inn ?? null };
+    }
+  }
+
   // the juice: the defaults, the world's own, each skill's own (juice.js)
   const juice = readJuice(P.juice, { skills: Object.fromEntries(Object.entries(skillsGiven).map(([k, d0]) => [k, { juice: (d0 ?? SKILL_PRESETS[k]).juice }])) });
-  return { seed: rules.seed, party: party0, classes, skills, foes, items, gear, encounters, random, met, juice, rules: { ...rules, xp: { ...rules.xp }, cp: [...rules.cp] } };
+  return { seed: rules.seed, party: party0, classes, skills, foes, items, gear, encounters, random, met, juice, ...(shops ? { shops } : {}), rules: { ...rules, xp: { ...rules.xp }, cp: [...rules.cp] } };
 }
 
 const doneVar = (enc) => `rpg-done-${enc}`;

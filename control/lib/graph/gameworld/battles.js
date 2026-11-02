@@ -19,7 +19,11 @@
  *     looks?: { <foe id>: beast | people | person },   each foe's own look in a character door's words (FOE_LOOKS):
  *                          { species, ooze?, stylism? } a beast; { people, facets?, dress? } a people (a lineage, the
  *                          beast-kin, the undead: skeleton, zombie, ragged, rotting…); a person through the hero door
- *     rest?: false,        no rest at each stage's start (default: E there restores HP and MP)
+ *     rest?: false,        no rest at each stage's start (default: E there restores HP and MP; where an inn stands, it is
+ *                          the rest)
+ *     shops?: false | { wares?, inn? },   a merchant and an innkeeper beside each fighting stage's start (default on):
+ *                          the merchant's wares by how far on (SHOP_WARES) or the book's own, bought back at half; a
+ *                          night at the inn for INN_PRICE gold, more further on, or the book's price (inn: false, none)
  *     random?: { every?, chance?, after? },   random encounters on the trails, drawn from that stage's packs
  *     classes?, skills?, foes?, items?, gear?, juice?, rules?,   play.rpg's own (playscape/rpg/rpg.js), over the presets
  *   The party and the bag (its items, the gear not worn, and its gold: held:bag:gold) are carried level to level.
@@ -33,7 +37,7 @@
  */
 import { readRpg } from '../playscape/rpg/rpg.js';
 import { withBoardBook } from '../board/board-battle.js';
-import { CLASS_PRESETS, FOE_PRESETS } from '../playscape/rpg/presets.js';
+import { CLASS_PRESETS, FOE_PRESETS, ITEM_PRESETS } from '../playscape/rpg/presets.js';
 import { rpgInit, rpgSave } from '../playscape/rpg/kernel.js';
 import { cubeOfWorld } from './intent.js';
 import { castingOf, castingIds } from './casting.js';
@@ -45,12 +49,27 @@ import { rollEgocube } from '../egocube/egocube.js';
 import { statureOf } from '../egocube/cast.js';
 import { fieldOf } from './casting.js';
 import { settingOfGame } from './cast-setting.js';
-import { fieldFigure } from './stage-figures.js';
+import { fieldFigure, libraryFigure } from './stage-figures.js';
 
 export const PACKS = Object.freeze([
   ['slime', 'slime'], ['wolf', 'bat'], ['goblin', 'spider', 'slime'], ['skeleton', 'wolf'],
   ['bandit', 'goblin', 'bat'], ['shaman', 'goblin', 'goblin'], ['golem', 'wisp'], ['skeleton', 'skeleton', 'wisp'],
 ]);
+// THE SHOPS ON THE WAY: each stage that fights opens with a merchant and an innkeeper beside where the party comes in.
+// The merchant sells what that far along calls for (SHOP_WARES, by the packs met before: the starters' gear, then the
+// iron and silver, then the dearer cures), and buys back at half; the inn's night (full HP and MP, cured) costs more
+// the further on (INN_PRICE + INN_STEP a tier). The inn is the stage's rest: no free one beside it.
+export const SHOP_WARES = Object.freeze([
+  Object.freeze(['potion', 'antidote', 'bronze-sword', 'oak-staff', 'cestus', 'leather-armor', 'robe']),
+  Object.freeze(['potion', 'antidote', 'ether', 'firebomb', 'iron-sword', 'silver-staff', 'gi', 'chain-mail', 'swift-ring']),
+  Object.freeze(['hi-potion', 'ether', 'remedy', 'feather', 'firebomb', 'iron-sword', 'silver-staff', 'chain-mail', 'mana-charm', 'swift-ring']),
+]);
+export const INN_PRICE = 6, INN_STEP = 6;
+export const SHOP_KEEPER = Object.freeze({ cast: 'male', palette: { Top: '#7a5a2a' } });
+// (the tier a stage's shop is at: the packs met before it, two a tier)
+const tierOf = (from) => Math.min(SHOP_WARES.length - 1, Math.floor(from / 2));
+/** Whether the run stands shops on its battle stages (on unless the book says `shops: false`). */
+export const shopsOn = (G) => !!G.battles && G.battles.shops !== false && G.battles.on !== 'board';
 export const JOINER_CLASSES = Object.freeze(['mage', 'cleric', 'rogue', 'knight', 'monk']);
 export const BATTLE_FOE = Object.freeze({ cast: 'male', palette: { Top: '#6b2222' }, gear: { right: { item: 'dagger' } } });
 // THE BATTLE FOES' LOOKS: each foe of the presets (playscape/rpg/presets.js) stood on the map as what it is, in the
@@ -104,7 +123,7 @@ export const BAG_SLICE = 'bag';
 export const BAG_START = Object.freeze({ potion: 2 });
 // where battles are fought: a stage walked along a trail (its beats); a building, a city and a roadway have none
 const FOUGHT = (s) => !['building', 'interior', 'city', 'roadway'].includes(s.section);
-const KEYS = ['on', 'board', 'party', 'packs', 'per', 'boss', 'foe', 'looks', 'rest', 'random', 'classes', 'skills', 'foes', 'items', 'gear', 'juice', 'rules'];
+const KEYS = ['on', 'board', 'party', 'packs', 'per', 'boss', 'foe', 'looks', 'rest', 'shops', 'random', 'classes', 'skills', 'foes', 'items', 'gear', 'juice', 'rules'];
 const BOARD_KEYS = ['cols', 'rows', 'cap', 'rules', 'skirmish', 'epochs', 'talk'];
 const MEMBER_KEYS = ['class', 'name', 'level', 'bonus', 'classes', 'gear'];
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
@@ -163,6 +182,12 @@ export function readBattles(v, characters = null, ids = null) {
     }
   }
   if (v.rest !== undefined && typeof v.rest !== 'boolean') throw err('.rest is false for no rest at each stage\'s start');
+  if (v.shops !== undefined && v.shops !== false) {
+    if (!isObj(v.shops)) throw err('.shops is false for no merchant and inn on the way, or { wares?: [item or gear ids], inn?: gold | false }');
+    for (const k of Object.keys(v.shops)) if (!['wares', 'inn'].includes(k)) throw err(`.shops has no key '${k}' (wares, inn)`);
+    if (v.shops.wares !== undefined && !(Array.isArray(v.shops.wares) && v.shops.wares.length && v.shops.wares.every((w) => typeof w === 'string'))) throw err('.shops.wares is the merchant\'s wares on every stage: item or gear ids');
+    if (v.shops.inn !== undefined && v.shops.inn !== false && !(Number.isInteger(v.shops.inn) && v.shops.inn >= 0)) throw err('.shops.inn is a night\'s price on every stage, or false for no inn');
+  }
   if (v.random !== undefined) {
     if (!isObj(v.random)) throw err('.random is { every?, chance?, after? }: random encounters on the trails, drawn from each stage\'s packs');
     for (const k of Object.keys(v.random)) if (!['every', 'chance', 'after'].includes(k)) throw err(`.random.${k} is not part of it (every, chance, after)`);
@@ -257,7 +282,7 @@ export function battlePlan(G, stages, room = () => Infinity) {
  * game-wide number of its first.
  * → { figures, entities, play, mechanics } (the stage's extra: levels.js stageLevelOrder)
  */
-export function battleCast(G, stage, ends, { ref, refs = null, packs = [], from = 0, seed = 1 } = {}) {
+export function battleCast(G, stage, ends, { ref, refs = null, keeper = null, packs = [], from = 0, seed = 1 } = {}) {
   const B = G.battles ?? {}, base = battleBase(G);
   const along = freeBeats(ends);
   const n = Math.min(packs.length, along.length);
@@ -293,11 +318,50 @@ export function battleCast(G, stage, ends, { ref, refs = null, packs = [], from 
     encounters.push({ id: `pack-${from + k + 1}`, foes: [...packs[k]], at: [b.at[0], b.at[1]], who: who.length > 1 ? who : id, ...(boss ? { flee: false } : {}) });
   });
   const random = B.random ? { sets: packs.length ? packs.map((p) => [...p]) : [PACKS[0]], ...B.random } : null;
-  const rpg = { ...base, ...(encounters.length ? { encounters } : {}), ...(random ? { random } : {}), rules: { ...base.rules, seed } };
-  const rest = B.rest === false ? [] : [{ id: 'rpg-rest-spot', when: { use: { at: [ends.spawn[0], ends.spawn[1]], r: 2.5 }, prompt: 'rest' }, then: [{ emit: 'rpg-rest' }, { say: 'Rested', as: 'toast' }] }];
+  // the merchant and the innkeeper, beside where the party comes in (none where the book says no shops, or none stands)
+  const shop = keeper && shopsOn(G) && encounters.length ? shopsAt(G, ends, from, figures, entities, keeper) : null;
+  const rpg = { ...base, ...(encounters.length ? { encounters } : {}), ...(random ? { random } : {}), ...(shop ? { shops: shop.shops } : {}), rules: { ...base.rules, seed } };
+  const rest = B.rest === false || shop?.inn ? [] : [{ id: 'rpg-rest-spot', when: { use: { at: [ends.spawn[0], ends.spawn[1]], r: 2.5 }, prompt: 'rest' }, then: [{ emit: 'rpg-rest' }, { say: 'Rested', as: 'toast' }] }];
+  if (shop) rest.push(...shop.cues);
   // the party and the bag carried (the party and bag mechanics); a wiped party fails the level under defeat: 'fail'
   const mechanics = [{ kind: 'party', slice: PARTY_SLICE }, { kind: 'bag', slice: BAG_SLICE }, ...(rpg.rules.defeat === 'fail' ? [{ kind: 'fail-on-death', startHp: 1 }] : [])];
   return { figures, entities, play: { rpg, ...(rest.length ? { cues: rest } : {}) }, mechanics };
+}
+
+// the wares the world can sell: the tier's (or the book's own), less what the world's items and gear leave out
+function waresFor(G, from) {
+  const B = G.battles, list = B.shops?.wares ?? SHOP_WARES[tierOf(from)];
+  const has = (v, k) => v === undefined || (Array.isArray(v) ? v.includes(k) : isObj(v) && k in v);
+  return list.filter((w) => (ITEM_PRESETS[w] || (isObj(B.items) && B.items[w]) ? has(B.items, w) : has(B.gear, w)));
+}
+// a keeper's place beside the stage's start: a few steps on toward the first pack, to one side, where the ground is
+// near the start's (else on the line), facing back at the start
+function besideStart(ends, side) {
+  const s = ends.spawn, ahead = [...(ends.beats ?? []).filter((b) => b.beat !== 'exit').map((b) => b.at), ends.exit].filter(Boolean);
+  const far = ahead.find((a) => Math.hypot(a[0] - s[0], a[1] - s[1]) > 4) ?? ahead[0] ?? [s[0] + 1, s[1]];
+  const dx = far[0] - s[0], dy = far[1] - s[1], d = Math.hypot(dx, dy) || 1, ux = dx / d, uy = dy / d, along = Math.min(3, d * 0.4);
+  const ground = typeof ends.ground === 'function' ? ends.ground : () => null;
+  for (const off of [side * 2.6, side * 1.6, 0]) {
+    const x = s[0] + ux * along - uy * off, y = s[1] + uy * along + ux * off, z = ground(x, y);
+    if (off === 0 || (z != null && Math.abs(z - s[2]) < 1)) return { at: [r3(x), r3(y), r3(z ?? s[2])], face: r3(Math.atan2(s[1] - y, s[0] - x)) };
+  }
+  return null;
+}
+function shopsAt(G, ends, from, figures, entities, keeper) {
+  const B = G.battles, k = tierOf(from), shops = {}, cues = [];
+  const wares = waresFor(G, from), inn = B.shops?.inn === false ? null : B.shops?.inn ?? INN_PRICE + INN_STEP * k;
+  const put = (id, side, S, word, hello) => {
+    const p = besideStart(ends, side);
+    if (!p) return false;
+    stand({ figures, entities }, id, libraryFigure(keeper), p.at, p.face);
+    shops[id] = S;
+    cues.push({ id: `rpg-${id}`, when: { use: { at: [p.at[0], p.at[1]], r: 2 }, prompt: word }, then: { emit: `rpg-shop:${id}` } });
+    cues.push({ id: `rpg-${id}-hello`, when: { near: { at: [p.at[0], p.at[1]], r: 3.2 } }, once: true, then: { say: hello, as: 'toast' } });
+    return true;
+  };
+  if (wares.length) put('merchant', 1, { name: 'Merchant', wares }, 'shop', 'Wares for the road?');
+  const stood = inn != null && put('innkeeper', -1, { name: 'Inn', inn }, 'stay', `A bed for ${inn} gold.`);
+  return Object.keys(shops).length ? { shops, cues, inn: stood } : null;
 }
 
 /** The party slice's roster as the game starts: each member as the battle kernel saves it (numbers only). */

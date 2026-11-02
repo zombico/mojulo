@@ -5,6 +5,7 @@ import { describe, it, expect } from 'vitest';
 import { runSteps, readGameworld, MEADOWMARK_HERO } from './index.js';
 import { readBattles, battleParty, battlePlan, PACKS } from './battles.js';
 import { lowerPlay } from '../playscape/ui/direction.js';
+import { readRpg } from '../playscape/rpg/rpg.js';
 import { createBusState, processEvents, watchEvents } from '../worlds/event-bus.js';
 import { composeMechanics } from '../game/mechanics.js';
 
@@ -37,8 +38,10 @@ describe('battles: the book\'s party battles, laid on its trails', () => {
     const own = levels(W({ foe: { cast: 'female' } }))[0].order.manifest;
     for (const e of own.play.rpg.encounters) for (const id of [].concat(e.who)) expect(own.figures[id].heroRef).toBe('gw-foe');
     expect(first.play.rpg.party.map((p) => [p.id, p.class])).toEqual([['hero', 'fighter']]);
-    // a rest at the start, the party carried, a wiped party fails the level
-    expect(first.play.cues.some((c) => c.id === 'rpg-rest-spot')).toBe(true);
+    // a merchant and an inn at the start (the inn the stage's rest), the party carried, a wiped party fails the level
+    expect(first.play.cues.some((c) => c.id === 'rpg-rest-spot')).toBe(false);
+    expect(first.play.cues.find((c) => c.id === 'rpg-innkeeper').then).toEqual({ emit: 'rpg-shop:innkeeper' });
+    expect(Object.keys(first.play.rpg.shops)).toEqual(['merchant', 'innkeeper']);
     expect(first.game.mechanics.map((m) => m.kind)).toEqual(expect.arrayContaining(['reach-exit', 'party', 'fail-on-death']));
     // the store carries the party, as the game starts
     const game = S.find((s) => s.key === 'game');
@@ -104,6 +107,33 @@ describe('battles: the book\'s party battles, laid on its trails', () => {
     const c = composeMechanics(M.game.mechanics, { storeSchema: store, player: 'hero' });
     expect(c.party).toEqual({ slice: 'party' });
     expect(c.produces).toContainEqual({ type: 'setStat', slice: 'party' });
+  });
+});
+
+describe('the shops on the way', () => {
+  it('each fighting stage opens with a merchant and an inn, the wares and the night dearer further on; none where the book says', () => {
+    const L = levels(W({}));
+    const shops = L.map((s) => s.order.manifest.play.rpg.shops);
+    expect(shops[0].merchant.wares).toContain('bronze-sword');
+    // (priced as the page reads it: the preset's price)
+    expect(readRpg(L[0].order.manifest.play).shops.merchant.wares.find((w) => w.item === 'potion')).toEqual({ item: 'potion', kind: 'item', price: 8 });
+    const later = shops.filter(Boolean).at(-1);
+    expect(later.innkeeper.inn).toBeGreaterThan(shops[0].innkeeper.inn);
+    expect(later.merchant.wares).not.toEqual(shops[0].merchant.wares);
+    // (the keepers stand on the map, made of the keeper's figure, beside the start)
+    const M = L[0].order.manifest, at = M.entities.find((e) => e.id === 'merchant').transform.pos;
+    expect(M.figures.merchant.heroRef).toBe('gw-keeper');
+    expect(runSteps(W({}), { ref: 'gw' }).find((s) => s.key === 'keeper')).toBeTruthy();
+    expect(Math.hypot(at[0] - M.play.cues.find((c) => c.id === 'rpg-merchant').when.use.at[0], at[1] - M.play.cues.find((c) => c.id === 'rpg-merchant').when.use.at[1])).toBe(0);
+    // a book's own wares and price; no inn keeps the free rest; no shops, as before
+    const own = levels(W({ shops: { wares: ['potion'], inn: false } }))[0].order.manifest;
+    expect(own.play.rpg.shops).toEqual({ merchant: { name: 'Merchant', wares: ['potion'] } });
+    expect(own.play.cues.some((c) => c.id === 'rpg-rest-spot')).toBe(true);
+    const none = levels(W({ shops: false }))[0].order.manifest;
+    expect(none.play.rpg.shops).toBeUndefined();
+    expect(none.entities.some((e) => e.id === 'merchant')).toBe(false);
+    expect(runSteps(W({ shops: false }), { ref: 'gw' }).some((s) => s.key === 'keeper')).toBe(false);
+    expect(() => readBattles({ shops: { inn: -1 } })).toThrow(/inn/);
   });
 });
 

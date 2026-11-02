@@ -187,6 +187,48 @@ describe('the page: the battle window and the party menu', () => {
     } finally { if (was) Object.defineProperty(globalThis, 'navigator', was); else delete globalThis.navigator; }
   });
 
+  it('a shop: its wares bought with the gold into the bag, the bag sold back at half, a night at the inn; short of gold, nothing', () => {
+    const shops = { merchant: { wares: ['potion', 'bronze-sword'] }, inn: { inn: 10 } };
+    const P = page({ rpg: { ...PLAY.rpg, shops } }, { gold: 20 });
+    processEvents(P.bus, [{ type: 'rpg-shop:merchant' }]);
+    P.frames();
+    expect(P.api.state().shop).toMatchObject({ id: 'merchant', tab: 'Buy', rows: [{ label: 'Potion', right: '8 G', ok: true }, { label: 'Bronze Sword', right: '25 G', ok: false }] });
+    expect(P.window.__mojFreeze).toBe(true);
+    P.press('Enter');
+    expect(P.bus.vars.gold).toBe(12);
+    expect(P.bus.vars['held:bag:potion']).toBe(1);
+    expect(P.said()).toContainEqual({ type: 'rpg-bought:merchant:potion' });
+    // (the sword is dearer than the purse: nothing changes hands)
+    P.press('ArrowDown'); P.press('Enter');
+    expect(P.bus.vars.gold).toBe(12);
+    expect(P.api.state().shop.said).toBe('Not enough gold.');
+    // Sell: the potion back at half
+    P.press('ArrowRight');
+    expect(P.api.state().shop).toMatchObject({ tab: 'Sell', rows: [{ label: 'Potion', right: '4 G' }] });
+    P.press('Enter');
+    expect([P.bus.vars.gold, P.bus.vars['held:bag:potion']]).toEqual([16, 0]);
+    P.press('Escape');
+    expect(P.api.state().mode).toBeNull();
+    // the inn: the party hurt, a night for its price, all well again
+    P.api.R.m.ayla.hp = 1;
+    processEvents(P.bus, [{ type: 'rpg-shop:inn' }]);
+    P.frames();
+    expect(P.api.state().shop).toMatchObject({ tab: 'Stay', rows: [{ right: '10 G', ok: true }] });
+    P.press('Enter');
+    expect(P.bus.vars.gold).toBe(6);
+    expect(P.api.R.m.ayla.hp).toBeGreaterThan(1);
+    expect(P.said()).toContainEqual({ type: 'rpg-stayed:inn' });
+  });
+
+  it('a shop is read: its wares the world\'s and priced, an inn a price; a ware it cannot sell is refused', () => {
+    const cfg = readRpg({ rpg: { party: PARTY, shops: { m: { wares: ['potion'] }, i: { inn: 5 } } } });
+    expect(cfg.shops).toEqual({ m: { name: 'Shop', wares: [{ item: 'potion', kind: 'item', price: 8 }], buys: true, inn: null }, i: { name: 'Inn', wares: [], buys: false, inn: 5 } });
+    expect(readRpg({ rpg: { party: PARTY } }).shops).toBeUndefined();
+    expect(() => readRpg({ rpg: { party: PARTY, shops: { m: { wares: ['nope'] } } } })).toThrow(/none of the world's items or gear/);
+    expect(() => readRpg({ rpg: { party: PARTY, items: { tonic: { heal: 5 } }, shops: { m: { wares: ['tonic'] } } } })).toThrow(/no price/);
+    expect(() => readRpg({ rpg: { party: PARTY, shops: { m: {} } } })).toThrow(/sells nothing/);
+  });
+
   it('the page carries the channel only when the events have rpg, and its script parses', () => {
     const L = level(PLAY);
     expect(eventsChannelScript(L.ev)).toContain('__stepRpg(t)');

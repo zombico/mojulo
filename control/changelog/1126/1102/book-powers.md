@@ -218,3 +218,15 @@ its resource, put on a look and showed a toast. This theme makes them act.
   one foe to three, walked round the kinds in the sentence's order. Each foe is in the look its word asks for: the
   undead and the orcish from their own sheets, beast folk as the lupine and feline kin, a beast through the animal door.
   The words are in the brief's read. A sentence that names no foe fights as before.
+- **A merchant and an inn on the way** (party battles). Battles paid gold into the bag, and nothing spent it. Now each
+  stage that fights opens with a merchant and an innkeeper beside where the party comes in:
+  - The merchant sells what that far along calls for: the starter gear first, then iron and silver, then the dearer
+    cures. It buys the bag's priced things back at half.
+  - The inn's night (full HP and MP, cured) costs more the further on. It is the stage's rest, so the free rest at
+    the start goes where an inn stands.
+  - A book writes `battles.shops: { wares?, inn? }` for its own wares and price, `inn: false` for no inn, and
+    `shops: false` for neither.
+  Underneath, `play.rpg.shops: { <id>: { name?, wares?, buys?, inn? } }`, opened by a cue's `rpg-shop:<id>`:
+  - The page's shop window has Buy, Sell and Stay, the party and the gold beside, keys, pad and mouse.
+  - Every deal goes through the bag, so it is carried between levels.
+  - Items and gear have a `price`, the presets theirs. A world with no shops carries no prices.

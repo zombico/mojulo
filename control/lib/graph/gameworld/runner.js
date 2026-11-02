@@ -34,7 +34,7 @@ import { heroOrders, castOrders } from './hero-looks.js';
 import { mechanicsOrders } from './mechanics.js';
 import { equipmentOrders, equippedHero } from './equipment.js';
 import { gearOrders } from './world-gear.js';
-import { battlePlan, battleCast as partyCast, roomOf, laidBattles, BATTLE_FOE, foeKindsOf, foeLookOf, isPeopleLook, battlePeopleRoll } from './battles.js';
+import { battlePlan, battleCast as partyCast, roomOf, laidBattles, BATTLE_FOE, foeKindsOf, foeLookOf, isPeopleLook, battlePeopleRoll, shopsOn, SHOP_KEEPER } from './battles.js';
 import { minigamePlan, minigameCast, MINIGAME_KEEPER } from './minigames.js';
 import { composeExtras } from './stage-figures.js';
 import { stageFolk, folkExtra, folkMintKey, placeSidequests } from './folk-cast.js';
@@ -218,9 +218,11 @@ export function runSteps(world, { ref, lookup } = {}) {
   steps.push(...foeSteps(G, ref, { ready: true }));
   const foeRefs = foeRefsOf(G, ref);
   // the minigames' keepers (minigames.js): one figure, minted as a hero is, standing at every stall
-  const keeperRef = G.minigames ? childRef(ref, 'keeper') : null;
+  // (and the shops' merchant and innkeeper on the battle stages, battles.js: the same figure where the minigames stand
+  // one, else the shopkeeper's)
+  const keeperRef = G.minigames || shopsOn(G) ? childRef(ref, 'keeper') : null;
   if (keeperRef) {
-    const spec = withReact(react, MINIGAME_KEEPER), mint = { kind: 'layered', via: 'hero', title: `${G.name ?? G.id} keeper`, spec };
+    const spec = withReact(react, G.minigames ? MINIGAME_KEEPER : SHOP_KEEPER), mint = { kind: 'layered', via: 'hero', title: `${G.name ?? G.id} keeper`, spec };
     steps.push({ key: 'keeper', ref: keeperRef, ready: true, order: { spec, mint, motion: null }, print: fingerprint({ spec }) });
   }
   const MO = mechanicsOrders(G, B.mechanics, { heroRef });
@@ -335,7 +337,7 @@ export function runSteps(world, { ref, lookup } = {}) {
       }
       return;
     }
-    const fight = plan?.[i] ? (ends) => partyCast(G, s, ends, { ref: foeRef, ...(ownFoe ? {} : { refs: kindRefs }), packs: plan[i], from: packFrom[i], seed: (Number.isInteger(G.seed) ? G.seed : 1) * 101 + i }) : null;
+    const fight = plan?.[i] ? (ends) => partyCast(G, s, ends, { ref: foeRef, keeper: keeperRef, ...(ownFoe ? {} : { refs: kindRefs }), packs: plan[i], from: packFrom[i], seed: (Number.isInteger(G.seed) ? G.seed : 1) * 101 + i }) : null;
     // its minigames' stalls beside its fights (the bag carried by the fights' when there are any)
     const stall = games?.[i] ? (ends) => minigameCast(G, s, ends, { ref: keeperRef, games: games[i], bag: !fight }) : null;
     // its foes (foes.js) and its town's folk beside them; either alone keeps its goal's own cast beside it (an extra

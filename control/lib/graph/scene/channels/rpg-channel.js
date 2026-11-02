@@ -10,8 +10,11 @@
  *   ahead; back steps to the member before.
  *   THE PARTY MENU (P): the members on the left; Status, Class (switch), Skills (the class's tree: buy) on the right.
  *   RANDOM ENCOUNTERS: a roll every `every` metres the pilot walks, in the random zones (or anywhere).
+ *   A SHOP (rpg-shop:<id>): the party and the gold on the left; Buy (its wares at their price, into the bag), Sell
+ *   (the bag's priced things at half) and Stay (an inn: a night's rest for its price) on the right.
  *
- * It reads the bus's log for `rpg-battle:<encounter>`, `rpg-rest`, `rpg-join:<member>`, `rpg-open:<class>`, and pushes
+ * It reads the bus's log for `rpg-battle:<encounter>`, `rpg-rest`, `rpg-join:<member>`, `rpg-open:<class>`,
+ * `rpg-shop:<shop>`, and pushes
  * `rpg-won` / `rpg-fled` / `rpg-lost` (alone and `:<encounter>`) as a battle closes. With the party mechanic (the level
  * contract's game.party) the party is loaded from the store's slice as the level starts, and kept there as it changes.
  * Keys: the menu control scheme (arrows / WASD, Enter / Space / E accept, Escape / Backspace back, [ ] tabs; a pad in
@@ -115,6 +118,9 @@ export function rpgPage(cfg, K, ctl, jk) {
   let mode = null, phase = null, beats = [], bi = 0, bt = 0, shown = {}, msg = '', picks = {}, mi = 0, level = 'cmd', f = 0, pend = null, pops = [], dirty = true;
   let fm = 0, ftab = 0, flevel = 'members', ff = 0, fmsg = '', seen = 0, walked = 0, lastPos = null, rolls = 0, lastT = 0;
   const TABS = ['Status', 'Class', 'Equip', 'Skills'], SLOT = { weapon: 'Weapon', armor: 'Armor', accessory: 'Accessory' };
+  // (a shop's window: its id, its tab (Buy, Sell, Stay: what it does), the row, what was last said)
+  let shopId = null, shopAsk = null, stab = 0, sf = 0, smsg = '';
+  const SHOP_WHY = { gold: 'Not enough gold.', ware: '', none: 'None left to sell.', shop: '' };
   let fslot = null;   // the Equip tab's slot being chosen for
   // CARRIED (the party mechanic: the level contract's game.party): the roster loaded as the level starts, and each
   // number that changed since put back as a setStat after a fight, a class switch, a skill bought, a rest
@@ -580,6 +586,35 @@ export function rpgPage(cfg, K, ctl, jk) {
     mode = 'field'; flevel = 'members'; ff = 0; fmsg = ''; dirty = true;
   }
   function closeField() { mode = null; root.classList.remove('on'); root.innerHTML = ''; release(); }
+  // ── a shop and an inn (rpg.js shops): opened by a cue's rpg-shop:<id>, its wares bought with the gold into the bag ──
+  function openShop(sid) {
+    if (mode || busy() || !K.shopOf(cfg, sid)) return;
+    mode = 'shop'; shopId = sid; stab = 0; sf = 0; smsg = ''; dirty = true;
+  }
+  const shopTabs = () => { const S = K.shopOf(cfg, shopId); return !S ? [] : [...(S.wares.length ? ['Buy'] : []), ...(S.buys ? ['Sell'] : []), ...(S.inn != null ? ['Stay'] : [])]; };
+  function shopRows() {
+    const S = K.shopOf(cfg, shopId), tab = shopTabs()[stab];
+    if (!S) return [];
+    const deal = (fn, said, ev) => () => { bagFrom(); const why = fn(); bagSay(); smsg = why ? SHOP_WHY[why] || why : said; if (!why) { keep(); __inputQueue.push({ type: ev }); } };
+    if (tab === 'Buy') return K.waresOf(cfg, shopId, V()).map((w) => ({ label: w.name, right: w.price + ' G', small: w.have ? '×' + w.have : '', ok: (V()[cfg.rules.gold] || 0) >= w.price, go: deal(() => K.purchase(cfg, shopId, w.item, V()), 'Bought ' + w.name + '.', 'rpg-bought:' + shopId + ':' + w.item) }));
+    if (tab === 'Sell') return K.sellsOf(cfg, shopId, V()).map((w) => ({ label: w.name, right: w.price + ' G', small: '×' + w.have, ok: true, go: deal(() => K.sell(cfg, shopId, w.item, V()), 'Sold ' + w.name + '.', 'rpg-sold:' + shopId + ':' + w.item) }));
+    if (tab === 'Stay') return [{ label: 'A night\'s rest', right: S.inn + ' G', small: '', ok: (V()[cfg.rules.gold] || 0) >= S.inn, go: deal(() => K.stay(cfg, R, shopId, V()), 'Rested. The party is well.', 'rpg-stayed:' + shopId) }];
+    return [];
+  }
+  function drawShop() {
+    const S = K.shopOf(cfg, shopId), tabs = shopTabs(), rows = shopRows();
+    if (!S) return closeField();
+    let h = '<div class="moj-w moj-rpg-field moj-rpg-shop"><div class="mem"><div class="t">' + esc(S.name) + '</div>';
+    members().forEach((m) => { const St = K.statsOf(cfg, R, m); h += '<div class="opt"><span>' + esc(memberName(m)) + '<small>Lv ' + R.m[m].level + '</small></span><span>' + R.m[m].hp + '/' + St.hp + '</span></div>'; });
+    h += '<div class="note gold">Gold ' + (V()[cfg.rules.gold] || 0) + '</div></div><div class="pane"><div class="tabs">';
+    tabs.forEach((t, i) => { h += '<span class="tab' + (i === stab ? ' sel' : '') + '" data-tab="' + i + '">' + t + '</span>'; });
+    h += '</div>';
+    sf = Math.max(0, Math.min(sf, rows.length - 1));
+    if (!rows.length) h += '<div class="note">' + (tabs[stab] === 'Sell' ? 'Nothing to sell.' : '—') + '</div>';
+    rows.forEach((o, i) => { h += '<div class="opt' + (o.ok ? '' : ' off') + (i === sf ? ' on-f' : '') + '" data-i="' + i + '"><span>' + esc(o.label) + (o.small ? '<small>' + esc(o.small) + '</small>' : '') + '</span><span>' + esc(o.right) + '</span></div>'; });
+    h += (smsg ? '<div class="note">' + esc(smsg) + '</div>' : '') + '</div></div>';
+    root.innerHTML = h;
+  }
   const members = () => K.partyOf(cfg, R, V());
   function fieldRows() {
     const id = members()[fm];
@@ -630,7 +665,16 @@ export function rpgPage(cfg, K, ctl, jk) {
   // the menu control scheme (controls/schemes.js menu), the same keys and pad roles every menu answers to
   const KEYS = (ctl && ctl.keys) || {};
   function act(a) {
-    if (a === 'tabNext' || a === 'tabPrev') { if (mode !== 'field') return; a = a === 'tabNext' ? 'right' : 'left'; }
+    if (a === 'tabNext' || a === 'tabPrev') { if (mode !== 'field' && mode !== 'shop') return; a = a === 'tabNext' ? 'right' : 'left'; }
+    if (mode === 'shop') {
+      const rows = shopRows(), n = shopTabs().length;
+      if (a === 'up' && rows.length) sf = (sf + rows.length - 1) % rows.length;
+      else if (a === 'down' && rows.length) sf = (sf + 1) % rows.length;
+      else if ((a === 'left' || a === 'right') && n) { stab = (stab + (a === 'right' ? 1 : n - 1)) % n; sf = 0; smsg = ''; }
+      else if (a === 'accept' && rows[sf]) { if (rows[sf].ok) rows[sf].go(); else smsg = rows[sf].right ? SHOP_WHY.gold : ''; }
+      else if (a === 'back') return closeField();
+      dirty = true; return;
+    }
     if (mode === 'battle') {
       if (phase !== 'command') { if (a === 'accept') { if (film && film.long) skipFilm(); else advance(); } return; }
       const L = cmdList(), n = L.length;
@@ -684,6 +728,11 @@ export function rpgPage(cfg, K, ctl, jk) {
       if (aim && level === 'target') { const L = cmdList(), i = L.findIndex((x) => x.target === aim.getAttribute('data-aim')); if (i >= 0) { f = i; act('accept'); } }
       return;
     }
+    if (mode === 'shop') {
+      if (t) { stab = Number(t.getAttribute('data-tab')); sf = 0; smsg = ''; dirty = true; return; }
+      if (o) { sf = Number(o.getAttribute('data-i')); act('accept'); }
+      return;
+    }
     if (t) { ftab = Number(t.getAttribute('data-tab')); flevel = 'members'; fslot = null; dirty = true; return; }
     if (m) { fm = Number(m.getAttribute('data-m')); flevel = 'members'; fslot = null; dirty = true; return; }
     if (o) { ff = Number(o.getAttribute('data-i')); flevel = 'list'; act('accept'); }
@@ -729,9 +778,11 @@ export function rpgPage(cfg, K, ctl, jk) {
       else if (ty === 'rpg-rest') { K.rest(cfg, R, V()); keep(); }
       else if (ty.indexOf('rpg-join:') === 0) { R.joined[ty.slice(9)] = 1; keep(); }
       else if (ty.indexOf('rpg-open:') === 0) { R.opened[ty.slice(9)] = 1; keep(); }
+      else if (ty.indexOf('rpg-shop:') === 0) shopAsk = ty.slice(9);
     }
     seen = log.length;
     for (const enc of fights) startBattle(enc);
+    if (shopAsk) { openShop(shopAsk); shopAsk = null; }
   }
   function walk() {
     const Rn = cfg.random, w = window.__mojCtrl && window.__mojCtrl.world;
@@ -764,7 +815,7 @@ export function rpgPage(cfg, K, ctl, jk) {
     // the world holds still in a fight, but its moments (a juice's puffs, beams and shakes) play on: their clock runs
     if (mode === 'battle' && W()) W().time = (W().time || 0) + dt / 1000;
     if (mode) { hold(); root.classList.add('on'); }
-    if (mode && (dirty || pops.length)) { if (mode === 'battle') drawBattle(); else drawField(); dirty = false; }
+    if (mode && (dirty || pops.length)) { if (mode === 'battle') drawBattle(); else if (mode === 'shop') drawShop(); else drawField(); dirty = false; }
     if (mode === 'battle') {
       if (phase === 'play') film1(); else if (film) endFilm();
       for (const lv of ['none', 'numbers', 'all']) { root.classList[filmUi === lv ? 'add' : 'remove']('cine-' + lv); heads.classList[filmUi === lv ? 'add' : 'remove']('cine-' + lv); }
@@ -776,8 +827,8 @@ export function rpgPage(cfg, K, ctl, jk) {
   }
   const api = {
     step, R,
-    state: () => ({ mode, phase, msg, level, member: mode === 'battle' && phase === 'command' ? commanders()[mi] : null, options: mode === 'battle' && phase === 'command' ? cmdList().map((o) => ({ label: o.label, ok: o.ok })) : [] }),
-    start: startBattle, act, advance, open: openField, close: () => (mode === 'field' ? closeField() : null),
+    state: () => ({ mode, phase, msg, level, member: mode === 'battle' && phase === 'command' ? commanders()[mi] : null, options: mode === 'battle' && phase === 'command' ? cmdList().map((o) => ({ label: o.label, ok: o.ok })) : [], ...(mode === 'shop' ? { shop: { id: shopId, tab: shopTabs()[stab], rows: shopRows().map((o) => ({ label: o.label, right: o.right, ok: o.ok })), said: smsg } } : {}) }),
+    start: startBattle, act, advance, open: openField, close: () => (mode === 'field' || mode === 'shop' ? closeField() : null), shop: openShop,
     // (the view a fight is seen from, over the book's: for a preview of the views, the next fight staged in it)
     view: (name) => { viewOver = VIEWS[name] ? name : null; if (mode === 'battle' && staged) { unstage(); stage(); placeDue = 3; dirty = true; } return viewOver; },
   };
