@@ -26,13 +26,15 @@
  *   applyCorrectives(ctx, set, pose) → the corrected vertices (LBS with the keys added in bind space)
  *   bindDeltas(set, rest, pose) → vertex → its keys' offset in bind space
  *   skinContext(B, mesh) → { B, mesh, F, rest, iso, nbr }
- *   correctiveCorpus(B, { phases }) → [{ label, frames }] (every gait round its cycle, the jump, grazing, resting a hind)
+ *   correctiveCorpus(B, { phases, ridden }) → [{ label, frames }] (every gait round its cycle, the jump, grazing, resting a
+ *     hind; `ridden` the gaits again in the ridden head carriage)
  *   foldMeasures(ctx, pose, x, oracle) → { off: { p95, max } (from the oracle, at the folds), volume, inverted }
  *   correctiveGates(ctx, set, poses) → { checks: [{ name, pass, saw, want }], rows } on poses the fit never saw
  */
 import { MOUNT_BONES } from './pose.js';
 import { standPose, gaitCycle } from './gait.js';
 import { jumpClip } from './jump.js';
+import { carriageOf, riddenFrame } from './ridden.js';
 import { restState } from './idle.js';
 import { boneFrames, skinPose } from './skin.js';
 import { bodyField } from './body.js';
@@ -310,7 +312,7 @@ export function applyCorrectives(ctx, set, pose, weights = correctiveWeights(set
 }
 
 /** the poses the clips make: each gait round its cycle, the jump through its flight, grazing, resting a hind */
-export function correctiveCorpus(B, { phases = 8, jumpSamples = 12 } = {}) {
+export function correctiveCorpus(B, { phases = 8, jumpSamples = 12, ridden = false } = {}) {
   const out = [];
   for (const g of ['walk', 'trot', 'canter', 'gallop']) {
     const c = gaitCycle(B, g);
@@ -320,6 +322,13 @@ export function correctiveCorpus(B, { phases = 8, jumpSamples = 12 } = {}) {
   for (let i = 0; i < jumpSamples; i++) { const t = jp.duration * (i + 0.5) / jumpSamples; out.push({ label: `jump ${t.toFixed(2)} s`, frames: boneFrames(B, jp.poseAt(t)) }); }
   out.push({ label: 'grazing', frames: boneFrames(B, restState(B, { graze: 1 })) });
   out.push({ label: 'resting a hind', frames: boneFrames(B, restState(B, { restHind: 'L', rest: 1 })) });
+  // `ridden`: the gaits again in the ridden head carriage (the neck up, the poll flexed: ridden.js), so a ridden
+  // export's shapes cover the throat and the neck's base as a rider has them
+  if (ridden) {
+    const turns = carriageOf(standPose(B));
+    for (const g of ['walk', 'trot', 'canter']) { const c = gaitCycle(B, g); for (let i = 0; i < phases; i++) out.push({ label: `${g} ridden ${(i / phases).toFixed(3)}`, frames: boneFrames(B, riddenFrame(c.poseAt(i / phases), turns)) }); }
+    out.push({ label: 'halt ridden', frames: boneFrames(B, riddenFrame(standPose(B), turns)) });
+  }
   return out;
 }
 

@@ -143,6 +143,33 @@ describe('the mount exported', () => {
     expect(g.pack.bones.length).toBe(nb);
   });
 
+  it('ridden: the sockets keyed through the clips (the seat on the saddle, the bits on the head), each clip\'s seat in its extras', async () => {
+    const { rideSockets, ridingGeometry, rideTargets, RIDER_MODES, riderModeAt } = await import('./ridden.js'), { tackPieces } = await import('./tack.js');
+    const rest = boneFrames(B, standPose(B)), anchors = tackPieces(B, { reins: false }).anchors, cal = { leather: 0.35, out: 0.1 };
+    const rc = mountClips(B, { names: ['trot'], ridden: true }), sockets = rideSockets(anchors, rest, cal);
+    const extra = { joints: sockets.joints, keysAt: (n, k, f) => { const geo = ridingGeometry(anchors, f, rest); return sockets.keys(rideTargets(geo, riderModeAt(n, rc[n], 0), cal), geo, f); }, clipExtras: { trot: { 'moj:ride': { lean: [12] } } } };
+    const h = mountGlb(B, { mesh: m, clips: rc, hair: false, extra }), H = glbOf(h.bytes), skin = H.json.skins[0], names = skin.joints.map((ni) => H.json.nodes[ni].name);
+    for (const id of ['socket:seat', 'socket:saddle', 'socket:ironR', 'socket:bitL']) expect(names).toEqual(expect.arrayContaining([expect.stringContaining(id)]));
+    expect(H.json.animations[0].extras['moj:ride'].lean).toEqual([12]);
+    // a key: the bit's socket where the head carries the bit; the seat's where the saddle carries the seat (the trot sits
+    // or rises above it)
+    const k = 5, K = h.pack.clips.trot.k, f = boneFrames(B, rc.trot.at(rc.trot.s * k / K)), geo = ridingGeometry(anchors, f, rest);
+    const bi = names.findIndex((x) => x.includes('socket:bitL')), si = names.findIndex((x) => x.includes('socket:saddle')), b = h.pack.clips.trot.b, nb = h.pack.bones.length;
+    const at = (j) => b.slice((k * nb + j) * 7 + 4, (k * nb + j) * 7 + 7);
+    expect(Math.hypot(...at(bi).map((x, i) => x - geo.bits.L[i]))).toBeLessThan(1e-4);
+    expect(Math.hypot(...at(si).map((x, i) => x - geo.seat[i]))).toBeLessThan(1e-4);
+    // ridden: the poll carried higher than loose, the face nearer the vertical (the carriage's), the bit back toward the
+    // rider
+    const { CARRIAGE } = await import('./ridden.js'), loose = mountClips(B, { names: ['trot'] }), f0 = loose.trot.at(0), f1 = rc.trot.at(0);
+    const face = (b) => Math.atan2(b.tail[1] - b.head[1], b.head[2] - b.tail[2]) * 180 / Math.PI;
+    expect(f1.bones.head.head[2]).toBeGreaterThan(f0.bones.head.head[2] + 0.03);
+    expect(face(f1.bones.head)).toBeLessThan(face(f0.bones.head) - 15);
+    const sf = standPose(B), { carriageOf, riddenFrame } = await import('./ridden.js');
+    expect(face(riddenFrame(sf, carriageOf(sf)).bones.head)).toBeCloseTo(CARRIAGE.face, 6);
+    expect(ridingGeometry(anchors, boneFrames(B, f1), rest).bits.R[1]).toBeLessThan(ridingGeometry(anchors, boneFrames(B, f0), rest).bits.R[1] - 0.15);
+    void RIDER_MODES;
+  }, 120000);
+
   it('every clip it names can be made', () => {
     const all = mountClips(B);
     expect(Object.keys(all)).toEqual([...MOUNT_CLIPS]);

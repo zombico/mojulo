@@ -15,6 +15,10 @@
  * simulation through it (its swing, as the sheets show it); 'rigid': the chains ride the bones they grow from (an
  * engine's spring bones or cloth may swing them); false: no hair.
  *
+ * EXTRA joints (`extra`: { joints: [{ id, head, tail }], keysAt(clip, k, frames, t) → [{ R, h }], meshes: [{ vertices,
+ * quads, colors, skin }], clipExtras: { clip: {…} } }): joints the caller keys itself after the rig's and the hair's,
+ * meshes skinned to them, and each clip's own extras in its animation (a ridden export's sockets, reins and ride).
+ *
  * THE CLIPS are IN PLACE: a gait's cycle loops on the spot and carries its ground speed (`moj:speed` in the GLB: an
  * engine moves the body at that speed, or plays the cycle at its planar speed ÷ it); a one-shot (a transition, the
  * jump) keeps its own course in place as well, its travel in its extras. Sampled at `fps` (a cycle at a whole number of
@@ -103,12 +107,13 @@ const turnOf = (r, p) => [0, 1, 2].map((a) => [0, 1, 2].map((b) => p.R[0][a] * r
  * (correctives.js fitCorrectives / correctiveKeys), or null for none (then no targets and no weights: plain LBS);
  * `clips` mountClips' samplers; `fps` the keys a second.
  */
-export function mountPack(B, { mesh, coat = 'bay', markings = {}, set = null, clips = {}, fps = 30, hair = 'baked', tack = false } = {}) {
+export function mountPack(B, { mesh, coat = 'bay', markings = {}, set = null, clips = {}, fps = 30, hair = 'baked', tack = false, extra = null } = {}) {
   if (hair === true) hair = 'baked';
   const stand = standPose(B), rest = boneFrames(B, stand), body = MOUNT_BONES.map((b) => b.id);
-  const rig = hair ? hairRig(B) : null, ids = [...body, ...(rig ? rig.joints.map((J) => J.id) : [])], index = new Map(ids.map((id, i) => [id, i]));
+  const rig = hair ? hairRig(B) : null, ids = [...body, ...(rig ? rig.joints.map((J) => J.id) : []), ...(extra ? extra.joints.map((J) => J.id) : [])], index = new Map(ids.map((id, i) => [id, i]));
   const bones = [...MOUNT_BONES.map((b) => ({ id: b.id, head: stand.bones[b.id].head.map(r5), tail: stand.bones[b.id].tail.map(r5) })),
-    ...(rig ? rig.joints.map((J) => ({ id: J.id, head: J.head.map(r5), tail: J.tail.map(r5) })) : [])];
+    ...(rig ? rig.joints.map((J) => ({ id: J.id, head: J.head.map(r5), tail: J.tail.map(r5) })) : []),
+    ...(extra ? extra.joints.map((J) => ({ id: J.id, head: J.head.map(r5), tail: J.tail.map(r5) })) : [])];
   // the targets: every driver's keys, in order
   const targets = set ? set.drivers.flatMap((d) => d.keys.map((kk, ki) => ({ id: `${d.id}@${Math.round(kk.angle * 180 / Math.PI)}`, driver: { id: d.id, parent: d.parent, child: d.child, angle: r5(kk.angle), key: ki }, w: 0 }))) : [];
   const rowOf = new Map();                                         // vertex → its rows (3 × targets), where any target moves it
@@ -172,6 +177,20 @@ export function mountPack(B, { mesh, coat = 'bay', markings = {}, set = null, cl
       }
     }));
   }
+  // EXTRA joints' meshes (`extra`: the reins on their chains, ride.js): each quad's two faces on its vertices' joints
+  if (extra) for (const em of extra.meshes ?? []) em.quads.forEach((q, qi) => {
+    const V = q.map((i) => em.vertices[i]), col = hexLinear(em.colors[qi]);
+    const n = (() => { const u = [V[2][0] - V[0][0], V[2][1] - V[0][1], V[2][2] - V[0][2]], v = [V[3][0] - V[1][0], V[3][1] - V[1][1], V[3][2] - V[1][2]], c = [u[1] * v[2] - u[2] * v[1], u[2] * v[0] - u[0] * v[2], u[0] * v[1] - u[1] * v[0]], l = Math.hypot(...c); return l > 1e-12 ? c.map((x) => x / l) : null; })();
+    if (!n) return;
+    const votes = new Map(); for (const i of q) for (const [j, w] of em.skin[i]) votes.set(j, (votes.get(j) || 0) + w);
+    const part = P[index.get([...votes.entries()].sort((a2, b2) => b2[1] - a2[1])[0][0])];
+    part.faces += 2;
+    for (const c of [0, 1, 2, 0, 2, 3]) {
+      const i = q[c], w = [...em.skin[i], ...Array(4).fill(['spine1', 0])].slice(0, 4);
+      part.pos.push(...em.vertices[i]); part.col.push(...col); part.nrm.push(...n);
+      part.jnt.push(...w.map(([j]) => index.get(j))); part.wgt.push(...w.map(([, x]) => x));
+    }
+  });
   const parts = P.map((p) => (p.faces ? {
     pos: b64f32(p.pos), col: b64u8(p.col), faces: p.faces, jnt: b64bytes(p.jnt), wgt: b64f32(p.wgt), nrm: b64f32(p.nrm),
     ...(p.ci.length ? { corrective: { i: b64u32(p.ci), d: b64f32(p.cd) } } : {}),
@@ -189,9 +208,11 @@ export function mountPack(B, { mesh, coat = 'bay', markings = {}, set = null, cl
         const keys = strands ? hairJointKeys(rig, strands[k], f, rest) : rig.joints.map((J) => { const R = turnOf(rest[J.bone], f[J.bone]), d = J.head.map((x, i) => x - rest[J.bone].h[i]); return { R, h: [0, 1, 2].map((a2) => f[J.bone].h[a2] + R[a2][0] * d[0] + R[a2][1] * d[1] + R[a2][2] * d[2]) }; });
         for (const kj of keys) b.push(...quatOfRows(kj.R).map(r5), ...kj.h.map(r5));
       }
+      // the extra joints' keys (the sockets and the reins of a ridden export: their caller's)
+      if (extra) for (const kj of extra.keysAt(name, k, f, t)) b.push(...quatOfRows(kj.R).map(r5), ...kj.h.map(r5));
       if (cw) { const w = new Map(correctiveWeights(set, rest, f).map((x) => [`${x.driver}:${x.key}`, x.w])); for (const tg of targets) cw.push(r5(w.get(`${tg.driver.id}:${tg.driver.key}`) ?? 0)); }
     }
-    packed[name] = { k: K, b, ...(cw ? { cw } : {}), s: r5(c.s), ...(c.once ? { once: true } : {}), ...(c.v > 0 ? { v: r5(c.v) } : {}) };
+    packed[name] = { k: K, b, ...(cw ? { cw } : {}), s: r5(c.s), ...(c.once ? { once: true } : {}), ...(c.v > 0 ? { v: r5(c.v) } : {}), ...(extra?.clipExtras?.[name] ? { extras: extra.clipExtras[name] } : {}) };
   }
   return {
     rig: true, weld: true, bones, parts, clips: packed, figH: r5(Math.max(...mesh.vertices.map((v) => v[2])) - Math.min(...mesh.vertices.map((v) => v[2]))),

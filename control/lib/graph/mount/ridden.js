@@ -84,8 +84,8 @@ export function reinCurve(bit, hand, length, n = 4) {
  * hands go where the elbow and the bit put them), `carriage` the share of the ridden head carriage the horse takes
  * (CARRIAGE: in hand at the walk, the trot and the canter, half stretched at the gallop, free over the fence and grazing) */
 export const RIDER_MODES = Object.freeze({
-  sit: { lift: 0, rise: 0, follow: 1, lean: 2, pelvis: 0, stirrup: 0, elbow: 15, carriage: 1 },
-  rise: { lift: 0, rise: 0.085, follow: 1, lean: 12, pelvis: 4, stirrup: 0, elbow: 22, carriage: 1 },
+  sit: { lift: 0, rise: 0, follow: 1, lean: 2, pelvis: 0, stirrup: 0, elbow: 5, carriage: 1 },
+  rise: { lift: 0, rise: 0.085, follow: 1, lean: 12, pelvis: 4, stirrup: 0, elbow: 10, carriage: 1 },
   two: { lift: 0.11, rise: 0, follow: 0.35, lean: 34, pelvis: 12, stirrup: -0.05, elbow: 50, carriage: 0.5 },
   fold: { lift: 0.12, rise: 0, follow: 0.35, lean: 58, pelvis: 18, stirrup: -0.05, elbow: 70, carriage: 0 },
   graze: { lift: 0, rise: 0, follow: 1, lean: 4, pelvis: 0, stirrup: 0, elbow: 30, carriage: 0 },
@@ -107,9 +107,9 @@ export function riderModeAt(name, clip, t) {
 }
 
 /**
- * THE RIDDEN HEAD CARRIAGE: a horse under a rider carries its neck up from the withers and its face nearer the
- * vertical (flexed at the poll, the nose in, the bit higher and the rein's line to the hands flatter) than it does
- * loose. Laid on any solved frame: the neck and everything on it turned up at the neck's base by `raise`, then the head
+ * THE RIDDEN HEAD CARRIAGE: a horse under a rider carries its neck up from the withers (the poll the highest point) and
+ * its face nearer the vertical (flexed at the poll, the nose in: the bit comes back toward the rider's hands, a little
+ * lower) than it does loose. Laid on any solved frame: the neck and everything on it turned up at the neck's base by `raise`, then the head
  * flexed at the poll until its face line stands `face` in front of the vertical at the stand (the same turns every
  * frame, so the gait's own nod rides on top), by `w` (the seat's share: CARRIAGE per mode).
  */
@@ -150,3 +150,67 @@ export function riderClipModes(name, clip, frames, keyTime) {
   }
   return frames.map((f, k) => { const m = modeAt(keyTime(k)); return { mode: m, rise: m.rise * arch[k] }; });
 }
+
+// ─── the export's riding interface ──────────────────────────────────────────────────────────────────────────────
+/** a bone's rotation from the stand into a pose, row-major (a rest vector v → Σ_k (R_k·v) P_k) */
+const turnOf = (r, p) => [0, 1, 2].map((a) => [0, 1, 2].map((b) => p.R[0][a] * r.R[0][b] + p.R[1][a] * r.R[1][b] + p.R[2][a] * r.R[2][b]));
+const mv = (M, v) => [M[0][0] * v[0] + M[0][1] * v[1] + M[0][2] * v[2], M[1][0] * v[0] + M[1][1] * v[1] + M[1][2] * v[2], M[2][0] * v[0] + M[2][1] * v[1] + M[2][2] * v[2]];
+const mm = (A, B2) => [0, 1, 2].map((i) => [0, 1, 2].map((j) => A[i][0] * B2[0][j] + A[i][1] * B2[1][j] + A[i][2] * B2[2][j]));
+/** the shortest rotation carrying unit a onto unit b (row-major) */
+function between(a, b) {
+  const v = [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]], c = dot(a, b);
+  if (dot(v, v) < 1e-18) return [[1, 0, 0], [0, 1, 0], [0, 0, 1]];
+  const K = [[0, -v[2], v[1]], [v[2], 0, -v[0]], [-v[1], v[0], 0]], f = 1 / (1 + c);
+  return [0, 1, 2].map((i) => [0, 1, 2].map((j) => (i === j ? 1 : 0) + K[i][j] + f * (K[i][0] * K[0][j] + K[i][1] * K[1][j] + K[i][2] * K[2][j])));
+}
+
+/**
+ * THE SOCKETS a ridden export carries for whoever rides it (an engine's own characters, by its IK): `socket:saddle` the
+ * seat's middle on the saddle, `socket:seat` where the sit bones go in the moment (the seat's lift, the rising trot,
+ * the two-point's steadier seat), `socket:bar*` the stirrup bars, `socket:iron*` the irons' treads (`cal`: the
+ * leathers and how far round the barrel), `socket:bit*` the bit's rings. Each turns as the bone it rides (the saddle's,
+ * the head's). → { joints, keys(targets, geo, frames, rest) }
+ */
+export function rideSockets(anchors, rest, cal) {
+  const geo0 = ridingGeometry(anchors, rest, rest), t0 = rideTargets(geo0, RIDER_MODES.sit, cal);
+  const spec = [
+    ['socket:saddle', 'saddle', geo0.seat, (g) => g.seat],
+    ['socket:seat', 'saddle', t0.seat, (g, T) => T.seat],
+    ['socket:barR', 'saddle', geo0.bars.R, (g) => g.bars.R], ['socket:barL', 'saddle', geo0.bars.L, (g) => g.bars.L],
+    ['socket:ironR', 'saddle', t0.irons.R, (g, T) => T.irons.R], ['socket:ironL', 'saddle', t0.irons.L, (g, T) => T.irons.L],
+    ['socket:bitR', 'head', geo0.bits.R, (g) => g.bits.R], ['socket:bitL', 'head', geo0.bits.L, (g) => g.bits.L],
+  ];
+  return {
+    joints: spec.map(([id, , h]) => ({ id, head: h, tail: add(h, [0, 0.05, 0]) })),
+    keys: (T, geo, frames) => spec.map(([, bone, , at]) => ({ R: turnOf(rest[bone], frames[bone]), h: at(geo, T) })),
+  };
+}
+
+/**
+ * THE REINS on chains: from each bit ring to its fist, `length` long, `n` joints along it; the ribbon laid along the
+ * rest's curve and skinned to them (a vertex wholly on its stretch's joint). A key: the curve at that moment (taut or
+ * looping), each joint at its point turned from its rest stretch onto its posed one. → { joints, mesh, keys(bits, fists) }
+ */
+export function reinRig(restBits, restFists, length, { n = 4, width = 0.018, thick = 0.005, colour = '#5a3a24' } = {}) {
+  const joints = [], vertices = [], quads = [], colors = [], skin = [], rest = {};
+  for (const S of ['R', 'L']) {
+    const pts = reinCurve(restBits[S], restFists[S], length, n); rest[S] = pts;
+    for (let j = 0; j < n; j++) joints.push({ id: `rein:${S}:${j}`, head: pts[j], tail: pts[j + 1] });
+    // (a flat strap: four rails along the curve, its width across, its thickness up)
+    const base = vertices.length, sub2 = 3;
+    for (let j = 0; j < n; j++) for (let s2 = 0; s2 <= (j === n - 1 ? sub2 : sub2 - 1); s2++) {
+      const p = lerp(pts[j], pts[j + 1], s2 / sub2), t = unit(sub(pts[j + 1], pts[j])), w = unit([-t[1], t[0], 0]);
+      for (const [a, b] of [[-1, 0], [1, 0], [1, 1], [-1, 1]]) { vertices.push(add(add(p, mul(w, a * width / 2)), [0, 0, b * thick])); skin.push([[`rein:${S}:${j}`, 1]]); }
+    }
+    const rings = (vertices.length - base) / 4;
+    for (let r = 0; r + 1 < rings; r++) for (let s3 = 0; s3 < 4; s3++) { const a = base + 4 * r, b = a + 4; quads.push([a + s3, b + s3, b + ((s3 + 1) % 4), a + ((s3 + 1) % 4)]); colors.push(colour); }
+  }
+  return {
+    joints, mesh: { vertices, quads, colors, skin },
+    keys: (bits, fists) => ['R', 'L'].flatMap((S) => {
+      const pts = reinCurve(bits[S], fists[S], length, n);
+      return Array.from({ length: n }, (_, j) => ({ R: between(unit(sub(rest[S][j + 1], rest[S][j])), unit(sub(pts[j + 1], pts[j]))), h: pts[j] }));
+    }),
+  };
+}
+void mv; void mm;

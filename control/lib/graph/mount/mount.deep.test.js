@@ -172,3 +172,30 @@ describe('the rider on the mount', () => {
     }
   }, 600000);
 });
+
+// a character put on the horse (the rider is a function: here the realistic hero, any the studio makes would do): its
+// clips keyed on the horse's own keys under the same names, its sit bones on the seat's socket, the reins from the bits
+// to its fists
+describe('a character on the mount', () => {
+  it('rides the trot on the horse\'s keys, the reins in its fists', async () => {
+    const { heroRecord, expandLayeredManifest } = await import('../../mcp/tools/layered.js');
+    const { validateRig, rigNodesAt } = await import('../polygonizer/station-loft-rig.js');
+    const { tackPieces } = await import('./tack.js'), { riderSeat, rideCharacter, rideSockets, reinRig, ridingGeometry } = await import('./rider.js');
+    const { mountClips } = await import('./export.js'), { bodyField } = await import('./body.js'), { boneFrames: bf } = await import('./skin.js');
+    const { ischOf } = await import('../polygonizer/hero-rest.js');
+    const recipe = expandLayeredManifest({ kind: 'layered', hero: heroRecord({ cast: 'female', form: 'realistic' }) }).recipe, H = { R: { ...validateRig(recipe.rig), reach: 'clamp' } };
+    const B = resolveMount('horse'), F = bodyField(B), rest = bf(B, standPose(B)), anchors = tackPieces(B, { reins: false }).anchors;
+    const cal = riderSeat(H, ridingGeometry(anchors, rest, rest), (p) => F.field(p)), clips = mountClips(B, { names: ['trot'], ridden: true });
+    const rc = rideCharacter(B, H, clips, { anchors, cal, rest }), r = rc.trot;
+    expect(r.K).toBe(Math.round(clips.trot.s * 30));
+    const sockets = rideSockets(anchors, rest, cal), d = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
+    for (const k of [0, Math.floor(r.K / 2)]) {
+      const n = rigNodesAt(H.R, r.poses[k]).nodes, seat = sockets.keys(r.targets[k], r.geos[k], bf(B, clips.trot.at(clips.trot.s * k / r.K)))[1].h;
+      // (the sit bones: the pelvis hub's offset, turned with the pelvis; within a couple of centimetres of the socket)
+      const isch = ischOf(H.R), hub = n.pelvisHub, sb = [hub[0] + isch[0], hub[1] + isch[1], hub[2] + isch[2]];
+      expect(d(sb, seat)).toBeLessThan(0.04);
+      const reins = reinRig(anchors.bits, r.fists[0], 0.9), keys = reins.keys(r.geos[k].bits, r.fists[k]);
+      expect(d(keys[0].h, r.geos[k].bits.R)).toBeLessThan(1e-9);
+    }
+  }, 600000);
+});

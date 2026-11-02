@@ -95,6 +95,18 @@ rather than over it (the fauna horse's rows stay byte-identical). Solo; the sadd
   held up in every seat, the neck and head extending against the trunk's lean within what the neck holds, so the rider
   sees where it is going. The tack's anchors (the seat, the stirrup bars, the bit's rings, the crest) are where it meets
   the horse.
+- **Riding as a function** (`mount/ridden.js`): what riding asks, with no character in it. The seat for each moment of
+  each clip; the ridden head carriage, with the neck raised at the withers and the face flexed at the poll toward the
+  vertical (free over the fence and when grazing); and the riding targets: where the sit bones go, the pelvis's tilt,
+  the trunk's lean, the irons' treads, the arms' setting. The reins are a fixed length from the bit to the fist, taut
+  or looping. Any character the studio makes is solved to those targets by its own posing words (`rideCharacter`).
+- **The ridden export** (`node scripts/export-mount.mjs <dir> --ride`, or `--rider '<character>'`): the horse in its
+  ridden carriage and tacked, carrying the riding interface. Sockets keyed through every clip (the seat, the stirrup
+  bars, the irons, the bit's rings) and each clip's seat in its extras, so an engine can seat its own characters by IK.
+  With `--rider` (a hero spec minted once and cached, or `@recipe.json`) the character rides in the same GLB as its own
+  skinned figure, its clips named and keyed as the horse's (`rider:trot` plays with `mount:trot`), the reins on chains
+  from the bit to its fists. The correctives are fit over the ridden carriage too. The live viewer plays the horse and
+  its rider together.
 - **The machine gate** (`mount/gates.js`): footfalls and duty, suspensions, slip, ground, the flight at g, the joints'
   ranges and the hip's, reach, pops, rigid bones, brushing, the seams of a one-shot, the rail's clearance, a layer's loop. Every
   gait at both band ends, both leads, both registers; every one-shot; every realistic jump; every idle layer pass it.

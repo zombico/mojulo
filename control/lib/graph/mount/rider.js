@@ -27,13 +27,19 @@
  *   RIDER_MODES, riderSeat(H, geo0) → the rider's calibration (stirrup length, splay) at the stand
  *   riderPose(H, cal, geo, mode, seed) → { pose (the hero's words), contacts, seed }
  *   riderClipModes(name, clip, frames) → per key the mode's parameters (blended), the rise from the footfalls
+ *   rideCharacter(B, H, clips, { anchors, cal, rest, fps }) → per clip, at the horse's own keys: the character's pose
+ *     words, its fists (the reins'), the targets (the sockets'), the horse's geometry
+ *
+ * THE RIDER IS A FUNCTION, not a model: H is any character the studio makes ({ R: its rig, … }: a layered recipe's
+ * validated rig), solved to the targets the horse asks (ridden.js rideTargets) by its own posing words.
  */
 import '../polygonizer/hero-motion.js';                          // (first: hero-rest's cycle through it resolves in this order)
 import { rigNodesAt, HAND_POSES } from '../polygonizer/station-loft-rig.js';
 import { reachArm } from '../polygonizer/hero-stance.js';
 import { ischOf, turnOf } from '../polygonizer/hero-rest.js';
-import { RIDER_MODES, IRON_DROP, rideTargets } from './ridden.js';
-export { RIDER_MODES, riderModeAt, riderClipModes, CARRIAGE, carriageOf, riddenFrame, ridingGeometry, rideTargets, reinCurve, IRON_DROP } from './ridden.js';
+import { RIDER_MODES, IRON_DROP, rideTargets, riderClipModes, ridingGeometry } from './ridden.js';
+import { boneFrames } from './skin.js';
+export { RIDER_MODES, riderModeAt, riderClipModes, CARRIAGE, carriageOf, riddenFrame, ridingGeometry, rideTargets, reinCurve, IRON_DROP, rideSockets, reinRig } from './ridden.js';
 
 const add = (a, b) => [a[0] + b[0], a[1] + b[1], a[2] + b[2]];
 const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
@@ -160,3 +166,27 @@ export function riderSeat(H, geo0, clear) {
   return cal;
 }
 
+
+/** the fist's middle (the rein runs through it): between the wrist and the knuckles */
+export const fistOf = (n, S) => n[`wrist${S}`].map((x, i) => x + (n[`knuckles${S}`][i] - x) * 0.55);
+
+export function rideCharacter(B, H, clips, { anchors, cal, rest, fps = 30 } = {}) {
+  const out = {};
+  for (const [name, c] of Object.entries(clips)) {
+    const K = c.once ? Math.max(2, Math.round(c.s * fps) + 1) : Math.max(2, Math.round(c.s * fps)), kt = (k) => (c.once ? c.s * k / (K - 1) : c.s * k / K);
+    const frames = Array.from({ length: K }, (_, k) => c.at(kt(k))), F = frames.map((f) => boneFrames(B, f)), geos = F.map((f) => ridingGeometry(anchors, f, rest));
+    const modes = riderClipModes(name, c, frames, kt), wk = Math.max(1, Math.round(0.17 * fps));
+    // (the two-point's steadier seat: the saddle's place averaged over a third of a second)
+    const hold = geos.map((_, k) => { const acc = [0, 0, 0]; let m = 0; for (let j = -wk; j <= wk; j++) { const i = c.once ? Math.min(K - 1, Math.max(0, k + j)) : (k + j + K) % K; for (let q = 0; q < 3; q++) acc[q] += geos[i].seat[q]; m++; } return acc.map((x) => x / m); });
+    const poses = [], fists = [], targets = [];
+    let seed = {};
+    for (let k = 0; k < K; k++) {
+      const o = { rise: modes[k].rise, seatHold: hold[k] }, r = riderPose(H, cal, geos[k], modes[k].mode, { ...o, seed });
+      seed = r.seed; poses.push(r.pose);
+      const n = rigNodesAt(H.R, r.pose).nodes; fists.push({ R: fistOf(n, 'R'), L: fistOf(n, 'L') });
+      targets.push(rideTargets(geos[k], modes[k].mode, cal, o));
+    }
+    out[name] = { K, once: !!c.once, s: c.s, poses, fists, targets, geos, modes };
+  }
+  return out;
+}
