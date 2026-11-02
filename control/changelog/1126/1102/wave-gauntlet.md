@@ -18,3 +18,11 @@ that is a glove. Built so far:
   (`foe-<id>-g<n>`, each as every hostile is: its class, figure and hp) and woken with their wave; they are fielded, so a
   run makes their figures. Refused beside a boss or health (the gauntlet owns the hero's hp and ends the level), and on a
   building (its arena is to come).
+- **Laws, book and words**: its principles measured on the recipe, advice in `design_game`'s readout
+  (`advice.gauntlet`, each named by its level): `escalates` (no wave lighter than the last in its arena, no arena
+  lighter than the last), `breathes` (a pause before each arena after the first), `varied` (no three arenas in a row
+  alike), `checkpointed` (more than ten arenas, a checkpoint). The book's wave gauntlets section
+  (`gameworld/gauntlet-page.js`) draws each as its grid, arenas by waves, each cell its mix, the checkpoints marked, its
+  laws beside. The foes card names the goal. A prompt's `horde` or `onslaught` holds the last level a boss does not end
+  in a default gauntlet of two arenas (its last stage a trail, no health beside it); `gauntlet` and `waves` are not read
+  from a prompt (a glove, a tower defence).

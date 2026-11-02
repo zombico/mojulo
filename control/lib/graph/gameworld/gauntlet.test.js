@@ -8,7 +8,10 @@ import { MEADOWMARK } from './examples.js';
 import { readGameworld } from './world.js';
 import { gameStages, stageLevelOrder } from './levels.js';
 import { levelGoalMechanics } from './quick.js';
-import { gauntletPlacements } from './gauntlet.js';
+import { gauntletPlacements, gauntletLaws, GAUNTLET_LAWS, readGauntletGoal, DEFAULT_GAUNTLET } from './gauntlet.js';
+import { gauntletPage } from './gauntlet-page.js';
+import { esc } from './bible-html.js';
+import { composeGameworld } from './compose.js';
 import { gauntletCast } from './gauntlet-cast.js';
 import { fieldedIds } from './foes.js';
 import { runSteps } from './runner.js';
@@ -73,4 +76,45 @@ describe('a level goal held as a wave gauntlet', () => {
     expect(lv.game.mechanics.some((m) => m.kind === 'wave-gauntlet')).toBe(true);
     expect(lv.entities.filter((e) => e.dormant && /-g\d+$/.test(e.id))).toHaveLength(6);
   }, 300000);
+});
+
+describe('its laws, its book and its word', () => {
+  it('laws: escalates, breathes, varied, checkpointed — each holding, each advising when it fails', () => {
+    const read = (g) => readGauntletGoal(g, 'x', null);
+    // (this file's own lift advises: its second arena wakes 2 after the first's 4)
+    expect(gauntletLaws(G.levels.lift.goal.gauntlet).find((l) => l.law === 'escalates')).toMatchObject({ holds: false, says: 'arena 2 (2 after 4): lighter than before' });
+    const ok = gauntletLaws(read(DEFAULT_GAUNTLET));
+    expect(ok.map((l) => l.law)).toEqual(Object.keys(GAUNTLET_LAWS));
+    for (const l of ok) expect(l.holds, `${l.law}: ${l.says}`).toBe(true);
+    const fail = (g, law) => expect(gauntletLaws(read(g)).find((l) => l.law === law)).toMatchObject({ holds: false });
+    fail({ arenas: [{ waves: [{ walker: 3 }, { walker: 1 }] }] }, 'escalates');
+    fail({ arenas: [{ waves: [{ walker: 3 }] }, { waves: [{ walker: 1 }] }] }, 'escalates');
+    fail({ arenas: [{ waves: [{ walker: 1 }] }, { waves: [{ walker: 1 }], after: 0.5 }] }, 'breathes');
+    fail({ arenas: Array.from({ length: 3 }, () => ({ waves: [{ walker: 2 }] })) }, 'varied');
+    fail({ arenas: Array.from({ length: 11 }, (_, i) => ({ waves: [{ walker: 1 + i }] })) }, 'checkpointed');
+    expect(gauntletLaws(read({ arenas: Array.from({ length: 11 }, (_, i) => ({ waves: [{ walker: 1 + i }] })), checkpoint: 10 })).find((l) => l.law === 'checkpointed').holds).toBe(true);
+  });
+
+  it('the book draws its grid, arenas by waves, each cell its mix, the checkpoints marked, its laws; none, nothing', () => {
+    const html = gauntletPage(G, esc);
+    expect(html).toMatch(/The wave gauntlets/);
+    expect(html).toMatch(/2 arenas × 3 waves/);
+    expect(html).toMatch(/1 walker \+ 1 hunter/);
+    expect((html.match(/checkpoint<\/span>/g) ?? []).length).toBe(2);
+    expect(html).toMatch(/escalates/);
+    expect(gauntletPage(readGameworld(MEADOWMARK), esc)).toBe('');
+  });
+
+  it("a horde in the prompt holds the last level a boss does not end, a trail with no climb and no health beside it", () => {
+    const w = composeGameworld({ prompt: 'a horde in a haunted forest with health', seed: 1 });
+    const ids = Object.keys(w.levels), last = w.levels[ids.at(-1)];
+    expect(w.brief.read.find((r) => r.word === 'horde').decides).toEqual(['goal.gauntlet']);
+    expect(last.goal.gauntlet).toEqual({ arenas: DEFAULT_GAUNTLET.arenas });
+    expect(last.goal.health).toBeUndefined();
+    expect(Object.values(last.walk.nodes).every((n) => !n.meru)).toBe(true);
+    for (const id of ids.slice(0, -1)) expect(w.levels[id].goal).toEqual({ health: true });
+    for (const l of gauntletLaws(readGameworld(w).levels[ids.at(-1)].goal.gauntlet)) expect(l.holds, l.law).toBe(true);
+    const bossed = composeGameworld({ prompt: 'a horde and a boss in a haunted forest', seed: 1 });
+    expect(Object.values(bossed.levels).some((l) => l.goal?.gauntlet)).toBe(false);
+  });
 });

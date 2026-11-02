@@ -8,6 +8,8 @@
  *   goal: { gauntlet: { arenas: [{ waves: [{ <bestiary id>: <count> }], after? }], checkpoint? } }
  *
  *   GAUNTLET_LIMITS              the most arenas, waves an arena and foes a wave
+ *   DEFAULT_GAUNTLET             the one a prompt's word (horde, onslaught) lays
+ *   GAUNTLET_LAWS, gauntletLaws(E)   its principles, measured (advice: escalates, breathes, varied, checkpointed)
  *   readGauntletGoal(v, room, ids) → { arenas: [{ waves: [{ <id>: n }], after? }], checkpoint?, room }   ids: the bestiary's
  *   gauntletIds(G)                the bestiary ids any level's gauntlet wakes (they are fielded, so they are made)
  *   gauntletPlacements(E, ends)   → { centre, waves: [[{ id, eid, at, heading }]] }   each foe `foe-<eid>-g<n>`
@@ -17,6 +19,8 @@
  */
 
 export const GAUNTLET_LIMITS = Object.freeze({ arenas: 100, waves: 8, foes: 12 });
+/** The gauntlet a prompt's word asks for (compose.js): two arenas of the class bestiary's foes, each heavier. */
+export const DEFAULT_GAUNTLET = Object.freeze({ arenas: [{ waves: [{ walker: 3 }, { walker: 2, charger: 1 }] }, { waves: [{ walker: 2, charger: 2 }, { walker: 3, brute: 1 }] }] });
 const r3 = (n) => Math.round(n * 1000) / 1000;
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 
@@ -84,4 +88,32 @@ export function gauntletMechanic(E, ends) {
   let k = 0;
   const arenas = E.arenas.map((A) => ({ waves: A.waves.map(() => ({ foes: P.waves[k++].map((f) => ({ id: f.id, at: f.at })) })), ...(A.after !== undefined ? { after: A.after } : {}) }));
   return { kind: 'wave-gauntlet', id: E.room, arenas, at: ends.exit.slice(), radius: 2.5, back: P.centre, start: P.centre, ...(E.checkpoint ? { checkpoint: E.checkpoint } : {}) };
+}
+
+export const GAUNTLET_LAWS = Object.freeze({
+  escalates: 'Escalates: no wave lighter than the one before it in its arena, no arena lighter than the last.',
+  breathes: 'Breathes: a pause before each arena after the first, two seconds at least.',
+  varied: 'Varied: no three arenas in a row with the same mix.',
+  checkpointed: 'Checkpointed: a gauntlet of more than ten arenas has checkpoints.',
+});
+const law = (id, holds, says) => ({ law: id, holds, says });
+const weight = (W) => Object.values(W).reduce((n, c) => n + c, 0);
+const mix = (A) => JSON.stringify(A.waves.map((W) => Object.entries(W).sort()));
+
+/** The principles, measured on a read gauntlet (advice, never refusals). */
+export function gauntletLaws(E) {
+  const out = [], A = E.arenas;
+  const light = [];
+  A.forEach((a, i) => a.waves.forEach((W, w) => { if (w && weight(W) < weight(a.waves[w - 1])) light.push(`arena ${i + 1} wave ${w + 1} (${weight(W)} after ${weight(a.waves[w - 1])})`); }));
+  const total = (a) => a.waves.reduce((n, W) => n + weight(W), 0);
+  A.forEach((a, i) => { if (i && total(a) < total(A[i - 1])) light.push(`arena ${i + 1} (${total(a)} after ${total(A[i - 1])})`); });
+  out.push(law('escalates', !light.length, light.length ? `${light.join('; ')}: lighter than before` : 'every wave and every arena at least as heavy as the last'));
+  const short = A.flatMap((a, i) => (i && a.after !== undefined && a.after < 2 ? [`arena ${i + 1} (${a.after} s)`] : []));
+  out.push(law('breathes', !short.length, short.length ? `${short.join(', ')}: no breath before it` : 'a pause before every arena after the first'));
+  const runs = [];
+  for (let i = 2; i < A.length; i++) if (mix(A[i]) === mix(A[i - 1]) && mix(A[i]) === mix(A[i - 2])) runs.push(`arenas ${i - 1} to ${i + 1}`);
+  out.push(law('varied', !runs.length, runs.length ? `${runs.join('; ')}: the same mix three times` : A.length < 3 ? 'too few arenas to repeat' : 'no three arenas in a row alike'));
+  const long = A.length > 10 && !E.checkpoint;
+  out.push(law('checkpointed', !long, long ? `${A.length} arenas and no checkpoint: a death sends the player back to arena 1` : E.checkpoint ? `a checkpoint every ${E.checkpoint}` : `${A.length} arena${A.length === 1 ? '' : 's'}: short enough to need none`));
+  return out;
 }
