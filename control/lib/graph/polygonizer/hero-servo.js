@@ -24,7 +24,8 @@
  * own, to be replaced when a source is in hand. Pure and deterministic.
  */
 import { rigNodesAt, handValue, boneFrames } from './station-loft-rig.js';
-import { WRIST_RANGE, WRIST_EASE, humeralTurn, wristFor, anatomicalForearm } from './hero-grip.js';
+import { humeralTurn, wristFor, anatomicalForearm } from './hero-grip.js';
+import { WRIST_RANGE, WRIST_EASE } from './hero-wrist.js';
 import { LIMITS } from './figure-vajra.js';
 
 const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];

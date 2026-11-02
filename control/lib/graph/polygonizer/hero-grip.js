@@ -20,14 +20,10 @@ import { keyedClip, mirrored } from './hero-jump.js';
 import { elbowsDown } from './hero-elbow.js';
 import { heroStance, reachArm, comOf, hull, margin } from './hero-stance.js';
 
-/** the wrist's anatomical range, degrees [toward −, toward +] in the rig's signs (flex + the back of the hand up:
- * flexion 80, extension 70; deviation + toward the thumb: ulnar 35, radial 20; twist + palm down: supination and
- * pronation 85 from the thumb-up neutral): the hard body never passes it */
-export const WRIST_RANGE = Object.freeze({ flex: [-80, 70], deviation: [-35, 20], twist: [-85, 85] });
-/** the wrist's FUNCTIONAL range, where the hand works at ease: the ranges daily tasks use (Ryu et al. 1991: flexion 54,
- * extension 60, radial 17, ulnar 40 — here capped at the anatomical 35; the forearm's turn, Morrey et al. 1981: 50 each
- * way). A skilled held guard keeps inside it */
-export const WRIST_EASE = Object.freeze({ flex: [-54, 60], deviation: [-35, 17], twist: [-50, 50] });
+// (the wrist's ranges live in a leaf module, so a solver reached while this one is still loading reads them: hero-servo
+// builds its tables from them at load, and the gear's import chain comes back round through the carry holds to it)
+export { WRIST_RANGE, WRIST_EASE } from './hero-wrist.js';
+import { WRIST_RANGE, WRIST_EASE } from './hero-wrist.js';
 /** a strapped shield's hand (enarmes: the forearm through a strap, the fist on a grip): the straps lock the wrist's bend,
  * the forearm still turns */
 export const STRAPPED = Object.freeze({ flex: [-8, 8], deviation: [-8, 8], twist: [-50, 50] });

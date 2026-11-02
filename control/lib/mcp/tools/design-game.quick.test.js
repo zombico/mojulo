@@ -681,6 +681,31 @@ describe('design_game quick', () => {
     expect(P.weapon.reserve).toBe(before + 24);
   }, 240_000);
 
+  it('shoot with a carried kit: the arms in the walker\'s loadout, the page carrying their hands, aimed, scoped, switched and drawn', async () => {
+    await designGameHandler({ quick: { goal: 'shoot', foes: 1, arms: ['rifle', 'sniper', 'bow'], world: { id: 'kit', style: { kit: 'trail-valley' } } }, ref: 'gk' });
+    const L = stored('gk-level-run-0'), P0 = L.entities[0];
+    expect(P0.rule).toMatchObject({ gunplay: true });
+    expect(P0.rule.loadout.map((s) => s.name)).toEqual(['rifle', 'sniper', 'bow']);
+    expect(P0.weapon).toEqual(P0.rule.loadout[0].weapon);
+    const { payload } = await resolveWorldScene(SketchRepository.getByRef('gk-level-run-0'));
+    const html = emitThreeWorld({ ...payload, inline: true });
+    expect(html).toContain('function buildGunplay(E)');
+    expect(html).toContain('// ── GUNPLAY ──');
+    expect(html).toContain('right click  aim');
+    // played headless: the sights up, the sniper scoped and steadied, the bow drawn and loosed
+    const land = stageEnds(L).ground, ground = (q) => land(q[0], q[1]) ?? 0;
+    const sim = simLevel({ entities: payload.entities, events: payload.events, colliders: payload.colliders }, { ground }), W = sim.world, P = W.byId[W.pilotId];
+    Object.assign(sim.input, { aim: 1 }); sim.run(0.5);
+    expect(P.gp.aim).toBe(1);
+    Object.assign(sim.input, { aim: 0, slot: 2 }); sim.frame(1 / 30); Object.assign(sim.input, { slot: 0, aim: 1 }); sim.run(2.5);
+    expect(P.loadoutIdx).toBe(1); expect(P.gp.aim).toBe(1);
+    Object.assign(sim.input, { breath: 1 }); sim.run(0.5);
+    expect(P.gp.steady).toBe(true);
+    Object.assign(sim.input, { aim: 0, breath: 0, slot: 3 }); sim.frame(1 / 30); Object.assign(sim.input, { slot: 0 }); sim.run(1.2);
+    Object.assign(sim.input, { fire: 1 }); sim.run(1); Object.assign(sim.input, { fire: 0 }); sim.run(0.1);
+    expect(W.projectiles.some((r) => r.owner === P.id) || P.weapon.shots > 0).toBe(true);
+  }, 240_000);
+
   it('deathmatch: an arena laid on the trail\'s land whose laws hold, bots that fight each other, frags to a limit', async () => {
     const out = await designGameHandler({ quick: { goal: 'deathmatch', bots: 3, frags: 3, world: { id: 'arena', style: { kit: 'trail-valley' } } }, ref: 'dm' });
     // every arena law holds: no advice from it

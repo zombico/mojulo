@@ -29,9 +29,10 @@ import { RESTS } from './hero-rest.js';
 import { GAITS, HERO_WALK, HERO_WALK_POLE, HERO_RUN, HERO_RUN_POLE } from './hero-gaits.js';
 import { VAULTS } from './hero-vault-moves.js';
 import { heroVault } from './hero-vault.js';
-import { HOLD_WORDS, GUARD_WORDS } from './hero-held-words.js';
+import { HOLD_WORDS, GUARD_WORDS, BOW_WORDS, BOW_SECONDS } from './hero-held-words.js';
 import { heroHold, carryTriangles, carryMounts } from './hero-carry.js';
 import { heroGuard } from './hero-grip.js';
+import { heroBow } from './hero-bow.js';
 import { gearPackParts } from './hero-gear.js';
 import { DEFAULT_LIGHT } from './vexar.js';
 import { faceColorLinear } from '../figures/face-mesh.js';
@@ -344,6 +345,8 @@ export const MOTION_GAITS = Object.freeze({
   // of its clip (a skinned mesh of its own on the hand's bone, `moj:prop`), shown with that clip alone
   ...Object.fromEntries(HOLD_WORDS.map((n) => [n, Object.freeze({ motion: 'hold', family: 'hold', seconds: 0.8 })])),
   ...Object.fromEntries(GUARD_WORDS.map((n) => [n, Object.freeze({ motion: 'guard', family: 'guard', seconds: 0.9 })])),
+  // the BOW's shots (hero-bow): played as a guard is, the bow a prop riding the bow hand
+  ...Object.fromEntries(BOW_WORDS.map((n) => [n, Object.freeze({ motion: 'guard', family: 'guard', seconds: BOW_SECONDS[n] })])),
 });
 
 // ─── the STOP: letting go of forward ───────────────────────────────────────
@@ -524,14 +527,15 @@ export function locomotionClips(locomotion, R, { keys = 24 } = {}) {
       // their hand's bone, for the pack (the gear's own seating: gearPackParts; a carried box, carryTriangles)
       // (a guard on an arm that took hero-form ARM_LENGTH, laws 5: its places drawn in by the arm's shortening)
       const reach = guard && armLength ? armReachOf(R) : 1;
-      let X; try { X = solvedOnce(`${hold ? 'hold' : 'guard'}|${rigKey(R)}|${name}|${guard ? s : ''}${reach !== 1 ? `|${reach}` : ''}`, () => (hold ? heroHold(name, R) : heroGuard(name, R, { seconds: s, ...(reach !== 1 ? { reach } : {}) }))); } catch (err) { throw new Error(`motion.${name}: ${err.message}`); }
+      let X; try { X = solvedOnce(`${hold ? 'hold' : 'guard'}|${rigKey(R)}|${name}|${guard ? s : ''}${reach !== 1 ? `|${reach}` : ''}`, () => (hold ? heroHold(name, R) : BOW_WORDS.includes(name) ? heroBow(name, R, { seconds: s }) : heroGuard(name, R, { seconds: s, ...(reach !== 1 ? { reach } : {}) }))); } catch (err) { throw new Error(`motion.${name}: ${err.message}`); }
       const fn = hold ? easeInto(X.pose, R) : ((t) => X.clip.fn(t)), T = hold ? s : X.clip.seconds ?? s;
       const K = Math.max(keys, Math.round(T * 30) + 1);
       try { for (let k = 0; k < K; k++) rigNodesAt(R, fn(k / (K - 1))); } catch (err) { throw new Error(`motion.${name}: ${err.message}`); }
       const laws = X.checks?.laws ? Object.values(X.checks.laws).every(Boolean) : null;
       const clip = (t) => fn(t); clip.keys = K; clip.once = true;
-      clip.held = hold ? { hold: name, item: X.item, hands: X.hands, kg: X.kg, ...(X.effort?.cr10 !== undefined ? { effort: X.effort.cr10 } : {}), ...(laws !== null ? { laws } : {}) }
-        : { guard: name, stance: X.stance, tradition: X.tradition, grip: X.grip, hands: X.hands, ...(laws !== null ? { laws } : {}) };
+      // (an arms hold names its arm; a bow's shot its draw and where the nock goes, for an engine bending the string)
+      clip.held = hold ? { hold: name, item: X.item, ...(X.arm ? { arm: X.arm } : {}), hands: X.hands, kg: X.kg, ...(X.effort?.cr10 !== undefined ? { effort: X.effort.cr10 } : {}), ...(laws !== null ? { laws } : {}) }
+        : { guard: name, stance: X.stance, tradition: X.tradition, grip: X.grip, hands: X.hands, ...(X.string ? { draw: X.drawLength, string: X.string } : {}), ...(laws !== null ? { laws } : {}) };
       clip.props = (dz = 0, light = DEFAULT_LIGHT) => {
         if (guard) return gearPackParts(X.mounts, { light, dz }).map((p, i) => ({ ...p, item: X.mounts[i].item }));
         const rest = boneFrames(R, R.joints, R.joints), out = gearPackParts(carryMounts(X, R), { light, dz }).map((p) => ({ ...p, item: X.item }));
