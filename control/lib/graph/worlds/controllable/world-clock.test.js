@@ -133,5 +133,19 @@ describe('a world\'s tempo, read', () => {
     const manifest = { kind: 'controllable', entities: [{ id: 'p', rule: { type: 'walk', speed: 4 }, pilotable: true, body: body() }], camera: { rule: 'follow', target: 'p' } };
     expect((await resolveWorldScene({ ref: 't', manifest: { ...manifest, tempo: 'finisher' } })).payload.tempo).toEqual({ moments: [{ on: 'last-down', scale: 0.2, hold: 1.2, ramp: 0.25 }] });
     expect((await resolveWorldScene({ ref: 't', manifest })).payload).not.toHaveProperty('tempo');
+  }, 120_000);   // (world resolution's cold import is heavy)
+});
+
+describe('the impact cam\'s bridge: a firing moment cues the live shoot plan', () => {
+  it('a world with a tempo cues tempo:<what fired>; a live plan\'s gizmos take no raycast; a plan that is not live is as it was', async () => {
+    const { emitThreeWorld } = await import('@/lib/graph/scene/scene-three');
+    const { normalizeShoot, lowerShoot } = await import('../../shoot/plan.js');
+    const { shootChannelScript } = await import('../../scene/channels/shoot.js');
+    const plan = normalizeShoot({ cameras: [{ id: 'w', keys: [{ t: 0, pos: [0, -9, 4], poi: [0, 0, 1] }, { t: 30, pos: [0, -9, 4], poi: [0, 0, 1] }] }], shots: [{ name: 'wide', camera: 'w', span: [0, 30] }, { name: 'impact', camera: 'w', span: [0, 2], on: 'tempo:last-down' }] }).plan;
+    const floor = { corners: [[-20, -20, 0], [20, -20, 0], [20, 20, 0], [-20, 20, 0]], fill: '#556' };
+    const html = emitThreeWorld({ faces: [floor], entities: [{ id: 'p', rule: { type: 'walk', speed: 4 }, pilotable: true, body: body() }], camera: { rule: 'follow', target: 'p' }, shoot: lowerShoot(plan, { live: true }), tempo: { moments: [{ on: 'last-down', scale: 0.2, hold: 1 }] } });
+    expect(html).toContain("window.__mojShoot.cue('tempo:' + __tmLast.on)");
+    expect(shootChannelScript(lowerShoot(plan, { live: true }))).toContain('c.raycast = () => {};');
+    expect(shootChannelScript(lowerShoot(plan))).not.toContain('raycast');
   });
 });

@@ -25,4 +25,13 @@ the clock the impact cam will ride (`control/lib/graph/worlds/controllable/world
 - **The page.** A world with a tempo composes the clock into its page. The bodies, their clips and their effects step on
   the world's time; the camera, the HUD and the input step on real time. `window.__mojTempo` says where the clock is
   and fires a moment by name. The web page plays it; Godot and Roblox step on real time (marked absent).
+- **A game's tempo** (`design_game`, `control/lib/graph/gameworld/tempo.js`). A gameworld's `tempo` (a word, moments,
+  or `'auto'`) is laid on every level. `'auto'` is the game type's own: an action game slows on its finisher; the
+  realistic, platformer and pinball flavors keep real time, where a blow's weight is the hitstop's. The gameworld's
+  juice card names it.
+- **The impact cam's bridge.** A moment that fires cues the live shoot plan's shot waiting on `tempo:<what fired it>`.
+  A close-up with `on: 'tempo:last-down'` cuts in as the finisher slows the world.
+- **A fix on the way.** A live world with a shoot plan stopped on its first frame. The world probed its ground through
+  the camera gizmos, whose frustum has no lines until the camera is posed. A live plan's gizmos now take no raycast;
+  every other plan's page is unchanged.
 - **Absent, nothing changes.** A world without a tempo gets no state, and its page keeps every byte.
