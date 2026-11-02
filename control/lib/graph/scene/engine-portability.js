@@ -17,7 +17,7 @@
 import { lowerMechanic, MECHANIC_KINDS } from '../game/mechanics.js';
 import { KITS } from '../game/kits.js';
 import { busCoverage } from './bus-abi.js';
-import { worstMark, LEDGER_INFO, SHELL_INFO, COSMETIC_EVENTS } from './engines/marks.js';
+import { worstMark, LEDGER_INFO, SHELL_INFO } from './engines/marks.js';
 import { DEFAULT_ENGINE, engineOf, marksOf } from './engines/registry.js';
 
 export const MECHANICS_VOCAB = ['reach-exit', 'collect', 'hazard-damage', 'fail-on-death', 'survive'];
@@ -158,7 +158,7 @@ function engineFlags(score, engine) {
   for (const k of L.events_carried?.keys || []) {
     const mk = M.EVENT_MARKS[k];
     if (!mk) out.push(flag('absent', `events '${k}' is not marked (${file} EVENT_MARKS): it does not travel`, true));
-    else if (mk[engine] !== 'built') out.push(flag(mk[engine], `events.${k}: ${mk.how}`, mk[engine] === 'absent' && !COSMETIC_EVENTS.includes(k)));
+    else if (mk[engine] !== 'built') out.push(flag(mk[engine], `events.${k}: ${mk.how}`, mk[engine] === 'absent'));
   }
   // the bus rows the kernel performs in part, or not at all: the logic runs, nothing feeds or draws them
   const bus = L.bus_carried?.[engine];
