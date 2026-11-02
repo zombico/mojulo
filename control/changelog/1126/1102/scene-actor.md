@@ -62,9 +62,17 @@ its face, body and later its hands directed together on one clock, and its take 
     plan (cameras keyed in time, shots that cut between them), in the scenes card's own framings.
   - **Preview**: `control/scripts/spikes/actor/scene-film.mjs` plays a blocked scene beside a minted hero: both actors
     at once, each with its body and face, cut by its coverage, with captions.
-  - **Next**: the scene's export.
-- **Blender film export.** A scene's actors, their takes and its cameras as a Blender pack, in a film look or an anime
-  look shaded live rather than baked.
+- **Blender film export** (`control/scripts/export-scene-blender.mjs`, `control/lib/graph/actor/scene-film.js`). A scene
+  is written as a Blender film pack:
+  - **The actors**: each a skinned GLB of its hero with the scene's face take and act, a cross walked. The act's
+    `moj:act` carries the actor's place over time.
+  - **The cameras**: the coverage's cameras, keyed every frame and cut together as a world's film pack cuts a shoot
+    plan's shots.
+  - **The scripts**: `actors.py` hangs each actor under an empty keyed on its place and facing and binds its takes.
+    `look.py` builds the look in Blender: `film` (Principled shading, a little subsurface on the skin, Cycles) or
+    `anime` (cel bands shaded live from the scene's lights by Shader to RGB, a rim, an ink outline, EEVEE).
+  - **The gate**: with a Blender found the export builds the film and verifies its cameras (advisory); without one it
+    writes the pack and says the gate was skipped.
 - **The dailies.** One page (`control/scripts/spikes/actor/dailies.mjs`) shows the takes side by side on one clock,
   each with its timeline and its readings law by law (`control/lib/graph/actor/readings.js`). The readings cover how
   much the face moves, the blinks, the pace, where the eyes rest, the gestures, and whether a gesture lands on its

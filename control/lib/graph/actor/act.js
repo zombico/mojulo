@@ -6,7 +6,9 @@
  *
  *   actsOf(persona, reads) → { <take>: { seconds, body, style, seed } }: the reads played in a style (a read with no
  *     style has no act: the persona's path, byte for byte); what persona/bundle.js personaHero carries on the hero
- *   actClipOn(act, R, hero) → the clip: fn(u) → pose, `keys`, `once`, and `act` (what the GLB's `moj:act` says of it)
+ *   actClipOn(act, R, hero) → the clip: fn(u) → pose, `keys`, `once`, and `act` (what the GLB's `moj:act` says of it:
+ *     its style, its gestures, and a scene's `root` and `walks` where it has them)
+ *   sceneActOf(actor, { take }) → { perform, acts }: a scene actor (scene.js) as its hero carries it
  *
  * Pure and deterministic.
  */
@@ -24,8 +26,18 @@ export const actStand = (R, hero) => standOf(R, GESTURE_PRESETS.relaxed[hero?.ca
 
 /** an act as the hero's clip on its rig */
 export function actClipOn(act, R, hero) {
-  const take = actBody({ seconds: act.seconds, body: act.body }, { R, base: actStand(R, hero), style: act.style, seed: act.seed });
+  const take = actBody({ seconds: act.seconds, body: act.body }, { R, base: actStand(R, hero), ...(act.style ? { style: act.style } : {}), seed: act.seed ?? 1, ...(act.walks?.length ? { walks: act.walks, pole: hero?.cast ?? null } : {}) });
   const fn = actClip(take);
-  fn.act = { style: act.style, seconds: act.seconds, gestures: take.gestures.map((g) => ({ word: g.word, cause: g.cause, side: g.side, start: g.start, apex: g.apex, end: g.end })) };
+  fn.act = { ...(act.style ? { style: act.style } : {}), seconds: act.seconds, gestures: take.gestures.map((g) => ({ word: g.word, cause: g.cause, side: g.side, start: g.start, apex: g.apex, end: g.end })), ...(act.root ? { root: act.root } : {}), ...(act.walks?.length ? { walks: act.walks.map((w) => ({ start: w.start, end: w.end })) } : {}) };
   return fn;
+}
+
+/** a scene actor's take as a hero carries it (scene.js): its read as the face's `perform` take and its body as an act,
+ * its crosses walked and its place and facing (`root`, metres and degrees, yaw 0 facing +y) riding the act for an engine
+ * or a film pack to carry the body by; `take` the name both clips go by */
+export function sceneActOf(A, { take = 'scene', seed = 1 } = {}) {
+  return {
+    perform: { [take]: { beats: A.read.beats, seconds: A.read.seconds, seed, ...(A.read.intensity !== undefined ? { intensity: A.read.intensity } : {}) } },
+    acts: { [take]: { seconds: A.read.seconds, body: A.read.body, ...(A.style ? { style: A.style } : {}), seed, ...(A.walks?.length ? { walks: A.walks } : {}), root: A.root } },
+  };
 }
