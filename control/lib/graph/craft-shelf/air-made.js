@@ -156,7 +156,7 @@ export function madeWell({ id = 'well', at = [0, 0, 0], inboard = -1, b, S, D, W
   return asFitting({ extrudes: kit.extrudes, sweeps: kit.sweeps });
 }
 
-export function madeSurface({ place, world, foil, surfaces, kind, nav = false, vertical, side, span, at, C }) {
+export function madeSurface({ place, world, foil, surfaces, kind, nav = false, navR = 0.055, vertical, side, span, at, C }) {
   const sweeps = [], lathes = [];
   const sub = (a, q) => [a[0] - q[0], a[1] - q[1], a[2] - q[2]];
   // a point on its upper (or lower) skin at span fraction f, chord fraction c
@@ -190,7 +190,7 @@ export function madeSurface({ place, world, foil, surfaces, kind, nav = false, v
   }
   // a wing's nav light in its clear cover at the tip (in place of the bare one)
   if (nav) {
-    lathes.push(...coveredLight('nav_light', world(1, place(1, 0.05, 0)), out, { r: 0.055, light: NAV[side || 'c'], glass: C.glass }).lathes);
+    lathes.push(...coveredLight('nav_light', world(1, place(1, 0.05, 0)), out, { r: navR, light: NAV[side || 'c'], glass: C.glass }).lathes);
   }
   return asFitting({ sweeps, lathes });
 }

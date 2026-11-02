@@ -48,6 +48,8 @@ export const DRONE_KINDS = Object.freeze({
 // a folding camera quad's body: a moulded shell, flat-faced at the nose and tail where its sensors look out
 const CAMERA_SHELL = [[0, 0.55, 0.6, 0], [0.12, 0.92, 0.92, 0], [0.5, 1, 1, 0], [0.85, 0.9, 0.9, 0.05], [1, 0.6, 0.55, 0.1]];
 // a ruggedised body: a box with its nose and tail chamfered in
+// a flying-wing body's section: wide and flat, its edges sharp, CCW from +x
+const BLENDED = [[1, -0.1], [0.55, 0.45], [0.18, 1], [-0.18, 1], [-0.55, 0.45], [-1, -0.1], [-0.7, -0.75], [0.7, -0.75]];
 const RUGGED_BOX = [[0, 0.72, 0.66, 0], [0.14, 1, 1, 0], [0.86, 1, 1, 0], [1, 0.78, 0.72, 0]];
 // a rotor sold as a pair of part numbers, one per hand
 const rotors = (stem, row) => ({
@@ -370,6 +372,226 @@ export const DRONE_ODM = {
     build: { family: 'winch' },
   },
 
+  // ===== earth: the fixed wings (the shelf's own kinds at drone sizes) =========================
+  // a hand-launched recon drone: a pod and boom, a high wing, a nose motor, a sensor ball under the pod
+  'fus-drone-hand': {
+    kind: 'craft-fuselage', realm: 'earth', label: 'hand-launched drone pod and boom', classOf: 'hand-launched small UAS class (2 kg)',
+    aliases: ['drone pod', 'hand launch fuselage'], dims: { length: 0.95, width: 0.1, height: 0.12 }, mass: 0.5, mount: null,
+    build: { family: 'tube', n: 2.6, seams: false, stations: [[0, 0.5, 0.5, 0.5], [0.08, 0.9, 0.9, 0.5], [0.3, 1, 1, 0.52], [0.5, 0.75, 0.7, 0.58], [0.6, 0.28, 0.28, 0.66], [1, 0.18, 0.18, 0.68]], points: { cowl: [0, 0, 0], wingRoot: [0.3, 0, 1], stabRoot: [0.97, 0, 0], finRoot: [0.9, 0, 0.9], sensor: [0.2, 0, -0.9] } },
+  },
+  'wing-drone-hand': {
+    kind: 'craft-wing', realm: 'earth', label: 'hand-launched drone wing panel', classOf: 'hand-launched small UAS class (2 kg)',
+    aliases: ['small drone wing'], dims: { span: 0.68 }, mass: 0.2, mount: 'wing-root',
+    build: { minThick: 0.003, rootChord: 0.2, tipChord: 0.15, sweep: 0, dihedral: 5, thickness: 0.1, camber: 0.03, hinge: [0.5, 0.95, 0.25], points: { tip: [1, 0.3] } },
+  },
+  'stab-drone-hand': {
+    kind: 'craft-stabilizer', realm: 'earth', label: 'hand-launched drone tailplane', classOf: 'hand-launched small UAS class (2 kg)',
+    aliases: ['small drone tailplane'], dims: { span: 0.2 }, mass: 0.03, mount: 'tail-root',
+    build: { minThick: 0.003, rootChord: 0.1, tipChord: 0.07, sweep: 5, dihedral: 0, thickness: 0.08, hinge: [0, 0.95, 0.4] },
+  },
+  'fin-drone-hand': {
+    kind: 'craft-fin', realm: 'earth', label: 'hand-launched drone fin', classOf: 'hand-launched small UAS class (2 kg)',
+    aliases: ['small drone fin'], dims: { span: 0.14 }, mass: 0.02, mount: 'tail-root',
+    build: { minThick: 0.003, vertical: true, rootChord: 0.12, tipChord: 0.07, sweep: 25, thickness: 0.08, hinge: [0, 0.95, 0.35] },
+  },
+  'eng-drone-electric': {
+    kind: 'craft-engine', realm: 'earth', label: 'small drone motor cowling', classOf: 'small UAS electric motor (0.3 kW)',
+    aliases: ['drone nose motor'], dims: { length: 0.06, diameter: 0.065 }, mass: 0.15, perf: { power: 0.3 }, mount: 'nose-mount',
+    build: { family: 'cowl' },
+  },
+  'prop-drone-hand': {
+    kind: 'craft-propeller', realm: 'earth', label: 'small drone folding propeller', classOf: '11-inch folding prop',
+    aliases: ['drone propeller'], dims: { diameter: 0.28 }, mass: 0.02, mount: 'hub-mount',
+    build: { blades: 2, hubDiameter: 0.032, spinnerLength: 0.03, rootChord: 0.024, tipChord: 0.014, rootPitch: 30, tipPitch: 12 },
+  },
+
+  // a catapult-launched tactical drone: a pod, a high wing, twin booms to an H-tail, a pusher, fixed gear
+  'fus-drone-tactical': {
+    kind: 'craft-fuselage', realm: 'earth', label: 'tactical drone pod', classOf: 'tactical twin-boom UAS class (200 kg)',
+    aliases: ['tactical drone pod'], dims: { length: 2.0, width: 0.34, height: 0.42 }, mass: 45, mount: null,
+    build: { family: 'tube', n: 2.6, belly: 0.9, nose: 0.06, stations: [[0, 0.3, 0.3, 0.45], [0.1, 0.85, 0.85, 0.48], [0.3, 1, 1, 0.5], [0.75, 0.9, 0.85, 0.52], [1, 0.45, 0.4, 0.55]], points: { wingRoot: [0.42, 0, 0.95], engine: [1, 0, 0.1], sensor: [0.17, 0, -0.95], noseGear: [0.1, 0, -0.95], mainGear: [0.5, 0.7, -0.95] } },
+  },
+  'wing-drone-tactical': {
+    kind: 'craft-wing', realm: 'earth', label: 'tactical drone wing panel', classOf: 'tactical twin-boom UAS class (200 kg)',
+    aliases: ['tactical drone wing'], dims: { span: 2.15 }, mass: 22, mount: 'wing-root',
+    build: { minThick: 0.003, rootChord: 0.42, tipChord: 0.32, sweep: 0, dihedral: 2, thickness: 0.14, camber: 0.03, hinge: [0.45, 0.95, 0.25], points: { tip: [1, 0.3], boom: [0.28, 0, 'lower'] } },
+  },
+  'fus-drone-boom': {
+    kind: 'craft-fuselage', realm: 'earth', label: 'tactical drone tail boom', classOf: 'tactical twin-boom UAS class (200 kg)',
+    aliases: ['tail boom', 'twin boom'], dims: { length: 1.95, width: 0.065, height: 0.075 }, mass: 4, mount: null,
+    build: { family: 'tube', n: 2, seams: false, stations: [[0, 0.5, 0.5, 0.5], [0.06, 1, 1, 0.5], [0.94, 1, 1, 0.5], [1, 0.7, 0.7, 0.5]], points: { stabRoot: [0.9, 0, 0], finRoot: [0.84, 0, 0.9] } },
+  },
+  'stab-drone-tactical': {
+    kind: 'craft-stabilizer', realm: 'earth', label: 'tactical drone H-tail stabilizer', classOf: 'tactical twin-boom UAS class (200 kg)',
+    aliases: ['boom tailplane'], dims: { span: 0.6 }, mass: 2, mount: 'tail-root',
+    build: { minThick: 0.003, rootChord: 0.26, tipChord: 0.26, sweep: 0, dihedral: 0, thickness: 0.1, hinge: [0, 0.95, 0.35] },
+  },
+  'fin-drone-tactical': {
+    kind: 'craft-fin', realm: 'earth', label: 'tactical drone boom fin', classOf: 'tactical twin-boom UAS class (200 kg)',
+    aliases: ['boom fin'], dims: { span: 0.42 }, mass: 1.5, mount: 'tail-root',
+    build: { minThick: 0.003, vertical: true, rootChord: 0.34, tipChord: 0.2, sweep: 25, thickness: 0.1, hinge: [0, 0.95, 0.35] },
+  },
+  'eng-drone-piston': {
+    kind: 'craft-engine', realm: 'earth', label: 'tactical drone rotary engine cowling', classOf: 'tactical UAS rotary engine (28 kW)',
+    aliases: ['drone pusher engine'], dims: { length: 0.36, diameter: 0.3 }, mass: 14, perf: { power: 28 }, mount: 'nose-mount',
+    build: { family: 'cowl' },
+  },
+  'prop-drone-tactical': {
+    kind: 'craft-propeller', realm: 'earth', label: 'tactical drone pusher propeller', classOf: '28-inch pusher prop',
+    aliases: ['pusher propeller'], dims: { diameter: 0.72 }, mass: 1.2, mount: 'hub-mount',
+    build: { blades: 2, hubDiameter: 0.09, spinnerLength: 0.11, rootChord: 0.06, tipChord: 0.035, rootPitch: 32, tipPitch: 13 },
+  },
+  'gear-nose-drone-tactical': {
+    kind: 'craft-gear', realm: 'earth', label: 'tactical drone nose leg', classOf: 'tactical twin-boom UAS class (200 kg)',
+    aliases: ['drone nose leg'], dims: { height: 0.42 }, mass: 2, mount: 'gear-well',
+    build: { retract: false, family: 'leg', strut: 0.341, oleo: 0.02, rake: 0.04, tyre: [0.16, 0.06] },
+  },
+  'gear-main-drone-tactical': {
+    kind: 'craft-gear', realm: 'earth', label: 'tactical drone spring main leg', classOf: 'tactical twin-boom UAS class (200 kg)',
+    aliases: ['drone spring leg'], dims: { height: 0.42 }, mass: 3, mount: 'gear-well',
+    build: { family: 'spring', strut: 0.32, splay: 0.32, tyre: [0.2, 0.07] },
+  },
+
+  // a medium-altitude long-endurance recon drone: its satcom's swell over the nose, a long slender wing, a V-tail and a
+  // ventral fin, a pusher turboprop, its sensor ball, its stores (modelled, never fired)
+  'fus-drone-male': {
+    kind: 'craft-fuselage', realm: 'earth', label: 'long-endurance drone fuselage', classOf: 'MALE UAS class (4.7 t)',
+    aliases: ['male drone fuselage', 'long endurance fuselage'], dims: { length: 10.5, width: 1.0, height: 1.3 }, mass: 900, mount: null,
+    build: { family: 'tube', n: 2.4, belly: 0.85, nose: 0.05, stations: [[0, 0.3, 0.3, 0.55], [0.08, 0.85, 0.95, 0.6], [0.18, 0.95, 1, 0.6], [0.32, 1, 0.85, 0.52], [0.6, 0.85, 0.7, 0.5], [0.85, 0.5, 0.5, 0.5], [1, 0.3, 0.32, 0.5]], points: { wingRoot: [0.42, 0.9, -0.05], tailRoot: [0.86, 0.35, 0.6], ventral: [0.9, 0, -0.75], engine: [1, 0, 0], sensor: [0.11, 0, -0.95], noseGear: [0.12, 0, -0.95], mainGear: [0.45, 0.55, -0.95] } },
+  },
+  'wing-drone-male': {
+    kind: 'craft-wing', realm: 'earth', label: 'long-endurance drone wing panel', classOf: 'MALE UAS class (4.7 t)',
+    aliases: ['long endurance wing', 'glider wing'], dims: { span: 9.6 }, mass: 300, mount: 'wing-root',
+    build: { minThick: 0.003, planform: [[0, 1.3], [1, 0.55]], sweep: 0, dihedral: 2, thickness: 0.14, camber: 0.03, twist: 2, hinge: [0.1, 0.95, 0.22], points: { tip: [1, 0.3], storeIn: [0.24, 0.3, 'lower'], storeOut: [0.42, 0.3, 'lower'] } },
+  },
+  'fin-drone-male-v': {
+    kind: 'craft-fin', realm: 'earth', label: 'long-endurance drone V-tail', classOf: 'MALE UAS class (4.7 t)',
+    aliases: ['drone v tail'], dims: { span: 2.1 }, mass: 30, mount: 'tail-root',
+    build: { minThick: 0.003, vertical: true, rootChord: 1.1, tipChord: 0.6, sweep: 30, cant: 45, thickness: 0.1, hinge: [0, 0.95, 0.35] },
+  },
+  'fin-drone-male-ventral': {
+    kind: 'craft-fin', realm: 'earth', label: 'long-endurance drone ventral fin', classOf: 'MALE UAS class (4.7 t)',
+    aliases: ['ventral fin'], dims: { span: 0.75 }, mass: 10, mount: 'tail-root',
+    build: { minThick: 0.003, vertical: true, rootChord: 0.9, tipChord: 0.55, sweep: 30, thickness: 0.1 },
+  },
+  'eng-drone-turboprop': {
+    kind: 'craft-engine', realm: 'earth', label: 'long-endurance drone turboprop cowling', classOf: 'MALE UAS turboprop (670 kW)',
+    aliases: ['drone turboprop'], dims: { length: 0.8, diameter: 0.62 }, mass: 170, perf: { power: 670 }, mount: 'nose-mount',
+    build: { family: 'cowl' },
+  },
+  'prop-drone-male': {
+    kind: 'craft-propeller', realm: 'earth', label: 'long-endurance drone pusher propeller', classOf: '3-blade pusher prop (2.9 m)',
+    aliases: ['three blade pusher'], dims: { diameter: 2.9 }, mass: 40, mount: 'hub-mount',
+    build: { blades: 3, hubDiameter: 0.3, spinnerLength: 0.4, rootChord: 0.2, tipChord: 0.11, rootPitch: 36, tipPitch: 14 },
+  },
+  'gear-nose-drone-male': {
+    kind: 'craft-gear', realm: 'earth', label: 'long-endurance drone nose leg', classOf: 'MALE UAS class (4.7 t)',
+    aliases: ['male drone nose leg'], dims: { height: 1.35 }, mass: 25, mount: 'gear-well',
+    build: { family: 'leg', strut: 1.2, oleo: 0.05, rake: 0.06, tyre: [0.42, 0.15] },
+  },
+  'gear-main-drone-male': {
+    kind: 'craft-gear', realm: 'earth', label: 'long-endurance drone main leg', classOf: 'MALE UAS class (4.7 t)',
+    aliases: ['male drone main leg'], dims: { height: 1.35 }, mass: 45, mount: 'gear-well',
+    build: { retract: 'inward', family: 'leg', strut: 1.15, oleo: 0.07, tyre: [0.55, 0.18] },
+  },
+  'pylon-drone-male': {
+    kind: 'craft-pylon', realm: 'earth', label: 'long-endurance drone store pylon', classOf: 'MALE UAS class (4.7 t)',
+    aliases: ['drone pylon', 'store pylon'], dims: { length: 0.75, height: 0.22 }, mass: 12, mount: 'wing-store',
+    build: { family: 'underwing', forward: 0.3, thickness: 0.12 },
+  },
+  'missile-agm-drone': {
+    kind: 'craft-weapon', realm: 'earth', label: 'air-to-ground missile (modelled, never fired)', classOf: 'small air-to-ground missile class (50 kg)',
+    aliases: ['air to ground missile', 'drone missile'], dims: { length: 1.63, diameter: 0.178 }, mass: 50, mount: 'hardpoint',
+    build: { family: 'missile' },
+  },
+
+  // a flying-wing combat drone: a blended faceted body and a cranked wing, no tail (stealth's role)
+  'fus-drone-blended': {
+    kind: 'craft-fuselage', realm: 'earth', label: 'flying-wing drone centre body', classOf: 'flying-wing combat UAS class (20 t)',
+    aliases: ['blended body', 'flying wing body'], dims: { length: 9.0, width: 2.8, height: 1.05 }, mass: 3500, mount: null,
+    build: { family: 'facet', facets: BLENDED, stations: [[0, 0.04, 0.05, 0.5], [0.18, 0.45, 0.6, 0.52], [0.45, 0.9, 1, 0.52], [0.78, 1, 0.75, 0.48], [1, 0.8, 0.22, 0.45]], points: { wingRoot: [0.3, 0.88, -0.2], mainGear: [0.58, 0.45, -1], noseGear: [0.2, 0, -1] } },
+  },
+  'wing-drone-cranked': {
+    kind: 'craft-wing', realm: 'earth', label: 'cranked flying-wing panel', classOf: 'flying-wing combat UAS class (20 t)',
+    aliases: ['cranked kite wing', 'flying wing panel'], dims: { span: 4.6 }, mass: 1100, mount: 'wing-root',
+    build: { minThick: 0.003, section: 'facet', planform: [[0, 6.0, 0], [0.38, 2.9, 2.7], [1, 0.9, 4.6]], thickness: 0.05, hinge: [0.4, 0.95, 0.18], elevons: true, navLight: false },
+  },
+
+  // a VTOL quadplane: a pod and a high wing, two booms carrying four lift rotors, a pusher, an H-tail on the booms
+  'fus-drone-quadplane': {
+    kind: 'craft-fuselage', realm: 'earth', label: 'quadplane pod', classOf: 'VTOL quadplane class (15 kg)',
+    aliases: ['quadplane pod', 'vtol pod'], dims: { length: 1.15, width: 0.17, height: 0.2 }, mass: 3, mount: null,
+    build: { family: 'tube', n: 2.6, seams: false, stations: [[0, 0.4, 0.4, 0.5], [0.12, 0.9, 0.9, 0.5], [0.4, 1, 1, 0.52], [0.8, 0.8, 0.7, 0.55], [1, 0.4, 0.35, 0.58]], points: { wingRoot: [0.36, 0, 0.95], engine: [1, 0, 0.15], sensor: [0.2, 0, -0.9], gear: [0.45, 0.55, -0.95] } },
+  },
+  'wing-drone-quadplane': {
+    kind: 'craft-wing', realm: 'earth', label: 'quadplane wing panel', classOf: 'VTOL quadplane class (15 kg)',
+    aliases: ['quadplane wing'], dims: { span: 1.45 }, mass: 0.9, mount: 'wing-root',
+    build: { minThick: 0.003, rootChord: 0.3, tipChord: 0.22, sweep: 0, dihedral: 2, thickness: 0.13, camber: 0.03, hinge: [0.55, 0.95, 0.25], points: { tip: [1, 0.3], boom: [0.36, 0, 'lower'] } },
+  },
+  'fus-drone-qp-boom': {
+    kind: 'craft-fuselage', realm: 'earth', label: 'quadplane rotor boom', classOf: 'VTOL quadplane class (15 kg)',
+    aliases: ['rotor boom'], dims: { length: 1.55, width: 0.045, height: 0.05 }, mass: 0.4, mount: null,
+    build: { family: 'tube', n: 2, seams: false, stations: [[0, 0.6, 0.6, 0.5], [0.04, 1, 1, 0.5], [0.96, 1, 1, 0.5], [1, 0.6, 0.6, 0.5]], points: { rotorFront: [0.02, 0, 1], rotorRear: [0.98, 0, 1], stabRoot: [0.93, 0, 0], finRoot: [0.88, 0, 0.9] } },
+  },
+  'stab-drone-quadplane': {
+    kind: 'craft-stabilizer', realm: 'earth', label: 'quadplane H-tail stabilizer', classOf: 'VTOL quadplane class (15 kg)',
+    aliases: ['quadplane tailplane'], dims: { span: 0.52 }, mass: 0.08, mount: 'tail-root',
+    build: { minThick: 0.003, rootChord: 0.13, tipChord: 0.13, sweep: 0, dihedral: 0, thickness: 0.09, hinge: [0, 0.95, 0.35] },
+  },
+  'fin-drone-quadplane': {
+    kind: 'craft-fin', realm: 'earth', label: 'quadplane boom fin', classOf: 'VTOL quadplane class (15 kg)',
+    aliases: ['quadplane fin'], dims: { span: 0.2 }, mass: 0.05, mount: 'tail-root',
+    build: { minThick: 0.003, vertical: true, rootChord: 0.17, tipChord: 0.1, sweep: 25, thickness: 0.09, hinge: [0, 0.95, 0.35] },
+  },
+  'eng-drone-electric-pusher': {
+    kind: 'craft-engine', realm: 'earth', label: 'quadplane pusher motor cowling', classOf: 'small UAS electric motor (1.5 kW)',
+    aliases: ['quadplane pusher motor'], dims: { length: 0.1, diameter: 0.09 }, mass: 0.3, perf: { power: 1.5 }, mount: 'nose-mount',
+    build: { family: 'cowl' },
+  },
+  'prop-drone-quadplane': {
+    kind: 'craft-propeller', realm: 'earth', label: 'quadplane pusher propeller', classOf: '17-inch pusher prop',
+    aliases: ['quadplane propeller'], dims: { diameter: 0.43 }, mass: 0.04, mount: 'hub-mount',
+    build: { blades: 2, hubDiameter: 0.045, spinnerLength: 0.05, rootChord: 0.035, tipChord: 0.02, rootPitch: 30, tipPitch: 12 },
+  },
+  'gear-skid-quadplane': {
+    kind: 'drone-gear', realm: 'earth', label: 'quadplane skid', classOf: 'VTOL quadplane class (15 kg)',
+    aliases: ['quadplane skid'], dims: { height: 0.36, length: 0.5, diameter: 0.014 }, mass: 0.2, mount: 'gear-socket',
+    build: { family: 'skid', splay: 0.12 },
+  },
+
+  // a tube-launched loitering munition (modelled, never fired): a body tube, tandem wings that swing out of the tube,
+  // a pusher; its wings folded along its body by the craft's `fold`
+  'fus-drone-loiter': {
+    kind: 'craft-fuselage', realm: 'earth', label: 'loitering munition body', classOf: 'tube-launched loitering munition class (2.5 kg)',
+    aliases: ['loitering munition body', 'munition body'], dims: { length: 0.6, width: 0.08, height: 0.08 }, mass: 1.6, mount: null,
+    build: { family: 'tube', n: 2, seams: false, nose: 0.07, stations: [[0, 0.4, 0.4, 0.5], [0.1, 0.95, 0.95, 0.5], [0.9, 1, 1, 0.5], [1, 0.7, 0.7, 0.5]], points: { wingFront: [0.26, 0, 0.9], wingRear: [0.78, 0, -0.9], engine: [1, 0, 0], finRoot: [0.88, 0, 0.9] } },
+  },
+  'wing-drone-loiter-front': {
+    kind: 'craft-wing', realm: 'earth', label: 'loitering munition front wing', classOf: 'tube-launched loitering munition class (2.5 kg)',
+    aliases: ['munition front wing'], dims: { span: 0.3 }, mass: 0.05, mount: 'wing-root',
+    build: { minThick: 0.003, rootChord: 0.06, tipChord: 0.05, sweep: 0, dihedral: 0, thickness: 0.07, navLight: false, pivot: { angle: -84 } },
+  },
+  'wing-drone-loiter-rear': {
+    kind: 'craft-wing', realm: 'earth', label: 'loitering munition rear wing', classOf: 'tube-launched loitering munition class (2.5 kg)',
+    aliases: ['munition rear wing'], dims: { span: 0.28 }, mass: 0.05, mount: 'wing-root',
+    build: { minThick: 0.003, rootChord: 0.055, tipChord: 0.045, sweep: 0, dihedral: 0, thickness: 0.07, navLight: false, hinge: [0.1, 0.95, 0.3], pivot: { angle: 84 } },
+  },
+  'fin-drone-loiter': {
+    kind: 'craft-fin', realm: 'earth', label: 'loitering munition fin', classOf: 'tube-launched loitering munition class (2.5 kg)',
+    aliases: ['munition fin'], dims: { span: 0.05 }, mass: 0.01, mount: 'tail-root',
+    build: { minThick: 0.003, vertical: true, rootChord: 0.06, tipChord: 0.035, sweep: 30, thickness: 0.08 },
+  },
+  'eng-drone-electric-tiny': {
+    kind: 'craft-engine', realm: 'earth', label: 'loitering munition motor', classOf: 'small UAS electric motor (0.4 kW)',
+    aliases: ['munition motor'], dims: { length: 0.03, diameter: 0.05 }, mass: 0.08, perf: { power: 0.4 }, mount: 'nose-mount',
+    build: { family: 'cowl' },
+  },
+  'prop-drone-loiter': {
+    kind: 'craft-propeller', realm: 'earth', label: 'loitering munition folding propeller', classOf: '7-inch folding prop',
+    aliases: ['munition propeller'], dims: { diameter: 0.18 }, mass: 0.01, mount: 'hub-mount',
+    build: { blades: 2, hubDiameter: 0.024, spinnerLength: 0.02, rootChord: 0.016, tipChord: 0.01, rootPitch: 30, tipPitch: 12 },
+  },
+
   // ===== space: a sentry probe (the survey role's starship drone) =============================
   'frame-probe-sentry': {
     kind: 'drone-frame', realm: 'space', label: 'sentry probe hull', classOf: 'sentry probe register',
@@ -451,6 +673,16 @@ export const DRONE_ODM = {
     aliases: ['cargo pod probe'],
     dims: { width: 0.5, length: 0.6, height: 0.28 }, mass: 8, mount: 'payload-rail',
     build: { family: 'box' },
+  },
+  'frame-probe-seeker': {
+    kind: 'drone-frame', realm: 'space', label: 'seeker probe hull', classOf: 'seeker probe register',
+    aliases: ['seeker hull'],
+    dims: { length: 0.42, width: 0.16, height: 0.14 }, mass: 4, mount: 'airframe',
+    build: {
+      family: 'shell', n: 2.2, belly: 1, stations: [[0, 0.05, 0.05, 0], [0.4, 0.85, 0.85, 0], [0.8, 1, 1, 0], [1, 0.6, 0.6, 0]],
+      sensors: { nose: 0, tail: 0, belly: 0 }, battery: null, vents: 2,
+      points: { armFront: [0.06, 0.05, 0], armRear: [0.06, -0.13, 0], gimbal: [0, 0.16, 0.06], mast: [0, -0.1, 0.07] },
+    },
   },
   'tank-seed-probe': {
     kind: 'drone-payload', realm: 'space', label: 'seeder tank and spreader', classOf: 'seeder probe register',

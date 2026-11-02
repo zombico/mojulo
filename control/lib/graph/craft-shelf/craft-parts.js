@@ -440,6 +440,8 @@ function buildLiftingSurface(row, C, opts = {}) {
   const foldA = fold ? fold.angle * DEG * (fold.fixed ? 1 : clamp01(opts.fold)) : 0;
   const pivot = fold ? [hingeF * span, at(hingeF).lift] : [0, 0];
   const cant = (b.cant || 0) * DEG;
+  // `pivot: { angle }`: the whole surface swings about the vertical at its root by the craft's fold (0 out … 1 folded)
+  const pivotA = b.pivot ? b.pivot.angle * DEG * clamp01(opts.fold) : 0;
   // local (s spanwise, y chordwise, h thickness-wise) → world, the outer panel turned about the hinge
   const toWorld = ([sl, y, h], outer) => {
     let ss = sl;
@@ -451,11 +453,13 @@ function buildLiftingSurface(row, C, opts = {}) {
       hh = pivot[1] + ds * Math.sin(foldA) + dh * Math.cos(foldA);
     }
     const w = vertical ? [hh, y, ss] : [ss, y, hh];
-    if (!cant) return w;
-    return [w[0] * Math.cos(cant) + w[2] * Math.sin(cant), w[1], -w[0] * Math.sin(cant) + w[2] * Math.cos(cant)];
+    const c = !cant ? w : [w[0] * Math.cos(cant) + w[2] * Math.sin(cant), w[1], -w[0] * Math.sin(cant) + w[2] * Math.cos(cant)];
+    // a pivoting surface (a loitering munition's wing swinging out of its tube) turned about the vertical at its root
+    return pivotA ? [c[0] * Math.cos(pivotA) - c[1] * Math.sin(pivotA), c[0] * Math.sin(pivotA) + c[1] * Math.cos(pivotA), c[2]] : c;
   };
   // a section point (chord fraction c, thickness t in chords) at span fraction f → local, with washout
-  const foilOpts = (f) => ({ thickness: Math.max(thickAt(f), 0.04 / at(f).chord), camber: b.camber || 0, kind: b.section || 'naca' });
+  // (its section no thinner than 4 cm, or a row's own floor: a small drone's wing is thinner than that)
+  const foilOpts = (f) => ({ thickness: Math.max(thickAt(f), (b.minThick ?? 0.04) / at(f).chord), camber: b.camber || 0, kind: b.section || 'naca' });
   const place = (f, c, t) => {
     const { chord, lead, lift } = at(f);
     const tw = (b.twist || 0) * DEG * f;   // washout: the tip's leading edge drops
@@ -574,10 +578,12 @@ function buildLiftingSurface(row, C, opts = {}) {
   if (extra.lofts) lofts.push(...extra.lofts);
   const lathes = [];
   const nav = row.realm === 'earth' && row.kind === 'craft-wing' && b.navLight !== false;
+  // (a nav light its aircraft's size: a small drone's a fraction of an aircraft's, every wing over 3 m the same)
+  const navK = Math.min(1, (span / 3) ** 1.5);
   if (nav && !madeFor(row, opts)) {
     const tipLe = toWorld(place(1, 0.05, 0), true);
-    const out = toWorld(place(1, 0.05, 0).map((v, i) => (i === 0 ? v + 0.09 : v)), true);
-    lathes.push(lathe('nav_light', tipLe, out, [[0, 0.06], [0.6, 0.055], [1, 0.005]], NAV_LIGHT[opts.side || 'c'], { material: 'neon', samples: 12, crossSections: 4 }));
+    const out = toWorld(place(1, 0.05, 0).map((v, i) => (i === 0 ? v + 0.09 * navK : v)), true);
+    lathes.push(lathe('nav_light', tipLe, out, [[0, 0.06 * navK], [0.6, 0.055 * navK], [1, 0.005 * navK]], NAV_LIGHT[opts.side || 'c'], { material: 'neon', samples: 12, crossSections: 4 }));
   }
   const point = ([f, c, face = 'mid']) => {
     const { chord, lead, lift } = at(f);
@@ -587,11 +593,12 @@ function buildLiftingSurface(row, C, opts = {}) {
   };
   const hardpoints = { mount: [0, 0, 0] };
   for (const [name, spec] of Object.entries(b.points || {})) hardpoints[name] = point(spec);
+  if (b.pivot) joints.push({ name: 'pivot', control: 'fold', kind: 'hinge', at: [0, 0, 0], dir: [0, 0, 1], range: [0, b.pivot.angle], angle: round3(pivotA / DEG) || 0 });
   if (madeFor(row, opts)) {
     // made: its hinges' gaps, its actuators' fairings, its leading-edge flap's line; a fin's cap and beacon; the nav light
     // in its cover (air-made.js)
     const world = (f, p) => toWorld(p, Boolean(fold) && f > hingeF);
-    const ms = madeSurface({ place, world, foil: (f, c) => foilAt(c, foilOpts(f)), surfaces, kind: row.kind, nav, vertical, side: opts.side, span, at, C });
+    const ms = madeSurface({ place, world, foil: (f, c) => foilAt(c, foilOpts(f)), surfaces, kind: row.kind, nav, navR: 0.055 * navK, vertical, side: opts.side, span, at, C });
     lathes.push(...ms.lathes);
     return { lofts, ...(lathes.length ? { lathes } : {}), ...(ms.sweeps.length ? { sweeps: ms.sweeps } : {}), hardpoints, joints, ...(fold ? { fold: round3(foldA / DEG) } : {}) };
   }

@@ -136,3 +136,41 @@ describe('the multirotor family', () => {
     for (const k of drones) expect(tris(k), k).toBeLessThan(A[k].reference.mtow < 2 ? 25000 : 50000);
   });
 });
+
+describe('the fixed wings and the hybrids', () => {
+  const fixedWing = Object.keys(A).filter((k) => A[k].realm === 'earth' && A[k].look && A[k].layout.some((e) => CRAFT_ODM[e.sku]?.kind === 'craft-wing'));
+  const find = (pred) => fixedWing.find((k) => A[k].layout.some((e) => pred(e, CRAFT_ODM[e.sku])));
+  const PIVOT = find((e, r) => r.build.pivot), PUSHER = find((e, r) => r.kind === 'craft-engine' && e.flip === 'y'), HTAIL = find((e, r) => r.kind === 'craft-stabilizer' && e.flip === 'x');
+  const ARMED = find((e, r) => r.kind === 'craft-weapon');
+  it('a pivoting wing swings back along the body as the craft folds, out across it unfolded', () => {
+    const e = A[PIVOT].layout.find((x) => CRAFT_ODM[x.sku].build.pivot);
+    const span = CRAFT_ODM[e.sku].dims.span, out = resolveCraftPart(e.sku, { seat: 'mount' }), folded = resolveCraftPart(e.sku, { fold: 1, seat: 'mount' });
+    const tipOf = (r) => { const l = r.lofts.find((x) => x.id === 'panel'); return [l.axisTo.x, l.axisTo.y]; };
+    expect(tipOf(out)[0]).toBeCloseTo(span, 2);
+    expect(Math.abs(tipOf(folded)[0])).toBeLessThan(span * 0.15);
+    expect(Math.abs(tipOf(folded)[1])).toBeGreaterThan(span * 0.9);
+    expect(folded.garage.joints.some((j) => j.name === 'pivot')).toBe(true);
+  });
+  it('a pusher\'s propeller behind its tail; an H-tail\'s halves meeting at the middle; an armed drone\'s stores hung (modelled, never fired)', () => {
+    const p = assembleCraft(PUSHER).manifest, hullY = Math.min(...p.items.filter((i) => i.id === 'hull').map((i) => i.at[1] - i.source.garage.dims.length));
+    expect(itemOf(p, 'prop').at[1]).toBeLessThan(hullY);
+    const h = assembleCraft(HTAIL).manifest, stab = h.items.filter((i) => i.source.garage.kind === 'craft-stabilizer');
+    for (const s of stab) expect(Math.abs(s.at[0]) - s.source.garage.dims.span).toBeLessThan(0.02);
+    const w = assembleCraft(ARMED).manifest.items.filter((i) => i.source.garage.kind === 'craft-weapon');
+    expect(w.length).toBeGreaterThan(1);
+    expect(w.every((i) => /never fired/.test(i.source.garage.label))).toBe(true);
+  });
+  it('a small drone\'s wing thinner than the shelf\'s floor, its nav light its own size; the airliners\' as they were', () => {
+    const small = A[fixedWing.find((k) => A[k].reference.mtow < 5)].layout.find((e) => CRAFT_ODM[e.sku].kind === 'craft-wing').sku;
+    const r = resolveCraftPart(small, { seat: 'mount', side: 'r' }), nav = r.lathes.find((l) => l.id === 'nav_light');
+    expect(nav.profile[0].radius).toBeLessThan(0.02);
+    const big = Object.keys(CRAFT_ODM).find((s) => CRAFT_ODM[s].kind === 'craft-wing' && CRAFT_ODM[s].realm === 'earth' && CRAFT_ODM[s].dims.span > 3);
+    expect(resolveCraftPart(big, { seat: 'mount', side: 'r' }).lathes.find((l) => l.id === 'nav_light').profile[0].radius).toBe(0.06);
+  });
+  it('within budget: a long-endurance drone under 80k triangles, the rest under 50k', () => {
+    for (const k of fixedWing) {
+      const t = craftForm(k, { pose: { gear: 0 }, attitude: 'ground' }).items.flatMap((i) => i.faces).reduce((s, f) => s + f.corners.length - 2, 0);
+      expect(t, k).toBeLessThan(A[k].reference.mtow > 1000 ? 80000 : 50000);
+    }
+  });
+});

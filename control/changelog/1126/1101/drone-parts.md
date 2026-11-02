@@ -144,3 +144,46 @@ markings and wear.
     The shelf's char test pins the EO/IR ball's path; no other pin moved.
   - **Seen** (machine gate only; the eyes gate is open): the camera quad and the inspection quad in each look, and the
     inspection quad military in camo, used.
+- **The fixed wings and the hybrids.** New rows of the shelf's own kinds at drone sizes (fuselages, wings, tails,
+  cowled motors, propellers, gear, pylons, a missile), with the drone kinds for their sensors and lift rotors, as
+  layouts:
+  - a hand-launched recon drone: a pod and boom, a high wing, a nose motor and propeller, a sensor ball;
+  - a catapult-launched twin-boom: booms off the wing to an H-tail whose halves run inboard and meet, fins on the booms,
+    a pusher at the pod's tail, fixed gear, a sensor ball;
+  - a medium-altitude long-endurance recon drone: its satcom's swell over the nose, a long slender wing, a V-tail and a
+    ventral fin, a pusher turboprop, retracting gear, the large sensor ball, and four air-to-ground missiles on pylons
+    (modelled, never fired);
+  - a flying-wing combat drone: a blended faceted body and a cranked wing, no tail;
+  - a VTOL quadplane: a pod and wing, two booms carrying four lift rotors, a pusher, an H-tail, skids, a zoom gimbal;
+  - a tube-launched loitering munition (modelled, never fired): its tandem wings swing back along its body as the craft
+    folds, a pusher at its tail.
+  - **New words:**
+    - a lifting surface's `pivot: { angle }`: the whole surface swings about the vertical at its root by the craft's
+      `fold`, inside its own placing, so every point, hinge and hardpoint turns together;
+    - `minThick`: a row's own floor for a section's thickness, under the shelf's 4 cm;
+    - a pusher is an engine and its propeller flipped aft (`flip: 'y'`).
+
+    Each absent changes nothing.
+  - **A wing's nav light is its aircraft's size:** smaller under 3 m of span, every larger wing's as it was.
+  - **New roles:** `recon` and `loiter`, with their starship drones (a watch probe with its long eye, a seeker probe).
+    The flying wing takes `stealth`, the quadplane `survey`.
+  - **On the roster:**
+    - hand-launched drone;
+    - twin-boom drone;
+    - long-endurance drone;
+    - flying-wing drone;
+    - quadplane;
+    - loitering munition;
+    - the two probes.
+  - **The shelf's deep sweep:** a drone's propeller and motor only need to clear the ground (it lands on its belly or
+    leaves a tube); a crewed craft's keep their margins.
+  - **Held** (`drone.test.js`):
+    - the pivoting wing out across and folded along the body;
+    - a pusher's propeller behind its tail;
+    - the H-tail's halves meeting;
+    - the armed drone's stores labelled never fired;
+    - a small wing thinner than the floor, its nav light small, a large wing's unchanged;
+    - the long-endurance drone under 80k triangles, the rest under 50k.
+
+    No existing pin moved.
+  - **Seen** (machine gate only; the eyes gate is open): every new drone from three quarters and the side.
