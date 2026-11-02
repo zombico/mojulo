@@ -107,6 +107,7 @@ import { LAND_FORMS, LAND_FORM_IDS } from '../era/out-land.js';
 import { landToLevel } from './nature.js';
 import { tunnelBuilding } from './tunnel-buildings.js';
 import { readWcd } from '../wcd/wcd.js';
+import { readComplex } from '../network/complex.js';
 import { readQow } from '../qow/qow.js';
 import { readBookSkin } from './book-skin.js';
 import { tunnelTech } from './tunnel-tech.js';
@@ -217,7 +218,9 @@ const ROADWAY_LEVEL_KEYS = ['form', 'course', 'dress', 'kit', 'scape', 'mood'];
 // a city level (city/plan/): the plan's own settings, who builds it, and the segments it is entered at and left from
 const CITY_LEVEL_KEYS = ['grammar', 'seed', 'board', 'spine', 'districts', 'sites', 'transit', 'lots', 'segments', 'cars', 'play', 'look', 'paint', 'civilization', 'from', 'to', 'stalker'];
 // (a building use's plan, era/programs.js: storeys, wings, loading and bays for an office, a lab building, a warehouse)
-const BUILDING_KEYS = ['use', 'seed', 'rooms', 'add', 'kit', 'geocube', 'goal', 'from', 'civilization', 'ref', 'storeys', 'wings', 'loading', 'bays'];
+const BUILDING_KEYS = ['use', 'seed', 'rooms', 'add', 'kit', 'geocube', 'goal', 'from', 'civilization', 'ref', 'storeys', 'wings', 'loading', 'bays', 'complex'];
+// a building level that is several buildings (network/complex.js): its own, or its dungeon's spaces on it
+const COMPLEX_LEVEL_KEYS = ['buildings', 'network', 'yard', 'from', 'to'];
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 
@@ -572,7 +575,17 @@ export function readGameworld(W) {
       const B = L.building;
       if (!isObj(B)) throw new Error(`gameworld: ${at}.building is { use, seed?, rooms?, add?, kit? | geocube?, goal?, civilization?, storeys?, wings?, loading?, bays? } or { ref, goal? }`);
       for (const k of Object.keys(B)) if (!BUILDING_KEYS.includes(k)) throw new Error(`gameworld: ${at}.building.${k} is not a building setting (${BUILDING_KEYS.join(', ')})`);
-      if ((B.ref === undefined) === (B.use === undefined)) throw new Error(`gameworld: ${at}.building names a use (${PROGRAM_IDS.join(', ')}) or the ref of a building already made, one of them`);
+      if (B.complex !== undefined) {
+        // (a complex: its buildings its own, or the dungeon's spaces on this level; checked whole where it is resolved)
+        if (B.complex !== true && !isObj(B.complex)) throw new Error(`gameworld: ${at}.building.complex is true (the dungeon's spaces on this level, each a building of its use) or { ${COMPLEX_LEVEL_KEYS.join(', ')} } (every one optional)`);
+        if (isObj(B.complex)) for (const k of Object.keys(B.complex)) if (!COMPLEX_LEVEL_KEYS.includes(k)) throw new Error(`gameworld: ${at}.building.complex.${k} is not a complex setting (${COMPLEX_LEVEL_KEYS.join(', ')})`);
+        const extra = Object.keys(B).filter((k) => !['complex', 'seed', 'civilization'].includes(k));
+        if (extra.length) throw new Error(`gameworld: ${at}.building: a complex is its buildings' (complex.buildings, or the dungeon's spaces), not ${extra.join(', ')}`);
+        if (L.foes !== undefined) throw new Error(`gameworld: ${at}.foes: a complex's rooms hold no foes yet (a building level's do)`);
+      }
+      // (a use: the building's own, else the use of the dungeon's space this level is)
+      const spaceUse = isObj(W.wcd?.spaces) ? Object.values(W.wcd.spaces).find((sp) => isObj(sp) && sp.level === id && typeof sp.use === 'string')?.use : undefined;
+      if (B.complex === undefined && (B.ref === undefined) === (B.use === undefined && spaceUse === undefined)) throw new Error(`gameworld: ${at}.building names a use (${PROGRAM_IDS.join(', ')}) or the ref of a building already made, one of them`);
       if (B.ref !== undefined && typeof B.ref !== 'string') throw new Error(`gameworld: ${at}.building.ref is a sketch ref`);
       if (B.ref !== undefined && Object.keys(B).some((k) => !['ref', 'goal'].includes(k))) throw new Error(`gameworld: ${at}.building: a building by ref is played as it was made (ref, goal?)`);
       if (B.use !== undefined && !PROGRAM_IDS.includes(B.use)) throw new Error(`gameworld: ${at}.building.use '${B.use}' is not one (${PROGRAM_IDS.join(', ')})`);
@@ -692,6 +705,38 @@ export function readGameworld(W) {
 }
 
 /**
+ * A building level that is a COMPLEX (network/complex.js): its buildings its own (`complex.buildings`), or the dungeon's
+ * spaces on the level, on the critical path's order (each a building of its use, in its look, stood beside the one
+ * before it); its passages between the pairs a door of the dungeon joins (whatever the door's via: a passage below
+ * grade, both ways), unless it names its own; played from the first space on the path to the last (`from`, `to`).
+ * → { use, complex, from, to } (`use` the goal building's), refused by name.
+ */
+function complexOfLevel(G, id, B, spaces, seed) {
+  const at = `levels.${id}.building.complex`, X = B.complex === true ? {} : B.complex;
+  const rank = (sid) => { const i = G.wcd?.path?.indexOf(sid) ?? -1; return i < 0 ? Infinity : i; };
+  const here = spaces.slice().sort((a, b) => rank(a.id) - rank(b.id) || a.depth - b.depth);
+  let buildings = X.buildings;
+  if (buildings === undefined) {
+    if (!here.length) throw new Error(`gameworld: ${at} names no buildings and no space of the world's dungeon (wcd) stands on this level: give it buildings, or set spaces' level to '${id}'`);
+    const bare = here.filter((sp) => !sp.use);
+    if (bare.length) throw new Error(`gameworld: ${at}: the dungeon's space${bare.length > 1 ? 's' : ''} ${bare.map((sp) => `'${sp.id}'`).join(', ')} on this level name${bare.length > 1 ? '' : 's'} no use: a complex's building is one (its space's use)`);
+    buildings = here.map((sp, i) => ({ id: sp.id, use: sp.use, at: i ? { beside: here[i - 1].id, side: '+x' } : [0, 0], ...(sp.look ? { look: sp.look } : {}) }));
+  } else if (Array.isArray(buildings)) {
+    // (a building named for a space wears its look when it names none)
+    buildings = buildings.map((b) => { const sp = here.find((x) => x.id === b?.id); return sp?.look && b.look === undefined ? { ...b, look: sp.look } : b; });
+  }
+  const ids = new Set(Array.isArray(buildings) ? buildings.map((b) => b?.id) : []);
+  const doors = G.wcd ? G.wcd.doors.filter((d) => ids.has(d.from) && ids.has(d.to)) : [];
+  const network = { ...(X.network ?? {}), ...(X.network?.links === undefined && doors.length ? { links: doors.map((d) => [d.from, d.to]) } : {}) };
+  const complex = { buildings, ...(Object.keys(network).length ? { network } : {}), ...(X.yard !== undefined ? { yard: X.yard } : {}), seed };
+  try { readComplex(complex); } catch (e) { throw new Error(`gameworld: ${at}: ${e.message.replace(/^complex: /, '')}`); }
+  const onPath = here.filter((sp) => ids.has(sp.id) && rank(sp.id) < Infinity);
+  const from = X.from ?? onPath[0]?.id ?? buildings[0].id, to = X.to ?? onPath[onPath.length - 1]?.id ?? buildings[buildings.length - 1].id;
+  for (const [k, v] of [['from', from], ['to', to]]) if (!ids.has(v)) throw new Error(`gameworld: ${at}.${k} '${v}' is not one of its buildings (${[...ids].join(', ')})`);
+  return { use: buildings.find((b) => b.id === to).use, complex, from, to };
+}
+
+/**
  * A level as its world hands it down: `{ id, name, seed, style, built, ledger, level, town }`. `level` is the recipe
  * `layLevel` reads; `town` the town's recipe in its civilization's language, its castle raised by its own, or null;
  * `built` who built them ({ town, castle } civilization ids); `ledger` every override, the level's and its parts'.
@@ -738,10 +783,17 @@ export function resolveLevel(world, id) {
     const B = L.building, civId = B.civilization ?? style.civilization, C = G.civilizations[civId];
     if (civId !== style.civilization) ledger.push({ scope: 'level', at: `${id}/building`, key: 'civilization', world: style.civilization, local: civId });
     const anchor = C.anchor ?? STRUCTURE_RAILS[style.kit]?.anchor ?? null;
-    // (the walled-core dungeon's space this level is: its look composes the building, its tone colours it, wcd/wcd.js)
-    const space = G.wcd ? Object.values(G.wcd.spaces).find((sp) => sp.level === id) : null;
+    // (the walled-core dungeon's spaces on this level, wcd/wcd.js: a complex's buildings; else the one it is, the space
+    // of its use where several stand on it: its use the building's when it names none, its look composes the building,
+    // its tone colours it)
+    const spaces = G.wcd ? Object.values(G.wcd.spaces).filter((sp) => sp.level === id) : [];
+    if (B.complex !== undefined) {
+      const building = { ...complexOfLevel(G, id, B, spaces, seed), seed: B.seed ?? seed, civilization: civId, ...(anchor !== null ? { anchor } : {}) };
+      return { id, name: L.name ?? id, seed, style, built: { building: civId }, ledger, level: null, town: null, building };
+    }
+    const space = spaces.find((sp) => B.use !== undefined && sp.use === B.use) ?? spaces[0] ?? null;
     const building = B.ref !== undefined ? { ref: B.ref, ...(B.goal !== undefined ? { goal: B.goal } : {}) }
-      : { ...B, seed: B.seed ?? seed, civilization: civId, ...(anchor !== null ? { anchor } : {}), ...(space?.look ? { look: space.look } : {}), ...(space?.tone !== undefined ? { tone: space.tone } : {}) };
+      : { ...B, use: B.use ?? space?.use, seed: B.seed ?? seed, civilization: civId, ...(anchor !== null ? { anchor } : {}), ...(space?.look ? { look: space.look } : {}), ...(space?.tone !== undefined ? { tone: space.tone } : {}) };
     return { id, name: L.name ?? id, seed, style, built: { building: civId }, ledger, level: null, town: null, building };
   }
 

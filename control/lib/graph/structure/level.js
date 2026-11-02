@@ -23,6 +23,7 @@ import { withProgram } from '../era/programs.js';
 import { buildNav } from '../worlds/controllable/nav.js';
 import { stageColliders } from '../era/anchors.js';
 import { stairColliders } from '../era/storeys.js';
+import { complexRoute } from '../network/complex.js';
 
 // the kinds that lower their own level (a city's segment registers itself: city/plan/level.js), so a building's level
 // never imports them
@@ -299,10 +300,11 @@ export function stageLevel(m, { goal = 'deepest', from = null } = {}) {
 
 const STAGE_EYE = 1.7;   // m: the stage's own walk eye
 export const PROBE = 0.6;   // m: on storeys, the ground is looked for from this high over the feet (rules-basic.js `probe`)
-/** Does a stage recipe stand on storeys (its own rooms, or its program's)? */
-export const storeyed = (m) => (Array.isArray(m.rooms) ? m.rooms : m.program !== undefined ? withProgram(m).rooms : []).some((r) => r && r.storey);
+/** Does a stage recipe stand on storeys (its own rooms, or its program's; a complex's buildings always do)? */
+export const storeyed = (m) => m.complex !== undefined || (Array.isArray(m.rooms) ? m.rooms : m.program !== undefined ? withProgram(m).rooms : []).some((r) => r && r.storey);
 
 function withStageLevel(m, ref) {
+  if (m.complex !== undefined) return withComplexLevel(m, ref);
   // a program names its goal room when the level does not
   const goal = m.level.goal ?? (m.program !== undefined ? withProgram(m).level.goal : undefined);
   const L = stageLevel(m, { goal, from: m.level.from });
@@ -326,6 +328,25 @@ function withStageLevel(m, ref) {
     // the stage's walls are its payload's colliders: the walker stops at them (no `colliders` here, which would replace them)
     // on storeys it looks for its ground just over its feet (it climbs a flight's treads, never onto the floor above)
     entities: [{ id: 'player', pilotable: true, rule: { type: 'walk', speed: 4.5, turn: 4, eye: STAGE_EYE, turnMode: 'look', keyTurn: true, strafe: 1, collideRadius: 0.3, ...(storeyed(m) ? { probe: PROBE } : {}) }, body: { type: 'none' }, transform: { pos: [spawn[0], spawn[1], spawn[2] + STAGE_EYE], heading } }],
+    camera: { rule: 'follow', target: 'player', dist: 0.05, height: 0, lookH: 0, lead: 2, turnMode: 'look' },
+  };
+}
+
+/**
+ * A complex's level (network/complex.js complexRoute): its walker at the yard before one building's front door, facing
+ * it; its goal the program's goal room of another, reached by the route in at the door, down, through the passages
+ * and up (the audit walks it). On storeys, as every building in it stands: the walker looks for its ground over its feet.
+ */
+function withComplexLevel(m, ref) {
+  const R = complexRoute(m);
+  if (R.error) throw new Error(`level: ${R.error}`);
+  const exit = { kind: 'reach-exit', at: [R.goal.at[0], R.goal.at[1], r2(R.goal.at[2] + STAGE_EYE)], radius: m.level.radius ?? 1.5, planar: false, via: R.route };
+  const game = { levelRef: ref, mechanics: [...(m.level.mechanics ?? []), ...(m.level.exit === false ? [] : [exit])], fall: { mode: 'respawn' } };
+  if (Array.isArray(m.entities) && m.entities.some((e) => e && e.pilotable)) return { ...m, game };
+  return {
+    ...m,
+    game,
+    entities: [{ id: 'player', pilotable: true, rule: { type: 'walk', speed: 4.5, turn: 4, eye: STAGE_EYE, turnMode: 'look', keyTurn: true, strafe: 1, collideRadius: 0.3, probe: PROBE }, body: { type: 'none' }, transform: { pos: [R.spawn[0], R.spawn[1], R.spawn[2] + STAGE_EYE], heading: R.heading } }],
     camera: { rule: 'follow', target: 'player', dist: 0.05, height: 0, lookH: 0, lead: 2, turnMode: 'look' },
   };
 }

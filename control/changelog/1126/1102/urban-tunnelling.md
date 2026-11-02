@@ -136,3 +136,17 @@
   passage, a basement), a `building` anchor a building (its door, rooms, way down and ways out) and a `tunnel` anchor a
   passage, and `complex` (its buildings, passages and laws: every building reached, cover, grade, run). Refused by name:
   a building standing on another, a link to a building it does not have, a ring of buildings beside each other.
+- **A walled-core dungeon's spaces on one level, a complex** (a building level's `building: { complex: true | { buildings?,
+  network?, yard?, from?, to? } }`): the dungeon's spaces that stand on the level become its buildings, in the critical
+  path's order, each of its space's use in its space's look, stood beside the one before it; a door between two of them
+  becomes the passage below grade that joins their basements (whatever its via, both ways); the level is played in at
+  the first one's front door, down, through the passages, up the last one's stair to its program's goal room (the route
+  the audit walks, a first-person walker that looks for its ground over its feet, or the world's hero). `buildings`
+  stands its own instead (a building named for a space wears its look). Its network's laws (every building reached,
+  cover, grade, run, and a way through from the building it is entered by to the one it is won in) advise in
+  `design_game`'s `advice.wcd` beside the dungeon's (on their own, `advice.complex`, in a world with no dungeon). The
+  book draws the level as a site plan (each building's ground floor, its front door, each passage, the way played
+  through them) and the dungeon's rings call a door between two of its buildings a passage. A building level with
+  several spaces on it takes the one of its use (the first was taken before, whatever its use), and one that names no
+  use takes its space's. A gate does not yet hold a passage shut inside a level: its clearance is drawn and advised,
+  not played.

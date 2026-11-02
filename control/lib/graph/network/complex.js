@@ -16,7 +16,13 @@
  *                when absent)
  *     yard       { margin? }: how far the yard runs out past the buildings (m)
  *
+ *   level      (the stage's own, beside `complex`) { from?, to?, mechanics?, exit?, radius? }: played from one
+ *                building's front door to another's goal room, through its passages (complexRoute)
+ *
  *   readComplex(c) → c, checked (refused by name)
+ *   layComplex(c, { built? }) → { sec, F, nodes, byId, passages }   placed, fitted, joined; built, or laid only
+ *   complexRoute(manifest) → the level's spawn, goal and route through the passages (below), or { error }
+ *   complexLaws(manifest) → its network's laws from its layout alone, and its level's route ({ law, ok, value, want })
  *   assembleComplexScene(manifest, ctx) → the World payload: faces (the yard, each building inside and out, each
  *       passage), colliders, lights, cameras (the site, each front door, the first passage, a basement), sky, walk, anchors
  *       (a `building` a building: its door, rooms, way down and ways out; a `tunnel` a passage), and `complex`: its
@@ -68,8 +74,10 @@ export function readComplex(c) {
   return c;
 }
 
-export function assembleComplexScene(manifest = {}, ctx = {}) {
-  const C = readComplex(manifest.complex), sec = readSection(C.network?.section ?? 'service'), margin = C.yard?.margin ?? 20;
+/** A complex laid: its buildings placed and fitted, its network's edges, each building as a node (built, or laid only:
+ *  its plan, routes and rooms, none of its faces) and each passage. */
+export function layComplex(C, { built = true } = {}) {
+  const sec = readSection(C.network?.section ?? 'service');
   // ── the buildings placed: each where it says, or beside one already placed (its footprint a gap off that one's side) ──
   const fits = new Map(), order = [], pending = [...C.buildings];
   while (pending.length) {
@@ -104,7 +112,7 @@ export function assembleComplexScene(manifest = {}, ctx = {}) {
   const allowed = C.network?.links ? new Set(C.network.links.flatMap(([a, b]) => [`${a}|${b}`, `${b}|${a}`])) : null;
   const edges = networkEdges(F.map((f) => f.node), { section: sec, blocks: F.map((f) => f.footprint) }).filter((e) => !allowed || allowed.has(`${e.a}|${e.b}`));
   const portsOf = (id) => edges.flatMap((e) => (e.a === id ? [{ id: `${e.a}-${e.b}`, room: e.roomA, side: e.sideA, u: e.uA, width: e.doorA }] : e.b === id ? [{ id: `${e.a}-${e.b}`, room: e.roomB, side: e.sideB, u: e.uB, width: e.doorB }] : []));
-  const nodes = F.map((f) => buildingNode(f, { padZ: 0, ports: portsOf(f.id) })), byId = new Map(nodes.map((n) => [n.id, n]));
+  const nodes = F.map((f) => buildingNode(f, { padZ: 0, ports: portsOf(f.id), built })), byId = new Map(nodes.map((n) => [n.id, n]));
   const inAny = (x, y) => F.some((f) => x >= f.footprint[0] && x <= f.footprint[2] && y >= f.footprint[1] && y <= f.footprint[3]);
   const over = (x, y) => ({ z: 0, under: inAny(x, y) ? 'slab' : 'ground' });
   const end = (q) => { const ax = q.side.endsWith('y') ? 0 : 1, P = (u) => { const p = [0, 0]; p[ax] = u; p[1 - ax] = q.plane; return p; }; return { z0: q.z0, lo: P(q.lo), hi: P(q.hi), top: q.top, plane: q.plane }; };
@@ -112,6 +120,11 @@ export function assembleComplexScene(manifest = {}, ctx = {}) {
     const id = `${e.a}-${e.b}`, pa = end(byId.get(e.a).ports.find((p) => p.id === id)), pb = end(byId.get(e.b).ports.find((p) => p.id === id));
     return { ...passageOf({ id, path: pathOf(e, pa, pb), a: pa, b: pb, section: sec, over, look: { light: 0.45 }, prefix: 'complex' }), a: e.a, b: e.b, kind: e.kind };
   });
+  return { sec, F, nodes, byId, passages };
+}
+
+export function assembleComplexScene(manifest = {}, ctx = {}) {
+  const C = readComplex(manifest.complex), margin = C.yard?.margin ?? 20, { sec, F, nodes, passages } = layComplex(C);
   // ── the yard: laid in cells round the buildings, out to its margin, cut at each footprint ──
   const xs = F.flatMap((f) => [f.footprint[0], f.footprint[2]]), ys = F.flatMap((f) => [f.footprint[1], f.footprint[3]]);
   const site = [Math.min(...xs) - margin, Math.min(...ys) - margin, Math.max(...xs) + margin, Math.max(...ys) + margin].map(r5);
@@ -151,6 +164,56 @@ export function assembleComplexScene(manifest = {}, ctx = {}) {
       laws: laws.map((l) => ({ law: l.law, ok: l.ok, value: l.value })),
     },
   };
+}
+
+// (a complex laid only, by its recipe: a level's lowering and its run's beats read it more than once)
+const LAID = new Map();
+const laid = (C) => { const k = JSON.stringify(C); if (!LAID.has(k)) { if (LAID.size >= 8) LAID.delete(LAID.keys().next().value); LAID.set(k, layComplex(C, { built: false })); } return LAID.get(k); };
+
+/**
+ * A complex as a level (structure/level.js lowers a stage recipe's `complex` with a `level` by it): entered from the yard
+ * at the front door of the building `level.from` (the first, by default), won in the program's goal room of
+ * `level.to` (the last, by default), by the fewest passages between them: in at the door, down to the basement, through
+ * each passage and each basement between, up the last building's stair to its goal room.
+ *   → { spawn, heading, from, to, hops, goal: { building, room, at }, route, rooms } | { error }
+ *   `route` the walk (each point a height the walk starts from, the ground under it what it stands on); `rooms` every
+ *   building's rooms ({ building, id, storey, box }), for a run's beats.
+ */
+export function complexRoute(manifest) {
+  const C = readComplex(manifest.complex), L = laid(C), lv = manifest.level ?? {}, ids = L.nodes.map((n) => n.id);
+  const from = lv.from ?? ids[0], to = lv.to ?? ids[ids.length - 1];
+  for (const [k, v] of [['from', from], ['to', to]]) if (!ids.includes(v)) return { error: `the level's '${k}' names no building of the complex (${ids.join(', ')})` };
+  // (breadth first over the passages, in the order they were laid)
+  const prev = new Map([[from, null]]), queue = [from];
+  while (queue.length) {
+    const id = queue.shift();
+    for (const t of L.passages) { const nx = t.a === id ? t.b : t.b === id ? t.a : null; if (nx !== null && !prev.has(nx)) { prev.set(nx, { t, id }); queue.push(nx); } }
+  }
+  if (!prev.has(to)) return { error: `no passage leads from '${from}' to '${to}': stand them facing each other across one gap, or link them (network.links)` };
+  const hops = [];
+  for (let id = to; prev.get(id); id = prev.get(id).id) hops.unshift({ t: prev.get(id).t, from: prev.get(id).id, to: id });
+  const A = L.byId.get(from), B = L.byId.get(to), route = [...A.down];
+  for (const h of hops) {
+    const X = L.byId.get(h.from), Y = L.byId.get(h.to), line = h.t.a === h.from ? h.t.line : h.t.line.slice().reverse();
+    route.push(...X.ports.find((p) => p.id === h.t.id).reach.slice(1), ...line.slice(1), ...Y.ports.find((p) => p.id === h.t.id).reach.slice().reverse().slice(1));
+  }
+  route.push(...B.up.route.slice(1));
+  const d = A.door, spawn = P3([d.at[0] + d.N[0] * 6, d.at[1] + d.N[1] * 6, d.at[2]]);
+  return {
+    spawn, heading: r5(Math.atan2(-d.N[1], -d.N[0])), from, to, hops: hops.map((h) => h.t.id),
+    goal: { building: to, room: B.up.room, at: B.up.at }, route,
+    rooms: L.nodes.flatMap((N) => N.rooms.map((r) => ({ building: N.id, id: r.id, storey: r.storey, box: r.box }))),
+  };
+}
+
+/** A complex's network held to its laws (network/laws.js), from its layout alone: every building reached, cover, grade,
+ *  run; and, played as a level, whether a way through its passages leads from its `from` to its `to`. */
+export function complexLaws(manifest) {
+  const C = readComplex(manifest.complex), L = laid(C);
+  const laws = networkLaws(L.F.map((f) => ({ id: f.id })), L.passages, { section: L.sec, prefix: 'complex', noun: 'building' });
+  if (!manifest.level) return laws;
+  const R = complexRoute(manifest);
+  return [...laws, { law: 'complex-route', ok: !R.error, value: R.error ?? `${R.from} → ${R.to} by ${R.hops.length ? R.hops.join(', ') : 'no passage'}`, want: 'a way through the passages from the building it is entered by to the one it is won in' }];
 }
 
 /** A building's outside, from its built rooms: on each storey from 1 up, each room's walls where no room of its storey

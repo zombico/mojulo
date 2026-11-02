@@ -13,7 +13,9 @@
  *       there, network/edges.js) laid as ways out of their rooms,
  *       each answered in the world ({ id, side, room, u, plane, lo, hi, z0, top, N, reach }); `down` its way from its door
  *       to its concourse and each port's `reach` from its stair's foot (the stage's own routes, structure/level.js, from
- *       the lobby), its faces, colliders and lights, its rooms' boxes, `rise` (storey 1 over the basement)
+ *       the lobby), `up` its way from there to its program's goal room ({ room, route, at }), its faces, colliders and
+ *       lights (none when `built` is false: laid only, for a level's lowering), its rooms' boxes, `rise` (storey 1 over
+ *       the basement)
  *
  * `spec`: { use, seed?, storeys?, wings?, loading?, bays?, kit?, compose? } (a program's settings, its kit and its finish
  * on the bay axes). Its windows are buried (its outside is its site's, network/complex.js); nothing is laid on its floors
@@ -68,14 +70,15 @@ export function buildingFit(spec, { id, at, facing = '-y', door = 2 }) {
   return { id, spec, recipe, PI, q, rot, N, at, facing, toWorld, footprint, ground, port, node: { id, rect: footprint, rooms: rooms.map(({ id: rid, rect, sides }) => ({ id: rid, rect, sides })), solid, door } };
 }
 
-export function buildingNode(fit, { padZ, ports = [] }) {
+export function buildingNode(fit, { padZ, ports = [], built = true }) {
   const doorW = fit.node.door;
   const { recipe, rot, toWorld, q } = fit;
   const asked = ports.map((p) => ({ ...p, plan: fit.port(p.room, p.side, p.u) }));
   const m = { ...recipe, ways: [...recipe.ways, ...asked.map((p) => ({ room: p.plan.room, side: p.plan.side, width: p.width ?? doorW, along: p.plan.along }))] };
   const PI = planStage(m), rise = PI.storeys[1].z0, top = PI.storeys[PI.storeys.length - 1].z0 + 8, base = padZ - rise;
   // (no window: its basement in the ground; its outside is its site's, the land against every wall to its roof)
-  const P = assembleStageScene({ ...m, _ground: { y0: -1e4, y1: 1e4, z0: top, z1: top } }, {});
+  // (`built: false` lays it only: its plan, its routes and its rooms, none of its faces: what a level is lowered from)
+  const P = built ? assembleStageScene({ ...m, _ground: { y0: -1e4, y1: 1e4, z0: top, z1: top } }, {}) : { faces: [], colliders: [], lights: [] };
   const W = (p) => [...toWorld(p), p[2] + base], turnN = (n) => { const [x, y] = rot([n[0], n[1]]); return [x, y, n[2]]; };
   const box = (lo, hi) => { const a = W(lo), c = W(hi); return { min: P3([Math.min(a[0], c[0]), Math.min(a[1], c[1]), Math.min(a[2], c[2])]), max: P3([Math.max(a[0], c[0]), Math.max(a[1], c[1]), Math.max(a[2], c[2])]) }; };
   const faces = hazardAsFloor(P.faces.filter((f) => f.group !== 'stage:sky' && f.group !== 'stage:sunpatch')).map((f) => ({ ...f, corners: f.corners.map((c) => P3(W(c))), ...(f.normal ? { normal: P3(turnN(f.normal)) } : {}), ...(f.outNormal ? { outNormal: P3(turnN(f.outNormal)) } : {}) }));
@@ -83,7 +86,7 @@ export function buildingNode(fit, { padZ, ports = [] }) {
   const lights = (P.lights || []).map((l) => ({ ...l, name: `${fit.id}-${l.name}`, position: P3(W(l.position)) }));
   // each way's threshold: its floor across the wall's depth (the stage's way leaves none between its faces)
   const tz = turnN([0, 0, 1]);
-  PI.ways.forEach((way) => {
+  if (built) PI.ways.forEach((way) => {
     const r = PI.rooms.find((x) => x.id === way.room), z = r.z0 ?? 0, o = FACING[way.side], ax = way.side.endsWith('y') ? 0 : 1;
     const fl = P.faces.find((f) => f.normal?.[2] > 0.9 && Math.abs(f.corners[0][2] - z) < 1e-3 && typeof f.fill === 'string'), fill = fl?.fill ?? '#9a948a';
     const pt = (u, k) => { const p = [0, 0, z]; p[ax] = u; p[1 - ax] = way.at + (o[1 - ax] || 0) * k; return p; };
@@ -110,9 +113,12 @@ export function buildingNode(fit, { padZ, ports = [] }) {
     return { id: p.id, side: p.side, room: p.room, u: p.u, plane: r5(A[1 - wax]), lo: r5(Math.min(A[wax], B[wax])), hi: r5(Math.max(A[wax], B[wax])), z0: r5(base), top: r5(wy.top), N: FACING[p.side], reach };
   });
   const rooms = PI.rooms.map((r) => ({ id: r.id, storey: r.storey ?? 0, box: box([r.x0, r.y0, r.z0 ?? 0], [r.x1, r.y1, (r.z0 ?? 0) + r.h]) }));
+  // (its way up, from where the way down ends, to its program's goal room: where a level that ends in it is won)
+  const G = stageLevel(m, { goal: recipe._program.goal, from: 'concourse' });
+  const up = { room: G.goal.room, route: [P3([foot[0], foot[1], base]), ...G.route.map((pp) => pt(pp, 0))], at: pt(G.goal.at, G.goal.at[2]) };
   // (its front door: where it stands, the way it faces, its span along its front and its head, as its facade is cut)
   const wax = Math.abs(fit.N[0]) > 0.5 ? 1 : 0, dA = toWorld([way0.lo, lobby.y0]), dB = toWorld([way0.hi, lobby.y0]);
-  return { id: fit.id, use: fit.spec.use, faces, colliders, lights, rise: r5(rise), floor0: r5(base), turn: q, ports: outPorts, down, rooms, footprint: fit.footprint,
+  return { id: fit.id, use: fit.spec.use, faces, colliders, lights, rise: r5(rise), floor0: r5(base), turn: q, ports: outPorts, down, up, rooms, footprint: fit.footprint,
     door: { at: P3([...fit.at, padZ]), N: fit.N, span: [r5(Math.min(dA[wax], dB[wax])), r5(Math.max(dA[wax], dB[wax]))], top: r5(way0.top) } };
 }
 

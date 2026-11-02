@@ -1,7 +1,8 @@
 /**
  * THE DUNGEON'S PAGE in a world's book (bible-html.js): a walled-core dungeon (wcd/wcd.js) drawn as rings, the outermost
  * layer outside and the core in the middle, each space on its ring, the doors on the joins with what opens them, the
- * critical path in the accent, a space not yet built dashed; beside it each layer's level and look, and the principles'
+ * critical path in the accent, a space not yet built dashed (a door between two buildings of one complex level is the
+ * passage below grade that joins them); beside it each layer's level and look, and the principles'
  * verdicts. Drawn in the book's own variables (`var(--ink)`, `var(--c-trail)`, …), so a skin (book-skin.js) recolours it.
  *
  *   wcdPage(G, esc, finishes) → the section's html, '' for a world with no dungeon; `finishes` (finishes.js, by level)
@@ -17,7 +18,7 @@ const S = 640, C = S / 2, R0 = 64, R1 = 270;
 const r1 = (v) => Math.round(v * 10) / 10;
 
 /** The rings plate: one ring a depth, each space a node on its ring, each door a line between nodes. */
-function plate(W, esc) {
+function plate(W, esc, inComplex = () => false) {
   const sp = Object.values(W.spaces), D = Math.max(...sp.map((s) => s.depth)), top = Math.min(...sp.map((s) => s.depth));
   const span = Math.max(1, D - top), radius = (d) => (d === D ? 0 : R0 + ((D - d) / span) * (R1 - R0));
   // (a depth's spaces spread round its ring, each ring turned a little from the last so a stack reads as a path in)
@@ -39,7 +40,7 @@ function plate(W, esc) {
     if ((mx + nx - C) ** 2 + (my + ny - C) ** 2 < (mx - C) ** 2 + (my - C) ** 2) { nx = -nx; ny = -ny; }
     const m = [r1(mx + nx * 16), r1(my + ny * 16 + 4)];
     return `<line x1="${a[0]}" y1="${a[1]}" x2="${b[0]}" y2="${b[1]}" style="stroke:${path ? 'var(--c-trail)' : 'var(--muted)'}" stroke-width="${path ? 3 : 1.5}"${d.oneWay ? ' stroke-dasharray="3 5" marker-end="url(#wcd-arrow)"' : ''}/>`
-      + `<text x="${m[0]}" y="${m[1]}" text-anchor="middle" class="wcd-gate">${esc(`${d.via} · ${gateOf(d.gate)}`)}</text>`;
+      + `<text x="${m[0]}" y="${m[1]}" text-anchor="middle" class="wcd-gate">${esc(`${inComplex(d) ? 'passage' : d.via} · ${gateOf(d.gate)}`)}</text>`;
   }).join('');
   const nodes = sp.map((s) => {
     const [x, y] = at[s.id], core = s.id === W.core, rr = core ? 26 : 17;
@@ -57,7 +58,10 @@ export function wcdPage(G, esc, finishes = {}, made = null) {
   const W = G.wcd;
   if (!W) return '';
   const order = Object.values(W.spaces).sort((a, b) => a.depth - b.depth);
-  const level = (s) => (s.level ? esc(G.levels?.[s.level]?.name ?? s.level) : '—');
+  // (a door between two spaces of one complex level is a passage below grade between their buildings, network/complex.js)
+  const complexLevel = (s) => !!s.level && G.levels?.[s.level]?.building?.complex !== undefined;
+  const inComplex = (d) => complexLevel(W.spaces[d.from]) && W.spaces[d.from].level === W.spaces[d.to].level;
+  const level = (s) => (s.level ? `${esc(G.levels?.[s.level]?.name ?? s.level)}${complexLevel(s) ? ` · ${esc(s.use ?? 'building')}` : ''}` : '—');
   // (the look a layer is built in: its finishes' when its level is a building, as composed; else the look it names)
   const look = (s) => {
     const F = s.level ? finishes[s.level] : null, L = F?.axes ?? s.look;
@@ -66,7 +70,7 @@ export function wcdPage(G, esc, finishes = {}, made = null) {
   const rows = order.map((s) => `<tr><td class="mono">${s.depth}</td><td><b>${esc(s.id)}</b>${s.id === W.core ? ' <span class="stamp st-revise">core</span>' : ''}</td><td class="mono">${s.kind}</td><td>${level(s)}</td><td class="mono">${look(s)}${s.tone !== undefined ? ' · toned' : ''}</td><td class="mono">${!s.built ? 'unbuilt' : s.level && made?.has(s.level) ? 'built' : 'to build'}</td></tr>`).join('');
   const laws = W.laws.map((l) => `<li><span class="stamp ${l.holds ? 'st-approved' : 'st-changed'}">${l.holds ? 'holds' : 'advise'}</span> <b class="mono">${esc(l.law)}</b> <span class="muted">${esc(l.says)}</span></li>`).join('');
   return `<section class="part" id="wcd"><div class="part-h"><span class="eyebrow">The way in</span><h2>To the core</h2></div>`
-    + `<div class="wcd"><figure class="canvas wcd-plate">${plate(W, esc)}</figure><div class="card"><div class="card-h"><span class="eyebrow">Critical path</span><h3>${W.path ? W.path.map(esc).join(' › ') : 'no way in'}</h3></div>`
+    + `<div class="wcd"><figure class="canvas wcd-plate">${plate(W, esc, inComplex)}</figure><div class="card"><div class="card-h"><span class="eyebrow">Critical path</span><h3>${W.path ? W.path.map(esc).join(' › ') : 'no way in'}</h3></div>`
     + `<table class="wcd-t"><thead><tr><th>depth</th><th>layer</th><th>kind</th><th>level</th><th>look</th><th></th></tr></thead><tbody>${rows}</tbody></table>`
     + `<ul class="wcd-laws">${laws}</ul></div></div></section>`;
 }
