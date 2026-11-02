@@ -357,6 +357,10 @@ const sha = (s) => createHash('sha256').update(s).digest('hex');
 // refused every match's outcome before); the contest kernel the court, turns, pitch, meet and innings inline takes a
 // ladder's `tiebreak` (tennis's set at six all). No other page inlines an arena client or the kernel.
 
+// Re-pinned 2026-11-02 (book powers): every fixture that embeds the controllable runtime, and those only. The cast's
+// beam (worlds/controllable/cast.js) takes `to: { nearest: { range?, cone? } }` (the nearest standing foe in front of
+// its caster) and `hurt` (the hp it takes as it lands, in castFacts beside the struck fact), so a power's attack lands;
+// a beam with neither plays as before.
 describe('emitThreeWorld characterization (byte-level pin over the fixture matrix)', () => {
   it.each(EMIT_FIXTURES.map(([name]) => name))('%s emits byte-identically', (name) => {
     const [, opts] = EMIT_FIXTURES.find(([n]) => n === name);

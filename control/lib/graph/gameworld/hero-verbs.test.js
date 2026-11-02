@@ -9,6 +9,8 @@ import { gameStages, stageLevelOrder } from './levels.js';
 import { readAdornment, resolveAdornment } from './adornment.js';
 import { readEquipment } from './equipment.js';
 import { SHOOT, SHOULDER } from './quick.js';
+import { runSteps } from './runner.js';
+import { readCastEffect } from '../playscape/ui/cast.js';
 
 const H = MEADOWMARK_HERO.characters.hero;
 const carrying = (items, more = {}) => ({ ...MEADOWMARK_HERO, ...more, characters: { ...MEADOWMARK_HERO.characters, hero: { ...H, adornment: { items } } } });
@@ -64,5 +66,23 @@ describe('a power\'s move is the hero\'s from the stage that gains it', () => {
     expect(staged.airJumps ?? 0).toBe(0);
     const plain = pilot(firstLevel(MEADOWMARK_HERO)).rule;
     expect(staged.jumpSpeed).toBeCloseTo((plain.jumpSpeed ?? 8.5) * Math.sqrt(1.5), 2);
+  });
+});
+
+describe('an attack power lands on the nearest foe in front', () => {
+  it('its key\'s cue fires its beam from the hero at the nearest foe, taking the hero\'s power × its per', () => {
+    const lv = runSteps(MEADOWMARK_HERO, { ref: 'm' }).find((s) => s.key.startsWith('level')).order.manifest;
+    const cue = lv.play.cues.find((c) => c.id === 'power-wind-orb'), beam = cue.then.find((t) => t.beam)?.beam;
+    expect(beam).toMatchObject({ who: 'hero', to: { nearest: { range: 24, cone: 0.7 } }, is: 'orb' });
+    expect(beam.hurt).toBeGreaterThan(0);
+    // (a power with no attack fires none)
+    expect(lv.play.cues.find((c) => c.id === 'power-gust-step').then.some((t) => t.beam)).toBe(false);
+  });
+
+  it('a cue\'s beam takes the nearest foe and a hurt, and says what they are when they are wrong', () => {
+    const ctx = { beams: {}, explosions: {} };
+    expect(readCastEffect('beam', { beam: { who: 'hero', to: { nearest: { range: 10 } }, hurt: 3 } }, 'then', ctx)).toMatchObject({ to: { nearest: { range: 10 } }, hurt: 3 });
+    expect(() => readCastEffect('beam', { beam: { who: 'hero', to: { nearest: { reach: 10 } } } }, 'then', ctx)).toThrow(/nearest: \{ range\?: metres, cone\?: radians \}/);
+    expect(() => readCastEffect('beam', { beam: { who: 'hero', to: 'b', hurt: -1 } }, 'then', ctx)).toThrow(/hurt is the hp it takes/);
   });
 });
