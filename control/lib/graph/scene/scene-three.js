@@ -83,6 +83,8 @@ import { viewConeScript } from './channels/view-cone.js';
 import { formSkyScript, formSkyInput } from './channels/form-sky.js';
 import { farStructuresScript } from './channels/far-structures.js';
 import { atmosphereScript, atmosphereEarlyScript } from './channels/atmosphere.js';
+import { framePassScript } from './channels/frame-pass.js';
+import { CITY_CONE, CITY_CONE_TILE, cityConeRule } from './channels/city-cone.js';
 import { fabricScript } from './channels/fabric.js';
 import { formScript, FORM_PAGE } from './channels/form.js';
 import { stageGrassScript } from './channels/stage-grass.js';
@@ -250,7 +252,7 @@ const SCREEN_ZONES_CSS = [
   '  html[data-orientation=portrait] .moj-rpg-field{flex-direction:column}html[data-orientation=portrait] .moj-rpg-field .mem{width:auto}',
 ].join('\n');
 
-export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 1120, height: 780 }, title = 'mojulo world', bg = '#0e1014', inline = false, cdn = false, glow = true, light = null, sky = null, textures = {}, wireframe = false, walk = false, spin = false, hud = true, picks = [], tracers = [], planets = [], movers = [], comets = [], fields = [], surfaces = [], heatSpheres = [], starSurfaces = [], buildups = [], transports = [], deforms = [], raymarch = null, decollide = true, capture = false, signs = [], physics = null, actions = [], entities = [], camera = null, pilot = null, spectate = null, seats = null, ai = null, colliders = null, breakables = null, breakPieces = null, hangar = null, match = null, shadows = null, smoke = null, wreckExplodes = null, tutorial = null, aiDifficulty = null, lock = null, commander = null, figures = {}, events = null, fog = null, ao = null, repeats = [], splats = [], audio = null, fx = null, effects = [], spriteSfx = [], marks = [], driveSurface = null, shoot = null, game = null, backdrop = null, walkers = [], cars = [], carMeshes = {}, signals = null, trafficLanes = null, trafficConstants = null, xr = null, toon = null, stream = null, haze = null, strokeOverlay = null, terrain = null, crystalLight = null, fire = null, metersPerUnit = null, cutouts = null, doors = null, items = null, shallows = null, wetSand = null, softGround = null, jets = null, jetLight = null, sway = null, flicker = null, motes = null, wetRoad = null, weather = null, tone = null, liveGrass = null, pack = false, soft = null, pixel = null , versus = null, vertexContrast = null, board = null, screen = null, runner = null, science = null, hazeHeight = null, snowPrints = null, fauna = null, fabric = null, resample = null, creases = null, occlusion = null, lightTier = null, meet = null, court = null, turns = null, pitch = null, holo = null, innings = null, form = null, broadcasts = null, cone = null, formSky = null, air = null } = {}) {
+export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 1120, height: 780 }, title = 'mojulo world', bg = '#0e1014', inline = false, cdn = false, glow = true, light = null, sky = null, textures = {}, wireframe = false, walk = false, spin = false, hud = true, picks = [], tracers = [], planets = [], movers = [], comets = [], fields = [], surfaces = [], heatSpheres = [], starSurfaces = [], buildups = [], transports = [], deforms = [], raymarch = null, decollide = true, capture = false, signs = [], physics = null, actions = [], entities = [], camera = null, pilot = null, spectate = null, seats = null, ai = null, colliders = null, breakables = null, breakPieces = null, hangar = null, match = null, shadows = null, smoke = null, wreckExplodes = null, tutorial = null, aiDifficulty = null, lock = null, commander = null, figures = {}, events = null, fog = null, ao = null, repeats = [], splats = [], audio = null, fx = null, effects = [], spriteSfx = [], marks = [], driveSurface = null, shoot = null, game = null, backdrop = null, walkers = [], cars = [], carMeshes = {}, signals = null, trafficLanes = null, trafficConstants = null, xr = null, toon = null, stream = null, haze = null, strokeOverlay = null, terrain = null, crystalLight = null, fire = null, metersPerUnit = null, cutouts = null, doors = null, items = null, shallows = null, wetSand = null, softGround = null, jets = null, jetLight = null, sway = null, flicker = null, motes = null, wetRoad = null, weather = null, tone = null, liveGrass = null, pack = false, soft = null, pixel = null , versus = null, vertexContrast = null, board = null, screen = null, runner = null, science = null, hazeHeight = null, snowPrints = null, fauna = null, fabric = null, resample = null, creases = null, occlusion = null, lightTier = null, meet = null, court = null, turns = null, pitch = null, holo = null, innings = null, form = null, broadcasts = null, cone = null, formSky = null, air = null, soften = null } = {}) {
   if (board && !capture) walk = false;   // a board owns the keys and the view: no walking over it
   // (a room in the form render, channels/form.js: its faces' baked light rides each mesh as `aLit`; none, none packed)
   const litPack = !!(form && form.room && Array.isArray(form.room.lights));
@@ -418,6 +420,8 @@ export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 11
       ...(creasesCfg && creaseOf(r.template) ? { crease: creaseOf(r.template) } : {}),
       // drawn only NEAR the camera (`near` world units): a street's kit and its paint, a far block needing none
       ...(Number.isFinite(r.near) && r.near > 0 ? { near: r.near } : {}),
+      // (and by the view cone's rule rather than the ring, channels/city-cone.js: in, out or kit)
+      ...(Number.isFinite(r.near) && r.near > 0 && ['in', 'out', 'kit'].includes(r.cone) ? { cone: r.cone } : {}),
     };
   });
   // widen the camera-framing bound so a mostly-instanced world still frames fully
@@ -520,6 +524,7 @@ export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 11
   const hasRepeatTextures = packedRepeats.some((r) => r.tex);
   const hasAxisScale = packedRepeats.some((r) => r.t.some((t) => t.length > 5));   // absent: the uniform line, byte-identical
   const hasNear = packedRepeats.some((r) => r.near);   // absent: no near tiles, not one byte
+  const hasConeTiles = packedRepeats.some((r) => r.cone);   // absent: the ring alone, not one byte of the cone's rule
   const hasTextures = groups.some((g) => g.tex.length) || hasRepeatTextures || blendLayers.length > 0;
   // the resampler (channels/resample.js): the plans for the textures this page draws; none, nothing emitted
   const resampled = resample && hasTextures ? (() => { const r = Object.fromEntries(Object.entries(resample).filter(([k]) => textures[k]).sort(([a], [b]) => (a < b ? -1 : 1))); return Object.keys(r).length ? r : null; })() : null;
@@ -703,6 +708,9 @@ export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 11
   const airOn = !!(air && Number.isFinite(air.sigma) && air.sigma > 0), airBlock = airOn ? atmosphereScript(air) : '';
   // (and its first part right after the scene is made: the fog chunk before any material, the far's softening wrapped round three's render first)
   const airEarly = airOn ? atmosphereEarlyScript(air) : '';
+  // (and the frame pass, the far softened by the air's blur and past the crust by the cone's `soften`, channels/frame-pass.js:
+  // wrapped round three's render first; asked by neither, not a byte)
+  const frameEarly = framePassScript({ air: airOn ? air : null, soften: Number.isFinite(soften) && soften > 0 ? soften : 0 });
   // the world's weather (channels/weather.js): fog that moves, a fall round the camera, lightning; absent ⇒ no bytes
   const weatherBlock = weather && weather.weather ? weatherScript({ radius: mesh.radius || 40, fog: haze && Number.isFinite(haze.density) && typeof haze.color === 'string' ? { color: haze.color, density: haze.density } : null, forces: weatherForces(events), ...weather }) : '';
   // a stage's tone (channels/tone.js): each surface lit first, coloured off its ramp after; none → not one byte
@@ -1156,7 +1164,7 @@ ${pixel ? `// THE PIXEL LOOK (cosmos reality.medium=pixel): drawn at a ${Math.ro
 renderer.setPixelRatio(1 / ${Math.round(Number(pixel.scale))}); canvas.style.imageRendering = 'pixelated';` : 'renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));'}
 
 const scene = new THREE.Scene();
-${backdropUrl ? `scene.background = null; renderer.setClearColor(0x000000, 0);   // backdrop: the page's image shows through` : `scene.background = new THREE.Color(BG);`}${airEarly}
+${backdropUrl ? `scene.background = null; renderer.setClearColor(0x000000, 0);   // backdrop: the page's image shows through` : `scene.background = new THREE.Color(BG);`}${airEarly}${frameEarly}
 
 // One mesh per render group. Hideable groups (walls/ceiling) get a transparent material so
 // they can fade; static groups (furniture, floor, whole cities) stay opaque.
@@ -1220,29 +1228,29 @@ ${hasNear ? `// NEAR repeats: an entry with \`near\` is cut into square tiles of
 // a textured template's faces (a tree's bark) tiled the same, on their own material
 const __nearTiles = [];
 const __nearRepeat = (r, geo, material = null) => {
-  const T = Math.max(16, r.near / 2), tiles = new Map();
+  const T = ${hasConeTiles ? `r.cone && r.cone !== 'kit' ? ${CITY_CONE.tile} : ` : ''}Math.max(16, r.near / 2), tiles = new Map();
   r.t.forEach((t, i) => { const k = Math.floor(t[0] / T) + ':' + Math.floor(t[1] / T); if (!tiles.has(k)) tiles.set(k, []); tiles.get(k).push(i); });
   const mat = material || new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide });
   const M = new THREE.Matrix4(), Q = new THREE.Quaternion(), UP = new THREE.Vector3(0, 0, 1), P = new THREE.Vector3(), S = new THREE.Vector3();
   for (const [k, ids] of tiles) {
     const im = new THREE.InstancedMesh(geo, mat, ids.length);
-    let cx = 0, cy = 0;
+    let cx = 0, cy = 0;${hasConeTiles ? '\n    let x0 = Infinity, y0 = Infinity, z0 = Infinity, x1 = -Infinity, y1 = -Infinity, z1 = -Infinity, h = 0;' : ''}
     ids.forEach((i, j) => {
-      const t = r.t[i]; cx += t[0] / ids.length; cy += t[1] / ids.length;
+      const t = r.t[i]; cx += t[0] / ids.length; cy += t[1] / ids.length;${hasConeTiles ? '\n      x0 = Math.min(x0, t[0]); x1 = Math.max(x1, t[0]); y0 = Math.min(y0, t[1]); y1 = Math.max(y1, t[1]); z0 = Math.min(z0, t[2]); z1 = Math.max(z1, t[2]); h = Math.max(h, 2 * r.radius * Math.max(t[4], t[6] ?? t[4]));' : ''}
       Q.setFromAxisAngle(UP, t[3]); P.set(t[0], t[1], t[2]); ${hasAxisScale ? 'S.set(t[4], t[5] ?? t[4], t[6] ?? t[4]);' : 'S.set(t[4], t[4], t[4]);'} M.compose(P, Q, S); im.setMatrixAt(j, M);
       if (r.tint) im.setColorAt(j, new THREE.Color(r.tint[i][0], r.tint[i][1], r.tint[i][2]));
     });
     im.instanceMatrix.needsUpdate = true; if (im.instanceColor) im.instanceColor.needsUpdate = true;
     im.userData.g = r.name; im.visible = false;
     scene.add(im); solids.push(im); if (!meshes[r.name]) meshes[r.name] = im;
-    __nearTiles.push({ im, x: cx, y: cy, r: r.near + T * 0.75 });
+    __nearTiles.push({ im, x: cx, y: cy, r: r.near + T * 0.75${hasConeTiles ? `, ${CITY_CONE_TILE}` : ''} });
   }
 };
 const __nearBR = scene.onBeforeRender;
 scene.onBeforeRender = function (rd, sc, cam, rt) {
   __nearBR.call(this, rd, sc, cam, rt);
   const p = cam.position;
-  for (const n of __nearTiles) n.im.visible = (n.x - p.x) * (n.x - p.x) + (n.y - p.y) * (n.y - p.y) < n.r * n.r;
+  ${hasConeTiles ? cityConeRule() : 'for (const n of __nearTiles) n.im.visible = (n.x - p.x) * (n.x - p.x) + (n.y - p.y) * (n.y - p.y) < n.r * n.r;'}
 };
 ` : ''}for (const r of REPEATS) {
   const geo = new THREE.BufferGeometry();

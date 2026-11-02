@@ -809,18 +809,22 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
   }
   // (a page without the form render carries the view cone and its far structures only when its world asks: `cone`)
   if (payload && !payload.form && sketch.manifest.cone !== undefined && sketch.manifest.cone !== null) payload.cone = readCone(sketch.manifest.cone);
+  // (the crust softened past the cone's reach, `cone.soften`: the page's frame pass, channels/frame-pass.js; a page's read only)
+  { const C = payload ? (payload.form?.land?.cone ?? payload.cone) : null; if (C && C.soften && !unshaded && viewOpts.paint !== true) payload.soften = C.soften; }
   // THE AIR of a gen-7 geocube page (channels/atmosphere.js): the recipe's `air`, a fog by its visibility over the outside
   // (lying low over the walk's ground, glowing toward the sun) or the inside (a hall, a room, a cavern: even), the gen-7
   // sky veiled to it and the far softened past the view cone. Read on any geocube read (a bad word refuses there too);
   // drawn on a gen-7 page alone: a painted page keeps its haze, and the unshaded export its faces
   if (payload && sketch.manifest.kind === 'geocube' && sketch.manifest.air !== undefined) {
     const sun = payload.sky && !payload.sky.space && Array.isArray(payload.sky.sun?.dir) ? payload.sky.sun.dir : null;
-    const inside = !!payload.form?.room || !sun;
+    // (inside is what the page is, a room's form or a cavern, never the sun's absence: a night outside has none)
+    const inside = !!payload.form?.room || (payload.anchors || []).some((a) => a && a.kind === 'cavern');
     const A = readAtmosphere(sketch.manifest.air, { where: inside ? 'inside' : sketch.manifest.show === 'geocity' ? 'city' : 'outside' });
     if (A && !unshaded && viewOpts.paint !== true && ERAS[era]?.surface === 'form') {
       const spawn = Array.isArray(payload.walk?.spawn) ? payload.walk.spawn : null;
       // (a room's air is the colour of the room's own light, not the sky's: roomAirColour; a cavern keeps its page's dark)
-      const room = payload.form?.room, colour = room && Array.isArray(room.ambient) ? roomAirColour(room) : null;
+      // (the recipe's own colour wins: a neon night's air the glow of its lights)
+      const room = payload.form?.room, colour = A.colour ?? (room && Array.isArray(room.ambient) ? roomAirColour(room) : null);
       payload.air = atmosphereInput(A, { base: spawn && Number.isFinite(spawn[2]) ? spawn[2] : 0, sun: inside ? null : sun, unit: payload.metersPerUnit || 1, colour });
     }
   }

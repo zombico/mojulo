@@ -59,6 +59,13 @@ describe('the ground\'s parallax kinds', () => {
     expect(stands).toBeGreaterThan(page.indexOf('const U = new Set(D.far)'));
   });
 
+  it('draws no sky over a land that has none (a cavern): the reflections in the rock\'s dark, no gen-7 sky', () => {
+    const page = formLandScript({ light: { sun: [1, 1, 1], ambient: [0.2, 0.2, 0.2] }, sky: null });
+    expect(page).toContain('const SK = D.sky || { zenith: [10, 11, 13], horizon: [10, 11, 13] };');
+    expect(page).toContain('if (D.sky) {');
+    expect(page.indexOf('if (D.sky) {')).toBeLessThan(page.indexOf('the light that lights the land, seen'));
+  });
+
   it('reads the same page twice', () => {
     expect(formLandScript(land)).toBe(formLandScript(land));
   });
