@@ -96,6 +96,19 @@ export const SEEDED_STYLES = Object.freeze({
     "roles": { "blade": { "metal": "bronze", "finish": "planished" }, "fittings": ["wood", "#6e5238"], "accent": { "metal": "bronze", "film": { "age": 40 } }, "wrap": ["leather", "#4a3524"], "leaf": ["matte", "#5d8a3c"] },
     "gem": { "gem": "tourmaline", "glow": 0.3, "cut": "natural" }
   },
+  // the grave's: arms that lay with the dead (equipment/armory.js arms the skeletons from it): mill-scaled iron gone to
+  // rust at the fittings, bronze gone green, the wood grey and the leather rotted, the edges chipped
+  grave: {
+    "id": "grave",
+    "dials": { "stylize": 0.15, "mass": 1.05, "focus": "none", "ornament": 0 },
+    "lean": { "W": 0.95 },
+    "language": { "blade": "broad", "guard": "bar", "pommel": "cap", "grip": "cord",
+      "staff": { "head": "plain", "focus": "none", "shaft": ["wood", "#5b5145"] },
+      "bow": { "limb": "longbow", "tips": "none", "focus": "curve", "shaft": ["wood", "#55493d"] },
+      "shield": { "outline": "round", "device": "bands", "focus": "boss", "board": ["wood", "#4f463b"] } },
+    "edge": { "fuller": 0.2, "bevel": 0.6, "barbs": 3 },
+    "roles": { "blade": { "metal": "steel", "finish": "mill" }, "fittings": ["matte", "#6b4a33"], "accent": { "metal": "bronze", "film": { "age": 60 } }, "wrap": ["matte", "#3a3129"] }
+  },
   celestial: {
     "id": "celestial",
     "dials": { "stylize": 0.6, "mass": 1, "focus": "guard", "ornament": 2 },

@@ -22,19 +22,36 @@ const tall = GRASS_TIERS.find((t) => t.sward === 'tall');
 export const VIEW_CONE = Object.freeze({
   px: 0.75,
   grain: 1.5,
+  // the crust's softening (`soften`, css pixels at its most, channels/frame-pass.js): the grain's by default, within `softRange`
+  soften: 1.5,
+  softRange: Object.freeze([0.5, 4]),
   blade: Math.round(tall.scale * ((tall.clump.width[0] + tall.clump.width[1]) / 2) * 1e4) / 1e4,
   range: Object.freeze([4, 600]),
   step: 1.25,
 });
 
 /** A world's `cone`, read: a reach in metres (a number, or { reach }) → { reach }; `true` the screen's reach, asked for
- *  (a page without the form render carries the cone only when its world asks) → { reach: null }; absent → null. */
+ *  (a page without the form render carries the cone only when its world asks) → { reach: null }; `{ reach?, soften? }`
+ *  the same with the crust softened past the reach (`soften` true for the grain's css pixels, or a number of them:
+ *  channels/frame-pass.js) → { reach, soften }; absent → null. */
 export function readCone(v) {
   if (v === undefined || v === null) return null;
   if (v === true) return { reach: null };
-  const reach = typeof v === 'number' ? v : v && typeof v === 'object' && !Array.isArray(v) ? v.reach : NaN;
-  const [lo, hi] = VIEW_CONE.range;
-  if (!Number.isFinite(reach) || reach < lo || reach > hi) throw new Error(`cone is the view cone's reach in metres (${lo} to ${hi}; or { reach }), or true for the screen's: full detail inside it, an impression past it. Absent, the screen's on a form page, none on another`);
+  const [lo, hi] = VIEW_CONE.range, [slo, shi] = VIEW_CONE.softRange;
+  const say = `cone is the view cone's reach in metres (${lo} to ${hi}), true for the screen's, or { reach?, soften? } (soften: the impressions past the reach softened, true or ${slo} to ${shi} css pixels): full detail inside it, an impression past it. Absent, the screen's on a form page, none on another`;
+  if (v && typeof v === 'object' && !Array.isArray(v)) {
+    for (const k of Object.keys(v)) if (k !== 'reach' && k !== 'soften') throw new Error(`cone.${k} is not a setting (reach, soften)`);
+    const out = { reach: null };
+    if (v.reach !== undefined && v.reach !== null) { if (!Number.isFinite(v.reach) || v.reach < lo || v.reach > hi) throw new Error(say); out.reach = v.reach; }
+    if (v.soften !== undefined && v.soften !== false) {
+      const sp = v.soften === true ? VIEW_CONE.soften : v.soften;
+      if (!(typeof sp === 'number' && Number.isFinite(sp) && sp >= slo && sp <= shi)) throw new Error(say);
+      out.soften = sp;
+    }
+    return out;
+  }
+  const reach = typeof v === 'number' ? v : NaN;
+  if (!Number.isFinite(reach) || reach < lo || reach > hi) throw new Error(say);
   return { reach };
 }
 

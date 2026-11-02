@@ -55,6 +55,17 @@ describe('what each template shows', () => {
     expect(feelSample(W(lane)).demo).toEqual(POLES[lane].demo);
     expect(feelSample(W({ pole: lane, toward: geared, t: 0.8 })).demo).toEqual(POLES[geared].demo);
   });
+
+  it('a move the made game does not carry is the lab\'s, never the game\'s (2026-11-02)', () => {
+    // one template a move the runtime leaves out (a wall kick, a pound, a charge shot …), chosen from the catalog
+    const id = POLE_IDS.find((x) => feelSample(W(x)).lab.length), S = feelSample(W(id)), lost = feelReport(id).lost.map((l) => l.field);
+    expect(S.lab.length).toBeGreaterThan(0);
+    for (const a of S.lab) expect(S.demo).toContain(a);
+    expect(lost.length).toBeGreaterThan(0);
+    // a template whose every shown move is carried says none
+    const whole = POLE_IDS.find((x) => !feelSample(W(x)).lab.length);
+    if (whole) expect(feelSample(W(whole)).lab).toEqual([]);
+  });
 });
 
 describe('the page', () => {

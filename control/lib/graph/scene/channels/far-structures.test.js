@@ -20,7 +20,10 @@ describe('the far structures', () => {
 
   it('cards a tile only past the reach and where its texel is under the cone\'s grain; the aerial camera draws it live', () => {
     const src = farStructuresScript();
-    expect(src).toContain('card = pov && d > CO.reach && t.texel / (CO.px * Math.max(d, 0.1)) < (CO.grain || FS.px)');
+    expect(src).toContain('card = !gone && pov && d > CO.reach && t.texel / (CO.px * Math.max(d, 0.1)) < (CO.grain || FS.px)');
+    // (with the page's air, a tile it has taken is neither live nor its card; the ladder runs again as the fog changes)
+    expect(src).toContain('const gone = !!AIR && AIR.taken(CO.eye.z, dx * k, dy * k, t.hi - CO.eye.z);');
+    expect(src).toContain('at.fog === fog');
     expect(FAR_STRUCTURES.px).toBeLessThanOrEqual(1);
   });
 

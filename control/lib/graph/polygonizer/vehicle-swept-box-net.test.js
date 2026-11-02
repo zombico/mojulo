@@ -5,7 +5,7 @@ import {
   getSmoothBoxCard,
   SMOOTH_BOX_NETS,
   BUS_BODY,
-} from './vehicle-smooth-box-net.js';
+} from './vehicle-swept-net.js';
 
 const PLACE = { cx: 4, noseY: 7.5 };
 const camPos = [10, 12, 4.4];   // 3/4 front, so the front cap faces the camera (not culled)

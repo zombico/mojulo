@@ -23,7 +23,7 @@ Name the item and its direction; the laws do the rest. These are display and gam
   units?: 'cm' (the default), title?, lathes? / sweeps? / … (your own parts beside the built item) }
 ```
 
-Stored as `{ kind: 'workbench', build: { type: 'equipment', …, laws: 1 } }`. Edit it with a patch on `/build/…`:
+Stored as `{ kind: 'workbench', build: { type: 'equipment', …, laws: 2 } }` (laws 2: a hilt carrying an end, below). Edit it with a patch on `/build/…`:
 `set /build/dials/stylize 0.9`, `set /build/style 'celestial'`, `set /build/parts/head 'claw'`, `set /build/gem 'ruby'`.
 
 ## The dials
@@ -42,6 +42,52 @@ Stored as `{ kind: 'workbench', build: { type: 'equipment', …, laws: 1 } }`. E
 5. **Contrast spends on the focal.** Fittings recede toward neutral as stylization rises; the stone takes the glow.
 6. **The focal sits where the eye already goes:** a staff's head, a bow's riser, a shield's boss. Leading lines (rays, bands, vines, feathers) run from the frame into it.
 7. **Organic forms grow.** A branching head shares its shaft's cross-section among its limbs (r² = Σ rᵢ²), so twigs taper by construction; barked parts carry `bark: { species, tile }` with the tile scaled to the stem.
+
+### Laws 2: a hilt carrying an end
+
+Laws 2 (current; stamped at mint, so a row minted under laws 1 keeps its bytes) draws a sword or a staff as a **hilt**
+(what the hand holds) carrying an **end** (what does the work), chosen apart:
+
+- `parts.hilt` — a sword hilt (pommel, grip, guard): `dagger` · `one-hand` · `hand-and-half` · `two-hand`; or a haft:
+  `wand` · `arm` · `long` · `pole` (a pole taken at two bands). `parts.hiltLength` (cm) sets the grip's or the haft's
+  length.
+- `parts.end` — `blade` (its outline the `blade` word) or a head (`plain` · `branch` · `claw` · `crescent` · `block` ·
+  `mace` · `ringed` · `spear` · `axe` · `halberd`), or one of laws 2's own staves and clubs: `club` (a knotted swelling) ·
+  `spiked` (the club banded and studded) · `flanged` (a flanged mace) · `hammer` (a war hammer: a face, a back spike, a
+  top spike) · `maul` (a two-faced block) · `bone` (a long bone's knobbed end; give `shaft: ['matte', '#d6cfbd']` for a
+  bone club) · `crook` (a shepherd's curl) · `orb` (a polished sphere in a cup) · `cap` (an iron shoe: a quarterstaff) ·
+  `trident` · `scythe` (a long curved blade at right angles to the haft). `parts.endLength` (cm) sets a blade's length
+  (a head on a sword hilt: the neck it rises on).
+
+The item names are presets: `dagger` (dagger + blade), `sword` (one-hand + blade), `greatsword` (two-hand + blade),
+`staff` (its `reach`'s haft + its `head`). So `{ item: 'staff', parts: { hilt: 'pole', end: 'blade', blade: 'sabre' } }`
+is a glaive, `{ item: 'sword', parts: { hilt: 'hand-and-half' } }` a longsword, `{ item: 'sword', parts: { end: 'mace' } }`
+a sword-hilted mace, `{ item: 'staff', parts: { hilt: 'long', end: 'axe' } }` a long axe. Four more laws size them:
+
+8. **The grip is counted in hands:** one-hand 11.5 cm, hand-and-half 19, two-hand 30.
+9. **The guard is sized by the blade it stops:** its span a multiple of the blade's base width (2.3 dagger → 5.4 two-hand),
+   never more than 0.42 of the blade's length (more as it stylizes); its rise (horns, wings, spikes) bounded by its span.
+10. **The pommel balances the blade:** its radius from the blade's mass, between 1.15 and about twice the grip's.
+11. **A head is sized by its haft:** a spear's point 0.16 of it, a halberd 0.26, an axe 0.2, a blade on a haft 0.24; a
+   grip band and a collar sit on a grown shaft wherever it wanders.
+
+**Shields under laws 2** take more: `outline` also `scutum` (a tall rounded rectangle) · `tower` · `oval` · `buckler`;
+`curve` `flat` · `barrel` (bent about the upright, the face wrapping the arm) · `dish` (a dome: round outlines), with
+`bend` 0–1 how deep (a scutum and a tower barrel by their own, a buckler dishes); `construction` `board` · `planks`
+(boards with their seams, two iron bands, nails) · `panels` (the face framed into panels by riveted straps). A curved
+shield carries its boss and its construction; the other devices are the flat board's. A laws-2 shield naming none of
+these is the laws-1 shield.
+
+**The armory** (`equipment/armory.js`): generic arms for a crowd, in the `grave` card (rust, grey wood, verdigris,
+chipped edges): rusted-sword · notched-blade · grave-dagger · old-longsword · old-greatsword · grave-axe · cudgel ·
+spiked-club · bone-club · flanged-mace · war-hammer · broken-spear · grave-halberd · reaper-scythe · grave-bow ·
+rotten-buckler · cracked-round · old-kite · grave-scutum, drawn by role from kits (rabble · soldier · archer · warden ·
+brute · captain; a two-handed arm leaves the left hand empty). An armed undead (the hero door's `undead` with the
+`armed` layer) minted now draws its arms from its card's kit, rolled on its own seed, so a host of skeletons is armed
+variously; one minted before keeps its card's own arms.
+
+`stats.equipment.variants` names the hilt and the end; the readout's `guard`, `pommel`, `grip`, `blade` or `haft`
+give their sizes. The bow and the shield are not hilts and ends: laws 2 draws them as laws 1 did.
 
 ## Items and their slots (`parts`)
 

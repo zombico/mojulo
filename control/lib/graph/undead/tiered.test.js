@@ -9,7 +9,8 @@ import { planFromSheet } from '../egocube/plan.js';
 import { heroRecord, heroPlanOf, validateHeroSpec } from '../../mcp/tools/layered.js';
 import { expandPlan } from '../polygonizer/station-loft-plan.js';
 import { heroSkeleton } from './hero-bones.js';
-import { undeadPicks } from './tiered.js';
+import { undeadPicks, undeadArms } from './tiered.js';
+import { ARMORY_VERSION } from '../equipment/armory.js';
 import { BARE_CUTS, LOSS_CUTS } from './tiered-layers.js';
 import { expandLayeredManifest } from '../../mcp/tools/layered.js';
 
@@ -201,21 +202,25 @@ describe('a loss and a heavy arm on the tiered body', () => {
 
 describe('the armed and the adorned', () => {
   const dead = (form, build, layers, seed = 3) => heroRecord({ form: 'tiered', cast: 'male', palette: { Skin: '#d6cfbd' }, undead: { form, build, seed, layers } });
-  it('armed: the card\'s weapons are the hero\'s gear, the operator\'s own over them, a lost hand\'s moved to the free one', () => {
-    const [, card] = Object.entries(UNDEAD_CARDS).find(([, c]) => c.form === 'bone' && c.armed?.right && c.armed?.left);
+  it('armed: a host minted now arms from its card\'s kit on its seed (the armory), the operator\'s own over it, a lost hand\'s moved to the free one', () => {
+    const [, card] = Object.entries(UNDEAD_CARDS).find(([, c]) => c.form === 'bone' && c.kit && c.armed?.left);
     const H = dead('skeleton', card.build, ['armed']);
-    expect(H.gear.right.item).toBe(card.armed.right.item);
-    expect(H.gear.left.item).toBe(card.armed.left.item);
+    expect(H.undead.armory).toBe(ARMORY_VERSION);
+    const rolled = undeadArms(H);
+    expect(Object.keys(rolled).length).toBeGreaterThan(0);
+    for (const [slot, b] of Object.entries(rolled)) expect(H.gear[slot].item).toBe(b.item);
     expect(dead('skeleton', card.build, []).gear).toBeUndefined();
     const own = heroRecord({ form: 'tiered', cast: 'male', gear: { right: { type: 'equipment', item: 'dagger' } }, undead: { form: 'skeleton', build: card.build, seed: 3, layers: ['armed'] } });
     expect(own.gear.right.item).toBe('dagger');
-    // (a one-handed card whose loss takes its weapon hand: the weapon moves over)
-    const [, one] = Object.entries(UNDEAD_CARDS).find(([, c]) => c.loss && c.armed?.right && !c.armed.left);
+    // (a card whose loss takes its weapon hand, on a seed whose roll leaves the other hand free: the weapon moves over)
+    const [, one] = Object.entries(UNDEAD_CARDS).find(([, c]) => c.loss && c.kit);
     const form = one.form === 'bone' ? 'skeleton' : 'zombie';
-    const lostR = Array.from({ length: 40 }, (_, i) => dead(form, one.build, ['armed'], i + 1)).find((h) => undeadPicks(h).lost?.side === 'R');
+    const lostR = Array.from({ length: 80 }, (_, i) => dead(form, one.build, ['armed'], i + 1)).find((h) => undeadPicks(h).lost?.side === 'R' && undeadArms(h).right && !undeadArms(h).left);
     expect(lostR).toBeDefined();
     expect(lostR.gear.right).toBeUndefined();
-    expect(lostR.gear.left.item).toBe(one.armed.right.item);
+    expect(lostR.gear.left.item).toBe(undeadArms(lostR).right.item);
+    // a host minted before the armory carries its card's own arms, under equipment laws 1
+    expect(Object.values(undeadArms({ undead: { form: 'skeleton', build: card.build, seed: 3, layers: ['armed'] } })).map((b) => [b.item, b.laws])).toEqual(Object.values(card.armed).map((b) => [b.item, 1]));
   });
   it('adorned: the armour sized to the living body, on a skeleton a shell clear of its ribs, each piece on its bone', () => {
     const [, card] = Object.entries(UNDEAD_CARDS).find(([, c]) => c.form === 'bone' && Object.values(c.adorned ?? {}).every((p) => p >= 0.8) && c.adorned.pauldrons);

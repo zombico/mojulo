@@ -50,8 +50,8 @@ describe('a genre the book cannot lay from a sentence yet', () => {
     for (const [id, why] of Object.entries(PENDING)) { expect(GENRES[id], id).toBeTruthy(); expect(WAITS[why], id).toBeTruthy(); expect(GENRE_FORMS[id], id).toBeUndefined(); }
     expect(pendingOf('kart-racer')).toEqual({ waits: WAITS.ride, one: 'race' });
     expect(() => composeGameworld({ prompt: 'a kart racer: three laps against rival drivers', seed: 1 })).toThrow(/waits on a ride the book drives[\s\S]*design_game\(\{ quick: \{ goal: 'race' \} \}\)/);
-    // (one per kind of wait: a weapon, a form)
-    expect(() => composeGameworld({ prompt: 'a first-person shooter: clear a warehouse of armed guards', seed: 1 })).toThrow(/waits on the hero's weapon/);
+    // (one per kind of wait: a ride, a form)
+    expect(() => composeGameworld({ prompt: 'an arena shooter: a deathmatch against bots', seed: 1 })).toThrow(/waits on its kernel as a book level[\s\S]*goal: 'deathmatch'/);
     expect(() => composeGameworld({ prompt: 'a tower defence game', seed: 1 })).toThrow(/waits on its kernel as a book level/);
   });
 
@@ -64,8 +64,15 @@ describe('a genre the book cannot lay from a sentence yet', () => {
 describe('the hero frame: a genre on foot is laid with a hero, its camera and its screen', () => {
   it('a hero by default: the game\'s body, the genre\'s vibe, no powers said; none for a vehicle or an aircraft', () => {
     const F = heroFrameOf('metroidvania', 'anime');
-    expect(F).toEqual({ characters: { direction: { tradition: 'anime', body: 'game' }, hero: { motion: { vibe: ['nimble'] }, actions: { none: true } } }, camera: 'side', screen: 'screen' });
+    expect(F).toEqual({ characters: { direction: { tradition: 'anime', body: 'game' }, hero: { motion: { vibe: ['nimble'] }, actions: { none: true }, adornment: { items: [{ id: 'blade', slot: 'right', build: { item: 'sword' }, serves: ['strike'] }] } } }, camera: 'side', screen: 'screen' });
     expect(heroFrameOf('flight-sim', 'anime')).toBeNull();
+    // (armed by how the genre fights: a gun for its shot where it fights only at range, a first-person shooter from the
+    // armed hero's eyes; a pistol where its fiction names one; nothing for a genre that does not fight)
+    const S = heroFrameOf('shooter', 'anime');
+    expect(S.camera).toBe('first-person');
+    expect(S.characters.hero.adornment.items).toEqual([{ id: 'gun', slot: 'right', serves: ['shoot'], build: { item: 'carbine' } }]);
+    expect(heroFrameOf('survival-horror', 'anime').characters.hero.adornment.items[0].build).toEqual({ item: 'pistol' });
+    expect(heroFrameOf('collectathon', 'anime').characters.hero.adornment).toBeUndefined();
     expect(heroFrameOf('dungeon-crawler', 'western').camera).toBeNull();   // (third person: the hero's own chase)
   });
 

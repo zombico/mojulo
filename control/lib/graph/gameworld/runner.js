@@ -54,6 +54,9 @@ import { REACT_MOTION, reactStatesOf, beastMovesOf } from '../egocube/moves.js';
 import { beastLook } from './stage-figures.js';
 import { fieldedIds, bestiaryOf, foeLook, foePlacements, hostileCast, withFoeHits, withFoeWin, peopleRollOf, isPeople, isModel, isDressed, dressOf } from './foes.js';
 import { rideBuild, rideRule } from './ride.js';
+import { rideOf, loftCamera } from '../vehicle-registry/ride.js';
+import { vehicleRule, VEHICLES as PHYSICS } from '../roads/vehicles.js';
+import { FLEET } from '../roads/fleet.js';
 import { rollMascot } from '../egocube/mascot.js';
 import { mascotPlanFromSheet } from '../egocube/mascot-form.js';
 import { mascotKit } from '../sportswear/mascot-kit.js';
@@ -102,6 +105,15 @@ const paletteTheme = (G) => (G.style?.palette ? gameTheme(solvePalette(G.style.p
  * (The flag moves the game order's print, so a game made before it is remade once on the next run, as it was.) */
 const PROVABLE = new Set(['reach-exit', 'survive']);
 const provable = (order) => { const k = (order?.manifest?.game?.mechanics ?? []).map((m) => m?.kind); return k.length > 0 && k.every((x) => PROVABLE.has(x)); };
+// a realistic loft ridden (vehicle-registry/ride.js): its figure compiled by the world in place, in the form render (its
+// materials lit by the page: car-designer/road-form.js), on its class's own physics (roads/vehicles.js; quick.vehicle,
+// tuning and conditions still read as the ride's), chased at its length
+function loftRide(Q, rode, seed) {
+  const dims = FLEET[rode.class] ?? PHYSICS[rode.class];
+  // (a field vehicle's livery as the world wrote it: its setting's camo, stamped at mint, or the operator's; its wear)
+  return { figure: { loft: { class: rode.class, seed, light: 'form', ...(Q.livery !== undefined ? { livery: Q.livery } : {}), ...(Q.wear !== undefined ? { wear: Q.wear } : {}) } }, rule: quickRideRule(Q, vehicleRule(rode.class)), camera: loftCamera(dims) };
+}
+
 export function auditOrder(steps, stages) {
   const levels = steps.filter((s) => s.key.startsWith('level-'));
   return levels.length && stages.every((s) => !s.building?.ref) && levels.every((s) => provable(s.order)) ? { auto_audit: true } : {};
@@ -711,10 +723,12 @@ function quickSteps(world, G, ref, lookup) {
     steps.push({ key: 'hero', ref: heroRef, ready: true, order: { spec, mint, motion: null }, print: fingerprint({ spec, ...lit(mint.toon) }) });
   }
   const heroGaits = pilot ? null : gaitsOf(adopted ? lookup?.heroSpec : Q.hero ? playJog(quickHero) : null);
-  // a ride (ride.js): the vehicle's build, minted as its own sketch; every stage drives it
-  const rideRef = Q.ride ? childRef(ref, 'ride') : null;
+  // a ride (ride.js): the vehicle's build at the game's tier (vehicle-registry/ride.js): an assembled ride minted as its
+  // own sketch, or a realistic loft the world compiles in place (nothing to mint); every stage drives it
+  const rode = Q.ride ? rideOf(Q) : null;
+  const rideRef = rode?.kind === 'assembly' ? childRef(ref, 'ride') : null;
   if (rideRef) {
-    const seed = Number.isInteger(G.seed) ? G.seed : 1, build = rideBuild(Q.ride, seed);
+    const seed = Number.isInteger(G.seed) ? G.seed : 1, build = rideBuild(rode.ride, seed);
     steps.push({ key: 'ride', ref: rideRef, ready: true, order: { title: build.title, manifest: build }, print: fingerprint({ ride: Q.ride, seed }) });
   }
   // a field of racers (quick.racers): solved here, each a recipe its figure resolves through (nothing to mint); yours first
@@ -725,7 +739,8 @@ function quickSteps(world, G, ref, lookup) {
   // a transformer (quick.transformer): its figure resolves through its recipe (nothing to mint), its forms the rules it
   // plays (a flier's vehicle form is the airspace seat's, levels.js)
   const ride = Q.transformer ? quickTransformer(Q)
-    : rideRef ? { ref: rideRef, rule: quickRideRule(Q, rideRule(Q.ride, Number.isInteger(G.seed) ? G.seed : 1)) }
+    : rideRef ? { ref: rideRef, rule: quickRideRule(Q, rideRule(rode.ride, Number.isInteger(G.seed) ? G.seed : 1)) }
+    : rode?.kind === 'loft' ? loftRide(Q, rode, Number.isInteger(G.seed) ? G.seed : 1)
     : racers ? { racer: racers.field[0].spec, rule: racers.field[0].rule, field: racers.field }
     : supercars ? { figure: supercars.field[0].figure, rule: supercars.field[0].rule, field: supercars.field } : null;
   // (the field's balance as a level law, in the concerns' shape: advice in the run's readout, never a refusal)

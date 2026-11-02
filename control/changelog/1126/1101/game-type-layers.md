@@ -27,7 +27,7 @@ door reach them, one layer at a time, measured on the door people use.
     split-screen deathmatch, driver and gunner, the co-op scroller) is refused with the values it waits on and the
     makeable genres the same words point at. Nothing is laid in its place; it used to be laid as single-player walks.
   - The genres the book lays in its own walks and buildings are laid as before.
-  - **Racing waits on the vehicle registry's ride.** A runner, stealth and the seats wait on phase 2's hero.
+  - **Racing waits on the vehicle registry's ride.**
 - **A genre's own name is a clear read on its own** (`intent.js` `readGenre`): "metroidvania", "tennis" or "tower
   defence" said once writes the genre, ahead of another genre's plain words. Plain words still need two, and two
   genres' names said alike are a tie. "stealth guards and a race with cars" reads as stealth now.
@@ -36,10 +36,9 @@ door reach them, one layer at a time, measured on the door people use.
 - **A genre the book cannot lay from a sentence yet is refused until its form lands** (`genre-forms.js` `PENDING`), not
   laid as walks. Each refusal says what it waits on and the one level it plays alone today (`design_game({ quick: { goal } })`):
   - racing and kart racing: a ride the book drives
-  - the shooters and the brawlers: the hero's weapon
+  - the arena shooter: its deathmatch as a book level
   - tower defence, RTS, tactics, farming, rhythm, roguelike, the puzzles, the versus fighter and the sports: the
     kernel as a book level
-  - the endless runner and the city stalker: a hero by default and their level form
   - Laid as before: the genres of the book's own walks and buildings (dungeon crawler, collectathon, top-down adventure,
     metroidvania, survival horror, story), and the ones a hero completes (stealth's guards, a co-op platformer's side
     camera and seats, a party's battles).
@@ -67,3 +66,28 @@ door reach them, one layer at a time, measured on the door people use.
   within it is posted as before.
 - The battle, platform, sneak and seats probes hold. The battle probe reads a battle or a party's encounters (a level's
   bag is a play block too).
+- **The hero fights with what it carries.** An adornment item may serve the body's own verbs beside the powers
+  (`adornment.js` `BASIC_VERBS`): `serves: ['strike']` (it is swung) or `['shoot']` (it is fired). A hero with no powers
+  still carries what it fights with, and the page leaves nothing open. The page takes any item the gear door takes,
+  the firearms and the arms library's included (`GEAR_ITEMS`); the equipment table keeps the myth's classes, and a
+  firearm is built from the item itself.
+  - **The strike** (`levels.js`): a hero carrying a right-hand item for its strike takes the runtime's own contact
+    window on its pilot rule where no feel names one, on a trail and in a building. The page arms the rule with what
+    the figure holds (the held strike: its reach, seconds and damage), and the controls say `click  strike`. Seen in a
+    composed crawler's exported page: three swings of the sword took a grunt from 20 to 14.
+  - **The shot**: a hero carrying a right-hand firearm for its shot fires it as the quick shooter's player does (a
+    pistol the handgun's numbers, a long gun the rifle's, from the eye; its body hittable). A third-person hero is
+    played over the shoulder, its rounds converging on the crosshair. The controls say `click  fire`.
+  - A hero carrying nothing for either is played as before, byte for byte.
+- **A sentence's hero is armed by its genre**: a sword for a genre that fights in melee (dungeon crawler, top-down
+  adventure, metroidvania, the brawlers), a carbine for one that fights only at range (a first-person shooter, played
+  from the armed hero's eyes) and a pistol for survival horror. A composed world whose hero fights is cast:
+  `design_game`'s compose writes the casting call's proposal (the foes, each level's stand; `brief.foes` names the
+  roles), where it used to be only suggested. A fighting genre's "guards" are its foes, not watchers the level is lost
+  to (the sneak keeps those). The shooter, the arena brawler and the co-op brawler are laid from a sentence, no longer
+  refused.
+- **A building's hero starts a step into its entry room** (2.5 m along its heading, where the room holds it). At the
+  door, with the wall at its back, its chase was pulled in until the hero's back filled the frame. The level's ends stay
+  at the door.
+- The strike probe (a hero swinging what it holds, with foes to strike: the composed crawler) joins the table and holds;
+  the shoot probe holds.

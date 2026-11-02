@@ -103,7 +103,8 @@ describe('the mounts', () => {
 
 describe('the World page and the pack', () => {
   it('the gear shows on the static solid and rides its bone in the pack with weight 1', async () => {
-    const plain = heroOf({ cast: 'male', gesture: 'relaxed' }), armed = heroOf({ cast: 'male', gesture: 'relaxed', gear: { right: { item: 'sword', style: 'dwarven' } } });
+    // (laws-1 gear: the hold it was minted with, the clips moving only at the grip; laws 2 below)
+    const plain = heroOf({ cast: 'male', gesture: 'relaxed' }), armed = heroOf({ cast: 'male', gesture: 'relaxed', gear: { right: { item: 'sword', style: 'dwarven', laws: 1 } } });
     const [a, b] = await Promise.all([WORLD_KINDS.layered.resolve(plain.m, { title: 't' }), WORLD_KINDS.layered.resolve(armed.m, { title: 't' })]);
     expect(b.faces.length).toBeGreaterThan(a.faces.length + 100);
     const [g] = gearMounts(armed.hero, armed.R); const extra = gearPackParts([g], { light: WORKBENCH_LIGHT })[0].tris.length;
@@ -116,6 +117,12 @@ describe('the World page and the pack', () => {
       for (let i = 0; i < c.b.length; i++) if (!grips(ids[Math.floor(i / 7) % ids.length])) expect(d.b[i], `${name} ${ids[Math.floor(i / 7) % ids.length]}`).toBe(c.b[i]);
       expect(d.b.some((x, i) => x !== c.b[i])).toBe(true);
     }
+    // laws-2 gear (hero-hold.js): the held idle moves the holding side; the midline and the other side keep every frame
+    const held = heroOf({ cast: 'male', gesture: 'relaxed', gear: { right: { item: 'sword', style: 'dwarven' } } });
+    const h = await WORLD_KINDS.layered.resolve(held.m, { title: 't' }), idle0 = a.figures.body.clips.idle, idle2 = h.figures.body.clips.idle;
+    const right = (id) => /R$/.test(id);
+    for (let i = 0; i < idle0.b.length; i++) if (!right(ids[Math.floor(i / 7) % ids.length])) expect(idle2.b[i], `idle ${ids[Math.floor(i / 7) % ids.length]}`).toBe(idle0.b[i]);
+    expect(idle2.b.some((x, i) => x !== idle0.b[i])).toBe(true);
   });
 });
 

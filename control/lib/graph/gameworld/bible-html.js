@@ -375,7 +375,12 @@ ${briefText(world.brief) ? `<details class="brief" open><summary>${Array.isArray
     return `<li>${esc(st.log ?? `step ${j + 1}`)} · done on ${esc(st.done)}${st.moments?.length ? ` · ${esc(st.moments.join(', '))}` : ''}${loose ? ' · nothing in the story sets it' : ''}</li>`;
   }).join('')}</ol></article>`).join('');
   const storyPart = cast || told ? `<section class="part" id="story"><div class="part-h"><span class="eyebrow">The cast ${cast ? stamp('cast') : ''} · The story ${G.story ? stamp('story') : ''}${G.quests ? ` · The quests ${stamp('quests')}` : ''}</span><h2>Who else, and what happens where</h2></div><div class="cards">${castHtml}${momentHtml}${questHtml}</div></section>\n` : '';
-  const open = OPEN_SLOTS.filter((k) => !G[k]).map((k) => `<article class="card open"><div class="card-h"><span class="eyebrow">Open</span><h3>${esc(k[0].toUpperCase() + k.slice(1))}</h3></div><p class="muted">Not on the ground. The world leaves room for them${k === 'characters' ? ', and for the people of its civilizations' : ''}.</p></article>`).join('');
+  // a slot the recipe leaves out, said as the run left it: a hero (or a foe, a guard) the run made without a character
+  // book is on the ground, its book not written; only what nothing made is open
+  const madeBodies = Object.entries(world.made ?? {}).filter(([k, v]) => v?.ref && /^(hero|foe|guard|keeper|foes-.+)$/.test(k) && !k.endsWith('-sheet')).map(([, v]) => v.ref);
+  const open = OPEN_SLOTS.filter((k) => !G[k]).map((k) => (k === 'characters' && madeBodies.length
+    ? `<article class="card"><div class="card-h"><span class="eyebrow">Made · no character book</span><h3>Characters</h3></div><p class="muted">The run made ${madeBodies.map((r) => `<a href="/sketches/${esc(r)}">${esc(r)}</a>`).join(', ')}; the world writes no character book for them (characters: { direction, hero? } reviews them here).</p></article>`
+    : `<article class="card open"><div class="card-h"><span class="eyebrow">Open</span><h3>${esc(k[0].toUpperCase() + k.slice(1))}</h3></div><p class="muted">Not on the ground. The world leaves room for them${k === 'characters' ? ', and for the people of its civilizations' : ''}.</p></article>`)).join('');
 
   return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(G.name)} · Gameworld bible</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@600;800&family=IBM+Plex+Mono:wght@400;500&family=Public+Sans:wght@400;500;600&display=swap">${skin.link}
