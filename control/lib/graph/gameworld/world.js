@@ -140,6 +140,7 @@ import { CAMERAS } from './cameras.js';
 import { readMechanics } from './mechanics.js';
 import { readWeather } from '../weather/weather.js';
 import { readHour } from '../era/geocube-hours.js';
+import { readGeocube, cubeStreetLook } from '../era/geocube.js';
 import { PROGRAM_IDS } from '../era/programs.js';
 import { STRUCTURE_RAILS, hasStructureRails } from '../era/out-structures.js';
 import { civilizationGrammar } from '../city/plan/civilization.js';
@@ -830,7 +831,16 @@ export function resolveLevel(world, id) {
     return { ...rest, ...(anchor !== undefined ? { civilization: anchor } : {}) };
   });
   // the town's street on the walk: the town's recipe (its castle aside: the street is its houses), in its language
-  const street = P.street && town ? (() => { const { castle: _k, anchor, ...recipe } = town, S = P.street === true ? {} : P.street; return { ...S, ...(anchor !== undefined ? { anchor } : {}), recipe }; })() : null;
+  // the street on the walk: the town's plan in its builders' language; where a geocube paints the level, in the cube's
+  // look too (era/geocube.js cubeStreetLook: its street paint, its builders' material words and colours as the walls'
+  // dress, the road and its lamps laid through it), so the street is drawn from the same art direction as the land it
+  // stands on. The civilization's language (the book's builders, its tunnelled words) wins over the cube's builders'
+  const street = P.street && town ? (() => {
+    const { castle: _k, anchor, ...recipe } = town, S = P.street === true ? {} : P.street;
+    const look = style.geocube !== undefined ? cubeStreetLook(readGeocube(cubeInPalette(style.geocube, style.palette))) : null;
+    const lang = anchor ?? look?.anchor;
+    return { ...S, ...(lang !== undefined ? { anchor: lang } : {}), recipe, ...(look ? { street: true, paint: look.paint, ...(look.dress ? { dress: look.dress } : {}) } : {}) };
+  })() : null;
   return { id, name: L.name ?? id, seed, style, built, ledger, level, town, ...(lowered ? { land: lowered.forms } : {}), ...(buildings.length ? { buildings } : {}), ...(street ? { street } : {}), ...(lays?.laid.length ? { laid: lays.laid, ...(field ? { field } : {}), ...(board ? { board } : {}), ...(loop ? { loop } : {}), ...(arena ? { arena } : {}) } : {}) };
 }
 

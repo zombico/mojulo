@@ -34,7 +34,7 @@ import { motifOf } from './tech-direction.js';
 import { ELEMENT_WORDS } from './element-words.js';
 import { CRAFTED } from './world.js';
 import { suggestFeels, FEEL_WORDS } from './feel/suggest.js';
-import { GEOCUBE_PRESETS, readGeocube, geocubeDomains } from '../era/geocube.js';
+import { GEOCUBE_PRESETS, readGeocube, geocubeDomains, cubeStreetLook } from '../era/geocube.js';
 import { suggestGenres, readGenre, cubeOfWorld, GENRES } from './intent.js';
 import { GENRE_FORMS, HAND_OFFS, refusalOf, pendingOf, heroFrameOf } from './genre-forms.js';
 import { settingOfGame } from './cast-setting.js';
@@ -182,6 +182,8 @@ export function readingOf(word, { scene = false } = {}) {
 /** The words that fall from a cliff (a landmark's falls): a fall keeps the cliff an open word would take away. */
 export const fallsWords = (P) => P.read.filter((r) => { const v = readingOf(r.word)?.['land.landmark']; return v && v[0] === 'falls'; }).map((r) => r.word);
 // a kit's nearest cube when no word names one; an airless plain has none (every cube has air)
+// the cube a prompt's levels stand on: the one its words name, else the kit's nearest (null: none has its air)
+const cubeOfWords = (P, kit) => { const w = P.words.find((x) => CUBE_WORDS[x] ?? CUBE_WORDS[x.replace(/s$/, '')]); return w ? CUBE_WORDS[w] ?? CUBE_WORDS[w.replace(/s$/, '')] : KIT_CUBE[kit] ?? null; };
 export const KIT_CUBE = Object.freeze({ 'isekai-meadow': 'island-noon', 'isekai-sakura': 'island-noon', 'isekai-garden': 'island-noon', 'isekai-bamboo': 'jungle-haze', 'alien-night': 'gothic-night' });
 
 const STOP = new Set(['with', 'from', 'into', 'over', 'under', 'that', 'this', 'their', 'there', 'where', 'some', 'very']);
@@ -273,7 +275,10 @@ export function composeGameworld({ prompt, name, id, levels, seed = 1 } = {}) {
   }
   // what no word decided, the seed does, inside the rails
   style.kit = kit ?? 'isekai-meadow';
-  if (!langs.length) langs.push(pick(rand, ['timber-hall', 'tiered', 'shell']));
+  // (who builds, where no word says: the builders of the cube the levels will stand on, so the town is drawn in the
+  // same art direction as its land (era/geocube.js cubeStreetLook); the seed's roll where the cube names none. The roll
+  // is made either way, so what the seed decides after it stays as it was)
+  if (!langs.length) { const rolled = pick(rand, ['timber-hall', 'tiered', 'shell']), cid = cubeOfWords(P, style.kit); langs.push((cid && cubeStreetLook(readGeocube(cid)).anchor) ?? rolled); }
   for (const f of ['rock', 'landmark']) if (!style.land[f]) style.land[f] = { variant: pick(rand, Object.keys(LAND_FORMS[f].variants).filter((v) => v !== 'falls')), many: pick(rand, [0, 0.25, 0.5]) };
   if (weather) style.weather = weather;
   style.meru = { preset: meru ?? pick(rand, ['mountain-lookout', 'stacked-lookout', 'terraced-mountain']) };
@@ -418,7 +423,7 @@ export function composeGameworld({ prompt, name, id, levels, seed = 1 } = {}) {
   // the cube: the one the words name, else the kit's nearest, drawn on the kit's own card so its flora stay; the
   // color theorist decides its colours when it is stored (color-theorist/stamp.js)
   const cubeWord = P.words.find((w) => CUBE_WORDS[w] ?? CUBE_WORDS[w.replace(/s$/, '')]);
-  const cubeId = cubeWord ? CUBE_WORDS[cubeWord] ?? CUBE_WORDS[cubeWord.replace(/s$/, '')] : KIT_CUBE[style.kit] ?? null;
+  const cubeId = cubeOfWords(P, style.kit);
   if (cubeId) {
     style.geocube = GEOCUBE_PRESETS[cubeId].outside.base === style.kit ? cubeId : { from: cubeId, outside: { base: style.kit } };
     world.brief.cube = { id: cubeId, ...(cubeWord ? { word: cubeWord } : { from: `the kit, ${style.kit}` }) };

@@ -240,3 +240,14 @@ its resource, put on a look and showed a toast. This theme makes them act.
   - **The world key:** `hub: '<level>'` names a map world's centre (topology `interconnected`). The "a centre to
     return to" concern now reads as laid.
   - **What stays as before:** a single level, a building, or a genre with its own form of levels.
+- **The town drawn from the game's art direction** (`design_game`, a level's town street). A street laid by a
+  level's `places` took only its civilization's language and the kit's colours. It never laid its road, kerbs and
+  lamps, and on a level a geocube paints it missed the cube's look. Now, where a geocube paints the level, the street
+  is in that cube's look (`era/geocube.js cubeStreetLook`):
+  - its roofs, frames, boards and painted things in the cube's colours, moved by the world's palette as the land is;
+  - its walls dressed in the cube's builders' material words and colours where the cube is gritty or names a style;
+  - its road and its lamps laid through it.
+  The civilization's language (the book's builders and their tunnelled words) still builds it. The composer, where no
+  word names who builds, now takes the builders of the cube the levels stand on instead of rolling one, so a town no
+  longer contradicts the land it stands on. The seed's roll is still made, so nothing else it decides moves. The
+  book's geocube colour key says what each colour paints on its streets.

@@ -95,6 +95,7 @@
  *   expandGeocube(cube, ask, hint) domain expansion: the domain picked and lowered → { manifest, pick }
  *   geocubeStructures(manifest)    a stage's or a specimen's domain's structures, painted and placed → { list, light } | null
  *   geocubeTown(cube, domain)      a domain's settlement as a stage's `town` (its street on a trail) | null
+ *   cubeStreetLook(cube)           the look the cube gives a street laid on it from elsewhere: { anchor?, paint, street, dress? }
  *   cubeContrast(cube, side)       the cube's `contrast` resolved against its light and colour, as a payload carries it
  *   geocubeContrastOf(manifest)    the resolved contrast of the cube a world manifest is painted by, or null
  *   geocubeRegisterOf(manifest)    the crease pass's terms (creases, outline) that cube's register asks for, or null
@@ -802,6 +803,14 @@ export function geocubeTown(cube, D, over) {
     // (its street laid through it in its language, era/stage-street.js)
     street: true, ...(dress ? { dress } : {}) };
 }
+/** The look a cube gives a street laid on it from elsewhere (a gameworld level's town, gameworld/world.js): the cube's
+ *  street paint (its roof, timber and trim from its ramps), its builders' dress (their style's material words and
+ *  colours over its grit), the road laid through it, and its builders' language for a street that names none. */
+export function cubeStreetLook(cube) {
+  const { style, anchor } = settlementStyle(cube, undefined);
+  const dress = style ? styleTownDress(style, cube, townDressOf(cube)) : townDressOf(cube);
+  return { ...(anchor !== undefined ? { anchor } : {}), paint: { ...CUBE_STREET_PAINT }, street: true, ...(dress ? { dress } : {}) };
+}
 /**
  * The levels the cube makes, by name: its `domains`, else one per terrain (outside, its own first) and one per interior
  * (inside). → [{ name, side, terrain? | interior?, hour?, reads }].
@@ -945,8 +954,17 @@ function outsideAt(cube, hour, clouds, { base, card, sw, land0, fit, shadow, own
 
 // the cube's own made ramps, under names of their own so the kit's are untouched: what a street of houses in the cube's
 // look is painted from (CUBE_STREET_PAINT)
+// (each of a street's cube swatches and the cube colour it is made from: CUBE_STREET_RAMPS)
+export const CUBE_STREET_RAMPS = Object.freeze({ 'cube-stone': 'stone', 'cube-trim': 'trim', 'cube-roof': 'floor', 'cube-accent': 'accent' });
 const cubeMade = (cube) => { const shadow = shadeHue(cube), r = (hex) => rampFrom(rgbOf(hex), 5, { shadow });
-  return { 'cube-stone': r(cube.colour.stone), 'cube-trim': r(cube.colour.trim), 'cube-roof': r(cube.colour.floor), 'cube-accent': r(cube.colour.accent) }; };
+  return Object.fromEntries(Object.entries(CUBE_STREET_RAMPS).map(([sw, colour]) => [sw, r(cube.colour[colour])])); };
+/** What each of the cube's colours paints on a street of houses in its look (CUBE_STREET_PAINT): { <colour>: [surface
+ *  group, …] } ('tile', 'timber'…); the walls of plaster and stone are its land's soil and rock. */
+export const cubeStreetParts = () => {
+  const out = {};
+  for (const [g, sw] of Object.entries(CUBE_STREET_PAINT)) (out[CUBE_STREET_RAMPS[sw]] ??= []).push(g.replace(/^str:/, ''));
+  return out;
+};
 /** A street of houses painted by the cube (a stage town's `paint`, era/stage-buildings.js): its frames and boards the
  * trim, its roofs the floor (terracotta, slate, flags), its shells the stone, its painted things the accent. The walls
  * of plaster and stone are the land's soil and rock, already the cube's. */

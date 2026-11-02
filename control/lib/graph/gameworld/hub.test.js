@@ -1,6 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { composeGameworld } from './compose.js';
 import { readGameworld, runSteps } from './index.js';
+import { gameStages } from './levels.js';
+import { readGeocube, cubeStreetLook, CUBE_STREET_PAINT } from '../era/geocube.js';
 
 const S = (w) => runSteps(w, { ref: 'gw' });
 
@@ -31,6 +33,20 @@ describe('the hub: a town every way leads back to', () => {
     for (const id of others) expect(exits(id)).toContain(`gw-level-${G.hub}-0`);
     // the centre is laid: the readout says so
     expect(w.brief.hub).toBe(G.hub);
+  });
+
+  it('the town is drawn from the game\'s art direction: its builders the cube\'s, its street in the cube\'s paint, the road through it', () => {
+    const w = composeGameworld({ prompt: 'a jrpg where a party battles monsters across the wilds', seed: 3 });
+    const G = readGameworld(w), cube = readGeocube(G.style.geocube), builders = cubeStreetLook(cube).anchor;
+    // (no word named who builds: the cube's builders do, not the seed's roll)
+    expect(Object.values(w.civilizations)[0].anchor).toBe(builders);
+    const town = gameStages(w).find((s) => s.level === G.hub).manifest.town;
+    expect(town).toMatchObject({ anchor: builders, street: true, paint: { ...CUBE_STREET_PAINT } });
+    // (a word that names the builders still decides them; the street keeps the cube's paint)
+    const said = composeGameworld({ prompt: 'a jrpg of shell domes where a party battles monsters across the wilds', seed: 3 });
+    const t2 = gameStages(said).find((s) => s.level === said.hub).manifest.town;
+    expect(Object.values(said.civilizations)[0].anchor).toBe('shell');
+    expect(t2).toMatchObject({ anchor: 'shell', paint: { ...CUBE_STREET_PAINT } });
   });
 
   it('a hub is a map world\'s level; a genre with no hub, a single level or a building is laid as before', () => {
