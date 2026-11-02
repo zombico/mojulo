@@ -15,6 +15,7 @@ import { validateLevelContract } from '../game/level-contract.js';
 import { synthesizeLevel } from '../game/level-synth.js';
 import { powerRecord } from './power-record.js';
 import { composeMechanics } from '../game/mechanics.js';
+import { composeGameworld } from './compose.js';
 
 const H = MEADOWMARK_HERO.characters.hero;
 const carrying = (items, more = {}) => ({ ...MEADOWMARK_HERO, ...more, characters: { ...MEADOWMARK_HERO.characters, hero: { ...H, adornment: { items } } } });
@@ -168,5 +169,19 @@ describe('one hp: where the stats bind the hero\'s body, its bar is the hp that 
     expect(JSON.stringify(hz)).toMatch(/"do":"ctrl","op":"hurt","who":"hero","by":25/);
     expect(() => composeMechanics([{ kind: 'fail-on-death', of: 'self' }, EXIT], { player: 'hero' })).toThrow(/of is 'body'/);
     expect(() => composeMechanics([{ kind: 'fail-on-death', of: 'body', hits: 2 }, EXIT], { player: 'hero' })).toThrow(/takes no startHp or hits/);
+  });
+});
+
+describe('the book\'s UI direction reaches every level that plays', () => {
+  it('one guide for the game: each level that plays proposes it from the same seed of the world\'s, battles included', () => {
+    const uis = runSteps(MEADOWMARK_HERO, { ref: 'm' }).filter((s) => s.key.startsWith('level')).map((s) => s.order.manifest.play?.ui).filter(Boolean);
+    expect(uis.length).toBeGreaterThan(1);
+    expect(new Set(uis.map((u) => JSON.stringify(u))).size).toBe(1);
+    expect(Number.isInteger(uis[0].seed)).toBe(true);
+    // (a sentence's party battles, a world with no systems page, take it too)
+    const J = composeGameworld({ prompt: 'a jrpg where a party of heroes battles monsters across the wilds', seed: 1, levels: 1 });
+    const fought = runSteps(J, { ref: 'j' }).filter((s) => s.key.startsWith('level') && s.order.manifest.play?.rpg);
+    expect(fought.length).toBeGreaterThan(0);
+    for (const s of fought) expect(Number.isInteger(s.order.manifest.play.ui?.seed)).toBe(true);
   });
 });

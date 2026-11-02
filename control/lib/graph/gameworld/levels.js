@@ -468,6 +468,18 @@ function screenLevel(written, L) {
   return { ...L, args: { ...L.args, manifest }, ...(advice.length ? { laws: [...(L.laws ?? []), ...advice] } : {}) };
 }
 
+/** THE BOOK'S UI DIRECTION on every level that plays (its HUD, its menus, its party battles): the systems page's own
+ * where it writes one, else proposed from one seed of the world's, so all of a game's levels roll the same guide (its
+ * register, its tokens, its border) rather than each its own; 'auto' and a stored direction as the book has them. */
+function withBookUi(G, play) {
+  if (!play || typeof play !== 'object') return play;
+  const u = play.ui === undefined ? G.mechanics?.ui ?? 'propose' : play.ui;
+  if (u !== 'propose') return u === play.ui ? play : { ...play, ui: u };
+  let h = 2166136261;
+  for (const c of `${G.id}:${G.seed ?? 1}:ui`) h = Math.imul(h ^ c.charCodeAt(0), 16777619) >>> 0;
+  return { ...play, ui: { seed: h % 2147483647 } };
+}
+
 function levelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = null, mechanics = null, title, goal, map = null, story = null, carryFrom = null, party = null, castFigures = null, guards = null, audio = null, ride = null, extra = null, legend = null, goalCast = null, cityRefs = {} } = {}) {
   // a building level, or the inside of a building entered by its door: laid from its program (buildingLevelOrder)
   if (stage.section === 'city') return cityLevelOrder(G, stage, { title, map, cityRefs, heroRef, heroGaits });
@@ -658,6 +670,7 @@ function levelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = null, me
   }
   let play;
   ({ pilotPart, play } = storyPart(G, stage, ends, lane, pilotPart, extraPlay ? mergePlay(mechanics?.play ?? {}, extraPlay) : mechanics?.play ?? null, { story, carryFrom, party, castFigures }));
+  play = withBookUi(G, play);
   const manifest = { ...stage.manifest, title: name, ...pilotPart, ...(play ? { play } : {}), ...(blocks ? { blocks } : {}), ...(mechanics?.destruction ? { destruction: mechanics.destruction } : {}), ...(audio ? { audio } : {}), ...(G.style?.pixel ? { pixel: G.style.pixel } : {}), ...juiceOf(G), ...(seats ? { seats } : {}), game };
   // the concerns' laws over what was laid (lay-concerns.js): advisory, for the run's readout
   // a roadway's laws are its own (its census: roads/track.js trackLaws); a trail's, its concerns'
@@ -1069,6 +1082,6 @@ function buildingLevelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = 
   const pilot0 = { figures: X?.figures ? { ...P.figures, ...X.figures } : P.figures, entities: [piloted(A.entity), ...(X?.entities ?? [])], camera, events };
   // the story's share (its quests, its party; its moments bind to a building's start and goal), as a stage's
   const play0 = base.play ?? null, { pilotPart, play } = storyPart(G, stage, ends, null, pilot0, play0, { story, carryFrom, party, castFigures });
-  const manifest = { ...base, ...pilotPart, ...(play !== play0 ? { play } : {}), ...juiceOf(G) };
+  const manifest = { ...base, ...pilotPart, ...(play !== play0 ? { play: withBookUi(G, play) } : {}), ...juiceOf(G) };
   return { tool: 'create_sketch', args: { title: name, manifest }, ends };
 }

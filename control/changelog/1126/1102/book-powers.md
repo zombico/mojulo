@@ -130,3 +130,16 @@ its resource, put on a look and showed a toast. This theme makes them act.
   As it closes, every figure and the camera are put back. The page exposes `__mojCtrl.ground` to the battle where
   battles are. Seen in an exported page, a JRPG's two fights: the party of four in a diagonal on the left facing the
   pack on the right, the hero's swing landing, all above the panels.
+- **The battle window, the formation and the camera reworked** (`scene/channels/rpg-channel.js`, `events.js`,
+  `gameworld/levels.js`).
+  - **The window.** One band along the bottom: the foes (names, HP bars, the turn order) under the fight's narration
+    on the left, the party on the right. The command menu stands above the band only while a member picks. Nothing
+    covers the top of the scene, and there is no empty box beside the party.
+  - **The formation.** The party stands in a wedge (the hero at its point, the rest in ranks behind on either side),
+    never a line.
+  - **The camera.** Its distance is fitted to the fighters' spread across the frame (its field, the page's shape, a
+    margin), so they fill it, aimed low so they stand above the band.
+  - **The book's style.** Every level that plays (its HUD, its menus, its party battles) takes the book's UI direction:
+    the systems page's where it writes one, else proposed from one seed of the world's, so all of a game's levels roll
+    the same guide; a sentence's JRPG, with no systems page, takes it too. The battle window wears the guide (its
+    tokens, its register's frame and plate, its border) as the HUD does. The example hero's run moved for it.

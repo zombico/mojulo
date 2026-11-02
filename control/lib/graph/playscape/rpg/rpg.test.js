@@ -304,26 +304,41 @@ describe('the staging: a fight lines its sides up and frames them, and puts them
     const camera = { transform: { pos: [-5, 0, 2], heading: 0, pitch: 0 }, lookAt: null, rule: { type: 'follow', target: 'hero' } };
     return { pilotId: 'hero', time: 0, entities: E, byId: Object.fromEntries(E.map((e) => [e.id, e])), camera };
   };
-  it('the party abreast a few metres from the pack, facing it; the camera off to the side on the fight; all put back at the close', () => {
+  it('the party in a wedge a few metres from the pack, facing it; the camera off to the side, fitted to the fight; all put back at the close', () => {
     const w = world(), before = JSON.parse(JSON.stringify({ at: w.entities.map((e) => e.transform), cam: w.camera }));
     const P = page(PLAY, {}, null, { __mojCtrl: { world: w, cast() {}, ground: () => 0 } });
     processEvents(P.bus, [{ type: 'rpg-battle:wolves' }]);
     P.frames();
     expect(P.api.state().mode).toBe('battle');
     const [hero, ayla, wolf] = w.entities, d = (e) => Math.hypot(e.transform.pos[0] - 8, e.transform.pos[1]);
-    // (each a gap off the pack, a step aside and a step back of the next, turned to it; the pack turned to them)
-    for (const e of [hero, ayla]) { expect(d(e)).toBeGreaterThan(3.5); expect(d(e)).toBeLessThan(6); expect(e.staged).toBe(true); expect(Math.cos(Math.atan2(-e.transform.pos[1], 8 - e.transform.pos[0]) - e.transform.heading)).toBeCloseTo(1, 5); }
+    // (the party's first at the wedge's point nearest the pack, the next a rank back and aside (bram, who has no figure,
+    // stood for by the pilot), each turned to it; the pack turned to them)
+    expect(d(ayla)).toBeLessThan(d(hero));
+    for (const e of [hero, ayla]) { expect(d(e)).toBeGreaterThan(3.5); expect(d(e)).toBeLessThan(7); expect(e.staged).toBe(true); expect(Math.cos(Math.atan2(-e.transform.pos[1], 8 - e.transform.pos[0]) - e.transform.heading)).toBeCloseTo(1, 5); }
     expect(Math.hypot(hero.transform.pos[0] - ayla.transform.pos[0], hero.transform.pos[1] - ayla.transform.pos[1])).toBeGreaterThan(1);
     expect(Math.cos(wolf.transform.heading - Math.PI)).toBeGreaterThan(0.9);
     // (the camera taken off its follow, off to the side of the fight, looking at it)
     expect(w.camera.rule).toBeNull();
     expect(Array.isArray(w.camera.lookAt)).toBe(true);
-    expect(Math.abs(w.camera.transform.pos[1])).toBeGreaterThan(5);
+    const cd = Math.hypot(w.camera.transform.pos[0] - w.camera.lookAt[0], w.camera.transform.pos[1] - w.camera.lookAt[1]);
+    expect(cd).toBeGreaterThanOrEqual(4.5); expect(cd).toBeLessThanOrEqual(12.5);
+    expect(Math.abs(w.camera.transform.pos[1])).toBeGreaterThan(3.5);
     // the fight played out: everything back where it stood, the camera following again
     for (let k = 0; k < 400 && P.api.state().mode === 'battle'; k++) { P.api.act('accept'); P.frames(); }
     expect(P.api.state().mode).toBeNull();
     expect(w.entities.map((e) => e.transform)).toEqual(before.at);
     expect(w.camera).toEqual(before.cam);
     expect(w.entities.some((e) => e.staged || e.act)).toBe(false);
+  });
+});
+
+describe('the battle window is dressed by the world\'s UI guide', () => {
+  it('its register and border on the window\'s panels where the world has a guide; its own defaults where none', () => {
+    const L = level(PLAY), plain = eventsChannelScript(L.ev);
+    const dressed = eventsChannelScript({ ...L.ev, style: { panel: '#203040', accent: '#e0a040', ink: '#f0f0e0' }, register: 0.75 });
+    expect(plain).not.toMatch(/\.moj-rpg \.moj-w\{/);
+    expect(dressed).toMatch(/\.moj-rpg \.moj-w\{/);
+    expect(dressed).toContain('--moj-panel:#203040');
+    expect(() => new Function(dressed)).not.toThrow();
   });
 });
