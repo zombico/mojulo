@@ -19,6 +19,7 @@
  *   mudFlap       a rubber flap on its bar
  *   mirror        a round mirror on its arm
  *   tarpRoll      a rolled tarp, two straps round it
+ *   stowageBox    a box hung on its brackets, its lid proud and latched, a handle each end
  *
  *   FITTINGS                        card id → { reads, fits: [anchor kinds], build(anchor, ctx) → faces }
  *   fit(anchor, card, ctx)          → the card's faces on that anchor (throws when the card does not fit the anchor's kind)
@@ -169,6 +170,18 @@ function mirror(A, ctx) {
   return onAnchor(A, out);
 }
 
+function stowageBox(A, ctx) {
+  const W = ctx.width ?? 0.7, D = ctx.depth ?? 0.34, H = ctx.height ?? 0.38, look = M('stowage', 'milPaint', ctx.paint), out = [];
+  // (hung out from its mount, below it: a box, its lid a plate proud of it, two latches, a handle each end)
+  out.push(...plate({ axis: 'z', profile: rect(-W / 2, W / 2, 0.02, 0.02 + D), from: -H, to: -0.06, r: 0.015, seg: 2, look }));
+  out.push(...plate({ axis: 'z', profile: rect(-W / 2 - 0.01, W / 2 + 0.01, 0.01, 0.03 + D), from: -0.06, to: -0.02, r: 0.012, seg: 1, look: M('stowage.lid', 'milPaint', ctx.paint) }));
+  for (const x of [-W / 4, W / 4]) out.push(...plate({ axis: 'y', profile: rect(x - 0.03, x + 0.03, -0.16, -0.05), from: 0.02 + D, to: 0.03 + D, r: 0.004, seg: 1, look: M('stowage.latch', 'steel', C.steel) }));
+  for (const s of [-1, 1]) out.push(...tube(bend([[s * W / 2, 0.08, -0.12], [s * (W / 2 + 0.035), 0.08, -0.12], [s * (W / 2 + 0.035), D - 0.06, -0.12], [s * W / 2, D - 0.06, -0.12]], 0.015, 2), 0.009, { sides: 6, look }));
+  // (its brackets up to the mount)
+  for (const x of [-W / 2 + 0.08, W / 2 - 0.08]) out.push(...plate({ axis: 'x', profile: rect(0, 0.05, -0.08, 0.02), from: x - 0.02, to: x + 0.02, look: M('stowage.bracket', 'milPaint', ctx.paint) }));
+  return onAnchor(A, out);
+}
+
 function tarpRoll(A, ctx) {
   const w = (ctx.width ?? 1.1) / 2, R = 0.085, out = [];
   out.push(...tube([[-w, R + 0.005, 0], [w, R + 0.005, 0]], R, { sides: 14, look: M('tarp', 'canvas', C.canvas) }));
@@ -192,6 +205,7 @@ export const FITTINGS = Object.freeze({
   mudFlap: { reads: 'a rubber flap behind a wheel', fits: ['flap'], build: mudFlap },
   mirror: { reads: 'a round mirror on its arm', fits: ['post'], build: mirror },
   tarpRoll: { reads: 'a rolled tarp, strapped', fits: ['top'], build: tarpRoll },
+  stowageBox: { reads: 'a stowage box, its lid latched', fits: ['rail', 'flank'], build: stowageBox },
 });
 
 /** A card's fitting on an anchor. */
