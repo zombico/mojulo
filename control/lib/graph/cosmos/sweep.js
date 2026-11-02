@@ -9,8 +9,7 @@
  *                                    multi setting one or two
  *   nudgeCube(rand, cube)            a fixture with one or two settings changed: a game near one people ask for
  *   sweep({ n, seed, density, roll, around })
- *        → { seed, n, density, roll, around, fixtures, verdicts, unlock: { facets, values, packages },
- *            engines: { [engine]: { ok, unlock } } }
+ *        → { seed, n, density, roll, around, fixtures, verdicts, unlock: { facets, values, packages } }
  *        `around`: a fixture id, or 'probes' (every non-anchor), to nudge instead of rolling blind
  *
  * The UNLOCK RANKING is a counterfactual recount over the cubes. A cube's issues are its absent, local and partial
@@ -27,20 +26,12 @@
  * the others, and `perEffort` = lifts ÷ cost. Ranked by perEffort, unsized last (a closure with any unsized package
  * is unsized): this is the build order, recomputed by every sweep.
  *
- * The ENGINE rows are the same recount for each engine's export: a cube survives it when it holds no value the engine
- * loses. A value travelling credits the cubes whose every loss it is; a setting travelling (all its values) credits the
- * cubes whose every loss is in it.
- *   values, settings  { key | setting, survives, touches }, by survives
- *   ladders           per facet, its settings added one at a time, the largest gain first, the other facets' losses
- *                     kept: { [facet]: [{ setting, gain, survives }] }, `survives` counting every setting above it too
- *
  * Seeded (`mulberry32`), pure and deterministic: the same arguments give the same report, byte for byte.
  */
 import { mulberry32 } from '../vegetation/grow.js';
 import { FACETS } from './facets/index.js';
 import { capabilityRegistry } from './registry.js';
 import { dryRun } from './cosmos.js';
-import { MARKED_ENGINES } from '../scene/engines/registry.js';
 import { FIXTURES, fixture } from './fixtures.js';
 import { PACKAGES, EFFORT_WEIGHT } from './packages.js';
 
@@ -143,47 +134,6 @@ function rank(rows) {
     .sort((a, b) => b.lifts - a.lifts || b.makeable - a.makeable || b.touches - a.touches || (a.key || a.facet).localeCompare(b.key || b.facet));
 }
 
-const settingGroup = (x) => `${x.facet}.${x.setting}`;
-const byKey = (a, b) => b.survives - a.survives || b.touches - a.touches || (a.key || a.setting).localeCompare(b.key || b.setting);
-
-// an engine's counterfactual over each cube's losses (a list of lost-value lists, one per cube that does not survive)
-function engineUnlock(losses, survive) {
-  const values = {}, settings = {};
-  for (const lost of losses) {
-    const keys = lost.map(key), groups = new Set(lost.map(settingGroup));
-    for (const k of new Set(keys)) {
-      const row = (values[k] ||= { key: k, survives: 0, touches: 0 });
-      row.touches++;
-      if (keys.every((x) => x === k)) row.survives++;
-    }
-    for (const g of groups) {
-      const row = (settings[g] ||= { setting: g, survives: 0, touches: 0 });
-      row.touches++;
-      if (groups.size === 1) row.survives++;
-    }
-  }
-  // a facet's ladder: add the setting that frees the most cubes with what is already travelling, ties by name
-  const sets = losses.map((lost) => new Set(lost.map(settingGroup))), ladders = {};
-  for (const facet of [...new Set(Object.keys(settings).map((g) => g.split('.')[0]))].sort()) {
-    const left = Object.keys(settings).filter((g) => g.startsWith(`${facet}.`)).sort(), travelled = new Set(), ladder = [];
-    let total = survive;
-    while (left.length) {
-      let best = null, bestGain = -1;
-      for (const g of left) {
-        let gain = 0;
-        for (const s of sets) if (s.has(g) && [...s].every((x) => x === g || travelled.has(x))) gain++;
-        if (gain > bestGain) { best = g; bestGain = gain; }
-      }
-      left.splice(left.indexOf(best), 1);
-      travelled.add(best);
-      total += bestGain;
-      ladder.push({ setting: best, gain: bestGain, survives: total });
-    }
-    ladders[facet] = ladder;
-  }
-  return { values: Object.values(values).sort(byKey), settings: Object.values(settings).sort(byKey), ladders };
-}
-
 export function baseCubes(around) {
   if (around == null) return null;
   if (around === 'probes') return FIXTURES.filter((f) => !f.anchor).map((f) => f.cube);
@@ -193,7 +143,7 @@ export function baseCubes(around) {
 export function sweep({ n = 500, seed = 1, density = 0.2, roll = 'fair', around = null } = {}) {
   const fixtures = FIXTURES.map((f) => {
     const r = dryRun(f.cube);
-    return { id: f.id, name: f.name, anchor: f.anchor, verdict: r.verdict, blocked: r.blocked.map(key), gaps: r.gaps.map(key), engines: Object.fromEntries(MARKED_ENGINES.map((e) => [e, r.engines[e].ok])) };
+    return { id: f.id, name: f.name, anchor: f.anchor, verdict: r.verdict, blocked: r.blocked.map(key), gaps: r.gaps.map(key) };
   });
 
   const reg = capabilityRegistry(), { members, of } = packageIndex(reg);
@@ -203,7 +153,6 @@ export function sweep({ n = 500, seed = 1, density = 0.2, roll = 'fair', around 
 
   const bases = baseCubes(around), rand = mulberry32(seed);
   const verdicts = { makeable: 0, gaps: 0, blocked: 0 };
-  const ok = Object.fromEntries(MARKED_ENGINES.map((e) => [e, 0])), losses = Object.fromEntries(MARKED_ENGINES.map((e) => [e, []]));
   const row = (id) => ({ ...id, lifts: 0, makeable: 0, touches: 0 });
   const values = {}, packages = {}, facets = Object.fromEntries(FACETS.map(({ id }) => [id, row({ facet: id })]));
   // would building `built` (a closure) step this verdict up, and all the way to makeable?
@@ -217,7 +166,6 @@ export function sweep({ n = 500, seed = 1, density = 0.2, roll = 'fair', around 
   for (let i = 0; i < n; i++) {
     const r = dryRun(bases ? nudgeCube(rand, bases[i % bases.length]) : rollCube(rand, density, roll));
     verdicts[r.verdict]++;
-    for (const e of MARKED_ENGINES) { if (r.engines[e].ok) ok[e]++; else losses[e].push(r.engines[e].lost); }
     const issues = [...r.blocked, ...r.gaps];
     for (const it of issues) {
       const k = key(it);
@@ -235,6 +183,5 @@ export function sweep({ n = 500, seed = 1, density = 0.2, roll = 'fair', around 
       credit(r, built, packages[id]);
     }
   }
-  const engines = Object.fromEntries(MARKED_ENGINES.map((e) => [e, { ok: ok[e], unlock: engineUnlock(losses[e], ok[e]) }]));
-  return { seed, n, density, roll, around, fixtures, verdicts, unlock: { facets: rank(facets), values: rank(values), packages: rankPackages(packages) }, engines };
+  return { seed, n, density, roll, around, fixtures, verdicts, unlock: { facets: rank(facets), values: rank(values), packages: rankPackages(packages) } };
 }

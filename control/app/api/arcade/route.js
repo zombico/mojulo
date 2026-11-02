@@ -1,5 +1,5 @@
 /**
- * GET /api/arcade — the Mojulo Arcade menu feed (game-developer.plan.md).
+ * GET /api/arcade — the Mojulo Arcade menu feed.
  *
  * One cabinet per playable standalone game: every sketch in the `game` bucket,
  * decorated with the manifest facts the menu shows (level count, tagline,
@@ -9,7 +9,7 @@
  * run (`world`, with the world's ref), a quick game (`quick`, the same), a
  * pixelizer reducer (`pixel`), a game project's rules (`project`), or
  * create_game alone (`game`), and what it was shipped as (`shipped`: the
- * self-contained page export_game wrote, and its Godot pack, when on disk).
+ * self-contained page export_game wrote, when on disk).
  * Pure projection: Play renders state and launches the game shell; authoring
  * stays with the host agent.
  */
@@ -56,12 +56,11 @@ function worldGames() {
   return byGame;
 }
 
-// what export_game left on disk for a game: its self-contained page, its Godot project
+// what export_game left on disk for a game: its self-contained page
 function shippedOf(ref) {
   const dir = outcomeDirFor(ref), url = outcomeUrlFor(ref);
   return {
     html: existsSync(path.join(dir, 'game.html')) ? `${url}game.html` : null,
-    godot: existsSync(path.join(dir, 'godot')) ? `${url}godot` : null,
   };
 }
 

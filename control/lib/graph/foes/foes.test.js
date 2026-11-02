@@ -20,7 +20,7 @@ const pick = (what, pred) => { const c = CLASSES.find(pred); if (!c) throw new E
 const verbOf = (c) => ATTACKS[c.attack.kind].verb;
 const BLADE = pick('with a blade', (c) => verbOf(c) === 'melee');
 const GUN = pick('with a weapon', (c) => !!ATTACKS[c.attack.kind].fireClass);
-const TOUCH = pick('that hurts by touch', (c) => ATTACKS[c.attack.kind].verb === 'contact' && !ATTACKS[c.attack.kind].during && MOVES[c.move].rides);
+const TOUCH = pick('that hurts by touch', (c) => ATTACKS[c.attack.kind].verb === 'contact' && !ATTACKS[c.attack.kind].during && !MOVES[c.move].own);
 const OWN = pick('with a move of its own', (c) => !!MOVES[c.move].own);
 const PACK = pick('that groups', (c) => !!MOVES[c.move].group);
 const FLIER = pick('that flies', (c) => MOVES[c.move].needs.includes('wings'));
@@ -50,22 +50,18 @@ describe('foe shelf', () => {
     expect(() => validateClass({ ...BLADE, colour: 'red' })).toThrow(/no key 'colour'/);
     expect(() => foeClass('dragon')).toThrow(/no class 'dragon' \(known: /);
   });
-  it('a class\'s status and each engine\'s mark are the worse of its move\'s and its attack\'s', () => {
-    const rank = { built: 0, approximated: 1, absent: 2 };
-    const markOf = (w, e) => w[e] ?? 'built';
+  it('a class\'s status is the worse of its move\'s and its attack\'s', () => {
     for (const c of [OWN, BLADE]) {
       const S = classStatus(c), M = MOVES[c.move], A = ATTACKS[c.attack.kind];
       if (M.status === 'built' && A.status === 'built') expect(S.status).toBe('built');
-      if (!M.rides) expect(rank[S.marks.godot]).toBeGreaterThanOrEqual(Math.max(rank[markOf(M, 'godot')], rank[markOf(A, 'godot')]));
+      expect(S).not.toHaveProperty('marks');
     }
     const built = pick('that is built', (c) => classStatus(c).status === 'built');
     expect(classStatus(built).short).toEqual([]);
   });
-  it('the cosmos reads each class as a value: its engine marks the worst of what it does there', () => {
+  it('the cosmos reads each class as a value, its status found from what it does', () => {
     const V = foeClassValues();
     expect(Object.keys(V)).toEqual(Object.keys(FOE_CLASSES));
-    // a move of its own runs on the web alone (worlds/controllable/foe.js): no engine plays it yet
-    expect(V[OWN.id].godot).toBe(MOVES[OWN.move].godot);
     expect(V[OWN.id].status).toBe('built');
     expect(V[OWN.id].pkg).toBeUndefined();
   });

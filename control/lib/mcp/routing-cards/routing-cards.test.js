@@ -70,8 +70,7 @@ describe('routing-card shelf — registry + body sweeps', () => {
     // The retrieval bridge: semantic_search(routing) surfaces a card whose
     // `form` links to get_creative_toolset({ form }). A form with no card is
     // unreachable by intent — the same "no capability flies dark" pin as the
-    // tool-index registry sweep, applied to the fuzzy hop. See
-    // creative-toolset-retrieval.plan.md.
+    // tool-index registry sweep, applied to the fuzzy hop.
     const carded = new Set([...getRoutingCardCatalog().values()].map((c) => c.form).filter(Boolean));
     const uncovered = CREATIVE_FORMS.filter((f) => !carded.has(f));
     expect(uncovered, 'creative forms with no routing card').toEqual([]);
@@ -145,8 +144,10 @@ describe('routing eval fixture — one door per intent', () => {
 describe('routing eval held-out set — frozen', () => {
   it('is unchanged: re-pin only for a fold that adds a door to accept sets, never to fit a run', () => {
     // routing-eval.holdout.js says why. Pinned 2026-10-15 (64 requests written blind, 63 kept).
+    // Re-pinned 2026-11-01 (802ed8e4bae0485b -> b03f8e6a765abae7) for a fold: a game's Godot project is export_model's
+    // `engine` now (the engine handoff), added to that request's accept set beside export_game.
     const hash = createHash('sha256').update(JSON.stringify(HOLDOUT)).digest('hex').slice(0, 16);
-    expect(hash).toBe('802ed8e4bae0485b');
+    expect(hash).toBe('b03f8e6a765abae7');
   });
 
   it('every accept set names tools that exist, listed or folded', async () => {

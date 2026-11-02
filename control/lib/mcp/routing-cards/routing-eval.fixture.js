@@ -4,7 +4,7 @@
 //     → embedding search over routing cards → entry tool in top-K.
 //   - ../tools/body-routing-eval.integration.test.js (gate 2b): the IN-CONTEXT
 //     hop — phrasing + the forward_context studio body → the model names the
-//     entry tool. (forward-context-grammar.plan.md, re-scoped audit #2.)
+//     entry tool.
 //
 // Keep phrasings colloquial and OFF-card (verbatim card quotes prove nothing).
 // A row may carry a third element, the MODE the tool must be called in (design_game's `compose`): the tool name
@@ -131,8 +131,8 @@ export const FIXTURE = [
   ['give my app a japanese female announcer voice', 'create_voice'],
   // 3.1.0: the animal, creature, hero and armour rows below enter on create_character, the Characters
   // ring's door (the same recipes mint_solid makes).
-  // The animal realm of the figure system (figure-inception-quality.plan.md
-  // phase 4). The CHARACTER row routes a creature and an animal here, so
+  // The animal realm of the figure system.
+  // The CHARACTER row routes a creature and an animal here, so
   // these pin that a NAMED real animal lands on the solid family rather than
   // drifting to the painted-picture or part-graph neighbours.
   ['a wolf I can 3D print', 'create_character'],
@@ -201,6 +201,8 @@ export const FIXTURE = [
   // share a finished game (desktop export): the completion offer's options all enter on export_game
   ['the game is done, how do I get it to my friends', 'export_game'],
   ['wrap my finished racer as a program I can double-click on my laptop', 'export_game'],
+  // the engine handoff: a level for a team's engine, its assets and markers, not the game (export_model's `engine`)
+  ['hand this level to our godot team so they can wire it up', 'export_model'],
   ['stamp my exported model so people can tell I made it', 'sign_asset'],
   ['is this glb really the one I exported, or has someone changed it', 'verify_asset'],
   // (historic places left the routing eval in 1015: deemphasized, a historical view rather than an ask the surface

@@ -268,7 +268,7 @@ export async function createAnimalHandler(input) {
       throw new Error(`\`opts\` are figure-body knobs; '${species}' is a ring plan now — mint it, then tune with update_sketch on '/plan/...' or '/dials/<name>'`);
     }
     // MOTION (opt-in, fauna/rig.js): the plan bound to the species' skeleton, carrying its gaits as clips the World
-    // plays and the skinned GLB / Godot export. Absent ⇒ the plan is the species' own, byte-identical.
+    // plays and the skinned GLB. Absent ⇒ the plan is the species' own, byte-identical.
     // OOZES: the form laid over the species' params before its body is built; absent (or every strength 0) ⇒ the
     // species' own plan, byte-identical, and nothing stored. An oozed creature is a body of its own (mutagen/rig.js):
     // its skeleton follows its size and grows bones for its grafts, and its gaits are its own (grafted wings fly)

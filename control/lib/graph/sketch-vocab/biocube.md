@@ -149,7 +149,7 @@ hostile, whatever its species (a wolf here only wanders): no weapon, no side, a 
 - **petted** (`interact: 'pet'`): the walker (or the player in a game) in reach presses interact; it stops, turns to them,
   stands content a moment under a heart, then goes back to grazing. A game hears `petted` { entity, species } on its bus.
 
-Petting is the World page's: Godot plays the herds, not the petting. Not yet: a bug as a unit (mini animals are
+Not yet: a bug as a unit (mini animals are
 swarms), an animal of the water, a body with no stride on land (a snake), feeding, riding.
 
 ```

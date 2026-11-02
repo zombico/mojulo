@@ -1,10 +1,12 @@
 /**
  * unreal-pack.js — the Unreal ASSET pack: one of mojulo's things (a character, a creature, a prop, a building, a robot,
  * anything assembled) as Unreal takes it, shared by the two front doors so they cannot drift:
- * - export_model { ref, format: 'unreal' } (MCP: writes the pack; the gate note rides the result)
+ * - export_model { ref, engine: 'unreal' } (MCP: writes the pack, lit; the gate note rides the result; `format: 'unreal'` the same,
+ *   unlit unless `lit`)
  * - scripts/export-unreal.mjs (CLI: writes the pack, then runs the advisory gate when an editor is found)
  *
- * Unreal takes mojulo's ASSETS, not its games or levels: what reaches it is the GLB's surface (geometry, vertex colour,
+ * This pack is Unreal's ASSET door, one thing by its ref (a world's or a game's levels go to Unreal through the level
+ * handoff, scene/handoff-unreal.js, `what: 'level'`): what reaches it is the GLB's surface (geometry, vertex colour,
  * painted textures, a skinned figure's skeleton, clips and face morphs), and for an asset that surface is the thing; the
  * look mojulo draws on the web and a game's behaviour stay mojulo's. A game is refused with the move (its characters
  * and solids, each by its ref).
@@ -18,11 +20,12 @@
 import { emitUnrealAsset, UNREAL_LEG_VERSION } from './unreal-project.js';
 import { loadSketch, packHash, resolveLevel, worldGlbStats, emitFolder, figureClip, figureClipNames, figureSkeleton, voiceFiles } from './engines/pack.js';
 
-/** Why a row does not go to Unreal, or null when it does: a game (and a pixelizer game, a 2D reducer) is not an asset. */
+/** Why a row does not go to Unreal's asset pack, or null when it does: a game (and a pixelizer game, a 2D reducer) is not
+ *  an asset (its levels are the level handoff's, scene/handoff-unreal.js). */
 export function unrealRefusal(manifest = {}, ref = '?') {
   if (manifest.kind === 'game' || manifest.engine === 'pixelizer' || manifest.kind === 'pixelizer') {
-    return `'${ref}' is a game: Unreal takes mojulo's assets, not its games or levels — export its characters and solids, `
-      + "each by its own ref (export_model { ref, format: 'unreal' })";
+    return `'${ref}' is a game: Unreal's asset pack takes one thing (a character, a prop, a building) — the game's levels go `
+      + "as Unreal projects through export_model { ref, engine: 'unreal' }, its characters and solids each by its own ref";
   }
   return null;
 }
@@ -34,7 +37,7 @@ export async function buildUnrealAssetPack({ ref, outDir, clips = '_all', lit = 
   const manifest = sketch.manifest ?? {};
   const refused = unrealRefusal(manifest, ref);
   if (refused) throw new Error(`refused: ${refused}`);
-  const { kind, exported, fig, engine, voice: lines } = await resolveLevel(sketch, { engine: 'unreal', clips, lit, figure: true, humanoid });
+  const { kind, exported, fig, engine, voice: lines } = await resolveLevel(sketch, { clips, lit, figure: true, humanoid });
   // a realistic hero's recorded lines (face-acting/recordings.js): each held one shipped at Voice/<recording>.wav, the
   // importer cueing it on its take
   const voice = (lines ?? []).filter((v) => v.bytes).map((v) => ({ clip: v.clip, at: v.at, file: `Voice/${v.recording}.wav` }));

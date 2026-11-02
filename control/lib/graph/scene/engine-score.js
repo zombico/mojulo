@@ -1,10 +1,12 @@
 /**
- * engine-score.js — the shared score extraction for engine handoffs
- * (consumed by the Godot, Unity and Roblox legs).
+ * engine-score.js — the shared score extraction for engine packs
+ * (engines/pack.js resolveLevel: the Unreal asset pack's front).
  *
  * The score is the engine-agnostic digest of a resolved world payload:
  * colliders, spawn, cameras, entities, declarative mechanics, audio binding,
- * plus the honest-loss ledger. Everything stays in mojulo's z-up frame with
+ * plus the honest-loss ledger. The engine kernels that read it are retired: the
+ * engine handoff (handoff.js) carries a level's record instead, and no kept
+ * export emits the score. Everything stays in mojulo's z-up frame with
  * raw world units (1 unit = 1 meter, the pinned constant) — each engine
  * emitter owns its own frame/unit conversion, exactly like facesToGlb owns
  * the y-up root. NOT an engine adapter: no engine names in here.
@@ -19,12 +21,9 @@ import { crystalRigFor, rigForScore } from './crystal-rig.js';
 import { statusElements, transitKinds } from './channels/status-channel.js';
 import { lookRGB } from '../playscape/elements/elements.js';
 import { weatherScore } from './weather-score.js';
-import { busCoverage } from './bus-abi.js';
 import { extractCombat } from './combat-score.js';
 import { extractMinds } from './mind-score.js';
 import { levelSound } from './engine-sound.js';
-import { figureOverlays } from './engines/marks.js';
-import { DEFAULT_ENGINE, marksOf } from './engines/registry.js';
 
 export const MOJULO_UNITS = '1 mojulo unit = 1 meter';
 
@@ -40,7 +39,7 @@ export const manifestIdentity = (manifest = {}) => {
   return rest;
 };
 
-// Handoff posture (skin-over-mesh.plan.md, the greybox seam): an ADVISORY,
+// Handoff posture (the greybox seam): an ADVISORY,
 // operator-DECLARED stamp — never inferred from the absence of textures or
 // materials (the vertex-colour look is a legitimate final style; mojulo does
 // not grade its own output's finishedness). 'greybox' declares a blockout:
@@ -129,62 +128,15 @@ function locomotionFor(figures, figKey, unitScale = 1) {
   };
 }
 
-// THE BUS (godot-bus): a world's behaviour as the event-bus fragment every cue, chapter, menu pick and mechanic lowers
-// to. It travels beside the score as `bus.json`, versioned and in recipe units (the kernels convert a walker's metres
-// back), and an engine kernel runs it with its port of the one reducer (Godot: kernel/bus.gd, held equal to the web's by
-// scripts/conformance.mjs --engine godot --corpus bus). Only the bus's own channels ride, and the stats that run inside it: the page's
-// (hud, menus, style) are read elsewhere. Absent behaviour (no reactions, watches, sequences or timers) ⇒ null, and no file.
+// THE BUS: a world's behaviour as the event-bus fragment every cue, chapter, menu pick and mechanic lowers to, versioned
+// and in recipe units, as data (no engine runs it: re-orchestrate it in-engine). Only the bus's own channels ride, and
+// the stats that run inside it: the page's (hud, menus, style) are read elsewhere. Absent behaviour (no reactions,
+// watches, sequences or timers) ⇒ null.
 export const BUS_VERSION = 'bus/1';
 const BUS_CHANNELS = ['reactions', 'watches', 'sequences', 'timers', 'vars', 'sources', 'initial', 'entities', 'budget', 'depthCap'];
 
-// THE ENGINE READING (the engine's marks module, engines/registry.js): what of a payload an engine kernel is asked to
-// run beyond its geometry. The rules its entities run (the pilot's, the camera's, the cast's), the page channels it
-// fills that do not travel whole, and the events keys an export drops or carries in part. Each is a ledger row only
-// when something in it does not run whole, so a world the kernel runs whole keeps its score byte-identical;
-// engine-portability reads them against the same marks. A channel another ledger row already names (movers, physics, fx, sprite sfx, the sky,
-// the tone, the weather, breakables, the crystal light) is left to that row.
-const LEDGERED = new Set(['movers', 'physics', 'fx', 'spriteSfx', 'bg', 'backdrop', 'tone', 'weather', 'breakables', 'crystalLight']);
-const filled = (v) => v != null && v !== false && (Array.isArray(v) ? v.length > 0 : typeof v === 'object' ? Object.keys(v).length > 0 : true);
-export function engineReading(payload, engine = DEFAULT_ENGINE) {
-  const { PAGE_MARKS, EVENT_MARKS, CAMERA_LOST, platformLost, aiLost, weaponLost } = marksOf(engine);
-  // the pilot: the entity the level marks pilotable (a car on the drive rule is one), else the walker the score seats
-  const player = (payload?.entities ?? []).find((e) => e?.pilotable === true)?.id ?? playerOf(payload), by = {};
-  for (const e of payload?.entities ?? []) {
-    const t = e?.rule?.type;
-    if (typeof t !== 'string') continue;
-    const r = (by[t] ||= { count: 0 });
-    r.count++;
-    if (e.isCamera) r.camera = true;
-    // a mind's opt-in moves the kernel does not run (the engine's AI_LOST)
-    const aiL = [...aiLost(e.rule), ...weaponLost(e)];
-    if (aiL.length) r.lost = [...new Set([...(r.lost || []), ...aiL])].sort();
-    if (player != null && e.id === player) {
-      r.pilot = true;
-      const lost = platformLost(e.rule);
-      if (lost.length) r.lost = lost;
-    }
-  }
-  const channels = Object.keys(payload || {}).filter((k) => PAGE_MARKS[k] && !PAGE_MARKS[k].option && PAGE_MARKS[k][engine] !== 'built' && !LEDGERED.has(k) && filled(payload[k])).sort();
-  const ev = payload?.events && typeof payload.events === 'object' ? payload.events : {};
-  const events = Object.keys(ev).filter((k) => filled(ev[k]) && EVENT_MARKS[k]?.[engine] !== 'built').sort();
-  // the camera the page drives (payload.camera: { rule, target, … }), beside any camera entity
-  const camRule = payload?.camera && typeof payload.camera.rule === 'string' ? payload.camera.rule : null;
-  if (camRule) {
-    const r = (by[camRule] ||= { count: 0 });
-    r.count++; r.camera = true;
-    // the kernel steps the page's camera when it watches the pilot it walks by its rule (kernel/level.gd _build_camera_rule)
-    const pe = (payload?.entities ?? []).find((e) => e?.id === player);
-    if (payload.camera.target !== player || !RULED_PILOTS.has(pe?.rule?.type)) r.unwatched = String(payload.camera.target ?? '');
-    const lost = Object.keys(CAMERA_LOST).filter((k) => payload.camera[k] != null && payload.camera[k] !== false).map((k) => CAMERA_LOST[k]);
-    if (lost.length) r.lost = [...(r.lost || []), ...lost];
-  }
-  // what the page does to a rigged figure beyond its clips (a vehicle's live overlay, a racer's juice and lights)
-  const figures = figureOverlays(payload?.figures);
-  return { rules: by, channels, events, figures };
-}
-
 // THE EDIT of a shoot plan (lib/graph/shoot/): its program camera rides the GLB (`cam:shot:program` and its STEP
-// animation `shot:program`, shootCameraDefs) and the kernel plays it (kernel/level.gd, key P); a glTF camera cannot key
+// animation `shot:program`, shootCameraDefs) for an engine to play; a glTF camera cannot key
 // its lens, so the score carries it: `fov` the program's vertical field of view (degrees) at each of its frames, `fps`
 // their rate, `total` the edit's length in seconds, `cameras` the plan's cameras. No program ⇒ no key.
 function shootRow(payload) {
@@ -216,7 +168,7 @@ function blendOnlyNodes(faces) {
   return [...by].filter(([, all]) => all).map(([k]) => k).sort();
 }
 
-// the rules kernel/rules.gd runs for a pilot (since 0.23.0: the vehicles too), and the drivers it runs for no one
+// the rules a pilot runs (the vehicles too), and the drivers that run for no one
 const RULED_PILOTS = new Set(['walk', 'platform', 'drive', 'fly']);
 function driverRows(payload) {
   return (Array.isArray(payload?.entities) ? payload.entities : []).filter((e) => e && typeof e.id === 'string' && e.rule?.type === 'racer' && !e.isCamera)
@@ -239,15 +191,13 @@ export function extractBus(payload) {
   // the fight (combat-score.js): a melee hero and what it can hit ride beside the cast, which they need; a level with
   // a fight and no other behaviour carries an empty fragment
   const combat = payload ? extractCombat(payload, playerOf(payload)) : null;
-  // the minds (mind-score.js): each body on the `ai` rule, run by an engine kernel as the web runs it (Godot:
-  // kernel/mind.gd, since 0.26.0, held equal by the mind corpus); they fight with the fight above. Absent ⇒ no key.
+  // the minds (mind-score.js): each body on the `ai` rule; they fight with the fight above. Absent ⇒ no key.
   const minds = payload ? extractMinds(payload, playerOf(payload)) : null;
   if (!combat && !minds && !['reactions', 'watches', 'sequences', 'timers'].some((k) => Array.isArray(ev[k]) && ev[k].length)) return null;
   const fragment = Object.fromEntries(BUS_CHANNELS.filter((k) => ev[k] !== undefined).map((k) => [k, ev[k]]));
   const mpu = Number(payload.metersPerUnit);
   // the characters the behaviour moves (its cues reach the cast: events.cast), in the bus's own units: where each
-  // stands, its heading, asleep or not, its hp and pace. An engine kernel's cast adapter (Godot: kernel/cast.gd)
-  // starts from these. Absent cast ⇒ no rows.
+  // stands, its heading, asleep or not, its hp and pace. Absent cast ⇒ no rows.
   const cast = ev.cast === true || combat || minds ? (payload.entities || []).filter((e) => e && typeof e.id === 'string' && !e.isCamera).map((e) => ({
     id: e.id, pos: Array.isArray(e.transform?.pos) ? e.transform.pos : [0, 0, 0],
     ...(Number.isFinite(e.transform?.heading) ? { heading: e.transform.heading } : {}),
@@ -262,24 +212,21 @@ export function extractBus(payload) {
     ...((w) => (Object.keys(w).length ? { walk: w } : {}))(Object.fromEntries([['eye', 'eye', 0], ['height', 'collideHeight', 1.8], ['radius', 'collideRadius', 0.3], ['step', 'step', 0.35]]
       .filter(([, k, d]) => Number.isFinite(e.rule?.[k]) && e.rule[k] !== d).map(([n, k]) => [n, e.rule[k]]))),
   })) : null;
-  // the stats a world's play declares (playscape/stats: the kernel's cfg), which run inside the bus's watch fixpoint
-  // (Godot: kernel/stats.gd, held equal by the same corpus); their vars start in the fragment's. Absent ⇒ no key.
+  // the stats a world's play declares (playscape/stats: the kernel's cfg), which run inside the bus's watch fixpoint;
+  // their vars start in the fragment's. Absent ⇒ no key.
   const stats = ev.stats && typeof ev.stats === 'object' ? ev.stats : null;
   // the keys, clicks, picks and shots bound to events (events.inputs: a power's key, the status page's, a marker picked
-  // or shot): what an engine kernel feeds the bus as the page does (Godot: picks and shots since kernel 0.22.0, against
-  // the bus's markers). Absent ⇒ no key.
+  // or shot): what the page feeds the bus. Absent ⇒ no key.
   const inputs = (Array.isArray(ev.inputs) ? ev.inputs : []).filter((i) => i && i.emit && ['key', 'pointer', 'pick', 'fire'].includes(i.on));
   // the scenes' program (scenes.js sceneProgram: what the page's runner plays) and the quests' journal (quests.js
-  // questProgram), which an engine kernel plays and keeps as the page does (Godot: kernel/scenes.gd, quests.gd, since
-  // 0.23.0, held equal by the scenes corpus). Absent ⇒ no key.
+  // questProgram), as the page plays and keeps them. Absent ⇒ no key.
   const scenes = Array.isArray(ev.scenes) && ev.scenes.length ? ev.scenes : null;
   const quests = Array.isArray(ev.quests) && ev.quests.length ? ev.quests : null;
   return { version: BUS_VERSION, metersPerUnit: Number.isFinite(mpu) && mpu > 0 ? mpu : 1, fragment, ...(cast && cast.length ? { cast } : {}), ...(stats ? { stats } : {}), ...(combat ? { combat } : {}), ...(minds ? { minds } : {}), ...(inputs.length ? { inputs } : {}), ...(scenes ? { scenes } : {}), ...(quests ? { quests } : {}) };
 }
 
 // A primitive body (`mesh`: a box or a sphere, centred on the entity) bakes no geometry into the GLB: its node is an
-// empty placement. The score carries its shape, size and colour so an engine kernel builds it (Godot: level.gd, in
-// place of the gold placeholder). Any other body ⇒ null (no key).
+// empty placement. The score carries its shape, size and colour so an engine builds it. Any other body ⇒ null (no key).
 const HEX_BODY = /^#[0-9a-fA-F]{3,8}$/;
 function primitiveBody(list, id, sv, sn) {
   const src = (Array.isArray(list) ? list : []).find((x) => x && String(x.id) === id);
@@ -295,7 +242,7 @@ function primitiveBody(list, id, sv, sn) {
  * A level's music bed: { id, recipe } | null. A stored beats row keeps its ref as the id (recipe null: the pack
  * renders the row); any other soundtrack world-scene resolved onto the payload ('field:<mood>', { score }, an inline
  * recipe, a kind's period music) ships as `<level ref>-soundtrack` with that resolved recipe. The id names the
- * score's `soundtrack` and the pack's `audio/<id>.wav` (engine-audio.js renders it).
+ * score's `soundtrack` and the pack's `audio/<id>.wav`.
  */
 export function levelSoundtrack(sketch, payload) {
   const ref = payload?.audio?.soundtrack?.beatsRef ?? sketch?.manifest?.audio?.soundtrack?.beatsRef;
@@ -304,10 +251,7 @@ export function levelSoundtrack(sketch, payload) {
   return null;
 }
 
-// `engine`: the engine the score is read for (engines/registry.js); its ledger reads the level against that engine's marks.
-// An engine without marks (Unity) gets no reading rows and no bus coverage: its kernel runs neither.
-export function extractEngineScore(sketch, payload, { posture = null, engine = DEFAULT_ENGINE } = {}) {
-  const M = marksOf(engine);
+export function extractEngineScore(sketch, payload, { posture = null } = {}) {
   const manifest = sketch?.manifest ?? {};
   const extras = levelSceneExtras(payload) ?? {};
   const declared = resolvePosture(posture, manifest);
@@ -330,15 +274,15 @@ export function extractEngineScore(sketch, payload, { posture = null, engine = D
     note: 'game shell, AI, combat feel — re-orchestrate in-engine; reference performance is the web build',
   };
   const sound = levelSound(payload.audio, sketch?.ref);
-  if (sound?.sounds.length) ledger.sfx_carried = { count: sound.sounds.length, note: `action sounds ride score.json \`audio\` (bus events, footsteps, shots, swings) as one-shot WAVs${sound.score.variants > 1 ? `, ${sound.score.variants} takes each` : ''}; the Godot kernel plays them (kernel/sound.gd, an AudioStreamRandomizer per sound on the SFX bus, which ducks the music); Unity and Unreal carry the data` };
-  if (sound?.combat) ledger.combat_music_carried = { note: 'the fight score ships beside the soundtrack and the Godot kernel changes to it on the bar line when the tension the level\'s events raise reaches its threshold, and back after the hold (kernel/sound.gd, the page\'s meter); Unity and Unreal play the explore score only' };
+  if (sound?.sounds.length) ledger.sfx_carried = { count: sound.sounds.length, note: `action sounds ride score.json \`audio\` (bus events, footsteps, shots, swings) as one-shot WAVs${sound.score.variants > 1 ? `, ${sound.score.variants} takes each` : ''}; an engine plays them from the data` };
+  if (sound?.combat) ledger.combat_music_carried = { note: 'the fight score ships beside the soundtrack; the page changes to it on the bar line when the tension the level\'s events raise reaches its threshold, and back after the hold (its meter): an engine plays it from the data' };
   // a carved title (hud-widgets.js `as: 'title'`, the web's 3D letters) travels as the kernel's banner: the same words at
   // the same firing, on a plate; the carve, the look and the entrance stay the web's
   const hudWidgets = normalizeHud(payload.events?.hud, { register: payload.events?.register }).widgets.map((w) => (w.kind === 'title' ? { kind: 'banner', on: w.on, text: w.caps ? String(w.text).toUpperCase() : w.text, slot: w.slot, ttl: w.ttl, ...(isHudColor(w.color) ? { color: w.color } : {}), ...(w.id ? { id: w.id } : {}), ...(w.when ? { when: w.when } : {}) } : w));
   const titleCount = normalizeHud(payload.events?.hud, { register: payload.events?.register }).widgets.filter((w) => w.kind === 'title').length;
-  if (titleCount) ledger.titles_as_banners = { count: titleCount, note: 'carved title cards (the web page\'s 3D letters, their entrance and sparks) ride score.json `hud` as banners: the same words at the same firing, drawn on the kernel\'s plate' };
+  if (titleCount) ledger.titles_as_banners = { count: titleCount, note: 'carved title cards (the web page\'s 3D letters, their entrance and sparks) ride score.json `hud` as banners: the same words at the same firing, for an engine to draw' };
   if (hudWidgets.length) {
-    ledger.hud_declared = { count: hudWidgets.length, note: 'HUD widgets (slot / kind / banner / legend) ride score.json `hud` as data; when the world has a bus, the Godot kernel draws them as the page does (kernel/hud.gd: slots, text / counter / bar / clock, banners, stacking toasts, legends, a part\'s show / hide / state and its phases) in the guide\'s tokens, font and frame and plate dials (`hudStyle`); the register\'s motion, sound, cursor and light stay the web\'s; without a bus the kernels paint their own readout from `mechanics`' };
+    ledger.hud_declared = { count: hudWidgets.length, note: 'HUD widgets (slot / kind / banner / legend) ride score.json `hud` as data, in the guide\'s tokens, font and frame and plate dials (`hudStyle`); the register\'s motion, sound, cursor and light stay the web\'s' };
   }
   // the HUD's look (the guide's tokens resolved, its font's id, the register's dials) for an engine's HUD; absent a
   // style and a register ⇒ no key (an engine draws the defaults, as the page does)
@@ -354,7 +298,7 @@ export function extractEngineScore(sketch, payload, { posture = null, engine = D
   const mpu = Number(payload.metersPerUnit);
   const unitScale = Number.isFinite(mpu) && mpu > 0 && mpu !== 1 ? mpu : null;
   const weatherScoreRow = weatherScore(payload, { unitScale: unitScale || 1 });
-  if (weatherScoreRow) ledger.weather_partial = { note: 'the sky\'s fog, colour and light are played by the engine kernels from score.weather (its schedule and each state in the style\'s air); falling rain, snow, dust and petals, their landings and the lightning stay the web build\'s, and Blender and a bare GLB carry the row as data only' };
+  if (weatherScoreRow) ledger.weather_partial = { note: 'the sky\'s fog, colour and light ride score.weather (its schedule and each state in the style\'s air) as data; falling rain, snow, dust and petals, their landings and the lightning stay the web build\'s' };
   const sv = (v) => (unitScale && Array.isArray(v) ? v.map((x) => (Number.isFinite(x) ? x * unitScale : x)) : v);
   const sn = (x) => (unitScale && Number.isFinite(x) ? x * unitScale : x);
   // what the game lets break (playscape/destruct/breakability.js) left the collider list for the web runtime's blocks;
@@ -367,37 +311,36 @@ export function extractEngineScore(sketch, payload, { posture = null, engine = D
     .filter((l) => l && Array.isArray(l.position))
     .map((l) => ({ ...l, position: sv(l.position) }));
   if (lights.length) {
-    ledger.lights_carried = { count: lights.length, note: 'recessed pot lights ride the GLB as KHR_lights_punctual spots (candela) and the score carries them too; Blender, Godot and Unity import them from the GLB (Godot converts candela to its lamp energy in the pack kernel)' };
+    ledger.lights_carried = { count: lights.length, note: 'recessed pot lights ride the GLB as KHR_lights_punctual spots (candela) and the score carries them too; Blender and Godot import them from the GLB' };
   }
   // The LOOK declaration (shader-look phase 4): the one runtime term the bake cannot carry — a
-  // figure's rim `[r,g,b,strength,power]` — rides the score so each engine kernel lowers it to
-  // its own idiom (Godot: kernel/rim.gdshader as a next_pass; the World page's rig-preview and
-  // controllable channels are the reference render). Absent rims ⇒ no key, byte-identical.
+  // figure's rim `[r,g,b,strength,power]` — rides the score so an engine lowers it to its own
+  // idiom (the World page's rig-preview and controllable channels are the reference render).
+  // Absent rims ⇒ no key, byte-identical.
   const lookFigures = Object.entries(payload.figures || {})
     .filter(([, f]) => f && Array.isArray(f.rim) && f.rim.length === 5 && f.rim.every(Number.isFinite));
   if (lookFigures.length) {
-    ledger.look_declared = { figures: lookFigures.length, note: 'rim rides score.look.figures; the GLB carries no shader — each engine kernel realizes it (Godot: next_pass rim.gdshader)' };
+    ledger.look_declared = { figures: lookFigures.length, note: 'rim rides score.look.figures; the GLB carries no shader — an engine realizes it' };
   }
   // Crystals (crystal-rig R5): each `<group>:crystal` node's optics as data, since an importer that drops the KHR
-  // transmission family (Godot) cannot recover them from the material; kernel/level.gd gives those surfaces a
-  // refraction material of their own. Absent crystal faces ⇒ no key, byte-identical.
+  // transmission family (Godot) cannot recover them from the material. Absent crystal faces ⇒ no key, byte-identical.
   const crystals = crystalNodes(payload.faces);
   if (Object.keys(crystals).length) {
-    ledger.crystals_carried = { count: Object.keys(crystals).length, note: 'crystal nodes carry KHR transmission / ior / volume / dispersion (Blender reads them; Godot drops transmission, so kernel/level.gd applies a refraction material from score.crystals)' };
+    ledger.crystals_carried = { count: Object.keys(crystals).length, note: 'crystal nodes carry KHR transmission / ior / volume / dispersion (Blender reads them; Godot drops transmission: score.crystals carries the optics as data)' };
   }
   // Water (aqua look): each `water:<kind>` node's look as data — absorption, tint, ripples, shore band, sky — in metres.
-  // The GLB carries transmission / ior / volume for importers that read them (Blender); Godot drops them, so
-  // kernel/level.gd gives those surfaces kernel/water.gdshader from score.water. Absent aqua water ⇒ no key.
+  // The GLB carries transmission / ior / volume for importers that read them (Blender); Godot drops them, so score.water
+  // carries the look. Absent aqua water ⇒ no key.
   const waterBodies = aquaWaterBodies(payload);
   const water = Object.fromEntries(waterBodies.map((w) => [w.name, aquaScoreEntry(w, unitScale || 1)]));
   if (waterBodies.length) {
-    ledger.water_carried = { count: waterBodies.length, note: 'water nodes carry KHR transmission / ior / volume (Blender reads them); Godot drops transmission, so kernel/level.gd shades them with kernel/water.gdshader from score.water (depth absorption, refraction, Fresnel sky, ripples, shore foam)' + (waterBodies.some((w) => w.frame) ? '; animated seas and rivers leave as one frozen frame (t = 0) — their ripples move in the shader, the waves do not' : '') };
+    ledger.water_carried = { count: waterBodies.length, note: 'water nodes carry KHR transmission / ior / volume (Blender reads them); Godot drops transmission: score.water carries the look (depth absorption, refraction, Fresnel sky, ripples, shore foam)' + (waterBodies.some((w) => w.frame) ? '; animated seas and rivers leave as one frozen frame (t = 0) — their ripples move in the shader, the waves do not' : '') };
   }
-  // A crystal light rig: lamps, stones as operators, targets — performed live by kernel/crystal_light.gd; the GLB's
-  // frozen frame (`crystal-light:*` nodes) is what other importers keep. Absent ⇒ no key.
+  // A crystal light rig: lamps, stones as operators, targets — performed live on the page; the GLB's frozen frame
+  // (`crystal-light:*` nodes) is what an importer keeps. Absent ⇒ no key.
   const cryRig = payload.crystalLight ? crystalRigFor(payload.faces || [], payload.crystalLight) : null;
   if (cryRig) {
-    ledger.crystal_light_performed = { lamps: cryRig.lamps.length, stones: cryRig.stones.filter((st) => st.op).length, targets: cryRig.targets.length, note: 'performed live by kernel/crystal_light.gd (beams re-solved each frame against the level\'s meshes); movers do not travel, so stones stand at rest; the GLB carries a frozen frame at t = 0' };
+    ledger.crystal_light_performed = { lamps: cryRig.lamps.length, stones: cryRig.stones.filter((st) => st.op).length, targets: cryRig.targets.length, note: 'performed live on the page (beams re-solved each frame against the level\'s meshes); the rig rides score.crystalLight as data, and the GLB carries a frozen frame at t = 0' };
   }
   // The level's ADDRESS (a room stage, era/anchors.js): rooms, anchors (doorways, doors, items, the set piece, things,
   // torches, niches) and the colliders built from them, so an idiom can name a place and an engine can walk and
@@ -406,7 +349,7 @@ export function extractEngineScore(sketch, payload, { posture = null, engine = D
   if (addr.anchors) {
     const by = {};
     for (const a of addr.anchors) by[a.kind] = (by[a.kind] || 0) + 1;
-    ledger.address_carried = { count: addr.anchors.length, rooms: addr.rooms ? addr.rooms.length : 0, kinds: Object.entries(by).map(([k, n]) => `${k} ×${n}`), note: 'rooms and anchors ride score.json and the GLB scene extras (moj:rooms, moj:anchors); an anchor with a `node` is the GLB node of that name; doorways, doors and items become triggers in kernel/level.gd, every anchor a named Marker3D' };
+    ledger.address_carried = { count: addr.anchors.length, rooms: addr.rooms ? addr.rooms.length : 0, kinds: Object.entries(by).map(([k, n]) => `${k} ×${n}`), note: 'rooms and anchors ride score.json and the GLB scene extras (moj:rooms, moj:anchors); an anchor with a `node` is the GLB node of that name; an engine makes doorways, doors and items its triggers' };
   }
   // A TONE (era/tone.js) is graded on the World page: the build under it is drained to greys, and the score carries
   // the tone as data for an engine to grade with. Absent ⇒ no key.
@@ -414,7 +357,7 @@ export function extractEngineScore(sketch, payload, { posture = null, engine = D
     ledger.tone_graded_on_page = { count: payload.tone.ramps.length, note: 'the World page colours the lit value off the tone\'s ramps (channels/tone.js); the GLB carries the grey build it grades, and score.tone carries the ramps, steps and gain — an engine pass colours it (none yet)' };
   }
   // LOOKS (playscape elements): the looks a world's cues put on its cast, and the transits they play, as data. The cues
-  // do not travel, so an engine kernel offers them to its scripts (Godot: kernel/looks.gd). Absent ⇒ no key.
+  // do not travel, so the looks ride as data for an engine's scripts. Absent ⇒ no key.
   const ev = payload.events && payload.events.cast === true ? payload.events : null;
   const worn = ev ? statusElements(ev).filter((n) => ev.looks && ev.looks[n]) : [];
   const transits = ev ? transitKinds(ev) : [];
@@ -423,25 +366,16 @@ export function extractEngineScore(sketch, payload, { posture = null, engine = D
     const DRAWN = ['coat', 'motes', 'drift'], dropped = [...new Set(worn.flatMap((n) => ['bolts', 'fire', 'ice', 'water', 'steam'].filter((k) => looks[n][k])))];
     ledger.looks_carried = {
       count: worn.length, names: worn, ...(transits.length ? { transits } : {}), drawn: DRAWN, ...(dropped.length ? { not_drawn: dropped } : {}),
-      note: 'score.looks carries each status\'s look as data; kernel/looks.gd wears it (the coat as a material_overlay, waves and drift as billboards from the same closed forms) and plays transits as animation clips. The cues run on the bus, but no adapter wears a look yet: nothing wears one until a script calls $Level.looks.wear(node, name)',
+      note: 'score.looks carries each status\'s look as data (the coat, the waves and the drift from the same closed forms), and the transits; the cues that put them on stay the web\'s',
     };
   }
 
   // solid bodies (body.collide: the world pass that pushes walkers out of them) are the web's: named, never dropped
   const solids = (payload.entities ?? []).filter((e) => e?.body?.collide && !e.isCamera).length;
-  if (solids) ledger.bodies_solid = { count: solids, note: 'solid bodies (body.collide) push the walkers and the cast\'s walks out of their eggs on the web (controllable core.js stepBodyCollisions); the Godot kernel does not run that pass' };
-  const reading = M ? engineReading(payload, engine) : null;
+  if (solids) ledger.bodies_solid = { count: solids, note: 'solid bodies (body.collide) push the walkers and the cast\'s walks out of their eggs on the web (controllable core.js stepBodyCollisions); the pass is the web\'s' };
   const pilot = pilotRow(payload);
   const drivers = driverRows(payload);
   const blendNodes = blendOnlyNodes(payload.faces);
-  if (reading) {
-    const N = M.READING_NOTES;
-    // only when some rule does not run whole: a world the kernel walks whole keeps its score byte-identical
-    if (Object.entries(reading.rules).some(([t, r]) => M.RULE_MARKS[t]?.[engine] !== 'built' || r.lost || r.unwatched != null || ((t === 'walk' || t === 'platform') && r.count > (r.pilot ? 1 : 0)))) ledger.rules_carried = { by: reading.rules, note: N.rules_carried };
-    if (reading.channels.length) ledger.channels_carried = { keys: reading.channels, note: N.channels_carried };
-    if (reading.figures.length) ledger.figures_carried = { keys: reading.figures, note: N.figures_carried };
-    if (reading.events.length) ledger.events_carried = { keys: reading.events, note: N.events_carried };
-  }
 
   // The contract tier (world-contract-tiers W1): what this payload DECLARES and what the next
   // tier would need — one ledger row every pack carries, so a missing declaration is read in
@@ -450,15 +384,12 @@ export function extractEngineScore(sketch, payload, { posture = null, engine = D
   ledger.contract = contractLedgerEntry(assessWorldTier(payload, { walkable }));
   const bus = extractBus(payload);
   if (bus?.combat) {
-    ledger.combat_carried = { hero: bus.combat.hero, bodies: Object.keys(bus.combat.bodies).length, version: bus.combat.version, note: 'the hero\'s fight rides bus.json `combat`: its five swings (reach, cone, contact window, damage), its weapon (the trigger, the rounds, their splash), the cover, and every hittable body with its reaction and shield; an engine kernel adjudicates them in recipe units (Godot: kernel/combat.gd, held equal to the web frame by frame) and each hit is a hit:<id> fact. The combo\'s stun, scaling and juggle, the clash and the other set pieces, the deferred wreck finisher, a loadout\'s other slots and every AI\'s attack stay the web\'s' };
+    ledger.combat_carried = { hero: bus.combat.hero, bodies: Object.keys(bus.combat.bodies).length, version: bus.combat.version, note: 'the hero\'s fight rides bus.json `combat`: its five swings (reach, cone, contact window, damage), its weapon (the trigger, the rounds, their splash), the cover, and every hittable body with its reaction and shield; in recipe units, each hit a hit:<id> fact; adjudicating them is the web\'s, re-orchestrated in-engine. The combo\'s stun, scaling and juggle, the clash and the other set pieces, the deferred wreck finisher, a loadout\'s other slots and every AI\'s attack stay the web\'s' };
   }
   if (bus) {
     const n = (k) => (Array.isArray(bus.fragment[k]) ? bus.fragment[k].length : 0);
-    // what the behaviour takes and gives, and what the engine's kernel performs of it (bus-abi.js)
     const counts = { reactions: n('reactions'), watches: n('watches'), sequences: n('sequences'), timers: n('timers'), version: BUS_VERSION };
-    ledger.bus_carried = M
-      ? { ...counts, [engine]: busCoverage(payload.events, engine)[engine], note: M.READING_NOTES.bus_carried }
-      : { ...counts, note: 'the world\'s behaviour (cues, chapters, menu picks, mechanics) rides bus.json; this engine\'s kernel does not run the bus: re-orchestrate it in-engine' };
+    ledger.bus_carried = { ...counts, note: 'the world\'s behaviour (cues, chapters, menu picks, mechanics) rides the bus fragment as data; no engine runs the bus: re-orchestrate it in-engine' };
   }
 
   return {
@@ -483,8 +414,8 @@ export function extractEngineScore(sketch, payload, { posture = null, engine = D
     // at z=0 — the collider AABBs are obstacle hulls only, never the floor
     // (G1 finding: a promoted world without this plane is an infinite fall).
     ground: Number.isFinite(payload.walk?.ground) ? sn(payload.walk.ground) : 0,
-    // surface/atlas texture keys riding the payload (skin-over-mesh.plan.md
-    // phase 3): the GLB embeds them (TEXCOORD_0 + PNG), so engine packs CARRY
+    // surface/atlas texture keys riding the payload:
+    // the GLB embeds them (TEXCOORD_0 + PNG), so engine packs CARRY
     // them — the ledger states it. Absent textures ⇒ no key, byte-identical.
     ...(payload.textures && Object.keys(payload.textures).length
       ? { textures: Object.keys(payload.textures).sort() } : {}),
@@ -530,30 +461,29 @@ export function extractEngineScore(sketch, payload, { posture = null, engine = D
     ...(hudWidgets.length ? { hud: hudWidgets } : {}),
     ...(hudStyle ? { hudStyle } : {}),
     // the menus a world's play declares (playscape/ui/menus.js menuPages: words and pick labels; the picks' effects
-    // ride the bus), so an engine kernel draws the open one (ui-menu-<id> = 1) and sends its picks back. Absent ⇒ no key.
+    // ride the bus), so an engine can draw the open one (ui-menu-<id> = 1) and send its picks back. Absent ⇒ no key.
     ...(Array.isArray(payload.events?.menus) && payload.events.menus.length ? { menus: payload.events.menus } : {}),
     // The runtime's player seat (level-synth deriveLevelPlayer): first entity
     // with a walk/platform rule. Emitters hide its exported body — the
     // operator IS the walker; leaving it renders a body double at spawn.
     player: playerOf(payload),
     // the pilot's motion rule as data, in RECIPE units like bus.json (score.metersPerUnit is the mesh's scale over them):
-    // kernel/rules.gd runs a walk or a platform pilot as the web runs it, standing on the GLB's own faces. Absent ⇒ no key.
+    // a walk or a platform pilot as the web runs it, standing on the GLB's own faces. Absent ⇒ no key.
     ...(pilot ? { pilot } : {}),
-    // the rivals that drive themselves (the racer rule: a line, a pace), in recipe units: kernel/rules.gd drives each
-    // as the web does (since 0.23.0). Absent ⇒ no key.
+    // the rivals that drive themselves (the racer rule: a line, a pace), in recipe units. Absent ⇒ no key.
     ...(drivers.length ? { drivers } : {}),
     // the GLB nodes that are all blend faces (a second tile over the ground, which the page draws in its own pass at the
-    // ground's height): the kernel's land leaves them out, so its pilot stands where the page's does. Absent ⇒ no key.
+    // ground's height): an engine's ground leaves them out, so its pilot stands where the page's does. Absent ⇒ no key.
     ...(blendNodes.length ? { blendNodes } : {}),
-    // the camera the page drives (payload.camera: { rule, target, … }) as data, in recipe units: kernel/rules.gd steps
-    // follow, eye, overhead, side and fixed after the pilot, as the page's world steps its camera. Absent ⇒ no key.
+    // the camera the page drives (payload.camera: { rule, target, … }) as data, in recipe units: follow, eye, overhead,
+    // side and fixed, stepped after the pilot as the page's world steps its camera. Absent ⇒ no key.
     ...(payload.camera && typeof payload.camera.rule === 'string' ? { camera: JSON.parse(JSON.stringify(payload.camera)) } : {}),
     game: extras['moj:game'] ?? null,
     soundtrack: levelSoundtrack(sketch, payload)?.id ?? null,
     // the level's action sounds and fight score (engine-sound.js): absent ⇒ no key, byte-identical
     ...(sound ? { audio: sound.score } : {}),
-    // the music's pulse on the bus (audio.beat: { every, lead }; beats/beat-clock.js), which kernel/level.gd says from
-    // its music player's clock as the page does from its AudioContext. Absent ⇒ no key.
+    // the music's pulse on the bus (audio.beat: { every, lead }; beats/beat-clock.js), which the page says from its
+    // AudioContext. Absent ⇒ no key.
     ...(payload.audio?.beat && payload.audio.beat.every > 0 ? { beat: { every: payload.audio.beat.every, lead: payload.audio.beat.lead ?? 0 } } : {}),
     ledger,
   };
