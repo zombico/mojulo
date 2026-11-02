@@ -13,17 +13,12 @@ describe('cosmos fixtures', () => {
     }
   });
 
-  // Godot (scene/godot-marks.js, kernel 0.20.0): the crawler's melee travels (kernel/combat.gd), its set pieces the
-  // web's; the collectathon's glide is the controllable runtime's, which does not travel yet; everything else in them
-  // does, some of it simpler (a moving platform stands at rest, the look's sky stays the web's)
-  const GODOT_LOST = { 'dungeon-crawler': [], collectathon: ['power.rules=glide'] };
-  it('hold the anchors makeable, and name what a Godot export loses', () => {
+  it('hold the anchors makeable', () => {
     const anchors = FIXTURES.filter((f) => f.anchor);
     expect(anchors.map((f) => f.id)).toEqual(['dungeon-crawler', 'collectathon']);
     for (const f of anchors) {
       const r = dryRun(f.cube);
       expect({ id: f.id, verdict: r.verdict, blocked: r.blocked, gaps: r.gaps }).toEqual({ id: f.id, verdict: 'makeable', blocked: [], gaps: [] });
-      expect(r.engines.godot.lost.map((l) => `${l.facet}.${l.setting}=${l.value}`), f.id).toEqual(GODOT_LOST[f.id]);
     }
   });
 

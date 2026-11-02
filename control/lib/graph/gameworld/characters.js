@@ -20,6 +20,9 @@
  *       primary?, secondary?,                    // the design's leading and supporting elements, in words
  *       palette?: [hex],                         // the character palette; the kit's ramps when from the world
  *       bridge?: { head?, proportions?, toon? }, // explicit crossings out of the tradition
+ *       body?: '<rail>' | 'game' | { rail, style?, muscle? },   // the body the game puts in it (game-bodies.js: comic,
+ *                                              // realistic, muscular, mascot; 'game' the rail its genre, feel or goal
+ *                                              // reads), lowered under the body page, styled by the tradition and look
  *       shading?: 'painted' | 'cel' | 'graphic' | 'chiaroscuro' | 'none',  // how the skin's shade is painted in the
  *                                              // world's palette (color-theorist/adapters.js skinDirection; painted
  *                                              // when the world has a palette and this is absent)
@@ -52,6 +55,7 @@ import { readAdornment } from './adornment.js';
 import { readCastRequest, castOfScale, SCALES } from '../egocube/cast.js';
 import { readFolk } from '../folk/folk.js';
 import { SKIN_SHADINGS } from '../color-theorist/adapters.js';
+import { readBodyWord } from './game-bodies.js';
 
 /** Western and anime: the two traditions every character and world is tuned to; a hero is drawn in one of them. */
 export const TRADITIONS = Object.freeze({
@@ -68,12 +72,12 @@ export const FROM = Object.freeze({
   world: 'the world\'s direction: its kit\'s ramps, its pole and its building ornament',
   custom: 'the creator\'s own direction, standing alone',
 });
-const DIRECTION_KEYS = ['tradition', 'from', 'motif', 'primary', 'secondary', 'palette', 'bridge', 'shading'];
+const DIRECTION_KEYS = ['tradition', 'from', 'motif', 'primary', 'secondary', 'palette', 'bridge', 'shading', 'body'];
 
 /** The hero's looks: each element its own page, each the hero-door fields it decides. */
 export const LOOKS_ELEMENTS = Object.freeze({
-  body: { read: 'the silhouette: its cast, build and register', fields: ['cast', 'register', 'tune', 'body', 'girth', 'headScale', 'scale', 'core'] },
-  head: { read: 'the head and face', fields: ['headPreset', 'face', 'sculpt', 'expression', 'look', 'genki'] },
+  body: { read: 'the silhouette: its cast, build and register, its form and what muscle it shows', fields: ['cast', 'register', 'tune', 'body', 'girth', 'headScale', 'scale', 'core', 'form', 'physique', 'animeBody', 'muscleShirt'] },
+  head: { read: 'the head and face', fields: ['headPreset', 'animeStyle', 'face', 'sculpt', 'expression', 'look', 'genki'] },
   hair: { read: 'the hair', fields: ['hair'] },
   colour: { read: 'the colour: the hero\'s palette', fields: ['palette'] },
 });
@@ -142,6 +146,8 @@ function readDirection(d) {
     if (!SKIN_SHADINGS.hasOwnProperty(d.shading)) throw err(`direction.shading is how the skin's shade is painted in the world's palette: ${Object.keys(SKIN_SHADINGS).map((k) => `'${k}'`).join(', ')}`);
     out.shading = d.shading;
   }
+  // the body the game puts in it (game-bodies.js): a rail, the game's own ('game'), or { rail, style?, muscle? }
+  if (d.body !== undefined) { try { out.body = readBodyWord(d.body, 'direction.body'); } catch (e) { throw err(e.message); } }
   if (d.bridge !== undefined) {
     if (!isObj(d.bridge)) throw err(`direction.bridge is { ${Object.keys(BRIDGE).join(', ')} }`);
     out.bridge = {};
@@ -297,6 +303,7 @@ export function resolveDirection(G) {
     if (D.palette) out.palette = D.palette;
   }
   for (const k of ['primary', 'secondary']) if (D[k]) out[k] = D[k];
+  if (D.body !== undefined) out.body = D.body;
   out.ledger = ledger;
   return out;
 }

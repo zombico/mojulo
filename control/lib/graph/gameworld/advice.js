@@ -57,7 +57,7 @@ export function sameness(world) {
   }
   // a page that is a served sample verbatim
   const D = world.characters?.direction, H = world.characters?.hero ?? {};
-  const pageOf = { direction: D ? { tradition: lower(D.tradition), primary: lower(D.primary), secondary: lower(D.secondary), motif: motifWords(D.motif) } : null, actions: H.actions?.powers ? sortedJson(H.actions.powers.map((p) => [verbOf(p), p.look ?? p.attack ?? null])) : null, motion: H.motion?.vibe ? sortedJson(H.motion.vibe.map(lower)) : null };
+  const pageOf = { direction: D ? { tradition: lower(D.tradition), primary: lower(D.primary), secondary: lower(D.secondary), motif: motifWords(D.motif) } : null, actions: H.actions?.powers?.length ? sortedJson(H.actions.powers.map((p) => [verbOf(p), p.look ?? p.attack ?? null])) : null, motion: H.motion?.vibe ? sortedJson(H.motion.vibe.map(lower)) : null };
   for (let seed = 1; seed <= SAMPLE_SEEDS; seed += 1) {
     for (const page of ['direction', 'actions', 'motion']) {
       if (!pageOf[page]) continue;
@@ -72,16 +72,29 @@ const sortedJson = (xs) => xs.map((x) => JSON.stringify(x)).sort();
 const SERVED = new Map();
 const served = (page, seed) => { const k = `${page}:${seed}`; if (!SERVED.has(k)) SERVED.set(k, gameworldSamples(page, { n: 12, seed }).samples); return SERVED.get(k); };
 
-/** The choices a brief does not explain, as questions. → [question lines] (none without a brief) */
+const NEGATORS = new Set(['no', 'not', 'never', 'without', 'non', 'nor', 'nothing', 'none', 'neither', 'avoid', 'less']);
+
+/** The choices a brief does not explain, or rules out, as questions. → [question lines] (none without a brief) */
 export function grounding(world) {
   const brief = briefText(world.brief), why = world.brief?.why && typeof world.brief.why === 'object' ? world.brief.why : {};
   if (typeof brief !== 'string' || !brief.trim()) return [];
-  const words = new Set(brief.toLowerCase().split(/[^a-z]+/).filter((w) => w.length > 2));
-  const explained = (w) => String(w).toLowerCase().split(/[^a-z]+/).filter(Boolean).some((part) => [...words].some((b) => b === part || (part.length >= 4 && b.length >= 4 && b.slice(0, 4) === part.slice(0, 4))));
+  // the brief's words, each said or said against: a word a negation governs ("never floaty", "not shiny", "no
+  // magic", "non-floaty") is the brief ruling it out, never grounding it
+  const said = new Set(), against = new Set();
+  const toks = brief.toLowerCase().replace(/n't\b/g, ' not').split(/[^a-z]+/).filter(Boolean);
+  toks.forEach((w, i) => { if (w.length > 2) ((NEGATORS.has(toks[i - 1]) || NEGATORS.has(toks[i - 2])) && !NEGATORS.has(w) ? against : said).add(w); });
+  const near = (set, part) => [...set].some((b) => b === part || (part.length >= 4 && b.length >= 4 && b.slice(0, 4) === part.slice(0, 4)));
+  const parts = (w) => String(w).toLowerCase().split(/[^a-z]+/).filter(Boolean);
+  const explained = (w) => parts(w).some((part) => near(said, part));
+  const ruled = (w) => parts(w).some((part) => near(against, part));
   const S = signature(world), out = [];
   // a choice the creator answered (brief.why: { <word>: '<the brief words it answers>' }) is closed
   const answered = (w) => Object.keys(why).some((k) => k.toLowerCase() === String(w).toLowerCase());
-  const ask = (what, w) => { if (w && !explained(w) && !answered(w)) out.push(`${what} '${w}': nothing in the brief says so; where does it come from? (record it: brief.why.${w})`); };
+  const ask = (what, w) => {
+    if (!w || answered(w)) return;
+    if (ruled(w) && !explained(w)) out.push(`${what} '${w}': the brief says not; why is it here? (record it: brief.why.${w})`);
+    else if (!explained(w)) out.push(`${what} '${w}': nothing in the brief says so; where does it come from? (record it: brief.why.${w})`);
+  };
   ask('the leading element', S.primary); ask('the supporting element', S.secondary);
   for (const m of S.motif ?? []) ask('the motif', m);
   for (const v of S.vibe ?? []) ask('the feel', v);
@@ -89,20 +102,34 @@ export function grounding(world) {
   return out;
 }
 
+// the systems' own settings (gameworld-cards.js systemsCard): `destruction` is the levels' (copied onto each), and a ui
+// left to 'propose' is the book's
+const SYSTEMS_WRITTEN = ['stats', 'scale', 'hud', 'powers', 'gear'];
+
 /** How much of the world is the creator's. → { written: [pages], derived: [pages], line } */
 export function authorship(world) {
   const H = world.characters?.hero, L = H?.looks ?? {}, written = [], derived = [];
   const page = (name, mine) => (mine ? written : derived).push(name);
+  // what game it is and the world itself: the intent (absent: read from nothing), the world named, its levels
+  page('intent', world.intent !== undefined);
+  page('world', typeof world.name === 'string' && !!world.name.trim());
+  const levels = Object.values(world.levels ?? {});
+  page('levels', levels.length > 0 && levels.every((lv) => lv && typeof lv === 'object' && Object.keys(lv).some((k) => !['seed'].includes(k))));
+  // how it plays and looks in motion: the feel (absent: the hero's own rule), the juice ('auto' or absent: the genre's)
+  page('feel', world.feel !== undefined && world.feel !== null);
+  page('juice', world.juice !== undefined && world.juice !== null && world.juice !== 'auto');
   if (world.characters) {
     const D = world.characters.direction ?? {};
     page('direction', Object.keys(D).some((k) => k !== 'tradition'));
     for (const k of ['body', 'head', 'hair', 'colour', 'underlayer']) page(`looks.${k}`, L[k] !== undefined);
     page('motion', !!H?.motion);
-    page('actions', !!H?.actions?.powers?.length);
+    page('actions', !!(H?.actions?.powers?.length || H?.actions?.none));
     page('adornment', !!H?.adornment);
   }
   if (world.equipment || world.characters) page('equipment', !!(world.equipment?.style || Object.keys(world.equipment?.classes ?? {}).length));
-  if (world.mechanics) page('systems', Object.keys(world.mechanics).length > 0);
+  if (world.mechanics) page('systems', SYSTEMS_WRITTEN.some((k) => world.mechanics[k] !== undefined) || (world.mechanics.ui !== undefined && world.mechanics.ui !== 'propose'));
+  // who it fights: the bestiary (a casting call's proposal, once written, is the world's own to revise)
+  if (world.foes !== undefined || world.characters) page('foes', !!(world.foes && Object.keys(world.foes).length));
   const line = `${written.length} of ${written.length + derived.length} pages written${derived.length ? `; left to the book's first reading: ${derived.join(', ')}` : ''}`;
   return { written, derived, line };
 }

@@ -18,7 +18,8 @@ import { registerTool } from '@/lib/mcp/server';
 import { planWorkbench, persistedLedger } from '@/lib/graph/worlds/workbench';
 import { resolveToon } from '@/lib/graph/polygonizer/vexar';
 import { lowerAssembly } from '@/lib/graph/polygonizer/workbench-assembly';
-import { LAWS_VERSION } from '@/lib/graph/equipment/expand';
+import { LAWS_VERSION, stampArms, isArmsBuild } from '@/lib/graph/equipment/expand';
+import { ARMS_LAWS_VERSION } from '@/lib/graph/equipment/arms/laws';
 import { warmScenePng } from '@/lib/graph/scene/scene-png-warm';
 import { ensureExactKernel } from '@/lib/graph/polygonizer/field-exact';
 import { validateCrystalLight } from '@/lib/graph/scene/crystal-rig';
@@ -86,8 +87,10 @@ export function mintWorkbench({ title, lathes, extrudes, sweeps, lofts, fields, 
     ...(hasProgram ? { program: { source: program.source, ...(program.params !== undefined ? { params: program.params } : {}), ...(program.seed !== undefined ? { seed: program.seed } : {}), ...(program.budgetMs !== undefined ? { budgetMs: program.budgetMs } : {}) } } : {}),
     // an equipment build (equipment/expand.js): the words are the recipe, expanded on every read, stamped with the
     // version of the laws it was minted under so a later refinement never moves it
-    // (a furniture build, furnishings/asset.js, is a lock of resolved dials and needs no laws stamp)
-    ...(hasBuild ? { build: build.type === 'equipment' ? { ...build, laws: build.laws ?? LAWS_VERSION } : build } : {}),
+    // (a furniture build, furnishings/asset.js, is a lock of resolved dials and needs no laws stamp); an arm takes its
+    // item's default model when it names none (equipment/arms/index.js stampArms), so a new mint is drawn by the arms
+    // kernel and a row minted before keeps the firearm samples' bytes
+    ...(hasBuild ? { build: build.type === 'equipment' ? ((b) => ({ ...b, laws: b.laws ?? (isArmsBuild(b) ? ARMS_LAWS_VERSION : LAWS_VERSION) }))(stampArms(build)) : build } : {}),
     ...(hasLathes ? { lathes: baseLathes } : {}),
     ...(hasExtrudes ? { extrudes: baseExtrudes } : {}),
     ...(hasSweeps ? { sweeps } : {}),

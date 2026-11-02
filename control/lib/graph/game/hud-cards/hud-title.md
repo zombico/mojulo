@@ -125,7 +125,6 @@ Hangul on a bare Linux for one). Absence degrades a title to words on a plate, n
 
 Everything plays on the frame clock from the firing: a `?t=` capture draws the same frame, and every
 number of chance (the tilt, the jolt's direction, each spark's line) is hashed from the firing's count.
-The engines take a title as a banner in `score.json`'s `hud` (ledger `titles_as_banners`): the same
-words at the same firing, drawn on the kernel's plate.
+A title is the web build's: an engine's handoff carries no HUD.
 
 Idiom: `title({ on, text, slot, ttl, color, look, style })` — `worlds/game-idioms.js`.

@@ -5,7 +5,7 @@
  */
 import { describe, expect, it } from 'vitest';
 
-import { relationalHead, RELATIONS, raisedEar } from './head-relational.js';
+import { relationalHead, RELATIONS, RELATION_POLES, raisedEar, corePoints, coreVajras } from './head-relational.js';
 import { GLOBE, SEAT } from './head-relational-eye.js';
 import { rayIn } from './head-field-view.js';
 
@@ -160,5 +160,27 @@ describe('the face\'s muscles (FACS action units: face-acting/facs.js)', () => {
     expect(d(rl, 'lowerLipR', 'c', 'y')).toBeLessThan(-3); expect(d(rl, 'lowerLipR', 'c', 'z')).toBeGreaterThan(2); expect(d(rl, 'upperLipR', 'c', 'y')).toBe(0);
     expect(d(lp, 'upperLipR', 'c', 'z')).toBeGreaterThan(2); expect(d(lp, 'lowerLipR', 'c', 'z')).toBeLessThan(-2); expect(d(lp, 'lowerLipR', 'a', 'z')).toBe(0);
     for (const A of [pk, fn, rl, lp]) { expect(d(A, 'chin', 'c', 'z')).toBe(0); expect(d(A, 'browPad', 'a', 'z')).toBe(0); }
+  });
+});
+
+describe('the lateral periorbital fill (realistic laws 16, the `periorbital` relation)', () => {
+  // (the female pole: the fill's beads read off her outer canthus; the procedure is one for either pole)
+  const rel = { ...RELATIONS, ...RELATION_POLES.female }, P = corePoints(rel);
+  const names = (V) => V.map((w) => w.name);
+  it('adds nothing absent: no bead, the rest as it was', () => {
+    expect(coreVajras(P, rel)).toEqual(coreVajras(P, { ...rel, periorbital: 0 }));
+    expect(names(coreVajras(P, rel)).some((n) => /^periorbital/.test(n))).toBe(false);
+  });
+  it('stands beside each eye: outside the globe\'s limb, inside the face\'s outline, mirrored, around the canthus\'s height', () => {
+    const V = coreVajras(P, { ...rel, periorbital: 1 }), pads = V.filter((w) => /^periorbital[LR]$/.test(w.name));
+    expect(pads.map((w) => w.name).sort()).toEqual(['periorbitalL', 'periorbitalR']);
+    for (const w of pads) {
+      const s = w.name.slice(-1), e = P[`eye${s}`], ex = P[`ex${s}`], zy = P[`zy${s}`], sx = Math.sign(e.x);
+      for (const p of [w.a, w.c]) { expect(sx * (p.x - e.x)).toBeGreaterThan(GLOBE.r); expect(Math.abs(p.x)).toBeLessThan(Math.abs(zy.x)); }
+      expect(Math.abs(w.c.z - ex.z)).toBeLessThan(0.02);
+      expect(w.group).toBe('soft');
+    }
+    const [L, R] = ['L', 'R'].map((s) => pads.find((w) => w.name.endsWith(s)));
+    for (const k of ['a', 'c', 'b']) { expect(L[k].x).toBeCloseTo(-R[k].x, 9); expect(L[k].y).toBeCloseTo(R[k].y, 9); expect(L[k].z).toBeCloseTo(R[k].z, 9); }
   });
 });

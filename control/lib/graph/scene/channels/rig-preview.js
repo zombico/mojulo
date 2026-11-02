@@ -44,7 +44,7 @@ import { safeJson } from '../emit-util.js';
 // figure carrying either ⇒ every interpolation below is '' ⇒ byte-identical.
 //
 // TIMING (a bank clip carrying `s`, its designed duration — the anime hero's, station-loft-rig packLayeredRig
-// `seconds`): that clip plays one cycle over `s` seconds, the length the GLB and the Godot pack give it; a clip without
+// `seconds`): that clip plays one cycle over `s` seconds, the length the GLB gives it; a clip without
 // one keeps the preview's period (3 s). No clip carrying `s` ⇒ the phase line is its old text ⇒ byte-identical.
 export function rigPreviewChannelScript(previews, bank, { toonInk = null, layers = false } = {}) {
   // rim (shader-look phase 4): a bank figure carrying `rim: [r,g,b,strength,power]` gets

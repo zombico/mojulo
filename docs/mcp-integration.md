@@ -96,7 +96,7 @@ The mint tools are re-cut by FORM behind one reader rather than listed flat: cal
 | reference | `capture_reference` | a reusable visual reference from a photo |
 | image-render | `request_image_render` | a composition-locked scaffold an external model paints, bound back with provenance |
 | object | `mint_solid` / `edit_solid`, `edifice` | `.glb`, print-ready `.stl` at true scale |
-| world | `compose_world` | CSS-3D scene, traversable WebGL, `.glb`, Godot project |
+| world | `compose_world` | CSS-3D scene, traversable WebGL, `.glb`, an engine's handoff project |
 | view | `create_view` | animated science / math / bio study objects |
 | motion | `forge_motion` / `stitch_motion` | GIF, MP4 |
 | audio | `create_beats` | WAV, MIDI |
@@ -136,9 +136,9 @@ The catalyst library is repo-only — there is no user-writable catalyst directo
 
 ### Technique catalysts
 
-Technique catalysts (`kind: technique`) live under [control/lib/mcp/catalysts/techniques/](../control/lib/mcp/catalysts/techniques/) and are pulled with the same `get_catalyst` call as workflow catalysts. They differ in what they produce: a workflow catalyst materializes a runnable artifact through a host adapter; a technique catalyst binds a runtime substrate (filesystem, a future http-api, a future local-sql) to an artifact, with the binding recorded as a contextmap principle. `list_catalysts({ kind: 'technique' })` filters to just the technique shelf; `recommend_catalysts` returns only workflow catalysts (techniques don't recommend against a subject's shape).
+Technique catalysts (`kind: technique`) live under `control/lib/mcp/catalysts/techniques/` and are pulled with the same `get_catalyst` call as workflow catalysts. They differ in what they produce: a workflow catalyst materializes a runnable artifact through a host adapter; a technique catalyst binds a runtime substrate (filesystem, a future http-api, a future local-sql) to an artifact, with the binding recorded as a contextmap principle. `list_catalysts({ kind: 'technique' })` filters to just the technique shelf; `recommend_catalysts` returns only workflow catalysts (techniques don't recommend against a subject's shape).
 
-The first technique is **`local-storage`** — bind a folder on the operator's machine to an artifact as a `document-store` primitive against the filesystem MCP. It requires the filesystem MCP to be installed in the operator's agent.
+The shelf is empty today: its first technique, `local-storage`, left with the office catalysts in 3.1.0.
 
 #### Setting up the filesystem MCP
 
@@ -188,11 +188,11 @@ The point of MCP exposure isn't a second way to drive the dashboard. It's that m
 
 **You need:** the filesystem MCP, and GitHub if you want it pushed.
 
-**Prompt:** *"Export the harbour level as a Godot project and a `.glb`, check the portability flags first, and commit it to the `levels/` repo."*
+**Prompt:** *"Hand the harbour level to Godot, export a `.glb` of it too, and commit both to the `levels/` repo."*
 
-**Flow:** read the advisory portability assessment (which gameplay lives inside the shared mechanics vocabulary, and the honest ledger of what will *not* travel) → `export_game` writes a plain folder, or `export_model` writes `.glb` / print-ready `.stl` → the filesystem MCP places it → GitHub commits and, for a web build, publishes to Pages.
+**Flow:** `export_model { engine: 'godot' }` writes the level as a Godot project (its `stays` names what stayed the web's), `export_model` writes `.glb` / print-ready `.stl`, or `export_game` writes the game as a plain folder → the filesystem MCP places it → GitHub commits and, for a web build, publishes to Pages.
 
-**Be deliberate about the ledger.** Movers, live physics, fx, and the game shell don't cross the seam. The export says so explicitly rather than silently dropping them — put that list in the commit message so whoever opens the project in Godot knows what to re-orchestrate.
+**Be deliberate about the ledger.** The level's rules, its HUD and the grass don't cross the seam; its contract, markers and seats cross as data to wire. The export says so explicitly rather than silently dropping them — put that list in the commit message so whoever opens the project in Godot knows what to wire. A re-handoff replaces only `mojulo/`, so the developer's own scene keeps its commits.
 
 ### 4. A kept recipe → a set, on demand
 

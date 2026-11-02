@@ -13,15 +13,18 @@
  *     height  the subject's capsule height, 0 unknown
  *     near    the camera's near plane (the page's camera.near)
  *
- * The eye stands `skin` short of the surface (the far end of the line counts as one, so the stand-off is part of
- * every follow camera's framing, wall or none). The stand-off is 3 m for anything a person's height or taller, the
- * framing a person's and a suit's chase was tuned at, and shrinks with a smaller subject's height. However close the
- * wall, the eye never comes nearer the look point than the subject's far side (`lead + radius` across the ground) and
- * its near plane clear of it, so a wall behind a small hero cannot drag the eye into it; a first-person camera, whose
- * look point leads its own eye, is never drawn in at all.
+ * Two stand-offs. With nothing in the way the eye stands `skin` short of the line's far end (the stand-off is part of
+ * every follow camera's framing: 3 m for anything a person's height or taller, the framing a suit's chase was tuned at,
+ * shrinking with a smaller subject's height; a hero's chase, playscape/player.js, is laid long by it). Against a wall it
+ * stands only `wallSkin` short of the wall (half a metre for a person, its near plane clear of the face), never farther
+ * out than the open line would put it: a hero two metres inside a room keeps the room's depth behind it instead of
+ * losing 3 m of it to the stand-off (2026-11-02: the eye was drawn to the hero's back, 88 % of the frame indoors).
+ * However close the wall, the eye never comes nearer the look point than the subject's far side (`lead + radius` across
+ * the ground) and its near plane clear of it, so a wall behind a small hero cannot drag the eye into it; a first-person
+ * camera, whose look point leads its own eye, is never drawn in at all.
  */
 export function followPullIn(full, hitD, lead, hz, radius, height, near) {
-  const skin = 3 * (height > 0 ? Math.min(1, height / 1.7) : 1);
+  const k = height > 0 ? Math.min(1, height / 1.7) : 1, skin = 3 * k, wallSkin = 0.5 * k + (near || 0);
   const clear = (lead + radius + (near || 0)) / Math.max(hz, 1e-6);
-  return Math.min(1, Math.max(0.15, clear / full, (hitD - skin) / full));
+  return Math.min(1, Math.max(0.15, clear / full, Math.min(full - skin, hitD - wallSkin) / full));
 }

@@ -51,6 +51,9 @@ export const SWARD_MEDIUM = Object.freeze({ share: 0.45, cell: 11 });
 /** How far past a claimed ground (era/isekai.js ALLOT) the grass grows back to its full (m): none inside the claim, short
  *  and thin at its edge, so no blade leans into it. */
 export const GRASS_OFF = 0.6;
+/** The stage's FAR RING (era/isekai.js: its ridges past the level, standing curtains in layers out to the sky): not
+ *  land the read classes, its own range (`far`), which the form draws as its far land (channels/form-land.js FAR_LAND). */
+export const FAR_GROUPS = new Set(['isekai:ridge']);
 /** The gen-6 grass's blade cards (era/isekai.js): left out of the read, and out of the form render's page. */
 export const GRASS_CARDS = 'isekai:grass';
 /** The rock's relief when none is asked for: the ledged face (form/rock-relief.js). */
@@ -58,6 +61,9 @@ export const RELIEF_DEFAULT = 'ledged';
 /** A trail's dress when none is written: rubble half, a little dust, some clay, the three patch kinds. */
 export const DRESS_DEFAULT = Object.freeze({ surface: 'earth', rubble: 0.5, dust: 0.3, clay: 0.45, patches: Object.freeze(['worn', 'damp', 'gravel']) });
 
+/** The layer atlas's cells in order (`LAYERS` in landRead): the four the corners weigh (`spl`: rock, scree, soil, sand), the
+ *  trail's two dirts and the undergrowth; an engine's terrain shader reads the atlas by them. */
+export const ATLAS_LAYERS = Object.freeze(['rock', 'scree', 'soil', 'sand', 'path', 'clay', 'undergrowth']);
 const ATLAS_TEX = 512, ATLAS_W = ATLAS_TEX * 3, ATLAS_H = ATLAS_TEX * 3, atlasMemo = new Map();
 const atlasPng = (b) => `data:image/png;base64,${encodePng(b, ATLAS_W, ATLAS_H).toString('base64')}`;
 // the layers' textures in one atlas each (base, normal, orm with the height in blue), each layer's linear mean beside,
@@ -150,7 +156,7 @@ export function landRead(P0, C, { hour, dress = DRESS_DEFAULT, grass: withGrass 
 
   // faces ordered by their material (a class, wet or dry), triangulated as fans, each corner carrying both halves' colours
   // and the gate's bucket: 1 a cliff turned to the hour's sun, 2 one turned away, 3 wet sand, 4 dry sand
-  const keyOf = (i) => { const F = L.faces[i]; return F.cls ? `${F.cls}${F.under ? ':under' : F.wet ? ':wet' : ''}` : 'unread'; };
+  const keyOf = (i) => { const F = L.faces[i]; return F.cls ? `${F.cls}${F.under ? ':under' : F.wet ? ':wet' : ''}` : FAR_GROUPS.has(P.faces[i].group) ? 'far' : 'unread'; };
   const order = P.faces.map((_, i) => i).sort((a, b) => (keyOf(a) < keyOf(b) ? -1 : keyOf(a) > keyOf(b) ? 1 : a - b));
   // the land SHADED SMOOTH (6.5's lesson: a faceted ground draws its faces' edges through every transition): a corner's
   // normal the mean of the faces round it that lie within CREASE of the face's own, so a cliff's edge stays crisp
@@ -335,7 +341,10 @@ export function formPayload(R) {
   const r4 = (v) => Math.round(v * 1e4) / 1e4;
   return {
     hides: [...new Set(P.faces.filter((f, i) => L.faces[i].cls).map((f) => f.group))].sort(),
-    sun, sky: { zenith: P.sky.zenith, horizon: P.sky.horizon }, box, waterZ: L.waterZ, deep: L.deep,
+    // (the stage's far ring, its ridges past the level, which the form draws as its far land: channels/form-land.js FAR_LAND)
+    far: [...new Set(P.faces.filter((f, i) => !L.faces[i].cls && FAR_GROUPS.has(f.group)).map((f) => f.group))].sort(),
+    // (an underground page, a cavern, has no sky: null, and the page draws none)
+    sun, sky: P.sky && Array.isArray(P.sky.zenith) && Array.isArray(P.sky.horizon) ? { zenith: P.sky.zenith, horizon: P.sky.horizon } : null, box, waterZ: L.waterZ, deep: L.deep,
     seabed: hasSea ? { x: [seaX.reduce((a, v) => Math.min(a, v), Infinity), seaX.reduce((a, v) => Math.max(a, v), -Infinity)], y: [seaY.reduce((a, v) => Math.min(a, v), Infinity), seaY.reduce((a, v) => Math.max(a, v), -Infinity)], z: L.waterZ - DEEP_FADE - 1 } : null,
     classes: Object.fromEntries(Object.entries(LAND_CLASSES).map(([k, K]) => [k, K.rough])),
     ranges, pos: b64(Float32Array.from(pos)), c7: b64(Uint8Array.from(c7)), spl: b64(Uint8Array.from(spl)), nrm: b64(Int8Array.from(nrm)),

@@ -15,8 +15,6 @@
  * Cook folders (`cook_…`) live in the same base directory but are NOT scanned
  * here — they have a real table and a real inbox, and the lane reads them through
  * CookRepository so a cook keeps its aim and its publication kind.
- *
- * Design: components/3d-factory-ui.plan.md §5.
  */
 
 import fs from 'node:fs/promises';
@@ -103,10 +101,10 @@ export async function scanOneOutcome(ref) {
 
 /**
  * One artifact's outcome folder, ALL of it: every file down to `maxDepth` folders, grouped by the folder it sits in
- * at the top (`''` for the folder itself), so a building's `sheets/` and `schedules/` and a game's `levels/`, `godot/`
- * and `assets/` show as what they are. `scanOneOutcome` reads the top only; an export that writes into subfolders
+ * at the top (`''` for the folder itself), so a building's `sheets/` and `schedules/` and a game's `levels/`, `assets/`
+ * and `godot-handoff/` show as what they are. `scanOneOutcome` reads the top only; an export that writes into subfolders
  * would otherwise be invisible. Sidecars (the receipts and recipes) are left out. Each folder lists at most
- * `perGroup` files (a Godot pack holds thousands); its `total` and the tree's are the true counts.
+ * `perGroup` files (an engine pack holds thousands); its `total` and the tree's are the true counts.
  *
  * → { ref, url, total, bytes, groups: [{ dir, total, bytes, files: [{ path, bytes, page }] }] }
  *   `page` marks an HTML file: it opens to be looked at, where any other file is taken.

@@ -17,7 +17,7 @@ describe('eras are looks; the target is density', () => {
     expect(Object.keys(REALITY.settings.era.values)).toEqual(ERA_IDS);
     expect(REALITY.settings.cast.values['gen-6'].status).toBe('built');
     expect(REALITY.settings.cast.values['gen-7']).toMatchObject({ status: 'partial', note: expect.stringMatching(/relief-in-normal/) });
-    expect(REALITY.settings.era.values['gen-7']).toMatchObject({ status: 'partial', godot: 'absent', note: expect.stringMatching(/the form render .* is built for a geocube's island and trail .* and for a room under no sun .* as paint under the live light.*planned: every other surface as material/) });
+    expect(REALITY.settings.era.values['gen-7']).toMatchObject({ status: 'partial', note: expect.stringMatching(/the form render .* is built for a geocube's island and trail .* and for a room under no sun .* as paint under the live light.*planned: every other surface as material/) });
   });
 
   it('a target reads words or numbers and refuses with the lists', () => {
@@ -42,7 +42,7 @@ describe('a hero drawn for its target', () => {
     expect(at720.parts.filter((p) => p.errorPx > 1).map((p) => p.part)).toEqual(['footR']);
     expect(at720.refine).toEqual([{ parts: ['footR', 'footL'], slots: 'halve' }]);
     expect(castDensity(m.plan, '1080p').refine[0].parts).toEqual(['torso', 'pelvis', 'upperArmR', 'upperArmL', 'foreArmR', 'foreArmL', 'thighR', 'thighL', 'shankR', 'shankL', 'footR', 'footL']);
-    expect([null, '720p', '1080p', '4k'].map((t) => tris({ cast: 'female', ...(t ? { target: t } : {}) }))).toEqual([5196, 5364, 7724, 7724]);
+    expect([null, '720p', '1080p', '4k'].map((t) => tris({ cast: 'female', ...(t ? { target: t } : {}) }))).toEqual([15636, 16308, 25748, 25748]);   // (re-pinned for hero laws 21, hero-form.js FORM_BODY: the body's skin split once, rounded; the target's splits as before)
   }, 120000);
 
   it('the readout names each part\'s outline, and the parts one split cannot hold', () => {
@@ -52,7 +52,7 @@ describe('a hero drawn for its target', () => {
     expect(r.over).toContain('torso');
     expect(r.advice).toMatch(/after one split/);
     const top = built({ cast: 'female', target: { resolution: '1080p', framing: 'top-down' } });
-    expect(top.tris).toBe(5196);
+    expect(top.tris).toBe(15636);
     expect(castDensityReadout(top.m.plan, { resolution: '1080p', framing: 'top-down' }, top.tris).advice).toMatch(/register 'lowpoly' spends less/);
   }, 120000);
 
@@ -66,9 +66,9 @@ describe('a hero drawn for its target', () => {
 
   it('a hero on a cube takes its target unless it names its own', () => {
     expect(readGeocube('gothic-night')).toMatchObject({ era: 'gen-6', target: { resolution: '1080p', framing: 'third-person', error: 1 } });
-    expect(tris({ cast: 'female', geocube: 'gothic-night' })).toBe(7724);
-    expect(tris({ cast: 'female', geocube: { from: 'gothic-night', target: '720p' } })).toBe(5364);
-    expect(tris({ cast: 'female', geocube: 'gothic-night', target: { resolution: '1080p', framing: 'top-down' } })).toBe(5196);
+    expect(tris({ cast: 'female', geocube: 'gothic-night' })).toBe(25748);
+    expect(tris({ cast: 'female', geocube: { from: 'gothic-night', target: '720p' } })).toBe(16308);
+    expect(tris({ cast: 'female', geocube: 'gothic-night', target: { resolution: '1080p', framing: 'top-down' } })).toBe(15636);
   }, 120000);
 
   it('refuses a bad target, a bad era on a cube and a broken cube with the lists', () => {

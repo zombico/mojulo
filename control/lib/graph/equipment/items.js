@@ -13,6 +13,7 @@
 import { focalStone, recedeRole, focalGrow as growOf, lerp } from './principles.js';
 import { mulberry32, r3, P, A, circle, mat, mergeInto as merge, push, setStone, feather, ribbon, girdleOf } from './shapes.js';
 import { bladeLoft } from './sword.js';
+import { buildShield2, drawsShield2 } from './shields.js';
 
 export const ITEMS = Object.freeze({ staff: { L: 175, R: 1.6 }, bow: { L: 180, W: 3.0, T: 2.2, brace: 16 }, shield: { R: 38, H: 72, T: 1.8 } });
 /** the staff heads that carry no stone (every other head cradles one) */
@@ -45,6 +46,19 @@ function staff(m, { d, law, roles, gem, lang, minF, focalGrow, rng, edge }) {
   push(m, 'lathes', { group: 'collar', axisFrom: P(0, 0, zTop - 3 * law.hilt), axisTo: P(0, 0, zTop + 1), profile: [{ t: 0, radius: r3(R * 0.95) }, { t: 0.4, radius: r3(R * 1.3) }, { t: 1, radius: r3(R * 1.15) }], ...acc });
   const sockets = { grip: { origin: A(0, 0, gz), axis: [0, 0, 1], length: gl }, tip: { origin: A(0, 0, L) }, heel: { origin: A(0, 0, 0) } };
 
+  const focal = staffHead(m, { head, R, zTop, L, st, gem, law, lang, rng, d, roles, minF, focalGrow, blade, edge });
+  if (focal) sockets.focal = focal;
+  return { sockets, trace, length: L };
+}
+
+/**
+ * A staff's head on a haft of radius R whose top is at zTop, the head's own top at L (its budget from the head: the
+ * focal stone's, a blade's `blade`). Shared by the staff (laws 1, as it always drew) and by any haft or sword hilt that
+ * carries a head (compose.js, laws 2). → the focal's socket, or null.
+ */
+export function staffHead(m, { head, R, zTop, L, st, gem, law, lang, rng, d, roles, minF, focalGrow, blade, edge }) {
+  const fit = mat(roles.fittings), acc = mat(roles.accent);
+  const sockets = {};
   if (head === 'plain') {
     push(m, 'lathes', { group: 'head', axisFrom: P(0, 0, zTop), axisTo: P(0, 0, L), profile: [{ t: 0, radius: r3(R * 1.08) }, { t: 0.8, radius: r3(R * 1.12) }, { t: 1, radius: r3(R * 0.55) }], ...fit });
   } else if (head === 'branch') {
@@ -158,7 +172,7 @@ function staff(m, { d, law, roles, gem, lang, minF, focalGrow, rng, edge }) {
       sockets.focal = { origin: A(R + reachX, 0, zc) };
     } else sockets.focal = { origin: A(0, 0, zPoint + (blade - R * 3.5) * 0.4) };
   }
-  return { sockets, trace, length: L };
+  return sockets.focal ?? null;
 }
 
 // ---------------------------------------------------------------- bow
@@ -270,7 +284,7 @@ function shield(m, { d, law, roles, gem, lang, minF, focalGrow }) {
  * The item's language is the card's `language[item]` under the build's `parts`; its focus is the build's dial, else
  * the language's, else the card's. → { monomers, sockets, trace }.
  */
-export function buildItem({ item, card, d, law, roles, gem: g, lang, seed }) {
+export function buildItem({ item, card, d, law, roles, gem: g, lang, seed, laws = 1 }) {
   const gem = g && ['head', 'riser', 'boss'].includes(d.focus) && !GEMLESS_HEADS.includes(lang.head) && lang.device !== 'spikes'
     ? { ...g, glow: (g.glow || 0) + 0.35 * d.stylize } : null;
   roles = { ...roles, shaft: lang.shaft || roles.shaft || ['wood', '#6b4a2e'], board: lang.board || roles.board || ['wood', '#6b4a2e'],
@@ -278,7 +292,9 @@ export function buildItem({ item, card, d, law, roles, gem: g, lang, seed }) {
   const minF = law.minFeature * (ITEMS[item].L || ITEMS[item].H * 1.5);
   const m = {};
   const rng = mulberry32(seed * 2654435761 + item.length * 97 + (card.id || '').length);
-  const r = ({ staff, bow, shield })[item](m, { d, law, roles, gem, lang, minF, focalGrow: growOf(d.stylize), rng, edge: card.edge ?? {} });
+  // laws 2: a shield with a new outline, a curve or a construction is shields.js's; else as laws 1 drew it
+  const build = item === 'shield' && laws >= 2 && drawsShield2(lang) ? buildShield2 : ({ staff, bow, shield })[item];
+  const r = build(m, { d, law, roles, gem, lang, minF, focalGrow: growOf(d.stylize), rng, edge: card.edge ?? {} });
   // law 7: a barked part (the shaft role on a shaft, a branch, a limb or a riser) wears the trees' bark. The tile is
   // in stem radii (crack spacing ∝ thickness), coarser when stylized (law 4); the monomer keeps its tint as the plain
   // colour for a consumer without textures.

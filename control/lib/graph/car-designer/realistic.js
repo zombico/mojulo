@@ -17,9 +17,14 @@
  *   livery.* / livery facet / wear facet   the paint: a second colour on the roof, stripes, a number, a patched panel
  *   physics.*      read in the readout only: a realistic vehicle drives its class's own row (roads/vehicles.js)
  *
- *   compileRealistic(sheet, { keys? }) → { spec, faces: { root, wheels: [{ bone, faces, hub }] }, figure, census,
+ *   compileRealistic(sheet, { keys?, form?, livery?, wear?, setting? }) → { spec, faces: { root, wheels: [{ bone, faces, hub }] }, figure, census,
  *                                          rule, envelope, reads }
+ *                  form: true draws the figure in the FORM render (gen-7, road-form.js): each face named and given its
+ *                  material, its albedo and its crease-aware normals, the page lighting it, and the named faces by bone
+ *                  returned as `form`; absent, as it was
  *   realisticCensus(compiled)           → measured bounds, wheelbase, track and wheel radius against the class
+ *   (a military class, road-military.js MILITARY_CLASSES, is compiled by military.js compileMilitary: the hull kit's body
+ *   at the class's numbers, in the same shape)
  *
  * The figure is the browser's rig-figure (vehicle-designer/vehicle-rig.js packVehicleFigure): the hull the root, each
  * wheel its own bone, turning in the `roll` clip; vehicle space (+y forward). Pure and deterministic.
@@ -28,9 +33,18 @@ import { buildVehicle, FLEET, PAINTS } from '../roads/fleet.js';
 import { bodyShape } from '../roads/bodywork.js';
 import { VEHICLES, vehicleRule, envelope } from '../roads/vehicles.js';
 import { packVehicleFigure } from '../vehicle-designer/vehicle-rig.js';
+import { withAlbedo } from '../roads/road-faces.js';
+import { formFace, smoothForm, ROAD_MATERIALS } from './road-form.js';
+import { roadWheel, wheelWell } from './road-wheel.js';
+import { glasshouse } from './road-glass.js';
+import { panels } from './road-panels.js';
+import { heavyBody } from './road-heavy.js';
+import { formLight } from './form-light.js';
 import { readDerive } from './channels.js';
 import { HEAVY } from './facets.js';
 import { mulberry32 } from '../vegetation/grow.js';
+import { MILITARY_CLASSES } from './road-military.js';
+import { compileMilitary } from './military.js';
 
 const r3 = (v) => Math.round(v * 1000) / 1000;
 const r4 = (n) => Math.round(n * 1e4) / 1e4 + 0;
@@ -107,7 +121,7 @@ const absProfile = (P, H) => ({ hood: P.hood, roofA: P.roofA, roofB: P.roofB, de
 
 // the paint: a realistic vehicle's colour from the world's paints, by its seed; a second colour, stripes, a number,
 // a patched panel, as its livery and wear facets ask (read off the faces the loft painted)
-function paintFaces(paint, sheet, spec) {
+function paintFaces(paint, sheet, spec, colours = null) {
   const rnd = mulberry32((sheet.seed * 2654435761 + 7) >>> 0), base = PAINTS[Math.floor(rnd() * PAINTS.length)], second = PAINTS[Math.floor(rnd() * PAINTS.length)];
   const hex = (c, k = 1) => `#${c.map((v) => Math.round(Math.min(1, v * k) * 255).toString(16).padStart(2, '0')).join('')}`;
   const { dirs } = readSheet(sheet), lv = sheet.facets.livery, worn = sheet.facets.wear === 'battered';
@@ -118,6 +132,7 @@ function paintFaces(paint, sheet, spec) {
     let c = hex(base, k), part = 'body';
     if (lv === 'two-tone' && zc > top + 0.05) { c = hex(second, k); part = 'roof'; }
     if (worn && i % 23 === 11) { c = hex(base, 0.62); part = 'patch'; }
+    if (colours) colours.push(c);
     return { ...f, fill: shadeLike(f.fill, c), ...(f.cornerFills ? { cornerFills: f.cornerFills.map((x) => shadeLike(x, c)) } : {}), part };
   });
 }
@@ -165,14 +180,47 @@ function fan(faces) {
 }
 
 /** Compile a realistic sheet. */
-export function compileRealistic(sheet, { keys = 12 } = {}) {
+export function compileRealistic(sheet, { keys = 12, form = false, livery, wear, setting } = {}) {
+  // (a military class's body is the hull kit's, not a loft: military.js, the same shape returned; its livery and its
+  // wear the words)
+  // (a road car keeps its noon: the world it stands in lights a field vehicle only)
+  if (MILITARY_CLASSES[sheet.facets.class]) return compileMilitary(sheet, { keys, form, livery, wear, setting });
+  if (livery !== undefined) throw new Error('car-designer: a road car\'s livery is its sheet\'s (mono, two-tone, striped, numbered); a livery\'s words are a field vehicle\'s');
+  if (wear !== undefined) throw new Error('car-designer: a road car\'s wear is its sheet\'s (its brief\'s word); a wear\'s words are a field vehicle\'s');
   const spec = realisticSpec(sheet), cls = sheet.facets.class;
   // the loft in vehicle space: the fleet builds +x forward; a quarter turn puts the nose on +y
   const wheels = [];
   const sink = (_call, side, x) => { const w = { side, x, faces: [] }; wheels.push(w); return w.faces; };
-  const built = buildVehicle(cls, Math.PI / 2, { spec, wheels: sink });
+  // (in the form render, each face's colour as asked and its normal are recorded beside it: road-faces.js withAlbedo)
+  const rec = form ? withAlbedo(() => buildVehicle(cls, Math.PI / 2, { spec, wheels: sink })) : null;
+  const built = rec ? rec.out : buildVehicle(cls, Math.PI / 2, { spec, wheels: sink });
   const lift = (f) => (spec.lift ? { ...f, corners: f.corners.map((c) => [c[0], c[1], c[2] + spec.lift]) } : f);
-  const root = fan([...paintFaces(built.paint.map(lift), sheet, spec), ...built.trim.map(lift), ...built.trailer.map(lift), ...liveryMarks(sheet, spec)]);
+  const colours = form ? [] : null, painted = paintFaces(built.paint.map(lift), sheet, spec, colours), marks = liveryMarks(sheet, spec);
+  // the form faces, named and smoothed before the polygons are fanned (realistic's fan makes new faces the recorder never
+  // saw): the paint by its part and colour, the trim by the colour it was drawn in, each wheel's on its own
+  // (and the glass set in its frames and parted by its pillars, read from the faces' own edges: road-glass.js; a classic
+  // three-box, drawn without a body language, framed in chrome)
+  const bodyColour = form ? colours[painted.findIndex((g) => g.part === 'body')] : null;
+  // (and the body parted into its panels, their fittings set on them: road-panels.js; a cargo van's side a panel)
+  // (a heavy class's body is its own, at the class's numbers round the fleet's wheels: road-heavy.js; a car's the loft's)
+  const hubAt = (w) => [-w.side * spec.track / 2, w.x, spec.r];
+  const heavy = form ? heavyBody(spec, { hubs: wheels.map(hubAt), body: bodyColour }) : null;
+  const named = !form ? null : heavy ?? [
+    ...painted.map((f, i) => formFace(f, rec.albedo.get(built.paint[i]), { part: f.part, hex: f.part === 'patch' ? bodyColour : colours[i] })),
+    ...built.trim.map((f) => formFace(lift(f), rec.albedo.get(f))),
+    ...built.trailer.map((f) => formFace(lift(f), rec.albedo.get(f))),
+    ...marks.map((f) => formFace(f, null, { part: f.part, hex: f.fill, inside: [0, 0, spec.H / 2] })),
+  ];
+  const formRoot = form ? smoothForm(panels(glasshouse(named, { body: bodyColour, chrome: !spec.language && !heavy, cargo: cls === 'van' }), { body: bodyColour, chrome: !spec.language && !heavy, battered: sheet.facets.wear === 'battered', seed: sheet.seed, W: spec.W, kind: spec.kind })) : null;
+  // (each wheel in the form render is the road wheel, lathed, its rim the sheet's wheel style: road-wheel.js; the fleet's
+  // prism stays the wheel the census measures)
+  const hubOf = (w) => [-w.side * spec.track / 2, w.x, spec.r], tyreW = spec.tyreW || 0.24, wheelWord = form ? readSheet(sheet).words.wheel : null;
+  // (a heavy class's wheel, a truck's or a bus's, is the heavy dish unless the sheet names another)
+  const wheelStyle = wheelWord ?? (spec.r > 0.45 ? 'heavyDuty' : null);
+  if (form) for (const w of wheels) w.form = smoothForm(roadWheel({ hub: hubOf(w), r: spec.r, width: tyreW, style: wheelStyle }));
+  // (and each arch its liner, on the body)
+  if (form) formRoot.push(...smoothForm(wheels.flatMap((w) => wheelWell({ hub: hubOf(w), r: spec.r, width: tyreW }))));
+  const root = fan([...painted, ...built.trim.map(lift), ...built.trailer.map(lift), ...marks]);
   for (const w of wheels) w.faces.splice(0, w.faces.length, ...fan(w.faces));
   // the bones: axles ranked front to back by position (a trailer's are built by a call of their own); the front pair
   // the front wheels, the next pair the rear, any further axle its own pair
@@ -189,33 +237,41 @@ export function compileRealistic(sheet, { keys = 12 } = {}) {
   const bones = [{ id: 'root', head: [0, 0, 0] }, ...boneWheels.map((w) => ({ id: w.bone, head: N(w.hub).map(r4) }))];
   const buckets = new Map([['root', move(root)], ...boneWheels.map((w) => [w.bone, move(w.faces)])]);
   const axles = [...new Set(wheels.map((w) => w.x))].sort((a, b) => b - a);
+  // the form render: the body and the wheels carry their material form (packFormMesh), and the figure how the page
+  // lights it (form-light.js: noon's key and sky, the road car's materials)
+  const formOf = form ? new Map([['root', move(formRoot)], ...boneWheels.map((w, k) => [w.bone, move(wheels[k].form)])]) : null;
   const figure = {
-    ...packVehicleFigure(bones, buckets, { keys }),
+    ...packVehicleFigure(bones, buckets, { keys, ...(form ? { form: formOf } : {}) }),
+    ...(form ? { form: formLight(null, ROAD_MATERIALS) } : {}),
     figH: r4(ext(2)[1]),
     wheelbase: r4(axles[0] - axles[1]),
     wheelRadius: r4(spec.r),
     warnings: [],
   };
   const compiled = { spec, faces: { root: move(root), wheels: boneWheels.map((w) => ({ ...w, faces: move(w.faces), hub: N(w.hub) })) }, figure, rule: vehicleRule(cls), envelope: envelope(cls), class: cls };
-  return { ...compiled, census: realisticCensus(compiled) };
+  // (in the form render, the named faces too, by bone: what a review draws, and what an engine's materials are read from)
+  return { ...compiled, census: realisticCensus(compiled), ...(form ? { form: Object.fromEntries(formOf) } : {}) };
 }
 
 /** What was drawn, against the class: bounds (length along +y, width across x, height), wheelbase and track from the
  *  wheel bones' hubs, the wheels' drawn radius. */
+// (the largest and the least of many numbers by a loop: a spread of a large mesh's corners overflows the stack)
+const most = (xs) => xs.reduce((m, x) => (x > m ? x : m), -Infinity), least = (xs) => xs.reduce((m, x) => (x < m ? x : m), Infinity);
+export { most, least };
 export function realisticCensus(c) {
   const row = VEHICLES[c.class];
   const pts = [...c.faces.root, ...c.faces.wheels.flatMap((w) => w.faces)].flatMap((f) => f.corners);
-  const span = (i) => Math.max(...pts.map((p) => p[i])) - Math.min(...pts.map((p) => p[i]));
+  const span = (i) => most(pts.map((p) => p[i])) - least(pts.map((p) => p[i]));
   const hubs = c.faces.wheels.map((w) => w.hub), ys = [...new Set(hubs.map((h) => r4(h[1])))].sort((a, b) => b - a);
   // a wheel's radius: its tyre's vertices from its hub, in the wheel's own plane (a 12-gon's circumradius)
-  const w0 = c.faces.wheels[0], wheelR = Math.max(...w0.faces.flatMap((f) => f.corners).map((p) => Math.hypot(p[1] - w0.hub[1], p[2] - w0.hub[2])));
+  const w0 = c.faces.wheels[0], wheelR = most(w0.faces.flatMap((f) => f.corners).map((p) => Math.hypot(p[1] - w0.hub[1], p[2] - w0.hub[2])));
   const ratio = (a, b) => r4(a / b);
   return {
     class: c.class,
-    L: r3(span(1)), W: r3(span(0)), H: r3(Math.max(...pts.map((p) => p[2]))),
+    L: r3(span(1)), W: r3(span(0)), H: r3(most(pts.map((p) => p[2]))),
     wheelbase: r3(ys[0] - ys[1]), track: r3(Math.max(...hubs.map((h) => h[0])) - Math.min(...hubs.map((h) => h[0]))),
     wheelRadius: r3(wheelR),
-    against: { L: ratio(span(1), row.L), W: ratio(span(0), row.W), H: ratio(Math.max(...pts.map((p) => p[2])), row.H + (c.spec.lift || 0)), wheelbase: ratio(ys[0] - ys[1], row.wheelbase), wheelRadius: ratio(wheelR, c.spec.r) },
+    against: { L: ratio(span(1), row.L), W: ratio(span(0), row.W), H: ratio(most(pts.map((p) => p[2])), row.H + (c.spec.lift || 0)), wheelbase: ratio(ys[0] - ys[1], row.wheelbase), wheelRadius: ratio(wheelR, c.spec.r) },
     heavy: HEAVY.includes(c.class),
   };
 }

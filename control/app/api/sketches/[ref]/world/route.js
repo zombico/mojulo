@@ -19,6 +19,7 @@ import path from 'node:path';
 
 import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { emitThreeWorld } from '@/lib/graph/scene/scene-three';
+import { xrFromParam } from '@/lib/graph/scene/channels/xr';
 import { etagFor, pickFlags, renderCacheKey } from '@/lib/graph/sketch/render-etag';
 import { resolveWorldScene, WALK_KINDS } from '@/lib/graph/worlds/world-scene';
 import { resolveCityInsets } from '@/lib/graph/worlds/city-insets';
@@ -376,10 +377,10 @@ export async function GET(request, { params }) {
     // so the saved file is a genuinely portable, open-anywhere page — the live iframe
     // keeps using the small server-served importmap.
     const download = ['1', 'true'].includes(request.nextUrl.searchParams.get('download'));
-    // ?xr=1 adds the WebXR entry (a headset walks the world); ?xr=0 drops a manifest's own `xr`.
+    // ?xr=1 adds the WebXR entry (a headset walks the world); ?xr=0 drops a manifest's own `xr`; words pick the
+    // headset's modes for an A/B without a re-mint (?xr=snap, ?xr=smooth,hand: channels/xr.js xrFromParam).
     // Off unless the manifest or the flag asks — the page stays byte-identical otherwise.
-    const xrParam = request.nextUrl.searchParams.get('xr');
-    const xr = ['0', 'false'].includes(xrParam) ? null : (['1', 'true'].includes(xrParam) ? (payload.xr || true) : (payload.xr || null));
+    const xr = xrFromParam(request.nextUrl.searchParams.get('xr'), payload.xr || null);
     const html = emitThreeWorld({ ...payload, wireframe, walk, spin, decollide, hud, inline: download, xr });
     if (cacheKey) worldCacheSet(cacheKey, html);
     return worldHtmlResponse(html, sketch, ref, download, 'MISS', etag, streamed.header);

@@ -1,6 +1,7 @@
 /**
- * THE FIGHT AS DATA: what an engine kernel needs to adjudicate the web's combat in the bus's frame (z-up, recipe units,
- * radians), beside the cast it fights over. It rides bus.json as `combat`; Godot's kernel/combat.gd reads it.
+ * THE FIGHT AS DATA: what an engine kernel needed to adjudicate the web's combat in the bus's frame (z-up, recipe units,
+ * radians), beside the cast it fights over. It rides the bus fragment as `combat`. The engine kernels are retired and no
+ * kept export emits the bus (the engine handoff, handoff.js, carries a level's contract and markers, never its rules).
  *
  *   extractCombat(payload, player) → { version, hero, team?, eye, look, strike?, weapon?, colliders?, bodies } | null
  *     hero     the player's id (the seat engine-score names); team, its side when it has one (a blade spares its own)
@@ -64,7 +65,7 @@ export function extractCombat(payload, player) {
   // the web's normalized world: the same hoists (poise, hpMax, team) a page starts from
   const world = CW.createWorld({ entities: JSON.parse(JSON.stringify(ents)), ...(Array.isArray(payload.colliders) ? { colliders: payload.colliders } : {}) });
   const me = world.byId[player];
-  // minds fight too (kernel/mind.gd, since 0.26.0): their trigger and blade need the fight whatever the pilot holds
+  // minds fight too: their trigger and blade need the fight whatever the pilot holds
   const minds = ents.some((e) => e && e.rule && e.rule.type === 'ai');
   // the strike and the trigger are the platform pilot's: a walker fights nothing of its own
   const platform = me.rule.type === 'platform';

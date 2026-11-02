@@ -199,33 +199,38 @@ them). Saves stay in the app's own storage. The app is **unsigned**: signing and
 (Apple Developer ID, a Windows code-signing certificate) are yours, and until then macOS
 Gatekeeper and Windows SmartScreen warn on first open. Verified: macOS arm64, Electron 44.7.
 
-## Engine extensions: Godot, Roblox, Unity, Unreal, Blender
+## Engine handoff: Godot, Unity, Unreal, Blender
 
-The rule for all four legs: **mojulo emits a pack; you supply the engine.** Every export works with
-nothing installed (the pack plus a step-by-step import guide are written, and the machine gate
-reports "skipped" with the reason). Installing the engine adds an **advisory machine gate** that
-imports the pack headless and stamps what it measured. Gates advise; they never refuse. A human
-looking at the result in the engine is the eyes gate, and no gate claims that passed.
+The rule for every engine: **mojulo writes a project; you supply the engine.** No engine runs the game: the
+browser build is the game (alone or as the desktop app), and a team's engine gets a handoff of it,
+`export_model { ref, engine }`: a world's level, or each of a game's levels, as a project the engine opens, with every
+surface a material the engine lights, the layered ground and the sea on shaders ported from the page, the sun, lamps,
+sky and haze set to the page's (each engine's light units measured), the markers and seats as objects carrying their
+records, the level's contract (win and fail) and a pointer to its web build and bible. A re-handoff replaces mojulo's
+part and keeps the developer's own scene. Every export works with nothing installed: the result names the commands
+that import and probe the project headless, and mojulo never launches the engine. The **visual gate**
+(`mojulo script visual-gate --ref <level>`) renders a level's cameras on the World page and in each engine installed,
+scores each shot (SSIM, CIEDE2000) and writes a contact sheet; an engine that is absent is skipped and says so. Gates
+advise; they never refuse. A human looking at the result in the engine is the eyes gate, and no gate claims that passed.
+CI runs Godot's legs on a pinned Godot; Unity's, Unreal's and Blender's run locally.
 
 Auto-detection of engine binaries is written for **macOS paths only**. On Windows or Linux, set the
 environment variable named in each row.
 
-| Engine | What mojulo emits | You need | Version target | Gate env var | Leg |
-|---|---|---|---|---|---|
-| **Godot** (the fullest translation) | A real Godot 4 project: `project.godot`, the versioned `mojulo-godot` kernel scripts, the GLB, `score.json`, export presets. Playable when the gameplay is declarative. | Godot **4.5 or newer** to open the pack. Free, open source. | Gate verified against Godot 4.7.2 | `MOJULO_GODOT` (default `/Applications/Godot.app/Contents/MacOS/Godot`) | kernel [VERSION](../control/lib/graph/scene/godot-kernel/VERSION) |
-| **Roblox** (the young translation) | A Rojo project: the Luau kernel (bus, stats, store, game channel, level step, and a level's cast, fight, minds, scenes and journal), held equal to the web by the conformance corpora under Lune, as ModuleScripts; each level's data, a greybox of Parts in its faces' colours and materials and the rest of the level voxelized into coloured decoration boxes (built from the recipe, nothing uploaded); a server script that plays the levels with a Humanoid walking the player and each other body a block figure; the GLB beside it for Studio's 3D Importer. Games only. | **Rojo 7** to build the place (`rojo build`) and **Roblox Studio** to play it; set the place's Max Players to 1. The gate also needs **Lune 0.11** or newer. Both free. | Verified with Rojo 7.7 and Lune 0.11 (no Studio run in the gate) | `MOJULO_ROJO`, `MOJULO_LUNE` (else `PATH`, `~/.rokit`, `~/.aftman`, `~/.foreman`, `~/.cargo`) | [roblox-kernel](../control/lib/graph/scene/roblox-kernel/) |
-| **Unity** (gated leg) | A data pack: GLB + `score.json` + audio + recipe, a C# editor importer, runtime scripts (walker, mechanics, menu), deterministic `.meta` files, and a T-numbered `IMPORT-GUIDE.md`. | **Unity 6 (6000.2.x)**, URP template, the `com.unity.cloud.gltfast` package installed from Package Manager (the gate pins 6.9.1). The editor must be **activated** (signed in); an unactivated editor is reported by name and the gate skips. | `UNITY_EDITOR_TARGET` in [unity-project.js](../control/lib/graph/scene/unity-project.js) | `MOJULO_UNITY` (auto-found under `/Applications/Unity/Hub/Editor/`) | 0.4.0 |
-| **Unreal** (assets) | One asset (a character, a creature, a prop, a building, a robot, anything assembled): its GLB, its recipe, a dependency-free editor Python importer and `IMPORT-GUIDE.md`. The importer brings it in under `Content/Mojulo/<ref>/` on mojulo's vertex-colour material, a skinned figure looping its clip, a humanoid's IK Rig (and its IK Retargeter when the project holds the mannequin's rig), and a preview map. Unreal takes assets, not games or levels. From `export_model { format: 'unreal' }` or the CLI. | **UE 5.4 or newer**; proven against **5.8.0**. Plugins: `Interchange glTF` (on by default since 5.3) and `Python Editor Script Plugin` (you enable it). Nothing compiles. | `UNREAL_EDITOR_TARGET` in [unreal-project.js](../control/lib/graph/scene/unreal-project.js) | `MOJULO_UNREAL` (auto-found under `/Users/Shared/Epic Games/`); `MOJULO_UNREAL_TIMEOUT_MS` watchdog, default 15 min; `MOJULO_SOURCE_IK_RIG` names a mannequin rig | `UNREAL_LEG_VERSION` |
-| **Blender** (art pass + worker) | An art-pass pack (GLB + `pack.json` + two Python scripts + `ARTPASS-GUIDE.md`), and separately the GI-bake and render workers that bind results back as vertex colours. No add-on, no socket. | **Blender 4.x or newer**; 5.2 LTS verified. | `BLENDER_TARGET` in [blender-project.js](../control/lib/graph/scene/blender-project.js) | `MOJULO_BLENDER` (default `/Applications/Blender.app/Contents/MacOS/Blender`) | 0.1.0 |
+| Engine | What mojulo writes | You need | Version target | Gate env var |
+|---|---|---|---|---|
+| **Godot** | A Godot 4 project in `<ref>/godot-handoff/`: `mojulo/` (the GLB, `handoff.json`, the ported shaders, a post-import script and a probe) replaced on every handoff, and the developer's `project.godot` and `level.tscn` written once and kept. | Godot **4** to open it. Free, open source. | Verified against Godot 4.7.2 (CI's pinned Godot) | `MOJULO_GODOT` (default `/Applications/Godot.app/Contents/MacOS/Godot`) |
+| **Unity** | A Unity 6 URP project in `<ref>/unity-handoff/`: `Assets/Mojulo/` (the GLB through glTFast, the ported shaders, a C# importer and probe run in batchmode) replaced whole, and the developer's `Assets/Scenes/Level.unity`, packages and settings kept. | **Unity 6** with URP and `com.unity.cloud.gltfast`. The editor must be **activated** (signed in). | `HANDOFF_UNITY_TARGET` in [handoff-unity.js](../control/lib/graph/scene/handoff-unity.js) | `MOJULO_UNITY` (auto-found under `/Applications/Unity/Hub/Editor/`) |
+| **Unreal** | A UE5 project in `<ref>/unreal-handoff/`: `mojulo/` and `/Game/Mojulo/` (Interchange through mojulo's pipelines, a lit master material, the ported shaders, the page's tone and haze as a post-process) rebuilt by its Python importer, and the developer's `/Game/Level` kept. One thing by its ref (`what: 'asset'`, the default off a world) is the asset pack instead: its GLB, its recipe, an editor Python importer and `IMPORT-GUIDE.md`, a figure with its skeleton, clips, face morphs and IK Rig. | **Unreal Engine 5**. Plugins: `Interchange glTF` (on by default since 5.3) and `Python Editor Script Plugin` (you enable it). Nothing compiles. | `HANDOFF_UNREAL_TARGET` in [handoff-unreal.js](../control/lib/graph/scene/handoff-unreal.js); the asset pack's `UNREAL_EDITOR_TARGET` in [unreal-project.js](../control/lib/graph/scene/unreal-project.js) | `MOJULO_UNREAL` (auto-found under `/Users/Shared/Epic Games/`); `MOJULO_UNREAL_TIMEOUT_MS` watchdog, default 15 min; `MOJULO_SOURCE_IK_RIG` names a mannequin rig |
+| **Blender** (handoff, art pass, worker) | The handoff in `<ref>/blender-handoff/`: `mojulo/` replaced whole, its importer building `level.blend` in mojulo's own collections and keeping the artist's. Beside it, the art-pass pack (GLB + `pack.json` + two Python scripts + `ARTPASS-GUIDE.md`, the one `forge_motion`'s film builds on), and the GI-bake and render workers that bind results back as vertex colours. No add-on, no socket. | **Blender 4.x or newer**; 5.2 LTS verified. | `BLENDER_TARGET` in [blender-project.js](../control/lib/graph/scene/blender-project.js) | `MOJULO_BLENDER` (default `/Applications/Blender.app/Contents/MacOS/Blender`) |
 
 What the engines themselves cost in disk and licensing is theirs, not mojulo's: Unreal and Unity
 are multi-gigabyte installs with their own accounts and license terms; Godot and Blender are free
-and open source; Roblox Studio is free and needs a Roblox account, Rojo and Lune are free and open source. The site should say that plainly instead of implying the engines come along.
+and open source. The site should say that plainly instead of implying the engines come along.
 
 **Honesty rule for copy** (from `get_substrate`): ladder it as "plays in the browser or as a
-desktop app; Godot the fullest engine translation, Roblox the young one, Unity as a gated leg, Unreal as an
-asset target, Blender as an art pass." Never "identical across all five." Every pack ships an honest-loss ledger naming what did not
-travel.
+desktop app; a team's engine gets its levels and assets to wire." Never "the same game in every engine." Every
+handoff names what stayed the web's (its `stays`: the rules and HUD among them).
 
 ### Everything else that exports without an engine
 
@@ -410,12 +415,11 @@ you installed yourself are yours to remove.
 
 - A RAM or CPU minimum. None has been measured.
 - "Works on Windows and Linux" without the qualifier that engine gates are verified on macOS only.
-- That Unity, Unreal, Godot, Roblox Studio, Rojo, Lune or Blender are included, downloaded, or configured by mojulo.
-- "Identical output across all five engines." The browser build is the game; Godot is the fullest
-  translation of it, the others gated legs with honest-loss ledgers.
-- That a Roblox export plays like the web build. The bus and its outcome are held equal; the player is a Roblox
-  Humanoid (the web's walk feel is not ported), the level looks like its voxels and the cast like block figures (no
-  mesh, texture or clip travels), and menus are not in the Roblox kernel yet.
+- That Unity, Unreal, Godot or Blender are included, downloaded, or configured by mojulo.
+- That a game plays in an engine, or "the same game in every engine." The browser build is the game; an engine gets its
+  levels and assets, for a developer to wire.
+- That an engine's level looks the same as the page. The visual gate measures how close each shot is; how it looks is
+  the eyes gate's.
 - A signed, notarized or store-ready desktop app. The desktop export is unsigned; signing is the
   operator's.
 - "Watertight" or "manifold" STL. Say "print-ready at true scale" for literal objects.
@@ -449,7 +453,8 @@ Recorded so nobody rediscovers them. None are fixed by this page.
    **Resolved in 3.0.0:** both caches, the baked stills and the figure specs moved under
    `$MOJULO_HOME`; only copies fetched by an older version stay behind in its package directory.
 4. **Substrate fact 7** lists exports as "zip, HTML, glb, stl, WAV, MIDI, a Godot project" and
-   omits 3MF, USD, and the Unity, Unreal, and Blender packs.
+   omits 3MF, USD, and the Unity, Unreal, and Blender packs. **Resolved:** it now names 3MF, USD and an engine's
+   project.
 5. **The embedding model** was described as ~113 MB in the README; it is ~130 MB on disk including
    the tokenizer. The README now says ~130 MB.
 

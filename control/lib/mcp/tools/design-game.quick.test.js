@@ -15,6 +15,7 @@ import { composeLive } from '@/lib/graph/worlds/controllable/compose.js';
 import { stageEnds } from '@/lib/graph/gameworld/levels.js';
 import { HALDEN_REACH } from '@/lib/graph/gameworld/examples.js';
 import { groundOf } from '@/lib/graph/playscape/terrain.js';
+import { camoForSetting } from '@/lib/graph/car-designer/livery-cut';
 
 // The quick path: a simple LOOP (one level, one goal), never a simple picture: any hero the door draws, or none (first
 // person); the goal placed on the stage's own anchors; the game made in one call, walkable and not proved beatable.
@@ -364,6 +365,42 @@ describe('design_game quick', () => {
     const { payload } = await resolveWorldScene(SketchRepository.getByRef('v-level-run-0'));
     // the checkpoints watch the car
     expect(payload.events.sources.find((z) => z.zone === 'cp_0_0').watch).toBe('car');
+  }, 240_000);
+
+  it('a realistic ride: the car\'s realistic loft, compiled in place on its class\'s physics, its rivals in it too', async () => {
+    // the game reads realistic (its juice drawn in the form render): the tier is stamped at mint, and the sedan is its loft
+    const out = await designGameHandler({ quick: { goal: 'race', ride: 'car', rivals: 1, world: { id: 'real', style: { kit: 'trail-valley' }, juice: { fidelity: 'form' } } }, ref: 'rr' });
+    expect(out.ran.map((r) => r.key)).toEqual(['level-run-0', 'game']);
+    expect(stored('rr').quick).toMatchObject({ ride: 'car', tier: 'realistic' });
+    const L = stored('rr-level-run-0');
+    expect(L.figures.ride).toEqual({ loft: { class: 'midsize', seed: 1, light: 'form' } });
+    expect(L.figures['rival-1']).toEqual(L.figures.ride);
+    expect(L.entities[0]).toMatchObject({ id: 'car', rule: { type: 'drive', vehicle: 'midsize' } });
+    expect(L.camera.dist).toBeGreaterThan(7);
+    const { payload } = await resolveWorldScene(SketchRepository.getByRef('rr-level-run-0'));
+    // its rig: the hull and a bone a wheel, at the class's true height
+    expect(payload.figures.ride.bones.map((b) => b.id)).toEqual(expect.arrayContaining(['root', 'wheelFL', 'wheelRR']));
+    expect(payload.figures.ride.figH).toBeGreaterThan(1.3);
+    // drawn in the form render: its materials lit by the page (car-designer/road-form.js)
+    expect(payload.figures.ride.form.materials).toHaveProperty('paint');
+    // a vehicle named by the registry: a pickup has no assembled ride, so it is its loft in any game
+    await designGameHandler({ quick: { goal: 'reach', ride: 'a pickup truck', world: { id: 'truck', style: { kit: 'trail-valley' } } }, ref: 'pk' });
+    expect(stored('pk').quick.ride).toBe('pickup');
+    expect(stored('pk-level-run-0').figures.ride).toEqual({ loft: { class: 'pickup', seed: 1, light: 'form' } });
+    // a field vehicle by the word people say: its body the military hull kit's, in the field's materials, painted in its
+    // setting's camo (stamped at mint: car-designer/livery-cut.js camoForSetting)
+    await designGameHandler({ quick: { goal: 'reach', ride: 'a jeep', world: { id: 'field', style: { kit: 'trail-valley' } } }, ref: 'jp' });
+    const camo = camoForSetting({ kit: 'trail-valley' });
+    expect(stored('jp').quick).toMatchObject({ ride: 'utility-4x4', livery: camo });
+    expect(stored('jp-level-run-0').figures.ride).toEqual({ loft: { class: 'utility4x4', seed: 1, light: 'form', livery: camo } });
+    const jeep = (await resolveWorldScene(SketchRepository.getByRef('jp-level-run-0'))).payload.figures.ride;
+    expect(jeep.form.materials).toHaveProperty('milPaint');
+    expect(jeep.bones.map((b) => b.id)).toEqual(expect.arrayContaining(['root', 'wheelFL', 'wheelRR']));
+    // lit as its world is: a night kit's jeep under its own dim sky, the day valley's under its full one
+    await designGameHandler({ quick: { goal: 'reach', ride: 'a jeep', world: { id: 'field-night', style: { kit: 'alien-night' } } }, ref: 'jn' });
+    const night = (await resolveWorldScene(SketchRepository.getByRef('jn-level-run-0'))).payload;
+    expect(night.figures.ride.form.keyIntensity).toBeLessThan(jeep.form.keyIntensity);
+    expect(night.figures.ride.form.sky.zenith).toEqual(night.sky.zenith);
   }, 240_000);
 
   it('kart race: rivals in the same car round a loop on the trail\'s land, the place on the HUD, a podium to win', async () => {

@@ -32,6 +32,7 @@ import { moduleDir } from '../../module-dir.js';
 import { readBookCards } from '../views/recipe-book/cards.js';
 import { animalEntryCards } from '../fauna/entries.js';
 import { headgearCard } from '../headgear/entries.js';
+import { vehiclesCard } from '../vehicle-registry/entries.js';
 import { packCards } from '../cosmos/packs/entries.js';
 const VOCAB_DIR = moduleDir(import.meta.url, 'lib/graph/solid-vocab');
 
@@ -141,9 +142,10 @@ export function getSolidVocabCatalog() {
     if (catalog.has(card.id)) throw new Error(`solid-vocab: generated animal entry '${card.id}' collides with a card`);
     catalog.set(card.id, card);
   }
-  // Generated wearables and packs (`generated: true`): the headgear words (../headgear/entries.js) and each pack's
-  // characters by name (../cosmos/packs/entries.js), from their own tables; read by id ('headgear', 'comic-hero')
-  for (const card of [headgearCard(), ...packCards()]) {
+  // Generated wearables, packs and the vehicle registry (`generated: true`): the headgear words (../headgear/entries.js),
+  // each pack's characters by name (../cosmos/packs/entries.js) and every vehicle by realm
+  // (../vehicle-registry/entries.js), from their own tables; read by id ('headgear', 'comic-hero', 'vehicles')
+  for (const card of [headgearCard(), ...packCards(), vehiclesCard()]) {
     if (catalog.has(card.id)) throw new Error(`solid-vocab: generated card '${card.id}' collides with a card`);
     catalog.set(card.id, card);
   }

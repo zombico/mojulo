@@ -19,6 +19,7 @@
  * Absent `undead`, every function returns what it was given. FORM ONLY: the palette is one tone, decay is the dressing
  * layer's. Pure: the dice are the hero's `undead.seed`.
  */
+import { armFrom } from '../equipment/armory.js';
 import { UNDEAD_CARDS } from './cards.js';
 import { variantOf } from './index.js';
 import { posture } from './passes.js';
@@ -51,6 +52,14 @@ export function undeadPicks(hero) {
   if (card.loss) { const rand = mulberry32(seed ^ 0x7f4a7c15), roll = rand(), part = card.loss.parts[Math.floor(rand() * card.loss.parts.length)], side = rand() < 0.5 ? 'R' : 'L'; if (roll < card.loss.odds) lost = { part, side }; }
   const bared = hero.undead.layers?.includes('bared') && card.form === 'flesh' ? pickBared(card.bared ?? { count: [1, 2], parts: ['foreArm', 'ribs', 'shin', 'skull'] }, mulberry32(seed ^ 0x165667b1), lost) : [];
   return { lost, bared };
+}
+
+/** the arms an undead carries: a host minted with the armory stamped (`undead.armory`) rolls its kit's on its seed
+ * (equipment/armory.js), each a laws-2 build; one minted before carries its card's own, under the laws it was drawn
+ * with (equipment laws 1, and their hold), byte for byte */
+export function undeadArms(hero, card = undeadCard(hero)) {
+  if (hero.undead.armory !== undefined && card.kit) return armFrom(card.kit, ((hero.undead.seed ?? 1) >>> 0) ^ 0x51ed270b);
+  return Object.fromEntries(Object.entries(card.armed ?? {}).map(([slot, b]) => [slot, { ...b, laws: b.laws ?? 1 }]));
 }
 
 // the card's weapons as the hero's gear: a hand the loss took drops what it held to the other hand, if that one is free
@@ -103,7 +112,7 @@ export function undeadWords(hero) {
     ...(card.form === 'flesh' ? { expression: { jawOpen: rest.jaw, mouthCorner: -0.005, blink: 0.3, ...(hero.expression && typeof hero.expression === 'object' ? hero.expression : {}) } } : {}),
     gesture: hero.gesture ?? G,
     clips: { idle, ...(hero.clips ?? {}) },
-    ...(hero.undead.layers?.includes('armed') && card.armed && hero.gear === undefined ? { gear: armedGear(card.armed, undeadPicks(hero).lost) } : {}),
+    ...(hero.undead.layers?.includes('armed') && (card.armed || card.kit) && hero.gear === undefined ? { gear: armedGear(undeadArms(hero, card), undeadPicks(hero).lost) } : {}),
     motion: { ...(hero.motion ?? {}), walk: { ...undeadWalk(hero, card), ...(rest.lean > 0 ? { tilt: Math.min(35, rest.lean) } : {}), ...(hero.motion?.walk && typeof hero.motion.walk === 'object' ? hero.motion.walk : {}) } },
   };
 }

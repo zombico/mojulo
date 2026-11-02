@@ -143,8 +143,8 @@ rather than over it (the fauna horse's rows stay byte-identical). Solo; the sadd
 - **The skinned rig on the World page**: a figure with `skin` binds one skinned mesh to its bones instead of a rigid mesh
   per bone. The horse is one welded skin and would tear at every joint otherwise. Its colours are lit at the pack; a
   figure without `skin` is drawn as before, byte for byte.
-- **Engines**: the Godot and Roblox ledgers mark `ride` and `mounted` as the page's. An exported level stands its horses
-  where they were placed and leaves the hero on foot. The horse and its rider as assets are the ridden GLB's.
+- **Engines**: riding is the World page's, as every game is since the engine handoff; the horse and its rider go to an
+  engine as assets, the ridden GLB (`node scripts/export-mount.mjs <dir> --rider '<character>'`).
 - **A slimmer neck**: the neck's masses blend among themselves more tightly than the trunk's, joined to the trunk by a
   wider blend so it still flows into the withers and the breast. The trunk's wide blend over the neck's overlapping
   masses had swelled it by a hand on every side. Mid-neck it now measures about 1.05 m round (0.42 m deep, 0.23 m

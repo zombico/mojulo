@@ -6,7 +6,10 @@
  * strings, `color: { front, three, back }` PNG data URIs, and `world`, the live page, for characterBibleHtml's `renders`;
  * and, in colour only, `equipped: { front, right }`, the hero holding the table's gear at the final stage
  * (equipment.js `equippedHero`), and `gear: { <class>: PNG data URI }`, each filled class of the equipment table at its
- * last tier.
+ * last tier; and `cover: { image, pose, why }`, the hero striking the showcase pose its game's rail picks (game-poses.js),
+ * photographed three-quarter. The live page and the turnaround stand the hero in the rail's live stand and play its idle
+ * (game-poses.js `live`), over the stand the motion page's vibe reads: a fighter in its guard, a hero chest out, a
+ * person at ease, a mascot bobbing, never the one tilted rest. A world with no rail keeps the vibe's stand.
  *
  * Chromium is an optional worker: without one (resolveChromium finds none, and nothing is fetched here) the colour
  * plates are left out and the wire views stand alone. Nothing is kept: the sketch lives only in memory for the run.
@@ -34,7 +37,19 @@ export async function renderHeroViews(world, { size = 640, elevation = 10, focal
   // the base is minted bare; the motion page's gaits and stand are applied to this throwaway copy so the live page plays
   // the feel the creator asked for (the stored orders apply them as patches after the real mint)
   const { applyManifestPatch } = await import('../lib/mcp/tools/manifest-patch.js');
-  const spec = orders.motion ? applyManifestPatch({ hero: orders.mint.args.spec }, orders.motion.args.patch).manifest.hero : orders.mint.args.spec;
+  const felt = orders.motion ? applyManifestPatch({ hero: orders.mint.args.spec }, orders.motion.args.patch).manifest.hero : orders.mint.args.spec;
+  // how its game shows it (game-poses.js): the rail its game reads, its live stand and idle over the motion page's (a
+  // vibe's stand is a prior, three words read off its axes; the game's kind says more of how it stands when shown), the
+  // cover's showcase pose
+  const { railOfGame } = await import('../lib/graph/gameworld/game-bodies.js');
+  const { gamePose } = await import('../lib/graph/gameworld/game-poses.js');
+  const { QUICK_GENRE } = await import('../lib/graph/gameworld/intent.js');
+  const feelPole = typeof world.feel === 'string' ? world.feel : world.feel?.pole ?? null;
+  const rail = railOfGame({ genre: world.intent?.from ?? (world.quick?.goal ? QUICK_GENRE[world.quick.goal] : null), goal: world.quick?.goal ?? null, feel: feelPole })?.rail ?? null;
+  const pole = typeof felt.cast === 'string' ? felt.cast : felt.cast?.pole ?? 'male';
+  const live = gamePose(rail, 'live', { cast: pole, core: felt.core, seed: G.seed });
+  const spec = live?.gesture ? { ...felt, gesture: live.gesture, clips: { ...(felt.clips || {}), ...live.clips } } : felt;
+  if (live?.gesture) console.error(`character-renders: the live stand is the ${rail} rail's (${live.why})${felt.gesture ? `, over the vibe's ${JSON.stringify(felt.gesture)}` : ''}`);
   const minted = await mintSolidHandler({ ...orders.mint.args, spec, ref });
   if (!minted?.ok) throw new Error(`the hero door did not mint the composed hero: ${JSON.stringify(minted).slice(0, 300)}`);
 
@@ -68,6 +83,16 @@ export async function renderHeroViews(world, { size = 640, elevation = 10, focal
     out.color = await photograph(payload, faces, cams.map(([name, cam]) => [name, cam.position, target]), { size, focal });
     console.error(`character-renders: the colour plates are ${kb(out.color)} KB`);
   } catch (e) { console.error(`character-renders: no colour plates (${e.message.split('\n')[0]}); the wire views stand alone`); return out; }
+  // the COVER: the hero striking the showcase pose its rail picks, three-quarter from the right
+  try {
+    const C = gamePose(rail, 'cover', { cast: pole, seed: G.seed });
+    const { clips: _c, ...bare } = spec;
+    const cv = await mintHero({ ...orders.mint.args, spec: { ...bare, gesture: C.gesture } }, `${ref}-cover`);
+    const at = frameSource(cv.source, { focalPixels: focal, size });
+    const shot = await photograph(cv.payload, cv.faces, [['cover', orbitCamera({ azimuthDegrees: 145, elevationDegrees: elevation, target: at.target, distance: at.distance, focalPixels: focal, size }).position, at.target]], { size, focal });
+    out.cover = { image: shot.cover, pose: C.gesture, why: C.why, ...(rail ? { rail } : {}) };
+    console.error(`character-renders: the cover strikes ${C.gesture} (${rail ?? 'no rail'})`);
+  } catch (e) { console.error(`character-renders: no cover (${e.message.split('\n')[0]})`); }
   // the hero equipped: the same views, the same feel, holding the table's gear at the final stage
   try {
     const { equippedHero } = await import('../lib/graph/gameworld/index.js');
