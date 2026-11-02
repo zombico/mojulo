@@ -16,6 +16,9 @@ import { bake } from './takes.js';
 import { feelPageHtml } from './page.js';
 
 export const BOOK_CASTS = Object.freeze(['male', 'female']);
+// the page's abilities (page.client.js ABILITY) by the card field the runtime may not carry (lower.js LOST): a move the
+// made game does not carry is shown as the lab's, never advertised as the game's
+const ABILITY_FIELD = Object.freeze({ wall: 'cling', pound: 'pound', buster: 'charge', charge: 'charge', dodge: 'dodge', dash: 'dash', guard: 'guard', glide: 'glide', jet: 'jet', boost: 'boost', chargeJump: 'chargeJump', stomp: 'land.stomp' });
 const baked = new Map();
 const bakeOf = (cast, base) => { const k = `${cast}:${base}`; if (!baked.has(k)) baked.set(k, bake(cast, { feels: [base] })); return baked.get(k); };
 // a card as JSON keeps its Infinity (a turn that is instant) the way the page's copy() reads it back
@@ -31,6 +34,7 @@ export function feelSample(world, { cast = 'male' } = {}) {
   return {
     name, cast, base: POLES[F.pole].base, card: carded(card), stage: P.stage, view: P.view.camera, gear: P.gear ?? null,
     demo: P.demo,
+    lab: (P.demo ?? []).filter((a) => ABILITY_FIELD[a] && R.lost.some((l) => l.field === ABILITY_FIELD[a])),
     says: `${name} plays ${R.name} (after ${R.after})${R.variant ? `, ${R.variant}` : ''}${blend}: ${POLES[F.pole].says}`,
     report: { carried: R.carried, partly: R.partly, lost: R.lost },
   };

@@ -953,10 +953,12 @@ const ABILITY = {
   spar: { keys: 'T spar', header: 'spar' },
 };
 const shows = SAMPLE ? (() => {
-  const on = (SAMPLE.demo ?? []).map((a) => ABILITY[a]).filter(Boolean), pick = (k) => new Set(on.flatMap((a) => (Array.isArray(a[k]) ? a[k] : a[k] ? [a[k]] : [])));
+  // (a move the made game does not carry, SAMPLE.lab, plays here and says it is the lab's)
+  const lab = new Set(SAMPLE.lab ?? []), keyOf = (id) => { const a = ABILITY[id], k = typeof a.keys === 'function' ? a.keys() : a.keys; return k && lab.has(id) ? `${k} (the lab's: not in the game)` : k; };
+  const ids = (SAMPLE.demo ?? []).filter((a) => ABILITY[a]), on = ids.map((a) => ABILITY[a]), pick = (k) => new Set(on.flatMap((a) => (Array.isArray(a[k]) ? a[k] : a[k] ? [a[k]] : [])));
   const B = { JUMP: ['jump', 'chargeJump', 'air', 'wall', 'glide', 'jet'], ATTACK: ['attack', 'charge', 'buster', 'pound'], DODGE: ['dodge'], DASH: ['dash', 'boost'], GUARD: ['guard'], LOCK: ['lock'], SHOOT: ['shoot'], SWITCH: ['switch'], SPRINT: ['sprint'] };
   const mask = Object.entries(B).reduce((m, [bit, abilities]) => (abilities.some((a) => (SAMPLE.demo ?? []).includes(a)) ? m | BTN[bit] : m), 0);
-  return { mask, keyLine: [...on.map((a) => (typeof a.keys === 'function' ? a.keys() : a.keys)).filter(Boolean), 'R reset · P pause'].join(' · '), chips: pick('chip'), touch: pick('touch'), dials: pick('dials'), state: new Set(['frame', 'clip', ...pick('state')]), legend: pick('legend'), header: pick('header'), panels: pick('panel') };
+  return { mask, keyLine: [...ids.map(keyOf).filter(Boolean), 'R reset · P pause'].join(' · '), chips: pick('chip'), touch: pick('touch'), dials: pick('dials'), state: new Set(['frame', 'clip', ...pick('state')]), legend: pick('legend'), header: pick('header'), panels: pick('panel') };
 })() : null;
 if (SAMPLE) {
   for (const id of ['pole', 'toward', 'blendT', 'variant', 'mountbtn', 'shooter', 'onehit', 'cast', 'view', 'guard', 'gearbtn', 'says', 'poleSays', 'jd']) $(id).hidden = true;
