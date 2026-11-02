@@ -218,6 +218,10 @@ export const VEHICLES = {
   // (the first of the craft shelf's boats, boat-archetypes.js: a hull from its lines, its outboard, floated by its weight)
   'motor-skiff': row('motor skiff', ['skiff', 'motorboat', 'motor boat', 'outboard boat', 'tiller boat', 'utility boat', 'aluminium boat', 'aluminum boat', 'tinny', 'fishing boat'], 'water', 'work', M, ['driven', 'parked', 'watched'],
     { craft: 'motorSkiff', tech: 'boat' }),
+  'jon-boat': row('jon boat', ['john boat', 'jonboat', 'flat bottom boat', 'flat-bottomed boat', 'duck boat', 'punt boat'], 'water', 'work', M, ['driven', 'parked', 'watched'],
+    { craft: 'jonBoat', tech: 'boat' }),
+  'rib': row('rigid inflatable boat', ['rib', 'rib tender', 'rigid inflatable', 'inflatable boat', 'inflatable dinghy', 'rubber boat', 'yacht tender'], 'water', 'service', M, ['driven', 'parked', 'watched'],
+    { craft: 'ribTender', tech: 'boat' }),
   ship: row('ship', ['steamship', 'ferry', 'freighter', 'warship', 'galley', 'longship'], 'water', 'transport', ['myth', 'modern'], ['driven', 'watched', 'crewed'],
     { tech: 'ship' }),
   'sailing-ship': row('sailing ship', ['galleon', 'frigate', 'schooner', 'clipper', 'sloop', 'tall ship', 'junk', 'dhow'], 'water', 'transport', ['rustic', 'myth'], ['driven', 'watched', 'crewed'],

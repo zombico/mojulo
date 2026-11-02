@@ -154,12 +154,22 @@ function areaUnder(P, zw) {
   return Math.abs(A) / 2;
 }
 
-/** The volume the hull displaces, m³, with its waterline z above the keel (the trapezoid rule over its sections). */
+// the area of a circle of radius r centred at height zc under the height z (a collar's tube in the water)
+function segmentUnder(r, zc, z) {
+  const h = clamp(z - (zc - r), 0, 2 * r);
+  return r * r * Math.acos((r - h) / r) - (r - h) * Math.sqrt(Math.max(0, 2 * r * h - h * h));
+}
+
+/** The volume the hull displaces, m³, with its waterline z above the keel (the trapezoid rule over its sections); a
+ *  collar's tubes along its sides count too (its bow's arc and its cones left out, and where a tube's inboard edge meets
+ *  the hull's side counted twice: a few litres, under the sheer, only when it is that deep). */
 export function hullVolume(row, z, { samples = 160 } = {}) {
-  const L = row.dims.length;
-  let V = 0, prev = areaUnder(hullSection(row, 0), z);
+  const L = row.dims.length, K = row.build.collar, H = K ? hullLines(row) : null;
+  const tubes = (s) => (K && s <= (K.nose ?? 0.94) ? 2 * segmentUnder(K.radius, H.at(s).sheer + K.radius * (K.up ?? 0.15), z) : 0);
+  const area = (s) => areaUnder(hullSection(row, s), z) + tubes(s);
+  let V = 0, prev = area(0);
   for (let k = 1; k <= samples; k += 1) {
-    const a = areaUnder(hullSection(row, k / samples), z);
+    const a = area(k / samples);
     V += ((prev + a) / 2) * (L / samples);
     prev = a;
   }
@@ -189,7 +199,9 @@ function buildHull(row, C) {
   const lines = (s) => {
     const st = H.at(s), O = outerLine(st, b.flare);
     const M = offsetLine(O, T1, 0.004), I = offsetLine(O, T2, 0.002);
-    return { st, O: clipUp(O, P0(st.y)), M: clipUp(M, P1(st.y)), I: clipUp(clipUp(I, P2(st.y)), deckZ(st)), Iopen: I };
+    // (a sole: the floor laid flat across the bottom at its height, the liner clipped to it the length of the boat)
+    const Ic = clipUp(I, P2(st.y)), Is = Number.isFinite(b.sole) ? clipUp(Ic, b.sole) : Ic;
+    return { st, O: clipUp(O, P0(st.y)), M: clipUp(M, P1(st.y)), I: clipUp(Is, deckZ(st)), Iopen: I };
   };
   const ring = (A, B) => [...A, ...B.slice().reverse()].map(([x, z]) => [x, 0, z]);
   const r4 = (s) => Math.round(s * 1e4) / 1e4;
@@ -210,7 +222,7 @@ function buildHull(row, C) {
   const wall = (id, S, pick, tint) => loftWorld(id, axis[0], axis[1], S.map((s) => { const l = lines(s); return { t: s, points: ring(...pick(l)) }; }), tint);
   const lofts = [
     wall('skin', stations(startOf(0)), (l) => [l.O, l.M], C.paint),
-    wall('liner', stations(startOf(T1)), (l) => [l.M, l.I], C.chrome),
+    wall('liner', stations(startOf(T1)), (l) => [l.M, l.I], C[b.tint?.liner ?? 'chrome']),
   ];
   const extrudes = [], sweeps = [], lathes = [];
   const alu = tone(C.chrome, -0.1), seatTop = tone(C.chrome, -0.22);
@@ -234,10 +246,15 @@ function buildHull(row, C) {
     void mid;
   }
   // the gunwale rails along the sheer, the transom's cap across its top, the motor pad on it
-  const g = b.gunwale, s0 = startOf(0) + 0.002, rail = [];
+  // (a collared hull, a RIB's, has its tube where the rails would be: no rails)
+  const g = b.gunwale || 0, s0 = startOf(0) + 0.002, rail = [], square = b.bow === 'square';
   for (let s = s0; s < 0.985; s += 0.03) rail.push(s);
-  rail.push(0.985, 0.997);
-  for (const sx of [1, -1]) sweeps.push(sweep(`gunwale_${sx > 0 ? 'r' : 'l'}`, rail.map((s) => { const st = H.at(s); return [sx * Math.max(st.sheerHalf - g * 0.35, 0.004), st.y, st.sheer + g * 0.25]; }), g, C.chrome, { sides: 8 }));
+  rail.push(0.985, square ? 1 : 0.997);
+  const railAt = (sx, s) => { const st = H.at(s); return [sx * Math.max(st.sheerHalf - g * 0.35, 0.004), st.y, st.sheer + g * 0.25]; };
+  if (g) for (const sx of [1, -1]) sweeps.push(sweep(`gunwale_${sx > 0 ? 'r' : 'l'}`, rail.map((s) => railAt(sx, s)), g, C.chrome, { sides: 8 }));
+  // (a square bow, a jon boat's: its rail across the bow's top)
+  if (g && square) sweeps.push(sweep('bow_cap', [railAt(1, 1), railAt(-1, 1)], g, C.chrome, { sides: 8 }));
+  if (b.collar) collarOf(b.collar, H, C, { sweeps, lathes });
   const st0 = H.at(0), cap = 0.012;
   extrudes.push(boxX('transom_cap', [0, -L / 2 + Tt / 2, H.zT + cap / 2], 2 * st0.sheerHalf - 0.01, Tt + 0.012, cap, C.chrome));
   const F = b.fittings || {}, pad = F.pad || 0;
@@ -247,7 +264,9 @@ function buildHull(row, C) {
   const kr = b.keelStrip, keel = [];
   for (let s = (H.zT * H.tanR) / L + 0.004; s < 0.995; s += 0.03) { const st = H.at(s); keel.push([0, st.y, st.keel - kr * 0.4]); }
   const stem = H.at(1);
-  for (const f of [0, 0.4, 0.8]) keel.push([0, L / 2 + kr * 0.4, lerp(stem.keel, stem.sheer - 0.05, f)]);
+  // (a stem's strip runs up it; a square bow's ends at its foot)
+  if (square) keel.push([0, L / 2 - 0.004, stem.keel - kr * 0.4]);
+  else for (const f of [0, 0.4, 0.8]) keel.push([0, L / 2 + kr * 0.4, lerp(stem.keel, stem.sheer - 0.05, f)]);
   sweeps.push(sweep('keel_strip', keel, kr, C.chrome, { sides: 6 }));
   // the strakes along the bottom, a fraction of the way from the keel to the chine
   const K = b.strakes;
@@ -284,15 +303,50 @@ function buildHull(row, C) {
     lathes.push(lathe('drain_plug', c, add(c, scale(nAft, 0.024)), [[0, 0.019], [0.5, 0.017], [0.55, 0.012], [1, 0.011]], C.rubber, { samples: 12, crossSections: 3 }));
   }
   if (F.transomEyes) for (const sx of [1, -1]) {
-    const z = 0.2, x = sx * 0.42, y = faceY(z) + 0.004;
+    const z = 0.2, x = sx * (F.transomEyes === true ? 0.42 : F.transomEyes), y = faceY(z) + 0.004;
     sweeps.push(sweep(`transom_eye_${sx > 0 ? 'r' : 'l'}`, [[x - 0.028, y, z], [x - 0.026, y - 0.034, z], [x + 0.026, y - 0.034, z], [x + 0.028, y, z]], 0.0055, C.chrome, { sides: 6 }));
   }
   // where a tank stands on the floor (its outboard edge on the bottom, the V falling away under its inboard one)
   if (b.tank) {
     const t = b.tank, I = lines(t.at).Iopen;
-    hardpoints.tank = r3v([t.x, H.at(t.at).y, bottomAt(I, t.x + t.width / 2)]);
+    hardpoints.tank = r3v([t.x, H.at(t.at).y, Math.max(bottomAt(I, t.x + t.width / 2), Number.isFinite(b.sole) ? b.sole : -Infinity)]);
   }
   return { lofts, extrudes, sweeps, lathes, hardpoints };
+}
+
+// a RIB's collar: one tube from the transom along the starboard sheer, round the bow (rising), back along the port sheer,
+// its cones run aft past the transom; its rubbing strake along its side and its lifeline along its top. Centred outboard
+// of the sheer by `out` of its radius and above it by `up`, so it sits on the hull's edge
+function collarOf(K, H, C, { sweeps, lathes }) {
+  const r = K.radius, tint = C[K.tint ?? 'trim'], { L } = H, out = K.out ?? 0.45, up = K.up ?? 0.15, nose = K.nose ?? 0.94;
+  const at = (sx, s, dx = 0, dz = 0) => { const st = H.at(s); return [sx * (st.sheerHalf + r * out + dx), st.y, st.sheer + r * up + dz]; };
+  // (round the bow: two quadratic arcs from either side to the nose, ahead of the stem and lifted by `rise`, each leaving
+  // the side the way the side runs, so nothing along the tube kinks where they meet)
+  const bow = (dx, dz) => {
+    const a = at(1, nose, dx, dz), p = at(1, nose - 0.03, dx, dz), N = [0, a[1] + Math.abs(a[0]) * 1.05, a[2] + (K.rise ?? 0.1)];
+    const d = [a[0] - p[0], a[1] - p[1]], k = (N[1] - a[1]) / (d[1] || 1);
+    const Q = [Math.max(a[0] + d[0] * k, a[0] * 0.6), N[1], (a[2] + N[2]) / 2];
+    const quad = (p, q, n, t) => [0, 1, 2].map((k) => (1 - t) ** 2 * p[k] + 2 * (1 - t) * t * q[k] + t * t * n[k]);
+    const half = [0.2, 0.4, 0.6, 0.8].map((t) => quad(a, Q, N, t));
+    return [...half, N, ...half.slice().reverse().map(([x, y, z]) => [-x, y, z])];
+  };
+  const S = [];
+  for (let s = 0; s < nose - 1e-9; s += 0.04) S.push(s);
+  S.push(nose);
+  const P = [...S.map((s) => at(1, s)), ...bow(0, 0), ...S.slice().reverse().map((s) => at(-1, s))];
+  // (what runs along the tube is its path moved out along its own level normal: concentric with it all the way round)
+  const along = (dx, dz) => P.map((p, i) => {
+    const a = P[Math.max(0, i - 1)], b = P[Math.min(P.length - 1, i + 1)], tx = b[0] - a[0], ty = b[1] - a[1], l = Math.hypot(tx, ty) || 1;
+    return [p[0] + (ty / l) * dx, p[1] - (tx / l) * dx, p[2] + dz];
+  });
+  sweeps.push(sweep('collar', P, r, tint, { sides: 16 }));
+  sweeps.push(sweep('rubbing_strake', along(r * 0.92, -r * 0.1), r * 0.16, C.rubber, { sides: 8 }));
+  if (K.lifeline) sweeps.push(sweep('lifeline', along(-r * 0.1, r * 0.98), 0.0055, C.rubber, { sides: 6 }));
+  // the cones aft of the transom, each tapering to its end cap
+  for (const sx of [1, -1]) {
+    const c = at(sx, 0);
+    lathes.push(lathe(`cone_${sx > 0 ? 'r' : 'l'}`, [c[0], c[1] + 0.03, c[2]], [c[0], c[1] - (K.aft ?? 0.3), c[2] + r * 0.12], [[0, r], [0.45, r * 0.97], [0.8, r * 0.78], [0.95, r * 0.5], [1, r * 0.22]], tint, { samples: 18, crossSections: 6 }));
+  }
 }
 
 // ---- the outboard -------------------------------------------------------------------------------
@@ -368,25 +422,26 @@ function buildOutboard(row, C, opts = {}) {
   W_('motor', 'shift', [[0.16, yF - 0.08, zPan + 0.08], [0.205, yF - 0.04, zPan + 0.12], [0.215, yF - 0.0, zPan + 0.16]], 0.008, C.rubber, { sides: 6 });
   L_('motor', 'shift_knob', [0.215, yF - 0.0, zPan + 0.15], [0.215, yF + 0.005, zPan + 0.185], [[0, 0.014], [0.6, 0.014], [1, 0.006]], C.rubber, { samples: 10, crossSections: 3 });
   // the midsection from under the pan to the anti-ventilation plate: a foil, its chord along the boat
-  const yLE = SWIVEL[1] - 0.024, mid = (chord, thick) => foilXY(chord, thick).map(([x, y]) => [x, y, 0]);
+  // (the leg and the gearcase drawn at `leg` of the 20 hp class's size: a smaller motor's are slimmer)
+  const G = b.leg ?? 1, yLE = SWIVEL[1] - 0.024, mid = (chord, thick) => foilXY(chord * G, thick).map(([x, y]) => [x, y, 0]);
   F_('motor', 'midsection', [0, yLE, zPan + 0.02], [0, yLE, -S], [[0, 0.24, 0.42], [0.25, 0.22, 0.4], [1, 0.2, 0.36]].map(([t, c, k]) => ({ t, points: mid(c, k) })), metal, { interp: 'smooth', segments: 3 });
   // the anti-ventilation plate, wrapping the leg and running aft over the propeller
   const plate = [[0.045, -0.02], [0.1, -0.08], [0.105, -0.22], [0.075, -0.29], [-0.075, -0.29], [-0.105, -0.22], [-0.1, -0.08], [-0.045, -0.02]];
-  E_('motor', 'av_plate', [0, yLE, -S - 0.006], [0, yLE, -S + 0.004], plate.map(([x, y]) => [x, y, 0]), metal);
+  E_('motor', 'av_plate', [0, yLE, -S - 0.006], [0, yLE, -S + 0.004], plate.map(([x, y]) => [x * G, y * G, 0]), metal);
   // the gearcase: its strut, the torpedo round the gears, the skeg under it; the water intake's grille on the strut
-  const zG = -S - 0.105;
+  const zG = -S - 0.105 * G;
   F_('motor', 'strut', [0, yLE, -S + 0.01], [0, yLE, zG + 0.02], [[0, 0.2, 0.34], [1, 0.19, 0.3]].map(([t, c, k]) => ({ t, points: mid(c, k) })), metal);
-  const yN = yLE + 0.01, yA = yLE - 0.215;
-  L_('motor', 'torpedo', [0, yN, zG], [0, yA, zG], [[0, 0.01], [0.07, 0.03], [0.25, 0.044], [0.7, 0.043], [1, 0.037]], metal, { samples: 18, crossSections: 6 });
-  E_('motor', 'skeg', [-0.0065, 0, 0], [0.0065, 0, 0], [[0, yLE - 0.03, zG - 0.03], [0, yLE - 0.2, zG - 0.035], [0, yLE - 0.17, zG - 0.13], [0, yLE - 0.1, zG - 0.135]], metal);
-  for (const sx of [1, -1]) E_('motor', `intake_grille_${sx > 0 ? 'r' : 'l'}`, [sx * 0.022, yLE - 0.06, zG + 0.055], [sx * 0.032, yLE - 0.06, zG + 0.055], rect([0, 1, 0], [0, 0, 1], 0.05, 0.022), dark);
+  const yN = yLE + 0.01, yA = yLE - 0.215 * G;
+  L_('motor', 'torpedo', [0, yN, zG], [0, yA, zG], [[0, 0.01], [0.07, 0.03], [0.25, 0.044], [0.7, 0.043], [1, 0.037]].map(([t, r]) => [t, r * G]), metal, { samples: 18, crossSections: 6 });
+  E_('motor', 'skeg', [-0.0065, 0, 0], [0.0065, 0, 0], [[0, yLE - 0.03 * G, zG - 0.03 * G], [0, yLE - 0.2 * G, zG - 0.035 * G], [0, yLE - 0.17 * G, zG - 0.13 * G], [0, yLE - 0.1 * G, zG - 0.135 * G]], metal);
+  for (const sx of [1, -1]) E_('motor', `intake_grille_${sx > 0 ? 'r' : 'l'}`, [sx * 0.022 * G, yLE - 0.06 * G, zG + 0.055 * G], [sx * 0.032 * G, yLE - 0.06 * G, zG + 0.055 * G], rect([0, 1, 0], [0, 0, 1], 0.05 * G, 0.022 * G), dark);
   // the propeller: its hub on the shaft aft of the torpedo, its blades each a foil section at its radius pitched to the
   // helix its pitch draws (steep at the root, flat at the tip), raked aft; it turns about the shaft the way its hand does
-  const P = b.prop, R = P.diameter / 2, r0 = 0.03, hand = P.hand === 'lh' ? -1 : 1;
-  const hubFrom = [0, yA + 0.004, zG], hubTo = [0, yA - 0.085, zG];
-  L_('motor', 'prop_hub', hubFrom, hubTo, [[0, 0.036], [0.55, 0.034], [1, 0.025]], C.chrome, { samples: 18, crossSections: 3 });
-  const spin = ((Number(pose.prop) || 0) % 360) * DEG * hand, yb = yA - 0.04, rake = Math.tan(12 * DEG);
-  const chordAt = (f) => (f < 0.5 ? lerp(0.07, 0.112, f / 0.5) : lerp(0.112, 0.035, ((f - 0.5) / 0.5) ** 1.8));
+  const P = b.prop, R = P.diameter / 2, r0 = 0.03 * G, hand = P.hand === 'lh' ? -1 : 1;
+  const hubFrom = [0, yA + 0.004, zG], hubTo = [0, yA - 0.085 * G, zG];
+  L_('motor', 'prop_hub', hubFrom, hubTo, [[0, 0.036], [0.55, 0.034], [1, 0.025]].map(([t, r]) => [t, r * G]), C.chrome, { samples: 18, crossSections: 3 });
+  const spin = ((Number(pose.prop) || 0) % 360) * DEG * hand, yb = yA - 0.04 * G, rake = Math.tan(12 * DEG);
+  const chordAt = (f) => G * (f < 0.5 ? lerp(0.07, 0.112, f / 0.5) : lerp(0.112, 0.035, ((f - 0.5) / 0.5) ** 1.8));
   for (let k = 0; k < P.blades; k += 1) {
     const phi = Math.PI / 2 + (2 * Math.PI * k) / P.blades + spin, rhat = [Math.cos(phi), 0, Math.sin(phi)];
     // (seen from astern a right-hand propeller turns clockwise: its blades move along +y × r)

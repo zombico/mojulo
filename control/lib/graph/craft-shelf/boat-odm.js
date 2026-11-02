@@ -27,8 +27,13 @@
  *                  anti-ventilation plate under the leg)
  *   boat-tank      a portable fuel tank: a moulded body, its handle, its cap, its gauge and its fitting
  *
- * Hull families: 'vee' (a V-bottom: a chine between the bottom and the side; a bow that comes to a stem). Outboard
- * families: 'tiller' (steered by its own tiller). Sized to a public class, every name generic: a class, never a product.
+ * Hull families: 'vee' (a chine between the bottom and the side: a V-bottom by its deadrise, a flat bottom when the
+ * chine is at the keel's height). Its bow: 'stem' (it comes to a stem) or 'square' (a jon boat's: the bottom's rocker
+ * meets a small transom at the bow, its rail across it). A hull may also carry a `sole` (a floor laid flat across the
+ * bottom at its height, the liner clipped to it), a `collar` (a RIB's tube round the sheer: its radius, how far it sits
+ * out and up of the sheer, its rise at the bow, its cones aft of the transom, a lifeline along its top; no gunwale rails
+ * then) and `tint` (the liner's colour role: 'chrome' bare metal, 'paint' a moulded hull). Outboard families: 'tiller'
+ * (steered by its own tiller), its leg drawn at `leg` of the 20 hp class's size. Sized to a public class, every name generic: a class, never a product.
  */
 
 export const BOAT_KINDS = Object.freeze({
@@ -73,6 +78,70 @@ export const BOAT_ODM = {
       tank: { at: 0.16, x: 0.3, width: 0.34 },
     },
   },
+  // ===== a 12 ft aluminium jon boat: flat-bottomed, square-bowed ==============================
+  'hull-jon-12': {
+    kind: 'boat-hull', realm: 'water', label: '12 ft jon boat hull', classOf: '12 ft aluminium jon boat class (3.7 m, 15 hp)',
+    aliases: ['jon boat hull', 'john boat hull', 'flat-bottom hull', 'flat bottom hull'],
+    // (its depth amidships, keel to sheer)
+    dims: { length: 3.66, beam: 1.42, depth: 0.39 }, mass: 75, mount: 'keel',
+    perf: { persons: 2, load: 250, maxPower: 11.2 },
+    build: {
+      // (flat-bottomed: its chine at its keel's height, the bottom level across; its bow a small square transom where the
+      // bottom's rocker meets the sheer)
+      family: 'vee', bow: 'square',
+      lines: {
+        keel: [[0, 0], [0.62, 0], [0.82, 0.05], [0.94, 0.15], [1, 0.25]],
+        sheer: [[0, 0.38], [0.5, 0.39], [0.85, 0.43], [1, 0.47]],
+        sheerHalf: [[0, 0.65], [0.4, 0.71], [0.75, 0.67], [0.92, 0.55], [1, 0.45]],
+        chine: [[0, 0.005], [0.62, 0.005], [0.82, 0.055], [0.94, 0.155], [1, 0.255]],
+        chineHalf: [[0, 0.52], [0.4, 0.57], [0.75, 0.52], [0.92, 0.41], [1, 0.33]],
+      },
+      skin: 0.012, liner: 0.01, flare: 0.006,
+      transom: { rake: 13, thickness: 0.05 },
+      deck: { from: 0.9, thickness: 0.03 },
+      gunwale: 0.016, keelStrip: 0.01,
+      // (its bottom's runners: two strakes each side, flat along the bottom)
+      strakes: { at: [0.35, 0.75], from: 0.06, to: 0.86, radius: 0.007 },
+      ribs: [0.27, 0.38, 0.62],
+      benches: [
+        { name: 'seatAft', at: 0.05, depth: 0.28, top: 0.31 },
+        { name: 'seatMid', at: 0.47, depth: 0.24, top: 0.31 },
+        { name: 'seatBow', at: 0.76, depth: 0.22, top: 0.34 },
+      ],
+      fittings: { bowEye: 0.35, cleats: 0.06, oarlocks: 0.52, drain: true, transomEyes: 0.42, pad: 0.36 },
+      tank: { at: 0.17, x: 0.3, width: 0.34 },
+    },
+  },
+  // ===== a 3.1 m rigid inflatable tender: a deep-V moulded hull in its collar ==================
+  'hull-rib-31': {
+    kind: 'boat-hull', realm: 'water', label: '3.1 m rigid inflatable hull', classOf: '3.1 m RIB tender class (20 hp)',
+    aliases: ['rib hull', 'rigid inflatable hull', 'tender hull'],
+    // (its length and beam over its collar; its hull's own length the lines' and its depth amidships keel to sheer)
+    dims: { length: 2.8, beam: 1.56, depth: 0.42 }, mass: 92, mount: 'keel',
+    perf: { persons: 4, load: 420, maxPower: 14.9 },
+    build: {
+      family: 'vee', bow: 'stem',
+      lines: {
+        keel: [[0, 0], [0.58, 0], [0.82, 0.07], [0.94, 0.19], [1, 0.33]],
+        sheer: [[0, 0.38], [0.5, 0.42], [0.85, 0.47], [1, 0.5]],
+        sheerHalf: [[0, 0.43], [0.4, 0.48], [0.72, 0.42], [0.9, 0.24], [1, 0]],
+        chine: [[0, 0.15], [0.5, 0.16], [0.82, 0.24], [0.94, 0.33], [1, 0.42]],
+        chineHalf: [[0, 0.37], [0.4, 0.41], [0.72, 0.33], [0.9, 0.16], [1, 0]],
+      },
+      // (moulded glass fibre, white inside and out; a flat sole across the V; a locker under its bow)
+      tint: { liner: 'paint' },
+      skin: 0.012, liner: 0.01, flare: 0,
+      transom: { rake: 12, thickness: 0.05 },
+      sole: 0.17, deck: { from: 0.8, thickness: 0.06 },
+      keelStrip: 0.012,
+      strakes: { at: [0.4, 0.75], from: 0.2, to: 0.85, radius: 0.008 },
+      // (its collar: a tube round the sheer and its cones aft of the transom; trim its fabric, its rubbing strake and lifeline)
+      collar: { radius: 0.21, out: 0.5, up: -0.1, rise: 0.16, aft: 0.32, nose: 0.92, lifeline: true },
+      benches: [{ name: 'seatMid', at: 0.5, depth: 0.26, top: 0.47 }],
+      fittings: { bowEye: 0.34, drain: true, transomEyes: 0.28, pad: 0.36 },
+      tank: { at: 0.14, x: 0.18, width: 0.26 },
+    },
+  },
   // ===== a 20 hp tiller outboard, short shaft ==================================================
   'outboard-20-tiller': {
     kind: 'boat-outboard', realm: 'water', label: '20 hp tiller outboard, short shaft', classOf: '20 hp four-stroke tiller outboard class',
@@ -87,11 +156,30 @@ export const BOAT_ODM = {
       tiller: 0.62, tilt: 68, steer: 35, fold: { angle: 80 },
     },
   },
+  // ===== a 9.9 hp tiller outboard, short shaft =================================================
+  'outboard-10-tiller': {
+    kind: 'boat-outboard', realm: 'water', label: '9.9 hp tiller outboard, short shaft', classOf: '9.9 hp four-stroke tiller outboard class',
+    aliases: ['9.9 hp outboard', 'ten horse outboard', 'small outboard'],
+    dims: { length: 1.08, width: 0.38, height: 1.12 }, mass: 40, mount: 'transom-clamp',
+    perf: { power: 7.4 },
+    build: {
+      family: 'tiller', shaft: 0.381, transom: 0.05, rake: 13, leg: 0.88,
+      cowl: { length: 0.5, width: 0.31, height: 0.37 },
+      prop: { blades: 3, diameter: 0.229, pitch: 0.229, hand: 'rh' },
+      tiller: 0.56, tilt: 68, steer: 35, fold: { angle: 80 },
+    },
+  },
   // ===== a portable fuel tank ==================================================================
   'tank-portable-45l': {
     kind: 'boat-tank', realm: 'water', label: 'portable fuel tank, 45 litres', classOf: '12 gallon portable tank class',
     aliases: ['fuel tank', 'portable tank', 'gas can', 'jerry tank'],
     dims: { length: 0.56, width: 0.34, height: 0.27 }, mass: 36, mount: 'floor',
+    build: { family: 'moulded', color: '#b5352a' },
+  },
+  'tank-portable-25l': {
+    kind: 'boat-tank', realm: 'water', label: 'portable fuel tank, 25 litres', classOf: '6 gallon portable tank class',
+    aliases: ['small fuel tank', 'six gallon tank'],
+    dims: { length: 0.46, width: 0.28, height: 0.24 }, mass: 21, mount: 'floor',
     build: { family: 'moulded', color: '#b5352a' },
   },
 };

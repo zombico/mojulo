@@ -2,13 +2,14 @@
 // row, each part the same twice; a hull drawn from its lines (its envelope its dims, its halves mirrored, its transom
 // raked); its displacement from its own sections, so a boat floats at the waterline its weight sets; an outboard rigged
 // with its plate at the keel, tilting, steering and turning its propeller about its own axes; a boat role filled by
-// boats; a boat by the words people say, its build asleep, never a transformer's craft. The cases are chosen from the
-// shelf in code.
+// boats; a boat by the words people say, its build asleep, never a transformer's craft. A hull's variations, each on the
+// hull that carries it: a flat bottom, a square bow, a sole, a collar that floats too; an outboard's leg at its size. The
+// cases are chosen from the shelf in code.
 import { describe, it, expect } from 'vitest';
 import { assembleCraft, resolveCraftPart, CRAFT_ODM, CRAFT_ARCHETYPES, CRAFT_ROLES, craftRoleAnalogues } from './index.js';
 import { BOAT_KINDS, BOAT_ODM } from './boat-odm.js';
 import { BOAT_ROLES } from './boat-archetypes.js';
-import { hullLines, hullSection, hullVolume, hullFloat } from './boat-parts.js';
+import { hullLines, hullSection, hullVolume, hullFloat, curveAt } from './boat-parts.js';
 import { lowerObjectFaces } from '../worlds/workbench.js';
 import { resolveVehicle, handlesOf } from '../vehicle-registry/roster.js';
 import { buildOf } from '../vehicle-registry/builds.js';
@@ -139,6 +140,52 @@ describe('an outboard on the transom', () => {
     expect(lathe(b, 'prop_hub')).toEqual(lathe(a, 'prop_hub'));
     expect(P(b.lofts.find((l) => l.id === 'blade_0').axisTo)).not.toEqual(P(a.lofts.find((l) => l.id === 'blade_0').axisTo));
     expect(b.garage.joints.find((j) => j.name === 'prop')).toMatchObject({ kind: 'spin', angle: 40 });
+  });
+});
+
+describe('a hull\'s variations, each on the hull that carries it', () => {
+  const hullWith = (test) => BOAT_ODM[Object.keys(BOAT_ODM).find((s) => BOAT_ODM[s].kind === 'boat-hull' && test(BOAT_ODM[s].build))];
+  const built = (row) => resolveCraftPart(Object.keys(BOAT_ODM).find((s) => BOAT_ODM[s] === row), { seat: 'mount' });
+  const facesOf = (src, kind, id) => lowerObjectFaces({ ...src, lathes: [], extrudes: [], sweeps: [], lofts: [], [kind]: src[kind].filter((m) => m.id === id) });
+  it('a flat bottom: its chine at its keel\'s height, its section level across the bottom', () => {
+    const row = hullWith((b) => Math.abs(curveAt(b.lines.chine, 0.4) - curveAt(b.lines.keel, 0.4)) < 0.02);
+    const sec = hullSection(row, 0.4), mid = (sec.length - 1) / 2;
+    for (const p of sec.slice(2, sec.length - 2)) expect(Math.abs(p[1] - sec[mid][1])).toBeLessThan(0.01);
+  });
+  it('a square bow: wide at the bow, its rail across it, its keel strip ending at its foot', () => {
+    const row = hullWith((b) => b.bow === 'square'), src = built(row), H = hullLines(row);
+    expect(H.at(1).sheerHalf).toBeGreaterThan(0.2);
+    const cap = src.sweeps.find((w) => w.id === 'bow_cap');
+    expect(cap.path[0][0]).toBeCloseTo(-cap.path[1][0], 6);
+    expect(Math.max(...src.sweeps.find((w) => w.id === 'keel_strip').path.map((p) => p[2]))).toBeLessThan(H.at(1).keel);
+  });
+  it('a sole: its floor laid flat at its height the length of the boat, a tank standing on it', () => {
+    const row = hullWith((b) => Number.isFinite(b.sole)), src = built(row), liner = src.lofts.find((l) => l.id === 'liner');
+    // (a station's profile is [u, v], v the height: amidships, the floor's points on the sole)
+    const mid = liner.stations.reduce((a, s) => (Math.abs(s.t - 0.5) < Math.abs(a.t - 0.5) ? s : a));
+    expect(mid.profile.filter(([, v]) => Math.abs(v - row.build.sole) < 1e-3).length).toBeGreaterThan(3);
+    expect(src.garage.hardpoints.tank[2]).toBeGreaterThanOrEqual(row.build.sole);
+  });
+  it('a collar: its tube outboard of the sheer, its cones aft of the transom, and it floats the boat too', () => {
+    const row = hullWith((b) => b.collar), src = built(row), K = row.build.collar, H = hullLines(row);
+    const tube = bounds(facesOf(src, 'sweeps', 'collar')), cones = bounds(facesOf(src, 'lathes', 'cone_r'));
+    expect(tube.hi[0]).toBeGreaterThan(Math.max(...Array.from({ length: 21 }, (_, k) => H.at(k / 20).sheerHalf)) + K.radius);
+    expect(cones.lo[1]).toBeLessThan(-H.L / 2 - K.radius);
+    expect(src.sweeps.some((w) => w.id === 'gunwale_r')).toBe(false);
+    // (under the tube's bottom only the hull floats; with the tube in the water it carries its share)
+    const bare = { ...row, build: { ...row.build, collar: undefined } }, zTube = Math.min(...Array.from({ length: 21 }, (_, k) => H.at(k / 20).sheer)) + K.radius * (K.up ?? 0.15) - K.radius;
+    expect(hullVolume(row, zTube - 0.02)).toBeCloseTo(hullVolume(bare, zTube - 0.02), 6);
+    expect(hullVolume(row, zTube + 0.1)).toBeGreaterThan(hullVolume(bare, zTube + 0.1) * 1.1);
+  });
+  it('an outboard\'s leg at its size: a smaller motor\'s gearcase slimmer, its plate the same shaft below its clamp', () => {
+    const skus = Object.keys(BOAT_ODM).filter((s) => BOAT_ODM[s].kind === 'boat-outboard'), lg = (s) => BOAT_ODM[s].build.leg ?? 1;
+    const [big, small] = [skus.reduce((a, s) => (lg(s) > lg(a) ? s : a)), skus.reduce((a, s) => (lg(s) < lg(a) ? s : a))];
+    expect(lg(small)).toBeLessThan(lg(big));
+    const r = (s) => Math.max(...lathe(resolveCraftPart(s, { seat: 'mount' }), 'torpedo').profile.map((p) => p.radius));
+    expect(r(small) / r(big)).toBeCloseTo(lg(small) / lg(big), 1);
+    const plate = (s) => resolveCraftPart(s, { seat: 'mount' }).garage.hardpoints.plate[2];
+    expect(plate(small)).toBeCloseTo(-BOAT_ODM[small].build.shaft, 3);
+    expect(plate(big)).toBeCloseTo(-BOAT_ODM[big].build.shaft, 3);
   });
 });
 
