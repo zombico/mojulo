@@ -105,3 +105,20 @@
   its cover, levelled through each turn and limited again), its finish carried round each junction's outer walls.
   `laws.js` (reached, cover, grade, run, by a prefix and a noun), `walk-gate.js` (moved from the geocity). On the
   lakeshore neighbourhood every concourse is now reached: four passages, one a 62.6 m dog-leg with two turns.
+- **A basement under any building of the core shape, and a building as a network's node** (`era/program-core.js`
+  `basement`, `network/building.js`): `program: { …, basement: true }` (an office, a clinic, a lab, a warehouse, every one
+  of a base's) lays a storey under the ground one, every storey above lifted one: the ground plate's twin room for room
+  (a concourse under the lobby, the core's stair `core-0` climbing to `core-1`, a corridor under each corridor, a store
+  under each wing room, an undercroft under an annex), so every ground room stands over one. `_program.under.ports` names
+  the basement's walls that face out (none with a basement room against it: a double-loaded wing's front rooms flank the
+  lobby): the concourse's, each corridor's far end, an annex's undercroft where its annex has ways out. Absent, a
+  building is laid as it was. `buildingFit` sets such a building into a site (its front door at a point, facing a way),
+  `buildingNode` builds it with its storey 1 at the ground and the network's ways out on its basement's walls, and hands
+  back its faces, colliders and lights, each way out in the world, its way down from its door to its concourse and each
+  way out's reach (the stage's own routes, which walk a switchback down cleanly). The network's edges now take a node's
+  several rooms (`rooms: [{ id, rect, sides }]`, the pair facing each other straight across the gap first, the nearest of
+  them), keep clear of a node's own other rooms (`solid`), and narrow a doorway to what a room's wall holds (a single
+  door's at least: a basement corridor's end); a section names its `door` (a passage's 3.6 m, a service tunnel's 2 m, a
+  vehicle tunnel's 8 m). A bay kit's hazard band is the floor at its doorways: taking it out left a hole (it is now
+  repainted as the floor beside it, in the podium too). The walk gate reports where it found no floor (`gaps`). Two
+  buildings across a yard are joined from their basements and walked door to door both ways.

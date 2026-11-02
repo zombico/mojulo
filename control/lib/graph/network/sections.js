@@ -2,7 +2,8 @@
  * THE SECTIONS — what a passage of a network (network/passage.js) is, by what it carries: its box (width, height), how
  * deep it lies (its cover under open ground, its slab under a building's plaza or floor), how steeply it may climb, whether
  * a walker's stair may take it the rest of the way down to a floor, its lamps' spacing, how long it may run between two
- * nodes (a law), and its finish. A new kind of passage is a row here, not code: the passage builds whatever the row says.
+ * nodes (a law), the doorway it meets a node by, and its finish. A new kind of passage is a row here, not code: the
+ * passage builds whatever the row says.
  *
  *   passage   the pedestrian passage under a downtown (a concourse to the next): glass and steel, a stripe a route
  *   service   a building's service tunnel (a plant room to the next, a hospital's back of house): concrete, conduits, caged
@@ -15,9 +16,9 @@
  * Metres. Pure data.
  */
 export const SECTIONS = Object.freeze({
-  passage: Object.freeze({ width: 4, height: 3, cover: 1, slab: 0.3, grade: 1 / 12, stair: true, lamp: 4.5, longest: 120, finish: 'concourse' }),
-  service: Object.freeze({ width: 3, height: 2.7, cover: 1, slab: 0.3, grade: 1 / 8, stair: true, lamp: 5, longest: 200, finish: 'service' }),
-  vehicle: Object.freeze({ width: 10, height: 5.5, cover: 2.5, slab: 1, grade: 1 / 16, stair: false, lamp: 8, longest: 2000, finish: 'road' }),
+  passage: Object.freeze({ width: 4, height: 3, door: 3.6, cover: 1, slab: 0.3, grade: 1 / 12, stair: true, lamp: 4.5, longest: 120, finish: 'concourse' }),
+  service: Object.freeze({ width: 3, height: 2.7, door: 2, cover: 1, slab: 0.3, grade: 1 / 8, stair: true, lamp: 5, longest: 200, finish: 'service' }),
+  vehicle: Object.freeze({ width: 10, height: 5.5, door: 8, cover: 2.5, slab: 1, grade: 1 / 16, stair: false, lamp: 8, longest: 2000, finish: 'road' }),
 });
 export const SECTION_IDS = Object.freeze(Object.keys(SECTIONS));
 export const FINISHES = Object.freeze(['concourse', 'service', 'road']);

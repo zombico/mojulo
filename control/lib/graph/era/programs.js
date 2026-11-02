@@ -145,7 +145,7 @@ export function planProgram(program, kitId = 'gothic-stone', { civilization = nu
   const use = program.use, P = PROGRAMS[use];
   if (!P) throw new Error(`program: use '${use}' is not one (${PROGRAM_IDS.join(', ')})`);
   // (a building's settings are its plan's: storeys, wings, loading, bays; a house's are its rooms')
-  const settings = P.shape === 'core' ? ['use', 'seed', 'civilization', 'storeys', 'wings', 'loading', 'bays'] : ['use', 'seed', 'rooms', 'add', 'civilization'];
+  const settings = P.shape === 'core' ? ['use', 'seed', 'civilization', 'storeys', 'wings', 'loading', 'bays', 'basement'] : ['use', 'seed', 'rooms', 'add', 'civilization'];
   for (const k of Object.keys(program)) if (!settings.includes(k)) throw new Error(`program: '${k}' is not a setting (${settings.join(', ')})`);
   // (a composed interior's card, compose.js, where it is not the kit's own: its doorways set the corridors' widths)
   const kit = card ?? STAGE_KITS[kitId];
@@ -156,7 +156,7 @@ export function planProgram(program, kitId = 'gothic-stone', { civilization = nu
   if (P.shape === 'core') {
     const C = planCore(P, program, kit, rnd), x0 = Math.min(...C.rooms.map((r) => r.x)), y0 = Math.min(...C.rooms.map((r) => r.y));
     const rooms = C.rooms.map((r) => ({ ...r, x: r.x - x0, y: r.y - y0 }));
-    return { use, reads: P.reads, rooms, links: C.links, ways: C.ways, entry: C.entry, goal: C.goal, front: '-y', language: lang, findings: C.findings, plan: C.plan };
+    return { use, reads: P.reads, rooms, links: C.links, ways: C.ways, entry: C.entry, goal: C.goal, front: '-y', language: lang, findings: C.findings, plan: C.plan, ...(C.under ? { under: C.under } : {}) };
   }
   const g = kit.grid, need = kit.door.width + 2 * kit.door.frame + kit.wall;   // the wall a doorway needs (stage.js planStage)
   const pick = (r) => Math.round((r[0] + rnd() * (r[1] - r[0])) / g) * g;
@@ -286,7 +286,9 @@ export function withProgram(m) {
     ...(level !== undefined ? { level } : {}),
     _program: { use: P.use, ...(PROGRAMS[P.use]?.base ? { base: true } : {}), reads: P.reads, entry: P.entry, goal: P.goal, front: P.front, language: P.language, rooms: P.rooms.map((r) => r.id),
       // (on storeys, the rooms each holds, the ground first)
-      ...(P.rooms.some((r) => r.storey) ? { storeys: [...Array(Math.max(...P.rooms.map((r) => r.storey ?? 0)) + 1)].map((_, s) => P.rooms.filter((r) => (r.storey ?? 0) === s).map((r) => r.id)) } : {}), findings: P.findings },
+      ...(P.rooms.some((r) => r.storey) ? { storeys: [...Array(Math.max(...P.rooms.map((r) => r.storey ?? 0)) + 1)].map((_, s) => P.rooms.filter((r) => (r.storey ?? 0) === s).map((r) => r.id)) } : {}), findings: P.findings,
+      // (a basement's walls that face out, where a network's passages may leave it: program-core.js)
+      ...(P.under ? { under: P.under } : {}) },
   };
 }
 

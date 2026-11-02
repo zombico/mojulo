@@ -4,9 +4,10 @@
  * hand over them; a face that faces down, a ceiling or a flight's soffit, is stood on by nothing), its walls the faces
  * that stand up (a level ray at the knee and at the eye), its body kept out of the boxes.
  *
- *   walker(payload) → walk(points) → { steepest, walls, crossed, boxes, end }   a polyline walked from its first
+ *   walker(payload) → walk(points) → { steepest, walls, crossed, gaps, boxes, end }   a polyline walked from its first
  *       point's ground, a fifth of a metre a step: the tallest step it took up or down, how many walls it crossed (and
- *       `crossed`, each wall's group and where), which boxes it stood in, the height it ended at
+ *       `crossed`, each wall's group and where), where it found no floor under it (`gaps`), which boxes it stood in, the
+ *       height it ended at
  *
  * Pure. Not on the page: what the page's walk does, measured.
  */
@@ -67,7 +68,7 @@ export function walker(P) {
    *  riser and a hand over them; → { steepest, walls, boxes, end } */
   return (pts) => {
     let z = ground(pts[0][0], pts[0][1], pts[0][2] + 0.45), steepest = 0, wallsHit = 0;
-    const crossed = [];
+    const crossed = [], gaps = [];
     const boxes = [];
     for (let k = 0; k + 1 < pts.length; k++) {
       const [p, q] = [pts[k], pts[k + 1]], n = Math.max(1, Math.ceil(Math.hypot(q[0] - p[0], q[1] - p[1]) / 0.2));
@@ -76,11 +77,11 @@ export function walker(P) {
         const hit = crosses([x0, y0], [x, y], z + 0.9) || crosses([x0, y0], [x, y], z + 1.6);
         if (hit) { wallsHit++; crossed.push({ group: hit === true ? null : hit, at: [x, y, z].map((v) => Math.round(v * 100) / 100) }); }
         const g = ground(x, y, z + 0.45);
-        if (g === null) { steepest = Infinity; continue; }
+        if (g === null) { steepest = Infinity; if (gaps.length < 8) gaps.push([x, y, z].map((v) => Math.round(v * 100) / 100)); continue; }
         steepest = Math.max(steepest, Math.abs(g - z)); z = g;
         const B = boxed(x, y, z); if (B) boxes.push(B.of);
       }
     }
-    return { steepest, walls: wallsHit, crossed, boxes: [...new Set(boxes)], end: z };
+    return { steepest, walls: wallsHit, crossed, gaps, boxes: [...new Set(boxes)], end: z };
   };
 }
