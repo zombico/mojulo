@@ -5,7 +5,7 @@
  *
  *   CLOSE='<caption>=<face group>[|<another>][=<distance ×>],…' the close cameras (each on the face of that group nearest the shop);
  *   VIEWS='[[name, [n, t, z], [n, t, z], fov], …]' cameras in the anchor building's frame instead of the close ones;
- *   SHOP=<k> the k-th shop (or building) the cameras anchor on, ROW=<kind> of that row's; GEOTOWN='{…}' another geotown (a building, not a shop, anchors the cameras where it has no shop)
+ *   SHOP=<k> the k-th shop (or building) the cameras anchor on, ROW=<kind> of that row's, ANCHOR=<a collider's of> a site's building; GEOTOWN='{…}' another geotown (a building, not a shop, anchors the cameras where it has no shop)
  *   cd control && node scripts/spikes/geotown/loud-front.mjs <out-dir> [hand …]   (default: a front of street's only)
  *     → <out-dir>/loud-front.png and .html
  */
@@ -47,7 +47,9 @@ try {
     if (!cams) {
       // (a shop, else any building: the cameras' anchor)
       const shops0 = P.anchors.filter((a) => a.kind === 'house' && a.row === 'shops'), shops = process.env.ROW ? P.anchors.filter((a) => a.kind === 'house' && a.row === process.env.ROW) : shops0.length ? shops0 : P.anchors.filter((a) => a.kind === 'house');
-      const h = shops[Math.min(SHOP, shops.length - 1)], N = h.N, T = [-N[1], N[0]];
+      // (no building of a row: a site's building, its collider, faces south; ANCHOR=<collider's of> names one)
+      const C0 = P.colliders.find((c) => (process.env.ANCHOR ? c.of.includes(process.env.ANCHOR) : /fieldhouse|pavilion/.test(c.of)));
+      const h = shops.length && !process.env.ANCHOR ? shops[Math.min(SHOP, shops.length - 1)] : { at: [(C0.min[0] + C0.max[0]) / 2, C0.min[1], C0.min[2]], N: [0, -1, 0], floor: C0.min[2], box: C0 }, N = h.N, T = [-N[1], N[0]];
       const at = (n, t, z) => [h.at[0] + N[0] * n + T[0] * t, h.at[1] + N[1] * n + T[1] * t, h.floor + z].map(r3);
       const cam = (name, from, to, fov) => ({ name, worldFraming: { cameraPosition: from, lookAt: to, horizontalFov: fov } });
       // (the doodads up close: the hydrant and the bin nearest the shop, from a walker's eye)

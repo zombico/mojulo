@@ -264,8 +264,9 @@ export function hoopsOf([u0, v0, u1, v1]) {
 }
 
 /** A parking lot: its stalls painted, cars in some (yards.js, as a walk-up's lot). */
-export function lotOf([u0, v0, u1, v1], R) {
-  return serviceOf('apartments', { w: u1 - u0, v0: v0, v1: v1, R }).faces.map((f) => ({ ...f, corners: f.corners.map(([u, v, z]) => [r4(u + u0), v, z]) }));
+export function lotOf([u0, v0, u1, v1], R, car = null) {
+  // (`car` the car a stall holds, serviceOf's: a loud site's toy car)
+  return serviceOf('apartments', { w: u1 - u0, v0: v0, v1: v1, R, ...(car ? { car: (u, v, al, hex) => car(u + u0, v, al, hex).map((f) => ({ ...f, corners: f.corners.map(([a, b, c]) => [a - u0, b, c]) })) } : {}) }).faces.map((f) => ({ ...f, corners: f.corners.map(([u, v, z]) => [r4(u + u0), v, z]) }));
 }
 
 /** A field house: its walls, a low hip roof over them, its doors and a light or two. */

@@ -49,7 +49,7 @@ import { townDressOf, dressTownFace, leanHue } from '../era/town-dress.js';
 import { LOUD_WALLS, CROWN_FORMS, popHex } from './front-loud.js';
 import { slabsOf, groundSplat, inkPicker, SLAB_TINTS } from './street-loud.js';
 import { INK } from './front-loud.js';
-import { toonOf, proportions, hydrantOf, binOf, postboxOf, lampOf, postOf, ringOf, shelterOf, toyCarOf } from './doodads.js';
+import { toonOf, proportions, hydrantOf, binOf, postboxOf, lampOf, postOf, ringOf, shelterOf, toyCarOf, tube } from './doodads.js';
 import { signalHead, signOf, mastArm, place } from './signs.js';
 import { styleTownDress, styleReadout } from '../era/arch-style.js';
 import { plantPool, plantRepeats } from '../vegetation/pool.js';
@@ -86,8 +86,31 @@ const FINISH_SEEDS = { 'fence-board': 163, 'fence-brick': 165, 'fence-stone': 16
 // a design's eave (its walls' top) and its top, in its own frame (a loud pair's second half is raised over the eave)
 const dz0Eave = (dz) => dz.dims.n * dz.dims.storeyH;
 const dz0Top = (dz) => Math.max(...dz.faces.map((f) => Math.max(...f.corners.map((c) => c[2]))));
+/** A loud site's painter: each of its things by what it is (null: as it was): the pitch's stripes and the turf in two
+ *  greens, the track a candy ring, each court its own ink never the last one's, each row of seats its own, the dirt
+ *  orange, the lines, bases and goals paper, the field house's walls a hue and its roof, doors and the flag inks. */
+function siteLoud(R, pop) {
+  const ink = (h) => popHex(h, pop), pick = (list, not) => { const pool = list.filter((x) => x !== not); return pool[Math.floor(R() * pool.length)]; };
+  const W0 = pick(LOUD_WALLS), roof = ink(pick(INK)), track = [ink('#e8344a'), ink('#ff8a1a')];
+  let court = null, k = 0;
+  return (f) => {
+    switch (f.role) {
+      case 'stripe': return ink('#7fd83a');
+      case 'turf': return ink('#4fb84a');
+      case 'track': return track[(k++) % 2];
+      case 'court': court = ink(pick(INK, court)); return court;
+      case 'seat': { const z = Math.max(...f.corners.map((c) => c[2])); return ink(INK[Math.round(z / 0.45) % INK.length]); }
+      case 'dirt': return ink('#e88a3a');
+      case 'line': case 'base': case 'goal': return '#f7f3ea';
+      case 'block': return W0;
+      case 'roof': case 'door': case 'flag': case 'play': case 'slide': case 'canopy': return roof;
+      case 'chips': return ink('#f2b07a');
+      default: return null;
+    }
+  };
+}
 // the rows of flats: built even, so a loud one raises a false front of its own
-const FLATS = new Set(['lowrise', 'apartments']);
+const FLATS = new Set(['lowrise', 'apartments', 'school']);
 // a language's trims: what a loud home paints in its own ink
 const TRIM_PARTS = new Set(['surround', 'sill', 'lintel', 'frame', 'trim', 'shutter']);
 // a building's kit family: a mansion's its own
@@ -570,7 +593,7 @@ export function assembleGeotownScene(m, ctx = {}) {
           const [grp, v] = f.hex ? [null, 0] : f.role === 'wall' ? [W0.group, W0.value] : f.role === 'roof' ? [dz.dims.covering, 0.34] : f.role === 'trim' ? ['str:paint', 0.92] : f.role === 'deck' ? ['str:timber', 0.5] : [null, 0];
           const own = f.hex ?? (f.role === 'sign' ? house.kit.sign ?? col.door : f.role === 'canvas' ? house.kit.awning ?? col.canvas : f.role === 'door' ? col.door : f.role === 'canopy' ? col.metal : col.glass);
           const fill = grp ? Pt(grp, Math.min(1, v * litV(nf))) : shadeHex(own, nf, LIGHT), F0 = { corners: cw.map(P3), group: `geotown:${f.role === 'glass' ? 'glass' : f.role === 'wall' ? 'bay' : f.role === 'deck' ? 'porch' : f.role}`, fill, cornerFills: cw.map(() => fill), normal: P3(nf), outNormal: P3(nf) };
-          faces.push(loudLean(grp && Dr && f.role !== 'deck' ? dressTownFace(F0, grp, Dr) : F0, f.role === 'wall', f.role === 'trim'));
+          faces.push(loudLean(grp && Dr && f.role !== 'deck' ? dressTownFace(F0, grp, Dr) : F0, f.role === 'wall', f.role === 'trim' && !f.balcony));
         }
       }
       colliders.push({ min: P3([lo[0], lo[1], pad]), max: P3([hi[0], hi[1], pad + top]), of: `${pl.id}:house` });
@@ -907,12 +930,14 @@ export function assembleGeotownScene(m, ctx = {}) {
     siteCount[St.type] = (siteCount[St.type] ?? 0) + 1;
     const Wl = (u, v) => [St.A[0] + St.ex[0] * u + St.ey[0] * v, St.A[1] + St.ex[1] * u + St.ey[1] * v], park = St.type === 'park', pz = park ? parkZ(B) : null;
     const zOf = (u, v) => (park ? pz(...Wl(u, v)) : B.z), Rs = streamOf(seed, 'site', `${B.id}:draw`), w = St.what;
+    // (a loud site, the cube's exaggerate.homes: its things each painted by what they are, geotown/front-loud.js's inks)
+    const LS = HY ? siteLoud(streamOf(seed, 'site-loud', B.id), HY.pop) : null;
     // a thing in the site's frame, on its ground (a park's at the land under its middle)
     const thing = (fs, z0 = null) => {
       for (const f of fs) {
         const o = f.out, want = unit([St.ex[0] * o[0] + St.ey[0] * o[1], St.ex[1] * o[0] + St.ey[1] * o[1], o[2]]);
         const cs = f.corners.map(([u, v, z]) => { const [x, y] = Wl(u, v); return [x, y, (z0 ?? zOf(u, v)) + z]; });
-        put(cs, `geotown:${f.role}`, f.hex ?? col[f.role] ?? col.metal, want);
+        put(cs, `geotown:${f.role}`, (LS && LS(f)) ?? f.hex ?? col[f.role] ?? col.metal, want);
         claim(cs, f.role, o);
       }
     };
@@ -946,12 +971,21 @@ export function assembleGeotownScene(m, ctx = {}) {
     if (w.track) thing(trackOf(w.track, P.sites.school.track.band));
     if (w.diamond) thing(diamondOf(w.diamond, Rs));
     if (w.courts) thing(courtsOf(w.courts.rect, w.courts.n));
-    if (w.lot) thing(lotOf(w.lot, Rs));
+    if (w.lot) thing(lotOf(w.lot, Rs, HY ? (u, v, al, hex) => carFaces(u, v, al, hex, `${B.id}:lot:${r5(u)}`) : null));
     if (w.fieldhouse) building(w.fieldhouse, fieldhouseOf(w.fieldhouse), 'fieldhouse');
-    if (w.flag) thing(flagOf(...w.flag), lot?.pad ?? B.z);
+    // (an exaggerated site's flagpole a round mast, a toon one bent under a flag too big)
+    if (w.flag && ROUND) { const [fu, fv] = w.flag, D = dials('flag', fu, fv), fl = D.toon ? D.head * 0.8 : 1; thing([...postOf(fu, fv, 0, 9, 0.06, 'metal', D), { corners: [[fu, fv, 9 - 1.4 * fl], [fu + 1.6 * fl, fv, 9 - 1.3 * fl], [fu + 1.6 * fl, fv, 9 - 0.25 * fl], [fu, fv, 9 - 0.1]], out: [0, -1, 0], role: 'flag' }], lot?.pad ?? B.z); }
+    else if (w.flag) thing(flagOf(...w.flag), lot?.pad ?? B.z);
     if (w.yard && lot) thing(hoopsOf(w.yard), lot.pad);
     // bleachers along the pitch's near side, its lights at its corners (a sports field's)
-    if (w.pitch) { const p = w.pitch, um = (p[0] + p[2]) / 2; thing(bleachersOf(um - 10, um + 10, (w.track ?? p)[1] - 0.5, 1)); if (St.type === 'sports') thing(lightsOf(p)); }
+    if (w.pitch) { const p = w.pitch, um = (p[0] + p[2]) / 2; thing(bleachersOf(um - 10, um + 10, (w.track ?? p)[1] - 0.5, 1)); if (St.type === 'sports') {
+      // (an exaggerated field's lights: round masts, their lamp banks round; a toon one's masts bent, its banks too big)
+      if (ROUND) for (const [lu, lv] of [[p[0] - 2, p[1] - 2], [p[2] + 2, p[1] - 2], [p[2] + 2, p[3] + 2], [p[0] - 2, p[3] + 2]]) {
+        const D = dials('floodlight', lu, lv), hb = 0.35 * (D.toon ? D.head * 0.8 : 1), L2 = 0.7 * (D.toon ? D.reach : 1);
+        thing([...postOf(lu, lv, 0, 14, 0.14, 'metal', D), ...tube([{ c: [lu - L2, lv, 14.4], r: hb, a: [1, 0, 0] }, { c: [lu + L2, lv, 14.4], r: hb, a: [1, 0, 0] }], 10, 'lamp', [true, true])]);
+      }
+      else thing(lightsOf(p));
+    } }
     // its edges: over (or under) the walk round it, the school's lot's own pad along its lot; and between that pad and
     // the site's ground inside it
     const [x0, y0, x1, y1] = B.rect, lr = lot?.rect, inLot = (x, y) => lr && x > lr[0] - 1e-6 && x < lr[2] + 1e-6 && y > lr[1] - 1e-6 && y < lr[3] + 1e-6;

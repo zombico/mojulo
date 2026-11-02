@@ -42,6 +42,11 @@
   in a form of its own (stepped, an arch, a gable, battlements), its top at least `step` from its row neighbour's (the
   `rooflines` law reads its row); each balcony its own ink, never the one beside it or under it; its lot's cars toy cars
   and its stall lines in inks.
+  Its SCHOOL raises a false front of its own; its SITES (a school's grounds, a sports field) are painted by what each
+  thing is, on the ground the plan laid: the pitch's stripes and the turf in two greens, the track a candy ring, each
+  court its own ink never the last one's, each row of the bleachers its own, the diamond's dirt orange, the lines, bases
+  and goals paper, the field house its own hue under its own roof; the floodlights and the flagpole round masts (a toon
+  one bent under a lamp bank or a flag too big), the lot's cars toy cars.
 - **The street's doodads round** (`geotown/doodads.js`), a cube's exaggerate drawing them: a hydrant on its flange with
   its barrel, domed bonnet and nozzles; a bin a drum under its lid; a post box a pillar under its dome and slot band; a
   streetlight a tapered standard on its collar, its arm and its bell; a sign's and a signal's posts round. In the cube's
