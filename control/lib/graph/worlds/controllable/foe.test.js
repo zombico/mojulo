@@ -120,6 +120,13 @@ describe('body to body', () => {
     st.byId.p.transform.pos = [0, 0, 0]; run(st, Math.floor(STOMP.mercy / DT) - 2);
     expect(st.byId.p.hits).toBe(1);
   });
+  it('a touch takes its hurt off a body with its own hp, downing it at none; without a hurt, the hp stays', () => {
+    const hurtBy = (hurt) => { const st = world([pilot([0, 0, 0], { rule: { stomp: { ...STOMP, ...(hurt ? { hurt } : {}) } } }), foe('t', TOUCH, [0.3, 0, 0], Math.PI, still)]); run(st, 1); return st.byId.p; };
+    expect(hurtBy(30).body.hp).toBe(69);
+    expect(hurtBy(30).hits).toBe(1);
+    expect(hurtBy(120)).toMatchObject({ downed: true, body: { hp: 0 } });
+    expect(hurtBy(null).body.hp).toBe(99);
+  });
   const fall = (cls, held) => {
     const st = world([pilot([0, 0, 1.0]), foe('t', cls, [0, 0, 0], 0, still)]);
     st.byId.p.vel = [0, 0, -4]; st.byId.p.grounded = false;

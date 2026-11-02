@@ -34,3 +34,17 @@ its resource, put on a look and showed a toast. This theme makes them act.
   at the nearest foe in front, its reach and hurt) and its move with what grants it (the held slice, a pickup, the
   stats), read from the level's own keys, cues and `game.powers`. It is for a reader that does not run the page's cues,
   the engine handoff's level record first, and it imports nothing.
+- **One HP: where the stats bind the hero's body, its bar is the hp that ends the level** (`runner.js`, `foes.js`
+  `onBody`, `game/mechanics.js`, `worlds/controllable/foe.js`). A fighting level of a world with systems kept two hp:
+  - the stats' bar on the hero's body (its hp stat, 100 and rising each level);
+  - a level hp of 20 beside it, which a foe's touch took 2 from and which alone lost the level, so the bar the player
+    watched was not the one that ended the run.
+  Now such a level is lost when the body is down, and every hurt takes from the body: a blow, a beam, a foe's touch and
+  a hazard. A touch and a hazard cost the same share of the body's hp they cost of the level's (a tenth, a quarter), and
+  there is one HP readout.
+  - `fail-on-death` and `hazard-damage` take `of: 'body'`: no hp var, the level lost on the body's `down`, a hazard
+    through the cast's `hurt`, a lethal fall through its `kill`.
+  - A foe's touch takes the pilot's `rule.stomp.hurt` off a body with its own hp, downing it at none.
+  - A level a battle plays on (a boss, the party's fights) keeps the level hp its battle reads, and a world without
+    systems plays as before.
+  - The emission pins of the pages that stand a foe moved for it.

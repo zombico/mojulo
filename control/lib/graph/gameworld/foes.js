@@ -35,12 +35,16 @@
  *   isModel(entry)                      → the entry is skinned as a model made elsewhere: it stands on its own ref (the
  *                                         sketch its model is bound onto), made by no step, on the library as a person
  *   foePlacements(G, level, ends)       → [{ id, entry, at, heading, group? }]: who stands where on a stage
- *   hostileCast(G, level, ends, { refs, hero })   → the stage's extra (levels.js stageLevelOrder): the foes' figures and
- *                                         entities, and a hittable pilot; null when nothing stands
+ *   hostileCast(G, level, ends, { refs, hero, hurt? })   → the stage's extra (levels.js stageLevelOrder): the foes' figures and
+ *                                         entities, and a hittable pilot (`hurt`: what a foe's touch takes off its body's
+ *                                         own hp, onBody's); null when nothing stands
  *   stompOf(G)                          → the hero's stomp where foes stand: { low, high, blow, mercy }
  *   withFoeWin(G, level, ends, mechanics)   → a stage won by clearing it: its exit's reach replaced by every foe on it down
  *   withFoeHits(mechanics)              → a level's mechanics with the hero's hp taking each hit (fail-on-death `hits`):
  *                                         the goal's own when it has one, else one laid before its terminal
+ *   onBody(mechanics, hpBase)           → { mechanics, hurt }: the same level with its hp the hero's body's own (the
+ *                                         stats' hp and its bar): fail-on-death and the hazards `of: 'body'`, each
+ *                                         cost scaled to the same share of the body's hp, and what a touch takes (hurt)
  *
  * Pure and deterministic: no dice (a foe's place is its beat's).
  */
@@ -315,7 +319,7 @@ export function standFoe(G, part, p, { ref = null, figure = null, more = {}, tun
   return e;
 }
 
-export function hostileCast(G, level, ends, { refs, hero = true } = {}) {
+export function hostileCast(G, level, ends, { refs, hero = true, hurt = null } = {}) {
   const P = foePlacements(G, level, ends);
   if (!P.length) return null;
   const figures = {}, entities = [], part = { figures, entities };
@@ -342,7 +346,7 @@ export function hostileCast(G, level, ends, { refs, hero = true } = {}) {
   }
   // the hero takes their hits: hittable (a person's egg over its feet, or under the eye a first-person walker walks at);
   // a hero with legs stomps them (worlds/controllable/foe.js)
-  const pilot = { ...(hero ? { rule: { stomp: stompOf(G) } } : {}), body: { hittable: true, radius: 0.5, egg: { ...PERSON, cz: hero ? PERSON.c : PERSON.c - 1.7 } } };
+  const pilot = { ...(hero ? { rule: { stomp: { ...stompOf(G), ...(hurt > 0 ? { hurt } : {}) } } } : {}), body: { hittable: true, radius: 0.5, egg: { ...PERSON, cz: hero ? PERSON.c : PERSON.c - 1.7 } } };
   return { figures, entities, pilot };
 }
 
@@ -380,4 +384,20 @@ export function withFoeHits(mechanics) {
 export function targetRimOf(G) {
   let c = null; try { c = resolveTrailColor('palette', trailContext(G)); } catch { c = null; }
   return Array.isArray(c) && c.length === 3 ? c.map((x) => Math.round(x * 1000) / 1000) : [1, 0.86, 0.6];
+}
+
+/** A level whose hp is the hero's body's own (a world whose systems bind the hp stat to the hero's body, the stats' bar
+ * its readout): fail-on-death and the hazards on the body (`of: 'body'`), each cost the same share of the body's hp
+ * (the stat's base) as of the level's (LEVEL_GOAL.hp), and what a foe's touch takes (`hurt`, hostileCast's), so the bar
+ * the player watches is the one that ends the level. A level with no hp of its own passes as it was. */
+export function onBody(mechanics, hpBase) {
+  const scale = hpBase / LEVEL_GOAL.hp, r2 = (v) => Math.round(v * 100) / 100;
+  const death = mechanics.find((m) => m.kind === 'fail-on-death');
+  if (!death || !(scale > 0)) return { mechanics, hurt: null };
+  const out = mechanics.map((m) => {
+    if (m.kind === 'fail-on-death') return { kind: 'fail-on-death', of: 'body' };
+    if (m.kind === 'hazard-damage') { const { startHp, ...rest } = m; return { ...rest, of: 'body', hazards: m.hazards.map((h) => ({ ...h, damage: r2((h.damage ?? 20) * scale) })) }; }
+    return m;
+  });
+  return { mechanics: out, hurt: death.hits ? r2(death.hits * scale) : null };
 }

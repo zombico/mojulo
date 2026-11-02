@@ -14,6 +14,7 @@ import { readCastEffect } from '../playscape/ui/cast.js';
 import { validateLevelContract } from '../game/level-contract.js';
 import { synthesizeLevel } from '../game/level-synth.js';
 import { powerRecord } from './power-record.js';
+import { composeMechanics } from '../game/mechanics.js';
 
 const H = MEADOWMARK_HERO.characters.hero;
 const carrying = (items, more = {}) => ({ ...MEADOWMARK_HERO, ...more, characters: { ...MEADOWMARK_HERO.characters, hero: { ...H, adornment: { items } } } });
@@ -132,5 +133,36 @@ describe('a level\'s powers read back as data, for a reader that does not run it
     expect(cy.move).toEqual({ grants: { jumpSpeed: expect.any(Number) }, on: ['stats'] });
     // (a level with no powers reads none)
     expect(powerRecord({ play: { cues: [{ id: 'level-up', when: { levelled: 'hero' }, then: { say: 'Level up' } }] } })).toEqual([]);
+  });
+});
+
+const EXIT = { kind: 'reach-exit', at: [9, 0, 0] };
+describe('one hp: where the stats bind the hero\'s body, its bar is the hp that ends the level', () => {
+  // (the example hero, its first stage standing a grunt: systems that bind the hp stat to the body)
+  const fighting = () => { const W = JSON.parse(JSON.stringify(MEADOWMARK_HERO)), first = Object.keys(W.levels)[0];
+    W.levels = { [first]: { ...W.levels[first], foes: { from: ['grunt'] } } }; W.links = []; delete W.start; W.foes = { grunt: { class: 'walker' } }; return W; };
+  const levelOf = (W) => runSteps(W, { ref: 'm' }).find((s) => s.key.startsWith('level')).order.manifest;
+  it('the level is lost when the body is down; a touch takes the same share of its hp the level\'s took; one readout', () => {
+    const m = levelOf(fighting());
+    expect(m.game.mechanics.filter((x) => x.kind === 'fail-on-death')).toEqual([{ kind: 'fail-on-death', of: 'body' }]);
+    // (2 of the level's 20 was a tenth: a tenth of the hp stat's base, 100)
+    expect(pilot(m).rule.stomp.hurt).toBe(10);
+    const { game } = synthesizeLevel(m), lowered = composeMechanics(m.game.mechanics, { player: pilot(m).id });
+    expect(lowered.world?.vars?.hp ?? lowered.events?.vars?.hp).toBeUndefined();
+    expect(JSON.stringify(lowered)).not.toMatch(/"var":"hp","label":"HP"/);
+    expect(JSON.stringify(lowered)).toMatch(/"on":"down","match":\{"entity":"hero"\},"do":"emit","type":"dead"/);
+    expect(validateLevelContract(game).ok).toBe(true);
+    expect(m.play.parts.filter((x) => x.label === 'HP')).toHaveLength(1);
+  });
+
+  it('a world with no systems keeps the level\'s own hp; a body-bound hazard hurts the body, and a wrong of is refused', () => {
+    const W = fighting(); delete W.characters.hero.actions; delete W.mechanics;
+    const plain = levelOf({ ...W, characters: { ...W.characters, hero: { ...W.characters.hero, actions: { none: true } } } });
+    expect(plain.game.mechanics.find((x) => x.kind === 'fail-on-death')).toMatchObject({ startHp: 20, hits: 2 });
+    expect(pilot(plain).rule.stomp.hurt).toBeUndefined();
+    const hz = composeMechanics([{ kind: 'hazard-damage', of: 'body', hazards: [{ at: [1, 0, 0], damage: 25 }] }, { kind: 'fail-on-death', of: 'body' }, EXIT], { player: 'hero' });
+    expect(JSON.stringify(hz)).toMatch(/"do":"ctrl","op":"hurt","who":"hero","by":25/);
+    expect(() => composeMechanics([{ kind: 'fail-on-death', of: 'self' }, EXIT], { player: 'hero' })).toThrow(/of is 'body'/);
+    expect(() => composeMechanics([{ kind: 'fail-on-death', of: 'body', hits: 2 }, EXIT], { player: 'hero' })).toThrow(/takes no startHp or hits/);
   });
 });
