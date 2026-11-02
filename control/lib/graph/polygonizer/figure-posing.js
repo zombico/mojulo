@@ -176,6 +176,7 @@ export function resolvePose(spec = {}, base = null) {
   if (spec.pelvis != null) dof.pelvis = spec.pelvis;          // transverse pelvic rotation (deg; + = right hip forward)
   if (spec.hinge != null) dof.hinge = spec.hinge;             // sagittal pelvic tilt / hip hinge (deg; + = trunk hinges forward over the hips)
   if (spec.waist != null) dof.bend = -spec.waist;            // the core bent at the waist (deg; + = the chest forward over the navel; absent ⇒ none)
+  else if (Number.isFinite(spec.bend)) dof.bend = spec.bend; // (the raw bend flows through, as the raw spine and swivels do: a pose resolved once and posed again keeps its waist)
   if (spec.unbound != null) dof.unbound = spec.unbound;       // the ranges × this, the hinges free to bend back (figure-vajra.js UNBOUND: a skeleton's)
   if (spec.shoulders != null) dof.shoulders = spec.shoulders; // transverse shoulder-girdle rotation (deg; + = right shoulder forward)
   for (const k of ['wristL', 'wristR']) if (spec[k] != null) dof[k] = spec[k];   // wrist { flex, deviation } (the hand's ankle)

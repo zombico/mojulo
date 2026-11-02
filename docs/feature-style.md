@@ -152,6 +152,23 @@ quarter of a cycle later (`prowl`: a four-beat lateral sequence, left hind, left
 stance on the floor, in swing lifted; the head ahead, the tail carried. An animal that goes on all fours runs on them:
 its `run` is the gallop; upright it only walks, slowly.
 
+**The trot** (`trot`, `FEATURE_TROT` in `egocube/feature-trot.js`) is laid out as the horse study solves its gaits, made
+dimensionless so a round body on short legs trots as its own legs let it. The beat is a two-beat diagonal (each hind a
+moment before its fore). The stride is the reference horse's trot at one Froude number (`froude`), scaled to this hip
+by dynamic similarity and cut to what the shorter pair of legs reaches: short legs take short, quick steps. Every
+planted foot, fore and hind, slides back at ONE ground speed, so nothing skates. The swing is laid C1 between the
+stance it leaves and the one it lands in (a quintic, plus the stance's own speed at each end), lifted by a bump that
+peaks early. The body's bounce is integrated from the feet's forces (`bounce` its exaggeration), and the trunk twists
+between its girdles. The head nods and the tail swishes after the bounce, as damped pendulums. A standing foreleg is a
+COLUMN: the trunk is tipped up over the hips until the shoulder stands `column` of the arm over the floor, the paw
+under it, and the front takes only `give` of the bounce, so the elbow never folds under the weight. The haunches take
+the rest. Keyed at the packer's samples, so every packed frame is a key. `mascot.trot` carries its cycle's seconds
+and ground speed.
+
+**A keyed clip plays its keys.** Packed, a clip is blended between its keys (`layeredClip`). A `feet` target is
+blended as a point and the waist's bend survives the second resolve. Before, played or exported, a keyed gait's feet
+never stepped and a pose on all fours lost its waist.
+
 **Everyone can downward dog, facing forward** (`downDog`, `FEATURE_DOG`): the hips high, the hind legs as straight as
 the forepaws allow, the trunk bent down at the waist (the rib ball under the pelvis ball), the forepaws straight out in
 front on the floor, the face looking ahead. A quadruped's spine and neck bend further than the human ranges the rig's

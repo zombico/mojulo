@@ -6,6 +6,8 @@
 import { describe, it, expect } from 'vitest';
 import { egg, eggDistance, eggField, eggSkin, tuft, FEATURE_BUILDS, FEATURE_TRIANGLES, FEATURE_CARRIAGE, FEATURE_TAIL_RUMP, featureShapes } from './feature-body.js';
 import { speciesTail, FEATURE_GALLOP } from './feature-function.js';
+import { FEATURE_TROT } from './feature-trot.js';
+import { layeredClip } from '../polygonizer/station-loft-rig.js';
 import { pieces, attachAll, gapOf } from './feature-attach.js';
 import { resolveTune } from './feature-tune.js';
 import { animalCard } from './mascot-animals.js';
@@ -101,7 +103,7 @@ describe('the feature body', () => {
     // A DEFAULT GAME MODEL: every part's faces together within the budget; round the belly no clip hangs an arm into it
     expect(plan.segments.reduce((n, x) => n + Object.keys(x.mesh?.faces ?? {}).length, 0)).toBeLessThanOrEqual(FEATURE_TRIANGLES);
     // (on all fours the arms reach down to the floor, the trunk hinged out of their way)
-    for (const keys of Object.entries(plan.clips).filter(([n]) => !['fours', 'prowl', 'run', 'downDog', 'gallop'].includes(n)).map(([, c]) => (Array.isArray(c) ? c : c.keys ?? []))) for (const K of keys) for (const [a, s] of [['armR', 1], ['armL', -1]]) if (K?.[a]?.x !== undefined) expect((s * K[a].x) / Math.hypot(K[a].x, K[a].y, K[a].z)).toBeGreaterThan(0.6);
+    for (const keys of Object.entries(plan.clips).filter(([n]) => !['fours', 'prowl', 'run', 'downDog', 'gallop', 'trot'].includes(n)).map(([, c]) => (Array.isArray(c) ? c : c.keys ?? []))) for (const K of keys) for (const [a, s] of [['armR', 1], ['armL', -1]]) if (K?.[a]?.x !== undefined) expect((s * K[a].x) / Math.hypot(K[a].x, K[a].y, K[a].z)).toBeGreaterThan(0.6);
     // ON ALL FOURS, posed on the rig: the forepaws at the floor, the hind feet planted, the head held up to look ahead
     const R = validateRig(expandPlan(plan).rig), { nodes } = rigNodesAt(R, plan.clips.fours[1]), height = plan.mascot.height;
     for (const S of ['R', 'L']) { expect(Math.abs(nodes[`knuckles${S}`][2]), S).toBeLessThan(0.08 * height); expect(nodes[`toeBase${S}`][2]).toBeLessThan(0.03 * height); }
@@ -109,8 +111,7 @@ describe('the feature body', () => {
     expect(crown[2] / Math.hypot(...crown)).toBeGreaterThan(0.8);
     expect(plan.clips.prowl.length).toBe(plan.clips.walk.length);
     // THE WALK ON ALL FOURS, posed on the rig: a lateral sequence (each foreleg lifted a quarter cycle after its own side's
-    // hind leg), a paw in stance on the floor; and no trot: an animal on all fours walks or runs (gallops) on them
-    expect(plan.clips.trot).toBeUndefined();
+    // hind leg), a paw in stance on the floor (the trot has its own test below)
     {
       const ks = plan.clips.prowl, n = ks.length, at = ks.map((k) => rigNodesAt(R, k).nodes), by = Math.round(0.25 * n);
       for (const S of ['R', 'L']) {
@@ -213,6 +214,44 @@ describe('the feature body', () => {
     expect(toon.create.spec).toMatchObject({ hullShade: true, toon: { light: true } });
     expect(toon.create.spec.plan.segments.some((s) => s.kind === 'mesh')).toBe(false);
   }, 120_000);
+
+  it('the trot on all fours: a diagonal two-beat on one ground, the forelegs columns, the head ahead from the front', () => {
+    const plan = mascotPlanFromSheet(rollMascot({ brief: 'raccoon', facets: { style: 'feature' } })).create.spec.plan;
+    const R = validateRig(expandPlan(plan).rig), h = plan.mascot.height, keys = plan.clips.trot, K = FEATURE_TROT.keys, M = plan.mascot.trot;
+    expect(keys).toHaveLength(K); expect(M.seconds).toBeGreaterThan(0); expect(M.speed).toBeGreaterThan(0);
+    expect(plan.clips.run).toBe(plan.clips.gallop);
+    // (PLAYED as packed: every packed sample a key, and the played pose the key's own)
+    const fn = layeredClip(keys, R), at = keys.map((_, i) => rigNodesAt(R, fn(i / K)).nodes);
+    keys.forEach((k, i) => expect(Math.abs(rigNodesAt(R, k).nodes.knucklesR[2] - at[i].knucklesR[2]), `key ${i}`).toBeLessThan(1e-6));
+    const ground = -(M.speed * M.seconds) / K, foot = { RH: 'toeBaseR', LH: 'toeBaseL', RF: 'knucklesR', LF: 'knucklesL' };
+    const down = {};
+    for (const [id, n] of Object.entries(foot)) {
+      const z = at.map((x) => x[n][2]), z0 = Math.min(...z);
+      down[id] = z.map((v) => v < z0 + 0.004 * h);
+      // (ON THE FLOOR: in stance the foot stands on it; in swing it lifts clear)
+      expect(z0, id).toBeLessThan(0.03 * h); expect(Math.max(...z) - z0, id).toBeGreaterThan(0.015 * h);
+      // (ONE GROUND: from one stance key to the next the foot slides back at the ground's speed, never skating)
+      for (let i = 0; i < K; i++) if (down[id][i] && down[id][(i + 1) % K] && down[id][(i + 2) % K]) expect(at[(i + 1) % K][n][1] - at[i][n][1], `${id} ${i}`).toBeCloseTo(ground, 2);
+    }
+    // (THE BEAT: each forepaw down with the other side's hind foot, and the two diagonals half a stride apart)
+    for (const [f, hd] of [['RF', 'LH'], ['LF', 'RH']]) expect(down[f].filter((d, i) => d !== down[hd][i]).length, f).toBeLessThanOrEqual(2);
+    expect(down.LH.filter((d, i) => d === down.RH[i]).length).toBeLessThanOrEqual(2);
+    // (THE COLUMN: a standing foreleg nearly straight, its elbow never closing past 50°)
+    for (const [S, id] of [['R', 'RF'], ['L', 'LF']]) keys.forEach((k, i) => { if (down[id][i]) expect(k[`elbow${S}`], `${S} ${i}`).toBeLessThan(50); });
+    // (THE BOUNCE: the body lowest as the diagonals stand, the head nodding after it)
+    const hipZ = at.map((x) => x.hipR[2]);
+    expect(Math.max(...hipZ) - Math.min(...hipZ)).toBeGreaterThan(0.01 * h);
+    expect(new Set(keys.map((k) => k.neck.pitch)).size).toBeGreaterThan(2);
+    // FROM THE FRONT, in every key: each foot on its own side under its girdle, the head on the middle, its crown ahead
+    // of upright and its eyes looking forward
+    at.forEach((x, i) => {
+      for (const S of ['R', 'L']) { const sx = S === 'R' ? 1 : -1; expect(sx * x[`knuckles${S}`][0], `${S} ${i}`).toBeGreaterThan(0.05 * h); expect(sx * x[`toeBase${S}`][0], `${S} ${i}`).toBeGreaterThan(0.05 * h); }
+      expect(Math.abs(x.headTop[0]) + Math.abs(x.headBase[0]), `${i}`).toBeLessThan(0.03 * h);
+      const tip = (Math.atan2(x.headTop[1] - x.headBase[1], x.headTop[2] - x.headBase[2]) * 180) / Math.PI;
+      expect(tip, `${i}`).toBeGreaterThan(-5); expect(tip, `${i}`).toBeLessThan(35);
+      for (const S of ['R', 'L']) { const g = x[`eyeTip${S}`].map((v, a) => v - x[`eyeC${S}`][a]); expect(g[1] / Math.hypot(...g), `${S} ${i}`).toBeGreaterThan(0.5); }
+    });
+  });
 
   it('the attachment rule: every shape attached to the body or to something attached to it, a piece apart moved to it', () => {
     // (one species per family, chosen in code, as designed and at the gen7 tier: its shapes one piece once laid out)

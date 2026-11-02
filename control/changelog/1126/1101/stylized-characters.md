@@ -193,9 +193,43 @@ member, a quick game's hero). Code: `control/lib/graph/egocube/feature-tune.js`.
   (from under the chest, the elbow folded, to its full reach), and as that foot lifts so does the paw. The walk on all
   fours (`prowl`) is a four-beat lateral sequence, left hind, left fore, right hind, right fore; a paw in stance rests on
   the floor; the head looks ahead and the tail is carried. An animal that goes on all fours RUNS on them: its `run` clip
-  is the gallop; upright it only walks, slowly (`walk`). (A slow trot was tried and dropped.) The paws' solve had mixed
+  is the gallop; upright it only walks, slowly (`walk`). (A first slow trot was dropped; the trot below replaces it.) The paws' solve had mixed
   a unitless share to the side with metres, so a paw in stance stood a few centimetres off the floor: the share is now
   taken of the target's own length (the gallop's paws, too, now rest exactly on it).
+- **Keyed clips play their keys** (`station-loft-rig.js` `layeredClip`, every packed and exported clip). Two channels were
+  lost between a clip's keys and its packed frames:
+  - a `feet` target, an array, was blended into an object the rig reads as no target at all. So, played or exported,
+    no keyed gait's feet stepped: the mascots' walk and run, the walk on all fours and the gallop. The legs held their
+    rest while the body bobbed. Now a target blends as a point, and a key without one holds the other's;
+  - the waist: `resolvePose` turns `waist` into the raw `bend`, and the packer resolves a key twice, the second time
+    dropping it. On all fours the chest rode 5 to 11 cm higher than its keys and the paws left the floor. The raw
+    bend now flows through, as the raw spine and swivels do.
+  The laws and the solvers pose the keys themselves, so neither showed in a test. `station-loft-rig.clip.test.js` now
+  plays them.
+- **The trot on all fours, from the horse study's mechanics** (a `trot` clip, `FEATURE_TROT` in `feature-trot.js`;
+  `run` stays the gallop). The slow trot dropped before was laid on the biped run's paths, and its forelegs copied the
+  hind feet by a share of their reach. So its forepaws travelled about half as far as the hind feet in the same stance
+  and skated. This one is laid out as the horse study solves its gaits (`mount/`, branch 1102-horse-study), made
+  dimensionless:
+  - THE BEAT: a two-beat diagonal, each hind a moment before its fore (HILDEBRAND 1965, BACK 1995);
+  - THE STRIDE: the reference horse's trot (CLAYTON 1994, HEGLUND 1974) at one Froude number (`froude` 0.6, a jog),
+    scaled to the hip by dynamic similarity (Alexander & Jayes 1983) and cut to what the shorter pair of legs reaches.
+    A raccoon-sized mascot trots at about three strides a second;
+  - ONE GROUND: every planted foot, fore and hind, slides back at the one ground speed, so nothing skates. The swing
+    is laid between the stance it leaves and the one it lands in: a quintic C1 at both ends (the horse study's
+    `swingPath`), lifted by a bump peaking at 0.40 of the swing, the paw swung back to meet the ground;
+  - THE BOUNCE: the heave integrated from the feet's half-sine forces (z'' = g·(ΣF − 1), two dips a stride,
+    `bounce` 2.5 for the style), the trunk twisting between its girdles as the diagonals take the weight;
+  - FOLLOW-THROUGH: the nod and the tail's swish as damped pendulums driven by the heave (the horse study's `NECK`),
+    their frequency scaled to the leg;
+  - THE COLUMN: a stance foreleg stands near straight, as a horse's loaded elbow never closes far. These bodies' arms
+    were lengthened to reach the floor ahead, so they are longer than the shoulders are high. So the trunk is tipped up
+    over the hips until the shoulder stands `column` (0.97) of the arm over the floor, with the paw under it and the
+    head turned again to look ahead. The front then takes only `give` (a quarter) of the bounce, the hinge solved key
+    by key, and the haunches take the rest. The fox's stance elbow had swung 30 to 67°; it is now 14 to 45°;
+  - keyed at the packer's samples (12), so every packed frame is a key and nothing is blended between two;
+    `mascot.trot` carries the cycle's seconds, ground speed, stride and duty.
+  Every animal that goes on all fours trots (the leggy, barrel, wedge, pear and noodle silhouettes).
 - **The downward dog, facing forward** (a `downDog` clip, `FEATURE_DOG`, `dogOf`): the hips high, the hind legs as
   straight as the forepaws allow (bent only as far as they need to reach the floor), the trunk tipped past level and
   bent down at the waist (the rib ball under the pelvis ball), the forepaws straight out in front on the floor, the face
@@ -332,7 +366,12 @@ member, a quick game's hero). Code: `control/lib/graph/egocube/feature-tune.js`.
     forepaws on the floor straight ahead (no share to the side), the hind feet planted, the chest under the hips, the
     face ahead (`feature-body.test.js`);
   - the walk on all fours on the rig: each foreleg lifted a quarter cycle after its own side's hind leg, a paw in stance
-    on the floor; no trot; the `run` of an animal on all fours is its gallop;
+    on the floor; the `run` of an animal on all fours is its gallop;
+  - the trot, PLAYED as packed: every foot on the floor in stance and clear of it in swing, sliding back at the one
+    ground speed; each forepaw down with the other side's hind foot, the diagonals half a stride apart; a standing
+    foreleg's elbow under 50°; the body bouncing and the head nodding; and from the front, in every key, each foot on
+    its own side under its girdle, the head on the middle, its crown ahead of upright and its eyes looking forward;
+  - a keyed clip sampled at a key poses as the key (its feet's targets and its waist kept): `station-loft-rig.clip.test.js`;
   - the gallop on the rig: the run's cycle, the waist working, the forepaw travelling fore and aft and reaching the
     floor in some keys and through the air in others, the hind feet behind the hips, the face ahead and a little down in
     every key (never up), the tail's root at the rump (never up the back) and the tail held back near level and
