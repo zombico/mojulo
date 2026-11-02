@@ -427,7 +427,18 @@ GLB's baked ink (`bake: true`) cannot stencil: it leaves out only the outline of
   twist ±90 }`; + the back of the hand up, toward the thumb, palm down) and `fingersL` / `fingersR` (`relaxed`, `open`,
   `fist`, `point`, `grip`, degrees of curl −25 … 100 over the relaxed hand, or `{ thumb, index, middle, ring, little }`);
   the guard closes the fists, a hand holding gear grips it in every key, the wave opens the hand palm to the front. A
-  streamlined hero keeps its mitten and refuses those words. Hip armour hangs
+  HAND SHAPE is solved on this hero's own hand, digit by digit (a fingertip to a point, a finger closed onto the palm
+  or round a haft until it touches, each joint held to its range): `craneBeak` (`beak`: every tip meeting before the
+  hand), `tigerClaw` (`claw`), `swordFingers` (`sword`), `leopardFist` (`leopard`), `phoenixEye` (`phoenix`),
+  `verticalPalm` (`palm`, `flat`), `pinch`, `ok` (`okay`), `haft` (the fingers closed round a 16 mm haft); `fist`,
+  `point` and `grip` stay the hand words above. A digit may also be given JOINT BY JOINT, degrees over the relaxed hand
+  (+ closing, within ±120): a finger `{ mcp, pip, dip, spread }` (a `pip` alone brings the `dip` at two thirds;
+  `spread` + away from the middle finger), the thumb `{ cmc, toPalm, mcp, ip }` (`cmc` across the palm, `toPalm` in
+  toward it), e.g. `fingersR: { index: { mcp: 0, pip: 0, dip: 0 }, thumb: { cmc: 30, toPalm: 15 } }`. A clip that
+  mixes words, shapes and joints blends joint by joint. A minted hero's readout carries `layered.rig.servos` when a
+  clip key turns a joint past its stop (the shoulder's cone and rotation, the elbow, the wrist, a finger's or the
+  thumb's joints): each `{ clip, key, side, joint, value, range }`, advisory, nothing refused. A streamlined hero keeps
+  its mitten and refuses those words. Hip armour hangs
   from the pelvis, and every piece that stands off the thighs stands off it too. `core: 'streamlined'` (deprecated: said on
   the readout, and a hero naming it keeps the classic body) is the hero before it, byte for byte: one `pelvis` bone from the hub to the navel, the thigh lofts carrying the hips, the cast's
   legs, the five-ring torso, a bust only when the body names one (as two mounds). (A rig bone's `align` names two joints

@@ -103,16 +103,18 @@ export function handValue(R, n, v) {
  *   thumb    `curl`, `links: [cmc, mcp, ip]` or `cmc` (a number: the root's turn across the palm, the curl's own; or
  *            `[across, toPalm]`: and its turn TOWARD THE PALM, about the axis square to the root's hinge and the
  *            metacarpal, signed so + carries the tip in to the palm, and past its plane, the thumb laid back beside the
- *            hand; the curl's root turn alone keeps the tip 29–46 mm off the palm), `mcp`, `ip`
+ *            hand; the curl's root turn alone keeps the tip 29–46 mm off the palm), `toPalm` (that second turn as its own
+ *            number, the form a clip's keys blend: wideValue), `mcp`, `ip`
  * Every axis is the rig's own or read off its rest joints at pose time (the spread's normal signed by the hand's
  * deviation axis, + radial; the thumb's second axis by the index finger's closing): the rig's block is unchanged, and a
  * number or a word takes the curl's path exactly. A joint turned carries the digit's later hinges and its root's hinge
  * marker (the thumb's axis joint, a bone's aux), so the exported bones keep their roll. Unknown keys throw by name.
  */
 export const DIP_OF_PIP = 2 / 3;
-const FINGER_KEYS = Object.freeze(['curl', 'links', 'mcp', 'pip', 'dip', 'spread']), THUMB_KEYS = Object.freeze(['curl', 'links', 'cmc', 'mcp', 'ip']);
+const FINGER_KEYS = Object.freeze(['curl', 'links', 'mcp', 'pip', 'dip', 'spread']), THUMB_KEYS = Object.freeze(['curl', 'links', 'cmc', 'toPalm', 'mcp', 'ip']);
 const SPREAD_SIGN = Object.freeze({ index: 1, middle: 1, ring: -1, little: -1 });
-function wideDigit(R, H, pts, d, g, v, ch) {
+/** a wide digit object read: { a (each link's angle), spread, toPalm } */
+function parseDigit(g, d, v, ch) {
   const thumb = d === 'thumb', keys = thumb ? THUMB_KEYS : FINGER_KEYS;
   for (const k of Object.keys(v)) if (!keys.includes(k)) throw new Error(`station-loft-rig: ${ch}.${d}: no key '${k}' (have ${keys.join(', ')})`);
   const n = g.links.length, W = g.links.map((l) => l.weight);
@@ -121,8 +123,27 @@ function wideDigit(R, H, pts, d, g, v, ch) {
   const names = thumb ? ['cmc', 'mcp', 'ip'] : ['mcp', 'pip', 'dip'];
   let toPalm = 0;
   names.forEach((k, i) => { const x = v[k]; if (Array.isArray(x)) { if (Number.isFinite(x[0])) a[i] = x[0]; if (Number.isFinite(x[1])) toPalm = x[1]; } else if (Number.isFinite(x)) a[i] = x; });
+  // (`toPalm` as its own number: the thumb's second axis in a form a clip's blend carries, as an array's is not)
+  if (thumb && Number.isFinite(v.toPalm)) toPalm = v.toPalm;
   if (!thumb && n > 2 && (Number.isFinite(v.pip) || Number.isFinite(v.links?.[1])) && !Number.isFinite(v.dip) && !Number.isFinite(v.links?.[2])) a[2] = a[1] * DIP_OF_PIP;
   const spread = !thumb && Number.isFinite(v.spread) ? v.spread : 0;
+  return { a, spread, toPalm };
+}
+/**
+ * A digit's value (a number, a word's digit, or the wider hand's object) written in ONE EXPLICIT FORM that poses as it
+ * does, every joint named: a finger `{ mcp, pip, dip, spread }`, the thumb `{ cmc, toPalm, mcp, ip }` (numbers only). A
+ * clip whose keys share it blends joint by joint (station-loft-rig `layeredClip` blends numbers, a missing one as 0, and
+ * would read an array as a plain object).
+ */
+export function wideValue(R, S, d, value = 0) {
+  const g = R.hands?.[S]?.digits?.[d];
+  if (!g) throw new Error(`station-loft-rig: no digit '${d}' on hand ${S}`);
+  const v = typeof value === 'number' ? { curl: value } : value || {}, { a, spread, toPalm } = parseDigit(g, d, v, `fingers${S}`);
+  const r = (x) => Math.round(x * 1e6) / 1e6 + 0;
+  return d === 'thumb' ? { cmc: r(a[0]), toPalm: r(toPalm), mcp: r(a[1] ?? 0), ip: r(a[2] ?? 0) } : { mcp: r(a[0]), pip: r(a[1] ?? 0), dip: r(a[2] ?? 0), spread: r(spread) };
+}
+function wideDigit(R, H, pts, d, g, v, ch) {
+  const thumb = d === 'thumb', n = g.links.length, { a, spread, toPalm } = parseDigit(g, d, v, ch);
   const ax = g.links.map((l) => [...(l.axis ?? g.axis)]), root = g.links[0].pivot, p0 = [...pts[root]];
   // the root's hinge marker (a bone headed at the root whose aux starts there: the thumb's axis joint) turns with the digit
   const marker = R.bones.find((b) => b.head === root && b.aux?.[0] === root)?.aux?.[1];

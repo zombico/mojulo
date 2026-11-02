@@ -40,6 +40,7 @@ import { westernExpressionErrors, resolveWesternExpression } from './humanoid-he
 import { SWING_WORDS, isSwing } from './hero-swing.js';
 import { AURA_NAMES, heroAura, auraBody } from './hero-aura.js';
 import { HAND_POSES, DIGITS } from './hero-hand.js';
+import { HAND_SHAPE_WORDS } from './hand-shape-words.js';
 import * as dmath from '../../util/dmath.js';
 
 const deepFreeze = (o) => { for (const v of Object.values(o)) if (v && typeof v === 'object') deepFreeze(v); return Object.freeze(o); };
@@ -112,7 +113,8 @@ export const GESTURE_KEYS = ['support', 'crouch', 'spine', 'pelvis', 'hinge', 's
 export const CLIP_KEYS = [...GESTURE_KEYS, 'lift', 'jaw'];
 /** The hand's words, on a hero whose hand has a wrist and digits (the structured core, hero-hand.js): `wristL` / `wristR`
  * (flex, or { flex, deviation, twist }, degrees) and `fingersL` / `fingersR` (a curl in degrees over the relaxed rest,
- * a curl per digit, or a hand word). */
+ * a curl per digit, a hand word, a HAND SHAPE (hero-digits.js: crane beak, tiger claw … solved on the hero's own rig,
+ * withHandShapes), or a digit joint by joint, the wider hand's object). */
 export const HAND_KEYS = ['wristL', 'wristR', 'fingersL', 'fingersR'];
 export const HAND_WORDS = Object.keys(HAND_POSES);
 /** Words the pose language knows that move nothing on this rig (said by name when refused). */
@@ -128,8 +130,12 @@ function directionErrors(v, label) {
 /** the ranges a gesture's numbers must sit in (degrees, or an amount 0 … 1), and a door clip's heel (degrees), lift
  * (metres, 0 … 1) and jaw (degrees, the jawOpen dial's 0 … 25): wide enough for any pose the rig solves, narrow enough
  * that a stray number (a 720° swivel, a curl of 1e6) is refused by name instead of minting a wild pose */
-const RANGE = { girdle: 45, hinge: [-30, 90], look: 90, swivel: 180, heel: 90, lift: [0, 1], jaw: [0, 25], stance: [0.5, 3], stagger: [-1, 1], flex: 70, deviation: 30, twist: 90, curl: [-25, 100] };
+const RANGE = { girdle: 45, hinge: [-30, 90], look: 90, swivel: 180, heel: 90, lift: [0, 1], jaw: [0, 25], stance: [0.5, 3], stagger: [-1, 1], flex: 70, deviation: 30, twist: 90, curl: [-25, 100], joint: 120 };
 const inRange = (x, [lo, hi]) => fin(x) && x >= lo && x <= hi;
+/** a digit given joint by joint (the wider hand: station-loft-rig.js `fingers<S>` objects), its keys and numbers checked */
+const WIDE_KEYS = { finger: ['curl', 'links', 'mcp', 'pip', 'dip', 'spread'], thumb: ['curl', 'links', 'cmc', 'toPalm', 'mcp', 'ip'] };
+const wideDigitOk = (d, x) => isObj(x) && !Array.isArray(x) && Object.keys(x).length > 0 && Object.entries(x).every(([k, y]) => WIDE_KEYS[d === 'thumb' ? 'thumb' : 'finger'].includes(k)
+  && (k === 'links' || (k === 'cmc' && Array.isArray(y)) ? Array.isArray(y) && y.length >= 1 && y.length <= (k === 'cmc' ? 2 : 3) && y.every((z) => inRange(z, [-RANGE.joint, RANGE.joint])) : inRange(y, [-RANGE.joint, RANGE.joint])));
 const anglesErrors = (v, label, keys, lim) => (isObj(v) && Object.keys(v).length && Object.entries(v).every(([k, x]) => keys.includes(k) && inRange(x, [-lim, lim])) ? [] : [`${label}: { ${keys.join(', ')} } in degrees, each within ±${lim}`]);
 
 /** Error strings for one gesture object (empty = valid) — or, with `clip` ({ jaw, face, expression }), one KEY of a door
@@ -172,7 +178,7 @@ function gestureObjectErrors(g, label, clip = null, hands = false) {
     else if (k === 'stance') { if (!inRange(v, RANGE.stance)) errs.push(`${at}: the planted feet's spread, a multiple of the hip joints' own (1: each ankle under its hip), ${RANGE.stance[0]} … ${RANGE.stance[1]}`); }
     else if (k === 'stagger') { if (!inRange(v, RANGE.stagger)) errs.push(`${at}: + the left foot forward and the right back (a share of the leg's height, split between them), ${RANGE.stagger[0]} … ${RANGE.stagger[1]}`); }
     else if (k === 'wristL' || k === 'wristR') { if (!(inRange(v, [-RANGE.flex, RANGE.flex]) || (isObj(v) && Object.keys(v).length && Object.entries(v).every(([a, x]) => ['flex', 'deviation', 'twist'].includes(a) && inRange(x, [-RANGE[a], RANGE[a]]))))) errs.push(`${at}: degrees of flex (+ the back of the hand up), within ±${RANGE.flex}, or { flex, deviation, twist } (+ toward the thumb within ±${RANGE.deviation}, + palm down within ±${RANGE.twist})`); }
-    else if (k === 'fingersL' || k === 'fingersR') { if (!(inRange(v, RANGE.curl) || HAND_WORDS.includes(v) || (isObj(v) && Object.keys(v).length && Object.entries(v).every(([d, x]) => DIGITS.includes(d) && inRange(x, RANGE.curl))))) errs.push(`${at}: a hand word (${HAND_WORDS.join(', ')}), degrees of curl over the relaxed hand (${RANGE.curl[0]} … ${RANGE.curl[1]}, + closing), or { ${DIGITS.join(', ')} } each in degrees`); }
+    else if (k === 'fingersL' || k === 'fingersR') { if (!(inRange(v, RANGE.curl) || HAND_WORDS.includes(v) || HAND_SHAPE_WORDS.includes(v) || (isObj(v) && Object.keys(v).length && Object.entries(v).every(([d, x]) => DIGITS.includes(d) && (inRange(x, RANGE.curl) || wideDigitOk(d, x)))))) errs.push(`${at}: a hand word (${HAND_WORDS.join(', ')}), a hand shape (${HAND_SHAPE_WORDS.join(', ')}), degrees of curl over the relaxed hand (${RANGE.curl[0]} … ${RANGE.curl[1]}, + closing), or { ${DIGITS.join(', ')} } each in degrees or each joint its own (a finger { mcp, pip, dip, spread }, the thumb { cmc, toPalm, mcp, ip }; degrees over the relaxed hand, + closing, within ±${RANGE.joint})`); }
     else if (k === 'heelL' || k === 'heelR') { if (!inRange(v, [-RANGE.heel, RANGE.heel])) errs.push(`${at}: degrees the metatarsus turns about the toe base, within ±${RANGE.heel}`); }
     else if (k === 'lift') { if (!inRange(v, RANGE.lift)) errs.push(`${at}: metres the root rises off the floor, ${RANGE.lift[0]} … ${RANGE.lift[1]} (both feet free)`); }
     else if (k === 'jaw') { if (!clip.jaw) errs.push(`${at}: this head has no jaw bone (the landmark head has one; the anime head's mouth is /hero/expression), so the clip refuses it`); else if (!inRange(v, RANGE.jaw)) errs.push(`${at}: degrees the jaw opens, ${RANGE.jaw[0]} … ${RANGE.jaw[1]} (the jawOpen dial's range)`); }
