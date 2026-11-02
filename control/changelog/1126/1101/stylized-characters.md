@@ -255,10 +255,11 @@ member, a quick game's hero). Code: `control/lib/graph/egocube/feature-tune.js`.
     push off), the body riding over it. Solved on the rig as the least sink each standing leg needs, smoothed to the
     stride's low harmonics, its dips exaggerated (`bob`);
   - THE WADDLE: the body swung over the foot that bears it, an inverted pendulum driven by the feet's double-hump forces
-    (the horse study's sway, MERKENS 1993's walk), so the wide-hipped round bodies sway furthest (about 6% of the
-    height). The trunk leans over the bearing foot, the pelvis turns with the reaching leg and the chest against it;
-  - FOLLOW-THROUGH: the arms swing against the legs, a little late, each turned about its own side so it still clears
-    the belly; the head nods after the bob. The tail is as designed, since standing it is not carried;
+    (the horse study's sway, MERKENS 1993's walk), so the wider the feet are set the further it swings. The walking feet
+    are set closer in than the standing stance (`track`, 0.72 of it), so the sway is about 4.5% of the height. The trunk
+    leans over the bearing foot, the pelvis turns with the reaching leg and the chest against it;
+  - FOLLOW-THROUGH: the arms swing well fore and aft against the legs (`arms.swing` 0.5), a little late, each turned
+    about its own side so it still clears the belly; the head nods after the bob. The tail is as designed, since standing it is not carried;
   - keyed at the packer's 12 samples. `mascot.walk` carries the cycle's seconds, ground speed, stride and duty. The
     walk on all fours (`prowl`) still takes the mascot walk's paths.
 - **The downward dog, facing forward** (a `downDog` clip, `FEATURE_DOG`, `dogOf`): the hips high, the hind legs as

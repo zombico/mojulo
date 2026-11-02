@@ -176,7 +176,8 @@ laid out with the trot's tools:
 - the body vaulting over the standing leg (kept `column` straight, as the style stands; it breaks at the knee only to
   push off): solved on the rig and smoothed, highest as the leg passes under the hip, its dips exaggerated by `bob`;
 - the WADDLE: the body swung over the foot that bears it, an inverted pendulum driven by the feet's forces (the horse
-  study's sway), so the wider the hips the further it swings. The trunk leans over it (`lean`), the pelvis turns with
+  study's sway), so the wider the feet are set the further it swings. The walking feet are set closer in than the
+  standing stance (`track`). The trunk leans over it (`lean`), the pelvis turns with
   the reaching leg and the chest against it;
 - the arms swing against the legs, late, each turned about its own side so it still clears the belly, and the head
   nods after the bob. The tail is as designed, since standing it is not carried.

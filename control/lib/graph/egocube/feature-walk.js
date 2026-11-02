@@ -15,7 +15,7 @@
  *                 walked), smoothed to the stride's low harmonics, `bob` exaggerating its dips.
  *   THE WADDLE    a standing foot pushes the body along itself, away from it (an inverted pendulum, the horse study's
  *                 sway: x'' = (g/h)·Σ F·(x − x_foot), each foot's force the walk's double hump, MERKENS 1993): the body
- *                 swings over the foot that bears it, the wider the hips the further; the trunk leaning over it
+ *                 swings over the foot that bears it, the wider the feet are set (`track`) the further; the trunk leaning over it
  *                 (`lean`), the pelvis turning with the leg that reaches (`pelvis`) and the chest against it (`twist`).
  *   FOLLOW-THROUGH the arms swing against the legs, late (`arms`, a share of a stride behind); the head nods after the
  *                 bob and the tail answers it, the trot's pendulums.
@@ -35,12 +35,13 @@ const r4 = (x) => Math.round(x * 1e4) / 1e4 + 0;
  *  straight); `lift` the swing's clearance (a share of the leg) and `peak` where in the swing it is highest; `impact` the
  *  share of the ground's speed a foot matches before it lands; `bob` the vault's dips exaggerated; `sway` the waddle's
  *  exaggeration (× the inverted pendulum's), `lean` the trunk's lean over the bearing foot (spine units at full sway),
- *  `pelvis` and `twist` the pelvis's and the chest's turns (degrees, spine units), `arms` the arms' swing (aim units) and
+ *  `pelvis` and `twist` the pelvis's and the chest's turns (degrees, spine units), `track` how far
+ *  from the mid-plane the walking feet are set, a share of where the standing feet are (closer in: a smaller waddle), `arms` the arms' swing (aim units) and
  *  its lag (a share of a stride); `nod` and `swish` the pendulums (degrees at most); `keys` the packer's samples. */
 export const FEATURE_WALK = Object.freeze({
   duty: 0.6, froude: 0.15, cadence: 0.85, leg0: 0.9, slower: 0.7, vault: 0.05, column: 0.995, lift: 0.12, peak: 0.45, impact: 0.7,
-  bob: 1.4, sway: 0.8, lean: 0.08, pelvis: 6, twist: 0.08,
-  arms: Object.freeze({ swing: 0.32, lag: 0.06 }),
+  bob: 1.4, sway: 0.8, lean: 0.08, pelvis: 6, twist: 0.08, track: 0.72,
+  arms: Object.freeze({ swing: 0.5, lag: 0.06 }),
   nod: Object.freeze({ most: 5, lag: 0.08 }), swish: Object.freeze({ most: 8, lag: 0.15 }),
   keys: 12,
 });

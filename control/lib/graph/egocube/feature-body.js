@@ -550,8 +550,9 @@ function walked(plan, W = FEATURE_WALK) {
   const span = Math.sqrt(Math.max(0, col * col - dx * dx - (Math.min(H, col) - W.vault * leg) ** 2));
   const M = walkMeasures({ leg, span, trot: plan.mascot.trot?.speed ?? null }, W);
   if (M.stance < 0.02 * h) return;
-  const S = walkSignals(M, { lift: W.lift * leg, footX: Math.abs(n0.toeBaseR[0]), h: n0.hipR[2] }, W), K = W.keys;
-  const at = (side) => [n0[`toeBase${side}`][0], n0[`hip${side}`][1] - meta[1], floor];
+  // (the feet set closer in than the standing stance, `track` of it: the narrower they walk, the less they waddle)
+  const S = walkSignals(M, { lift: W.lift * leg, footX: W.track * Math.abs(n0.toeBaseR[0]), h: n0.hipR[2] }, W), K = W.keys;
+  const at = (side) => [W.track * n0[`toeBase${side}`][0], n0[`hip${side}`][1] - meta[1], floor];
   // (an arm swung forward or back about its own side: its share out kept, so it clears the belly as it stands)
   const swung = (a, s) => { const y = a.y + W.arms.swing * s, z2 = Math.max(0.05, 1 - a.x * a.x - y * y); return { x: a.x, y: r4(y), z: r4(-Math.sqrt(z2)) }; };
   const keyAt = (i, drop) => {
