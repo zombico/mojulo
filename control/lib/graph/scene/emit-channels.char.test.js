@@ -356,6 +356,11 @@ const sha = (s) => createHash('sha256').update(s).digest('hex');
 // arena's client posts its outcome with the wire's `contractVersion`, which the play shell requires to apply it (it
 // refused every match's outcome before); the contest kernel the court, turns, pitch, meet and innings inline takes a
 // ladder's `tiebreak` (tennis's set at six all). No other page inlines an arena client or the kernel.
+// Re-pinned 2026-11-02 (the book tells the truth): every fixture that embeds the controllable runtime, and every capture
+// page. The follow camera's pull-in (follow-pull-in.js, inlined by its source) stands the eye half a metre off a wall
+// instead of the 3 m stand-off, never farther out than the open line (with nothing in the way it frames as before); a
+// capture page's view() hands out the level's background colour and its controllable bodies (the first-frame gate reads
+// both). A live page with no follow camera is unchanged.
 
 describe('emitThreeWorld characterization (byte-level pin over the fixture matrix)', () => {
   it.each(EMIT_FIXTURES.map(([name]) => name))('%s emits byte-identically', (name) => {

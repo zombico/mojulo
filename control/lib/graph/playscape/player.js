@@ -24,6 +24,7 @@
  */
 import { lowerIdioms, compose } from '../worlds/game-idioms.js';
 import { resolveObject } from './objects/index.js';
+import { HERO_CHASE } from './hero-chase.js';
 
 /** The move set's own clips. A wind-up crouch (the platform rule plays it for `jumpWindup` seconds, its phase the
  *  depth) and the flight (held for the whole jump: legs tucked, arms thrown up). */
@@ -161,7 +162,7 @@ export function playerWorld({ hero, heroRef, gaits, id = 'hero', library: lib = 
       body: { type: 'figure-rig', figure: id },
       transform: { pos: [0, -4, 0], heading: Math.PI / 2 },
     }],
-    camera: { rule: 'follow', target: id, ...(pilot ? pilot.camera : { dist: 5.5, height: 2.4, lookH: 1.1, lead: 1.5 }) },
+    camera: { rule: 'follow', target: id, ...(pilot ? pilot.camera : HERO_CHASE) },
     ...(legend ? { events: compose(...lowerIdioms([{ kind: 'legend', text: legend, slot: 'bottom', ttl: 12 }])) } : {}),
   };
 }

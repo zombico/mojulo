@@ -29,7 +29,7 @@ import { HERO_FIELDS } from './layered.js';
 import { LAWS_VERSION } from '@/lib/graph/equipment/expand.js';
 import {
   GAMEWORLD_KIND, isGameworldKind, gameworldOf, readGameworld, resolveBook, reviewState, approve as approveWorldPart, reviewParts,
-  characterState, characterReady, approveCharacter, CHARACTER_PART_IDS, CAST_PART, fingerprint, pinBase, revisionLookup, runSteps, heroRefOf, decide, childRef, storyReport, landAdvice,
+  characterState, characterReady, approveCharacter, keepApproval, CHARACTER_PART_IDS, CAST_PART, fingerprint, pinBase, revisionLookup, runSteps, heroRefOf, decide, childRef, storyReport, landAdvice,
   castable, foeState, foeParts, approveFoe, castingCall,
 } from '@/lib/graph/gameworld/index';
 import { sameness, grounding, authorship, compareWorlds, REFERENCES } from '@/lib/graph/gameworld/advice.js';
@@ -83,10 +83,13 @@ const handEdited = (world, lookup) => !!(world.made?.hero && lookup?.head && fin
 const storedPrint = (ref) => { const row = SketchRepository.getByRef(ref); return row ? fingerprint(row.manifest) : null; };
 const headRev = (ref) => (SketchRevisionRepository.head(ref)?.rev ?? 0) + 1;
 
-/** The world with the hero's base pinned (the looks page holds the pin). */
+/** The world with the hero's base pinned (the looks page holds the pin). An approval of the base that stood on the book
+ * as it was (given before the first mint, or before a remake of what was approved) is kept on what the run made from
+ * it (character-review.js keepApproval): the pin is the run carrying out the approved page, not a change to review. */
 function withPin(world, pin) {
   const hero = world.characters.hero ?? {};
-  return { ...world, characters: { ...world.characters, hero: { ...hero, looks: { ...(hero.looks ?? {}), base: pin } } } };
+  const pinned = { ...world, characters: { ...world.characters, hero: { ...hero, looks: { ...(hero.looks ?? {}), base: pin } } } };
+  return keepApproval(world, pinned, 'hero:base');
 }
 
 /** the steps a hero is made for, through the hero door (hero-mint.js): the book's hero and cast, a quick game's figures
@@ -512,7 +515,14 @@ async function afterWrite(ref, { approve, revise, note, run, force, compare, bef
   }
   const full = { ...readout(ref, W, context), ...(await fightReadout(W)) };
   // a run's levels on their opening frame (machine gate, game/first-frame-check.js): { first_frame } or nothing
-  const eyes = await firstFrameReadout(W, ran);
+  const { record: framed, ...eyes } = await firstFrameReadout(W, ran);
+  // each level's verdict kept in the run's record beside the row it judged: a later run gates only what changed
+  if (framed) {
+    const made = { ...W.made };
+    for (const [k, frame] of Object.entries(framed)) if (made[k]) made[k] = { ...made[k], frame };
+    W = { ...W, made };
+    await updateSketchHandler({ ref, manifest: { kind: GAMEWORLD_KIND, ...W } });
+  }
   // the run that made (or remade) the game completed it: the whole share offer rides this call, once
   const completed = W.made?.game && ran?.some((r) => r.key === 'game' && (r.action === 'make' || r.action === 'remake'));
   const share = completed ? { share: shareForContext(context, { ref: W.made.game.ref }) } : {};

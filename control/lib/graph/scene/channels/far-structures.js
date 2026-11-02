@@ -17,7 +17,8 @@
 //                 inside the level, and its finer cards wait for baking ahead of the eye
 //   the ladder    a tile is live while any of it is inside the cone's reach, or its card's texel (its width over
 //                 `texels`) is over `px` pixels at its distance; past both, its card. The aerial camera draws all of it
-//                 live, as before
+//                 live, as before. With the page's air (channels/atmosphere.js), a tile whose top lies past the air's
+//                 cull is neither: the fog has taken it
 //
 // `window.__formStructures()` → { tiles, cards, batches } what is drawn now.
 export const FAR_STRUCTURES = Object.freeze({ tile: 16, most: 128, cell: 2, ground: 0.5, tall: 60, bearings: 8, texels: Object.freeze([64, 96]), px: 1, step: 0.5 });
@@ -112,12 +113,17 @@ export function farStructuresScript() {
     cdm.customProgramCacheKey = () => 'far-structure-card-depth';
     const cards = new THREE.Mesh(cg, cm); cards.customDepthMaterial = cdm; cards.castShadow = cards.receiveShadow = true; cards.frustumCulled = false; cards.userData.ink = true; scene.add(cards);
     // (each frame, after the cone has its eye: the ladder again when the eye has moved, the reach or the mode changed)
-    let at = null, nCards = 0;
+    // (and with the page's air, channels/atmosphere.js, a tile whose top the air has taken is neither: not drawn)
+    let at = null, nCards = 0, nTaken = 0;
     const ladder = (pov) => {
-      nCards = 0;
+      nCards = 0; nTaken = 0;
+      const AIR = window.__mojAir && window.__mojAir.taken ? window.__mojAir : null;
       for (const t of L) {
-        const d = Math.hypot(t.cx - CO.eye.x, t.cy - CO.eye.y) - t.R, card = pov && d > CO.reach && t.texel / (CO.px * Math.max(d, 0.1)) < (CO.grain || FS.px);
-        if (card !== t.card) { t.card = card; for (const [B, id] of t.ids) B.setVisibleAt(id, !card); }
+        const dx = t.cx - CO.eye.x, dy = t.cy - CO.eye.y, hl = Math.hypot(dx, dy), d = hl - t.R, k = hl > 1e-6 ? Math.max(0, d) / hl : 0;
+        const gone = !!AIR && AIR.taken(CO.eye.z, dx * k, dy * k, t.hi - CO.eye.z);
+        const card = !gone && pov && d > CO.reach && t.texel / (CO.px * Math.max(d, 0.1)) < (CO.grain || FS.px), live = !gone && !card;
+        if (live !== (t.live ?? true)) { t.live = live; for (const [B, id] of t.ids) B.setVisibleAt(id, live); }
+        t.card = card; if (gone) nTaken++;
         if (card) { aT.set([t.cx, t.cy, t.lo, 0], nCards * 4); aS.set([t.R, t.H, t.row], nCards * 3); nCards++; }
       }
       cg.instanceCount = nCards; cg.getAttribute('aTile').needsUpdate = cg.getAttribute('aSize').needsUpdate = true;
@@ -137,10 +143,11 @@ export function farStructuresScript() {
       for (const P of pairs) if (P[1].material !== P[2] && P[1].visible) { P[0].material = P[1].material; P[0].visible = true; P[1].visible = false; swapped.push(P); }
       if (!cam.isPerspectiveCamera) return;
       const pov = CO.reach < 1e5 && (!window.__formFar || window.__formFar.pov()) && (!window.__formFarField || window.__formFarField.on);
-      if (at && at.pov === pov && Math.abs(at.reach - CO.reach) < 0.5 && at.eye.distanceTo(CO.eye) < FS.step) return;
-      at = { pov, reach: CO.reach, eye: CO.eye.clone() }; ladder(pov);
+      const fog = scene.fog ? scene.fog.density : 0;
+      if (at && at.pov === pov && at.fog === fog && Math.abs(at.reach - CO.reach) < 0.5 && at.eye.distanceTo(CO.eye) < FS.step) return;
+      at = { pov, fog, reach: CO.reach, eye: CO.eye.clone() }; ladder(pov);
     };
-    window.__formStructures = () => ({ tiles: L.length, cards: nCards, batches: batches.length });
+    window.__formStructures = () => ({ tiles: L.length, cards: nCards, taken: nTaken, batches: batches.length });
   })();
 `;
 }

@@ -108,7 +108,9 @@ export function lowerFeel(card, { gear = null } = {}) {
   if (J.coyote != null) put('jump.coyote', 'coyote', r4(J.coyote / FPS));
   if (J.buffer != null) put('jump.buffer', 'buffer', r4(J.buffer / FPS));
   if (J.air != null) put('jump.air', 'airControl', J.air);
-  if (J.commit > 0) { put('jump.commit', 'jumpWindup', r4((J.commit + 0.5) / FPS)); if (J.cut < 1) half('jump.commit', 'a jump let go during its gather: the card\'s goes full height (the cut reads the rise), the runtime\'s is cut at once'); }
+  // (a card with no gather says so: 0, never absent, or the hero's own wind-up, playscape/player.js, survives under it)
+  put('jump.commit', 'jumpWindup', J.commit > 0 ? r4((J.commit + 0.5) / FPS) : 0);
+  if (J.commit > 0 && J.cut < 1) half('jump.commit', 'a jump let go during its gather: the card\'s goes full height (the cut reads the rise), the runtime\'s is cut at once');
   rule.jumpCut = J.cut >= 1 ? v0 : r4(v0 * J.cut);
   if (J.cut < 1) half('jump.cut', 'the runtime caps the rise at a release where the card scales it: a tap hops within a few per cent of the card\'s shortest hop, a release late in the rise is cut less');
   else carried.push('jump.cut');
