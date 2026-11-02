@@ -348,3 +348,14 @@ its resource, put on a look and showed a toast. This theme makes them act.
   now drawn from these styles' locked builds (`compose-dress.js`). Each is filled to its piece's size, turned to face
   into the room, and keeps its own finish, in place of the boxes. Barrels, sacks, crates, the hearth, the bed and the
   workbench stay boxes for now.
+- **A reference party RPG, Hollin Vale.** `design_game({ example: 'hollin-vale' })` makes it, the test asset for the
+  gameworld's town, folk, battles and shops (`gameworld/examples.js`). Where the book can decide, it names no preset id:
+  - **The town's builders:** written as their language's elements (lime-rendered rubble, a hipped red tile roof,
+    round-headed lights under keystones), so its walls follow from them (loopholed render, square towers under hipped
+    roofs).
+  - **The hill fort:** belongs to an older people with their own language and their own fort.
+  - **The look:** the art direction is a palette in words over a morning cube.
+  - **The cast:** the hero, the party of four, the packs (the raiders beastfolk) and the feel are the book's own.
+
+  Its hub, Hollin, is the walled street every way leads back to: the shop walked into, two houses entered at their
+  doors, the town's people in it.
