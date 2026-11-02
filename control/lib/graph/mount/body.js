@@ -63,11 +63,11 @@ const smax = (a, b, k) => { const h = Math.max(k - Math.abs(a - b), 0) / k; retu
  */
 export const HEAD_PROFILE = Object.freeze([
   [0.00, 0.035, -0.100, 0.085],
-  [0.08, 0.050, -0.190, 0.095],
-  [0.16, 0.060, -0.230, 0.105],
-  [0.26, 0.062, -0.245, 0.110],
-  [0.36, 0.058, -0.215, 0.100],
-  [0.46, 0.054, -0.175, 0.086],
+  [0.08, 0.050, -0.205, 0.095],
+  [0.16, 0.060, -0.255, 0.105],
+  [0.26, 0.062, -0.275, 0.110],
+  [0.36, 0.058, -0.240, 0.100],
+  [0.46, 0.054, -0.190, 0.086],
   [0.56, 0.050, -0.148, 0.073],
   [0.66, 0.046, -0.132, 0.065],
   [0.76, 0.041, -0.120, 0.061],
@@ -160,7 +160,7 @@ export function bodyPrims(B) {
     put(egg(at(f, (t + b) / 2), hdir, X, [gap * hl * 1.6, wide * hh, ((t - b) / 2) * hh], head(i >= HP.length - 3 ? 'muzzle' : 'body')));
   }
   for (const s of [1, -1]) {
-    put(egg(at(0.24, -0.125, s * 0.066), hdir, X, [0.105 * hh, 0.05 * hh, 0.10 * hh], head('body', 'jaw')));    // the jowl
+    put(egg(at(0.23, -0.145, s * 0.064), hdir, X, [0.11 * hh, 0.055 * hh, 0.115 * hh], head('body', 'jaw')));    // the jowl: deep and round
     put(egg(at(0.29, 0.032, s * 0.076), hdir, X, [0.05 * hh, 0.024 * hh, 0.022 * hh], head()));                  // the brow: a ridge, not a knob
     put(egg(at(0.945, -0.035, s * 0.046), hdir, X, [0.03 * hh, 0.012 * hh, 0.026 * hh], head('muzzle')));       // the nostril's rim
   }
