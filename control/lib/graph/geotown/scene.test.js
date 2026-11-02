@@ -372,3 +372,19 @@ describe('a school and a sports field drawn loud: the grounds as they lie, their
     expect(bays(X)).toBeGreaterThan(bays(A));
   });
 });
+
+describe('a park and its playground drawn loud: its paths slabbed, its things each its own ink', () => {
+  const at = (ex) => assembleGeotownScene({ kind: 'geocube', cube: ex ? { from: 'valley-morning', exaggerate: { from: 'street', lean: 0, kit: { lean: 0, chunk: 1 } } } : 'valley-morning', show: 'geotown', seed: 3, geotown: { segment: 'park', hills: { height: 2 } } });
+  const A = at(false), X = at(true), fills = (S, g) => new Set(S.faces.filter((f) => f.group === g).map((f) => f.fill));
+  it('lays its paths in slabs over the land as it lies, its paths\' own ground as it was', () => {
+    const paths = (S) => JSON.stringify(S.faces.filter((f) => f.group === 'geotown:park-path').map((f) => f.corners));
+    expect(paths(X)).toBe(paths(A));
+    expect(X.faces.filter((f) => f.group === 'geotown:slab').length).toBeGreaterThan(A.faces.filter((f) => f.group === 'geotown:slab').length);
+  });
+  it('paints its playground\'s parts and its benches each their own', () => {
+    const play = (S) => new Set(['geotown:timber', 'geotown:deck', 'geotown:canopy', 'geotown:slide', 'geotown:metal'].flatMap((g) => [...fills(S, g)]));
+    expect(play(X).size).toBeGreaterThan(play(A).size);
+    expect(X.faces.some((f) => f.group === 'geotown:mat')).toBe(true);
+    expect(fills(X, 'geotown:seat').size).toBeGreaterThan(1);
+  });
+});

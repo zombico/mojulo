@@ -47,6 +47,11 @@
   court its own ink never the last one's, each row of the bleachers its own, the diamond's dirt orange, the lines, bases
   and goals paper, the field house its own hue under its own roof; the floodlights and the flagpole round masts (a toon
   one bent under a lamp bank or a flag too big), the lot's cars toy cars.
+  Its PARKS: their paths laid in skewed pastel slabs over the land as it lies; each bench its own ink, never the last
+  one's; the pavilion's posts, roof, slab and tables each its own; the playground's parts each its own ink (the tower's
+  posts, its deck, its canopy, its slide, the swings' frame, their seats) on a rubber mat of pastel slabs over its
+  chips, and in the toon register exaggerated and incongruent: the canopy's peak too tall, the slide run out too long,
+  the swings' frame too high.
 - **The street's doodads round** (`geotown/doodads.js`), a cube's exaggerate drawing them: a hydrant on its flange with
   its barrel, domed bonnet and nozzles; a bin a drum under its lid; a post box a pillar under its dome and slot band; a
   streetlight a tapered standard on its collar, its arm and its bell; a sign's and a signal's posts round. In the cube's

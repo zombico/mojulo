@@ -86,6 +86,24 @@ const FINISH_SEEDS = { 'fence-board': 163, 'fence-brick': 165, 'fence-stone': 16
 // a design's eave (its walls' top) and its top, in its own frame (a loud pair's second half is raised over the eave)
 const dz0Eave = (dz) => dz.dims.n * dz.dims.storeyH;
 const dz0Top = (dz) => Math.max(...dz.faces.map((f) => Math.max(...f.corners.map((c) => c[2]))));
+/** A loud playground: its parts each its own ink (the tower's posts, its deck, its canopy, its slide, the swings'
+ *  frame, their seats), and in a toon register (`D`) exaggerated and incongruent: the canopy's peak too tall, the slide
+ *  run out too long from the deck, the swings' frame too high. Its parts stand where they stood. → { faces, paint } */
+function loudPlayground(fs, D, R, pop) {
+  const pick = inkPicker(R, pop), inks = { timber: pick('post'), deck: pick('deck'), canopy: pick('canopy'), slide: pick('slide'), metal: pick('swing'), seat: pick('seat') };
+  let faces = fs;
+  if (D) {
+    const slide = fs.find((f) => f.role === 'slide'), top = slide ? slide.corners.reduce((a, c) => (c[2] > a[2] ? c : a)) : null;
+    const swingTop = Math.max(...fs.filter((f) => f.role === 'metal').flatMap((f) => f.corners.map((c) => c[2])), 0);
+    faces = fs.map((f) => {
+      if (f.role === 'canopy') return { ...f, corners: f.corners.map(([u, v, z]) => [u, v, z > 3.25 ? 3.2 + (z - 3.2) * D.head * 1.3 : z]) };
+      if (f.role === 'slide' && top) return { ...f, corners: f.corners.map(([u, v, z]) => (z < top[2] - 0.2 ? [top[0] + (u - top[0]) * D.reach * 1.2, v + (u - top[0]) * D.bend * 0.25, z] : [u, v, z])) };
+      if (f.role === 'metal' && swingTop) return { ...f, corners: f.corners.map(([u, v, z]) => [u, v, z * (0.85 + 0.35 * D.height)]) };
+      return f;
+    });
+  }
+  return { faces, paint: (f) => inks[f.role] ?? null };
+}
 /** A loud site's painter: each of its things by what it is (null: as it was): the pitch's stripes and the turf in two
  *  greens, the track a candy ring, each court its own ink never the last one's, each row of seats its own, the dirt
  *  orange, the lines, bases and goals paper, the field house's walls a hue and its roof, doors and the flag inks. */
@@ -912,6 +930,9 @@ export function assembleGeotownScene(m, ctx = {}) {
       const cx = (xs[i] + xs[i + 1]) / 2, cy = (ys[j] + ys[j + 1]) / 2, path = B.paths.some((r) => inRect(r, cx, cy));
       put([[xs[i], ys[j]], [xs[i + 1], ys[j]], [xs[i + 1], ys[j + 1]], [xs[i], ys[j + 1]]].map(([x, y]) => [x, y, z(x, y)]), path ? 'geotown:park-path' : 'geotown:park', path ? col['park-path'] : col.park);
     }
+    // (a loud park's paths laid in skewed pastel slabs over them, each its neighbour's other tint: street-loud.js; a
+    // crossing path's a hair over the other's)
+    if (HY) B.paths.forEach((r, k) => { for (const sl of slabsOf(r, r[2] - r[0] >= r[3] - r[1] ? 'x' : 'y', (x, y) => z(x, y) + 0.004 * k, { skew: 0.35, pop: 0.7 }, col['park-path'], streamOf(seed, 'park-slabs', `${B.id}:${k}`))) put(sl.corners, 'geotown:slab', sl.hex); });
     // its trees, loose, clear of its paths and a little in from its edges
     const R = streamOf(seed, 'green', `park:${B.id}`), want = Math.round(((x1 - x0) * (y1 - y0) / 10000) * P.grow.park);
     for (let k = 0, tries = 0; k < want && tries < want * 12; tries++) {
@@ -933,11 +954,11 @@ export function assembleGeotownScene(m, ctx = {}) {
     // (a loud site, the cube's exaggerate.homes: its things each painted by what they are, geotown/front-loud.js's inks)
     const LS = HY ? siteLoud(streamOf(seed, 'site-loud', B.id), HY.pop) : null;
     // a thing in the site's frame, on its ground (a park's at the land under its middle)
-    const thing = (fs, z0 = null) => {
+    const thing = (fs, z0 = null, over = null) => {
       for (const f of fs) {
         const o = f.out, want = unit([St.ex[0] * o[0] + St.ey[0] * o[1], St.ex[1] * o[0] + St.ey[1] * o[1], o[2]]);
         const cs = f.corners.map(([u, v, z]) => { const [x, y] = Wl(u, v); return [x, y, (z0 ?? zOf(u, v)) + z]; });
-        put(cs, `geotown:${f.role}`, (LS && LS(f)) ?? f.hex ?? col[f.role] ?? col.metal, want);
+        put(cs, `geotown:${f.role}`, (over && over(f)) ?? (LS && LS(f)) ?? f.hex ?? col[f.role] ?? col.metal, want);
         claim(cs, f.role, o);
       }
     };
@@ -946,16 +967,32 @@ export function assembleGeotownScene(m, ctx = {}) {
     const building = (r, fs, of) => { const z0 = mid(r); thing(fs, z0); const q = box2(r); colliders.push({ min: P3([q[0], q[1], z0]), max: P3([q[2], q[3], z0 + 5]), of: `${B.id}:${of}:house` }); };
     if (park) {
       // (its chips laid on the land, its play things on their highest point)
-      if (w.playground) { const [chips, ...rest] = playgroundOf(w.playground, Rs); thing([chips]); thing(rest, mid(w.playground)); }
-      if (w.pavilion) building(w.pavilion, pavilionOf(w.pavilion), 'pavilion');
+      // (a loud park's playground: each of its parts its own ink, its chips a rubber mat of pastel slabs; a toon one's
+      // canopy too tall, its slide too long and its swings too high: loudPlayground)
+      if (w.playground) {
+        const [chips, ...rest] = playgroundOf(w.playground, Rs);
+        thing([chips]);
+        if (HY) { const r = w.playground; for (const sl of slabsOf(r, r[2] - r[0] >= r[3] - r[1] ? 'x' : 'y', () => 0.035, { skew: 0.45, pop: 0.9 }, '#d9c2a0', streamOf(seed, 'mat', B.id))) thing([{ corners: sl.corners, out: [0, 0, 1], role: 'mat', hex: sl.hex }]); }
+        const P9 = HY ? loudPlayground(rest, TOON ? dials('playground', ...Wl(w.playground[0], w.playground[1])) : null, streamOf(seed, 'play-ink', B.id), HY.pop) : null;
+        thing(P9 ? P9.faces : rest, mid(w.playground), P9 ? P9.paint : null);
+      }
+      if (w.pavilion) {
+        // (a loud pavilion: its posts, its roof, its slab and its tables each its own ink)
+        const pi = HY ? inkPicker(streamOf(seed, 'pavilion-ink', B.id), HY.pop) : null, inks = pi ? { timber: pi('post'), roof: pi('roof'), paving: popHex('#f2e2c8', HY.pop * 0.5) } : null;
+        const fs = pavilionOf(w.pavilion), z0 = mid(w.pavilion);
+        thing(fs, z0, inks ? (f) => (f.role === 'timber' && Math.max(...f.corners.map((c) => c[2])) < 1.2 ? pi('table') : inks[f.role] ?? null) : null);
+        const q = box2(w.pavilion); colliders.push({ min: P3([q[0], q[1], z0]), max: P3([q[2], q[3], z0 + 5]), of: `${B.id}:pavilion:house` });
+      }
       // benches along the paths, a side each by turns, clear of the crossing
+      let benchInk = null;
       for (const p of w.paths) {
         const along = p[2] - p[0] >= p[3] - p[1] ? 'u' : 'v', [a0, a1] = along === 'u' ? [p[0], p[2]] : [p[1], p[3]], c = along === 'u' ? (p[1] + p[3]) / 2 : (p[0] + p[2]) / 2, half = (along === 'u' ? p[3] - p[1] : p[2] - p[0]) / 2;
         let k = 0;
         for (let s = a0 + 6; s < a1 - 6; s += P.sites.park.bench) {
           const side = k++ % 2 ? 1 : -1, cu = along === 'u' ? s : c + side * (half + 0.6), cv = along === 'u' ? c + side * (half + 0.6) : s;
           if (Math.hypot(cu - St.L / 2, cv - St.D / 2) < 8) continue;
-          thing(benchOf(cu, cv, along, -side), zOf(cu, cv));
+          // (a loud park's benches each its own ink, never the last one's)
+          { const bh = HY ? (benchInk ??= inkPicker(streamOf(seed, 'bench-ink', B.id), HY.pop))('bench') : null; thing(benchOf(cu, cv, along, -side), zOf(cu, cv), bh ? (f) => (f.role === 'seat' ? bh : null) : null); }
         }
       }
       continue;
