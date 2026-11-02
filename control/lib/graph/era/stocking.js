@@ -113,3 +113,32 @@ export function stockLaws(plan, items, openings) {
   out.push({ id: 'stocked', ok: !empty.length, says: empty.length ? `${empty.slice(0, 6).join(', ')}${empty.length > 6 ? ` and ${empty.length - 6} more` : ''}: none of its stock fits` : 'every room holds its stock' });
   return out;
 }
+
+/**
+ * A TOWN'S BUILDINGS' STOCK (the vernacular register, gameworld town interiors): what a pre-modern shop, hall, tavern,
+ * house and workshop hold, by its room's role (programs.js: a shop's shopfloor, backroom, store and office; a hall's
+ * porch, hall, dais and vestry; a tavern's taproom, kitchen, snug, cellar and store; a house's hall, kitchen, hearth,
+ * chamber and pantry; a workshop's workfloor, bench and store), laid as a base building's is (compose-dress.js layProps);
+ * TOWN_GREAT the great object a use stands at its landmark's focus.
+ */
+export const TOWN_STOCK = Object.freeze({
+  shopfloor: [['counter', [1, 1], 'centre'], ['shelves', [2, 3], 'wall'], ['barrel', [1, 2], 'wall'], ['sack', [1, 3], 'wall']],
+  backroom: [['shelves', [1, 2], 'wall'], ['crate', [2, 3], 'wall'], ['barrel', [1, 2], 'wall']],
+  store: [['shelves', [1, 2], 'wall'], ['sack', [2, 4], 'wall'], ['barrel', [2, 3], 'wall'], ['crate', [1, 2], 'wall']],
+  office: [['table', [1, 1], 'centre'], ['chest', [1, 1], 'wall'], ['shelves', [1, 1], 'wall']],
+  porch: [['settle', [1, 2], 'wall']],
+  hall: [['long-table', [1, 2], 'centre'], ['settle', [1, 2], 'wall'], ['hearth', [0, 1], 'wall']],
+  dais: [['high-seat', [1, 1], 'centre'], ['chest', [0, 1], 'wall']],
+  vestry: [['chest', [1, 2], 'wall'], ['shelves', [1, 1], 'wall']],
+  taproom: [['counter', [1, 1], 'wall'], ['table', [2, 3], 'centre'], ['barrel', [2, 3], 'wall'], ['settle', [1, 2], 'wall']],
+  snug: [['table', [1, 1], 'centre'], ['settle', [1, 2], 'wall']],
+  kitchen: [['hearth', [1, 1], 'wall'], ['table', [1, 1], 'centre'], ['barrel', [1, 2], 'wall'], ['shelves', [0, 1], 'wall']],
+  cellar: [['barrel', [3, 5], 'wall'], ['crate', [1, 2], 'wall']],
+  pantry: [['shelves', [1, 2], 'wall'], ['sack', [1, 2], 'wall'], ['barrel', [1, 1], 'wall']],
+  hearth: [['hearth', [1, 1], 'wall'], ['table', [1, 1], 'centre'], ['settle', [1, 1], 'wall']],
+  chamber: [['bed', [1, 2], 'wall'], ['chest', [1, 1], 'wall']],
+  workfloor: [['workbench', [1, 2], 'wall'], ['barrel', [1, 2], 'wall'], ['crate', [1, 2], 'wall']],
+  bench: [['workbench', [1, 1], 'wall'], ['shelves', [0, 1], 'wall']],
+});
+export const TOWN_GREAT = Object.freeze({ hall: 'long-table', tavern: 'hearth', dwelling: 'hearth' });
+

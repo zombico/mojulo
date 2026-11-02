@@ -52,6 +52,7 @@ import { stepsLift } from './out-openings.js';
 import { townLanguage } from './out-town.js';
 import { streetSpan, layStreet } from './stage-street.js';
 import { streetWalls } from './stage-walls.js';
+import { registerPalette, registerConstruction, CONSTRUCTIONS } from './style/bay-axes.js';
 import { fortOfLanguage } from './out-fortress.js';
 import { outTrailOf } from './out-trail-board.js';
 import { slabOf } from './solid.js';
@@ -209,7 +210,8 @@ export function streetLots(town, kitId, seed0, solid = false) {
 }
 function townStreet(town, kitId, seed0, solid = false) {
   if (!town || typeof town !== 'object') throw new Error('stage: town is { anchor?, seed?, houses?, enter?, goal?, recipe?, paint?, street? }');
-  for (const k of Object.keys(town)) if (!['anchor', 'seed', 'houses', 'enter', 'goal', 'doors', 'walk', 'walls', 'recipe', 'paint', 'dress', 'street'].includes(k)) throw new Error(`stage: town.${k} is not a setting (anchor, seed, houses, enter, goal, doors, walk, walls, recipe, paint, dress, street)`);
+  for (const k of Object.keys(town)) if (!['anchor', 'seed', 'houses', 'enter', 'goal', 'doors', 'walk', 'walls', 'inside', 'recipe', 'paint', 'dress', 'street'].includes(k)) throw new Error(`stage: town.${k} is not a setting (anchor, seed, houses, enter, goal, doors, walk, walls, inside, recipe, paint, dress, street)`);
+  if (town.inside !== undefined && !(town.inside === true || (town.inside && typeof town.inside === 'object' && !Array.isArray(town.inside)))) throw new Error('stage: town.inside is true (its walked-in buildings laid as a town\'s, the vernacular register: rendered walls under beams, furnished by each room\'s role) or { palette }');
   if (town.walls !== undefined && !(town.walls === true || typeof town.walls === 'string' || (town.walls && typeof town.walls === 'object'))) throw new Error('stage: town.walls is true (the town\'s own, from its building language), a fortification\'s id (crenellated, battered), { seed }, or its elements: a gatehouse at each end of the street, its curtain behind the houses');
   if (town.walls !== undefined && !town.street) throw new Error('stage: town.walls closes the street: give the town its street (town.street: true)');
   if (town.walk !== undefined && !(Array.isArray(town.walk) && town.walk.every((u) => typeof u === 'string'))) throw new Error('stage: town.walk is the uses walked into as part of the world (a shop: [\'shop\']), the rest of those entered changing the scene at their door');
@@ -224,10 +226,46 @@ function townStreet(town, kitId, seed0, solid = false) {
   return lots.map(({ l }, n) => (n < enter
     ? (town.doors !== false && DOOR_USES.has(l.use) && !(town.walk ?? []).includes(l.use)
       ? { id: `town-${l.use}-${n + 1}`, use: l.use, lot: l, enter: 'door', seed: seed + n, civilization: anchor }
-      : { id: `town-${l.use}-${n + 1}`, use: l.use, seed: seed + n, civilization: anchor, ...(town.goal && n === 0 ? { goal: true } : {}) })
+      : { id: `town-${l.use}-${n + 1}`, use: l.use, seed: seed + n, civilization: anchor, ...(town.goal && n === 0 ? { goal: true } : {}), ...insideLook(town, kitId, seed) })
     : { id: `town-${l.use}-${n + 1}`, use: l.use, lot: l }));
 }
 
+// (a town's walked-in buildings laid as a town's, `town.inside`: the vernacular register composed, its palette the
+// town's where it names one; absent, the room kit as before)
+const insideLook = (town, kitId, seed) => (town.inside ? { kit: 'bay-vernacular', look: { construction: insideConstruction(kitId, town, seed), palette: (town.inside === true ? null : town.inside.palette) ?? insidePalette(kitId, town) } } : {});
+// the town's interiors built as its houses are: the vernacular construction with its walls in the language's own
+// materials (a timbered town's boards, a stone town's ashlar, a plastered one's lime render) and its windows the
+// language's lights (their width, their sill and their height), leaded small, registered under its print
+function insideConstruction(kitId, town, seed) {
+  const L = townLanguage(structureStyle(kitId, seed), town.anchor), V = CONSTRUCTIONS.vernacular;
+  const D = (cut, metres, o) => ({ dressed: { cut, ...o }, metres });
+  const ofGroup = (g, bond) => (g === 'str:timber' ? D('boards', 2.4, { cols: 8, grit: 0.35 }) : g === 'str:stone' ? D('ashlar', 3, bond === 'rubble' ? { rows: 6, cols: 5, grit: 0.5 } : { rows: 5, cols: 4, grit: 0.4 })
+    : g === 'str:plaster' ? D('render', 3, { rows: 4, cols: 3, grit: 0.3, loss: 0.04 }) : D('stucco', 3, { cols: 2, rows: 2, grit: 0.3 }));
+  const storeys = L.values?.storeys ?? [], walls = [...new Map(storeys.map((st) => [st.group, ofGroup(st.group, st.bond ?? L.bonds?.[0])])).values()];
+  if (walls.length < 2) walls.push(D('stucco', 3, { cols: 2, rows: 2, grit: 0.3 }));
+  const Lt = L.elements?.lights ?? {}, cl = (v, a, b, d0) => Math.max(a, Math.min(b, Number.isFinite(v) ? v : d0)), sill = cl(Lt.sill, 0.6, 1.2, 0.9);
+  const spec = { ...V, surfaces: { ...V.surfaces, wall: walls }, shell: { ...V.shell, glass: { ...V.shell.glass, punched: { w: cl(Lt.w, 0.6, 1.4, 0.9), sill, head: Math.round((sill + cl(Lt.h, 1.0, 1.8, 1.2)) * 100) / 100 } } } };
+  let h = 2166136261; const t = JSON.stringify(spec); for (let i = 0; i < t.length; i++) h = Math.imul(h ^ t.charCodeAt(i), 16777619);
+  return registerConstruction(`vernacular-${(h >>> 0).toString(36)}`, spec);
+}
+// the town's interiors in the town's own colours: its houses' plaster, stone, timber and tile as its exterior is painted
+// (paintFor: the kit's, or the cube's where it paints the stage), made into the vernacular register's palette and
+// registered under its print (style/bay-axes.js registerPalette)
+function insidePalette(kitId, town) {
+  const P = paintRaw(kitId, town.paint), rgb = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
+  const k = (c, f) => c.map((v) => Math.max(0, Math.min(255, Math.round(v * f)))), mix = (a, b, t) => a.map((v, i) => Math.round(v * (1 - t) + b[i] * t));
+  const plaster = rgb(P('str:plaster', 0.88)), stone = rgb(P('str:stone', 0.6)), timber = rgb(P('str:timber', 0.42)), board = rgb(P('str:timber', 0.62)), tile = rgb(P('str:tile', 0.55));
+  const sw = (c, f = 0.7) => ({ stone: c, mortar: k(c, f) });
+  const spec = {
+    ambient: '#4a4036',
+    floor: [sw(mix(stone, [140, 134, 124], 0.3), 0.62), sw(board, 0.66)], band: [sw(k(stone, 0.92), 0.66)], hazard: [sw(timber)],
+    base: [sw(k(stone, 0.85), 0.72)], wall: [sw(plaster, 0.9), sw(mix(plaster, tile, 0.12), 0.9), sw(stone, 0.72)],
+    crown: [sw(timber)], column: [sw(timber)], paint: [sw(mix(tile, plaster, 0.35))], services: [sw(timber)], cabinet: [sw(board)], trim: [sw(k(timber, 0.92))],
+    ceiling: [sw(board, 0.68), sw(plaster, 0.9)], soffit: [sw(board, 0.68)], concrete: [sw(stone, 0.7)], beam: [sw(k(timber, 0.9))], grate: [sw(board, 0.62)], infill: [sw(board, 0.62)],
+  };
+  let h = 2166136261; const t = JSON.stringify(spec); for (let i = 0; i < t.length; i++) h = Math.imul(h ^ t.charCodeAt(i), 16777619);
+  return registerPalette(`town-${(h >>> 0).toString(36)}`, spec);
+}
 const quad = (corners, group, fill) => ({ corners: corners.map(P3), group, fill, cornerFills: [fill, fill, fill, fill].slice(0, corners.length) });
 const sub3 = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
 const cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];

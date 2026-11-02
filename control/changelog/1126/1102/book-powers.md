@@ -312,3 +312,27 @@ its resource, put on a look and showed a toast. This theme makes them act.
   tile over plaster, and towers crowned as its houses are roofed (square towers under hips, drums under cones or
   domes) in its roofs' cover. Naming a fortification still chooses one. The composed hub is walled; absent, a street
   is as it was.
+- **A town's buildings inside** (the scene composer's vernacular register; a street's `inside`). A town building
+  walked into was laid on the stone room kit with its crypt dressing (moss, rubble, candles, niches, a gutter), so a
+  shop looked like a dungeon. The scene composer's registers were all modern, and nothing furnished a room by what it
+  is for.
+  - **The vernacular register** (`era/style/bay-axes.js`): lime-rendered or stone walls over a stone socle, boarded
+    ceilings on timber beams, timber posts and wall-plates, flagged or boarded floors, small glazed windows letting in
+    the day, warm lamplight. A construction may now lay no air (`air: false`: no ducts, vents or returns).
+  - **Furnished by role** (`era/stocking.js TOWN_STOCK`): each room by its role, from new pieces.
+    - the shop floor: a counter, shelves of goods, barrels and sacks;
+    - the hall: long tables with their benches, a settle, the dais's high seat;
+    - the tavern: a counter, tables, barrels and settles;
+    - a house: its kitchen's hearth, its chamber's bed and chest;
+    - the work floor: workbenches.
+    A town's building holds none of a game's set pieces (no prize on a pedestal, no find, no sign).
+  - **Built as the town's houses are:** each town's interior is a construction made from its building language,
+    registered under its print (`registerConstruction`), so the inside and the outside are one style library.
+    - Its walls are in the language's own materials: a timbered town's boards, a stone town's ashlar, a plastered
+      one's lime render.
+    - Its windows are the language's lights (their width, sill and height), glazed in crown glass between lead cames
+      (`glass:crown-leaded`, a bay window's `cames`), not modern float glass, and with no glints.
+  - **The town's own colours:** a palette made from the town's exterior paint (its houses' plaster, stone, timber and
+    tile, the cube's where a geocube paints the stage), registered under its print (`registerPalette`). No preset.
+  - **The street's `inside: true`:** lays its walked-in buildings so. The composed hub's are. A keeper kept inside
+    stands behind the counter at the room's middle. Absent, a street is as it was.

@@ -23,7 +23,7 @@
  */
 import { box, r5 } from './geom.js';
 import { STAIR_PROFILES } from '../construction/circulation.js';
-import { STOCK, GREAT, EXTINGUISHER, roleOf, stockLaws } from './stocking.js';
+import { STOCK, GREAT, EXTINGUISHER, roleOf, stockLaws, TOWN_STOCK, TOWN_GREAT } from './stocking.js';
 
 const B = (u0, u1, v0, v1, z0, z1, s) => [u0, u1, v0, v1, z0, z1, s];
 export const PIECES = Object.freeze({
@@ -74,15 +74,36 @@ export const PIECES = Object.freeze({
   find: { class: 'crate', w: 0.8, d: 0.5, h: 0.45, parts: [B(0, 0.8, 0, 0.5, 0, 0.4, 'paint'), B(0.02, 0.78, 0.02, 0.48, 0.4, 0.45, 'trim')] },
   prize: { class: 'set-piece', w: 0.9, d: 0.9, h: 1.45, parts: [B(0, 0.9, 0, 0.9, 0, 1.0, 'concrete'), B(0.2, 0.7, 0.25, 0.65, 1.0, 1.4, 'paint'), B(0.18, 0.72, 0.23, 0.67, 1.4, 1.45, 'trim')] },
   sign: { class: 'sign', w: 1.4, d: 0.06, h: 0.5, solid: false, parts: [B(0, 1.4, 0, 0.06, 0, 0.5, 'paint')] },
+  // A TOWN'S FURNITURE (the vernacular register: stocking.js TOWN_STOCK): boards and timber (`cabinet` the boards, `beam`
+  // the dark timber), stone (`concrete`), cloth and goods (`paint`)
+  counter: { class: 'bench', w: 2.6, d: 0.75, h: 1.0, parts: [B(0, 2.6, 0, 0.75, 0.94, 1.0, 'beam'), B(0.04, 2.56, 0.04, 0.2, 0.08, 0.94, 'cabinet'), B(0.04, 2.56, 0.04, 0.71, 0, 0.08, 'beam'),
+    B(0.04, 0.12, 0.2, 0.71, 0.08, 0.94, 'cabinet'), B(2.48, 2.56, 0.2, 0.71, 0.08, 0.94, 'cabinet'), B(0.12, 2.48, 0.5, 0.71, 0.45, 0.5, 'cabinet'), B(0.3, 0.6, 0.55, 0.7, 1.0, 1.18, 'paint'), B(1.9, 2.3, 0.5, 0.7, 1.0, 1.12, 'paint')] },
+  shelves: { class: 'rack', w: 1.8, d: 0.45, h: 2.1, parts: [B(0, 0.06, 0, 0.45, 0, 2.1, 'beam'), B(1.74, 1.8, 0, 0.45, 0, 2.1, 'beam'), B(0.06, 1.74, 0, 0.04, 0.1, 2.05, 'cabinet'),
+    ...[0.12, 0.62, 1.12, 1.62, 2.06].map((z) => B(0.06, 1.74, 0, 0.45, z, z + 0.04, 'cabinet')),
+    B(0.15, 0.55, 0.08, 0.4, 0.16, 0.5, 'paint'), B(0.7, 1.0, 0.1, 0.38, 0.16, 0.42, 'paint'), B(1.15, 1.6, 0.08, 0.4, 0.66, 0.98, 'paint'), B(0.2, 0.7, 0.1, 0.38, 1.16, 1.42, 'paint'), B(1.0, 1.5, 0.08, 0.4, 1.66, 1.98, 'paint')] },
+  barrel: { class: 'barrel', w: 0.62, d: 0.62, h: 0.86, stack: 1, parts: [['prism', 0.31, 0.31, 0.27, 0, 0.86, 10, 'cabinet'], ['prism', 0.31, 0.31, 0.31, 0.18, 0.24, 10, 'beam'], ['prism', 0.31, 0.31, 0.31, 0.62, 0.68, 10, 'beam']] },
+  sack: { class: 'crate', w: 0.55, d: 0.45, h: 0.6, stack: 2, parts: [B(0.02, 0.53, 0.02, 0.43, 0, 0.5, 'paint'), B(0.12, 0.43, 0.1, 0.35, 0.5, 0.6, 'paint')] },
+  table: { class: 'bench', w: 1.6, d: 0.9, h: 0.76, parts: [B(0, 1.6, 0, 0.9, 0.7, 0.76, 'cabinet'), B(0.06, 0.14, 0.06, 0.14, 0, 0.7, 'beam'), B(1.46, 1.54, 0.06, 0.14, 0, 0.7, 'beam'),
+    B(0.06, 0.14, 0.76, 0.84, 0, 0.7, 'beam'), B(1.46, 1.54, 0.76, 0.84, 0, 0.7, 'beam'), B(0.3, 0.55, 0.3, 0.55, 0.76, 0.86, 'paint')] },
+  'long-table': { class: 'bench', w: 3.6, d: 1.9, h: 0.78, parts: [B(0, 3.6, 0.5, 1.4, 0.72, 0.78, 'cabinet'), B(0.15, 0.25, 0.55, 1.35, 0, 0.72, 'beam'), B(3.35, 3.45, 0.55, 1.35, 0, 0.72, 'beam'), B(0.25, 3.35, 0.9, 1.0, 0.2, 0.28, 'beam'),
+    B(0, 3.6, 0.05, 0.38, 0.42, 0.47, 'cabinet'), B(0, 3.6, 1.52, 1.85, 0.42, 0.47, 'cabinet'), B(0.2, 0.28, 0.1, 0.33, 0, 0.42, 'beam'), B(3.32, 3.4, 0.1, 0.33, 0, 0.42, 'beam'), B(0.2, 0.28, 1.57, 1.8, 0, 0.42, 'beam'), B(3.32, 3.4, 1.57, 1.8, 0, 0.42, 'beam')] },
+  settle: { class: 'bench', w: 1.8, d: 0.5, h: 1.1, parts: [B(0, 1.8, 0.05, 0.5, 0.42, 0.47, 'cabinet'), B(0, 1.8, 0, 0.06, 0.42, 1.1, 'cabinet'), B(0, 0.06, 0, 0.5, 0, 0.75, 'beam'), B(1.74, 1.8, 0, 0.5, 0, 0.75, 'beam'), B(0.06, 1.74, 0.06, 0.5, 0, 0.42, 'cabinet')] },
+  'high-seat': { class: 'set-piece', w: 0.9, d: 0.8, h: 1.6, parts: [B(0, 0.9, 0, 0.8, 0, 0.12, 'concrete'), B(0.05, 0.85, 0.05, 0.75, 0.12, 0.55, 'cabinet'), B(0.05, 0.85, 0, 0.12, 0.55, 1.6, 'beam'), B(0, 0.1, 0.05, 0.75, 0.55, 0.85, 'beam'), B(0.8, 0.9, 0.05, 0.75, 0.55, 0.85, 'beam'), B(0.15, 0.75, 0.12, 0.7, 0.55, 0.62, 'paint')] },
+  bed: { class: 'bench', w: 2.1, d: 1.1, h: 0.95, parts: [B(0, 2.1, 0, 1.1, 0.25, 0.35, 'beam'), B(0.05, 2.05, 0.05, 1.05, 0.35, 0.55, 'paint'), B(0, 0.08, 0, 1.1, 0, 0.95, 'beam'), B(2.02, 2.1, 0, 1.1, 0, 0.6, 'beam'), B(0.1, 0.5, 0.15, 0.95, 0.55, 0.66, 'paint')] },
+  chest: { class: 'crate', w: 1.0, d: 0.55, h: 0.6, parts: [B(0, 1, 0, 0.55, 0, 0.5, 'cabinet'), B(0, 1, 0, 0.55, 0.5, 0.6, 'beam'), B(0.45, 0.55, 0.55, 0.57, 0.3, 0.45, 'trim')] },
+  hearth: { class: 'set-piece', w: 2.2, d: 0.9, h: 2.6, parts: [B(0, 0.45, 0, 0.9, 0, 1.5, 'concrete'), B(1.75, 2.2, 0, 0.9, 0, 1.5, 'concrete'), B(0.45, 1.75, 0, 0.2, 0, 1.5, 'trim'), B(0, 2.2, 0, 0.9, 1.5, 1.7, 'beam'),
+    B(0.3, 1.9, 0, 0.7, 1.7, 2.6, 'concrete'), B(0.5, 1.7, 0.2, 0.75, 0, 0.12, 'concrete'), B(0.8, 1.4, 0.35, 0.6, 0.12, 0.35, 'paint')] },
+  workbench: { class: 'bench', w: 2.0, d: 0.8, h: 0.9, parts: [B(0, 2, 0, 0.8, 0.82, 0.9, 'beam'), B(0.05, 0.15, 0.05, 0.75, 0, 0.82, 'beam'), B(1.85, 1.95, 0.05, 0.75, 0, 0.82, 'beam'), B(0.15, 1.85, 0.1, 0.7, 0.25, 0.3, 'cabinet'), B(0.3, 0.8, 0.2, 0.6, 0.9, 1.05, 'trim'), B(1.2, 1.7, 0.3, 0.55, 0.9, 0.98, 'paint')] },
 });
 export const PIECE_SETS = Object.freeze({
   military: Object.freeze(['crate', 'ammo-can', 'drum', 'tool-chest']),
   utility: Object.freeze(['rack', 'drum', 'cart', 'crate']),
   science: Object.freeze(['bench', 'instrument-rack', 'fume-hood', 'cart']),
   everyday: Object.freeze(['desk', 'filing', 'locker', 'cart']),
+  vernacular: Object.freeze(['barrel', 'crate', 'sack', 'chest']),
 });
 export const SET_PIECES = Object.freeze({
-  'great-object': Object.freeze({ military: 'generator', utility: 'press', science: 'centrifuge', everyday: 'sculpture' }),
+  'great-object': Object.freeze({ military: 'generator', utility: 'press', science: 'centrifuge', everyday: 'sculpture', vernacular: 'hearth' }),
   find: 'find', prize: 'prize', sign: 'sign',
 });
 // how many clusters a room's role takes (a passage is left clear), and a dark mood's clutter in a dead end
@@ -146,7 +167,7 @@ export function footprintOf(it) {
 
 /** The default dressing of a composed plan: a set piece at each focus its role names, clusters along the walls. */
 export function layProps(plan) {
-  const C = plan.compose, reg = C.axes.dressing, set = PIECE_SETS[reg], keep = keepOuts(plan), items = [];
+  const C = plan.compose, reg = C.axes.dressing, set = PIECE_SETS[reg], keep = keepOuts(plan), items = [], town = reg === 'vernacular';
   const off = (plan.kit?.B?.pilaster?.out ?? 0.1) + 0.05;
   const free = (r, mn, mx) => mn[0] >= r.x0 + 0.05 && mx[0] <= r.x1 - 0.05 && mn[1] >= r.y0 + 0.05 && mx[1] <= r.y1 - 0.05
     && !keep.some((k) => k.room === r.id && hits(k, mn, mx))
@@ -216,8 +237,10 @@ export function layProps(plan) {
     const r = plan.rooms.find((x) => x.id === R.room), dice = mulberry32(hashOf(`props|${r.id}`));
     // the set piece its role names: at the focus a great object, a find, a prize; over the way on, a sign
     // (a base building's great object is its use's own, stocking.js GREAT, or none: an armoury's core is no generator hall)
-    const sp = R.setPiece && (R.setPiece === 'great-object' ? (plan.use ? GREAT[plan.use] : SET_PIECES['great-object'][reg]) : SET_PIECES[R.setPiece]);
-    if (sp && sp !== 'sign') {
+    const sp = R.setPiece && (R.setPiece === 'great-object' ? (plan.use ? (town ? TOWN_GREAT[plan.use] : GREAT[plan.use]) : SET_PIECES['great-object'][reg]) : SET_PIECES[R.setPiece]);
+    // (a town's building keeps none of a game's set pieces: no prize on its pedestal, no find, no sign; its great object
+    // its use's own)
+    if (town && sp && sp !== TOWN_GREAT[plan.use]) { /* none */ } else if (sp && sp !== 'sign') {
       // (a great object as great as its room: scaled from the room's short side, a quarter at a time, but never past half
       // its height nor a third of its short side, so it stands in the room and does not fill it)
       const P0 = PIECES[sp], short = Math.min(r.x1 - r.x0, r.y1 - r.y0), most = Math.min(3, (0.5 * r.h) / P0.h, (0.3 * short) / Math.max(P0.w, P0.d));
@@ -235,7 +258,7 @@ export function layProps(plan) {
       const at = tries.map(([ax, ay]) => [r5(it.at[0] + ax), r5(it.at[1] + ay)]).find(ok);
       if (at) items.push({ ...it, at });
     }
-    if (sp === 'sign') {
+    if (!town && sp === 'sign') {
       // (over the way on: on the wall nearest the focus, facing into the room)
       const f = R.focus, ds = { '-x': f[0] - r.x0, '+x': r.x1 - f[0], '-y': f[1] - r.y0, '+y': r.y1 - f[1] }, side = Object.keys(ds).reduce((a, b) => (ds[b] < ds[a] ? b : a));
       const X = side.endsWith('x'), facing = side.startsWith('-') ? `+${side[1]}` : `-${side[1]}`, v = side.startsWith('-') ? (X ? r.x0 : r.y0) + 0.05 : (X ? r.x1 : r.y1) - 0.05;
@@ -243,11 +266,12 @@ export function layProps(plan) {
     }
     // a military base's building (plan.use): each room its stock (stocking.js) in place of the register's clusters, and
     // an extinguisher by each of its doorways; a room the tables do not stock (a corridor, a core) holds none of it
+    // (a town's building, the vernacular register: its room's role's stock, stocking.js TOWN_STOCK; no extinguisher)
     if (plan.use) {
-      const lines = STOCK[roleOf(r.id)];
+      const lines = (town ? TOWN_STOCK : STOCK)[roleOf(r.id)];
       if (lines) {
         // (the extinguishers first: the safety kit claims its place by the doors before the stock fills the walls)
-        layExtinguishers(r);
+        if (!town) layExtinguishers(r);
         const sd = mulberry32(hashOf(`stock|${r.id}`));
         for (const [kind, [lo, hi], where] of lines) layStock(r, kind, lo + Math.floor(sd() * (hi - lo + 1)), where, sd);
       }

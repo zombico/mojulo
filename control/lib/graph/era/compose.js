@@ -18,7 +18,7 @@
  *
  * The words are data: a new register, or a new value on an axis, adds its words here and is read like the rest.
  */
-import { CONSTRUCTIONS, PALETTES, PLOTS, DRESSINGS, REGISTER_PRESETS } from './style/bay-axes.js';
+import { CONSTRUCTIONS, PALETTES, PLOTS, DRESSINGS, REGISTER_PRESETS, axisHas } from './style/bay-axes.js';
 import { MOODS, MOOD_IDS, BEAT_IDS } from './compose-plot.js';
 import { DEGREE_IDS } from '../playscape/destruct/breakability.js';
 
@@ -98,7 +98,7 @@ function readIntent(c) {
   if (c.destruction !== undefined && !DEGREE_IDS.includes(c.destruction)) throw new Error(`stage: compose.destruction is ${DEGREE_IDS.join(', ')}`);
   if (c.mood !== undefined && !MOOD_IDS.includes(c.mood)) throw new Error(`stage: compose.mood is ${MOOD_IDS.join(', ')}`);
   if (c.register !== undefined && !REGISTERS.includes(c.register)) throw new Error(`stage: compose.register is ${REGISTERS.join(', ')}`);
-  for (const a of COMPOSE_AXES) if (c[a] !== undefined && !TABLES[a][c[a]]) throw new Error(`stage: compose.${a} is ${Object.keys(TABLES[a]).join(', ')}`);
+  for (const a of COMPOSE_AXES) if (c[a] !== undefined && !axisHas(a, TABLES[a], c[a])) throw new Error(`stage: compose.${a} is ${Object.keys(TABLES[a]).join(', ')}`);
   return c;
 }
 
@@ -150,7 +150,7 @@ export function resolveCompose(manifest) {
 export function composeForBuild(m) {
   const c = m.compose;
   if (!stored(c)) return readCompose(c, baseOf(m.kit)).resolved;
-  for (const a of COMPOSE_AXES) if (!TABLES[a][c.resolved[a]]) throw new Error(`stage: compose.resolved.${a} is ${Object.keys(TABLES[a]).join(', ')}`);
+  for (const a of COMPOSE_AXES) if (!axisHas(a, TABLES[a], c.resolved[a])) throw new Error(`stage: compose.resolved.${a} is ${Object.keys(TABLES[a]).join(', ')}`);
   if (c.resolved.mood !== undefined && !MOODS[c.resolved.mood]) throw new Error(`stage: compose.resolved.mood is ${MOOD_IDS.join(', ')}`);
   return c.resolved;
 }

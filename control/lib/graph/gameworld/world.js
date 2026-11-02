@@ -605,7 +605,7 @@ export function readGameworld(W) {
           // the town's street on the walk (era/stage-buildings.js): its first houses standing beside the trail
           const St = L.places.street;
           if (St !== true && !isObj(St)) throw new Error(`gameworld: ${at}.places.street is true or { houses?, enter?, goal?, doors?, walk? }`);
-          if (isObj(St)) for (const kk of Object.keys(St)) if (!['houses', 'enter', 'goal', 'doors', 'walk', 'walls'].includes(kk)) throw new Error(`gameworld: ${at}.places.street.${kk} is not a street setting (houses, enter, goal, doors, walk, walls)`);
+          if (isObj(St)) for (const kk of Object.keys(St)) if (!['houses', 'enter', 'goal', 'doors', 'walk', 'walls', 'inside'].includes(kk)) throw new Error(`gameworld: ${at}.places.street.${kk} is not a street setting (houses, enter, goal, doors, walk, walls, inside)`);
           if (isObj(St) && St.walls !== undefined && !(typeof St.walls === 'boolean' || typeof St.walls === 'string')) throw new Error(`gameworld: ${at}.places.street.walls is true (the town's own fortification, from its builders' language) or a fortification's id (crenellated, battered)`);
           if (isObj(St) && St.walk !== undefined && !(Array.isArray(St.walk) && St.walk.every((u) => typeof u === 'string'))) throw new Error(`gameworld: ${at}.places.street.walk is the uses walked into as part of the world ([\'shop\']), the rest of those entered at a door into a scene of their own`);
           if (isObj(St) && St.houses !== undefined && !(Number.isInteger(St.houses) && St.houses >= 1 && St.houses <= 12)) throw new Error(`gameworld: ${at}.places.street.houses is 1 to 12`);

@@ -152,7 +152,7 @@ export function bayRoom(out, r, ri, kit, surf, rooms = []) {
     }
     // a tall room's first outside end wall takes a weather louvre in its middle bay, in place of that bay's window
     const louvres = [];
-    if (wz && tall && !isLong(s) && !structure.air.louvre) {
+    if (wz && tall && !isLong(s) && !structure.air.louvre && !B.noAir) {
       const k = wins.map(([a, b], i) => [Math.abs((a + b) / 2 - F.len / 2), i]).sort((p, q) => p[0] - q[0])[0][1], [a, b] = wins[k], c = (a + b) / 2, lw = Math.min(B.air.louvre.w, b - a);
       wins.splice(k, 1); louvres.push([c - lw / 2, c + lw / 2]);
       structure.air.louvre = true;
@@ -283,7 +283,7 @@ export function bayRoom(out, r, ri, kit, surf, rooms = []) {
       }
     }
     // a low room's return grille low on a long wall, in its last clear bay
-    if (!tall && isLong(s) && span < Sv.ceilingReturn) for (let k = n - 1; k >= 0; k--) {
+    if (!B.noAir && !tall && isLong(s) && span < Sv.ceilingReturn) for (let k = n - 1; k >= 0; k--) {
       const G = B.air.grille, u = lines[k + 1] - Pl.w / 2 - 0.3 - G.w, z = 0.3, off = (z < Ba.h ? Ba.out : 0) + 0.002;
       if (!clear(u, u + G.w)) continue;
       louvred(out, onWall(F, u, off, z), F.U, Z, F.N, G.w, G.h, G, surf('vent'), { key: null, scale: 1, tint: Sv.plenum, group: 'stage:plenum' });
@@ -433,6 +433,8 @@ export function bayRoom(out, r, ri, kit, surf, rooms = []) {
   // ties, a header across each sawtooth), its hangers to the roof, a terminal each bay (a drum louvre on a drop from a
   // round duct, a grille on each side of a rectangular one); a coffer's diffusers in the coffers without a lamp; a low
   // room's diffusers in the soffit and its return (bay-air.js; the sizes the catalog's) ──
+  // (a construction with no air, the vernacular's: no duct, no terminal, no return)
+  if (!B.noAir) {
   const Air = B.air, D = Air.duct, ductS = surf('duct'), ventS = surf('vent'), voidS = { key: null, scale: 1, tint: B.services.plenum, group: 'stage:plenum' };
   const along = alongY ? [0, 1, 0] : [1, 0, 0], across = alongY ? [1, 0, 0] : [0, 1, 0], dR = D.shape === 'round' ? D.r : D.h / 2, dW = D.shape === 'round' ? D.r : D.w / 2;
   const air = structure.air;
@@ -500,6 +502,7 @@ export function bayRoom(out, r, ri, kit, surf, rooms = []) {
       const G = Air.grille, gs = s0 + 0.35, gl = mids[mids.length - 1] - G.w / 2, o = at(gs, gl, h - 0.001);
       louvred(out, o, along, across, DOWN, G.w, G.h, G, ventS, voidS); air.returns++;
     }
+  }
   }
 
   // ── a taller room's bridge crane ──

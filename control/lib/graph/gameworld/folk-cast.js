@@ -40,6 +40,8 @@ import { fingerprint } from './review.js';
 const r3 = (v) => Math.round(v * 1000) / 1000;
 // beside the door (m): out from the wall, along the frontage, and the step between neighbours
 const OUT = 1.4, ASIDE = 1.6, STEP = 1.1;
+// how far past its room's middle a person kept inside stands (m): behind a counter at the middle
+const BEHIND = 1.1;
 // how near the player stands to talk (m)
 const REACH = 1.6;
 // a walker's pace (m/s): a stroll, the farmhands' own
@@ -104,8 +106,11 @@ export function folkExtra(plan, refOf, { shops = null } = {}) {
       const room = !p.parent && p.service ? roomOf(door, p.room) : null;
       let at, heading;
       if (room) {
-        // inside at its room: the middle of its floor, facing the way in
-        const cx = (room.box.min[0] + room.box.max[0]) / 2, cy = (room.box.min[1] + room.box.max[1]) / 2;
+        // inside at its room: past the middle of its floor away from the way in (behind its counter, where the room has
+        // one at its middle: the town's stock, era/stocking.js), facing the way in
+        const mx = (room.box.min[0] + room.box.max[0]) / 2, my = (room.box.min[1] + room.box.max[1]) / 2, dx = mx - door.at[0], dy = my - door.at[1], dl = Math.hypot(dx, dy) || 1;
+        const back = Math.min(BEHIND, Math.max(0, Math.min(room.box.max[0] - room.box.min[0], room.box.max[1] - room.box.min[1]) / 2 - 0.6));
+        const cx = mx + (dx / dl) * back, cy = my + (dy / dl) * back;
         at = [r3(cx), r3(cy), r3(room.box.min[2])];
         heading = r3(Math.atan2(door.at[1] - cy, door.at[0] - cx));
       } else {

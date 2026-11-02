@@ -122,6 +122,8 @@ const ADDED = {
   'glass:low-iron-10': E('glass', [230, 238, 238], { mm: 10, tv: 0.91, rv: 0.08, haze: 0, density: 2500, label: '10 mm low-iron glass' }),
   'glass:laminated-6.4': E('glass', [212, 230, 222], { mm: 6.4, tv: 0.87, rv: 0.08, haze: 0, density: 2500, label: '6.4 mm laminated safety glass' }),
   'glass:wired-6': E('glass', [204, 222, 214], { mm: 6, tv: 0.8, rv: 0.08, haze: 0, wire: 13, density: 2500, label: '6 mm polished wired glass' }),
+  // (a town's window before float glass: crown glass blown and cut small, greenish and a little seedy, leaded in quarries)
+  'glass:crown-leaded': E('glass', [196, 212, 186], { mm: 3, tv: 0.74, rv: 0.06, haze: 0.22, density: 2500, label: 'crown glass in leaded quarries' }),
   'glass:acid-etched-6': E('glass', [236, 240, 238], { mm: 6, tv: 0.84, rv: 0.07, haze: 0.9, density: 2500, label: '6 mm acid-etched (frosted) glass' }),
   // floor and wall finishes laid as units (a tile's or a plank's `sheet` in mm)
   'floor:carpet-tile-500': E('floor', [86, 92, 104], { mm: 7, sheet: [500, 500], label: '500 mm loop-pile carpet tile' }),
