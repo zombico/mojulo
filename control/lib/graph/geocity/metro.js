@@ -69,9 +69,10 @@
  *                   BLOCK ('D3.2.1') laid by one of the geotown's block segments (true: the block's own if it is one,
  *                   else its ring's; or `{ segment: 'main-street' }`), cropped to its block and centred in the metro's
  *
- *     under         true | { at?: '<block id>' }: a core podium walked into from its street, a lobby at the walk and a
- *                   concourse under it down a stair (geocity/podium.js); an evocation's (its blocks at a building's
- *                   detail), the tower or podium block `at` names, else the evoked one nearest the seat
+ *     under         true | { at?: '<block id>' }: an evocation's (its blocks at a building's detail) core podiums walked
+ *                   into from their streets, each a lobby at its plaza and a concourse under it down a stair
+ *                   (geocity/podium.js), and the passages under the streets between their concourses (geocity/tunnels.js);
+ *                   `at` one tower or podium block's alone, no passage
  *
  *   readGeocity(spec) → { metro: { id, …card }, grammar, pattern, hills, evoke, at, along, play, geotowns, under? }
  *
@@ -253,7 +254,7 @@ export function readGeocity(spec = {}) {
   if (!num(M.grade, 0.01, 0.3)) no('grade is the steepest arterial, rise over run, 0.01 to 0.3');  // what is under it (geocity/podium.js): a podium walked into, its concourse below the street; an evocation's, at a
   // building's detail
   const under = spec.under === undefined ? null : spec.under === true ? {} : spec.under;
-  if (under !== null && (!isObj(under) || Object.keys(under).some((k) => k !== 'at') || (under.at !== undefined && (typeof under.at !== 'string' || !/^[A-Z]+[0-9]+\.[0-9]+\.[0-9]+$/.test(under.at))))) no('under is true or { at?: \'<block id>\' }: the podium walked into from its street, down to its concourse under it');
+  if (under !== null && (!isObj(under) || Object.keys(under).some((k) => k !== 'at') || (under.at !== undefined && (typeof under.at !== 'string' || !/^[A-Z]+[0-9]+\.[0-9]+\.[0-9]+$/.test(under.at))))) no('under is true or { at?: \'<block id>\' }: the podiums walked into from their streets, their concourses under them and the passages between, or the one `at` names alone');
   if (under !== null && !['neighbourhood', 'segment', 'corridor'].includes(evoke)) no('under is an evocation\'s (a neighbourhood, a corridor or a segment): what is walked into is drawn at a building\'s detail');
 
   if (!PATTERNS[M.outskirts]) no(`outskirts is a geotown pattern (${PATTERN_IDS.join(', ')})`);

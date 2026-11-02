@@ -449,16 +449,19 @@ export function planStage(m = {}) {
     a.openings[wall.ax].push(op); b.openings[wall.bx].push(op);
     return { from: a.id, to: b.id, wall: wall.ax, at: wall.at, ...op };
   });
-  // WAYS (`ways: [{ room, side, width? }]`): a doorway out of a room through an outside wall, the middle of that side (a
-  // building standing in open ground is walked into by it); the side must face out (no room against it there). A room on
-  // an upper storey has one too: a building set into its slope is walked into at the ground its storey stands on
+  // WAYS (`ways: [{ room, side, width?, along? }]`): a doorway out of a room through an outside wall, the middle of that
+  // side (a building standing in open ground is walked into by it); the side must face out (no room against it there). A
+  // room on an upper storey has one too: a building set into its slope is walked into at the ground its storey stands on.
+  // `along`: the doorway's middle along its side (plan metres, off the grid), where a passage outside meets it (a
+  // tunnel under a street, geocity/tunnels.js); absent, the side's middle on the grid
   const ways = (m.ways || []).map((w) => {
     const r = byId.get(w.room);
     if (!r) throw new Error(`stage: way out of '${w.room}', which is not a room`);
     if (!['-x', '+x', '-y', '+y'].includes(w.side)) throw new Error(`stage: way out of '${w.room}' needs side, one of -x +x -y +y`);
     const width = w.width ?? kit.door.width, height = Math.min(w.height ?? kit.door.height, r.h - 0.5), alongX = w.side.endsWith('y');
-    const lo0 = alongX ? r.x0 : r.y0, hi0 = alongX ? r.x1 : r.y1, mid = Math.round((lo0 + hi0) / 2 / g) * g;
+    const lo0 = alongX ? r.x0 : r.y0, hi0 = alongX ? r.x1 : r.y1, mid = w.along !== undefined ? w.along : Math.round((lo0 + hi0) / 2 / g) * g;
     if (hi0 - lo0 < width + 2 * kit.door.frame) throw new Error(`stage: the ${w.side} wall of '${r.id}' is too short for a ${width} m way out`);
+    if (w.along !== undefined && !(Number.isFinite(w.along) && w.along - width / 2 >= lo0 + kit.door.frame - 1e-6 && w.along + width / 2 <= hi0 - kit.door.frame + 1e-6)) throw new Error(`stage: way out of '${r.id}' along ${w.along} stands off its ${w.side} wall (its middle from ${lo0 + kit.door.frame + width / 2} to ${hi0 - kit.door.frame - width / 2})`);
     const at = w.side === '-y' ? r.box[1] : w.side === '+y' ? r.box[3] : w.side === '-x' ? r.box[0] : r.box[2];
     const op = { lo: mid - width / 2, hi: mid + width / 2, top: height };
     r.openings[w.side].push(op);

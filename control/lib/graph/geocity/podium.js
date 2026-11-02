@@ -22,11 +22,12 @@
  *                                 not a rectangle in the door's plane and the opening crosses it
  *   groundLess(face, rect)        a ground face (a drape's cell, a pad) less a rectangle in plan: its pieces round it,
  *                                 each corner at the height the face had there, its tile at the face's own rate
+ *   wallLess(face, rect)          a standing face square to the axes (a terrace's retaining face) less the run of it
+ *                                 inside a rectangle in plan
  *
  * Metres, the design's frame (x east, y north, z up). Pure: a function of the lot.
  */
 import { assembleStageScene, planStage } from '../era/stage.js';
-import { stageLevel } from '../structure/level.js';
 
 const r5 = (v) => Math.round(v * 1e5) / 1e5 + 0;
 const P3 = (p) => p.map(r5);
@@ -55,17 +56,29 @@ function turnFor(facing) {
 
 /** The inside's recipe on the kit: its two rooms over one plan, the stair between them, the way in out of the lobby's
  *  front. `w` along the front, `d` into the lot, `h` the lobby's height. */
-export function podiumRecipe(w, d, h) {
+export function podiumRecipe(w, d, h, ports = []) {
   return {
     kind: 'stage', kit: PODIUM.kit,
     rooms: [{ id: 'concourse', x: 0, y: 0, w, d, h: PODIUM.concourse.h }, { id: 'lobby', x: 0, y: 0, w, d, h, storey: 1 }],
     links: [{ from: 'concourse', to: 'lobby' }],
-    ways: [{ room: 'lobby', side: '-y', width: PODIUM.door.width }],
+    ways: [{ room: 'lobby', side: '-y', width: PODIUM.door.width }, ...ports.map((p) => ({ room: 'concourse', side: p.side, width: p.width ?? PODIUM.door.width, along: p.along }))],
   };
 }
 
-export function podiumInside(lot, { padZ, avoid = [] }) {
-  const front = lot.front, alongX = front.endsWith('y');
+/** Where a podium's inside stands on its lot, before it is built: its plan (the largest inside the lot's margin, clear
+ *  of `avoid`, its door as near the front's middle as it can stand) and its frame; on the lot's front first, then its
+ *  other sides (`sides`), each door kept only where `accept(F, N)` holds (its plaza's height at it). null when none
+ *  fits. → { lot, front, w, d, h, q, rot, N, F, toWorld, footprint, concourse (its room's inside, world), port(side, u) } */
+export function podiumFit(lot, { avoid = [], sides = null, accept = () => true } = {}) {
+  for (const front of sides ?? [lot.front]) {
+    const fit = fitOn(lot, front, avoid, accept);
+    if (fit) return fit;
+  }
+  return null;
+}
+
+function fitOn(lot, front, avoid, accept) {
+  const alongX = front.endsWith('y');
   const along = alongX ? lot.x1 - lot.x0 : lot.y1 - lot.y0, deep = alongX ? lot.y1 - lot.y0 : lot.x1 - lot.x0;
   const h = Math.min(PODIUM.lobby.h, Math.floor((lot.h - 0.8) * 10) / 10);
   if (h < 3.2) return null;
@@ -74,9 +87,9 @@ export function podiumInside(lot, { padZ, avoid = [] }) {
   // placed with its door's middle `s` along the front from its middle, the lobby's outer wall face in the facade's plane
   const frame = (w, s) => {
     const F = [mid[0] + E[0] * s, mid[1] + E[1] * s], doorPlan = [w / 2, 0], Tw = [F[0] - N[0] * T, F[1] - N[1] * T];
-    return { F, toWorld: ([x, y]) => { const [u, v] = rot([x - doorPlan[0], y - doorPlan[1]]); return [Tw[0] + u, Tw[1] + v]; } };
+    return { F, Tw, doorPlan, toWorld: ([x, y]) => { const [u, v] = rot([x - doorPlan[0], y - doorPlan[1]]); return [Tw[0] + u, Tw[1] + v]; } };
   };
-  const rectOf = (fr, w, d) => { const a = fr.toWorld([-T, -T]), c = fr.toWorld([w + T, d + T]); return [Math.min(a[0], c[0]), Math.min(a[1], c[1]), Math.max(a[0], c[0]), Math.max(a[1], c[1])]; };
+  const rectOf = (fr, a0, b0, a1, b1) => { const a = fr.toWorld([a0, b0]), c = fr.toWorld([a1, b1]); return [Math.min(a[0], c[0]), Math.min(a[1], c[1]), Math.max(a[0], c[0]), Math.max(a[1], c[1])]; };
   const clear = (R) => avoid.every((A) => R[2] <= A[0] - 0.5 || R[0] >= A[2] + 0.5 || R[3] <= A[1] - 0.5 || R[1] >= A[3] + 0.5);
   // its plan on the kit's metre grid inside its lot's margin, clear of what rises through its podium (its towers): the
   // largest that fits, its door as near the front's middle as it can stand
@@ -86,13 +99,40 @@ export function podiumInside(lot, { padZ, avoid = [] }) {
       const room = (along - 2 * PODIUM.margin - w) / 2;
       for (let k = 0; k <= 2 * Math.floor(room) && !fit; k++) {
         const s = (k % 2 ? -1 : 1) * Math.ceil(k / 2), fr = frame(w, s);
-        if (Math.abs(s) <= room + 1e-6 && clear(rectOf(fr, w, d))) fit = { w, d, s, fr };
+        if (Math.abs(s) <= room + 1e-6 && clear(rectOf(fr, -T, -T, w + T, d + T)) && accept(fr.F, N)) fit = { w, d, s, fr };
       }
     }
   }
   if (!fit) return null;
-  const { w, d, fr } = fit, F = fr.F, toWorld = fr.toWorld;
-  const recipe = podiumRecipe(w, d, h), PI = planStage(recipe), rise = PI.storeys[1].z0, base = padZ - rise;
+  const { w, d, fr } = fit;
+  // (the plan's frame read back from the world's: a way out of the concourse onto a side of the world, at a point u
+  // along it, is a side of the plan and a coordinate along that side)
+  const c = [1, 0, -1, 0][q], sn = [0, 1, 0, -1][q], unrot = ([x, y]) => [c * x + sn * y, -sn * x + c * y];
+  const toPlan = ([x, y]) => { const [u, v] = unrot([x - fr.Tw[0], y - fr.Tw[1]]); return [u + fr.doorPlan[0], v + fr.doorPlan[1]]; };
+  const port = (side, u) => {
+    const n = FACING[side], [px, py] = unrot(n).map((v) => Math.round(v)), pside = px ? (px > 0 ? '+x' : '-x') : (py > 0 ? '+y' : '-y');
+    const P = side.endsWith('y') ? [u, (lot.y0 + lot.y1) / 2] : [(lot.x0 + lot.x1) / 2, u], pl = toPlan(P);
+    return { side: pside, along: r5(pside.endsWith('y') ? pl[0] : pl[1]) };
+  };
+  return { lot, front, w, d, h, q, rot, N, F: fr.F, toWorld: fr.toWorld, footprint: rectOf(fr, -T, -T, w + T, d + T).map(r5), concourse: rectOf(fr, T, T, w - T, d - T).map(r5), port, s: fit.s };
+}
+
+/** Whether a podium's plan holds these ways out of its concourse (each on its wall, clear of its frames, its stair
+ *  still finding a place clear of them all): the stage's own planner asked. */
+export function portsHold(fit, ports) {
+  try { planStage(podiumRecipe(fit.w, fit.d, fit.h, ports.map((p) => ({ ...p, ...fit.port(p.side, p.u) })))); return true; } catch { return false; }
+}
+
+/** A podium's inside built on its fit, its lobby's floor at `padZ`: `ports` the ways out of its concourse onto the world's
+ *  sides ([{ id, side: '+x' | '-x' | '+y' | '-y', u }], `u` the way's middle along that side), each answered in `ports`
+ *  with its doorway in the world ({ id, side, u, plane, lo, hi, z0, top, N }). */
+export function podiumInside(lot, { padZ, avoid = [], ports = [], fit: F0 = null }) {
+  const fit = F0 ?? podiumFit(lot, { avoid });
+  if (!fit) return null;
+  const { w, d, h, q, rot, N, F, toWorld } = fit, alongX = fit.front.endsWith('y');
+  // (each asked on the world's side, laid on the plan's)
+  const asked = ports.map((p) => ({ id: p.id, side: p.side, u: p.u, plan: fit.port(p.side, p.u) }));
+  const recipe = podiumRecipe(w, d, h, asked.map((p) => p.plan)), PI = planStage(recipe), rise = PI.storeys[1].z0, base = padZ - rise;
   // (no window: its concourse in the ground, its lobby in the podium's mass; the land against every wall to the roof)
   const P = assembleStageScene({ ...recipe, _ground: { y0: -1e4, y1: 1e4, z0: rise + h + 1, z1: rise + h + 1 } }, {});
   const W = (p) => [...toWorld(p), p[2] + base];
@@ -101,31 +141,49 @@ export function podiumInside(lot, { padZ, avoid = [] }) {
   const faces = P.faces.filter((f) => f.group !== 'stage:sky' && f.group !== 'stage:sunpatch').map((f) => ({ ...f, corners: f.corners.map((c) => P3(W(c))), ...(f.normal ? { normal: P3(turnN(f.normal)) } : {}), ...(f.outNormal ? { outNormal: P3(turnN(f.outNormal)) } : {}) }));
   const colliders = (P.colliders || []).map((c) => ({ ...box(c.min, c.max), of: `${lot.id}:in:${c.of}` }));
   const lights = (P.lights || []).map((l) => ({ ...l, name: `${lot.id}-${l.name}`, position: P3(W(l.position)) }));
-  // the threshold: the way in's floor across the wall's depth, from the facade's plane to the lobby's own floor, in
-  // the lobby floor's paint
-  const way0 = PI.ways[0], fl = P.faces.find((f) => f.normal?.[2] > 0.9 && Math.abs(f.corners[0][2] - rise) < 1e-3 && typeof f.fill === 'string');
-  const thr = [[way0.lo, -T, rise], [way0.hi, -T, rise], [way0.hi, T + 0.05, rise], [way0.lo, T + 0.05, rise]].map((c) => P3(W(c))), tz = turnN([0, 0, 1]);
-  faces.push({ corners: thr, normal: P3(tz), outNormal: P3(tz), group: 'stage:floor', fill: fl?.fill ?? '#9a948a', cornerFills: thr.map(() => fl?.fill ?? '#9a948a') });
+  // each way's threshold: its floor across the wall's depth, from the wall's outer face to the room's own floor, in the
+  // room floor's paint (the stage's way leaves none between them)
+  const tz = turnN([0, 0, 1]);
+  const sill = (way, z) => {
+    const fl = P.faces.find((f) => f.normal?.[2] > 0.9 && Math.abs(f.corners[0][2] - z) < 1e-3 && typeof f.fill === 'string'), fill = fl?.fill ?? '#9a948a';
+    const o = { '-y': [0, -1], '+y': [0, 1], '-x': [-1, 0], '+x': [1, 0] }[way.side], ax = way.side.endsWith('y') ? 0 : 1;
+    const pt = (u, k) => { const p = [0, 0, z]; p[ax] = u; p[1 - ax] = way.at + (o[1 - ax] || 0) * k; return p; };
+    const cs = [pt(way.lo, T), pt(way.hi, T), pt(way.hi, -T - 0.05), pt(way.lo, -T - 0.05)].map((c) => P3(W(c)));
+    const up = ((cs[1][0] - cs[0][0]) * (cs[3][1] - cs[0][1]) - (cs[1][1] - cs[0][1]) * (cs[3][0] - cs[0][0])) > 0 ? cs : cs.slice().reverse();
+    faces.push({ corners: up, normal: P3(tz), outNormal: P3(tz), group: 'stage:floor', fill, cornerFills: up.map(() => fill) });
+  };
+  PI.ways.forEach((way, k) => sill(way, k === 0 ? rise : 0));
   const fp = box([-T, -T, 0], [w + T, d + T, rise + h]);
   // the way in, as the facade is cut for it: its span along the front, its height from the plaza
   const way = PI.ways[0], a = toWorld([way.lo, -T]), c = toWorld([way.hi, -T]);
   const door = { axis: alongX ? 'x' : 'y', plane: r5(alongX ? F[1] : F[0]), u0: r5(Math.min(alongX ? a[0] : a[1], alongX ? c[0] : c[1])), u1: r5(Math.max(alongX ? a[0] : a[1], alongX ? c[0] : c[1])), z0: r5(padZ), z1: r5(padZ + way.top), N: P3([N[0], N[1], 0]), at: P3([F[0], F[1], padZ]) };
-  // the way through: in from the plaza, across the lobby, down its stair, out along the concourse (each point at its floor)
-  const L = stageLevel(recipe, { goal: 'concourse', from: 'lobby' }), st = PI.stairs[0];
-  // (a point on the flight at its height along it, foot to head; before the flight the lobby's floor, past it the concourse's)
-  const ax = st.axis === 'x' ? 0 : 1, on = (p) => p[0] >= st.rect[0] - 1e-6 && p[0] <= st.rect[2] + 1e-6 && p[1] >= st.rect[1] - 1e-6 && p[1] <= st.rect[3] + 1e-6;
-  let down = false;
-  const zs = L.route.map((p) => {
-    if (on(p)) { down = true; return st.z0 + (st.z1 - st.z0) * Math.max(0, Math.min(1, (p[ax] - st.foot) / (st.head - st.foot))); }
-    return down ? st.z0 : st.z1;
+  // each way out of the concourse, in the world: its outer face's plane, its span, its floor and head
+  const outPorts = asked.map((p, k) => {
+    const wy = PI.ways[k + 1], o = { '-y': [0, -1], '+y': [0, 1], '-x': [-1, 0], '+x': [1, 0] }[wy.side], ax = wy.side.endsWith('y') ? 0 : 1;
+    const at = (u) => { const pp = [0, 0]; pp[ax] = u; pp[1 - ax] = wy.at + (o[1 - ax] || 0) * T; return toWorld(pp); };
+    const A = at(wy.lo), B = at(wy.hi), wax = p.side.endsWith('y') ? 0 : 1;
+    return { id: p.id, side: p.side, u: p.u, plane: r5(A[1 - wax]), lo: r5(Math.min(A[wax], B[wax])), hi: r5(Math.max(A[wax], B[wax])), z0: r5(base), top: r5(wy.top), N: FACING[p.side] };
   });
+  // the way through: in from the plaza, across the lobby round the stair's well to its head, down its flight, and on
+  // round its foot (each point at its floor); a way out of the concourse reached from the flight's foot the same way
+  const st = PI.stairs[0], ax = st.axis === 'x' ? 0 : 1, lat = 1 - ax, mid = (st.rect[lat] + st.rect[lat + 2]) / 2;
+  const onFlight = (a) => { const p = [0, 0]; p[ax] = a; p[lat] = mid; return p; };
+  const grow = (R, e) => [R[0] - e, R[1] - e, R[2] + e, R[3] + e], room = [T + 0.3, T + 0.3, w - T - 0.3, d - T - 0.3];
   const pt = (p, z) => P3(W([p[0], p[1], z]));
-  // (off the flight's foot to clear of its side toward the room's middle, then across the concourse to its far side)
-  const lat = 1 - ax, side = (lat === 0 ? w : d) / 2 > (st.rect[lat] + st.rect[lat + 2]) / 2 ? 1 : -1, off = [...st.approach];
-  off[lat] = side > 0 ? st.rect[lat + 2] + 0.8 : st.rect[lat] - 0.8;
-  const through = [pt([w / 2, -2.5], rise), pt([w / 2, 1.5], rise), ...L.route.map((p, k) => pt(p, zs[k])), pt(off, 0), pt([w / 2, d - 1.5], 0)];
+  const lobbyLeg = planPath(room, [grow(st.rect, 0.7)], [w / 2, 1.5], st.arrival).map((p) => pt(p, rise));
+  const flight = [onFlight(st.head), onFlight(st.foot)].map((p, k) => pt(p, k ? st.z0 : st.z1));
+  const down = [pt([w / 2, -1.2], rise), ...lobbyLeg, ...flight, pt(st.approach, 0)];
+  // (the flight's boxes stand a cheek's width outside its plan: kept a body's width and a hand clear of them)
+  const across = (to) => planPath(room, [grow(st.rect, 0.5)], st.approach, to).slice(1).map((p) => pt(p, 0));
+  const through = [...down, ...across([w / 2, d - 1.5])];
+  // (each way out of the concourse: from the flight's foot to 2 m inside it, then to its outer face)
+  outPorts.forEach((p, k) => {
+    const wy = PI.ways[k + 1], o = { '-y': [0, -1], '+y': [0, 1], '-x': [-1, 0], '+x': [1, 0] }[wy.side], wa = wy.side.endsWith('y') ? 0 : 1;
+    const at = (inset) => { const q = [0, 0]; q[wa] = (wy.lo + wy.hi) / 2; q[1 - wa] = wy.at - (o[1 - wa] || 0) * inset; return q; };
+    p.reach = [pt(st.approach, 0), ...across(at(2)), pt(at(-T), 0)];
+  });
   return {
-    faces, colliders, lights, rise: r5(rise), door, through, turn: q,
+    faces, colliders, lights, rise: r5(rise), door, through, down, turn: q, ports: outPorts, floor0: r5(base),
     footprint: [fp.min[0], fp.min[1], fp.max[0], fp.max[1]],
     rooms: [{ id: 'lobby', storey: 1, box: box([T, T, rise], [w - T, d - T, rise + h]) }, { id: 'concourse', storey: 0, box: box([T, T, 0], [w - T, d - T, PODIUM.concourse.h]) }],
     plan: { w, d, h },
@@ -204,4 +262,79 @@ function planUv(cs, uv) {
     const s = ((p[0] - A[0]) * (C[1] - A[1]) - (C[0] - A[0]) * (p[1] - A[1])) / det, t = ((B[0] - A[0]) * (p[1] - A[1]) - (p[0] - A[0]) * (B[1] - A[1])) / det;
     return [0, 1].map((k) => uv[0][k] + s * (uv[ia][k] - uv[0][k]) + t * (uv[ib][k] - uv[0][k]));
   };
+}
+
+/** A way across a room (`box`, [x0, y0, x1, y1]) from `a` to `b` round the rectangles in it (`blocks`): straight where
+ *  nothing stands between, else a quarter-metre grid searched breadth first and pulled straight between what it can
+ *  see (near either end the grid is free, so a way leaves a stair's foot from inside its margin).
+ *  Its two ends kept, wherever they stand. */
+function planPath(box, blocks, a, b) {
+  const seen = (p, q) => blocks.every((R) => !segmentHits(p, q, R));
+  if (seen(a, b)) return [a, b];
+  const g = 0.25, nx = Math.max(1, Math.floor((box[2] - box[0]) / g)), ny = Math.max(1, Math.floor((box[3] - box[1]) / g));
+  const at = (i, j) => [box[0] + (i + 0.5) * g, box[1] + (j + 0.5) * g];
+  // (a cell is free off every block; near either end it is free anyway, so a way can leave a stair's foot and reach a
+  // point that stands in a block's margin)
+  const free = (i, j) => i >= 0 && j >= 0 && i < nx && j < ny && (() => { const [x, y] = at(i, j); return Math.hypot(x - a[0], y - a[1]) < 0.6 || Math.hypot(x - b[0], y - b[1]) < 0.6 || blocks.every((R) => !(x > R[0] && x < R[2] && y > R[1] && y < R[3])); })();
+  const cell = (p) => [Math.max(0, Math.min(nx - 1, Math.floor((p[0] - box[0]) / g))), Math.max(0, Math.min(ny - 1, Math.floor((p[1] - box[1]) / g)))];
+  const [si, sj] = cell(a), [ti, tj] = cell(b), from = new Map([[`${si},${sj}`, null]]), queue = [[si, sj]];
+  const steps = [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [1, -1], [-1, 1], [-1, -1]];
+  while (queue.length) {
+    const [i, j] = queue.shift();
+    if (i === ti && j === tj) break;
+    for (const [di, dj] of steps) {
+      const I = i + di, J = j + dj, k = `${I},${J}`;
+      if (from.has(k) || !(free(I, J) || (I === ti && J === tj))) continue;
+      if (di && dj && !(free(i + di, j) && free(i, j + dj))) continue;
+      from.set(k, [i, j]); queue.push([I, J]);
+    }
+  }
+  if (!from.has(`${ti},${tj}`)) return [a, b];
+  const cells = [];
+  for (let c = [ti, tj]; c; c = from.get(`${c[0]},${c[1]}`)) cells.unshift(at(...c));
+  const pts = [a, ...cells.slice(1, -1), b], out = [a];
+  // (pulled straight: from each point kept, on to the furthest it can see)
+  for (let k = 0; k < pts.length - 1;) {
+    let n = pts.length - 1;
+    while (n > k + 1 && !seen(pts[k], pts[n])) n--;
+    out.push(pts[n]); k = n;
+  }
+  return out.map((p) => p.map(r5));
+}
+
+/** Whether a segment passes through a rectangle's inside (Liang–Barsky). */
+function segmentHits(p, q, R) {
+  let t0 = 0, t1 = 1;
+  const d = [q[0] - p[0], q[1] - p[1]];
+  for (const [pp, qq] of [[-d[0], p[0] - R[0]], [d[0], R[2] - p[0]], [-d[1], p[1] - R[1]], [d[1], R[3] - p[1]]]) {
+    if (Math.abs(pp) < 1e-12) { if (qq <= 0) return false; continue; }
+    const t = qq / pp;
+    if (pp < 0) t0 = Math.max(t0, t); else t1 = Math.min(t1, t);
+    if (t0 >= t1) return false;
+  }
+  return true;
+}
+
+/** A standing face square to the axes (a retaining face between terraces) less the run of it inside a rectangle in plan:
+ *  the face as it was when its line misses the rectangle; its pieces either side of it, each end at the height the face
+ *  had there; nothing when it is not a quad standing on one line. */
+export function wallLess(f, R) {
+  const cs = f.corners, xs = cs.map((c) => c[0]), ys = cs.map((c) => c[1]);
+  const k = Math.max(...xs) - Math.min(...xs) < 1e-4 ? 1 : Math.max(...ys) - Math.min(...ys) < 1e-4 ? 0 : -1;
+  if (k < 0 || cs.length !== 4) return [f];
+  const line = k === 1 ? xs[0] : ys[0], j = 1 - k;
+  if (line <= R[j] || line >= R[j + 2]) return [f];
+  const us = cs.map((c) => c[k]), u0 = Math.min(...us), u1 = Math.max(...us);
+  if (u1 <= R[k] || u0 >= R[k + 2]) return [f];
+  // (its foot and its head along it, each a line between its ends)
+  const lo = (u) => { const e = cs.filter((c) => Math.abs(c[k] - u) < 1e-4).map((c) => c[2]); return [Math.min(...e), Math.max(...e)]; };
+  const [b0, t0] = lo(u0), [b1, t1] = lo(u1), z = (u, a, b) => a + ((b - a) * (u - u0)) / (u1 - u0 || 1);
+  const pt = (u, zz) => { const p = [0, 0, zz]; p[k] = u; p[j] = line; return P3(p); };
+  const n = f.normal ?? [0, 0, 0];
+  return [[u0, Math.min(u1, R[k])], [Math.max(u0, R[k + 2]), u1]].filter(([a, b]) => b - a > 1e-3).map(([a, b]) => {
+    let c4 = [pt(a, z(a, b0, b1)), pt(b, z(b, b0, b1)), pt(b, z(b, t0, t1)), pt(a, z(a, t0, t1))];
+    const e1 = c4[1].map((v, i) => v - c4[0][i]), e2 = c4[3].map((v, i) => v - c4[0][i]), cr = [e1[1] * e2[2] - e1[2] * e2[1], e1[2] * e2[0] - e1[0] * e2[2], e1[0] * e2[1] - e1[1] * e2[0]];
+    if (cr[0] * n[0] + cr[1] * n[1] + cr[2] * n[2] < 0) c4 = c4.slice().reverse();
+    return { ...f, corners: c4, ...(f.cornerFills ? { cornerFills: c4.map(() => f.fill ?? f.cornerFills[0]) } : {}) };
+  });
 }

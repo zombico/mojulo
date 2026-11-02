@@ -7,6 +7,7 @@ import { describe, it, expect } from 'vitest';
 import { podiumInside, podiumRecipe, cutFace, PODIUM } from './podium.js';
 import { assembleGeocityScene } from './scene.js';
 import { planStage } from '../era/stage.js';
+import { walker } from './walk-gate.js';
 
 const geocity = { metro: { from: 'lakeshore', rings: { core: 350, frame: 700 } }, extent: [1800, 1500], water: { sides: ['s'], depth: 200 }, core: [0.5, 0.2] };
 const M = { kind: 'geocube', cube: 'valley-morning', show: 'geocity', seed: 2, hour: 'noon' };
@@ -58,80 +59,6 @@ describe('a podium\'s inside, on its lot', () => {
   });
 });
 
-/** A walker over a payload: the page's ground probe (straight down from just over its feet) on the faces' tops, its
- *  walls the faces that stand up, its body kept out of the boxes. */
-function walker(P) {
-  const C = 2, tops = new Map(), walls = new Map(), key = (x, y) => `${Math.floor(x / C)},${Math.floor(y / C)}`;
-  const index = (map, tri) => {
-    const xs = tri.map((p) => p[0]), ys = tri.map((p) => p[1]);
-    for (let i = Math.floor(Math.min(...xs) / C); i <= Math.floor(Math.max(...xs) / C); i++) for (let j = Math.floor(Math.min(...ys) / C); j <= Math.floor(Math.max(...ys) / C); j++) {
-      const k = `${i},${j}`; if (!map.has(k)) map.set(k, []); map.get(k).push(tri);
-    }
-  };
-  // (a top faces up, as the probe meets it; a face that faces down, a ceiling or a flight's soffit, is stood on by nothing)
-  for (const f of P.faces) {
-    const c = f.corners;
-    for (let k = 1; k + 1 < c.length; k++) {
-      const tri = [c[0], c[k], c[k + 1]], u = [tri[1][0] - tri[0][0], tri[1][1] - tri[0][1], tri[1][2] - tri[0][2]], v = [tri[2][0] - tri[0][0], tri[2][1] - tri[0][1], tri[2][2] - tri[0][2]];
-      const n = [u[1] * v[2] - u[2] * v[1], u[2] * v[0] - u[0] * v[2], u[0] * v[1] - u[1] * v[0]], l = Math.hypot(...n);
-      if (l < 1e-9) continue;
-      const nz = Array.isArray(f.normal) ? f.normal[2] : n[2] / l;
-      if (nz > 0.5) index(tops, tri); else if (Math.abs(nz) <= 0.5) index(walls, tri);
-    }
-  }
-  // the highest top under (x, y) no higher than `from`
-  const ground = (x, y, from) => {
-    let best = null;
-    for (const [a, b, c] of tops.get(key(x, y)) || []) {
-      const d = (b[1] - c[1]) * (a[0] - c[0]) + (c[0] - b[0]) * (a[1] - c[1]);
-      if (Math.abs(d) < 1e-12) continue;
-      const l1 = ((b[1] - c[1]) * (x - c[0]) + (c[0] - b[0]) * (y - c[1])) / d, l2 = ((c[1] - a[1]) * (x - c[0]) + (a[0] - c[0]) * (y - c[1])) / d, l3 = 1 - l1 - l2;
-      if (l1 < -1e-6 || l2 < -1e-6 || l3 < -1e-6) continue;
-      const z = l1 * a[2] + l2 * b[2] + l3 * c[2];
-      if (z <= from + 1e-6 && (best === null || z > best)) best = z;
-    }
-    return best;
-  };
-  // whether a level segment from p to q at height z crosses a wall (Möller–Trumbore against each standing triangle)
-  const crosses = (p, q, z) => {
-    const dir = [q[0] - p[0], q[1] - p[1], 0], len = Math.hypot(dir[0], dir[1]);
-    if (len < 1e-9) return false;
-    const seen = new Set();
-    for (const k of new Set([key(p[0], p[1]), key(q[0], q[1])])) for (const tri of walls.get(k) || []) {
-      if (seen.has(tri)) continue; seen.add(tri);
-      const [a, b, c] = tri, e1 = [b[0] - a[0], b[1] - a[1], b[2] - a[2]], e2 = [c[0] - a[0], c[1] - a[1], c[2] - a[2]];
-      const h = [dir[1] * e2[2] - dir[2] * e2[1], dir[2] * e2[0] - dir[0] * e2[2], dir[0] * e2[1] - dir[1] * e2[0]], det = e1[0] * h[0] + e1[1] * h[1] + e1[2] * h[2];
-      if (Math.abs(det) < 1e-12) continue;
-      const s = [p[0] - a[0], p[1] - a[1], z - a[2]], u = (s[0] * h[0] + s[1] * h[1] + s[2] * h[2]) / det;
-      if (u < 0 || u > 1) continue;
-      const qv = [s[1] * e1[2] - s[2] * e1[1], s[2] * e1[0] - s[0] * e1[2], s[0] * e1[1] - s[1] * e1[0]], v = (dir[0] * qv[0] + dir[1] * qv[1] + dir[2] * qv[2]) / det;
-      if (v < 0 || u + v > 1) continue;
-      const t = (e2[0] * qv[0] + e2[1] * qv[1] + e2[2] * qv[2]) / det;
-      if (t > 1e-6 && t < 1 - 1e-6) return true;
-    }
-    return false;
-  };
-  const boxed = (x, y, z, r = 0.25) => (P.colliders || []).find((c) => x > c.min[0] - r && x < c.max[0] + r && y > c.min[1] - r && y < c.max[1] + r && z + 0.5 > c.min[2] && z + 0.5 < c.max[2]);
-  /** Walk a polyline from its first point's ground: each step a fifth of a metre, the feet stood on the highest top a
-   *  riser and a hand over them; → { steepest, walls, boxes, end } */
-  return (pts) => {
-    let z = ground(pts[0][0], pts[0][1], pts[0][2] + 0.45), steepest = 0, wallsHit = 0;
-    const boxes = [];
-    for (let k = 0; k + 1 < pts.length; k++) {
-      const [p, q] = [pts[k], pts[k + 1]], n = Math.max(1, Math.ceil(Math.hypot(q[0] - p[0], q[1] - p[1]) / 0.2));
-      for (let i = 1; i <= n; i++) {
-        const x0 = p[0] + ((q[0] - p[0]) * (i - 1)) / n, y0 = p[1] + ((q[1] - p[1]) * (i - 1)) / n, x = p[0] + ((q[0] - p[0]) * i) / n, y = p[1] + ((q[1] - p[1]) * i) / n;
-        if (crosses([x0, y0], [x, y], z + 0.9) || crosses([x0, y0], [x, y], z + 1.6)) wallsHit++;
-        const g = ground(x, y, z + 0.45);
-        if (g === null) { steepest = Infinity; continue; }
-        steepest = Math.max(steepest, Math.abs(g - z)); z = g;
-        const B = boxed(x, y, z); if (B) boxes.push(B.of);
-      }
-    }
-    return { steepest, walls: wallsHit, boxes: [...new Set(boxes)], end: z };
-  };
-}
-
 describe('the podium walked into, in its evocation', () => {
   const N = assembleGeocityScene({ ...M, geocity: { ...geocity, evoke: 'neighbourhood', under: true } });
   const A = N.anchors.find((a) => a.kind === 'building'), lobby = A.rooms.find((r) => r.id === 'lobby').box, conc = A.rooms.find((r) => r.id === 'concourse').box;
@@ -150,7 +77,7 @@ describe('the podium walked into, in its evocation', () => {
   });
 
   it('stands its lobby level with the plaza at its door and its concourse a storey under it, a box round the rest of its podium', () => {
-    expect(N.geocity.under).toMatchObject({ podium: A.id.slice('podium-'.length), rise: A.rise, findings: [] });
+    expect(N.geocity.under).toMatchObject({ podium: A.id.slice('podium-'.length), rise: A.rise });
     expect(lobby.min[2]).toBe(A.floor);
     expect(conc.min[2]).toBeCloseTo(A.floor - A.rise, 5);
     // (no paving over its footprint at the plaza's height: the lobby's floor is the ground there)
@@ -158,7 +85,7 @@ describe('the podium walked into, in its evocation', () => {
     expect(N.faces.some((f) => f.group === 'geocity:paving' && inFp(f))).toBe(false);
     // (the podium's lot is no single box now: its mass round its inside)
     expect(N.colliders.some((c) => c.of === `${A.id.slice(7)}:podium` && c.min[0] < lobby.min[0] + 1 && c.max[0] > lobby.max[0] - 1 && c.min[1] < lobby.min[1] + 1 && c.max[1] > lobby.max[1] - 1 && c.min[2] <= A.floor + 0.5)).toBe(false);
-    expect(N.cameras.slice(-2).map((c) => c.name)).toEqual(['lobby', 'concourse']);
+    expect(N.cameras.map((c) => c.name).filter((n) => n === 'lobby' || n === 'concourse')).toEqual(['lobby', 'concourse']);
     expect(N.lights.length).toBe(N.geocity.under.lights);
     expect(N.geocity.laws.find((l) => l.law === 'faces').ok).toBe(true);
   });
