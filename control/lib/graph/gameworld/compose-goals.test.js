@@ -90,7 +90,10 @@ describe('composed goals: what a level is played for, read from the prompt', () 
     // order carries moved; the levels build as before, their trails, climbs and walk the same, b771729c -> 0e1c91bc)
     expect(fingerprint(unaudited(orders))).toBe('0e1c91bc');
     expect(fingerprint(unaudited(runSteps({ ...MEADOWMARK, mode: 'autonomous', review: undefined }, { ref: 'gw' }).map((s) => s.order)))).toBe('9ad2a5b7');
-    expect(fingerprint(unaudited(runSteps(MEADOWMARK_HERO, { ref: 'gw' }).map((s) => s.order)))).toBe('0b5f8e90');
+    // (re-pinned 2026-11-02, 1102-book-gates: a hero's chase is laid long by the follow camera's stand-off
+    // (playscape/hero-chase.js), so the hero world's level orders carry its camera at 8.45 / 2.948, and nothing else
+    // moved, 0b5f8e90 -> 4246de56; the hero-less worlds above are unchanged)
+    expect(fingerprint(unaudited(runSteps(MEADOWMARK_HERO, { ref: 'gw' }).map((s) => s.order)))).toBe('4246de56');
   }, 300000);
 
   it('a dungeon is indoors: building levels in a room kit, the goals laid in their rooms, made by the run', () => {
