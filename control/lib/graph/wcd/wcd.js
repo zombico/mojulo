@@ -14,7 +14,7 @@
  *   { core: '<space id>',
  *     spaces: { <id>: { kind: 'inner' | 'outer', depth: 0…, level?: '<world level id>', use?: '<program use>',
  *                       look?: compose words | { words?, construction?, palette? }, tone?: a stage's tone, built?: false } },
- *     doors: [{ from, to, via: 'lift' | 'teleporter' | 'door' | 'stair', gate?: { clearance: 1…9 } | { power: '<id>' },
+ *     doors: [{ from, to, via: 'lift' | 'teleporter' | 'door' | 'stair', gate?: { clearance: 1…9 } | { power: '<id>' } | { keys: true },
  *               oneWay?: true }] }
  *   depth     0 the outermost; the core the deepest. A space marked `built: false` is on the path and not made yet (a
  *             vertical slice ships the inner layers alone).
@@ -33,9 +33,11 @@
  *   gated         every space past the outermost is entered through a door, and a door inward says what opens it
  *   distinct      two spaces a door joins differ in construction or palette (the light is the theme's, set once)
  *   same-level    a lift or a teleporter joins spaces in one level
+ *   keys-inside   a door gated `{ keys: true }` leaves a space whose level is an escape room (a level goal's `escape`:
+ *                 its way out sealed until the keys found inside open its locks); read only where a door is keyed
  *
  *   WCD_KINDS, WCD_VIAS, WCD_PRINCIPLES
- *   readWcd(spec, { levels? })   → { core, spaces, doors, path, unbuilt, laws }   levels: the world's level ids, to check
+ *   readWcd(spec, { levels?, escapes? }) → { core, spaces, doors, path, unbuilt, laws }   levels: the world's level ids, to check
  *                                    a space's `level` by
  *   wcdLaws(read)                → the laws above
  *
@@ -62,6 +64,7 @@ export const WCD_PRINCIPLES = Object.freeze({
   gated: 'Every gate is an intermediary: a space past the outermost is entered through a door that says what opens it.',
   distinct: 'A layer looks unlike the last: two spaces a door joins differ in construction or palette.',
   'same-level': 'A lift or a teleporter moves you within one level.',
+  'keys-inside': 'A door opened by keys leaves an escape room: its keys are found inside it.',
 });
 const KEYS = ['core', 'spaces', 'doors'];
 const SPACE_KEYS = ['kind', 'depth', 'level', 'use', 'look', 'tone', 'built'];
@@ -72,7 +75,12 @@ const fail = (m) => { throw new Error(`wcd: ${m}`); };
 
 function readGate(g, at) {
   if (g === undefined) return null;
-  if (!isObj(g) || Object.keys(g).length !== 1) fail(`${at}.gate is { clearance: 1…9 } or { power: '<id>' }`);
+  if (!isObj(g) || Object.keys(g).length !== 1) fail(`${at}.gate is { clearance: 1…9 }, { power: '<id>' } or { keys: true }`);
+  // the keys found in the space it leaves (an escape room: gameworld/escape.js)
+  if (g.keys !== undefined) {
+    if (g.keys !== true) fail(`${at}.gate.keys is true: the door is opened by the keys found in the space it leaves`);
+    return { keys: true };
+  }
   if (g.clearance !== undefined) {
     if (!(Number.isInteger(g.clearance) && g.clearance >= 1 && g.clearance <= 9)) fail(`${at}.gate.clearance is a whole number, 1 to 9`);
     return { clearance: g.clearance };
@@ -81,7 +89,7 @@ function readGate(g, at) {
     if (typeof g.power !== 'string' || !ID.test(g.power)) fail(`${at}.gate.power is a power's id (lower-case, hyphens)`);
     return { power: g.power };
   }
-  return fail(`${at}.gate is { clearance: 1…9 } or { power: '<id>' }`);
+  return fail(`${at}.gate is { clearance: 1…9 }, { power: '<id>' } or { keys: true }`);
 }
 
 // a space's look as the composer resolves it (era/compose.js): its construction and palette, or null when it names none
@@ -95,7 +103,7 @@ function lookOf(look, at) {
 }
 
 /** The recipe read and checked; its critical path; its laws. */
-export function readWcd(spec, { levels = null } = {}) {
+export function readWcd(spec, { levels = null, escapes = null } = {}) {
   if (!isObj(spec)) fail('a walled-core dungeon is { core, spaces: { <id>: { kind, depth, … } }, doors: [{ from, to, via, gate?, oneWay? }] }');
   for (const k of Object.keys(spec)) if (!KEYS.includes(k)) fail(`'${k}' is not a setting (${KEYS.join(', ')})`);
   if (!isObj(spec.spaces) || !Object.keys(spec.spaces).length) fail('spaces is { <id>: { kind: inner | outer, depth, … } }, at least one');
@@ -126,7 +134,8 @@ export function readWcd(spec, { levels = null } = {}) {
     if (D.oneWay !== undefined && D.oneWay !== true) fail(`${at}.oneWay is true (it opens only from '${D.from}'), or left out`);
     doors.push({ from: D.from, to: D.to, via: D.via, gate: readGate(D.gate, at), oneWay: D.oneWay === true });
   }
-  const read = { core: spec.core, spaces, doors };
+  // (the levels that are escape rooms, to read a keys gate by: gameworld/escape.js)
+  const read = { core: spec.core, spaces, doors, ...(escapes && escapes.length ? { escapes: [...escapes] } : {}) };
   read.path = criticalPath(read);
   read.unbuilt = Object.values(spaces).filter((s) => !s.built).map((s) => s.id);
   read.laws = wcdLaws(read);
@@ -188,5 +197,13 @@ export function wcdLaws(W) {
   // same-level: a lift or a teleporter joins spaces in one level (read where both name theirs)
   const split = W.doors.filter((d) => (d.via === 'lift' || d.via === 'teleporter') && S[d.from].level && S[d.to].level && S[d.from].level !== S[d.to].level).map((d) => `${d.via} ${d.from} (${S[d.from].level}) → ${d.to} (${S[d.to].level})`);
   out.push(law('same-level', !split.length, split.length ? `${split.join('; ')}: a lift or a teleporter moves within one level` : 'every lift and teleporter moves within one level'));
+  // keys-inside: a door opened by keys leaves a space whose level is an escape room, where they are found (read where
+  // the world says which levels are; measured only where a door is keyed)
+  const keyed = W.doors.filter((d) => d.gate?.keys);
+  if (keyed.length) {
+    const esc = new Set(W.escapes ?? []);
+    const bare = keyed.filter((d) => !(S[d.from].level && esc.has(S[d.from].level))).map((d) => `${d.from} → ${d.to}: '${d.from}' ${S[d.from].level ? `(${S[d.from].level}) is no escape room` : 'names no level'}`);
+    out.push(law('keys-inside', !bare.length, bare.length ? `${bare.join('; ')}: its keys are found nowhere` : `every keyed door leaves an escape room, its keys found inside (${keyed.map((d) => d.from).join(', ')})`));
+  }
   return out;
 }
