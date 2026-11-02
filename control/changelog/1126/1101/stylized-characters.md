@@ -199,8 +199,11 @@ member, a quick game's hero). Code: `control/lib/graph/egocube/feature-tune.js`.
 - **The gallop** (a `gallop` clip, `FEATURE_GALLOP`), the run on all fours, the forward-facing dog its base:
   - the hind feet take the biped run's paths as a half-bound, the left a key behind the right, its sink and lift kept;
   - the waist rounds as the hind feet come forward under the belly (the gather) and opens as they push (the extension);
-  - each forepaw goes along the floor from under the chest (a quarter of its reach, the elbow folded, solved by the law
-    of cosines) to its full reach (the arm straight) as the hind feet push;
+  - each forepaw goes from under the chest (a quarter of its reach, the elbow folded, solved by the law of cosines) to
+    its full reach (the arm straight): swung forward through the air, lifted most at mid-swing, STRIKING the floor at
+    full reach, then swept back along it under the chest;
+  - the hind legs are tilted back: their feet half the run's fore-aft span behind its paths, so they drive from behind
+    the hips;
   - the hips tip no further than 80° (`FEATURE_GALLOP.hinge`: the dog's tip past level carries the tail's root up the
     back), so running, the tail comes out of the rump;
   - the tail is carried as on all fours.
@@ -273,7 +276,8 @@ member, a quick game's hero). Code: `control/lib/graph/egocube/feature-tune.js`.
     forepaws on the floor straight ahead (no share to the side), the hind feet planted, the chest under the hips, the
     face ahead (`feature-body.test.js`);
   - the gallop on the rig: the run's cycle, the waist working, the forepaw travelling fore and aft and reaching the
-    floor, the face ahead and a little down in every key (never up), the tail's root at the rump (never up the back);
+    floor in some keys and through the air in others, the hind feet behind the hips, the face ahead and a little down in
+    every key (never up), the tail's root at the rump (never up the back);
   - on all fours on the rig: the spine level, the tail carried at the roster's carriage less the mascot's share, and no
     standing clip turning the tail;
   - a rodent's buck teeth (none on the hedgehog), a chunky rodent's blunt face on whisker pads, a beaver's flat paddle on

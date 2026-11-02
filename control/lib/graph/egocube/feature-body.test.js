@@ -130,7 +130,9 @@ describe('the feature body', () => {
     // (the face ahead, a little down, never tipped up: FEATURE_LOOK; the tail out of the rump, not up the back)
     for (const n of posed) { expect(crownTip(n)).toBeGreaterThan(5); expect(crownTip(n)).toBeLessThan(30); }
     for (const n of posed) { expect(n.tailRoot[2] - n.pelvisHub[2]).toBeLessThan(0.06 * height); expect(n.tailRoot[1]).toBeLessThan(n.pelvisHub[1]); }
-    expect(Math.min(...posed.map((n) => n.knucklesR[2]))).toBeLessThan(0.05 * height);
+    expect(Math.min(...posed.map((n) => n.knucklesR[2]))).toBeLessThan(0.05 * height);                // (the strike)
+    expect(Math.max(...posed.map((n) => n.knucklesR[2]))).toBeGreaterThan(0.06 * height);             // (swung through the air)
+    expect(Math.min(...posed.map((n) => n.toeBaseR[1] - n.hipR[1]))).toBeLessThan(-0.1 * height);     // (the hind legs tilted back)
     // AS A REGULAR ANIMAL ON ALL FOURS: the spine level from the hips to the neck's root, the tail carried behind at its
     // animal's carriage (the roster's), a share back toward the mascot's own; standing, the tail as designed (no turn)
     const fours = rigNodesAt(R, plan.clips.fours[1]).nodes, rise = (a, b) => (Math.atan2(b[2] - a[2], Math.abs(b[1] - a[1])) * 180) / Math.PI;

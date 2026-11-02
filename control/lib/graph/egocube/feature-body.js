@@ -430,6 +430,8 @@ function planted(plan) {
     if (!Array.isArray(keys)) continue;
     // (a moving clip's own swing kept: the prowl's about the fours', the gallop's ahead of its planted paw)
     const base = name === 'gallop' ? Math.min(...keys.map((k) => k?.armR?.y ?? 0)) : fourY, moving = name === 'prowl' || name === 'gallop';
+    // (the gallop's reach share per key, and whether the paw is swinging forward (in the air) or back (on the floor))
+    const reachOf = (k) => Math.max(0, Math.min(1, ((k?.armR?.y ?? 0) - base) / FEATURE_GALLOP.swing)), ts = keys.map(reachOf);
     keys.forEach((k0, i) => {
       if (!k0?.armR || !k0?.armL) return;
       let k = k0;
@@ -440,7 +442,9 @@ function planted(plan) {
         let span = null;
         if (name === 'gallop') {
           const n0 = rigNodesAt(R, { ...k, [`elbow${S}`]: 0 }).nodes, sh = n0[`shoulder${S}`], up = len(sh, n0[`elbow${S}`]), fore = len(n0[`elbow${S}`], n0[`knuckles${S}`]);
-          const dz = Math.max(0, sh[2] - P.floor * h), full = Math.sqrt(Math.max(0, (up + fore) ** 2 - dz * dz)), t = Math.max(0, Math.min(1, swing / FEATURE_GALLOP.swing));
+          const dz0 = Math.max(0, sh[2] - P.floor * h), full = Math.sqrt(Math.max(0, (up + fore) ** 2 - dz0 * dz0)), t = ts[i];
+          // (swinging forward, the paw is lifted most at mid-swing; at full reach it strikes; swept back, it is on the floor)
+          const swingingOn = ts[(i + 1) % ts.length] > t + 1e-6, dz = dz0 - (swingingOn ? FEATURE_GALLOP.lift * (up + fore) * Math.sin(Math.PI * t) : 0);
           const fwdA = full * (FEATURE_GALLOP.under + (1 - FEATURE_GALLOP.under) * t), D = Math.min(up + fore, Math.hypot(dz, fwdA));
           const bend = (Math.acos(Math.max(-1, Math.min(1, (D * D - up * up - fore * fore) / (2 * up * fore)))) * 180) / Math.PI;
           k = { ...k, [`elbow${S}`]: r4(bend) }; span = { dz, fwd: fwdA };

@@ -152,8 +152,9 @@ the forepaws allow, the trunk bent down at the waist (the rib ball under the pel
 front on the floor, the face looking ahead. A quadruped's spine and neck bend further than the human ranges the rig's
 limits are set for, so the pose takes them `unbound`. It is the two-ball trunk's test, and the GALLOP's base
 (`gallop`, `FEATURE_GALLOP`): the hind feet take the biped run's paths as a half-bound, the waist rounds at the gather
-and opens at the extension, each forepaw goes from under the chest (the elbow folded) to its full reach (straight), the
-face ahead, the tail carried. Running, the hips tip no further than `FEATURE_GALLOP.hinge`, so the tail comes out of the
+and opens at the extension, each forepaw swings forward through the air from under the chest (the elbow folded),
+strikes the floor at its full reach (straight) and sweeps back along it, the hind legs tilted back to drive from behind
+the hips, the face ahead, the tail carried. Running, the hips tip no further than `FEATURE_GALLOP.hinge`, so the tail comes out of the
 rump. On all fours, walking and running, the head is turned up until its crown tips `FEATURE_LOOK.tilt` ahead of upright,
 the head taking most of the turn so it is never tucked into the shoulders.
 
