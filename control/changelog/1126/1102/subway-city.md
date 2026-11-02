@@ -30,3 +30,6 @@
   buffer stops (a through station had left a portal open onto nothing). Walked from a platform through the passage to
   the podium's plaza and back. A station takes its ways out (`exits`) and its mezzanine's reach (`mezzDepth`) from
   the line, and its open `ends`.
+- **The streetcar's rails are the city metro's** (geocity/kit.js `rail`): every geocity streetcar track is laid as the
+  city metro lays its own (city/roads.js streetcarTrack: a dark tie band between two steel rails standing proud of the
+  street), at the metro's scale, on the city's own gauge and track lines.
