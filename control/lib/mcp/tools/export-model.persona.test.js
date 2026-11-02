@@ -49,7 +49,8 @@ describe('a persona exported', () => {
     const act = anims.find((a) => a.getName() === 'act:scene'), face = anims.find((a) => a.getName() === 'face:scene');
     expect(act).toBeTruthy();
     expect(act.listChannels().every((c) => c.getTargetPath() !== 'weights')).toBe(true);
-    expect(act.listSamplers()[0].getInput().getArray().at(-1)).toBeCloseTo(face.listSamplers()[0].getInput().getArray().at(-1), 2);
+    // (on one clock: the act ends at the read's seconds, the face's track on its 30 fps grid, within a frame)
+    expect(Math.abs(act.listSamplers()[0].getInput().getArray().at(-1) - face.listSamplers()[0].getInput().getArray().at(-1))).toBeLessThan(1 / 30);
     expect(act.getExtras()['moj:act'].style).toBe('thespian');
     expect(JSON.parse(readFileSync(path.join(acted.dir, 'cues/scene.json'), 'utf8')).clips).toEqual({ face: 'face:scene', act: 'act:scene' });
   }, 900_000);
