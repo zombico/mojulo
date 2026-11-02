@@ -4,6 +4,7 @@
  * street's shop square on, at three quarters, down its row, and its street from over the walk: one row plumb, one a hand (a name, or JSON terms), the same shop from the same places.
  *
  *   CLOSE='<caption>=<face group>[|<another>][=<distance ×>],…' (a negative distance looks from behind it) the close cameras (each on the face of that group nearest the shop);
+ *   OVER='<caption>=<face group>=<height>,…' cameras over a group's nearest face, in place of three quarters and the street;
  *   VIEWS='[[name, [n, t, z], [n, t, z], fov], …]' cameras in the anchor building's frame instead of the close ones;
  *   SHOP=<k> the k-th shop (or building) the cameras anchor on, ROW=<kind> of that row's, ANCHOR=<a collider's of> a site's building; GEOTOWN='{…}' another geotown (a building, not a shop, anchors the cameras where it has no shop)
  *   cd control && node scripts/spikes/geotown/loud-front.mjs <out-dir> [hand …]   (default: a front of street's only)
@@ -60,7 +61,11 @@ try {
       if (process.env.VIEWS) cams = JSON.parse(process.env.VIEWS).map(([nm, a, b, fov]) => cam(nm, at(...a), at(...b), fov));
       else {
       cams = (process.env.CLOSE || 'a hydrant=geotown:hydrant,a bin=geotown:streetbin,a post box=geotown:postbox').split(',').map((kv) => { const [n, g, f] = kv.split('='); return close(n, g, f ? Number(f) : 1); }).filter(Boolean);
-      cams.push(cam('three quarters', at(6.5, -6, 1.8), at(0, 1, 3), 64), cam('the street', at(3, 6, 5.5), at(14, -16, 0), 74));
+      // (OVER='<caption>=<face group>[|…]=<height>,…': a camera over the face of that group nearest the anchor, looking down
+      // along the row onto it)
+      const over = (process.env.OVER || '').split(',').filter(Boolean).map((kv) => { const [nm, g, hh] = kv.split('='), q = nearest(g), H0 = Number(hh || 12); return q ? cam(nm, [q[0] - T[0] * H0 * 0.9, q[1] - T[1] * H0 * 0.9, q[2] + H0].map(r3), q.map(r3), 64) : null; }).filter(Boolean);
+      if (over.length) cams.push(...over);
+      else cams.push(cam('three quarters', at(6.5, -6, 1.8), at(0, 1, 3), 64), cam('the street', at(3, 6, 5.5), at(14, -16, 0), 74));
       }
     }
     const cells = [];
