@@ -7,6 +7,9 @@ import { describe, expect, it } from 'vitest';
 
 import { ATMOSPHERE, readAtmosphere, atmosphereInput, atmosphereGlsl, atmosphereScript, atmosphereEarlyScript, roomAirColour } from './atmosphere.js';
 import { emitThreeWorld } from '../scene-three.js';
+import { assembleGeocityScene } from '../../geocity/scene.js';
+import { assembleGeotownScene } from '../../geotown/scene.js';
+import { geocubeCity } from '../../era/geocube-city.js';
 
 const face = { corners: [[0, 0, 0], [1, 0, 0], [1, 1, 0]], normal: [0, 0, 1], fill: '#888888' };
 // (the GLSL's optical depth, the same closed form in JS: a ray r from an eye at height z over the base)
@@ -29,6 +32,8 @@ describe('the air', () => {
     expect(inn.visibility).toBeLessThan(out.visibility);
     expect(readAtmosphere({ kind, visibility: 300, height: false, blur: false })).toMatchObject({ visibility: 300, height: null, blur: 0 });
     expect(readAtmosphere({ blur: 4 }).blur).toBe(4);
+    expect(readAtmosphere({ kind: 'fog', colour: '#ff0080' }).colour).toEqual([1, 0, 0.502]);
+    expect(readAtmosphere('fog').colour).toBeNull();
     // (a geocity's measures are a metro's: the same word sees further, lying in a deeper layer)
     const city = readAtmosphere(kind, { where: 'city' });
     expect(city.visibility).toBeGreaterThan(out.visibility);
@@ -44,6 +49,7 @@ describe('the air', () => {
     expect(() => readAtmosphere({ height: 50 }, { inside: true })).toThrow(/inside, the air lies even/);
     expect(() => readAtmosphere({ blur: 40 })).toThrow(/air.blur/);
     expect(() => readAtmosphere(7)).toThrow(/air is a kind/);
+    expect(() => readAtmosphere({ colour: 'pink' })).toThrow(/air.colour/);
   });
 
   it('is Beer-Lambert by its visibility: a dark thing level with the eye at the visibility keeps 2% of its contrast', () => {
@@ -74,15 +80,13 @@ describe('the air', () => {
     expect(atmosphereGlsl(atmosphereInput(readAtmosphere('fog', { inside: true })))).not.toContain('exp( - h0');
   });
 
-  it('patches three\'s fog chunk first, softens the far past the cone innermost, then veils the gen-7 sky; both parse', () => {
+  it('patches three\'s fog chunk first, then veils the gen-7 sky; both parse (its blur is the frame pass\'s)', () => {
     const cfg = atmosphereInput(readAtmosphere('mist'), { sun: [0, -0.5, 0.8] });
     const early = atmosphereEarlyScript(cfg), late = atmosphereScript(cfg);
     for (const src of [early, late]) expect(() => new Function('THREE', 'scene', 'renderer', src)).not.toThrow();
-    for (const s of ["'float fogFactor = 1.0 - exp( - fogDensity * fogDensity * vFogDepth * vFogDepth );'", 'vAirRay = ( vec4( mvPosition.xyz, 0.0 ) * viewMatrix ).xyz;', 'airColour( vAirRay, fogColor )',
-      'Math.max(AT.from, window.__mojCone ? window.__mojCone.reach : 0)', 'RT.isXRRenderTarget = true', 'renderer.xr.isPresenting', 'rt === RT ? null : rt']) expect(early).toContain(s);
+    for (const s of ["'float fogFactor = 1.0 - exp( - fogDensity * fogDensity * vFogDepth * vFogDepth );'", 'vAirRay = ( vec4( mvPosition.xyz, 0.0 ) * viewMatrix ).xyz;', 'airColour( vAirRay, fogColor )']) expect(early).toContain(s);
+    expect(early).not.toContain('WebGLRenderTarget');
     for (const s of ['m.uniforms.uCover', 'scene.fog.density = AT.sigma']) expect(late).toContain(s);
-    // (a blur of zero keeps the frame: no target, no pass)
-    expect(atmosphereEarlyScript(atmosphereInput(readAtmosphere({ kind: 'mist', blur: false })))).toContain('if (!(AT.blur > 0 && canHalf)) return;');
   });
 
   it('in a room, is the colour of the room\'s own light over its void, not the sky\'s', () => {
@@ -101,7 +105,16 @@ describe('the air', () => {
     // (its first part right after the scene is made: before any other wrapper of the render, before any material)
     expect(page.indexOf('the air, first')).toBeGreaterThan(page.indexOf('const scene = new THREE.Scene();'));
     expect(page.indexOf('the air, first')).toBeLessThan(page.indexOf('the air: a fog by its visibility'));
+    // (its blur the frame pass's, right after it: wrapped round three's render before any other wrapper)
+    expect(page.indexOf('the frame pass: the far softened by the air')).toBeGreaterThan(page.indexOf('the air, first'));
     expect(emitThreeWorld({ faces: [face] })).not.toContain('channels/atmosphere.js');
     expect(emitThreeWorld({ faces: [face] })).toBe(emitThreeWorld({ faces: [face], air: null }));
+  });
+
+  it('passes every geocube show\'s own settings gate: the geocity, the geotown, the micro-city', () => {
+    // (the air first, then a word no gate takes: the refusal must name that word, so the air got through)
+    for (const [show, gate] of [['geocity', assembleGeocityScene], ['geotown', assembleGeotownScene], ['city', geocubeCity]]) {
+      expect(() => gate({ kind: 'geocube', cube: 'city-night', show, air: 'fog', zz: 1 }), show).toThrow(/'zz' is not a setting/);
+    }
   });
 });
