@@ -215,7 +215,7 @@ function cutFace(f, poly0, { valueAt, levels, hMax, hMin, stripH, varies }, onPi
 /** Faces cut where a field crosses its levels: each face `select` takes divided along the contours (a thin strip sliced,
  *  a face too small to carry a contour or facing the ground left whole, its middle's band) and each piece remade by
  *  `remake(face, piece, band)` → { part, material, albedo } (the piece's look; the face's own when it returns null);
- *  every other face as it was. A piece keeps its face's part, edge and fitting unless remade. */
+ *  every other face as it was. A piece keeps its face's part, edge, fitting and bone unless remade. */
 export function cutByField(faces, { select, valueAt, levels, hMax, hMin = hMax * 0.4, stripH = hMax * 0.5, remake }) {
   const centre = (P3) => [0, 1, 2].map((k) => P3.reduce((s2, q) => s2 + q[k], 0) / P3.length);
   const bandOf = (v) => levels.filter((t) => v >= t).length;
@@ -227,7 +227,7 @@ export function cutByField(faces, { select, valueAt, levels, hMax, hMin = hMax *
   const piece = (f, poly, band) => {
     const look = remake(f, poly, band) ?? { part: f.part, material: f.material, albedo: f.albedo };
     const g = face(poly.map((q) => q.p), look, f.outNormal, poly.map((q) => q.n), f.edge ? { edge: true } : {});
-    if (g) out.push(f.fitting ? { ...g, fitting: f.fitting } : g);
+    if (g) out.push(f.fitting || f.bone ? { ...g, ...(f.fitting ? { fitting: f.fitting } : {}), ...(f.bone ? { bone: f.bone } : {}) } : g);
   };
   for (const f of faces) {
     if (!select(f)) { out.push(f); continue; }
@@ -288,7 +288,7 @@ export function paintLivery(faces, livery, { base, seed = 1, size = 1 } = {}) {
   const out = faces.filter((f) => !painted(f)), paint = (f, poly, band) => {
     if (areaOf(poly.map((q) => q.p)) < 1e-9) return;
     const g = face(poly.map((q) => q.p), { part: f.part, material: f.material, albedo: L.colours[band] }, f.outNormal, poly.map((q) => q.n), f.edge ? { edge: true } : {});
-    if (g) out.push(f.fitting ? { ...g, fitting: f.fitting } : g);
+    if (g) out.push(f.fitting || f.bone ? { ...g, ...(f.fitting ? { fitting: f.fitting } : {}), ...(f.bone ? { bone: f.bone } : {}) } : g);
   };
   for (const f of mine) {
     const ns = normalsOf(f), poly0 = f.corners.map((p, k) => ({ p, n: ns[k] }));

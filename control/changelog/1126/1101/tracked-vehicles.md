@@ -79,3 +79,35 @@ Both carry the field's camo, wear and setting light, can be parked in a base and
     - within its budget, kept, worn and in camo.
   - **Seen** (machine gate only; the eyes gate is open): plain from the three-quarter, the side, the rear quarter and
     the nose, skirted and bare; woodland used under a golden sun, desert battered at noon.
+- **The light tank's turret and gun** (`road-military.js` `lightTank`), a bone of its own:
+  - **The turret:** a slab with a wedged front, its cheeks cut, a bustle behind, its sides raked. It stands on the
+    hull's ring as the `turret` bone, held still by the roll clip while the wheels turn.
+  - **The gun** (geometry, never fired):
+    - the mantlet and the coaxial port;
+    - the barrel's sleeve, its thermal sleeve's bands and the bore evacuator, tapered at its ends;
+    - the muzzle brake, its ports cut dark.
+
+    It rides in the turret's bone and traverses with it. An elevation bone waits for a rig that parents bones.
+  - **On the turret:**
+    - the commander's cupola, six vision blocks round it, its lid and handle, and an empty pintle mount;
+    - the loader's hatch with its hinges and handle; the gunner's sight, its block and hood;
+    - four smoke-discharger cups a side on the cheeks, aimed out, forward and up;
+    - grab rails along the sides;
+    - a basket on the bustle carrying a rolled tarp (most do).
+  - **Turning with it:** a face, a fitting or a mark carries its bone through the livery's and the wear's cuts (`bone`
+    kept like `fitting`; absent, the bytes as they were). The camo and the turret's numbers turn with the turret.
+  - **Measured:** the census measures the hull and the turret, not the gun, which reaches past the hull's length.
+    L, W and H are within 1%.
+  - **The sheet builds it** (no longer `UNBUILT`). The `light-tank` row's realistic build is live for parking,
+    looking and export. It is still never a ride: driving needs skid steer.
+  - **The budget:** about 38k triangles kept, 71k used and 74k in camo.
+  - **Held** (`mil-track.test.js`):
+    - the turret a bone on the ring, still while the wheels roll;
+    - the gun, cupola, blocks, dischargers, basket and sight on it, the gun past the hull;
+    - its camo and number turning with it;
+    - the sheet builds it, never a ride;
+    - within its budget.
+
+    The GLB and parked sweeps take it too: its GLB is valid by the Khronos validator.
+  - **Seen** (machine gate only; the eyes gate is open): plain from the three-quarter, the side, the rear quarter and
+    above; woodland used under a golden sun; desert battered at noon.

@@ -41,7 +41,7 @@ export function compileMilitary(sheet, { keys = 12, form = false, livery, wear, 
   if (!MILITARY_CLASSES[cls]) throw new Error(`car-designer: compileMilitary reads a military class (${Object.keys(MILITARY_CLASSES).join(', ')}), not ${cls}`);
   const spec = { kind: MILITARY_CLASSES[cls], L: v.L, W: v.W, H: v.H, wb: v.wheelbase, track: v.track, r: v.wheelRadius, tyreW: tyreWidth(v.wheelRadius), lift: 0 };
   const tracked = v.running === 'track';
-  const { hull, fittings, zones, livery: L, spinners } = militaryBody(cls, { seed: sheet.seed, r: spec.r, tyreW: spec.tyreW, livery });
+  const { hull, fittings, zones, livery: L, spinners, bones: parts = {} } = militaryBody(cls, { seed: sheet.seed, r: spec.r, tyreW: spec.tyreW, livery });
   // the wheels: each axle's pair, the front pair first, left (−x) and right; or a tracked body's spinners (its road
   // wheels first, the sprocket, the idler and the rollers), each its own bone
   const axles = tracked ? trackedGear(cls).wheels.map((w) => w.y) : militaryAxles(cls);
@@ -59,13 +59,15 @@ export function compileMilitary(sheet, { keys = 12, form = false, livery, wear, 
   const body = soak(weather([...hull, ...wells, ...fittings], W, { hubs: wheels.map((w) => w.hub), r: spec.r, zones, seed: sheet.seed, soil, scale: sizeOf(cls) }));
   // (the rims in the livery's base: a camo's first colour, a mono's own; a tracked body's spinners its own)
   const wheelForm = wheels.map((w) => soak(weatherWheel(w.faces ?? milWheel({ hub: w.hub, r: spec.r, width: spec.tyreW, ...(L ? { paint: liveryBase(L) } : {}) }), W, { soil })));
-  // centred on its footprint (the body is built centred; the census holds it)
-  const bones = [{ id: 'root', head: [0, 0, 0] }, ...wheels.map((w) => ({ id: name(w), head: w.hub.map(r4) }))];
-  const formOf = new Map([['root', body], ...wheels.map((w, k) => [name(w), wheelForm[k]])]);
+  // centred on its footprint (the body is built centred; the census holds it); a part that turns on its own (a turret)
+  // its own bone, its faces those its body tagged with it, held still by the roll
+  const own = Object.keys(parts), onRoot = own.length ? body.filter((f) => !f.bone) : body;
+  const bones = [{ id: 'root', head: [0, 0, 0] }, ...wheels.map((w) => ({ id: name(w), head: w.hub.map(r4) })), ...own.map((id) => ({ id, head: parts[id].map(r4) }))];
+  const formOf = new Map([['root', onRoot], ...wheels.map((w, k) => [name(w), wheelForm[k]]), ...own.map((id) => [id, body.filter((f) => f.bone === id)])]);
   // (without the form render, the same faces baked under the studio's light: what a world without gen-7 draws)
   const baked = new Map([...formOf].map(([b, fs]) => [b, bakeForm(fs)]));
   const figure = {
-    ...packVehicleFigure(bones, baked, { keys, ...(form ? { form: formOf } : {}) }),
+    ...packVehicleFigure(bones, baked, { keys, ...(own.length ? { rolls: wheels.map(name) } : {}), ...(form ? { form: formOf } : {}) }),
     // (lit as its world is: the world's own sky read as its light when it stands in one, else noon; its ground the soil's
     // bounce; its slots wet in the rain: form-light.js skyMood)
     ...(form ? { form: formLight(skyMood(setting?.sky), wet ? wetMaterials(MIL_MATERIALS) : MIL_MATERIALS, { ground: groundOf(soil) }) } : {}),
@@ -81,6 +83,7 @@ export function compileMilitary(sheet, { keys = 12, form = false, livery, wear, 
     faces: { root: baked.get('root'), wheels: wheels.map((w) => ({ bone: name(w), faces: baked.get(name(w)), hub: w.hub.map(r4) })) },
   };
   // (the census measures the hull and its wheels against the class: the fittings hang off it, as a mirror does a car)
-  const measured = { ...compiled, faces: { ...compiled.faces, root: bakeForm([...hull, ...wells]) } };
+  // (and a turret's own, but not its gun, which reaches past the hull's length)
+  const measured = { ...compiled, faces: { ...compiled.faces, root: bakeForm([...hull, ...wells].filter((f) => !f.part.startsWith('gun'))) } };
   return { ...compiled, census: realisticCensus(measured), ...(form ? { form: Object.fromEntries(formOf) } : {}) };
 }

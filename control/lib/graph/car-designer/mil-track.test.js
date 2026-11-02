@@ -11,6 +11,7 @@ import { buildsOf, upscaleOf } from '../vehicle-registry/builds.js';
 import { rideableRows } from '../vehicle-registry/ride.js';
 import { rollVehicleSheet, UNBUILT } from './sheet.js';
 import { compileMilitary } from './military.js';
+import { compileRealistic } from './realistic.js';
 import { MILITARY_CLASSES, militaryBody, trackedGear } from './road-military.js';
 import { CAMO, CAMO_IDS } from './livery-cut.js';
 
@@ -132,8 +133,7 @@ describe('the tracked classes and their rows', () => {
   });
 });
 
-// the light tank's hull on its running gear, compiled as the realistic pole compiles a field vehicle (its sheet waits
-// for its turret, so the test hands the compiler its class)
+// the light tank's hull on its running gear, compiled as the realistic pole compiles a field vehicle
 
 describe('the light tank\'s hull on its tracks', () => {
   const TANK = Object.keys(MILITARY_CLASSES).find((k) => PHYSICS[k].running === 'track');
@@ -141,7 +141,7 @@ describe('the light tank\'s hull on its tracks', () => {
   const c = make(), faces = Object.values(c.form).flat(), gear = trackedGear(TANK);
   it('rolls on its running gear: each wheel, sprocket, idler and roller a bone, its wheelbase its track on the ground, at its class\'s length and width', () => {
     const turning = 2 * (gear.wheels.length + 2 + gear.rollers.length);
-    expect(c.figure.bones.filter((b) => b.id !== 'root')).toHaveLength(turning);
+    expect(c.figure.bones.filter((b) => /^(road|sprocket|idler|roller)/.test(b.id))).toHaveLength(turning);
     expect(c.figure.bones.map((b) => b.id)).toEqual(expect.arrayContaining(['road1L', 'road1R', 'sprocketL', 'idlerR', 'roller1L']));
     expect(c.figure.wheelbase).toBeCloseTo(PHYSICS[TANK].wheelbase, 3);
     for (const k of ['L', 'W', 'wheelRadius']) { expect(c.census.against[k], k).toBeGreaterThan(0.99); expect(c.census.against[k], k).toBeLessThan(1.01); }
@@ -172,5 +172,45 @@ describe('the light tank\'s hull on its tracks', () => {
     expect(tris(c)).toBeLessThan(40000);
     expect(tris(make(3, { wear: 'used' }))).toBeLessThan(75000);
     expect(tris(camo)).toBeLessThan(85000);
+  });
+});
+
+describe('the light tank\'s turret and gun', () => {
+  const TANK = Object.keys(MILITARY_CLASSES).find((k) => MILITARY_CLASSES[k] === 'lightTank');
+  const make = (o = {}) => compileRealistic(rollVehicleSheet({ facets: { pole: 'realistic', class: TANK }, seed: 3 }), { form: true, wear: 'pristine', ...o });
+  const c = make();
+  it('a bone of its own on the ring, held still while the wheels roll', () => {
+    const ids = c.figure.bones.map((b) => b.id), t = ids.indexOf('turret'), w = ids.indexOf('road1L'), R = c.figure.clips.roll, n = ids.length;
+    expect(t).toBeGreaterThan(0);
+    const q = (key, bone) => R.b.slice((key * n + bone) * 7, (key * n + bone) * 7 + 4);
+    for (let k = 0; k < R.k; k++) expect(q(k, t)).toEqual([0, 0, 0, 1]);
+    expect(new Set(Array.from({ length: R.k }, (_, k) => q(k, w).join(','))).size).toBeGreaterThan(1);
+    // (its head on the ring's centre, over the hull's roof)
+    const head = c.figure.bones[t].head, ring = c.form.root.filter((f) => f.part === 'turret.ring');
+    const xy = ring.flatMap((f) => f.corners.map((p) => [p[0], p[1]]));
+    expect(head[0]).toBeCloseTo((Math.min(...xy.map((p) => p[0])) + Math.max(...xy.map((p) => p[0]))) / 2, 2);
+    expect(head[1]).toBeCloseTo((Math.min(...xy.map((p) => p[1])) + Math.max(...xy.map((p) => p[1]))) / 2, 2);
+  });
+  it('carries the gun, the cupola and its blocks, the smoke dischargers and the basket; the gun reaches past the hull, outside its length', () => {
+    const parts = new Set(c.form.turret.map((f) => f.part));
+    for (const p of ['gun.barrel', 'gun.brake', 'gun.evacuator', 'mantlet', 'cupola', 'vision', 'smoke.cup', 'basket', 'sight']) expect(parts.has(p), p).toBe(true);
+    expect(c.form.root.some((f) => f.part.startsWith('gun') || f.part === 'cupola')).toBe(false);
+    const muzzle = Math.max(...c.form.turret.filter((f) => f.part.startsWith('gun')).flatMap((f) => f.corners.map((p) => p[1])));
+    expect(muzzle).toBeGreaterThan(PHYSICS[TANK].L / 2);
+    for (const k of ['L', 'W', 'H']) { expect(c.census.against[k], k).toBeGreaterThan(0.99); expect(c.census.against[k], k).toBeLessThan(1.01); }
+  });
+  it('its camo and its number turn with it', () => {
+    const camo = make({ livery: CAMO_IDS.find((k) => !CAMO[k].cell) });
+    expect(new Set(camo.form.turret.filter((f) => f.material === 'milPaint').map((f) => f.albedo)).size).toBeGreaterThan(2);
+    expect(camo.form.turret.some((f) => f.part === 'mark')).toBe(true);
+  });
+  it('the sheet builds it now: parked and watched, never a ride; within its budget', () => {
+    expect(UNBUILT[TANK]).toBeUndefined();
+    const id = rowOfHandle('physics', TANK);
+    expect(rideableRows()).not.toContain(id);
+    expect(upscaleOf(id).next).toMatch(/skid steer/);
+    const tris = (x) => Object.values(x.form).flat().reduce((s, f) => s + f.corners.length - 2, 0);
+    expect(tris(c)).toBeLessThan(50000);
+    expect(tris(make({ wear: 'used', livery: CAMO_IDS.find((k) => !CAMO[k].cell) }))).toBeLessThan(90000);
   });
 });

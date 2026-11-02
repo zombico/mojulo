@@ -716,6 +716,66 @@ function lightTank(cls, { seed = 1 } = {}) {
     P({ axis: 'y', profile: rect(xl - 0.06, xl + 0.06, zl - 0.04, zl + 0.04), from: yl - 0.016, to: yl + 0.01, r: 0.005, seg: 1, look: (role) => (role === 'cap' ? M('taillamp', 'tail', C.tail) : M('taillamp.bezel', 'carbon', C.black)) });
     out.push(...tube(bend([[xl - 0.09, yl, zl], [xl - 0.09, yl - 0.07, zl], [xl + 0.09, yl - 0.07, zl], [xl + 0.09, yl, zl]], 0.03, 2), 0.007, { sides: 6, look: paint('taillamp.guard') }));
   }
+  // ── the turret: its own bone, turning on the ring; the gun rides in it (an elevation bone waits for a parented rig)
+  const tz = zR + 0.05, tr = [], zT = 2.12;
+  const T = (o) => tr.push(...plate(o));
+  const tx = (z) => 1.0 - (0.14 * (z - tz)) / (zT - tz);
+  const turretLook = (t) => paint(t.n[2] > 0.9 ? 'turret.roof' : t.n[2] < -0.5 ? 'turret.under' : t.n[1] > 0.5 ? 'turret.front' : 'turret');
+  tr.push(...slab({
+    front: [[-1.0, tz], [1.0, tz], [0.86, zT], [-0.86, zT]],
+    side: [[yM - 1.05, tz], [yM + 1.0, tz], [yM + 1.2, 1.82], [yM + 0.95, zT], [yM - 1.12, zT], [yM - 1.3, 2.0], [yM - 1.28, 1.72]],
+    plan: [[-0.55, yM + 1.2], [0.55, yM + 1.2], [1.0, yM + 0.6], [1.0, yM - 0.8], [0.8, yM - 1.3], [-0.8, yM - 1.3], [-1.0, yM - 0.8], [-1.0, yM + 0.6]],
+    chamfer: 0.03, look: turretLook,
+  }));
+  // the mantlet and the gun: its sleeve, the barrel and its thermal sleeve's bands, the bore evacuator, the muzzle brake
+  const gz = 1.86, g0 = yM + 1.3, gun = (p) => paint(p);
+  T({ axis: 'x', profile: rect(yM + 1.05, g0 + 0.04, 1.7, 2.02), from: -0.34, to: 0.34, r: 0.05, seg: 2, look: paint('mantlet') });
+  tr.push(...tube([[0, g0, gz], [0, g0 + 0.55, gz]], 0.1, { sides: 14, look: gun('gun.sleeve') }));
+  tr.push(...tube([[0, g0 + 0.55, gz], [0, g0 + 3.15, gz]], 0.068, { sides: 12, look: gun('gun.barrel') }));
+  for (const y of [0.8, 1.15, 1.5, 2.25, 2.6]) tr.push(...tube([[0, g0 + y, gz], [0, g0 + y + 0.03, gz]], 0.076, { sides: 12, look: gun('gun.band') }));
+  tr.push(...tube([[0, g0 + 1.75, gz], [0, g0 + 1.8, gz]], 0.088, { sides: 14, look: gun('gun.evacuator') }));
+  tr.push(...tube([[0, g0 + 1.8, gz], [0, g0 + 2.12, gz]], 0.105, { sides: 14, look: gun('gun.evacuator') }));
+  tr.push(...tube([[0, g0 + 2.12, gz], [0, g0 + 2.17, gz]], 0.088, { sides: 14, look: gun('gun.evacuator') }));
+  T({ axis: 'y', profile: rect(-0.105, 0.105, gz - 0.075, gz + 0.075), from: g0 + 3.15, to: g0 + 3.42, r: 0.012, seg: 1, look: gun('gun.brake') });
+  for (const s of [-1, 1]) for (const y of [3.2, 3.31]) T({ axis: 'x', profile: rect(g0 + y, g0 + y + 0.06, gz - 0.055, gz + 0.055), from: s * 0.105, to: s * 0.109, look: M('gun.brake.port', 'carbon', C.black) });
+  tr.push(...tube([[0.24, g0 + 0.02, gz - 0.05], [0.24, g0 + 0.06, gz - 0.05]], 0.026, { sides: 8, look: (role) => (role === 'cap' ? M('gun.coax', 'carbon', C.black) : paint('mantlet')) }));
+  // the commander's cupola ringed with blocks, its lid and an empty pintle mount; the loader's hatch; the gunner's sight
+  const [cx, cy] = [0.45, yM - 0.42];
+  T({ axis: 'z', profile: ring(cx, cy, 0.3, 18), from: zT - 0.02, to: 2.4, r: 0.015, seg: 1, look: paint('cupola') });
+  T({ axis: 'z', profile: ring(cx, cy, 0.27, 18), from: 2.4, to: 2.47, r: 0.012, seg: 1, look: paint('cupola.hatch') });
+  tr.push(...tube(bend([[cx - 0.09, cy, 2.468], [cx - 0.09, cy, 2.488], [cx + 0.09, cy, 2.488], [cx + 0.09, cy, 2.468]], 0.008, 2), 0.012, { sides: 6, look: paint('cupola.handle') }));
+  for (let k = 0; k < 6; k++) {
+    const a = Math.PI / 2 + ((k - 2.5) * Math.PI) / 4.2, ox = Math.cos(a), oy = Math.sin(a);
+    const block = plate({ axis: 'y', profile: rect(-0.055, 0.055, 2.26, 2.35), from: 0, to: 0.045, r: 0.005, seg: 1, look: (role) => (role === 'cap' ? M('vision', 'vision', C.vision) : M('vision.frame', 'carbon', C.black)) });
+    tr.push(...place(block.filter((f) => f.outNormal[1] > -0.5), { origin: [cx + 0.29 * ox, cy + 0.29 * oy, 0], ex: [oy, -ox, 0], ey: [ox, oy, 0], ez: [0, 0, 1] }));
+  }
+  tr.push(...tube([[cx, cy + 0.32, 2.2], [cx, cy + 0.32, 2.44]], 0.022, { sides: 8, look: paint('pintle.mount') }));
+  T({ axis: 'z', profile: rect(cx - 0.05, cx + 0.05, cy + 0.27, cy + 0.38), from: 2.44, to: 2.46, r: 0.004, seg: 1, look: paint('pintle.mount') });
+  T({ axis: 'z', profile: rect(-0.72, -0.18, cy - 0.26, cy + 0.26), from: zT - 0.01, to: zT + 0.035, r: 0.012, seg: 1, look: paint('hatch.loader') });
+  for (const y of [cy - 0.15, cy + 0.15]) tr.push(...tube([[-0.74, y - 0.06, zT + 0.03], [-0.74, y + 0.06, zT + 0.03]], 0.022, { sides: 8, look: paint('hatch.hinge') }));
+  tr.push(...tube(bend([[-0.45, cy + 0.1, zT + 0.035], [-0.45, cy + 0.1, zT + 0.075], [-0.45, cy - 0.1, zT + 0.075], [-0.45, cy - 0.1, zT + 0.035]], 0.015, 2), 0.011, { sides: 6, look: paint('hatch.handle') }));
+  const sy = yM + 0.62;
+  T({ axis: 'z', profile: rect(-0.55, -0.29, sy - 0.14, sy + 0.14), from: zT - 0.01, to: zT + 0.2, r: 0.015, seg: 1, look: paint('sight') });
+  T({ axis: 'y', profile: rect(-0.53, -0.31, zT + 0.05, zT + 0.17), from: sy + 0.14, to: sy + 0.16, r: 0.006, seg: 1, look: (role) => (role === 'cap' ? M('vision', 'vision', C.vision) : M('vision.frame', 'carbon', C.black)) });
+  T({ axis: 'y', profile: rect(-0.57, -0.27, zT + 0.18, zT + 0.22), from: sy + 0.12, to: sy + 0.24, r: 0.006, seg: 1, look: paint('sight.hood') });
+  // the smoke dischargers: four cups a side on the cheeks, aimed out, forward and up
+  for (const s of [-1, 1]) {
+    const base = [s * tx(1.95), yM + 0.42, 1.95], d = [s * 0.55, 0.55, 0.62], dn = Math.hypot(...d), u = d.map((q) => q / dn);
+    T({ axis: 'x', profile: rect(yM + 0.2, yM + 0.66, 1.84, 2.06), from: s * (tx(1.95) - 0.01), to: s * (tx(1.95) + 0.03), r: 0.006, seg: 1, look: paint('smoke.plate') });
+    for (let k = 0; k < 4; k++) {
+      const p0 = [base[0] + s * 0.02, base[1] - 0.18 + (k % 2) * 0.12 + (k > 1 ? 0.06 : 0), base[2] - 0.05 + (k > 1 ? 0.1 : 0)];
+      const p1 = p0.map((q, i) => q + u[i] * 0.2);
+      tr.push(...tube([p0, p1], 0.042, { sides: 10, look: (role) => (role === 'cap' ? M('smoke.cup', 'carbon', '#181816') : paint('smoke.cup')) }));
+    }
+  }
+  // the grab rails along its sides; the basket on the bustle, its rails and its floor
+  for (const s of [-1, 1]) tr.push(...tube(bend([[s * tx(1.98), yM - 0.7, 1.98], [s * (tx(1.98) + 0.06), yM - 0.7, 1.98], [s * (tx(1.98) + 0.06), yM + 0.25, 1.98], [s * tx(1.98), yM + 0.25, 1.98]], 0.03, 2), 0.013, { sides: 6, look: paint('grab') }));
+  const bk = yM - 1.3, bk1 = bk - 0.36, basket = paint('basket');
+  T({ axis: 'z', profile: rect(-0.78, 0.78, bk1, bk + 0.05), from: 1.74, to: 1.76, r: 0.004, seg: 1, look: basket });
+  for (const z of [1.76, 1.92, 2.08]) tr.push(...tube(bend([[-0.78, bk + 0.02, z], [-0.78, bk1, z], [0.78, bk1, z], [0.78, bk + 0.02, z]], 0.05, 2), 0.012, { sides: 6, look: basket }));
+  for (const x of [-0.78, -0.39, 0, 0.39, 0.78]) tr.push(...tube([[x, bk1, 1.74], [x, bk1, 2.09]], 0.011, { sides: 6, look: basket }));
+  for (const s of [-1, 1]) for (const y of [bk1 + 0.12, bk1 + 0.25]) tr.push(...tube([[s * 0.78, y, 1.74], [s * 0.78, y, 2.09]], 0.011, { sides: 6, look: basket }));
+  out.push(...tr.map((f) => ({ ...f, bone: 'turret' })));
   // ── the anchors
   const X = [1, 0, 0], Y = [0, 1, 0], Z = [0, 0, 1], neg = (a) => a.map((q) => -q);
   const xSide = (z) => x0 - ((x0 - x1) * (z - zF)) / (zR - zF);
@@ -735,8 +795,14 @@ function lightTank(cls, { seed = 1 } = {}) {
     { id: 'bumper.RC', kind: 'bumper', at: [0, yR, 0.7], out: neg(Y), up: Z },
     { id: 'mark.rear', kind: 'mark', role: 'number', at: [0, yRp(1.22) - 0.003, 1.22], out: neg(Y), up: Z, h: 0.11 },
     { id: 'mark.glacis', kind: 'mark', role: 'emblem', at: [0, 2.15, glacisZ(2.15) + 0.003], out: gn, up: gu, h: 0.12 },
+    // (on the turret: they turn with it)
+    { id: 'basket', kind: 'top', bone: 'turret', at: [0, bk - 0.18, 1.76], out: Z, up: neg(Y) },
+    ...[-1, 1].map((s) => {
+      const n = [s * (zT - tz), 0, 0.14], d = Math.hypot(...n), out = n.map((q) => q / d), up = [-s * 0.14 / d, 0, (zT - tz) / d];
+      return { id: `mark.turret.${s < 0 ? 'L' : 'R'}`, kind: 'mark', role: 'number', bone: 'turret', at: [s * (tx(1.82) + 0.003), yM - 0.25, 1.82], out, up, h: 0.15 };
+    }),
   ];
-  return { faces: out.filter(Boolean), anchors, zones: { floor: zF - 0.05 }, gear };
+  return { faces: out.filter(Boolean), anchors, zones: { floor: zF - 0.05 }, gear, bones: { turret: [0, yM, tz] } };
 }
 
 /** What each class carries, anchor by anchor (mil-fittings.js cards); `maybe` a share of the vehicles that carry it,
@@ -759,6 +825,7 @@ export const KITS = Object.freeze({
     ['cans.L', 'jerryCans', { count: 2 }], ['tools.R', 'pioneerTools'], ['antenna.L', 'antenna', { lean: 1 }], ['antenna.R', 'antenna', { lean: -1 }],
     ['grab.L', 'grabHandle', { width: 0.36 }], ['grab.R', 'grabHandle', { width: 0.36 }],
     ['bumper.FL', 'shackle'], ['bumper.FR', 'shackle'], ['bumper.RL', 'shackle'], ['bumper.RR', 'shackle'], ['bumper.RC', 'pintle'],
+    ['basket', 'tarpRoll', { maybe: 0.8, width: 1.2 }],
   ]),
   carrier: Object.freeze([
     ['rear.L', 'jerryCans'], ['rear.R', 'jerryCans'], ['slope.R', 'pioneerTools'],
@@ -779,7 +846,7 @@ export function militaryBody(cls, { seed = 1, r, tyreW, livery } = {}) {
   const kind = MILITARY_CLASSES[cls];
   if (!BODIES[kind]) throw new Error(`car-designer: '${cls}' is not a military class built yet (${Object.keys(MILITARY_CLASSES).join(', ')})`);
   const L = readLivery(livery);
-  const { faces: own, anchors, zones, gear } = BODIES[kind](cls, { seed }), byId = new Map(anchors.map((a) => [a.id, a]));
+  const { faces: own, anchors, zones, gear, bones } = BODIES[kind](cls, { seed }), byId = new Map(anchors.map((a) => [a.id, a]));
   // (a tracked body's running gear, each side: what stands still joins the hull, what turns its spinners, their discs in
   // the livery's base as a wheel's rim is)
   const sides = gear ? [-1, 1].map((side) => ({ side, ...runningGear({ side, ...gear, paint: L ? liveryBase(L) : C.olive }) })) : [];
@@ -793,14 +860,17 @@ export function militaryBody(cls, { seed = 1, r, tyreW, livery } = {}) {
     const ctx = { r: r ?? v.wheelRadius, tyreW: tyreW ?? 0.3, paint: C.olive, seed, ...words };
     if (card === 'jerryCans') ctx.tones = Array.from({ length: ctx.count ?? 1 }, () => CAN_TONES[Math.floor(rnd() * CAN_TONES.length)]);
     if (card === 'antenna') ctx.whip = 1.3 + 0.4 * rnd();
-    fittings.push(...fit(byId.get(id), card, ctx).map((f) => ({ ...f, fitting: card })));
+    // (a fitting on a part that turns, a turret's basket, turns with it: its anchor's bone)
+    const A = byId.get(id);
+    fittings.push(...fit(A, card, ctx).map((f) => ({ ...f, fitting: card, ...(A.bone ? { bone: A.bone } : {}) })));
   }
   const all = flatNormals([...faces, ...fittings]);
-  const turning = spinners.length ? { spinners } : {};
+  const turning = { ...(spinners.length ? { spinners } : {}), ...(bones ? { bones } : {}) };
   if (!L) return { hull: all.filter((f) => !f.fitting), fittings: all.filter((f) => f.fitting), anchors, zones, ...turning };
   // (the frame and the running gear in the livery's base, a shade down: a sand body is not carried on an olive frame)
   const shade = `#${[1, 3, 5].map((i) => Math.round(parseInt(liveryBase(L).slice(i, i + 2), 16) * 0.62).toString(16).padStart(2, '0')).join('')}`;
   const cut = paintLivery(all, L, { base: C.olive, seed, size: sizeOf(cls) }).map((f) => (f.albedo === C.frame ? { ...f, albedo: shade } : f));
-  const marks = stencilMarks(anchors, L, { seed }).map((f) => ({ ...f, fitting: 'mark' }));
+  const marks = [...stencilMarks(anchors.filter((a) => !a.bone), L, { seed }).map((f) => ({ ...f, fitting: 'mark' })),
+    ...stencilMarks(anchors.filter((a) => a.bone), L, { seed }).map((f) => ({ ...f, fitting: 'mark', bone: 'turret' }))];
   return { hull: cut.filter((f) => !f.fitting), fittings: flatNormals([...cut.filter((f) => f.fitting), ...marks]), anchors, zones, livery: L, ...turning };
 }
