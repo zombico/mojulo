@@ -1,12 +1,11 @@
 import { describe, it, expect } from 'vitest';
-import { GENRES, QUICK_GENRE, suggestGenres, readGenre, readIntent, cubeOfWorld, intentReport, quickGenre } from './intent.js';
+import { GENRES, QUICK_GENRE, suggestGenres, readGenre, readIntent, cubeOfWorld, intentReport, quickGenre, RETIRED_TARGETS } from './intent.js';
 import { CONCERNS, concernsOf } from './concerns.js';
 import { QUICK_GOALS, quickWorld } from './quick.js';
 import { composeGameworld } from './compose.js';
 import { CRAFT } from '../skyscape/eye.js';
 import { FIXTURES } from '../cosmos/fixtures.js';
 import { capabilityRegistry } from '../cosmos/registry.js';
-import { dryRun } from '../cosmos/cosmos.js';
 import { reviewParts } from './review.js';
 
 // WHAT GAME IT IS: a world says its game as a cosmos cube; a genre is a preset to start from; each cube value raises
@@ -136,32 +135,25 @@ describe('a dogfight\'s genre', () => {
   });
 });
 
-// A TARGET: the engine the game is meant for. Advice only: the readout says what of the cube that engine does not carry,
-// as the export's own marks say; nothing is refused or rewritten, and dropping the target drops the advice.
+// A TARGET: a stored row may name an engine a retired game runtime once translated it for. It is accepted and inert:
+// read as no target, no advice, the same cube. No engine runs a game now, so any other target is refused, teaching.
 describe('a target', () => {
-  // the genres whose cube Roblox carries whole, and those it loses values from (chosen from the catalog, not listed)
-  const lossOf = (id) => dryRunOf(id).engines.roblox.lost.length;
-  const dryRunOf = (id) => dryRun(cubeOfWorld(world({ intent: { from: id } })).cube);
-  const losing = Object.keys(GENRES).find((id) => lossOf(id) > 0);
+  const losing = Object.keys(GENRES)[0];
 
-  it('is an engine with marks, alone or beside a genre; another is refused, naming the engines it can be', () => {
-    expect(readIntent({ target: 'roblox' })).toMatchObject({ target: 'roblox', from: null });
-    expect(readIntent({ from: losing, target: 'godot' }).target).toBe('godot');
-    expect(() => readIntent({ target: 'unity' })).toThrow(/target is an engine.*roblox/);
+  it('a retired engine a stored row names is accepted and inert: no target, no advice, the same cube', () => {
+    expect(RETIRED_TARGETS).toEqual(expect.arrayContaining(['roblox', 'godot']));
+    for (const t of RETIRED_TARGETS) {
+      expect(readIntent({ target: t })).toEqual({ from: null, cube: {}, why: null });
+      expect(readIntent({ from: losing, target: t })).toEqual(readIntent({ from: losing }));
+      const aimed = world({ intent: { from: losing, target: t } }), plain = world({ intent: { from: losing } });
+      expect(cubeOfWorld(aimed).cube).toEqual(cubeOfWorld(plain).cube);
+      expect(intentReport(aimed)).toEqual(intentReport(plain));
+      expect(intentReport(aimed).target).toBeUndefined();
+    }
   });
 
-  it('names what the engine does not carry and what it carries in part, from the same marks the export reads', () => {
-    const r = intentReport(world({ intent: { from: losing, target: 'roblox' } }));
-    const read = dryRunOf(losing).engines.roblox;
-    expect(r.target).toMatchObject({ engine: 'roblox', carries: false, lost: read.lost.map((x) => `${x.facet}.${x.setting}=${x.value}`), partly: read.approximated.map((x) => `${x.facet}.${x.setting}=${x.value}`) });
-    expect(r.target.says).toMatch(/do not carry to Roblox.*the choice is the creator's/);
-  });
-
-  it('rewrites nothing: the cube is the same with it and without, and without it there is no advice', () => {
-    const plain = world({ intent: { from: losing } }), aimed = world({ intent: { from: losing, target: 'roblox' } });
-    expect(cubeOfWorld(aimed).cube).toEqual(cubeOfWorld(plain).cube);
-    expect(intentReport(plain).target).toBeUndefined();
-    expect(intentReport(aimed).verdict).toBe(intentReport(plain).verdict);
+  it('any other target is refused, naming the handoff', () => {
+    expect(() => readIntent({ target: 'unity' })).toThrow(/target is retired: no engine runs a game.*export_model \{ engine \}.*roblox \| godot/);
   });
 });
 

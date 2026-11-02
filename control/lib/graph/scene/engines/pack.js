@@ -1,23 +1,18 @@
 /**
  * THE PACK PIPELINE, engine-neutral: the pieces every engine pack is built from, so the legs compose them instead of
- * each carrying its own copy. A pack is DATA (a GLB, score.json, the recipes, WAV beds) plus the engine's own text
- * (its emitter) plus, for a runtime engine, its kernel. Deterministic: same rows → same pack bytes.
+ * each carrying its own copy. A pack is DATA (a GLB, the recipes, WAV beds) plus the engine's own text (its emitter).
+ * Deterministic: same rows → same pack bytes.
  *
  *   loadSketch(ref)                       the stored row, or a thrown 'not found'
  *   refusePixelizer(sketch, ref, why)     a pixelizer game is a 2D reducer, not a scene: refused, with the leg's reason
  *   packHash(manifest)                    the recipe's identity (engine-score.js manifestIdentity), 16 hex
- *   resolveLevel(sketch, opts)            resolveWorldScene → facesToGlb → the engine's score, the bus, the level's sound,
+ *   resolveLevel(sketch, opts)            resolveWorldScene → facesToGlb → the score, the bus, the level's sound,
  *                                         a hero's recorded lines (`voice`: [{ clip, at, recording, bytes }], in the GLB too)
  *   worldGlbStats(exported)               a world pack's GLB readout
- *   gameLevels(manifest, ref)             a game's level list, or a thrown reason
- *   levelContract(manifest)               a level's game contract as the web shell reads it, or null
- *   packPosture(posture, manifest)        explicit wins, else the game's own; a level's own posture applies absent both
- *   shellExtras(manifest)                 the shell keys a game carries that a pack's ledger names
- *   bedWriter({ binaries, log })          WAV beds rendered once per music (and loop), written at every path asked for
  *   emitFolder({ outDir, files, keep })   clean-emit a pack folder (`keep`: a folder the developer owns survives)
  *
- * The legs (godot-pack.js, unity-pack.js; the Blender art pass and the Unreal asset pack take its front) keep what is
- * theirs: their layout, their sidecars, their music policy and their emitter.
+ * The legs (the Unreal asset pack and the Blender art pass take its front) keep what is theirs: their layout, their
+ * sidecars, their music policy and their emitter.
  */
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
@@ -27,11 +22,8 @@ import { resolveWorldScene } from '@/lib/graph/worlds/world-scene';
 import { facesToGlb } from '@/lib/graph/scene/scene-gltf';
 import { manifestIdentity, extractEngineScore, extractBus, levelSoundtrack } from '../engine-score.js';
 import { levelSound } from '../engine-sound.js';
-import { renderBed } from '../engine-audio.js';
 import { isHumanoidRig, humanoidBonesFor } from '../../polygonizer/figure-humanoid-map.js';
 import { tposeRig, withProfileJoints } from '../../figures/rig-tpose.js';
-import { synthesizeLevel } from '../../game/level-synth.js';
-import { normalizeLevelContract } from '../../game/level-contract.js';
 import { attachRecordings } from '../../face-acting/recordings.js';
 
 /** A hero's recorded lines (resolveLevel's `voice`) as a pack's files: each held recording once, `<dir>/<recording>.wav` */
@@ -55,7 +47,7 @@ export const packHash = (manifest) => createHash('sha256').update(JSON.stringify
 /** A world's rigged LAYERED figure (station-loft-rig packLayeredRig: `layered: true`) as [name, figure], else null. */
 export const layeredFigure = (payload) => Object.entries(payload?.figures || {}).find(([, f]) => f?.rig === true && f.layered === true) ?? null;
 
-/** The clip a figure plays when nothing drives it (Godot's figure scene, an Unreal asset's preview): `idle` when it
+/** The clip a figure plays when nothing drives it (an Unreal asset's preview): `idle` when it
  * has one, else the first clip with more than one key, else the first (a one-key stand holds). */
 export function figureClip(recipeClips = {}, names = Object.keys(recipeClips || {})) {
   if (names.includes('idle')) return 'idle';
@@ -77,9 +69,9 @@ export const figureClipNames = (clips, f) => (clips === '_all' ? Object.keys(f?.
 /**
  * A body in two forms (worlds/controllable/forms.js) as an engine takes it: its STARTING form. The page picks an
  * entity's rule from its `forms` when it starts (the named `form` when it is one of them, else the first form with a
- * rule) and changes between them on the transform beat; no engine kernel has forms, so an entity that carries `forms`
- * and no rule of its own enters every engine with its starting form's rule, and the export names the rest as the page's
- * (FIGURE_MARKS.forms). A payload with no such entity is returned as it is, the same object.
+ * rule) and changes between them on the transform beat; an engine has no forms, so an entity that carries `forms` and
+ * no rule of its own enters every engine pack with its starting form's rule (the rest stay the page's). A payload with
+ * no such entity is returned as it is, the same object.
  */
 export function startingForms(payload) {
   const ents = Array.isArray(payload?.entities) ? payload.entities : null;
@@ -97,14 +89,13 @@ export function startingForms(payload) {
 }
 
 /**
- * One level through the seam every engine shares: resolveWorldScene → facesToGlb → the engine's score.
- *   engine    the engine the score's ledger reads the level for (engines/registry.js)
+ * One level through the seam every engine shares: resolveWorldScene → facesToGlb → the score.
  *   lit       the UNSHADED payload and real PBR materials, so the engine lights it
  *   figure    a rigged layered figure ships SKINNED (one mesh, its clips) when the GLB carries one of its clips
  *   humanoid  that figure ships the engine skeleton (re-rested in the VRM T-pose, its joints VRM-named and nested)
  * → { kind, payload, exported, score, fig, engine: the engine-skeleton figure, bus, soundtrack, sound }
  */
-export async function resolveLevel(levelSketch, { engine, clips, posture = null, lit = false, figure = false, humanoid = false }) {
+export async function resolveLevel(levelSketch, { clips, posture = null, lit = false, figure = false, humanoid = false }) {
   const { payload: resolved, kind } = await resolveWorldScene(levelSketch, { paint: true, ...(lit ? { unshaded: true } : {}), ...(figure && clips ? { face: true } : {}) });
   const payload = startingForms(resolved);
   if (!payload) {
@@ -117,7 +108,7 @@ export async function resolveLevel(levelSketch, { engine, clips, posture = null,
   const rest = fig && humanoid && Array.isArray(fig[1].bones) && isHumanoidRig(fig[1].bones) ? (fig[1].tpose ? fig[1] : tposeRig(fig[1])) : null;
   const glbPayload = rest ? { ...payload, figures: { ...payload.figures, [fig[0]]: rest } } : payload;
   const exported = facesToGlb(glbPayload, { generator: `mojulo ${levelSketch.ref}`, ...(clips ? { clips } : {}), ...(fig ? { skinned: true } : {}), ...(rest ? { humanoid: true } : {}), ...(lit ? { lit: true } : {}) });
-  const score = extractEngineScore(levelSketch, payload, { posture, engine });
+  const score = extractEngineScore(levelSketch, payload, { posture });
   return { kind, payload, exported, score, fig, engine: rest, voice, bus: extractBus(payload), soundtrack: levelSoundtrack(levelSketch, payload), sound: levelSound(payload.audio, levelSketch.ref) };
 }
 
@@ -125,45 +116,6 @@ export const worldGlbStats = (exported) => ({
   bytes: exported.byteLength, nodes: exported.nodeCount, triangles: exported.triangleCount,
   animations: exported.animationCount ?? 0, cameras: exported.cameraCount ?? 0, entities: exported.entityCount ?? 0,
 });
-
-/** A game's level list; throws when the row is no game or names no level. */
-export function gameLevels(manifest, ref) {
-  if (manifest.kind !== 'game') throw new Error(`'${ref}' is not a game (kind '${manifest.kind ?? 'none'}')`);
-  const levels = Array.isArray(manifest.levels) ? manifest.levels : [];
-  if (!levels.length) throw new Error(`game '${ref}' declares no levels`);
-  return levels;
-}
-
-/** A level's game contract, as game-resolve.js reads it: synthesized from its mechanics (and its chapters' carry rows),
- * normalized; null when the level carries no `game` channel. */
-export function levelContract(manifest) {
-  const { game } = synthesizeLevel(manifest || {});
-  return game && typeof game === 'object' ? normalizeLevelContract(game) : null;
-}
-
-/** The pack-wide posture: explicit wins, else the game manifest's durable default; a level's own applies absent both. */
-export const packPosture = (posture, manifest) => posture ?? manifest.posture ?? null;
-
-const SHELL_EXTRAS = ['menu', 'setup', 'difficulty', 'theme', 'front'];
-export const shellExtras = (manifest) => SHELL_EXTRAS.filter((k) => manifest[k] != null);
-
-/**
- * WAV beds into a pack's binaries: each music rendered once (per loop setting), written at every path asked for (a
- * game's menu bed is written as menu.wav even when a level already plays the same music).
- *   put(beatsRef, rel?, { recipe?, loop? }) → rel (default audio/<beatsRef>.wav), or null for no music
- */
-export function bedWriter({ binaries, log = () => {} }) {
-  const rendered = new Map();
-  return {
-    async put(beatsRef, rel = null, { recipe = null, loop } = {}) {
-      if (!beatsRef) return null;
-      const at = rel ?? `audio/${beatsRef}.wav`, key = `${beatsRef}\u0000${loop === false ? 'once' : 'loop'}`;
-      if (!rendered.has(key)) rendered.set(key, await renderBed(beatsRef, { recipe, log, ...(loop === false ? { loop: false } : {}) }));
-      if (!binaries.some((b) => b.rel === at)) binaries.push({ rel: at, bytes: rendered.get(key) });
-      return at;
-    },
-  };
-}
 
 /**
  * Clean-emit a pack folder: everything removed and written again, but `keep` (a folder inside the pack the developer

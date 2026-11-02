@@ -1,97 +1,82 @@
 /**
  * POWER: the verbs and rules, whoever holds them. Shape as in reality.js. `multi` settings take a list.
- * Each value carries its mark in every engine with a runtime kernel (scene/engines/registry.js): a sourced setting's
- * `marks` names the reader (cosmos/read-sources.js) that reads it from each engine's own tables, the ones its export
- * reads (a mechanic's is found by lowering it and reading the bus rows it uses); a hand value, or a sourced setting's
- * `godot: { all }`, writes one engine's mark by that engine's id.
  */
-// a moment on the cast's clock (kernel/cast.gd), struck when a beam lands, drawn simpler than the page
-// the strategy board is the page's (board/*); no engine kernel plays it yet
-const WEB = { godot: 'absent' };
-const MOMENT = { all: 'approximated', how: 'a moment on the cast\'s clock (kernel/cast.gd), drawn simpler than the page' };
 export const POWER = Object.freeze({
   id: 'power',
   asks: 'what can be done?',
   settings: {
     mechanics: {
       multi: true,
-      source: { module: 'lib/graph/game/mechanics.js', table: 'MECHANIC_KINDS', marks: 'mechanicMarks' },
-      // a mechanic's mark is found by lowering it (engine-portability.js mechanicMarks): unseen waits on `seen`, on-beat
-      // on `beat`, push and crops draw bus entities, supplies rearms; laps and score keep their bests in kernel/game.gd
+      source: { module: 'lib/graph/game/mechanics.js', table: 'MECHANIC_KINDS' },
       // built 10-25 (battle city): a sport is two layers, what happens at the ball (the movement stack and a free
       // body) and the game state (a contest kernel, deterministic as a board game's: who may stand where, who has the
       // ball, the clock and its stoppages, the score, the fouls and the restart each one triggers). Three shapes of
-      // contest, one kernel (lib/graph/contest), each a page's own frame simulation: nothing in an engine's kernel runs it
+      // contest, one kernel (lib/graph/contest), each a page's own frame simulation
       planned: {
-        meet: { status: 'built', lowers: 'lib/graph/contest/meet-sim.js', ...WEB, note: 'an athletic event (contest-kernel.js the referee): lanes, the set and the gun on a seeded delay, a false start, the clock or the measure, attempts, the placings; the sprint, the hurdles cleared on the stride, the long jump from the board; up to four local players on one keyboard, the rest the computer\'s. A quick game (design_game quick.meet) played on the World page (meet-arena.js); the runners are stick figures, the hero library\'s clips the step after' },
-        contest: { status: 'built', lowers: 'lib/graph/contest/contest-kernel.js', ...WEB, note: 'a match called by the contest kernel, never the agent: a net game (match-sim.js: tennis on two pads, the serve, the rally, 15 30 40), a turn sport (turn-sim.js: golf and bowling hot-seat, a charged aimed shot), a team goal game (team-sim.js: soccer and hockey on two pads, possession, throw-ins and corners, offside against the ball, fouls, the clock); the ball the physics property\'s sphere on its register\'s card, the hit the swing\'s strike; a sport not in the book written out (sports.js resolveSport, the distilled-rulebook catalyst). A quick game (design_game quick.contest) on the World page' },
+        meet: { status: 'built', lowers: 'lib/graph/contest/meet-sim.js', note: 'an athletic event (contest-kernel.js the referee): lanes, the set and the gun on a seeded delay, a false start, the clock or the measure, attempts, the placings; the sprint, the hurdles cleared on the stride, the long jump from the board; up to four local players on one keyboard, the rest the computer\'s. A quick game (design_game quick.meet) played on the World page (meet-arena.js); the runners are stick figures, the hero library\'s clips the step after' },
+        contest: { status: 'built', lowers: 'lib/graph/contest/contest-kernel.js', note: 'a match called by the contest kernel, never the agent: a net game (match-sim.js: tennis on two pads, the serve, the rally, 15 30 40), a turn sport (turn-sim.js: golf and bowling hot-seat, a charged aimed shot), a team goal game (team-sim.js: soccer and hockey on two pads, possession, throw-ins and corners, offside against the ball, fouls, the clock); the ball the physics property\'s sphere on its register\'s card, the hit the swing\'s strike; a sport not in the book written out (sports.js resolveSport, the distilled-rulebook catalyst). A quick game (design_game quick.contest) on the World page' },
         // priced 10-25 (the comic hero pack): a blow that moves its target, a body or a prop lifted and hurled, street props
-        // that break; none exists, so none is marked for an engine
-        knockback: { status: 'absent', ...WEB, roblox: 'absent', effort: 'M', pkg: 'comic-blows', requires: ['power.combat=melee'], note: 'a landed blow carries its target back along the blow, by the attack\'s weight; a wall stops it with a burst' },
-        throw: { status: 'absent', ...WEB, roblox: 'absent', effort: 'M', pkg: 'comic-blows', requires: ['power.mechanics=knockback'], note: 'lift a body or a prop and hurl it; what it lands on takes the hit' },
-        destructible: { status: 'absent', ...WEB, roblox: 'absent', effort: 'M', pkg: 'comic-street', note: 'a street prop (a crate, a hydrant, a lamp, a car) breaks under a blow or a thrown body into a few pieces and a puff' },
+        // that break; none exists yet
+        knockback: { status: 'absent', effort: 'M', pkg: 'comic-blows', requires: ['power.combat=melee'], note: 'a landed blow carries its target back along the blow, by the attack\'s weight; a wall stops it with a burst' },
+        throw: { status: 'absent', effort: 'M', pkg: 'comic-blows', requires: ['power.mechanics=knockback'], note: 'lift a body or a prop and hurl it; what it lands on takes the hit' },
+        destructible: { status: 'absent', effort: 'M', pkg: 'comic-street', note: 'a street prop (a crate, a hydrant, a lamp, a car) breaks under a blow or a thrown body into a few pieces and a puff' },
       },
     },
-    kit: { source: { module: 'lib/graph/game/kits.js', table: 'KITS', marks: 'kitMarks' } },
+    kit: { source: { module: 'lib/graph/game/kits.js', table: 'KITS' } },
     rules: {
       multi: true,
-      source: { module: 'lib/graph/worlds/controllable/compose.js', read: 'engineRules', marks: 'ruleMarks' },
+      source: { module: 'lib/graph/worlds/controllable/compose.js', read: 'engineRules' },
       // priced 10-25 (the comic hero pack): the hero's leap, a platform rule with a long rise and a landing that cracks the ground
       planned: {
-        'super-jump': { status: 'absent', ...WEB, roblox: 'absent', effort: 'M', pkg: 'comic-blows', requires: ['power.rules=platform'], note: 'a charged leap several storeys high with a hang at its top and a landing puff that staggers what stands near' },
+        'super-jump': { status: 'absent', effort: 'M', pkg: 'comic-blows', requires: ['power.rules=platform'], note: 'a charged leap several storeys high with a hang at its top and a landing puff that staggers what stands near' },
       },
     },
     combat: {
       multi: true,
       values: {
-        // the hero's swings and rounds, adjudicated by kernel/combat.gd (held equal to the web's); the set pieces, the
-        // combo's juggle and every AI's attack stay on the web
-        melee: { status: 'built', godot: 'approximated', roblox: 'approximated', lowers: 'lib/graph/worlds/controllable/combat-melee.js' },
-        ranged: { status: 'built', godot: 'approximated', roblox: 'approximated', lowers: 'lib/graph/worlds/controllable/combat-ranged.js' },
+        melee: { status: 'built', lowers: 'lib/graph/worlds/controllable/combat-melee.js' },
+        ranged: { status: 'built', lowers: 'lib/graph/worlds/controllable/combat-ranged.js' },
         // built 10-12: play.battle (playscape/ui/battles.js) composes a fight of a cue, a talk menu and guarded hp vars;
         // 10-16: play.rpg (playscape/rpg) is the party's: a kernel the page runs, rounds in speed order
-        // Godot: the one-on-one play.battle runs on the bus, the world frozen while its menu is up (II5,
-        // godot-story-rows.test.js: equal frame by frame); the party's rounds (play.rpg) stay on the web
-        'turn-based': { status: 'built', godot: 'approximated', roblox: 'absent', lowers: 'lib/graph/playscape/rpg/rpg.js', note: 'a party of classed characters (classes switched, each with its own rank and skill tree) against packs of foes in rounds: attack, skills, items, guard, flee; elements, statuses, xp, levels, gold and drops (play.rpg); the one-on-one play.battle remains' },
+        'turn-based': { status: 'built', lowers: 'lib/graph/playscape/rpg/rpg.js', note: 'a party of classed characters (classes switched, each with its own rank and skill tree) against packs of foes in rounds: attack, skills, items, guard, flee; elements, statuses, xp, levels, gold and drops (play.rpg); the one-on-one play.battle remains' },
         // built 10-19 (strategy board): fought on the board's spots, not in a window over a frozen field
-        tactics: { status: 'built', requires: ['space.board=spots'], ...WEB, lowers: 'lib/graph/gameworld/board-levels.js', note: 'battles.on: board: each stage that meets packs a tactics battle on its own ground, the book\'s party deployed (classes, ranks, skills, gear carried), speed turns of move, act and face, facing and height, a plain foe mind, spoils into the party' },
+        tactics: { status: 'built', requires: ['space.board=spots'], lowers: 'lib/graph/gameworld/board-levels.js', note: 'battles.on: board: each stage that meets packs a tactics battle on its own ground, the book\'s party deployed (classes, ranks, skills, gear carried), speed turns of move, act and face, facing and height, a plain foe mind, spoils into the party' },
         // built 10-15: a one-on-one fight from the side as its own frame simulation (versus/versus-core.js: 60 Hz, integer
         // millimetres; normals, specials, supers, throws, blocking, rounds), played by two local players or the CPU. A
-        // quick game's goal fight; the World page draws it on a stage arena (scene/channels/versus.js). Web only.
-        versus: { status: 'built', godot: 'absent', roblox: 'absent', lowers: 'lib/graph/versus/versus-core.js', note: 'a 1v1 fighter from the side: a frame simulation of normals, specials, supers, throws, blocks and rounds, two local players or the CPU (quick goal fight), fought on a stage arena' },
+        // quick game's goal fight; the World page draws it on a stage arena (scene/channels/versus.js).
+        versus: { status: 'built', lowers: 'lib/graph/versus/versus-core.js', note: 'a 1v1 fighter from the side: a frame simulation of normals, specials, supers, throws, blocks and rounds, two local players or the CPU (quick goal fight), fought on a stage arena' },
       },
     },
-    beams: { multi: true, source: { module: 'lib/graph/playscape/elements/beams.js', table: 'BEAMS', godot: MOMENT } },
-    explosions: { multi: true, source: { module: 'lib/graph/playscape/elements/explosions.js', table: 'EXPLOSIONS', godot: MOMENT } },
-    summons: { multi: true, source: { module: 'lib/graph/board/board-battle.js', table: 'BOARD_SUMMONS', godot: { all: 'absent', how: 'the board page only' } } },
+    beams: { multi: true, source: { module: 'lib/graph/playscape/elements/beams.js', table: 'BEAMS' } },
+    explosions: { multi: true, source: { module: 'lib/graph/playscape/elements/explosions.js', table: 'EXPLOSIONS' } },
+    summons: { multi: true, source: { module: 'lib/graph/board/board-battle.js', table: 'BOARD_SUMMONS' } },
     // resource, stamina, unlock, transform, equip: stats, cues, HUD and menus on the bus, fired by their keys
     systems: {
       multi: true,
-      source: { module: 'lib/graph/gameworld/actions.js', table: 'SYSTEM_KINDS', marks: 'systemMarks' },
+      source: { module: 'lib/graph/gameworld/actions.js', table: 'SYSTEM_KINDS' },
       // built 10-12: a pad the player uses (E) wakes what stands asleep there, paid from a var (a cue's if and add): a
       // defence's towers. Free placement on a board's spots: maze (10-19).
       planned: {
-        place: { status: 'built', godot: 'built', roblox: 'approximated', lowers: 'lib/graph/playscape/ui/cues.js', note: 'on pads: a cue (use, if: gold, add, spawn) wakes what was minted asleep there; a defence\'s towers (quick goal defend); on any free spot of a board: maze' },
+        place: { status: 'built', lowers: 'lib/graph/playscape/ui/cues.js', note: 'on pads: a cue (use, if: gold, add, spawn) wakes what was minted asleep there; a defence\'s towers (quick goal defend); on any free spot of a board: maze' },
         // built 10-19 (the strategy board): the maze defence's placement
-        maze: { status: 'built', ...WEB, requires: ['space.board=spots'], lowers: 'lib/graph/board/board-td.js', note: 'a tower on any free spot of a board, paid from the purse, where every gate and every walking foe keeps a way to the base: the road bends round the towers (board td; quick defend with board)' },
+        maze: { status: 'built', requires: ['space.board=spots'], lowers: 'lib/graph/board/board-td.js', note: 'a tower on any free spot of a board, paid from the purse, where every gate and every walking foe keeps a way to the base: the road bends round the towers (board td; quick defend with board)' },
         // priced 10-19: the real-time strategist's verbs
         // built 10-19 (the strategy board): the skirmish's orders
-        orders: { status: 'built', requires: ['space.camera=tactical'], ...WEB, lowers: 'lib/graph/board/board-rts.js', note: 'select a unit or a box of them and order it: move, attack-move, attack, hold, stop, gather; buildings train for gold and send out to a rally point; an enemy mind plays the other side (board rts; quick conquer)' },
+        orders: { status: 'built', requires: ['space.camera=tactical'], lowers: 'lib/graph/board/board-rts.js', note: 'select a unit or a box of them and order it: move, attack-move, attack, hold, stop, gather; buildings train for gold and send out to a rally point; an enemy mind plays the other side (board rts; quick conquer)' },
         // built 10-19 (the strategy board): a side's ladder, its technology what it fields
-        research: { status: 'built', requires: ['power.systems=orders'], ...WEB, lowers: 'lib/graph/board/board-rts-tech.js', note: 'each side a civilization whose technology is its roster (hand weapons arm infantry, armour is heavy, machine weapons are siege, a turret shoots), climbing a ladder researched one step at a time: its machines, then its showpieces, and income steps; drawn as crafted (quick conquer sides)' },
+        research: { status: 'built', requires: ['power.systems=orders'], lowers: 'lib/graph/board/board-rts-tech.js', note: 'each side a civilization whose technology is its roster (hand weapons arm infantry, armour is heavy, machine weapons are siege, a turret shoots), climbing a ladder researched one step at a time: its machines, then its showpieces, and income steps; drawn as crafted (quick conquer sides)' },
       },
     },
-    // every stat op runs in Godot (kernel/stats.gd, held equal to the web's)
-    stats: { multi: true, source: { module: 'lib/graph/playscape/stats/stats.js', table: 'STAT_THEN', godot: { module: 'lib/graph/playscape/stats/kernel.js', table: 'STAT_OPS' }, roblox: { module: 'lib/graph/playscape/stats/kernel.js', table: 'STAT_OPS' } } },
+    stats: { multi: true, source: { module: 'lib/graph/playscape/stats/stats.js', table: 'STAT_THEN' } },
     // the gear that moves the hero through the air, its directions held by the gear: a line to a face above and ahead (a
     // swinger), and later one to an edge or a roof (a grapnel) or two to any face in a cone (a twin hook). The city stalker (10-19)
     gear: {
       values: {
-        none: { status: 'built', godot: 'built', roblox: 'built', note: 'the hero\'s own legs: jumps, glides and climbs' },
-        // built 10-19 (phase 3): a body owner after the wall, the line to a face found for the hero; web only
-        swinger: { status: 'built', lowers: 'lib/graph/worlds/controllable/swing.js', godot: 'absent', roblox: 'absent', note: 'a line to a building\'s face above and ahead, found for the hero (rule.gear), swung on under a pivot drawn toward the hero\'s line, its arc clear of the street, released with its speed; a zip to the face from the ground; no face in reach, no swing' },
+        none: { status: 'built', note: 'the hero\'s own legs: jumps, glides and climbs' },
+        // built 10-19 (phase 3): a body owner after the wall, the line to a face found for the hero
+        swinger: { status: 'built', lowers: 'lib/graph/worlds/controllable/swing.js', note: 'a line to a building\'s face above and ahead, found for the hero (rule.gear), swung on under a pivot drawn toward the hero\'s line, its arc clear of the street, released with its speed; a zip to the face from the ground; no face in reach, no swing' },
       },
     },
-    idiom: { source: { module: 'lib/graph/gameworld/actions.js', table: 'IDIOMS', marks: 'idiomMarks' } },
+    idiom: { source: { module: 'lib/graph/gameworld/actions.js', table: 'IDIOMS' } },
   },
 });

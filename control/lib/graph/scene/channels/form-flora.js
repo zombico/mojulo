@@ -9,8 +9,9 @@
  * sprays coming in over the crown (the crown never draws in: the outline holds, form/bush-form.js BUSH_FORM.draw); far,
  * the thick axes and the far crown. The crowns and the wood cast into the land's shadow map; the sprays do not.
  *
- *   formFloraScript(flora, { snow? }) → the block's page source (absent `flora`, the land's block carries none); `snow`, the
- *     land's snow (channels/form-land.js, its map `SM`) caps the leaves that turn up where it lies
+ *   formFloraScript(flora, { snow?, capture? }) → the block's page source (absent `flora`, the land's block carries none);
+ *     `snow`, the land's snow (channels/form-land.js, its map `SM`) caps the leaves that turn up where it lies; `capture`,
+ *     a capture page's: the shaking's clock the capture's (window.__mojClock) when its frame() pins one
  *   `window.__formFlora()` → { templates, plants, near, far, impressions, sprays, triangles } what is drawn now
  */
 import { safeJson } from '../emit-util.js';
@@ -89,7 +90,7 @@ const STILL_GLSL = `vec3 floraSway( vec3 wp, vec3 base, float w, float leaf, flo
 `;
 const WIND_HEAD = 'uniform float uWindT; uniform vec4 uWindA; uniform vec4 uWindB; uniform sampler2D uWindNoise;\n' + WIND_AT_GLSL + SWAY_GLSL;
 
-export function formFloraScript(flora, { snow = false } = {}) {
+export function formFloraScript(flora, { snow = false, capture = false } = {}) {
   return `
   // the plants (gen-7: form/flora-read.js, channels/form-flora.js)
   {
@@ -456,7 +457,7 @@ ${snow ? `    // (under snow, era/snow.js capOf: a leaf turned up past its cap c
     const soft = []; for (let i = 0; i < N; i++) if (P[i * STRIDE + 12] > 0.5 && P[i * STRIDE + 12] < 1.5) soft.push(i);
     const shake = new Float32Array(N); let last = 0, prev = performance.now();
     (function tick() {
-      const t = performance.now(), dt = Math.min(0.1, (t - prev) / 1000); prev = t; floraT.value = t / 1000;
+      const t = performance.now(), dt = Math.min(0.1, (t - prev) / 1000); prev = t; floraT.value = ${capture ? '(window.__mojClock != null ? window.__mojClock : t) / 1000' : 't / 1000'};
       if (t - last > 250) { last = t; sortPlants(); }
       if (soft.length) {
         for (const i of soft) {

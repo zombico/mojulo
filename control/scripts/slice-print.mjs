@@ -1,13 +1,13 @@
 #!/usr/bin/env node
 /**
- * slice-print.mjs — the print handoff's MACHINE GATE (interchange-seams.plan.md
- * seam 1b). Exports a sketch as 3MF (or takes an existing 3MF), hands it to a
+ * slice-print.mjs — the print handoff's MACHINE GATE.
+ * Exports a sketch as 3MF (or takes an existing 3MF), hands it to a
  * local slicer headless, and stamps what the slice MEASURED beside the file as
  * `mojulo-print-gate.json`: does it slice, printed size as the slicer sees it
  * (vs mojulo's declared size — the unit-slip check), manifold/parts from
  * `--info`, estimated time, filament, supports, layers from the G-code ledger.
  *
- * Same posture as blender-bake.mjs / export-unity.mjs: the slicer is
+ * Same posture as blender-bake.mjs / export-unreal.mjs: the slicer is
  * operator-hosted, located by env or the macOS app bundle, never a dependency.
  * No slicer ⇒ capability rung 0: the 3MF + closure audit ship, the gate says
  * why it skipped. The gate is ADVISORY — it reports and stamps; whether the
@@ -63,7 +63,7 @@ const { findSlicer, parseGcodeHeader, parseSlicerInfo, summarizePrintGate, manif
 let file; let exported = null;
 if (args.ref) {
   const { exportModelHandler } = await import('@/lib/mcp/tools/sketch-model-export.js');
-  // One truth about manifoldness (launch-falls-short.plan.md P3): the gate answers "does it
+  // One truth about manifoldness: the gate answers "does it
   // slice as one part", so it ships the Manifold union by default; --no-union keeps the shells.
   const input = { ref: args.ref, format: '3mf', union: !args['no-union'] };
   if (args.scale) input.scale = Number(args.scale);

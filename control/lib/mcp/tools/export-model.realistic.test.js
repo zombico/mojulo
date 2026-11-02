@@ -18,7 +18,6 @@ import { exportModelHandler } from './sketch-model-export.js';
 import { hexLin } from '../../graph/epidermis/dermal-map.js';
 import { SketchRepository } from '../../db/repositories/sketches.js';
 import { expandLayeredManifest } from './layered.js';
-import { buildGodotWorldPack } from '../../graph/scene/godot-pack.js';
 import { buildUnrealAssetPack } from '../../graph/scene/unreal-pack.js';
 
 const OUT = process.env.MOJULO_OUTCOMES_DIR;
@@ -106,12 +105,9 @@ describe('the realistic hero, minted and exported', () => {
     let under = 0;
     for (let i = 0; i < C.getCount(); i++) { C.getElement(i, c); if (Math.max(...c.map((x, k) => Math.abs(x - base[k]))) < 2e-3) { uv.getElement(i, t); if (t[1] < 0.01) under++; } }
     expect(under).toBeGreaterThan(1000);
-    // THE ENGINE PACKS (engine-voice.test.js the emitted importers): the recorded line ships beside the GLB, once, and
-    // each importer is told the take it plays with
+    // THE ENGINE PACK (engine-voice.test.js the emitted importer): the recorded line ships beside the GLB, once, and
+    // the importer is told the take it plays with
     const rec = told.audio[0].recording;
-    const godot = await buildGodotWorldPack({ ref: minted.ref, outDir: mkdtempSync(path.join(os.tmpdir(), 'mojulo-godot-voice-')) });
-    expect(readFileSync(path.join(godot.dir, 'voice', `${rec}.wav`)).subarray(0, 4).toString('ascii')).toBe('RIFF');
-    expect(godot.figure.voice).toBe(1); expect(godot.ledger.figure_voice.note).toMatch(/^1 recorded line/);
     const unreal = await buildUnrealAssetPack({ ref: minted.ref, outDir: mkdtempSync(path.join(os.tmpdir(), 'mojulo-unreal-voice-')) });
     expect(readFileSync(path.join(unreal.dir, 'Voice', `${rec}.wav`)).subarray(0, 4).toString('ascii')).toBe('RIFF');
     expect(readFileSync(path.join(unreal.dir, 'import_mojulo.py'), 'utf8')).toContain(`"clip":"face:told","at":0.25,"file":"Voice/${rec}.wav"`);

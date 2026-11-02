@@ -355,8 +355,6 @@ function readout(ref, world, context = {}) {
   if (!intent.written && !world.quick) next.push({ step: 'intent', ...(intent.suggest ? { suggest: intent.suggest.map((g) => g.id) } : {}), card: 'gameworld-intent' });
   // a quick game's goal changed since its genre was written: keep the written one or change it, the creator's call
   if (intent.drift) next.push({ step: 'intent', drift: intent.drift, card: 'gameworld-intent' });
-  // the engine the intent names, and what of the world it does not carry: advice, never a refusal
-  if (intent.target && !intent.target.carries) next.push({ step: 'target', engine: intent.target.engine, lost: intent.target.lost, card: 'gameworld-intent' });
   // how the hero moves (gameworld/feel): the template, its viewer, and what the runtime carries of its card
   const feel = world.feel !== undefined && world.feel !== null ? feelReport(world.feel) : null;
   if (feel?.lost.length) next.push({ step: 'feel', pole: feel.pole, lost: feel.lost.map((x) => x.field), card: 'gameworld-feel' });

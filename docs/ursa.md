@@ -71,17 +71,18 @@ The one new decision is an *intended* emission change:
 
 **Enforced.** Every value in the space names what lowers it (`lowers: 'lib/graph/…#TABLE'`). The cube is the high
 level, the recipe the middle, the emitters the backends ([scene/](../control/lib/graph/scene/); native frame z-up,
-1 unit = 1 m). Each value carries a mark per engine with a runtime kernel — *built*, *approximated*, *absent* —
-read from the tables that engine's export reads ([engines/registry.js](../control/lib/graph/scene/engines/registry.js),
-[engine-portability.js](../control/lib/graph/scene/engine-portability.js)).
+1 unit = 1 m). Each value carries a status of what the web build makes of it — *built*, *partial*, *local*, *absent*
+— read from the table that lowers it ([cosmos/facets/index.js](../control/lib/graph/cosmos/facets/index.js)).
 
 `dryRun(cube)` returns the verdict — *makeable* (every set value built), *gaps* (some local or partial, named),
-*blocked* (some absent, named) — and per engine, what the export loses and what it carries simpler. Lowering is lossy
-and says so: the portability report is part of the output, not an apology after it.
+*blocked* (some absent, named). Lowering is lossy and says so: the gaps are part of the output, not an apology after
+it.
 
-Runtime kernels in other languages (Godot's GDScript, Roblox's Luau) are held equal to the web runtime frame by frame
-on canonical snapshots over a corpus: [scripts/conformance.mjs](../control/scripts/conformance.mjs). These are second
-implementations of parts of the model, which is what makes §7 a standard rather than a file format.
+No engine runs a game's rules: the web build is the game. A team's engine takes a handoff of each level
+([scene/handoff.js](../control/lib/graph/scene/handoff.js)): its assets, light, markers and contract as engine-neutral
+data each engine's adapter reads, with a ledger of what stayed the web's. The visual gate
+([scripts/visual-gate.mjs](../control/scripts/visual-gate.mjs)) measures how close each engine's shots come to the
+page's; it advises, as every gate does.
 
 ## 4. Relations
 
@@ -147,7 +148,6 @@ What does not travel, and what URSA would carry instead (**conjecture**, an enve
   "kernel":    { "kind": "double-slit", "mojulo": "3.1.1" },
   "expect":    { "render": "sha256:…" },// what the sender's re-render produced
   "coords":    { "cosmos": { /* a cube */ } },        // games: the receiver runs dryRun on their own install
-  "marks":     { "godot": "built" },    // as minted; the receiver's dryRun is authoritative
   "gates":     [{ "kind": "machine", "check": "traversal", "result": "pass" },
                 { "kind": "eyes", "by": "<person>" }],// an attestation by a person, never inferred
   "relations": [{ "role": "worn-by", "ref": "sha256:…" }],
@@ -170,7 +170,7 @@ Conformance levels:
 | L0 well-formed | the card and recipe validate | [book/tools/validate.js](../control/book/tools/validate.js) |
 | L1 re-mints | it builds on the declared version | the mint path |
 | L2 reproduces | the re-render matches `expect`, same kernel version and runtime | the byte-identical re-render tests |
-| L3 ports | the claimed engine marks hold | [scripts/conformance.mjs](../control/scripts/conformance.mjs) |
+| L3 hands off | a level's handoff carries its record into an engine | each engine's import probe |
 
 **What a level attests.** Reproducibility, never quality. An L2 recipe is one an outsider can re-check, the way an
 auditor's signature says the books reconcile and says nothing about the business. A level is a machine gate's stamp;
@@ -241,7 +241,7 @@ world can change:
 1. **The kernel.** A kernel change can change the output of a minted row. That is the drift that exists: re-render a
    recipe and compare against its `expect` hash. A mismatch is either a legitimate emission change (the step says so,
    the pin moves in the same commit) or a regression.
-2. **The export boundary.** A Godot project, a Unity pack, a slicer job is real state outside mojulo, and a person
+2. **The export boundary.** An engine's handoff project, a slicer job is real state outside mojulo, and a person
    finishing it in the engine is the intended use. Drift there is a diff between what the recipe emits now and what
    sits in the project folder: which files are still mojulo's, which are the finisher's, and what a re-export would
    overwrite. This is the one place Terraform's plan / apply / state discipline fits without translation.
@@ -276,7 +276,7 @@ A folder the agent writes and the operator commits:
 my-game/
   mojulo.project.json   resources by name: recipes, relations between them by name, targets
   mojulo.lock.json      per resource: recipe hash, kernel version, expected render hash
-  exports/godot/        the boundary: emitted files and the finisher's own, told apart
+  godot-handoff/        the boundary: emitted files and the finisher's own, told apart
 ```
 
 and four verbs over it, thin over the existing CLI (`node scripts/mcp-stdio.mjs call …`):
