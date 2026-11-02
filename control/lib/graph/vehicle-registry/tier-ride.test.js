@@ -1,6 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { vehicleTierOf, stampedTier } from './tier.js';
-import { rideOf, rideableRows, rideRowOf, rideClassOf, loftCamera } from './ride.js';
+import { rideOf, rideableRows, rideRowOf, rideClassOf, loftCamera, rideLivery, settingLivery } from './ride.js';
+import { MILITARY_CLASSES } from '../car-designer/road-military.js';
+import { CAMO_IDS, camoForSetting } from '../car-designer/livery-cut.js';
 import { VEHICLES, handlesOf, rowOfHandle } from './roster.js';
 import { buildsOf } from './builds.js';
 import { RIDES } from '../gameworld/ride.js';
@@ -80,5 +82,25 @@ describe('a quick world: the ride\'s words and its tier, written at mint', () =>
   it('takes a tier only with a ride', () => {
     expect(() => readQuick({ goal: 'reach', tier: 'realistic' })).toThrow(/name a ride/);
     expect(() => readQuick({ goal: 'reach', ride: both, tier: 'photoreal' })).toThrow(/toy, stylised, realistic/);
+  });
+});
+
+describe('a field vehicle\'s livery: the operator\'s word, or its setting\'s camo stamped at mint', () => {
+  const field = rideableRows().find((id) => (handlesOf(id).physics ?? []).some((k) => MILITARY_CLASSES[k]));
+  const world = (quick, style) => quickWorld({ id: 'w', quick, ...(style ? { style } : {}) });
+  const kit = 'jungle-trail', camo = camoForSetting({ kit });
+  it('stamps the setting\'s camo on a field vehicle a new world drives, and nothing where the setting says none', () => {
+    expect(CAMO_IDS).toContain(camo);
+    expect(settingLivery({ ride: field }, { style: { kit } })).toBe(camo);
+    expect(world({ goal: 'reach', ride: field }, { kit }).quick.livery).toBe(camo);
+    expect(world({ goal: 'reach', ride: field }).quick.livery).toBeUndefined();
+    expect(world({ goal: 'reach', ride: both }, { kit }).quick.livery).toBeUndefined();
+  });
+  it('keeps the operator\'s word over the setting\'s, and refuses a livery a ride\'s build does not take', () => {
+    const own = { pattern: CAMO_IDS.find((c) => c !== camo), marks: false };
+    expect(world({ goal: 'reach', ride: field, livery: own }, { kit }).quick.livery).toEqual(own);
+    expect(rideLivery({ ride: field, livery: own })).toMatchObject({ pattern: own.pattern, marks: false });
+    expect(() => readQuick({ goal: 'reach', ride: both, livery: camo })).toThrow(/paints a field vehicle/);
+    expect(() => readQuick({ goal: 'reach', livery: camo })).toThrow(/name a ride/);
   });
 });

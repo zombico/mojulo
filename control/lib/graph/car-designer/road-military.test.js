@@ -7,6 +7,7 @@ import { plate, tube, bend, bolts, weld, flatNormals } from './mil-hull.js';
 import { MILITARY_CLASSES, MIL_MATERIALS, militaryAxles, militaryBody, KITS } from './road-military.js';
 import { milWheel } from './mil-wheel.js';
 import { FITTINGS, fit } from './mil-fittings.js';
+import { CAMO, CAMO_IDS } from './livery-cut.js';
 import { compileRealistic } from './realistic.js';
 import { rollVehicleSheet, UNBUILT } from './sheet.js';
 import { VEHICLES as PHYSICS } from '../roads/vehicles.js';
@@ -139,6 +140,26 @@ describe('the fittings: cards set on the anchors a body declares', () => {
     expect(carries).toContain(true);
     expect(carries).toContain(false);
     expect(B.fittings.every((f) => f.fitting && f.cornerNormals)).toBe(true);
+  });
+});
+
+describe('a field vehicle in its livery', () => {
+  const camo = CAMO_IDS.find((k) => !CAMO[k].cell), plain = field({ form: true }), painted = field({ form: true, livery: camo });
+  const all = Object.values(painted.form).flat();
+  it('its camo cut into the hull and its fittings alike, its rims in the base, its stencils on; its size unchanged', () => {
+    const colours = new Set(CAMO[camo].colours);
+    const hullBands = new Set(painted.form.root.filter((f) => f.material === 'milPaint' && !f.fitting).map((f) => f.albedo));
+    expect([...hullBands].filter((c) => colours.has(c)).length).toBe(CAMO[camo].colours.length);
+    expect(painted.form.root.some((f) => f.fitting && f.fitting !== 'mark' && colours.has(f.albedo) && f.albedo !== CAMO[camo].colours[0])).toBe(true);
+    const rims = Object.entries(painted.form).filter(([b]) => b !== 'root').flatMap(([, fs]) => fs).filter((f) => f.part.startsWith('rim.') && f.material === 'milPaint');
+    expect(new Set(rims.map((f) => f.albedo))).toEqual(new Set([CAMO[camo].colours[0]]));
+    expect(painted.form.root.filter((f) => f.part === 'mark').length).toBeGreaterThan(0);
+    expect(plain.form.root.some((f) => f.part === 'mark')).toBe(false);
+    expect(painted.census).toEqual(plain.census);
+  });
+  it('within a hero vehicle\'s budget, every face lit', () => {
+    expect(all.reduce((s, f) => s + f.corners.length - 2, 0)).toBeLessThan(40000);
+    for (const f of all) expect(f.cornerNormals.every(unitLen)).toBe(true);
   });
 });
 

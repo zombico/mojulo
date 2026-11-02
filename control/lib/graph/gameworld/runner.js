@@ -110,7 +110,8 @@ const provable = (order) => { const k = (order?.manifest?.game?.mechanics ?? [])
 // tuning and conditions still read as the ride's), chased at its length
 function loftRide(Q, rode, seed) {
   const dims = FLEET[rode.class] ?? PHYSICS[rode.class];
-  return { figure: { loft: { class: rode.class, seed, light: 'form' } }, rule: quickRideRule(Q, vehicleRule(rode.class)), camera: loftCamera(dims) };
+  // (a field vehicle's livery as the world wrote it: its setting's camo, stamped at mint, or the operator's)
+  return { figure: { loft: { class: rode.class, seed, light: 'form', ...(Q.livery !== undefined ? { livery: Q.livery } : {}) } }, rule: quickRideRule(Q, vehicleRule(rode.class)), camera: loftCamera(dims) };
 }
 
 export function auditOrder(steps, stages) {

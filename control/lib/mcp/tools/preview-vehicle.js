@@ -16,8 +16,9 @@
  * the grid before a race wears it.
  *
  * Orbit-only (like `planetary`): no CSS-3D /scene path, no /scene PNG thumbnail.
- * A REALISTIC LOFT is an instance too: { loft: { class, era?, brief?, seed? } }, a road class at its true numbers
- * (car-designer/realistic.js), the registry's realistic build of a car, a truck or a bus.
+ * A REALISTIC LOFT is an instance too: { loft: { class, era?, brief?, seed?, livery? } }, a road class at its true
+ * numbers (car-designer/realistic.js), the registry's realistic build of a car, a truck or a bus; a field vehicle's
+ * livery (`livery` beside its word: car-designer/livery-cut.js) carried in its recipe.
  *
  * Stored manifest: { kind:'vehicle-instance', vehicle?, type | racer | supercar | loft, decoration?, pose?, viewBox?, title? }
  * (`vehicle`: the registry row it was asked as, when it was; the renderer reads the build's own keys).
@@ -29,6 +30,8 @@ import { resolveVehicle, rowOfHandle, suggestVehicles } from '@/lib/graph/vehicl
 import { buildsOf, buildOf, TIER_IDS } from '@/lib/graph/vehicle-registry/builds';
 import { registryReadout } from '@/lib/graph/vehicle-registry/doors';
 import { isVehicleType } from '@/lib/graph/vehicles/vehicles-css3d';
+import { MILITARY_CLASSES } from '@/lib/graph/car-designer/road-military';
+import { readLivery } from '@/lib/graph/car-designer/livery-cut';
 
 // the builds this door can show on the studio grid, and the instance key each is shown by
 const PREVIEWS = Object.freeze({
@@ -106,6 +109,13 @@ export async function previewVehicleInstanceHandler(input) {
   }
   const { title, vehicle, tier, racer, supercar, loft, decoration, pose, viewBox, ref, folder_ref: folderRef } = input;
   const read = readVehicleWord({ vehicle, type: input.type, racer, supercar, loft, tier });
+  // a field vehicle's livery beside its word (car-designer/livery-cut.js: a camo or mono, its stencils), carried in its
+  // loft's recipe; any other build is painted by its own words
+  if (input.livery !== undefined) {
+    if (!read.instance.loft || !MILITARY_CLASSES[read.instance.loft.class]) throw new Error('mint_solid vehicle: a livery paints a field vehicle (a jeep: { vehicle: \'jeep\', livery: \'woodland\' }); this build is painted by its own words');
+    readLivery(input.livery);
+    read.instance.loft = { ...read.instance.loft, livery: input.livery };
+  }
   const { type } = read.instance;
   const out = await mintVehicleInstance({ title, type, racer: read.instance.racer, supercar: read.instance.supercar, loft: read.instance.loft, decoration, pose, viewBox, ref, folderRef, ...(read.asked ? { vehicle: read.id } : {}) });
   return read.id ? { ...out, registry: registryReadout(read.id, { tier: read.tier ?? tier ?? 'stylised', use: 'parked' }) } : out;

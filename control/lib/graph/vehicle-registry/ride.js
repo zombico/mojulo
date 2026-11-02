@@ -17,12 +17,18 @@
  *                        word names no row or a row nothing can drive
  *   rideableRows()     → the rows a ride can name by id (those with a driven assembly or loft build)
  *   loftCamera(dims)   the follow camera a loft ride is chased by, scaled to its length
+ *   rideLivery(Q)      the ride's livery read (car-designer/livery-cut.js), or throws: a livery paints a field vehicle
+ *   settingLivery(Q, { style?, words? })   the camo a new quick world's field vehicle is stamped with at mint, read from
+ *                      its setting (its kit's name, its words: a jungle's tiger stripe), or null: the operator's word, a
+ *                      ride that is no field vehicle, or a setting no camo answers stamps nothing
  *
  * Pure: reads the registry and the quick spec.
  */
 import { VEHICLES, handlesOf, rowOfHandle, suggestVehicles } from './roster.js';
 import { buildsOf, buildOf } from './builds.js';
 import { RIDES } from '../gameworld/ride.js';
+import { MILITARY_CLASSES } from '../car-designer/road-military.js';
+import { readLivery, camoForSetting } from '../car-designer/livery-cut.js';
 
 const DRIVEN = ['ride', 'loft'];
 const drivable = (id) => buildsOf(id).some((b) => DRIVEN.includes(b.via) && b.uses.includes('driven'));
@@ -65,4 +71,23 @@ export function loftCamera(dims) {
   const L = dims?.L ?? 4.8, H = dims?.H ?? 1.45;
   const r2 = (v) => Math.round(v * 100) / 100;
   return { dist: r2(Math.max(7, 1.6 * L + 3)), height: r2(Math.max(2.6, 1.5 * H + 1)), lead: 5, lookH: r2(Math.max(1, 0.75 * H)) };
+}
+
+/** The ride's livery read, or null; a livery paints a field vehicle (a military class's realistic body) only. */
+export function rideLivery(Q) {
+  if (Q?.livery === undefined) return null;
+  const r = rideOf(Q);
+  if (r.kind !== 'loft' || !MILITARY_CLASSES[r.class]) {
+    const field = rideableRows().filter((id) => (handlesOf(id).physics ?? []).some((k) => MILITARY_CLASSES[k]));
+    throw new Error(`gameworld: quick.livery paints a field vehicle (${field.join(', ')}); the ${r.id} is painted by its own build`);
+  }
+  return readLivery(Q.livery);
+}
+
+/** The camo a new quick world's field vehicle is stamped with: its setting's, or null. */
+export function settingLivery(Q, { style = null, words = null } = {}) {
+  if (Q?.ride === undefined || Q.livery !== undefined) return null;
+  const r = rideOf(Q);
+  if (r.kind !== 'loft' || !MILITARY_CLASSES[r.class]) return null;
+  return camoForSetting({ kit: typeof style?.kit === 'string' ? style.kit : null, words });
 }

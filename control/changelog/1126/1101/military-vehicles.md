@@ -64,6 +64,43 @@ render, from a kit of those solids, at their classes' true numbers.
   - **The census:** it measures the hull against the class, since the fittings hang off it as a mirror does a car. The
     rear panel stands short of the tail, so the cans and the pintle hang inside the class's length.
   - **The budget:** about 21.6k triangles with its kit and its four lugged wheels and the spare.
+- **The livery, cut** (`car-designer/livery-cut.js`). A field vehicle's paint as words, the pattern cut into its painted
+  faces as geometry, with no texture, so every engine gets it as drawn. It is the supercar's livery idea
+  (`vehicle-livery.js`, cut at planes), cut at contours too.
+  - **The words:** `livery: '<pattern>' | { pattern, colours?, scale?, angle?, seed?, marks? }`.
+    - `pattern` is `mono` or a camo: woodland, desert, tiger stripe, winter, urban or digital (`CAMO`).
+    - `colours` go over the pattern's own in band order, the base first; `scale` is the blotch's size in metres.
+    - `marks` are a stencilled number (from the seed by default) and an emblem, a chevron or a bar.
+  - **The camo:**
+    - **The field:** a seeded two-octave field over the vehicle's own space, warped, stretched per pattern (a tiger's
+      stripes long along the hull).
+    - **The cut:** each painted face is divided finely only where a band's edge crosses it; a thin strip (a tube's side,
+      a plate's round) is sliced along its length only. Each piece is cut exactly where the field crosses a band's
+      level, and one edge is cut at one point from either face.
+    - **The bands:** each band's level is set from this vehicle's own painted area, so each colour takes its share.
+    - **Seams:** the pattern runs on over seams, plates and fittings, as a sprayed one does.
+    - **Exceptions:** what faces the ground is one colour, unseen. Digital is cut exactly at its cells' planes, each
+      cell one colour.
+  - **On the 4x4:**
+    - The camo is cut into the hull and its fittings at once, so the spare's carrier, the grab bars and the tools'
+      clips are painted with it.
+    - The rims take the base colour, and the frame a shade of it.
+    - Stencils go on its mark anchors: the number on each side and on the front bumper, the emblem on the rear panel and
+      the bonnet's sides. They are dark on a pale camo and pale on a dark one, and read left to right as one faces them.
+    - Its size is unchanged.
+  - **Camo by setting:**
+    - **At mint:** a new quick world whose ride is a field vehicle is stamped with its setting's camo when the operator
+      names none (`vehicle-registry/ride.js` `settingLivery`). It is read from the world's kit and words: a jungle's
+      tiger stripe, a desert's sand, the snow's white wash, a city's greys, an alien world's cells, a green land's
+      woodland (`camoForSetting`).
+    - **Before:** a world minted before carries none and stays olive.
+  - **The doors:**
+    - **The quick game:** `quick.livery` (a field vehicle's only; another build is refused, naming the rows it paints).
+    - **The level:** the figure's `loft.livery`.
+    - **The grid:** `mint_solid({ kind: 'vehicle', spec: { vehicle: 'jeep', livery: 'desert' } })`.
+  - **Not yet moved:** the road cars' sheet liveries and the supercar's keep their own words, unchanged.
+  - **The budget:** under 40k triangles in camo (woodland about 30k for the body and its kit, digital about 24k), and
+    under 25k plain.
 - **Composed:**
   - The quick race's card says a ride takes a registry vehicle (`'a jeep'`), its wording trimmed to keep the card
     under its ceiling now that the physics classes it lists have grown.
@@ -81,7 +118,20 @@ render, from a kit of those solids, at their classes' true numbers.
     - a body's kit on the anchors it declares, its dice choosing among it;
     - the compile true to its class, every face a material the figure carries with unit normals, within its budget
       (25k triangles), the same twice, and the baked figure the same rig;
-    - the word, the build, the ride, and a waiting class refused with what it needs.
+    - the word, the build, the ride, and a waiting class refused with what it needs;
+    - in its livery: the camo cut into the hull and the fittings alike, the rims in the base, the stencils on, the size
+      unchanged, within its budget.
+  - `livery-cut.test.js`:
+    - the words read whole and refused naming what they take;
+    - a setting read to its camo;
+    - a camo cut into the base paint only, each band its share, the area kept, the same twice, another seed another
+      pattern;
+    - a digital pattern cut at its cells;
+    - mono a recolour;
+    - the stencils read left to right.
+  - `tier-ride.test.js`: the setting's camo stamped at mint, nothing where the setting says none, the operator's word
+    kept, a livery refused on a ride it does not paint.
+  - `preview-vehicle.test.js`: a field vehicle's livery carried in its loft's recipe, refused on a road loft.
   - The form render in the page (`form-render.live.test.js`, e2e): the 4x4's shaders compile, it is drawn and lit, and
     its shadows are cast.
   - The quick game end to end (`design-game.quick.test.js`, e2e): `ride: 'a jeep'` written as its row, its level's
@@ -90,11 +140,12 @@ render, from a kit of those solids, at their classes' true numbers.
   - The 4x4 in a review sheet: the three-quarter, the side, the rear quarter, from above and from the front. With its
     kit, the spare on the bonnet, the racked cans, the red D-rings, the tools along the flank, the whip and the lugged
     tyres all read.
+  - Its camos: woodland, tiger, desert, winter, urban and digital in the review sheet, and woodland in the page's own
+    light. A desert 4x4 from behind shows its chevron between the cans, and from the front its bumper number.
   - In the page's own light, with shadows. The page's moving-actor shadows lay stripes of self-shadow on the flat plates
     that face away from the sun. They are the page's shadow channel's, shared by every world, and are left for the light
     phase.
 - **Not built yet, said:**
-  - Camo by the setting.
   - Wear and grime.
   - The light of the setting.
   - The canvas truck and the APC's bodies.

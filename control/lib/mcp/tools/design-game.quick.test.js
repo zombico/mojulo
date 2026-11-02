@@ -15,6 +15,7 @@ import { composeLive } from '@/lib/graph/worlds/controllable/compose.js';
 import { stageEnds } from '@/lib/graph/gameworld/levels.js';
 import { HALDEN_REACH } from '@/lib/graph/gameworld/examples.js';
 import { groundOf } from '@/lib/graph/playscape/terrain.js';
+import { camoForSetting } from '@/lib/graph/car-designer/livery-cut';
 
 // The quick path: a simple LOOP (one level, one goal), never a simple picture: any hero the door draws, or none (first
 // person); the goal placed on the stage's own anchors; the game made in one call, walkable and not proved beatable.
@@ -386,10 +387,12 @@ describe('design_game quick', () => {
     await designGameHandler({ quick: { goal: 'reach', ride: 'a pickup truck', world: { id: 'truck', style: { kit: 'trail-valley' } } }, ref: 'pk' });
     expect(stored('pk').quick.ride).toBe('pickup');
     expect(stored('pk-level-run-0').figures.ride).toEqual({ loft: { class: 'pickup', seed: 1, light: 'form' } });
-    // a field vehicle by the word people say: its body the military hull kit's, in the field's materials
+    // a field vehicle by the word people say: its body the military hull kit's, in the field's materials, painted in its
+    // setting's camo (stamped at mint: car-designer/livery-cut.js camoForSetting)
     await designGameHandler({ quick: { goal: 'reach', ride: 'a jeep', world: { id: 'field', style: { kit: 'trail-valley' } } }, ref: 'jp' });
-    expect(stored('jp').quick.ride).toBe('utility-4x4');
-    expect(stored('jp-level-run-0').figures.ride).toEqual({ loft: { class: 'utility4x4', seed: 1, light: 'form' } });
+    const camo = camoForSetting({ kit: 'trail-valley' });
+    expect(stored('jp').quick).toMatchObject({ ride: 'utility-4x4', livery: camo });
+    expect(stored('jp-level-run-0').figures.ride).toEqual({ loft: { class: 'utility4x4', seed: 1, light: 'form', livery: camo } });
     const jeep = (await resolveWorldScene(SketchRepository.getByRef('jp-level-run-0'))).payload.figures.ride;
     expect(jeep.form.materials).toHaveProperty('milPaint');
     expect(jeep.bones.map((b) => b.id)).toEqual(expect.arrayContaining(['root', 'wheelFL', 'wheelRR']));

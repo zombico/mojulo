@@ -5,7 +5,7 @@
  *
  *   racerInstanceFaces(spec)       a racer's recipe (roster.js racerSpec's entry) → { faces, stats }
  *   supercarInstanceFaces(spec)    a supercar's spec (supercar-figure.js) → { faces, stats }
- *   loftInstanceFaces(spec)        a realistic loft's { class, era?, brief?, seed?, light? } (realistic.js compileRealistic: a
+ *   loftInstanceFaces(spec)        a realistic loft's { class, era?, brief?, seed?, light?, livery? } (realistic.js compileRealistic: a
  *                                  physics class at its true numbers, in metres) → { faces, stats }: the vehicle
  *                                  registry's realistic build of a road class, on the studio grid
  *   loftFigure(spec, { form? })    the same loft as its vehicle rig, the figure a realistic quick ride drives; in the
@@ -35,7 +35,7 @@ export function supercarInstanceFaces(spec) {
   return { faces, spec, stats: { preset, cabinStyle: car.cabinStyle, headlightStyle: car.headlightStyle, livery: car.livery?.pattern ?? 'mono', faces: faces.length } };
 }
 
-const LOFT_KEYS = Object.freeze(['class', 'era', 'brief', 'seed', 'light']);
+const LOFT_KEYS = Object.freeze(['class', 'era', 'brief', 'seed', 'light', 'livery']);
 // a loft's recipe compiled: the realistic sheet rolled for its class (its era and brief the sheet's words), then lofted;
 // in the form render (gen-7) when its `light` says form, or it says nothing and the read is gen-7
 function compileLoft(spec, { form: formRead = false } = {}) {
@@ -45,7 +45,7 @@ function compileLoft(spec, { form: formRead = false } = {}) {
   if (spec.light !== undefined && !['form', 'paint'].includes(spec.light)) throw new Error('meta-fabricator: a loft\'s light is form (its materials lit by the page) or paint (its light baked)');
   const sheet = rollVehicleSheet({ brief: spec.brief ?? '', facets: { pole: 'realistic', class: spec.class, ...(spec.era ? { era: spec.era } : {}) }, seed: spec.seed ?? 1 });
   const form = spec.light === 'form' || (spec.light === undefined && formRead);
-  return { sheet, c: compileRealistic(sheet, { form }) };
+  return { sheet, c: compileRealistic(sheet, { form, ...(spec.livery !== undefined ? { livery: spec.livery } : {}) }) };
 }
 
 /** A loft's vehicle rig, as a world's figures map delivers it (the realistic ride's body); `form` the read's (gen-7). */
