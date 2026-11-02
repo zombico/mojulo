@@ -57,6 +57,21 @@ describe('the runner makes it', () => {
     expect(h.game.levelRef).toBe('lv_inn');
   });
 
+  it('the world\'s camera over its rooms: overhead moving in the screen\'s frame, fixed over each room, never a side lane', () => {
+    const st = gameStages(withInn(MEADOWMARK)).find((s) => s.level === 'the-inn');
+    const at = (camera) => stageLevelOrder(readGameworld({ ...withInn(MEADOWMARK), camera }), st, { ref: 'lv_inn', heroRef: 'gw-hero' }).args.manifest;
+    const chase = stageLevelOrder(readGameworld(withInn(MEADOWMARK)), st, { ref: 'lv_inn', heroRef: 'gw-hero' }).args.manifest;
+    const top = at('top-down');
+    expect(top.camera.rule).toBe('overhead');
+    expect(top.entities[0].rule.move).toBe('world');
+    const fixed = at('fixed');
+    expect(fixed.camera.rule).toBe('fixed');
+    expect(fixed.camera.stations.length).toBeGreaterThan(1);
+    // (third person, named or not, is the hero's own chase, as it was)
+    expect(at('third-person').camera).toEqual(chase.camera);
+    expect(() => at('side')).toThrow(/a side camera runs a trail's lane/);
+  });
+
   it('a building use (a genre level\'s office) is laid on its own bay kit with its plan\'s settings, played to its goal up its storeys', () => {
     const W = withInn(MEADOWMARK, { use: 'office', storeys: 2, wings: 'I', bays: 2 }), G = readGameworld(W);
     const st = gameStages(W).find((s) => s.level === 'the-inn'), order = stageLevelOrder(G, st, { ref: 'lv_office' });

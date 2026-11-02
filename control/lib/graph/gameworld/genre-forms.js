@@ -5,13 +5,15 @@
  * dry run's verdict), or one the book cannot lay from a sentence yet (PENDING), is refused with what it waits on, nothing
  * laid in its place. The genres the book lays in its own walks and buildings are laid as they were.
  *
- *   GENRE_FORMS[id]         → { form, name, level(i, n) → the level's form keys } the book level form a genre's levels take
+ *   GENRE_FORMS[id]         → { form, name, hero?, screen?, level(i, n) → the level's form keys } the book level form a
+ *                             genre's levels take (`hero`: played by the hero by default, its `moves`; `screen`: its own)
  *   HAND_OFFS[id]           → { door, why } the door that makes a genre that is not a book of levels
  *   refusalOf(id, others)   → null | { verdict, waits, others } why a read genre is not laid (hand-offs are said apart)
  *   PENDING[id], pendingOf(id) → what a genre the book cannot lay from a sentence yet waits on (refused, nothing laid)
+ *   heroFrameOf(id, tradition) → { characters, camera, screen } | null: the hero, camera and screen a genre on foot is laid with
  *
  * Forms wait on what they need beside them: a race's ride (the vehicle registry's front door) before racing's roadway
- * is laid; a hero by default before a runner's lanes and a city's swing.
+ * is laid. A form a hero plays (a runner's lanes, a city's rooftops) is laid with the hero by default beside it.
  * Pure: the door probes (door-probes.js) read what the run makes of it.
  */
 import { dryRun } from '../cosmos/cosmos.js';
@@ -23,6 +25,11 @@ export const GENRE_FORMS = Object.freeze({
   'flight-sim': Object.freeze({ form: 'airspace', name: 'Course', level: () => ({ airspace: { map: { craft: 'trainer' }, course: true } }) }),
   'air-combat': Object.freeze({ form: 'airspace', name: 'Sortie', level: () => ({ airspace: { map: { craft: 'jet' }, course: true } }) }),
   'space-shooter': Object.freeze({ form: 'airspace', name: 'Sector', level: () => ({ airspace: { map: { craft: 'fighter' }, space: { asteroids: 'field' }, course: true } }) }),
+  // the forms a hero plays (heroFrameOf lays the hero beside them; `moves` the ones the form asks of its body): the
+  // endless run down lanes (worlds/controllable/runner.js), the city swung through by its rooftops (city/plan/level.js)
+  // (a runner is made for a phone held upright: its lanes run up the screen)
+  'endless-runner': Object.freeze({ form: 'runner', name: 'Run', hero: Object.freeze({}), screen: 'phone', level: () => ({ runner: true }) }),
+  'city-stalker': Object.freeze({ form: 'city', name: 'District', hero: Object.freeze({ moves: Object.freeze(['wall', 'swinger']) }), level: () => ({ city: { stalker: true } }) }),
 });
 
 /** The genres that are another door's medium: said, never laid as levels. */
@@ -38,14 +45,12 @@ export const WAITS = Object.freeze({
   ride: 'a ride the book drives (the hero as a vehicle, on a roadway level with a race goal)',
   weapon: 'the hero\'s weapon (a strike or a gun from what it carries)',
   form: 'its kernel as a book level (today it plays as one level alone)',
-  hero: 'a hero by default, and its level form laid for it (a runner\'s lanes, a city to swing through)',
 });
 export const PENDING = Object.freeze({
   racing: 'ride', 'kart-racer': 'ride',
   shooter: 'weapon', 'arena-shooter': 'weapon', 'arena-brawler': 'weapon', 'co-op-brawler': 'weapon',
   'tower-defense': 'form', rts: 'form', tactics: 'form', farming: 'form', rhythm: 'form', roguelike: 'form', 'block-puzzle': 'form',
   'pixel-puzzle': 'form', 'versus-fighter': 'form', 'athletics-meet': 'form', 'net-game': 'form', 'turn-sport': 'form', 'team-goal-game': 'form',
-  'endless-runner': 'hero', 'city-stalker': 'hero',
 });
 // the one level a pending genre plays alone today (quick.js QUICK_GOALS, the one-level door), said beside its refusal
 const ONE_LEVEL = Object.freeze({
@@ -57,6 +62,30 @@ const ONE_LEVEL = Object.freeze({
 /** Why a read genre is not laid from a sentence yet (PENDING): { waits, one? } (`one`: the quick goal that plays one
  * level of it alone), or null. */
 export const pendingOf = (id) => (PENDING[id] ? { waits: WAITS[PENDING[id]], ...(ONE_LEVEL[id] ? { one: ONE_LEVEL[id] } : {}) } : null);
+
+// the vibe a genre's hero moves with where its cube names none (gameworld-motion's words)
+const GENRE_VIBE = Object.freeze({
+  'dungeon-crawler': 'stoic', 'top-down-adventure': 'spirited', metroidvania: 'nimble', 'survival-horror': 'weary',
+  'story-adventure': 'composed', stealth: 'nimble', 'co-op-platformer': 'bouncy', jrpg: 'spirited', collectathon: 'bouncy',
+});
+// the cameras a world names (cameras.js) that the genre's cube asks of its hero; third person is the hero's own default
+const NAMED_CAMERAS = new Set(['side', 'top-down', 'fixed']);
+
+/** The frame a genre's sentence is laid in when its cube asks a hero on foot: the hero the book makes by default (its
+ * body the game's, game-bodies.js; it moves by the genre's vibe; no powers, said (`actions.none`), so the book has
+ * nothing open to hold its levels back), the camera the cube asks (side, top-down, fixed; null for third person) and the
+ * screen it is made for (a monitor's 16:9: a chase, a side-scroller or an overhead reads across, not up a phone). A genre
+ * whose hero is a vehicle or an aircraft is laid by its form, not a book hero: null. `tradition` is the world's register. */
+export function heroFrameOf(id, tradition) {
+  const cube = genreCube(id);
+  if (!cube || cube.soul?.hero !== 'hero' || cube.space?.camera === 'first-person') return null;
+  const vibe = cube.soul?.vibe ?? GENRE_VIBE[id] ?? 'spirited', camera = NAMED_CAMERAS.has(cube.space?.camera) ? cube.space.camera : null;
+  const moves = GENRE_FORMS[id]?.hero?.moves;
+  return {
+    characters: { direction: { tradition, body: 'game' }, hero: { motion: { vibe: [vibe] }, actions: { none: true, ...(moves ? { moves: [...moves] } : {}) } } },
+    camera, screen: 'screen',
+  };
+}
 
 const code = (x) => `${x.facet}.${x.setting}=${x.value}`;
 

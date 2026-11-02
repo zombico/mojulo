@@ -43,3 +43,27 @@ door reach them, one layer at a time, measured on the door people use.
   - Laid as before: the genres of the book's own walks and buildings (dungeon crawler, collectathon, top-down adventure,
     metroidvania, survival horror, story), and the ones a hero completes (stealth's guards, a co-op platformer's side
     camera and seats, a party's battles).
+- **A genre on foot is laid with a hero, its camera and its screen** (`genre-forms.js` `heroFrameOf`, read by
+  `compose.js`). Where the genre's cube asks a hero, the sentence's world has one, said in the brief (`brief.hero`):
+  - its body the game's (`characters.direction.body: 'game'`, the body rails) in the world's own tradition, moving
+    by the genre's vibe;
+  - no powers, said: `actions: { none: true }`, an answer the actions page now takes (no system, idiom or
+    progression; nothing open), so an autonomous run makes the hero and then its levels in one call;
+  - the camera the cube asks (side for a metroidvania or a co-op platformer, fixed for survival horror; third person
+    is the hero's own chase), with no climbs under a side camera and no side-scroller laid indoors;
+  - a monitor's screen (16:9), except a runner's phone.
+  A dungeon crawler, a collectathon, a metroidvania, survival horror, stealth, a party's battles and a co-op
+  platformer's seats are now played by a body from their sentence, not by a bodiless first-person walker.
+- **The endless runner and the city stalker are laid in their forms with that hero**: runner levels, and city levels
+  played by the stalker with the wall and the line (`moves: ['wall', 'swinger']`). They are no longer refused.
+- **A building level takes the world's camera**: top-down plays its rooms under the overhead camera, moving in the
+  screen's frame; fixed stands a camera over each room; a side camera is refused there (no lane). Absent, the chase as
+  before.
+- **A city level carries the world's screen** (`city/plan/card.js` takes `screen` as a world channel); a city level
+  with one was refused.
+- **A guard holds a post it cannot see the start from** (`quick.js` `guardPosts`): guards stand only on the beats past a
+  guard's sight from the spawn (its narrow beam, 14 m, and a step), where the way has any. On a short way the first
+  guard faced the spawn from inside its beam, and the level was lost before the hero moved. A way whose beats all lie
+  within it is posted as before.
+- The battle, platform, sneak and seats probes hold. The battle probe reads a battle or a party's encounters (a level's
+  bag is a play block too).

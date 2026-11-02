@@ -58,10 +58,10 @@ export const DOOR_PROBES = Object.freeze([
   },
   {
     family: 'battle', genre: 'jrpg', prompt: 'a party role-playing game with turn-based battles',
-    concept: 'a level whose fights are turn-based battles (a play block)',
-    holds: ({ steps }) => someLevel(steps, (m) => isObj(m.play)),
+    concept: 'a level whose fights are turn-based battles (a battle, or a party\'s encounters)',
+    holds: ({ steps }) => someLevel(steps, (m) => isObj(m.play?.battle) || (Array.isArray(m.play?.rpg?.encounters) && m.play.rpg.encounters.length > 0)),
     reference: { quick: { goal: 'battle' } },
-    now: 'not',
+    now: 'type',
   },
   {
     family: 'contest', genre: 'net-game', prompt: 'a two-player tennis match',
@@ -90,14 +90,14 @@ export const DOOR_PROBES = Object.freeze([
     concept: 'a level whose hero is a body that jumps',
     holds: ({ steps }) => someLevel(steps, (m) => pilotsOf(m).some(jumper)),
     reference: { quick: { goal: 'collect', pickup: 'coin', hero: {} } },
-    now: 'not',
+    now: 'type',
   },
   {
     family: 'sneak', genre: 'stealth', prompt: 'a stealth game: sneak past the guards to reach the exit',
     concept: 'a level lost when seen, with a body to sneak in',
     holds: ({ steps }) => someLevel(steps, (m) => mechanicsOf(m).includes('unseen') && pilotsOf(m).some((e) => e.body?.type !== 'none')),
     reference: { quick: { goal: 'sneak', guards: 4, hero: {} } },
-    now: 'not',
+    now: 'type',
   },
   {
     family: 'fly', genre: 'flight-sim', prompt: 'a flight sim: take off and fly through the rings',
@@ -111,7 +111,7 @@ export const DOOR_PROBES = Object.freeze([
     concept: 'a level with a seat for each player',
     holds: ({ steps }) => someLevel(steps, (m) => isObj(m.seats) && (m.seats.max ?? 0) >= 2),
     reference: { quick: { goal: 'collect', pickup: 'coin', camera: 'side', hero: {} }, world: { intent: { cube: { soul: { seats: 'two', frame: 'follow-all' } } } } },
-    now: 'not',
+    now: 'type',
   },
   {
     family: 'blocked', genre: 'co-op-kitchen', prompt: 'a co-op kitchen game: four friends cook the orders together',
