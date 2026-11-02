@@ -16,6 +16,7 @@ The pictures: `/body-study male --hero '{"form":"realistic"}' --crop hand --acts
 - `arm-envelope.mjs --strike`: the same targets also through space boxer (`lib/graph/polygonizer/hero-reach.js`
   strikeTarget) as the knuckles' contact: its error on the whole rig, the force line, the servos past a stop, the
   approach chosen, the time.
-- `drill.mjs [--cast male] [--seed 1] [--count 6] [--surfaces knuckles,palmHeel] [--sheet dir] [--json out.json]`: the
-  target drill and its checks on the clip as played; `--sheet` renders the guard and each contact frame through
-  `/body-study` (the eyes gate's pictures).
+- `drill.mjs [--cast male] [--seed 1] [--count 6] [--surfaces knuckles,palmHeel] [--bands '[0.6,1.6]'] [--az …] [--el …]
+  [--page out.html] [--sheet dir] [--json out.json]`: the target drill (bands past 1 bring the body in) and its checks
+  on the clip as played; `--page` the review page (the skeleton playing, the targets and drives drawn, the checks
+  beside it), `--sheet` the guard and each contact frame through `/body-study`.

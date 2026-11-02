@@ -34,9 +34,17 @@ In progress. The realistic hero's arms and hands, solved from targets rather tha
   or uppercut and a far one punched straight without being told. From the guard, against today's arm solver on the
   same targets: every target within reach landed within a millimetre (today's within 5 mm for about four in five,
   missing by up to 8 cm), the forearm a median 5–9° off the line of the strike (today's 22–67°); but about twice as slow
-  cold. Targets past reach still fall short: the body does not join in yet.
+  cold.
+- **The body joins in** when the arm cannot land a target, a rung at a time and only as far as it must: the shoulders'
+  girdle turns, then the trunk turns, leans and bows, then the hips turn and the weight shifts over the feet (held
+  inside them) with the knees bending, then the striking side's foot steps toward the target. Targets a tenth past the
+  arm's reach now land within 2 mm (they fell 5–8 cm short); a target past what a step can bring in is reported as
+  missed, not stretched to.
 - **The target drill** (`targetDrill`; `scripts/spikes/manipulator/drill.mjs`): seeded targets around the shoulder, each
-  struck, driven the last 15 cm straight and recovered to the guard, timed by the servos' speeds, and checked on the
-  clip as played (the contact, the facing, the servos, the drive's straightness).
+  struck and recovered to the guard, timed by the servos' speeds, and checked on the clip as played (the contact, the
+  facing, the servos, how close the hand keeps to its drive, the balance). A straight drives along its line; a hook and
+  an uppercut along an arc that meets the target along its approach, the trunk coiling into it; a step lifts the foot
+  and sets it down. `--page` writes a review page that plays the drill's skeleton with the targets and their drives
+  drawn.
 - **Fixed in the studies:** the arm envelope now stands in the guard (it stood at rest), the servo audit plays swings
   with the elbows-down roll and reads the wrist as anatomy.
