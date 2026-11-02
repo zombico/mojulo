@@ -8,7 +8,14 @@ it, in the cube's style. A different style is a different cube (`{ from: <preset
 
 ## The style (never a domain's)
 
-`light`, `colour` / `palette`, `register`, `contrast`, `grit`, `surfaces`, `era`, `target`, `materials`, `why`, `avoid`.
+`light`, `colour` / `palette`, `register`, `contrast`, `grit`, `exaggerate`, `surfaces`, `era`, `target`, `materials`, `why`, `avoid`.
+
+`exaggerate` is the SHAPE the art director draws the builders' work in, as `register` is how it is inked: `storybook`,
+`crooked`, `street`, `{ from, …changes }` or `{ lean (°), sway (m), sag, reach (m), elements (0–1), kit: { chunk, lean } }`.
+Walls lean off plumb in one field over the world (a shared wall moves once), eaves wander, the language is pushed toward
+its rails' ends, the street's lamps and signals chunked and leant. The plan never moves: streets, pads, doors, colliders
+and routes are as they were. A geotown's and a geocity's buildings and streets take it; its laws (`foot`, `fold`,
+`plumb`) advise.
 
 ## The ingredients
 

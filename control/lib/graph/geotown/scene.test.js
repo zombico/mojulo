@@ -267,3 +267,21 @@ describe('the geotown built: its map stood on the cube\'s land, levelled', () =>
     for (const g of ['geotown:streetbin', 'geotown:postbox', 'geotown:steel']) expect(M.has(g)).toBe(true);
   });
 });
+
+describe('the geotown under the cube\'s exaggerate (era/exaggerate.js): the plan kept, the shape bent', () => {
+  const X = assembleGeotownScene({ ...M, cube: { from: M.cube, exaggerate: 'crooked' } });
+  it('keeps every door, floor and footing where the plan put it', () => {
+    expect(X.anchors.map((a) => [a.id, a.at, a.floor])).toEqual(P.anchors.map((a) => [a.id, a.at, a.floor]));
+    expect(X.colliders.map((c) => [c.of, c.min[2]])).toEqual(P.colliders.map((c) => [c.of, c.min[2]]));
+  });
+  it('bends its houses off plumb and leans its furniture, the ground under them as it lay', () => {
+    const tops = (S) => S.faces.filter((f) => f.group === 'town:wall').flatMap((f) => f.corners).filter((c) => c[2] > 6);
+    expect(tops(X).length).toBeGreaterThan(0);
+    const ground = (S) => JSON.stringify(S.faces.filter((f) => f.group === 'geotown:road' || f.group === 'geotown:walk').map((f) => f.corners));
+    expect(ground(X)).toBe(ground(P));
+    const poles = (S) => S.faces.filter((f) => f.group === 'geotown:hydro').flatMap((f) => f.corners).filter((c) => c[2] > 5).map((c) => c.join());
+    expect(poles(X)).not.toEqual(poles(P));
+    for (const id of ['foot', 'fold', 'plumb']) expect(X.geotown.laws.find((l) => l.law === id)).toBeDefined();
+    expect(P.geotown.laws.find((l) => l.law === 'fold')).toBeUndefined();
+  });
+});

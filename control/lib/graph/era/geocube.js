@@ -64,6 +64,9 @@
  *             its own. Absent, a street's land grows nothing, as its island's
  *   snow      (optional) the snow on its land (era/snow.js: true, a depth, or { line?, depth?, hold?, drift?, lee? }):
  *             its trail's stage under it, the far ridges capped, unless a recipe names its own. Absent, no snow
+ *   exaggerate (optional) the SHAPE its builders' work is drawn in (era/exaggerate.js: storybook, crooked, street,
+ *             { from, …changes } or the terms): walls off plumb, eaves out of level, the language caricatured, the
+ *             street's furniture chunked and leant; the plan (streets, lots, pads, colliders, doors) never moves
  *   grit      (optional) how gritty the style is, 0 (quiet) to 1: from local-meru GRIT_PIXELS its rock takes pixels (the
  *             page draws the rock's own fabric on the near cliffs, matte-paint/fabric.js); under it, or absent, rock is
  *             polygon only
@@ -117,6 +120,7 @@ import { DEFAULT_ERA, eraError } from './eras.js';
 import { DEFAULT_TARGET, readTarget } from './target.js';
 import { readContrast } from './vertex-contrast.js';
 import { expandRegister, checkRegister, shadeHex, registerCreases } from './colour-register.js';
+import { readExaggerate } from './exaggerate.js';
 import { readRelief } from '../noise/relief.js';
 import { readGround } from '../local-meru/ground.js';
 import { readGround as readTrailGround } from './out-ground.js';
@@ -390,7 +394,7 @@ export function cubeBuildings(cube) {
 const HEX = /^#[0-9a-f]{6}$/i;
 const COLOURS = ['stone', 'floor', 'trim', 'accent', 'grass', 'foliage', 'water'];
 const WALLS = ['+x', '-x', '+y', '-y'];
-const KEYS = { id: 1, title: 1, reads: 1, era: 1, target: 1, light: 1, colour: 1, register: 1, contrast: 1, surfaces: 1, inside: 1, outside: 1, why: 1, avoid: 1, buildings: 1, palette: 1, materials: 1, grit: 1, biocube: 1, snow: 1, structures: 1, settlements: 1, domains: 1 };
+const KEYS = { id: 1, title: 1, reads: 1, era: 1, target: 1, light: 1, colour: 1, register: 1, contrast: 1, surfaces: 1, inside: 1, outside: 1, why: 1, avoid: 1, buildings: 1, palette: 1, materials: 1, grit: 1, exaggerate: 1, biocube: 1, snow: 1, structures: 1, settlements: 1, domains: 1 };
 const isObj = (v) => v !== null && typeof v === 'object' && !Array.isArray(v);
 const merge = (a, b) => (isObj(a) && isObj(b) ? Object.fromEntries([...new Set([...Object.keys(a), ...Object.keys(b)])].map((k) => [k, k in b ? merge(a[k], b[k]) : a[k]])) : b === undefined ? a : b);
 const no = (msg) => { throw new Error(`geocube: ${msg}`); };
@@ -492,6 +496,9 @@ export function readGeocube(spec) {
   checkRegister(c.register, no);
   // grit (optional): how gritty the style is, 0..1; from GRIT_PIXELS its rock takes pixels (local-meru/plan.js)
   if (c.grit !== undefined && !(typeof c.grit === 'number' && c.grit >= 0 && c.grit <= 1)) no('grit is how gritty the style is, 0 (quiet) to 1; a gritty style\'s rock takes matte-painted pixels');
+  // exaggerate (optional): the shape the cube's builders' work is drawn in (era/exaggerate.js): a name, { from, … } or
+  // the terms, read to its terms; absent or false ⇒ plumb, nothing bent
+  if (c.exaggerate !== undefined) { const E = readExaggerate(c.exaggerate, (m) => no(m.replace(/^exaggerate: /, ''))); if (E) c.exaggerate = E; else delete c.exaggerate; }
   // contrast (optional): the shaping in the vertex; absent or false ⇒ none
   // (a register that brings a contrast lends it to a cube that names none of its own)
   if (c.contrast === undefined && c.register.contrast !== undefined && c.register.contrast !== false) c.contrast = c.register.contrast;
@@ -721,7 +728,7 @@ function onInterior(cube, name) {
 }
 
 // the keys of a cube that are its style or its ingredients: never a domain's to change
-const STYLE_WORDS = ['light', 'colour', 'palette', 'register', 'contrast', 'grit', 'surfaces', 'era', 'target', 'materials', 'why', 'avoid', 'buildings'];
+const STYLE_WORDS = ['light', 'colour', 'palette', 'register', 'contrast', 'grit', 'exaggerate', 'surfaces', 'era', 'target', 'materials', 'why', 'avoid', 'buildings'];
 /** A domain read against the cube: outside on one of its terrains (at an hour), or inside one of its interiors. */
 function composeDomain(cube, d, at) {
   if (!isObj(d)) no(`${at} is { ${DOMAIN_KEYS.map((k) => `${k}?`).join(', ')} }: outside on a terrain (at an hour), or inside an interior`);

@@ -161,3 +161,24 @@ describe('the geotown composed in, built', () => {
     expect(K.faces.some((f) => String(f.group).startsWith('geotown:'))).toBe(false);
   });
 });
+
+describe('the geocity under the cube\'s exaggerate (era/exaggerate.js): the plan kept, the masses bent', () => {
+  const X = assembleGeocityScene({ ...M, cube: { from: M.cube, exaggerate: 'crooked' } });
+  it('draws the same faces, its ground, its walk and its route as they were, its masses off plumb', () => {
+    expect(X.faces.map((f) => f.group)).toEqual(P.faces.map((f) => f.group));
+    const ground = (S) => JSON.stringify(S.faces.filter((f) => ['geocity:road', 'geocity:walk', 'geocity:pad', 'geocity:paving'].includes(f.group)).map((f) => f.corners));
+    expect(ground(X)).toBe(ground(P));
+    expect(X.route).toEqual(P.route);
+    const roofs = (S) => S.faces.filter((f) => f.group === 'geocity:tower:roof').map((f) => JSON.stringify(f.corners));
+    expect(roofs(X)).not.toEqual(roofs(P));
+    // (a tower's roof keeps its height over its foot within the sag, and its feet stand where they stood)
+    const feet = (S) => S.faces.filter((f) => f.group === 'geocity:tower').map((f) => JSON.stringify(f.corners.slice(0, 2)));
+    expect(feet(X)).toEqual(feet(P));
+    expect(law('fold')).toBeUndefined();
+    expect(X.geocity.laws.find((l) => l.law === 'fold').ok).toBe(true);
+  });
+  it('chunks and leans its street kit', () => {
+    const lamp = (S) => JSON.stringify(S.repeats.find((r) => r.group === 'geocity:lamp')?.template);
+    expect(lamp(X)).not.toBe(lamp(P));
+  });
+});

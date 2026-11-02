@@ -18,10 +18,18 @@
  *     `scaffold` a bay against a wall (facing out of it), `fence` a temporary panel, `hoarding` a plywood one, `barrier`,
  *     `cone`, `car` (facing: its length along x for e/w, y for n/s; its body pale for an instance's tint), `stall`
  *
+ * With the cube's `exaggerate` (era/exaggerate.js, `opts.exaggerate`), every piece is chunked (each box's two thin
+ * dimensions × kit.chunk about its middle: a post fatter, an arm as long) and a lamp and a signal lean out over their
+ * reach by kit.lean, re-lit on their leaning faces (a pole that carries wires stands: its wires are strung to it). A
+ * site's and a lot's pieces (scaffold, fencing, hoarding, barriers, cones, cars) are as they were. Absent, every byte
+ * as it was.
+ *
  * Pure; no dice.
  */
 import { roundStreetKit, roundKitFaces, isRoundKitShape } from '../city/round-kit.js';
 import { litFactor, scaleHex } from '../polygonizer/vexar.js';
+import { leanFaces } from '../era/exaggerate.js';
+import { tan } from '../../util/dmath.js';
 
 // the legacy metro's kit, at its scale (fractal-city.js: a city unit is 3.66 m; a kerb lamp's standard 2.35 units tall)
 const U = 3.66;
@@ -37,8 +45,19 @@ function boxFaces(b, L) {
     quad([[x1, y1, z0], [x, y1, z0], [x, y1, z1], [x1, y1, z1]], [0, 1, 0], t, L), quad([[x, y1, z0], [x, y, z0], [x, y, z1], [x, y1, z1]], [-1, 0, 0], t, L),
   ];
 }
-/** A piece's boxes made round by the metro's kit and realized. */
-const realize = (boxes, L) => roundStreetKit(boxes, { profile: 'metro' }).flatMap((b) => (isRoundKitShape(b.shape) ? roundKitFaces(b, L) : boxFaces(b, L)));
+// the chunk an exaggerated kit's light carries (kitTemplates): its pieces' boxes thickened as they are realized
+const CHUNKS = new WeakMap();
+/** A box's two thin dimensions × c about its middle (its longest kept: an arm still reaches, a post still stands). */
+function chunk(b, c) {
+  const h = b.z1 - (b.z0 || 0), dims = [b.w, b.d, h], long = dims.indexOf(Math.max(...dims)), z0 = b.z0 || 0;
+  const out = { ...b };
+  if (long !== 0) { out.w = b.w * c; out.x = b.x + b.w / 2 - out.w / 2; }
+  if (long !== 1) { out.d = b.d * c; out.y = b.y + b.d / 2 - out.d / 2; }
+  if (long !== 2) { const m = z0 + h / 2; out.z0 = Math.max(0, m - (h * c) / 2); out.z1 = out.z0 + h * c; }
+  return out;
+}
+/** A piece's boxes made round by the metro's kit and realized (chunked first when the light is an exaggerated kit's). */
+const realize = (boxes, L) => { const c = CHUNKS.get(L); return roundStreetKit(c ? boxes.map((b) => chunk(b, c)) : boxes, { profile: 'metro' }).flatMap((b) => (isRoundKitShape(b.shape) ? roundKitFaces(b, L) : boxFaces(b, L))); };
 /** A box about a foot, its reach `a` metres along (dx, dy) from it, `w` across, z0…z1. */
 const reach = (kind, dx, dy, a0, a1, w, z0, z1, tint) => (dx ? { kind, x: Math.min(dx * a0, dx * a1), w: Math.abs(a1 - a0), y: -w / 2, d: w, z0, z1, tint } : { kind, y: Math.min(dy * a0, dy * a1), d: Math.abs(a1 - a0), x: -w / 2, w, z0, z1, tint });
 
@@ -163,11 +182,15 @@ const car = ([dx], L) => {
 /** A flat piece along +x, `len` long, `w` across at offset `off`, at z 0. */
 const flat = (len, w, off, fill, L) => [quad([[0, off - w / 2, 0], [len, off - w / 2, 0], [len, off + w / 2, 0], [0, off + w / 2, 0]], [0, 0, 1], fill, L)];
 
-export function kitTemplates(L, { gauge = 1.495, poleReach = 4 } = {}) {
+export function kitTemplates(L0, { gauge = 1.495, poleReach = 4, exaggerate = null } = {}) {
   const four = (f) => Object.fromEntries(Object.entries(FACE).map(([k, v]) => [k, f(v)]));
+  // (an exaggerated kit: its own light object carries the chunk to realize; a piece that reaches leans out over it)
+  const X = exaggerate?.kit ?? null, L = X && X.chunk > 1 ? { ...L0 } : L0, tA = X ? tan((X.lean * Math.PI) / 180) : 0;
+  if (L !== L0) CHUNKS.set(L, X.chunk);
+  const leans = (fs, v) => (tA ? leanFaces(fs, v, tA, (n) => litFactor(n, L0)) : fs);
   return {
-    lamp: four((v) => lamp(v, L)),
-    signal: four((v) => signal(v, L)),
+    lamp: four((v) => leans(lamp(v, L), v)),
+    signal: four((v) => leans(signal(v, L), v)),
     sign: sign(L),
     pole: four((v) => pole(v, poleReach, L)),
     stop: four((v) => stop(v, L)),
@@ -184,7 +207,8 @@ export function kitTemplates(L, { gauge = 1.495, poleReach = 4 } = {}) {
     hydro: four((v) => hydro(v, L)),
     // a site's and a lot's: scaffolding against a wall (facing out from it), fencing, hoarding, barriers, cones, a
     // parked car (along x for 'e'/'w', y for 'n'/'s'), a stall's line
-    scaffold: four((v) => scaffold(v, L)), fence: fence(L), hoarding: hoarding(L), barrier: barrier(L), cone: cone(L),
-    car: four((v) => car(v, L)), stall: flat(5, 0.12, 0, '#e8e4d8', L),
+    // (a site's and a lot's pieces are the works', not the street's furniture: as they were)
+    scaffold: four((v) => scaffold(v, L0)), fence: fence(L0), hoarding: hoarding(L0), barrier: barrier(L0), cone: cone(L0),
+    car: four((v) => car(v, L0)), stall: flat(5, 0.12, 0, '#e8e4d8', L),
   };
 }

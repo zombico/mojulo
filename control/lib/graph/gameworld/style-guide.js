@@ -2,7 +2,8 @@
  * THE STYLE GUIDE — a world read into cards. The style: the kit its ground is drawn in (its principles, its palette)
  * and the ground's character. Each civilization: the language its towns speak (its read, its elements), the
  * fortification its castles raise, what the language does to a castle (the style's influence), how it lays out a
- * town and raises a castle. Data only; the bible draws it.
+ * town and raises a castle. A cube's shape: the hand its builders' work is drawn in (its `exaggerate`). Data only; the
+ * bible draws it.
  */
 import { stageKit } from '../era/stage.js';
 import { lookOf } from '../era/style/looks.js';
@@ -16,6 +17,7 @@ import { composeFort } from '../era/out-fortress.js';
 import { influenceOf } from '../era/out-castle.js';
 import { OUT_TRAIL } from '../era/out-trail.js';
 import { airCard } from '../era/air.js';
+import { exaggerateCard } from '../era/exaggerate.js';
 
 const SHELLS = { nature: NATURE_STYLES, isekai: ISEKAI_STYLES, jungle: JUNGLE_STYLES };
 const hex = (c) => `#${c.map((v) => Math.round(v).toString(16).padStart(2, '0')).join('')}`;
@@ -59,6 +61,9 @@ export function fortCard(fort, language) {
   const F = composeFort(fort), I = influenceOf(language, F);
   return { kind: 'fort', id: typeof fort === 'string' ? fort : 'its own', read: F.read, tower: { plan: F.tower.plan, crown: F.tower.crown }, influence: { trace: I.trace, crown: I.crown, keep: I.keep ?? 'tower', read: I.read } };
 }
+
+/** A read cube's SHAPE card (era/exaggerate.js): its hand, what it does, its laws; null for a plumb cube. */
+export const exaggerateCardOf = (cube) => exaggerateCard(cube?.exaggerate ?? null);
 
 /** The ground's character: what the world sets for trails and climbs, the rest at its card's default. */
 export function groundCard(style) {

@@ -48,6 +48,7 @@ import { materialContext, wordTile } from '../era/arch-style.js';
 import { dressTownFace } from '../era/town-dress.js';
 import { plantPool, plantRepeats } from '../vegetation/pool.js';
 import { litFactor } from '../polygonizer/vexar.js';
+import { bendFaces, exaggerateLaws } from '../era/exaggerate.js';
 
 export const GEOCITY_KEYS = Object.freeze(['kind', 'cube', 'show', 'title', 'seed', 'hour', 'clouds', 'geocity', 'walk', 'shadows', 'occlusion', 'light', 'cone']);
 export const GEOCITY_FACES = 200000;
@@ -117,6 +118,9 @@ export function assembleGeocityScene(m, ctx = {}) {
   const MX = materialContext(cube), FIN = {};
   Object.entries(FINISHES).forEach(([group, [word, as]], k) => { const T = wordTile(word, MX, 211 + 17 * k); if (T) FIN[group] = { spec: T.spec, metres: T.metres, ...(as === 'floor' ? { floor: true } : {}) }; });
   const col = coloursOf(cube), faces = [], counts = { towers: 0, buildings: 0, houses: 0, panes: 0, detailed: 0 };
+  // (the cube's exaggerate, era/exaggerate.js: each mass, its lit panes and its facades bent on its foot, z0; a
+  // construction frame kept plumb, its scaffold stamped on it)
+  const EX = cube.exaggerate ?? null, bends = [], bent = (z0, fn, group = null) => { const a = faces.length; fn(); if (EX && group !== 'geocity:frame') bends.push([a, faces.length, z0]); };
   const put = (corners, group, hex, want = null) => {
     let c = corners, n = newell(c);
     if (want && n[0] * want[0] + n[1] * want[1] + n[2] * want[2] < 0) { c = c.slice().reverse(); n = n.map((x) => -x); }
@@ -125,7 +129,7 @@ export function assembleGeocityScene(m, ctx = {}) {
     faces.push(E && (E.floor ? Math.abs(n[2]) > 0.7 : Math.abs(n[2]) < 0.3) ? dressTownFace(F0, group, FIN) : F0);
   };
   // the street's kit stamped where it stands: each template's transforms, drawn near the camera only
-  const KIT = kitTemplates(LIGHT, { gauge: d.metro.roads.streetcar.gauge }), stamps = new Map();
+  const KIT = kitTemplates(LIGHT, { gauge: d.metro.roads.streetcar.gauge, ...(EX ? { exaggerate: EX } : {}) }), stamps = new Map();
   const stamp = (key, pos, rotZ, scale = null) => { if (!stamps.has(key)) stamps.set(key, []); stamps.get(key).push({ pos: P3(pos), ...(rotZ ? { rotZ: r5(rotZ) } : {}), ...(scale ? { scale } : {}) }); };
   const templateOf = (key) => { const [k, f] = key.split(':'); return f ? KIT[k][f] : KIT[k]; };
   // the street trees, by species, grown after the cameras (their detail is what the cameras see)
@@ -142,16 +146,16 @@ export function assembleGeocityScene(m, ctx = {}) {
     const xs = cuts(r[0], r[2], cell), ys = cuts(r[1], r[3], cell);
     for (let j = 0; j + 1 < ys.length; j++) for (let i = 0; i + 1 < xs.length; i++) put([[xs[i], ys[j]], [xs[i + 1], ys[j]], [xs[i + 1], ys[j + 1]], [xs[i], ys[j + 1]]].map(([x, y]) => [x, y, S(x, y) + lift]), group, hex);
   };
-  const box = (x0, y0, x1, y1, z0, z1, wall, roof, group) => {
+  const box = (x0, y0, x1, y1, z0, z1, wall, roof, group) => bent(z0, () => {
     put([[x0, y0, z1], [x1, y0, z1], [x1, y1, z1], [x0, y1, z1]], `${group}:roof`, roof);
     put([[x0, y0, z0], [x1, y0, z0], [x1, y0, z1], [x0, y0, z1]], group, wall, [0, -1, 0]);
     put([[x1, y0, z0], [x1, y1, z0], [x1, y1, z1], [x1, y0, z1]], group, wall, [1, 0, 0]);
     put([[x1, y1, z0], [x0, y1, z0], [x0, y1, z1], [x1, y1, z1]], group, wall, [0, 1, 0]);
     put([[x0, y1, z0], [x0, y0, z0], [x0, y0, z1], [x0, y1, z1]], group, wall, [-1, 0, 0]);
     counts.buildings++;
-  };
+  }, group);
   // a mass under a gable, its ridge along `axis` ('x' or 'y')
-  const gable = (x0, y0, x1, y1, z0, ze, zr, axis, wall, roof, group) => {
+  const gable = (x0, y0, x1, y1, z0, ze, zr, axis, wall, roof, group) => bent(z0, () => {
     if (axis === 'y') {
       const xm = (x0 + x1) / 2;
       put([[x0, y0, z0], [x0, y1, z0], [x0, y1, ze], [x0, y0, ze]], group, wall, [-1, 0, 0]); put([[x1, y0, z0], [x1, y1, z0], [x1, y1, ze], [x1, y0, ze]], group, wall, [1, 0, 0]);
@@ -166,10 +170,13 @@ export function assembleGeocityScene(m, ctx = {}) {
       put([[x0, y0, ze], [x1, y0, ze], [x1, ym, zr], [x0, ym, zr]], `${group}:roof`, roof); put([[x0, y1, ze], [x1, y1, ze], [x1, ym, zr], [x0, ym, zr]], `${group}:roof`, roof);
     }
     counts.buildings++;
-  };
+  });
   // at night a tall box's walls lit in runs along its floors: each floor's run its own length and place (the block's dice)
   const lights = (x0, y0, x1, y1, z0, z1, floorH, R) => {
     if (!night || z1 - z0 < 3 * floorH) return;
+    bent(z0, () => litRuns(x0, y0, x1, y1, z0, z1, floorH, R));
+  };
+  const litRuns = (x0, y0, x1, y1, z0, z1, floorH, R) => {
     const share = G.night.windows, P = G.night.palette;
     const walls = [[[x0, y0], [x1, y0], [0, -1, 0]], [[x1, y0], [x1, y1], [1, 0, 0]], [[x1, y1], [x0, y1], [0, 1, 0]], [[x0, y1], [x0, y0], [-1, 0, 0]]];
     for (const [a, b, n] of walls) {
@@ -676,7 +683,10 @@ export function assembleGeocityScene(m, ctx = {}) {
     });
     const sc = assembleBoxCityScene({ boxes, faces: [], cameras: [], viewBox: { width: 1280, height: 720 }, title: '', light: LIGHT });
     const fs = night ? nightFaces(sc.faces, boxes, new Map(lots.map((l) => [l.id, l])), G.night, seed) : sc.faces;
+    // (each facade face bent on its lot's foot: the lot under its middle)
+    const footAt = (f) => { let cx = 0, cy = 0; for (const c of f.corners) { cx += c[0] * U; cy += c[1] * U; } cx /= f.corners.length; cy /= f.corners.length; const l = lots.find((q) => cx >= q.x0 - 1.5 && cx <= q.x1 + 1.5 && cy >= q.y0 - 1.5 && cy <= q.y1 + 1.5); return l ? l.z0 : null; };
     for (const f of fs) {
+      if (EX) { const z0 = footAt(f); if (z0 !== null) bends.push([faces.length, faces.length + 1, z0]); }
       if (f.group === 'city:night-window' || f.group === 'city:night-shop') counts.panes++;
       // (a facade's own faces come untagged: they are the detail's)
       faces.push({ ...f, group: f.group ?? 'geocity:facade', corners: f.corners.map((c) => c.map((v) => r5(v * U))) });
@@ -738,7 +748,7 @@ export function assembleGeocityScene(m, ctx = {}) {
   route.push(route[0]);
 
   // ── the laws the scene adds: the faces' budget ──
-  const laws = [...d.laws, { law: 'faces', ok: faces.length <= GEOCITY_FACES, value: `${faces.length} faces (budget ${GEOCITY_FACES})${night ? `, ${counts.panes} lit panes` : ''}`, want: 'the metro as massing' }];
+  const laws = [...d.laws, ...exaggerateLaws(EX), { law: 'faces', ok: faces.length <= GEOCITY_FACES, value: `${faces.length} faces (budget ${GEOCITY_FACES})${night ? `, ${counts.panes} lit panes` : ''}`, want: 'the metro as massing' }];
   const bg = night ? air.fog.color : rgbToHex(air.dome.horizon);
   const kinds = d.regions.flatMap((r) => r.blocks).reduce((acc, b) => ({ ...acc, [b.kind]: (acc[b.kind] ?? 0) + 1 }), {});
   // (the kit's repeats, each drawn near the camera only; the skyline draws none)
@@ -755,6 +765,9 @@ export function assembleGeocityScene(m, ctx = {}) {
       counts.trees = (counts.trees ?? 0) + trees.get(sp).length;
     }
   }
+  // (the cube's exaggerate: every mass bent on its foot, re-lit by its bent normal; a lit pane keeps its own light)
+  const PANES = new Set(['geocity:night-window', 'city:night-window', 'city:night-shop']);
+  if (EX) bendFaces(faces, bends, EX, { lit: (n, f) => (PANES.has(f.group) ? null : litFactor(n, LIGHT)) });
   // the live light's SUN SHARE (ctx.liveSun: a page taking live shadows, scene/live-light.js): each face's key part of
   // its light by its normal (city/plan/scene.js keyShare), so a shadow takes the sun away and leaves the sky; a lit
   // window carries its own light

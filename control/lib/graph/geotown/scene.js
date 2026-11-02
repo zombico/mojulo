@@ -59,6 +59,8 @@ import { pitchOf, trackOf, diamondOf, courtsOf, hoopsOf, lotOf, fieldhouseOf, bl
 import { backTouch } from './laws.js';
 import { materialContext, wordTile } from '../era/arch-style.js';
 import { WALK } from '../era/out-ikebana.js';
+import { bendFaces, chunkFaces, exaggerateAnchor, exaggerateLaws } from '../era/exaggerate.js';
+import { litFactor } from '../polygonizer/vexar.js';
 
 export const GEOTOWN_KEYS = Object.freeze(['kind', 'cube', 'show', 'title', 'seed', 'hour', 'clouds', 'style', 'geotown', 'walk', 'shadows', 'occlusion', 'light']);
 // the faces a geotown draws at most (its trees are repeats, budgeted apart): a law, advice. The town to scale's is one
@@ -232,6 +234,8 @@ export function assembleGeotownScene(m, ctx = {}) {
   const paint = readPaint({ geocube: m.cube, amount: 1, ...(m.hour !== undefined ? { hour: m.hour } : {}), ...(m.clouds !== undefined ? { clouds: m.clouds } : {}) });
   const spec = cubeLookSpec(paint), lit = lookLight(spec, paint), LIGHT = lit.light, sun = LIGHT.toLight, air = spec.air ?? spec.ref.air;
   const col = coloursOf(cube), faces = [], colliders = [], anchors = [], finish = finishesOf(P, cube);
+  // (the cube's exaggerate, era/exaggerate.js: each built plot's faces bent on its pad, the furniture on the walk under it)
+  const EX = cube.exaggerate ?? null, bends = [], kitBends = [];
   // a face, wound to `want` (else up), shaded by the cube's light, its ground's finish laid where it has one (a floor's
   // on a face that lies flat)
   const put = (corners, group, hex, want = null) => {
@@ -264,7 +268,7 @@ export function assembleGeotownScene(m, ctx = {}) {
   // ── the buildings' languages: the recipe's style, else the pattern's, else the cube's buildings', else the timber hall ──
   const { style, anchor: a0 } = settlementStyle(cube, null, m.style ?? P.style), anchor = a0 ?? cubeBuildings(cube)?.anchor ?? 'timber-hall';
   const kitId = hasStructureRails(cube.outside.base) ? cube.outside.base : 'isekai-meadow';
-  const sStyle = structureStyle(kitId, seed), L = townLanguage(sStyle, anchor), Pt = housePaint(kitId);
+  const sStyle = structureStyle(kitId, seed), L = townLanguage(sStyle, exaggerateAnchor(anchor, EX)), Pt = housePaint(kitId);
   const dress = style ? styleTownDress(style, cube, townDressOf(cube)) : townDressOf(cube);
   const litV = (n) => 0.55 + 0.45 * Math.max(0, n[0] * sun[0] + n[1] * sun[1] + n[2] * sun[2]);
   const [sLo, sHi] = P.house.storeys, spoken = new Map();
@@ -447,6 +451,7 @@ export function assembleGeotownScene(m, ctx = {}) {
     // the building on its pad: its faces (and an evocation's its tile's marks too: its lights a budget put there) from
     // its design, a semi's second half mirrored; painted and lit as a stage's town
     if (house) {
+      const bentFrom = faces.length;
       built++; builtOf[familyOf(pl)] = (builtOf[familyOf(pl)] ?? 0) + 1;
       const dz = house.design, X = (x) => env[0] + (house.mirror ? envW - x : x), toW = (c) => W(pl, X(c[0]), env[1] + c[1], pad + c[2]);
       let top = 0, lo = [Infinity, Infinity], hi = [-Infinity, -Infinity];
@@ -532,6 +537,7 @@ export function assembleGeotownScene(m, ctx = {}) {
           for (const f of serviceOf(pl.kind, { w, v0, v1: dep, R: Ry }).faces) yardFace(pl, f);
         }
       }
+      if (EX) bends.push([bentFrom, faces.length, pad]);
     }
   }
   // ── where pads meet: along each row, at a corner's flank, and at a block's back line ──
@@ -594,7 +600,9 @@ export function assembleGeotownScene(m, ctx = {}) {
   // ── the street's furniture (design.js `traffic`): its streetlights; at each controlled crossing its crosswalks (zebras
   // at a signal, two lines at a stop), its stop lines, a stop sign on each stopped approach's right, a signal at each
   // corner facing its approach (a mast arm over a main or major street's road) ──
-  const fx = (fs) => { for (const f of fs) put(f.corners, `geotown:${f.role}`, col[f.role] ?? col.metal, f.out); };
+  // (a piece of it chunked by the cube's exaggerate: its thin dimensions thickened; leant with the rest below)
+  const fx = (fs) => { for (const f of EX ? chunkFaces(fs, EX.kit.chunk) : fs) put(f.corners, `geotown:${f.role}`, col[f.role] ?? col.metal, f.out); };
+  const kitFrom = faces.length;
   // (a local street's lamp on a wooden hydro pole: the pole to its crossarm, the crossarm across the street's line, its
   // lamp's arm out over the road; three wires on from each crossarm to the next pole's along the walk, sagging between)
   const hydro = new Map();
@@ -693,6 +701,7 @@ export function assembleGeotownScene(m, ctx = {}) {
       }
     }
   }
+  if (EX) kitBends.push([kitFrom, faces.length, wk]);
   // ── an edge's LANE: the streets' ground between its rows' backs; a face where each lot's pad stands over (or under) it ──
   for (const B of d.blocks) {
     if (!B.lane) continue;
@@ -999,12 +1008,14 @@ export function assembleGeotownScene(m, ctx = {}) {
   // ── the laws the scene adds: nothing grows on a hard surface (a main street's pits its own); the faces' budget ──
   const budget = evoked ? Math.max(SEGMENT_FACES * d.blocks.length, BUILDING_FACES * built) : GEOTOWN_FACES;
   const hard = Object.entries(growth).filter(([on]) => !(SURFACES[on]?.grows ?? []).some((g) => g === 'tree' || g === 'street-tree')).reduce((a, [, n]) => a + n, 0);
-  const laws = [...d.laws,
+  const laws = [...d.laws, ...exaggerateLaws(EX),
     { law: 'bare', ok: hard === 0, value: `trees ${Object.entries(growth).map(([k, n]) => `${k} ${n}`).join(', ') || 'none'}; ${hard} on a hard surface`, want: 'nothing grows on a road, a walk, a path, a side yard or a building\'s footprint' },
     { law: 'room', ok: nearest >= TREE_GAP - 1e-6, value: `every crown at least ${Number.isFinite(nearest) ? Math.round(nearest * 100) / 100 : '—'} m off a building; every crown raised to ${TREE_CLEAR} m (the least tree ${Math.round(TREE_LEAST * 10) / 10} m); ${crowded} trees without room to stand that tall not planted`, want: 'no tree\'s crown reaches into a building: each held to its room, its crown starting at least twice a person\'s height up' },
     { law: 'faces', ok: faces.length <= budget, value: `${faces.length} faces (budget ${budget}); trees ${form ? 'grown as form' : `${treeFaces} faces as repeats`}`, want: 'only what the map needs is drawn' }];
   const night = lit.night, bg = night ? air.fog.color : rgbToHex(air.dome.horizon);
   const counts = { plots: d.plots.length, units: d.units ?? d.plots.length, duplexes: d.plots.filter((pl) => pl.duplex).length, buildings: built, ...builtOf, hedges, gated, parked, pads: d.parking?.pads ?? 0, padCars, lights: d.traffic?.lights.length ?? 0, signals: d.traffic?.signals ?? 0, stops: d.traffic?.stops ?? 0, trees: Object.values(kept).reduce((a, l) => a + l.length, 0), crowded, faces: faces.length, treeFaces };
+  // (the cube's exaggerate: the buildings bent on their pads, re-lit as they were lit; the furniture leant on its walk)
+  if (EX) { bendFaces(faces, bends, EX, { lit: (n) => litV(n) }); bendFaces(faces, kitBends, EX, { kit: true, lit: (n) => litFactor(n, LIGHT) }); }
   // (read by the seventh generation: its soft ground the form's own, `isekai:ground`, its land read draws it and grows its
   // grass there (form/land-read.js, worlds/world-scene.js); its trees the form's, `plants`)
   if (form) for (const f of faces) if (FORM_GROUND.includes(f.group)) f.group = 'isekai:ground';

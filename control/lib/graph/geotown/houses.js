@@ -6,7 +6,8 @@
  * town takes only their colours): an evocation spends its polygons and its texels on its few houses.
  *
  *   buildingKits(P, styleId, cube, kitId, seed) → { kit(kind, id), pick(kind, R, prev), sStyle, typed }: every row
- *       kind's buildings (a house's type, a shop's brick and awning, a walk-up), each its own language and dress
+ *       kind's buildings (a house's type, a shop's brick and awning, a walk-up), each its own language (caricatured by the
+ *       cube's exaggerate, era/exaggerate.js) and dress
  *   houseDress(S, cube)  → { <surface group>: { spec?, metres?, colour?, roof? } }: a style's words as tiles and colours
  *
  * Pure; the dice are the caller's.
@@ -14,6 +15,7 @@
 import { readStyle, materialContext, wordTile, MATERIAL_WORDS, STYLE_STARTERS } from '../era/arch-style.js';
 import { townLanguage } from '../era/out-town.js';
 import { structureStyle } from '../era/out-structures.js';
+import { exaggerateAnchor } from '../era/exaggerate.js';
 
 // the town's surface groups each style surface dresses (era/arch-style.js styleTownDress), and each tile's seed
 const GROUPS = { plaster: ['str:plaster'], stone: ['str:stone'], timber: ['str:timber'], shell: ['str:shell'], paint: ['str:paint'], plinth: ['plinth'], roof: ['str:tile', 'str:slate', 'str:shingle', 'str:thatch'] };
@@ -47,7 +49,7 @@ const SIGNS = ['#1f2a33', '#3a2a1f', '#e8e0cc', '#24382a', '#5a1f1f', '#2a2f45']
 export function buildingKits(P, styleId, cube, kitId, seed) {
   const sStyle = structureStyle(kitId, seed), cache = new Map(), typed = !!P.types && typeof styleId === 'string' && !!STYLE_STARTERS[styleId];
   const make = (key, spec, at, extra) => {
-    if (!cache.has(key)) { const S = readStyle(spec, at); cache.set(key, { id: key, L: townLanguage(sStyle, S.language.id ?? S.language.doc), dress: houseDress(S, cube), ...extra }); }
+    if (!cache.has(key)) { const S = readStyle(spec, at); cache.set(key, { id: key, L: townLanguage(sStyle, exaggerateAnchor(S.language.id ?? S.language.doc, cube.exaggerate)), dress: houseDress(S, cube), ...extra }); }
     return cache.get(key);
   };
   const kit = (kind, id) => {
