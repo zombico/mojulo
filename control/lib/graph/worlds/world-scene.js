@@ -244,6 +244,17 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     sketch = { ...sketch, manifest: withBuildingLevel(sketch.manifest, sketch.ref) };
   }
 
+  // parked vehicles (`parked`: [{ vehicle, at, heading?, livery?, wear?, seed? }], vehicle-registry/parked.js): each a
+  // static loft figure, and a box over its footprint added to whatever colliders the level carries. Opt-in; absent ⇒
+  // byte-identical.
+  let parkedColliders = [];
+  if (sketch.manifest?.parked !== undefined) {
+    const { withParked } = await import('@/lib/graph/vehicle-registry/parked.js');
+    const P = withParked(sketch.manifest);
+    sketch = { ...sketch, manifest: P.manifest };
+    parkedColliders = P.colliders;
+  }
+
   // declarative scene lighting — same normalization the /scene route uses.
   const scene = sketch.manifest.scene && typeof sketch.manifest.scene === 'object' ? sketch.manifest.scene : {};
   const time = sketch.manifest.time ?? scene.time;
@@ -887,6 +898,7 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     if (Array.isArray(sketch.manifest.colliders) && sketch.manifest.colliders.length) payload.colliders = sketch.manifest.colliders;
     // structures (above): a box for each tier and plinth step of each tower, so a walker stands on its terraces
     if (structureColliders.length) payload.colliders = [...(payload.colliders || []), ...structureColliders];
+    if (parkedColliders.length) payload.colliders = [...(payload.colliders || []), ...parkedColliders];
     // blocks (playscape/terrain.js standBlocks): forms the level stands in its stage, solid and drawn (a shooter's
     // cover: low walls, crates). Absent ⇒ byte-identical.
     if (Array.isArray(sketch.manifest.blocks) && sketch.manifest.blocks.length) {

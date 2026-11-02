@@ -218,6 +218,21 @@ render, from a kit of those solids, at their classes' true numbers.
   - **The wear's cut** (`livery-cut.js`): a thin face of more than four corners (a chamfer whose ends are cut) is sliced
     along its length as a thin quad is, not shattered by bisection. The carrier's used hull went from 111k triangles to
     48k.
+- **Parked, in a level** (`vehicle-registry/parked.js`):
+  - A manifest's `parked: [{ vehicle, at, heading?, livery?, wear?, seed? }]` stands registry vehicles still. The world
+    lowers each on read (`world-scene.js`) into its realistic loft as a static figure, and a box over its footprint
+    (turned with its heading) added to the level's own colliders, so the walker goes round it. A livery and a wear are a
+    field vehicle's; a road car's paint is its build's. Absent, byte-identical.
+  - **A base parks its vehicles:** a building level's `building.parked` (true: a truck and a carrier; a list; or
+    `{ vehicles?, livery?, wear? }`) lays them side by side in its hangar (else its largest room), noses to its doors,
+    as many as it holds, stamped into the level's manifest.
+  - **Painted by the faction:** its foes' crew colourway paints them (a camo it names, else its own colour flat), else
+    the setting's camo, else the operator's `livery`. A crew in desert colours drives desert camo.
+  - The walled-core dungeon card names the word beside a base's buildings (its ceiling re-pinned with the reason).
+- **The engines:** each field body's GLB, in camo and worn, passes the Khronos glTF validator (`gltf-validator`, a
+  devDependency) with no error and no warning: its camo and grime in `COLOR_0`, its slots its own materials (the
+  paint, mud, worn steel, vision blocks). The Godot leg takes the same GLB; its own gate needs `MOJULO_GODOT`, absent
+  here.
 - **Composed:**
   - The quick race's card says a ride takes a registry vehicle (`'a jeep'`), its wording trimmed to keep the card
     under its ceiling now that the physics classes it lists have grown.
@@ -269,6 +284,16 @@ render, from a kit of those solids, at their classes' true numbers.
       vision blocks in their slot, the mount ring empty; within its budget (40k kept, 60k used, 80k in camo); driven by
       its row.
   - `livery-cut.test.js`: a thin face of many corners sliced along its length, its area kept.
+  - `parked.test.js`:
+    - a word read through the registry, refused without a body that parks, a livery or wear refused on a road car;
+    - laid in a room inside it, noses to +x, as many as it holds;
+    - lowered: a static loft figure and a box over its footprint, turned with it; in a world its figure compiled and
+      its box beside the level's own colliders; absent, nothing;
+    - a faction's colourway to its paint; a base's word read; a hangar's vehicles in its setting's camo, or its foes'
+      faction's; absent, the level as it was.
+  - `scene-gltf.vehicle.test.js`: each field body's GLB valid by the Khronos validator, its colours and slots on.
+  - The routing fixture: a muddy desert jeep to look at (`mint_solid`), a base with trucks and a carrier parked
+    (`design_game`).
   - The form render in the page: each shadow light biased along the body's normals.
   - The quick game end to end: a night kit's jeep lit dimmer than the day valley's, under its world's own sky.
   - The form render in the page (`form-render.live.test.js`, e2e): the 4x4's shaders compile, it is drawn and lit, and
@@ -295,9 +320,13 @@ render, from a kit of those solids, at their classes' true numbers.
     woodland worn, and in desert under a golden sun.
   - The carrier plain, from the three-quarter, the side, the rear quarter and the nose; woodland used at noon and under a
     golden sun, desert battered under a golden sun.
+  - A hangar-bay with `parked: true`: the truck and the carrier side by side in woodland, noses to the doors.
 - **Not built yet, said:**
   - Streaks under the fittings (rain and rust runs).
   - A race mood (`golden`, `dusk`…) named on a field vehicle's loft: its light is its world's sky, read.
   - Lamps lit at night: the head and blackout lamps are emissive slots as always, not yet switched by the hour.
   - A camo on the canvas: the tilt is plain canvas, as most are.
-  - Composition: the military game's faction painting them, the base's yards, the engines.
+  - A base's outdoor yard: a base has no outdoor stage yet, so its vehicles park in its hangar.
+  - Parked vehicles lit indoors: they take the world's sky as their light, as outdoors (a hangar's own lamps do not
+    light them yet).
+  - The Godot gate on a machine with Godot.

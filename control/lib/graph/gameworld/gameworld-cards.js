@@ -556,6 +556,8 @@ function wcdCard() {
     '',
     'A BASE\'S BUILDINGS (a space\'s use; each on the bay kit of what it is, so the layers look unlike each other):',
     ...BASE_USES.map((u) => `  ${u.padEnd(13)} ${PROGRAMS[u].reads} (${PROGRAMS[u].kit})`),
+    '  parked: its level\'s building.parked: true (a truck and an APC) | [vehicles] | { vehicles?, livery?, wear? }: parked',
+    '                in its hangar (else its largest room), solid, painted as its foes\' faction, else its setting\'s camo',
     '',
     'PRINCIPLES (laws on the recipe: they advise in design_game\'s readout, `advice.wcd`, and never refuse)',
     ...Object.entries(WCD_PRINCIPLES).map(([k, v]) => `  ${k.padEnd(13)} ${v}`),
