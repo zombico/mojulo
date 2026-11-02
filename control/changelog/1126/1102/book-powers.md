@@ -110,3 +110,10 @@ its resource, put on a look and showed a toast. This theme makes them act.
   sentence whose genre fights (in melee, at range or turn by turn) writes the world's `moves: true`, so the hero, its
   foes and its keepers are made with their own hit, stagger, fall and rise. A turn-based hero carries the blade it
   swings in the party battles.
+  Seen in an exported page, a JRPG composed after it:
+  - the hero swung (`swing_neutral`) and recoiled (`stagger`);
+  - the packs' figures recoiled (`stagger`);
+  - the companions swung and recoiled as before.
+  Two strikes still have no clip of their own: a pack figure's (no swing) and a caster's.
+  The fight keeps the level's follow camera behind the hero, with the pack's figure a metre off, so an exchange does
+  not yet read as one: staging the sides and a battle camera are next.
