@@ -212,3 +212,9 @@ its resource, put on a look and showed a toast. This theme makes them act.
   and light, bites) is a zombie. A book names its own look per foe with `battles.looks: { <foe>: … }`. The one
   `battles.foe` that stands for every pack may now be a people too. Each kind's sheet is its own row
   (`foe-<kind>-sheet`), so the whole depth of the character doors (facets, build, age, role) is open on it.
+- **The foes a sentence names** (`design_game` composing a game that fights turn by turn). "Skeletons and zombies",
+  "orcs", "beast folk", "werewolves", "lizardfolk" and "demons" were unread words, and the game fought the default
+  slimes and wolves. Now they write the party battles' packs and looks (`gameworld/foe-words.js`). The packs grow from
+  one foe to three, walked round the kinds in the sentence's order. Each foe is in the look its word asks for: the
+  undead and the orcish from their own sheets, beast folk as the lupine and feline kin, a beast through the animal door.
+  The words are in the brief's read. A sentence that names no foe fights as before.

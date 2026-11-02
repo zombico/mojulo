@@ -43,6 +43,7 @@ import { glyphOf } from './glyph-words.js';
 import { PALETTE_PRESETS } from '../color-theorist/solve.js';
 import { SIXTH_GEN_REFERENCES, resolveLook } from '../era/sixth-gen.js';
 import { composerFills } from './resonance.js';
+import { readFoeWords, foePacks } from './foe-words.js';
 
 /**
  * What a word says about the ground. Each reading sets parts of a world's style or its civilizations: `kit`,
@@ -337,6 +338,15 @@ export function composeGameworld({ prompt, name, id, levels, seed = 1 } = {}) {
   for (const w of genre?.matched ?? []) {
     const says = `intent.from=${genre.id}`, r = world.brief.read.find((x) => x.word === w);
     if (r) r.decides = [...r.decides, says]; else world.brief.read.push({ word: w, decides: [says] });
+  }
+  // the foes the words name (foe-words.js: skeletons, orcs, beast folk…), where the world fights turn by turn: its party
+  // battles' packs walk round them, each in the look its word asks for, made through its character door
+  const foeWords = genre && [].concat(cubeOfWorld({ intent: { from: genre.id } }).cube.power?.combat ?? []).includes('turn-based') ? readFoeWords(prompt) : null;
+  if (foeWords) {
+    world.battles = { packs: foePacks(foeWords.kinds), ...(Object.keys(foeWords.looks).length ? { looks: foeWords.looks } : {}) };
+    const said = new Set(foeWords.read.flatMap((r) => r.word.split(' ')));
+    world.brief.unread = world.brief.unread.filter((w) => !said.has(w));
+    for (const r of foeWords.read) world.brief.read.push(r);
   }
   // indoors (a dungeon, a crypt…): the levels are buildings of one use in a room kit; where the prompt also names the
   // ground outside (a kit or a land form), the first level is that ground, the way in, and the later ones the building
