@@ -96,3 +96,10 @@ Built so far:
   refuse with that move, a stored world's engine target is read as none, design_game no longer asks for one, and the
   hillclimb page measures what the web build makes. The Godot handoff and a humanoid figure's import are checked in a
   real Godot on CI.
+- **Every engine on the handoff.** `export_model { engine }` now hands a world, a game's levels or an asset to Godot,
+  Unity, Unreal (levels too, not only assets) and Blender, each as a project the team opens: every surface a material
+  the engine lights, the layered ground and the sea on shaders ported from the page, the sun, lamps, sky, ambient and
+  haze set to reproduce the page's look (each engine's light units measured, not assumed), the markers and seats as
+  objects carrying their records, and the developer's own scene kept across a re-handoff. Held to the World page at
+  the same cameras, each engine reads within a few levels a channel on most of the land. Godot's room lamps were
+  three times too bright, and are fixed.

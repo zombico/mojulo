@@ -1,6 +1,6 @@
 ### Engine handoff plan (temporary: the working plan, parked here; delete before release)
 
-**Status:** phases 0 to 3 built; phase 4's Godot adapter built and run in a real Godot (4.7.2) on the operator's machine, the terrain shader with it; the sea as the engine's own water built; phases 5 and 6 done (one door, `export_model { engine }`; the runtimes culled); phase 7 (Unity, Unreal levels, Blender on the contract) next (1101).
+**Status:** phases 0 to 3 built; phase 4's Godot adapter built and run in a real Godot (4.7.2) on the operator's machine, the terrain shader with it; the sea as the engine's own water built; phases 5 to 7 done (one door; the runtimes culled; Godot, Unity, Unreal and Blender each an adapter on the contract, run in their engines on the operator's machine); phase 8 (the visual gate) next (1102).
 `control/changelog/1026/1031/engine-handoff.md`. No release has carried the engine game runtimes this plan removes, so
 nothing here needs a deprecation path.
 
@@ -621,4 +621,31 @@ developer would want to wire. Never claimed by a machine.
     now the handoff). No recipe's export bytes changed.
   - Left for phase 9: README, CONTRIBUTING and docs/ prose (some link to deleted files); level-equivalence.js still
     describes the Godot twin though only `faceGround` is used outside it.
+- 1102, phase 7, every engine an adapter (each built against its real engine on the operator's machine, each a pack a
+  re-handoff replaces under the developer's own scene, each held to the World page at the same two trail cameras):
+  - Blender 5.2 (`handoff-blender.js`, `<ref>/blender-handoff/`): Principled materials, the layered ground ported to
+    nodes (not the marches; Blender's Voronoi for the parallax kinds), the sea, the World (the dome to the camera, the
+    solve's ambient to every other ray), exp² haze by depth, Khronos PBR Neutral; `level.blend` the artist's, mojulo's
+    tagged collections rebuilt. A world's fire rides along (the art pack's writer), so `fire_t` stays on `engine`;
+    `format: 'blender'` keeps the art pack and forge_motion's film is untouched. Units measured: a sun of strength S
+    lights white to S/π (the record's intensity in directly), a point of power P to P/(4π²d²) (P = 4π × the lamp's).
+  - Godot, found by Blender's round: the importer took a lamp's glTF intensity (π × level) as its energy; a lamp now
+    gets its level, as the sun does (the bay's brick 54,64,80 -> 33,40,51, the page's 26,41,61).
+  - Unreal 5.8.2 (`handoff-unreal.js`, `<ref>/unreal-handoff/`): a UE5 project (Lumen, SSR, auto-exposure and bloom
+    off), Interchange through mojulo's pipelines (Nanite off: its fallback cracked the cut cliff), a lit master's
+    instances, the Godot fragment as a Custom node over texture arrays (the face side by TwoSidedSign), the sea, a
+    post-process material applying Khronos PBR Neutral, the sRGB encode and the exp² haze; mojulo's sublevel rebuilt,
+    the developer's `/Game/Level` streaming it kept. Units by readback: lux = intensity, candela = glTF intensity,
+    the SkyLight the ambient. `engine: 'unreal'` without `what` now hands a walkable world off as a level, a thing as
+    the asset pack (unchanged). Stills from the editor offscreen (a commandlet never ticks the SkyLight).
+  - Unity 6000.2 (`handoff-unity.js`, `<ref>/unity-handoff/`): URP 17.2 and glTFast 6.20, `Assets/Mojulo/` replaced
+    whole with path-derived GUIDs, Mojulo/Lit, /Terrain (the Unreal fragment), /Sea, a full-screen pass applying
+    Khronos PBR Neutral, the encode and the haze (URP's Neutral is not Khronos's); mojulo's scene rebuilt and loaded
+    additively by the developer's `Level.unity`. Units by readback: sun and lamps at intensity / π, three's window.
+  - Held to the page (close shot / island shot): every engine within a few levels a channel on the rock, the ground
+    and the sky; Unity the nearest (about 5). Open, shared by the ports: the near sea 15 to 30 levels darker than the
+    page; the page's shaded cliff darker than every engine's (its contact occlusion, which the handoff does not
+    carry); the bay's indirect light, baked on the page, which no engine's lamps reproduce (the brick far darker in
+    all four). CI runs only Godot's leg; Blender's, Unreal's and Unity's are local, advisory, with `MOJULO_BLENDER`,
+    `MOJULO_UNREAL`, `MOJULO_UNITY`.
 
