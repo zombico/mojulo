@@ -188,11 +188,26 @@ member, a quick game's hero). Code: `control/lib/graph/egocube/feature-tune.js`.
   - the fit (`foursOf`, `functional`) models that bent trunk segment by segment, as the rig poses it.
   - The rig takes a new pose word for it, `waist` (degrees, + the chest forward over the navel), in `figure-posing.js`.
     Absent, nothing changes.
-- **The downward dog** (a `downDog` clip, `FEATURE_DOG`, `dogOf`): the hind legs straight with the hips high, the trunk
-  tipped as far as the floor allows and bent down at the waist (the rib ball under the pelvis ball), the forepaws out in
-  front on the floor, the head between the arms. Every animal that goes on all fours takes it. Where a big rib ball on
-  short legs cannot get under the pelvis ball (a gorilla's), the fit lengthens the legs until it does, before fitting
-  the arms.
+- **The downward dog, facing forward** (a `downDog` clip, `FEATURE_DOG`, `dogOf`): the hips high, the hind legs as
+  straight as the forepaws allow (bent only as far as they need to reach the floor), the trunk tipped past level and
+  bent down at the waist (the rib ball under the pelvis ball), the forepaws straight out in front on the floor, the face
+  looking ahead. A quadruped's spine and neck bend further than the human ranges the rig's limits are set for, so the
+  pose takes them 1.4 times (`unbound`): the waist bends 35°, and the neck and the head turn the face forward from a
+  chest pitched down. The spine is not curled (a curl tips the neck's root down past where the head can look ahead).
+  Every animal that goes on all fours takes it. Where a big rib ball on short legs cannot get under the pelvis ball (a
+  gorilla's), the fit lengthens the legs until it does.
+- **The gallop** (a `gallop` clip, `FEATURE_GALLOP`), the run on all fours, the forward-facing dog its base:
+  - the hind feet take the biped run's paths as a half-bound, the left a key behind the right, its sink and lift kept;
+  - the waist rounds as the hind feet come forward under the belly (the gather) and opens as they push (the extension);
+  - each forepaw goes along the floor from under the chest (a quarter of its reach, the elbow folded, solved by the law
+    of cosines) to its full reach (the arm straight) as the hind feet push;
+  - the hips tip no further than 80° (`FEATURE_GALLOP.hinge`: the dog's tip past level carries the tail's root up the
+    back), so running, the tail comes out of the rump;
+  - the tail is carried as on all fours.
+- **The head looking ahead on all fours** (`FEATURE_LOOK`): each key of the pose, the walk on it and the gallop turns the
+  head up from the pitched trunk until its crown tips 15° ahead of upright (the face ahead, a little down), the head
+  taking most of the turn and the neck the rest (a neck pulled far back tucked the head into the shoulders), solved on
+  the rig. The gallop had taken the dog's full turn and pointed every face up.
 - **The forepaws planted on the rig.** A clip's arm aim is read partly in the bent trunk's frame, so an aim written as
   a world direction landed the paws behind and above the floor, and splayed. Each key on all fours is now solved on the
   rig (`planted`, `FEATURE_PAWS`): the paw reaches the floor ahead, the arm straight forward in the downward dog and a
@@ -201,8 +216,9 @@ member, a quick game's hero). Code: `control/lib/graph/egocube/feature-tune.js`.
   all fours, the walk on them and the downward dog, it is turned until its line rises at the species' carriage, read
   off the fauna roster's tail stations (`speciesTail`: a wolf's low, a cat's up; absent, −15°). It is carried a quarter
   of the way back toward where the mascot's own tail would point, a compromise between the regular animal and the
-  mascot (`FEATURE_CARRIAGE`). Standing, the tail is as designed. Its root sits low on the round of the rump and it is
-  drooped back about it (`FEATURE_TAIL`), so standing it sweeps out behind.
+  mascot (`FEATURE_CARRIAGE`). Standing, the tail is as designed. Its root sits low on the round of the rump, 75° under
+  the pelvis ball's middle, where the pelvis tipped on all fours turns it into the rump rather than up the back, and
+  the tail is drooped back about it (`FEATURE_TAIL`), so standing it sweeps out behind.
 - **A face worn from another species** (`face` in `SPECIES_KIT`): its nose and its pale muzzle and belly, the roster's
   colours, over the animal's own coat. The house cat wears the tiger's: a dark nose over bright whisker pads, where
   its own pink nose and dull pads blurred into its grey.
@@ -254,8 +270,10 @@ member, a quick game's hero). Code: `control/lib/graph/egocube/feature-tune.js`.
     knee or widens the stance and the fours clip bends one (`feature-body.test.js`);
   - everyone on all fours can downward dog (one species per silhouette, chosen in code): the rib ball at least
     `FEATURE_DOG.bow` under the pelvis ball, the trunk clear of the floor, the forepaws reaching it; on the rig the
-    forepaws on the floor straight ahead (no share to the side), the hind feet planted, the chest under the hips
-    (`feature-body.test.js`);
+    forepaws on the floor straight ahead (no share to the side), the hind feet planted, the chest under the hips, the
+    face ahead (`feature-body.test.js`);
+  - the gallop on the rig: the run's cycle, the waist working, the forepaw travelling fore and aft and reaching the
+    floor, the face ahead and a little down in every key (never up), the tail's root at the rump (never up the back);
   - on all fours on the rig: the spine level, the tail carried at the roster's carriage less the mascot's share, and no
     standing clip turning the tail;
   - a rodent's buck teeth (none on the hedgehog), a chunky rodent's blunt face on whisker pads, a beaver's flat paddle on

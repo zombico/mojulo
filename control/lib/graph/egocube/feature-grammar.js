@@ -431,9 +431,10 @@ const dialled = (t, k) => (k > 0 ? { ...t, len: t.len * k, r: t.r * (0.6 + 0.4 *
 const TAIL0 = [0, -0.88, 0.6];
 /** THE TAIL OF AN ANIMAL ON ALL FOURS: it rides the pelvis, which tips forward on all fours, so a tail rooted high and
  *  swept up behind the standing animal would aim at the sky, or over the back. Its root sits LOW on the round of the
- *  rump (`low` degrees under the pelvis ball's middle, on its back, `off` behind its surface) and the tail is drooped
+ *  rump (`low` degrees under the pelvis ball's middle, on its back, `off` behind its surface: where the pelvis tipped on
+ *  all fours turns it into the rump, never up the back) and the tail is drooped
  *  back about its root (`droop` degrees): standing it sweeps out behind, on all fours it rises behind */
-export const FEATURE_TAIL = Object.freeze({ low: 35, droop: 25, off: 0.04 });
+export const FEATURE_TAIL = Object.freeze({ low: 75, droop: 25, off: 0.04 });
 function tailRootOn(S) {
   const b = S.body.find((e) => e.name === 'belly'), a = (FEATURE_TAIL.low * Math.PI) / 180;
   return [0, b.c[1] - b.r[2] * Math.cos(a) - FEATURE_TAIL.off, b.c[2] - b.r[0] * (1 - (b.e ?? 0) / 2) * Math.sin(a)];

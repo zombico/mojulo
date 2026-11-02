@@ -101,7 +101,7 @@ describe('the feature body', () => {
     // A DEFAULT GAME MODEL: every part's faces together within the budget; round the belly no clip hangs an arm into it
     expect(plan.segments.reduce((n, x) => n + Object.keys(x.mesh?.faces ?? {}).length, 0)).toBeLessThanOrEqual(FEATURE_TRIANGLES);
     // (on all fours the arms reach down to the floor, the trunk hinged out of their way)
-    for (const keys of Object.entries(plan.clips).filter(([n]) => !['fours', 'prowl', 'downDog'].includes(n)).map(([, c]) => (Array.isArray(c) ? c : c.keys ?? []))) for (const K of keys) for (const [a, s] of [['armR', 1], ['armL', -1]]) if (K?.[a]?.x !== undefined) expect((s * K[a].x) / Math.hypot(K[a].x, K[a].y, K[a].z)).toBeGreaterThan(0.6);
+    for (const keys of Object.entries(plan.clips).filter(([n]) => !['fours', 'prowl', 'downDog', 'gallop'].includes(n)).map(([, c]) => (Array.isArray(c) ? c : c.keys ?? []))) for (const K of keys) for (const [a, s] of [['armR', 1], ['armL', -1]]) if (K?.[a]?.x !== undefined) expect((s * K[a].x) / Math.hypot(K[a].x, K[a].y, K[a].z)).toBeGreaterThan(0.6);
     // ON ALL FOURS, posed on the rig: the forepaws at the floor, the hind feet planted, the head held up to look ahead
     const R = validateRig(expandPlan(plan).rig), { nodes } = rigNodesAt(R, plan.clips.fours[1]), height = plan.mascot.height;
     for (const S of ['R', 'L']) { expect(Math.abs(nodes[`knuckles${S}`][2]), S).toBeLessThan(0.08 * height); expect(nodes[`toeBase${S}`][2]).toBeLessThan(0.03 * height); }
@@ -117,6 +117,20 @@ describe('the feature body', () => {
       expect(Math.abs(arm[0]) / Math.hypot(...arm), S).toBeLessThan(0.15); expect(arm[1], S).toBeGreaterThan(0);
     }
     expect(dog.navel[2] - dog.neckHub[2]).toBeGreaterThan(0.08 * height);
+    // (FACING FORWARD: the crown near upright, the face looking ahead, not hung between the arms)
+    const crownTip = (n) => (Math.atan2(n.headTop[1] - n.headBase[1], n.headTop[2] - n.headBase[2]) * 180) / Math.PI;
+    expect(Math.abs(crownTip(dog))).toBeLessThan(30);
+    // THE GALLOP, the dog its base: the run's cycle, the waist rounding at the gather and opening at the extension, the
+    // forelegs swinging, the face ahead throughout, the forepaws reaching the floor
+    const gal = plan.clips.gallop;
+    expect(gal.length).toBe(plan.clips.run.length);
+    expect(Math.max(...gal.map((k) => k.waist)) - Math.min(...gal.map((k) => k.waist))).toBeGreaterThan(5);
+    const posed = gal.map((k) => rigNodesAt(R, k).nodes), paw = posed.map((n) => n.knucklesR[1] - n.shoulderR[1]);
+    expect(Math.max(...paw) - Math.min(...paw)).toBeGreaterThan(0.08 * height);
+    // (the face ahead, a little down, never tipped up: FEATURE_LOOK; the tail out of the rump, not up the back)
+    for (const n of posed) { expect(crownTip(n)).toBeGreaterThan(5); expect(crownTip(n)).toBeLessThan(30); }
+    for (const n of posed) { expect(n.tailRoot[2] - n.pelvisHub[2]).toBeLessThan(0.06 * height); expect(n.tailRoot[1]).toBeLessThan(n.pelvisHub[1]); }
+    expect(Math.min(...posed.map((n) => n.knucklesR[2]))).toBeLessThan(0.05 * height);
     // AS A REGULAR ANIMAL ON ALL FOURS: the spine level from the hips to the neck's root, the tail carried behind at its
     // animal's carriage (the roster's), a share back toward the mascot's own; standing, the tail as designed (no turn)
     const fours = rigNodesAt(R, plan.clips.fours[1]).nodes, rise = (a, b) => (Math.atan2(b[2] - a[2], Math.abs(b[1] - a[1])) * 180) / Math.PI;

@@ -147,9 +147,15 @@ the rig itself (`FEATURE_PAWS`): the paw on the floor ahead of the shoulder. The
 as its animal carries it (`FEATURE_CARRIAGE`): turned on all fours until its line rises at the species' carriage off
 the fauna roster, a quarter of the way back toward the mascot's own; standing, it is as designed.
 
-**Everyone can downward dog** (`downDog`, `FEATURE_DOG`): the hind legs straight, the hips high, the trunk bent down at
-the waist (the rib ball under the pelvis ball), the forepaws straight out in front on the floor, the head between the
-arms. It is the two-ball trunk's test: the fit lengthens the legs where a big rib ball on short legs needs it.
+**Everyone can downward dog, facing forward** (`downDog`, `FEATURE_DOG`): the hips high, the hind legs as straight as
+the forepaws allow, the trunk bent down at the waist (the rib ball under the pelvis ball), the forepaws straight out in
+front on the floor, the face looking ahead. A quadruped's spine and neck bend further than the human ranges the rig's
+limits are set for, so the pose takes them `unbound`. It is the two-ball trunk's test, and the GALLOP's base
+(`gallop`, `FEATURE_GALLOP`): the hind feet take the biped run's paths as a half-bound, the waist rounds at the gather
+and opens at the extension, each forepaw goes from under the chest (the elbow folded) to its full reach (straight), the
+face ahead, the tail carried. Running, the hips tip no further than `FEATURE_GALLOP.hinge`, so the tail comes out of the
+rump. On all fours, walking and running, the head is turned up until its crown tips `FEATURE_LOOK.tilt` ahead of upright,
+the head taking most of the turn so it is never tucked into the shoulders.
 
 ## Birds
 

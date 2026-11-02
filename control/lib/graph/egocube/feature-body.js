@@ -35,6 +35,7 @@ import { netSkin, soundMesh, simplifyMesh, fieldNormals, closeHoles } from '../p
 import { smin, sdRoundCone } from '../polygonizer/vajra.js';
 import { PLAN_SCHEMA, expandPlan } from '../polygonizer/station-loft-plan.js';
 import { validateRig, rigNodesAt } from '../polygonizer/station-loft-rig.js';
+import { LIMITS } from '../polygonizer/figure-vajra.js';
 import { featureFace } from './feature-face.js';
 import { cutSkin, coatLayers, stroke, band, cells } from './feature-coat.js';
 import { measuresOf, rigOf, coatPalette } from './mascot-form.js';
@@ -42,7 +43,7 @@ import { featureBuild } from './feature-grammar.js';
 import { resolveTune, detailBake } from './feature-tune.js';
 import { tuftColour } from './feature-tufts.js';
 import { attachAll } from './feature-attach.js';
-import { foursClips } from './feature-function.js';
+import { foursClips, FEATURE_GALLOP } from './feature-function.js';
 import { plumageOf, wingTones } from './feature-birds.js';
 import { speciesParams } from '../fauna/species.js';
 import { animalCard } from './mascot-animals.js';
@@ -339,7 +340,7 @@ export function featurePlan(sheet, { title = 'a feature animal', reactions = fal
   // clip starts and ends on a straight stand; its own crouches (a hop's, a squat's) kept)
   straightened(clips);
   // (a quadruped's clips on all fours, its legs in their natural bend: feature-function.js)
-  Object.assign(clips, foursClips(build.fours, { walk: clips.walk, ready: clips.idle?.[0], dog: build.dog }));
+  Object.assign(clips, foursClips(build.fours, { walk: clips.walk, ready: clips.idle?.[0], dog: build.dog, run: clips.run }));
   // the fingers' bones: two links a finger from its knuckle (each tail riding its bone's parent, as the knuckles do)
   for (const d of L.digits) for (const [S0, m] of [['R', (p) => p], ['L', mirrorX]]) {
     const n = (x) => `digit${d.i}${x}${S0}`;
@@ -364,8 +365,33 @@ export function featurePlan(sheet, { title = 'a feature animal', reactions = fal
       : { EarInner: '#c9a19b', ...featurePalette(coatPalette(sheet, k, A, f), A.id, build) },
   };
   // (the forepaws planted on the floor, solved on the rig itself)
-  if (build.fours) { planted(plan); if (L.tail) carried(plan, build.tail.carriage); }
+  if (build.fours) { looking(plan); planted(plan); if (L.tail) carried(plan, build.tail.carriage); }
   return { plan, H, height: L.top, ...(tune?.detail.bake ? { bake: detailBake(build.plan) } : {}) };
+}
+
+/** THE HEAD LOOKING AHEAD on all fours: each key of the pose, the walk and the gallop turns the head up from a trunk
+ *  pitched forward until its crown tips `tilt` degrees ahead of upright (the face ahead, a little down, as a running
+ *  animal holds it), the head taking `share` of the turn and the neck the rest (a neck pulled far back tucks the head
+ *  into the shoulders), each within its range (figure-vajra.js LIMITS, × the key's `unbound`), solved on the rig. The
+ *  downward dog keeps its own (the head lifted from a chest pitched further down) */
+export const FEATURE_LOOK = Object.freeze({ tilt: 15, share: 0.65, clips: ['fours', 'prowl', 'gallop'] });
+function looking(plan) {
+  const R = validateRig(expandPlan(plan).rig), Lk = FEATURE_LOOK;
+  const tipOf = (k) => { const n = rigNodesAt(R, k).nodes, c = [0, 1, 2].map((i) => n.headTop[i] - n.headBase[i]); return (Math.atan2(c[1], c[2]) * 180) / Math.PI; };
+  for (const name of Lk.clips) {
+    const keys = plan.clips[name];
+    if (!Array.isArray(keys)) continue;
+    keys.forEach((k, i) => {
+      if (!k?.armR) return;
+      const U = k.unbound ?? 1, hm = LIMITS.head * U, nm = LIMITS.neck * U;
+      const with_ = (T) => { const head = Math.min(hm, T * Lk.share), neck = Math.min(nm, T - head); return { ...k, head: { pitch: r4(head) }, neck: { pitch: r4(neck) } }; };
+      // (the crown's tip falls as the turn grows: bisect the turn for the tilt)
+      let lo = 0, hi = hm + nm;
+      if (tipOf(with_(lo)) <= Lk.tilt) { keys[i] = with_(0); return; }
+      for (let it = 0; it < 14; it++) { const m = (lo + hi) / 2; (tipOf(with_(m)) > Lk.tilt ? (lo = m) : (hi = m)); }
+      keys[i] = with_(hi);
+    });
+  }
 }
 
 /** THE TAIL CARRIED as its animal carries it, on all fours: the pelvis tips forward and swings a tail designed for the
@@ -392,25 +418,38 @@ function carried(plan, carriage) {
  *  where the trunk carried it), so an aim written as a world direction lands the paw behind and above the floor, and
  *  splayed, once the trunk bends. Each key on all fours is solved on the rig: from where the posed shoulder stands the
  *  paw reaches the floor ahead, as far as the arm reaches (`FEATURE_PAWS.floor` of the height off it), the arm straight
- *  FORWARD in the downward dog (no share to the side) and a little out round the belly on all fours, a walk's swing
- *  kept; the aim corrected until the posed arm points there (`passes`) */
-export const FEATURE_PAWS = Object.freeze({ floor: 0.02, out: { fours: 0.15, prowl: 0.15, downDog: 0 }, passes: 6 });
+ *  FORWARD in the downward dog (no share to the side) and a little out round the belly on all fours, a walk's and a
+ *  gallop's swing kept; the aim corrected until the posed arm points there (`passes`) */
+export const FEATURE_PAWS = Object.freeze({ floor: 0.02, out: { fours: 0.15, prowl: 0.15, downDog: 0, gallop: 0.05 }, passes: 6 });
 function planted(plan) {
-  const R = validateRig(expandPlan(plan).rig), h = plan.mascot.height, P = FEATURE_PAWS, base = plan.clips.fours?.[1]?.armR?.y ?? 0;
+  const R = validateRig(expandPlan(plan).rig), h = plan.mascot.height, P = FEATURE_PAWS, fourY = plan.clips.fours?.[1]?.armR?.y ?? 0;
   const u = (v) => { const l = Math.hypot(v[0], v[1], v[2]) || 1; return [v[0] / l, v[1] / l, v[2] / l]; };
   const dir = (a, b) => u([b[0] - a[0], b[1] - a[1], b[2] - a[2]]), len = (a, b) => Math.hypot(b[0] - a[0], b[1] - a[1], b[2] - a[2]);
   for (const [name, out] of Object.entries(P.out)) {
     const keys = plan.clips[name];
     if (!Array.isArray(keys)) continue;
+    // (a moving clip's own swing kept: the prowl's about the fours', the gallop's ahead of its planted paw)
+    const base = name === 'gallop' ? Math.min(...keys.map((k) => k?.armR?.y ?? 0)) : fourY, moving = name === 'prowl' || name === 'gallop';
     keys.forEach((k0, i) => {
       if (!k0?.armR || !k0?.armL) return;
       let k = k0;
       for (const [S, sx] of [['R', 1], ['L', -1]]) {
-        const arm = `arm${S}`, swing = name === 'prowl' ? (k0.armR.y ?? 0) - base : 0;
+        const arm = `arm${S}`, swing = moving ? (k0.armR.y ?? 0) - base : 0;
+        // (the gallop's paw on the floor at a share of its full reach, `under` at the gather to all of it at the
+        // extension, the elbow folded so the leg spans it: the law of cosines on the upper arm and the forearm)
+        let span = null;
+        if (name === 'gallop') {
+          const n0 = rigNodesAt(R, { ...k, [`elbow${S}`]: 0 }).nodes, sh = n0[`shoulder${S}`], up = len(sh, n0[`elbow${S}`]), fore = len(n0[`elbow${S}`], n0[`knuckles${S}`]);
+          const dz = Math.max(0, sh[2] - P.floor * h), full = Math.sqrt(Math.max(0, (up + fore) ** 2 - dz * dz)), t = Math.max(0, Math.min(1, swing / FEATURE_GALLOP.swing));
+          const fwdA = full * (FEATURE_GALLOP.under + (1 - FEATURE_GALLOP.under) * t), D = Math.min(up + fore, Math.hypot(dz, fwdA));
+          const bend = (Math.acos(Math.max(-1, Math.min(1, (D * D - up * up - fore * fore) / (2 * up * fore)))) * 180) / Math.PI;
+          k = { ...k, [`elbow${S}`]: r4(bend) }; span = { dz, fwd: fwdA };
+        }
         let a = [k[arm].x, k[arm].y, k[arm].z];
         for (let pass = 0; pass < P.passes; pass++) {
           const n = rigNodesAt(R, k).nodes, sh = n[`shoulder${S}`], kn = n[`knuckles${S}`], L = len(sh, kn);
-          const d = Math.max(0.05, Math.min(1, (sh[2] - P.floor * h) / L)), want = u([sx * out, Math.sqrt(1 - d * d) + swing, -d]), got = dir(sh, kn);
+          const d = Math.max(0.05, Math.min(1, (sh[2] - P.floor * h) / L));
+          const want = span ? u([sx * out, span.fwd, -span.dz]) : u([sx * out, Math.sqrt(1 - d * d) + swing, -d]), got = dir(sh, kn);
           a = u([a[0] + want[0] - got[0], a[1] + want[1] - got[1], a[2] + want[2] - got[2]]);
           k = { ...k, [arm]: { x: r4(a[0]), y: r4(a[1]), z: r4(a[2]) } };
         }
