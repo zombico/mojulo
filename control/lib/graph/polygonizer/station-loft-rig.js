@@ -92,6 +92,90 @@ export function handValue(R, n, v) {
   if (typeof v === 'string') { if (!H.poses[v]) throw new Error(`station-loft-rig: ${n}: no hand pose '${v}' (have ${Object.keys(H.poses).join(', ')})`); v = H.poses[v]; }
   return Object.fromEntries(Object.keys(H.digits).map((d) => [d, typeof v === 'number' ? (d === 'thumb' ? v / 2 : v) : (v?.[d] || 0)]));
 }
+/**
+ * THE WIDER HAND: a digit given as an OBJECT in `fingers<S>` (`{ index: { mcp, pip, dip, spread }, thumb: { cmc, mcp,
+ * ip } }`) turns each of its joints by its own angle (degrees over the relaxed rest, + closing, as the curl's) and adds
+ * what the one curl cannot:
+ *   finger   `curl` (the old number: each link by its weight), `links: [mcp, pip, dip]` or `mcp` / `pip` / `dip` (each
+ *            over the curl's; a `pip` named without a `dip` takes the last joint at DIP_OF_PIP of it, the joints' own
+ *            coupling), `spread` (+ away from the middle finger: the index and the middle toward the thumb, the ring and
+ *            the little away from it; turned at the knuckle, before the curl, about the palm's normal)
+ *   thumb    `curl`, `links: [cmc, mcp, ip]` or `cmc` (a number: the root's turn across the palm, the curl's own; or
+ *            `[across, toPalm]`: and its turn TOWARD THE PALM, about the axis square to the root's hinge and the
+ *            metacarpal, signed so + carries the tip in to the palm, and past its plane, the thumb laid back beside the
+ *            hand; the curl's root turn alone keeps the tip 29–46 mm off the palm), `mcp`, `ip`
+ * Every axis is the rig's own or read off its rest joints at pose time (the spread's normal signed by the hand's
+ * deviation axis, + radial; the thumb's second axis by the index finger's closing): the rig's block is unchanged, and a
+ * number or a word takes the curl's path exactly. A joint turned carries the digit's later hinges and its root's hinge
+ * marker (the thumb's axis joint, a bone's aux), so the exported bones keep their roll. Unknown keys throw by name.
+ */
+export const DIP_OF_PIP = 2 / 3;
+const FINGER_KEYS = Object.freeze(['curl', 'links', 'mcp', 'pip', 'dip', 'spread']), THUMB_KEYS = Object.freeze(['curl', 'links', 'cmc', 'mcp', 'ip']);
+const SPREAD_SIGN = Object.freeze({ index: 1, middle: 1, ring: -1, little: -1 });
+function wideDigit(R, H, pts, d, g, v, ch) {
+  const thumb = d === 'thumb', keys = thumb ? THUMB_KEYS : FINGER_KEYS;
+  for (const k of Object.keys(v)) if (!keys.includes(k)) throw new Error(`station-loft-rig: ${ch}.${d}: no key '${k}' (have ${keys.join(', ')})`);
+  const n = g.links.length, W = g.links.map((l) => l.weight);
+  const a = W.map((w) => (Number.isFinite(v.curl) ? v.curl * w : 0));
+  if (Array.isArray(v.links)) v.links.forEach((x, i) => { if (Number.isFinite(x) && i < n) a[i] = x; });
+  const names = thumb ? ['cmc', 'mcp', 'ip'] : ['mcp', 'pip', 'dip'];
+  let toPalm = 0;
+  names.forEach((k, i) => { const x = v[k]; if (Array.isArray(x)) { if (Number.isFinite(x[0])) a[i] = x[0]; if (Number.isFinite(x[1])) toPalm = x[1]; } else if (Number.isFinite(x)) a[i] = x; });
+  if (!thumb && n > 2 && (Number.isFinite(v.pip) || Number.isFinite(v.links?.[1])) && !Number.isFinite(v.dip) && !Number.isFinite(v.links?.[2])) a[2] = a[1] * DIP_OF_PIP;
+  const spread = !thumb && Number.isFinite(v.spread) ? v.spread : 0;
+  const ax = g.links.map((l) => [...(l.axis ?? g.axis)]), root = g.links[0].pivot, p0 = [...pts[root]];
+  // the root's hinge marker (a bone headed at the root whose aux starts there: the thumb's axis joint) turns with the digit
+  const marker = R.bones.find((b) => b.head === root && b.aux?.[0] === root)?.aux?.[1];
+  const past = [...g.links[0].joints, ...(marker && pts[marker] ? [marker] : [])];
+  const turnAll = (k, deg) => { if (!deg) return; for (const j of past) pts[j] = rotLine(pts[j], p0, k, deg); for (let i = 0; i < n; i++) ax[i] = rotLine(ax[i], [0, 0, 0], k, deg); };
+  const along = sub(pts[g.links[1]?.pivot ?? g.links[0].joints[0]], p0), l0 = len(along), dir = l0 > 1e-9 ? mul(along, 1 / l0) : null;
+  if (spread && dir) {
+    // about the palm's normal through the knuckle, + radial (the hand's deviation axis), then + away from the middle
+    let k = cross(dir, ax[0]); const kl = len(k);
+    if (kl > 1e-9) { k = mul(k, 1 / kl); if (dot(k, H.axes.deviation) < 0) k = mul(k, -1); turnAll(k, spread * (SPREAD_SIGN[d] ?? 1)); }
+  }
+  if (thumb && toPalm && dir) {
+    // square to the root's hinge and the metacarpal, + toward the palm's front (the side the index finger closes to)
+    let k = cross(ax[0], dir); const kl = len(k);
+    const ix = H.digits.index;
+    if (kl > 1e-9 && ix) {
+      k = mul(k, 1 / kl);
+      const ip = R.joints[ix.links[0].pivot], it = R.joints[ix.links[ix.links.length - 1].joints.at(-1)], front = cross(ix.links[0].axis ?? ix.axis, sub(it, ip));
+      const tip = sub(pts[g.links[n - 1].joints.at(-1)], p0);
+      if (dot(cross(k, tip), front) > 0) k = mul(k, -1);
+      turnAll(k, toPalm);
+    }
+  }
+  // the joints, each by its own angle, a turn carrying the later hinges (the curl's rule)
+  g.links.forEach((l, i) => {
+    if (!a[i]) return;
+    const p = [...pts[l.pivot]];
+    for (const j of l.joints) pts[j] = rotLine(pts[j], p, ax[i], a[i]);
+    for (let m = i + 1; m < n; m++) ax[m] = rotLine(ax[m], [0, 0, 0], ax[i], a[i]);
+  });
+  return ax;
+}
+
+/**
+ * ONE DIGIT POSED IN THE HAND'S REST FRAME (the palm held still, before the wrist and the arm): the rig's own turns for
+ * `value` (a number, a word's digit, or the wider hand's object), a hand solver's forward kinematics without the body.
+ * → { joints: { <name>: point } (the digit's root, joints, tip and hinge marker), axes (each link's hinge as the turns
+ * left it), chain (the root, the joints and the tip, in order) }. A number takes the wide form's `{ curl }`, equal to the
+ * curl's path to the bit.
+ */
+export function digitPose(R, S, d, value = 0) {
+  const H = R.hands?.[S], g = H?.digits?.[d];
+  if (!g) throw new Error(`station-loft-rig: no digit '${d}' on hand ${S}`);
+  const v = typeof value === 'number' ? { curl: value } : value || {};
+  const names = [g.links[0].pivot, ...g.links[0].joints];
+  const marker = R.bones.find((b) => b.head === g.links[0].pivot && b.aux?.[0] === g.links[0].pivot)?.aux?.[1];
+  if (marker) names.push(marker);
+  const pts = Object.fromEntries(names.map((j) => [j, [...R.joints[j]]]));
+  const axes = wideDigit(R, H, pts, d, g, v, `fingers${S}`);
+  const chain = [g.links[0].pivot, ...g.links.slice(1).map((l) => l.pivot), g.links.at(-1).joints.at(-1)];
+  return { joints: pts, axes, chain };
+}
+
 /** The hand's joints turned in the rest frame for `pose` (the digits' curls, then the wrist), by name; empty without hands. */
 function handLocal(R, pose) {
   const out = {};
@@ -101,7 +185,7 @@ function handLocal(R, pose) {
     if ((f === undefined || f === 0) && (w === undefined || w === 0)) continue;
     const pts = Object.fromEntries(H.joints.map((j) => [j, [...R.joints[j]]]));
     // a link's turn carries the digit's later hinges with it (the thumb's knuckle turns with its root)
-    if (f !== undefined) { const c = handValue(R, `fingers${S}`, f); for (const [d, g] of Object.entries(H.digits)) { if (!c[d]) continue; const ax = g.links.map((l) => l.axis ?? g.axis); g.links.forEach((l, i) => { const p = [...pts[l.pivot]], a = c[d] * l.weight; for (const j of l.joints) pts[j] = rotLine(pts[j], p, ax[i], a); for (let n = i + 1; n < ax.length; n++) if (ax[n] !== ax[i]) ax[n] = rotLine(ax[n], [0, 0, 0], ax[i], a); }); } }
+    if (f !== undefined) { const c = handValue(R, `fingers${S}`, f); for (const [d, g] of Object.entries(H.digits)) { if (c[d] && typeof c[d] === 'object') { wideDigit(R, H, pts, d, g, c[d], `fingers${S}`); continue; } if (!c[d]) continue; const ax = g.links.map((l) => l.axis ?? g.axis); g.links.forEach((l, i) => { const p = [...pts[l.pivot]], a = c[d] * l.weight; for (const j of l.joints) pts[j] = rotLine(pts[j], p, ax[i], a); for (let n = i + 1; n < ax.length; n++) if (ax[n] !== ax[i]) ax[n] = rotLine(ax[n], [0, 0, 0], ax[i], a); }); } }
     if (w !== undefined) { const v = handValue(R, `wrist${S}`, w), p = R.joints[H.wrist]; for (const k of ['flex', 'deviation', 'twist']) if (v[k]) for (const j of H.joints) pts[j] = rotLine(pts[j], p, H.axes[k], v[k]); }
     Object.assign(out, pts);
   }

@@ -2,15 +2,16 @@
 /**
  * export-unreal.mjs — the Unreal ASSET CLI: one of mojulo's things (a character, a creature, a prop, a building, a
  * robot, anything assembled) as an Unreal asset pack. Thin front door over lib/graph/scene/unreal-pack.js, the same pack
- * export_model { ref, format: 'unreal' } writes; this script adds the MACHINE GATE: a scratch UE project (a plain-JSON
- * .uproject the driver writes itself — UE needs no -createProject step), the pack copied in as Mojulo/<ref>/, then two
- * headless passes — MOJULO_MODE=run (import the asset, build its preview map) and MOJULO_MODE=verify (assertions →
+ * export_model { ref, engine: 'unreal', what: 'asset' } writes; this script adds the MACHINE GATE: a scratch UE project
+ * (a plain-JSON .uproject the driver writes itself — UE needs no -createProject step), the pack copied in as
+ * Mojulo/<ref>/, then two headless passes — MOJULO_MODE=run (import the asset, build its preview map) and MOJULO_MODE=verify (assertions →
  * mojulo-gate.json: the preview map, the imported asset, its materials, its lights, a figure's mesh, clip and retarget
  * rig, and the diagnostics the run found). Env-located binary, watchdogged serial launches, log-grepped, stdout-JSON
  * handback.
  *
- * Unreal takes mojulo's assets, not its games or levels: a game ref is refused with the move (export its characters and
- * solids, each by its ref).
+ * This is Unreal's asset door, one thing by its ref: a game ref is refused with the move (its levels go to Unreal as
+ * projects through export_model { ref, engine: 'unreal' }, scene/handoff-unreal.js; its characters and solids each by
+ * its ref).
  *
  * Capability ladder rung 0 (no UE binary): emit-only — the pack + IMPORT-GUIDE.md are the no-binary path; the gate says
  * why it skipped. The headless incantation is PINNED (first machine gate, 2026-09-03).
@@ -80,7 +81,7 @@ try {
 }
 log(`emitted ${pack.written.length} files (leg v${pack.legVersion}) → ${outDir}`);
 
-// MACHINE GATE — serial, watchdogged launches (the Unity leg's stale-lock 8-hour hang is the cautionary tale; UE has no
+// MACHINE GATE — serial, watchdogged launches (the retired Unity leg's stale-lock 8-hour hang is the cautionary tale; UE has no
 // known lockfile equivalent, but a hung batch editor must still fail loudly, never sit silent).
 const WATCHDOG_MS = Number(process.env.MOJULO_UNREAL_TIMEOUT_MS || 15 * 60 * 1000);
 function runUnreal(uargs, logFile, env = {}) {

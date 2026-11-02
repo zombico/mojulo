@@ -138,9 +138,7 @@ The orthogonality is kept honest by the static-import guard
 [control/lib/mcp/pack-boundary.test.js](../control/lib/mcp/pack-boundary.test.js). Checks A–E: the two
 engines never import each other, no office tool imports the creative engine, and the kernel diagram
 surface imports nothing under `lib/graph`. Its old checks F–H fenced the chatbot factory, which left in
-3.0.0; [control/lib/mcp/carve-boundary.test.js](../control/lib/mcp/carve-boundary.test.js) now asserts
-nothing came back: no factory path on disk or imported, no factory module loaded by a boot, no bot table
-created by `getDb()`, and no network call from `version`.
+3.0.0.
 
 ## What `npx mojulo` downloads, and what a boot loads
 

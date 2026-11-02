@@ -24,7 +24,7 @@ the clock the impact cam will ride (`control/lib/graph/worlds/controllable/world
   scaled clock.
 - **The page.** A world with a tempo composes the clock into its page. The bodies, their clips and their effects step on
   the world's time; the camera, the HUD and the input step on real time. `window.__mojTempo` says where the clock is
-  and fires a moment by name. The web page plays it; Godot and Roblox step on real time (marked absent).
+  and fires a moment by name. The web page plays it.
 - **A game's tempo** (`design_game`, `control/lib/graph/gameworld/tempo.js`). A gameworld's `tempo` (a word, moments,
   or `'auto'`) is laid on every level. `'auto'` is the game type's own: an action game slows on its finisher; the
   realistic, platformer and pinball flavors keep real time, where a blow's weight is the hitstop's. The gameworld's

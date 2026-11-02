@@ -1,5 +1,5 @@
 /**
- * world-kinds — one descriptor per world kind (world-scene-registry.plan.md).
+ * world-kinds — one descriptor per world kind.
  *
  * `resolveWorldScene` (world-scene.js) owns context normalization, the registry lookup +
  * room fallback, and the opt-in channel layering; THIS file owns everything world-scene
@@ -186,7 +186,7 @@ import { assembleCompleteSquareScene } from '@/lib/graph/views/math/complete-squ
 import { assembleConicsScene } from '@/lib/graph/views/math/conics-view';
 import { assembleDerivativeScene } from '@/lib/graph/views/math/derivative-view';
 import { assembleFtcScene } from '@/lib/graph/views/math/ftc-view';
-// math worlds — mathematical structures given walkable bodies (math-worlds.plan.md)
+// math worlds — mathematical structures given walkable bodies
 import { assembleMathStructureScene } from '@/lib/graph/structures/math-structure';
 import { assembleKoenigsbergScene } from '@/lib/graph/structures/koenigsberg';
 // renderStoredSketchSvg is imported LAZILY inside resolveWrapTextures (below): its transitive
@@ -254,10 +254,10 @@ const view = (assemble, title) => ({ title, resolve: (m, ctx) => assemble(m, { t
 const spread = (assemble, title) => ({ title, resolve: (m, ctx) => assemble({ ...m, title: ctx.title }) });
 
 // Fractal-city fog: which planFractalCity box kinds count as SOLID masses for the volumetric
-// fog overlay to clip against (effects-layer.plan.md / P3.5).
+// fog overlay to clip against.
 const FRACTAL_CITY_FOG_KINDS = new Set(['building', 'anchor', 'house', 'townhouse', 'midtower', 'garage']);
 
-// ambient walkers (city/walkers.plan.md P4): when the city plan produced walker loops, dress + bake a
+// ambient walkers: when the city plan produced walker loops, dress + bake a
 // small cast of CLOTHED walk rigs (tee + trousers) once and finalize the `walkers` payload the
 // scene-three walkers channel reads — a figure name + city-unit path + the scale that sizes the
 // (~1.8-unit) bake down to the city's ~0.6-unit people. Motion is /world (three.js) only; the CSS3D
@@ -491,14 +491,14 @@ export const WORLD_KINDS = {
     resolve: async (m, ctx) => attachCityCars(await attachCityWalkers(assembleCityScene(m, { title: ctx.title, creases: ctx.creases, ...(ctx.liveSun ? { liveSun: true } : {}) }))),
   },
   // a finite group as a walkable town: plazas are elements, generators are street types, and a
-  // walk that spells a relation returns to its start plaza (math-worlds.plan.md, Phase 1).
+  // walk that spells a relation returns to its start plaza.
   'math-structure': {
     title: 'mojulo Cayley city',
     walk: true,
     resolve: (m, ctx) => assembleMathStructureScene(m, { title: ctx.title }),
   },
   // a playable theorem: the Seven Bridges of Königsberg, where a crossed bridge retracts and the
-  // parity argument becomes the shape of the frustration (math-worlds.plan.md, Phase 2).
+  // parity argument becomes the shape of the frustration.
   koenigsberg: {
     title: 'mojulo Königsberg bridges',
     walk: true,
@@ -528,7 +528,7 @@ export const WORLD_KINDS = {
     title: 'mojulo stage',
     walk: true,
     ao: true,   // corners, the junction band and under the cornice darken by occlusion (dirt.js leaves AO to this)
-    resolve: (m, ctx) => assembleStageScene(m, { title: ctx.title, unshaded: ctx.unshaded, ...(ctx.liveSun ? { liveSun: true } : {}), ...(ctx.solid ? { solid: true } : {}), ...(ctx.form ? { form: true } : {}), ...(ctx.formLit ? { formLit: true } : {}) }),
+    resolve: (m, ctx) => assembleStageScene(m, { title: ctx.title, unshaded: ctx.unshaded, ...(ctx.liveSun ? { liveSun: true } : {}), ...(ctx.solid ? { solid: true } : {}), ...(ctx.form ? { form: true } : {}), ...(ctx.formLit ? { formLit: true } : {}), ...(ctx.handoff ? { handoff: true } : {}) }),
   },
   // a geocube (era/geocube.js): one style for a level's inside and outside, shown as one of its two specimens, the
   // bare room or the island landform, each built by the stage. A level is then a stage recipe with `geocube`.
@@ -548,7 +548,7 @@ export const WORLD_KINDS = {
       if (m.show === 'geotown') return attachDummy(assembleGeotownScene(m, { title: ctx.title, ...(ctx.formLit ? { form: true } : {}) }));
       // a metro on the cube's own land (geocity/scene.js): its major streets first, its blocks as massing, in metres
       if (m.show === 'geocity') return attachDummy(assembleGeocityScene(m, { title: ctx.title, ...(ctx.liveSun ? { liveSun: true } : {}), ...(ctx.live ? { live: true } : {}) }));
-      const p = assembleGeocubeScene(m, { title: ctx.title, unshaded: ctx.unshaded, ...(ctx.liveSun ? { liveSun: true } : {}), ...(ctx.solid ? { solid: true } : {}), ...(ctx.form ? { form: true } : {}), ...(ctx.formLit ? { formLit: true } : {}) }, assembleStageScene);
+      const p = assembleGeocubeScene(m, { title: ctx.title, unshaded: ctx.unshaded, ...(ctx.liveSun ? { liveSun: true } : {}), ...(ctx.solid ? { solid: true } : {}), ...(ctx.form ? { form: true } : {}), ...(ctx.formLit ? { formLit: true } : {}), ...(ctx.handoff ? { handoff: true } : {}) }, assembleStageScene);
       return p.route ? attachDummy(p) : p;
     },
   },
@@ -875,7 +875,7 @@ export const WORLD_KINDS = {
         // leaves the one-key clip out of its picker (played by rigidly moved parts it would only crack at the joints);
         // the clip stays in the pack for the skinned and engine exports.
         const rim = Array.isArray(m.rim) && m.rim.length === 5 && m.rim.every(Number.isFinite) ? m.rim : figLight !== light ? figLight.rim : null;
-        // THE FACE (anime-face-rig.js), only when the export asks (ctx.face: the skinned GLB, the Godot pack's figure): the
+        // THE FACE (anime-face-rig.js), only when the export asks (ctx.face: the skinned GLB): the
         // anime hero's expression channels as morph targets — its rows ride the pack's parts (`morph`), the targets, the
         // authored weights and every word's weights ride the figure (`face`); a row the guards refuse says why
         // (`faceSkipped`) and exports without it. The World page never asks, so its payload is the one before the face.
@@ -886,7 +886,7 @@ export const WORLD_KINDS = {
         const pageFace = !ctx.face && rigged && m.hero?.form === 'realistic' && m.hero.head === 'relational';
         const face = (ctx.face || pageFace) && rigged && m.hero ? (m.hero.head === 'anime' ? (m.hero.painterly && facePaint ? paintFaceRig(m, mesh, facePaint) : heroFaceRig(m, mesh)) : (m.hero.head ?? 'landmark') === 'landmark' ? westernFaceRig(m, mesh) : m.hero.head === 'relational' ? relationalFaceRig(m, mesh) : null) : null;
         // CLIP TIMING (hero-gesture.js heroClipSeconds): the anime hero's clips each carry a designed duration (`s` on the
-        // packed clip), which the World page's clip preview, the GLB and the Godot pack all play; every other row's clips
+        // packed clip), which the World page's clip preview and the GLB both play; every other row's clips
         // carry none (three seconds on the page, one in an export, as before). With the face, each clip's facial track
         // and the ambient blink ride the face (anime-face-tracks.js), derived here and never stored.
         let seconds = m.hero?.head === 'anime' ? heroClipSeconds(m.hero, m.recipe.clips) : null;
@@ -1031,7 +1031,7 @@ export const WORLD_KINDS = {
       ...m, title: ctx.title, textures: await resolveAssemblerWrapTextures(m), skin: await loadBoundSkin(ctx.ref), light: ctx.light, toon: ctx.toon,
     }),
   },
-  // ── interchange.plan.md I2: sketch kinds widened into the World/export form ──
+  // ── sketch kinds widened into the World/export form ──
   // A lone figure / wordmark / solid is an OBJECT STUDY (orbit, export), not a
   // traversable world — deliberately not `walk` (same posture as workbench /
   // vehicle-instance / manji-tree).
