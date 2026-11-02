@@ -5,7 +5,7 @@
 // places) when `--png`.
 //
 //   node scripts/mount-study.mjs <outDir> [--register realistic|stylized] [--gaits walk,trot,canter,gallop,reinBack]
-//        [--lead right|left] [--cols 8] [--before] [--png]
+//        [--lead right|left] [--view side|front] [--cols 8] [--before] [--png]
 import path from 'node:path';
 import { mkdirSync, writeFileSync, existsSync } from 'node:fs';
 import { resolveMount } from '../lib/graph/mount/build.js';
@@ -16,7 +16,7 @@ import { gaitGates } from '../lib/graph/mount/gates.js';
 const args = process.argv.slice(2);
 const flag = (k) => { const i = args.indexOf(`--${k}`); if (i < 0) return false; args.splice(i, 1); return true; };
 const opt = (k, d) => { const i = args.indexOf(`--${k}`); return i >= 0 ? args.splice(i, 2)[1] : d; };
-const register = opt('register', 'realistic'), lead = opt('lead', 'right'), cols = Number(opt('cols', 8));
+const register = opt('register', 'realistic'), lead = opt('lead', 'right'), cols = Number(opt('cols', 8)), view = opt('view', 'side');
 const gaits = opt('gaits', 'walk,trot,canter,gallop,reinBack').split(',');
 const before = flag('before'), png = flag('png');
 const outDir = args[0] || '.';
@@ -35,8 +35,8 @@ for (const g of gaits) {
   rows.push({ label: g, sub: `${c.speed.toFixed(1)} m/s · ${c.f.toFixed(2)} Hz · stride ${Math.abs(c.L).toFixed(2)} m · duty ${c.duty.toFixed(2)} · machine gate ${failed.length ? 'FAILS ' + failed.join(', ') : 'passes'}`, frames, footfalls });
   report.push({ gait: g, ...gates });
 }
-const name = `mount-horse-${register}${lead === 'left' ? '-left' : ''}`;
-writeFileSync(path.join(outDir, `${name}.svg`), contactSheet(rows, { title: `the mount: a horse, ${register} (lead ${lead})` }));
+const name = `mount-horse-${register}${lead === 'left' ? '-left' : ''}${view === 'front' ? '-front' : ''}`;
+writeFileSync(path.join(outDir, `${name}.svg`), contactSheet(rows, { title: `the mount: a horse, ${register} (lead ${lead}, ${view})`, view, ...(view === 'front' ? { cellW: 150 } : {}) }));
 writeFileSync(path.join(outDir, `${name}.gates.json`), JSON.stringify(report, null, 2));
 files.push(`${name}.svg`);
 for (const r of report) {

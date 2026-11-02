@@ -1,6 +1,7 @@
 /**
  * sheet — the eyes gate's contact sheet: a gait as a row of stick poses at even phases of its stride (side view, the
- * near (left) limbs drawn behind and pale, the far (right) dark, a planted hoof marked), and under it the footfall
+ * near (left) limbs drawn behind and pale, the far (right) dark, a planted hoof marked; or `view: 'front'`, x doubled-
+ * and-a-half so a limb's sideways travel shows), and under it the footfall
  * diagram (each hoof's stance as a bar across the stride, Hildebrand's way), so the poses can be laid beside
  * Muybridge's plates and the footfalls read against the reference table. Generic over frames of { bones: { id: {
  * head, tail } }, contact? }: the fauna's frames draw on it too (the before sheet). Pure: a string of SVG.
@@ -18,7 +19,7 @@ function inkOf(id) {
  * `rows` [{ label, sub, frames: [frame], footfalls?: { LF: [bool…], … } }], each frame { bones, contact?, ground? }.
  * `cols` poses a row; `scale` px per metre.
  */
-export function contactSheet(rows, { title = '', scale = 70, cellW = 230, cellH = 175, foot = 64 } = {}) {
+export function contactSheet(rows, { title = '', scale = 70, cellW = 230, cellH = 175, foot = 64, view = 'side' } = {}) {
   const cols = Math.max(...rows.map((r) => r.frames.length));
   const W = 30 + cols * cellW, rowH = cellH + foot + 46, H = 50 + rows.length * rowH;
   const out = [`<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" font-family="Helvetica, Arial, sans-serif">`,
@@ -29,15 +30,19 @@ export function contactSheet(rows, { title = '', scale = 70, cellW = 230, cellH 
     if (row.sub) out.push(`<text x="${16 + 8.5 * row.label.length + 14}" y="${y0 + 16}" font-size="12" fill="#495057">${row.sub}</text>`);
     row.frames.forEach((fr, ci) => {
       const ox = 15 + ci * cellW, groundY = y0 + 22 + cellH - 10;
-      // centre the mount in its cell on y = 0 (its centre of mass)
-      const P = (q) => [ox + cellW * 0.52 + q[1] * scale, groundY - q[2] * scale];
+      // centre the mount in its cell on y = 0 (its centre of mass); from the front, on x = 0 (its mirror plane), its
+      // right on the viewer's left
+      const P = view === 'front' ? (q) => [ox + cellW * 0.5 - q[0] * scale * 1.6, groundY - q[2] * scale]
+        : (q) => [ox + cellW * 0.52 + q[1] * scale, groundY - q[2] * scale];
       out.push(`<line x1="${ox + 6}" y1="${groundY}" x2="${ox + cellW - 6}" y2="${groundY}" stroke="#adb5bd" stroke-width="1"/>`);
       const g = fr.ground ?? 0, step = 0.5;
-      for (let k = -4; k <= 4; k++) {
+      for (let k = -4; k <= 4 && view !== 'front'; k++) {
         const y = ((g % step) + step) % step + k * step, x = ox + cellW * 0.52 + y * scale;
         if (x > ox + 8 && x < ox + cellW - 8) out.push(`<line x1="${f1(x)}" y1="${groundY}" x2="${f1(x - 5)}" y2="${groundY + 5}" stroke="#ced4da" stroke-width="1"/>`);
       }
-      const ids = Object.keys(fr.bones).sort((a, b) => (/L$/.test(b) && !AXIS.test(b) ? 1 : 0) - (/L$/.test(a) && !AXIS.test(a) ? 1 : 0));
+      // side: the near (left) limbs behind; front: the far (hind) limbs behind the fore
+      const back = (id) => (view === 'front' ? /^(femur|tibia|cannonH|pasternH|hoofH|tail|spine0)/.test(id) : /L$/.test(id) && !AXIS.test(id));
+      const ids = Object.keys(fr.bones).sort((a, b) => (back(b) ? 1 : 0) - (back(a) ? 1 : 0));
       for (const id of ids) {
         const { head, tail } = fr.bones[id], [a, b] = [P(head), P(tail)];
         const w = AXIS.test(id) ? 3 : /^(saddle|bit)$/.test(id) ? 2 : 2.4;
