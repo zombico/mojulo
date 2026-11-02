@@ -6,7 +6,8 @@
  *
  *   toy        cartoon, chibi, mascot, kart: the racer's parts grammar (the gloss racer)
  *   stylised   the painted and banded worlds: the swept, box and fuselage nets, the assembled builds
- *   realistic  the realistic hero's world: the true-dimension lofts, the supercar's surface compiler, the craft shelf
+ *   realistic  the realistic hero's world: the true-dimension lofts, the supercar's surface compiler, the craft shelf,
+ *              the cycle shelf
  *
  * Each build says how far it reaches (`status`):
  *   live      a game or a world draws it today (`where` says which)
@@ -55,6 +56,7 @@ const SERVES = Object.freeze({
   racer: ['driven', 'parked', 'watched'], ride: ['driven'], scenery: ['traffic', 'parked', 'watched'], assembly: ['driven', 'parked'],
   net: ['traffic', 'parked'], supercar: ['driven', 'parked', 'watched'], craft: ['driven', 'parked', 'watched', 'crewed'],
   fleet: ['traffic'], loft: ['driven', 'parked', 'watched'], tech: ['driven', 'traffic', 'parked', 'watched', 'crewed'],
+  cycle: ['driven', 'parked', 'watched'],
 });
 const B = (tier, via, key, status, where, why, uses = SERVES[via]) => ({ tier, via, key, status, uses, where, why });
 // a tracked class (roads/vehicles.js `running: 'track'`) is drawn, parked and watched, not driven: skid steer is not built
@@ -75,6 +77,7 @@ export function buildsOf(id) {
   for (const k of h.net ?? []) out.push(B('stylised', 'net', k, 'asleep', [], 'a swept net no scenery entry builds'));
   for (const k of h.supercar ?? []) out.push(B('realistic', 'supercar', k, 'live', ['quick race (supercars)', 'mint_solid vehicle preview', 'transformer'], 'the supercar\'s surface compiler, streamlined in the form render'));
   for (const k of h.craft ?? []) out.push(B('realistic', 'craft', k, 'live', ['transformer'], 'the craft shelf\'s assembly at its class\'s true figures'));
+  for (const k of h.cycle ?? []) out.push(B('realistic', 'cycle', k, 'asleep', [], 'the cycle shelf\'s machine, its parts on its solved chassis at its class\'s numbers (cycle-shelf/): no door shows it yet'));
   for (const k of h.fleet ?? []) out.push(B('realistic', 'fleet', k, 'live', ['roadway traffic'], 'the highway fleet\'s loft at true dimensions, at traffic distance'));
   for (const k of (h.physics ?? []).filter(loftable).slice(0, 1)) {
     if (tracked(k)) { out.push(B('realistic', 'loft', k, 'live', ['mint_solid vehicle preview', 'a level\'s parked vehicles'], 'the military hull kit\'s body of its class on its running gear (road-military.js, mil-track.js), drawn and parked: not driven until skid steer is built', UNDRIVEN)); continue; }

@@ -140,7 +140,7 @@ describe('builds by tier', () => {
   for (const id of IDS) for (const b of buildsOf(id)) if (!byVia.has(b.via)) byVia.set(b.via, id);
 
   it('every builder has a row, and every build a tier, a status and the uses it serves', () => {
-    expect([...byVia.keys()].sort()).toEqual(['assembly', 'craft', 'fleet', 'loft', 'net', 'racer', 'ride', 'scenery', 'supercar', 'tech']);
+    expect([...byVia.keys()].sort()).toEqual(['assembly', 'craft', 'cycle', 'fleet', 'loft', 'net', 'racer', 'ride', 'scenery', 'supercar', 'tech']);
     for (const id of byVia.values()) {
       for (const b of buildsOf(id)) {
         expect(b.tier === null || TIER_IDS.includes(b.tier)).toBe(true);

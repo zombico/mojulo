@@ -148,7 +148,7 @@ export const VEHICLES = {
   motorcycle: row('motorcycle', ['motorbike', 'road motorcycle', 'standard motorcycle', 'naked bike', 'street bike'], 'road', 'commuter', M, ROAD,
     { physics: 'streetBike', tech: 'motorcycle' }),
   'dirt-bike': row('dirt bike', ['dirtbike', 'motocross bike', 'mx bike', 'enduro bike', 'trail bike', 'motocrosser'], 'offroad', 'trail', M, ROAD,
-    { physics: 'dirtBike', tech: 'motorcycle' }),
+    { physics: 'dirtBike', cycle: 'dirtBike', tech: 'motorcycle' }),
   'sport-bike': row('sport bike', ['sportbike', 'superbike', 'sports motorcycle', 'supersport'], 'road', 'sport', M, ROAD,
     { physics: 'sportBike', tech: 'motorcycle' }),
   'race-bike': row('race bike', ['racebike', 'racing motorcycle', 'grand prix bike', 'gp bike', 'prototype racer'], 'road', 'racer', M, ['driven', 'watched'],

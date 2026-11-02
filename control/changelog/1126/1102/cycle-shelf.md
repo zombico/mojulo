@@ -47,3 +47,65 @@ astride and steers by a bar.
     - a class two in line leaning, one case per layout chosen in code.
 
     No byte pin moved.
+- **The shelf and its first machine, the motocross bike** (`cycle-shelf/`: `cycle-odm.js`, `cycle-parts.js`,
+  `cycle-archetypes.js`, `cycle-chassis.js`, `cycle-laws.js`, `index.js`).
+  - **The kinds:** a frame, a fork, a swingarm, a shock, a wheel, a brake, an engine, a radiator, the final drive, an
+    exhaust, a tank, a seat, a handlebar, a body panel, a footpeg, a stand. Each is a builder; each part is a row.
+  - **The chassis solve** (`cycle-chassis.js`) reads the machine's physics class and its wheel rows: the wheelbase
+    is its class's, the radii its tyres', the trail derived from its rake, its fork's offset and its front wheel.
+    - It finds the axles, the steering axis and where it meets the ground, the head, the triple clamps, the bars'
+      clamp and the swingarm's pivot.
+    - Every part draws from it in the machine's own frame (the rear tyre's contact the origin, the line it leans
+      about the y axis), so a fork stands on the axis the solve raked and a swingarm runs from the pivot it found.
+  - **The parts of a 450 cc motocross machine:**
+    - an aluminium twin-spar frame: its cradle, subframe, head tube and pivot plates;
+    - a 48 mm upside-down fork in its triple clamps;
+    - a box swingarm and its linkage, a coil-over shock;
+    - spoked 21- and 19-inch wheels on round-profile knobby tyres;
+    - disc brakes and their calipers;
+    - a liquid-cooled single with its covers and intake, side radiators;
+    - a 520 chain run round its sprockets as a closed loop of tangents and arcs;
+    - a header and silencer;
+    - an under-seat tank, a long flat seat, a tapered bar with grips, levers and risers;
+    - fenders turned down at their edges, number boards and shrouds;
+    - cleated pegs, a side stand.
+  - **Its archetype** (`dirtBike`) is a layout of those rows, a part on both sides a pair (the left the right's
+    mirror). Each part steering with the bars says so.
+  - **`assembleCycle(id, { pose })`**:
+    - `pose.steer` turns the steered parts about the steering axis through the head;
+    - `pose.stand: 'down'` drops the side stand and leans the machine onto it, about its contact line;
+    - the readout gives its measures, its geometry (wheelbase, rake, offset, trail), its contacts, the rider's points
+      (the seat, each grip and each peg), every joint (the steer, each wheel's roll, the fork's travel, the swingarm,
+      the stand), its laws and its bill of materials.
+  - **The laws** (`cycle-laws.js`), measured from the built faces and hardpoints, advisory:
+    - the tyres on the centreline;
+    - the wheelbase within 3 % of its class, its size within its class's;
+    - the trail positive and in its family's band;
+    - the seat's height at the rider's place;
+    - the clearance under the parts between the wheels;
+    - the lean each side before a hard part touches the ground;
+    - the chain in one plane;
+    - on its stand, leaning toward it within its band.
+
+    The motocross bike holds all of them: 133 mm of trail at 27° of rake, a 0.97 m seat, 0.31 m of clearance, 57°
+    of lean each way, 8.6° on its stand.
+  - **On the registry:** the dirt bike's row claims the archetype (`cycle: 'dirtBike'`). Its realistic build is the
+    cycle shelf's, asleep until a door shows it, so its upscale says to wire it in. The car sheet still refuses the
+    class (its rider sits astride).
+  - **Review:** `scripts/render-cycles.mjs` draws each machine from the side, the three quarters, the front, above and
+    behind, upright or posed, with its triangles and its laws.
+  - **Held:**
+    - `cycle-shelf.test.js`, on the first machine chosen in code:
+      - the inventory's contract, one word one part;
+      - the chassis on its class's wheelbase, its trail derived and the steering axis meeting the ground there, a
+        fork set too far forward refused by its band;
+      - standing on two tyres in line, every law held, the same twice, under 40k triangles;
+      - the rider's points mirrored, a pair a mirror;
+      - parked on three contacts, the front steering each way with the rear where it was;
+      - the chain a closed loop in one plane outside both sprockets;
+      - the registry's row building it, asleep.
+    - `cycle-shelf.char.test.js` pins every builder path and the whole machine.
+    - The deep sweep builds every part closed, assembles every machine with its laws held, and poses it steered to
+      either lock and parked without a part tearing.
+  - **Seen** (machine gate only; the eyes gate is open): the motocross bike from the side, the three quarters, the
+    front and behind.
