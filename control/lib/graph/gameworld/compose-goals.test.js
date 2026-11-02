@@ -107,8 +107,8 @@ describe('composed goals: what a level is played for, read from the prompt', () 
       expect(w.levels[id].goal).toEqual({ collect: 'relic', ...(id === ids.at(-1) ? { boss: true } : {}) });
     }
     const S = runSteps(w, { ref: 'gw' }), L = levelSteps(S);
-    // (a crawler's sentence comes with its hero, genre-forms.js heroFrameOf: made first, the levels' pilot; armed by
-    // its genre, a sword in melee, so the hero is made equipped and its sword is made as gear)
+    // (a crawler's sentence comes with its hero, genre-forms.js heroFrameOf: made first, the levels' pilot; armed by its
+    // genre, a sword in melee: the hero equipped and the sword it carries made before the levels)
     expect(S.map((s) => s.key)).toEqual(['hero', 'hero-equipped', 'foe', 'gear-sword', ...ids.map((id) => `level-${id}-0`), 'game']);
     for (const s of L) {
       expect(s.order.manifest).toMatchObject({ kind: 'stage', kit: 'gothic-stone', program: { use: 'crypt' } });

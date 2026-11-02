@@ -47,6 +47,11 @@ export const VEHICLES = Object.freeze({
   bus:           Object.freeze({ words: 'a city bus', mass: 13600, power: 250, drive: 'rear', share: 0.62, wheelbase: 6.2, track: 2.1, wheelRadius: 0.5, CdA: 6.5, Crr: 0.007, cgH: 1.15, L: 12.2, W: 2.59, H: 3.2, eye: 2.0, grip: 0.8, brakeEff: 0.7, turn: 11.5, band: 0.85, governor: kmh(100) }),
   tractorTrailer: Object.freeze({ words: 'a tractor-trailer, empty', mass: 14500, power: 373, drive: 'rear', share: 0.55, wheelbase: 5.9, track: 2.0, wheelRadius: 0.52, CdA: 6.5, Crr: 0.006, cgH: 1.5, L: 22.5, W: 2.59, H: 4.1, eye: 2.33, grip: 0.8, brakeEff: 0.65, turn: 13.5, band: 0.9, governor: kmh(105) }),
   tractorTrailerLoaded: Object.freeze({ words: 'a tractor-trailer at 80,000 lb', mass: 36300, power: 373, drive: 'rear', share: 0.32, wheelbase: 5.9, track: 2.0, wheelRadius: 0.52, CdA: 6.5, Crr: 0.006, cgH: 2.1, L: 22.5, W: 2.59, H: 4.1, eye: 2.33, grip: 0.8, brakeEff: 0.65, turn: 13.5, band: 0.9, governor: kmh(105) }),
+  // (the field's: a light utility 4x4, a six-wheeled cargo truck, an eight-wheeled armoured personnel carrier; their
+  // tyres cross-country, so less grip on asphalt and more rolling; governed as their manuals are)
+  utility4x4:    Object.freeze({ words: 'a military light utility 4x4', mass: 2400, power: 110, drive: 'all', share: 1, wheelbase: 2.75, track: 1.62, wheelRadius: 0.41, CdA: 1.9, Crr: 0.018, cgH: 0.82, L: 4.4, W: 1.95, H: 1.9, eye: 1.65, grip: 0.78, brakeEff: 0.9, turn: 6.6, band: 0.8, governor: kmh(110) }),
+  cargo6x6:      Object.freeze({ words: 'a six-wheeled military cargo truck', mass: 9500, power: 220, drive: 'all', share: 1, wheelbase: 4.6, track: 2.0, wheelRadius: 0.6, CdA: 6.0, Crr: 0.02, cgH: 1.3, L: 7.6, W: 2.45, H: 3.0, eye: 2.3, grip: 0.7, brakeEff: 0.7, turn: 11, band: 0.85, governor: kmh(90) }),
+  apc8x8:        Object.freeze({ words: 'an eight-wheeled armoured personnel carrier', mass: 19000, power: 330, drive: 'all', share: 1, wheelbase: 5.0, track: 2.3, wheelRadius: 0.6, CdA: 7.5, Crr: 0.022, cgH: 1.35, L: 7.8, W: 2.9, H: 2.6, eye: 2.2, grip: 0.72, brakeEff: 0.75, turn: 10.5, band: 0.85, governor: kmh(100) }),
 });
 
 export const CONDITIONS = Object.freeze({ dry: 1, wet: 0.62, snow: 0.28, ice: 0.1 });
