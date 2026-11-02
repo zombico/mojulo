@@ -274,7 +274,7 @@ export function designGeocity(spec = {}, { seed = 1, field = null } = {}) {
   // 10 an evocation: what it centres on and draws at detail, and the metro to scale it is held to
   if (T.evoke !== 'metro') {
     d.evoked = evokedOf(d, T);
-    const told = ['evoke', 'at', 'along', 'play', 'under'];
+    const told = ['evoke', 'at', 'along', 'play', 'under', 'subway'];
     const ref = designGeocity(Object.fromEntries(Object.entries(spec).filter(([k]) => !told.includes(k))), { seed, field });
     d.laws.push(evokesLaw(d, ref));
   }

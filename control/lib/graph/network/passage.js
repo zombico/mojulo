@@ -98,7 +98,8 @@ export function passageOf({ id, path, a, b, section: sec, over, look = {}, prefi
   // (a stair from a node's floor down to the envelope: as many treads as keep each riser a riser, from its landing)
   const stairOf = (z, dir) => {
     const from = dir > 0 ? LANDING : L - LANDING;
-    if (z - Fat(from) < 1e-3) return null;
+    // (a rail tunnel ramps from its end at its grade: its fall over a landing is its ramp's, not a drop)
+    if (z - Fat(from) < 1e-3 + (sec.finish === 'rail' ? sec.grade * LANDING : 0)) return null;
     if (!sec.stair) { findings.push(`the passage ${id} falls ${r5(z - Fat(from))} m from its ${dir > 0 ? 'first' : 'last'} landing and its section takes no stair`); return null; }
     for (let m = 1; m < 400; m++) { const end = from + dir * m * STAIR.going, drop = z - Fat(end); if (drop / m <= STAIR.riser + 1e-9) return { from, dir, m, end, drop, rise: drop / m, z }; }
     return null;

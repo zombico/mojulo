@@ -11,7 +11,10 @@
  *     entrances  false: no way up to the street (each station's way out a doorway onto nothing)
  *
  *   readSubway(c) → c, checked (refused by name)
- *   laySubway(c) → { stations, tunnels, entrances }   placed, joined: each tunnel its passage, its walkway's side, and
+ *   laySubway(c, { z0?, ground?, entrance?, out? }) → { stations, tunnels, entrances }   `z0` its track bed (else -depth),
+ *       one level or each station's own (the tunnels between graded),
+ *       `ground(x, y)` the street over it (0), `entrance` 'pavilion' (a glass pavilion out from each way out) or 'sidewalk'
+ *       (a stair up along the street to the sidewalk `out` m off its middle)   placed, joined: each tunnel its passage, its walkway's side, and
  *       its walk from one platform to the next (`walk`: down the steps cut in the first's platform end, along the
  *       walkway, up the steps of the next's)
  *   assembleSubwayScene(manifest, ctx) → the World payload: the street over it all, each station, each tunnel, each
@@ -95,8 +98,9 @@ function fitTunnels(P, S) {
   });
 }
 
-export function laySubway(c0) {
-  const c = readSubway(c0), gap = c.gap ?? 120, depth = c.depth ?? 14, z0 = -depth;
+export function laySubway(c0, { z0: zBed = null, ground = () => 0, entrance = 'pavilion', out = null } = {}) {
+  // (its track bed: one level, or each station's own, the tunnels graded between them)
+  const c = readSubway(c0), gap = c.gap ?? 120, depth = c.depth ?? 14, zs = c.stations.map((_, i) => (Array.isArray(zBed) ? zBed[i] : zBed ?? -depth)), z0 = Math.min(...zs);
   const plans = c.stations.map((s) => STATION_PLANS[s.plan ?? 'island']), S = readSection(plans[0].tunnel), fits = fitTunnels(plans[0], S);
   // (each station's place along the line, the next a tunnel's length past its end)
   const ys = [];
@@ -109,22 +113,22 @@ export function laySubway(c0) {
     const portals = Object.fromEntries(ends.map((e) => [e, fits.map((f) => f.span)]));
     const steps = ends.flatMap((e) => fits.map((f) => ({ end: e, x0: f.walk[0], x1: f.walk[1] })));
     const { id: sid, ...settings } = s;
-    return stationOf({ ...settings, ...(s.line === undefined && c.line !== undefined ? { line: c.line } : {}) }, { id: sid, at: [0, ys[i]], z0, portals, steps });
+    return stationOf({ ...settings, ...(s.line === undefined && c.line !== undefined ? { line: c.line } : {}) }, { id: sid, at: [0, ys[i]], z0: zs[i], portals, steps });
   });
   // the running tunnels: from each station's +y end to the next's -y end, one a group of tracks
-  const over = () => ({ z: 0, under: 'ground' }), tunnels = [];
+  const over = (x, y) => ({ z: ground(x, y), under: 'ground' }), tunnels = [];
   for (let i = 0; i + 1 < stations.length; i++) {
     const A = stations[i], B = stations[i + 1], yA = A.box.max[1], yB = B.box.min[1];
     fits.forEach((f, k) => {
-      const end = (yy) => ({ z0, lo: [f.span[0], yy], hi: [f.span[1], yy], top: STATION.portal, plane: yy });
+      const end = (yy, z) => ({ z0: z, lo: [f.span[0], yy], hi: [f.span[1], yy], top: STATION.portal, plane: yy });
       const id = `${A.id}-${B.id}${fits.length > 1 ? `-${k}` : ''}`;
-      const T = passageOf({ id, path: [[f.axis, yA], [f.axis, yB]], a: end(yA), b: end(yB), section: S, over, look: { light: 0.4 }, prefix: 'subway', walkSide: f.ws });
+      const T = passageOf({ id, path: [[f.axis, yA], [f.axis, yB]], a: end(yA, zs[i]), b: end(yB, zs[i + 1]), section: S, over, look: { light: 0.4 }, prefix: 'subway', walkSide: f.ws });
       // (its walk: down A's steps, along its walkway, up B's)
       const sa = A.routes.steps.find((q) => q.end === '+y' && Math.abs(q.foot[0] - (f.walk[0] + f.walk[1]) / 2) < 1e-3), sb = B.routes.steps.find((q) => q.end === '-y' && Math.abs(q.foot[0] - (f.walk[0] + f.walk[1]) / 2) < 1e-3);
       tunnels.push({ ...T, a: A.id, b: B.id, axis: f.axis, walkSide: f.ws, walk: [sa.top, sa.foot, ...T.line, sb.foot, sb.top] });
     });
   }
-  const entrances = c.entrances === false ? [] : stations.flatMap((St) => St.ports.walks.map((q) => entranceOf(St, q)));
+  const entrances = c.entrances === false ? [] : stations.flatMap((St) => St.ports.walks.map((q) => (entrance === 'sidewalk' ? sidewalkEntrance(St, q, { out, ground }) : entranceOf(St, q))));
   return { stations, tunnels, entrances, section: S.id, depth, gap };
 }
 
@@ -197,6 +201,83 @@ function entranceOf(St, q) {
   const footprint = [xs[0], ys[0], xs[1], ys[1]].map(r5), well = [Math.min(xB, xE), y0, Math.max(xB, xE), y1].map(r5);
   const walk = [P3([xA - dx * 0.4, ym, q.z0]), P3([xF - dx * 0.3, ym, q.z0]), P3([xT + dx * 0.3, ym, 0]), P3([front + dx * 3, ym, 0])];
   return { id, station: St.id, port: q.id, faces, colliders, footprint, well, walk, door: P3([front, ym, 0]), N: [dx, 0], rise: r5(rise), steps: n };
+}
+
+/**
+ * A station's way up to the SIDEWALK of the street it lies under: from its way out, a level cross passage out under the
+ * sidewalk `out` m off the line's middle, then a stair turning along the street up to it (toward the station's middle),
+ * its well open in the walk behind railings, a post with the line's roundel at its head; its walk from the doorway onto
+ * the sidewalk past the stair's head. `ground(x, y)` the walk's level. The hall's frame (x across, y along).
+ */
+function sidewalkEntrance(St, q, { out, ground }) {
+  const id = `${St.id}-${q.id}`, sx = Math.sign(q.N[0]) || 1, Wp = Math.abs(q.hi[1] - q.lo[1]), y0 = Math.min(q.lo[1], q.hi[1]), y1 = y0 + Wp, C = ENTRANCE.clear;
+  const Ws = 2.4, xs = sx * out, xa = q.plane, xb = xs + sx * (Ws / 2), xw0 = xs - Ws / 2, xw1 = xs + Ws / 2;
+  // (it climbs toward the station's middle: from the way out's far side along the street)
+  const mid = (St.box.min[1] + St.box.max[1]) / 2, dir = (y0 + y1) / 2 < mid ? 1 : -1, yF = dir > 0 ? y1 : y0;
+  // (its rise to the walk at its head, the head found again as the rise settles its run)
+  let n = 1, r = 0.17, gh = ground(xs, yF);
+  for (let k = 0; k < 4; k++) { const rise = gh - q.z0; n = Math.ceil(rise / ENTRANCE.riser - 1e-9); r = rise / n; gh = ground(xs, yF + dir * (n * ENTRANCE.going + 0.5)); }
+  const run = n * ENTRANCE.going, yH = yF + dir * run;
+  const faces = [], colliders = [], G = (k) => `subway:entrance-${k}`;
+  const emit = (cs, n0, group, hex, g = 1, extra = {}) => {
+    const e1 = cs[1].map((v, i) => v - cs[0][i]), e2 = cs[cs.length - 1].map((v, i) => v - cs[0][i]);
+    const cr = [e1[1] * e2[2] - e1[2] * e2[1], e1[2] * e2[0] - e1[0] * e2[2], e1[0] * e2[1] - e1[1] * e2[0]], flip = cr[0] * n0[0] + cr[1] * n0[1] + cr[2] * n0[2] < 0;
+    const P = (flip ? cs.slice().reverse() : cs).map(P3), k = g * (n0[2] > 0.5 ? 1 : n0[2] < -0.5 ? 0.66 : 0.86), fill = tint(hex, k);
+    faces.push({ corners: P, normal: P3(n0), outNormal: P3(n0), group, fill, cornerFills: P.map(() => fill), ...extra });
+  };
+  const tile = (cs, nrm) => emit(cs, nrm, G('wall'), '#e6e8e4', 0.9, { texture: 'tile-subway', textureLit: true, uv: cs.map(([u, v, w]) => [r5((Math.abs(nrm[0]) > 0.5 ? v : u) / 1.2), r5(w / 1.2)]) });
+  // the cross passage: level from the way out to the stair's far wall, its floor, ceiling, lamp and walls
+  const [xl, xr] = [Math.min(xa, xb), Math.max(xa, xb)], zc = q.z0 + C;
+  emit([[xl, y0, q.z0], [xr, y0, q.z0], [xr, y1, q.z0], [xl, y1, q.z0]], [0, 0, 1], G('floor'), '#c9c2b4', 0.92);
+  emit([[xl, y0, zc], [xr, y0, zc], [xr, y1, zc], [xl, y1, zc]], [0, 0, -1], G('ceiling'), '#5d6166', 0.85);
+  emit([[xl, (y0 + y1) / 2 - 0.3, zc - 0.02], [xr, (y0 + y1) / 2 - 0.3, zc - 0.02], [xr, (y0 + y1) / 2 + 0.3, zc - 0.02], [xl, (y0 + y1) / 2 + 0.3, zc - 0.02]], [0, 0, -1], G('lamp'), '#f4f8fb', 1.6);
+  // (its walls: the side away from the stair whole; the stair's side up to where the stair leaves it; its far end)
+  const back = dir > 0 ? y0 : y1, front = dir > 0 ? y1 : y0;
+  tile([[xl, back, q.z0], [xr, back, q.z0], [xr, back, zc], [xl, back, zc]], [0, dir, 0]);
+  const [fa, fb] = sx > 0 ? [xl, xw0] : [xw1, xr];
+  if (Math.abs(fb - fa) > 1e-3) tile([[fa, front, q.z0], [fb, front, q.z0], [fb, front, zc], [fa, front, zc]], [0, -dir, 0]);
+  tile([[xb, y0, q.z0], [xb, y1, q.z0], [xb, y1, zc], [xb, y0, zc]], [-sx, 0, 0]);
+  colliders.push({ min: P3([xl, Math.min(back, back - dir * 0.3), q.z0]), max: P3([xr, Math.max(back, back - dir * 0.3), zc]), of: `${id}:cross-back` });
+  colliders.push({ min: P3([Math.min(xb, xb + sx * 0.3), y0, q.z0]), max: P3([Math.max(xb, xb + sx * 0.3), y1, zc]), of: `${id}:cross-end` });
+  // the stair along the street: its treads and risers from the cross passage up to the walk
+  for (let i = 0; i < n; i++) {
+    const a = yF + dir * i * ENTRANCE.going, b = a + dir * ENTRANCE.going, z = q.z0 + (i + 1) * r;
+    emit([[xw0, a, z - r], [xw1, a, z - r], [xw1, a, z], [xw0, a, z]], [0, -dir, 0], G('stair'), '#a8a296', 0.85);
+    emit([[xw0, a, z], [xw1, a, z], [xw1, b, z], [xw0, b, z]], [0, 0, 1], G('stair'), '#c9c2b4', 0.95);
+    emit([[xw0, a, z + 0.003], [xw1, a, z + 0.003], [xw1, a + dir * 0.06, z + 0.003], [xw0, a + dir * 0.06, z + 0.003]], [0, 0, 1], G('nosing'), '#d8a52a', 0.95);
+  }
+  // (its walls tiled, its ceiling the treads' line raised, closed to where it nears the walk, its well open over it from
+  // there: the well's sides to the walk, a headwall from the ceiling up to the walk where it opens)
+  const zLine = (y) => q.z0 + Math.max(0, Math.min(n, ((y - yF) * dir) / ENTRANCE.going)) * r, yOpen = yF + dir * Math.max(0, ((gh - C - q.z0) / r) * ENTRANCE.going);
+  const yS = [yF, yOpen, yH].sort((p, q2) => (p - q2) * dir);
+  for (let k = 0; k + 1 < yS.length; k++) {
+    const ya = yS[k], yb = yS[k + 1], open = k === 1;
+    if (Math.abs(yb - ya) < 1e-6) continue;
+    const top = (y) => (open ? gh : zLine(y) + C), bot = (y) => zLine(y) - r;
+    for (const [xx, nx] of [[xw0, 1], [xw1, -1]]) tile([[xx, ya, bot(ya)], [xx, yb, bot(yb)], [xx, yb, top(yb)], [xx, ya, top(ya)]], [nx, 0, 0]);
+    if (!open) {
+      emit([[xw0, ya, zLine(ya) + C], [xw1, ya, zLine(ya) + C], [xw1, yb, zLine(yb) + C], [xw0, yb, zLine(yb) + C]], [0, 0, -1], G('ceiling'), '#5d6166', 0.85);
+      emit([[xs - 0.3, ya, zLine(ya) + C - 0.02], [xs + 0.3, ya, zLine(ya) + C - 0.02], [xs + 0.3, yb, zLine(yb) + C - 0.02], [xs - 0.3, yb, zLine(yb) + C - 0.02]], [0, 0, -1], G('lamp'), '#f4f8fb', 1.6);
+    }
+  }
+  if (zLine(yOpen) + C < gh) emit([[xw0, yOpen, zLine(yOpen) + C], [xw1, yOpen, zLine(yOpen) + C], [xw1, yOpen, gh], [xw0, yOpen, gh]], [0, dir, 0], G('wall'), '#55524d', 0.85);
+  for (const xx of [xw0, xw1]) colliders.push({ min: P3([xx - (xx === xw0 ? 0.3 : 0), Math.min(yF, yH), q.z0]), max: P3([xx + (xx === xw1 ? 0.3 : 0), Math.max(yF, yH), gh + 1.1]), of: `${id}:stair-${xx === xw0 ? 'L' : 'R'}` });
+  for (const xx of [xw0 + 0.06, xw1 - 0.06]) emit([[xx, yF, q.z0 + 0.9], [xx, yH, gh + 0.9], [xx, yH, gh + 1.0], [xx, yF, q.z0 + 1.0]], [xx < xs ? 1 : -1, 0, 0], G('steel'), '#b4b9be', 1);
+  // the railings round its well on the walk (its sides and its back, its head open), a post with the line's roundel
+  const band = LINES[St.readout.line]?.band ?? '#2f6fb0', rails = [[[xw0, yOpen], [xw0, yH]], [[xw1, yOpen], [xw1, yH]], [[xw0, yOpen], [xw1, yOpen]]];
+  for (const [[ax, ay], [bx, by]] of rails) {
+    // (a top rail and a mid rail on posts every metre or so: open, the stair seen through it)
+    const nrm = ax === bx ? [1, 0, 0] : [0, 1, 0], L0 = Math.hypot(bx - ax, by - ay), m = Math.max(1, Math.round(L0 / 1.1));
+    for (const [z0, z1] of [[0.95, 1.05], [0.48, 0.54]]) emit([[ax, ay, gh + z0], [bx, by, gh + z0], [bx, by, gh + z1], [ax, ay, gh + z1]], nrm, G('railing'), '#2e3236', 1);
+    for (let k = 0; k <= m; k++) { const t = k / m, px = ax + (bx - ax) * t, py = ay + (by - ay) * t, ux = ax === bx ? 0 : 0.03, uy = ax === bx ? 0.03 : 0; emit([[px - ux, py - uy, gh], [px + ux, py + uy, gh], [px + ux, py + uy, gh + 1.05], [px - ux, py - uy, gh + 1.05]], nrm, G('railing'), '#2e3236', 1); }
+  }
+  const post = [xw1 + sx * 0.35, yH - dir * 0.4];
+  emit([[post[0] - 0.06, post[1], gh], [post[0] + 0.06, post[1], gh], [post[0] + 0.06, post[1], gh + 3.2], [post[0] - 0.06, post[1], gh + 3.2]], [0, -dir, 0], G('steel'), '#2e3236', 1);
+  for (const [rr, hex] of [[0.38, band], [0.24, '#f2efe6']]) emit(Array.from({ length: 16 }, (_, k) => { const a = (2 * Math.PI * k) / 16; return [post[0] + rr * Math.cos(a), post[1] - dir * (0.02 + (rr < 0.3 ? 0.01 : 0)), gh + 3.5 + rr * Math.sin(a)]; }), [0, -dir, 0], G('roundel'), hex, 1.1);
+  colliders.push({ min: P3([xw0 - 0.05, Math.min(yOpen, yOpen - dir * 0.05), gh]), max: P3([xw1 + 0.05, Math.max(yOpen, yOpen - dir * 0.05), gh + 1.05]), of: `${id}:railing-back` });
+  const well = [xw0, Math.min(yOpen, yH), xw1, Math.max(yOpen, yH)].map(r5), ym = (y0 + y1) / 2;
+  const walk = [P3([xa - sx * 0.4, ym, q.z0]), P3([xs, ym, q.z0]), P3([xs, yF - dir * 0.3, q.z0]), P3([xs, yH + dir * 0.4, gh]), P3([xs, yH + dir * 2.5, gh])];
+  return { id, station: St.id, port: q.id, faces, colliders, footprint: well, well, walk, door: P3([xs, yH, gh]), N: [0, dir], rise: r5(gh - q.z0), steps: n };
 }
 
 export function assembleSubwayScene(manifest = {}, ctx = {}) {
