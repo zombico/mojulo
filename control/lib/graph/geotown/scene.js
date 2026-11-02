@@ -48,7 +48,7 @@ import { madeRamp } from '../era/style/swatches.js';
 import { townDressOf, dressTownFace, leanHue } from '../era/town-dress.js';
 import { LOUD_WALLS, CROWN_FORMS, popHex } from './front-loud.js';
 import { slabsOf, groundSplat, inkPicker } from './street-loud.js';
-import { toonOf, proportions, hydrantOf, binOf, postboxOf, lampOf, postOf } from './doodads.js';
+import { toonOf, proportions, hydrantOf, binOf, postboxOf, lampOf, postOf, ringOf, shelterOf, toyCarOf } from './doodads.js';
 import { styleTownDress, styleReadout } from '../era/arch-style.js';
 import { plantPool, plantRepeats } from '../vegetation/pool.js';
 import { treeSizes } from '../form/flora-read.js';
@@ -241,6 +241,10 @@ export function assembleGeotownScene(m, ctx = {}) {
   const EX = cube.exaggerate ?? null, kitBends = [];
   // (a loud street, the cube's exaggerate.streets: geotown/street-loud.js; its own dice)
   const ST = EX?.streets ?? null, Rs = streamOf(seed, 'loud-street', 'town'), ink = ST ? inkPicker(Rs, ST.pop) : null;
+  // (a car: the plain one, or an exaggerated cube's toy, at (u, v) along `along`; its paint popped on a loud street, its
+  // dials its own by `key` in a toon register: geotown/doodads.js)
+  const TOON_CARS = !!EX && toonOf(cube.register), carDice = (key) => streamOf(seed, 'toy-car', key);
+  const carFaces = (u, v, along, hex, key) => (EX ? toyCarOf(along, ST ? popHex(hex, ST.pop) : hex, proportions(carDice(key), TOON_CARS)).map((f) => ({ ...f, corners: f.corners.map(([a, b, c]) => [a + u, b + v, c]) })) : carOf(u, v, along, hex));
   // a face, wound to `want` (else up), shaded by the cube's light, its ground's finish laid where it has one (a floor's
   // on a face that lies flat)
   const put = (corners, group, hex, want = null) => {
@@ -416,7 +420,7 @@ export function assembleGeotownScene(m, ctx = {}) {
         if (pw > 0) put([W(pl, a, 0, pad + 0.01), W(pl, b, 0, pad + 0.01), W(pl, b, F1, pad + 0.01), W(pl, a, F1, pad + 0.01)], 'geotown:path', col.path);
         if (pl.paved && F1 > 5) for (let u = 1.6; u + 1.2 < w; u += 2.8) {
           if (u + 1 > a && u - 1 < b) continue;
-          if (R() < 0.6) for (const f of carOf(u, F1 / 2, 'v', CAR_PAINTS[Math.floor(R() * CAR_PAINTS.length)])) yardFace(pl, f);
+          if (R() < 0.6) for (const f of carFaces(u, F1 / 2, 'v', CAR_PAINTS[Math.floor(R() * CAR_PAINTS.length)], `${pl.id}:pad`)) yardFace(pl, f);
         }
       }
     }
@@ -466,7 +470,7 @@ export function assembleGeotownScene(m, ctx = {}) {
     // a parking pad's car, now and then, nose to the house on the pad's gentle slope
     if (Pk && streamOf(seed, 'parking', `car:${pl.id}`)() < P.parking.share) {
       const Rc = streamOf(seed, 'parking', `paint:${pl.id}`), cu = (Pk[0] + Pk[1]) / 2, cv = F / 2 + 0.2, zc = wkAt(cu) + (pad - wkAt(cu)) * (cv / F);
-      for (const f of carOf(cu, cv, 'v', CAR_PAINTS[Math.floor(Rc() * CAR_PAINTS.length)])) yardFace(pl, { ...f, corners: f.corners.map(([u, v, z]) => [u, v, z + zc - pad]) });
+      for (const f of carFaces(cu, cv, 'v', CAR_PAINTS[Math.floor(Rc() * CAR_PAINTS.length)], `${pl.id}:drive`)) yardFace(pl, { ...f, corners: f.corners.map(([u, v, z]) => [u, v, z + zc - pad]) });
       padCars++;
     }
     // a gated front (its streetscape's share; a mansion's more often): its boundary along the front line from the walk's
@@ -709,6 +713,7 @@ export function assembleGeotownScene(m, ctx = {}) {
   for (const Rg of T9.rings ?? []) {
     // (the city's post and ring: a post, a ring round it across the walk's line)
     const [x, y] = Rg.at, z = wk(x, y), al = Rg.along === 'x';
+    if (ROUND) { fr(ringOf(x, y, z, al, dials('ring', x, y)), h9('ring')); continue; }
     fx(box(x - 0.03, y - 0.03, x + 0.03, y + 0.03, z, z + 0.95, 'steel'));
     const R = 0.24, n = 8, ring = Array.from({ length: n + 1 }, (_, i) => [R * Math.cos((2 * Math.PI * i) / n), z + 0.72 + R * Math.sin((2 * Math.PI * i) / n)]);
     for (let i = 0; i < n; i++) { const [a, za] = ring[i], [b, zb] = ring[i + 1]; put(al ? [[x + a, y, za], [x + b, y, zb], [x + b, y, zb + 0.04], [x + a, y, za + 0.04]] : [[x, y + a, za], [x, y + b, zb], [x, y + b, zb + 0.04], [x, y + a, za + 0.04]], 'geotown:steel', col.steel, al ? [0, 1, 0] : [1, 0, 0]); }
@@ -718,6 +723,7 @@ export function assembleGeotownScene(m, ctx = {}) {
     // (a bus shelter on the walk, its glass back to the houses and its sides, its roof, its bench, a stop's post by it)
     const [x, y] = Sh.at, z = wk(x, y), h = ink ? ink('shelter') : null, hs = ink ? ink('seat') : null, al = Sh.along === 'x', L = 1.9, Dp = 0.7, [bx, by] = Sh.toward, back = al ? y - by * Dp : x - bx * Dp;
     const rect = al ? [x - L, Math.min(y - by * Dp, y + by * Dp), x + L, Math.max(y - by * Dp, y + by * Dp)] : [Math.min(x - bx * Dp, x + bx * Dp), y - L, Math.max(x - bx * Dp, x + bx * Dp), y + L];
+    if (ROUND) { for (const f of shelterOf(rect, z, al, back, al ? by : bx, dials('shelter', x, y), streamOf(seed, 'shelter', `${r5(x)}:${r5(y)}`))) fr([f], f.role === 'shelter' ? h : f.role === 'seat' ? hs : null); continue; }
     for (const [px, py] of [[rect[0], rect[1]], [rect[2], rect[1]], [rect[2], rect[3]], [rect[0], rect[3]]]) fx(box(px - 0.04, py - 0.04, px + 0.04, py + 0.04, z, z + 2.4, 'shelter'), h);
     fx(box(rect[0] - 0.1, rect[1] - 0.1, rect[2] + 0.1, rect[3] + 0.1, z + 2.4, z + 2.5, 'shelter'), h);
     put(al ? [[rect[0], back, z + 0.1], [rect[2], back, z + 0.1], [rect[2], back, z + 2.3], [rect[0], back, z + 2.3]] : [[back, rect[1], z + 0.1], [back, rect[3], z + 0.1], [back, rect[3], z + 2.3], [back, rect[1], z + 2.3]], 'geotown:glass', col.glass, al ? [0, by, 0] : [bx, 0, 0]);
@@ -938,7 +944,8 @@ export function assembleGeotownScene(m, ctx = {}) {
       const take = Rl() < P.parking.share, s = (s0 + s1) / 2 + (Rl() - 0.5) * 0.6, hex = CAR_PAINTS[Math.floor(Rl() * CAR_PAINTS.length)];
       if (!take) continue;
       const [x, y] = L.axis === 'y' ? [(x0 + x1) / 2, s] : [s, (y0 + y1) / 2], z = S(x, y);
-      for (const f of carOf(0, 0, L.axis === 'y' ? 'v' : 'u', hex)) put(f.corners.map(([u, v, zz]) => [x + u, y + v, z + zz]), `geotown:${f.role}`, f.hex ?? col[f.role] ?? col.metal, f.out);
+      // (an exaggerated cube's a toy car, its paint the street's ink on a loud street; a toon one's each its own)
+      for (const f of carFaces(0, 0, L.axis === 'y' ? 'v' : 'u', hex, `${r5(x)}:${r5(y)}`)) put(f.corners.map(([u, v, zz]) => [x + u, y + v, z + zz]), `geotown:${f.role}`, f.hex ?? col[f.role] ?? col.metal, f.out);
       parked++;
     }
   }

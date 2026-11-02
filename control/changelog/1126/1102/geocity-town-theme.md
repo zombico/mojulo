@@ -37,7 +37,11 @@
   TOON register (a cel register, or bands and an outline) each piece is EXAGGERATED and INCONGRUENT: every part sized by
   its own dice and knocked off its body's line (a mushroom bonnet on a squat barrel, a bottle of a bin under a cone, a
   standard bent in an S under an oversized bell), no two alike. Each stands on its foot where it stood (an S-bend's top
-  back on its axis, so wires still meet their pole). A plain cube's furniture is as it was.
+  back on its axis, so wires still meet their pole). So are its bike rings (a round post, a ring round it), its
+  shelters (round posts under a vaulted roof, its glass, a round bench) and its cars at the kerb and on the drives (toy
+  cars: a shaped body, a domed cabin, round wheels, headlights), each inside its plain one's footprint; a toon register's
+  ring too big and tipped, its roof tipped and bulging, its car stubby, its wheels too big or too small, its cabin a
+  bubble. A plain cube's furniture is as it was.
 - **The language caricatured** (`elements`, 0 to 1; `exaggerateAnchor`, not yet worn by a town): every building
   element's number pushed away from the middle of its rail, inside the rail; doors and a household's rhythm kept.
 - **The style guide** draws the cube's exaggerate as a card.

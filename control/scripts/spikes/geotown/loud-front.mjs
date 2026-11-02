@@ -3,6 +3,8 @@
  * SPIKE: ONE SHOP under the cube's exaggerate.front and .streets (geotown/front-loud.js, street-loud.js) — a main
  * street's shop square on, at three quarters, down its row, and its street from over the walk: one row plumb, one a hand (a name, or JSON terms), the same shop from the same places.
  *
+ *   CLOSE='<caption>=<face group>[=<distance ×>],…' the close cameras (each on the face of that group nearest the shop);
+ *   GEOTOWN='{…}' another geotown (a building, not a shop, anchors the cameras where it has no shop)
  *   cd control && node scripts/spikes/geotown/loud-front.mjs <out-dir> [hand …]   (default: a front of street's only)
  *     → <out-dir>/loud-front.png and .html
  */
@@ -22,7 +24,7 @@ const outDir = path.resolve(outArg), FRONT_ONLY = JSON.stringify({ front: EXAGGE
 const hands = ['plumb', ...(hands0.length ? hands0 : [FRONT_ONLY])];
 mkdirSync(outDir, { recursive: true });
 const CUBE = process.env.CUBE || 'valley-morning', SHOP = Number(process.env.SHOP || 1), W = 640, H = 460, r3 = (v) => Math.round(v * 1000) / 1000;
-const GEOTOWN = { segment: 'main-street', hills: { height: 2 } };
+const GEOTOWN = process.env.GEOTOWN ? JSON.parse(process.env.GEOTOWN) : { segment: 'main-street', hills: { height: 2 } };
 const browser = await launchChromium({ executablePath: await resolveChromium(), args: [...CHROMIUM_LAUNCH_ARGS, ...CHROMIUM_WEBGL_ARGS] });
 const shoot = async (P, cam) => {
   const html = emitThreeWorld({ ...P, cameras: [{ ...cam, worldFraming: { ...cam.worldFraming, pictureCenter: [W / 2, H / 2] } }], viewBox: { width: W, height: H }, inline: true });
@@ -42,16 +44,16 @@ try {
     const { payload: P } = await resolveWorldScene({ title: 'shop', manifest: { kind: 'geocube', cube, show: 'geotown', seed: 3, hour: 'afternoon', walk: false, geotown: GEOTOWN } });
     P.walkers = (P.walkers || []).map((w) => ({ ...w, follow: false })); delete P.walk; delete P.route;
     if (!cams) {
-      const shops = P.anchors.filter((a) => a.kind === 'house' && a.row === 'shops');
-      if (!shops.length) throw new Error(`no shop on this segment (rows: ${[...new Set(P.anchors.map((a) => a.row))].join(', ')})`);
+      // (a shop, else any building: the cameras' anchor)
+      const shops0 = P.anchors.filter((a) => a.kind === 'house' && a.row === 'shops'), shops = shops0.length ? shops0 : P.anchors.filter((a) => a.kind === 'house');
       const h = shops[Math.min(SHOP, shops.length - 1)], N = h.N, T = [-N[1], N[0]];
       const at = (n, t, z) => [h.at[0] + N[0] * n + T[0] * t, h.at[1] + N[1] * n + T[1] * t, h.floor + z].map(r3);
       const cam = (name, from, to, fov) => ({ name, worldFraming: { cameraPosition: from, lookAt: to, horizontalFov: fov } });
       // (the doodads up close: the hydrant and the bin nearest the shop, from a walker's eye)
       const mid = (f) => f.corners.reduce((a, c) => a.map((v, k) => v + c[k] / f.corners.length), [0, 0, 0]);
       const nearest = (g) => P.faces.filter((f) => f.group === g).map(mid).sort((a, b) => Math.hypot(a[0] - h.at[0], a[1] - h.at[1]) - Math.hypot(b[0] - h.at[0], b[1] - h.at[1]))[0];
-      const close = (name, g) => { const q = nearest(g); return q ? cam(name, [q[0] + N[0] * 2.4 + T[0] * 1.6, q[1] + N[1] * 2.4 + T[1] * 1.6, h.floor + 1.5].map(r3), [q[0], q[1], h.floor + 0.6].map(r3), 60) : null; };
-      cams = [close('a hydrant', 'geotown:hydrant'), close('a bin', 'geotown:streetbin'), close('a post box', 'geotown:postbox')].filter(Boolean);
+      const close = (name, g, far = 1) => { const q = nearest(g); return q ? cam(name, [q[0] + N[0] * 2.4 * far + T[0] * 1.6 * far, q[1] + N[1] * 2.4 * far + T[1] * 1.6 * far, h.floor + 1.5 * Math.sqrt(far)].map(r3), [q[0], q[1], h.floor + 0.6].map(r3), 60) : null; };
+      cams = (process.env.CLOSE || 'a hydrant=geotown:hydrant,a bin=geotown:streetbin,a post box=geotown:postbox').split(',').map((kv) => { const [n, g, f] = kv.split('='); return close(n, g, f ? Number(f) : 1); }).filter(Boolean);
       cams.push(cam('three quarters', at(6.5, -6, 1.8), at(0, 1, 3), 64), cam('the street', at(3, 6, 5.5), at(14, -16, 0), 74));
     }
     const cells = [];

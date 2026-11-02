@@ -1,7 +1,7 @@
 // THE STREET'S DOODADS, ROUND: each stands on its foot where it stood; a plain hand's pieces agree with each other, a
 // toon register's each its own, exaggerated and incongruent.
 import { describe, it, expect } from 'vitest';
-import { toonOf, proportions, hydrantOf, binOf, postboxOf, lampOf, postOf } from './doodads.js';
+import { toonOf, proportions, hydrantOf, binOf, postboxOf, lampOf, postOf, ringOf, shelterOf, toyCarOf } from './doodads.js';
 import { mulberry32 } from '../city/plan/dice.js';
 import { REGISTERS } from '../era/colour-register.js';
 
@@ -36,5 +36,30 @@ describe('the doodads, round', () => {
     const ratio = (D) => { const fs = hydrantOf(0, 0, 0, [1, 0], D), w = (role) => { const v = fs.filter((f) => f.role === role).flatMap((f) => f.corners.map((c) => Math.hypot(c[0], c[1]))); return Math.max(...v); }; return w('yellow') / w('hydrant'); };
     const P0 = ratio(proportions(mulberry32(1), false));
     expect([1, 2, 3, 4].some((s) => Math.abs(ratio(proportions(mulberry32(s), true)) - P0) > 0.3)).toBe(true);
+  });
+});
+
+describe('the rings, the shelters and the cars, round', () => {
+  it('stands a toy car inside a plain car\'s footprint, on its wheels, a toon one too', () => {
+    for (const toon of [false, true]) for (const seed of [1, 2, 3]) {
+      const fs = toyCarOf('u', '#c83c3c', proportions(mulberry32(seed), toon));
+      const [x0, x1] = span(fs, 0), [y0, y1] = span(fs, 1), [z0] = span(fs, 2);
+      expect(x0).toBeGreaterThanOrEqual(-2.15 - 1e-6); expect(x1).toBeLessThanOrEqual(2.16);
+      expect(y1 - y0).toBeLessThan(1.9);
+      expect(z0).toBeGreaterThanOrEqual(-1e-6);
+      expect(fs.some((f) => f.role === 'tyre')).toBe(true);
+    }
+  });
+  it('keeps a shelter\'s posts on its corners and its roof over them', () => {
+    const rect = [0, 0, 3.8, 1.4], fs = shelterOf(rect, 0.15, true, 0, 1, proportions(mulberry32(5), true), mulberry32(6));
+    const feet = fs.filter((f) => f.role === 'shelter').flatMap((f) => f.corners).filter((c) => c[2] < 0.15 + 1e-6);
+    for (const c of feet) expect(Math.min(...[[0, 0], [3.8, 0], [3.8, 1.4], [0, 1.4]].map(([x, y]) => Math.hypot(c[0] - x, c[1] - y)))).toBeLessThan(0.1);
+    expect(fs.some((f) => f.role === 'glass')).toBe(true);
+    expect(fs.some((f) => f.role === 'seat')).toBe(true);
+  });
+  it('rings a bike ring round its post, a toon one tipped off its plane', () => {
+    const plain = ringOf(0, 0, 0, true, proportions(mulberry32(1), false)), toon = ringOf(0, 0, 0, true, proportions(mulberry32(1), true));
+    expect(span(plain, 1)[1] - span(plain, 1)[0]).toBeLessThan(0.1);          // (a plain ring in its plane, across the walk)
+    expect(span(toon, 1)[1] - span(toon, 1)[0]).toBeGreaterThan(span(plain, 1)[1] - span(plain, 1)[0]);
   });
 });
