@@ -1,4 +1,4 @@
-### Object grip, balls: a hand that holds a ball by its size, throws solved to their real release, a stick library for the ball games
+### Object grip, balls: a hand that holds a ball by its size, throws and catches solved, a stick library for the ball games
 
 The manual manipulator takes up balls. The hand closes on a ball of the ball card's own size by a grip a person names
 (or the ball's own), a hero throws it in a technique timed so the ball leaves at the sport's real speed, and the
@@ -27,14 +27,30 @@ page (`scripts/spikes/manipulator/throws.mjs --page`).
   pass, the underhand and the set shot (a wrist at a key; the pass's and the shot's drive, which wanders off its line
   where the forearm stands near upright) and the throw-in (a wrist at a key, its drive) reach their release speed and
   hold the ball, and say which laws they miss.
+- **Catches** (`lib/graph/polygonizer/hero-catch.js`, `CATCHES`): `high` (the hands' diamond above the chest), `low` (the
+  basket below the waist), `chest` (taken into the body, the arms closing round it), `oneHand` (a bare hand at the
+  shoulder), `skyball` (a high ball dropping steeply, taken by the eyes). The ball comes in along its line (its speed
+  and its drop; a ball and a way in of the caller's own), the hands go out to meet it open, palms to it, close on it at
+  the touch already moving back along its line at a share of its speed, and give with it until both stop, then bring
+  it in. The readout gives the sting (the impulse at the touch), the give's distance, time and force. The throw's hand
+  solver is shared (hero-throw.js `handsKit`). Checks: the hands, the grip, the wrists at every key, the palms to the
+  ball, the hands' speed and way at the touch, the give on its line, the balance. `high`, `low`, `chest` and `oneHand`
+  hold every law; `skyball` misses its wrist through the give.
+- **Fixed: a throwing hand opening after the release** keyed the `open` word, a number per digit, where the grip's
+  digits are objects; a clip's channels are its keys' numbers, so the thumb lost its joints through the whole throw.
+  The hand now opens in the grip's own form (`openFingers`).
 - **On the hero door**: motion words `throwOverhand`, `throwPass`, `throwSidearm`, `throwUnderhand`, `bowlRoll`,
   `chestPass`, `setShot`, `throwIn`, `tossServe` play a throw as a one-shot, the ball a prop of the throwing hand; the
   clip's readout names the release (when, how fast, along what line, and the library's launch for an engine to spawn
-  the ball at).
+  the ball at). `catchHigh`, `catchLow`, `catchChest`, `catchOneHand`, `catchSkyball` play a catch; its ball carries no
+  prop (it arrives at the touch: the readout's `contact` says when an engine puts it in the hand).
 - **The stick library** (`lib/graph/contest/throw-sticks.js`, baked by `node scripts/throw-sticks.mjs` into
   `throw-sticks.data.js`): `throwStick(name, u, { at, face })` gives a sports page's stick at any moment of a throw,
   the ball in the hand until it leaves; `throwRelease(name, { at, face, power, toward })` the launch a sim gives the
-  ball (speed, line and spin turned with the thrower, or the low arc through a point). The sports' sims still launch
+  ball (speed, line and spin turned with the thrower, or the low arc through a point); `catchStick(name, u, …)` a catch
+  the same way, the ball flying in and then held, and `catchOf(name)` its touch, its way in and its give, for a sim to
+  time the hands to a ball it flies. The sports' sims still launch
   from their own fixed points: wiring them to these is next. A deep test holds the baked file to a fresh bake.
-- **The review page** (`scripts/spikes/manipulator/throws.mjs --page out.html`): every throw as a looping stick figure,
-  side on and from behind, the ball held and then flown at its launch, with a scrubber.
+- **The review page** (`scripts/spikes/manipulator/throws.mjs --page out.html`): every throw and every catch as a looping
+  stick figure, side on and from behind, a throw's ball held and then flown at its launch, a catch's flown in and given
+  with, with a scrubber.

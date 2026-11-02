@@ -25,7 +25,8 @@ import { heroStance, reachArm, comOf, hull, margin } from './hero-stance.js';
 import { holdArm, landmark, liteOf, alignFrame, wristFor, anatomicalForearm, WRIST_RANGE } from './hero-grip.js';
 import { handFrame, servoReport } from './hero-servo.js';
 import { keyedClip } from './hero-jump.js';
-import { ballGrip, ballOf } from './hero-ball-grip.js';
+import { ballGrip, ballOf, openFingers } from './hero-ball-grip.js';
+import { at, mix, UP, FWD, BACK, DOWN, RIGHT, LEFT } from './hero-throw-words.js';
 
 const add = (a, b) => [a[0] + b[0], a[1] + b[1], a[2] + b[2]], sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
 const mul = (a, s) => [a[0] * s, a[1] * s, a[2] * s], dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
@@ -44,7 +45,9 @@ export const REACH = 0.96;
 /** the most the played ball may wander off its launch line through the drive (m) */
 export const WOBBLE = 0.03;
 /** a key's arm held near the key before's (holdArm's seed: a degree's weight), so the joints' curves between keys run as the hand does */
-const NEAR = 0.03, DRIVE_NEAR = 0.3;
+const NEAR = 0.03;
+/** a drive's key held this hard to the one beside it (a catch's give is a drive too: hero-catch.js) */
+export const DRIVE_NEAR = 0.3;
 
 /** the stances a throw stands in (hero-stance words; `left`: a right-hander's left foot leads) */
 const STANCES = Object.freeze({
@@ -54,11 +57,7 @@ const STANCES = Object.freeze({
 });
 const HANDS = { R: { at: 'navel', fwd: 0.05, up: -0.2, side: 0.22 }, L: { at: 'navel', fwd: 0.05, up: -0.2, side: -0.22 } };
 
-/** a hand's place: [landmark, [right, toward, up] m] */
-const at = (lm, d) => ({ lm, d });
-// fingers' way and palm's, in the thrower's frame (+x right, +y the target, +z up)
-const UP = [0, 0, 1], FWD = [0, 1, 0], BACK = [0, -1, 0], DOWN = [0, 0, -1], RIGHT = [1, 0, 0], LEFT = [-1, 0, 0];
-const mix = (...v) => unit(v.reduce((a, b) => add(a, b), [0, 0, 0]));
+// (the keys' words, a leaf both a throw and a catch read at load: hero-throw-words.js)
 
 /**
  * THE THROWS. Release figures (speed, elevation, spin) are the sport's own, typical of a skilled adult (not an elite's):
@@ -207,16 +206,13 @@ function handTurn(R, S, along, palm) {
 }
 
 /**
- * A throw solved on a rig (see the head). `name` a THROWS name or the technique's own words; `ball` and `grip` override
- * the technique's.
+ * THE HANDS' KIT: what a throw and a catch (hero-catch.js) share, on a rig for a technique's hands (`S` the ball's hand,
+ * `two` both on it, `lite` the rig without its rides): a place drawn into reach (inReach), a key half way between two
+ * (withMids), a key's arms solved (solveKey: each hand to its place and turn, holdArm, rolled about the ball as little as
+ * the wrist needs, seeded by the key before), and the angles carried on round between keys (unwrapAll).
  */
-export function heroThrow(name, R, { ball, grip } = {}) {
-  const K = typeof name === 'object' ? name : THROWS[name];
-  if (!K) throw new Error(`hero-throw: no throw '${name}' (have ${THROW_NAMES.join(', ')})`);
-  const S = K.side ?? 'R', O = S === 'R' ? 'L' : 'R', two = K.hands === 2;
-  const B = ballOf(ball ?? K.ball), gripName = grip ?? K.grip;
-  const G = ballGrip(R, S, B.id === 'own' ? B : B.id, gripName), G2 = two ? ballGrip(R, O, B.id === 'own' ? B : B.id, gripName) : null;
-  const st = stanceOf(R, K.stance), base = without(st.hold, ARM_KEYS), lite = liteOf(R), J = R.joints;
+export function handsKit(R, { S, two, lite }) {
+  const J = R.joints;
   // (a place past the arm's reach is drawn in toward the shoulder until the wrist's goal lies within REACH of the arm: a
   // technique's words are a shape, the body's own lengths its scale; two hands on one ball move it together)
   const armLen = (sd) => dist(J[`shoulder${sd}`], J[`elbow${sd}`]) + dist(J[`elbow${sd}`], J[`wrist${sd}`]);
@@ -236,6 +232,65 @@ export function heroThrow(name, R, { ball, grip } = {}) {
     }
     return out;
   }
+  // (between the slow keys a key half way, solved as they are: the joints' curves between two solved keys can turn a wrist
+  // past its range though neither key does)
+  const midOf = (a, b) => ({ name: `${a.name}~${b.name}`, mid: true, release: false, body: blendBody(a.body, b.body, 0.5), hands: Object.fromEntries(Object.keys(b.hands).filter((sd) => a.hands[sd]).map((sd) => {
+    const A = a.hands[sd], Bh = b.hands[sd], along = unit(add(A.along, Bh.along)), palm = unit(add(A.palm, Bh.palm));
+    return [sd, { ...Bh, P: mul(add(A.P, Bh.P), 0.5), along, palm, m: handTurn(R, sd, len(along) > 1e-6 ? along : Bh.along, len(palm) > 1e-6 ? palm : Bh.palm) }];
+  })) });
+  const withMids = (ks) => ks.flatMap((k, j) => { if (!j) return [k]; const m = midOf(ks[j - 1], k); m.hands = inReach(rigNodesAt(lite, elbowsDown(R, m.body)).nodes, m.hands); return [m, k]; });
+  // THE ARMS: each hand to its place, turned as planned (holdArm: the wrist in its range)
+  // (each key's hand may roll about its ball, as little as the wrist needs; the roll tried first is the key before's, so
+  // the forearm turns on through the throw and never flips between keys; the drive's keys take the release's roll)
+  const ROLLS = [0, 25, -25, 50, -50, 75, -75, 105, -105];
+  const solveKey = (k, first = {}, prev = null, near = NEAR, { keepRoll = false } = {}) => {
+    const arms = {}, err = {}, rolls = {}; let ok = true;
+    for (const [side, h] of Object.entries(k.hands)) {
+      const wr = J[`wrist${side}`], ref = h.g?.centre ?? add(wr, mul(handFrame(R, side).A, 0.08 * (J.headTop[2] / 1.674)));
+      // (a FREE hand, holding nothing, goes to its place by the arm alone, its wrist at rest: its turn is the forearm's)
+      if (!h.g) {
+        const goal = sub(h.P, mul(handFrame(R, side).A, 0.08 * (J.headTop[2] / 1.674))), f = reachArm(R, k.body, side, goal, null, {});
+        const n = rigNodesAt(lite, elbowsDown(R, { ...k.body, [`sh${side}`]: f.sh, [`elbow${side}`]: f.elbow })).nodes;
+        Object.assign(arms, { [`sh${side}`]: f.sh, [`elbow${side}`]: f.elbow, [`fingers${side}`]: { ...HAND_POSES.relaxed } });
+        err[side] = dist(n[`wrist${side}`], goal); continue;
+      }
+      // (a hand whose turn the wrist cannot bear rolls about the ball's centre, along its fingers' way: a technique's palm
+      // is a direction, the forearm's turn the body's)
+      const seed = prev?.pose?.[`sh${side}`] ? { sh: prev.pose[`sh${side}`], elbow: prev.pose[`elbow${side}`] } : null;
+      const solve1 = (d) => { const m = d ? mm(rotAbout(unit(h.along ?? [0, 0, 1]), d), h.m) : h.m; return { ...holdArm(R, k.body, side, sub(h.P, mv(m, sub(ref, wr))), m, { skilled: false, ...(seed ? { seed, near } : {}) }), d }; };
+      const inRange = (a) => !!a.anatomy && Object.entries(WRIST_RANGE).every(([q, [lo, hi]]) => a.anatomy[q] >= lo - 1 && a.anatomy[q] <= hi + 1);
+      const good = (a) => inRange(a) && a.err < 0.005;
+      // (`keepRoll`: the key before's roll alone, the hand turning on with it through a motion that must keep its line)
+      const order = first[side] !== undefined ? (keepRoll ? [first[side]] : [first[side], ...ROLLS.filter((d) => d !== first[side])]) : ROLLS;
+      let a = null;
+      for (const d of order) { const b = solve1(d); if (!a || (good(b) && !good(a)) || (!good(a) && b.err + 0.001 * b.stray < a.err + 0.001 * a.stray)) a = b; if (good(a)) break; }
+      Object.assign(arms, { [`sh${side}`]: a.sh, [`elbow${side}`]: a.elbow, [`wrist${side}`]: a.wrist, [`fingers${side}`]: h.g.fingers });
+      err[side] = a.err; rolls[side] = a.d; ok = ok && inRange(a);
+    }
+    // (raw: the clip adds the elbows-down roll as it plays, keyedClip)
+    return { name: k.name, release: k.release, pose: { ...k.body, ...arms }, err, wristOk: ok, rolls, holds: Object.fromEntries(Object.entries(k.hands).map(([sd, h]) => [sd, !!h.g])) };
+  };
+  const unwrapAll = (solved) => {
+    // (an angle that wraps past ±180° between keys is carried on round, never back the long way: the joints' curves
+    // interpolate the numbers, so −178° to 165° must read −178° to −195°)
+    const unwrap = (path) => { let prev = null; for (const k of solved) { const o = path.reduce((a, q) => a?.[q], k.pose); if (!Number.isFinite(o)) { prev = null; continue; } let v = o; if (prev !== null) { while (v - prev > 180) v -= 360; while (v - prev < -180) v += 360; } if (v !== o) { const [c, q] = path; k.pose = { ...k.pose, [c]: { ...k.pose[c], [q]: v } }; } prev = v; } };
+    for (const sd of ['L', 'R']) for (const path of [[`wrist${sd}`, 'flex'], [`wrist${sd}`, 'deviation'], [`wrist${sd}`, 'twist'], [`sh${sd}`, 'roll'], [`sh${sd}`, 'yaw']]) unwrap(path);
+  };
+  return { inReach, withMids, solveKey, unwrapAll, midOf };
+}
+
+/**
+ * A throw solved on a rig (see the head). `name` a THROWS name or the technique's own words; `ball` and `grip` override
+ * the technique's.
+ */
+export function heroThrow(name, R, { ball, grip } = {}) {
+  const K = typeof name === 'object' ? name : THROWS[name];
+  if (!K) throw new Error(`hero-throw: no throw '${name}' (have ${THROW_NAMES.join(', ')})`);
+  const S = K.side ?? 'R', O = S === 'R' ? 'L' : 'R', two = K.hands === 2;
+  const B = ballOf(ball ?? K.ball), gripName = grip ?? K.grip;
+  const G = ballGrip(R, S, B.id === 'own' ? B : B.id, gripName), G2 = two ? ballGrip(R, O, B.id === 'own' ? B : B.id, gripName) : null;
+  const st = stanceOf(R, K.stance), base = without(st.hold, ARM_KEYS), lite = liteOf(R), J = R.joints;
+  const kit = handsKit(R, { S, two, lite }), { inReach, withMids, solveKey, unwrapAll } = kit;
   // THE PLAN: each key's body and each hand's place and turn (a two-handed key's from the ball's place, both palms on it)
   const alongOf = (p) => { const a = sub(UP, mul(unit(p), dot(UP, unit(p)))); return len(a) < 1e-6 ? FWD : unit(a); };
   const plans = K.keys.map((k, i) => {
@@ -260,13 +315,6 @@ export function heroThrow(name, R, { ball, grip } = {}) {
   // (the body leads the arm: into the drive it is most of the way from the key before to the release's)
   pre2.body = blendBody(plans[iR - 1].body, PR.body, 0.5); pre.body = blendBody(plans[iR - 1].body, PR.body, 0.75);
   for (const k of [pre2, pre, post, post2]) k.hands = inReach(rigNodesAt(lite, elbowsDown(R, k.body)).nodes, k.hands);
-  // (between the slow keys a key half way, solved as they are: the joints' curves between two solved keys can turn a wrist
-  // past its range though neither key does)
-  const midOf = (a, b) => ({ name: `${a.name}~${b.name}`, mid: true, release: false, body: blendBody(a.body, b.body, 0.5), hands: Object.fromEntries(Object.keys(b.hands).filter((sd) => a.hands[sd]).map((sd) => {
-    const A = a.hands[sd], Bh = b.hands[sd], along = unit(add(A.along, Bh.along)), palm = unit(add(A.palm, Bh.palm));
-    return [sd, { ...Bh, P: mul(add(A.P, Bh.P), 0.5), along, palm, m: handTurn(R, sd, len(along) > 1e-6 ? along : Bh.along, len(palm) > 1e-6 ? palm : Bh.palm) }];
-  })) });
-  const withMids = (ks) => ks.flatMap((k, j) => { if (!j) return [k]; const m = midOf(ks[j - 1], k); m.hands = inReach(rigNodesAt(lite, elbowsDown(R, m.body)).nodes, m.hands); return [m, k]; });
   const before = withMids([...plans.slice(0, iR), pre2]), after = withMids([post2, ...plans.slice(iR + 1)]);
   const seq = [...before, pre, PR, post, ...after];
   // THE TIMING: the preparation over the technique's seconds by its keys' shares; into the drive and out of it at the
@@ -280,36 +328,6 @@ export function heroThrow(name, R, { ball, grip } = {}) {
   // (each mid key half way in time between its neighbours)
   const spread = (ts) => ts.flatMap((t, j) => (j ? [(ts[j - 1] + t) / 2, t] : [t]));
   times = [...spread([...times, tPre]), tPre + dT, tPre + 2 * dT, tPre + 3 * dT, ...spread(outT)];
-  // THE ARMS: each hand to its place, turned as planned (holdArm: the wrist in its range)
-  // (each key's hand may roll about its ball, as little as the wrist needs; the roll tried first is the key before's, so
-  // the forearm turns on through the throw and never flips between keys; the drive's keys take the release's roll)
-  const ROLLS = [0, 25, -25, 50, -50, 75, -75, 105, -105];
-  const solveKey = (k, first = {}, prev = null, near = NEAR) => {
-    const arms = {}, err = {}, rolls = {}; let ok = true;
-    for (const [side, h] of Object.entries(k.hands)) {
-      const wr = J[`wrist${side}`], ref = h.g?.centre ?? add(wr, mul(handFrame(R, side).A, 0.08 * (J.headTop[2] / 1.674)));
-      // (a FREE hand, holding nothing, goes to its place by the arm alone, its wrist at rest: its turn is the forearm's)
-      if (!h.g) {
-        const goal = sub(h.P, mul(handFrame(R, side).A, 0.08 * (J.headTop[2] / 1.674))), f = reachArm(R, k.body, side, goal, null, {});
-        const n = rigNodesAt(lite, elbowsDown(R, { ...k.body, [`sh${side}`]: f.sh, [`elbow${side}`]: f.elbow })).nodes;
-        Object.assign(arms, { [`sh${side}`]: f.sh, [`elbow${side}`]: f.elbow, [`fingers${side}`]: { ...HAND_POSES.relaxed } });
-        err[side] = dist(n[`wrist${side}`], goal); continue;
-      }
-      // (a hand whose turn the wrist cannot bear rolls about the ball's centre, along its fingers' way: a technique's palm
-      // is a direction, the forearm's turn the body's)
-      const seed = prev?.pose?.[`sh${side}`] ? { sh: prev.pose[`sh${side}`], elbow: prev.pose[`elbow${side}`] } : null;
-      const solve1 = (d) => { const m = d ? mm(rotAbout(unit(h.along ?? [0, 0, 1]), d), h.m) : h.m; return { ...holdArm(R, k.body, side, sub(h.P, mv(m, sub(ref, wr))), m, { skilled: false, ...(seed ? { seed, near } : {}) }), d }; };
-      const inRange = (a) => !!a.anatomy && Object.entries(WRIST_RANGE).every(([q, [lo, hi]]) => a.anatomy[q] >= lo - 1 && a.anatomy[q] <= hi + 1);
-      const good = (a) => inRange(a) && a.err < 0.005;
-      const order = first[side] !== undefined ? [first[side], ...ROLLS.filter((d) => d !== first[side])] : ROLLS;
-      let a = null;
-      for (const d of order) { const b = solve1(d); if (!a || (good(b) && !good(a)) || (!good(a) && b.err + 0.001 * b.stray < a.err + 0.001 * a.stray)) a = b; if (good(a)) break; }
-      Object.assign(arms, { [`sh${side}`]: a.sh, [`elbow${side}`]: a.elbow, [`wrist${side}`]: a.wrist, [`fingers${side}`]: h.g.fingers });
-      err[side] = a.err; rolls[side] = a.d; ok = ok && inRange(a);
-    }
-    // (raw: the clip adds the elbows-down roll as it plays, keyedClip)
-    return { name: k.name, release: k.release, pose: { ...k.body, ...arms }, err, wristOk: ok, rolls, holds: Object.fromEntries(Object.entries(k.hands).map(([sd, h]) => [sd, !!h.g])) };
-  };
   // (solved in order, each key seeded by the one before: its arm and its hand's roll)
   // (the drive is one motion: the release solved from the key before it, then its four keys outward from the release, each
   // held hard to the one inward of it, so the arm takes the drive's twenty-odd centimetres as one way of reaching)
@@ -320,13 +338,12 @@ export function heroThrow(name, R, { ball, grip } = {}) {
   for (const j of [iP - 1, iP - 2]) solved[j] = solveKey(seq[j], solved[j + 1].rolls, solved[j + 1], DRIVE_NEAR);
   for (const j of [iP + 1, iP + 2]) solved[j] = solveKey(seq[j], solved[j - 1].rolls, solved[j - 1], DRIVE_NEAR);
   for (let j = iP + 3; j < seq.length; j++) solved[j] = solveKey(seq[j], solved[j - 1].rolls, solved[j - 1]);
-  // (an angle that wraps past ±180° between keys is carried on round, never back the long way: the joints' curves
-  // interpolate the numbers, so −178° to 165° must read −178° to −195°)
-  const unwrap = (path) => { let prev = null; for (const k of solved) { const o = path.reduce((a, q) => a?.[q], k.pose); if (!Number.isFinite(o)) { prev = null; continue; } let v = o; if (prev !== null) { while (v - prev > 180) v -= 360; while (v - prev < -180) v += 360; } if (v !== o) { const [c, q] = path; k.pose = { ...k.pose, [c]: { ...k.pose[c], [q]: v } }; } prev = v; } };
-  for (const sd of ['L', 'R']) for (const path of [[`wrist${sd}`, 'flex'], [`wrist${sd}`, 'deviation'], [`wrist${sd}`, 'twist'], [`sh${sd}`, 'roll'], [`sh${sd}`, 'yaw']]) unwrap(path);
+  unwrapAll(solved);
   // (the fingers let go: from the release on, the throwing hand opens as the ball leaves it)
   const iRel = seq.indexOf(PR);
-  for (let j = iRel + 3; j < solved.length; j++) solved[j].pose = { ...solved[j].pose, [`fingers${S}`]: { ...HAND_POSES.open } };
+  // (in the wider hand's own form: a digit keyed as a number here and an object before loses its joints between them)
+  const open = openFingers(R, S);
+  for (let j = iRel + 3; j < solved.length; j++) solved[j].pose = { ...solved[j].pose, [`fingers${S}`]: open };
   // (the clip's own speed through the drive read back, the drive's two intervals scaled until it is the technique's: the
   // joints' curves are not the ball's line, so the keys' spacing alone only nears it)
   let seconds, clip, rel; const stand = st.keys.at(-1);
@@ -411,3 +428,7 @@ export function ballProp(R, T, { segments = 10, colour = [0.85, 0.82, 0.74] } = 
   for (let i = 0; i < segments; i++) for (let j = 0; j < 2 * segments; j++) { const a = P(i, j), b = P(i + 1, j), d = P(i, j + 1), e = P(i + 1, j + 1); if (i > 0) tris.push({ p: [a, b, d], col: colour }); if (i < segments - 1) tris.push({ p: [d, b, e], col: colour }); }
   return { bone: R.boneIndex[`hand${T.ball.side}`], item: T.ball.id, tris };
 }
+
+/** the throw's own parts, for the techniques that share its way (hero-catch.js): the stances, a key's body, a body half way,
+ * a hand's place on the posed body, a hand's turn, a place's words, the thrower's directions */
+export const throwParts = Object.freeze({ stanceOf, bodyOf, blendBody, placeOf, handTurn, at, mix, ARM_KEYS, without, dirs: Object.freeze({ UP, FWD, BACK, DOWN, RIGHT, LEFT }) });

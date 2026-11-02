@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// throws — the throw library as STICK FIGURES (the eyes gate's page): every technique baked in
+// throws — the throw library and the catches as STICK FIGURES (the eyes gate's page): every technique baked in
 // lib/graph/contest/throw-sticks.data.js (node scripts/throw-sticks.mjs) played as a stick figure in a self-contained page,
 // side on and from behind the thrower, the ball in the hand until it leaves and then flying as the library launches it
 // (its speed, its line; real gravity, no air), looping; a scrubber, a speed control, the release marked.
@@ -10,10 +10,10 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const control = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
-const { THROW_STICKS, THROW_STICK_JOINTS, THROW_STICK_FRAME } = await import(path.join(control, 'lib/graph/contest/throw-sticks.data.js'));
+const { THROW_STICKS, CATCH_STICKS = {}, THROW_STICK_JOINTS, THROW_STICK_FRAME } = await import(path.join(control, 'lib/graph/contest/throw-sticks.data.js'));
 const args = process.argv.slice(2), at = (k) => (args.includes(k) ? args[args.indexOf(k) + 1] : null);
 const only = at('--only')?.split(','), out = at('--page') ?? 'throws.html';
-const lib = Object.fromEntries(Object.entries(THROW_STICKS).filter(([k]) => !only || only.includes(k)));
+const lib = Object.fromEntries([...Object.entries(THROW_STICKS).map(([k, v]) => [k, { ...v, kind: 'throw' }]), ...Object.entries(CATCH_STICKS).map(([k, v]) => [`catch ${k}`, { ...v, kind: 'catch' }])].filter(([k]) => !only || only.includes(k.replace(/^catch /, ''))));
 
 const html = `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Throw Library</title>
 <style>
@@ -29,7 +29,7 @@ canvas{width:100%;height:auto;display:block;border-radius:6px;background:var(--b
 .says{font-size:12px;color:var(--mute);margin-top:6px}
 input[type=range]{width:180px}
 </style></head><body>
-<header><h1>Throw library</h1><p>Each technique solved by the manual manipulator on the canonical hero, baked to the sports pages' stick. Left: side on (the target to the right). Right: from behind the thrower. The ball is held to the release, then flies at the library's launch.</p></header>
+<header><h1>Throw library</h1><p>Each technique solved by the manual manipulator on the canonical hero, baked to the sports pages' stick. Left: side on (the target, or the ball's source, to the right). Right: from behind. A throw's ball is held to the release, then flies at the library's launch; a catch's ball flies in, is met and given with.</p></header>
 <div class="bar"><label>speed <input id="spd" type="range" min="0.1" max="1" step="0.05" value="0.35"></label><label><input id="pause" type="checkbox"> pause</label><label>scrub <input id="scrub" type="range" min="0" max="1" step="0.001" value="0"></label></div>
 <div class="grid" id="grid"></div>
 <script>
@@ -41,7 +41,8 @@ const grid = document.getElementById('grid'), cards = [];
 for (const [name, T] of Object.entries(LIB)) {
   const el = document.createElement('div'); el.className = 'card';
   const ok = Object.values(T.laws).every(Boolean), bad = Object.entries(T.laws).filter(([, v]) => !v).map(([k]) => k);
-  el.innerHTML = '<h2>' + name + '</h2><div class="meta">' + T.ball.id + ' · ' + T.ball.grip + ' grip · ' + T.hands + ' hand' + (T.hands > 1 ? 's' : '') + ' · ' + T.release.spec.speed + ' m/s at ' + T.release.spec.elevation + '° · ' + T.seconds + ' s · laws ' + (ok ? 'all hold' : 'missing: ' + bad.join(', ')) + '</div><canvas width="680" height="320"></canvas><div class="says">' + T.says + '</div>';
+  const how = T.kind === 'catch' ? T.incoming.speed + ' m/s in, dropping ' + T.incoming.drop + '° · given ' + T.give.distance + ' m' : T.release.spec.speed + ' m/s at ' + T.release.spec.elevation + '°';
+  el.innerHTML = '<h2>' + name + '</h2><div class="meta">' + T.ball.id + ' · ' + T.ball.grip + ' grip · ' + T.hands + ' hand' + (T.hands > 1 ? 's' : '') + ' · ' + how + ' · ' + T.seconds + ' s · laws ' + (ok ? 'all hold' : 'missing: ' + bad.join(', ')) + '</div><canvas width="680" height="320"></canvas><div class="says">' + T.says + '</div>';
   grid.appendChild(el); cards.push({ name, T, cv: el.querySelector('canvas') });
 }
 const at = (T, u) => { const F = T.frames, x = Math.max(0, Math.min(1, u)) * (F.length - 1), i = Math.min(F.length - 2, Math.floor(x)), t = x - i;
@@ -60,11 +61,12 @@ function draw(c, u) {
     const segs = BONES.map(([a, b]) => ({ a: S(P[a]), b: S(P[b]), side: /L$/.test(b) ? 'L' : /R$/.test(b) ? 'R' : 'C' })).sort((x, y) => (x.a[2] + x.b[2]) - (y.a[2] + y.b[2]));
     for (const s of segs) { g.strokeStyle = s.side === 'L' ? css('--L') : s.side === 'R' ? css('--R') : css('--ink'); g.lineWidth = 4; g.lineCap = 'round'; g.beginPath(); g.moveTo(s.a[0], s.a[1]); g.lineTo(s.b[0], s.b[1]); g.stroke(); }
     const head = S(P.neck), hb = S([P.neck[0], P.neck[1], P.neck[2] + 0.12]); g.fillStyle = css('--ink'); g.beginPath(); g.arc(hb[0], hb[1], 0.1 * sc, 0, 7); g.fill();
-    let b = P.ball; const gone = u > T.release.u;
+    let b = P.ball; const gone = T.kind === 'throw' && u > T.release.u;
     if (gone) b = flight(T, (u - T.release.u) * T.seconds);
     if (b) { const q = S(b); g.fillStyle = css('--ball'); g.beginPath(); g.arc(q[0], q[1], Math.max(3, T.ball.r * sc), 0, 7); g.fill(); }
   }
-  g.fillStyle = css('--mute'); g.font = '12px system-ui'; g.fillText((u * T.seconds).toFixed(2) + ' s' + (u > T.release.u ? ' · released' : ''), 10, 16);
+  const mark = T.kind === 'catch' ? (u >= T.contact.u ? ' · caught' : '') : (u > T.release.u ? ' · released' : '');
+  g.fillStyle = css('--mute'); g.font = '12px system-ui'; g.fillText((u * T.seconds).toFixed(2) + ' s' + mark, 10, 16);
 }
 function tick(now) {
   const dt = (now - last) / 1000; last = now;

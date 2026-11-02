@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// throw-sticks — bake the throw library (lib/graph/polygonizer/hero-throw.js THROWS, solved on the canonical male hero)
+// throw-sticks — bake the throw library (and the catches, hero-catch.js) (lib/graph/polygonizer/hero-throw.js THROWS, solved on the canonical male hero)
 // into the stick a contest page poses its athletes by (lib/graph/contest/athlete-pose.js: pelvis, neck, and per side the
 // shoulder, the elbow, the wrist, the hip, the knee, the ankle), a frame every FRAME seconds, millimetres off the
 // pelvis's place at the throw's start in the thrower's frame (+x right, +y toward the target, +z up), with the ball's
@@ -15,14 +15,14 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 const control = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 process.chdir(control);
 register(pathToFileURL(path.join(control, 'scripts/mcp-stdio-loader.mjs')).href);
-const { bakeThrowSticks, renderThrowSticksModule, BAKE_HERO } = await import('../lib/graph/polygonizer/hero-throw-bake.js');
+const { bakeThrowSticks, bakeCatchSticks, renderThrowSticksModule, BAKE_HERO } = await import('../lib/graph/polygonizer/hero-throw-bake.js');
 const { validateRig } = await import('../lib/graph/polygonizer/station-loft-rig.js');
 const { heroRecord, expandLayeredManifest } = await import('../lib/mcp/tools/layered.js');
 const R = validateRig(expandLayeredManifest({ kind: 'layered', title: 'throws', hero: heroRecord(BAKE_HERO) }).recipe.rig);
 
 const args = process.argv.slice(2), only = args.includes('--only') ? args[args.indexOf('--only') + 1].split(',') : null;
 const out = path.join(control, 'lib/graph/contest/throw-sticks.data.js');
-const src = renderThrowSticksModule(bakeThrowSticks(R, { only }));
+const src = renderThrowSticksModule(bakeThrowSticks(R, { only }), bakeCatchSticks(R, { only: only ? [] : null }));
 if (args.includes('--check')) {
   const same = readFileSync(out, 'utf8') === src;
   console.log(same ? 'throw-sticks: the baked file is fresh' : 'throw-sticks: STALE — run node scripts/throw-sticks.mjs');

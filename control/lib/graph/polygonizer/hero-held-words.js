@@ -11,3 +11,5 @@ export const BOW_SECONDS = Object.freeze({ bowDraw: 1.6, bowLoose: 1.3 });
 /** the throws (hero-throw.js THROWS) by the door's words: one-shots played as a guard is, the ball a prop of the throwing
  * hand until the release (the readout names when it leaves and how fast) */
 export const THROW_WORDS = Object.freeze({ throwOverhand: 'overhand', throwPass: 'quarterback', throwSidearm: 'sidearm', throwUnderhand: 'underhand', bowlRoll: 'bowl', chestPass: 'chestPass', setShot: 'setShot', throwIn: 'throwIn', tossServe: 'toss' });
+/** the catches (hero-catch.js CATCHES) by the door's words: one-shots, the ball a prop of the catching hand from the touch */
+export const CATCH_WORDS = Object.freeze({ catchHigh: 'high', catchLow: 'low', catchChest: 'chest', catchOneHand: 'oneHand', catchSkyball: 'skyball' });

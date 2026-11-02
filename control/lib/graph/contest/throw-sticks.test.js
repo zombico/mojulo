@@ -3,7 +3,7 @@
 // thrower), aimed through a point by the low arc. One technique (the first) carries the concept; the bake's own freshness
 // is throw-sticks.deep.test.js's.
 import { describe, expect, it } from 'vitest';
-import { throwStick, throwRelease, throwOf, THROW_STICK_NAMES } from './throw-sticks.js';
+import { throwStick, throwRelease, throwOf, catchStick, catchOf, THROW_STICK_NAMES, CATCH_STICK_NAMES } from './throw-sticks.js';
 import { THROW_STICK_JOINTS } from './throw-sticks.data.js';
 
 const name = THROW_STICK_NAMES[0];
@@ -31,5 +31,14 @@ describe('throw-sticks', () => {
     const t = (target[1] - p[1]) / v[1], z = p[2] + v[2] * t - 4.905 * t * t;
     expect(z).toBeCloseTo(target[2], 2);
     expect(() => throwOf('lob')).toThrow(/no throw 'lob'/);
+  });
+  it('a catch: the ball flies in to the touch and is in the hands after, the stick on its spot', () => {
+    const c = CATCH_STICK_NAMES[0], C = catchOf(c), u = C.contact.u;
+    const early = catchStick(c, 0, { at: [2, 0, 0] }), late = catchStick(c, 1, { at: [2, 0, 0] });
+    expect(early.caught).toBe(false); expect(late.caught).toBe(true);
+    expect(early.ball[1]).toBeGreaterThan(late.ball[1]);   // it came from the +y side, the way the catcher faces
+    expect(catchStick(c, u, { at: [2, 0, 0] }).stick.pelvis[0]).toBeCloseTo(2, 2);
+    expect(C.give.distance).toBeGreaterThan(0); expect(C.incoming.speed).toBeGreaterThan(0);
+    expect(() => catchOf('juggle')).toThrow(/no catch 'juggle'/);
   });
 });

@@ -147,3 +147,15 @@ function finish(R, box, name, b, centre, sph, out, G) {
   const laws = { held: G.hold.every((d) => digits[d].touching), clear: DIGITS.every((d) => digits[d].hole || digits[d].gap >= PRESS) };
   return { grip: name, ball: b.id, r: b.radius, centre: centre.map(r4), fingers: Object.fromEntries(DIGITS.map((d) => [d, out[d].value])), digits, contact, laws };
 }
+
+/**
+ * The hand OPEN in the wider hand's own form (every digit an object, as a grip's digits are): the fingers straight and
+ * together, the thumb turned out from the palm. A clip that opens a gripping hand keys this, never the `open` word: a
+ * clip's channels are its keys' numbers, and a digit that is a number in one key and an object in another loses its
+ * joints between them. A mitten's hand (no digits) takes the word.
+ */
+export function openFingers(R, S, { female = !!R.joints.bustRootR } = {}) {
+  if (!R.hands?.[S]) return { ...HAND_POSES.open };
+  const box = handBox(R, S, { female });
+  return Object.fromEntries(DIGITS.map((d) => [d, d === 'thumb' ? { cmc: [-20, 0], mcp: 0, ip: 0 } : { ...straightOf(R, box, d), spread: 0 }]));
+}

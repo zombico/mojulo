@@ -1,6 +1,7 @@
 // the door's held-thing words are the solvers' own tables, word for word
 import { describe, it, expect } from 'vitest';
-import { HOLD_WORDS, GUARD_WORDS, BOW_WORDS, THROW_WORDS } from './hero-held-words.js';
+import { HOLD_WORDS, GUARD_WORDS, BOW_WORDS, THROW_WORDS, CATCH_WORDS } from './hero-held-words.js';
+import { CATCH_NAMES } from './hero-catch.js';
 import { THROW_NAMES } from './hero-throw.js';
 import { BOW_SHOT_NAMES } from './hero-bow.js';
 import { HOLDS } from './hero-carry.js';
@@ -12,5 +13,6 @@ describe('the held-thing words', () => {
     expect([...GUARD_WORDS]).toEqual([...GUARD_NAMES]);
     expect([...BOW_WORDS]).toEqual([...BOW_SHOT_NAMES]);
     expect(Object.values(THROW_WORDS)).toEqual([...THROW_NAMES]);
+    expect(Object.values(CATCH_WORDS)).toEqual([...CATCH_NAMES]);
   });
 });

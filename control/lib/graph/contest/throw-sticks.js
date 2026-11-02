@@ -9,12 +9,18 @@
  *   throwRelease(name, { at, face, ground, power, toward })   → { position, velocity, angularVelocity, u, seconds }
  *     `power` scales the speed (0.5 … 1.2 of the technique's), `toward` a point the elevation is aimed through (else the
  *     technique's own); the spin's axis is the technique's in the thrower's frame, turned with it.
- *   THROW_STICK_NAMES, throwOf(name)
+ *   catchStick(name, u, { at, face, ground })   → { stick, ball (in flight to the touch, in the hands after), caught }
+ *   catchOf(name) → the catch's own: its touch (`contact.u`, the share of its time; `contact.at`, where the ball is taken,
+ *     millimetres off the pelvis in the catcher's frame), the ball's way in (`incoming`), the give (its distance, its
+ *     time, the hands' speed, the sting and the force), so a sim times the hands to a ball it is flying
+ *   THROW_STICK_NAMES, CATCH_STICK_NAMES, throwOf(name)
  * Pure; no dice, no clock (a sim passes its own time as `u`).
  */
-import { THROW_STICKS, THROW_STICK_JOINTS } from './throw-sticks.data.js';
+import { THROW_STICKS, CATCH_STICKS, THROW_STICK_JOINTS } from './throw-sticks.data.js';
 
 export const THROW_STICK_NAMES = Object.freeze(Object.keys(THROW_STICKS));
+export const CATCH_STICK_NAMES = Object.freeze(Object.keys(CATCH_STICKS));
+export const catchOf = (name) => { const C = CATCH_STICKS[name]; if (!C) throw new Error(`throw-sticks: no catch '${name}' (have ${CATCH_STICK_NAMES.join(', ')})`); return C; };
 export const throwOf = (name) => { const T = THROW_STICKS[name]; if (!T) throw new Error(`throw-sticks: no throw '${name}' (have ${THROW_STICK_NAMES.join(', ')})`); return T; };
 const SPIN = { back: [-1, 0, 0], top: [1, 0, 0], side: [0, 0, 1], along: [0, 1, 0] };
 
@@ -27,16 +33,25 @@ function placer(at, face, ground) {
   };
 }
 
-/** The stick at share `u` (0 … 1) of a technique: the frames on either side blended, turned and set (see the head). */
-export function throwStick(name, u, { at = [0, 0, 0], face = [0, 1], ground = 0 } = {}) {
-  const T = throwOf(name), F = T.frames, x = Math.max(0, Math.min(1, u)) * (F.length - 1), i = Math.min(F.length - 2, Math.floor(x)), t = x - i;
+/** a baked technique's frames at share u: the stick and the ball, turned and set */
+function framesAt(F, u, at, face, ground) {
+  const x = Math.max(0, Math.min(1, u)) * (F.length - 1), i = Math.min(F.length - 2, Math.floor(x)), t = x - i;
   const P = placer([at[0], at[1], ground + 0.92 + (at[2] ?? 0) - ground], face, ground);
   const lerp = (a, b) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t];
   const stick = {};
   THROW_STICK_JOINTS.forEach((k, j) => { stick[k] = P.point(lerp(F[i][j], F[i + 1][j])); });
   const n = THROW_STICK_JOINTS.length, b0 = F[i][n], b1 = F[i + 1][n];
-  const released = u > T.release.u;
-  return { stick, ball: !released && b0 ? P.point(b1 ? lerp(b0, b1) : b0) : null, released };
+  return { stick, ball: b0 ? P.point(b1 ? lerp(b0, b1) : b0) : null };
+}
+/** The stick at share `u` (0 … 1) of a throw: the frames on either side blended, turned and set (see the head). */
+export function throwStick(name, u, { at = [0, 0, 0], face = [0, 1], ground = 0 } = {}) {
+  const T = throwOf(name), { stick, ball } = framesAt(T.frames, u, at, face, ground), released = u > T.release.u;
+  return { stick, ball: released ? null : ball, released };
+}
+/** The stick at share `u` of a catch, the ball flying in until the touch and in the hands after (see the head). */
+export function catchStick(name, u, { at = [0, 0, 0], face = [0, 1], ground = 0 } = {}) {
+  const C = catchOf(name), { stick, ball } = framesAt(C.frames, u, at, face, ground);
+  return { stick, ball, caught: u >= C.contact.u };
 }
 
 /** The ball's launch from the hand (see the head). With `toward`, the thrower turns to it and the elevation is the low
