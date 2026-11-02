@@ -145,3 +145,7 @@ rather than over it (the fauna horse's rows stay byte-identical). Solo; the sadd
   figure without `skin` is drawn as before, byte for byte.
 - **Engines**: the Godot and Roblox ledgers mark `ride` and `mounted` as the page's. An exported level stands its horses
   where they were placed and leaves the hero on foot. The horse and its rider as assets are the ridden GLB's.
+- **A slimmer neck**: the neck's masses blend among themselves more tightly than the trunk's, joined to the trunk by a
+  wider blend so it still flows into the withers and the breast. The trunk's wide blend over the neck's overlapping
+  masses had swelled it by a hand on every side. Mid-neck it now measures about 1.05 m round (0.42 m deep, 0.23 m
+  wide), a riding horse's, where it was 1.36 m.

@@ -16,7 +16,7 @@
  *             flat sole
  *   tail      the dock, and the hair's mass (a stand-in for the hair cards)
  *
- * THE BLEND: the trunk and neck as one soft mass (log-sum-exp, wide), the head its own tighter one (its planes kept),
+ * THE BLEND: the trunk one soft mass (log-sum-exp, wide), the neck a tighter one joined to it wider still, the head its own tighter one (its planes kept),
  * each leg its own tight one (its joints and tendons crisp), the legs and the details (ears, eyes, hair) joined to the trunk with a narrower blend; the hooves cut
  * flat at the ground, the nostrils cut into the muzzle.
  *
@@ -77,9 +77,11 @@ export const HEAD_PROFILE = Object.freeze([
   [1.00, -0.020, -0.090, 0.040],
 ].map(Object.freeze));
 /** the neck: its crest's arch (m over the straight crest line), its half width at the base and at the throatlatch */
-export const NECK_SHAPE = Object.freeze({ arch: 0.045, base: 0.15, throat: 0.08 });
+export const NECK_SHAPE = Object.freeze({ arch: 0.045, base: 0.15, throat: 0.08, deep: 0.98 });
 
-export const BLEND = Object.freeze({ trunk: 0.05, head: 0.007, leg: 0.016, join: 0.03, detail: 0.012 });
+// (the neck its own set, tighter than the trunk's: a wide blend over its overlapping masses swelled it by a hand on every
+// side; joined to the trunk by a blend wider than either, so it still flows into the withers and the breast)
+export const BLEND = Object.freeze({ trunk: 0.05, neck: 0.025, neckJoin: 0.06, head: 0.007, leg: 0.016, join: 0.03, detail: 0.012 });
 
 /** an egg: centre c, axes (unit rows u, v, w), radii along them */
 const egg = (c, u, v, r, extra) => { const w = cross(u, v); return { kind: 'egg', c, ax: [u, v, w], r, R: Math.max(...r), ...extra }; };
@@ -149,8 +151,8 @@ export function bodyPrims(B, { hair = true } = {}) {
     // (each a span between the bones at its two ends, the base's from the withers: the neck bends along its masses and
     // its crest stretches over the withers as it drops, where masses each riding one bone would part at the joints)
     const spanAt = (f0, f1) => ({ span: [poleBone(t0 + (t1 - t0) * f0), poleBone(t0 + (t1 - t0) * f1)] });
-    put(eggAlong(ctr(t0), ctr(t1), -0.2, i === NS - 1 ? 1.0 : 1.2, width(tm), depth(tm) * 0.98, X, { ...trunk(neckBone(tm)), ...spanAt(-0.2, i === NS - 1 ? 1.0 : 1.2) }));
-    put(eggAlong(crestAt(t0), crestAt(t1), -0.25, 1.25, 0.035 * k, 0.045 * k, X, { ...trunk(neckBone(tm), 'mane'), ...spanAt(-0.25, 1.25) }, mul(crestUp, -0.01 * k)));
+    put(eggAlong(ctr(t0), ctr(t1), -0.2, i === NS - 1 ? 1.0 : 1.2, width(tm), depth(tm) * NECK_SHAPE.deep, X, { ...trunk(neckBone(tm)), set: 'neck', ...spanAt(-0.2, i === NS - 1 ? 1.0 : 1.2) }));
+    put(eggAlong(crestAt(t0), crestAt(t1), -0.25, 1.25, 0.035 * k, 0.045 * k, X, { ...trunk(neckBone(tm), 'mane'), set: 'neck', ...spanAt(-0.25, 1.25) }, mul(crestUp, -0.01 * k)));
   }
 
   // THE HEAD: a loft of cross-sections along the head bone (the poll to the muzzle), each between the face's top line
@@ -238,7 +240,7 @@ export function bodyField(B, { register, only } = {}) {
   // `only` (a test on a mass): the field of those masses alone, blended the same way (a local field, for a strand)
   const all = bodyPrims(B), stand = all.stand, nostrils = only ? [] : all.nostrils, prims = only ? all.prims.filter(only) : all.prims;
   const soft = (register ?? B.register) === 'stylized' ? 1.6 : 1;
-  const k = B.scale, kT = BLEND.trunk * k * soft, kH = BLEND.head * k * Math.sqrt(soft), kL = BLEND.leg * k * Math.sqrt(soft), kJ = BLEND.join * k * soft, kD = BLEND.detail * k;
+  const k = B.scale, kN = BLEND.neck * k * soft, kNJ = BLEND.neckJoin * k * soft, kT = BLEND.trunk * k * soft, kH = BLEND.head * k * Math.sqrt(soft), kL = BLEND.leg * k * Math.sqrt(soft), kJ = BLEND.join * k * soft, kD = BLEND.detail * k;
   const sets = [...new Set(prims.map((q) => q.set))];
   const distances = (p) => prims.map((q) => {
     // far from a mass its distance is bounded below by the distance to its bounding sphere: enough for the blend
@@ -250,7 +252,8 @@ export function bodyField(B, { register, only } = {}) {
   const compose = (ds, pn) => {
     const bySet = (set, kk) => softMin(prims.flatMap((q, i) => (q.set === set ? [ds[i]] : [])), kk);
     const legs = sets.filter((s2) => /^[RL][FH]$/.test(s2)).map((s2) => bySet(s2, kL));
-    const groups = [bySet('trunk', kT), bySet('head', kH), ...legs].filter((x) => Number.isFinite(x));
+    const tn = [bySet('trunk', kT), bySet('neck', kN)].filter((x) => Number.isFinite(x));
+    const groups = [tn.length ? softMin(tn, kNJ) : Infinity, bySet('head', kH), ...legs].filter((x) => Number.isFinite(x));
     let d = groups.length ? softMin(groups, kJ) : Infinity;
     const det = prims.flatMap((q, i) => (q.set === 'detail' ? [ds[i]] : []));
     if (det.length) d = softMin([d, ...det].filter((x) => Number.isFinite(x)), kD);

@@ -141,7 +141,7 @@ describe('the mount exported', () => {
     const r = mountGlb(B, { mesh: m, clips: { trot: clips.trot }, hair: 'rigid' });
     expect(r.pack.bones.length).toBe(nb + rig.joints.length);
     expect(g.pack.bones.length).toBe(nb);
-  });
+  }, 120000);   // (three GLBs, one of them a hair simulation: half a minute alone, more beside the other suites)
 
   it('ridden: the sockets keyed through the clips (the seat on the saddle, the bits on the head), each clip\'s seat in its extras', async () => {
     const { rideSockets, ridingGeometry, rideTargets, RIDER_MODES, riderModeAt } = await import('./ridden.js'), { tackPieces } = await import('./tack.js');
