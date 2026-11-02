@@ -8,6 +8,7 @@ import { validateRig, rigNodesAt } from '../../polygonizer/station-loft-rig.js';
 import { heroRecord, expandLayeredManifest } from '../../../mcp/tools/layered.js';
 import { xrHands } from '../../polygonizer/hero-xr-hands.js';
 import { gearMounts } from '../../polygonizer/hero-gear.js';
+import { buildSweep } from '../../worlds/controllable/sweep.js';
 
 // The headset's locomotion, run: the emitted block against the vendored three's math, a fake session whose sticks and
 // head the test moves, so "goes straight" and "turns in place" are measured, not read off the source. The eyes gate
@@ -256,12 +257,12 @@ describe('xr config', () => {
 // pilot. The head moves in the play space (position, yaw, pitch); the sticks and buttons are the test's.
 const K = composeLive();
 const FLAT = { ground: () => 0 };
-function gameUp(xr, { entities, camera = null, colliders = null, aims = {} } = {}) {
+function gameUp(xr, { entities, camera = null, colliders = null, aims = {}, grips = {} } = {}) {
   const cfg = xrConfig(xr, null, { ctrl: true });
   const pad = () => ({ axes: [0, 0, 0, 0], buttons: Array.from({ length: 6 }, () => ({ pressed: false, value: 0 })) });
   const pads = { left: pad(), right: pad() };
   const press = (side, i, on) => { pads[side].buttons[i] = { pressed: on, value: on ? 1 : 0 }; };
-  const session = { inputSources: [{ handedness: 'left', gamepad: pads.left, targetRaySpace: 'aim:left' }, { handedness: 'right', gamepad: pads.right, targetRaySpace: 'aim:right' }], addEventListener() {}, end() {} };
+  const session = { inputSources: [{ handedness: 'left', gamepad: pads.left, targetRaySpace: 'aim:left', gripSpace: 'grip:left' }, { handedness: 'right', gamepad: pads.right, targetRaySpace: 'aim:right', gripSpace: 'grip:right' }], addEventListener() {}, end() {} };
   const head = { x: 0, z: 0, yaw: 0, pitch: 0 };
   const frame = {
     getViewerPose: () => {
@@ -269,7 +270,8 @@ function gameUp(xr, { entities, camera = null, colliders = null, aims = {} } = {
       return { transform: { position: { x: head.x, y: 1.6, z: head.z }, orientation: { x: q.x, y: q.y, z: q.z, w: q.w } } };
     },
     // a controller's target ray: `aims[side]` = { p, q } (rig-local, y-up), set by the test
-    getPose: (sp) => { const a = aims[String(sp).slice(4)]; return a ? { transform: { position: { x: a.p[0], y: a.p[1], z: a.p[2] }, orientation: { x: a.q.x, y: a.q.y, z: a.q.z, w: a.q.w } } } : null; },
+    // (and a grip pose: `grips[side]` = { p, q }, the same)
+    getPose: (sp) => { const a = String(sp).startsWith('grip:') ? grips[String(sp).slice(5)] : aims[String(sp).slice(4)]; return a ? { transform: { position: { x: a.p[0], y: a.p[1], z: a.p[2] }, orientation: { x: a.q.x, y: a.q.y, z: a.q.z, w: a.q.w } } } : null; },
   };
   const renderer = { xr: { enabled: false, getSession: () => session, getFrame: () => frame, getReferenceSpace: () => ({}), setReferenceSpaceType() {}, async setSession() {} } };
   const camera3 = new THREE.PerspectiveCamera(); camera3.position.set(0, 0, 1.6); camera3.lookAt(1, 0, 1.6);
@@ -295,7 +297,7 @@ stepControllable = (dt) => {
 };
 return { enter: __xrEnter, step: __xrStep, rig: () => __xrRig, ctl: () => __xrCtl };`;
   const page = new Function(...Object.keys(env), body)(...Object.values(env));
-  return { pads, press, head, page, world, inputs, aims };
+  return { pads, press, head, page, world, inputs, aims, grips };
 }
 const hero = (over = {}, at = [0, 0, 0]) => ({ id: 'hero', pilotable: true, rule: { type: 'platform', eye: 0, speed: 4, collideRadius: 0.3, collideHeight: 1.7, ...over }, transform: { pos: [...at], heading: 0 } });
 // the head's world place: the rig carrying the viewer's
@@ -414,7 +416,7 @@ describe('the game page with a headset', () => {
 // controller asks; the grip's centre lands on the grip pose.
 const HR = validateRig(expandLayeredManifest({ kind: 'layered', title: 't', hero: heroRecord({ cast: 'male', form: 'realistic' }) }).recipe.rig);
 const HDZ = 0.04, HX = xrHands(HR, { dz: HDZ });
-function handsUp({ X = HX, ent = hero(), parts = null } = {}) {
+function handsUp({ X = HX, ent = hero(), parts = null, others = [] } = {}) {
   const pad = () => ({ axes: [0, 0, 0, 0], buttons: Array.from({ length: 6 }, () => ({ pressed: false, touched: false, value: 0 })) });
   const pads = { left: pad(), right: pad() };
   const session = { inputSources: [{ handedness: 'left', gamepad: pads.left, gripSpace: 'grip:left' }, { handedness: 'right', gamepad: pads.right, gripSpace: 'grip:right' }], addEventListener() {}, end() {} };
@@ -428,7 +430,7 @@ function handsUp({ X = HX, ent = hero(), parts = null } = {}) {
     getPose: (sp) => { const g = grips[String(sp).slice(5)]; return g ? tf(g) : null; },
   };
   const renderer = { xr: { enabled: false, getSession: () => session, getFrame: () => frame, getReferenceSpace: () => ({}), setReferenceSpaceType() {}, async setSession() {} } };
-  const world = K.createWorld({ entities: [ent] });
+  const world = K.createWorld({ entities: [ent, ...others] });
   const bones = HR.bones.map((b) => ({ id: b.id, head: HR.joints[b.head].map((v, i) => (i === 2 ? v + HDZ : v)) }));
   const boneMeshes = bones.map(() => new THREE.Mesh(new THREE.BufferGeometry(), new THREE.MeshBasicMaterial()));
   if (parts) for (const [bi, n] of Object.entries(parts)) boneMeshes[bi].geometry.setAttribute('position', new THREE.BufferAttribute(new Float32Array(9 * n), 3));
@@ -594,5 +596,51 @@ describe('the hands holding a gun', () => {
     expect(Math.hypot(shot.from[0] - want.x, shot.from[1] - want.y, shot.from[2] - want.z)).toBeLessThan(0.05);
     const d = new THREE.Vector3(...M.d).transformDirection(h.g.matrixWorld), v = new THREE.Vector3(shot.to[0] - shot.from[0], shot.to[1] - shot.from[1], shot.to[2] - shot.from[2]).normalize();
     expect(v.dot(d)).toBeGreaterThan(0.999);
+  });
+});
+
+// A HIT FROM A SWING IN THE HEADSET (P4): the hands' striking parts handed to the kernel each frame (sweep.js)
+const dummy = (id, at) => ({ id, rule: { type: 'clock' }, body: { type: 'box', hittable: true, hp: 100, egg: { a: 0.3, c: 0.9, cz: 0.9 } }, transform: { pos: at, heading: Math.PI } });
+describe('a swing in the headset', () => {
+  it('a punch with the controller lands where the hands are not drawn: the grip pose is the fist', async () => {
+    const g = gameUp(true, { entities: [hero(), dummy('bag', [0.9, -0.2, 0])] });
+    await g.page.enter();
+    const id = new THREE.Quaternion();
+    // the right controller at chest height, punched straight ahead (the play space's −Z is the body's +X) at ~4 m/s
+    for (let i = 0; i <= 8; i++) { g.grips.right = { p: [0.2, 1.3, -0.1 - 0.07 * i], q: id }; run(g, 1); }
+    const bag = g.world.byId.bag;
+    expect(bag.hits).toBe(1);
+    expect(bag.lastCut).toMatchObject({ by: 'hero', hand: 'R', kind: 'fist' });
+    expect(g.inputs.at(-1).sweeps.hands.map((h) => h.id)).toEqual(['R']);   // the left hand has no pose this frame
+  });
+});
+
+const HERO_SWORD = heroRecord({ cast: 'male', form: 'realistic', gear: { right: { item: 'sword', style: 'historical' } } });
+const HXS = xrHands(HR, { dz: HDZ, gear: gearMounts(HERO_SWORD, HR) });
+describe('a sword in the hand', () => {
+  it('the held blade is what strikes: swept through a body, its cut reads as the blade moved', async () => {
+    const hb = HR.boneIndex.handR;
+    const u = handsUp({ X: HXS, parts: { [hb]: 40 + HXS.R.item.tris }, others: [dummy('d', [1.0, -0.3, 0])] });
+    // the blade along the play space's −Z (the body's forward, +X) turned by `a`: the grip's −Z is the blade's way out of
+    // the fist; swept from the body's left (+Y, the play space's −X) to its right at chest height
+    const at = (a) => ({ p: [a * 0.6, 1.3, -0.25], q: new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), -a) });
+    u.grips.right = at(-0.6);
+    await u.page.enter(); run(u, 30);   // held still at the start (a sword resting strikes nothing)
+    expect(u.world.byId.d.hits || 0).toBe(0);
+    for (let i = 0; i <= 12; i++) { u.grips.right = at(-0.6 + (1.2 * i) / 12); u.page.step(1 / 60); }
+    const d = u.world.byId.d;
+    expect(d.hits).toBe(1);
+    expect(d.lastCut).toMatchObject({ kind: 'blade', hand: 'R', dir: 'right' });
+  });
+});
+
+describe('the game page with swings', () => {
+  const floor = { corners: [[-4, -4, 0], [4, -4, 0], [4, 4, 0], [-4, 4, 0]], fill: '#445566' };
+  const ents = [{ id: 'hero', pilotable: true, rule: { type: 'platform', eye: 0, speed: 4 }, body: { type: 'box', size: [0.5, 0.5, 1.8] }, transform: { pos: [0, 0, 0], heading: 0 } }];
+  const cam = { id: 'cam', rule: { type: 'follow', target: 'hero', dist: 5 } };
+  it('the kernel carries the swing pass only on a game the headset plays', () => {
+    const src = buildSweep.toString().slice(0, 200);
+    expect(emitThreeWorld({ faces: [floor], entities: ents, camera: cam, xr: true })).toContain(src);
+    expect(emitThreeWorld({ faces: [floor], entities: ents, camera: cam })).not.toContain('buildSweep');
   });
 });

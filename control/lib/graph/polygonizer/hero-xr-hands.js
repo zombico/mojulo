@@ -25,8 +25,10 @@
  *     FIREARM PRESENTED, its grip's line through the fist toward the thumb and its bore along the hand away from the arm,
  *     turned PRESENT degrees toward the thumb (a pistol's grip angle); anything else (a bow, a long staff) kept as the
  *     hero holds it. A firearm's `muzzle` (its tip socket and its bore, in the headset's hold) is where a shot leaves from.
+ *   • WHERE IT STRIKES (worlds/controllable/sweep.js): the fist's knuckles (`fist`), and a held blade's guard to its tip
+ *     (`item.blade`, in the headset's hold).
  * → { R?, L? } per side the rig has a hand: { hand (its bone), grip: { o, x, y, z }, poses, digits: { <digit>: { lo, hi,
- * bones, k, b } }, item? }; null for a rig without digits. Pure and deterministic: the rig's own kinematics, no dice, no
+ * bones, k, b } }, fist, item? }; null for a rig without digits. Pure and deterministic: the rig's own kinematics, no dice, no
  * clock.
  */
 import { rigNodesAt, boneFrames, handValue } from './station-loft-rig.js';
@@ -66,7 +68,13 @@ function heldItem(G, S, grip, dz) {
     const rest = gearRestPoint(G, tip), p = [rest[0], rest[1], rest[2] + dz], q = [0, 1, 2].map((i) => dot(A[i], p) + b[i]);
     muzzle = { p: q.map(r6), d: mv(A, [G.M[0][2], G.M[1][2], G.M[2][2]]).map(r6) };
   }
-  return { item: G.item, hold: G.hold, tris, rehold, ...(muzzle ? { muzzle } : {}) };
+  // a blade's striking part: its guard (else its grip's anchor) to its tip, in the headset's hold
+  let blade = null;
+  if (G.hold === 'blade' && G.sockets?.tip?.origin) {
+    const at = (q) => { const r = gearRestPoint(G, q), p = [r[0], r[1], r[2] + dz]; return [0, 1, 2].map((i) => r6(dot(A[i], p) + b[i])); };
+    blade = { a: at(G.sockets.guard?.origin ?? G.o), b: at(G.sockets.tip.origin) };
+  }
+  return { item: G.item, hold: G.hold, tris, rehold, ...(muzzle ? { muzzle } : {}), ...(blade ? { blade } : {}) };
 }
 
 /** the grip space's frame in the hand at rest, raised by dz: { o, x, y, z } (unit axes, the rig's frame) */
@@ -108,7 +116,11 @@ export function xrHands(R, { dz = 0, samples = 7, gear = null } = {}) {
       digits[d] = { lo, hi, bones, k: samples, b };
     }
     const grip = gripFrame(R, S, dz), item = heldItem((gear || []).find((G) => G.slot === (S === 'R' ? 'right' : 'left')), S, grip, dz);
-    out[S] = { hand: `hand${S}`, grip, poses, digits, ...(item ? { item } : {}) };
+    // the fist's striking face (hero-reach.js handFeatures' knuckles: the folded first two fingers' backs, a phalanx's
+    // radius out along the hand), at rest, raised by dz: where a punch lands
+    const F = rigNodesAt(R, { [`fingers${S}`]: 'fist' }).nodes, along = unit(sub(R.joints[`middleMcp${S}`], R.joints[`wrist${S}`]));
+    const kn = [0, 1, 2].map((i) => (F[`indexMcp${S}`][i] + F[`indexPip${S}`][i] + F[`middleMcp${S}`][i] + F[`middlePip${S}`][i]) / 4 + along[i] * 0.01);
+    out[S] = { hand: `hand${S}`, grip, poses, digits, fist: [kn[0], kn[1], kn[2] + dz].map(r6), ...(item ? { item } : {}) };
   }
   return Object.keys(out).length ? out : null;
 }

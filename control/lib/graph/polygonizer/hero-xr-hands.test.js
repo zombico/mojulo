@@ -164,3 +164,19 @@ describe('what the hands hold, re-held for the headset', () => {
     expect(I.rehold).toEqual([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0]);
   });
 });
+
+describe('where the hands strike', () => {
+  it('the fist strikes with its knuckles, past the hand’s knuckle line; a held blade from its guard to its tip, out past the thumb', () => {
+    for (const S of ['R', 'L']) {
+      const along = unit(sub(R.joints[`middleMcp${S}`], R.joints[`wrist${S}`]));
+      expect(dot(sub(H[S].fist, raise(R.joints[`middleMcp${S}`])), along)).toBeGreaterThan(0);
+      expect(len(sub(H[S].fist, raise(R.joints[`middleMcp${S}`])))).toBeLessThan(0.06);
+    }
+    const hero = heroRecord({ cast: 'male', form: 'realistic', gear: { right: { item: 'sword', style: 'historical' } } });
+    const B = xrHands(R, { dz: DZ, gear: gearMounts(hero, R) }).R, g = B.grip, bl = B.item.blade;
+    expect(len(sub(bl.a, g.o))).toBeLessThan(0.15);   // the guard just past the fist
+    expect(dot(unit(sub(bl.b, bl.a)), g.z.map((v) => -v))).toBeGreaterThan(0.99);
+    expect(len(sub(bl.b, bl.a))).toBeGreaterThan(0.5);
+    expect(xrHands(R, { dz: DZ, gear: gearMounts(heroRecord({ cast: 'male', form: 'realistic', gear: { right: { item: 'pistol' } } }), R) }).R.item.blade).toBeUndefined();
+  });
+});

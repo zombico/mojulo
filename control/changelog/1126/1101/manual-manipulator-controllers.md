@@ -28,3 +28,10 @@ held as a gun or VR boxing can be made.
   the grip. The ranged weapon takes an opt-in aim (`input.aim`, `worlds/controllable/combat-ranged.js`): in the headset
   the round leaves from the held gun's muzzle along its bore, or, where the hand holds no gun, along the controller's
   own ray, so the controller is the gun whatever the body or the head faces. A game without a headset fires as before.
+- **A hit from a swing** (`worlds/controllable/sweep.js`): in the headset, what each hand strikes with is handed to the
+  game each frame (a held blade from its guard to its tip, an empty hand its fist's knuckles, the controller itself
+  where the hero's hands are not drawn), and whatever it crosses as it moves is struck: the first hittable body its path
+  meets, moving at a swing's pace (a blade resting in a body strikes nothing), once a pass. The blow lands as melee's
+  does (the flash, the damage, the stagger, a spark at the point of contact), and the game hears the CUT, its
+  direction in the player's view (up, down, left, right), its speed and the hand, as `cut` and `cut:<id>` beside the
+  hit. The pass is composed only into a page a headset plays; every other page keeps every byte.

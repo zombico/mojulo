@@ -261,6 +261,7 @@ function __xrInput(inp){
   } else { inp.forward = p.moveY; inp.strafe = p.moveX; e.transform.heading = h; }
   e.transform.pitch = __xrPitch();
   const aim = __xrAim(e); if (aim) inp.aim = aim;
+  const sw = __xrSweeps(e); if (sw) inp.sweeps = sw;
   return inp;
 }
 // a step of the head moves the pilot, an axis at a time, never into a collider (one whose top is past a step above the
@@ -295,6 +296,31 @@ function __xrPlay(dt){
   __xrHandsStep(dt);` : ''}
   stepControllable(dt);
   __xrPlace(e, L);
+}
+// what each hand strikes with, in the world (the kernel's input.sweeps, worlds/controllable/sweep.js): ${hands ? `a held blade
+// from its guard to its tip, an empty hand its fist's knuckles (a gun's hand none), where the hands draw them; else` : 'without the hands drawn,'}
+// the grip pose's centre, a fist
+const __xrSwA = new THREE.Vector3(), __xrSwB = new THREE.Vector3();
+function __xrSweeps(e){
+  __xrRig.updateMatrixWorld(true);
+  const hands = [];${hands ? `
+  let drawn = false;
+  for (const S of ['R', 'L']) {
+    const h = __xrHands[S]; if (!h) continue;
+    drawn = true; if (!h.g.visible) continue;
+    const I = h.H.item, W = h.g.matrixWorld;
+    if (I && I.blade) { __xrSwA.set(I.blade.a[0], I.blade.a[1], I.blade.a[2]).applyMatrix4(W); __xrSwB.set(I.blade.b[0], I.blade.b[1], I.blade.b[2]).applyMatrix4(W); hands.push({ id: S, kind: 'blade', a: __xrSwA.toArray(), b: __xrSwB.toArray(), r: 0.03 }); }
+    else if (!I && h.H.fist) { __xrSwA.set(h.H.fist[0], h.H.fist[1], h.H.fist[2]).applyMatrix4(W); hands.push({ id: S, kind: 'fist', a: __xrSwA.toArray(), b: __xrSwA.toArray(), r: 0.045 }); }
+  }
+  if (drawn) return { by: e.id, hands };` : ''}
+  const s = renderer.xr.getSession(), f = renderer.xr.getFrame && renderer.xr.getFrame(), ref = renderer.xr.getReferenceSpace();
+  const P = __XRV.xrPoses(f, ref, s ? s.inputSources : []);
+  for (const [S, side] of [['R', 'right'], ['L', 'left']]) {
+    const g = P[side].grip; if (!g) continue;
+    __xrSwA.set(g.p[0], g.p[1], g.p[2]).applyMatrix4(__xrRig.matrixWorld);
+    hands.push({ id: S, kind: 'fist', a: __xrSwA.toArray(), b: __xrSwA.toArray(), r: 0.06 });
+  }
+  return { by: e.id, hands };
 }
 // the weapon hand's aim in the world (the kernel's input.aim, combat-ranged.js): a held gun's muzzle along its bore where
 // the hands draw one, else the controller's target ray; null before a pose
