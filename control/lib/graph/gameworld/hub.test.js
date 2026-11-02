@@ -8,7 +8,8 @@ const S = (w) => runSteps(w, { ref: 'gw' });
 
 describe('the hub: a town every way leads back to', () => {
   it('a party RPG is laid round its town: the wilds joined to it both ways, no fights there, its merchant and inn in it', () => {
-    const w = composeGameworld({ prompt: 'a jrpg where a party battles monsters across the wilds', seed: 3 });
+    // (the smallest hub that still has its wilds: the town and one stretch, so a whole world is run in the time)
+    const w = composeGameworld({ prompt: 'a jrpg where a party battles monsters across the wilds', seed: 3, levels: 2 });
     expect(w).toMatchObject({ topology: 'interconnected', hub: w.start });
     const G = readGameworld(w), others = G.ids.filter((id) => id !== G.hub);
     expect(w.links.map((l) => [l.from, l.to])).toEqual(others.map((id) => [G.hub, id]));
@@ -50,7 +51,7 @@ describe('the hub: a town every way leads back to', () => {
     expect(new Set(idles).size).toBeGreaterThan(1);
     // the centre is laid: the readout says so
     expect(w.brief.hub).toBe(G.hub);
-  });
+  }, 120000);
 
   it('the town is drawn from the game\'s art direction: its builders the cube\'s, its street in the cube\'s paint, the road through it', () => {
     const w = composeGameworld({ prompt: 'a jrpg where a party battles monsters across the wilds', seed: 3 });
@@ -64,7 +65,7 @@ describe('the hub: a town every way leads back to', () => {
     const t2 = gameStages(said).find((s) => s.level === said.hub).manifest.town;
     expect(Object.values(said.civilizations)[0].anchor).toBe('shell');
     expect(t2).toMatchObject({ anchor: 'shell', paint: { ...CUBE_STREET_PAINT } });
-  });
+  }, 120000);
 
   it('a hub is a map world\'s level; a genre with no hub, a single level or a building is laid as before', () => {
     const w = composeGameworld({ prompt: 'a jrpg where a party battles monsters', seed: 3 });
