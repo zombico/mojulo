@@ -23,7 +23,7 @@
  */
 import { box, r5 } from './geom.js';
 import { STAIR_PROFILES } from '../construction/circulation.js';
-import { STOCK, GREAT, EXTINGUISHER, roleOf, stockLaws } from './stocking.js';
+import { STOCK, HOSPITAL_STOCK, GREAT, EXTINGUISHER, roleOf, stockLaws } from './stocking.js';
 
 const B = (u0, u1, v0, v1, z0, z1, s) => [u0, u1, v0, v1, z0, z1, s];
 export const PIECES = Object.freeze({
@@ -62,6 +62,14 @@ export const PIECES = Object.freeze({
   cot: { class: 'bench', w: 2.0, d: 0.85, h: 0.65, parts: [B(0, 2, 0, 0.85, 0.5, 0.55, 'trim'), B(0.05, 1.95, 0.05, 0.8, 0.55, 0.65, 'cabinet'), B(0, 0.05, 0, 0.05, 0, 0.5, 'trim'), B(1.95, 2, 0, 0.05, 0, 0.5, 'trim'), B(0, 0.05, 0.8, 0.85, 0, 0.5, 'trim'), B(1.95, 2, 0.8, 0.85, 0, 0.5, 'trim')] },
   switchgear: { class: 'lockers', w: 2.4, d: 0.6, h: 2.2, parts: [B(0, 2.4, 0, 0.6, 0, 0.1, 'beam'), B(0, 2.4, 0, 0.6, 0.1, 2.2, 'cabinet'), B(0.79, 0.81, 0.6, 0.62, 0.2, 2.1, 'trim'), B(1.59, 1.61, 0.6, 0.62, 0.2, 2.1, 'trim')] },
   pump: { class: 'barrel', w: 1.6, d: 0.9, h: 1.1, parts: [B(0, 1.6, 0, 0.9, 0, 0.15, 'beam'), ['prism', 0.45, 0.45, 0.35, 0.15, 0.95, 10, 'paint'], ['prism', 1.15, 0.45, 0.32, 0.15, 0.75, 10, 'services'], B(1.1, 1.2, 0.4, 0.5, 0.75, 1.1, 'trim')] },
+  // a hospital's (stocking.js HOSPITAL_STOCK): a bed head to the wall, its rails and its pillow; a row of waiting chairs
+  // on one beam; a scanner's gantry and its table
+  bed: { class: 'bench', w: 1.0, d: 2.1, h: 1.0, parts: [B(0.05, 0.95, 0.05, 2.05, 0.45, 0.55, 'trim'), B(0.08, 0.92, 0.1, 2.0, 0.55, 0.7, 'cabinet'), B(0, 1, 0, 0.06, 0.3, 1.0, 'paint'), B(0, 1, 2.04, 2.1, 0.3, 0.8, 'paint'),
+    B(0.05, 0.12, 0.1, 0.17, 0, 0.45, 'trim'), B(0.88, 0.95, 0.1, 0.17, 0, 0.45, 'trim'), B(0.05, 0.12, 1.93, 2.0, 0, 0.45, 'trim'), B(0.88, 0.95, 1.93, 2.0, 0, 0.45, 'trim'),
+    B(0, 0.04, 0.5, 1.5, 0.7, 0.85, 'trim'), B(0.96, 1, 0.5, 1.5, 0.7, 0.85, 'trim'), B(0.2, 0.8, 0.12, 0.45, 0.7, 0.8, 'cabinet')] },
+  'chair-row': { class: 'bench', w: 2.4, d: 0.6, h: 0.85, parts: [B(0.05, 2.35, 0.25, 0.35, 0.25, 0.32, 'trim'), B(0.1, 0.16, 0.25, 0.35, 0, 0.25, 'trim'), B(2.24, 2.3, 0.25, 0.35, 0, 0.25, 'trim'),
+    ...[0, 1, 2, 3].flatMap((i) => [B(0.05 + i * 0.6, 0.6 + i * 0.6, 0.1, 0.55, 0.32, 0.42, 'cabinet'), B(0.05 + i * 0.6, 0.6 + i * 0.6, 0.04, 0.1, 0.42, 0.85, 'cabinet')])] },
+  scanner: { class: 'set-piece', w: 3.0, d: 2.2, h: 2.0, parts: [B(0.8, 1.5, 0.1, 2.1, 0, 2.0, 'paint'), B(0.95, 1.35, 0.75, 1.45, 0.75, 1.45, 'services'), B(1.5, 3.0, 0.8, 1.4, 0.7, 0.85, 'cabinet'), B(2.0, 2.6, 0.9, 1.3, 0, 0.7, 'trim')] },
   'sink-row': { class: 'bench', w: 2.4, d: 0.55, h: 1.8, parts: [B(0, 2.4, 0, 0.55, 0.8, 0.9, 'cabinet'), B(0, 2.4, 0, 0.5, 0, 0.8, 'trim'), B(0, 2.4, 0, 0.02, 1.2, 1.8, 'services')] },
   washer: { class: 'lockers', w: 0.7, d: 0.7, h: 0.9, parts: [B(0, 0.7, 0, 0.7, 0, 0.9, 'services'), ['prism', 0.35, 0.7, 0.2, 0.3, 0.32, 12, 'trim']] },
   // (it blocks nothing: a can on a bracket by a door, at hand height)
@@ -241,10 +249,10 @@ export function layProps(plan) {
       const X = side.endsWith('x'), facing = side.startsWith('-') ? `+${side[1]}` : `-${side[1]}`, v = side.startsWith('-') ? (X ? r.x0 : r.y0) + 0.05 : (X ? r.x1 : r.y1) - 0.05;
       items.push({ id: `${r.id}/focus/sign`, kind: 'sign', room: r.id, at: X ? [r5(v), r5(f[1])] : [r5(f[0]), r5(v)], facing, set: true, wall: true });
     }
-    // a military base's building (plan.use): each room its stock (stocking.js) in place of the register's clusters, and
+    // a military base's building or a hospital's (plan.use): each room its stock (stocking.js) in place of the register's clusters, and
     // an extinguisher by each of its doorways; a room the tables do not stock (a corridor, a core) holds none of it
     if (plan.use) {
-      const lines = STOCK[roleOf(r.id)];
+      const lines = (plan.stock === 'hospital' ? HOSPITAL_STOCK : STOCK)[roleOf(r.id)];
       if (lines) {
         // (the extinguishers first: the safety kit claims its place by the doors before the stock fills the walls)
         layExtinguishers(r);

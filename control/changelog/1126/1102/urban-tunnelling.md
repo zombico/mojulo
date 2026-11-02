@@ -150,3 +150,19 @@
   several spaces on it takes the one of its use (the first was taken before, whatever its use), and one that names no
   use takes its space's. A gate does not yet hold a passage shut inside a level: its clearance is drawn and advised,
   not played.
+- **A hospital, a campus by its name, and stocked buildings in a complex** (`network/campuses.js`, `era/programs.js`,
+  `era/stocking.js`): three buildings of the core shape a hospital is made of, `emergency` (triage and resus by the way
+  in, cubicles along the corridors, imaging at their ends, an ambulance bay off the end, the observation ward last),
+  `ward-block` (wards along the corridors, the sluice and the nurses' station nearest, a day room at each wing's end, the
+  ward office at the top) and `theatres` (the scrub and the anaesthetic rooms, theatres along a clean corridor, recovery,
+  sterile services at the top), each stocked by its rooms' roles from a hospital's own table (a bed head to the wall, a
+  row of waiting chairs, a scanner for the emergency department's great object; its lobby a waiting room, never a
+  base's sandbags). `complex: { campus: 'hospital' | 'base' }` builds a complex by its name: its buildings, where each
+  stands, the look each wears and what joins them (a new campus is a row). A complex's links may each name their own
+  section (`{ between: [a, b], section }`): the hospital's patients walk a public passage, its plant's service tunnel
+  comes in under the wards; the base's buildings are joined by the new `bunker` section (a hardened roof slab where it
+  passes under a building). A building in a complex is now dressed when it wears a look or its use is a base's or a
+  hospital's (its things laid from its plan on every read), its basement concourse kept a passage (no great object in
+  the way through); every passage of both campuses is walked door to door, things and all. A complex is also held to
+  `complex-distinct` (two buildings a passage joins differ in construction or palette), and a world's complex level
+  takes `campus`.

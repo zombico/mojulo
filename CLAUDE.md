@@ -252,7 +252,9 @@ Pointers only; each target carries its own design notes.
 - Networks of passages: [network/](control/lib/graph/network/) (buildings or rooms joined by passages: `sections.js`, what
   a passage is, a new kind a row; `edges.js`, which nodes join and by what path, straight or a dog-leg; `passage.js`, one
   built to its section along its path, at its cover, level through its turns; `laws.js`; `walk-gate.js`, a payload walked
-  as the page walks it). Its first client is the geocity's `under` (podiums and their concourses: `geocity/podium.js`).
+  as the page walks it). Its clients: the geocity's `under` (podiums and their concourses: `geocity/podium.js`) and a
+  stage's `complex` (buildings with basements on one yard, `complex.js`; a WCD level's spaces; a campus by its name,
+  `campuses.js`, a new campus a row).
 - Quest open worlds: [docs/quest-open-world.md](docs/quest-open-world.md) (the WCD's opposite pole: a geocity's regions
   joined sideways, never gated on the way on; a `design_game` world's `qow`; its principles as laws). The metro it is
   laid on: [geocity/](control/lib/graph/geocity/) (the geocube's `show: 'geocity'`: major streets first, rings, roads,

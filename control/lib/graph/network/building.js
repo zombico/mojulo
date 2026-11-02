@@ -18,10 +18,11 @@
  *       the basement)
  *
  * `spec`: { use, seed?, storeys?, wings?, loading?, bays?, kit?, compose? } (a program's settings, its kit and its finish
- * on the bay axes). Its windows are buried (its outside is its site's, network/complex.js); nothing is laid on its floors
- * (the walks are the network's). Metres, the design's frame. Pure.
+ * on the bay axes). Its windows are buried (its outside is its site's, network/complex.js); its rooms are stocked (their
+ * things laid from its plan) when it wears a look or its use is a base's or a hospital's, else bare. Metres, the design's
+ * frame. Pure.
  */
-import { withProgram } from '../era/programs.js';
+import { withProgram, stockedUse } from '../era/programs.js';
 import { assembleStageScene, planStage } from '../era/stage.js';
 import { stageLevel } from '../structure/level.js';
 
@@ -44,7 +45,11 @@ const sideTo = (rot, side) => { const v = rot(FACING[side]).map(Math.round); ret
 export function buildingFit(spec, { id, at, facing = '-y', door = 2 }) {
   if (!FACING[facing]) throw new Error(`network: a building faces -y, +y, -x or +x (its way in), not ${facing}`);
   const { use, kit, compose, ...plan } = spec;
-  const recipe = withProgram({ kind: 'stage', ...(kit ? { kit } : {}), ...(compose ? { compose } : {}), props: false, program: { use, ...plan, basement: true } });
+  // (dressed when it wears a look or its use is stocked by its rooms' roles, a base's or a hospital's, as a building
+  // level is: its things laid from its plan on every read, never stored; else bare)
+  const dressed = compose !== undefined || stockedUse(use);
+  // (its concourse is the network's way through: a passage, never the room something great stands in)
+  const recipe = withProgram({ kind: 'stage', ...(kit ? { kit } : {}), ...(dressed ? { compose: { ...(compose ?? {}), roles: { concourse: 'passage', ...(compose?.roles ?? {}) } } } : { props: false }), program: { use, ...plan, basement: true } });
   if (!recipe._program.under) throw new Error(`network: a ${use} has no basement (only a building of the core shape takes one)`);
   const PI = planStage(recipe), lobby = recipe.rooms.find((r) => r.id === 'lobby'), way = PI.ways.find((w) => w.room === 'lobby');
   const { q, rot, unrot } = turnFor(facing), N = FACING[facing];
@@ -78,7 +83,7 @@ export function buildingNode(fit, { padZ, ports = [], built = true }) {
   const PI = planStage(m), rise = PI.storeys[1].z0, top = PI.storeys[PI.storeys.length - 1].z0 + 8, base = padZ - rise;
   // (no window: its basement in the ground; its outside is its site's, the land against every wall to its roof)
   // (`built: false` lays it only: its plan, its routes and its rooms, none of its faces: what a level is lowered from)
-  const P = built ? assembleStageScene({ ...m, _ground: { y0: -1e4, y1: 1e4, z0: top, z1: top } }, {}) : { faces: [], colliders: [], lights: [] };
+  const P = built ? assembleStageScene({ ...m, ...(m.compose ? { props: PI.props ?? [] } : {}), _ground: { y0: -1e4, y1: 1e4, z0: top, z1: top } }, {}) : { faces: [], colliders: [], lights: [] };
   const W = (p) => [...toWorld(p), p[2] + base], turnN = (n) => { const [x, y] = rot([n[0], n[1]]); return [x, y, n[2]]; };
   const box = (lo, hi) => { const a = W(lo), c = W(hi); return { min: P3([Math.min(a[0], c[0]), Math.min(a[1], c[1]), Math.min(a[2], c[2])]), max: P3([Math.max(a[0], c[0]), Math.max(a[1], c[1]), Math.max(a[2], c[2])]) }; };
   const faces = hazardAsFloor(P.faces.filter((f) => f.group !== 'stage:sky' && f.group !== 'stage:sunpatch')).map((f) => ({ ...f, corners: f.corners.map((c) => P3(W(c))), ...(f.normal ? { normal: P3(turnN(f.normal)) } : {}), ...(f.outNormal ? { outNormal: P3(turnN(f.outNormal)) } : {}) }));

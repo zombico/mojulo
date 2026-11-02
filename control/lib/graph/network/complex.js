@@ -5,15 +5,17 @@
  * yard; the network (network/edges.js, passage.js) joins their basements by passages of one section; the yard is laid
  * round them and each wears its outside.
  *
- *   { kind: 'stage', complex: { buildings, network?, yard?, seed? }, hour? }
+ *   { kind: 'stage', complex: { buildings | campus, network?, yard?, seed? }, hour? }
  *     buildings  [{ id, use, at: [x, y] | { beside: <id>, side: '+x' | '-x' | '+y' | '-y', gap? }, facing?, seed?,
  *                storeys?, wings?, loading?, bays?, look? }]: `at` its front door's middle on the yard, or BESIDE another
  *                (its footprint `gap` m off that one's side, 20 m by default, slid along it so a room of its basement
  *                faces one of the other's straight across the gap, else centred on it); `facing` its way in's
  *                (-y by default); `look` its finish on the bay axes ({ construction?, palette?, plot?, dressing? })
- *     network    { section?: 'service' (the default) | 'passage' | 'vehicle' | { from, …changes }, links?: [[a, b], …] }:
- *                its passages' section, and which pairs may be joined (every pair that faces another across one gap,
- *                when absent)
+ *     campus     a complex by its name (network/campuses.js: 'hospital', 'base'): its buildings, their looks and its
+ *                network; a `network` given beside it changes the campus's
+ *     network    { section?: 'service' (the default) | 'passage' | 'bunker' | 'vehicle' | { from, …changes }, links?:
+ *                [[a, b] | { between: [a, b], section }, …] }: its passages' section, and which pairs may be joined, each
+ *                by the network's section or its own (every pair that faces another across one gap, when absent)
  *     yard       { margin? }: how far the yard runs out past the buildings (m)
  *
  *   level      (the stage's own, beside `complex`) { from?, to?, mechanics?, exit?, radius? }: played from one
@@ -26,7 +28,8 @@
  *   assembleComplexScene(manifest, ctx) → the World payload: faces (the yard, each building inside and out, each
  *       passage), colliders, lights, cameras (the site, each front door, the first passage, a basement), sky, walk, anchors
  *       (a `building` a building: its door, rooms, way down and ways out; a `tunnel` a passage), and `complex`: its
- *       buildings, passages and laws (network/laws.js: every building reached, cover, grade, run)
+ *       buildings, passages and laws (network/laws.js: every building reached, cover, grade, run; and two buildings a
+ *       passage joins unalike)
  *
  * Metres, z up, the yard at 0. Pure; seeded dice only (a building's facade colour).
  */
@@ -35,11 +38,12 @@ import { networkEdges, pathOf } from './edges.js';
 import { passageOf } from './passage.js';
 import { networkLaws } from './laws.js';
 import { readSection } from './sections.js';
+import { campusOf } from './campuses.js';
 import { groundLess } from '../geocity/podium.js';
 
 const r5 = (v) => Math.round(v * 1e5) / 1e5 + 0;
 const P3 = (p) => p.map(r5);
-const KEYS = ['buildings', 'network', 'yard', 'seed'];
+const KEYS = ['buildings', 'campus', 'network', 'yard', 'seed'];
 const B_KEYS = ['id', 'use', 'at', 'facing', 'seed', 'storeys', 'wings', 'loading', 'bays', 'look'];
 const SIDES = ['+x', '-x', '+y', '-y'];
 // the yard's light (a fixed sun, the page draws every face unlit: its light baked), its colours, a facade's palette
@@ -49,10 +53,14 @@ const mulberry32 = (a) => () => { a |= 0; a = (a + 0x6d2b79f5) | 0; let t = Math
 const hash = (s) => [...String(s)].reduce((h, c) => (Math.imul(h ^ c.charCodeAt(0), 16777619) >>> 0), 2166136261);
 const shade = (hex, n) => { const g = 0.62 + 0.42 * Math.max(0, n[0] * SUN[0] + n[1] * SUN[1] + n[2] * SUN[2]); return `#${[1, 3, 5].map((i) => Math.round(Math.max(0, Math.min(255, parseInt(hex.slice(i, i + 2), 16) * g))).toString(16).padStart(2, '0')).join('')}`; };
 
-export function readComplex(c) {
+export function readComplex(c0) {
   const no = (m) => { throw new Error(`complex: ${m}`); };
-  if (!c || typeof c !== 'object' || Array.isArray(c)) no(`a complex is { ${KEYS.join(', ')} }`);
-  for (const k of Object.keys(c)) if (!KEYS.includes(k)) no(`'${k}' is not a setting (${KEYS.join(', ')})`);
+  if (!c0 || typeof c0 !== 'object' || Array.isArray(c0)) no(`a complex is { ${KEYS.join(', ')} }`);
+  for (const k of Object.keys(c0)) if (!KEYS.includes(k)) no(`'${k}' is not a setting (${KEYS.join(', ')})`);
+  // (a campus by its name: its buildings and its network, network/campuses.js; a network of the recipe's own over it)
+  if (c0.campus !== undefined && c0.buildings !== undefined) no('a campus is its own buildings: give campus or buildings, not both');
+  const cp = c0.campus !== undefined ? campusOf(c0.campus) : null;
+  const c = cp ? { ...c0, buildings: cp.buildings, network: { ...cp.network, ...(c0.network ?? {}) } } : c0;
   if (!Array.isArray(c.buildings) || c.buildings.length < 1) no('buildings is a list of at least one building ({ id, use, at })');
   const ids = new Set();
   c.buildings.forEach((b, i) => {
@@ -68,8 +76,10 @@ export function readComplex(c) {
   for (const b of c.buildings) if (b.at?.beside !== undefined && !ids.has(b.at.beside)) no(`${b.id} stands beside '${b.at.beside}', which is not one of its buildings`);
   if (c.network !== undefined) {
     if (!c.network || typeof c.network !== 'object' || Object.keys(c.network).some((k) => !['section', 'links'].includes(k))) no('network is { section?, links? }');
-    if (c.network.links !== undefined && !(Array.isArray(c.network.links) && c.network.links.every((l) => Array.isArray(l) && l.length === 2 && l.every((x) => ids.has(x))))) no('network.links is [[a, b], …], each a pair of its buildings\' ids');
+    const pair = (l) => (Array.isArray(l) ? l : l && typeof l === 'object' && Object.keys(l).every((k) => ['between', 'section'].includes(k)) && Array.isArray(l.between) ? l.between : null);
+    if (c.network.links !== undefined && !(Array.isArray(c.network.links) && c.network.links.every((l) => { const p = pair(l); return p && p.length === 2 && p.every((x) => ids.has(x)); }))) no('network.links is [[a, b] | { between: [a, b], section? }, …], each a pair of its buildings\' ids');
     readSection(c.network.section ?? 'service');
+    for (const l of c.network.links ?? []) if (!Array.isArray(l) && l.section !== undefined) readSection(l.section);
   }
   return c;
 }
@@ -109,8 +119,11 @@ export function layComplex(C, { built = true } = {}) {
     if (a[0] < c[2] && c[0] < a[2] && a[1] < c[3] && c[1] < a[3]) throw new Error(`complex: ${F[i].id} and ${F[j].id} stand on each other: give one another at or a gap`);
   }
   // ── the network: a passage between each two buildings facing each other across one gap (the pairs `links` names) ──
-  const allowed = C.network?.links ? new Set(C.network.links.flatMap(([a, b]) => [`${a}|${b}`, `${b}|${a}`])) : null;
-  const edges = networkEdges(F.map((f) => f.node), { section: sec, blocks: F.map((f) => f.footprint) }).filter((e) => !allowed || allowed.has(`${e.a}|${e.b}`));
+  // (the pairs its links name, each by its own section or the network's; every pair by the network's, when none)
+  const linked = new Map();
+  for (const l of C.network?.links ?? []) { const [a, b] = Array.isArray(l) ? l : l.between, S = Array.isArray(l) || l.section === undefined ? sec : readSection(l.section); linked.set(`${a}|${b}`, S); linked.set(`${b}|${a}`, S); }
+  const sectionOf = C.network?.links ? (a, b) => linked.get(`${a}|${b}`) ?? null : null;
+  const edges = networkEdges(F.map((f) => f.node), { section: sec, sectionOf, blocks: F.map((f) => f.footprint) });
   const portsOf = (id) => edges.flatMap((e) => (e.a === id ? [{ id: `${e.a}-${e.b}`, room: e.roomA, side: e.sideA, u: e.uA, width: e.doorA }] : e.b === id ? [{ id: `${e.a}-${e.b}`, room: e.roomB, side: e.sideB, u: e.uB, width: e.doorB }] : []));
   const nodes = F.map((f) => buildingNode(f, { padZ: 0, ports: portsOf(f.id), built })), byId = new Map(nodes.map((n) => [n.id, n]));
   const inAny = (x, y) => F.some((f) => x >= f.footprint[0] && x <= f.footprint[2] && y >= f.footprint[1] && y <= f.footprint[3]);
@@ -118,7 +131,8 @@ export function layComplex(C, { built = true } = {}) {
   const end = (q) => { const ax = q.side.endsWith('y') ? 0 : 1, P = (u) => { const p = [0, 0]; p[ax] = u; p[1 - ax] = q.plane; return p; }; return { z0: q.z0, lo: P(q.lo), hi: P(q.hi), top: q.top, plane: q.plane }; };
   const passages = edges.map((e) => {
     const id = `${e.a}-${e.b}`, pa = end(byId.get(e.a).ports.find((p) => p.id === id)), pb = end(byId.get(e.b).ports.find((p) => p.id === id));
-    return { ...passageOf({ id, path: pathOf(e, pa, pb), a: pa, b: pb, section: sec, over, look: { light: 0.45 }, prefix: 'complex' }), a: e.a, b: e.b, kind: e.kind };
+    const S = e.section ?? sec;
+    return { ...passageOf({ id, path: pathOf(e, pa, pb), a: pa, b: pb, section: S, over, look: { light: 0.45 }, prefix: 'complex' }), a: e.a, b: e.b, kind: e.kind, section: S };
   });
   return { sec, F, nodes, byId, passages };
 }
@@ -145,7 +159,7 @@ export function assembleComplexScene(manifest = {}, ctx = {}) {
   const t0 = passages[0];
   if (t0) { const a = t0.line[Math.min(2, t0.line.length - 1)], b = t0.line[Math.max(0, t0.line.length - 3)]; cameras.push({ name: 'tunnel', worldFraming: { cameraPosition: P3([a[0], a[1], a[2] + 1.7]), lookAt: P3([b[0], b[1], b[2] + 1.4]), horizontalFov: 70 } }); }
   { const N = nodes[0], cc = N.rooms.find((r) => r.id === 'concourse').box; cameras.push({ name: 'basement', worldFraming: { cameraPosition: P3([cc.min[0] + 1, cc.min[1] + 1, cc.min[2] + 1.7]), lookAt: P3([cc.max[0], cc.max[1], cc.min[2] + 1.2]), horizontalFov: 75 } }); }
-  const laws = networkLaws(F.map((f) => ({ id: f.id })), passages, { section: sec, prefix: 'complex', noun: 'building' });
+  const laws = [...networkLaws(F.map((f) => ({ id: f.id })), passages, { section: sec, prefix: 'complex', noun: 'building' }), distinctLaw(C, passages)];
   const d0 = nodes[0].door;
   return {
     faces: [...yard, ...outside, ...nodes.flatMap((N) => N.faces), ...passages.flatMap((t) => t.faces)],
@@ -155,12 +169,12 @@ export function assembleComplexScene(manifest = {}, ctx = {}) {
     walk: { speed: 5, spawn: P3([d0.at[0] + d0.N[0] * 6, d0.at[1] + d0.N[1] * 6, 1.7]), minEye: 1.7, gravity: 22, radius: 0.3 },
     anchors: [
       ...nodes.map((N) => ({ id: `building-${N.id}`, kind: 'building', use: N.use, enter: 'walk', at: N.door.at, N: [...N.door.N, 0], floor: 0, rise: N.rise, rooms: N.rooms, down: N.down, ports: N.ports.map((q) => ({ id: q.id, side: q.side, room: q.room, reach: q.reach })) })),
-      ...passages.map((t) => ({ id: `tunnel-${t.id}`, kind: 'tunnel', from: `building-${t.a}`, to: `building-${t.b}`, length: t.length, line: t.line, section: sec.id })),
+      ...passages.map((t) => ({ id: `tunnel-${t.id}`, kind: 'tunnel', from: `building-${t.a}`, to: `building-${t.b}`, length: t.length, line: t.line, section: t.section.id })),
     ],
     complex: {
-      site, section: sec.id,
+      ...(C.campus !== undefined ? { campus: C.campus } : {}), site, section: sec.id,
       buildings: nodes.map((N) => ({ id: N.id, use: N.use, rise: N.rise, ports: N.ports.length, footprint: N.footprint })),
-      passages: passages.map((t) => ({ id: t.id, kind: t.kind, length: t.length, cover: t.cover, slab: t.slab, grade: t.grade, turns: t.turns, ends: t.ends, ...(t.findings.length ? { findings: t.findings } : {}) })),
+      passages: passages.map((t) => ({ id: t.id, kind: t.kind, section: t.section.id, length: t.length, cover: t.cover, slab: t.slab, grade: t.grade, turns: t.turns, ends: t.ends, ...(t.findings.length ? { findings: t.findings } : {}) })),
       laws: laws.map((l) => ({ law: l.law, ok: l.ok, value: l.value })),
     },
   };
@@ -210,10 +224,23 @@ export function complexRoute(manifest) {
  *  run; and, played as a level, whether a way through its passages leads from its `from` to its `to`. */
 export function complexLaws(manifest) {
   const C = readComplex(manifest.complex), L = laid(C);
-  const laws = networkLaws(L.F.map((f) => ({ id: f.id })), L.passages, { section: L.sec, prefix: 'complex', noun: 'building' });
+  const laws = [...networkLaws(L.F.map((f) => ({ id: f.id })), L.passages, { section: L.sec, prefix: 'complex', noun: 'building' }), distinctLaw(C, L.passages)];
   if (!manifest.level) return laws;
   const R = complexRoute(manifest);
   return [...laws, { law: 'complex-route', ok: !R.error, value: R.error ?? `${R.from} → ${R.to} by ${R.hops.length ? R.hops.join(', ') : 'no passage'}`, want: 'a way through the passages from the building it is entered by to the one it is won in' }];
+}
+
+/** Two buildings a passage joins look unlike each other (a walked-through layer changes: the walled-core dungeon's
+ *  `distinct`), read where both wear a look. */
+function distinctLaw(C, passages) {
+  const look = new Map(C.buildings.map((b) => [b.id, b.look])), same = [];
+  let unread = 0;
+  for (const t of passages) {
+    const a = look.get(t.a), b = look.get(t.b);
+    if (!a || !b) { unread++; continue; }
+    if (a.construction === b.construction && a.palette === b.palette) same.push(`${t.a} – ${t.b} (${a.construction ?? '-'}, ${a.palette ?? '-'})`);
+  }
+  return { law: 'complex-distinct', ok: !same.length, value: same.length ? `${same.join('; ')}: the same construction and palette` : passages.length && unread === passages.length ? 'no passage joins two buildings that both wear a look' : `every passage joins two looks that differ${unread ? ` (${unread} unread: a building wears no look)` : ''}`, want: 'two buildings a passage joins differ in construction or palette' };
 }
 
 /** A building's outside, from its built rooms: on each storey from 1 up, each room's walls where no room of its storey

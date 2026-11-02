@@ -9,12 +9,14 @@
  *              line and a leg along it between them (a Z), each way out as near the other room as its wall lets it
  *              stand, the jog at least a section's width so its two junctions keep apart
  *
- *   networkEdges(nodes, { section, blocks, gap }) → [{ a, b, roomA, roomB, axis, uA, uB, mid, kind, sideA, sideB, doorA,
+ *   networkEdges(nodes, { section, sectionOf?, blocks, gap }) → [{ a, b, roomA, roomB, axis, uA, uB, mid, kind, sideA, sideB, doorA,
  *     doorB }]   (each end's doorway: its node's `door`, narrowed to what its room's wall holds, a single door's at least)
  *     nodes    [{ id, rect (its site), door (its doorway's width), room (its one room's inside, every wall facing out) |
  *              rooms ([{ id, rect, sides }]: the rooms it may be left from, each its inside and the walls that face out:
  *              network/building.js) }]; of two nodes' rooms, the pair facing each other straight across the gap first,
  *              the nearest pair of those
+ *     sectionOf  (a, b) → the section the pair is joined by, or null: a network of several kinds (each edge then carries
+ *              its `section`, its doorways that section's door); absent, `section` joins every pair
  *     blocks   every site a passage may not pass under but its two ends' (the sites between: a passage crosses one gap);
  *              a node's `solid` ([{ id, rect }]: its own rooms) are crossed by none of its passages but at the room each
  *              leaves
@@ -32,8 +34,8 @@ const FRAME = 0.4;
 const LEAST = 1.2;
 const SIDES = [['+x', '-x'], ['+y', '-y']];
 
-export function networkEdges(nodes, { section, blocks = [], gap: most = 80 } = {}) {
-  const W = section.width, half = W / 2, edges = [], used = new Map();
+export function networkEdges(nodes, { section, sectionOf = null, blocks = [], gap: most = 80 } = {}) {
+  const edges = [], used = new Map();
   const free = (id, side, lo, hi) => (used.get(`${id}${side}`) ?? []).every(([p, q]) => hi + 1 <= p || lo - 1 >= q);
   const hits = (q, R) => q[0] < R[2] - 1e-6 && q[2] > R[0] + 1e-6 && q[1] < R[3] - 1e-6 && q[3] > R[1] + 1e-6;
   // (clear of every site but its two ends', and of its two nodes' own rooms but the two it leaves: `solid`)
@@ -43,13 +45,17 @@ export function networkEdges(nodes, { section, blocks = [], gap: most = 80 } = {
   for (let i = 0; i < nodes.length; i++) for (let j = 0; j < nodes.length; j++) {
     if (i === j) continue;
     const A0 = nodes[i], B0 = nodes[j];
+    // (the section this pair is joined by: one for every pair, or each pair its own, none where it is not joined)
+    const S = sectionOf ? sectionOf(A0.id, B0.id) : section;
+    if (!S) continue;
+    const W = S.width, half = W / 2;
     for (const k of [0, 1]) {
       // B beyond A along k, across one gap
       const gap = B0.rect[k] - A0.rect[k + 2];
       if (!(gap > 0 && gap <= most)) continue;
       const o = 1 - k, [sideA, sideB] = SIDES[k];
       // (a room's doorway: its node's, narrowed to what its wall holds between its frames, a single door's at least)
-      const doorOf = (N, r) => Math.min(N.door, r.rect[o + 2] - r.rect[o] - 2 * FRAME);
+      const doorOf = (N, r) => Math.min(sectionOf ? S.door : N.door, r.rect[o + 2] - r.rect[o] - 2 * FRAME);
       // (each pair of rooms whose walls face each other across it: the straight ones first, the nearest of them)
       const pairs = [];
       for (const ra of roomsOf(A0).filter((r) => r.sides.includes(sideA) && doorOf(A0, r) >= LEAST)) for (const rb of roomsOf(B0).filter((r) => r.sides.includes(sideB) && doorOf(B0, r) >= LEAST)) {
@@ -89,7 +95,7 @@ export function networkEdges(nodes, { section, blocks = [], gap: most = 80 } = {
       if (!edge || !free(A.id, sideA, edge.uA - half, edge.uA + half) || !free(B.id, sideB, edge.uB - half, edge.uB + half)) continue;
       used.set(`${A.id}${sideA}`, [...(used.get(`${A.id}${sideA}`) ?? []), [edge.uA - half, edge.uA + half]]);
       used.set(`${B.id}${sideB}`, [...(used.get(`${B.id}${sideB}`) ?? []), [edge.uB - half, edge.uB + half]]);
-      edges.push({ a: A.id, b: B.id, axis: k === 0 ? 'x' : 'y', ...edge, sideA, sideB });
+      edges.push({ a: A.id, b: B.id, axis: k === 0 ? 'x' : 'y', ...edge, sideA, sideB, ...(sectionOf ? { section: S } : {}) });
     }
   }
   return edges;

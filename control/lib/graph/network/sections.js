@@ -8,16 +8,19 @@
  *   passage   the pedestrian passage under a downtown (a concourse to the next): glass and steel, a stripe a route
  *   service   a building's service tunnel (a plant room to the next, a hospital's back of house): concrete, conduits, caged
  *             lamps, steeper
+ *   bunker    a military base's tunnel between hardened buildings: a service tunnel's box under a metre of slab where it
+ *             passes under a building, and more cover than a service tunnel's under open ground
  *   vehicle   a road tunnel under a block or a river: two lanes and a walkway each side, deep, gentle, no stair
  *
  *   SECTIONS            the rows
- *   readSection(s) → a row ('passage' | 'service' | 'vehicle', or { from, …changes }), refused by name
+ *   readSection(s) → a row (one of SECTION_IDS, or { from, …changes }), refused by name
  *
  * Metres. Pure data.
  */
 export const SECTIONS = Object.freeze({
   passage: Object.freeze({ width: 4, height: 3, door: 3.6, cover: 1, slab: 0.3, grade: 1 / 12, stair: true, lamp: 4.5, longest: 120, finish: 'concourse' }),
   service: Object.freeze({ width: 3, height: 2.7, door: 2, cover: 1, slab: 0.3, grade: 1 / 8, stair: true, lamp: 5, longest: 200, finish: 'service' }),
+  bunker: Object.freeze({ width: 3, height: 2.6, door: 2, cover: 1.2, slab: 1, grade: 1 / 8, stair: true, lamp: 6, longest: 300, finish: 'service' }),
   vehicle: Object.freeze({ width: 10, height: 5.5, door: 8, cover: 2.5, slab: 1, grade: 1 / 16, stair: false, lamp: 8, longest: 2000, finish: 'road' }),
 });
 export const SECTION_IDS = Object.freeze(Object.keys(SECTIONS));

@@ -40,9 +40,11 @@ describe('the rail\'s cards', () => {
     // relations' words (summons, pair) and the win; a growing family, due to become an index and a card per member;
     // 4736 since 2026-10-30 (1030-foe-casting-call: one line naming the cast sheet and the casting call's step, 4657 bytes);
     // 5120 the same day (the patrol's row, a person's dress line and a building's rooms: 4916 bytes)
+    // 4352 since 2026-11-02 (1102-urban-tunnelling: the building line names a hospital's uses, emergency | ward-block |
+    // theatres, and a complex, 4323 bytes);
     // the dungeon card too (2026-11-02, 1102-urban-tunnelling: its spaces on one level stand as a complex, two lines on
     // where it is played and advised, 4296 bytes)
-    const CEIL = { 'gameworld-guide': 4480, 'gameworld-world': 4288, 'gameworld-foes': 5120, 'gameworld-wcd': 4352 };
+    const CEIL = { 'gameworld-guide': 4480, 'gameworld-world': 4352, 'gameworld-foes': 5120, 'gameworld-wcd': 4352 };
     for (const c of cards.values()) expect(Buffer.byteLength(c.body), c.id).toBeLessThan(CEIL[c.id] ?? 4096);
   });
 

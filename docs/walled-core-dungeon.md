@@ -43,7 +43,10 @@ a service tunnel by default, `network.section` to change it), whatever its via, 
 the first one's front door, down, through the passages, up the last one's stair to its goal room. The network's laws
 (every building reached, cover, grade, run, and a way through) advise beside the dungeon's in `advice.wcd`; the book
 draws the level as a site plan, and the rings call such a door a passage. `complex: { buildings }` stands buildings of
-its own instead.
+its own instead, and `complex: { campus }` a campus by its name (`network/campuses.js`: a hospital's emergency
+department, wards, plant and theatres joined by a public passage and a service tunnel; a base's hangar, barracks,
+armoury and command joined by bunker tunnels). A base's or a hospital's buildings are stocked by their rooms' roles
+(`era/stocking.js`), and two buildings a passage joins are held to differ in look (`complex-distinct`).
 
 ## Not yet
 

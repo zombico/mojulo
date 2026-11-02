@@ -220,7 +220,7 @@ const CITY_LEVEL_KEYS = ['grammar', 'seed', 'board', 'spine', 'districts', 'site
 // (a building use's plan, era/programs.js: storeys, wings, loading and bays for an office, a lab building, a warehouse)
 const BUILDING_KEYS = ['use', 'seed', 'rooms', 'add', 'kit', 'geocube', 'goal', 'from', 'civilization', 'ref', 'storeys', 'wings', 'loading', 'bays', 'complex'];
 // a building level that is several buildings (network/complex.js): its own, or its dungeon's spaces on it
-const COMPLEX_LEVEL_KEYS = ['buildings', 'network', 'yard', 'from', 'to'];
+const COMPLEX_LEVEL_KEYS = ['buildings', 'campus', 'network', 'yard', 'from', 'to'];
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 
@@ -707,8 +707,9 @@ export function readGameworld(W) {
 /**
  * A building level that is a COMPLEX (network/complex.js): its buildings its own (`complex.buildings`), or the dungeon's
  * spaces on the level, on the critical path's order (each a building of its use, in its look, stood beside the one
- * before it); its passages between the pairs a door of the dungeon joins (whatever the door's via: a passage below
- * grade, both ways), unless it names its own; played from the first space on the path to the last (`from`, `to`).
+ * before it), or a campus's (network/campuses.js); its passages between the pairs a door of the dungeon joins (whatever
+ * the door's via: a passage below grade, both ways), unless it names its own; played from the first space on the path
+ * to the last (`from`, `to`), else from its first building to its last.
  * → { use, complex, from, to } (`use` the goal building's), refused by name.
  */
 function complexOfLevel(G, id, B, spaces, seed) {
@@ -716,6 +717,16 @@ function complexOfLevel(G, id, B, spaces, seed) {
   const rank = (sid) => { const i = G.wcd?.path?.indexOf(sid) ?? -1; return i < 0 ? Infinity : i; };
   const here = spaces.slice().sort((a, b) => rank(a.id) - rank(b.id) || a.depth - b.depth);
   let buildings = X.buildings;
+  if (X.campus !== undefined) {
+    // (a campus: its own buildings and network, network/campuses.js; a space named for one of its buildings plays it)
+    const campus = { campus: X.campus, ...(X.network !== undefined ? { network: X.network } : {}), ...(X.yard !== undefined ? { yard: X.yard } : {}), seed };
+    let read;
+    try { read = readComplex(campus); } catch (e) { throw new Error(`gameworld: ${at}: ${e.message.replace(/^complex: /, '')}`); }
+    const ids = read.buildings.map((b) => b.id), onPath = here.filter((sp) => ids.includes(sp.id) && rank(sp.id) < Infinity);
+    const from = X.from ?? onPath[0]?.id ?? ids[0], to = X.to ?? onPath[onPath.length - 1]?.id ?? ids[ids.length - 1];
+    for (const [k, v] of [['from', from], ['to', to]]) if (!ids.includes(v)) throw new Error(`gameworld: ${at}.${k} '${v}' is not one of its buildings (${ids.join(', ')})`);
+    return { use: read.buildings.find((b) => b.id === to).use, complex: campus, from, to };
+  }
   if (buildings === undefined) {
     if (!here.length) throw new Error(`gameworld: ${at} names no buildings and no space of the world's dungeon (wcd) stands on this level: give it buildings, or set spaces' level to '${id}'`);
     const bare = here.filter((sp) => !sp.use);

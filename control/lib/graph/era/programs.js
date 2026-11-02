@@ -102,8 +102,20 @@ export const PROGRAMS = Object.freeze({
     core: { storeys: 1, wings: 'I', loading: 'double', bays: 4, h: 3.2 }, lobby: { d: 6, h: 3.5 }, roles: { near: 'guard', second: 'processing', room: 'cell', far: 'interview', goal: 'isolation' } },
   plant: { reads: 'a control lobby and a stair, switchgear and pumps along an L, the battery room at its end, the generator hall off it, the plant control at the top', shape: 'core', goal: 'plant-control', kit: 'bay-utility', base: true,
     core: { storeys: 2, wings: 'L', loading: 'single', bays: 3, h: 3.5 }, lobby: { d: 6, h: 4 }, roles: { near: 'control', second: 'switchgear', room: 'pump', far: 'battery', goal: 'plant-control' }, annex: { role: 'generator-hall', w: 18, d: 24, h: 12, ways: ['+x'] } },
+  // a hospital's buildings (a campus, network/campuses.js: joined below grade by a public passage and a service tunnel),
+  // on the same core, stocked by their rooms' roles (stocking.js HOSPITAL_STOCK): beds, trolleys, the theatre's lamp
+  emergency: { reads: 'triage and resus nearest the way in, the cubicles both sides of the corridors, imaging at their ends, the ambulance bay off the end, the observation ward last', shape: 'core', goal: 'observation', kit: 'bay-science', hospital: true,
+    core: { storeys: 1, wings: 'L', loading: 'double', bays: 3, h: 3.5 }, lobby: { d: 8, h: 4.5 }, roles: { near: 'resus', second: 'triage', room: 'cubicle', far: 'imaging', goal: 'observation' }, annex: { role: 'ambulance-bay', w: 14, d: 18, h: 6, ways: ['+x'] } },
+  'ward-block': { reads: 'a reception and a stair, the wards both sides of the corridors, the sluice and the nurses\' station nearest, a day room at each wing\'s end, the ward office at the top', shape: 'core', goal: 'ward-office', kit: 'bay-everyday', hospital: true,
+    core: { storeys: 3, wings: 'T', loading: 'double', bays: 3, h: 3.5 }, lobby: { d: 8, h: 4.5 }, roles: { near: 'sluice', second: 'nurses-station', room: 'ward', far: 'dayroom', goal: 'ward-office' } },
+  theatres: { reads: 'a reception and a stair, the scrub and the anaesthetic rooms nearest, the theatres both sides of a clean corridor, recovery at its end, sterile services at the top', shape: 'core', goal: 'sterile', kit: 'bay-science', hospital: true,
+    core: { storeys: 2, wings: 'I', loading: 'double', bays: 3, h: 3.8 }, lobby: { d: 8, h: 4.5 }, roles: { near: 'scrub', second: 'anaesthetic', room: 'theatre', far: 'recovery', goal: 'sterile' } },
 });
 export const PROGRAM_IDS = Object.freeze(Object.keys(PROGRAMS));
+/** A hospital's buildings: the uses a hospital campus is made of (network/campuses.js). */
+export const HOSPITAL_USES = Object.freeze(PROGRAM_IDS.filter((id) => PROGRAMS[id].hospital));
+/** A use whose rooms are stocked by their roles (stocking.js): a base's building or a hospital's. */
+export const stockedUse = (id) => !!(PROGRAMS[id]?.base || PROGRAMS[id]?.hospital);
 /** A military base's buildings: the uses a walled-core dungeon's spaces are made of (card gameworld-wcd). */
 export const BASE_USES = Object.freeze(PROGRAM_IDS.filter((id) => PROGRAMS[id].base));
 
@@ -284,7 +296,7 @@ export function withProgram(m) {
     // (a building climbs by a game's stair: construction/circulation.js `game`, a switchback with room at its ends)
     ...(PROGRAMS[program.use]?.shape === 'core' && rest.stair === undefined ? { stair: 'game' } : {}),
     ...(level !== undefined ? { level } : {}),
-    _program: { use: P.use, ...(PROGRAMS[P.use]?.base ? { base: true } : {}), reads: P.reads, entry: P.entry, goal: P.goal, front: P.front, language: P.language, rooms: P.rooms.map((r) => r.id),
+    _program: { use: P.use, ...(PROGRAMS[P.use]?.base ? { base: true } : {}), ...(PROGRAMS[P.use]?.hospital ? { hospital: true } : {}), reads: P.reads, entry: P.entry, goal: P.goal, front: P.front, language: P.language, rooms: P.rooms.map((r) => r.id),
       // (on storeys, the rooms each holds, the ground first)
       ...(P.rooms.some((r) => r.storey) ? { storeys: [...Array(Math.max(...P.rooms.map((r) => r.storey ?? 0)) + 1)].map((_, s) => P.rooms.filter((r) => (r.storey ?? 0) === s).map((r) => r.id)) } : {}), findings: P.findings,
       // (a basement's walls that face out, where a network's passages may leave it: program-core.js)
