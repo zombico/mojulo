@@ -152,6 +152,7 @@ export const MECHANIC_SFX = {
   aftermath: { 'broke:*': 'thud' },
   trade: { 'pickup:*': 'pickup', 'trade:*:short': 'thud' },
   cargo: { 'cargo:lost:*': 'hit' },
+  bounty: { 'bounty:*': 'pickup' },
   deliver: { 'errand:done:*': 'goal', 'errand:short:*': 'thud' },
   frags: { kill: 'down', 'frags:won': 'goal', 'frags:lost': 'lose' },
   control: { 'control:won': 'goal', 'control:lost': 'lose' },

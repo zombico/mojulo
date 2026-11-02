@@ -51,8 +51,8 @@ plus the combat trio (mechanics-vocab V1): `win-when` (generic predicate win) ·
 (per-entity health, the `enemy:down` producer) · `defeat-all` (count downs to victory), and a match:
 `frags` (a deathmatch: kills credited, the fallen back, a frag or time limit, two sides with `teams`; it owns the
 player's death) and `control` (a point two sides hold for time).
-An errand's verbs: `trade` (an item had for its price), `cargo` (a carried item's condition: fragile, perishable)
-and `deliver` (the giver's hand-in, a terminal), each on the bag.
+An errand's verbs: `trade` (an item had for its price), `cargo` (a carried item's condition: fragile, perishable),
+`bounty` (a foe's fall drops its proof) and `deliver` (the giver's hand-in and its reward, a terminal), each on the bag.
 Read each card for its parameter manual. (`melee-strike` — a declarative attack — is named
 future vocabulary, waiting on the entity-anchored zone; AI behavior stays runtime by doctrine.)
 

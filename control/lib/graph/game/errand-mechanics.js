@@ -11,15 +11,20 @@
  *                       each fall (the fall policy's catch) loses one; perishable: one every `perishable` seconds while
  *                       any is held. A bar on the HUD; `cargo:lost:<item>` a unit, said as a toast.
  *                       { item, fragile?: true, perishable?: <seconds>, max? (the bar's top) }
+ *   bounty   (emitter)  a foe's fall drops its proof into the bag (dead, the default: a pelt, a badge, a head): each fall
+ *                       of a foe matching `who` (a glob over the cast's `down`), or each `enemy:down` (an hp-pool's)
+ *                       without one. Alive is a variation of fetching: the captive carried as cargo (not built yet).
+ *                       { item, who?, n? (1) }
  *   deliver  (terminal) the giver's hand-in: walk in holding each asked item, at least its `min`, and the `min` of each is
- *                       handed over, ending the level (`errand:done:<id>` → success); short of any, a toast says so
- *                       (`errand:short:<id>`) and nothing is taken.
- *                       { id?, at, wants: [{ item, min? (1) }], radius?, planar? }
+ *                       handed over, the `reward` given into the bag, ending the level (`errand:done:<id>` → success);
+ *                       short of any, a toast says so (`errand:short:<id>`) and nothing is taken. A bounty board is a
+ *                       giver that wants proofs.
+ *                       { id?, at, wants: [{ item, min? (1) }], reward?: [{ item, n? (1) }], radius?, planar? }
  *
  * Names (recipe-derived, for a handoff): a trade's zone and marker `trade-<item>`, a deliver's zone `deliver-<id>`.
  * A deliver's audit is the walk to it (what the walk must hold first is the errand's order: gameworld/errand.js).
  *
- *   lowerTrade, lowerCargo, lowerDeliver   (game/mechanics.js registers them)
+ *   lowerTrade, lowerCargo, lowerBounty, lowerDeliver   (game/mechanics.js registers them)
  *
  * Pure, no dice.
  */
@@ -102,6 +107,20 @@ export function lowerCargo(p, ctx) {
   return { world: frag, produces: [{ type: 'consume', slice: BAG }], emits: [`cargo:lost:${key}`] };
 }
 
+export function lowerBounty(p, ctx) {
+  const at0 = `bounty[${ctx.i}]`, fail = (m) => { throw new Error(`${at0}: ${m}`); };
+  ctx.resolve('inventory', p.slice ?? BAG, at0);
+  if (typeof p.item !== 'string' || !WORD.test(itemKey(p.item))) fail('item is the proof a fall drops, one lower-case word (pelt, badge, head)');
+  if (p.who !== undefined && !(typeof p.who === 'string' && p.who)) fail("who is a glob over the foes whose fall counts ('dire-wolf', 'bandit-*')");
+  const n = p.n === undefined ? 1 : p.n;
+  if (!posInt(n)) fail('n is how many a fall drops, from 1');
+  const key = itemKey(p.item), frag = { vars: { [heldVar(BAG, key)]: 0 }, reactions: [], hud: [] }, fell = `bounty:${key}`;
+  frag.reactions.push(p.who ? { on: 'down', match: { entity: p.who }, do: 'emit', type: fell } : { on: 'enemy:down', do: 'emit', type: fell });
+  lowerMove({ item: key, n, from: NOWHERE, to: BAG, on: fell }, frag);
+  frag.hud.push({ on: fell, as: 'toast', text: `${key.replace(/-/g, ' ')} taken`, ttl: 1.4 });
+  return { world: frag, produces: [{ type: 'grant', slice: BAG }], emits: [fell], ...(p.who ? {} : { needs: ['enemy:down'] }) };
+}
+
 export function lowerDeliver(p, ctx) {
   const at0 = `deliver[${ctx.i}]`, fail = (m) => { throw new Error(`${at0}: ${m}`); };
   ctx.resolve('inventory', p.slice ?? BAG, at0);
@@ -115,13 +134,17 @@ export function lowerDeliver(p, ctx) {
   frag.reactions.push({ on: 'enter', match: { zone }, do: 'emit', type: `${zone}:try` });
   chain(frag.reactions, `${zone}:try`, wants.map((w) => ({ var: heldVar(BAG, w.item), gte: w.min ?? 1 })), ok, short);
   for (const w of wants) lowerMove({ item: w.item, n: w.min ?? 1, from: BAG, to: NOWHERE, on: ok }, frag);
+  // every errand pays: its reward into the bag (coin for the next leg's trade)
+  const reward = p.reward === undefined ? [] : p.reward;
+  if (!Array.isArray(reward) || reward.some((r) => !r || typeof r.item !== 'string' || (r.n !== undefined && !posInt(r.n)))) fail('reward is [{ item, n? }]: what the giver pays');
+  for (const r of reward) lowerMove({ item: r.item, n: r.n ?? 1, from: NOWHERE, to: BAG, on: ok }, frag);
   frag.reactions.push({ on: ok, do: 'emit', type: done });
   frag.hud.push({ on: short, as: 'toast', text: `bring ${wants.map((w) => `${w.min ?? 1} ${itemKey(w.item).replace(/-/g, ' ')}`).join(', ')}`, ttl: 1.8 });
   const shape = Array.isArray(p.half) ? { half: p.half } : { radius: Number.isFinite(p.radius) ? p.radius : 2 };
   return {
     world: { ...frag, sources: [{ type: 'zone', zone, at: p.at.slice(), ...shape, planar: p.planar !== false, watch: ctx.player }] },
     on: { [done]: { end: 'success' } },
-    produces: [{ type: 'consume', slice: BAG }],
+    produces: [{ type: 'consume', slice: BAG }, ...(reward.length ? [{ type: 'grant', slice: BAG }] : [])],
     audit: { kind: 'walkto', target: p.at.slice() },
   };
 }

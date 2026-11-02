@@ -12,6 +12,9 @@ spoils while carried. Built so far:
     nothing moves and a toast names it; it gives again only once the bag holds none of it (a shelf restocks).
   - `cargo` (emitter): a carried item's condition is its count in the bag. `fragile` loses one to each hit the carrier
     takes and each fall; `perishable` one every N seconds while any is carried; a HUD bar, `cargo:lost:<item>`.
-  - `deliver` (terminal): the giver's hand-in; holding each asked item at its `min`, those are handed over and the level
-    is won (`errand:done:<id>`); short of any, a toast says what to bring and nothing is taken.
+  - `bounty` (emitter): a foe's fall drops its proof into the bag (dead, the default): each fall of a foe matching `who`
+    (the cast's `down`), or an hp-pool's `enemy:down`. Alive, the captive carried as cargo, is to come.
+  - `deliver` (terminal): the giver's hand-in; holding each asked item at its `min`, those are handed over, its `reward`
+    paid into the bag (every errand pays), and the level is won (`errand:done:<id>`); short of any, a toast says what to
+    bring and nothing is taken. A bounty board is a giver that wants proofs.
   Names for a handoff: `trade-<item>`, `deliver-<id>`. Sounds, glyphs and engine samples for each.

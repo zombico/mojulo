@@ -22,7 +22,7 @@ function play(mechs, script, { fall } = {}) {
   pump([]);
   for (const step of script) {
     if (step.at) for (let f = 0; f < 2; f++) { const z = B.deriveZoneEvents([{ id: 'hero', position: step.at }], prev, ev.sources); prev = z.prev; pump(z.events); }
-    if (step.event) pump([{ type: step.event }]);
+    if (step.event) pump([{ type: step.event, ...(step.entity ? { entity: step.entity } : {}) }]);
     if (step.set) Object.assign(s.vars, step.set);
     if (step.secs) for (let k = 0; k < Math.round(step.secs * 10); k++) pump(B.tickTimers(s, 0.1));
   }
@@ -71,6 +71,20 @@ describe('cargo: a carried item\'s condition', () => {
   });
 });
 
+describe('bounty: a foe\'s fall drops its proof', () => {
+  it('each fall of a foe it names drops its proof into the bag; another\'s drops nothing', () => {
+    const r = play([{ kind: 'bounty', item: 'pelt', who: 'dire-wolf-*' }, EXIT], [{ event: 'down', entity: 'dire-wolf-1' }, { event: 'down', entity: 'bandit-1' }, { event: 'down', entity: 'dire-wolf-2' }]);
+    expect(r.vars[H('pelt')]).toBe(2);
+    expect(r.log.filter((t) => t === 'in:bag:pelt:1')).toHaveLength(2);
+  });
+
+  it('without `who`, an hp-pool\'s downs count, and it needs one to feed it', () => {
+    const r = play([{ kind: 'hp-pool', entities: [{ id: 'rat', hp: 1 }] }, { kind: 'bounty', item: 'tail' }, EXIT], [{ event: 'hit:rat' }]);
+    expect(r.vars[H('tail')]).toBe(1);
+    expect(() => composeMechanics([{ kind: 'bounty', item: 'tail' }, EXIT], ctx)).toThrow(/no mechanic in this level emits 'enemy:down'/);
+  });
+});
+
 describe('deliver: the giver\'s hand-in', () => {
   const giver = { kind: 'deliver', id: 'eggs-run', at: [10, 0, 0], wants: [{ item: 'eggs', min: 6 }, { item: 'milk' }] };
   it('takes what was asked only when all of it is held, and ends the level', () => {
@@ -83,6 +97,15 @@ describe('deliver: the giver\'s hand-in', () => {
     expect([done.vars[H('eggs')], done.vars[H('milk')]]).toEqual([3, 0]);
     expect(done.c.on['errand:done:eggs-run']).toEqual({ end: 'success' });
     expect(done.c.audits).toEqual([{ mechanic: 'deliver', kind: 'walkto', target: [10, 0, 0] }]);
+  });
+
+  it('pays its reward into the bag as it takes what was asked (a bounty board: proofs for coin)', () => {
+    const board = { kind: 'deliver', id: 'board', at: [10, 0, 0], wants: [{ item: 'pelt' }], reward: [{ item: 'coin', n: 5 }] };
+    const r = play([{ kind: 'bounty', item: 'pelt', who: 'wolf' }, board], [{ at: [10, 0, 0] }, away, { event: 'down', entity: 'wolf' }, { at: [10, 0, 0] }]);
+    expect(r.vars[H('coin')]).toBe(5);
+    expect(r.vars[H('pelt')]).toBe(0);
+    expect(r.log).toEqual(expect.arrayContaining(['errand:short:board', 'in:bag:coin:5', 'errand:done:board']));
+    expect(() => composeMechanics([{ ...board, reward: [{ n: 2 }] }], ctx)).toThrow(/reward is/);
   });
 });
 

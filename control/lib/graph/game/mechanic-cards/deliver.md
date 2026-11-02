@@ -9,17 +9,19 @@
 ## Params
 
 ```json
-{ "kind": "deliver", "id": "eggs-run", "at": [3, 4, 0], "wants": [{ "item": "eggs", "min": 6 }] }
+{ "kind": "deliver", "id": "eggs-run", "at": [3, 4, 0], "wants": [{ "item": "eggs", "min": 6 }], "reward": [{ "item": "coin", "n": 5 }] }
 ```
 
 - `id` — the errand's name (`errand`).
 - `at`, `radius` (2) | `half`, `planar` — the giver's place.
 - `wants` — `[{ item, min? }]`: what is asked, and how much of it must have survived.
+- `reward` — `[{ item, n? }]`: what the giver pays into the bag (every errand pays: coin for the next leg's trade). A
+  bounty board is a giver that wants proofs (`bounty`).
 
 ## Lowers to
 
 - world: zone `deliver-<id>`; on entering, a chain of guards (each item held at least `min`), then each `min` moved
-  bag → nowhere and `errand:done:<id>`; short, `errand:short:<id>` and a toast.
+  bag → nowhere, the reward nowhere → bag, and `errand:done:<id>`; short, `errand:short:<id>` and a toast.
 - contract: `on: { "errand:done:<id>": { end: "success" } }`; `produces` consume.
 - audit: `{ kind: "walkto", target: at }` — the walk to the giver; what it must carry first is the errand's order
   (gameworld's `errands`), so a level whose bag starts empty is proved only with the errand's legs before it.
