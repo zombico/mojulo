@@ -45,6 +45,7 @@ import { foursClips } from './feature-function.js';
 import { plumageOf, wingTones } from './feature-birds.js';
 import { speciesParams } from '../fauna/species.js';
 import { animalCard } from './mascot-animals.js';
+import { EXPRESSION_IDS } from './mascot-face.js';
 
 const r4 = (x) => Math.round(x * 1e4) / 1e4 + 0;
 const r6 = (x) => Math.round(x * 1e6) / 1e6 + 0;
@@ -240,6 +241,20 @@ function splayed(clips, out) {
   return Object.fromEntries(Object.entries(clips).map(([n, c]) => [n, Array.isArray(c) ? c.map(key) : c && Array.isArray(c.keys) ? { ...c, keys: c.keys.map(key) } : c]));
 }
 
+/** the standing poses with their legs straight (in place): `STANDING` clips' every crouch, any clip's resting one */
+const STANDING = new Set(['idle', 'blink', 'wave', ...EXPRESSION_IDS]), REST_CROUCH = 0.04;
+function straightened(clips) {
+  for (const [n, c] of Object.entries(clips)) {
+    const keys = Array.isArray(c) ? c : c && Array.isArray(c.keys) ? c.keys : [];
+    keys.forEach((k, i) => {
+      if (!k || typeof k !== 'object') return;
+      // (a standing pose's feet under its hips: a wide stance (a sturdy idle's) splays straight legs out)
+      if (STANDING.has(n) && k.stance !== undefined) keys[i] = k = { ...k, stance: 1 };
+      if (k.crouch !== undefined && (STANDING.has(n) || k.crouch === REST_CROUCH)) keys[i] = { ...k, crouch: 0 };
+    });
+  }
+}
+
 /** clips with every wing held folded: each arm's direction mostly the fold's (`fold`, the right's), the clip's own a
  *  share (`play`), its elbow straight, so a wing stirs with the acting and never swings out as an arm */
 function folded(clips, fold, play = 0.2) {
@@ -271,6 +286,9 @@ function featurePalette(pal, id, build) {
   return { ...pal, ...wingTones(pal.Body, P), Sock: P.sock ?? pal.Beak, ...(P.crown ? { Crown: P.crown } : {}), ...(P.neck ? { Mane: P.neck } : {}), ...(P.bar ? { Bar: P.bar } : {}), ...(P.tip ? { Tip: P.tip } : {}), ...(own ? { Belly: C.belly } : {}) };
 }
 
+/** the share of the skin's faces kept under a coat cut into it (the cuts' splits fill the rest of the budget) */
+export const FEATURE_CUT_SHARE = 0.85;
+
 /** the head's lift over the neck (head units) past which the head turns at the top of the neck, not over its pinch */
 export const FEATURE_NECK_PIVOT = 0.5;
 
@@ -281,8 +299,12 @@ export function featurePlan(sheet, { title = 'a feature animal', reactions = fal
   const f = sheet.facets, A = sheet.animal ?? null, K = A?.kit ?? {}, { k } = measuresOf(sheet);
   if (!A) throw new Error('mascot: the feature style draws an animal (a species in the brief or `facets.animal`)');
   // (the operator's tune, feature-tune.js: absent, the build and the skin as designed)
-  const tune = sheet.tune ? resolveTune(sheet.tune) : null, net = tune ? { cell: tune.detail.cell, faces: tune.detail.faces } : {};
+  const tune = sheet.tune ? resolveTune(sheet.tune) : null;
   const build = featureBuild(A, { decor, ...(tune ? { tune } : {}) });
+  // (a coat cut into the skin (stripes, a network of patches) adds the faces its edges split: the skin is simplified that
+  // much further first, so the figure stays within its triangle budget)
+  const cutCoat = build.marks.some((m) => m.cut), faces0 = tune ? tune.detail.faces : FEATURE_SKIN.faces;
+  const net = tune || cutCoat ? { ...(tune ? { cell: tune.detail.cell } : {}), faces: cutCoat ? Math.round(faces0 * FEATURE_CUT_SHARE) : faces0 } : {};
   const { L, moved } = featureShapes(build), H = L.H, att = { moved };
   // (a zone is cut into the skin; a mark of strokes or bands is a layer over it, unless it is itself cut (a coat's stripes))
   const zones = L.marks.filter((m) => m.cut || (!m.strokes && !m.bands)), layers = L.marks.filter((m) => !m.cut && (m.strokes || m.bands));
@@ -308,7 +330,10 @@ export function featurePlan(sheet, { title = 'a feature animal', reactions = fal
   // out to clear it, its direction's outward share at least the build's)
   // (a bird's wings are held folded instead)
   const clips = build.fold ? folded(clips0, build.fold) : splayed(clips0, build.splay ?? 0);
-  // (a quadruped's clips on all fours: feature-function.js)
+  // (STANDING, the legs straight: the standing poses (the idle, the blink, the wave, the faces) bend no knee, and a motion
+  // clip starts and ends on a straight stand; its own crouches (a hop's, a squat's) kept)
+  straightened(clips);
+  // (a quadruped's clips on all fours, its legs in their natural bend: feature-function.js)
   Object.assign(clips, foursClips(build.fours, { walk: clips.walk, ready: clips.idle?.[0] }));
   // the fingers' bones: two links a finger from its knuckle (each tail riding its bone's parent, as the knuckles do)
   for (const d of L.digits) for (const [S0, m] of [['R', (p) => p], ['L', mirrorX]]) {

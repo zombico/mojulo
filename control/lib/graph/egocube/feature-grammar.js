@@ -25,7 +25,7 @@
  */
 
 import { speciesParams } from '../fauna/species.js';
-import { SILHOUETTES, silhouetteOf, bellyOf, rounded, sideHips, SIDE_HIPS } from './feature-silhouettes.js';
+import { SILHOUETTES, silhouetteOf, bellyOf, rounded, sideHips, SIDE_HIPS, fronted, FRONT_SILHOUETTES } from './feature-silhouettes.js';
 import { functional, speciesLimbs } from './feature-function.js';
 import { PHI, beakOf, beakParts, headOf, plumageOf, extentAlong } from './feature-birds.js';
 import { tunedSilhouette, detailClumps, sizesOf } from './feature-tune.js';
@@ -204,7 +204,8 @@ function structure(S, P, T, shape = [1, 1, 1], Z = null) {
   // (a leg that shows is a mascot's: round and full, never a stick; a bird's thinner, still round)
   const shinGroup = S.bird ? 'Sock' : undefined, CH = S.bird ? FEATURE_PROPORTION.birdLeg : FEATURE_PROPORTION.leg;
   // (the style's rounding fills the thigh: the volume sits low, feature-silhouettes.js rounded)
-  const legR = [Math.max(S.legR?.[0] ?? 0, CH[0]) * (S.thighScale ?? 1), Math.max(S.legR?.[1] ?? 0, CH[1])].map((x) => x * (S.legScale ?? 1) * (S.legGirth ?? 1)), legM = (legR[0] + legR[1]) / 2;
+  // (a leg proportioned from the front (feature-silhouettes.js fronted) is as broad as its thigh, tapering to the ankle)
+  const legR = (S.thighR ? [S.thighR, Math.min(Math.max(S.legR?.[1] ?? 0, CH[1]), S.thighR * 0.75)] : [Math.max(S.legR?.[0] ?? 0, CH[0]) * (S.thighScale ?? 1), Math.max(S.legR?.[1] ?? 0, CH[1])]).map((x) => x * (S.legScale ?? 1) * (S.legGirth ?? 1)), legM = (legR[0] + legR[1]) / 2;
   const legs = S.legs === 'cones' ? [
     { name: 'thighR', a: hip, b: knee, ra: legR[0], rb: legM, bone: 'thighR', join: 0.1 },
     { name: 'shinR', a: knee, b: ankle, ra: legM, rb: legR[1], bone: 'shinR', group: shinGroup, join: 0.08 }] : [];
@@ -461,9 +462,12 @@ export function featureBuild(card, { decor = {}, tune = null } = {}) {
   const T = { ...(FAMILY_TUNE[card.family] ?? {}), ...(SPECIES_TUNE[card.id] ?? {}) };
   // THE SILHOUETTE, read from the species' own body (feature-silhouettes.js)
   // (the style's rounding: every silhouette bottom-heavy and round, feature-silhouettes.js)
-  // (side hips, a prototype the tune asks for: a round animal's legs on the sides of its ball, feature-silhouettes.js)
-  const silhouette = silhouetteOf(card.id, card.family, plan), Sr = rounded(SILHOUETTES[silhouette]);
-  const Sd = tune?.hips === 'side' && SIDE_HIPS.includes(silhouette) ? sideHips(Sr) : Sr;
+  // (side hips, a round animal's own (the tune's `hips: 'below'` for legs from the bottom of its ball): its legs on the
+  // sides of its ball, feature-silhouettes.js)
+  // (the front's proportion, thigh : body : thigh as 1 : 4 : 1, for a standing four-legged animal: feature-silhouettes.js)
+  const silhouette = silhouetteOf(card.id, card.family, plan), Sr0 = rounded(SILHOUETTES[silhouette]);
+  const Sr = FRONT_SILHOUETTES.includes(silhouette) && ['stander', 'hoofed', 'reptile'].includes(plan) ? fronted(Sr0, T.body ?? 1) : Sr0;
+  const Sd = (tune?.hips ?? 'side') === 'side' && SIDE_HIPS.includes(silhouette) ? sideHips(Sr) : Sr;
   // THE FUNCTION (feature-function.js): a quadruped stands for the acting and drops onto all fours to move, so its
   // silhouette is fitted to its limbs (the species' hind against its fore) and to the floor
   // (a sitter, a frog, sits on its own all fours: SILHOUETTES squat)

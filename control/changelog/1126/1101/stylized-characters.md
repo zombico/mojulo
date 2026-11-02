@@ -161,20 +161,39 @@ member, a quick game's hero). Code: `control/lib/graph/egocube/feature-tune.js`.
   - `SPECIES_TUNE`: a species' own tuning over its family's. The capybara's long boxy head, high-set eyes and coarse
     short coat (no crown, short tufts); the hamster's cheek pouches. The wombat is drawn as the barrel it is
     (`SILHOUETTE_OF`: its long low roster body read as a noodle).
-- **Side hips, a prototype** (opt-in: `tune.hips: 'side'`). A round animal's legs (the pear and the barrel silhouettes)
-  set on the sides of its ball at its centre's height, the thighs reaching a little forward along the flanks, in place
-  of legs from the bottom of the ball (`sideHips` in `feature-silhouettes.js`). On all fours the ball pitches about its
-  own centre and rolls in place, instead of swinging forward and down over hips at the floor. On six round animals:
-  - the fit raises the legs 0.05 to 0.10 head units, where it raised them 0.45;
-  - the trunk's centre travels 0.66 to 0.68 between standing and all fours, where it travelled 1.21 to 1.31;
+- **Side hips, the round animals' default** (`tune.hips: 'below'` for the old way). A round animal's legs (the pear and
+  the barrel silhouettes) are set on the sides of its ball at its centre's height, in place of legs from the bottom of the
+  ball (`sideHips` in `feature-silhouettes.js`). On all fours the ball pitches about its own centre and rolls in place,
+  instead of swinging forward and down over hips at the floor. On six round animals, against legs from the bottom:
+  - the fit raises the legs 0.21 to 0.26 head units, where it raised them 0.60 to 0.62;
+  - the belly's bottom sits 0.28 to 0.39 head units off the ground, where it sat 0.69 to 0.80: the butt low;
   - the arms lengthen as before; the function holds.
-  Standing, they take a wider plush-toy stance, legs showing on the sides. A knee reaching further forward
-  (`SIDE_HIP_REACH`) made them look seated, so it reaches 0.4 of the ball's depth. It is not the default yet: the eyes
-  gate decides.
+  A prototype first (opt-in), it was made the default once the operator saw it.
+  - From the side each thigh is a DRUMSTICK (`SIDE_HIP_DRUM`): 2.4 times as deep as it is broad (its front-view
+    breadth, the 1 : 4 : 1, untouched), round at the hip and tapering to a low knee, a fifth of the way up the hip, so
+    its round end shows under the ball.
+- **Standing straight, on all fours bent.** Standing, the legs are straight: a side-hipped animal's knee and ankle fall
+  straight under its hip (`SIDE_HIP_REACH` 0), and the standing clips (the idle, the blink, the wave, the faces) bend
+  no knee and stand the feet under the hips (a sturdy idle's wide stance had splayed a bear's straight legs out), a motion clip starting and ending on a straight stand (`straightened` in `feature-body.js`; a hop's or a
+  squat's own crouch kept). On all fours the hind legs keep their natural bend (`FEATURE_FOURS.natural`, 0.3): the
+  fours pose starts there, and the fit counts the hips that much lower when it clears the trunk.
+- **Thigh : body : thigh as 1 : 4 : 1 from the front.** A standing four-legged animal (the pear, barrel, wedge, leggy
+  and noodle silhouettes) is proportioned across its hips within the width its body had (`fronted`, `FRONT_RATIO` in
+  `feature-silhouettes.js`):
+  - the body narrows to four sixths of that width (across only, its side view kept; never widened), the shoulders and
+    the belly's shapes with it;
+  - each thigh takes a sixth, never thinner than a round full leg (`FRONT_RATIO.least`: a body too slim for 1 : 4 keeps
+    that floor and reads a little thicker), tucked against the body: its middle at the body's side, half of it over the
+    belly (`FRONT_RATIO.overlap`). Before, the
+    thighs sat inside the body's outline, so from the front a wide body stood on thin legs; the legs' radius follows
+    the thigh's;
+  - the family's breadth is counted, so the ratio is the drawn one. Side hips keep the thigh's breadth.
+  - A coat cut into the skin (stripes, the giraffe's patches) has the skin simplified further first
+    (`FEATURE_CUT_SHARE`), so the figure stays within budget. The narrower giraffe had gone 151 triangles over.
 - **QA.** `scripts/spikes/feature-roster.mjs` takes `--tune` (every species minted with it) and `--tunes` (each species
   once per tune, side by side).
-- **Stored mascots keep their look.** A minted mascot stores its compiled plan. An untuned sheet compiles as before,
-  except for the five families above. A tuned mint records its tune in `plan.mascot.tune` and reads it back.
+- **Stored mascots keep their look.** A minted mascot stores its compiled plan. An untuned sheet compiles anew on
+  a new mint: the five families above, the round animals' side hips, the front's proportion and the straight stand. A tuned mint records its tune in `plan.mascot.tune` and reads it back.
 
 **Gates.**
 
@@ -196,8 +215,12 @@ member, a quick game's hero). Code: `control/lib/graph/egocube/feature-tune.js`.
     the jaw (rings on the legs, arcs from the spine to the belly above them, a cat's stopping short), and a giraffe's
     seeded network of patches in its own colour, both cut into the skin within the budget, the markings' dial still
     ruling them;
-  - side hips: a round animal's hips on its ball's sides at its centre, the fit's rise less than half and the trunk's
-    travel under 0.7 of the legs-below build, the function holding, a silhouette that is no ball untouched;
+  - thigh : body : thigh as 1 : 4 : 1 from the front for one species of each standing silhouette, the thighs alongside the
+    body, never thinner than a full leg;
+  - side hips as designed: a round animal's hips on its ball's sides at its centre, its legs straight under them, its
+    thigh a drumstick (deeper than broad, its end under the ball), its belly lower than the legs-below build's, the fit's rise less than half and the trunk's travel under 0.7 of it, on
+    all fours the natural bend, the function holding, a silhouette that is no ball untouched; no standing clip bends a
+    knee or widens the stance and the fours clip bends one (`feature-body.test.js`);
   - a rodent's buck teeth (none on the hedgehog), a chunky rodent's blunt face on whisker pads, a beaver's flat paddle on
     the ground, a tailless rodent tailless, a capybara's longer head and short coat;
   - a moose's flat palms (broad face to the front, points on the rim, not the deer's tines) and its big droopy nose

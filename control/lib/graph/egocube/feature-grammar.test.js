@@ -12,7 +12,7 @@ import { featureFace } from './feature-face.js';
 import { FEATURE_BIRD_LEAN } from './mascot.js';
 import { FEATURE_FOURS, speciesLimbs } from './feature-function.js';
 import { PHI, beakParts, plumageOf, extentAlong } from './feature-birds.js';
-import { SILHOUETTES, silhouetteOf, speciesMetrics, BELLY_CONTRAST } from './feature-silhouettes.js';
+import { SILHOUETTES, silhouetteOf, speciesMetrics, BELLY_CONTRAST, FRONT_RATIO, FRONT_SILHOUETTES } from './feature-silhouettes.js';
 import { animalCard } from './mascot-animals.js';
 import { SPECIES } from '../fauna/species.js';
 import { rollMascot } from './mascot.js';
@@ -196,6 +196,23 @@ describe('the feature grammar', () => {
     expect(nose.group).toBe('Nose'); expect(nose.u[2]).toBeLessThan(-0.8); expect(nose.e).toBeGreaterThan(0.4);   // (its point down)
     expect(c.eggs.some((e) => e.name === 'padR')).toBe(true);
     expect(c.marks.find((x) => x.name === 'throat').eggs).toEqual(expect.arrayContaining(['padR', 'padL', 'chin']));
+  });
+
+  it('from the front a standing animal reads thigh : body : thigh as 1 : 4 : 1, the thighs alongside the body', () => {
+    // (one species per standing silhouette, chosen in code; the function may grow big hind legs after, so the ones it
+    // leaves as designed)
+    for (const sil of FRONT_SILHOUETTES) {
+      const id = Object.keys(SPECIES).find((i) => { try { return ['stander', 'hoofed', 'reptile'].includes(PLAN_OF[SPECIES[i].family]) && silhouetteOf(i, SPECIES[i].family, PLAN_OF[SPECIES[i].family]) === sil && featureBuild(animalCard(i)).fit?.hind === 1; } catch { return false; } });
+      if (!id) continue;
+      const b = featureBuild(animalCard(id)), belly = b.eggs.find((e) => e.name === 'belly'), h = b.eggs.find((e) => e.name === 'haunchR');
+      // (a body too slim for 1 : 4 keeps its thighs at the floor, `least`: never stick legs, the ratio a little thicker)
+      const ratio = (2 * belly.r[1]) / (2 * h.r[1]);
+      if (h.r[1] > FRONT_RATIO.least + 1e-6) expect(ratio, `${sil}: ${id}`).toBeCloseTo(FRONT_RATIO.body / FRONT_RATIO.thigh, 1);
+      else expect(ratio, `${sil}: ${id}`).toBeLessThanOrEqual(FRONT_RATIO.body / FRONT_RATIO.thigh + 1e-6);
+      // (the thigh's middle at the body's side, half of it over the belly: never hidden inside the body's outline)
+      expect(b.joints.hip[0] - h.r[1] * (1 - FRONT_RATIO.overlap), `${sil}: ${id}`).toBeCloseTo(belly.r[1], 2);
+      expect(h.r[1], `${sil}: ${id}`).toBeGreaterThanOrEqual(FRONT_RATIO.least - 1e-9);
+    }
   });
 
   it('a rodent has buck teeth; a chunky one a blunt face on whisker pads and its own tail', () => {

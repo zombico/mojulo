@@ -107,6 +107,9 @@ describe('the feature body', () => {
     const crown = nodes.headTop.map((v, k) => v - nodes.headBase[k]);
     expect(crown[2] / Math.hypot(...crown)).toBeGreaterThan(0.8);
     expect(plan.clips.prowl.length).toBe(plan.clips.walk.length);
+    // (standing, the legs straight: no standing pose bends a knee; on all fours the hind legs keep their bend)
+    for (const n of ['idle', 'blink', 'happy']) for (const k of plan.clips[n]) { expect(k.crouch ?? 0, n).toBe(0); expect(k.stance ?? 1, n).toBe(1); }
+    expect(Math.max(...plan.clips.fours.map((k) => k.crouch ?? 0))).toBeGreaterThan(0);
     const toon = mascotPlanFromSheet(rollMascot({ brief: 'raccoon' }));
     expect(toon.create.spec).toMatchObject({ hullShade: true, toon: { light: true } });
     expect(toon.create.spec.plan.segments.some((s) => s.kind === 'mesh')).toBe(false);

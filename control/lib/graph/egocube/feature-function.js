@@ -30,11 +30,11 @@ const cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a
 const dist = (a, b) => (a && b ? Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]) : NaN);
 
 /** THE FUNCTION'S NUMBERS: the hinges tried (most level first: the fit is made for the first), the hind legs' deepest
- *  crouch, how far a belly may brush the floor (h), the shoulders' lowest share of the arm's reach (the elbows bend no
+ *  crouch and their NATURAL one (on all fours a quadruped's hind legs are never straight: they keep their bend), how far a belly may brush the floor (h), the shoulders' lowest share of the arm's reach (the elbows bend no
  *  further), the body's depth's easing step and least, the legs' and the arms' most, and where a species' hind legs
  *  count as big */
 export const FEATURE_FOURS = Object.freeze({
-  hinges: [80, 75, 70, 65, 60, 55, 50, 45], crouch: 0.8, brush: 0.04, bend: 0.55,
+  hinges: [80, 75, 70, 65, 60, 55, 50, 45], crouch: 0.8, natural: 0.3, brush: 0.04, bend: 0.55,
   depth: { step: 0.02, least: 0.82 }, rise: { most: 0.9 }, arms: { most: 1.6 },
   big: 1.75,
 });
@@ -67,7 +67,7 @@ const trunkOf = (S) => [...S.body.filter((e) => !/R$/.test(e.name)), ...(S.neckE
 export function foursOf(S, { arms = 1 } = {}) {
   const F = FEATURE_FOURS, hub = [0, 0, S.hip[2]], reach = (S.arm.len[0] + S.arm.len[1]) * arms + 0.12, trunk = trunkOf(S);
   const toeZ = 0.05, rel = (p) => [p[0] - hub[0], p[1] - hub[1], p[2] - hub[2]];
-  for (const hinge of F.hinges) for (let c = 0; c <= F.crouch + 1e-9; c += 0.05) {
+  for (const hinge of F.hinges) for (let c = F.natural; c <= F.crouch + 1e-9; c += 0.05) {
     const drop = c * 0.45 * (S.hip[2] - toeZ), z0 = S.hip[2] - drop, sh = z0 + pitch(rel(S.arm.sh), hinge)[2];
     if (sh > reach || sh < F.bend * reach) continue;
     let low = Infinity;
@@ -112,15 +112,17 @@ export function functional(S, limbs = {}, { arms: A = 1, legs: Lg = 1, girth: G 
   const big = Math.max(0, q - F.big), fit = { rise: clamp(0.25 * big, 0, 0.3), depth: 1, arms: clamp(1 / q, 1, 1.35) * A, hind: clamp(1 + 0.4 * big, 1, 1.5), foot: clamp((limbs.foot ?? 0.33) / 0.33, 1, 1.8) };
   // the trunk clears the floor hinged level over the hips: the body's depth eased first, then the legs lengthened to
   // the hip height it needs
+  // (the hips on all fours stand lower than standing by the hind legs' natural bend: the hub the trunk turns about)
+  const d = F.natural * 0.45, hubOf = (h) => h - d * (h - 0.05), hipFor = (hub) => (hub - 0.05 * d) / (1 - d);
   let T = refit(S, fit), H = hinged(T, deg);
-  while (-H.low - F.brush > T.hip[2] && fit.depth - F.depth.step >= F.depth.least - 1e-9) { fit.depth -= F.depth.step; T = refit(S, fit); H = hinged(T, deg); }
-  fit.rise = clamp(fit.rise + Math.max(0, -H.low - F.brush - T.hip[2]), 0, F.rise.most * Math.max(1, G));
+  while (-H.low - F.brush > hubOf(T.hip[2]) && fit.depth - F.depth.step >= F.depth.least - 1e-9) { fit.depth -= F.depth.step; T = refit(S, fit); H = hinged(T, deg); }
+  fit.rise = clamp(fit.rise + Math.max(0, hipFor(-H.low - F.brush) - T.hip[2]), 0, F.rise.most * Math.max(1, G));
   // (a tune's legs: the hips at that share of the height the fit made them, never lower than the floor needs)
   if (Lg !== 1) { const want = (S.hip[2] + fit.rise) * Lg - S.hip[2]; if (want < fit.rise) held.push('legs'); fit.rise = Math.max(fit.rise, want); }
   T = refit(S, fit); H = hinged(T, deg);
   // the arms long enough for the forepaws to reach the floor from there: a level back over straight hind legs, or, on
   // big hind legs, the hind legs folded under it as far as the trunk still clears the floor (a rabbit's, a kangaroo's)
-  const hub = big > 0 ? Math.max(-H.low - F.brush, T.hip[2] - F.crouch * 0.45 * (T.hip[2] - 0.05)) : T.hip[2], L = S.arm.len[0] + S.arm.len[1];
+  const hub = big > 0 ? Math.max(-H.low - F.brush, T.hip[2] - F.crouch * 0.45 * (T.hip[2] - 0.05)) : hubOf(T.hip[2]), L = S.arm.len[0] + S.arm.len[1];
   const need = (hub + H.sh + 0.01 - 0.12) / L;
   if (A < 1 && need > fit.arms) held.push('arms');
   fit.arms = clamp(Math.max(fit.arms, need), Math.min(1, A), F.arms.most * Math.max(1, A, G));

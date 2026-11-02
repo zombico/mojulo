@@ -119,7 +119,7 @@ export function validateTune(tune) {
   if (!isPlain(tune)) return ['tune: { structure?: { <dial>: a multiplier }, decoration?: { <dial>: 0–3 }, tuft?: a style or { style, colour?, size? }, detail?: \'game\' | \'gen7\' }'];
   const errs = [...validateTuft(tune.tuft)];
   for (const k of Object.keys(tune)) if (!['structure', 'decoration', 'tuft', 'detail', 'hips'].includes(k)) errs.push(`tune.${k}: not a tune word (structure, decoration, tuft, detail, hips)`);
-  if (tune.hips !== undefined && !['below', 'side'].includes(tune.hips)) errs.push("tune.hips: 'below' (the legs from the bottom of a round body, as designed) or 'side' (a prototype: on its sides at its centre)");
+  if (tune.hips !== undefined && !['below', 'side'].includes(tune.hips)) errs.push("tune.hips: 'side' (a round body's legs on its sides at its centre, as designed) or 'below' (from the bottom of its ball)");
   const dials = (o, name, keys, range) => {
     if (o === undefined) return;
     if (!isPlain(o)) { errs.push(`tune.${name}: { ${keys.join(' | ')}: a number }`); return; }
@@ -139,7 +139,7 @@ export function resolveTune(tune) {
   const errs = validateTune(tune);
   if (errs.length) throw new Error(`mascot: the tune refused:\n - ${errs.join('\n - ')}`);
   const T = tune ?? {}, id = T.detail ?? 'game';
-  return { structure: { ...Object.fromEntries(STRUCTURE_KEYS.map((k) => [k, 1])), ...(T.structure ?? {}) }, decor: { ...(T.decoration ?? {}) }, tuft: resolveTuft(T.tuft), ...(T.hips === 'side' ? { hips: 'side' } : {}), detail: { ...FEATURE_DETAIL[id], id } };
+  return { structure: { ...Object.fromEntries(STRUCTURE_KEYS.map((k) => [k, 1])), ...(T.structure ?? {}) }, decor: { ...(T.decoration ?? {}) }, tuft: resolveTuft(T.tuft), ...(T.hips ? { hips: T.hips } : {}), detail: { ...FEATURE_DETAIL[id], id } };
 }
 
 /** the longest tuning phrase, in words */

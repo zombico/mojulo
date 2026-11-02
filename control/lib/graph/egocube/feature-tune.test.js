@@ -159,15 +159,23 @@ describe('the feature tune', () => {
     expect(rollMascot({ brief: `a stylized ${pear} with a mohawk` }).tune.tuft).toBe('mohawk');
   });
 
-  it('side hips (a prototype): a round animal\'s legs on the sides of its ball, so it drops onto all fours rolling in place', () => {
+  it('side hips (as designed): a round animal\'s legs on the sides of its ball, so it drops onto all fours rolling in place; \'below\' the old way', () => {
     // (one round species, chosen in code: the pear's own, a family the style draws as designed)
-    const below = featureBuild(animalCard(pear)), side = featureBuild(animalCard(pear), { tune: resolveTune({ hips: 'side' }) });
+    const below = featureBuild(animalCard(pear), { tune: resolveTune({ hips: 'below' }) }), side = featureBuild(animalCard(pear));
+    expect(featureBuild(animalCard(pear), { tune: resolveTune({ hips: 'side' }) }).joints.hip).toEqual(side.joints.hip);
     expect(validateTune({ hips: 'sideways' }).join(' ')).toMatch(/tune\.hips/);
-    expect(resolveTune({}).hips).toBeUndefined();                                    // (absent: the legs from the bottom)
+    expect(resolveTune({}).hips).toBeUndefined();                                    // (absent: as designed, the sides)
     const belly = side.eggs.find((e) => e.name === 'belly');
     expect(side.joints.hip[0]).toBeGreaterThan(belly.r[1] * 0.6);                    // (on the ball's side)
     expect(side.joints.hip[2]).toBeGreaterThan(below.joints.hip[2]);                 // (up at its centre, not its bottom)
-    expect(side.joints.knee[1]).toBeGreaterThan(side.joints.hip[1]);                 // (the thigh reaching forward)
+    // (standing, the legs straight: the knee and the ankle under the hip; the butt low, nearer the ground than the old way's)
+    expect(side.joints.knee[0]).toBeCloseTo(side.joints.hip[0], 6); expect(Math.abs(side.joints.knee[1] - side.joints.hip[1])).toBeLessThan(0.05);
+    expect(belly.c[2] - belly.r[2]).toBeLessThan(below.eggs.find((e) => e.name === 'belly').c[2] - below.eggs.find((e) => e.name === 'belly').r[2]);
+    // (from the side a drumstick: the thigh deeper than it is broad, its tapered end out under the ball)
+    const haunch = side.eggs.find((e) => e.name === 'haunchR');
+    expect(haunch.r[2]).toBeGreaterThan(haunch.r[1] * 1.5); expect(haunch.c[2] - haunch.r[0] * (1 + haunch.e / 2)).toBeLessThan(belly.c[2] - belly.r[2]);
+    // (on all fours the hind legs keep their natural bend)
+    expect(side.fours.crouch).toBeGreaterThanOrEqual(FEATURE_FOURS.natural - 1e-9);
     // (the transition: the fit raises the legs far less, the trunk's centre travels less, and the function holds)
     expect(side.fit.rise).toBeLessThan(below.fit.rise / 2);
     const centre = (b) => { const es = b.eggs.filter((e) => ['belly', 'chest'].includes(e.name)); return es.reduce((a, e) => a.map((x, k) => x + e.c[k] / es.length), [0, 0, 0]); };

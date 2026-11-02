@@ -91,6 +91,12 @@ line of its back (where spines run) and the shapes a belly takes on it.
 | **orb** | a whale, a dolphin (fish are not drawn in the style) | one egg, the face on its front, fins for limbs |
 | **coil** | no legs (a snake) | a ring of loops on the ground, the body an S rising out of it, the head held out front |
 
+**From the front a standing animal reads THIGH : BODY : THIGH as 1 : 4 : 1** (`fronted`, `FRONT_RATIO`), within the
+width its body had: the body narrows to four sixths of it (across only; never widened), each thigh takes a sixth (never
+thinner than a round full leg, `FRONT_RATIO.least`: a slim body keeps that floor), tucked against the body: its middle
+at the body's side (`overlap`), half of it over the belly, so the legs fall straight down partly in front of the body,
+never from inside its outline. The family's breadth (`FAMILY_TUNE` `body`) is counted.
+
 **Every silhouette is rounded** (`rounded`, `FEATURE_ROUND`): the style's animals are bottom-heavy and round, so the
 lower masses (the belly, a pear's front, the haunches, a snake's coils) are fuller across and deep, the chest a little
 slimmer, a leg that shows full at the thigh, every mass rounder (less pointed) and blended softer. The belly's shapes
@@ -101,12 +107,19 @@ forward and one back; the head smooth unless its kit names a crest.
 
 ## Function
 
-**Side hips (a prototype, `tune.hips: 'side'`).** A round animal (the pear, the barrel) stands on legs from the bottom of
-its ball, so dropping onto all fours pivots the whole ball about a point near the floor: it swings forward and down, and
-the fit must lengthen the legs to clear it. With the hips on the SIDES of the ball at its centre's height (`sideHips`),
-the thighs reaching a little forward along the flanks (`SIDE_HIP_REACH`), the ball pitches about its own centre and
-rolls in place: the fit raises the legs a fifth as much, and the trunk's centre travels about half as far. Standing, the
-animal takes a wider plush-toy stance. It is opt-in until the eyes gate chooses it as the default.
+**Side hips (as designed; `tune.hips: 'below'` for the old way).** A round animal (the pear, the barrel) on legs from
+the bottom of its ball pivots the whole ball about a point near the floor when it drops onto all fours: it swings forward
+and down, and the fit must lengthen the legs to clear it. Its hips are on the SIDES of the ball at its centre's height
+instead (`sideHips`), so the ball pitches about its own centre and rolls in place: the fit raises the legs about a third
+as much, the trunk's centre travels about half as far, and the belly sits low, about half as high off the ground. From
+the side each thigh is a DRUMSTICK (`SIDE_HIP_DRUM`): much deeper than it is broad (the front's 1 : 4 : 1 untouched),
+round at the hip, tapering to a low knee, so its round end shows under the ball.
+
+**Standing straight, on all fours bent.** Standing, the legs are straight: the knee and the ankle under the hip
+(`SIDE_HIP_REACH` 0), and the standing clips (the idle, the blink, the wave, the faces) bend no knee and keep the feet
+under the hips (`straightened`).
+On all fours the hind legs keep their natural bend (`FEATURE_FOURS.natural`): the fours pose starts at that crouch, and
+the fit counts the hips that much lower when it clears the trunk.
 
 The fauna roster's skeleton gives each species its limbs (`speciesLimbs`: the fore and hind legs' chained lengths, the
 hind against the fore, the hind foot against the hind leg). `functional` fits the silhouette to them:

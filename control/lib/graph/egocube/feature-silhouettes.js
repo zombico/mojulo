@@ -196,19 +196,52 @@ export function rounded(S) {
   return { ...S, body, belly, thighScale: F.thigh };
 }
 
-/** SIDE HIPS (a prototype, opt-in: `tune.hips: 'side'`): a round animal's legs set on the SIDES of its ball at its
- *  centre's height, the thighs reaching forward along the flanks, the shins folded back under to the feet, in place of
- *  legs from the bottom of the ball. On all fours the ball then pitches about its own centre and rolls in place, never
- *  swinging forward and down over hips at the floor, and the arms reach the floor from where the legs do: the biped and
- *  the quadruped are one body. The silhouettes it suits (`SIDE_HIPS`): the round ones, whose legs are at the bottom */
+/** THE FRONT'S PROPORTION: from the front, at the hips, a standing animal reads THIGH : BODY : THIGH as 1 : 4 : 1
+ *  (`FRONT_RATIO`), within the width its body had: the body narrows to four sixths of that width (across only: its
+ *  depth, its side view, kept; never widened), the shoulders and the belly's shapes with it, and each thigh takes one
+ *  sixth (never thinner than a round leg, `least`; the leg itself as broad as its thigh, `thighR`), its middle at the
+ *  body's side (`overlap`, the share of a thigh's half over the body: 1, half the thigh over the belly, half beside it),
+ *  never hidden inside its outline: the legs fall straight down, tucked against the body. `bw` is the family's breadth (FAMILY_TUNE `body`), which the structure lays over the body's
+ *  width and the hips' places, so the ratio is the drawn one. The silhouettes it holds for (`FRONT_SILHOUETTES`): the
+ *  standing four-legged ones */
+export const FRONT_RATIO = Object.freeze({ thigh: 1, body: 4, overlap: 1, least: 0.2 });
+export const FRONT_SILHOUETTES = Object.freeze(['pear', 'barrel', 'wedge', 'leggy', 'noodle']);
+export function fronted(S, bw = 1) {
+  const haunch = S.body.find((e) => e.name === 'haunchR'), belly = S.body.find((e) => e.name === 'belly');
+  if (!haunch || !belly) return S;
+  // (the width the body had, split thigh : body : thigh)
+  const F = FRONT_RATIO, W = 2 * belly.r[1] * bw, sum = 2 * F.thigh + F.body, rt = Math.max(F.least, (W * F.thigh) / sum / 2);
+  const k = Math.min(1, ((F.body / F.thigh) * rt) / (belly.r[1] * bw)), r1 = belly.r[1] * k * bw, xt = (r1 + rt * (1 - F.overlap)) / bw, dx = xt - S.hip[0], sH = rt / haunch.r[1];
+  const body = S.body.map((e) => (e.name === 'haunchR' ? { ...e, c: [e.c[0] + dx, e.c[1], e.c[2]], r: e.r.map((x) => x * sH) } : /R$/.test(e.name) ? e : { ...e, r: [e.r[0], e.r[1] * k, e.r[2]] }));
+  const belly2 = Object.fromEntries(Object.entries(S.belly).map(([n, e]) => [n, { ...e, r: [e.r[0], e.r[1] * k, e.r[2]] }]));
+  return { ...S, body, belly: belly2, hip: [S.hip[0] + dx, S.hip[1], S.hip[2]], ...(S.knee ? { knee: [S.knee[0] + dx, S.knee[1], S.knee[2]] } : {}),
+    foot: [S.foot[0] + dx, S.foot[1]], arm: { ...S.arm, sh: [S.arm.sh[0] * (0.5 + 0.5 * k), S.arm.sh[1], S.arm.sh[2]] }, thighX: xt, thighR: rt };
+}
+
+/** SIDE HIPS (the round silhouettes' own, `SIDE_HIPS`; `tune.hips: 'below'` for the legs from the bottom of the
+ *  ball): a round animal's legs set on the SIDES of its ball at its centre's height, standing STRAIGHT down to the feet
+ *  under them, in place of legs from the bottom of the ball. On all fours the ball then pitches about its own centre and
+ *  rolls in place, never swinging forward and down over hips at the floor, so the fit need hardly raise it (its rump
+ *  stays low to the ground), and the arms reach the floor from where the legs do: the biped and the quadruped are one
+ *  body. On all fours the legs keep their natural bend (feature-function.js FEATURE_FOURS `natural`) */
 export const SIDE_HIPS = Object.freeze(['pear', 'barrel']);
-/** how far forward a side hip's knee reaches (a share of the ball's depth): far, and the animal stands as if seated */
-export const SIDE_HIP_REACH = 0.4;
+/** how far forward a side hip's knee reaches (a share of the ball's depth): 0, the leg straight; far, and the animal
+ *  stands as if seated */
+export const SIDE_HIP_REACH = 0;
+/** a side hip's thigh from the side: a DRUMSTICK out under the ball (the knee low, a share of the hip's height, so the
+ *  thigh's round end shows below the ball and tapers to it; its depth a share of its breadth, its taper toward the
+ *  knee, its middle drawn up toward the hip a share of the thigh) */
+export const SIDE_HIP_DRUM = Object.freeze({ knee: 0.2, deep: 2.4, taper: 0.6, lift: 0.04 });
 export function sideHips(S) {
   const belly = S.body.find((e) => e.name === 'belly'), c = belly.c, R = belly.r;
-  const x = R[1] * 0.78, hip = [x, c[1], c[2] - R[0] * 0.15], knee = [x * 1.06, c[1] + R[2] * SIDE_HIP_REACH, hip[2] * 0.45], foot = [x * 1.02, c[1] + R[2] * 0.2];
+  // (the knee on the straight line from the hip down to the ankle under it, as far forward as SIDE_HIP_REACH says)
+  const x = S.thighX ?? R[1] * 0.78, hip = [x, c[1], c[2] - R[0] * 0.15], knee = [x, (c[1] + 0.05) / 2 + R[2] * SIDE_HIP_REACH, 0.1 + (hip[2] - 0.1) * SIDE_HIP_DRUM.knee], foot = [x, Math.max(0.2, c[1] + 0.15)];
   const th = [knee[0] - hip[0], knee[1] - hip[1], knee[2] - hip[2]], L = Math.hypot(...th), u = unit(th);
-  const haunch = { name: 'haunchR', c: [hip[0] + th[0] / 2 + 0.06, hip[1] + th[1] / 2, hip[2] + th[2] / 2], u, r: [L / 2 + 0.14, 0.4, 0.38], e: 0.25, hint: [1, 0, 0], bone: 'thighR', join: 0.24 };
+  // (the thigh keeps its own breadth: the front's proportion is the haunch's)
+  // (from the side a DRUMSTICK: deep at the hip, front to back (`SIDE_HIP_DRUM.deep` of its breadth), tapering to the
+  // knee (`taper`, the egg's narrowing toward its far end), its middle drawn up toward the hip (`lift`))
+  const rt = S.body.find((e) => e.name === 'haunchR')?.r[1] ?? 0.4, D = SIDE_HIP_DRUM, m = 0.5 - D.lift;
+  const haunch = { name: 'haunchR', c: [hip[0] + th[0] * m, hip[1] + th[1] * m, hip[2] + th[2] * m], u, r: [L / 2 + 0.14, rt, rt * D.deep], e: D.taper, hint: [1, 0, 0], bone: 'thighR', join: 0.24 };
   return { ...S, hip, knee, foot, legs: 'cones', body: [...S.body.filter((e) => e.name !== 'haunchR'), haunch], sideHips: true };
 }
 
