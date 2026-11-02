@@ -615,7 +615,7 @@ export function bayRoom(out, r, ri, kit, surf, rooms = []) {
   }
   // ── a tall room's glazed booth: in a corner on the long wall the catwalk is not on, at an end no doorway is near ──
   const Bt = B.booth;
-  if (tall && Bt && longSides.length) {
+  if (tall && Bt && !Bt.none && longSides.length) {
     const wk = structure.walkways[0], free = longSides.filter((x) => !wk || x !== wk.side), s = (free.length ? free : longSides)[0], F = wallFrameOf(r, s);
     const near = (u0, u1) => r.openings[s].some((op) => { const [c0, c1] = openingU(F, op); return c1 > u0 - 0.6 && c0 < u1 + 0.6; });
     const ends = sides.filter((x) => !isLong(x)).map((x) => ({ x, F: wallFrameOf(r, x) }));

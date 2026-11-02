@@ -188,7 +188,7 @@ export const CONSTRUCTIONS = Object.freeze({
       grate: [d('boards', 1, { ...F, cols: 6, grit: 0.3 })],
       infill: [d('boards', 1, { cols: 4, grit: 0.3 })],
     },
-    roofs: ['beams'], braced: false, air: false, duct: 'duct:spiral-450', glass: { clear: 'glass:crown-leaded', other: 'glass:crown-leaded', low: 'punched' }, booth: { dado: 0 },
+    roofs: ['beams'], braced: false, air: false, duct: 'duct:spiral-450', glass: { clear: 'glass:crown-leaded', other: 'glass:crown-leaded', low: 'punched' }, booth: { dado: 0, none: true },
     door: { width: 1.2, height: 2.2, frame: 0.12, out: 0.04 },
     shell: { base: { h: 0.35, out: 0.04 }, crown: { h: 0.3, out: 0.08 }, pilaster: { w: 0.28, out: 0.12, foot: 0.35 }, door: { frame: 0.12, out: 0.04, sill: 0.1 },
       beam: { perSpan: 0.06, min: 0.28, max: 0.36, w: 0.24, web: 0.24, flange: 0.08 }, glass: { punched: { w: 0.9, sill: 1.0, head: 2.0 }, every: 0.3, mullion: 0.03, cames: 0.24 } },
@@ -215,6 +215,7 @@ export const PALETTES = Object.freeze({
     grate: [s([128, 132, 134], [20, 21, 23])],
     infill: [s([112, 118, 124], [18, 19, 21])],
     cabinet: [s([72, 80, 62])],
+    trim: [s([120, 124, 126])],
   },
   // warm greys and pale block, yellow steel, safety green the secondary paint, blue services
   utility: {
@@ -234,6 +235,7 @@ export const PALETTES = Object.freeze({
     grate: [s([150, 152, 150], [24, 24, 26])],
     infill: [s([150, 154, 150], [24, 24, 26])],
     cabinet: [s([150, 152, 146])],
+    trim: [s([132, 128, 118])],
   },
   // whites and pale greys over a teal base band, deep blue the secondary paint, violet services
   science: {
@@ -253,6 +255,7 @@ export const PALETTES = Object.freeze({
     grate: [s([176, 180, 184], [36, 40, 44])],
     infill: [s([206, 210, 212], [40, 44, 48])],
     cabinet: [s([44, 46, 50], [40, 42, 46]), s([214, 218, 220])],
+    trim: [s([200, 204, 206])],
   },
   // warm whites and neutral greys, the catalog's carpet, vinyl, porcelain, laminate and oak their own, a muted teal the
   // secondary paint; the air neutral (an everyday room is lit white, not blue)
@@ -274,6 +277,7 @@ export const PALETTES = Object.freeze({
     beam: [s([200, 202, 204])],
     grate: [s([170, 172, 172], [30, 30, 32])],
     infill: [s([210, 212, 212], [40, 42, 44])],
+    trim: [s([150, 148, 144])],
   },
   // VERNACULAR: warm lime plaster, oak and pine, grey flags, a stone socle: a town's own colours derive over these
   // (gameworld/town interiors' palette, from the town's language and its cube)
