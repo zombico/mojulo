@@ -9,6 +9,7 @@ import { readGameworld } from './world.js';
 import { gameStages, stageLevelOrder, gameStore, mapPlan } from './levels.js';
 import { composeMechanics } from '../game/mechanics.js';
 import { errandPage } from './errand-page.js';
+import { proveErrands, lastStageManifests } from './errand-proof.js';
 import { gameworldBibleHtml, esc } from './bible-html.js';
 import { buildBus } from '../worlds/event-bus.js';
 
@@ -138,5 +139,28 @@ describe('the book draws it', () => {
     const { errands: _e, ...plain } = MAP;
     expect(errandPage(readGameworld(plain), esc)).toBe('');
     expect(gameworldBibleHtml(MAP)).toMatch(/id="errands"/);
+  });
+});
+
+describe('the errand proved on the bus (machine gate)', () => {
+  const manifests = Object.fromEntries(Object.entries(made).map(([level, o]) => [level, o.args.manifest]));
+  it('walks each leg in order on the levels made, the bag carried, and is delivered; the fight given, said so', () => {
+    const [P] = proveErrands(MAP, manifests);
+    expect(P).toMatchObject({ errand: 'eggs-run', proved: true, says: 'walked coin → eggs → pelt → home: delivered' });
+    expect(P.legs.map((l) => `${l.item}@${l.level}`)).toEqual(['coin@farm', 'eggs@market', 'pelt@woods', 'delivered@home']);
+    expect(P.legs[1].bag).toMatchObject({ 'held:bag:coin': 0, 'held:bag:eggs': 12 });
+    expect(P.legs.at(-1).bag).toMatchObject({ 'held:bag:eggs': 6, 'held:bag:gold': 5 });
+    expect(P.assumed).toEqual(["pelt: a walker's fall is given (the proof cannot fight)"]);
+    expect(P.arrives).toEqual([{ item: 'eggs', arrives: 12, asked: 6 }, { item: 'pelt', arrives: 1, asked: 1 }]);
+    expect(lastStageManifests([{ key: 'level-home-0', order: { manifest: manifests.home } }, { key: 'game', order: {} }])).toEqual({ home: manifests.home });
+  });
+
+  it('walks nothing it cannot: an errand out of reach, or a level not made', () => {
+    const keyed = withErrands([EGGS], { links: [{ from: 'home', to: 'farm' }, { from: 'farm', to: 'market', key: 'pass', keyAt: 'woods' }, { from: 'market', to: 'woods' }] });
+    expect(proveErrands(keyed, manifests)[0]).toMatchObject({ proved: false, says: expect.stringMatching(/^not walked: eggs, pelt cannot be had/) });
+    const { market: _m, ...some } = manifests;
+    expect(proveErrands(MAP, some)[0]).toMatchObject({ proved: false, says: "not walked: no stage made for market" });
+    const { errands: _e, ...plain } = MAP;
+    expect(proveErrands(plain, manifests)).toBeNull();
   });
 });

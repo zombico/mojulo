@@ -30,3 +30,8 @@ spoils while carried. Built so far:
   its legs in order, home again) with a row a leg: what is had, where, how (a shelf, a shop and its price, a bounty and
   its foe), its cargo's state, what the giver asks; the reward and the laws. The `gameworld-qow` card carries the
   recipe and answers "an errand, a fetch quest, a delivery run, a bounty board"; docs/quest-open-world.md says it.
+- **The proof** (`gameworld/errand-proof.js`, a machine gate): after a run, `design_game`'s readout carries
+  `errand_proof`: each errand walked on the bus across the level orders the run made, in the order its laws found, the
+  bag carried from level to level as the store carries it; a trade's place walked to and back, the giver's hand-in at the
+  end, proved when the giver says `errand:done`. What it assumes is said (a bounty's fall is given: the proof cannot
+  fight), what arrives against what is asked is said, and an errand out of reach or a level not made is not walked.
