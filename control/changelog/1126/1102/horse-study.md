@@ -40,10 +40,21 @@ rather than over it (the fauna horse's rows stay byte-identical). Solo; the sadd
   with markings as rules (star, blaze, snip, sock, stocking). The skin keeps its volume within a few percent in the
   gaits; the folds (the armpit, the stifle, the throat) stretch most, and the jump's landing creases the quarters: the
   correctives are the next step.
+- **The head and neck** (`mount/body.js`): the head lofted from a profile of stations from poll to lip (the forehead's
+  flat, the dished or straight face, the nasal bone, the muzzle's lift and the chin), the jowls deep and round under the
+  cheek, the throatlatch clean between them and the neck; the neck set on the withers by its crest's arch and its
+  underline's taper.
+- **The mane, the forelock and the tail** (`mount/hair.js`): guide strands rooted on the crest, the poll and the dock,
+  each a chain of fixed segments run by Verlet at 240 Hz with gravity, damping and a gentle pull toward its rest hang,
+  each joint's bend limited (a lock is a stiff bundle), kept out of the skin (the blended field, in the rest frame of the
+  bone nearest each point) and above the ground. A
+  gait's loop runs warm periods and closes exactly (the residual drawn back through the period and every segment's
+  length re-imposed); a one-shot settles at its first frame. Each guide becomes a two-sided ribbon of cards in the coat's
+  mane colour: the mane falls in locks on the off side, the forelock down the face, the tail streams in the gallop.
 - **The machine gate** (`mount/gates.js`): footfalls and duty, suspensions, slip, ground, the flight at g, the joints'
   ranges, reach, pops, rigid bones, brushing, the seams of a one-shot, the rail's clearance, a layer's loop. Every
   gait at both band ends, both leads, both registers; every one-shot; every realistic jump; every idle layer pass it.
   The stylized register's jump is a recorded gap (a centimetre or two short at the rail and the ground).
 - **The eyes gate's contact sheets**: `node scripts/mount-study.mjs <dir> [--register stylized] [--view front]
-  [--shots] [--jump] [--idle] [--body [--cells 96] [--coat bay] [--views side,front] [--big]] [--before] [--png]`, to
-  lay beside Muybridge's plates; `--body` draws the shaded body from every view, in every coat, and skinned in poses.
+  [--shots] [--jump] [--idle] [--body [--cells 96] [--coat bay] [--views side,front] [--big] [--crop head]] [--before] [--png]`, to
+  lay beside Muybridge's plates; `--body` draws the shaded body from every view, in every coat, skinned in poses, with its mane and tail.

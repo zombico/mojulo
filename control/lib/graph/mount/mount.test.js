@@ -6,6 +6,8 @@ import { restState, idleLayer, idleClip, grazeClip, herdOffset, IDLE_LAYERS, PHI
 import { bodyMesh } from './body.js';
 import { boneFrames, skinPose, skinMeasures } from './skin.js';
 import { coatColor, COATS } from './coats.js';
+import { hairGuides, hairCards } from './hair.js';
+import { bodyField } from './body.js';
 import { jumpClip } from './jump.js';
 import { oneShot } from './motion.js';
 import { MOUNT_BONES } from './pose.js';
@@ -209,5 +211,23 @@ describe('the body', () => {
     const sock = m.stand.bones.hoofHL.head;                                   // just over the hoof of the left hind
     expect(coatColor('bay', 'points', [sock[0], sock[1], sock[2] + 0.03], { stand: m.stand, markings: { sock: ['LH'] } })).toBe('#f2efe8');
     expect(coatColor('bay', 'points', [-sock[0], sock[1], sock[2] + 0.03], { stand: m.stand, markings: { sock: ['LH'] } })).toBe(COATS.bay.points);
+  });
+});
+
+describe('the hair', () => {
+  const B = resolveMount('horse');
+
+  it('its guides: a mane along the crest falling to the off side, a forelock, a tail round the dock, each rooted on the skin', () => {
+    const g = hairGuides(B), { field } = bodyField(B);
+    for (const kind of ['mane', 'forelock', 'tail']) expect(g.some((x) => x.kind === kind), kind).toBe(true);
+    for (const x of g) expect(Math.abs(field(x.root)), x.id).toBeLessThan(0.002);
+    for (const x of g.filter((y) => y.kind === 'mane')) expect(x.dir[0]).toBeGreaterThan(0);          // the off (right) side
+  });
+
+  it('its cards: a two-sided ribbon of quads along every strand, a guide\'s cards side by side', () => {
+    const g = hairGuides(B), strands = g.map((x) => Array.from({ length: x.n }, (_, i) => [x.root[0] + x.dir[0] * x.len * i / (x.n - 1), x.root[1] + x.dir[1] * x.len * i / (x.n - 1), x.root[2] + x.dir[2] * x.len * i / (x.n - 1)]));
+    const c = hairCards(g, strands);
+    expect(c.quads.length).toBe(g.reduce((s, x) => s + x.cards.length * (x.n - 1), 0));
+    expect(c.twoSided.every(Boolean)).toBe(true);
   });
 });

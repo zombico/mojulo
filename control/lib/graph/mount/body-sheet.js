@@ -59,7 +59,9 @@ function cellSvg(cell, ox, oy, w, h, fit) {
     const nl = Math.hypot(...n);
     if (!(nl > 1e-12)) continue;                                              // a degenerate quad (two corners met)
     n = n.map((x) => x / nl);
-    if (n[0] * eye[0] + n[1] * eye[1] + n[2] * eye[2] < -0.05) continue;        // facing away
+    const facing = n[0] * eye[0] + n[1] * eye[1] + n[2] * eye[2];
+    if (cell.twoSided?.[i]) { if (facing < 0) n = n.map((x) => -x); }          // a card: both its faces shown
+    else if (facing < -0.05) continue;                                          // facing away
     const pz = (V[q[0]][2] + V[q[1]][2] + V[q[2]][2] + V[q[3]][2]) / 4;
     polys.push([pz, q, shade(cell.colors[i], n, eye)]);
   }

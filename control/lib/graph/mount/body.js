@@ -91,7 +91,17 @@ const eggAlong = (a, b, t0, t1, side, across, s, extra, off = [0, 0, 0], stretch
 };
 const cone = (a, b, r1, r2, extra) => ({ kind: 'cone', a, b, r1, r2, c: lerp3(a, b, 0.5), R: len(sub(b, a)) / 2 + Math.max(r1, r2), ...extra });
 
-export function bodyPrims(B) {
+/** the neck's crest at the stand: crestAt(t) from just ahead of the withers (0) to the poll (1), ARCHED; crestUp its up */
+export function neckCrest(B, S = standPose(B)) {
+  const T = B.trunk, k = B.scale, h = B.head.length / 0.6, poll = S.points.neck[S.points.neck.length - 1];
+  const crest0 = [0, T.withers[0] + 0.10 * k, T.withers[1] - 0.05 * k], crest1 = add(poll, [0, -0.02 * h, 0.05 * h]);
+  const cd = unit(sub(crest1, crest0)), crestUp = [0, -cd[2], cd[1]];                // square to the crest, up and back
+  const crestCtl = add(lerp3(crest0, crest1, 0.5), mul(crestUp, NECK_SHAPE.arch * k));
+  const crestAt = (t) => add(add(mul(crest0, (1 - t) ** 2), mul(crestCtl, 2 * t * (1 - t))), mul(crest1, t * t));
+  return { crestAt, crestUp, neckBone: (t) => `neck${Math.min(4, Math.floor(t * 5))}` };
+}
+
+export function bodyPrims(B, { hair = true } = {}) {
   const S = standPose(B), bn = S.bones, P = S.points, k = B.scale, T = B.trunk, h = B.head.length / 0.6;
   const X = [1, 0, 0], Y = [0, 1, 0], Z = [0, 0, 1];
   const W = (yz, x = 0) => [x, yz[0], yz[1]];
@@ -127,10 +137,7 @@ export function bodyPrims(B) {
   // THE NECK: its masses midway between its crest (from just ahead of the withers to the poll, ARCHED) and its
   // underline (from the breast's front to the throatlatch), deep at the base and thin at the throat; the mane on the crest
   const poll = P.neck[P.neck.length - 1];
-  const crest0 = W([T.withers[0] + 0.10 * k, T.withers[1] - 0.05 * k]), crest1 = add(poll, [0, -0.02 * h, 0.05 * h]);
-  const cd = unit(sub(crest1, crest0)), crestUp = [0, -cd[2], cd[1]];                // square to the crest, up and back
-  const crestCtl = add(lerp3(crest0, crest1, 0.5), mul(crestUp, NECK_SHAPE.arch * k));
-  const crestAt = (t) => add(add(mul(crest0, (1 - t) ** 2), mul(crestCtl, 2 * t * (1 - t))), mul(crest1, t * t));
+  const { crestAt, crestUp } = neckCrest(B, S);
   // (the throatlatch: a narrow waist under and behind the poll, BEHIND the jaw's rear edge, so the jowl stands clear)
   const under0 = W([T.neck[0][0] + 0.15 * k, T.neck[0][1] - 0.06 * k]), under1 = add(poll, [0, -0.13 * h, -0.16 * h]);
   const NS = 7, neckBone = (t) => `neck${Math.min(4, Math.floor(t * 5))}`;
@@ -173,7 +180,7 @@ export function bodyPrims(B) {
     const ear = bn[s > 0 ? 'earR' : 'earL'];
     put(cone(ear.head, ear.tail, 0.04 * hh, 0.012 * hh, detail(s > 0 ? 'earR' : 'earL', 'ear')));
   }
-  put(egg(at(0.06, 0.07), hdir, X, [0.08 * hh, 0.04 * hh, 0.03 * hh], detail('head', 'mane')));                // the forelock
+  if (!hair) put(egg(at(0.06, 0.07), hdir, X, [0.08 * hh, 0.04 * hh, 0.03 * hh], detail('head', 'mane')));   // the forelock (stand-in)
   // the cuts: the nostrils (tall commas on the muzzle's front-sides). (The mouth's line is not cut: a slit thinner than
   // the grid pinches the skin to slivers; it is the coat's and the shading's to draw.)
   const nr = sty ? 0.8 : 1;
@@ -206,10 +213,13 @@ export function bodyPrims(B) {
     }
   }
 
-  // THE TAIL: the dock, and the hair's mass hanging from it
+  // THE TAIL: the dock
   for (let i = 0; i < 4; i++) { const t = bn[`tail${i}`]; put(cone(t.head, t.tail, (0.065 - 0.009 * i) * k, (0.056 - 0.009 * i) * k, trunk(`tail${i}`))); }
-  put(cone(bn.tail1.head, bn.tailHair.tail, 0.04 * k, 0.03 * k, detail('tailHair', 'tail')));
-  put(cone(bn.tail3.tail, bn.tailHair.tail, 0.06 * k, 0.035 * k, detail('tailHair', 'tail')));
+  // (the tail's hair is cards, hair.js; without them a stand-in mass)
+  if (!hair) {
+    put(cone(bn.tail1.head, bn.tailHair.tail, 0.04 * k, 0.03 * k, detail('tailHair', 'tail')));
+    put(cone(bn.tail3.tail, bn.tailHair.tail, 0.06 * k, 0.035 * k, detail('tailHair', 'tail')));
+  }
 
   return { prims, nostrils, stand: S };
 }
@@ -221,8 +231,9 @@ function primDistance(q, p) {
   return q.cutGround ? Math.max(d, -p[2]) : d;
 }
 
-export function bodyField(B, { register } = {}) {
-  const { prims, nostrils, stand } = bodyPrims(B);
+export function bodyField(B, { register, only } = {}) {
+  // `only` (a test on a mass): the field of those masses alone, blended the same way (a local field, for a strand)
+  const all = bodyPrims(B), stand = all.stand, nostrils = only ? [] : all.nostrils, prims = only ? all.prims.filter(only) : all.prims;
   const soft = (register ?? B.register) === 'stylized' ? 1.6 : 1;
   const k = B.scale, kT = BLEND.trunk * k * soft, kH = BLEND.head * k * Math.sqrt(soft), kL = BLEND.leg * k * Math.sqrt(soft), kJ = BLEND.join * k * soft, kD = BLEND.detail * k;
   const sets = [...new Set(prims.map((q) => q.set))];
@@ -236,8 +247,10 @@ export function bodyField(B, { register } = {}) {
     const ds = distances(p);
     const bySet = (set, kk) => softMin(prims.flatMap((q, i) => (q.set === set ? [ds[i]] : [])), kk);
     const legs = sets.filter((s2) => /^[RL][FH]$/.test(s2)).map((s2) => bySet(s2, kL));
-    let d = softMin([bySet('trunk', kT), bySet('head', kH), ...legs], kJ);
-    d = softMin([d, ...prims.flatMap((q, i) => (q.set === 'detail' ? [ds[i]] : []))], kD);
+    const groups = [bySet('trunk', kT), bySet('head', kH), ...legs].filter((x) => Number.isFinite(x));
+    let d = groups.length ? softMin(groups, kJ) : Infinity;
+    const det = prims.flatMap((q, i) => (q.set === 'detail' ? [ds[i]] : []));
+    if (det.length) d = softMin([d, ...det].filter((x) => Number.isFinite(x)), kD);
     for (const n of nostrils) d = smax(d, -sdEgg(p, n), 0.005 * k);
     return d;
   };

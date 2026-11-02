@@ -20,6 +20,7 @@ import { bodyMesh } from '../lib/graph/mount/body.js';
 import { coatColor, COATS } from '../lib/graph/mount/coats.js';
 import { bodySheet, BODY_VIEWS } from '../lib/graph/mount/body-sheet.js';
 import { boneFrames, skinPose, skinMeasures } from '../lib/graph/mount/skin.js';
+import { simulateHair, hairCards } from '../lib/graph/mount/hair.js';
 import { restState } from '../lib/graph/mount/idle.js';
 import { oneShot } from '../lib/graph/mount/motion.js';
 import { standPose } from '../lib/graph/mount/gait.js';
@@ -116,16 +117,25 @@ if (body) {
   // the body: the mesh from every view, in a coat (a star and a sock to show the markings)
   const m = bodyMesh(B, { cells });
   const colors = m.quads.map((q) => { const c = q.map((i) => m.vertices[i]).reduce((a, b) => a.map((x, i) => x + b[i] / 4), [0, 0, 0]); return coatColor(coat, m.parts[q[0]], c, { stand: m.stand, markings: { star: true, sock: ['LH'] } }); });
+  // the hair on a body: its cards appended to the body's quads (two-sided)
+  const withHair = (cell, guides, strands) => {
+    const hc = hairCards(guides, strands, { coat }), off = cell.vertices.length;
+    return { ...cell, vertices: [...cell.vertices, ...hc.vertices], quads: [...cell.quads, ...hc.quads.map((q) => q.map((i) => i + off))],
+      colors: [...cell.colors, ...hc.colors], twoSided: [...cell.quads.map(() => false), ...hc.twoSided] };
+  };
+  const standHair = simulateHair(B, () => standPose(B), { t0: 0, t1: 0.5, fps: 10 });
+  const simHold = (fr) => { const h = simulateHair(B, () => fr, { t0: 0, t1: 0.5, fps: 10 }); return { guides: h.guides, strands: h.strands[h.strands.length - 1] }; };
+  const restHairAt = standHair.strands[standHair.strands.length - 1];
   // a crop: the head and neck alone (the quads ahead of the withers and above the elbow), for a close look
   if (crop === 'head') {
     const keep = m.quads.map((q) => { const c = q.map((i) => m.vertices[i]).reduce((a, b) => a.map((x, i) => x + b[i] / 4), [0, 0, 0]); return c[1] > B.trunk.withers[0] + 0.05 && c[2] > B.trunk.com[1] - 0.15; });
     const qs = m.quads.filter((_, i) => keep[i]), cs = colors.filter((_, i) => keep[i]);
-    const rowsH = [{ label: `${register}, ${coat}: the head and neck`, sub: '', cells: (views ? views.split(',') : ['side', 'threeQuarter', 'front', 'top', 'lowQuarter']).map((view) => ({ vertices: m.vertices, quads: qs, colors: cs, view, caption: view })) }];
+    const rowsH = [{ label: `${register}, ${coat}: the head and neck`, sub: '', cells: (views ? views.split(',') : ['side', 'threeQuarter', 'front', 'top', 'lowQuarter']).map((view) => withHair({ vertices: m.vertices, quads: qs, colors: cs, view, caption: view }, standHair.guides.filter((g) => g.kind !== 'tail'), restHairAt.filter((_, gi) => standHair.guides[gi].kind !== 'tail'))) }];
     const hname = `mount-head-${register}-${coat}`;
     writeFileSync(path.join(outDir, `${hname}.svg`), bodySheet(rowsH, { title: `the mount's head and neck (${cells} cells)`, cellW: 520, cellH: 520 }));
     files.push(`${hname}.svg`);
   }
-  const rows = [{ label: `${register}, ${coat}`, sub: `${m.stats.triangles} triangles · ${m.stats.vertices} vertices · open edges ${m.stats.open} · non-manifold ${m.stats.nonManifold}`, cells: (views ? views.split(',') : BODY_VIEWS).map((view) => ({ vertices: m.vertices, quads: m.quads, colors, view, caption: view })) }];
+  const rows = [{ label: `${register}, ${coat}`, sub: `${m.stats.triangles} triangles · ${m.stats.vertices} vertices · open edges ${m.stats.open} · non-manifold ${m.stats.nonManifold} · hair: ${standHair.guides.length} guides`, cells: (views ? views.split(',') : BODY_VIEWS).map((view) => withHair({ vertices: m.vertices, quads: m.quads, colors, view, caption: view }, standHair.guides, restHairAt)) }];
   // the coats: each card on the same body
   if (!views) {
     const coatCells = Object.keys(COATS).map((c) => ({ vertices: m.vertices, quads: m.quads, view: 'threeQuarter', caption: c,
@@ -135,11 +145,18 @@ if (body) {
   // the body skinned into poses: a stride of the trot and of the gallop, the jump's apex and landing, grazing, resting
   if (!views) {
     const rest = boneFrames(B, standPose(B));
-    const posed = (label, fr) => { const p = skinPose(m, rest, boneFrames(B, fr)), st = skinMeasures(m, p); return { vertices: p, quads: m.quads, colors, view: 'side', caption: `${label} · stretch p99 ${st.stretch.p99.toFixed(2)} · volume ${st.volume.toFixed(3)}` }; };
+    const posed = (label, fr, hair) => { const p = skinPose(m, rest, boneFrames(B, fr)), st = skinMeasures(m, p); const cell = { vertices: p, quads: m.quads, colors, view: 'side', caption: `${label} · stretch p99 ${st.stretch.p99.toFixed(2)} · volume ${st.volume.toFixed(3)}` }; return hair ? withHair(cell, hair.guides, hair.strands) : cell; };
+    // the hair through each clip: a cycle's looped, a one-shot's from its first frame; sampled where the cells are
+    const hairOf = (sim, t) => ({ guides: sim.guides, strands: sim.strands[Math.round((t - sim.times[0]) / (sim.times[1] - sim.times[0]))] });
     const tr = gaitCycle(B, 'trot'), ga = gaitCycle(B, 'gallop'), jp = jumpClip(B, { fence: 1.1 });
-    rows.push({ label: 'trot', sub: 'skinned (linear blend, the masses\' own weights)', cells: [0, 0.125, 0.25, 0.375, 0.5].map((t) => posed(`trot ${t}`, tr.poseAt(t))) });
-    rows.push({ label: 'gallop', sub: '', cells: [0, 0.2, 0.4, 0.6, 0.8].map((t) => posed(`gallop ${t}`, ga.poseAt(t))) });
-    rows.push({ label: 'jump, grazing, resting', sub: '', cells: [posed('take-off', jp.poseAt(jp.flight.launch - 0.1)), posed('apex', jp.poseAt(jp.flight.apex)), posed('landing', jp.poseAt(jp.flight.touchdown + 0.05)), posed('grazing', restState(B, { graze: 1 })), posed('resting a hind', restState(B, { restHind: 'L', rest: 1 }))] });
+    const trH = simulateHair(B, (u) => tr.poseAt(u / tr.T), { t0: 0, t1: tr.T, fps: 80, loop: true });
+    const gaH = simulateHair(B, (u) => ga.poseAt(u / ga.T), { t0: 0, t1: ga.T, fps: 100, loop: true });
+    const jpH = simulateHair(B, (t) => jp.poseAt(t), { t0: 0, t1: jp.duration, fps: 60 });
+    rows.push({ label: 'trot', sub: 'skinned (linear blend, the masses\' own weights); the hair\'s swing computed', cells: [0, 0.125, 0.25, 0.375, 0.5].map((t) => posed(`trot ${t}`, tr.poseAt(t), hairOf(trH, t * tr.T))) });
+    rows.push({ label: 'gallop', sub: '', cells: [0, 0.2, 0.4, 0.6, 0.8].map((t) => posed(`gallop ${t}`, ga.poseAt(t), hairOf(gaH, t * ga.T))) });
+    const rh = (t) => ({ guides: standHair.guides, strands: restHairAt });
+    rows.push({ label: 'jump, grazing, resting', sub: '', cells: [posed('take-off', jp.poseAt(jp.flight.launch - 0.1), hairOf(jpH, jp.flight.launch - 0.1)), posed('apex', jp.poseAt(jp.flight.apex), hairOf(jpH, jp.flight.apex)), posed('landing', jp.poseAt(jp.flight.touchdown + 0.05), hairOf(jpH, jp.flight.touchdown + 0.05)), posed('grazing', restState(B, { graze: 1 }), simHold(restState(B, { graze: 1 }))), posed('resting a hind', restState(B, { restHind: 'L', rest: 1 }), simHold(restState(B, { restHind: 'L', rest: 1 })))] });
+    void rh;
   }
   const bname = `mount-body-${register}-${coat}`;
   writeFileSync(path.join(outDir, `${bname}.svg`), bodySheet(rows, { title: `the mount's body: the masses from the solved stand (${cells} cells)`, ...(big ? { cellW: 900, cellH: 720 } : {}) }));

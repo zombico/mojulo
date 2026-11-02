@@ -8,6 +8,7 @@ import { oneShot } from './motion.js';
 import { standPose } from './gait.js';
 import { GAITS } from './reference.js';
 import { REGISTERS } from './cards.js';
+import { simulateHair } from './hair.js';
 
 // The deep sweep: every gait at both ends of its speed band, on both leads where it has one, in every register, held to
 // the machine gate (the joint ranges are the preferred speed's, so they are checked in mount.test.js, not here).
@@ -60,6 +61,23 @@ describe('the mount at rest', () => {
     }
     it(`${register} every layer together, and grazing`, () => {
       for (const clip of [idleClip(B, { seed: 3 }), grazeClip(B, { seed: 3 })]) expect(idleGates(B, clip).checks.filter((c) => !c.pass).map((c) => `${c.name}: ${c.saw}`)).toEqual([]);
+    });
+  }
+});
+
+// the hair's swing through a cycle: its strands keep their lengths, the loop closes on itself exactly, nothing falls through
+// the ground
+describe('the mount\'s hair', () => {
+  const B = resolveMount('horse');
+  for (const gait of ['trot', 'gallop']) {
+    it(`through a ${gait} stride`, () => {
+      const c = gaitCycle(B, gait), h = simulateHair(B, (t) => c.poseAt(t / c.T), { t0: 0, t1: c.T, fps: 60, loop: true });
+      let err = 0, low = Infinity;
+      for (const S of h.strands) S.forEach((s, gi) => { const g = h.guides[gi], seg = g.len / (g.n - 1); for (let i = 1; i < s.length; i++) { err = Math.max(err, Math.abs(Math.hypot(s[i][0] - s[i - 1][0], s[i][1] - s[i - 1][1], s[i][2] - s[i - 1][2]) - seg) / seg); low = Math.min(low, s[i][2]); } });
+      expect(err).toBeLessThan(1e-9);
+      expect(low).toBeGreaterThan(0);
+      const a = h.strands[0], b = h.strands[h.strands.length - 1];
+      expect(Math.max(...a.flatMap((s, gi) => s.map((p, i) => Math.hypot(p[0] - b[gi][i][0], p[1] - b[gi][i][1], p[2] - b[gi][i][2]))))).toBeLessThan(1e-9);
     });
   }
 });
