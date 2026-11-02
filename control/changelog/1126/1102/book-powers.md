@@ -85,3 +85,8 @@ its resource, put on a look and showed a toast. This theme makes them act.
   field beside the hero and fights in the party battles from the start, each in the class its sheet reads as. "A jrpg
   where a party of heroes battles monsters" lays the hero (a monk) with a cleric, a fighter and a mage, where it laid
   the hero alone.
+- **A leg a hair short of its planted toe is clamped, not refused** (`polygonizer/station-loft-rig.js`). Under
+  `reach: 'reject'`, a planted leg whose toe sat even 0.0001 m past its reach threw. A JRPG's rolled companion's idle
+  (`hairToss`) did so, and the run refused its cast sheet. A miss under a millimetre (`REACH_SLACK`) is float noise,
+  clamped as `reach: 'clamp'` does; a pose that misses by more is refused as before. A pose that reached renders byte
+  for byte as it did.
