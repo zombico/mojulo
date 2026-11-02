@@ -10,6 +10,7 @@ import { gameStages, stageLevelOrder } from './levels.js';
 import { levelGoalMechanics } from './quick.js';
 import { gauntletPlacements, gauntletLaws, GAUNTLET_LAWS, readGauntletGoal, DEFAULT_GAUNTLET } from './gauntlet.js';
 import { gauntletPage } from './gauntlet-page.js';
+import { proveGauntlets, lastStageManifests } from './gauntlet-proof.js';
 import { esc } from './bible-html.js';
 import { composeGameworld } from './compose.js';
 import { gauntletCast } from './gauntlet-cast.js';
@@ -116,5 +117,16 @@ describe('its laws, its book and its word', () => {
     for (const l of gauntletLaws(readGameworld(w).levels[ids.at(-1)].goal.gauntlet)) expect(l.holds, l.law).toBe(true);
     const bossed = composeGameworld({ prompt: 'a horde and a boss in a haunted forest', seed: 1 });
     expect(Object.values(bossed.levels).some((l) => l.goal?.gauntlet)).toBe(false);
+  });
+});
+
+describe('the gauntlet proved on the bus (machine gate)', () => {
+  it('every wave woke in order, each after the last was down, the seal lifted and the level won; the falls given', () => {
+    const [P] = proveGauntlets(W, { lift: M });
+    expect(P).toMatchObject({ level: 'lift', proved: true, assumed: ["every foe's fall is given as it wakes (the proof cannot fight)"] });
+    expect(P.woke).toEqual([['foe-walker-g1', 'foe-walker-g2'], ['foe-walker-g3', 'foe-hunter-g1'], ['foe-hunter-g2', 'foe-hunter-g3']]);
+    expect(proveGauntlets(W, {})[0]).toMatchObject({ proved: false, says: 'no stage made for it' });
+    expect(proveGauntlets(MEADOWMARK, {})).toBeNull();
+    expect(lastStageManifests([{ key: 'level-lift-0', order: { manifest: M } }, { key: 'game', order: {} }])).toEqual({ lift: M });
   });
 });
