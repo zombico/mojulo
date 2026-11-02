@@ -254,10 +254,13 @@ describe("a loud metro's street the geotown's: its lamps, signals, signs, post b
     expect(ts(P, 'geocity:lamp').every((x) => !x.tint && !x.scale)).toBe(true);
     expect(reps(P, 'geocity:lamp-lit')).toEqual([]);
   });
-  it('puts the geotown\'s pieces where they belong: signs to the traffic, a post box by the papers, other litter bins, dumpsters in its courts, donation bins at its lots, skips on its sites; the plain metro none', () => {
+  it('puts the geotown\'s pieces where they belong: signs to the traffic, a post box by the papers, other litter bins, dumpsters in its courts, donation bins at its lots, skips on its sites; the plain metro the same, as they are made', () => {
     for (const k of ['sign-diamond', 'sign-speed', 'sign-parking', 'postbox', 'front-load', 'eurobin-1100', 'clothing-drop', 'bottle-igloo']) {
       expect(ts(X, `geocity:${k}`).length).toBeGreaterThan(0);
-      expect(reps(P, `geocity:${k}`)).toEqual([]);
+      // (the plain metro's at the same places, its own colours: no ink, and not the loud one's shapes)
+      expect(ts(P, `geocity:${k}`).map((t) => t.pos)).toEqual(ts(X, `geocity:${k}`).map((t) => t.pos));
+      expect(ts(P, `geocity:${k}`).every((t) => !t.tint)).toBe(true);
+      expect(JSON.stringify(reps(P, `geocity:${k}`)[0].template)).not.toBe(JSON.stringify(reps(X, `geocity:${k}`)[0].template));
     }
     const litter = ['recycling-three', 'solar-compactor', 'heritage-fluted', 'ashtray-top', 'mesh-basket'].filter((k) => ts(X, `geocity:${k}`).length);
     expect(litter.length).toBeGreaterThan(1);

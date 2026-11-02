@@ -97,8 +97,11 @@ const cuts = (a, b, step) => { const n = Math.max(1, Math.ceil((b - a) / step - 
 // a parked car's paint as an instance's tint (linear rgb over its pale body): geotown/yards.js CAR_PAINTS
 // the street furniture a loud metro inks each its own
 const INKED_KIT = new Set(['bin', 'hydrant', 'bench', 'bollard', 'ring', 'papers']);
-// (the kinds an exaggerated metro stamps as the geotown's pieces: kit.js `loud`)
+// (the kinds an exaggerated metro stamps as the geotown's pieces: kit.js `piece`)
 const LITTER = Object.freeze(['recycling-three', 'solar-compactor', 'heritage-fluted', 'ashtray-top', 'mesh-basket']);
+// (those the metro takes from the geotown on any cube, realistic on a plain one: its signs to the traffic, its post
+// boxes and its receptacles; the rest the metro's own on a plain cube)
+const ADDED_KIT = (k) => (k.startsWith('sign-') && k !== 'sign-name') || k === 'postbox' || !!RECEPTACLES[k];
 const isLoudKind = (k) => ['lamp', 'signal', 'bin', 'hydrant', 'postbox'].includes(k) || k.startsWith('sign-') || !!RECEPTACLES[k];
 /** A template's faces drawn pale: each its own light kept as a grey, so an instance's tint paints it and keeps its shade. */
 const paleFaces = (fs) => fs.map((f) => { if (typeof f.fill !== 'string') return f; const c = [1, 3, 5].map((k) => parseInt(f.fill.slice(k, k + 2), 16)), L = 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2], v = Math.round(Math.min(250, L * 1.4 + 45)).toString(16).padStart(2, '0'); return { ...f, fill: `#${v}${v}${v}` }; });
@@ -160,23 +163,23 @@ export function assembleGeocityScene(m, ctx = {}) {
     if (!stamps.has(key)) stamps.set(key, []);
     stamps.get(key).push({ pos: P3(pos), ...(rotZ ? { rotZ: r5(rotZ) } : {}), ...(scale ? { scale } : {}), ...(tint ? { tint } : {}) });
   };
-  // (an exaggerated metro's lamps, signals, bins, hydrants, post boxes, signs and receptacles the geotown's (kit.js
-  // `loud`): a stamp its body, inked on a loud street, and its fixed parts (lenses, glass, a sign's face) at the same
+  // (an exaggerated metro's lamps, signals, bins, hydrants, post boxes, signs and receptacles the geotown's, and a
+  // plain one's added pieces too, as they are made (kit.js `piece`): a stamp its body, inked on a loud street, and its fixed parts (lenses, glass, a sign's face) at the same
   // place; a toon register's each one of its shapes, never the last of its kind's; a loud street's lamps and signals
   // never one height beside the next, each a step up or down by `streets.vary`)
   const Rv = streamOf(seed, 'kit-shape', 'metro'), Rh = streamOf(seed, 'kit-height', 'metro'), lastShape = new Map(), steps = new Map();
-  const shapeOf = (kind) => { if (!toonOf(cube.register)) return 0; const pool = Array.from({ length: LOUD_VARIANTS }, (_, i) => i).filter((i) => i !== lastShape.get(kind)), v = pool[Math.floor(Rv() * pool.length)]; lastShape.set(kind, v); return v; };
+  const shapeOf = (kind) => { if (!EX || !toonOf(cube.register)) return 0; const pool = Array.from({ length: LOUD_VARIANTS }, (_, i) => i).filter((i) => i !== lastShape.get(kind)), v = pool[Math.floor(Rv() * pool.length)]; lastShape.set(kind, v); return v; };
   // (a close-built run's other litter bins, each its own kind, never the last's; a block's yard's dumpsters, a lot's
   // donation bins, a site's skips: geotown/receptacles.js)
   const Rl = streamOf(seed, 'kit-litter', 'metro'); let lastLitter = null;
   const pickLitter = () => { const pool = LITTER.filter((k) => k !== lastLitter); lastLitter = pool[Math.floor(Rl() * pool.length)]; return lastLitter; };
   const stamp = (key, pos, rotZ, scale = null) => {
     const [kind0, f] = key.split(':'), kind = kind0 === 'sign' ? 'sign-name' : kind0;
-    if (KIT.loud && isLoudKind(kind)) {
+    if (isLoudKind(kind) && (EX || ADDED_KIT(kind))) {
       const v = shapeOf(kind), H = kind === 'lamp' ? 8.6 : kind === 'signal' ? 6.2 : 0;
       let sc = scale;
       if (H && STL?.vary) { const k = (steps.get(kind) ?? 0) + 1; steps.set(kind, k); sc = [1, 1, r5(1 + ((k % 2 ? 1 : -1) * STL.vary * (0.6 + 0.4 * Rh())) / H)]; }
-      const at = `${f ?? (kind === 'sign-name' ? 'e' : '_')}:${v}`, T = KIT.loud(kind, ...at.split(':').map((x, i) => (i ? Number(x) : x)));
+      const at = `${f ?? (kind === 'sign-name' ? 'e' : '_')}:${v}`, T = KIT.piece(kind, ...at.split(':').map((x, i) => (i ? Number(x) : x)));
       put1(`${kind}:${at}`, pos, rotZ, sc, stampInk ? linC(stampInk(kind)) : null);
       if (T.fixed.length) put1(`${kind}-lit:${at}`, pos, rotZ, sc, null);
       return;
@@ -186,7 +189,7 @@ export function assembleGeocityScene(m, ctx = {}) {
   const paled = new Map();
   const templateOf = (key) => {
     const [k, f, v] = key.split(':');
-    if (v !== undefined) { const lit = k.endsWith('-lit'), T = KIT.loud(lit ? k.slice(0, -4) : k, f, Number(v))[lit ? 'fixed' : 'body']; if (lit || !stampInk) return T; if (!paled.has(key)) paled.set(key, paleFaces(T)); return paled.get(key); }
+    if (v !== undefined) { const lit = k.endsWith('-lit'), T = KIT.piece(lit ? k.slice(0, -4) : k, f, Number(v))[lit ? 'fixed' : 'body']; if (lit || !stampInk) return T; if (!paled.has(key)) paled.set(key, paleFaces(T)); return paled.get(key); }
     const T = f ? KIT[k][f] : KIT[k]; if (!stampInk || !INKED_KIT.has(k)) return T; if (!paled.has(key)) paled.set(key, paleFaces(T)); return paled.get(key);
   };
   // the street trees, by species, grown after the cameras (their detail is what the cameras see)
@@ -388,10 +391,10 @@ export function assembleGeocityScene(m, ctx = {}) {
           for (let k = 0; k < 3; k++) kerb(side, 1.6, s0 + 9 + k * 1.3, 'ring', l.axis === 'ns' ? Math.PI / 2 : 0);
         }
         if (dense(p + 6)) kerb(-1, l.half - l.road / 2 - 0.7, p + 6, `papers:${facing(l, 1)}`);
-        // (an exaggerated metro's own street, the geotown's: a post box by the papers; a litter bin of another kind at a
+        // (the street's pieces from the geotown, realistic on a plain cube: a post box by the papers; a litter bin of another kind at a
         // close-built run's far end; its signs to the traffic on each kerb (a crossing's diamond ahead of the next, the
         // limit past the last, a close-built run's parking at its middle), each clear of its lamps)
-        if (KIT.loud) {
+        {
           if (dense(p + 6)) kerb(-1, l.half - l.road / 2 - 0.7, p + 8.6, 'postbox');
           if (dense(q - 12)) kerb(1, 1.4, q - 15, `${pickLitter()}:${facing(l, -1)}`);
           for (const side of [-1, 1]) {
@@ -549,15 +552,14 @@ export function assembleGeocityScene(m, ctx = {}) {
     towns[b.id] = { segment: T.spec.segment ?? null, streetscape: T.design.pattern.streetscape, rect: q.map(r5), laws: P.geotown.laws.filter((l) => !l.ok).map((l) => `${l.law}: ${l.value}`) };
   }
 
-  /** An exaggerated metro's block yard (a court's): its dumpsters along its south edge inside, a front-load and an
+  /** A block's yard (a court's): its dumpsters along its south edge inside, a front-load and an
    *  1100-litre bin, their fronts to the yard. */
   function yard([a0, b0, a1, b1], z) {
-    if (!KIT.loud || a1 - a0 < 10 || b1 - b0 < 6) return;
+    if (a1 - a0 < 10 || b1 - b0 < 6) return;
     stamp('front-load:n', [a0 + 2.6, b0 + 1.3, z], 0); stamp('eurobin-1100:n', [a0 + 5.4, b0 + 0.9, z], 0);
   }
-  /** An exaggerated metro's lot's donation bins at its corner, in a row along its edge (x, else y), fronts into it. */
+  /** A lot's donation bins at its corner, in a row along its edge (x, else y), fronts into it. */
   function donations([a0, b0], z, alongX) {
-    if (!KIT.loud) return;
     ['clothing-drop', 'textile-bank', 'bottle-igloo'].forEach((k, i) => stamp(`${k}:${alongX ? 'n' : 'e'}`, alongX ? [a0 + 1.6 + i * 2.4, b0 + 1.3, z] : [a0 + 1.3, b0 + 1.6 + i * 2.4, z], 0));
   }
 
@@ -680,8 +682,8 @@ export function assembleGeocityScene(m, ctx = {}) {
     const faces2 = longY ? [['w', q[0], 'y', q[1], q[3]], ['e', q[2], 'y', q[1], q[3]]] : [['s', q[1], 'x', q[0], q[2]], ['n', q[3], 'x', q[0], q[2]]];
     for (const [f, at2, along, a, c] of faces2) for (let t = a + 1; t <= c - 1; t += 2) for (let z = zc; z + 2 <= top + 1e-6; z += 2) stamp(`scaffold:${f}`, along === 'y' ? [at2, t, z] : [t, at2, z], 0);
     fenced(b, { x0, y0, x1, y1 }, zc, 'hoarding');
-    // (an exaggerated metro's site its skips: a roll-off container and a bulk bag in the margin inside its hoarding)
-    if (KIT.loud && e >= 3.2) { stamp('roll-off:n', [q[0] + 4.5, y0 + e / 2 + 0.2, zc], 0); stamp('bag-skip:n', [q[2] - 2, y0 + e / 2 + 0.2, zc], 0); }
+    // (a site's skips: a roll-off container and a bulk bag in the margin inside its hoarding)
+    if (e >= 3.2) { stamp('roll-off:n', [q[0] + 4.5, y0 + e / 2 + 0.2, zc], 0); stamp('bag-skip:n', [q[2] - 2, y0 + e / 2 + 0.2, zc], 0); }
     // barriers and cones on the walk along a street side (the one it fronts first)
     const s = ['s', 'n', 'w', 'e'].find((k) => b.sides[k]?.kind === 'street' || b.sides[k]?.kind === 'arterial') ?? 's', o = WALK / 2;
     for (let k = 0; k < 5; k++) {
@@ -701,7 +703,7 @@ export function assembleGeocityScene(m, ctx = {}) {
    *  their lines and cars in most, near the camera. */
   function parked(b, { x0, y0, x1, y1, longY, zAt, Rb }) {
     const z = zAt((x0 + x1) / 2, (y0 + y1) / 2), [s0, s1] = longY ? [x0, x1] : [y0, y1], [a0, a1] = longY ? [y0, y1] : [x0, x1];
-    // (its donation bins along its first row's head, an exaggerated metro's)
+    // (its donation bins along its first row's head)
     donations([x0, y0, x1, y1], z, !longY);
     for (let m = s0 + 2; m + 10 <= s1 - 2; m += 16.5) for (const row of [m, m + 11.5]) for (let t = a0 + 3; t + 2.6 <= a1 - 3; t += 2.6) {
       // its line (across its row, 5 m) and, in most stalls, a car

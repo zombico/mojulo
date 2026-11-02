@@ -22,7 +22,7 @@ its own wall hue and false front; no window square (`skew`), no two neighbours o
 loud by the same principles: skewed pastel slabs, candy kerbs, ink, fat lines, each piece its own ink, lamps of
 alternating height. `homes: { skew, step, pop, yard }` draws its homes and yards so, and a geocity's masses and evoked
 facades (their windows made geometry, none square: law `windows`). An exaggerated metro's street furniture is the
-geotown's, with its signs, post boxes, dumpsters, donation bins and skips where they belong. The plan never moves.
+geotown's, its signs, post boxes, dumpsters, donation bins and skips askew with the rest. The plan never moves.
 
 ## The ingredients
 
@@ -214,7 +214,8 @@ A cube that names no domains offers one per terrain and one per interior.
   (`{ lane, parking, bike, lanes, median: { share, w }, oneway: { pairs, lanes }, streetcar: { spine, share, gauge,
   row } }`: four lanes, a spacer on some, one-way pairs of three by the core, streetcars on the spines and some, the
   metro's round lamps, signals, signs, crosswalks, paint, rails and overhead drawn near the camera, with its benches,
-  bins, hydrants, hydro poles, street trees and tiled ground); `lively` the share of each ring's blocks going up
+  bins, hydrants, hydro poles, street trees and tiled ground, and the geotown's signs, post boxes, litter bins, court
+  dumpsters, lot donation bins and site skips); `lively` the share of each ring's blocks going up
   (scaffolding, a crane, hoarding, barriers), parked or vacant; `geotowns` the geotown composed in at any grain, anywhere:
   `{ 'D3': true | { neighbourhood: 'annex' } }` a neighbourhood laid by it (fitted by its ring), `{ 'D3.2.1': true |
   { segment: 'main-street' } }` one block laid by its segment, filled and cropped to the block, all on the metro's land;

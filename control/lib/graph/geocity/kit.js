@@ -22,11 +22,12 @@
  * dimensions × kit.chunk about its middle: a post fatter, an arm as long) and a lamp and a signal lean out over their
  * reach by kit.lean, re-lit on their leaning faces (a pole that carries wires stands: its wires are strung to it). A
  * site's and a lot's pieces (scaffold, fencing, hoarding, barriers, cones, cars) are as they were. Absent, every byte
- * as it was. Exaggerated, `loud(kind, facing, v)` makes the geotown's pieces at the metro's size (geotown/doodads.js,
+ * as it was. `piece(kind, facing, v)` makes the geotown's pieces at the metro's size (geotown/doodads.js,
  * signs.js, receptacles.js: a round lamp, a signal on its mast arm with a head at its end and one on its pole, a bin, a
  * hydrant, a post box, a sign `sign-<kind>`, a receptacle by its RECEPTACLES id facing its front), as { body, fixed }:
  * its body what a stamp's ink paints (drawn as made: the scene pales it), the rest (its lenses, its glass, a sign's
- * face) keeping its own colours; in a `toon` register LOUD_VARIANTS shapes of each, each exaggerated and incongruent.
+ * face) keeping its own colours: a plain metro's as they are made (the realistic register), an exaggerated one's
+ * chunked and leant, in a `toon` register LOUD_VARIANTS shapes of each, each exaggerated and incongruent.
  *
  * Pure; a loud piece's shapes each by its own fixed dice.
  */
@@ -238,10 +239,10 @@ export function kitTemplates(L0, { gauge = 1.495, poleReach = 4, exaggerate = nu
   const leans = (fs, v) => (tA ? leanFaces(fs, v, tA, (n) => litFactor(n, L0)) : fs);
   // (a loud street's lines: `paint` times as wide, its yellow pushed, its bars skewed by `skew`)
   const SP = exaggerate?.streets ?? null, PW = SP ? SP.paint : 1, YL = SP ? popHex('#e3b13a', SP.pop) : '#e3b13a', SK = SP ? SP.skew * 1.6 * 0.6 : 0;
-  // (an exaggerated metro's piece by kind, facing and shape: { body (its stamp's ink paints it), fixed }, made once;
-  // a toon register's shapes each its own fixed dice, a plain hand's one, chunked)
+  // (the geotown's piece by kind, facing and shape: { body (a loud stamp's ink paints it), fixed }, made once; a plain
+  // metro's as made (the realistic register), an exaggerated one's chunked, a toon register's shapes each its own dice)
   const loudMade = new Map(), paintOf = (role) => (SP && !KEEP.has(role) ? popHex(SIGN_PAINT[role], SP.pop) : SIGN_PAINT[role]) ?? '#6b7176';
-  const loud = exaggerate ? (kind, facing, v = 0) => {
+  const piece = (kind, facing, v = 0) => {
     const key = `${kind}:${facing}:${v}`;
     if (loudMade.has(key)) return loudMade.get(key);
     const R = mulberry32(strHash(`${kind}|${v}|shape`)), D = toon ? proportions(R, true) : { ...proportions(R, false), body: X ? X.chunk : 1 };
@@ -251,9 +252,9 @@ export function kitTemplates(L0, { gauge = 1.495, poleReach = 4, exaggerate = nu
     const T = { body: lean(litKit(fs.filter((f) => whole || BODY.has(f.role)), hexOf, L0)), fixed: lean(litKit(fs.filter((f) => !whole && !BODY.has(f.role)), hexOf, L0)) };
     loudMade.set(key, T);
     return T;
-  } : null;
+  };
   return {
-    ...(loud ? { loud } : {}),
+    piece,
     lamp: four((v) => leans(lamp(v, L), v)),
     signal: four((v) => leans(signal(v, L), v)),
     sign: sign(L),

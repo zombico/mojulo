@@ -56,7 +56,9 @@
   of the next, the limit past the last, a close-built run's parking), a post box by the papers, a close-built run's
   other litter bins (recycling, a solar compactor, a heritage bin, an ashtray bin, a mesh basket, never the last's),
   dumpsters in its midrise courts, donation bins (a clothing drop, a textile bank, a bottle bank) at its parking lots,
-  skips on its building sites (`geotown/receptacles.js`, askew in a toon register). The plain metro as it was.
+  skips on its building sites (`geotown/receptacles.js`, askew in a toon register). A plain metro takes the same added
+  pieces in the realistic register, as they are made, in their own colours, at the same places (`kit.js` `piece`);
+  its lamps, signals, bins, hydrants and name signs are its own as they were.
 - **A loud street** (`exaggerate.streets`, `geotown/street-loud.js`; the `street` hand carries one), by the shops'
   principles over a plan that never moves: the walks laid in big pastel slabs over their own ground, cut on skewed lines
   (their ends too: no slab square), each a tint other than its neighbour's, set in a grout of the walk; the kerbs in
