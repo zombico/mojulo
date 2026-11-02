@@ -3,6 +3,7 @@
  * SPIKE: a geocity plumb and under each hand (a name, or JSON terms), from its own cameras (its skyline, over it, its
  * core, its street) and two near its first block: one row a hand.
  *
+ *   CAMS=<name,…> which of its own cameras (an evoked metro's: evoked, street, crossing); GEOCITY='{…}' another metro
  *   cd control && node scripts/spikes/geocity/loud.mjs <out-dir> [hand …]   → <out-dir>/loud.png and .html
  */
 import { writeFileSync, mkdirSync } from 'node:fs';
@@ -38,7 +39,7 @@ try {
     P.walkers = (P.walkers || []).map((w) => ({ ...w, follow: false })); delete P.walk; delete P.route;
     if (!cams) {
       // (its own cameras, and two near a house of its outskirts: a corner of houses and the walk before them)
-      const own = (P.cameras || []).filter((c) => ['over', 'core', 'street'].includes(c.name));
+      const own = (P.cameras || []).filter((c) => (process.env.CAMS ? process.env.CAMS.split(',') : ['over', 'core', 'street']).includes(c.name));
       const mid = (f) => f.corners.reduce((a, c) => a.map((v, k) => v + c[k] / f.corners.length), [0, 0, 0]);
       const hs = P.faces.filter((f) => f.group === 'geocity:house').map(mid), q = hs[Math.floor(hs.length / 3)];
       cams = [...own, ...(q ? [{ name: 'its houses', worldFraming: { cameraPosition: [q[0] + 40, q[1] - 35, q[2] + 22], lookAt: q, horizontalFov: 60 } }, { name: 'a row of them', worldFraming: { cameraPosition: [q[0] + 14, q[1] - 22, q[2] + 2], lookAt: [q[0] - 10, q[1] + 20, q[2]], horizontalFov: 68 } }] : [])];

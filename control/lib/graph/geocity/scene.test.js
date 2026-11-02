@@ -197,3 +197,22 @@ describe('a loud metro (the cube\'s exaggerate.homes and .streets): its masses e
     expect(P.faces.some((f) => f.group === 'geocity:decal')).toBe(false);
   });
 });
+
+describe("a loud metro's furniture and facades: each its own", () => {
+  const ev = { ...geocity, evoke: 'neighbourhood' }, ex = { from: M.cube, exaggerate: { from: 'street', lean: 0, kit: { lean: 0, chunk: 1 } } };
+  const A = assembleGeocityScene({ ...M, geocity: ev }), X = assembleGeocityScene({ ...M, cube: ex, geocity: ev });
+  it('tints each bin and hydrant its own, never the last of its kind\'s; the plain metro tints none', () => {
+    const tints = (S, g) => (S.repeats ?? []).filter((r) => r.group === g).flatMap((r) => r.transforms.map((t) => JSON.stringify(t.tint ?? null)));
+    for (const g of ['geocity:bin', 'geocity:hydrant']) {
+      const t = tints(X, g);
+      if (!t.length) continue;
+      expect(new Set(t).size).toBeGreaterThan(1);
+      for (let i = 1; i < t.length; i++) expect(t[i]).not.toBe(t[i - 1]);
+      expect(tints(A, g).every((x) => x === 'null')).toBe(true);
+    }
+  });
+  it('leans each evoked lot\'s facade to a hue of its own', () => {
+    const fills = (S) => new Set(S.faces.filter((f) => f.group === 'geocity:facade' && typeof f.fill === 'string').map((f) => f.fill));
+    expect(fills(X).size).toBeGreaterThan(fills(A).size);
+  });
+});

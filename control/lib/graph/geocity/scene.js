@@ -92,6 +92,10 @@ const cuts = (a, b, step) => { const n = Math.max(1, Math.ceil((b - a) / step - 
 
 // the outskirts' palettes: brick and its trim, a shop's front, a roof
 // a parked car's paint as an instance's tint (linear rgb over its pale body): geotown/yards.js CAR_PAINTS
+// the street furniture a loud metro inks each its own
+const INKED_KIT = new Set(['bin', 'hydrant', 'bench', 'bollard', 'ring', 'papers']);
+/** A template's faces drawn pale: each its own light kept as a grey, so an instance's tint paints it and keeps its shade. */
+const paleFaces = (fs) => fs.map((f) => { if (typeof f.fill !== 'string') return f; const c = [1, 3, 5].map((k) => parseInt(f.fill.slice(k, k + 2), 16)), L = 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2], v = Math.round(Math.min(250, L * 1.4 + 45)).toString(16).padStart(2, '0'); return { ...f, fill: `#${v}${v}${v}` }; });
 const linC = (h) => [1, 3, 5].map((k) => { const c = parseInt(h.slice(k, k + 2), 16) / 255; return Math.round((c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4) * 1e4) / 1e4; });
 const CAR_TINTS = Object.freeze(['#8a2a2a', '#2a3f6a', '#d8d6d0', '#3a3d42', '#6a6f75', '#2f5a3a', '#c9b48a'].map(linC));
 const HOUSE_BRICK = Object.freeze(['#a3563f', '#b5654a', '#9c4b36', '#c9a57a', '#d2c3a8', '#8c5a44']);
@@ -143,8 +147,16 @@ export function assembleGeocityScene(m, ctx = {}) {
   };
   // the street's kit stamped where it stands: each template's transforms, drawn near the camera only
   const KIT = kitTemplates(LIGHT, { gauge: d.metro.roads.streetcar.gauge, ...(EX ? { exaggerate: EX } : {}) }), stamps = new Map();
-  const stamp = (key, pos, rotZ, scale = null) => { if (!stamps.has(key)) stamps.set(key, []); stamps.get(key).push({ pos: P3(pos), ...(rotZ ? { rotZ: r5(rotZ) } : {}), ...(scale ? { scale } : {}) }); };
-  const templateOf = (key) => { const [k, f] = key.split(':'); return f ? KIT[k][f] : KIT[k]; };
+  // (a loud street's furniture each its own ink, never the last of its kind's: its template drawn pale, each stamp its
+  // tint, linear rgb over it; the lamps, signals and the works' pieces as they were)
+  const stampInk = STL ? inkPicker(streamOf(seed, 'kit-ink', 'metro'), STL.pop) : null;
+  const stamp = (key, pos, rotZ, scale = null) => {
+    if (!stamps.has(key)) stamps.set(key, []);
+    const kind = key.split(':')[0], tint = stampInk && INKED_KIT.has(kind) ? linC(stampInk(kind)) : null;
+    stamps.get(key).push({ pos: P3(pos), ...(rotZ ? { rotZ: r5(rotZ) } : {}), ...(scale ? { scale } : {}), ...(tint ? { tint } : {}) });
+  };
+  const paled = new Map();
+  const templateOf = (key) => { const [k, f] = key.split(':'), T = f ? KIT[k][f] : KIT[k]; if (!stampInk || !INKED_KIT.has(k)) return T; if (!paled.has(key)) paled.set(key, paleFaces(T)); return paled.get(key); };
   // the street trees, by species, grown after the cameras (their detail is what the cameras see)
   const trees = new Map();
   const plant = (where, x, y, z, key) => {
@@ -713,7 +725,15 @@ export function assembleGeocityScene(m, ctx = {}) {
     const fs = night ? nightFaces(sc.faces, boxes, new Map(lots.map((l) => [l.id, l])), G.night, seed) : sc.faces;
     // (each facade face bent on its lot's foot: the lot under its middle)
     const footAt = (f) => { let cx = 0, cy = 0; for (const c of f.corners) { cx += c[0] * U; cy += c[1] * U; } cx /= f.corners.length; cy /= f.corners.length; const l = lots.find((q) => cx >= q.x0 - 1.5 && cx <= q.x1 + 1.5 && cy >= q.y0 - 1.5 && cy <= q.y1 + 1.5); return l ? l.z0 : null; };
-    for (const f of fs) {
+    // (a loud metro's evoked lots each its own hue, never the lot before it: its facade's faces leant to it, a card's
+    // painted grid too (its frames and its glass, their light kept): front-loud.js LOUD_WALLS)
+    const lotOf = (f) => { let cx = 0, cy = 0; for (const c of f.corners) { cx += c[0] * U; cy += c[1] * U; } cx /= f.corners.length; cy /= f.corners.length; return lots.find((q) => cx >= q.x0 - 1.5 && cx <= q.x1 + 1.5 && cy >= q.y0 - 1.5 && cy <= q.y1 + 1.5) ?? null; };
+    const hueOf = new Map();
+    if (HY) { const Rh = streamOf(seed, 'lot-hue', 'evoked'); let last = null; for (const l of lots) { const pool = LOUD_WALLS.filter((h) => h !== last); last = pool[Math.floor(Rh() * pool.length)]; hueOf.set(l.id, last); } }
+    const leanHex = (str, hue, k) => str.replace(/#[0-9a-fA-F]{6}/g, (h) => leanHue(h, hue, k));
+    for (const f0 of fs) {
+      const lot = HY && f0.group !== 'city:night-window' && f0.group !== 'city:night-shop' ? lotOf(f0) : null, hue = lot ? hueOf.get(lot.id) : null;
+      const f = hue ? { ...f0, ...(typeof f0.fill === 'string' ? { fill: leanHue(f0.fill, hue, 0.7) } : {}), ...(typeof f0.bg === 'string' ? { bg: leanHex(f0.bg, hue, 0.55) } : {}) } : f0;
       if (EX) { const z0 = footAt(f); if (z0 !== null) bends.push([faces.length, faces.length + 1, z0]); }
       if (f.group === 'city:night-window' || f.group === 'city:night-shop') counts.panes++;
       // (a facade's own faces come untagged: they are the detail's)

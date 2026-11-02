@@ -40,7 +40,10 @@
   neighbours one height (the next raised by the step where the dice stood it level); its lane lines fat and its yellow
   pushed, its crosswalk bars parallelograms, ink splashed along its arterials; an evoked block's walks in skewed pastel
   slabs (the metro's others too far off to see them); its parked cars toy cars. Its composed geotowns are loud by
-  their own. (Its evoked facades' windows stay square: the facade pipeline does not tell its windows apart.)
+  their own. Its street furniture (bins, hydrants, benches, bollards, bike rings, newspaper boxes) each its own ink,
+  never the last of its kind's: its templates drawn pale, each stamp its tint. Its evoked facades each lot a hue of its
+  own, never the lot before it, the facade's faces and the card's painted grid leant to it, their light kept. (The
+  evoked facades' windows stay square: they are a card's painted grid, not geometry.)
 - **A loud street** (`exaggerate.streets`, `geotown/street-loud.js`; the `street` hand carries one), by the shops'
   principles over a plan that never moves: the walks laid in big pastel slabs over their own ground, cut on skewed lines
   (their ends too: no slab square), each a tint other than its neighbour's, set in a grout of the walk; the kerbs in
