@@ -57,8 +57,7 @@ Defects these runs turned up, each small:
 - The player's hp drops by a flat `SHOOT.hit` per hit (`fail-on-death`'s `hits`). The foe weapon's `damage` never
   reaches the player's hp.
 - The hero-less quick shooter (the default) pilots on the `walk` rule. `scene/combat-score.js` exports combat only
-  for a `platform` pilot, so **its gunfight does not travel to Godot at all**. Foes never shoot in Godot in any case
-  (`godot-kernel/combat.gd`).
+  for a `platform` pilot, so its gunfight is not in the score at all.
 - `simLevel` passes only `{ entities, colliders }` to `createWorld`, so a level's `match` is dropped headless.
 - The `down` fact carries no killer. The killer is the last `hit:<id>`'s `by`, and nothing joins them.
 - `concerns.js` has no `laws` on any row, so `concernsOf` reports `checked: false` even where `concernLaws` checks the

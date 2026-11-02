@@ -25,7 +25,6 @@ import { trackCourse } from '../roads/track.js';
 import { designCity } from '../city/plan/design.js';
 import { cityPlanSvg } from '../city/plan/book-html.js';
 import { cubeOfWorld, intentReport, GENRES } from './intent.js';
-import { engineOf } from '../scene/engines/registry.js';
 import { concernsOf } from './concerns.js';
 import { readGameworld, resolveLevel, OPEN_SLOTS, civLibrary } from './world.js';
 import { rtsRoster } from '../board/board-rts-tech.js';
@@ -229,8 +228,7 @@ function worldMapSvg(g, order) {
 export const briefText = (b) => (typeof b === 'string' ? b : b?.prompt ?? b?.text ?? '');
 
 // what game it is (intent.js): the genre it starts from, the values it said, and what each concern asks of the world,
-// laid or said only; a world that wrote no intent shows the cube it is read as, and its brief's suggestions; a world
-// with a target says what that engine does not carry (advice only)
+// laid or said only; a world that wrote no intent shows the cube it is read as, and its brief's suggestions
 function intentHtml(world) {
   const C = cubeOfWorld(world), R = intentReport(world), cs = concernsOf(C.cube);
   if (!R.written && !cs.length && !R.suggest) return '';
@@ -240,7 +238,7 @@ function intentHtml(world) {
 ${vals.length ? `<p class="muted">${vals.map((v) => esc(v)).join(' · ')}</p>` : ''}
 ${cs.length ? `<ul class="decided">${cs.map((c) => `<li><b>${esc(c.name)}</b> ${esc(c.asks)} <span class="muted">(${c.laid ? 'laid by the world' : 'asked, not yet laid'}; raised by ${esc(c.by.join(', '))})</span></li>`).join('')}</ul>` : ''}
 ${R.suggest ? `<p class="muted">The brief's words point at: ${R.suggest.map((g) => `${esc(GENRES[g.id].name)} (${esc(g.matched.join(', '))})`).join('; ')}.</p>` : ''}
-${R.target ? `<p class="muted">Meant for <b>${esc(engineOf(R.target.engine).name)}</b> (advice only): ${esc(R.target.says)}</p>` : ''}</details>`;
+</details>`;
 }
 
 // how the hero moves (feel/): the template, its viewer and the feel book to play it (its sibling page, `?book=feel`), what

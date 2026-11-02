@@ -252,7 +252,7 @@ const SCREEN_ZONES_CSS = [
   '  html[data-orientation=portrait] .moj-rpg-field{flex-direction:column}html[data-orientation=portrait] .moj-rpg-field .mem{width:auto}',
 ].join('\n');
 
-export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 1120, height: 780 }, title = 'mojulo world', bg = '#0e1014', inline = false, cdn = false, glow = true, light = null, sky = null, textures = {}, wireframe = false, walk = false, spin = false, hud = true, picks = [], tracers = [], planets = [], movers = [], comets = [], fields = [], surfaces = [], heatSpheres = [], starSurfaces = [], buildups = [], transports = [], deforms = [], raymarch = null, decollide = true, capture = false, signs = [], physics = null, actions = [], entities = [], camera = null, pilot = null, spectate = null, seats = null, ai = null, colliders = null, breakables = null, breakPieces = null, hangar = null, match = null, shadows = null, smoke = null, wreckExplodes = null, tutorial = null, aiDifficulty = null, lock = null, commander = null, figures = {}, events = null, fog = null, ao = null, repeats = [], splats = [], audio = null, fx = null, effects = [], spriteSfx = [], marks = [], driveSurface = null, shoot = null, game = null, backdrop = null, walkers = [], cars = [], carMeshes = {}, signals = null, trafficLanes = null, trafficConstants = null, xr = null, toon = null, stream = null, haze = null, strokeOverlay = null, terrain = null, crystalLight = null, fire = null, metersPerUnit = null, cutouts = null, doors = null, items = null, shallows = null, wetSand = null, softGround = null, jets = null, jetLight = null, sway = null, flicker = null, motes = null, wetRoad = null, weather = null, tone = null, liveGrass = null, pack = false, soft = null, pixel = null , versus = null, vertexContrast = null, board = null, screen = null, runner = null, science = null, hazeHeight = null, snowPrints = null, fauna = null, fabric = null, resample = null, creases = null, occlusion = null, lightTier = null, meet = null, court = null, turns = null, pitch = null, holo = null, innings = null, form = null, broadcasts = null, cone = null, formSky = null, air = null, soften = null } = {}) {
+export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 1120, height: 780 }, title = 'mojulo world', bg = '#0e1014', inline = false, cdn = false, glow = true, light = null, sky = null, textures = {}, wireframe = false, walk = false, spin = false, hud = true, picks = [], tracers = [], planets = [], movers = [], comets = [], fields = [], surfaces = [], heatSpheres = [], starSurfaces = [], buildups = [], transports = [], deforms = [], raymarch = null, decollide = true, capture = false, signs = [], physics = null, actions = [], entities = [], camera = null, pilot = null, spectate = null, seats = null, ai = null, colliders = null, breakables = null, breakPieces = null, hangar = null, match = null, shadows = null, smoke = null, wreckExplodes = null, tutorial = null, aiDifficulty = null, lock = null, commander = null, figures = {}, events = null, fog = null, ao = null, repeats = [], splats = [], audio = null, fx = null, effects = [], spriteSfx = [], marks = [], driveSurface = null, shoot = null, game = null, backdrop = null, walkers = [], cars = [], carMeshes = {}, signals = null, trafficLanes = null, trafficConstants = null, xr = null, toon = null, stream = null, haze = null, strokeOverlay = null, terrain = null, crystalLight = null, fire = null, metersPerUnit = null, cutouts = null, doors = null, items = null, shallows = null, wetSand = null, softGround = null, jets = null, jetLight = null, sway = null, flicker = null, motes = null, wetRoad = null, weather = null, tone = null, liveGrass = null, pack = false, soft = null, pixel = null , versus = null, vertexContrast = null, board = null, screen = null, runner = null, science = null, hazeHeight = null, snowPrints = null, fauna = null, fabric = null, resample = null, creases = null, occlusion = null, lightTier = null, meet = null, court = null, turns = null, pitch = null, holo = null, innings = null, form = null, broadcasts = null, cone = null, formSky = null, air = null, soften = null, captureSize = null } = {}) {
   if (board && !capture) walk = false;   // a board owns the keys and the view: no walking over it
   // (a room in the form render, channels/form.js: its faces' baked light rides each mesh as `aLit`; none, none packed)
   const litPack = !!(form && form.room && Array.isArray(form.room.lights));
@@ -267,7 +267,7 @@ export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 11
   // added to the scene with depthTest off + premultiplied blending, so three's transparent pass
   // draws it last over the mesh; an onBeforeRender hook feeds it the live camera each frame.
   // A raymarch overlay LAYER is { frag, customUniforms, dataTextures } — the fog effect is the
-  // first, and `effects[]` (game-ui-language.plan.md U3) stacks more (glow / wisps) over the same
+  // first, and `effects[]` stacks more (glow / wisps) over the same
   // world. overlayExtras builds the per-layer uniform declarations (custom scalars/vec3s + data
   // textures) shared by fog and every effect layer, so all overlays speak one shape.
   const overlayExtras = (layer) => {
@@ -278,7 +278,7 @@ export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 11
     return [cu, td].filter(Boolean).join(',');
   };
   const fogExtras = fog ? overlayExtras(fog) : '';
-  // fog depthClip (map-treatment.plan.md): when the composed fog asks for a scene-depth stop,
+  // fog depthClip: when the composed fog asks for a scene-depth stop,
   // every render is preceded by a depth prepass ('__fogPrepass(); ' spliced before the render
   // calls). Absent → fogPre is '' and every emitted page stays byte-identical (char-pin safe).
   const fogPre = fog && fog.depthClip ? '__fogPrepass(); ' : '';
@@ -321,6 +321,14 @@ export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 11
   if (raymarch && raymarch.frag) return emitRaymarchWorld({ ...raymarch, viewBox, title, bg, inline, cdn });
   const W = viewBox.width, H = viewBox.height;
   const aspect = W / H;
+  // `captureSize` (a capture page only; the visual gate's, scene/visual-gate.js): the canvas at exactly { width, height }
+  // pixels, from the page's first layout, in place of the viewBox's letterboxed studio size (and over a screen's fit),
+  // so a pose framed by the capture bridge is the pose an engine frames at that size. Absent, or without `capture`: no
+  // bytes.
+  const capSize = capture && captureSize && Number.isInteger(captureSize.width) && Number.isInteger(captureSize.height) && captureSize.width > 0 && captureSize.height > 0 ? captureSize : null;
+  const captureCss = capSize ? `  #wrap{width:${capSize.width}px!important;height:${capSize.height}px!important;max-width:none!important;aspect-ratio:auto!important;flex:none!important}
+  html,body{overflow:hidden}body{margin:0;align-items:flex-start!important;justify-content:flex-start!important}
+` : '';
   const importmap = cdn ? CDN_IMPORTMAP : inline ? inlineImportmap() : VENDOR_IMPORTMAP;
   // `light` lets facade frame-bars self-shade their return cheeks (concrete/brick mass);
   // null is safe — the realizer falls back to a fixed asymmetry.
@@ -552,7 +560,7 @@ export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 11
   const sprites = glow ? collectGlowSprites(faces, { scale: glowCfg.scale ?? 1 }) : [];
   const glowBlock = sprites.length ? glowSpriteScript(sprites, glowCfg.opacity ?? 0.95) : '';
 
-  // Specular channel (material-response.plan.md P2): live Blinn-Phong against the fixed baked
+  // Specular channel: live Blinn-Phong against the fixed baked
   // light for groups whose faces carry `spec`. One-shot setup block (glow/shadow posture) —
   // no spec faces → zero bytes, every existing World byte-for-byte unchanged. The highlight
   // direction follows the scene's own baked light when the payload carries one (a vexar
@@ -716,15 +724,18 @@ export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 11
   // a stage's tone (channels/tone.js): each surface lit first, coloured off its ramp after; none → not one byte
   const toneBlock = tone && Array.isArray(tone.ramps) && tone.ramps.length ? toneScript(tone) : '';
   // the FORM render's land (gen-7, form/land-read.js formPayload): drawn last, in place of the painted land; absent, nothing
-  const formLandBlock = form && form.land ? formLandScript(form.land, form.flora || null) : '';
+  const formLandBlock = form && form.land ? formLandScript(form.land, form.flora || null, { capture }) : '';
   // (a page without the form render: the view cone and its far structures when the world asks, channels/far-structures.js)
-  const skyBlock2 = !formLandBlock && formSky ? `\n// --- the gen-7 sky over a page without the form render (channels/form-sky.js) ---\n(function () {\n  const D = ${safeJson(formSkyInput(formSky))};${formSkyScript()}})();\n` : '';
+  const skyBlock2 = !formLandBlock && formSky ? `\n// --- the gen-7 sky over a page without the form render (channels/form-sky.js) ---\n(function () {\n  const D = ${safeJson(formSkyInput(formSky))};${formSkyScript({ capture })}})();\n` : '';
+  // (the form render's sky and plants are clocked: a capture's frame() pins their clock as an overlay's, so a still is
+  // the same however long it took to draw; the page's own clock otherwise, its bytes as they were)
+  const formClocked = !!(formLandBlock || skyBlock2);
   const coneBlock = !formLandBlock && cone ? `\n// --- the view cone and the far structures (channels/view-cone.js, channels/far-structures.js) ---\n(function () {\n  const POS = null, __formMeshes = [];${viewConeScript(cone)}${farStructuresScript()}})();\n` : '';
   // a gritty style's rock fabric (channels/fabric.js): the near rock drawn from its own joints and beds; none → not one byte
   const fabricBlock = fabric && Array.isArray(fabric.sets) && fabric.sets.length && Array.isArray(fabric.groups) ? fabricScript(fabric) : '';
   // a stage's live grass and swaying crowns (channels/stage-grass.js); absent ⇒ zero bytes
   const grassBlock = liveGrass && liveGrass.grid && liveGrass.wind ? stageGrassScript(liveGrass) : '';
-  // WebXR (opt-in, interchange-seams.plan.md seam 7): `xr: true` or { eye, speed, turn, snap(deg), turnSpeed(deg/s),
+  // WebXR (opt-in): `xr: true` or { eye, speed, turn, snap(deg), turnSpeed(deg/s),
   // move, dead, axial(deg), bind } (channels/xr.js xrConfig). The headset supplies the real eye height under
   // 'local-floor'; `eye` is only the fallback offset when no walk ground probe is emitted. Speed rides the walk speed
   // when one exists. Absent ⇒ no block.
@@ -778,7 +789,7 @@ export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 11
 
   // physics channel (opt-in, LIVE): the actions-world simulated-matter substrate. Empty / absent
   // `physics.bodies` → no block, default loop unchanged. This is the only NON-deterministic channel:
-  // it runs the integrator live rather than replaying a baked path (actions-world.plan.md).
+  // it runs the integrator live rather than replaying a baked path.
   const hasPhysics = physics && Array.isArray(physics.bodies) && physics.bodies.length > 0;
   const physicsBlock = hasPhysics ? physicsChannelScript(physics) : '';
 
@@ -787,7 +798,7 @@ export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 11
   const actionList = (Array.isArray(actions) ? actions : []).filter((a) => a && a.do);
   const actionsBlock = hasPhysics && actionList.length ? actionsChannelScript(actionList) : '';
 
-  // events channel (opt-in, LIVE): the in-world bus (event-bus.plan.md). Present when `events` carries
+  // events channel (opt-in, LIVE): the in-world bus. Present when `events` carries
   // reactions or sequences — it reacts to physics FACTS (via __mojSim, when physics is live) and/or
   // timer-driven sequences, reflecting verb effects onto marker meshes. No reactions/sequences → no
   // block (a bare `sources` list with nothing listening is inert, so it is not worth emitting).
@@ -836,7 +847,7 @@ export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 11
   for (const [name, spec] of Object.entries(figures || {})) {
     if (Array.isArray(spec)) { if (spec.length) packedFigures[name] = { clips: { forward: __packClip(spec) } }; }
     else if (spec && spec.rig === true) packedFigures[name] = spec;   // rig-bake output (pose curves + rigid parts) — already packed
-    else if (spec && spec.polygomer === true) {   // polygomer body (platformer.plan.md P2): bake faces → b64 pos/col, no clip packing
+    else if (spec && spec.polygomer === true) {   // polygomer body: bake faces → b64 pos/col, no clip packing
       const gm = faceListToMesh(spec.faces || []);
       packedFigures[name] = { polygomer: true, pos: b64(gm.positions), col: b64(gm.colors) };
     }
@@ -846,7 +857,7 @@ export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 11
       if (Object.keys(clips).length) packedFigures[name] = { clips };
     }
   }
-  // fx channel (game-ui-language.plan.md, U2): standing states + one-shot gestures decorating
+  // fx channel (U2): standing states + one-shot gestures decorating
   // controllable entities by id. Present only when the manifest carries a non-empty `fx`; absent
   // ⇒ byte-identical (no scaffolding emitted). It reads __mojCtrl.bodies, so the controllable
   // channel exposes that map ONLY when fx is active (keeping fx-free worlds byte-identical). It is
@@ -856,7 +867,7 @@ export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 11
   const fxNorm = (fx && typeof fx === 'object'
     && ((fx.states && Object.keys(fx.states).length) || (fx.on && Object.keys(fx.on).length))) ? fx : null;
   const fxBlock = fxNorm ? fxChannelScript(fxNorm) : '';
-  // sprite sfx channel (game-ui-language.plan.md §V): the game sfx VERB shelf rendered as additive
+  // sprite sfx channel: the game sfx VERB shelf rendered as additive
   // sprites (not a raymarch overlay). Present only when the manifest carries resolved `spriteSfx`
   // layers; absent ⇒ byte-identical. Driven by __mojStep(t) like fx, so it renders in bakes too.
   const spriteSfxList = Array.isArray(spriteSfx) ? spriteSfx.filter((L) => L && typeof L.verb === 'string' && Array.isArray(L.cc) && L.cc.length === 3) : [];
@@ -870,7 +881,7 @@ export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 11
   // its set pieces are picture, not gizmo: emitted on capture runs too, posed for the shot that plays. None → zero bytes.
   const shootSetBlock = shootPlan && Array.isArray(shoot.pieces) && shoot.pieces.length ? shootSetScript(shoot.pieces) : '';
   const shootBlock = shootPlan && !capture ? shootChannelScript(shoot, { scale: Math.max(0.25, Math.min(25, (mesh.radius || 20) * 0.05)), aspect, panel: hud !== false, set: !!shootSetBlock }) : '';
-  // walkers channel (city/walkers.plan.md): ambient rig figures on looped paths. Each walker names a
+  // walkers channel: ambient rig figures on looped paths. Each walker names a
   // `figures[]` rig bake (rig:true) and carries a path; resolved against the SAME packed figure bank so
   // no bake is duplicated. Self-contained (its own compact rig poser), so it needs no controllable
   // block. Absent/empty ⇒ '' ⇒ every walker-free world is byte-identical (constraint: walkers-off pins).
@@ -1027,7 +1038,7 @@ scene.add(__eQuad${i});${fxDepth ? ` __fxQuads.push(__eQuad${i});` : ''}
   // the setup/post blocks hand theirs into the SETUP_CHANNELS-ordered sections (S3):
   // the registry owns splice order per anchor; the template interpolates one section call
   // per anchor instead of a hand-wired run of block variables.
-  // Coat splats (field-splats.plan.md phase 2): the gaussians surfaceSplats grows off a
+  // Coat splats: the gaussians surfaceSplats grows off a
   // polygonizer field. Purely additive presentation — a coat declares no surface, so it
   // never reaches the printable set, the closure audit, or the world-contract tiers. An
   // empty list emits ZERO bytes (the row carries sep:'' and the char net pins it).
@@ -1101,7 +1112,7 @@ ${spin ? `  /* ?spin=1 is the EMBED read (a preview pane iframes this page): fil
   body{background:#000;justify-content:center;height:100dvh}
   #wrap{max-width:none;aspect-ratio:auto;flex:none}
 ${SCREEN_ZONES_CSS}
-` : ''}  canvas{display:block;width:100%;height:100%}
+` : ''}${captureCss}  canvas{display:block;width:100%;height:100%}
   .hud{position:absolute;left:8px;top:8px;display:flex;gap:6px;flex-wrap:wrap}
   .hud button{color:#9cc4ff;background:rgba(11,18,32,.6);border:1px solid #24324a;border-radius:5px;padding:4px 10px;cursor:pointer;font:inherit}
   .hud button.on{background:#1b2740;color:#fff}
@@ -1627,7 +1638,7 @@ if (_capture) {
       if (Array.isArray(spec.target)) controls.target.set(spec.target[0], spec.target[1], spec.target[2]);
       if (Number.isFinite(spec.vfov)) { camera.fov = spec.vfov; camera.updateProjectionMatrix(); }
       controls.update();
-      ${shootPlan && capture ? "if (Number.isFinite(spec.roll) && spec.roll) camera.rotateZ(-spec.roll * Math.PI / 180);   // a shoot plan's roll\n      " : ''}${shootSetBlock && capture ? "if (Number.isInteger(spec.shot)) __shSetShot = spec.shot;   // the shot this frame plays: its set pieces show\n      " : ''}${scienceBlock && capture ? "if (Number.isInteger(spec.shot)) __sciShot = spec.shot;   // the shot this frame plays: a science film tags its slow motion\n      " : ''}${(capture && hasOverlay) ? 'window.__mojClock = Number.isFinite(spec.t) ? spec.t : 0;   // U3: pin the overlay clock so raymarch effects (fog/glow/wisps) bake deterministically under camera frames\n      ' : ''}__mojStep(Number.isFinite(spec.t) ? spec.t : 0);
+      ${shootPlan && capture ? "if (Number.isFinite(spec.roll) && spec.roll) camera.rotateZ(-spec.roll * Math.PI / 180);   // a shoot plan's roll\n      " : ''}${shootSetBlock && capture ? "if (Number.isInteger(spec.shot)) __shSetShot = spec.shot;   // the shot this frame plays: its set pieces show\n      " : ''}${scienceBlock && capture ? "if (Number.isInteger(spec.shot)) __sciShot = spec.shot;   // the shot this frame plays: a science film tags its slow motion\n      " : ''}${(capture && (hasOverlay || formClocked)) ? 'window.__mojClock = Number.isFinite(spec.t) ? spec.t : 0;   // U3: pin the overlay clock so raymarch effects (fog/glow/wisps) bake deterministically under camera frames\n      ' : ''}__mojStep(Number.isFinite(spec.t) ? spec.t : 0);
       updateCutaway();
       ${prePass}renderer.render(scene, camera);
     },
@@ -1778,7 +1789,7 @@ if (_capture) {
 // (6 Float32 verts/face, colour duplicated per vertex) is ~5× larger and, at the
 // figure's real density (~17k faces), blows a 24-frame loop past 75MB (proven in
 // figure-world.spike.test.js). The browser re-expands corners → two tris and
-// fans the per-face colour onto all 6 verts. See figure-world.plan.md.
+// fans the per-face colour onto all 6 verts.
 function packFigureFrames(frames) {
   const all = frames.map((fr) => expandSurfaceCards(fr.faces || []).filter((f) => f && f.corners && f.corners.length >= 4));
   const mn = [Infinity, Infinity, Infinity], mx = [-Infinity, -Infinity, -Infinity];

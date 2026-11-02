@@ -49,6 +49,24 @@ describe('create_character as a persona', () => {
   });
 });
 
+describe('the persona as the actor: a style and a role', () => {
+  it('keeps them on the record, says the style per read, and a read\'s own style wins', async () => {
+    const out = await createCharacterHandler({ as: 'persona', ref: 'pp_actor', spec: { hero: realistic.ref, register: 'speech', style: 'action-star', role: { status: 'high', emote: 'wary' }, reads: { a: { script: NEWS }, b: { script: NEWS, style: 'thespian' } } } });
+    const P = SketchRepository.getByRef('pp_actor').manifest.persona;
+    expect(P.style).toBe('action-star');
+    expect(P.role).toEqual({ status: 'high', emote: 'wary' });
+    expect(out.persona.reads.map((r) => [r.id, r.style, r.role])).toEqual([['a', 'action-star', 'high'], ['b', 'thespian', 'high']]);
+    for (const T of Object.values(personaTakes(P))) expect(performanceErrors(T)).toEqual([]);
+  });
+
+  it('refuses a style or a role it does not know, and revises a style by update', async () => {
+    await expect(createCharacterHandler({ as: 'persona', spec: { hero: 'pp_ada', style: 'mime' } })).rejects.toThrow(/not a style/);
+    await expect(createCharacterHandler({ as: 'persona', spec: { hero: 'pp_ada', role: { status: 'royal' } } })).rejects.toThrow(/role\.status/);
+    await updateCharacterHandler({ ref: 'pp_actor', spec: { style: 'extra' } });
+    expect(SketchRepository.getByRef('pp_actor').manifest.persona.style).toBe('extra');
+  });
+});
+
 describe('update_character on a persona', () => {
   it('merges reads by id, retunes a read, removes one with null, and keeps what it replaced as a revision', async () => {
     await createCharacterHandler({ as: 'persona', ref: 'pp_edit', spec: { hero: realistic.ref, reads: { lead: { script: NEWS }, old: { script: 'Bye.' } } } });
