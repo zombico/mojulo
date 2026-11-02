@@ -13,17 +13,14 @@
 //              over a terrain) thickens or thins this one: `scene.fog.density` is its extinction at the base, per unit.
 //   the sky    the gen-7 sky (channels/form-sky.js) veiled to the air at its horizon, in a band as thick as the air
 //              (`band`), so the land and the sky meet in one colour where the fog swallows the land.
-//   the blur   a depth-aware softening of the far (`blur`, css pixels at its most): the frame drawn to a target first
-//              (its depth beside it), then laid on the canvas with each pixel spread by how much air lies between it and
-//              the eye (the same optical depth, rebuilt from the depth), only past the view cone's reach where the page
-//              has one (where the impostors begin: the trees' and the buildings' cards, the far field's colour) and never
-//              nearer than `from` x the visibility. A near thing never spreads onto the far behind it (each sample counts
-//              only as far as its own radius reaches), and nothing near is softened. The target holds exactly what the canvas would
-//              (tone-mapped and encoded as on screen), so the page looks the same with the blur at zero. A renderer that
-//              cannot draw to a half-float target, a camera that is not perspective and an XR session keep the plain frame.
+//   the blur   a depth-aware softening of the far (`blur`, css pixels at its most), drawn by the frame pass
+//              (channels/frame-pass.js, shared with the view cone's `soften`): each pixel spread by how much air lies
+//              between it and the eye (the same optical depth, rebuilt from the depth), only past the view cone's reach
+//              where the page has one (where the impostors begin: the trees' and the buildings' cards, the far field's
+//              colour) and never nearer than `from` x the visibility.
 //
 // Absent `air` => NOT emitted: the page's fog chunk, its sky and its frame are untouched. `window.__mojAir` is the probe:
-// { kind, visibility, sigma, height, blur, sky (veiled), target (the blur's), passes, fog(), depth(ez, rx, ry, rz),
+// { kind, visibility, sigma, height, blur, sky (veiled), fog(), depth(ez, rx, ry, rz),
 // taken(ez, rx, ry, rz) (past ATMOSPHERE.cull), set({ blur? }) }.
 import { safeJson } from '../emit-util.js';
 
@@ -136,51 +133,13 @@ ${colour}
 `;
 }
 
-// the blur's composite: each pixel spread over a golden-angle disc by the air before it, a sample counted only as far as
-// its own radius reaches (so the near never spreads onto the far)
-const blurFrag = (cfg, taps) => `uniform sampler2D tC;
-uniform sampler2D tD;
-uniform vec2 uRes;
-uniform float uLogF, uFrom, uPx, uS;
-uniform vec3 uEye;
-uniform mat4 uProjInv, uCamW;
-varying vec2 vUv;
-${atmosphereGlsl(cfg, 'uEye')}
-float rad( vec2 uv ) {
-  float d = texture2D( tD, uv ).x;
-  vec4 p = uProjInv * vec4( uv * 2.0 - 1.0, 1.0, 1.0 ); vec3 dv = normalize( p.xyz / p.w );
-  vec3 dw = ( uCamW * vec4( dv, 0.0 ) ).xyz;
-  if ( d >= 0.99999 ) {   // the sky: the veil's air at the horizon, in its band
-    float hz = 1.0 - exp( - airDepth( normalize( vec3( dw.xy, 0.0 ) ) * ${f(cfg.sky)}, uS ) );
-    return uPx * hz * exp( - max( dw.z, 0.0 ) / ${f(cfg.band)} );
-  }
-  float z = exp2( d * uLogF ) - 1.0, L = z / max( - dv.z, 1e-4 );
-  float gate = clamp( ( z - uFrom ) / max( uFrom * 0.5, 1.0 ), 0.0, 1.0 );
-  return uPx * gate * sqrt( 1.0 - exp( - airDepth( dw * L, uS ) ) );
-}
-void main() {
-  vec4 c0 = texture2D( tC, vUv );
-  float r0 = rad( vUv );
-  if ( r0 < 0.3 ) { gl_FragColor = c0; return; }
-  vec3 acc = c0.rgb; float wsum = 1.0;
-  for ( int i = 0; i < ${taps}; i++ ) {
-    float fi = float( i ) + 0.5, rr = r0 * sqrt( fi / ${f(taps)} ), a = fi * 2.39996323;
-    vec2 uv = vUv + vec2( cos( a ), sin( a ) ) * rr / uRes;
-    float w = clamp( rad( uv ) - rr + 0.5, 0.0, 1.0 );
-    acc += texture2D( tC, uv ).rgb * w; wsum += w;
-  }
-  gl_FragColor = vec4( acc / wsum, c0.a );
-}
-`;
 
 /** The air's EARLY page source, placed right after the scene is made (scene-three.js): three's fog chunk patched before any
- *  material is made, the probe, and the blur's frame pass wrapped round three's own render FIRST, so every other wrapper
- *  of the page's render (the water's refraction, the live light's counters) sits outside it and sees a frame drawn to the
- *  canvas, and every scene hook is told so (the frame's target handed to them as none). */
+ *  material is made, and the probe. Its blur is the frame pass's (channels/frame-pass.js), emitted beside it. */
 export function atmosphereEarlyScript(cfg) {
-  const GL = atmosphereGlsl(cfg), taps = ATMOSPHERE.blur.taps;
+  const GL = atmosphereGlsl(cfg);
   return `
-// --- the air, first: three's fog chunk and the far's softening (channels/atmosphere.js) ---
+// --- the air, first: three's fog chunk (channels/atmosphere.js; its blur is the frame pass's, channels/frame-pass.js) ---
 (function () {
   const AT = ${safeJson(cfg)}, GL = ${JSON.stringify(GL)};
   // (three's fog chunk, once, before any material compiles: the ray from the eye in world space, its optical depth)
@@ -190,8 +149,8 @@ export function atmosphereEarlyScript(cfg) {
   C.fog_pars_fragment = C.fog_pars_fragment.replace('varying float vFogDepth;', 'varying float vFogDepth;\\n\\tvarying vec3 vAirRay;\\n' + GL);
   C.fog_fragment = C.fog_fragment.replace('float fogFactor = 1.0 - exp( - fogDensity * fogDensity * vFogDepth * vFogDepth );', 'float fogFactor = 1.0 - exp( - airDepth( vAirRay, fogDensity ) );')
     .replace('gl_FragColor.rgb = mix( gl_FragColor.rgb, fogColor, fogFactor );', 'gl_FragColor.rgb = mix( gl_FragColor.rgb, airColour( vAirRay, fogColor ), fogFactor );');
-  const probe = window.__mojAir = { kind: AT.kind, visibility: AT.visibility, sigma: AT.sigma, height: AT.height, blur: AT.blur, sky: false, passes: 0, target: false,
-    set(o) { if (o && Number.isFinite(o.blur)) this.blur = Math.max(0, o.blur); return this; },
+  window.__mojAir = { kind: AT.kind, visibility: AT.visibility, sigma: AT.sigma, height: AT.height, blur: AT.blur, sky: false,
+    set(o) { if (o && Number.isFinite(o.blur)) { this.blur = Math.max(0, o.blur); if (window.__mojFrame) window.__mojFrame.set({ air: this.blur }); } return this; },
     fog: () => (scene.fog ? { density: scene.fog.density, color: '#' + scene.fog.color.getHexString(), chunk: C.fog_fragment.indexOf('airDepth') >= 0 } : null),
     // (the optical depth along a ray r from an eye at height ez, at the page's fog now: the GLSL's airDepth, for what a
     // page may leave undrawn where the air has taken it, channels/city-cone.js)
@@ -203,34 +162,6 @@ export function atmosphereEarlyScript(cfg) {
     },
     // (taken: past the air's cull, nothing of it reaches the eye)
     taken(ez, rx, ry, rz) { return this.depth(ez, rx, ry, rz) > ${ATMOSPHERE.cull}; } };
-  // the blur: the frame into a target that holds what the canvas would, then laid on the canvas softened by the air
-  const ext = renderer.extensions, canHalf = ext.has('EXT_color_buffer_float') || ext.has('EXT_color_buffer_half_float');
-  if (!(AT.blur > 0 && canHalf)) return;
-  const gl = renderer.getContext(), aa = !!(renderer.getContextAttributes() || {}).antialias;
-  const RT = new THREE.WebGLRenderTarget(1, 1, { type: THREE.HalfFloatType, samples: aa ? Math.min(4, gl.getParameter(gl.MAX_SAMPLES) || 0) : 0, depthTexture: new THREE.DepthTexture(1, 1) });
-  // (three tone-maps and encodes a target only as it does the canvas when the target is marked as an XR one)
-  RT.texture.colorSpace = THREE.SRGBColorSpace; RT.isXRRenderTarget = true;
-  const BU = { tC: { value: RT.texture }, tD: { value: RT.depthTexture }, uRes: { value: new THREE.Vector2() }, uLogF: { value: 1 }, uFrom: { value: AT.from }, uPx: { value: 0 },
-    uS: { value: AT.sigma }, uEye: { value: new THREE.Vector3() }, uProjInv: { value: new THREE.Matrix4() }, uCamW: { value: new THREE.Matrix4() } };
-  const q = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), new THREE.ShaderMaterial({ uniforms: BU, depthTest: false, depthWrite: false, toneMapped: false,
-    vertexShader: 'varying vec2 vUv;\\nvoid main() { vUv = uv; gl_Position = vec4( position.xy, 0.0, 1.0 ); }', fragmentShader: ${JSON.stringify(blurFrag(cfg, taps))} }));
-  q.frustumCulled = false;
-  const BS = new THREE.Scene(), BC = new THREE.Camera(), R0 = renderer.render.bind(renderer), sz = new THREE.Vector2();
-  renderer.render = function (s, cam) {
-    if (s !== scene || probe.blur <= 0 || renderer.getRenderTarget() !== null || !cam.isPerspectiveCamera || (renderer.xr && renderer.xr.isPresenting)) return R0(s, cam);
-    renderer.getDrawingBufferSize(sz);
-    if (RT.width !== sz.x || RT.height !== sz.y) RT.setSize(sz.x, sz.y);
-    // (the scene's hooks see the frame as drawn to the canvas: a hook that stands down for a prepass's target still runs)
-    const hook = scene.onBeforeRender, after = scene.onAfterRender;
-    scene.onBeforeRender = function (r, sc, c, rt) { return hook.call(this, r, sc, c, rt === RT ? null : rt); };
-    scene.onAfterRender = function (r, sc, c, rt) { return after.call(this, r, sc, c, rt === RT ? null : rt); };
-    try { renderer.setRenderTarget(RT); R0(s, cam); } finally { renderer.setRenderTarget(null); scene.onBeforeRender = hook; scene.onAfterRender = after; }
-    BU.uRes.value.copy(sz); BU.uLogF.value = Math.log2(cam.far + 1); BU.uPx.value = probe.blur * renderer.getPixelRatio();
-    BU.uFrom.value = Math.max(AT.from, window.__mojCone ? window.__mojCone.reach : 0); BU.uS.value = scene.fog ? scene.fog.density : AT.sigma;
-    BU.uEye.value.setFromMatrixPosition(cam.matrixWorld); BU.uProjInv.value.copy(cam.projectionMatrixInverse); BU.uCamW.value.copy(cam.matrixWorld);
-    R0(BS, BC); probe.passes++;
-  };
-  BS.add(q); probe.target = true;
 })();
 `;
 }

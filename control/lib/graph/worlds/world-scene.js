@@ -809,6 +809,8 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
   }
   // (a page without the form render carries the view cone and its far structures only when its world asks: `cone`)
   if (payload && !payload.form && sketch.manifest.cone !== undefined && sketch.manifest.cone !== null) payload.cone = readCone(sketch.manifest.cone);
+  // (the crust softened past the cone's reach, `cone.soften`: the page's frame pass, channels/frame-pass.js; a page's read only)
+  { const C = payload ? (payload.form?.land?.cone ?? payload.cone) : null; if (C && C.soften && !unshaded && viewOpts.paint !== true) payload.soften = C.soften; }
   // THE AIR of a gen-7 geocube page (channels/atmosphere.js): the recipe's `air`, a fog by its visibility over the outside
   // (lying low over the walk's ground, glowing toward the sun) or the inside (a hall, a room, a cavern: even), the gen-7
   // sky veiled to it and the far softened past the view cone. Read on any geocube read (a bad word refuses there too);

@@ -80,15 +80,13 @@ describe('the air', () => {
     expect(atmosphereGlsl(atmosphereInput(readAtmosphere('fog', { inside: true })))).not.toContain('exp( - h0');
   });
 
-  it('patches three\'s fog chunk first, softens the far past the cone innermost, then veils the gen-7 sky; both parse', () => {
+  it('patches three\'s fog chunk first, then veils the gen-7 sky; both parse (its blur is the frame pass\'s)', () => {
     const cfg = atmosphereInput(readAtmosphere('mist'), { sun: [0, -0.5, 0.8] });
     const early = atmosphereEarlyScript(cfg), late = atmosphereScript(cfg);
     for (const src of [early, late]) expect(() => new Function('THREE', 'scene', 'renderer', src)).not.toThrow();
-    for (const s of ["'float fogFactor = 1.0 - exp( - fogDensity * fogDensity * vFogDepth * vFogDepth );'", 'vAirRay = ( vec4( mvPosition.xyz, 0.0 ) * viewMatrix ).xyz;', 'airColour( vAirRay, fogColor )',
-      'Math.max(AT.from, window.__mojCone ? window.__mojCone.reach : 0)', 'RT.isXRRenderTarget = true', 'renderer.xr.isPresenting', 'rt === RT ? null : rt']) expect(early).toContain(s);
+    for (const s of ["'float fogFactor = 1.0 - exp( - fogDensity * fogDensity * vFogDepth * vFogDepth );'", 'vAirRay = ( vec4( mvPosition.xyz, 0.0 ) * viewMatrix ).xyz;', 'airColour( vAirRay, fogColor )']) expect(early).toContain(s);
+    expect(early).not.toContain('WebGLRenderTarget');
     for (const s of ['m.uniforms.uCover', 'scene.fog.density = AT.sigma']) expect(late).toContain(s);
-    // (a blur of zero keeps the frame: no target, no pass)
-    expect(atmosphereEarlyScript(atmosphereInput(readAtmosphere({ kind: 'mist', blur: false })))).toContain('if (!(AT.blur > 0 && canHalf)) return;');
   });
 
   it('in a room, is the colour of the room\'s own light over its void, not the sky\'s', () => {
@@ -107,6 +105,8 @@ describe('the air', () => {
     // (its first part right after the scene is made: before any other wrapper of the render, before any material)
     expect(page.indexOf('the air, first')).toBeGreaterThan(page.indexOf('const scene = new THREE.Scene();'));
     expect(page.indexOf('the air, first')).toBeLessThan(page.indexOf('the air: a fog by its visibility'));
+    // (its blur the frame pass's, right after it: wrapped round three's render before any other wrapper)
+    expect(page.indexOf('the frame pass: the far softened by the air')).toBeGreaterThan(page.indexOf('the air, first'));
     expect(emitThreeWorld({ faces: [face] })).not.toContain('channels/atmosphere.js');
     expect(emitThreeWorld({ faces: [face] })).toBe(emitThreeWorld({ faces: [face], air: null }));
   });

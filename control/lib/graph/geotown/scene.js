@@ -60,7 +60,7 @@ import { backTouch } from './laws.js';
 import { materialContext, wordTile } from '../era/arch-style.js';
 import { WALK } from '../era/out-ikebana.js';
 
-export const GEOTOWN_KEYS = Object.freeze(['kind', 'cube', 'show', 'title', 'seed', 'hour', 'clouds', 'style', 'geotown', 'walk', 'shadows', 'occlusion', 'light', 'air']);
+export const GEOTOWN_KEYS = Object.freeze(['kind', 'cube', 'show', 'title', 'seed', 'hour', 'clouds', 'style', 'geotown', 'walk', 'shadows', 'occlusion', 'light', 'air', 'cone']);
 // the faces a geotown draws at most (its trees are repeats, budgeted apart): a law, advice. The town to scale's is one
 // budget; an evocation spends its own on each segment's buildings, so its budget is a segment's times its segments,
 // or a building's times its buildings where a dense streetscape stands more
@@ -221,7 +221,7 @@ const lineOf = (d, B, side) => (side === 'w' ? { id: `ns-${B.i}`, S: d.sections.
 
 /** The geocube kind's geotown: the town's map stood on the cube's land at its hour. */
 export function assembleGeotownScene(m, ctx = {}) {
-  for (const k of Object.keys(m)) if (!GEOTOWN_KEYS.includes(k)) no(`'${k}' is not a setting of the geocube kind's geotown (cube, seed, hour, clouds, style, geotown, air)`);
+  for (const k of Object.keys(m)) if (!GEOTOWN_KEYS.includes(k)) no(`'${k}' is not a setting of the geocube kind's geotown (cube, seed, hour, clouds, style, geotown, air, cone)`);
   if (m.seed !== undefined && !Number.isInteger(m.seed)) no('seed is an integer');
   if (m.cube === undefined || m.cube === null) no('cube is a preset id or a document');
   // (a geotown composed into a geocity's neighbourhood stands on the metro's land: ctx.field, its natural ground in the
