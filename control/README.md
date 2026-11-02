@@ -14,7 +14,7 @@ That wires mojulo into the coding agents on this machine (Claude Code, Codex, Cl
 
 You talk to the agent you already run; it does the reasoning, and mojulo is the machine it works in. Build **games, worlds and objects by conversation.** An object blocks out at literal scale, a world is a place you can walk, a level is a world under a game contract, a game composes the levels — and music folds in as an asset, synthesized from seeded math with no samples. Each rung is a small deterministic **recipe**: readable, seeded to regenerate identically, never a render.
 
-**Two pipelines out.** DIGITAL: worlds, levels and scenes render dependency-free in the browser and export to **Godot** as a real project, to **Unity** as a data pack plus importer, characters and solids to **Unreal** as assets (each with an advisory gate when the engine is installed), and to **Blender** as an art-pass pack — with `.glb` and OpenUSD for everything else. PHYSICAL: objects, vehicles and wordmarks export as **print-ready STL or 3MF at true scale** — mm units, z-up, slicer-ready, with a slicer gate that stamps what it measured.
+**Two pipelines out.** DIGITAL: worlds, levels and scenes render dependency-free in the browser, and a game plays there or as a desktop app. A team's engine gets a handoff, not the game: a level's assets, materials, light and markers as a **Godot**, **Unity**, **Unreal** or **Blender** project its importer builds, re-handed without losing the developer's own wiring; Unreal also takes one character or solid as an asset, and Blender an art-pass pack — with `.glb` and OpenUSD for everything else. PHYSICAL: objects, vehicles and wordmarks export as **print-ready STL or 3MF at true scale** — mm units, z-up, slicer-ready, with a slicer gate that stamps what it measured.
 
 Mojulo is the **upstream** that feeds the tools you already use. It does not try to out-render a game engine, and it is not just an exporter: the recipe is where the thing is born and re-renders; the engine or the printer is where it is optionally finished. Every handoff carries a ledger of what did not travel.
 
@@ -62,7 +62,7 @@ npx mojulo init
 #      here's my floor plan, ideas?       → the house built from it, rooms designed
 #      build an oak table, exploded       → a jointed frame; see how it goes together
 #      build a New York-style city        → a world; walk it at /world
-#      turn that into a game              → a game; export it for Godot
+#      turn that into a game              → a game; play it, or hand its levels to Godot
 
 # 3. In your agent's own box with an MCP client (Claude Code on the web, a
 #    Codex cloud task), nobody is at a keyboard, so init needs --yes (without
@@ -183,7 +183,7 @@ The chatbot factory is no longer part of mojulo as of 3.0 and is moving to its o
 - **"Model me a bracket that fits this shelf"** → a solid at literal scale on the workbench: lathes, sweeps, extrudes, fields; a hole is a line in the recipe; parts seat by declared relation. Measured without exporting, then out as print-ready STL or 3MF with process-aware print advisories — the conversation ends at the printer.
 - **"A posed archer" / "a wolf, mid-stride"** → figures and animals on one armature, with gaits and emotes; rigs export as glTF clips, skinned meshes, or VRM humanoids.
 - **"A six-storey building with a set-back penthouse" / "a walkable city at dusk"** → furnished floorplans that stack, bespoke buildings, caves and dungeons, cities, transit hubs, campuses, landscapes — every one a place you can walk, and every one exportable.
-- **"Make me a game"** → composition: levels, music, and figures bound to a typed store with rules — playable standalone, or exported as a **Godot** project or a **Unity** pack. 2D reducer games land in the built-in Arcade.
+- **"Make me a game"** → composition: levels, music, and figures bound to a typed store with rules — playable standalone or as a desktop app, its levels handed to a team's **Godot**, **Unity**, **Unreal** or **Blender**. 2D reducer games land in the built-in Arcade.
 - **"An ambient loop for it"** → music and SFX from seeded math, never samples; worlds opt in to soundtracks and footsteps; a score exports as WAV or MIDI.
 - **"Here's a photo of the room"** → your agent is the vision adapter: it recovers a room's perspective, a figure's pose, or an object's part-graph as a scaffold. No vision key; the image never reaches mojulo.
 

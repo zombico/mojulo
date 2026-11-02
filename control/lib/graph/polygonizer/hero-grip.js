@@ -210,7 +210,7 @@ export function wristFor(R, side, F, m) {
   return { flex: deg(Math.atan2(L[2][1], L[2][2])), deviation: deg(dev), twist: deg(Math.atan2(L[1][0], L[0][0])) };
 }
 /** a frame turning rest vectors (a0, b0) onto posed (a1, b1): a exactly, b as near as square to a allows */
-const alignFrame = (a0, b0, a1, b1) => {
+export const alignFrame = (a0, b0, a1, b1) => {
   const basis = (a, b) => { const x = unit(a), z = unit(cross(x, b)); return fromColumns(x, cross(z, x), z); };
   return mm(basis(a1, b1), T(basis(a0, b0)));
 };
@@ -270,7 +270,7 @@ export function armClear(R, n, side) {
 const strayOf = (w, band) => Math.hypot(...Object.entries(band).map(([k, [lo, hi]]) => Math.max(0, lo - w[k], w[k] - hi)));
 
 /** Levenberg–Marquardt on a residual f(x) (an array) from x0, inside [lo, hi]: → { x, c (the squared residual) } */
-function lm(f, x0, lo, hi, iters = 40) {
+export function lm(f, x0, lo, hi, iters = 40) {
   const clampX = (x) => x.map((v, i) => Math.max(lo[i], Math.min(hi[i], v)));
   let x = clampX(x0), r = f(x), c = r.reduce((a, v) => a + v * v, 0), lam = 1e-3; const N = x.length;
   for (let it = 0; it < iters; it++) {

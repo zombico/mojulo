@@ -3,7 +3,7 @@
  * export-desktop.mjs — the desktop handoff CLI. Thin front door over `export_game { target: 'desktop' }`; this
  * script adds the MACHINE GATE: the folder's main.js launched under Electron in its `--mojulo-smoke` mode
  * (lib/graph/game/desktop-gate.js), loading the shell and the first level hidden and reporting pages that failed,
- * console errors and files the folder lacks. Mirrors export-godot.mjs / export-unity.mjs: env-located binary,
+ * console errors and files the folder lacks. Mirrors export-unreal.mjs: env-located binary,
  * stdout-JSON handback, stderr logs.
  *
  * export_game runs the same gate itself when lib/workers/find.js finds Electron (answered as `desktop.smoke`); this

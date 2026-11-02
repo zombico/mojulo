@@ -1,6 +1,6 @@
 /**
  * THE CLOCK DIAL — a level's clock (the clock mechanic's `minute` and `season` on the bus) read by the sky, as the World
- * page reads it (scene/channels/weather.js, its clocked step) and the Godot kernel does (kernel/weather.gd clock()):
+ * page reads it (scene/channels/weather.js, its clocked step):
  *
  *   nightAt(minute)        0 by day, 1 from 20:00 to 05:00, a two-hour smoothstep dusk (18 to 20) and dawn (5 to 7);
  *                          no minute reads as noon

@@ -51,8 +51,4 @@ not the end).
 - contract: `on: { "frags:won": { end: "success" }, "frags:lost": { end: "fail" } }`, `keep` frags and place.
 - HUD: hp, Frags n / limit, Place n / N, the clock; toasts on a frag and on being fragged.
 
-Every verb is one Godot's bus performs (guarded reactions, watches, a timer, sequences, the cast's kill and spawn);
-the hits that feed it travel as the fight does (kernel/combat.gd deals the hero's, not yet the gunners').
-
-Godot's cast picks the farthest spawn too and holds a guarded body unhittable for its seconds (firing does not break
-it there). Capture the flag is not yet (the `control` card's point is the team objective that is).
+Capture the flag is not yet (the `control` card's point is the team objective that is).

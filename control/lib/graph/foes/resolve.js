@@ -5,7 +5,7 @@
  *
  *   resolveFoe({ class, rank?, skill?, skin?, group? }, { hero? })
  *     → { class, rank, skill, body, skin, measured, stature, scale, entity, mind, toll: { downs, harm, hp, damage }, attack: { kind,
- *         timing, pattern?, reach?, zone? }, strike, stomp, threat, status, marks, short, advisories }
+ *         timing, pattern?, reach?, zone? }, strike, stomp, threat, status, short, advisories }
  *     `strike` the timing its body deals a melee attack's blow by (its clip: fauna/behavior/strike.js), null when its
  *     attack is no blade's or its body cannot strike (a swimmer)
  *     `skin` the species and what grows it, as the animal door takes them; `measured` the grown body (./fit.js bodyOf);
@@ -108,7 +108,7 @@ export function resolveFoe(spec, { hero = HERO } = {}) {
   if (A.verb === 'contact') rule.standoff = r3(Math.max(0.3, (rule.collideRadius ?? 0.3)));
 
   const resolved = resolveMind({ motivation: mind.motivation, aggressiveness: mind.aggressiveness, rank, skill }, entity);
-  const { status, marks, short } = classStatus(c);
+  const { status, short } = classStatus(c);
   // the blow its body deals it by (a melee attack, on a body that can strike: fauna/behavior/strike.js), at its timing; a
   // people's swing is its role's attack (egocube/moves.js), not a beast's strike
   const strike = !people && A.verb === 'melee' && strikesOf(species).length ? { ...A.timing } : null;
@@ -121,6 +121,6 @@ export function resolveFoe(spec, { hero = HERO } = {}) {
   return {
     class: c.id, rank, skill, body: species, skin: people ?? { species, ...grown }, measured, stature, scale, entity, mind: resolved,
     toll: { downs, harm: c.toll.harm, hp: entity.body.hp, damage },
-    attack, strike, stomp: c.stomp, threat: c.threat * R.threat, status, marks, short, advisories: resolved.advisories,
+    attack, strike, stomp: c.stomp, threat: c.threat * R.threat, status, short, advisories: resolved.advisories,
   };
 }

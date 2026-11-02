@@ -58,8 +58,7 @@ spin with NO host-level field declaration required.
 
 This card is the first member of a new family: shelf cards that ship
 their own physics fields alongside the primitives that consume them.
-The substrate's cross-primitive coupling machinery (from
-[cross-primitive-fields.plan.md](../../../../lite-template/integration/0605/cross-primitive-fields.plan.md))
+The substrate's cross-primitive coupling machinery
 is no longer host-only — it lives on the shelf and is discoverable by
 intent.
 
@@ -129,13 +128,10 @@ The card brings its own physics; the host just provides a slot.
 This is the substrate's first demonstration of the
 **self-contained-coupling pattern** — a shelf card that ships with
 its own field declarations, so the field-borne behavior is discoverable
-through semantic search and reusable as a drop-in. See
-[cross-primitive-fields.plan.md](../../../../lite-template/integration/0605/cross-primitive-fields.plan.md)
-for the substrate, and
-[shelf-cards-declare-fields.plan.md](../../../../lite-template/integration/0605/shelf-cards-declare-fields.plan.md)
-for the shelf-layer surface this card rides on. Conceptually it
+through semantic search and reusable as a drop-in.
+Conceptually it
 operationalizes
-[waveform-physics-design.md](../polygonizer/waveform-physics-design.md)
+`waveform-physics-design.md`
 §6 ("Scene coupling") for the case where the "scene" is brought in by
 the card itself rather than provided by the host.
 

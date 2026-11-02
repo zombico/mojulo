@@ -15,7 +15,7 @@
  */
 
 
-// PHASE 1c (mojulo-2.0-pure-creative.plan.md): this file used to be 2038 lines
+// PHASE 1c: this file used to be 2038 lines
 // hosting six unrelated tool families. The handlers now live in focused siblings
 // — sketch-mint / sketch-vocab / sketch-diff-tool / sketch-polygonizer /
 // sketch-model-export / sketch-image-render — and what remains here is the
@@ -347,7 +347,7 @@ export function registerSketchTools() {
   registerTool(withPluginProfile({
     name: 'export_model',
     description:
-      "Export a stored sketch's traversable 3D World as a binary glTF (.glb) the operator can open in Blender, Unreal, three.js, or macOS Quick Look. Pass the sketch `ref`. Works for the World kinds (cities, hubs, rooms, terrain, workbench/assembler studies, `manji-tree` polygomers, vehicles, science views, posed figures, carved wordmarks, turntable solids); flat diagrams and charts have no exportable geometry and return `{ ok:false, eligible:false }` with pointers to /scene and /svg. Fidelity: mojulo's lighting is BAKED into the geometry and the mesh is exported UNLIT (glTF KHR_materials_unlit + per-vertex colours), so it looks identical to the live World from any camera, with no lighting setup downstream. Camera-facing glow billboards and the sky dome are dropped (not geometry); gradient-painted faces collapse to a single colour; animated channels export at their static pose. `format: 'stl'` is the 3D-PRINTING handoff: a binary STL for slicers — shape only (colour/textures dropped; water/decals/studio grid omitted; repeats expanded; z-up). Sizing: literal kinds (workbench/assembler/carved-solid/turntable/vehicle) derive mm from `units`; worlds, views, and figures print as MINIATURES fit to `target_mm` (default 120). Honest triangle soup, not guaranteed-manifold — results report an advisory `closure` audit + printed size. Returns `{ ok, ref, kind, format, url, bytes, vertices, triangles }` (+ `nodes` for glb), plus an on-disk `path` when `write` is true (the default). The `url` (`/api/sketches/<ref>/model.glb` or `.stl`) regenerates deterministically on each request — hand it to the operator to download. Rig worlds: pass `clips` (names array or '_all') to bake figure/unit/vehicle rig clips into glTF animations (own clip lengths). `format: 'html'` writes `world.html`, the live page, self-contained (opens from file://, contacts no server); `cdn: true` writes `world.cdn.html` with three.js off the pinned jsdelivr CDN, the form a page door running a CSP executes. `format: 'bundle'` zips page + mesh (+ STL for literal kinds) + recipe + README into `<ref>.zip`, the one file every host's handoff door accepts. Every written result carries `handoff` (this host's next move: artifact, PR, file card, or the dashboard) and `fits` (against the host's byte limit).",
+      "Export a stored sketch's traversable 3D World as a binary glTF (.glb) for Blender, three.js or Quick Look. Pass the sketch `ref`. Works for the World kinds (cities, hubs, rooms, terrain, workbench/assembler studies, `manji-tree` polygomers, vehicles, science views, posed figures, carved wordmarks, turntable solids); flat diagrams and charts have no exportable geometry and return `{ ok:false, eligible:false }` with pointers to /scene and /svg. Fidelity: light BAKED into the geometry, the mesh UNLIT (KHR_materials_unlit + vertex colours): it looks like the live World from any camera, no lighting setup downstream. Glow billboards and the sky drop; gradients collapse to one colour; animation exports at its static pose. `format: 'stl'` is the 3D-PRINTING handoff: a binary STL for slicers — shape only (colour/textures dropped; water/decals/studio grid omitted; repeats expanded; z-up). Sizing: literal kinds (workbench/assembler/carved-solid/turntable/vehicle) derive mm from `units`; worlds, views, and figures print as MINIATURES fit to `target_mm` (default 120). Honest triangle soup, not guaranteed-manifold — results report an advisory `closure` audit + printed size. Returns `{ ok, ref, kind, format, url, bytes, vertices, triangles }` (+ `nodes` for glb), plus an on-disk `path` when `write` is true (the default). The `url` (`/api/sketches/<ref>/model.glb` or `.stl`) regenerates deterministically on each request — hand it to the operator to download. Rig worlds: pass `clips` (names array or '_all') to bake figure/unit/vehicle rig clips into glTF animations (own clip lengths). `format: 'html'` writes `world.html`, the live page, self-contained (opens from file://, contacts no server); `cdn: true` writes `world.cdn.html` with three.js off the pinned jsdelivr CDN, the form a page door running a CSP executes. `format: 'bundle'` zips page + mesh (+ STL for literal kinds) + recipe + README into `<ref>.zip`, the one file every host's handoff door accepts. Every written result carries `handoff` (this host's next move: artifact, PR, file card, or the dashboard) and `fits` (against the host's byte limit). `engine` hands a world to a team's engine (Godot, Unity, Unreal, Blender): its assets, materials and level, re-handed under their scene.",
     inputSchema: {
       type: 'object',
       properties: {
@@ -388,19 +388,32 @@ export function registerSketchTools() {
         lit: {
           type: 'boolean',
           default: false,
-          description: "glb, unreal: the LIT handoff — real pbrMetallicRoughness materials (no unlit extension) over the UNSHADED payload, so Blender / Godot / Unity / Unreal (its M_MojuloLit master) light the geometry themselves. Off = the mojulo look (unlit vertex colour, light baked in). The web runtime is unaffected.",
+          description: "glb, engine 'unreal' (lit unless false): the LIT handoff — real pbrMetallicRoughness materials (no unlit extension) over the UNSHADED payload, so Blender / Godot / Unity / Unreal (its M_MojuloLit master) light the geometry themselves. Off = the mojulo look (unlit vertex colour, light baked in). The web runtime is unaffected.",
         },
         format: {
           type: 'string',
-          enum: ['glb', 'stl', '3mf', 'usda', 'usdz', 'scad', 'html', 'bundle', 'ifc', 'sheets', 'schedules', 'blender', 'unreal', 'dxf', 'svg', 'bom'],
+          // ('blender' and 'unreal' are `engine` now: the handler still takes them as formats, for the calls that name them;
+          // `format: 'blender'` is the Blender art pack, which forge_motion's film builds on)
+          enum: ['glb', 'stl', '3mf', 'usda', 'usdz', 'scad', 'html', 'bundle', 'ifc', 'sheets', 'schedules', 'dxf', 'svg', 'bom'],
           default: 'glb',
           description:
-            "'glb' (default): vertex colours, group nodes, unlit. 'stl': print triangles, no colour, mm assumed. '3mf': slicer-preferred print package — mm declared in-file, colours, repeats as instanced objects. 'usda'/'usdz': OpenUSD (DCCs, AR Quick Look) at true scale; usdz = one file. 'scad': an OpenSCAD PROGRAM, not a mesh — a scad row's own source verbatim; a workbench recipe transpiled term by term into OpenSCAD solids and booleans, and a term with no equivalent bakes to polyhedron() and the result's coverage ledger names it. 'bundle': one deterministic zip of world.html + model.glb (+ model.stl for literal kinds) + recipe.json + README.md. 'ifc': a house (floorplan with storeys) as an IFC4 building model for BIM tools. 'sheets'/'schedules': a building's drawing set (SVG per sheet) / its schedules (CSV + JSON). 'blender': a Blender pack (import + art-pass scripts); a world with `fire` carries it at `fire_t` for a Cycles still. 'unreal': an Unreal asset pack (GLB + editor importer, a humanoid rigged to retarget). 'dxf'/'svg': a scad row as a flat drawing for a laser or CNC (a 2D program as written, a `slice_z` cut, or the outline). 'bom': a fabricated or furniture row's bill of materials, bom.csv + bom.md.",
+            "'glb' (default): vertex colours, group nodes, unlit. 'stl': print triangles, no colour, mm assumed. '3mf': slicer-preferred print package — mm declared in-file, colours, repeats as instanced objects. 'usda'/'usdz': OpenUSD (DCCs, AR Quick Look) at true scale; usdz = one file. 'scad': an OpenSCAD PROGRAM, not a mesh — a scad row's own source verbatim; a workbench recipe transpiled term by term into OpenSCAD solids and booleans, and a term with no equivalent bakes to polyhedron() and the result's coverage ledger names it. 'bundle': one deterministic zip of world.html + model.glb (+ model.stl for literal kinds) + recipe.json + README.md. 'ifc': a house (floorplan with storeys) as an IFC4 building model for BIM tools. 'sheets'/'schedules': a building's drawing set (SVG per sheet) / its schedules (CSV + JSON). 'dxf'/'svg': a scad row as a flat drawing for a laser or CNC (a 2D program as written, a `slice_z` cut, or the outline). 'bom': a fabricated or furniture row's bill of materials, bom.csv + bom.md.",
+        },
+        engine: {
+          type: 'string',
+          enum: ['godot', 'unreal', 'blender', 'unity'],
+          description: "A team's engine, no `format`. 'godot': a Godot 4 project in <ref>/godot-handoff/ (lit materials, the page's ground and sea shaders, markers; a game's levels each one), mojulo/ replaced each time, level.tscn kept. 'unreal': the same as a UE5 project in <ref>/unreal-handoff/, its importer building /Game/Level; 'unity': a Unity 6 URP project in <ref>/unity-handoff/, building Assets/Scenes/Level.unity. 'blender': the same in <ref>/blender-handoff/, built into level.blend by its importer (a world's `fire` at `fire_t`), the .blend's own collections kept.",
+        },
+        what: {
+          type: 'string',
+          enum: ['level', 'asset'],
+          default: 'level',
+          description: "'asset' drops the level record; Unreal's is its asset pack (lit, a humanoid rigged to retarget), the default off a world.",
         },
         slice_z: { type: 'number', description: 'dxf/svg only: cut the scad solid at this height; omit for a 2D program as written, else the outline.' },
         part: { type: 'string', description: "dxf/svg only: which of the scad row's `parts` to draw." },
-        fire_t: { type: 'number', description: "blender only: the instant (s) of a world's `fire` to pack; omit for when it reads best." },
-        fire_detail: { type: 'number', description: 'blender only: finer flame voxels (1 default, 2 for a close shot).' },
+        fire_t: { type: 'number', description: "engine 'blender' only: the instant (s) of a world's `fire` to pack; omit for when it reads best." },
+        fire_detail: { type: 'number', description: "engine 'blender' only: finer flame voxels (1 default, 2 for a close shot)." },
         cdn: {
           type: 'boolean',
           default: false,

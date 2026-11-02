@@ -1,6 +1,6 @@
 /**
- * blender-pack.js — the Blender DESTINATION pack assembler (export-blender.plan.md rev 3,
- * B0). Front doors: scripts/export-blender.mjs (CLI, + the machine gate) and, at B5,
+ * blender-pack.js — the Blender DESTINATION pack assembler.
+ * Front doors: scripts/export-blender.mjs (CLI, + the machine gate) and, at B5,
  * `export_model({ target: 'blender' })`.
  *
  * One realizer: resolveWorldScene → facesToGlb — the same seam every export shares
@@ -75,7 +75,7 @@ function collectionsFor(inventory, groups) {
 // their values (float32 LE: rgb for a flame, density for smoke). import_mojulo.py writes them to OpenVDB. The fires
 // are read as the live page reads them (an unshaded resolve keeps none: a dungeon's torches stand on its walls only
 // when it is lit), at `fireT` seconds, else at the time the fire reads best.
-async function packFire({ sketch, manifest, payload, shaded, fireT, fireDetail, outDir, writeOut }) {
+export async function packFire({ sketch, manifest, payload, shaded, fireT, fireDetail, outDir, writeOut }) {
   let live = payload;
   if (!shaded) ({ payload: live } = await resolveWorldScene(sketch, { paint: true }));
   if (!live || !live.fire) return null;

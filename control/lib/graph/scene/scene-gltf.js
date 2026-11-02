@@ -102,7 +102,7 @@ function bounds3(arr) {
 
 const TRIS = [[0, 1, 2], [0, 2, 3]];
 
-// ── rig-figure animation export (interchange.plan.md I1) ─────────────────────
+// ── rig-figure animation export ─────────────────────
 // The packed rig clips are PHASE-normalized (gaitPhase advances by distance/stride in the live
 // runtime — no intrinsic period). The exported glTF needs seconds, so we map one full cycle to
 // the runtime's ambient default: the clock rule advances gaitPhase at `rate ?? 1` cycles/second
@@ -280,7 +280,7 @@ function weldCorners(n, cols, rows) {
  * single binary buffer, then `build()` packs the JSON + BIN chunks into a .glb.
  */
 class GlbBuilder {
-  // `quantize` (interchange-seams.plan.md seam 6a): KHR_mesh_quantization on the static
+  // `quantize`: KHR_mesh_quantization on the static
   // mesh paths — POSITION as normalized int16 under a per-mesh dequantizing node TRS
   // (centre + half-extents), NORMAL as int8, COLOR_0 as uint16, TEXCOORD_0 as uint16 when in
   // [0,1]. Roughly halves the geometry bytes with no dependency; every engine importer and
@@ -288,7 +288,7 @@ class GlbBuilder {
   // their own packed form either way.
   constructor(generator = 'mojulo scene-gltf', { quantize = false, lit = false, litRoughness = 0.85 } = {}) {
     this.quantize = !!quantize;
-    // LIT handoff (lit-handoff.plan.md step 1): every surface material is a real
+    // LIT handoff: every surface material is a real
     // pbrMetallicRoughness (no unlit extension) so the importer's light shades the
     // geometry; paired with an UNSHADED payload so that light is the only light.
     this.lit = !!lit;
@@ -450,8 +450,7 @@ class GlbBuilder {
     return this.json.materials.length - 1;
   }
 
-  // A REAL (lit) PBR material for faces tagged with material factors (material-response.plan.md
-  // P3): no unlit extension, so importers light it and the metallic/roughness read shows.
+  // A REAL (lit) PBR material for faces tagged with material factors: no unlit extension, so importers light it and the metallic/roughness read shows.
   // COLOR_0 still multiplies baseColor — the baked Lambert rides along as the albedo's shading,
   // the documented trade of exporting a baked world into a lit viewer.
   pbrMaterial({ metallic = 0, roughness = 0.9, alpha = null, alphaCutoff = null, baseColorTexture = null, normalTexture = null, ormTexture = null, extras = null, name, emissive = null, emissiveStrength = 1, baseColor = null } = {}) {
@@ -630,7 +629,7 @@ class GlbBuilder {
       attributes = { POSITION: posAcc };
       if (w.colors && w.colors.length) attributes.COLOR_0 = this.floatAccessor(w.colors, colorComponents);
       if (w.uvs && w.uvs.length) attributes.TEXCOORD_0 = this.floatAccessor(w.uvs, 2);
-      // Authored outward normals (export-normals.plan.md §3). No range needed (unit vectors).
+      // Authored outward normals. No range needed (unit vectors).
       // Absent ⇒ no NORMAL attribute, byte-identical to a normal-free export. The z-up→y-up root
       // node rotation (ZUP_TO_YUP) rotates NORMAL along with POSITION at import — no hand-rotate.
       if (w.normals && w.normals.length) attributes.NORMAL = this.floatAccessor(w.normals, 3);
@@ -678,6 +677,42 @@ class GlbBuilder {
       this.children.push(this.json.nodes.push(node) - 1);
     });
     return meshIdx;
+  }
+
+  // The engine handoff's instances (scene/handoff.js): one template mesh (its outward normals, and when it has them its
+  // texture coordinates, its colours and its indices) and a node per instance with a FULL TRS (a quaternion and a per-axis
+  // scale, in the pre-root z-up frame), where addInstancedNodes turns about +Z and scales evenly. Used only by a handoff.
+  addFormInstances(name, { positions, normals = null, uvs = null, colors = null, indices = null, splat = null }, materialIndex, transforms) {
+    const attributes = { POSITION: this.floatAccessor(positions, 3, bounds3(positions)) };
+    if (normals && normals.length) attributes.NORMAL = this.floatAccessor(normals, 3);
+    // (glTF's texture origin is the image's top-left: v flipped on the way out, as addNode flips it)
+    if (uvs && uvs.length) attributes.TEXCOORD_0 = this.floatAccessor(Float32Array.from(uvs, (x, i) => (i % 2 ? 1 - x : x)), 2);
+    if (colors && colors.length) attributes.COLOR_0 = this.floatAccessor(colors, 3);
+    // (a layered ground's four layers' weights a corner, glTF's application attribute: an engine's terrain shader reads it;
+    // and the same bytes as TEXCOORD_2 and _3, which an importer that drops an application attribute keeps (Godot's
+    // CUSTOM0), the plan's x and y in metres (POSITION's own bytes) as TEXCOORD_0 and _1 before them, since glTF's sets
+    // count up from 0. Views of what is written already: no byte more in the buffer)
+    if (splat && splat.length && !(uvs && uvs.length)) {
+      const pv = this.json.bufferViews[this.json.accessors[attributes.POSITION].bufferView];
+      pv.byteStride = 12;
+      const sv = this.addView(Buffer.from(splat.buffer, splat.byteOffset, splat.byteLength), TARGET_ARRAY_BUFFER, 16), n = splat.length / 4;
+      const view2 = (bufferView, byteOffset, type) => this.json.accessors.push({ bufferView, ...(byteOffset ? { byteOffset } : {}), componentType: COMPONENT_FLOAT, count: n, type }) - 1;
+      attributes.TEXCOORD_0 = attributes.TEXCOORD_1 = view2(this.json.accessors[attributes.POSITION].bufferView, 0, 'VEC2');
+      attributes.TEXCOORD_2 = view2(sv, 0, 'VEC2'); attributes.TEXCOORD_3 = view2(sv, 8, 'VEC2');
+      attributes._SPLAT = view2(sv, 0, 'VEC4');
+    } else if (splat && splat.length) attributes._SPLAT = this.floatAccessor(splat, 4);
+    const prim = { attributes, mode: MODE_TRIANGLES, material: materialIndex };
+    if (indices && indices.length) prim.indices = this.indexAccessor(indices);
+    this.json.meshes.push({ name, primitives: [prim] });
+    const mesh = this.json.meshes.length - 1;
+    transforms.forEach((t, i) => {
+      const node = { name: `${name}:${i}`, mesh, translation: t.translation };
+      if (t.rotation) node.rotation = t.rotation;
+      if (t.scale) node.scale = t.scale;
+      this.children.push(this.json.nodes.push(node) - 1);
+    });
+    const tris = indices && indices.length ? indices.length / 3 : positions.length / 9;
+    return { vertices: positions.length / 3, triangles: tris };
   }
 
   // One packed rig figure (rig-bake.js / unit-rig.js / vehicle-rig.js — all three families share
@@ -770,7 +805,7 @@ class GlbBuilder {
   }
 
   /**
-   * SKINNED rig export (skin-over-mesh.plan.md phase 4) — the same packed rig
+   * SKINNED rig export — the same packed rig
    * as addRigFigure, exported as ONE SkinnedMesh + a glTF `skins` entry
    * instead of N rigid part nodes. The engine does the deformation; mojulo's
    * own runtime keeps rigid FK (the renderer-ladder decision stands — this is
@@ -822,8 +857,8 @@ class GlbBuilder {
     // skin texels SKIN_ROUGH, the material's roughness the export's over it. Absent ⇒ byte-identical.
     const otex = relief && fig.ormTex ? this.imageFromDataUrl(fig.ormTex.url) : null;
     // THE PARALLAX (the pack's `depthTex`): glTF has no height channel, so the depth map rides as a texture the material's
-    // extras name (`mojulo.relief`: its index, its depth in m, the UVs a metre spans), for Godot's kernel, Unreal's master
-    // and the hero-live viewer to march. Absent ⇒ byte-identical.
+    // extras name (`mojulo.relief`: its index, its depth in m, the UVs a metre spans), for Unreal's master and the hero-live
+    // viewer to march. Absent ⇒ byte-identical.
     const dtex = otex !== null && fig.depthTex ? this.imageFromDataUrl(fig.depthTex.url) : null;
     // THE COVER (beast/cover.js, the pack's `coverTex` and each part's `uv` and `tan`), under the lit handoff only, on a
     // figure without the paint: the cover's tile over the figure (glTF's default sampler repeats it), its base × COLOR_0,
@@ -843,7 +878,7 @@ class GlbBuilder {
     // support is uneven); the silhouette hull is the read. `ink` absent ⇒ byte-identical.
     const inkParts = ink ? [] : null;
 
-    // humanoid (interchange-seams.plan.md seam 3a): joints take their VRM names, weightless leaf
+    // humanoid: joints take their VRM names, weightless leaf
     // joints stand in for the hands / feet VRM requires, and the first humanoid figure carries the
     // VRMC_vrm extension so VRM-aware tools address it by name. Skeleton stays flat (see the map).
     const hb = humanoid ? humanoidBonesFor(bones) : null;
@@ -1337,7 +1372,7 @@ class GlbBuilder {
     channels.push({ sampler, target: { node, path: 'weights' } });
   }
 
-  // One glTF perspective camera + its posed node (interchange.plan.md I4). The node lives
+  // One glTF perspective camera + its posed node. The node lives
   // in the pre-root z-up frame like every other child — the y-up root rotation converts its
   // pose exactly like geometry, so Blender/Godot open with mojulo's own framing. yfov is in
   // radians (glTF §5.9); rotation is a lookAt solve (scene-gltf-level.js lookAtRotation).
@@ -1370,7 +1405,7 @@ class GlbBuilder {
     return node;
   }
 
-  // KHR_lights_punctual (lit-handoff.plan.md, pot lights): a positioned light node in the
+  // KHR_lights_punctual (pot lights): a positioned light node in the
   // pre-root z-up frame like every other child. A spot shines down its node's -Z, which under
   // the y-up root IS mojulo's -Z (down) — a ceiling downlight needs no rotation. Intensity is
   // candela for point/spot per the extension; Blender / Godot / Unreal convert on import.
@@ -1441,13 +1476,13 @@ class GlbBuilder {
  *
  * `payload` is the same object `emitThreeWorld` consumes (an `assemble*Scene`
  * return value): `{ faces, textures?, light? }`. Level semantics ride along by
- * default (interchange.plan.md I4): `cameras` become glTF perspective cameras,
+ * default: `cameras` become glTF perspective cameras,
  * `entities` become named placement nodes with `moj:` extras, and spawn /
  * colliders / game-contract summaries land as scene extras (scene-gltf-level.js).
  * Everything else on the payload (sky, movers, …) is ignored — screen/runtime
  * embellishments, not geometry.
  *
- * Opt-in `clips` (interchange.plan.md I1): an array of clip names (or '_all') adds every packed
+ * Opt-in `clips`: an array of clip names (or '_all') adds every packed
  * RIG figure on `payload.figures` as bone-part nodes plus glTF animations for the named clips
  * (see addRigFigure/addRigClip). Absent ⇒ byte-identical static export — rig figures stay
  * excluded exactly as before. When present the result additionally carries
@@ -1455,7 +1490,7 @@ class GlbBuilder {
  */
 /** a vault's extras in the export's units (metres × mpu): the box, the take-off and landing distances, the run */
 const vaultExtras = (v, mpu) => { const m = (x) => Math.round(x * mpu * 1e4) / 1e4; return { ...v, box: { h: m(v.box.h), d: m(v.box.d), w: m(v.box.w) }, entry: { ...v.entry, takeoff: m(v.entry.takeoff) }, exit: { ...v.exit, landing: m(v.exit.landing) }, travel: m(v.travel) }; };
-export function facesToGlb(payload = {}, { generator, clips = null, skinned = false, quantize = false, humanoid = false, lit = false, roughness = 0.85 } = {}) {
+export function facesToGlb(payload = {}, { generator, clips = null, skinned = false, quantize = false, humanoid = false, lit = false, roughness = 0.85, instances = null, handoff = false, materials = null, sceneExtras: extraScene = null, bodies = null } = {}) {
   const { faces = [], textures = {}, light = null, ao = null, vertexContrast = null, repeats = [], figures = null } = payload || {};
   const repeatList = (Array.isArray(repeats) ? repeats : []).filter((r) => r && Array.isArray(r.template) && r.template.length && Array.isArray(r.transforms) && r.transforms.length);
   // rig-figure selection: only packed rigs qualify (figure-frames stacks / polygomer statics have
@@ -1467,9 +1502,9 @@ export function facesToGlb(payload = {}, { generator, clips = null, skinned = fa
   // water (aqua look): liquid sheets and frozen aqua surfaces leave as their own `water:<kind>` nodes. A scene that is
   // only an animated sea (the ocean view: no faces) exports when it has an aqua surface; otherwise as before.
   const waterBodies = aquaWaterBodies(payload);
-  if ((!Array.isArray(faces) || !faces.length) && !repeatList.length && !rigFigs.length && !waterBodies.some((w) => w.frame)) return null;
+  if ((!Array.isArray(faces) || !faces.length) && !repeatList.length && !rigFigs.length && !waterBodies.some((w) => w.frame) && !(Array.isArray(instances) && instances.length)) return null;
 
-  // A rig may declare `embodies: '<group>'` (interchange.plan.md I2 — the figure kind):
+  // A rig may declare `embodies: '<group>'` (the figure kind):
   // the payload's static faces of that group depict the SAME body at rest, so when this
   // rig actually exports (the clips path) the static group is dropped — otherwise the
   // animated figure would ship with a frozen ghost of itself. clips absent ⇒ rigFigs is
@@ -1498,7 +1533,7 @@ export function facesToGlb(payload = {}, { generator, clips = null, skinned = fa
   // coincident faces that land in DIFFERENT render groups (separate glTF nodes, the worst
   // z-fight case in an importer) get lifted apart too. Groups below then mesh with
   // decollide:false; before this the .glb only de-collided per group and cross-group
-  // duplicates survived into the export (renderer-emitter.plan.md E4).
+  // duplicates survived into the export.
   const expanded1 = decollideFaces(expanded0);
   // Baked ambient occlusion — the same post-expansion, post-decollide pass emitThreeWorld
   // applies, so the .glb carries the identical darkening in its COLOR_0 vertex colours (and
@@ -1665,10 +1700,27 @@ export function facesToGlb(payload = {}, { generator, clips = null, skinned = fa
     for (const f of fs) if (f && typeof f.texture === 'string' && Array.isArray(f.pbr) && f.pbr.length >= 2) texPbr.set(f.texture, f.pbr);
     for (const [key, grp] of Object.entries(gm.textureGroups || {})) {
       if (!grp.positions.length) continue;
-      const texIdx = b.imageFromDataUrl(textures[key]);
+      // (the engine handoff's form material for this tile, scene/handoff.js `materials`: its colour under no light, its
+      // relief's normal, occlusion and roughness, its height in the extras; absent, the tile as it was)
+      const fm = materials && materials[key];
+      const texIdx = b.imageFromDataUrl(fm ? fm.base : textures[key]);
       const pbr = texPbr.get(key) || null;
       let tr;
-      if (texIdx != null) {
+      if (texIdx != null && fm) {
+        const [nIdx, oIdx, hIdx] = [fm.normal, fm.orm, fm.height].map((u) => (u ? b.imageFromDataUrl(u) : null));
+        const mat = b.pbrMaterial({ metallic: 0, roughness: fm.rough ?? 0.85, baseColorTexture: texIdx, alpha: groupAlpha, name: `${name}:${key}`,
+          ...(nIdx != null ? { normalTexture: nIdx } : {}), ...(oIdx != null ? { ormTexture: oIdx } : {}),
+          ...(hIdx != null ? { extras: { mojulo: { height: { index: hIdx }, depth: fm.depth, metres: fm.metres } } } : {}) });
+        if (oIdx != null) b.json.materials[mat].pbrMetallicRoughness.metallicFactor = 0;
+        // (its faces' own normals, so an engine generates the tangents its normal map and its parallax are read in)
+        const P = grp.positions, N = new Float32Array(P.length);
+        for (let t = 0; t + 8 < P.length; t += 9) {
+          const e1 = [P[t + 3] - P[t], P[t + 4] - P[t + 1], P[t + 5] - P[t + 2]], e2 = [P[t + 6] - P[t], P[t + 7] - P[t + 1], P[t + 8] - P[t + 2]];
+          const c = [e1[1] * e2[2] - e1[2] * e2[1], e1[2] * e2[0] - e1[0] * e2[2], e1[0] * e2[1] - e1[1] * e2[0]], l = Math.hypot(c[0], c[1], c[2]) || 1;
+          for (let k = 0; k < 3; k++) { N[t + k * 3] = c[0] / l; N[t + k * 3 + 1] = c[1] / l; N[t + k * 3 + 2] = c[2] / l; }
+        }
+        tr = b.addNode(`${name}:${key}`, grp.positions, null, 3, mat, grp.uvs, N);
+      } else if (texIdx != null) {
         const mat = pbr
           ? b.pbrMaterial({ metallic: pbr[0], roughness: pbr[1], baseColorTexture: texIdx, alpha: groupAlpha, name: `${name}:${key}` })
           : b.surfaceMaterial({ baseColorTexture: texIdx, alpha: groupAlpha, name: `${name}:${key}` });
@@ -1721,7 +1773,8 @@ export function facesToGlb(payload = {}, { generator, clips = null, skinned = fa
   const liquidBody = waterBodies.find((w) => w.sheet);
   const water = waterRaw.length ? collectWaterMesh(liquidBody ? waterRaw.filter((f) => !f.liquid) : waterRaw) : null;
   if (water && water.positions.length) {
-    const mat = b.unlitMaterial({ alpha: 1, name: 'water' });
+    // (the engine handoff, scene/handoff.js: the water lit too, a smooth translucent dielectric the engine shades)
+    const mat = handoff ? b.pbrMaterial({ metallic: 0, roughness: 0.08, alpha: 1, name: 'water' }) : b.unlitMaterial({ alpha: 1, name: 'water' });
     tally(b.addNode('water', water.positions, water.colors, 4, mat));
   }
   for (const body of waterBodies) {
@@ -1782,7 +1835,7 @@ export function facesToGlb(payload = {}, { generator, clips = null, skinned = fa
     triangleCount += (gm.positions.length / 9) * r.transforms.length;      // depicted N times
   });
 
-  // Animated rig figures (interchange.plan.md I1) — only when the caller opted in via `clips`;
+  // Animated rig figures — only when the caller opted in via `clips`;
   // the static export (clips absent) contributes zero bytes here and stays byte-identical.
   let animationCount = 0;
   const animatedFigures = [];
@@ -1794,7 +1847,7 @@ export function facesToGlb(payload = {}, { generator, clips = null, skinned = fa
     const clipNames = clipSel === '_all'
       ? Object.keys(fig.clips || {})
       : clipSel.filter((c) => fig.clips && fig.clips[c]);
-    // `skinned` (skin-over-mesh.plan.md phase 4): one SkinnedMesh + skins/IBM
+    // `skinned`: one SkinnedMesh + skins/IBM
     // per figure instead of rigid part nodes — export-only; absent, the rigid
     // path stays byte-identical.
     // toon.bake reaches skinned figures as a second, skin-bound ink primitive (rigid FK figures are
@@ -1813,9 +1866,39 @@ export function facesToGlb(payload = {}, { generator, clips = null, skinned = fa
     triangleCount += added.triangles;
   }
 
+  // The engine handoff's instances (scene/handoff.js `instances`: the form render's scree stones, its plants): each set its
+  // template under a lit dielectric material of its own colour, a node per instance. Absent, as every other export: no
+  // bytes.
+  let terrainTex = null;
+  for (const set of Array.isArray(instances) ? instances : []) {
+    if (!set || !set.positions?.length || !set.transforms?.length) continue;
+    // (a textured set, a plant's bark: its own colour, its relief's normal, occlusion and roughness as glTF's metal-rough
+    // set, and its height for parallax in the extras, for an engine's importer to bind)
+    const T = set.textures, tex = (k) => (T && T[k] ? b.imageFromDataUrl(T[k]) : null);
+    const [base, normal, orm, height] = ['base', 'normal', 'orm', 'height'].map(tex);
+    const mat = b.pbrMaterial({ metallic: 0, roughness: set.roughness ?? 0.85, baseColor: set.color, name: set.name, ...(set.alpha != null ? { alpha: set.alpha } : {}),
+      ...(base != null ? { baseColorTexture: base } : {}), ...(normal != null ? { normalTexture: normal } : {}), ...(orm != null ? { ormTexture: orm } : {}),
+      ...(height != null ? { extras: { mojulo: { height: { index: height }, depth: set.depth, metres: set.metres } } } : {}) });
+    if (orm != null) b.json.materials[mat].pbrMetallicRoughness.metallicFactor = 0;
+    // (a layered ground: its terrain's layer atlases written once, every ground part's material pointing at them)
+    if (set.terrain) {
+      const t = (terrainTex ??= Object.fromEntries(Object.keys(set.terrain.atlases).map((k) => [k, b.imageFromDataUrl(set.terrain.atlases[k])])));
+      b.json.materials[mat].extras = { mojulo: { terrain: { part: set.terrain.part, splat: '_SPLAT', splatUv: ['TEXCOORD_2', 'TEXCOORD_3'],
+        layers: Object.fromEntries(Object.entries(t).map(([k, i]) => [k, { index: i }])), ...set.terrain.read } } };
+    }
+    // (the sea as a plane: its depth map and its fade in the extras, for an engine's water)
+    if (set.sea) {
+      const { depth, ...read } = set.sea;
+      b.json.materials[mat].extras = { mojulo: { sea: { depth: { index: b.imageFromDataUrl(depth) }, ...read } } };
+    }
+    const r = b.addFormInstances(set.name, set, mat, set.transforms);
+    vertexCount += r.vertices * set.transforms.length;
+    triangleCount += r.triangles * set.transforms.length;
+  }
+
   if (!b.children.length && !b.sceneRoots.length) return null; // expansion produced nothing exportable
 
-  // ── level-as-layout semantics (interchange.plan.md I4) — default-on ──────────────────────
+  // ── level-as-layout semantics — default-on ──────────────────────
   // A GLB is a derived snapshot regenerated on demand, so enriching the export needs no opt-in:
   // cameras, entity placement nodes, and `moj:` extras ride every world export. Geometry-only
   // payloads (no cameras/entities/colliders/game) add zero bytes here, and nothing below ever
@@ -1830,8 +1913,8 @@ export function facesToGlb(payload = {}, { generator, clips = null, skinned = fa
   const lightDefs = Array.isArray(payload.lights) ? payload.lights.filter((l) => l && Array.isArray(l.position)) : [];
   for (const l of lightDefs) b.addLightNode({ ...l, translation: l.position });
   // A crystal light rig (crystal-rig R5) leaves as a frozen frame at t = 0: its beams and pools as one emissive node
-  // per colour (`crystal-light:<colour>`), its brightest glows as point lights. The Godot kernel performs the rig live
-  // from score.json and hides these; every other importer keeps the frame. No rig → zero bytes.
+  // per colour (`crystal-light:<colour>`), its brightest glows as point lights; an importer keeps
+  // the frame. No rig → zero bytes.
   const cryRig = payload.crystalLight ? crystalRigFor(expanded, payload.crystalLight) : null;
   if (cryRig) {
     const frame = rigFrozenFrame(expanded, cryRig);
@@ -1874,10 +1957,20 @@ export function facesToGlb(payload = {}, { generator, clips = null, skinned = fa
         if (yaw) node.rotation = zRotationQuat(yaw);
       }
       node.extras = e.extras;
+      // (the engine handoff names a figure's node as its entity, so the level record's names hold)
+      if (handoff) node.name = e.name;
     } else {
       const node = { name: e.name, extras: e.extras };
       if (e.translation.some((v) => v)) node.translation = e.translation;
       if (e.heading) node.rotation = zRotationQuat(e.heading);
+      // (the engine handoff's primitive body, scene/handoff.js `bodies`: its mesh on the entity's own node, so the body
+      // moves with it; absent, the node as it was)
+      const body = bodies && bodies[e.id];
+      if (body && body.positions?.length) {
+        const mat = b.pbrMaterial({ metallic: 0, roughness: 0.8, baseColor: body.color, name: `${e.name}:body` });
+        node.mesh = b.json.meshes.push({ name: `${e.name}:body`, primitives: [{ attributes: { POSITION: b.floatAccessor(body.positions, 3, bounds3(body.positions)), NORMAL: b.floatAccessor(body.normals, 3) }, mode: MODE_TRIANGLES, material: mat }] }) - 1;
+        vertexCount += body.positions.length / 3; triangleCount += body.positions.length / 9;
+      }
       b.children.push(b.json.nodes.push(node) - 1);
     }
   }
@@ -1892,6 +1985,8 @@ export function facesToGlb(payload = {}, { generator, clips = null, skinned = fa
     if (addr.anchors) sceneExtras['moj:anchors'] = addr.anchors;
   }
   if (sceneExtras) b.json.scenes[0].extras = sceneExtras;
+  // (the engine handoff's level record, scene/handoff.js: beside the level's own extras; absent, no bytes)
+  if (extraScene) b.json.scenes[0].extras = { ...(b.json.scenes[0].extras || {}), ...extraScene };
 
   const bytes = b.build();
   const out = {
