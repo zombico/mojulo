@@ -122,3 +122,17 @@
   vehicle tunnel's 8 m). A bay kit's hazard band is the floor at its doorways: taking it out left a hole (it is now
   repainted as the floor beside it, in the podium too). The walk gate reports where it found no floor (`gaps`). Two
   buildings across a yard are joined from their basements and walked door to door both ways.
+- **A complex: buildings on one site, joined below grade, walked as one map** (a stage recipe's `complex`,
+  `network/complex.js`): `{ kind: 'stage', complex: { buildings, network?, yard?, seed? } }`. Each building is of the core
+  shape (an office, a clinic, a lab, a warehouse, a base's hangar, barracks, armoury, command …) with its basement, its
+  storey 1 at the yard, placed where it says (`at: [x, y]`, its front door's middle) or BESIDE another (`{ beside, side,
+  gap }`: its footprint a gap off that one's side, slid along it so a room of its basement faces one of the other's
+  straight across the gap, else centred), turned by `facing`, finished by `look` (the bay axes). The network joins every
+  pair that faces another across one gap (or only the pairs `network.links` names) by passages of one section (`service`
+  by default). The yard is laid round them in cells, cut by each ground room's walls (a building's plan is an L or a T,
+  its notches the yard's); each building wears its outside: its walls where no room of its storey stands against them, a
+  band of glass a storey, its front door cut at its lobby's doorway, a flat roof over each top room over a plenum (what
+  glows under its ceiling stays under its roof). The payload carries cameras (the site, each front door, the first
+  passage, a basement), a `building` anchor a building (its door, rooms, way down and ways out) and a `tunnel` anchor a
+  passage, and `complex` (its buildings, passages and laws: every building reached, cover, grade, run). Refused by name:
+  a building standing on another, a link to a building it does not have, a ring of buildings beside each other.

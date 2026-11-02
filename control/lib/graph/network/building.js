@@ -110,7 +110,10 @@ export function buildingNode(fit, { padZ, ports = [] }) {
     return { id: p.id, side: p.side, room: p.room, u: p.u, plane: r5(A[1 - wax]), lo: r5(Math.min(A[wax], B[wax])), hi: r5(Math.max(A[wax], B[wax])), z0: r5(base), top: r5(wy.top), N: FACING[p.side], reach };
   });
   const rooms = PI.rooms.map((r) => ({ id: r.id, storey: r.storey ?? 0, box: box([r.x0, r.y0, r.z0 ?? 0], [r.x1, r.y1, (r.z0 ?? 0) + r.h]) }));
-  return { id: fit.id, use: fit.spec.use, faces, colliders, lights, rise: r5(rise), floor0: r5(base), turn: q, ports: outPorts, down, rooms, footprint: fit.footprint, door: { at: P3([...fit.at, padZ]), N: fit.N } };
+  // (its front door: where it stands, the way it faces, its span along its front and its head, as its facade is cut)
+  const wax = Math.abs(fit.N[0]) > 0.5 ? 1 : 0, dA = toWorld([way0.lo, lobby.y0]), dB = toWorld([way0.hi, lobby.y0]);
+  return { id: fit.id, use: fit.spec.use, faces, colliders, lights, rise: r5(rise), floor0: r5(base), turn: q, ports: outPorts, down, rooms, footprint: fit.footprint,
+    door: { at: P3([...fit.at, padZ]), N: fit.N, span: [r5(Math.min(dA[wax], dB[wax])), r5(Math.max(dA[wax], dB[wax]))], top: r5(way0.top) } };
 }
 
 /** A bay kit's hazard band (a lab's yellow and black, laid as the floor at its doorways: a hole where it is taken out)
