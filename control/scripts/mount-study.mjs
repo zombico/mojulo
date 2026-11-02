@@ -5,7 +5,7 @@
 // places) when `--png`.
 //
 //   node scripts/mount-study.mjs <outDir> [--register realistic|stylized] [--gaits walk,trot,canter,gallop,reinBack]
-//        [--lead right|left] [--view side|front] [--cols 8] [--before] [--shots] [--jump] [--idle] [--body [--cells 80] [--coat bay] [--views side,front] [--big]] [--png]
+//        [--lead right|left] [--view side|front] [--cols 8] [--before] [--shots] [--jump] [--idle] [--body [--cells 80] [--coat bay] [--views side,front] [--big] [--crop head]] [--png]
 // `--shots` adds the one-shots' sheet (changes of gait, the halts, the move off); `--jump` the jump's; `--idle` the rest's.
 import path from 'node:path';
 import { mkdirSync, writeFileSync, existsSync } from 'node:fs';
@@ -30,7 +30,7 @@ const opt = (k, d) => { const i = args.indexOf(`--${k}`); return i >= 0 ? args.s
 const register = opt('register', 'realistic'), lead = opt('lead', 'right'), cols = Number(opt('cols', 8)), view = opt('view', 'side');
 const gaits = opt('gaits', 'walk,trot,canter,gallop,reinBack').split(',');
 const before = flag('before'), png = flag('png'), shots = flag('shots'), jumps = flag('jump'), idles = flag('idle'), body = flag('body');
-const cells = Number(opt('cells', 80)), coat = opt('coat', 'bay'), views = opt('views', null), big = flag('big');
+const cells = Number(opt('cells', 80)), coat = opt('coat', 'bay'), views = opt('views', null), big = flag('big'), crop = opt('crop', null);
 const outDir = args[0] || '.';
 mkdirSync(outDir, { recursive: true });
 
@@ -116,6 +116,15 @@ if (body) {
   // the body: the mesh from every view, in a coat (a star and a sock to show the markings)
   const m = bodyMesh(B, { cells });
   const colors = m.quads.map((q) => { const c = q.map((i) => m.vertices[i]).reduce((a, b) => a.map((x, i) => x + b[i] / 4), [0, 0, 0]); return coatColor(coat, m.parts[q[0]], c, { stand: m.stand, markings: { star: true, sock: ['LH'] } }); });
+  // a crop: the head and neck alone (the quads ahead of the withers and above the elbow), for a close look
+  if (crop === 'head') {
+    const keep = m.quads.map((q) => { const c = q.map((i) => m.vertices[i]).reduce((a, b) => a.map((x, i) => x + b[i] / 4), [0, 0, 0]); return c[1] > B.trunk.withers[0] + 0.05 && c[2] > B.trunk.com[1] - 0.15; });
+    const qs = m.quads.filter((_, i) => keep[i]), cs = colors.filter((_, i) => keep[i]);
+    const rowsH = [{ label: `${register}, ${coat}: the head and neck`, sub: '', cells: (views ? views.split(',') : ['side', 'threeQuarter', 'front', 'top', 'lowQuarter']).map((view) => ({ vertices: m.vertices, quads: qs, colors: cs, view, caption: view })) }];
+    const hname = `mount-head-${register}-${coat}`;
+    writeFileSync(path.join(outDir, `${hname}.svg`), bodySheet(rowsH, { title: `the mount's head and neck (${cells} cells)`, cellW: 520, cellH: 520 }));
+    files.push(`${hname}.svg`);
+  }
   const rows = [{ label: `${register}, ${coat}`, sub: `${m.stats.triangles} triangles · ${m.stats.vertices} vertices · open edges ${m.stats.open} · non-manifold ${m.stats.nonManifold}`, cells: (views ? views.split(',') : BODY_VIEWS).map((view) => ({ vertices: m.vertices, quads: m.quads, colors, view, caption: view })) }];
   // the coats: each card on the same body
   if (!views) {

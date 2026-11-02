@@ -55,7 +55,31 @@ export function softMin(ds, k) {
 const smax = (a, b, k) => { const h = Math.max(k - Math.abs(a - b), 0) / k; return Math.max(a, b) + h * h * k * 0.25; };
 
 /** the blends: the trunk's soft, a leg's tight, the join between, the details' (scaled to the build; the register's) */
-export const BLEND = Object.freeze({ trunk: 0.05, head: 0.02, leg: 0.016, join: 0.03, detail: 0.012 });
+/**
+ * The head's profile for a 0.6 m head (scaled to the build's): at each station along the head bone (0 the poll, 1 the
+ * muzzle), the face's top line and the jaw's underline (m, + toward the face's front, off the bone) and the half width.
+ * After the light horse's head: the flat forehead at the eyes, the straight nasal line, the deep round jowl a quarter of
+ * the way down, the jaw's underline running forward to the chin, the muzzle deeper than it is wide.
+ */
+export const HEAD_PROFILE = Object.freeze([
+  [0.00, 0.035, -0.100, 0.085],
+  [0.08, 0.050, -0.190, 0.095],
+  [0.16, 0.060, -0.230, 0.105],
+  [0.26, 0.062, -0.245, 0.110],
+  [0.36, 0.058, -0.215, 0.100],
+  [0.46, 0.054, -0.175, 0.086],
+  [0.56, 0.050, -0.148, 0.073],
+  [0.66, 0.046, -0.132, 0.065],
+  [0.76, 0.041, -0.120, 0.061],
+  [0.84, 0.036, -0.114, 0.061],
+  [0.91, 0.026, -0.115, 0.058],
+  [0.96, 0.008, -0.105, 0.054],
+  [1.00, -0.020, -0.090, 0.040],
+].map(Object.freeze));
+/** the neck: its crest's arch (m over the straight crest line), its half width at the base and at the throatlatch */
+export const NECK_SHAPE = Object.freeze({ arch: 0.045, base: 0.15, throat: 0.08 });
+
+export const BLEND = Object.freeze({ trunk: 0.05, head: 0.007, leg: 0.016, join: 0.03, detail: 0.012 });
 
 /** an egg: centre c, axes (unit rows u, v, w), radii along them */
 const egg = (c, u, v, r, extra) => { const w = cross(u, v); return { kind: 'egg', c, ax: [u, v, w], r, R: Math.max(...r), ...extra }; };
@@ -100,40 +124,60 @@ export function bodyPrims(B) {
     put(egg(add(fe.tail, [s * 0.01 * k, 0.05 * k, 0]), Z, X, [0.07 * k, 0.065 * k, 0.07 * k], trunk(`femur${side}`)));
   }
 
-  // THE NECK: its masses midway between its crest (from just ahead of the withers to the poll) and its underline (from
-  // the breast's front to the throatlatch), deep at the base and thin at the throat; the crest's mane along its top
-  const poll = P.neck[P.neck.length - 1], hb = bn.head, hlen = len(sub(hb.tail, hb.head)), hd0 = unit(sub(hb.tail, hb.head));
+  // THE NECK: its masses midway between its crest (from just ahead of the withers to the poll, ARCHED) and its
+  // underline (from the breast's front to the throatlatch), deep at the base and thin at the throat; the mane on the crest
+  const poll = P.neck[P.neck.length - 1];
   const crest0 = W([T.withers[0] + 0.10 * k, T.withers[1] - 0.05 * k]), crest1 = add(poll, [0, -0.02 * h, 0.05 * h]);
-  // (the throatlatch: a narrow waist a fifth of a metre under the poll, behind the jaw's angle)
-  const under0 = W([T.neck[0][0] + 0.15 * k, T.neck[0][1] - 0.06 * k]), under1 = add(poll, [0, -0.07 * h, -0.20 * h]);
-  const NS = 6, neckBone = (t) => `neck${Math.min(4, Math.floor(t * 5))}`;
-  const ctr = (t) => mul(add(lerp3(crest0, crest1, t), lerp3(under0, under1, t)), 0.5);
-  const depth = (t) => len(sub(lerp3(crest0, crest1, t), lerp3(under0, under1, t))) / 2;
+  const cd = unit(sub(crest1, crest0)), crestUp = [0, -cd[2], cd[1]];                // square to the crest, up and back
+  const crestCtl = add(lerp3(crest0, crest1, 0.5), mul(crestUp, NECK_SHAPE.arch * k));
+  const crestAt = (t) => add(add(mul(crest0, (1 - t) ** 2), mul(crestCtl, 2 * t * (1 - t))), mul(crest1, t * t));
+  // (the throatlatch: a narrow waist under and behind the poll, BEHIND the jaw's rear edge, so the jowl stands clear)
+  const under0 = W([T.neck[0][0] + 0.15 * k, T.neck[0][1] - 0.06 * k]), under1 = add(poll, [0, -0.13 * h, -0.16 * h]);
+  const NS = 7, neckBone = (t) => `neck${Math.min(4, Math.floor(t * 5))}`;
+  const ctr = (t) => mul(add(crestAt(t), lerp3(under0, under1, t)), 0.5);
+  const depth = (t) => len(sub(crestAt(t), lerp3(under0, under1, t))) / 2;
+  const width = (t) => (NECK_SHAPE.base + (NECK_SHAPE.throat - NECK_SHAPE.base) * t) * k;
   for (let i = 0; i < NS; i++) {
     const t0 = i / NS, t1 = (i + 1) / NS, tm = (t0 + t1) / 2;
-    put(eggAlong(ctr(t0), ctr(t1), -0.2, i === NS - 1 ? 1.0 : 1.2, (0.15 - 0.075 * tm) * k, depth(tm) * 0.98, X, trunk(neckBone(tm))));
-    const up = unit(sub(lerp3(crest0, crest1, tm), ctr(tm)));
-    put(eggAlong(lerp3(crest0, crest1, t0), lerp3(crest0, crest1, t1), -0.25, 1.25, 0.035 * k, 0.045 * k, X, trunk(neckBone(tm), 'mane'), mul(up, 0.015 * k)));
+    put(eggAlong(ctr(t0), ctr(t1), -0.2, i === NS - 1 ? 1.0 : 1.2, width(tm), depth(tm) * 0.98, X, trunk(neckBone(tm))));
+    put(eggAlong(crestAt(t0), crestAt(t1), -0.25, 1.25, 0.035 * k, 0.045 * k, X, trunk(neckBone(tm), 'mane'), mul(crestUp, -0.01 * k)));
   }
 
-  // THE HEAD, along the head bone from the poll to the muzzle
-  const hd = bn.head, H0 = hd.head, H1 = hd.tail, hl = len(sub(H1, H0)), hdir = unit(sub(H1, H0)), hup = unit(cross(hdir, X));
-  const at = (f, upOff = 0, sideOff = 0) => add(add(add(H0, mul(hdir, f * hl)), mul(hup, upOff)), [sideOff, 0, 0]);
-  const head = (group = 'body') => ({ bone: 'head', group, set: 'head' });
-  put(egg(at(0.12, 0.02 * h), hdir, X, [0.12 * h, 0.10 * h, 0.10 * h], head()));                               // the cranium
-  for (const s of [1, -1]) put(egg(at(0.26, -0.07 * h, s * 0.058 * h), hdir, X, [0.11 * h, 0.05 * h, 0.10 * h], { bone: 'jaw', group: 'body', set: 'head' }));   // the jowls
-  put(cone(at(0.20, 0.01 * h), at(0.86, -0.01 * h), 0.085 * h, 0.056 * h, head()));
-  put(egg(at(0.27, 0.035 * h), hdir, X, [0.16 * h, 0.09 * h, 0.06 * h], head()));                               // the forehead: a straight face                              // the face
-  put(egg(at(0.93, -0.025 * h), hdir, X, [0.08 * h, 0.06 * h, 0.07 * h], head('muzzle')));                  // the muzzle
-  put(cone(bn.jaw.head, add(bn.jaw.tail, mul(hdir, 0.02 * h)), 0.06 * h, 0.042 * h, { bone: 'jaw', group: 'body', set: 'head' }));   // the jaw
-  const detail = (bone, group) => ({ bone, group, set: 'detail' });
-  for (const s of [1, -1]) {
-    put(egg(at(0.30, 0.035 * h, s * 0.092 * h), hdir, X, [0.024 * h, 0.016 * h, 0.02 * h], detail('head', 'eye')));
-    const ear = bn[s > 0 ? 'earR' : 'earL'];
-    put(cone(ear.head, ear.tail, 0.034 * h, 0.012 * h, detail(s > 0 ? 'earR' : 'earL', 'ear')));
+  // THE HEAD: a loft of cross-sections along the head bone (the poll to the muzzle), each between the face's top line
+  // and the jaw's underline at its station and as wide as the head is there (HEAD_PROFILE, the record's proportions);
+  // then the jowls, the brows over the eyes, the eyes, the nostrils' rims, the upper lip, the chin; the nostrils cut in.
+  // `face` is the face's front (forward and up), square to the bone in the mid-plane.
+  const hd = bn.head, H0 = hd.head, H1 = hd.tail, hl = len(sub(H1, H0)), hdir = unit(sub(H1, H0)), face = unit(cross(X, hdir));
+  const hh = hl / 0.6, sty = B.register === 'stylized';
+  const at = (f, u = 0, sd = 0) => add(add(add(H0, mul(hdir, f * hl)), mul(face, u * hh)), [sd * hh, 0, 0]);
+  const head = (group = 'body', bone = 'head') => ({ bone, group, set: 'head' });
+  const HP = HEAD_PROFILE;
+  // (one egg CENTRED on each station at that station's section, long enough to overlap its neighbours: an egg between
+  // two stations narrows toward its ends and undershoots the profile at both)
+  for (let i = 0; i < HP.length; i++) {
+    const [f, t, b, w] = HP[i], gap = Math.max(i > 0 ? f - HP[i - 1][0] : 0, i + 1 < HP.length ? HP[i + 1][0] - f : 0);
+    const wide = sty && f < 0.45 ? w * 1.08 : w;                                  // the stylized forehead broader
+    put(egg(at(f, (t + b) / 2), hdir, X, [gap * hl * 1.6, wide * hh, ((t - b) / 2) * hh], head(i >= HP.length - 3 ? 'muzzle' : 'body')));
   }
-  put(egg(at(0.08, 0.10 * h), hdir, X, [0.08 * h, 0.04 * h, 0.03 * h], detail('head', 'mane')));             // the forelock
-  const nostrils = [1, -1].map((s) => egg(at(0.985, -0.01 * h, s * 0.04 * h), hdir, X, [0.03 * h, 0.012 * h, 0.022 * h], {}));
+  for (const s of [1, -1]) {
+    put(egg(at(0.24, -0.125, s * 0.066), hdir, X, [0.105 * hh, 0.05 * hh, 0.10 * hh], head('body', 'jaw')));    // the jowl
+    put(egg(at(0.29, 0.032, s * 0.076), hdir, X, [0.05 * hh, 0.024 * hh, 0.022 * hh], head()));                  // the brow: a ridge, not a knob
+    put(egg(at(0.945, -0.035, s * 0.046), hdir, X, [0.03 * hh, 0.012 * hh, 0.026 * hh], head('muzzle')));       // the nostril's rim
+  }
+  put(egg(at(0.975, -0.066), hdir, X, [0.03 * hh, 0.042 * hh, 0.022 * hh], head('muzzle')));                    // the upper lip
+  put(egg(at(0.885, -0.11), hdir, X, [0.04 * hh, 0.03 * hh, 0.025 * hh], head('muzzle', 'jaw')));              // the chin
+  const detail = (bone, group) => ({ bone, group, set: 'detail' });
+  const eyeR = sty ? 1.5 : 1;
+  for (const s of [1, -1]) {
+    put(egg(at(0.31, 0.018, s * (0.098 + (eyeR - 1) * 0.01)), hdir, X, [0.026 * hh * eyeR, 0.015 * hh * eyeR, 0.021 * hh * eyeR], detail('head', 'eye')));
+    const ear = bn[s > 0 ? 'earR' : 'earL'];
+    put(cone(ear.head, ear.tail, 0.04 * hh, 0.012 * hh, detail(s > 0 ? 'earR' : 'earL', 'ear')));
+  }
+  put(egg(at(0.06, 0.07), hdir, X, [0.08 * hh, 0.04 * hh, 0.03 * hh], detail('head', 'mane')));                // the forelock
+  // the cuts: the nostrils (tall commas on the muzzle's front-sides). (The mouth's line is not cut: a slit thinner than
+  // the grid pinches the skin to slivers; it is the coat's and the shading's to draw.)
+  const nr = sty ? 0.8 : 1;
+  const nostrils = [1, -1].map((s) => egg(at(0.97, -0.032, s * 0.034), hdir, X, [0.02 * hh * nr, 0.014 * hh * nr, 0.034 * hh * nr], {}));
 
   // THE LEGS: each its own tight mass
   const legSet = (id) => (bone, group = 'body') => ({ bone, group, set: id });
@@ -194,7 +238,7 @@ export function bodyField(B, { register } = {}) {
     const legs = sets.filter((s2) => /^[RL][FH]$/.test(s2)).map((s2) => bySet(s2, kL));
     let d = softMin([bySet('trunk', kT), bySet('head', kH), ...legs], kJ);
     d = softMin([d, ...prims.flatMap((q, i) => (q.set === 'detail' ? [ds[i]] : []))], kD);
-    for (const n of nostrils) d = smax(d, -sdEgg(p, n), 0.008 * k);
+    for (const n of nostrils) d = smax(d, -sdEgg(p, n), 0.005 * k);
     return d;
   };
   return { field, prims, distances, stand, blend: { kT, kH, kL, kJ, kD } };

@@ -12,6 +12,8 @@ const VIEWS = Object.freeze({
   front: { yaw: 90, pitch: 6 },
   back: { yaw: -90, pitch: 6 },
   top: { yaw: 0, pitch: 89 },
+  lowQuarter: { yaw: 40, pitch: -8 },
+  rearQuarter: { yaw: -35, pitch: 10 },
 });
 export const BODY_VIEWS = Object.keys(VIEWS);
 const DEG = Math.PI / 180;
@@ -75,7 +77,8 @@ export function bodySheet(rows, { title = '', cellW = 360, cellH = 300 } = {}) {
   let s = Infinity;
   for (const r of rows) for (const c of r.cells) {
     const P = viewOf(c.view); let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
-    for (const v of c.vertices) { const q = P(v); x0 = Math.min(x0, q[0]); x1 = Math.max(x1, q[0]); y0 = Math.min(y0, q[1]); y1 = Math.max(y1, q[1]); }
+    const used = new Set(); for (const q of c.quads) for (const k of q) used.add(k);   // the drawn quads' extent (a crop's)
+    for (const k of used) { const v = c.vertices[k], q = P(v); x0 = Math.min(x0, q[0]); x1 = Math.max(x1, q[0]); y0 = Math.min(y0, q[1]); y1 = Math.max(y1, q[1]); }
     c._fit = { cx: (x0 + x1) / 2, floor: y0 };
     s = Math.min(s, (cellW - 30) / (x1 - x0), (cellH - 30) / (y1 - y0));
   }
