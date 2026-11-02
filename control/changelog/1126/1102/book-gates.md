@@ -12,9 +12,10 @@ and its gates saying things the made game does not do. Each item below was seen 
   - **Against a wall the eye stands half a metre off it** (and its near plane), never farther out than the open line
     would put it; it stood 3 m off any wall, so a hero 2.5 m inside a building's entry room had the camera on its back.
     With nothing in the way every follow camera frames as before.
-  - Seen on the composed stealth level (its first frame from its own camera, SwiftShader): the hero 47 % → 28 % of the
-    frame across. On the composed crawler's entry room: 88 % → 37 %, the eye in the doorway behind the hero, the room and
-    its torches ahead.
+  - Measured by the first-frame gate on a composed stealth game's three levels after a rerun: the hero 45–47 % → 27–28 %
+    of the frame across (pass). On a composed crawler's entry room: 88 % → 36 % (a warn, a point over the band: the box
+    it measures is coarser than the silhouette); in its exported page the eye stands in the doorway behind the hero, the
+    room and its torches ahead.
   - Re-pinned: the emitted pages of every world whose follow camera now stands nearer a wall, and every level a hero on
     foot plays (its camera's numbers).
 - **The first-frame gate judges the frame the player sees** (`game/first-frame.js`, `first-frame-check.js`).
