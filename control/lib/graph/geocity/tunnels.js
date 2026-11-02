@@ -32,7 +32,7 @@ export const TUNNEL = Object.freeze({
   // most riser and going
   cover: 1, slab: 0.3, grade: 1 / 12, riser: 0.3, going: 0.3,
   // a level landing before its ramp or stair at each concourse (m); its lamps along its middle (m); a wall's thickness
-  landing: 1, lamp: 6, wall: 0.3,
+  landing: 1, lamp: 4.5, wall: 0.3,
   // the longest passage between two concourses (m: a law, advice), and the widest street it crosses
   longest: 120, gap: 80,
 });
@@ -75,8 +75,9 @@ export function tunnelEdges(nodes, blocks = []) {
  * under a block's plaza) and climbs no steeper than a ramp: the constraint's envelope, slope-limited both ways. It meets
  * each concourse's floor at a level landing and climbs from there as the envelope allows; where the envelope stands
  * under a concourse's floor at the landing's end, a stair takes it down. `ctx`: { S (the land under a point), top (a
- * block's plaza under a point), rectA, rectB (the two blocks), look: { floor, wall, ceiling: { texture, scale }, light }
- * (the concourse's: its tiles and the light its floor is baked at) }.
+ * block's plaza under a point), rectA, rectB (the two blocks), look: { floor, wall, ceiling: { texture, scale }, light:
+ * a number or { floor, wall, ceiling } (the concourse's: its tiles and the light each surface is baked at), stripe? (its
+ * route's colour, a stripe down its floor) } }.
  */
 export function tunnelOf(edge, A, B, ctx) {
   const { S, top: topOf = null, rectA, rectB, look } = ctx, k = edge.axis === 'x' ? 0 : 1, o = 1 - k, u = edge.u, half = TUNNEL.width / 2, H = TUNNEL.height;
@@ -134,25 +135,25 @@ export function tunnelOf(edge, A, B, ctx) {
   const eA = sa ? { kind: 'stair', drop: sa.drop, n: sa.m } : { kind: Math.abs(Fat(TUNNEL.landing + 2) - A.z0) > 1e-3 ? 'ramp' : 'flat', drop: A.z0 - Math.min(...F) };
   const eB = sb ? { kind: 'stair', drop: sb.drop, n: sb.m } : { kind: Math.abs(Fat(L - TUNNEL.landing - 2) - B.z0) > 1e-3 ? 'ramp' : 'flat', drop: B.z0 - Math.min(...F) };
   const level = r5(Math.min(...F)), short = false;
-  // the light: lamps along its middle under its ceiling, the concourse's floor light where a lamp stands, falling off
-  // between them
+  // the light: lamps along its middle under its ceiling, each surface at the concourse's own light for it (`look.light`:
+  // a number, or { floor, wall, ceiling }) and over it under a lamp (a passage is narrow: the page's occlusion takes
+  // more of its light than of a concourse's, so its lamps give back what the concourse's open ceiling does)
   const lamps = [];
   for (let s = TUNNEL.lamp / 2; s < L - 0.5; s += TUNNEL.lamp) lamps.push(s);
-  const lit = (s, v, z) => {
-    let e = 0;
-    for (const ls of lamps) { const d = Math.hypot(ls - s, v - u, ceil(ls) - 0.1 - z); e += Math.max(0, 1 - d / 7) ** 2; }
-    const g = Math.max(0.12, Math.min(1, (look.light ?? 0.32) * (0.55 + 0.9 * Math.min(1, e))));
-    const h = Math.round(255 * g).toString(16).padStart(2, '0');
-    return `#${h}${h}${h}`;
-  };
+  const near = (s, v, z) => { let e = 0; for (const ls of lamps) { const d = Math.hypot(ls - s, v - u, ceil(ls) - 0.1 - z); e += Math.max(0, 1 - d / 7) ** 2; } return 0.95 + 0.6 * Math.min(1, e); };
+  const base = (surf) => (typeof look.light === 'number' ? look.light : look.light?.[surf] ?? 0.45);
+  const grey = (g) => { const h = Math.round(255 * Math.max(0.08, Math.min(1, g))).toString(16).padStart(2, '0'); return `#${h}${h}${h}`; };
+  const tint = (hex, g) => `#${[1, 3, 5].map((i) => Math.round(Math.max(0, Math.min(255, parseInt(hex.slice(i, i + 2), 16) * g))).toString(16).padStart(2, '0')).join('')}`;
+  const SURF = { 'geocity:tunnel-floor': 'floor', 'geocity:tunnel-ceiling': 'ceiling', 'geocity:tunnel-wall': 'wall' };
+  const lit = (s, v, z, group) => grey(base(SURF[group] ?? 'wall') * near(s, v, z));
   const faces = [], W = (s, v, z) => { const p = at(s, v); return P3([p[0], p[1], z]); };
   const face = (cs, n, group, tile, uvOf) => {
-    const c = cs.map((p) => W(...p)), fills = cs.map(([s, v, z]) => lit(s, v, z)), N = P3([k === 0 ? n[0] : n[1], k === 0 ? n[1] : n[0], n[2]]);
+    const c = cs.map((p) => W(...p)), fills = cs.map(([s, v, z]) => (tile?.colour ? tint(tile.colour, near(s, v, z) * 0.8) : lit(s, v, z, group))), N = P3([k === 0 ? n[0] : n[1], k === 0 ? n[1] : n[0], n[2]]);
     // (wound so its normal points along `n`)
     const e1 = [c[1][0] - c[0][0], c[1][1] - c[0][1], c[1][2] - c[0][2]], e2 = [c[c.length - 1][0] - c[0][0], c[c.length - 1][1] - c[0][1], c[c.length - 1][2] - c[0][2]];
     const cr = [e1[1] * e2[2] - e1[2] * e2[1], e1[2] * e2[0] - e1[0] * e2[2], e1[0] * e2[1] - e1[1] * e2[0]], flip = cr[0] * N[0] + cr[1] * N[1] + cr[2] * N[2] < 0;
-    const cc = flip ? c.slice().reverse() : c, ff = flip ? fills.slice().reverse() : fills, uv = tile ? (flip ? cs.slice().reverse() : cs).map((p) => uvOf(p).map((x) => r5(x / tile.scale))) : null;
-    faces.push({ corners: cc, normal: N, outNormal: N, group, fill: ff[0], cornerFills: ff, ...(tile ? { texture: tile.texture, textureLit: true, uv } : {}) });
+    const cc = flip ? c.slice().reverse() : c, ff = flip ? fills.slice().reverse() : fills, uv = tile?.texture ? (flip ? cs.slice().reverse() : cs).map((p) => uvOf(p).map((x) => r5(x / tile.scale))) : null;
+    faces.push({ corners: cc, normal: N, outNormal: N, group, fill: ff[0], cornerFills: ff, ...(tile?.texture ? { texture: tile.texture, textureLit: true, uv } : {}) });
   };
   // (n in the passage's frame: [along, across, up])
   for (const [a, b, za, zb] of cut) {
@@ -160,6 +161,8 @@ export function tunnelOf(edge, A, B, ctx) {
     face([[a, u - half, ceil(a)], [b, u - half, ceil(b)], [b, u + half, ceil(b)], [a, u + half, ceil(a)]], [0, 0, -1], 'geocity:tunnel-ceiling', look.ceiling, ([s, v]) => [s, v]);
     for (const sg of [-1, 1]) face([[a, u + sg * half, za], [b, u + sg * half, zb], [b, u + sg * half, ceil(b)], [a, u + sg * half, ceil(a)]], [0, -sg, 0], 'geocity:tunnel-wall', look.wall, ([s, , z]) => [s, z]);
   }
+  // its wayfinding: a stripe down its floor's middle in its route's colour (`look.stripe`), over each tread too
+  if (look.stripe) for (const [a, b, za, zb] of cut) face([[a, u - 0.15, za + 0.012], [b, u - 0.15, zb + 0.012], [b, u + 0.15, zb + 0.012], [a, u + 0.15, za + 0.012]], [0, 0, 1], 'geocity:tunnel-stripe', { colour: look.stripe }, null);
   for (const [s, zHi, zLo, dir] of risers) face([[s, u - half, zLo], [s, u + half, zLo], [s, u + half, zHi], [s, u - half, zHi]], [dir, 0, 0], 'geocity:tunnel-floor', look.floor, ([, v, z]) => [v, z]);
   // each end: its section round the concourse's doorway, facing in
   for (const [s, P, z, dir] of [[0, A, A.z0, 1], [L, B, B.z0, -1]]) {

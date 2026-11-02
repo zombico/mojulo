@@ -56,3 +56,15 @@
   - The walk gate is its own module (`geocity/walk-gate.js`, `walker`): the page's ground probe over a payload's faces,
     the walls it crosses (and which), the boxes it stands in. Each passage is walked from one podium's plaza, down its
     stair, along the passage, up the next podium's stair and out onto its plaza, and back.
+- **The concourses dressed, and the light below grade** (`geocity/dress.js`): every concourse wears shopfronts in bays
+  along its walls (a kick plate, lit glass, mullions, a frame and a sign band in its shop's colour, by its dice), never
+  across a way out or against its stair. The concourse with the most ways out (the hub) seats a food court: tables and
+  their stools, each a box the walk is held out of, on the cells a body's width and more clear of every walk through it,
+  its counters' signs warmer. Wayfinding is a colour a route (`ROUTES`): north-south passages one, east-west the other,
+  as a stripe down each passage's floor and a sign over each concourse's way out onto it. A passage now takes each
+  surface's light from the concourse's own (the mean its corners are baked at, floor, wall and ceiling apart), its tiles
+  the ones the concourse lays most at its own level, and lamps every 4.5 m: a passage is narrow, and the page's
+  occlusion takes more of its light than of a concourse's. The page draws every face unlit (its corners' light is its
+  light), so nothing of the sky reaches below grade; on a page taking the live sun, every face under the city carries a
+  sun share of none, so a shadow on the street never reaches it. The payload gains a `food-court` camera and anchor and
+  `geocity.under.dress` (the routes' colours, each concourse's shopfronts, the court's tables).

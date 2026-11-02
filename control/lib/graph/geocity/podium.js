@@ -184,6 +184,7 @@ export function podiumInside(lot, { padZ, avoid = [], ports = [], fit: F0 = null
   });
   return {
     faces, colliders, lights, rise: r5(rise), door, through, down, turn: q, ports: outPorts, floor0: r5(base),
+    flight: (() => { const p = toWorld([st.rect[0], st.rect[1]]), c = toWorld([st.rect[2], st.rect[3]]); return P3([Math.min(p[0], c[0]), Math.min(p[1], c[1]), Math.max(p[0], c[0]), Math.max(p[1], c[1])]); })(),
     footprint: [fp.min[0], fp.min[1], fp.max[0], fp.max[1]],
     rooms: [{ id: 'lobby', storey: 1, box: box([T, T, rise], [w - T, d - T, rise + h]) }, { id: 'concourse', storey: 0, box: box([T, T, 0], [w - T, d - T, PODIUM.concourse.h]) }],
     plan: { w, d, h },
