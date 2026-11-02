@@ -9,10 +9,11 @@
  * a quaternion and its head: v' = h + R(q)(v − restHead), which is linear blend skinning; `cw` the shapes' weights per
  * key; `s` its seconds, `once` a one-shot, `v` a cycle's ground speed), `correctives` (the targets, each a driver's key).
  *
- * THE HAIR (`hair`, on by default): the mane, the forelock and the tail as cards at their rest hang (hair.js, settled at
- * the stand), each card both its faces (no importer need honour a double-sided material), skinned to the bones they
- * grow from: a mane's guide to its neck bone, the forelock to the head, a tail's guide to its vertebra and down the
- * strand onto the tail's hair bone. Its swing an engine gives it (spring bones, cloth): the cards ride the rig.
+ * THE HAIR (`hair`): the mane, the forelock and the tail as cards at their rest hang (hair.js, settled at the stand),
+ * each card both its faces (no importer need honour a double-sided material), skinned to short chains of joints laid
+ * along their strands (hair-bake.js). 'baked' (the default): every clip carries the chains' keys from the hair's own
+ * simulation through it (its swing, as the sheets show it); 'rigid': the chains ride the bones they grow from (an
+ * engine's spring bones or cloth may swing them); false: no hair.
  *
  * THE CLIPS are IN PLACE: a gait's cycle loops on the spot and carries its ground speed (`moj:speed` in the GLB: an
  * engine moves the body at that speed, or plays the cycle at its planar speed ÷ it); a one-shot (a transition, the
@@ -35,7 +36,8 @@ import { correctiveWeights } from './correctives.js';
 import { quatOfRows } from '../fauna/rig.js';
 import { b64u8 } from '../figures/rig-bake.js';
 import { facesToGlb } from '../scene/scene-gltf.js';
-import { simulateHair, hairCards } from './hair.js';
+import { hairCards } from './hair.js';
+import { hairRig, bakeHairClip, hairJointKeys } from './hair-bake.js';
 
 const r5 = (x) => Math.round(x * 1e5) / 1e5;
 const b64f32 = (a) => Buffer.from(Float32Array.from(a).buffer).toString('base64');
@@ -51,7 +53,8 @@ export const MOUNT_CLIPS = Object.freeze([
   'jump', 'idle', ...Object.keys(IDLE_LAYERS).map((n) => `idle-${n}`), 'graze',
 ]);
 
-/** each clip as a sampler of solved poses: `at(t)` the pose at t seconds, `s` its seconds, `once` a one-shot, `v` its speed */
+/** each clip as a sampler of solved poses: `at(t)` the pose at t seconds, `s` its seconds, `once` a one-shot, `v` its
+ * speed; a one-shot's `before(t)` (t < 0) the pose it is entered from (its entry gait running in: the hair's warm-up) */
 export function mountClips(B, { names = MOUNT_CLIPS, seed = 3 } = {}) {
   const out = {};
   for (const name of names) {
@@ -60,8 +63,8 @@ export function mountClips(B, { names = MOUNT_CLIPS, seed = 3 } = {}) {
       const c = gaitCycle(B, name), T = 1 / c.f;
       out[name] = { at: (t) => c.poseAt(t / T), s: T, once: false, v: Math.abs(c.speed) };
     } else if (name === 'jump') {
-      const j = jumpClip(B);
-      out[name] = { at: (t) => j.poseAt(t), s: j.duration, once: true, flight: j.flight };
+      const j = jumpClip(B), A = j.A, T = 1 / A.f;
+      out[name] = { at: (t) => j.poseAt(t), before: (t) => A.poseAt(((j.entry.phase + t / T) % 1 + 1) % 1), s: j.duration, once: true, flight: j.flight };
     } else if (name === 'idle') {
       const c = idleClip(B, { seed });
       out[name] = { at: (t) => c.poseAt(t), s: c.duration, once: true };
@@ -72,8 +75,10 @@ export function mountClips(B, { names = MOUNT_CLIPS, seed = 3 } = {}) {
       const c = idleLayer(B, name.slice(5), { seed });
       out[name] = { at: (t) => c.poseAt(t), s: c.duration, once: false };
     } else if (tr && !/^idle$/.test(tr[1])) {
-      const c = oneShot(B, { from: tr[1], to: tr[2] });
-      out[name] = { at: (t) => c.poseAt(t), s: c.duration, once: true };
+      const c = oneShot(B, { from: tr[1], to: tr[2] }), A = c.A;
+      // (before it starts: its entry gait running into its entry phase, or the stand it starts from)
+      const before = A?.poseAt && A.f ? (t) => A.poseAt(((c.entry.phase + t * A.f) % 1 + 1) % 1) : () => c.poseAt(0);
+      out[name] = { at: (t) => c.poseAt(t), before, s: c.duration, once: true };
     } else throw new Error(`mount: no clip '${name}' (it knows: ${MOUNT_CLIPS.join(', ')})`);
   }
   return out;
@@ -87,15 +92,18 @@ const turnOf = (r, p) => [0, 1, 2].map((a) => [0, 1, 2].map((b) => p.R[0][a] * r
  * (correctives.js fitCorrectives / correctiveKeys), or null for none (then no targets and no weights: plain LBS);
  * `clips` mountClips' samplers; `fps` the keys a second.
  */
-export function mountPack(B, { mesh, coat = 'bay', markings = {}, set = null, clips = {}, fps = 30, hair = true } = {}) {
-  const stand = standPose(B), rest = boneFrames(B, stand), ids = MOUNT_BONES.map((b) => b.id), index = new Map(ids.map((id, i) => [id, i]));
-  const bones = MOUNT_BONES.map((b) => ({ id: b.id, head: stand.bones[b.id].head.map(r5), tail: stand.bones[b.id].tail.map(r5) }));
+export function mountPack(B, { mesh, coat = 'bay', markings = {}, set = null, clips = {}, fps = 30, hair = 'baked' } = {}) {
+  if (hair === true) hair = 'baked';
+  const stand = standPose(B), rest = boneFrames(B, stand), body = MOUNT_BONES.map((b) => b.id);
+  const rig = hair ? hairRig(B) : null, ids = [...body, ...(rig ? rig.joints.map((J) => J.id) : [])], index = new Map(ids.map((id, i) => [id, i]));
+  const bones = [...MOUNT_BONES.map((b) => ({ id: b.id, head: stand.bones[b.id].head.map(r5), tail: stand.bones[b.id].tail.map(r5) })),
+    ...(rig ? rig.joints.map((J) => ({ id: J.id, head: J.head.map(r5), tail: J.tail.map(r5) })) : [])];
   // the targets: every driver's keys, in order
   const targets = set ? set.drivers.flatMap((d) => d.keys.map((kk, ki) => ({ id: `${d.id}@${Math.round(kk.angle * 180 / Math.PI)}`, driver: { id: d.id, parent: d.parent, child: d.child, angle: r5(kk.angle), key: ki }, w: 0 }))) : [];
   const rowOf = new Map();                                         // vertex → its rows (3 × targets), where any target moves it
   if (set) { let t = 0; for (const d of set.drivers) for (const kk of d.keys) { for (const [i, dv] of kk.deltas) { let r = rowOf.get(i); if (!r) rowOf.set(i, r = new Float32Array(3 * targets.length)); r[3 * t] = dv[0]; r[3 * t + 1] = dv[1]; r[3 * t + 2] = dv[2]; } t++; } }
   // the parts: each quad's two triangles to the bone its corners weigh most
-  const P = ids.map(() => ({ pos: [], col: [], jnt: [], wgt: [], nrm: [], ci: [], cd: [], faces: 0 }));
+  const P = ids.map(() => ({ pos: [], col: [], jnt: [], wgt: [], nrm: [], ci: [], cd: [], faces: 0 }));   // (a part per joint, the hair's too)
   const colours = mesh.quads.map((q) => { const c = q.map((i) => mesh.vertices[i]).reduce((a, b) => a.map((x, i) => x + b[i] / 4), [0, 0, 0]); return hexLinear(coatColor(coat, mesh.parts[q[0]], c, { stand: mesh.stand, markings })); });
   mesh.quads.forEach((q, qi) => {
     const votes = new Map();
@@ -115,26 +123,20 @@ export function mountPack(B, { mesh, coat = 'bay', markings = {}, set = null, cl
       }
     }
   });
-  // the hair: its cards at the stand's hang, both faces, on the bones they grow from
-  if (hair) {
-    const sim = simulateHair(B, () => stand, { t0: 0, t1: 0.5, fps: 10 }), strands = sim.strands[sim.strands.length - 1];
-    const hc = hairCards(sim.guides, strands, { coat });
-    const skinOf = ([gi, i]) => {
-      const g = sim.guides[gi], u = i / (g.n - 1);
-      if (g.kind !== 'tail') return [[g.bone, 1]];
-      const h = u * u * (3 - 2 * u);
-      return h <= 0 ? [[g.bone, 1]] : h >= 1 ? [['tailHair', 1]] : [[g.bone, 1 - h], ['tailHair', h]];
-    };
+  // the hair: its cards at the stand's hang, both faces, on the chains along their strands
+  if (rig) {
+    const hc = hairCards(rig.guides, rig.rest, { coat }), nb = body.length;
+    const skinOf = (at) => rig.skin(at).map(([j, w]) => [nb + j, w]);
     hc.quads.forEach((q, qi) => {
       const col = hexLinear(hc.colors[qi]), V = q.map((i) => hc.vertices[i]);
       const n0 = (() => { const a = V[0], b = V[1], c = V[2], u = [b[0] - a[0], b[1] - a[1], b[2] - a[2]], v = [c[0] - a[0], c[1] - a[1], c[2] - a[2]], n = [u[1] * v[2] - u[2] * v[1], u[2] * v[0] - u[0] * v[2], u[0] * v[1] - u[1] * v[0]], l = Math.hypot(...n) || 1; return n.map((x) => x / l); })();
-      const own = skinOf(hc.at[q[0]]), part = P[index.get(own[0][0])];
+      const part = P[skinOf(hc.at[q[0]]).sort((x, y) => y[1] - x[1])[0][0]];
       for (const [order, nrm] of [[[0, 1, 2, 0, 2, 3], n0], [[0, 2, 1, 0, 3, 2], n0.map((x) => -x)]]) {
         part.faces += 2;
         for (const k of order) {
-          const vi = q[k], w = [...skinOf(hc.at[vi]), ...Array(4).fill(['spine1', 0])].slice(0, 4);
+          const vi = q[k], w = [...skinOf(hc.at[vi]), ...Array(4).fill([0, 0])].slice(0, 4);
           part.pos.push(...hc.vertices[vi]); part.col.push(...col); part.nrm.push(...nrm);
-          part.jnt.push(...w.map(([bn]) => index.get(bn))); part.wgt.push(...w.map(([, x]) => x));
+          part.jnt.push(...w.map(([j]) => j)); part.wgt.push(...w.map(([, x]) => x));
         }
       }
     });
@@ -147,10 +149,15 @@ export function mountPack(B, { mesh, coat = 'bay', markings = {}, set = null, cl
   const packed = {};
   for (const [name, c] of Object.entries(clips)) {
     const K = c.once ? Math.max(2, Math.round(c.s * fps) + 1) : Math.max(2, Math.round(c.s * fps));
-    const b = [], cw = set ? [] : null;
+    const b = [], cw = set ? [] : null, strands = rig && hair === 'baked' ? bakeHairClip(B, rig, c, K) : null;
     for (let k = 0; k < K; k++) {
       const t = c.once ? c.s * k / (K - 1) : c.s * k / K, f = boneFrames(B, c.at(t));
-      for (const id of ids) { const p = f[id]; b.push(...quatOfRows(turnOf(rest[id], p)).map(r5), ...p.h.map(r5)); }
+      for (const id of body) { const p = f[id]; b.push(...quatOfRows(turnOf(rest[id], p)).map(r5), ...p.h.map(r5)); }
+      // the hair's chains: their keys from the simulation (baked), or carried by the bones they grow from (rigid)
+      if (rig) {
+        const keys = strands ? hairJointKeys(rig, strands[k], f, rest) : rig.joints.map((J) => { const R = turnOf(rest[J.bone], f[J.bone]), d = J.head.map((x, i) => x - rest[J.bone].h[i]); return { R, h: [0, 1, 2].map((a2) => f[J.bone].h[a2] + R[a2][0] * d[0] + R[a2][1] * d[1] + R[a2][2] * d[2]) }; });
+        for (const kj of keys) b.push(...quatOfRows(kj.R).map(r5), ...kj.h.map(r5));
+      }
       if (cw) { const w = new Map(correctiveWeights(set, rest, f).map((x) => [`${x.driver}:${x.key}`, x.w])); for (const tg of targets) cw.push(r5(w.get(`${tg.driver.id}:${tg.driver.key}`) ?? 0)); }
     }
     packed[name] = { k: K, b, ...(cw ? { cw } : {}), s: r5(c.s), ...(c.once ? { once: true } : {}), ...(c.v > 0 ? { v: r5(c.v) } : {}) };

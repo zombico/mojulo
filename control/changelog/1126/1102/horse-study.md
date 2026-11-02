@@ -69,8 +69,10 @@ rather than over it (the fauna horse's rows stay byte-identical). Solo; the sadd
   and are unchanged. Every clip's gate checks the hip.
 - **The export** (`mount/export.js`, `node scripts/export-mount.mjs <dir>`): the mount as one skinned GLB an engine
   imports as it is, through the hero's writer. The rig's bones as joints, the body on its own weights, the corrective
-  shapes as morph targets, the mane, forelock and tail as two-faced cards on the bones they grow from (their swing an
-  engine's spring bones give them), and every clip: the gaits' cycles in place with their ground speed, the
+  shapes as morph targets, the mane, forelock and tail as two-faced cards on short chains of joints along their
+  strands (`mount/hair-bake.js`) whose keys are the hair's own simulation through each clip (a cycle's closed on
+  itself; a transition's warmed through the gait it leaves, so the hair is already swinging as it starts), and every
+  clip: the gaits' cycles in place with their ground speed, the
   transitions between them and the halt, the jump, the idle, its layers and grazing, each with its shapes' weights. A
   README says how Godot, Unity, Unreal and Blender take it. Re-skinned from its own buffers the file is the solver's
   skin to a fraction of a millimetre. `node scripts/mount-live.mjs <glb> <dir> [--local]` plays it in a live viewer

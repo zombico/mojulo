@@ -10,6 +10,8 @@ import { standPose } from './gait.js';
 import { skinContext, DRIVERS, bendJoint, correctiveKeys, applyCorrectives } from './correctives.js';
 import { mountClips, mountGlb, MOUNT_CLIPS } from './export.js';
 import { MOUNT_BONES } from './pose.js';
+import { hairCards } from './hair.js';
+import { hairRig, bakeHairClip, hairJointKeys } from './hair-bake.js';
 
 // a GLB read by hand: its JSON and BIN, an accessor (sparse ones too), a node's TRS as a matrix
 const glbOf = (bytes) => { const jl = bytes.readUInt32LE(12); const bin = bytes.subarray(20 + jl + 8); return { json: JSON.parse(bytes.subarray(20, 20 + jl).toString('utf8')), bin }; };
@@ -111,16 +113,34 @@ describe('the mount exported', () => {
     expect(off).toBeLessThan(3e-4);
   });
 
-  it('its hair: cards on the bones they grow from, both faces, at the stand\'s hang', () => {
-    const h = mountGlb(B, { mesh: m, clips: { trot: clips.trot } }), H = glbOf(h.bytes);
-    const prim = H.json.meshes[H.json.nodes.find((x) => x.skin !== undefined).mesh].primitives[0], J = accessor(H, prim.attributes.JOINTS_0), Wt = accessor(H, prim.attributes.WEIGHTS_0), P = accessor(H, prim.attributes.POSITION);
-    const ids = MOUNT_BONES.map((b) => b.id), on = new Set();
-    let extra = 0;
-    for (let v = 0; v < P.length / 3; v++) { if (byPlace.has([P[v * 3], P[v * 3 + 1], P[v * 3 + 2]])) continue; extra++; for (let c = 0; c < 4; c++) if (Wt[v * 4 + c] > 0) on.add(ids[J[v * 4 + c]]); }
-    expect(extra).toBeGreaterThan(500);
-    expect([...on].every((b) => /^(neck\d|head|tail\d|tailHair)$/.test(b))).toBe(true);
-    expect(on.has('tailHair') && on.has('head') && on.has('neck2')).toBe(true);
-    expect(h.triangleCount).toBeGreaterThan(g.triangleCount);
+  it('its hair baked: chains along the strands, their heads the simulation\'s points, the GLB carrying their keys', () => {
+    const h = mountGlb(B, { mesh: m, clips: { trot: clips.trot } }), H = glbOf(h.bytes), rig = hairRig(B), nb = MOUNT_BONES.length;
+    const skin = H.json.skins[0], names = skin.joints.map((ni) => H.json.nodes[ni].name);
+    expect(names.length).toBe(nb + rig.joints.length);
+    expect(names.slice(nb)).toEqual(rig.joints.map((J) => expect.stringContaining(J.id)));
+    // the simulation through the cycle, on the clip's keys; each chain's keys from it
+    const K = h.pack.clips.trot.k, S = bakeHairClip(B, rig, clips.trot, K), rest = boneFrames(B, standPose(B));
+    for (const k of [0, Math.floor(K / 2)]) {
+      const F = boneFrames(B, clips.trot.at(clips.trot.s * k / K)), keys = hairJointKeys(rig, S[k], F, rest);
+      // a joint's head is its simulated point; its direction the simulated chord's
+      rig.joints.forEach((J, j) => {
+        expect(Math.hypot(...keys[j].h.map((x, i) => x - S[k][J.gi][J.a][i]))).toBe(0);
+        const d = [0, 1, 2].map((a) => keys[j].R[a][0] * J.dir[0] + keys[j].R[a][1] * J.dir[1] + keys[j].R[a][2] * J.dir[2]), c = S[k][J.gi][J.b].map((x, i) => x - S[k][J.gi][J.a][i]), cl = Math.hypot(...c);
+        expect(Math.hypot(...d.map((x, i) => x - c[i] / cl))).toBeLessThan(1e-9);
+      });
+      // the GLB's own hair, re-skinned at that key, is the cards skinned on those keys (the file carries them)
+      const { out, rest: P } = reskin(H, 'mount:trot', k), cards = hairCards(rig.guides, rig.rest);
+      const want = cards.vertices.map((v, vi) => { const [[j]] = rig.skin(cards.at[vi]), J = rig.joints[j], d = v.map((x, i) => x - J.head[i]), R = keys[j].R; return [0, 1, 2].map((a) => keys[j].h[a] + R[a][0] * d[0] + R[a][1] * d[1] + R[a][2] * d[2]); });
+      const cardAt = new Map(cards.vertices.map((v, vi) => [v.map((x) => Math.round(x * 1e4)).join(','), vi]));
+      let off = 0, seen = 0;
+      for (let v = 0; v < out.length; v++) { const vi = cardAt.get([P[v * 3], P[v * 3 + 1], P[v * 3 + 2]].map((x) => Math.round(x * 1e4)).join(',')); if (vi === undefined) continue; seen++; off = Math.max(off, Math.hypot(...out[v].map((x, i) => x - want[vi][i]))); }
+      expect(seen).toBeGreaterThan(cards.vertices.length);                    // (both faces of every card)
+      expect(off).toBeLessThan(3e-4);
+    }
+    // rigid: the chains ride their bones; no hair: none
+    const r = mountGlb(B, { mesh: m, clips: { trot: clips.trot }, hair: 'rigid' });
+    expect(r.pack.bones.length).toBe(nb + rig.joints.length);
+    expect(g.pack.bones.length).toBe(nb);
   });
 
   it('every clip it names can be made', () => {

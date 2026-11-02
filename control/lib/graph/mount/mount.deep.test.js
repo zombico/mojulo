@@ -95,3 +95,29 @@ describe('the mount\'s folds', () => {
     expect(g.checks.filter((c) => !c.pass).map((c) => `${c.name}: ${c.saw}`)).toEqual([]);
   }, 600000);
 });
+
+// the hair baked for an engine: a transition's swing picks up the hair as the gait it leaves had it (its first key near
+// that gait's loop at the entry phase, where a cold start hangs it still), and the chains follow the strands they ride
+describe('the mount\'s baked hair', () => {
+  it('a transition starts the hair in motion; the chains follow their strands', async () => {
+    const { gaitCycle: cyc } = await import('./gait.js'), { oneShot: shot } = await import('./motion.js'), { boneFrames: bf } = await import('./skin.js');
+    const { hairRig, bakeHairClip, hairJointKeys } = await import('./hair-bake.js'), { mountClips } = await import('./export.js');
+    const B = resolveMount('horse'), rig = hairRig(B), c = mountClips(B, { names: ['trot-canter'] })['trot-canter'];
+    const sh = shot(B, { from: 'trot', to: 'canter' }), tr = cyc(B, 'trot'), T = 1 / tr.f, K = Math.round(c.s * 30) + 1, S = bakeHairClip(B, rig, c, K);
+    const n = 60, loop = simulateHair(B, (t) => tr.poseAt(t / T), { t0: 0, t1: T, fps: n / T, loop: true }).strands[Math.round(sh.entry.phase * n) % n];
+    let sum = 0, cnt = 0;
+    S[0].forEach((st, gi) => st.forEach((p, i) => { sum += Math.hypot(...p.map((x, q) => x - loop[gi][i][q])); cnt++; }));
+    expect(sum / cnt).toBeLessThan(0.02);
+    const tip = (k) => S[k].map((st) => st[st.length - 1]);
+    expect(Math.max(...tip(0).map((p, i) => Math.hypot(...p.map((x, q) => x - tip(1)[i][q]))))).toBeGreaterThan(0.01);   // moving at its first key
+    // each strand point skinned on its chain against the simulated one: the heads exact, the points between near
+    const rest = bf(B, standPose(B)), errs = [];
+    for (let k = 0; k < K; k += 6) {
+      const keys = hairJointKeys(rig, S[k], bf(B, c.at(c.s * k / (K - 1))), rest);
+      rig.rest.forEach((st, gi) => st.forEach((v, i) => { const [[j]] = rig.skin([gi, i]), J = rig.joints[j], d = v.map((x, q) => x - J.head[q]), R = keys[j].R; errs.push(Math.hypot(...[0, 1, 2].map((a) => keys[j].h[a] + R[a][0] * d[0] + R[a][1] * d[1] + R[a][2] * d[2] - S[k][gi][i][a]))); }));
+    }
+    errs.sort((a, b) => a - b);
+    expect(errs[Math.floor(errs.length * 0.5)]).toBeLessThan(0.01);
+    expect(errs[Math.floor(errs.length * 0.95)]).toBeLessThan(0.035);
+  }, 300000);
+});
