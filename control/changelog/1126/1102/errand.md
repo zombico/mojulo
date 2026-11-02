@@ -18,3 +18,10 @@ spoils while carried. Built so far:
     paid into the bag (every errand pays), and the level is won (`errand:done:<id>`); short of any, a toast says what to
     bring and nothing is taken. A bounty board is a giver that wants proofs.
   Names for a handoff: `trade-<item>`, `deliver-<id>`. Sounds, glyphs and engine samples for each.
+- **The errand in a world** (`gameworld/errand.js`): a map world's `errands: [{ id, giver, reward?, list: [{ item, at,
+  count?, min?, needs?, from?: { foe }, cargo? }] }]`, read and refused by name (a map world only, known levels and
+  items, no cycle, one item one errand, a bounty's foe fielded on its level). Its laws advise in the readout: `solvable`
+  (an order from the start through the links, a keyed link once its key is found), `varied` (no two legs in a row in one
+  level), `survivable` (a cargo carries a margin). Each level's last stage lays its legs beside the bag, each trade and
+  the giver's hand-in on a beat of its own past the ways' and the keys'; a bounty for `from: { foe }`; every level the
+  cargo; the giver asks for the list's roots. The game's store carries a bag when a world has errands.
