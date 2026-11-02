@@ -41,6 +41,23 @@ describe('a subway under an evocation\'s street', () => {
     for (const r of N.repeats ?? []) for (const t of r.transforms) for (const w of wells) expect(Math.hypot(t.pos[0] - w[0], t.pos[1] - w[1]) < 0.3).toBe(false);
   });
 
+  it('stands a streetcar at its stop on each track of the streetcar line crossing over it, its pantograph to the wire', () => {
+    const d = designGeocity({ ...geocity, evoke: 'neighbourhood', subway: true }, { seed: 2 }), l = d.lines.find((x) => x.id === U.along);
+    const across = d.lines.filter((x) => x.axis !== l.axis && x.tracks.length);
+    expect(across.length).toBeGreaterThan(0);
+    expect(U.streetcars.length).toBeGreaterThan(0);
+    for (const c of U.streetcars) { const x = d.lines.find((q) => q.id === c.line); expect(x.axis).not.toBe(l.axis); expect(Math.abs(c.at[x.axis === 'ns' ? 0 : 1] - x.at)).toBeLessThan(x.road / 2); }
+    // (its collector bar just under the contact wire, 5.6 m over its street)
+    for (const c of U.streetcars) {
+      const near = N.faces.filter((f) => f.group === 'geocity:streetcar' && f.corners.every((p) => Math.hypot(p[0] - c.at[0], p[1] - c.at[1]) < 20)).flatMap((f) => f.corners.map((p) => p[2]));
+      expect(Math.max(...near) - c.at[2]).toBeGreaterThan(5.2);
+      // (over its lowest corner: the street falls along its 30 m)
+      expect(Math.max(...near) - c.at[2]).toBeLessThan(7.2);
+    }
+    expect(N.colliders.some((c) => c.of.startsWith('streetcar:'))).toBe(true);
+    expect(N.faces.some((f) => f.group === 'subway:entrance-kerb')).toBe(true);
+  });
+
   it('is walked along its platforms, from one platform to the next, and up to the sidewalk, and back', () => {
     const walk = walker(N);
     const routes = [...of('station').flatMap((s) => s.platforms), ...of('rail-tunnel').map((t) => t.walk), ...of('station').flatMap((s) => s.up.map((u, i) => [...u, ...of('entrance').filter((e) => e.station === s.id)[i].walk.slice(1)]))];

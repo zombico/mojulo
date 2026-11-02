@@ -50,7 +50,7 @@ export function subwayUnder(d, { S, kerb = 0.15 }) {
   const { along: _a, stations: _n, depth: _d, gap: _g, plan, line } = SP;
   const stations = Array.from({ length: n }, (_, i) => ({ id: `${l.id}-s${i + 1}`, ...(plan ? { plan: i === n - 1 && plan === 'terminus' ? 'terminus' : plan === 'terminus' ? 'island' : plan } : {}) }));
   const out = (l.road / 2 + l.half) / 2;
-  const L = laySubway({ stations, gap, ...(line ? { line } : {}) }, { z0, ground, entrance: 'sidewalk', out });
+  const L = laySubway({ stations, gap, ...(line ? { line } : {}) }, { z0, ground, entrance: 'sidewalk', out, kerb: { at: l.road / 2, h: kerb } });
   // ── into the city's frame: every face, box, walk and camera ──
   const face = (f) => ({ ...f, corners: f.corners.map((c) => P3(W(c))), ...(f.normal ? { normal: P3(N(f.normal)) } : {}), ...(f.outNormal ? { outNormal: P3(N(f.outNormal)) } : {}) });
   const box = (c) => { const a = W(c.min), b = W(c.max); return { min: P3([Math.min(a[0], b[0]), Math.min(a[1], b[1]), Math.min(a[2], b[2])]), max: P3([Math.max(a[0], b[0]), Math.max(a[1], b[1]), Math.max(a[2], b[2])]), of: `subway:${c.of}` }; };
@@ -79,5 +79,5 @@ export function subwayUnder(d, { S, kerb = 0.15 }) {
     tunnels: L.tunnels.map((t) => ({ id: t.id, length: t.length, cover: t.cover, grade: t.grade, ...(t.findings.length ? { findings: t.findings } : {}) })),
     entrances: L.entrances.map((e) => ({ id: e.id, rise: e.rise, steps: e.steps })),
   };
-  return { line: l, axis: l.axis, faces, colliders, wells, anchors, cameras, readout, tunnels: L.tunnels, stations: L.stations };
+  return { line: l, axis: l.axis, span: [t0, t0 + total].map(r5), faces, colliders, wells, anchors, cameras, readout, tunnels: L.tunnels, stations: L.stations };
 }

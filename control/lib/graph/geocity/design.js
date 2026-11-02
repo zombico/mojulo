@@ -176,6 +176,8 @@ export function designGeocity(spec = {}, { seed = 1, field = null } = {}) {
   // each arterial's cross-section (roads.js): its kind (one-way, a spacer, streetcars), its bands and its tracks, its
   // right-of-way its own road and the grammar's walks
   const kinds = roadKinds(lines, M, seed, seat);
+  // (a city asked for a subway runs streetcars on its two-way spines: one crosses the line over it)
+  if (T.subway) for (const l of lines) if (l.rank === 'spine' && !kinds[l.id].oneway) kinds[l.id].streetcar = true;
   for (const l of lines) {
     const lay = layoutOf(kinds[l.id], l.axis, M.roads, G.traffic), h = r3(lay.road / 2 + sec.walk);
     Object.assign(l, { kind: kinds[l.id], road: lay.road, half: h, bands: lay.bands, tracks: lay.tracks, rect: l.axis === 'ns' ? [r3(l.at - h), land[1], r3(l.at + h), land[3]] : [land[0], r3(l.at - h), land[2], r3(l.at + h)] });

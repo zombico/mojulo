@@ -12,3 +12,10 @@
   cameras down a platform, into a tunnel, at an entrance from the walk and down its stair; its readout is the city's
   `subway`. Walked along each platform, from one platform to the next and from a platform up to the sidewalk, both ways.
   A rail tunnel's fall over a landing is its ramp's, not a drop needing a stair. Absent, a city is as it was.
+- **A streetcar across the subway** (geocity/streetcar.js): a city asked for a subway runs streetcars on its two-way
+  spines, so one crosses the line over it; on each streetcar line crossing the subway's street along its run, a car
+  stands at the stop each way past the crossing: a low-floor car in three articulated sections, red over a dark skirt
+  under a white roof, its windows in a band, double doors on its kerb side, a cab, windscreen, headlights and a
+  destination sign at each end, its pantograph raised to the overhead's contact wire; each held by its own box, a
+  camera on the first from across its street. Each sidewalk entrance closes the walk's kerb along its stair's run, so
+  nothing under the walk shows under its edge, and opens its well before the stair's ceiling nears the walk.

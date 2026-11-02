@@ -68,6 +68,7 @@ import { networkLaws } from '../network/laws.js';
 import { readSection } from '../network/sections.js';
 import { dressUnder, ROUTES } from './dress.js';
 import { subwayUnder } from './subway.js';
+import { streetcarFaces, STREETCAR } from './streetcar.js';
 
 export const GEOCITY_KEYS = Object.freeze(['kind', 'cube', 'show', 'title', 'seed', 'hour', 'clouds', 'geocity', 'walk', 'shadows', 'occlusion', 'light', 'cone', 'air']);
 export const GEOCITY_FACES = 200000;
@@ -808,13 +809,26 @@ export function assembleGeocityScene(m, ctx = {}) {
   for (const t of tunnels) for (const R of t.footprint) groundCut(R, (f) => Math.min(...f.corners.map((cc) => cc[2])) >= t.top + 0.2);
   // the subway under its street (geocity/subway.js): its stations, tunnels and entrances, the walk open over each
   // entrance's stairwell
-  const SUB = d.spec.subway ? subwayUnder(d, { S, kerb: KERB }) : null;
+  const SUB = d.spec.subway ? subwayUnder(d, { S, kerb: KERB }) : null, streetcars = [];
   if (SUB) {
     for (const R of SUB.wells) groundCut(R, () => false);
     // (nothing of the street's stands in a stairwell: its trees, its lamps, poles and signs kept out of each, by a margin)
     const inWell = (x, y) => SUB.wells.some((R) => x > R[0] - 0.6 && x < R[2] + 0.6 && y > R[1] - 0.6 && y < R[3] + 0.6);
     for (const [k, list] of stamps) stamps.set(k, list.filter((t) => !inWell(t.pos[0], t.pos[1])));
     for (const [k, list] of trees) trees.set(k, list.filter((t) => !inWell(t.x, t.y)));
+    // the streetcars across it: on each streetcar line crossing its street along its run, a car at the stop each way
+    // past the crossing, its pantograph to the wire (geocity/streetcar.js)
+    const run = SUB.span, o = SUB.line;
+    for (const l of d.lines) {
+      if (l.axis === o.axis || !l.tracks.length || l.at < run[0] - 40 || l.at > run[1] + 40) continue;
+      for (const t of l.tracks) {
+        const s0 = o.at + t.dir * (o.half + 4), car = streetcarFaces({ axis: l.axis, at: l.at + t.at, s0: s0 + t.dir * 29.8, dir: t.dir, side: Math.sign(t.at) || 1, z: S });
+        for (const f of car) if (f.hex) put(f.corners, f.group, f.hex, f.normal); else faces.push(f);
+        const xs = car.flatMap((f) => f.corners.map((c) => c[0])), ys = car.flatMap((f) => f.corners.map((c) => c[1])), zs = car.flatMap((f) => f.corners.map((c) => c[2]));
+        colliders.push({ min: P3([Math.min(...xs), Math.min(...ys), Math.min(...zs)]), max: P3([Math.max(...xs), Math.max(...ys), Math.min(...zs) + STREETCAR.height]), of: `streetcar:${l.id}:${t.dir}` });
+        streetcars.push({ line: l.id, dir: t.dir, at: P3([xs.reduce((a, v) => a + v, 0) / xs.length, ys.reduce((a, v) => a + v, 0) / ys.length, Math.min(...zs)]) });
+      }
+    }
   }
   if (lots.length) {
     const U = CITY_METERS_PER_UNIT, u = (v) => Math.round((v / U) * 1000) / 1000;
@@ -921,6 +935,13 @@ export function assembleGeocityScene(m, ctx = {}) {
   }
   // (the subway's: down a platform, into a tunnel, an entrance from the walk and down its stair)
   if (SUB) cameras.push(...SUB.cameras);
+  // (the first streetcar from across its street, the subway's street behind it)
+  if (streetcars[0]) {
+    const c = streetcars[0], l = d.lines.find((x) => x.id === c.line), ax = l.axis === 'ns' ? 0 : 1, from = [...c.at];
+    from[ax] = l.at - Math.sign(c.at[ax] - l.at || 1) * (l.half - 1);
+    from[1 - ax] += (l.axis === 'ns' ? 1 : 1) * 18 * c.dir;
+    cameras.push({ name: 'streetcar', worldFraming: { cameraPosition: P3([from[0], from[1], S(from[0], from[1]) + KERB + 1.7]), lookAt: P3([c.at[0], c.at[1], c.at[2] + 1.8]), horizontalFov: 65 } });
+  }
   // ── the route round the block nearest the seat (the dummy's), or the evoked block's, on its walk ──
   const o = WALK / 2;
   const ring = [[fb[0] - o, fb[1] - o], [fb[2] + o, fb[1] - o], [fb[2] + o, fb[3] + o], [fb[0] - o, fb[3] + o]], route = [];
@@ -1004,7 +1025,7 @@ export function assembleGeocityScene(m, ctx = {}) {
         faces: [...podia.flatMap((P) => P.I.faces), ...tunnels.flatMap((t) => t.faces)].length, colliders: podia.reduce((a, P) => a + P.I.colliders.length, 0) + tunnels.reduce((a, t) => a + t.colliders.length, 0), lights: podia.reduce((a, P) => a + P.I.lights.length, 0),
         findings: podia.flatMap((P) => P.I.findings), ...(dressed ? { dress: dressed.readout } : {}),
       } : { podium: null, why: underWhy } } : {}),
-      ...(SUB ? { subway: SUB.readout } : {}),
+      ...(SUB ? { subway: { ...SUB.readout, ...(streetcars.length ? { streetcars } : {}) } } : {}),
       ledger: d.ledger, laws: laws.map((l) => ({ law: l.law, ok: l.ok, value: l.value })),
     },
   };

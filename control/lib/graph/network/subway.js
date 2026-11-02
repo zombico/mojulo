@@ -98,7 +98,7 @@ function fitTunnels(P, S) {
   });
 }
 
-export function laySubway(c0, { z0: zBed = null, ground = () => 0, entrance = 'pavilion', out = null } = {}) {
+export function laySubway(c0, { z0: zBed = null, ground = () => 0, entrance = 'pavilion', out = null, kerb = null } = {}) {
   // (its track bed: one level, or each station's own, the tunnels graded between them)
   const c = readSubway(c0), gap = c.gap ?? 120, depth = c.depth ?? 14, zs = c.stations.map((_, i) => (Array.isArray(zBed) ? zBed[i] : zBed ?? -depth)), z0 = Math.min(...zs);
   const plans = c.stations.map((s) => STATION_PLANS[s.plan ?? 'island']), S = readSection(plans[0].tunnel), fits = fitTunnels(plans[0], S);
@@ -128,7 +128,7 @@ export function laySubway(c0, { z0: zBed = null, ground = () => 0, entrance = 'p
       tunnels.push({ ...T, a: A.id, b: B.id, axis: f.axis, walkSide: f.ws, walk: [sa.top, sa.foot, ...T.line, sb.foot, sb.top] });
     });
   }
-  const entrances = c.entrances === false ? [] : stations.flatMap((St) => St.ports.walks.map((q) => (entrance === 'sidewalk' ? sidewalkEntrance(St, q, { out, ground }) : entranceOf(St, q))));
+  const entrances = c.entrances === false ? [] : stations.flatMap((St) => St.ports.walks.map((q) => (entrance === 'sidewalk' ? sidewalkEntrance(St, q, { out, ground, kerb }) : entranceOf(St, q))));
   return { stations, tunnels, entrances, section: S.id, depth, gap };
 }
 
@@ -209,7 +209,7 @@ function entranceOf(St, q) {
  * its well open in the walk behind railings, a post with the line's roundel at its head; its walk from the doorway onto
  * the sidewalk past the stair's head. `ground(x, y)` the walk's level. The hall's frame (x across, y along).
  */
-function sidewalkEntrance(St, q, { out, ground }) {
+function sidewalkEntrance(St, q, { out, ground, kerb = null }) {
   const id = `${St.id}-${q.id}`, sx = Math.sign(q.N[0]) || 1, Wp = Math.abs(q.hi[1] - q.lo[1]), y0 = Math.min(q.lo[1], q.hi[1]), y1 = y0 + Wp, C = ENTRANCE.clear;
   const Ws = 2.4, xs = sx * out, xa = q.plane, xb = xs + sx * (Ws / 2), xw0 = xs - Ws / 2, xw1 = xs + Ws / 2;
   // (it climbs toward the station's middle: from the way out's far side along the street)
@@ -248,7 +248,9 @@ function sidewalkEntrance(St, q, { out, ground }) {
   }
   // (its walls tiled, its ceiling the treads' line raised, closed to where it nears the walk, its well open over it from
   // there: the well's sides to the walk, a headwall from the ceiling up to the walk where it opens)
-  const zLine = (y) => q.z0 + Math.max(0, Math.min(n, ((y - yF) * dir) / ENTRANCE.going)) * r, yOpen = yF + dir * Math.max(0, ((gh - C - q.z0) / r) * ENTRANCE.going);
+  // (open from where its ceiling would come within 0.4 m of the walk: under a kerb's height and more, so no part of it
+  // shows under a raised walk's edge)
+  const zLine = (y) => q.z0 + Math.max(0, Math.min(n, ((y - yF) * dir) / ENTRANCE.going)) * r, yOpen = yF + dir * Math.max(0, ((gh - 0.4 - C - q.z0) / r) * ENTRANCE.going);
   const yS = [yF, yOpen, yH].sort((p, q2) => (p - q2) * dir);
   for (let k = 0; k + 1 < yS.length; k++) {
     const ya = yS[k], yb = yS[k + 1], open = k === 1;
@@ -275,6 +277,11 @@ function sidewalkEntrance(St, q, { out, ground }) {
   emit([[post[0] - 0.06, post[1], gh], [post[0] + 0.06, post[1], gh], [post[0] + 0.06, post[1], gh + 3.2], [post[0] - 0.06, post[1], gh + 3.2]], [0, -dir, 0], G('steel'), '#2e3236', 1);
   for (const [rr, hex] of [[0.38, band], [0.24, '#f2efe6']]) emit(Array.from({ length: 16 }, (_, k) => { const a = (2 * Math.PI * k) / 16; return [post[0] + rr * Math.cos(a), post[1] - dir * (0.02 + (rr < 0.3 ? 0.01 : 0)), gh + 3.5 + rr * Math.sin(a)]; }), [0, -dir, 0], G('roundel'), hex, 1.1);
   colliders.push({ min: P3([xw0 - 0.05, Math.min(yOpen, yOpen - dir * 0.05), gh]), max: P3([xw1 + 0.05, Math.max(yOpen, yOpen - dir * 0.05), gh + 1.05]), of: `${id}:railing-back` });
+  // (the walk's kerb along the stair's run, its face down to the road: nothing under the walk shows under its edge)
+  if (kerb) {
+    const xk = sx * kerb.at, ya = Math.min(yF, yH) - 2, yb = Math.max(yF, yH) + 2;
+    emit([[xk, ya, ground(xk, ya) - kerb.h], [xk, yb, ground(xk, yb) - kerb.h], [xk, yb, ground(xk, yb)], [xk, ya, ground(xk, ya)]], [-sx, 0, 0], G('kerb'), '#a29e96', 0.9);
+  }
   const well = [xw0, Math.min(yOpen, yH), xw1, Math.max(yOpen, yH)].map(r5), ym = (y0 + y1) / 2;
   const walk = [P3([xa - sx * 0.4, ym, q.z0]), P3([xs, ym, q.z0]), P3([xs, yF - dir * 0.3, q.z0]), P3([xs, yH + dir * 0.4, gh]), P3([xs, yH + dir * 2.5, gh])];
   return { id, station: St.id, port: q.id, faces, colliders, footprint: well, well, walk, door: P3([xs, yH, gh]), N: [0, dir], rise: r5(gh - q.z0), steps: n };
