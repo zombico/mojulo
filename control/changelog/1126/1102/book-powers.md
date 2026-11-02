@@ -359,3 +359,11 @@ its resource, put on a look and showed a toast. This theme makes them act.
 
   Its hub, Hollin, is the walled street every way leads back to: the shop walked into, two houses entered at their
   doors, the town's people in it.
+- **A beast-kin's tail streamers no longer break its figure.** A trickster or a noble of a people near the beast wears
+  streamers on a tail that shows, and a tail ring rides the tail too. Both were tied to `tail1`, a chain's second link,
+  but the hero-door beast-kin's tail is one part (`tail`) and a mascot's brush or thick tail is one shape (`tail0`).
+  On those bodies the figure threw, and with it the whole `design_game` run that made it: Hollin Vale's wolf-folk
+  raider stopped it. Each now rides the tail part the body has (`outfit-plan.js`); a chain's is `tail1` as before.
+- **Two tests caught up with this branch.** The composed-goals byte pin is re-pinned: a composed world's builders are
+  its cube's when the prompt names no building language. The own-moves test reads the per-foe steps: people foes play
+  the hero door's reactions plus their swings, beasts play their own flinch, fall and rise, and a bat has no fall at all.

@@ -70,7 +70,11 @@ describe('composed goals: what a level is played for, read from the prompt', () 
     // (a composed world writes its juice, 'auto', since juice styling: the print is the world's without it)
     expect(w.juice).toBe('auto');
     const { juice: _j, ...unjuiced } = w;
-    expect(fingerprint(unjuiced)).toBe('31e98788');
+    // (re-pinned 2026-11-02, 1102-book-powers: a composed world's builders are its cube's where the prompt names no
+    // language (gameworld/compose.js: the cube's builders become the anchor, so its town is drawn in the art direction it
+    // stands in): this haunted forest's gothic-night cube builds tiered, so its civilization is the tiered folk, not a
+    // rolled shell folk; nothing else in the world moved, 31e98788 -> ed00debc)
+    expect(fingerprint(unjuiced)).toBe('ed00debc');
     // (the game order now asks for the audit, its levels being reach-exit (first-frame checks, runner.js): the orders
     // without that one flag are the print taken before levels could carry a goal)
     const orders = runSteps(unjuiced, { ref: 'gw' }).map((s) => s.order);
