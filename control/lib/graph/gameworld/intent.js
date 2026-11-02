@@ -60,6 +60,7 @@ const WORDS = Object.freeze({
   'space-shooter': ['space', 'spaceship', 'starfighter', 'star fighter', 'space shooter', 'space combat', 'asteroid', 'asteroids', 'trench run', 'trench', 'x-wing', 'battle station', 'exhaust port'],
   'air-combat': ['dogfight', 'dogfights', 'dogfighting', 'air combat', 'ace combat', 'fighter jet', 'jet fighter', 'fighter jets', 'shoot down', 'enemy planes', 'top gun'],
   rhythm: ['rhythm', 'beat', 'music', 'dance', 'tempo'],
+  'saber-rhythm': ['saber', 'sabers', 'slash', 'blocks', 'headset', 'vr', 'cut', 'notes'],
   'endless-runner': ['runner', 'endless', 'lanes', 'swipe', 'dash'],
   'match-3-saga': ['match-3', 'saga', 'candy', 'swap', 'stars'],
   roguelike: ['roguelike', 'roguelite', 'runs', 'permadeath', 'procedural', 'run'],
@@ -88,7 +89,7 @@ const CUBES = Object.fromEntries(FIXTURES.map((f) => [f.id, f.cube]));
 /** A genre's preset cube, as `from` starts a world on it (a copy). */
 export const genreCube = (id) => (CUBES[id] ? clone(CUBES[id]) : null);
 export const QUICK_GENRE = Object.freeze({
-  collect: 'collectathon', race: 'racing', sneak: 'stealth', rhythm: 'rhythm', defend: 'tower-defense',
+  collect: 'collectathon', race: 'racing', sneak: 'stealth', rhythm: 'rhythm', saber: 'saber-rhythm', defend: 'tower-defense',
   puzzle: 'block-puzzle', farm: 'farming', battle: 'jrpg', shoot: 'shooter', deathmatch: 'arena-shooter', fly: 'flight-sim',
   fight: 'versus-fighter', conquer: 'rts', runner: 'endless-runner', meet: 'athletics-meet', contest: 'net-game',
 });

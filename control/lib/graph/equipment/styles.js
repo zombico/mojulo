@@ -108,6 +108,19 @@ export const SEEDED_STYLES = Object.freeze({
     "roles": { "blade": { "metal": "stainless", "finish": "mirror" }, "fittings": { "metal": "gold", "finish": "polished" }, "accent": { "metal": "gold", "finish": "mirror" }, "wrap": ["matte", "#f4f1e8"] },
     "gem": { "gem": "diamond", "glow": 0.2, "cut": "brilliant" }
   },
+  // a light blade: a long round edge of light (the shelf's neon, its own glow) out of a short machined hilt; a saber
+  // rhythm game's (gameworld/quick.js `saber`) red in the left hand, this blue in the right
+  saber: {
+    "id": "saber",
+    "dials": { "stylize": 0.2, "mass": 0.7, "focus": "none", "ornament": 0 },
+    "lean": { "W": 0.55, "T": 1.6, "L": 1.05, "span": 0.35, "grip": 1.5, "pommel": 0.8 },
+    "language": { "blade": "straight", "guard": "disc", "pommel": "cap", "grip": "banded",
+      "staff": { "head": "plain", "focus": "none", "shaft": ["neon", "#3fa9ff"] },
+      "bow": { "limb": "recurve", "tips": "none", "focus": "none", "shaft": ["gunmetal", "#8b94a0"] },
+      "shield": { "outline": "round", "device": "rays", "focus": "none", "board": ["neon", "#3fa9ff"] } },
+    "edge": { "fuller": 0, "bevel": 0 },
+    "roles": { "blade": ["neon", "#3fa9ff"], "fittings": { "metal": "steel", "finish": "blasted" }, "accent": { "metal": "chrome", "finish": "mirror" }, "wrap": ["rubber", "#202226"] }
+  },
 });
 
 /** Every variant a slot can take, per item family — what `parts` and a card's `language` may name. */

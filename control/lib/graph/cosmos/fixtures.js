@@ -280,6 +280,19 @@ export const FIXTURES = Object.freeze([
     },
   },
   {
+    id: 'saber-rhythm',
+    name: 'Saber rhythm',
+    anchor: false,
+    why: 'in a headset, blocks ride in down lanes on the music\'s beat, each cut its arrow\'s way with the saber in its hand, scored',
+    cube: {
+      reality: { medium: '3d' },
+      space: { camera: 'first-person', topology: 'linear', levelForm: 'trail' },
+      power: { rules: ['platform'], mechanics: ['notes', 'score'], combat: ['melee'] },
+      soul: { hero: 'hero', equipment: ['sword'] },
+      time: { progression: 'linear' },
+    },
+  },
+  {
     id: 'roguelike',
     name: 'Roguelike dungeon',
     anchor: false,

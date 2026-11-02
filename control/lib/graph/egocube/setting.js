@@ -52,6 +52,9 @@ export const GENRES = Object.freeze({
   race:       { weight: 0.85, mascot: { promise: { speed: 4, pride: 1.5, mischief: 1.5 }, energy: { zippy: 2 } }, person: { archetype: { explorer: 2, jester: 2, hero: 1.5, outlaw: 1.5 }, age: { youth: 2, elder: 0.5 } } },
   sneak:      { weight: 0.1, mascot: { promise: { mischief: 4 }, energy: { swaying: 2 } }, person: { role: { frontline: 3, ranged: 2 }, archetype: { everyman: 3, ruler: 1.5 }, build: { heroic: 1.5, stout: 1.5, brute: 1.5 }, age: { adult: 2, seasoned: 1.5, ...combat } } },
   rhythm:     { weight: 0.6, mascot: { promise: { cheer: 4 }, energy: { bouncy: 3 } }, person: { archetype: { jester: 3, lover: 2, innocent: 2 }, role: { 'non-combatant': 4 }, age: { youth: 2 } } },
+  // a saber rhythm game in a headset: a person with hands to hold the sabers (a mascot's mittens draw no fingers on the
+  // controllers), lithe and quick, never a child
+  saber:      { weight: 0, mascot: {}, person: { archetype: { hero: 2, explorer: 2, jester: 1.5 }, role: { flanker: 2, frontline: 1.5 }, build: { lithe: 2, heroic: 1.5 }, age: { youth: 2, adult: 2, ...combat } } },
   defend:     { weight: 0.3, mascot: { promise: { might: 3, pride: 2 } }, person: { role: { frontline: 3, flanker: 2, ranged: 2 }, archetype: { outlaw: 2, everyman: 2, hero: 1.5 }, age: combat } },
   puzzle:     { weight: 0.5, mascot: { promise: { wonder: 3, comfort: 1.5 } }, person: { archetype: { sage: 3, creator: 2 }, role: { 'non-combatant': 3 } } },
   farm:       { weight: 0.35, mascot: { promise: { comfort: 3, cheer: 2 }, energy: { swaying: 2, sturdy: 1.5 } }, person: { role: { 'non-combatant': 8, support: 2 }, archetype: { caregiver: 3, everyman: 3, innocent: 2, creator: 2 }, age: { seasoned: 1.5, elder: 2 } } },

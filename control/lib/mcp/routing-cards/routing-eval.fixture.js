@@ -112,6 +112,8 @@ export const FIXTURE = [
   ['a game level that is a three storey office building you climb to the top floor', 'mint_building'],
   // a GENRE level set in a building: design_game's quick level, the building laid from its use (era/programs.js) on a bay kit
   ['a stealth game where you sneak up four floors of an office block to the boardroom', 'design_game', 'quick'],
+  // the saber rhythm game: a quick goal played in a headset
+  ['a virtual reality music game where you swing two glowing swords at blocks flying toward you', 'design_game', 'quick'],
   ['a shooter level fighting room to room through a research lab building', 'design_game', 'quick'],
   ['a horror level creeping through a warehouse and its offices at night', 'design_game', 'quick'],
   ['pixelize this portrait into a 32-bit sprite', 'get_catalyst'],

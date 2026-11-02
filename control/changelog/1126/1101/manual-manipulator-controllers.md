@@ -42,3 +42,14 @@ held as a gun or VR boxing can be made.
   hand scores it and sends it away, a wrong one leaves it walking, and one that passes the line is a miss. Every note
   scored or missed wins; `misses` can lose. A pool too small for its chart is refused, naming the lane. The bus hears
   the headset's `cut` as a fact of its own (`scene/bus-abi.js`), the web's; Godot and Roblox mark it absent.
+- **The saber game** (`design_game({ quick: { goal: 'saber' } })`, `gameworld/quick.js`; the genre `saber-rhythm`): a
+  saber rhythm game from one call. The player stands before lanes of note blocks, in a headset (standing; `xr` names
+  another stance, or none), the hero holding a red saber left and a blue right (its own gear wins; `hero: false`
+  punches with the controllers). Four columns by two heights, the left two the left hand's; each lane and cut has its
+  own pool of blocks, each block wearing its arrow on every side in its hand's colour (the glyph forms `note-up`,
+  `note-down`, `note-left`, `note-right`, `note-any`). The chart is written on the stage (seeded by where the player
+  stands: hands taking turns, now and then both, cuts mostly down and up) and on the music: an electronic club score
+  (`music`: drive, rave, peak, drift), its seed fixed so its beat is the chart's whatever the level. Every note cut or
+  missed wins; `misses` loses; the best score is kept. Two pieces any game can use came with it: the light blade, a
+  `saber` equipment style (a neon blade, its own glow, out of a short machined hilt), and `xr` at the world (and the
+  quick game's) level, carried onto every stage level so its page opens a session that plays it.
