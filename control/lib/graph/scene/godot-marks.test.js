@@ -209,6 +209,18 @@ describe('the verdict stamps, never refuses', () => {
     const pd = assessPortability({ manifest: {}, levels: [{ ref: 'r', score: deck }], engine: 'godot' });
     expect(pd.verdict).toBe('hollow');   // a mover is a character's rule the level runs: absent and not the camera's
   });
+  it('a dressing the kernel lacks (a downed body\'s fade) is plainer, never hollow; a play key it lacks is (2026-11-02)', () => {
+    const exit = { game: { mechanics: [{ kind: 'reach-exit', at: [5, 0, 0] }] } };
+    const fade = score({ entities: [walker], events: { vanish: { on: [{ id: 'g1' }] } } }, exit);
+    const pf = assessPortability({ manifest: {}, levels: [{ ref: 'r', score: fade }], engine: 'godot' });
+    expect(pf.lost.some((f) => /events\.vanish/.test(f.text))).toBe(true);
+    expect(pf.verdict).toBe('plays-partly');
+    // a foe stood on the 'static' rule (none: it stands where placed) is no rule the kernel lacks
+    const stood = score({ entities: [walker, { id: 'foe', rule: { type: 'static' }, transform: { pos: [3, 0, 0] } }] }, exit);
+    expect(assessPortability({ manifest: {}, levels: [{ ref: 'r', score: stood }], engine: 'godot' }).verdict).toBe('plays');
+    const games = score({ entities: [walker], events: { minigames: [{ id: 'm' }] } }, exit);
+    expect(assessPortability({ manifest: {}, levels: [{ ref: 'r', score: games }], engine: 'godot' }).verdict).toBe('hollow');
+  });
   it('the other engines read as they always did: no verdict, no Godot rows', () => {
     const s = score({ entities: [walker] }, { game: { mechanics: [{ kind: 'laps', checkpoints: [{ at: [1, 0, 0] }] }] } });
     const p = assessPortability({ manifest: {}, levels: [{ ref: 'r', score: s }] });

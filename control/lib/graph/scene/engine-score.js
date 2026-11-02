@@ -151,7 +151,9 @@ export function engineReading(payload, engine = DEFAULT_ENGINE) {
   const player = (payload?.entities ?? []).find((e) => e?.pilotable === true)?.id ?? playerOf(payload), by = {};
   for (const e of payload?.entities ?? []) {
     const t = e?.rule?.type;
-    if (typeof t !== 'string') continue;
+    // (a 'static' rule is none: the entity stands where it is placed, as every kernel stands it; the conformance corpora
+    // stand their foes and food on it. Read as a rule it was unmarked, and an unmarked rule called the export hollow)
+    if (typeof t !== 'string' || t === 'static') continue;
     const r = (by[t] ||= { count: 0 });
     r.count++;
     if (e.isCamera) r.camera = true;

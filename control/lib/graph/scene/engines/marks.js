@@ -47,6 +47,9 @@ export const LEDGER_INFO = Object.freeze([
   'crystals_carried', 'water_carried', 'address_carried', 'contract', 'bus_carried', 'combat_carried', 'rules_carried',
   'channels_carried', 'figures_carried', 'events_carried',
 ]);
+// the events keys that only dress what plays (a fade, a trail, a rim light, the style floor, a register's motion): absent
+// in an engine, the game still plays as made, only plainer; never the reason an export is called hollow
+export const COSMETIC_EVENTS = Object.freeze(['register', 'style', 'titles', 'fxLight', 'fxStyle', 'rim', 'trail', 'vanish', 'wreck', 'layer0']);
 // the game manifest's shell keys that carry nothing to judge (a soundtrack plays wherever a level plays)
 export const SHELL_INFO = Object.freeze(['music']);
 
