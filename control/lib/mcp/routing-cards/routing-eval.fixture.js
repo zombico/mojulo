@@ -31,6 +31,8 @@ export const FIXTURE = [
   ['show me a pickup truck I can spin around and look at', 'mint_solid'],
   // a field vehicle by name, its camo and its mud as words beside it (the registry's realistic military body)
   ['show me a muddy army jeep in desert camo that I can turn around and look at', 'mint_solid'],
+  // a tracked body by name, its variations as words beside it
+  ['let me look at a light tank with a short gun and no side skirts', 'mint_solid'],
   // a base whose hangar has the field's vehicles parked in it: a designed world's building level
   ['a military base to infiltrate, with canvas trucks and an armoured carrier parked in its hangar', 'design_game'],
   ['what bearings and screws should my printed spool holder use, list what I need to buy', 'fabricate_solid'],

@@ -71,3 +71,11 @@ describe('mint_solid vehicle: the registry is the way in', () => {
     expect(out.registry.id).toBe(scenery);
   });
 });
+
+describe('a loft\'s words beside the name', () => {
+  it('a brief or a paint with no class takes the row\'s own class: a tracked body by its words', () => {
+    const tracked = Object.keys(MILITARY_CLASSES).find((k) => buildsOf(Object.keys(VEHICLES).find((id) => handlesOf(id).physics?.includes(k)))?.some((b) => b.via === 'loft' && !b.uses.includes('driven')));
+    const id = Object.keys(VEHICLES).find((r) => handlesOf(r).physics?.includes(tracked));
+    expect(readVehicleWord({ vehicle: VEHICLES[id].label, loft: { brief: 'a short gun' } })).toMatchObject({ id, instance: { loft: { class: tracked, brief: 'a short gun' } } });
+  });
+});

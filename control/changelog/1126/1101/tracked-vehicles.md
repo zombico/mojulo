@@ -1,6 +1,6 @@
 ### Tracked vehicles: a light tank and a tracked carrier, drawn realistic on a track pair
 
-In progress. The field's tracked vehicles drawn realistic from the military hull kit:
+The field's tracked vehicles drawn realistic from the military hull kit:
 - running gear: a sprocket, an idler, road wheels on arms, return rollers, and a track of links as geometry;
 - a light tank with a turret and a modelled gun (never fired);
 - a tracked carrier.
@@ -145,3 +145,22 @@ Both carry the field's camo, wear and setting light, can be parked in a base and
   The GLB and parked sweeps take the carrier too.
 - **Seen** (machine gate only; the eyes gate is open): the carrier plain from the three-quarter, the side and the rear
   quarter, and desert used under a golden sun; the light tank from "a short gun, no skirts, no basket".
+- **Composed:**
+  - **The base:** a building's `parked` takes the tracked by name beside the wheeled (`['light tank', 'tracked
+    carrier', 'apc']`). Each is laid in the hangar as its realistic loft in the faction's or the setting's paint,
+    solid. The default stays a truck and an APC.
+  - **The studio grid:** `mint_solid({ kind: 'vehicle', spec: { vehicle: 'light tank' } })` shows it. A loft's words
+    beside the name without its class (`loft: { brief: 'a short gun' }`) take the row's own class.
+  - **The engines:** each tracked body's GLB is valid by the Khronos validator, its turret its own node, so an
+    engine can traverse it.
+  - **Docs:** the vehicle card names the tracked and their words; a routing row ("a light tank with a short gun and
+    no side skirts", `mint_solid`); the project's orientation names `mil-track.js`.
+  - **Held:**
+    - `parked.test.js`: a base parks a tank and a carrier beside the wheeled;
+    - `preview-vehicle.test.js`: a brief beside the name takes the row's class;
+    - `scene-gltf.vehicle.test.js`: the turret its own node.
+- **Not built yet, said:**
+  - Driving: a tracked physics class's skid steer, the track's scroll, a turret aimed by a player.
+  - The gun's elevation as its own bone (the rig does not parent bones).
+  - A main battle tank and a halftrack on the same parts.
+  - Parked tracked vehicles lit indoors (as the wheeled: the world's sky).

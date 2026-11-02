@@ -56,6 +56,8 @@ export function readVehicleWord({ vehicle, type, racer, supercar, loft, tier } =
   const hit = resolveVehicle(word);
   if (!hit) throw new Error(`mint_solid vehicle: '${word}' is no vehicle the registry names: ${suggestVehicles(word)}`);
   const { id } = hit, builds = buildsOf(id);
+  // (a loft's words beside the name, its brief or its paint, without its class: the row's own)
+  if (loft !== undefined && loft?.class === undefined) loft = { ...loft, class: builds.find((b) => b.via === 'loft')?.key };
   // a race machine's recipe beside its row: the row must be the machine's, and the recipe is the instance
   if (racer !== undefined || supercar !== undefined || loft !== undefined) {
     const kind = racer !== undefined ? 'racer' : supercar !== undefined ? 'supercar' : 'loft';

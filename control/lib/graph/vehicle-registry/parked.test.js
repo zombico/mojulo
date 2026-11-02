@@ -114,4 +114,13 @@ describe('a base parks its vehicles', () => {
     const M = order(hangar(true, { foes: { a: { class: SOLO.id, skin: { people: 'human', dress } } } }));
     expect(M.parked.every((p) => p.livery === dress.colourway)).toBe(true);
   });
+  it('parks the tracked too: a tank and a carrier named in its list, beside the wheeled', () => {
+    const tracked = Object.keys(MILITARY_CLASSES).filter((k) => PHYSICS[k].running === 'track' && !UNBUILT[k]).map((k) => rowOfHandle('physics', k));
+    expect(tracked.length).toBeGreaterThan(0);
+    const M = order(hangar([...tracked, FIELD[0]]));
+    expect(M.parked.map((p) => p.vehicle)).toEqual([...tracked, FIELD[0]]);
+    const lowered = withParked({ parked: M.parked });
+    expect(Object.values(lowered.manifest.figures).map((f) => f.loft.class)).toEqual(expect.arrayContaining(tracked.map((id) => readParked([{ vehicle: id, at: [0, 0, 0] }])[0].class)));
+  });
 });
+

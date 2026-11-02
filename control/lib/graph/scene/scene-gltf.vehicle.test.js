@@ -74,13 +74,17 @@ describe('a field vehicle exports to a valid GLB', () => {
   // (each body the sheet builds: one still waiting for its parts is not yet a figure)
   for (const cls of Object.keys(MILITARY_CLASSES).filter((k) => !UNBUILT[k])) {
     it(`the ${MILITARY_CLASSES[cls]} body`, async () => {
-      const { out, json } = exported(loftFigure({ class: cls, seed: 3, light: 'form', livery: 'woodland' }));
+      const fig = loftFigure({ class: cls, seed: 3, light: 'form', livery: 'woodland' });
+      const { out, json } = exported(fig);
       const report = await validateBytes(new Uint8Array(out.bytes), { maxIssues: 50 });
       expect(report.issues.numErrors, JSON.stringify(report.issues.messages.filter((m) => m.severity === 0))).toBe(0);
       expect(report.issues.numWarnings).toBe(0);
       const body = json.meshes.find((m) => m.name === 'car:root');
       expect(body.primitives.every((p) => p.attributes.COLOR_0 !== undefined)).toBe(true);
       for (const slot of ['milPaint', 'mud', 'worn', 'rubber']) expect(json.materials.some((m) => m.name === `form:${slot}`), slot).toBe(true);
+      // (a part that turns on its own, a tank's turret, is its own node, so an engine can traverse it)
+      const own = fig.bones.filter((b) => b.id === 'turret');
+      for (const b of own) expect(json.nodes.some((n) => n.name?.includes(b.id)), b.id).toBe(true);
     }, 60000);
   }
 });
