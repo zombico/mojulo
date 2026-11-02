@@ -705,6 +705,12 @@ describe('notes on the bus', () => {
     expect(play(f, [beat(0), beat(1), arrive('nl-1'), arrive('nr-1')]).log).toContain('notes:failed');
   });
 
+  it('a note stopped on its walk (something in its lane) is a miss, so the chart always ends', () => {
+    const r = play(compose(), [beat(0), { type: 'stuck', entity: 'nl-1' }]);
+    expect(r.log).toContain('note:miss');
+    expect(r.ops.at(-1)).toMatchObject({ op: 'vanish', who: 'nl-1' });
+  });
+
   it('teaches what it needs: lanes with pools, a tempo, a chart on whole beats past the lead, a pool deep enough', () => {
     expect(() => composeMechanics([{ kind: 'notes', bpm: 120, chart }], ctx())).toThrow(/needs lanes/);
     expect(() => composeMechanics([{ kind: 'notes', lanes, chart }], ctx())).toThrow(/needs bpm/);

@@ -59,3 +59,11 @@ held as a gun or VR boxing can be made.
   widget its own text in its own colour and fade. It is the HUD the game already has (a saber game's notes and score, a
   shooter's rounds, a toast, a banner), not its keyboard legend; it is drawn again only when what it says changes.
   `xr: { hud: false }` leaves it out.
+- **The saber game keeps its lanes clear** (`gameworld/quick.js` saberLanes): the lanes run where nothing is in their
+  way. Of the stage's own way and the turns off it, each corridor (the lanes' width and a margin, from just ahead of the
+  player to past the miss line) is tried: no solid thing in it (the stage's walls too, a long wall tested exactly where
+  it crosses), no rock standing out of the land, land under every lane, the cutting line at the player's height and no
+  stretch too steep for a note to ride; of those, the smoothest, then the least turned. The player faces down them (a
+  goal's cast may now turn the pilot: `pilot.heading`), and the level says how clear they run (a law in the run's
+  readout). A note something stops anyway is a miss, so a chart always ends; and a note wakes at its own height over
+  the land at its lane's end (it woke at ground level before, and a high one on low land never rose).

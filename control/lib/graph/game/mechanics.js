@@ -690,6 +690,8 @@ const MECHANICS = {
           { on: `__ncut_${i}`, match: { entity: id }, if: { var: Hh(id), eq: 'any' }, do: 'emit', type: 'note:hit', entity: 'event.entity' },
           ...['L', 'R'].map((h) => ({ on: `__ncut_${i}`, match: { entity: id, hand: h }, if: { var: Hh(id), eq: h }, do: 'emit', type: 'note:hit', entity: 'event.entity' })),
           { on: 'arrive', match: { entity: id, last: 1 }, do: 'emit', type: 'note:miss', entity: 'event.entity' },
+          // (a note something stopped on its walk, a wall in its lane: a miss, so the chart always ends)
+          { on: 'stuck', match: { entity: id }, do: 'emit', type: 'note:miss', entity: 'event.entity' },
         );
       }
       reactions.push(

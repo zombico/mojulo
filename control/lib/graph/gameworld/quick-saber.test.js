@@ -2,7 +2,7 @@
 // headset, to a club score whose beat the chart is written on; the chart plays on the bus, each note cut its way.
 import { describe, it, expect } from 'vitest';
 import { runSteps, readGameworld } from './index.js';
-import { quickWorld, readQuick, saberPlan, SABER, SABER_MOODS } from './quick.js';
+import { quickWorld, readQuick, saberPlan, saberLanes, saberCast, SABER, SABER_MOODS } from './quick.js';
 import { composeMechanics } from '../game/mechanics.js';
 import { buildBus } from '../worlds/event-bus.js';
 import { resolveWorldAudio } from '../beats/beats-world.js';
@@ -109,5 +109,64 @@ describe('the saber game', () => {
     const ends = { spawn: [3, -2, 1], heading: 0.4 };
     expect(JSON.stringify(saberPlan({ goal: 'saber' }, ends))).toBe(JSON.stringify(saberPlan({ goal: 'saber' }, ends)));
     expect(JSON.stringify(saberPlan({ goal: 'saber' }, ends).chart)).not.toBe(JSON.stringify(saberPlan({ goal: 'saber' }, { ...ends, spawn: [9, 9, 1] }).chart));
+  });
+});
+
+describe('the saber game keeps its lanes clear', () => {
+  // a flat field facing +X, its land everywhere at 0 (the stage's ground lookup and colliders, as stageEnds gives them)
+  const field = (extra = {}) => Object.defineProperties({ spawn: [0, 0, 0], heading: 0 }, { ground: { value: extra.ground ?? (() => 0) }, colliders: { value: extra.colliders ?? [] }, rocks: { value: extra.rocks ?? (() => null) } });
+  const box = (x, y, w, d, h) => ({ min: [x - w / 2, y - d / 2, 0], max: [x + w / 2, y + d / 2, h] });
+
+  it('clear and level down the stage\'s way: the lanes keep it', () => {
+    expect(saberLanes(field())).toMatchObject({ heading: 0, turned: 0, clear: true, blocked: 0, off: 0, steep: 0 });
+  });
+
+  it('a rock in the way turns the lanes to the nearest way past it; a low stone or one overhead does not', () => {
+    const L = saberLanes(field({ colliders: [box(6, 0, 1, 1, 1.5)] }));
+    expect(L.clear).toBe(true);
+    expect(Math.abs(L.turned)).toBe(15);
+    expect(saberLanes(field({ colliders: [{ min: [5.5, -0.5, 0], max: [6.5, 0.5, 0.2] }] })).turned).toBe(0);   // a step's height
+    expect(saberLanes(field({ colliders: [{ min: [5.5, -0.5, 2.5], max: [6.5, 0.5, 3] }] })).turned).toBe(0);   // a bough overhead
+  });
+
+  it('a rock standing out of the land between the lanes turns them too (the land\'s, not a collider)', () => {
+    const L = saberLanes(field({ rocks: (x, y) => (x > 7 && x < 8 && Math.abs(y) < 0.4 ? 0.6 : null) }));
+    expect(L.clear).toBe(true);
+    expect(L.turned).not.toBe(0);
+  });
+
+  it('land rising ahead, or falling away, turns them where it is level', () => {
+    const L = saberLanes(field({ ground: (x) => (x > 6 ? 1.2 : 0) }));
+    expect(L.clear).toBe(true);
+    expect(L.turned).not.toBe(0);
+    const edge = saberLanes(field({ ground: (x, y) => (y > 3 || y < -3 || x < -3 ? null : 0) }));   // land only toward +X
+    expect(edge).toMatchObject({ clear: true, turned: 0 });
+  });
+
+  it('the stage\'s own wall beside the spawn: a long box at an angle is in the way only where it truly crosses', () => {
+    // a wall along the x axis 2.5 m to the right of a spawn facing 38° up from it: the lanes run away from it
+    const wall = { min: [-14, -0.5, -3], max: [44, 0, 23] };
+    expect(saberLanes(Object.defineProperties({ spawn: [18, 2.5, 0], heading: 0.66 }, { ground: { value: () => 0 }, colliders: { value: [wall] } }))).toMatchObject({ turned: 0, clear: true });
+  });
+
+  it('hemmed in on every side: the way least in the way, and it says so', () => {
+    const ring = Array.from({ length: 24 }, (_, k) => { const a = (k / 24) * 2 * Math.PI; return box(4 * Math.cos(a), 4 * Math.sin(a), 1.4, 1.4, 3); });
+    const L = saberLanes(field({ colliders: ring }));
+    expect(L.clear).toBe(false);
+    expect(L.says).toMatch(/no way from the spawn runs clear/);
+  });
+
+  it('the player faces down its lanes, and the level says how clear they run', () => {
+    const ends = field({ colliders: [box(6, 0, 1, 1, 1.5)] }), X = saberCast({ goal: 'saber' }, ends), P = saberPlan({ goal: 'saber' }, ends);
+    expect(X.pilot.heading).toBe(saberLanes(ends).heading);
+    expect(X.laws).toEqual([expect.objectContaining({ concern: 'saber', law: 'lanes-clear', holds: true })]);
+    // every lane runs along that heading, clear of the rock
+    const h = X.pilot.heading, off = (a, b) => Math.abs(Math.atan2(Math.sin(a - b), Math.cos(a - b)));
+    for (const L of Object.values(P.lanes)) expect(off(Math.atan2(L.from[1] - L.to[1], L.from[0] - L.to[0]), h)).toBeLessThan(0.01);
+    // and on the made level: the pilot faces it, the law in the run's readout
+    const hero = M.entities.find((e) => e.pilotable) ?? M.entities[0];
+    expect(level.laws.some((l) => l.law === 'lanes-clear')).toBe(true);
+    const lanes = Object.values(notesOf(M).lanes)[0];
+    expect(off(Math.atan2(lanes.from[1] - lanes.to[1], lanes.from[0] - lanes.to[0]), hero.transform.heading)).toBeLessThan(0.01);
   });
 });
