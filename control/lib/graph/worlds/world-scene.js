@@ -815,12 +815,14 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
   // drawn on a gen-7 page alone: a painted page keeps its haze, and the unshaded export its faces
   if (payload && sketch.manifest.kind === 'geocube' && sketch.manifest.air !== undefined) {
     const sun = payload.sky && !payload.sky.space && Array.isArray(payload.sky.sun?.dir) ? payload.sky.sun.dir : null;
-    const inside = !!payload.form?.room || !sun;
+    // (inside is what the page is, a room's form or a cavern, never the sun's absence: a night outside has none)
+    const inside = !!payload.form?.room || (payload.anchors || []).some((a) => a && a.kind === 'cavern');
     const A = readAtmosphere(sketch.manifest.air, { where: inside ? 'inside' : sketch.manifest.show === 'geocity' ? 'city' : 'outside' });
     if (A && !unshaded && viewOpts.paint !== true && ERAS[era]?.surface === 'form') {
       const spawn = Array.isArray(payload.walk?.spawn) ? payload.walk.spawn : null;
       // (a room's air is the colour of the room's own light, not the sky's: roomAirColour; a cavern keeps its page's dark)
-      const room = payload.form?.room, colour = room && Array.isArray(room.ambient) ? roomAirColour(room) : null;
+      // (the recipe's own colour wins: a neon night's air the glow of its lights)
+      const room = payload.form?.room, colour = A.colour ?? (room && Array.isArray(room.ambient) ? roomAirColour(room) : null);
       payload.air = atmosphereInput(A, { base: spawn && Number.isFinite(spawn[2]) ? spawn[2] : 0, sun: inside ? null : sun, unit: payload.metersPerUnit || 1, colour });
     }
   }

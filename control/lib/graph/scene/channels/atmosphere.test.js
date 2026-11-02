@@ -7,6 +7,9 @@ import { describe, expect, it } from 'vitest';
 
 import { ATMOSPHERE, readAtmosphere, atmosphereInput, atmosphereGlsl, atmosphereScript, atmosphereEarlyScript, roomAirColour } from './atmosphere.js';
 import { emitThreeWorld } from '../scene-three.js';
+import { assembleGeocityScene } from '../../geocity/scene.js';
+import { assembleGeotownScene } from '../../geotown/scene.js';
+import { geocubeCity } from '../../era/geocube-city.js';
 
 const face = { corners: [[0, 0, 0], [1, 0, 0], [1, 1, 0]], normal: [0, 0, 1], fill: '#888888' };
 // (the GLSL's optical depth, the same closed form in JS: a ray r from an eye at height z over the base)
@@ -29,6 +32,8 @@ describe('the air', () => {
     expect(inn.visibility).toBeLessThan(out.visibility);
     expect(readAtmosphere({ kind, visibility: 300, height: false, blur: false })).toMatchObject({ visibility: 300, height: null, blur: 0 });
     expect(readAtmosphere({ blur: 4 }).blur).toBe(4);
+    expect(readAtmosphere({ kind: 'fog', colour: '#ff0080' }).colour).toEqual([1, 0, 0.502]);
+    expect(readAtmosphere('fog').colour).toBeNull();
     // (a geocity's measures are a metro's: the same word sees further, lying in a deeper layer)
     const city = readAtmosphere(kind, { where: 'city' });
     expect(city.visibility).toBeGreaterThan(out.visibility);
@@ -44,6 +49,7 @@ describe('the air', () => {
     expect(() => readAtmosphere({ height: 50 }, { inside: true })).toThrow(/inside, the air lies even/);
     expect(() => readAtmosphere({ blur: 40 })).toThrow(/air.blur/);
     expect(() => readAtmosphere(7)).toThrow(/air is a kind/);
+    expect(() => readAtmosphere({ colour: 'pink' })).toThrow(/air.colour/);
   });
 
   it('is Beer-Lambert by its visibility: a dark thing level with the eye at the visibility keeps 2% of its contrast', () => {
@@ -103,5 +109,12 @@ describe('the air', () => {
     expect(page.indexOf('the air, first')).toBeLessThan(page.indexOf('the air: a fog by its visibility'));
     expect(emitThreeWorld({ faces: [face] })).not.toContain('channels/atmosphere.js');
     expect(emitThreeWorld({ faces: [face] })).toBe(emitThreeWorld({ faces: [face], air: null }));
+  });
+
+  it('passes every geocube show\'s own settings gate: the geocity, the geotown, the micro-city', () => {
+    // (the air first, then a word no gate takes: the refusal must name that word, so the air got through)
+    for (const [show, gate] of [['geocity', assembleGeocityScene], ['geotown', assembleGeotownScene], ['city', geocubeCity]]) {
+      expect(() => gate({ kind: 'geocube', cube: 'city-night', show, air: 'fog', zz: 1 }), show).toThrow(/'zz' is not a setting/);
+    }
   });
 });

@@ -44,14 +44,14 @@ export const ATMOSPHERE = Object.freeze({
   sky: 3000,
 });
 
-const KEYS = ['kind', 'visibility', 'clear', 'height', 'glow', 'blur'];
+const KEYS = ['kind', 'visibility', 'clear', 'height', 'glow', 'blur', 'colour'];
 const inRange = (v, [lo, hi]) => typeof v === 'number' && Number.isFinite(v) && v >= lo && v <= hi;
 
 /** A recipe's `air`, read: a kind's word (`haze`, `mist`, `fog`), `true` (haze), or `{ kind?, visibility?, clear?, height?,
  *  glow?, blur? }` over a kind (haze unless named), at the measures of `where` it is: 'outside' (the default), 'city' (a
  *  geocity) or 'inside' (a hall, a room, a cavern: the air lies even, no height; `inside: true` says the same).
  *  `height: false` lies even outside too; `blur: false` (or 0) keeps the frame sharp, `true` the default, a number its
- *  most in css pixels. Absent / false / null => null. Anything malformed throws, naming the setting. */
+ *  most in css pixels; `colour` (#rrggbb) the air's own colour as the eye sees it (a neon night's glow), else the page's. Absent / false / null => null. Anything malformed throws, naming the setting. */
 export function readAtmosphere(v, { where = 'outside', inside = where === 'inside' } = {}) {
   if (v === undefined || v === null || v === false) return null;
   const K = ATMOSPHERE.kinds, R = ATMOSPHERE.range, names = Object.keys(K).join(', ');
@@ -77,8 +77,10 @@ export function readAtmosphere(v, { where = 'outside', inside = where === 'insid
   const b = o.blur;
   if (b !== undefined && typeof b !== 'boolean' && !inRange(b, R.blur)) throw new Error(`air.blur is true, false, or the far's softening at its most in css pixels (${R.blur[0]} to ${R.blur[1]})`);
   const blur = b === undefined || b === true ? ATMOSPHERE.blur.px : b === false ? 0 : b;
+  if (o.colour !== undefined && !(typeof o.colour === 'string' && /^#[0-9a-f]{6}$/i.test(o.colour))) throw new Error('air.colour is the air\'s own colour as the eye sees it, #rrggbb (a neon night\'s glow); absent, the page\'s');
+  const colour = o.colour ? [1, 3, 5].map((i) => Math.round((parseInt(o.colour.slice(i, i + 2), 16) / 255) * 1e4) / 1e4) : null;
   const r4 = (x) => Math.round(x * 1e6) / 1e6;
-  return { kind, visibility, clear, height, glow, band: k.band, blur, sigma: r4(-Math.log(ATMOSPHERE.contrast) / (visibility - clear)) };
+  return { kind, visibility, clear, height, glow, band: k.band, blur, colour, sigma: r4(-Math.log(ATMOSPHERE.contrast) / (visibility - clear)) };
 }
 
 /** The air's colour in a room under no sun (a gen-7 room's form: its solved light, linear): the room's light scattered by
