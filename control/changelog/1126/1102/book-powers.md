@@ -54,3 +54,8 @@ its resource, put on a look and showed a toast. This theme makes them act.
   stomped by a hero walking into it on the same ground, so its touch never hurt. The reach is now half the foe's height
   (0.3 m still on a foe taller than 0.6 m): a hero beside a short foe takes its touch, and one landing on it stomps it.
   Seen in an exported page: the example hero's own 0.24 m grunt took the HP bar from 100 to 0 in ten touches.
+- **A world with no systems makes its gear** (`gameworld/character-review.js` `characterReady`). The equipment step
+  waited on the stats (`mechanics:stats`), and a world with no systems page (a sentence's hero, which has no powers)
+  never lays them. So the sword a crawler's hero carries for its strike was never made as gear, and the run's readout
+  waited on it for good. The equipment now waits on the stats only where the world has a systems page; without one it
+  is made once the hero is settled. The character book says why.

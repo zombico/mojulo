@@ -188,7 +188,7 @@ ${machine('mechanics:hud')}</div></section>`;
   const open = `<section class="part" id="open"><div class="part-h"><span class="eyebrow">Open</span><h2>Beyond the hero</h2></div><div class="cards">
 ${step('Adornment', 'Equipment shaped to the main loop\'s final design, scaled up and down, with alternate uses.', ready.adornment)}
 ${step('Systems', 'The game\'s systems: the numbers and the UI, over the actions\' mechanics seed.', ready.systems)}
-${step('Equipment', 'The gear classes made, once the stats exist to give them a reason to be equipped.', ready.equipment)}
+${step('Equipment', G.mechanics ? 'The gear classes made, once the stats exist to give them a reason to be equipped.' : 'The gear classes made, once the hero is settled: with no systems, what it carries is its reason.', ready.equipment)}
 ${G.characters.cast ? `<article class="card"><div class="card-h"><span class="eyebrow">Cast</span><h3>${Object.keys(G.characters.cast).length} other${Object.keys(G.characters.cast).length === 1 ? '' : 's'}</h3></div><p class="muted">${esc(Object.entries(G.characters.cast).map(([id, m]) => m.name ?? id).join(', '))}: drawn in this direction, placed by the story (the world bible's story page).</p></article>` : '<article class="card open"><div class="card-h"><span class="eyebrow">Open</span><h3>Cast</h3></div><p class="muted">The other characters and the people of its civilizations are left open for now.</p></article>'}</div></section>`;
 
   return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(G.name)} · Character bible</title>

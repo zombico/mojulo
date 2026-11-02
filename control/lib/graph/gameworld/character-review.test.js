@@ -107,10 +107,13 @@ describe('the character book\'s review', () => {
     expect(ready(w2).systems).toEqual({ ready: false, waiting: [{ id: 'hero:motion', status: 'proposed' }] });
     const w3 = { ...w0, review: approveCharacter(w2, 'hero:motion') };
     expect(ready(w3).systems.ready).toBe(true);
-    // the equipment waits on the stats as well: the systems' stats part, settled
-    expect(ready(w3).equipment).toEqual({ ready: false, waiting: [{ id: 'mechanics:stats', status: 'proposed' }] });
-    expect(ready(w0).equipment.waiting.map((x) => x.id)).toEqual(['hero:base', 'hero:actions', 'hero:motion', 'mechanics:stats']);
+    // with no systems page the equipment waits on the hero's parts alone (what it carries serves its own strike or
+    // shot; no stats will come); with one, on the stats as well: the systems' stats part, settled
+    expect(ready(w3).equipment).toEqual({ ready: true, waiting: [] });
+    expect(ready(w0).equipment.waiting.map((x) => x.id)).toEqual(['hero:base', 'hero:actions', 'hero:motion']);
     const w4 = { ...w3, mechanics: {} }, w5 = { ...w4, review: approveCharacter(w4, 'mechanics:stats') };
+    expect(ready(w4).equipment).toEqual({ ready: false, waiting: [{ id: 'mechanics:stats', status: 'proposed' }] });
+    expect(ready({ ...w0, mechanics: {} }).equipment.waiting.map((x) => x.id)).toEqual(['hero:base', 'hero:actions', 'hero:motion', 'mechanics:stats']);
     expect(ready(w5).equipment).toEqual({ ready: true, waiting: [] });
     // the actions page changing after approval puts adornment back to waiting
     expect(ready({ ...w3, characters: { ...w3.characters, hero: { actions: complete } } }).adornment.waiting).toEqual([{ id: 'hero:actions', status: 'changed' }]);
