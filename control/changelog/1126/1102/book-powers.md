@@ -181,3 +181,15 @@ its resource, put on a look and showed a toast. This theme makes them act.
   Each is a direction round the fight and an elevation, the camera's distance fitted to the fighters across the frame
   and down it, and the clearer side or a higher stand taken where the ground hides them. The page's
   `__mojRpg.view(name)` re-stages a fight in another view, for a preview.
+- **The battle's cinema** (`playscape/rpg/rpg.js` `rules.cinema`, `playscape/rpg/juice.js` `shot`, the battle page). A
+  book may play a skill, or every action, as a short film while the round plays out and nobody picks:
+  - the actor close as it begins;
+  - behind it, over its shoulder at its target, as the blow goes;
+  - the target from the side the blow came from as it lands;
+  - then back to the fight's view.
+  It is written `battles.rules.cinema: { on?: 'skills' | 'all', ui?: 'none' | 'numbers' | 'all', skip?: seconds }`:
+  - `ui` is what stays on the screen meanwhile: nothing; the numbers and the action's name (the default); or all;
+  - a film longer than `skip` seconds (3) says it may be skipped, and accept (or a click) cuts it to its end.
+  Each shot is a camera placed every frame by its figures, the beat held until its shots have run; between films, the
+  staged view. A juice step `{ shot: closeup | behind | target | view, at?, for? }` scripts a shot of the author's own.
+  Absent, a fight plays as before.

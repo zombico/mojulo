@@ -62,6 +62,9 @@ export const RPG_CSS = `
 .moj-rpg-row .n{display:flex;justify-content:space-between;gap:8px}.moj-rpg-row .n small{opacity:.8;font-size:11px;font-variant-numeric:tabular-nums}
 .moj-rpg-row .bar i{background:var(--moj-hp,#5ccf7e)}.moj-rpg-row .mp{height:3px;margin-top:2px}.moj-rpg-row .mp i{background:var(--moj-mp,#5aa8ff)}
 body.moj-in-battle .moj-hud:not(.moj-rpg){display:none}
+.moj-rpg.cine-none .moj-rpg-msg,.moj-rpg-heads.cine-none{display:none}
+.moj-rpg.cine-all.acting .moj-rpg-bottom{opacity:1}.moj-rpg-heads.cine-all.acting .moj-rpg-head>*{opacity:1}
+.moj-rpg-skip{position:absolute;right:16px;top:14px;padding:4px 10px;font-size:12px;opacity:.85;cursor:pointer}
 .moj-rpg-row.act{background:rgba(255,255,255,.08);border-radius:4px}
 .moj-rpg-row.down{color:#ff8a8a}
 .moj-rpg-row .n small,.moj-rpg-field small{opacity:.7;font-size:11px;margin-left:5px}
@@ -191,6 +194,7 @@ export function rpgPage(cfg, K, ctl, jk) {
     else if (s.pop) popStyle = s;
     else if (s.hold) linger += s.hold * 1000;
     else if (s.emit) __inputQueue.push({ type: s.emit });
+    else if (s.shot) shotAt(s.shot, figureOf(s.at === 'target' ? b.target : b.by || b.who), figureOf(b.target), (s.for || SHOT_FOR) * 1000);
     else if (s.act) {
       // the body acts it out (the controllable channel plays e.act: its own clip at the act's phase on the world clock);
       // a pack's figure stands for all its foes, so a foe's fall is its recoil (it falls when the fight is won)
@@ -210,8 +214,61 @@ export function rpgPage(cfg, K, ctl, jk) {
     const A = (cfg.juice && cfg.juice.also) || {};
     for (const k of keys) if (A[k]) for (const s of A[k]) step1(s, b);
   }
-  // a beat shown: its juice, its number, its numbers moved
-  function show(b) { juice(b); pop(b); note(b); }
+  // a beat shown: its juice, its number, its numbers moved, its film
+  function show(b) { shots = []; juice(b); pop(b); note(b); cinema(b); }
+
+  // ── THE CINEMA (rules.cinema): a skill (or every action) as a short film while the round plays out, nobody picking:
+  // the actor close as it begins, behind it at its target as the blow goes, the target as it lands, back to the view.
+  // A shot is a camera placed each frame by its figures, the beat held until its shots have run; past `skip` seconds
+  // the film says it may be skipped, and accept cuts to its end ──
+  const CINE = cfg.rules && cfg.rules.cinema, SHOT_FOR = 0.7;
+  let shots = [], film = null, filmUi = null;
+  function shotAt(kind, a, t, ms) {
+    const at = shots.length ? shots[shots.length - 1].t1 : 0;
+    shots.push({ kind, a, t, t0: at, t1: at + ms });
+    linger = Math.max(linger, at + ms - BEAT);
+  }
+  function cinema(b) {
+    if (!CINE || !b) return;
+    const by = b.by || b.who, starts = (b.kind === 'cast' || (CINE.on === 'all' && b.kind === 'hurt' && !film)) && by != null;
+    if (starts) {
+      const a = figureOf(by), t = figureOf(b.target) || (R.b.foes[0] && figureOf(R.b.foes[0].uid));
+      film = { by, t: Date.now() };
+      if (b.kind === 'cast') { shotAt('closeup', a, t, 800); shotAt('behind', a, t, 900); }
+      else { shotAt('behind', a, t, 800); shotAt('target', t, a, 700); }
+    } else if (film && by === film.by && b.target != null && ['hurt', 'heal', 'status', 'miss', 'ko'].includes(b.kind)) shotAt('target', figureOf(b.target), figureOf(by), 700);
+    else if (film) endFilm();
+    // (the screen meanwhile: what the book's cinema keeps; past its skip seconds, the prompt to cut it short)
+    filmUi = film ? CINE.ui || 'numbers' : null;
+    const est = film ? (Date.now() - film.t) / 1000 + (shots.length ? shots[shots.length - 1].t1 / 1000 : 0) + 0.7 : 0;
+    if (film) film.long = film.long || est > (CINE.skip ?? 3);
+  }
+  function endFilm() { film = null; filmUi = null; shots = []; view(); }
+  // (the staged view given back to the camera)
+  function view() { const w = W(), C = w && w.camera; if (C && staged && staged.view) { C.transform.pos = staged.view.pos.slice(); C.lookAt = staged.view.look.slice(); } }
+  // each frame: the shot the beat is on, its camera placed by its figures (a close-up in front of one, behind the actor
+  // at its target, on the target from the actor's side); between shots and after the last, the view
+  function film1() {
+    const w = W(), C = w && w.camera;
+    if (!C || !shots.length) return;
+    const S = shots.find((x) => bt >= x.t0 && bt < x.t1) || null;
+    if (!S) { if (bt >= shots[shots.length - 1].t1) view(); return; }
+    const A = S.a && w.byId[S.a], T = S.t && w.byId[S.t];
+    if (!A) return;
+    const p = A.transform.pos, hgt = (A.rule && A.rule.collideHeight) || 1.7, q = T ? T.transform.pos : [p[0] + Math.cos(A.transform.heading), p[1] + Math.sin(A.transform.heading), p[2]];
+    let dx = q[0] - p[0], dy = q[1] - p[1]; const n = Math.hypot(dx, dy) || 1; dx /= n; dy /= n;
+    const sx = -dy, sy = dx, k = Math.max(1, hgt / 1.7);
+    if (S.kind === 'closeup' || S.kind === 'target') {
+      // (in front of the figure, a little to its side, at its chest: on the target from the side its blow came from)
+      C.transform.pos = [p[0] + dx * 2.4 * k + sx * 1.0 * k, p[1] + dy * 2.4 * k + sy * 1.0 * k, p[2] + hgt * 0.85];
+      C.lookAt = [p[0], p[1], p[2] + hgt * 0.6];
+    } else if (S.kind === 'behind') {
+      // (over the actor's shoulder at its target)
+      C.transform.pos = [p[0] - dx * 2.2 * k + sx * 0.7 * k, p[1] - dy * 2.2 * k + sy * 0.7 * k, p[2] + hgt * 1.05];
+      C.lookAt = [q[0], q[1], q[2] + 0.9];
+    } else view();
+  }
+  function skipFilm() { let n = 0; while (film && phase === 'play' && n++ < 40) advance(); if (film) endFilm(); }
 
   // ── the battle ──
   function startBattle(enc) {
@@ -319,6 +376,7 @@ export function rpgPage(cfg, K, ctl, jk) {
       let best = null;
       for (const lift of [0, 2, 4]) { for (const az of V.mirror ? [V.az, -V.az] : [V.az]) { const v = shot(az, lift); if (!best || v.hit < best.hit) best = v; } if (best.hit === 0) break; }
       C.transform.pos = best.pos; C.lookAt = best.look; C.rule = null;
+      staged.view = { pos: best.pos.slice(), look: best.look.slice() };
     }
   }
   function unstage() {
@@ -428,7 +486,7 @@ export function rpgPage(cfg, K, ctl, jk) {
     const next = K.preview(cfg, R, 6);
     if (next.length) h += '<div class="moj-rpg-turns">' + next.map((x) => '<span class="' + (x.party ? 'p' : 'f') + '">' + esc(x.name) + '</span>').join('') + '</div>';
     const beat = phase === 'intro' || phase === 'play' ? beats[bi] : null, told = beat && msg && TOLD.includes(beat.kind);
-    root.innerHTML = h + '</div></div>' + (told ? '<div class="moj-w moj-rpg-msg">' + esc(msg) + '</div>' : '');
+    root.innerHTML = h + '</div></div>' + (told ? '<div class="moj-w moj-rpg-msg">' + esc(msg) + '</div>' : '') + (film && film.long ? '<div class="moj-w moj-rpg-skip" data-skip="1">Skip ▸ Enter</div>' : '');
     drawHeads(aimAt, active);
     pops = []; jolts = {};
   }
@@ -534,7 +592,7 @@ export function rpgPage(cfg, K, ctl, jk) {
   function act(a) {
     if (a === 'tabNext' || a === 'tabPrev') { if (mode !== 'field') return; a = a === 'tabNext' ? 'right' : 'left'; }
     if (mode === 'battle') {
-      if (phase !== 'command') { if (a === 'accept') advance(); return; }
+      if (phase !== 'command') { if (a === 'accept') { if (film && film.long) skipFilm(); else advance(); } return; }
       const L = cmdList(), n = L.length;
       if (a === 'up' && n) f = (f + n - 1) % n;
       else if (a === 'down' && n) f = (f + 1) % n;
@@ -580,6 +638,7 @@ export function rpgPage(cfg, K, ctl, jk) {
     if (!mode) return;
     const o = ev.target.closest('[data-i]'), t = ev.target.closest('[data-tab]'), m = ev.target.closest('[data-m]'), aim = ev.target.closest('[data-aim]');
     if (mode === 'battle') {
+      if (ev.target.closest('[data-skip]')) return skipFilm();
       if (phase !== 'command') return advance();
       if (o) { f = Number(o.getAttribute('data-i')); act('accept'); return; }
       if (aim && level === 'target') { const L = cmdList(), i = L.findIndex((x) => x.target === aim.getAttribute('data-aim')); if (i >= 0) { f = i; act('accept'); } }
@@ -667,6 +726,8 @@ export function rpgPage(cfg, K, ctl, jk) {
     if (mode) { hold(); root.classList.add('on'); }
     if (mode && (dirty || pops.length)) { if (mode === 'battle') drawBattle(); else drawField(); dirty = false; }
     if (mode === 'battle') {
+      if (phase === 'play') film1(); else if (film) endFilm();
+      for (const lv of ['none', 'numbers', 'all']) { root.classList[filmUi === lv ? 'add' : 'remove']('cine-' + lv); heads.classList[filmUi === lv ? 'add' : 'remove']('cine-' + lv); }
       heads.classList.add('on'); placeHeads();
       // (a round playing out: the window and the bars step aside for the bodies' acts, back for the next pick)
       const acting = phase === 'play'; root.classList[acting ? 'add' : 'remove']('acting'); heads.classList[acting ? 'add' : 'remove']('acting');

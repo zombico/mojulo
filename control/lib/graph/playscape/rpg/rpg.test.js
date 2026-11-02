@@ -366,3 +366,38 @@ describe('the bars over the fighters\' heads', () => {
     expect(String(root.className)).toMatch(/acting/);
   });
 });
+
+describe('the cinema: a blow played as a short film, skippable, the view given back', () => {
+  const world = () => {
+    const E = [{ id: 'hero', transform: { pos: [0, 0, 0], heading: 0 }, rule: { type: 'platform' } }, { id: 'ayla', transform: { pos: [-1, 1, 0], heading: 0 }, rule: { type: 'ai' } }, { id: 'wolf-1', transform: { pos: [8, 0, 0], heading: Math.PI }, rule: { type: 'static' } }];
+    return { pilotId: 'hero', time: 0, entities: E, byId: Object.fromEntries(E.map((e) => [e.id, e])), camera: { transform: { pos: [-5, 0, 2], heading: 0, pitch: 0 }, lookAt: null, rule: { type: 'follow' } } };
+  };
+  it('the camera cuts to the blow and back; the screen as the book keeps it; accept cuts a long film short', () => {
+    const play = { rpg: { ...PLAY.rpg, rules: { cinema: { on: 'all', ui: 'none', skip: 0 } } } }, w = world();
+    const P = page(play, {}, null, { __mojCtrl: { world: w, cast() {}, ground: () => 0 } });
+    processEvents(P.bus, [{ type: 'rpg-battle:wolves' }]);
+    P.frames(); P.api.advance(); P.frames();
+    const viewAt = w.camera.transform.pos.slice(), root = P.appended.find((x) => x.className.split(' ').includes('moj-rpg'));
+    // (the picks made: the round plays, the first blow filmed)
+    let filmed = false, cut = false;
+    for (let k = 0; k < 60 && P.api.state().mode === 'battle'; k++) {
+      if (P.api.state().phase === 'play') {
+        P.frames();
+        if (JSON.stringify(w.camera.transform.pos) !== JSON.stringify(viewAt)) filmed = true;
+        if (filmed && /cine-none/.test(root.className) && /Skip/.test(root.innerHTML)) { cut = true; P.api.act('accept'); P.frames(); break; }
+      } else { P.api.act('accept'); P.frames(); }
+    }
+    expect(filmed).toBe(true);
+    expect(cut).toBe(true);
+    // (cut short: the view given back)
+    expect(w.camera.transform.pos).toEqual(viewAt);
+    for (let k = 0; k < 400 && P.api.state().mode === 'battle'; k++) { P.api.act('accept'); P.frames(); }
+    expect(P.api.state().mode).toBeNull();
+  });
+
+  it('a book writes its cinema in the battles\' rules; a wrong one is refused, saying what it takes', () => {
+    expect(() => lowerPlay({ entities: ENTITIES, play: { rpg: { ...PLAY.rpg, rules: { cinema: { on: 'skills', ui: 'numbers', skip: 3 } } } } }, { player: 'hero' })).not.toThrow();
+    expect(() => lowerPlay({ entities: ENTITIES, play: { rpg: { ...PLAY.rpg, rules: { cinema: { on: 'always' } } } } }, { player: 'hero' })).toThrow(/cinema.on is 'skills'/);
+    expect(() => lowerPlay({ entities: ENTITIES, play: { rpg: { ...PLAY.rpg, rules: { view: 'diagonal' } } } }, { player: 'hero' })).toThrow(/view is side or front or left or right or overhead/);
+  });
+});

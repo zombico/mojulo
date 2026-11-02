@@ -39,6 +39,9 @@
  *                 foeHp?: 'bar' | 'hidden', turns?: 'rounds' | 'timeline', size?: 1-4, cap?: n, xp?: { base, growth },
  *                 view?: 'side' | 'front' | 'left' | 'right' | 'overhead' (where the fight is seen from: from the side, over
  *                 the party at the foes, a three-quarter view from either hand, from above),
+ *                 cinema?: { on?: 'skills' | 'all', ui?: 'none' | 'numbers' | 'all', skip?: seconds }   a skill (or every
+ *                 action) played as a short film: the actor close, behind it at its target, the target as it lands, back
+ *                 to the view; what UI stays meanwhile; past `skip` seconds (3) it may be skipped,
  *                 cp?: [n], sp?: n, seed?: n }   turns: every member picks then all act in speed order (rounds), or
  *                 each acts when its gauge fills at its speed, the quick more often (timeline)
  *   }
@@ -180,7 +183,18 @@ export function readRpg(play) {
   const Ru = P.rules ?? {};
   if (!isObj(Ru)) throw err('.rules is { gold?, defeat?, switch?, carry?, foeHp?, turns?, size?, cap?, xp?, cp?, sp?, seed?, view? }');
   // (view: where a fight is seen from, the side by default; written only where the book asks another)
-  keysOnly(Ru, [...Object.keys(RPG_RULES), 'view'], '.rules');
+  keysOnly(Ru, [...Object.keys(RPG_RULES), 'view', 'cinema'], '.rules');
+  // (cinema: a skill (or every action) played as a short film: a close-up on the actor, behind it at its target, the
+  // target as it lands, back to the view; ui what stays on the screen meanwhile; skip the seconds past which it may be
+  // cut short)
+  if (Ru.cinema !== undefined) {
+    const C = Ru.cinema;
+    if (!isObj(C)) throw err(".rules.cinema is { on?: 'skills' | 'all', ui?: 'none' | 'numbers' | 'all', skip?: seconds }");
+    keysOnly(C, ['on', 'ui', 'skip'], '.rules.cinema');
+    if (C.on !== undefined && !['skills', 'all'].includes(C.on)) throw err(".rules.cinema.on is 'skills' (a skill's use) or 'all' (every action)");
+    if (C.ui !== undefined && !['none', 'numbers', 'all'].includes(C.ui)) throw err(".rules.cinema.ui is 'none' (the screen clear), 'numbers' (the numbers and the action's name) or 'all'");
+    if (C.skip !== undefined && !(num(C.skip) && C.skip >= 0)) throw err('.rules.cinema.skip is the seconds past which a film may be skipped (0: always)');
+  }
   for (const [k, ws] of Object.entries(RULE_WORDS)) if (Ru[k] !== undefined && !ws.includes(Ru[k])) throw err(`.rules.${k} is ${ws.join(' or ')}`);
   if (Ru.gold !== undefined && (typeof Ru.gold !== 'string' || !Ru.gold)) throw err('.rules.gold is the var the gold won goes into');
   if (Ru.size !== undefined && !(Number.isInteger(Ru.size) && Ru.size >= 1 && Ru.size <= 4)) throw err('.rules.size is how many fight at once, 1 to 4');
