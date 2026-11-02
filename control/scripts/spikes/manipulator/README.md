@@ -21,3 +21,7 @@ The pictures: `/body-study male --hero '{"form":"realistic"}' --crop hand --acts
   [--page out.html] [--sheet dir] [--json out.json]`: the target drill (bands past 1 bring the body in) and its checks
   on the clip as played; `--page` the review page (the skeleton playing, the targets and drives drawn, the checks
   beside it), `--sheet` the guard and each contact frame through `/body-study`.
+- `shapes.mjs [--cast male|female] [--radii 0.012,0.02,0.03,0.04] [--sheet dir]`: every hand shape of octopus boxer
+  (`lib/graph/polygonizer/hero-digits.js`) solved, with each digit's error or clearance and what passes a stop, the
+  poles against their hand words, the power grasp on hafts of several radii and a pinch; `--sheet` renders them all
+  through `/body-study --crop hand`.

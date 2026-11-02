@@ -153,6 +153,27 @@ function wideDigit(R, H, pts, d, g, v, ch) {
     for (const j of l.joints) pts[j] = rotLine(pts[j], p, ax[i], a[i]);
     for (let m = i + 1; m < n; m++) ax[m] = rotLine(ax[m], [0, 0, 0], ax[i], a[i]);
   });
+  return ax;
+}
+
+/**
+ * ONE DIGIT POSED IN THE HAND'S REST FRAME (the palm held still, before the wrist and the arm): the rig's own turns for
+ * `value` (a number, a word's digit, or the wider hand's object), a hand solver's forward kinematics without the body.
+ * → { joints: { <name>: point } (the digit's root, joints, tip and hinge marker), axes (each link's hinge as the turns
+ * left it), chain (the root, the joints and the tip, in order) }. A number takes the wide form's `{ curl }`, equal to the
+ * curl's path to the bit.
+ */
+export function digitPose(R, S, d, value = 0) {
+  const H = R.hands?.[S], g = H?.digits?.[d];
+  if (!g) throw new Error(`station-loft-rig: no digit '${d}' on hand ${S}`);
+  const v = typeof value === 'number' ? { curl: value } : value || {};
+  const names = [g.links[0].pivot, ...g.links[0].joints];
+  const marker = R.bones.find((b) => b.head === g.links[0].pivot && b.aux?.[0] === g.links[0].pivot)?.aux?.[1];
+  if (marker) names.push(marker);
+  const pts = Object.fromEntries(names.map((j) => [j, [...R.joints[j]]]));
+  const axes = wideDigit(R, H, pts, d, g, v, `fingers${S}`);
+  const chain = [g.links[0].pivot, ...g.links.slice(1).map((l) => l.pivot), g.links.at(-1).joints.at(-1)];
+  return { joints: pts, axes, chain };
 }
 
 /** The hand's joints turned in the rest frame for `pose` (the digits' curls, then the wrist), by name; empty without hands. */

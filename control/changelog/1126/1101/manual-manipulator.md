@@ -53,5 +53,12 @@ In progress. The realistic hero's arms and hands, solved from targets rather tha
   it the thumb meets every fingertip, the middle's included, which the one-curl thumb could not reach.
 - **The hand's servos** (`hero-servo.js` `handRead`): each finger joint's angle, its spread and the thumb's read off the
   posed hand in its own frame, held to adult norms (estimates marked); every hand word lies within them.
+- **Octopus boxer, the hand** (`lib/graph/polygonizer/hero-digits.js`): each digit reaches a point with its pad or tip,
+  or closes onto an object knuckle first, then the middle joint, then the last, each until it touches, the hand's
+  servos held throughout. A haft laid in the palm is held round its own size: on hafts from 12 to 40 mm every phalanx
+  ends on the surface, and a thinner haft closes the hand further. Hand shapes are compositions of those goals: crane
+  beak, tiger claw, sword fingers, leopard fist, phoenix eye, vertical palm, pinch, OK, fist, grip and point (plain
+  aliases resolve). Each solves into the rig's own finger channel, so it plays and exports as any hand word does. The
+  existing hand words' thumbs turn out to run through the curled fingers; the solved fist keeps its thumb clear.
 - **Fixed in the studies:** the arm envelope now stands in the guard (it stood at rest), the servo audit plays swings
   with the elbows-down roll and reads the wrist as anatomy.
