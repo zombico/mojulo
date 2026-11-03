@@ -12,6 +12,11 @@
  *   - The wheel loader, the skid steer and the compact track loader (unreleased): the frames, the tyre, the arms, the
  *     bellcrank, the loader buckets and the rubber track pinned; the bucket's and the crawler's new families moved no
  *     existing pin.
+ *   - The forklift, the telehandler, the mini excavator and the backhoe loader (unreleased): their chassis, the mast,
+ *     the carriage, the boom's section, the mini's upper, the canopy, the swing post and frame, the stabiliser leg
+ *     pinned. A part drawn at another size (the mini's and the backhoe's fronts) is its design's builder path, scaled,
+ *     and is pinned through its machine. The crawler's inner trunnions and blade rams' bases, and a ram's allowances
+ *     shrinking on a short one, moved no existing pin.
  */
 import { createHash } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
@@ -45,12 +50,27 @@ const PINS = {
   'arms-radial-ss33': '6251f97a9c1dc67d',
   'bucket-gp-ss18': '17051cc9ea2ac1b8',
   'crawler-ctl': 'd8e503c0089040ed',
+  'chassis-fl25': 'd39f302e493be309',
+  'mast-outer-33': '9d85d1f429fb271a',
+  'carriage-fl25': '1668398384b10b3d',
+  'chassis-th': 'a41735185dcf7f39',
+  'boom-th-outer': '13478109b9922785',
+  'house-mini27': '8d1fd561a038cfd3',
+  'canopy-mini': '6c60d8e59455e746',
+  'post-mini27': '7d2d2fde3ce79eae',
+  'chassis-bh85': 'fe937875cde41d60',
+  'frame-bh85': 'c794a1a8971fc065',
+  'leg-bh-r': '2590b3b373250198',
   'ram-boom-ex20.rod': 'ee3b8d6daeffb743',
   'con:crawlerExcavator': '0eefeb9e723f41ef',
   'con:bulldozer': '94272ebad7ce55a9',
   'con:wheelLoader': '8850036d94e7ed84',
   'con:skidSteer': 'c501524697326176',
   'con:compactTrackLoader': 'c2f22ee973a96c2e',
+  'con:forklift': '57af123b17a85088',
+  'con:telehandler': 'f928511393be0dff',
+  'con:miniExcavator': 'f8d36541e6c4434b',
+  'con:backhoeLoader': '3de6f9e6f20e0f31',
 };
 
 const PROCEDURES = (() => {

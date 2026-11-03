@@ -20,7 +20,7 @@
  *   slew    about the parent's +z at the hardpoint, + anticlockwise from above (to the left): an upper, a hitch
  *   hinge   about the parent's +x at the hardpoint, + lifting (+y toward +z)
  *   slide   along the parent's +y (or the joint's `axis`) from the hardpoint, in metres: a telescope, a mast; without a
- *           ram its range is its body's own travel (its row's `dims.travel`)
+ *           ram its range runs as far as the first of its stages runs out (each its row's `dims.travel` over its scale)
  *   ram     the ram entry that drives it: the joint's RANGE is where the ram's length lies between its closed length
  *           and its closed length plus its stroke (derived, never stated); a joint with no ram turns freely (a slew)
  *   near    the angle the joint works about (degrees): of the runs its ram reaches, the one there (a ram reaches again
@@ -44,10 +44,13 @@ import { DEG, IDENTITY, about, aimFrame, apply, compose } from './con-common.js'
 
 const split = (ref) => { const i = ref.indexOf('.'); return i < 0 ? [ref, null] : [ref.slice(0, i), ref.slice(i + 1)]; };
 
-/** A joint's own frame at its value (degrees; a slide's metres), set at the hardpoint `at` of its parent. */
-function jointFrame(kind, at, value, axis = [0, 1, 0]) {
-  if (kind === 'slide') return { R: IDENTITY.R, t: [at[0] + axis[0] * value, at[1] + axis[1] * value, at[2] + axis[2] * value] };
-  const R = kind === 'slew' ? about([0, 0, 1], value * DEG) : kind === 'hinge' ? about([1, 0, 0], value * DEG) : null;
+/** A joint's own frame at its value (degrees; a slide's metres), set at the hardpoint `at` of its parent: a slew about
+ *  +z (turned its `zero` more: a backhoe's swing frame faces aft), a hinge about its `axis` (+x; a stabiliser's +y), a
+ *  slide along its `axis` (+y). */
+function jointFrame(J, at, value) {
+  const kind = J.kind;
+  if (kind === 'slide') { const axis = J.axis ?? [0, 1, 0]; return { R: IDENTITY.R, t: [at[0] + axis[0] * value, at[1] + axis[1] * value, at[2] + axis[2] * value] }; }
+  const R = kind === 'slew' ? about([0, 0, 1], (value + (J.zero ?? 0)) * DEG) : kind === 'hinge' ? about(J.axis ?? [1, 0, 0], value * DEG) : null;
   if (!R) throw new Error(`construction chain: a joint is a slew, a hinge or a slide (got '${kind}')`);
   return { R, t: [...at] };
 }
@@ -79,7 +82,7 @@ function rockerFrame(arch, e, frames, ctx) {
   const m = meet([K[1], K[2]], r0, [B[1], B[2]], ctx.row(entryOf(arch, L.link).sku).dims.length, L.side ?? 1);
   if (!m) return null;
   const phi = (Math.atan2(m[1] - K[2], m[0] - K[1]) - a0) / DEG;
-  return compose(frames[parent], jointFrame('hinge', K, phi));
+  return compose(frames[parent], jointFrame({ kind: 'hinge' }, K, phi));
 }
 
 const RIGID = new Map();
@@ -115,7 +118,9 @@ function local(arch, name, value, ctx) {
   const child = arch.layout.find((e) => e.joint === name);
   if (!child) throw new Error(`construction chain: no body sits on joint '${name}'`);
   const [parent, hp] = split(child.on), J = arch.joints[name];
-  const frames = { ...rigidWith(arch, parent, ctx), [child.id]: jointFrame(J.kind, ctx.hp(parent, hp), value * (child.scale ?? 1), J.axis) };
+  const frames = { ...rigidWith(arch, parent, ctx) };
+  // (every body on the joint: a pair of stabiliser legs turns on one)
+  for (const c of arch.layout.filter((e) => e.joint === name && split(e.on)[0] === parent)) frames[c.id] = jointFrame(J, ctx.hp(parent, split(c.on)[1]), value * (c.scale ?? 1));
   // (a rocker the joint turns: solved on its pin from the child's coupler)
   for (const r of arch.layout.filter((x) => x.rocker === name)) {
     const f = rockerFrame(arch, r, frames, ctx);
@@ -157,8 +162,9 @@ export function rangeOf(arch, name, ctx, key = arch.key) {
   const J = arch.joints[name];
   // (a slide with no ram travels as far as its body does; a slew with none turns freely)
   if (!J.ram) {
-    const child = J.kind === 'slide' ? arch.layout.find((e) => e.joint === name && (e.scale ?? 1) === 1) : null;
-    const out = child ? [0, ctx.row(child.sku).dims.travel] : null;
+    // (a slide's stages each travel their own; the joint as far as the first of them runs out)
+    const stages = J.kind === 'slide' ? arch.layout.filter((e) => e.joint === name) : [];
+    const out = stages.length ? [0, Math.round(Math.min(...stages.map((e) => ctx.row(e.sku).dims.travel / (e.scale ?? 1))) * 100) / 100] : null;
     RANGES.set(k, out);
     return out;
   }
@@ -200,7 +206,7 @@ export function framesOf(arch, joints, ctx) {
       continue;
     }
     const at = ctx.hp(parent, hp), J = e.joint ? arch.joints[e.joint] : null;
-    frames[e.id] = compose(frames[parent], J ? jointFrame(J.kind, at, (joints[e.joint] ?? 0) * (e.scale ?? 1), J.axis) : { R: IDENTITY.R, t: at });
+    frames[e.id] = compose(frames[parent], J ? jointFrame(J, at, (joints[e.joint] ?? 0) * (e.scale ?? 1)) : { R: IDENTITY.R, t: at });
   }
   return frames;
 }
@@ -211,7 +217,9 @@ export function solveChain(arch, pose, ctx) {
   for (const name of Object.keys(arch.joints)) {
     const r = rangeOf(arch, name, ctx);
     let v = Number.isFinite(pose[name]) ? pose[name] : r ? (r[0] + r[1]) / 2 : 0;
-    if (r && (v < r[0] || v > r[1])) { clamped.push(name); v = Math.max(r[0], Math.min(r[1], v)); }
+    // (a value a rounding past its range's end is its end, not clamped)
+    if (r && (v < r[0] - 1e-9 || v > r[1] + 1e-9)) clamped.push(name);
+    if (r) v = Math.max(r[0], Math.min(r[1], v));
     joints[name] = Math.round(v * 100) / 100;
   }
   const frames = framesOf(arch, joints, ctx);

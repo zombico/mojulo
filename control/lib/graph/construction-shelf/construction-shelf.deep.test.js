@@ -22,9 +22,12 @@ describe.each(Object.keys(CON_ARCHETYPES))('%s', (id) => {
           if (s.kind === 'barrel') expect(s.length >= row.dims.closed - 1e-6 && s.length <= row.dims.closed + row.dims.stroke + 1e-6, `${s.item} at ${name} ${v}`).toBe(true);
           if (s.kind === 'link') expect(Math.abs(s.length - row.dims.length), `${s.item} at ${name} ${v}`).toBeLessThan(1e-6);
         }
+        // (every body's pivot on its parent's hardpoint; a slide's along its axis from it)
         for (const e of arch.layout.filter((x) => x.on)) {
           const i = e.on.indexOf('.'), [p, hp] = [e.on.slice(0, i), e.on.slice(i + 1)], a = apply(C.frames[e.id], [0, 0, 0]), b = apply(C.frames[p], ctx.hp(p, hp));
-          expect(Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]), `${e.id} at ${name} ${v}`).toBeLessThan(1e-9);
+          const d = a.map((x, k) => x - b[k]), slide = e.joint && arch.joints[e.joint].kind === 'slide';
+          const ax = slide ? apply({ R: C.frames[p].R, t: [0, 0, 0] }, arch.joints[e.joint].axis ?? [0, 1, 0]) : [0, 0, 0], t = d[0] * ax[0] + d[1] * ax[1] + d[2] * ax[2];
+          expect(Math.hypot(d[0] - ax[0] * t, d[1] - ax[1] * t, d[2] - ax[2] * t), `${e.id} at ${name} ${v}`).toBeLessThan(1e-9);
         }
       }
       void J;

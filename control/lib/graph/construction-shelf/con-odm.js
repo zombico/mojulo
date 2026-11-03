@@ -29,11 +29,32 @@ export const CON_KINDS = Object.freeze({
   'con-chassis': 'a wheeled machine\'s frame: a loader\'s rear and front halves, a skid steer\'s chassis',
   'con-arms': 'a loader\'s lift arms: the two arms, their cross tube, the pins of what they lift and tilt',
   'con-crank': 'a Z-bar\'s bellcrank: its pin on the arms\' cross tube, its upper pin (the tilt ram\'s), its lower (the tilt link\'s)',
+  'con-mast': 'a mast\'s channel: the outer stood on its foot, a stage sliding up inside it',
+  'con-carriage': 'a fork carriage: its plate, its backrest, its forks',
+  'con-section': 'a telescopic boom\'s section: a box beam the next slides out of',
+  'con-post': 'a front\'s swing post: a mini excavator\'s kingpin bracket, a backhoe\'s swing frame',
+  'con-leg': 'a stabiliser leg: its arm, its pad on the ground',
 });
 
 const R = (kind, label, classOf, dims, mass, build, aliases = []) => Object.freeze({ kind, label, classOf, aliases, dims: Object.freeze(dims), mass, build: Object.freeze(build) });
 
-export const CON_ODM = Object.freeze({
+// (what a part's size does not scale: a count, a share, a volume, the scale itself)
+export const UNSCALED = Object.freeze(['teeth', 'lugs', 'n', 'scale', 'capacity']);
+/** Every length in a part's numbers times k (its counts as they are). */
+export function scaleDims(d, k) {
+  if (Array.isArray(d)) return d.map((v) => scaleDims(v, k));
+  if (d && typeof d === 'object') return Object.fromEntries(Object.entries(d).map(([key, v]) => [key, UNSCALED.includes(key) ? v : scaleDims(v, k)]));
+  return typeof d === 'number' ? Math.round(d * k * 10000) / 10000 : d;
+}
+/** A part at another size: another row's design at `k` times its lengths (its mass at k³), its `dims` in true metres
+ *  (`scale` says the design it was drawn from; the builder draws the design and scales what it drew). */
+const S = (base, k, label, classOf, aliases, over = {}) => {
+  const b = BASE[base];
+  return Object.freeze({ ...b, label, classOf, aliases, dims: Object.freeze({ ...scaleDims(b.dims, k), ...over, scale: k }), mass: Math.round(b.mass * k ** 3) });
+};
+let BASE = null;
+
+const ROWS = {
   // ── the 20 t crawler excavator ──────────────────────────────────────────────
   'crawler-ex20': R('con-undercarriage', 'crawler undercarriage, 20 t', 'excavator 20 t',
     { shoe: 0.6, pitch: 0.19, rail: 0.09, plate: 0.02, grouser: 0.025, frameW: 0.3, idler: { r: 0.33, z: 0.5 }, sprocket: { r: 0.36, z: 0.55 }, roller: { r: 0.1, n: 7 }, carrier: { r: 0.08, n: 2 }, body: { w: 1.7, l: 1.4, z0: 0.55, z1: 0.95 }, slewZ: 1.05 },
@@ -107,4 +128,72 @@ export const CON_ODM = Object.freeze({
   'crawler-ctl': R('con-undercarriage', 'rubber tracks, compact loader', 'compact track loader 4.3 t',
     { shoe: 0.4, pitch: 0.1, rail: 0, plate: 0.05, grouser: 0.025, frameW: 0.2, idler: { r: 0.2, z: 0.27 }, sprocket: { r: 0.24, z: 0.42 }, roller: { r: 0.08, n: 4 }, carrier: { r: 0.06, n: 0 }, body: { w: 0.6, l: 0.8, z0: 0.3, z1: 0.5 }, slewZ: 0.6 },
     1300, { family: 'rubber', teeth: 0, seat: false }, ['rubber tracks', 'compact tracks']),
+  // ── the 2.5 t counterbalance forklift ────────────────────────────────────────
+  'chassis-fl25': R('con-chassis', 'forklift chassis, 2.5 t', 'forklift 2.5 t', { w: 1.15, tail: -1.45, guard: 2.1, mastFoot: [0.36, 0.95, 0.2], tiltRam: [0.38, 0.625, 0.675], rF: 0.33, rR: 0.27, rearTrack: 0.9 }, 2900, { family: 'forklift' }, ['forklift chassis', 'truck frame']),
+  'wheel-fl-front': R('con-wheel', 'forklift drive tyre', 'forklift 2.5 t', { r: 0.33, width: 0.2, rim: 0.17, lugs: 14 }, 70, { family: 'otr' }, ['forklift drive tyre']),
+  'wheel-fl-rear': R('con-wheel', 'forklift steer tyre', 'forklift 2.5 t', { r: 0.27, width: 0.16, rim: 0.14, lugs: 12 }, 40, { family: 'otr' }, ['forklift steer tyre']),
+  'mast-outer-33': R('con-mast', 'outer mast, 3.3 m', 'forklift 2.5 t', { w: 0.82, h: 1.95, ties: [0.08, 1.0, 1.9], ram: true, tiltEye: [0.38, 0.025, 0.95] }, 350, { family: 'channel' }, ['mast', 'outer mast', 'upright']),
+  'mast-inner-33': R('con-mast', 'inner mast stage, 3.3 m', 'forklift 2.5 t', { w: 0.68, h: 1.9, ties: [0.1, 1.85], travel: 1.65 }, 250, { family: 'channel' }, ['inner mast', 'mast stage']),
+  'carriage-fl25': R('con-carriage', 'fork carriage, 2.5 t', 'forklift 2.5 t', { w: 1.0, y: 0.12, rest: 0.75, spread: 0.8, fork: 1.07, travel: 1.65, z0: -0.27 }, 180, { family: 'pallet' }, ['fork carriage', 'forks', 'pallet forks']),
+  'ram-tilt-fl25': R('con-ram', 'mast tilt ram, 2.5 t', 'forklift 2.5 t', { bore: 0.07, rod: 0.04, closed: 0.5, stroke: 0.15 }, 20, { family: 'double' }, ['mast tilt ram']),
+  // ── the telehandler, 4 t to 14 m ────────────────────────────────────────────
+  'chassis-th': R('con-chassis', 'telehandler chassis', 'telehandler 4 t', { cab: [-0.55, -0.35, 0.95], pivot: [0, -1.85, 1.95], liftRam: [0, -1.0, 1.15] }, 6200, { family: 'telehandler' }, ['telehandler chassis']),
+  'cab-th': R('con-cab', 'telehandler cab', 'telehandler', { w: 0.9, l: 1.65, h: 1.5 }, 450, { family: 'excavator' }, ['telehandler cab']),
+  'wheel-th': R('con-wheel', 'telehandler tyre', 'telehandler 4 t', { r: 0.62, width: 0.45, rim: 0.33, lugs: 20 }, 220, { family: 'otr' }, ['telehandler tyre']),
+  'boom-th-outer': R('con-section', 'telescopic boom, outer section', 'telehandler 4 t', { length: 5.0, w: 0.48, h: 0.52, pin: true, ramEye: [0, 2.65, -0.35], seat: 0.35 }, 900, { family: 'box' }, ['telescopic boom', 'outer boom', 'base section']),
+  'boom-th-mid': R('con-section', 'telescopic boom, mid section', 'telehandler 4 t', { length: 4.7, w: 0.42, h: 0.45, seat: 0.35, travel: 3.5, pads: true }, 600, { family: 'box' }, ['mid section', 'second section']),
+  'boom-th-inner': R('con-section', 'telescopic boom, inner section', 'telehandler 4 t', { length: 4.5, w: 0.36, h: 0.38, travel: 3.5, pads: true, headPin: true, tiltRam: [0, 3.5, 0.4] }, 450, { family: 'box' }, ['inner section', 'fly section']),
+  'carriage-th': R('con-carriage', 'telehandler fork carriage', 'telehandler 4 t', { w: 1.2, y: 0.18, rest: 0.9, spread: 0.95, fork: 1.2, pin: true, z0: -0.45, tiltEye: [0, -0.1, 0.3] }, 320, { family: 'pallet' }, ['telehandler carriage', 'telehandler forks']),
+  'ram-lift-th': R('con-ram', 'telehandler lift ram', 'telehandler 4 t', { bore: 0.12, rod: 0.08, closed: 1.8, stroke: 1.4 }, 160, { family: 'double' }, ['telehandler lift ram']),
+  'ram-tilt-th': R('con-ram', 'carriage tilt ram', 'telehandler 4 t', { bore: 0.09, rod: 0.05, closed: 0.8, stroke: 0.55 }, 50, { family: 'double' }, ['carriage tilt ram', 'compensation ram']),
+};
+BASE = ROWS;
+Object.assign(ROWS, {
+  // ── the 2.7 t mini excavator: the 20 t front at 0.44 its size, its own carrier, upper and blade ───────────────
+  'crawler-mini27': R('con-undercarriage', 'rubber tracks, mini excavator', 'mini excavator 2.7 t',
+    { shoe: 0.3, pitch: 0.08, rail: 0, plate: 0.04, grouser: 0.02, frameW: 0.15, idler: { r: 0.17, z: 0.24 }, sprocket: { r: 0.2, z: 0.3 }, roller: { r: 0.06, n: 4 }, carrier: { r: 0.05, n: 0 }, body: { w: 0.6, l: 0.7, z0: 0.28, z1: 0.42 }, slewZ: 0.55, trunnion: [0.55, 0.3], trunnionX: 0.4, bladeRam: [0.2, 0.425, 0.525] },
+    650, { family: 'rubber', teeth: 0 }, ['mini tracks', 'mini undercarriage']),
+  'slew-mini': R('con-slew', 'slewing ring, mini', 'mini excavator 2.7 t', { r: 0.36, h: 0.06 }, 40, { family: 'ring' }, ['mini slew ring']),
+  'house-mini27': R('con-house', 'mini excavator upper', 'mini excavator 2.7 t', { r: 0.76, deck: 0.12, cover: 0.62, post: [0, 0.62, 0.2], swingRam: [0.4, 0.125, 0.15], cab: [-0.25, -0.12, 0.12], counterweight: [0, -0.35, 0.12] }, 650, { family: 'mini' }, ['mini upper']),
+  'canopy-mini': R('con-cab', 'canopy, mini', 'mini excavator', { w: 0.9, l: 1.05, h: 1.45 }, 120, { family: 'canopy' }, ['canopy', 'rops canopy']),
+  'cw-mini27': R('con-counterweight', 'counterweight, mini', 'mini excavator 2.7 t', { w: 1.3, h: 0.45, tail: 0.76, at: [0, -0.35, 0.12] }, 520, { family: 'arc' }, ['mini counterweight']),
+  'post-mini27': R('con-post', 'swing post, mini', 'mini excavator 2.7 t', { foot: [0, 0.12, 0.3], boomRam: [0, 0.34, 0.036], swingEye: [0.1, -0.2, -0.05] }, 60, { family: 'kingpin' }, ['swing post', 'kingpost', 'boom swing bracket']),
+  'blade-mini27': R('con-blade', 'backfill blade, mini', 'mini excavator 2.7 t',
+    { width: 1.55, arm: -0.22, armZ: -0.05, back: 0.55, profile: [[0.78, -0.3], [0.73, -0.2], [0.7, -0.06], [0.7, 0.07], [0.73, 0.15], [0.78, 0.2]], ramEye: [0.2, 0.32, 0.125] },
+    140, { family: 'su' }, ['backfill blade', 'mini blade', 'dozer blade on a mini']),
+  'ram-swing-mini': R('con-ram', 'swing ram, mini', 'mini excavator 2.7 t', { bore: 0.06, rod: 0.035, closed: 0.35, stroke: 0.22 }, 15, { family: 'double' }, ['swing ram', 'offset cylinder']),
+  'ram-blade-mini': R('con-ram', 'blade ram, mini', 'mini excavator 2.7 t', { bore: 0.06, rod: 0.035, closed: 0.35, stroke: 0.18 }, 10, { family: 'double' }, ['mini blade ram']),
+  // ── the 8.5 t backhoe loader: its loader ahead, its backhoe aft (the 20 t front at 0.6 its size), its stabilisers
+  'chassis-bh85': R('con-chassis', 'backhoe loader chassis', 'backhoe loader 8.5 t',
+    { cab: [0, -0.35, 1.0], armPivot: [0.78, 0.15, 2.0], liftRam: [0.65, 1.1, 0.9], post: [0, -2.05, 0.85], swingRam: [0.275, -1.475, 0.85], stab: [0.62, -1.75, 0.85], stabRam: [0.1, -1.75, 1.3], rF: 0.48, rR: 0.65 },
+    4700, { family: 'backhoe' }, ['backhoe chassis', 'tractor loader chassis']),
+  'cab-bh': R('con-cab', 'backhoe loader cab', 'backhoe loader', { w: 1.1, l: 1.5, h: 1.75 }, 500, { family: 'excavator' }, ['backhoe cab']),
+  'wheel-bh-front': R('con-wheel', 'backhoe front tyre', 'backhoe loader 8.5 t', { r: 0.48, width: 0.35, rim: 0.25, lugs: 18 }, 110, { family: 'otr' }, ['backhoe front tyre']),
+  'wheel-bh-rear': R('con-wheel', 'backhoe rear tyre', 'backhoe loader 8.5 t', { r: 0.65, width: 0.45, rim: 0.33, lugs: 20 }, 220, { family: 'otr' }, ['backhoe rear tyre']),
+  'arms-bh85': R('con-arms', 'backhoe loader arms', 'backhoe loader 8.5 t', { length: 2.9, knee: [1.3, 0.45], spread: 0.78, w: 0.1, h: 0.3, ramEye: [0.65, 0.6, 0.05], cross: [0, 1.9, 0.1], tiltRams: [0.35, 1.9, 0.1] }, 450, { family: 'radial' }, ['backhoe loader arms']),
+  'frame-bh85': R('con-post', 'backhoe swing frame', 'backhoe loader 8.5 t', { foot: [0, 0.35, 0.25], boomRam: [0, 0.66, -0.122], swingEye: [0.15, 0.075, 0] }, 180, { family: 'frame' }, ['swing frame', 'swing casting']),
+  'leg-bh-r': R('con-leg', 'stabiliser leg, right', 'backhoe loader 8.5 t', { foot: [0.95, 0, -0.25], ramEye: [0.15, 0, -0.2] }, 90, { family: 'swing' }, ['right stabiliser', 'right outrigger']),
+  'leg-bh-l': R('con-leg', 'stabiliser leg, left', 'backhoe loader 8.5 t', { foot: [-0.95, 0, -0.25], ramEye: [-0.15, 0, -0.2] }, 90, { family: 'swing' }, ['left stabiliser', 'left outrigger']),
+  'ram-lift-bh': R('con-ram', 'backhoe loader lift ram', 'backhoe loader 8.5 t', { bore: 0.08, rod: 0.05, closed: 0.9, stroke: 0.6 }, 45, { family: 'double' }, ['backhoe loader lift ram']),
+  'ram-tilt-bh': R('con-ram', 'backhoe loader tilt ram', 'backhoe loader 8.5 t', { bore: 0.08, rod: 0.05, closed: 0.8, stroke: 0.5 }, 35, { family: 'double' }, ['backhoe loader tilt ram']),
+  'ram-swing-bh': R('con-ram', 'backhoe swing ram', 'backhoe loader 8.5 t', { bore: 0.08, rod: 0.045, closed: 0.55, stroke: 0.35 }, 25, { family: 'double' }, ['backhoe swing ram']),
+  'ram-stab-bh': R('con-ram', 'stabiliser ram', 'backhoe loader 8.5 t', { bore: 0.08, rod: 0.05, closed: 0.8, stroke: 0.55 }, 25, { family: 'double' }, ['stabiliser ram', 'outrigger ram']),
+  'boom-mono-25': S('boom-mono-57', 0.44, 'mini boom, 2.5 m', 'mini excavator 2.7 t', ['mini boom'], { ramEye: [0, 1.188, 0.106] }),
+  'stick-13': S('stick-29', 0.44, 'mini stick, 1.3 m', 'mini excavator 2.7 t', ['mini stick', 'mini dipper']),
+  'bucket-dig-mini': S('bucket-dig-ex20', 0.44, 'mini digging bucket, 0.08 m³', 'mini excavator 2.7 t', ['mini bucket'], { teeth: 3 }),
+  'link-dogbone-mini': S('link-dogbone-ex20', 0.44, 'mini dogbone link', 'mini excavator 2.7 t', ['mini dogbone']),
+  'link-h-mini': S('link-h-ex20', 0.44, 'mini H-link', 'mini excavator 2.7 t', ['mini h link']),
+  'ram-boom-mini': S('ram-boom-ex20', 0.44, 'mini boom ram', 'mini excavator 2.7 t', ['mini boom ram']),
+  'ram-stick-mini': S('ram-stick-ex20', 0.44, 'mini stick ram', 'mini excavator 2.7 t', ['mini stick ram']),
+  'ram-bucket-mini': S('ram-bucket-ex20', 0.44, 'mini bucket ram', 'mini excavator 2.7 t', ['mini bucket ram']),
+  'bucket-gp-bh': S('bucket-gp-ss18', 1.25, 'backhoe loader bucket, 1 m³', 'backhoe loader 8.5 t', ['backhoe front bucket'], { width: 2.3, ears: 0.78, link: [0, 0, 0.3], linkW: 0.35 }),
+  'boom-bh': S('boom-mono-57', 0.62, 'backhoe boom, 3.5 m', 'backhoe loader 8.5 t', ['backhoe boom'], { ramEye: [0, 1.674, 0.149] }),
+  'stick-bh': S('stick-29', 0.62, 'backhoe dipper, 1.8 m', 'backhoe loader 8.5 t', ['backhoe dipper', 'backhoe stick']),
+  'bucket-dig-bh': S('bucket-dig-ex20', 0.62, 'backhoe bucket, 0.2 m³', 'backhoe loader 8.5 t', ['backhoe bucket'], { teeth: 4 }),
+  'link-dogbone-bh': S('link-dogbone-ex20', 0.62, 'backhoe dogbone link', 'backhoe loader 8.5 t', ['backhoe dogbone']),
+  'link-h-bh': S('link-h-ex20', 0.62, 'backhoe H-link', 'backhoe loader 8.5 t', ['backhoe h link']),
+  'ram-boom-bh': S('ram-boom-ex20', 0.62, 'backhoe boom ram', 'backhoe loader 8.5 t', ['backhoe boom ram']),
+  'ram-stick-bh': S('ram-stick-ex20', 0.62, 'backhoe dipper ram', 'backhoe loader 8.5 t', ['backhoe dipper ram']),
+  'ram-bucket-bh': S('ram-bucket-ex20', 0.62, 'backhoe bucket ram', 'backhoe loader 8.5 t', ['backhoe bucket ram']),
 });
+export const CON_ODM = Object.freeze(ROWS);

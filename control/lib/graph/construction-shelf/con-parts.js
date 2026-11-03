@@ -14,6 +14,7 @@
 import { pinsAlong, trackPath } from '../car-designer/mil-track.js';
 import { add, box, extrudeWorld, loftWorld, mul, panel as rawPanel, roundRect, spin, sub, tone, tube, unit } from './con-common.js';
 import { bellcrank, liftArms, loaderBucket, loaderFront, loaderRear, skidChassis, wheel } from './con-wheeled.js';
+import { backhoeChassis, boomSection, canopyCab, carriage, forkChassis, houseMini, mastChannel, stabLeg, swingFrame, swingPost, teleChassis } from './con-handlers.js';
 
 const X = [1, 0, 0];
 /** A pin's boss across x at a point, `r` round, from x0 to x1 (a bushing, an eye). */
@@ -80,8 +81,11 @@ function undercarriage(row, C, { physics }) {
   // (an upper that slews sits on its ring's seat; a dozer's hull is fixed, its blade's push arms on the frames' trunnions)
   if (row.build.seat !== false) lathes.push(spin('seat', [0, 0, B.z1 - 0.02], [0, 0, d.slewZ - 0.1], [[0, 0.7], [1, 0.66]], tone(C.trim, 0.1), 28));
   const T = d.trunnion;
-  if (T) for (const s of [1, -1]) lathes.push(boss(`trunnion_${s > 0 ? 'r' : 'l'}`, [0, T[0], T[1]], s * (gauge / 2 + d.frameW / 2 - 0.02), s * (gauge / 2 + d.frameW / 2 + 0.12), 0.11, tone(C.trim, 0.2)));
-  return { lathes, extrudes, sweeps, hardpoints: { slew: [0, 0, d.slewZ - 0.1], ground: [0, 0, 0], ...(T ? { trunnion: [0, T[0], T[1]] } : {}) } };
+  // (a dozer's push arms pivot outside its tracks; a mini's blade arms inside them, at their own x)
+  if (T) for (const s of [1, -1]) lathes.push(d.trunnionX ? boss(`trunnion_${s > 0 ? 'r' : 'l'}`, [0, T[0], T[1]], s * (d.trunnionX - 0.07), s * (d.trunnionX + 0.07), 0.06, tone(C.trim, 0.2))
+    : boss(`trunnion_${s > 0 ? 'r' : 'l'}`, [0, T[0], T[1]], s * (gauge / 2 + d.frameW / 2 - 0.02), s * (gauge / 2 + d.frameW / 2 + 0.12), 0.11, tone(C.trim, 0.2)));
+  const Br = d.bladeRam;
+  return { lathes, extrudes, sweeps, hardpoints: { slew: [0, 0, d.slewZ - 0.1], ground: [0, 0, 0], ...(T ? { trunnion: [0, T[0], T[1]] } : {}), ...(Br ? { 'bladeRam.r': Br, 'bladeRam.l': [-Br[0], Br[1], Br[2]] } : {}) } };
 }
 
 // ── the slewing ring ────────────────────────────────────────────────────────
@@ -93,6 +97,7 @@ function slew(row, C) {
 // ── the upper: its deck, its engine's hood, its tank and tool box, the boom's foot ─────────────────────────────
 function house(row, C, ctx) {
   if (row.build.family === 'dozer') return hullDozer(row, C, ctx);
+  if (row.build.family === 'mini') return houseMini(row, C, ctx);
   return houseExcavator(row, C);
 }
 function houseExcavator(row, C) {
@@ -192,7 +197,9 @@ function ripper(row, C) {
 }
 
 // ── the cab: its frame, its glass, the door, the roof's guard, its lamps ──────────────────────────────────────
-function cab(row, C) {
+function cab(row, C, ctx) {
+  // (an open canopy over the seat: a mini excavator's, a roller's)
+  if (row.build.family === 'canopy') return canopyCab(row, C, ctx);
   const { w, l, h } = row.dims, extrudes = [], lathes = [], frame = tone(C.trim, 0.05), glass = C.glass;
   const y0 = -0.35, y1 = y0 + l;
   extrudes.push(plan('floor', 0, 0.08, [[-w / 2, y0], [w / 2, y0], [w / 2, y1], [-w / 2, y1]], frame));
@@ -321,8 +328,10 @@ function link(row, C) {
 
 // ── a ram: its barrel from its base's eye (the barrel kind), its rod from its rod's eye (the rod kind) ──────────
 /** A ram's barrel and rod lengths: the barrel the closed length less its eye's, the rod the stroke and its piston's
- *  length (so at full stroke the piston is still in the barrel, and at closed the rod's end is clear of the base). */
-export const ramParts = (d) => ({ barrel: d.closed - 0.12, rod: d.stroke + 0.2 });
+ *  length (so at full stroke the piston is still in the barrel, and at closed the rod's end is clear of the base). A
+ *  short ram's eye and piston are short with it: a fifth of its length at most, its piston no longer than leaves its
+ *  rod's end 5 cm clear of the base. */
+export const ramParts = (d) => ({ barrel: d.closed - Math.min(0.12, d.closed * 0.2), rod: d.stroke + Math.min(0.2, d.closed - d.stroke - 0.05) });
 function ram(row, C, { part = 'barrel' } = {}) {
   const d = row.dims, L = ramParts(d), lathes = [], extrudes = [], R = d.bore / 2 + 0.018;
   if (part === 'rod') {
@@ -350,7 +359,12 @@ export const CON_BUILDERS = Object.freeze({
   'con-blade': blade,
   'con-ripper': ripper,
   'con-wheel': wheel,
-  'con-chassis': (row, C, ctx) => ({ loaderRear, loaderFront, skid: skidChassis })[row.build.family](row, C, ctx),
+  'con-chassis': (row, C, ctx) => ({ loaderRear, loaderFront, skid: skidChassis, forklift: forkChassis, telehandler: teleChassis, backhoe: backhoeChassis })[row.build.family](row, C, ctx),
+  'con-mast': mastChannel,
+  'con-carriage': carriage,
+  'con-section': boomSection,
+  'con-post': (row, C, ctx) => ({ kingpin: swingPost, frame: swingFrame })[row.build.family](row, C, ctx),
+  'con-leg': stabLeg,
   'con-arms': liftArms,
   'con-crank': bellcrank,
 });

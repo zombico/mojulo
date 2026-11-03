@@ -7,6 +7,7 @@
 import { describe, it, expect } from 'vitest';
 import { CON_ARCHETYPES, CON_ODM, assembleMachine, findConPart, machineCtx, posedJoints, resolveConPart, toolLow } from './index.js';
 import { CON_CARRIERS, withCarrier } from './con-archetypes.js';
+import { scaleDims } from './con-odm.js';
 import { apply } from './con-common.js';
 import { rangeOf, solveChain } from './con-chain.js';
 import { ramParts } from './con-parts.js';
@@ -17,7 +18,12 @@ const SWEPT = Object.keys(CON_ARCHETYPES).find((k) => CON_ARCHETYPES[k].laws.mea
 // (a tool tilted through a rocker, a loader's Z-bar; a machine on another carrier, the carrier swap)
 const ROCKER = Object.keys(CON_ARCHETYPES).find((k) => Object.values(CON_ARCHETYPES[k].joints).some((j) => j.linkage?.kind === 'rocker'));
 const SWAPPED = Object.keys(CON_ARCHETYPES).find((k) => CON_ARCHETYPES[k].carrier);
-const MACHINES = [...new Set([ID, SWEPT, ROCKER, SWAPPED])];
+// (stages sliding a share each, a tool held level, several joints set down in one pose, parts drawn at another size)
+const SLID = Object.keys(CON_ARCHETYPES).find((k) => CON_ARCHETYPES[k].layout.filter((e) => e.joint && CON_ARCHETYPES[k].joints[e.joint].kind === 'slide').length > 1);
+const LEVEL = Object.keys(CON_ARCHETYPES).find((k) => Object.values(CON_ARCHETYPES[k].poses).some((p) => Object.values(p).includes('level')));
+const GROUNDS = Object.keys(CON_ARCHETYPES).find((k) => Object.values(CON_ARCHETYPES[k].poses).some((p) => Object.values(p).filter((v) => v === 'ground').length > 2));
+const SCALED = Object.keys(CON_ARCHETYPES).find((k) => CON_ARCHETYPES[k].layout.some((e) => CON_ODM[e.sku].dims.scale));
+const MACHINES = [...new Set([ID, SWEPT, ROCKER, SWAPPED, SLID, LEVEL, GROUNDS, SCALED])];
 const ctx = machineCtx(ID), arch = ctx.arch;
 const near = (a, b, tol = 1e-6) => a.every((v, k) => Math.abs(v - b[k]) < tol);
 // (a point is 'body.hardpoint', the hardpoint's own name may hold a dot: 'rear.wheel.r')
@@ -29,9 +35,13 @@ describe.each(MACHINES)('%s: the chain holds together at every named pose', (mac
     it(pose, () => {
       const j = posedJoints(ID, pose), C = solveChain(arch, j, ctx);
       // each body's pivot on its parent's hardpoint
+      // (a slide's body moves along its axis from the hardpoint; every other body's pivot is on it)
       for (const e of arch.layout.filter((x) => x.on)) {
-        const [p, hp] = split(e.on);
-        expect(near(apply(C.frames[e.id], [0, 0, 0]), apply(C.frames[p], ctx.hp(p, hp)), 1e-9), e.id).toBe(true);
+        const [p, hp] = split(e.on), q = apply(C.frames[e.id], [0, 0, 0]), o = apply(C.frames[p], ctx.hp(p, hp));
+        if (e.joint && arch.joints[e.joint].kind === 'slide') {
+          const ax = apply({ R: C.frames[p].R, t: [0, 0, 0] }, arch.joints[e.joint].axis ?? [0, 1, 0]), d = q.map((v, k) => v - o[k]), t = d[0] * ax[0] + d[1] * ax[1] + d[2] * ax[2];
+          expect(near(d, ax.map((v) => v * t), 1e-9), e.id).toBe(true);
+        } else expect(near(q, o, 1e-9), e.id).toBe(true);
       }
       // each ram's barrel from its base toward its eye, its rod from the eye back, its length within its stroke
       for (const s of C.struts) {
@@ -145,5 +155,47 @@ describe('the carrier swap', () => {
     expect(front(swapped)).toEqual(front(base));
     expect(swapped.physics).not.toBe(base.physics);
     expect(() => withCarrier(base, 'hovercraft')).toThrow(/Unknown construction carrier/);
+  });
+});
+
+describe('the chain\'s other procedures', () => {
+  it('slides each stage its share of its joint: a telescope\'s sections, a mast\'s stages', () => {
+    const ctx = machineCtx(SLID), arch = ctx.arch, name = Object.keys(arch.joints).find((k) => arch.joints[k].kind === 'slide');
+    const stages = arch.layout.filter((e) => e.joint === name), at = (v) => solveChain(arch, { ...posedJoints(SLID, 'rest'), [name]: v }, ctx).frames;
+    const r = rangeOf(arch, name, ctx), a = at(r[0]), b = at(r[1]);
+    // (each stage's origin in its parent's frame, along the joint's axis)
+    const axis = arch.joints[name].axis ?? [0, 1, 0];
+    for (const e of stages) {
+      const [p] = split(e.on), along = (F) => { const d = apply(F[e.id], [0, 0, 0]).map((v, k) => v - F[p].t[k]), R = F[p].R; return [0, 1, 2].reduce((s, k) => s + axis[k] * (R[0][k] * d[0] + R[1][k] * d[1] + R[2][k] * d[2]), 0); };
+      expect(along(b) - along(a), e.id).toBeCloseTo((r[1] - r[0]) * Math.abs(e.scale ?? 1), 6);
+    }
+  });
+  it('holds a tool level whatever the joints above it turn', () => {
+    const ctx = machineCtx(LEVEL), arch = ctx.arch;
+    for (const [pose, spec] of Object.entries(arch.poses).filter(([, p]) => Object.values(p).includes('level'))) {
+      const name = Object.keys(spec).find((k) => spec[k] === 'level'), body = arch.layout.find((e) => e.joint === name).id;
+      const F = solveChain(arch, posedJoints(LEVEL, pose), ctx).frames[body];
+      expect(Math.abs(F.R[2][1]), pose).toBeLessThan(1e-6);
+    }
+  });
+  it('sets each joint a pose grounds down on the ground in turn', () => {
+    const ctx = machineCtx(GROUNDS), arch = ctx.arch;
+    const pose = Object.keys(arch.poses).find((p) => Object.values(arch.poses[p]).filter((v) => v === 'ground').length > 2);
+    const j = posedJoints(GROUNDS, pose), F = solveChain(arch, j, ctx).frames;
+    for (const name of Object.keys(arch.poses[pose]).filter((k) => arch.poses[pose][k] === 'ground')) {
+      // (what the joint carries: its body and every body hung below it)
+      const under = (e) => { for (let x = e; x; x = x.on ? arch.layout.find((y) => y.id === split(x.on)[0]) : null) if (x.joint === name) return true; return false; };
+      const bodies = arch.layout.filter((e) => !e.ram && !e.link && under(e));
+      const low = Math.min(...bodies.filter((e) => ctx.outline(e.id)).flatMap((e) => ctx.outline(e.id).map((p) => apply(F[e.id], p)[2])));
+      expect(Math.abs(low), name).toBeLessThan(0.01);
+    }
+  });
+  it('draws a part at another size as its design, every length times its scale', () => {
+    // (a part drawn only at another size: its numbers its design's times its scale, nothing else said)
+    const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+    const [sku, row, base] = Object.entries(CON_ODM).filter(([, r]) => r.dims.scale).map(([s0, r]) => [s0, r, Object.keys(CON_ODM).find((b) => !CON_ODM[b].dims.scale && CON_ODM[b].kind === r.kind && same({ ...scaleDims(CON_ODM[b].dims, r.dims.scale), scale: r.dims.scale }, r.dims))]).find((x) => x[2]);
+    const k = row.dims.scale;
+    const a = resolveConPart(sku).garage.hardpoints, b = resolveConPart(base).garage.hardpoints;
+    for (const [n, p] of Object.entries(b)) if (a[n] && !Array.isArray(p[0])) expect(near(a[n], p.map((v) => v * k), 0.002), n).toBe(true);
   });
 });

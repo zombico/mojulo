@@ -184,3 +184,50 @@ push, load, haul and lift on a site.
     - The char test pins every new builder path and each machine; the deep sweep walks them all.
   - **Seen** (machine gate only, the eyes gate is open): the loader carrying, dumping and turned; the skid steer and
     the track loader carrying and dumping. The review renderer frames a tall pose by its height.
+- **The forklift, the telehandler, the mini excavator and the backhoe loader** (`con-handlers.js`):
+  - **The chain:**
+    - A joint's ram may join any two bodies on it (a pair of stabiliser legs).
+    - A slew may be turned its `zero` (a backhoe's swing frame faces aft); a hinge may turn about its own `axis` (a
+      stabiliser about the machine's length); an entry's `scale` of −1 mirrors its joint (the left leg).
+    - A ramless slide runs as far as its first stage runs out.
+    - A pose may set several joints on the ground in turn, each lowering what it carries (its body and every body hung
+      below it), from the end of its range that holds them highest.
+    - A pose may hold a tool `level`: it turns back the hinges above it.
+    - A value a rounding past its range's end is its end.
+  - **A part at another size** (`S` in `con-odm.js`, `scaleDims`): another part's design at k times its lengths and k³
+    its mass, drawn at the design's size and scaled. A chain's angles do not change with its size, so a scaled front
+    keeps its arcs.
+  - **A ram's allowances shrink on a short ram**, no more than a fifth of its length for its eye, its piston leaving
+    5 cm at its base. No existing ram changed.
+  - **The 2.5 t counterbalance forklift:**
+    - its chassis (the counterweight, the overhead guard, the seat) on drive and steer tyres;
+    - its mast tilted on the front axle by two rams (−6° to +10°);
+    - its inner stage and its carriage each lifting half the extension, a duplex mast: the forks reach 3.31 m.
+  - **The telehandler, 4 t to 14 m:**
+    - its boom hinged at the chassis's back and raised by its ram (−3° to 70°);
+    - its two inner sections sliding out half each of 7 m;
+    - its fork carriage held level on the tip by its tilt ram;
+    - its carriage pin at 13.44 m.
+
+    The class's length is a 14 m machine's.
+  - **The 2.7 t mini excavator:**
+    - the 20 t front at 0.44 its size, its arcs the 20 t's;
+    - on a swing post turned −50° to +75° by its swing ram;
+    - its round upper, its canopy, its counterweight's tail inside its tracks (0.76 m);
+    - a backfill blade on its rubber tracks.
+
+    It reaches 4.78 m, digs 2.63 m and lifts a rated 0.4 t at 2.5 m.
+  - **The 8.5 t backhoe loader:**
+    - its loader's arms and bucket ahead;
+    - its backhoe aft, the 20 t front at 0.62 its size on a swing frame turned ±90° by two rams, its reach read from the
+      swing post (6.16 m), its depth 4.02 m;
+    - its stabiliser legs folded up and swung down to the ground.
+  - **The registry:** the forklift, telehandler, mini-excavator and backhoe-loader rows claim their machines, asleep.
+  - **Held:**
+    - The law tests add a machine with stages, one holding a tool level, one grounding several joints and one drawn at
+      another size, each chosen in code: the stages each slide their share, a level tool stays level, each grounded
+      joint's load touches the ground, a scaled part's hardpoints are its design's times its scale.
+    - The chain test and the deep sweep read a slide's body along its axis.
+    - The char test pins every new builder path and each machine.
+  - **Seen** (machine gate only, the eyes gate is open): the forklift raised, the telehandler travelling and reaching,
+    the mini digging and swung on its post, the backhoe digging, travelling and swung.

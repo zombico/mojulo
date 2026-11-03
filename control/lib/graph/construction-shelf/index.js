@@ -23,7 +23,7 @@ import { resolveAssemblerPlacements } from '../worlds/workbench-assembler.js';
 import { VEHICLES as PHYSICS } from '../roads/vehicles.js';
 import { CON_COLOR_ROLES, CON_PALETTES, apply, clone, eulerXYZ, resolveConPalette, round3 } from './con-common.js';
 import { CON_BUILDERS } from './con-parts.js';
-import { CON_KINDS, CON_ODM } from './con-odm.js';
+import { CON_KINDS, CON_ODM, scaleDims } from './con-odm.js';
 import { CON_ARCHETYPES } from './con-archetypes.js';
 import { framesOf, rangeOf, solveChain } from './con-chain.js';
 import { conLaws } from './con-laws.js';
@@ -74,10 +74,25 @@ const GEOM = new Map();
 function geomOf(sku, machine, C, part) {
   const key = `${sku}|${machine}|${JSON.stringify(C)}|${part ?? ''}`;
   if (!GEOM.has(key)) {
-    const row = partRow(sku), arch = archetypeRow(machine);
-    GEOM.set(key, CON_BUILDERS[row.kind](row, C, { physics: PHYSICS[arch.physics], machine, part }));
+    const row = partRow(sku), arch = archetypeRow(machine), k = row.dims.scale;
+    // (a part at another size is its design's: drawn at the design's size, then scaled, every length times k)
+    const built = k ? scaleGeom(CON_BUILDERS[row.kind]({ ...row, dims: scaleDims(row.dims, 1 / k) }, C, { physics: PHYSICS[arch.physics], machine, part }), k)
+      : CON_BUILDERS[row.kind](row, C, { physics: PHYSICS[arch.physics], machine, part });
+    GEOM.set(key, built);
   }
   return GEOM.get(key);
+}
+/** A builder's output scaled about its body's origin: every point, every radius, every section's offsets, times k. */
+function scaleGeom(g, k) {
+  const v = (p) => p.map((x) => round3(x * k) + 0), xyz = (p) => ({ x: round3(p.x * k), y: round3(p.y * k), z: round3(p.z * k) });
+  const out = { ...g };
+  if (g.lathes) out.lathes = g.lathes.map((m) => ({ ...m, axisFrom: xyz(m.axisFrom), axisTo: xyz(m.axisTo), profile: m.profile.map((q) => ({ t: q.t, radius: round3(q.radius * k) })) }));
+  if (g.sweeps) out.sweeps = g.sweeps.map((m) => ({ ...m, path: m.path.map(v), radius: round3(m.radius * k) }));
+  if (g.extrudes) out.extrudes = g.extrudes.map((m) => ({ ...m, axisFrom: xyz(m.axisFrom), axisTo: xyz(m.axisTo), profile: { ...m.profile, points: m.profile.points.map(v) } }));
+  if (g.lofts) out.lofts = g.lofts.map((m) => ({ ...m, axisFrom: xyz(m.axisFrom), axisTo: xyz(m.axisTo), stations: m.stations.map((st) => ({ ...st, profile: st.profile.map(v) })) }));
+  out.hardpoints = Object.fromEntries(Object.entries(g.hardpoints).map(([n, p]) => [n, v(p)]));
+  if (g.outline) out.outline = g.outline.map(v);
+  return out;
 }
 
 /**
@@ -145,15 +160,19 @@ export function posedJoints(archetype, pose = 'rest') {
   const spec = named ?? pose;
   if (!spec || typeof spec !== 'object') throw new Error(`construction ${archetype}: a pose is a name or { joint: degrees }`);
   for (const k of Object.keys(spec)) if (!arch.joints[k]) throw new Error(`construction ${archetype}: '${k}' is not one of its joints (${Object.keys(arch.joints).join(', ')})`);
-  const out = {};
-  let ground = null;
+  const out = {}, level = [], ground = [];
   for (const [name, J] of Object.entries(arch.joints)) {
     const r = rangeOf(arch, name, ctx), v = spec[name];
-    if (v === 'ground') { ground = name; out[name] = r ? (r[0] + r[1]) / 2 : 0; continue; }
+    if (v === 'ground') { ground.push(name); out[name] = r ? (r[0] + r[1]) / 2 : 0; continue; }
+    if (v === 'level') { level.push(name); out[name] = 0; continue; }
     // (a named pose's joint is a share of its range; the operator's own values are degrees)
     out[name] = named && r && Number.isFinite(v) ? r[0] + v * (r[1] - r[0]) : Number.isFinite(v) ? v : r ? (r[0] + r[1]) / 2 : 0;
   }
-  if (ground) out[ground] = groundJoint(arch, ctx, out, ground);
+  // (a tool held level turns back what the hinges above it turned, within its range; set again as the ground is sought)
+  const levelled = (j) => { const o = { ...j }; for (const name of level) { const r = rangeOf(arch, name, ctx), v = -hingesAbove(arch, name, o); o[name] = r ? Math.max(r[0], Math.min(r[1], v)) : v; } return o; };
+  // (each joint set down in turn: a backhoe's loader, its backhoe, its stabilisers)
+  for (const g of ground) out[g] = groundJoint(arch, ctx, out, g, levelled);
+  Object.assign(out, levelled(out));
   return Object.fromEntries(Object.entries(out).map(([k, v]) => [k, Math.round(v * 100) / 100]));
 }
 
@@ -162,12 +181,31 @@ export function toolLow(arch, ctx, joints) {
   const [body] = arch.tip.split('.'), F = framesOf(arch, joints, ctx)[body];
   return Math.min(...(ctx.outline(body) ?? [ctx.hp(body, arch.tip.split('.')[1])]).map((p) => apply(F, p)[2]));
 }
-/** The joint value, lowering from the top of its range, at which the tool first touches the ground. */
-function groundJoint(arch, ctx, joints, name) {
-  const r = rangeOf(arch, name, ctx), at = (v) => toolLow(arch, ctx, { ...joints, [name]: v });
-  let hi = r[1], lo = null;
-  for (let v = r[1]; v >= r[0]; v -= 0.5) { if (at(v) <= 0) { lo = v; break; } hi = v; }
-  if (lo === null) return r[0];
+/** The sum of the hinges' values between a joint's body and the root (what a tool held level turns back). */
+function hingesAbove(arch, name, joints) {
+  let e = arch.layout.find((x) => x.joint === name), sum = 0;
+  for (e = e && arch.layout.find((x) => x.id === e.on.split('.')[0]); e; e = e.on ? arch.layout.find((x) => x.id === e.on.split('.')[0]) : null) {
+    if (e.joint && arch.joints[e.joint].kind === 'hinge') sum += joints[e.joint] ?? 0;
+  }
+  return sum;
+}
+
+/** The bodies a joint carries (its own, and every body hung below them), and the lowest of their outlines' points over
+ *  the ground at joint values. */
+function lowBelow(arch, ctx, joints, name) {
+  const under = (e) => { for (let x = e; x; x = x.on ? arch.layout.find((y) => y.id === x.on.split('.')[0]) : null) if (x.joint === name) return true; return false; };
+  const bodies = arch.layout.filter((e) => !e.ram && !e.link && under(e) && ctx.outline(e.id));
+  const F = framesOf(arch, joints, ctx);
+  return Math.min(...bodies.flatMap((e) => ctx.outline(e.id).map((p) => apply(F[e.id], p)[2])));
+}
+/** The joint value, lowering from the end of its range that holds what it carries highest (a boom's top, a
+ *  stabiliser's stowed end), at which what it carries first touches the ground. */
+function groundJoint(arch, ctx, joints, name, settle = (j) => j) {
+  const r = rangeOf(arch, name, ctx), at = (v) => lowBelow(arch, ctx, settle({ ...joints, [name]: v }), name);
+  const [from, to] = at(r[1]) >= at(r[0]) ? [r[1], r[0]] : [r[0], r[1]], step = from > to ? -0.5 : 0.5;
+  let hi = from, lo = null;
+  for (let v = from; step < 0 ? v >= to : v <= to; v += step) { if (at(v) <= 0) { lo = v; break; } hi = v; }
+  if (lo === null) return to;
   for (let i = 0; i < 40; i++) { const m = (lo + hi) / 2; if (at(m) <= 0) lo = m; else hi = m; }
   return hi;
 }

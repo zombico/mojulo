@@ -42,6 +42,9 @@ export function conLaws(arch, ctx, { corners, physics, posed }) {
   const [tipBody, tipHp] = arch.tip.split('.'), tipLocal = ctx.hp(tipBody, tipHp);
   const tipAt = (j) => apply(framesOf(arch, { slew: 0, ...j }, ctx)[tipBody], tipLocal);
   const digs = Boolean(R.boom && R.stick && R.tool);
+  // (the reach is read from the axis the front swings about: an excavator's slew, a backhoe's swing post)
+  const F0 = band.from ? (() => { const [fb, fh] = band.from.split('.'); return apply(framesOf(arch, { slew: 0 }, ctx)[fb], ctx.hp(fb, fh)); })() : [0, 0, 0];
+  const out2 = (p) => Math.hypot(p[0] - F0[0], p[1] - F0[1]);
 
   // ── the arcs (a slide's, its travel in metres) ──
   for (const [k, r] of Object.entries(R)) if (r && band.arcs?.[k]) {
@@ -69,7 +72,7 @@ export function conLaws(arch, ctx, { corners, physics, posed }) {
       const p = tipAt({ boom: b, stick: s, tool: t });
       if (p[2] < low) low = p[2];
       if (p[2] > high) high = p[2];
-      if (prev && (prev[2] > 0) !== (p[2] > 0)) { const f = prev[2] / (prev[2] - p[2]); reach = Math.max(reach, prev[1] + (p[1] - prev[1]) * f); }
+      if (prev && (prev[2] > 0) !== (p[2] > 0)) { const f = prev[2] / (prev[2] - p[2]); reach = Math.max(reach, out2(prev) + (out2(p) - out2(prev)) * f); }
       prev = p;
     }
   }
@@ -110,8 +113,10 @@ export function conLaws(arch, ctx, { corners, physics, posed }) {
 
   // ── the rated lift over the side ──
   if (band.lift && digs) {
+    // (the excavator's chart line: 6 m out, 1.5 m up; a smaller machine names its own)
+    const L = Array.isArray(band.lift) ? { band: band.lift, radius: 6, height: 1.5 } : band.lift;
     const pin = ctx.hp('stick', 'tip'), at = (j) => apply(framesOf(arch, { slew: 0, ...j }, ctx).stick, pin);
-    const tool = (R.tool[0] + R.tool[1]) / 2, want = [6, 1.5];
+    const tool = (R.tool[0] + R.tool[1]) / 2, want = [L.radius, L.height];
     let best = null;
     const tryAt = (b, s) => { const p = at({ boom: b, stick: s, tool }), e = (p[1] - want[0]) ** 2 + (p[2] - want[1]) ** 2; if (!best || e < best.e) best = { b, s, e }; };
     for (const b of span(R.boom, 120)) for (const s of span(R.stick, 140)) tryAt(b, s);
@@ -129,7 +134,7 @@ export function conLaws(arch, ctx, { corners, physics, posed }) {
       M += m * (mid[0] - line);
     }
     const tips = M / (line - loadX), rated = r1((0.75 * tips) / 1000);
-    law('lift', rated, band.lift, rated >= band.lift[0] && rated <= band.lift[1], 'its rated load over the side at 6 m (75% of tipping about its track)');
+    law('lift', rated, L.band, rated >= L.band[0] && rated <= L.band[1], `its rated load over the side at ${L.radius} m (75% of tipping about its track)`);
   }
 
   // ── the clearance: the tool never in the cab ──
@@ -138,7 +143,9 @@ export function conLaws(arch, ctx, { corners, physics, posed }) {
     const box = corners(cab.sku).map((p) => apply(rest[cab.id], p)), lo = [0, 1, 2].map((k) => Math.min(...box.map((p) => p[k]))), hi = [0, 1, 2].map((k) => Math.max(...box.map((p) => p[k])));
     const w = ctx.row(tool.sku).dims.width ?? 0, pts = (ctx.outline(tool.id) ?? [tipLocal]).flatMap((p) => [[p[0] - w / 2, p[1], p[2]], [p[0] + w / 2, p[1], p[2]]]);
     // (over every joint that carries the tool; a slew and a hitch held where they rest, the cab turning with them)
-    const moving = Object.keys(R).filter((k) => R[k] && arch.joints[k].kind !== 'slew'), base = posed('rest');
+    const carried = new Set();
+    for (let e = tool; e; e = e.on ? arch.layout.find((x) => x.id === e.on.split('.')[0]) : null) if (e.joint) carried.add(e.joint);
+    const moving = Object.keys(R).filter((k) => R[k] && carried.has(k) && arch.joints[k].kind !== 'slew'), base = posed('rest');
     let combos = [{}];
     for (const k of moving) combos = combos.flatMap((c) => span(R[k], k === 'tool' ? 6 : moving.length > 3 ? 10 : 24).map((v) => ({ ...c, [k]: v })));
     let hit = 0;
