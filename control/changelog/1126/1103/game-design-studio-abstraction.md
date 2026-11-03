@@ -1,4 +1,4 @@
-### The game design studio, abstracted: the compile bounded, each level checked a step at a time
+### The game design studio, abstracted: the book in chapters, the compile bounded, each level checked a step at a time
 
 A game book's run (`design_game` `run: true`) made every ready step in one call, and the last of them, the game, walked
 every level in headless Chrome inside create_game. On the meadowmark reference book (five stages), one call took six
@@ -24,3 +24,17 @@ become chapters each department works alone, so the compile is one loop that mak
 - A game made before this is remade once on its next run, in place (its order no longer carries `auto_audit`), and its
   levels are walked after it. No level, hero or game kernel moved: the composed-world and meadowmark order pins hold as
   they were.
+- **The book in chapters** (`gameworld/chapters.js`). Each page of the game book is a chapter, and each chapter sits in
+  one of the studio's six departments. A chapter's contract names the recipe paths it owns, the review parts it answers,
+  the steps a run makes for it, the cards it is written from, the chapters upstream it reads, and the rail outcome its
+  parts are drawn under. It is derived from what the book already is (the guide's loop, the readers' parts, the runner's
+  steps, the ready table), not a new rule. A guard test (`chapters.test.js`) gives every recipe key, every review part,
+  every step a run lays (one world per procedure that lays its own) and every card exactly one chapter, so a new page
+  that joins no department fails. The rail's grouping of parts is read from it (`partOutcome`), which now also shows the
+  casting page (`characters:cast`), a part the rail used to leave out.
+- **The readout says the chapters** (`design_game` `chapters`): each chapter the world holds, with its department, its
+  state (open, advised, settled, or written for pages with no review of their own), how many of its parts are settled,
+  the ones still open once some are, and the chapters upstream it `waits` on. The orchestrating agent reads the book a
+  chapter at a time and hands a department its own chapter; the `gameworld-next` card says so.
+- **Fixed: a town's people kept in the record.** A run made a town's folk (`folk-<town>-<who>`), but the record reader
+  refused the key, so a world with folk could not be read again after its run. The guard test found it.

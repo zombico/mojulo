@@ -10,6 +10,7 @@ import { characterState } from '../gameworld/character-review.js';
 import { castable, foeState } from '../gameworld/foe-cast.js';
 import { runSteps, decide } from '../gameworld/runner.js';
 import { readGameworld } from '../gameworld/world.js';
+import { chapterOfPart } from '../gameworld/chapters.js';
 
 export const GAMEWORLD_OUTCOMES = Object.freeze([
   { id: 'intent', name: 'Intent' },
@@ -22,16 +23,9 @@ export const GAMEWORLD_OUTCOMES = Object.freeze([
   { id: 'play', name: 'Play' },
 ]);
 
-/** The outcome a reviewed part answers. */
+/** The outcome a reviewed part answers: its chapter's (gameworld/chapters.js, the one place a part's home is said). */
 export function partOutcome(id) {
-  if (id === 'intent') return 'intent';
-  if (['world', 'nature', 'civilizations', 'key'].includes(id) || id.startsWith('tech:')) return 'world';
-  if (id === 'characters:direction' || id === 'cast' || id.startsWith('hero:')) return 'characters';
-  if (id === 'equipment' || id.startsWith('mechanics:')) return 'systems';
-  if (id.startsWith('level:')) return 'levels';
-  if (id === 'story' || id === 'quests') return 'story';
-  if (id.startsWith('foes:')) return 'foes';
-  return null;
+  return chapterOfPart(id)?.outcome ?? null;
 }
 
 /**

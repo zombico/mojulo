@@ -15,6 +15,7 @@ export { gearStyle, mirrorEntry, contrastEntry, augmentTiers, populateGear, gear
 export { GAMEWORLD_KIND, isGameworldKind, gameworldOf, normalizeGameworldManifest } from './gameworld-kind.js';
 export { runSteps, heroRefOf, decide, childRef, storyReport } from './runner.js';
 export { readMade, MADE_KEY } from './made.js';
+export { CHAPTERS, DEPARTMENTS, chapterById, chaptersOfPath, chapterOfPart, chapterOfStep, chapterOfCard, chapterBook } from './chapters.js';
 export { readMechanics, resolveMechanics, mechanicsOrders, SCALE, EPOCH_LEVEL, GAINED, GEAR_STAT, GEAR_BY } from './mechanics.js';
 export { ELEMENT_WORDS } from './element-words.js';
 export { readMotion, resolveMotion, motionOrders, AXES, VIBES, AXIS_SPANS, GAIT_BASE } from './hero-vibe.js';
