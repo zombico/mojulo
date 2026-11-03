@@ -809,7 +809,8 @@ GLB's baked ink (`bake: true`) cannot stencil: it leaves out only the outline of
   the engine score's `locomotion.jumps`. In every gait and jump a raised, bent arm folds with its ELBOW DOWN (the
   shoulder rolls with the raise; never the forearm across the chest). MOVES ride it too, each a one-shot ending on its
   pose: the stances (`athletic`, `low`, `centre`, `guard`, `fencing`, `hitting`), the strikes (`jab`, `cross`, `thrust`,
-  each `…Left`), the showcase poses (`fistToSky`, `crossedArms`, …) and the REACTIONS, the versus fighter's own on any
+  each `…Left`), a boxer's arced punches from the guard (`hook`, `uppercut`, `bodyHook`, each `…Left`: the knuckles
+  solved onto an opponent's chin or ribs at the body's own reach, timed by its servos), the showcase poses (`fistToSky`, `crossedArms`, …) and the REACTIONS, the versus fighter's own on any
   hero (`hitHigh`, `hitBody`, `hitLow`, `stagger`: struck fast, given back slowly, the feet planted, home on the stand);
   the rest `knockedOut` is the topple (`knockedOutDown`) and the rise (`knockedOutUp`). A cast's member is made with its
   move set (moveSetOf). Absent, the hero and every export are as before.
@@ -955,6 +956,14 @@ GLB's baked ink (`bake: true`) cannot stencil: it leaves out only the outline of
   a skirt, the belt; worn with `martialPants` it takes their sash); the authored body wears them as wide segment pieces.
   It carves as a `statue` (in one material, no skin; a bust without the arms' stumps). Refused by name: `detail` (an
   outfit dresses it), `body`, `girth` (the physique dials those).
+- **The realistic head on the lofted body (a fighter's).** `head: 'relational'` without `form: 'realistic'` wears the
+  realistic head, its `face` words, its `skin` and its face rig on the lofted body (the tiered body, a muscle shirt's),
+  swapped in after the shirt, the neck densified under it so the head's skin runs into one column; its laws stamped as
+  `headLaws`. A BODY CODENAME (`animeBody`: `toji`, `mizuki`, `satoru`, `maki`, `armstrong`, `kale`, `shonen-high`) is worn
+  under it or the landmark head as under the anime head: its tune laid under the hero's own, `muscleShirt` its card (the
+  muscular form), the head sized by its own proportions. A fighter: `{ cast: 'male', animeBody: 'toji', muscleShirt: {
+  definition: 1 }, head: 'relational', face: { seed }, motion: { guard: true, jab: true, cross: true, hook: true,
+  uppercut: true } }`. The realistic body (`form: 'realistic'`) refuses a codename: its build is its physique.
 - **Armour (an armour build on `adorn`).** `adorn: { type: 'armor', style, dials?, language? }` names a suit by intent and
   direction; the laws in `control/lib/graph/armor/` compose it on every read. The hero stores the words, stamped
   `laws: 1`. Restyle in place with `set /hero/adorn/dials/coverage 0.8`, `set /hero/adorn/style 'aka'` or

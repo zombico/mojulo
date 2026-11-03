@@ -372,7 +372,8 @@ export function drivePath(frame, family, sh, Tf, { stroke = 0.15, n = 3 } = {}) 
  * cheapest approach and as little of the LADDER as lands it (strikeTarget), driven along its DRIVE (drivePath: a
  * straight line, or an arc for a hook or an uppercut; `samples` solves back from the contact along it, each seeded by
  * the next, the body moving through them on the rungs the contact needed, a stepped foot planted), then recovered to the
- * stance, and on to the next. The body moves into
+ * stance, and on to the next (`aimed`: the targets named, { az, el, share, surface?, families? } each, in place of the
+ * seeded draws). The body moves into
  * the contact's (its girdle, trunk, hips, weight, sink) as the hand leaves the guard; a STEP lifts the foot off the
  * floor between (and again on the way home). The time of each move is its largest joint turn over the servo's speed
  * (SERVO_SPEEDS: a strike at `pace` of the speed the hero's own attacks reach, a recovery at half that), an eased move
@@ -381,19 +382,22 @@ export function drivePath(frame, family, sh, Tf, { stroke = 0.15, n = 3 } = {}) 
  * stop at contact), path (m: the surface off its drive), balance (m: the centre of mass inside the feet at contact) }],
  * worst } }. The checks read the CLIP as played (keyedClip), not the solve.
  */
-export function targetDrill(R, { seed = 1, count = 6, side: S = 'R', stance = 'guard', surfaces = ['knuckles'], bands = [0.6, 0.95], az = [-45, 80], el = [-35, 45], stroke = 0.15, samples = 3, pace = 0.5, families, rungs, register = 'realistic' } = {}) {
+export function targetDrill(R, { seed = 1, count = 6, side: S = 'R', stance = 'guard', surfaces = ['knuckles'], bands = [0.6, 0.95], az = [-45, 80], el = [-35, 45], stroke = 0.15, samples = 3, pace = 0.5, families, rungs, register = 'realistic', aimed = null } = {}) {
   const sb = stanceBody(R, stance, S), n0 = sb.nodes, Tf = thoraxFrame(n0), sh = n0[`shoulder${S}`], F = handFeatures(R, S);
   const lat = S === 'R' ? Tf.right : mul(Tf.right, -1);
   const l12 = dist(R.joints[`shoulder${S}`], R.joints[`elbow${S}`]) + dist(R.joints[`elbow${S}`], R.joints[`wrist${S}`]);
   const rnd = mulberry32(seed), rad = (d) => d / DEG;
   const hits = [];
-  for (let i = 0; i < count; i++) {
-    const a = az[0] + (az[1] - az[0]) * rnd(), e = el[0] + (el[1] - el[0]) * rnd(), share = bands[0] + (bands[1] - bands[0]) * rnd();
-    const surface = surfaces[Math.floor(rnd() * surfaces.length) % surfaces.length];
+  // (AIMED targets, `aimed: [{ az, el, share, surface?, families? }]`, in place of the seeded draws: a move's own target,
+  // hero-box.js; the seeded drill draws as it always has)
+  for (let i = 0; i < (aimed ? aimed.length : count); i++) {
+    const A = aimed ? aimed[i] : null;
+    const a = A ? A.az : az[0] + (az[1] - az[0]) * rnd(), e = A ? A.el : el[0] + (el[1] - el[0]) * rnd(), share = A ? A.share : bands[0] + (bands[1] - bands[0]) * rnd();
+    const surface = A ? A.surface ?? 'knuckles' : surfaces[Math.floor(rnd() * surfaces.length) % surfaces.length];
     const v = add(mul(add(mul(lat, Math.sin(rad(a))), mul(Tf.fwd, Math.cos(rad(a)))), Math.cos(rad(e))), mul(Tf.up, Math.sin(rad(e))));
     const reachS = l12 + dist(F.surfaces[surface].p, F.wrist);
     const at = add(sh, mul(v, share * reachS));
-    const hit = strikeTarget(R, sb.body, S, { at, surface }, { families, n0, ...(rungs !== undefined ? { rungs } : {}) });
+    const hit = strikeTarget(R, sb.body, S, { at, surface }, { families: A?.families ?? families, n0, ...(rungs !== undefined ? { rungs } : {}) });
     // THE DRIVE, back from the contact along its path: the body moves through it on the rungs the contact needed, and
     // the girdle and the trunk at least (the kinetic chain: the trunk and the weight still arriving as the hand does),
     // the stepped foot planted where it stepped; each sample seeded by the one after it
