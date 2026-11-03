@@ -609,7 +609,7 @@ export function readGameworld(W) {
           if (isObj(St) && St.walls !== undefined && !(typeof St.walls === 'boolean' || typeof St.walls === 'string')) throw new Error(`gameworld: ${at}.places.street.walls is true (the town's own fortification, from its builders' language) or a fortification's id (crenellated, battered)`);
           if (isObj(St) && St.walk !== undefined && !(Array.isArray(St.walk) && St.walk.every((u) => typeof u === 'string'))) throw new Error(`gameworld: ${at}.places.street.walk is the uses walked into as part of the world ([\'shop\']), the rest of those entered at a door into a scene of their own`);
           if (isObj(St) && St.houses !== undefined && !(Number.isInteger(St.houses) && St.houses >= 1 && St.houses <= 12)) throw new Error(`gameworld: ${at}.places.street.houses is 1 to 12`);
-          if (isObj(St) && St.enter !== undefined && !(Number.isInteger(St.enter) && St.enter >= 0 && St.enter <= 4)) throw new Error(`gameworld: ${at}.places.street.enter is 0 to 4 (the houses walked into)`);
+          if (isObj(St) && St.enter !== undefined && !(Number.isInteger(St.enter) && St.enter >= 0 && St.enter <= 4) && !(Array.isArray(St.enter) && St.enter.length >= 1 && St.enter.length <= 4 && St.enter.every((u) => typeof u === 'string'))) throw new Error(`gameworld: ${at}.places.street.enter is 0 to 4 (the houses walked into), or the uses walked into (['shop', 'dwelling']: the first of each from the whole town)`);
           if (!L.places.town) throw new Error(`gameworld: ${at}.places.street is the town's street: give the level its town (places.town)`);
           continue;
         }

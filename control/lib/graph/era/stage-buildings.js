@@ -202,11 +202,17 @@ const RING_ORDER = { near: 0, mid: 1, far: 2 };
  * first `houses` of them: `{ seed, houses, enter, town, lots: [{ l, k }] }`, `town` the designed town (its seed, its
  * heartbeat) and `k` a lot's place in it. Its houses are `town-<use>-<n>` in this order (the folk stand by them). */
 export function streetLots(town, kitId, seed0, solid = false) {
-  const seed = town.seed ?? seed0 ?? 1, houses = town.houses ?? 6, enter = Math.min(town.enter ?? 1, houses);
+  const seed = town.seed ?? seed0 ?? 1, houses = town.houses ?? 6, named = Array.isArray(town.enter);
+  const enter = named ? Math.min(town.enter.length, houses) : Math.min(town.enter ?? 1, houses);
   const T = designTown(structureStyle(kitId, seed), seed, { ...(town.recipe ?? {}), ...(town.anchor !== undefined ? { anchor: town.anchor } : {}) }, { solid });
-  const lots = T.lots.map((l, k) => ({ l, k })).sort((a, b) => (b.l.focus ? 1 : 0) - (a.l.focus ? 1 : 0) || (RING_ORDER[a.l.ring] ?? 3) - (RING_ORDER[b.l.ring] ?? 3)
-    || USE_ORDER.indexOf(a.l.use) - USE_ORDER.indexOf(b.l.use) || a.k - b.k).slice(0, houses);
-  return { seed, houses, enter, town: T, lots };
+  const all = T.lots.map((l, k) => ({ l, k })).sort((a, b) => (b.l.focus ? 1 : 0) - (a.l.focus ? 1 : 0) || (RING_ORDER[a.l.ring] ?? 3) - (RING_ORDER[b.l.ring] ?? 3)
+    || USE_ORDER.indexOf(a.l.use) - USE_ORDER.indexOf(b.l.use) || a.k - b.k);
+  // (the uses walked into named, `enter: ['shop', 'dwelling']`: the first lot of each from the whole town, in the street's
+  // order, entered first, and the street's own order after them; a house from the next ring stands on the street)
+  if (!named) return { seed, houses, enter, town: T, lots: all.slice(0, houses) };
+  const picked = [];
+  for (const use of town.enter.slice(0, enter)) { const hit = all.find((x) => x.l.use === use && !picked.includes(x)); if (!hit) throw new Error(`stage: town.enter names '${use}', and the town has no ${use} left to walk into (its uses: ${[...new Set(T.lots.map((l) => l.use))].join(', ')})`); picked.push(hit); }
+  return { seed, houses, enter, town: T, lots: [...picked, ...all.filter((x) => !picked.includes(x))].slice(0, houses) };
 }
 function townStreet(town, kitId, seed0, solid = false) {
   if (!town || typeof town !== 'object') throw new Error('stage: town is { anchor?, seed?, houses?, enter?, goal?, recipe?, paint?, street? }');

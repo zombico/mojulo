@@ -108,6 +108,12 @@ describe("a town's street", () => {
     expect(shopOf(walked)).toMatchObject({ enter: 'walk', entry: expect.any(String) });
     expect(() => assembleStageScene({ ...TRAIL, town: { houses: 3, walk: 'shop' } })).toThrow(/town.walk/);
   });
+  it('enter by use: the first of each named use from the whole town stands on the street, entered, a household at its door', () => {
+    const P = assembleStageScene({ ...TRAIL, town: { houses: 3, enter: ['dwelling'] } });
+    const D = P.anchors.find((a) => (a.kind === 'building' || a.kind === 'house') && a.use === 'dwelling' && a.enter);
+    expect(D).toMatchObject({ enter: 'door' });
+    expect(() => assembleStageScene({ ...TRAIL, town: { houses: 3, enter: ['observatory'] } })).toThrow(/no observatory left/);
+  });
   it('walls: the street closed by its fortification, a gatehouse over the trail at each end, its gates open', () => {
     const W = assembleStageScene({ ...TRAIL, town: { houses: 4, enter: 1, street: true, walls: true } });
     const C = W.colliders.filter((c) => String(c.of).startsWith('town:walls'));

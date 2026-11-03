@@ -279,7 +279,8 @@ export const HOLLIN_VALE = Object.freeze({
     hollin: {
       name: 'Hollin',
       walk: { nodes: { square: { trail: true } } },
-      places: { town: true, street: { houses: 8, enter: 2, walk: ['shop'], walls: true, inside: true } },
+      // (its street: the shop and the hall walked into as part of the town, two households entered at their doors)
+      places: { town: true, street: { houses: 8, enter: ['shop', 'hall', 'dwelling', 'dwelling'], walk: ['shop'], walls: true, inside: true } },
     },
     'pine-hollow': {
       name: 'The pine hollow',

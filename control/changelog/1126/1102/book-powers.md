@@ -392,3 +392,12 @@ its resource, put on a look and showed a toast. This theme makes them act.
   `joins`) alone is the scale's own member under the book's words: `party-2: { name: 'Wren' }`. It used to be refused
   for want of a relation. Hollin Vale names its party: Aldren, Rowan, Wren and Sorrel, its hero a fighter. Unnamed, a
   member's box still reads its archetype.
+- **A street can name the uses walked into.** `places.street.enter` may be the uses walked into, not a count:
+  `['shop', 'hall', 'dwelling', 'dwelling']`. The street takes the first lot of each named use from the whole town,
+  in its own order, and enters it first. A count still reads as before, byte for byte. The street takes its lots near
+  ring first, counters before dwellings, so a market town's street was all shops and its hall: two houses entered
+  were the hall and a shop, both walked into, and no household had a door. Hollin Vale's street now enters its shop
+  and its hall as part of the town, and two households at their doors, each a room of its own.
+- **Hollin Vale's town painted from relief.** Its cube is gritty (`grit: 0.6`): the render worn to its stone, the
+  roof tiles in lapped courses, the lane in setts. A cube with no grit lays a town's paving as a flat fill, and the
+  street read as asphalt.
