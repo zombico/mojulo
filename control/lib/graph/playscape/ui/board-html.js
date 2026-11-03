@@ -274,7 +274,7 @@ export function whenWords(w) {
   if (w.kind === 'var') { const sym = { gte: '≥', gt: '>', lte: '≤', lt: '<', eq: '=', ne: '≠' }; return `${w.var} ${Object.keys(sym).filter((k) => w[k] !== undefined).map((k) => `${sym[k]} ${w[k]}`).join(' and ')}`; }
   if (w.kind === 'on') return `the bus says ${w.on}${w.match ? ` (${Object.entries(w.match).map(([k, v]) => `${k} ${v}`).join(', ')})` : ''}`;
   if (w.kind === 'ttl') return `${w.ttl} s`;
-  if (CAST_WHEN[w.kind]) return `${w.who} ${{ down: 'falls', gone: 'is sent away', spawned: 'appears', arrive: 'arrives', stuck: 'is stuck', faded: w.is ? `is no longer ${w.is}` : 'loses a status' }[w.kind]}${w.at ? ` at ${w.at}` : ''}`;
+  if (CAST_WHEN[w.kind]) return `${w.who} ${{ down: 'falls', gone: 'is sent away', spawned: 'appears', arrive: 'arrives', stuck: 'is stuck', faded: w.is ? `is no longer ${w.is}` : 'loses a status', breached: 'is breached', fell: 'comes down' }[w.kind] ?? w.kind}${w.at ? ` at ${w.at}` : ''}`;
   return 'the level starts';
 }
 const place = (p) => (Array.isArray(p) ? `[${p.slice(0, 2).join(', ')}]` : p);

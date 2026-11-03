@@ -87,6 +87,7 @@ import { crystalRigFor } from './crystal-rig.js';
 import { shineOptics } from '../polygonizer/crystal-shine.js';
 import { fxDay } from './effect-light.js';
 import { bodiesWanted } from './effect-rim.js';
+import { triggersIn } from '../worlds/controllable/trigger.js';
 const hexRgb255 = (h) => (typeof h === 'string' && /^#[0-9a-f]{6}$/i.test(h) ? [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16)) : null);
 
 
@@ -995,7 +996,7 @@ scene.add(__eQuad${i});${fxDepth ? ` __fxQuads.push(__eQuad${i});` : ''}
   // a body in the form render (gen-7: a figure's `form`) is lit along the world's sun, the live light's own travel
   const formSun = Object.values(packedFigures || {}).some((f) => f && f.rig && f.form)
     ? (Array.isArray(shadows && shadows.toLight) && shadows.toLight.length === 3 ? shadows.toLight : light && Array.isArray(light.toLight) && light.toLight[2] > 0.05 ? light.toLight : [0.55, 0.4, 0.72]) : null;
-  const controllableBlock = hasControllable ? controllableChannelScript(entityList, camera, packedFigures, { exposeBodies: !!fxNorm || !!(fire && Array.isArray(fire.sources) && fire.sources.some((x) => x.follow && Number.isFinite(x.char))) || (hasEvents && events.cast === true && (statusElements(events).length > 0 || transitKinds(events).length > 0 || bodiesWanted(events))) || (hasEvents && (events.wreck === true || events.layer0 === true || Array.isArray(events.arrive))), pilot, spectate, ai, colliders, breakables, breakPieces, ...(rupa ? { rupa } : {}), hangar, match, shadows, smoke, wreckExplodes, tutorial, aiDifficulty, lock, commander, key: shadowKey, toonInk: toonInkCfg, driveSurface, ...(screen ? { touch: true } : {}), ...(runner ? { runner } : {}), ...(seats ? { seats } : {}), gearGranted: !!(game && game.powers && Object.values(game.powers.grants || {}).some((g) => g && g.gear)), ...(formSun ? { formSun } : {})  }) : '';
+  const controllableBlock = hasControllable ? controllableChannelScript(entityList, camera, packedFigures, { exposeBodies: !!fxNorm || !!(fire && Array.isArray(fire.sources) && fire.sources.some((x) => x.follow && Number.isFinite(x.char))) || (hasEvents && events.cast === true && (statusElements(events).length > 0 || transitKinds(events).length > 0 || bodiesWanted(events))) || (hasEvents && (events.wreck === true || events.layer0 === true || Array.isArray(events.arrive))), pilot, spectate, ai, colliders, breakables, breakPieces, ...(rupa ? { rupa } : {}), hangar, match, shadows, smoke, wreckExplodes, tutorial, aiDifficulty, lock, commander, key: shadowKey, toonInk: toonInkCfg, driveSurface, ...(screen ? { touch: true } : {}), ...(runner ? { runner } : {}), ...(seats ? { seats } : {}), gearGranted: !!(game && game.powers && Object.values(game.powers.grants || {}).some((g) => g && g.gear)), ...(formSun ? { formSun } : {}), ...(hasEvents && triggersIn(events) ? { trigger: true } : {})  }) : '';
   // bespoke channels hand their finished blocks into the registry-ordered runtime section
   chBlocks.physics = physicsBlock;
   chBlocks.actions = actionsBlock;

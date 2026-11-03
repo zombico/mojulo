@@ -45,6 +45,7 @@ import { buildVanish } from './vanish.js';
 import { buildSummon } from './summon.js';
 import { buildPair } from './pair.js';
 import { buildRupa } from './rupa.js';
+import { buildTrigger } from './trigger.js';
 
 export function composeControllable(builders) {
   const E = {};
@@ -64,7 +65,7 @@ export const EMISSION = [...EMISSION_ENGINE];
 // own moves and its touch: foe.js; a downed body's disposal: vanish.js; a summoner's summons: summon.js; a pair's shared fate: pair.js; blocks that break by
 // their matter and fall by what holds them: rupa.js), so a page
 // without one keeps every byte; the live Node instance carries them all (each is a no-op on a world without its spec)
-export const EMISSION_OPT_IN = Object.freeze({ runner: buildRunner, hitstop: buildHitstop, foe: buildFoe, vanish: buildVanish, summon: buildSummon, pair: buildPair, rupa: buildRupa });
+export const EMISSION_OPT_IN = Object.freeze({ runner: buildRunner, hitstop: buildHitstop, foe: buildFoe, vanish: buildVanish, summon: buildSummon, pair: buildPair, rupa: buildRupa, trigger: buildTrigger });
 
 // The live Node instance factory (the façade composes one; tests may compose their own).
 export function composeLive() {

@@ -374,6 +374,30 @@ the recipe does not. The marks live on `state.rupa.scars.marks` (seq-keyed, the 
 as a decal and flies its debris on sim time, seeded by the mark. Without `scars`, nothing is kept and the page carries
 none of it.
 
+## Triggered breaks
+
+What a world can break, the game or the player can set off. A cue (a zone entered, a lever used, a timer, a boss's
+fall, any event on the bus) has three effects for it, and two happenings to wait on
+([`trigger.js`](../control/lib/graph/worlds/controllable/trigger.js), read in
+[`playscape/ui/cast.js`](../control/lib/graph/playscape/ui/cast.js)):
+
+- **`blast: { at, radius?, hurt? }`**: a charge at a place (a spot, an anchor, a point). It is a burst like a
+  grenade's: under `physical` its energy comes from its radius by blast scaling and each block takes its share; under
+  any other degree each block in reach takes one blow. `hurt` takes that much hp from each body inside it. Scars paint
+  it on a map that may not change.
+- **`collapse: group | { group, how?, storey?, stagger? }`**: a building comes down. `base` (the default) breaks what
+  stands within `storey` metres (3) of its foot, and the rest falls on it by the world's gravity; under `physical` the
+  landing breaks what it lands on, so a tower comes down by its own weight. `whole` breaks every block. `stagger` paces
+  the blocks, bottom up, like a demolition's charges.
+- **`break: id`**: one block, or each block of a group.
+- **`when: { breached: group }`** fires when a group's first block breaks; **`when: { fell: group }`** when half of its
+  blocks are broken or have fallen. Each fires once. `broke:<id>` still names a single block.
+
+A group is a block's id or its building's: the id before its last `:`. A fractal structure is `structure:<id>` (or its
+own id); a shell house is its id (or its anchor's, `house-<id>`). The builder is composed only onto a page whose cues
+use these, so every other page keeps its bytes. The breaks run inside the world's own step, at frame grain, seeded, so
+the same triggers give the same world.
+
 ## What holds it up
 
 The basic break pass ([`rules-basic.js`](../control/lib/graph/worlds/controllable/rules-basic.js)) still decides what

@@ -10,6 +10,9 @@
  *       | { hurt: { who, by } } | { heal: '<who>' | { who, by? } }   its body.hp
  *       | { rearm: '<who>' | { who, by? } }            rounds for its weapon (by: into its reserve; no by: a full magazine)
  *       | { walk: { who, to, speed?, then?, face?, pose? } }   a dumb path through places: straight lines, no pathfinding
+ *       | { blast: { at, radius?, hurt? } } | { collapse: group | { group, how?, storey?, stagger? } } | { break: id }
+ *                                                    the world's breaks, set off (worlds/controllable/trigger.js)
+ *   when: { breached | fell: '<group>' }              a building's first block breaks · half of it is down
  *
  * A PLACE is a spot's id, an anchor's id (the built map's) or a point [x, y]. SPOTS are action points the play
  * declares: play.spots: [{ id, at: [x, y, z?], face?: degrees, pose?: 'stand' | 'sit' | 'use' | 'talk' | 'lean' }];
@@ -41,6 +44,8 @@ export const CAST_WHEN = Object.freeze({
   faded: 'a status comes off a character: it ran out or was lifted: { faded: who } any, or { faded: { who, is } }',
   struck: 'a beam reaches a character (its id, a glob)',
   seen: 'a character with sight (rule.mind.perception) newly sees its target (its id, a glob; the target rides as target)',
+  breached: "a building's or a block's first block breaks: { breached: group } (a block's id, a structure's id, a house's id)",
+  fell: 'half of a building\'s blocks are broken or have fallen: { fell: group }',
 });
 // a world listens for hits when a reaction waits on `hit:<id>` (hp-pool lowers to one): the page then reads the
 // cast's facts, where a hit is counted, even when no cue reaches the cast
@@ -65,7 +70,12 @@ export const CAST_THEN = Object.freeze({
   shake: '{ shake: k | { k, for? } } the camera shakes, k 0..1 (0.5 a thump, 1 a quake), over for seconds (0.4), dying away',
   explode: `{ explode: who | { who? | at: place, is?, color?, scale? } } an explosion at a character's feet or a place: is a preset (${EXPLOSION_NAMES.join(', ')}), a name in play.explosions, or its parts (blast by default); scale sizes it`,
   beam: `{ beam: { who, to: who | place, is?, color? } } who fires an attack from its hand at a character or a place: is a preset (${BEAM_NAMES.join(', ')}), a name in play.beams, or its strands (orb by default); struck fires when it lands on a character`,
+  blast: '{ blast: { at: place, radius?, hurt? } } a charge goes off at a place: it breaks what the world lets break in its radius (2.5 m), as a grenade would; hurt takes that much hp from each body in it',
+  collapse: "{ collapse: group | { group, how?: 'base' | 'whole', storey?, stagger? } } a building comes down: base breaks what stands within storey metres (3) of its foot and the rest falls on it; whole breaks every block; stagger seconds between blocks, bottom up",
+  break: '{ break: id } one block breaks (or each block of a group)',
 });
+// the effects that break the world (worlds/controllable/trigger.js): no one is named, a place or a group is
+const BREAK_OPS = ['blast', 'collapse', 'break'];
 // how a character comes or goes (the page plays it on the body, or on a ghost of it as it goes)
 export const TRANSITS = Object.freeze(['smoke', 'hologram', 'scan', 'transporter', 'galvatron']);
 export const SPOT_POSES = Object.freeze(['stand', 'sit', 'use', 'talk', 'lean']);
@@ -157,6 +167,28 @@ export function readCastEffect(k, t, where, ctx = {}) {
     if (o.scale !== undefined) { if (!(Number.isFinite(o.scale) && o.scale > 0 && o.scale <= 10)) throw new Error(`${w}.scale is how big, 0.1 to 10`); out.scale = o.scale; }
     return out;
   }
+  // the world's breaks: a charge at a place, a building down, a block
+  if (k === 'blast') {
+    const o = isObj(v) ? v : null;
+    if (!o || o.at === undefined) throw new Error(`${w} is { at: place, radius?, hurt? }: a charge set off at a place`);
+    const out = { kind: 'cast', op: 'blast', who: null, at: readPlace(o.at, `${w}.at`), radius: 2.5, page: true };
+    if (o.radius !== undefined) { if (!(Number.isFinite(o.radius) && o.radius > 0 && o.radius <= 30)) throw new Error(`${w}.radius is metres, above 0 and at most 30`); out.radius = o.radius; }
+    if (o.hurt !== undefined) { if (!(Number.isFinite(o.hurt) && o.hurt > 0)) throw new Error(`${w}.hurt is the hp it takes from each body in it`); out.hurt = o.hurt; }
+    return out;
+  }
+  if (k === 'collapse') {
+    const o = isStr(v) ? { group: v } : v;
+    if (!isObj(o) || !isStr(o.group)) throw new Error(`${w} is a building's id (a structure's, a house's, a block's), or { group, how?, storey?, stagger? }`);
+    const out = { kind: 'cast', op: 'collapse', who: null, group: o.group, page: true };
+    if (o.how !== undefined) { if (!['base', 'whole'].includes(o.how)) throw new Error(`${w}.how is base (its foot goes, the rest falls) or whole (every block)`); out.how = o.how; }
+    if (o.storey !== undefined) { if (!(Number.isFinite(o.storey) && o.storey > 0)) throw new Error(`${w}.storey is metres above 0`); out.storey = o.storey; }
+    if (o.stagger !== undefined) { if (!(Number.isFinite(o.stagger) && o.stagger >= 0 && o.stagger <= 2)) throw new Error(`${w}.stagger is seconds between blocks, 0 to 2`); out.stagger = o.stagger; }
+    return out;
+  }
+  if (k === 'break') {
+    if (!isStr(v)) throw new Error(`${w} is a block's id (or a building's: each of its blocks)`);
+    return { kind: 'cast', op: 'break', who: null, id: v, page: true };
+  }
   // a shake is the camera's: no one, no place
   if (k === 'shake') {
     const o = Number.isFinite(v) ? { k: v } : v;
@@ -232,6 +264,11 @@ export function lowerCastEffect(t, on, frag, places = []) {
   if (t.by !== undefined) r.by = t.by;
   for (const k of ['is', 'for', 'color', 'with', 'into', 'shake', 'k', 'spec', 'scale']) if (t[k] !== undefined) r[k] = t[k];
   if (t.op === 'shake') delete r.who;
+  if (BREAK_OPS.includes(t.op)) {
+    delete r.who;
+    for (const k of ['radius', 'hurt', 'group', 'how', 'storey', 'stagger', 'id']) if (t[k] !== undefined) r[k] = t[k];
+    if (t.op === 'blast') { const p = placeAt(t.at, places); if (!p) return frag; r.at = p.at.slice(); }
+  }
   if (t.op === 'beam') {
     // at a place when one is called so, else at the character of that name
     const p = placeAt(t.to, places);
@@ -268,10 +305,11 @@ export function castRefs(effects, whens) {
     if (t.op === 'spawn') { spawns.add(t.who); if (isStr(t.at)) places.add(t.at); }
     if (t.op === 'vanish' || t.op === 'kill' || t.op === 'transfigure') vanished.add(t.who);
     if (t.op === 'transfigure') { who.add(t.into); spawns.add(t.into); }
-    if (t.op === 'puff' && isStr(t.at)) places.add(t.at);
+    if ((t.op === 'puff' || t.op === 'blast') && isStr(t.at)) places.add(t.at);
     if (t.op === 'walk') for (const p of t.to) if (isStr(p)) places.add(p);
   }
   // a cast happening's character, and the one a zone watches in place of the player
-  for (const w of whens) if (w && (CAST_WHEN[w.kind] || w.who) && isStr(w.who) && !w.who.includes('*')) who.add(w.who);
+  // (a building's breach or fall names a group of blocks, not a character)
+  for (const w of whens) if (w && w.kind !== 'breached' && w.kind !== 'fell' && (CAST_WHEN[w.kind] || w.who) && isStr(w.who) && !w.who.includes('*')) who.add(w.who);
   return { who: [...who], places: [...places], spawns: [...spawns], vanished: [...vanished] };
 }
