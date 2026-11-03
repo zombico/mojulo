@@ -26,7 +26,7 @@ const markRow = (era) => (mark, how) => Object.freeze({ [era]: mark, ...(how ? {
 
 /** The page inputs that hold light in their colour, or are the live light over it: the form render replaces each. */
 export const SURFACE_INPUTS = Object.freeze([
-  'faces', 'repeats', 'textures', 'resample', 'surfaces', 'terrain', 'figures', 'walkers', 'carMeshes', 'splats', 'liveGrass',
+  'faces', 'repeats', 'textures', 'resample', 'leaves', 'surfaces', 'terrain', 'figures', 'walkers', 'carMeshes', 'splats', 'liveGrass',
   'fabric', 'tone', 'toon', 'vertexContrast', 'strokeOverlay', 'ao', 'light', 'glow', 'soft', 'wetSand', 'wetRoad',
   'shallows', 'seaway', 'softGround', 'snowPrints', 'shadows', 'occlusion', 'creases', 'lightTier',
 ]);
@@ -41,7 +41,7 @@ export const NEUTRAL_INPUTS = Object.freeze([
   'breakPieces', 'hangar', 'match', 'smoke', 'wreckExplodes', 'tutorial', 'aiDifficulty', 'lock', 'commander', 'events', 'fog',
   'audio', 'fx', 'effects', 'spriteSfx', 'marks', 'driveSurface', 'shoot', 'game', 'backdrop', 'cars', 'signals',
   'trafficLanes', 'trafficConstants', 'xr', 'stream', 'haze', 'crystalLight', 'fire', 'metersPerUnit', 'cutouts', 'doors',
-  'items', 'jets', 'jetLight', 'sway', 'flicker', 'motes', 'weather', 'pack', 'pixel', 'versus', 'board', 'screen', 'runner', 'tempo',
+  'items', 'jets', 'jetLight', 'sway', 'flicker', 'motes', 'weather', 'pack', 'pixel', 'versus', 'board', 'screen', 'runner', 'tempo', 'grade',
   'science', 'hazeHeight', 'fauna', 'meet', 'court', 'turns', 'pitch', 'holo', 'innings', 'broadcasts', 'cone', 'formSky', 'air', 'soften',
 ]);
 

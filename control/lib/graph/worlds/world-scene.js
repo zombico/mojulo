@@ -21,6 +21,7 @@
 import { readScreen, screenPayload, screenFrame } from '@/lib/graph/game/screen';
 import { readRunner } from '@/lib/graph/worlds/controllable/runner';
 import { readTempo } from '@/lib/graph/worlds/controllable/world-clock';
+import { readGrade } from '@/lib/graph/scene/channels/grade';
 import { readDegree, breakablesOf, piecesOf } from '@/lib/graph/playscape/destruct/breakability';
 import { standBlocks } from '@/lib/graph/playscape/terrain';
 import { manifestGarment } from '@/lib/graph/polygonizer/figure-outfit';
@@ -150,7 +151,7 @@ export function readSeats(seats, entities, pilot = null) {
   return { bodies: seats.bodies.slice(), max, ...(seats.join ? { join: seats.join } : {}), ...(seats.drop ? { drop: seats.drop } : {}), ...(seats.floor !== undefined ? { floor: seats.floor } : {}), ...(seats.lives !== undefined ? { lives: seats.lives, pool: seats.pool ?? 'own' } : {}) };
 }
 
-export async function heroFigure(name, spec, { swing = null, swings = null } = {}) {
+export async function heroFigure(name, spec, { swing = null, swings = null, hands = false, ride = null } = {}) {
   let manifest, body;
   // a MODEL made elsewhere (`modelRef`: a sketch a rigged humanoid .glb is bound onto, stood `height` metres): its pack read
   // by scene/rig-import.js, played as a hero's is (worlds/controllable/model-figure.js)
@@ -170,7 +171,8 @@ export async function heroFigure(name, spec, { swing = null, swings = null } = {
   // `swing`: the world's game type (its composed juice's flavor), the timing the hero's swing plays at (hero-swing.js);
   // `swings`: the contact window of a body that strikes with what the hero holds (the held strike: its swing directions)
   if (!body) {
-    const scene = await WORLD_KINDS.layered.resolve(manifest, { title: name, ...(swing ? { swing } : {}), ...(swings ? { swings } : {}) });
+    // `hands`: a world a headset plays: the hero's hands as the headset draws them ride the pack (hero-xr-hands.js)
+    const scene = await WORLD_KINDS.layered.resolve(manifest, { title: name, ...(swing ? { swing } : {}), ...(swings ? { swings } : {}), ...(hands ? { xrHands: true } : {}), ...(ride ? { ride } : {}) });
     body = scene.figures && scene.figures.body;
     if (!body) throw new Error(`figures.${name}: the hero has no rig with clips to play`);
   }
@@ -264,6 +266,11 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     sketch = { ...sketch, manifest: P.manifest };
     parkedColliders = P.colliders;
   }
+
+  // a controllable world's MOUNTS (worlds/mount-units.js readMounts): its horses, read here and laid once its figures are;
+  // the solve that teaches its hero to ride them (the hero's pack's hook) kept for them. Absent ⇒ null, byte-identical
+  const mountsSpec = sketch.manifest?.kind === 'controllable' && sketch.manifest.mounts != null ? (await import('@/lib/graph/worlds/mount-units.js')).readMounts(sketch.manifest.mounts) : null;
+  let mountRide = null;
 
   // declarative scene lighting — same normalization the /scene route uses.
   const scene = sketch.manifest.scene && typeof sketch.manifest.scene === 'object' ? sketch.manifest.scene : {};
@@ -1006,7 +1013,16 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
           // class's seconds and damage (any the rule names stand). Nothing held ⇒ the body as it was.
           const wields = (e) => e && e.body && e.body.figure === name && e.rule && e.rule.type === 'platform' && Array.isArray(e.rule.strikeContact) && e.rule.strike == null;
           const wielder = (payload.entities || []).find(wields);
-          const { held, ...figure } = await heroFigure(name, rawSpec, { swing, ...(wielder ? { swings: { contact: wielder.rule.strikeContact } } : {}) });
+          // THE RIDER (a world with `mounts`, worlds/mount-units.js): the pilot playing this hero learns to ride its horses, its
+          // riding clips solved on its own rig in the pack (world-kinds.js ctx.ride). No mounts ⇒ the hero as it was
+          const rider = mountsSpec && !mountRide ? (payload.entities || []).find((e) => e && e.pilotable && e.body && e.body.figure === name) : null;
+          let ride = null;
+          if (rider) {
+            const { mountRiderSync } = await import('@/lib/graph/worlds/mount-units.js'), { mountRide: solve } = await import('@/lib/graph/mount/game.js');
+            ride = (R, dz) => { mountRide = { sol: mountRiderSync(mountsSpec, { R, dz }, solve), riderId: rider.id }; return mountRide.sol.clips; };
+          }
+          // (a world a headset plays, its own `xr` or the page's `?xr=`: the hero's hands ride its figure, hero-xr-hands.js)
+          const { held, ...figure } = await heroFigure(name, rawSpec, { swing, ...(wielder ? { swings: { contact: wielder.rule.strikeContact } } : {}), ...(sketch.manifest.xr || viewOpts.xr ? { hands: true } : {}), ...(ride ? { ride } : {}) });
           // (a body destroyed in it, `vanish.die` a dismantle or a cleave: each bone's parent rides the figure, the joints the
           // page's wreck cuts: figures/rig-tpose.js humanoidParents, read off the rest bones; a rig not a humanoid's, none)
           // (and one CLEAVED in it: its parts cut in two by a slash, scene/rig-cleave.js, seeded by the figure's name, the
@@ -1348,6 +1364,9 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
   // a stage's HERDS (era/biocube-fauna.js placeHerds, a biocube's `fauna.herds`): its animals laid after the world's own
   // entities, each species' rig built once (worlds/fauna-units.js). None ⇒ payload untouched.
   if (payload && 'faunaUnits' in payload) await lowerFaunaUnits(payload);
+  // a world's MOUNTS (worlds/mount-units.js: its `mounts`): the horses laid after its entities, their coats' figures, the
+  // hero who rides them marked (its riding clips packed above). None ⇒ payload untouched.
+  if (payload && mountsSpec) await (await import('@/lib/graph/worlds/mount-units.js')).lowerMounts(payload, mountsSpec, mountRide?.sol ?? null, { riderId: mountRide?.riderId ?? null });
 
   // generic, opt-in figure WEATHERING (materials/procedural-material.js `weatherRigParts`): the suit
   // analog of the face `material` channel. `weathering: true` (or `{ amt, seed }`) modulates every rig
@@ -1596,6 +1615,10 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
   // the ENDLESS RUNNER (worlds/controllable/runner.js): the pilot runs on its own down lanes, the rows laid ahead of it
   // as it plays; the page carries the runner's engine and view only then. Absent: every byte as it was.
   if (payload && sketch.manifest.runner != null && sketch.manifest.runner !== false) payload.runner = readRunner(sketch.manifest.runner);
+
+  // the GRADE (scene/channels/grade.js): the page's compositing stage, a word or dials; the frame pass carries it only then.
+  // Absent: every byte as it was.
+  if (payload && sketch.manifest.grade != null && sketch.manifest.grade !== false) { const G = readGrade(sketch.manifest.grade); if (G) payload.grade = G; }
 
   // the WORLD CLOCK (worlds/controllable/world-clock.js): moments that slow or hold a live world on what happens in it, the
   // camera keeping real time; the page composes the clock only then. Absent: every byte as it was.

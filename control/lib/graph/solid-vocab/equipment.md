@@ -154,7 +154,7 @@ look (a live key over materials told apart by how they reflect), by its own laws
   counter in its rear face, a smart sight). Slots: `barrel` short · standard · long (or cm), `magazine` flush ·
   extended · cell, `optic` irons · reddot, `muzzle` plain · suppressor · emitter, `underbarrel` none · light (a revolver:
   barrel, optic, muzzle).
-- **carbine** — `assault`. **rifle** — `assault`, `marksman` (a scope and a bipod), `bullpup`, and the near line's
+- **carbine** — `assault`. **rifle** — `assault`, `marksman` (a scope and a bipod), `sniper` (the marksman's receiver on the longest barrel, a long scope read at 8×), `bullpup`, and the near line's
   `caseless` (a monolithic shell over a shrouded barrel, a cassette loaded from the top, a smart sight on two posts) and
   `coilgun` (a bullpup chassis, a barrel wound with copper coils in a skeleton of rails and bulkheads, a capacitor bank
   for a magazine with its cells bare, a cable to the coils). **smg** — `compact`, and the near line's `pdw` (a

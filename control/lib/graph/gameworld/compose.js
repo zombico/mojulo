@@ -19,6 +19,7 @@
  *
  * Pure: the same prompt and seed compose the same world.
  */
+import { DEFAULT_GAUNTLET, DEFAULT_HOLDOUT } from './gauntlet.js';
 import { mulberry32 } from '../vegetation/grow.js';
 import { LAND_FORMS } from '../era/out-land.js';
 import { readGameworld, resolveLevel } from './world.js';
@@ -34,7 +35,7 @@ import { motifOf } from './tech-direction.js';
 import { ELEMENT_WORDS } from './element-words.js';
 import { CRAFTED } from './world.js';
 import { suggestFeels, FEEL_WORDS } from './feel/suggest.js';
-import { GEOCUBE_PRESETS, readGeocube, geocubeDomains } from '../era/geocube.js';
+import { GEOCUBE_PRESETS, readGeocube, geocubeDomains, cubeStreetLook } from '../era/geocube.js';
 import { suggestGenres, readGenre, cubeOfWorld, GENRES } from './intent.js';
 import { GENRE_FORMS, HAND_OFFS, refusalOf, pendingOf, heroFrameOf } from './genre-forms.js';
 import { settingOfGame } from './cast-setting.js';
@@ -43,6 +44,7 @@ import { glyphOf } from './glyph-words.js';
 import { PALETTE_PRESETS } from '../color-theorist/solve.js';
 import { SIXTH_GEN_REFERENCES, resolveLook } from '../era/sixth-gen.js';
 import { composerFills } from './resonance.js';
+import { readFoeWords, foePacks } from './foe-words.js';
 
 /**
  * What a word says about the ground. Each reading sets parts of a world's style or its civilizations: `kit`,
@@ -109,6 +111,10 @@ export const LEXICON = Object.freeze({
   relic: { 'goal.collect': 'relic' }, treasure: { 'goal.collect': 'treasure' }, coin: { 'goal.collect': 'coin' }, gem: { 'goal.collect': 'gem' }, jewel: { 'goal.collect': 'jewel' }, collect: { 'goal.collect': true },
   boss: { 'goal.boss': true }, bosses: { 'goal.boss': true },
   escape: { 'goal.escape': true }, locked: { 'goal.escape': true },
+  // (a wave gauntlet's: never `gauntlet` or `waves`, which say a glove and a tower defence)
+  horde: { 'goal.gauntlet': true }, hordes: { 'goal.gauntlet': true }, onslaught: { 'goal.gauntlet': true },
+  // (and one to endure: its waves on a clock, a time to outlast)
+  holdout: { 'goal.gauntlet': 'holdout' }, holdouts: { 'goal.gauntlet': 'holdout' },
   health: { 'goal.health': true }, lives: { 'goal.health': true }, heart: { 'goal.health': true }, hp: { 'goal.health': true },
   guard: { 'goal.guards': true }, sentry: { 'goal.guards': true }, sentries: { 'goal.guards': true }, stealth: { 'goal.guards': true }, stealthy: { 'goal.guards': true }, sneak: { 'goal.guards': true }, sneaking: { 'goal.guards': true }, unseen: { 'goal.guards': true },
   // indoors: the levels are buildings (a crypt by default), laid room by room in a room kit
@@ -182,6 +188,8 @@ export function readingOf(word, { scene = false } = {}) {
 /** The words that fall from a cliff (a landmark's falls): a fall keeps the cliff an open word would take away. */
 export const fallsWords = (P) => P.read.filter((r) => { const v = readingOf(r.word)?.['land.landmark']; return v && v[0] === 'falls'; }).map((r) => r.word);
 // a kit's nearest cube when no word names one; an airless plain has none (every cube has air)
+// the cube a prompt's levels stand on: the one its words name, else the kit's nearest (null: none has its air)
+const cubeOfWords = (P, kit) => { const w = P.words.find((x) => CUBE_WORDS[x] ?? CUBE_WORDS[x.replace(/s$/, '')]); return w ? CUBE_WORDS[w] ?? CUBE_WORDS[w.replace(/s$/, '')] : KIT_CUBE[kit] ?? null; };
 export const KIT_CUBE = Object.freeze({ 'isekai-meadow': 'island-noon', 'isekai-sakura': 'island-noon', 'isekai-garden': 'island-noon', 'isekai-bamboo': 'jungle-haze', 'alien-night': 'gothic-night' });
 
 const STOP = new Set(['with', 'from', 'into', 'over', 'under', 'that', 'this', 'their', 'there', 'where', 'some', 'very']);
@@ -289,7 +297,10 @@ export function composeGameworld({ prompt, name, id, levels, seed = 1 } = {}) {
   }
   // what no word decided, the seed does, inside the rails
   style.kit = kit ?? 'isekai-meadow';
-  if (!langs.length) langs.push(pick(rand, ['timber-hall', 'tiered', 'shell']));
+  // (who builds, where no word says: the builders of the cube the levels will stand on, so the town is drawn in the
+  // same art direction as its land (era/geocube.js cubeStreetLook); the seed's roll where the cube names none. The roll
+  // is made either way, so what the seed decides after it stays as it was)
+  if (!langs.length) { const rolled = pick(rand, ['timber-hall', 'tiered', 'shell']), cid = cubeOfWords(P, style.kit); langs.push((cid && cubeStreetLook(readGeocube(cid)).anchor) ?? rolled); }
   for (const f of ['rock', 'landmark']) if (!style.land[f]) style.land[f] = { variant: pick(rand, Object.keys(LAND_FORMS[f].variants).filter((v) => v !== 'falls')), many: pick(rand, [0, 0.25, 0.5]) };
   if (weather) style.weather = weather;
   style.meru = { preset: meru ?? pick(rand, ['mountain-lookout', 'stacked-lookout', 'terraced-mountain']) };
@@ -355,6 +366,15 @@ export function composeGameworld({ prompt, name, id, levels, seed = 1 } = {}) {
     const says = `intent.from=${genre.id}`, r = world.brief.read.find((x) => x.word === w);
     if (r) r.decides = [...r.decides, says]; else world.brief.read.push({ word: w, decides: [says] });
   }
+  // the foes the words name (foe-words.js: skeletons, orcs, beast folk…), where the world fights turn by turn: its party
+  // battles' packs walk round them, each in the look its word asks for, made through its character door
+  const foeWords = genre && [].concat(cubeOfWorld({ intent: { from: genre.id } }).cube.power?.combat ?? []).includes('turn-based') ? readFoeWords(prompt) : null;
+  if (foeWords) {
+    world.battles = { packs: foePacks(foeWords.kinds), ...(Object.keys(foeWords.looks).length ? { looks: foeWords.looks } : {}) };
+    const said = new Set(foeWords.read.flatMap((r) => r.word.split(' ')));
+    world.brief.unread = world.brief.unread.filter((w) => !said.has(w));
+    for (const r of foeWords.read) world.brief.read.push(r);
+  }
   // indoors (a dungeon, a crypt…): the levels are buildings of one use in a room kit; where the prompt also names the
   // ground outside (a kit or a land form), the first level is that ground, the way in, and the later ones the building
   const indoors = room ? (() => {
@@ -371,20 +391,34 @@ export function composeGameworld({ prompt, name, id, levels, seed = 1 } = {}) {
   }
   const goals = Object.keys(goal).length ? goal : null;
   const decided = [];
+  // a genre whose world is returned to (its cube's space.topology hub: a party RPG, a top-down adventure) is laid round a
+  // centre: the first level is the town (its street on the ground: its hall and its first shop walked into as part of
+  // the world, their keepers inside at their counters; each more one walked into takes a later house's ground; the street closed by
+  // its builders' walls, a gatehouse at each end), every other level joined to it both
+  // ways (a map
+  // world, world.js hub), each
+  // a stretch of the wilds; a building, a form or a single level is laid as before
+  const hubbed = !!genre && !form && !indoors && n >= 2 && cubeOfWorld({ intent: { from: genre.id } }).cube.space?.topology === 'hub';
+  const hubId = `${wid}-1`.slice(0, 48);
   for (let i = 0; i < n; i++) {
-    const lid = `${wid}-${i + 1}`.slice(0, 48), last = i === n - 1, climb = i % 2 === 0 && fills.climb !== false && camera !== 'side';
-    // the level's goal: what is collected and the health on every level, the boss at the end of the last; held in an
-    // escape room on every level the boss's does not end
-    const lg = goals ? (({ boss, escape, ...g }) => ({ ...g, ...(boss && last ? { boss } : escape ? { escape } : {}) }))(goals) : null;
+    const lid = `${wid}-${i + 1}`.slice(0, 48), last = i === n - 1, climb = !hubbed && i % 2 === 0 && fills.climb !== false && camera !== 'side' && !(goal.gauntlet && last && !goal.boss);
+    // the level's goal: what is collected and the health on every level, the boss at the end of the last; a horde's
+    // gauntlet at the end of the last level a boss does not end (it owns the hero's hp there, so no health); held in an
+    // escape room on every level neither ends
+    const held = goals?.gauntlet && last && !goals.boss && !(indoors && i >= indoors.from && camera !== 'side');
+    const lg = goals ? (({ boss, escape, gauntlet, health, ...g }) => ({ ...g, ...(health && !held ? { health } : {}), ...(boss && last ? { boss } : held ? { gauntlet: gauntlet === 'holdout' ? { ...DEFAULT_HOLDOUT, arenas: DEFAULT_HOLDOUT.arenas.map((A) => ({ waves: A.waves.map((W) => ({ ...W })) })) } : { arenas: DEFAULT_GAUNTLET.arenas.map((A) => ({ waves: A.waves.map((W) => ({ ...W })) })) } } : escape ? { escape } : {}) }))(goals) : null;
     const lgoal = lg && Object.keys(lg).length ? { goal: lg } : {};
     // (a side camera runs a trail's lane: a side-scroller's levels stay out of doors)
     const inside = indoors && i >= indoors.from && camera !== 'side';
     const nodes = { [`${SUFFIX[i] ?? 'stage'}-a`]: { trail: true }, [`${SUFFIX[i] ?? 'stage'}-b`]: { trail: true }, ...(climb ? { lookout: { meru: true } } : {}) };
     // (a genre's book form, genre-forms.js: its levels laid in it, a flight sim's courses; no town, no walk goal)
-    const L = form ? { name: `${form.name} ${i + 1}`, ...form.level(i, n) }
+    const L = hubbed && i === 0 ? { name: `${cap(landscape)} town`, walk: { nodes: { square: { trail: true } } }, places: { town: true, street: { houses: 6, enter: 2, walk: ['shop'], walls: true, inside: true } } }
+      : form ? { name: `${form.name} ${i + 1}`, ...form.level(i, n) }
       : inside ? { name: `${cap(indoors.use)} ${SUFFIX[i] ?? `stage ${i + 1}`}`, building: { use: indoors.use, kit: indoors.kit }, ...lgoal }
       : { name: `${cap(landscape)} ${SUFFIX[i] ?? `stage ${i + 1}`}`, walk: { nodes }, ...lgoal };
-    if (i > 0 && !inside && !form) L.places = { town: true, ...(last || n === 1 ? { castle: civIds[1] ? { civilization: civIds[1] } : true } : {}) };
+    if (i > 0 && !inside && !form && !hubbed) L.places = { town: true, ...(last || n === 1 ? { castle: civIds[1] ? { civilization: civIds[1] } : true } : {}) };
+    // (round a hub, the wilds: no town of their own, the last raising its castle)
+    if (i > 0 && hubbed && last) L.places = { castle: civIds[1] ? { civilization: civIds[1] } : true };
     // the agent checks its own work: a level whose town's laws advise is laid again on the next seed
     let s = seed * 100 + i * 7 + 1, tries = 0, laws = [];
     for (; tries < 6; tries++, s++) {
@@ -394,8 +428,10 @@ export function composeGameworld({ prompt, name, id, levels, seed = 1 } = {}) {
       if (!laws.length) break;
     }
     decided.push({ level: lid, seed: s, tries: tries + 1, laws });
-    if (i > 0) world.links.push({ from: `${wid}-${i}`.slice(0, 48), to: lid, kind: last && n > 2 ? 'gate' : 'road' });
+    if (i > 0) world.links.push({ from: hubbed ? hubId : `${wid}-${i}`.slice(0, 48), to: lid, kind: last && n > 2 ? 'gate' : 'road' });
   }
+  if (hubbed) Object.assign(world, { topology: 'interconnected', hub: hubId, start: hubId });
+  if (hubbed) world.brief.hub = hubId;
   world.brief.levels = decided;
   // what the levels are played for, and which are buildings: said only when a word decided it
   // (a genre's form: what its levels were laid as, said in the brief)
@@ -415,7 +451,7 @@ export function composeGameworld({ prompt, name, id, levels, seed = 1 } = {}) {
   // the cube: the one the words name, else the kit's nearest, drawn on the kit's own card so its flora stay; the
   // color theorist decides its colours when it is stored (color-theorist/stamp.js)
   const cubeWord = P.words.find((w) => CUBE_WORDS[w] ?? CUBE_WORDS[w.replace(/s$/, '')]);
-  const cubeId = cubeWord ? CUBE_WORDS[cubeWord] ?? CUBE_WORDS[cubeWord.replace(/s$/, '')] : KIT_CUBE[style.kit] ?? null;
+  const cubeId = cubeOfWords(P, style.kit);
   if (cubeId) {
     style.geocube = GEOCUBE_PRESETS[cubeId].outside.base === style.kit ? cubeId : { from: cubeId, outside: { base: style.kit } };
     world.brief.cube = { id: cubeId, ...(cubeWord ? { word: cubeWord } : { from: `the kit, ${style.kit}` }) };
@@ -485,7 +521,10 @@ export function composeGameworld({ prompt, name, id, levels, seed = 1 } = {}) {
   // the brief beside the words that asked for it
   if (frame) {
     const tradition = settingOfGame(readGameworld(world)).tradition ?? 'anime';
-    world.characters = { ...frame.characters, direction: { ...frame.characters.direction, tradition } };
+    // (a hub's town is lived in: its folk (folk-cast.js), each to talk to, its shopkeeper the merchant and a keeper
+    // the inn where the world's battles have them)
+    world.characters = { ...frame.characters, direction: { ...frame.characters.direction, tradition }, ...(world.hub ? { folk: true } : {}) };
+    if (frame.moves) world.moves = true;
     world.brief.hero = { genre: genre.id, vibe: frame.characters.hero.motion.vibe, powers: 'none', camera: camera ?? 'third-person', tradition };
   }
   return world;

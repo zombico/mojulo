@@ -70,7 +70,11 @@ export function bodyMap(plan) {
   // sized off its base and top: the hair rises above the top joint and stands out to its width and depth
   const hb = J.headBase, ht = plan.rig?.joints?.headTop?.at ?? J.headTop, hh = hb ? (ht ? ht[2] - hb[2] : 0.13 * ((z('neckTop') ?? 1.6) / 1.6)) : 0;
   const head = hb ? { at: [hb[0], hb[1], hb[2] + 0.85 * hh].map(r3), r: [1.1 * hh, 1.1 * hh, 0.88 * hh].map(r3) } : null;
-  return { names: new Set((plan.segments || []).map((s) => s.name.replace(/[RL]$/, ''))), head, J, torso, pelvis, ringAt, uTop, shoulder, neck: z('neckBase') ?? z('neckTop'), neckTop: z('neckTop'), waist: waist.z, hip: z('hip'), knee: z('knee'), ankle, k: (z('neckTop') ?? 1.6) / 1.6,
+  const names = new Set((plan.segments || []).map((s) => s.name.replace(/[RL]$/, '')));
+  // the tail's carrier: a chain's second link (`tail1`), a beast-kin's one tail part (`tail`), a mascot's second shape,
+  // else its only one (a brush or a thick tail drawn as one shape)
+  const tailSeg = seg('tail'), tailPart = tailSeg ? (tailSeg.kind === 'chain' ? 'tail1' : 'tail') : names.has('tail0') && !names.has('tail1') ? 'tail0' : 'tail1';
+  return { names, tailPart, head, J, torso, pelvis, ringAt, uTop, shoulder, neck: z('neckBase') ?? z('neckTop'), neckTop: z('neckTop'), waist: waist.z, hip: z('hip'), knee: z('knee'), ankle, k: (z('neckTop') ?? 1.6) / 1.6,
     thigh, arm, neckSeg, hasMeta: !!seg('metaR'), chestW, torsoW, armX, hipW, tail: z('tail0') ?? null, top: torso.stations[torso.stations.length - 1], front: (h, top) => plumb(h, top, 1), back: (h, top) => plumb(h, top, -1) };
 }
 
@@ -168,7 +172,7 @@ export const OUTFIT_KINDS = Object.freeze({
   anklets: { layer: 7, cls: 'rigid', colour: 'trim', compile: (p, B, G) => { const meta = B.hasMeta;
     return { adorn: ['R', 'L'].map((S) => ({ id: `${p.id ?? 'anklet'}${S}`, mode: 'band', part: meta ? `meta${S}` : `shin${S}`, share: true, s: meta ? [0.3, 0.48] : [0.8, 0.94], t: 'wrap', nt: 10, ns: 2, mugen: r3(0.004 * B.k), thick: r3(0.01 * B.k), rad: r3(0.03 * B.k), group: G(p), rigid: true, edge: 'roll', crown: r3(0.003 * B.k), interior: G({ colour: 'shade' }),
     signature: { kind: 'studs', r: r3(0.006 * B.k), h: r3(0.004 * B.k), count: 2, m: 6, group: G({ colour: 'trim' }) } })) }; } },
-  tailRing: { layer: 7, cls: 'rigid', colour: 'trim', compile: (p, B, G) => ({ adorn: [{ id: p.id ?? 'tailRing', mode: 'band', part: p.part ?? 'tail1', share: true, s: [0.3, 0.6], t: 'wrap', nt: 10, ns: 2, mugen: r3(0.004 * B.k), thick: r3(0.012 * B.k), rad: r3(0.03 * B.k), group: G(p), rigid: true, edge: 'roll', crown: r3(0.003 * B.k), interior: G({ colour: 'shade' }),
+  tailRing: { layer: 7, cls: 'rigid', colour: 'trim', compile: (p, B, G) => ({ adorn: [{ id: p.id ?? 'tailRing', mode: 'band', part: p.part ?? B.tailPart, share: true, s: [0.3, 0.6], t: 'wrap', nt: 10, ns: 2, mugen: r3(0.004 * B.k), thick: r3(0.012 * B.k), rad: r3(0.03 * B.k), group: G(p), rigid: true, edge: 'roll', crown: r3(0.003 * B.k), interior: G({ colour: 'shade' }),
     signature: { kind: 'studs', r: r3(0.007 * B.k), h: r3(0.005 * B.k), count: 3, m: 6, group: G({ colour: 'trim' }) } }] }) },
   // ADORNMENT THAT IS NOT GEAR (egocube/concept.js: the concept's families), each built of the kernel's own signatures.
   // FOUND: CHARMS on a cord at one hip, a bell and a bone (`charm: 'bell' | 'bone' | 'both'`); FEATHERS tied to a cord on
@@ -183,7 +187,7 @@ export const OUTFIT_KINDS = Object.freeze({
       signature: { kind: 'plume', k: 2, j: 2, spread: [-1, 0, 1], spine: [[0, 0, -0.006], [0.02, -0.02, -0.05], [0.035, -0.045, -0.12], [0.045, -0.075, -0.19], [0.048, -0.1, -0.25]].map((q) => q.map((v) => r3(v * B.k))), r: [0.012, 0.026, 0.024, 0.012].map((v) => r3(v * B.k)), m: 6, squash: [1, 0.3], group: G(p) } })) }; } },
   // TEXTILE: STREAMERS, two ribbons falling from a cord on the upper arm (the free side), or from the tail's ring
   streamers: { layer: 7, cls: 'loose', colour: 'secondary', compile: (p, B, G, I) => { const tail = p.on === 'tail', sides = tail ? [''] : p.pair ? ['R', 'L'] : [p.side ?? I.side ?? 'R'];
-    return { adorn: sides.map((S) => ({ id: `${p.id ?? 'streamers'}${S}`, mode: 'band', part: tail ? 'tail1' : `upperArm${S}`, share: true, s: tail ? [0.2, 0.3] : [0.7, 0.78], t: 'wrap', nt: 10, ns: 2, mugen: r3(0.004 * B.k), thick: r3(0.005 * B.k), group: G({ colour: 'trim' }),
+    return { adorn: sides.map((S) => ({ id: `${p.id ?? 'streamers'}${S}`, mode: 'band', part: tail ? B.tailPart : `upperArm${S}`, share: true, s: tail ? [0.2, 0.3] : [0.7, 0.78], t: 'wrap', nt: 10, ns: 2, mugen: r3(0.004 * B.k), thick: r3(0.005 * B.k), group: G({ colour: 'trim' }),
       signature: { kind: 'ribbon', k: tail ? 5 : 2, j: 2, spread: [-1, 1], spine: [[0, 0, 0], [0.012, -0.025, -0.09], [0.018, -0.045, -0.2], [0.014, -0.06, -0.32]].map((q) => q.map((v) => r3(v * B.k))), width: r3(0.034 * B.k), thick: r3(0.002 * B.k), tip: 'swallow', group: G(p) } })) }; } },
   // RITUAL: WARPAINT, painted bands on the forearms (and a stroke on the upper arm), the body's own faces, no geometry;
   // a PRAYER BAND, a cord band on the forearm carved with its runes

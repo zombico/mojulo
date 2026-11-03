@@ -120,6 +120,7 @@ import { heroDermisSpec } from '@/lib/graph/epidermis/dermal-hero';
 import { composeFace, FACE_BUCKETS, FACE_SHAPES, FACE_FEATURES, FACE_AGE } from '@/lib/graph/polygonizer/face-compose';
 import { readAncestry } from '@/lib/graph/epidermis/dermal-looks';
 import { randomInt, createHash } from 'node:crypto';
+import { keptOnDisk } from '@/lib/util/kept';
 import { solveTune, raisedEar, evenFace } from '@/lib/graph/polygonizer/head-relational';
 import { DERMIS_DIALS } from '@/lib/graph/epidermis/dermal-map';
 import { faunaBones, motionGaits, checkBehaviors } from '@/lib/graph/fauna/rig';
@@ -153,6 +154,8 @@ import { compileOutfit, OUTFIT_KIND_NAMES, uOfStation } from '../../graph/polygo
 import { tierKit } from '../../graph/polygonizer/adorn-tier.js';
 import { styleMeasures, styleCritic, chestMeasures, chestCritic } from '../../graph/polygonizer/hero-style-critic.js';
 import { stampHero, withDefaultWalk, withDefaultForm } from '../../graph/polygonizer/motion-stamp.js';
+import { withHandShapes } from '../../graph/polygonizer/hero-digits.js';
+import { servoRead } from '../../graph/polygonizer/hero-servo.js';
 import { resolveMotion } from '../../graph/gameworld/hero-vibe.js';
 
 /** Compile + audit + lower + the workbench plan gate, for the mint and the readouts. Throws with a pointer. */
@@ -190,6 +193,9 @@ export function planLayered(manifest) {
       const a = auditRig(mesh, skin, R, Object.values(clips).flat());
       if (a.badWeights || a.restIdentity > 1e-9 || a.maxPlantedDrift > 1e-9) throw new Error(`bad weights ${a.badWeights}, rest identity ${a.restIdentity}, planted drift ${a.maxPlantedDrift}`);
       rig = { bones: R.bones.length, blendedVertices: a.blended, clips: Object.keys(clips), maxLengthError: a.maxLengthError, legs: a.poses.map((p) => p.legs) };
+      // a hero's clips read against the arm's and the hand's SERVOS (hero-servo.js): every key as the player plays it, what
+      // passes a hard stop stamped; advisory (nothing refuses, a read that cannot be made says nothing), absent when none does
+      if (manifest.hero) { const sv = servoStamp(R, clips); if (sv) rig.servos = sv; }
     } catch (err) { throw new Error(`layered rig: ${err.message} — manual: get_solid_vocab({ id: 'layered' }).`); }
   }
   // a minted animal's MOTION (fauna/rig.js) pays its gates here too: every vertex bound to the species' skeleton with
@@ -215,6 +221,25 @@ export function planLayered(manifest) {
   return { mesh, stats: { ...stats, layered: { dials: mesh.dials, parts: Object.keys(mesh.parts).length, auditFailures: stats.auditFailures, ...(rig ? { rig } : {}) } } };
 }
 
+/** The SERVO STAMP of a rig's clips: { past: [{ clip, key, side, joint, value, range }] (the first 24), count, read (keys
+ * read) } over every key whose arm or hand passes a hard stop (hero-servo.js servoRead: the shoulder's cone and
+ * rotation, the elbow, the wrist; the hand's joints on a rig with digits), or null when none does. Advisory. */
+export function servoStamp(R, clips) {
+  const past = []; let read = 0;
+  for (const [clip, c] of Object.entries(clips || {})) {
+    const list = Array.isArray(c) ? c : c?.keys; if (!Array.isArray(list)) continue;
+    list.forEach((key, i) => {
+      let rd; try { rd = servoRead(R, key); read++; } catch { return; }
+      for (const [side, r] of Object.entries(rd)) {
+        const at = (joint, v) => { if (v && !v.inRange) past.push({ clip, key: i, side, joint, value: v.value, range: v.range }); };
+        at('shoulder.swing', r.shoulder.swing); at('shoulder.twist', r.shoulder.twist); at('elbow', r.elbow);
+        for (const [k, v] of Object.entries(r.wrist)) at(`wrist.${k}`, v);
+        if (r.hand) for (const [d, j] of Object.entries(r.hand)) for (const [k, v] of Object.entries(j)) at(`${d}.${k}`, v);
+      }
+    });
+  }
+  return past.length ? { past: past.slice(0, 24), count: past.length, read } : null;
+}
 /** A manifest carrying a `plan` regenerates its recipe from it; one carrying `hero` regenerates the PLAN from the hero
  * record first (`from: 'plan'` keeps a hand-edited plan and re-expands it alone). Dial values for dials the new recipe
  * lacks are dropped. */
@@ -222,7 +247,9 @@ export function expandLayeredManifest(manifest, { from = 'auto' } = {}) {
   if (!manifest?.plan && !manifest?.hero) return manifest;
   const hero = manifest.hero && from !== 'plan' ? normalizeHero(manifest.hero) : manifest.hero;
   const plan = manifest.hero && from !== 'plan' ? heroPlanOf(hero) : manifest.plan;
-  const recipe = heldIdle(expandHeroAwarePlan(plan, hero ? wornHero(hero) : hero, hero ? null : manifest.geocube), hero);
+  // a hand shape or a digit given joint by joint in a clip (hero-digits.js withHandShapes) is solved on the recipe's own rig,
+  // both sides built: a stand, a door clip and a swing's keys alike; none named ⇒ the recipe as it was
+  const recipe = withHandShapes(heldIdle(expandHeroAwarePlan(plan, hero ? wornHero(hero) : hero, hero ? null : manifest.geocube), hero));
   const known = new Set(Object.keys(recipe.dials || {}));
   const dials = Object.fromEntries(Object.entries(manifest.dials || {}).filter(([k]) => known.has(k)));
   return { ...manifest, ...(hero ? { hero } : {}), plan, recipe, dials: resolveLayeredDials(recipe.dials || {}, dials) };
@@ -314,9 +341,12 @@ function realisticRecipe(recipe, hero) {
   let kept = SLICES.get(key);
   if (kept) { SLICES.delete(key); SLICES.set(key, kept); }
   else {
-    // (realistic laws 9: a man's hip sockets brought in, body-relational-builds.js MALE_HIPS; the rig the slice reads and keeps)
-    const rig = B.hipSpan ? withHipSpan(recipe.rig, B.hipSpan) : recipe.rig, out = formSlice(B.hipSpan ? { ...recipe, rig } : recipe, validateRig(rig), B).recipe;
-    kept = { parts: reads(out.parts), removed: Object.keys(recipe.parts).filter((k) => SLICE_READS.test(k) && !out.parts[k]), rig: out.rig, dials: out.dials, ...(out.correctives ? { correctives: out.correctives } : {}) };
+    // (and under test, kept across test files: lib/util/kept.js)
+    kept = keptOnDisk('slice', key, () => {
+      // (realistic laws 9: a man's hip sockets brought in, body-relational-builds.js MALE_HIPS; the rig the slice reads and keeps)
+      const rig = B.hipSpan ? withHipSpan(recipe.rig, B.hipSpan) : recipe.rig, out = formSlice(B.hipSpan ? { ...recipe, rig } : recipe, validateRig(rig), B).recipe;
+      return { parts: reads(out.parts), removed: Object.keys(recipe.parts).filter((k) => SLICE_READS.test(k) && !out.parts[k]), rig: out.rig, dials: out.dials, ...(out.correctives ? { correctives: out.correctives } : {}) };
+    });
     SLICES.set(key, kept); if (SLICES.size > SLICES_KEPT) SLICES.delete(SLICES.keys().next().value);
   }
   const K = structuredClone(kept), parts = Object.fromEntries(Object.entries(recipe.parts).filter(([k]) => !K.removed.includes(k)));
@@ -393,21 +423,21 @@ const FACE_HAIRS = new Map();
 function faceHairOf(S, dermis, opts) {
   const key = JSON.stringify([wornHead(S), dermis, opts]);
   let H = FACE_HAIRS.get(key);
-  if (!H) { H = heroFaceHair(S, dermis, opts); FACE_HAIRS.set(key, H); if (FACE_HAIRS.size > 16) FACE_HAIRS.delete(FACE_HAIRS.keys().next().value); }
+  if (!H) { H = keptOnDisk('face-hair', key, () => heroFaceHair(S, dermis, opts)); FACE_HAIRS.set(key, H); if (FACE_HAIRS.size > 16) FACE_HAIRS.delete(FACE_HAIRS.keys().next().value); }
   return H;
 }
 /** a head's hair cards, kept by its fit, its dermis and its groom (growing them costs seconds) */
 function hairOf(S, dermis, scalp, level, budget = false, cards = false) {
   const key = JSON.stringify([wornHead(S), dermis, scalp, level, budget, cards]);
   let H = HAIRS.get(key);
-  if (!H) { H = heroHair(S, dermis, scalp, { level, budget, cards }); HAIRS.set(key, H); if (HAIRS.size > 16) HAIRS.delete(HAIRS.keys().next().value); }
+  if (!H) { H = keptOnDisk('hair', key, () => heroHair(S, dermis, scalp, { level, budget, cards })); HAIRS.set(key, H); if (HAIRS.size > 16) HAIRS.delete(HAIRS.keys().next().value); }
   return H;
 }
 /** a head's lock hair (realistic laws 10; sealed against the neck and the body under laws 14), kept as its blades are */
 function lockHairOf(S, dermis, scalp, level, stylize, seal = false) {
   const key = JSON.stringify(['locks', wornHead(S), dermis, scalp, level, stylize ?? null, ...(seal ? ['seal'] : [])]);
   let H = HAIRS.get(key);
-  if (!H) { H = heroLockHair(S, dermis, scalp, { level, budget: true, stylize, seal }); HAIRS.set(key, H); if (HAIRS.size > 16) HAIRS.delete(HAIRS.keys().next().value); }
+  if (!H) { H = keptOnDisk('hair', key, () => heroLockHair(S, dermis, scalp, { level, budget: true, stylize, seal })); HAIRS.set(key, H); if (HAIRS.size > 16) HAIRS.delete(HAIRS.keys().next().value); }
   return H;
 }
 /** THE HAIR'S RUNG (dermal-hair.js HAIR_LADDER, the grass's ladder): by the head's height on screen under the hero's
@@ -420,7 +450,7 @@ const HEAD_SHARE = 7;
 function jewelleryOf(S, piercings) {
   const key = JSON.stringify([wornHead(S), piercings]);
   let J = JEWELS.get(key);
-  if (!J) { J = heroJewellery(S, piercings); JEWELS.set(key, J); if (JEWELS.size > 16) JEWELS.delete(JEWELS.keys().next().value); }
+  if (!J) { J = keptOnDisk('jewels', key, () => heroJewellery(S, piercings)); JEWELS.set(key, J); if (JEWELS.size > 16) JEWELS.delete(JEWELS.keys().next().value); }
   return J;
 }
 function relationalHeadOn(S, sex, face = null, { oneSkin = false, rung = null, column = false, ear = false, seat = false, teeth = false, even = false, squeeze = false, periorbital = false } = {}) {
@@ -432,17 +462,18 @@ function relationalHeadOn(S, sex, face = null, { oneSkin = false, rung = null, c
   const key = JSON.stringify([S.parts.neck, S.parts.cranium, S.parts.jaw, S.rig.joints, sex, own, oneSkin, rung, ...(column ? ['column'] : []), ...(seat ? [seat === true ? 'seat' : `seat${seat}`] : []), ...(teeth ? ['teeth'] : [])]);
   let d = HEADS.get(key);
   if (d) { HEADS.delete(key); HEADS.set(key, d); }
-  else {
+  else d = keptOnDisk('head', key, () => {
     const opts = { ...(rung ? { oneSkin: ONE_SKIN_RUNGS[rung] } : {}), ...(column ? { column: true } : {}) };
     const r = relationalHeadRecipe(S, { sex, ...own, oneSkin, ...(seat ? { seat } : {}), ...(teeth ? { teeth: true } : {}), ...(Object.keys(opts).length ? { opts } : {}) });
-    d = {
+    return {
       parts: Object.fromEntries(Object.entries(r.parts).filter(([k, p]) => JSON.stringify(p) !== JSON.stringify(S.parts[k]))),
       removed: Object.keys(S.parts).filter((k) => !r.parts[k]), creases: r.creases, dropped: Object.keys(S.dials || {}).filter((k) => !r.dials?.[k]), joints: r.rig.joints, headFit: r.headFit,
       // (a dial the head re-aimed: the one skin's parts in place of the cranium and the jaw)
       redialled: Object.fromEntries(Object.entries(r.dials || {}).filter(([k, v]) => S.dials?.[k] && JSON.stringify(v) !== JSON.stringify(S.dials[k]))),
     };
-    HEADS.set(key, d); if (HEADS.size > SLICES_KEPT) HEADS.delete(HEADS.keys().next().value);
-  }
+  });
+  // (kept across test files too: lib/util/kept.js)
+  if (!HEADS.has(key)) { HEADS.set(key, d); if (HEADS.size > SLICES_KEPT) HEADS.delete(HEADS.keys().next().value); }
   const D = structuredClone(d), parts = Object.fromEntries(Object.entries(S.parts).filter(([k]) => !D.removed.includes(k)));
   const dials = S.dials ? Object.fromEntries(Object.entries(S.dials).filter(([k]) => !D.dropped.includes(k)).map(([k, v]) => [k, D.redialled?.[k] ?? v])) : S.dials;
   // (the teeth's and the tongue's colours, laws 12: MOUTH_PALETTE)

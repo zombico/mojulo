@@ -15,11 +15,11 @@
  * Pure. Reads the recipe as written (gameworldOf), not the resolved book.
  */
 import { gameworldSamples, SAMPLE_PAGES } from './samples.js';
-import { MEADOWMARK_HERO } from './examples.js';
+import { MEADOWMARK_HERO, HOLLIN_VALE } from './examples.js';
 import { briefText } from './bible-html.js';
 
 /** The reference worlds the creator may ask to see (made on request, compared after creation): the test fixtures. */
-export const REFERENCES = Object.freeze({ meadowmark: MEADOWMARK_HERO });
+export const REFERENCES = Object.freeze({ meadowmark: MEADOWMARK_HERO, 'hollin-vale': HOLLIN_VALE });
 export const SAMPLE_SEEDS = 8;
 
 const lower = (v) => (typeof v === 'string' ? v.toLowerCase() : v);

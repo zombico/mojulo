@@ -132,7 +132,8 @@ at any depth, its deep sweeps, and the critical tier for a config change (`scrip
 `--list` shows the pick). Add `test:critical` for a change to the MCP surface, a pin or a guard, and `test:e2e` only
 for a gameworld, city, game or structure kernel change. Do not run whole folders or the whole suite locally. The
 whole suite, `test:deep` and `test:e2e` run in CI, sharded, on every PR, on pushes to `main` and the
-release-candidate branches (`*-consolidated`), and on demand for any branch (the workflow's manual run). Before merging
+release-candidate branches (`*-consolidated`), and on demand for any branch (the workflow's manual run): the whole suite on
+Node 22, the critical tier and its byte pins on the other runtimes (22.14.0, 24, macOS). Before merging
 a branch into a release candidate, merge the candidate into it, push it and open a pull request from it into the
 candidate: the workflow runs on every pull request (the whole suite, the deep sweeps and the e2e tier, sharded); land it
 on green by fast-forwarding the candidate (work on the next branch meanwhile). A prose-only branch needs no run. CI then runs everything again on the candidate's push, and a red there is the next fix. A module that reads files beside it is declared in

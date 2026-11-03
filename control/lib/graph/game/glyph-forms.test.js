@@ -4,15 +4,15 @@ import { GLYPH_FORMS, GLYPH_IDS, glyphFormFaces, lowerGlyphBodies } from './glyp
 import { getGlyphVocabCatalog, listGlyphVocab } from './glyph-cards/loader.js';
 
 describe('glyph-forms — the form shelf (game-ui-language U1)', () => {
-  it('ships the eight forms with complete metadata', () => {
-    expect(GLYPH_IDS).toEqual(['gem', 'coin', 'key', 'heart', 'star', 'orb', 'flag', 'skull']);
+  it('ships the eight icons and the rhythm notes, with complete metadata', () => {
+    expect(GLYPH_IDS).toEqual(['gem', 'coin', 'key', 'heart', 'star', 'orb', 'flag', 'skull', 'note-up', 'note-down', 'note-left', 'note-right', 'note-any']);
     for (const id of GLYPH_IDS) {
       const row = GLYPH_FORMS[id];
       expect(row.name).toBeTruthy();
       expect(row.summary).toBeTruthy();
       expect(row.when).toBeTruthy();
       expect(row.tint).toMatch(/^#[0-9a-f]{6}$/i);
-      expect(['radial', 'radial-5', 'radial-6', 'bilateral']).toContain(row.symmetry);
+      expect(['radial', 'radial-4', 'radial-5', 'radial-6', 'bilateral']).toContain(row.symmetry);
       expect(['bob', 'spin-bob']).toContain(row.idle);
       expect(row.fit.height).toBeGreaterThan(0);
       expect(row.fit.cz).toBeGreaterThan(0);
@@ -102,6 +102,25 @@ describe('glyph-cards — generated vocabulary', () => {
   it('index rows carry routing fields only', () => {
     for (const row of listGlyphVocab()) {
       expect(Object.keys(row).sort()).toEqual(['id', 'name', 'summary', 'when']);
+    }
+  });
+
+  it('a note arrow points the way of its cut for whoever faces any side of it', () => {
+    // each side's mark: its tip (the vertex farthest from the mark's middle) off the side's centre, in that side's own
+    // right and up (the viewer facing it); up a note-up's, right a note-right's, from every side alike
+    const sides = [[[0, 1, 0], [-1, 0, 0]], [[0, -1, 0], [1, 0, 0]], [[1, 0, 0], [0, 1, 0]], [[-1, 0, 0], [0, -1, 0]]];
+    const want = { up: [0, 1], down: [0, -1], left: [-1, 0], right: [1, 0] };
+    for (const [dir, w] of Object.entries(want)) {
+      const marks = glyphFormFaces(`note-${dir}`).filter((f) => f.fill === '#ffffff');
+      expect(marks).toHaveLength(4);
+      for (const [n, r] of sides) {
+        const m = marks.find((f) => f.outNormal.every((v, i) => v === n[i]));
+        const c = m.corners.reduce((a, p) => a.map((x, i) => x + p[i] / m.corners.length), [0, 0, 0]);
+        const tip = m.corners.reduce((a, p) => (Math.hypot(...p.map((x, i) => x - c[i])) > Math.hypot(...a.map((x, i) => x - c[i])) ? p : a));
+        const d = tip.map((x, i) => x - c[i]), u = d[0] * r[0] + d[1] * r[1], v = d[2];
+        expect(Math.sign(Math.round(u * 100)), `${dir} side ${n}`).toBe(w[0]);
+        expect(Math.sign(Math.round(v * 100)), `${dir} side ${n}`).toBe(w[1]);
+      }
     }
   });
 });

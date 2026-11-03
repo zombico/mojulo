@@ -17,7 +17,7 @@
  *     max?, from? } }, order: [stat ids, a derived one after what it reads], resources: { id: { start, cap? } },
  *     level: { start, max, xp: [total xp to reach start + 1, …], each?, at? } | null, epochs: [{ id, level?, cost?,
  *     requires? }], nodes: { id: { parent?, opens, epoch?, requires?, cost, ranks, growth, gives? } }, offers: { id:
- *     { cost, gives, requires?, max? } }, bodies: { hpMax?, speed? } | null }
+ *     { cost, gives, requires?, max? } }, bodies: { hpMax?, speed?, power? } | null }
  *   vars: `<holder>.<stat>` the EFFECTIVE value (base + Σ add) × (1 + Σ pct) × Π mul, held to min / max;
  *     `<holder>.<stat>.base` what raises move (a derived stat has none: its formula is its base); `<holder>.<key>` a
  *     resource, level, xp, epoch (its id), a node's rank, an offer's count; `<holder>.<node>.open` 1 while buyable
@@ -254,7 +254,8 @@ export function buildStats() {
 
   /**
    * The waiting body changes onto the character world's entities (after the tick, beside the cast's ops): hpMax (a rise
-   * adds the difference to hp; a fallen body stays down), speed (its rule's pace). A holder with no character: nothing.
+   * adds the difference to hp; a fallen body stays down), speed (its rule's pace), power (what its attacks hurt by: a
+   * cast beam's `hurt: { by: 'power' }`). A holder with no character: nothing.
    */
   function applyBodies(S, world) {
     const q = S._statBodyOps;
@@ -270,6 +271,7 @@ export function buildStats() {
         else if (!e.downed) e.body.hp = Math.min(o.hpMax, e.body.hp + (was != null && o.hpMax > was ? o.hpMax - was : 0));
       }
       if (Number.isFinite(o.speed) && o.speed > 0 && e.rule) e.rule.speed = o.speed;
+      if (Number.isFinite(o.power) && o.power >= 0) e.power = o.power;
     }
   }
 

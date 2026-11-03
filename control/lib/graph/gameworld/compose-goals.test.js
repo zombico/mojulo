@@ -70,7 +70,11 @@ describe('composed goals: what a level is played for, read from the prompt', () 
     // (a composed world writes its juice, 'auto', since juice styling: the print is the world's without it)
     expect(w.juice).toBe('auto');
     const { juice: _j, ...unjuiced } = w;
-    expect(fingerprint(unjuiced)).toBe('31e98788');
+    // (re-pinned 2026-11-02, 1102-book-powers: a composed world's builders are its cube's where the prompt names no
+    // language (gameworld/compose.js: the cube's builders become the anchor, so its town is drawn in the art direction it
+    // stands in): this haunted forest's gothic-night cube builds tiered, so its civilization is the tiered folk, not a
+    // rolled shell folk; nothing else in the world moved, 31e98788 -> ed00debc)
+    expect(fingerprint(unjuiced)).toBe('ed00debc');
     // (the game order now asks for the audit, its levels being reach-exit (first-frame checks, runner.js): the orders
     // without that one flag are the print taken before levels could carry a goal)
     const orders = runSteps(unjuiced, { ref: 'gw' }).map((s) => s.order);
@@ -90,10 +94,17 @@ describe('composed goals: what a level is played for, read from the prompt', () 
     // order carries moved; the levels build as before, their trails, climbs and walk the same, b771729c -> 0e1c91bc)
     expect(fingerprint(unaudited(orders))).toBe('0e1c91bc');
     expect(fingerprint(unaudited(runSteps({ ...MEADOWMARK, mode: 'autonomous', review: undefined }, { ref: 'gw' }).map((s) => s.order)))).toBe('9ad2a5b7');
+    // (re-pinned 2026-11-02, 1102-book-powers: the hero's powers act. Its attack power's key fires its beam at the
+    // nearest foe in front (0b5f8e90 -> f11ad354), and a later stage's power fires only once its node is gained, its
+    // refusal said (f11ad354 -> bef8c054); its attack's hurt follows the power stat as it rises, the stats binding the
+    // power stat to the hero's body (bef8c054 -> 88aa4298); every level that plays takes the book's one UI direction,
+    // its seed the world's, in place of a fresh one each (88aa4298 -> 8db45f48); the levels' cues, stats and ui moved)
     // (re-pinned 2026-11-02, 1102-book-gates: a hero's chase is laid long by the follow camera's stand-off
     // (playscape/hero-chase.js), so the hero world's level orders carry its camera at 8.45 / 2.948, and nothing else
     // moved, 0b5f8e90 -> 4246de56; the hero-less worlds above are unchanged)
-    expect(fingerprint(unaudited(runSteps(MEADOWMARK_HERO, { ref: 'gw' }).map((s) => s.order)))).toBe('4246de56');
+    // (re-pinned 2026-11-03 at the merge of 1026-consolidated into 1102-book-powers: both of the above at once, the
+    // powers' orders with the chase's camera, 8db45f48 | 4246de56 -> 2c76a7f0)
+    expect(fingerprint(unaudited(runSteps(MEADOWMARK_HERO, { ref: 'gw' }).map((s) => s.order)))).toBe('2c76a7f0');
   }, 300000);
 
   it('a dungeon is indoors: building levels in a room kit, the goals laid in their rooms, made by the run', () => {
@@ -140,7 +151,7 @@ describe('composed goals: what a level is played for, read from the prompt', () 
     const lv = (goal, extra = {}) => ({ ...MEADOWMARK, levels: { ...MEADOWMARK.levels, 'meadow-ascent': { ...MEADOWMARK.levels['meadow-ascent'], goal } }, ...extra });
     expect(readGameworld(lv({ collect: 'coin', boss: true, health: true })).levels['meadow-ascent'].goal).toEqual({ collect: 'coin', boss: true, health: true });
     expect(() => readGameworld(lv({}))).toThrow(/at least one/);
-    expect(() => readGameworld(lv({ treasure: true }))).toThrow(/not a level goal \(collect, boss, health, guards, escape\)/);
+    expect(() => readGameworld(lv({ treasure: true }))).toThrow(/not a level goal \(collect, boss, health, guards, escape, gauntlet\)/);
     expect(() => readGameworld(lv({ collect: 'Big Gems' }))).toThrow(/one lower-case word/);
     expect(() => readGameworld(lv({ boss: 2 }))).toThrow(/boss is true/);
     // a book's world: its hero fights the boss, the goal's play beside the systems' own

@@ -94,7 +94,7 @@ it, in the cube's style. A different style is a different cube (`{ from: <preset
   quoins: null } }`: a whole element with its `kind` replaces, null drops). Openings are built where the language
   writes them: a light's `frame` (0–0.2 m), `glazing` (lattice, sash, casement, plate; arabesque a star screen,
   ornamental leading, stained glass) and `trim`; a door's `leaf` (boards, panels, glazed), `surround` (frame,
-  pilasters, hood), `fanlight` (rect, arch) and `steps` (0–3); shutters' `form` (boards, louvred). `materials` a
+  pilasters, hood), `fanlight` (rect, arch) and `steps` (0–3); shutters' `form` (boards, louvred; persiana, panelled, ledged: a leaf's relief, marched near the eye). `materials` a
   word per surface (plaster, stone, timber, plinth, roof; a city's punched, pier, banded, grid, road, walk), e.g.
   limewash, rubble, hand-brick, adobe, clay-tile, thatch, wire-brick, precast, concrete, glass; `palette` a colour per
   surface; `city` its grain (`paris`, `tokyo`…) and a grammar's changes. The specimen writes its

@@ -20,6 +20,7 @@
 // Absent both => NOT emitted. `window.__mojFrame` is the probe: { air, soften (css px, live), passes, set({ air?, soften? }) }.
 import { safeJson } from '../emit-util.js';
 import { atmosphereGlsl } from './atmosphere.js';
+import { gradeGlsl, gradePageScript } from './grade.js';
 
 /** The pass's measures: its taps, and the crust's ramp (none at the reach, its most at `span` reaches), the reach on a
  *  page without a view cone. */
@@ -71,17 +72,29 @@ void main() {
 }
 `;
 
+// the composite with the grade (channels/grade.js) laid last: the softened far (when the air or the crust ask) is what the
+// grade reads, else the frame as drawn
+const gradedFrag = (air, soften) => (air || soften
+  ? compositeFrag(air, soften).replace('void main() {', 'vec4 softened( vec2 vUv ) {').replace('if ( r0 < 0.3 ) { gl_FragColor = c0; return; }', 'if ( r0 < 0.3 ) return c0;').replace('gl_FragColor = vec4( acc / wsum, c0.a );', 'return vec4( acc / wsum, c0.a );') + `vec4 gradeBase( vec2 uv ) { return softened( uv ); }
+`
+  : `uniform sampler2D tC;
+uniform vec2 uRes;
+varying vec2 vUv;
+vec4 gradeBase( vec2 uv ) { return texture2D( tC, uv ); }
+`) + `${gradeGlsl()}void main() { gl_FragColor = gradeFrame( vUv ); }
+`;
+
 /** The frame pass's page source, right after the scene is made; `air` an atmosphereInput (its blur over 0) or null,
  *  `soften` the crust's css pixels or 0. Nothing when neither asks. */
-export function framePassScript({ air = null, soften = 0 } = {}) {
-  const A = air && air.blur > 0 ? air : null, S = soften > 0 ? soften : 0;
-  if (!A && !S) return '';
+export function framePassScript({ air = null, soften = 0, grade = null } = {}) {
+  const A = air && air.blur > 0 ? air : null, S = soften > 0 ? soften : 0, G = grade ? (grade === true ? {} : grade) : null;
+  if (!A && !S && !G) return '';
   return `
-// --- the frame pass: the far softened${A ? ' by the air' : ''}${A && S ? ' and' : ''}${S ? ' past the crust' : ''} (channels/frame-pass.js) ---
+// --- the frame pass: ${A || S ? 'the far softened' : ''}${A ? ' by the air' : ''}${A && S ? ' and' : ''}${S ? ' past the crust' : ''}${G ? `${A || S ? ', ' : ''}the grade` : ''} (channels/frame-pass.js) ---
 (function () {
   const FP = ${safeJson({ air: A ? { blur: A.blur, from: A.from, sigma: A.sigma } : null, soften: S, reach: FRAME_PASS.reach })};
   const probe = window.__mojFrame = { air: FP.air ? FP.air.blur : 0, soften: FP.soften, passes: 0,
-    set(o) { if (o && Number.isFinite(o.air)) this.air = Math.max(0, o.air); if (o && Number.isFinite(o.soften)) this.soften = Math.max(0, o.soften); return this; } };
+    set(o) { if (o && Number.isFinite(o.air)) this.air = Math.max(0, o.air); if (o && Number.isFinite(o.soften)) this.soften = Math.max(0, o.soften); return this; } };${G ? gradePageScript(G) : ''}
   const ext = renderer.extensions;
   if (!(ext.has('EXT_color_buffer_float') || ext.has('EXT_color_buffer_half_float'))) return;
   const gl = renderer.getContext(), aa = !!(renderer.getContextAttributes() || {}).antialias;
@@ -89,13 +102,13 @@ export function framePassScript({ air = null, soften = 0 } = {}) {
   // (three tone-maps and encodes a target only as it does the canvas when the target is marked as an XR one)
   RT.texture.colorSpace = THREE.SRGBColorSpace; RT.isXRRenderTarget = true;
   const BU = { tC: { value: RT.texture }, tD: { value: RT.depthTexture }, uRes: { value: new THREE.Vector2() }, uLogF: { value: 1 }, uFrom: { value: FP.air ? FP.air.from : 0 }, uPx: { value: 0 },
-    uS: { value: FP.air ? FP.air.sigma : 0 }, uSoft: { value: 0 }, uReach: { value: FP.reach }, uEye: { value: new THREE.Vector3() }, uProjInv: { value: new THREE.Matrix4() }, uCamW: { value: new THREE.Matrix4() } };
+    uS: { value: FP.air ? FP.air.sigma : 0 }, uSoft: { value: 0 }, uReach: { value: FP.reach }, uEye: { value: new THREE.Vector3() }, uProjInv: { value: new THREE.Matrix4() }, uCamW: { value: new THREE.Matrix4() }${G ? ', uG0: { value: new THREE.Vector4() }, uG1: { value: new THREE.Vector4() }, uG2: { value: new THREE.Vector4() }, uG3: { value: new THREE.Vector3() }' : ''} };
   const q = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), new THREE.ShaderMaterial({ uniforms: BU, depthTest: false, depthWrite: false, toneMapped: false,
-    vertexShader: 'varying vec2 vUv;\\nvoid main() { vUv = uv; gl_Position = vec4( position.xy, 0.0, 1.0 ); }', fragmentShader: ${JSON.stringify(compositeFrag(A, S))} }));
+    vertexShader: 'varying vec2 vUv;\\nvoid main() { vUv = uv; gl_Position = vec4( position.xy, 0.0, 1.0 ); }', fragmentShader: ${JSON.stringify(G ? gradedFrag(A, S) : compositeFrag(A, S))} }));
   q.frustumCulled = false;
   const BS = new THREE.Scene(), BC = new THREE.Camera(), R0 = renderer.render.bind(renderer), sz = new THREE.Vector2();
   renderer.render = function (s, cam) {
-    if (s !== scene || (probe.air <= 0 && probe.soften <= 0) || renderer.getRenderTarget() !== null || !cam.isPerspectiveCamera || (renderer.xr && renderer.xr.isPresenting)) return R0(s, cam);
+    if (s !== scene || ${G ? '(probe.air <= 0 && probe.soften <= 0 && !grade.on())' : '(probe.air <= 0 && probe.soften <= 0)'} || renderer.getRenderTarget() !== null || !cam.isPerspectiveCamera || (renderer.xr && renderer.xr.isPresenting)) return R0(s, cam);
     renderer.getDrawingBufferSize(sz);
     if (RT.width !== sz.x || RT.height !== sz.y) RT.setSize(sz.x, sz.y);
     // (the scene's hooks see the frame as drawn to the canvas: a hook that stands down for a prepass's target still runs)
@@ -107,7 +120,8 @@ export function framePassScript({ air = null, soften = 0 } = {}) {
     BU.uRes.value.copy(sz); BU.uLogF.value = Math.log2(cam.far + 1); BU.uPx.value = probe.air * dpr; BU.uSoft.value = probe.soften * dpr; BU.uReach.value = reach;
     if (FP.air) { BU.uFrom.value = Math.max(FP.air.from, window.__mojCone ? window.__mojCone.reach : 0); BU.uS.value = scene.fog ? scene.fog.density : FP.air.sigma; }
     BU.uEye.value.setFromMatrixPosition(cam.matrixWorld); BU.uProjInv.value.copy(cam.projectionMatrixInverse); BU.uCamW.value.copy(cam.matrixWorld);
-    R0(BS, BC); probe.passes++;
+${G ? `    __gradeU(BU, (window.__mojClock != null ? window.__mojClock : performance.now()) / 1000);
+` : ''}    R0(BS, BC); probe.passes++;
   };
   BS.add(q);
 })();

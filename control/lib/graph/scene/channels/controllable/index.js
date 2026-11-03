@@ -13,6 +13,7 @@ import { buildSeatsKernel } from '../../../controls/seats-kernel.js';
 import { touchLayout, touchScript } from './touch.js';
 import { runnerViewScript } from './runner-view.js';
 import { followPullIn } from './follow-pull-in.js';
+import { gunplayScript } from './gunplay-view.js';
 
 // In-page script: the CONTROLLABLE channel — the unified "control a thing in a world" primitive
 // (controllable-world.plan.md). One model (entities = transform + rule + body; the camera is an
@@ -148,13 +149,15 @@ window.__mojSeatRings = () => Object.keys(__seatRing).map((n) => ({ n: +n, color
 `;
 }
 
-export function controllableChannelScript(entities, camera, figures, { exposeBodies = false, pilot = null, spectate = null, ai = null, colliders = null, breakables = null, breakPieces = null, hangar = null, match = null, shadows = null, smoke = null, wreckExplodes = null, tutorial = null, aiDifficulty = null, lock = null, commander = null, key = null, toonInk = null, driveSurface = null, touch = false, runner = null, gearGranted = false, seats = null, formSun = null, tempo = null } = {}) {
+export function controllableChannelScript(entities, camera, figures, { exposeBodies = false, pilot = null, spectate = null, ai = null, colliders = null, breakables = null, breakPieces = null, hangar = null, match = null, shadows = null, smoke = null, wreckExplodes = null, tutorial = null, aiDifficulty = null, lock = null, commander = null, key = null, toonInk = null, driveSurface = null, touch = false, runner = null, gearGranted = false, seats = null, formSun = null, acts = false, tempo = null, xr = false } = {}) {
   // per-vertex specular (material-response): inject the aSpec wiring into the rig-figure
   // builder ONLY when some packed figure carries a spec buffer (a material-finished suit).
   // Absent → the emitted controllable channel is byte-identical (the char-net pin holds),
   // matching how specularChannelScript itself is gated in scene-three.js.
   // the TOUCH layer (touch.js): a game made for a screen draws a virtual pad, laid out for its pilot and camera
   const touchLayer = touch ? touchLayout(entities, camera, { runner: !!runner }) : null;
+  // a shooter's carried arms (gunplay.js, gunplay-view.js): a body whose rule says gunplay; absent, nothing is emitted
+  const gunplay = entities.some((e) => e && e.rule && e.rule.gunplay);
   // a level whose only minds are its fauna (era/biocube-fauna.js: each `fauna: true`, passive) has nothing to attack:
   // no AI-attack button. Any other mind ⇒ the button, byte-identical.
   const ais = (entities || []).filter((e) => e && ((e.ambientRule && e.ambientRule.type === 'ai') || (e.rule && e.rule.type === 'ai')));
@@ -227,6 +230,9 @@ function __updateGearLines() {
   // each part's `uv`): its bone meshes drawn on the atlas (texel × the part's lit colour), as the World page draws it.
   // No painted body → the emitted channel is byte-identical.
   const figHasPaint = Object.values(figures || {}).some((f) => f && f.rig && f.paintTex && Array.isArray(f.parts) && f.parts.some((p) => p && p.uv));
+  // a SKINNED body (the mount, lib/graph/mount/game.js: one welded skin, `skin` and its parts' joints and weights): its bones
+  // drive ONE skinned mesh (a rigid part a bone would tear the skin at every joint). None ⇒ not a byte of it
+  const figHasSkin = Object.values(figures || {}).some((f) => f && f.rig && f.skin === true && Array.isArray(f.parts) && f.parts.some((p) => p && p.jnt && p.wgt));
   // a body with MODES (worlds/controllable/vanish.js): each mode's figure built up front as a loadout's are, the sync's
   // variant swap showing the one it is in. None ⇒ the body as it was, byte for byte
   const hasModes = (entities || []).some((e) => e && e.body && Array.isArray(e.body.modes) && e.body.modes.length > 1);
@@ -557,10 +563,14 @@ window.__mojCommanderPorts = __mojCmd;   // headless verification: ports + curre
   requestAnimationFrame(tick);
 })();
 ` : '';
+  // (a tempo whose moments carry a look: the page lays it over the grade)
+  const tempoLook = !!(tempo && Array.isArray(tempo.moments) && tempo.moments.some((m) => m && m.look));
   return `
-const __CW = ${emissionSource({ ...(runner ? { runner: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.hitstop) ? { hitstop: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.foe) ? { foe: true } : {}), ...(entities.some((e) => e && e.body && e.body.vanish) ? { vanish: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.summon) ? { summon: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.pair) ? { pair: true } : {}), ...(tempo ? { clock: true } : {}) })};
+const __CW = ${emissionSource({ ...(runner ? { runner: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.hitstop) ? { hitstop: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.foe) ? { foe: true } : {}), ...(entities.some((e) => e && e.body && e.body.vanish) ? { vanish: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.summon) ? { summon: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.pair) ? { pair: true } : {}), ...(xr ? { sweep: true } : {}), ...(entities.some((e) => e && e.mount) ? { mount: true } : {}), ...(tempo ? { clock: true } : {}) , ...(gunplay ? { gunplay: true } : {}) })};
 const __world = __CW.createWorld({ entities: ${safeJson(entities)}, camera: ${safeJson(camera)}, pilot: ${safeJson(pilot)}${spectate ? ', spectate: true' : ''}${seats ? `, seats: ${safeJson(seats)}` : ''}, ai: ${safeJson(ai)}, colliders: ${safeJson(colliders)}${breakables ? `, breakables: ${safeJson(breakables)}` : ''}, match: ${safeJson(match)}${wreckExplodes ? `, wreckExplodes: ${safeJson(wreckExplodes)}` : ''}${tutorial ? `, tutorial: ${safeJson(tutorial)}` : ''}${aiDifficulty ? `, aiDifficulty: ${safeJson(aiDifficulty)}` : ''}${lock ? `, lock: ${safeJson(lock)}` : ''}${runner ? `, runner: ${safeJson(runner)}` : ''}${tempo ? `, tempo: ${safeJson(tempo)}` : ''} });
-${commanderBlock}${flyHudBlock}${(() => {
+${xr ? `// the headset (channels/xr.js): set while a session plays the game, { pad, input, hides }; null, the page's own devices
+let __xrCtl = null;
+` : ''}${commanderBlock}${flyHudBlock}${(() => {
     const pooled = poolFigureBuffers(figures || {});
     if (!pooled.pool.length) return `const __FIG = ${safeJson(figures || {})};   // name → packed baked figure frames (pos/col b64, origin, invScale, foot)`;
     return `const __FIGPOOL = ${safeJson(pooled.pool)};   // shared packed buffers (deduped across figures — livery variants)
@@ -684,8 +694,35 @@ function __rigFace(rig, clipName, phase) {
 }
 ` : ''}${figHasPaint ? `// the painted body's atlas, once per figure (shared by every entity wearing it)
 function __rigTex(fig) { if (!fig.__tex) { fig.__tex = new THREE.TextureLoader().load(fig.paintTex.url); fig.__tex.colorSpace = THREE.SRGBColorSpace; } return fig.__tex; }
+` : ''}${figHasSkin ? `// a SKINNED rig: its bones (posed by the sync as a rigid rig's bone meshes are) drive one skinned mesh bound at the rest,
+// every part's corners in it with their joints and weights; it never raycasts (no footing, no target)
+function __makeSkinGroup(fig, b, group) {
+  const bones = fig.bones.map(() => { const o = new THREE.Bone(); o.matrixAutoUpdate = false; group.add(o); return o; });
+  let n = 0; for (const P of fig.parts) if (P) n += P.faces * 3;
+  const pos = new Float32Array(n * 3), col = new Uint8Array(n * 3), jnt = new Uint16Array(n * 4), wgt = new Float32Array(n * 4);
+  let o = 0;
+  for (const P of fig.parts) {
+    if (!P) continue;
+    const p = decodeF32(P.pos), c = decodeU8(P.col), j = decodeU8(P.jnt), w = decodeF32(P.wgt), m = p.length / 3;
+    pos.set(p, o * 3); col.set(c, o * 3); jnt.set(j, o * 4); wgt.set(w, o * 4); o += m;
+  }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  geo.setAttribute('color', new THREE.BufferAttribute(col, 3, true));
+  geo.setAttribute('skinIndex', new THREE.BufferAttribute(jnt, 4));
+  geo.setAttribute('skinWeight', new THREE.BufferAttribute(wgt, 4));
+  geo.computeBoundingSphere();
+  const mesh = new THREE.SkinnedMesh(geo, new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide }));
+  mesh.frustumCulled = false; mesh.raycast = function () {};
+  group.add(mesh); scene.add(group);
+  group.updateMatrixWorld(true);
+  mesh.bind(new THREE.Skeleton(bones, bones.map(() => new THREE.Matrix4())));
+  group.userData.rigFig = { fig, boneMeshes: bones, mix: {}, blendTime: b.blendTime, lookA: 0, yaw: b.yawOffset != null ? b.yawOffset : -Math.PI / 2, headTrack: b.headTrack || null, skin: mesh };
+  return group;
+}
 ` : ''}function __makeRigGroup(fig, b) {
-  const group = new THREE.Group();
+  const group = new THREE.Group();${figHasSkin ? `
+  if (fig.skin) return __makeSkinGroup(fig, b, group);` : ''}
   const boneMeshes = fig.bones.map((bn, bi) => {
     const part = fig.parts[bi];
     if (!part) return null;${figHasForm ? `
@@ -1389,6 +1426,20 @@ function __formMode(fig, e, mode) {
   const k = f + ':' + mode;
   return fig.clips[k] ? k : f + ':idle';
 }
+` : ''}${acts ? `// a battle act's clip among the figure's own: the first it has of the act's names (its swing, its recoil, its fall)
+const __ACT_CLIPS = { strike: ['strike', 'swing_neutral', 'swing', 'attack', 'punch'], cast: ['cast', 'strike', 'swing_neutral'], hurt: ['stagger', 'hitHigh', 'flinch'], fall: ['topple', 'knockedOutDown', 'fall'] };
+function __actClip(fig, is) { const L = __ACT_CLIPS[is] || []; for (let i = 0; i < L.length; i++) if (fig.clips[L[i]]) return L[i]; return null; }
+// A BATTLE ACT (the party battles' juice, rpg-channel.js: e.act { is, t0, for, to? }): the figure plays its own clip for it
+// at the act's phase on the world's clock (a fight holds the world still, its clock running), a strike leaning toward its
+// target and back; a fall holds its last frame; a figure without the clip plays nothing new (A.clip says which it played)
+function __actMode(fig, e, m) {
+  const A = e.act, at = A ? ((__world.time || 0) - A.t0) / A.for : -1;
+  if (!(A && at >= 0 && (at <= 1 || A.is === 'fall'))) { if (A && at > 1) e.act = null; return null; }
+  const c = __actClip(fig, A.is); A.clip = c;
+  const T = A.to && A.is === 'strike' ? __world.byId[A.to] : null;
+  if (T && at <= 1) { const dx = T.transform.pos[0] - e.transform.pos[0], dy = T.transform.pos[1] - e.transform.pos[1], d = Math.hypot(dx, dy) || 1, k = Math.sin(Math.PI * at) * Math.min(1.2, d * 0.4) / d; m.position.x += dx * k; m.position.y += dy * k; }
+  return c ? { mode: c, phase: Math.min(at, 0.999) } : null;
+}
 ` : ''}function __syncRigEntity(e, m, rig, dt) {
   const yawA = e.transform.heading + rig.yaw;
   if (e.tumble && e.tumble.angle) {
@@ -1411,9 +1462,11 @@ function __formMode(fig, e, mode) {
     else ` : ''}m.rotation.set(0, 0, yawA);
   }
   const fig = rig.fig;
-  ${figHasForms ? 'let' : 'const'} mode = e.moving ? e.locomotion : 'idle';${figHasForms ? `
-  if (fig.forms) mode = __formMode(fig, e, mode);` : ''}
-  const mix = __CW.advanceGaitMix(rig.mix, mode, e.gaitPhase, dt || 0, rig.blendTime);
+  ${figHasForms || acts ? 'let' : 'const'} mode = e.moving ? e.locomotion : 'idle';${figHasForms ? `
+  if (fig.forms) mode = __formMode(fig, e, mode);` : ''}${acts ? `
+  const act = __actMode(fig, e, m), phase = act ? act.phase : e.gaitPhase;
+  if (act) mode = act.mode;` : ''}
+  const mix = __CW.advanceGaitMix(rig.mix, mode, ${acts ? 'phase' : 'e.gaitPhase'}, dt || 0, rig.blendTime);
   const w = mix.prevMode ? mix.w * mix.w * (3 - 2 * mix.w) : 1;
   // head-look-at overlay (renderer-convergence step 2, procedural rung): ease the head bone's
   // yaw toward a tracked entity, clamped to a natural range — a runtime joint override no
@@ -1637,7 +1690,8 @@ function __syncEntity(e, dt) {
   // menu holds this body hidden (userData.hangarHidden, __showActive): this unconditional
   // per-frame re-show is what superposed every suit at the origin after the respawn work.
   if (!m.visible && !m.userData.hangarHidden${hideId ? ` && e.id !== ${JSON.stringify(hideId)}` : ''}) m.visible = true;${hideId ? `
-  if (e.id === ${JSON.stringify(hideId)}) m.visible = false;   // first person: the eye rides inside this body` : ''}
+  if (e.id === ${JSON.stringify(hideId)}) m.visible = false;   // first person: the eye rides inside this body` : ''}${xr ? `
+  if (__xrCtl && __xrCtl.hides(e)) m.visible = false;   // in the headset: the player stands inside this body` : ''}
   m.position.set(e.transform.pos[0], e.transform.pos[1], e.transform.pos[2]);
   // hit flash: a hittable target (invincible) whitens for a beat when a shot lands, then restores.
   if (e.body && e.body.hittable && m.material) {
@@ -1664,10 +1718,11 @@ function __syncEntity(e, dt) {
   const fig = m.userData && m.userData.fig;
   if (fig) {
     m.rotation.set(0, 0, e.transform.heading + fig.yaw);
-    if (!fig.lerpable) {   // mismatched clip topologies → legacy frame snapping
-      const clip = __figClipOf(fig, e, e.moving ? e.locomotion : 'idle');
-      const N = clip.length, ph = ((e.gaitPhase % 1) + 1) % 1;
-      const frame = e.moving ? (Math.floor(ph * N) % N) : 0;
+${acts ? `    const act = __actMode(fig, e, m);
+` : ''}    if (!fig.lerpable) {   // mismatched clip topologies → legacy frame snapping
+      const clip = __figClipOf(fig, e, ${acts ? "act ? act.mode : " : ''}e.moving ? e.locomotion : 'idle');
+      const N = clip.length, ph = ((${acts ? '(act ? act.phase : e.gaitPhase)' : 'e.gaitPhase'} % 1) + 1) % 1;
+      const frame = ${acts ? 'act || ' : ''}e.moving ? (Math.floor(ph * N) % N) : 0;
       const attr = fig.mesh.geometry.getAttribute('position');
       if (attr.array.length === clip[frame].pos.length) {
         attr.array.set(clip[frame].pos); attr.needsUpdate = true;
@@ -1679,8 +1734,8 @@ function __syncEntity(e, dt) {
       }
       return;
     }
-    const mode = e.moving ? e.locomotion : 'idle';
-    const mix = __CW.advanceGaitMix(fig.mix, mode, e.gaitPhase, dt || 0, fig.blendTime);
+    const mode = ${acts ? 'act ? act.mode : ' : ''}e.moving ? e.locomotion : 'idle';
+    const mix = __CW.advanceGaitMix(fig.mix, mode, ${acts ? 'act ? act.phase : ' : ''}e.gaitPhase, dt || 0, fig.blendTime);
     const attr = fig.mesh.geometry.getAttribute('position');
     const out = attr.array;
     out.fill(0);
@@ -2010,7 +2065,8 @@ function __readInput() {
   // a menu is up (events channel): the figure takes nothing — not a key held as it opened, not the pad, not the look.
   // The edges read as held, so the key that picked doesn't jump or interact again when the menu goes.
   if (window.__mojMenuOpen) { __lookDX = 0; __lookDY = 0; __fireDown = false; __prevJump = true; __prevInteract = true; return { ...__CW.ZERO_INPUT }; }
-  const __pad = __pollPad();   // null when no controller (or prefs turned it off)
+  const __pad = ${xr ? '__xrCtl ? __xrCtl.pad() : ' : ''}__pollPad();   // null when no controller (or prefs turned it off)${xr ? `
+  // (in the headset, channels/xr.js: the controllers are the pad, and the read is finished on the body below)` : ''}
   // INTERACT (use / talk) press edge: counted; the events channel sends use-<place> when the figure stands in reach
   const it = __k('interact') || !!(__pad && __pad.interact);
   if (it && !__prevInteract) __interactN++;
@@ -2101,7 +2157,7 @@ function __readInput() {
     lookDX: __lookDX, lookDY: __lookDY,
   };
   __lookDX = 0; __lookDY = 0;
-  return inp;
+  return ${xr ? '__xrCtl ? __xrCtl.input(inp) : ' : ''}inp;
 }
 ${seats ? seatsScript(seats) : ''}// active whenever there are entities to step; the camera is OWNED only if a camera entity exists
 // (otherwise OrbitControls keeps the view — e.g. a clock-driven figure turntable orbited by hand).
@@ -3601,8 +3657,22 @@ ${hangarHook}  __msHookParams();
     __updateRacerJuice(${tempo ? 'wdt' : 'dt'});` : ''}${shadowHook}${smokeHook}${gearHook}${breakables ? `
     __updateBreaks(${tempo ? 'wdt' : 'dt'});` : ''}${runner ? `
     __updateRunner(${tempo ? 'wdt' : 'dt'});` : ''}
-  }
-  if (__ctrlOwnsCamera) __driveCamera(dt);
+  }${acts ? `
+  // (a fight holds the world, but its bodies act and stand where it stages them: a figure with a battle act or a staged
+  // place is drawn on, the rest stand as they were)
+  else if (dt > 0) for (const e of __world.entities) if (e.act || e.staged) __syncEntity(e, dt);` : ''}
+  if (__ctrlOwnsCamera${xr ? ' && !__xrCtl' : ''}) __driveCamera(dt);${xr ? '   // (in the headset the head is the camera)' : ''}${tempoLook ? `
+  // a moment's look over the world's grade (channels/grade.js), by the moment's weight; its impact frame hard for its
+  // frames as it fires; its zoom aimed at whom it is about, on the screen as the camera now stands
+  if (window.__mojGrade) {
+    const P = __world.tempo && __world.tempo.playing, L = P && P.m.look;
+    if (L) {
+      const hit = L.impact && P.t < L.impact / 60, who = P.who && (__world.byId[P.who.b] || __world.byId[P.who.a]);
+      let at = null;
+      if (who) { camera.updateMatrixWorld(); __tmAt.set(who.transform.pos[0], who.transform.pos[1], who.transform.pos[2] + 1).project(camera); at = [(__tmAt.x + 1) / 2, (__tmAt.y + 1) / 2]; }
+      window.__mojGrade.moment(hit ? { ...L, invert: 1 } : L, hit ? 1 : __CW.tempoWeight(__world), at);
+    } else if (window.__mojGrade.look) window.__mojGrade.moment(null);
+  }` : ''}
   __updateWepHud();   // after the camera is positioned, so the reticle projects onto the current frame
   __updateBoostHud();
   __updateRadar();${lock ? '\n  __updateLock();' : ''}
@@ -3611,7 +3681,7 @@ ${hangarHook}  __msHookParams();
   __updateMatchHud();
   __updateTutorialHud();
 };
-${tempo ? `let __tmLast = null;
-window.__mojTempo = { now: () => __world.tempo && { scale: __world.tempo.scale, playing: __world.tempo.playing && __world.tempo.playing.on }, fire: (on) => __CW.tempoMoment(__world, on) };
-` : ''}window.__mojCtrl = { world: __world,${exposeBodies ? ' bodies: __bodies,' : ''}${breakables ? ' restore: (id) => __CW.restoreBlock(__world, id),' : ''} step: (dt, input) => stepControllable(dt, input), cast: (ops) => __CW.castOps(__world, ops), facts: (prev) => __CW.castFacts(__world, prev), interacts: () => __interactN, label: (id) => { const f = __padOn && __padSeen && __usePad ? 'gamepad' : 'keyboard', c = (__BIND.bind[f][id] || [])[0]; return c ? __CTL.label(__DEV, f, c, __padLayout) : ''; } };`;
+${tempo ? `let __tmLast = null;${tempoLook ? ' const __tmAt = new THREE.Vector3();' : ''}
+window.__mojTempo = { now: () => __world.tempo && { scale: __world.tempo.scale, playing: __world.tempo.playing && __world.tempo.playing.on }, fire: (on, who) => __CW.tempoMoment(__world, on, who) };
+` : ''}window.__mojCtrl = { world: __world,${exposeBodies ? ' bodies: __bodies,' : ''}${breakables ? ' restore: (id) => __CW.restoreBlock(__world, id),' : ''} step: (dt, input) => stepControllable(dt, input), cast: (ops) => __CW.castOps(__world, ops),${acts ? ' ground: (x, y, z) => __ground([x, y, z]), project: (x, y, z) => { const v = new THREE.Vector3(x, y, z).project(camera); return [(v.x + 1) / 2 * innerWidth, (1 - v.y) / 2 * innerHeight, v.z]; },' : ''} facts: (prev) => __CW.castFacts(__world, prev), interacts: () => __interactN, label: (id) => { const f = __padOn && __padSeen && __usePad ? 'gamepad' : 'keyboard', c = (__BIND.bind[f][id] || [])[0]; return c ? __CTL.label(__DEV, f, c, __padLayout) : ''; } };${gunplay ? gunplayScript() : ''}`;
 }

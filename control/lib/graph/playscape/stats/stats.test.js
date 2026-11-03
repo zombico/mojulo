@@ -225,7 +225,18 @@ describe('stats: formulas', () => {
     expect(() => readStats({ stats: { stats: [{ id: 'a', from: { stat: 'b' } }, { id: 'b', from: { stat: 'a' } }] } })).toThrow(/round in a circle/);
     expect(() => readStats({ stats: { stats: [{ id: 'a', from: { stat: 'a', of: 'target' } }] } })).toThrow(/no target here/);
     expect(() => lowerPlay({ play: { stats: F, cues: [{ id: 'r', when: { on: 'x' }, then: { raise: { stat: 'might', by: 1 } } }] } })).toThrow(/derived/);
-    expect(() => readStats({ stats: { stats: [{ id: 'a' }], bodies: { mana: 'a' } } })).toThrow(/hpMax, speed/);
+    expect(() => readStats({ stats: { stats: [{ id: 'a' }], bodies: { mana: 'a' } } })).toThrow(/hpMax, speed, power/);
+  });
+  it('a power stat bound to the body goes with it as it rises: what its attacks hurt by', () => {
+    const cfg = readStats({ stats: { ...F, bodies: { hpMax: 'hp-max', power: 'might' } } }), S = { vars: initStatVars(cfg), _ctrlOps: [] };
+    stepStats(cfg, S);
+    expect(S._statBodyOps.find((o) => o.who === 'hero')).toMatchObject({ who: 'hero', power: 11.5 });
+    const world = { byId: { hero: { id: 'hero', body: { hp: 90 }, rule: {} } } };
+    applyStatBodies(S, world);
+    expect(world.byId.hero.power).toBe(11.5);
+    S._ctrlOps.push({ op: 'xp', by: 100 });
+    stepStats(cfg, S); applyStatBodies(S, world);
+    expect(world.byId.hero.power).toBe(13);            // the level's raise reaches it
   });
   it('teaches the formula shapes', () => {
     const cfg = c();

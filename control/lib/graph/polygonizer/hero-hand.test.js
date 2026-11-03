@@ -135,7 +135,8 @@ describe('the hand\'s words at the door', () => {
     expect(validateGesture(g, 'gesture', { hands: true })).toEqual([]);
     expect(validateGesture(g).join('\n')).toMatch(/the streamlined hand has no fingers/);
     expect(validateHeroClips({ grab: [{ fingersR: 80 }] }, { hands: true })).toEqual([]);
-    expect(validateGesture({ fingersR: 'claw', wristR: { flex: 90 } }, 'gesture', { hands: true })).toHaveLength(2);
+    // (an unknown hand word and a wrist past its range: `claw` is a hand shape now, hero-digits.js)
+    expect(validateGesture({ fingersR: 'talon', wristR: { flex: 90 } }, 'gesture', { hands: true })).toHaveLength(2);
     expect(() => heroRecord({ cast: 'male', gesture: { fingersR: 'fist' } })).not.toThrow();
     expect(() => heroRecord({ cast: 'male', core: 'streamlined', gesture: { fingersR: 'fist' } })).toThrow(/streamlined hand has no fingers/);
   });

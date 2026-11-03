@@ -57,6 +57,9 @@ import { cellTriangles } from './field-paint.js';
 import { axisTangent } from './normal-bake.js';
 import * as bv from './body-relational-vec.js';
 
+// how far past a leg's reach a planted toe may sit and be clamped under `reach: 'reject'` (metres): float noise, not a pose
+const REACH_SLACK = 1e-3;
+
 export const VAJRA_CORE = ['pelvisHub', 'navel', 'neckHub', 'headBase', 'headTop', 'shoulderL', 'shoulderR', 'elbowL', 'elbowR', 'wristL', 'wristR', 'hipL', 'hipR', 'kneeL', 'kneeR', 'ankleL', 'ankleR'];
 export const RIG_CHANNELS = ['crouch', 'lift', 'support', 'heelL', 'heelR', 'stance', 'stagger', 'seat', 'seatL', 'seatR', 'feet', 'sink', 'body', 'flow', 'facing', 'splayL', 'splayR', 'shift', 'toeTurnL', 'toeTurnR'];
 
@@ -103,16 +106,18 @@ export function handValue(R, n, v) {
  *   thumb    `curl`, `links: [cmc, mcp, ip]` or `cmc` (a number: the root's turn across the palm, the curl's own; or
  *            `[across, toPalm]`: and its turn TOWARD THE PALM, about the axis square to the root's hinge and the
  *            metacarpal, signed so + carries the tip in to the palm, and past its plane, the thumb laid back beside the
- *            hand; the curl's root turn alone keeps the tip 29–46 mm off the palm), `mcp`, `ip`
+ *            hand; the curl's root turn alone keeps the tip 29–46 mm off the palm), `toPalm` (that second turn as its own
+ *            number, the form a clip's keys blend: wideValue), `mcp`, `ip`
  * Every axis is the rig's own or read off its rest joints at pose time (the spread's normal signed by the hand's
  * deviation axis, + radial; the thumb's second axis by the index finger's closing): the rig's block is unchanged, and a
  * number or a word takes the curl's path exactly. A joint turned carries the digit's later hinges and its root's hinge
  * marker (the thumb's axis joint, a bone's aux), so the exported bones keep their roll. Unknown keys throw by name.
  */
 export const DIP_OF_PIP = 2 / 3;
-const FINGER_KEYS = Object.freeze(['curl', 'links', 'mcp', 'pip', 'dip', 'spread']), THUMB_KEYS = Object.freeze(['curl', 'links', 'cmc', 'mcp', 'ip']);
+const FINGER_KEYS = Object.freeze(['curl', 'links', 'mcp', 'pip', 'dip', 'spread']), THUMB_KEYS = Object.freeze(['curl', 'links', 'cmc', 'toPalm', 'mcp', 'ip']);
 const SPREAD_SIGN = Object.freeze({ index: 1, middle: 1, ring: -1, little: -1 });
-function wideDigit(R, H, pts, d, g, v, ch) {
+/** a wide digit object read: { a (each link's angle), spread, toPalm } */
+function parseDigit(g, d, v, ch) {
   const thumb = d === 'thumb', keys = thumb ? THUMB_KEYS : FINGER_KEYS;
   for (const k of Object.keys(v)) if (!keys.includes(k)) throw new Error(`station-loft-rig: ${ch}.${d}: no key '${k}' (have ${keys.join(', ')})`);
   const n = g.links.length, W = g.links.map((l) => l.weight);
@@ -121,8 +126,27 @@ function wideDigit(R, H, pts, d, g, v, ch) {
   const names = thumb ? ['cmc', 'mcp', 'ip'] : ['mcp', 'pip', 'dip'];
   let toPalm = 0;
   names.forEach((k, i) => { const x = v[k]; if (Array.isArray(x)) { if (Number.isFinite(x[0])) a[i] = x[0]; if (Number.isFinite(x[1])) toPalm = x[1]; } else if (Number.isFinite(x)) a[i] = x; });
+  // (`toPalm` as its own number: the thumb's second axis in a form a clip's blend carries, as an array's is not)
+  if (thumb && Number.isFinite(v.toPalm)) toPalm = v.toPalm;
   if (!thumb && n > 2 && (Number.isFinite(v.pip) || Number.isFinite(v.links?.[1])) && !Number.isFinite(v.dip) && !Number.isFinite(v.links?.[2])) a[2] = a[1] * DIP_OF_PIP;
   const spread = !thumb && Number.isFinite(v.spread) ? v.spread : 0;
+  return { a, spread, toPalm };
+}
+/**
+ * A digit's value (a number, a word's digit, or the wider hand's object) written in ONE EXPLICIT FORM that poses as it
+ * does, every joint named: a finger `{ mcp, pip, dip, spread }`, the thumb `{ cmc, toPalm, mcp, ip }` (numbers only). A
+ * clip whose keys share it blends joint by joint (station-loft-rig `layeredClip` blends numbers, a missing one as 0, and
+ * would read an array as a plain object).
+ */
+export function wideValue(R, S, d, value = 0) {
+  const g = R.hands?.[S]?.digits?.[d];
+  if (!g) throw new Error(`station-loft-rig: no digit '${d}' on hand ${S}`);
+  const v = typeof value === 'number' ? { curl: value } : value || {}, { a, spread, toPalm } = parseDigit(g, d, v, `fingers${S}`);
+  const r = (x) => Math.round(x * 1e6) / 1e6 + 0;
+  return d === 'thumb' ? { cmc: r(a[0]), toPalm: r(toPalm), mcp: r(a[1] ?? 0), ip: r(a[2] ?? 0) } : { mcp: r(a[0]), pip: r(a[1] ?? 0), dip: r(a[2] ?? 0), spread: r(spread) };
+}
+function wideDigit(R, H, pts, d, g, v, ch) {
+  const thumb = d === 'thumb', n = g.links.length, { a, spread, toPalm } = parseDigit(g, d, v, ch);
   const ax = g.links.map((l) => [...(l.axis ?? g.axis)]), root = g.links[0].pivot, p0 = [...pts[root]];
   // the root's hinge marker (a bone headed at the root whose aux starts there: the thumb's axis joint) turns with the digit
   const marker = R.bones.find((b) => b.head === root && b.aux?.[0] === root)?.aux?.[1];
@@ -490,7 +514,8 @@ export function rigNodesAt(R, pose = {}) {
       let hock = add(nodes[L.toeBase], mul(metaDir, meta)); let metaError = 0;
       let sol = solveTwoBone(nodes[L.hip], hock, femur, tibia, pole);
       if (!sol.ok) {
-        if (R.reach === 'reject') throw new Error(`station-loft-rig: leg ${S} cannot reach its planted toe (hip→hock ${sol.d.toFixed(4)} m, femur+tibia ${(femur + tibia).toFixed(4)} m, excess ${sol.excess.toFixed(4)} m) — lower the crouch, change heel${S}, or set rig.reach: 'clamp'`);
+        // (a miss under a millimetre is a pose's float noise, a gait key's rounding: clamped as 'clamp' does, never refused)
+        if (R.reach === 'reject' && sol.excess > REACH_SLACK) throw new Error(`station-loft-rig: leg ${S} cannot reach its planted toe (hip→hock ${sol.d.toFixed(4)} m, femur+tibia ${(femur + tibia).toFixed(4)} m, excess ${sol.excess.toFixed(4)} m) — lower the crouch, change heel${S}, or set rig.reach: 'clamp'`);
         const axis = unit(sub(hock, nodes[L.hip])); const clamped = add(nodes[L.hip], mul(axis, sol.d > femur + tibia ? femur + tibia - 1e-9 : Math.abs(femur - tibia) + 1e-9));
         metaError = Math.abs(len(sub(nodes[L.toeBase], clamped)) - meta); hock = clamped; sol = solveTwoBone(nodes[L.hip], hock, femur, tibia, pole);
       }
@@ -634,7 +659,10 @@ export function layeredClip(keyposes, R, { loop = true } = {}) {
   const core = Object.fromEntries(VAJRA_CORE.map((k) => [k, { x: R.joints[k][0], y: R.joints[k][1], z: R.joints[k][2] }]));
   const keys = keyposes.map((k) => { const own = {}; const vajra = {}; for (const [n, v] of Object.entries(k)) if (handChannel(R, n)) own[n] = handValue(R, n, v); else if (RIG_CHANNELS.includes(n) || n in R.chains) own[n] = v; else vajra[n] = v; return { ...withMath(dmath, () => resolvePose(vajra, core)), ...own }; });
   const seq = loop ? [...keys, keys[0]] : keys; const N = seq.length - 1;
-  const blend = (a, b, t) => { const o = {}; for (const k of new Set([...Object.keys(a), ...Object.keys(b)])) { const x = a[k], y = b[k]; if (typeof x === 'string' || typeof y === 'string') o[k] = t < 0.5 ? (x ?? y) : (y ?? x); else if ((x && typeof x === 'object') || (y && typeof y === 'object')) o[k] = blend(x || {}, y || {}, t); else o[k] = (x || 0) * (1 - t) + (y || 0) * t; } return o; };
+  // (an ARRAY (a `feet` target, a point) blends as an array, element by element, and one key's array against a key
+  // without it is held: blended as an object it had become { 0, 1, 2 }, which the rig reads as no target at all, so a
+  // keyed gait's feet never stepped once played)
+  const blend = (a, b, t) => { const o = {}; for (const k of new Set([...Object.keys(a), ...Object.keys(b)])) { const x = a[k], y = b[k]; if (typeof x === 'string' || typeof y === 'string') o[k] = t < 0.5 ? (x ?? y) : (y ?? x); else if (Array.isArray(x) || Array.isArray(y)) o[k] = Array.isArray(x) && Array.isArray(y) && x.length === y.length ? x.map((v, i) => (typeof v === 'number' && typeof y[i] === 'number' ? v * (1 - t) + y[i] * t : t < 0.5 ? v : y[i])) : Array.isArray(x) && (t < 0.5 || !Array.isArray(y)) ? x : y; else if ((x && typeof x === 'object') || (y && typeof y === 'object')) o[k] = blend(x || {}, y || {}, t); else o[k] = (x || 0) * (1 - t) + (y || 0) * t; } return o; };
   return (phase) => { if (N === 0) return { ...seq[0] }; const p = Math.max(0, Math.min(0.999999, phase)) * N; const i = Math.floor(p); let t = p - i; t = t * t * (3 - 2 * t); return blend(seq[i], seq[i + 1], t); };
 }
 
