@@ -1,6 +1,6 @@
 /**
- * boat-helm — the builders of the craft shelf's helm kinds (boat-odm.js), merged into BOAT_BUILDERS: a console and a
- * seat, each standing on a hull's point on its sole (its mount the middle of its foot, +y the bow). Pure, as the shelf is.
+ * boat-helm — the builders of the craft shelf's helm kinds (boat-odm.js), merged into BOAT_BUILDERS: a console, a seat
+ * and a top over the helm, each standing on a hull's point on its sole (its mount the middle of its foot, +y the bow). Pure, as the shelf is.
  *
  *   boat-console  moulded   the console's body from its side's outline pushed across its width (its front, its dash
  *                           sloping down aft to the helm, its back); its access door; the windscreen in three panels
@@ -9,10 +9,14 @@
  *                           wheel's rim, hub and spokes, its axis raked toward the helmsman; the throttle's binnacle on
  *                           the starboard side and its lever. Points: `mount`, `wheel` (the wheel's middle)
  *   boat-seat     cooler    a cooler (its seam, its rope handles) and its cushion on top
+ *   boat-top      tTop      a T-top: four legs from feet on the sole beside the console, bent in to its frame, a front
+ *                           brace over the windscreen, the hardtop (`over`: its front and back, overhanging aft over the
+ *                           helm) and its lip, rod holders along its back edge, spreader lights under it, the all-round
+ *                           light and an antenna on it
  *
  * Craft space: +y forward, +z up, +x starboard, metres.
  */
-import { lathe, sweep, extrudeWorld, planeUV, round3, tone } from './craft-common.js';
+import { lathe, sweep, extrudeWorld, loftWorld, section, planeUV, round3, tone } from './craft-common.js';
 
 const r3v = (v) => v.map(round3);
 const add = (a, b) => [a[0] + b[0], a[1] + b[1], a[2] + b[2]];
@@ -112,7 +116,54 @@ function buildSeat(row, C) {
   return { extrudes, sweeps, hardpoints: { mount: [0, 0, 0], seat: [0, 0, H] } };
 }
 
+// a T-top over a console: its four legs up from feet on the sole beside the console, bent in under the top; its front
+// brace above the windscreen; its frame under the hardtop; the hardtop lofted bow to stern with its lip, overhanging aft
+// over the helm; its rod holders raked aft along its back edge; its spreader lights under it, the all-round light and an
+// antenna on it
+function buildTop(row, C) {
+  const b = row.build;
+  if (b.family !== 'tTop') throw new Error(`Unknown boat-top family '${b.family}'`);
+  const { width: W, length: D } = row.dims, Ht = b.height, [yF, yB] = [b.over[0], b.over[1]], lg = b.legs;
+  const lathes = [], sweeps = [], lofts = [];
+  // the legs: feet on the sole beside the console, straight up, bent in to the frame under the top
+  const tops = [];
+  for (const [k, y] of [lg.front, lg.aft].entries()) for (const sx of [1, -1]) {
+    const foot = [sx * lg.x, y, 0], top = [sx * lg.xTop, y - lg.lean, Ht - 0.03];
+    tops.push(top);
+    lathes.push(lathe(`foot_${k}${sx > 0 ? 'r' : 'l'}`, [foot[0], y, -0.004], [foot[0], y, 0.012], [[0, 0.06], [1, 0.05]], C.chrome, { samples: 14, crossSections: 2 }));
+    sweeps.push(sweep(`leg_${k}${sx > 0 ? 'r' : 'l'}`, [foot, [foot[0], y, Ht * 0.62], [(foot[0] + top[0]) / 2, y - lg.lean * 0.5, Ht * 0.86], top], lg.radius, C.chrome, { sides: 10 }));
+  }
+  // the front brace, above the windscreen, and the frame joining the legs' tops under the top
+  sweeps.push(sweep('brace_front', [[lg.x, lg.front, b.brace], [-lg.x, lg.front, b.brace]], lg.radius * 0.8, C.chrome, { sides: 8 }));
+  const [fr, fl, ar, al] = tops;
+  sweeps.push(sweep('frame', [fr, fl, al, ar, fr], lg.radius * 0.85, C.chrome, { sides: 8 }));
+  // the hardtop: rounded in plan, crowned a little, its lip round its edge
+  const zc = Ht + 0.03, sect = (k) => section((W / 2) * k, b.thickness / 2, 5, 0.7).map(([x, z]) => [x, 0, zc + z]);
+  lofts.push(loftWorld('hardtop', [0, yF, 0], [0, yB, 0], [[0, 0.84], [0.04, 0.97], [0.15, 1], [0.85, 1], [0.96, 0.97], [1, 0.88]].map(([t, k]) => ({ t, points: sect(k) })), C.paint, { interp: 'smooth', segments: 3 }));
+  const rim = (Array.from({ length: 33 }, (_, i) => {
+    const a = (2 * Math.PI * i) / 32, cx = Math.cos(a), cy = Math.sin(a), e = 4;
+    return [(W / 2) * 0.995 * Math.sign(cx) * Math.abs(cx) ** (2 / e), (yF + yB) / 2 + ((yF - yB) / 2) * 0.99 * Math.sign(cy) * Math.abs(cy) ** (2 / e), zc - b.thickness * 0.3];
+  }));
+  sweeps.push(sweep('lip', rim, b.thickness * 0.35, tone(C.paint, -0.08), { sides: 8 }));
+  // the rod holders raked aft along the back edge
+  for (let i = 0; i < b.rods; i += 1) {
+    const x = (i - (b.rods - 1) / 2) * (W * 0.6 / Math.max(1, b.rods - 1)), y = yB + 0.12;
+    lathes.push(lathe(`rocket_${i}`, [x, y + 0.04, zc], [x, y - 0.14, zc + 0.32], [[0, 0.026], [0.06, 0.022], [1, 0.021]], C.chrome, { samples: 10, crossSections: 3 }));
+  }
+  // the spreader lights under it, the all-round light and the antenna on it
+  for (const sx of [1, -1]) lathes.push(lathe(`spreader_${sx > 0 ? 'r' : 'l'}`, [sx * W * 0.3, yB + 0.1, zc - b.thickness * 0.45], [sx * W * 0.3, yB + 0.1, zc - b.thickness * 0.45 - 0.03], [[0, 0.04], [1, 0.035]], '#f4f6f8', { material: 'neon', samples: 12, crossSections: 2 }));
+  const ztop = zc + b.thickness * 0.5, lp = [0, yB + 0.25, ztop];
+  lathes.push(lathe('light_mast', add(lp, [0, 0, -0.01]), add(lp, [0, 0, 0.3]), [[0, 0.03], [0.05, 0.012], [1, 0.012]], C.chrome, { samples: 10, crossSections: 3 }));
+  lathes.push(lathe('all_round_light', add(lp, [0, 0, 0.3]), add(lp, [0, 0, 0.36]), [[0, 0.02], [0.5, 0.022], [1, 0.012]], '#f4f6f8', { material: 'neon', samples: 12, crossSections: 3 }));
+  const ab = [W * 0.38, yB + 0.2, ztop];
+  lathes.push(lathe('antenna_base', add(ab, [0, 0, -0.01]), add(ab, [0, 0, 0.12]), [[0, 0.03], [1, 0.016]], C.chrome, { samples: 10, crossSections: 2 }));
+  sweeps.push(sweep('antenna', [add(ab, [0, 0, 0.11]), add(ab, [0.02, -0.03, 0.7]), add(ab, [0.05, -0.08, 1.25])], 0.007, C.paint, { sides: 6 }));
+  void D;
+  return { lathes, sweeps, lofts, hardpoints: { mount: [0, 0, 0] } };
+}
+
 export const HELM_BUILDERS = {
   'boat-console': buildConsole,
   'boat-seat': buildSeat,
+  'boat-top': buildTop,
 };

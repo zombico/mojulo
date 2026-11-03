@@ -62,6 +62,26 @@ The first boat is a small motor skiff; bigger and different boats follow from th
   - It floats 1041 kg at a 30 cm draft with 34 cm of freeboard aft; tilted up, its cowl hangs in over the transom, clear
     of the sole and the helm's seat.
   - The registry's `center-console` row (centre console, runabout, bay boat, sport fishing boat …), its build asleep.
+- **The motor well** (the hull's `well`): a notched transom and its splashwell, by the same planes the transom, the deck
+  and the sole are clipped by.
+  - **The notch:** across its `width` the transom steps down to the motor's height (`notch`), the quarters standing full
+    height either side, their caps on them and the notch's cap and motor point down in it. Each layer (the skin's
+    outside, its inside, the liner's inside) steps down and out by its own depth, so they stack in the notch as they do
+    everywhere and every ring closes; each stepped run is arched by a millimetre and a half, so a stepped end's cap
+    triangulates edge to edge.
+  - **The splashwell:** the liner's floor at `floor` aft of the well's `length`, its bulkhead lofted to the skin's inside
+    up to its `top`. Freeboard aft is measured at the notch, the lowest the water can come in.
+  - The centre console now has a motor well and a 20 in shaft 90 hp (`outboard-90-remote-20`, its rigging hose into
+    the well's bulkhead); the 25 in row stays for a full transom. Its well is long enough that the motor tilts up into
+    it, clear of the transom's block and the bulkhead. It floats 1037 kg with 21 cm of freeboard at the notch.
+- **The T-top** (`boat-top`, `tTop`; `ccTTop`, a second centre console that wears it):
+  - four legs from feet on the sole beside the console, bent in to a frame under the top;
+  - a front brace over the windscreen;
+  - a moulded hardtop with its lip, overhanging aft over the helm with a standing helmsman's headroom;
+  - rod holders raked aft along its back edge, spreader lights under it, the all-round light and an antenna on top.
+
+  The boat's hull is the centre console's with `navLights: { pole: false }`, its all-round light moved to the top. The
+  registry's `t-top-console` row, its build asleep.
 - **Afloat by its weight** (`boat-parts.js` `hullVolume`, `hullFloat`). The hull's displacement is worked out from the
   same sections it is lofted from, so what floats is what is drawn. An assembled boat's readout says where it floats
   (`afloat`): its parts' mass and its payload, the draft that displaces them in fresh or salt water (`water`), the
@@ -86,7 +106,12 @@ The first boat is a small motor skiff; bigger and different boats follow from th
   - a helm on the sole: the console and seats on the hull's points inside the cockpit, the wheel at a standing
     helmsman's hands; the gunwale's cap; the sidelights' colours and sides, the bow rail ahead of the stem; the remote
     outboard without a tiller, rigged, and clear of the transom tilted up.
+  - a motor well: the notch at the motor's height and the quarters full, the splashwell's floor and the cockpit's sole,
+    freeboard at the notch, the motor's plate at the keel on its shaft, tilted into the well and out of the transom's
+    raked, notched block and the bulkhead; a T-top's feet on the sole beside the console, its hardtop over the helm with
+    headroom, the all-round light moved to it.
 
-  The shelf's new builder paths (the remote outboard, the console, the seat) are pinned, and no existing pin moved.
+  The shelf's new builder paths (the remote outboard, the console, the seat, the T-top) are pinned, and no existing pin
+  moved.
 
   The shelf's first three boat builder paths were pinned when they joined.

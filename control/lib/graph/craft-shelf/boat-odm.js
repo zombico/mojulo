@@ -30,6 +30,9 @@
  *                  dash (a screen, gauges, a compass), helm (`helm`: where on the dash, its reach and rake, the wheel's
  *                  diameter) and the throttle's binnacle. Points: `mount` (the middle of its foot), `wheel`
  *   boat-seat      a seat on the sole: a cooler and its cushion. Points: `mount`, `seat` (its cushion's top)
+ *   boat-top       a top over the helm standing on the console's point (boat-helm.js): its legs (`legs`: their feet's
+ *                  places beside the console, their tops' and lean), its hardtop (`height` over the sole, `over` its front
+ *                  and back, `thickness`), its front `brace`, `rods` rod holders. Points: `mount`
  *
  * Hull families: 'vee' (a chine between the bottom and the side: a V-bottom by its deadrise, a flat bottom when the
  * chine is at the keel's height). Its bow: 'stem' (it comes to a stem) or 'square' (a jon boat's: the bottom's rocker
@@ -40,7 +43,7 @@
  * gunwale's cap, its width: the liner's top pulled inboard), `points` (named points on the sole at fractions of its
  * length, where a console or a seat stands), a `stripe` along the topsides; fittings `bowRail` (stanchions and a rail
  * round the bow), `navLights` (the sidelights on the bow, the all-round light aft), `rodHolders` (at fractions of its
- * length). Outboard families: 'tiller' (steered by its own tiller) and 'remote' (steered and shifted from a helm: its
+ * length; `navLights.pole: false` when the all-round light is on a top). Outboard families: 'tiller' (steered by its own tiller) and 'remote' (steered and shifted from a helm: its
  * rigging into the boat, a steering ram along its tilt tube, bolted through the transom), its brackets, leg and gearcase
  * drawn at `leg` of the 20 hp class's size, its pan `cowl.lift` over the clamp, its cowl's colour role `tint.cowl`. Sized to a public class, every name generic: a class, never a product.
  */
@@ -51,6 +54,7 @@ export const BOAT_KINDS = Object.freeze({
   'boat-tank': 'a boat\'s portable fuel tank',
   'boat-console': 'a boat\'s console: its windscreen, grab rail, helm, dash and throttle',
   'boat-seat': 'a seat on a boat\'s sole: a cooler seat, a leaning post',
+  'boat-top': 'a top over a boat\'s helm: a T-top, its legs, hardtop, rod holders and lights',
 });
 
 export const BOAT_ODM = {
@@ -156,7 +160,7 @@ export const BOAT_ODM = {
   // ===== a 17 ft moulded centre console: a deep V, a sole, a casting deck forward ===============
   'hull-cc-17': {
     kind: 'boat-hull', realm: 'water', label: '17 ft centre console hull', classOf: '17 ft centre console class (5.2 m, 90 hp)',
-    aliases: ['centre console hull', 'center console hull', 'runabout hull'],
+    aliases: ['centre console hull', 'center console hull', 'runabout hull', 'motor well hull'],
     // (its depth amidships, keel to sheer)
     dims: { length: 5.18, beam: 2.13, depth: 0.76 }, mass: 480, mount: 'keel',
     perf: { persons: 6, load: 590, maxPower: 85 },
@@ -164,7 +168,7 @@ export const BOAT_ODM = {
       family: 'vee', bow: 'stem',
       lines: {
         keel: [[0, 0], [0.5, 0], [0.74, 0.06], [0.9, 0.24], [1, 0.58]],
-        sheer: [[0, 0.64], [0.4, 0.72], [0.7, 0.82], [0.9, 0.95], [1, 1.04]],
+        sheer: [[0, 0.7], [0.4, 0.76], [0.7, 0.84], [0.9, 0.96], [1, 1.05]],
         sheerHalf: [[0, 0.93], [0.35, 1.06], [0.6, 1.05], [0.8, 0.86], [0.93, 0.5], [1, 0]],
         chine: [[0, 0.28], [0.5, 0.3], [0.75, 0.38], [0.9, 0.56], [1, 0.78]],
         chineHalf: [[0, 0.86], [0.35, 0.95], [0.6, 0.9], [0.8, 0.66], [0.93, 0.3], [1, 0]],
@@ -174,7 +178,9 @@ export const BOAT_ODM = {
       skin: 0.014, liner: 0.012, flare: 0.03, stations: { mid: 0.025, bow: 0.012 },
       transom: { rake: 14, thickness: 0.06 },
       sole: 0.26, deck: { from: 0.8, thickness: 0.24 },
-      gunwale: 0.02, keelStrip: 0,
+      // (its motor well: the transom notched to a 20 in shaft's height, the splashwell's floor and bulkhead forward of it)
+      well: { width: 0.78, notch: 0.51, floor: 0.47, length: 0.75, top: 0.64 },
+      gunwale: 0.024, keelStrip: 0,
       strakes: { at: [0.35, 0.7], from: 0.15, to: 0.88, radius: 0.012 },
       stripe: { at: 0.74, radius: 0.012, tint: 'trim' },
       points: { console: 0.5, helmSeat: 0.33, frontSeat: 0.63 },
@@ -224,6 +230,19 @@ export const BOAT_ODM = {
       tilt: 70, steer: 30, tint: { cowl: 'paint' },
     },
   },
+  // ===== a 90 hp remote outboard, 20 in shaft: a motor well's ==================================
+  'outboard-90-remote-20': {
+    kind: 'boat-outboard', realm: 'water', label: '90 hp remote outboard, 20 in shaft', classOf: '90 hp four-stroke remote outboard class',
+    aliases: ['90 hp outboard 20 in', 'remote outboard 20 in'],
+    dims: { length: 0.98, width: 0.6, height: 1.73 }, mass: 158, mount: 'transom-bolt',
+    perf: { power: 66.2 },
+    build: {
+      family: 'remote', shaft: 0.508, transom: 0.06, rake: 14, leg: 1.45,
+      cowl: { length: 0.8, width: 0.47, height: 0.6, lift: 0.2, pan: 1.4 },
+      prop: { blades: 3, diameter: 0.356, pitch: 0.432, hand: 'rh' },
+      tilt: 70, steer: 30, tint: { cowl: 'paint' }, rigging: { reach: 0.38, drop: 0.05 },
+    },
+  },
   // ===== a centre console =====================================================================
   'console-cc-17': {
     kind: 'boat-console', realm: 'water', label: 'centre console with windscreen', classOf: '17 ft centre console class',
@@ -237,6 +256,18 @@ export const BOAT_ODM = {
       rail: { height: 0.98, out: 0.05, radius: 0.0125 },
       helm: { at: 0.72, reach: 0.1, rake: 0.25, diameter: 0.36 },
       throttle: { at: -0.12, height: 0.78 },
+    },
+  },
+  // ===== a T-top over a centre console ========================================================
+  'top-t-cc-17': {
+    kind: 'boat-top', realm: 'water', label: 'T-top with hardtop', classOf: '17 ft centre console class',
+    aliases: ['t-top', 't top', 'hardtop', 'console top'],
+    dims: { width: 1.36, length: 1.7, height: 2.5 }, mass: 48, mount: 'sole',
+    build: {
+      family: 'tTop', height: 2.0, thickness: 0.07, brace: 1.5, rods: 4,
+      // (the hardtop from its front edge to its back edge, along the boat from the console's middle: over the helm)
+      over: [0.5, -1.2],
+      legs: { x: 0.52, xTop: 0.5, front: 0.28, aft: -0.34, lean: 0.12, radius: 0.024 },
     },
   },
   // ===== a cooler seat ========================================================================
@@ -259,4 +290,10 @@ export const BOAT_ODM = {
     dims: { length: 0.46, width: 0.28, height: 0.24 }, mass: 21, mount: 'floor',
     build: { family: 'moulded', color: '#b5352a' },
   },
+};
+
+// the centre console's hull for a T-top: the same hull, its all-round light on the top instead of a pole aft
+BOAT_ODM['hull-cc-17-ttop'] = {
+  ...BOAT_ODM['hull-cc-17'], label: '17 ft centre console hull, for a T-top', aliases: ['t-top console hull'],
+  build: { ...BOAT_ODM['hull-cc-17'].build, fittings: { ...BOAT_ODM['hull-cc-17'].build.fittings, navLights: { pole: false } } },
 };

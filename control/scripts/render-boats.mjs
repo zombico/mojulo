@@ -4,7 +4,7 @@
  * the waterline its weight sets (its readout's `afloat`). No database writes.
  *
  * From control/:
- *   node scripts/render-boats.mjs <output-directory> [archetype,…|all] [--pose '{"tilt":0,"yaw":0,"prop":0}'] [--fold 0…1] [--views side,quarter,top,stern,bow,motor] [--dry]
+ *   node scripts/render-boats.mjs <output-directory> [archetype,…|all] [--pose '{"tilt":0,"yaw":0,"prop":0}'] [--fold 0…1] [--views side,quarter,top,stern,bow,motor,transom] [--dry]
  * `--fold` folds what folds (an outboard's tiller); `--dry` draws it out of the water. (The sheet of water runs through an
  * open hull's floor too: it is the review's water, not the boat's.) Writes <boat>-<view>.png, the pages, report.json and index.html.
  */
@@ -54,10 +54,12 @@ for (const id of pick) {
     stern: [mid[0] + L * 0.45, mid[1] - L * 0.95, mid[2] + L * 0.35],
     bow: [mid[0] - L * 0.5, mid[1] + L * 0.95, mid[2] + L * 0.3],
     motor: [mid[0] + L * 0.35, lo[1] - L * 0.25, mid[2] + L * 0.05],
+    // (from astern and above, into a motor well: the notch, the splashwell, its bulkhead)
+    transom: [mid[0] + L * 0.12, lo[1] - L * 0.38, hi[2] + L * 0.12],
   };
   gallery += `<h2>${id}</h2><p>${tris.toLocaleString('en-US')} triangles · ${JSON.stringify(readout.measures)} · ${JSON.stringify(readout.afloat ?? {})}</p><section>`;
   for (const view of views) {
-    const look = view === 'motor' ? [mid[0], lo[1] + 0.25, wl] : mid;
+    const look = view === 'motor' ? [mid[0], lo[1] + 0.25, wl] : view === 'transom' ? [mid[0], lo[1] + L * 0.12, wl + 0.2] : mid;
     const html = emitThreeWorld({ faces: scene, textures, inline: true, hud: false, title: id, bg: '#cfd5da', metersPerUnit: 1, cameras: [{ name: view, worldFraming: { cameraPosition: cams[view], lookAt: look, horizontalFov: view === 'motor' ? 30 : 40, pictureCenter: [width / 2, height / 2] } }], viewBox: { width, height } });
     const png = await renderWorldToPng(html, { width, height, deviceScaleFactor: 1 });
     writeFileSync(path.join(outDir, `${id}-${view}.png`), png);

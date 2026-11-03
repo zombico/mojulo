@@ -224,6 +224,8 @@ export const VEHICLES = {
     { craft: 'ribTender', tech: 'boat' }),
   'center-console': row('centre console', ['center console', 'center console boat', 'centre console boat', 'console boat', 'runabout', 'bay boat', 'sport fishing boat', 'cc boat'], 'water', 'commuter', M, ['driven', 'parked', 'watched'],
     { craft: 'ccRunabout', tech: 'boat' }),
+  't-top-console': row('centre console with a T-top', ['t-top boat', 't-top console', 'center console with a t-top', 'hardtop console', 't-top center console'], 'water', 'commuter', M, ['driven', 'parked', 'watched'],
+    { craft: 'ccTTop', tech: 'boat' }),
   ship: row('ship', ['steamship', 'ferry', 'freighter', 'warship', 'galley', 'longship'], 'water', 'transport', ['myth', 'modern'], ['driven', 'watched', 'crewed'],
     { tech: 'ship' }),
   'sailing-ship': row('sailing ship', ['galleon', 'frigate', 'schooner', 'clipper', 'sloop', 'tall ship', 'junk', 'dhow'], 'water', 'transport', ['rustic', 'myth'], ['driven', 'watched', 'crewed'],

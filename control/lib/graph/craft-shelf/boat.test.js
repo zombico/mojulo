@@ -5,7 +5,8 @@
 // boats; a boat by the words people say, its build asleep, never a transformer's craft. A hull's variations, each on the
 // hull that carries it: a flat bottom, a square bow, a sole, a collar that floats too; an outboard's leg at its size. A
 // helm on the sole: a console and seats on the hull's points, a gunwale cap, the nav lights and the bow rail, a remote
-// outboard. The cases are chosen from the shelf in code.
+// outboard. A motor well (the notch, the splashwell, the motor tilting into it) and a T-top over the helm. The cases are
+// chosen from the shelf in code.
 import { describe, it, expect } from 'vitest';
 import { assembleCraft, resolveCraftPart, CRAFT_ODM, CRAFT_ARCHETYPES, CRAFT_ROLES, craftRoleAnalogues } from './index.js';
 import { BOAT_KINDS, BOAT_ODM } from './boat-odm.js';
@@ -29,6 +30,11 @@ const bounds = (faces) => {
   return { lo, hi };
 };
 const lathe = (src, id) => src.lathes.find((l) => l.id === id);
+// (inside a hull's transom: between its raked faces, under its top, notched by a motor well across its middle)
+const inTransom = (row) => {
+  const H = hullLines(row), tanR = Math.tan(row.build.transom.rake * Math.PI / 180), Tt = row.build.transom.thickness, Wl = row.build.well;
+  return (p) => { const ya = -H.L / 2 + (H.zT - p[2]) * tanR; return p[1] > ya && p[1] < ya + Tt && p[2] < (Wl && Math.abs(p[0]) < Wl.width / 2 ? Wl.notch : H.zT) && Math.abs(p[0]) < H.at(0).sheerHalf; };
+};
 const P = (p) => [p.x, p.y, p.z];
 
 describe('the boat parts', () => {
@@ -237,10 +243,65 @@ describe('a helm on the sole', () => {
     const moving = Object.fromEntries(['lathes', 'extrudes', 'sweeps', 'lofts'].map((k) => [k, (up[k] || []).filter((x) => !still.test(x.id))]));
     const pts = lowerObjectFaces({ ...up, ...moving }).flatMap((f) => f.corners).map((p) => [p[0] + hm[0], p[1] + hm[1], p[2] + hm[2]]);
     const Tt = HROW.build.transom.thickness;
-    expect(pts.filter((p) => p[1] > -H.L / 2 && p[1] < -H.L / 2 + Tt && p[2] < hm[2])).toEqual([]);
-    // (what hangs in over the transom stays over the sole and aft of the helm's seat)
-    const inside = pts.filter((p) => p[1] > -H.L / 2 + Tt);
-    expect(Math.min(...inside.map((p) => p[2]))).toBeGreaterThan(HROW.build.sole + 0.3);
+    expect(pts.filter(inTransom(HROW))).toEqual([]);
+    // (what hangs in over the transom stays over the floor under it)
+    const inside = pts.filter((p) => p[1] > -H.L / 2 + Tt + 0.05);
+    // (over a motor well's floor, or the sole where there is none)
+    expect(Math.min(...inside.map((p) => p[2]))).toBeGreaterThan(HROW.build.well ? HROW.build.well.floor + 0.03 : HROW.build.sole + 0.3);
+  });
+});
+
+describe('a motor well, and a top over the helm', () => {
+  const WELL = Object.keys(BOAT_ODM).find((x) => BOAT_ODM[x].kind === 'boat-hull' && BOAT_ODM[x].build.well), HW = BOAT_ODM[WELL], Wl = HW.build.well;
+  const hullW = resolveCraftPart(WELL, { seat: 'mount' }), H = hullLines(HW);
+  const skinFaces = lowerObjectFaces({ ...hullW, lathes: [], extrudes: [], sweeps: [], lofts: hullW.lofts.filter((l) => l.id === 'skin') });
+  // (a boat whose motor stands in the well)
+  const WB = Object.keys(A).find((k) => A[k].realm === 'water' && A[k].layout[0].sku === WELL && A[k].layout.some((e) => CRAFT_ODM[e.sku]?.kind === 'boat-outboard'));
+  it('its transom notched to the motor\'s height across its width, the quarters standing full height', () => {
+    const aft = skinFaces.flatMap((f) => f.corners).filter((c) => c[1] < -H.L / 2 + 0.03);
+    const inNotch = aft.filter((c) => Math.abs(c[0]) < Wl.width / 2 - 0.05), quarters = aft.filter((c) => Math.abs(c[0]) > Wl.width / 2 + 0.1);
+    expect(Math.max(...inNotch.map((c) => c[2]))).toBeLessThan(Wl.notch + 0.005);
+    expect(Math.max(...quarters.map((c) => c[2]))).toBeGreaterThan(H.zT - 0.01);
+    expect(hullW.garage.hardpoints.motor[2]).toBeGreaterThan(Wl.notch);
+    expect(hullW.garage.hardpoints.motor[2]).toBeLessThan(Wl.notch + 0.03);
+  });
+  it('its splashwell: the liner\'s floor at the well\'s height aft of its bulkhead, the cockpit\'s sole forward of it', () => {
+    const liner = hullW.lofts.find((l) => l.id === 'liner'), at = (s) => liner.stations.reduce((a, x) => (Math.abs(x.t - s) < Math.abs(a.t - s) ? x : a));
+    // (a liner station's ring is the skin's inside, then the liner's inside back: its second half)
+    const lowest = (st) => Math.min(...st.profile.slice(st.profile.length / 2).map(([, v]) => v));
+    expect(lowest(at(Wl.length / H.L * 0.6))).toBeCloseTo(Wl.floor, 2);
+    expect(lowest(at(Wl.length / H.L + 0.05))).toBeCloseTo(HW.build.sole, 2);
+    expect(hullW.lofts.some((l) => l.id === 'well_bulkhead')).toBe(true);
+  });
+  it('its freeboard measured at the notch; the motor on its shaft, its plate at the keel; tilted up, in the well and out of the transom', () => {
+    expect(hullFloat(HW, 900).freeboard).toBeCloseTo(Wl.notch - hullFloat(HW, 900).draft, 3);
+    const { manifest } = assembleCraft(WB), motor = manifest.items.find((i) => i.source.garage.kind === 'boat-outboard'), h = manifest.items[0];
+    expect(Math.abs(motor.at[2] + motor.source.garage.hardpoints.plate[2] - h.at[2])).toBeLessThan(0.05);
+    const m = hullW.garage.hardpoints.motor, up = resolveCraftPart(motor.source.garage.sku, { seat: 'mount', pose: { tilt: 1 } });
+    const still = /^(clamp|stern_bracket|tilt_tube|transom_bolt|steering_ram|ram_rod|rigging)/;
+    const moving = Object.fromEntries(['lathes', 'extrudes', 'sweeps', 'lofts'].map((k) => [k, (up[k] || []).filter((x) => !still.test(x.id))]));
+    const pts = lowerObjectFaces({ ...up, ...moving }).flatMap((f) => f.corners).map((p) => [p[0] + m[0], p[1] + m[1], p[2] + m[2]]);
+    // (the transom's block between its raked faces, notched; the bulkhead across the well's forward end)
+    expect(pts.filter(inTransom(HW))).toEqual([]);
+    const yb = -H.L / 2 + Wl.length;
+    expect(pts.filter((p) => p[1] > yb - 0.01 && p[1] < yb + 0.06 && p[2] < Wl.top)).toEqual([]);
+  });
+  it('a T-top: its feet on the sole beside the console, its hardtop over the helm with a standing helmsman\'s headroom', () => {
+    const TB = Object.keys(A).find((k) => A[k].realm === 'water' && A[k].layout.some((e) => CRAFT_ODM[e.sku]?.kind === 'boat-top'));
+    const { manifest } = assembleCraft(TB), top = manifest.items.find((i) => i.source.garage.kind === 'boat-top'), con = manifest.items.find((i) => i.source.garage.kind === 'boat-console');
+    const hRow = CRAFT_ODM[manifest.items[0].source.garage.sku], TR = CRAFT_ODM[top.source.garage.sku];
+    expect(top.at[2] - manifest.items[0].at[2]).toBeCloseTo(hRow.build.sole, 3);
+    expect(TR.build.legs.x - 0.024).toBeGreaterThan(CRAFT_ODM[con.source.garage.sku].dims.width / 2 + CRAFT_ODM[con.source.garage.sku].build.rail.out + 0.02);
+    const hard = bounds(lowerObjectFaces({ ...top.source, lathes: [], sweeps: [], extrudes: [], lofts: top.source.lofts.filter((l) => l.id === 'hardtop') }));
+    expect(hard.lo[2] - con.source.garage.hardpoints.wheel[2]).toBeGreaterThan(0.85);
+    // (over the helm: its back edge aft of the wheel)
+    expect(hard.lo[1]).toBeLessThan(con.source.garage.hardpoints.wheel[1] - 0.5);
+  });
+  it('its all-round light moved from the hull\'s pole to the top', () => {
+    const TB = Object.keys(A).find((k) => A[k].realm === 'water' && A[k].layout.some((e) => CRAFT_ODM[e.sku]?.kind === 'boat-top'));
+    const { manifest } = assembleCraft(TB), ids = (i) => i.source.lathes.map((l) => l.id);
+    expect(ids(manifest.items[0])).not.toContain('all_round_light');
+    expect(ids(manifest.items.find((i) => i.source.garage.kind === 'boat-top'))).toContain('all_round_light');
   });
 });
 

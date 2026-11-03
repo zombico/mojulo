@@ -100,7 +100,9 @@ function offsetLine(P, t, gap) {
 // a polyline with everything under the height zc raised onto it, spread evenly between the two places it crosses zc (a
 // clipping plane's line across the section: a transom's face, a deck); all of it laid along its sheer's height when the
 // sheer is under zc
-function clipUp(P, zc) {
+// (`notch`, a motor well's { half, z }: across its middle the line steps down to the notch's height wherever it stands
+// above it, the quarters outboard of it staying at the line's own height, its steps square)
+function clipUp(P, zc, notch) {
   const n = P.length, mid = (n - 1) / 2;
   if (!(zc > Math.min(...P.map((p) => p[1])))) return P;
   let i = -1, x = P[0][0], z = P[0][1];
@@ -112,7 +114,20 @@ function clipUp(P, zc) {
     z = zc;
   }
   const m = n - 2 * (i + 1);
-  const spread = Array.from({ length: m }, (_, j) => [m > 1 ? x - (2 * x * j) / (m - 1) : 0, z]);
+  let spread = Array.from({ length: m }, (_, j) => [m > 1 ? x - (2 * x * j) / (m - 1) : 0, z]);
+  if (notch && z > notch.z && m >= 4) {
+    if (x <= notch.half) spread = spread.map(([u]) => [u, notch.z]);
+    else {
+      // (each quarter from the crossing in to the notch's side at the line's height, down its side, across its floor)
+      const a = Math.max(1, Math.min(Math.floor((m - 2) / 2), Math.round((m * (x - notch.half)) / (2 * x)))), c = m - 2 * a;
+      // (each run arched by a millimetre and a half, so no three of its points are in line: a stepped end's cap triangulates
+      // edge to edge, with no point left on a long side)
+      const arch = (j, k) => (k > 2 ? 0.0015 * Math.sin((Math.PI * j) / (k - 1)) : 0);
+      const quarter = Array.from({ length: a }, (_, j) => [a > 1 ? x - ((x - notch.half) * j) / (a - 1) : notch.half, z + arch(j, a)]);
+      const floor = Array.from({ length: c }, (_, j) => [notch.half - (2 * notch.half * j) / (c - 1), notch.z + arch(j, c)]);
+      spread = [...quarter, ...floor, ...quarter.slice().reverse().map(([u, w]) => [-u, w])];
+    }
+  }
   return [...P.slice(0, i + 1), ...spread, ...P.slice(n - 1 - i)];
 }
 
@@ -181,7 +196,8 @@ export function hullVolume(row, z, { samples = 160 } = {}) {
  *  the water's density (1000 fresh, 1025 the sea). Freeboard is the least height of the sheer over the waterline. */
 export function hullFloat(row, kg, { rho = 1000 } = {}) {
   const H = hullLines(row), need = kg / rho;
-  const sheerMin = Math.min(...Array.from({ length: 41 }, (_, k) => H.at(k / 40).sheer));
+  // (a motor well's notch is the lowest the water can come in)
+  const sheerMin = Math.min(...Array.from({ length: 41 }, (_, k) => H.at(k / 40).sheer), row.build.well?.notch ?? Infinity);
   if (hullVolume(row, sheerMin) < need) return { draft: round3(sheerMin), volume: round3(hullVolume(row, sheerMin)), freeboard: 0, swamped: true };
   let lo = 0, hi = sheerMin;
   for (let k = 0; k < 40; k += 1) { const m = (lo + hi) / 2; if (hullVolume(row, m) < need) lo = m; else hi = m; }
@@ -206,12 +222,18 @@ function buildHull(row, C) {
   const H = hullLines(row), { L } = H, Tt = b.transom.thickness, T1 = b.skin, T2 = b.skin + b.liner;
   const P0 = H.plane(0), P1 = H.plane(T1), P2 = H.plane(Tt);
   const deckZ = (st) => (b.deck && st.s >= b.deck.from ? st.sheer - b.deck.thickness : -Infinity);
+  // (a motor well: the transom notched to `notch` across `width`, a splash floor at `floor` aft of `length`)
+  const W = b.well, notch = W ? { half: W.width / 2, z: W.notch } : null, sW = W ? W.length / L : 0;
+  // (each layer steps down, and out to the side, its own depth under the notch, the skin's outside lowest and widest and
+  // the liner's inside at the notch, so the layers stack in the notch as they do everywhere and no ring touches itself)
+  const notchO = W ? { half: notch.half + T2, z: W.notch - T2 } : null, notchM = W ? { half: notch.half + (T2 - T1), z: W.notch - (T2 - T1) } : null;
   const lines = (s) => {
     const st = H.at(s), O = outerLine(st, b.flare);
     const M = offsetLine(O, T1, 0.004), I = capped(offsetLine(O, T2, 0.002), st);
-    // (a sole: the floor laid flat across the bottom at its height, the liner clipped to it the length of the boat)
-    const Ic = clipUp(I, P2(st.y)), Is = Number.isFinite(b.sole) ? clipUp(Ic, b.sole) : Ic;
-    return { st, O: clipUp(O, P0(st.y)), M: clipUp(M, P1(st.y)), I: clipUp(Is, deckZ(st)), Iopen: I };
+    // (a sole: the floor laid flat across the bottom at its height, the liner clipped to it the length of the boat; a
+    // motor well's splash floor aft of its bulkhead, higher)
+    const Ic = clipUp(I, P2(st.y), notch), Is = Number.isFinite(b.sole) ? clipUp(Ic, b.sole) : Ic, Iw = W && st.s < sW ? clipUp(Is, W.floor) : Is;
+    return { st, O: clipUp(O, P0(st.y), notchO), M: clipUp(M, P1(st.y), notchM), I: clipUp(Iw, deckZ(st)), Iopen: I };
   };
   const ring = (A, B) => [...A, ...B.slice().reverse()].map(([x, z]) => [x, 0, z]);
   const r4 = (s) => Math.round(s * 1e4) / 1e4;
@@ -268,10 +290,23 @@ function buildHull(row, C) {
   if (g && square) sweeps.push(sweep('bow_cap', [railAt(1, 1), railAt(-1, 1)], g, C.chrome, { sides: 8 }));
   if (b.collar) collarOf(b.collar, H, C, { sweeps, lathes });
   const st0 = H.at(0), cap = 0.012;
-  extrudes.push(boxX('transom_cap', [0, -L / 2 + Tt / 2, H.zT + cap / 2], 2 * st0.sheerHalf - 0.01, Tt + 0.012, cap, C.chrome));
   const F = b.fittings || {}, pad = F.pad || 0;
-  if (pad) extrudes.push(boxX('motor_pad', [0, -L / 2 + Tt / 2, H.zT + cap + 0.006], pad, Tt + 0.02, 0.012, C.rubber));
-  hardpoints.motor = r3v([0, -L / 2, H.zT + cap + (pad ? 0.012 : 0)]);
+  if (!W) {
+    extrudes.push(boxX('transom_cap', [0, -L / 2 + Tt / 2, H.zT + cap / 2], 2 * st0.sheerHalf - 0.01, Tt + 0.012, cap, C.chrome));
+    if (pad) extrudes.push(boxX('motor_pad', [0, -L / 2 + Tt / 2, H.zT + cap + 0.006], pad, Tt + 0.02, 0.012, C.rubber));
+    hardpoints.motor = r3v([0, -L / 2, H.zT + cap + (pad ? 0.012 : 0)]);
+  } else {
+    // (a motor well: the quarters' caps at the transom's top, the notch's cap down in it (its aft face forward of the
+    // transom's top by the rake), the motor's point on it, the splashwell's bulkhead lofted to the liner up to its top)
+    const qw = st0.sheerHalf - notch.half - 0.005, yN = -L / 2 + (H.zT - notch.z) * H.tanR;
+    for (const sx of [1, -1]) extrudes.push(boxX(`transom_cap_${sx > 0 ? 'r' : 'l'}`, [sx * (notch.half + qw / 2), -L / 2 + Tt / 2, H.zT + cap / 2], qw, Tt + 0.012, cap, C.chrome));
+    extrudes.push(boxX('notch_cap', [0, yN + Tt / 2, notch.z + cap / 2], 2 * notch.half - 0.004, Tt + 0.012, cap, C.chrome));
+    if (pad) extrudes.push(boxX('motor_pad', [0, yN + Tt / 2, notch.z + cap + 0.006], Math.min(pad, 2 * notch.half - 0.02), Tt + 0.02, 0.012, C.rubber));
+    hardpoints.motor = r3v([0, yN, notch.z + cap + (pad ? 0.012 : 0)]);
+    // (lofted to the skin's inside, so its edges sink into the liner's wall)
+    const s0w = sW, s1w = sW + (W.thickness ?? 0.05) / L, ends = [s0w, s1w].map((s) => clipDown(lines(s).M, W.top));
+    if (ends.every(Boolean)) lofts.push(loftWorld('well_bulkhead', [0, H.at(s0w).y, 0], [0, H.at(s1w).y, 0], ends.map((e, k) => ({ t: k, points: e.map(([x, z]) => [x, 0, z]) })), C[b.tint?.liner ?? 'chrome']));
+  }
   // the keel strip along the bottom from the transom's foot, round the forefoot and up the stem
   const kr = b.keelStrip, keel = [];
   for (let s = (H.zT * H.tanR) / L + 0.004; s < 0.995; s += 0.03) { const st = H.at(s); keel.push([0, st.y, st.keel - kr * 0.4]); }
@@ -344,8 +379,9 @@ function buildHull(row, C) {
       lathes.push(lathe(`sidelight_${sx > 0 ? 'r' : 'l'}`, c, add(c, [0, 0, 0.05]), [[0, 0.028], [0.4, 0.026], [0.6, 0.024], [1, 0.01]], NAVC[sx > 0 ? 'r' : 'l'], { material: 'neon', samples: 12, crossSections: 4 }));
     }
     const sa = H.at(0.05), x = -(sa.sheerHalf - (b.cap ? Math.min(b.cap, sa.sheerHalf * 0.45) / 2 : g)), zp = top(sa);
-    lathes.push(lathe('light_pole', [x, sa.y, zp - 0.01], [x, sa.y, zp + 0.95], [[0, 0.016], [0.03, 0.011], [1, 0.011]], C.chrome, { samples: 10, crossSections: 3 }));
-    lathes.push(lathe('all_round_light', [x, sa.y, zp + 0.95], [x, sa.y, zp + 1.01], [[0, 0.02], [0.5, 0.022], [1, 0.012]], NAVC.c, { material: 'neon', samples: 12, crossSections: 3 }));
+    // (`navLights: { pole: false }`: the all-round light is on a top over the helm instead)
+    if (F.navLights.pole !== false) lathes.push(lathe('light_pole', [x, sa.y, zp - 0.01], [x, sa.y, zp + 0.95], [[0, 0.016], [0.03, 0.011], [1, 0.011]], C.chrome, { samples: 10, crossSections: 3 }));
+    if (F.navLights.pole !== false) lathes.push(lathe('all_round_light', [x, sa.y, zp + 0.95], [x, sa.y, zp + 1.01], [[0, 0.02], [0.5, 0.022], [1, 0.012]], NAVC.c, { material: 'neon', samples: 12, crossSections: 3 }));
   }
   // rod holders flush in the gunwale's top, raked aft and outboard
   for (const [k, s] of (F.rodHolders || []).entries()) for (const sx of [1, -1]) {
@@ -544,7 +580,10 @@ function buildOutboard(row, C, opts = {}) {
     // the rigging's boot in the pan's front, its hose forward and down over the transom into the boat
     const rb = [0, yF + 0.004, zPan + 0.06];
     L_('motor', 'rigging_boot', add(rb, [0, -0.03, 0]), add(rb, [0, 0.05, 0]), [[0, 0.045], [0.5, 0.04], [1, 0.034]], C.rubber, { samples: 14, crossSections: 3 });
-    W_('motor', 'rigging', [add(rb, [0, 0.04, 0]), [0, Tt + 0.12, rb[2] - 0.02], [0, Tt + 0.3, -0.06], [0, Tt + 0.36, -0.2]], 0.026, C.rubber, { sides: 8 });
+    // (`rigging`: how far forward of the transom and how far below the clamp its hose goes in: down into an open boat, or
+    // into a motor well's bulkhead)
+    const rg = b.rigging, run = rg ? [[0, Tt + rg.reach * 0.83, lerp(rb[2] - 0.02, rg.drop, 0.7)], [0, Tt + rg.reach, rg.drop]] : [[0, Tt + 0.3, -0.06], [0, Tt + 0.36, -0.2]];
+    W_('motor', 'rigging', [add(rb, [0, 0.04, 0]), [0, Tt + 0.12, rb[2] - 0.02], ...run], 0.026, C.rubber, { sides: 8 });
   }
   const hub = FR.motor.P([0, (hubFrom[1] + hubTo[1]) / 2, zG]);
   const joints = [
