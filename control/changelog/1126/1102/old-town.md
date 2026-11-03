@@ -52,3 +52,7 @@
     few steps further, facing away.
   - Each inside is a level of its own after the town, built from its use's program and linked by its door both ways.
   - A quick game walking a town gets them too.
+- **A heavy level no longer loses the door it was entered by.** A hosted level waits 1.5 s for the shell's params,
+  then plays its presets. That wait now counts real waiting, not a page busy building its world. A town page used to
+  fire the fallback before the shell's answer was read, so a hero coming back out of a house stood at the town's
+  start, not at its door (`scene/channels/game.js`).

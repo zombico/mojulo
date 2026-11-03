@@ -247,7 +247,9 @@ ${game.chapters ? `  // CHAPTERS carried in (playscape/ui/chapters.js): a chapte
       start(d.params, d.seed);
     });
     try { window.parent.postMessage({ moj: '${GAME_MSG_READY}', contractVersion: __CV, levelRef: __GAME.levelRef }, '*'); } catch (e) { /* opaque parent */ }
-    setTimeout(() => { if (!st.started) fallback(); }, 1500);
+    // (the grace is 1.5 s of waiting, not of a busy page: a timer that fires late, the page having been building its
+    // world, gives the shell's answer, already queued, another grace before the presets run in its place)
+    (function grace(due) { setTimeout(() => { if (st.started) return; if (performance.now() - due > 250) grace(performance.now() + 1500); else fallback(); }, Math.max(0, due - performance.now())); })(performance.now() + 1500);
   } else {
     fallback();
   }
