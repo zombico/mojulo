@@ -39,8 +39,8 @@ export const POWER = Object.freeze({
 });
 export const POWER_IDS = Object.freeze(Object.keys(POWER));
 
-const SPEC_KEYS = ['power', 'swing', 'shot', 'blastZ', 'heatShare', 'fireTime', 'cool', 'pools', 'wind'];
-const SPEC_UNITS = { swing: 'joules', shot: 'joules', blastZ: 'm/kg^⅓', fireTime: 'fire seconds a play second', cool: 'seconds' };
+const SPEC_KEYS = ['power', 'swing', 'shot', 'blastZ', 'heatShare', 'fireTime', 'cool', 'pools', 'wind', 'rainTime'];
+const SPEC_UNITS = { swing: 'joules', shot: 'joules', blastZ: 'm/kg^⅓', fireTime: 'fire seconds a play second', cool: 'seconds', rainTime: 'rain seconds a play second' };
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const pos = (v) => typeof v === 'number' && Number.isFinite(v) && v > 0;
 
@@ -55,7 +55,7 @@ export function readMatterSpec(v, where = 'matter') {
     else if (pos(v.power)) out.power = v.power;
     else throw new Error(`${where}.power is ${POWER_IDS.join(', ')}, or a multiplier above 0`);
   }
-  for (const k of ['swing', 'shot', 'blastZ', 'fireTime', 'cool']) if (v[k] !== undefined) { if (!pos(v[k])) throw new Error(`${where}.${k} is a number above 0 (${SPEC_UNITS[k]})`); out[k] = v[k]; }
+  for (const k of ['swing', 'shot', 'blastZ', 'fireTime', 'cool', 'rainTime']) if (v[k] !== undefined) { if (!pos(v[k])) throw new Error(`${where}.${k} is a number above 0 (${SPEC_UNITS[k]})`); out[k] = v[k]; }
   if (v.pools !== undefined) {
     if (!Array.isArray(v.pools)) throw new Error(`${where}.pools is a list of { min, max, liquid? }: liquid standing in the world, its surface at max's height`);
     out.pools = v.pools.map((p, i) => {

@@ -552,6 +552,27 @@ gravel 1 m, bare rock none (`DEPTH`).
   same depth where it lands on the land, so a walker stands in the crater. A page whose world has no ground carries none
   of it.
 
+### The stage's water, on the ground
+
+A physical stage's still water (its lake, its sea: the water hazards `era/out-water.js` marks, each a box whose top is
+its level) lies on the same grid ([`ground-grid.js`](../control/lib/graph/rupa/ground-grid.js) `waterBodies`, the
+runtime's WATER pass): a depth at each point, the land under the level filled to it, and the same water as the physics'
+pools, so what falls in floats or sinks, splashes, and is doused in it. A river's level falls along it, so it is not still
+water and waits.
+
+- **At rest until moved.** The water is laid level and stays so. A crater dug at its edge, a levee broken, or rain sets
+  it moving, and it runs by `fluid.js`'s virtual pipes (flux driven by ρg·Δs through a face as deep as the water
+  upstream, held to what a point holds, never made or lost) until it is still again. A crater at the shore floods.
+- **Levees.** A block standing on the land is ground raised to its top: water pools behind it and pours over it when it
+  rises past. Twice a second the water's push across its thinner side, ½ρg(d₁² − d₂²) a metre of its width, is weighed
+  against its weight's friction (μ 0.6; it stands on the land unmortared): a board goes, a concrete wall holds. Broken,
+  it lets the water through.
+- **Rain** falls on the land at the weather's rate (drizzle 0.5 mm/h, rain 5, downpour 25, thunderstorm 50: `E.rupaRain`,
+  read from the page's weather as its sky blends), times the level's `matter.rainTime` (1 is real time, so real rain
+  fills a crater by a few millimetres an hour; 3600 an hour a second).
+- **The page** draws the water where it is not as the stage drew it (new water, or the lake's own where it moved), one
+  surface over the grid riding the dug ground. A lake that drains keeps its drawn surface.
+
 ## Skin and matter
 
 A thing's skin is how it looks (its texture and fill, set by the stage); its matter is what it is made of. Nothing ties
@@ -643,6 +664,8 @@ the cube's water as the fluid layer, then the geocity's physical ring near the p
 - Dust and smoke held by walls and ceilings (a puff passes through them; smoke doesn't yet pool under a vault or fill
   a room), shelter for puffs behind a barrier (the leaves have it), a fuel's own smoke yield and colour (every fire is a
   wood fire, flaming), smouldering, and a GPU path for puffs (the page places at most 480 sprites on the CPU).
+- Rivers as moving water on the ground, a drained lake's drawn surface going with it, snow as a source, water
+  soaking into soil, and boats.
 - The shovel as an action on the page's ground, the dirt a ground crater throws (scars throw theirs), ground in the
   geocity and terrain worlds (stages only), the live grass channel riding the ground on a world that has one only
   when its blades are instanced, and a crater's bowl drawn finer than the stage's land grid.

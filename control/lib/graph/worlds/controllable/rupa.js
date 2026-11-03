@@ -114,6 +114,11 @@
  *            its ground's soil): a burst near it digs its crater, the bank thrown to a rim, the faces slumping by their
  *            soil; a footing whose land went drops to it (state.rupa.ground, its `version` and `dirty` cells for the page)
  *
+ *   WATER    the stage's lakes and sea on the ground grid (`rupa.ground.water`: boxes and levels): a depth at each point,
+ *            still until moved (a crater at its edge, a levee broken, rain at the page's weather's rate × `rainTime`), then
+ *            flowing by rupa/fluid.js's virtual pipes till still; a block on the land holds it, its push breaches one
+ *            that cannot (state.rupa.ground.w, its `wVersion` for the page)
+ *
  *   TREES    a level's trees as blocks (rupa/tree-blocks.js, `rupa.trees`: each its blocks, its foot, its crown and the
  *            wind that snaps it): a gust at its crown past that speed throws it downwind about its foot (a felling); its
  *            trunk breaks and burns as green wood, its crown as fine fuel
@@ -763,7 +768,73 @@ export function buildRupa(E) {
     return { radius: R, depth: Dp, removed: taken, ejected };
   }
 
-  const physics = { groundOf, groundZ, groundCrater, unb64, craterSize, settleSpeed, dirt, scarOf, flameOf, footD, CHI_R, settleOf, buoyancyOf, riseOf, puffAt, lifeOf, smokeOf, plumePuffs, SOOT_K, SOOT_YIELD, resistance, bleed, blockDrag, wakeFactor, dragArea, blastKg, blastJoules, faceArea, burstShare, blowJoules, heatFactor, impact, dentOf, SHARP, SHOT_R, TOOLS, toolOf, dishOf, cutDepth, pressure, flowOf, submerged, inPool, immerse, stepIn, wet, windOf, windAt, AIR, loadPass, fragments, splash, seedOf, vol, G, TNT };
+  // ── WATER ON THE GROUND (the stage's lakes and sea, rupa/ground-grid.js `water`: each a box and its level): a depth at
+  // each point of the ground grid, the land under the level filled to it. It moves only when something moves it (a crater
+  // dug at its edge, a levee broken, rain): the virtual-pipe scheme rupa/fluid.js runs, its flux driven by ρg·Δs over a
+  // face as deep as the water upstream, held to what a point holds. A block standing on the land is ground raised to its
+  // top (water pools behind it and pours over it when it rises past); the water's push on it, ½ρg(d₁² − d₂²) a metre,
+  // against its weight's friction (it stands on the land unmortared), breaches it ──
+  const WATER_RHO = 1000, WATER_BED = 0.4;
+  function waterInit(Gd, bodies) {
+    const n = Gd.nx * Gd.ny, w = new Float32Array(n);
+    for (const B of bodies || []) for (let j = 0; j < Gd.ny; j++) for (let i = 0; i < Gd.nx; i++) {
+      const x = Gd.x0 + i * Gd.dx, y = Gd.y0 + j * Gd.dx, k = j * Gd.nx + i;
+      if (x < B.min[0] || x > B.max[0] || y < B.min[1] || y > B.max[1]) continue;
+      const d = B.level - Gd.z[k];
+      if (d > w[k]) w[k] = d;
+    }
+    Object.assign(Gd, { w, w0: Float32Array.from(w), q: new Float32Array(n * 4), bar: new Float32Array(n), flowing: false, calm: 0, wVersion: 0, wGround: -1, barSeq: -1 });
+  }
+  // the blocks on the land as raised ground: each standing block's top over the points under it
+  function waterBars(state, Gd) {
+    const { nx, ny, dx, x0, y0, z, bar } = Gd;
+    bar.fill(0);
+    for (const b of state.breakables) {
+      if (b.broken || b.falling || b.fell != null || !b.rupa) continue;
+      const c = [(b.min[0] + b.max[0]) / 2, (b.min[1] + b.max[1]) / 2];
+      if (b.min[2] > groundZ(Gd, c[0], c[1]) + 0.3) continue;   // only what stands on the land
+      const i0 = Math.max(0, Math.ceil((b.min[0] - x0) / dx)), i1 = Math.min(nx - 1, Math.floor((b.max[0] - x0) / dx));
+      const j0 = Math.max(0, Math.ceil((b.min[1] - y0) / dx)), j1 = Math.min(ny - 1, Math.floor((b.max[1] - y0) / dx));
+      for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) { const k = j * nx + i; bar[k] = Math.max(bar[k], b.max[2] - z[k]); }
+    }
+  }
+  const W_DIRS = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+  function waterStep(Gd, seconds) {
+    const { nx, ny, dx, z, w, q, bar } = Gd, n = nx * ny, A = dx * dx;
+    let t = 0, moved = 0;
+    while (t < seconds - 1e-9) {
+      let dmax = 0;
+      for (let k = 0; k < n; k++) if (w[k] > dmax) dmax = w[k];
+      if (dmax <= 1e-6) break;
+      const dt = Math.min(seconds - t, (0.35 * dx) / Math.sqrt(G * dmax));
+      const s = (k) => z[k] + Math.max(bar[k], 0) + w[k];
+      for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++) {
+        const k = j * nx + i;
+        let out = 0;
+        for (let r = 0; r < 4; r++) {
+          const ii = i + W_DIRS[r][0], jj = j + W_DIRS[r][1], at = k * 4 + r;
+          if (ii < 0 || jj < 0 || ii >= nx || jj >= ny || w[k] <= 0) { q[at] = 0; continue; }
+          const kk = jj * nx + ii, ds = s(k) - s(kk), face = ds > 0 ? w[k] : w[kk];
+          if (face <= 0) { q[at] = 0; continue; }
+          let v = (q[at] + dt * G * face * ds) / (1 + dt * WATER_BED);
+          q[at] = v > 0 ? v : 0; out += q[at];
+        }
+        if (out * dt > w[k] * A && out > 0) { const K = (w[k] * A) / (out * dt); for (let r = 0; r < 4; r++) q[k * 4 + r] *= K; }
+      }
+      for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++) {
+        const k = j * nx + i;
+        let net = -(q[k * 4] + q[k * 4 + 1] + q[k * 4 + 2] + q[k * 4 + 3]);
+        if (i > 0) net += q[(k - 1) * 4]; if (i < nx - 1) net += q[(k + 1) * 4 + 1];
+        if (j > 0) net += q[(k - nx) * 4 + 2]; if (j < ny - 1) net += q[(k + nx) * 4 + 3];
+        const d = Math.max(0, w[k] + (dt * net) / A);
+        moved = Math.max(moved, Math.abs(d - w[k])); w[k] = d;
+      }
+      t += dt;
+    }
+    return moved;
+  }
+
+  const physics = { waterInit, waterStep, groundOf, groundZ, groundCrater, unb64, craterSize, settleSpeed, dirt, scarOf, flameOf, footD, CHI_R, settleOf, buoyancyOf, riseOf, puffAt, lifeOf, smokeOf, plumePuffs, SOOT_K, SOOT_YIELD, resistance, bleed, blockDrag, wakeFactor, dragArea, blastKg, blastJoules, faceArea, burstShare, blowJoules, heatFactor, impact, dentOf, SHARP, SHOT_R, TOOLS, toolOf, dishOf, cutDepth, pressure, flowOf, submerged, inPool, immerse, stepIn, wet, windOf, windAt, AIR, loadPass, fragments, splash, seedOf, vol, G, TNT };
   E.rupaPhysics = physics;
   if (!E.registerWorldPass) return;   // Node's physics-only build
 
@@ -794,13 +865,14 @@ export function buildRupa(E) {
     if (!any) return;
     state.rupa = { swing: R.swing ?? 300, shot: R.shot ?? 2000, blastZ: R.blastZ ?? 4, power: R.power ?? 1, g: R.g ?? G, heatShare: R.heatShare ?? 0.3, fireTime: R.fireTime ?? 60, cool: R.cool ?? 120, seq: -1, hits: [], hotAt: -1, bodies: [], bodySeq: 0, pools: Array.isArray(R.pools) ? R.pools : [], sprays: [], drops: [], dropSeq: 0, wet: { volume: 0, landed: [] }, splashes: [], splashSeq: 0,
       air: { ...AIR, density: R.airDensity ?? AIR.density }, wind: windOf(R.wind), windAt: -1, toppled: [], dents: [], dentSeq: 0, fells: [], fellSeq: 0, smoke: [], smokeSeq: 0,
-      ground: groundOf(R.ground), craters: [], craterSeq: 0,
+      ground: groundOf(R.ground), craters: [], craterSeq: 0, rain: 0, rainTime: R.rainTime ?? 1,
       // the footings (a building's, a tree's roots: rupa/shell-blocks.js, tree-blocks.js): the world's colliders keep only
       // their boxes, so they are found by their place among the level's own (core.js normalizeColliders keeps the order)
       footings: (() => { const out = []; let n = 0; for (const c of Array.isArray(spec.colliders) ? spec.colliders : []) { if (!(c && Array.isArray(c.min) && Array.isArray(c.max) && c.min.length === 3 && c.max.length === 3)) continue; if (String(c.of || '').endsWith(':footing') && state.colliders[n]) out.push(state.colliders[n]); n++; } return out; })(),
       trees: Array.isArray(R.trees) ? R.trees.map((t) => ({ id: t.id, blocks: t.blocks.slice(), foot: t.foot, crown: t.crown.slice(), breakSpeed: t.breakSpeed, snapped: null })) : [], treesAt: -1,
       treeOf: Array.isArray(R.trees) ? Object.fromEntries(R.trees.flatMap((t) => t.blocks.map((id) => [id, t.id]))) : {},
       scars: R.scars ? { ground: R.scars.ground, wall: R.scars.wall, marks: [], seq: 0 } : null };
+    if (state.rupa.ground && R.ground && Array.isArray(R.ground.water) && R.ground.water.length) waterInit(state.rupa.ground, R.ground.water);
   });
   // src: { joules (what the breaking took: its joules, and any blow past them), from?, dir? } for the debris
   // SMOKE SOURCES (`state.rupa.smoke`, seq-keyed, the last 128): what the page's dust and smoke are solved from
@@ -1617,4 +1689,40 @@ export function buildRupa(E) {
       if (low < c.max[2] - TOUCH) { const d = c.max[2] - low; c.min[2] -= d; c.max[2] -= d; state.settleDirty = true; R.seq = -1; }
     }
   }, 34.6);
+  // ── WATER (order 34.7): rain falls on the land (mm/h, the page's weather, × rainTime); the blocks on it are raised
+  // ground; what changed sets the water moving, and it runs until it is still. Where it stands against a block, its push
+  // breaches what cannot hold it ──
+  const RAIN_MM = { drizzle: 0.5, rain: 5, downpour: 25, thunderstorm: 50 };
+  E.rupaRain = RAIN_MM;
+  E.registerWorldPass('rupa-water', (state, input, dt) => {
+    const R = state.rupa, Gd = R && R.ground;
+    if (!Gd || !Gd.w) return;
+    if (R.rain > 0) {
+      const add = (R.rain / 3.6e6) * R.rainTime * dt;
+      for (let k = 0; k < Gd.w.length; k++) if (Gd.cells[Math.min(Math.floor(k / Gd.nx), Gd.ny - 2) * (Gd.nx - 1) + Math.min(k % Gd.nx, Gd.nx - 2)] !== 255) Gd.w[k] += add;
+      Gd.flowing = true; Gd.calm = 0;
+    }
+    if (state.breakSeq !== Gd.barSeq || Gd.version !== Gd.wGround) {
+      const first = Gd.barSeq === -1;   // (the bars laid at the start set nothing moving: the lake was laid at rest)
+      waterBars(state, Gd); Gd.barSeq = state.breakSeq; Gd.wGround = Gd.version;
+      if (!first) { Gd.flowing = true; Gd.calm = 0; }
+    }
+    // the push on what holds it, twice a second: each block standing on the land, across its thinner side; it stands on
+    // the land unmortared, so what holds it is its weight's friction (μ 0.6)
+    if (Math.floor(state.time * 2) !== Math.floor((state.time - dt) * 2)) for (const b of state.breakables) {
+      if (b.broken || b.falling || b.fell != null || !b.rupa) continue;
+      const c = [(b.min[0] + b.max[0]) / 2, (b.min[1] + b.max[1]) / 2], ax = b.max[0] - b.min[0] <= b.max[1] - b.min[1] ? 0 : 1;
+      if (b.min[2] > groundZ(Gd, c[0], c[1]) + 0.3) continue;
+      const side = (sg) => { const p = c.slice(); p[ax] = sg < 0 ? b.min[ax] - Gd.dx : b.max[ax] + Gd.dx; return Math.max(0, groundZ(Gd, p[0], p[1], 'w')); };
+      const d1 = side(-1), d2 = side(1), hi = Math.max(d1, d2), lo = Math.min(d1, d2);
+      if (hi < 0.05) continue;
+      const push = 0.5 * WATER_RHO * G * (hi * hi - lo * lo) * (b.max[1 - ax] - b.min[1 - ax]);
+      if (push > 0.6 * b.rupa.mass * G) breakIt(state, b, 'water', null);
+    }
+    if (!Gd.flowing) return;
+    const moved = waterStep(Gd, dt);
+    Gd.wVersion++;
+    Gd.calm = moved < 1e-4 ? Gd.calm + dt : 0;
+    if (Gd.calm > 2) Gd.flowing = false;
+  }, 34.7);
 }

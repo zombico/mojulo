@@ -270,13 +270,41 @@ function __updateGround() {
     __gndU.uGround.value = __gndTex; __gndU.uGroundBox.value.set(Gd.x0, Gd.y0, Gd.dx); __gndU.uGroundSize.value.set(Gd.nx, Gd.ny);
     for (const name of Object.keys(meshes)) if (__gndLand(name)) { const m = meshes[name]; for (const mat of Array.isArray(m.material) ? m.material : [m.material]) __gndPatch(mat); }
   }
+  // rain on the land: the weather's state now (its rate, mm/h, the physics' table), blended as the sky blends
+  if (Gd.w && window.__mojWeather) { const a = window.__mojWeather.at(__world.time), RN = __CW.rupaRain || {}; __world.rupa.rain = (RN[a.is] || 0) * (1 - (a.mix || 0)) + (RN[a.next] || 0) * (a.mix || 0); }
+  if (Gd.w) __updateWater(Gd);
   if (Gd.version === __gndSeen) return;
   __gndSeen = Gd.version;
   // what grows on the land rides it: the live grass, its flowers and a carpet of petals (instanced: each blade by its root;
   // a tile laid since is patched as it comes)
   scene.traverse((o) => { if (o.isInstancedMesh && o.userData && /grass|flowers|carpet/.test(String(o.userData.g || ''))) for (const mat of Array.isArray(o.material) ? o.material : [o.material]) __gndPatch(mat); });
   const D = __gndTex.image.data;
-  for (let k = 0; k < Gd.z.length; k++) { const u = Math.max(0, Math.min(65535, Math.round(((Gd.z[k] - Gd.z0[k] + 8) / 16) * 65535))); D[k * 4] = u >> 8; D[k * 4 + 1] = u & 255; D[k * 4 + 3] = 255; }
+  for (let k = 0; k < Gd.z.length; k++) { const u = Math.max(0, Math.min(65535, Math.round(((Gd.z[k] - Gd.z0[k] + 8) / 16) * 65535))); D[k * 4] = u >> 8; D[k * 4 + 1] = u & 255; }
+  __gndTex.needsUpdate = true;
+}
+// the WATER the physics moves (its lake and sea, rain, a flood through a broken levee): one mesh over the grid, its
+// points lifted by the ground's dug depth and the water's own (the texture's last two bytes, 0 to 16 m), drawn only where
+// the water is not as the stage drew it (new water, or the lake's own where it changed)
+let __wMesh = null, __wSeen = -1;
+function __updateWater(Gd) {
+  if (!__wMesh) {
+    const nx = Gd.nx, ny = Gd.ny, pos = new Float32Array(nx * ny * 3), idx = [];
+    for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++) { const k = j * nx + i; pos[k * 3] = Gd.x0 + i * Gd.dx; pos[k * 3 + 1] = Gd.y0 + j * Gd.dx; pos[k * 3 + 2] = Gd.z0[k]; }
+    for (let j = 0; j + 1 < ny; j++) for (let i = 0; i + 1 < nx; i++) { const a = j * nx + i; idx.push(a, a + 1, a + nx + 1, a, a + nx + 1, a + nx); }
+    const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.BufferAttribute(pos, 3)); geo.setIndex(idx); geo.computeVertexNormals();
+    const mat = new THREE.MeshLambertMaterial({ color: 0x3f7896, transparent: true, opacity: 0.74, depthWrite: false });
+    mat.onBeforeCompile = (sh) => {
+      Object.assign(sh.uniforms, __gndU);
+      sh.vertexShader = __gndVS + 'float rupaWaterAt(vec2 ij) { vec4 t = texture2D(uGround, (ij + 0.5) / uGroundSize); return (t.b * 65280.0 + t.a * 255.0) / 65535.0 * 16.0; }\\nvarying float vWater;\\n' +
+        sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\\n{ vec2 ij = floor((position.xy - uGroundBox.xy) / uGroundBox.z + 0.5); vWater = rupaWaterAt(ij); transformed.z += rupaGroundAt(ij) + vWater; }');
+      sh.fragmentShader = 'varying float vWater;\\n' + sh.fragmentShader.replace('void main() {', 'void main() {\\n  if (vWater < 0.01) discard;');
+    };
+    __wMesh = new THREE.Mesh(geo, mat); __wMesh.renderOrder = 2; __wMesh.raycast = function () {}; __wMesh.frustumCulled = false; scene.add(__wMesh);
+  }
+  if (Gd.wVersion === __wSeen) return;
+  __wSeen = Gd.wVersion;
+  const D = __gndTex.image.data;
+  for (let k = 0; k < Gd.w.length; k++) { const w = Gd.w[k], w0 = Gd.w0[k], show = Math.abs(w - w0) > 0.01 || (w0 <= 0 && w > 0.01) ? w : 0, u = Math.max(0, Math.min(65535, Math.round((show / 16) * 65535))); D[k * 4 + 2] = u >> 8; D[k * 4 + 3] = u & 255; }
   __gndTex.needsUpdate = true;
 }
 // the probe: where it lands on the land as drawn (the grid's first heights), the depth dug there

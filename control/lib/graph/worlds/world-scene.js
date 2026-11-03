@@ -26,7 +26,7 @@ import { readMatterSpec, readTool, readScarsSpec, loadAudit } from '@/lib/graph/
 import { shellBlocks } from '@/lib/graph/rupa/shell-blocks.js';
 import { physicsWind } from '@/lib/graph/rupa/one-wind.js';
 import { treeBlocks } from '@/lib/graph/rupa/tree-blocks.js';
-import { groundGrid } from '@/lib/graph/rupa/ground-grid.js';
+import { groundGrid, waterBodies } from '@/lib/graph/rupa/ground-grid.js';
 import { groundOfShares } from '@/lib/graph/rupa/look-matter.js';
 import { manifestGarment } from '@/lib/graph/polygonizer/figure-outfit';
 import { resolveMotionMovers } from '@/lib/graph/worlds/motion-vocabulary';
@@ -899,7 +899,15 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
       payload.rupa = readMatterSpec(sketch.manifest.matter, 'matter');
       // (its land as a soil grid the page digs, rupa/ground-grid.js, from the stage's landform and substrate)
       const ground = groundGrid(payload.physicalGround);
-      if (ground) payload.rupa.ground = ground;
+      if (ground) {
+        // (and its still water, the stage's lake and sea: on the grid, and as pools what falls in floats or sinks in)
+        const water = waterBodies(payload.anchors);
+        if (water.length) {
+          ground.water = water;
+          payload.rupa.pools = [...(payload.rupa.pools || []), ...readMatterSpec({ pools: water.map((w) => ({ min: w.min, max: [w.max[0], w.max[1], w.level], liquid: 'water' })) }, 'water').pools];
+        }
+        payload.rupa.ground = ground;
+      }
       // one wind (rupa/one-wind.js): the level's own `wind`, the one its plants, grass and cloth sway in, is the air its
       // blocks, dust, smoke and leaves feel, matched at 2 m and 10 m; the level's `matter.wind` overrides it for the physics
       if (!payload.rupa.wind && sketch.manifest.wind) { const w = physicsWind(sketch.manifest.wind); if (w) payload.rupa.wind = w; }

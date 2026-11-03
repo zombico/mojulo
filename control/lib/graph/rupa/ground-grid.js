@@ -9,8 +9,13 @@
  *   A SOIL       { dig (J/m³ a crater takes), swell, c (Pa), phi (°), density, depth }: a soil's own; a ground that is no
  *                soil digs as its toughness allows and holds any face
  *
+ *   THE WATER    the stage's still water (its lake, its sea: era/out-water.js, the water hazards it marks, each a box
+ *                whose top is its level) as the grid's water bodies, the land under each level filled to it; a river's
+ *                level falls along it, so it is not still water and waits
+ *
  *   DEPTH                         metres of loose ground over bedrock, by ground
  *   groundGrid(physicalGround)    → the runtime's `rupa.ground` ({ x0, y0, dx, nx, ny, z, cells, soils }), or null
+ *   waterBodies(anchors)          → [{ of, min, max, level }] the still water among a world's anchors
  */
 import { resolveMatter, isSoil } from './matter.js';
 import { SUBSTRATE_MATTER } from './look-matter.js';
@@ -28,4 +33,10 @@ export function groundGrid(g) {
   if (!g || typeof g.z !== 'string' || typeof g.cells !== 'string' || !Array.isArray(g.ids)) return null;
   const soils = g.ids.map((sub) => soilRecord(SUBSTRATE_MATTER[sub]?.matter ?? 'loam', DEPTH[sub] ?? 1));
   return { x0: g.x0, y0: g.y0, dx: g.dx, nx: g.nx, ny: g.ny, z: g.z, cells: g.cells, soils };
+}
+
+// the still water a stage marks (its water hazards: a lake's, the sea's), each its box and the level its top is
+export function waterBodies(anchors) {
+  return (anchors || []).filter((a) => a && a.kind === 'hazard' && a.hazard === 'water' && a.box && /^(lake|coast)-/.test(String(a.of || '')))
+    .map((a) => ({ of: a.of, min: [...a.box.min], max: [...a.box.max], level: a.box.max[2] }));
 }
