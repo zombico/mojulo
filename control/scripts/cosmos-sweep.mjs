@@ -12,7 +12,6 @@
  *   --json     print the whole report as JSON instead of the summary
  */
 import { fileURLToPath } from 'node:url';
-import { ENGINES, MARKED_ENGINES } from '../lib/graph/scene/engines/registry.js';
 import { register } from 'node:module';
 // (the cosmos registry reads its tables live, and they import by '@/': plain Node takes the repo's resolver first)
 if (!process.env.VITEST) register('./mcp-stdio-loader.mjs', import.meta.url);
@@ -47,11 +46,10 @@ export function formatSweep(r, { top = 15 } = {}) {
   out.push('fixtures');
   for (const f of r.fixtures) {
     const why = [...f.blocked.map((k) => `✗ ${k}`), ...f.gaps.map((k) => `~ ${k}`)].join('  ');
-    const lost = MARKED_ENGINES.map((e) => (f.engines[e] ? ' '.repeat(e.length + 1) : `${e}✗`)).join(' ');
-    out.push(`  ${f.anchor ? '◆' : ' '} ${pad(f.id, 20)} ${pad(f.verdict, 9)} ${lost}  ${why}`);
+    out.push(`  ${f.anchor ? '◆' : ' '} ${pad(f.id, 20)} ${pad(f.verdict, 9)} ${why}`);
   }
   const { makeable, gaps, blocked } = r.verdicts;
-  out.push('', `rolled  makeable ${makeable} (${pct(makeable, r.n)}) · gaps ${gaps} (${pct(gaps, r.n)}) · blocked ${blocked} (${pct(blocked, r.n)}) · ${MARKED_ENGINES.map((e) => `survive ${ENGINES[e].name} ${r.engines[e].ok} (${pct(r.engines[e].ok, r.n)})`).join(' · ')}`);
+  out.push('', `rolled  makeable ${makeable} (${pct(makeable, r.n)}) · gaps ${gaps} (${pct(gaps, r.n)}) · blocked ${blocked} (${pct(blocked, r.n)})`);
   out.push('', 'unlock by facet: built whole, how many rolled cubes step up (and how many become makeable)');
   for (const f of r.unlock.facets) out.push(`  ${pad(f.facet, 9)} lifts ${pad(f.lifts, 5)} makeable ${pad(f.makeable, 5)} touches ${f.touches}`);
   out.push('', 'build order: work packages by lifts per unit of work, with what each needs built first (S 1 · M 3 · L 8; unsized last)');
@@ -59,23 +57,13 @@ export function formatSweep(r, { top = 15 } = {}) {
     const needs = p.needs.length ? `  + ${p.needs.join(', ')}` : '';
     out.push(`  ${pad(p.name, 56)} ${pad(p.effort || '?', 2)} cost ${pad(p.cost ?? '?', 3)} per-effort ${pad(p.perEffort ?? '—', 6)} lifts ${pad(p.lifts, 5)} makeable ${pad(p.makeable, 5)}${needs}`);
   }
-  for (const e of MARKED_ENGINES) {
-    const g = r.engines[e].unlock;
-    for (const [facet, ladder] of Object.entries(g.ladders)) {
-      out.push('', `${e} ladder, ${facet}: its settings made to travel one at a time, largest gain first (cubes surviving the export, of ${r.n})`);
-      out.push(`  ${pad('now', 36)} ${r.engines[e].ok}`);
-      for (const l of ladder) out.push(`  ${pad(`+ ${l.setting}`, 36)} ${pad(l.survives, 5)} +${l.gain}`);
-    }
-    out.push('', `${e} by value: cubes that would survive the export if this one value travelled`);
-    for (const v of g.values.slice(0, top)) out.push(`  ${pad(v.key, 36)} survives ${pad(v.survives, 5)} touches ${v.touches}`);
-  }
   out.push('', `unlock by value: the top ${top}`);
   for (const v of r.unlock.values.slice(0, top)) out.push(`  ${pad(v.key, 36)} ${pad(v.status, 8)} lifts ${pad(v.lifts, 5)} makeable ${pad(v.makeable, 5)} touches ${v.touches}`);
   return out.join('\n') + '\n';
 }
 
 export function formatFixture(f, r) {
-  const out = [`${f.id}: ${f.name}${f.anchor ? ' (anchor)' : ''}`, `  ${f.why}`, `  verdict ${r.verdict}${MARKED_ENGINES.map((e) => (r.engines[e].ok ? '' : ` · lost on ${ENGINES[e].name} export: ${r.engines[e].lost.map((x) => `${x.facet}.${x.setting}=${x.value}`).join(', ')}`)).join('')}`, ''];
+  const out = [`${f.id}: ${f.name}${f.anchor ? ' (anchor)' : ''}`, `  ${f.why}`, `  verdict ${r.verdict}`, ''];
   for (const [id, facet] of Object.entries(r.facets)) {
     if (!facet.rows.length) continue;
     out.push(`  ${id} (depth ${facet.depth})`);

@@ -1,4 +1,5 @@
 import fs from 'fs/promises';
+import fsSync from 'fs';
 import path from 'path';
 
 const STORAGE_ROOT =
@@ -18,6 +19,14 @@ export async function uploadFile(key, buffer, _legacyIgnored, _opts = {}) {
   const dest = resolveStoragePath(key);
   await ensureDir(dest);
   await fs.writeFile(dest, buffer);
+  return { storagePath: key };
+}
+
+/** The same write, synchronously: for a door that files a picture inside a synchronous handler. */
+export function uploadFileSync(key, buffer) {
+  const dest = resolveStoragePath(key);
+  fsSync.mkdirSync(path.dirname(dest), { recursive: true });
+  fsSync.writeFileSync(dest, buffer);
   return { storagePath: key };
 }
 

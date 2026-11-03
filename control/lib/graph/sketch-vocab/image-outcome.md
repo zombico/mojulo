@@ -103,7 +103,7 @@ Mint with `create_sketch { title, manifest }` → `/sketches/<ref>` shows the
 scaffold. The render handoff (request → external worker → audit → bind) and
 the final composite are the image-outcomes plan's I3–I5 surfaces.
 
-A bound render can also SKIN a 3D object: a `create_workbench` lathe takes
+A bound render can also SKIN a 3D object: a workbench lathe (`mint_solid` kind `workbench`) takes
 `wrap: { source: { outcomeRef: '<this ref>' } }` — the latest bound PNG maps
 around the cylinder wall (a can/bottle/cup label, package design) and
 exports as a real texture in `.glb`.

@@ -10,14 +10,19 @@ comments, docs, or the changelog: plans are working documents that move to
 A local MCP server with a dashboard that turns the operator's agent into a game studio. The person directs; the
 agent works through six departments: worlds and levels (art direction, light, set pieces, cities planned for play),
 characters, props and vehicles (`create_character`, `mint_solid`), play modes, animation and sound (`create_game`, feel,
-juice, `create_beats`), foes and bosses, cameras and cutscenes (`forge_motion`, the scenes card), and game design and
+juice, `create_beats`), foes and bosses, cinematics (the actor: a persona's `style` and `role`, scenes and their coverage,
+`forge_motion`, the scenes card; craft in [docs/cinematics.md](docs/cinematics.md)), and game design and
 production (`design_game`, the bibles, plans and sweeps), which ties the rest into a game. The audit and the engine legs
-are how everything holds up, not departments. Every department writes into one tiny
-deterministic recipe (a `sketches` row) that regenerates on every read and exports to Godot, Unity, Unreal, Blender,
-GLB, STL, 3MF, USD, which is why a game's bible, its levels and its export agree. Play, Print, Read, Hear and Observe
-are what the departments' combinations make; rooms, prints and science views are the same studio's other outcomes.
+are how everything holds up, not departments. Every department writes into one tiny deterministic recipe (a `sketches`
+row) that regenerates on every read and exports to the web, a team's engine (Godot, Unity, Unreal, Blender), GLB, STL,
+3MF, USD, which is why a game's bible, its levels and its export agree. Play, Print, Read, Hear and Observe are what
+the departments' combinations make; rooms, prints and science views are the same studio's other outcomes.
 Underneath, it is a 3D compiler for agents: that is how it works and what the agent is told, not what the person is
 sold. Mojulo is the agent-driven upstream that feeds those tools, never a fidelity rival and never "just an exporter."
+It makes single-player and couch-multiplayer games (online is out of scope) for two audiences: a solo creator gets the
+whole game end to end on the web (`export_game`); developers and teams get a handoff of assets, animation and levels to
+their engine, with the recipe and its bible as the team's design source and the web build as the prototype that
+validated the loop (the `engine-handoff` theme).
 
 Two audiences, one truth. The README, the plugin and the manifests speak to the person (the studio); the drawers and
 the `initialize` preamble speak to the agent (the compiler). The canonical self-description is the `get_substrate`
@@ -81,7 +86,7 @@ The chatbot factory and its bot runtime left in 3.0.0 for their own project; the
   layers over what the operator's LLM provider already enforces. Posture: [TERMS.md](TERMS.md).
 - Never read or echo `.env` secrets from generated app directories.
 - UI strings go through `next-intl`; add to `control/messages/en.json`, then `/sync-locales`. CI checks parity.
-- Optional workers (Blender, ComfyUI, Kokoro, slicer, OpenSCAD, Godot, Unity, Unreal, Rojo, Lune) are never dependencies.
+- Optional workers (Blender, ComfyUI, Kokoro, slicer, OpenSCAD, Godot, Unity, Unreal) are never dependencies.
   Absence degrades a loop, never breaks one. Search orders live in `control/lib/workers/find.js` (`version({ workers: true })`).
 - Do not commit unless asked. Never touch `control/.next/`, `control/data/`, `.claude/worktrees/`.
 
@@ -191,11 +196,16 @@ Pointers only; each target carries its own design notes.
   [world-kinds.js](control/lib/graph/worlds/world-kinds.js) (the registry).
 - Emitters: [control/lib/graph/scene/](control/lib/graph/scene/); native frame is z-up, 1 unit = 1 m
   ([engine-score.js](control/lib/graph/scene/engine-score.js)); each emitter owns its conversion.
-  Engine legs: `godot-project.js`, `unity-project.js`, `blender-project.js`, `roblox-project.js`; Unreal takes assets,
-  not games or levels (`unreal-project.js`: `export_model { format: 'unreal' }`, a character or solid as GLB + importer);
-  one registry and marks per engine in `scene/engines/`; CLIs in `control/scripts/export-*.mjs`; gates are advisory and
-  need `MOJULO_GODOT` / `MOJULO_UNITY` / `MOJULO_UNREAL` / `MOJULO_ROJO` + `MOJULO_LUNE`. A runtime kernel (Godot's
-  GDScript, Roblox's Luau) is held equal to the web by `scripts/conformance.mjs --engine <e> --corpus <c>`.
+  The engine handoff (`export_model { engine }`): `handoff.js` and an adapter per engine, Godot's in `handoff-godot.js`
+  (a project of a world's or a game's levels), Blender's in `handoff-blender.js` (the same, built into a .blend; the art
+  pack, `format: 'blender'`, stays `blender-pack.js`); Unreal's in `handoff-unreal.js` (the same, a UE5 project its
+  Python importer builds; one thing by its ref stays the asset pack, `unreal-pack.js`); Unity's in `handoff-unity.js`
+  (the same, a Unity 6 URP project its C# importer builds in batchmode); the registry in
+  `scene/engines/`. The visual gate (`scene/visual-gate.js`, `scripts/visual-gate.mjs`) renders a level's cameras on the
+  page and in each engine installed and scores each shot. Gates are advisory and need `MOJULO_GODOT` / `MOJULO_BLENDER` /
+  `MOJULO_UNREAL` / `MOJULO_UNITY`; CI's `godot` job runs Godot's legs (the handoff, a humanoid's import, the visual
+  gate's) on a pinned Godot; the others run locally. No engine runs a game: the game runtimes (Godot's, Roblox's,
+  Unity's) are retired, and the web build is the game.
 - The realistic hero body (`form: 'realistic'`, the form field's slice): [docs/realistic-body.md](docs/realistic-body.md).
   Its garments: the construction in [body-relational-tailor.js](control/lib/graph/polygonizer/body-relational-tailor.js), the
   principles a silhouette is read by in [docs/garment-principles.md](docs/garment-principles.md); skill: `/garment-design`.
@@ -255,6 +265,12 @@ Pointers only; each target carries its own design notes.
 - Walled-core dungeons: [docs/walled-core-dungeon.md](docs/walled-core-dungeon.md) (layers on a critical path toward a
   core, a `design_game` world's `wcd`; its principles as laws; a space builds its level; a military base's buildings,
   stocked by `era/stocking.js`).
+- Networks of passages: [network/](control/lib/graph/network/) (buildings or rooms joined by passages: `sections.js`, what
+  a passage is, a new kind a row; `edges.js`, which nodes join and by what path, straight or a dog-leg; `passage.js`, one
+  built to its section along its path, at its cover, level through its turns; `laws.js`; `walk-gate.js`, a payload walked
+  as the page walks it). Its clients: the geocity's `under` (podiums and their concourses: `geocity/podium.js`) and a
+  stage's `complex` (buildings with basements on one yard, `complex.js`; a WCD level's spaces; a campus by its name,
+  `campuses.js`, a new campus a row).
 - Quest open worlds: [docs/quest-open-world.md](docs/quest-open-world.md) (the WCD's opposite pole: a geocity's regions
   joined sideways, never gated on the way on; a `design_game` world's `qow`; its principles as laws). The metro it is
   laid on: [geocity/](control/lib/graph/geocity/) (the geocube's `show: 'geocity'`: major streets first, rings, roads,

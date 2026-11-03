@@ -10,12 +10,10 @@
  * read. Errors teach: unknown kind → the kind list; a failed mint → a pointer
  * at the kind's card.
  *
- * The retired `create_*_view` names remain callable as UNLISTED aliases
- * (listed:false — they resolve in tools/call but don't ride tools/list), so
- * compiled plans / skills that persisted them keep executing. Drop after one
- * release. Stored manifests and the render path are untouched — each view
- * file keeps its mint + handler; only its registerTool block retired.
- * See tool-list-drawerization.plan.md.
+ * The per-kind `create_*_view` names were callable as unlisted aliases from
+ * 1.0.0 and are gone; `retired` below keeps each kind's old name as history (its
+ * view-vocab card says the same as `retired_tool`). Stored manifests and the
+ * render path are untouched: each view file keeps its mint + handler.
  */
 
 import { listingRows, DETAIL_PROPERTY } from '@/lib/mcp/vocab-listing';
@@ -85,7 +83,7 @@ import { createRelativisticViewHandler } from '@/lib/mcp/tools/relativistic-view
 import { createDnaProcessHandler } from '@/lib/mcp/tools/dna-process';
 import { createEnergyCycleHandler } from '@/lib/mcp/tools/energy-cycle';
 
-// kind → { family, retired tool name, original handler }. The handler keeps
+// kind → { family, retired: the name the kind once had as its own tool, handler }. The handler keeps
 // each view's own param whitelisting/validation; create_view is pure dispatch.
 export const VIEW_KINDS = {
   'atmosphere': { family: 'science', retired: 'create_atmosphere_view', handler: createAtmosphereViewHandler },
@@ -290,18 +288,4 @@ export function registerCreateViewTools() {
     },
     handler: getViewVocabHandler,
   });
-
-  // Deprecated per-kind creators — resolve in tools/call, hidden from tools/list.
-  // (kinds born inside create_view carry no `retired` alias and are skipped.)
-  for (const [kind, entry] of Object.entries(VIEW_KINDS)) {
-    if (!entry.retired) continue;
-    registerTool({
-      name: entry.retired,
-      listed: false,
-      aliasOf: 'create_view',
-      description: `Deprecated alias — use create_view({ kind: '${kind}', params }) (manual: get_view_vocab({ id: '${kind}' })).`,
-      inputSchema: { type: 'object', properties: {}, required: [] },
-      handler: entry.handler,
-    });
-  }
 }

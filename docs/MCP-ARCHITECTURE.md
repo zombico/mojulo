@@ -81,7 +81,7 @@ Roster, membership and each pack's ring and install group: [packs.js](../control
 
 **Listed is reachable; unlisted is not, for the agent.** A host that defers schemas (Claude Code) gets the flat registry; others get packs mode. In both, the agent can call only what is listed (or a listed pack's members). An unlisted tool — a retired pack's member, a deprecated alias such as the per-op render handoff names behind `render_handoff` — runs on the CLI and in `execute_plan` steps (with a deprecation warning at compile), not from the agent's own tool call. Folding tools into a wider one therefore rewrites every pointer to the old names.
 
-**The chatbot factory left.** The chatbot factory is no longer part of mojulo as of 3.0 and is moving to its own project. Earlier 2.x versions that include it are unmaintained and have known security issues. Its tool names never list, but a call to one (directly, through a pack, in a plan step or on the CLI) answers in-band with that notice ([bot-factory-moved.js](../control/lib/mcp/bot-factory-moved.js)); `mojulo install chatbot` installs nothing and prints it; a 2.x `packs/chatbot` marker or `MOJULO_PACKS=chatbot` is ignored, and `mojulo tools` / `mojulo packs` say so.
+**The chatbot factory left.** The chatbot factory is no longer part of mojulo as of 3.0 and is moving to its own project. Earlier 2.x versions that include it are unmaintained and have known security issues. Its tool names never list, and a call to one is an unknown tool; `mojulo install chatbot` is an unknown pack (exit 1), and a `chatbot` token in `MOJULO_PACKS` is skipped as any unknown token is.
 
 **The iron wall is execution, not information.** An uninstalled pack's tools do not list and do not run, and refuse with an advisory naming the install rather than pretending not to exist. `mojulo tools` / `mojulo packs` list only installed packs with a `not installed: … add with: …` footer. Knowledge is never hidden; only execution is walled.
 
@@ -362,7 +362,6 @@ Migration is in the migration block in [db/index.js](../control/lib/db/index.js)
 |------|------|
 | [control/app/api/mcp/route.js](../control/app/api/mcp/route.js) | HTTP transport + bearer auth; forwards JSON-RPC into server.js |
 | [control/lib/mcp/server.js](../control/lib/mcp/server.js) | Protocol dispatch, tool registry, initialize preamble |
-| [control/lib/mcp/bot-factory-moved.js](../control/lib/mcp/bot-factory-moved.js) | The chatbot factory's moved notice and its removed tool names |
 | [control/lib/mcp/client-bindings.js](../control/lib/mcp/client-bindings.js) | `clientInfo` capture for host-adapter auto-resolution |
 | [control/lib/mcp/tools/context.js](../control/lib/mcp/tools/context.js) | Ring 0 — `forward_context`. The tool index lives here; keep it in sync when adding tools |
 | [control/lib/mcp/tools/adapters.js](../control/lib/mcp/tools/adapters.js) | Ring 0 — `get_adapter` (host adapter binding) |

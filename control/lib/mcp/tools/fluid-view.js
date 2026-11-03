@@ -53,7 +53,7 @@ export function mintFluidView({ title, scenario, angle, density, viscosity, spin
 
 export async function createFluidViewHandler(input) {
   if (!input || typeof input !== 'object') {
-    throw new Error('create_fluid_view requires a recipe object');
+    throw new Error('create_view({ kind: "fluid" }) requires a recipe object');
   }
   const { title, scenario, angle, density, viscosity, spin, emitters, scale, viewBox, scene, ref, folder_ref: folderRef } = input;
   return mintFluidView({ title, scenario, angle, density, viscosity, spin, emitters, scale, viewBox, scene, ref, folderRef });

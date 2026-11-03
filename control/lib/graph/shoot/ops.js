@@ -11,8 +11,10 @@
  *   remove_key { camera, t }
  *   ease { camera, t? | times?, ease }          every key when no time is given (AE: select all, F9)
  *   retime { camera?, scale?, shift? }          key times and that camera's shot spans; every camera when omitted
- *   add_shot { shot, at? }   set_shot { shot, name?, camera?, span?, in?, on?, speed? }   remove_shot { shot }   move_shot { shot, to }
+ *   add_shot { shot, at? }   set_shot { shot, name?, camera?, span?, in?, on?, speed?, time?, clock?, grain? }   remove_shot { shot }   move_shot { shot, to }
  *     (`speed` stretches the shot: 0.25 plays its span four times slower; null or 1 plays it in real time)
+ *     (`time`, `clock`, `grain` are its time map, time.js: stretches, ramps and holds; the camera on the screen's clock;
+ *      the world on twos; null takes each away)
  *     (`on` is the event pattern that cuts to the shot in a live world: 'goal:*'; null takes it back into the running order)
  *     (`in` is the transition into the shot: 'cut' | 'fade' | 'wipe' | 'iris' | 'pipe', or { type, duration, … })
  *   add_piece { piece }   set_piece { piece, …fields }   piece_key { piece, key }   remove_piece { piece }
@@ -159,7 +161,9 @@ export function applyShootOp(plan, op) {
       const ids = op.camera ? [cameraOf(next, op.camera).id] : next.cameras.map((c) => c.id);
       const at = (t) => Math.max(0, t * scale + shift);
       next.cameras = next.cameras.map((c) => (ids.includes(c.id) ? { ...c, keys: c.keys.map((k) => ({ ...k, t: at(k.t) })) } : c));
-      next.shots = next.shots.map((s) => (ids.includes(s.camera) ? { ...s, span: [at(s.span[0]), at(s.span[1])] } : s));
+      // a shot's time map moves with its span: its world instants retimed, its holds (screen seconds) as they were
+      const moment = (m) => (m.span ? { ...m, span: m.span.map(at), ...(m.ramp ? { ramp: m.ramp * scale } : {}) } : { ...m, at: at(m.at) });
+      next.shots = next.shots.map((s) => (ids.includes(s.camera) ? { ...s, span: [at(s.span[0]), at(s.span[1])], ...(s.time ? { time: s.time.map(moment) } : {}) } : s));
       return { plan: next, note: `retimed ${op.camera || 'every camera'} ×${scale}${shift ? ` ${shift > 0 ? '+' : ''}${shift}s` : ''}` };
     }
     case 'add_shot': {
@@ -176,6 +180,7 @@ export function applyShootOp(plan, op) {
       if (op.camera !== undefined) { cameraOf(next, op.camera); s.camera = op.camera; }
       if (op.span !== undefined) s.span = op.span;
       if (op.speed !== undefined) { if (op.speed === null || op.speed === 1) delete s.speed; else s.speed = op.speed; }
+      for (const k of ['time', 'clock', 'grain']) if (op[k] !== undefined) { if (op[k] === null) delete s[k]; else s[k] = op[k]; }
       if (op.in !== undefined) { if (op.in === null || op.in === 'cut') delete s.in; else s.in = op.in; }
       if (op.on !== undefined) { if (op.on === null || (Array.isArray(op.on) && !op.on.length)) delete s.cue; else s.cue = op.on; }
       next.shots[i] = s;

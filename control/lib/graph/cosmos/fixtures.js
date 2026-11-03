@@ -347,6 +347,20 @@ export const FIXTURES = Object.freeze([
       time: { progression: 'linear' },
     },
   },
+  // the time map (11-02): a game whose moments are shown on a clock of their own, the probe the world clock is priced by
+  {
+    id: 'cinematic-action',
+    name: 'Cinematic action',
+    anchor: false,
+    why: 'a hero fights through set pieces in third person; time slows on a dodge and holds on the big blow, the camera moving free while the world crawls, and the finisher shown again',
+    cube: {
+      reality: { medium: '3d' },
+      space: { camera: 'third-person', topology: 'linear' },
+      power: { combat: ['melee', 'ranged'], mechanics: ['hp-pool', 'defeat-all'] },
+      soul: { hero: 'hero' },
+      time: { progression: 'linear', advance: 'cues', shots: ['in-world'], tempo: ['slow', 'ramp', 'freeze', 'bullet'], replay: ['replay'] },
+    },
+  },
   // the fighter (10-15): a side-on one-on-one in rounds, its own simulation on a stage arena
   {
     id: 'versus-fighter',

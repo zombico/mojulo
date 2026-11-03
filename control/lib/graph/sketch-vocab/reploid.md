@@ -123,7 +123,7 @@ version, mirror one side, assemble last.
 - **Fork, don't restyle:** copy reploid-0's manifest, change one region per
   version, title as changelog (`reploid-1 v1 - teal armor buster arm`).
 - **Skin seam:** the assembled unit takes the polygomer skin seam
-  (`get_skin_packet` → paint → `skin_polygomer`) for decals and finish;
+  (`edit_solid` op `skin`: `spec.phase: 'packet'` → paint → the PNG back) for decals and finish;
   single-view limitation applies (front/¾ strong, side/back weak).
 
 ## Do / don't

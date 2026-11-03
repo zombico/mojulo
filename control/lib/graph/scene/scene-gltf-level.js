@@ -1,6 +1,5 @@
 /**
- * scene-gltf-level — level-as-layout semantics for the GLB export
- * (interchange.plan.md I4).
+ * scene-gltf-level — level-as-layout semantics for the GLB export.
  *
  * facesToGlb historically exported geometry only; this module derives the
  * SCENE from the same resolved payload — glTF perspective cameras from the
@@ -165,7 +164,7 @@ function spawnPoint(payload) {
     && wk.spawn.length >= 2 && wk.spawn.every(Number.isFinite)) {
     // A 2-D walk spawn is a point on the FLOOR: the runtime's walk engine ground-snaps on
     // its implicit z=0 plane, and every engine kernel treats `moj:spawn` as the walker's
-    // feet (Godot and Unity lift it by a fraction of the eye and let gravity settle it).
+    // feet (Godot lifts it by a fraction of the eye and let gravity settle it).
     // It used to carry the eye height as z, so spawn and eye were the same number and a
     // walker stood at eye height plus an eye (lounge review, 2026-09-08).
     return wk.spawn.length >= 3
@@ -277,7 +276,7 @@ export function shootCameraDefs(shoot, viewBox) {
   const def = (name, frames, times, step) => ({
     name, ...pose(frames[0]), yfov: yfov(frames[0].hfov), aspectRatio: aspect, znear: 0.1, zfar: 8000,
     times, translations: frames.map((v) => pose(v).translation), rotations: frames.map((v) => pose(v).rotation), step,
-    // the lens at every frame (a glTF camera cannot key its field of view: the Godot kernel sets it from score.shoot)
+    // the lens at every frame (a glTF camera cannot key its field of view: score.shoot carries it)
     yfovs: frames.map((v) => yfov(v.hfov)),
   });
   const out = shoot.cameras.map((c) => {

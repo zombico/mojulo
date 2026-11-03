@@ -115,7 +115,7 @@ sd_xl_base_1.0.safetensors, {{CONTROLNET_MODEL}} =
 controlnet-scribble-sdxl.safetensors. Expect ~60–90s per generation and
 weaker pose fidelity; the audit gate is identical.
 
-A bound render can also skin a 3D asset: a `create_workbench` lathe accepts
+A bound render can also skin a 3D asset: a workbench lathe (`mint_solid` kind `workbench`) accepts
 `wrap: { source: { outcomeRef: '<ref>' } }` — the latest bound PNG wraps the
 cylinder wall (label / package design) and exports as a real `.glb` texture.
 

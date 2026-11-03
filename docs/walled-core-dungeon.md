@@ -10,15 +10,15 @@ A `design_game` world's `wcd` (`control/lib/graph/wcd/wcd.js`); the agent's manu
 
 - **Inner**: a dungeon of its own. The core is one.
 - **Outer**: binds inners; crossed, never the core.
-- **Door**: lift, teleporter, door or stair, with its gate (a clearance or a power). A lift and a teleporter stay in one
-  level. `oneWay` is a shortcut back out.
+- **Door**: lift, teleporter, door or stair, with its gate (a clearance, a power, or the keys found in the space it
+  leaves). A lift and a teleporter stay in one level. `oneWay` is a shortcut back out.
 - **Depth**: 0 outermost, the core deepest. `built: false` keeps a space on the path unmade.
 
 ## Principles
 
 Laws on the recipe, advice in `design_game`'s readout (`advice.wcd`), never refusals: deeper at every door, the core an
 inner, every outer binding two spaces, every space entered through a gated door, each layer unlike the last in
-construction and palette, lifts and teleporters within one level.
+construction and palette, lifts and teleporters within one level, a keyed door leaving an escape room.
 
 ## In the book
 
@@ -28,13 +28,39 @@ the stage it is built as, toned when it is, with its light: a draft's book is th
 style palette does not colour a bay building; its look or its tone does. The book's look is the world's `book: { skin }` (`gameworld/book-skin.js`): a preset (`briefing`) or the
 model's own colours, faces, frame and texture.
 
+## The escape room
+
+The smallest a layer can be: a space you are held in, its way out sealed, until N locks are open, each by a key found
+inside it or by a step (a truth on the bus reaching a value). A level's `goal: { escape: true | 1…4 }` makes its last
+stage one (`gameworld/escape.js`, the `escape-room` mechanic, `game/escape-room.js`): keys along a trail's beats or on a
+building's route through its rooms, locks at the way out, the seal turning a walker back until they open. A door's
+`gate: { keys: true }` is opened by the keys found in the space it leaves; the law `keys-inside` advises when that space's
+level is no escape room. Its keys, locks and seal are named from the recipe (`<level>-key-<n>`, `<level>-lock-<n>`,
+`<level>-seal`), so an engine handoff carries them as markers. The book lists each escape room, what is locked and where
+its keys lie.
+
 ## A space builds its level
 
 Its `look` composes the stage (`era/compose.js`), its `tone` colours it (`era/tone.js`); both live on the dungeon and
 survive a rerun. A base building (`BASE_USES`, `era/programs.js`) is always composed, so its rooms are stocked
 (`era/stocking.js`); the `bunker` construction (`era/style/bay-axes.js`, `era/bay.js`) dresses its walled layers.
 
+## Several spaces on one level: a complex
+
+A building level's `building: { complex: true }` stands the dungeon's spaces on that level as buildings on one yard
+(`network/complex.js`): in the critical path's order, each of its space's use and look, each beside the one before it,
+each with a basement. A door between two of them is the passage below grade that joins their basements (`network/`:
+a service tunnel by default, `network.section` to change it), whatever its via, both ways. The level is played in at
+the first one's front door, down, through the passages, up the last one's stair to its goal room. The network's laws
+(every building reached, cover, grade, run, and a way through) advise beside the dungeon's in `advice.wcd`; the book
+draws the level as a site plan, and the rings call such a door a passage. `complex: { buildings }` stands buildings of
+its own instead, and `complex: { campus }` a campus by its name (`network/campuses.js`: a hospital's emergency
+department, wards, plant and theatres joined by a public passage and a service tunnel; a base's hangar, barracks,
+armoury and command joined by bunker tunnels). A base's or a hospital's buildings are stocked by their rooms' roles
+(`era/stocking.js`), and two buildings a passage joins are held to differ in look (`complex-distinct`).
+
 ## Not yet
 
-The outside (how the spaces join as one map) waits on the geocube work. Two spaces cannot share a level, so a lift
-between levels is a stair.
+A gate does not hold a passage shut inside a level: there is no in-level barrier that opens on what the player holds,
+so a clearance on a complex's door is drawn and advised, not played. A lift and a teleporter between two buildings of a
+complex are built as passages. The outside of a level made of separate building levels waits on the geocube work.

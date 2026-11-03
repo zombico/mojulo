@@ -40,14 +40,14 @@ mobile-worker anchors on precedent *mechanisms*.
 Decompose by JOB, not anatomy, and name the segment after the job:
 *screw-jack stabilizer boot · clamp-and-pry arm module · torso work core +
 tool bay · protected sensor head · knee-lift leg pylon*. Each is a separate
-`create_workbench` on the measured grid (literal scale — a worker has real
+`mint_solid` kind `workbench` on the measured grid (literal scale — a worker has real
 dimensions), iterated with the decision in the title ("b — heavy braced",
 "c — front utility chest"). Gate: the segment must read as its mechanism
 head-on before it joins.
 
 ## Step 3 — Assemble on the ground plane, replicate instead of sculpting
 
-Compose with `create_assembler`: items placed `on: "ground"` with
+Compose with `mint_solid` kind `assembler`: items placed `on: "ground"` with
 `at / rotate / scale`. The load-bearing habit is **replication with pose
 variance** — author ONE module, instance it per station. The spider-tank's six
 legs are one curved wheel-leg module at six stations
@@ -100,7 +100,7 @@ more than any segment detail.
 
 Pairs with [[mobile-suit]] (the character-first sibling — route by "does it
 have a job or a face"), [[compositional-balance]] for the assembled mass
-check, and `preview_vehicle_instance` when a variant graduates into a vehicle
-family. Assembled workers take the polygomer skin seam (`get_skin_packet` →
-paint decals/wear flat over the scaffold → `skin_polygomer`) — hazard stripes
+check, and `mint_solid` kind `vehicle` when a variant graduates into a vehicle
+family. Assembled workers take the polygomer skin seam (`edit_solid` op `skin`, `spec.phase: 'packet'` →
+paint decals/wear flat over the scaffold → `edit_solid` op `skin` with the PNG) — hazard stripes
 and unit markings without touching the geometry recipe.

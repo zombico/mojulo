@@ -40,7 +40,7 @@ export function mintQuadraticView({ title, scenario, a, b, c, scale, viewBox, sc
 }
 
 export async function createQuadraticViewHandler(input) {
-  if (!input || typeof input !== 'object') throw new Error('create_quadratic_view requires a recipe object');
+  if (!input || typeof input !== 'object') throw new Error('create_view({ kind: "quadratic" }) requires a recipe object');
   const { title, scenario, a, b, c, scale, viewBox, scene, ref, folder_ref: folderRef } = input;
   return mintQuadraticView({ title, scenario, a, b, c, scale, viewBox, scene, ref, folderRef });
 }
