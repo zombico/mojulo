@@ -418,3 +418,17 @@ push, load, haul and lift on a site.
     parked machine's words, and two worked examples (a breaker at work, a crane rigged).
   - The vehicle routing card says a site machine is a construction shelf machine, posed and fitted by its words.
   - The routing eval has a row for one ("an excavator with a breaker on, its boom raised" → `mint_solid`).
+- **The doors, step 4: the geocity's building sites** (`geocity/scene.js`):
+  - **The tower crane:** a site drawn in detail stands the construction shelf's tower crane at its corner, its jib over
+    the building and its mast as many sections as clear the building's core. It is drawn within 1.5 km of the camera,
+    a district's reach.
+    - A site too tall for a freestanding mast keeps the massing crane, since a climbing crane is beyond the shelf.
+    - The skyline's far sites keep the massing crane.
+  - **The machines:** inside the hoarding, near the camera as the kit is, an excavator digging on the band beside the
+    building, facing it, and a tipper waiting along its front.
+  - **Lighting:** each machine is lowered under the city's own light, once per process for each light and height.
+  - **`assembleMachine(…, { laws: false })`** draws a machine as scenery without reading its laws.
+  - **Held:** a site drawn in detail stocked with its crane (one per site the counts name, drawn across its district)
+    and its machines (near the camera only); every repeat still drawn by the near rule; the skyline none.
+  - **Seen** (machine gate only, the eyes gate is open): two sites from the street corner, each crane over its rising
+    building, a tipper in the hoarding, a taller core site keeping its massing crane.

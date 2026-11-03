@@ -155,6 +155,15 @@ describe('the city changing', () => {
     if (parked) { const cars = P.repeats.find((r) => r.group === 'geocity:car'); expect(cars.transforms.every((t) => Array.isArray(t.tint))).toBe(true); }
     expect(going || parked).toBe(true);
   });
+  it('stocks a site drawn in detail from the construction shelf: its tower crane over its core, an excavator and a tipper in its hoarding', () => {
+    const cranes = P.repeats.filter((r) => r.group === 'geocity:tower-crane'), site = (k) => P.repeats.find((r) => r.group === `geocity:site-${k}`);
+    if (!P.geocity.counts.cranes) return;
+    expect(cranes.reduce((n, r) => n + r.transforms.length, 0)).toBe(P.geocity.counts.cranes);
+    // (a crane is seen across its district, the machines near the camera as the kit is)
+    expect(cranes.every((r) => r.near > 1000 && r.template.length > 1000)).toBe(true);
+    for (const k of ['digger', 'truck']) if (site(k)) expect(site(k).near).toBeLessThan(1000);
+    expect(site('digger') || site('truck')).toBeTruthy();
+  });
 });
 
 describe('the geotown composed in, built', () => {

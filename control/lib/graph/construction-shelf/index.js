@@ -273,9 +273,10 @@ function groundJoint(arch, ctx, joints, name, settle = (j) => j) {
 /**
  * An archetype at a pose → `{ manifest, readout }`: an assembler recipe of its bodies, each placed by its frame, and its
  * struts aimed between their pins. The readout says the pose's joints and every joint's range, the laws (read at the
- * machine's own reference poses: con-laws.js), the measures as it stands, the BOM.
+ * machine's own reference poses: con-laws.js; `laws: false` skips them, for a machine drawn as scenery), the measures
+ * as it stands, the BOM.
  */
-export function assembleMachine(archetypeIn, { pose = 'rest', palette, colors = {}, finish = true, title, tool, carrier, height } = {}) {
+export function assembleMachine(archetypeIn, { pose = 'rest', palette, colors = {}, finish = true, title, tool, carrier, height, laws: read = true } = {}) {
   const archetype = composeMachine(archetypeIn, { tool, carrier, height });
   const ctx = machineCtx(archetype), arch = ctx.arch, joints = posedJoints(archetype, pose);
   const chain = solveChain(arch, joints, ctx);
@@ -288,7 +289,8 @@ export function assembleMachine(archetypeIn, { pose = 'rest', palette, colors = 
   for (const e of arch.layout) if (!isStrut(e)) items.push(place(e.id, src(e.sku), chain.frames[e.id]));
   for (const s of chain.struts) items.push(place(s.item, src(ctx.entry(s.id).sku, s.kind === 'link' || s.kind === 'rope' ? undefined : s.part ?? s.kind), s.frame, s.scale));
   const manifest = { kind: 'assembler', title: title || `${arch.label} (${arch.classOf})`, units: 'm', items };
-  const laws = conLaws(arch, ctx, { corners: (sku, part) => partCorners(archetype, sku, part), physics: PHYSICS[arch.physics], posed: (name) => posedJoints(archetype, name) });
+  // (a machine drawn as scenery, a city's site's, need not read its laws: `laws: false`)
+  const laws = read ? conLaws(arch, ctx, { corners: (sku, part) => partCorners(archetype, sku, part), physics: PHYSICS[arch.physics], posed: (name) => posedJoints(archetype, name) }) : null;
   // (a ram counts once: its rod and its stages are the barrel's; a rope once, its lengths its first's)
   const bom = planAssemblyBom(items.map((it) => ({ garage: { kind: it.source.garage.kind } })).filter((x, i) => !/\.(rod|s\d+|f\d+)$/.test(items[i].id)), arch.bom);
   return {
@@ -308,9 +310,7 @@ export function assembleMachine(archetypeIn, { pose = 'rest', palette, colors = 
       ranges: Object.fromEntries(Object.keys(arch.joints).map((k) => [k, rangeOf(arch, k, ctx)])),
       rams: chain.struts.filter((s) => s.kind === 'barrel').map((s) => ({ id: s.item, length: Math.round(s.length * 1000) / 1000 })),
       measures: measureMachine(manifest),
-      envelope: laws.envelope,
-      laws: { ok: laws.ok, laws: laws.laws },
-      partsMass: laws.mass,
+      ...(laws ? { envelope: laws.envelope, laws: { ok: laws.ok, laws: laws.laws }, partsMass: laws.mass } : {}),
       audit: { ok: bom.ok && !bom.surplus.length, bom },
     },
   };
