@@ -67,6 +67,7 @@ import { ROOMS_KEPT } from './minigames.js';
 import { JUICE_REGISTERS, JUICE_LOOKS, JUICE_FLAVORS, JUICE_DIALS, juiceFloor, juiceSignature } from '../scene/juice-style.js';
 import { WCD_KINDS, WCD_VIAS, WCD_PRINCIPLES } from '../wcd/wcd.js';
 import { QOW_PRINCIPLES, SIGHT } from '../qow/qow.js';
+import { ATLAS_LOOK_IDS } from './atlas-html.js';
 import { BOOK_SKINS } from './book-skin.js';
 
 const lines = (...xs) => xs.flat().join('\n');
@@ -754,6 +755,8 @@ function nextCard() {
     '             { ref, revise: { part, note } }). The verdicts are theirs, never yours. The bible\'s look is the world\'s',
     `             book: { skin: ${Object.keys(BOOK_SKINS).map((k) => `'${k}'`).join(' | ')} | { from?, paper, sheet, ink, muted, rule, accent, signal (#rrggbb),`,
     '             display, body, mono (font names), frame: rule | bracket, texture: none | grid | scanlines, plates: paper | night } }.',
+    '             Its atlas, the levels, trails and ways drawn as a map (flat or tilted on the table): /bible?book=atlas&look=',
+    `             ${ATLAS_LOOK_IDS.join(' | ')}.`,
     '  advised    autonomous: the machine gate advises on those `parts`: change the page, or approve it as it stands.',
     '  play       the game is made: `url`. Its levels are walkable by construction (the hero spawns on each stage\'s ground,',
     '             its exit is the stage\'s own end); whether they can be beaten is the creator\'s to judge in play: nothing',
