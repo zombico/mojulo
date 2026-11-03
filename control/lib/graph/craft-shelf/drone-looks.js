@@ -17,6 +17,8 @@
  * lights, and its livery unless one is named. A look never changes a drone's frame, arms, motors or rotors. Pure.
  */
 
+import { BOAT_LOOKS, BOAT_LOOK_IDS } from './boat-looks.js';
+
 export const DRONE_LOOKS = Object.freeze({
   consumer: Object.freeze({
     reads: 'a consumer drone: light moulded plastics, its LEDs lit, a camera gimbal, a registration and a serial plate',
@@ -41,10 +43,10 @@ export const DRONE_LOOKS = Object.freeze({
 });
 export const DRONE_LOOK_IDS = Object.freeze(Object.keys(DRONE_LOOKS));
 
-/** The card a look names, or throws naming them. */
+/** The card a look names (a drone's, or a boat's: boat-looks.js), or throws naming them. */
 export function lookCard(look) {
-  const card = DRONE_LOOKS[look];
-  if (!card) throw new Error(`drone look: '${look}' is no look (a look is one of ${DRONE_LOOK_IDS.join(' | ')})`);
+  const card = DRONE_LOOKS[look] ?? BOAT_LOOKS[look];
+  if (!card) throw new Error(`drone look: '${look}' is no look (a look is one of ${DRONE_LOOK_IDS.join(' | ')}; a boat's ${BOAT_LOOK_IDS.join(' | ')})`);
   return card;
 }
 

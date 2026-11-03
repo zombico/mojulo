@@ -13,12 +13,15 @@
  *     marks     { number?: '<1-4 digits>' | false, emblem?: 'disc' | 'bar' | false, warnings?: boolean, style?:
  *               'military' | 'civil', hiVis?: boolean } | false: a tail number on the fin, a side number on the nose, a
  *               generic emblem on the fuselage's sides and the wings (one up, one down), the ejection warning by the
- *               canopy and the walkways by the wing roots, all low-visibility against the paint. A drone's: its number
+ *               canopy and the walkways by the wing roots, all low-visibility against the paint. A boat's: its number on
+ *               both bows and its emblem amidships, on its outermost skin (a RIB's collar), low-visibility (military); or
+ *               its registration on both bows, against its paint (civil). A drone's: its number
  *               on its frame's sides and its emblem on top (military); or its registration on its sides, its serial
  *               plate on top and, `hiVis`, orange bands round its arms' tips (civil). A registration is generic, never a
  *               real register's format
  *   wear    pristine | used | battered (mil-wear.js's words): soot aft of the guns and over the engine's end, grime
- *           streaks running aft, chips along the leading edges, the sun's fade on what faces up, repainted panels
+ *           streaks running aft, chips along the leading edges, the sun's fade on what faces up, repainted panels; on a
+ *           boat its streaks run down its sides (salt on a dark paint, grime on a pale one) and its chips are at its bow
  *
  *   AIR_CAMO, AIR_WEAR
  *   readAirLivery(livery)                         → the livery read whole, or null when absent; throws naming its words
@@ -292,6 +295,8 @@ export function markCraft(stage, L, { seed = 1 } = {}) {
   const mark = (f) => ({ material: f.material, albedo: lowVis(f.albedo) });
   const frame = stage.find((it) => it.kind === 'drone-frame');
   if (frame) return markDrone(stage, frame, M, { number, seed: L.seed ?? seed, skinOf, lay, mark });
+  const boat = stage.find((it) => it.kind === 'boat-hull');
+  if (boat) return markBoat(stage, boat, M, { number, seed: L.seed ?? seed, mark });
   const hull = stage.find((it) => it.kind === 'craft-fuselage');
   if (hull) {
     const fs = skinOf(hull), [y0, y1] = extentOf(fs, 1), [z0, z1] = extentOf(fs, 2), Lh = y1 - y0, H = z1 - z0, zc = (z0 + z1) / 2;
@@ -367,6 +372,38 @@ function markDrone(stage, frame, M, { number, seed, skinOf, lay, mark }) {
   return stage;
 }
 
+/** A boat's marks, on its outermost skin (a hull's topsides, or a RIB's collar over them): military, its number on both
+ *  bows and its emblem amidships, a tone on its paint (stronger than an airframe's: read across the water); civil, its registration on both bows, dark on a pale hull and pale on a
+ *  dark one. A registration is generic, never a real register's format. */
+function markBoat(stage, hull, M, { number, seed, mark }) {
+  const fs = hull.fs.filter((f) => !f.fitting && ['airPaint', 'airTrim'].includes(f.material));
+  if (!fs.length) return stage;
+  const [y0, y1] = extentOf(fs, 1), Lb = y1 - y0;
+  // (the side a mark is laid on at [ya, yb]: the faces turned out to that side, the outermost of them, the mark as tall
+  // as a share of their height)
+  const lay = (sx, ya, yb, shapesOf, look) => {
+    const S = fs.filter((f) => f.outNormal[0] * sx > 0.6 && Math.abs(f.outNormal[2]) < 0.55 && (() => { const c = centre(f.corners); return c[1] > ya && c[1] < yb; })());
+    if (!S.length) return;
+    // (laid on every face turned out within its depth: the topsides, and a collar's tube over them, the outermost seen)
+    const xm = Math.max(...S.flatMap((f) => f.corners.map((c) => c[0] * sx))), outer = S.filter((f) => centre(f.corners)[0] * sx > xm - 0.14);
+    const [z0, z1] = extentOf(outer, 2), h = Math.min(0.5, (z1 - z0) * 0.42);
+    hull.fs.push(...decal(S, { at: [sx * xm, (ya + yb) / 2, (z0 + z1) / 2], out: [sx, 0, 0], up: [0, 0, 1] }, shapesOf(h), look, { depth: 0.6 }));
+  };
+  const bow = [y1 - 0.3 * Lb, y1 - 0.12 * Lb];
+  if (M.style === 'civil') {
+    const r = ((seed * 2654435761) >>> 0) % 10000000, code = M.number ? `${M.number}` : `${String(Math.floor(r / 10000)).padStart(3, '0')}-${String(r % 10000).padStart(4, '0')}`;
+    const contrast = (f) => ({ material: f.material, albedo: lum(f.albedo) > 120 ? scaleBy(f.albedo, 0.28) : mixHex(f.albedo, '#ecebe4', 0.82) });
+    for (const sx of [1, -1]) lay(sx, ...bow, (h) => digits(code, h * 0.55), contrast);
+    return stage;
+  }
+  // (low-visibility, read across the water: a tone on its paint, stronger than an airframe's)
+  const naval = (f) => ({ material: f.material, albedo: lum(f.albedo) > 120 ? scaleBy(f.albedo, 0.6) : mixHex(f.albedo, '#d6d8d4', 0.55) });
+  void mark;
+  if (number) for (const sx of [1, -1]) lay(sx, ...bow, (h) => digits(number.slice(-3), h), naval);
+  if (M.emblem) for (const sx of [1, -1]) lay(sx, y0 + 0.42 * Lb, y0 + 0.58 * Lb, (h) => (M.emblem === 'disc' ? [...ring(h * 0.34, h * 0.5), ngon(h * 0.2, 14)] : [rect(-h, -h * 0.17, h, h * 0.17)]), naval);
+  return stage;
+}
+
 // ── the wear ────────────────────────────────────────────────────────────────────
 export const AIR_WEAR = Object.freeze({
   pristine: Object.freeze({ streaks: 0, chips: 0, soot: 0, fade: 0, patches: 0 }),
@@ -374,6 +411,9 @@ export const AIR_WEAR = Object.freeze({
   battered: Object.freeze({ streaks: 60, chips: 120, soot: 0.8, fade: 0.2, patches: 7 }),
 });
 const SOOT = '#2a2b2a';
+// (a boat's salt, dried pale in its streaks; what of a boat its wear is laid on)
+const SALT = '#d8dbd4';
+const BOAT_SKINS = Object.freeze(['boat-hull', 'boat-console', 'boat-top']);
 const BARE = '#9aa0a5';
 
 /** The wear laid on the stage's items, in place: the sun's fade and the engine's soot per corner, then the gun's soot,
@@ -416,11 +456,12 @@ export function wearCraft(stage, W, { seed = 1 } = {}) {
     const { f, it } = cands[i], P = f.corners, a = rnd(), b = rnd() * (1 - a), k = 1 + Math.floor(rnd() * (P.length - 2));
     return { it, f, p: [0, 1, 2].map((j) => P[0][j] * (1 - a - b) + P[k][j] * a + P[k + 1][j] * b) };
   };
-  // (an aircraft's hull, wings and nacelles; a drone's frame and arms)
-  const skins = stage.filter((it) => it.kind === 'craft-fuselage' || PLATE[it.kind] || it.kind === 'craft-engine' || it.kind === 'drone-frame' || it.kind === 'drone-arm');
+  // (an aircraft's hull, wings and nacelles; a drone's frame and arms; a boat's hull and what stands on it)
+  const boat = stage.some((it) => it.kind === 'boat-hull');
+  const skins = stage.filter((it) => it.kind === 'craft-fuselage' || PLATE[it.kind] || it.kind === 'craft-engine' || it.kind === 'drone-frame' || it.kind === 'drone-arm' || BOAT_SKINS.includes(it.kind));
   const faceUp = skins.flatMap((it) => skinOf(it).filter((f) => f.outNormal[2] > -0.3 && ['airPaint', 'plastic', 'carbon'].includes(f.material)).map((f) => ({ f, it })));
-  // flow: aft along the skin (-y laid into the face)
-  const aftOn = (n) => { const d = [0, -1, 0], t = sub(d, n.map((v) => v * dot(d, n))); return Math.hypot(...t) < 0.2 ? [0, 0, -1] : unit(t); };
+  // flow: aft along the skin (-y laid into the face); a boat's down it (rain and spray running off its sides)
+  const aftOn = (n) => { const d = boat ? [0, 0, -1] : [0, -1, 0], t = sub(d, n.map((v) => v * dot(d, n))); return Math.hypot(...t) < 0.2 ? (boat ? [0, -1, 0] : [0, 0, -1]) : unit(t); };
   // ── repainted panels: a rectangle of fresher paint (the colour under it, less faded)
   for (let i = 0; i < count(A.patches) && faceUp.length; i++) {
     const { it, f, p } = pick(faceUp), w = (0.3 + rnd() * 0.5) * g, h = (0.25 + rnd() * 0.45) * g;
@@ -429,11 +470,14 @@ export function wearCraft(stage, W, { seed = 1 } = {}) {
   // ── grime streaks: from a point on the skin, aft with the flow, tapering
   for (let i = 0; i < count(A.streaks) && faceUp.length; i++) {
     const { it, f, p } = pick(faceUp), len = (0.5 + rnd() * (0.6 + 1.2 * A.soot)) * g, w = (0.02 + rnd() * 0.045) * Math.max(0.2, g), k = 0.84 + rnd() * 0.09;
-    it.fs.push(...decal(skinOf(it), { at: p, out: f.outNormal, up: aftOn(f.outNormal) }, [[[-w, 0], [w, 0], [w * 0.35, len], [-w * 0.35, len]]], (g) => ({ material: g.material, albedo: scaleBy(g.albedo, k) }), { lift: 0.0021, depth: 0.3, fitting: 'wear' }));
+    // (on a boat's dark paint the streak is salt, paler; on a pale one, grime)
+    const streak = (g) => ({ material: g.material, albedo: boat && lum(g.albedo) < 110 ? mixHex(g.albedo, SALT, 0.2 + (1 - k) * 0.6) : scaleBy(g.albedo, k) });
+    it.fs.push(...decal(skinOf(it), { at: p, out: f.outNormal, up: aftOn(f.outNormal) }, [[[-w, 0], [w, 0], [w * 0.35, len], [-w * 0.35, len]]], streak, { lift: 0.0021, depth: 0.3, fitting: 'wear' }));
   }
   // ── chips: the paint off to bare metal along the leading edges (what faces the air ahead) and the intake's lip
   // (what meets the air or the ground first: a wing's leading edge, an intake's lip, a drone's arms and its frame's nose)
-  const ahead = stage.filter((it) => PLATE[it.kind] || it.kind === 'craft-intake' || it.kind === 'drone-arm' || it.kind === 'drone-frame').flatMap((it) => skinOf(it).filter((f) => f.outNormal[1] > 0.45).map((f) => ({ f, it })));
+  // (a boat's bow, what meets the sea and the quay first)
+  const ahead = stage.filter((it) => PLATE[it.kind] || it.kind === 'craft-intake' || it.kind === 'drone-arm' || it.kind === 'drone-frame' || it.kind === 'boat-hull').flatMap((it) => skinOf(it).filter((f) => f.outNormal[1] > 0.45).map((f) => ({ f, it })));
   for (let i = 0; i < count(A.chips) && ahead.length; i++) {
     const { it, f, p } = pick(ahead), r = (0.008 + rnd() * 0.022) * Math.max(0.25, g), k = 5 + Math.floor(rnd() * 3);
     const chip = Array.from({ length: k }, (_, j) => { const a = (2 * Math.PI * j) / k, rr = r * (0.6 + 0.4 * rnd()); return [rr * Math.cos(a), rr * Math.sin(a)]; });

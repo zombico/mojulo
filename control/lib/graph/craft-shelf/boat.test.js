@@ -8,11 +8,15 @@
 // outboard. A motor well (the notch, the splashwell, the motor tilting into it) and a T-top over the helm. A cuddy
 // cabin: its cabin top, a windscreen that fits the hull with its walk-through, the cabin's door, a split dash and bucket
 // seats off the centreline. A military boat: twin outboards mirrored and counter-rotating, its guns on their points and
-// trained, never fired, its radar arch, its row in the field's roles. The cases are chosen from the shelf in code.
+// trained, never fired, its radar arch, its row in the field's roles. In the military surface: a look card any boat wears,
+// its number or registration on its bows, its wear. The cases are chosen from the shelf in code.
 import { describe, it, expect } from 'vitest';
 import { assembleCraft, resolveCraftPart, CRAFT_ODM, CRAFT_ARCHETYPES, CRAFT_ROLES, craftRoleAnalogues } from './index.js';
 import { BOAT_KINDS, BOAT_ODM } from './boat-odm.js';
 import { BOAT_ROLES } from './boat-archetypes.js';
+import { craftForm } from './craft-form.js';
+import { lookCard } from './drone-looks.js';
+import { CRAFT_PALETTES } from './craft-common.js';
 import { hullLines, hullSection, hullVolume, hullFloat, curveAt } from './boat-parts.js';
 import { lowerObjectFaces } from '../worlds/workbench.js';
 import { resolveVehicle, handlesOf, VEHICLES } from '../vehicle-registry/roster.js';
@@ -392,6 +396,45 @@ describe('a military boat', () => {
     expect(hit[1].role).toBe('scout');
     expect(hit[1].uses).toEqual(expect.arrayContaining(['crewed', 'driven', 'parked']));
     expect(CRAFT_ROLES[A[MB].role].realms).toEqual(['water']);
+  });
+});
+
+describe('a boat in the military surface (the form render)', () => {
+  const MB = Object.keys(A).find((k) => A[k].realm === 'water' && CRAFT_ODM[A[k].layout[0].sku].build.collar && A[k].layout.some((e) => CRAFT_ODM[e.sku]?.kind === 'boat-mount'));
+  const PB = Object.keys(A).find((k) => A[k].realm === 'water' && !CRAFT_ODM[A[k].layout[0].sku].build.collar && CRAFT_ODM[A[k].layout[0].sku].build.fittings?.navLights);
+  const faces = (id, o) => craftForm(id, { pose: {}, ...o }).items.flatMap((i) => i.faces.map((f) => ({ ...f, item: i.id })));
+  it('a look card dresses any boat: the naval one haze grey and darkened, the pleasure one its own colours and lit', () => {
+    const naval = lookCard('naval'), pleasure = lookCard('pleasure');
+    const { manifest } = assembleCraft(PB, { look: 'naval' }), hull = manifest.items[0].source;
+    expect(hull.garage.colors.paint).toBe(CRAFT_PALETTES[naval.palette].paint);
+    expect(hull.lathes.find((l) => l.id === 'sidelight_r').material).not.toBe('neon');
+    const lit = assembleCraft(PB, { look: 'pleasure' }).manifest.items[0].source;
+    expect(lit.garage.colors.paint).toBe(CRAFT_PALETTES[A[PB].palette].paint);
+    expect(lit.lathes.find((l) => l.id === 'sidelight_r').material).toBe('neon');
+    expect(pleasure.palette).toBeNull();
+  });
+  it('a naval boat\'s number on both bows, on its outermost skin (a collar\'s tube); a pleasure boat\'s registration against its paint', () => {
+    const m = faces(MB, { look: 'naval' }).filter((f) => f.fitting === 'mark' && f.item === 'hull');
+    const xs = m.flatMap((f) => f.corners.map((c) => c[0])), ys = m.flatMap((f) => f.corners.map((c) => c[1]));
+    expect(Math.max(...xs)).toBeCloseTo(-Math.min(...xs), 1);
+    // (on the tube: as far out as the boat's beam)
+    const all = faces(MB, {}), span = Math.max(...all.flatMap((f) => f.corners.map((c) => c[0])));
+    expect(Math.max(...xs)).toBeGreaterThan(span - 0.05);
+    // (forward of amidships: on its bows, and amidships its emblem)
+    const L = Math.max(...all.flatMap((f) => f.corners.map((c) => c[1]))) - Math.min(...all.flatMap((f) => f.corners.map((c) => c[1])));
+    expect(Math.max(...ys)).toBeGreaterThan(L * 0.15);
+    const civ = faces(PB, { look: 'pleasure' }).filter((f) => f.fitting === 'mark');
+    expect(civ.length).toBeGreaterThan(0);
+    // (against its paint: its figures dark on a pale hull)
+    const paint = CRAFT_PALETTES[A[PB].palette].paint.toLowerCase();
+    for (const f of civ) expect(f.albedo).not.toBe(paint);
+  });
+  it('a boat\'s wear: streaks down its sides, chips at its bow; nothing asked, nothing laid', () => {
+    const w = faces(PB, { wear: 'battered', livery: 'mono' }).filter((f) => f.fitting === 'wear');
+    expect(w.length).toBeGreaterThan(0);
+    expect(w.some((f) => f.material === 'airMetal' && f.outNormal[1] > 0.45)).toBe(true);
+    const plain = faces(PB, {});
+    expect(plain.filter((f) => f.fitting === 'wear' || f.fitting === 'mark')).toEqual([]);
   });
 });
 

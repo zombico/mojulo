@@ -209,7 +209,7 @@ export function hullFloat(row, kg, { rho = 1000 } = {}) {
 
 // ---- the hull ---------------------------------------------------------------------------------
 
-function buildHull(row, C) {
+function buildHull(row, C, opts = {}) {
   const b = row.build;
   if (b.family !== 'vee') throw new Error(`Unknown boat-hull family '${b.family}'`);
   // (a moulded gunwale cap, `cap` wide: the liner's top pulled inboard, level with the sheer, never past half the breadth)
@@ -360,7 +360,9 @@ function buildHull(row, C) {
   }
   // (the gunwale's top: the cap's, or the rail's)
   const top = (st) => st.sheer + (g ? g * 1.1 : 0.004);
-  const NAVC = { r: '#2fd36b', l: '#e23b3b', c: '#f4f6f8' };
+  // (a covert look darkens its lights: their lenses unlit, no glow)
+  const covert = opts.lights === 'covert', NAVC = { r: '#2fd36b', l: '#e23b3b', c: '#f4f6f8' };
+  const lit = (tint) => (covert ? { tint: C.rubber, extra: {} } : { tint, extra: { material: 'neon' } });
   // the bow rail: stanchions up from the gunwale either side, the rail along their tops and round ahead of the stem
   if (F.bowRail) {
     const R = F.bowRail, h = R.height, inset = (st) => Math.max(st.sheerHalf - (b.cap ? Math.min(b.cap, st.sheerHalf * 0.45) / 2 : g), 0.01);
@@ -380,12 +382,14 @@ function buildHull(row, C) {
     const st = H.at(0.965), z = b.deck ? st.sheer - b.deck.thickness : top(st);
     for (const sx of [1, -1]) {
       const c = [sx * 0.035, st.y, z];
-      lathes.push(lathe(`sidelight_${sx > 0 ? 'r' : 'l'}`, c, add(c, [0, 0, 0.05]), [[0, 0.028], [0.4, 0.026], [0.6, 0.024], [1, 0.01]], NAVC[sx > 0 ? 'r' : 'l'], { material: 'neon', samples: 12, crossSections: 4 }));
+      const L = lit(NAVC[sx > 0 ? 'r' : 'l']);
+      lathes.push(lathe(`sidelight_${sx > 0 ? 'r' : 'l'}`, c, add(c, [0, 0, 0.05]), [[0, 0.028], [0.4, 0.026], [0.6, 0.024], [1, 0.01]], L.tint, { ...L.extra, samples: 12, crossSections: 4 }));
     }
     const sa = H.at(0.05), x = -(sa.sheerHalf - (b.cap ? Math.min(b.cap, sa.sheerHalf * 0.45) / 2 : g)), zp = top(sa);
     // (`navLights: { pole: false }`: the all-round light is on a top over the helm instead)
     if (F.navLights.pole !== false) lathes.push(lathe('light_pole', [x, sa.y, zp - 0.01], [x, sa.y, zp + 0.95], [[0, 0.016], [0.03, 0.011], [1, 0.011]], C.chrome, { samples: 10, crossSections: 3 }));
-    if (F.navLights.pole !== false) lathes.push(lathe('all_round_light', [x, sa.y, zp + 0.95], [x, sa.y, zp + 1.01], [[0, 0.02], [0.5, 0.022], [1, 0.012]], NAVC.c, { material: 'neon', samples: 12, crossSections: 3 }));
+    const Lc = lit(NAVC.c);
+    if (F.navLights.pole !== false) lathes.push(lathe('all_round_light', [x, sa.y, zp + 0.95], [x, sa.y, zp + 1.01], [[0, 0.02], [0.5, 0.022], [1, 0.012]], Lc.tint, { ...Lc.extra, samples: 12, crossSections: 3 }));
   }
   // rod holders flush in the gunwale's top, raked aft and outboard
   for (const [k, s] of (F.rodHolders || []).entries()) for (const sx of [1, -1]) {

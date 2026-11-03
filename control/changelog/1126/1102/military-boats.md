@@ -27,3 +27,18 @@ Every weapon is modelled, never fired.
   trained where the layout points them and posed by their joints; the arch on the sole inside the cockpit, the guns
   and tilted motors inside its legs; the row in the field's roles. The new builder paths (the jockey seat, the pintle
   gun, the radar arch) are pinned, and no existing pin moved.
+- **Boats in the military surface** (the form render: `craft-form.js` over `air-surface.js`, the aircraft's own marks and
+  wear told for a boat):
+  - **Look cards** (`craft-shelf/boat-looks.js`, read by the drones' `lookCard`): `naval` (a new `navalHaze` palette,
+    its lights darkened, a low-visibility number and an emblem) and `pleasure` (the boat's own colours, its lights lit,
+    a registration). Any boat wears either; its hull, drive and fittings stay as they are. A covert look darkens a
+    hull's sidelights and all-round light and an arch's lights.
+  - **Marks** on a boat's outermost skin (its topsides, or a RIB's collar over them): a military number on both bows
+    and an emblem amidships, a tone on its paint read across the water; or a civil registration on both bows against
+    its paint, generic, never a real register's format.
+  - **Wear:** streaks run down a boat's sides, salt-pale on a dark paint and grime on a pale one; chips at its bow;
+    the sun's fade and repainted patches as an aircraft's. Asked for nothing, a boat is laid nothing.
+  - **Review:** `scripts/render-boats.mjs --form [--look naval|pleasure] [--livery …] [--wear …]` draws the form render.
+  - Held: a card dresses any boat (the naval one haze grey and darkened, the pleasure one its own and lit); the naval
+    number on both bows on the collar's tube, the pleasure registration against the paint; wear down the sides and
+    chips at the bow; nothing laid when nothing is asked. The aircraft's and drones' marks and wear are unchanged.

@@ -5,6 +5,9 @@
  *
  * From control/:
  *   node scripts/render-boats.mjs <output-directory> [archetype,…|all] [--pose '{"tilt":0,"yaw":0,"prop":0}'] [--fold 0…1] [--views side,quarter,top,stern,bow,motor,transom] [--dry]
+ *     [--look pleasure|naval] [--form [--livery <pattern|json>] [--wear pristine|used|battered]]
+ * `--form` draws the form render (craft-form.js: its livery's camo and marks, its wear), each face its albedo under a
+ * plain key light; `--look` dresses it in a look card (boat-looks.js).
  * `--fold` folds what folds (an outboard's tiller); `--dry` draws it out of the water. (The sheet of water runs through an
  * open hull's floor too: it is the review's water, not the boat's.) Writes <boat>-<view>.png, the pages, report.json and index.html.
  */
@@ -17,6 +20,7 @@ const control = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 process.chdir(control);
 register(pathToFileURL(path.join(control, 'scripts/mcp-stdio-loader.mjs')).href);
 const { assembleCraft, CRAFT_ARCHETYPES } = await import('../lib/graph/craft-shelf/index.js');
+const { craftForm } = await import('../lib/graph/craft-shelf/craft-form.js');
 const { resolveWorldScene } = await import('../lib/graph/worlds/world-scene.js');
 const { emitThreeWorld } = await import('../lib/graph/scene/scene-three.js');
 const { renderWorldToPng } = await import('../lib/graph/scene/scene-png.js');
@@ -29,6 +33,11 @@ const views = (flag('--views') || 'side,quarter,top,stern').split(',');
 const pose = flag('--pose') ? JSON.parse(flag('--pose')) : {};
 const dry = args.includes('--dry');
 const fold = flag('--fold') !== null ? Number(flag('--fold')) : undefined;
+// (the form render: its marks and its wear, a look card; each face its albedo under a plain key light, for review)
+const form = args.includes('--form'), look = flag('--look') ?? undefined, livery = flag('--livery') ? (flag('--livery').startsWith('{') ? JSON.parse(flag('--livery')) : flag('--livery')) : undefined, wear = flag('--wear') ?? undefined;
+const KEY = (() => { const v = [0.42, -0.5, 0.76], l = Math.hypot(...v); return v.map((x) => x / l); })();
+const shadeOf = (hex, n) => { const k = 0.42 + 0.58 * Math.abs(n[0] * KEY[0] + n[1] * KEY[1] + n[2] * KEY[2]), c = parseInt(hex.slice(1), 16); return `#${[16, 8, 0].map((b) => Math.min(255, Math.round(((c >> b) & 255) * k)).toString(16).padStart(2, '0')).join('')}`; };
+const avg = (hs) => { const t = [0, 0, 0]; for (const h of hs) { const c = parseInt(h.slice(1), 16); t[0] += (c >> 16) & 255; t[1] += (c >> 8) & 255; t[2] += c & 255; } return `#${t.map((v) => Math.round(v / hs.length).toString(16).padStart(2, '0')).join('')}`; };
 const boats = Object.keys(CRAFT_ARCHETYPES).filter((k) => CRAFT_ARCHETYPES[k].realm === 'water');
 const pick = args[1] && !args[1].startsWith('--') && args[1] !== 'all' ? args[1].split(',') : boats;
 const outDir = path.resolve(output);
@@ -37,9 +46,18 @@ const width = 960, height = 600;
 let gallery = '';
 const report = [];
 for (const id of pick) {
-  const { manifest, readout } = assembleCraft(id, { pose, ...(fold !== undefined ? { fold } : {}) });
-  const { payload } = await resolveWorldScene({ ref: id, kind: 'assembler', manifest });
-  const faces = payload.faces.filter((f) => !f.studio), textures = payload.textures ?? {};
+  let faces, textures = {}, readout;
+  if (form) {
+    const C = craftForm(id, { pose, ...(look ? { look } : {}), ...(livery ? { livery } : {}), ...(wear ? { wear } : {}) });
+    readout = C.readout;
+    faces = C.items.flatMap((it) => it.faces.map((f) => ({ corners: f.corners, outNormal: f.outNormal, fill: shadeOf(f.cornerAlbedo ? avg(f.cornerAlbedo) : f.albedo, f.outNormal) })));
+  } else {
+    const A = assembleCraft(id, { pose, ...(fold !== undefined ? { fold } : {}), ...(look ? { look } : {}) });
+    readout = A.readout;
+    const { payload } = await resolveWorldScene({ ref: id, kind: 'assembler', manifest: A.manifest });
+    faces = payload.faces.filter((f) => !f.studio);
+    textures = payload.textures ?? {};
+  }
   const tris = faces.reduce((n, f) => n + f.corners.length - 2, 0);
   const pts = faces.flatMap((f) => f.corners);
   const lo = [0, 1, 2].map((i) => Math.min(...pts.map((p) => p[i]))), hi = [0, 1, 2].map((i) => Math.max(...pts.map((p) => p[i])));

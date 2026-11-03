@@ -73,7 +73,7 @@ function buildMount(row, C, opts = {}) {
   return { ...out, hardpoints: { mount: [0, 0, 0], grip: r3v(FR.gun.P([0, -0.31, zG - 0.04])) }, joints };
 }
 
-function buildArch(row, C) {
+function buildArch(row, C, opts = {}) {
   const b = row.build;
   if (b.family !== 'radar') throw new Error(`Unknown boat-arch family '${b.family}'`);
   const { width: W } = row.dims, H = b.height, x = W / 2, f = b.foot, r = b.radius;
@@ -93,9 +93,11 @@ function buildArch(row, C) {
   lathes.push(lathe('radar_pedestal', [0, 0, pz + 0.03], [0, 0, pz + 0.09], [[0, 0.08], [1, 0.07]], C.paint, { samples: 16, crossSections: 2 }));
   lathes.push(lathe('radar_dome', [0, 0, pz + 0.09], [0, 0, pz + 0.32], [[0, 0.27], [0.55, 0.27], [0.85, 0.2], [1, 0.04]], C.paint, { samples: 28, crossSections: 5 }));
   lathes.push(lathe('light_mast', [W * 0.18, -0.08, pz + 0.03], [W * 0.18, -0.08, pz + 0.4], [[0, 0.02], [1, 0.012]], C.chrome, { samples: 8, crossSections: 2 }));
-  lathes.push(lathe('all_round_light', [W * 0.18, -0.08, pz + 0.4], [W * 0.18, -0.08, pz + 0.46], [[0, 0.02], [0.5, 0.022], [1, 0.012]], NAVC.c, { material: 'neon', samples: 12, crossSections: 3 }));
+  // (a covert look's lights dark: their lenses unlit)
+  const lit = opts.lights === 'covert' ? [C.rubber, {}] : [NAVC.c, { material: 'neon' }];
+  lathes.push(lathe('all_round_light', [W * 0.18, -0.08, pz + 0.4], [W * 0.18, -0.08, pz + 0.46], [[0, 0.02], [0.5, 0.022], [1, 0.012]], lit[0], { ...lit[1], samples: 12, crossSections: 3 }));
   extrudes.push(extrudeWorld('light_bar', [0, 0.06, H - 0.07], [0, 0.12, H - 0.07], ccw([0, 0.06, H - 0.07], [0, 0.12, H - 0.07], rect([1, 0, 0], [0, 0, 1], W * 0.45, 0.07)), C.rubber));
-  extrudes.push(extrudeWorld('light_bar_lens', [0, 0.118, H - 0.07], [0, 0.126, H - 0.07], ccw([0, 0.118, H - 0.07], [0, 0.126, H - 0.07], rect([1, 0, 0], [0, 0, 1], W * 0.42, 0.045)), NAVC.c, { material: 'neon' }));
+  extrudes.push(extrudeWorld('light_bar_lens', [0, 0.118, H - 0.07], [0, 0.126, H - 0.07], ccw([0, 0.118, H - 0.07], [0, 0.126, H - 0.07], rect([1, 0, 0], [0, 0, 1], W * 0.42, 0.045)), lit[0], lit[1]));
   for (const sx of [1, -1]) {
     const base = [sx * (x - 0.12), 0, H + r];
     lathes.push(lathe(`antenna_base_${sx > 0 ? 'r' : 'l'}`, base, add(base, [0, 0, 0.12]), [[0, 0.028], [1, 0.016]], C.chrome, { samples: 10, crossSections: 2 }));
