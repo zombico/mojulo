@@ -157,7 +157,7 @@ export function breakableTerrain(ask, { hp = 1, value = 0.62, seed = 1 } = {}) {
     for (let i = from; i < faces.length; i++) faces[i].node = `break:${b.id}`;
     faces.boxes[faces.boxes.length - 1].part = 'block';
   }
-  return { form: ask.form || 'blocks', id: name, blocks, faces, world: { breakables: blocks.map(({ id, min, max, hp: h, bond: bd, matter, fill, mass, joules, compressive, cohesion }) => ({ id, min, max, hp: h, ...(bd === 'lateral' ? { bond: bd } : {}), ...(matter !== undefined ? { matter, fill, mass, joules, compressive, cohesion } : {}) })) } };
+  return { form: ask.form || 'blocks', id: name, blocks, faces, world: { breakables: blocks.map(({ id, min, max, hp: h, bond: bd, of, ...m }) => ({ id, min, max, hp: h, ...(bd === 'lateral' ? { bond: bd } : {}), ...(m.matter !== undefined ? m : {}) })) } };   // every number the runtime reads (rupa/matter.js blockMatter)
 }
 
 /**

@@ -243,3 +243,117 @@ describe('rupa heat: melt, burn, weaken', () => {
     expect(run()).toBe(run());
   });
 });
+
+describe('rupa distortion: plastic matter keeps the shape a blow leaves', () => {
+  const at = (x, y, z) => [x, y, z];
+  const plate = (id, y0, matter = 'steel', t = 0.01, extra = {}) => block(id, [0, y0, 0], [t, y0 + 0.3, 0.3], matter, { bond: 'lateral', ...extra });
+  const wallBehind = (t = 0.01) => block('wall', [t, -1, 0], [t + 0.3, 1, 0.3], 'brick');
+  const shoot = (w, id, joules, y = 0.15, z = 0.15) => CW.strikeBlock(w, id, joules, 'shot', { dir: [1, 0, 0], at: at(0, y, z) });
+
+  it('a plastic block dents where it is struck and keeps it; brittle stuff breaks or holds whole', () => {
+    const w = world([block('steel', [0, -0.5, 0], [0.3, 0.5, 0.5], 'steel'), block('brick', [2, -0.5, 0], [2.3, 0.5, 0.5], 'brick')]);
+    const steel = get(w, 'steel');
+    shoot(w, 'steel', 2000, 0, 0.25);
+    expect(steel.rupa.dents).toHaveLength(1);
+    expect(steel.rupa.dents[0]).toMatchObject({ ax: 0, side: -1, hole: false });
+    expect(steel.rupa.cap - steel.rupa.joules).toBeCloseTo(2000, 6);   // the work comes off the budget
+    expect(steel.rupa.form).toBe(1);
+    expect(w.rupa.dents.map((d) => d.how)).toEqual(['dent']);
+    CW.strikeBlock(w, 'brick', 2000, 'shot', { dir: [1, 0, 0], at: at(2, 0, 0.25) });
+    expect(get(w, 'brick').rupa.dents).toBeUndefined();
+  });
+
+  it('blows on one spot deepen one bowl until it goes through; the plate still stands', () => {
+    const w = world([plate('p', -0.15, 'steel', 0.03)]);
+    const p = get(w, 'p');
+    let n = 0;
+    while (!p.rupa.dents[0]?.hole && n < 40) { shoot(w, 'p', 2000, 0); n++; }
+    expect(n).toBeGreaterThan(1);
+    expect(p.rupa.dents).toHaveLength(1);
+    expect(p.rupa.dents[0].hole).toBe(true);
+    expect(p.broken).toBeNull();
+  });
+
+  it('powerscaling: a strong enough round goes through a plate into the wall behind; a person\'s only dents armour', () => {
+    const a = world([plate('p', -0.15), wallBehind()]);
+    const through = shoot(a, 'p', 2e4, 0);
+    expect(through).toBeGreaterThan(0);
+    expect(get(a, 'p').broken).toBeNull();
+    expect(get(a, 'p').rupa.dents[0].hole).toBe(true);
+    expect(get(a, 'wall').rupa.joules).toBeLessThan(get(a, 'wall').rupa.cap);
+    const b = world([plate('p', -0.15, 'armour-steel'), wallBehind()]);
+    expect(shoot(b, 'p', 2000, 0)).toBe(0);
+    expect(get(b, 'wall').rupa.joules).toBe(get(b, 'wall').rupa.cap);
+  });
+
+  it('a blow past twice a plate\'s whole budget tears it apart and carries on', () => {
+    const w = world([plate('p', -0.15), wallBehind()]), p = get(w, 'p');
+    const through = shoot(w, 'p', 3 * p.rupa.cap, 0);
+    expect(p.broken).toMatchObject({ how: 'shot' });
+    expect(w.breaks.find((x) => x.id === 'p').debris.pieces.length).toBeGreaterThan(0);
+    expect(through).toBeCloseTo(2 * p.rupa.cap, 0);
+    expect(get(w, 'wall').rupa.joules).toBeLessThan(get(w, 'wall').rupa.cap);
+  });
+
+  it('focus fire strips one plate off its weld, whole, and leaves its neighbour', () => {
+    const soft = { matter: { is: 'steel', toughness: 1e6 } };   // a thin budget, so a few blows wear it out
+    // two plates welded side by side up a wall, clear of the floor
+    const mk = (id, y0) => ({ ...block(id, [0, y0, 1], [0.02, y0 + 0.3, 1.3], null, { bond: 'lateral' }), ...blockMatter({ min: [0, y0, 1], max: [0.02, y0 + 0.3, 1.3] }, soft) });
+    const w = world([mk('a', -0.3), mk('b', 0), block('wall', [0.02, -1, 0], [0.32, 1, 1.5], 'brick')]);
+    const a = get(w, 'a');
+    step(w, 2);
+    expect(a.falling).toBeNull();
+    for (let i = 0; i < 40 && !a.broken; i++) CW.strikeBlock(w, 'a', 300, 'swing', { dir: [1, 0, 0], from: at(-1, -0.3 + 0.05 + (i % 5) * 0.05, 1.05 + (Math.floor(i / 5) % 5) * 0.05) });
+    expect(a.broken).toMatchObject({ how: 'strip' });
+    const rec = w.breaks.find((x) => x.id === 'a');
+    expect(rec.debris).toBeNull();
+    expect(w.rupa.bodies.find((x) => x.id === rec.body)).toBeDefined();
+    expect(rec.away[0]).toBeLessThan(0);                                 // back toward the blow, off the wall
+    expect(get(w, 'b').rupa.joules).toBe(get(w, 'b').rupa.cap);
+    step(w, 30);
+    expect(w.rupa.bodies.find((x) => x.id === rec.body).pos[2]).toBeLessThan(1);   // it falls
+    expect(get(w, 'b').broken).toBeNull();
+  });
+
+  it('soft stuff squashes at constant volume, and what stood on it settles', () => {
+    const w = world([block('dough', [0, 0, 0], [0.4, 0.4, 0.2], 'dough'), block('top', [0.1, 0.1, 0.2], [0.3, 0.3, 0.3], 'brick')]);
+    const d = get(w, 'dough'), vol = (b) => (b.max[0] - b.min[0]) * (b.max[1] - b.min[1]) * (b.max[2] - b.min[2]), v0 = vol(d);
+    CW.strikeBlock(w, 'dough', 300, 'swing', { ax: 2, side: 1, at: at(0.2, 0.2, 0.2) });
+    expect(d.rupa.squash).toBeGreaterThan(0);
+    expect(d.max[2]).toBeLessThan(0.2);
+    expect(d.max[0] - d.min[0]).toBeGreaterThan(0.4);
+    expect(vol(d)).toBeCloseTo(v0, 5);
+    expect(w.rupa.dents.at(-1)).toMatchObject({ how: 'squash' });
+    step(w, 30);
+    expect(get(w, 'top').min[2]).toBeCloseTo(d.max[2], 3);
+  });
+
+  it('a body punches a plate and carries on; slower, it dents the plate and comes back', () => {
+    const fling = (speed) => {
+      const w = world([plate('p', -0.15)]);
+      const id = CW.throwMatter(w, { size: 0.06, at: [-1, 0, 0.15], vel: [speed, 0, 0], ...blockMatter({ min: [0, 0, 0], max: [0.06, 0.06, 0.06] }, 'steel') });
+      step(w, 20);
+      return { w, ball: w.rupa.bodies.find((x) => x.id === id), p: get(w, 'p') };
+    };
+    const fast = fling(600), slow = fling(20);
+    expect(fast.ball.pos[0]).toBeGreaterThan(0.01);
+    expect(fast.p.broken).toBeNull();
+    expect(fast.p.rupa.dents.some((d) => d.hole)).toBe(true);
+    expect(slow.ball.pos[0]).toBeLessThan(-1);                          // back past where it was thrown from
+    expect(slow.p.rupa.dents.some((d) => d.hole)).toBe(false);
+  });
+
+  it('heat softens: the same blow dents hot steel deeper', () => {
+    const w = world([block('cold', [0, -2, 0], [0.3, -1, 0.5], 'steel'), block('hot', [0, 1, 0], [0.3, 2, 0.5], 'steel')]);
+    const hot = get(w, 'hot');
+    CW.heatBlock(w, 'hot', hot.rupa.heatCap * (hot.rupa.soften - 20));
+    CW.strikeBlock(w, 'cold', 5e4, 'swing', { dir: [1, 0, 0], at: at(0, -1.5, 0.25) });
+    CW.strikeBlock(w, 'hot', 5e4, 'swing', { dir: [1, 0, 0], at: at(0, 1.5, 0.25) });
+    expect(hot.rupa.dents[0].d).toBeGreaterThan(get(w, 'cold').rupa.dents[0].d * 1.2);
+  });
+
+  it('deterministic: the same blows leave the same dents', () => {
+    const run = () => { const w = world([plate('p', -0.15), wallBehind()]); for (let i = 0; i < 6; i++) shoot(w, 'p', 3000, 0.05 * i, 0.1); return JSON.stringify([get(w, 'p').rupa.dents, w.rupa.dents]); };
+    expect(run()).toBe(run());
+  });
+});

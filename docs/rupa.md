@@ -29,6 +29,7 @@ strength have one source.
 | Heat | `melt`, `soften`, `heat`, `fusion`, `ignite`, `burn` | melting, fire, and strength lost to heat |
 | Bounce | `bounce` (restitution) | how much of a collision's closing energy is kept rather than dissipated |
 | Soil | `c`, `phi`, `swell`, `dig` | slumping, cut faces, bulking, cratering |
+| Plasticity | `yield` (Pa) | where it starts to flow and keep the shape a blow leaves: dents, holes, squashing |
 
 Heat has its own numbers rather than being derived. Melting is cohesion again (heat breaking the bonds), but strength
 tells nothing about it: steel is far stronger than concrete and loses half that strength by about 550 °C.
@@ -61,6 +62,41 @@ Landings use the same rule (a falling block on the block below, or on the floor,
 So do bodies: matter thrown into the world with `throwMatter(state, { size, at, vel, ...blockMatter })`, such as a
 cannonball, a hurled boulder or a falling girder. They are stepped finely enough not to pass through a block, and break
 when their own joules run out.
+
+## Distortion: plastic matter keeps the shape
+
+`yield` is one dial across the table: the stress where a stuff starts to flow. A liquid's is 0, mud's and lava's is
+their Bingham stress, and the solids run from dough (5 kPa, an impact's) and putty through lead to mild steel (235 MPa,
+the strength table's own yield) and armour steel. A solid with a yield is plastic (`isPlastic`); brittle stuff (glass,
+masonry, timber) has none and breaks as before. Distortion comes with destructible physics wherever a block's matter
+has a yield: there is no word to ask for it.
+
+- **A dent is a crater in a solid.** A blow's work W pushes aside V = W / H of the stuff, H its hardness (3 × yield,
+  Tabor's constraint, × `heatFactor`: hot steel dents sooner). It's a paraboloid bowl as sharp as the blow (depth ÷
+  radius: a round 1, a thrown body 0.5, a swing 0.25, a landing 0.15, a burst's dish 0.1), its contact no wider than
+  what strikes (a round's 12 mm, a body's half-size), and its volume stands in a rim from a to 2a, a third of the depth
+  high: none of it is lost, as in a crater (`dentOf` in the runtime's physics). The work comes off the block's joules,
+  so the budget still decides whether it stands.
+- **Orders:** a rifle round (2 kJ) leaves a dent about a centimetre deep in mild steel, a swing a few millimetres.
+- **Through.** A bowl as deep as the stuff is thick (a shell's `wall`, fill × volume ÷ surface, else its box along the
+  blow) is a hole. Only the plug's work, H·½π·a²·t, is spent, and the rest carries on: a round to the next block on its
+  line, a swing into what stands behind, a thrown body on through, slower. A rifle round goes through a centimetre of
+  mild steel and only dents armour; a thousand times it goes through armour too. A blow past twice a block's whole budget
+  tears it apart outright (debris, as any break) and carries the rest the same way. Blows on one spot deepen one bowl,
+  so focus fire holes a plate.
+- **Squash.** A dent wider than the face it strikes flattens the whole block along the blow at constant volume (at most
+  half a blow): shorter that way, wider the others, standing on what held it. A shell crumples instead, keeping its
+  footprint. Its collider moves and what stood on it settles: a dropped lump of dough spreads.
+- **Strip.** A plastic block hung by its side (`bond: 'lateral'`: a plate welded to a wall) whose joules run out comes
+  off whole as a body (`how: 'strip'`), back toward the blow, instead of breaking into debris. Focus fire strips one
+  plate and leaves its neighbours; the plate's budget is the HP that says whether it stays.
+
+Each block keeps its dents (`b.rupa.dents`, merged where they overlap, at most 24) and a `form` count, and
+`state.rupa.dents` records each one. The page draws a dented block as its box subdivided where its dents are, each bowl
+with its rim and a hole dark through to the far face where it petals out, and a stripped plate falls with its body,
+tipping away from the wall. It's drawn only when a block's matter has a yield, so every other page keeps its bytes.
+`strikeBlock(state, id, joules, how?, src?)` lands a blow by id (a script, a test; `window.__mojCtrl.strike` on such a
+page).
 
 ## Liquids
 
@@ -194,6 +230,8 @@ This lands as a tested kernel. The page's deformable floor and its ground probe 
 
 ## Not yet
 
+- Distortion's wobble (jelly's elastic jiggle), dents on minted solids, holes the walk and the shot can pass through
+  (the collider stays the block's box), work hardening and how fast a blow lands (strain rate).
 - Ground on the page (a deformable floor, craters from bursts, the shovel as an action).
 - City and structure buildings emitting courses, slabs and columns, so whole buildings take part.
 - Per-entity power (a hero's tier apart from the world's), and heat from beams and fire sources by element.

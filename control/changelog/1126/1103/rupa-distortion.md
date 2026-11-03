@@ -1,0 +1,18 @@
+### Destructible physics: plastic matter dents, squashes and is punched through
+
+Under destructible physics, matter that flows before it breaks now keeps the shape a blow leaves.
+
+- **Yield is one dial across matter**: the stress where a stuff starts to flow, from a liquid's 0 through mud, dough,
+  putty and lead to mild and armour steel. A matter with a yield is plastic; glass, masonry and timber break as before.
+- **A dent is a crater in a solid**: a blow's work over the matter's hardness (three times its yield) is the volume it
+  pushes aside, a bowl as sharp as the blow (a round deep, a swing broad, a burst a dish) with that volume kept in its
+  rim. The work comes off the block's budget, so the budget still decides whether it stays.
+- **Powerscaling punches through**: a dent that reaches the far face is a hole. The plate pays only for the plug and
+  the rest carries on, so a strong enough round goes through a plate into what is behind it, and a blow past twice a
+  block's whole budget tears it apart outright.
+- **Soft stuff squashes**: a dent wider than the face it strikes flattens the whole block at constant volume, so dough
+  spreads under a blow.
+- **Plates strip**: a plastic plate hung on a wall by its weld comes off whole when its budget is gone, so focus fire
+  strips one panel and leaves its neighbours.
+- **On the page**: a dented block is drawn displaced by its dents, holes dark through, and a stripped plate falls.
+  A page whose blocks have no yield keeps its bytes.

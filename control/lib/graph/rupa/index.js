@@ -15,7 +15,7 @@
  *                           at max; the wind: { speed at 10 m, dir, terrain?, gust?, seed? })
  *   impactJoules(m, v)    ½mv² (a cannonball, a car, a falling slab)
  *   breaches(matter, box, joules, fill?) → { joules, capacity, breaks, left } does that blow break that block
- *   rupaPhysics           blastKg, blastJoules, faceArea, burstShare, blowJoules, loadPass (the page's own functions)
+ *   rupaPhysics           blastKg, blastJoules, faceArea, burstShare, blowJoules, loadPass, dentOf (the page's own functions)
  */
 import { buildRupa } from '../worlds/controllable/rupa.js';
 import { blockMatter, resolveMatter, isLiquid } from './matter.js';
