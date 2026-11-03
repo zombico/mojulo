@@ -105,7 +105,8 @@ export function fortOfLanguage(L, seed = 1) {
     parapet: plastered ? { form: 'loophole', h: r3(roll([1.7, 2])), group: 'str:plaster', value: r3(Math.max(0.85, V.storeys?.find((s) => s.group === 'str:plaster')?.value ?? 0.9)), cope: cover === 'str:slate' ? 'str:slate' : 'str:tile', copeValue: r3(V.cap?.value ?? 0.3) }
       : { form: 'crenel', h: r3(roll([1.4, 1.7])), merlon: r3(roll([0.9, 1.2])), crenel: r3(roll([0.6, 0.8])), group: 'str:stone', value: r3(Math.min(0.72, (ground.value ?? 0.6) + 0.06)) },
     walk: { w: r3(Math.min(t - 0.5, roll([1.4, 1.8]))) },
-    tower: { plan, crown, ...(crown === 'crenel' ? {} : { cover, value: r3(Math.max(0.28, Math.min(0.42, V.cap?.value ?? 0.36))) }) },
+    // (a crenellated tower still carries its cover: its turret's roof and its keep's are drawn in it, as a seeded one's are)
+    tower: { plan, crown, cover, value: r3(Math.max(0.28, Math.min(0.42, V.cap?.value ?? 0.36))) },
     gate: { form: hipped ? 'box' : 'twin', clear: r3(roll([4, 4.6])) },
     ditch: { w: r3(roll([5, 9])), depth: r3(roll([2, 3])) },
   };

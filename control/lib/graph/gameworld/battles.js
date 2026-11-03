@@ -67,7 +67,7 @@ export const SHOP_WARES = Object.freeze([
 export const INN_PRICE = 6, INN_STEP = 6;
 export const SHOP_KEEPER = Object.freeze({ cast: 'male', palette: { Top: '#7a5a2a' } });
 // (the tier a stage's shop is at: the packs met before it, two a tier)
-const tierOf = (from) => Math.min(SHOP_WARES.length - 1, Math.floor(from / 2));
+export const tierOf = (from) => Math.min(SHOP_WARES.length - 1, Math.floor(from / 2));
 /** Whether the run stands shops on its battle stages (on unless the book says `shops: false`). */
 export const shopsOn = (G) => !!G.battles && G.battles.shops !== false && G.battles.on !== 'board';
 export const JOINER_CLASSES = Object.freeze(['mage', 'cleric', 'rogue', 'knight', 'monk']);
@@ -122,7 +122,7 @@ export const PARTY_SLICE = 'party';
 export const BAG_SLICE = 'bag';
 export const BAG_START = Object.freeze({ potion: 2 });
 // where battles are fought: a stage walked along a trail (its beats); a building, a city and a roadway have none
-const FOUGHT = (s) => !['building', 'interior', 'city', 'roadway'].includes(s.section);
+export const FOUGHT = (s) => !['building', 'interior', 'city', 'roadway'].includes(s.section);
 const KEYS = ['on', 'board', 'party', 'packs', 'per', 'boss', 'foe', 'looks', 'rest', 'shops', 'random', 'classes', 'skills', 'foes', 'items', 'gear', 'juice', 'rules'];
 const BOARD_KEYS = ['cols', 'rows', 'cap', 'rules', 'skirmish', 'epochs', 'talk'];
 const MEMBER_KEYS = ['class', 'name', 'level', 'bonus', 'classes', 'gear'];
@@ -332,7 +332,7 @@ export function battleCast(G, stage, ends, { ref, refs = null, keeper = null, pa
 }
 
 // the wares the world can sell: the tier's (or the book's own), less what the world's items and gear leave out
-function waresFor(G, from, list0 = null) {
+export function waresFor(G, from, list0 = null) {
   const B = G.battles, list = B.shops?.wares ?? list0 ?? SHOP_WARES[tierOf(from)];
   const has = (v, k) => v === undefined || (Array.isArray(v) ? v.includes(k) : isObj(v) && k in v);
   return list.filter((w) => (ITEM_PRESETS[w] || (isObj(B.items) && B.items[w]) ? has(B.items, w) : has(B.gear, w)));
@@ -351,7 +351,7 @@ function besideStart(ends, side) {
   return null;
 }
 // a night's price at tier k: the book's, else dearer further on; null for no inn
-const innOf = (G, k) => (G.battles.shops?.inn === false ? null : G.battles.shops?.inn ?? INN_PRICE + INN_STEP * k);
+export const innOf = (G, k) => (G.battles.shops?.inn === false ? null : G.battles.shops?.inn ?? INN_PRICE + INN_STEP * k);
 function shopsAt(G, ends, figures, entities, keeper, wares, inn) {
   const shops = {}, cues = [];
   const put = (id, side, S, word, hello) => {

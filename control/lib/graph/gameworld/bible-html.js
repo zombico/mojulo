@@ -41,6 +41,7 @@ import { buildingStage, levelBuildingStage } from './levels.js';
 import { finishesOf, finishesCss, finishesHtml } from './finishes.js';
 import { skinHead } from './book-skin.js';
 import { wcdPage, WCD_CSS } from './wcd-page.js';
+import { battlesPage } from './battles-page.js';
 import { layLevel } from '../level/index.js';
 import { outTrailPlanSvg } from '../era/out-trail-board.js';
 import { localMeruPlanSvg } from '../local-meru/premap.js';
@@ -342,6 +343,8 @@ export function gameworldBibleHtml(world, { foePortraits = {} } = {}) {
   const stamps = reviewState(world, { machine }), stampOf = (id) => stamps.find((x) => x.id === id);
   const anchorOf = (id) => (id === 'intent' ? '#intent' : id === 'world' ? '#map' : id === 'nature' ? '#nature' : id === 'civilizations' ? '#civilizations' : id === 'key' ? '#key' : id.startsWith('tech:') ? `#tech-${id.slice(5)}` : `#level-${id.slice(6)}`);
   const stamp = (id) => { const x = stampOf(id); return x ? `<span class="stamp st-${x.status}" title="${esc(STAMPS[x.status])}">${esc(x.status)}</span>` : ''; };
+  // the party battles (battles-page.js): the party, the road, the foes, the shops and the hub; none, nothing
+  const BX = battlesPage(G, { esc, stamp });
   const civCards = civHtml.replace(/<!--stamp:([^>]*)-->/g, (_, id) => stamp(id));
   const mode = world.mode ?? 'gated', waiting = stamps.filter((x) => ['changed', 'revise', 'proposed'].includes(x.status));
   const gateHtml = `<div class="gate" id="gate"><div class="gate-h"><span class="eyebrow">The gate</span><span class="mode mode-${esc(mode)}">${esc(mode)}</span><p class="muted">${esc(MODES[mode])}.</p></div>
@@ -381,9 +384,9 @@ ${briefText(world.brief) ? `<details class="brief" open><summary>${Array.isArray
 
   return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(G.name)} · Gameworld bible</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@600;800&family=IBM+Plex+Mono:wght@400;500&family=Public+Sans:wght@400;500;600&display=swap">${skin.link}
-<style>${CSS}${G.wcd ? `\n${WCD_CSS}` : ''}${fin.length ? `\n${finishesCss(fin)}` : ''}${FX ? FX.css : ''}${skin.css ? `\n${skin.css}` : ''}</style></head><body><div class="wrap">
+<style>${CSS}${G.wcd ? `\n${WCD_CSS}` : ''}${fin.length ? `\n${finishesCss(fin)}` : ''}${FX ? FX.css : ''}${BX ? BX.css : ''}${skin.css ? `\n${skin.css}` : ''}</style></head><body><div class="wrap">
 <div class="mast"><div class="t">Gameworld bible</div><div class="eyebrow">${esc(G.id)} · seed ${G.seed}</div></div>
-<nav class="tabs" aria-label="Sections"><a href="#cover">World</a><a href="#gate">Gate</a><a href="#map">World map</a>${G.wcd ? '<a href="#wcd">To the core</a>' : ''}<a href="#nature">Natural world</a><a href="#civilizations">Civilizations</a><a href="#key">Color key</a>${order.map((id) => `<a href="#level-${esc(id)}">${esc(built[id].R.name)}</a>`).join('')}${FX ? '<a href="#foes">Foes</a>' : ''}${storyPart ? '<a href="#story">Story</a>' : ''}<a href="#open">Open</a></nav>
+<nav class="tabs" aria-label="Sections"><a href="#cover">World</a><a href="#gate">Gate</a><a href="#map">World map</a>${G.wcd ? '<a href="#wcd">To the core</a>' : ''}<a href="#nature">Natural world</a><a href="#civilizations">Civilizations</a><a href="#key">Color key</a>${order.map((id) => `<a href="#level-${esc(id)}">${esc(built[id].R.name)}</a>`).join('')}${BX ? BX.tab : ''}${FX ? '<a href="#foes">Foes</a>' : ''}${storyPart ? '<a href="#story">Story</a>' : ''}<a href="#open">Open</a></nav>
 <section class="part" id="cover"><div class="cover"><div><h1>${esc(G.name)}</h1><p class="lede">${order.length} level${order.length === 1 ? '' : 's'} · ${esc(G.style.kit)} · ${G.civIds.length} civilization${G.civIds.length === 1 ? '' : 's'}</p></div><figure class="hero">${cover}</figure></div>
 ${gateHtml}<div class="eyebrow">The levels, in the order they are played</div><div class="strip">${strip}</div></section>
 <section class="part" id="map"><div class="part-h"><span class="eyebrow">World map ${stamp('world')}</span><h2>The world, drawn from its graph</h2></div><div class="canvas">${worldMapSvg(graph, order)}</div>
@@ -394,7 +397,8 @@ ${wcdPage(G, esc, Object.fromEntries(order.filter((id) => built[id].finishes).ma
 <section class="part" id="civilizations"><div class="part-h"><span class="eyebrow">Civilizations ${stamp('civilizations')}</span><h2>Who builds on it</h2></div>${civCards}</section>
 <section class="part" id="key"><div class="part-h"><span class="eyebrow">Style and color key ${stamp('key')}</span><h2>Every ramp, and what it paints</h2></div><div class="cards">${keyHtml}</div></section>
 ${levels}
-${FX ? `${FX.section}
+${BX ? `${BX.section}
+` : ''}${FX ? `${FX.section}
 ` : ''}${storyPart}<section class="part" id="open"><div class="part-h"><span class="eyebrow">Open</span><h2>Beyond the ground</h2></div><div class="cards">${open}</div></section>
 <footer><span class="eyebrow">Every plate drawn from its recipe</span><span class="eyebrow">Scapeshift</span></footer>
 </div></body></html>`;

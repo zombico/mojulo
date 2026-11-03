@@ -492,8 +492,8 @@ const quickShared = () => [
 
 function battlesCard() {
   return lines(
-    'THE BATTLES — party battles, turn by turn, laid on the book\'s levels: battles { on?, board?, party?, packs?, per?, boss?, foe?, rest?,',
-    '  random?, classes?, skills?, foes?, items?, rules? }. Absent: no battles (a turn-based cube asks for them: the',
+    'THE BATTLES — party battles, turn by turn, laid on the book\'s levels: battles { on?, board?, party?, packs?, per?, boss?, foe?, looks?,',
+    '  shops?, rest?, random?, classes?, skills?, foes?, items?, rules? }. The book\'s battles page reads them back. Absent: no battles (a turn-based cube asks for them: the',
     '  encounters concern). The fights are play.rpg (get_play_vocab({ id: \'ui-cues\' }), PARTY BATTLES).',
     '',
     `party   the hero and each cast member who joins (characters.cast.<id>.joins), each a class: { hero: { class, name? },`,
@@ -505,6 +505,12 @@ function battlesCard() {
     '        per: n on each trail stage (2), on its beats, as many as it has room for. boss: a pack, the last stage\'s',
     '        last, with no escape. foe: { <hero-door words> } how a foe stands on the map, or { species, ooze?, stylism? }:',
     '        a beast on its own gaits (a wolf pack, dire wolves); walk up to one to fight.',
+    'looks   each foe its own: { <foe id>: { species, ooze?, stylism? } a beast | { people, facets?, dress? } a people (a',
+    '        lineage, the beast-kin: lupine, feline …, the undead: skeleton, zombie) | hero-door words }; the presets\' own.',
+    'shops   a merchant (wares by how far on, bought back at half) and an inn (a night: HP, MP, cured) beside each fighting',
+    '        stage\'s start: shops: false | { wares?: [ids], inn?: gold | false }. Where an inn stands it is the rest.',
+    'hub     the world\'s hub: \'<level>\' (topology interconnected): the town every way leads back to, no fights in it,',
+    '        its merchant and inn there; kept by its folk (characters.folk) where it has them, else by the way in.',
     'rest    E at each stage\'s start restores HP and MP (rest: false for none). random: { every?, chance?, after? }',
     '        random fights on the trails, drawn from the stage\'s packs.',
     'gear    one item a slot (weapon, armor, accessory), its numbers on the member\'s; each class starts in its own; the',

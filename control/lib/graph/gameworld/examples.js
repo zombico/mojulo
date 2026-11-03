@@ -261,13 +261,13 @@ export const HOLLIN_VALE = Object.freeze({
     'hollin-folk': { name: 'The folk of Hollin', anchor: HOLLIN_HOUSE, town: { levels: 1, heartbeat: 'market' } },
     'barrow-wardens': {
       name: 'The barrow wardens', anchor: BARROW_HOUSE,
-      // their fort: a battered drystone rampart, a solid parapet, square towers under thatch-grey stone crenels
+      // their fort: a battered drystone rampart, a solid parapet, square towers crenellated (their turrets under slate)
       fort: {
         read: 'a battered rampart of unmortared stone, a solid breastwork over its walk, square towers crenellated, a single box gate, a deep ditch cut in the hill',
         curtain: { base: 'battered', batter: 0.32, t: 3, group: 'str:stone', value: 0.5, bond: 'rubble' },
         parapet: { form: 'solid', h: 1.5, group: 'str:stone', value: 0.56 },
         walk: { w: 2 },
-        tower: { plan: 'square', crown: 'crenel' },
+        tower: { plan: 'square', crown: 'crenel', cover: 'str:slate', value: 0.34 },
         gate: { form: 'box', clear: 4 },
         ditch: { w: 9, depth: 3 },
       },
@@ -304,7 +304,12 @@ export const HOLLIN_VALE = Object.freeze({
   hub: 'hollin',
   // the fights: wolves in the hollow, the raiders and the dead on the downs, the dead rising round the fort
   battles: {
-    packs: [['wolf', 'wolf'], ['wolf', 'bandit'], ['bandit', 'bandit', 'wolf'], ['skeleton', 'zombie'], ['skeleton', 'skeleton', 'zombie'], ['zombie', 'bandit', 'skeleton']],
+    // (two a stage: the hollow's edge and its deep, the downs and the barrows, the climb and the crest, the boss last)
+    packs: [
+      ['wolf', 'wolf'], ['wolf', 'bandit'], ['wolf', 'wolf', 'bandit'], ['bandit', 'bandit'],
+      ['bandit', 'wolf', 'bandit'], ['skeleton', 'zombie'], ['skeleton', 'skeleton'], ['zombie', 'skeleton', 'zombie'],
+      ['skeleton', 'zombie', 'bandit'], ['zombie', 'zombie', 'skeleton'], ['skeleton', 'skeleton', 'zombie'],
+    ],
     boss: ['zombie', 'skeleton', 'zombie'],
     looks: { bandit: { people: 'lupine' } },
   },

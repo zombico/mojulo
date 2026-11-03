@@ -40,7 +40,9 @@ describe('the rail\'s cards', () => {
     // relations' words (summons, pair) and the win; a growing family, due to become an index and a card per member;
     // 4736 since 2026-10-30 (1030-foe-casting-call: one line naming the cast sheet and the casting call's step, 4657 bytes);
     // 5120 the same day (the patrol's row, a person's dress line and a building's rooms: 4916 bytes)
-    const CEIL = { 'gameworld-guide': 4480, 'gameworld-world': 4288, 'gameworld-foes': 5120 };
+    // the battles card too (2026-11-03, 1102-book-powers: it was 4092 bytes; its foes' looks, the shops and the inn, and
+    // the hub joined its keys, and it names the book's battles page that reads them back: 4864)
+    const CEIL = { 'gameworld-guide': 4480, 'gameworld-world': 4288, 'gameworld-foes': 5120, 'gameworld-battles': 4864 };
     for (const c of cards.values()) expect(Buffer.byteLength(c.body), c.id).toBeLessThan(CEIL[c.id] ?? 4096);
   });
 

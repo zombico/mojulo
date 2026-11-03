@@ -367,3 +367,19 @@ its resource, put on a look and showed a toast. This theme makes them act.
 - **Two tests caught up with this branch.** The composed-goals byte pin is re-pinned: a composed world's builders are
   its cube's when the prompt names no building language. The own-moves test reads the per-foe steps: people foes play
   the hero door's reactions plus their swings, beasts play their own flinch, fall and rise, and a bat has no fall at all.
+- **The book reads the battles back.** The gameworld bible has a Battles part (`gameworld/battles-page.js`), so what
+  the run lays can be read in the book:
+  - **The party:** each member and their class.
+  - **The road:** every pack in the order it's met across the stages, the boss last.
+  - **The foes:** each one as it stands (a beast, a people, a person), with the book's own looks marked, and as it
+    fights.
+  - **The shops:** what the merchant sells at what price, and the inn's night.
+  - **The hub:** the town every way leads back to, its street, walls and rooms, and the folk who keep its shop and its
+    inn.
+
+  The agent's battles card (`gameworld-battles`) names `looks`, `shops` and `hub` as well, and its byte ceiling is
+  raised to 4864. Hollin Vale's road is written out whole: eleven packs and the boss over its six fighting stages, so
+  the last pack no longer repeats.
+- **A crenellated tower carries its roof cover.** A town's own fortification (`fortOfLanguage`) left a crenel-crowned
+  tower without its cover or value, and its turret's roof then drew with no colour. Seeded forts always carried both;
+  it now does too.
