@@ -13,13 +13,19 @@
  * `turn` (m, kerb-to-kerb turning radius). A tracked class says `running: 'track'` (its wheelbase the track's length
  * on the ground, its wheel a road wheel): it is drawn and parked, not yet driven (skid steer is not built). A
  * three-wheeler says its `layout` (sidecar | delta | tadpole: wheelLayout); its track is its two side-by-side wheels'.
+ * A class that does not turn by its front wheels says its `steer` (STEERS: rear | all | articulated | skid; steerOf,
+ * a crawler's skid): a word for its builders and its page, which the drive rule does not read (it turns every class on
+ * its turning radius); a skid-steered class is drawn and parked, as a tracked one is.
  *
  * Sources: published specifications for a representative of each class (rental kart, Corolla, Camry, RAV4, F-150,
  * Transit, 911 Carrera, a Rally2 car, a Dakar SSV, a trophy truck, a 450 motocross bike, a sport ATV, a box truck, a
  * city bus, a Class 8 tractor with a 53 ft trailer empty and at 80,000 lb; the cycles: a 700 cc standard, a litre sport
  * bike, a grand prix prototype, a big V-twin cruiser, a 150 cc scooter, a 110 cc underbone, a pedelec, a commuter on an
- * upright bicycle, a flat-twin outfit, a delta trike, an LPG auto rickshaw, a pedicab, a box trike), each with its rider,
- * rounded: [E], estimates for a class, not a model's data sheet. The spike's reference sheet sets the bands they are held to (vehicles.test.js).
+ * upright bicycle, a flat-twin outfit, a delta trike, an LPG auto rickshaw, a pedicab, a box trike; the site's machines: a
+ * 20 t crawler excavator, a 2.7 t mini excavator, a 19 t wheeled excavator, a 20 t crawler dozer, a 15 t wheel loader, an
+ * 8.5 t backhoe loader, a 3.3 t skid steer, a 4.3 t compact track loader, a 4 t, 14 m telehandler, a 2.5 t counterbalance
+ * forklift, an 8x4 tipper and an 8x4 mixer loaded, a 30 t articulated dump truck and a 100 t rigid haul truck loaded, a
+ * five-axle all-terrain crane, a 10 t tandem roller, a 17 t motor grader), each with its rider or operator, rounded: [E], estimates for a class, not a model's data sheet. The spike's reference sheet sets the bands they are held to (vehicles.test.js).
  *
  * Launch is weight-transferred (launchShare): accelerating loads the rear axle, so a rear-driven class pushes with more
  * than its static share and a front-driven one with less; a rear-driven two-wheeler lifts its front wheel first.
@@ -94,12 +100,42 @@ export const VEHICLES = Object.freeze({
   tukTuk:        Object.freeze({ words: 'an auto rickshaw', mass: 420, power: 7, drive: 'rear', share: 0.7, wheelbase: 2.0, track: 1.15, wheelRadius: 0.2, CdA: 1.6, Crr: 0.018, cgH: 0.75, L: 2.65, W: 1.3, H: 1.7, eye: 1.45, grip: 0.85, brakeEff: 0.7, turn: 4.3, layout: 'delta' }),
   cycleRickshaw: Object.freeze({ words: 'a pedicab, its seat empty', mass: 150, power: 0.2, drive: 'rear', share: 0.75, wheelbase: 1.7, track: 1.0, wheelRadius: 0.33, CdA: 1.2, Crr: 0.012, cgH: 0.85, L: 2.6, W: 1.15, H: 1.9, eye: 1.65, grip: 0.85, brakeEff: 0.6, turn: 4.0, band: 1, layout: 'delta' }),
   cargoTrike:    Object.freeze({ words: 'a box trike, two wheels ahead of one', mass: 120, power: 0.18, drive: 'rear', share: 0.45, wheelbase: 1.75, track: 0.85, wheelRadius: 0.25, CdA: 0.7, Crr: 0.01, cgH: 0.75, L: 2.3, W: 0.9, H: 1.15, eye: 1.6, grip: 0.85, brakeEff: 0.7, turn: 3.5, band: 1, layout: 'tadpole' }),
+  // (the site's machines, built by the construction shelf. A crawler's wheelbase is its track's length on the ground
+  // (idler to sprocket), its track the tracks' centres apart (the gauge), its wheel a bottom roller; a machine's length,
+  // width and height its transport size (its boom or its bucket folded, its blade on); its eye the operator's. Crawlers
+  // and skid steers are drawn and parked until skid steer is built; the travel speed a governor, a site machine's
+  // published top gear. A haul truck's, a tipper's and a mixer's mass is loaded. `site`: its body is the construction
+  // shelf's, never the car sheet's)
+  crawlerExcavator: Object.freeze({ words: 'a 20 t crawler excavator', mass: 21000, power: 110, drive: 'all', share: 1, wheelbase: 3.65, track: 2.2, wheelRadius: 0.12, CdA: 8.0, Crr: 0.05, cgH: 1.1, L: 9.5, W: 2.8, H: 3.0, eye: 2.4, grip: 0.75, brakeEff: 0.8, turn: 2.5, band: 0.7, governor: kmh(5.5), running: 'track', site: true }),
+  miniExcavator: Object.freeze({ words: 'a 2.7 t mini excavator, its tail inside its tracks', mass: 2700, power: 15, drive: 'all', share: 1, wheelbase: 1.6, track: 1.25, wheelRadius: 0.08, CdA: 3.0, Crr: 0.05, cgH: 0.6, L: 4.4, W: 1.55, H: 2.45, eye: 1.9, grip: 0.75, brakeEff: 0.8, turn: 1.2, band: 0.7, governor: kmh(4.4), running: 'track', site: true }),
+  wheeledExcavator: Object.freeze({ words: 'a 19 t wheeled excavator, the 20 t front', mass: 19000, power: 105, drive: 'all', share: 1, wheelbase: 2.6, track: 1.95, wheelRadius: 0.5, CdA: 7.5, Crr: 0.02, cgH: 1.3, L: 8.4, W: 2.55, H: 3.1, eye: 2.4, grip: 0.75, brakeEff: 0.8, turn: 6.8, band: 0.75, governor: kmh(37), site: true }),
+  crawlerDozer: Object.freeze({ words: 'a 20 t crawler dozer, its blade and its ripper', mass: 20500, power: 160, drive: 'all', share: 1, wheelbase: 2.9, track: 1.98, wheelRadius: 0.13, CdA: 9.0, Crr: 0.05, cgH: 1.1, L: 6.6, W: 3.4, H: 3.2, eye: 2.6, grip: 0.8, brakeEff: 0.8, turn: 2.0, band: 0.7, governor: kmh(11), running: 'track', site: true }),
+  wheelLoader:   Object.freeze({ words: 'a 15 t wheel loader, its frame articulated', mass: 15000, power: 140, drive: 'all', share: 1, wheelbase: 3.3, track: 2.2, wheelRadius: 0.8, CdA: 8.5, Crr: 0.025, cgH: 1.4, L: 8.2, W: 2.9, H: 3.4, eye: 2.6, grip: 0.75, brakeEff: 0.8, turn: 6.2, band: 0.75, governor: kmh(38), steer: 'articulated', site: true }),
+  backhoeLoader: Object.freeze({ words: 'an 8.5 t backhoe loader', mass: 8500, power: 70, drive: 'all', share: 1, wheelbase: 2.2, track: 1.9, wheelRadius: 0.65, CdA: 6.5, Crr: 0.025, cgH: 1.2, L: 5.9, W: 2.35, H: 3.85, eye: 2.3, grip: 0.75, brakeEff: 0.8, turn: 4.2, band: 0.75, governor: kmh(40), site: true }),
+  skidSteer:     Object.freeze({ words: 'a 3.3 t skid steer loader', mass: 3300, power: 55, drive: 'all', share: 1, wheelbase: 1.1, track: 1.5, wheelRadius: 0.4, CdA: 3.5, Crr: 0.025, cgH: 0.75, L: 3.5, W: 1.8, H: 2.05, eye: 1.6, grip: 0.75, brakeEff: 0.8, turn: 1.8, band: 0.75, governor: kmh(12), steer: 'skid', site: true }),
+  compactTrackLoader: Object.freeze({ words: 'a 4.3 t compact track loader', mass: 4300, power: 70, drive: 'all', share: 1, wheelbase: 1.5, track: 1.5, wheelRadius: 0.1, CdA: 3.8, Crr: 0.05, cgH: 0.75, L: 3.7, W: 1.95, H: 2.1, eye: 1.6, grip: 0.8, brakeEff: 0.8, turn: 1.9, band: 0.7, governor: kmh(13), running: 'track', site: true }),
+  telehandler:   Object.freeze({ words: 'a telehandler, 4 t to 14 m, every wheel steered', mass: 10500, power: 75, drive: 'all', share: 1, wheelbase: 2.9, track: 1.95, wheelRadius: 0.62, CdA: 6.0, Crr: 0.025, cgH: 1.1, L: 6.7, W: 2.4, H: 2.45, eye: 2.0, grip: 0.75, brakeEff: 0.8, turn: 3.8, band: 0.75, governor: kmh(40), steer: 'all', site: true }),
+  forklift:      Object.freeze({ words: 'a 2.5 t counterbalance forklift, steered by its rear wheels', mass: 4200, power: 40, drive: 'front', share: 0.4, wheelbase: 1.6, track: 0.97, wheelRadius: 0.33, CdA: 2.5, Crr: 0.02, cgH: 0.75, L: 3.6, W: 1.15, H: 2.15, eye: 1.85, grip: 0.75, brakeEff: 0.8, turn: 2.3, band: 0.75, governor: kmh(19), steer: 'rear', site: true }),
+  tipperTruck:   Object.freeze({ words: 'an 8x4 tipper, loaded', mass: 32000, power: 330, drive: 'rear', share: 0.6, wheelbase: 5.4, track: 2.05, wheelRadius: 0.53, CdA: 7.0, Crr: 0.008, cgH: 1.9, L: 9.6, W: 2.55, H: 3.3, eye: 2.4, grip: 0.7, brakeEff: 0.65, turn: 10.5, band: 0.85, governor: kmh(90), site: true }),
+  mixerTruck:    Object.freeze({ words: 'an 8x4 concrete mixer, loaded', mass: 32000, power: 300, drive: 'rear', share: 0.6, wheelbase: 5.0, track: 2.05, wheelRadius: 0.53, CdA: 8.0, Crr: 0.008, cgH: 2.1, L: 10.0, W: 2.55, H: 3.95, eye: 2.4, grip: 0.7, brakeEff: 0.65, turn: 10, band: 0.85, governor: kmh(90), site: true }),
+  articulatedDumpTruck: Object.freeze({ words: 'a 30 t articulated dump truck, loaded', mass: 53000, power: 280, drive: 'all', share: 1, wheelbase: 4.4, track: 2.3, wheelRadius: 0.8, CdA: 10, Crr: 0.02, cgH: 2.0, L: 10.5, W: 3.0, H: 3.6, eye: 2.8, grip: 0.7, brakeEff: 0.7, turn: 8.5, band: 0.85, governor: kmh(55), steer: 'articulated', site: true }),
+  haulTruck:     Object.freeze({ words: 'a 100 t rigid haul truck, loaded', mass: 165000, power: 780, drive: 'rear', share: 0.66, wheelbase: 4.6, track: 4.1, wheelRadius: 1.35, CdA: 25, Crr: 0.015, cgH: 2.6, L: 10.5, W: 6.1, H: 5.2, eye: 4.5, grip: 0.7, brakeEff: 0.7, turn: 10.2, band: 0.85, governor: kmh(64), site: true }),
+  mobileCrane:   Object.freeze({ words: 'a five-axle all-terrain crane, every axle steered', mass: 60000, power: 400, drive: 'all', share: 1, wheelbase: 9.2, track: 2.15, wheelRadius: 0.67, CdA: 10, Crr: 0.01, cgH: 1.9, L: 14.5, W: 2.75, H: 3.95, eye: 2.6, grip: 0.7, brakeEff: 0.7, turn: 11, band: 0.85, governor: kmh(85), steer: 'all', site: true }),
+  roadRoller:    Object.freeze({ words: 'a 10 t tandem roller, its two drums', mass: 10000, power: 85, drive: 'all', share: 1, wheelbase: 3.4, track: 1.7, wheelRadius: 0.6, CdA: 5.0, Crr: 0.03, cgH: 1.1, L: 4.6, W: 1.85, H: 3.0, eye: 2.4, grip: 0.7, brakeEff: 0.8, turn: 5.5, band: 0.75, governor: kmh(12), steer: 'articulated', site: true }),
+  motorGrader:   Object.freeze({ words: 'a 17 t motor grader, its moldboard on its circle', mass: 17000, power: 160, drive: 'rear', share: 0.72, wheelbase: 6.2, track: 2.1, wheelRadius: 0.75, CdA: 8.0, Crr: 0.025, cgH: 1.3, L: 9.0, W: 2.5, H: 3.3, eye: 2.8, grip: 0.75, brakeEff: 0.8, turn: 7.4, band: 0.8, governor: kmh(45), steer: 'articulated', site: true }),
 });
 
 /** How a class stands on its wheels: two in line (track 0), a three-wheeler's `layout` (sidecar | delta | tadpole), or
  *  axles (two wheels or a track each side of every axle: a car, a truck, a tank). */
 export const WHEEL_LAYOUTS = Object.freeze(['inline', 'sidecar', 'delta', 'tadpole', 'axles']);
 export const wheelLayout = (v) => (v.layout ?? (v.track ? 'axles' : 'inline'));
+/** How a class turns: by its front wheels (the default), its rear (a forklift), every axle (a telehandler, an
+ *  all-terrain crane), its frame bending between its halves (a loader, a dump truck, a roller, a grader), or by skid,
+ *  each side's wheels or track driven apart (a skid steer, every crawler). */
+export const STEERS = Object.freeze(['front', 'rear', 'all', 'articulated', 'skid']);
+export const steerOf = (v) => v.steer ?? (v.running === 'track' ? 'skid' : 'front');
+/** A site's machine (`site: true`): its body is the construction shelf's (construction-shelf/), never the car sheet's. */
+export const siteClass = (v) => Boolean(v?.site);
 
 export const CONDITIONS = Object.freeze({ dry: 1, wet: 0.62, snow: 0.28, ice: 0.1 });
 export const TUNINGS = Object.freeze(['sim', 'arcade']);

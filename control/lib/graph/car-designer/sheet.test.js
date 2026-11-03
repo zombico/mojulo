@@ -16,7 +16,7 @@ import { VEH_LIGHTS_FAMILIES } from '../vehicle-designer/veh-lights.js';
 import { MOTIFS } from '../gameworld/tech-direction.js';
 import { ADORNMENT_PIECES } from '../gameworld/tech-adornment.js';
 import { BODY_PLANS } from '../gameworld/tech-bodyplan.js';
-import { VEHICLES, wheelLayout } from '../roads/vehicles.js';
+import { VEHICLES, wheelLayout, siteClass } from '../roads/vehicles.js';
 
 const keysOf = (o) => Object.keys(o).sort();
 
@@ -31,8 +31,9 @@ describe('every derive names a live dial', () => {
     expect([...DIALS.motif.keys].sort()).toEqual(keysOf(MOTIFS));
     for (const k of DIALS.adorn.keys) expect(ADORNMENT_PIECES, k).toHaveProperty(k);
     expect([...DIALS.bodyplan.keys].sort()).toEqual(BODY_PLANS['vehicle/wheeled'].variants.map((x) => x.name).sort());
-    // the classes are the physics rows on axles: a cycle, two in line or a three-wheeler, is the cycle shelf's
-    expect([...DIALS.class.keys].sort()).toEqual(keysOf(VEHICLES).filter((k) => wheelLayout(VEHICLES[k]) === 'axles'));
+    // the classes are the physics rows on axles: a cycle, two in line or a three-wheeler, is the cycle shelf's, and a
+    // site's machine the construction shelf's
+    expect([...DIALS.class.keys].sort()).toEqual(keysOf(VEHICLES).filter((k) => wheelLayout(VEHICLES[k]) === 'axles' && !siteClass(VEHICLES[k])));
     expect([...new Set(Object.values(VEHICLES).map((r) => r.drive))].sort()).toEqual([...DIALS.drive.keys].sort());
     for (const k of DIALS.physics.keys) expect(VEHICLES.compact, k).toHaveProperty(k === 'share' ? 'share' : k);
     expect(DIALS.proportion.keys).toBe(PROPORTION_KEYS);
@@ -99,6 +100,8 @@ describe('the poles', () => {
   it('a machine ridden astride is the cycle shelf\'s, and an unknown word names the known', () => {
     const cycle = Object.keys(VEHICLES).find((k) => wheelLayout(VEHICLES[k]) === 'inline');
     expect(() => readVehicleSheet({ class: cycle })).toThrow(/ridden astride: the cycle shelf builds it/);
+    const site = Object.keys(VEHICLES).find((k) => siteClass(VEHICLES[k]) && wheelLayout(VEHICLES[k]) === 'axles');
+    expect(() => readVehicleSheet({ class: site })).toThrow(/a site's machine: the construction shelf builds it/);
     expect(() => readVehicleSheet({ silhouette: 'blob' })).toThrow(/unknown silhouette 'blob' \(known: wedge/);
     expect(() => readVehicleSheet({ colour: 'red' })).toThrow(/unknown facet 'colour'/);
   });

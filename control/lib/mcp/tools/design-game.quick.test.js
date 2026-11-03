@@ -403,6 +403,26 @@ describe('design_game quick', () => {
     expect(night.figures.ride.form.sky.zenith).toEqual(night.sky.zenith);
   }, 240_000);
 
+  it('a ride astride: the cycle shelf\'s machine, its rider seated on it, its rivals on theirs, leaning on the page', async () => {
+    // a motorcycle by the word people say: a dirt bike, ridden at any tier (it has only its realistic build)
+    const out = await designGameHandler({ quick: { goal: 'race', ride: 'a dirt bike', rivals: 1, world: { id: 'moto', style: { kit: 'trail-valley' } } }, ref: 'mx' });
+    expect(out.ran.map((r) => r.key)).toEqual(['level-run-0', 'game']);
+    expect(stored('mx').quick.ride).toBe('dirt-bike');
+    const L = stored('mx-level-run-0');
+    expect(L.figures.ride).toEqual({ cycle: { archetype: 'dirtBike', ride: true, rider: true } });
+    expect(L.figures['rival-1']).toEqual(L.figures.ride);
+    expect(L.entities[0]).toMatchObject({ id: 'car', rule: { type: 'drive', vehicle: 'dirtBike', wheels: 2 } });
+    // chased over the rider's head
+    expect(L.camera.height).toBeGreaterThan(3);
+    const { payload } = await resolveWorldScene(SketchRepository.getByRef('mx-level-run-0'));
+    const bike = payload.figures.ride;
+    expect(bike.bones.map((b) => b.id)).toEqual(expect.arrayContaining(['root', 'front', 'wheelF', 'wheelR']));
+    expect(bike.live).toMatchObject({ ridden: true, lean: 'rule' });
+    // its rider astride: seated, the hands on the grips, the machine and the rider over a seated head's height
+    expect(bike.cycle.rider.posture).toBe('mx');
+    expect(bike.figH).toBeGreaterThan(1.5);
+  }, 240_000);
+
   it('kart race: rivals in the same car round a loop on the trail\'s land, the place on the HUD, a podium to win', async () => {
     const out = await designGameHandler({ quick: { goal: 'race', ride: 'coupe', rivals: 3, world: { id: 'karts', style: { kit: 'trail-valley' } } }, ref: 'k' });
     expect(out.ran.map((r) => r.key)).toEqual(['ride', 'level-run-0', 'game']);

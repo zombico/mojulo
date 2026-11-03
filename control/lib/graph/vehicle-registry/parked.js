@@ -1,25 +1,28 @@
 /**
  * PARKED VEHICLES: registry vehicles standing still in a level, each its realistic loft (car-designer/realistic.js), or a
- * machine ridden astride its cycle shelf machine on its stand (cycle-shelf/: `look` dresses it), at a place and a heading, solid to whoever walks there. A level asks for them by a manifest's `parked`, lowered on every
+ * machine ridden astride its cycle shelf machine on its stand (cycle-shelf/: `look` dresses it), or a site machine its
+ * construction shelf machine (construction-shelf/: `pose` poses it, a crane's outriggers out by its 'rigged'; `tool`,
+ * `height` and `palette` beside it), at a place and a heading, solid to whoever walks there. A level asks for them by a manifest's `parked`, lowered on every
  * read by the world (world-scene.js): each a static figure and a box collider over its footprint, added to the stage's
  * own colliders. A base building's `parked` (gameworld/world.js) lays them in its hangar, painted as its foes' faction
  * dresses (a crew in desert colours drives desert camo) or, with no faction, in its setting's camo.
  *
  *   PARKED_MAX                    the most a level stands
  *   BASE_PARKED                   what a base parks when it says only `true`: a truck and a carrier
- *   readParked(list, at?)         → [{ vehicle, class | craft, cycle?, at, heading, livery?, wear?, look?, fold?, pad?,
- *                                   reach?, seed }], each word read through the registry (a row with a realistic loft, a cycle
+ *   readParked(list, at?)         → [{ vehicle, class | craft, cycle?, construction?, at, heading, livery?, wear?, look?,
+ *                                   fold?, pad?, reach?, pose?, tool?, height?, palette?, seed }], each word read through the registry (a row with a realistic loft, a cycle
  *                                   with a stand, or a craft off the shelf, that can stand parked), or throws naming why. A
  *                                   craft (a helicopter, an aircraft, a drone) takes its family's `look`, the air's livery and
  *                                   wear, `fold` (its blades or wings, 0 spread … 1 folded), `pad` (a helipad under it: true or
  *                                   { size }) and `crew` (true: its role's ground crew; or a list of them): the crew follow it
  *                                   in the list, each placed and posed to its doors, holds and nose gear (turnaround.js). Its
  *                                   collider is its body's box, not its rotor's disc. An airside body takes `reach` (its lift,
- *                                   belt, platform or cradle, metres: road-airside.js). A cycle takes its look
+ *                                   belt, platform or cradle, metres: road-airside.js). A cycle takes its look; a site machine its
+ *                                   pose, tool, height and palette (construction-shelf/con-figure.js)
  *   parkIn(room, words, { seed?, livery?, wear? }) → `parked` entries side by side across a room, noses to its +x
  *                                   (a hangar's doors), as many as it holds; a craft folded, in the air's nearest camo
- *   parkable(word, at?)          → { vehicle, class, cycle? } or { vehicle, craft }, or throws naming why the word cannot
- *                                   stand parked
+ *   parkable(word, at?)          → { vehicle, class, cycle?, construction? } or { vehicle, craft }, or throws naming why
+ *                                   the word cannot stand parked
  *   readBuildingParked(word, at?) → a base building's `parked` read: true (BASE_PARKED), [words], or
  *                                   { vehicles?, livery?, wear? }, as { vehicles, livery?, wear? }
  *   paintOfDress(dress)           → the livery a faction's colourway paints its vehicles (a camo it names, else its own
@@ -45,14 +48,17 @@ import { lookCard as cycleLookCard } from '../cycle-shelf/cycle-looks.js';
 import { wheelLayout } from '../roads/vehicles.js';
 import { AIRSIDE_REACH } from '../car-designer/road-airside.js';
 import { crewFor, turnaround } from './turnaround.js';
+import { conFootprint, readConSpec } from '../construction-shelf/con-figure.js';
 
 export const PARKED_MAX = 6;
 export const BASE_PARKED = Object.freeze(['cargo-truck', 'apc']);
-const KEYS = ['vehicle', 'at', 'heading', 'livery', 'wear', 'look', 'seed', 'fold', 'pad', 'crew', 'reach'];
+const KEYS = ['vehicle', 'at', 'heading', 'livery', 'wear', 'look', 'seed', 'fold', 'pad', 'crew', 'reach', 'pose', 'tool', 'height', 'palette'];
 // (a craft's own words: a road car, a field vehicle and a cycle take none of them)
 const CRAFT_KEYS = ['fold', 'pad', 'crew'];
 // (the most a level stands with every craft's crew about it)
 export const PARKED_CREWED_MAX = 30;
+// (a site machine's own words: construction-shelf/con-figure.js)
+const SITE = Object.freeze(['pose', 'tool', 'height', 'palette']);
 // a field camo's nearest in the air's patterns (air-surface.js): a base's colours on its helicopters
 const AIR_OF_CAMO = Object.freeze({ woodland: 'wraparound', desert: 'desert', tiger: 'splinter', winter: 'arctic', urban: 'counterShaded', digital: 'splinter' });
 /** A livery as a craft wears it: an air livery as it is, a field camo's nearest air pattern, else none. */
@@ -79,6 +85,9 @@ export function parkable(word, at = 'parked') {
     if (inline && !CYCLE_ARCHETYPES[cycle].layout.some((e) => CYCLE_ODM[e.sku].kind === 'cycle-stand')) throw new Error(`${at}: the ${hit.row.label} has no stand to stand on`);
     return { vehicle: hit.id, class: h.physics[0], cycle };
   }
+  // (a site machine: its construction shelf machine, at its rest unless its words pose it)
+  const site = (h.construction ?? [])[0];
+  if (site && hit.row.uses.includes('parked')) return { vehicle: hit.id, class: (h.physics ?? [])[0] ?? null, construction: site };
   throw new Error(`${at}: the ${hit.row.label} has no realistic body that stands parked`);
 }
 
@@ -88,7 +97,7 @@ export function readParked(list, at = 'parked') {
     const w = `${at}[${k}]`;
     if (!isObj(p)) throw new Error(`${w} is { vehicle, at: [x, y, z], heading?, livery?, wear?, seed? }`);
     for (const key of Object.keys(p)) if (!KEYS.includes(key)) throw new Error(`${w}.${key} is not a parked vehicle's setting (${KEYS.join(', ')})`);
-    const { vehicle, class: cls, craft, cycle } = parkable(p.vehicle, `${w}.vehicle`);
+    const { vehicle, class: cls, craft, cycle, construction } = parkable(p.vehicle, `${w}.vehicle`);
     if (!Array.isArray(p.at) || p.at.length !== 3 || !p.at.every(Number.isFinite)) throw new Error(`${w}.at is [x, y, z], metres`);
     if (p.heading !== undefined && !Number.isFinite(p.heading)) throw new Error(`${w}.heading is radians (0: its nose along +x)`);
     if (p.seed !== undefined && !Number.isInteger(p.seed)) throw new Error(`${w}.seed is an integer`);
@@ -122,7 +131,11 @@ export function readParked(list, at = 'parked') {
     // (a reach lifts an airside body: its galley, its belt, its platform, a pushback's cradle; metres, clamped to its range)
     if (p.reach !== undefined && !(field && AIRSIDE_REACH[MILITARY_CLASSES[cls]])) throw new Error(`${w}.reach: the ${vehicle} lifts nothing; a reach is a catering truck's, a belt loader's, a stair truck's or a pushback's`);
     if (p.reach !== undefined && !(Number.isFinite(p.reach) && p.reach >= 0 && p.reach <= 10)) throw new Error(`${w}.reach is metres from the ground, 0 to 10`);
-    return [{ vehicle, class: cls, ...(cycle ? { cycle } : {}), at: p.at.map(r3), heading: r3(p.heading ?? 0), ...(p.livery !== undefined ? { livery: p.livery } : {}), ...(p.wear !== undefined ? { wear: p.wear } : {}), ...(p.look !== undefined ? { look: p.look } : {}), ...(p.reach !== undefined ? { reach: p.reach } : {}), seed: p.seed ?? k + 1 }];
+    // (a pose, a tool, a height and a palette are a site machine's: read as its shelf reads them)
+    for (const key of SITE) if (p[key] !== undefined && !construction) throw new Error(`${w}.${key}: the ${vehicle} is posed by its own build; a ${key} is a site machine's`);
+    const site = construction ? Object.fromEntries(SITE.filter((k) => p[k] !== undefined).map((k) => [k, p[k]])) : null;
+    if (construction) readConSpec({ archetype: construction, ...site }, w);
+    return [{ vehicle, class: cls, ...(cycle ? { cycle } : {}), ...(construction ? { construction, ...site } : {}), at: p.at.map(r3), heading: r3(p.heading ?? 0), ...(p.livery !== undefined ? { livery: p.livery } : {}), ...(p.wear !== undefined ? { wear: p.wear } : {}), ...(p.look !== undefined ? { look: p.look } : {}), ...(p.reach !== undefined ? { reach: p.reach } : {}), seed: p.seed ?? k + 1 }];
   });
   if (read.length > PARKED_CREWED_MAX) throw new Error(`${at}: ${read.length} vehicles with their crews, more than a level stands (${PARKED_CREWED_MAX})`);
   return read;
@@ -165,7 +178,7 @@ export function parkIn(room, words, { seed = 1, livery, wear } = {}) {
       y += W + gap;
       return;
     }
-    const v = PHYSICS[r.class];
+    const v = r.construction ? conFootprint({ archetype: r.construction }) : PHYSICS[r.class];
     if (v.L + 2 * gap > room.w || y + v.W + gap > room.y + room.d) return;
     const field = !!MILITARY_CLASSES[r.class];
     out.push({ vehicle: r.vehicle, at: [r3(room.x + room.w / 2), r3(y + v.W / 2), r3(room.z ?? 0)], heading: 0, ...(field && livery !== undefined && livery !== null ? { livery } : {}), ...(field && wear !== undefined ? { wear } : {}), seed: seed + k });
@@ -192,8 +205,11 @@ export function withParked(manifest) {
       colliders.push({ min: [r3(p.at[0] + Math.min(...xs)), r3(p.at[1] + Math.min(...ys)), p.at[2]], max: [r3(p.at[0] + Math.max(...xs)), r3(p.at[1] + Math.max(...ys)), r3(p.at[2] + F.max[2])] });
       return;
     }
-    const id = `parked-${k}`, v = PHYSICS[p.class], c = Math.cos(p.heading), s = Math.sin(p.heading);
-    figures[id] = p.cycle ? { cycle: { archetype: p.cycle, ...(p.look !== undefined ? { look: p.look } : {}) } }
+    const id = `parked-${k}`, c = Math.cos(p.heading), s = Math.sin(p.heading);
+    // (a site machine's footprint is what it stands on at its pose: a crane's floats out, a tower crane's base)
+    const spec = p.construction ? { archetype: p.construction, ...Object.fromEntries(SITE.filter((key) => p[key] !== undefined).map((key) => [key, p[key]])) } : null;
+    const v = spec ? conFootprint(spec) : PHYSICS[p.class];
+    figures[id] = spec ? { construction: spec } : p.cycle ? { cycle: { archetype: p.cycle, ...(p.look !== undefined ? { look: p.look } : {}) } }
       : { loft: { class: p.class, seed: p.seed, light: 'form', ...(p.livery !== undefined ? { livery: p.livery } : {}), ...(p.wear !== undefined ? { wear: p.wear } : {}), ...(p.reach !== undefined ? { reach: p.reach } : {}) } };
     entities.push({ id, rule: { type: 'static' }, body: { type: 'figure-rig', figure: id }, transform: { pos: p.at, heading: p.heading } });
     // (its footprint turned: nose along the heading, its length that way, its width across)

@@ -52,6 +52,8 @@ import { shadeHex, hexToRgb, rgbToHex } from '../polygonizer/vexar.js';
 import { streamOf, strHash } from '../city/plan/dice.js';
 import { CITY_METERS_PER_UNIT } from '../city/fractal-city.js';
 import { skinLot } from '../city/plan/facades.js';
+import { CON_ARCHETYPES, CON_ODM, assembleMachine } from '../construction-shelf/index.js';
+import { lowerAssemblerFaces } from '../worlds/workbench-assembler.js';
 import { nightFaces } from '../city/plan/night.js';
 import { ORGANIC_SHAPES } from '../city/plan/organic.js';
 import { assembleBoxCityScene } from '../scene/scene-css3d.js';
@@ -124,6 +126,29 @@ const HOUSE_BRICK = Object.freeze(['#a3563f', '#b5654a', '#9c4b36', '#c9a57a', '
 const SHOP_FRONT = Object.freeze(['#8a3a2e', '#3e5e3a', '#24405e', '#6e5a3a', '#7a2e4a']);
 const ROOFS = Object.freeze(['#4a4f55', '#5b4a3f', '#3f4448', '#6a5a4c']);
 
+// A SITE's machines off the construction shelf (construction-shelf/), lowered under the city's light once a process for
+// each light: the tower crane at a height (its mast's sections), an excavator digging, a tipper waiting. Their recipes
+// are the shelf's words; a crane taller than its mast stands freestanding is beyond the shelf (a climbing crane), and the
+// site keeps its massing crane
+// (a crane is seen from across its district: it is drawn within CRANE_NEAR of the camera, the kit within NEAR)
+const SITE = Object.freeze({ crane: 'towerCrane', craneMinClear: 6, digger: ['crawlerExcavator', 'dig'], truck: ['tipperTruck', 'rest'] });
+const CRANE_NEAR = 1500;
+const TOWER = (() => {
+  const M = CON_ARCHETYPES[SITE.crane].sections, per = CON_ODM[M.sku].dims.length;
+  return { ...M, per, base: CON_ODM['base-tc'].dims.top, head: CON_ODM['slew-tc'].dims.jib[2] };
+})();
+const SITE_FACES = new Map();
+function siteFaces(L, key, build) {
+  const k = `${JSON.stringify(L)}|${key}`;
+  if (!SITE_FACES.has(k)) SITE_FACES.set(k, lowerAssemblerFaces(build().manifest, { light: L }));
+  return SITE_FACES.get(k);
+}
+/** The tower crane of `n` mast sections, its trolley half out and its hook a third down (its jib along +y). */
+const craneAt = (L, n) => siteFaces(L, `crane:${n}`, () => {
+  const h0 = assembleMachine(SITE.crane, { laws: false }).readout.height;
+  return assembleMachine(SITE.crane, { height: h0 + (n - TOWER.n) * TOWER.per, pose: { trolley: 20, hoist: Math.max(1.2, (TOWER.base + n * TOWER.per) / 3) }, laws: false });
+});
+
 function coloursOf(cube) {
   const C = cube.colour;
   return {
@@ -164,6 +189,10 @@ export function assembleGeocityScene(m, ctx = {}) {
   const KIT = kitTemplates(LIGHT, { gauge: d.metro.roads.streetcar.gauge }), stamps = new Map();
   const stamp = (key, pos, rotZ, scale = null) => { if (!stamps.has(key)) stamps.set(key, []); stamps.get(key).push({ pos: P3(pos), ...(rotZ ? { rotZ: r5(rotZ) } : {}), ...(scale ? { scale } : {}) }); };
   const templateOf = (key) => { const [k, f] = key.split(':'); return f ? KIT[k][f] : KIT[k]; };
+  // a site's machines (SITE above): the crane drawn within its district's reach of the camera, the machines inside its
+  // hoarding near the camera only, like the kit
+  const siteStamps = new Map(), siteNears = new Map();
+  const siteNear = (key, pos, rotZ) => { if (!siteNears.has(key)) siteNears.set(key, []); siteNears.get(key).push({ pos: P3(pos), rotZ: r5(rotZ) }); };
   // the street trees, by species, grown after the cameras (their detail is what the cameras see)
   const trees = new Map();
   const plant = (where, x, y, z, key) => {
@@ -622,13 +651,28 @@ export function assembleGeocityScene(m, ctx = {}) {
     }
     const cw = (q[2] - q[0]) * 0.22, cd = (q[3] - q[1]) * 0.22;
     box(cx - cw / 2, cy - cd / 2, cx + cw / 2, cy + cd / 2, zc, top + 2 * fh, '#8c8c88', '#8c8c88', 'geocity:frame');
+    // near: the construction shelf's tower crane at a corner of the site, its jib over the building, its mast as many
+    // sections as clear the building's core; one taller than its mast stands freestanding keeps the massing crane
+    const sections = Math.ceil((top + 2 * fh + SITE.craneMinClear - zc - TOWER.base - TOWER.head) / TOWER.per), shelf = !far && sections <= TOWER.max;
+    if (shelf) {
+      const k = Math.max(TOWER.min, sections), at = [x0 + 4.6, y0 + 4.6, zc];
+      siteStamps.set(`crane:${k}`, [...(siteStamps.get(`crane:${k}`) ?? []), { pos: P3(at), ...(longY ? {} : { rotZ: r5(-Math.PI / 2) }) }]);
+      counts.cranes = (counts.cranes ?? 0) + 1;
+    }
     // the crane: its mast at a corner of the site, its jib across the building, its counter-jib and weight, its cab
     const mx = x0 + 3, my = y0 + 3, mt = top + 3 * fh + 14, jib = Math.max(w, h) * 0.85;
-    box(mx, my, mx + 2, my + 2, zc, mt, yellow, yellow, 'geocity:crane');
-    if (longY) { box(mx - 0.4, my, mx + 2.4, my + jib, mt, mt + 1.6, yellow, yellow, 'geocity:crane'); box(mx - 0.2, my - 14, mx + 2.2, my, mt, mt + 1.4, yellow, yellow, 'geocity:crane'); box(mx - 0.8, my - 13, mx + 2.8, my - 9, mt - 2.2, mt, conc, conc, 'geocity:crane'); }
-    else { box(mx, my - 0.4, mx + jib, my + 2.4, mt, mt + 1.6, yellow, yellow, 'geocity:crane'); box(mx - 14, my - 0.2, mx, my + 2.2, mt, mt + 1.4, yellow, yellow, 'geocity:crane'); box(mx - 13, my - 0.8, mx - 9, my + 2.8, mt - 2.2, mt, conc, conc, 'geocity:crane'); }
-    box(mx + 2, my, mx + 4.2, my + 2, mt - 3, mt, '#d8d4c8', '#d8d4c8', 'geocity:crane');
+    if (!shelf) {
+      box(mx, my, mx + 2, my + 2, zc, mt, yellow, yellow, 'geocity:crane');
+      if (longY) { box(mx - 0.4, my, mx + 2.4, my + jib, mt, mt + 1.6, yellow, yellow, 'geocity:crane'); box(mx - 0.2, my - 14, mx + 2.2, my, mt, mt + 1.4, yellow, yellow, 'geocity:crane'); box(mx - 0.8, my - 13, mx + 2.8, my - 9, mt - 2.2, mt, conc, conc, 'geocity:crane'); }
+      else { box(mx, my - 0.4, mx + jib, my + 2.4, mt, mt + 1.6, yellow, yellow, 'geocity:crane'); box(mx - 14, my - 0.2, mx, my + 2.2, mt, mt + 1.4, yellow, yellow, 'geocity:crane'); box(mx - 13, my - 0.8, mx - 9, my + 2.8, mt - 2.2, mt, conc, conc, 'geocity:crane'); }
+      box(mx + 2, my, mx + 4.2, my + 2, mt - 3, mt, '#d8d4c8', '#d8d4c8', 'geocity:crane');
+    }
     if (far) return;
+    // inside the hoarding, near the camera: an excavator digging on the band beside the building, facing it, and a
+    // tipper waiting on the band along its front, nose along it (each where the band is wide enough to hold it)
+    const bx = x1 - (x1 - q[2]) / 2, by = y0 + (q[1] - y0) / 2;
+    if (x1 - q[2] >= 7) siteNear('digger', [bx, cy, zc], Math.PI / 2);
+    if (q[1] - y0 >= 6) siteNear('truck', [cx, by, zc], -Math.PI / 2);
     // near: scaffolding up its two long faces, a bay every 2 m along and every lift up
     const faces2 = longY ? [['w', q[0], 'y', q[1], q[3]], ['e', q[2], 'y', q[1], q[3]]] : [['s', q[1], 'x', q[0], q[2]], ['n', q[3], 'x', q[0], q[2]]];
     for (const [f, at2, along, a, c] of faces2) for (let t = a + 1; t <= c - 1; t += 2) for (let z = zc; z + 2 <= top + 1e-6; z += 2) stamp(`scaffold:${f}`, along === 'y' ? [at2, t, z] : [t, at2, z], 0);
@@ -1026,6 +1070,14 @@ export function assembleGeocityScene(m, ctx = {}) {
     if (inFaces.has(f)) { faces[i] = { ...f, sunShare: 0 }; continue; }
     const N = Array.isArray(f.normal) ? f.normal : newell(f.corners), key = LIGHT.diffuse * Math.max(0, N[0] * LIGHT.toLight[0] + N[1] * LIGHT.toLight[1] + N[2] * LIGHT.toLight[2]), all = litFactor(N, LIGHT);
     faces[i] = { ...f, sunShare: all > 1e-9 ? Math.round(Math.min(1, key / all) * 1000) / 1000 : 0 };
+  }
+  // the site's machines: the shelf's tower cranes (seen across their district), its machines near the camera
+  if (E?.evoke !== 'skyline') {
+    for (const [key, transforms] of [...siteStamps].sort(([a], [b]) => a.localeCompare(b))) repeats.push({ group: 'geocity:tower-crane', template: craneAt(LIGHT, Number(key.split(':')[1])), transforms, near: CRANE_NEAR, ...kit });
+    for (const [key, transforms] of [...siteNears].sort(([a], [b]) => a.localeCompare(b))) {
+      const [arch, pose] = SITE[key];
+      repeats.push({ group: `geocity:site-${key}`, template: siteFaces(LIGHT, key, () => assembleMachine(arch, { pose, laws: false })), transforms, near: NEAR, ...kit });
+    }
   }
   repeats.push(...townRepeats.map((r) => ({ ...r, ...kit })));
   counts.kit = repeats.reduce((a, r) => a + r.transforms.length, 0);

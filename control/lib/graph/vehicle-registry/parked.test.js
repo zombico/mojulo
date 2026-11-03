@@ -22,6 +22,8 @@ import { HELI_LOOKS } from '../craft-shelf/heli-looks.js';
 import { CYCLE_ARCHETYPES } from '../cycle-shelf/cycle-archetypes.js';
 import { CYCLE_ODM } from '../cycle-shelf/cycle-odm.js';
 import { LOOK_IDS } from '../cycle-shelf/cycle-looks.js';
+import { CON_ARCHETYPES } from '../construction-shelf/con-archetypes.js';
+import { conFootprint } from '../construction-shelf/con-figure.js';
 
 // (the field's bodies the sheet builds: one still waiting for its parts cannot park)
 const FIELD = Object.keys(MILITARY_CLASSES).filter((k) => !UNBUILT[k]).map((k) => rowOfHandle('physics', k));
@@ -212,3 +214,35 @@ describe('a craft parked: a helicopter on its gear', () => {
   });
 });
 
+describe('a site machine, parked', () => {
+  // (rows chosen in code: a machine with a pose that sets its feet down wider, a crane's outriggers out; one built in
+  // sections, a tower crane, which has no class to drive)
+  const ids = Object.keys(VEHICLES), site = (id) => VEHICLES[id].handles.construction;
+  const rigged = ids.find((id) => site(id) && Object.values(CON_ARCHETYPES[site(id)].joints).some((j) => j.axis?.[0] === 1 && j.kind === 'slide'));
+  const pose = Object.keys(CON_ARCHETYPES[site(rigged)].poses).find((p) => Object.values(CON_ARCHETYPES[site(rigged)].poses[p]).includes('ground'));
+  const tower = ids.find((id) => site(id) && CON_ARCHETYPES[site(id)].sections);
+  it('stands as its construction shelf machine, posed by its word, its box over what it stands on', () => {
+    expect(readParked([{ vehicle: rigged, at: [0, 0, 0], pose }])[0]).toMatchObject({ vehicle: rigged, construction: site(rigged), pose });
+    const { manifest, colliders } = withParked({ parked: [{ vehicle: rigged, at: [0, 0, 0] }, { vehicle: rigged, at: [30, 0, 0], pose }] });
+    expect(manifest.figures['parked-1']).toEqual({ construction: { archetype: site(rigged), pose } });
+    // (its outriggers out: wider on the ground than stowed)
+    const width = (c) => c.max[1] - c.min[1];
+    expect(width(colliders[1])).toBeGreaterThan(width(colliders[0]) + 2);
+    expect(width(colliders[1])).toBeCloseTo(conFootprint({ archetype: site(rigged), pose }).W, 3);
+  });
+  it('stands a tower crane on its base at the height it is built to, and refuses a site\'s words on a car', () => {
+    const p = readParked([{ vehicle: tower, at: [0, 0, 0], height: 25 }])[0];
+    expect(p).toMatchObject({ construction: site(tower), height: 25, class: null });
+    const { colliders } = withParked({ parked: [{ vehicle: tower, at: [0, 0, 0], height: 25 }] });
+    expect(colliders[0].max[2]).toBeLessThan(conFootprint({ archetype: site(tower) }).H);
+    expect(() => readParked([{ vehicle: ROAD, at: [0, 0, 0], pose: 'rigged' }])).toThrow(/a pose is a site machine's/);
+    expect(() => readParked([{ vehicle: rigged, at: [0, 0, 0], pose: 'cartwheel' }])).toThrow(/is one of/);
+  });
+  it('in a world: its figure compiled at its pose, solid where it stands', async () => {
+    const floor = { corners: [[-30, -30, 0], [30, -30, 0], [30, 30, 0], [-30, 30, 0]], fill: '#777777' };
+    const base = { kind: 'controllable', faces: [floor], entities: [{ id: 'cam', rule: { type: 'glide' }, body: { type: 'none' } }] };
+    const { payload } = await resolveWorldScene({ ref: 'parked-site', title: 'p', manifest: { ...base, parked: [{ vehicle: rigged, at: [0, 0, 0], pose }] } });
+    expect(payload.figures['parked-0'].construction).toMatchObject({ archetype: site(rigged), pose });
+    expect(payload.colliders).toHaveLength(1);
+  }, 60000);
+});

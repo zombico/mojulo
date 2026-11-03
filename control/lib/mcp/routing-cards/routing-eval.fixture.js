@@ -29,6 +29,7 @@ export const FIXTURE = [
   ['put the wheels and the chassis together into one model', 'mint_solid'],
   // a vehicle by name: the vehicle registry's door
   ['show me a pickup truck I can spin around and look at', 'mint_solid'],
+  ['an excavator with a breaker on, its boom raised', 'mint_solid'],
   // a field vehicle by name, its camo and its mud as words beside it (the registry's realistic military body)
   ['show me a muddy army jeep in desert camo that I can turn around and look at', 'mint_solid'],
   // a tracked body by name, its variations as words beside it

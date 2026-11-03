@@ -296,3 +296,45 @@ astride and steers by a bar.
     - The deep sweeps assemble, pose and ride them all.
   - **Seen** (machine gate only; the eyes gate is open): every new machine from three quarters, the outfit and the
     door's sidecar on the motocross bike.
+- **Ridden in a quick game: any cycle is a ride, its rider seated on it, leaning on the page.**
+  - **The ride** (`vehicle-registry/ride.js`): a row whose build is the cycle shelf's is a quick game's ride. A motorcycle,
+    a dirt bike, a scooter, a bicycle, a sidecar outfit, a tuk-tuk, a quad: `rideOf` reads it as `{ kind: 'cycle',
+    archetype, class }`, at any tier (it has only its realistic build, said in `fell`). The game drives it on its
+    archetype's class, and a quick game's `vehicle`, tuning and conditions still read as the ride's. Its rivals ride
+    the same machine.
+  - **The world writes the machine's words** (`gameworld/runner.js`): `{ cycle: { archetype, ride: true, rider: true } }`.
+    Nothing is minted; the world compiles it in place. The chase is a loft's, scaled to its length and looking over a
+    seated rider's head.
+  - **The ridden figure** (`cycle-shelf/cycle-figure.js` `cycleRideFigure`, reached from a figures map's `cycle.ride`):
+    - the machine upright on its tyres;
+    - its rider astride in the root, its posture its machine's, posed once a process for a machine, posture and hero, so
+      a field of rivals shares it;
+    - the parts that steer a bone of their own (`front`, its head on the steering axis at the head);
+    - every wheel its own bone, named for its part, rolling with the road. A parked machine's wheels are named the same
+      way, so a pair's two wheels each turn about their own axle.
+  - **Its live overlay** (`live.ridden`; `scene/channels/controllable`, emitted only when a figure is ridden, so every other
+    page is byte-identical):
+    - the front turned about the steering axis, orbiting the head, its wheel with it. A kingpin wheel turns about its own
+      upright. The bar turns less than the rule steers, no more than 7°: the rider's hands are the root's and do not follow
+      it.
+    - Two wheels in line lean INTO the turn by the drive rule's own lean (tan λ = v² κ / g): the machine, its rider and
+      its steered front together, about the line the tyres meet the ground on.
+    - A three-wheeler rolls a little on its springs. Its inner wheel lifts as the turn's pull nears what tips it toward
+      the outside (ssf·g), over the last 30% of it, no more than 7°, about the edge it would tip over. That edge is read
+      off its contacts each side as the stability law reads it (`tipEdges`), so a sidecar outfit flies its chair in a
+      turn away from it, sooner than it tips over the chair.
+    - The squat, the dive and a landing's bounce are a car's, scaled to a fork and a shock.
+  - **The drive rule and the engine kernels are unchanged.** A sidecar's pull toward its chair, and a three-wheeler
+    tipping over rather than lifting a wheel, are not built: no engine here can check a kernel change.
+  - **Held:**
+    - `cycle-figure.test.js`, one machine per way of standing chosen in code: the front on the steering axis, the wheels
+      rolling, the lean the rule's; a sidecar tipping over the bike's line sooner than the chair's; a kingpin wheel
+      turning in place; a symmetric machine's edges alike.
+    - `tier-ride.test.js`: a row astride rides its archetype at any tier.
+    - The e2e tier: `cycle-ride.live.test.js` drives two in line and the quickest three-wheeler through the page's own
+      step in headless Chrome. The bike leans into its turn, its front turns past the machine, its rear wheel leans and
+      never steers, and its front hub stays on its fork. The trike does not lean in, and its inner wheel lifts in a hard
+      turn while the outer stays down. `design-game.quick.test.js` makes a dirt bike race with a rival: the machine
+      ridden, its rider seated, its rival on the same.
+  - **Seen** (machine gate only; the eyes gate is open): the dirt bike leaning into a left turn with its rider, and the
+    sidecar outfit flying its chair in a right turn, chased in the page.

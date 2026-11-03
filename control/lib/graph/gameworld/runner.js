@@ -115,6 +115,15 @@ function loftRide(Q, rode, seed) {
   return { figure: { loft: { class: rode.class, seed, light: 'form', ...(Q.livery !== undefined ? { livery: Q.livery } : {}), ...(Q.wear !== undefined ? { wear: Q.wear } : {}) } }, rule: quickRideRule(Q, vehicleRule(rode.class)), camera: loftCamera(dims) };
 }
 
+// a machine ridden astride (vehicle-registry/ride.js, the cycle shelf's): its figure compiled by the world in place, its
+// rider seated on it (cycle-shelf/cycle-figure.js cycleRideFigure), on its archetype's class (roads/vehicles.js; quick.vehicle,
+// tuning and conditions still read as the ride's), chased at its length and over its rider's head
+const RIDER_H = 1.7;   // a seated rider's head over the road (m): the chase looks over it
+function cycleRide(Q, rode) {
+  const dims = PHYSICS[rode.class];
+  return { figure: { cycle: { archetype: rode.archetype, ride: true, rider: true } }, rule: quickRideRule(Q, vehicleRule(rode.class)), camera: loftCamera({ ...dims, H: Math.max(dims.H, RIDER_H) }) };
+}
+
 export function auditOrder(steps, stages) {
   const levels = steps.filter((s) => s.key.startsWith('level-'));
   return levels.length && stages.every((s) => !s.building?.ref) && levels.every((s) => provable(s.order)) ? { auto_audit: true } : {};
@@ -725,7 +734,8 @@ function quickSteps(world, G, ref, lookup) {
   }
   const heroGaits = pilot ? null : gaitsOf(adopted ? lookup?.heroSpec : Q.hero ? playJog(quickHero) : null);
   // a ride (ride.js): the vehicle's build at the game's tier (vehicle-registry/ride.js): an assembled ride minted as its
-  // own sketch, or a realistic loft the world compiles in place (nothing to mint); every stage drives it
+  // own sketch, or a realistic loft or a machine ridden astride the world compiles in place (nothing to mint); every
+  // stage drives it
   const rode = Q.ride ? rideOf(Q) : null;
   const rideRef = rode?.kind === 'assembly' ? childRef(ref, 'ride') : null;
   if (rideRef) {
@@ -742,6 +752,7 @@ function quickSteps(world, G, ref, lookup) {
   const ride = Q.transformer ? quickTransformer(Q)
     : rideRef ? { ref: rideRef, rule: quickRideRule(Q, rideRule(rode.ride, Number.isInteger(G.seed) ? G.seed : 1)) }
     : rode?.kind === 'loft' ? loftRide(Q, rode, Number.isInteger(G.seed) ? G.seed : 1)
+    : rode?.kind === 'cycle' ? cycleRide(Q, rode)
     : racers ? { racer: racers.field[0].spec, rule: racers.field[0].rule, field: racers.field }
     : supercars ? { figure: supercars.field[0].figure, rule: supercars.field[0].rule, field: supercars.field } : null;
   // (the field's balance as a level law, in the concerns' shape: advice in the run's readout, never a refusal)

@@ -27,7 +27,7 @@
  * Pure: reads the measuring tables, never writes them.
  */
 import { VEHICLES as ROWS, handlesOf } from './roster.js';
-import { VEHICLES as PHYSICS, wheelLayout } from '../roads/vehicles.js';
+import { VEHICLES as PHYSICS, wheelLayout, steerOf } from '../roads/vehicles.js';
 import { FLEET } from '../roads/fleet.js';
 import { CRAFT_ARCHETYPES } from '../craft-shelf/craft-archetypes.js';
 import { OPEN_FRAME } from '../car-designer/realistic.js';
@@ -57,10 +57,12 @@ const SERVES = Object.freeze({
   net: ['traffic', 'parked'], supercar: ['driven', 'parked', 'watched'], craft: ['driven', 'parked', 'watched', 'crewed'],
   fleet: ['traffic'], loft: ['driven', 'parked', 'watched'], tech: ['driven', 'traffic', 'parked', 'watched', 'crewed'],
   cycle: ['driven', 'parked', 'watched'],
+  construction: ['parked', 'watched'],
 });
 const B = (tier, via, key, status, where, why, uses = SERVES[via]) => ({ tier, via, key, status, uses, where, why });
-// a tracked class (roads/vehicles.js `running: 'track'`) is drawn, parked and watched, not driven: skid steer is not built
-const tracked = (cls) => PHYSICS[cls]?.running === 'track';
+// a tracked class (roads/vehicles.js `running: 'track'`), or a wheeled one that skid steers, is drawn, parked and
+// watched, not driven: skid steer is not built
+const tracked = (cls) => Boolean(PHYSICS[cls]) && steerOf(PHYSICS[cls]) === 'skid';
 // a cycle class (two in line, or a three-wheeler) is the cycle shelf's to build, never the car loft's
 const cycleClass = (cls) => Boolean(PHYSICS[cls]) && wheelLayout(PHYSICS[cls]) !== 'axles';
 const UNDRIVEN = Object.freeze(SERVES.loft.filter((u) => u !== 'driven'));
@@ -81,7 +83,10 @@ export function buildsOf(id) {
     if (CRAFT_ARCHETYPES[k]?.realm === 'water') { out.push(B('realistic', 'craft', k, 'asleep', [], 'the craft shelf\'s boat at its class\'s true figures, floated on the waterline its weight sets: no door draws a boat yet')); continue; }
     out.push(B('realistic', 'craft', k, 'live', ['transformer'], 'the craft shelf\'s assembly at its class\'s true figures'));
   }
-  for (const k of h.cycle ?? []) out.push(B('realistic', 'cycle', k, 'live', ['mint_solid vehicle preview', 'a level\'s parked vehicles'], 'the cycle shelf\'s machine, its parts on its solved chassis at its class\'s numbers (cycle-shelf/), parked on its stand'));
+  for (const k of h.cycle ?? []) out.push(B('realistic', 'cycle', k, 'live', ['quick ride', 'mint_solid vehicle preview', 'a level\'s parked vehicles'], 'the cycle shelf\'s machine, its parts on its solved chassis at its class\'s numbers (cycle-shelf/): ridden, its rider astride, or parked on its stand'));
+  // (a site machine is the construction shelf's: built, posed and held to its laws, drawn on the studio grid at a pose and
+  // parked in a level; watched and parked, never driven, until its ride is built)
+  for (const k of h.construction ?? []) out.push(B('realistic', 'construction', k, 'live', ['mint_solid vehicle preview', 'a level\'s parked vehicles'], 'the construction shelf\'s machine, its carrier, its upper, its front on its chain and its tool at its class\'s numbers (construction-shelf/): drawn at a pose (its rest, a named pose, its joints\' values), parked in a level', SERVES.construction));
   for (const k of h.fleet ?? []) out.push(B('realistic', 'fleet', k, 'live', ['roadway traffic'], 'the highway fleet\'s loft at true dimensions, at traffic distance'));
   for (const k of (h.physics ?? []).filter(loftable).slice(0, 1)) {
     if (tracked(k)) { out.push(B('realistic', 'loft', k, 'live', ['mint_solid vehicle preview', 'a level\'s parked vehicles'], 'the military hull kit\'s body of its class on its running gear (road-military.js, mil-track.js), drawn and parked: not driven until skid steer is built', UNDRIVEN)); continue; }
@@ -124,7 +129,10 @@ export function upscaleOf(id) {
   const cls = [has.physics ?? []].flat()[0];
   // (a tracked class's body is live for what it serves; driving it is what it needs)
   if (cls && tracked(cls) && atTier(builds, 'realistic')?.status === 'live') return { id, use, realistic: 'none', via: null, next: 'driving it: a tracked class steers by skid steer, not built yet (its realistic body is live, parked and watched)' };
-  const next = cls && UNBUILT[cls] ? `its realistic body: ${UNBUILT[cls]}`
+  // (a site machine's body is the construction shelf's, live for what it serves: driving it is what it needs)
+  if (ROWS[id].role === 'construction' && atTier(builds, 'realistic')?.via === 'construction') return { id, use, realistic: 'none', via: null, next: 'driving it: the construction shelf\'s machine is live, drawn and parked; its ride is not built yet' };
+  const next = ROWS[id].role === 'construction' ? `its realistic body: the construction shelf's (construction-shelf/), its carrier, its upper, its front and its tool, not built yet`
+    : cls && UNBUILT[cls] ? `its realistic body: ${UNBUILT[cls]}`
     : cls && cycleClass(cls) ? `its realistic body: the cycle shelf's (cycle-shelf/), a ${wheelLayout(PHYSICS[cls])} machine ridden astride, not built yet`
       : cls ? 'a realistic body for its physics class (the loft has no frame for it)' : 'a realistic body and its physics';
   return { id, use, realistic: 'none', via: null, next };

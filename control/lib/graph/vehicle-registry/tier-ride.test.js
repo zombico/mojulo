@@ -63,6 +63,14 @@ describe('the ride: its row\'s build at the game\'s tier', () => {
     expect(rideRowOf(notDrivable)).toBe(null);
     expect(() => rideOf({ ride: notDrivable })).toThrow(/a vehicle the registry can drive/);
   });
+  it('rides a machine astride: its cycle shelf archetype, on its archetype\'s class, at any tier', () => {
+    const astride = rideableRows().find((id) => handlesOf(id).cycle);
+    const r = rideOf({ ride: astride });
+    expect(r).toMatchObject({ kind: 'cycle', id: astride, archetype: handlesOf(astride).cycle[0], tier: 'realistic' });
+    expect(r.fell).toMatch(/no stylised build yet/);
+    expect(rideOf({ ride: astride, tier: 'realistic' }).fell).toBeUndefined();
+    expect(() => readQuick({ goal: 'reach', ride: astride, livery: CAMO_IDS[0] })).toThrow(/paints a field vehicle/);
+  });
   it('reads the class a ride\'s tuning plays, and chases a long vehicle farther', () => {
     expect(rideClassOf(loftOnly)).toBe(handlesOf(loftOnly).physics[0]);
     expect(loftCamera({ L: 12, H: 3.2 }).dist).toBeGreaterThan(loftCamera({ L: 4.5, H: 1.4 }).dist);
