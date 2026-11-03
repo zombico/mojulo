@@ -20,6 +20,7 @@
 
 import { readScreen, screenPayload, screenFrame } from '@/lib/graph/game/screen';
 import { readRunner } from '@/lib/graph/worlds/controllable/runner';
+import { readTempo } from '@/lib/graph/worlds/controllable/world-clock';
 import { readDegree, breakablesOf, piecesOf } from '@/lib/graph/playscape/destruct/breakability';
 import { standBlocks } from '@/lib/graph/playscape/terrain';
 import { manifestGarment } from '@/lib/graph/polygonizer/figure-outfit';
@@ -1564,6 +1565,10 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
   // the ENDLESS RUNNER (worlds/controllable/runner.js): the pilot runs on its own down lanes, the rows laid ahead of it
   // as it plays; the page carries the runner's engine and view only then. Absent: every byte as it was.
   if (payload && sketch.manifest.runner != null && sketch.manifest.runner !== false) payload.runner = readRunner(sketch.manifest.runner);
+
+  // the WORLD CLOCK (worlds/controllable/world-clock.js): moments that slow or hold a live world on what happens in it, the
+  // camera keeping real time; the page composes the clock only then. Absent: every byte as it was.
+  if (payload && sketch.manifest.tempo != null && sketch.manifest.tempo !== false) { const T = readTempo(sketch.manifest.tempo); if (T) payload.tempo = T; }
 
   // the SCREEN a game is made for (game/screen.js): the page holds its frame, the least a player sees, and the cameras'
   // fov is derived at it. Absent: the page's own box, every byte as it was.

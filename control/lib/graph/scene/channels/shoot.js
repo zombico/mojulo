@@ -16,8 +16,9 @@ import { clocksAt } from '../../shoot/time.js';
 // carries a gizmo; nothing here is a face, so no mesh export carries it. Absent plan ⇒ this block is not emitted.
 export function shootChannelScript(shoot, { scale = 1, aspect = 16 / 9, panel = true, set = false } = {}) {
   // a LIVE world (entities, physics) cannot rewind: the plan runs on its clock, a shot plays over its span of it, and a
-  // camera following a live entity is evaluated each frame against where the entity really is (its path is a trail).
-  // Plans in worlds that do not play live emit none of this.
+  // camera following a live entity is evaluated each frame against where the entity really is (its path is a trail). Its
+  // gizmos take no raycast: a live world probes its ground and aims through the scene, and an overlay is neither (the
+  // frustum has no lines until its camera is posed). Plans in worlds that do not play live emit none of this.
   const live = !!shoot.live, liveCams = shoot.cameras.some((c) => c.live), cues = live && Array.isArray(shoot.cues) && shoot.cues.length > 0;
   // a shot with a speed plays its span stretched (slow motion); a plan without one emits the line it always did
   const stretched = shoot.shots.some((s) => s.speed);
@@ -31,7 +32,7 @@ export function shootChannelScript(shoot, { scale = 1, aspect = 16 / 9, panel = 
   const __shS = ${+scale.toFixed(4)}, __shAsp = ${+aspect.toFixed(4)}, __shTail = 0.8;
   const __shV = (a) => new THREE.Vector3(a[0], a[1], a[2]);
   const __shGizmos = [];
-  const __shOver = (o) => { o.renderOrder = 980; o.traverse((c) => { if (c.material) { c.material.transparent = true; c.material.depthWrite = false; c.material.depthTest = false; } c.renderOrder = 980; }); scene.add(o); __shGizmos.push(o); return o; };
+  const __shOver = (o) => { o.renderOrder = 980; o.traverse((c) => { if (c.material) { c.material.transparent = true; c.material.depthWrite = false; c.material.depthTest = false; } c.renderOrder = 980;${live ? ' c.raycast = () => {};' : ''} }); scene.add(o); __shGizmos.push(o); return o; };
   const __shLine = (pts, col, op) => __shOver(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts.map(__shV)), new THREE.LineBasicMaterial({ color: col, opacity: op })));
   const __shRigs = SH.cameras.map((c) => {
     const col = new THREE.Color(c.color);${liveCams ? `
