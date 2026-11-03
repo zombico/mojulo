@@ -30,7 +30,7 @@ completability audit for verification.
 ## Roles + the one rule
 
 - **terminal** — ends the level (calls `end`). A level MUST have ≥1 terminal that can end in
-  `success` (`reach-exit`, `survive`, `win-when`, `defeat-all`, `escape-room`, `deliver`), or it can never be won and is
+  `success` (`reach-exit`, `survive`, `win-when`, `defeat-all`, `escape-room`, `deliver`, `wave-gauntlet`), or it can never be won and is
   refused at resolve. `fail-on-death` is a terminal too, but a fail-only one — it doesn't
   satisfy the rule alone.
 - **emitter** — writes to the store / world during play (`collect` → grant, `hazard-damage` → hp).
@@ -55,6 +55,7 @@ A held level: `escape-room` (the way out sealed until its locks open, each by a 
 the bus; in place of `reach-exit`).
 An errand's verbs: `trade` (an item had for its price), `cargo` (a carried item's condition: fragile, perishable),
 `bounty` (a foe's fall drops its proof) and `deliver` (the giver's hand-in and its reward, a terminal), each on the bag.
+A held fight: `wave-gauntlet` (sealed in arenas until every wave is down, arenas × waves; death begins the arena again).
 Read each card for its parameter manual. (`melee-strike` — a declarative attack — is named
 future vocabulary, waiting on the entity-anchored zone; AI behavior stays runtime by doctrine.)
 
