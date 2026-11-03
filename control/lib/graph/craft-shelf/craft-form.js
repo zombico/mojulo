@@ -157,7 +157,7 @@ export function craftForm(archetype, { palette, colors, pose = { gear: 1 }, atti
     const access = it.kind === 'craft-fuselage' && F ? accessOf(F) : [];
     it.fs = [...skinPanels(skin, F, { access }), ...fastenersOn(skin, F, access), ...it.fs.filter((f) => f.fitting)];
   }
-  if (L) markCraft(stage, L, { seed });
+  if (L) markCraft(stage, L, { seed, trim: P.trim });
   if (W) wearCraft(stage, W, { seed: L?.seed ?? seed });
   const items = stage.map(({ id, fs }) => {
     const lo = [Infinity, Infinity, Infinity], hi = [-Infinity, -Infinity, -Infinity];

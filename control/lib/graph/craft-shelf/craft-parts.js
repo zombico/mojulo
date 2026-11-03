@@ -12,6 +12,7 @@ import { cockpit } from './air-kit-parts.js';
 import { DRONE_BUILDERS } from './drone-parts.js';
 import { HELI_BUILDERS } from './heli-parts.js';
 import { buildCockpit } from './cockpit-parts.js';
+import { armourPlates, doorKit } from './heli-made.js';
 import { asFitting, madeHull, madeCanopy, madeIntake, madeNozzle, madeWheel, madeLeg, madeWell, madeSurface, madeMissile } from './air-made.js';
 import { DEG, airfoil, airfoilAft, extrudeWorld, facetSection, foilAt, lathe, loftWorld, mulberry32, hashSeed, planeUV, round3, section, sweep, tone, turnAbout } from './craft-common.js';
 
@@ -192,13 +193,16 @@ function buildFuselage(row, C, opts = {}) {
     }));
     lofts.push(loftWorld('nose', [0, 0.005, zp], [0, -s1 * L, zp], st, C.trim, smooth ? { interp: 'smooth', segments: 4 } : {}));
   }
-  const detail = hullDetail({ b, L, zp, stations, smooth, point, C, sku: opts.sku });
+  const detail = hullDetail({ b, L, zp, stations, smooth, point, C, sku: opts.sku, pose: opts.pose });
   lofts.push(...detail.lofts);
   if (madeFor(row, opts)) {
     const ringAt = (s) => skinRing(stations, s, smooth, zp);
     const mh = madeHull({ b, L, zp, ringAt, skinX, skinZ, C });
     lofts.push(...mh.lofts);
     made.push({ extrudes: mh.extrudes, sweeps: mh.sweeps });
+    // (a military hull's armour, unless its look is civilian; a step and a grab handle at each door: heli-made.js)
+    if (b.armour && opts.made?.armour !== false) { const ap = armourPlates({ plates: b.armour, L, zp, ringAt, skinX, C }); lofts.push(...ap.lofts); made.push({ lathes: ap.lathes }); }
+    if (b.grabs && b.doors) made.push(doorKit({ doors: b.doors, L, ringAt, skinX, C }));
     // its gear's wells and doors on its own skin, or under a chin intake's duct where a leg stands in it (the duct's
     // bottom as the intake lofts it: its mouth's ring, swelling a little, then narrowing aft)
     const mounts = opts.made?.mounts ?? [];
@@ -227,9 +231,10 @@ function buildFuselage(row, C, opts = {}) {
       }
     }
   }
-  if (!made.length) return { lofts, ...(detail.extrudes.length ? { extrudes: detail.extrudes } : {}), ...(detail.sweeps.length ? { sweeps: detail.sweeps } : {}), hardpoints };
+  const dj = detail.joints ? { joints: detail.joints } : {};
+  if (!made.length) return { lofts, ...(detail.extrudes.length ? { extrudes: detail.extrudes } : {}), ...(detail.sweeps.length ? { sweeps: detail.sweeps } : {}), hardpoints, ...dj };
   const extrudes = [...detail.extrudes, ...made.flatMap((m) => m.extrudes ?? [])], sweeps = [...detail.sweeps, ...made.flatMap((m) => m.sweeps ?? [])], lathes = made.flatMap((m) => m.lathes ?? []);
-  return { lofts, ...(extrudes.length ? { extrudes } : {}), ...(sweeps.length ? { sweeps } : {}), ...(lathes.length ? { lathes } : {}), hardpoints };
+  return { lofts, ...(extrudes.length ? { extrudes } : {}), ...(sweeps.length ? { sweeps } : {}), ...(lathes.length ? { lathes } : {}), hardpoints, ...dj };
 }
 
 // The hull's skin ring at s exactly as the loft draws it: the same Catmull-Rom over the stations for a
@@ -297,7 +302,7 @@ function skinZ(ring, x, side) {
  *  - `greebles: { top, sides, span: [s0, s1] }`: seeded plant on a starship's plating (boxes of
  *    machinery), the same every time for the same part number.
  */
-function hullDetail({ b, L, zp, stations, smooth, point, C, sku }) {
+function hullDetail({ b, L, zp, stations, smooth, point, C, sku, pose }) {
   const lofts = [];
   const extrudes = [];
   const sweeps = [];
@@ -351,9 +356,21 @@ function hullDetail({ b, L, zp, stations, smooth, point, C, sku }) {
       sideStrip(`window_${i}`, y / L, zf, w, h, 0.01, C.glass, { material: 'glass' });
     }
   }
+  // (sliding doors, `slide: true`: each on its rails above and below, slid aft by `pose.door` (0 shut … 1 open), the
+  // opening dark where it was)
+  const slid = b.slide ? clamp01(pose && pose.door) : 0, joints = [];
   for (const [i, [sf, zf, w, h]] of (b.doors || []).entries()) {
     sideStrip(`door_frame_${i}`, sf, zf, w + 0.07, h + 0.07, 0.006, seam);
-    sideStrip(`door_${i}`, sf, zf, w, h, 0.012, C.paint);
+    if (!b.slide) { sideStrip(`door_${i}`, sf, zf, w, h, 0.012, C.paint); continue; }
+    const travel = w * 0.95, shut = sf, at = sf + (slid * travel) / L;
+    if (slid) sideStrip(`door_opening_${i}`, shut, zf, w, h, 0.008, '#16181a');
+    sideStrip(`door_${i}`, at, zf, w, h, 0.028, C.paint);
+    const ring0 = ringAt(shut), { c, hh } = frame(ring0), zc = c[1] + zf * hh;
+    for (const [e, z] of [['top', zc + h / 2 + 0.035], ['low', zc - h / 2 - 0.035]]) for (const side of [1, -1]) {
+      const path = Array.from({ length: 6 }, (_, k) => { const y = -shut * L + w / 2 - ((w + travel) * k) / 5, x = skinX(ringAt(Math.min(1, -y / L)), z, side); return x === null ? null : [x + side * 0.012, y, z]; }).filter(Boolean);
+      if (path.length > 1) sweeps.push(sweep(`door_rail_${e}_${i}_${side > 0 ? 'r' : 'l'}`, path, 0.014, C.trim, { sides: 6 }));
+    }
+    if (i === 0) joints.push({ name: 'door', control: 'door', kind: 'slide', at: [0, 0, 0], dir: [0, -1, 0], range: [0, round3(travel)], travel: round3(slid * travel) });
   }
   // a rear ramp (`ramp: { from, to, w }`): its hinge across the belly at `from`, its sides up the aft underside to `to`
   // (`w` of the belly's half-width either side), its lip across there; the seams stand just proud of the skin
@@ -405,7 +422,7 @@ function hullDetail({ b, L, zp, stations, smooth, point, C, sku }) {
       if (x !== null) box(`greeble_side_${i}`, [x - side * 0.03, -sf * L, z], [x + side * h, -sf * L, z], a, d, tints[Math.floor(rng() * tints.length)]);
     }
   }
-  return { lofts, extrudes, sweeps };
+  return { lofts, extrudes, sweeps, ...(joints.length ? { joints } : {}) };
 }
 
 /** A ball hull (a twin-panel interceptor's cockpit pod): a sphere lathed nose → tail, z ≥ 0. */

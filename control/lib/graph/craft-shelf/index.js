@@ -169,7 +169,7 @@ function archetypeRow(id) {
  * Walk a layout: every part placed by its mount at the hardpoint `at` names, mirrors made. A part whose
  * parent was swapped for one without that hardpoint is left off and named (advice, not a refusal).
  */
-function placeLayout(row, { palette, colors, swap, fold, pose, finish, made, lights }) {
+function placeLayout(row, { palette, colors, swap, fold, pose, finish, made, lights, armour }) {
   const placed = new Map();
   const order = [];
   const skipped = new Set();
@@ -183,6 +183,8 @@ function placeLayout(row, { palette, colors, swap, fold, pose, finish, made, lig
     const madeOf = made ? {
       canopy: rowsOf.some((r) => r?.kind === 'craft-cockpit') ? null : rowsOf.find((r) => r?.kind === 'craft-canopy') ?? null,
       mounts: row.layout.filter((e) => e.at?.split('.')[0] === entry.id).map((e) => ({ point: e.at.split('.')[1], row: CRAFT_ODM[swap[e.id] || e.sku] ?? null, pair: Boolean(e.pair) })),
+      // (a look's word on armour: a civilian card's hull goes without its plates)
+      ...(armour === false ? { armour: false } : {}),
     } : false;
     const make = (side) => resolveCraftPart(sku, { palette, colors, seat: 'mount', fold, pose, side, finish, made: madeOf, ...(lights ? { lights } : {}) });
     const recipe = make(entry.pair ? 'r' : null);
@@ -272,7 +274,7 @@ export function assembleCraft(archetype, { palette, colors = {}, swap: swapIn = 
   const card = look ? lookCard(look, family) : null;
   const row = card && family === 'heli' ? dressRow(stock, card, CRAFT_ODM) : stock;
   if (card) swap = { ...lookSwap(row, card, CRAFT_ODM), ...swapIn };
-  const { order, warnings: placing } = placeLayout(row, { palette: palette || card?.palette || row.palette, colors, swap, fold: foldNow, pose, finish, made, ...(card ? { lights: card.lights } : {}) });
+  const { order, warnings: placing } = placeLayout(row, { palette: palette || card?.palette || row.palette, colors, swap, fold: foldNow, pose, finish, made, ...(card ? { lights: card.lights, armour: card.armour } : {}) });
   // gear fully up: the craft is in the air, so it does not stand on its wheels (it rests on its belly)
   const gearUp = Number(pose.gear) >= 1;
   const contacts = order

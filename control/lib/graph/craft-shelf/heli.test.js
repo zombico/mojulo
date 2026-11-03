@@ -9,6 +9,7 @@
 // with its panels flat; the kit. The cases are chosen from the shelf in code.
 import { describe, it, expect } from 'vitest';
 import { assembleCraft, resolveCraftPart, CRAFT_ODM, CRAFT_ARCHETYPES } from './index.js';
+import { CRAFT_PALETTES } from './craft-common.js';
 import { craftForm, craftFormFigure } from './craft-form.js';
 import { HELI_ODM, HELI_KINDS } from './heli-odm.js';
 import { buildCockpit } from './cockpit-parts.js';
@@ -358,6 +359,70 @@ describe('the looks\' kit', () => {
     const fl = kit('floats'), pack = fl.src.lathes.find((l) => l.id === 'pack');
     expect(pack.axisFrom.x).toBeCloseTo(fl.row.build.out, 3);
     expect(pack.axisFrom.z).toBeCloseTo(-fl.row.build.drop, 3);
+  });
+});
+
+describe('the field\'s language on a helicopter: plates, bolts, doors on their rails, the made finish, its marks and wear', () => {
+  const hullSku = (k) => A[k].layout[0].sku, hullRow = (k) => CRAFT_ODM[hullSku(k)];
+  const SLIDING = HELIS.find((k) => hullRow(k).build.slide), ARMOURED = HELIS.find((k) => hullRow(k).build.armour), PLAIN = HELIS.find((k) => !hullRow(k).build.slide && hullRow(k).build.doors);
+  const pieces = (src) => ['extrudes', 'sweeps', 'lathes', 'lofts'].flatMap((x) => (src[x] ?? []).map((m) => m.id));
+  const hullOf = (k, o = {}) => assembleCraft(k, o).manifest.items.find((i) => i.id === 'hull').source;
+  it('a sliding door on its rails: shut by default; open, slid aft by its travel, the opening dark where it was', () => {
+    const shut = hullOf(SLIDING), open = hullOf(SLIDING, { pose: { door: 1 } });
+    const door = (src) => src.extrudes.find((e) => e.id === 'door_0_r');
+    expect(pieces(shut).filter((i) => /^door_rail_/.test(i)).length).toBe(4);
+    expect(pieces(shut)).not.toContain('door_opening_0_r');
+    expect(pieces(open)).toContain('door_opening_0_r');
+    const j = open.garage.joints.find((q) => q.name === 'door');
+    expect(j.kind).toBe('slide');
+    expect(door(shut).axisFrom.y - door(open).axisFrom.y).toBeCloseTo(j.travel, 1);
+    expect(shut.garage.joints.find((q) => q.name === 'door').travel).toBe(0);
+    expect(pieces(hullOf(PLAIN)).some((i) => /^door_rail_|^door_opening_/.test(i))).toBe(false);
+  });
+  it('made, an armoured hull\'s plates each side with their bolts, fittings; a civilian look\'s hull without them; absent unmade', () => {
+    const made = hullOf(ARMOURED, { made: true }), n = hullRow(ARMOURED).build.armour.length;
+    expect(made.lofts.filter((l) => /^armour_\d+_[rl]$/.test(l.id)).length).toBe(n * 2);
+    expect(made.lofts.filter((l) => /^armour_/.test(l.id)).every((l) => l.group === 'fitting')).toBe(true);
+    expect((made.lathes ?? []).filter((l) => /^armour_.*_bolt_/.test(l.id)).length).toBeGreaterThan(n * 8);
+    const civil = Object.keys(HELI_LOOKS).find((l) => HELI_LOOKS[l].armour === false);
+    expect(pieces(hullOf(ARMOURED, { made: true, look: civil })).some((i) => /^armour_/.test(i))).toBe(false);
+    expect(pieces(hullOf(ARMOURED)).some((i) => /^armour_/.test(i))).toBe(false);
+  });
+  it('made, a step and a grab handle at each door, each side', () => {
+    const k = HELIS.find((q) => hullRow(q).build.grabs), got = pieces(hullOf(k, { made: true })), n = hullRow(k).build.doors.length;
+    expect(got.filter((i) => /^step_/.test(i)).length).toBe(n * 2);
+    expect(got.filter((i) => /^grab_/.test(i)).length).toBe(n * 2);
+    expect(pieces(hullOf(k)).some((i) => /^step_|^grab_/.test(i))).toBe(false);
+  });
+  it('made, the rotor head\'s bolt ring and blade cuffs, the tail hub\'s bolts, the cowling\'s hinge lines and latches; absent unmade', () => {
+    const want = { 'heli-rotor': [/^hub_bolt_/, /^cuff_/], 'heli-tail': [/^tail_bolt_/], 'heli-cowl': [/^cowl_hinge_/, /^latch_/] };
+    for (const [kind, res] of Object.entries(want)) {
+      const sku = Object.keys(HELI_ODM).find((q) => HELI_ODM[q].kind === kind && ['articulated', 'rotor', 'single', 'twin'].includes(HELI_ODM[q].build.family));
+      const made = resolveCraftPart(sku, { seat: 'mount', made: true }), bare = resolveCraftPart(sku, { seat: 'mount' });
+      for (const re of res) { expect(pieces(made).some((i) => re.test(i)), `${sku} ${re}`).toBe(true); expect(pieces(bare).some((i) => re.test(i))).toBe(false); }
+    }
+  });
+  it('a civilian look\'s registration where the cabin meets the boom, and a stripe of its trim; without `stripe`, no band', () => {
+    const civil = Object.keys(HELI_LOOKS).find((l) => HELI_LOOKS[l].livery.marks?.style === 'civil' && HELI_LOOKS[l].livery.marks.stripe);
+    const trim = CRAFT_PALETTES[HELI_LOOKS[civil].palette].trim.toLowerCase();
+    const marks = (o) => craftForm(LIGHT, { look: civil, ...o }).items.find((i) => i.id === 'hull').faces.filter((f) => f.fitting === 'mark');
+    const all = marks({}), band = all.filter((f) => f.albedo === trim), reg = all.filter((f) => f.albedo !== trim);
+    expect(band.length).toBeGreaterThan(0);
+    expect(reg.length).toBeGreaterThan(20);
+    // (the registration aft of the band, where the boom begins)
+    const meanY = (fs) => fs.reduce((t, f) => t + f.corners[0][1], 0) / fs.length;
+    expect(meanY(reg)).toBeLessThan(meanY(band));
+    expect(marks({ livery: { pattern: 'mono', marks: { style: 'civil' } } }).some((f) => f.albedo === trim)).toBe(false);
+  });
+  it('battered, the exhausts\' soot down the boom: its top aft of the cowling darker than the roof ahead; pristine, none', () => {
+    const lum = (h) => { const [r, g, b] = [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16)); return 0.2126 * r + 0.7152 * g + 0.0722 * b; };
+    const C = craftForm(LIGHT, { wear: 'battered', livery: 'mono' }), hull = C.items.find((i) => i.id === 'hull'), cowl = C.items.find((i) => i.id === 'cowl');
+    let y0 = Infinity; for (const f of cowl.faces) for (const c of f.corners) y0 = Math.min(y0, c[1]);
+    const top = hull.faces.filter((f) => !f.fitting && f.outNormal[2] > 0.6 && Math.abs(f.corners[0][0]) < 0.4);
+    const mean = (fs) => fs.reduce((t, f) => t + (f.cornerAlbedo ?? [f.albedo]).reduce((u, a) => u + lum(a), 0) / (f.cornerAlbedo ?? [f.albedo]).length, 0) / fs.length;
+    const aft = top.filter((f) => f.corners[0][1] < y0 && f.corners[0][1] > y0 - 3), fore = top.filter((f) => f.corners[0][1] > y0 + 3);
+    expect(mean(aft)).toBeLessThan(mean(fore) * 0.8);
+    expect(craftForm(LIGHT, { wear: 'pristine', livery: 'mono' }).items.find((i) => i.id === 'hull').faces.some((f) => f.cornerAlbedo)).toBe(false);
   });
 });
 

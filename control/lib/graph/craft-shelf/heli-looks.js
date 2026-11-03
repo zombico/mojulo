@@ -7,13 +7,15 @@
  *          family nearest `size` (its height, else its diameter, else its length), from the airframe's realm
  *   arms   false strips the airframe's own weapons (its rocket pods, missile racks, chin gun, door guns), never their
  *          pylons; true or absent keeps them
+ *   armour false leaves a made hull's armour plates off (a civilian card's); true or absent keeps them
  *
  *   HELI_LOOKS, HELI_LOOK_IDS, HELI_ARMS, HELI_STATIONS
  *   lookFamily(archetypeRow, odm)        → 'heli' | 'drone'
  *   dressRow(archetypeRow, card, odm)    → the archetype as the card dresses it: its layout with its kit hung and its
  *                                          weapons stripped, its bill of materials counting both (the audit's)
  *
- * The livery's registrations and stripes are the marks' (air-surface.js). Pure.
+ * A civilian card's livery is its registration and a stripe of its trim; a military card's a low-visibility number and
+ * emblem (the marks: air-surface.js). Pure.
  */
 
 export const HELI_ARMS = Object.freeze(['rockets', 'rack', 'chin', 'doorGun']);
@@ -27,25 +29,25 @@ export const HELI_STATIONS = Object.freeze({
 export const HELI_LOOKS = Object.freeze({
   civil: Object.freeze({
     reads: 'a civilian helicopter: gloss white and its trim, its lights lit, a searchlight under it, no weapons',
-    palette: 'heliCivil', slots: { airPaint: 'paint', airTrim: 'paint' }, lights: 'nav', payloads: {}, arms: false,
+    palette: 'heliCivil', slots: { airPaint: 'paint', airTrim: 'paint' }, lights: 'nav', payloads: {}, arms: false, armour: false,
     kit: [{ station: 'searchlight', family: 'searchlight' }],
-    livery: { pattern: 'mono', marks: false },
+    livery: { pattern: 'mono', marks: { style: 'civil', stripe: true } },
   }),
   medevac: Object.freeze({
     reads: 'an air ambulance: gloss red over white, a searchlight, a rescue hoist over its door, floats on its skids',
-    palette: 'heliMedevac', slots: { airPaint: 'paint', airTrim: 'paint' }, lights: 'nav', payloads: {}, arms: false,
+    palette: 'heliMedevac', slots: { airPaint: 'paint', airTrim: 'paint' }, lights: 'nav', payloads: {}, arms: false, armour: false,
     kit: [{ station: 'searchlight', family: 'searchlight' }, { station: 'hoist', family: 'hoist' }, { station: 'floats', family: 'floats' }],
-    livery: { pattern: 'mono', marks: false },
+    livery: { pattern: 'mono', marks: { style: 'civil', stripe: true } },
   }),
   police: Object.freeze({
     reads: 'a police helicopter: gloss dark blue and white, a camera ball under its nose, a searchlight',
-    palette: 'heliPolice', slots: { airPaint: 'paint', airTrim: 'paint' }, lights: 'nav', payloads: {}, arms: false,
+    palette: 'heliPolice', slots: { airPaint: 'paint', airTrim: 'paint' }, lights: 'nav', payloads: {}, arms: false, armour: false,
     kit: [{ station: 'camera', family: 'eoir', size: 0.44 }, { station: 'searchlight', family: 'searchlight' }],
-    livery: { pattern: 'mono', marks: false },
+    livery: { pattern: 'mono', marks: { style: 'civil', stripe: true } },
   }),
   military: Object.freeze({
     reads: 'a military helicopter: matte drab (a camo cuts into it), its lights dark, door guns, wire cutters, flares, a low-visibility number',
-    palette: 'heliMilitary', slots: {}, lights: 'covert', payloads: {}, arms: true,
+    palette: 'heliMilitary', slots: {}, lights: 'covert', payloads: {}, arms: true, armour: true,
     kit: [{ station: 'doorGun', family: 'doorGun' }, { station: 'cutterTop', family: 'cutter' }, { station: 'cutterLow', family: 'cutter' }, { station: 'flares', family: 'flares' }],
     livery: { pattern: 'mono', marks: { style: 'military', emblem: 'bar', warnings: false } },
   }),

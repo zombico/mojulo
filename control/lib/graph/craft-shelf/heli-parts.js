@@ -26,9 +26,16 @@
  *               hoist        a rescue hoist: its arm out from the roof over the door, the drum, the cable down, its hook
  *               floats       an emergency float pack along a skid's tube (`out` and `drop` from the skid's mount to its tube)
  *
+ * Made (an earth part's, absent without the word): the rotor head's bolt ring and blade cuffs, the tail hub's bolts, the
+ * cowling's hinge lines and latches (heli-made.js).
+ *
  * Craft space: +y forward, +z up, +x right, metres. Pure.
  */
 import { DEG, airfoil, lathe, loftWorld, sweep, extrudeWorld, section, planeUV, round3, tone } from './craft-common.js';
+import { madeRotorHead, madeTailHub, madeCowling } from './heli-made.js';
+
+// made: the field's finish on a helicopter's parts (heli-made.js), an earth part's only
+const madeFor = (row, opts) => Boolean(opts?.made) && row.realm === 'earth';
 
 const r3v = (v) => v.map(round3);
 const clamp01 = (v) => Math.max(0, Math.min(1, Number.isFinite(v) ? v : 0));
@@ -72,13 +79,14 @@ function buildRotor(row, C, opts = {}) {
     lathe('cap', [0, 0, M + 0.1], [0, 0, M + 0.22], [[0, hub * 0.7], [0.6, hub * 0.5], [1, 0.03]], C.chrome, { samples: 18, crossSections: 3 }),
   ];
   const sweeps = [sweep('scissors', [[hub * 0.32, 0, M * 0.7], [hub * 0.8, 0, M * 0.55], [hub * 0.85, 0, M * 0.32 + 0.1]], 0.014, C.trim, { sides: 6 })];
-  const extrudes = [], lofts = [];
+  const extrudes = [], lofts = [], phis = [];
   const z = [0, 0, 1];
   for (let k = 0; k < b.blades; k++) {
     // (a blade folds aft about its grip, its tip swinging round to lie along the boom, each a little apart)
     const phi0 = (2 * Math.PI * k) / b.blades + Math.PI / 6 + spin, aft = -Math.PI / 2 + (k - (b.blades - 1) / 2) * 0.06;
     let d = aft - phi0; while (d > Math.PI) d -= 2 * Math.PI; while (d < -Math.PI) d += 2 * Math.PI;
     const phi = phi0 + fold * d, rh = [Math.cos(phi0), Math.sin(phi0), 0], th = [-Math.sin(phi0) * hand, Math.cos(phi0) * hand, 0];
+    phis.push(phi0);
     const fr = [Math.cos(phi), Math.sin(phi), 0], ft = [-Math.sin(phi) * hand, Math.cos(phi) * hand, 0];
     // the grip and its bearing on the hub's arm; the pitch horn ahead of it; the link down to the upper ring, leading
     extrudes.push(box(`grip_${k}`, add(mul(rh, hub * 0.6), [0, 0, M]), add(mul(rh, hub * 2.3), [0, 0, M]), th, z, hub * 0.6, hub * 0.4, C.trim));
@@ -91,6 +99,8 @@ function buildRotor(row, C, opts = {}) {
     const r0 = Math.max(hub * 2.3, b.root * R);
     lofts.push(...blades(`blade_${k}`, { rhat: fr, that: ft, up: z, r0, R, z0: M, origin: mul(rh, r0), chord: b.chord, rootPitch: b.rootPitch, tipPitch: b.tipPitch, droop: b.droop, tipSweep: b.tipSweep, thickness: b.thickness, camber: b.camber, tint: C.rubber, bandTint: TIP_BAND }));
   }
+  // made: the hub's bolt ring, a cuff round each blade's root
+  if (madeFor(row, opts)) lathes.push(...madeRotorHead({ M, hub, phis, r0: Math.max(hub * 2.3, b.root * R), chord: b.chord, C }).lathes);
   const joints = [{ name: 'rotor', control: 'rotor', kind: 'spin', at: [0, 0, round3(M)], dir: [0, 0, hand], range: [0, 360], angle: round3(((opts.pose && opts.pose.rotor) || 0) % 360) }];
   return { lathes, sweeps, extrudes, lofts, hardpoints: { mount: [0, 0, 0], hub: [0, 0, round3(M)] }, joints, ...(fold ? { fold: round3(fold) } : {}) };
 }
@@ -110,6 +120,7 @@ function buildTail(row, C, opts = {}) {
       const phi = (2 * Math.PI * k) / b.blades + spin, rh = [0, Math.cos(phi), Math.sin(phi)], th = [0, -Math.sin(phi) * hand, Math.cos(phi) * hand];
       lofts.push(...blades(`blade_${k}`, { rhat: rh, that: th, up: x, r0: hub * 1.1, R, z0: o * 0.9, chord: b.chord, rootPitch: b.pitch, tipPitch: b.pitch * 0.6, thickness: 0.12, band: 0.12, tint: C.rubber, bandTint: TIP_BAND }));
     }
+    if (madeFor(row, opts)) lathes.push(...madeTailHub({ o, hub }).lathes);
     const joints = [{ name: 'tail', control: 'rotor', kind: 'spin', at: [round3(o), 0, 0], dir: [hand, 0, 0], range: [0, 360], angle: 0 }];
     return { lathes, lofts, hardpoints: { mount: [0, 0, 0] }, joints };
   }
@@ -165,7 +176,7 @@ function buildPylonCowl(row, C) {
   return { lofts, lathes, ...(extrudes.length ? { extrudes } : {}), hardpoints: { mount: [0, 0, 0], mast: [0, 0, round3(H + 0.12)] } };
 }
 
-function buildCowl(row, C) {
+function buildCowl(row, C, opts = {}) {
   const { length: L, width: W, height: H } = row.dims, b = row.build;
   if (b.family === 'pylon') return buildPylonCowl(row, C);
   if (b.family !== 'single' && b.family !== 'twin') throw new Error(`Unknown heli-cowl family '${b.family}'`);
@@ -185,6 +196,8 @@ function buildCowl(row, C) {
   // its exhaust (or two), raked up and aft from the cowling's tail
   const ye = yF - b.exhaustAt * L, xs = b.family === 'twin' ? [W * 0.28, -W * 0.28] : [0];
   for (const [i, xx] of xs.entries()) lathes.push(lathe(`exhaust_${i}`, [xx, ye + 0.08, H * 0.5], [xx, ye - 0.38, H * 0.82], [[0, H * 0.24], [0.7, H * 0.28], [1, H * 0.3]], C.chrome, { samples: 18, crossSections: 3 }));
+  // made: the access panels' hinge lines along the cowling's top, their latches along its foot
+  if (madeFor(row, opts)) { const mc = madeCowling({ L, W, H, yF, C }); sweeps.push(...mc.sweeps); extrudes.push(...mc.extrudes); }
   return { lofts, lathes, extrudes, sweeps, hardpoints: { mount: [0, 0, 0], mast: [0, 0, round3(H + 0.12)] } };
 }
 

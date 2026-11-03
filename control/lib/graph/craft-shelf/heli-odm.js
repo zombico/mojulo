@@ -52,7 +52,8 @@ export const HELI_ODM = {
       // (the cockpit's tub open under its bubble, its walls up to the sill; the cabin closed from its bulkhead aft)
       open: { from: 0.05, to: 0.29, sill: 0.9, wall: 0.035 },
       // (its rear doors framed in the cabin's sides; the front glazed under its bubble)
-      doors: [[0.36, 0.05, 0.62, 0.9]],
+      doors: [[0.36, 0.05, 0.62, 0.9]], grabs: true,
+      antennas: [[0.6, 0, 1, 0.22, 'blade']],
       points: { canopy: [0.012, 0, 0.92], cockpit: [0.07, 0, -0.62], cowl: [0.37, 0, 0.98], tailRotor: [0.985, 0, 0.6], stabRoot: [0.86, 0, 0], finRoot: [0.9, 0, 0.9], ventral: [0.94, 0, -0.9], skid: [0.2, 0.62, -0.92] },
       // (the stations where a look's kit hangs: heli-looks.js)
       kitAt: { searchlight: [0.25, 0, -1], camera: [0.06, 0, -0.75], floats: [0.2, 0.62, -0.92] },
@@ -116,8 +117,11 @@ export const HELI_ODM = {
     build: {
       family: 'tube', n: 2.9, belly: 0.9, seams: 1.4, stations: UTILITY_BODY,
       open: { from: 0.03, to: 0.2, sill: 0.25, wall: 0.04 },
-      // (its sliding doors framed in the cabin's sides, its windows behind them)
-      doors: [[0.31, -0.05, 1.5, 1.35]],
+      // (its sliding doors on their rails in the cabin's sides, a step and a grab handle at each, its windows behind them)
+      doors: [[0.31, -0.05, 1.5, 1.35]], slide: true, grabs: true,
+      // (armoured made, unless its look is civilian: the cockpit's sides under its glazing)
+      armour: [[0.07, 0.19, -0.75, -0.05]],
+      antennas: [[0.45, 0, 1, 0.35, 'blade'], [0.4, 0, -1, 0.3, 'blade']],
       windows: { from: 0.42, to: 0.47, pitch: 0.6, zf: 0.3, w: 0.42, h: 0.42 },
       points: { canopy: [0.03, 0, 0.25], cockpit: [0.07, 0, -0.6], cowl: [0.26, 0, 1], finRoot: [0.9, 0, 0.7], stabRoot: [0.95, 0.85, -0.3], mainGear: [0.2, 0.95, -0.55], tailGear: [0.86, 0, -1] },
       kitAt: { searchlight: [0.24, 0, -1], camera: [0.05, 0, -0.85], hoist: [0.29, 0.9, 0.9], doorGun: [0.262, 1, 0.05], cutterTop: [0.205, 0, 1], cutterLow: [0.03, 0, -0.9], flares: [0.6, 1, 0] },
@@ -176,6 +180,9 @@ export const HELI_ODM = {
     build: {
       family: 'facet', facets: ARMOUR, seams: 1.4, stations: ATTACK_BODY,
       open: { from: 0.02, to: 0.28, sill: 0.45, wall: 0.03 },
+      // (armoured made: the cockpit's sides under its canopy, the engine bay's)
+      armour: [[0.05, 0.26, -0.7, 0.3], [0.3, 0.5, -0.6, 0.55]],
+      antennas: [[0.55, 0, 1, 0.3, 'blade']],
       points: { canopy: [0.02, 0, 0.45], cockpit: [0.045, 0, -0.55], sensor: [0.004, 0, -0.2], gun: [0.07, 0, -1], cowl: [0.3, 0, 1], stubRoot: [0.33, 0.95, -0.3], finRoot: [0.9, 0, 0.8], stabRoot: [0.95, 0.9, 0], mainGear: [0.17, 0.9, -0.9], tailGear: [0.92, 0, -1] },
       kitAt: { cutterTop: [0.06, 0, 1.4], cutterLow: [0.11, 0, -1], flares: [0.55, 1, 0] },
     },
@@ -295,7 +302,9 @@ export const HELI_ODM = {
       family: 'tube', n: 3.4, seams: 1.6, stations: TANDEM_BODY,
       open: { from: 0.012, to: 0.15, sill: 0.15, wall: 0.04 },
       ramp: { from: 0.8, to: 0.985, w: 0.8 },
-      doors: [[0.18, -0.2, 0.9, 1.7]],
+      doors: [[0.18, -0.2, 0.9, 1.7]], slide: true, grabs: true,
+      armour: [[0.04, 0.14, -0.7, 0]],
+      antennas: [[0.5, 0, 1, 0.4, 'blade'], [0.45, 0, -1, 0.3, 'blade']],
       windows: { from: 0.26, to: 0.7, pitch: 1.3, zf: 0.25, w: 0.42, h: 0.42 },
       points: { canopy: [0.012, 0, 0.15], cockpit: [0.035, 0, -0.62], frontPylon: [0.1, 0, 1], rearPylon: [0.87, 0, 1], sponson: [0.2, 0.92, -0.75] },
       kitAt: { searchlight: [0.12, 0, -1], hoist: [0.165, 0.95, 0.88], doorGun: [0.16, 1, 0], flares: [0.74, 1, -0.3] },

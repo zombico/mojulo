@@ -25,6 +25,9 @@
  *     slivers they made, leaving holes the deep sweep found).
  *   - The helicopter looks: the looks' kit builder paths pinned; the attack and tandem helicopters re-pinned, their hulls
  *     naming the stations a look's kit hangs at (`kitAt`, hardpoints only: no face moved); no other pin moved.
+ *   - The field's language on a helicopter: the attack and tandem helicopters re-pinned for their hulls' antennas and the
+ *     tandem's sliding doors on their rails (the armour, steps, handles and bolts are made, outside the pins); no other
+ *     pin moved.
  */
 import { createHash } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
@@ -115,8 +118,8 @@ const PINS = {
   'hoist-heli': 'f241c3372dbf43dc',
   'floats-heli-light': '42fc874354ac452c',
   'craft:lightSingle': 'cbbad5fe3c255c1d',
-  'craft:attackHeli': 'f2e6823a45263053',
-  'craft:tandemHeli': '7257d04fcdd7b3fd',
+  'craft:attackHeli': '8df85083c0bfc386',
+  'craft:tandemHeli': 'c60d052a6cc7f82c',
 };
 const CRAFTS = Object.keys(PINS).filter((k) => k.startsWith('craft:'));
 

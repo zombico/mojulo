@@ -195,4 +195,37 @@ In progress. Helicopters on the craft shelf:
   - **Seen** (machine gate only; the eyes gate is open): the utility in all four cards, the light helicopter as an air
     ambulance and a police helicopter, the attack and tandem helicopters military, the kit close up.
   - **Left for phase 4:** a civilian's registration and stripe (the hull's marks are military only so far).
+- **The field's language** (`craft-shelf/heli-made.js`, the APC's and the tank's finish on a helicopter):
+  - **Sliding doors on their rails** (a fuselage's `slide: true`): rails above and below each door, the door slid aft by
+    `pose.door` (0 shut … 1 open) over its travel, the opening dark where it was, a `door` joint on the hull.
+  - **Made, absent without the word:**
+    - an armoured hull's plates (a fuselage's `armour: [[s0, s1, zf0, zf1], …]`), each side standing off the skin, ends
+      chamfered, bolts in rows along their tops and feet. A civilian look's hull goes without them (a card's `armour`);
+    - a step under each door and a grab handle beside it (`grabs: true`);
+    - the rotor head's bolt ring and a cuff round each blade's root;
+    - the tail hub's bolts;
+    - the cowling's access panels' hinge lines and their latches.
+
+    All are fittings: a skin's seams pass them by, a camo cuts into them.
+  - **Antennas:** blades on the helicopters' booms and bellies.
+  - **Marks:** a civilian look's registration (generic: three figures, a dash, four; never a real register's format)
+    where the cabin runs into its boom, sized to the boom there and inked against the paint, and `stripe`, a band of the
+    look's trim along each side. A civil craft's hull gets no military side or fin number. Its gloss paint takes marks.
+  - **Wear:** a helicopter's exhausts soot its cowling's tail and the top of its boom, fading aft, over the fade and
+    grime it already had.
+  - **Held** (`heli.test.js`):
+    - a sliding door shut by default and slid by its travel when open, its rails each side, its opening dark, a hull
+      without the word none of it;
+    - made, an armoured hull's plates and bolts as fittings, a civilian look's hull without them, none unmade;
+    - steps and grab handles each side of each door;
+    - the rotor head's, tail hub's and cowling's made pieces, none unmade;
+    - a civilian look's registration aft of its stripe, no band without `stripe`;
+    - battered, the boom's top aft of the exhaust darker than the roof ahead, pristine none.
+
+    The attack and tandem helicopters are re-pinned (antennas, the tandem's rails); no other pin moved.
+  - **Seen** (machine gate only; the eyes gate is open): the utility military, made, battered in camo, its door open with
+    its gun in it; the attack helicopter made and used, its plates and bolts; the utility civil and the light police
+    helicopter with their registrations and stripes.
+  - **Not done:** the cabin's benches. An open door shows a dark opening, not a seen cabin: the hull is one skin round
+    its cabin, and opening its side is a hull of another kind.
 
