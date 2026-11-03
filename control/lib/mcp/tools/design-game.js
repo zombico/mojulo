@@ -214,6 +214,13 @@ async function realize(step, action) {
 async function runWorld(ref, world, { force = false } = {}) {
   let W = world;
   const made = { ...(W.made ?? {}) }, ran = [];
+  // the record kept as the run goes: each step made is written into the stored world at once (in place: a gameworld
+  // keeps no revisions), so a run cut off partway (its process ended, a host's time limit) leaves its rows recorded as
+  // its own, and the next run keeps them rather than reading them as edited by hand ('taken'). The run's own write at
+  // the end is the world as the handler stores it
+  const checkpoint = () => {
+    try { const row = SketchRepository.getByRef(ref); if (row) SketchRepository.update({ ref, manifest: { ...row.manifest, ...W, made } }); } catch { /* the run goes on; its end writes the record */ }
+  };
   const act = async (step, lookup) => {
     // an adopted hero (characters.hero.ref, quick.hero.ref): pinned as it stands when the world first names it, never
     // made or remade (it is the creator's own row); a ref with no row is said, and the steps that need it wait
@@ -224,6 +231,7 @@ async function runWorld(ref, world, { force = false } = {}) {
       if (action !== 'adopt') return;
       made.hero = { ref: step.ref, order: step.print, stored: storedPrint(step.ref) };
       if (W.characters) W = withPin(W, pinBase({ ref: step.ref, rev: headRev(step.ref), manifest: row.manifest }));
+      checkpoint();
       return;
     }
     const action = decide(step, made[step.key], storedPrint(step.ref), { force });
@@ -237,6 +245,7 @@ async function runWorld(ref, world, { force = false } = {}) {
     if (audits) ran[ran.length - 1].audits = audits;   // the game's level audits, as create_game recorded them
     made[step.key] = { ref: step.ref, order: step.print, stored: storedPrint(step.ref) };
     if (pin && W.characters) W = withPin(W, pin);   // a quick game's hero has no book to pin it in
+    checkpoint();
   };
   // the hero first: the systems and the gear wait on its pinned base
   const heroRef = heroRefOf(W, ref);

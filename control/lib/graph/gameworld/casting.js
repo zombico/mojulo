@@ -93,7 +93,9 @@ function requestOf(c, scale, n, heard = {}) {
   const base = castOfScale(scale, { n: c.n ?? n ?? 3 });
   if (heard.familiar && !c.cast?.familiar) base.familiar = { relation: 'familiar' };
   const cast = { ...base };
-  for (const [k, m] of Object.entries(c.cast ?? {})) cast[k] = strip(m);
+  // (a member the book only names, or gives its joins flag, is the scale's own member under those words: a key the
+  // scale rolls, `party-1` of its `party`, read by id when the members are named)
+  for (const [k, m] of Object.entries(c.cast ?? {})) { const own = strip(m); if (isObj(own) && !Object.keys(own).length) continue; cast[k] = own; }
   return { ...(c.anchor ? { anchor: c.anchor } : {}), cast, ...(c.factions ? { factions: c.factions } : {}), ...(c.bodies ?? heard.bodies ? { bodies: c.bodies ?? heard.bodies } : {}), ...(c.seed !== undefined ? { seed: c.seed } : {}) };
 }
 

@@ -383,3 +383,12 @@ its resource, put on a look and showed a toast. This theme makes them act.
 - **A crenellated tower carries its roof cover.** A town's own fortification (`fortOfLanguage`) left a crenel-crowned
   tower without its cover or value, and its turret's roof then drew with no colour. Seeded forts always carried both;
   it now does too.
+- **A `design_game` run keeps its record as it goes.** Each step made or remade is written into the stored world at
+  once (in place: a gameworld keeps no revisions), instead of only at the run's end. A run cut off partway, by its
+  process ending or a host's time limit, used to leave every row it made unrecorded, and every later run read those
+  rows as hand edits and left them alone (`taken`) until a forced run remade the whole game. Now the next run keeps
+  them as its own.
+- **The book can name a rolled party member without moving the roll.** A casting page's `cast.<id>: { name }` (or
+  `joins`) alone is the scale's own member under the book's words: `party-2: { name: 'Wren' }`. It used to be refused
+  for want of a relation. Hollin Vale names its party: Aldren, Rowan, Wren and Sorrel, its hero a fighter. Unnamed, a
+  member's box still reads its archetype.

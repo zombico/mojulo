@@ -2,7 +2,7 @@
 process.env.SQLITE_PATH = ':memory:';
 process.env.MOJULO_SEMANTIC_INDEX_DISABLED = '1';
 
-import { describe, it, expect, beforeEach, beforeAll } from 'vitest';
+import { describe, it, expect, beforeEach, beforeAll, vi } from 'vitest';
 import { closeDb } from '@/lib/db/index';
 import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { SketchRevisionRepository } from '@/lib/db/repositories/sketch-revisions';
@@ -55,6 +55,22 @@ describe('design_game', () => {
     expect(ground.ran.every((r) => r.action === 'waiting')).toBe(true);
     expect(ground.made).toBeUndefined();
   });
+
+  it('a run cut off partway leaves what it made recorded: each step is written into the world as it is made', async () => {
+    // (a run whose process ends before its last write, a host's time limit: the rows it made were read as edited by
+    // hand by every later run, 'taken', until a forced run remade them all)
+    const spy = vi.spyOn(SketchRepository, 'update');
+    try {
+      await designGameHandler({ world: GATED, ref: 'gw-cut', run: true });
+      const writes = spy.mock.calls.map(([a]) => a).filter((a) => a.ref === 'gw-cut' && a.manifest?.made?.hero);
+      // the hero's record was written as it was made, before the run's own write at its end
+      expect(writes.length).toBeGreaterThan(1);
+      // cut off there: the stored world is the checkpoint, and the next run keeps the hero as its own
+      SketchRepository.update({ ref: 'gw-cut', manifest: writes[0].manifest });
+    } finally { spy.mockRestore(); }
+    const again = await designGameHandler({ ref: 'gw-cut', run: true });
+    expect(action(again, 'hero')).toBe('keep');
+  }, 120_000);
 
   it('a target is advice: the readout names what the engine does not carry as a next step, and writes the world as given', async () => {
     const out = await designGameHandler({ world: { ...MEADOWMARK, intent: { from: 'kart-racer', target: 'roblox' } }, ref: 'gw-aimed' });

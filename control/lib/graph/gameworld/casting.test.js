@@ -85,6 +85,13 @@ describe('the casting page: the people rolled for the game, as many as it asks f
     expect(castingIds({ scale: 'party', n: 2 })).toEqual([{ id: 'party-1', key: 'party', bond: 'party' }, { id: 'party-2', key: 'party', bond: 'party' }]);
   });
 
+  it('the book names a rolled member without moving the roll: a name alone is the box\'s, the member the scale\'s', () => {
+    const plain = castingOf(readGameworld(W({ scale: 'party', n: 2 }))), named = castingOf(readGameworld(W({ scale: 'party', n: 2, cast: { 'party-2': { name: 'Wren' } } })));
+    expect(JSON.stringify(named.sheet)).toBe(JSON.stringify(plain.sheet));
+    expect(named.members.map((m) => m.name)).toEqual([plain.members[0].name, 'Wren']);
+    expect(battleParty(readGameworld(W({ scale: 'party', n: 2, cast: { 'party-2': { name: 'Wren' } } }))).map((m) => m.name)).toContain('Wren');
+  });
+
   it('refuses what it cannot read, by name', () => {
     expect(() => readGameworld(W({ size: 3 }))).toThrow(/casting\.size is not part of the casting page/);
     expect(() => readGameworld(W({ cast: { x: { relation: 'nemesis' } } }))).toThrow(/relation is one of/);

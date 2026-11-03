@@ -305,6 +305,8 @@ export const HOLLIN_VALE = Object.freeze({
   hub: 'hollin',
   // the fights: wolves in the hollow, the raiders and the dead on the downs, the dead rising round the fort
   battles: {
+    // the hero carries the blade: a fighter, whatever its sheet reads as
+    party: { hero: { name: 'Aldren', class: 'fighter' } },
     // (two a stage: the hollow's edge and its deep, the downs and the barrows, the climb and the crest, the boss last)
     packs: [
       ['wolf', 'wolf'], ['wolf', 'bandit'], ['wolf', 'wolf', 'bandit'], ['bandit', 'bandit'],
@@ -328,7 +330,8 @@ export const HOLLIN_VALE = Object.freeze({
       actions: { none: true },
       adornment: { items: [{ id: 'blade', slot: 'right', build: { item: 'sword' }, serves: ['strike'] }] },
     },
-    casting: { scale: 'party', n: 3 },
+    // the party of four, named by the book (unnamed, a member's box reads its archetype: 'The lover')
+    casting: { scale: 'party', n: 3, cast: { 'party-1': { name: 'Rowan' }, 'party-2': { name: 'Wren' }, 'party-3': { name: 'Sorrel' } } },
     folk: true,
   },
 });
