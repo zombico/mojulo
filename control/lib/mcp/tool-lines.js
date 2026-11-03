@@ -69,7 +69,7 @@ export const TOOL_LINES = {
   // ── worlds ────────────────────────────────────────────────────────────────
   compose_world: L('create', 'A traversable world: a BASE (city, transport-hub, controllable, action, dungeon, …) × a theme. Manual: `get_view_vocab`; themes: `list_world_themes`.'),
   list_world_themes: L('orient', 'The theme packs `compose_world` takes, optionally by family (earth / scifi / fantasy). Call before a themed world.'),
-  export_model: L('maintain', "A stored world or solid as a file: .glb, print STL / 3MF (mm, true scale), USD, IFC for a house. Diagrams answer `eligible:false`."),
+  export_model: L('maintain', "A stored world or solid as a file: .glb, print STL / 3MF (mm, true scale), USD, IFC for a house; `engine` a team's Godot, Unity, Unreal or Blender."),
   bind_mesh_render: L('maintain', 'Bind a DCC-refined .glb of an `export_model` file back onto its sketch as a derived artifact; worlds place it by `meshRef`.'),
   translate_modeler_lingo: L('orient', 'Modeler words (blockout, kitbash, retopo, bake, rig, LOD) → what mojulo does and the `export_model` handoff for the rest.'),
 
@@ -83,7 +83,7 @@ export const TOOL_LINES = {
   bake_sprite_sheet: L('update', 'Quantize accepted sprite frames into pixel sprites under one palette, written back onto the sheet.'),
   get_game_vocab: L('orient', 'The GAME drawer: `gameworld-guide` and the page cards first, then store slices, level mechanics, kits, glyphs, sfx, hud. `samples` to browse a page.'),
   get_play_vocab: L('orient', 'The PLAY drawer: make a world interactive (a door, a lever, a HUD, a level) through a `play` block set with `update_sketch`.'),
-  export_game: L('maintain', 'A stored game as a self-contained folder (game.html, levels, score, recipes, README) or a desktop app; engine packs translate it.'),
+  export_game: L('maintain', 'A stored game as a self-contained folder (game.html, levels, score, recipes, README) or a desktop app: the game itself.'),
 
   // ── read: pictures, diagrams, study views ─────────────────────────────────
   create_sketch: L('create', 'A flow chart, data chart or scene illustration (stations, edges, marks, or a recipe). Find a layout with `semantic_search`, read it with `get_sketch_vocab`.'),

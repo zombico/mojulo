@@ -361,6 +361,9 @@ const sha = (s) => createHash('sha256').update(s).digest('hex');
 // instead of the 3 m stand-off, never farther out than the open line (with nothing in the way it frames as before); a
 // capture page's view() hands out the level's background colour and its controllable bodies (the first-frame gate reads
 // both). A live page with no follow camera is unchanged.
+// Re-pinned 2026-11-02 (the world clock): `shoot-live` only. A live plan's camera gizmos take no raycast (shoot.js
+// `__shOver`): the controllable's ground probe raycast the whole scene and threw on the frustum's lines before its camera
+// was posed, stopping a live world with a shoot plan on its first frame. A plan that is not live emits as it did.
 
 describe('emitThreeWorld characterization (byte-level pin over the fixture matrix)', () => {
   it.each(EMIT_FIXTURES.map(([name]) => name))('%s emits byte-identically', (name) => {

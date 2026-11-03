@@ -19,7 +19,6 @@
  */
 
 import { SketchRepository } from '@/lib/db/repositories/sketches';
-import { registerTool } from '@/lib/mcp/server';
 import { planAssembler } from '@/lib/graph/worlds/workbench-assembler';
 import { MONOMER_KEYS, hasProgram } from '@/lib/graph/worlds/workbench-program';
 import { hasEquipment } from '@/lib/graph/equipment/expand';
@@ -122,80 +121,8 @@ export function mintAssembler({ title, items, units, viewBox, facing, model, rig
 
 export async function createAssemblerHandler(input) {
   if (!input || typeof input !== 'object') {
-    throw new Error('create_assembler requires a recipe object with an `items` array');
+    throw new Error('mint_solid kind "assembler" requires a spec with an `items` array');
   }
   const { title, items, units, viewBox, facing, model, rig, ref, folder_ref: folderRef } = input;
   return mintAssembler({ title, items, units, viewBox, facing, model, rig, ref, folderRef });
-}
-
-export function registerAssemblerTools() {
-  registerTool({
-    name: 'create_assembler',
-    description:
-      "Compose several finished WORKBENCH parts into ONE worldspace — the ring above create_workbench. "
-      + "Principle: ASSEMBLER MAKES A CHARIOT, WORKBENCH MAKES CHARIOT PARTS. A workbench is single-subject "
-      + "(it builds one object well), so it can't honestly make 'something complicated'; the assembler "
-      + "takes several whole workbench parts and arranges them. Every part already shares meru scale, so "
-      + "this is a PLACING concern, not a geometry one.\n"
-      + "PLACEMENT has two modes. GRAVITY SEATING (standard): give a part `on:'ground'` (or `on` an "
-      + "earlier part's `id`/index, lifted by `gap`) and it DROPS so its lowest point — measured AFTER "
-      + "rotate/flip/scale — rests on that support; you never hand-compute a z lift (e.g. a wheel rotated "
-      + "upright auto-seats at its own radius). SUPERPOSITION (the allowed non-standard fallback): give an "
-      + "absolute `at:[x,y,z]` with no `on` for parts that bridge rather than rest (a chariot's bed sits "
-      + "between its wheels, not on the floor). `at` always supplies x/y; with `on`, its z is ignored. "
-      + "`repeat` arrays a part along a line (one spindle → a banister), and `rotate`/`flip`/`scale` adjust "
-      + "a single placement (flip a peg upside-down → a spindle). Need a part the workbench doesn't have? "
-      + "Mint it on the workbench first — a spindle is just its own narrow lathe — then place it here; the "
-      + "assembler never reaches inside a part.\n"
-      + "SOURCE IS FROZEN AT IMPORT: an item's `source` is either an inline workbench part "
-      + "({ lathes/extrudes/sweeps }) or a { ref } to a stored workbench (copied in at mint time). No live "
-      + "binding — if the source workbench later changes, re-import and redo the adjustments. The result "
-      + "`stats.parts[]` reports each part's placement + copy count and `stats.warnings` flags an assembly "
-      + "floating off the measured grid. Served on the SAME measured studio vantage as the workbench: a "
-      + "traversable three.js World at `/api/sketches/<ref>/world` + preset CSS-3D shots at `/scene`; "
-      + "persists with `manifest.kind === 'assembler'`. Reach for 'assemble / arrange / combine several "
-      + "parts / build a <complex thing> from workbench parts / a stair from one step / a banister from one "
-      + "spindle'.",
-    inputSchema: {
-      type: 'object',
-      properties: {
-        title: { type: 'string', description: 'Title for the resulting sketch artifact.' },
-        items: {
-          type: 'array', minItems: 1,
-          description: 'The placed parts. Each item drops one frozen workbench part into the shared worldspace at a position.',
-          items: {
-            type: 'object',
-            properties: {
-              source: {
-                type: 'object',
-                description: 'The workbench PART, frozen inline at mint. Either an inline workbench manifest { lathes?:[…], extrudes?:[…], sweeps?:[…] } (copy a part recipe in), OR { ref: "sk_…" } pointing at a stored workbench sketch (its monomers are copied in here — no live link afterward).',
-              },
-              id: { type: 'string', description: 'Optional name for this part so a LATER part can rest `on` it (gravity seating).' },
-              at: { type: 'array', items: { type: 'number' }, description: 'REPOSITION — [x,y,z]. x/y is where the part sits in shared space (z is up). With `on`, the z here is ignored (gravity computes it); without `on`, z is the absolute superposition height. Default [0,0,0].' },
-              on: { description: "GRAVITY SEAT (standard placement) — 'ground' (rest on z=0) or the id/index of an EARLIER part (rest on its top). Drops the part so its lowest point, measured after rotate/flip/scale, sits on the support. Omit for superposition (absolute `at` z).", type: ['string', 'integer'] },
-              gap: { type: 'number', description: 'With `on`: lift the part this far above its support (default 0).' },
-              rotate: { type: 'array', items: { type: 'number' }, description: 'Optional orient — [rx,ry,rz] in DEGREES (applied Rz·Ry·Rx, after flip). Lighting tracks the rotation.' },
-              flip: { type: 'string', description: "Optional mirror — any combo of axes ('x' | 'z' | 'xy' | 'xyz' …). Flips the part on those axes (e.g. flip a candlestick peg on z → a spindle)." },
-              scale: { type: 'number', description: 'Optional uniform scale nudge within the shared meru scale (default 1).' },
-              repeat: {
-                type: 'object',
-                description: 'Optional linear array — replicate this part at stepped positions (one spindle → a banister). { count: N, step: [dx,dy,dz] }: copy k sits at at + k·step.',
-                properties: { count: { type: 'integer' }, step: { type: 'array', items: { type: 'number' } } },
-              },
-            },
-            required: ['source'],
-          },
-        },
-        units: { type: 'string', description: "Informational unit label (e.g. 'cm') — surfaced in the size readout and grid (1 grid cell = 5 units). Default 'cm'." },
-        viewBox: { type: 'object', description: 'Optional render viewBox { width, height } (default 900×900).' },
-        facing: { type: ['string', 'number'], description: "Which way the assembled model's FRONT points, so the preset 'front' shot (and the /png + /scene + /world opening camera) looks it in the face: '+y' (default — the studio camera convention), '-y', '+x', '-x', or a raw azimuth offset in degrees. Camera-only; geometry is untouched." },
-        model: { type: 'string', description: "Optional body-model marker: 'biped' declares a humanoid unit (head + torso + two arms + two legs of named stations), which makes it POSABLE — the figure's vajra kinematics derive a rig from the station names/geometry and compile poses into posed sibling manifests. Only 'biped' is recognized today." },
-        rig: { type: 'object', description: "Optional rig overrides for a 'biped' model when the automatic derivation guesses wrong: { bones: { <stationId>: '<vajraBone>' }, joints: { <jointName>: {x,y,z} } } (joints in the unit's own coordinates). Omit to let station names + geometry derive everything." },
-        ref: { type: 'string', description: 'Optional stable sketch ref.' },
-        folder_ref: { type: 'string', description: 'Optional sketch folder to file under.' },
-      },
-      required: ['items'],
-    },
-    handler: createAssemblerHandler,
-  });
 }

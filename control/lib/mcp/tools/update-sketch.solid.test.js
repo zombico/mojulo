@@ -15,7 +15,7 @@ import path from 'node:path';
 import { animeFormOf } from '../../graph/polygonizer/anime-looks.js';
 import { sparseSculpt } from '../../graph/polygonizer/anime-sculpt.js';
 
-// edit-3d-recipes.plan.md Phase 2: solids and edifices were always editable in
+// solids and edifices were always editable in
 // place through update_sketch's world branch (their kinds live in WORLD_KINDS),
 // but nothing documented or tested it — create_figure even taught "re-mint".
 // These tests pin the path so the starter thesis holds for 3D objects.
@@ -87,7 +87,7 @@ describe('update_sketch on edifice recipes', () => {
   });
 });
 
-// continuous-guardrails.plan.md G1: the workbench kind pays the mint gates on EVERY edit. The
+// the workbench kind pays the mint gates on EVERY edit. The
 // structural refusals (unknown material, a malformed spec) are the same ones mint makes; the
 // closure lint stays advisory — an open shell edits fine and says so in stats.warnings.
 describe('update_sketch on workbench recipes runs the mint gates (G1)', () => {
@@ -132,7 +132,7 @@ describe('update_sketch on workbench recipes runs the mint gates (G1)', () => {
   });
 });
 
-// continuous-guardrails.plan.md G5 + G6: a solid keeps its history, and its ledger travels.
+// a solid keeps its history, and its ledger travels.
 import { SketchRevisionRepository } from '@/lib/db/repositories/sketch-revisions';
 import { createSketchHandler } from './sketches.js';
 
@@ -798,7 +798,7 @@ describe("the hero door's clips through update_sketch", () => {
 // the anime head's door clips: a clip `{ seconds, keys }` (its designed duration) and a key's `face` (its facial track),
 // stored as given, the plan without the face; they survive an unrelated /hero edit and edit by path; `blink` is stored
 // only when false; the readout says every clip's duration and the clips carrying a face; the World payload's packed
-// clips carry the durations the page, the GLB and the Godot pack play.
+// clips carry the durations the page and the GLB play.
 describe("the anime hero's timed clips, facial tracks and ambient blink through update_sketch", () => {
   it('stored as given; survives an unrelated /hero edit; by path; blink stored only when false; refusals leave the row', async () => {
     const { resolveWorldScene } = await import('@/lib/graph/worlds/world-scene');

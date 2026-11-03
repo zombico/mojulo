@@ -136,7 +136,7 @@ export function mintPaintedLandscape({
 
 export async function createPaintedLandscapeHandler(input) {
   if (!input || typeof input !== 'object') {
-    throw new Error('create_painted_landscape requires { title, heartbeat, splatch }');
+    throw new Error('compose_world({ base: "painted-landscape" }) requires { title, heartbeat, splatch }');
   }
   const {
     title,

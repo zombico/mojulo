@@ -10,7 +10,7 @@
 }
 ---
 
-Mint a LIVE world where THINGS HAPPEN with consequence — a GAME or an interactive scene with RULES (moles that pop, shots that score, a timed round that ends, items you collect). The sibling of create_controllable_world: that mints a world you MOVE through; this mints one that PLAYS BACK. Stores ONLY a tiny recipe (`kind:'controllable'` + `events` + `walk`); the world regenerates deterministically on render at `/api/sketches/<ref>/world` (open it / embed it). Reach for framing like 'make a game where…', 'a shooting range / whack-a-mole', 'a scene with a score and a timer', 'things that pop up and you click them', 'a coin-pickup level'. NOT for a world you just drive a character through with no rules — that's create_controllable_world.
+Mint a LIVE world where THINGS HAPPEN with consequence — a GAME or an interactive scene with RULES (moles that pop, shots that score, a timed round that ends, items you collect). The sibling of the `controllable` base: that mints a world you MOVE through; this mints one that PLAYS BACK. Stores ONLY a tiny recipe (`kind:'controllable'` + `events` + `walk`); the world regenerates deterministically on render at `/api/sketches/<ref>/world` (open it / embed it). Reach for framing like 'make a game where…', 'a shooting range / whack-a-mole', 'a scene with a score and a timer', 'things that pop up and you click them', 'a coin-pickup level'. NOT for a world you just drive a character through with no rules — that's the `controllable` base.
 
 RULES are a declarative IDIOM RECIPE (`idioms`), each `{ kind, ...params }`, lowered to the in-world event bus server-side. Idiom kinds:
 • `scoreCounter` { name, label } — a tracker var shown on the HUD.

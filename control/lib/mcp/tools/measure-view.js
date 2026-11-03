@@ -322,7 +322,7 @@ export function registerMeasureViewTools() {
     inputSchema: {
       type: 'object',
       properties: {
-        ref: { type: 'string', description: 'The science-view sketch ref (from create_view / create_mechanics_view / create_orbit_view).' },
+        ref: { type: 'string', description: 'The science-view sketch ref (from create_view, kind mechanics or orbit).' },
         every: { type: 'number', description: 'Downsample interval — return every Nth sample (default 1 = all).' },
       },
       required: ['ref'],

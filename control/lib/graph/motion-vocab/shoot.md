@@ -29,12 +29,22 @@ A shoot plan lives on a world's recipe (`manifest.shoot`). `forge_motion { subje
 | Parent camera to a null / link POI to a layer | `pos` / `poi: { follow: 'car:2', offset: [x,y,z], frame: 'subject' }` |
 | Cut between camera layers | `shots: [{ name, camera, span: [t0, t1] }]` |
 | Time-stretch a layer (slow motion) | a shot's `speed`: `0.25` plays its span four times slower, `2` twice as fast |
+| Time remap / speed ramp / freeze frame | a shot's `time`: `{ span: [t0, t1], speed, ramp? }` and `{ at, hold }` (see Time) |
 
 A key missing `poi`, `lens` or `roll` keeps the previous key's. Coordinates are the world's own units, z up (the readout gives metres).
 
 ## Time
 
 Key times and shot spans are the WORLD's clock. A shot shows the world over its span: shots in sequence cut a continuous action, and two shots over the same span are coverage of one action from two cameras. On the World page the plan drives the clock, so a cut replays the action, as in an edit. A shot's `speed` (0.05 to 4, default 1) stretches it on the program clock: `{ span: [2, 3], speed: 0.25 }` is a four-second slow-motion replay of one second of the world. A science world says so on screen while it plays.
+
+A shot's TIME MAP says more, inside its span (presentation only: the world steps as it always does):
+
+- `time: [{ span: [2.4, 3], speed: 0.1, ramp: 0.2 }]`: that stretch of the world at a tenth of its speed, eased down and back over 0.2 world seconds at each end (a speed ramp). Words: `slow: [t0, t1]`, `from` / `to`.
+- `time: [{ at: 2.6, hold: 1.5 }]`: the world held at an instant for 1.5 screen seconds (a freeze frame, an impact's beat); `frames: 6` counts frames at the plan's fps; `freeze: 2.6, for: 1.5` also reads. Holds sit anywhere, inside a stretch too.
+- `clock: 'screen'`: the camera's keys play on the screen's clock from the span's start (key times still seconds, counted from the shot's start on screen), so it orbits or pushes in at its own pace while the world holds or crawls: bullet time.
+- `grain: 'twos'` (or `'threes'`, 2, 3): the world shown on twos at the plan's fps, the camera on ones, as limited animation is shot.
+
+A rendered film steps the world to each frame's `world_t` and frames the camera at its `camera_t` where the two part. A live world plays on its own clock, so its page plays a time map in real time (the readout says so). The readout gives each warped shot its world seconds, its slowest speed, the seconds it holds and its grain.
 
 ## Following what moves
 
@@ -64,7 +74,7 @@ Recipes: a wormhole = a `pipe` `along` the flying camera; a corridor = `{ kind: 
 
 ## Edits (`shoot: { ops }`)
 
-`add_key { camera, key }` · `set_key { camera, t, to?, pos?, poi?, lens?, ease?, roll? }` · `remove_key { camera, t }` · `ease { camera, t? | times?, ease }` (no time = every key) · `retime { camera?, scale?, shift? }` (keys and that camera's shots) · `set_camera { camera, name?, lens?, path?, type? }` (flipping the type keeps the view) · `add_camera { camera, shot? }` · `remove_camera` · `add_shot { shot, at? }` · `set_shot { shot, name?, camera?, span?, in?, speed? }` · `remove_shot` · `move_shot { shot, to }` · `add_piece { piece }` · `set_piece { piece, …fields }` · `piece_key { piece, key }` (a key at an existing time merges) · `remove_piece` · `set { fps }`.
+`add_key { camera, key }` · `set_key { camera, t, to?, pos?, poi?, lens?, ease?, roll? }` · `remove_key { camera, t }` · `ease { camera, t? | times?, ease }` (no time = every key) · `retime { camera?, scale?, shift? }` (keys and that camera's shots) · `set_camera { camera, name?, lens?, path?, type? }` (flipping the type keeps the view) · `add_camera { camera, shot? }` · `remove_camera` · `add_shot { shot, at? }` · `set_shot { shot, name?, camera?, span?, in?, speed?, time?, clock?, grain? }` · `remove_shot` · `move_shot { shot, to }` · `add_piece { piece }` · `set_piece { piece, …fields }` · `piece_key { piece, key }` (a key at an existing time merges) · `remove_piece` · `set { fps }`.
 
 ## Exports
 

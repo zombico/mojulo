@@ -1,7 +1,7 @@
 // The anime hero acting, minted at the door and exported (E2E: whole heroes through the real handlers). The concepts: a
 // take on the anime head is a face-only STEP clip (face-acting/anime-read.js: a drawing per frame); at `acting: 'full'`
 // it plays the 7G drawings' targets and their correctives (anime-face-rig.js sevenG), its recorded line inside the file
-// and beside the Godot pack's scene; a hero that draws no 7G plays the same take lowered to its four channels.
+// (the GLB an engine's handoff carries); a hero that draws no 7G plays the same take lowered to its four channels.
 import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -9,7 +9,6 @@ import { describe, expect, it } from 'vitest';
 import { NodeIO } from '@gltf-transform/core';
 import { createCharacterHandler } from './create-character.js';
 import { exportModelHandler } from './sketch-model-export.js';
-import { buildGodotWorldPack } from '../../graph/scene/godot-pack.js';
 import { FACE_TARGETS, drawTarget, fixTarget } from '../../graph/polygonizer/anime-face-rig.js';
 
 // (where the line was recorded before the door saved it: any folder)
@@ -37,7 +36,7 @@ const read = async (ref) => {
 };
 
 describe('the anime hero acting, minted and exported', () => {
-  it('at acting full: the 7G drawings and their correctives as targets, each take a STEP clip, the recorded line inside the file and beside the Godot scene', async () => {
+  it('at acting full: the 7G drawings and their correctives as targets, each take a STEP clip, the recorded line inside the file', async () => {
     const minted = await createCharacterHandler({ as: 'hero', spec: { cast: 'male', head: 'anime', acting: 'full', perform: PERFORM() } });
     expect(minted.ok).toBe(true);
     const { root, json, bin, names, prim } = await read(minted.ref);
@@ -57,8 +56,6 @@ describe('the anime hero acting, minted and exported', () => {
     expect(told).toMatchObject({ interpolation: 'STEP' }); expect(told.audio[0]).toMatchObject({ at: 0.25, mimeType: 'audio/wav' });
     const view = json.bufferViews[told.audio[0].bufferView];
     expect(bin.subarray(view.byteOffset ?? 0, (view.byteOffset ?? 0) + 4).toString('ascii')).toBe('RIFF');
-    const godot = await buildGodotWorldPack({ ref: minted.ref, outDir: mkdtempSync(path.join(os.tmpdir(), 'mojulo-godot-anime-voice-')) });
-    expect(readFileSync(path.join(godot.dir, 'voice', `${told.audio[0].recording}.wav`)).subarray(0, 4).toString('ascii')).toBe('RIFF');
   });
   it('drawing no 7G (the default target, T2): the same takes lowered to the four channels', async () => {
     const minted = await createCharacterHandler({ as: 'hero', spec: { cast: 'female', head: 'anime', perform: PERFORM() } });

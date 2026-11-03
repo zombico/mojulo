@@ -57,7 +57,7 @@ export function mintDnaView({ title, sequence, basePairs, bpPerTurn, radius, ris
 
 export async function createDnaViewHandler(input) {
   if (!input || typeof input !== 'object') {
-    throw new Error('create_dna_view requires a recipe object');
+    throw new Error('create_view({ kind: "dna" }) requires a recipe object');
   }
   const { title, sequence, basePairs, base_pairs, bpPerTurn, bp_per_turn, radius, rise, handedness, profile, palette, lod, viewBox, scene, ref, folder_ref: folderRef } = input;
   return mintDnaView({

@@ -5,8 +5,8 @@ import { resolveAquaLook } from './aqua-look.js';
 // exported scene is a file, so an animated `surfaces` entry with an aqua look leaves as ONE FROZEN FRAME (t = 0) of
 // the same surface the page draws at that instant — ocean / shore Gerstner and the river's lanes, foam baked into the
 // vertex colour — and a liquid sheet leaves as itself. Each body of water is one node, `water:<kind>` (a second of
-// the same kind gets an index), and its look rides the engine score (`score.water`) so a kernel can shade it live
-// (Godot: kernel/water.gdshader). Builder output: dmath trig, so the frame is the same bytes on every platform.
+// the same kind gets an index), and its look rides the engine score (`score.water`) so an engine can shade it live.
+// Builder output: dmath trig, so the frame is the same bytes on every platform.
 
 const l3 = (a, b, t) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t];
 const clamp01 = (v) => (v < 0 ? 0 : v > 1 ? 1 : v);

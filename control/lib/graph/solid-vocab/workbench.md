@@ -281,7 +281,7 @@ units: 'cm', fields: [{ cells: 90, terms: [
 - Beams stop at the world's own geometry and pool where they land. A group a mover drives carries the light with it: a crystal on a toggle is a hand-turned mirror, and its print on the floor turns with it.
 - `targets: [{ id, at, r, want?: { color?, min? }, toggles? }]` — a target catches beams. When what it catches satisfies `want` (a colour: `white`, `red`, `orange`, `yellow`, `green`, `cyan`, `blue`, `violet`; a power, 0.05 by default), it raises `lit` on the events bus (with the colour), and `dark` when it stops. `toggles` names a mover group with `states` it steps on when lit and back when dark: a door. Reactions and HUD banners read `lit` like any event.
 - `budget: { depth?, beams?, maxLen? }`, `gain?` (how bright beams draw).
-- The `.glb` carries a frozen frame (the beams and pools as emissive nodes, the brightest glows as point lights). The Godot pack performs the rig live and gives crystals a refraction material; movers do not travel, so the stones stand at rest there.
+- The `.glb` carries a frozen frame (the beams and pools as emissive nodes, the brightest glows as point lights).
 
 A light puzzle: a lamp, a brilliant fans it, a quartz in the green beam turns by hand (R), and green on the socket opens the door.
 

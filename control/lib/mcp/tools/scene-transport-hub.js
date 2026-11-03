@@ -143,7 +143,7 @@ export function mintTransportationHub({ title, mode, seed, density, depth, glyph
 
 export async function createTransportationHubHandler(input) {
   if (!input || typeof input !== 'object') {
-    throw new Error('create_transportation_hub requires a recipe object');
+    throw new Error('compose_world({ base: "transport-hub" }) requires a recipe object');
   }
   const { title, mode, seed, density, depth, glyph, primary, asymmetry, chirality, line, line_b: lineB, building, layout, atmosphere, fog, audio, gates, region, viewBox, time, ref, folder_ref: folderRef } = input;
   return mintTransportationHub({ title, mode, seed, density, depth, glyph, primary, asymmetry, chirality, line, lineB, building, layout, atmosphere, fog, audio, gates, region, viewBox, time, ref, folderRef });

@@ -1147,7 +1147,7 @@ export function assembleStageScene(manifest = {}, ctx = {}) {
   // baked as a lightmap is, its colour and its light apart: every placed light, brazier and pool at the level its palette
   // asks for, each lamp's shadow tested whatever the recipe's `shadows.torch` (the page casts none: scene/channels/form.js),
   // its bounce in its own room. A toned room's palette is its ramps' (tone.js). A sunlit or night stage is drawn as paint
-  const form = !!ctx.formLit && !ctx.unshaded && !daylight && !plan.night;
+  const form = !!ctx.formLit && (!ctx.unshaded || ctx.handoff === true) && !daylight && !plan.night;
   const formLamps = form ? [...lights, ...braziers, ...(dress ? dress.pools : [])] : null;
   const formTest = (ls) => {
     const occ = base.filter((f) => !GLASS.has(f.group) && !(typeof f.texture === 'string' && f.texture.startsWith('card:')) && !(dress && dress.shadowSkip(f)));
@@ -1156,7 +1156,8 @@ export function assembleStageScene(manifest = {}, ctx = {}) {
   const tuner = form && plan.compose ? keyTuner(plan) : null;
   const formLit = form ? formLightFaces(raw, formTest(formLamps), ambient, dirt(), { roomOf: (p) => roomAt(plan, p),
     ...(plan.tone ? { tone: plan.tone } : {}), ...(tuner ? { tune: tuner } : {}) }) : null;
-  const lit = ctx.unshaded
+  // (an engine handoff's room: its solved bases, the light apart, though the read is unshaded)
+  const lit = ctx.unshaded && !formLit
     ? raw.map(({ tint, top, ...f }) => (tint ? { ...f, fill: rgbHex(tint) } : f))
     : formLit ? formLit.faces
       : bakeStageLight(raw, (dress && dress.pools.length) || braziers.length ? [...shadowed([...lights, ...braziers]), ...(dress ? dress.pools : [])] : shadowed(lights), ambient, dirt(), sun);
