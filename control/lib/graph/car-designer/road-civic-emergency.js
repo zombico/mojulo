@@ -52,7 +52,7 @@ function fireEngine(cls) {
   const anchors = crewCab(out, { yb: ybc, yf: yfc, yN, hw: hwc, z0, z1, yR, raise: 0.25, roof: own('cab.roof', CC.white, 'milPaint') });
   out.push(...lightBar([0, yfc - 0.45, z1], { width: 1.8, colours: [CC.red, CC.lens] }));
   for (const s of [-1, 1]) out.push(...guard(yf, r, r + 0.09, 0.2, Math.PI - 0.2, ...xs(s, hwc - 0.38, hwc - 0.02), paint('guard')));
-  out.push(...band([-hwc - 0.004, yfc - 0.2, z0 + 0.12], neg(Y), Z, yfc - ybc - 0.3, 0.1, neg(X), own('cab.band', CC.reflWhite)), ...band([hwc + 0.004, ybc + 0.1, z0 + 0.12], Y, Z, yfc - ybc - 0.3, 0.1, X, own('cab.band', CC.reflWhite)));
+  out.push(...band([-hwc - 0.004, yfc - 0.2, z0 + 0.32], neg(Y), Z, yfc - ybc - 0.3, 0.06, neg(X), own('cab.band', CC.reflWhite)), ...band([hwc + 0.004, ybc + 0.1, z0 + 0.32], Y, Z, yfc - ybc - 0.3, 0.06, X, own('cab.band', CC.reflWhite)));
   // (its siren on the bumper)
   P({ axis: 'y', profile: rect(-0.5, -0.2, 0.36, 0.48), from: yN - 0.02, to: yN, look: M('siren', 'carbon', C.black) });
   // the pump panel behind the cab: its panel each side, its gauges, its discharges and their caps, the intake
@@ -96,7 +96,7 @@ function fireEngine(cls) {
     out.push(...tube([[s * (hb - 0.06), yB1 - 0.06, 1.3], [s * (hb - 0.06), yB1 - 0.06, 2.5]], 0.02, { sides: 6, look: alu('grab.rear') }));
   }
   P({ axis: 'z', profile: rect(-hb + 0.05, hb - 0.05, yT + 0.02, yB1), from: 0.62, to: 0.68, r: 0.01, seg: 1, look: alu('tailboard') });
-  anchors.push(...[-1, 1].flatMap((s) => sideAnchors(s, { flap: [s * v.track / 2, yr - r - 0.12, 0.8], mark: [s * (hwc + 0.004), ybc + 0.75, z0 + 0.65] })));
+  anchors.push(...[-1, 1].flatMap((s) => sideAnchors(s, { flap: [s * v.track / 2, yr - r - 0.12, 0.8], mark: [s * (hwc + 0.004), ybc + 0.75, z0 + 0.2] })));
   return { faces: out.filter(Boolean), anchors, zones: { floor: 0.98, tub: { x: hw, y: [yT, ybc], z: [0.6, 1.1] } } };
 }
 

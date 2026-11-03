@@ -114,7 +114,7 @@ function ladder(cls, { words = [], pose = {} } = {}) {
     const Ls = s < 0 ? 'L' : 'R', sd = s < 0 ? neg(X) : X;
     return [
       { id: `flap.${Ls}`, kind: 'flap', at: [s * v.track / 2, axles[2] - r - 0.12, 0.8], out: neg(Y), up: Z },
-      { id: `mark.${Ls}`, kind: 'mark', role: 'number', at: [s * (hwc + 0.004), ybc + 0.75, z0 + 0.62], out: sd, up: Z, h: 0.2 },
+      { id: `mark.${Ls}`, kind: 'mark', role: 'number', at: [s * (hwc + 0.004), ybc + 0.75, z0 + 0.2], out: sd, up: Z, h: 0.2 },
     ];
   }));
   return { faces: out.filter(Boolean), anchors, zones: { floor: 0.98, tub: { x: hw, y: [yT, ybc], z: [0.6, 1.1] } } };
