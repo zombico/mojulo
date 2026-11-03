@@ -15,7 +15,9 @@
  *       [{ side: ±1, s0, s1, id? }] its ways out as asked (the mezzanine's floor, or the platforms'), `mezzDepth` how
  *       far its mezzanine reaches along the hall; `ends` the ends its tracks run on through (its plan's by default: a
  *       through station at a line's end is closed there, its tracks at buffer stops); `ground` an open station's street
- *       over its track bed (a cut's: 5.65 m, its mezzanine at the street; an elevated one's: -8.55 m)
+ *       over its track bed (a cut's: 5.65 m, its mezzanine at the street; an elevated one's: -8.55 m); `street(x, s)`
+ *       the street under an elevated station where it falls (its piers and each flight's foot on it); `flightGap` how far
+ *       out from its side an elevated station's flights stand (a landing bridging to each)
  *   assembleStationScene(manifest, ctx) → the World payload of a stage recipe's `station`
  *
  *   { kind: 'stage', station: { plan?: 'island' | 'side' | 'terminus', line?: 'blue' | 'red' | 'green' | 'orange',
@@ -62,7 +64,7 @@ export function readStation(c = {}) {
   return c;
 }
 
-export function stationOf(c0 = {}, { id = 'station', at = [0, 0], z0 = 0, portals = {}, steps = [], exits = null, mezzDepth = STATION.depth, ends = null, ground = null } = {}) {
+export function stationOf(c0 = {}, { id = 'station', at = [0, 0], z0 = 0, portals = {}, steps = [], exits = null, mezzDepth = STATION.depth, ends = null, ground = null, street = null, flightGap = 0 } = {}) {
   const c = readStation(c0), planId = c.plan ?? 'island', P = STATION_PLANS[planId], line = LINES[c.line ?? 'blue'], len = c.length ?? 72;
   const hw = P.width / 2, H = P.height, PH = STATION.platform, X = (x) => at[0] + x, Y = (s) => at[1] + s;
   const W = ([x, s, z]) => [X(x), Y(s), z0 + z];
@@ -98,6 +100,9 @@ export function stationOf(c0 = {}, { id = 'station', at = [0, 0], z0 = 0, portal
   if (EL === 'cut' && !(zG >= PH + 4 - 1e-9 && zG <= PH + 12 + 1e-9)) throw new Error(`station: a cut station's street is 4 to 12 m over its platforms, not ${r5(zG - PH)}`);
   if (EL === 'elevated' && !(zG <= PH - STATION.under - 2.4 + 1e-9 && zG >= PH - STATION.under - 16 - 1e-9)) throw new Error(`station: an elevated station's street is 2.4 to 16 m under its station house, not ${r5(PH - STATION.under - zG)}`);
   const zM = EL === 'cut' ? zG : EL === 'elevated' ? PH - STATION.under : PH + STATION.mezz;
+  // (the street under an elevated station where it stands on it: its piers and posts down to it, each flight's foot on
+  // it; `street(x, s)` over its track bed where the street falls, else its level `ground`)
+  const gAt = (x, s) => (street ? street(x, s) : zG), clears = [];
   // (where a side wall stops: a deep hall's ceiling; a cut's retaining wall a railing over the street; an elevated
   // station's parapet a railing over its floor)
   const wallTop = (base) => (EL === 'cut' ? zG + STATION.rail : EL === 'elevated' ? base + STATION.rail : H);
@@ -217,7 +222,7 @@ export function stationOf(c0 = {}, { id = 'station', at = [0, 0], z0 = 0, portal
   const ways = doors.map(() => null), zones = [];
   if (airy) doors.forEach((d, i) => {
     const sg = d.side, sm = (d.s0 + d.s1) / 2, tag = `way-${i}`;
-    const port = (lo, hi, plane, N) => ({ id: d.id ?? `exit-${i}`, kind: 'walk', side: sg < 0 ? '-x' : '+x', lo: P3([X(lo[0]), Y(lo[1])]), hi: P3([X(hi[0]), Y(hi[1])]), plane: r5(plane), z0: r5(z0 + zG), top: 3, N, street: true });
+    const port = (lo, hi, plane, N, zf = zG) => ({ id: d.id ?? `exit-${i}`, kind: 'walk', side: sg < 0 ? '-x' : '+x', lo: P3([X(lo[0]), Y(lo[1])]), hi: P3([X(hi[0]), Y(hi[1])]), plane: r5(plane), z0: r5(z0 + zf), top: 3, N, street: true });
     if (EL === 'cut' && d.z0 === zG) {
       ways[i] = { tail: [pt3(sg * (hw + 1.5), sm, zG)], port: port([sg * (hw + 0.3), d.s0], [sg * (hw + 0.3), d.s1], X(sg * (hw + 0.3)), [sg, 0]) };
       return;
@@ -242,9 +247,14 @@ export function stationOf(c0 = {}, { id = 'station', at = [0, 0], z0 = 0, portal
       ways[i] = { full: (lane) => [pt3(lane, sF - dir * 2.5, PH), pt3(xm, sF - dir * 0.6, PH), ...F.pts.map((q) => pt3(...q)), pt3(xm, sm, zG), pt3(sg * (hw + 0.15), sm, zG), pt3(sg * (hw + 1.5), sm, zG)], port: port([sg * (hw + 0.3), d.s0], [sg * (hw + 0.3), d.s1], X(sg * (hw + 0.3)), [sg, 0]) };
       return;
     }
-    // (elevated: out through the parapet, or the station house's wall, onto a landing, and down the outside)
-    const zd = d.z0, xa = sg > 0 ? hw + 0.3 : -hw - 2.1, xb = sg > 0 ? hw + 2.1 : -hw - 0.3, xm = (xa + xb) / 2, xo = sg > 0 ? xb : xa;
-    const n = Math.ceil((zd - zG) / STATION.riser - 1e-9), run = n * STATION.going + (n > 24 ? 1.5 : 0), dir = d.s1 + run <= len + 6 ? 1 : -1, sA = dir > 0 ? d.s1 : d.s0;
+    // (elevated: out through the parapet, or the station house's wall, onto a landing, and down the outside: `flightGap`
+    // out from its side, the landing bridging to it, so its foot falls on a sidewalk)
+    const g0 = flightGap, zd = d.z0, xa = sg > 0 ? hw + 0.3 : -hw - 2.1 - g0, xb = sg > 0 ? hw + 2.1 + g0 : -hw - 0.3, fa = sg > 0 ? xa + g0 : xa, fb = sg > 0 ? xb : xb - g0, xm = (fa + fb) / 2, xo = sg > 0 ? xb : xa;
+    const rn = (z) => { const n = Math.ceil((zd - z) / STATION.riser - 1e-9); return n * STATION.going + (n > 24 ? 1.5 : 0); };
+    const dir = d.s1 + rn(zG) <= len + 6 ? 1 : -1, sA = dir > 0 ? d.s1 : d.s0;
+    // (its foot where the street is there: found again as the street's level there settles its run)
+    let zF = zG;
+    for (let k = 0; k < 3; k++) zF = gAt(xm, sA + dir * rn(zF));
     qz(zd, xa, xb, d.s0, d.s1, 1, 'stair', { hex: '#c9c2b4', g: 0.95 });
     qz(zd - 0.3, xa, xb, d.s0, d.s1, -1, 'soffit', { hex: '#6a6e74', g: 0.8 });
     qx(xo, d.s0, d.s1, zd - 0.3, zd, sg, 'stair-side', { hex: '#8a9096', g: 0.85 });
@@ -254,9 +264,10 @@ export function stationOf(c0 = {}, { id = 'station', at = [0, 0], z0 = 0, portal
     qs(back, xa, xb, zd + 0.9, zd + 1.0, dir, 'steel', { hex: '#b4b9be' });
     hold(xa, xb, back - 0.05, back + 0.05, zd, zd + STATION.rail, `${tag}-landing-end`);
     // (its posts: under the landing's outer corners down to the street)
-    for (const se of [d.s0 + 0.15, d.s1 - 0.15]) { box(xo - sg * 0.3 - 0.12, xo - sg * 0.3 + 0.12, se - 0.12, se + 0.12, zG, zd - 0.3, 'pier', { hex: '#56616a', g: 0.85 }); hold(xo - sg * 0.3 - 0.12, xo - sg * 0.3 + 0.12, se - 0.12, se + 0.12, zG, zd - 0.3, `${tag}-post-${Math.round(se * 10)}`); }
-    const F = flight(xa, xb, sA, dir, zd, zG, tag, 0);
-    ways[i] = { tail: [pt3(xm, sm, zd), ...F.pts.map((q) => pt3(...q)), pt3(xm, F.end + dir * 1.5, zG)], port: port([xa, F.end], [xb, F.end], Y(F.end), [0, dir]) };
+    for (const se of [d.s0 + 0.15, d.s1 - 0.15]) { const zp = gAt(xo - sg * 0.3, se); box(xo - sg * 0.3 - 0.12, xo - sg * 0.3 + 0.12, se - 0.12, se + 0.12, zp, zd - 0.3, 'pier', { hex: '#56616a', g: 0.85 }); hold(xo - sg * 0.3 - 0.12, xo - sg * 0.3 + 0.12, se - 0.12, se + 0.12, zp, zd - 0.3, `${tag}-post-${Math.round(se * 10)}`); }
+    const F = flight(fa, fb, sA, dir, zd, zF, tag, 0);
+    clears.push([xa, Math.min(d.s0, F.end), xb, Math.max(d.s1, F.end)]);
+    ways[i] = { tail: [pt3(xm, sm, zd), ...F.pts.map((q) => pt3(...q)), pt3(xm, F.end + dir * 1.5, gAt(xm, F.end + dir * 1.5))], port: port([fa, F.end], [fb, F.end], Y(F.end), [0, dir], zF) };
   });
   const layers = (base) => [
     ...(base < PH ? [{ z0: base, z1: PH, hex: '#55524d', g: 0.85, group: 'concrete' }] : []),
@@ -421,9 +432,9 @@ export function stationOf(c0 = {}, { id = 'station', at = [0, 0], z0 = 0, portal
           if (d) { qz(zb, Math.min(sg * hw, sg * (hw + 0.3)), Math.max(sg * hw, sg * (hw + 0.3)), s0, s1, -1, 'house', { hex: '#56616a', g: 0.8 }); }
           hold(sg * hw, sg * (hw + 0.3), s0, s1, zb, zc, `house-${sg < 0 ? 'L' : 'R'}-${i}`);
         }
-        for (const se of [m0 + 0.3, m1 - 0.3]) box(sg * (hw - 0.3) - 0.2, sg * (hw - 0.3) + 0.2, se - 0.2, se + 0.2, zG, zM - sl, 'pier', { hex: '#56616a', g: 0.85 });
+        for (const se of [m0 + 0.3, m1 - 0.3]) box(sg * (hw - 0.3) - 0.2, sg * (hw - 0.3) + 0.2, se - 0.2, se + 0.2, gAt(sg * (hw - 0.3), se), zM - sl, 'pier', { hex: '#56616a', g: 0.85 });
       }
-      for (const sg of [-1, 1]) for (const se of [m0 + 0.3, m1 - 0.3]) hold(sg * (hw - 0.3) - 0.2, sg * (hw - 0.3) + 0.2, se - 0.2, se + 0.2, zG, zM - sl, `house-post-${sg < 0 ? 'L' : 'R'}-${Math.round(se * 10)}`);
+      for (const sg of [-1, 1]) for (const se of [m0 + 0.3, m1 - 0.3]) hold(sg * (hw - 0.3) - 0.2, sg * (hw - 0.3) + 0.2, se - 0.2, se + 0.2, gAt(sg * (hw - 0.3), se), zM - sl, `house-post-${sg < 0 ? 'L' : 'R'}-${Math.round(se * 10)}`);
     }
     stair = { foot, edge, out, n, rise };
   }
@@ -460,8 +471,8 @@ export function stationOf(c0 = {}, { id = 'station', at = [0, 0], z0 = 0, portal
     if (well) { qz(zd, X0, -sw, 0, len, -1, 'deck', o); qz(zd, sw, X1, 0, len, -1, 'deck', o); qz(zd, -sw, sw, 0, well[0], -1, 'deck', o); qz(zd, -sw, sw, well[1], len, -1, 'deck', o); }
     else qz(zd, X0, X1, 0, len, -1, 'deck', o);
     for (let s = 6; s < len; s += 12) {
-      if (mz && s > mz[0] - 1 && s < mz[1] + 1) continue;
-      for (const cx of [-hw + 0.6, hw - 0.6]) { box(cx - 0.35, cx + 0.35, s - 0.35, s + 0.35, zG, zd - 0.6, 'pier', { hex: '#56616a', g: 0.85 }); hold(cx - 0.35, cx + 0.35, s - 0.35, s + 0.35, zG, zd - 0.6, `pier-${cx < 0 ? 'L' : 'R'}-${s}`); }
+      if ((mz && s > mz[0] - 1 && s < mz[1] + 1) || (well && s > well[0] - 0.6 && s < well[1] + 0.6)) continue;
+      for (const cx of [-hw + 0.6, hw - 0.6]) { const zp = gAt(cx, s); box(cx - 0.35, cx + 0.35, s - 0.35, s + 0.35, zp, zd - 0.6, 'pier', { hex: '#56616a', g: 0.85 }); hold(cx - 0.35, cx + 0.35, s - 0.35, s + 0.35, zp, zd - 0.6, `pier-${cx < 0 ? 'L' : 'R'}-${s}`); }
       box(X0, X1, s - 0.4, s + 0.4, zd - 0.6, zd, 'pier', { hex: '#4a545c', g: 0.85 });
       qz(zd - 0.6, X0, X1, s - 0.4, s + 0.4, -1, 'pier', { hex: '#3e474e', g: 0.8 });
     }
@@ -536,7 +547,7 @@ export function stationOf(c0 = {}, { id = 'station', at = [0, 0], z0 = 0, portal
   return {
     id, plan: planId, faces, colliders, ports, routes, cameras, box: { min: P3(lo), max: P3(hi) },
     // (an open station's street: its level, and the cut it stands in, a hole in the street's ground)
-    ...(airy ? { street: { z: r5(z0 + zG), hole: EL === 'cut' ? [...P3([X(-hw - 0.3), Y(-0.3)]), ...P3([X(hw + 0.3), Y(len + 0.3)])] : null } } : {}),
+    ...(airy ? { street: { z: r5(z0 + zG), hole: EL === 'cut' ? [...P3([X(-hw - 0.3), Y(-0.3)]), ...P3([X(hw + 0.3), Y(len + 0.3)])] : null, clear: clears.map(([a, b, c2, e]) => [...P3([X(Math.min(a, c2)), Y(Math.min(b, e))]), ...P3([X(Math.max(a, c2)), Y(Math.max(b, e))])]) } } : {}),
     readout: { plan: planId, line: c.line ?? 'blue', length: len, platforms: P.platforms.length, tracks: P.tracks.length, portals: ports.tracks.length, exits: ports.walks.length, tunnel: P.tunnel, ...(train ? { train } : {}), ...(airy ? { elevation: EL, street: r5(z0 + zG) } : {}) },
   };
 }

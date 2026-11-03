@@ -74,9 +74,11 @@
  *                   (geocity/podium.js), and the passages under the streets between their concourses (geocity/tunnels.js);
  *                   `at` one tower or podium block's alone, no passage
  *
- *     subway        true | { along?, stations?, plan?, line?, depth?, gap?, tunnels? }: an evocation's subway line under one of its
- *                   arterials (the spine by default), its stations in a row under the street, joined by running
- *                   tunnels, each station's way out a stair up to the sidewalk (geocity/subway.js, network/subway.js)
+ *     subway        true | { along?, stations?, plan?, line?, depth?, gap?, tunnels?, elevation? }: an evocation's subway line
+ *                   under one of its arterials (the spine by default), its stations in a row under the street, joined by
+ *                   running tunnels, each station's way out a stair up to the sidewalk (geocity/subway.js,
+ *                   network/subway.js); `elevation` 'deep' | 'elevated', or one a station: an elevated station over the
+ *                   street on its piers, the line an el between two, diving to the subway where it meets a deep one
  *   readGeocity(spec) → { metro: { id, …card }, grammar, pattern, hills, evoke, at, along, play, geotowns, under?, subway? }
  *
  * Metres throughout. Anything off the card is refused by name; nothing here rolls a die.
@@ -165,7 +167,8 @@ const KEYS = Object.freeze(['metro', 'extent', 'water', 'core', 'fall', 'hills',
 // (how the recipe is told, and what it composes, not a setting of its metro)
 const TOLD = Object.freeze(['evoke', 'at', 'along', 'play', 'geotowns', 'under', 'subway']);
 // a subway line under an evocation's street (geocity/subway.js): its settings
-const SUBWAY_KEYS = Object.freeze(['along', 'stations', 'plan', 'line', 'depth', 'gap', 'tunnels']);
+const SUBWAY_KEYS = Object.freeze(['along', 'stations', 'plan', 'line', 'depth', 'gap', 'tunnels', 'elevation']);
+const CITY_ELEVATIONS = Object.freeze(['deep', 'elevated']);
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const no = (msg) => { throw new Error(`geocity: ${msg}`); };
@@ -286,6 +289,8 @@ export function readGeocity(spec = {}) {
     for (const k of Object.keys(subway)) if (!SUBWAY_KEYS.includes(k)) no(`subway.${k} is not a setting (${SUBWAY_KEYS.join(', ')})`);
     if (subway.along !== undefined && (typeof subway.along !== 'string' || !/^(spine|(ns|ew)(-spine|-[0-9]+))$/.test(subway.along))) no("subway.along names an arterial ('ns-2', 'ew-0'), or 'spine', 'ns-spine', 'ew-spine'");
     if (subway.stations !== undefined && !(Number.isInteger(subway.stations) && subway.stations >= 1 && subway.stations <= 4)) no('subway.stations is 1 to 4');
+    const els = subway.elevation === undefined ? [] : Array.isArray(subway.elevation) ? subway.elevation : [subway.elevation];
+    if (els.some((e) => !CITY_ELEVATIONS.includes(e)) || (Array.isArray(subway.elevation) && subway.elevation.length !== (subway.stations ?? 2))) no(`subway.elevation is ${CITY_ELEVATIONS.map((e) => `'${e}'`).join(' | ')}, or one a station (${subway.stations ?? 2}): a station in a cut is a stage's, not a city's`);
     if (subway.tunnels !== undefined && !['real', 'teleport'].includes(subway.tunnels)) no("subway.tunnels is 'real' (walked from one platform to the next) or 'teleport' (a stub out of each station, a warp to the next's platform, its arrival shown)");
     if (!['neighbourhood', 'segment', 'corridor'].includes(evoke)) no('subway is an evocation\'s (a neighbourhood, a corridor or a segment): it is walked, drawn at a building\'s detail');
   }

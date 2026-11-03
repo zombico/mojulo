@@ -20,7 +20,10 @@
  *       one level or each station's own (the tunnels between graded),
  *       `ground(x, y)` the street over it (0), `entrance` 'pavilion' (a glass pavilion out from each way out) or 'sidewalk'
  *       (a stair up along the street to the sidewalk `out` m off its middle); `exits` { <station id>: [{ side, s0, s1,
- *       id }] } each station's ways out (an id `path-…` another network meets: no entrance), `mezzDepth` its mezzanines'   placed, joined: each tunnel its passage, its walkway's side, and
+ *       id }] } each station's ways out (an id `path-…` another network meets: no entrance); `street(x, y)` the street
+ *       itself where it differs from `ground` (an elevated station's piers and flights, an open run's columns on it),
+ *       `gaps` the least gap before each next station, `flightGap` an elevated station's flights out from its side;
+ *       `mezzDepth` its mezzanines'   placed, joined: each tunnel its passage, its walkway's side, and
  *       its walk from one platform to the next (`walk`: down the steps cut in the first's platform end, along the
  *       walkway, up the steps of the next's)
  *   assembleSubwayScene(manifest, ctx) → the World payload: the street over it all, each station, each tunnel, each
@@ -109,7 +112,7 @@ function fitTunnels(P, S) {
   });
 }
 
-export function laySubway(c0, { z0: zBed = null, ground = () => 0, entrance = 'pavilion', out = null, kerb = null, exits = {}, mezzDepth } = {}) {
+export function laySubway(c0, { z0: zBed = null, ground = () => 0, street = null, gaps: least = null, flightGap = 0, entrance = 'pavilion', out = null, kerb = null, exits = {}, mezzDepth } = {}) {
   // (its track bed: one level, or each station's own, the tunnels graded between them)
   const c = readSubway(c0), gap = c.gap ?? 120, depth = c.depth ?? 14, zs = c.stations.map((_, i) => (Array.isArray(zBed) ? zBed[i] : zBed ?? -depth));
   const plans = c.stations.map((s) => STATION_PLANS[s.plan ?? 'island']), S = readSection(plans[0].tunnel), fits = fitTunnels(plans[0], S);
@@ -126,7 +129,7 @@ export function laySubway(c0, { z0: zBed = null, ground = () => 0, entrance = 'p
     y += s.length ?? 72;
     if (i + 1 < c.stations.length) {
       const nx = c.stations[i + 1], zn = openAt(i + 1) ? ground(0, y + gap + (nx.length ?? 72) / 2) + OPEN_BED[nx.elevation] : zs[i + 1];
-      gaps.push(Math.max(gap, Math.ceil(Math.abs(zn - zs[i]) / S.grade - 1e-9)));
+      gaps.push(Math.max(least?.[i] ?? gap, Math.ceil(Math.abs(zn - zs[i]) / S.grade - 1e-9)));
       y += gaps[i];
     }
   });
@@ -137,11 +140,12 @@ export function laySubway(c0, { z0: zBed = null, ground = () => 0, entrance = 'p
     const portals = Object.fromEntries(ends.map((e) => [e, fits.map((f) => f.span)]));
     const steps = ends.flatMap((e) => fits.map((f) => ({ end: e, x0: f.walk[0], x1: f.walk[1] })));
     const { id: sid, ...settings } = s;
-    return stationOf({ ...settings, ...(s.line === undefined && c.line !== undefined ? { line: c.line } : {}) }, { id: sid, at: [0, ys[i]], z0: zs[i], portals, steps, ends, ...(exits[sid] ? { exits: exits[sid] } : {}), ...(mezzDepth ? { mezzDepth } : {}), ...(openAt(i) ? { ground: r5(ground(0, ys[i] + len / 2) - zs[i]) } : {}) });
+    return stationOf({ ...settings, ...(s.line === undefined && c.line !== undefined ? { line: c.line } : {}) }, { id: sid, at: [0, ys[i]], z0: zs[i], portals, steps, ends, ...(exits[sid] ? { exits: exits[sid] } : {}), ...(mezzDepth ? { mezzDepth } : {}), ...(openAt(i) ? { ground: r5(ground(0, ys[i] + len / 2) - zs[i]), ...(street && s.elevation === 'elevated' ? { street: (x, sy) => street(x, ys[i] + sy) - zs[i] } : {}), ...(flightGap ? { flightGap } : {}) } : {}) });
   });
   // the running tunnels: from each station's +y end to the next's -y end, one a group of tracks (or, a teleport's, a
   // stub out of each end into the dark, its warp's zone near its end sending the walker to the next's platform)
-  const over = (x, y) => ({ z: ground(x, y), under: 'ground' }), tunnels = [], stubs = [], warps = [];
+  // (what stands over a run: the street's ground over it; an open run's, the street itself, its columns stood on it)
+  const over = (x, y) => ({ z: ground(x, y), under: 'ground' }), overOpen = street ? (x, y) => ({ z: street(x, y), under: 'ground' }) : over, tunnels = [], stubs = [], warps = [];
   if (c.tunnels === 'teleport') for (let i = 0; i + 1 < stations.length; i++) {
     const A = stations[i], B = stations[i + 1], yA = A.box.max[1], yB = B.box.min[1], len = Math.min(STUB.length, (yB - yA - 10) / 2);
     fits.forEach((f, k) => {
@@ -150,7 +154,7 @@ export function laySubway(c0, { z0: zBed = null, ground = () => 0, entrance = 'p
         // (its walkway on the same side of the street both ways: a stub run the other way has its left on the other side)
         const id = `${St.id}-to-${To.id}${fits.length > 1 ? `-${k}` : ''}`, yE = y0 + dir * len;
         const a = { z0: zi, lo: [f.span[0], y0], hi: [f.span[1], y0], top: STATION.portal, plane: y0 }, b = { z0: zi, lo: [f.axis, yE], hi: [f.axis, yE], top: 0, plane: yE };
-        const T = passageOf({ id, path: [[f.axis, y0], [f.axis, yE]], a, b, section: S, over, look: { light: 0.4 }, prefix: 'subway', walkSide: dir > 0 ? f.ws : -f.ws, ...(openAt(stations.indexOf(St)) ? { open: true } : {}) });
+        const T = passageOf({ id, path: [[f.axis, y0], [f.axis, yE]], a, b, section: S, over: openAt(stations.indexOf(St)) ? overOpen : over, look: { light: 0.4 }, prefix: 'subway', walkSide: dir > 0 ? f.ws : -f.ws, ...(openAt(stations.indexOf(St)) ? { open: true } : {}) });
         const sa = stepOf(St, endFrom), sb = stepOf(To, endTo), zone = T.line.filter((p) => Math.abs(p[1] - (yE - dir * STUB.zone)) < 1.01).at(-1) ?? T.line.at(-2);
         const at = [zone[0], yE - dir * STUB.zone, zone[2]];
         // (it sends the walker to the next station's platform end, a step in from its steps' top, on that platform's
@@ -168,7 +172,7 @@ export function laySubway(c0, { z0: zBed = null, ground = () => 0, entrance = 'p
       const end = (yy, z) => ({ z0: z, lo: [f.span[0], yy], hi: [f.span[1], yy], top: STATION.portal, plane: yy });
       const id = `${A.id}-${B.id}${fits.length > 1 ? `-${k}` : ''}`;
       // (a run out of or into an open station rises out of the ground: tunnel, cut, grade or viaduct where it lies)
-      const T = passageOf({ id, path: [[f.axis, yA], [f.axis, yB]], a: end(yA, zs[i]), b: end(yB, zs[i + 1]), section: S, over, look: { light: 0.4 }, prefix: 'subway', walkSide: f.ws, ...(openAt(i) || openAt(i + 1) ? { open: true } : {}) });
+      const T = passageOf({ id, path: [[f.axis, yA], [f.axis, yB]], a: end(yA, zs[i]), b: end(yB, zs[i + 1]), section: S, over: openAt(i) || openAt(i + 1) ? overOpen : over, look: { light: 0.4 }, prefix: 'subway', walkSide: f.ws, ...(openAt(i) || openAt(i + 1) ? { open: true } : {}) });
       // (its walk: down A's steps, along its walkway, up B's)
       const sa = A.routes.steps.find((q) => q.end === '+y' && Math.abs(q.foot[0] - (f.walk[0] + f.walk[1]) / 2) < 1e-3), sb = B.routes.steps.find((q) => q.end === '-y' && Math.abs(q.foot[0] - (f.walk[0] + f.walk[1]) / 2) < 1e-3);
       tunnels.push({ ...T, a: A.id, b: B.id, axis: f.axis, walkSide: f.ws, walk: [sa.top, sa.foot, ...T.line, sb.foot, sb.top] });

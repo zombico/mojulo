@@ -2,7 +2,9 @@
 // default the flatter spine over its span, turned to that street's axis), its stations under the carriageway at their
 // own depth under the street over them, its tunnels graded between them, each station's way out a stair up to the
 // sidewalk through a well cut in the walk; walked along each platform, from one platform to the next, and from a
-// platform up to the sidewalk, and back.
+// platform up to the sidewalk, and back. And an EL (`subway.elevation`): its stations over the street on their piers, its
+// flights down to each sidewalk, nothing of the street's standing under it; a line that dives from the el to a deep
+// station through a cut in the road.
 import { describe, it, expect } from 'vitest';
 import { assembleGeocityScene } from './scene.js';
 import { designGeocity } from './design.js';
@@ -123,5 +125,64 @@ describe('a subway under an evocation\'s street', () => {
     const G = { ...M, geocity: { ...geocity, evoke: 'neighbourhood' }, level: {} };
     expect(withBuildingLevel(G, 'ref')).toBe(G);
     expect(() => assembleGeocityScene({ ...M, geocity: { ...geocity, evoke: 'metro', subway: true } })).toThrow(/subway is an evocation's/);
+  });
+});
+
+describe('an el over an evocation\'s street', () => {
+  const N = assembleGeocityScene({ ...M, geocity: { ...geocity, evoke: 'neighbourhood', subway: { elevation: 'elevated' } } }), U = N.geocity.subway;
+  const d = designGeocity({ ...geocity, evoke: 'neighbourhood', subway: { elevation: 'elevated' } }, { seed: 2 }), l = d.lines.find((x) => x.id === U.along), across = l.axis === 'ns' ? 0 : 1;
+  const of = (k) => N.anchors.filter((a) => a.kind === k), S = d.land.S;
+
+  it('stands its stations over the street on their piers, its line an el between them, no entrance and no well', () => {
+    expect(U.stations.every((s) => s.elevation === 'elevated')).toBe(true);
+    for (const r of U.runs) { expect(r.spans.viaduct).toBeCloseTo(r.length, 5); expect(r.grade).toBeLessThanOrEqual(1 / 30 + 1e-6); }
+    expect(of('entrance')).toEqual([]);
+    expect(N.faces.some((f) => f.group === 'subway:entrance-stair')).toBe(false);
+    // (its platforms over the carriageway; its piers held on the road under them)
+    for (const s of of('station')) for (const p of s.platforms.flat()) { expect(Math.abs(p[across] - l.at)).toBeLessThan(l.road / 2); expect(p[2] - S(p[0], p[1])).toBeGreaterThan(8); }
+    const piers = N.colliders.filter((c) => /^subway:.*:pier-/.test(c.of));
+    expect(piers.length).toBeGreaterThan(0);
+    for (const c of piers) expect(c.min[2]).toBeCloseTo(S((c.min[0] + c.max[0]) / 2, (c.min[1] + c.max[1]) / 2), 0);
+  });
+
+  it('takes each way out down a flight onto a sidewalk, and keeps the street\'s lamps, poles, wires and trees out from under it', () => {
+    for (const s of of('station')) for (const u of s.up) {
+      const foot = u.at(-1), off = Math.abs(foot[across] - l.at);
+      expect(off).toBeGreaterThan(l.road / 2);
+      expect(off).toBeLessThan(l.half);
+    }
+    // (the el's plan over the street: its stations' boxes and its viaducts; nothing of the street's standing in it)
+    const lo = Math.min(...of('station').flatMap((s) => s.platforms.flat().map((p) => p[1 - across]))) - 10, hi = Math.max(...of('station').flatMap((s) => s.platforms.flat().map((p) => p[1 - across]))) + 10;
+    for (const r of N.repeats ?? []) for (const t of r.transforms) {
+      const a = t.pos[1 - across], c = Math.abs(t.pos[across] - l.at);
+      expect(a > lo && a < hi && c < 8 && t.pos[2] > S(t.pos[0], t.pos[1]) + 3, `${r.group} at ${t.pos}`).toBe(false);
+    }
+  });
+
+  it('is walked along its platforms, along each run\'s walkway, and down to each sidewalk, and back', () => {
+    const walk = walker(N);
+    for (const r of [...of('station').flatMap((s) => [...s.platforms, ...s.up]), ...of('rail-tunnel').map((t) => t.walk)]) for (const pts of [r, r.slice().reverse()]) {
+      const w = walk(pts);
+      expect({ steepest: w.steepest <= 0.36, crossed: w.crossed, gaps: w.gaps, boxes: w.boxes }).toEqual({ steepest: true, crossed: [], gaps: [], boxes: [] });
+    }
+  });
+
+  it('dives from the el to a deep station through a cut in the road, its gap lengthened for the fall, played as a level', () => {
+    const sub = { stations: 3, elevation: ['elevated', 'elevated', 'deep'] }, T = { ...M, geocity: { ...geocity, evoke: 'neighbourhood', subway: sub }, level: {} };
+    const P = assembleGeocityScene(T), V = P.geocity.subway, dive = V.runs.at(-1);
+    expect(V.gaps.at(-1)).toBeGreaterThan(V.gap);
+    expect(dive.spans.viaduct).toBeGreaterThan(0);
+    expect(dive.spans.cut).toBeGreaterThan(0);
+    expect(dive.spans.tunnel).toBeGreaterThan(0);
+    // (the deep station's way out up its sidewalk entrance; the road open over the cut: no road over its track there)
+    expect(P.anchors.filter((a) => a.kind === 'entrance').every((e) => e.station === P.anchors.filter((a) => a.kind === 'station').at(-1).id)).toBe(true);
+    const t = P.anchors.filter((a) => a.kind === 'rail-tunnel').at(-1), inCut = t.walk.filter((p) => p[2] < S(p[0], p[1]) - 1 && p[2] > S(p[0], p[1]) - 5);
+    expect(inCut.length).toBeGreaterThan(0);
+    const roadOver = (p) => P.faces.some((f) => /geocity:(road|asphalt|lane)/.test(f.group) && f.corners.every((c) => c[2] > p[2] + 2) && [0, 1].every((k) => p[k] > Math.min(...f.corners.map((c) => c[k])) + 1e-6 && p[k] < Math.max(...f.corners.map((c) => c[k])) - 1e-6));
+    for (const p of inCut.filter((_, i) => i % 10 === 0)) expect(roadOver(p)).toBe(false);
+    const L = withBuildingLevel(T, 'ref'), exit = L.game.mechanics.find((m) => m.kind === 'reach-exit'), w = walker(P)(exit.via);
+    expect({ steepest: w.steepest <= 0.36, crossed: w.crossed, gaps: w.gaps, boxes: w.boxes }).toEqual({ steepest: true, crossed: [], gaps: [], boxes: [] });
+    expect(() => assembleGeocityScene({ ...M, geocity: { ...geocity, evoke: 'neighbourhood', subway: { elevation: 'cut' } } })).toThrow(/a station in a cut is a stage's, not a city's/);
+    expect(() => assembleGeocityScene({ ...M, geocity: { ...geocity, evoke: 'neighbourhood', subway: { elevation: ['elevated'] } } })).toThrow(/or one a station \(2\)/);
   });
 });

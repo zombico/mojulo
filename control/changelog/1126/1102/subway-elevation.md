@@ -40,3 +40,17 @@
   - New cameras: each open station from its street, and the line rising out of the ground.
   - Walked through every run, down the cut's stairs and the el's flights; played as a level from the deep platform
     to the street under the el. A line of deep stations is laid as before, byte for byte.
+- **The el in the geocity** (`geocity.subway.elevation: 'elevated'`, or a list with one word a station, `'deep'` or
+  `'elevated'`; geocity/subway.js). An elevated station stands over the avenue's carriageway on piers, each pier on the
+  road under it where the street falls. Its flights stand out over the kerb (`flightGap`), so each lands on a sidewalk,
+  their feet on the street there. Between two elevated stations the line is an el on its viaduct.
+  - Where an el meets a deep station, the line dives through a cut in the road (the road opened over it) into its
+    tunnel. The city's plan settles the line's spacing with the gaps lengthened to the rail's grade, and hands them to
+    the line.
+  - Nothing of the street's stands under the el: its lamps, poles, signs and a streetcar's wires are checked along their
+    span, and trees by their crowns. An elevated station is no node of the network under the city.
+  - New cameras `subway-el` (the el from the far sidewalk) and `subway-rise` (the dive, from over the kerb lane).
+  - A station in a cut stays a stage's: a city's sloping street cannot keep a level retaining wall, and a cut is refused
+    by name.
+  - Walked along the el's platforms, its viaduct's walkway and down each flight to the sidewalk, and back; a line that
+    dives from the el to a deep station is played as a level to the street. A deep line under the city is laid as before.

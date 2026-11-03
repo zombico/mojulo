@@ -834,11 +834,15 @@ export function assembleGeocityScene(m, ctx = {}) {
   if (SUBP && !SUB) SUB = subwayUnder(d, { S, kerb: KERB, plan: SUBP });
   const streetcars = [];
   if (SUB) {
-    for (const R of SUB.wells) groundCut(R, () => false);
-    // (nothing of the street's stands in a stairwell: its trees, its lamps, poles and signs kept out of each, by a margin)
-    const inWell = (x, y) => SUB.wells.some((R) => x > R[0] - 0.6 && x < R[2] + 0.6 && y > R[1] - 0.6 && y < R[3] + 0.6);
-    for (const [k, list] of stamps) stamps.set(k, list.filter((t) => !inWell(t.pos[0], t.pos[1])));
-    for (const [k, list] of trees) trees.set(k, list.filter((t) => !inWell(t.x, t.y)));
+    for (const R of [...SUB.wells, ...SUB.openings]) groundCut(R, () => false);
+    // (nothing of the street's stands in a stairwell or a run's cut: its trees, its lamps, poles and signs kept out of
+    // each, by a margin; nor under an el, its stations, its flights and its viaducts over the street)
+    const inR = (Rs, m) => (x, y) => Rs.some((R) => x > R[0] - m && x < R[2] + m && y > R[1] - m && y < R[3] + m);
+    const inWell = inR([...SUB.wells, ...SUB.openings], 0.6), underEl = inR(SUB.overhead, 1), crownEl = inR(SUB.overhead, 3);
+    // (a wire's span checked along its length: a streetcar's contact wire under an el stops short of it)
+    const along = (t, f) => { const L = t.scale?.[0] ?? 0, c = Math.cos(t.rotZ ?? 0), sn = Math.sin(t.rotZ ?? 0); for (let u = -L; u <= L + 1e-6; u += 2) if (f(t.pos[0] + c * u, t.pos[1] + sn * u)) return true; return false; };
+    for (const [k, list] of stamps) stamps.set(k, list.filter((t) => !inWell(t.pos[0], t.pos[1]) && !(k === 'wire' && SUB.overhead.length ? along(t, underEl) : underEl(t.pos[0], t.pos[1]))));
+    for (const [k, list] of trees) trees.set(k, list.filter((t) => !inWell(t.x, t.y) && !crownEl(t.x, t.y)));
     // the streetcars across it: on each streetcar line crossing its street along its run, the metro's own streetcar at
     // the stop each way past the crossing (geocity/streetcar.js)
     const run = SUB.span, o = SUB.line;
