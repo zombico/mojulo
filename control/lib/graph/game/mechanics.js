@@ -17,6 +17,7 @@
  */
 import { heldVar, itemKey } from '../playscape/ui/items.js';
 import { lowerEscapeRoom } from './escape-room.js';
+import { lowerTrade, lowerCargo, lowerBounty, lowerDeliver } from './errand-mechanics.js';
 
 const ARRAY_CHANNELS = ['entities', 'timers', 'reactions', 'watches', 'inputs', 'hud', 'sources', 'sequences', 'initial'];
 
@@ -916,6 +917,13 @@ const MECHANICS = {
       };
     },
   },
+
+  // THE ERRAND'S verbs (game/errand-mechanics.js): a place an item is had (its price spent), a carried item's condition
+  // (fragile, perishable), a foe's fall dropping its proof, the giver's hand-in and its reward; each on the bag's guarded transfer, so what is carried rides the store
+  trade: { role: 'emitter', requires: ['inventory'], lower: lowerTrade },
+  cargo: { role: 'emitter', requires: ['inventory'], lower: lowerCargo },
+  bounty: { role: 'emitter', requires: ['inventory'], lower: lowerBounty },
+  deliver: { role: 'terminal', ends: ['success'], requires: ['inventory'], lower: lowerDeliver },
 
   // the PARTY carried (an emitter): the battle party of play.rpg (playscape/rpg) goes from level to level in a party
   // slice: each member's level, xp, hp, mp, class, class ranks and points, and the skills learned (the kernel's save:

@@ -72,7 +72,7 @@ describe('create_sprite_sheet + bake_sprite_sheet', () => {
     expect(res.kind).toBe('sprite-sheet');
     expect(res.frames).toEqual(['idle', 'walk-1', 'walk-2']);
     expect(res.targets[0]).toBe('frame-idle'); // base first
-    expect(res.next).toMatch(/request_image_render/);
+    expect(res.next).toMatch(/render_handoff \{ medium: 'image', op: 'request'/);
     expect(res.next).toMatch(/bake_sprite_sheet/);
     const row = SketchRepository.getByRef(res.ref);
     expect(row.manifest.kind).toBe('sprite-sheet');

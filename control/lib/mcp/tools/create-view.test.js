@@ -187,15 +187,12 @@ describe('compose_world bases (identity adapters)', () => {
   });
 });
 
-describe('deprecated aliases', () => {
-  it('retired names resolve in tools/call but are absent from tools/list', async () => {
-    const { ensureToolsRegistered, listTools, invokeRegisteredTool, isToolListed } = await import(
-      '@/lib/mcp/server'
-    );
+describe('the retired per-kind names', () => {
+  it('are gone (1.0.0 and 1.x folds), and the doors make what they made', async () => {
+    const { ensureToolsRegistered, invokeRegisteredTool, hasRegisteredTool } = await import('@/lib/mcp/server');
     await ensureToolsRegistered();
-    const listedNames = new Set(listTools().map((t) => t.name));
     const retired = [
-      ...Object.values(VIEW_KINDS).map((e) => e.retired),
+      ...Object.values(VIEW_KINDS).map((e) => e.retired).filter(Boolean),
       'create_fractal_city',
       'create_transportation_hub',
       'create_controllable_world',
@@ -203,12 +200,9 @@ describe('deprecated aliases', () => {
       'create_planetary',
       'create_painted_landscape',
     ];
-    for (const name of retired) {
-      expect(listedNames.has(name), `${name} should be unlisted`).toBe(false);
-      expect(isToolListed(name)).toBe(false);
-    }
-    // And one executes end-to-end through the registry path.
-    const res = await invokeRegisteredTool('create_fission_view', { title: 'alias smoke' }, {});
+    for (const name of retired) expect(hasRegisteredTool(name), `${name} registered`).toBe(false);
+    // create_view makes the kind an old name made, end to end through the registry.
+    const res = await invokeRegisteredTool('create_view', { kind: 'fission', title: 'door smoke' }, {});
     expect(res.ok).toBe(true);
     expect(res.recipe.kind).toBe('fission-view');
   });

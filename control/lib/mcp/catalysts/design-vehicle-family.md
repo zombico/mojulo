@@ -2,7 +2,7 @@
 {
   "id": "design-vehicle-family",
   "name": "Populate a vehicle fleet library",
-  "summary": "Add to the vehicle libraries the world-populators sample. A new vehicle is a ROW in the vehicle registry first (vehicle-registry/roster.js: its words, realm, role, eras, uses and its keys into the tables that build it), then its build; a new aircraft livery scheme, a car paint, a tuned frame preset within an existing family (fixed-wing-aircraft / ground-car / ground-box), or a THEME for the race machines (racer / supercar, a card the user writes with no source edit) decorates a row that exists. Find the row, author the candidate, eyeball it with mint_solid { kind: 'vehicle', spec: { vehicle } }, then commit it so it flows into create_transportation_hub automatically. The THIRD sensibility above the workbench: author a FAMILY entry (a generator input), not a single artifact.",
+  "summary": "Add to the vehicle libraries the world-populators sample. A new vehicle is a ROW in the vehicle registry first (vehicle-registry/roster.js: its words, realm, role, eras, uses and its keys into the tables that build it), then its build; a new aircraft livery scheme, a car paint, a tuned frame preset within an existing family (fixed-wing-aircraft / ground-car / ground-box), or a THEME for the race machines (racer / supercar, a card the user writes with no source edit) decorates a row that exists. Find the row, author the candidate, eyeball it with mint_solid { kind: 'vehicle', spec: { vehicle } }, then commit it so it flows into compose_world's `transport-hub` base automatically. The THIRD sensibility above the workbench: author a FAMILY entry (a generator input), not a single artifact.",
   "valueHook": "Design a new airline livery or a regional-jet preset once and the airport starts spawning it — the fleet derives from the registry, so a new entry needs no populator edit.",
   "version": 1,
   "category": "world-building",
@@ -12,7 +12,7 @@
     { "name": "intent", "prompt": "What are you adding to the fleet libraries? (e.g. 'a teal-and-gold widebody livery', 'a forest-green taxi paint', 'a stubby regional-jet preset')" },
     { "name": "family", "prompt": "Which family? fixed-wing-aircraft | ground-car | ground-box (or 'auto' to infer from the intent)", "default": "auto" }
   ],
-  "mcpTools": { "mojulo": ["mint_solid", "create_game", "create_transportation_hub", "semantic_search"] },
+  "mcpTools": { "mojulo": ["mint_solid", "create_game", "compose_world", "semantic_search"] },
   "outputContract": { "summary": "A new registry entry (livery scheme / paint / frame preset) committed to the vehicle source, previewed in /world, and confirmed in a populated hub.", "fields": ["family", "entry", "previewRef"] }
 }
 ---
@@ -21,7 +21,7 @@
 
 The workbench authors ONE artifact (an object, a world asset). This authors a **family entry** — an
 input to a *generator*. The fixed-wing-aircraft, ground-car, and ground-box families are procedural:
-the airport (`create_transportation_hub`) samples them to spawn its fleet. Growing the fleet means
+the airport (`compose_world` base `transport-hub`) samples them to spawn its fleet. Growing the fleet means
 **adding a registry row**, not modelling a vehicle. The vehicle family layer
 (`control/lib/graph/meta-fabricator.js`; unrelated to `fabricate_solid`, which picks hardware) is what you read and the registry is the single
 source of truth — add an entry and the populators pick it up.
@@ -109,7 +109,7 @@ Only a NEW PART or a new FINISH is a source edit (the parts library, `FINISHES`)
 
 ## 5. Confirm in a populated world
 
-Mint a hub and look: `create_transportation_hub({ mode:'airport', seed: 7, density: 0.9 })`. The new
+Mint a hub and look: `compose_world({ base:'transport-hub', seed: 7, overrides:{ mode:'airport', density: 0.9 } })`. The new
 livery/preset should appear in the apron fleet (re-roll the seed a few times — sampling is weighted).
 
 ## Pitfalls

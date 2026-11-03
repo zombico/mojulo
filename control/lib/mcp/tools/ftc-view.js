@@ -40,7 +40,7 @@ export function mintFtcView({ title, scenario, at, animate, scale, viewBox, scen
 }
 
 export async function createFtcViewHandler(input) {
-  if (!input || typeof input !== 'object') throw new Error('create_ftc_view requires a recipe object');
+  if (!input || typeof input !== 'object') throw new Error('create_view({ kind: "ftc" }) requires a recipe object');
   const { title, scenario, at, animate, scale, viewBox, scene, ref, folder_ref: folderRef } = input;
   return mintFtcView({ title, scenario, at, animate, scale, viewBox, scene, ref, folderRef });
 }

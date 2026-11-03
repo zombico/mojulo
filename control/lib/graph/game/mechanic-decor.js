@@ -99,6 +99,16 @@ export function decorateMechanics(mechanics, ctx = {}) {
         suppress.push(zone);
       });
       if (Array.isArray(m.at)) entities.push({ id: `dec_exit_${i}`, transform: { pos: m.at, heading: 0 }, rule: { type: 'clock', rate: 0 }, body: { type: 'glyph', form: 'flag' } });
+    } else if (m.kind === 'trade' && typeof m.item === 'string' && Array.isArray(m.at)) {
+      // a trade (game/errand-mechanics.js): what is had there, floating, its marker hidden
+      const zone = `trade-${String(m.item).trim().toLowerCase().replace(/\s+/g, '-')}`, gid = `dec_${zone}`;
+      entities.push({ id: gid, transform: { pos: m.at, heading: 0 }, rule: { type: 'clock', rate: 0 }, body: { type: 'glyph', form: formForItem(m.item) } });
+      states[gid] = 'float';
+      on[zone] = { gesture: 'burst', target: gid };
+      suppress.push(zone);
+    } else if (m.kind === 'deliver' && Array.isArray(m.at)) {
+      entities.push({ id: `dec_deliver_${i}`, transform: { pos: m.at, heading: 0 }, rule: { type: 'clock', rate: 0 }, body: { type: 'glyph', form: 'flag' } });
+      sfx.push({ verb: 'aura', at: m.at, color: [1.0, 0.8, 0.3], params: { base: 0.3, pulse: 0.35, r: 1.0, cz: 1.0 } });
     } else if (m.kind === 'hazard-damage') {
       const hazards = Array.isArray(m.hazards) ? m.hazards : [];
       hazards.forEach((hz) => {

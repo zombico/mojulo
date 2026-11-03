@@ -43,7 +43,7 @@ export function mintGravityWaveView({ title, scenario, amplitude, scale, viewBox
 
 export async function createGravityWaveViewHandler(input) {
   if (!input || typeof input !== 'object') {
-    throw new Error('create_gravity_wave_view requires a recipe object');
+    throw new Error('create_view({ kind: "gravity-wave" }) requires a recipe object');
   }
   const { title, scenario, amplitude, scale, viewBox, scene, ref, folder_ref: folderRef } = input;
   return mintGravityWaveView({ title, scenario, amplitude, scale, viewBox, scene, ref, folderRef });

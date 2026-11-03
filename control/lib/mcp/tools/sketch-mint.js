@@ -207,7 +207,7 @@ export function resolvePreloads(preloadInput) {
     if (!prior) {
       throw new Error(
         // The Claude plugin profile has no create_polygonized_sketch (the prompt door's old alias).
-        `preload sketch '${ref}' not found — mint it via create_sketch${pluginProfileActive() ? '' : ' / create_polygonized_sketch'} first, or pass a known sk_ ref`,
+        `preload sketch '${ref}' not found — mint it via create_sketch${pluginProfileActive() ? '' : " / mint_solid({ kind: 'manji-tree', via: 'prompt' })"} first, or pass a known sk_ ref`,
       );
     }
     return { ref: prior.ref, title: prior.title, manifest: prior.manifest, as, note };

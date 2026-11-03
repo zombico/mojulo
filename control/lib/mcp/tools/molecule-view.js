@@ -60,7 +60,7 @@ export function mintMoleculeView({ title, library, atoms, bonds, bondStyle, orie
 
 export async function createMoleculeViewHandler(input) {
   if (!input || typeof input !== 'object') {
-    throw new Error('create_molecule_view requires a recipe object');
+    throw new Error('create_view({ kind: "molecule" }) requires a recipe object');
   }
   const { title, library, atoms, bonds, bond_style: bondStyle, orient, chirality, axis, mandala, lod, ball_scale: ballScale, bond_radius: bondRadius, viewBox, scene, ref, folder_ref: folderRef } = input;
   return mintMoleculeView({ title, library, atoms, bonds, bondStyle, orient, chirality, axis, mandala, lod, ballScale, bondRadius, viewBox, scene, ref, folderRef });
