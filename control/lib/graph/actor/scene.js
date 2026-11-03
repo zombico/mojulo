@@ -3,7 +3,7 @@
  * is the persona's actor (interpret.js: a register, a style, a role); the scene adds what an actor alone cannot have: a
  * partner to speak to and listen to, a place to stand and to walk to, and a body that faces someone.
  *
- *   actScene({ cast, marks?, script, seed? }) → { seconds, beats, marks, actors: { <who>: { register, style?, read,
+ *   actScene({ cast, marks?, script, seed? }) → { seconds, beats, marks, time?, actors: { <who>: { register, style?, read,
  *     speaks, listens, root, walks } } }
  *     cast    { <who>: { register?, style?, role?, mark?, height? } } (who: the name the script writes, lower case)
  *     marks   { <name>: [x, y] } metres on the floor (+x right, +y away from the camera's first side); none named, the
@@ -13,6 +13,9 @@
  *     speaks / listens  [[at, end]] its own lines, and every other speaker's
  *     root    [{ t, x, y, yaw }] where it stands and which way it faces (yaw degrees: 0 faces +y, 90 faces +x), eased
  *     walks   [{ start, end, from, to, distance }] its crosses (body.js plays the walk cycle over them)
+ *     time    the screenplay's slow motion and freezes as a time map's moments on the scene's clock (shoot/time.js:
+ *             `{ span, speed }`, `{ at, hold }`), which the coverage carries onto its shots; they take no scene time.
+ *             Absent when the script says none.
  *
  * THE CLOCK: the script's beats in order, each after the last. A line takes its read's time in its speaker's register
  * and style and the gap after it; a cross TURN to face the way, then the distance at WALK metres a second; a turn TURN;
@@ -31,6 +34,7 @@
  */
 import { actRead } from './interpret.js';
 import { parseScreenplay } from './screenplay.js';
+const TIME_KINDS = ['slow', 'real', 'hold'];
 import { styleOf } from './style.js';
 import { READ_GAZE, READ_PAD } from '../persona/read.js';
 import { deliveryOf } from '../persona/delivery.js';
@@ -48,6 +52,15 @@ const r3 = (v) => Math.round(v * 1000) / 1000;
 const deg = (r) => (r * 180) / Math.PI;
 const headingTo = (a, b) => deg(Math.atan2(b[0] - a[0], b[1] - a[1]));
 const wrap = (d) => ((((d + 180) % 360) + 360) % 360) - 180;
+const smooth = (u) => u * u * (3 - 2 * u);
+
+/** where an actor stands and faces at s on its root's keys ([{ t, x, y, yaw }]): the place linear between keys, the
+ * facing eased; before the first key the first, after the last the last */
+export function placeOn(K, s) {
+  if (s <= K[0].t) return K[0];
+  for (let k = 1; k < K.length; k++) if (s <= K[k].t) { const a = K[k - 1], c = K[k], u = (s - a.t) / Math.max(1e-6, c.t - a.t), v = smooth(u), lin = u; return { x: a.x + (c.x - a.x) * lin, y: a.y + (c.y - a.y) * lin, yaw: a.yaw + wrap(c.yaw - a.yaw) * v }; }
+  return K.at(-1);
+}
 
 /** the cast's marks: the set's, else a line along x, PAIR apart, centred */
 function marksOf(scene) {
@@ -78,8 +91,8 @@ export function actScene(scene) {
   const turnTo = (w, t, y, dur) => { root[w].push({ t: r3(t), x: at[w][0], y: at[w][1], yaw: yaw[w] }); yaw[w] = r3(yaw[w] + wrap(y - yaw[w])); root[w].push({ t: r3(t + dur), x: at[w][0], y: at[w][1], yaw: yaw[w] }); };
 
   // ─── the clock: each beat after the last ───────────────────────────────────────────────────────────────────────────
-  const turns = [], moves = [], looks = [];
-  let t = READ_PAD.lead;
+  const turns = [], moves = [], looks = [], time = [];
+  let t = READ_PAD.lead, slow = null;
   beats.forEach((b, i) => {
     if (b.kind === 'line') {
       const S = lineSeconds(b.text, cast[b.who]);
@@ -101,17 +114,18 @@ export function actScene(scene) {
       turnTo(b.who, t, headingTo(at[b.who], p), TURN); t += TURN;
     } else if (b.kind === 'look') { looks.push({ who: b.who, at: r3(t), to: b.to }); t += LOOK; }
     else if (b.kind === 'wait') t += b.seconds;
+    // (the screen's clock: a slowed stretch from where it is said to where real time comes back; a freeze at its instant)
+    else if (b.kind === 'slow') { if (slow && t > slow.at) time.push({ span: [r3(slow.at), r3(t)], speed: slow.speed }); slow = { at: t, speed: b.speed }; }
+    else if (b.kind === 'real') { if (slow && t > slow.at) time.push({ span: [r3(slow.at), r3(t)], speed: slow.speed }); slow = null; }
+    else if (b.kind === 'hold') time.push({ at: r3(t), hold: b.seconds });
   });
   // (the scene ends its tail after its last line's words, or after its last direction)
-  const seconds = r3((beats.at(-1).kind === 'line' ? turns.at(-1).end : t) + READ_PAD.tail);
+  const last = beats.filter((b) => !TIME_KINDS.includes(b.kind)).at(-1);
+  const seconds = r3((last.kind === 'line' ? turns.at(-1).end : t) + READ_PAD.tail);
+  if (slow && seconds > slow.at) time.push({ span: [r3(slow.at), seconds], speed: slow.speed });
 
   // ─── where each stands and faces at a time (the root's eased keys) ─────────────────────────────────────────────────
-  const smooth = (u) => u * u * (3 - 2 * u);
-  const placeAt = (w, s) => {
-    const K = root[w]; if (s <= K[0].t) return K[0];
-    for (let k = 1; k < K.length; k++) if (s <= K[k].t) { const a = K[k - 1], c = K[k], u = (s - a.t) / Math.max(1e-6, c.t - a.t), v = smooth(u), lin = u; return { x: a.x + (c.x - a.x) * lin, y: a.y + (c.y - a.y) * lin, yaw: a.yaw + wrap(c.yaw - a.yaw) * v }; }
-    return K.at(-1);
-  };
+  const placeAt = (w, s) => placeOn(root[w], s);
   /** the gaze from `w` at s to a point: yaw off its facing (+ its right), pitch, the distance */
   const gazeTo = (w, s, p, h = EYES, extra = {}) => {
     const P = placeAt(w, s), dx = p[0] - P.x, dy = p[1] - P.y, d = Math.max(0.3, Math.hypot(dx, dy));
@@ -172,7 +186,7 @@ export function actScene(scene) {
     body.sort((x, y) => x.t - y.t);
     actors[w] = { register: read.register, ...(C.style ? { style: styleOf(C.style).name } : {}), read: { ...read, seconds, beats: clean, body }, speaks, listens, root: root[w], walks: walks[w] };
   }
-  return { seconds, beats, marks, turns: turns.map(({ i: _i, ...T }) => T), actors };
+  return { seconds, beats, marks, turns: turns.map(({ i: _i, ...T }) => T), ...(time.length ? { time: time.sort((x, y) => (x.at ?? x.span[0]) - (y.at ?? y.span[0]) || (x.at !== undefined ? -1 : 1)) } : {}), actors };
 }
 
 /** a speaker's stressed words' times into its line (s): its words read alone in its register and style */

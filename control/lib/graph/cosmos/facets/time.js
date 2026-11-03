@@ -19,6 +19,12 @@
  * Built 10-12 (the story cascade's step 3): choices (a scene's `choose` beat sets flags and branches) and quests
  * (playscape/ui/quests.js: ordered steps done by flags, a journal, a word as one moves on; gameworld `quests` gate the
  * story's moments step by step, so the giver is a moment's cast member). Web only.
+ *
+ * Built 11-02 (the time map): Time is also the camera's clock. A shot shows the world's time on the screen's (shoot/time.js:
+ * a stretch slowed and ramped, an instant held, the camera on the screen's clock while the world holds, the world on
+ * twos), one map every channel of a rendered film reads: the shoot plan's cameras and world, a scene's actors, the
+ * Blender pack. `tempo`, `replay` and `grain` say it. A live world plays on its own clock, so in play the map waits on a
+ * world clock scale (per-body hitstop is built: worlds/controllable/hitstop.js); those values are partial until it lands.
  */
 const CUES = 'lib/graph/playscape/ui/cues.js';
 const QUEST_LOG = 'lib/graph/playscape/ui/quests.js';
@@ -26,6 +32,10 @@ const SCENES = 'lib/graph/playscape/ui/scenes.js';
 // one change per package: quests (steps bound to a giver), the 3D shot
 const QUESTS = { status: 'partial', effort: 'M', pkg: 'quests' };
 const SHOT = { status: 'partial', effort: 'L', pkg: 'shot' };
+// the time map (11-02): built in a rendered film and a shoot plan's page; in play it waits on the world clock scale
+const TIME_MAP = 'lib/graph/shoot/time.js';
+const CLOCK = { status: 'partial', effort: 'M', pkg: 'world-clock', lowers: TIME_MAP };
+const KEYED = { status: 'partial', effort: 'M', pkg: 'keying', lowers: TIME_MAP };
 // a passage ages the world between chapters, so it is built on them (built: playscape/ui/chapters.js)
 const AGED = { requires: ['time.chapters=overlays'] };
 
@@ -90,6 +100,35 @@ export const TIME = Object.freeze({
         // priced 10-25 (the comic hero pack): the comic panel, a shot held still with a border and a caption
         panel: { ...SHOT, status: 'absent', effort: 'S', pkg: 'comic-panel', requires: ['time.shots=staged'], note: 'a beat held as a still: the frame drawn in a border, a caption box, an onomatopoeia over the blow; cut back to play' },
         board: { ...SHOT, status: 'built', requires: ['space.board=spots'], lowers: 'lib/graph/board/board-page.js', note: 'the tactical camera cut to whoever the shot names, from the front; the words over the speaker; a speaking figure gestures; a close portrait beside (talk.portrait); a battle held for its before and after slots' },
+      },
+    },
+    // the screen's clock over the world's (the time map): how fast the world plays on screen
+    tempo: {
+      multi: true,
+      values: {
+        'real-time': { status: 'built', note: 'a screen second a world second' },
+        slow: { ...CLOCK, note: 'a stretch of the world slowed (a shot\'s time: { span, speed }); a rendered film, an actor scene and a shoot plan\'s page play it; a live world plays in real time until a world clock scale exists' },
+        ramp: { ...CLOCK, note: 'a speed ramp: the speed eased down to a slow stretch and back (time: { span, speed, ramp }); offline as slow, in play waiting on the world clock' },
+        freeze: { ...CLOCK, note: 'an instant held (time: { at, hold }; the screenplay\'s Freeze.); in play a struck body and its striker hold for a hitstop (worlds/controllable/hitstop.js), the whole world does not' },
+        bullet: { ...CLOCK, requires: ['time.tempo=slow'], note: 'the camera on the screen\'s clock while the world holds or crawls (clock: \'screen\'); in play it waits on the world clock and a moment that starts it (a dodge, a finisher)' },
+      },
+    },
+    // the order and frequency of what the screen shows: the same world time again
+    replay: {
+      multi: true,
+      values: {
+        none: { status: 'built' },
+        angles: { status: 'built', lowers: 'lib/graph/shoot/plan.js', note: 'shots over the same span of the world: one action covered from several cameras, cut together' },
+        replay: { ...CLOCK, note: 'a moment shown again, slowed, after it played (a shot over world time already shown, with a speed); a live world cannot rewind (liveNotes), so in play it waits on a recorded world clock' },
+      },
+    },
+    // the world's keying on screen: limited animation's ones, twos and threes
+    grain: {
+      values: {
+        ones: { status: 'built', note: 'the world on every frame' },
+        twos: { ...KEYED, note: 'the world shown on twos, the camera on ones (a shot\'s grain); a rendered film and an actor scene; in play a body\'s clips run continuous (the face reads on twos, anime-read.js)' },
+        threes: { ...KEYED, note: 'the world on threes, the camera on ones; as twos' },
+        mixed: { status: 'absent', effort: 'M', pkg: 'keying', note: 'characters on twos, the camera and the ground on ones, each layer its own grain: the map steps the whole world' },
       },
     },
     framing: { multi: true, source: { module: SCENES, table: 'SHOT_FRAMES', ...SHOT, status: 'built', note: 'the shot rule frames its subjects by these words' } },

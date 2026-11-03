@@ -10,23 +10,33 @@
  *   Jon turns to Mara.                       `moves to`) a mark; `turns to` an actor or a mark; `looks at` an actor or
  *   Mara looks at the door.                  a mark (till the next line); `waits` (a beat, or `waits 2 seconds`)
  *   Mara waits.
+ *   Slow motion.                             TIME (shoot/time.js, the screen's clock, never the scene's): `slow
+ *   Real time.                               motion` (at a speed: `slow motion 0.1`) until `real time` (or `normal
+ *   Freeze 2 seconds.                        speed`, or the scene's end); `freeze` (or `hold`) the moment, a beat or
+ *                                            its seconds
  *   The rain does not stop.                  anything else is a NOTE: kept, read by nothing
  *
  *   parseScreenplay(script, { cast, marks }) → [{ kind: 'line', who, text, face?, note? } | { kind: 'cross' | 'turn' |
- *     'look', who, to } | { kind: 'wait', who, seconds } | { kind: 'note', text }] (names lower case, as the cast keys)
+ *     'look', who, to } | { kind: 'wait', who, seconds } | { kind: 'slow', speed } | { kind: 'real' } |
+ *     { kind: 'hold', seconds } | { kind: 'note', text }] (names lower case, as the cast keys)
  *
  * A name not in the cast, or a mark not in the set, is refused by name. Pure.
  */
 import { EMOTION_NAMES } from '../face-acting/emotions.js';
 
-/** how long a `waits` holds when it says no time (s) */
-export const WAIT = 1;
+/** how long a `waits` holds when it says no time (s); slow motion's speed, and a freeze's screen seconds, unsaid */
+export const WAIT = 1, SLOW = 0.25, HOLD = 1;
 const CUE = /^([A-Z][A-Z0-9 _'-]*?)\s*(?:\(([^)]*)\))?\s*:\s*(.+)$/;
 const DIRECTIONS = [
   ['cross', /^(\S+)\s+(?:crosses|walks|moves|goes)\s+(?:back\s+)?(?:over\s+)?to\s+(?:the\s+)?(\S+?)\.?$/i],
   ['turn', /^(\S+)\s+turns\s+(?:back\s+)?to(?:ward|wards)?\s+(?:the\s+)?(\S+?)\.?$/i],
   ['look', /^(\S+)\s+looks\s+(?:at|to|toward|towards)\s+(?:the\s+)?(\S+?)\.?$/i],
   ['wait', /^(\S+)\s+waits(?:\s+([\d.]+)\s*(?:s|sec|secs|seconds?))?\.?$/i],
+];
+const TIME = [
+  ['slow', /^(?:in\s+)?slow(?:\s+|-)?mo(?:tion)?(?:\s+(?:at\s+)?(\d*\.?\d+)(?:\s*x)?)?\.?$/i],
+  ['real', /^(?:back\s+to\s+|in\s+)?(?:real\s+time|normal\s+speed|full\s+speed)\.?$/i],
+  ['hold', /^(?:the\s+moment\s+)?(?:freezes?|holds?)(?:\s+(?:for\s+)?([\d.]+)\s*(?:s|sec|secs|seconds?))?\.?$/i],
 ];
 
 /** The script's beats (see the header) */
@@ -49,6 +59,14 @@ export function parseScreenplay(script, { cast = {}, marks = {} } = {}) {
     if (cue) {
       const p = cue[2]?.trim().toLowerCase(), face = p && EMOTION_NAMES.includes(p) ? p : undefined;
       beats.push({ kind: 'line', who: who(cue[1], at), text: cue[3].trim(), ...(face ? { face } : {}), ...(p && !face ? { note: cue[2].trim() } : {}) });
+      return;
+    }
+    for (const [kind, re] of TIME) {
+      const m = re.exec(line);
+      if (!m) continue;
+      if (kind === 'slow') { const v = m[1] ? Number(m[1]) : SLOW; if (!(v > 0 && v < 1)) throw new Error(`screenplay: ${at}: slow motion runs under 1 (a fraction of real time), not ${m[1]}`); beats.push({ kind, speed: v }); }
+      else if (kind === 'real') beats.push({ kind });
+      else beats.push({ kind, seconds: m[1] ? Number(m[1]) : HOLD });
       return;
     }
     for (const [kind, re] of DIRECTIONS) {
