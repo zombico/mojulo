@@ -39,3 +39,17 @@ aircraft.
   - kept clean unless a wear is asked.
 
   A livery or wear given to `mint_solid vehicle` for one of them picks its realistic body.
+- **The haulers** (`car-designer/road-airside-haul.js`; the shared kit and the reach table are in `airside-kit.js`):
+  four new classes and their registry rows.
+  - `baggageTug`, the baggage tug: a low tow tractor, its bonnet and ballast, the driver's seat under a roof on four
+    posts, the hitch's jaw and pin.
+  - `baggageCart`, a baggage cart: a bed on a turntable its drawbar steers, a canopy on posts, canvas curtains folded
+    down its sides. Parked, not driven.
+  - `pushbackTug`, the towbarless pushback tug: a low U, its beams either side of the nose-wheel cradle (its plate,
+    clamps, pusher and ramp), the engine's deck and the sunk cab. `coupled` lifts the cradle and closes the clamps.
+  - `fuelTruck`, the refueller, on three axles: an elliptical tank with dished heads on its saddles, its walkway,
+    manholes, vents, folded rails and ladder; the hose cabinet with its reel and nozzle; lockers, pipework and
+    placards.
+
+  Their rows are `baggage tug` (tow tractor), `baggage cart` (baggage dolly), `pushback tug` (aircraft tug,
+  towbarless tug) and `fuel truck` (refueller).

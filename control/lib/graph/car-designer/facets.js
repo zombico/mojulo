@@ -45,12 +45,16 @@ export const CLASS_TRAITS = Object.freeze({
   cateringTruck: { silhouette: 'brick', stance: 'raised', cockpit: 'closed', engine: 'hidden', motif: 'riveted', drive: 'rear', derives: { frame: ['chassis = ladderFrame', 'bodyplan = truck'] } },
   beltLoader:    { silhouette: 'tub', stance: 'low', cockpit: 'open', engine: 'hidden', motif: 'riveted', drive: 'rear', derives: { frame: ['chassis = ladderFrame'] } },
   stairTruck:    { silhouette: 'brick', stance: 'raised', cockpit: 'closed', engine: 'hidden', motif: 'riveted', drive: 'rear', derives: { frame: ['chassis = ladderFrame', 'bodyplan = truck'] } },
+  baggageTug:    { silhouette: 'tub', stance: 'low', cockpit: 'open', engine: 'hidden', motif: 'riveted', drive: 'rear', derives: { frame: ['chassis = ladderFrame'] } },
+  baggageCart:   { silhouette: 'brick', stance: 'low', cockpit: 'open', engine: 'hidden', motif: 'riveted', drive: 'rear', derives: { frame: ['chassis = ladderFrame'] } },
+  pushbackTug:   { silhouette: 'tub', stance: 'low', cockpit: 'closed', engine: 'hidden', motif: 'riveted', drive: 'all', derives: { frame: ['chassis = ladderFrame', 'bodyplan = truck'] } },
+  fuelTruck:     { silhouette: 'brick', stance: 'raised', cockpit: 'closed', engine: 'hidden', motif: 'riveted', drive: 'rear', derives: { frame: ['chassis = ladderFrame', 'bodyplan = truck'] } },
   lightTank:     { silhouette: 'brick', stance: 'raised', cockpit: 'closed', engine: 'hidden', motif: 'faceted', drive: 'all', derives: { frame: ['bodyplan = apc'] } },
   trackedCarrier: { silhouette: 'brick', stance: 'raised', cockpit: 'closed', engine: 'hidden', motif: 'faceted', drive: 'all', derives: { frame: ['bodyplan = apc'] } },
 });
 export const CLASS_IDS = Object.freeze(Object.keys(CLASS_TRAITS));
 /** The heavy classes: a cab, never an open seat. */
-export const HEAVY = Object.freeze(['straightTruck', 'bus', 'tractorTrailer', 'tractorTrailerLoaded', 'heavy4x4', 'cargo6x6', 'apc8x8', 'lightTank', 'trackedCarrier', 'launcher8x8', 'cateringTruck', 'stairTruck']);
+export const HEAVY = Object.freeze(['straightTruck', 'bus', 'tractorTrailer', 'tractorTrailerLoaded', 'heavy4x4', 'cargo6x6', 'apc8x8', 'lightTank', 'trackedCarrier', 'launcher8x8', 'cateringTruck', 'stairTruck', 'pushbackTug', 'fuelTruck']);
 
 export const SILHOUETTES = Object.freeze({
   wedge:  v('a wedge: low at the nose, rising to the tail', { silhouette: 'the nose at the road, the line climbing back' }, { silhouette: ['proportion.height -', 'proportion.bonnet +'], handling: ['physics.CdA -'], frame: ['body = coupeThree'] }),

@@ -207,6 +207,15 @@ export const VEHICLES = {
     { scenery: 'beltLoader', physics: 'beltLoader', tech: 'truck' }),
   'boarding-stairs': row('boarding stairs', ['air stairs', 'stair truck', 'passenger stairs'], 'road', 'ground-crew', M, ['driven', 'parked'],
     { scenery: 'boardingStairs', physics: 'stairTruck', tech: 'truck' }),
+  // (the haulers: their realistic bodies only, road-airside-haul.js)
+  'baggage-tug': row('baggage tug', ['tow tractor', 'baggage tractor', 'luggage tug', 'baggage train', 'tug tractor'], 'road', 'ground-crew', M, ['driven', 'parked'],
+    { physics: 'baggageTug', tech: 'car' }),
+  'baggage-cart': row('baggage cart', ['baggage dolly', 'baggage trolley', 'luggage cart', 'luggage trolley', 'baggage wagon'], 'road', 'ground-crew', M, ['parked'],
+    { physics: 'baggageCart', tech: 'car' }),
+  'pushback-tug': row('pushback tug', ['pushback tractor', 'aircraft tug', 'aircraft tractor', 'towbarless tug', 'aircraft tow tractor', 'pushback'], 'road', 'ground-crew', M, ['driven', 'parked'],
+    { physics: 'pushbackTug', tech: 'truck' }),
+  'fuel-truck': row('fuel truck', ['refueller', 'refueler', 'aviation fuel truck', 'jet fuel truck', 'fuel bowser', 'aircraft refueller'], 'road', 'ground-crew', M, ['driven', 'parked'],
+    { physics: 'fuelTruck', tech: 'truck' }),
   // ── work and war on the ground ──────────────────────────────────────────────
   tractor: row('tractor', ['farm tractor'], 'offroad', 'work', M, ['driven', 'parked'],
     { tech: 'car' }),
