@@ -7,7 +7,7 @@
  *   toy        cartoon, chibi, mascot, kart: the racer's parts grammar (the gloss racer)
  *   stylised   the painted and banded worlds: the swept, box and fuselage nets, the assembled builds
  *   realistic  the realistic hero's world: the true-dimension lofts, the supercar's surface compiler, the craft shelf,
- *              the cycle shelf
+ *              the cycle shelf, the construction and mecha shelves
  *
  * Each build says how far it reaches (`status`):
  *   live      a game or a world draws it today (`where` says which)
@@ -58,6 +58,7 @@ const SERVES = Object.freeze({
   fleet: ['traffic'], loft: ['driven', 'parked', 'watched'], tech: ['driven', 'traffic', 'parked', 'watched', 'crewed'],
   cycle: ['driven', 'parked', 'watched'],
   construction: ['parked', 'watched'],
+  mecha: ['parked', 'watched'],
 });
 const B = (tier, via, key, status, where, why, uses = SERVES[via]) => ({ tier, via, key, status, uses, where, why });
 // a tracked class (roads/vehicles.js `running: 'track'`), or a wheeled one that skid steers, is drawn, parked and
@@ -87,6 +88,9 @@ export function buildsOf(id) {
   // (a site machine is the construction shelf's: built, posed and held to its laws, drawn on the studio grid at a pose and
   // parked in a level; watched and parked, never driven, until its ride is built)
   for (const k of h.construction ?? []) out.push(B('realistic', 'construction', k, 'live', ['mint_solid vehicle preview', 'a level\'s parked vehicles'], 'the construction shelf\'s machine, its carrier, its upper, its front on its chain and its tool at its class\'s numbers (construction-shelf/): drawn at a pose (its rest, a named pose, its joints\' values), parked in a level', SERVES.construction));
+  // (a legged frame is the mecha shelf's: built, posed by its stances and held to its laws, shown on the studio grid; not
+  // yet driven, parked or watched in a level until its gait is built)
+  for (const k of h.mecha ?? []) out.push(B('realistic', 'mecha', k, 'preview', ['mint_solid vehicle preview'], 'the mecha shelf\'s frame, its legs posed by where its feet are and held to its laws (mecha-shelf/): drawn at a stance (stand, board, stride, lift, turn), its rider seated'));
   for (const k of h.fleet ?? []) out.push(B('realistic', 'fleet', k, 'live', ['roadway traffic'], 'the highway fleet\'s loft at true dimensions, at traffic distance'));
   for (const k of (h.physics ?? []).filter(loftable).slice(0, 1)) {
     if (tracked(k)) { out.push(B('realistic', 'loft', k, 'live', ['mint_solid vehicle preview', 'a level\'s parked vehicles'], 'the military hull kit\'s body of its class on its running gear (road-military.js, mil-track.js), drawn and parked: not driven until skid steer is built', UNDRIVEN)); continue; }

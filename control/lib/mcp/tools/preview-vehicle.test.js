@@ -13,7 +13,9 @@ import { CYCLE_LOOKS } from '@/lib/graph/cycle-shelf/cycle-looks';
 const ids = Object.keys(VEHICLES);
 const scenery = ids.find((id) => handlesOf(id).scenery && !handlesOf(id).scenery.includes(id) && !handlesOf(id).racer);
 const racer = ids.find((id) => handlesOf(id).racer);
-const unseen = ids.find((id) => buildsOf(id).every((b) => !['scenery', 'racer', 'supercar', 'loft', 'cycle', 'construction'].includes(b.via)));
+const unseen = ids.find((id) => buildsOf(id).every((b) => !['scenery', 'racer', 'supercar', 'loft', 'cycle', 'construction', 'mecha'].includes(b.via)));
+// a legged frame, its only body the mecha shelf's
+const walked = ids.find((id) => buildsOf(id).some((b) => b.via === 'mecha'));
 // a machine ridden astride, its only body the cycle shelf's
 const cycled = ids.find((id) => buildsOf(id).some((b) => b.via === 'cycle') && !buildsOf(id).some((b) => ['scenery', 'racer', 'supercar', 'loft'].includes(b.via)));
 // a site machine, its only body the construction shelf's, one with a named pose besides its rest
@@ -85,6 +87,21 @@ describe('mint_solid vehicle: the registry is the way in', () => {
     expect(payload.title).toMatch(/a site machine/);
     await expect(previewVehicleInstanceHandler({ vehicle: sited, pose: 'cartwheel' })).rejects.toThrow(/is one of/);
     await expect(previewVehicleInstanceHandler({ vehicle: VEHICLES[lofted].label, tool: 'breaker' })).rejects.toThrow(/a tool is a site machine's/);
+  });
+  it('mints a legged frame as its mecha shelf frame at a stance, and refuses another build\'s words on it', async () => {
+    const archetype = handlesOf(walked).mecha[0], { MECHA_ARCHETYPES } = await import('@/lib/graph/mecha-shelf/index.js');
+    const pose = Object.keys(MECHA_ARCHETYPES[archetype].stances).find((k) => k !== MECHA_ARCHETYPES[archetype].rest);
+    expect(readVehicleWord({ vehicle: walked })).toMatchObject({ instance: { mecha: { archetype } }, id: walked, tier: 'realistic' });
+    const out = await previewVehicleInstanceHandler({ vehicle: VEHICLES[walked].label, pose, palette: 'fieldOlive', title: 'a legged frame' });
+    const row = SketchRepository.getByRef(out.ref);
+    expect(row.manifest).toMatchObject({ vehicle: walked, mecha: { archetype, pose, palette: 'fieldOlive' } });
+    expect(row.manifest.pose).toBeUndefined();
+    expect(out.stats).toMatchObject({ family: 'mecha', archetype, pose, laws: true });
+    expect(out.registry).toMatchObject({ id: walked, tier: 'realistic', build: 'mecha' });
+    const { payload } = await resolveWorldScene({ ref: row.ref, title: row.title, manifest: row.manifest });
+    expect(payload.title).toMatch(/a legged frame/);
+    await expect(previewVehicleInstanceHandler({ vehicle: walked, pose: 'cartwheel' })).rejects.toThrow(/is one of/);
+    await expect(previewVehicleInstanceHandler({ vehicle: walked, tool: 'breaker' })).rejects.toThrow(/a tool is a site machine's/);
   });
   it('carries a field vehicle\'s livery and wear in its loft\'s recipe, and refuses them on a build their words do not paint', async () => {
     const field = ids.find((id) => (handlesOf(id).physics ?? []).some((k) => MILITARY_CLASSES[k]) && buildsOf(id).some((b) => b.via === 'loft'));

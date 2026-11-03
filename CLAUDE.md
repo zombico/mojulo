@@ -237,6 +237,10 @@ Pointers only; each target carries its own design notes.
   first. Its builds by tier (toy | stylised | realistic) and what each needs to be drawn realistic: `builds.js`. The
   field's vehicles (a military class's realistic body) are the hull kit's: `car-designer/road-military.js` over `mil-hull.js`, a
   tracked class's running gear `mil-track.js`; the airfield's ground crew (catering, belt loader, stairs) too, `road-airside.js`.
+- Legged frames: [mecha-shelf/](control/lib/graph/mecha-shelf/) (ridden walkers on real-robot principles: a frame's
+  bodies on the construction shelf's chain, each joint its actuator's, a ram's stroke its range; a stance solved by the
+  legs' inverse kinematics, `mecha-ik.js`; its laws measured, `mecha-laws.js`; the all-terrain walker first, its rider
+  astride); review: `scripts/render-mecha.mjs`.
 - Flight parts: [craft-shelf/](control/lib/graph/craft-shelf/) (the ODM inventory of aircraft, rotorcraft and spacecraft parts → whole
   craft by archetype; a new part is a row first); the flight-game map is [docs/flight-games.md](docs/flight-games.md).
   Boats are on the same shelf (`boat-odm.js`, `boat-parts.js`, `boat-archetypes.js`): a hull drawn from its lines and

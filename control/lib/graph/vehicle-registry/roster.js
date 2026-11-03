@@ -34,6 +34,7 @@
  *     sky       skyscape/eye.js CRAFT: the fly goal's flight model
  *     cycle     cycle-shelf CYCLE_ARCHETYPES: a machine ridden astride, or a three-wheeler made of one and its add-ons
  *     construction  construction-shelf CON_ARCHETYPES: a site's machine, its carrier, its upper, its front and its tool
+ *     mecha     mecha-shelf MECHA_ARCHETYPES: a legged frame a rider sits in, its legs posed by where its feet are
  *     tech      tech-crafter's vehicle trait: the concept it falls back to at every tier (many rows may share one)
  *
  * Pure data and pure functions: no clock, no dice.
@@ -288,6 +289,10 @@ export const VEHICLES = {
     { tech: 'tracked' }),
   mech: row('mech', ['walker', 'battle mech', 'mecha', 'strider'], 'offroad', 'armour', F, FIGHT,
     { tech: 'walker' }),
+  // (a ridden walker: the mecha shelf's first frame, mecha-shelf/, its rider astride as on a sport motorcycle, carried on
+  // two six-joint legs; drawn on the studio grid at a stance, ridden when its gait is built)
+  'all-terrain-walker': row('all-terrain walker', ['all terrain walker', 'riding walker', 'ridden walker', 'bipedal walker', 'legged walker', 'walking machine', 'walker frame', 'walking chair'], 'offroad', 'trail', F, ['driven', 'parked', 'watched'],
+    { mecha: 'allTerrainWalker', tech: 'walker' }),
   hovercraft: row('hovercraft', ['hoverbike', 'speeder', 'skimmer', 'grav car'], 'offroad', 'transport', M.concat(F), ['driven', 'traffic', 'watched'],
     { tech: 'hover' }),
   // ── drawn ───────────────────────────────────────────────────────────────────
@@ -467,6 +472,7 @@ export const HANDLE_TABLES = Object.freeze({
   sky: { claim: 'one', table: 'skyscape/eye.js CRAFT' },
   cycle: { claim: 'one', table: 'cycle-shelf/cycle-archetypes.js CYCLE_ARCHETYPES' },
   construction: { claim: 'one', table: 'construction-shelf/con-archetypes.js CON_ARCHETYPES' },
+  mecha: { claim: 'one', table: 'mecha-shelf/mecha-archetypes.js MECHA_ARCHETYPES' },
   tech: { claim: 'shared', table: 'gameworld/tech-crafter.js CRAFT_TRAITS.vehicle (a form\'s variant)' },
 });
 

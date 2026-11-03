@@ -31,7 +31,12 @@
  * mount takes on it, `carrier` puts it on a carrier it lists, `height` builds a tower crane to the height under its hook,
  * `palette` paints it (construction-shelf/con-figure.js).
  *
- * Stored manifest: { kind:'vehicle-instance', vehicle?, type | racer | supercar | loft | cycle | construction, decoration?, pose?, viewBox?, title? }
+ * A LEGGED FRAME is an instance too: { mecha: { archetype, pose?, palette?, rider? } }, the mecha shelf's frame
+ * (mecha-shelf/), the registry's realistic build of an all-terrain walker; `pose` beside its word stands it (a stance's
+ * name, a stance, or its joints' values), `palette` paints it, and `rider` seats the realistic hero in it
+ * (mecha-shelf/mecha-figure.js).
+ *
+ * Stored manifest: { kind:'vehicle-instance', vehicle?, type | racer | supercar | loft | cycle | construction | mecha, decoration?, pose?, viewBox?, title? }
  * (`vehicle`: the registry row it was asked as, when it was; the renderer reads the build's own keys).
  */
 
@@ -47,6 +52,7 @@ import { readWear } from '@/lib/graph/car-designer/mil-wear';
 import { readCycleSpec } from '@/lib/graph/cycle-shelf/cycle-figure';
 import { lookCard } from '@/lib/graph/cycle-shelf/cycle-looks';
 import { readConSpec } from '@/lib/graph/construction-shelf/con-figure';
+import { readMechaSpec } from '@/lib/graph/mecha-shelf/mecha-figure';
 
 // the builds this door can show on the studio grid, and the instance key each is shown by
 const PREVIEWS = Object.freeze({
@@ -56,6 +62,7 @@ const PREVIEWS = Object.freeze({
   loft: (b) => ({ loft: { class: b.key } }),
   cycle: (b) => ({ cycle: { archetype: b.key } }),
   construction: (b) => ({ construction: { archetype: b.key } }),
+  mecha: (b) => ({ mecha: { archetype: b.key } }),
 });
 const previewable = (b) => Boolean(PREVIEWS[b.via]);
 
@@ -65,10 +72,10 @@ const previewable = (b) => Boolean(PREVIEWS[b.via]);
  * not a scenery key is read the same way, so 'a pickup truck' or 'tram' finds its row; a scenery key keeps its own
  * path, byte for byte. Returns the instance keys and the row's id (null for a legacy key's own path).
  */
-export function readVehicleWord({ vehicle, type, racer, supercar, loft, cycle, construction, tier } = {}) {
+export function readVehicleWord({ vehicle, type, racer, supercar, loft, cycle, construction, mecha, tier } = {}) {
   if (tier !== undefined && !TIER_IDS.includes(tier)) throw new Error(`mint_solid vehicle: tier is one of ${TIER_IDS.join(', ')}`);
   const word = vehicle ?? (type !== undefined && !isVehicleType(type) ? type : undefined);
-  if (word === undefined) return { instance: { type, racer, supercar, loft, cycle, construction }, id: type !== undefined ? rowOfHandle('scenery', type) : racer !== undefined ? rowOfHandle('racer', true) : supercar !== undefined ? rowOfHandle('supercar', supercar?.preset ?? 'razor') : loft !== undefined ? rowOfHandle('physics', loft?.class) : cycle !== undefined ? rowOfHandle('cycle', cycle?.archetype) : construction !== undefined ? rowOfHandle('construction', construction?.archetype) : null, asked: false };
+  if (word === undefined) return { instance: { type, racer, supercar, loft, cycle, construction, mecha }, id: type !== undefined ? rowOfHandle('scenery', type) : racer !== undefined ? rowOfHandle('racer', true) : supercar !== undefined ? rowOfHandle('supercar', supercar?.preset ?? 'razor') : loft !== undefined ? rowOfHandle('physics', loft?.class) : cycle !== undefined ? rowOfHandle('cycle', cycle?.archetype) : construction !== undefined ? rowOfHandle('construction', construction?.archetype) : mecha !== undefined ? rowOfHandle('mecha', mecha?.archetype) : null, asked: false };
   const hit = resolveVehicle(word);
   if (!hit) throw new Error(`mint_solid vehicle: '${word}' is no vehicle the registry names: ${suggestVehicles(word)}`);
   const { id } = hit, builds = buildsOf(id);
@@ -76,12 +83,13 @@ export function readVehicleWord({ vehicle, type, racer, supercar, loft, cycle, c
   if (loft !== undefined && loft?.class === undefined) loft = { ...loft, class: builds.find((b) => b.via === 'loft')?.key };
   if (cycle !== undefined && cycle?.archetype === undefined) cycle = { ...cycle, archetype: builds.find((b) => b.via === 'cycle')?.key };
   if (construction !== undefined && construction?.archetype === undefined) construction = { ...construction, archetype: builds.find((b) => b.via === 'construction')?.key };
+  if (mecha !== undefined && mecha?.archetype === undefined) mecha = { ...mecha, archetype: builds.find((b) => b.via === 'mecha')?.key };
   // a race machine's recipe beside its row: the row must be the machine's, and the recipe is the instance
-  if (racer !== undefined || supercar !== undefined || loft !== undefined || cycle !== undefined || construction !== undefined) {
-    const kind = racer !== undefined ? 'racer' : supercar !== undefined ? 'supercar' : loft !== undefined ? 'loft' : cycle !== undefined ? 'cycle' : 'construction';
-    const own = kind === 'racer' ? rowOfHandle('racer', true) : kind === 'supercar' ? rowOfHandle('supercar', supercar?.preset ?? 'razor') : kind === 'loft' ? rowOfHandle('physics', loft?.class) : kind === 'cycle' ? rowOfHandle('cycle', cycle?.archetype) : rowOfHandle('construction', construction?.archetype);
+  if (racer !== undefined || supercar !== undefined || loft !== undefined || cycle !== undefined || construction !== undefined || mecha !== undefined) {
+    const kind = racer !== undefined ? 'racer' : supercar !== undefined ? 'supercar' : loft !== undefined ? 'loft' : cycle !== undefined ? 'cycle' : construction !== undefined ? 'construction' : 'mecha';
+    const own = kind === 'racer' ? rowOfHandle('racer', true) : kind === 'supercar' ? rowOfHandle('supercar', supercar?.preset ?? 'razor') : kind === 'loft' ? rowOfHandle('physics', loft?.class) : kind === 'cycle' ? rowOfHandle('cycle', cycle?.archetype) : kind === 'construction' ? rowOfHandle('construction', construction?.archetype) : rowOfHandle('mecha', mecha?.archetype);
     if (own !== id) throw new Error(`mint_solid vehicle: '${word}' is the registry's ${id}, and a ${kind} recipe is the ${own}'s`);
-    return { instance: { [kind]: { racer, supercar, loft, cycle, construction }[kind] }, id, asked: true };
+    return { instance: { [kind]: { racer, supercar, loft, cycle, construction, mecha }[kind] }, id, asked: true };
   }
   // the grid shows a vehicle parked: the build that serves it (the fleet's loft is traffic; the grid draws the class's own)
   const at = tier ? buildOf(id, tier, { use: 'parked' }) : null;
@@ -93,7 +101,7 @@ export function readVehicleWord({ vehicle, type, racer, supercar, loft, cycle, c
   return { instance: PREVIEWS[shown.via](shown), id, tier: shown.tier, asked: true };
 }
 
-export async function mintVehicleInstance({ title, type, racer, supercar, loft, cycle, construction, decoration, pose, viewBox, ref, folderRef, vehicle } = {}) {
+export async function mintVehicleInstance({ title, type, racer, supercar, loft, cycle, construction, mecha, decoration, pose, viewBox, ref, folderRef, vehicle } = {}) {
   const manifest = {
     kind: 'vehicle-instance',
     ...(vehicle !== undefined ? { vehicle } : {}),
@@ -103,6 +111,7 @@ export async function mintVehicleInstance({ title, type, racer, supercar, loft, 
     ...(loft !== undefined ? { loft } : {}),
     ...(cycle !== undefined ? { cycle } : {}),
     ...(construction !== undefined ? { construction } : {}),
+    ...(mecha !== undefined ? { mecha } : {}),
     ...(decoration && typeof decoration === 'object' ? { decoration } : {}),
     ...(pose && typeof pose === 'object' ? { pose } : {}),
     ...(viewBox && typeof viewBox === 'object' ? { viewBox } : {}),
@@ -127,18 +136,24 @@ export async function mintVehicleInstance({ title, type, racer, supercar, loft, 
 }
 
 export async function previewVehicleInstanceHandler(input) {
-  if (!input || typeof input !== 'object' || !(input.vehicle || input.type || input.racer || input.supercar || input.loft || input.cycle || input.construction)) {
+  if (!input || typeof input !== 'object' || !(input.vehicle || input.type || input.racer || input.supercar || input.loft || input.cycle || input.construction || input.mecha)) {
     throw new Error('mint_solid vehicle requires a `vehicle` (any vehicle the registry names: "sedan", "a pickup truck", "kart", "widebody"), or a race machine\'s recipe: `racer` or `supercar` (with its `theme`)');
   }
   const { title, vehicle, tier, racer, supercar, loft, decoration, viewBox, ref, folder_ref: folderRef } = input;
   let { pose } = input;
-  const read = readVehicleWord({ vehicle, type: input.type, racer, supercar, loft, cycle: input.cycle, construction: input.construction, tier });
+  const read = readVehicleWord({ vehicle, type: input.type, racer, supercar, loft, cycle: input.cycle, construction: input.construction, mecha: input.mecha, tier });
   // a site machine's words beside its word (construction-shelf/con-figure.js): its pose (a named pose or its joints'
   // values), its tool, its carrier, its height, its palette, carried in its recipe
   if (read.instance.construction) {
     for (const key of ['pose', 'tool', 'carrier', 'height', 'palette']) if (input[key] !== undefined) read.instance.construction = { ...read.instance.construction, [key]: input[key] };
     readConSpec(read.instance.construction, 'mint_solid vehicle: construction');
     pose = undefined;
+  } else if (read.instance.mecha) {
+    // a legged frame's words beside its word (mecha-shelf/mecha-figure.js): its stance, its palette, its rider seated
+    for (const key of ['pose', 'palette', 'rider']) if (input[key] !== undefined) read.instance.mecha = { ...read.instance.mecha, [key]: input[key] };
+    readMechaSpec(read.instance.mecha, 'mint_solid vehicle: mecha');
+    pose = undefined;
+    for (const key of ['tool', 'carrier', 'height']) if (input[key] !== undefined) throw new Error(`mint_solid vehicle: a ${key} is a site machine's (an excavator: { vehicle: 'excavator', tool: 'breaker' }); this build has none`);
   } else for (const key of ['tool', 'carrier', 'height', 'palette']) if (input[key] !== undefined) throw new Error(`mint_solid vehicle: a ${key} is a site machine's (an excavator: { vehicle: 'excavator', tool: 'breaker' }); this build has none`);
   // a cycle's look beside its word (cycle-shelf/cycle-looks.js: police, military, blackout, classic), carried in its recipe
   if (input.look !== undefined) {
@@ -149,6 +164,7 @@ export async function previewVehicleInstanceHandler(input) {
   // a rider astride (true: the realistic hero, or its spec) and the posture it sits in, beside the word (cycle-rider.js)
   for (const key of ['rider', 'posture', 'addons']) {
     if (input[key] === undefined) continue;
+    if (read.instance.mecha && key === 'rider') continue;
     if (!read.instance.cycle) throw new Error(`mint_solid vehicle: a ${key} is a machine ridden astride's (a motorcycle: { vehicle: 'motorcycle', rider: true }); this build has none`);
     read.instance.cycle = { ...read.instance.cycle, [key]: input[key] };
   }
@@ -172,6 +188,6 @@ export async function previewVehicleInstanceHandler(input) {
     read.instance.loft = { ...read.instance.loft, wear: input.wear };
   }
   const { type } = read.instance;
-  const out = await mintVehicleInstance({ title, type, racer: read.instance.racer, supercar: read.instance.supercar, loft: read.instance.loft, cycle: read.instance.cycle, construction: read.instance.construction, decoration, pose, viewBox, ref, folderRef, ...(read.asked ? { vehicle: read.id } : {}) });
+  const out = await mintVehicleInstance({ title, type, racer: read.instance.racer, supercar: read.instance.supercar, loft: read.instance.loft, cycle: read.instance.cycle, construction: read.instance.construction, mecha: read.instance.mecha, decoration, pose, viewBox, ref, folderRef, ...(read.asked ? { vehicle: read.id } : {}) });
   return read.id ? { ...out, registry: registryReadout(read.id, { tier: read.tier ?? tier ?? 'stylised', use: 'parked' }) } : out;
 }
