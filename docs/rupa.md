@@ -96,29 +96,78 @@ what it strikes only when its stagnation pressure, ½ρv², passes the matter's 
 MPa at the face) never wears a log away; a cutting jet at thousands of bar would. A body crossing a pool's surface also
 loses its heave to the waves it makes, so a dropped block settles at its draft in seconds.
 
-## One fluid law: water and air
+## Air and wind
 
-Air is a matter in the same table (`air`, family `gas`: density 1.204 kg/m³, viscosity 1.81×10⁻⁵ Pa·s), and every
-fluid, liquid or gas, goes through the same three functions in the runtime's physics. Nothing about water is
-special-cased:
+Air is matter too. It's in the matter table as `air`: a gas weighing 1.2 kg per cubic metre, about 800 times lighter
+than water. Like water it has no strength of its own, so it can't hold a shape and nothing can be built from it. It's
+simply what the world stands in.
 
-- `pressure(medium, { depth, flow, cp })` = ρ·g·depth + Cp·½ρv². The first term is a tank on its foot, a pool on a wall
-  and the pipes' heads (`fluid.js` uses it); the second is a hose jet on a log and the wind on a wall. `flowOf` is its
-  inverse (Bernoulli, √(2p/ρ)), which gives a nozzle's jet and a pipe opening's flow.
-- `immerse(box, mass, vel, medium, flow)` lifts a box by the fluid it puts aside and drags it toward the medium's own
-  flow. A pool is a medium with a surface; the air is the medium everywhere. `stepIn` applies it implicitly. The same
-  call floats pine in a pool, carries a light shell on the wind and slows the hose's spray (a parcel is a slug of the
-  breaking jet, `drop` 0.16 m across).
-- Grain settling in `debris.js` reads the same air from the table.
+### What still air does
 
-**Wind** is the air moving: a level's `matter: { wind: { speed, dir, terrain?, gust?, seed? } }`. Its speed is given at
-10 m and rises with height by a power law (α: sea 0.11, open 0.14, city 0.3, where buildings slow the air near the
-ground). Gusts are three travelling waves of seeded phase, so the same wind blows the same way at the same place and
-time. Its pressure Cp·½ρu² (Cp 1.3) loads each exposed face; a block whose upwind face touches another is sheltered.
-At each joint a stack is tipped by the wind's moment and slid by its push. It's held by its weight and, at a mortared
-joint, by the joint's cohesion. A block's `joint` is `mortar` for masonry and `dry` for everything else. A stack that
-goes leaves the structure as falling bodies (`how: 'topple'`). A 70 m/s gale tips a dry pine pile; a mortared brick
-wall stands.
+Air does two things to anything in it, and both are small unless the thing is light or fast.
+
+- **It holds things up, a little.** Anything in air is pushed up by the weight of the air it takes the place of
+  (Archimedes, the same as in water). A 1 m block gets about 12 N of lift from air against 9,800 N from water. That's
+  why balloons float and bricks don't notice.
+- **It slows things that move through it.** Pushing air aside costs energy. A heavy block barely feels it. A light
+  crate, a spray of water or a cloud of dust feels it a lot, which is why the hose's jet falls short of where it would
+  land in a vacuum.
+
+### What wind does
+
+Wind is air that's moving. Everything above still applies, with one change: drag now pulls things *along with* the
+air instead of only slowing them. So the wind carries light things and bends the hose's spray sideways.
+
+Wind also pushes on whatever it hits. The push on each square metre of a face is ½ × air density × speed²:
+
+| Wind | What it's like | Push on a wall |
+|---|---|---|
+| 15 m/s | a strong breeze | about 140 Pa |
+| 40 m/s | a severe storm | about 960 Pa |
+| 70 m/s | a strong hurricane | about 2,950 Pa |
+
+Doubling the wind's speed quadruples the push. A block standing behind another block, out of the wind, gets no push.
+
+### What wind knocks over
+
+Wind can tip a stack over or slide it along. What holds a stack in place:
+
+- **its weight.** A heavier, wider stack is harder to tip.
+- **mortar, if its joints have it.** Masonry (brick, stone, concrete) is mortared by default, and the mortar's grip
+  holds the joint closed. Everything else (timber, crates, metal) is dry-stacked and only its weight holds it.
+
+If the wind's push beats what holds a stack, the stack leaves the structure and falls as loose pieces. In practice a
+70 m/s gale tips a dry pile of pine blocks, while a mortared brick wall the same height stands. A 15 m/s breeze moves
+neither.
+
+### Describing a wind
+
+A level sets it in its `matter` settings:
+
+```js
+matter: { wind: { speed: 25, dir: 90, terrain: 'city', gust: 0.3 } }
+```
+
+- `speed` is the wind at 10 m up, in m/s. Wind is slower near the ground and faster higher up.
+- `dir` is the direction it blows toward, in degrees (0 is +x, 90 is +y), or an `[x, y]` vector.
+- `terrain` sets how much the ground slows it: `sea` least, `open` (the default), `city` most, because buildings break
+  up the air near the ground.
+- `gust` (0 to 1) adds gusts: the wind rises and falls as gusts sweep downwind. They're seeded, so the same level
+  always gets the same gusts at the same place and time.
+
+### Why air and water share their code
+
+Water and air follow the same laws with different numbers: water is heavy and slow, air is light and fast. So both go
+through the same functions in the runtime (`controllable/rupa.js`):
+
+- `pressure(fluid, { depth, flow })` gives the pressure from a fluid's weight (ρ·g·depth: a tank's water on its base)
+  plus the push of its flow (½ρv²: a hose's jet, the wind on a wall). `flowOf` turns a pressure back into a speed,
+  which gives a nozzle's jet.
+- `immerse(box, mass, velocity, fluid, flow)` gives a block's lift and drag in any fluid. A pool is a fluid with a
+  surface; air is the fluid everywhere, and its `flow` is the wind. `stepIn` applies the result each step.
+
+The tanks, pipes and nozzles (`fluid.js`), grain settling (`debris.js`), the pools, the hose's spray and the wind all
+call these functions, so a fix to the physics reaches every fluid at once.
 
 ## Debris
 
