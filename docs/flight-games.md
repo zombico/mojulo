@@ -184,6 +184,24 @@ with their blades meshed. Each stands level on its skids or wheels with its roto
 
 Not yet: flying them (a hover model, the rotor's thrust) and a cabin seen through an open side door.
 
+### Airliners
+
+The civil fixed wing (the bizjet, the regional turboprop, the single-aisle and the twin-aisle) are what the CSS
+transport hub's apron draws. In the realistic tier they come off the shelf in the fighter's and the helicopters'
+treatment.
+- **Made** (`liner-made.js`, with `made`):
+  - the flight deck's frame, the pitot probes and vanes, the beacons, the APU's exhaust;
+  - each door's viewport and handle;
+  - the cargo holds' doors (a hull's `holds`), which the turnaround's belt loaders meet;
+  - a turbofan's intake open to a fan face behind its blades, and its fan nozzle and core cowl.
+- **Looks** (`liner-looks.js`, `look` on `assembleCraft`, `craftForm` and a parked craft): generic airline schemes,
+  never a real operator's: plain white, a coloured tail, a classic cheatline over a polished belly, a coloured belly,
+  a bold body, a freighter with its windows plugged.
+  - Each card sets the tail's and engines' colours, a belly or a cheatline cut by height, and a generic emblem on the
+    fin.
+  - The winglets carry the tail's colour.
+  - A fixed wing's civil registration is aft, under the tail.
+
 ### The turnaround
 
 The airfield's ground crew (`car-designer/road-airside.js`, `road-airside-haul.js`) are built at their true numbers in

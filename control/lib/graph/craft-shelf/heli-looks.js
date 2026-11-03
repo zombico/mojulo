@@ -10,7 +10,7 @@
  *   armour false leaves a made hull's armour plates off (a civilian card's); true or absent keeps them
  *
  *   HELI_LOOKS, HELI_LOOK_IDS, HELI_ARMS, HELI_STATIONS
- *   lookFamily(archetypeRow, odm)        → 'heli' | 'drone'
+ *   lookFamily(archetypeRow, odm)        → 'heli' | 'liner' | 'drone'
  *   dressRow(archetypeRow, card, odm)    → the archetype as the card dresses it: its layout with its kit hung and its
  *                                          weapons stripped, its bill of materials counting both (the audit's)
  *
@@ -54,9 +54,11 @@ export const HELI_LOOKS = Object.freeze({
 });
 export const HELI_LOOK_IDS = Object.freeze(Object.keys(HELI_LOOKS));
 
-/** A craft's look family: a helicopter's (it carries a main rotor) or a drone's. */
+/** A craft's look family: a helicopter's (it carries a main rotor), an airliner's (a liner's or a courier's fixed wing:
+ *  liner-looks.js) or a drone's. */
 export function lookFamily(row, odm) {
-  return row.layout.some((e) => odm[e.sku]?.kind === 'heli-rotor') ? 'heli' : 'drone';
+  if (row.layout.some((e) => odm[e.sku]?.kind === 'heli-rotor')) return 'heli';
+  return ['liner', 'courier'].includes(row.role) && row.realm === 'earth' ? 'liner' : 'drone';
 }
 
 // the row of a family nearest a size, from a realm

@@ -18,3 +18,17 @@ the fighter and the helicopters have, and a four-engined jumbo.
   in place of the disc that stood in front of them. Its spinner carries a swirl. The fan nozzle's trailing edge and
   the core cowl step down to the plug, and the latches sit along the cowl's foot.
 - **The turnaround** reads a row's own holds where it names them.
+- **The airline looks** (`craft-shelf/liner-looks.js`): a third look family, `liner`, for an airliner's or a courier's
+  fixed wing. Its cards are generic schemes, never a real airline's:
+  - `white`;
+  - `tail`, its colour and a disc on the tail;
+  - `cheatline`, dark and gold lines under the windows, a polished belly and a gold sweep;
+  - `bellied`, a coloured belly up to the windows and a chevron;
+  - `bold`, one strong body colour, grey wings and an accent tail;
+  - `freighter`, its windows plugged.
+
+  A card's scheme sets the tail's, engines' and wings' colours, cuts a belly or cheatlines into the hull by height,
+  lays an emblem on both sides of the fin and carries the tail's colour to the winglets. A look is taken by
+  `assembleCraft`, `craftForm`, a world's craft figure and a parked craft.
+- **A fixed wing's civil registration** is aft, under its tail, where an airliner's is; a helicopter's stays at its
+  boom's root.

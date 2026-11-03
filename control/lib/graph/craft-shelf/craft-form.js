@@ -31,6 +31,7 @@
  *
  * Craft space: +y the nose, +z up, metres. Pure and deterministic, as the shelf is.
  */
+import { schemeCraft } from './liner-looks.js';
 import { assembleCraft } from './index.js';
 import { lowerAssemblerBuild } from '../worlds/workbench-assembler.js';
 import { FLAT_LIGHT } from '../polygonizer/vexar.js';
@@ -175,6 +176,8 @@ export function craftForm(archetype, { palette, colors, pose = { gear: 1 }, atti
     let zl = Infinity, zh = -Infinity;
     for (const f of (hull ?? stage[0]).fs) if (!f.fitting) for (const c of f.corners) { if (c[2] < zl) zl = c[2]; if (c[2] > zh) zh = c[2]; }
     paintCraft(stage, L, { base: P.paint.toLowerCase(), seed, waist: (zl + zh) / 2, half: Math.max(0.2, (zh - zl) / 2), length: mx[1] - mn[1] });
+    // (an airliner's scheme over its body's colour: its belly, cheatlines, tail, engines, emblem: liner-looks.js)
+    if (card?.scheme) schemeCraft(stage, card.scheme, { waist: (zl + zh) / 2, half: Math.max(0.2, (zh - zl) / 2), length: mx[1] - mn[1] });
   }
   // (made: its skin's panel lines cut in, its access panels' fasteners set on it: air-kit.js)
   if (made) for (const it of stage) {
