@@ -217,6 +217,10 @@ export const VEHICLES = {
   // word here, the one maker's name the roster keeps)
   'utility-4x4': row('military utility vehicle', ['jeep', 'military jeep', 'army jeep', 'light utility vehicle', 'field car', 'command car', 'scout car', 'military four by four'], 'offroad', 'scout', M, FIGHT.concat('parked'),
     { physics: 'utility4x4', tech: 'car' }),
+  // (the field's heavy utility 4x4, a buffed-up jeep, a class and not a replica; "humvee" is said of any such vehicle,
+  // so it is a word here, as "jeep" is)
+  'heavy-utility': row('heavy utility vehicle', ['humvee', 'heavy jeep', 'military humvee', 'high mobility vehicle', 'heavy utility truck', 'wide jeep', 'military suv', 'four door jeep'], 'offroad', 'transport', M, ['driven', 'crewed', 'parked', 'traffic'],
+    { physics: 'heavy4x4', tech: 'car' }),
   'cargo-truck': row('military cargo truck', ['canvas truck', 'military truck', 'army truck', 'troop truck', 'troop carrier', 'covered truck', 'six by six', 'deuce and a half', 'supply truck'], 'offroad', 'transport', M, ['driven', 'crewed', 'parked', 'traffic'],
     { physics: 'cargo6x6', tech: 'truck' }),
   apc: row('armoured personnel carrier', ['apc', 'armoured car', 'armored car', 'personnel carrier', 'armored personnel carrier', 'wheeled apc', 'eight by eight', 'infantry carrier'], 'offroad', 'armour', M, FIGHT.concat('parked'),

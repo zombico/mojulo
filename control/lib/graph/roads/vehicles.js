@@ -54,6 +54,8 @@ export const VEHICLES = Object.freeze({
   // (the field's: a light utility 4x4, a six-wheeled cargo truck, an eight-wheeled armoured personnel carrier; their
   // tyres cross-country, so less grip on asphalt and more rolling; governed as their manuals are)
   utility4x4:    Object.freeze({ words: 'a military light utility 4x4', mass: 2400, power: 110, drive: 'all', share: 1, wheelbase: 2.75, track: 1.62, wheelRadius: 0.41, CdA: 1.9, Crr: 0.018, cgH: 0.82, L: 4.4, W: 1.95, H: 1.9, eye: 1.65, grip: 0.78, brakeEff: 0.9, turn: 6.6, band: 0.8, governor: kmh(110) }),
+  // (the field's heavy utility 4x4: wide, low and heavy-tyred, a buffed-up jeep; governed as its manual is)
+  heavy4x4:      Object.freeze({ words: 'a heavy military utility 4x4', mass: 3500, power: 140, drive: 'all', share: 1, wheelbase: 3.3, track: 1.82, wheelRadius: 0.47, CdA: 3.4, Crr: 0.02, cgH: 0.95, L: 4.6, W: 2.16, H: 1.83, eye: 1.75, grip: 0.77, brakeEff: 0.85, turn: 7.6, band: 0.8, governor: kmh(105) }),
   cargo6x6:      Object.freeze({ words: 'a six-wheeled military cargo truck', mass: 9500, power: 220, drive: 'all', share: 1, wheelbase: 4.6, track: 2.0, wheelRadius: 0.6, CdA: 6.0, Crr: 0.02, cgH: 1.3, L: 7.6, W: 2.45, H: 3.0, eye: 2.3, grip: 0.7, brakeEff: 0.7, turn: 11, band: 0.85, governor: kmh(90) }),
   apc8x8:        Object.freeze({ words: 'an eight-wheeled armoured personnel carrier', mass: 19000, power: 330, drive: 'all', share: 1, wheelbase: 5.0, track: 2.3, wheelRadius: 0.6, CdA: 7.5, Crr: 0.022, cgH: 1.35, L: 7.8, W: 2.9, H: 2.6, eye: 2.2, grip: 0.72, brakeEff: 0.75, turn: 10.5, band: 0.85, governor: kmh(100) }),
   // (the field's missile launcher: an eight-wheeled transporter-erector carrying a 14 m missile; its height the truck's
