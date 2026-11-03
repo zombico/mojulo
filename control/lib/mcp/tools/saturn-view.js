@@ -47,7 +47,7 @@ export function mintSaturnView({ title, planet, gallery, scenario, inclination, 
 
 export async function createSaturnViewHandler(input) {
   if (!input || typeof input !== 'object') {
-    throw new Error('create_saturn_view requires a recipe object');
+    throw new Error('create_view({ kind: "saturn" }) requires a recipe object');
   }
   const { title, planet, gallery, scenario, inclination, ring_outer: ringOuter, scale, viewBox, scene, ref, folder_ref: folderRef } = input;
   return mintSaturnView({ title, planet, gallery, scenario, inclination, ringOuter, scale, viewBox, scene, ref, folderRef });

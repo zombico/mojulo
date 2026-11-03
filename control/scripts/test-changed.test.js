@@ -44,7 +44,9 @@ describe('what a change picks', () => {
     const dir = 'lib/mcp/routing-cards', card = fs.readdirSync(path.join(CONTROL, dir)).find((f) => !f.endsWith('.js'));
     const S = selectTests([`${dir}/${card}`], { graph: G });
     expect(S.tests.length).toBeGreaterThan(0);
-    expect(S.tests.every((t) => path.posix.dirname(t) === dir || /\.(char|trace)\.test\.js$/.test(t))).toBe(true);
+    // beside it, a byte pin, or a test declared to read it as text (TEXT_READERS)
+    const readers = new Set(TEXT_READERS.filter((T) => T.reads.test(`${dir}/${card}`)).flatMap((T) => T.by));
+    expect(S.tests.every((t) => path.posix.dirname(t) === dir || /\.(char|trace)\.test\.js$/.test(t) || readers.has(t))).toBe(true);
   });
 });
 

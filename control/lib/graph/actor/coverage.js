@@ -12,6 +12,10 @@
  *     CLOSE on the speaker where the line has a face of its own (a parenthetical); back to the WIDE on a cross; the
  *     cameras on one side of the line all scene (the 180° rule: the side the first wide stands on); a camera a setup
  *     (the wide, and an over and a close for each actor), re-keyed where its shot is
+ *   coverScene(S, { grain }) also carries the scene's time (its slow motion and freezes, scene.js `time`) onto the shots
+ *     they fall in, as each shot's time map (shoot/time.js: a stretch cut at the shot's edges, a freeze in the shot it
+ *     lands in), and `grain` (2 | 3: the world on twos or threes, the camera on ones) onto every shot; neither, and the
+ *     coverage is as it was
  *
  * Pure and deterministic.
  */
@@ -54,7 +58,7 @@ export function frameShot(frame, subjects, { side = 1, lookH = LOOK_H, fov = FOV
 export const focalOf = (fov) => r3(FILM / (2 * Math.tan((fov * Math.PI) / 360)));
 
 /** The scene's coverage (see the header) */
-export function coverScene(S) {
+export function coverScene(S, { grain = null } = {}) {
   const names = Object.keys(S.actors), smooth = (u) => u * u * (3 - 2 * u), wrap = (d) => ((((d + 180) % 360) + 360) % 360) - 180;
   const placeAt = (w, s) => { const K = S.actors[w].root; if (s <= K[0].t) return K[0]; for (let k = 1; k < K.length; k++) if (s <= K[k].t) { const a = K[k - 1], c = K[k], u = (s - a.t) / Math.max(1e-6, c.t - a.t); return { x: a.x + (c.x - a.x) * u, y: a.y + (c.y - a.y) * u, yaw: a.yaw + wrap(c.yaw - a.yaw) * smooth(u) }; } return K.at(-1); };
   const pt = (w, s) => { const P = placeAt(w, s); return [P.x, P.y, 0]; };
@@ -103,7 +107,12 @@ export function coverScene(S) {
     const cam = cams.get(id) ?? { id, name: c.frame === 'wide' ? 'the wide' : `${c.frame} on ${c.on[0]}`, type: 'two_node', film_mm: FILM, path: 'linear', keys: [] };
     cam.keys.push({ t: t0, pos: a.pos, poi: a.poi, focal_mm: focalOf(a.fov) }, { t: r3(Math.max(t0 + 0.001, t1 - 0.001)), pos: b.pos, poi: b.poi, focal_mm: focalOf(b.fov) });
     cams.set(id, cam);
-    shots.push({ name: `${i + 1} ${c.frame}${c.why ? `: ${c.why}` : ''}`, camera: id, span: [t0, t1] });
+    const last = i === kept.length - 1, time = (S.time ?? []).flatMap((m) => {
+      if (m.at !== undefined) return m.at >= t0 && (m.at < t1 || (last && m.at <= t1)) ? [m] : [];
+      const a = Math.max(t0, m.span[0]), b = Math.min(t1, m.span[1]);
+      return b > a ? [{ span: [r3(a), r3(b)], speed: m.speed }] : [];
+    });
+    shots.push({ name: `${i + 1} ${c.frame}${c.why ? `: ${c.why}` : ''}`, camera: id, span: [t0, t1], ...(time.length ? { time } : {}), ...(grain > 1 ? { grain } : {}) });
     void mid;
   });
   return { fps: 24, cameras: [...cams.values()], shots };

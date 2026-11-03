@@ -21,6 +21,7 @@ import { compileCamera, cameraAt, programOf, sampleCameraTrack, pathPolyline } f
 import { normalizePieces, lowerPieces } from './pieces.js';
 import { hfovForFocal } from './lens.js';
 import { normalizeTransition, transitionPieces } from './transitions.js';
+import { MIN_SPEED, MAX_SPEED, normalizeTime, timelineReadout } from './time.js';
 
 export const EASES = ['linear', 'easy_ease', 'easy_ease_in', 'easy_ease_out', 'hold'];
 export const CAMERA_TYPES = ['two_node', 'one_node'];
@@ -30,7 +31,8 @@ export const STATIC_SHOT_S = 3;       // a one-key camera's default shot length
 const MAX_CAMERAS = 8, MAX_KEYS = 64, MAX_SHOTS = 64, MAX_SECONDS = 600;
 // a shot's `speed` stretches its span on the program clock (an After Effects time stretch): 0.25 plays its span of the
 // world four times slower, a slow-motion replay; 2 plays it twice as fast. Absent (or 1), the shot plays in real time.
-export const MIN_SPEED = 0.05, MAX_SPEED = 4;
+// Its `time`, `clock` and `grain` (time.js) are the time map that says more: stretches, ramps, holds, bullet time, twos.
+export { MIN_SPEED, MAX_SPEED };
 const PALETTE = ['#f5a524', '#4fc3f7', '#e57cd8', '#7bd88f', '#ff7a59', '#b39ddb', '#ffd54f', '#80cbc4'];
 
 const v3 = (v) => Array.isArray(v) && v.length === 3 && v.every(Number.isFinite);
@@ -172,7 +174,9 @@ export function normalizeShoot(raw, { subjects = null } = {}) {
         if (fin(s.speed) && s.speed >= MIN_SPEED && s.speed <= MAX_SPEED) { if (s.speed !== 1) speed = s.speed; }
         else warn(`shot ${i}: speed ${s.speed} is outside ${MIN_SPEED}–${MAX_SPEED}, played in real time`);
       }
-      shots.push({ name: typeof s.name === 'string' && s.name.trim() ? s.name.trim().slice(0, 60) : `${label(cam)} ${i + 1}`, camera: cam.id, span, ...(tr ? { in: tr } : {}), ...(on.length ? { cue: on } : {}), ...(speed ? { speed } : {}) });
+      const name = typeof s.name === 'string' && s.name.trim() ? s.name.trim().slice(0, 60) : `${label(cam)} ${i + 1}`;
+      const tm = normalizeTime({ ...s, span }, { fps, warn, name: `shot ${i}` });
+      shots.push({ name, camera: cam.id, span, ...(tr ? { in: tr } : {}), ...(on.length ? { cue: on } : {}), ...(speed ? { speed } : {}), ...tm });
     });
   }
   if (!shots.length) {
@@ -228,7 +232,7 @@ export function shootReadout(plan, { subjects = null, metersPerUnit = null } = {
       ...(jumps.length ? { jumps: jumps.slice(0, 8) } : {}),
     };
   });
-  return { duration_s: Math.round(total * 1000) / 1000, fps: plan.fps, ...(mpu ? { meters_per_unit: mpu } : {}), shots: shots.map((s) => ({ name: s.name, camera: s.camera, start_s: s.start, length_s: s.length })), cameras };
+  return { duration_s: Math.round(total * 1000) / 1000, fps: plan.fps, ...(mpu ? { meters_per_unit: mpu } : {}), shots: shots.map((s) => ({ name: s.name, camera: s.camera, start_s: s.start, length_s: s.length, ...(s.tl ? { time: timelineReadout(s, s.tl) } : {}) })), cameras };
 }
 
 // does a camera follow something that moves live (the page must read where it is)?
@@ -262,6 +266,7 @@ export function liveNotes(plan, subjects) {
     const a = plan.shots[i - 1], b = plan.shots[i];
     if (b.span[0] < a.span[1] - 1e-9) notes.push(`shot '${b.name}' starts at ${b.span[0]}s, before '${a.name}' ends at ${a.span[1]}s: a live world cannot rewind, so it cuts in at ${a.span[1]}s`);
   }
+  for (const s of plan.shots) if (s.time || s.grain || s.clock) notes.push(`shot '${s.name}' has a time map: a live world plays on its own clock, so the page plays it in real time (the map plays in a rendered film)`);
   for (const c of plan.cameras) if (followsLive(c, subjects)) notes.push(`camera '${c.id}' follows a live entity: its path is drawn as it plays (the readout's metres and clearance assume the entity at its spawn)`);
   return notes;
 }
@@ -310,7 +315,7 @@ export function lowerShoot(plan, { subjects = null, live = false } = {}) {
       };
     }),
     ...(live ? { live: true } : {}),
-    shots: program.shots.map((s) => ({ name: s.name, camera: s.camera, start: s.start, length: s.length, span: s.span, ...(s.speed ? { speed: s.speed } : {}) })),
+    shots: program.shots.map((s) => ({ name: s.name, camera: s.camera, start: s.start, length: s.length, span: s.span, ...(s.speed ? { speed: s.speed } : {}), ...(s.tl ? { tl: s.tl } : {}) })),
     ...(cued.length ? { cues: cued.map(({ s, i }) => ({ i, name: s.name, camera: s.camera, on: s.cue, length: s.span[1] - s.span[0], span: s.span })) } : {}),
     ...lowerSet(plan, subjects),
   };

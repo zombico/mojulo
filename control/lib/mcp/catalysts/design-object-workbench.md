@@ -2,7 +2,7 @@
 {
   "id": "design-object-workbench",
   "name": "Design a measured object with the workbench",
-  "summary": "Compose a single everyday object (candlestick, bottle, mug, dumbbell, box, phone case, labeled can) by bonding primitive solids — lathe (revolution), extrude (prism/shell), sweep (bent tube) — on a measured grid at literal real-world scale, then mint it with create_workbench.",
+  "summary": "Compose a single everyday object (candlestick, bottle, mug, dumbbell, box, phone case, labeled can) by bonding primitive solids — lathe (revolution), extrude (prism/shell), sweep (bent tube) — on a measured grid at literal real-world scale, then mint it with mint_solid kind workbench.",
   "valueHook": "Turn 'a coffee mug' or 'a soda can with this label' into a real, orbitable 3D object study at literal scale — and a print-ready STL the slicer's mesh repair finishes.",
   "version": 1,
   "category": "object-design",
@@ -12,14 +12,14 @@
     { "name": "objectIntent", "prompt": "What object are you designing? (e.g. 'a brass candlestick', 'a coffee mug', 'a 355mL soda can with a red label')" },
     { "name": "units", "prompt": "Real-world units for literal scale: cm | mm | in | ft (default cm)", "default": "cm" }
   ],
-  "mcpTools": { "mojulo": ["create_workbench", "semantic_search"] },
+  "mcpTools": { "mojulo": ["mint_solid", "semantic_search"] },
   "outputContract": { "summary": "A minted workbench sketch ref + its /world (orbit) and /scene URLs, plus the monomer recipe used.", "fields": ["ref", "worldUrl", "stats"] }
 }
 ---
 
 # Design a measured object with the workbench
 
-`create_workbench` is the OBJECT-scale sibling of `compose_world`'s `city` base: it renders ONE everyday
+`mint_solid` kind `workbench` is the OBJECT-scale sibling of `compose_world`'s `city` base: it renders ONE everyday
 object on a measured grid at **literal real-world scale** (cm/in/ft), for form accuracy. The whole
 discipline is: **model each object by the manufacturing process that makes it.**
 
@@ -60,7 +60,7 @@ Mint the label as a `create_sketch` first and pass its ref as `sketchRef` to kee
 
 ## 4. Mint + iterate
 
-`create_workbench({ lathes:[…], extrudes:[…], sweeps:[…], units:'cm', title:'…' })` → returns a
+`mint_solid({ kind:'workbench', spec:{ lathes:[…], extrudes:[…], sweeps:[…], units:'cm' }, title:'…' })` → returns a
 `/sketches/<ref>/world` (free orbit) + `/scene` (preset turntable shots), at literal scale on a 5-unit
 grid, plus a size/face stat readout. Re-mint with a new `ref` for a variant; designs are immutable.
 

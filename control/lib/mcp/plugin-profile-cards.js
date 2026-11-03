@@ -27,11 +27,11 @@ export const PROFILE_CARD_EDITS = Object.freeze({
       body: [[/ When the user wants an AI-painted comic or\nmanga page[\s\S]*?for the external image worker\./, '']],
     },
     'wardrobe-construction': {
-      summary: [['on a create_figure / character-sheet body', 'on a create_figure body']],
+      summary: [['on a figure (mint_solid kind figure) / character-sheet body', 'on a figure (mint_solid kind figure) body']],
       when: [[' or character-sheet,', ','], [' reconstruct a dreamed outfit as a garment spec,', '']],
       body: [
         ['each a closed vocabulary an LLM can\nemit *from looking at a dreamed character*. A garment', 'each a closed vocabulary an LLM can\nemit. A garment'],
-        ['Feed it to `create_figure.garment` or a\ncharacter-sheet `outfit.garment`.', 'Feed it to `create_figure.garment`.'],
+        ["Feed it to a figure's `spec.garment` (`mint_solid` kind `figure`) or a\ncharacter-sheet `outfit.garment`.", "Feed it to a figure's `spec.garment` (`mint_solid` kind `figure`)."],
         [
           "The image model's native construction register is CUT-AND-SEW panels, not ring\nwireframes — so target this vocabulary directly when reading a dream. A garment",
           'The construction register is CUT-AND-SEW panels, not ring\nwireframes. A garment',
@@ -64,7 +64,7 @@ export const PROFILE_CARD_EDITS = Object.freeze({
       body: [
         ['(silhouette, palette taxonomy,\nskin bake)', '(silhouette, palette taxonomy)'],
         [
-          'family. Assembled workers take the polygomer skin seam (`get_skin_packet` →\npaint decals/wear flat over the scaffold → `skin_polygomer`) — hazard stripes\nand unit markings without touching the geometry recipe.',
+          "family. Assembled workers take the polygomer skin seam (`edit_solid` op `skin`, `spec.phase: 'packet'` →\npaint decals/wear flat over the scaffold → `edit_solid` op `skin` with the PNG) — hazard stripes\nand unit markings without touching the geometry recipe.",
           'family.',
         ],
       ],
@@ -79,7 +79,7 @@ export const PROFILE_CARD_EDITS = Object.freeze({
     },
     'reploid': {
       body: [[
-        '\n- **Skin seam:** the assembled unit takes the polygomer skin seam\n  (`get_skin_packet` → paint → `skin_polygomer`) for decals and finish;\n  single-view limitation applies (front/¾ strong, side/back weak).',
+        "\n- **Skin seam:** the assembled unit takes the polygomer skin seam\n  (`edit_solid` op `skin`: `spec.phase: 'packet'` → paint → the PNG back) for decals and finish;\n  single-view limitation applies (front/¾ strong, side/back weak).",
         '',
       ]],
     },

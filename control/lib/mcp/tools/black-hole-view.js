@@ -43,7 +43,7 @@ export function mintBlackHoleView({ title, scenario, inclination, diskOuter, bet
 
 export async function createBlackHoleViewHandler(input) {
   if (!input || typeof input !== 'object') {
-    throw new Error('create_black_hole_view requires a recipe object');
+    throw new Error('create_view({ kind: "black-hole" }) requires a recipe object');
   }
   const { title, scenario, inclination, disk_outer: diskOuter, beta, scale, viewBox, scene, ref, folder_ref: folderRef } = input;
   return mintBlackHoleView({ title, scenario, inclination, diskOuter, beta, scale, viewBox, scene, ref, folderRef });

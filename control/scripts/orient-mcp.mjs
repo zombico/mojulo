@@ -104,7 +104,7 @@ const WORKS = [
     ref: 'sk_jon77cn4ud',
     urls: { page: '/sketches/sk_jon77cn4ud', png: '/api/sketches/sk_jon77cn4ud/png', world: '/api/sketches/sk_jon77cn4ud/world' },
     shows: 'Real-scale 3D objects from a closed vocabulary — seven stacked lathe profiles and one swept handle become a 40cm brass-and-glass hurricane lantern, placed by declared relations (on/gap/radial), never coordinates.',
-    madeWith: ['create_workbench (assembly + one sweep)'],
+    madeWith: ['mint_solid kind workbench (assembly + one sweep)'],
     story: 'Took two mints: v1’s handle hoop floated (ends at ±6.5cm over a 3.6cm collar) — the eyes gate caught it, v2 seats it. The iteration IS the method.',
     sampleAsks: [
       'model a hurricane lantern at real scale I can orbit in 3D',
@@ -112,33 +112,36 @@ const WORKS = [
       'block out this product idea as a measured object',
     ],
     recipe: {
-      tool: 'create_workbench',
+      tool: 'mint_solid',
       input: {
         ref: 'sk_jon77cn4ud',
         title: 'Complex from Simple v2 - what mojulo is to Claude, 2 of 4',
-        units: 'cm',
-        lathes: [
-          { profile: [{ t: 0, radius: 1 }, { t: 1, radius: 0.8 }], material: 'bronze', axisFrom: { x: 6, y: 0, z: 0 }, axisTo: { x: 6, y: 0, z: 1 } },
-          { profile: [{ t: 0, radius: 1 }, { t: 1, radius: 0.8 }], material: 'bronze', axisFrom: { x: 0, y: 6, z: 0 }, axisTo: { x: 0, y: 6, z: 1 } },
-          { profile: [{ t: 0, radius: 1 }, { t: 1, radius: 0.8 }], material: 'bronze', axisFrom: { x: -6, y: 0, z: 0 }, axisTo: { x: -6, y: 0, z: 1 } },
-          { profile: [{ t: 0, radius: 1 }, { t: 1, radius: 0.8 }], material: 'bronze', axisFrom: { x: 0, y: -6, z: 0 }, axisTo: { x: 0, y: -6, z: 1 } },
-          { profile: [{ t: 0, radius: 8 }, { t: 0.7, radius: 7 }, { t: 1, radius: 5.5 }], material: 'bronze', axisFrom: { x: 0, y: 0, z: 1 }, axisTo: { x: 0, y: 0, z: 4 } },
-          { profile: [{ t: 0, radius: 1.6 }, { t: 1, radius: 1.8 }], material: 'bronze', axisFrom: { x: 0, y: 0, z: 4 }, axisTo: { x: 0, y: 0, z: 9 } },
-          { profile: [{ t: 0, radius: 3 }, { t: 0.45, radius: 6 }, { t: 1, radius: 3.2 }], material: 'copper', axisFrom: { x: 0, y: 0, z: 9 }, axisTo: { x: 0, y: 0, z: 18 } },
-          { profile: [{ t: 0, radius: 3.6 }, { t: 1, radius: 2.8 }], material: 'bronze', axisFrom: { x: 0, y: 0, z: 18 }, axisTo: { x: 0, y: 0, z: 20 } },
-          { profile: [{ t: 0, radius: 3.4 }, { t: 0.25, radius: 4.4 }, { t: 0.75, radius: 3.2 }, { t: 1, radius: 2.4 }], material: 'glass', axisFrom: { x: 0, y: 0, z: 20 }, axisTo: { x: 0, y: 0, z: 33 } },
-          { profile: [{ t: 0, radius: 3 }, { t: 1, radius: 0.8 }], material: 'bronze', axisFrom: { x: 0, y: 0, z: 33 }, axisTo: { x: 0, y: 0, z: 34.6 } },
-        ],
-        sweeps: [
-          {
-            path: [
-              [3.4, 0, 20.6], [7, 0, 24.5], [7.1, 0, 29.25], [5.8, 0, 32.67], [4.1, 0, 35.29], [2.12, 0, 36.94],
-              [0, 0, 37.5], [-2.12, 0, 36.94], [-4.1, 0, 35.29], [-5.8, 0, 32.67], [-7.1, 0, 29.25], [-7, 0, 24.5], [-3.4, 0, 20.6],
-            ],
-            radius: 0.5,
-            material: 'bronze',
-          },
-        ],
+        kind: 'workbench',
+        spec: {
+          units: 'cm',
+          lathes: [
+            { profile: [{ t: 0, radius: 1 }, { t: 1, radius: 0.8 }], material: 'bronze', axisFrom: { x: 6, y: 0, z: 0 }, axisTo: { x: 6, y: 0, z: 1 } },
+            { profile: [{ t: 0, radius: 1 }, { t: 1, radius: 0.8 }], material: 'bronze', axisFrom: { x: 0, y: 6, z: 0 }, axisTo: { x: 0, y: 6, z: 1 } },
+            { profile: [{ t: 0, radius: 1 }, { t: 1, radius: 0.8 }], material: 'bronze', axisFrom: { x: -6, y: 0, z: 0 }, axisTo: { x: -6, y: 0, z: 1 } },
+            { profile: [{ t: 0, radius: 1 }, { t: 1, radius: 0.8 }], material: 'bronze', axisFrom: { x: 0, y: -6, z: 0 }, axisTo: { x: 0, y: -6, z: 1 } },
+            { profile: [{ t: 0, radius: 8 }, { t: 0.7, radius: 7 }, { t: 1, radius: 5.5 }], material: 'bronze', axisFrom: { x: 0, y: 0, z: 1 }, axisTo: { x: 0, y: 0, z: 4 } },
+            { profile: [{ t: 0, radius: 1.6 }, { t: 1, radius: 1.8 }], material: 'bronze', axisFrom: { x: 0, y: 0, z: 4 }, axisTo: { x: 0, y: 0, z: 9 } },
+            { profile: [{ t: 0, radius: 3 }, { t: 0.45, radius: 6 }, { t: 1, radius: 3.2 }], material: 'copper', axisFrom: { x: 0, y: 0, z: 9 }, axisTo: { x: 0, y: 0, z: 18 } },
+            { profile: [{ t: 0, radius: 3.6 }, { t: 1, radius: 2.8 }], material: 'bronze', axisFrom: { x: 0, y: 0, z: 18 }, axisTo: { x: 0, y: 0, z: 20 } },
+            { profile: [{ t: 0, radius: 3.4 }, { t: 0.25, radius: 4.4 }, { t: 0.75, radius: 3.2 }, { t: 1, radius: 2.4 }], material: 'glass', axisFrom: { x: 0, y: 0, z: 20 }, axisTo: { x: 0, y: 0, z: 33 } },
+            { profile: [{ t: 0, radius: 3 }, { t: 1, radius: 0.8 }], material: 'bronze', axisFrom: { x: 0, y: 0, z: 33 }, axisTo: { x: 0, y: 0, z: 34.6 } },
+          ],
+          sweeps: [
+            {
+              path: [
+                [3.4, 0, 20.6], [7, 0, 24.5], [7.1, 0, 29.25], [5.8, 0, 32.67], [4.1, 0, 35.29], [2.12, 0, 36.94],
+                [0, 0, 37.5], [-2.12, 0, 36.94], [-4.1, 0, 35.29], [-5.8, 0, 32.67], [-7.1, 0, 29.25], [-7, 0, 24.5], [-3.4, 0, 20.6],
+              ],
+              radius: 0.5,
+              material: 'bronze',
+            },
+          ],
+        },
       },
     },
   },
@@ -247,7 +250,7 @@ const BRIEFS = [
       'mint_solid kind assembler — the chariot, every item carrying an id',
       'update_sketch — the one fix, the exploded variant, the subtractions',
       'export_model — .glb and .stl',
-      'optional rungs: export_model { engine } (engine), request_mesh_render → pull → submit → accept (upscaler)',
+      "optional rungs: export_model { engine } (engine), render_handoff { medium: 'mesh' } request → pull → submit → accept (upscaler)",
     ],
     brief: [
       'A Roman racing biga at real scale a person could stand in. units: cm. What makes it read Roman: a D-shaped floor ' +
@@ -298,7 +301,7 @@ const BRIEFS = [
       {
         id: 'C4', title: 'Hand it on',
         do: 'export_model as glb and as stl. Optional rung: an engine pack (export_model { ref, engine }). Optional rung: the mesh upscaler ' +
-          '(request_mesh_render → pull_mesh_render → an external sculptor → submit_mesh_render → accept_mesh_render by a DIFFERENT source). ' +
+          "(render_handoff { medium: 'mesh' }: request → pull → an external sculptor → submit → accept by a DIFFERENT source). " +
           'A missing binary or sculptor degrades the rung, never the exercise — say which rungs ran.',
         machine: 'Bytes and triangle count; the closure advisory; the size gate on any sculpted mesh.',
         eyes: 'The sculpted mesh keeps the silhouette and the wheel count.',
