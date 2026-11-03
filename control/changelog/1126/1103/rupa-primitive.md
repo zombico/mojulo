@@ -56,6 +56,12 @@ Walls hold and objects break stays the default; a game that asks for destructibl
   (leaves, litter, ash), bend for what flexes from its foot (grass, reeds, saplings: a cantilever's curve and its first
   mode), hang for what swings (flags, lanterns: drag against weight, a pendulum), still for what the strongest gust can't
   move, and simulate for what it moves but can't carry, or snaps. Like kinds batch into one GPU draw; each kind is a row.
+- **Blocking, flow's opposite**: a barrier is its porosity, and how flow gets past it follows by law instead of a tuned
+  share: its resistance (the perforated-plate loss), what bleeds through, the drag it takes (so a slatted fence feels
+  less of the wind than a solid one), and the wake behind it recovering as a plane wake does (a solid wall stills the
+  air at its back; a hedge shelters less deeply). The runtime's wind, the wind script and the wind solver share it. On
+  the ground grid, water pools behind a barrier and pours over its top, seeps through its open share by Bernoulli, and
+  breaches it where its push beats the barrier's weight and joint: a thin adobe wall gives way, thick concrete holds.
 - **Water and air share one set of fluid functions**: pressure (from a fluid's weight and from its flow), turning a
   pressure back into a speed, and the lift and drag on a body in any fluid. The tanks, pipes, nozzles, pools, spray,
   grain settling and wind all call them.

@@ -73,6 +73,7 @@
  *     immerse(box, mass, vel, medium, flow?) → { V, lift, k, flow } | null · stepIn(vel, immersion, mass, h) → vel
  *     submerged(box, surface) · inPool(box, pool) · wet(box, mass, vel, pool) (immerse in a still pool)
  *     windOf({ speed, dir, terrain?, alpha?, gust?, seed? }) → wind · windAt(wind, pos, t) → [u, v, 0]
+ *     resistance(φ) · bleed(φ) · blockDrag(φ) · wakeFactor(x behind, h, φ) → the share of the wind left there
  *     fragments(box, { density, fill, frac, shape, spread, joules, how, from?, dir?, seed }) → { pieces, dust, liquid?, stats }
  *     splash(liquid { density, viscosity, tension }, { at, speed, mass, size, seed }) → { droplets, cavity, plop, stats }
  *       → { weight: Map, stress: Map, crush: [block], span: [[block]], groups } (pure over plain boxes)
@@ -199,6 +200,24 @@ export function buildRupa(E) {
     for (const ph of wind.phases) g += Math.sin(ph.w * t - ph.k * x + ph.p) / wind.phases.length;
     const u = Math.max(0, base * (1 + wind.gust * g));
     return [wind.dir[0] * u, wind.dir[1] * u, 0];
+  }
+  // ── BLOCKING: flow's opposite. A barrier is one number, its POROSITY φ (its open share: 0 a solid wall, ~0.5 a hedge
+  // or a slatted fence, 1 nothing at all), and how flow gets past it follows from that, never from a tuned allowance:
+  //   resistance  a perforated barrier's loss coefficient, k = (1/(Cc·φ) − 1)² (Borda–Carnot, Weisbach's contraction
+  //               Cc = 0.62 + 0.38φ³): the pressure it takes to push flow through, in units of ½ρu²
+  //   bleed       the share of the flow's speed that passes through, β = 1/√(1 + k) (none through a solid wall)
+  //   drag        what it takes from the flow, Cd = 1.2·k/(1 + k) (a solid fence's 1.2; nothing for an open one)
+  //   wake        behind it the flow recovers as a plane wake does: its deficit Δu/U = 0.98·√(Cd·d/x) (Schlichting), d its
+  //               height doubled by its mirror in the ground, x the distance behind it; close behind, the deficit is
+  //               capped at what does not bleed through (1 − β). So a porous hedge shelters less deeply and as far, and a
+  //               solid wall stills the air right behind it; above its top the flow passes over it ──
+  const contraction = (phi) => 0.62 + 0.38 * phi * phi * phi;
+  const resistance = (phi) => (!(phi > 0) ? Infinity : phi >= 1 ? 0 : Math.pow(1 / (contraction(phi) * phi) - 1, 2));
+  const bleed = (phi) => { const k = resistance(phi); return k === Infinity ? 0 : 1 / Math.sqrt(1 + k); };
+  const blockDrag = (phi) => { const k = resistance(phi); return k === Infinity ? 1.2 : (1.2 * k) / (1 + k); };
+  function wakeFactor(x, h, phi = 0) {
+    if (!(x > 0) || !(h > 0) || phi >= 1) return 1;
+    return 1 - Math.min(1 - bleed(phi), 0.98 * Math.sqrt((blockDrag(phi) * 2 * h) / x));
   }
   const touches = (a, s, touch) => restsOn(a, s, touch) || restsOn(s, a, touch) || !!sideFace(a, s, touch);
 
@@ -355,7 +374,7 @@ export function buildRupa(E) {
     return { droplets, cavity: Rc, plop: false, stats: { E, Re, We, K, kg: Ms, kinetic: Es } };
   }
 
-  const physics = { dragArea, blastKg, blastJoules, faceArea, burstShare, blowJoules, heatFactor, impact, pressure, flowOf, submerged, inPool, immerse, stepIn, wet, windOf, windAt, AIR, loadPass, fragments, splash, seedOf, vol, G, TNT };
+  const physics = { resistance, bleed, blockDrag, wakeFactor, dragArea, blastKg, blastJoules, faceArea, burstShare, blowJoules, heatFactor, impact, pressure, flowOf, submerged, inPool, immerse, stepIn, wet, windOf, windAt, AIR, loadPass, fragments, splash, seedOf, vol, G, TNT };
   E.rupaPhysics = physics;
   if (!E.registerWorldPass) return;   // Node's physics-only build
 
@@ -375,7 +394,7 @@ export function buildRupa(E) {
       b.rupa = { cap: s.joules, joules: s.joules, mass: s.mass || 0, compressive: s.compressive || 0, cohesion: s.cohesion || 0,
         T: T0, T0, heatCap: s.heatCap || 0, soften: s.soften ?? 500, melt: Number.isFinite(s.melt) ? s.melt : null, fuse: s.fuse || 0, latent: 0,
         ignite: Number.isFinite(s.ignite) ? s.ignite : null, fuel: s.fuel || 0, fuelLeft: s.fuel || 0, burnRate: s.burnRate || 0, burning: false,
-        stiff: s.stiff || 1e10, bounce: s.bounce ?? 0.2, fill: s.fill ?? 1, frac: s.frac ?? 100, shape: s.shape || 'chunk', spread: s.spread ?? 1.2, joint: s.joint || 'mortar' };
+        stiff: s.stiff || 1e10, bounce: s.bounce ?? 0.2, fill: s.fill ?? 1, frac: s.frac ?? 100, shape: s.shape || 'chunk', spread: s.spread ?? 1.2, joint: s.joint || 'mortar', porosity: s.porosity ?? 0 };
       b.hp = Infinity;   // the count never breaks it: the energy does
     });
     if (!any) return;
@@ -522,9 +541,8 @@ export function buildRupa(E) {
     }
     R.drops = live.length > 1200 ? live.slice(live.length - 1200) : live;
   }, 31);
-  // the wind at a point as the structure leaves it: behind a block, below its top and within its width, the air is
-  // calmer for about six of its heights downwind (its wake), recovering with distance from its lee face
-  const WAKE = 6;
+  // the wind at a point as the structure leaves it: behind a block, below its top and within its width, in its wake
+  // (wakeFactor: what its porosity bleeds through, recovering as a plane wake)
   function windHere(state, pos) {
     const R = state.rupa, u = windAt(R.wind, pos, state.time);
     if (!R.wind) return u;
@@ -537,8 +555,8 @@ export function buildRupa(E) {
       const pa = pos[0] * d[0] + pos[1] * d[1], ps = pos[0] * across[0] + pos[1] * across[1];
       if (ps < Math.min(...side) || ps > Math.max(...side)) continue;
       const behind = pa - Math.max(...along);
-      if (behind <= 0 || behind > WAKE * h) continue;
-      f = Math.min(f, 0.15 + (0.85 * behind) / (WAKE * h));
+      if (behind <= 0) continue;
+      f = Math.min(f, wakeFactor(behind, h, b.rupa ? b.rupa.porosity : 0));
     }
     return f < 1 ? u.map((x) => x * f) : u;
   }
@@ -696,8 +714,8 @@ export function buildRupa(E) {
     R.seq = state.breakSeq;
   }, 36);
   // ── WIND LOAD (order 37, a few times a second while the wind blows): the wind's pressure on each exposed face,
-  // Cp·½ρu² (Cp 1.3: the push on the windward face and the pull on the lee), u the wind at the block's height. A block
-  // whose upwind face touches another block is sheltered. At each joint a stack is tipped by the wind's moment about its
+  // Cp·½ρu² (Cp 1.3: the push on the windward face and the pull on the lee, scaled by a porous block's drag), u the wind
+  // where the block stands, in the wake of whatever is upwind of it (a block against another stands in its still air). At each joint a stack is tipped by the wind's moment about its
   // downwind edge and slid by its push, and held by its weight (W·half its depth; μW) and, at a mortared joint, by the
   // joint's cohesion (its bending section b·t²/6; its area). A stack that goes leaves the structure as falling bodies. ──
   const MU = 0.6, CP = 1.3;
@@ -709,11 +727,12 @@ export function buildRupa(E) {
     if (!live.length) return;
     const across = (b) => Math.abs(d[0]) * (b.max[1] - b.min[1]) + Math.abs(d[1]) * (b.max[0] - b.min[0]);
     const depth = (b) => Math.abs(d[0]) * (b.max[0] - b.min[0]) + Math.abs(d[1]) * (b.max[1] - b.min[1]);
-    const sheltered = (b) => live.some((s2) => { if (s2 === b) return false; const f = sideFace(b, s2, TOUCH); if (!f) return false; const n = f.at === b.min[f.k] ? -1 : 1; return n * d[f.k] < -0.5; });
+
+    // each block feels the wind where it stands, in whatever wake is upwind of it (a block against another is in its
+    // still air), and takes from it what its porosity lets it: CP for a solid face, scaled by blockDrag for a porous one
     const force = new Map(live.map((b) => {
-      if (sheltered(b)) return [b, 0];
-      const u = Math.hypot(...windAt(R.wind, centre(b), state.time));
-      return [b, pressure(R.air, { flow: u, cp: CP }) * across(b) * (b.max[2] - b.min[2])];
+      const u = Math.hypot(...windHere(state, [(b.min[0] + b.max[0]) / 2 - d[0] * 1e-3, (b.min[1] + b.max[1]) / 2 - d[1] * 1e-3, (b.min[2] + b.max[2]) / 2]));
+      return [b, pressure(R.air, { flow: u, cp: CP * (blockDrag(b.rupa.porosity) / 1.2) }) * across(b) * (b.max[2] - b.min[2])];
     }));
     const above = (b) => { const out = [b], q = [b]; while (q.length) { const a = q.pop(); for (const s2 of live) if (!out.includes(s2) && restsOn(s2, a, TOUCH)) { out.push(s2); q.push(s2); } } return out; };
     const gone = new Set();

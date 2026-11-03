@@ -21,8 +21,10 @@
  * so a scripted grass blade and a simulated crate feel the same air.
  *
  *   solveWind(elements, windSpec, { wakes?, field?, floor? }) → { batches, simulate, still, reasons }
+ *     wakes: the scene's barriers [{ min, max, porosity? }]: they shelter every script alike
  *     an element: { id, kind, place: { min, max }, count? } — kind a preset (KINDS) or { script, ... } its own numbers
- *     a batch:    { script: 'drift' | 'bend' | 'hang', kind, ids, count, script numbers, instances? }
+ *     a batch:    { script: 'drift' | 'bend' | 'hang', kind, ids, count, script numbers, instances?, shelter? }
+ *                 shelter: each instance's share of the wind behind the scene's barriers (the runtime's blocking law)
  *   bendAt(batch, i, t) → { angle, sway } · hangAt(batch, i, t) → { angle } · instanceOf(batch, i) → [x, y, z]
  *   BEND_GLSL, HANG_GLSL: the same formulas for the GPU (drift's is wind-script.js GLSL)
  */
@@ -85,6 +87,20 @@ function beam(k) {
 export function solveWind(elements, windSpec, { wakes = [], field = null, floor = 0 } = {}) {
   const w = rupaPhysics.windOf(windSpec);
   const batches = [], simulate = [], still = [], reasons = {};
+  // what shelters each instance: the wind left where it stands, behind the barriers, by the runtime's blocking law
+  const shelterAt = (p, z) => {
+    if (!w) return 1;
+    const d = w.dir, across = [-d[1], d[0]], pa = p[0] * d[0] + p[1] * d[1], ps = p[0] * across[0] + p[1] * across[1];
+    let f = 1;
+    for (const b of wakes) {
+      if (z >= b.max[2] - floor) continue;
+      const cs = [[b.min[0], b.min[1]], [b.max[0], b.min[1]], [b.min[0], b.max[1]], [b.max[0], b.max[1]]];
+      const al = cs.map((c) => c[0] * d[0] + c[1] * d[1]), si = cs.map((c) => c[0] * across[0] + c[1] * across[1]);
+      if (ps < Math.min(...si) || ps > Math.max(...si)) continue;
+      f = Math.min(f, rupaPhysics.wakeFactor(pa - Math.max(...al), b.max[2] - floor, b.porosity ?? 0));
+    }
+    return f;
+  };
   const instancesOf = (el, n) => Array.from({ length: n }, (_, i) => [0, 1, 2].map((a) => el.place.min[a] + hash(i * 3 + a + 0.5 + (el.seed ?? 0) * 101) * (el.place.max[a] - el.place.min[a])));
   for (const el of elements) {
     if (!el || typeof el.id !== 'string' || !el.place) throw new Error('windSolver: each element is { id, kind, place: { min, max }, count? }');
@@ -114,20 +130,22 @@ export function solveWind(elements, windSpec, { wakes = [], field = null, floor 
       }
       if (angle < rad(STILL_DEG)) { reasons[el.id] = `still: the strongest gust bends it ${(angle * 180 / Math.PI).toFixed(2)}°`; still.push(el.id); continue; }
       reasons[el.id] = `bend: the strongest gust bends it ${Math.min(80, angle * 180 / Math.PI).toFixed(0)}°${b.blade && sigma > 3e7 ? ' (it lies down rather than breaks)' : ''}, swaying at ${b.freq.toFixed(1)} Hz`;
-      batches.push({ script: 'bend', kind: typeof el.kind === 'string' ? el.kind : 'custom', ids: [el.id], count, wind: w, length: b.L, deflect: b.deflect, tipShare: b.tipShare, freq: b.freq, instances: instancesOf(el, count) });
+      const ins = instancesOf(el, count);
+      batches.push({ script: 'bend', kind: typeof el.kind === 'string' ? el.kind : 'custom', ids: [el.id], count, wind: w, length: b.L, deflect: b.deflect, tipShare: b.tipShare, freq: b.freq, instances: ins, shelter: ins.map((p) => shelterAt(p, p[2] - floor + b.L)) });
       continue;
     }
     // hang
     const ug = strongest(w, top), K = (0.5 * rupaPhysics.AIR.density * k.cd * k.area) / (k.mass * G), angle = Math.atan(K * ug * ug), freq = Math.sqrt(G / k.length) / (2 * Math.PI);
     if (angle < rad(1)) { reasons[el.id] = `still: the strongest gust leans it ${(angle * 180 / Math.PI).toFixed(2)}°`; still.push(el.id); continue; }
     reasons[el.id] = `hang: the strongest gust leans it ${(angle * 180 / Math.PI).toFixed(0)}° (drag ${(K * ug * ug * k.mass * G).toFixed(0)} N against ${(k.mass * G).toFixed(0)} N of weight), swinging at ${freq.toFixed(2)} Hz`;
-    batches.push({ script: 'hang', kind: typeof el.kind === 'string' ? el.kind : 'custom', ids: [el.id], count, wind: w, lean: K, length: k.length, freq, instances: instancesOf(el, count) });
+    const ins = instancesOf(el, count);
+    batches.push({ script: 'hang', kind: typeof el.kind === 'string' ? el.kind : 'custom', ids: [el.id], count, wind: w, lean: K, length: k.length, freq, instances: ins, shelter: ins.map((p) => shelterAt(p, p[2] - floor)) });
   }
   // one batch per kind and script for bend and hang: their instances join (drift batches keep their own release regions)
   const merged = [];
   for (const b of batches) {
     const same = b.script !== 'drift' && merged.find((m) => m.script === b.script && m.kind === b.kind && m.kind !== 'custom');
-    if (same) { same.ids.push(...b.ids); same.count += b.count; same.instances.push(...b.instances); } else merged.push(b);
+    if (same) { same.ids.push(...b.ids); same.count += b.count; same.instances.push(...b.instances); same.shelter.push(...b.shelter); } else merged.push(b);
   }
   return { batches: merged, simulate, still, reasons };
 }
@@ -141,14 +159,14 @@ export function bendShape(s, tipShare) {
 }
 
 export function bendAt(batch, i, t) {
-  const p = instanceOf(batch, i), top = [p[0], p[1], p[2] + batch.length], u = windSpeed(batch.wind, top, t);
+  const p = instanceOf(batch, i), top = [p[0], p[1], p[2] + batch.length], u = windSpeed(batch.wind, top, t) * (batch.shelter ? batch.shelter[i % batch.shelter.length] : 1);
   const angle = Math.min(1.4, Math.atan((batch.deflect * u * u) / batch.length));
   const sway = 0.12 * angle * Math.sin(2 * Math.PI * batch.freq * t + hash(i + 0.37) * 6.283);
   return { angle: angle + sway, sway };
 }
 
 export function hangAt(batch, i, t) {
-  const p = instanceOf(batch, i), u = windSpeed(batch.wind, p, t), lean = Math.atan(batch.lean * u * u);
+  const p = instanceOf(batch, i), u = windSpeed(batch.wind, p, t) * (batch.shelter ? batch.shelter[i % batch.shelter.length] : 1), lean = Math.atan(batch.lean * u * u);
   return { angle: lean + 0.15 * lean * Math.sin(2 * Math.PI * batch.freq * t + hash(i + 0.61) * 6.283) };
 }
 
@@ -165,8 +183,8 @@ float wsHash2(float n) { return fract(sin(n * 127.1 + 311.7) * 43758.5453); }
 /** Bend: a vertex at height z (0 at the foot, uLength at the tip) of instance i, anchored at `anchor`, moved along the beam's curve. */
 export const BEND_GLSL = WIND_GLSL + `
 uniform float uLength, uDeflect, uTipShare, uFreq;
-vec3 windBend(vec3 local, vec3 anchor, float i, float t) {
-  float u = windSpeedAt(anchor + vec3(0.0, 0.0, uLength), t);
+vec3 windBend(vec3 local, vec3 anchor, float i, float t, float shelter) {
+  float u = windSpeedAt(anchor + vec3(0.0, 0.0, uLength), t) * shelter;
   float a = min(1.4, atan(uDeflect * u * u / uLength));
   a += 0.12 * a * sin(6.2831853 * uFreq * t + wsHash2(i + 0.37) * 6.283);
   float s = clamp(local.z / uLength, 0.0, 1.0);
@@ -178,8 +196,8 @@ vec3 windBend(vec3 local, vec3 anchor, float i, float t) {
 /** Hang: a vertex of instance i hanging from `pivot` (local z ≤ 0), leaned downwind about the pivot. */
 export const HANG_GLSL = WIND_GLSL + `
 uniform float uLean, uFreq;
-vec3 windHang(vec3 local, vec3 pivot, float i, float t) {
-  float u = windSpeedAt(pivot, t), a = atan(uLean * u * u);
+vec3 windHang(vec3 local, vec3 pivot, float i, float t, float shelter) {
+  float u = windSpeedAt(pivot, t) * shelter, a = atan(uLean * u * u);
   a += 0.15 * a * sin(6.2831853 * uFreq * t + wsHash2(i + 0.61) * 6.283);
   float along = dot(local.xy, uWDir); vec2 side = local.xy - uWDir * along;
   // turned about the pivot in the wind's vertical plane: a point hanging at (0, −L) goes to (L·sin a, −L·cos a), downwind

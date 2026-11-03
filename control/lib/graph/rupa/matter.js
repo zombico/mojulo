@@ -51,6 +51,8 @@
  *   CLASS_MATTER           a class's matter when the thing names none (breakability.js classOf): { matter, fill }
  *   resolveMatter(spec, where?) → a matter record (an id, or { is?, ...overrides } over one), checked
  *   isBrittle(m), isSoil(m), isLiquid(m), isGas(m), isFluid(m), LIQUID_IDS
+ *   a block's `porosity` (0 solid, to under 1) is the open share of it a flow can pass through (a hedge, a slatted fence,
+ *   a mesh): see the runtime's blocking law; `{ matter, porosity }` sets it
  *   a block's `joint` is how it sits on what holds it: 'mortar' (masonry's default: its cohesion binds the joint) or
  *   'dry' (everything else: it rests by its weight alone, so wind can slide or tip it); `{ matter, joint }` says otherwise
  *   cutOfMatter(m)         → the cut a breaking of it plays (destruct/cuts.js presets): glass and ice shatter, brittle
@@ -235,6 +237,7 @@ const sig = (x) => (x === 0 ? 0 : +x.toPrecision(4));
  * mass (kg), the joules it holds, and the compressive strength and cohesion (its side bonds' strength) it brings (Pa,
  * × fill: a shell carries less).
  */
+const checkPorosity = (p, where) => { if (!(Number.isFinite(p) && p >= 0 && p < 1)) throw new Error(`${where}.porosity is the open share of the block, 0 (solid) to under 1`); return p; };
 export function blockMatter(box, spec, where = 'matter') {
   const s = spec && typeof spec === 'object' && !Array.isArray(spec) && spec.matter !== undefined ? spec : { matter: spec };
   const m = resolveMatter(s.matter, where);
@@ -245,7 +248,8 @@ export function blockMatter(box, spec, where = 'matter') {
   const vol = [0, 1, 2].reduce((a, k) => a * Math.max(0, box.max[k] - box.min[k]), 1);
   const mass = m.density * vol * fill;
   const out = { matter: m.id, fill, mass: r3(mass), joules: sig(m.toughness * vol * fill), compressive: sig(m.compressive * fill), cohesion: sig(m.bond * fill), heatCap: sig(mass * m.heat), soften: m.soften, stiff: sig(m.E * fill), bounce: m.bounce,
-    frac: m.frac, shape: m.shape, spread: m.spread, joint: s.joint ?? (m.family === 'masonry' ? 'mortar' : 'dry') };
+    frac: m.frac, shape: m.shape, spread: m.spread, joint: s.joint ?? (m.family === 'masonry' ? 'mortar' : 'dry'),
+    ...(s.porosity !== undefined ? { porosity: checkPorosity(s.porosity, where) } : {}) };
   if (m.melt !== null && m.melt !== undefined) Object.assign(out, { melt: m.melt, fuse: sig(mass * m.fusion) });
   if (isCombustible(m)) {
     // its exposed faces char inward at CHAR_RATE: the fuel it gives each second is that volume's mass × its heat of combustion

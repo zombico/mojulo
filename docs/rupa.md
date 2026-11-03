@@ -142,9 +142,8 @@ neither.
 
 ### Shelter, leaves and the ground
 
-- **A wall casts a wind shadow.** Behind a block, below its top and within its width, the air is calmer for about six
-  of the block's heights downwind, and recovers with distance. A leaf falling behind a wall drifts much less than one in
-  the open.
+- **A wall casts a wind shadow,** by the blocking law below: right behind a solid wall the air is still, and it
+  recovers with distance as a wake does. A leaf falling behind a wall drifts much less than one in the open.
 - **Thin things tumble.** A leaf or a sheet flutters as it moves, and a tumbling body shows the air on average a
   quarter of its surface (Cauchy's rule), whichever way it's going. That's why a leaf falls at about 2 m/s.
 - **Wind moves what's lying on the ground** once its drag beats the friction holding it (half its weight). Leaves
@@ -217,6 +216,32 @@ through the same functions in the runtime (`controllable/rupa.js`):
 
 The tanks, pipes and nozzles (`fluid.js`), grain settling (`debris.js`), the pools, the hose's spray and the wind all
 call these functions, so a fix to the physics reaches every fluid at once.
+
+## Blocking: flow's opposite
+
+A barrier is one number: its **porosity**, the open share of it (0 a solid wall, about 0.5 a hedge or a slatted fence,
+1 nothing at all). Set it on a block with `{ matter, porosity }`. How any flow gets past a barrier follows from that
+number by standard laws, never from a tuned "lets x% through":
+
+- **Resistance:** a perforated barrier's loss coefficient, k = (1/(Cc·φ) − 1)², with Weisbach's contraction
+  Cc = 0.62 + 0.38φ³. It's the pressure needed to push flow through, in units of ½ρu².
+- **Bleed:** the share of the flow's speed that passes through, 1/√(1 + k). None passes a solid wall.
+- **Drag:** what the barrier takes from the flow, Cd = 1.2·k/(1 + k): a solid fence's 1.2, nothing for an open one.
+  The wind's push on a porous block scales by it, so a slatted fence stands where a solid one tips.
+- **Wake:** behind a barrier the flow recovers as a plane wake does. Its slowdown is 0.98·√(Cd·2h/x) at x behind it
+  (Schlichting; 2h is its height doubled by its mirror in the ground), capped close behind at what doesn't bleed
+  through. A solid wall stills the air right behind it; a hedge shelters less deeply. Above the barrier's top the flow
+  passes over. The runtime's wind, the wind script (whose leaves still have an exact formula: their time through the
+  wake integrates exactly) and the wind solver all use this one law.
+
+**Water** meets barriers on the ground grid (`barrier(field, { box, matter, porosity, thick })` in `fluid.js`):
+
+- **Overtopping:** the barrier raises the ground it stands on, so water pools behind it and pours over its top when it
+  rises past.
+- **Seeping:** water passes through its open share by the same Bernoulli law as a pipe's opening.
+- **Breaching:** every step the water's push, ½ρg·(d₁² − d₂²) sliding it and ρg·(d₁³ − d₂³)/6 tipping it, is weighed
+  against the barrier's weight and its joint's cohesion. Where the push wins, that part breaches and the water floods
+  through. A thin adobe wall gives way under 1.5 m of water; a thick concrete one holds.
 
 ## Debris
 
