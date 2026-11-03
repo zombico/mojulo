@@ -23,7 +23,7 @@ describe.each(Object.keys(CON_ARCHETYPES))('%s', (id) => {
           if (s.kind === 'link') expect(Math.abs(s.length - row.dims.length), `${s.item} at ${name} ${v}`).toBeLessThan(1e-6);
         }
         for (const e of arch.layout.filter((x) => x.on)) {
-          const [p, hp] = e.on.split('.'), a = apply(C.frames[e.id], [0, 0, 0]), b = apply(C.frames[p], ctx.hp(p, hp));
+          const i = e.on.indexOf('.'), [p, hp] = [e.on.slice(0, i), e.on.slice(i + 1)], a = apply(C.frames[e.id], [0, 0, 0]), b = apply(C.frames[p], ctx.hp(p, hp));
           expect(Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]), `${e.id} at ${name} ${v}`).toBeLessThan(1e-9);
         }
       }

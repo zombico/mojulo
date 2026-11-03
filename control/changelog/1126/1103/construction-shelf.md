@@ -151,3 +151,36 @@ push, load, haul and lift on a site.
   - The class's length takes the ripper (6.6 m). The bulldozer row claims it, asleep and undriven as the excavator is.
   - **Held:** the law tests walk one machine per procedure (a tool on a linkage, a front held to its measures). The
     char test pins the hull, the blade, the ripper and the machine; the deep sweep walks it.
+- **The wheel loader, the skid steer and the compact track loader** (`con-wheeled.js`):
+  - **The 15 t wheel loader:**
+    - its rear frame (the engine, the hood, the counterweight, the cab's deck, its axle, the hitch) and its front frame
+      (the towers, its axle), the front turned on the rear's hitch (a `slew` joint) by two steer rams, ±40°, both held
+      to their stroke;
+    - four site tyres on their rims, their lugs a chevron;
+    - the lift arms on the towers, raised by two lift rams;
+    - the bucket on the arms' tip, tilted through a Z-bar: the bellcrank (a `rocker`, solved on the cross tube's pin
+      until its lower pin is the tilt link's length from the bucket's), the tilt link, the tilt ram from the arms to
+      the bellcrank's upper pin.
+
+    Its laws: its hinge pin at the top of its lift (3.94 m), its dump clearance with the bucket dumped (3.02 m), its
+    arcs (the hitch 80°, the arms 64°, the bucket 120°), its mass, its tool clear of its cab, its transport size.
+  - **The 3.3 t skid steer:** its chassis (the tub, the engine aft, the chain cases, the towers at its back) on four
+    tyres; radial lift arms on the towers; a bucket tilted by two rams from the arms' cross member. Its hinge pin
+    3.1 m, its dump clearance 2.52 m.
+  - **The 4.3 t compact track loader, the carrier swap:** the skid steer on rubber tracks (`withCarrier(skidSteer,
+    'tracks')`, `CON_CARRIERS`). The wheels taken off, the tracks put on at the chassis, its own class, its front
+    untouched; 35 kPa on its tracks. The crawler draws a rubber belt (no rails, its lugs moulded on) in its `rubber`
+    family.
+  - **The laws:**
+    - A measure may hold joints at a share of their ranges (`at`): the dump clearance's arms at full lift and its bucket
+      dumped.
+    - The tool-and-cab clearance sweeps whichever joints carry the tool, a slew or a hitch held where it rests.
+  - **The registry:** the wheel-loader, skid-steer and compact-track-loader rows claim their machines, asleep; the
+    skid-steered two undriven.
+  - **Held:**
+    - The law tests add a tool through a rocker and a machine on another carrier, chosen in code: the chain holds at
+      every pose (the bellcrank on its pin, the tilt link at its length), every law, the carrier swap's front untouched
+      and an unknown carrier refused.
+    - The char test pins every new builder path and each machine; the deep sweep walks them all.
+  - **Seen** (machine gate only, the eyes gate is open): the loader carrying, dumping and turned; the skid steer and
+    the track loader carrying and dumping. The review renderer frames a tall pose by its height.

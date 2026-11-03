@@ -9,6 +9,9 @@
  *   - The shelf's first machine, the crawler excavator (unreleased): every builder path pinned.
  *   - The bulldozer (unreleased): its hull, its blade and its ripper pinned; the crawler's optional seat and trunnions
  *     moved no existing pin.
+ *   - The wheel loader, the skid steer and the compact track loader (unreleased): the frames, the tyre, the arms, the
+ *     bellcrank, the loader buckets and the rubber track pinned; the bucket's and the crawler's new families moved no
+ *     existing pin.
  */
 import { createHash } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
@@ -32,9 +35,22 @@ const PINS = {
   'hull-dz20': '32b46be169e5ed75',
   'blade-su-dz20': 'dbdf3d5863c186c2',
   'ripper-dz20': '74a4c3efe94db994',
+  'frame-rear-wl15': '7404394c4e166221',
+  'frame-front-wl15': '470ca22b5669ee3b',
+  'wheel-otr-235': '8e80080646d5fcdf',
+  'arms-zbar-wl15': '8665283c29968f54',
+  'crank-zbar-wl15': '0731a3bd25aa6700',
+  'bucket-gp-wl15': '5bc7a988579b7926',
+  'chassis-ss33': '0364791569161e28',
+  'arms-radial-ss33': '6251f97a9c1dc67d',
+  'bucket-gp-ss18': '17051cc9ea2ac1b8',
+  'crawler-ctl': 'd8e503c0089040ed',
   'ram-boom-ex20.rod': 'ee3b8d6daeffb743',
   'con:crawlerExcavator': '0eefeb9e723f41ef',
   'con:bulldozer': '94272ebad7ce55a9',
+  'con:wheelLoader': '8850036d94e7ed84',
+  'con:skidSteer': 'c501524697326176',
+  'con:compactTrackLoader': 'c2f22ee973a96c2e',
 };
 
 const PROCEDURES = (() => {

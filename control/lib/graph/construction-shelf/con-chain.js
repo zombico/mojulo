@@ -128,7 +128,7 @@ function local(arch, name, value, ctx) {
     return apply(frames[b], ctx.hp(b, h, side));
   };
   let H = null;
-  if (J.linkage) {
+  if (J.linkage && J.linkage.kind !== 'rocker') {
     const L = J.linkage, g = P(L.ground), c = P(L.coupler);
     const la = ctx.row(entryOf(arch, L.a).sku).dims.length, lb = ctx.row(entryOf(arch, L.b).sku).dims.length;
     const m = meet([g[1], g[2]], la, [c[1], c[2]], lb, L.side ?? 1);

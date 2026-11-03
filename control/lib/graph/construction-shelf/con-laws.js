@@ -16,9 +16,10 @@
  *   clearance       the tool never enters the cab over its joints' ranges
  *   transport       its width and its height folded for shipping (its `transport` pose), against a road's limits
  *                   (advisory)
- *   measure.*       a point swept over the joints it names, the rest at the machine's rest pose: its highest
- *                   (`take: 'max'`) or how far below the ground it goes (`take: 'depth'`): a blade's lift and its drop,
- *                   a ripper's depth, a loader's hinge pin
+ *   measure.*       a point swept over the joints it names (`over`), the joints it holds at a share of their ranges
+ *                   (`at`), the rest at the machine's rest pose: its highest (`take: 'max'`) or how far below the
+ *                   ground it goes (`take: 'depth'`): a blade's lift and its drop, a ripper's depth, a loader's hinge
+ *                   pin, its dump clearance
  * The excavator's envelope (reach, depth, the heights) and its lift are read where a machine has a boom, a stick and a
  * tool; every other law where its band is given.
  *
@@ -50,9 +51,11 @@ export function conLaws(arch, ctx, { corners, physics, posed }) {
 
   // ── the measures: a point over the joints it names ──
   for (const [id, m] of Object.entries(band.measure ?? {})) {
-    const [b, h] = m.point.split('.'), p0 = ctx.hp(b, h), base = posed('rest');
+    const [b, h] = m.point.split('.'), p0 = ctx.hp(b, h), rest = posed('rest');
+    // (the joints it holds: a share of each one's range, a dump clearance's arms at full lift and its bucket dumped)
+    const base = { ...rest, ...Object.fromEntries(Object.entries(m.at ?? {}).map(([k, v]) => [k, R[k] ? R[k][0] + v * (R[k][1] - R[k][0]) : v])) };
     let combos = [{}];
-    for (const j of m.over) combos = combos.flatMap((c) => span(R[j], m.over.length > 1 ? 24 : 60).map((v) => ({ ...c, [j]: v })));
+    for (const j of m.over ?? []) combos = combos.flatMap((c) => span(R[j], m.over.length > 1 ? 24 : 60).map((v) => ({ ...c, [j]: v })));
     const zs = combos.map((c) => apply(framesOf(arch, { ...base, ...c }, ctx)[b], p0)[2]);
     const v = r2(m.take === 'depth' ? -Math.min(...zs) : Math.max(...zs));
     law(id, v, m.band, v >= m.band[0] && v <= m.band[1], m.says);
@@ -134,10 +137,14 @@ export function conLaws(arch, ctx, { corners, physics, posed }) {
   if (cab && tool) {
     const box = corners(cab.sku).map((p) => apply(rest[cab.id], p)), lo = [0, 1, 2].map((k) => Math.min(...box.map((p) => p[k]))), hi = [0, 1, 2].map((k) => Math.max(...box.map((p) => p[k])));
     const w = ctx.row(tool.sku).dims.width ?? 0, pts = (ctx.outline(tool.id) ?? [tipLocal]).flatMap((p) => [[p[0] - w / 2, p[1], p[2]], [p[0] + w / 2, p[1], p[2]]]);
+    // (over every joint that carries the tool; a slew and a hitch held where they rest, the cab turning with them)
+    const moving = Object.keys(R).filter((k) => R[k] && arch.joints[k].kind !== 'slew'), base = posed('rest');
+    let combos = [{}];
+    for (const k of moving) combos = combos.flatMap((c) => span(R[k], k === 'tool' ? 6 : moving.length > 3 ? 10 : 24).map((v) => ({ ...c, [k]: v })));
     let hit = 0;
-    for (const b of span(R.boom, 24)) for (const s of span(R.stick, 24)) for (const t of span(R.tool, 6)) {
-      const F = framesOf(arch, { slew: 0, boom: b, stick: s, tool: t }, ctx)[tool.id];
-      if (pts.some((p) => { const q = apply(F, p); return q.every((v, k) => v > lo[k] && v < hi[k]); })) { hit++; if (process.env.CON_DEBUG) console.log('cab hit', b, s, t); }
+    for (const c of combos) {
+      const F = framesOf(arch, { ...base, ...c }, ctx)[tool.id];
+      if (pts.some((p) => { const q = apply(F, p); return q.every((v, k) => v > lo[k] && v < hi[k]); })) { hit++; if (process.env.CON_DEBUG) console.log('cab hit', JSON.stringify(c)); }
     }
     law('clearance', hit, [0, 0], hit === 0, 'its tool never enters its cab over its joints\' ranges');
   }

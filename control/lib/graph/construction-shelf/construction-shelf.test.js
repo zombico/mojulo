@@ -6,6 +6,7 @@
 // whose laws are points it sweeps (the dozer's blade and ripper, a ram based on a body fixed to its joint's parent).
 import { describe, it, expect } from 'vitest';
 import { CON_ARCHETYPES, CON_ODM, assembleMachine, findConPart, machineCtx, posedJoints, resolveConPart, toolLow } from './index.js';
+import { CON_CARRIERS, withCarrier } from './con-archetypes.js';
 import { apply } from './con-common.js';
 import { rangeOf, solveChain } from './con-chain.js';
 import { ramParts } from './con-parts.js';
@@ -13,10 +14,14 @@ import { ramParts } from './con-parts.js';
 // (a machine whose tool closes a linkage on a ram: the excavator's bucket)
 const ID = Object.keys(CON_ARCHETYPES).find((k) => Object.values(CON_ARCHETYPES[k].joints).some((j) => j.linkage));
 const SWEPT = Object.keys(CON_ARCHETYPES).find((k) => CON_ARCHETYPES[k].laws.measure);
-const MACHINES = [...new Set([ID, SWEPT])];
+// (a tool tilted through a rocker, a loader's Z-bar; a machine on another carrier, the carrier swap)
+const ROCKER = Object.keys(CON_ARCHETYPES).find((k) => Object.values(CON_ARCHETYPES[k].joints).some((j) => j.linkage?.kind === 'rocker'));
+const SWAPPED = Object.keys(CON_ARCHETYPES).find((k) => CON_ARCHETYPES[k].carrier);
+const MACHINES = [...new Set([ID, SWEPT, ROCKER, SWAPPED])];
 const ctx = machineCtx(ID), arch = ctx.arch;
 const near = (a, b, tol = 1e-6) => a.every((v, k) => Math.abs(v - b[k]) < tol);
-const split = (ref) => ref.split('.');
+// (a point is 'body.hardpoint', the hardpoint's own name may hold a dot: 'rear.wheel.r')
+const split = (ref) => { const i = ref.indexOf('.'); return [ref.slice(0, i), ref.slice(i + 1)]; };
 
 describe.each(MACHINES)('%s: the chain holds together at every named pose', (machine) => {
   const ctx = machineCtx(machine), arch = ctx.arch, ID = machine;
@@ -90,7 +95,7 @@ describe.each(MACHINES)('%s as built', (machine) => {
   it('holds every law it is held to, and its bill of materials', () => {
     const { readout } = assembleMachine(machine);
     expect(readout.laws.laws.filter((l) => !l.ok)).toEqual([]);
-    expect(readout.laws.laws.map((l) => l.id)).toEqual(expect.arrayContaining(['groundPressure', 'transport', 'mass', ...Object.keys(CON_ARCHETYPES[machine].laws.measure ?? {})]));
+    expect(readout.laws.laws.map((l) => l.id)).toEqual(expect.arrayContaining(['transport', 'mass', ...(CON_ARCHETYPES[machine].laws.groundPressure ? ['groundPressure'] : []), ...Object.keys(CON_ARCHETYPES[machine].laws.measure ?? {})]));
     expect(readout.audit.ok).toBe(true);
   });
 });
@@ -127,5 +132,18 @@ describe('the words', () => {
     expect(() => resolveConPart('no-such-part')).toThrow(/Unknown construction part/);
     expect(() => assembleMachine('hovercrane')).toThrow(/Unknown construction archetype/);
     expect(() => resolveConPart(sku, { palette: 'tartan' })).toThrow(/Unknown construction palette/);
+  });
+});
+
+describe('the carrier swap', () => {
+  it('takes the dropped kinds off and puts the carrier\'s parts on, the front untouched', () => {
+    const swapped = CON_ARCHETYPES[SWAPPED], base = CON_ARCHETYPES[Object.keys(CON_ARCHETYPES).find((k) => k !== SWAPPED && CON_ARCHETYPES[k].carriers?.includes(swapped.carrier))];
+    const C = CON_CARRIERS[swapped.carrier], kind = (e) => CON_ODM[e.sku].kind;
+    expect(swapped.layout.filter((e) => C.drops.includes(kind(e)))).toEqual([]);
+    expect(swapped.layout.filter((e) => C.adds.some((a) => a.id === e.id))).toHaveLength(C.adds.length);
+    const front = (a) => a.layout.filter((e) => e.joint || e.ram || e.link).map((e) => e.id);
+    expect(front(swapped)).toEqual(front(base));
+    expect(swapped.physics).not.toBe(base.physics);
+    expect(() => withCarrier(base, 'hovercraft')).toThrow(/Unknown construction carrier/);
   });
 });

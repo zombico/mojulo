@@ -39,7 +39,7 @@ for (const id of pick) {
     const tris = faces.reduce((n, f) => n + f.corners.length - 2, 0);
     const lo = [Infinity, Infinity, Infinity], hi = [-Infinity, -Infinity, -Infinity];
     for (const f of faces) for (const p of f.corners) for (let k = 0; k < 3; k++) { if (p[k] < lo[k]) lo[k] = p[k]; if (p[k] > hi[k]) hi[k] = p[k]; }
-    const mid = lo.map((v, i) => (v + hi[i]) / 2), L = Math.max(hi[1] - lo[1], hi[2] - lo[2], hi[0] - lo[0]);
+    const mid = lo.map((v, i) => (v + hi[i]) / 2), L = Math.max(hi[1] - lo[1], (hi[2] - lo[2]) * 1.6, hi[0] - lo[0]);
     faces.push({ corners: [[mid[0] - L * 3, mid[1] - L * 3, -0.002], [mid[0] + L * 3, mid[1] - L * 3, -0.002], [mid[0] + L * 3, mid[1] + L * 3, -0.002], [mid[0] - L * 3, mid[1] + L * 3, -0.002]], fill: '#a59d8c' });
     const cams = {
       side: [mid[0] + L * 1.75, mid[1], mid[2] + L * 0.05],

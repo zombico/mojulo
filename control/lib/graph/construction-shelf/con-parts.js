@@ -13,6 +13,7 @@
  */
 import { pinsAlong, trackPath } from '../car-designer/mil-track.js';
 import { add, box, extrudeWorld, loftWorld, mul, panel as rawPanel, roundRect, spin, sub, tone, tube, unit } from './con-common.js';
+import { bellcrank, liftArms, loaderBucket, loaderFront, loaderRear, skidChassis, wheel } from './con-wheeled.js';
 
 const X = [1, 0, 0];
 /** A pin's boss across x at a point, `r` round, from x0 to x1 (a bushing, an eye). */
@@ -38,7 +39,9 @@ function beam(id, a, b, w, h, w1, h1, tint, r = 0.05) {
 // ── the crawler undercarriage ─────────────────────────────────────────────────
 function undercarriage(row, C, { physics }) {
   const d = row.dims, gauge = physics.track, half = physics.wheelbase / 2, lathes = [], extrudes = [], sweeps = [];
-  const steel = C.trim, link = tone(C.trim, 0.12), shine = tone(C.trim, 0.3);
+  // (a rubber track is a belt: its segments the rubber's, its lugs moulded on, no rails)
+  const rubber = row.build.family === 'rubber';
+  const steel = rubber ? C.rubber : C.trim, link = tone(C.trim, 0.12), shine = tone(C.trim, 0.3);
   const inner = d.rail + d.plate + d.grouser;   // (the inner line, where the rollers ride, over the ground)
   const sprocket = { y: -half, z: d.sprocket.z, r: d.sprocket.r }, idler = { y: half, z: d.idler.z, r: d.idler.r };
   const rollers = Array.from({ length: d.roller.n }, (_, k) => ({ y: -half + 0.42 + ((2 * half - 0.84) * k) / (d.roller.n - 1), z: inner + d.roller.r, r: d.roller.r }));
@@ -51,9 +54,9 @@ function undercarriage(row, C, { physics }) {
     pins.forEach((p, k) => {
       const q = pins[(k + 1) % pins.length], a = [x, p[0], p[1]], b = [x, q[0], q[1]], t = unit(sub(b, a)), n = [0, t[2], -t[1]];
       const off = (v, o) => add(v, mul(n, o)), mid = mul(add(a, b), 0.5);
-      for (const rx of [-0.1, 0.1]) extrudes.push(box(`rail_${side}${k}_${rx > 0 ? 'o' : 'i'}`, off(add(a, [rx, 0, 0]), -inner + d.rail / 2), off(add(b, [rx, 0, 0]), -inner + d.rail / 2), 0.055, d.rail, link, n));
+      if (d.rail) for (const rx of [-0.1, 0.1]) extrudes.push(box(`rail_${side}${k}_${rx > 0 ? 'o' : 'i'}`, off(add(a, [rx, 0, 0]), -inner + d.rail / 2), off(add(b, [rx, 0, 0]), -inner + d.rail / 2), 0.055, d.rail, link, n));
       extrudes.push(box(`shoe_${side}${k}`, off(a, -d.grouser - d.plate / 2), off(b, -d.grouser - d.plate / 2), d.shoe, d.plate, steel, n));
-      extrudes.push(box(`grouser_${side}${k}`, off(sub(mid, mul(t, 0.022)), -d.grouser / 2), off(add(mid, mul(t, 0.022)), -d.grouser / 2), d.shoe, d.grouser, steel, n));
+      if (!rubber || k % 2 === 0) extrudes.push(box(`grouser_${side}${k}`, off(sub(mid, mul(t, 0.022)), -d.grouser / 2), off(add(mid, mul(t, 0.022)), -d.grouser / 2), d.shoe * (rubber ? 0.8 : 1), d.grouser, steel, n));
     });
     // the sprocket (its teeth round its rim), the idler (its flanges), the rollers under the frame and the carriers over
     lathes.push(spin(`sprocket_${side}`, [x - 0.16, sprocket.y, sprocket.z], [x + 0.16, sprocket.y, sprocket.z], [[0, 0.22], [0.25, 0.3], [0.38, sprocket.r - 0.04], [0.62, sprocket.r - 0.04], [0.75, 0.3], [1, 0.26]], steel, 24));
@@ -263,7 +266,9 @@ function stick(row, C) {
 }
 
 // ── the bucket: its side plates, its wrapper round the back, its cutting edge and teeth, its ears ─────────────
-function bucket(row, C) {
+function bucket(row, C, ctx) {
+  // (a loader's or a skid steer's bucket is its own: a floor and a back, no teeth on a linkage of its own)
+  if (row.build.family !== 'dig') return loaderBucket(row, C, ctx);
   const d = row.dims, P = d.profile, w = d.width, extrudes = [], lathes = [], lofts = [], steel = tone(C.trim, 0.05), wear = tone(C.trim, 0.25);
   for (const s of [1, -1]) extrudes.push(panel(`side_${s > 0 ? 'r' : 'l'}`, s * (w / 2 - 0.025), s * (w / 2), P, C.paint));
   // the wrapper: the plate round the back from the cutting edge to the top, each span a strip across the bucket (the
@@ -344,5 +349,9 @@ export const CON_BUILDERS = Object.freeze({
   'con-ram': ram,
   'con-blade': blade,
   'con-ripper': ripper,
+  'con-wheel': wheel,
+  'con-chassis': (row, C, ctx) => ({ loaderRear, loaderFront, skid: skidChassis })[row.build.family](row, C, ctx),
+  'con-arms': liftArms,
+  'con-crank': bellcrank,
 });
 export { X };

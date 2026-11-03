@@ -16,6 +16,70 @@
  *
  * Pure data. A machine's layout is a compatibility promise over what is minted; a new machine goes at the end.
  */
+import { CON_ODM } from './con-odm.js';
+
+/**
+ * The carriers the door may put under a machine for its own (the carrier swap): the parts of the kinds it drops
+ * taken off, its parts put on at the machine's hardpoints, its class the swapped machine's. Only a swap a machine
+ * lists (`carriers`) is offered.
+ */
+export const CON_CARRIERS = Object.freeze({
+  tracks: Object.freeze({ label: 'on rubber tracks', drops: Object.freeze(['con-wheel']), adds: Object.freeze([Object.freeze({ id: 'tracks', sku: 'crawler-ctl', on: 'chassis.tracks' })]) }),
+});
+/** A machine with another carrier under it: its layout less the dropped kinds, plus the carrier's parts. */
+export function withCarrier(base, carrier, over = {}) {
+  const C = CON_CARRIERS[carrier];
+  if (!C) throw new Error(`Unknown construction carrier '${carrier}'; expected one of: ${Object.keys(CON_CARRIERS).join(', ')}`);
+  const layout = base.layout.filter((e) => !C.drops.includes(CON_ODM[e.sku]?.kind));
+  const at = layout.findIndex((e) => e.ram || e.link || e.joint);
+  const bom = { ...base.bom };
+  for (const k of C.drops) delete bom[k];
+  for (const e of C.adds) bom[CON_ODM[e.sku].kind] = (bom[CON_ODM[e.sku].kind] ?? 0) + 1;
+  return Object.freeze({ ...base, ...over, layout: Object.freeze([...layout.slice(0, at), ...C.adds, ...layout.slice(at)]), bom: Object.freeze(bom), carrier });
+}
+
+// (the skid steer, the compact track loader's base: written once, read twice)
+const SKID_STEER = Object.freeze({
+  label: 'skid steer loader',
+  classOf: 'skid steer 3.3 t',
+  physics: 'skidSteer',
+  palette: 'siteYellow',
+  joints: Object.freeze({
+    lift: Object.freeze({ kind: 'hinge', ram: 'liftRam', near: 0 }),
+    tool: Object.freeze({ kind: 'hinge', ram: 'tiltRam', near: 0 }),
+  }),
+  layout: Object.freeze([
+    { id: 'chassis', sku: 'chassis-ss33' },
+    { id: 'cab', sku: 'cab-ss', on: 'chassis.cab' },
+    { id: 'wheelFR', sku: 'wheel-skid-12', on: 'chassis.wheelF.r' },
+    { id: 'wheelFL', sku: 'wheel-skid-12', on: 'chassis.wheelF.l' },
+    { id: 'wheelRR', sku: 'wheel-skid-12', on: 'chassis.wheelR.r' },
+    { id: 'wheelRL', sku: 'wheel-skid-12', on: 'chassis.wheelR.l' },
+    { id: 'arms', sku: 'arms-radial-ss33', on: 'chassis.armPivot', joint: 'lift' },
+    { id: 'bucket', sku: 'bucket-gp-ss18', on: 'arms.tip', joint: 'tool' },
+    { id: 'liftRam', sku: 'ram-lift-ss33', ram: ['chassis.liftRam', 'arms.ramEye'], pair: true },
+    { id: 'tiltRam', sku: 'ram-tilt-ss33', ram: ['arms.tiltRam', 'bucket.link'], pair: true },
+  ].map(Object.freeze)),
+  tip: 'bucket.edge',
+  carriers: Object.freeze(['tracks']),
+  poses: Object.freeze({
+    rest: Object.freeze({ tool: 0.55, lift: 'ground' }),
+    carry: Object.freeze({ lift: 0.12, tool: 0.95 }),
+    travel: Object.freeze({ lift: 0.12, tool: 0.95 }),
+    transport: Object.freeze({ tool: 0.55, lift: 'ground' }),
+    dump: Object.freeze({ lift: 1, tool: 0 }),
+  }),
+  laws: Object.freeze({
+    arcs: { lift: [60, 85], tool: [100, 140] },
+    measure: {
+      hingePin: { point: 'arms.tip', over: ['lift'], take: 'max', band: [2.9, 3.3], says: 'its attachment\'s hinge pin at the top of its lift' },
+      dumpClearance: { point: 'bucket.edge', at: { lift: 1, tool: 0 }, take: 'max', band: [2.0, 2.6], says: 'its cutting edge\'s height at full lift, the bucket dumped' },
+    },
+    mass: 0.1, transport: { W: 1.95, H: 2.2 },
+  }),
+  bom: Object.freeze({ 'con-chassis': 1, 'con-cab': 1, 'con-wheel': 4, 'con-arms': 1, 'con-bucket': 1, 'con-ram': 4 }),
+});
+
 export const CON_ARCHETYPES = Object.freeze({
   // a 20 t crawler excavator: the crawler, the upper on its ring, the mono boom, the stick, the bucket on its linkage
   crawlerExcavator: Object.freeze({
@@ -113,5 +177,64 @@ export const CON_ARCHETYPES = Object.freeze({
       groundPressure: [50, 80], mass: 0.1, transport: { W: 3.5, H: 3.3 },
     }),
     bom: Object.freeze({ 'con-undercarriage': 1, 'con-house': 1, 'con-cab': 1, 'con-blade': 1, 'con-ripper': 1, 'con-ram': 3 }),
+  }),
+  // a 15 t wheel loader: its front frame turned on the rear's hitch by its steer rams, the lift arms on the front's
+  // towers, the bucket on the arms' tip tilted through its Z-bar (the bellcrank on the cross tube, the tilt link)
+  wheelLoader: Object.freeze({
+    label: 'wheel loader',
+    classOf: 'wheel loader 15 t',
+    physics: 'wheelLoader',
+    palette: 'siteYellow',
+    joints: Object.freeze({
+      steer: Object.freeze({ kind: 'slew', ram: 'steerRam', near: 0 }),
+      lift: Object.freeze({ kind: 'hinge', ram: 'liftRam', near: 0 }),
+      tool: Object.freeze({ kind: 'hinge', ram: 'tiltRam', near: 0, linkage: Object.freeze({ kind: 'rocker', link: 'tiltLink', lower: 'crank.lower', coupler: 'bucket.link', side: -1 }) }),
+    }),
+    layout: Object.freeze([
+      { id: 'rear', sku: 'frame-rear-wl15' },
+      { id: 'cab', sku: 'cab-wl', on: 'rear.cab' },
+      { id: 'wheelRR', sku: 'wheel-otr-235', on: 'rear.wheel.r' },
+      { id: 'wheelRL', sku: 'wheel-otr-235', on: 'rear.wheel.l' },
+      { id: 'front', sku: 'frame-front-wl15', on: 'rear.hitch', joint: 'steer' },
+      { id: 'wheelFR', sku: 'wheel-otr-235', on: 'front.wheel.r' },
+      { id: 'wheelFL', sku: 'wheel-otr-235', on: 'front.wheel.l' },
+      { id: 'arms', sku: 'arms-zbar-wl15', on: 'front.armPivot', joint: 'lift' },
+      { id: 'bucket', sku: 'bucket-gp-wl15', on: 'arms.tip', joint: 'tool' },
+      { id: 'crank', sku: 'crank-zbar-wl15', on: 'arms.crank', rocker: 'tool' },
+      { id: 'tiltLink', sku: 'link-tilt-wl15', link: ['crank.lower', 'bucket.link'] },
+      { id: 'liftRam', sku: 'ram-lift-wl15', ram: ['front.liftRam', 'arms.ramEye'], pair: true },
+      { id: 'tiltRam', sku: 'ram-tilt-wl15', ram: ['arms.tiltRam', 'crank.upper'] },
+      { id: 'steerRam', sku: 'ram-steer-wl15', ram: ['rear.steerRam', 'front.steerEye'], pair: true },
+    ].map(Object.freeze)),
+    tip: 'bucket.edge',
+    poses: Object.freeze({
+      // parked: the bucket set flat on the ground, the frames straight
+      rest: Object.freeze({ steer: 0.5, tool: 0.45, lift: 'ground' }),
+      // carrying a load: the arms low, the bucket rolled back
+      carry: Object.freeze({ steer: 0.5, lift: 0.18, tool: 0.95 }),
+      travel: Object.freeze({ steer: 0.5, lift: 0.18, tool: 0.95 }),
+      transport: Object.freeze({ steer: 0.5, tool: 0.45, lift: 'ground' }),
+      // at the top of its lift, the bucket dumped
+      dump: Object.freeze({ steer: 0.5, lift: 1, tool: 0 }),
+      // turning: the frames bent at the hitch
+      turned: Object.freeze({ steer: 0.95, lift: 0.18, tool: 0.95 }),
+    }),
+    laws: Object.freeze({
+      arcs: { steer: [70, 90], lift: [55, 85], tool: [80, 140] },
+      measure: {
+        hingePin: { point: 'arms.tip', over: ['lift'], take: 'max', band: [3.7, 4.2], says: 'its bucket\'s hinge pin at the top of its lift' },
+        dumpClearance: { point: 'bucket.edge', at: { lift: 1, tool: 0 }, take: 'max', band: [2.6, 3.2], says: 'its cutting edge\'s height at full lift, the bucket dumped' },
+      },
+      mass: 0.1, transport: { W: 3.0, H: 3.5 },
+    }),
+    bom: Object.freeze({ 'con-chassis': 2, 'con-cab': 1, 'con-wheel': 4, 'con-arms': 1, 'con-crank': 1, 'con-bucket': 1, 'con-link': 1, 'con-ram': 5 }),
+  }),
+  // a 3.3 t skid steer: its chassis on four wheels, its radial lift arms on the towers at its back, its bucket tilted
+  // by two rams from the arms' cross member
+  skidSteer: SKID_STEER,
+  // a 4.3 t compact track loader: the skid steer on rubber tracks (the carrier swap), its own class
+  compactTrackLoader: withCarrier(SKID_STEER, 'tracks', {
+    label: 'compact track loader', classOf: 'compact track loader 4.3 t', physics: 'compactTrackLoader',
+    laws: Object.freeze({ ...SKID_STEER.laws, groundPressure: [25, 45], transport: { W: 2.0, H: 2.2 } }),
   }),
 });
