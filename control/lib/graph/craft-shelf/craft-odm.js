@@ -144,7 +144,7 @@ export const CRAFT_ODM = {
   },
   'fus-widebody': {
     kind: 'craft-fuselage', realm: 'earth', label: 'widebody airliner fuselage', classOf: '777 class',
-    aliases: ['widebody fuselage', 'twin-aisle fuselage', 'jumbo fuselage'],
+    aliases: ['widebody fuselage', 'twin-aisle fuselage'],
     dims: { length: 63.7, width: 6.19, height: 6.2 }, mass: 32000, mount: null,
     build: {
       family: 'tube', n: 2, stations: AIRLINER_BARREL, windscreen: [0.03, 0.05],
@@ -210,7 +210,7 @@ export const CRAFT_ODM = {
   },
   'wing-widebody': {
     kind: 'craft-wing', realm: 'earth', label: 'swept airliner wing panel, twin aisle', classOf: '777 class',
-    aliases: ['widebody wing', 'jumbo wing'], dims: { span: 27.4 }, mass: 17000, mount: 'wing-root',
+    aliases: ['widebody wing', 'twin-aisle wing'], dims: { span: 27.4 }, mass: 17000, mount: 'wing-root',
     build: {
       // the yehudi crank inboard, a raked tip outboard
       planform: [[0, 11.5], [0.3, 7.0], [0.92, 2.9], [1, 1.3, 20.1]], sweep: 34, dihedral: 6, thickness: 0.14, tipThickness: 0.1, camber: 0.02, twist: 3, hinge: [0.05, 0.92, 0.2], fairings: [0.13, 0.27, 0.41],
