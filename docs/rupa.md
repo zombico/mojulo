@@ -171,6 +171,24 @@ So a leaf moves at the wind's speed while it sinks at its falling speed, and its
 is the JavaScript reference; `GLSL` is the same formula for the GPU. Its tests hold it to the simulation: the same
 falling speed, a landing point within 12% of a simulated leaf's in a steady wind, and less drift behind a wall.
 
+### The wind solver: a whole scene at once
+
+Instead of choosing a script for each element by hand, [`wind-solver.js`](../control/lib/graph/rupa/wind-solver.js)
+reads each element's physics and decides how the wind shows it, with the reason in numbers:
+
+| Decision | When | Examples |
+|---|---|---|
+| **drift** | a free thing that catches up with the air in under half a second (falling speed ÷ g) | leaves, petals, litter, ash, snow |
+| **bend** | fixed at its foot and flexing: the wind loads it as a cantilever, its tip moving wL⁴/8EI + FL³/3EI along the beam's curve, swaying at its first mode | grass, reeds, saplings |
+| **hang** | hanging from a point: it leans until drag meets weight, atan(q·Cd·A ÷ m·g), and swings as a pendulum | flags, banners, lanterns, hanging signs |
+| **still** | the strongest gust can't move it: drag on the face the wind meets stays under friction, or it would bend or lean under half a degree | a brick lying on the ground, a steel signpost |
+| **simulate** | too heavy to follow the air, yet moved by it, or snapped by it (the strongest gust stresses a rigid foot past its strength) | a hollow crate in a gale, a sapling that snaps |
+
+The strongest gust is the wind at the element's height times (1 + gust), from the runtime's own wind, so a scripted
+blade of grass and a simulated crate feel the same air. Elements of one kind become one batch: a meadow of 5,000 grass
+blades is one GPU draw with one set of numbers. `solveWind(elements, wind)` returns the batches, the lists to still and
+to simulate, and every reason. Each kind is a row in `KINDS`: a new kind is a row.
+
 ### Describing a wind
 
 A level sets it in its `matter` settings:

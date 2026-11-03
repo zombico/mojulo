@@ -51,6 +51,11 @@ Walls hold and objects break stays the default; a game that asks for destructibl
   and its whole path (the wind's rise with height, the gusts, a wall's calm lee, skittering on the ground once the wind
   beats friction) has an exact formula of time. A GPU runs the same formula (`GLSL`), so thousands of leaves cost one
   number a frame; its tests hold it to the full simulation.
+- **The wind solver** (`lib/graph/rupa/wind-solver.js`): a scene's wind-moved elements are read by their physics and
+  handed their depiction, each with its reason in numbers: drift for what catches up with the air in under half a second
+  (leaves, litter, ash), bend for what flexes from its foot (grass, reeds, saplings: a cantilever's curve and its first
+  mode), hang for what swings (flags, lanterns: drag against weight, a pendulum), still for what the strongest gust can't
+  move, and simulate for what it moves but can't carry, or snaps. Like kinds batch into one GPU draw; each kind is a row.
 - **Water and air share one set of fluid functions**: pressure (from a fluid's weight and from its flow), turning a
   pressure back into a speed, and the lift and drag on a body in any fluid. The tanks, pipes, nozzles, pools, spray,
   grain settling and wind all call them.
