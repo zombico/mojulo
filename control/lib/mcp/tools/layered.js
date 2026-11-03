@@ -120,6 +120,7 @@ import { heroDermisSpec } from '@/lib/graph/epidermis/dermal-hero';
 import { composeFace, FACE_BUCKETS, FACE_SHAPES, FACE_FEATURES, FACE_AGE } from '@/lib/graph/polygonizer/face-compose';
 import { readAncestry } from '@/lib/graph/epidermis/dermal-looks';
 import { randomInt, createHash } from 'node:crypto';
+import { keptOnDisk } from '@/lib/util/kept';
 import { solveTune, raisedEar, evenFace } from '@/lib/graph/polygonizer/head-relational';
 import { DERMIS_DIALS } from '@/lib/graph/epidermis/dermal-map';
 import { faunaBones, motionGaits, checkBehaviors } from '@/lib/graph/fauna/rig';
@@ -340,9 +341,12 @@ function realisticRecipe(recipe, hero) {
   let kept = SLICES.get(key);
   if (kept) { SLICES.delete(key); SLICES.set(key, kept); }
   else {
-    // (realistic laws 9: a man's hip sockets brought in, body-relational-builds.js MALE_HIPS; the rig the slice reads and keeps)
-    const rig = B.hipSpan ? withHipSpan(recipe.rig, B.hipSpan) : recipe.rig, out = formSlice(B.hipSpan ? { ...recipe, rig } : recipe, validateRig(rig), B).recipe;
-    kept = { parts: reads(out.parts), removed: Object.keys(recipe.parts).filter((k) => SLICE_READS.test(k) && !out.parts[k]), rig: out.rig, dials: out.dials, ...(out.correctives ? { correctives: out.correctives } : {}) };
+    // (and under test, kept across test files: lib/util/kept.js)
+    kept = keptOnDisk('slice', key, () => {
+      // (realistic laws 9: a man's hip sockets brought in, body-relational-builds.js MALE_HIPS; the rig the slice reads and keeps)
+      const rig = B.hipSpan ? withHipSpan(recipe.rig, B.hipSpan) : recipe.rig, out = formSlice(B.hipSpan ? { ...recipe, rig } : recipe, validateRig(rig), B).recipe;
+      return { parts: reads(out.parts), removed: Object.keys(recipe.parts).filter((k) => SLICE_READS.test(k) && !out.parts[k]), rig: out.rig, dials: out.dials, ...(out.correctives ? { correctives: out.correctives } : {}) };
+    });
     SLICES.set(key, kept); if (SLICES.size > SLICES_KEPT) SLICES.delete(SLICES.keys().next().value);
   }
   const K = structuredClone(kept), parts = Object.fromEntries(Object.entries(recipe.parts).filter(([k]) => !K.removed.includes(k)));
@@ -419,21 +423,21 @@ const FACE_HAIRS = new Map();
 function faceHairOf(S, dermis, opts) {
   const key = JSON.stringify([wornHead(S), dermis, opts]);
   let H = FACE_HAIRS.get(key);
-  if (!H) { H = heroFaceHair(S, dermis, opts); FACE_HAIRS.set(key, H); if (FACE_HAIRS.size > 16) FACE_HAIRS.delete(FACE_HAIRS.keys().next().value); }
+  if (!H) { H = keptOnDisk('face-hair', key, () => heroFaceHair(S, dermis, opts)); FACE_HAIRS.set(key, H); if (FACE_HAIRS.size > 16) FACE_HAIRS.delete(FACE_HAIRS.keys().next().value); }
   return H;
 }
 /** a head's hair cards, kept by its fit, its dermis and its groom (growing them costs seconds) */
 function hairOf(S, dermis, scalp, level, budget = false, cards = false) {
   const key = JSON.stringify([wornHead(S), dermis, scalp, level, budget, cards]);
   let H = HAIRS.get(key);
-  if (!H) { H = heroHair(S, dermis, scalp, { level, budget, cards }); HAIRS.set(key, H); if (HAIRS.size > 16) HAIRS.delete(HAIRS.keys().next().value); }
+  if (!H) { H = keptOnDisk('hair', key, () => heroHair(S, dermis, scalp, { level, budget, cards })); HAIRS.set(key, H); if (HAIRS.size > 16) HAIRS.delete(HAIRS.keys().next().value); }
   return H;
 }
 /** a head's lock hair (realistic laws 10; sealed against the neck and the body under laws 14), kept as its blades are */
 function lockHairOf(S, dermis, scalp, level, stylize, seal = false) {
   const key = JSON.stringify(['locks', wornHead(S), dermis, scalp, level, stylize ?? null, ...(seal ? ['seal'] : [])]);
   let H = HAIRS.get(key);
-  if (!H) { H = heroLockHair(S, dermis, scalp, { level, budget: true, stylize, seal }); HAIRS.set(key, H); if (HAIRS.size > 16) HAIRS.delete(HAIRS.keys().next().value); }
+  if (!H) { H = keptOnDisk('hair', key, () => heroLockHair(S, dermis, scalp, { level, budget: true, stylize, seal })); HAIRS.set(key, H); if (HAIRS.size > 16) HAIRS.delete(HAIRS.keys().next().value); }
   return H;
 }
 /** THE HAIR'S RUNG (dermal-hair.js HAIR_LADDER, the grass's ladder): by the head's height on screen under the hero's
@@ -446,7 +450,7 @@ const HEAD_SHARE = 7;
 function jewelleryOf(S, piercings) {
   const key = JSON.stringify([wornHead(S), piercings]);
   let J = JEWELS.get(key);
-  if (!J) { J = heroJewellery(S, piercings); JEWELS.set(key, J); if (JEWELS.size > 16) JEWELS.delete(JEWELS.keys().next().value); }
+  if (!J) { J = keptOnDisk('jewels', key, () => heroJewellery(S, piercings)); JEWELS.set(key, J); if (JEWELS.size > 16) JEWELS.delete(JEWELS.keys().next().value); }
   return J;
 }
 function relationalHeadOn(S, sex, face = null, { oneSkin = false, rung = null, column = false, ear = false, seat = false, teeth = false, even = false, squeeze = false, periorbital = false } = {}) {
@@ -458,17 +462,18 @@ function relationalHeadOn(S, sex, face = null, { oneSkin = false, rung = null, c
   const key = JSON.stringify([S.parts.neck, S.parts.cranium, S.parts.jaw, S.rig.joints, sex, own, oneSkin, rung, ...(column ? ['column'] : []), ...(seat ? [seat === true ? 'seat' : `seat${seat}`] : []), ...(teeth ? ['teeth'] : [])]);
   let d = HEADS.get(key);
   if (d) { HEADS.delete(key); HEADS.set(key, d); }
-  else {
+  else d = keptOnDisk('head', key, () => {
     const opts = { ...(rung ? { oneSkin: ONE_SKIN_RUNGS[rung] } : {}), ...(column ? { column: true } : {}) };
     const r = relationalHeadRecipe(S, { sex, ...own, oneSkin, ...(seat ? { seat } : {}), ...(teeth ? { teeth: true } : {}), ...(Object.keys(opts).length ? { opts } : {}) });
-    d = {
+    return {
       parts: Object.fromEntries(Object.entries(r.parts).filter(([k, p]) => JSON.stringify(p) !== JSON.stringify(S.parts[k]))),
       removed: Object.keys(S.parts).filter((k) => !r.parts[k]), creases: r.creases, dropped: Object.keys(S.dials || {}).filter((k) => !r.dials?.[k]), joints: r.rig.joints, headFit: r.headFit,
       // (a dial the head re-aimed: the one skin's parts in place of the cranium and the jaw)
       redialled: Object.fromEntries(Object.entries(r.dials || {}).filter(([k, v]) => S.dials?.[k] && JSON.stringify(v) !== JSON.stringify(S.dials[k]))),
     };
-    HEADS.set(key, d); if (HEADS.size > SLICES_KEPT) HEADS.delete(HEADS.keys().next().value);
-  }
+  });
+  // (kept across test files too: lib/util/kept.js)
+  if (!HEADS.has(key)) { HEADS.set(key, d); if (HEADS.size > SLICES_KEPT) HEADS.delete(HEADS.keys().next().value); }
   const D = structuredClone(d), parts = Object.fromEntries(Object.entries(S.parts).filter(([k]) => !D.removed.includes(k)));
   const dials = S.dials ? Object.fromEntries(Object.entries(S.dials).filter(([k]) => !D.dropped.includes(k)).map(([k, v]) => [k, D.redialled?.[k] ?? v])) : S.dials;
   // (the teeth's and the tongue's colours, laws 12: MOUTH_PALETTE)
