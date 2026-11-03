@@ -369,11 +369,12 @@ describe('design_game quick', () => {
 
   it('a realistic ride: the car\'s realistic loft, compiled in place on its class\'s physics, its rivals in it too', async () => {
     // the game reads realistic (its juice drawn in the form render): the tier is stamped at mint, and the sedan is its loft
+    // (the car shelf's family sedan, car-shelf/: the sedan row's card, at the midsize class's numbers)
     const out = await designGameHandler({ quick: { goal: 'race', ride: 'car', rivals: 1, world: { id: 'real', style: { kit: 'trail-valley' }, juice: { fidelity: 'form' } } }, ref: 'rr' });
     expect(out.ran.map((r) => r.key)).toEqual(['level-run-0', 'game']);
     expect(stored('rr').quick).toMatchObject({ ride: 'car', tier: 'realistic' });
     const L = stored('rr-level-run-0');
-    expect(L.figures.ride).toEqual({ loft: { class: 'midsize', seed: 1, light: 'form' } });
+    expect(L.figures.ride).toEqual({ loft: { class: 'midsize', car: 'familySedan', seed: 1, light: 'form' } });
     expect(L.figures['rival-1']).toEqual(L.figures.ride);
     expect(L.entities[0]).toMatchObject({ id: 'car', rule: { type: 'drive', vehicle: 'midsize' } });
     expect(L.camera.dist).toBeGreaterThan(7);

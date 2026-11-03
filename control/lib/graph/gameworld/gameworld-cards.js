@@ -403,9 +403,9 @@ const QUICK_LEVERS = {
   race: () => [
     `  track: trail | loop   end to end, or round a loop laid on the trail's land; laps: n (1..9, ${RACE.laps} round a loop)`,
     `  ride: ${Object.keys(RIDES).join(' | ')} | a registry vehicle ('a jeep')   you drive it (WASD), followed from behind; no hero, climb or building`,
-    // (the road's classes by name; the field's, the airside's and the cycles' grow a class at a time, so a registry word
-    // names them: the card stays under its ceiling)
-    `    vehicle: ${Object.keys(VEHICLES).filter((k) => !MILITARY_CLASSES[k] && wheelLayout(VEHICLES[k]) === 'axles').join(' | ')}, others by a registry word; tuning: ${TUNINGS.join(' | ')}; conditions: ${Object.keys(CONDITIONS).join(' | ')}`,
+    // (a few of the road's classes by name, the rest by a registry word: every shelf grows a class at a time, so the card
+    // names none it would have to keep up with and stays under its ceiling)
+    `    vehicle: a physics class (${Object.keys(VEHICLES).filter((k) => !MILITARY_CLASSES[k] && wheelLayout(VEHICLES[k]) === 'axles').slice(0, 8).join(' | ')}, …) or any registry word; tuning: ${TUNINGS.join(' | ')}; conditions: ${Object.keys(CONDITIONS).join(' | ')}`,
     '  rivals: n (1..7, with a ride)   finish on the podium',
     '  racers: n (2..8) or a list (an archetype, a brief in words, or { archetype?, build?, age?, brief?, facets?, seed?, parts?, shade?, light? }):',
     '    the whole field, yours first (no ride, hero or rivals beside it); shade: gloss (default) | smooth | cel (flat); light: form (default: lit by the page) | paint',

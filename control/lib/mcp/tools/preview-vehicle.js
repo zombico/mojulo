@@ -18,7 +18,10 @@
  * Orbit-only (like `planetary`): no CSS-3D /scene path, no /scene PNG thumbnail.
  * A REALISTIC LOFT is an instance too: { loft: { class, era?, brief?, seed?, livery?, wear? } }, a road class at its true
  * numbers (car-designer/realistic.js), the registry's realistic build of a car, a truck or a bus; a field vehicle's
- * livery and wear (`livery`, `wear` beside its word: car-designer/livery-cut.js, mil-wear.js) carried in its recipe.
+ * livery and wear (`livery`, `wear` beside its word: car-designer/livery-cut.js, mil-wear.js) carried in its recipe. A
+ * personal or family car's loft is the car shelf's: { loft: { car, class?, seed? } }, `car` a card's id or a composition
+ * ({ preset?, class?, body?, language?, trim?, parts?, paint? }: car-shelf/car-library.js), and its row's word alone
+ * draws the row's own card.
  *
  * A CYCLE is an instance too: { cycle: { archetype, look?, pose?, rider?, posture? } }, a machine ridden astride off the
  * cycle shelf (cycle-shelf/), the registry's realistic build of a motorcycle, a scooter, a bicycle; `look` beside its word
@@ -53,11 +56,13 @@ const PREVIEWS = Object.freeze({
   scenery: (b) => ({ type: b.key }),
   racer: () => ({ racer: {} }),
   supercar: (b) => ({ supercar: { preset: b.key } }),
-  loft: (b) => ({ loft: { class: b.key } }),
+  loft: (b) => ({ loft: { class: b.key, ...(b.car ? { car: b.car } : {}) } }),
   cycle: (b) => ({ cycle: { archetype: b.key } }),
   construction: (b) => ({ construction: { archetype: b.key } }),
 });
 const previewable = (b) => Boolean(PREVIEWS[b.via]);
+// the row a loft recipe is: its car's card's row (the car shelf's), else its class's
+const loftRow = (loft) => { const card = typeof loft?.car === 'string' ? loft.car : loft?.car?.preset; return loft?.car !== undefined ? (card ? rowOfHandle('car', card) : null) : rowOfHandle('physics', loft?.class); };
 
 /**
  * THE REGISTRY'S WAY IN (vehicle-registry/): a `vehicle` word (any word the registry names) is read to its row, and
@@ -68,19 +73,21 @@ const previewable = (b) => Boolean(PREVIEWS[b.via]);
 export function readVehicleWord({ vehicle, type, racer, supercar, loft, cycle, construction, tier } = {}) {
   if (tier !== undefined && !TIER_IDS.includes(tier)) throw new Error(`mint_solid vehicle: tier is one of ${TIER_IDS.join(', ')}`);
   const word = vehicle ?? (type !== undefined && !isVehicleType(type) ? type : undefined);
-  if (word === undefined) return { instance: { type, racer, supercar, loft, cycle, construction }, id: type !== undefined ? rowOfHandle('scenery', type) : racer !== undefined ? rowOfHandle('racer', true) : supercar !== undefined ? rowOfHandle('supercar', supercar?.preset ?? 'razor') : loft !== undefined ? rowOfHandle('physics', loft?.class) : cycle !== undefined ? rowOfHandle('cycle', cycle?.archetype) : construction !== undefined ? rowOfHandle('construction', construction?.archetype) : null, asked: false };
+  if (word === undefined) return { instance: { type, racer, supercar, loft, cycle, construction }, id: type !== undefined ? rowOfHandle('scenery', type) : racer !== undefined ? rowOfHandle('racer', true) : supercar !== undefined ? rowOfHandle('supercar', supercar?.preset ?? 'razor') : loft !== undefined ? loftRow(loft) : cycle !== undefined ? rowOfHandle('cycle', cycle?.archetype) : construction !== undefined ? rowOfHandle('construction', construction?.archetype) : null, asked: false };
   const hit = resolveVehicle(word);
   if (!hit) throw new Error(`mint_solid vehicle: '${word}' is no vehicle the registry names: ${suggestVehicles(word)}`);
   const { id } = hit, builds = buildsOf(id);
   // (a loft's words beside the name, its brief or its paint, without its class: the row's own)
-  if (loft !== undefined && loft?.class === undefined) loft = { ...loft, class: builds.find((b) => b.via === 'loft')?.key };
+  // (and a car's loft asked by a row the car shelf builds: the row's own card unless the loft names one)
+  if (loft !== undefined && loft?.class === undefined && loft?.car === undefined) { const b = builds.find((x) => x.via === 'loft'); loft = { ...loft, class: b?.key, ...(b?.car ? { car: b.car } : {}) }; }
   if (cycle !== undefined && cycle?.archetype === undefined) cycle = { ...cycle, archetype: builds.find((b) => b.via === 'cycle')?.key };
   if (construction !== undefined && construction?.archetype === undefined) construction = { ...construction, archetype: builds.find((b) => b.via === 'construction')?.key };
   // a race machine's recipe beside its row: the row must be the machine's, and the recipe is the instance
   if (racer !== undefined || supercar !== undefined || loft !== undefined || cycle !== undefined || construction !== undefined) {
     const kind = racer !== undefined ? 'racer' : supercar !== undefined ? 'supercar' : loft !== undefined ? 'loft' : cycle !== undefined ? 'cycle' : 'construction';
-    const own = kind === 'racer' ? rowOfHandle('racer', true) : kind === 'supercar' ? rowOfHandle('supercar', supercar?.preset ?? 'razor') : kind === 'loft' ? rowOfHandle('physics', loft?.class) : kind === 'cycle' ? rowOfHandle('cycle', cycle?.archetype) : rowOfHandle('construction', construction?.archetype);
-    if (own !== id) throw new Error(`mint_solid vehicle: '${word}' is the registry's ${id}, and a ${kind} recipe is the ${own}'s`);
+    const own = kind === 'racer' ? rowOfHandle('racer', true) : kind === 'supercar' ? rowOfHandle('supercar', supercar?.preset ?? 'razor') : kind === 'loft' ? loftRow(loft) : kind === 'cycle' ? rowOfHandle('cycle', cycle?.archetype) : rowOfHandle('construction', construction?.archetype);
+    // (a car composed from no card is any car row's: its look is its own)
+    if (own !== id && !(kind === 'loft' && own === null && loft?.car !== undefined)) throw new Error(`mint_solid vehicle: '${word}' is the registry's ${id}, and a ${kind} recipe is the ${own}'s`);
     return { instance: { [kind]: { racer, supercar, loft, cycle, construction }[kind] }, id, asked: true };
   }
   // the grid shows a vehicle parked: the build that serves it (the fleet's loft is traffic; the grid draws the class's own)

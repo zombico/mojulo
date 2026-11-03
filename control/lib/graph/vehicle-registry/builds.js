@@ -16,8 +16,9 @@
  *   (an upscale from preview or asleep is wiring, not modelling)
  *   concept   the technology crafter's block plan only (the bible's plates, the RTS roster): every row has one
  *
- *   buildsOf(id)         → [{ tier, via, key, status, uses, where, why }] every build the row has, toy first (`uses`:
- *                          what it serves, roster.js USES: the fleet's loft is traffic, never a hero's car)
+ *   buildsOf(id)         → [{ tier, via, key, status, uses, where, why, car? }] every build the row has, toy first (`uses`:
+ *                          what it serves, roster.js USES: the fleet's loft is traffic, never a hero's car; `car`: a loft
+ *                          that is the car shelf's card, car-shelf/car-library.js)
  *   buildOf(id, tier, { use? })   → { asked, tier, build, fell? } the build a game at that tier draws (for that use): a
  *                          live one at the tier, else an asleep one (said), else the nearest tier's (said), else the concept
  *   upscaleOf(id)        → { id, use, realistic: live | preview | asleep | none, next } what the row needs to be drawn realistic
@@ -34,6 +35,7 @@ import { OPEN_FRAME } from '../car-designer/realistic.js';
 import { CLASS_TRAITS } from '../car-designer/facets.js';
 import { UNBUILT } from '../car-designer/sheet.js';
 import { MILITARY_CLASSES } from '../car-designer/road-military.js';
+import { CAR_CARDS } from '../car-shelf/car-library.js';
 
 export const TIERS = Object.freeze({
   toy: 'cartoon, chibi, mascot, kart: the racer\'s parts grammar',
@@ -88,6 +90,9 @@ export function buildsOf(id) {
   // parked in a level; watched and parked, never driven, until its ride is built)
   for (const k of h.construction ?? []) out.push(B('realistic', 'construction', k, 'live', ['mint_solid vehicle preview', 'a level\'s parked vehicles'], 'the construction shelf\'s machine, its carrier, its upper, its front on its chain and its tool at its class\'s numbers (construction-shelf/): drawn at a pose (its rest, a named pose, its joints\' values), parked in a level', SERVES.construction));
   for (const k of h.fleet ?? []) out.push(B('realistic', 'fleet', k, 'live', ['roadway traffic'], 'the highway fleet\'s loft at true dimensions, at traffic distance'));
+  // (a personal or family car: the car shelf's card, a loft of its class with the card's body, language, trim and paint,
+  // car-shelf/; before the class's plain loft, so a game asking for the row draws the card)
+  for (const k of h.car ?? []) out.push({ ...B('realistic', 'loft', CAR_CARDS[k].class, 'live', ['quick ride', 'mint_solid vehicle preview', 'a level\'s parked vehicles'], `the car shelf's ${CAR_CARDS[k].title.toLowerCase()} (car-shelf/: its body, its design language, its trim and its paint at its class's true numbers), driven on its class's own physics`), car: k });
   for (const k of (h.physics ?? []).filter(loftable).slice(0, 1)) {
     if (tracked(k)) { out.push(B('realistic', 'loft', k, 'live', ['mint_solid vehicle preview', 'a level\'s parked vehicles'], 'the military hull kit\'s body of its class on its running gear (road-military.js, mil-track.js), drawn and parked: not driven until skid steer is built', UNDRIVEN)); continue; }
     out.push(B('realistic', 'loft', k, 'live', ['quick ride', 'mint_solid vehicle preview'], MILITARY_CLASSES[k]

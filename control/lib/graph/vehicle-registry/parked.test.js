@@ -68,7 +68,7 @@ describe('a parked vehicle read', () => {
   it('takes a registry word with a realistic body that stands parked, and refuses one without', () => {
     expect(readParked([{ vehicle: VEHICLES[FIELD[0]].aliases[0], at: [0, 0, 0] }])[0]).toMatchObject({ vehicle: FIELD[0], heading: 0, seed: 1 });
     expect(() => readParked([{ vehicle: 'a flying carpet of words', at: [0, 0, 0] }])).toThrow(/no vehicle/);
-    const concept = Object.keys(VEHICLES).find((id) => VEHICLES[id].uses.includes('parked') && !VEHICLES[id].handles.physics && !VEHICLES[id].handles.craft);
+    const concept = Object.keys(VEHICLES).find((id) => VEHICLES[id].uses.includes('parked') && !VEHICLES[id].handles.physics && !VEHICLES[id].handles.craft && !VEHICLES[id].handles.car);
     expect(() => parkable(concept)).toThrow(/no realistic body/);
     expect(() => readParked([])).toThrow(new RegExp(`1 to ${PARKED_MAX}`));
     expect(() => readParked([{ vehicle: FIELD[0], at: [0, 0] }])).toThrow(/\[x, y, z\]/);

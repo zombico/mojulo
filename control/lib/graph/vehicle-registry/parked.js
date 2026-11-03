@@ -9,7 +9,7 @@
  *
  *   PARKED_MAX                    the most a level stands
  *   BASE_PARKED                   what a base parks when it says only `true`: a truck and a carrier
- *   readParked(list, at?)         → [{ vehicle, class | craft, cycle?, construction?, at, heading, livery?, wear?, look?,
+ *   readParked(list, at?)         → [{ vehicle, class | craft, car?, cycle?, construction?, at, heading, livery?, wear?, look?,
  *                                   fold?, pad?, reach?, pose?, tool?, height?, palette?, seed }], each word read through the registry (a row with a realistic loft, a cycle
  *                                   with a stand, or a craft off the shelf, that can stand parked), or throws naming why. A
  *                                   craft (a helicopter, an aircraft, a drone) takes its family's `look`, the air's livery and
@@ -18,7 +18,9 @@
  *                                   in the list, each placed and posed to its doors, holds and nose gear (turnaround.js). Its
  *                                   collider is its body's box, not its rotor's disc. An airside body takes `reach` (its lift,
  *                                   belt, platform or cradle, metres: road-airside.js). A cycle takes its look; a site machine its
- *                                   pose, tool, height and palette (construction-shelf/con-figure.js)
+ *                                   pose, tool, height and palette (construction-shelf/con-figure.js); a personal or family car
+ *                                   its `car` (the car shelf's card or composition, car-shelf/car-library.js: a car row stands
+ *                                   as its own card, but one the highway fleet lofts keeps its class's plain loft)
  *   parkIn(room, words, { seed?, livery?, wear? }) → `parked` entries side by side across a room, noses to its +x
  *                                   (a hangar's doors), as many as it holds; a craft folded, in the air's nearest camo
  *   parkable(word, at?)          → { vehicle, class, cycle?, construction? } or { vehicle, craft }, or throws naming why
@@ -49,10 +51,11 @@ import { wheelLayout } from '../roads/vehicles.js';
 import { AIRSIDE_REACH } from '../car-designer/road-airside.js';
 import { crewFor, turnaround } from './turnaround.js';
 import { conFootprint, readConSpec } from '../construction-shelf/con-figure.js';
+import { CAR_CARDS, readCarSpec } from '../car-shelf/car-library.js';
 
 export const PARKED_MAX = 6;
 export const BASE_PARKED = Object.freeze(['cargo-truck', 'apc']);
-const KEYS = ['vehicle', 'at', 'heading', 'livery', 'wear', 'look', 'seed', 'fold', 'pad', 'crew', 'reach', 'pose', 'tool', 'height', 'palette'];
+const KEYS = ['vehicle', 'at', 'heading', 'livery', 'wear', 'look', 'seed', 'fold', 'pad', 'crew', 'reach', 'pose', 'tool', 'height', 'palette', 'car'];
 // (a craft's own words: a road car, a field vehicle and a cycle take none of them)
 const CRAFT_KEYS = ['fold', 'pad', 'crew'];
 // (the most a level stands with every craft's crew about it)
@@ -75,8 +78,13 @@ export function parkable(word, at = 'parked') {
   // (a craft off the shelf: a helicopter, an aircraft, a drone, standing on its gear)
   const craft = (h.craft ?? []).find((k) => CRAFT_ARCHETYPES[k]?.realm === 'earth');
   if (craft && hit.row.uses.includes('parked')) return { vehicle: hit.id, craft };
+  // (a personal or family car stands as its row's own card, car-shelf/; a row the highway fleet lofts (the sedan, the
+  // compact, the crossover) parked its class's plain loft before, and keeps it unless its entry names a `car`)
+  const card = (h.car ?? [])[0];
+  if (card && !h.fleet && hit.row.uses.includes('parked')) return { vehicle: hit.id, class: CAR_CARDS[card].class, car: card };
   const cls = (h.physics ?? []).find(loftable);
   if (cls && hit.row.uses.includes('parked')) return { vehicle: hit.id, class: cls };
+  if (card && hit.row.uses.includes('parked')) return { vehicle: hit.id, class: CAR_CARDS[card].class, car: card };
   // (a machine ridden astride: its cycle shelf machine, standing on its stand; one with none is held up by hand)
   const cycle = (h.cycle ?? [])[0];
   if (cycle && hit.row.uses.includes('parked')) {
@@ -97,7 +105,12 @@ export function readParked(list, at = 'parked') {
     const w = `${at}[${k}]`;
     if (!isObj(p)) throw new Error(`${w} is { vehicle, at: [x, y, z], heading?, livery?, wear?, seed? }`);
     for (const key of Object.keys(p)) if (!KEYS.includes(key)) throw new Error(`${w}.${key} is not a parked vehicle's setting (${KEYS.join(', ')})`);
-    const { vehicle, class: cls, craft, cycle, construction } = parkable(p.vehicle, `${w}.vehicle`);
+    const { vehicle, class: cls0, craft, cycle, construction, car: card } = parkable(p.vehicle, `${w}.vehicle`);
+    // (a car's own card or composition, read as the car shelf reads it: any row the car shelf builds takes one)
+    if (p.car !== undefined && !card && !(handlesOf(vehicle).car ?? []).length) throw new Error(`${w}.car: the ${vehicle} is no car the car shelf builds; a car is a sedan's, a hatchback's, an estate's …`);
+    const car = p.car ?? card;
+    if (p.car !== undefined) readCarSpec(p.car);
+    const cls = car !== undefined ? (typeof car === 'object' && car.class) || CAR_CARDS[typeof car === 'string' ? car : car.preset]?.class || cls0 : cls0;
     if (!Array.isArray(p.at) || p.at.length !== 3 || !p.at.every(Number.isFinite)) throw new Error(`${w}.at is [x, y, z], metres`);
     if (p.heading !== undefined && !Number.isFinite(p.heading)) throw new Error(`${w}.heading is radians (0: its nose along +x)`);
     if (p.seed !== undefined && !Number.isInteger(p.seed)) throw new Error(`${w}.seed is an integer`);
@@ -135,7 +148,7 @@ export function readParked(list, at = 'parked') {
     for (const key of SITE) if (p[key] !== undefined && !construction) throw new Error(`${w}.${key}: the ${vehicle} is posed by its own build; a ${key} is a site machine's`);
     const site = construction ? Object.fromEntries(SITE.filter((k) => p[k] !== undefined).map((k) => [k, p[k]])) : null;
     if (construction) readConSpec({ archetype: construction, ...site }, w);
-    return [{ vehicle, class: cls, ...(cycle ? { cycle } : {}), ...(construction ? { construction, ...site } : {}), at: p.at.map(r3), heading: r3(p.heading ?? 0), ...(p.livery !== undefined ? { livery: p.livery } : {}), ...(p.wear !== undefined ? { wear: p.wear } : {}), ...(p.look !== undefined ? { look: p.look } : {}), ...(p.reach !== undefined ? { reach: p.reach } : {}), seed: p.seed ?? k + 1 }];
+    return [{ vehicle, class: cls, ...(car !== undefined ? { car } : {}), ...(cycle ? { cycle } : {}), ...(construction ? { construction, ...site } : {}), at: p.at.map(r3), heading: r3(p.heading ?? 0), ...(p.livery !== undefined ? { livery: p.livery } : {}), ...(p.wear !== undefined ? { wear: p.wear } : {}), ...(p.look !== undefined ? { look: p.look } : {}), ...(p.reach !== undefined ? { reach: p.reach } : {}), seed: p.seed ?? k + 1 }];
   });
   if (read.length > PARKED_CREWED_MAX) throw new Error(`${at}: ${read.length} vehicles with their crews, more than a level stands (${PARKED_CREWED_MAX})`);
   return read;
@@ -210,7 +223,7 @@ export function withParked(manifest) {
     const spec = p.construction ? { archetype: p.construction, ...Object.fromEntries(SITE.filter((key) => p[key] !== undefined).map((key) => [key, p[key]])) } : null;
     const v = spec ? conFootprint(spec) : PHYSICS[p.class];
     figures[id] = spec ? { construction: spec } : p.cycle ? { cycle: { archetype: p.cycle, ...(p.look !== undefined ? { look: p.look } : {}) } }
-      : { loft: { class: p.class, seed: p.seed, light: 'form', ...(p.livery !== undefined ? { livery: p.livery } : {}), ...(p.wear !== undefined ? { wear: p.wear } : {}), ...(p.reach !== undefined ? { reach: p.reach } : {}) } };
+      : { loft: { class: p.class, ...(p.car !== undefined ? { car: p.car } : {}), seed: p.seed, light: 'form', ...(p.livery !== undefined ? { livery: p.livery } : {}), ...(p.wear !== undefined ? { wear: p.wear } : {}), ...(p.reach !== undefined ? { reach: p.reach } : {}) } };
     entities.push({ id, rule: { type: 'static' }, body: { type: 'figure-rig', figure: id }, transform: { pos: p.at, heading: p.heading } });
     // (its footprint turned: nose along the heading, its length that way, its width across)
     const hx = (Math.abs(c) * v.L + Math.abs(s) * v.W) / 2, hy = (Math.abs(s) * v.L + Math.abs(c) * v.W) / 2;
