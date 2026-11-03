@@ -162,6 +162,30 @@ on it: the utility walker, the heavy walker drawn larger from it, and the giant 
   hold the frame as built. The houses trade reach for lift, and every house passes every law at every pack task. A
   screw actuator is rated by its force both ways (`ramForce`). The pack's reach band is widened to 4.5 m for a long
   forearm with a prop.
+- **The field walker** (`fieldWalker`; registry row `field-walker`, role `scout`): the all-terrain walker hardened as a
+  military all-terrain transport. It carries no weapons. Its knees bend backward and its rider sits astride, as on the
+  walker.
+  - Its frame (`mecha-field-parts.js`) is the walker's drawn 1.2 times larger for clearance and step:
+    - its thigh and shank beams carry a bolted guard plate down their outer flank;
+    - its belly sits under a skid plate raked up at both ends, with four recovery points;
+    - its feet are drawn at 1.5 times and cleated, the lugs never below the sole the legs are solved to;
+    - its cabin is behind a brush guard, a second bar across the hoop;
+    - its power pack sits in a cargo rack;
+    - its saddle's boarding step hangs lower for the taller frame.
+  - Against the walker it measures steadier (its standing margin 0.17 m against 0.10), presses softer ground (34 kPa
+    against 46), and steps higher and farther. A new law, `belly`, reads how far its lowest carried body stands off the
+    ground.
+  - Its dress (`mecha-military.js`) is the military styling library's (car-designer), applied to the frame's faces as
+    to a field vehicle's hull:
+    - the frame is assembled unlit and its faces read back by colour;
+    - its kit is fitted on anchors its parts declare: pioneer tools, an antenna, a jerry can each side, a tarp roll,
+      shackles at the recovery points;
+    - its number is stencilled each side;
+    - a `livery` (any camo or mono) is cut into its paint, its structure a shade down;
+    - its `wear` (used unless asked) cakes mud low on its legs, dust, fade and grounding;
+    - it is baked under the studio's light.
+  - It is olive drab by default (a new palette, `oliveDrab`, the field's olive). `livery` and `wear` are words of a
+    dressed frame on the door, the figure and the render script (`--livery`, `--wear`); a frame with no dress refuses them.
 - **Every joint is an actuator's** (the construction shelf's chain, `construction-shelf/con-chain.js`).
   - A pitch or roll joint is driven by a hydraulic ram across it. Its range is where that ram lies within its stroke:
     derived, never stated.
@@ -205,7 +229,7 @@ on it: the utility walker, the heavy walker drawn larger from it, and the giant 
   realistic hero astride it. The rider is solved in the pelvis's frame and carried with its sway
   (`seatRider`).
 - **Review:** `scripts/render-mecha.mjs` (stances × views, `--rider`, `--palette`, `--task`, `--tools`, `--arms`,
-  `--pack-task`, `--pack-tools`, `--pack-maker`).
+  `--pack-task`, `--pack-tools`, `--pack-maker`, `--livery`, `--wear`).
 - **Held:**
   - `mecha-shelf.test.js`: each foot where its stance asks, sole flat, at its heading; every ram within its stroke at
     every stance; a shorter stroke gives a shorter arc; the knees bend backward; the legs mirror; the sway puts the
@@ -228,4 +252,9 @@ on it: the utility walker, the heavy walker drawn larger from it, and the giant 
     hand for the giant hand, unknown houses refused; a hydraulic and an electric house holding every law at their own
     loadout and their hardest pack task. The char pins add each house's builder path, a four-fingered hand and a
     house's frame whole.
-  - The roster's, builds' and preview door's tests.
+  - `mecha-shelf.test.js`, the field walker: steadier, softer on the ground and stepping higher than the walker it
+    hardens, every law holding; its cleated sole never below its solved sole; its kit's anchors where their bodies
+    stand; its dress deterministic, its kit fitted, a camo cutting its paint, a harder wear caking more mud; a livery
+    and a wear refused on a frame with no dress. The char pins add its hardened parts' builder paths and its dressed
+    faces whole.
+  - The roster's, builds' and preview door's tests (a dressed frame's livery and wear carried in its recipe).

@@ -36,7 +36,8 @@
  * name, a stance, or its joints' values), `palette` paints it, `rider` seats the realistic hero in it, and a modular
  * frame's `task` ('demolition', 'trenching'), `tools` ({ r, l }) and `arms` ({ r: 'long' }) fit its arms, and a giant
  * arm pack's `packTask` ('heavyLift', 'disasterResponse') and `packTools` ({ r, l }) its giant arms, and `packMaker`
- * ('forge', 'aero') the design house whose pack it carries (mecha-shelf/mecha-figure.js, mecha-tools.js, mecha-gap-makers.js).
+ * ('forge', 'aero') the design house whose pack it carries, and a dressed frame's `livery` ('woodland', a camo) and
+ * `wear` ('battered') (mecha-shelf/mecha-figure.js, mecha-tools.js, mecha-gap-makers.js, mecha-military.js).
  *
  * Stored manifest: { kind:'vehicle-instance', vehicle?, type | racer | supercar | loft | cycle | construction | mecha, decoration?, pose?, viewBox?, title? }
  * (`vehicle`: the registry row it was asked as, when it was; the renderer reads the build's own keys).
@@ -153,7 +154,7 @@ export async function previewVehicleInstanceHandler(input) {
   } else if (read.instance.mecha) {
     // a legged frame's words beside its word (mecha-shelf/mecha-figure.js): its stance, its palette, its rider seated, a
     // modular frame's task, tools and arms
-    for (const key of ['pose', 'palette', 'rider', 'task', 'tools', 'arms', 'packTask', 'packTools', 'packMaker']) if (input[key] !== undefined) read.instance.mecha = { ...read.instance.mecha, [key]: input[key] };
+    for (const key of ['pose', 'palette', 'rider', 'task', 'tools', 'arms', 'packTask', 'packTools', 'packMaker', 'livery', 'wear']) if (input[key] !== undefined) read.instance.mecha = { ...read.instance.mecha, [key]: input[key] };
     readMechaSpec(read.instance.mecha, 'mint_solid vehicle: mecha');
     pose = undefined;
     for (const key of ['tool', 'carrier', 'height']) if (input[key] !== undefined) throw new Error(`mint_solid vehicle: a ${key} is a site machine's (an excavator: { vehicle: 'excavator', tool: 'breaker' }); this build has none`);
@@ -174,18 +175,19 @@ export async function previewVehicleInstanceHandler(input) {
   if (read.instance.cycle) readCycleSpec(read.instance.cycle, 'mint_solid vehicle: cycle');
   // a field vehicle's livery or wear beside its word asks for its loft: the row's own when the grid's build is another
   // (the airfield's ground crew, whose old scenery net the grid shows first), unless a tier was asked
-  if ((input.livery !== undefined || input.wear !== undefined) && !read.instance.loft && tier === undefined && read.id) {
+  // (a dressed legged frame takes its livery and wear as its own words, above)
+  if ((input.livery !== undefined || input.wear !== undefined) && !read.instance.loft && !read.instance.mecha && tier === undefined && read.id) {
     const field = buildsOf(read.id)?.find((b) => b.via === 'loft' && b.status === 'live' && MILITARY_CLASSES[b.key]);
     if (field) { read.instance = PREVIEWS.loft(field); read.tier = field.tier; }
   }
   // a field vehicle's livery beside its word (car-designer/livery-cut.js: a camo or mono, its stencils), carried in its
   // loft's recipe; any other build is painted by its own words
-  if (input.livery !== undefined) {
+  if (input.livery !== undefined && !read.instance.mecha) {
     if (!read.instance.loft || !MILITARY_CLASSES[read.instance.loft.class]) throw new Error('mint_solid vehicle: a livery paints a field vehicle (a jeep: { vehicle: \'jeep\', livery: \'woodland\' }); this build is painted by its own words');
     readLivery(input.livery);
     read.instance.loft = { ...read.instance.loft, livery: input.livery };
   }
-  if (input.wear !== undefined) {
+  if (input.wear !== undefined && !read.instance.mecha) {
     if (!read.instance.loft || !MILITARY_CLASSES[read.instance.loft.class]) throw new Error('mint_solid vehicle: a wear weathers a field vehicle (a jeep: { vehicle: \'jeep\', wear: \'battered\' }); this build is weathered by its own words');
     readWear(input.wear);
     read.instance.loft = { ...read.instance.loft, wear: input.wear };

@@ -36,6 +36,8 @@ export const MECHA_PALETTES = {
   desertSand: { paint: '#bda97f', trim: '#4a3f31', glass: '#2c3338', rubber: '#231f1b', chrome: '#a8a296', light: '#e6dcc2' },
   // a construction site's yellow over a black frame
   siteYellow: { paint: '#e5a91c', trim: '#26282a', glass: '#2b3a44', rubber: '#1a1b1c', chrome: '#c9ced2', light: '#f2ece0' },
+  // the field's olive drab (car-designer/road-military.js's), its frame a shade down, amber marks: the field walker's
+  oliveDrab: { paint: '#4b5320', trim: '#363b1a', glass: '#24302f', rubber: '#1a1b1d', chrome: '#8f948a', light: '#c9902a' },
   // a winter station's white and its signal red
   arcticWhite: { paint: '#e9ecee', trim: '#40464c', glass: '#26323a', rubber: '#1b1c1d', chrome: '#c9ced2', light: '#c8322c' },
 };

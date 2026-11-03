@@ -15,6 +15,7 @@
 import { CON_BUILDERS } from '../construction-shelf/con-parts.js';
 import { TOOL_BUILDERS } from './mecha-tools-parts.js';
 import { houseBuilders } from './mecha-house-parts.js';
+import { fieldBuilders } from './mecha-field-parts.js';
 import { ramParts } from '../construction-shelf/con-chain.js';
 import { add, box, cross, extrudeWorld, loftWorld, mul, pod, roundRect, spin, sub, tone, tube, unit } from './mecha-common.js';
 
@@ -547,19 +548,22 @@ function pack(row, C) {
 // (a design house's parts: the shelf's own redressed, mecha-house-parts.js)
 const HOUSE = houseBuilders({ boss, legBeam, plateBox, shoulder, upperarm, forearm });
 const SHOULDERS = { armoured: armouredShoulder, ...HOUSE.shoulder };
-const PACKS = { giant: giantPack, ...HOUSE.pack };
+const PACKS = { giant: giantPack, ...HOUSE.pack, rack: (row, C, ctx) => FIELD.pack(row, C, ctx) };
 const BEAMS = new Set(['plated', 'tube', 'truss', 'sealed']);
+// (the field walker's parts: the walker's own hardened for rugged ground, mecha-field-parts.js)
+const FIELD = fieldBuilders({ slab, sgn, rounded, pelvis, thigh, shank, cage, pack });
+const by = (family, own, base) => (row, C, ctx) => (row.build.family === family ? own : base)(row, C, ctx);
 
 export const MECHA_BUILDERS = Object.freeze({
-  'mecha-pelvis': pelvis,
+  'mecha-pelvis': by('armoured', FIELD.pelvis, pelvis),
   'mecha-hip': hip,
   'mecha-yoke': yoke,
-  'mecha-thigh': thigh,
-  'mecha-shank': shank,
+  'mecha-thigh': by('guarded', FIELD.thigh, thigh),
+  'mecha-shank': by('guarded', FIELD.shank, shank),
   'mecha-ankle': ankle,
-  'mecha-foot': foot,
+  'mecha-foot': by('lugged', FIELD.foot, foot),
   'mecha-seat': (row, C, ctx) => (row.build.family === 'seated' ? station : seat)(row, C, ctx),
-  'mecha-cage': (row, C, ctx) => ({ torso, cab }[row.build.family] ?? cage)(row, C, ctx),
+  'mecha-cage': (row, C, ctx) => ({ torso, cab, field: FIELD.cage }[row.build.family] ?? cage)(row, C, ctx),
   'mecha-shoulder': (row, C, ctx) => (SHOULDERS[row.build.family] ?? shoulder)(row, C, ctx),
   'mecha-upperarm': (row, C, ctx) => (BEAMS.has(row.build.family) ? HOUSE.upper : upperarm)(row, C, ctx),
   'mecha-forearm': (row, C, ctx) => (BEAMS.has(row.build.family) ? HOUSE.fore : forearm)(row, C, ctx),

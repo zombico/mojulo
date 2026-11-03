@@ -25,8 +25,13 @@
  *     tube, truss and sealed arm beams, the faired, truss and sealed shoulders, the spine, gantry and sealed packs, the
  *     screw actuator, the gripper), a four-fingered hand, and one house's frame whole (its solved pins and strokes in
  *     it); the hand's fingers drawn by count left the three-fingered hand's pin where it was; no other pin moved.
+ *   - The field walker (unreleased): its hardened parts pinned as builder paths (the armoured pelvis, the guarded thigh
+ *     and shank, the lugged foot, the field cabin, the racked pack), and its dressed faces whole (the military styling
+ *     library's livery, kit, stencils and wear on it: a change there moves this pin); no other pin moved.
  */
 import { createHash } from 'node:crypto';
+import { dressFaces } from './mecha-military.js';
+import { MECHA_PALETTES } from './mecha-common.js';
 import { describe, expect, it } from 'vitest';
 
 import { MECHA_ARCHETYPES, MECHA_MAKERS, MECHA_MAKER_IDS, MECHA_ODM, assembleFrame, resolveMechaPart } from './index.js';
@@ -89,6 +94,12 @@ const PINS = {
   'upperarm-forge': '1a94065a4912ad0d',
   'upperarm-sealed': '0410b69d31b3d1d2',
   'upperarm-truss': '8e2f64b16e66ceec',
+  'cage-fw': '3a27d00ffd7b6977',
+  'foot-fw': 'a57797886427d19f',
+  'pack-fw': 'ce46dd182cf824d7',
+  'pelvis-fw': '7a692cd20a1e5fbe',
+  'shank-fw': '820c6a747c91d0b3',
+  'thigh-fw': 'e472eeb2e0936709',
 };
 const LEFT = 'c9882af91b6cf973';
 const ROD = 'bcfdb3e1621e0b1a';
@@ -96,6 +107,8 @@ const FRAME = '5d7f243552d47f90';
 // (a house's hand of four fingers, and a frame carrying a house's pack: the first house with screw actuators, solved)
 const FOUR = 'eed71d6238d7aa3c';
 const HOUSE = '22d1c303d8f1b5ad';
+// (a dressed frame's faces at its rest stance, in its own dress)
+const DRESSED = '11e116ab05219a97';
 const fourFingered = Object.entries(MECHA_ODM).find(([, r]) => r.kind === 'mecha-tool' && r.dims.fingers === 4)[0];
 const screwHouse = MECHA_MAKER_IDS.find((id) => MECHA_MAKERS[id].actuator === 'screw');
 
@@ -115,5 +128,9 @@ describe('mecha shelf: characterization', () => {
     expect(hash(resolveMechaPart(fourFingered))).toBe(FOUR);
     const carrier = Object.keys(MECHA_ARCHETYPES).find((id) => MECHA_ARCHETYPES[id].packMount);
     expect(hash(assembleFrame(carrier, { packMaker: screwHouse, laws: false }).manifest)).toBe(HOUSE);
+  });
+  it('pins a dressed frame\'s faces in its dress', () => {
+    const id = Object.keys(MECHA_ARCHETYPES).find((k) => MECHA_ARCHETYPES[k].dress), { manifest, readout } = assembleFrame(id, { finish: false, laws: false });
+    expect(hash(dressFaces({ manifest, anchors: readout.anchors, colors: MECHA_PALETTES[MECHA_ARCHETYPES[id].palette], archetype: id }))).toBe(DRESSED);
   });
 });

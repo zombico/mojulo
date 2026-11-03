@@ -18,6 +18,7 @@
  *   step            the highest a foot is set down flat a pace ahead (the pelvis at its standing height, swayed over the
  *                   other foot): a step, a kerb, a log (m)
  *   stride          the farthest a foot is set ahead, flat, the other where it stands (m)
+ *   belly           standing, the lowest of the bodies the legs carry above the ground: what passes under it (m)
  *   seat            the saddle's or the seat's height standing; board, its height crouched to be boarded; stepIn, the boarding step's
  *   tipover         fallen on its side, it lands on its crash frame and its legs, never on the rider: the rider's space
  *                   inside the frame's outline seen from the front, at its sides (m)
@@ -240,6 +241,15 @@ export function mechaLaws(key, kit) {
   const step = farthest((h) => fits(stepAt(h)), 0, 1.2), strideAt = (y) => [foot.x, y, Gr.hS - zs], stride = farthest((y) => fits(strideAt(y)), 0, 1.4);
   if (band.step) law('step', r2(step), band.step, within(step, band.step), `it sets a foot down flat ${r2(step)} m up, a pace ahead`);
   if (band.stride) law('stride', r2(stride), band.stride, within(stride, band.stride), `it sets a foot ${r2(stride)} m ahead, flat, standing`);
+  // ── the belly: standing, the lowest of what the legs carry (the pelvis, the rider's place, the cabin, the pack) above
+  // the ground: the rocks and the ruts it walks over pass under it ──
+  if (band.belly) {
+    const F = frames(P.stand.joints, P.stand.root), carried = arch.layout.filter((e) => !e.ram && !e.side);
+    let v = Infinity, low = null;
+    for (const e of carried) for (const c of shape(e.sku, e.side).corners) { const z = apply(F[e.id], c)[2]; if (z < v) { v = z; low = e.id; } }
+    v = r2(v);
+    law('belly', v, band.belly, within(v, band.belly), `standing, its belly (its ${low}'s lowest) is ${v} m off the ground`);
+  }
   // ── the tools' hydraulics: both arms' tools working at once, on the power pack's pump ──
   if (band.flow && arch.arms) {
     const supply = ctx.row(ctx.entry('pack').sku).dims.flow, draw = ['arms', 'packArms'].filter((k) => arch[k]).reduce((t0, k) => t0 + SIDES.reduce((s, S) => s + (tool(S, k)?.flow ?? 0), 0), 0);

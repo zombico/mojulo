@@ -23,6 +23,8 @@
  *                    the bodies and joints of each leg, by what they are (mecha-ik.js solves them)
  *   stances          named stances (mecha-ik.js): what its pelvis, its feet and its arms do, and a load in its claws,
  *                    solved to joint values
+ *   dress            a frame dressed in a styling library's look at its faces ({ style: 'military', livery, wear, kit }:
+ *                    mecha-military.js), its kit each fitting's anchor on a body (its hardpoint, the surface's out and up)
  *   laws             the bands it is held to (mecha-laws.js)
  *   bom              its parts by kind
  *
@@ -32,6 +34,7 @@
 // (a leg's parts, by frame: the walker's, and the utility walker's bored up for its weight)
 const ATW_LEG = Object.freeze({ hip: 'hip-atw', yoke: 'yoke-atw', thigh: 'thigh-atw', shank: 'shank-atw', ankle: 'ankle-atw', foot: 'foot-atw', roll: 'ram-roll-atw', hipRam: 'ram-hip-atw', kneeRam: 'ram-knee-atw', ankleRam: 'ram-ankle-atw' });
 const HW_LEG = Object.freeze({ hip: 'hip-hw', yoke: 'yoke-hw', thigh: 'thigh-hw', shank: 'shank-hw', ankle: 'ankle-hw', foot: 'foot-hw', roll: 'ram-roll-hw', hipRam: 'ram-hip-hw', kneeRam: 'ram-knee-hw', ankleRam: 'ram-ankle-hw' });
+const FW_LEG = Object.freeze({ hip: 'hip-fw', yoke: 'yoke-fw', thigh: 'thigh-fw', shank: 'shank-fw', ankle: 'ankle-fw', foot: 'foot-fw', roll: 'ram-roll-fw', hipRam: 'ram-hip-fw', kneeRam: 'ram-knee-fw', ankleRam: 'ram-ankle-fw' });
 const UW_LEG = Object.freeze({ hip: 'hip-uw', yoke: 'yoke-uw', thigh: 'thigh-uw', shank: 'shank-uw', ankle: 'ankle-uw', foot: 'foot-uw', roll: 'ram-roll-uw', hipRam: 'ram-hip-uw', kneeRam: 'ram-knee-uw', ankleRam: 'ram-ankle-uw' });
 /** A leg of six joints on one side: its parts (a set above), its knee bent `back` (digitigrade) or `forward` (human). */
 const leg = (S, P = ATW_LEG, bend = 'back') => {
@@ -97,7 +100,7 @@ const arm = (S, P = UW_ARM, { prefix = '', on = 'cage.shoulder' } = {}) => {
     },
   };
 };
-const R = leg('R'), L = leg('L');
+const R = leg('R'), L = leg('L'), FR = leg('R', FW_LEG), FL = leg('L', FW_LEG);
 // (an arm's poses, its wrist's place as shares of its length: the same pose on a short arm and a long one)
 export const ARM_POSES = Object.freeze({
   rest: Object.freeze({ wrist: Object.freeze([0.28, -0.7]), claw: 20 }),
@@ -172,6 +175,82 @@ export const MECHA_ARCHETYPES = Object.freeze({
       stride: [0.3, 0.6],
       seat: [1.4, 1.8],
       board: [1.0, 1.4],
+      stepIn: [0.3, 0.6],
+      tipover: [0.03, 9],
+      clearance: [0.01, 9],
+      mass: 0.1,
+      distal: [0, 0.45],
+    }),
+    bom: Object.freeze({ 'mecha-pelvis': 1, 'mecha-seat': 1, 'mecha-cage': 1, 'mecha-pack': 1, 'mecha-hip': 2, 'mecha-yoke': 2, 'mecha-thigh': 2, 'mecha-shank': 2, 'mecha-ankle': 2, 'mecha-foot': 2, 'mecha-ram': 8 }),
+  }),
+  // the field walker: the all-terrain walker hardened as a military all-terrain transport, unarmed. Its frame the
+  // walker's at 1.2 times for the clearance and the step rough ground asks, its knees bent backward, its beams guarded,
+  // its belly under a skid plate, its feet cleated; its rider astride as on the walker, behind a brush guard, its kit
+  // carried (its dress: car-designer's military styling, a livery, its fittings, its wear)
+  fieldWalker: Object.freeze({
+    label: 'field walker',
+    classOf: 'ridden biped walker, one rider astride, a military all-terrain transport',
+    palette: 'oliveDrab',
+    mass: 800,
+    rider: Object.freeze({ mass: 110, com: Object.freeze([0, 0.12, 0.3]) }),
+    posture: 'walker',
+    station: 'saddle',
+    bend: 'back',
+    envelope: Object.freeze([
+      Object.freeze({ x: 0.22, y: Object.freeze([-0.32, 0.45]), z: Object.freeze([0.44, 1.05]) }),
+      Object.freeze({ x: 0.12, y: Object.freeze([-0.1, 0.45]), z: Object.freeze([1.05, 1.28]) }),
+      Object.freeze({ x: 0.22, y: Object.freeze([-0.3, 0.3]), z: Object.freeze([0.14, 0.52]) }),
+      Object.freeze({ x: 0.3, y: Object.freeze([-0.4, -0.13]), z: Object.freeze([-0.01, 0.14]) }),
+    ]),
+    joints: Object.freeze({ ...FR.joints, ...FL.joints }),
+    layout: Object.freeze([
+      { id: 'pelvis', sku: 'pelvis-fw' },
+      { id: 'seat', sku: 'seat-fw', on: 'pelvis.seat' },
+      { id: 'cage', sku: 'cage-fw', on: 'pelvis.cage' },
+      { id: 'pack', sku: 'pack-fw', on: 'pelvis.pack' },
+      ...FR.layout, ...FL.layout,
+    ].map(Object.freeze)),
+    legs: Object.freeze({ r: Object.freeze(FR.legs), l: Object.freeze(FL.legs) }),
+    track: 0.56,
+    stances: Object.freeze({
+      stand: Object.freeze({ knee: 45 }),
+      board: Object.freeze({ knee: 110, fore: -0.12, track: 0.6 }),
+      stride: Object.freeze({ height: 'stand', feet: Object.freeze({ r: Object.freeze({ y: 0.36 }), l: Object.freeze({ y: -0.36 }) }) }),
+      lift: Object.freeze({ knee: 40, sway: 'l', feet: Object.freeze({ r: Object.freeze({ y: 0.18, lift: 0.3 }) }) }),
+      turn: Object.freeze({ knee: 45, feet: Object.freeze({ r: Object.freeze({ yaw: 15 }), l: Object.freeze({ yaw: 15 }) }) }),
+    }),
+    rest: 'stand',
+    // (its dress: the military styling library's, at the faces (mecha-military.js): a livery, olive drab unless asked, cut
+    // into its paint; its field kit on its bodies' anchors; its wear)
+    dress: Object.freeze({
+      style: 'military', livery: 'mono', wear: 'used',
+      kit: Object.freeze([
+        ['tools.l', 'cage', 'flank', [-1, 0, 0], [0, 0, 1], 'pioneerTools'],
+        ['antenna.r', 'cage', 'flank', [1, 0, 0], [0, 0, 1], 'antenna', { lean: -1, whip: 1.4 }],
+        ['cans.l', 'pack', 'panel', [-1, 0, 0], [0, 0, 1], 'jerryCans', { count: 1 }],
+        ['cans.r', 'pack', 'panel', [1, 0, 0], [0, 0, 1], 'jerryCans', { count: 1 }],
+        ['top', 'pack', 'top', [0, 0, 1], [0, -1, 0], 'tarpRoll', { width: 0.6 }],
+        ['recovery.fr', 'pelvis', 'bumper', [0, 1, 0], [0, 0, 1], 'shackle'],
+        ['recovery.fl', 'pelvis', 'bumper', [0, 1, 0], [0, 0, 1], 'shackle'],
+        ['recovery.rr', 'pelvis', 'bumper', [0, -1, 0], [0, 0, 1], 'shackle'],
+        ['recovery.rl', 'pelvis', 'bumper', [0, -1, 0], [0, 0, 1], 'shackle'],
+        ['mark.r', 'cage', 'mark', [1, 0, 0], [0, 0, 1], null, { role: 'number', h: 0.07 }],
+        ['mark.l', 'cage', 'mark', [-1, 0, 0], [0, 0, 1], null, { role: 'number', h: 0.07 }],
+      ].map(([id, body, kind, out, up, card, opts = {}]) => Object.freeze({ id, body, kind, out, up, card, opts }))),
+    }),
+    laws: Object.freeze({
+      arcs: Object.freeze({ hipRoll: [40, 64], hipPitch: [110, 140], knee: [100, 125], anklePitch: [70, 100] }),
+      knee: [25, 60],
+      stability: [0.05, 1],
+      sway: [0.02, 1],
+      actuators: [0, 0.8],
+      groundPressure: [20, 60],
+      // (rough ground: a foot set down on a higher step, its belly clear of the rocks it walks over)
+      step: [0.34, 1.0],
+      stride: [0.4, 0.8],
+      belly: [0.8, 1.5],
+      seat: [1.6, 2.2],
+      board: [1.1, 1.6],
       stepIn: [0.3, 0.6],
       tipover: [0.03, 9],
       clearance: [0.01, 9],

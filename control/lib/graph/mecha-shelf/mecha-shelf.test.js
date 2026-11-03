@@ -9,8 +9,11 @@ import { describe, expect, it } from 'vitest';
 import { apply, ramForce } from './mecha-common.js';
 import { arcsFor, solveMount } from './mecha-gap-makers.js';
 import { framesOf, rangeOf, solveChain } from '../construction-shelf/con-chain.js';
-import { MECHA_ARCHETYPES, MECHA_MAKERS, MECHA_MAKER_IDS, MECHA_ODM, MECHA_PACK_TASKS, MECHA_TASKS, MECHA_TOOLS, assembleFrame, composeFrame, frameRow, findMechaPart, jointRange, lawsOf, massOf, mechaCtx, mechaNameIndex, posedFrame, resolveMechaPart, riderPoints } from './index.js';
+import { lowerAssemblerFaces } from '../worlds/workbench-assembler.js';
+import { MECHA_ARCHETYPES, MECHA_MAKERS, MECHA_MAKER_IDS, MECHA_ODM, MECHA_PACK_TASKS, MECHA_TASKS, MECHA_TOOLS, assembleFrame, composeFrame, frameRow, findMechaPart, jointRange, lawsOf, massOf, mechaCtx, mechaNameIndex, partShape, posedFrame, resolveMechaPart, riderPoints } from './index.js';
 import { readMechaSpec } from './mecha-figure.js';
+import { dressFaces } from './mecha-military.js';
+import { MECHA_PALETTES } from './mecha-common.js';
 
 const id = Object.keys(MECHA_ARCHETYPES)[0], arch = MECHA_ARCHETYPES[id], ctx = mechaCtx(id);
 // (the stances that exercise each of the solve's paths: a height set by a knee's bend, a sway over a sole with a foot
@@ -282,6 +285,51 @@ describe('mecha shelf: giant arm packs by design house', () => {
     for (const h of [hydraulic, screw]) for (const packTask of [undefined, hardest]) {
       expect(lawsOf(composeFrame(packed, { packMaker: h, packTask })).laws.filter((l) => !l.ok).map((l) => `${h} ${packTask ?? ''} ${l.id}: ${l.says}`)).toEqual([]);
     }
+  });
+});
+
+describe('mecha shelf: a frame hardened for rough ground, dressed in the field\'s look', () => {
+  // (the dressed frame, and the frame it hardens: the undressed one on the same saddle, knees bent the same way)
+  const field = Object.keys(MECHA_ARCHETYPES).find((k) => MECHA_ARCHETYPES[k].dress), Fd = MECHA_ARCHETYPES[field];
+  const base = Object.keys(MECHA_ARCHETYPES).find((k) => !MECHA_ARCHETYPES[k].dress && MECHA_ARCHETYPES[k].bend === Fd.bend && MECHA_ARCHETYPES[k].station === Fd.station);
+  const law = (key, id) => lawsOf(key).laws.find((l) => l.id === id);
+  const dress = (opts = {}) => { const { manifest, readout } = assembleFrame(field, { finish: false, laws: false }); return dressFaces({ manifest, anchors: readout.anchors, colors: MECHA_PALETTES[Fd.palette], archetype: field }, opts); };
+  it('stands steadier, presses softer ground and steps higher than the frame it hardens, and holds every law', () => {
+    expect(law(field, 'stability.stand').value).toBeGreaterThan(law(base, 'stability.stand').value);
+    expect(law(field, 'groundPressure').value).toBeLessThan(law(base, 'groundPressure').value);
+    expect(law(field, 'step').value).toBeGreaterThan(law(base, 'step').value);
+    expect(law(field, 'belly').value).toBeGreaterThan(0.5);
+    expect(lawsOf(field).laws.filter((l) => !l.ok).map((l) => `${l.id}: ${l.says}`)).toEqual([]);
+  });
+  it('stands its cleated sole on its lugs: nothing of the foot below the sole the legs are solved to', () => {
+    const e = Fd.layout.find((x) => x.id === Fd.legs.r.foot), sole = mechaCtx(field).hp(e.id, 'sole')[2];
+    const low = Math.min(...partShape(field, e.sku, e.side).corners.map((c) => c[2]));
+    expect(low).toBeGreaterThanOrEqual(sole - 1e-6);
+    expect(low - sole).toBeLessThan(0.003);
+  });
+  it('places its kit\'s anchors where their bodies stand, each surface\'s out and up a frame', () => {
+    const { readout } = assembleFrame(field, { laws: false });
+    expect(readout.anchors.map((a) => a.id)).toEqual(Fd.dress.kit.map((k) => k.id));
+    for (const a of readout.anchors) {
+      expect(Math.hypot(...a.out)).toBeCloseTo(1, 3);
+      expect(a.out[0] * a.up[0] + a.out[1] * a.up[1] + a.out[2] * a.up[2]).toBeCloseTo(0, 3);
+    }
+    expect(assembleFrame(base, { laws: false }).readout.anchors).toBeUndefined();
+  });
+  it('dresses deterministically: its kit fitted, a camo cut into its paint, a harder wear caking more mud', () => {
+    const plain = dress(), camo = dress({ livery: 'woodland' }), clean = dress({ wear: 'pristine' }), hard = dress({ wear: 'battered' });
+    expect(dress()).toEqual(plain);
+    const { manifest } = assembleFrame(field, { finish: false, laws: false });
+    expect(plain.length).toBeGreaterThan(lowerAssemblerFaces(manifest).length);
+    expect(camo.length).toBeGreaterThan(plain.length);
+    expect(new Set(camo.map((f) => f.fill)).size).toBeGreaterThan(new Set(plain.map((f) => f.fill)).size);
+    expect(hard.length).toBeGreaterThan(clean.length);
+  });
+  it('takes a livery and a wear on a dressed frame only, read as the field\'s words', () => {
+    expect(readMechaSpec({ archetype: field, livery: 'desert', wear: 'battered' }).livery).toBe('desert');
+    expect(() => readMechaSpec({ archetype: field, livery: 'paisley' })).toThrow(/livery/);
+    expect(() => readMechaSpec({ archetype: field, wear: 'shiny' })).toThrow(/wear/);
+    expect(() => readMechaSpec({ archetype: base, livery: 'woodland' })).toThrow(/wears no dress/);
   });
 });
 

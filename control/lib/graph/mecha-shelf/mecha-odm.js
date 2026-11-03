@@ -241,12 +241,40 @@ const GIANT = {
   'clamshell-gw': R('mecha-tool', 'giant clamshell', GW, { w: 0.7, r: 0.42, length: 0.95 }, 300, { family: 'clamshell' }, ['clamshell', 'clamshell grab', 'grab bucket', 'orange peel']),
   'hook-gw': S('hook-hw', G, 'giant hook', GW, ['giant hook', 'heavy lifting hook']),
 };
+// ── the field walker: the all-terrain walker's frame hardened for rugged ground, a military all-terrain transport ──
+// (its pelvis and its legs the walker's designs at 1.2 times, for the clearance and the step rough ground asks; its
+// beams guarded, its belly under a skid plate, its feet at 1.5 and cleated; its rider's saddle and cabin a person's
+// size, the cabin behind a brush guard; its power pack in a cargo rack. Unarmed: a transport)
+const KF = 1.2, FW = 'field walker';
+const FIELD = {
+  'pelvis-fw': dressed(S('pelvis-atw', KF, 'field walker pelvis', FW, ['armoured pelvis', 'skid plate', 'belly plate', 'recovery points']), 'armoured'),
+  'hip-fw': S('hip-atw', KF, 'field walker hip yaw housing', FW, ['field hip']),
+  'yoke-fw': S('yoke-atw', KF, 'field walker hip roll yoke', FW, ['field yoke']),
+  'thigh-fw': dressed(S('thigh-atw', KF, 'field walker thigh', FW, ['guarded thigh', 'field thigh']), 'guarded'),
+  'shank-fw': dressed(S('shank-atw', KF, 'field walker shank', FW, ['guarded shank', 'field shank', 'shin guard']), 'guarded'),
+  'ankle-fw': S('ankle-atw', KF, 'field walker ankle cross', FW, ['field ankle']),
+  'foot-fw': dressed(S('foot-atw', 1.5, 'field walker foot', FW, ['lugged foot', 'cleated foot', 'field foot', 'cleated sole']), 'lugged'),
+  'ram-roll-fw': S('ram-roll-atw', KF, 'field walker hip roll ram', FW, ['field roll ram']),
+  'ram-hip-fw': S('ram-hip-atw', KF, 'field walker hip pitch ram', FW, ['field hip ram']),
+  'ram-knee-fw': S('ram-knee-atw', KF, 'field walker knee ram', FW, ['field knee ram']),
+  'ram-ankle-fw': S('ram-ankle-atw', KF, 'field walker ankle ram', FW, ['field ankle ram']),
+  // (the walker's cabin behind a brush guard round its nose, a second bar across its hoop; where its field kit is
+  // fitted: its pioneer tools down the left of the tub, its antenna on the hoop, its number each side)
+  'cage-fw': R('mecha-cage', 'field walker cabin', FW,
+    { ...BASE['cage-atw'].dims, guard: { x: 0.3, y0: 0.62, y1: 1.18, z0: 0.12, z1: 0.46 }, kit: { tools: [0.352, 0.08, 0.27], antenna: [0.3, -0.52, 0.72], mark: [0.348, 0.42, 0.3] } },
+    28, { family: 'field' }, ['field cabin', 'brush guard', 'bull bar', 'grille guard', 'field cage']),
+  // (the walker's saddle, its boarding step hung lower: the frame stands taller, crouched it is still a step up)
+  'seat-fw': R('mecha-seat', 'field walker saddle', FW, { ...BASE['seat-atw'].dims, step: [0.27, -0.21, -0.64] }, 31, { family: 'straddle' }, ['field saddle', 'field seat']),
+  'pack-fw': dressed(S('pack-atw', KF, 'field walker power pack', FW, ['cargo rack', 'field power pack', 'load rack']), 'rack'),
+};
+BASE = { ...BASE, ...FIELD };
+
 // ── the design houses' giant arm packs: each house's philosophy solved into its pack and its giant arms ──────────
 // (mecha-gap-makers.js: solved the first time one of its rows is read, then kept; a house's rows are its own, never
 // another frame's)
 let MAKERS = null;
 const makers = () => (MAKERS ??= makerRows(R, scaleDims));
-const ODM = { ...ROWS, ...HEAVY, ...GIANT };
+const ODM = { ...ROWS, ...HEAVY, ...GIANT, ...FIELD };
 for (const house of MECHA_MAKER_IDS) for (const part of MAKER_PARTS) Object.defineProperty(ODM, `${part}-${house}`, { enumerable: true, get: () => makers()[`${part}-${house}`] });
 export const MECHA_ODM = Object.freeze(ODM);
 

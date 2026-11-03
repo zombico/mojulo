@@ -22,7 +22,7 @@ import { planAssemblyBom } from '../vehicle-designer/assembly-bom.js';
 import { lowerObjectFaces } from '../worlds/workbench.js';
 import { resolveAssemblerPlacements } from '../worlds/workbench-assembler.js';
 import { framesOf, isStrut, rangeOf, solveChain } from '../construction-shelf/con-chain.js';
-import { G, I3, MECHA_COLOR_ROLES, MECHA_PALETTES, apply, clone, compose, eulerXYZ, resolveMechaPalette, round3 } from './mecha-common.js';
+import { G, I3, MECHA_COLOR_ROLES, MECHA_PALETTES, apply, clone, compose, eulerXYZ, resolveMechaPalette, round3, turn } from './mecha-common.js';
 import { MECHA_BUILDERS } from './mecha-parts.js';
 import { MECHA_KINDS, MECHA_ODM, scaleDims } from './mecha-odm.js';
 import { MECHA_ARCHETYPES, MECHA_ARCHETYPE_IDS } from './mecha-archetypes.js';
@@ -393,6 +393,11 @@ export function assembleFrame(archetypeIn, { pose, palette, colors = {}, finish 
       rams: chain.struts.filter((s) => s.kind === 'barrel').map((s) => ({ id: s.item, length: r3(s.length) })),
       measures: measureFrame(manifest),
       rider: riderPoints(archetype, pose),
+      // (a dressed frame's kit: each fitting's anchor where its body stands, mecha-military.js fits it there)
+      ...(arch.dress ? { anchors: arch.dress.kit.map((k) => {
+        const T = compose(root, chain.frames[k.body]);
+        return { id: k.id, kind: k.kind, card: k.card, opts: k.opts, at: apply(T, ctx.hp(k.body, k.id)).map(r3), out: turn(T, k.out).map(r3), up: turn(T, k.up).map(r3), ...(k.opts.role ? { role: k.opts.role, h: k.opts.h } : {}) };
+      }) } : {}),
       mass: { parts: Math.round(M.mass - (arch.rider?.mass ?? 0) - (P.load ?? 0)), gross: Math.round(M.mass), ...(P.load ? { load: P.load } : {}), com: M.com.map(r3) },
       ...(laws ? { laws: { ok: laws.ok, laws: laws.laws } } : {}),
       audit: { ok: bom.ok && !bom.surplus.length, bom },
