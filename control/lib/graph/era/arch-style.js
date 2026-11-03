@@ -184,7 +184,7 @@ export const STYLE_STARTERS = Object.freeze({
       door: { w: 1.3, h: 2.5, leaf: 'panels', surround: 'frame', fanlight: 'arch', steps: 1 },
       socle: { h: 0.45, group: 'str:stone', value: 0.52 }, sills: { group: 'str:stone', value: 0.8 }, lintels: { group: 'str:stone', value: 0.8 },
       cornice: { kind: 'cornice', h: 0.35, proud: 0.3, group: 'str:plaster', value: 0.9 },
-      shutters: { share: 0.85, form: 'boards' },
+      shutters: { share: 0.85, form: 'persiana' },
       quoins: null, frame: null, pickets: null,
       road: { paving: 'setts' },
     }, compose: { mass: { w: 8, d: 12 }, annex: null } },

@@ -21,7 +21,7 @@ import { ERAS, readEra } from './eras.js';
 
 /** The page inputs that hold light in their colour, or are the live light over it: the form render replaces each. */
 export const SURFACE_INPUTS = Object.freeze([
-  'faces', 'repeats', 'textures', 'resample', 'surfaces', 'terrain', 'figures', 'walkers', 'carMeshes', 'splats', 'liveGrass',
+  'faces', 'repeats', 'textures', 'resample', 'leaves', 'surfaces', 'terrain', 'figures', 'walkers', 'carMeshes', 'splats', 'liveGrass',
   'fabric', 'tone', 'toon', 'vertexContrast', 'strokeOverlay', 'ao', 'light', 'glow', 'soft', 'wetSand', 'wetRoad',
   'shallows', 'softGround', 'snowPrints', 'shadows', 'occlusion', 'creases', 'lightTier',
 ]);

@@ -35,3 +35,13 @@
 - **A quick game can walk a town.** `quick.geotown` is reached, collected along or survived. It refuses a building,
   climb, ride, run, roadway, runner or race beside it. With `hero: { form: 'realistic' }` its pilot is the realistic
   body.
+- **Shutters with lines, as relief.** A building language's shutters take three more forms from the design library
+  (`era/shutter-leaves.js`):
+  - `persiana`: slats in a frame of stiles and rails.
+  - `panelled`: two fielded panels.
+  - `ledged`: boards, two ledges and a brace.
+
+  Each leaf stays one box on the wall. Its front wears a painted tile of its form, and near the eye the World page marches
+  the form's height along the view (parallax, `scene/channels/leaf-relief.js`). A street of shutters costs the faces it
+  had. The old town hangs persiane, its rose houses ledged boards and its stone houses panels. `boards` and `louvred`
+  draw as they did. A page with no leaf carries none of the channel.

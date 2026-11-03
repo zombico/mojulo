@@ -172,6 +172,7 @@ export const PAGE_MARKS = Object.freeze({
   liveGrass: m(A, 'live grass is not drawn'),
   resample: m(A, 'the page reads its painted detail tiles again at seeded shifts (scene/channels/resample.js) so they do not repeat at scale; a Godot surface tiles the detail as painted'),
   fabric: m(A, 'a gritty style\'s rock fabric (scene/channels/fabric.js) is the page\'s own near-surface shader: the rock keeps its baked faces'),
+  leaves: m(A, 'a shutter leaf\'s relief (era/shutter-leaves.js) is marched near the eye by the page\'s own shader (scene/channels/leaf-relief.js): a Godot leaf wears its painted tile, flat'),
   versus: m(A, 'the side-on fighter (versus/versus-core.js, scene/channels/versus.js) is the page\'s own frame simulation: nothing in the kernel fights it'),
   board: m(A, 'the strategy board (board/*: tactics, a maze defence, a skirmish) is the page\'s own: nothing in the kernel plays it'),
   meet: m(A, 'the athletic meet (contest/meet-sim.js, scene/channels/contest.js) is the page\'s own frame simulation: nothing in the kernel runs it'),

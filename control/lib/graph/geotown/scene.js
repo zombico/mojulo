@@ -46,6 +46,7 @@ import { structureStyle, hasStructureRails } from '../era/out-structures.js';
 import { structurePaint, paintStop } from '../era/out-structures-paint.js';
 import { madeRamp } from '../era/style/swatches.js';
 import { townDressOf, dressTownFace } from '../era/town-dress.js';
+import { layLeaf, leafPage } from '../era/shutter-leaves.js';
 import { styleTownDress, styleReadout } from '../era/arch-style.js';
 import { plantPool, plantRepeats } from '../vegetation/pool.js';
 import { treeSizes } from '../form/flora-read.js';
@@ -455,7 +456,9 @@ export function assembleGeotownScene(m, ctx = {}) {
         const cs = (house.mirror ? f.corners.slice().reverse() : f.corners).map(toW), nl = f.normal ?? [0, 0, 1], nn = unit([pl.ex[0] * (house.mirror ? -nl[0] : nl[0]) + pl.ey[0] * nl[1], pl.ex[1] * (house.mirror ? -nl[0] : nl[0]) + pl.ey[1] * nl[1], nl[2]]);
         for (const c of cs) { top = Math.max(top, c[2] - pad); lo = [Math.min(lo[0], c[0]), Math.min(lo[1], c[1])]; hi = [Math.max(hi[0], c[0]), Math.max(hi[1], c[1])]; }
         const fill = Pt(f.group, Math.min(1, (f.value ?? 0.6) * litV(nn))), F0 = { corners: cs.map(P3), group: `town:${f.part}`, fill, cornerFills: cs.map(() => fill), normal: P3(nn), outNormal: P3(nn) };
-        faces.push(Dr ? dressTownFace(F0, f.group, Dr) : F0);
+        // (a shutter's leaf wears its form's relief over its paint's colour, era/shutter-leaves.js)
+        const F1 = Dr ? dressTownFace(F0, f.group, Dr) : F0;
+        faces.push(f.leaf && !F1.texture ? layLeaf(F1, f.leaf, house.mirror) : F1);
       }
       // its front: the bay's walls in their storey's own wall, its lights, its trim and its top; the porch's deck, posts
       // and roof; a shopfront's glazing, sign and awning; a canopy
@@ -1021,8 +1024,10 @@ export function assembleGeotownScene(m, ctx = {}) {
   // (read by the seventh generation: its soft ground the form's own, `isekai:ground`, its land read draws it and grows its
   // grass there (form/land-read.js, worlds/world-scene.js); its trees the form's, `plants`)
   if (form) for (const f of faces) if (FORM_GROUND.includes(f.group)) f.group = 'isekai:ground';
+  // (the shutters' leaves, marched near the eye: channels/leaf-relief.js; a town with none carries no key)
+  const leaves = leafPage(new Set(faces.map((f) => f.texture)));
   return {
-    faces, repeats, ...(Object.keys(textures).length ? { textures } : {}), ...(plants ? { plants } : {}), colliders, anchors, cameras,
+    faces, repeats, ...(Object.keys(textures).length ? { textures } : {}), ...(leaves ? { leaves } : {}), ...(plants ? { plants } : {}), colliders, anchors, cameras,
     viewBox: { width: 1280, height: 720 }, title: ctx.title || `${cube.title} · geotown`,
     bg, haze: { color: air.fog.color, density: r5(air.fog.density * TOWN_HAZE) },
     sky: { zenith: air.dome.zenith, horizon: air.dome.horizon, day: night ? 0 : 1, stars: 0, seed: 1, ...(night ? {} : { sun: { dir: P3(sun), size: 1.4, glow: 1.3 } }), ...(spec.air ? hourSky(spec.air) : {}) },
