@@ -80,7 +80,15 @@
   and `fence`, stamped near the camera only, each on its wall where the cube's bend leaves it). A loud pair's two
   halves each its own mass, wall hue and roof ink, never its partner's, the second raised over its partner's eave by
   `homes.step`; each window off square at three corners or more (`homes.skew`), its frames, its door and its fence
-  each its own ink, never its partner's; its path and its patio skewed pastel slabs. The kit's new pieces:
+  each its own ink, never its partner's; its path and its patio skewed pastel slabs.
+  Its low-rises and walk-ups, the geotown's flats, on a plain cube and a loud one: windows round all four walls storey
+  by storey, an entrance of two leaves under a canopy mid-front with a path to it from the walk, balconies on
+  alternate bays of the front above the ground storey, railed, a coping round the roof, a dumpster and an 1100-litre
+  bin by the side. A loud one's windows each off square and framed in its own ink, never the last building's; each
+  balcony its own ink, its doors and canopy inks of theirs; a false front over its street wall in a crown never the
+  last one's (`falseFront`, its trim the frames' ink); a row's low-rises never one height. A loud row's next house
+  pair, shop or low-rise is now raised to a full step over the last where it stood near level (it was raised by the
+  step, which could leave it less than a step over one that stood higher). The kit's new pieces:
   a railing panel, a mooring bollard and a parasol (`kit.js`).
 - **A loud street** (`exaggerate.streets`, `geotown/street-loud.js`; the `street` hand carries one), by the shops'
   principles over a plan that never moves: the walks laid in big pastel slabs over their own ground, cut on skewed lines

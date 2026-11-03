@@ -293,8 +293,9 @@ describe("a loud metro's street the geotown's: its lamps, signals, signs, post b
     expect(ts(X, 'geocity:railing').every((t) => t.tint)).toBe(true);
   });
   it('fronts its outskirts houses: each half its door, its windows, its path, its fenced yard and its bin; a loud pair\'s halves each its own mass, its windows off square and inked', () => {
-    const doors = ts(P, 'geocity:door').length;
-    expect(doors).toBe(P.geocity.counts.houses);
+    // (each house half's door, and each low-rise's and walk-up's two leaves)
+    const doors = ts(P, 'geocity:door').length, flats = P.faces.filter((f) => f.group === 'geocity:lowrise:roof' || f.group === 'geocity:walkup:roof').length;
+    expect(doors).toBe(P.geocity.counts.houses + 2 * flats);
     for (const k of ['window', 'fence', 'wheelie-240']) expect(ts(P, `geocity:${k}`).length).toBeGreaterThan(doors / 2);
     expect(ts(P, 'geocity:window').every((t) => !t.tint)).toBe(true);
     expect(P.faces.some((f) => f.group === 'geocity:path')).toBe(true);
@@ -308,6 +309,17 @@ describe("a loud metro's street the geotown's: its lamps, signals, signs, post b
     // (a loud pair's two halves each its own mass: more walls than the plain pair's one gable)
     const walls = (S) => S.faces.filter((f) => f.group === 'geocity:house').length;
     expect(walls(X)).toBeGreaterThan(walls(P));
+  });
+  it('fronts its low-rises and walk-ups as the geotown\'s flats: balconies, an entrance under a canopy, a coping; a loud one\'s crowned, its balconies inked, no two in a row one height', () => {
+    const g = (S, k) => S.faces.filter((f) => f.group === `geocity:${k}`), flats = g(P, 'lowrise:roof').length + g(P, 'walkup:roof').length;
+    expect(flats).toBeGreaterThan(1);
+    for (const k of ['balcony', 'canopy']) expect(g(P, k).length).toBeGreaterThanOrEqual(5 * flats);
+    expect(g(P, 'crown')).toEqual([]);
+    expect(g(X, 'crown').length).toBeGreaterThan(0);
+    expect(new Set(g(X, 'balcony').map((f) => f.fill)).size).toBeGreaterThan(new Set(g(P, 'balcony').map((f) => f.fill)).size);
+    // (a row's low-rises, each the next one's neighbour, a step apart: their roofs' tops in the order they stood)
+    const step = 0.9, roofs = g(X, 'lowrise:roof').map((f) => ({ z: Math.max(...f.corners.map((c) => c[2])), c: f.corners.reduce((a, c) => [a[0] + c[0] / 4, a[1] + c[1] / 4], [0, 0]) }));
+    for (let i = 1; i < roofs.length; i++) if (Math.hypot(roofs[i].c[0] - roofs[i - 1].c[0], roofs[i].c[1] - roofs[i - 1].c[1]) < 45) expect(Math.abs(roofs[i].z - roofs[i - 1].z)).toBeGreaterThanOrEqual(step - 0.15);
   });
   it('keeps a loud island\'s high shore under the budget: its blocks near its coping, no pier off a bluff', () => {
     const I = assembleGeocityScene({ ...M, cube: ex, seed: 3, geocity: { metro: 'harbour-island' } });

@@ -55,7 +55,7 @@ import { dressTownFace } from '../era/town-dress.js';
 import { plantPool, plantRepeats } from '../vegetation/pool.js';
 import { litFactor } from '../polygonizer/vexar.js';
 import { bendFaces, exaggerateLaws, exaggerateField } from '../era/exaggerate.js';
-import { LOUD_WALLS, INK, popHex } from '../geotown/front-loud.js';
+import { LOUD_WALLS, INK, popHex, falseFront, CROWN_FORMS } from '../geotown/front-loud.js';
 import { slabsOf, groundSplat, inkPicker } from '../geotown/street-loud.js';
 import { loudFacade, loudWindowsOk } from './facade-loud.js';
 import { leanHue } from '../era/town-dress.js';
@@ -214,8 +214,10 @@ export function assembleGeocityScene(m, ctx = {}) {
     const xs = cuts(r[0], r[2], cell), ys = cuts(r[1], r[3], cell);
     for (let j = 0; j + 1 < ys.length; j++) for (let i = 0; i + 1 < xs.length; i++) put([[xs[i], ys[j]], [xs[i + 1], ys[j]], [xs[i + 1], ys[j + 1]], [xs[i], ys[j + 1]]].map(([x, y]) => [x, y, S(x, y) + lift]), group, hex);
   };
+  let boxWall = null;
   const box = (x0, y0, x1, y1, z0, z1, wall0, roof0, group) => bent(z0, () => {
     const [wall, roof] = group === 'geocity:frame' || group === 'geocity:crane' ? [wall0, roof0] : loudMass(wall0, roof0);
+    boxWall = wall;
     put([[x0, y0, z1], [x1, y0, z1], [x1, y1, z1], [x0, y1, z1]], `${group}:roof`, roof);
     put([[x0, y0, z0], [x1, y0, z0], [x1, y0, z1], [x0, y0, z1]], group, wall, [0, -1, 0]);
     put([[x1, y0, z0], [x1, y1, z0], [x1, y1, z1], [x1, y0, z1]], group, wall, [1, 0, 0]);
@@ -890,6 +892,11 @@ export function assembleGeocityScene(m, ctx = {}) {
     // (a loud row's halves' trims, doors and fences each their own ink, never the last's; their windows' shapes)
     const houseInk = HY ? inkPicker(streamOf(seed, 'house-ink', b.id), HY.pop) : null;
     let lastWin = null;
+    // (a piece stamped on a wall where the cube's bend leaves it: the field at its middle, over its building's foot)
+    const Fb = EX && (EX.lean || EX.sag) ? exaggerateField(EX) : null;
+    const bentAt = (p, z, foot) => { if (!Fb) return [p[0], p[1], z]; const d0 = Fb.at(p[0], p[1], z + 0.7, foot); return [p[0] + d0[0], p[1] + d0[1], z + d0[2]]; };
+    const hpiece = (kind, f, v, pos, scale, tint) => { put1(`${kind}:${f}:${v}`, pos, 0, scale, tint ? linC(tint) : null); if (KIT.piece(kind, f, v).fixed.length) put1(`${kind}-lit:${f}:${v}`, pos, 0, scale, null); };
+    const winShape = (R) => { if (!HY) return 0; let v; do v = 1 + Math.floor(R() * WINDOW_SHAPES); while (v === lastWin); lastWin = v; return v; };
     const sides = longY ? ['w', 'e'] : ['s', 'n'], med = Math.max(1, Math.round(b.storeys.median)), brickOf = () => HOUSE_BRICK[Math.floor(Rb() * HOUSE_BRICK.length)];
     const along = longY ? [y0, y1] : [x0, x1], deep = longY ? x1 - x0 : y1 - y0;
     // a row's frame: `u` along the block from its start, `v` into it from its side's edge
@@ -903,9 +910,9 @@ export function assembleGeocityScene(m, ctx = {}) {
       for (let k = 0; k < n; k++) {
         const u = u0 + k * (f + GAP), q = rectOf(s, u, u + f, SETBACK, SETBACK + dpt), z0 = zAt((q[0] + q[2]) / 2, (q[1] + q[3]) / 2);
         const st = Math.max(1, Math.min(b.storeys.rail[1], med + (Rb() < 0.3 ? 1 : 0) - (Rb() < 0.2 ? 1 : 0)));
-        // (a loud row's houses never one height: the next raised by the step where the dice stood it level)
+        // (a loud row's houses never one height: the next raised to a step over the last where the dice stood it near level)
         let ze = z0 + st * STOREY, zr = ze + Math.min(4.5, 0.32 * f);
-        if (HY?.step && prevTop !== null && Math.abs(zr - prevTop) < HY.step) { ze += HY.step + 0.05; zr += HY.step + 0.05; }
+        if (HY?.step && prevTop !== null && Math.abs(zr - prevTop) < HY.step) { const up = prevTop + HY.step + 0.05 - zr; ze += up; zr += up; }
         prevTop = zr;
         // the gable to the street: its ridge runs into the block (a loud pair's two halves each its own mass, hue and
         // roof, the second raised over its partner's eave by the step: never one height)
@@ -930,16 +937,13 @@ export function assembleGeocityScene(m, ctx = {}) {
       // (a point v into the block from its street edge, at u along it)
       const vAt = (u, v) => (s === 's' ? [u, y0 + v] : s === 'n' ? [u, y1 - v] : s === 'w' ? [x0 + v, u] : [x1 - v, u]);
       const rectUV = (u0, u1, v0, v1) => { const p = vAt(u0, v0), r = vAt(u1, v1); return [Math.min(p[0], r[0]), Math.min(p[1], r[1]), Math.max(p[0], r[0]), Math.max(p[1], r[1])]; };
-      const F = EX && (EX.lean || EX.sag) ? exaggerateField(EX) : null, bentAt = (p, z) => { if (!F) return [p[0], p[1], z]; const d0 = F.at(p[0], p[1], z + 0.7, z0); return [p[0] + d0[0], p[1] + d0[1], z + d0[2]]; };
       const ns = s === 's' || s === 'n', alongF = ns ? 'n' : 'e', acrossF = ns ? 'e' : 'n', R = streamOf(seed, 'house-front', `${b.id}:${r5(ua)}`);
-      const piece = (kind, f, v, pos, scale, tint) => { put1(`${kind}:${f}:${v}`, pos, 0, scale, tint ? linC(tint) : null); if (KIT.piece(kind, f, v).fixed.length) put1(`${kind}-lit:${f}:${v}`, pos, 0, scale, null); };
       for (const [h0, h1, outer] of [[ua, um, ua], [um, ub, ub]]) {
         const dir = Math.sign(um - outer), ink = HY ? houseInk : null, trim = ink ? ink('trim') : null, door = ink ? ink('door') : null, fence = ink ? ink('fence') : null;
-        const shape = () => { if (!HY) return 0; let v; do v = 1 + Math.floor(R() * WINDOW_SHAPES); while (v === lastWin); lastWin = v; return v; };
         // its door at its outer end, its windows across its front, storey by storey
         const du = outer + dir * 1.3;
-        piece('door', s, 0, bentAt(wallAt(du), z0 + 0.02), null, door);
-        for (let k = 0; k < st; k++) for (const wu of k ? [outer + dir * 1.6, outer + dir * 4.3] : [outer + dir * 4.1]) if (Math.abs(wu - um) > 0.9) piece('window', s, shape(), bentAt(wallAt(wu), z0 + 0.9 + k * STOREY), null, trim);
+        hpiece('door', s, 0, bentAt(wallAt(du), z0 + 0.02, z0), null, door);
+        for (let k = 0; k < st; k++) for (const wu of k ? [outer + dir * 1.6, outer + dir * 4.3] : [outer + dir * 4.1]) if (Math.abs(wu - um) > 0.9) hpiece('window', s, winShape(R), bentAt(wallAt(wu), z0 + 0.9 + k * STOREY, z0), null, trim);
         // its path from the walk to its door; its patio behind it
         const path = rectUV(du - 0.55, du + 0.55, 0, SETBACK), patio = rectUV(Math.min(h0, h1) + 0.3, Math.max(h0, h1) - 0.3, SETBACK + dpt, SETBACK + dpt + 3);
         for (const [r, key] of [[path, 'path'], [patio, 'patio']]) {
@@ -949,19 +953,79 @@ export function assembleGeocityScene(m, ctx = {}) {
         }
         // its back yard's fences: along the block's middle, and down its side from its house's back
         const mid = deep / 2 - 0.06, lo = Math.min(h0, h1), hi = Math.max(h0, h1), [rx, ry] = vAt((lo + hi) / 2, mid), back = SETBACK + dpt, [sx, sy] = vAt(outer, (back + mid) / 2);
-        piece('fence', alongF, 0, [rx, ry, zAt(rx, ry)], ns ? [r5(hi - lo), 1, 1] : [1, r5(hi - lo), 1], fence);
-        piece('fence', acrossF, 0, [sx, sy, zAt(sx, sy)], ns ? [1, r5(mid - back), 1] : [r5(mid - back), 1, 1], fence);
+        hpiece('fence', alongF, 0, [rx, ry, zAt(rx, ry)], ns ? [r5(hi - lo), 1, 1] : [1, r5(hi - lo), 1], fence);
+        hpiece('fence', acrossF, 0, [sx, sy, zAt(sx, sy)], ns ? [1, r5(mid - back), 1] : [r5(mid - back), 1, 1], fence);
         // its wheelie bin in its front yard, beside its path between its door and its window
         const [bx, by] = vAt(outer + dir * 2.7, SETBACK - 1.1); stamp(`wheelie-240:${s}`, [bx, by, zAt(bx, by)], 0);
       }
     };
+    /** A low-rise's or a walk-up's fronts, the geotown's flats: its windows round all four walls storey by storey, its
+     *  entrance mid-front (two leaves under a canopy, a path to it from the walk), balconies on alternate bays of its
+     *  front above its ground storey, railed, a coping round its roof, its bins by its side. A loud one's windows each
+     *  off square and its frames its own ink, never the last building's; each balcony its own ink; its canopy and its
+     *  doors inks of theirs; a false front over its street wall in a crown never the last one's (geotown/front-loud.js
+     *  falseFront), its trim its frames' ink. `front` its street's side, `setback` its front's distance from the walk. */
+    const flats = (front, q, z0, z1, storeys, key, setback) => {
+      const wallHex = boxWall, R = streamOf(seed, 'flats', key), ink = HY ? houseInk : null, trim = ink ? ink('trim') : null;
+      const walls = { s: { N: [0, -1], at: (u) => [u, q[1]], u: [q[0], q[2]] }, n: { N: [0, 1], at: (u) => [u, q[3]], u: [q[0], q[2]] }, w: { N: [-1, 0], at: (u) => [q[0], u], u: [q[1], q[3]] }, e: { N: [1, 0], at: (u) => [q[2], u], u: [q[1], q[3]] } };
+      const F0 = walls[front], um = (F0.u[0] + F0.u[1]) / 2, ax = front === 's' || front === 'n';
+      // (a box on a wall: u0…u1 along it, o0…o1 out of it, z0…z1)
+      const wallBox = (W, u0, u1, o0, o1, za, zb, group, hex) => {
+        const P = (u, o, z) => { const [x, yy] = W.at(u); return [x + W.N[0] * o, yy + W.N[1] * o, z]; }, Tn = ax ? [1, 0, 0] : [0, 1, 0];
+        put([P(u0, o0, zb), P(u1, o0, zb), P(u1, o1, zb), P(u0, o1, zb)], group, hex, [0, 0, 1]);
+        put([P(u0, o0, za), P(u1, o0, za), P(u1, o1, za), P(u0, o1, za)], group, hex, [0, 0, -1]);
+        put([P(u0, o1, za), P(u1, o1, za), P(u1, o1, zb), P(u0, o1, zb)], group, hex, [W.N[0], W.N[1], 0]);
+        for (const [u, sg] of [[u0, -1], [u1, 1]]) put([P(u, o0, za), P(u, o1, za), P(u, o1, zb), P(u, o0, zb)], group, hex, Tn.map((v) => v * sg * Math.sign(u1 - u0)));
+      };
+      bent(z0, () => {
+        // its windows, round all four walls; its front's ground bays by its door left for the entrance
+        for (const [f, W] of Object.entries(walls)) {
+          const len = Math.abs(W.u[1] - W.u[0]), nb = Math.max(1, Math.floor(len / 3.2)), step = len / nb;
+          for (let k = 0; k < storeys; k++) for (let i = 0; i < nb; i++) {
+            const u = Math.min(W.u[0], W.u[1]) + (i + 0.5) * step;
+            if (f === front && k === 0 && Math.abs(u - um) < 2.2) continue;
+            hpiece('window', f, winShape(R), bentAt(W.at(u), z0 + 0.9 + k * STOREY, z0), null, trim);
+          }
+          // (its front's balconies: alternate bays above its ground storey, each a slab out of the wall, railed)
+          if (f === front) for (let k = 1; k < storeys; k++) for (let i = 1; i < nb; i += 2) {
+            const u = Math.min(W.u[0], W.u[1]) + (i + 0.5) * step, zb = z0 + k * STOREY, hex = ink ? ink('balcony') : '#b9b4a8';
+            wallBox(W, u - 1.25, u + 1.25, 0, 1.25, zb - 0.16, zb, 'geocity:balcony', hex);
+            const [rx, ry] = W.at(u);
+            stamp('railing', bentAt([rx + W.N[0] * 1.2, ry + W.N[1] * 1.2], zb, z0), ax ? 0 : Math.PI / 2);
+          }
+        }
+        // its entrance: two leaves under a canopy
+        for (const d0 of [-0.52, 0.52]) hpiece('door', front, 0, bentAt(F0.at(um + d0), z0 + 0.02, z0), null, ink ? ink('door') : null);
+        wallBox(F0, um - 1.8, um + 1.8, 0, 1.5, z0 + 2.55, z0 + 2.72, 'geocity:canopy', ink ? ink('canopy') : '#4b4f55');
+        // its coping round its roof
+        const cop = HY ? popHex(trim, 0.2) : mix(col.retain, '#e8e2d4', 0.4);
+        for (const W of Object.values(walls)) wallBox(W, W.u[0], W.u[1], -0.35, 0.06, z1, z1 + 0.45, 'geocity:coping', cop);
+        // (a loud one's false front over its street wall, its crown's form never the last one's)
+        if (HY) {
+          const form = CROWN_FORMS.filter((x) => x !== lastCrown)[Math.floor(R() * (CROWN_FORMS.length - 1))]; lastCrown = form;
+          const Wd = Math.abs(F0.u[1] - F0.u[0]), N = F0.N, T = [-N[1], N[0]], [ox, oy] = F0.at(T[0] + T[1] > 0 ? Math.min(...F0.u) : Math.max(...F0.u));
+          for (const f of falseFront(form, Wd, z1 + 0.45, 1.3 + (HY.step ?? 0) * 0.5, trim, 0.17, 0.22)) {
+            const cs = f.corners.map(([xl, yl, zz]) => [ox + T[0] * xl - N[0] * yl, oy + T[1] * xl - N[1] * yl, zz]), o = f.out;
+            put(cs, 'geocity:crown', f.hex ?? wallHex, [T[0] * o[0] - N[0] * o[1], T[1] * o[0] - N[1] * o[1], o[2]]);
+          }
+        }
+      });
+      // its path from the walk to its entrance; its bins by its side
+      const [ex, ey] = F0.at(um), path = ax ? [um - 0.9, Math.min(ey, ey - F0.N[1] * -setback), um + 0.9, Math.max(ey, ey + F0.N[1] * setback)] : [Math.min(ex, ex + F0.N[0] * setback), um - 0.9, Math.max(ex, ex + F0.N[0] * setback), um + 0.9], zp = zAt((path[0] + path[2]) / 2, (path[1] + path[3]) / 2) + 0.02;
+      if (HY) for (const sl of slabsOf(path, ax ? 'y' : 'x', () => zp + 0.005, { skew: STL?.skew ?? 0.35, pop: 0.7 }, col.walk, streamOf(seed, 'flats-path', key))) put(sl.corners, 'geocity:slab', sl.hex);
+      else put([[path[0], path[1], zp], [path[2], path[1], zp], [path[2], path[3], zp], [path[0], path[3], zp]], 'geocity:path', col.walk);
+      const side = walls[ax ? 'e' : 'n'], [sx, sy] = side.at((side.u[0] + side.u[1]) / 2), bf = ax ? 'e' : 'n';
+      // (two along its side wall, a pace apart)
+      for (const [k, o, d0] of [['front-load', 1.6, -2], ['eurobin-1100', 1.3, 1.4]]) stamp(`${k}:${bf}`, [sx + side.N[0] * o + (ax ? 0 : d0), sy + side.N[1] * o + (ax ? d0 : 0), z0], 0);
+    };
+    let lastCrown = null;
     const shops = (s, storeys, group) => {
       const n = Math.max(1, Math.round(L / 30)), f = L / n;
       let prevTop = null;
       for (let k = 0; k < n; k++) {
         const q = rectOf(s, k * f + 0.4, (k + 1) * f - 0.4, 0, Math.min(SHOP_D, deep / 2 - 2)), z0 = zAt((q[0] + q[2]) / 2, (q[1] + q[3]) / 2);
         let z1 = z0 + (storeys + (Rb() < 0.3 ? 1 : 0)) * STOREY + 0.6;
-        if (HY?.step && prevTop !== null && Math.abs(z1 - prevTop) < HY.step) z1 += HY.step + 0.05;
+        if (HY?.step && prevTop !== null && Math.abs(z1 - prevTop) < HY.step) z1 = prevTop + HY.step + 0.05;
         prevTop = z1;
         box(q[0], q[1], q[2], q[3], z0, z1, SHOP_FRONT[Math.floor(Rb() * SHOP_FRONT.length)], ROOFS[2], group);
       }
@@ -973,14 +1037,21 @@ export function assembleGeocityScene(m, ctx = {}) {
       houses(other, 2, L - 2);
     } else if (b.kind === 'lowrise') {
       const n = Math.max(1, Math.floor(L / 40));
+      let prevTop = null;
       for (let k = 0; k < n; k++) {
-        const u = (k + 0.5) * (L / n), q = rectOf(sides[0], u - 14, u + 14, deep / 2 - 7.5, deep / 2 + 7.5), z0 = zAt((q[0] + q[2]) / 2, (q[1] + q[3]) / 2), z1 = z0 + 4 * STOREY;
+        const u = (k + 0.5) * (L / n), q = rectOf(sides[0], u - 14, u + 14, deep / 2 - 7.5, deep / 2 + 7.5), z0 = zAt((q[0] + q[2]) / 2, (q[1] + q[3]) / 2);
+        // (a loud row's low-rises never one height: the next raised to a step over the last where it would stand near level)
+        let z1 = z0 + 4 * STOREY;
+        if (HY?.step && prevTop !== null && Math.abs(z1 - prevTop) < HY.step) z1 = prevTop + HY.step + 0.05;
+        prevTop = z1;
         box(q[0], q[1], q[2], q[3], z0, z1, famOf(brick, `${b.id}:${k}`)[0], ROOFS[2], 'geocity:lowrise');
         lights(q[0], q[1], q[2], q[3], z0, z1, STOREY, Rb);
+        flats(sides[0], q, z0, z1, 4, `${b.id}:${k}`, deep / 2 - 7.5);
       }
     } else if (b.kind === 'apartments') {
       const q = rectOf(sides[0], 4, 34, 6, 20), z0 = zAt((q[0] + q[2]) / 2, (q[1] + q[3]) / 2);
       box(q[0], q[1], q[2], q[3], z0, z0 + 4 * STOREY, famOf(brick, b.id)[0], ROOFS[2], 'geocity:walkup');
+      flats(sides[0], q, z0, z0 + 4 * STOREY, 4, b.id, 6);
       houses(sides[0], 40, L - 2); houses(sides[1], 2, L - 2);
     } else if (b.kind === 'school') {
       const q = rectOf(sides[0], L / 2 - 30, L / 2 + 30, 6, 22), z0 = zAt((q[0] + q[2]) / 2, (q[1] + q[3]) / 2);
