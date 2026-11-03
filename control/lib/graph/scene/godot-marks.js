@@ -138,7 +138,7 @@ export const PAGE_MARKS = Object.freeze({
   lock: m(A, 'no lock-on'), match: m(A, 'arena match modes do not travel'), hangar: m(A, 'the hangar is the page\'s'),
   colliders: m(B, 'StaticBody3D boxes (level.gd _build_colliders)'),
   breakables: m(P, 'held whole as solid colliders (breakables_held): breaking them is the web\'s'),
-  breakPieces: m(A, 'break pieces are not carried'), wreckExplodes: m(A, 'wreck finishers are not carried'),
+  breakPieces: m(A, 'break pieces are not carried'), rupa: m(A, 'destructible physics (matter, load) is the web\'s'), wreckExplodes: m(A, 'wreck finishers are not carried'),
   shadows: m(A, 'the controllable shadow keys are not drawn'), smoke: m(A, 'smoke is not drawn'),
   tutorial: m(A, 'the tutorial step director does not travel'),
   figures: m(B, 'a rigged figure ships skinned in world and game packs alike (one mesh, its clips, its painted or blend-shape face, its ink; since 0.24.0); under --lit a realistic hero minted under realistic laws 5 brings its relief, a normal map with its tangents, which Godot\'s glTF import puts on its material'),

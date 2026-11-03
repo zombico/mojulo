@@ -96,6 +96,22 @@ describe('a level that lets things break, end to end', () => {
     expect(s0.ledger.breakables_held).toBeUndefined();
     await expect(resolveWorldScene(level({ destruction: 'lots' }))).rejects.toThrow(/none, objects, cover, world/);
   }, 120000);
+
+  it('physical: the blocks carry their matter, the level its blows, and only that page composes the physics', async () => {
+    const { resolveWorldScene } = await import('../../worlds/world-scene.js');
+    const { emitThreeWorld } = await import('../../scene/scene-three.js');
+    const world = (await resolveWorldScene(level({ destruction: 'world' }))).payload;
+    expect(world.rupa).toBeUndefined();
+    expect(emitThreeWorld(world)).not.toContain('rupa-blows');
+    const { payload } = await resolveWorldScene(level({ destruction: 'physical', matter: { power: 'heroic' } }));
+    expect(payload.breakables.map((b) => b.id).sort()).toEqual(world.breakables.map((b) => b.id).sort());
+    for (const b of payload.breakables) expect(b.joules).toBeGreaterThan(0);
+    expect(payload.rupa).toEqual({ power: 10 });
+    const html = emitThreeWorld(payload);
+    expect(html).toContain('rupa-blows');
+    expect(html).toContain(', rupa: {"power":10}');
+    await expect(resolveWorldScene(level({ destruction: 'physical', matter: { power: 'godlike' } }))).rejects.toThrow(/matter.power/);
+  }, 120000);
 });
 
 describe('the pieces a broken thing becomes', () => {

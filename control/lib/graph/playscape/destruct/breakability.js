@@ -5,7 +5,9 @@
  *
  *   DEGREES                      none · objects (the action default: crates, barrels, amphorae, pots, glass, planks,
  *                                bones, a lid) · cover (a shooter's: furniture, doors, boulders, coffins too) · world
- *                                (walls, pilasters and set pieces as well); a level's bounds always hold
+ *                                (walls, pilasters and set pieces as well) · physical (what world breaks, broken by
+ *                                its MATTER and held up by what it rests on: destructible physics, rupa/, a game that
+ *                                needs it asks; never a default); a level's bounds always hold
  *   readDegree(v, where)         → a degree's name, checked (null for absent)
  *   classOf(anchor)              → what a thing is, by the name it already has (a corner prop's form, a part's name,
  *                                an anchor's kind)
@@ -18,6 +20,9 @@
  *                                page can hide what broke), and its own collider leaves the list (the block is one).
  *                                Things not yet named on their faces (a pooled rock) or with no collider (ankle clutter:
  *                                planks, bones) stay as they are, said in `skipped`. Null when nothing breaks.
+ *                                Under `physical` each block also carries its matter's numbers (rupa/matter.js
+ *                                blockMatter: the thing's own `matter` and `fill`, else its class's): `matter`, `fill`,
+ *                                `mass`, `joules`, `compressive`, `bond`, and its matter's cut (the thing's own wins).
  *   piecesOf(breakables, faces)  → { [id]: { fill, tex?, cuts, pieces } }: each breakable pre-cut once per cut it can take, for
  *                                the page to swap in when it breaks. `cuts` maps how it broke (the runtime's `how`:
  *                                swing, shot, burst, fall, crush, call) to a cut's name (cuts.js cutOf: the thing's own
@@ -30,6 +35,7 @@
  */
 import { cleave } from './cleave.js';
 import { cutOf, CUT_PRESETS as CUT_NAMES } from './cuts.js';
+import { CLASS_MATTER, blockMatter, resolveMatter, cutOfMatter } from '../../rupa/matter.js';
 
 const CUT_IDS = Object.keys(CUT_NAMES);
 const same = (a, b) => ['pattern', 'style', 'count', 'cell'].every((k) => a[k] === b[k]);
@@ -37,7 +43,7 @@ const same = (a, b) => ['pattern', 'style', 'count', 'cell'].every((k) => a[k] =
 const OBJECTS = Object.freeze(['crate', 'barrel', 'amphora', 'pot', 'vase', 'glass', 'planks', 'bones', 'lid']);
 const COVER = Object.freeze([...OBJECTS, 'bench', 'chair', 'rack', 'lockers', 'cart', 'door', 'boulder', 'coffin']);
 const WORLD = Object.freeze([...COVER, 'wall', 'pilaster', 'set-piece']);
-export const DEGREES = Object.freeze({ none: Object.freeze([]), objects: OBJECTS, cover: COVER, world: WORLD });
+export const DEGREES = Object.freeze({ none: Object.freeze([]), objects: OBJECTS, cover: COVER, world: WORLD, physical: WORLD });
 export const DEGREE_IDS = Object.freeze(Object.keys(DEGREES));
 // how many blows a thing takes, by class (a crate one, a coffin three); absent: one
 export const THING_HP = Object.freeze({ crate: 1, barrel: 2, amphora: 1, pot: 1, vase: 1, glass: 1, lid: 2, coffin: 3, door: 3, boulder: 4, 'set-piece': 6, wall: 6, pilaster: 4 });
@@ -74,7 +80,13 @@ export function breakablesOf(payload, degree, { hp = THING_HP } = {}) {
     const c = solid.get(a.id);
     if (!named.has(a.id)) { skipped.push({ id: a.id, class: cls, why: 'its faces are not named' }); continue; }
     if (!c) { skipped.push({ id: a.id, class: cls, why: 'it blocks nothing (no collider)' }); continue; }
-    breakables.push({ id: a.id, min: [...c.min], max: [...c.max], hp: hp[cls] ?? 1, ...(a.cut !== undefined ? { cut: a.cut } : {}) });
+    const b = { id: a.id, min: [...c.min], max: [...c.max], hp: hp[cls] ?? 1, ...(a.cut !== undefined ? { cut: a.cut } : {}) };
+    if (degree === 'physical') {
+      const own = a.matter !== undefined ? { matter: a.matter, ...(a.fill !== undefined ? { fill: a.fill } : {}) } : CLASS_MATTER[cls] || CLASS_MATTER.block;
+      Object.assign(b, blockMatter(b, own, `${a.id}.matter`));
+      if (b.cut === undefined) b.cut = cutOfMatter(resolveMatter(own.matter));
+    }
+    breakables.push(b);
     things.push({ id: a.id, class: cls });
     ids.add(a.id);
   }

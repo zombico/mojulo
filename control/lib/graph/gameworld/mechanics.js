@@ -18,8 +18,9 @@
  *     hud?: 'derive' | false | [part],          // the readouts: derived (default), none, or the creator's own
  *     ui?: 'propose' | 'auto' | <direction>,    // play.ui (playscape/ui/direction.js), resolved when the world is minted
  *     gear?: { <class>: { stat?, by?: [early, mid, late] } },   // what a class raises, over GEAR_STAT / GEAR_BY
- *     destruction?: 'none' | 'objects' | 'cover' | 'world',    // how much the game lets break (playscape/destruct/
- *                                                              // breakability.js), copied onto every level it makes
+ *     destruction?: 'none' | 'objects' | 'cover' | 'world' | 'physical',   // how much the game lets break (playscape/
+ *                                                              // destruct/breakability.js), copied onto every level it makes;
+ *                                                              // physical: by matter and load (rupa/), only when asked
  *   }
  *
  * Pure: no dice, no clock. `readMechanics` reads the shape (the world reader calls it); `resolveMechanics` derives the

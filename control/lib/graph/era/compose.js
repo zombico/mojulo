@@ -39,6 +39,8 @@ export const DESTRUCTION_WORDS = Object.freeze({
   objects: Object.freeze(['smash the crates', 'breakable crates', 'crates break', 'smashable']),
   cover: Object.freeze(['firefight', 'shootout', 'gunfight', 'wreck', 'wrecks', 'wrecked', 'destructible', 'smash']),
   world: Object.freeze(['demolition', 'demolish', 'tear down', 'everything breaks', 'collapse', 'collapses']),
+  // destructible physics (rupa/): asked for, never assumed
+  physical: Object.freeze(['destructible physics', 'physics destruction', 'realistic destruction', 'structural collapse', 'destructible terrain', 'craters', 'cratering']),
 });
 
 export const COMPOSE_WORDS = Object.freeze({
