@@ -19,7 +19,8 @@
  *   craftForm(archetype, { palette?, colors?, pose?, attitude?, made?, livery?, wear?, look? })   made: its skin's panel lines,
  *                                                   access panels and fasteners (air-kit.js); livery: its camo cut into
  *                                                   the paint and its marks; wear: soot, streaks, chips, fade, patches
- *                                                   (air-surface.js); look: a drone's card (drone-looks.js), its palette,
+ *                                                   (air-surface.js); look: a drone's card (drone-looks.js) or a
+ *                                                   helicopter's (heli-looks.js, its kit hung too), its palette,
  *                                                   slots, lights, payloads and livery. Each absent adds nothing.
  *     → { items: [{ id, head, faces }], length, span, height, readout }   the craft centred on x and y, its lowest
  *                                                   point on z = 0 (craft-rig.js craftPieces' frame)
@@ -40,6 +41,7 @@ import { CRAFT_ODM } from './craft-odm.js';
 import { PANEL_KINDS, itemFrame, skinPanels, fastenersOn } from './air-kit.js';
 import { readAirLivery, paintCraft, markCraft, wearCraft } from './air-surface.js';
 import { lookCard } from './drone-looks.js';
+import { lookFamily } from './heli-looks.js';
 import { readWear } from '../car-designer/mil-wear.js';
 
 export const AIR_MATERIALS = Object.freeze({
@@ -110,7 +112,7 @@ export function craftForm(archetype, { palette, colors, pose = { gear: 1 }, atti
   const row = CRAFT_ARCHETYPES[archetype];
   if (!row) throw new Error(`craft-form: no archetype '${archetype}' on the shelf`);
   // (a drone's look: its stock card's slots, or the card asked for, with its palette and, unless one is named, its livery)
-  const card = look ? lookCard(look) : row.look ? lookCard(row.look) : null;
+  const card = look ? lookCard(look, lookFamily(row, CRAFT_ODM)) : row.look ? lookCard(row.look) : null;
   const L = readAirLivery(livery ?? (look ? card.livery : undefined)), W = wear === undefined || wear === null ? null : readWear(wear);
   const { manifest, readout } = assembleCraft(archetype, { palette, colors, pose, attitude, finish: true, ...(made ? { made } : {}), ...(look ? { look } : {}) });
   const P = resolveCraftPalette(palette ?? (look ? card.palette : row.palette), colors).colors;
@@ -119,8 +121,8 @@ export function craftForm(archetype, { palette, colors, pose = { gear: 1 }, atti
   for (const f of faces) for (const c of f.corners) for (let k = 0; k < 3; k++) { if (c[k] < mn[k]) mn[k] = c[k]; if (c[k] > mx[k]) mx[k] = c[k]; }
   const cx = (mn[0] + mx[0]) / 2, cy = (mn[1] + mx[1]) / 2, z0 = mn[2];
   const N = (c) => [r4(c[0] - cx), r4(c[1] - cy), r4(c[2] - z0)];
-  // (each item's part number: its layout row's, a pair's two sides the one part)
-  const skuOf = new Map(row.layout.flatMap((e) => (e.pair ? [[`${e.id}-r`, e.sku], [`${e.id}-l`, e.sku]] : [[e.id, e.sku]])));
+  // (each item's part number: the part built in its slot, a swap's or a look's kit as much as the layout's own)
+  const skuOf = new Map(manifest.items.map((it) => [it.id, it.source.garage.sku]));
   const stage = [];
   placements.forEach((p, i) => {
     const id = p.id || `item${i}`;

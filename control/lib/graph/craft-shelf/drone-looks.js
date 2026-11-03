@@ -10,12 +10,15 @@
  *             high-visibility arm tips; a military drone's low-visibility number
  *
  *   DRONE_LOOKS, DRONE_LOOK_IDS
- *   lookCard(look)                          → the card, or throws naming the looks
+ *   lookCard(look, family?)                 → the card in the craft's family ('drone' | 'heli': heli-looks.js), or
+ *                                             throws naming that family's looks
  *   lookSwap(archetypeRow, card, odm)       → the layout's swaps the card makes ({ <layout id>: sku })
  *
  * An archetype names its stock look (`look`); a craft asked for another look takes that card's palette, payloads and
  * lights, and its livery unless one is named. A look never changes a drone's frame, arms, motors or rotors. Pure.
  */
+
+import { HELI_LOOKS, HELI_LOOK_IDS } from './heli-looks.js';
 
 export const DRONE_LOOKS = Object.freeze({
   consumer: Object.freeze({
@@ -41,10 +44,11 @@ export const DRONE_LOOKS = Object.freeze({
 });
 export const DRONE_LOOK_IDS = Object.freeze(Object.keys(DRONE_LOOKS));
 
-/** The card a look names, or throws naming them. */
-export function lookCard(look) {
-  const card = DRONE_LOOKS[look];
-  if (!card) throw new Error(`drone look: '${look}' is no look (a look is one of ${DRONE_LOOK_IDS.join(' | ')})`);
+/** The card a look names in its craft's family ('drone' | 'heli', heli-looks.js), or throws naming that family's looks. */
+export function lookCard(look, family = 'drone') {
+  const [cards, ids, what] = family === 'heli' ? [HELI_LOOKS, HELI_LOOK_IDS, 'helicopter'] : [DRONE_LOOKS, DRONE_LOOK_IDS, 'drone'];
+  const card = cards[look];
+  if (!card) throw new Error(`${what} look: '${look}' is no look (a look is one of ${ids.join(' | ')})`);
   return card;
 }
 

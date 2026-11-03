@@ -154,4 +154,45 @@ In progress. Helicopters on the craft shelf:
     - every rotor a bone at its hub in its figure, the tandem's two turning against each other;
     - made, in camo and battered, within its budget ×1.6;
     - each main rotor's blades more than 0.6 m over its tail's parts as it turns.
+- **The looks and their kit** (`craft-shelf/heli-looks.js`; `look` on `assembleCraft` and `craftForm`): one airframe,
+  civilian or military by the card it wears, as a drone's is. A look is read in its craft's family, a helicopter's cards
+  or a drone's, and another family's word throws naming its own.
+  - **The cards:**
+    - `civil`: gloss white and blue, a searchlight;
+    - `medevac`: gloss red over white, a searchlight, a rescue hoist over the door, floats on skids;
+    - `police`: gloss dark blue and white, a camera ball under the nose, a searchlight;
+    - `military`: matte drab (a camo cuts into it), its lights dark, door guns, wire cutters above and below the nose,
+      flare dispensers, a low-visibility number.
+
+    A civilian card strips the airframe's own weapons and keeps their pylons; a military card keeps them. Each card is
+    its palette, its material slots (the civilian cards' clear-coated gloss), its lights, its kit and its livery.
+  - **Kit at stations:** a hull names where kit hangs (`kitAt`: searchlight, hoist, camera, door gun, cutters, flares,
+    floats), and a card hangs its kit only where its hull names the station. Each kit is its family's row nearest the
+    size the card asks for (a police camera the drones' large EO/IR ball). The audit counts what a card hangs and strips.
+    Absent a look, none hangs.
+  - **The kit** (`heli-kit`, modelled, weapons never fired):
+    - a door gun on its pintle;
+    - a toothed wire cutter;
+    - a flare dispenser with its cartridges in rows;
+    - a searchlight on its yoke;
+    - a rescue hoist with its drum, cable and hook;
+    - an emergency float pack for a light helicopter's skids.
+  - **Also:** the form now reads each item's part from what was built in its slot, so a swap's or a look's part is read
+    as itself, not as the layout's stock part.
+  - **Held** (`heli.test.js`):
+    - under every card, the same airframe (its hull, rotors, tail and gear the stock parts), its kit at its stations, a
+      pair on both sides, its audit clean;
+    - kit only where a hull names its station, none without a look;
+    - a civilian card stripping the weapons and keeping their pylons;
+    - a kit's row the nearest in size;
+    - civilian gloss against military matte;
+    - a look read in its family;
+    - every card within the budget made, in camo and battered;
+    - the kit's parts.
+
+    The shelf's char test pins the kit's builder paths. The attack and tandem helicopters are re-pinned for their hulls'
+    stations (hardpoints only); no other pin moved.
+  - **Seen** (machine gate only; the eyes gate is open): the utility in all four cards, the light helicopter as an air
+    ambulance and a police helicopter, the attack and tandem helicopters military, the kit close up.
+  - **Left for phase 4:** a civilian's registration and stripe (the hull's marks are military only so far).
 

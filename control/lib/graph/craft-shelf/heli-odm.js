@@ -54,6 +54,8 @@ export const HELI_ODM = {
       // (its rear doors framed in the cabin's sides; the front glazed under its bubble)
       doors: [[0.36, 0.05, 0.62, 0.9]],
       points: { canopy: [0.012, 0, 0.92], cockpit: [0.07, 0, -0.62], cowl: [0.37, 0, 0.98], tailRotor: [0.985, 0, 0.6], stabRoot: [0.86, 0, 0], finRoot: [0.9, 0, 0.9], ventral: [0.94, 0, -0.9], skid: [0.2, 0.62, -0.92] },
+      // (the stations where a look's kit hangs: heli-looks.js)
+      kitAt: { searchlight: [0.25, 0, -1], camera: [0.06, 0, -0.75], floats: [0.2, 0.62, -0.92] },
     },
   },
   'canopy-heli-bubble': {
@@ -118,6 +120,7 @@ export const HELI_ODM = {
       doors: [[0.31, -0.05, 1.5, 1.35]],
       windows: { from: 0.42, to: 0.47, pitch: 0.6, zf: 0.3, w: 0.42, h: 0.42 },
       points: { canopy: [0.03, 0, 0.25], cockpit: [0.07, 0, -0.6], cowl: [0.26, 0, 1], finRoot: [0.9, 0, 0.7], stabRoot: [0.95, 0.85, -0.3], mainGear: [0.2, 0.95, -0.55], tailGear: [0.86, 0, -1] },
+      kitAt: { searchlight: [0.24, 0, -1], camera: [0.05, 0, -0.85], hoist: [0.29, 0.9, 0.9], doorGun: [0.262, 1, 0.05], cutterTop: [0.205, 0, 1], cutterLow: [0.03, 0, -0.9], flares: [0.6, 1, 0] },
     },
   },
   'canopy-heli-utility': {
@@ -174,6 +177,7 @@ export const HELI_ODM = {
       family: 'facet', facets: ARMOUR, seams: 1.4, stations: ATTACK_BODY,
       open: { from: 0.02, to: 0.28, sill: 0.45, wall: 0.03 },
       points: { canopy: [0.02, 0, 0.45], cockpit: [0.045, 0, -0.55], sensor: [0.004, 0, -0.2], gun: [0.07, 0, -1], cowl: [0.3, 0, 1], stubRoot: [0.33, 0.95, -0.3], finRoot: [0.9, 0, 0.8], stabRoot: [0.95, 0.9, 0], mainGear: [0.17, 0.9, -0.9], tailGear: [0.92, 0, -1] },
+      kitAt: { cutterTop: [0.06, 0, 1.4], cutterLow: [0.11, 0, -1], flares: [0.55, 1, 0] },
     },
   },
   'canopy-heli-tandem': {
@@ -236,6 +240,37 @@ export const HELI_ODM = {
     aliases: ['helicopter chin gun', 'chin turret', 'chain gun'], dims: { length: 1.7, diameter: 0.5 }, mass: 150, mount: 'chin',
     build: { family: 'chin' },
   },
+  // ===== the looks' kit (heli-looks.js hangs it at a hull's stations) ============================
+  'gun-heli-door': {
+    kind: 'heli-kit', realm: 'earth', label: 'helicopter door gun on its pintle', classOf: '7.62 mm door gun class',
+    aliases: ['door gun', 'pintle gun', 'door gunner gun'], dims: { length: 1.2, diameter: 0.1, reach: 0.42 }, mass: 30, mount: 'door',
+    build: { family: 'doorGun' },
+  },
+  'cutter-heli': {
+    kind: 'heli-kit', realm: 'earth', label: 'wire-strike cutter', classOf: 'helicopter wire strike protection',
+    aliases: ['wire cutter', 'wire strike cutter'], dims: { length: 0.5, height: 0.42 }, mass: 4, mount: 'skin',
+    build: { family: 'cutter' },
+  },
+  'flares-heli': {
+    kind: 'heli-kit', realm: 'earth', label: 'flare dispenser', classOf: 'helicopter countermeasures dispenser',
+    aliases: ['flare dispenser', 'countermeasures dispenser', 'chaff and flares'], dims: { length: 0.5, height: 0.22, depth: 0.12 }, mass: 12, mount: 'skin',
+    build: { family: 'flares', rows: 2, cols: 5 },
+  },
+  'searchlight-heli': {
+    kind: 'heli-kit', realm: 'earth', label: 'helicopter searchlight', classOf: 'helicopter searchlight class',
+    aliases: ['searchlight', 'nightsun', 'spotlight'], dims: { length: 0.42, diameter: 0.32 }, mass: 20, mount: 'belly',
+    build: { family: 'searchlight' },
+  },
+  'hoist-heli': {
+    kind: 'heli-kit', realm: 'earth', label: 'rescue hoist', classOf: 'helicopter rescue hoist class',
+    aliases: ['rescue hoist', 'rescue winch', 'helicopter hoist'], dims: { reach: 0.7, drop: 1.3, diameter: 0.24 }, mass: 45, mount: 'roof',
+    build: { family: 'hoist' },
+  },
+  'floats-heli-light': {
+    kind: 'heli-kit', realm: 'earth', label: 'emergency float pack, light skids', classOf: 'light single-engine helicopter class (1.4 t)',
+    aliases: ['emergency floats', 'float pack', 'skid floats'], dims: { length: 2.1, diameter: 0.22 }, mass: 18, mount: 'gear-socket',
+    build: { family: 'floats', out: 0.42, drop: 0.42 },
+  },
   'eoir-heli-nose': {
     kind: 'drone-payload', realm: 'earth', label: 'helicopter nose sensor turret', classOf: 'attack helicopter targeting turret',
     aliases: ['nose sensor', 'targeting turret', 'nose turret'], dims: { diameter: 0.64, height: 0.74 }, mass: 230, mount: 'nose',
@@ -263,6 +298,7 @@ export const HELI_ODM = {
       doors: [[0.18, -0.2, 0.9, 1.7]],
       windows: { from: 0.26, to: 0.7, pitch: 1.3, zf: 0.25, w: 0.42, h: 0.42 },
       points: { canopy: [0.012, 0, 0.15], cockpit: [0.035, 0, -0.62], frontPylon: [0.1, 0, 1], rearPylon: [0.87, 0, 1], sponson: [0.2, 0.92, -0.75] },
+      kitAt: { searchlight: [0.12, 0, -1], hoist: [0.165, 0.95, 0.88], doorGun: [0.16, 1, 0], flares: [0.74, 1, -0.3] },
     },
   },
   'canopy-heli-deck': {

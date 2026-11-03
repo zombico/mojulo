@@ -41,6 +41,9 @@ export const CRAFT_PALETTES = {
   droneMilitary: { paint: '#5a5f52', trim: '#2c2f2b', glass: '#1a2026', rubber: '#1a1b1a', chrome: '#6d7268', light: '#c05030' },
   // a civilian helicopter's white, its blue stripe
   heliCivil: { paint: '#e8eaec', trim: '#1d4f91', glass: '#24303a', rubber: '#1b1c1e', chrome: '#9aa0a6', light: '#ff4a3a' },
+  // an air ambulance's red over white; a police helicopter's dark blue and white
+  heliMedevac: { paint: '#c9242c', trim: '#f0f0ec', glass: '#24303a', rubber: '#1b1c1e', chrome: '#9aa0a6', light: '#ff4a3a' },
+  heliPolice: { paint: '#1e2b48', trim: '#eceef0', glass: '#24303a', rubber: '#1b1c1e', chrome: '#9aa0a6', light: '#3a7bff' },
   // a military helicopter's matte olive drab, its dark fittings
   heliMilitary: { paint: '#525a45', trim: '#2b2f29', glass: '#1f2a30', rubber: '#1a1b1a', chrome: '#767b72', light: '#ff4a3a' },
   polishedAlu: { paint: '#c6ccd2', trim: '#20242a', glass: '#7ea8c4', rubber: '#181a1c', chrome: '#e3e7eb', light: '#e94b3c' },

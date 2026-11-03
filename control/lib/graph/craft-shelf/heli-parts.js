@@ -18,6 +18,13 @@
  *               rack         a missile rack: its rail beam, its spine down, its rounds in rows each side of the spine
  *               chin         a chin gun's turret: its ring, its drum and cheeks, the gun's receiver and its barrel and brake
  *                            (all modelled, never fired); each kit's mount on its top, where a pylon or the nose carries it
+ *               doorGun      a door gun on its pintle: the arm out from the door, the post, the receiver, the barrel ahead,
+ *                            the ammunition box under it (modelled, never fired); its mount on the hull's side
+ *               cutter       a wire-strike cutter: a toothed blade raked forward from its root (turned down under the chin)
+ *               flares       a flare dispenser: its box standing off the skin, its cartridges' mouths in rows on its face
+ *               searchlight  a searchlight on its yoke under the belly: the lamp, its bezel and lens looking ahead
+ *               hoist        a rescue hoist: its arm out from the roof over the door, the drum, the cable down, its hook
+ *               floats       an emergency float pack along a skid's tube (`out` and `drop` from the skid's mount to its tube)
  *
  * Craft space: +y forward, +z up, +x right, metres. Pure.
  */
@@ -236,6 +243,69 @@ function buildKit(row, C) {
     ];
     const extrudes = [-1, 1].map((s) => box(`cheek_${s > 0 ? 'r' : 'l'}`, [s * R * 0.62, R * 0.25, -R * 0.3], [s * R * 0.62, R * 0.25, zc - R * 0.35], y, x, R * 1.0, 0.04, C.paint));
     return { lathes, extrudes, hardpoints: { mount: [0, 0, 0], muzzle: [0, round3(L), round3(zc)] } };
+  }
+  if (b.family === 'doorGun') {
+    // a door gun on its pintle: the arm out from the door's frame, the post up, the receiver and its barrel ahead, the box
+    const { length: L, diameter: D, reach: r } = row.dims, zg = 0.18;
+    const sweeps = [sweep('arm', [[0, 0, 0], [r * 0.6, 0, 0.02], [r, 0, 0.04]], 0.025, C.trim, { sides: 6 }), sweep('post', [[r, 0, 0.04], [r, 0, zg - 0.04]], 0.022, C.trim, { sides: 6 })];
+    const extrudes = [box('receiver', [r, -L * 0.22, zg], [r, L * 0.16, zg], x, z, D * 0.9, D * 1.1, C.rubber), box('ammo', [r - D * 0.9, -L * 0.08, zg - D * 0.4], [r - D * 0.9, L * 0.08, zg - D * 0.4], x, z, D * 1.1, D * 1.5, C.trim)];
+    const lathes = [
+      lathe('barrel', [r, L * 0.16, zg], [r, L * 0.74, zg], [[0, D * 0.2], [1, D * 0.18]], C.rubber, { samples: 10, crossSections: 2 }),
+      lathe('muzzle', [r, L * 0.74, zg], [r, L * 0.78, zg], [[0, D * 0.26], [1, D * 0.24]], C.trim, { samples: 10, crossSections: 2 }),
+      lathe('grips', [r, -L * 0.22, zg], [r, -L * 0.3, zg], [[0, D * 0.25], [1, D * 0.2]], C.rubber, { samples: 10, crossSections: 2 }),
+    ];
+    return { sweeps, extrudes, lathes, hardpoints: { mount: [0, 0, 0], muzzle: r3v([r, L * 0.78, zg]) } };
+  }
+  if (b.family === 'cutter') {
+    // a wire-strike cutter: a toothed blade raked forward from its root, thin across
+    const { length: L, height: H } = row.dims, t = 0.012;
+    const yz = [[-L * 0.55, 0], [L * 0.1, 0], [L * 0.16, H * 0.22], [L * 0.1, H * 0.28], [L * 0.24, H * 0.5], [L * 0.18, H * 0.56], [L * 0.33, H * 0.8], [L * 0.45, H], [L * 0.05, H * 0.62]];
+    const from = [-t, 0, 0], to = [t, 0, 0];
+    const extrudes = [extrudeWorld('blade', from, to, ccw(from, to, yz.map(([yy, zz]) => [0, yy, zz])), C.chrome), box('root', [0, -L * 0.25, -0.02], [0, -L * 0.25, 0.04], x, y, 0.07, L * 0.55, C.trim)];
+    return { extrudes, hardpoints: { mount: [0, 0, 0] } };
+  }
+  if (b.family === 'flares') {
+    // a flare dispenser: its box standing off the skin (+x), its cartridges' mouths in rows on its face
+    const { length: L, height: H, depth: d } = row.dims, rows = b.rows || 2, cols = b.cols || 5;
+    const extrudes = [box('box', [-0.02, 0, 0], [d, 0, 0], y, z, L, H, C.trim)];
+    const p = Math.min(L / cols, H / rows), m = p * 0.62;
+    for (let i = 0; i < rows; i++) for (let j = 0; j < cols; j++) {
+      const yy = (j - (cols - 1) / 2) * (L / cols), zz = (i - (rows - 1) / 2) * (H / rows);
+      extrudes.push(box(`cartridge_${i}${j}`, [d - 0.004, yy, zz], [d + 0.006, yy, zz], y, z, m, m, C.rubber));
+    }
+    return { extrudes, hardpoints: { mount: [0, 0, 0] } };
+  }
+  if (b.family === 'searchlight') {
+    // a searchlight on its yoke under the belly: the bracket down, the fork's cheeks, the lamp looking ahead, its lens
+    const { length: L, diameter: D } = row.dims, R = D / 2, zc = -0.1 - R;
+    const extrudes = [box('bracket', [0, 0, 0.02], [0, 0, -0.1], x, y, R * 0.8, R * 0.8, C.trim), ...[-1, 1].map((s) => box(`cheek_${s > 0 ? 'r' : 'l'}`, [s * (R + 0.03), 0, -0.08], [s * (R + 0.03), 0, zc - R * 0.3], x, y, 0.025, R * 0.9, C.trim))];
+    extrudes.push(box('fork', [0, 0, -0.1], [0, 0, -0.08], x, y, 2 * R + 0.09, R * 0.9, C.trim));
+    const lathes = [
+      lathe('lamp', [0, -L / 2, zc], [0, L / 2, zc], [[0, R * 0.55], [0.35, R * 0.85], [1, R]], C.paint, { samples: 20, crossSections: 3 }),
+      lathe('bezel', [0, L / 2 - 0.01, zc], [0, L / 2 + 0.02, zc], [[0, R * 1.04], [1, R * 1.02]], C.chrome, { samples: 20, crossSections: 2 }),
+      lathe('lens', [0, L / 2 + 0.005, zc], [0, L / 2 + 0.024, zc], [[0, R * 0.9], [1, R * 0.88]], C.glass, { material: 'glass', samples: 20, crossSections: 2 }),
+    ];
+    return { extrudes, lathes, hardpoints: { mount: [0, 0, 0] } };
+  }
+  if (b.family === 'hoist') {
+    // a rescue hoist: its arm out from the roof's edge (+x) over the door, the drum at its end, the cable down, its hook
+    const { reach: r, drop: h, diameter: D } = row.dims, R = D / 2;
+    const sweeps = [
+      sweep('arm', [[0, 0, 0], [r * 0.5, 0, R * 0.9], [r, 0, R * 0.9]], 0.035, C.trim, { sides: 8 }),
+      sweep('cable', [[r, 0, -R * 0.4], [r, 0, -h]], 0.006, C.chrome, { sides: 4 }),
+      sweep('hook', [[r, 0, -h], [r, 0, -h - 0.08], [r + 0.04, 0, -h - 0.12], [r + 0.07, 0, -h - 0.07]], 0.012, C.chrome, { sides: 6 }),
+    ];
+    const lathes = [lathe('drum', [r, -R * 1.6, R * 0.2], [r, R * 1.6, R * 0.2], [[0, R * 0.8], [0.15, R], [0.85, R], [1, R * 0.8]], C.paint, { samples: 18, crossSections: 4 })];
+    return { sweeps, lathes, hardpoints: { mount: [0, 0, 0] } };
+  }
+  if (b.family === 'floats') {
+    // an emergency float pack along a skid's tube: its bag rolled tight, its straps round it
+    const { length: L, diameter: D } = row.dims, R = D / 2, c = [b.out, 0, -b.drop];
+    const lathes = [
+      lathe('pack', [c[0], -L / 2, c[2]], [c[0], L / 2, c[2]], [[0, R * 0.5], [0.06, R * 0.95], [0.5, R], [0.94, R * 0.95], [1, R * 0.5]], C.trim, { samples: 16, crossSections: 5 }),
+      ...[-0.25, 0.25].map((f, i) => lathe(`strap_${i}`, [c[0], L * f - 0.025, c[2]], [c[0], L * f + 0.025, c[2]], [[0, R * 1.03], [1, R * 1.03]], C.rubber, { samples: 16, crossSections: 2 })),
+    ];
+    return { lathes, hardpoints: { mount: [0, 0, 0] } };
   }
   throw new Error(`Unknown heli-kit family '${b.family}'`);
 }

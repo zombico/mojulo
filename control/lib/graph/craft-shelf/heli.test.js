@@ -12,6 +12,8 @@ import { assembleCraft, resolveCraftPart, CRAFT_ODM, CRAFT_ARCHETYPES } from './
 import { craftForm, craftFormFigure } from './craft-form.js';
 import { HELI_ODM, HELI_KINDS } from './heli-odm.js';
 import { buildCockpit } from './cockpit-parts.js';
+import { HELI_LOOKS, HELI_ARMS, HELI_STATIONS } from './heli-looks.js';
+import { lookCard, DRONE_LOOK_IDS } from './drone-looks.js';
 import { resolveVehicle, handlesOf } from '../vehicle-registry/roster.js';
 
 const A = CRAFT_ARCHETYPES;
@@ -266,6 +268,96 @@ describe('every helicopter, finished and turning', () => {
       }
     }
     expect(gap).toBeGreaterThan(0.6);
+  });
+});
+
+describe('the looks and their kit: one airframe, civilian or military by its card', () => {
+  const LOOKS = Object.keys(HELI_LOOKS);
+  const odmOf = (it) => CRAFT_ODM[it.source.garage.sku];
+  // (the helicopter whose hull names the most stations: every card has kit to hang on it)
+  const stationsOf = (k) => Object.keys(CRAFT_ODM[A[k].layout[0].sku].build.kitAt || {});
+  const FULL = HELIS.slice().sort((a, b) => stationsOf(b).length - stationsOf(a).length)[0];
+  const ARMED = HELIS.find((k) => A[k].layout.some((e) => HELI_ARMS.includes(CRAFT_ODM[e.sku]?.build.family)));
+  it.each(LOOKS)('%s: the same airframe (its hull, rotors, tail and gear the stock parts), its kit hung at its stations, its audit clean', (look) => {
+    const stock = assembleCraft(FULL).manifest.items, { manifest, readout } = assembleCraft(FULL, { look });
+    expect(readout.audit.ok).toBe(true);
+    const frame = (items) => items.filter((i) => !/^kit_/.test(i.id)).map((i) => `${i.id}:${i.source.garage.sku}`);
+    expect(frame(manifest.items)).toEqual(frame(stock));
+    const hung = manifest.items.filter((i) => /^kit_/.test(i.id)).map((i) => i.id.replace(/^kit_/, '').replace(/-[rl]$/, ''));
+    const want = HELI_LOOKS[look].kit.map((k) => k.station).filter((st) => stationsOf(FULL).includes(st));
+    expect([...new Set(hung)].sort()).toEqual([...new Set(want)].sort());
+    for (const st of want) if (HELI_STATIONS[st].pair) expect(manifest.items.filter((i) => i.id.startsWith(`kit_${st}-`)).length, st).toBe(2);
+  });
+  it('a kit is hung only where the hull names its station; absent a look, none', () => {
+    for (const k of HELIS) for (const look of LOOKS) {
+      const { manifest } = assembleCraft(k, { look });
+      for (const it of manifest.items.filter((i) => /^kit_/.test(i.id))) expect(stationsOf(k), `${k} ${look} ${it.id}`).toContain(it.id.replace(/^kit_/, '').replace(/-[rl]$/, ''));
+    }
+    for (const k of HELIS) expect(assembleCraft(k).manifest.items.some((i) => /^kit_/.test(i.id))).toBe(false);
+  });
+  it('a civilian card strips the weapons and keeps their pylons; a military card keeps them', () => {
+    const arms = (look) => assembleCraft(ARMED, look ? { look } : {}).manifest.items.filter((i) => odmOf(i).kind === 'heli-kit' && HELI_ARMS.includes(odmOf(i).build.family));
+    const civil = LOOKS.find((l) => HELI_LOOKS[l].arms === false), mil = LOOKS.find((l) => HELI_LOOKS[l].arms === true);
+    expect(arms(civil)).toEqual([]);
+    expect(arms(mil).length).toBeGreaterThanOrEqual(arms().length);
+    const pylons = (look) => assembleCraft(ARMED, look ? { look } : {}).manifest.items.filter((i) => odmOf(i).kind === 'craft-pylon').length;
+    expect(pylons(civil)).toBe(pylons());
+    expect(assembleCraft(ARMED, { look: civil }).readout.audit.ok).toBe(true);
+  });
+  it('a kit is its family\'s row nearest the size its card asks for', () => {
+    const sized = LOOKS.flatMap((l) => HELI_LOOKS[l].kit.filter((k) => k.size !== undefined).map((k) => ({ l, k })));
+    expect(sized.length).toBeGreaterThan(0);
+    for (const { l, k } of sized) {
+      const it = assembleCraft(FULL, { look: l }).manifest.items.find((i) => i.id === `kit_${k.station}`), d = odmOf(it).dims;
+      const of = (r) => r.dims.height ?? r.dims.diameter ?? r.dims.length;
+      const best = Math.min(...Object.values(CRAFT_ODM).filter((r) => r.build.family === k.family && r.realm === 'earth').map((r) => Math.abs(of(r) - k.size)));
+      expect(Math.abs((d.height ?? d.diameter ?? d.length) - k.size)).toBeCloseTo(best, 6);
+    }
+  });
+  it('a card\'s palette and slots: civilian gloss paint, military matte; its livery unless one is named', () => {
+    const mat = (look) => new Set(craftForm(FULL, { look }).items.find((i) => i.id === 'hull').faces.map((f) => f.material));
+    const civil = LOOKS.find((l) => HELI_LOOKS[l].slots.airPaint), mil = LOOKS.find((l) => !HELI_LOOKS[l].slots.airPaint);
+    expect(mat(civil).has(HELI_LOOKS[civil].slots.airPaint)).toBe(true);
+    expect(mat(civil).has('airPaint')).toBe(false);
+    expect(mat(mil).has('airPaint')).toBe(true);
+    const albedo = (look) => craftForm(FULL, { look }).items.find((i) => i.id === 'hull').faces[0].albedo;
+    expect(albedo(civil)).not.toBe(albedo(mil));
+  });
+  it('a look is read in its craft\'s family: a helicopter\'s cards, a drone\'s; another family\'s word throws naming its own', () => {
+    expect(lookCard(LOOKS[0], 'heli')).toBe(HELI_LOOKS[LOOKS[0]]);
+    expect(() => lookCard(DRONE_LOOK_IDS.find((d) => !LOOKS.includes(d)), 'heli')).toThrow(/helicopter look/);
+    expect(() => assembleCraft(FULL, { look: DRONE_LOOK_IDS.find((d) => !LOOKS.includes(d)) })).toThrow(/helicopter look/);
+  });
+  it.each(LOOKS)('%s: within the budget, made, in camo and battered (×1.6)', (look) => {
+    const C = craftForm(FULL, { look, made: true, livery: 'wraparound', wear: 'battered' });
+    expect(C.items.flatMap((i) => i.faces).reduce((t, f) => t + f.corners.length - 2, 0)).toBeLessThan(80000 * 1.6);
+  });
+});
+
+describe('the looks\' kit', () => {
+  const kit = (fam) => { const sku = skuOf('heli-kit', fam); return { row: HELI_ODM[sku], src: resolveCraftPart(sku, { seat: 'mount' }) }; };
+  it('a door gun on its pintle: arm, post, receiver, barrel ahead, its box; its muzzle forward, out from its mount', () => {
+    const { src } = kit('doorGun'), got = ids(src);
+    for (const p of ['arm', 'post', 'receiver', 'ammo', 'barrel', 'muzzle', 'grips']) expect(got, p).toContain(p);
+    expect(src.garage.hardpoints.muzzle[0]).toBeGreaterThan(0);
+    expect(src.garage.hardpoints.muzzle[1]).toBeGreaterThan(0);
+  });
+  it('a wire cutter\'s toothed blade raked forward; a flare dispenser\'s cartridges in rows', () => {
+    const c = kit('cutter');
+    expect(ids(c.src)).toEqual(expect.arrayContaining(['blade', 'root']));
+    expect(c.src.extrudes.find((e) => e.id === 'blade').profile.points.length).toBeGreaterThan(6);
+    const f = kit('flares');
+    expect(ids(f.src).filter((i) => /^cartridge_/.test(i)).length).toBe(f.row.build.rows * f.row.build.cols);
+  });
+  it('a searchlight looking ahead through its lens; a hoist\'s cable down to its hook; floats along a skid', () => {
+    const s = kit('searchlight');
+    expect(ids(s.src)).toEqual(expect.arrayContaining(['lamp', 'lens', 'bezel', 'bracket', 'cheek_r', 'cheek_l']));
+    expect(s.src.lathes.find((l) => l.material === 'glass').id).toBe('lens');
+    const h = kit('hoist'), cable = h.src.sweeps.find((m) => m.id === 'cable').path;
+    expect(cable[1][2]).toBeCloseTo(-h.row.dims.drop, 2);
+    const fl = kit('floats'), pack = fl.src.lathes.find((l) => l.id === 'pack');
+    expect(pack.axisFrom.x).toBeCloseTo(fl.row.build.out, 3);
+    expect(pack.axisFrom.z).toBeCloseTo(-fl.row.build.drop, 3);
   });
 });
 

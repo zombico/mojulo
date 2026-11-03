@@ -148,7 +148,8 @@ function buildFuselage(row, C, opts = {}) {
     return r3v([xf * (st.w * W) / 2, -s * L, st.z * H - zMin + (zf < 0 ? zf * halfH * belly : zf * halfH)]);
   };
   const hardpoints = { mount: [0, 0, 0] };
-  for (const [name, spec] of Object.entries(b.points || {})) hardpoints[name] = point(spec);
+  // (its points, and `kitAt`: the stations where a look's kit hangs, heli-looks.js)
+  for (const [name, spec] of Object.entries({ ...b.points, ...b.kitAt })) hardpoints[name] = point(spec);
   // made: a fighter's cockpit under its canopy (air-kit-parts.js), built up from the hull's top and fitted to the
   // canopy's own section where each piece stands (its row, which the layout hands its hull)
   const made = [];

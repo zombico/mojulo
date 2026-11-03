@@ -23,6 +23,8 @@
  *     pylon's engines, neither a path of its own); no other pin moved. Then the attack helicopter re-pinned: its faceted
  *     tub carries its corners only (points between them lay on straight edges, and its concave caps dropped the
  *     slivers they made, leaving holes the deep sweep found).
+ *   - The helicopter looks: the looks' kit builder paths pinned; the attack and tandem helicopters re-pinned, their hulls
+ *     naming the stations a look's kit hangs at (`kitAt`, hardpoints only: no face moved); no other pin moved.
  */
 import { createHash } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
@@ -105,9 +107,16 @@ const PINS = {
   'rockets-heli-19': '4d85a3fa776b574e',
   'rack-heli-missiles': 'bbe4f2cd4e926027',
   'gun-heli-chin': 'e3325ac1fa00a443',
+  // the looks' kit (heli-looks.js hangs it at a hull's stations)
+  'gun-heli-door': 'd2b1955c83640d14',
+  'cutter-heli': '0e7a6b314d288d4f',
+  'flares-heli': 'cb1a65026a079a47',
+  'searchlight-heli': '18ff6fbca67706f6',
+  'hoist-heli': 'f241c3372dbf43dc',
+  'floats-heli-light': '42fc874354ac452c',
   'craft:lightSingle': 'cbbad5fe3c255c1d',
-  'craft:attackHeli': '6fd997f866eb5a48',
-  'craft:tandemHeli': 'c0d9f84060eca38f',
+  'craft:attackHeli': 'f2e6823a45263053',
+  'craft:tandemHeli': '7257d04fcdd7b3fd',
 };
 const CRAFTS = Object.keys(PINS).filter((k) => k.startsWith('craft:'));
 

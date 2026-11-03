@@ -19,6 +19,7 @@ import { planAssemblyBom } from '../vehicle-designer/assembly-bom.js';
 import { CRAFT_COLOR_ROLES, CRAFT_PALETTES, DEG, clone, resolveCraftPalette, round3 } from './craft-common.js';
 import { CRAFT_BUILDERS } from './craft-parts.js';
 import { lookCard, lookSwap } from './drone-looks.js';
+import { lookFamily, dressRow } from './heli-looks.js';
 import { CRAFT_KINDS, CRAFT_ODM, CRAFT_REALMS } from './craft-odm.js';
 import { CRAFT_ARCHETYPES, CRAFT_ROLES } from './craft-archetypes.js';
 
@@ -253,7 +254,8 @@ function toManifest(row, order, { pitch, lift, title }) {
 /**
  * An archetype → an assembler recipe of frozen craft parts, standing on its gear.
  * `swap: { <layout id>: <sku> }` puts another inventory part in a slot (audited, never refused).
- * `look` (a drone's: drone-looks.js) dresses it in that card's palette, swaps its payloads and sets its lights.
+ * `look` (a drone's: drone-looks.js; a helicopter's: heli-looks.js) dresses it in that card's palette, swaps its payloads
+ * and sets its lights; a helicopter's card hangs its kit at its hull's stations and strips its weapons when civilian.
  * `attitude: 'ground'` (default) rests the craft on all its gear, pitching a taildragger nose up;
  * `'level'` keeps the waterline level and rests it on its lowest contact. A craft with no gear
  * rests on its lowest point (a panel interceptor stands on its panels' lower corners). `fold` (0 … 1)
@@ -261,11 +263,14 @@ function toManifest(row, order, { pitch, lift, title }) {
  * Returns `{ manifest, readout }`: the readout measures the craft as built.
  */
 export function assembleCraft(archetype, { palette, colors = {}, swap: swapIn = {}, attitude = 'ground', fold, pose = {}, finish = true, title, made = false, look } = {}) {
-  const row = archetypeRow(archetype);
+  const stock = archetypeRow(archetype);
   let swap = swapIn;
-  const foldNow = Math.max(0, Math.min(1, Number.isFinite(fold) ? fold : (row.fold || 0)));
-  // (a drone asked for a look: that card's palette, its payloads' swaps under the operator's own, its lights)
-  const card = look ? lookCard(look) : null;
+  const foldNow = Math.max(0, Math.min(1, Number.isFinite(fold) ? fold : (stock.fold || 0)));
+  // (a craft asked for a look: that card's palette, its payloads' swaps under the operator's own, its lights; a
+  // helicopter's card hangs its kit at the hull's stations and strips its weapons when it is civilian)
+  const family = look ? lookFamily(stock, CRAFT_ODM) : null;
+  const card = look ? lookCard(look, family) : null;
+  const row = card && family === 'heli' ? dressRow(stock, card, CRAFT_ODM) : stock;
   if (card) swap = { ...lookSwap(row, card, CRAFT_ODM), ...swapIn };
   const { order, warnings: placing } = placeLayout(row, { palette: palette || card?.palette || row.palette, colors, swap, fold: foldNow, pose, finish, made, ...(card ? { lights: card.lights } : {}) });
   // gear fully up: the craft is in the air, so it does not stand on its wheels (it rests on its belly)
@@ -303,7 +308,7 @@ export function assembleCraft(archetype, { palette, colors = {}, swap: swapIn = 
       const w = rotX(pitch, [p.at[0] + c[0], p.at[1] + c[1], p.at[2] + c[2]]);
       return { id: p.id, contact: [round3(w[0]), round3(w[1]), round3(w[2] + lift)] };
     });
-  const readout = measureCraft(archetype, manifest, { pitch, swap });
+  const readout = measureCraft(archetype, manifest, { pitch, swap, ...(row !== stock ? { row } : {}) });
   if (placing.length) readout.audit = { ...readout.audit, ok: false, warnings: [...readout.audit.warnings, ...placing] };
   // every joint on the craft, by item: what a runtime drives (a fly rule's ailerons, a hangar's fold)
   const joints = manifest.items.flatMap((it) => (it.source.garage.joints || []).map((j) => ({
@@ -313,8 +318,7 @@ export function assembleCraft(archetype, { palette, colors = {}, swap: swapIn = 
 }
 
 /** What the assembled craft measures, weighs and pushes, beside its reference figure. */
-export function measureCraft(archetype, manifest, { pitch = 0, swap = {} } = {}) {
-  const row = archetypeRow(archetype);
+export function measureCraft(archetype, manifest, { pitch = 0, swap = {}, row = archetypeRow(archetype) } = {}) {
   const placements = resolveAssemblerPlacements(manifest);
   const min = [Infinity, Infinity, Infinity];
   const max = [-Infinity, -Infinity, -Infinity];
@@ -351,7 +355,7 @@ export function measureCraft(archetype, manifest, { pitch = 0, swap = {} } = {})
     partsMass: Math.round(mass),
     ...(thrust ? { thrust: r1(thrust), thrustToWeight: r1((thrust * 1000) / (row.reference.mtow * 9.80665)) } : {}),
     ...(power ? { power: Math.round(power), powerLoading: r1(power / row.reference.mtow) } : {}),
-    audit: planCraftBuild(archetype, { swap, placed: manifest.items.map((i) => i.source.garage) }),
+    audit: planCraftBuild(archetype, { swap, placed: manifest.items.map((i) => i.source.garage), row }),
   };
 }
 
@@ -361,8 +365,7 @@ export function measureCraft(archetype, manifest, { pitch = 0, swap = {} } = {})
  * its slot, a part from the other realm. `placed` (the garages of the parts actually built) counts what
  * `assembleCraft` placed; absent, the layout is counted as written.
  */
-export function planCraftBuild(archetype, { swap = {}, placed } = {}) {
-  const row = archetypeRow(archetype);
+export function planCraftBuild(archetype, { swap = {}, placed, row = archetypeRow(archetype) } = {}) {
   const parts = placed ? placed.map((g) => ({ garage: { kind: g.kind, family: g.sku } })) : [];
   const warnings = [];
   for (const entry of row.layout) {
