@@ -22,7 +22,8 @@ import { readScreen, screenPayload, screenFrame } from '@/lib/graph/game/screen'
 import { readRunner } from '@/lib/graph/worlds/controllable/runner';
 import { readDegree, breakablesOf, piecesOf } from '@/lib/graph/playscape/destruct/breakability';
 import { standBlocks } from '@/lib/graph/playscape/terrain';
-import { readMatterSpec, readTool, readScarsSpec } from '@/lib/graph/rupa/index.js';
+import { readMatterSpec, readTool, readScarsSpec, loadAudit } from '@/lib/graph/rupa/index.js';
+import { shellBlocks } from '@/lib/graph/rupa/shell-blocks.js';
 import { manifestGarment } from '@/lib/graph/polygonizer/figure-outfit';
 import { resolveMotionMovers } from '@/lib/graph/worlds/motion-vocabulary';
 import { resolveSignage } from '@/lib/signage-chrome';
@@ -505,14 +506,14 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
   // structures (fractal-structure/): towers grown from a plan, a rise, a crown and an echo, stood anywhere in any
   // world by a few words each. Their faces join here, before the material / AO / texture passes, so those passes see
   // them; their box colliders join an entity world's below. Opt-in; absent ⇒ byte-identical.
-  let structureColliders = [];
+  let structureColliders = [], structureRings = [];
   if (payload && sketch.manifest.structures !== undefined) {
     const { structureFaces, validateStructures } = await import('@/lib/graph/fractal-structure/index.js');
     const errs = validateStructures(sketch.manifest.structures);
     if (errs.length) throw new Error(`structures is invalid — see get_view_vocab({ id: 'structures' }):\n- ${errs.join('\n- ')}`);
     const S = structureFaces(sketch.manifest.structures, ctx.light ? { light: ctx.light } : {});
     payload.faces = [...(Array.isArray(payload.faces) ? payload.faces : []), ...S.faces];
-    structureColliders = S.colliders;
+    structureColliders = S.colliders; structureRings = S.rings;
   }
   // a geocube domain's structures (era/geocube.js geocubeStructures): its landmarks, painted from the cube and lit by its
   // key (unshaded, the view's light), standing on the domain's land
@@ -521,7 +522,7 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     const { structureFaces } = await import('@/lib/graph/fractal-structure/index.js');
     const S = structureFaces(domainStructures.list, { light: unshaded ? ctx.light : domainStructures.light });
     payload.faces = [...(Array.isArray(payload.faces) ? payload.faces : []), ...S.faces];
-    structureColliders = [...structureColliders, ...S.colliders];
+    structureColliders = [...structureColliders, ...S.colliders]; structureRings = [...structureRings, ...S.rings];
   }
 
   // science (science-worlds/setting.js): a science world stood in any world, a classical demo 1:1 or any other as a
@@ -866,8 +867,20 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     // 'none' ⇒ nothing breaks, byte-identical.
     const destruction = readDegree(sketch.manifest.destruction, 'destruction');
     // under `physical`, a world painted by a geocube breaks by the cube's matter (era/geocube.js cubeMatter: read off its skins)
-    const broken = breakablesOf(payload, destruction, destruction === 'physical' ? { matterOf: geocubeMatterOf(sketch.manifest) } : {});
-    if (broken && broken.breakables.length) { payload.faces = broken.faces; payload.colliders = broken.colliders; payload.breakables = broken.breakables; payload.breakPieces = piecesOf(broken.breakables, broken.faces); }
+    const cubeMatterOf = destruction === 'physical' ? geocubeMatterOf(sketch.manifest) : null;
+    const broken = breakablesOf(payload, destruction, destruction === 'physical' ? { matterOf: cubeMatterOf } : {});
+    // under `physical`, the big things too (rupa/shell-blocks.js): a structure's tiers in courses, its rings in wall-thick
+    // cells, a town's shell houses as walls and a roof, each on a footing; and the load at minute zero (rupa loadAudit)
+    const shells = destruction === 'physical'
+      ? shellBlocks({ faces: broken ? broken.faces : payload.faces, colliders: broken ? broken.colliders : payload.colliders }, { rings: structureRings, matterOf: cubeMatterOf })
+      : null;
+    if ((broken && broken.breakables.length) || shells) {
+      const faces = shells ? shells.faces : broken.faces, colliders = shells ? shells.colliders : broken.colliders;
+      const breakables = [...(broken ? broken.breakables : []), ...(shells ? shells.breakables : [])];
+      payload.faces = faces; payload.colliders = colliders; payload.breakables = breakables; payload.breakPieces = piecesOf(breakables, faces, shells ? { share: true } : {});
+      // (payload metadata, not drawn: what was built stands by itself, or what falls at once, is crushed, or sags)
+      if (destruction === 'physical') payload.rupaAudit = { ...loadAudit(breakables, { colliders }), ...(shells ? { shells: shells.groups } : {}) };
+    }
     // destructible physics (rupa/, `destruction: 'physical'`): the blocks carry their matter (breakablesOf), and the
     // level's `matter` says how hard the world's blows land ({ power?, swing?, shot?, blastZ? }); the page composes the
     // opt-in rupa builder. Any other degree ⇒ no key, byte-identical.

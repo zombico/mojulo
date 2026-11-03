@@ -26,13 +26,15 @@
  *                                `matterOf` (a world's cube's matter by role, era/geocube.js cubeMatter) gives a class
  *                                the role's matter (rupa/look-matter.js CLASS_ROLE: walls the wall's, set pieces the
  *                                accent's), so a wall breaks as what it looks made of.
- *   piecesOf(breakables, faces)  → { [id]: { fill, tex?, cuts, pieces } }: each breakable pre-cut once per cut it can take, for
+ *   piecesOf(breakables, faces, { share? }) → { [id]: { fill, tex?, cuts, pieces } }: each breakable pre-cut once per cut it can take, for
  *                                the page to swap in when it breaks. `cuts` maps how it broke (the runtime's `how`:
  *                                swing, shot, burst, fall, crush, call) to a cut's name (cuts.js cutOf: the thing's own
  *                                cut wins); `pieces[cut]` is { style, chunks: [{ at, faces: [{ pts, cut? }] }] }, each
  *                                chunk's corners about its own centre `at`. The box is what is cut (a barrel comes apart
  *                                as a box would; the flash covers the swap). Dismantle's sever has no pieces of its own
- *                                yet: it plays the chip.
+ *                                yet: it plays the chip. `share` (a world of many like blocks: a structure's courses):
+ *                                a block the size and cut of one already cut is { fill, tex?, like: <its id> } instead,
+ *                                and the page takes the first's pieces in its own colour.
  *
  * Pure: the payload is not changed; the caller takes the lists it returns.
  */
@@ -115,7 +117,7 @@ const HOW_SOURCE = Object.freeze({ swing: 'swing', shot: 'round', burst: 'burst'
 const r3 = (x) => Math.round(x * 1e3) / 1e3 + 0;
 const seedOf = (id) => { let h = 2166136261; for (let i = 0; i < id.length; i++) h = Math.imul(h ^ id.charCodeAt(i), 16777619); return h >>> 0; };
 
-export function piecesOf(breakables, faces = []) {
+export function piecesOf(breakables, faces = [], { share = false } = {}) {
   // a thing's colour: its faces' fills averaged (the baked light a textured skin multiplies its texture by); `tex` says
   // it is textured, so a page without the texture takes it darker
   const sums = new Map();
@@ -130,9 +132,13 @@ export function piecesOf(breakables, faces = []) {
     const s = sums.get(id); if (!s) return { fill: '#8a8070' };
     return { fill: '#' + s.rgb.map((x) => Math.round(x / s.n).toString(16).padStart(2, '0')).join(''), ...(s.tex * 2 > s.n ? { tex: true } : {}) };
   };
-  const out = {};
+  const out = {}, first = new Map();
   for (const b of breakables || []) {
     const c = b.min.map((x, i) => (x + b.max[i]) / 2), h = b.min.map((x, i) => (b.max[i] - x) / 2);
+    // (share: a block the size and cut of one already cut takes its pieces, `like` its id, in its own colour)
+    const key = share ? `${h.map((x) => Math.round(x * 1e3)).join(',')}|${typeof b.cut === 'string' ? b.cut : JSON.stringify(b.cut ?? null)}` : null;
+    if (key && first.has(key)) { out[b.id] = { ...fillOf(b.id), like: first.get(key) }; continue; }
+    if (key) first.set(key, b.id);
     const item = { blocks: [{ c, A: [1, 0, 0], B: [0, 1, 0], C: [0, 0, 1], h, value: 0.5 }], frame: { at: c, N: [0, -1, 0], U: [1, 0, 0] } };
     const cuts = {}, pieces = {};
     for (const how of Object.keys(HOW_SOURCE)) {

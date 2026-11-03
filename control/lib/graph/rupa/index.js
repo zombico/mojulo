@@ -17,6 +17,8 @@
  *   breaches(matter, box, joules, fill?) → { joules, capacity, breaks, left } does that blow break that block
  *   rupaPhysics           blastKg, blastJoules, faceArea, burstShare, blowJoules, loadPass, dentOf, dishOf, TOOLS, toolOf
  *                         (the page's own functions)
+ *   loadAudit(breakables, { colliders?, floor? }) → the load at minute zero: does what was built stand by itself
+ *                           ({ blocks, holds, loose, crush, span }; ids)
  *   TOOL_IDS, readTool(v, where) → a strike's `strikeTool` checked: a tool's name, or { is?, edge, stroke?, strength,
  *                           force?, contact? } (what a blow is struck with: controllable/rupa.js TOOL)
  */
@@ -119,4 +121,31 @@ export function readScarsSpec(v, { cube = null, where = 'scars' } = {}) {
     : { id: g.id, dig: g.toughness * 200, density: g.density, swell: 1.2, c: g.bond ?? g.tensile ?? 0, mu: 0.45, grain: 0.002, fines: 0.1, particle: g.density };
   const wall = { id: w.id, density: w.density, compressive: w.compressive, frac: w.frac, shape: w.shape, spread: w.spread, ...(w.yield > 0 ? { yield: w.yield } : {}) };
   return { ground, wall };
+}
+
+/**
+ * The load at minute zero: what a physical world's blocks do before anyone touches them, by the page's own laws. LOOSE:
+ * held by nothing (not the floor, not a fixed collider, not a block that is held, nor sideways where hung), so it falls
+ * at once; CRUSH: the weight on it past its strength; SPAN: a hung run its side bonds cannot carry. A world that holds
+ * has none: the gate advises and stamps, never refuses. `colliders` the world's (its blocks' own are left out).
+ */
+export function loadAudit(breakables, { colliders = [], floor = 0, touch = 0.02 } = {}) {
+  const live = (breakables || []).filter((b) => b && b.matter !== undefined && b.mass > 0);
+  const ids = new Set((breakables || []).map((b) => b.id));
+  const fixed = (colliders || []).filter((c) => c && !ids.has(c.of));
+  const boxes = live.map((b) => ({ min: b.min, max: b.max, mass: b.mass, compressive: b.compressive, lateral: b.bond === 'lateral', bond: b.cohesion, left: 1, id: b.id }));
+  const ovl = (a, b, k) => Math.min(a.max[k], b.max[k]) - Math.max(a.min[k], b.min[k]);
+  const restsOn = (a, s) => Math.abs(a.min[2] - s.max[2]) <= touch && ovl(a, s, 0) > 1e-3 && ovl(a, s, 1) > 1e-3;
+  const sideBy = (a, s) => ovl(a, s, 2) > 1e-3 && [0, 1].some((k) => ovl(a, s, 1 - k) > 1e-3 && (Math.abs(a.max[k] - s.min[k]) <= touch || Math.abs(s.max[k] - a.min[k]) <= touch));
+  // held: the page's settle, from the floor and the fixed colliders up
+  const held = new Set(boxes.filter((b) => b.min[2] <= floor + touch || fixed.some((c) => restsOn(b, c))));
+  const queue = [...held];
+  while (queue.length) {
+    const s = queue.pop();
+    for (const b of boxes) if (!held.has(b) && (restsOn(b, s) || (b.lateral && sideBy(b, s)))) { held.add(b); queue.push(b); }
+  }
+  const standing = boxes.filter((b) => held.has(b));
+  const L = rupaPhysics.loadPass(standing, { fixed, floor, touch });
+  const loose = boxes.filter((b) => !held.has(b)).map((b) => b.id), crush = L.crush.map((b) => b.id), span = L.span.flat().map((b) => b.id);
+  return { blocks: boxes.length, holds: !loose.length && !crush.length && !span.length, loose, crush, span };
 }

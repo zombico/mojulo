@@ -433,9 +433,39 @@ leaves out is read off its own look ([`look-matter.js`](../control/lib/graph/rup
 
 `cubeMatter(cube)` gives each role with its reason. `breakablesOf` hands a class the role's matter (walls and
 pilasters the wall's, set pieces and boulders the accent's, doors the wood's, lockers the metal's) and keeps the class's
-own fill, so a steel locker stays a steel shell; other props keep their class's matter. This is phase 1 of bringing rupa
-to the geocube. The way on: structures and settlement buildings as blocks, one wind for the flora, the ground grid from
-the substrate, the cube's water as the fluid layer, then the geocity's physical ring near the player.
+own fill, so a steel locker stays a steel shell; other props keep their class's matter.
+
+### Whole buildings
+
+Under `physical` the big things break too ([`shell-blocks.js`](../control/lib/graph/rupa/shell-blocks.js)), not only a
+level's walls and props:
+
+- **A fractal structure.** Its solid tiers, plinth steps and column shafts are cut into courses no wider or taller than
+  3 m (a sixth of a wider one), each flat on the course under it. Its hollow tiers and ring beam are filled from their
+  outlines with cells as wide as the wall, so neighbours share faces and hold each other; where two cells meet only at a
+  corner, the cell beside them bridges it. A ring beam is hung across its columns. A capital has faces but no collider,
+  so the shaft under it is raised to meet the beam, never by more than a third of its own height.
+- **A town's shell houses.** Each is wall panels, no wider or taller than 3 m, from its footing to its eave (the lowest
+  face that looks up above its first storey), and a roof on them up to the ridge. The walls take the cube's wall matter;
+  the roof takes the roof's, at a roof's fill (0.15: rafters and tiles, mostly air) unless the cube says otherwise.
+  Houses entered by a door, and walked-in buildings, keep their colliders for now.
+- **Footings.** A group on raised land stands on fixed footings under its lowest blocks, so it stands at minute zero
+  instead of dropping to the level's floor. A block with nothing at all under it, within a storey of its foot, reaches
+  down to the foot.
+- **Faces.** Every face goes with the block that holds its middle (else the nearest of its building), named by it and
+  drawn in its break group, so the page hides what broke.
+- **Pieces.** Blocks of one size and cut share one set of pre-cut pieces (`piecesOf(…, { share: true })`); the page
+  takes the first's in each block's own colour. An arena's pieces go from 1.7 MB to under 100 KB.
+
+**The load at minute zero** (`loadAudit`) runs the page's own settle and load pass on what was built: what falls at once
+(`loose`), what is crushed by what it carries (`crush`), and a hung run its bonds cannot carry (`span`). It stamps the
+world's payload (`rupaAudit`, with each building's block count); it advises and never refuses. Every structure preset
+stands. The load pass finds supports through a grid over the blocks' footprints, so its answers are the whole list's in
+the same order. A structure of a few hundred blocks steps in about a tenth of a millisecond at rest; a blast or a fall
+costs one settle, tens of milliseconds, so structures do not yet need to sleep.
+
+This is phase 2 of bringing rupa to the geocube. The way on: one wind for the flora, the ground grid from the substrate,
+the cube's water as the fluid layer, then the geocity's physical ring near the player.
 
 ## Where it plugs in
 
@@ -462,6 +492,7 @@ the substrate, the cube's water as the fluid layer, then the geocity's physical 
   breaks (it vanishes in its flash).
 - Ground on the page (a deformable floor and the shovel as an action; scars paint craters but the floor stays flat).
 - Scars on what is not a box (a minted solid, a tree), and marks that fade or are cleared.
-- City and structure buildings emitting courses, slabs and columns, so whole buildings take part.
+- City buildings, houses entered by a door and walked-in buildings as blocks (structures and shell houses are), and
+  the base settle on the grid (it searches every block when something falls).
 - Per-entity power (a hero's tier apart from the world's), and heat from beams and fire sources by element.
 - Engine export of breakables and their matter.

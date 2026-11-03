@@ -5,7 +5,8 @@
  * South Indian temple builders' (the turning square, the stellate plan, the stepped circle, the offset faces, the
  * parabolic curvature, the amalaka, the miniature spires), lifted off the temple to make a world's landmarks quickly.
  *
- *   structureFaces(list, { light }) → { faces, colliders, stats }   every structure in a world's `structures` list
+ *   structureFaces(list, { light }) → { faces, colliders, rings, stats }   every structure in a world's `structures` list
+ *                                   (rings: its annuli's outlines, faces.js grownRings)
  *   validateStructures(list)        → string[]                      the teaching errors, empty when all read
  *   readStructure(spec, at)         → the resolved words (read.js)
  *
@@ -13,7 +14,7 @@
  */
 import { readStructure, validateStructures } from './read.js';
 import { growStructure, MAX_FACES } from './grow.js';
-import { grownFaces, grownColliders } from './faces.js';
+import { grownFaces, grownColliders, grownRings } from './faces.js';
 import { makeLight } from '../polygonizer/vexar.js';
 
 // a high sun from the south-west with a soft fill opposite, so the shadowed faces of a fluted plan still read
@@ -25,14 +26,15 @@ export { PLAN_FORMS, planRing } from './plan.js';
 
 export function structureFaces(list, { light = STRUCTURE_LIGHT, maxFaces = MAX_FACES } = {}) {
   if (!Array.isArray(list)) throw new Error('structures: a list of { preset?, at: [x, y, z?], size?, … }');
-  const faces = [], colliders = [], stats = [];
+  const faces = [], colliders = [], rings = [], stats = [];
   list.forEach((spec, i) => {
     const S = readStructure(spec, `structures[${i}]`);
     const grown = growStructure(S, { maxFaces });
     const own = grownFaces(S, grown, light);
     for (const f of own) faces.push(f);
     for (const c of grownColliders(S, grown)) colliders.push(c);
+    for (const r of grownRings(S, grown)) rings.push(r);
     stats.push({ id: S.id, preset: S.preset, faces: own.length, stacks: grown.stacks.length, echo: { asked: grown.asked, grown: grown.depth, ...(grown.trimmed ? { trimmed: true } : {}) } });
   });
-  return { faces, colliders, stats };
+  return { faces, colliders, rings, stats };
 }

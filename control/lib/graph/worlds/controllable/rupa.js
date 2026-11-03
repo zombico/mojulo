@@ -315,27 +315,49 @@ export function buildRupa(E) {
 
   // LOAD over plain boxes { min, max, mass, compressive, bond, lateral?, left? } (lateral: it may be held sideways;
   // bond: the strength of its side bonds, Pa; left: the share of its joules a block has left)
+  // a grid over boxes' footprints: a box's neighbours are those sharing a cell with it (padded by `pad`), in the list's
+  // own order, so a search through it answers as the whole list would and a large structure stays quick; a box over
+  // more than GRID_MOST cells (a level's floor) is everyone's neighbour
+  const GRID_MOST = 4096;
+  function gridOf(list, cell = 2, pad = 0.05) {
+    const map = new Map(), wide = [];
+    const span = (b) => [Math.floor((b.min[0] - pad) / cell), Math.floor((b.max[0] + pad) / cell), Math.floor((b.min[1] - pad) / cell), Math.floor((b.max[1] + pad) / cell)];
+    list.forEach((b, n) => {
+      const [i0, i1, j0, j1] = span(b);
+      if ((i1 - i0 + 1) * (j1 - j0 + 1) > GRID_MOST) { wide.push(n); return; }
+      for (let i = i0; i <= i1; i++) for (let j = j0; j <= j1; j++) { const k = i + ',' + j, at = map.get(k); if (at) at.push(n); else map.set(k, [n]); }
+    });
+    return (b) => {
+      const [i0, i1, j0, j1] = span(b), seen = new Set(wide);
+      if ((i1 - i0 + 1) * (j1 - j0 + 1) > GRID_MOST) return list.slice();
+      for (let i = i0; i <= i1; i++) for (let j = j0; j <= j1; j++) { const at = map.get(i + ',' + j); if (at) for (const n of at) seen.add(n); }
+      return [...seen].sort((x, y) => x - y).map((n) => list[n]);
+    };
+  }
+
   function loadPass(blocks, { fixed = [], floor = 0, g = G, touch = 0.02 } = {}) {
     const onFloor = (b) => b.min[2] <= floor + touch;
     const below = new Map(), weight = new Map(), stress = new Map();
+    const nearBlock = gridOf(blocks, 2, touch + 0.01), nearFixed = gridOf(fixed, 2, touch + 0.01);
     for (const b of blocks) {
-      const sup = blocks.filter((s) => s !== b && restsOn(b, s, touch));
-      const fx = fixed.filter((s) => restsOn(b, s, touch));
+      const sup = nearBlock(b).filter((s) => s !== b && restsOn(b, s, touch));
+      const fx = nearFixed(b).filter((s) => restsOn(b, s, touch));
       below.set(b, { blocks: sup, fixed: fx, ground: onFloor(b) });
     }
     const rests = (b) => { const u = below.get(b); return u.ground || u.fixed.length > 0 || u.blocks.length > 0; };
     // the hung groups: blocks resting on nothing, joined sideways; their roots are the resting blocks they bond to
-    const hung = blocks.filter((b) => !rests(b) && b.lateral), seen = new Set(), groups = [];
+    const hung = blocks.filter((b) => !rests(b) && b.lateral), hungSet = new Set(hung), seen = new Set(), groups = [];
     for (const h of hung) {
       if (seen.has(h)) continue;
       const g0 = [h], q = [h]; seen.add(h);
       while (q.length) {
         const a = q.pop();
-        for (const s of hung) if (!seen.has(s) && sideFace(a, s, touch)) { seen.add(s); g0.push(s); q.push(s); }
+        for (const s of nearBlock(a)) if (!seen.has(s) && hungSet.has(s) && sideFace(a, s, touch)) { seen.add(s); g0.push(s); q.push(s); }
       }
       const roots = [];
-      for (const a of g0) for (const s of blocks) {
-        if (g0.includes(s) || !rests(s)) continue;
+      const inG = new Set(g0);
+      for (const a of g0) for (const s of nearBlock(a)) {
+        if (inG.has(s) || !rests(s)) continue;
         const f = sideFace(a, s, touch);
         if (f) roots.push({ block: a, root: s, ...f, bond: Math.min(a.bond, s.bond ?? a.bond) });
       }

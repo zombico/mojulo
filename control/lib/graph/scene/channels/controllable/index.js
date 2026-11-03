@@ -3671,7 +3671,9 @@ ${breakables ? `// breakability: a block that broke (the runtime's state.breaks)
 // how it broke) take its place, parting the cut's way (impact bursts from the blow, a blade slips the halves apart,
 // anime holds the beat first), falling, tumbling and settling on the floor it stood on, then sinking away. Seeded by
 // the break's seq and stepped on sim dt, so a capture stays byte-identical.
-const __breakPieces = ${safeJson(breakPieces || {})};
+const __breakPieces = ${safeJson(breakPieces || {})};${Object.values(breakPieces || {}).some((v) => v && v.like) ? `
+// blocks of one size and cut share their pieces (playscape/destruct/breakability.js piecesOf share): each takes the first's, in its own colour
+for (const k in __breakPieces) { const v = __breakPieces[k]; if (v.like) __breakPieces[k] = { ...__breakPieces[v.like], fill: v.fill, tex: v.tex }; }` : ''}
 const __pieces = [];
 let __breaksSeen = 0;
 const __PART = { impact: { speed: 3.2, up: 2.2, blow: 1.6, hold: 0 }, blade: { speed: 0.9, up: 0.6, blow: 0.9, hold: 0.06 }, laser: { speed: 0.3, up: 0.2, blow: 0.2, hold: 0.25 }, anime: { speed: 1.2, up: 0.5, blow: 0.7, hold: 0.42 } };
