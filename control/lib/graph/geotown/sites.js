@@ -25,6 +25,7 @@
  * door, chips, deck, canopy, slide, paving, lamp, flag, seat, glass. Pure: the dice are the caller's.
  */
 import { box } from './fronts.js';
+import { AWNING_CLEAR } from '../era/headroom.js';
 import { serviceOf } from './yards.js';
 
 export const SITE_TYPES = Object.freeze(['school', 'sports', 'park', 'square']);
@@ -359,8 +360,9 @@ export function cafeOf(u, v, hex = null) {
   const out = [];
   out.push(...post(u, v, 0, 0.72, 0.04, 'metal'), ...box(u - 0.38, v - 0.38, u + 0.38, v + 0.38, 0.72, 0.76, 'seat').slice(1));
   for (const s of [-1, 1]) { const cu = u + s * 0.75; out.push(...box(cu - 0.22, v - 0.22, cu + 0.22, v + 0.22, 0.44, 0.48, 'seat').slice(1), ...box(s > 0 ? cu + 0.18 : cu - 0.22, v - 0.22, s > 0 ? cu + 0.22 : cu - 0.18, v + 0.22, 0.48, 0.9, 'seat').slice(1)); }
-  out.push(...post(u, v, 0.76, 2.25, 0.025, 'metal'));
-  const r = 1.25, z = 2.25, top = 2.55;
+  // (its rim clears the base model by half a body, era/headroom.js)
+  const r = 1.25, z = AWNING_CLEAR, top = AWNING_CLEAR + 0.3;
+  out.push(...post(u, v, 0.76, z, 0.025, 'metal'));
   for (let k = 0; k < 8; k++) { const a = (k * Math.PI) / 4, b = ((k + 1) * Math.PI) / 4; out.push({ corners: [P(u, v, top), P(u + r * Math.cos(a), v + r * Math.sin(a), z), P(u + r * Math.cos(b), v + r * Math.sin(b), z)], out: [Math.cos((a + b) / 2) * 0.5, Math.sin((a + b) / 2) * 0.5, 0.85], role: 'canvas', ...(hex ? { hex } : {}) }); }
   return out;
 }

@@ -10,6 +10,9 @@
 
 import { scaleHex } from '../polygonizer/vexar.js';
 import { SM } from '../../util/math-scope.js';
+import { clearUnits } from '../era/headroom.js';
+// an awning's least foot in the city's units (fractal-city.js CITY_METERS_PER_UNIT, 3.66 m: a facade's floorH is in them)
+const AWNING_CLEAR_U = clearUnits(3.66);
 
 // glass family → [glass, mullion/spandrel]
 const FAMILIES = [
@@ -340,7 +343,9 @@ export function buildingExtras(box, f, floors, bays, { round = false } = {}) {
   // masonry cornice (capstone band wrapping the parapet)
   if (f.material === 'brick') out.boxes.push({ x: x - 0.12, y: y - 0.12, w: w + 0.24, d: d + 0.24, z0: z1 - 0.26, z1: z1 - 0.04, tint: scaleHex(f.frame, 0.92) });
   if (f.fireEscape) addFireEscape(out, x, y1, w, d, z0, z1, floors, bays);
-  if (f.awning) out.boxes.push({ x: x + w * 0.05, y: y1, w: w * 0.9, d: 0.55, z0: z0 + fh * 0.85, z1: z0 + fh * 0.92, tint: f.awningTint });
+  // (an awning's foot clears the base model by half a body, era/headroom.js, in the city's units: lifted where a
+  // storey is short)
+  if (f.awning) { const a0 = Math.max(fh * 0.85, AWNING_CLEAR_U); out.boxes.push({ x: x + w * 0.05, y: y1, w: w * 0.9, d: 0.55, z0: z0 + a0, z1: z0 + a0 + fh * 0.07, tint: f.awningTint }); }
   if (f.sign) { const sz0 = z0 + (floors - 1.7) * fh, sz1 = z0 + (floors - 0.7) * fh; out.decals.push({ x0: x + w * 0.14, x1: x + w * 0.86, z0: sz0, z1: sz1, fill: f.sign }); }
   if (f.storefront && !f.noEntrance) {
     const base = z0 + 0.05, top = z0 + Math.min(fh * 0.82, 1.25);
@@ -355,7 +360,8 @@ export function buildingExtras(box, f, floors, bays, { round = false } = {}) {
       out.decals.push({ x0, x1, z0: base, z1: top, fill: i === door ? '#18242e' : f.storefrontTint || '#243848' });
       out.decals.push({ x0: x0 + paneW * 0.47, x1: x0 + paneW * 0.53, z0: base, z1: top, fill: f.storefrontTrim || '#c9d3d7' });
     }
-    out.boxes.push({ x: x + w * 0.07, y: y1, w: w * 0.86, d: 0.34, z0: top, z1: signTop + 0.06, tint: f.awningTint || '#5a6068' });
+    // (the shopfront's canopy over its sign: its foot lifted to clear the base model, as an awning's)
+    { const c0 = Math.max(top, z0 + AWNING_CLEAR_U); out.boxes.push({ x: x + w * 0.07, y: y1, w: w * 0.86, d: 0.34, z0: c0, z1: Math.max(signTop + 0.06, c0 + 0.08), tint: f.awningTint || '#5a6068' }); }
   }
   // ground-floor entrance (on the +y face)
   if (!f.noEntrance && !f.storefront) {

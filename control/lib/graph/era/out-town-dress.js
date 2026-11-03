@@ -25,6 +25,9 @@ import { designFlora } from './out-flora.js';
 import { eyeSpot } from './out-structures.js';
 import { along, TOWN_CARD } from './out-town.js';
 import { build as EB } from './out-anchor-elements.js';
+import { AWNING_CLEAR } from './headroom.js';
+// a market stall's striped awning: its front edge clearing the base model by half a body (era/headroom.js), its back 0.4 m up
+const STALL = Object.freeze([AWNING_CLEAR, AWNING_CLEAR + 0.4]);
 
 function mulberry32(a) {
   return () => { a |= 0; a = (a + 0x6d2b79f5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
@@ -84,7 +87,7 @@ const BUILD = {
   lamps(o, ch, S) { EB.lamp(o, S.lamp, ch); },
   posts(o, ch, S) { EB.post(o, S.post, ch); },
   well(o, ch) { prism(o, [0, 0], 0.8, 0, 0.8, STONE, 0.6, 10, STONE, 0.03); prism(o, [0, 0], 0.62, 0.78, 0.81, STONE, 0.03, 10); for (const x of [-0.78, 0.7]) box(o, [x, -0.06, 0.8], [x + 0.08 * ch, 0.06, 2.1], TIMBER, 0.35); box(o, [-0.78, -0.03, 1.7], [0.78, 0.03, 1.76], TIMBER, 0.3); for (const s of [-1, 1]) face(o, [[-1.05, 0, 2.45], [1.05, 0, 2.45], [1.05, s * 0.75, 1.95], [-1.05, s * 0.75, 1.95]], [0, s, 0.6], TIMBER, 0.45); },
-  market(o, ch) { box(o, [-1.1, -0.4, 0], [1.1, 0.4, 0.9], TIMBER, 0.55); for (const [x, y] of [[-1.15, -0.95], [1.05, -0.95], [-1.15, 0.85], [1.05, 0.85]]) box(o, [x, y, 0], [x + 0.1, y + 0.1, y < 0 ? 2.05 : 2.4], TIMBER, 0.35); for (let k = 0; k < 6; k++) { const x0 = -1.3 + (2.6 * k) / 6, x1 = -1.3 + (2.6 * (k + 1)) / 6; face(o, [[x0, -1.15, 2.05], [x1, -1.15, 2.05], [x1, 1.0, 2.45], [x0, 1.0, 2.45]], [0, -0.2, 1], k % 2 ? CLOTH : PAINT, k % 2 ? 0.85 : 0.7); } box(o, [-0.9, -0.35, 0.9], [-0.2, 0.15, 1.1], BLOOM, 0.7); box(o, [0.1, -0.35, 0.9], [0.8, 0.15, 1.08], LEAF, 0.6); },
+  market(o, ch) { box(o, [-1.1, -0.4, 0], [1.1, 0.4, 0.9], TIMBER, 0.55); for (const [x, y] of [[-1.15, -0.95], [1.05, -0.95], [-1.15, 0.85], [1.05, 0.85]]) box(o, [x, y, 0], [x + 0.1, y + 0.1, y < 0 ? STALL[0] : STALL[1] - 0.05], TIMBER, 0.35); for (let k = 0; k < 6; k++) { const x0 = -1.3 + (2.6 * k) / 6, x1 = -1.3 + (2.6 * (k + 1)) / 6; face(o, [[x0, -1.15, STALL[0]], [x1, -1.15, STALL[0]], [x1, 1.0, STALL[1]], [x0, 1.0, STALL[1]]], [0, -0.2, 1], k % 2 ? CLOTH : PAINT, k % 2 ? 0.85 : 0.7); } box(o, [-0.9, -0.35, 0.9], [-0.2, 0.15, 1.1], BLOOM, 0.7); box(o, [0.1, -0.35, 0.9], [0.8, 0.15, 1.08], LEAF, 0.6); },
   benches(o, ch) { box(o, [-0.8, -0.22, 0.42], [0.8, 0.22, 0.5], TIMBER, 0.6); for (const x of [-0.72, 0.62]) box(o, [x, -0.2, 0], [x + 0.1, 0.2, 0.42], TIMBER, 0.35); box(o, [-0.8, 0.18, 0.5], [0.8, 0.24, 0.9], TIMBER, 0.55); },
   carts(o, ch) { box(o, [-0.55, -1, 0.6], [0.55, 1, 0.68], TIMBER, 0.55); for (const x of [-0.55, 0.49]) box(o, [x, -1, 0.68], [x + 0.06, 1, 0.98], TIMBER, 0.45); box(o, [-0.55, 0.94, 0.68], [0.55, 1, 0.98], TIMBER, 0.45); for (const x of [-0.66, 0.66]) { const P = (k) => [x, 0.45 * Math.cos((k * Math.PI) / 4), 0.45 + 0.45 * Math.sin((k * Math.PI) / 4)]; face(o, Array.from({ length: 8 }, (_, k) => P(k)), [Math.sign(x), 0, 0], TIMBER, 0.3); } for (const x of [-0.4, 0.34]) box(o, [x, -2.3, 0], [x + 0.06, -1, 0.62], TIMBER, 0.4); },
   barrels(o, ch) { prism(o, [-0.35, 0], 0.3, 0, 0.85, TIMBER, 0.45); prism(o, [0.32, 0.05], 0.3, 0, 0.85, TIMBER, 0.5); box(o, [-0.05, -0.75, 0], [0.55, -0.2, 0.55], TIMBER, 0.65); },
