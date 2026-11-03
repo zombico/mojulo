@@ -18,13 +18,11 @@
  * read. Errors teach: unknown kind → the kind list; a failed mint → a pointer
  * at the kind's card.
  *
- * The retired names (`create_figure`, `create_manji_tree`, `sketch_polygomer`,
- * `emote_figure`, `get_skin_packet`, `skin_polygomer`, …) remain callable as
- * UNLISTED aliases (listed:false — resolve in tools/call, absent from
- * tools/list), so compiled plans / skills that persisted them keep executing.
- * Drop after one release. Stored manifests and the render path are untouched —
- * each family file keeps its mint + handler; only its registerTool block
- * retired. See mint-solid-consolidation.plan.md.
+ * The per-kind names these doors replaced (`create_figure`, `create_manji_tree`,
+ * `sketch_polygomer`, `emote_figure`, `get_skin_packet`, `skin_polygomer`, …)
+ * were callable as unlisted aliases from 1.1.0 and are gone; a stored plan that
+ * names one compiles back to a draft that says so. Stored manifests and the
+ * render path are untouched: each family file keeps its mint + handler.
  */
 
 import { listingRows, DETAIL_PROPERTY } from '@/lib/mcp/vocab-listing';
@@ -132,28 +130,6 @@ export const EDIT_OPS = {
 };
 
 const OP_LIST = Object.keys(EDIT_OPS);
-
-// Flat list of every retired tool name → its original handler and the consolidated
-// tool it folded into, for the listed:false alias loop. These keep persisted
-// plans/skills executing; the target also lends the alias its annotations.
-const RETIRED_ALIASES = [
-  ['create_figure', createFigureHandler, 'mint_solid'],
-  ['emote_figure', emoteFigureHandler, 'edit_solid'],
-  ['create_manji_tree', createManjiTreeHandler, 'mint_solid'],
-  ['sketch_polygomer', sketchPolygomerHandler, 'mint_solid'],
-  ['create_polygonized_sketch', createPolygonizedSketchHandler, 'mint_solid',
-    "Deprecated alias of mint_solid via:'prompt'. Sends the prompt to an external LLM API with the user's key; `provider` is required. Key-free: via:'packet'."],
-  ['get_polygonizer_packet', getPolygonizerPacketHandler, 'mint_solid'],
-  ['submit_polygonizer_manifest', submitPolygonizerManifestHandler, 'mint_solid'],
-  ['create_workbench', createWorkbenchHandler, 'mint_solid'],
-  ['create_assembler', createAssemblerHandler, 'mint_solid'],
-  ['create_carved_solid', createCarvedSolidHandler, 'mint_solid'],
-  ['create_solid_turntable', createSolidTurntableHandler, 'mint_solid'],
-  ['create_edifice', createEdificeHandler, 'mint_solid'],
-  ['preview_vehicle_instance', previewVehicleInstanceHandler, 'mint_solid'],
-  ['get_skin_packet', getSkinPacketHandler, 'edit_solid'],
-  ['skin_polygomer', skinPolygomerHandler, 'edit_solid'],
-];
 
 function mergeTop(spec, { title, ref, folderRef }) {
   const merged = { ...(spec && typeof spec === 'object' ? spec : {}) };
@@ -363,17 +339,4 @@ export function registerMintSolidTools() {
     },
     handler: getSolidVocabHandler,
   });
-
-  // Deprecated per-type creators/verbs — resolve in tools/call, hidden from
-  // tools/list. Each forwards to its original handler unchanged.
-  for (const [name, handler, aliasOf, note] of RETIRED_ALIASES) {
-    registerTool({
-      name,
-      listed: false,
-      aliasOf,
-      description: note || `Deprecated alias — folded into mint_solid / edit_solid. See get_solid_vocab.`,
-      inputSchema: { type: 'object', properties: {}, required: [] },
-      handler,
-    });
-  }
 }

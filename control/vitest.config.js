@@ -12,6 +12,7 @@ const here = dirname(fileURLToPath(import.meta.url));
 // leg of the matrix. Listed here so both configs read one list; the e2e config re-exports it.
 // A list, not a suffix: a rename would collide with every branch still editing these files.
 export const E2E = [
+  'lib/graph/gameworld/door-probes.e2e.test.js',
   'lib/mcp/tools/gameworld-city.test.js',
   'lib/mcp/tools/building-level.test.js',
   'lib/mcp/tools/design-game.test.js',
@@ -20,7 +21,9 @@ export const E2E = [
   'lib/graph/gameworld/feel/hero-juice.live.test.js',
   'lib/graph/car-designer/form-render.live.test.js',
   'lib/mcp/tools/export-model.realistic.test.js',
+  'lib/mcp/tools/export-model.persona.test.js',
   'lib/mcp/tools/export-model.beast.test.js',
+  'lib/mcp/tools/export-model.anime.test.js',
   'lib/graph/board/board-page.live.test.js',
   'lib/graph/contest/meet-page.live.test.js',
   'lib/graph/contest/court-page.live.test.js',
@@ -44,6 +47,7 @@ export const E2E = [
   'lib/graph/science-worlds/classical/conformance.chrome.test.js',
   'lib/mcp/tools/science-setting.test.js',
   'lib/graph/scene/live-light.chrome.test.js',
+  'lib/graph/scene/visual-gate.chrome.test.js',
 ];
 
 // What no tier but its own runs (the e2e config takes this, less the e2e suites themselves).
@@ -63,9 +67,6 @@ export const EXCLUDE = [
   // and only say something when the module they sweep changed. `npm run test:deep` runs them all;
   // `npm run test:deep:changed` runs only those whose imports touch a changed file; CI runs them all.
   '**/*.deep.test.js',
-  // The Godot tier's matrix (`npm run test:godot`, vitest.godot.config.js): every cosmos fixture made into a game,
-  // exported and played in both engines. Minutes, and only with MOJULO_GODOT.
-  '**/*.godot.test.js',
 ];
 
 export default defineConfig({

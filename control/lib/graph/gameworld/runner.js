@@ -24,6 +24,8 @@
  *
  * Every run of the same world and the same store decides the same: no dice, no clock.
  */
+import { railOfWord, gameBody, lowerBody, bookRail, bodyWords } from './game-bodies.js';
+import { egocubeCreate, rollStored } from '../egocube/kind.js';
 import { readScreen } from '../game/screen.js';
 import { fingerprint, reviewState } from './review.js';
 import { readGameworld } from './world.js';
@@ -52,6 +54,9 @@ import { REACT_MOTION, reactStatesOf, beastMovesOf } from '../egocube/moves.js';
 import { beastLook } from './stage-figures.js';
 import { fieldedIds, bestiaryOf, foeLook, foePlacements, hostileCast, withFoeHits, withFoeWin, peopleRollOf, isPeople, isModel, isDressed, dressOf } from './foes.js';
 import { rideBuild, rideRule } from './ride.js';
+import { rideOf, loftCamera } from '../vehicle-registry/ride.js';
+import { vehicleRule, VEHICLES as PHYSICS } from '../roads/vehicles.js';
+import { FLEET } from '../roads/fleet.js';
 import { rollMascot } from '../egocube/mascot.js';
 import { mascotPlanFromSheet } from '../egocube/mascot-form.js';
 import { mascotKit } from '../sportswear/mascot-kit.js';
@@ -66,6 +71,18 @@ import { gameTheme } from '../color-theorist/adapters.js';
 
 const REF_MAX = 64;
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
+/** the rolled figures a quick game's body rail dresses as its henchmen (cast-setting.js QUICK_FIGURES) */
+const HENCH_FIGURES = new Set(['foe', 'gunner', 'tower', 'guard']);
+/** The henchman's words over a people foe's sheet (its person on the hero door, rolled as the sheet step will roll it):
+ * what the rail changes, or null (a beast-kin or a mascot the sheet makes, or nothing changed). */
+function henchOverSheet(manifest, R, setting, G) {
+  const C = egocubeCreate(rollStored(manifest));
+  if (C.create.as !== 'hero') return null;
+  const base = C.create.spec, pole = typeof base.cast === 'string' ? base.cast : base.cast?.pole ?? 'male';
+  const B = gameBody(R.rail, 'henchman', { tradition: setting.tradition, look: isObj(G.juice) ? G.juice.look ?? null : null, pixel: !!G.style?.pixel, pole, ...(R.style ? { style: R.style } : {}), ...(R.muscle !== undefined ? { muscle: R.muscle } : {}) });
+  const words = bodyWords(base, lowerBody(base, B));
+  return Object.keys(words).length ? words : null;
+}
 
 /** The character light in an order's print. Named `light` where an order carries one: the door now receives it (it
  * was dropped before), so the print of such an order moves and a run remakes the hero once, with its light. An order
@@ -86,8 +103,18 @@ const paletteTheme = (G) => (G.style?.palette ? gameTheme(solvePalette(G.style.p
  * `allow_unaudited` stays on beside `auto_audit`: with no browser installed the audit is skipped (never downloaded
  * for), and a walk that does not prove a level stamps it rather than refusing the game (create-game.js mintGame).
  * (The flag moves the game order's print, so a game made before it is remade once on the next run, as it was.) */
-const PROVABLE = new Set(['reach-exit', 'survive']);
+// (an escape room's audit is a walk too: by its keys, then its locks, to its way out: game/escape-room.js)
+const PROVABLE = new Set(['reach-exit', 'survive', 'escape-room']);
 const provable = (order) => { const k = (order?.manifest?.game?.mechanics ?? []).map((m) => m?.kind); return k.length > 0 && k.every((x) => PROVABLE.has(x)); };
+// a realistic loft ridden (vehicle-registry/ride.js): its figure compiled by the world in place, in the form render (its
+// materials lit by the page: car-designer/road-form.js), on its class's own physics (roads/vehicles.js; quick.vehicle,
+// tuning and conditions still read as the ride's), chased at its length
+function loftRide(Q, rode, seed) {
+  const dims = FLEET[rode.class] ?? PHYSICS[rode.class];
+  // (a field vehicle's livery as the world wrote it: its setting's camo, stamped at mint, or the operator's; its wear)
+  return { figure: { loft: { class: rode.class, seed, light: 'form', ...(Q.livery !== undefined ? { livery: Q.livery } : {}), ...(Q.wear !== undefined ? { wear: Q.wear } : {}) } }, rule: quickRideRule(Q, vehicleRule(rode.class)), camera: loftCamera(dims) };
+}
+
 export function auditOrder(steps, stages) {
   const levels = steps.filter((s) => s.key.startsWith('level-'));
   return levels.length && stages.every((s) => !s.building?.ref) && levels.every((s) => provable(s.order)) ? { auto_audit: true } : {};
@@ -393,7 +420,7 @@ function goalArgs(G, s, lastOf, ref) {
  * and the refs each stage's foes stand on. */
 const foeSteps = (G, ref, ready) => {
   // (its coat in the world's colours too, where the world has ramps: a foe belongs to its world's palette)
-  const setting = settingOfGame(G), coat = setting.ramps?.length ? { coat: 'world' } : {};
+  const setting = settingOfGame(G), coat = setting.ramps?.length ? { coat: 'world' } : {}, hench = bookRail(G);
   return fieldedIds(G).flatMap((id) => {
     const entry = bestiaryOf(G)[id], title = `${G.name ?? G.id} ${id}`;
     // (a model made elsewhere is made by no step: it stands on the sketch its model is bound onto)
@@ -408,9 +435,12 @@ const foeSteps = (G, ref, ready) => {
     // a person or a people (foes/people.js): its sheet rolled in the game's setting, then the character the loop makes
     // from it through its own door, its moves on it (a fighter's two steps: the sheet, then the character)
     const roll = peopleRollOf(G, id, entry), manifest = { kind: 'egocube', roll, moves: true }, sheetRef = childRef(ref, `foes-${id}-sheet`);
+    // (the body its game puts in its henchmen, where the book names one (game-bodies.js): the words it changes over the
+    // sheet's person, laid over it when the character is made; a book that names none makes it as before)
+    const words = hench ? henchOverSheet(manifest, hench, setting, G) : null;
     return [
       { key: `foes-${id}-sheet`, ref: sheetRef, ...ready, order: { title: `${title} (sheet)`, manifest }, print: fingerprint(manifest) },
-      { key: `foes-${id}`, ref: childRef(ref, `foes-${id}`), ...ready, order: { egocube: sheetRef, title }, print: fingerprint({ roll, moves: true }) },
+      { key: `foes-${id}`, ref: childRef(ref, `foes-${id}`), ...ready, order: { egocube: sheetRef, title, ...(words ? { spec: words } : {}) }, print: fingerprint({ roll, moves: true, ...(words ? { spec: words } : {}) }) },
     ];
   });
 };
@@ -673,6 +703,11 @@ function quickSteps(world, G, ref, lookup) {
   const adopted = isObj(Q.hero) && typeof Q.hero.ref === 'string' ? Q.hero.ref : null;
   const heroRef = adopted ?? (Q.hero ? childRef(ref, 'hero') : null);
   const setting = settingOfGame(G, Q);
+  // the body the game puts in its people (game-bodies.js, quick.body): the rail's hero under the hero spec's own words,
+  // its henchman under each foe, guard, gunner and tower rolled; absent, every figure as before
+  const bodyRail = railOfWord(Q.body, { goal: Q.goal, feel: typeof G.feel === 'string' ? G.feel : G.feel?.pole ?? null });
+  const bodyOf = (role, spec) => (bodyRail ? lowerBody(spec, gameBody(bodyRail.rail, role, { tradition: setting.tradition, look: isObj(G.juice) ? G.juice.look ?? null : null, pixel: !!G.style?.pixel, pole: typeof spec?.cast === 'string' ? spec.cast : spec?.cast?.pole ?? 'male', ...(bodyRail.style ? { style: bodyRail.style } : {}), ...(bodyRail.muscle !== undefined ? { muscle: bodyRail.muscle } : {}) })) : spec);
+  const quickHero = isObj(Q.hero) && Q.hero.ref === undefined && Q.hero.mascot === undefined ? bodyOf('hero', Q.hero) : Q.hero;
   // a MASCOT on foot (egocube/mascot-pilot.js): rolled from its words in the game's setting (its tradition its style),
   // minted through the creature door as create_character { as: 'mascot' } mints one, and piloted by its own body
   let pilot = adopted && isMascotPlan(lookup?.head?.plan) ? mascotPilot(lookup.head.plan) : null;
@@ -685,14 +720,16 @@ function quickSteps(world, G, ref, lookup) {
     steps.push({ key: 'hero', ref: heroRef, ready: true, order: { mascot: words, mint, motion: null }, print: fingerprint({ mascot: mint.spec }) });
     pilot = mascotPilot(P.create.spec.plan);
   } else if (Q.hero) {
-    const spec = withReact(!!G.moves, playJog(Q.hero)), mint = { kind: 'layered', via: 'hero', title: `${G.name ?? G.id} hero`, spec, ...(Q.hero.head === 'anime' ? { toon: { light: true } } : {}) };
+    const spec = withReact(!!G.moves, playJog(quickHero)), mint = { kind: 'layered', via: 'hero', title: `${G.name ?? G.id} hero`, spec, ...(quickHero.head === 'anime' ? { toon: { light: true } } : {}) };
     steps.push({ key: 'hero', ref: heroRef, ready: true, order: { spec, mint, motion: null }, print: fingerprint({ spec, ...lit(mint.toon) }) });
   }
-  const heroGaits = pilot ? null : gaitsOf(adopted ? lookup?.heroSpec : Q.hero ? playJog(Q.hero) : null);
-  // a ride (ride.js): the vehicle's build, minted as its own sketch; every stage drives it
-  const rideRef = Q.ride ? childRef(ref, 'ride') : null;
+  const heroGaits = pilot ? null : gaitsOf(adopted ? lookup?.heroSpec : Q.hero ? playJog(quickHero) : null);
+  // a ride (ride.js): the vehicle's build at the game's tier (vehicle-registry/ride.js): an assembled ride minted as its
+  // own sketch, or a realistic loft the world compiles in place (nothing to mint); every stage drives it
+  const rode = Q.ride ? rideOf(Q) : null;
+  const rideRef = rode?.kind === 'assembly' ? childRef(ref, 'ride') : null;
   if (rideRef) {
-    const seed = Number.isInteger(G.seed) ? G.seed : 1, build = rideBuild(Q.ride, seed);
+    const seed = Number.isInteger(G.seed) ? G.seed : 1, build = rideBuild(rode.ride, seed);
     steps.push({ key: 'ride', ref: rideRef, ready: true, order: { title: build.title, manifest: build }, print: fingerprint({ ride: Q.ride, seed }) });
   }
   // a field of racers (quick.racers): solved here, each a recipe its figure resolves through (nothing to mint); yours first
@@ -703,7 +740,8 @@ function quickSteps(world, G, ref, lookup) {
   // a transformer (quick.transformer): its figure resolves through its recipe (nothing to mint), its forms the rules it
   // plays (a flier's vehicle form is the airspace seat's, levels.js)
   const ride = Q.transformer ? quickTransformer(Q)
-    : rideRef ? { ref: rideRef, rule: quickRideRule(Q, rideRule(Q.ride, Number.isInteger(G.seed) ? G.seed : 1)) }
+    : rideRef ? { ref: rideRef, rule: quickRideRule(Q, rideRule(rode.ride, Number.isInteger(G.seed) ? G.seed : 1)) }
+    : rode?.kind === 'loft' ? loftRide(Q, rode, Number.isInteger(G.seed) ? G.seed : 1)
     : racers ? { racer: racers.field[0].spec, rule: racers.field[0].rule, field: racers.field }
     : supercars ? { figure: supercars.field[0].figure, rule: supercars.field[0].rule, field: supercars.field } : null;
   // (the field's balance as a level law, in the concerns' shape: advice in the run's readout, never a refusal)
@@ -725,7 +763,9 @@ function quickSteps(world, G, ref, lookup) {
     const refs = [];
     let first = null;
     for (let i = 0; i < Math.max(1, Math.min(CAST_POOL, n)); i++) {
-      const k = i ? `${key}-${i + 1}` : key, F = quickFigure(G, Q, as, setting, { variant: i, ...(rank && first ? { uniform: first.spec } : {}) });
+      const k = i ? `${key}-${i + 1}` : key, F0 = quickFigure(G, Q, as, setting, { variant: i, ...(rank && first ? { uniform: first.spec } : {}) });
+      // (a figure the game fights or is watched by takes the rail's henchman; a farmhand or an athlete stands as rolled)
+      const F = bodyRail && HENCH_FIGURES.has(as) ? { ...F0, spec: bodyOf('henchman', F0.spec) } : F0;
       first ??= F;
       refs.push(childRef(ref, k));
       steps.push({ ...stepOf(k, F), ref: refs[i] });

@@ -2,7 +2,7 @@
 {
   "id": "reconstruct-from-dream",
   "name": "Reconstruct a dreamed object as a 3D assembly, segment by segment",
-  "summary": "Use an image worker as the model's EYES: dream a complex real object in a flat, decomposable register, then rebuild it SEGMENT BY SEGMENT in the buildable monomer vocabulary (lathe / extrude / sweep / manji — everything that lowers to three.js faces). Simple targets fit one workbench; complex targets (a drafting lamp, a bicycle, an espresso machine, a typewriter) get per-segment dreams + per-segment workbench sketches iterated in isolation, composed with create_assembler, optionally finished with a skin bake. The dream images are discarded on lock; only the recipe persists, and it lowers to /world + .glb for free.",
+  "summary": "Use an image worker as the model's EYES: dream a complex real object in a flat, decomposable register, then rebuild it SEGMENT BY SEGMENT in the buildable monomer vocabulary (lathe / extrude / sweep / manji — everything that lowers to three.js faces). Simple targets fit one workbench; complex targets (a drafting lamp, a bicycle, an espresso machine, a typewriter) get per-segment dreams + per-segment workbench sketches iterated in isolation, composed with mint_solid kind assembler, optionally finished with a skin bake. The dream images are discarded on lock; only the recipe persists, and it lowers to /world + .glb for free.",
   "valueHook": "Point the dream loop at a complex real object — dream it, decompose it along its natural seams, rebuild each segment as a workbench part, and assemble a real 3D model that drops straight into a world.",
   "version": 3,
   "category": "substrate",
@@ -17,7 +17,7 @@
       "description": "The 3D object to reconstruct, in words (e.g. 'a three-legged bar stool', 'a drafting lamp', 'a bicycle', 'an espresso machine'). Best on part-decomposable objects — furniture, vessels, lamps, tools, machines, props, vehicles. Omit to ask the operator."
     }
   ],
-  "mcpTools": { "mojulo": ["create_sketch", "get_image_render_packet", "bind_image_render", "create_workbench", "create_assembler", "get_skin_packet", "skin_polygomer", "semantic_search"] }
+  "mcpTools": { "mojulo": ["create_sketch", "get_image_render_packet", "bind_image_render", "mint_solid", "edit_solid", "semantic_search"] }
 }
 ---
 
@@ -82,13 +82,13 @@ Drawing the sheets needs an image worker (same ladder as
 ## Route by complexity — decide BEFORE you build
 
 - **Simple target** (≲10 parts, one visual mass — a stool, a chalice, a table
-  lamp): ONE `create_workbench` with relational `assembly.parts`. Run the loop
+  lamp): ONE workbench (`mint_solid` kind `workbench`) with relational `assembly.parts`. Run the loop
   below with a single dream of the whole.
 - **Complex target** (distinct sub-assemblies with natural seams — a drafting
   lamp, a bicycle, an espresso machine, a typewriter, a clock): go
   **SEGMENT-FIRST**. Lock an identity, dream + build each segment as its OWN
   workbench sketch judged in isolation, then compose the frozen parts with
-  `create_assembler`. This is the proven mobile-suit method aimed at the
+  `mint_solid` kind `assembler`. This is the proven mobile-suit method aimed at the
   object register; don't one-shot a complex whole — the whole-body blockout
   was the proven failure mode.
 
@@ -132,10 +132,10 @@ Drawing the sheets needs an image worker (same ladder as
             compose the remainder. Arrayed repeats → radial/mirror; profile
             detail → harmonics.
 
-5. BUILD    Per segment: create_workbench({ assembly: { parts: [
+5. BUILD    Per segment: mint_solid({ kind:'workbench', spec:{ assembly: { parts: [
               { kind:'lathe'|'extrude', height, profile|rect|points,
                 id?, on?, gap?, offset?, radial?, mirror?, harmonics?,
-                tint?, material? }, … ] }, sweeps: [ … ] })
+                tint?, material? }, … ] }, sweeps: [ … ] } })
             assembly.parts are lathe|extrude only (declare size + connection,
             not coordinates); SWEEPS (handles, rails, arms — intrinsically a
             curve) go in the explicit `sweeps` array and merge with the
@@ -143,9 +143,9 @@ Drawing the sheets needs an image worker (same ladder as
             seat it with an explicit `gap` above its support and note that
             it's a mugen approximation.
 
-6. COMPOSE  (complex targets) create_assembler({ items: [ { source:{ref},
+6. COMPOSE  (complex targets) mint_solid({ kind:'assembler', spec:{ items: [ { source:{ref},
             id?, on?/'ground', gap?, at?, rotate?, flip?, scale?,
-            repeat?:{count, step} }, … ] }) — sources are FROZEN at import.
+            repeat?:{count, step} }, … ] } }) — sources are FROZEN at import.
             GRAVITY SEATING (on/gap) is standard; absolute `at` z is the
             superposition fallback for bridging parts (a bed between wheels).
             `repeat` arrays one part; `flip` mirrors it.
@@ -172,7 +172,7 @@ Drawing the sheets needs an image worker (same ladder as
 
 11. SKIN (optional)  Fine finish the geometry can't carry — labels, dials,
             wood grain, panel seams, grime — via the skin seam:
-            get_skin_packet → paint → skin_polygomer (works on workbench AND
+            edit_solid op `skin` (`spec.phase:'packet'` → paint → the PNG back; works on workbench AND
             assembler units). Single-view limitation: front/¾ strong,
             side/back weak — note it on the artifact so "turnable" isn't
             oversold.

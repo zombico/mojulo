@@ -148,7 +148,7 @@ window.__mojSeatRings = () => Object.keys(__seatRing).map((n) => ({ n: +n, color
 `;
 }
 
-export function controllableChannelScript(entities, camera, figures, { exposeBodies = false, pilot = null, spectate = null, ai = null, colliders = null, breakables = null, breakPieces = null, hangar = null, match = null, shadows = null, smoke = null, wreckExplodes = null, tutorial = null, aiDifficulty = null, lock = null, commander = null, key = null, toonInk = null, driveSurface = null, touch = false, runner = null, gearGranted = false, seats = null, formSun = null } = {}) {
+export function controllableChannelScript(entities, camera, figures, { exposeBodies = false, pilot = null, spectate = null, ai = null, colliders = null, breakables = null, breakPieces = null, hangar = null, match = null, shadows = null, smoke = null, wreckExplodes = null, tutorial = null, aiDifficulty = null, lock = null, commander = null, key = null, toonInk = null, driveSurface = null, touch = false, runner = null, gearGranted = false, seats = null, formSun = null, tempo = null } = {}) {
   // per-vertex specular (material-response): inject the aSpec wiring into the rig-figure
   // builder ONLY when some packed figure carries a spec buffer (a material-finished suit).
   // Absent → the emitted controllable channel is byte-identical (the char-net pin holds),
@@ -554,8 +554,8 @@ window.__mojCommanderPorts = __mojCmd;   // headless verification: ports + curre
 })();
 ` : '';
   return `
-const __CW = ${emissionSource({ ...(runner ? { runner: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.hitstop) ? { hitstop: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.foe) ? { foe: true } : {}), ...(entities.some((e) => e && e.body && e.body.vanish) ? { vanish: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.summon) ? { summon: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.pair) ? { pair: true } : {}) })};
-const __world = __CW.createWorld({ entities: ${safeJson(entities)}, camera: ${safeJson(camera)}, pilot: ${safeJson(pilot)}${spectate ? ', spectate: true' : ''}${seats ? `, seats: ${safeJson(seats)}` : ''}, ai: ${safeJson(ai)}, colliders: ${safeJson(colliders)}${breakables ? `, breakables: ${safeJson(breakables)}` : ''}, match: ${safeJson(match)}${wreckExplodes ? `, wreckExplodes: ${safeJson(wreckExplodes)}` : ''}${tutorial ? `, tutorial: ${safeJson(tutorial)}` : ''}${aiDifficulty ? `, aiDifficulty: ${safeJson(aiDifficulty)}` : ''}${lock ? `, lock: ${safeJson(lock)}` : ''}${runner ? `, runner: ${safeJson(runner)}` : ''} });
+const __CW = ${emissionSource({ ...(runner ? { runner: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.hitstop) ? { hitstop: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.foe) ? { foe: true } : {}), ...(entities.some((e) => e && e.body && e.body.vanish) ? { vanish: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.summon) ? { summon: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.pair) ? { pair: true } : {}), ...(tempo ? { clock: true } : {}) })};
+const __world = __CW.createWorld({ entities: ${safeJson(entities)}, camera: ${safeJson(camera)}, pilot: ${safeJson(pilot)}${spectate ? ', spectate: true' : ''}${seats ? `, seats: ${safeJson(seats)}` : ''}, ai: ${safeJson(ai)}, colliders: ${safeJson(colliders)}${breakables ? `, breakables: ${safeJson(breakables)}` : ''}, match: ${safeJson(match)}${wreckExplodes ? `, wreckExplodes: ${safeJson(wreckExplodes)}` : ''}${tutorial ? `, tutorial: ${safeJson(tutorial)}` : ''}${aiDifficulty ? `, aiDifficulty: ${safeJson(aiDifficulty)}` : ''}${lock ? `, lock: ${safeJson(lock)}` : ''}${runner ? `, runner: ${safeJson(runner)}` : ''}${tempo ? `, tempo: ${safeJson(tempo)}` : ''} });
 ${commanderBlock}${flyHudBlock}${(() => {
     const pooled = poolFigureBuffers(figures || {});
     if (!pooled.pool.length) return `const __FIG = ${safeJson(figures || {})};   // name → packed baked figure frames (pos/col b64, origin, invScale, foot)`;
@@ -623,7 +623,9 @@ function __formLights(F) {
   setTimeout(() => {
     const key = new THREE.Color(F.key[0], F.key[1], F.key[2]), casters = [];
     scene.traverse((o) => { if (o.isDirectionalLight && o.castShadow) casters.push(o); });
-    if (casters.length) for (const l of casters) { l.color.copy(key); l.intensity = F.keyIntensity / casters.length; }
+    // (and a normal bias on each for the physical body: a flat plate turned from the sun would wear its own shadow's
+    // stripes, the map's depth steps laid on it)
+    if (casters.length) for (const l of casters) { l.color.copy(key); l.intensity = F.keyIntensity / casters.length; l.shadow.normalBias = Math.max(l.shadow.normalBias, 0.05); }
     else { const l = new THREE.DirectionalLight(key, F.keyIntensity); l.position.fromArray(F.toLight || __FORM_SUN).normalize().multiplyScalar(100); scene.add(l); scene.add(l.target); }
     const hemi = new THREE.HemisphereLight(__formSrgb(F.sky.zenith), __formSrgb(F.sky.ground), F.ambient * 1.6); hemi.position.set(0, 0, 1); scene.add(hemi);
   }, 0);
@@ -3562,8 +3564,11 @@ function __updateBreaks(dt) {
 ` : ''}${runner ? runnerViewScript(runner) : ''}${focusHook}stepControllable = (dt, inputOverride) => {
 ${hangarHook}  __msHookParams();
   if (dt > 0 && !window.__mojFreeze) {   // a menu up freezes the world (interact-channel)
-    ${commanderStep}__CW.stepWorld(__world, inputOverride || ${seats ? '__withSeats(__readInput())' : '__readInput()'}, dt, { ground: __ground${driveSurface ? ', surface: __surface' : ''} });
-    for (const e of __world.entities) __syncEntity(e, dt);${seats ? `
+    ${commanderStep}__CW.stepWorld(__world, inputOverride || ${seats ? '__withSeats(__readInput())' : '__readInput()'}, dt, { ground: __ground${driveSurface ? ', surface: __surface' : ''} });${tempo ? `
+    const wdt = dt * __CW.tempoScale(__world);   // the world clock: the bodies and their effects on the world's step, the camera on the real one
+    // a moment that fires cues the live shoot plan's shot waiting on it (on: 'tempo:<what fired it>'): the impact cam
+    if (__world.tempo && __world.tempo.playing !== __tmLast) { __tmLast = __world.tempo.playing; if (__tmLast && window.__mojShoot && window.__mojShoot.cue) window.__mojShoot.cue('tempo:' + __tmLast.on); }` : ''}
+    for (const e of __world.entities) __syncEntity(e, ${tempo ? 'wdt' : 'dt'});${seats ? `
     __seatRings();
     __seatStrip();
     __seatsOver();` : ''}
@@ -3571,10 +3576,10 @@ ${hangarHook}  __msHookParams();
     __updateChargeRings();
     __updateProjectiles();
     __updateClashes();
-    __updateThrusters(dt);${figHasJuice ? `
-    __updateRacerJuice(dt);` : ''}${shadowHook}${smokeHook}${gearHook}${breakables ? `
-    __updateBreaks(dt);` : ''}${runner ? `
-    __updateRunner(dt);` : ''}
+    __updateThrusters(${tempo ? 'wdt' : 'dt'});${figHasJuice ? `
+    __updateRacerJuice(${tempo ? 'wdt' : 'dt'});` : ''}${shadowHook}${smokeHook}${gearHook}${breakables ? `
+    __updateBreaks(${tempo ? 'wdt' : 'dt'});` : ''}${runner ? `
+    __updateRunner(${tempo ? 'wdt' : 'dt'});` : ''}
   }
   if (__ctrlOwnsCamera) __driveCamera(dt);
   __updateWepHud();   // after the camera is positioned, so the reticle projects onto the current frame
@@ -3585,5 +3590,7 @@ ${hangarHook}  __msHookParams();
   __updateMatchHud();
   __updateTutorialHud();
 };
-window.__mojCtrl = { world: __world,${exposeBodies ? ' bodies: __bodies,' : ''}${breakables ? ' restore: (id) => __CW.restoreBlock(__world, id),' : ''} step: (dt, input) => stepControllable(dt, input), cast: (ops) => __CW.castOps(__world, ops), facts: (prev) => __CW.castFacts(__world, prev), interacts: () => __interactN, label: (id) => { const f = __padOn && __padSeen && __usePad ? 'gamepad' : 'keyboard', c = (__BIND.bind[f][id] || [])[0]; return c ? __CTL.label(__DEV, f, c, __padLayout) : ''; } };`;
+${tempo ? `let __tmLast = null;
+window.__mojTempo = { now: () => __world.tempo && { scale: __world.tempo.scale, playing: __world.tempo.playing && __world.tempo.playing.on }, fire: (on) => __CW.tempoMoment(__world, on) };
+` : ''}window.__mojCtrl = { world: __world,${exposeBodies ? ' bodies: __bodies,' : ''}${breakables ? ' restore: (id) => __CW.restoreBlock(__world, id),' : ''} step: (dt, input) => stepControllable(dt, input), cast: (ops) => __CW.castOps(__world, ops), facts: (prev) => __CW.castFacts(__world, prev), interacts: () => __interactN, label: (id) => { const f = __padOn && __padSeen && __usePad ? 'gamepad' : 'keyboard', c = (__BIND.bind[f][id] || [])[0]; return c ? __CTL.label(__DEV, f, c, __padLayout) : ''; } };`;
 }

@@ -18,7 +18,7 @@ Mojulo is a 3D compiler for agents: a local MCP server where everything your cod
 
 **One ladder.** An **object** blocks out at literal scale. A **world** is a place you can walk. A **level** is a world minted under a game contract. A **game** composes the levels. Every rung is the same kind of recipe — deterministic geometry built from primitives on your machine, no image model, no cloud render, **no provider key** — so pieces compose upward, and **sound comes free**: SFX and music synthesized from pure math and seeded dice, no samples.
 
-**Two pipelines out.** DIGITAL: worlds, levels and scenes render dependency-free in the browser (CSS-3D, WebGL) and export to **Godot** as a real project, to **Unity** as a data pack plus importer, characters and solids to **Unreal** as assets (each with an advisory gate when the engine is installed), and to **Blender** as an art-pass pack — with `.glb` and OpenUSD for everything else. PHYSICAL: objects, vehicles and wordmarks export as **print-ready STL or 3MF at true scale** — mm units, z-up, slicer-ready, with a slicer gate that stamps what it measured — so a conversation ends at your 3D printer; figures and worlds print as maquettes fit to a size you choose.
+**Two pipelines out.** DIGITAL: worlds, levels and scenes render dependency-free in the browser (CSS-3D, WebGL), and a game plays there or as a desktop app. A team's engine gets a handoff, not the game: a level's assets, materials, light and markers as a **Godot**, **Unity**, **Unreal** or **Blender** project its importer builds, re-handed without losing the developer's own wiring; Unreal also takes one character or solid as an asset, and Blender an art-pass pack — with `.glb` and OpenUSD for everything else. PHYSICAL: objects, vehicles and wordmarks export as **print-ready STL or 3MF at true scale** — mm units, z-up, slicer-ready, with a slicer gate that stamps what it measured — so a conversation ends at your 3D printer; figures and worlds print as maquettes fit to a size you choose.
 
 **Mojulo feeds the tools you already use; it does not compete with them.** It is the agent-driven upstream — it authors the truth at home, and the edge tool consumes it without guessing at the seam. It is not a renderer trying to out-render Unreal, and it is not merely an exporter: the recipe is where the thing is born, lives, and re-renders. The engine or the printer is where it is optionally *finished*.
 
@@ -49,7 +49,7 @@ Every kind below is a recipe your agent mints from a sentence, iterates in place
 **Games, composed.**
 
 - `create_game` binds levels, music, figures and sprites by ref into a standalone playable artifact: a shell that owns a typed store (character, inventory, party, progression, flags) and a list of levels minted under a `game:` contract. Improve a bound world or score and the game inherits it. Arcade cabinets compile 2D reducer games to a single HTML file.
-- `export_game` writes the game to a plain folder you host anywhere, or emits a Godot, Unity or Roblox pack instead. Play data never enters mojulo. Unreal takes a game's assets, not the game: `export_model { format: 'unreal' }`, one character or solid at a time.
+- `export_game` writes the game to a plain folder you host anywhere, or as a desktop app. Play data never enters mojulo. A team's engine gets the game's levels and assets, not the game: `export_model { engine }` writes each level as a Godot, Unity, Unreal or Blender project, and Unreal also takes one character or solid at a time.
 
 **Assets that fold in.**
 
@@ -74,14 +74,13 @@ Every kind below is a recipe your agent mints from a sentence, iterates in place
 | **Desktop app** | A game's web folder as an Electron app: `npm install && npm start` plays it offline with no web server, `npm run package` builds it for your machine (unsigned; signing is yours). | The shell and its first level loaded hidden (`scripts/export-desktop.mjs`), when Electron is installed. |
 | **`.glb`** | glTF with mojulo's lighting baked into vertex colours and exported unlit, so it looks identical from any camera with no setup downstream — or `lit` for real PBR materials the engine lights itself. Rig clips as animations, skinned meshes, VRM humanoid names, optional quantization. Opens in Blender, three.js, Quick Look. | The USD/GLB verify gate, when Blender is installed. |
 | **OpenUSD** | `usda` / `usdz` for DCC interchange and AR Quick Look at true scale. | `usdcat` and Blender, both optional. |
-| **Godot** (the fullest translation) | A real Godot 4 project: `project.godot`, the versioned `mojulo-godot` kernel scripts, the GLB, `score.json`, export presets. Playable when the gameplay is declarative. | Headless import and a one-frame run of every scene, when `MOJULO_GODOT` names the binary. |
-| **Unity** (gated leg) | A data pack — GLB, `score.json`, audio, recipe — plus a C# editor importer, runtime scripts (walker, mechanics, menu), deterministic `.meta` files and a T-numbered import guide. | A scratch project imported headless, when `MOJULO_UNITY` names the editor. |
-| **Unreal** (assets) | One asset (a character, a creature, a prop, a building, a robot, anything assembled) as its GLB plus a dependency-free editor Python importer: geometry and colour, a figure's skeleton, clips and face morphs, a humanoid's IK Rig and Retargeter from the mannequin. Every slot takes one vertex-colour material. Unreal takes assets, not games or levels: what it gets of a game is its surface, without the look mojulo draws on it. | A scratch project imported headless, when `MOJULO_UNREAL` names the editor. |
-| **Blender** (art pass) | An art-pass pack — GLB, `pack.json`, two Python scripts, a guide — and, in the other direction, a Cycles bake of traced global illumination back into the geometry's own vertex colours, so the lit result runs anywhere at zero runtime cost. | The pack's own importer run headless, when `MOJULO_BLENDER` names the binary. |
+| **Godot, Unity, Unreal, Blender** (the engine handoff) | `export_model { engine }`: a world's level, or each of a game's levels, as a project the engine opens (Godot 4, Unity 6 with URP, UE5, a .blend): every surface a material the engine lights, the layered ground and the sea on shaders ported from the page, the sun, lamps, sky and haze set to the page's, the markers and seats as objects carrying their records, the level's win and fail and a pointer to its web build and bible. A re-handoff replaces mojulo's part and keeps the developer's scene. No engine runs the game: the web build is the game. | The importer and its probe run headless from the commands the export returns; the visual gate scores the level's shots in each engine installed against the page's. |
+| **Unreal** (one asset) | `what: 'asset'`: one character, creature, prop, building or robot as its GLB plus a dependency-free editor Python importer: geometry and its materials, a figure's skeleton, clips and face morphs, a humanoid's IK Rig and Retargeter from the mannequin. | A scratch project imported headless, when `MOJULO_UNREAL` names the editor. |
+| **Blender** (art pass) | Beside the handoff: an art-pass pack — GLB, `pack.json`, two Python scripts, a guide — and, in the other direction, a Cycles bake of traced global illumination back into the geometry's own vertex colours, so the lit result runs anywhere at zero runtime cost. | The pack's own importer run headless, when `MOJULO_BLENDER` names the binary. |
 | **STL / 3MF** | Print-ready at true scale: mm, z-up, slicer-ready. 3MF declares its units in-file and carries colours and instanced repeats; `union: true` fuses the shells into one measured solid through Manifold. Print advisories know the process (FDM, SLA, SLS, MJF): wall floors, self-support angle, overhang area, bores that will close up. Figures, worlds and views print as maquettes fit to a target size. | A local slicer run headless over the 3MF, stamping layers, time, filament and supports beside it. PrusaSlicer and Bambu Studio verified. |
 | **`.scad`** | A program, not a mesh. A `scad` recipe returns its own source verbatim; a workbench recipe is transpiled term by term into OpenSCAD solids and booleans, its variables at the head of the file as live dials, and a coverage ledger names any term that arrived as a frozen `polyhedron()`. | OpenSCAD re-renders the file and checks size and volume against the recipe (`scripts/scad-gate.mjs`), when the binary is installed. |
 
-The ladder is honest on purpose: **a game plays in the browser or as a desktop app; Godot is the fullest engine translation, Roblox the young one, Unity a gated leg, Unreal an asset target, Blender an art pass.** Never "identical across all five." Every export works with nothing installed — the pack and its import guide are written and the gate reports "skipped" with the reason. Installing the engine adds the machine gate. Gates advise and stamp; none refuse. A human looking at the result in the engine or in the slicer is the eyes gate, and no gate ever claims that one passed. Doctrine: [docs/bicycles.md](bicycles.md). Engine versions, what each leg needs, and platform notes: [docs/tech-requirements.md](tech-requirements.md).
+The ladder is honest on purpose: **a game plays in the browser or as a desktop app; a team's engine gets its levels and assets to wire.** Never "the same game in every engine." Every export works with nothing installed — the pack and its import guide are written, and a gate with no engine to run reports "skipped" with the reason. Installing the engine adds the machine gate. Gates advise and stamp; none refuse. A human looking at the result in the engine or in the slicer is the eyes gate, and no gate ever claims that one passed. Doctrine: [docs/bicycles.md](bicycles.md). Engine versions, what each leg needs, and platform notes: [docs/tech-requirements.md](tech-requirements.md).
 
 Speak modeler? `translate_modeler_lingo` maps pipeline vocabulary (blockout, kitbash, set dressing, base mesh, LOD, lookdev turntable) to the right entry tool and the `.glb` handoff, and says plainly which steps — retopo, UV unwrap, normal bakes, PBR authoring — belong in your DCC, not here.
 
@@ -186,8 +185,8 @@ make me a coffee mug, 90 mm tall     → mint_solid (workbench) → open /sketch
 generate a 3D city at night          → compose_world (base: city) → open the /scene URL
 make me a walkable world             → compose_world (base: controllable) → drive it at /world
 turn those into a game               → create_game → play at /sketches/<ref>
-export it for Godot                  → export_game { target: 'godot' } → open the project
-mint brickster, export it for Godot  → create_pixelizer_game → export_game { target: 'godot' } → the arcade pack
+hand its levels to Godot             → export_model { engine: 'godot' } → open the project, play level.tscn
+make it a desktop app                → export_game { target: 'desktop' } → npm install && npm start
 ```
 
 The first prompt is the one to watch: your agent reads mojulo's own routing
@@ -200,14 +199,14 @@ The MCP tools cover every export. The CLIs add the machine gate and are what
 you run when the engine is installed. Always from `control/`:
 
 ```bash
-node scripts/export-godot.mjs   --ref <ref>          # Godot project + headless gate (MOJULO_GODOT)
-node scripts/export-unity.mjs   --ref <ref>          # Unity pack + gate (MOJULO_UNITY)
 node scripts/export-unreal.mjs  --ref <ref> --lit    # an Unreal asset pack + gate (MOJULO_UNREAL); --lit lets the engine light it
 node scripts/export-blender.mjs --ref <ref>          # Blender art-pass pack + gate (MOJULO_BLENDER)
 node scripts/slice-print.mjs    --ref <ref>          # export the 3MF and slice it; stamps mojulo-print-gate.json (MOJULO_SLICER)
+node scripts/visual-gate.mjs    --ref <level>        # a level's shots on the page and in each engine installed, scored; a contact sheet
 ```
 
-Every leg takes `--out <dir>` to write somewhere other than `data/outcomes/<ref>/`, `--no-gate` to
+A level's engine handoff (`export_model { engine }`) returns the commands that import and probe it headless in that
+engine. Every export leg takes `--out <dir>` to write somewhere other than `data/outcomes/<ref>/`, `--no-gate` to
 emit without the engine, and `--lit` for the PBR handoff. The slicer also takes `--3mf <file>` for a
 file you already have and `--target-mm` to fit a maquette first.
 
@@ -324,7 +323,7 @@ If you're using mojulo in a regulated industry, with restricted data, or in a sa
 
 A spectrum, all driving the same open-source, self-hosted stack from their own MCP-capable agent:
 
-- **Game developers & technical artists** wanting an agent-driven *upstream*: blockouts, levels and assets authored by conversation, handed to Godot as a real project, to Unity as a gated data pack, to Unreal as assets, or to Blender as an art pass, with an honest ledger of what didn't travel.
+- **Game developers & technical artists** wanting an agent-driven *upstream*: blockouts, levels and assets authored by conversation and played on the web first, then handed to Godot, Unity, Unreal or Blender as a project the engine opens, with markers to wire and a ledger of what stayed the web's.
 - **People who print things** — objects, parts, vehicles and wordmarks exported as print-ready STL or 3MF at true scale, in mm, z-up, slicer-ready, with the slicer's own stamp beside the file; figures and worlds as sized maquettes. The conversation ends at the printer.
 - **Makers, worldbuilders & educators** — a walkable world, a playable game, a synthesized score, an animated STEM explainer. Each kept as a recipe they re-render and edit, not a render they'd have to redo.
 - **Teachers and course builders** who tune a study object once, keep it in their cookbook, and recall it by intent a term later.
@@ -336,7 +335,7 @@ The wider shelf reaches further: indie makers vibe-coding side projects without 
 
 ## Architecture in one paragraph
 
-The control plane is a Next.js app exposing both a dashboard and an MCP server (stdio for the npm package, HTTP for remote clients). Workshop state — every recipe, plus plans, research, stashes, and cooks — lives in a single SQLite under `~/.mojulo/`. A recipe is params plus a `kind`; a **kernel** in the control plane regenerates it on every read, so nothing is a stored render. One geometry spec then serves several targets off a single ref — SVG, a dependency-free CSS-3D scene, a traversable WebGL world, `.glb`, OpenUSD, STL and 3MF, the Godot, Unity and Blender packs and the Unreal asset pack — each emitter owning its own frame and unit conversion from the native z-up metre frame, and each handoff carrying an honest ledger of what did *not* travel. The kind roster is extensible without touching core: the bundled [recipe book](../control/book/) contributes recipes as data, and pure builder modules as new kinds. Optional local workers (Blender, slicers, mesh sculptors, ComfyUI, Kokoro) are operator-hosted and never dependencies. Apps run as separate processes supervised by a daemon.
+The control plane is a Next.js app exposing both a dashboard and an MCP server (stdio for the npm package, HTTP for remote clients). Workshop state — every recipe, plus plans, research, stashes, and cooks — lives in a single SQLite under `~/.mojulo/`. A recipe is params plus a `kind`; a **kernel** in the control plane regenerates it on every read, so nothing is a stored render. One geometry spec then serves several targets off a single ref — SVG, a dependency-free CSS-3D scene, a traversable WebGL world, `.glb`, OpenUSD, STL and 3MF, the engine handoff to Godot, Unity, Unreal and Blender, Blender's art pack and Unreal's asset pack — each emitter owning its own frame and unit conversion from the native z-up metre frame, and each handoff carrying an honest ledger of what did *not* travel. The kind roster is extensible without touching core: the bundled [recipe book](../control/book/) contributes recipes as data, and pure builder modules as new kinds. Optional local workers (Blender, slicers, mesh sculptors, ComfyUI, Kokoro) are operator-hosted and never dependencies. Apps run as separate processes supervised by a daemon.
 
 Full diagrams: [docs/MCP-ARCHITECTURE.md](MCP-ARCHITECTURE.md) (the headless control surface) and [docs/POLYGONIZER-SYNTHESIS.md](POLYGONIZER-SYNTHESIS.md) (the geometry substrate).
 

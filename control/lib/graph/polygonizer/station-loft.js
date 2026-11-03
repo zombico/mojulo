@@ -33,6 +33,7 @@
  */
 import { surfacePinFrame, placeSurfaceOffset, surfaceLocalOffset } from './surface-pin.js';
 import * as dmath from '../../util/dmath.js';
+import { smoothBody, bodyPartsOf } from './body-smooth.js';
 
 const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
 const add = (a, b) => [a[0] + b[0], a[1] + b[1], a[2] + b[2]];
@@ -80,7 +81,9 @@ function meshPart(name, part) {
   return { points, faces, groups, ...(M.boundary ? { boundary: M.boundary.map((e) => e.map(pid)) } : {}) };
 }
 
-/** A closed station loft: right half generated, left half mirrored by name; outward winding per family. */
+/** A closed station loft: right half generated, left half mirrored by name; outward winding per family. (Exported as
+ * `loftPart` for a pass that re-addresses pins on a part it re-sampled: musculature/passes.js repinned) */
+export { loft as loftPart };
 function loft(name, part) {
   const slots = part.slots; const n = slots.length; const half = n / 2;
   if (!Array.isArray(slots) || n < 4 || n % 2) throw new Error(`station-loft: ${name}.slots must be an even list of ≥ 4 slot names`);
@@ -261,7 +264,10 @@ export function compileLayered(recipe, dials = {}, { details = true, creases = t
     if (!Object.values(parent.faces).some((f) => c.edge.every((v) => f.includes(v)))) throw new Error(`station-loft: crease ${id} is not a surface edge`);
     featureEdges.push(c.edge.map((p) => index[p])); featureIds.push(id);
   }
-  return { schema: 'layered-compiled-v1', frame: recipe.frame || { up: '+z', front: '+y' }, dials: D, channels: { details, creases }, vertices, faces, groups, pointIds, faceIds, provenance, featureEdges, featureIds, pins, parts: built };
+  const mesh = { schema: 'layered-compiled-v1', frame: recipe.frame || { up: '+z', front: '+y' }, dials: D, channels: { details, creases }, vertices, faces, groups, pointIds, faceIds, provenance, featureEdges, featureIds, pins, parts: built };
+  // (a recipe that rounds its body, `smoothBody: { rounds }`: its body's skin split on the curved patch, body-smooth.js;
+  // absent, the mesh as built)
+  return recipe.smoothBody?.rounds ? smoothBody(mesh, bodyPartsOf(recipe)) : mesh;
 }
 
 /** Per-part topology audit: declared closure, non-manifold, winding balance, degenerate triangles. */

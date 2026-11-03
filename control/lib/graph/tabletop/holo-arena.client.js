@@ -374,7 +374,7 @@ function post(msg) { if (hosted) window.parent.postMessage(msg, '*'); }
 function finish() {
   const w = ended ? ended.winner : null;
   const won = nPlayers !== 1 || w === null || w === undefined || w === human;
-  if (hosted) { post({ moj: HA.wire.outcome, envelope: { result: won ? 'success' : 'fail', events: [], stats: { holo: { winner: w === null || w === undefined ? null : HA.duelists[w].id, reason: ended ? ended.reason : null, moves: line.length } } } }); phase = 'done'; }
+  if (hosted) { post({ moj: HA.wire.outcome, envelope: { contractVersion: HA.wire.version, result: won ? 'success' : 'fail', events: [], stats: { holo: { winner: w === null || w === undefined ? null : HA.duelists[w].id, reason: ended ? ended.reason : null, moves: line.length } } } }); phase = 'done'; }
 }
 if (hosted) {
   window.addEventListener('message', (e) => {

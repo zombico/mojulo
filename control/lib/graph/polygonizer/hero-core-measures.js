@@ -72,10 +72,11 @@ const WHY = {
   shelf_m: (v, [, hi]) => `the outline steps (${v} m in a centimetre, over ${hi}): a shelf at the hem or the knee; core 'structured' runs it as one curve`,
 };
 
-/** One advice line per measure out of its band, and one when the legs splay. */
-export function coreAdvice(m, body) {
+/** One advice line per measure out of its band, and one when the legs splay. `bands` a canon's own, each it names in
+ * place of the body's (an anime cast's `coreBands`, anime-styles.js) */
+export function coreAdvice(m, body, bands = null) {
   if (!m) return [];
-  const B = CORE_BANDS[body === 'female' ? 'female' : 'male'], out = [];
+  const B = { ...CORE_BANDS[body === 'female' ? 'female' : 'male'], ...(bands ?? {}) }, out = [];
   for (const [k, [lo, hi]] of Object.entries(B)) { const v = m[k]; if (v === null || v === undefined) continue; if ((lo !== null && v < lo) || (hi !== null && v > hi)) out.push(`core: ${WHY[k](v, [lo, hi])}`); }
   if (m.legs === 'splay') out.push("core: the knees stand wider than the hip joints (the thighs splay and the crotch opens as a V): core 'structured' converges the legs");
   return out;

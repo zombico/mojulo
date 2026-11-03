@@ -1,8 +1,10 @@
 // follow-pull-in — the follow camera's eye is drawn toward its look point by a stand-off the subject's own size sets,
-// and never past the subject's far side: a small hero's wall (or none) cannot put the eye inside it, while a person's
-// and a suit's chase keep the framing they were tuned at.
+// and never past the subject's far side: a small hero's wall (or none) cannot put the eye inside it; with nothing in
+// the way a person's and a suit's chase keep the framing they were tuned at, and against a wall the eye stands just off
+// it (2026-11-02), so a room keeps its depth behind the hero.
 import { describe, it, expect } from 'vitest';
 import { followPullIn } from './follow-pull-in.js';
+import { HERO_CHASE } from '../../../playscape/hero-chase.js';
 import { emitThreeWorld } from '../../scene-three.js';
 import { EMIT_FIXTURES } from '../../emit-fixtures.js';
 
@@ -14,23 +16,32 @@ function chase({ dist, height, lookH, lead }) {
   const dx = dist + lead, dz = height - lookH, full = Math.hypot(dx, dz);
   return { full, hz: dx / full, lead, dz };
 }
-const PERSON = { dist: 5.5, height: 2.4, lookH: 1.1, lead: 1.5 };   // playscape/player.js
+const PERSON = HERO_CHASE;   // playscape/hero-chase.js
 const SUIT = { dist: 6, height: 3, lookH: 1.5, lead: 4 };           // the follow rule's defaults (a suit's chase)
 // the eye's distance behind the subject's centre, across the ground, at fraction `cd` of the follow distance
 const behind = (C, cd) => C.full * cd * C.hz - C.lead;
 
 describe('follow camera pull-in', () => {
-  it('a person keeps its framing: the 3 m stand-off, wall or none, exactly as before', () => {
+  it('with nothing in the way, a person and a suit keep their framing: the 3 m stand-off, exactly as before', () => {
+    const C = chase(PERSON), S = chase(SUIT);
+    expect(followPullIn(C.full, C.full, C.lead, C.hz, 0.3, 1.7, 0.1)).toBe(legacy(C.full, C.full));
+    expect(followPullIn(S.full, S.full, S.lead, S.hz, 0, 0, 0.1)).toBe(legacy(S.full, S.full));
+    expect(followPullIn(S.full, S.full, S.lead, S.hz, 0, 18, 0.1)).toBe(legacy(S.full, S.full));
+    // the hero's chase, laid long by the stand-off: its eye 5.5 m behind the hero, as its framing says
+    expect(behind(C, followPullIn(C.full, C.full, C.lead, C.hz, 0.3, 1.7, 0.1))).toBeCloseTo(5.5, 2);
+  });
+
+  it('against a wall the eye stands half a metre off it (and its near plane), never farther out than the open line', () => {
     const C = chase(PERSON);
-    for (const hitD of [C.full, 6, 5]) {
-      expect(followPullIn(C.full, hitD, C.lead, C.hz, 0.3, 1.7, 0.1)).toBe(legacy(C.full, hitD));
+    for (const hitD of [9, 7, 5, 4]) {
+      const cd = followPullIn(C.full, hitD, C.lead, C.hz, 0.3, 1.7, 0.1);
+      expect(C.full * cd).toBeCloseTo(Math.min(C.full - 3, hitD - 0.6), 9);
+      // never nearer the look point than the legacy 3 m stand-off put it
+      expect(cd).toBeGreaterThanOrEqual(legacy(C.full, hitD));
     }
-    // a suit (its height unknown to the page, or past a person's) keeps the 3 m too
-    const S = chase(SUIT);
-    for (const hitD of [S.full, 9.5, 9]) {
-      expect(followPullIn(S.full, hitD, S.lead, S.hz, 0, 0, 0.1)).toBe(legacy(S.full, hitD));
-      expect(followPullIn(S.full, hitD, S.lead, S.hz, 0, 18, 0.1)).toBe(legacy(S.full, hitD));
-    }
+    // continuous where the wall meets the open line's eye
+    const at = C.full - 3 + 0.6, a = followPullIn(C.full, at - 1e-9, C.lead, C.hz, 0.3, 1.7, 0.1), b = followPullIn(C.full, at + 1e-9, C.lead, C.hz, 0.3, 1.7, 0.1);
+    expect(Math.abs(a - b)).toBeLessThan(1e-6);
   });
 
   it('a small hero: the old stand-off put the eye inside it with no wall at all; now it stands clear of it', () => {

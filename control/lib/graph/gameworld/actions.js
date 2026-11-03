@@ -8,6 +8,7 @@
  *     idiom?: '<convention>-like',             // read through IDIOMS into a system and a progression template
  *     system?: { kind, resource?, source?, rule? },   // what powers run on and where they come from
  *     powers?: [ { id, verb, element?, look?, attack?, move? } ],
+ *     none?: true,                              // a hero with no powers, said: it does what its body does; no system, idiom or progression
  *     progression?: [ { stage: 'early' | 'mid' | 'late', gains: [power ids], gate?: '<what unlocks it>' } ],
  *   }
  *
@@ -104,7 +105,8 @@ function readSystem(s, at) {
 /** Read the actions page and say what is wrong. Shape only; references are checked by resolveActions. */
 export function readActions(A) {
   if (!isObj(A)) throw err(' is { idiom?, system?, powers?, progression?, moves? }');
-  for (const k of Object.keys(A)) if (!['idiom', 'system', 'powers', 'progression', 'moves'].includes(k)) throw err(`.${k} is not part of the actions page (idiom, system, powers, progression, moves)`);
+  for (const k of Object.keys(A)) if (!['idiom', 'system', 'powers', 'progression', 'moves', 'none'].includes(k)) throw err(`.${k} is not part of the actions page (idiom, system, powers, progression, moves, none)`);
+  if (A.none !== undefined && A.none !== true) throw err('.none is true: a hero with no powers, said (it does what its body does: .moves)');
   const out = {};
   if (A.moves !== undefined) {
     if (!Array.isArray(A.moves) || !A.moves.every((m) => HERO_MOVES[m]) || new Set(A.moves).size !== A.moves.length) throw err(`.moves is a list of the moves the hero starts with, each once: ${Object.keys(HERO_MOVES).map((m) => `'${m}'`).join(', ')}`);
@@ -114,9 +116,16 @@ export function readActions(A) {
     if (!word(A.idiom) || !/like$/.test(A.idiom.trim().toLowerCase())) throw err(`.idiom is a convention read as "x-like" (${Object.keys(IDIOMS).join(', ')}); a pattern, never a title`);
     out.idiom = A.idiom.trim().toLowerCase();
   }
+  // a hero with no powers, said (`none: true`): it does what its body does (its moves), nothing beyond; there is then
+  // no system, idiom or progression to lay out. (Read, it keeps an empty power list, as every reader of the page takes)
+  if (A.none === true) {
+    for (const k of ['idiom', 'system', 'progression']) if (A[k] !== undefined) throw err(`.${k}: a hero with no powers (none: true) has no ${k} (it does what its body does: .moves)`);
+    if (A.powers !== undefined && !(Array.isArray(A.powers) && !A.powers.length)) throw err('.powers: a hero with no powers (none: true) lists none');
+    return { ...out, none: true, powers: [] };
+  }
   if (A.system !== undefined) out.system = readSystem(A.system, '.system');
   if (A.powers !== undefined) {
-    if (!Array.isArray(A.powers)) throw err('.powers is a list of { id, verb, element?, look?, attack?, move? }');
+    if (!Array.isArray(A.powers)) throw err('.powers is a list of { id, verb, element?, look?, attack?, move? } (a hero with no powers: none: true)');
     const seen = new Set();
     out.powers = A.powers.map((p, i) => {
       const at = `.powers[${i}]`;
@@ -163,6 +172,8 @@ export function readActions(A) {
  */
 export function resolveActions(A, direction = null) {
   const a = readActions(A ?? {}), open = [];
+  // (no powers, said: nothing to lay out, nothing open)
+  if (a.none) return { none: true, system: null, powers: [], progression: [], open, mechanicsSeed: { verbs: [], stages: [] } };
   const idiom = a.idiom ? IDIOMS[a.idiom] : null;
   if (a.idiom && !idiom) open.push(`idiom '${a.idiom}' is not in the lexicon (${Object.keys(IDIOMS).join(', ')}): state its system and progression`);
   const system = a.system ?? (idiom ? { ...idiom.system } : null);

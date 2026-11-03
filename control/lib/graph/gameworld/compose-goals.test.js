@@ -90,7 +90,10 @@ describe('composed goals: what a level is played for, read from the prompt', () 
     // order carries moved; the levels build as before, their trails, climbs and walk the same, b771729c -> 0e1c91bc)
     expect(fingerprint(unaudited(orders))).toBe('0e1c91bc');
     expect(fingerprint(unaudited(runSteps({ ...MEADOWMARK, mode: 'autonomous', review: undefined }, { ref: 'gw' }).map((s) => s.order)))).toBe('9ad2a5b7');
-    expect(fingerprint(unaudited(runSteps(MEADOWMARK_HERO, { ref: 'gw' }).map((s) => s.order)))).toBe('0b5f8e90');
+    // (re-pinned 2026-11-02, 1102-book-gates: a hero's chase is laid long by the follow camera's stand-off
+    // (playscape/hero-chase.js), so the hero world's level orders carry its camera at 8.45 / 2.948, and nothing else
+    // moved, 0b5f8e90 -> 4246de56; the hero-less worlds above are unchanged)
+    expect(fingerprint(unaudited(runSteps(MEADOWMARK_HERO, { ref: 'gw' }).map((s) => s.order)))).toBe('4246de56');
   }, 300000);
 
   it('a dungeon is indoors: building levels in a room kit, the goals laid in their rooms, made by the run', () => {
@@ -107,7 +110,9 @@ describe('composed goals: what a level is played for, read from the prompt', () 
       expect(w.levels[id].goal).toEqual({ collect: 'relic', ...(id === ids.at(-1) ? { boss: true } : {}) });
     }
     const S = runSteps(w, { ref: 'gw' }), L = levelSteps(S);
-    expect(S.map((s) => s.key)).toEqual(['foe', ...ids.map((id) => `level-${id}-0`), 'game']);
+    // (a crawler's sentence comes with its hero, genre-forms.js heroFrameOf: made first, the levels' pilot; armed by its
+    // genre, a sword in melee: the hero equipped and the sword it carries made before the levels)
+    expect(S.map((s) => s.key)).toEqual(['hero', 'hero-equipped', 'foe', 'gear-sword', ...ids.map((id) => `level-${id}-0`), 'game']);
     for (const s of L) {
       expect(s.order.manifest).toMatchObject({ kind: 'stage', kit: 'gothic-stone', program: { use: 'crypt' } });
       const C = gameOf(s).mechanics.find((m) => m.kind === 'collect');
@@ -115,12 +120,12 @@ describe('composed goals: what a level is played for, read from the prompt', () 
       expect(C.pickups.length).toBeGreaterThan(0);
       expect(C.pickups.every((p) => p.item === 'relic')).toBe(true);
     }
-    // the boss in the last crypt's tomb, beside the level's own walker: its fall ends it, the tomb no longer the exit
+    // the boss in the last crypt's tomb, beside the hero: its fall ends it, the tomb no longer the exit
     const end = L.at(-1);
     expect(kinds(end)).toEqual(['collect', 'bag', 'fail-on-death', 'win-when']);
     expect(end.order.manifest.level.exit).toBe(false);
-    expect(end.order.manifest.entities.map((e) => [e.id, !!e.pilotable])).toEqual([['player', true], ['boss', false]]);
-    expect(withBuildingLevel(end.order.manifest, end.ref).entities.map((e) => e.id)).toEqual(['player', 'boss']);
+    expect(end.order.manifest.entities.map((e) => [e.id, !!e.pilotable])).toEqual([['hero', true], ['boss', false]]);
+    expect(withBuildingLevel(end.order.manifest, end.ref).entities.map((e) => e.id)).toEqual(['hero', 'boss']);
     expect(readBattle(end.order.manifest.play).foes[0].who).toBe('boss');
     for (const s of L.slice(0, -1)) expect(kinds(s)).toEqual(['collect', 'bag', 'reach-exit']);
     composes(S);
@@ -135,7 +140,7 @@ describe('composed goals: what a level is played for, read from the prompt', () 
     const lv = (goal, extra = {}) => ({ ...MEADOWMARK, levels: { ...MEADOWMARK.levels, 'meadow-ascent': { ...MEADOWMARK.levels['meadow-ascent'], goal } }, ...extra });
     expect(readGameworld(lv({ collect: 'coin', boss: true, health: true })).levels['meadow-ascent'].goal).toEqual({ collect: 'coin', boss: true, health: true });
     expect(() => readGameworld(lv({}))).toThrow(/at least one/);
-    expect(() => readGameworld(lv({ treasure: true }))).toThrow(/not a level goal \(collect, boss, health, guards\)/);
+    expect(() => readGameworld(lv({ treasure: true }))).toThrow(/not a level goal \(collect, boss, health, guards, escape\)/);
     expect(() => readGameworld(lv({ collect: 'Big Gems' }))).toThrow(/one lower-case word/);
     expect(() => readGameworld(lv({ boss: 2 }))).toThrow(/boss is true/);
     // a book's world: its hero fights the boss, the goal's play beside the systems' own

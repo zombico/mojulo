@@ -90,7 +90,7 @@ export function mintMechanicsView({ title, scenario, v0, angle, g, mu, length, h
 
 export async function createMechanicsViewHandler(input) {
   if (!input || typeof input !== 'object') {
-    throw new Error('create_mechanics_view requires a recipe object');
+    throw new Error('create_view({ kind: "mechanics" }) requires a recipe object');
   }
   const { title, scenario, v0, angle, g, mu, length, height, mass, k, amplitude, radius, m1, m2, u1, u2, e, compare, g2, mass2, efficiency, armEffort, armLoad, leverClass, rWheel, rAxle, ropes, pulleyType, thickness, pitch, crankRadius, rodLength, flywheelR, rpm, curl, spin, stage, goalDist, diameter, density, scale, vectors, trace, strobe, strobeEvery, energy, forces, viewBox, scene, ref, folder_ref: folderRef } = input;
   return mintMechanicsView({ title, scenario, v0, angle, g, mu, length, height, mass, k, amplitude, radius, m1, m2, u1, u2, e, compare, g2, mass2, efficiency, armEffort, armLoad, leverClass, rWheel, rAxle, ropes, pulleyType, thickness, pitch, crankRadius, rodLength, flywheelR, rpm, curl, spin, stage, goalDist, diameter, density, scale, vectors, trace, strobe, strobeEvery, energy, forces, viewBox, scene, ref, folderRef });

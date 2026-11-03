@@ -7,13 +7,25 @@ import { validateRig, bindLayered, rigNodesAt, boneFrames, skinLayered } from '.
 
 /** A sliced recipe's CORRECTIVES (formSlice: the pauldron) added to a compiled mesh's rest for posed nodes: each its
  * offsets by its weight, the raise of its driver's bone (the angle from the trunk's down, the navel from the neck's
- * root) eased from `from` to `full`. The rest vertices as they are without correctives or at weight 0. */
+ * root) eased from `from` to `full`, or, a driver naming `bend` (the joint before `joint`), the joint's flexion (the angle
+ * between the bone into it and the bone out of it, 0 straight). The rest vertices as they are without correctives or
+ * at weight 0. */
 export function correctiveRest(mesh, recipe, nodes) {
   const C = recipe?.correctives; if (!C?.length) return mesh.vertices;
   const sm = (v) => { const y = Math.max(0, Math.min(1, v)); return y * y * (3 - 2 * y); };
   let V = null;
   for (const c of C) {
-    const a = nodes[c.driver.joint], b = nodes[c.driver.to]; if (!a || !b || !nodes.navel || !nodes.neckHub) continue;
+    const a = nodes[c.driver.joint], b = nodes[c.driver.to];
+    // (a BEND driver, `bend` the joint before: the joint's flexion, 0 straight; musculature/'s squash and stretch)
+    if (c.driver.bend) {
+      const h = nodes[c.driver.bend]; if (!a || !b || !h) continue;
+      const flex = (Math.acos(Math.max(-1, Math.min(1, dot(unit(sub(a, h)), unit(sub(b, a)))))) * 180) / Math.PI;
+      const w = sm((flex - c.driver.from) / (c.driver.full - c.driver.from)); if (w <= 0) continue;
+      V ??= mesh.vertices.map((v) => [...v]);
+      mesh.pointIds.forEach((id, i) => { const o = c.d[id]; if (o) V[i] = [V[i][0] + o[0] * w, V[i][1] + o[1] * w, V[i][2] + o[2] * w]; });
+      continue;
+    }
+    if (!a || !b || !nodes.navel || !nodes.neckHub) continue;
     const raise = (Math.acos(Math.max(-1, Math.min(1, dot(unit(sub(b, a)), unit(sub(nodes.navel, nodes.neckHub)))))) * 180) / Math.PI;
     const w = sm((raise - c.driver.from) / (c.driver.full - c.driver.from)); if (w <= 0) continue;
     V ??= mesh.vertices.map((v) => [...v]);

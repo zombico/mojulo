@@ -92,6 +92,90 @@ export function handValue(R, n, v) {
   if (typeof v === 'string') { if (!H.poses[v]) throw new Error(`station-loft-rig: ${n}: no hand pose '${v}' (have ${Object.keys(H.poses).join(', ')})`); v = H.poses[v]; }
   return Object.fromEntries(Object.keys(H.digits).map((d) => [d, typeof v === 'number' ? (d === 'thumb' ? v / 2 : v) : (v?.[d] || 0)]));
 }
+/**
+ * THE WIDER HAND: a digit given as an OBJECT in `fingers<S>` (`{ index: { mcp, pip, dip, spread }, thumb: { cmc, mcp,
+ * ip } }`) turns each of its joints by its own angle (degrees over the relaxed rest, + closing, as the curl's) and adds
+ * what the one curl cannot:
+ *   finger   `curl` (the old number: each link by its weight), `links: [mcp, pip, dip]` or `mcp` / `pip` / `dip` (each
+ *            over the curl's; a `pip` named without a `dip` takes the last joint at DIP_OF_PIP of it, the joints' own
+ *            coupling), `spread` (+ away from the middle finger: the index and the middle toward the thumb, the ring and
+ *            the little away from it; turned at the knuckle, before the curl, about the palm's normal)
+ *   thumb    `curl`, `links: [cmc, mcp, ip]` or `cmc` (a number: the root's turn across the palm, the curl's own; or
+ *            `[across, toPalm]`: and its turn TOWARD THE PALM, about the axis square to the root's hinge and the
+ *            metacarpal, signed so + carries the tip in to the palm, and past its plane, the thumb laid back beside the
+ *            hand; the curl's root turn alone keeps the tip 29–46 mm off the palm), `mcp`, `ip`
+ * Every axis is the rig's own or read off its rest joints at pose time (the spread's normal signed by the hand's
+ * deviation axis, + radial; the thumb's second axis by the index finger's closing): the rig's block is unchanged, and a
+ * number or a word takes the curl's path exactly. A joint turned carries the digit's later hinges and its root's hinge
+ * marker (the thumb's axis joint, a bone's aux), so the exported bones keep their roll. Unknown keys throw by name.
+ */
+export const DIP_OF_PIP = 2 / 3;
+const FINGER_KEYS = Object.freeze(['curl', 'links', 'mcp', 'pip', 'dip', 'spread']), THUMB_KEYS = Object.freeze(['curl', 'links', 'cmc', 'mcp', 'ip']);
+const SPREAD_SIGN = Object.freeze({ index: 1, middle: 1, ring: -1, little: -1 });
+function wideDigit(R, H, pts, d, g, v, ch) {
+  const thumb = d === 'thumb', keys = thumb ? THUMB_KEYS : FINGER_KEYS;
+  for (const k of Object.keys(v)) if (!keys.includes(k)) throw new Error(`station-loft-rig: ${ch}.${d}: no key '${k}' (have ${keys.join(', ')})`);
+  const n = g.links.length, W = g.links.map((l) => l.weight);
+  const a = W.map((w) => (Number.isFinite(v.curl) ? v.curl * w : 0));
+  if (Array.isArray(v.links)) v.links.forEach((x, i) => { if (Number.isFinite(x) && i < n) a[i] = x; });
+  const names = thumb ? ['cmc', 'mcp', 'ip'] : ['mcp', 'pip', 'dip'];
+  let toPalm = 0;
+  names.forEach((k, i) => { const x = v[k]; if (Array.isArray(x)) { if (Number.isFinite(x[0])) a[i] = x[0]; if (Number.isFinite(x[1])) toPalm = x[1]; } else if (Number.isFinite(x)) a[i] = x; });
+  if (!thumb && n > 2 && (Number.isFinite(v.pip) || Number.isFinite(v.links?.[1])) && !Number.isFinite(v.dip) && !Number.isFinite(v.links?.[2])) a[2] = a[1] * DIP_OF_PIP;
+  const spread = !thumb && Number.isFinite(v.spread) ? v.spread : 0;
+  const ax = g.links.map((l) => [...(l.axis ?? g.axis)]), root = g.links[0].pivot, p0 = [...pts[root]];
+  // the root's hinge marker (a bone headed at the root whose aux starts there: the thumb's axis joint) turns with the digit
+  const marker = R.bones.find((b) => b.head === root && b.aux?.[0] === root)?.aux?.[1];
+  const past = [...g.links[0].joints, ...(marker && pts[marker] ? [marker] : [])];
+  const turnAll = (k, deg) => { if (!deg) return; for (const j of past) pts[j] = rotLine(pts[j], p0, k, deg); for (let i = 0; i < n; i++) ax[i] = rotLine(ax[i], [0, 0, 0], k, deg); };
+  const along = sub(pts[g.links[1]?.pivot ?? g.links[0].joints[0]], p0), l0 = len(along), dir = l0 > 1e-9 ? mul(along, 1 / l0) : null;
+  if (spread && dir) {
+    // about the palm's normal through the knuckle, + radial (the hand's deviation axis), then + away from the middle
+    let k = cross(dir, ax[0]); const kl = len(k);
+    if (kl > 1e-9) { k = mul(k, 1 / kl); if (dot(k, H.axes.deviation) < 0) k = mul(k, -1); turnAll(k, spread * (SPREAD_SIGN[d] ?? 1)); }
+  }
+  if (thumb && toPalm && dir) {
+    // square to the root's hinge and the metacarpal, + toward the palm's front (the side the index finger closes to)
+    let k = cross(ax[0], dir); const kl = len(k);
+    const ix = H.digits.index;
+    if (kl > 1e-9 && ix) {
+      k = mul(k, 1 / kl);
+      const ip = R.joints[ix.links[0].pivot], it = R.joints[ix.links[ix.links.length - 1].joints.at(-1)], front = cross(ix.links[0].axis ?? ix.axis, sub(it, ip));
+      const tip = sub(pts[g.links[n - 1].joints.at(-1)], p0);
+      if (dot(cross(k, tip), front) > 0) k = mul(k, -1);
+      turnAll(k, toPalm);
+    }
+  }
+  // the joints, each by its own angle, a turn carrying the later hinges (the curl's rule)
+  g.links.forEach((l, i) => {
+    if (!a[i]) return;
+    const p = [...pts[l.pivot]];
+    for (const j of l.joints) pts[j] = rotLine(pts[j], p, ax[i], a[i]);
+    for (let m = i + 1; m < n; m++) ax[m] = rotLine(ax[m], [0, 0, 0], ax[i], a[i]);
+  });
+  return ax;
+}
+
+/**
+ * ONE DIGIT POSED IN THE HAND'S REST FRAME (the palm held still, before the wrist and the arm): the rig's own turns for
+ * `value` (a number, a word's digit, or the wider hand's object), a hand solver's forward kinematics without the body.
+ * → { joints: { <name>: point } (the digit's root, joints, tip and hinge marker), axes (each link's hinge as the turns
+ * left it), chain (the root, the joints and the tip, in order) }. A number takes the wide form's `{ curl }`, equal to the
+ * curl's path to the bit.
+ */
+export function digitPose(R, S, d, value = 0) {
+  const H = R.hands?.[S], g = H?.digits?.[d];
+  if (!g) throw new Error(`station-loft-rig: no digit '${d}' on hand ${S}`);
+  const v = typeof value === 'number' ? { curl: value } : value || {};
+  const names = [g.links[0].pivot, ...g.links[0].joints];
+  const marker = R.bones.find((b) => b.head === g.links[0].pivot && b.aux?.[0] === g.links[0].pivot)?.aux?.[1];
+  if (marker) names.push(marker);
+  const pts = Object.fromEntries(names.map((j) => [j, [...R.joints[j]]]));
+  const axes = wideDigit(R, H, pts, d, g, v, `fingers${S}`);
+  const chain = [g.links[0].pivot, ...g.links.slice(1).map((l) => l.pivot), g.links.at(-1).joints.at(-1)];
+  return { joints: pts, axes, chain };
+}
+
 /** The hand's joints turned in the rest frame for `pose` (the digits' curls, then the wrist), by name; empty without hands. */
 function handLocal(R, pose) {
   const out = {};
@@ -101,7 +185,7 @@ function handLocal(R, pose) {
     if ((f === undefined || f === 0) && (w === undefined || w === 0)) continue;
     const pts = Object.fromEntries(H.joints.map((j) => [j, [...R.joints[j]]]));
     // a link's turn carries the digit's later hinges with it (the thumb's knuckle turns with its root)
-    if (f !== undefined) { const c = handValue(R, `fingers${S}`, f); for (const [d, g] of Object.entries(H.digits)) { if (!c[d]) continue; const ax = g.links.map((l) => l.axis ?? g.axis); g.links.forEach((l, i) => { const p = [...pts[l.pivot]], a = c[d] * l.weight; for (const j of l.joints) pts[j] = rotLine(pts[j], p, ax[i], a); for (let n = i + 1; n < ax.length; n++) if (ax[n] !== ax[i]) ax[n] = rotLine(ax[n], [0, 0, 0], ax[i], a); }); } }
+    if (f !== undefined) { const c = handValue(R, `fingers${S}`, f); for (const [d, g] of Object.entries(H.digits)) { if (c[d] && typeof c[d] === 'object') { wideDigit(R, H, pts, d, g, c[d], `fingers${S}`); continue; } if (!c[d]) continue; const ax = g.links.map((l) => l.axis ?? g.axis); g.links.forEach((l, i) => { const p = [...pts[l.pivot]], a = c[d] * l.weight; for (const j of l.joints) pts[j] = rotLine(pts[j], p, ax[i], a); for (let n = i + 1; n < ax.length; n++) if (ax[n] !== ax[i]) ax[n] = rotLine(ax[n], [0, 0, 0], ax[i], a); }); } }
     if (w !== undefined) { const v = handValue(R, `wrist${S}`, w), p = R.joints[H.wrist]; for (const k of ['flex', 'deviation', 'twist']) if (v[k]) for (const j of H.joints) pts[j] = rotLine(pts[j], p, H.axes[k], v[k]); }
     Object.assign(out, pts);
   }
@@ -497,7 +581,7 @@ export function bindLayered(mesh, recipe, R = validateRig(recipe.rig)) {
   const boneOf = (id, where) => { const bi = R.boneIndex[id]; if (bi === undefined) throw new Error(`station-loft-rig: ${where} binds unknown bone '${id}'`); return bi; };
   for (let i = 0; i < n; i++) {
     const prov = mesh.provenance[i]; const part = recipe.parts[prov.part];
-    if (prov.layer !== 1) continue;
+    if (prov.layer !== 1 || prov.mix) continue;   // (a rounded body's new point, body-smooth.js: weighed below, from its corners)
     const bind = part.bind; if (bind === undefined || bind === null) throw new Error(`station-loft-rig: part ${prov.part} has no bind`);
     if (typeof bind === 'string') { per[i] = [[boneOf(bind, prov.part), 1]]; continue; }
     if (!bind || typeof bind !== 'object' || typeof bind.bone !== 'string') throw new Error(`station-loft-rig: part ${prov.part}.bind must be a bone id or { bone, blend }`);
@@ -508,6 +592,8 @@ export function bindLayered(mesh, recipe, R = validateRig(recipe.rig)) {
     if (!entries.length || entries.length > 4 || entries.some(([, w]) => !Number.isFinite(w) || w < 0) || Math.abs(sum - 1) > 1e-9) throw new Error(`station-loft-rig: part ${prov.part} blend at ${st} must be ≤ 4 finite non-negative weights summing to 1`);
     per[i] = entries.map(([b, w]) => [boneOf(b, `${prov.part}.${st}`), w]);
   }
+  // (a rounded body's new point: its two corners' weights, each half, the strongest four kept)
+  for (let i = 0; i < n; i++) { const mix = mesh.provenance[i].mix; if (!mix) continue; const acc = {}; for (const c of mix) for (const [bi, w] of per[c]) acc[bi] = (acc[bi] ?? 0) + w / mix.length; per[i] = topFour(acc); }
   for (const [name, part] of Object.entries(recipe.parts)) if (part.layer !== 1 && part.bind !== undefined) throw new Error(`station-loft-rig: pinned part ${name} cannot bind — it inherits its pin face`);
   const order = Object.entries(mesh.parts).filter(([, p]) => p.layer !== 1).sort(([a, x], [b, y]) => x.layer - y.layer || (a < b ? -1 : 1));
   for (const [name, part] of order) {
@@ -723,9 +809,18 @@ function cornerRowOf(sub, rows, W) {
 
 /** A CORRECTIVE's weight at posed nodes (a sliced recipe's, body-relational-correctives.js correctiveRest): the smoothstep
  * of its driver bone's raise (joint → to, its angle in degrees from the trunk's down, navel from neckHub) between `from`
- * and `full`; 0 when a node is missing. */
+ * and `full`, or, a driver naming `bend`, of the joint's flexion (bend → joint against joint → to); 0 when a node is
+ * missing. */
 export function correctiveWeight(driver, nodes) {
-  const a = nodes[driver.joint], b = nodes[driver.to]; if (!a || !b || !nodes.navel || !nodes.neckHub) return 0;
+  const a = nodes[driver.joint], b = nodes[driver.to];
+  // (a BEND driver, `bend` the joint before: the joint's flexion, the angle between the bone into it and the bone out of
+  // it, 0 straight; musculature/'s squash and stretch)
+  if (driver.bend) {
+    const h = nodes[driver.bend]; if (!a || !b || !h) return 0;
+    const flex = (Math.acos(Math.max(-1, Math.min(1, bv.dot(bv.unit(bv.sub(a, h)), bv.unit(bv.sub(b, a)))))) * 180) / Math.PI;
+    const y = Math.max(0, Math.min(1, (flex - driver.from) / (driver.full - driver.from))); return y * y * (3 - 2 * y);
+  }
+  if (!a || !b || !nodes.navel || !nodes.neckHub) return 0;
   const raise = (Math.acos(Math.max(-1, Math.min(1, bv.dot(bv.unit(bv.sub(b, a)), bv.unit(bv.sub(nodes.navel, nodes.neckHub)))))) * 180) / Math.PI;
   const y = Math.max(0, Math.min(1, (raise - driver.from) / (driver.full - driver.from))); return y * y * (3 - 2 * y);
 }
@@ -740,12 +835,12 @@ function correctivesOf(mesh, R, list) {
   const rowsL = []; mesh.pointIds.forEach((id, vi) => { const r = at.get(id); if (r) { sub[vi] = rowsL.length; rowsL.push(r); } });
   const rows = new Float64Array(rowsL.length * W); rowsL.forEach((r, k) => rows.set(r, k * W));
   const joints = {};
-  for (const c of list) for (const j of [c.driver.joint, c.driver.to, 'navel', 'neckHub']) {
+  for (const c of list) for (const j of [c.driver.joint, c.driver.to, ...(c.driver.bend ? [c.driver.bend] : ['navel', 'neckHub'])]) {
     if (joints[j] || !R.joints[j]) continue;
     const b = R.bones.find((x) => x.head === j) || R.bones.find((x) => x.tail === j); if (!b) continue;
     joints[j] = { bone: b.id, at: sub3(R.joints[j], R.joints[b.head]).map(r4) };
   }
-  return { rowAt: cornerRowOf(sub, rows, W), meta: { targets: list.map((c) => ({ id: c.id, driver: { joint: c.driver.joint, to: c.driver.to, from: c.driver.from, full: c.driver.full }, w: r4(correctiveWeight(c.driver, R.joints)) })), joints } };
+  return { rowAt: cornerRowOf(sub, rows, W), meta: { targets: list.map((c) => ({ id: c.id, driver: { joint: c.driver.joint, to: c.driver.to, ...(c.driver.bend ? { bend: c.driver.bend } : {}), from: c.driver.from, full: c.driver.full }, w: r4(correctiveWeight(c.driver, R.joints)) })), joints } };
 }
 const sub3 = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
 
@@ -801,7 +896,7 @@ const sub3 = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
  * patch) and its TANGENT (`cover.tangentAt(fi, k)`), the pack the maps (`coverTex`: { base, normal, orm, height, size,
  * depth }, each a PNG data URL).
  */
-export function packLayeredRig(mesh, skin, R, { clips = {}, keys = 12, dz = 0, light = [0.35, -0.55, 0.75], hullShade = null, normals = null, character = null, face = null, paint = null, seconds = null, speeds = null, gear = null, emissive = null, cast = null, tint = null, palette = null, fields = null, cellTint = null, surfaces = null, correctives = null, engineLit = false, relief = null, cover = null } = {}) {
+export function packLayeredRig(mesh, skin, R, { clips = {}, acts = null, keys = 12, dz = 0, light = [0.35, -0.55, 0.75], hullShade = null, normals = null, character = null, face = null, paint = null, seconds = null, speeds = null, gear = null, emissive = null, cast = null, tint = null, palette = null, fields = null, cellTint = null, surfaces = null, correctives = null, engineLit = false, relief = null, cover = null } = {}) {
   // `surfaces` (recipe.surfaces: a hero wearing its cube's materials, the plain path): each part whose triangles include
   // a metal group's packs the metal channel's per-vertex data (`metal`, face-mesh.js), so the page's metal shades the
   // moving parts as it shades the static solid. No metal surface ⇒ nothing tracked, byte-identical
@@ -903,15 +998,20 @@ export function packLayeredRig(mesh, skin, R, { clips = {}, keys = 12, dz = 0, l
   // on that bone, after its own faces (outside its ink and draw-layer spans). Absent ⇒ the pack is byte-identical.
   if (Array.isArray(gear)) for (const g of gear) { const P = parts[g.bone]; if (!P) continue; for (const t of g.tris) { P.faces++; if (P.tg) P.tg.push(null); const gn = P.nrm ? cross(sub(t.p[1], t.p[0]), sub(t.p[2], t.p[0])) : null, gl = gn ? len(gn) || 1 : 1; for (const p of t.p) { if (gn) P.nrm.push(gn[0] / gl, gn[1] / gl, gn[2] / gl); if (P.tan) P.tan.push(...axisTangent([gn[0] / gl, gn[1] / gl, gn[2] / gl])); P.pos.push(p[0], p[1], p[2]); P.col.push(t.col[0], t.col[1], t.col[2]); P.jnt.push(g.bone, 0, 0, 0); P.wgt.push(1, 0, 0, 0); if (P.uv) P.uv.push(...(carryC ? cover.uvAt(-1, 0) : paint.white)); } } }
   const packedClips = {}, props = [];
-  for (const [name, clip] of Object.entries(clips)) {
+  // an actor's ACTS (actor/act.js: a persona's reads played as body takes) pack as its clips do, apart (`acts`): one-shot,
+  // their seconds their own, never among the clips a preview lists. Absent ⇒ the pack is byte-identical
+  const packedActs = {};
+  for (const [name, clip, into] of [...Object.entries(clips).map(([k, c]) => [k, c, packedClips]), ...Object.entries(acts ?? {}).map(([k, c]) => [k, c, packedActs])]) {
     // a function clip may carry its own key count (a gait's: hero-motion.js locomotionClips, dense so the stance holds)
     // a function clip may also be ONE-SHOT (`once`: a jump's, sampled 0 … 1 inclusive) and carry its `air` (hero-jump.js)
     // (the posed nodes, raised by dz, keep every turn rigNodesAt records — the body's, a stance's facing, the legs' splay —
     // so each bone's frame here is the one the skin is posed with: dropping the facing left a turned stance's head and
     // jaw on different spins, the seam under the chin open in the export)
-    const fn = typeof clip === 'function' ? clip : layeredClip(clip, R); const K = typeof clip === 'function' && clip.keys > 0 ? clip.keys : keys; const once = fn.once === true; const flat = [], cw = corr ? [] : null;
+    const fn = typeof clip === 'function' ? clip : layeredClip(clip, R); const K = typeof clip === 'function' && clip.keys > 0 ? clip.keys : keys; const once = fn.once === true; const flat = [], cw = corr && into !== packedActs ? [] : null;   // (an act carries no correctives' weights: its GLB clip drives the bones alone, the face's take the weights)
     for (let k = 0; k < K; k++) { const { nodes } = rigNodesAt(R, fn(once ? k / (K - 1) : k / K)); if (cw) for (const c of correctives) cw.push(r4(correctiveWeight(c.driver, nodes))); const shifted = Object.fromEntries(Object.entries(nodes).map(([n, v]) => [n, [v[0], v[1], v[2] + dz]])); for (const m of ['$body', '$facing', '$legYaw']) if (nodes[m]) Object.defineProperty(shifted, m, { value: nodes[m], enumerable: false }); for (const f of boneFrames(R, rest, shifted)) flat.push(...f.q.map(r4), ...f.head.map(r4)); }
-    packedClips[name] = { k: K, b: flat, ...(cw ? { cw } : {}), ...(seconds?.[name] > 0 ? { s: seconds[name] } : {}), ...(speeds?.[name] > 0 ? { v: speeds[name] } : {}), ...(once ? { once: true } : {}), ...(typeof clip === 'function' && clip.air ? { air: clip.air } : {}), ...(typeof clip === 'function' && clip.roll ? { roll: clip.roll } : {}), ...(typeof clip === 'function' && clip.stop ? { stop: clip.stop } : {}), ...(typeof clip === 'function' && clip.move ? { move: clip.move } : {}), ...(typeof clip === 'function' && clip.rest ? { rest: clip.rest } : {}), ...(typeof clip === 'function' && clip.vault ? { vault: clip.vault } : {}), ...(typeof clip === 'function' && clip.held ? { held: clip.held } : {}) };
+    // (an act's seconds and what it is are its own, `act`; a clip's from the maps)
+    const isAct = into === packedActs, own = isAct && typeof clip === 'function' ? clip.act : null;
+    into[name] = { k: K, b: flat, ...(cw ? { cw } : {}), ...(own ? { s: own.seconds, act: own } : !isAct && seconds?.[name] > 0 ? { s: seconds[name] } : {}), ...(!isAct && speeds?.[name] > 0 ? { v: speeds[name] } : {}), ...(once ? { once: true } : {}), ...(typeof clip === 'function' && clip.air ? { air: clip.air } : {}), ...(typeof clip === 'function' && clip.roll ? { roll: clip.roll } : {}), ...(typeof clip === 'function' && clip.stop ? { stop: clip.stop } : {}), ...(typeof clip === 'function' && clip.move ? { move: clip.move } : {}), ...(typeof clip === 'function' && clip.rest ? { rest: clip.rest } : {}), ...(typeof clip === 'function' && clip.vault ? { vault: clip.vault } : {}), ...(typeof clip === 'function' && clip.held ? { held: clip.held } : {}) };
     // a held thing's PROPS (hero-motion.js: a hold's or a guard's things at rest on their hand's bone, raised by dz): each its
     // own record, the clip's, so the export draws it as a mesh of its own on the figure's skin
     if (typeof clip === 'function' && typeof clip.props === 'function') for (const pr of clip.props(dz, cast ?? character?.light ?? undefined)) if (pr.tris?.length) {
@@ -932,7 +1032,7 @@ export function packLayeredRig(mesh, skin, R, { clips = {}, keys = 12, dz = 0, l
     rig: true, layered: true,
     bones: R.bones.map((b) => ({ id: b.id, head: rest[b.head].map(r4), tail: rest[b.tail].map(r4) })),
     parts: parts.map((P) => (P.faces ? { pos: b64f32(P.pos), col: b64u8(P.col), faces: P.faces, jnt: Buffer.from(Uint8Array.from(P.jnt).buffer).toString('base64'), wgt: b64f32(P.wgt), ...(P.inkFaces !== undefined ? { inkFaces: P.inkFaces } : {}), ...(P.ranges ? { ranges: P.ranges } : {}), ...(P.mph?.length ? { morph: packMorph(P.mph) } : {}), ...(P.uv ? { uv: b64f32(P.uv) } : {}), ...(P.metal ? { metal: P.metal } : {}), ...(P.cph?.length ? { corrective: packMorph(P.cph) } : {}), ...(P.nrm ? { nrm: b64f32(P.nrm) } : {}), ...(P.tan ? { tan: b64f32(P.tan) } : {}) } : null)),
-    clips: packedClips, figH: r4(mxz - mnz), ...(props.length ? { props } : {}),
+    clips: packedClips, ...(Object.keys(packedActs).length ? { acts: packedActs } : {}), figH: r4(mxz - mnz), ...(props.length ? { props } : {}),
     ...(paint ? { paintTex: { ...paint.atlas, white: paint.white, ...(paint.alphaMask ? { alphaMask: true } : {}) } } : {}),
     ...(corr ? { correctives: corr.meta } : {}),
     ...(carryT && !carryC && relief.atlas ? { normalTex: relief.atlas } : {}),

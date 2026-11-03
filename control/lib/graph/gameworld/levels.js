@@ -22,6 +22,7 @@
  *
  * Pure (the stage is assembled to read its ends; nothing is stored).
  */
+import { errandLegs, layErrand } from './errand.js';
 import { readGameworld, resolveLevel, looksOfKit } from './world.js';
 import { rollArt, ART_KITS, ART_ITEMS } from '../era/art-direction.js';
 import { solvePalette, fingerprint as printOf } from '../color-theorist/solve.js';
@@ -35,6 +36,7 @@ import { outTrailOf } from '../era/out-trail-board.js';
 import { TRAVERSAL_MOVES, HERO_MOVES } from './actions.js';
 import { RIDE_H } from './ride.js';
 import { fixedStations, uprightCamera } from './cameras.js';
+import { SHOOT, PERSON, shoulderOf } from './quick.js';
 import { readScreen } from '../game/screen.js';
 import { cubeOfWorld } from './intent.js';
 import { concernIds } from './concerns.js';
@@ -63,13 +65,50 @@ import { standFoe } from './foes.js';
 /** A sneak's guard: a guard in a person's skin (foes/classes/guard.js), and what the sneak plays it at: a watcher whose
  * sighting ends the run (the `unseen` mechanic reads its team), never fought, kept near its post. */
 const SNEAK_GUARD = Object.freeze({ class: 'guard', skin: { people: 'human' } });
+// THE BODY'S OWN BLOW (adornment.js BASIC_VERBS 'strike'): a hero carrying an item in its right hand for its strike
+// swings it. The pilot's rule takes the runtime's own contact window (combat-melee.js meleeSwingSpec's: the downstroke of
+// the swing clip) where no feel names one; the world's page arms the rule with what the figure holds, its reach, seconds
+// and damage (world-scene.js, the held strike). A hero carrying nothing for it, as it was.
+const HELD_CONTACT = Object.freeze([0.28, 0.62]);
+const carriesStrike = (G) => (G.characters?.hero?.adornment?.items ?? []).some((it) => it.slot === 'right' && (it.serves ?? []).includes('strike'));
+const strikeWindow = (G, rule) => (carriesStrike(G) && !Array.isArray(rule?.strikeContact) ? { strikeContact: [...HELD_CONTACT] } : null);
+const STRIKE_LEGEND = 'click  strike';
+// THE BODY'S OWN SHOT (adornment.js BASIC_VERBS 'shoot'): a hero carrying a firearm in its right hand for its shot fires
+// it as the quick shooter's player does (quick.js shootCast): a pistol the handgun's numbers, a long gun the rifle's,
+// fired from the eye; its body hittable; played third person, over the shoulder (its rounds converging on the
+// crosshair). A hero carrying nothing for it, as it was.
+const shotItem = (G) => (G.characters?.hero?.adornment?.items ?? []).find((it) => it.slot === 'right' && (it.serves ?? []).includes('shoot')) ?? null;
+const FIRE_LEGEND = 'click  fire';
+// A STEP IN: a building's way in has the wall at its back, and the hero's chase is pulled in against it
+// (follow-pull-in.js) until the hero's back fills the frame. The hero starts a few steps into the entry room, along its
+// heading, where the room holds that point (half a metre clear of its walls); the level's own ends stay at the door
+const STEP_IN = 2.5;
+function steppedIn(plan, spawn, heading) {
+  const r = plan.rooms.find((x) => x.id === plan._program.entry), q = [r3(spawn[0] + Math.cos(heading) * STEP_IN), r3(spawn[1] + Math.sin(heading) * STEP_IN), spawn[2]];
+  return r && q[0] > r.x + 0.5 && q[0] < r.x + r.w - 0.5 && q[1] > r.y + 0.5 && q[1] < r.y + r.d - 0.5 ? q : spawn;
+}
+function armedPilot(G, entity, cam) {
+  const it = shotItem(G);
+  if (!it) return { entity, camera: null };
+  const over = shoulderOf(cam ?? 'third-person', true), gun = it.build?.item === 'pistol' ? SHOOT.gun : SHOOT.rifle;
+  return {
+    entity: { ...entity, weapon: { ...gun, eye: 1.5, ...(over ? { converge: true } : {}) }, body: { ...entity.body, hittable: true, radius: 0.5, egg: { ...PERSON, cz: PERSON.c } } },
+    camera: over ? { rule: 'follow', target: entity.id, ...over } : null,
+  };
+}
 const SNEAK_TUNE = Object.freeze({ team: 'guards', rule: { guardRadius: 10, speed: 3, turnRate: 2.2 }, body: { hittable: false } });
 import { feelCard, lowerFeel } from './feel/lower.js';
 import { juiceOfGame } from './juice.js';
+import { tempoOfGame } from './tempo.js';
+import { readBuildingParked, parkIn, paintOfDress } from '../vehicle-registry/parked.js';
+import { roleOf } from '../era/stocking.js';
+import { camoForSetting } from '../car-designer/livery-cut.js';
 
 // the world's juice (juice.js): its effects' floor, composed from its register and its game type, on every level; none
 // written, nothing laid
 const juiceOf = (G) => { const J = juiceOfGame(G); return J ? { fxStyle: J.fxStyle } : {}; };
+// the world's clock (tempo.js): the moments that slow or hold its live levels, on every level; none written, nothing laid
+const tempoOf = (G) => { const T = tempoOfGame(G); return T ? { tempo: T.tempo } : {}; };
 
 const EYE_FALLBACK = 1.7;
 // a person's eye over a hero whose position is its feet (playerWorld's pilot stands at eye 0)
@@ -440,7 +479,7 @@ function levelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = null, me
   if (cam === 'fixed' && !heroRef) throw new Error('levels: fixed cameras watch a hero walk past them; give the world a hero, or play it first-person');
   const look = cam === 'first-person', top = cam === 'top-down', lane = cam === 'side' ? stageLane(stage) : null;
   const moveWords = stage.section === 'runner' ? 'A / D  change lane · S  slide' : lane ? 'A / D  run' : top ? 'W A S D  move' : look ? `W / S  ${heroRef ? 'run' : 'walk'} · A / D  step aside · mouse  look` : `W / S  ${heroRef ? 'run' : 'walk'} · A / D  turn`;
-  const controls = `${moveWords}${heroRef ? ' · Space  jump' : ''}${legend ? ` · ${legend}` : ''}${mechanics?.legend ? ` · ${mechanics.legend}` : ''}`;
+  const controls = `${moveWords}${heroRef ? ' · Space  jump' : ''}${heroRef && carriesStrike(G) ? ` · ${STRIKE_LEGEND}` : ''}${heroRef && shotItem(G) ? ` · ${FIRE_LEGEND}` : ''}${legend ? ` · ${legend}` : ''}${mechanics?.legend ? ` · ${mechanics.legend}` : ''}`;
   // (a runner's own goal is the run: a crash ends it, the score its result)
   const placed0 = goal ? goal(ends) : stage.section === 'runner' ? [{ kind: 'runner' }] : [{ kind: 'reach-exit', at: ends.exit, radius: 2.5, ...(ends.planar ? {} : { planar: false }), ...(ends.via ? { via: ends.via } : {}) }];
   // the doors of its buildings whose scene changes there (stage-buildings.js): each a `door` mechanic, its inside a level
@@ -481,13 +520,14 @@ function levelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = null, me
       events: P.events || {},
     };
   } else if (ride?.ref || ride?.racer || ride?.figure) {
-    // THE RIDE (ride.js): the hero is a vehicle, on the drive rule its build derived, followed from behind; or a racer
+    // THE RIDE (ride.js): the hero is a vehicle, on the drive rule its build derived, followed from behind (a ride's own
+    // chase when it brings one: a realistic loft's, scaled to its length); or a racer
     // (quick.racers): the first of the field, in the machine its driver reads as, followed close (a kart is small)
     const P = playerWorld({ heroRef: 'none', id: 'car', title: name, controls: `W  throttle · S  brake, hold to reverse · A / D  steer${mechanics?.legend ? ` · ${mechanics.legend}` : ''}` });
     pilotPart = {
       figures: { ride: ride.figure ?? (ride.racer ? { racer: ride.racer } : { vehicleRef: ride.ref, targetH: RIDE_H }) },
       entities: [{ id: 'car', pilotable: true, rule: ride.rule, body: { type: 'figure-rig', figure: 'ride' }, transform: { pos: ends.spawn, heading: ends.heading } }],
-      camera: ride.racer ? { rule: 'follow', target: 'car', ...RACER_CAMERA } : ride.figure ? { rule: 'follow', target: 'car', ...SUPERCAR_CAMERA } : { rule: 'follow', target: 'car', dist: 11, height: 4.5, lead: 5, lookH: 1.2 },
+      camera: ride.camera ? { rule: 'follow', target: 'car', ...ride.camera } : ride.racer ? { rule: 'follow', target: 'car', ...RACER_CAMERA } : ride.figure ? { rule: 'follow', target: 'car', ...SUPERCAR_CAMERA } : { rule: 'follow', target: 'car', dist: 11, height: 4.5, lead: 5, lookH: 1.2 },
       events: P.events || {},
     };
   } else if (heroRef) {
@@ -496,7 +536,8 @@ function levelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = null, me
     // the world's feel (feel/lower.js): its template's card lowered over the hero's platform rule, the camera's way of
     // moving kept; no feel, the hero's own rule as it was
     const feelRule = G.feel ? lowerFeel(feelCard(G.feel)).rule : null;
-    const rule = feelRule ? { ...feelRule, ...(camRule ?? {}) } : camRule;
+    const rule0 = feelRule ? { ...feelRule, ...(camRule ?? {}) } : camRule, struck = strikeWindow(G, rule0);
+    const rule = struck ? { ...(rule0 ?? {}), ...struck } : rule0;
     // (a mascot pilot, egocube/mascot-pilot.js: its own clips, capsule, stride, camera and eye)
     const moves = heroMoves(G);
     const P = withMoves(playerWorld({ heroRef, ...(heroGaits ? { gaits: heroGaits } : {}), ...(pilot ? { pilot } : {}), id: 'hero', title: name, controls: `${controls}${movesLegend(moves)}`, ...(rule ? { rule } : {}) }), moves);
@@ -507,7 +548,8 @@ function levelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = null, me
         : cam === 'fixed' ? { rule: 'fixed', target: 'hero', stations: fixedStations(ends) }
         : stage.section === 'runner' ? { rule: 'follow', target: 'hero', ...RUNNER_CAMERA }
         : P.camera;
-    pilotPart = { figures: P.figures, entities: [{ ...P.entities[0], transform: { pos: ends.spawn, heading: ends.heading } }], camera, events };
+    const A = armedPilot(G, { ...P.entities[0], transform: { pos: ends.spawn, heading: ends.heading } }, cam);
+    pilotPart = { figures: P.figures, entities: [A.entity], camera: cam && cam !== 'third-person' ? camera : A.camera ?? camera, events };
     seatable = !look;
   } else {
     // FIRST PERSON: no hero; you are the camera, a walker held at the stage's own eye height (with a body the walls of
@@ -602,7 +644,7 @@ function levelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = null, me
   }
   let play;
   ({ pilotPart, play } = storyPart(G, stage, ends, lane, pilotPart, extraPlay ? mergePlay(mechanics?.play ?? {}, extraPlay) : mechanics?.play ?? null, { story, carryFrom, party, castFigures }));
-  const manifest = { ...stage.manifest, title: name, ...pilotPart, ...(play ? { play } : {}), ...(blocks ? { blocks } : {}), ...(mechanics?.destruction ? { destruction: mechanics.destruction } : {}), ...(audio ? { audio } : {}), ...(G.style?.pixel ? { pixel: G.style.pixel } : {}), ...juiceOf(G), ...(seats ? { seats } : {}), game };
+  const manifest = { ...stage.manifest, title: name, ...pilotPart, ...(play ? { play } : {}), ...(blocks ? { blocks } : {}), ...(mechanics?.destruction ? { destruction: mechanics.destruction } : {}), ...(audio ? { audio } : {}), ...(G.style?.pixel ? { pixel: G.style.pixel } : {}), ...juiceOf(G), ...tempoOf(G), ...(seats ? { seats } : {}), game };
   // the concerns' laws over what was laid (lay-concerns.js): advisory, for the run's readout
   // a roadway's laws are its own (its census: roads/track.js trackLaws); a trail's, its concerns'
   const laws = stage.section === 'roadway' ? ends.roadLaws : stage.section === 'airspace' ? ends.airLaws : stage.section === 'runner' ? [] : concerns.length ? concernLaws(concerns, { ends, blocks: blocks ?? [], posts: posts ?? [], watchers: watched ?? [], pads: pads ?? [], raised, jump, mechanics: game.mechanics, loop: ends.loop, arena: ends.arena }) : [];
@@ -790,6 +832,8 @@ export function mapPlan(G, stages, refs) {
     plan[first].back.push({ to: refs[last] });
     if (l.key) { const at = of(l.keyAt); plan[at[at.length - 1]][slice === 'powers' ? 'powers' : 'keys'].push(l.key); }
   }
+  // the errands' legs on each level's last stage (errand.js): its trades and bounties, the giver's hand-in, the cargo
+  for (const id of G.ids) { const ix = of(id); if (ix.length) plan[ix[ix.length - 1]].errand = errandLegs(G.errands, id); }
   for (const p of plan) {
     p.on.forEach((w, j) => { w.id = j ? `on-${j + 1}` : 'on'; });
     p.back.forEach((w, j) => { w.id = j ? `back-${j + 1}` : 'back'; });
@@ -828,6 +872,13 @@ function stageWays(stage, ends, plan) {
       if (row.length) mechanics.push({ kind: 'collect', into, pickups: row.map((f) => ({ item: f.item, at: at(f.j), radius: 1.6 })) });
     }
   }
+  // the errands' legs (errand.js), each on a beat of its own, past the ways' and the keys'
+  if (plan.errand?.length) {
+    const free = ends.beats.filter((b) => b.beat !== 'exit' && b.beat !== 'trailhead' && !extra.some((_, j) => side[j] === b));
+    const taken = new Set([...extra.map((_, j) => side[j]), ...(found.length ? [free[Math.floor(free.length / 2)]] : [])]);
+    const spots = free.filter((b) => !taken.has(b)).map((b) => b.at);
+    mechanics.push(...layErrand(plan.errand, spots));
+  }
   return { mechanics, arrive, exits: [...plan.on, ...plan.back].map((w) => ({ id: w.id, to: w.to, ...(w.gate ? { gate: w.gate } : {}) })) };
 }
 
@@ -845,6 +896,8 @@ export function gameStore(world, book) {
   // a map world whose doors are keyed carries the items in a bag and the hero's powers in `powers`
   const pk = new Set(powerKeys(G).map((p) => p.id));
   if (G.topology === 'interconnected' && G.links.some((l) => l.key && !pk.has(l.key))) slices.push({ name: 'bag', kind: 'inventory' });
+  // a world with errands carries what they fetch in the bag (errand.js)
+  else if (G.errands?.length) slices.push({ name: 'bag', kind: 'inventory' });
   // a level whose goal collects picks up into the bag (its own goal: quick.js levelGoalMechanics)
   else if (G.ids.some((id) => G.levels[id].goal?.collect)) slices.push({ name: 'bag', kind: 'inventory' });
   if (pk.size) slices.push({ name: 'powers', kind: 'inventory' });
@@ -957,6 +1010,14 @@ export function buildingStage(B) {
  * (the stage is metres, as the hero is); without one, the level's own first-person walker. A building by ref is not
  * made here: the game plays it as it was made.
  */
+function parkedOf(G, word, rooms) {
+  const P = readBuildingParked(word);
+  const room = rooms.find((r) => roleOf(r.id) === 'hangar') ?? rooms.reduce((a, r) => (r.w * r.d > a.w * a.d ? r : a));
+  const dress = Object.values(G.foes ?? {}).map((f) => f?.skin?.dress).find((d) => d?.colourway);
+  const livery = P.livery ?? paintOfDress(dress) ?? camoForSetting({ kit: typeof G.style?.kit === 'string' ? G.style.kit : null }) ?? undefined;
+  return parkIn(room, P.vehicles, { seed: Number.isInteger(G.seed) ? G.seed : 1, livery, wear: P.wear });
+}
+
 function buildingLevelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = null, mechanics = null, title, goal = null, goalCast = null, extra = null, story = null, carryFrom = null, party = null, castFigures = null } = {}) {
   const name = title ?? `${G.name ?? G.id} · ${stage.level}`;
   let base = { ...stage.manifest, title: name, ...(mechanics?.play ? { play: mechanics.play } : {}) };
@@ -974,6 +1035,14 @@ function buildingLevelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = 
   // its rooms (each its box and floor) and its use, for a stage's extra to stand things in (a minigame's stall)
   Object.defineProperty(ends, 'rooms', { value: plan.rooms.map((r) => ({ id: r.id, x: r.x, y: r.y, w: r.w, d: r.d, z: floors ? floors.get(r.id) : 0 })), enumerable: false });
   Object.defineProperty(ends, 'use', { value: stage.building.use, enumerable: false });
+  // (its route to the goal room, through the doorways and up the flights: an escape room's keys lie on it, escape.js)
+  Object.defineProperty(ends, 'via', { value: lowered.game.mechanics.at(-1).via ?? null, enumerable: false });
+  // its parked vehicles (building.parked, vehicle-registry/parked.js): in its hangar, else its largest room, painted as its
+  // foes' faction dresses, else in its setting's camo, stamped into the level's manifest. Absent ⇒ byte-identical
+  if (stage.building?.parked !== undefined) {
+    const parked = parkedOf(G, stage.building.parked, ends.rooms);
+    if (parked.length) base = { ...base, parked };
+  }
   // a quick goal: its mechanics beside the building's own goal (which keeps its route through the doorways)
   if (goal) {
     const own = goal(ends), extra = own.filter((x) => x.kind !== 'reach-exit');
@@ -993,18 +1062,26 @@ function buildingLevelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = 
   if (!heroRef) {
     if (X?.entities?.length) base = { ...base, figures: { ...(base.figures ?? {}), ...X.figures }, entities: [piloted(walker), ...X.entities], camera: lowered.camera };
     if (X?.inputs?.length) base = { ...base, events: { ...(base.events ?? {}), inputs: [...(base.events?.inputs ?? []), ...X.inputs] } };
-    return { tool: 'create_sketch', args: { title: name, manifest: { ...base, ...juiceOf(G) } }, ends };
+    return { tool: 'create_sketch', args: { title: name, manifest: { ...base, ...juiceOf(G), ...tempoOf(G) } }, ends };
   }
   // a hero with the wall or the line (actions.moves) plays it under its rooms' ceilings, laid as colliders (era/anchors.js)
   const moves = heroMoves(G);
   if (moves) base = { ...base, ceilings: true };
-  const controls = `W / S  run · A / D  turn · Space  jump${movesLegend(moves)}${X?.legend ? ` · ${X.legend}` : ''}${mechanics?.legend ? ` · ${mechanics.legend}` : ''}`;
-  const P = withMoves(playerWorld({ heroRef, ...(heroGaits ? { gaits: heroGaits } : {}), ...(pilot ? { pilot } : {}), id: 'hero', title: name, controls }), moves);
+  // the world's camera (cameras.js) over the rooms as over a trail: top-down moves the hero in the screen's frame under
+  // the overhead camera, fixed cameras stand over the rooms in order; a side camera has no lane in a building; absent
+  // (or third person), the hero's own chase, every arg as it was
+  const cam = G.camera ?? null, top = cam === 'top-down';
+  if (cam === 'side') throw new Error(`levels: a side camera runs a trail's lane, and '${stage.level}' is a building with none; play it top-down, fixed or third-person`);
+  const controls = `${top ? 'W A S D  move' : 'W / S  run · A / D  turn'} · Space  jump${carriesStrike(G) ? ` · ${STRIKE_LEGEND}` : ''}${shotItem(G) ? ` · ${FIRE_LEGEND}` : ''}${movesLegend(moves)}${X?.legend ? ` · ${X.legend}` : ''}${mechanics?.legend ? ` · ${mechanics.legend}` : ''}`;
+  const brule = { ...(top ? { move: 'world', moveYaw: OVERHEAD.yaw } : {}), ...(strikeWindow(G, null) ?? {}) };
+  const P = withMoves(playerWorld({ heroRef, ...(heroGaits ? { gaits: heroGaits } : {}), ...(pilot ? { pilot } : {}), id: 'hero', title: name, controls, ...(Object.keys(brule).length ? { rule: brule } : {}) }), moves);
   const inputs = [...(P.events?.inputs ?? []), ...(mechanics?.inputs ?? []), ...(X?.inputs ?? [])];
   const events = { ...(P.events || {}), ...(inputs.length > (P.events?.inputs?.length ?? 0) ? { inputs } : {}) };
-  const pilot0 = { figures: X?.figures ? { ...P.figures, ...X.figures } : P.figures, entities: [piloted({ ...P.entities[0], transform: { pos: spawn, heading } }), ...(X?.entities ?? [])], camera: P.camera, events };
+  const A = armedPilot(G, { ...P.entities[0], transform: { pos: steppedIn(plan, spawn, heading), heading } }, cam);
+  const camera = top ? { rule: 'overhead', target: 'hero', ...OVERHEAD } : cam === 'fixed' ? { rule: 'fixed', target: 'hero', stations: fixedStations(ends) } : A.camera ?? P.camera;
+  const pilot0 = { figures: X?.figures ? { ...P.figures, ...X.figures } : P.figures, entities: [piloted(A.entity), ...(X?.entities ?? [])], camera, events };
   // the story's share (its quests, its party; its moments bind to a building's start and goal), as a stage's
   const play0 = base.play ?? null, { pilotPart, play } = storyPart(G, stage, ends, null, pilot0, play0, { story, carryFrom, party, castFigures });
-  const manifest = { ...base, ...pilotPart, ...(play !== play0 ? { play } : {}), ...juiceOf(G) };
+  const manifest = { ...base, ...pilotPart, ...(play !== play0 ? { play } : {}), ...juiceOf(G), ...tempoOf(G) };
   return { tool: 'create_sketch', args: { title: name, manifest }, ends };
 }

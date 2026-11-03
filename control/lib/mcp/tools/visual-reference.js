@@ -17,10 +17,7 @@
  * The artifact is a conventionally-shaped stash (zero migration): a `sketch`
  * item carries metadata.{sketch_ref, label, insights}. Consumers (sketch via
  * preload, motion via a camera-shot over the cage / pose keyframes, cook via a
- * stash slice) read metadata.insights. Bind it to a build with the existing
- * bind_stash({ role:'reference' }).
- *
- * See lite-template/integration/0612/visual-reference.plan.md.
+ * stash slice) read metadata.insights.
  */
 
 import { registerTool } from '@/lib/mcp/server';
@@ -102,7 +99,7 @@ function objectNext({ ledger, segments, fusion, cageRef, stashRef, passes, view 
       `A single view cannot see depth, the radius-to-height scale, or the back. To GROUND it, capture_reference again with stash_ref:'${stashRef}' from a view rotated ~90° — send ONLY the corrections (a part you omit is carried forward, \`{id, radius}\` fixes one radius, \`drop:['id']\` removes one).`,
     );
   }
-  parts.push(`Iterate in place with update_sketch on ${cageRef}; export with export_model when it reads. Anchor a build: bind_stash({ stash_ref:'${stashRef}', role:'reference' }).`);
+  parts.push(`Iterate in place with update_sketch on ${cageRef}; export with export_model when it reads.`);
   return parts.join(' ');
 }
 
@@ -308,11 +305,11 @@ export async function captureReferenceHandler(input, _ctx) {
       target === 'object'
         ? objectNext({ ledger: objectLedger, segments: segmentRefs, fusion: fusionInfo, cageRef: cage.ref, stashRef: stash.stashRef, passes, view: effInsights.view })
         : target === 'pose'
-        ? `Solved the dials from your X-manji (fit error ${solveInfo?.error != null ? solveInfo.error.toFixed(3) : 'n/a'}${frozen.length ? `; depth-frozen: ${frozen.join(', ')}` : ''}). Open cage_url to SEE the figure. ${frozen.length ? `Those frozen DOFs are unobservable at this view — if the pose needs them, trace a SIDE X-manji and call again with stash_ref:'${stash.stashRef}'. ` : ''}Build from it: create_figure({ pose: insights.dials }) (the solved dials are stored), or forge_motion a pose keyframe over the figure cage.`
+        ? `Solved the dials from your X-manji (fit error ${solveInfo?.error != null ? solveInfo.error.toFixed(3) : 'n/a'}${frozen.length ? `; depth-frozen: ${frozen.join(', ')}` : ''}). Open cage_url to SEE the figure. ${frozen.length ? `Those frozen DOFs are unobservable at this view — if the pose needs them, trace a SIDE X-manji and call again with stash_ref:'${stash.stashRef}'. ` : ''}Build from it: mint_solid({ kind:'figure', spec:{ pose: insights.dials } }) (the solved dials are stored), or forge_motion a pose keyframe over the figure cage.`
         : target === 'landscape'
-          ? `Built your landscape map into a real render — open cage_url to SEE it and compare against the photo (the gesture is right when the silhouette + depth + mood match, even though no pixel does). ${hasBuiltForm ? `Your map has BUILT FORM (bridges / city / bay) — those render in the WORLD/3D view: open world_url (${`/api/sketches/${encodeURIComponent(cage.ref)}/world`}), the flat SVG cage won't show them. Note: create_painted_landscape can't author bridges/city/elevation, so re-mint from these stored insights, not the tool. ` : `The recipe is stored in insights; replay or tune it with create_painted_landscape({ heartbeat:'${effInsights.heartbeat}', splatch:'${effInsights.splatch}'${effInsights.scene ? `, scene:'${effInsights.scene}'` : ''}, ... }). `}Refine with a DETAIL CROP via capture_reference again with stash_ref:'${stash.stashRef}' to adjust element density / palette / built form. Bind to a build: bind_stash({ stash_ref, role:'reference' }).`
+          ? `Built your landscape map into a real render — open cage_url to SEE it and compare against the photo (the gesture is right when the silhouette + depth + mood match, even though no pixel does). ${hasBuiltForm ? `Your map has BUILT FORM (bridges / city / bay) — those render in the WORLD/3D view: open world_url (${`/api/sketches/${encodeURIComponent(cage.ref)}/world`}), the flat SVG cage won't show them. Note: the painted-landscape base can't author bridges/city/elevation, so re-mint from these stored insights, not the tool. ` : `The recipe is stored in insights; replay or tune it with compose_world({ base:'painted-landscape', overrides:{ heartbeat:'${effInsights.heartbeat}', splatch:'${effInsights.splatch}'${effInsights.scene ? `, scene:'${effInsights.scene}'` : ''}, ... } }). `}Refine with a DETAIL CROP via capture_reference again with stash_ref:'${stash.stashRef}' to adjust element density / palette / built form.`
           : passes === 1
-            ? `Open cage_url to SEE the extracted scene frame. To GROUND it, capture_reference again with stash_ref:'${stash.stashRef}' and a second view. Build from it: preload the cage_ref for visual context and read insights.camera + insights.roomBasis to author a create_manji_tree scene in that frame. Bind to a build: bind_stash({ stash_ref, role:'reference' }).`
+            ? `Open cage_url to SEE the extracted scene frame. To GROUND it, capture_reference again with stash_ref:'${stash.stashRef}' and a second view. Build from it: preload the cage_ref for visual context and read insights.camera + insights.roomBasis to author a manji-tree scene (mint_solid kind manji-tree) in that frame.`
             : `Pass ${passes} refined the reference (now triangulated across views). Latest cage: ${cage.ref}.`,
   };
 }
@@ -343,7 +340,7 @@ export function registerVisualReferenceTools() {
   registerTool({
     name: 'capture_reference',
     description:
-      "Visual Reference (step 2) — FILE a reference you extracted from a photo into a stash. Call reference_protocol(target) first; then pass the structured `insights` you decomposed the image into. pose → a traced X-manji, and the substrate SOLVES the dials. landscape → a glyph map, and the substrate RENDERS it. object → a part-graph (`parts`, or `segments` for a complex subject), lowered to a workbench / assembler recipe and gated. Mints a CAGE sketch you can see/preload/re-camera (object also mints one per segment) and gathers it as a `sketch` stash item carrying metadata.insights. Returns { stash_ref, cage_ref, cage_url, svg_url, item_id, passes, ledger?, segments?, fusion? }.\n\nMulti-pass: one photo is degenerate (scene scale relative; pose depth ambiguous; landscape quantized; object depth + radius scale unobservable). Pass `stash_ref` to REFINE with a second viewpoint or detail crop. For OBJECT the refinement FUSES — parts/segments merge BY ID onto the filed read, so pass 2 sends only its corrections (omit a part and it carries forward; `drop:['id']` removes one); scene/pose/landscape do not yet fuse. One-shot is the normalized anchor, multi-pass grounds it.\n\nConsume it: scene → preload cage_ref in create_sketch/create_manji_tree; pose → create_figure({ pose: insights.dials }); landscape → create_painted_landscape({ ...insights }); object → update_sketch the cage in place, then export_model; any → cook the stash into a reference sheet. Anchor a build with bind_stash({ stash_ref, role:'reference' }).",
+      "Visual Reference (step 2) — FILE a reference you extracted from a photo into a stash. Call reference_protocol(target) first; then pass the structured `insights` you decomposed the image into. pose → a traced X-manji, and the substrate SOLVES the dials. landscape → a glyph map, and the substrate RENDERS it. object → a part-graph (`parts`, or `segments` for a complex subject), lowered to a workbench / assembler recipe and gated. Mints a CAGE sketch you can see/preload/re-camera (object also mints one per segment) and gathers it as a `sketch` stash item carrying metadata.insights. Returns { stash_ref, cage_ref, cage_url, svg_url, item_id, passes, ledger?, segments?, fusion? }.\n\nMulti-pass: one photo is degenerate (scene scale relative; pose depth ambiguous; landscape quantized; object depth + radius scale unobservable). Pass `stash_ref` to REFINE with a second viewpoint or detail crop. For OBJECT the refinement FUSES — parts/segments merge BY ID onto the filed read, so pass 2 sends only its corrections (omit a part and it carries forward; `drop:['id']` removes one); scene/pose/landscape do not yet fuse. One-shot is the normalized anchor, multi-pass grounds it.\n\nConsume it: scene → preload cage_ref in create_sketch or a manji-tree; pose → mint_solid kind figure, spec.pose = insights.dials; landscape → compose_world base painted-landscape, overrides = insights; object → update_sketch the cage in place, then export_model; any → cook the stash into a reference sheet.",
     inputSchema: {
       type: 'object',
       required: ['target', 'insights'],

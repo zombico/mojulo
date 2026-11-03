@@ -13,7 +13,6 @@
  */
 
 import { SketchRepository } from '@/lib/db/repositories/sketches';
-import { registerTool } from '@/lib/mcp/server';
 import { planSolidTurntable, SOLID_SHAPES, SOLID_SURFACES } from '@/lib/graph/worlds/solid-turntable';
 import { CRYSTAL_GEMS, CRYSTAL_CUTS } from '@/lib/graph/polygonizer/crystal-optics';
 import { warmScenePng } from '@/lib/graph/scene/scene-png-warm';
@@ -66,45 +65,8 @@ export function mintSolidTurntable({ title, shape, color, surface, tilt, spinSec
 
 export async function createSolidTurntableHandler(input) {
   if (!input || typeof input !== 'object') {
-    throw new Error('create_solid_turntable requires a recipe object');
+    throw new Error('mint_solid kind "solid-turntable" requires a spec');
   }
   const { title, shape, color, surface, tilt, spin_seconds: spinSeconds, lod, viewBox, gem, cut, size, glow, ref, folder_ref: folderRef } = input;
   return mintSolidTurntable({ title, shape, color, surface, tilt, spinSeconds, lod, viewBox, gem, cut, size, glow, ref, folderRef });
-}
-
-export function registerSolidTurntableTools() {
-  registerTool({
-    name: 'create_solid_turntable',
-    description:
-      "Mint a single 3D solid that SPINS LIVE in the browser — a lit ball, a crystal/coordination "
-      + "polyhedron, a gem, a planet, a single atom or orbital lobe. You pass a tiny recipe (a shape + a "
-      + "color); the substrate stores ONLY the recipe (no geometry, ~nothing tokenized) and regenerates "
-      + "the solid on render as a live, dependency-free CSS preserve-3d HTML scene served at "
-      + "`/api/sketches/<ref>/scene` (open it / embed it in an <iframe>). It turns on a turntable with the "
-      + "highlight FIXED in the viewport (vexar Lambert re-shaded per frame), so it reads as a real lit "
-      + "object rather than a flat card. Same artifact system as the other illustration mints "
-      + "(`manifest.kind === 'css3d-turntable'`). SCOPE — a SINGLE CONVEX solid only: this is the class the "
-      + "live CSS engine renders exactly (a convex hull never self-occludes). For a 3D object that does "
-      + "self-occlude or interpenetrate — a multi-atom ball-and-stick MOLECULE, a chiral DOUBLE HELIX, a "
-      + "mechanism — build a manji-tree and use the BAKED `forge_motion` turntable instead (it depth-sorts "
-      + "every frame). Reach for this on framing like 'spin a sphere / a lit ball / a dodecahedron / a "
-      + "crystal / a single atom, live in the browser'.",
-    inputSchema: {
-      type: 'object',
-      properties: {
-        title: { type: 'string', description: 'Title for the resulting sketch artifact.' },
-        shape: { type: 'string', enum: [...SOLID_SHAPES], description: 'The convex solid to spin (default sphere). sphere → a lit ball; the platonic solids (dodecahedron / octahedron / tetrahedron / cube) read as crystals / coordination polyhedra; cylinder → a column/disc.' },
-        color: { type: 'string', description: "Base fill as a #rrggbb hex (default '#5f86ad'). vexar shades it per face." },
-        surface: { type: 'string', enum: [...SOLID_SURFACES], description: "'vexar' (default; lit, re-shaded per frame), 'solid' (flat fill), or 'glow' (emissive rim); 'crystal' only with shape 'crystal'." },
-        tilt: { type: 'number', description: 'Turntable tilt in degrees — how far the top is tipped toward the camera (default 18).' },
-        spin_seconds: { type: 'number', description: 'Seconds per full revolution (default 12; min 2).' },
-        lod: { type: 'string', description: "Tessellation density for sphere/cylinder: 'draft' / 'default' / 'hero' / 'ultra' (default 'default'). Platonic solids are exact regardless." },
-        viewBox: { type: 'object', description: 'Optional render size { width, height } (default 480×480).' },
-        ref: { type: 'string', description: 'Optional stable sketch ref.' },
-        folder_ref: { type: 'string', description: 'Optional sketch folder to file under.' },
-      },
-      required: [],
-    },
-    handler: createSolidTurntableHandler,
-  });
 }

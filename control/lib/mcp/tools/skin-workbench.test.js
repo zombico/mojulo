@@ -86,6 +86,6 @@ describe('workbench/assembler skin seam end-to-end', () => {
 
   it('still refuses unskinnable kinds', async () => {
     SketchRepository.create({ ref: 'sk_test_skin_beats', title: 'b', manifest: { kind: 'beats-ambient' } });
-    await expect(getSkinPacketHandler({ ref: 'sk_test_skin_beats' })).rejects.toThrow(/get_skin_packet skins/);
+    await expect(getSkinPacketHandler({ ref: 'sk_test_skin_beats' })).rejects.toThrow(/edit_solid op 'skin' skins/);
   });
 });

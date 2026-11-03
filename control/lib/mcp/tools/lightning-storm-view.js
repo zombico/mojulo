@@ -43,7 +43,7 @@ export function mintLightningStormView({ title, scenario, exposure, viewBox, sce
 
 export async function createLightningStormViewHandler(input) {
   if (!input || typeof input !== 'object') {
-    throw new Error('create_lightning_storm_view requires a recipe object');
+    throw new Error('create_view({ kind: "lightning-storm" }) requires a recipe object');
   }
   const { title, scenario, exposure, viewBox, scene, ref, folder_ref: folderRef } = input;
   return mintLightningStormView({ title, scenario, exposure, viewBox, scene, ref, folderRef });

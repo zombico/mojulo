@@ -3,11 +3,16 @@
  *
  * The words are ratio-controls (ratio-controls.js): ratios about 1 = the design base's GRAPHIC BASE, composed by
  * product; OFFSETS about 0 (positions in fractions of the head height H, crown to chin; angles in degrees), composed by
- * sum; two shape words beside them (`fissureShape` round | almond | rect | tri, `browShape` block | taper; last wins).
+ * sum; three shape words beside them (`fissureShape` round | almond | rect | tri, `browShape` block | taper, `noseShape`
+ * round | pyramid; last wins).
  * Every word is a standard anatomy or art term: the eye level, the nose tip (pronasale) and the start of the nasal dorsum,
  * the lip line (stomion) and the mouth width, the ear's level, the palpebral fissure's height and shape, the lateral canthus set back along
  * the globe, the upper-lid band's weight, tail, angle and flick and how far it covers the iris, the iris size and oval,
- * the pupil, a catchlight, the brow's thickness, gap, length, angle and arch, a nose line down the shade side.
+ * the pupil, a catchlight, the brow's thickness, gap, length, angle and arch, a nose line down the shade side, and the
+ * ORBIT: the eye's socket set back between the brow ridge and the cheekbone (`orbit`, its depth of H; none at 0), and the
+ * JAW's HOLLOW: the lower face's side curved in, down through the jaw's edge (`jawHollow`, its depth of H; none at 0).
+ * JAW's LINE: the jaw's edge back from the chin nearly level to a corner low under the ear, then up to it, nothing hanging
+ * below (`jawLine`, a share; none at 0).
  *
  * The anime head wears the graphic base by default (a read-time default, like the character light: nothing is stored);
  * `false` is the studio's own face. The base per design base is two layers: a FACE layer under the face words (the
@@ -87,21 +92,24 @@ export const ANIME_SCULPT_MOVES = Object.freeze({
 export const ANIME_SCULPT = ratioControls({
   label: 'sculpt',
   groups: {
-    placement: ['eyeLevel', 'pronasale', 'dorsumStart', 'stomion'], mouth: ['mouthWidth'],
-    nose: ['tipProjection', 'dorsumProjection', 'noseLine'],
-    ear: ['earLevel'], fissure: ['fissureHeight', 'canthusSetback'], lid: ['lidWeight', 'lidTail', 'lidCover'], lidAngle: ['lidAngle'], lidFlick: ['lidFlick'],
+    placement: ['eyeLevel', 'pronasale', 'dorsumStart', 'stomion'], mouth: ['mouthWidth'], lips: ['flatLips'],
+    nose: ['tipProjection', 'dorsumProjection', 'noseLine'], bridge: ['bridgeRoot'],
+    ear: ['earLevel'], earBack: ['earBack'], napeLift: ['napeLift'], jawLine: ['jawLine'], seatBack: ['seatBack'], fissure: ['fissureHeight', 'canthusSetback'], orbit: ['orbit'], jaw: ['jawHollow'], lid: ['lidWeight', 'lidTail', 'lidCover'], lidAngle: ['lidAngle'], lidFlick: ['lidFlick'],
     iris: ['irisSize', 'irisOval', 'pupil', 'catchlight'],
-    brow: ['browThick', 'browGap', 'browLength'], browAngle: ['browAngle'], browArch: ['browArch'],
+    brow: ['browThick', 'browGap', 'browLength'], browClear: ['browClear'], browAngle: ['browAngle'], browArch: ['browArch'],
   },
-  ranges: { eyeLevel: [-0.03, 0.03], earLevel: [-0.04, 0.04], pronasale: [-0.04, 0.04], dorsumStart: [-0.05, 0.05], stomion: [-0.03, 0.03], lidAngle: [-20, 20], lidFlick: [-30, 60], browAngle: [-25, 25], browArch: [-0.03, 0.05],
+  ranges: { orbit: [0, 0.03], jawHollow: [0, 0.03], flatLips: [0, 1], browClear: [0, 0.5], bridgeRoot: [0, 0.06], earBack: [0, 0.06], napeLift: [0, 0.15], jawLine: [0, 1], seatBack: [0, 0.12], eyeLevel: [-0.03, 0.03], earLevel: [-0.04, 0.04], pronasale: [-0.04, 0.04], dorsumStart: [-0.05, 0.05], stomion: [-0.03, 0.03], lidAngle: [-20, 20], lidFlick: [-30, 60], browAngle: [-25, 25], browArch: [-0.03, 0.05],
     lidWeight: [0.6, 1.5], lidCover: [0, 1.6], browGap: [0, 2.5], browThick: [0.5, 1.6], catchlight: [0, 1.6], noseLine: [0, 1.5], canthusSetback: [0, 2] },
-  offsets: ['eyeLevel', 'earLevel', 'pronasale', 'dorsumStart', 'stomion', 'lidAngle', 'lidFlick', 'browAngle', 'browArch'],
+  offsets: ['orbit', 'jawHollow', 'flatLips', 'browClear', 'bridgeRoot', 'earBack', 'napeLift', 'jawLine', 'seatBack', 'eyeLevel', 'earLevel', 'pronasale', 'dorsumStart', 'stomion', 'lidAngle', 'lidFlick', 'browAngle', 'browArch'],
   zero: ['lidCover', 'browGap', 'catchlight', 'noseLine', 'canthusSetback', 'lidTail'],
   moves: ANIME_SCULPT_MOVES,
 });
 export const ANIME_SCULPT_KEYS = ANIME_SCULPT.KEYS;
 /** the shape words ride beside the ratios (last wins) */
-export const SCULPT_SHAPE_KEYS = Object.freeze({ fissureShape: Object.freeze(Object.keys(FISSURE_SHAPES)), browShape: BROW_SHAPES });
+/** the nose's form: `round` the graphic base's (a ridge and a tip as soft bumps), `pyramid` a ridge between two flat
+ * side planes, the bridge raised from its root and the tip pointing out over an underside cut back to the lip */
+export const NOSE_SHAPES = Object.freeze(['round', 'pyramid']);
+export const SCULPT_SHAPE_KEYS = Object.freeze({ fissureShape: Object.freeze(Object.keys(FISSURE_SHAPES)), browShape: BROW_SHAPES, noseShape: NOSE_SHAPES });
 
 /** Error strings (empty = valid): `false` (the studio's face), `true` (the graphic base), a move, an object of words and
  * shape words, or a list of moves and objects. */
@@ -113,21 +121,21 @@ export function validateAnimeSculpt(spec, label = 'sculpt') {
     if (entry === undefined || entry === null) return;
     if (typeof entry === 'string') { if (!ANIME_SCULPT_MOVES[entry]) errs.push(`${at}: unknown sculpt move '${entry}' (have ${ANIME_SCULPT.MOVE_NAMES.join(', ')})`); return; }
     if (!entry || typeof entry !== 'object' || Array.isArray(entry)) { errs.push(`${at}: false (the studio's face), a move (${ANIME_SCULPT.MOVE_NAMES.join(', ')}), an object of words ({ ${[...ANIME_SCULPT_KEYS, ...Object.keys(SCULPT_SHAPE_KEYS)].join(', ')} }) or a list`); return; }
-    const { fissureShape, browShape, ...rest } = entry;
-    for (const [k, v] of [['fissureShape', fissureShape], ['browShape', browShape]]) if (v !== undefined && v !== null && !SCULPT_SHAPE_KEYS[k].includes(v)) errs.push(`${at}.${k}: one of ${SCULPT_SHAPE_KEYS[k].join(', ')}`);
+    const { fissureShape, browShape, noseShape, ...rest } = entry;
+    for (const [k, v] of [['fissureShape', fissureShape], ['browShape', browShape], ['noseShape', noseShape]]) if (v !== undefined && v !== null && !SCULPT_SHAPE_KEYS[k].includes(v)) errs.push(`${at}.${k}: one of ${SCULPT_SHAPE_KEYS[k].join(', ')}`);
     errs.push(...ANIME_SCULPT.validate(rest, at));
   });
   return errs;
 }
 /** `'heavy-lid'` | `{ lidWeight: 1.2, browShape: 'taper' }` | a list | `true` | `false` → `false` or every word at its
- * value `{ …ratios, fissureShape?, browShape? }` (ratios by product, offsets by sum, shapes last-wins) */
+ * value `{ …ratios, fissureShape?, browShape?, noseShape? }` (ratios by product, offsets by sum, shapes last-wins) */
 export function resolveAnimeSculpt(spec) {
   if (spec === false) return false;
   const list = spec === true ? [] : Array.isArray(spec) ? spec : [spec], shapes = {}, entries = [];
   for (const e of list) {
     if (e === undefined || e === null || e === true) continue;
     if (typeof e === 'string') { entries.push(e); continue; }
-    const { fissureShape, browShape, ...rest } = e; if (fissureShape) shapes.fissureShape = fissureShape; if (browShape) shapes.browShape = browShape; entries.push(rest);
+    const { fissureShape, browShape, noseShape, ...rest } = e; if (fissureShape) shapes.fissureShape = fissureShape; if (browShape) shapes.browShape = browShape; if (noseShape) shapes.noseShape = noseShape; entries.push(rest);
   }
   const { from: _f, ...R } = ANIME_SCULPT.resolve(entries);
   return { ...R, ...shapes };
@@ -141,9 +149,9 @@ export function sparseSculpt(resolved) {
 }
 /** Advisory: the words outside their comfortable range. A sculpt word moves the face's own construction (a lip line far
  * past its range leaves the lattice's mouth opening), so the advice promises no closure: the door's closure check says. */
-export const animeSculptWarnings = (resolved) => (resolved ? ANIME_SCULPT.warnings(resolved).map((w) => w.replace(": the figure still closes, but the read past this is the operator's call", ": the read past this is the operator's call, and far past it the face may open (the closure check says)")) : []);
+export const animeSculptWarnings = (resolved, { base = null } = {}) => (resolved ? ANIME_SCULPT.warnings(base ? Object.fromEntries(Object.entries(resolved).filter(([k, v]) => !(base[k] !== undefined && Math.abs(v - base[k]) < 1e-9))) : resolved).map((w) => w.replace(": the figure still closes, but the read past this is the operator's call", ": the read past this is the operator's call, and far past it the face may open (the closure check says)")) : []);
 /** the words that moved off the base, as percentages and offsets (the readout's clause) */
-export const describeAnimeSculpt = (resolved) => (resolved ? [ANIME_SCULPT.describe(resolved), ...['fissureShape', 'browShape'].filter((k) => resolved[k]).map((k) => `${k} ${resolved[k]}`)].filter(Boolean).join(', ') : '');
+export const describeAnimeSculpt = (resolved) => (resolved ? [ANIME_SCULPT.describe(resolved), ...['fissureShape', 'browShape', 'noseShape'].filter((k) => resolved[k]).map((k) => `${k} ${resolved[k]}`)].filter(Boolean).join(', ') : '');
 
 /** The door words → buildAnime's sculpt (studio construction units) for a design base; `false` → null (the studio's face). */
 export function sculptBuild(pole, resolved) {
@@ -152,14 +160,34 @@ export function sculptBuild(pole, resolved) {
   const out = { ...B };
   out.eyeLevel = r6(B.eyeLevel + h(R.eyeLevel)); out.stomion = r6(B.stomion + h(R.stomion)); out.mouthWidth = r6(B.mouthWidth * R.mouthWidth);
   out.nose = { ...B.nose, pronasale: r6(B.nose.pronasale + h(R.pronasale)), dorsumStart: r6(B.nose.dorsumStart + h(R.dorsumStart)), tip: r6(B.nose.tip * R.tipProjection), dorsum: r6(B.nose.dorsum * R.dorsumProjection) };
-  if (R.noseLine > 0) out.noseLine = { ...B.noseLine, top: r6(B.noseLine.top * R.noseLine) }; else delete out.noseLine;
+  // (the pyramid nose: its form named on the build's nose; the round one, the base's, adds nothing)
+  if (R.noseShape === 'pyramid') out.nose.shape = 'pyramid';
+  // (the pyramid's root raised toward the brow, an offset of H; absent at 0)
+  if (R.noseShape === 'pyramid' && R.bridgeRoot > 0) out.nose.rootUp = r6(h(R.bridgeRoot));
+  // (the pyramid nose draws no line: its shade side's plane carries what the line drew on the round one)
+  if (R.noseLine > 0 && R.noseShape !== 'pyramid') out.noseLine = { ...B.noseLine, top: r6(B.noseLine.top * R.noseLine) }; else delete out.noseLine;
   const shape = FISSURE_SHAPES[R.fissureShape ?? B.fissureShape]; delete out.fissureShape;
   out.fissure = { ...B.fissure, ...structuredClone(shape), h: r6((B.fissure.h ?? 1) * R.fissureHeight) };
   out.lidWeight = r6(B.lidWeight * R.lidWeight); out.lidTail = r6(B.lidTail * R.lidTail); out.lidTailAngle = r6(B.lidTailAngle + R.lidAngle); out.lidFlick = r6(B.lidFlick + R.lidFlick);
   out.lidCover = r6(Math.min(0.6, B.lidCover * R.lidCover)); out.irisSpan = r6(B.irisSpan * R.irisSize); out.irisOval = r6(B.irisOval * R.irisOval); out.pupil = r6(B.pupil * R.pupil);
   if (R.catchlight > 0) out.catchlight = { ...B.catchlight, r: r6(B.catchlight.r * R.catchlight) }; else delete out.catchlight;
   out.canthusSetback = r6(B.canthusSetback * R.canthusSetback);
-  if (B.ear) out.ear = { ...B.ear, lift: r6(B.ear.lift + h(R.earLevel)) };
+  // (the orbit, an offset of H: absent at 0, so a head without it keeps its build)
+  if (R.orbit > 0) out.orbit = { depth: r6(h(R.orbit)) };
+  if (R.jawHollow > 0) out.jawHollow = { depth: r6(h(R.jawHollow)) };
+  // (the back of the head's underside raised, an offset of H; absent at 0)
+  if (R.napeLift > 0) out.napeLift = r6(h(R.napeLift));
+  // (the jaw's line squared: the edge back from the chin to a corner low under the ear, nothing hanging below it; a share,
+  // absent at 0)
+  if (R.jawLine > 0) out.jawLine = r6(Math.min(1, R.jawLine));
+  // (the head seated back on the neck, of the head's height, the neck where it is; absent at 0)
+  if (R.seatBack > 0) out.seatBack = r6(R.seatBack);
+  // (the lips flat: the mouth's rim no longer raised round the opening, its share flattened; absent at 0)
+  if (R.flatLips > 0) out.flatLips = r6(Math.min(1, R.flatLips));
+  // (the brow held clear of the eye, of the opening; absent at 0)
+  if (R.browClear > 0) out.browClear = r6(R.browClear);
+  // (`earBack`: the ear set back along the head, an offset of H; absent at 0)
+  if (B.ear) out.ear = { ...B.ear, lift: r6(B.ear.lift + h(R.earLevel)), ...(R.earBack > 0 ? { back: r6(h(R.earBack)) } : {}) };
   out.brow = { ...B.brow, ...(R.browShape ? { shape: R.browShape } : {}), thick: r6(B.brow.thick * R.browThick), gap: r6(B.brow.gap * R.browGap), angle: r6(B.brow.angle + R.browAngle), inner: r6(B.brow.inner * R.browLength), outer: r6(B.brow.outer * R.browLength), arch: r6(B.brow.arch + R.browArch) };
   return out;
 }
@@ -226,12 +254,18 @@ export function sculptFeatures(meshes, pole, { carriage } = {}) {
   // the eye level to the nose tip)
   if (meshes.earR) { const ear = pts(meshes.earR); out.earLevel = r3((mean(ear, 2) - chin) / H); if (tip) out.ear = r3((mean(ear, 2) - (eyeZ + tip[2]) / 2) / H); }
   if (meshes.irisR) { const iris = pts(meshes.irisR); out.irisOfEye = r3(ext(iris, 0) / openW); if (meshes.pupilR) out.pupilOfIris = r3(ext(pts(meshes.pupilR), 0) / ext(iris, 0)); }
-  const B = FEATURE_BANDS[pole] || {};
+  out.advice = featureAdvice(out, pole);
+  return out;
+}
+/** The advice on a feature table: each ratio outside its band, and the word that moves it. The bands are the design
+ * base's (FEATURE_BANDS[pole]); a style's (anime-styles.js) stand in for those it names, and `label` names the canon. */
+export function featureAdvice(features, pole, { bands = null, label = pole } = {}) {
+  const B = { ...(FEATURE_BANDS[pole] || {}), ...(bands || {}) };
   // the pointer names the word the way the door takes it: the stored sculpt is sparse (absent on a default hero), so a
   // sculpt word is set as `/hero/sculpt` { word: … } first, then `/hero/sculpt/<word>`
   const pointer = (w) => (w.startsWith('/') ? `${w} moves it` : `/hero/sculpt { ${w.split(' or ').map((k) => `${k}: …`).join(' } or { ')} } moves it (then /hero/sculpt/<word>)`);
-  out.advice = Object.entries(B).filter(([k, [lo, hi]]) => out[k] !== null && out[k] !== undefined && (out[k] < lo - 1e-9 || out[k] > hi + 1e-9))
-    .map(([k, [lo, hi]]) => `face: ${FEATURE_WORDS[k]} is ${out[k]}, outside the ${pole} band [${lo}, ${hi}]: ${pointer(FEATURE_WORD_OF[k])}`);
-  if (!tip) out.advice.push(`face: the nose tip could not be measured (no midline point between the lip line and the eye level): /hero/sculpt { stomion: … } or { pronasale: … } moves it (then /hero/sculpt/<word>)`);
-  return out;
+  const advice = Object.entries(B).filter(([k, [lo, hi]]) => features[k] !== null && features[k] !== undefined && (features[k] < lo - 1e-9 || features[k] > hi + 1e-9))
+    .map(([k, [lo, hi]]) => `face: ${FEATURE_WORDS[k]} is ${features[k]}, outside the ${label} band [${lo}, ${hi}]: ${pointer(FEATURE_WORD_OF[k])}`);
+  if (features.pronasale === null) advice.push(`face: the nose tip could not be measured (no midline point between the lip line and the eye level): /hero/sculpt { stomion: … } or { pronasale: … } moves it (then /hero/sculpt/<word>)`);
+  return advice;
 }

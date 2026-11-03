@@ -29,8 +29,8 @@ ${lines.join('\n')}
 export const godotBoneMapFile = (figure) => `${figure}.bonemap.tres`;
 
 /** The post-import script beside the GLB: Godot's glTF import does not set `vertex_color_use_as_albedo`, so a mojulo
- * GLB (its colour is per vertex, COLOR_0, linear) would import white — the kernel's G0 material contract (level.gd
- * _fix_materials), applied at import instead of at run, since a lone GLB has no kernel. */
+ * GLB (its colour is per vertex, COLOR_0, linear) would import white — the G0 material contract, applied at import.
+ * (Its text names the retired Godot kernel's level.gd; it is emitted bytes, kept as they are.) */
 export const GODOT_POST_IMPORT_FILE = 'mojulo_import.gd';
 export const GODOT_POST_IMPORT_GD = `@tool
 extends EditorScenePostImport

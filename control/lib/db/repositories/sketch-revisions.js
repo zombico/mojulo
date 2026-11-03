@@ -22,6 +22,8 @@ export const REVISIONED_KINDS = new Set([
   // the hero door's kind: a gameworld's character book pins the bare base as a revision, and motion and adornment
   // branch from it (they never overwrite it); no render bytes change
   'layered',
+  // a persona (persona/persona.js): its scripts are its content, so an edit to one keeps the read it replaced
+  'persona',
 ]);
 
 // update-sketch-patch: when an edit arrived as a `patch`, the ops ride the ARCHIVED revision's

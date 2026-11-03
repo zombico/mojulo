@@ -21,7 +21,8 @@
 //   --clips     the door clips every variant carries ({ <name>: [keys] }, hero-gesture.js); default greet, surprise and
 //               frown, whose keys carry the western face words and jaw degrees (the landmark and relational heads';
 //               the anime head takes its own words: pass --clips for it, or none)
-//   --out       output dir (default <tmp>/hero-live): index.html, <id>.glb (or <id>.json with --publish),
+//   --out       output dir (default <tmp>/hero-live): index.html, <id>.glb (or <id>.json with --publish, in parts
+//               <id>.<k>.json past a 12 MB part),
 //               <id>.read.json, vendor/three (the control plane's three, so the page runs offline)
 //   --jobs      variants minted at once (default 2; each mint is one process)
 //   --publish   pack each GLB as base64 JSON (gzipped first) and load three from its pinned CDN build: what an artifact host serves
@@ -152,8 +153,15 @@ for (const v of made) {
 
 // ─── the page ───────────────────────────────────────────────────────────────
 // (gzipped before its base64, the browser's DecompressionStream undoing it: a realistic hero's GLB, its morph targets and
-// clips, runs past an artifact host's file limit as base64 alone)
-if (opt.publish) for (const v of made) writeFileSync(path.join(out, `${v.id}.json`), JSON.stringify({ gz: true, glb: gzipSync(readFileSync(path.join(out, `${v.id}.glb`))).toString('base64') }));
+// clips, runs past an artifact host's file limit as base64 alone; and packed in parts under the host's text-file ceiling,
+// 16 MB: a hero whose face draws 7G can pack past it gzipped; one part keeps the one name, `<id>.json`)
+const PART = 12 * 1024 * 1024;   // base64 characters a part, a multiple of 4 so each part decodes on its own
+const packed = {};
+if (opt.publish) for (const v of made) {
+  const b64 = gzipSync(readFileSync(path.join(out, `${v.id}.glb`))).toString('base64'), n = Math.max(1, Math.ceil(b64.length / PART));
+  packed[v.id] = Array.from({ length: n }, (_, k) => (n === 1 ? `${v.id}.json` : `${v.id}.${k}.json`));
+  packed[v.id].forEach((f, k) => writeFileSync(path.join(out, f), JSON.stringify({ gz: true, glb: b64.slice(k * PART, (k + 1) * PART) })));
+}
 else {
   // (the control plane's own three, copied beside the page: it runs with no network)
   const V = path.join(CONTROL, 'public/vendor/three');
@@ -163,7 +171,7 @@ else {
 }
 const seconds = clips ? Object.fromEntries(Object.entries(clips).filter(([, k]) => Array.isArray(k) || Array.isArray(k?.keys)).map(([n, k]) => [n, +Math.max(1.6, ((Array.isArray(k) ? k : k.keys).length - 1) * KEY_SECONDS).toFixed(2)])) : {};
 const manifest = { packed: !!opt.publish, firstTake: clips ? Object.keys(clips)[0] : null, seconds,
-  variants: made.map((v) => ({ id: v.id, label: v.label, file: `${v.id}.${opt.publish ? 'json' : 'glb'}`, mb: v.mb, spec: v.spec, read: v.read })) };
+  variants: made.map((v) => ({ id: v.id, label: v.label, file: opt.publish ? (packed[v.id].length === 1 ? packed[v.id][0] : packed[v.id]) : `${v.id}.glb`, mb: v.mb, spec: v.spec, read: v.read })) };
 const importmap = opt.publish
   ? { imports: { three: `https://cdn.jsdelivr.net/npm/three@${THREE_CDN}/build/three.module.min.js`, 'three/addons/': `https://cdn.jsdelivr.net/npm/three@${THREE_CDN}/examples/jsm/` } }
   : { imports: { three: './vendor/three/three.module.min.js', 'three/addons/': './vendor/three/addons/' } };
@@ -174,7 +182,7 @@ const page = readFileSync(path.join(HERE, 'viewer.html'), 'utf8')
   .replace('@MANIFEST@', JSON.stringify(manifest).replace(/</g, '\\u003c'));
 writeFileSync(path.join(out, 'index.html'), page);
 console.log(`\n${path.join(out, 'index.html')}${failed.length ? `  (failed: ${failed.join(', ')})` : ''}`);
-if (opt.publish) console.log(`publish: the page, with files ${JSON.stringify(Object.fromEntries(made.flatMap((v) => [[`${v.id}.json`, path.join(out, `${v.id}.json`)], ...(existsSync(path.join(out, `${v.id}.face.json`)) ? [[`${v.id}.face.json`, path.join(out, `${v.id}.face.json`)]] : [])])))}`);
+if (opt.publish) console.log(`publish: the page, with files ${JSON.stringify(Object.fromEntries(made.flatMap((v) => [...packed[v.id].map((f) => [f, path.join(out, f)]), ...(existsSync(path.join(out, `${v.id}.face.json`)) ? [[`${v.id}.face.json`, path.join(out, `${v.id}.face.json`)]] : [])])))}`);
 
 // ─── serve (loopback only) ──────────────────────────────────────────────────
 if (opt.serve) {

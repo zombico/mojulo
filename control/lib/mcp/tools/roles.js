@@ -193,7 +193,7 @@ export function registerRolesTools() {
         propose_only: {
           type: 'boolean',
           description:
-            'The key can forge plans and draft compositions but never seal reality (execute_plan and meta_context_commit stay with the operator). Its whole output is reviewable proposals.',
+            'The key can forge plans and draft compositions but never run them (execute_plan stays with the operator). Its whole output is reviewable proposals.',
         },
         outward: {
           type: 'boolean',

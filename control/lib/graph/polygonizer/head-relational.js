@@ -536,6 +536,15 @@ export function coreVajras(P, rel = RELATIONS) {
     // jowl (`jowl`, its radius) and runs `foldReach` below the corner
     soft(`fold${s}`, at(P[`al${s}`], { x: Math.sign(ch.x) * 0.03, y: -0.095, z: -0.006 }), { x: ch.x + Math.sign(ch.x) * 0.04, y: ch.y - 0.03, z: ch.z + 0.006 }, { x: ch.x + Math.sign(ch.x) * 0.012, y: ch.y - 0.03, z: ch.z - R.foldReach }, [0.006, 0.012, R.jowl], [null, [`zyg${s}`], J]);
     V.push({ name: `zygomaticus${s}`, a: inX(at(mid(malar, zy, 0.35), { y: -0.03, z: -0.01 }), 0.03), c: at(mid(malar, ch, 0.5), { y: -0.025 }), b: at(md, { y: -0.02 }), r: [0.018, 0.016, 0.014], group: 'soft', muscle: true, balloon: true, drive: [null, [`zyg${s}`], corner] });
+    // THE LATERAL PERIORBITAL FILL (realistic laws 16, the `periorbital` relation: 0 or absent, none): the tissue over the
+    // lateral orbital rim, from beside the brow's outer end down past the outer canthus into the cheek under the lower
+    // lid's outer third, so the skin beside the eye stands at the canthus's depth and wraps the globe's side up to the
+    // corner (with nothing there the skin fell back a centimetre behind the canthus and the globe's side showed bare).
+    // Its beads stand outside the globe's limb and inside the face's outline, so the eye and the front's silhouette keep.
+    if (R.periorbital) {
+      const ex = P[`ex${s}`], sx = Math.sign(ex.x), k = R.periorbital, rim = (dx, y, z) => ({ x: ex.x + sx * dx, y: ex.y + y, z: ex.z + z });
+      soft(`periorbital${s}`, rim(0.012, -0.03, 0.03), rim(0.01, -0.022 + 0.004 * k, -0.008), rim(-0.012, -0.012, -0.055), [0.016, 0.02 * k, 0.02]);
+    }
     // the lids: corner → over the globe → corner, upper and lower
   }
   // the BROW PAD — the soft brow over the ridge (the eyebrow's bed): frontalis lifts it, the corrugator draws it
