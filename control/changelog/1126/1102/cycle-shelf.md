@@ -109,3 +109,64 @@ astride and steers by a bar.
       either lock and parked without a part tearing.
   - **Seen** (machine gate only; the eyes gate is open): the motocross bike from the side, the three quarters, the
     front and behind.
+- **The road machines, the step-throughs and the pedalled** (`cycle-shelf/cycle-families.js`, `cycle-kit.js`,
+  `cycle-looks.js`):
+  - **Builders by family.** A kind's builder is its family's when a row names one in `cycle-families.js`. The
+    shared helpers moved to `cycle-kit.js`; the motocross parts keep their bytes.
+  - **The families:**
+    - frames as tubes on the card, or a trellis of two rails a side laced by diagonals;
+    - a telescopic fork with its covers, a bicycle's rigid blades and crown;
+    - a road swingarm, twin shocks;
+    - a cast wheel on a wide road tyre (a crown and two shoulders), a light rim on thin spokes;
+    - twin discs, a drum, a bicycle's disc;
+    - an inline engine of any number of cylinders, a finned V-twin, a scooter's swing unit (its belt case the
+      arm the wheel rides on), a finned single laid forward, a mid-drive motor;
+    - a front radiator, a belt drive;
+    - a pedal drive: its cranks, its pedals (the rider's feet), its chainring, its cassette, its chain on the
+      right;
+    - exhausts of any number of headers;
+    - pod tanks, tails, fairings and bodies;
+    - contour and leather seats, a saddle on its post;
+    - road bars with mirrors, clip-ons, a bicycle's bar on its stem, a scooter's bars in their headset;
+    - slabs, a screen;
+    - lamps that glow, a tail lamp;
+    - road pegs on their hangers, a floorboard;
+    - a down-tube battery.
+  - **The machines,** each at its class's numbers with every law held, under 40k triangles:
+    - a 700 cc standard on a trellis frame;
+    - a 1000 cc sport bike with a fairing, a screen and clip-ons;
+    - a grand prix machine on slicks, its bodywork and pegs raised for lean, no lamp or stand;
+    - a V-twin cruiser on a raked telescopic fork, its belt and its chrome duals;
+    - a 150 cc scooter with its leg shield, floor and swing unit;
+    - a 110 cc underbone;
+    - an upright bicycle;
+    - a step-through pedelec with its rack, mudguards, battery and motor.
+
+    Their registry rows claim them (`motorcycle`, `sport-bike`, `race-bike`, `cruiser-bike`, `scooter`, `moped`,
+    `bicycle`, `e-bike`), asleep until a door shows them.
+  - **A machine with no swingarm** (a bicycle's stays, a scooter's swing unit) solves no pivot. A machine with no
+    stand has no stand law. The rider's feet are on the pegs, the floor or the pedals.
+  - **Materials** a part's row asks for: mirror chrome, leather, glass, a lamp's glow, stainless and titanium
+    pipes, a chain's blasted steel. Absent, its colour role's finish as before.
+  - **Looks** (`cycle-looks.js`), each a card, never a second machine; `look` on `assembleCycle` and
+    `resolveCyclePart`:
+    - `stock`: as built;
+    - `police`: white and blue, gloss;
+    - `military`: matte olive, its bright metal blasted;
+    - `blackout`: matte black;
+    - `classic`: cream and maroon, its bright metal chrome.
+
+    The same parts in every look.
+  - **Held:**
+    - `cycle-shelf.test.js`, one machine per procedure chosen in code:
+      - no swingarm, no pivot;
+      - the pedals the rider's feet a crank's throw either side;
+      - a floor's feet level;
+      - no stand, no stand law;
+      - a chrome row wearing mirror chrome;
+      - the bill of materials counted from the layout;
+      - stock the machine as built, another look the same bounds in other finishes, an unknown look named.
+    - The char test pins every new builder path; no existing pin moved.
+    - The deep sweep assembles every machine under its budget.
+  - **Seen** (machine gate only; the eyes gate is open): every machine from the side and the three quarters.
+  - **Moved:** the ATV waits for the trike axle (Phase 5), where a machine's wheels first stand side by side.

@@ -26,6 +26,27 @@ export const CYCLE_PALETTES = {
   mxRed: { paint: '#c4362c', trim: '#2a2c2f', glass: '#20262c', rubber: '#18191b', chrome: '#b8bdc2', light: '#f3efe2' },
   // white plastics, blue seat-side graphics' trim
   mxWhite: { paint: '#e9eaeb', trim: '#2b3a66', glass: '#20262c', rubber: '#18191b', chrome: '#b8bdc2', light: '#f3efe2' },
+  // a road machine's red tank and tail over dark castings
+  roadRed: { paint: '#a8231d', trim: '#26282b', glass: '#2a3640', rubber: '#17181a', chrome: '#a9aeb3', light: '#f4f0e4' },
+  // a sport bike's deep blue bodywork, dark wheels
+  sportBlue: { paint: '#1f4f9c', trim: '#1e2023', glass: '#3a4a5a', rubber: '#161719', chrome: '#a3a8ad', light: '#f4f0e4' },
+  // a grand prix machine's white bodywork, its number boards cream
+  raceWhite: { paint: '#eceeef', trim: '#23252a', glass: '#3c4b58', rubber: '#141516', chrome: '#9ea3a8', light: '#f1e7c8' },
+  // a cruiser's gloss black and its chrome
+  cruiserBlack: { paint: '#141518', trim: '#2c2e31', glass: '#2a3640', rubber: '#161719', chrome: '#c9ced3', light: '#f4f0e4' },
+  // a scooter's pale mint body and its cream trim
+  scooterMint: { paint: '#9fd1bf', trim: '#3a3d40', glass: '#2a3640', rubber: '#18191b', chrome: '#b8bdc2', light: '#f4f0e4' },
+  // an underbone's blue plastics on a dark frame
+  mopedBlue: { paint: '#2d64a8', trim: '#2a2c2f', glass: '#2a3640', rubber: '#18191b', chrome: '#b8bdc2', light: '#f4f0e4' },
+  // a bicycle's green frame
+  bikeGreen: { paint: '#2f6b4a', trim: '#232527', glass: '#2a3640', rubber: '#1c1d1f', chrome: '#b6bbc0', light: '#f4f0e4' },
+  // a pedelec's graphite frame and its black battery
+  ebikeGrey: { paint: '#5a6068', trim: '#2a2d31', glass: '#2a3640', rubber: '#1c1d1f', chrome: '#b6bbc0', light: '#f4f0e4' },
+  // the looks' palettes (cycle-looks.js)
+  policeWhite: { paint: '#f1f2f3', trim: '#1d3f86', glass: '#2a3640', rubber: '#17181a', chrome: '#b2b7bc', light: '#f4f0e4' },
+  fieldOlive: { paint: '#4f5538', trim: '#2b2e24', glass: '#2a3028', rubber: '#1a1b18', chrome: '#6c7066', light: '#d8d2b8' },
+  blackout: { paint: '#1a1b1d', trim: '#121314', glass: '#1e252b', rubber: '#141516', chrome: '#3a3c3f', light: '#d8d8d4' },
+  classicCream: { paint: '#e8dcbc', trim: '#5b1f24', glass: '#2a3640', rubber: '#1c1d1f', chrome: '#d4d8dc', light: '#f4f0e4' },
 };
 
 /** A palette id plus per-role overrides → { id, colors }. */

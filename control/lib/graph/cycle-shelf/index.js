@@ -25,8 +25,9 @@ import { CYCLE_KINDS, CYCLE_ODM } from './cycle-odm.js';
 import { CYCLE_ARCHETYPES } from './cycle-archetypes.js';
 import { solveChassis } from './cycle-chassis.js';
 import { cycleLaws } from './cycle-laws.js';
+import { CYCLE_LOOKS, lookCard, lookMaterial } from './cycle-looks.js';
 
-export { CYCLE_ARCHETYPES, CYCLE_COLOR_ROLES, CYCLE_KINDS, CYCLE_ODM, CYCLE_PALETTES };
+export { CYCLE_ARCHETYPES, CYCLE_COLOR_ROLES, CYCLE_KINDS, CYCLE_LOOKS, CYCLE_ODM, CYCLE_PALETTES };
 
 const MONOMERS = ['lathes', 'extrudes', 'sweeps', 'lofts'];
 
@@ -48,6 +49,11 @@ function roleOf(tint, C) {
   return best;
 }
 const applyFinish = (monomers, C) => Object.fromEntries(Object.entries(monomers).map(([k, list]) => [k, list.map((m) => (m.material ? m : { ...m, material: clone(FINISH[roleOf(m.tint, C)]) }))]));
+/** A look's finish over the stock one (cycle-looks.js): its paint and trim, what its bright metal becomes. */
+const applyLook = (monomers, C, card) => Object.fromEntries(Object.entries(monomers).map(([k, list]) => [k, list.map((m) => {
+  const role = roleOf(m.tint, C), base = m.material ?? clone(FINISH[role]);
+  return { ...m, material: clone(lookMaterial(card, role, base)) };
+})]));
 const roundPt = (v) => (Array.isArray(v) ? v.map((x) => round3(x) + 0) : v);
 
 function partRow(sku) {
@@ -91,20 +97,22 @@ function homeOf(sku) {
  * for (absent, the first that carries it); `slot` and `side` are the end and the side it is on (absent, its place
  * there); `pose` what articulates; `finish: false` keeps the bare tints.
  */
-export function resolveCyclePart(sku, { archetype, slot, side, pose = {}, palette, colors = {}, finish = true, title } = {}) {
+export function resolveCyclePart(sku, { archetype, slot, side, pose = {}, palette, colors = {}, finish = true, title, look } = {}) {
   const row = partRow(sku), home = homeOf(sku);
   const machine = archetype ?? home?.archetype;
   if (!machine) throw new Error(`cycle part '${sku}' is on no machine yet: name an archetype to build it for`);
   const G = chassisOf(machine), entry = home?.archetype === machine ? home.entry : null;
   const at = { slot: slot ?? entry?.slot ?? null, side: side ?? (entry?.pair ? 'r' : null) };
-  const { id: paletteId, colors: C } = resolveCyclePalette(palette, colors, CYCLE_ARCHETYPES[machine].palette);
+  // (a look other than stock brings its palette, under the operator's own, and its finish)
+  const card = look && look !== 'stock' ? lookCard(look) : (lookCard(look), null);
+  const { id: paletteId, colors: C } = resolveCyclePalette(palette ?? card?.palette, colors, CYCLE_ARCHETYPES[machine].palette);
   const geom = CYCLE_BUILDERS[row.kind](row, C, { G, slot: at.slot, side: at.side, pose });
   const monomers = Object.fromEntries(MONOMERS.filter((k) => geom[k] && geom[k].length).map((k) => [k, geom[k]]));
   return {
     kind: 'workbench',
     title: title || `${row.label} (${sku})`,
     units: 'm',
-    ...(finish ? applyFinish(monomers, C) : monomers),
+    ...(!finish ? monomers : card ? applyLook(monomers, C, card) : applyFinish(monomers, C)),
     garage: {
       kind: row.kind,
       sku,
@@ -122,6 +130,7 @@ export function resolveCyclePart(sku, { archetype, slot, side, pose = {}, palett
       ...(at.slot ? { slot: at.slot } : {}),
       ...(at.side ? { side: at.side } : {}),
       finish: Boolean(finish),
+      ...(card ? { look } : {}),
     },
   };
 }
@@ -143,11 +152,11 @@ function eulerXYZ(M) {
 }
 
 /** The parts of a layout, built: [{ id, slot, steers, recipe }], a pair's two sides each its own. */
-function buildLayout(id, { palette, colors, pose, finish }) {
+function buildLayout(id, { palette, colors, pose, finish, look }) {
   const row = archetypeRow(id), out = [];
   for (const e of row.layout) {
     for (const side of e.pair ? ['r', 'l'] : [null]) {
-      out.push({ id: side ? `${e.id}-${side}` : e.id, entry: e, recipe: resolveCyclePart(e.sku, { archetype: id, slot: e.slot, side, pose, palette, colors, finish }) });
+      out.push({ id: side ? `${e.id}-${side}` : e.id, entry: e, recipe: resolveCyclePart(e.sku, { archetype: id, slot: e.slot, side, pose, palette, colors, finish, look }) });
     }
   }
   return out;
@@ -172,11 +181,11 @@ export function measureCycle(manifest) {
  * built, says its geometry and its laws (read upright, its stand up; the stand's lean from the stand down), the points
  * a rider meets, every joint, the BOM.
  */
-export function assembleCycle(archetype, { palette, colors = {}, pose = {}, finish = true, title } = {}) {
+export function assembleCycle(archetype, { palette, colors = {}, pose = {}, finish = true, title, look } = {}) {
   const row = archetypeRow(archetype), G = chassisOf(archetype), physics = PHYSICS[row.physics];
   if (pose.stand !== undefined && !['up', 'down'].includes(pose.stand)) throw new Error(`cycle pose.stand is 'up' or 'down'; received ${JSON.stringify(pose.stand)}`);
   const steer = Number.isFinite(pose.steer) ? Math.max(-40, Math.min(40, pose.steer)) : 0;
-  const parts = buildLayout(archetype, { palette, colors, pose: { ...pose, steer }, finish });
+  const parts = buildLayout(archetype, { palette, colors, pose: { ...pose, steer }, finish, look });
   // (the stand's foot, down: where the machine leans to rest on it, about the line its tyres meet the ground on)
   const standDown = row.layout.some((e) => CYCLE_ODM[e.sku].kind === 'cycle-stand')
     ? resolveCyclePart(row.layout.find((e) => CYCLE_ODM[e.sku].kind === 'cycle-stand').sku, { archetype, pose: { stand: 'down' }, finish: false }).garage.hardpoints.foot : null;
@@ -213,11 +222,13 @@ export function assembleCycle(archetype, { palette, colors = {}, pose = {}, fini
       measures,
       contacts,
       ...(lean ? { lean: Math.round((lean / DEG) * 10) / 10 } : {}),
-      rider: { seat: hp('seat'), 'grip.l': hp('grip.l'), 'grip.r': hp('grip.r'), 'peg.l': parts.find((p) => p.id === 'peg-l')?.recipe.garage.hardpoints.peg ?? null, 'peg.r': parts.find((p) => p.id === 'peg-r')?.recipe.garage.hardpoints.peg ?? null },
+      // (a peg each side, or the floor or the pedals a rider's feet are on)
+      rider: { seat: hp('seat'), 'grip.l': hp('grip.l'), 'grip.r': hp('grip.r'), 'peg.l': parts.find((p) => p.id === 'peg-l')?.recipe.garage.hardpoints.peg ?? hp('peg.l'), 'peg.r': parts.find((p) => p.id === 'peg-r')?.recipe.garage.hardpoints.peg ?? hp('peg.r') },
       joints: items.flatMap((it) => (it.source.garage.joints || []).map((j) => ({ item: it.id, name: j.name, control: j.control, kind: j.kind, at: j.at, dir: j.dir, range: j.range, ...(j.kind === 'slide' ? { travel: j.travel } : { angle: j.angle }) }))),
       laws: { ok: laws.ok, laws: laws.laws },
       partsMass: Math.round(mass),
       pose: { steer, stand: pose.stand ?? 'up' },
+      ...(look && look !== 'stock' ? { look } : {}),
       audit: { ok: bom.ok && !bom.surplus.length, bom },
     },
   };

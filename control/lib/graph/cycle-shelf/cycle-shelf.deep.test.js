@@ -5,7 +5,7 @@
  */
 import { describe, it, expect } from 'vitest';
 
-import { planWorkbench } from '../worlds/workbench.js';
+import { lowerObjectFaces, planWorkbench } from '../worlds/workbench.js';
 import { planAssembler } from '../worlds/workbench-assembler.js';
 import { CYCLE_ARCHETYPES, CYCLE_ODM, assembleCycle, resolveCyclePart } from './index.js';
 
@@ -24,6 +24,7 @@ describe('every archetype', () => {
     expect(readout.laws.laws.filter((l) => !l.ok)).toEqual([]);
     expect(readout.audit.ok).toBe(true);
     for (const c of readout.contacts) expect(Math.abs(c.at[2])).toBeLessThan(0.003);
+    expect(manifest.items.reduce((n, it) => n + lowerObjectFaces(it.source).reduce((m, f) => m + f.corners.length - 2, 0), 0)).toBeLessThan(40000);
   });
   it.each(Object.keys(CYCLE_ARCHETYPES))('%s steers to either lock and parks on its stand without tearing', (id) => {
     for (const pose of [{ steer: 40 }, { steer: -40 }, { stand: 'down' }, { stand: 'down', steer: -40 }]) {

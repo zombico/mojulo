@@ -6,7 +6,7 @@ import { describe, it, expect } from 'vitest';
 import { lowerObjectFaces } from '../worlds/workbench.js';
 import { resolveAssemblerPlacements } from '../worlds/workbench-assembler.js';
 import { VEHICLES as PHYSICS } from '../roads/vehicles.js';
-import { CYCLE_ARCHETYPES, CYCLE_KINDS, CYCLE_ODM, assembleCycle, chassisOf, cycleNameIndex, findCyclePart, resolveCyclePart } from './index.js';
+import { CYCLE_ARCHETYPES, CYCLE_KINDS, CYCLE_LOOKS, CYCLE_ODM, assembleCycle, chassisOf, cycleNameIndex, findCyclePart, resolveCyclePart } from './index.js';
 import { CYCLE_BUILDERS, beltLoop } from './cycle-parts.js';
 import { solveChassis } from './cycle-chassis.js';
 import { DEG } from './cycle-common.js';
@@ -117,6 +117,65 @@ describe('what articulates', () => {
   });
   it('refuses a stand it does not have', () => {
     expect(() => assembleCycle(ID, { pose: { stand: 'sideways' } })).toThrow(/'up' or 'down'/);
+  });
+});
+
+describe('one machine per procedure, chosen in code', () => {
+  const IDS = Object.keys(CYCLE_ARCHETYPES);
+  const has = (id, kind, family) => CYCLE_ARCHETYPES[id].layout.some((e) => CYCLE_ODM[e.sku].kind === kind && (!family || CYCLE_ODM[e.sku].build.family === family));
+  it('a machine with no swingarm (its stays in its frame, or a swing unit) solves no pivot, and still holds its laws', () => {
+    const id = IDS.find((k) => !CYCLE_ARCHETYPES[k].chassis.swingarm);
+    expect(chassisOf(id).pivot).toBe(null);
+    expect(assembleCycle(id).readout.laws.laws.filter((l) => !l.ok)).toEqual([]);
+  });
+  it('a pedalled machine puts the rider\'s feet on its pedals, a crank\'s throw either side of the axle', () => {
+    const id = IDS.find((k) => has(k, 'cycle-drive', 'pedal')), sku = CYCLE_ARCHETYPES[id].layout.find((e) => CYCLE_ODM[e.sku].build.family === 'pedal').sku;
+    const { 'peg.l': l, 'peg.r': r } = assembleCycle(id).readout.rider;
+    expect(r[0]).toBeGreaterThan(0);
+    expect(l[0]).toBeLessThan(0);
+    expect(Math.abs(r[1] - l[1])).toBeCloseTo(2 * CYCLE_ODM[sku].build.crank, 6);
+  });
+  it('a step-through puts them on its floor, level and either side', () => {
+    const id = IDS.find((k) => has(k, 'cycle-peg', 'floor'));
+    const { 'peg.l': l, 'peg.r': r } = assembleCycle(id).readout.rider;
+    expect(l[2]).toBe(r[2]);
+    expect(l[0]).toBe(-r[0]);
+  });
+  it('a machine with no stand has no stand law, and does not lean onto one', () => {
+    const id = IDS.find((k) => !has(k, 'cycle-stand'));
+    const { readout } = assembleCycle(id, { pose: { stand: 'down' } });
+    expect(readout.laws.laws.map((l) => l.id)).not.toContain('stand');
+    expect(readout.lean).toBeUndefined();
+    expect(readout.contacts.length).toBe(2);
+  });
+  it('a part its row makes chrome wears mirror chrome', () => {
+    const sku = Object.keys(CYCLE_ODM).find((k) => CYCLE_ODM[k].build.chrome);
+    const mats = ['lathes', 'sweeps'].flatMap((k) => resolveCyclePart(sku)[k] ?? []).map((m) => m.material);
+    expect(mats.some((m) => m?.metal === 'chrome' && m.finish === 'mirror')).toBe(true);
+  });
+  it('every machine\'s bill of materials is counted from its layout', () => {
+    for (const id of IDS.slice(1, 2)) {
+      const row = CYCLE_ARCHETYPES[id], count = {};
+      for (const e of row.layout) count[CYCLE_ODM[e.sku].kind] = (count[CYCLE_ODM[e.sku].kind] ?? 0) + (e.pair ? 2 : 1);
+      expect(row.bom).toEqual(count);
+    }
+  });
+});
+
+describe('looks', () => {
+  const look = Object.keys(CYCLE_LOOKS).find((k) => CYCLE_LOOKS[k].metal && CYCLE_LOOKS[k].paint);
+  it('stock is the machine as built', () => {
+    expect(assembleCycle(ID, { look: 'stock' }).manifest).toEqual(assembleCycle(ID).manifest);
+  });
+  it('another look keeps every part where it was, changing only its colour and its finish', () => {
+    const a = assembleCycle(ID).manifest, b = assembleCycle(ID, { look }).manifest;
+    expect(resolveAssemblerPlacements(b).map((p) => p.bounds)).toEqual(resolveAssemblerPlacements(a).map((p) => p.bounds));
+    const mats = (m) => m.items.flatMap((it) => ['lathes', 'sweeps', 'lofts', 'extrudes'].flatMap((k) => (it.source[k] ?? []).map((x) => JSON.stringify(x.material))));
+    expect(mats(b)).not.toEqual(mats(a));
+    expect(assembleCycle(ID, { look }).readout.look).toBe(look);
+  });
+  it('names the looks when asked for one it does not have', () => {
+    expect(() => assembleCycle(ID, { look: 'tartan' })).toThrow(/expected one of: stock/);
   });
 });
 

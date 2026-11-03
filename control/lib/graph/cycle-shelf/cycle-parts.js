@@ -13,40 +13,11 @@
  *
  * Pure: no clock, no dice. A part's emission for its row and its machine is a compatibility promise (cycle-shelf.char.test.js).
  */
-import {
-  DEG, add, bend, cross, extrudeWorld, lathe, lerp, loftWorld, mul, rect, ring, roundRect, sided, sideSign, sub, sweep, tone, unit,
-} from './cycle-common.js';
+import { DEG, add, bend, cross, extrudeWorld, lerp, loftWorld, mul, rect, ring, roundRect, sided, sideSign, sub, tone, unit } from './cycle-common.js';
+import { axleOf, beltLoop, box, curve, need, panel, spin, strip, tube } from './cycle-kit.js';
+import { FAMILIES } from './cycle-families.js';
 
 const X = [1, 0, 0];
-const tube = (id, pts, r, tint, sides = 8) => sweep(id, pts, r, tint, { sides });
-// (a lathe's cross-sections are its profile's own points: a straight one needs two, not the lowerer's default many)
-const spin = (id, from, to, pairs, tint, samples = 20) => lathe(id, from, to, pairs, tint, { samples, crossSections: pairs.length });
-/** A box from `from` to `to`, `w` across (u) and `h` up (v, from the hint). */
-const box = (id, from, to, w, h, tint, up = [0, 0, 1]) => extrudeWorld(id, from, to, rect(sub(to, from), w, h, up), tint);
-/** A flat panel square to x, its outline [[y, z]…] round its centroid, from x0 to x1. */
-function panel(id, x0, x1, outline, tint) {
-  const yc = outline.reduce((s, p) => s + p[0], 0) / outline.length, zc = outline.reduce((s, p) => s + p[1], 0) / outline.length;
-  return extrudeWorld(id, [x0, yc, zc], [x1, yc, zc], outline.map(([y, z]) => [0, y - yc, z - zc]), tint);
-}
-/** A quadratic Bezier through a mount, a crown (its control point) and a tip, sampled at k + 1 points. */
-const curve = (a, c, b, k = 6) => Array.from({ length: k + 1 }, (_, i) => { const t = i / k, u = 1 - t; return add(add(mul(a, u * u), mul(c, 2 * u * t)), mul(b, t * t)); });
-/** A thin strip along a path (a fender), each span a flat slab overlapping the next, its edges turned down by `skirt`
- *  (a U section: the fender's sides, what reads of it from the side). */
-function strip(id, pts, w, thick, tint, { taper = 0.7, skirt = 0 } = {}) {
-  const out = [];
-  for (let i = 0; i + 1 < pts.length; i++) {
-    const d = unit(sub(pts[i + 1], pts[i])), from = sub(pts[i], mul(d, i ? 0.008 : 0)), to = add(pts[i + 1], mul(d, i + 2 < pts.length ? 0.008 : 0));
-    const f = i / (pts.length - 2 || 1), wi = w * (1 - (1 - taper) * Math.abs(2 * f - 1) ** 2), ax = sub(to, from);
-    out.push(extrudeWorld(`${id}_${i}`, from, to, rect(ax, wi, thick, [0, 0, 1]), tint));
-    if (skirt) for (const s of [1, -1]) {
-      const k = skirt;
-      out.push(extrudeWorld(`${id}_${i}_${s > 0 ? 'r' : 'l'}`, from, to, rect(ax, thick, k, [0, 0, 1]).map((p) => add(p, [s * (wi / 2 - thick / 2), 0, -k / 2 + thick / 2])), tint));
-    }
-  }
-  return out;
-}
-const axleOf = (G, slot) => (slot === 'front' ? G.frontAxle : G.rearAxle);
-const need = (G, key) => { if (!G[key]) throw new Error(`cycle part: the chassis card has no '${key}'`); return G[key]; };
 
 // ── the frame ───────────────────────────────────────────────────────────────
 function frame(row, C, { G }) {
@@ -223,19 +194,6 @@ function radiator(row, C, { G, side }) {
 }
 
 // ── the final drive and the exhaust ─────────────────────────────────────────
-/** A belt round two pulleys in the plane square to x: the closed loop (its first point repeated last). */
-function beltLoop(x, c1, r1, c2, r2, step = 8 * DEG) {
-  // c1 the small (front) pulley, c2 the large (rear); e from c2 to c1
-  const D = Math.hypot(c1[0] - c2[0], c1[1] - c2[1]), phi = Math.atan2(c1[1] - c2[1], c1[0] - c2[0]), beta = Math.asin((r2 - r1) / D);
-  const aU = phi + (Math.PI / 2 - beta), aL = phi - (Math.PI / 2 - beta), P = (c, r, t) => [x, c[0] + r * Math.cos(t), c[1] + r * Math.sin(t)];
-  const out = [];
-  const arc = (c, r, a0, a1) => { const k = Math.max(2, Math.ceil(Math.abs(a1 - a0) / step)); for (let i = 0; i <= k; i++) out.push(P(c, r, a0 + ((a1 - a0) * i) / k)); };
-  arc(c1, r1, aU, aL);
-  arc(c2, r2, aL, aU - 2 * Math.PI);
-  out.push([...out[0]]);
-  return out;
-}
-
 function drive(row, C, { G }) {
   const D = need(G, 'drive'), b = row.build, x = D.x, front = D.front, rear = [0, G.rR];
   const lathes = [
@@ -341,7 +299,7 @@ function stand(row, C, { G, pose }) {
   };
 }
 
-export const CYCLE_BUILDERS = Object.freeze({
+const BASE = {
   'cycle-frame': frame,
   'cycle-fork': fork,
   'cycle-swingarm': swingarm,
@@ -358,6 +316,13 @@ export const CYCLE_BUILDERS = Object.freeze({
   'cycle-body': body,
   'cycle-peg': peg,
   'cycle-stand': stand,
-});
+};
+
+// (a kind's builder: its family's in cycle-families.js when it has one, else the kind's own procedure)
+const none = (kind) => (row) => { throw new Error(`cycle part: ${kind} has no family '${row.build.family}'`); };
+export const CYCLE_BUILDERS = Object.freeze(Object.fromEntries([...new Set([...Object.keys(BASE), ...Object.keys(FAMILIES)])].map((kind) => {
+  const base = BASE[kind] ?? none(kind), fam = FAMILIES[kind] ?? {};
+  return [kind, (row, C, ctx) => (fam[row.build.family] ?? base)(row, C, ctx)];
+})));
 
 export { beltLoop };

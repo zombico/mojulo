@@ -38,8 +38,9 @@ export function solveChassis(card, physics, wheels) {
   const trail = ground[1] - wb;
   const fork = need(card, 'fork');
   const leg = (s, side = 'r') => add(add(frontAxle, mul(d, s)), [side === 'l' ? -fork.half : fork.half, 0, 0]);
-  const sw = need(card, 'swingarm');
-  const pivot = [0, Math.sqrt(sw.length ** 2 - (sw.height - rR) ** 2), sw.height];
+  // (a machine with no swingarm, a bicycle's stays or a scooter's swing unit, has no pivot of its own)
+  const sw = card.swingarm ?? null;
+  const pivot = sw ? [0, Math.sqrt(sw.length ** 2 - (sw.height - rR) ** 2), sw.height] : null;
   const head = { lo: at(fork.sLo), hi: at(fork.sHi) };
   // the bars' clamp: atop the upper triple clamp, a riser up the axis, set forward of it
   const bars = add(add(at(fork.sHi + 0.02), mul(d, card.bars?.rise ?? 0.04)), mul(n, card.bars?.forward ?? 0.02));
@@ -51,7 +52,7 @@ export function solveChassis(card, physics, wheels) {
     axis: { d, n, at, ground }, head,
     fork: { ...fork, leg },
     barsAt: bars,
-    pivot, swingarm: { ...sw },
+    pivot, swingarm: sw ? { ...sw } : null,
     steerAxis: unit(d),
   };
 }
