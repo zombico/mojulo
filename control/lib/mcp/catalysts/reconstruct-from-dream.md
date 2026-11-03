@@ -64,8 +64,8 @@ the segment-first method (proven on four build lines) is
 - **Convergence is domain-bounded.** This fits CONSTRUCTED, part-decomposable
   objects — furniture, vessels, lamps, tools, props, vehicles, architecture —
   because those genuinely are assemblies of surfaces-of-revolution + prisms +
-  tubes. Organic forms are other loops' job: a person is `character-from-dream`
-  (the figure family), a real animal is `mint_solid` kind `animal`, and a
+  tubes. Organic forms are other loops' job: a person is `create_character` (`as: 'hero'`)
+  (the hero), a real animal is `mint_solid` kind `animal`, and a
   creature / invented body / detailed head is `mint_solid` kind `layered`
   (routing card `creature`, catalyst `creature-from-plan`), and a human character as a rigged mesh is
   `create-hero` (card `hero`). If the target isn't an assembly, say so and stop.

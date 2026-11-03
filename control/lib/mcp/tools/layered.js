@@ -1881,7 +1881,7 @@ export async function createLayeredHeroHandler(input) {
 }
 
 /** The plan audit — WHO printed the numbers. Mojulo is loopback and cannot watch a worker, so this is form + presence
- * (the dream-audit posture): `source` 'agent' (the agent wrote the numbers itself), 'text:<model>' or 'image:<worker>'
+ * (an attestation, not a proof): `source` 'agent' (the agent wrote the numbers itself), 'text:<model>' or 'image:<worker>'
  * (a worker did; then `prompt` and one of job_id | token | seed | image_sha256 are required). Malformed refuses. */
 export const PLAN_SOURCE_RE = /^(agent|text:[\w.@:/-]+|image:[\w.@:/-]+)$/;
 export const PLAN_PROVENANCE_KIND = 'plan-reconstruction';

@@ -14,7 +14,7 @@
   "parameters": [
     {
       "name": "intent",
-      "description": "The building to reconstruct, in words (e.g. 'a small arts campus: a glass commons with a brick studio wing and a shed-roofed annex', 'a courtyard library with two reading wings', 'a lakeside research complex'). Bespoke inhabitable BUILDINGS only — a generic seed-sampled city / school / transit hub is compose_world instead; a single object is mint_solid kind workbench / reconstruct-from-dream; a person is character-from-dream. Omit to ask the operator."
+      "description": "The building to reconstruct, in words (e.g. 'a small arts campus: a glass commons with a brick studio wing and a shed-roofed annex', 'a courtyard library with two reading wings', 'a lakeside research complex'). Bespoke inhabitable BUILDINGS only — a generic seed-sampled city / school / transit hub is compose_world instead; a single object is mint_solid kind workbench / reconstruct-from-dream; a person is create_character (as: 'hero'). Omit to ask the operator."
     }
   ],
   "mcpTools": { "mojulo": ["mint_solid", "create_sketch", "get_image_render_packet", "semantic_search", "forward_context"] }
@@ -44,7 +44,7 @@ Substrate: the assembler `architecture/edifice.js`, the primitives it composes
 - **This is for BESPOKE buildings.** A new, one-off building / campus / connected
   complex the frozen generators don't make. A generic seed-sampled city / school /
   transit hub is `compose_world` (a BASE × a THEME). A single object is
-  `mint_solid` kind `workbench` / `reconstruct-from-dream`. A person is `character-from-dream`.
+  `mint_solid` kind `workbench` / `reconstruct-from-dream`. A person is `create_character` (`as: 'hero'`).
   If the target isn't a bespoke building, say so and route it.
 - **Compose from the grammar, never freehand.** A mass is a footprint + floors + a
   facade (`material` glass|brick|concrete × `rhythm` curtain|punched|banded|pier|grid)
@@ -146,7 +146,7 @@ them side by side, then pick one to finish. Say which variants you tried and loc
   vocabulary gap instead.
 - You don't hand-compute mass coordinates — compose by relation (`on` + concourses).
 - You don't force a generic city/school/hub, a single object, or a person through
-  this loop — those are `compose_world` / `mint_solid` kind `workbench` / `character-from-dream`.
+  this loop — those are `compose_world` / `mint_solid` kind `workbench` / `create_character`.
 - You don't skip the walk — a building you didn't set beside the dream is not a
   reconstruction.
 - You don't refuse or silently "fix" a building for being unconventional or failing a

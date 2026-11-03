@@ -77,7 +77,7 @@ const DESCRIPTION_ALLOWLIST = {
   // growth). Shrink-only from these snapshots.
   create_cover: 1138,
   // create_figure re-pinned 2026-07-14: inline wardrobe-piece specs (the
-  // character-from-dream C0b unlock — garment as data, mugen = looseness) +
+  // unlock — garment as data, mugen = looseness) +
   // the figure skin seam pointer (get_skin_packet/skin_polygomer). Shrink-only.
   create_game: 2012,
   // create_manji_tree / export_model re-pinned + skin_polygomer /
