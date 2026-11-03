@@ -1,7 +1,8 @@
 import { describe, it, expect } from 'vitest';
-import { MATTER, MATTER_IDS, PLASTIC_IDS, isPlastic, isBrittle, blockMatter, resolveMatter } from './matter.js';
+import { readFileSync } from 'node:fs';
+import { MATTER, MATTER_IDS, PLASTIC_IDS, KERF, isPlastic, isBrittle, isCuttable, blockMatter, resolveMatter } from './matter.js';
 import { MATERIALS } from '../strength/materials.js';
-import { rupaPhysics } from './index.js';
+import { rupaPhysics, readTool, TOOL_IDS } from './index.js';
 
 const { dentOf } = rupaPhysics;
 const hard = (m) => 3 * m.yield;
@@ -71,5 +72,51 @@ describe('a dent is a crater in a solid', () => {
 
   it('no work, no dent', () => {
     expect(dentOf(0, hard(MATTER.steel))).toMatchObject({ V: 0, d: 0, through: false, cost: 0 });
+  });
+});
+
+describe('the tool and the cut', () => {
+  const H = 3 * MATTER.steel.yield;
+  it('a thin panel dishes past its collapse force: a bat\'s force dents a millimetre sheet, not a centimetre plate', () => {
+    const { dishOf, TOOLS } = rupaPhysics, sy = MATTER.steel.yield, F = TOOLS.bat.force;
+    const thin = dishOf(300, sy, 0.001, { force: F }), thick = dishOf(300, sy, 0.01, { force: F });
+    expect(thin.Pc).toBeCloseTo(0.5 * Math.PI * sy * 1e-6, 6);
+    expect(thin.d).toBeGreaterThan(0.01); expect(thin.d).toBeLessThan(0.06);
+    expect(thick).toBeNull();
+    expect(dishOf(300, sy, 0.01, { force: 10 * F })).not.toBeNull();   // ten times the force bends it
+    expect(dishOf(300, sy, 0.001, { force: F, half: 0.02 }).d).toBeLessThanOrEqual(0.01);   // no deeper than half its face
+  });
+
+  it('what an edge cuts: plastic stuff and wood, never what shatters; brittle stuff carries no kerf', () => {
+    const glassy = MATTER_IDS.map((k) => MATTER[k]).find((m) => m.family === 'glass');
+    const wood = MATTER_IDS.map((k) => MATTER[k]).find((m) => m.family === 'wood');
+    expect(isCuttable(glassy)).toBe(false);
+    expect(isCuttable(wood)).toBe(true);
+    const box = { min: [0, 0, 0], max: [1, 1, 1] };
+    expect(blockMatter(box, wood.id).kerfHard).toBe(wood.compressive);
+    expect(blockMatter(box, 'steel').kerfHard).toBe(H);
+    expect(blockMatter(box, 'steel').kerfWork).toBeCloseTo(MATTER.steel.frac + MATTER.steel.yield * KERF, 0);
+    expect(blockMatter(box, glassy.id).kerfWork).toBeUndefined();
+    // the same stroke cuts the softer, weaker stuff deeper
+    expect(rupaPhysics.cutDepth(300, blockMatter(box, wood.id).kerfWork, 0.1)).toBeGreaterThan(rupaPhysics.cutDepth(300, blockMatter(box, 'steel').kerfWork, 0.1));
+  });
+
+  it('the runtime opens the kerf the matter table names', () => {
+    const src = readFileSync(new URL('../worlds/controllable/rupa.js', import.meta.url), 'utf8');
+    expect(src).toContain(`KERF_W = ${KERF}`);
+  });
+
+  it('a tool is a name or its own numbers over one, checked', () => {
+    expect(TOOL_IDS).toContain('bat');
+    expect(readTool('bat')).toBe('bat');
+    expect(readTool({ is: 'bat', strength: 2e8 })).toEqual({ is: 'bat', strength: 2e8 });
+    expect(() => readTool('spoon')).toThrow(/strikeTool is a tool/);
+    expect(() => readTool({ edge: 'blunt' })).toThrow(/strength/);
+    expect(() => readTool({ is: 'sword', stroke: 'spin' })).toThrow(/stroke/);
+    expect(() => readTool({ is: 'bat', colour: 'red' })).toThrow(/not part of a tool/);
+    // edges are harder than the mild steel they cut and softer than the armour they ring off
+    const sword = rupaPhysics.TOOLS.sword;
+    expect(sword.strength).toBeGreaterThan(H);
+    expect(sword.strength).toBeLessThan(3 * MATTER['armour-steel'].yield);
   });
 });

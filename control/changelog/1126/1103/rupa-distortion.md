@@ -14,5 +14,13 @@ Under destructible physics, matter that flows before it breaks now keeps the sha
   spreads under a blow.
 - **Plates strip**: a plastic plate hung on a wall by its weld comes off whole when its budget is gone, so focus fire
   strips one panel and leaves its neighbours.
-- **On the page**: a dented block is drawn displaced by its dents, holes dark through, and a stripped plate falls.
+- **A strike carries its tool** (`strikeTool`: sword, axe, knife, bat, metal-bat, hammer, fist, or its own numbers):
+  a tool can't press harder than it is strong, and its force caps how wide it bites, so a hammer barely marks a steel
+  block and a wooden bat never dents one.
+- **Thin panels dish**: past the force that bends it, a panel gives in a broad dish, so a wooden bat dents a car-thin
+  sheet a few centimetres and leaves a centimetre plate whole, and a heroic swing dents that too.
+- **Edges cut**: an edge harder than what it strikes cuts a groove on the plane of its stroke where it lands; cut through,
+  the block parts into two blocks that keep their matter, and what no longer holds falls. Timber cuts as metal does.
+- **On the page**: a dented block is drawn displaced by its dents, dishes and grooves, holes dark through; a cut block's
+  halves wear its skin, and a stripped plate falls.
   A page whose blocks have no yield keeps its bytes.

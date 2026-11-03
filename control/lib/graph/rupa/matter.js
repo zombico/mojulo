@@ -56,14 +56,18 @@
  *   MATTER_IDS, SOIL_IDS
  *   CLASS_MATTER           a class's matter when the thing names none (breakability.js classOf): { matter, fill }
  *   resolveMatter(spec, where?) → a matter record (an id, or { is?, ...overrides } over one), checked
- *   isBrittle(m), isSoil(m), isLiquid(m), isGas(m), isFluid(m), isPlastic(m), LIQUID_IDS, PLASTIC_IDS
+ *   isBrittle(m), isSoil(m), isLiquid(m), isGas(m), isFluid(m), isPlastic(m), isCuttable(m), LIQUID_IDS, PLASTIC_IDS
+ *   an edge CUTS what is plastic or fibrous (wood), not what shatters or crumbles: a cuttable block carries `kerfWork`,
+ *   J/m², the work a cut costs per square metre of its face (its fracture energy, plus its flow or tensile strength
+ *   over the KERF an edge opens), and `kerfHard`, Pa, what an edge must be harder than to bite (its hardness, 3 ×
+ *   yield; a wood's crushing strength)
  *   a block's `joint` is how it sits on what holds it: 'mortar' (masonry's default: its cohesion binds the joint) or
  *   'dry' (everything else: it rests by its weight alone, so wind can slide or tip it); `{ matter, joint }` says otherwise
  *   cutOfMatter(m)         → the cut a breaking of it plays (destruct/cuts.js presets): glass and ice shatter, brittle
  *                            masonry blasts apart, ductile stuff chips
  *   blockMatter(box, spec) → { matter, fill, mass, joules, compressive, cohesion, heatCap, soften, stiff, bounce, frac,
  *                            shape, spread, joint, melt?,
- *                            fuse?, ignite?, fuel?, burnRate?, yield?, wall? } for a block (`stiff` its E × fill, Pa: a shell gives): the numbers the runtime reads (`cohesion` its
+ *                            fuse?, ignite?, fuel?, burnRate?, yield?, wall?, kerfWork?, kerfHard? } for a block (`stiff` its E × fill, Pa: a shell gives): the numbers the runtime reads (`cohesion` its
  *                            matter's bond × fill, Pa: a block's `bond` word is how it is held; `heatCap` J/K; `fuse` the
  *                            joules to melt it once at `melt`; `fuel` the joules its burning gives, `burnRate` how fast, W;
  *                            a plastic block's `yield`, Pa, and `wall`, m, the thickness a blow must pass to go through
@@ -215,6 +219,9 @@ export const isCombustible = (m) => Number.isFinite(m.ignite) && m.burn > 0;
 /** A solid that flows before it breaks: it has a yield, and it is no fluid (a liquid's yield is its Bingham stress) and
  * no soil (ground craters, ground.js). A blow dents it, squashes it or goes through it. */
 export function isPlastic(m) { return !(m.family === 'liquid' || m.family === 'gas' || m.family === 'soil') && m.yield > 0; }
+/** What an edge cuts rather than breaks: plastic stuff, and wood along or across its grain. */
+export const isCuttable = (m) => isPlastic(m) || m.family === 'wood';
+export const KERF = 0.002;   // m: the width an edge opens as it cuts
 
 const FIELDS = ['label', 'density', 'E', 'compressive', 'tensile', 'bond', 'strain', 'toughness', 'fill', 'c', 'phi', 'swell', 'dig', 'melt', 'soften', 'heat', 'fusion', 'ignite', 'burn', 'bounce', 'frac', 'shape', 'spread', 'mu', 'tension', 'grain', 'fines', 'particle', 'yield'];
 
@@ -280,6 +287,11 @@ export function blockMatter(box, spec, where = 'matter') {
     // a shell's wall is what a blow must pass to go through it: the solid share of its box spread over its surface
     const [x, y, z] = [0, 1, 2].map((k) => Math.max(0, box.max[k] - box.min[k])), area = 2 * (x * y + y * z + x * z);
     Object.assign(out, { yield: sig(m.yield), ...(fill < 1 && area > 0 ? { wall: sig((fill * vol) / area) } : {}) });
+  }
+  if (isCuttable(m)) {
+    const plastic = isPlastic(m), [x, y, z] = [0, 1, 2].map((k) => Math.max(0, box.max[k] - box.min[k])), area = 2 * (x * y + y * z + x * z);
+    Object.assign(out, { kerfWork: sig(m.frac + (plastic ? m.yield : m.tensile) * KERF), kerfHard: sig(plastic ? 3 * m.yield : m.compressive),
+      ...(fill < 1 && area > 0 && out.wall === undefined ? { wall: sig((fill * vol) / area) } : {}) });
   }
   if (isCombustible(m)) {
     // its exposed faces char inward at CHAR_RATE: the fuel it gives each second is that volume's mass × its heat of combustion

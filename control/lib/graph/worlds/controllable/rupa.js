@@ -69,7 +69,21 @@
  *            Each block keeps its dents (`b.rupa.dents: [{ ax, side, at, a, d, V, hole }]`, merged where they overlap, at
  *            most 24) and a `form` count the page redraws it by; `state.rupa.dents` records each (seq-keyed).
  *
- *            `E.strikeBlock(state, id, joules, how?, src?)` lands a blow by id (a script, a test).
+ *              TOOL     a strike carries what it is struck with (the striker's rule's `strikeTool`: sword, axe,
+ *                       knife, bat, metal-bat, hammer, fist, or { is?, edge, stroke?, strength, force?, contact? };
+ *                       a swing is a sword and a round a round unless said). A tool softer than the stuff's hardness
+ *                       cannot bite it, and its force (× power) caps a bowl's radius at √(F / πH): a hammer barely
+ *                       marks a steel block, a wooden bat never dents one.
+ *              DISH     a panel thinner than the bowl would be wide, or one a soft tool cannot bite, bends once the
+ *                       force passes its collapse load π·σy·t²/2 (`dishOf`: bending, then membrane): a broad dish both
+ *                       faces show, so a bat dents a car-thin sheet and leaves a centimetre plate whole.
+ *              CUT      an edge harder than the stuff (`kerfHard`: 3 × yield; a wood's crushing) cuts a groove on the
+ *                       plane of its stroke, snapped to the block's axes (level: horizontal; chop: vertical across),
+ *                       W / kerfWork square metres a stroke (`b.rupa.cuts`); through a solid, cleave at run time parts
+ *                       the block into two blocks (`<id>/a`, `<id>/b`, `how: 'cut'`, `into`), matter and budget by
+ *                       volume, held or dropped by the held graph and the load pass; through a shell, a slit. Timber
+ *                       cuts as metal does; brittle stuff breaks as ever.
+ *            `E.strikeBlock(state, id, joules, how?, src?)` lands a blow by id (a script, a test; src.tool a tool).
  *
  *   DEBRIS   each break carries what it leaves (`state.breaks[].debris`, from `fragments`): pieces sized by the new surface
  *            the joules opened against the matter's fracture energy, shaped by the matter, flying away from the blow with
@@ -169,6 +183,42 @@ export function buildRupa(E) {
     const at = Math.min(lim, thick / k), cost = Math.min(W, H * 0.5 * Math.PI * at * at * thick);
     return { V: cost / H, a: at, d: thick, rim: thick / 3, k, through: true, cost };
   }
+  // THE TOOL a blow is struck with (a strike's `strikeTool`): its shape (`edge`: blunt, edge, point), how an edge strokes
+  // (`stroke`: level, a horizontal cut; chop, a vertical one across), its `strength` (Pa: the most pressure its face
+  // survives, so a tool softer than what it strikes cannot bite it), the peak `force` a person's blow of it brings (N,
+  // × the world's power; none: the blow's energy alone decides) and its `contact` (m: a blunt face's radius, a round's)
+  const TOOLS = {
+    sword: { edge: 'edge', stroke: 'level', strength: 1.5e9, force: 5e3, contact: 0.002 },
+    axe: { edge: 'edge', stroke: 'chop', strength: 1.2e9, force: 1.2e4, contact: 0.003 },
+    knife: { edge: 'edge', stroke: 'level', strength: 1.5e9, force: 1e3, contact: 0.001 },
+    bat: { edge: 'blunt', strength: 50e6, force: 1.5e4, contact: 0.03 },          // ash: its crushing strength
+    'metal-bat': { edge: 'blunt', strength: 830e6, force: 1.5e4, contact: 0.03 }, // aluminium: 3 × its yield
+    hammer: { edge: 'blunt', strength: 2e9, force: 3e4, contact: 0.015 },          // hardened steel
+    fist: { edge: 'blunt', strength: 100e6, force: 3e3, contact: 0.04 },
+    round: { edge: 'point', strength: 3e9, force: null, contact: SHOT_R },         // a steel-cored round
+  };
+  const TOOL_FIELDS = ['is', 'edge', 'stroke', 'strength', 'force', 'contact'];
+  function toolOf(spec) {
+    if (spec == null) return null;
+    if (typeof spec === 'string') return TOOLS[spec] || null;
+    if (typeof spec !== 'object') return null;
+    const base = spec.is != null ? TOOLS[spec.is] || {} : {}, out = { ...base };
+    for (const k of TOOL_FIELDS) if (k !== 'is' && spec[k] !== undefined) out[k] = spec[k];
+    return out.edge ? out : null;
+  }
+  // A THIN PANEL DISHES: past its collapse force π·σy·t²/2 (a plate's yield-line load under a point) it bends, W = Pc·δ
+  // to δ = t, then stretches as a membrane, W = Pc·t + (π/2)·σy·t·(δ² − t²); a broad dish (the tool's contact and four
+  // times its depth across, at most the face), no rim: the panel moves rather than flows aside. Below Pc it rings
+  function dishOf(W, sy, t, { force = Infinity, contact = 0.03, half = Infinity } = {}) {
+    const Pc = 0.5 * Math.PI * sy * t * t;
+    if (!(W > 0) || !(t > 0) || !(force >= Pc)) return null;
+    const Wb = Pc * t, M = 0.5 * Math.PI * sy * t, dmax = 0.5 * half;
+    let d = W <= Wb ? W / Pc : Math.sqrt(t * t + (W - Wb) / M), cost = W;
+    if (d > dmax) { d = dmax; cost = d <= t ? Pc * d : Wb + M * (d * d - t * t); }
+    return { a: Math.min(half, contact + 4 * d), d, cost, Pc, dish: true };
+  }
+  // AN EDGE CUTS: W opens W / kerfWork square metres of cut, so across a face `width` wide it runs that ÷ width deep
+  const cutDepth = (W, kerfWork, width) => W / (kerfWork * Math.max(1e-6, width));
   // ── MEDIA: one law for every fluid, liquid or gas. A medium is { density, viscosity }: a POOL is one with a surface
   // (its max[2]) inside its footprint; the AIR is the medium everywhere, its motion the wind. The same three functions
   // serve water and air alike, so a dam, a hose and a gale are one physics ──
@@ -383,7 +433,7 @@ export function buildRupa(E) {
     return { droplets, cavity: Rc, plop: false, stats: { E, Re, We, K, kg: Ms, kinetic: Es } };
   }
 
-  const physics = { blastKg, blastJoules, faceArea, burstShare, blowJoules, heatFactor, impact, dentOf, SHARP, SHOT_R, pressure, flowOf, submerged, inPool, immerse, stepIn, wet, windOf, windAt, AIR, loadPass, fragments, splash, seedOf, vol, G, TNT };
+  const physics = { blastKg, blastJoules, faceArea, burstShare, blowJoules, heatFactor, impact, dentOf, SHARP, SHOT_R, TOOLS, toolOf, dishOf, cutDepth, pressure, flowOf, submerged, inPool, immerse, stepIn, wet, windOf, windAt, AIR, loadPass, fragments, splash, seedOf, vol, G, TNT };
   E.rupaPhysics = physics;
   if (!E.registerWorldPass) return;   // Node's physics-only build
 
@@ -405,7 +455,7 @@ export function buildRupa(E) {
         ignite: Number.isFinite(s.ignite) ? s.ignite : null, fuel: s.fuel || 0, fuelLeft: s.fuel || 0, burnRate: s.burnRate || 0, burning: false,
         stiff: s.stiff || 1e10, bounce: s.bounce ?? 0.2, fill: s.fill ?? 1, frac: s.frac ?? 100, shape: s.shape || 'chunk', spread: s.spread ?? 1.2, joint: s.joint || 'mortar' };
       // plastic matter keeps what a blow does to it: its dents, and a count the page redraws it by
-      if (s.yield > 0) Object.assign(b.rupa, { yield: s.yield, wall: s.wall > 0 ? s.wall : null, dents: [], form: 0, squash: 0 });
+      if (s.yield > 0 || s.kerfWork > 0) Object.assign(b.rupa, { yield: s.yield || 0, wall: s.wall > 0 ? s.wall : null, kerfWork: s.kerfWork || 0, kerfHard: s.kerfHard || 0, dents: [], cuts: [], form: 0, squash: 0 });
       b.hp = Infinity;   // the count never breaks it: the energy does
     });
     if (!any) return;
@@ -425,15 +475,16 @@ export function buildRupa(E) {
     state.breaks.push({ seq: state.breakSeq++, id: b.id, t: state.time, at: [0, 1, 2].map((i) => (b.min[i] + b.max[i]) / 2), by: by ?? null, how, debris });
     state.settleDirty = true;
   }
-  // a blow of `joules` on a block. src: { from?, dir?, at?, ax?, side?, cap?, kind?, depth? } (where it lands and what
+  // a blow of `joules` on a block. src: { from?, dir?, at?, ax?, side?, cap?, kind?, depth?, tool? } (where it lands and what
   // lands it, for the debris and a plastic block's dent). Returns the joules it carried THROUGH a plastic block (a hole,
   // or a block torn apart), 0 if it stopped there; a round or a swing hands them on itself (carry)
   function spend(state, b, joules, how, by, src = {}) {
     if (b.broken || !b.rupa || !(joules > 0)) return 0;
-    const r = b.rupa, before = Math.max(0, r.joules), plastic = r.yield > 0;
+    const r = b.rupa, before = Math.max(0, r.joules), plastic = r.yield > 0, shaped = plastic || r.kerfWork > 0;
     let take = joules, through = 0;
     if (plastic && joules >= OVERKILL * r.cap) { take = before; through = joules - before; }   // torn apart outright
-    else if (plastic) { const D = distort(state, b, joules, how, src); take = D.spent; through = D.through; }
+    else if (shaped) { const D = distort(state, b, joules, how, src); take = D.spent; through = D.through; }
+    if (b.broken) { if (through > 0 && (how === 'shot' || how === 'swing') && src.kind !== 'body') carry(state, b, through, how, by, src); return through; }   // cut in two
     r.joules -= take;
     state.rupa.hits.push({ t: state.time, id: b.id, how, joules: Math.round(take), left: Math.max(0, Math.round(r.joules)), ...(through > 0 ? { through: Math.round(through) } : {}) });
     if (state.rupa.hits.length > 64) state.rupa.hits.shift();
@@ -446,7 +497,7 @@ export function buildRupa(E) {
     return through;
   }
   // ── DISTORTION on the runtime (the law is dentOf, above) ──
-  const OVERKILL = 2, DENT_MIN = 0.001, DENTS = 24;
+  const OVERKILL = 2, DENT_MIN = 0.001, DENTS = 24, KERF_W = 0.002;   // KERF_W: rupa/matter.js KERF, the width an edge opens
   const hardOf = (r) => 3 * r.yield * Math.max(0.02, heatFactor(r.T, r.soften, r.melt, r.T0));
   const unit3 = (v) => { const L = Math.hypot(v[0], v[1], v[2]) || 1; return [v[0] / L, v[1] / L, v[2] / L]; };
   // the face a blow lands on: { ax, side, at } (side +1 the box's max face on axis ax), from what the blow says
@@ -468,15 +519,90 @@ export function buildRupa(E) {
     }
     return null;
   }
+  // what a blow does to a block that keeps its shape, by the tool that lands it: an edge harder than the stuff cuts it;
+  // a tool that bites (as strong as the stuff is hard) dents it, as wide as its force can press (√(F / πH)); a panel
+  // thinner than that bowl would be wide dishes instead; a tool too soft to bite still dishes a panel it can bend; else
+  // the blow rings off and spends nothing. A round, a body, a burst, a landing carry no tool's limits: their energy decides
+  const DEFAULT_TOOL = { swing: 'sword', shot: 'round' };
+  const minOf = (a, b) => (a == null ? b : b == null ? a : Math.min(a, b));
   function distort(state, b, W, how, src) {
     const r = b.rupa, f = faceOf(b, src);
     if (!f) return { spent: W, through: 0 };
+    const kind = src.kind || how, tool = src.tool === null || kind === 'body' ? null : toolOf(src.tool ?? DEFAULT_TOOL[kind] ?? null);
     const ext = [0, 1, 2].map((k) => b.max[k] - b.min[k]), thick = r.wall ?? ext[f.ax];
-    const D = dentOf(W, hardOf(r), { how: src.kind || how, thick, cap: src.cap ?? null });
     const u = [0, 1, 2].filter((k) => k !== f.ax), half = 0.5 * Math.min(ext[u[0]], ext[u[1]]);
-    if (!D.through && D.a > half) squash(state, b, f, D.V);
-    else if (D.d >= DENT_MIN) addDent(state, b, f, D, thick);
-    return { spent: D.cost, through: D.through ? W - D.cost : 0 };
+    if (tool && tool.edge === 'edge' && r.kerfWork > 0 && tool.strength > kerfHardOf(r)) return cut(state, b, f, W, tool, src);
+    if (!(r.yield > 0)) return { spent: W, through: 0 };   // timber struck blunt: its budget, as ever
+    const H = hardOf(r), F = tool && tool.force > 0 ? tool.force * (state.rupa.power ?? 1) : Infinity, contact = (tool && tool.contact) || 0.03;
+    const panel = () => { const P = dishOf(W, H / 3, thick, { force: F, contact, half }); if (P) addDent(state, b, f, P, thick); return { spent: P ? P.cost : 0, through: 0 }; };
+    if (tool && !(tool.strength >= H)) return panel();
+    const k = SHARP[kind] ?? 0.25, capF = Number.isFinite(F) ? Math.sqrt(F / (Math.PI * H)) : null;
+    let D = dentOf(W, H, { how: kind, thick, cap: src.cap ?? (tool && tool.edge === 'point' ? tool.contact : null) });
+    if (D.through) { addDent(state, b, f, D, thick); return { spent: D.cost, through: W - D.cost }; }
+    if (D.a > half) { squash(state, b, f, D.V); return { spent: D.cost, through: 0 }; }
+    if (thick < D.a) return panel();
+    if (capF != null && capF < D.a) {   // the force runs out first: a bowl only as wide as it can press, the rest rings off
+      const a = capF, d = Math.min(k * a, 0.95 * thick), V = 0.5 * Math.PI * a * a * d;
+      D = { V, a, d, rim: d / 3, k, through: false, cost: H * V };
+    }
+    if (D.d >= DENT_MIN) addDent(state, b, f, D, thick);
+    return { spent: D.cost, through: 0 };
+  }
+  const kerfHardOf = (r) => r.kerfHard * (r.yield > 0 ? Math.max(0.02, heatFactor(r.T, r.soften, r.melt, r.T0)) : 1);
+  // the cut's plane, snapped to the block's axes: a level stroke across a side face cuts horizontally; a chop cuts the
+  // vertical plane across the face; from above, any stroke cuts across the block's longer way
+  function cutAxis(b, f, tool) {
+    if (f.ax !== 2) return (tool.stroke ?? 'level') === 'level' ? 2 : 1 - f.ax;
+    return b.max[0] - b.min[0] >= b.max[1] - b.min[1] ? 0 : 1;
+  }
+  // a groove along the plane where the edge lands, deepened by each stroke there; through a solid it parts the block
+  // (cleaveBlock), through a shell it is a slit
+  function cut(state, b, f, W, tool, src) {
+    const r = b.rupa, n = cutAxis(b, f, tool), m = [0, 1, 2].find((k) => k !== f.ax && k !== n);
+    const t = r.wall ?? b.max[f.ax] - b.min[f.ax], width = b.max[m] - b.min[m], at = clamp(f.at[n], b.min[n], b.max[n]);
+    let c = r.cuts.find((q) => q.ax === f.ax && q.side === f.side && q.n === n && Math.abs(q.at - at) < 0.02);
+    if (!c && r.cuts.length >= DENTS) c = r.cuts.reduce((x, q) => (Math.abs(q.at - at) < Math.abs(x.at - at) ? q : x));
+    if (!c) { c = { ax: f.ax, side: f.side, n, at, depth: 0, through: false }; r.cuts.push(c); }
+    if (c.through) return { spent: 0, through: W };   // through the slit already
+    // the blow's work goes into the cut; the block's budget, its whole, loses only what the kerf held (KERF wide)
+    const kerf = (dA) => (r.cap * dA * KERF_W) / Math.max(1e-12, (b.max[0] - b.min[0]) * (b.max[1] - b.min[1]) * (b.max[2] - b.min[2]) * r.fill);
+    const need = (t - c.depth) * width * r.kerfWork;
+    if (W < need) {
+      const dd = cutDepth(W, r.kerfWork, width);
+      c.depth += dd;
+      record(state, b, { how: 'cut', ax: c.ax, side: c.side, n, at: r6(c.at), depth: r6(c.depth) });
+      return { spent: kerf(dd * width), through: 0 };
+    }
+    const dA = (t - c.depth) * width;
+    c.depth = t; c.through = true;
+    record(state, b, { how: 'cut', ax: c.ax, side: c.side, n, at: r6(c.at), depth: r6(t), through: true });
+    if (r.wall == null) cleaveBlock(state, b, n, c.at, Math.max(r.joules - kerf(dA), 0.05 * r.cap), src.by ?? null);
+    return { spent: kerf(dA), through: W - need };
+  }
+  // CLEAVE at run time: a block cut through parts on its plane into two blocks, each with the matter, the heat and the
+  // marks on its side and its share (by volume) of the budget left; the held graph and the load pass decide what stands
+  function cleaveBlock(state, b, n, at, left, by) {
+    const r = b.rupa, L = b.max[n] - b.min[n];
+    if (at - b.min[n] < 0.01 || b.max[n] - at < 0.01) return false;   // a sliver: the groove stays a groove
+    b.broken = { t: state.time, by, how: 'cut' }; b.hp = 0;
+    const k0 = state.colliders.indexOf(b.collider);
+    if (k0 >= 0) state.colliders.splice(k0, 1);
+    const into = [];
+    for (const [lo, hi, tag] of [[b.min[n], at, 'a'], [at, b.max[n], 'b']]) {
+      const min = [...b.min], max = [...b.max], s2 = (hi - lo) / L, id = `${b.id}/${tag}`;
+      min[n] = lo; max[n] = hi;
+      const c = { min, max, of: id, blk: state.breakables.length }, mine = (x) => x >= lo - 1e-9 && x <= hi + 1e-9;
+      const sc = {};
+      for (const key of ['cap', 'mass', 'heatCap', 'fuel', 'fuelLeft', 'fuse', 'burnRate', 'latent']) sc[key] = (r[key] || 0) * s2;
+      state.colliders.push(c);
+      state.breakables.push({ id, min: c.min, max: c.max, hp: Infinity, bond: b.bond, broken: null, falling: null, landed: null, collider: c, skin: b.skin || b.id, parent: b.id,
+        rupa: { ...r, ...sc, joules: left * s2, dents: r.dents.filter((q) => mine(q.at[n])).map((q) => ({ ...q, at: [...q.at] })),
+          cuts: r.cuts.filter((q) => q.n !== n || (q.at !== at && mine(q.at))).map((q) => ({ ...q })), form: 1 } });
+      into.push(id);
+    }
+    state.breaks.push({ seq: state.breakSeq++, id: b.id, t: state.time, at: centre(b), by, how: 'cut', debris: null, into, plane: { axis: n, at: r6(at) } });
+    state.settleDirty = true; state.rupa.seq = -1;
+    return true;
   }
   const r6 = (x) => Math.round(x * 1e6) / 1e6;
   function record(state, b, rec) {
@@ -488,12 +614,15 @@ export function buildRupa(E) {
   function addDent(state, b, f, D, thick) {
     const r = b.rupa, at = [...f.at];
     at[f.ax] = f.side > 0 ? b.max[f.ax] : b.min[f.ax];
-    const dent = { ax: f.ax, side: f.side, at, a: D.a, d: D.d, V: D.V, hole: D.through };
-    const face = r.dents.filter((q) => q.ax === dent.ax && q.side === dent.side);
+    const dent = { ax: f.ax, side: f.side, at, a: D.a, d: D.d, V: D.V ?? 0, hole: !!D.through, ...(D.dish ? { dish: true } : {}) };
+    const face = r.dents.filter((q) => q.ax === dent.ax && q.side === dent.side && !!q.dish === !!dent.dish);
     const gap = (q) => Math.hypot(q.at[0] - at[0], q.at[1] - at[1], q.at[2] - at[2]);
     let q = face.find((x) => gap(x) < 0.5 * Math.max(x.a, dent.a));
     if (!q && r.dents.length >= DENTS) q = (face.length ? face : r.dents).reduce((m, x) => (gap(x) < gap(m) ? x : m));
-    if (q) {
+    if (q && dent.dish) {
+      // overlapping dishes sink one panel further: the membrane's work goes as the square of its depth
+      q.a = Math.max(q.a, dent.a); q.d = Math.min(Math.hypot(q.d, dent.d), q.a);   // never deeper than it is wide
+    } else if (q) {
       // overlapping blows deepen one bowl: their volumes add over the wider of the two
       const V = q.V + dent.V;
       for (let k = 0; k < 3; k++) q.at[k] = (q.at[k] * q.V + at[k] * dent.V) / V;
@@ -502,7 +631,7 @@ export function buildRupa(E) {
       if (q.hole) q.d = thick;
     } else r.dents.push(dent);
     const m = q || dent;
-    record(state, b, { how: m.hole ? 'hole' : 'dent', ax: m.ax, side: m.side, at: m.at.map(r6), a: r6(m.a), d: r6(m.d) });
+    record(state, b, { how: m.hole ? 'hole' : m.dish ? 'dish' : 'dent', ax: m.ax, side: m.side, at: m.at.map(r6), a: r6(m.a), d: r6(m.d) });
   }
   // flattened along the blow at constant volume (a shell crumples, keeping its footprint); its dents ride with it
   function squash(state, b, f, V) {
@@ -516,7 +645,9 @@ export function buildRupa(E) {
       if (k === 2) b.max[2] = r6(b.min[2] + ext[2] * grow);   // it stays on what holds it
       else { const c = (old.min[k] + old.max[k]) / 2; b.min[k] = r6(c - (ext[k] * grow) / 2); b.max[k] = r6(c + (ext[k] * grow) / 2); }
     }
-    for (const q of r.dents) for (let k = 0; k < 3; k++) q.at[k] = b.min[k] + ((q.at[k] - old.min[k]) * (b.max[k] - b.min[k])) / (old.max[k] - old.min[k] || 1);
+    const remap = (x, k) => b.min[k] + ((x - old.min[k]) * (b.max[k] - b.min[k])) / (old.max[k] - old.min[k] || 1);
+    for (const q of r.dents) for (let k = 0; k < 3; k++) q.at[k] = remap(q.at[k], k);
+    for (const q of r.cuts) q.at = remap(q.at, q.n);
     r.squash += eps;
     record(state, b, { how: 'squash', ax: f.ax, side: f.side, eps: r6(eps) });
     state.settleDirty = true; state.rupa.seq = -1;
@@ -782,7 +913,7 @@ export function buildRupa(E) {
         const q = boxNear(b, o), v = [q[0] - o[0], q[1] - o[1]], flat = Math.hypot(v[0], v[1]);
         if (flat > 1e-3 && (v[0] * aim[0] + v[1] * aim[1]) / flat < P.cosCone) continue;
         struck['rupa:' + b.id] = true;
-        spend(state, b, blowJoules('swing', R), 'swing', e.id, { dir: [q[0] - o[0], q[1] - o[1], q[2] - o[2]], from: o });
+        spend(state, b, blowJoules('swing', R), 'swing', e.id, { dir: [q[0] - o[0], q[1] - o[1], q[2] - o[2]], from: o, tool: e.rule && e.rule.strikeTool, by: e.id });
       }
     }
   }, 34);

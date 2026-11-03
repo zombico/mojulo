@@ -91,10 +91,37 @@ has a yield: there is no word to ask for it.
   off whole as a body (`how: 'strip'`), back toward the blow, instead of breaking into debris. Focus fire strips one
   plate and leaves its neighbours; the plate's budget is the HP that says whether it stays.
 
+### The tool and the cut
+
+A strike carries what it's struck with: a tool word on the striker's rule, `strikeTool` (`sword`, `axe`, `knife`,
+`bat`, `metal-bat`, `hammer`, `fist`, or `{ is?, edge, stroke?, strength, force?, contact? }`, checked at mint by
+`readTool`). A swing is a sword and a round a round unless the rule says otherwise; a burst, a landing and a thrown body
+carry no tool, and their energy alone decides.
+
+- **A tool can't press harder than it is strong.** Its `strength` (Pa) is the most pressure its face takes: a wooden bat
+  (50 MPa) can't bite mild steel (hardness 705 MPa), a hammer (2 GPa) can. Its `force` (N, × the world's power) caps a
+  bowl's radius at √(F / πH), and what the force can't press rings off unspent: a hammer barely marks a steel block.
+- **Thin panels dish.** A panel thinner than the bowl would be wide, or one a soft tool can't bite, bends once the force
+  passes its collapse load π·σy·t²/2 (a plate's yield-line load under a point): W = Pc·δ to δ = t, then it stretches as
+  a membrane. The dish is broad and moves both faces, with no rim. A wooden bat's 15 kN dishes a millimetre of steel
+  about 3 cm and leaves a centimetre plate whole (37 kN to bend it); at heroic power it dents that plate too.
+- **An edge harder than the stuff cuts it.** Plastic matter and wood are cuttable (`kerfHard`: 3 × yield, or the wood's
+  crushing strength; brittle stuff breaks as ever). The cut runs on the plane of the stroke where it lands, snapped to
+  the block's axes (`level`: horizontal across a side; `chop`: vertical across it; from above, across the longer way),
+  W / `kerfWork` square metres a stroke (`kerfWork` = fracture energy + yield or tensile strength × the 2 mm kerf), so
+  it deepens by that over the block's width. Strokes in one place deepen one groove. The blow's work goes into the cut;
+  the block's budget loses only what the kerf held.
+- **Through a solid, the block parts in two** (cleave at run time): two blocks on the cut's plane (`<id>/a`, `<id>/b`,
+  the break `how: 'cut'` with `into` and `plane`), each with the matter, heat and marks on its side and its share of the
+  budget by volume. The held graph and the load pass decide what stands: the top of a post cut through rests on its
+  foot, and the end of a beam chopped off past its post falls. Through a shell, it's a slit.
+
 Each block keeps its dents (`b.rupa.dents`, merged where they overlap, at most 24) and a `form` count, and
-`state.rupa.dents` records each one. The page draws a dented block as its box subdivided where its dents are, each bowl
-with its rim and a hole dark through to the far face where it petals out, and a stripped plate falls with its body,
-tipping away from the wall. It's drawn only when a block's matter has a yield, so every other page keeps its bytes.
+its cuts (`b.rupa.cuts`); `state.rupa.dents` records each one. The page draws a marked block as its box subdivided
+where its marks are: each bowl with its rim, a hole dark through to the far face where it petals out, a dish moving
+both faces, a groove dark along its plane. A cut block's halves wear its skin, a block's drawing follows its box as it
+falls, and a stripped plate falls with its body, tipping away from the wall. It's drawn only when a block's matter has
+a yield or can be cut, so every other page keeps its bytes.
 `strikeBlock(state, id, joules, how?, src?)` lands a blow by id (a script, a test; `window.__mojCtrl.strike` on such a
 page).
 
@@ -242,6 +269,9 @@ you give a thing a matter, read its skin; when you change a skin, check its matt
   disagree.
 - Distortion's wobble (jelly's elastic jiggle), dents on minted solids, holes the walk and the shot can pass through
   (the collider stays the block's box), work hardening and how fast a blow lands (strain rate).
+- Cuts on any plane (they snap to the block's axes, so the halves stay boxes), a groove weakening the load pass before
+  it goes through, a round's own tool word (rounds are steel-cored), and a cut half's own pre-cut pieces when it later
+  breaks (it vanishes in its flash).
 - Ground on the page (a deformable floor, craters from bursts, the shovel as an action).
 - City and structure buildings emitting courses, slabs and columns, so whole buildings take part.
 - Per-entity power (a hero's tier apart from the world's), and heat from beams and fire sources by element.

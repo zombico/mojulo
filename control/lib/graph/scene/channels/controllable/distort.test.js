@@ -11,14 +11,13 @@ describe('distortion on the page: drawn only where matter can take it', () => {
     expect(page('brick')).not.toContain('__updateDents');
     const html = page(PLASTIC_IDS[0]);
     expect(html).toContain('__updateDents();');
-    expect(html).toContain(distortViewScript(['b']));
-    expect(html).toContain("br.how !== 'strip'");   // a stripped plate falls whole, never as pieces
+    expect(html).toContain(distortViewScript());
+    expect(html).toContain("br.how !== 'strip' && br.how !== 'cut'");   // a stripped plate falls whole, a cut block parts
     expect(page(PLASTIC_IDS[0], null)).not.toContain('__updateDents');   // and never without the physics
   });
 
-  it('the view script parses and names only the plastic blocks', () => {
-    const src = distortViewScript(['p1', 'p2']);
-    expect(() => new Function('THREE', 'scene', 'meshes', '__world', '__breakPieces', src)).not.toThrow();
-    expect(src).toContain('["p1","p2"]');
+  it('the view script parses, and a cuttable block that is not plastic draws its cuts too', () => {
+    expect(() => new Function('THREE', 'scene', 'meshes', '__world', '__breakPieces', distortViewScript())).not.toThrow();
+    expect(page('timber')).toContain('__updateDents();');
   });
 });

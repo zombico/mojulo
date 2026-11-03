@@ -149,23 +149,27 @@ window.__mojSeatRings = () => Object.keys(__seatRing).map((n) => ({ n: +n, color
 }
 
 /**
- * The page's side of distortion (rupa, controllable/rupa.js): a plastic block that has taken a blow is drawn as its box
- * (the runtime's, squashed or not) subdivided where its dents are, each a paraboloid bowl with its rim (the law's own
- * shape: depth d·(1 − r²/a²), the rim d / 3 high out to 2a, no higher than half its radius: a deep narrow channel
- * pushes its volume aside along its length, not up at its mouth), a hole dark through to the far face where it petals out;
- * a stripped plate rides its body down, tipping away from the wall. Rebuilt only when a block's `form` count moves,
- * from state the runtime owns, so a capture stays byte-identical. `ids`: the blocks whose matter has a yield.
+ * The page's side of distortion (rupa, controllable/rupa.js): a block that keeps its shape (a plastic or cuttable
+ * matter) and has taken a blow is drawn as its box (the runtime's, squashed or cut or not) subdivided where its marks
+ * are. A dent is the law's own bowl, depth d·(1 − r²/a²), its rim d / 3 high out to 2a, no higher than half its radius
+ * (a deep narrow channel pushes its volume aside along its length, not up at its mouth); a hole is dark through to the
+ * far face, which petals out; a dish moves both faces, cos² across, no rim; a cut is a dark groove along its plane, a
+ * slit through when it is through. The halves of a cut block wear its skin; a stripped plate rides its body down,
+ * tipping away from the wall. Rebuilt only when a block's `form` count moves, from state the runtime owns, so a
+ * capture stays byte-identical.
  */
-export function distortViewScript(ids) {
-  return `// distortion: plastic blocks keep the shape their blows leave
-const __DENT_IDS = ${safeJson(ids)}, __dentDraw = {}, __dentLight = [0.35, -0.55, 0.76];
-function __dentAt(b, ax, side, p, thick) {
-  let z = 0, hole = false;
+export function distortViewScript() {
+  return `// distortion: blocks keep the shape their blows leave
+const __dentDraw = {}, __dentLight = [0.35, -0.55, 0.76];
+function __dentAt(b, ax, side, p, thick, hw) {
+  let z = 0, hole = false, slot = false;
   const u = (ax + 1) % 3, v = (ax + 2) % 3, shell = !!b.rupa.wall;
   for (const q of b.rupa.dents) {
     if (q.ax !== ax) continue;
     const r = Math.hypot(p[u] - q.at[u], p[v] - q.at[v]);
-    if (q.side === side) {
+    if (q.dish) {   // the panel moves: in on the struck face, out on the far one
+      if (r < q.a) { const c = Math.cos((Math.PI * r) / (2 * q.a)); z += (q.side === side ? 1 : -1) * q.d * c * c; }
+    } else if (q.side === side) {
       if (r < q.a) { z += q.d * (1 - (r * r) / (q.a * q.a)); if (q.hole && r < 0.7 * q.a) hole = true; }
       else if (r < 2 * q.a) { const s = Math.sin((Math.PI * (r - q.a)) / q.a); z -= Math.min(q.d / 3, q.a / 2) * s * s; }
     } else if (q.hole && !shell) {   // the far face of a hole: through in the core, petalled out round it
@@ -173,23 +177,29 @@ function __dentAt(b, ax, side, p, thick) {
       else if (r < 1.6 * q.a) z -= Math.min(q.d / 3, q.a / 2) * (1 - (r - 0.7 * q.a) / (0.9 * q.a));
     }
   }
+  for (const c of b.rupa.cuts || []) {
+    if (c.ax !== ax || Math.abs(p[c.n] - c.at) > hw) continue;
+    if (c.side === side) { z = Math.max(z, Math.min(c.depth, 0.95 * thick)); slot = true; if (c.through) hole = true; }
+    else if (c.through && !shell) hole = true;
+  }
   if (hole) return { z: shell ? Math.min(thick / 2, 0.05) : thick / 2, hole };
-  return { z: Math.min(z, 0.95 * thick), hole };
+  return { z: Math.min(z, 0.95 * thick), hole: slot };
 }
-function __dentMesh(id, b) {
-  const show = __breakPieces[id], own = meshes['break:' + id], tm = own && own.userData.tex && own.userData.tex[0], map = tm && tm.material.map;
+function __dentMesh(b) {
+  const id = b.skin || b.id, show = __breakPieces[id], own = meshes['break:' + id], tm = own && own.userData.tex && own.userData.tex[0], map = tm && tm.material.map;
   const skin = new THREE.Color(show ? show.fill : '#8a8f96').multiplyScalar(show && show.tex && !map ? 0.72 : 1);
   const c = [0, 1, 2].map((k) => (b.min[k] + b.max[k]) / 2), ext = [0, 1, 2].map((k) => b.max[k] - b.min[k]);
   const pos = [], col = [], uv = [];
   for (let ax = 0; ax < 3; ax++) for (const side of [-1, 1]) {
-    const u = (ax + 1) % 3, v = (ax + 2) % 3, mine = b.rupa.dents.filter((q) => q.ax === ax && (q.side === side || q.hole));
-    const fine = mine.length ? Math.max(Math.min(ext[u], ext[v]) / 48, 0.004, Math.min(...mine.map((q) => q.a)) / 3) : Infinity;
+    const u = (ax + 1) % 3, v = (ax + 2) % 3, mine = b.rupa.dents.filter((q) => q.ax === ax && (q.side === side || q.hole || q.dish));
+    const cuts = (b.rupa.cuts || []).filter((q) => q.ax === ax), floor = Math.max(Math.min(ext[u], ext[v]) / 48, 0.004);
+    const fine = cuts.length ? floor : mine.length ? Math.max(floor, Math.min(...mine.map((q) => q.a)) / 3) : Infinity;
     const nu = Math.max(1, Math.min(48, Math.ceil(ext[u] / fine))), nv = Math.max(1, Math.min(48, Math.ceil(ext[v] / fine)));
-    const dmax = Math.max(1e-3, ...mine.map((q) => q.d)), grid = [];
+    const hw = Math.max(0.002, ext[u] / nu, ext[v] / nv) * 0.75, dmax = Math.max(1e-3, ...mine.map((q) => q.d), ...cuts.map((q) => q.depth)), grid = [];
     for (let j = 0; j <= nv; j++) for (let i = 0; i <= nu; i++) {
       const p = [0, 0, 0];
       p[u] = b.min[u] + (ext[u] * i) / nu; p[v] = b.min[v] + (ext[v] * j) / nv; p[ax] = side > 0 ? b.max[ax] : b.min[ax];
-      const t = [p[0], p[1], p[2]], D = mine.length ? __dentAt(b, ax, side, p, ext[ax]) : { z: 0, hole: false };
+      const t = [p[0], p[1], p[2]], D = mine.length || cuts.length ? __dentAt(b, ax, side, p, ext[ax], hw) : { z: 0, hole: false };
       p[ax] -= side * D.z;
       grid.push({ p: [p[0] - c[0], p[1] - c[1], p[2] - c[2]], uv: [t[u] / 1.2, t[v] / 1.2], z: D.z, hole: D.hole });
     }
@@ -199,7 +209,7 @@ function __dentMesh(id, b) {
       let n = [e1[1] * e2[2] - e1[2] * e2[1], e1[2] * e2[0] - e1[0] * e2[2], e1[0] * e2[1] - e1[1] * e2[0]];
       const nl = Math.hypot(n[0], n[1], n[2]) || 1; n = n.map((x) => x / nl);
       if (n[ax] * side < 0) n = n.map((x) => -x);
-      // lit as the flat face is, its slopes by how far they turn from it (so an undented face reads as before and a
+      // lit as the flat face is, its slopes by how far they turn from it (so an unmarked face reads as before and a
       // bowl reads by its walls), and darker toward the bottom of a bowl
       const flat = side * __dentLight[ax], turn = n[0] * __dentLight[0] + n[1] * __dentLight[1] + n[2] * __dentLight[2] - flat;
       const lit = Math.max(0.2, (map ? 0.95 : 0.55) + (map ? 0.3 : 0.45) * Math.max(0, flat) + 1.4 * turn);
@@ -215,20 +225,21 @@ function __dentMesh(id, b) {
   if (own) { own.visible = false; for (const x of (own.userData.tex || [])) x.visible = false; }
   return { mesh: m, c, ext };
 }
+function __dentDrop(D) { scene.remove(D.mesh); D.mesh.geometry.dispose(); D.mesh.material.dispose(); }
 function __updateDents() {
-  for (const id of __DENT_IDS) {
-    const b = (__world.breakables || []).find((q) => q.id === id);
-    if (!b || !b.rupa || !b.rupa.dents) continue;
+  for (const b of (__world.breakables || [])) {
+    if (!b.rupa || !b.rupa.dents) continue;
+    const id = b.id;
     let D = __dentDraw[id];
-    if (b.broken && b.broken.how !== 'strip') { if (D) D.mesh.visible = false; continue; }
+    if (b.broken && b.broken.how !== 'strip') { if (D && D.mesh.visible) D.mesh.visible = false; continue; }
     if (!b.broken && b.rupa.form && (!D || D.form !== b.rupa.form)) {
-      if (D) { scene.remove(D.mesh); D.mesh.geometry.dispose(); D.mesh.material.dispose(); }
-      D = __dentDraw[id] = { ...__dentMesh(id, b), form: b.rupa.form };
+      if (D) __dentDrop(D);
+      D = __dentDraw[id] = { ...__dentMesh(b), form: b.rupa.form };
       scene.add(D.mesh);
     }
-    if (!b.broken) continue;
+    if (!b.broken) { if (D) D.mesh.position.set((b.min[0] + b.max[0]) / 2, (b.min[1] + b.max[1]) / 2, (b.min[2] + b.max[2]) / 2); continue; }   // it rides its box: a falling half, a settling block
     // stripped: the plate rides its body, tipping away from the wall as it goes
-    if (!D) { D = __dentDraw[id] = { ...__dentMesh(id, b), form: b.rupa.form }; scene.add(D.mesh); }
+    if (!D) { D = __dentDraw[id] = { ...__dentMesh(b), form: b.rupa.form }; scene.add(D.mesh); }
     if (!D.strip) { const br = (__world.breaks || []).find((x) => x.id === id && x.how === 'strip'); D.strip = { body: br && br.body, away: (br && br.away) || [0, 0, 0], t0: b.broken.t }; }
     const body = ((__world.rupa && __world.rupa.bodies) || []).find((x) => x.id === D.strip.body);
     if (!body) continue;
@@ -244,7 +255,7 @@ function __updateDents() {
 
 export function controllableChannelScript(entities, camera, figures, { exposeBodies = false, pilot = null, spectate = null, ai = null, colliders = null, breakables = null, breakPieces = null, rupa = null, hangar = null, match = null, shadows = null, smoke = null, wreckExplodes = null, tutorial = null, aiDifficulty = null, lock = null, commander = null, key = null, toonInk = null, driveSurface = null, touch = false, runner = null, gearGranted = false, seats = null, formSun = null } = {}) {
   // distortion (rupa): drawn only when a block's matter has a yield, so every other page keeps its bytes
-  const distort = !!(rupa && Array.isArray(breakables) && breakables.some((b) => b && b.yield > 0));
+  const distort = !!(rupa && Array.isArray(breakables) && breakables.some((b) => b && (b.yield > 0 || b.kerfWork > 0)));
   // per-vertex specular (material-response): inject the aSpec wiring into the rig-figure
   // builder ONLY when some packed figure carries a spec buffer (a material-finished suit).
   // Absent → the emitted controllable channel is byte-identical (the char-net pin holds),
@@ -3634,7 +3645,7 @@ function __updateBreaks(dt) {
   for (; __breaksSeen < B.length; __breaksSeen++) {
     const br = B[__breaksSeen], m = meshes['break:' + br.id];
     if (m) { m.visible = false; for (const tm of (m.userData.tex || [])) tm.visible = false; }
-    if (br.how !== 'restore'${distort ? " && br.how !== 'strip'" : ''}) __spawnBreak(br);   // a restored break (an aftermath carried in) is simply gone${distort ? '; a stripped plate falls whole (__updateDents)' : ''}
+    if (br.how !== 'restore'${distort ? " && br.how !== 'strip' && br.how !== 'cut'" : ''}) __spawnBreak(br);   // a restored break (an aftermath carried in) is simply gone${distort ? '; a stripped plate falls whole and a cut block parts in two (__updateDents)' : ''}
   }
   for (let i = __pieces.length - 1; i >= 0; i--) {
     const q = __pieces[i], age = __world.time - q.born;
@@ -3655,7 +3666,7 @@ function __updateBreaks(dt) {
     }
   }
 }
-${distort ? distortViewScript(breakables.filter((b) => b && b.yield > 0).map((b) => b.id)) : ''}` : ''}${runner ? runnerViewScript(runner) : ''}${focusHook}stepControllable = (dt, inputOverride) => {
+${distort ? distortViewScript() : ''}` : ''}${runner ? runnerViewScript(runner) : ''}${focusHook}stepControllable = (dt, inputOverride) => {
 ${hangarHook}  __msHookParams();
   if (dt > 0 && !window.__mojFreeze) {   // a menu up freezes the world (interact-channel)
     ${commanderStep}__CW.stepWorld(__world, inputOverride || ${seats ? '__withSeats(__readInput())' : '__readInput()'}, dt, { ground: __ground${driveSurface ? ', surface: __surface' : ''} });
