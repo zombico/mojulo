@@ -36,7 +36,8 @@ import { sameness, grounding, authorship, compareWorlds, REFERENCES } from '@/li
 import { intentReport, cubeOfWorld } from '@/lib/graph/gameworld/intent.js';
 import { compilerGaps, formGaps } from '@/lib/graph/gameworld/resonance.js';
 import { AUDIT_STEP } from '@/lib/graph/gameworld/runner.js';
-import { chapterBook } from '@/lib/graph/gameworld/chapters.js';
+import { chapterBook, chapterById, CHAPTERS } from '@/lib/graph/gameworld/chapters.js';
+import { chapterView } from '@/lib/graph/gameworld/chapter-view.js';
 import { feelReport } from '@/lib/graph/gameworld/feel/lower.js';
 import { feelSuggestion } from '@/lib/graph/gameworld/feel/suggest.js';
 import { juiceOfGame, juiceSuggestion } from '@/lib/graph/gameworld/juice.js';
@@ -459,9 +460,11 @@ function composedWorld(c) {
 const composedOf = (b) => ({ prompt: b.prompt, read: b.read.map((r) => `${r.word}: ${r.decides.join(', ')}`), ...(b.cube ? { cube: b.cube } : {}), ...(b.unread?.length ? { unread: b.unread } : {}) });
 
 export async function designGameHandler(input, context = {}) {
-  if (!isObj(input)) throw new Error('design_game takes { ref?, title?, world?, compose?, patch?, approve?, revise?, note?, run?, force?, example?, compare? }');
-  const { ref: given, title, world: written, patch, approve, revise, note, run: asked, force, example, compare, quick, compose, readout: shape } = input;
+  if (!isObj(input)) throw new Error('design_game takes { ref?, title?, world?, compose?, patch?, approve?, revise?, note?, run?, force?, example?, compare?, chapter? }');
+  const { ref: given, title, world: written, patch, approve, revise, note, run: asked, force, example, compare, quick, compose, readout: shape, chapter } = input;
   if (shape !== undefined && shape !== 'full' && shape !== 'changed') throw new Error("design_game: readout is 'full' (the default) or 'changed'");
+  // one chapter's readout (gameworld/chapter-view.js): checked before anything is written
+  if (chapter !== undefined && !chapterById(chapter)) throw new Error(`design_game: chapter is one of ${CHAPTERS.map((c) => c.id).join(', ')} (the readout's \`chapters\`)`);
   // the world as it stood before this call, for readout: 'changed'
   const prior = given ? SketchRepository.getByRef(given) : null;
   const before = prior && isGameworldKind(prior.manifest?.kind) ? gameworldOf(prior.manifest) : null;
@@ -510,14 +513,15 @@ export async function designGameHandler(input, context = {}) {
     if (patch !== undefined) await updateSketchHandler({ ref, patch, ...(title ? { title } : {}) });
   }
   try {
-    return await afterWrite(ref, { approve, revise, note, run, force, compare, before, shape }, context);
+    const patched = list(patch).map((op) => op?.path).filter((p) => typeof p === 'string');
+    return await afterWrite(ref, { approve, revise, note, run, force, compare, before, shape, chapter, patched }, context);
   } catch (err) {
     // the recipe is stored; the call failed after it: say where, so the next call fixes it in place
     throw new Error(`${err.message}\n— the gameworld is stored at '${ref}' as written; fix it with design_game({ ref: '${ref}', patch }) rather than starting a new one.`);
   }
 }
 
-async function afterWrite(ref, { approve, revise, note, run, force, compare, before, shape }, context = {}) {
+async function afterWrite(ref, { approve, revise, note, run, force, compare, before, shape, chapter, patched = [] }, context = {}) {
   let W = gameworldOf(SketchRepository.getByRef(ref).manifest);
   // the verdicts
   if (approve !== undefined || revise !== undefined) {
@@ -557,6 +561,8 @@ async function afterWrite(ref, { approve, revise, note, run, force, compare, bef
   // the run that made (or remade) the game completed it: the whole share offer rides this call, once
   const completed = W.made?.game && ran?.some((r) => r.key === 'game' && (r.action === 'make' || r.action === 'remake'));
   const share = completed ? { share: shareForContext(context, { ref: W.made.game.ref }) } : {};
+  // one chapter: the whole readout projected onto it (a department's view; the share offer rides it as it rides the whole)
+  if (chapter) return { ok: true, readout: 'chapter', ...chapterView({ ...full, ...(resonance ? { resonance } : {}), ...eyes, ...(comparison ? { comparison } : {}) }, W, chapter, { ran, pending, patched }), ...share };
   if (shape !== 'changed') return { ok: true, ...full, ...(ran ? { ran } : {}), ...(resonance ? { resonance } : {}), ...eyes, ...(comparison ? { comparison } : {}), ...share };
   return { ok: true, readout: 'changed', ...changedOnly(full, before ? readout(ref, before, context) : null), ...(ran ? { ran: ran.filter((r) => r.action !== 'keep' && r.action !== 'waiting') } : {}), ...(resonance ? { resonance } : {}), ...eyes, ...(comparison ? { comparison } : {}), ...share };
 }
@@ -589,13 +595,13 @@ export function registerDesignGameTools() {
     // a run mints the hero, the systems world and the gear in one call
     timeoutMs: RENDER_TOOL_TIMEOUT_MS,
     description:
-      'The GAME rail: design a game top down and let mojulo make it. A gameworld (levels, a hero, its gear, the systems) is '
+      'The GAME rail: design a game top down and let mojulo make it. A gameworld (levels, hero, gear, systems) is '
       + 'a sketch; this writes it (`world`, `patch`), takes the creator\'s verdicts (`approve`, `revise` { part, note }) and, '
-      + 'with `run: true`, makes every ready step through the real doors, keeping what did not move and leaving hand edits '
-      + '(`force` overwrites). Answers each part\'s stamp, the steps, what was made, the advice, the next moves as step ids '
+      + 'with `run: true`, makes every ready step through the real doors, keeping what did not move, leaving hand edits '
+      + '(`force` overwrites). Answers the stamps, what was made, the advice and the next moves as step ids '
       + '(`readout: \'changed\'` for only what moved). Read '
       + 'get_game_vocab({ id: \'gameworld-guide\' }) first. `example` makes a reference only when the creator asks; '
-      + '`compare` reads one against a made world. `compose: { prompt }`: a world from words.',
+      + '`compare` reads one against a made world. `compose: { prompt }`: words to a world. `chapter`: a chapter\'s view.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -613,6 +619,7 @@ export function registerDesignGameTools() {
         readout: { type: 'string', enum: ['full', 'changed'] },
         quick: { type: 'object', description: 'One level, one goal (gameworld-quick).' },
         compose: { type: 'object', description: '{ prompt, levels?, seed?, name? }' },
+        chapter: { type: 'string' },
       },
       required: [],
     },

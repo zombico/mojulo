@@ -38,3 +38,12 @@ become chapters each department works alone, so the compile is one loop that mak
   chapter at a time and hands a department its own chapter; the `gameworld-next` card says so.
 - **Fixed: a town's people kept in the record.** A run made a town's folk (`folk-<town>-<who>`), but the record reader
   refused the key, so a world with folk could not be read again after its run. The guard test found it.
+- **A chapter's own readout** (`design_game({ ref, chapter })`, `gameworld/chapter-view.js`). The whole readout projected
+  onto one chapter, so the two never disagree: its parts with their stamps and advice, its pages (the recipe at its
+  paths, a deeper chapter's keys left to that chapter), the chapters upstream it reads as a digest (each one's state and
+  the print of its pages, so a department sees when upstream moved without reading it), its own next moves (a review of
+  its parts, a wait on it, a form ask for it; a run left pending is every chapter's), what a run made for it, its place
+  in its bible, and the whole book as one word a chapter. On the meadowmark reference book a chapter's view is 0.8 to 2.6
+  KB with its pages, where the whole readout is 7.2 KB without any. A write outside the chapter is written and said
+  (`outside`), never refused. Every part of the book is in exactly one chapter's view (tested), and every next move the
+  `gameworld-next` card documents belongs to a chapter. The tools/list payload holds under its pin.
