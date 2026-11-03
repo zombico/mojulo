@@ -28,8 +28,8 @@ describe('craft-odm: the inventory is data a builder can read', () => {
       expect(CRAFT_KINDS, sku).toHaveProperty(row.kind);
       expect(CRAFT_REALMS, sku).toContain(row.realm);
       expect(row.mass, sku).toBeGreaterThan(0);
-      // (in metres, not millimetres: a part under 100 m, a ship's hull under 400)
-      expect(Object.values(row.dims).every((v) => v > 0 && v < (row.kind === 'boat-hull' ? 400 : 100)), sku).toBe(true);
+      // (in metres, not millimetres: a part under 100 m, a ship's hull and a carrier's flight deck under 400)
+      expect(Object.values(row.dims).every((v) => v > 0 && v < (['boat-hull', 'boat-deck'].includes(row.kind) ? 400 : 100)), sku).toBe(true);
     }
   });
 

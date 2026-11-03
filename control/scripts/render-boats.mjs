@@ -5,9 +5,10 @@
  *
  * From control/:
  *   node scripts/render-boats.mjs <output-directory> [archetype,…|all] [--pose '{"tilt":0,"yaw":0,"prop":0}'] [--fold 0…1] [--views side,quarter,top,stern,bow,motor,transom] [--dry]
- *     [--look pleasure|naval] [--form [--livery <pattern|json>] [--wear pristine|used|battered]]
+ *     [--look pleasure|naval] [--form [--livery <pattern|json>] [--wear pristine|used|battered]] [--deck]
  * `--form` draws the form render (craft-form.js: its livery's camo and marks, its wear), each face its albedo under a
- * plain key light; `--look` dresses it in a look card (boat-looks.js).
+ * plain key light; `--look` dresses it in a look card (boat-looks.js). `--deck` parks a carrier's aircraft on its flight
+ * deck's spots, wings folded (vehicle-registry/carry.js `flightDeck`: what a level lays there), for review.
  * `--fold` folds what folds (an outboard's tiller); `--dry` draws it out of the water. (The sheet of water runs through an
  * open hull's floor too: it is the review's water, not the boat's.) Writes <boat>-<view>.png, the pages, report.json and index.html.
  */
@@ -24,6 +25,7 @@ const { craftForm } = await import('../lib/graph/craft-shelf/craft-form.js');
 const { resolveWorldScene } = await import('../lib/graph/worlds/world-scene.js');
 const { emitThreeWorld } = await import('../lib/graph/scene/scene-three.js');
 const { renderWorldToPng } = await import('../lib/graph/scene/scene-png.js');
+const { flightDeck } = await import('../lib/graph/vehicle-registry/carry.js');
 
 const args = process.argv.slice(2);
 const output = args[0];
@@ -34,7 +36,7 @@ const pose = flag('--pose') ? JSON.parse(flag('--pose')) : {};
 const dry = args.includes('--dry');
 const fold = flag('--fold') !== null ? Number(flag('--fold')) : undefined;
 // (the form render: its marks and its wear, a look card; each face its albedo under a plain key light, for review)
-const form = args.includes('--form'), look = flag('--look') ?? undefined, livery = flag('--livery') ? (flag('--livery').startsWith('{') ? JSON.parse(flag('--livery')) : flag('--livery')) : undefined, wear = flag('--wear') ?? undefined;
+const deckFlag = args.includes('--deck'), form = args.includes('--form'), look = flag('--look') ?? undefined, livery = flag('--livery') ? (flag('--livery').startsWith('{') ? JSON.parse(flag('--livery')) : flag('--livery')) : undefined, wear = flag('--wear') ?? undefined;
 const KEY = (() => { const v = [0.42, -0.5, 0.76], l = Math.hypot(...v); return v.map((x) => x / l); })();
 const shadeOf = (hex, n) => { const k = 0.42 + 0.58 * Math.abs(n[0] * KEY[0] + n[1] * KEY[1] + n[2] * KEY[2]), c = parseInt(hex.slice(1), 16); return `#${[16, 8, 0].map((b) => Math.min(255, Math.round(((c >> b) & 255) * k)).toString(16).padStart(2, '0')).join('')}`; };
 const avg = (hs) => { const t = [0, 0, 0]; for (const h of hs) { const c = parseInt(h.slice(1), 16); t[0] += (c >> 16) & 255; t[1] += (c >> 8) & 255; t[2] += c & 255; } return `#${t.map((v) => Math.round(v / hs.length).toString(16).padStart(2, '0')).join('')}`; };
@@ -57,6 +59,25 @@ for (const id of pick) {
     const { payload } = await resolveWorldScene({ ref: id, kind: 'assembler', manifest: A.manifest });
     faces = payload.faces.filter((f) => !f.studio);
     textures = payload.textures ?? {};
+  }
+  // (a carrier's aircraft on its spots, wings folded: each turned to its heading, its wheels on the deck)
+  const F = deckFlag ? flightDeck(id) : null;
+  if (F?.holds.length) {
+    const craft = F.holds[0].craft;
+    let air;
+    if (form) air = craftForm(craft, { pose: {}, fold: 1 }).items.flatMap((it) => it.faces.map((f) => ({ corners: f.corners, outNormal: f.outNormal, albedo: f.cornerAlbedo ? avg(f.cornerAlbedo) : f.albedo })));
+    else air = (await resolveWorldScene({ ref: craft, kind: 'assembler', manifest: assembleCraft(craft, { fold: 1 }).manifest })).payload.faces.filter((f) => !f.studio);
+    const lo = [Infinity, Infinity, Infinity], hi = [-Infinity, -Infinity, -Infinity];
+    for (const f of air) for (const c of f.corners) for (let i = 0; i < 3; i += 1) { lo[i] = Math.min(lo[i], c[i]); hi[i] = Math.max(hi[i], c[i]); }
+    const cx = (lo[0] + hi[0]) / 2, cy = (lo[1] + hi[1]) / 2;
+    for (const sp of F.spots) {
+      const a = (sp.heading * Math.PI) / 180, R = (v) => [v[0] * Math.cos(a) - v[1] * Math.sin(a), v[0] * Math.sin(a) + v[1] * Math.cos(a), v[2]];
+      for (const f of air) {
+        const corners = f.corners.map((c) => { const r = R([c[0] - cx, c[1] - cy, c[2] - lo[2]]); return [r[0] + sp.at[0], r[1] + sp.at[1], r[2] + sp.at[2]]; });
+        const n = f.outNormal ? R(f.outNormal) : null;
+        faces.push(form ? { corners, outNormal: n, fill: shadeOf(f.albedo, n) } : { ...f, corners, ...(n ? { outNormal: n } : {}) });
+      }
+    }
   }
   const tris = faces.reduce((n, f) => n + f.corners.length - 2, 0);
   const pts = faces.flatMap((f) => f.corners);

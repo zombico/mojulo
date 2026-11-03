@@ -133,3 +133,29 @@ Every weapon is modelled, never fired.
     water; the sea boats a pair under their davits' hooks; its weight its waterline; its row in the field's `armour`
     role. The new builder paths (the superstructure, funnel, hangar, pyramid, turret, close-in weapon, launch cells)
     are pinned, and no existing pin moved. A part's size ceiling on the shelf is 100 m, a ship's hull's 400 m.
+- **The aircraft carrier** (`aircraftCarrier`): a generic 300 m fleet carrier in haze grey, four screws, the registry's
+  `aircraft-carrier` row (supercarrier, flattop, fleet carrier …; "carrier" alone stays the carrier-borne fighters' role)
+  in the field's `armour` role and a new craft role, `flattop`. Its pieces:
+  - **Its hull:** from its lines, its sheer flat to a hurricane bow, closed up to the flight deck it carries; a second
+    pair of screws inboard of the first (the hull's `shafts.inner`).
+  - **A new kind, `boat-deck`'s `flight`** (`craft-shelf/boat-carrier.js`): the flight deck from its plan outline,
+    overhanging the hull to both sides, its gallery under it closing the overhang; the angled deck canted to port, its
+    centreline and edges; the axial deck's line forward; four catapult tracks, a blast deflector hinged aft of each start
+    (`pose.deflector` raises them); four arresting wires across the landing area on their posts; four deck-edge lifts
+    outboard of its edge, the hangar's openings behind them (`pose.lift` lowers them to the hangar); sponsons under its
+    edge, braced, carrying its weapons; its parking spots and the island's point.
+  - **Its island:** the destroyer's superstructure and pyramid mast at an island's size on the deck's starboard edge, two
+    bands of bridge windows.
+  - **Its point defence:** three close-in weapons and two eight-cell launchers on the sponsons, modelled, never fired.
+  - **Its aircraft:** `vehicle-registry/carry.js` `flightDeck(archetype)` says what its deck carries: the registry's
+    carrier-role aircraft drawn on the shelf, each by its own assembled span spread and folded, its length and its
+    weight, against its spots and its lifts. `render-boats.mjs --deck` parks them on its spots, wings folded, for review;
+    a level lays them the same way.
+  - It floats 90,800 t (its crew, air wing, stores and aviation fuel) at an 11.5 m draft, 69 m from its keel to its
+    masthead, 98 m across its lifts.
+  - Held: the deck on the hull's deck, flat, overhanging either side, its gallery; the angled deck's cant, the wires
+    across it inside the landing area; each deflector flush at rest and raised by the pose, aft of its catapult's start;
+    each lift outboard of the edge, lowered by its drop before its opening; the island to starboard with its mast; the
+    weapons on sponsons outboard of the hull; four screws in two mirrored pairs; the field's carrier aircraft on its
+    spots, a ship with no flight deck carrying none; its weight its waterline; its row in the registry. The flight deck's
+    builder path is pinned, and no existing pin moved. The wear's salt and chips are laid on a flight deck too.

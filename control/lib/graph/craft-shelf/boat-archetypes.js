@@ -23,6 +23,7 @@ export const BOAT_ROLES = {
   raider: { label: 'raiding craft', mission: 'a small team in and out fast, armed and low on the water: a military RHIB', realms: ['water'] },
   patrol: { label: 'patrol boat', mission: 'keep a river, a coast or a harbour: armoured, armed, on station for hours', realms: ['water'] },
   escort: { label: 'escort', mission: 'screen a fleet at sea: its guns and launch cells against air and surface, its helicopter against what is under it', realms: ['water'] },
+  flattop: { label: 'aircraft carrier', mission: 'take an air wing to sea: launch it, bring it back aboard, strike it below to its hangar', realms: ['water'] },
   landing: { label: 'landing craft', mission: 'put vehicles and troops ashore over a beach: a ramp at its bow, a well deck, a shallow draft', realms: ['water'] },
 };
 
@@ -194,6 +195,28 @@ export const BOAT_ARCHETYPES = {
       { id: 'seaBoat', sku: 'hull-rhib-mil-75', at: 'hull.seaBoat', pair: true },
       { id: 'seaBoatMotor', sku: 'outboard-150-remote-25', at: 'seaBoat.motor', pair: true },
       { id: 'davit', sku: 'davit-ship', at: 'hull.davit', pair: true, yaw: 180 },
+    ],
+  },
+  aircraftCarrier: {
+    // (its stock look the naval card's; its stock livery its hull number on its bows)
+    realm: 'water', role: 'flattop', palette: 'navalHaze', look: 'naval', livery: { pattern: 'mono', marks: { style: 'military', emblem: 'bar', number: '81' } }, class: 'aircraft carrier', label: '300 m aircraft carrier', classOf: '300 m fleet aircraft carrier class (four screws, its weapons modelled, never fired)',
+    // (its crew, its air wing, its stores and its aviation fuel)
+    payload: 16000000,
+    reference: { span: 97.7, length: 320, height: 69.3, mtow: 9.08e7, draft: 11.53 },
+    bom: { 'boat-hull': 1, 'boat-shaft': 4, 'boat-deck': 1, 'boat-cabin': 1, 'boat-arch': 1, 'boat-mount': 5 },
+    layout: [
+      { id: 'hull', sku: 'hull-carrier-300' },
+      { id: 'shaft', sku: 'shaft-turbine-carrier', at: 'hull.shaftPair', pair: true },
+      { id: 'shaftIn', sku: 'shaft-turbine-carrier', at: 'hull.shaftPairInner', pair: true },
+      { id: 'deck', sku: 'deck-carrier-320', at: 'hull.flightDeck' },
+      { id: 'island', sku: 'island-carrier', at: 'deck.island' },
+      { id: 'mast', sku: 'mast-pyramid-carrier', at: 'island.top' },
+      // (its point defence on the sponsons under the deck's edge)
+      { id: 'ciwsAft', sku: 'mount-ciws', at: 'deck.sponson_0', yaw: 180 },
+      { id: 'ciwsPort', sku: 'mount-ciws', at: 'deck.sponson_2' },
+      { id: 'ciwsBow', sku: 'mount-ciws', at: 'deck.sponson_3' },
+      { id: 'launcherPort', sku: 'vls-cells-8', at: 'deck.sponson_1' },
+      { id: 'launcherStbd', sku: 'vls-cells-8', at: 'deck.sponson_4' },
     ],
   },
 };

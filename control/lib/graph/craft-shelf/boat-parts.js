@@ -28,6 +28,7 @@
 import { DEG, lathe, loftWorld, sweep, extrudeWorld, section, planeUV, round3, tone } from './craft-common.js';
 import { HELM_BUILDERS } from './boat-helm.js';
 import { MIL_BUILDERS } from './boat-mil.js';
+import { CARRIER_BUILDERS } from './boat-carrier.js';
 
 const r3v = (v) => v.map(round3);
 const clamp = (v, a, b) => Math.max(a, Math.min(b, Number.isFinite(v) ? v : 0));
@@ -453,7 +454,10 @@ function buildHull(row, C, opts = {}) {
   // (twin waterjets: the starboard one's nozzle centre on the transom's face at its height `z`, a pair across the boat)
   if (b.jets) hardpoints.jetPair = r3v([b.jets.spacing / 2, -L / 2 + (H.zT - b.jets.z) * H.tanR, b.jets.z]);
   // (twin shafts: the starboard one's exit through the bottom at `at`, `spacing` apart from its mirror)
-  if (b.shafts) { const st = H.at(b.shafts.at); hardpoints.shaftPair = r3v([b.shafts.spacing / 2, st.y, bottomAt(outerLine(st, b.flare), b.shafts.spacing / 2)]); }
+  // (four screws: an `inner` pair, its own spacing and place, at `shaftPairInner`)
+  for (const [name, K] of [['shaftPair', b.shafts], ['shaftPairInner', b.shafts?.inner]]) {
+    if (K) { const st = H.at(K.at); hardpoints[name] = r3v([K.spacing / 2, st.y, bottomAt(outerLine(st, b.flare), K.spacing / 2)]); }
+  }
   // (a ramp bow: the ramp's hinge across its foot, on the sole at the bow; a well deck's cargo: its middle on the sole)
   if (ramp) hardpoints.ramp = r3v([0, L / 2 - (b.transom.thickness ?? 0.05) * 0.5, Number.isFinite(b.sole) ? b.sole : 0]);
   if (b.cargo) hardpoints.cargo = r3v([0, H.at((b.cargo.from + b.cargo.to) / 2).y, b.sole]);
@@ -734,4 +738,5 @@ export const BOAT_BUILDERS = {
   // (the console, the seat and the top: boat-helm.js; the weapon's mount and the radar arch: boat-mil.js)
   ...HELM_BUILDERS,
   ...MIL_BUILDERS,
+  ...CARRIER_BUILDERS,
 };

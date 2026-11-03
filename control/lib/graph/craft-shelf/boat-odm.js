@@ -51,6 +51,11 @@
  *                  bridge on the top one; points on a tier's roof), `funnel` and `hangar`; `boat-arch`'s `pyramid` mast;
  *                  `boat-mount`'s `turret`, `ciws` and `vls`, modelled, never fired; a `boat-shaft`'s `scale`, its running
  *                  gear grown to a ship's)
+ *   boat-deck      a carrier's flight deck laid over a hull's deck point (boat-carrier.js): its plan overhanging the hull,
+ *                  its gallery under it, the angled deck's markings, catapults and their deflectors (`pose.deflector`),
+ *                  arresting wires, deck-edge lifts (`pose.lift`) before the hangar's openings, sponsons under its edge,
+ *                  parking spots (vehicle-registry/carry.js `flightDeck` says which aircraft park there). Points:
+ *                  `mount`, `island`, `sponson_<k>`, `spot_<k>`
  *   boat-top       a top over the helm standing on the console's point (boat-helm.js): its legs (`legs`: their feet's
  *                  places beside the console, their tops' and lean), its hardtop (`height` over the sole, `over` its front
  *                  and back, `thickness`), its front `brace`, `rods` rod holders. Points: `mount`
@@ -74,7 +79,7 @@
  * counter-rotating); a `ramp` bow (a square bow left open above its sole, for a `boat-ramp`), an `aftDeck` (`{ to, z }`:
  * the liner raised to a deck over an engine room aft of `to`; a point `[s, x, 'aft']` on it), a well deck's `cargo`
  * (`{ from, to, width }`: its area on the sole, a `cargo` point at its middle: vehicle-registry/carry.js says what fits)
- * and `shafts`. Outboard families: 'tiller' (steered by its own tiller) and 'remote' (steered and shifted from a helm: its
+ * and `shafts` (a second, inboard pair: `shafts.inner`, its `shaftPairInner` point). Outboard families: 'tiller' (steered by its own tiller) and 'remote' (steered and shifted from a helm: its
  * rigging into the boat, a steering ram along its tilt tube, bolted through the transom), its brackets, leg and gearcase
  * drawn at `leg` of the 20 hp class's size, its pan `cowl.lift` over the clamp, its cowl's colour role `tint.cowl`. Sized to a public class, every name generic: a class, never a product.
  */
@@ -92,6 +97,7 @@ export const BOAT_KINDS = Object.freeze({
   'boat-cabin': 'a cabin on a boat\'s deck: an armoured pilothouse, a bridge, a ship\'s superstructure, funnel and hangar',
   'boat-ramp': 'a landing craft\'s bow ramp, hinged across its foot: it lowers onto a beach',
   'boat-shaft': 'an inboard drive\'s running gear under a boat: its shaft, strut, propeller and rudder',
+  'boat-deck': 'a carrier\'s flight deck over its hull: its angled deck, catapults, wires, lifts and sponsons',
 });
 
 export const BOAT_ODM = {
@@ -425,6 +431,34 @@ export const BOAT_ODM = {
       },
     },
   },
+  // ===== an aircraft carrier's hull ============================================================
+  'hull-carrier-300': {
+    kind: 'boat-hull', realm: 'water', label: '300 m aircraft carrier hull', classOf: '300 m fleet aircraft carrier class (four screws)',
+    aliases: ['carrier hull', 'flattop hull'],
+    // (its depth amidships, keel to the hangar's roof: the flight deck is laid on it)
+    dims: { length: 300, beam: 40.8, depth: 25 }, mass: 57000000, mount: 'keel',
+    perf: { persons: 5000, load: 18000000, maxPower: 200000 },
+    build: {
+      family: 'vee', bow: 'stem',
+      lines: {
+        keel: [[0, 8.0], [0.15, 4.0], [0.28, 0], [0.86, 0], [0.95, 2.0], [1, 10.0]],
+        sheer: [[0, 25], [0.5, 25], [0.85, 25.3], [1, 26]],
+        sheerHalf: [[0, 15], [0.2, 19.6], [0.5, 20.4], [0.75, 19], [0.9, 11], [1, 0]],
+        chine: [[0, 9.5], [0.15, 6.0], [0.35, 2.8], [0.75, 3.0], [0.9, 5.5], [1, 11]],
+        chineHalf: [[0, 14], [0.2, 18.6], [0.5, 19.4], [0.75, 17.5], [0.9, 9], [1, 0]],
+      },
+      // (closed to the flight deck: a hurricane bow, its sides up to the deck it carries)
+      tint: { liner: 'paint' },
+      skin: 0.08, liner: 0.08, flare: 0.3, stations: { mid: 0.008, bow: 0.005 },
+      transom: { rake: 0, thickness: 0.4 },
+      deck: { from: 0.02, thickness: 0.5 }, aftDeck: { to: 0.02, z: 24.4 },
+      gunwale: 0.15, keelStrip: 0,
+      strakes: { at: [0.5], from: 0.25, to: 0.8, radius: 0.2 },
+      shafts: { spacing: 22, at: 0.2, inner: { spacing: 9, at: 0.24 } },
+      points: { flightDeck: [0.5, 0, 'deck'] },
+      fittings: {},
+    },
+  },
   // ===== a 20 hp tiller outboard, short shaft ==================================================
   'outboard-20-tiller': {
     kind: 'boat-outboard', realm: 'water', label: '20 hp tiller outboard, short shaft', classOf: '20 hp four-stroke tiller outboard class',
@@ -739,6 +773,75 @@ export const BOAT_ODM = {
     aliases: ['vertical launch system', 'vls', 'missile cells', 'launch cells'],
     dims: { width: 6.8, length: 3.6, height: 0.5 }, mass: 120000, mount: 'deck',
     build: { family: 'vls', cells: [4, 8], pitch: 0.8, height: 0.5 },
+  },
+  // ===== an aircraft carrier's flight deck =====================================================
+  'deck-carrier-320': {
+    kind: 'boat-deck', realm: 'water', label: 'carrier flight deck', classOf: '300 m fleet aircraft carrier class',
+    aliases: ['flight deck', 'carrier deck', 'angled deck'],
+    dims: { width: 92, length: 320, height: 9.2 }, mass: 14000000, mount: 'deck',
+    perf: { load: 1200000 },
+    build: {
+      family: 'flight', thickness: 3.2, gallery: 6,
+      // (its plan from the stern's starboard corner round by the bow: the island's sponson to starboard, the angled
+      // deck's to port; a hull's middle at its origin)
+      outline: [[22, -158], [26, -130], [27, -60], [34, -48], [34, -4], [27, 6], [27, 100], [20, 140], [12, 162],
+        [-12, 162], [-16, 150], [-20, 100], [-36, 74], [-46, 54], [-46, 10], [-42, -60], [-34, -120], [-26, -158]],
+      angled: { from: [-2, -156], angle: 8, length: 215, width: 24 },
+      axial: [60, 158],
+      catapults: [[[7, 72], [7, 152]], [[-7, 72], [-7, 152]], [[-27.43, -18.2], [-37.17, 51.1]], [[-15.55, -16.5], [-25.29, 52.8]]],
+      deflector: { gap: 6, width: 12, depth: 4.5, angle: 55 },
+      wires: [42, 54, 66, 78],
+      lifts: [
+        { x: 27, y: [20, 40], width: 15, side: 1, drop: 8 },
+        { x: 27, y: [50, 70], width: 15, side: 1, drop: 8 },
+        { x: 26.8, y: [-85, -65], width: 15, side: 1, drop: 8 },
+        { x: -40.7, y: [-80, -60], width: 15, side: -1, drop: 8 },
+      ],
+      sponsons: [
+        { at: [27.6, -140], width: 10, length: 10 }, { at: [-33.8, -135], width: 10, length: 10 },
+        { at: [-21.8, 115], width: 10, length: 10 }, { at: [26.85, 118], width: 10, length: 10 }, { at: [29.4, -100], width: 10, length: 10 },
+      ],
+      island: [28, -26],
+      // (where its aircraft park, wings folded: [x, y, heading], each spot its length and width)
+      spots: [[18, 80, -45], [18, 96, -45], [18, 112, -45], [16, 128, -45], [17, -110, 45], [17, -126, 45]],
+      spot: { length: 19, width: 12 },
+    },
+  },
+  'island-carrier': {
+    kind: 'boat-cabin', realm: 'water', label: 'carrier island', classOf: '300 m fleet aircraft carrier class',
+    aliases: ['island', 'carrier island'],
+    dims: { width: 12, length: 32, height: 18.6 }, mass: 2400000, mount: 'deck',
+    build: {
+      family: 'superstructure',
+      // (narrow and tall on the deck's edge: the navigating bridge and over it the flight deck's control)
+      tiers: [
+        { y: [-16, 16], width: 12, height: 6.0, lean: 0.6, front: { rake: 1.5, k: 0.85 } },
+        { y: [-13, 13], width: 11, height: 5.0, lean: 0.6, front: { rake: 1.5, k: 0.8 } },
+        { y: [-10, 11], width: 10, height: 4.0, lean: 0.5, front: { rake: 1.6, k: 0.65 }, bridge: { panes: 5, side: 3 } },
+        { y: [-8, 8], width: 9, height: 3.6, lean: 0.5, front: { rake: 1.4, k: 0.65 }, bridge: { panes: 4, side: 2 } },
+      ],
+      doors: [-10, 4],
+      mastAt: 0,
+    },
+  },
+  'mast-pyramid-carrier': {
+    kind: 'boat-arch', realm: 'water', label: 'island mast', classOf: '300 m fleet aircraft carrier class',
+    aliases: ['island mast'],
+    dims: { width: 6.5, length: 6.5, height: 19.5 }, mass: 150000, mount: 'deck',
+    build: { family: 'pyramid', height: 9, widths: [6.5, 2.6], arrays: { at: 0.45, size: 3.0 }, topmast: { height: 10, yard: 4.0 } },
+  },
+  'shaft-turbine-carrier': {
+    kind: 'boat-shaft', realm: 'water', label: 'carrier\'s shaft and screw', classOf: 'four-screw carrier drive class (its turbines)',
+    aliases: ['carrier screw', 'carrier propeller'],
+    dims: { length: 15.6, width: 6.2, height: 7.8 }, mass: 300000, mount: 'bottom',
+    perf: { power: 50000 },
+    build: { family: 'shaft', scale: 6.5, rake: 4, length: 1.5, rudder: 0.85, steer: 35, prop: { blades: 5, diameter: 0.95, pitch: 1.0, hand: 'rh' } },
+  },
+  'vls-cells-8': {
+    kind: 'boat-mount', realm: 'water', label: 'eight-cell launcher', classOf: 'generic point defence launcher class (modelled, never fired)',
+    aliases: ['point defence launcher', 'eight-cell launcher', 'box launcher'],
+    dims: { width: 2.0, length: 3.6, height: 1.8 }, mass: 14000, mount: 'deck',
+    build: { family: 'vls', cells: [4, 2], pitch: 0.8, height: 1.8 },
   },
   // ===== a cooler seat ========================================================================
   'seat-cooler-120': {

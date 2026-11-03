@@ -419,7 +419,7 @@ export const AIR_WEAR = Object.freeze({
 const SOOT = '#2a2b2a';
 // (a boat's salt, dried pale in its streaks; what of a boat its wear is laid on)
 const SALT = '#d8dbd4';
-const BOAT_SKINS = Object.freeze(['boat-hull', 'boat-console', 'boat-top']);
+const BOAT_SKINS = Object.freeze(['boat-hull', 'boat-console', 'boat-top', 'boat-deck']);
 const BARE = '#9aa0a5';
 
 /** The wear laid on the stage's items, in place: the sun's fade and the engine's soot per corner, then the gun's soot,
