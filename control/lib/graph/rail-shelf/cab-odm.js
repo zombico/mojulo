@@ -26,6 +26,8 @@
  * train or builder is copied; the numbers are each family's own band.
  */
 
+import { BOGIE_ARCHETYPES, solveBogieDesign } from './bogie-odm.js';
+
 const frozen = (x) => Object.freeze(x);
 export const CAB_GRAMMAR_VERSION = 'rail-cab-v0.1';
 const r4 = (x) => Math.round(x * 10000) / 10000 + 0;
@@ -38,7 +40,7 @@ export const CAB_ARCHETYPES = frozen({
     profile: [[0, 0.82], [0.14, 1], [0.5, 1], [0.8, 0.7], [0.94, 0.25], [1, 0]], plan: 5,
     screen: { bottom: 0.9, top: 2.15, half: 0.84, mullion: false }, sign: 0.22, mask: true,
     lamps: { z: 0.42, u: 0.62, high: false }, coupler: 'automatic', anticlimber: true, pilot: 'skirt',
-    wheel: 0.84, axle: 2.2, doors: { count: 3, width: 1.4 }, windows: 'band', cabWindow: 1.4,
+    bogies: ['metroMotor', 'metroTrailer'], doors: { count: 3, width: 1.4 }, windows: 'band', cabWindow: 1.4,
   }),
   tram: frozen({
     length: 11.5, width: 2.65, height: 3.4, floor: 0.35, skirt: 0.14, nose: 1.5, overhang: 2.3,
@@ -46,7 +48,7 @@ export const CAB_ARCHETYPES = frozen({
     profile: [[0, 0.72], [0.16, 0.98], [0.32, 1], [0.62, 0.7], [0.86, 0.3], [1, 0]], plan: 2.5,
     screen: { bottom: 0.72, top: 2.55, half: 0.9, mullion: false }, sign: 0.24, mask: true,
     lamps: { z: 0.55, u: 0.66, high: false }, coupler: 'covered', anticlimber: false, pilot: 'skirt',
-    wheel: 0.66, axle: 1.8, doors: { count: 2, width: 1.3 }, windows: 'band', cabWindow: 1.2,
+    bogies: ['tram', 'tram'], doors: { count: 2, width: 1.3 }, windows: 'band', cabWindow: 1.2,
   }),
   regional: frozen({
     length: 24, width: 2.85, height: 4.05, floor: 1.15, skirt: 0.55, nose: 2.6, overhang: 3.6,
@@ -54,7 +56,7 @@ export const CAB_ARCHETYPES = frozen({
     profile: [[0, 0.8], [0.2, 1], [0.34, 0.94], [0.62, 0.42], [0.86, 0.12], [1, 0]], plan: 3,
     screen: { bottom: 0.82, top: 2.1, half: 0.82, mullion: false }, sign: 0.2, mask: true,
     lamps: { z: 0.42, u: 0.6, high: true }, coupler: 'automatic', anticlimber: true, pilot: 'plough',
-    wheel: 0.92, axle: 2.5, doors: { count: 2, width: 1.3 }, windows: 'bays', cabWindow: 1.5,
+    bogies: ['regionalMotor', 'regionalMotor'], doors: { count: 2, width: 1.3 }, windows: 'bays', cabWindow: 1.5,
   }),
   highSpeed: frozen({
     length: 25.5, width: 2.95, height: 3.9, floor: 1.25, skirt: 0.3, nose: 9, overhang: 4.8,
@@ -62,7 +64,7 @@ export const CAB_ARCHETYPES = frozen({
     profile: [[0, 0.86], [0.1, 1], [0.24, 0.9], [0.44, 0.48], [0.66, 0.17], [0.86, 0.04], [1, 0]], plan: 2.2,
     screen: { bottom: 0.95, top: 1.9, half: 0.7, mullion: false }, sign: 0, mask: true,
     lamps: { z: 0.12, u: 0.55, high: false }, coupler: 'covered', anticlimber: false, pilot: 'fairing',
-    wheel: 0.92, axle: 2.5, doors: { count: 1, width: 0.9 }, windows: 'band', cabWindow: 0,
+    bogies: ['highSpeed', 'highSpeed'], doors: { count: 1, width: 0.9 }, windows: 'band', cabWindow: 0,
   }),
   boxCab: frozen({
     length: 19, width: 3, height: 4.25, floor: 1.6, skirt: 0.95, nose: 0.42, overhang: 3.9,
@@ -70,7 +72,7 @@ export const CAB_ARCHETYPES = frozen({
     profile: [[0, 1], [0.42, 1], [0.72, 0.92], [0.92, 0.45], [1, 0]], plan: 7,
     screen: { bottom: 0.95, top: 1.85, half: 0.82, mullion: true }, sign: 0, mask: false,
     lamps: { z: -0.32, u: 0.66, high: true }, coupler: 'buffers', anticlimber: false, pilot: 'plough',
-    wheel: 1.25, axle: 2.6, doors: { count: 1, width: 0.75 }, windows: 'louvres', cabWindow: 0.9,
+    bogies: ['locoBoBo', 'locoBoBo'], doors: { count: 1, width: 0.75 }, windows: 'louvres', cabWindow: 0.9,
   }),
 });
 export const CAB_KINDS = Object.freeze(Object.keys(CAB_ARCHETYPES));
@@ -154,7 +156,10 @@ export function solveCabDesign({ seed = 1, archetype = 'metro', dimensions = {} 
   // the section's heights: the skirt's foot, the waist, the cant rail (its round's foot)
   const section = frozen({ z0: A.skirt, zw: r4(floor + S.waist), zc: r4(H - S.cant), undercut: S.undercut, tumblehome: S.tumblehome, radius: S.radius });
   const P = monotone(A.profile), front = frozen({ root: r4(L / 2 - nose), nose, plan: A.plan, profile: A.profile, P });
-  const frame = frozen({ length: L, width: W, height: H, floor, wheel: A.wheel, axle: A.axle, gauge: 1.435, bogies: [r4(L / 2 - A.overhang), r4(-L / 2 + A.overhang)] });
+  // (its bogies the bogie shelf's, solved on the same seed: their wheels, their wheelbase, their pivots' height)
+  const B = A.bogies.map((k) => solveBogieDesign({ seed, archetype: k })), lead = B[0];
+  const frame = frozen({ length: L, width: W, height: H, floor, wheel: lead.wheel, axle: lead.base, gauge: lead.gauge, bogies: [r4(L / 2 - A.overhang), r4(-L / 2 + A.overhang)],
+    bogieKinds: frozen([...A.bogies]), pivot: r4(Math.max(...B.map((b) => b.pivot.z))) });
   const screen = frozen({ z0: r4(floor + A.screen.bottom), z1: r4(floor + A.screen.top), half: A.screen.half, mullion: A.screen.mullion, sign: A.sign, mask: A.mask });
   const tip = r4(Math.max(...Array.from({ length: 41 }, (_, k) => frontAt({ frame, section, front }, 0, section.z0 + ((H - section.z0) * k) / 40))));
   const anchors = frozen({
@@ -177,7 +182,10 @@ export function solveCabDesign({ seed = 1, archetype = 'metro', dimensions = {} 
     { id: 'coupler-height', pass: anchors.coupler.kind === 'covered' || (anchors.coupler.z > 0.5 && anchors.coupler.z < 1.15) },
     { id: 'section-ordered', pass: section.z0 < floor + 0.01 && floor < section.zw && section.zw < section.zc && section.zc + section.radius < H },
     { id: 'front-ahead', pass: zs.every((z) => frontAt(d, 0, z) >= front.root - 1e-9) && tip <= L / 2 + 1e-3 },
-    { id: 'wheels-under-body', pass: frame.gauge / 2 + 0.13 < W / 2 && frame.bogies[0] + A.axle / 2 + A.wheel / 2 < front.root + nose * 0.95 },
+    { id: 'wheels-under-body', pass: frame.gauge / 2 + 0.13 < W / 2 && frame.bogies[0] + frame.axle / 2 + frame.wheel / 2 < front.root + nose * 0.95 },
+    // (the bogies' pivots under the floor; a low floor's bogies under the raised floor over them)
+    { id: 'bogies-under-floor', pass: frame.pivot < floor - 0.05 || floor < frame.wheel },
+    { id: 'bogies-valid', pass: B.every((b) => b.valid) },
   ];
   return frozen({ ...design, laws: frozen(laws.map(frozen)), valid: laws.every((l) => l.pass) });
 }

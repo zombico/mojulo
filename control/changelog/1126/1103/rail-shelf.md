@@ -31,3 +31,33 @@
     where the driver's eye is; the lamps on the front's surface below the screen; a mullion's panes; each coupler where
     its kind puts it; the wheels on the rail, on the gauge, inside the body; every face a named material; the same brief
     the same bytes; a finer level more triangles.
+- **The bogies** (`bogie-odm.js`, `bogie-surface.js`): a bogie solved from a brief and compiled the same way as the cab.
+  - **The grammar** (`solveBogieDesign`): an archetype (a metro motor and its trailer, a streetcar's, a regional motor,
+    a high-speed, a freight car's three-piece truck, a locomotive's two-axle and three-axle) solved into its axles,
+    wheel and wheelbase; the wheel's profile on the gauge (its back to back, its width, its flange, its tread's taper,
+    scaled to the gauge asked for); its axle boxes, its frame (an H-frame over the boxes, dipping between the axles, or
+    a three-piece's cast side frames), its primary and secondary suspension, its drive, brakes and dampers, and the
+    pivot's height the body sits on. Its laws: the wheels on the gauge, the axles apart, the frame clear of the wheels
+    and the rail, the envelope, the pivot over the frame.
+  - **The surface** (`compileBogieSurface`): each wheel revolved from its profile (the tread named where it meets the
+    rail, a mark on its web), the axles, the axle boxes and their covers; the side beams and transoms, or the side
+    frames' members, columns and pedestal jaws and the bolster through them with its centre bowl; coil primaries as
+    helices or a tram's rubber chevrons; air springs revolved from their bellows, coil pairs, a locomotive's
+    flexicoils, a freight truck's spring nests and friction wedges; the pivot block; frame-mounted motors and their
+    gearboxes or nose-suspended motors; brake discs and calipers, tread blocks, a tram's track brake shoes over the
+    rails, a locomotive's sand pipes; vertical, lateral and yaw dampers; on a leading bogie its lifeguards. Poses: the
+    wheels' `spin` (the marks and discs turning with them) and the bogie's `yaw` about its pivot; its hardpoints (the
+    pivot, each wheel's contact with the rail, the axles).
+  - **The cab car on them:** its two bogies drawn from the shelf on its seed, the leading one with its lifeguards, the
+    trailing one turned end for end; its wheels and wheelbase the leading bogie's; a new law that its bogies' pivots sit
+    under its floor (a low floor's bogies under its raised ends). `scripts/render-rail.mjs` takes a bogie's archetype as
+    a preset and draws it alone on its track, swung and spun.
+  - The shelf's geometry and finish (faces turned out, boxes, prisms, discs, solids of revolution about either axis,
+    materials by part) are shared in `rail-geom.js`.
+  - Held (`bogie.test.js`): each frame, axle count and drive solved within its laws, its axles spaced on its wheelbase;
+    the wheels' back to back on any gauge and the tread's contact between the flange's root and the outer face; an
+    explicit dimension winning, a number out of band or an unknown word refused; the treads meeting the rail at the
+    gauge's half, the flanges inboard and below the rail's top; the frame clear of every wheel and of the rail; each
+    archetype's springs, drive and brakes where it puts them; the lifeguards on a leading bogie alone; the spin turning
+    the wheels and nothing else, the yaw turning the bogie about its pivot; the same brief the same bytes, a finer
+    level more triangles; a cab car on its bogies under its floor, its wheels on the rail.

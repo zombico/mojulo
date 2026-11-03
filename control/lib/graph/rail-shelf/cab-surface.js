@@ -14,7 +14,8 @@
  *           glass.door and the seams round each door, the livery band, the roof, the skirt
  *   fittings headlamps and tail lamps on the front's own surface, a high lamp, wipers, the coupler (automatic, under a
  *           cover, or a buffer beam's buffers and hook), the anticlimber, the pilot (a plough), the roof's units, the
- *           gangway at the far end, and the bogies: wheels, axles, side frames, axle boxes, springs, bolster
+ *           gangway at the far end, and its two bogies (bogie-surface.js: the leading one its lifeguards, the trailing one
+ *           turned end for end, the wheels turned by the pose's `spin`)
  *
  *   compileCabSurface(brief, { quality, livery }) → { design, quality, livery, faces: { body, front, fittings, bogies },
  *                                                     materials, census }
@@ -22,14 +23,16 @@
  * Coordinates: +y forward (the nose's tip at y = L/2), +x right, z up from the rail. Pure and deterministic.
  */
 import { solveCabDesign, halfWidthAt, frontAt, frontNormal } from './cab-odm.js';
-import { VEHICLE_MATERIALS } from '../car-designer/vehicle-surface-finish.js';
+import { RAIL_MATERIALS, r4, sub, add, mul, cross, unit, face, box, cylinder, disc, finishRailFaces } from './rail-geom.js';
+import { compileBogieSurface } from './bogie-surface.js';
+
+export { RAIL_MATERIALS, finishRailFaces, railMaterial } from './rail-geom.js';
 
 export const CAB_LODS = Object.freeze({
-  game: Object.freeze({ rows: 18, cols: 14, step: 1.2, wheel: 12 }),
-  studio: Object.freeze({ rows: 28, cols: 22, step: 0.7, wheel: 18 }),
-  hero: Object.freeze({ rows: 44, cols: 34, step: 0.4, wheel: 28 }),
+  game: Object.freeze({ rows: 18, cols: 14, step: 1.2, bogie: 'game' }),
+  studio: Object.freeze({ rows: 28, cols: 22, step: 0.7, bogie: 'studio' }),
+  hero: Object.freeze({ rows: 44, cols: 34, step: 0.4, bogie: 'hero' }),
 });
-export const RAIL_MATERIALS = Object.freeze({ ...VEHICLE_MATERIALS, sign: Object.freeze({ metalness: 0, roughness: 0.35, emissive: '#ffb23e', emissiveIntensity: 0.9 }) });
 // the colours a cab is painted in, by role (generic schemes: no operator's livery)
 export const CAB_LIVERIES = Object.freeze({
   silver: Object.freeze({ body: '#c4cacf', band: '#2f6fb0', roof: '#8d9398', skirt: '#3b3f43', mask: '#121416', door: '#c4cacf', beam: '#b3261e' }),
@@ -38,79 +41,10 @@ export const CAB_LIVERIES = Object.freeze({
   green: Object.freeze({ body: '#2f6b45', band: '#e6c34a', roof: '#6e7377', skirt: '#2a2c2e', mask: '#121416', door: '#2f6b45', beam: '#b3261e' }),
 });
 const DARK = '#1c1e20', GLASS = '#22313c', STEEL = '#7d8287', LAMP = '#f4f1e2', TAIL = '#b8242c', SIGN = '#ffb23e', RUBBER = '#1a1b1c';
-const r4 = (x) => Math.round(x * 10000) / 10000 + 0;
-const P3 = (p) => p.map(r4);
-const sub = (a, b) => a.map((v, i) => v - b[i]), add = (a, b) => a.map((v, i) => v + b[i]), mul = (a, k) => a.map((v) => v * k);
-const cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
-const unit = (v) => { const l = Math.hypot(...v) || 1; return v.map((x) => x / l); };
-const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
-const newell = (c) => { const n = [0, 0, 0]; for (let i = 0; i < c.length; i += 1) { const a = c[i], b = c[(i + 1) % c.length]; n[0] += (a[1] - b[1]) * (a[2] + b[2]); n[1] += (a[2] - b[2]) * (a[0] + b[0]); n[2] += (a[0] - b[0]) * (a[1] + b[1]); } return n; };
-// (a face, its repeated corners dropped, its normal turned out from `from`: a point inside the thing it is part of)
-function face(corners, part, from, normal) {
-  const c = corners.map(P3).filter((p, i, a) => i === 0 || p.some((v, k) => v !== a[i - 1][k]));
-  if (c.length > 2 && c[0].every((v, k) => v === c.at(-1)[k])) c.pop();
-  if (c.length < 3) return null;
-  let n = normal ? unit(normal) : unit(newell(c));
-  if (!normal && Math.hypot(...newell(c)) < 1e-9) return null;
-  const mid = [0, 1, 2].map((k) => c.reduce((t, p) => t + p[k], 0) / c.length);
-  if (!normal && dot(n, sub(mid, from)) < 0) n = mul(n, -1);
-  // (corners wound to the normal: counter-clockwise seen from outside)
-  if (dot(unit(newell(c)), n) < 0) c.reverse();
-  return { corners: c, part, outNormal: n.map(r4) };
-}
-// (a box: its six faces turned out from its centre)
-function box(out, [x0, x1], [y0, y1], [z0, z1], part) {
-  const c = [(x0 + x1) / 2, (y0 + y1) / 2, (z0 + z1) / 2];
-  const v = (i, j, k) => [[x0, x1][i], [y0, y1][j], [z0, z1][k]];
-  for (const q of [[v(1, 0, 0), v(1, 1, 0), v(1, 1, 1), v(1, 0, 1)], [v(0, 0, 0), v(0, 0, 1), v(0, 1, 1), v(0, 1, 0)], [v(0, 1, 0), v(0, 1, 1), v(1, 1, 1), v(1, 1, 0)],
-    [v(0, 0, 0), v(1, 0, 0), v(1, 0, 1), v(0, 0, 1)], [v(0, 0, 1), v(1, 0, 1), v(1, 1, 1), v(0, 1, 1)], [v(0, 0, 0), v(0, 1, 0), v(1, 1, 0), v(1, 0, 0)]]) {
-    const f = face(q, part, c); if (f) out.push(f);
-  }
-}
-// (a prism along an axis: its n-gon ends and its sides, turned out from its axis)
-function cylinder(out, a, b, r, n, part, { caps = true } = {}) {
-  const ax = unit(sub(b, a)), t1 = unit(Math.abs(ax[2]) < 0.9 ? cross(ax, [0, 0, 1]) : cross(ax, [1, 0, 0])), t2 = cross(ax, t1);
-  const ring = (c) => Array.from({ length: n }, (_, i) => { const q = (2 * Math.PI * i) / n; return add(c, add(mul(t1, r * Math.cos(q)), mul(t2, r * Math.sin(q)))); });
-  const A = ring(a), B = ring(b), mid = mul(add(a, b), 0.5);
-  for (let i = 0; i < n; i += 1) { const j = (i + 1) % n, f = face([A[i], A[j], B[j], B[i]], part, mid); if (f) out.push(f); }
-  if (caps) { const fa = face(A, part, mid), fb = face(B, part, mid); if (fa) out.push(fa); if (fb) out.push(fb); }
-}
-// (a disc lying on a surface at p, its normal n, `off` proud of it)
-function disc(out, p, n, r, part, off, k = 12) {
-  const t1 = unit(cross(n, [0, 0, 1])), t2 = cross(t1, n), c = add(p, mul(n, off));
-  const f = face(Array.from({ length: k }, (_, i) => { const q = (2 * Math.PI * i) / k; return add(c, add(mul(t1, r * Math.cos(q)), mul(t2, r * Math.sin(q)))); }), part, null, n);
-  if (f) out.push(f);
-}
-
-// a part's material (the vehicle ODM's where it names one, the rail shelf's own over it)
-const OWN = { sign: 'sign', coupler: 'alloy', buffer: 'alloy', anticlimber: 'alloy', pilot: 'carbon', wiper: 'carbon', 'body.mask': 'carbon', 'glass.frame': 'seal', pillar: 'carbon',
-  wheel: 'alloy', axle: 'alloy', gangway: 'rubber', underframe: 'seal', grille: 'carbon', seam: 'seal', 'lamp.bezel': 'carbon', headlamp: 'lamp', taillamp: 'tail' };
-export function railMaterial(part) {
-  if (OWN[part]) return OWN[part];
-  if (/^bogie\./.test(part)) return 'seal';
-  if (/^glass\./.test(part)) return 'glass';
-  return 'paint';
-}
-function shade(hex, n) {
-  const k = 0.64 + 0.42 * Math.max(0, dot(n, [0.35, 0.25, 0.902]));
-  return '#' + hex.slice(1).match(/../g).map((h) => Math.min(255, Math.round(parseInt(h, 16) * k)).toString(16).padStart(2, '0')).join('');
-}
-/** Crease-aware corner normals within a material, its baked fallback colour; the paint it is given kept as `albedo`. */
-export function finishRailFaces(faces) {
-  const mats = faces.map((f) => railMaterial(f.part)), verts = new Map(), key = (i, p) => `${mats[i]}:${p.join(',')}`;
-  faces.forEach((f, i) => { for (const p of f.corners) { const k = key(i, p); if (!verts.has(k)) verts.set(k, []); verts.get(k).push(i); } });
-  const crease = Math.cos((40 * Math.PI) / 180);
-  return faces.map((f, i) => {
-    const cn = f.corners.map((p) => unit(verts.get(key(i, p)).filter((j) => dot(faces[i].outNormal, faces[j].outNormal) > crease).reduce((s, j) => add(s, faces[j].outNormal), [0, 0, 0])).map(r4));
-    const lit = ['lamp', 'tail', 'sign'].includes(mats[i]);
-    return { ...f, albedo: f.fill, material: mats[i], cornerNormals: cn, fill: lit ? f.fill : shade(f.fill, f.outNormal), cornerFills: cn.map((n) => (lit ? f.fill : shade(f.fill, n))) };
-  });
-}
-
 // sorted, deduped samples: the base spacing and every boundary a part needs
 const samples = (base, snaps, lo, hi, gap) => [...base, ...snaps].filter((v) => v >= lo - 1e-9 && v <= hi + 1e-9).map((v) => Math.min(hi, Math.max(lo, v))).sort((a, b) => a - b).filter((v, i, a) => i === 0 || v - a[i - 1] > gap);
 
-export function compileCabSurface(brief = {}, { quality = 'studio', livery } = {}) {
+export function compileCabSurface(brief = {}, { quality = 'studio', livery, pose = {} } = {}) {
   const LOD = CAB_LODS[quality];
   if (!LOD) throw new Error(`rail-cab: quality is ${Object.keys(CAB_LODS).join(', ')}`);
   const d = brief.frame && brief.front ? brief : solveCabDesign(brief);
@@ -174,7 +108,7 @@ export function compileCabSurface(brief = {}, { quality = 'studio', livery } = {
     ?? (/^glass\./.test(part) ? GLASS : /^bogie\./.test(part) ? DARK : C.body));
   const inside = (p) => [0, Math.min(root - 0.5, Math.max(yTail + 0.5, p[1])), (S.z0 + H) / 2];
   const push = (out, f) => { if (f) out.push({ ...f, fill: f.fill ?? colour(f.part) }); };
-  const body = [], front = [], fittings = [], bogies = [];
+  const body = [], front = [], fittings = [];
 
   // the sides: the section extruded, both sides, each quad its part
   for (const sx of [1, -1]) for (let i = 0; i + 1 < Y.length; i += 1) for (let k = 0; k + 1 < Z.length; k += 1) {
@@ -237,23 +171,15 @@ export function compileCabSurface(brief = {}, { quality = 'studio', livery } = {
   // the gangway's bellows at the far end
   box(fittings, [-0.55, 0.55], [yTail - 0.28, yTail], [floor, floor + 2.05], 'gangway');
 
-  // the bogies: two wheelsets each on the gauge, their axles, side frames outside the wheels, axle boxes and springs,
-  // the bolster under the body
-  const D = d.frame.wheel, r = D / 2, g = d.frame.gauge / 2, ax = d.frame.axle;
-  for (const yB of d.frame.bogies) {
-    for (const ya of [yB - ax / 2, yB + ax / 2]) {
-      for (const sx of [1, -1]) cylinder(bogies, [sx * (g - 0.02), ya, r], [sx * (g + 0.115), ya, r], r, LOD.wheel, 'wheel');
-      cylinder(bogies, [-(g - 0.02), ya, r], [g - 0.02, ya, r], 0.08, 8, 'axle', { caps: false });
-      for (const sx of [1, -1]) {
-        box(bogies, [sx > 0 ? g + 0.13 : -(g + 0.33), sx > 0 ? g + 0.33 : -(g + 0.13)], [ya - 0.17, ya + 0.17], [r - 0.14, r + 0.14], 'bogie.box');
-        box(bogies, [sx > 0 ? g + 0.16 : -(g + 0.3), sx > 0 ? g + 0.3 : -(g + 0.16)], [ya - 0.1, ya + 0.1], [r + 0.14, r + 0.34], 'bogie.spring');
-      }
-    }
-    for (const sx of [1, -1]) box(bogies, [sx > 0 ? g + 0.12 : -(g + 0.36), sx > 0 ? g + 0.36 : -(g + 0.12)], [yB - ax / 2 - 0.5, yB + ax / 2 + 0.5], [r + 0.3, r + 0.52], 'bogie.frame');
-    box(bogies, [-(g + 0.36), g + 0.36], [yB - 0.3, yB + 0.3], [r + 0.3, Math.max(r + 0.55, Math.min(S.z0, floor) - 0.02)], 'bogie.frame');
+  // the bogies: the bogie shelf's, solved on the design's seed, under their pivots; the leading one its lifeguards, the
+  // trailing one turned end for end; the wheels turned by the pose's `spin`
+  const bogieOut = [];
+  for (const [k, yB] of d.frame.bogies.entries()) {
+    const B = compileBogieSurface({ seed: d.seed, archetype: d.frame.bogieKinds[k] }, { quality: LOD.bogie, lead: k === 0, pose: { spin: pose.spin, yaw: k === 0 ? 0 : 180 } });
+    for (const f of Object.values(B.faces).flat()) bogieOut.push({ ...f, corners: f.corners.map(([x, y, z]) => [x, r4(y + yB), z]) });
   }
-  for (const f of [...fittings, ...bogies]) f.fill = f.fill ?? colour(f.part);
-  const faces = { body: finishRailFaces(body), front: finishRailFaces(front), fittings: finishRailFaces(fittings), bogies: finishRailFaces(bogies) };
+  for (const f of fittings) f.fill = f.fill ?? colour(f.part);
+  const faces = { body: finishRailFaces(body), front: finishRailFaces(front), fittings: finishRailFaces(fittings), bogies: bogieOut };
   const all = Object.values(faces).flat(), parts = {};
   for (const f of all) parts[f.part] = (parts[f.part] || 0) + 1;
   const census = { faces: all.length, triangles: all.reduce((t, f) => t + f.corners.length - 2, 0), rows: Z.length, columns: U.length, stations: Y.length,

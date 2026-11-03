@@ -246,7 +246,8 @@ Pointers only; each target carries its own design notes.
   `worlds/seaway-scene.js` and the `seaway` channel (its Kelvin field `kelvin.js`); review: `scripts/render-boats.mjs`.
 - Rail: [rail-shelf/](control/lib/graph/rail-shelf/) (primitives for locomotive transit on the vehicle ODM's pattern: a cab
   car's grammar solves a brief into a frame, its section and its front as a field over it, held to laws; its surface
-  compiler names each quad; design cards by preset); review: `scripts/render-rail.mjs`.
+  compiler names each quad; design cards by preset; the bogies under it the same way, `bogie-odm.js` and
+  `bogie-surface.js`); review: `scripts/render-rail.mjs`.
 - Books: [book/](control/lib/graph/book/) (the press: a style library of looks, formats and faces from the font shelf,
   one self-contained page a book, printed to PDF by headless Chromium): [docs/books.md](docs/books.md).
 - Table RPG: [table-rpg/](control/lib/graph/table-rpg/) (a pen-and-paper module played in text: rules as procedures, a

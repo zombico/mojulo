@@ -93,10 +93,10 @@ describe('a cab car\'s surface', () => {
     expect(compileCabSurface({ archetype: COVERED }).faces.fittings.some((f) => f.part === 'coupler')).toBe(false);
   });
   it('its wheels on the rail, on the gauge and inside the body; every face a material the shelf names', () => {
-    const w = c.faces.bogies.filter((f) => f.part === 'wheel').flatMap((f) => f.corners);
-    expect(Math.min(...w.map((p) => p[2]))).toBeCloseTo(0, 1);
-    expect(Math.min(...w.filter((p) => p[0] > 0).map((p) => p[0]))).toBeCloseTo(d.frame.gauge / 2 - 0.02, 3);
-    expect(Math.max(...w.map((p) => Math.abs(p[0])))).toBeLessThan(d.frame.width / 2);
+    // (the treads' flanges just below the rail's top, the wheels between the body's sides)
+    const w = c.faces.bogies.filter((f) => f.part === 'wheel.tread').flatMap((f) => f.corners);
+    expect(Math.min(...w.map((p) => p[2]))).toBeCloseTo(-0.028, 2);
+    expect(Math.max(...c.faces.bogies.flatMap((f) => f.corners).map((p) => Math.abs(p[0])))).toBeLessThan(d.frame.width / 2);
     for (const f of all(c)) expect(RAIL_MATERIALS, f.part).toHaveProperty(f.material);
     for (const f of all(c).filter((x) => x.material === 'lamp')) expect(f.fill).toBe(f.albedo);
   });

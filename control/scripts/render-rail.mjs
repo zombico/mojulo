@@ -5,6 +5,8 @@
  *
  * From control/:
  *   node scripts/render-rail.mjs <output-directory> [game|studio|hero] [preset,…] [views: quarter,side,nose,bogie,rear]
+ * A preset may be a bogie's archetype (bogie-odm.js), drawn alone on its track: views quarter, side, top, end, spun
+ * (its wheels turned a quarter and swung 6° on its pivot).
  * Writes <preset>-<view>.png, the pages, report.json and index.html.
  */
 import { mkdirSync, writeFileSync } from 'node:fs';
@@ -15,7 +17,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 const control = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 process.chdir(control);
 register(pathToFileURL(path.join(control, 'scripts/mcp-stdio-loader.mjs')).href);
-const { composeCab, CAB_LIBRARY, finishRailFaces } = await import('../lib/graph/rail-shelf/index.js');
+const { composeCab, CAB_LIBRARY, finishRailFaces, compileBogieSurface, BOGIE_KINDS, RAIL_MATERIALS } = await import('../lib/graph/rail-shelf/index.js');
 const { emitVehicleReview } = await import('../lib/graph/car-designer/vehicle-review.js');
 const { renderWorldToPng } = await import('../lib/graph/scene/scene-png.js');
 
@@ -39,6 +41,24 @@ function track(L) {
   return finishRailFaces(f).map((x) => ({ ...x, material: x.part === 'rail' ? 'alloy' : 'seal' }));
 }
 for (const preset of presets) {
+  if (BOGIE_KINDS.includes(preset)) {
+    const vs = viewArg ? views.filter((v) => ['quarter', 'side', 'top', 'end', 'spun'].includes(v)) : ['quarter', 'side', 'top', 'end', 'spun'];
+    gallery += `<h2>${preset} bogie</h2><section>`;
+    for (const v of vs) {
+      const b = compileBogieSurface({ seed: 11, archetype: preset }, { quality, lead: true, pose: v === 'spun' ? { spin: 90, yaw: 6 } : {} }), dd = b.design;
+      const compiled = { faces: { ...b.faces, track: track(dd.base + 1) }, materials: RAIL_MATERIALS, census: b.census };
+      const k = 1.6 * Math.max(1, dd.base / 2.2), cam = { quarter: [[2.4 * k, 2.6 * k, 1.5 * k], [0, 0, 0.55], 40], side: [[4.4 * k, 0, 0.7], [0, 0, 0.55], 40], top: [[0.01, 0, 4.8 * k], [0, 0, 0.4], 44],
+        end: [[0.6, 4.2 * k, 0.9], [0, 0, 0.55], 40], spun: [[2.4 * k, 2.6 * k, 1.5 * k], [0, 0, 0.55], 40] }[v];
+      const html = emitVehicleReview(compiled, { title: `${preset} bogie`, cameraPosition: cam[0], lookAt: cam[1], horizontalFov: cam[2] });
+      writeFileSync(path.join(outDir, `${preset}-${v}.png`), await renderWorldToPng(html, { width, height, deviceScaleFactor: 1 }));
+      writeFileSync(path.join(outDir, `${preset}-${v}.html`), html);
+      gallery += `<figure><a href="${preset}-${v}.html"><img alt="${preset}, ${v}" src="${preset}-${v}.png"></a><figcaption>${v}</figcaption></figure>`;
+      console.log(`Rendered ${preset}-${v}`);
+      if (v === vs[0]) report.push({ preset, design: dd, census: b.census, hardpoints: b.hardpoints });
+    }
+    gallery += '</section>';
+    continue;
+  }
   const c = composeCab({ preset, seed: 11, surface: { quality } }), d = c.design, L = d.frame.length, tip = d.anchors.tip;
   const compiled = { ...c, faces: { ...c.faces, track: track(L) } };
   const yB = d.frame.bogies[0];
@@ -50,7 +70,7 @@ for (const preset of presets) {
     rear: [[4, -L / 2 - 7, 3], [0, -L / 2 + 3, 2], 40],
   };
   gallery += `<h2>${CAB_LIBRARY[preset].title}</h2><p>${c.census.triangles.toLocaleString('en-US')} triangles · ${c.census.materialGroups} materials · ${L} m long, ${d.frame.width} m wide, ${d.frame.height} m high · laws ${d.laws.every((l) => l.pass) ? 'held' : 'failed'}</p><section>`;
-  for (const v of views) {
+  for (const v of views.filter((x) => cams[x])) {
     const [cameraPosition, lookAt, horizontalFov] = cams[v];
     const html = emitVehicleReview(compiled, { title: CAB_LIBRARY[preset].title, cameraPosition, lookAt, horizontalFov });
     writeFileSync(path.join(outDir, `${preset}-${v}.png`), await renderWorldToPng(html, { width, height, deviceScaleFactor: 1 }));
