@@ -401,3 +401,10 @@ its resource, put on a look and showed a toast. This theme makes them act.
 - **Hollin Vale's town painted from relief.** Its cube is gritty (`grit: 0.6`): the render worn to its stone, the
   roof tiles in lapped courses, the lane in setts. A cube with no grit lays a town's paving as a flat fill, and the
   street read as asphalt.
+- **A run's first-frame check no longer runs it out of memory.** After a run, `design_game` judges each level's
+  opening frame (`game/first-frame-check.js`). It emitted every level's capture page first and held them all as text
+  before the browser read one. A capture page inlines its figures, so a town with its folk is 100 to 170 MB, and Hollin
+  Vale's seven levels ran Node's default 2 GB heap out (`Reached heap limit`): the run died after its last step,
+  before its record was written. Each page is now kept deflated and read from its item only when the browser loads
+  it, so one page is held as text at a time. Measured over Hollin's seven levels at the default heap, the old check
+  runs out before the browser reads any page; the new one peaks at 1.5 GB.

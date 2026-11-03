@@ -19,6 +19,7 @@
  * rendered again in this process (a design_game rerun that kept everything renders nothing).
  */
 import { createHash } from 'node:crypto';
+import { deflateSync, inflateSync } from 'node:zlib';
 import { judgeFrame, worse, FIRST_FRAME } from './first-frame.js';
 
 const MEMO = new Map();
@@ -74,11 +75,14 @@ export async function firstFrameCheck(refs, { findBrowser = levelBrowser, page =
     const kept = MEMO.get(key);
     const row = { ref, ...(kept ?? {}) };
     levels.push(row);
-    if (!kept) todo.push({ row, key, html: P.html, ...(P.frame ? { frame: P.frame } : {}) });
+    // (each page kept deflated until the browser reads it: a level's capture page inlines its figures, a town of folk
+    // a hundred megabytes and more, and a world's pages held whole at once ran a run out of memory)
+    if (!kept) todo.push({ row, key, packed: deflateSync(Buffer.from(P.html), { level: 1 }), ...(P.frame ? { frame: P.frame } : {}) });
   }
   if (todo.length) {
     let shots;
-    try { shots = await capture(todo.map((x) => ({ ref: x.row.ref, html: x.html, ...(x.frame ? { frame: x.frame } : {}) })), { executablePath: browser.path, width: T.width, height: T.height }); }
+    const item = (x) => Object.defineProperty({ ref: x.row.ref, ...(x.frame ? { frame: x.frame } : {}) }, 'html', { get: () => inflateSync(x.packed).toString(), enumerable: true });
+    try { shots = await capture(todo.map(item), { executablePath: browser.path, width: T.width, height: T.height }); }
     catch (e) { shots = todo.map(() => ({ error: e.message })); }
     todo.forEach((x, i) => {
       const s = shots[i] ?? { error: 'no frame' };
