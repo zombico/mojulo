@@ -10,7 +10,7 @@
  *   mass     kg; the laws place it where it is posed
  *   build    { family, … } the builder's own words
  *
- * A leg's bodies are drawn for the right side; the left's are the same rows built mirrored (the builder's `side`): a
+ * A limb's bodies are drawn for the right side; the left's are the same rows built mirrored (the builder's `side`): a
  * part number names a design, not a hand. Generic parts of a generic machine: no maker's part number, model or name, and
  * no game's. Pure data.
  */
@@ -23,14 +23,20 @@ export const MECHA_KINDS = Object.freeze({
   'mecha-shank': 'a shank: its box beam from the knee to the ankle\'s clevis, its knee horn, its ankle ram\'s bracket behind',
   'mecha-ankle': 'an ankle\'s cross: a universal joint, its pitch and its roll axes meeting, its roll drive, the ankle ram\'s heel horn',
   'mecha-foot': 'a foot: its plate, its rubber sole pads at the heel and the toe, its toe guard',
-  'mecha-seat': 'the rider\'s place astride: the spine, the saddle and its tail, the tank and its knee grips and chest pad, the nose and its lamps, the clip-on bars, the pegs and the boarding step',
-  'mecha-cage': 'the rider\'s cabin, open above as a convertible\'s: its tub\'s sides, its framed windshield, its roll hoop behind the saddle, its lamps',
+  'mecha-seat': 'the rider\'s place: astride, the spine, the saddle and its tail, the tank and its knee grips and chest pad, the nose and its lamps, the clip-on bars, the pegs and the boarding step',
+  'mecha-cage': 'the rider\'s cabin, open above as a convertible\'s (its tub\'s sides, its framed windshield, its roll hoop behind the saddle, its lamps), or a torso frame round a standing operator (its posts, its shoulders, its hoop)',
   'mecha-pack': 'the power pack under the tail: the hydraulic power unit (its motor, its pump, its tank) and its cooler',
+  'mecha-shoulder': 'an arm\'s shoulder: its yaw drive on the torso, its pitch clevis, the horn its shoulder ram drives',
+  'mecha-upperarm': 'an upper arm: its box beam from the shoulder\'s axle to the elbow\'s clevis, its rams\' brackets',
+  'mecha-forearm': 'a forearm: its box beam from the elbow to the wrist, its elbow horn',
+  'mecha-wrist': 'a wrist: its rotary drive turning the hand about the forearm\'s end',
+  'mecha-claw': 'a hand: a two-fingered claw, its palm, its fingers and their pads',
   'mecha-ram': 'a hydraulic ram across a joint: its barrel and its rod, each a body aimed at the other\'s pin',
 });
 
 const R = (kind, label, classOf, dims, mass, build, aliases = []) => Object.freeze({ kind, label, classOf, aliases, dims: Object.freeze(dims), mass, build: Object.freeze(build) });
 const ATW = 'all-terrain walker';
+const UW = 'utility walker';
 
 export const MECHA_ODM = Object.freeze({
   // ── the all-terrain walker: a seat carried on two six-joint legs ────────────
@@ -74,4 +80,37 @@ export const MECHA_ODM = Object.freeze({
   'ram-hip-atw': R('mecha-ram', 'hip pitch ram', ATW, { bore: 0.063, rod: 0.036, closed: 0.336, stroke: 0.201 }, 6, { family: 'double' }, ['hip ram', 'hip pitch ram', 'hip cylinder']),
   'ram-knee-atw': R('mecha-ram', 'knee ram', ATW, { bore: 0.063, rod: 0.036, closed: 0.313, stroke: 0.189 }, 7, { family: 'double' }, ['knee ram', 'knee cylinder', 'knee actuator']),
   'ram-ankle-atw': R('mecha-ram', 'ankle ram', ATW, { bore: 0.05, rod: 0.028, closed: 0.285, stroke: 0.176 }, 4, { family: 'double' }, ['ankle ram', 'ankle cylinder', 'ankle actuator']),
+  // ── the utility walker: an operator standing in a torso frame on two forward-kneed legs, two arms for the work ─────
+  // (its legs the walker's with the knee forward: the rams in front of the thigh and behind it as a human's muscles lie,
+  // bored up for the heavier frame; its foot larger, for its weight and its load)
+  'pelvis-uw': R('mecha-pelvis', 'utility walker pelvis', UW,
+    { hipX: 0.4, keel: { w: 0.44, y0: -0.4, y1: 0.36, z0: -0.18, z1: 0.08 }, drum: { r: 0.12, z0: -0.02, z1: 0.1 }, seat: [0, 0, 0.08], cage: [0, 0, 0.08], pack: [0, -0.5, 0.86], battery: 140 },
+    185, { family: 'keel' }, ['work pelvis']),
+  'hip-uw': R('mecha-hip', 'utility hip yaw housing', UW, { r: 0.105, drop: 0.1, rollRam: [0.22, 0, 0.08], stop: [-20, 20], torque: 1400 }, 18, { family: 'yaw' }, ['work hip']),
+  'yoke-uw': R('mecha-yoke', 'utility hip roll yoke', UW, { drop: 0.08, rollEye: [0.18, 0, -0.24], horn: [0, 0.08, 0] }, 11, { family: 'yoke' }, ['work yoke']),
+  'thigh-uw': R('mecha-thigh', 'utility thigh', UW, { length: 0.5, w: 0.13, d0: 0.17, d1: 0.13, hipRam: [0, 0.13, -0.42], kneeRam: [-0.12, -0.09, -0.08], clevis: 0.15 }, 24, { family: 'box' }, ['work thigh']),
+  'shank-uw': R('mecha-shank', 'utility shank', UW, { length: 0.48, w: 0.12, d0: 0.15, d1: 0.11, kneeEye: [-0.12, -0.08, -0.09], ankleRam: [0, 0.105, -0.1], clevis: 0.12 }, 17, { family: 'box' }, ['work shank']),
+  'ankle-uw': R('mecha-ankle', 'utility ankle cross', UW, { r: 0.055, horn: [0, 0.13, -0.04], stop: [-30, 30], torque: 1100 }, 7, { family: 'cross' }, ['work ankle']),
+  'foot-uw': R('mecha-foot', 'utility foot', UW, { length: 0.52, w: 0.3, heel: 0.19, sole: 0.15, plate: 0.04, pad: 0.03 }, 18, { family: 'plate' }, ['work foot']),
+  'ram-roll-uw': R('mecha-ram', 'utility hip roll ram', UW, { bore: 0.063, rod: 0.036, closed: 0.308, stroke: 0.203 }, 6, { family: 'double' }, ['work roll ram']),
+  'ram-hip-uw': R('mecha-ram', 'utility hip pitch ram', UW, { bore: 0.08, rod: 0.045, closed: 0.336, stroke: 0.201 }, 9, { family: 'double' }, ['work hip ram']),
+  'ram-knee-uw': R('mecha-ram', 'utility knee ram', UW, { bore: 0.08, rod: 0.045, closed: 0.313, stroke: 0.189 }, 9, { family: 'double' }, ['work knee ram']),
+  'ram-ankle-uw': R('mecha-ram', 'utility ankle ram', UW, { bore: 0.063, rod: 0.036, closed: 0.292, stroke: 0.175 }, 6, { family: 'double' }, ['work ankle ram']),
+  // (the operator stands on a platform over the pelvis, leaning back on a hip pad, a guardrail ahead at the waist, the
+  // arms worked from a console at each hand)
+  'platform-uw': R('mecha-seat', 'operator platform', UW,
+    { plate: { x: 0.3, y0: -0.3, y1: 0.34, z: 0.06 }, sit: [0, -0.2, 0.8], grip: [0.25, 0.3, 1.02], peg: [0.12, 0.02, 0.07], step: [0.2, -0.36, -0.42], rung: -0.16, rail: 1.08 },
+    34, { family: 'standing' }, ['operator platform', 'platform', 'hip pad', 'guardrail', 'consoles']),
+  'torso-uw': R('mecha-cage', 'utility torso frame', UW,
+    { post: { x: 0.36, y: -0.06 }, shoulder: [0.52, 0.02, 1.4], top: 1.98, r: 0.028, pack: { y: -0.36, z: [0.84, 1.16] } },
+    58, { family: 'torso' }, ['torso', 'torso frame', 'operator cage', 'shoulder beam']),
+  'pack-uw': R('mecha-pack', 'utility power pack', UW, { w: 0.5, d: 0.26, h: 0.42 }, 62, { family: 'hpu' }, ['work power pack', 'backpack']),
+  // (the arms: a shoulder's yaw on the torso, its pitch and the elbow on rams, a rotary wrist, a two-fingered claw)
+  'shoulder-uw': R('mecha-shoulder', 'utility shoulder', UW, { r: 0.09, drop: 0.0, horn: [0.11, 0.1, 0.04], stop: [-25, 40], torque: 1200 }, 16, { family: 'yaw' }, ['shoulder', 'shoulder drive', 'shoulder housing']),
+  'upperarm-uw': R('mecha-upperarm', 'utility upper arm', UW, { length: 0.55, w: 0.11, d0: 0.15, d1: 0.12, shoulderRam: [0.11, -0.12, -0.44], elbowRam: [-0.11, -0.08, -0.12], clevis: 0.13 }, 17, { family: 'box' }, ['upper arm', 'arm', 'boom arm']),
+  'forearm-uw': R('mecha-forearm', 'utility forearm', UW, { length: 0.52, w: 0.1, d0: 0.13, d1: 0.1, elbowEye: [-0.11, 0.08, -0.08] }, 13, { family: 'box' }, ['forearm', 'lower arm']),
+  'wrist-uw': R('mecha-wrist', 'utility wrist', UW, { r: 0.06, drop: 0.1, stop: [-110, 110], torque: 600 }, 6, { family: 'rotary' }, ['wrist', 'wrist drive']),
+  'claw-uw': R('mecha-claw', 'utility claw', UW, { w: 0.2, finger: 0.24, gap: 0.24 }, 12, { family: 'twin' }, ['claw', 'gripper', 'hand', 'grabber']),
+  'ram-shoulder-uw': R('mecha-ram', 'shoulder ram', UW, { bore: 0.063, rod: 0.036, closed: 0.352, stroke: 0.203 }, 6, { family: 'double' }, ['shoulder ram', 'arm lift ram', 'shoulder cylinder']),
+  'ram-elbow-uw': R('mecha-ram', 'elbow ram', UW, { bore: 0.063, rod: 0.036, closed: 0.335, stroke: 0.197 }, 6, { family: 'double' }, ['elbow ram', 'elbow cylinder']),
 });

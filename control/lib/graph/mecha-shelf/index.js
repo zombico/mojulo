@@ -162,9 +162,10 @@ export function partShape(archetype, sku, side, part) {
 const worldFrames = (frames, root) => Object.fromEntries(Object.entries(frames).map(([k, T]) => [k, compose(root, T)]));
 /**
  * The frame's mass and centre of mass at joint values, its pelvis at `root`: each body's row mass at its centroid, a
- * ram's at its pins' midpoint, and (`rider`, the default) the rated rider at the seat. `parts` each { id, mass, at }.
+ * ram's at its pins' midpoint, (`rider`, the default) the rated rider at the seat, and a `load` (kg) held in the claws,
+ * half at each claw's tip. `parts` each { id, mass, at }.
  */
-export function massOf(archetype, joints, root = { R: I3, t: [0, 0, 0] }, { rider = true } = {}) {
+export function massOf(archetype, joints, root = { R: I3, t: [0, 0, 0] }, { rider = true, load = 0 } = {}) {
   const ctx = mechaCtx(archetype), arch = ctx.arch, F = worldFrames(framesOf(arch, joints, ctx), root), parts = [];
   for (const e of arch.layout) {
     const row = partRow(e.sku);
@@ -179,6 +180,8 @@ export function massOf(archetype, joints, root = { R: I3, t: [0, 0, 0] }, { ride
     const sit = apply(F.seat, ctx.hp('seat', 'sit'));
     parts.push({ id: 'rider', mass: arch.rider.mass, at: sit.map((v, k) => v + arch.rider.com[k]) });
   }
+  // (a load in the claws: half at each claw's tip)
+  if (load > 0 && arch.arms) for (const S of ['r', 'l']) { const c = arch.arms[S].claw; parts.push({ id: `load.${S}`, mass: load / 2, at: apply(F[c], ctx.hp(c, 'tip')) }); }
   const mass = parts.reduce((s, p) => s + p.mass, 0);
   const com = [0, 1, 2].map((k) => parts.reduce((s, p) => s + p.mass * p.at[k], 0) / mass);
   return { mass, com, parts, frames: F };
@@ -186,7 +189,7 @@ export function massOf(archetype, joints, root = { R: I3, t: [0, 0, 0] }, { ride
 
 // ── poses ───────────────────────────────────────────────────────────────────
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
-const STANCE_KEYS = Object.freeze(['knee', 'height', 'track', 'fore', 'sway', 'feet']);
+const STANCE_KEYS = Object.freeze(['knee', 'height', 'track', 'fore', 'sway', 'feet', 'arms', 'load']);
 const POSED = new Map();
 /**
  * A pose → { stance, joints (degrees), root (the pelvis's frame in the machine's), feet, legs }: a stance's name (the
@@ -198,7 +201,7 @@ export function posedFrame(archetype, pose) {
   const key = `${archetype}|${JSON.stringify(word)}`;
   if (POSED.has(key)) return POSED.get(key);
   const stand = () => posedFrame(archetype, 'stand').root.t[2];
-  const com = (joints, root) => massOf(archetype, joints, root).com;
+  const com = (joints, root, load = 0) => massOf(archetype, joints, root, { load }).com;
   let out;
   if (typeof word === 'string') {
     const st = arch.stances[word];
@@ -208,7 +211,7 @@ export function posedFrame(archetype, pose) {
     for (const k of Object.keys(word.joints)) if (!arch.joints[k]) throw new Error(`mecha ${archetype}: '${k}' is not one of its joints (${Object.keys(arch.joints).join(', ')})`);
     const base = posedFrame(archetype, 'stand');
     const t = Array.isArray(word.root) ? word.root : base.root.t;
-    out = { stance: 'joints', joints: { ...base.joints, ...word.joints }, root: { R: I3, t: [...t] }, feet: null, legs: null };
+    out = { stance: 'joints', joints: { ...base.joints, ...word.joints }, root: { R: I3, t: [...t] }, feet: null, legs: null, load: 0 };
   } else if (isObj(word)) {
     for (const k of Object.keys(word)) if (!STANCE_KEYS.includes(k)) throw new Error(`mecha ${archetype}: '${k}' is not a stance's word (${STANCE_KEYS.join(', ')}, or { joints })`);
     out = { stance: 'stance', ...solveStance(arch, ctx, word, { com, stand: stand() }) };
@@ -254,7 +257,7 @@ export function assembleFrame(archetype, { pose, palette, colors = {}, finish = 
   const laws = read ? lawsOf(archetype) : null;
   // (a ram counts once: its rod is its barrel's)
   const bom = planAssemblyBom(items.filter((it) => !/\.rod$/.test(it.id)).map((it) => ({ garage: { kind: it.source.garage.kind } })), arch.bom);
-  const M = massOf(archetype, P.joints, root);
+  const M = massOf(archetype, P.joints, root, { load: P.load });
   return {
     manifest,
     readout: {
@@ -269,7 +272,7 @@ export function assembleFrame(archetype, { pose, palette, colors = {}, finish = 
       rams: chain.struts.filter((s) => s.kind === 'barrel').map((s) => ({ id: s.item, length: r3(s.length) })),
       measures: measureFrame(manifest),
       rider: riderPoints(archetype, pose),
-      mass: { parts: Math.round(M.mass - (arch.rider?.mass ?? 0)), gross: Math.round(M.mass), com: M.com.map(r3) },
+      mass: { parts: Math.round(M.mass - (arch.rider?.mass ?? 0) - (P.load ?? 0)), gross: Math.round(M.mass), ...(P.load ? { load: P.load } : {}), com: M.com.map(r3) },
       ...(laws ? { laws: { ok: laws.ok, laws: laws.laws } } : {}),
       audit: { ok: bom.ok && !bom.surplus.length, bom },
     },

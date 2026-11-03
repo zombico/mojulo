@@ -8,7 +8,7 @@
  *   yaw     the foot's heading (the hip's drive turns the whole leg)
  *   roll    the leg's plane turned about the roll axis until it holds the ankle
  *   pitch, knee   a two-link leg in that plane, the knee bent backward behind the line from hip to ankle (a
- *           digitigrade leg: the knee's bend from straight)
+ *           digitigrade leg) or forward of it (a person's): the knee's bend from straight
  *   ankle   pitch the hip's and the knee's undone, roll the hip's undone: the sole flat
  *
  * A stance (the archetype's `stances`, or the operator's own):
@@ -20,9 +20,13 @@
  *   sway     'r' | 'l': the pelvis carried so its centre of mass is over that sole (a static step), or [dx, dy] metres
  *   feet     { r: { x?, y?, lift?, yaw? }, l: … } a foot's place on the ground (its sole's centre), its lift off it and
  *            its heading (degrees, + to the left)
+ *   arms     a frame with arms: their pose's name (the archetype's `armPoses`), or { wrist: [ahead, up], claw, yaw? }
+ *   load     kilograms held in the claws (half in each), weighed in its centre of mass
  *
  *   legGeometry(arch, ctx, S)            → { hip, a1, a2, l1, l2, hS }: a leg's numbers read from its built parts
- *   solveLeg(G, ankle, yaw)               → { values: { yaw, roll, pitch, knee, anklePitch, ankleRoll } degrees, reach }
+ *   solveLeg(G, ankle, yaw, bend)         → { values: { yaw, roll, pitch, knee, anklePitch, ankleRoll } degrees, reach }
+ *                                          (`bend` the archetype's: its knee 'back' or 'forward')
+ *   solveArm(G, wrist, claw, yaw)         → { values: { yaw, pitch, elbow, wrist } degrees, reach }
  *   solveStance(arch, ctx, stance, opts)  → { joints, root: { R, t }, feet: { r, l }, stance }
  *
  * Pure and deterministic.
@@ -46,7 +50,7 @@ export function legGeometry(arch, ctx, S) {
 }
 
 /** One leg, the ankle's point in the pelvis's frame (the pelvis level) and its heading → its six joints' values. */
-export function solveLeg(G, A, yaw = 0) {
+export function solveLeg(G, A, yaw = 0, bend = 'back') {
   const p = [A[0] - G.hip[0], A[1] - G.hip[1], A[2] - G.hip[2] + G.a1];
   const c = Math.cos(-yaw * DEG), s = Math.sin(-yaw * DEG), q = [c * p[0] - s * p[1], s * p[0] + c * p[1], p[2]];
   // (the leg's plane holds the ankle: turned about the roll axis, +y)
@@ -57,11 +61,45 @@ export function solveLeg(G, A, yaw = 0) {
   const d = Math.min(dMax, Math.max(Math.abs(G.l1 - G.l2) + 1e-6, d0));
   const knee = Math.acos(Math.max(-1, Math.min(1, (d * d - G.l1 * G.l1 - G.l2 * G.l2) / (2 * G.l1 * G.l2))));
   const beta = Math.acos(Math.max(-1, Math.min(1, (G.l1 * G.l1 + d * d - G.l2 * G.l2) / (2 * G.l1 * d))));
-  // (the knee behind the line from hip to ankle: the thigh turned back from it, the shank forward, the sole turned back
-  // level)
-  const pitch = Math.atan2(vy, -vz) - beta;
   const D = (x) => x / DEG;
+  // (a knee bent forward, a person's: the thigh turned forward of the line from hip to ankle, the shank back, the sole
+  // turned level)
+  if (bend === 'forward') {
+    const pitch = Math.atan2(vy, -vz) + beta;
+    return { values: { yaw, roll: D(phi), pitch: D(pitch), knee: D(knee), anklePitch: D(knee - pitch), ankleRoll: -D(phi) }, reach, over: Math.max(0, d0 - dMax) };
+  }
+  // (a knee bent backward: the knee behind the line, the thigh turned back from it, the shank forward, the sole level)
+  const pitch = Math.atan2(vy, -vz) - beta;
   return { values: { yaw, roll: D(phi), pitch: D(pitch), knee: D(knee), anklePitch: -D(pitch + knee), ankleRoll: -D(phi) }, reach, over: Math.max(0, d0 - dMax) };
+}
+
+/** An arm's numbers, read from its built parts: the upper arm's and the forearm's lengths. */
+export function armGeometry(arch, ctx, S) {
+  const g = arch.arms[S];
+  return { l1: -ctx.hp(g.upper, 'elbow')[2], l2: -ctx.hp(g.fore, 'wrist')[2] };
+}
+/**
+ * One arm, its wrist's place [ahead, up] from its shoulder's axle in the arm's plane and its claw's angle from hanging
+ * (degrees) → its joints' values. The elbow bends as a person's, the forearm coming forward and up.
+ */
+export function solveArm(G, W, claw = 0, yaw = 0) {
+  const [vy, vz] = W, d0 = Math.hypot(vy, vz), dMax = G.l1 + G.l2 - 1e-6, d = Math.min(dMax, Math.max(Math.abs(G.l1 - G.l2) + 1e-6, d0));
+  const elbow = Math.acos(Math.max(-1, Math.min(1, (d * d - G.l1 * G.l1 - G.l2 * G.l2) / (2 * G.l1 * G.l2))));
+  const beta = Math.acos(Math.max(-1, Math.min(1, (G.l1 * G.l1 + d * d - G.l2 * G.l2) / (2 * G.l1 * d))));
+  const pitch = Math.atan2(vy, -vz) - beta, D = (x) => x / DEG;
+  return { values: { yaw, pitch: D(pitch), elbow: D(elbow), wrist: claw - D(pitch + elbow) }, reach: d0 <= dMax };
+}
+/** Both arms' joints at a named pose of the archetype's (or { wrist, claw, yaw? } of the operator's own). */
+export function armsAt(arch, ctx, pose) {
+  if (!arch.arms) return {};
+  const P = typeof pose === 'string' ? arch.armPoses?.[pose] : pose;
+  if (!P) throw new Error(`mecha stance: arms '${pose}' is one of ${Object.keys(arch.armPoses ?? {}).join(', ')}, or { wrist: [ahead, up], claw }`);
+  const out = {};
+  for (const S of SIDES) {
+    const a = solveArm(armGeometry(arch, ctx, S), P.wrist, P.claw ?? 0, (S === 'r' ? -1 : 1) * (P.yaw ?? 0)), J = arch.arms[S].joints;
+    for (const [k, v] of Object.entries(a.values)) out[J[k]] = v;
+  }
+  return out;
 }
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
@@ -80,7 +118,7 @@ function legsAt(arch, Gs, feet, t) {
   const joints = {}, legs = {};
   for (const S of SIDES) {
     const G = Gs[S], f = feet[S], A = [f.x - t[0], f.y - t[1], f.lift + G.hS - t[2]];
-    const leg = solveLeg(G, A, f.yaw), J = arch.legs[S].joints;
+    const leg = solveLeg(G, A, f.yaw, arch.bend), J = arch.legs[S].joints;
     for (const [k, v] of Object.entries(leg.values)) joints[J[k]] = v;
     legs[S] = { reach: leg.reach, over: leg.over, knee: leg.values.knee };
   }
@@ -105,7 +143,8 @@ function heightForKnee(arch, Gs, feet, k, xy) {
 export function solveStance(arch, ctx, stance, { com, stand } = {}) {
   if (!isObj(stance)) throw new Error('mecha stance: a stance is { knee | height, track?, fore?, sway?, feet? }');
   const Gs = Object.fromEntries(SIDES.map((S) => [S, legGeometry(arch, ctx, S)]));
-  const feet = feetOf(arch, stance);
+  const feet = feetOf(arch, stance), arms = armsAt(arch, ctx, stance.arms ?? 'rest');
+  const withArms = (j) => ({ ...j, ...arms });
   let xy = Array.isArray(stance.sway) ? [stance.sway[0], stance.sway[1]] : [0, 0];
   const heightOf = () => {
     if (stance.height === 'stand') { if (!Number.isFinite(stand)) throw new Error('mecha stance: \'stand\' height needs the standing stance'); return stand; }
@@ -119,7 +158,7 @@ export function solveStance(arch, ctx, stance, { com, stand } = {}) {
     const f = feet[stance.sway];
     // (the pelvis carried until the centre of mass stands over the sole's centre: a few passes, the legs re-solved each)
     for (let i = 0; i < 8; i++) {
-      const c = com(solved.joints, { R: I3, t: [xy[0], xy[1], z] });
+      const c = com(withArms(solved.joints), { R: I3, t: [xy[0], xy[1], z] }, stance.load ?? 0);
       const dx = f.x - c[0], dy = f.y - c[1];
       xy = [xy[0] + dx, xy[1] + dy];
       if (!Number.isFinite(stance.height) && stance.height !== 'stand') z = heightOf();
@@ -127,5 +166,5 @@ export function solveStance(arch, ctx, stance, { com, stand } = {}) {
       if (Math.hypot(dx, dy) < 1e-5) break;
     }
   }
-  return { joints: solved.joints, root: { R: I3, t: [xy[0], xy[1], z] }, feet, legs: solved.legs };
+  return { joints: { ...solved.joints, ...arms }, root: { R: I3, t: [xy[0], xy[1], z] }, feet, legs: solved.legs, load: stance.load ?? 0 };
 }

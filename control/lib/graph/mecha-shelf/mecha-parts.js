@@ -9,7 +9,8 @@
  *
  * A ram is the construction shelf's (its barrel and its rod drawn along +y from their own pins, aimed by the chain). A
  * foot's `outline` is its sole's corners (what it stands on: the support polygon's). Pure: no clock, no dice. A part's
- * emission for its row is a compatibility promise (mecha-shelf.char.test.js).
+ * emission for its row is a compatibility promise (mecha-shelf.char.test.js). A family picks a kind's design: a seat
+ * astride or a platform stood on, a convertible's cabin or a torso frame.
  */
 import { CON_BUILDERS } from '../construction-shelf/con-parts.js';
 import { add, box, extrudeWorld, loftWorld, mul, pod, roundRect, spin, sub, tone, tube, unit } from './mecha-common.js';
@@ -244,6 +245,121 @@ function cage(row, C) {
   return { sweeps, extrudes, lathes, hardpoints: { top: [0, H.y, H.top] } };
 }
 
+// ── a standing operator's place: the platform, the hip pad, the guardrail, the consoles, the steps ───────────────
+function platform(row, C) {
+  const d = row.dims, P = d.plate, extrudes = [], lathes = [], sweeps = [], frame = C.trim, cushion = tone(C.rubber, 0.16);
+  extrudes.push(box('plate', [0, P.y0, P.z - 0.025], [0, P.y1, P.z - 0.025], 2 * P.x, 0.05, frame));
+  extrudes.push(box('tread', [0, P.y0 + 0.03, P.z + 0.004], [0, P.y1 - 0.03, P.z + 0.004], 2 * P.x - 0.06, 0.008, C.rubber));
+  extrudes.push(box('kick', [0, P.y1 - 0.01, P.z + 0.06], [0, P.y1 + 0.005, P.z + 0.06], 2 * P.x, 0.12, C.light));
+  // (the hip pad the operator leans back on, standing: a long day's work taken off the legs)
+  const S = d.sit;
+  extrudes.push(box('hipPad', [0, S[1] - 0.05, S[2]], [0, S[1] - 0.01, S[2]], 0.36, 0.16, cushion));
+  for (const s of [1, -1]) sweeps.push(tube(`padPost_${s > 0 ? 'r' : 'l'}`, [[s * 0.13, S[1] - 0.06, P.z], [s * 0.13, S[1] - 0.06, S[2] + 0.04]], 0.018, frame, 8));
+  // (the guardrail at the waist: across ahead, down each side to the hip pad)
+  const R = d.rail, x = P.x + 0.03, y1 = P.y1 + 0.04;
+  sweeps.push(tube('rail', rounded([[-x, S[1] - 0.02, R], [-x, y1, R], [x, y1, R], [x, S[1] - 0.02, R]], 0.08, 3), 0.02, frame, 8));
+  for (const s of [1, -1]) for (const [i, y] of [y1, 0.06].entries()) sweeps.push(tube(`upright_${s > 0 ? 'r' : 'l'}${i}`, [[s * x, y, P.z], [s * x, y, R]], 0.018, frame, 8));
+  // (a console at each hand, its stick the arm's master: the operator works the arms by hand, the walker by foot pedals)
+  for (const s of [1, -1]) {
+    const side = s > 0 ? 'r' : 'l', g = [s * d.grip[0], d.grip[1], d.grip[2]];
+    sweeps.push(tube(`consolePost_${side}`, [[s * (x - 0.02), g[1] - 0.06, P.z], [s * (x - 0.02), g[1] - 0.06, g[2] - 0.08]], 0.02, frame, 8));
+    extrudes.push(box(`console_${side}`, [g[0] + s * 0.05, g[1] - 0.14, g[2] - 0.07], [g[0] + s * 0.05, g[1] + 0.05, g[2] - 0.07], 0.12, 0.05, frame));
+    lathes.push(spin(`stick_${side}`, [g[0], g[1], g[2] - 0.06], [g[0], g[1], g[2] + 0.05], [[0, 0.016], [0.2, 0.02], [0.85, 0.021], [1, 0.012]], C.rubber, 12));
+    lathes.push(spin(`thumb_${side}`, [g[0], g[1] + 0.005, g[2] + 0.045], [g[0], g[1] + 0.005, g[2] + 0.06], [[0, 0.012], [1, 0.012]], C.light, 10));
+    extrudes.push(box(`pedal_${side}`, [s * 0.12, 0.16, P.z + 0.02], [s * 0.12, 0.28, P.z + 0.04], 0.1, 0.012, tone(frame, 0.2)));
+    // (the steps hung from the platform's back: a ladder of two rungs)
+    const st = [s * d.step[0], d.step[1], d.step[2]];
+    sweeps.push(tube(`ladder_${side}`, [[st[0], P.y0 + 0.02, P.z - 0.04], [st[0], st[1], st[2]]], 0.016, frame, 8));
+  }
+  for (const [i, z] of [d.step[2], d.rung].entries()) extrudes.push(box(`rung_${i}`, [-d.step[0], d.step[1] + (z - d.step[2]) * -0.2, z], [d.step[0], d.step[1] + (z - d.step[2]) * -0.2, z], 0.06, 0.02, tone(C.trim, 0.25)));
+  const at = (p, s) => [s * p[0], p[1], p[2]];
+  return {
+    extrudes, lathes, sweeps,
+    hardpoints: { sit: [...S], 'grip.r': at(d.grip, 1), 'grip.l': at(d.grip, -1), 'peg.r': at(d.peg, 1), 'peg.l': at(d.peg, -1), 'step.r': add(at(d.step, 1), [0, 0, 0.01]), 'step.l': add(at(d.step, -1), [0, 0, 0.01]) },
+  };
+}
+
+// ── a torso frame round a standing operator: its posts, its shoulder beam and mounts, its hoop over the head ────
+function torso(row, C) {
+  const d = row.dims, sweeps = [], extrudes = [], lathes = [], frame = C.trim, Sh = d.shoulder, P = d.post;
+  for (const s of [1, -1]) {
+    const side = s > 0 ? 'r' : 'l';
+    // (a post each side from the pelvis up to the shoulder, braced back)
+    extrudes.push(box(`post_${side}`, [s * P.x, P.y, 0.0], [s * P.x, P.y, Sh[2] + 0.04], 0.07, 0.09, C.paint, [0, 1, 0]));
+    sweeps.push(tube(`brace_${side}`, [[s * P.x, P.y - 0.03, 0.1], [s * 0.18, -0.3, 0.6], [s * (P.x - 0.02), P.y - 0.02, Sh[2] - 0.1]], d.r * 0.8, frame, 8));
+    // (the shoulder's mount: a bracket out from the post's head, the arm's yaw drive under it)
+    extrudes.push(box(`mount_${side}`, [s * (P.x - 0.03), Sh[1], Sh[2] + 0.2], [s * (Sh[0] + 0.06), Sh[1], Sh[2] + 0.2], 0.16, 0.06, frame));
+    extrudes.push(box(`plate_${side}`, [s * (P.x + 0.005), P.y - 0.1, Sh[2] - 0.2], [s * (P.x + 0.005), P.y + 0.12, Sh[2] - 0.2], 0.012, 0.34, C.paint));
+  }
+  extrudes.push(box('beam', [-P.x, P.y, Sh[2] + 0.1], [P.x, P.y, Sh[2] + 0.1], 0.1, 0.1, frame));
+  // (the power pack's arms: back from the posts to the pack on the torso's back)
+  if (d.pack) for (const s of [1, -1]) for (const [i, z] of d.pack.z.entries()) extrudes.push(box(`packArm_${s > 0 ? 'r' : 'l'}${i}`, [s * P.x, P.y - 0.03, z], [s * 0.2, d.pack.y, z], 0.04, 0.05, frame));
+  // (the hoop over the operator's head)
+  sweeps.push(tube('hoop', rounded([[-0.3, P.y, Sh[2] + 0.12], [-0.3, P.y - 0.02, d.top - 0.1], [-0.2, P.y - 0.02, d.top], [0.2, P.y - 0.02, d.top], [0.3, P.y - 0.02, d.top - 0.1], [0.3, P.y, Sh[2] + 0.12]], 0.08, 3), d.r, frame, 10));
+  sweeps.push(tube('visor', [[-0.22, P.y - 0.02, d.top], [-0.22, 0.24, d.top - 0.12], [0.22, 0.24, d.top - 0.12], [0.22, P.y - 0.02, d.top]], d.r * 0.7, frame, 8));
+  for (const s of [1, -1]) {
+    const side = s > 0 ? 'r' : 'l', c = [s * 0.12, 0.25, d.top - 0.12];
+    extrudes.push(box(`lamp_${side}`, add(c, [0, -0.04, 0]), add(c, [0, 0.02, 0]), 0.08, 0.05, frame));
+    extrudes.push(box(`lens_${side}`, add(c, [0, 0.02, 0]), add(c, [0, 0.026, 0]), 0.068, 0.038, C.glass));
+  }
+  lathes.push(spin('beacon', [0, P.y - 0.02, d.top + 0.02], [0, P.y - 0.02, d.top + 0.08], [[0, 0.032], [0.8, 0.032], [1, 0.018]], C.light, 12));
+  return { sweeps, extrudes, lathes, hardpoints: { top: [0, P.y, d.top], 'shoulder.r': [...Sh], 'shoulder.l': [-Sh[0], Sh[1], Sh[2]] } };
+}
+
+// ── an arm: its shoulder, its upper arm and forearm, its wrist and its claw ──────────────────────────────────────
+function shoulder(row, C, { side }) {
+  const d = row.dims, s = sgn(side), lathes = [], extrudes = [], dark = tone(C.trim, -0.15);
+  lathes.push(spin('drive', [0, 0, 0.06], [0, 0, 0.2], [[0, d.r * 0.85], [0.15, d.r], [1, d.r]], C.paint, 18));
+  extrudes.push(box('block', [0, 0, 0.07], [0, 0, -0.03], 0.11, 0.12, C.trim));
+  for (const t of [1, -1]) extrudes.push(box(`cheek_${t > 0 ? 'o' : 'i'}`, [t * 0.075, 0, 0.04], [t * 0.075, 0, -0.06], 0.018, 0.12, C.trim));
+  lathes.push(boss('axle', [0, 0, 0], 'x', 0.09, 0.03, C.chrome, 12));
+  const H = [s * d.horn[0], d.horn[1], d.horn[2]];
+  extrudes.push(box('horn', [s * 0.07, 0.03, 0.04], H, 0.045, 0.045, C.trim));
+  lathes.push(boss('hornEye', H, 'x', 0.03, 0.026, dark, 12));
+  return { lathes, extrudes, hardpoints: { pitch: [0, 0, 0], horn: H } };
+}
+function upperarm(row, C, { side }) {
+  const d = row.dims, s = sgn(side), L = d.length, lathes = [], extrudes = [], lofts = [], dark = tone(C.trim, -0.15);
+  lathes.push(boss('hub', [0, 0, 0], 'x', 0.062, 0.062, C.trim, 16));
+  lofts.push(legBeam('beam', -0.03, -(L - d.clevis) + 0.02, d.w, d.d0, d.w * 0.92, d.d1, C.paint));
+  lofts.push(legBeam('band', -0.15, -0.18, d.w + 0.01, d.d0 * 0.9 + 0.01, d.w + 0.01, d.d0 * 0.88 + 0.01, dark, 0.02));
+  for (const t of [1, -1]) extrudes.push(box(`clevis_${t > 0 ? 'o' : 'i'}`, [t * 0.064, 0, -(L - d.clevis) + 0.04], [t * 0.064, 0, -L - 0.05], 0.018, d.d1 + 0.02, C.trim));
+  lathes.push(boss('elbowPin', [0, 0, -L], 'x', 0.08, 0.026, C.chrome, 12));
+  const A = [s * d.shoulderRam[0], d.shoulderRam[1], d.shoulderRam[2]], B = [s * d.elbowRam[0], d.elbowRam[1], d.elbowRam[2]];
+  for (const [id, p] of [['shoulderBracket', A], ['elbowBracket', B]]) {
+    extrudes.push(box(id, [Math.sign(p[0]) * 0.03, Math.sign(p[1]) * 0.03, p[2]], p, 0.045, 0.045, C.trim));
+    lathes.push(boss(`${id}Eye`, p, 'x', 0.03, 0.026, dark, 12));
+  }
+  return { lathes, extrudes, lofts, hardpoints: { elbow: [0, 0, -L], shoulderRam: A, elbowRam: B } };
+}
+function forearm(row, C, { side }) {
+  const d = row.dims, s = sgn(side), L = d.length, lathes = [], extrudes = [], lofts = [], dark = tone(C.trim, -0.15);
+  lathes.push(boss('hub', [0, 0, 0], 'x', 0.054, 0.058, C.trim, 16));
+  lofts.push(legBeam('beam', -0.04, -L + 0.03, d.w, d.d0, d.w * 0.85, d.d1, C.paint));
+  lofts.push(legBeam('band', -L + 0.1, -L + 0.13, d.w + 0.01, d.d1 + 0.012, d.w + 0.01, d.d1 + 0.012, dark, 0.02));
+  const E = [s * d.elbowEye[0], d.elbowEye[1], d.elbowEye[2]];
+  extrudes.push(box('horn', [Math.sign(E[0]) * 0.02, Math.sign(E[1]) * 0.03, E[2] + 0.02], E, 0.045, 0.045, C.trim));
+  lathes.push(boss('hornEye', E, 'x', 0.03, 0.026, dark, 12));
+  return { lathes, extrudes, lofts, hardpoints: { wrist: [0, 0, -L], elbowEye: E } };
+}
+function wrist(row, C) {
+  const d = row.dims, lathes = [], extrudes = [];
+  lathes.push(boss('drive', [0, 0, 0], 'x', 0.07, d.r, tone(C.trim, -0.15), 16));
+  extrudes.push(box('flange', [0, 0, -0.02], [0, 0, -d.drop], 0.1, 0.1, C.trim));
+  return { lathes, extrudes, hardpoints: { claw: [0, 0, -d.drop] } };
+}
+function claw(row, C) {
+  const d = row.dims, extrudes = [], sweeps = [], F = d.finger, g = d.gap / 2;
+  extrudes.push(box('palm', [0, 0, 0], [0, 0, -0.07], d.w, 0.12, C.trim));
+  for (const t of [1, -1]) {
+    const side = t > 0 ? 'o' : 'i';
+    // (a finger each side, out from the palm and curled in at its tip, a pad on its inner face)
+    sweeps.push(tube(`finger_${side}`, rounded([[t * (d.w / 2 - 0.02), 0, -0.05], [t * g, 0, -0.1], [t * g, 0, -F + 0.05], [t * (g - 0.06), 0, -F]], 0.03, 3), 0.024, C.paint, 10));
+    extrudes.push(box(`pad_${side}`, [t * (g - 0.026), 0, -0.13], [t * (g - 0.026), 0, -F + 0.06], 0.014, 0.06, C.rubber, [0, 1, 0]));
+  }
+  return { extrudes, sweeps, hardpoints: { tip: [0, 0, -F] } };
+}
+
 // ── the power pack: the hydraulic power unit's case, its cooler, its hoses ──────────────────────────────────────
 function pack(row, C) {
   const d = row.dims, extrudes = [], lathes = [], sweeps = [], dark = tone(C.trim, -0.2), h = d.h;
@@ -268,8 +384,13 @@ export const MECHA_BUILDERS = Object.freeze({
   'mecha-shank': shank,
   'mecha-ankle': ankle,
   'mecha-foot': foot,
-  'mecha-seat': seat,
-  'mecha-cage': cage,
+  'mecha-seat': (row, C, ctx) => (row.build.family === 'standing' ? platform : seat)(row, C, ctx),
+  'mecha-cage': (row, C, ctx) => (row.build.family === 'torso' ? torso : cage)(row, C, ctx),
+  'mecha-shoulder': shoulder,
+  'mecha-upperarm': upperarm,
+  'mecha-forearm': forearm,
+  'mecha-wrist': wrist,
+  'mecha-claw': claw,
   'mecha-pack': pack,
   // (a ram is the construction shelf's, its barrel a bare steel grey: the hydraulics read apart from the covers)
   'mecha-ram': (row, C, ctx) => CON_BUILDERS['con-ram'](row, { ...C, paint: tone(C.chrome, -0.42) }, ctx),

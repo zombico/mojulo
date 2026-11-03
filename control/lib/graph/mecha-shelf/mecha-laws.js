@@ -11,7 +11,7 @@
  *   sway            on one foot (lift), the centre of mass's margin inside the stance sole once the pelvis has swayed over
  *                   it (a static step: the hip's roll must carry it there)
  *   actuators       each actuator's share of its rating holding the frame still: the whole gross weight on the stance leg
- *                   (lift), each leg its share in the crouch (board); a ram's force from its moment arm at the pose against
+ *                   (lift), each leg its share in the crouch (board), each arm its half of the carry's load; a ram's force from its moment arm at the pose against
  *                   its push (the bore) or its pull (the annulus) at the system pressure, a rotary drive's torque against
  *                   its rated torque
  *   groundPressure  the gross weight on one sole (kPa): soft ground holds it
@@ -23,6 +23,9 @@
  *                   inside the frame's outline seen from the front, at its sides (m)
  *   clearance       the legs and their rams never enter the rider's space at any stance, nor at the step's or the
  *                   stride's reach (m, the nearest)
+ *   reach           a frame with arms: its claws' tip at its farthest ahead of the shoulders, level with them (m)
+ *   lift            its rated load at the carry stance: 75% of the load in its claws that first tips it (its centre of
+ *                   mass to its soles' edge) or overruns an arm's actuator (kg)
  *   mass            the parts' mass against the class's (a share off)
  *   distal          the mass below the knee as a share of the leg's: a light lower leg swings easily
  *
@@ -30,7 +33,7 @@
  */
 import { G, apply, cross, dot, ramForce, sub } from './mecha-common.js';
 import { isStrut } from '../construction-shelf/con-chain.js';
-import { solveLeg, legGeometry } from './mecha-ik.js';
+import { armGeometry, solveArm, solveLeg, legGeometry } from './mecha-ik.js';
 
 const r2 = (n) => Math.round(n * 100) / 100;
 const r3 = (n) => Math.round(n * 1000) / 1000;
@@ -145,9 +148,34 @@ export function mechaLaws(key, kit) {
     loads.push(...holding(P.board, 'r', W * fr, [xr[0], M.com[1], 0]).map((x) => ({ ...x, at: 'board' })));
     loads.push(...holding(P.board, 'l', W * (1 - fr), [xl[0], M.com[1], 0]).map((x) => ({ ...x, at: 'board' })));
   }
+  /** Each arm joint's share of its actuator's rating holding still what hangs below it: the arm's own bodies and its
+   *  half of a load in the claws (no ground under an arm). */
+  const armHolding = (p, S, load) => {
+    const M = massOf(p.joints, p.root, { load }), F = M.frames, out = [];
+    for (const name of Object.values(arch.arms[S].joints)) {
+      const J = arch.joints[name], child = arch.layout.find((e) => e.joint === name), parent = child.on.split('.')[0];
+      const pivot = F[child.id].t, axis = apply({ R: F[parent].R, t: [0, 0, 0] }, J.axis ?? (J.kind === 'slew' ? [0, 0, 1] : [1, 0, 0]));
+      const below = under(name);
+      const hangs = (q) => q.id === `load.${S}` || (() => { const e = arch.layout.find((x) => x.id === q.id); return Boolean(e) && (isStrut(e) ? e.ram.every((ref) => below.has(ref.split('.')[0])) : below.has(e.id)); })();
+      let tau = 0;
+      for (const q of M.parts) if (hangs(q)) tau += dot(cross(sub(q.at, pivot), [0, 0, -q.mass * G]), axis);
+      if (J.drive) {
+        const T = ctx.row(ctx.entry(J.drive).sku).dims.torque;
+        out.push({ joint: name, by: 'drive', torque: Math.round(Math.abs(tau)), share: r3(Math.abs(tau) / T) });
+        continue;
+      }
+      const ram = ctx.entry(J.ram), [a, b] = ram.ram, onChild = below.has(b.split('.')[0]) ? b : a, other = onChild === b ? a : b;
+      const B = point(F, onChild), A = point(F, other), u = sub(B, A), L = Math.hypot(...u), un = u.map((x) => x / L);
+      const unit = dot(cross(sub(B, pivot), un), axis), force = -tau / unit, rate = ramForce(ctx.row(ram.sku).dims);
+      out.push({ joint: name, by: ram.id, force: Math.round(force), way: force >= 0 ? 'push' : 'pull', arm: r3(Math.abs(unit)), share: r3(Math.abs(force) / (force >= 0 ? rate.push : rate.pull)) });
+    }
+    return out;
+  };
+  const carry = arch.arms && P.carry ? P.carry : null;
+  if (carry) for (const S of SIDES) loads.push(...armHolding(carry, S, carry.load).map((x) => ({ ...x, at: 'carry' })));
   if (band.actuators && loads.length) {
     const worst = loads.reduce((w, x) => (x.share > w.share ? x : w));
-    law('actuators', worst.share, band.actuators, within(worst.share, band.actuators), `its hardest-worked actuator is the ${worst.by === 'drive' ? `${worst.joint}'s drive` : worst.by} ${worst.at === 'lift' ? 'on one foot' : 'in the crouch'}, at ${Math.round(worst.share * 100)}% of its rating${worst.way ? ` (${worst.way}ing ${worst.force} N on a ${worst.arm} m arm)` : ''}`);
+    law('actuators', worst.share, band.actuators, within(worst.share, band.actuators), `its hardest-worked actuator is the ${worst.by === 'drive' ? `${worst.joint}'s drive` : worst.by} ${worst.at === 'lift' ? 'on one foot' : worst.at === 'carry' ? `carrying ${carry.load} kg` : 'in the crouch'}, at ${Math.round(worst.share * 100)}% of its rating${worst.way ? ` (${worst.way}ing ${worst.force} N on a ${worst.arm} m arm)` : ''}`);
   }
   // ── the ground ──
   const grossW = massOf(P.stand.joints, P.stand.root).mass * G;
@@ -159,7 +187,7 @@ export function mechaLaws(key, kit) {
   // ── the step and the stride, by the legs' reach within their ranges ──
   const Gr = legGeometry(arch, ctx, 'r'), J = arch.legs.r.joints;
   const fits = (ankle, yaw = 0) => {
-    const leg = solveLeg(Gr, ankle, yaw);
+    const leg = solveLeg(Gr, ankle, yaw, arch.bend);
     if (!leg.reach) return false;
     return Object.entries(leg.values).every(([k, v]) => { const r = range(J[k]); return !r || (v >= r[0] - 1e-6 && v <= r[1] + 1e-6); });
   };
@@ -169,10 +197,35 @@ export function mechaLaws(key, kit) {
   const step = farthest((h) => fits(stepAt(h)), 0, 1.2), strideAt = (y) => [foot.x, y, Gr.hS - zs], stride = farthest((y) => fits(strideAt(y)), 0, 1.4);
   if (band.step) law('step', r2(step), band.step, within(step, band.step), `it sets a foot down flat ${r2(step)} m up, a pace ahead`);
   if (band.stride) law('stride', r2(stride), band.stride, within(stride, band.stride), `it sets a foot ${r2(stride)} m ahead, flat, standing`);
+  // ── the arms: their reach, and the load they lift ──
+  const armReach = { reach: 0, lift: 0 };
+  if (arch.arms && (band.reach || band.lift)) {
+    const Ga = armGeometry(arch, ctx, 'r'), Ja = arch.arms.r.joints, c = arch.arms.r.claw;
+    const clawLen = -ctx.hp(arch.arms.r.wrist, 'claw')[2] - ctx.hp(c, 'tip')[2];
+    const armFits = (W, claw) => { const a = solveArm(Ga, W, claw); return a.reach && Object.entries(a.values).every(([k, v]) => { const r = range(Ja[k]); return !r || (v >= r[0] - 1e-6 && v <= r[1] + 1e-6); }); };
+    // (its claw's tip at its farthest ahead of the shoulder, level with it, its fingers ahead)
+    // (scanned in from the arm's full length: a wrist too near the shoulder folds the elbow past its stop)
+    let yMax = 0;
+    for (let y = Ga.l1 + Ga.l2; y > 0.2; y -= 0.005) if (armFits([y, 0], 90)) { yMax = y; break; }
+    armReach.reach = yMax + clawLen;
+    if (band.reach) law('reach', r2(armReach.reach), band.reach, within(armReach.reach, band.reach), `its claws reach ${r2(armReach.reach)} m ahead of its shoulders, level with them`);
+    if (band.lift && carry) {
+      // (the load its claws hold at the carry before the first thing gives: its centre of mass to the soles' edge, or an
+      // arm's actuator to its rating; rated at 75% of it, as a crane or a loader is rated against tipping)
+      const holds = (L) => {
+        const M = massOf(carry.joints, carry.root, { load: L }), poly = hull(SIDES.flatMap((S) => solePoly(M.frames, S)));
+        return margin(poly, M.com) > 0 && SIDES.every((S) => armHolding(carry, S, L).every((x) => x.share <= 1));
+      };
+      const Lmax = farthest(holds, 0, 3000), v = Math.round(0.75 * Lmax);
+      armReach.lift = v;
+      law('lift', v, band.lift, within(v, band.lift), `it lifts ${v} kg in its claws at the carry (75% of the ${Math.round(Lmax)} kg that first ${(() => { const L = Lmax + 1, M = massOf(carry.joints, carry.root, { load: L }); return margin(hull(SIDES.flatMap((S) => solePoly(M.frames, S))), M.com) <= 0 ? 'tips it' : 'overruns an arm\'s actuator'; })()})`);
+    }
+  }
   // ── the rider ──
   const sitOf = (p) => apply(frames(p.joints, p.root).seat, ctx.hp('seat', 'sit'));
-  if (band.seat) { const v = r2(sitOf(P.stand)[2]); law('seat', v, band.seat, within(v, band.seat), `standing, its seat is ${v} m up`); }
-  if (band.board && P.board) { const v = r2(sitOf(P.board)[2]); law('board', v, band.board, within(v, band.board), `crouched to be boarded, its seat is ${v} m up`); }
+  const station = arch.station === 'platform' ? 'its hip pad' : 'its saddle';
+  if (band.seat) { const v = r2(sitOf(P.stand)[2]); law('seat', v, band.seat, within(v, band.seat), `standing, ${station} is ${v} m up`); }
+  if (band.board && P.board) { const v = r2(sitOf(P.board)[2]); law('board', v, band.board, within(v, band.board), `crouched to be boarded, ${station} is ${v} m up`); }
   if (band.stepIn && P.board) {
     const v = r2(apply(frames(P.board.joints, P.board.root).seat, ctx.hp('seat', 'step.r'))[2]);
     law('stepIn', v, band.stepIn, within(v, band.stepIn), `crouched, its boarding step is ${v} m up`);
@@ -214,7 +267,7 @@ export function mechaLaws(key, kit) {
       }
       return { d: best, who };
     };
-    const reachJoints = (ankle) => { const leg = solveLeg(Gr, ankle); return { ...P.stand.joints, ...Object.fromEntries(Object.entries(leg.values).map(([k, v]) => [J[k], v])) }; };
+    const reachJoints = (ankle) => { const leg = solveLeg(Gr, ankle, 0, arch.bend); return { ...P.stand.joints, ...Object.fromEntries(Object.entries(leg.values).map(([k, v]) => [J[k], v])) }; };
     const samples = [...Object.entries(P).map(([k, p]) => [k, p.joints]), ['step', reachJoints(stepAt(step))], ['stride', reachJoints(strideAt(stride))]];
     let worst = { d: Infinity };
     for (const [k, j] of samples) { const c = at(j); if (c.d < worst.d) worst = { ...c, k }; }
@@ -234,7 +287,7 @@ export function mechaLaws(key, kit) {
     const distal = M0.parts.filter(lower).reduce((s, q) => s + q.mass, 0), v = r3(distal / legMass);
     law('distal', v, band.distal, within(v, band.distal), `${Math.round(v * 100)}% of a leg's mass is below its knee`);
   }
-  const out = Object.freeze({ ok: laws.every((l) => l.ok), laws: Object.freeze(laws), loads: Object.freeze(loads), reach: Object.freeze({ step: r3(step), stride: r3(stride) }) });
+  const out = Object.freeze({ ok: laws.every((l) => l.ok), laws: Object.freeze(laws), loads: Object.freeze(loads), reach: Object.freeze({ step: r3(step), stride: r3(stride), ...(arch.arms ? { arms: r3(armReach.reach), lift: armReach.lift } : {}) }) });
   CACHE.set(key, out);
   return out;
 }

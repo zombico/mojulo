@@ -1,13 +1,14 @@
 ### The mecha shelf: ridden walkers on real-robot principles
 
 In progress. A new shelf, `control/lib/graph/mecha-shelf/`, for legged machines a rider sits in, built from the ground
-up. It starts with the all-terrain walker, the primitive frame later machines grow from.
+up. It starts with the all-terrain walker, the base of its bipedal locomotion, and grows a general-purpose work frame
+on it: the utility walker.
 
 - **The all-terrain walker** (`mecha-archetypes.js` `allTerrainWalker`): a pelvis, two legs and the rider's cabin.
   - **The legs:** six joints each, like a real biped's: hip yaw, roll and pitch, the knee, and the ankle's pitch and
     roll. The knees bend backward, digitigrade like a bird's.
-    - The hip ram works behind the thigh, the knee ram in front of it, and the ankle ram behind the shank to a heel horn,
-      like a tendon.
+    - The hip ram works behind the thigh, the knee ram in front of it, and the ankle ram behind the shank to a heel
+      horn, like a tendon.
     - The ankle's arc sits toward pointing down: a backward-bent leg folds its ankle further than a human's.
   - **The rider sits astride, as on a sport motorcycle.** A saddle on a spine, a tank with knee grips and a chest pad,
     pegs set back under the hips, and clip-on bars ahead and low. The rider leans onto the bars, its head tilted up to
@@ -24,6 +25,24 @@ up. It starts with the all-terrain walker, the primitive frame later machines gr
     - `rescueOrange`;
     - `desertSand`;
     - `arcticWhite`.
+- **The utility walker** (`utilityWalker`): a general-purpose work frame on the walker's locomotion.
+  - **Its operator stands** on a platform over the pelvis (the cycle shelf's new `operator` posture card). The operator
+    leans back on a hip pad behind a waist-high guardrail and works the arms from a console at each hand. The walker
+    is driven by foot pedals, boarded by a two-rung ladder at the back, and the head stays under the torso frame's hoop.
+  - **Its legs bend at the knee forward**, as a person's do (the shelf's legs take either bend). The rams are bored up
+    and the feet enlarged for its weight and its load.
+  - **Its arms are for assistive strength work.** Each has a shoulder yaw drive on the torso frame, a shoulder pitch and
+    an elbow on rams, a rotary wrist, and a two-fingered claw. Their poses (`rest`, `carry`, `raise`) are solved by the
+    arm's own inverse kinematics: the wrist's place from the shoulder, and the claw's angle.
+  - **The mass:** the battery sits low in the keel, and the power pack on the torso's back as a counterweight to the
+    arms.
+  - **Its stances:** the walker's, plus `carry` (a load held ahead in both claws, the forearms level) and `reach` (the
+    claws raised over the head).
+  - **Its laws add the arms':**
+    - each arm joint's actuator holding half the carry's load;
+    - `reach`: its claws' farthest ahead, level with the shoulders;
+    - `lift`: its rated load at the carry, 75% of the load that first tips it or overruns an arm's actuator, as a crane
+      or a loader is rated.
 - **Every joint is an actuator's** (the construction shelf's chain, `construction-shelf/con-chain.js`).
   - A pitch or roll joint is driven by a hydraulic ram across it. Its range is where that ram lies within its stroke:
     derived, never stated.
@@ -34,7 +53,8 @@ up. It starts with the all-terrain walker, the primitive frame later machines gr
   bend that sets it), its track, the feet's places, lifts and headings, and a sway. A sway carries the centre of mass
   over one sole for a static step.
   - The named stances are `stand` (knees bent 45°, clear of the straight leg's singularity), `board` (crouched to be
-    climbed into, the feet set back under the folded knees), `stride`, `lift` (on one foot, the other raised) and `turn`.
+    climbed into, the feet set back under the folded knees), `stride`, `lift` (on one foot, the other raised) and
+    `turn`.
   - A pose may also be a stance of the operator's, or joint values.
 - **The laws** (`mecha-laws.js`) are measured from the frame as built and posed:
   - each ram's arc;
@@ -50,13 +70,14 @@ up. It starts with the all-terrain walker, the primitive frame later machines gr
   - the tip-over (fallen on its side, it lands on its cabin and legs, never on the rider);
   - the legs' clearance from the rider's space at every stance;
   - the parts' mass against the class's, and the share of a leg's mass below the knee.
-- **In the registry:** a row, `all-terrain-walker` ('riding walker', 'bipedal walker', 'walking machine'…), with the
-  role `trail` and the era `future`.
-  - Its new handle, `mecha`, points into the shelf's archetypes.
-  - Its realistic build is at `preview` status: the studio grid only, until its gait is built.
+- **In the registry:**
+  - `all-terrain-walker` ('riding walker', 'bipedal walker', 'walking machine'…): the role `trail`, the era `future`.
+  - `utility-walker` ('work walker', 'power frame', 'walking loader'…): the role `work`, the era `future`.
+  - The new handle, `mecha`, points into the shelf's archetypes.
+  - Their realistic builds are at `preview` status: the studio grid only, until its gait is built.
   - The `mech` row stays the battle mech's concept.
 - **The cycle shelf's riders:** a posture card may say `headUp`, degrees the head is raised besides its `gaze`
-  (`cycle-shelf/cycle-rider.js`). The new card `walker` uses it; no existing card changes.
+  (`cycle-shelf/cycle-rider.js`). The new cards `walker` and `operator` use it; no existing card changes.
 - **On the studio grid:** `mint_solid({ kind: 'vehicle', vehicle: 'all-terrain walker', pose?, palette?, rider? })`
   draws it at a stance through the family layer's `mecha` instance (`mecha-figure.js`). `rider: true` seats the
   realistic hero astride it. The rider is solved in the pelvis's frame and carried with its sway
@@ -66,5 +87,7 @@ up. It starts with the all-terrain walker, the primitive frame later machines gr
   - `mecha-shelf.test.js`: each foot where its stance asks, sole flat, at its heading; every ram within its stroke at
     every stance; a shorter stroke gives a shorter arc; the knees bend backward; the legs mirror; the sway puts the
     centre of mass over the stance sole; the rider is astride; the laws hold.
-  - `mecha-shelf.char.test.js`: a byte pin per builder path and on the whole frame.
+  - `mecha-shelf.char.test.js`: a byte pin per builder path (a kind and its family) and on the whole walker.
+  - `mecha-shelf.test.js`, the frame with arms: its knees forward; each wrist where its pose asks, its claw at the
+    asked angle; a load weighed (the centre of mass moves toward it, the arms work harder); every law holds.
   - The roster's, builds' and preview door's tests.

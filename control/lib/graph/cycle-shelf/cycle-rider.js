@@ -40,6 +40,8 @@ export const POSTURES = Object.freeze({
   cyclist: Object.freeze({ label: 'leaning to the bar, the feet on the pedals', hinge: [10, 65], spine: 0.25, gaze: 0.8 }),
   // (a ridden walker's rider: leaning onto the bars as on a sport machine, the head raised past level to look up the trail)
   walker: Object.freeze({ label: 'leaning onto the bars, the head tilted up to look ahead', hinge: [20, 60], spine: 0.25, gaze: 0, headUp: 42 }),
+  // (a standing operator's: upright at the controls, leaning back on the hip pad)
+  operator: Object.freeze({ label: 'standing at the controls, leaning back on the hip pad', hinge: [0, 25], spine: 0.05, gaze: 0, headUp: 4 }),
 });
 export const POSTURE_IDS = Object.freeze(Object.keys(POSTURES));
 

@@ -71,6 +71,48 @@ describe('mecha shelf: a stance is solved by where the feet are', () => {
   });
 });
 
+// (a frame with arms, its knees forward: chosen in code by what it carries)
+const worker = Object.keys(MECHA_ARCHETYPES).find((k) => MECHA_ARCHETYPES[k].arms && MECHA_ARCHETYPES[k].bend === 'forward');
+const W = MECHA_ARCHETYPES[worker], wctx = mechaCtx(worker);
+const carryOf = Object.keys(W.stances).find((k) => W.stances[k].load);
+const wworld = (P) => Object.fromEntries(Object.entries(framesOf(wctx.arch, P.joints, wctx)).map(([k, T]) => [k, { R: T.R, t: apply(P.root, T.t) }]));
+
+describe('mecha shelf: a frame with arms, its knees forward', () => {
+  it('bends its knees forward: each knee ahead of the line from its hip to its ankle', () => {
+    const F = wworld(posedFrame(worker, W.rest));
+    for (const S of ['r', 'l']) {
+      const g = W.legs[S], hip = F[g.pitch].t, knee = F[g.knee].t, ankle = F[g.ankle].t;
+      const t = (knee[2] - hip[2]) / (ankle[2] - hip[2]);
+      expect(knee[1]).toBeGreaterThan(hip[1] + t * (ankle[1] - hip[1]) + 0.05);
+    }
+  });
+  it('sets each wrist where its arm pose asks, from the shoulder, its claw at the asked angle', () => {
+    const P = posedFrame(worker, carryOf), F = wworld(P), want = W.armPoses[W.stances[carryOf].arms];
+    for (const S of ['r', 'l']) {
+      const a = W.arms[S], sh = F[a.upper].t, wr = F[a.wrist].t;
+      expect(wr[1] - sh[1]).toBeCloseTo(want.wrist[0], 3);
+      expect(wr[2] - sh[2]).toBeCloseTo(want.wrist[1], 3);
+      // (the claw's down axis turned forward by its angle: at 90° its fingers point ahead)
+      const R = F[a.claw].R, ang = Math.atan2(-R[1][2], R[2][2]) * 180 / Math.PI;
+      expect(Math.abs(ang)).toBeCloseTo(180 - want.claw, 1);
+    }
+  });
+  it('weighs a load in its claws: its centre of mass moves toward them, its arms\' actuators work harder', () => {
+    const P = posedFrame(worker, carryOf), light = massOf(worker, P.joints, P.root), heavy = massOf(worker, P.joints, P.root, { load: 200 });
+    expect(heavy.mass - light.mass).toBe(200);
+    expect(heavy.com[1]).toBeGreaterThan(light.com[1]);
+    const { laws, loads } = lawsOf(worker);
+    expect(loads.some((x) => x.at === 'carry' && x.share > 0)).toBe(true);
+    // (its rated lift is what first gives, tipping or an arm's actuator, at 75%)
+    expect(laws.find((l) => l.id === 'lift').value).toBeGreaterThan(0);
+  });
+  it('holds its work frame to every law, its arms clear of the operator', () => {
+    const { laws } = lawsOf(worker);
+    expect(laws.filter((l) => !l.ok).map((l) => `${l.id}: ${l.says}`)).toEqual([]);
+    for (const k of ['reach', 'lift', 'clearance', 'tipover']) expect(laws.some((l) => l.id === k), k).toBe(true);
+  });
+});
+
 describe('mecha shelf: the actuators', () => {
   it('lays every ram within its stroke at every stance', () => {
     for (const name of Object.keys(arch.stances)) {
