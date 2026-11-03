@@ -32,6 +32,8 @@
  *   airsideWords(words)               → { raised }
  *   reachOf(kind, { words?, pose? })  → the height it reaches, clamped to its range
  *   airsideAxles(cls)                 → the axles' stations (+y forward, the body centred)
+ *   reachFront(cls, reach)            → how far ahead of its middle a lifting body meets a door (the platform's or the
+ *                                       belt's nose), at that reach
  *   AIRSIDE_BODIES, AIRSIDE_KITS      the builders and each kind's kit ([anchor, card, words?], mil-fittings.js)
  *
  * Vehicle space (+y forward, x across, +x the right side, z up), metres, the wheels' contact at z = 0. Pure and
@@ -55,6 +57,18 @@ export function airsideAxles(cls) {
   if (kind === 'stairs') { const yf = v.L / 2 - 1.1; return [yf, yf - v.wheelbase]; }
   if (HAUL_CLASSES[cls]) return haulAxles(cls);
   throw new Error(`car-designer: '${cls}' is not an airside class (${Object.keys(AIRSIDE_CLASSES).join(', ')})`);
+}
+
+// how far ahead of its middle each meets a door, at a reach (vehicle +y): the catering platform's rubber (laid out past
+// its cab), the belt's nose, the stair platform's rubber
+const cateringFront = (cls) => VEHICLES[cls].L / 2 + 0.38;
+/** Where a lifting body's leading edge stands at a reach (+y from its middle, metres): what a turnaround sets at a door. */
+export function reachFront(cls, reach) {
+  const kind = AIRSIDE_CLASSES[cls], v = VEHICLES[cls];
+  if (kind === 'catering') return cateringFront(cls);
+  if (kind === 'stairs') return v.L / 2;
+  if (kind === 'beltLoader') { const L = beltLine(reachOf('beltLoader', { pose: { reach } }), -v.L / 2 + 0.06, BELT); return L.yTail + BELT * L.cos + 0.07; }
+  throw new Error(`car-designer: a ${cls} meets no door`);
 }
 
 // ── the catering hi-loader ──────────────────────────────────────────────────────
@@ -125,10 +139,12 @@ function catering(cls, { words = [], pose = {} } = {}) {
   for (const s of [-1, 1]) out.push(...guard(yr, r, r + 0.08, 0.15, Math.PI - 0.15, ...xs(s, 0.74, hw - 0.04), dark('guard.rear')));
   // the platform at the body's front: hinged at its floor, laid out over the cab when it clears it, folded up against
   // the body when not; its rails up when laid out, folded flat on it when not; its rubber nose and its striped edge
-  const open = zD - 0.1 > z1 + 0.05, D = 1.25, pw = hw - 0.16, plat = [];
+  // (laid out, it telescopes past the cab's bumper, so its rubber meets a door before the cab meets the aircraft)
+  const open = zD - 0.1 > z1 + 0.05, D = open ? cateringFront(cls) - 0.08 - (yB1 - 0.04) : 1.25, pw = hw - 0.16, plat = [];
   plat.push(...plate({ axis: 'z', profile: rect(-pw, pw, 0.03, D), from: -0.08, to: 0, r: 0.01, seg: 1, look: alu('platform') }));
   plat.push(...plate({ axis: 'y', profile: rect(-pw, pw, -0.1, 0.02), from: D, to: D + 0.08, r: 0.02, seg: 2, look: M('platform.bumper', 'rubber', C.rubber) }));
   plat.push(...tube([[-pw, 0.02, -0.04], [pw, 0.02, -0.04]], 0.035, { sides: 8, look: M('platform.hinge', 'steel', C.steel) }));
+  if (open) for (const s of [-1, 1]) plat.push(...plate({ axis: 'y', profile: rect(...xs(s, pw - 0.12, pw - 0.04), -0.16, -0.08), from: 0.1, to: D - 0.05, look: alu('platform.slide') }));
   plat.push(...hazard({ o: [pw, D - 0.1, 0.001], u: neg(X), v: Y, w: 2 * pw, h: 0.1, n: Z }));
   for (const s of [-1, 1]) {
     const x = s * (pw - 0.04), rail = open
@@ -152,6 +168,7 @@ function catering(cls, { words = [], pose = {} } = {}) {
 }
 
 // ── the belt loader ─────────────────────────────────────────────────────────────
+const BELT = 7.45;   // (the conveyor's length, tail to nose)
 // the belt's nose height → its tail's (raised too, past what the strut allows) and its tilt, its tail fixed in y
 function beltLine(reach, yTail, Lb) {
   const zTail = 0.55 + Math.max(0, reach - 2.8) * 0.6, sin = Math.min(0.6, (reach - zTail) / Lb);
@@ -187,7 +204,7 @@ function beltLoader(cls, { words = [], pose = {} } = {}) {
   out.push(...tube(Array.from({ length: 17 }, (_, k) => { const a = (2 * Math.PI * k) / 16, c = Math.cos(a) * 0.18, s = Math.sin(a) * 0.18; return [colB[0] + c, colB[1] - s * 0.6, colB[2] + s * 0.8]; }), 0.016, { sides: 6, caps: false, look: M('wheel.rim', 'rubber', C.rubber) }));
   out.push(...beacon([-0.6, yc0 + 0.3, 1.05]));
   // the conveyor over the right: built along its own line, carried to its tilt (its tail fixed, its nose at its reach)
-  const Lb = 7.45, xc = hw - 0.5, line = beltLine(reach, yT + 0.06, Lb), belt = [], bw = 0.4;
+  const Lb = BELT, xc = hw - 0.5, line = beltLine(reach, yT + 0.06, Lb), belt = [], bw = 0.4;
   for (const s of [-1, 1]) belt.push(...plate({ axis: 'y', profile: rect(...xs(s, bw, bw + 0.06), -0.22, 0.06), from: 0, to: Lb, r: 0.01, seg: 1, look: paint('conveyor.side') }));
   belt.push(...plate({ axis: 'z', profile: rect(-bw, bw, 0.03, Lb - 0.03), from: -0.02, to: 0, look: M('belt', 'rubber', C.belt) }));
   for (let y = 0.25; y < Lb - 0.1; y += 0.32) belt.push(...plate({ axis: 'y', profile: rect(-bw + 0.02, bw - 0.02, 0, 0.022), from: y - 0.012, to: y + 0.012, look: M('belt.cleat', 'rubber', C.belt) }));

@@ -184,6 +184,24 @@ with their blades meshed. Each stands level on its skids or wheels with its roto
 
 Not yet: flying them (a hover model, the rotor's thrust) and a cabin seen through an open side door.
 
+### The turnaround
+
+The airfield's ground crew (`car-designer/road-airside.js`, `road-airside-haul.js`) are built at their true numbers in
+the field vehicles' language. A parked aircraft's `crew` sets them to work round it (`vehicle-registry/turnaround.js`).
+Each is placed and posed to the aircraft's own geometry, read off its form rather than typed per type:
+- the stair truck at its first door on the left, its platform at that door's sill;
+- the catering hi-loader at the first door on the right, its galley raised to the sill and its platform out past the
+  cab;
+- a belt loader at each hold, low in the belly ahead of the wing and behind it;
+- the baggage tug and its carts beyond the forward belt's tail;
+- the refueller clear ahead of the wing and its engine;
+- the pushback tug ahead of the nose gear, its open U toward it.
+
+What a door is out of reach of is left off: a regional's sill is under a stair truck's lowest platform. An airliner
+calls its whole crew; any other aircraft calls its fuel and its pushback. A camo'd aircraft's crew wears the field's
+nearest camo, and otherwise the airside's white. A parked airside vehicle takes `reach` on its own (metres: its galley,
+belt, platform or cradle).
+
 ## The airspace in a palette
 
 A flight level is drawn by the color theorist (`control/lib/graph/color-theorist/`) when its world has a palette.

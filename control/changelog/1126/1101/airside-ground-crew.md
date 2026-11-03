@@ -53,3 +53,17 @@ aircraft.
 
   Their rows are `baggage tug` (tow tractor), `baggage cart` (baggage dolly), `pushback tug` (aircraft tug,
   towbarless tug) and `fuel truck` (refueller).
+- **The turnaround** (`vehicle-registry/turnaround.js`): a parked craft's `crew` (true for its role's, or a list of
+  the ground crew) sets them to work round it. Each is placed and posed to the aircraft's own geometry, read off its
+  form: its doors' sills and the skin's reach at them, its holds low in the belly, its nose gear, what of its wing and
+  engines stands over a band.
+  - The stairs and the catering truck go to the first door, left and right, raised to its sill.
+  - A belt loader goes to each hold.
+  - The baggage train stands beyond the forward belt.
+  - The refueller stands clear ahead of the wing.
+  - The pushback stands ahead of the nose gear.
+
+  A vehicle a door is out of reach of is left off. A camo'd aircraft's crew wears the field's camo. The crew follows
+  the craft in the level's parked list, each its own figure and collider.
+- **A parked airside vehicle takes `reach`.** The catering platform, laid out, telescopes past the cab so its rubber
+  meets a door first. The lifts' ranges reach a twin-aisle's doors.

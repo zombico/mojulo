@@ -8,11 +8,14 @@
  *   PARKED_MAX                    the most a level stands
  *   BASE_PARKED                   what a base parks when it says only `true`: a truck and a carrier
  *   readParked(list, at?)         → [{ vehicle, class | craft, cycle?, at, heading, livery?, wear?, look?, fold?, pad?,
- *                                   seed }], each word read through the registry (a row with a realistic loft, a cycle with a
- *                                   stand, or a craft off the shelf, that can stand parked), or throws naming why. A craft (a
- *                                   helicopter, an aircraft, a drone) takes its family's `look`, the air's livery and wear,
- *                                   `fold` (its blades or wings, 0 spread … 1 folded) and `pad` (a helipad under it: true or
- *                                   { size }); its collider is its body's box, not its rotor's disc. A cycle takes its look
+ *                                   reach?, seed }], each word read through the registry (a row with a realistic loft, a cycle
+ *                                   with a stand, or a craft off the shelf, that can stand parked), or throws naming why. A
+ *                                   craft (a helicopter, an aircraft, a drone) takes its family's `look`, the air's livery and
+ *                                   wear, `fold` (its blades or wings, 0 spread … 1 folded), `pad` (a helipad under it: true or
+ *                                   { size }) and `crew` (true: its role's ground crew; or a list of them): the crew follow it
+ *                                   in the list, each placed and posed to its doors, holds and nose gear (turnaround.js). Its
+ *                                   collider is its body's box, not its rotor's disc. An airside body takes `reach` (its lift,
+ *                                   belt, platform or cradle, metres: road-airside.js). A cycle takes its look
  *   parkIn(room, words, { seed?, livery?, wear? }) → `parked` entries side by side across a room, noses to its +x
  *                                   (a hangar's doors), as many as it holds; a craft folded, in the air's nearest camo
  *   parkable(word, at?)          → { vehicle, class, cycle? } or { vehicle, craft }, or throws naming why the word cannot
@@ -40,12 +43,16 @@ import { CYCLE_ARCHETYPES } from '../cycle-shelf/cycle-archetypes.js';
 import { CYCLE_ODM } from '../cycle-shelf/cycle-odm.js';
 import { lookCard as cycleLookCard } from '../cycle-shelf/cycle-looks.js';
 import { wheelLayout } from '../roads/vehicles.js';
+import { AIRSIDE_REACH } from '../car-designer/road-airside.js';
+import { crewFor, turnaround } from './turnaround.js';
 
 export const PARKED_MAX = 6;
 export const BASE_PARKED = Object.freeze(['cargo-truck', 'apc']);
-const KEYS = ['vehicle', 'at', 'heading', 'livery', 'wear', 'look', 'seed', 'fold', 'pad'];
-// (a craft's own words: a road car, a field vehicle and a cycle take neither)
-const CRAFT_KEYS = ['fold', 'pad'];
+const KEYS = ['vehicle', 'at', 'heading', 'livery', 'wear', 'look', 'seed', 'fold', 'pad', 'crew', 'reach'];
+// (a craft's own words: a road car, a field vehicle and a cycle take none of them)
+const CRAFT_KEYS = ['fold', 'pad', 'crew'];
+// (the most a level stands with every craft's crew about it)
+export const PARKED_CREWED_MAX = 30;
 // a field camo's nearest in the air's patterns (air-surface.js): a base's colours on its helicopters
 const AIR_OF_CAMO = Object.freeze({ woodland: 'wraparound', desert: 'desert', tiger: 'splinter', winter: 'arctic', urban: 'counterShaded', digital: 'splinter' });
 /** A livery as a craft wears it: an air livery as it is, a field camo's nearest air pattern, else none. */
@@ -77,7 +84,7 @@ export function parkable(word, at = 'parked') {
 
 export function readParked(list, at = 'parked') {
   if (!Array.isArray(list) || !list.length || list.length > PARKED_MAX) throw new Error(`${at} is a list of 1 to ${PARKED_MAX} vehicles { vehicle, at: [x, y, z], heading?, livery?, wear?, seed? }`);
-  return list.map((p, k) => {
+  const read = list.flatMap((p, k) => {
     const w = `${at}[${k}]`;
     if (!isObj(p)) throw new Error(`${w} is { vehicle, at: [x, y, z], heading?, livery?, wear?, seed? }`);
     for (const key of Object.keys(p)) if (!KEYS.includes(key)) throw new Error(`${w}.${key} is not a parked vehicle's setting (${KEYS.join(', ')})`);
@@ -92,7 +99,16 @@ export function readParked(list, at = 'parked') {
       if (p.wear !== undefined) readWear(p.wear);
       if (p.fold !== undefined && !(Number.isFinite(p.fold) && p.fold >= 0 && p.fold <= 1)) throw new Error(`${w}.fold is 0 (spread) to 1 (folded)`);
       if (p.pad !== undefined && p.pad !== true && p.pad !== false && !(isObj(p.pad) && Object.keys(p.pad).every((k) => k === 'size') && Number.isFinite(p.pad.size) && p.pad.size >= 4 && p.pad.size <= 40)) throw new Error(`${w}.pad is true (a helipad under it) or { size: 4 to 40 metres }`);
-      return { vehicle, craft, at: p.at.map(r3), heading: r3(p.heading ?? 0), ...Object.fromEntries(['look', 'livery', 'wear', 'fold'].filter((k) => p[k] !== undefined).map((k) => [k, p[k]])), ...(p.pad ? { pad: p.pad } : {}), seed: p.seed ?? k + 1 };
+      if (p.reach !== undefined) throw new Error(`${w}.reach: the ${vehicle} lifts nothing; a reach is a catering truck's, a belt loader's, a stair truck's or a pushback's`);
+      const entry = { vehicle, craft, at: p.at.map(r3), heading: r3(p.heading ?? 0), ...Object.fromEntries(['look', 'livery', 'wear', 'fold'].filter((k) => p[k] !== undefined).map((k) => [k, p[k]])), ...(p.pad ? { pad: p.pad } : {}), seed: p.seed ?? k + 1 };
+      if (p.crew === undefined || p.crew === false) return [entry];
+      // (its crew about it, each placed and posed to its doors, holds and nose gear: turnaround.js)
+      crewFor(craft, p.crew, `${w}.crew`);
+      const crew = turnaround(entry, { crew: p.crew, seed: (entry.seed * 100) + 1 }).map((e) => {
+        const { class: cls } = parkable(e.vehicle, `${w}.crew`);
+        return { vehicle: e.vehicle, class: cls, at: e.at, heading: e.heading, ...(e.reach !== undefined ? { reach: e.reach } : {}), ...(e.livery !== undefined ? { livery: e.livery } : {}), seed: e.seed };
+      });
+      return [entry, ...crew];
     }
     for (const key of CRAFT_KEYS) if (p[key] !== undefined) throw new Error(`${w}.${key}: the ${vehicle} is no craft; a fold and a helipad are a craft's`);
     // (a livery and a wear are a field vehicle's: a road car is painted and weathered by its own build)
@@ -103,8 +119,13 @@ export function readParked(list, at = 'parked') {
     // (a look dresses a cycle: a car is dressed by its own build)
     if (p.look !== undefined && !cycle) throw new Error(`${w}.look: the ${vehicle} is dressed by its own build; a look dresses a machine ridden astride`);
     if (p.look !== undefined) cycleLookCard(p.look);
-    return { vehicle, class: cls, ...(cycle ? { cycle } : {}), at: p.at.map(r3), heading: r3(p.heading ?? 0), ...(p.livery !== undefined ? { livery: p.livery } : {}), ...(p.wear !== undefined ? { wear: p.wear } : {}), ...(p.look !== undefined ? { look: p.look } : {}), seed: p.seed ?? k + 1 };
+    // (a reach lifts an airside body: its galley, its belt, its platform, a pushback's cradle; metres, clamped to its range)
+    if (p.reach !== undefined && !(field && AIRSIDE_REACH[MILITARY_CLASSES[cls]])) throw new Error(`${w}.reach: the ${vehicle} lifts nothing; a reach is a catering truck's, a belt loader's, a stair truck's or a pushback's`);
+    if (p.reach !== undefined && !(Number.isFinite(p.reach) && p.reach >= 0 && p.reach <= 10)) throw new Error(`${w}.reach is metres from the ground, 0 to 10`);
+    return [{ vehicle, class: cls, ...(cycle ? { cycle } : {}), at: p.at.map(r3), heading: r3(p.heading ?? 0), ...(p.livery !== undefined ? { livery: p.livery } : {}), ...(p.wear !== undefined ? { wear: p.wear } : {}), ...(p.look !== undefined ? { look: p.look } : {}), ...(p.reach !== undefined ? { reach: p.reach } : {}), seed: p.seed ?? k + 1 }];
   });
+  if (read.length > PARKED_CREWED_MAX) throw new Error(`${at}: ${read.length} vehicles with their crews, more than a level stands (${PARKED_CREWED_MAX})`);
+  return read;
 }
 
 export function readBuildingParked(word, at = 'building.parked') {
@@ -173,7 +194,7 @@ export function withParked(manifest) {
     }
     const id = `parked-${k}`, v = PHYSICS[p.class], c = Math.cos(p.heading), s = Math.sin(p.heading);
     figures[id] = p.cycle ? { cycle: { archetype: p.cycle, ...(p.look !== undefined ? { look: p.look } : {}) } }
-      : { loft: { class: p.class, seed: p.seed, light: 'form', ...(p.livery !== undefined ? { livery: p.livery } : {}), ...(p.wear !== undefined ? { wear: p.wear } : {}) } };
+      : { loft: { class: p.class, seed: p.seed, light: 'form', ...(p.livery !== undefined ? { livery: p.livery } : {}), ...(p.wear !== undefined ? { wear: p.wear } : {}), ...(p.reach !== undefined ? { reach: p.reach } : {}) } };
     entities.push({ id, rule: { type: 'static' }, body: { type: 'figure-rig', figure: id }, transform: { pos: p.at, heading: p.heading } });
     // (its footprint turned: nose along the heading, its length that way, its width across)
     const hx = (Math.abs(c) * v.L + Math.abs(s) * v.W) / 2, hy = (Math.abs(s) * v.L + Math.abs(c) * v.W) / 2;

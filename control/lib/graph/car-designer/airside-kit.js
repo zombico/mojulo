@@ -21,9 +21,9 @@ import { plate, tube, bend, face } from './mil-hull.js';
 // (the stowed height of each, what `raised` gives (a single-aisle airliner's door sill, or its hold's for the belt), and
 // the range its lift travels)
 export const AIRSIDE_REACH = Object.freeze({
-  catering: Object.freeze({ stowed: 1.55, raised: 3.4, range: Object.freeze([1.55, 5.6]) }),
-  beltLoader: Object.freeze({ stowed: 1.45, raised: 2.1, range: Object.freeze([1.0, 3.8]) }),
-  stairs: Object.freeze({ stowed: 2.65, raised: 3.4, range: Object.freeze([2.65, 5.4]) }),
+  catering: Object.freeze({ stowed: 1.55, raised: 3.4, range: Object.freeze([1.55, 6.4]) }),
+  beltLoader: Object.freeze({ stowed: 1.45, raised: 2.1, range: Object.freeze([1.0, 4.2]) }),
+  stairs: Object.freeze({ stowed: 2.65, raised: 3.4, range: Object.freeze([2.65, 6.2]) }),
   // (a pushback tug's cradle: down to take a nose wheel, lifted to carry it)
   pushbackTug: Object.freeze({ stowed: 0.32, raised: 0.62, range: Object.freeze([0.32, 0.7]) }),
 });
