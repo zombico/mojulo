@@ -13,17 +13,16 @@
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
 
-import { registerTool } from '@/lib/mcp/server';
 import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { SketchFolderRepository } from '@/lib/db/repositories/sketch-folders';
 import { renderFigureToSvg, renderFigureFrames, figureIsAnimated, figurePatternReport, FIGURE_VIEWS, motionTiming } from '@/lib/graph/polygonizer/figure-render';
 import { stampMotion } from '@/lib/graph/polygonizer/figure-posing';
 import { EMOTE_NAMES } from '@/lib/graph/polygonizer/figure-emotes';
 import { GARMENTS, validateGarmentSpec } from '@/lib/graph/polygonizer/figure-garments';
-import { validateOutfit, resolveOutfitNames, OUTFIT_FIT_NAMES } from '@/lib/graph/polygonizer/figure-outfit';
+import { validateOutfit, resolveOutfitNames } from '@/lib/graph/polygonizer/figure-outfit';
 import { bookWardrobe } from '@/lib/graph/views/recipe-book/registry';
-import { validateFluffs, FLUFF_SHAPE_NAMES } from '@/lib/graph/polygonizer/figure-fluff';
-import { validateCast, resolveCast, CAST_KEYS, CAST_AGGREGATE_KEYS, CAST_PRESET_NAMES } from '@/lib/graph/polygonizer/figure-cast';
+import { validateFluffs } from '@/lib/graph/polygonizer/figure-fluff';
+import { validateCast, resolveCast } from '@/lib/graph/polygonizer/figure-cast';
 import { normalizeDreamAudit } from '@/lib/graph/image-outcomes/dream-audit';
 import { articulate } from '@/lib/graph/polygonizer/figure-vajra';
 import { encodeGif } from '@/lib/motion';
@@ -34,7 +33,7 @@ import { pluginProfileActive, pluginProfileNotice } from '@/lib/mcp/plugin-profi
 const GARMENT_KEYS = Object.keys(GARMENTS);
 
 export async function createFigureHandler(input) {
-  if (!input || typeof input !== 'object') throw new Error('create_figure requires { title }');
+  if (!input || typeof input !== 'object') throw new Error('mint_solid kind "figure" requires { title }');
   const { title, pose, proto, garment, fluffs, view, background, setup, ref, folder_ref: folderRef } = input;
   let { cast } = input;
   if (typeof cast === 'string' && /^\s*[{[]/.test(cast)) { try { cast = JSON.parse(cast); } catch { /* a bare preset name stays a name */ } }
@@ -207,7 +206,7 @@ export async function createFigureHandler(input) {
  * a world's `figures` map can pick up via `figureRef` (world-scene.js).
  */
 export async function emoteFigureHandler(input) {
-  if (!input || typeof input !== 'object') throw new Error('emote_figure requires { ref, emote }');
+  if (!input || typeof input !== 'object') throw new Error('edit_solid op "emote" requires { ref, spec: { emote } }');
   const { ref, emote, intensity, view } = input;
   // Defensive transport parse (see createFigureHandler): object-valued params can
   // arrive JSON-stringified from some MCP clients.
@@ -220,7 +219,7 @@ export async function emoteFigureHandler(input) {
   }
   const src = ref && typeof ref === 'string' ? SketchRepository.getByRef(ref) : null;
   if (!src) throw new Error(`Figure sketch '${ref}' not found`);
-  if (src.manifest?.kind !== 'figure') throw new Error(`'${ref}' is kind '${src.manifest?.kind}', not a figure — emote_figure poses stored create_figure sketches`);
+  if (src.manifest?.kind !== 'figure') throw new Error(`'${ref}' is kind '${src.manifest?.kind}', not a figure — edit_solid op 'emote' poses stored figures (mint_solid kind 'figure')`);
   if (typeof emote !== 'string' || !EMOTE_NAMES.includes(emote)) {
     throw new Error(`\`emote\` must be one of ${EMOTE_NAMES.join(', ')}`);
   }
@@ -261,102 +260,4 @@ export async function emoteFigureHandler(input) {
     url: `/sketches/${encodeURIComponent(src.ref)}`,
     gifUrl: `${outcomeUrlFor(src.ref)}emote-${emote}.gif`,
   };
-}
-
-export function registerFigureTools() {
-  registerTool({
-    name: 'create_figure',
-    description:
-      "Mint a POSED human figure — the protoform (a sculpted, vexar-lit male/female body over a manji armature) put into a pose and rendered to a sketch. Reach for this on framing like \"pose a figure / show a person reaching / a walking figure / male|female body in a stance / a figure wearing X\". The figure is a PURE FUNCTION of its dials, so posing = choosing values; joint LIMITS + spine caps clamp every value so a pose can never break the form.\n\nFour independent dial-sets, all optional (omit → canonical male, neutral stance, three-quarter view):\n\n  • pose — the POSE. Per-joint degrees-of-freedom:\n      arms: shL/shR { yaw, pitch } (shoulder swing), elbowL/elbowR (bend, 0-150°)\n      legs: hipL/hipR { yaw, pitch, roll } (thigh swing + axial external/internal rotation), kneeL/kneeR (bend, 0-150°), ankleL/ankleR (flex), toeL/toeR (toe curl)\n      hands: wristL/wristR { flex, deviation } (the hand bends + tilts at the wrist — the arm-mirror of the ankle), fingersL/fingersR (knuckle curl, 0-90, + = close to a fist — the mirror of the toe)\n      head: head { yaw, pitch }; face { jaw (deg 0-30, opens the jaw), mouth (0-1), brow (-1..1) } — the head field's dials\n      pelvis: number (transverse pelvic rotation, deg; + = right hip forward)\n      SPINE: spine { sagittal, lateral, axial } each ∈ [-1,+1] — sagittal + = flex/curl forward, − = arch back; lateral = side-bend; axial = twist. This is what makes a pose read alive (contrapposto, slump, recoil) instead of rigid-vertical. The bend is distributed across the trunk by its natural mobility (lumbar flexes, thoracic rotates).\n\n  • proto — the BODY. sex ('male'|'female'); height; weight (ONE dial for how heavy the figure reads — distributed, not uniform: the middle gains most and goes forward, the wrist barely moves; distinct from pose.weight, which is balance); stockiness (uniform girth); headScale (skull size — the child↔adult lever, >1 = bigger head / younger read); per-region multipliers (1 = canonical): chestWidth, chestDepth / pelvisDepth (the torso's fore/aft alone), bellyDepth / bellyDrop (a forward gut, and where it sits), gluteRear / hipFlare (rear projection and the hip's own flesh), bicep, forearm, quad, calf, armWidth / thighWidth (the limbs' LATERAL breadth \u2014 bicep and quad are fore/aft only), tricep / hamstring / adductor (where gained weight sits, as against where muscle sits), deltoid / elbowCap, forearmDrop / calfDrop (where the distal belly sits \u2014 the axis a calf is read on), wristGirth / ankleGirth, gluteSize, pecProjection, waistTuck, etc., and the head's browRidge, jawWidth, chinPoint, noseSize, noseWidth, noseDroop, cheekbone, cheek, foreheadSlope, neckGirth. The same dials morph a body lean↔heavy, male↔female, adult↔child.\n\n  • cast — PROPORTIONS. Rest limb/segment lengths as multipliers, applied at the armature level before the body is built: upperArm, forearm, thigh, shank, lumbar, thoracic, neck, skull, shoulderSpan, hipSpan (plus the groups arm/leg/limb/torso), or a preset name (${CAST_PRESET_NAMES.join(' | ')}) that resolves to those numbers at mint. This is what makes a figure long-limbed, stubby, broad-shouldered or a mascot — proto changes girth, cast changes proportion.\n\n  • fluffs — the STYLIZED body register (replaces proto when present): a chunky zdog-style body from a closed set of named simple volumes (cone/football/bead/bell/slab) bound to armature segments, composed by superposition — girth contrast by default (huge distal masses on thin connectors: action-figure / mega-boy / mecha, e.g. a Mega-Man buster is a football with an open mouth). Garments still track it.\n\n  • garment — clothing over the body (it tracks the pose + body for free; svgile-row bespoke tailoring — the body's own geometry is the tape measure, so body-relative cuts/panels/seams fit any form). One of skinSuit, wetsuit, tee, tank, dress, vest, fittedShirt, oversizedShirt, trousers (slim|baggy), skirt, jacket (cut|allCut|paneled) — or an INLINE wardrobe-piece spec ({ id, pieces, cuts?, … }: a piece authored as data, its mugen clearance = its looseness) — or an ARRAY mixing keys/specs to LAYER (e.g. ['tank', {…}, 'jacketCut']), or null = bare.\n\nSkin seam: pull `get_skin_packet({ ref })` to paint the figure's filled ?control=1 scaffold and bind it with `skin_polygomer` — the figure then WEARS the paint deterministically at /skin.png.\n\n  • view — camera: 'frontal' | 'three-quarter' | 'lateral' | 'left' | 'back', or a number (azimuth degrees; 0 = front).\n\n  • setup — the STUDIO (backdrop + material + lighting + render mode), separate from the body dials: 'studio-grey' (default neutral lit study), 'white-cyc' (high-key white), or 'blueprint-wire' (a cyan ring-wave WIREFRAME on blueprint blue — the construction view to verify a region before trusting the filled render). Omit for the default lit look.\n\nMotion: pass motion:'walk' to also render a looping walk-cycle GIF into the sketch's outcome folder (returned as gifUrl); the walk is a real weight-shifting gait — the stance foot plants and the centre of mass transfers over it, with a live spine counter-rotation. Tune it with motion:{ gait:{ strideLength, armSwing, swingLift, weightShift, ... } }. `animate:false` skips it; `animate:{frames,fps}` tunes the GIF.\n\nWorkflow: mint it, open the URL (or rasterize the svgUrl) to SEE the pose, then ITERATE IN PLACE — read the stored manifest and write the adjusted dials back with `update_sketch { ref, manifest }` (full replace, validated by the render contract: joint LIMITS still clamp, a bad edit is refused and the stored recipe never moves). Re-mint only for a VARIANT you want side by side. Persisted with kind `figure`; the /api/sketches/<ref>/svg route renders the still SVG. Returns { ok, ref, url, svgUrl, gifUrl? }. (Contrast: a flat diagram → create_sketch; a metal wordmark → create_carved_solid; a manji-tree subject in motion → forge_motion.)",
-    inputSchema: {
-      type: 'object',
-      required: ['title'],
-      properties: {
-        title: { type: 'string', description: 'Title for the figure sketch.' },
-        pose: {
-          type: 'object',
-          description: 'Per-joint degrees of freedom. arms: shL/shR {yaw,pitch,roll} (roll = axial/external rotation — e.g. rolls a bent forearm UP for a wave), elbowL/elbowR (0-150); legs: hipL/hipR {yaw,pitch,roll} (roll = thigh axial/external rotation — rolls a bent knee/foot out, e.g. to step around), kneeL/kneeR (0-150), ankleL/ankleR (+ dorsiflex/toe-up … − plantarflex/toe-down, ≈ ±40), toeL/toeR (MTP/ball joint, 0-55, + = toes bend up over the ball for toe-off); WRIST: wristL/wristR {flex (±75, the hand bends at the wrist — the arm-mirror of the ankle), deviation (±30, radial/ulnar tilt)}, fingersL/fingersR (knuckle/MCP curl, 0-90, + = fingers close toward the palm — the hand-mirror of the toe); pelvis (transverse pelvic rotation, deg, + = right hip forward); shoulders (transverse shoulder-girdle rotation, deg, + = right shoulder forward — the upper mirror of pelvis); head {yaw,pitch}; spine {sagittal,lateral,axial} each -1..+1 (sagittal +flex/−arch, lateral side-bend, axial twist).',
-          properties: {
-            shL: { type: 'object', properties: { yaw: { type: 'number' }, pitch: { type: 'number' }, roll: { type: 'number' } } },
-            shR: { type: 'object', properties: { yaw: { type: 'number' }, pitch: { type: 'number' }, roll: { type: 'number' } } },
-            elbowL: { type: 'number' }, elbowR: { type: 'number' },
-            hipL: { type: 'object', properties: { yaw: { type: 'number' }, pitch: { type: 'number' }, roll: { type: 'number' } } },
-            hipR: { type: 'object', properties: { yaw: { type: 'number' }, pitch: { type: 'number' }, roll: { type: 'number' } } },
-            kneeL: { type: 'number' }, kneeR: { type: 'number' },
-            ankleL: { type: 'number' }, ankleR: { type: 'number' },
-            toeL: { type: 'number' }, toeR: { type: 'number' },
-            wristL: { type: 'object', properties: { flex: { type: 'number' }, deviation: { type: 'number' } } },
-            wristR: { type: 'object', properties: { flex: { type: 'number' }, deviation: { type: 'number' } } },
-            fingersL: { type: 'number' }, fingersR: { type: 'number' },
-            pelvis: { type: 'number' }, shoulders: { type: 'number' },
-            head: { type: 'object', properties: { yaw: { type: 'number' }, pitch: { type: 'number' } } },
-            face: { type: 'object', description: 'The head FIELD dials (not a joint): jaw (deg, 0-30, opens the jaw about the condyle hinge — chin swings down and back), mouth (0-1 lip slot, default follows the jaw), brow (-1..1 lowers/raises the brow ridge).', properties: { jaw: { type: 'number' }, mouth: { type: 'number' }, brow: { type: 'number' } } },
-            spine: { type: 'object', properties: { sagittal: { type: 'number' }, lateral: { type: 'number' }, axial: { type: 'number' } } },
-          },
-        },
-        proto: {
-          type: 'object',
-          description: 'Body tuning. sex (male|female); height (overall scale); WEIGHT (one number for how heavy the figure reads — it distributes across the region dials the way a body actually carries mass: belly first and forward, hips and thighs next, the waist un-tucking, the wrist barely at all, so it is NOT stockiness. Every region dial you set multiplies on top. NOTE: `pose.weight` is a different thing — which foot the figure stands over); stockiness (uniform girth about every centerline); headScale (skull size about the neck join — the dominant child↔adult cue: >1 enlarges the cranium so the body reads fewer "heads tall" = younger); per-region multipliers (1 = canonical): chestWidth (the ribcage CROSS-SECTION, breadth and depth together), chestDepth / pelvisDepth (the fore/aft ALONE on top of it — chestWidth 1.4 with chestDepth 0.71 is broad AND flat, unreachable before), pecProjection, bicep, forearm, quad, calf, waistTuck, scapulaBun, footLength, handSize; the LIMBS\' own axes \u2014 armWidth / thighWidth (LATERAL breadth, which bicep and quad do not reach: both are fore/aft lobes, so without these a heavy arm or thigh is exactly as wide from the FRONT as a lean one), tricep and hamstring / adductor (the posterior and medial lobes \u2014 where gained weight goes, as against the anterior bicep/quad where muscle goes), deltoid / elbowCap (the joint caps, so limbs do not inflate while their joints hold still); the DISTAL limb \u2014 forearmDrop / calfDrop (WHERE the belly sits along the segment, 0 = canonical: the crest was frozen for every dial and every weight, and a calf is read on it \u2014 + slides it toward the hand/foot, and the calf\u2019s upward travel is bounded by the knee), wristGirth / ankleGirth (the terminal joints\u2019 own thickness, which nothing reached); the STOMACH — bellyFill (the TRUNK\'s own swell around the navel, 0 = canonical — the belly you usually want, one continuous profile) + dantien (the separate lower-belly mass) + bellyDepth (that mass\'s fore/aft; bounded by the proportional seat, so past a point it buries rather than protrudes) + bellyDrop (where it sits, as a fraction of its own height; + = low-slung, − = barrel); the HIPS — gluteSize (whole mass) + gluteRear (rear projection alone, the shelf↔flat axis in the lateral) + hipFlare (the hip cap\'s own flesh); head: browRidge, jawWidth, chinPoint, noseSize, noseWidth (the alae), noseDroop (the hook), cheekbone, cheek (the soft cheek — rounds the face), foreheadSlope, neckGirth (on top of the sex pole\'s skull).',
-          properties: {
-            sex: { type: 'string', enum: ['male', 'female'] },
-            height: { type: 'number' }, weight: { type: 'number' }, stockiness: { type: 'number' }, headScale: { type: 'number' },
-            chestWidth: { type: 'number' }, chestDepth: { type: 'number' }, pelvisDepth: { type: 'number' }, pecProjection: { type: 'number' }, waistTuck: { type: 'number' },
-            bicep: { type: 'number' }, forearm: { type: 'number' }, quad: { type: 'number' }, calf: { type: 'number' },
-            armWidth: { type: 'number' }, tricep: { type: 'number' }, thighWidth: { type: 'number' },
-            hamstring: { type: 'number' }, adductor: { type: 'number' }, deltoid: { type: 'number' }, elbowCap: { type: 'number' },
-            forearmDrop: { type: 'number' }, wristGirth: { type: 'number' }, calfDrop: { type: 'number' }, ankleGirth: { type: 'number' },
-            dantien: { type: 'number' }, bellyDepth: { type: 'number' }, bellyDrop: { type: 'number' }, bellyFill: { type: 'number' },
-            gluteSize: { type: 'number' }, gluteRear: { type: 'number' }, hipFlare: { type: 'number' }, scapulaBun: { type: 'number' }, footLength: { type: 'number' }, handSize: { type: 'number' },
-            browRidge: { type: 'number' }, jawWidth: { type: 'number' }, chinPoint: { type: 'number' }, noseSize: { type: 'number' }, noseWidth: { type: 'number' }, noseDroop: { type: 'number' }, cheekbone: { type: 'number' }, cheek: { type: 'number' }, foreheadSlope: { type: 'number' }, neckGirth: { type: 'number' },
-          },
-        },
-        cast: {
-          type: ['string', 'object', 'array'],
-          description: `PROPORTIONS — rest limb/segment lengths, cast at the armature level before the body is built (so the flesh, the balance IK, the garments and the exported rig all follow). A preset name (${CAST_PRESET_NAMES.join(' | ')}), a dial object, or an array mixing them (merged left → right: ['brute', { forearm: 1.3 }]). Dials are multipliers on the canonical length, 1 = canonical: ${CAST_KEYS.join(', ')}; plus the groups ${CAST_AGGREGATE_KEYS.join(', ')}. Presets resolve BY VALUE at mint, so the stored recipe carries the numbers to nudge. Proportion only — girth is proto.stockiness + the region dials, overall size is proto.height, and head SIZE is proto.headScale (cast.skull is the armature bone under it).`,
-        },
-        fluffs: {
-          type: 'array',
-          description: `STYLIZED body register (the "fluff" vocabulary) — REPLACES \`proto\` when present. A chunky zdog-style body built from a CLOSED set of named simple volumes bound to armature segments/nodes, composed by superposition (girth contrast by default: huge distal masses on thin connectors — the action-figure / mega-boy / mecha read). Garments still track it. Each entry: { shape, segment|node, id?, bias?{x,y,z}, hex?, ...dials }. Shapes (${FLUFF_SHAPE_NAMES.join(' | ')}): 'cone' binds a segment [proximal,distal], dials girth + taper (taper>1 = FLARE, a boot); 'football' binds a segment, dials girth + peak (belly position) + mouth (distal flat truncation 0-0.95, the cuff / OPEN arm-cannon); 'bead' binds a node, dials r + peak (0=sphere→1=cone/crest) + squash; 'bell' binds a segment, dials girth + mouth (wide distal radius, chest/skirt); 'slab' binds a segment, dials girth + depth + n (superellipse, ↑=boxier) + taper (torso plate, foot). Segments/nodes name two/one of the 17 LANDMARKS: headTop, headBase, neckHub, navel, pelvisHub, shoulderL/R, elbowL/R, wristL/R, hipL/R, kneeL/R, ankleL/R. Example Mega-Man arm: { shape:'football', segment:['elbowR','wristR'], girth:0.05, peak:0.7, mouth:0.5 } (open buster). Omit fluffs → anatomical proto body.`,
-          items: { type: 'object' },
-        },
-        garment: { type: ['string', 'object', 'array', 'null'], description: `Clothing over the body (tracks pose + build, body-relative cuts/panels/seams carve to fit any form): a wardrobe key (${GARMENT_KEYS.join(' | ')}), an INLINE wardrobe-piece spec ({ id, color?{cloth,under}, pieces:[{ fit: hug|hull|drape|radial|pelvis|torso|shoulders|sleeve|sash, coverage?, clearance?, thickness?, basin?, anchor? }], cuts?:[{kind: wedge|band|capsule|hole|halfspace|neck|armhole, …}], panels? }) — the piece's mugen clearance IS its looseness (slim vs baggy is only the number), an ARRAY mixing keys and specs to LAYER them (e.g. ['tank', {…dreamPants}, 'jacketCut']), or null = bare.` },
-        outfit: { type: ['string', 'object', 'null'], description: `Dress by TIERS instead of \`garment\` (one or the other; \`garment\` stays the lowered form): a named outfit from the attached recipe book, or { fit?: ${OUTFIT_FIT_NAMES.join(' | ')}, layers: [...] } inner → outer where a layer is a wardrobe key, { garment: <key | book garment | inline spec>, dials?, cloth?, ease_cm? } (dials need a fit:'pattern' garment: hem, length, ease_bust_cm…), or an inline spec. Book names resolve by value at mint. See the wardrobe-construction card §7.` },
-        view: { description: "Camera: 'frontal' | 'three-quarter' | 'lateral' | 'left' | 'back', or a number (azimuth degrees, 0 = front)." },
-        motion: { type: ['string', 'object'], description: "Optional motion → looping GIF. One vocabulary (the phase→dof analog of `pose`): 'walk' = the default parameterized walk cycle (a real weight-shifting gait: the stance foot plants, the COM transfers); 'sprint' (alias 'run') = a sprinter's stride — a flight phase (both feet airborne), single-foot contact, hard forward lean, high knee drive, 90° arm pump; 'wave' = a tilt then a right-hand wave; { walk: { strideLength, cross, stepFlare, stepRoll, pelvisRot, shoulderRot, stanceKnee, swingLift, armSwing, elbowBase, elbowSwing, handCurl, wristGive, hipSway, spineTwist, weightShift, headLevel, lean, headTilt, cadence } } = tune the walk dials (handCurl = relaxed finger curl so the hands aren't flat boards; wristGive = the wrist flexes with the arm swing; (pelvisRot = transverse pelvic rotation, the swing-side hip leads each step — a determinant of natural gait, on by default; shoulderRot = the upper mirror, the shoulder girdle contra-rotates against the pelvis; weightShift = how much the body lists onto the bearing leg; lean = forward trunk slouch; headTilt = forward head — e.g. lean+headTilt+loose limbs reads as a 'shaggy' amble; cross = lateral crossover, the stepping foot swings toward/over the midline as it plants — 0 = normal hip-width sagittal walk, ≈0.10 lands the foot on the centerline, >0.10 scissors it past for a catwalk/runway crossover; stepFlare/stepRoll = crossover CLEARANCE, the swinging back foot circumducts — flares the hip out (stepFlare, ratio of the abduction to the crossover) and rolls the knee out (stepRoll, deg) — to maneuver AROUND the planted ankle instead of colliding with it, auto-gated so a plain walk is untouched; omit any → its default); { sprint: { strideLength, hipDrive, swingTuck, armSwing, armBack, elbowBend, lean, dutyFactor, flightLift, ... } } = tune the run (hipDrive = thigh/high-knee lift, armBack = backward arm drive, dutyFactor < 0.5 → longer flight, flightLift = airborne rise); { keyframes: [pose, …], loop } = author a CUSTOM motion as a list of poses — each `pose` is exactly a `pose` spec (same dials), eased between in order. Also accepts a named EMOTE (nod / headshake / bow / shrug / cheer / point / clap / think, or { emote, intensity }) — see emote_figure. Any form may add { perform: { exaggerate, anticipation, followThrough, idle } } to overlay the animation principles (limb lag, wind-up, breathing)." },
-        setup: {
-          type: ['string', 'null'],
-          enum: [...FIGURE_SETUP_NAMES, null],
-          description: "Studio SETUP — backdrop + material + lighting + render mode, so the figure need not always be the default grey lit study. 'studio-grey' (neutral grey, lit) | 'white-cyc' (high-key seamless white, lit) | 'blueprint-wire' (deep blue ground, cyan ring-wave WIREFRAME — a construction/verification view, no fill). Omit → the default lit studio look (≈ studio-grey).",
-        },
-        background: { type: 'boolean', description: 'Light backdrop (default true; false → transparent). A setup supplies its own ground; background:false still forces transparency for the still SVG.' },
-        animate: { type: ['boolean', 'object'], description: 'Motion GIF control. Omit → auto (GIF when motion is set); false → still only; { frames, fps } → tune.' },
-        ref: { type: 'string', description: 'Optional explicit sketch ref (1-64 chars [A-Za-z0-9_-]).' },
-        folder_ref: { type: 'string', description: 'Optional sketch folder to file under.' },
-        dream_audit: {
-          type: 'object',
-          description: "Character-from-dream PROVENANCE (the machine gate). Provide ONLY when this figure was reconstructed from an image worker's dreamed reference (a character sheet / exploded garment pieces you actually generated and READ). Attests the dream really happened: { source: 'native' (your own image generation) | 'local:<detail>' (e.g. 'local:comfyui@127.0.0.1:8188'), invoked_generator: true (REQUIRED — a figure tuned from imagination, not a dreamed reference, must NOT set this), prompt: '<the brief you dreamed>', and one generation id: job_id | image_sha256 | seed | token; optional notes: what the dream dictated vs. what the vocabulary could reach }. A malformed audit or invoked_generator≠true is REFUSED. Omit for an ordinary (imagined) figure — the dreamed pixels are discarded either way; only this attestation persists as provenance.",
-        },
-      },
-    },
-    handler: createFigureHandler,
-  });
-
-  registerTool({
-    name: 'emote_figure',
-    description:
-      "Make a stored figure EMOTE — apply a named body-language emote to an existing kind `figure` sketch and render it as a looping GIF beside the sketch, leaving the stored recipe untouched. Reach for this on \"make the figure nod/bow/shrug…, have them emote/react/gesture\". Emotes: nod, headshake, bow, shrug, cheer, point, clap, think — keyframe recipes over the posing engine, wrapped in the animation-principles layer so a held beat still breathes; `intensity` pushes every pose bolder (1 = as authored). `mint:{ref?,title?}` instead derives a NEW figure sketch carrying the emote as its motion — reusable in any world via the figures-map `figureRef`. Returns { ok, ref, emote, gifUrl }.",
-    inputSchema: {
-      type: 'object',
-      required: ['ref', 'emote'],
-      properties: {
-        ref: { type: 'string', description: "Ref of an existing kind 'figure' sketch." },
-        emote: { type: 'string', enum: EMOTE_NAMES, description: 'The named emote to perform.' },
-        intensity: { type: 'number', description: 'Exaggeration push in (0, 3]; 1 = as authored, >1 bolder.' },
-        view: { description: "Camera override: 'frontal' | 'three-quarter' | 'lateral' | 'left' | 'back', or azimuth degrees." },
-        animate: { type: 'object', description: 'GIF control: { frames, fps } (defaults 30 / 18).' },
-        mint: { type: ['boolean', 'object'], description: 'Mint a DERIVED figure sketch carrying the emote as its motion instead of a side GIF: true or { ref?, title? }.' },
-      },
-    },
-    handler: emoteFigureHandler,
-  });
 }

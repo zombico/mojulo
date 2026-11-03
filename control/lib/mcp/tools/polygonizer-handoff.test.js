@@ -159,7 +159,7 @@ describe('get_polygonizer_packet — the key-free packet half', () => {
     expect(packet.instructions).toContain('polygonizer');
     expect(packet.userPrompt).toContain(PROMPT);
     expect(packet.schema).toEqual(POLYGONIZER_SCHEMA);
-    expect(packet.submit).toContain('submit_polygonizer_manifest');
+    expect(packet.submit).toContain('mint_solid({ kind: "manji-tree", via: "packet"');
     expect(Array.isArray(packet.classification.cards) || packet.classification.cards === 'all').toBe(true);
   });
 

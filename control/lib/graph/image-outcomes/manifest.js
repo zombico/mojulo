@@ -587,7 +587,7 @@ export function normalizeKeyframeAnimationManifest(input) {
     throw new Error(
       `keyframe-animation motion '${input.motion}' is not a known motion. Use one of: `
       + `walk, wave, stretch, sprint, an emote (nod/headshake/bow/shrug/cheer/clap/point/think), `
-      + `or an object { keyframes: [pose, …] } where each pose is create_figure joint dials `
+      + `or an object { keyframes: [pose, …] } where each pose is figure joint dials (mint_solid kind figure) `
       + `(numbers per joint — e.g. { elbowR: 120, spine: { axial: 0.2 } } — NOT prose).`
     );
   }
@@ -597,7 +597,7 @@ export function normalizeKeyframeAnimationManifest(input) {
   if (input.poses != null || (typeof input.motion !== 'object' && input.keyframes != null)) {
     throw new Error(
       "keyframe-animation: authored key poses go in motion, not a top-level field — "
-      + "pass motion: { keyframes: [pose, …] } (each pose = create_figure joint dials). "
+      + "pass motion: { keyframes: [pose, …] } (each pose = figure joint dials, mint_solid kind figure). "
       + "A top-level `poses`/`keyframes` field is not part of the manifest and would be ignored."
     );
   }

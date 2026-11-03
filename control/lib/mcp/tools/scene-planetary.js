@@ -87,7 +87,7 @@ export function mintPlanetary({ title, subject, seed, stars, sunU, sunH, sun, su
 
 export async function createPlanetaryHandler(input) {
   if (!input || typeof input !== 'object') {
-    throw new Error('create_planetary requires a recipe object');
+    throw new Error('compose_world({ base: "planetary" }) requires a recipe object');
   }
   const { title, subject, seed, stars, sun_u: sunU, sun_h: sunH, sun, sun_size: sunSize, sun_glow: sunGlow, obliquity, mandala, continents, blanket, relief, relief_scale: reliefScale, atmosphere, clouds, moon, moon_angle: moonAngle, moon_scale: moonScale, night_fill: nightFill, datetime, live, viewBox, ref, folder_ref: folderRef } = input;
   return mintPlanetary({ title, subject, seed, stars, sunU, sunH, sun, sunSize, sunGlow, obliquity, mandala, continents, blanket, relief, reliefScale, atmosphere, clouds, moon, moonAngle, moonScale, nightFill, datetime, live, viewBox, ref, folderRef });

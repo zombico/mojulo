@@ -213,14 +213,14 @@ describe('capture_reference — landscape', () => {
     expect(sketch.manifest.splatch).toBe('dusk-trio');
     expect(sketch.manifest.scene).toBe('pine-forest');
 
-    // The recipe (the "mandala map") is stored back as insights for create_painted_landscape.
+    // The recipe (the "mandala map") is stored back as insights for the painted-landscape base.
     const full = StashRepository.getFull(res.stash_ref);
     const item = full.items.find((it) => it.id === res.item_id);
     expect(item.metadata.reference_target).toBe('landscape');
     expect(item.metadata.insights.heartbeat).toBe('gentle-pulse');
     expect(item.metadata.insights.gesture).toMatch(/rolling hills/);
-    // The next-step guidance hands back a create_painted_landscape replay.
-    expect(res.next).toMatch(/create_painted_landscape/);
+    // The next-step guidance hands back a painted-landscape replay through compose_world.
+    expect(res.next).toMatch(/compose_world\(\{ base:'painted-landscape'/);
   });
 
   it('rejects an unknown glyph pick (closed vocabulary)', async () => {

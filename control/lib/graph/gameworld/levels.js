@@ -22,6 +22,7 @@
  *
  * Pure (the stage is assembled to read its ends; nothing is stored).
  */
+import { errandLegs, layErrand } from './errand.js';
 import { readGameworld, resolveLevel, looksOfKit } from './world.js';
 import { rollArt, ART_KITS, ART_ITEMS } from '../era/art-direction.js';
 import { solvePalette, fingerprint as printOf } from '../color-theorist/solve.js';
@@ -828,6 +829,8 @@ export function mapPlan(G, stages, refs) {
     plan[first].back.push({ to: refs[last] });
     if (l.key) { const at = of(l.keyAt); plan[at[at.length - 1]][slice === 'powers' ? 'powers' : 'keys'].push(l.key); }
   }
+  // the errands' legs on each level's last stage (errand.js): its trades and bounties, the giver's hand-in, the cargo
+  for (const id of G.ids) { const ix = of(id); if (ix.length) plan[ix[ix.length - 1]].errand = errandLegs(G.errands, id); }
   for (const p of plan) {
     p.on.forEach((w, j) => { w.id = j ? `on-${j + 1}` : 'on'; });
     p.back.forEach((w, j) => { w.id = j ? `back-${j + 1}` : 'back'; });
@@ -866,6 +869,13 @@ function stageWays(stage, ends, plan) {
       if (row.length) mechanics.push({ kind: 'collect', into, pickups: row.map((f) => ({ item: f.item, at: at(f.j), radius: 1.6 })) });
     }
   }
+  // the errands' legs (errand.js), each on a beat of its own, past the ways' and the keys'
+  if (plan.errand?.length) {
+    const free = ends.beats.filter((b) => b.beat !== 'exit' && b.beat !== 'trailhead' && !extra.some((_, j) => side[j] === b));
+    const taken = new Set([...extra.map((_, j) => side[j]), ...(found.length ? [free[Math.floor(free.length / 2)]] : [])]);
+    const spots = free.filter((b) => !taken.has(b)).map((b) => b.at);
+    mechanics.push(...layErrand(plan.errand, spots));
+  }
   return { mechanics, arrive, exits: [...plan.on, ...plan.back].map((w) => ({ id: w.id, to: w.to, ...(w.gate ? { gate: w.gate } : {}) })) };
 }
 
@@ -883,6 +893,8 @@ export function gameStore(world, book) {
   // a map world whose doors are keyed carries the items in a bag and the hero's powers in `powers`
   const pk = new Set(powerKeys(G).map((p) => p.id));
   if (G.topology === 'interconnected' && G.links.some((l) => l.key && !pk.has(l.key))) slices.push({ name: 'bag', kind: 'inventory' });
+  // a world with errands carries what they fetch in the bag (errand.js)
+  else if (G.errands?.length) slices.push({ name: 'bag', kind: 'inventory' });
   // a level whose goal collects picks up into the bag (its own goal: quick.js levelGoalMechanics)
   else if (G.ids.some((id) => G.levels[id].goal?.collect)) slices.push({ name: 'bag', kind: 'inventory' });
   if (pk.size) slices.push({ name: 'powers', kind: 'inventory' });
