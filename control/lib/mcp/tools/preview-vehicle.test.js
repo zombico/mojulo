@@ -6,13 +6,16 @@ import { buildsOf } from '@/lib/graph/vehicle-registry/builds';
 import { resolveWorldScene } from '@/lib/graph/worlds/world-scene';
 import { MILITARY_CLASSES } from '@/lib/graph/car-designer/road-military';
 import { CAMO_IDS } from '@/lib/graph/car-designer/livery-cut';
+import { CYCLE_LOOKS } from '@/lib/graph/cycle-shelf/cycle-looks';
 
 // rows chosen in code by what they carry: a scenery net named by a word that is not its key, the racer grammar,
 // and a row the studio grid has no build of
 const ids = Object.keys(VEHICLES);
 const scenery = ids.find((id) => handlesOf(id).scenery && !handlesOf(id).scenery.includes(id) && !handlesOf(id).racer);
 const racer = ids.find((id) => handlesOf(id).racer);
-const unseen = ids.find((id) => buildsOf(id).every((b) => !['scenery', 'racer', 'supercar', 'loft'].includes(b.via)));
+const unseen = ids.find((id) => buildsOf(id).every((b) => !['scenery', 'racer', 'supercar', 'loft', 'cycle'].includes(b.via)));
+// a machine ridden astride, its only body the cycle shelf's
+const cycled = ids.find((id) => buildsOf(id).some((b) => b.via === 'cycle') && !buildsOf(id).some((b) => ['scenery', 'racer', 'supercar', 'loft'].includes(b.via)));
 // a road class with no net, its only body the realistic loft
 const lofted = ids.find((id) => buildsOf(id).some((b) => b.via === 'loft') && !buildsOf(id).some((b) => ['scenery', 'racer', 'supercar'].includes(b.via)));
 
@@ -52,6 +55,19 @@ describe('mint_solid vehicle: the registry is the way in', () => {
     const row = SketchRepository.getByRef(out.ref);
     const { payload } = await resolveWorldScene({ ref: row.ref, title: row.title, manifest: row.manifest });
     expect(payload.title).toMatch(/a loft/);
+  });
+  it('mints a machine ridden astride as its cycle shelf machine, dressed by a look, and refuses a look on any other build', async () => {
+    const archetype = handlesOf(cycled).cycle[0], look = Object.keys(CYCLE_LOOKS).find((k) => k !== 'stock');
+    expect(readVehicleWord({ vehicle: cycled })).toMatchObject({ instance: { cycle: { archetype } }, id: cycled, tier: 'realistic' });
+    const out = await previewVehicleInstanceHandler({ vehicle: VEHICLES[cycled].label, look, title: 'a cycle' });
+    const row = SketchRepository.getByRef(out.ref);
+    expect(row.manifest).toMatchObject({ vehicle: cycled, cycle: { archetype, look } });
+    expect(out.stats).toMatchObject({ family: 'cycle', archetype, laws: true });
+    expect(out.registry).toMatchObject({ id: cycled, tier: 'realistic', build: 'cycle' });
+    const { payload } = await resolveWorldScene({ ref: row.ref, title: row.title, manifest: row.manifest });
+    expect(payload.title).toMatch(/a cycle/);
+    await expect(previewVehicleInstanceHandler({ vehicle: VEHICLES[lofted].label, look })).rejects.toThrow(/a look dresses a machine ridden astride/);
+    await expect(previewVehicleInstanceHandler({ vehicle: cycled, look: 'tartan' })).rejects.toThrow(/expected one of: stock/);
   });
   it('carries a field vehicle\'s livery and wear in its loft\'s recipe, and refuses them on a build their words do not paint', async () => {
     const field = ids.find((id) => (handlesOf(id).physics ?? []).some((k) => MILITARY_CLASSES[k]) && buildsOf(id).some((b) => b.via === 'loft'));

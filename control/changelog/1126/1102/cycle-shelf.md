@@ -170,3 +170,32 @@ astride and steers by a bar.
     - The deep sweep assembles every machine under its budget.
   - **Seen** (machine gate only; the eyes gate is open): every machine from the side and the three quarters.
   - **Moved:** the ATV waits for the trike axle (Phase 5), where a machine's wheels first stand side by side.
+- **The doors: the cycles shown and parked** (`cycle-shelf/cycle-figure.js`):
+  - **On the studio grid.** `mint_solid({ kind: 'vehicle', spec: { vehicle: 'dirt bike' } })` draws the row's cycle
+    shelf machine (a bicycle's at `tier: 'realistic'`; its stylised build is the city's cyclist).
+    - A cycle is a family-layer instance like a loft (`meta-fabricator.js`, the `vehicle-instance` kind): `cycle:
+      { archetype, look?, pose? }`, its stored recipe its words, regenerated on every read.
+    - A `look` beside the word dresses it, and is refused on any other build.
+    - The readout says its archetype, its wheel layout, its measures and whether its laws hold.
+  - **Parked in a level.** A manifest's `parked` takes a machine ridden astride, standing on its stand: a rig figure,
+    the machine its root and each wheel a bone, centred along its length, leaning onto its stand, solid over its
+    class's footprint.
+    - A `look` dresses a parked cycle and is refused on a car.
+    - A machine that cannot stand parked (a grand prix bike has no stand) is refused.
+  - **The world draws a cycle figure** (`world-scene.js`, a figures-map entry's `cycle`). Absent, byte-identical.
+  - **The cycle build is live:** the studio grid shows it and a level parks it. The upscale ledger counts every cycle
+    row realistic.
+  - **The words:**
+    - the `vehicles` card says a cycle row's wheel layout and that a look dresses it;
+    - the `vehicle` card names the machines, their looks and poses, the `cycle` family and a parked cycle's `look`;
+    - the routing card says a motorcycle, scooter or bicycle is the cycle shelf's.
+  - **The looks, fixed in passing:** military and blackout paint their bright metal over (a metal's finish draws in
+    its own colour, so the frame stayed bright).
+  - **Held:**
+    - `cycle-figure.test.js`: on the grid; in a level, the root and a bone a wheel, a wheelbase apart, centred, leaning
+      on its stand, the same twice; upright when its pose says so; the words it refuses.
+    - `preview-vehicle.test.js`: a cycle minted and dressed and drawn by the world route, a look refused on a loft
+      and an unknown look named.
+    - `parked.test.js`: a cycle parked dressed, its figure's recipe, its box; a machine that cannot stand refused; a
+      look refused on a car; a level drawing its figure.
+    - Every other door's bytes held: no pin moved.

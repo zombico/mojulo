@@ -4,7 +4,7 @@
  * laws. The machine gate's eyes are the operator's: this draws, it does not judge. No database writes.
  *
  * From control/:
- *   node scripts/render-cycles.mjs <output-directory> [archetype,…|all] [--views side,quarter,front,top,rear] [--pose '{"stand":"down","steer":20}']
+ *   node scripts/render-cycles.mjs <output-directory> [archetype,…|all] [--views side,quarter,front,top,rear] [--pose '{"stand":"down","steer":20}'] [--look police]
  * Writes <archetype>-<view>.png, the pages and index.html.
  */
 import { mkdirSync, writeFileSync } from 'node:fs';
@@ -26,12 +26,13 @@ if (!output) { console.error('Usage: node scripts/render-cycles.mjs <output-dire
 const flag = (k) => { const i = args.indexOf(k); return i >= 0 ? args[i + 1] : null; };
 const views = (flag('--views') || 'side,quarter,front,top').split(',');
 const pose = flag('--pose') ? JSON.parse(flag('--pose')) : {};
+const look = flag('--look') ?? undefined;
 const pick = args[1] && !args[1].startsWith('--') && args[1] !== 'all' ? args[1].split(',') : Object.keys(CYCLE_ARCHETYPES);
 const outDir = path.resolve(output); mkdirSync(outDir, { recursive: true });
 const width = 960, height = 600;
 let gallery = '';
 for (const id of pick) {
-  const { manifest, readout } = assembleCycle(id, { pose });
+  const { manifest, readout } = assembleCycle(id, { pose, ...(look ? { look } : {}) });
   const { payload } = await resolveWorldScene({ ref: id, kind: 'assembler', manifest });
   const faces = payload.faces.filter((f) => !f.studio);
   const tris = faces.reduce((n, f) => n + f.corners.length - 2, 0);

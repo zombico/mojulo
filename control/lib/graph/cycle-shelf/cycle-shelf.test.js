@@ -193,11 +193,11 @@ describe('the drive', () => {
 });
 
 describe('on the registry', () => {
-  it('the row the machine is named by builds it, asleep until a door shows it', () => {
+  it('the row the machine is named by builds it, live: the studio grid shows it and a level parks it', () => {
     const row = Object.keys(VEHICLES).find((id) => handlesOf(id).cycle?.includes(ID));
     expect(row).toBeTruthy();
     expect(resolveVehicle(VEHICLES[row].label).id).toBe(row);
-    expect(buildsOf(row).find((b) => b.via === 'cycle')).toMatchObject({ tier: 'realistic', status: 'asleep' });
-    expect(upscaleOf(row)).toMatchObject({ realistic: 'asleep', via: 'cycle' });
+    expect(buildsOf(row).find((b) => b.via === 'cycle')).toMatchObject({ tier: 'realistic', status: 'live' });
+    expect(upscaleOf(row)).toMatchObject({ realistic: 'live', via: 'cycle' });
   });
 });

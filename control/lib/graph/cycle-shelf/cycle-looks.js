@@ -4,8 +4,8 @@
  *
  *   stock      the archetype's own palette and finish
  *   police     white and blue, its paint gloss
- *   military   matte olive, its paint and castings flat, its chrome blasted steel
- *   blackout   matte black, its chrome blackened
+ *   military   matte olive, its paint and castings flat, its bright metal painted over
+ *   blackout   matte black, its bright metal painted black
  *   classic    cream and maroon, its bright metal mirror chrome
  *
  *   lookCard(id) → the card, or throws naming the looks
@@ -20,8 +20,9 @@ const GLOSS = { preset: 'satin', ambient: 0.46, diffuse: 0.6, specular: 0.42, sh
 export const CYCLE_LOOKS = Object.freeze({
   stock: Object.freeze({ label: 'as built' }),
   police: Object.freeze({ label: 'a police machine\'s white and blue', palette: 'policeWhite', paint: GLOSS }),
-  military: Object.freeze({ label: 'matte olive, its bright metal blasted', palette: 'fieldOlive', paint: MATTE, trim: MATTE, metal: { metal: 'steel', finish: 'blasted' } }),
-  blackout: Object.freeze({ label: 'matte black, its chrome blackened', palette: 'blackout', paint: MATTE, metal: { metal: 'steel', finish: 'blasted' } }),
+  // (a metal finish draws in its metal's own colour: a machine painted over wears paint, so its palette's tint shows)
+  military: Object.freeze({ label: 'matte olive, its bright metal painted over', palette: 'fieldOlive', paint: MATTE, trim: MATTE, metal: MATTE }),
+  blackout: Object.freeze({ label: 'matte black, its bright metal painted black', palette: 'blackout', paint: MATTE, metal: MATTE }),
   classic: Object.freeze({ label: 'cream and maroon, its bright metal chrome', palette: 'classicCream', paint: GLOSS, metal: { metal: 'chrome', finish: 'mirror' } }),
 });
 export const LOOK_IDS = Object.freeze(Object.keys(CYCLE_LOOKS));
