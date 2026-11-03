@@ -65,6 +65,9 @@
  *             it: a level asks for one by name, as { from: <name>, …changes }, or composes its own from the cube's
  *             ingredients; style never changes in a domain (a different style is a different cube)
  *   why       the principles, one line each, carried into the outside's look card for whatever builds next
+ *   wind      (optional) the air over its land (vegetation/wind.js: true or { speed at 2 m, dir, gust, … }): its outside
+ *             levels' wind when a recipe names none, so their plants, grass and cloth sway in it and a physical level's
+ *             blocks, dust and smoke feel the same air (rupa/one-wind.js)
  *   biocube   (optional) what grows on its land (era/biocube.js: a preset id, a document or { from, …changes }): its
  *             streets' flora (show 'town', a domain's street, a recipe's geocube with a trail) unless a recipe names
  *             its own. Absent, a street's land grows nothing, as its island's
@@ -106,6 +109,7 @@
  *   geocubeRegisterOf(manifest)    the crease pass's terms (creases, outline) that cube's register asks for, or null
  *   geocubeEraOf(manifest)         the era (era/eras.js) of the cube a world manifest is painted by, or null
  */
+import { validateTerrainWind } from '../vegetation/wind.js';
 import { SIXTH_GEN, SIXTH_GEN_REFERENCES, SIXTH_GEN_LOOK_IDS, resolveLook } from './sixth-gen.js';
 import { readAvoid, measureAvoid } from './geocube-laws.js';
 import { rampFrom, resample } from './look-facets.js';
@@ -396,7 +400,7 @@ export function cubeBuildings(cube) {
 const HEX = /^#[0-9a-f]{6}$/i;
 const COLOURS = ['stone', 'floor', 'trim', 'accent', 'grass', 'foliage', 'water'];
 const WALLS = ['+x', '-x', '+y', '-y'];
-const KEYS = { id: 1, title: 1, reads: 1, era: 1, target: 1, light: 1, colour: 1, register: 1, contrast: 1, surfaces: 1, inside: 1, outside: 1, why: 1, avoid: 1, buildings: 1, palette: 1, materials: 1, matter: 1, grit: 1, biocube: 1, snow: 1, structures: 1, settlements: 1, domains: 1 };
+const KEYS = { id: 1, title: 1, reads: 1, era: 1, target: 1, light: 1, colour: 1, register: 1, contrast: 1, surfaces: 1, inside: 1, outside: 1, why: 1, avoid: 1, buildings: 1, palette: 1, materials: 1, matter: 1, wind: 1, grit: 1, biocube: 1, snow: 1, structures: 1, settlements: 1, domains: 1 };
 const isObj = (v) => v !== null && typeof v === 'object' && !Array.isArray(v);
 const merge = (a, b) => (isObj(a) && isObj(b) ? Object.fromEntries([...new Set([...Object.keys(a), ...Object.keys(b)])].map((k) => [k, k in b ? merge(a[k], b[k]) : a[k]])) : b === undefined ? a : b);
 const no = (msg) => { throw new Error(`geocube: ${msg}`); };
@@ -511,6 +515,9 @@ export function readGeocube(spec) {
       else { try { readRoleMatter(v, `geocube matter.${k}`); } catch (e) { no(e.message); } }
     }
   }
+  // wind (optional): the air over its land (vegetation/wind.js: speed at 2 m, dir, gust, …), its outside levels' wind unless
+  // a recipe names its own: their plants, grass and cloth sway in it, and a physical level's blocks, dust and smoke feel it
+  if (c.wind !== undefined) { const e = validateTerrainWind(c.wind); if (e.length) no(e.map((x) => x.replace(/^terrain\.wind/, 'wind')).join('; ')); }
   // biocube (optional): what grows on its land, its streets' flora unless a recipe names its own (era/biocube.js)
   if (c.biocube !== undefined) readBiocube(c.biocube);
   // snow (optional): the snow on its land, its trail's stage under it unless a recipe names its own (era/snow.js)
@@ -1164,7 +1171,9 @@ export function withGeocube(manifest) {
     if (Dn !== undefined && Dn !== tr.ground?.dunes) m.trail = { ...(isObj(m.trail) ? m.trail : {}), ground: { ...(isObj(m.trail) ? m.trail.ground ?? {} : {}), dunes: Dn } };
     return { ...m, kit: m.kit ?? low.kit, ...(own && m.shading === undefined && low.meru?.shading ? { shading: low.meru.shading } : {}), ...(own && m.biocube === undefined && cube.biocube !== undefined ? { biocube: cube.biocube } : {}),
       // (and its snow, era/snow.js: the cube's when the recipe names none)
-      ...(own && m.snow === undefined && cube.snow !== undefined ? { snow: cube.snow } : {}) };
+      ...(own && m.snow === undefined && cube.snow !== undefined ? { snow: cube.snow } : {}),
+      // (and its wind, vegetation/wind.js: the cube's when the recipe names none)
+      ...(m.wind === undefined && cube.wind !== undefined ? { wind: cube.wind } : {}) };
   }
   if (m.meru !== undefined) {
     const low = lowerGeocube(cube, 'outside', T?.name, H, Wr);
@@ -1173,7 +1182,7 @@ export function withGeocube(manifest) {
     // follows a trail stands on it, not on the cube's island
     const own = m.meru === true ? {} : m.meru, { tiers: cubeTiers, island: cubeIsland, ...rest } = low.meru;
     const lowMeru = { ...(own.after ? {} : { island: cubeIsland }), ...rest };
-    return { ...low, ...m, kit: low.kit, meru: { ...lowMeru, ...(T && (own.preset !== undefined || own.tiers !== undefined) ? {} : { tiers: cubeTiers }), ...own } };
+    return { ...low, ...m, kit: low.kit, meru: { ...lowMeru, ...(T && (own.preset !== undefined || own.tiers !== undefined) ? {} : { tiers: cubeTiers }), ...own }, ...(m.wind === undefined && cube.wind !== undefined ? { wind: cube.wind } : {}) };
   }
   if (T) no('terrain is the outside\'s: a stage on a geocube takes it with trail or meru');
   if (H !== undefined) no('hour is the outside\'s: a stage on a geocube takes it with trail or meru');

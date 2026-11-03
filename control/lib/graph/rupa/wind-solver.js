@@ -22,15 +22,18 @@
  *
  *   solveWind(elements, windSpec, { wakes?, field?, floor? }) → { batches, simulate, still, reasons }
  *     wakes: the scene's barriers [{ min, max, porosity? }]: they shelter every script alike
- *     an element: { id, kind, place: { min, max }, count? } — kind a preset (KINDS) or { script, ... } its own numbers
+ *     an element: { id, kind, place: { min, max }, count?, height? } — kind a preset (KINDS), a species (vegetation/species.js:
+ *                 a plant by PLANT_FORMS at its height, else its range's middle) or { script, ... } its own numbers
  *     a batch:    { script: 'drift' | 'bend' | 'hang', kind, ids, count, script numbers, instances?, shelter? }
  *                 shelter: each instance's share of the wind behind the scene's barriers (the runtime's blocking law)
  *   bendAt(batch, i, t) → { angle, sway } · hangAt(batch, i, t) → { angle } · instanceOf(batch, i) → [x, y, z]
+ *   PLANT_FORMS, plantKind(kind | species, height), breakSpeed(kind) → the wind at its crown that snaps it
  *   BEND_GLSL, HANG_GLSL: the same formulas for the GPU (drift's is wind-script.js GLSL)
  */
 import { rupaPhysics } from './index.js';
 import { MATTER } from './matter.js';
 import { scriptOf, fallSpeed } from './wind-script.js';
+import { SPECIES } from '../vegetation/species.js';
 
 const G = 9.81, MU = 0.5, TAU_MAX = 0.5, STILL_DEG = 0.5;
 const rad = (deg) => (deg * Math.PI) / 180;
@@ -57,6 +60,38 @@ export const KINDS = Object.freeze({
   sign: { script: 'hang', length: 0.35, area: 0.4, mass: 6, cd: 1.2 },
 });
 
+/**
+ * PLANTS as the solver reads them (a species' kind, vegetation/species.js, at its height): a pole fixed at its foot by
+ * GEOMETRIC SIMILARITY, its trunk a fixed share of its height (`slender`: height over diameter) and its crown's frontal
+ * area a fixed share of its height squared (`crown`, its drag `cd` after its leaves streamline), the crown's drag at the
+ * top. Its base stress then grows as u² and its section and lever together as H³, so the wind that snaps it is the same
+ * at every size: with green wood's strength (`mor`) and these shares about 39 m/s at its crown, as storms break trees of
+ * every size near 42 m/s (Virot et al. 2016). A conifer's dense crown catches more and its wood is weaker: it goes
+ * sooner (about 31 m/s), as it does in storms. A palm's fronds stream out (a small, low-drag crown on a slender trunk:
+ * about a broadleaf's 40 m/s). A culm is hollow (`hollow`: its bore over its diameter), stiffer and stronger than wood,
+ * on a much slenderer stem: it bends far and goes near 32 m/s.
+ */
+export const PLANT_FORMS = Object.freeze({
+  tree: { slender: 40, crown: 0.15, cd: 0.4, E: 9e9, mor: 45e6, density: 750, crownMass: 0.02 },
+  conifer: { slender: 45, crown: 0.12, cd: 0.5, E: 9e9, mor: 40e6, density: 700, crownMass: 0.025 },
+  palm: { slender: 60, crown: 0.03, cd: 0.3, E: 6e9, mor: 40e6, density: 600, crownMass: 0.03 },
+  culm: { slender: 90, hollow: 0.8, crown: 0.03, cd: 0.3, E: 15e9, mor: 120e6, density: 700, crownMass: 0.002 },
+});
+/** A plant of `kind` (a PLANT_FORMS row, or a species' name) `height` metres tall, as a bend kind. */
+export function plantKind(kind, height) {
+  const f = PLANT_FORMS[kind] ?? PLANT_FORMS[SPECIES[kind]?.kind];
+  if (!f) throw new Error(`windSolver: a plant is ${Object.keys(PLANT_FORMS).join(', ')} or a species (${Object.keys(SPECIES).filter((s) => PLANT_FORMS[SPECIES[s].kind]).join(', ')})`);
+  if (!(height > 0)) throw new Error('windSolver: a plant\'s height is metres above 0');
+  const area = f.crown * height * height;
+  return { script: 'bend', form: 'pole', plant: true, length: height, diameter: height / f.slender, ...(f.hollow ? { hollow: f.hollow } : {}), E: f.E, density: f.density, strength: f.mor,
+    crown: { area, cd: f.cd, mass: f.crownMass * area * height } };
+}
+/** The wind at its crown that snaps a plant (or any pole kind): its foot's stress at its strength, σ = M/S. */
+export function breakSpeed(k) {
+  const b = beam(k);
+  return b.strength ? Math.sqrt((b.strength * b.S) / b.moment) : Infinity;
+}
+
 const frac = (x) => x - Math.floor(x);
 const hash = (n) => frac(Math.sin(n * 127.1 + 311.7) * 43758.5453);
 
@@ -65,6 +100,11 @@ const windSpeed = (w, pos, t) => (w ? Math.hypot(...rupaPhysics.windAt(w, pos, t
 const strongest = (w, z) => (w ? w.speed * Math.pow(Math.max(0.5, z) / 10, w.alpha) * (1 + w.gust) : 0);
 
 function kindOf(el) {
+  // a species by name, at the element's height (else the middle of its range)
+  if (typeof el.kind === 'string' && !KINDS[el.kind] && SPECIES[el.kind] && PLANT_FORMS[SPECIES[el.kind].kind]) {
+    const h = el.height ?? (SPECIES[el.kind].heights[0] + SPECIES[el.kind].heights[1]) / 2;
+    return plantKind(el.kind, h);
+  }
   const k = typeof el.kind === 'string' ? KINDS[el.kind] : el.kind;
   if (!k || !['drift', 'bend', 'hang'].includes(k.script)) throw new Error(`windSolver: ${el.id}'s kind is one of ${Object.keys(KINDS).join(', ')} or { script: drift | bend | hang, … }`);
   return k;
@@ -73,12 +113,13 @@ function kindOf(el) {
 // a cantilever's numbers: stiffness, the load it takes per (wind speed)², its base moment per u², its first mode
 function beam(k) {
   const m = k.matter ? MATTER[k.matter] : null, E = k.E ?? m.E, density = k.density ?? m.density, L = k.length;
-  const pole = k.form === 'pole', I = pole ? (Math.PI * k.diameter ** 4) / 64 : (k.width * k.thick ** 3) / 12;
-  const S = pole ? (Math.PI * k.diameter ** 3) / 32 : (k.width * k.thick ** 2) / 6, wide = pole ? k.diameter : k.width;
+  // (a hollow pole, a culm: its bore `hollow` × its diameter; its wall all that bends and all that weighs)
+  const pole = k.form === 'pole', bore = pole && k.hollow ? 1 - k.hollow ** 4 : 1, I = pole ? (Math.PI * k.diameter ** 4 * bore) / 64 : (k.width * k.thick ** 3) / 12;
+  const S = pole ? (Math.PI * k.diameter ** 3 * bore) / 32 : (k.width * k.thick ** 2) / 6, wide = pole ? k.diameter : k.width;
   const halfRho = 0.5 * rupaPhysics.AIR.density, cw = halfRho * 1.2 * wide, cf = k.crown ? halfRho * k.crown.cd * k.crown.area : 0;
   const dU = (cw * L ** 4) / (8 * E * I), dF = (cf * L ** 3) / (3 * E * I);                 // tip deflection per u², each load
   const moment = (cw * L * L) / 2 + cf * L;                                                    // base moment per u²
-  const mBeam = density * L * (pole ? (Math.PI * k.diameter ** 2) / 4 : k.width * k.thick), mTip = k.crown?.mass ?? 0;
+  const mBeam = density * L * (pole ? (Math.PI * k.diameter ** 2 * (k.hollow ? 1 - k.hollow ** 2 : 1)) / 4 : k.width * k.thick), mTip = k.crown?.mass ?? 0;
   const freq = Math.sqrt((3 * E * I) / L ** 3 / (0.2427 * mBeam + mTip)) / (2 * Math.PI);
   const strength = k.strength ?? (m ? (m.tensile || m.compressive) : null);
   return { L, deflect: dU + dF, tipShare: dU + dF > 0 ? dF / (dU + dF) : 0, moment, S, freq, strength, blade: !pole };
@@ -123,7 +164,8 @@ export function solveWind(elements, windSpec, { wakes = [], field = null, floor 
       continue;
     }
     if (k.script === 'bend') {
-      const b = beam(k), ug = strongest(w, top), angle = Math.atan((b.deflect * ug * ug) / b.L), sigma = b.moment * ug * ug / b.S;
+      // (a plant feels the wind at its crown: its foot's height and its own)
+      const b = beam(k), ug = strongest(w, k.plant ? el.place.min[2] - floor + b.L : top), angle = Math.atan((b.deflect * ug * ug) / b.L), sigma = b.moment * ug * ug / b.S;
       if (!b.blade && b.strength && sigma > b.strength) {
         reasons[el.id] = `simulate: the strongest gust (${ug.toFixed(1)} m/s) stresses its foot to ${(sigma / 1e6).toFixed(0)} MPa, past its ${(b.strength / 1e6).toFixed(0)}: it snaps`;
         simulate.push(el.id); continue;

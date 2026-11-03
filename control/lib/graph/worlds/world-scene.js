@@ -24,6 +24,7 @@ import { readDegree, breakablesOf, piecesOf } from '@/lib/graph/playscape/destru
 import { standBlocks } from '@/lib/graph/playscape/terrain';
 import { readMatterSpec, readTool, readScarsSpec, loadAudit } from '@/lib/graph/rupa/index.js';
 import { shellBlocks } from '@/lib/graph/rupa/shell-blocks.js';
+import { physicsWind } from '@/lib/graph/rupa/one-wind.js';
 import { manifestGarment } from '@/lib/graph/polygonizer/figure-outfit';
 import { resolveMotionMovers } from '@/lib/graph/worlds/motion-vocabulary';
 import { resolveSignage } from '@/lib/signage-chrome';
@@ -886,6 +887,9 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     // opt-in rupa builder. Any other degree ⇒ no key, byte-identical.
     if (destruction === 'physical' && payload.breakables) {
       payload.rupa = readMatterSpec(sketch.manifest.matter, 'matter');
+      // one wind (rupa/one-wind.js): the level's own `wind`, the one its plants, grass and cloth sway in, is the air its
+      // blocks, dust, smoke and leaves feel, matched at 2 m and 10 m; the level's `matter.wind` overrides it for the physics
+      if (!payload.rupa.wind && sketch.manifest.wind) { const w = physicsWind(sketch.manifest.wind); if (w) payload.rupa.wind = w; }
       // what each striker strikes with (a tool word on its rule): checked here, read by the page as given
       for (const e of payload.entities || []) if (e && e.rule && e.rule.strikeTool !== undefined) readTool(e.rule.strikeTool, `${e.id || 'entity'}.rule.strikeTool`);
       // what can burn carries its own flame (fire/fire.js blockFires), off until it catches; added to the level's fire

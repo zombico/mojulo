@@ -319,6 +319,22 @@ matter: { wind: { speed: 25, dir: 90, terrain: 'city', gust: 0.3 } }
 - `gust` (0 to 1) adds gusts: the wind rises and falls as gusts sweep downwind. They're seeded, so the same level
   always gets the same gusts at the same place and time.
 
+
+### One wind
+
+A level's `wind` (the one its trees, grass and hung cloth sway in, `vegetation/wind.js`: a speed at 2 m over a log
+profile) is the air its physics feels ([`one-wind.js`](../control/lib/graph/rupa/one-wind.js)). Under `physical`, when
+the level's `matter` names no wind, the blocks, dust, smoke and drifting leaves take it: its speed at 10 m is
+u2·ln(10/z0)/ln(2/z0), and its power-law exponent α = ln(u10/u2)/ln 5, so the two profiles agree exactly at 2 m and at
+10 m and within 2% between. The level's `matter.wind` still overrides it for the physics alone. A geocube's `wind` is its
+outside levels' wind when the recipe names none.
+
+The wind solver reads plants by species: a pole by geometric similarity, its trunk a fixed share of its height and its
+crown's frontal area a fixed share of its height squared (`PLANT_FORMS`: broadleaf, conifer, palm, culm, the culm
+hollow). Its foot's stress grows as u² and its section and lever both as H³, so the wind that snaps it (`breakSpeed`) is
+the same at every size: about 39 m/s at a broadleaf's crown, 31 for a conifer's denser crown on weaker wood. Storms break
+trees of every size near 42 m/s (Virot et al. 2016). A stand of a species stands still in a breeze, bends in a fresh
+wind, and is handed to the physics when the strongest gust at its crown passes that speed.
 ### Why air and water share their code
 
 Water and air follow the same laws with different numbers: water is heavy and slow, air is light and fast. So both go
@@ -576,6 +592,8 @@ the cube's water as the fluid layer, then the geocity's physical ring near the p
 - Cuts on any plane (they snap to the block's axes, so the halves stay boxes), a groove weakening the load pass before
   it goes through, a round's own tool word (rounds are steel-cored), and a cut half's own pre-cut pieces when it later
   breaks (it vanishes in its flash).
+- Snapped trees on the page (the solver says which go; the page's trees don't fall yet), weather's rain and snow
+  slanting with the level's wind (they pick their own heading), and the level's plants taking a physics-only wind.
 - One flame per burning block, from its top (not on each burning face), no charred skin, no smouldering, and no air to
   run short of in a room.
 - Dust and smoke held by walls and ceilings (a puff passes through them; smoke doesn't yet pool under a vault or fill

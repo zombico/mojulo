@@ -8,7 +8,7 @@ it, in the cube's style. A different style is a different cube (`{ from: <preset
 
 ## The style (never a domain's)
 
-`light`, `colour` / `palette`, `register`, `contrast`, `grit`, `surfaces`, `era`, `target`, `materials`, `matter`, `why`, `avoid`.
+`light`, `colour` / `palette`, `register`, `contrast`, `grit`, `surfaces`, `era`, `target`, `materials`, `matter`, `wind`, `why`, `avoid`.
 
 **What its world is made of** (`matter`, for a physical level: `destruction: 'physical'`): by role, `wall`, `floor`,
 `accent`, `trim`, `roof`, `ground`, `wood`, `metal`, `glass`, each a matter (`concrete`, `brick`, `stone`, `steel`,
@@ -16,6 +16,10 @@ it, in the cube's style. A different style is a different cube (`{ from: <preset
 the cube's own look, so what breaks agrees with what it looks like (a stone-brick wall is stone, a lab kit concrete and
 steel, a thatch roof pine). A physical level painted by the cube breaks its walls and set pieces by it; props keep
 their own. Not physical, it changes nothing.
+
+**The air over its land** (`wind`: `true` or `{ speed?, dir?, gust?, scale?, evolve?, veer?, seed? }`, speed in m/s at
+2 m: 3 a breeze, 8 a fresh wind, 15 a gale): its outside levels' wind when the recipe names none. Their trees, grass and
+hung cloth sway in it; a physical level's blocks, dust, smoke and leaves feel the same air.
 
 ## The ingredients
 
