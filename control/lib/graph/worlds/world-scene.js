@@ -1049,12 +1049,13 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
           continue;
         }
         // CYCLE bodies (cycle-shelf/: the vehicle registry's realistic build of a machine ridden astride): a figures-map
-        // entry may be a cycle shelf machine (`cycle`: { archetype, look?, pose? }, what a parked cycle writes), at its
-        // class's true numbers in metres, parked on its stand, delivered as its rig (the machine the root, each wheel a
-        // bone). Absent ⇒ none is resolved, byte-identical.
+        // entry may be a cycle shelf machine (`cycle`: { archetype, look?, pose?, addons? }, what a parked cycle writes), at
+        // its class's true numbers in metres, parked on its stand, delivered as its rig (the machine the root, each wheel
+        // a bone); or ridden (`ride: true`, rider?, posture?: what a quick game's ride writes), its rider astride and its
+        // live overlay with it (its front steered, its lean). Absent ⇒ none is resolved, byte-identical.
         if (rawSpec.cycle && typeof rawSpec.cycle === 'object') {
-          const { cycleFigure } = await import('@/lib/graph/cycle-shelf/cycle-figure.js');
-          payload.figures[name] = cycleFigure(rawSpec.cycle);
+          const { cycleFigure, cycleRideFigure } = await import('@/lib/graph/cycle-shelf/cycle-figure.js');
+          payload.figures[name] = rawSpec.cycle.ride ? await cycleRideFigure(rawSpec.cycle) : cycleFigure(rawSpec.cycle);
           continue;
         }
         // TRANSFORMER bodies (transformation/: more-than-meets): a figures-map entry may be a body in two forms

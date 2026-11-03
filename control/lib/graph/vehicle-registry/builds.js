@@ -77,7 +77,7 @@ export function buildsOf(id) {
   for (const k of h.net ?? []) out.push(B('stylised', 'net', k, 'asleep', [], 'a swept net no scenery entry builds'));
   for (const k of h.supercar ?? []) out.push(B('realistic', 'supercar', k, 'live', ['quick race (supercars)', 'mint_solid vehicle preview', 'transformer'], 'the supercar\'s surface compiler, streamlined in the form render'));
   for (const k of h.craft ?? []) out.push(B('realistic', 'craft', k, 'live', ['transformer'], 'the craft shelf\'s assembly at its class\'s true figures'));
-  for (const k of h.cycle ?? []) out.push(B('realistic', 'cycle', k, 'live', ['mint_solid vehicle preview', 'a level\'s parked vehicles'], 'the cycle shelf\'s machine, its parts on its solved chassis at its class\'s numbers (cycle-shelf/), parked on its stand'));
+  for (const k of h.cycle ?? []) out.push(B('realistic', 'cycle', k, 'live', ['quick ride', 'mint_solid vehicle preview', 'a level\'s parked vehicles'], 'the cycle shelf\'s machine, its parts on its solved chassis at its class\'s numbers (cycle-shelf/): ridden, its rider astride, or parked on its stand'));
   for (const k of h.fleet ?? []) out.push(B('realistic', 'fleet', k, 'live', ['roadway traffic'], 'the highway fleet\'s loft at true dimensions, at traffic distance'));
   for (const k of (h.physics ?? []).filter(loftable).slice(0, 1)) {
     if (tracked(k)) { out.push(B('realistic', 'loft', k, 'live', ['mint_solid vehicle preview', 'a level\'s parked vehicles'], 'the military hull kit\'s body of its class on its running gear (road-military.js, mil-track.js), drawn and parked: not driven until skid steer is built', UNDRIVEN)); continue; }

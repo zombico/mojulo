@@ -256,6 +256,8 @@ export function assembleCycle(archetypeIn, { palette, colors = {}, pose = {}, fi
       geometry: laws.G,
       measures,
       contacts,
+      // (what steers, and about what: the steering axis through the head; a kingpin wheel about the upright through its axle)
+      steering: { axis: G.axis.d.map((v) => round3(v) + 0), at: roundPt(G.head.lo), parts: Object.fromEntries(parts.filter((p) => p.entry.steers).map((p) => [p.id, p.entry.steers])) },
       ...(lean ? { lean: Math.round((lean / DEG) * 10) / 10 } : {}),
       // (a peg each side, or the floor or the pedals a rider's feet are on)
       rider: { seat: hp('seat'), 'grip.l': hp('grip.l'), 'grip.r': hp('grip.r'), 'peg.l': parts.find((p) => p.id === 'peg-l')?.recipe.garage.hardpoints.peg ?? hp('peg.l'), 'peg.r': parts.find((p) => p.id === 'peg-r')?.recipe.garage.hardpoints.peg ?? hp('peg.r') },
