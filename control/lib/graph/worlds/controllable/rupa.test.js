@@ -279,3 +279,249 @@ describe('rupa heat: melt, burn, weaken', () => {
     expect(run()).toBe(run());
   });
 });
+
+describe('rupa distortion: plastic matter keeps the shape a blow leaves', () => {
+  const at = (x, y, z) => [x, y, z];
+  const plate = (id, y0, matter = 'steel', t = 0.01, extra = {}) => block(id, [0, y0, 0], [t, y0 + 0.3, 0.3], matter, { bond: 'lateral', ...extra });
+  const wallBehind = (t = 0.01) => block('wall', [t, -1, 0], [t + 0.3, 1, 0.3], 'brick');
+  const shoot = (w, id, joules, y = 0.15, z = 0.15) => CW.strikeBlock(w, id, joules, 'shot', { dir: [1, 0, 0], at: at(0, y, z) });
+
+  it('a plastic block dents where it is struck and keeps it; brittle stuff breaks or holds whole', () => {
+    const w = world([block('steel', [0, -0.5, 0], [0.3, 0.5, 0.5], 'steel'), block('brick', [2, -0.5, 0], [2.3, 0.5, 0.5], 'brick')]);
+    const steel = get(w, 'steel');
+    shoot(w, 'steel', 2000, 0, 0.25);
+    expect(steel.rupa.dents).toHaveLength(1);
+    expect(steel.rupa.dents[0]).toMatchObject({ ax: 0, side: -1, hole: false });
+    expect(steel.rupa.cap - steel.rupa.joules).toBeCloseTo(2000, 6);   // the work comes off the budget
+    expect(steel.rupa.form).toBe(1);
+    expect(w.rupa.dents.map((d) => d.how)).toEqual(['dent']);
+    CW.strikeBlock(w, 'brick', 2000, 'shot', { dir: [1, 0, 0], at: at(2, 0, 0.25) });
+    expect(get(w, 'brick').rupa.dents).toBeUndefined();
+  });
+
+  it('blows on one spot deepen one bowl until it goes through; the plate still stands', () => {
+    const w = world([plate('p', -0.15, 'steel', 0.03)]);
+    const p = get(w, 'p');
+    let n = 0;
+    while (!p.rupa.dents[0]?.hole && n < 40) { shoot(w, 'p', 2000, 0); n++; }
+    expect(n).toBeGreaterThan(1);
+    expect(p.rupa.dents).toHaveLength(1);
+    expect(p.rupa.dents[0].hole).toBe(true);
+    expect(p.broken).toBeNull();
+  });
+
+  it('powerscaling: a strong enough round goes through a plate into the wall behind; a person\'s only dents armour', () => {
+    const a = world([plate('p', -0.15), wallBehind()]);
+    const through = shoot(a, 'p', 2e4, 0);
+    expect(through).toBeGreaterThan(0);
+    expect(get(a, 'p').broken).toBeNull();
+    expect(get(a, 'p').rupa.dents[0].hole).toBe(true);
+    expect(get(a, 'wall').rupa.joules).toBeLessThan(get(a, 'wall').rupa.cap);
+    const b = world([plate('p', -0.15, 'armour-steel'), wallBehind()]);
+    expect(shoot(b, 'p', 2000, 0)).toBe(0);
+    expect(get(b, 'wall').rupa.joules).toBe(get(b, 'wall').rupa.cap);
+  });
+
+  it('a blow past twice a plate\'s whole budget tears it apart and carries on', () => {
+    const w = world([plate('p', -0.15), wallBehind()]), p = get(w, 'p');
+    const through = shoot(w, 'p', 3 * p.rupa.cap, 0);
+    expect(p.broken).toMatchObject({ how: 'shot' });
+    expect(w.breaks.find((x) => x.id === 'p').debris.pieces.length).toBeGreaterThan(0);
+    expect(through).toBeCloseTo(2 * p.rupa.cap, 0);
+    expect(get(w, 'wall').rupa.joules).toBeLessThan(get(w, 'wall').rupa.cap);
+  });
+
+  it('focus fire strips one plate off its weld, whole, and leaves its neighbour', () => {
+    const soft = { matter: { is: 'steel', toughness: 1e7 } };   // a thin budget, so a few blows wear it out
+    // two thin plates welded side by side up a wall, clear of the floor; a bat dishes them
+    const mk = (id, y0) => ({ ...block(id, [0, y0, 1], [0.002, y0 + 0.3, 1.3], null, { bond: 'lateral' }), ...blockMatter({ min: [0, y0, 1], max: [0.002, y0 + 0.3, 1.3] }, soft) });
+    const w = world([mk('a', -0.3), mk('b', 0), block('wall', [0.002, -1, 0], [0.302, 1, 1.5], 'brick')]);
+    const a = get(w, 'a');
+    step(w, 2);
+    expect(a.falling).toBeNull();
+    for (let i = 0; i < 40 && !a.broken; i++) CW.strikeBlock(w, 'a', 300, 'swing', { dir: [1, 0, 0], from: at(-1, -0.3 + 0.05 + (i % 5) * 0.05, 1.05 + (Math.floor(i / 5) % 5) * 0.05), tool: 'bat' });
+    expect(a.broken).toMatchObject({ how: 'strip' });
+    expect(a.rupa.dents.every((d) => d.dish)).toBe(true);
+    const rec = w.breaks.find((x) => x.id === 'a');
+    expect(rec.debris).toBeNull();
+    expect(w.rupa.bodies.find((x) => x.id === rec.body)).toBeDefined();
+    expect(rec.away[0]).toBeLessThan(0);                                 // back toward the blow, off the wall
+    expect(get(w, 'b').rupa.joules).toBe(get(w, 'b').rupa.cap);
+    step(w, 30);
+    expect(w.rupa.bodies.find((x) => x.id === rec.body).pos[2]).toBeLessThan(1);   // it falls
+    expect(get(w, 'b').broken).toBeNull();
+  });
+
+  it('soft stuff squashes at constant volume, and what stood on it settles', () => {
+    const w = world([block('dough', [0, 0, 0], [0.4, 0.4, 0.2], 'dough'), block('top', [0.1, 0.1, 0.2], [0.3, 0.3, 0.3], 'brick')]);
+    const d = get(w, 'dough'), vol = (b) => (b.max[0] - b.min[0]) * (b.max[1] - b.min[1]) * (b.max[2] - b.min[2]), v0 = vol(d);
+    CW.strikeBlock(w, 'dough', 300, 'swing', { ax: 2, side: 1, at: at(0.2, 0.2, 0.2), tool: 'bat' });
+    expect(d.rupa.squash).toBeGreaterThan(0);
+    expect(d.max[2]).toBeLessThan(0.2);
+    expect(d.max[0] - d.min[0]).toBeGreaterThan(0.4);
+    expect(vol(d)).toBeCloseTo(v0, 5);
+    expect(w.rupa.dents.at(-1)).toMatchObject({ how: 'squash' });
+    step(w, 30);
+    expect(get(w, 'top').min[2]).toBeCloseTo(d.max[2], 3);
+  });
+
+  it('a body punches a plate and carries on; slower, it dents the plate and comes back', () => {
+    const fling = (speed) => {
+      const w = world([plate('p', -0.15)]);
+      const id = CW.throwMatter(w, { size: 0.06, at: [-1, 0, 0.15], vel: [speed, 0, 0], ...blockMatter({ min: [0, 0, 0], max: [0.06, 0.06, 0.06] }, 'steel') });
+      step(w, 20);
+      return { w, ball: w.rupa.bodies.find((x) => x.id === id), p: get(w, 'p') };
+    };
+    const fast = fling(600), slow = fling(20);
+    expect(fast.ball.pos[0]).toBeGreaterThan(0.01);
+    expect(fast.p.broken).toBeNull();
+    expect(fast.p.rupa.dents.some((d) => d.hole)).toBe(true);
+    expect(slow.ball.pos[0]).toBeLessThan(-1);                          // back past where it was thrown from
+    expect(slow.p.rupa.dents.some((d) => d.hole)).toBe(false);
+  });
+
+  it('heat softens: the same blow dents hot steel deeper', () => {
+    const w = world([block('cold', [0, -2, 0], [0.3, -1, 0.5], 'steel'), block('hot', [0, 1, 0], [0.3, 2, 0.5], 'steel')]);
+    const hot = get(w, 'hot');
+    CW.heatBlock(w, 'hot', hot.rupa.heatCap * (hot.rupa.soften - 20));
+    CW.strikeBlock(w, 'cold', 5e3, 'shot', { dir: [1, 0, 0], at: at(0, -1.5, 0.25) });
+    CW.strikeBlock(w, 'hot', 5e3, 'shot', { dir: [1, 0, 0], at: at(0, 1.5, 0.25) });
+    expect(hot.rupa.dents[0].d).toBeGreaterThan(get(w, 'cold').rupa.dents[0].d * 1.2);
+  });
+
+  it('deterministic: the same blows leave the same dents', () => {
+    const run = () => { const w = world([plate('p', -0.15), wallBehind()]); for (let i = 0; i < 6; i++) shoot(w, 'p', 3000, 0.05 * i, 0.1); return JSON.stringify([get(w, 'p').rupa.dents, w.rupa.dents]); };
+    expect(run()).toBe(run());
+  });
+});
+
+describe('rupa tools and cuts: what a blow is struck with', () => {
+  const at = (x, y, z) => [x, y, z];
+  const sheet = (id, t, matter = 'steel', y0 = 0) => block(id, [0, y0, 0], [t, y0 + 0.6, 0.6], matter);
+  const swingAt = (w, id, joules, tool, y = 0.3, z = 0.3, x = -1) => CW.strikeBlock(w, id, joules, 'swing', { dir: [1, 0, 0], from: at(x, y, z), tool });
+
+  it('a wooden bat dishes a thin sheet and leaves a thick plate whole; a heroic one dents the plate', () => {
+    const w = world([sheet('thin', 0.001), sheet('thick', 0.01, 'steel', 2)]);
+    swingAt(w, 'thin', 300, 'bat'); swingAt(w, 'thick', 300, 'bat', 2.3);
+    const thin = get(w, 'thin').rupa, thick = get(w, 'thick').rupa;
+    expect(thin.dents).toHaveLength(1);
+    expect(thin.dents[0].dish).toBe(true);
+    expect(thin.dents[0].d).toBeGreaterThan(0.01); expect(thin.dents[0].d).toBeLessThan(0.06);   // a few centimetres
+    expect(thick.dents).toHaveLength(0);
+    expect(thick.joules).toBe(thick.cap);                                                         // it rings off: nothing spent
+    const hero = world([sheet('thick', 0.01)], { power: 10 });
+    swingAt(hero, 'thick', 3000, 'bat');
+    expect(get(hero, 'thick').rupa.dents[0]).toMatchObject({ dish: true });
+  });
+
+  it('a tool too soft to bite a thick block marks nothing; a hammer\'s force limits its bite', () => {
+    const w = world([block('anvil', [0, 0, 0], [0.3, 0.6, 0.6], 'steel')]);
+    swingAt(w, 'anvil', 300, 'bat');
+    expect(get(w, 'anvil').rupa.joules).toBe(get(w, 'anvil').rupa.cap);
+    swingAt(w, 'anvil', 300, 'hammer');
+    const spent = get(w, 'anvil').rupa.cap - get(w, 'anvil').rupa.joules;
+    expect(spent).toBeGreaterThan(0); expect(spent).toBeLessThan(300);                            // most of the blow rings off
+  });
+
+  it('an edge harder than the stuff cuts where it lands, and through a solid parts it in two', () => {
+    const w = world([block('post', [0, 0, 0], [0.1, 0.1, 2], 'timber')]);
+    let n = 0;
+    while (!get(w, 'post').broken && n < 20) { swingAt(w, 'post', 300, 'sword', 0.05, 1.2); n++; }
+    expect(n).toBeGreaterThan(1);
+    expect(get(w, 'post').broken).toMatchObject({ how: 'cut' });
+    const rec = w.breaks.find((x) => x.id === 'post');
+    expect(rec).toMatchObject({ how: 'cut', debris: null, plane: { axis: 2, at: 1.2 } });
+    const [lo, hi] = rec.into.map((id) => get(w, id));
+    expect(lo.max[2]).toBeCloseTo(1.2, 9); expect(hi.min[2]).toBeCloseTo(1.2, 9);
+    expect(lo.rupa.mass + hi.rupa.mass).toBeCloseTo(get(w, 'post').rupa.mass, 6);                // the matter is shared out by volume
+    expect(hi.skin).toBe('post');
+    step(w, 30);
+    expect(hi.falling).toBeNull();                                                                // the top rests on the bottom
+  });
+
+  it('a chop cuts across the long way; what the cut leaves unheld falls', () => {
+    // a beam resting on a post, reaching past it; chopped from above past the post, the end it held falls
+    const w = world([block('post', [0, 0, 0], [0.4, 0.2, 1], 'brick'), block('beam', [0, 0, 1], [1, 0.2, 1.2], 'pine')]);
+    step(w, 2);
+    expect(get(w, 'beam').falling).toBeNull();
+    for (let i = 0; i < 40 && !get(w, 'beam').broken; i++) CW.strikeBlock(w, 'beam', 300, 'swing', { ax: 2, side: 1, at: at(0.7, 0.1, 1.2), tool: 'axe' });
+    expect(get(w, 'beam').broken).toMatchObject({ how: 'cut' });
+    expect(w.breaks.find((x) => x.id === 'beam').plane.axis).toBe(0);
+    step(w, 60);
+    const near = get(w, 'beam/a'), far = get(w, 'beam/b');
+    expect(far.min[2]).toBeLessThan(0.5);                                                         // it fell
+    expect(near.min[2]).toBeCloseTo(1, 6);                                                        // what the post holds stays
+  });
+
+  it('an edge softer than the stuff does not cut it: a sword on armour rings off', () => {
+    const w = world([block('arm', [0, 0, 0], [0.01, 0.6, 0.6], 'armour-steel')]);
+    swingAt(w, 'arm', 300, 'sword');
+    expect(get(w, 'arm').rupa.cuts).toHaveLength(0);
+    expect(get(w, 'arm').rupa.joules).toBe(get(w, 'arm').rupa.cap);
+  });
+
+  it('a shell is slit, not parted', () => {
+    const w = world([block('locker', [0, 0, 0], [0.5, 0.5, 1.8], 'sheet-metal')]);
+    for (let i = 0; i < 20 && !get(w, 'locker').rupa.cuts[0]?.through; i++) swingAt(w, 'locker', 300, 'sword', 0.25, 1);
+    expect(get(w, 'locker').rupa.cuts[0].through).toBe(true);
+    expect(get(w, 'locker').broken).toBeNull();
+    expect(w.breakables).toHaveLength(1);
+  });
+
+  it('a striker\'s swing carries the tool on its rule', () => {
+    const hero = { id: 'hero', pilotable: true, rule: { type: 'platform', speed: 5, strike: 'melee', strikeReach: 1.4, strikeDur: 0.3, strikeTool: 'bat' }, transform: { pos: [-0.6, 0.3, 0], heading: 0 }, body: { type: 'mesh', shape: 'box', size: [0.6, 0.6, 1.7] } };
+    const w = CW.createWorld({ entities: [hero], breakables: [block('door', [0, 0, 0], [0.001, 0.6, 2], 'steel')], rupa: {} });
+    for (let i = 0; i < 40; i++) CW.stepWorld(w, { fire: i < 2 }, 1 / 60, { ground: () => 0 });
+    expect(get(w, 'door').rupa.dents.some((d) => d.dish)).toBe(true);
+    expect(get(w, 'door').rupa.cuts).toHaveLength(0);
+  });
+});
+
+describe('rupa felling: what a level groove leaves standing', () => {
+  const at = (x, y, z) => [x, y, z];
+  // a rooted oak trunk with a pine crown; `lean` the crown's offset toward +y
+  const tree = (lean) => [
+    block('trunk', [-0.15, -0.15, 0], [0.15, 0.15, 3.5], { matter: 'timber', joint: 'mortar' }),
+    block('crown', [-1, -1 + lean, 3.5], [1, 1 + lean, 5.5], { matter: 'pine', fill: 0.05 }),
+  ];
+  const chop = (w, from, dir, max = 400) => { let n = 0; while (!w.rupa.fells.length && !get(w, 'trunk').broken && n < max) { CW.strikeBlock(w, 'trunk', 300, 'swing', { dir, from, tool: 'axe' }); step(w); n++; } return n; };
+  const land = (w) => { for (let i = 0; i < 600 && w.rupa.fells.some((f) => !f.done); i++) step(w); return step(w, 30); };
+
+  it('an axe into the lean side fells the tree toward its lean; it lands lying and its stump stands', () => {
+    const w = step(world(tree(0.25)), 2);
+    const n = chop(w, at(0, 1.2, 0.5), [0, -1, 0]);
+    expect(n).toBeGreaterThan(10);
+    const f = w.rupa.fells[0];
+    expect(f).toBeDefined();
+    expect(f.dir).toEqual([0, 1, 0]);                                   // toward the lean
+    expect(f.ids).toEqual(['trunk/b', 'crown']);                         // what was above the groove, and what it carried
+    land(w);
+    const stump = get(w, 'trunk/a'), log = get(w, 'trunk/b'), crown = get(w, 'crown');
+    expect(stump.max[2]).toBeCloseTo(0.5, 6);
+    expect(log.max[1] - log.min[1]).toBeCloseTo(3, 6);                   // the trunk lies along its fall
+    expect(log.max[2] - log.min[2]).toBeCloseTo(0.3, 6);
+    expect(log.min[2]).toBeCloseTo(0, 6);
+    expect(log.min[1]).toBeGreaterThanOrEqual(stump.max[1] - 1e-6);      // clear of the stump it hinged on
+    expect(crown.min[1]).toBeGreaterThan(3);
+    expect(f.done).toBe(true);
+    expect(w.breaks.some((x) => x.how === 'fell')).toBe(false);          // a felling breaks nothing: no debris
+  });
+
+  it('the notch decides the fall: a tree with no lean goes into the groove, and only once its hinge is thin', () => {
+    const w = step(world(tree(0)), 2);
+    chop(w, at(0, 1.2, 0.5), [0, -1, 0]);
+    expect(w.rupa.fells[0].dir).toEqual([0, 1, 0]);                     // toward the side the axe cut away
+    expect(get(w, 'trunk').rupa.cuts[0].depth).toBeGreaterThan(0.28);  // its 30 cm held to a hinge of a centimetre or two
+    // a block cut clean through with its weight still over its seat stands on it (the post's top, sawn level)
+    const post = world([block('post', [0, 0, 0], [0.1, 0.1, 2], 'timber')]);
+    for (let i = 0; i < 20 && !get(post, 'post').broken; i++) CW.strikeBlock(post, 'post', 2e3, 'swing', { dir: [1, 0, 0], from: at(-1, 0.05, 1.2), tool: 'sword' });
+    step(post, 30);
+    expect(post.rupa.fells).toHaveLength(0);
+    expect(get(post, 'post/b').min[2]).toBeCloseTo(1.2, 6);
+  });
+
+  it('deterministic: the same strokes fell the same way', () => {
+    const run = () => { const w = step(world(tree(0.25)), 2); chop(w, at(0, 1.2, 0.5), [0, -1, 0]); land(w); return JSON.stringify(w.breakables.map((b) => [b.id, b.min, b.max])); };
+    expect(run()).toBe(run());
+  });
+});

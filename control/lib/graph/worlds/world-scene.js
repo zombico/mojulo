@@ -22,7 +22,7 @@ import { readScreen, screenPayload, screenFrame } from '@/lib/graph/game/screen'
 import { readRunner } from '@/lib/graph/worlds/controllable/runner';
 import { readDegree, breakablesOf, piecesOf } from '@/lib/graph/playscape/destruct/breakability';
 import { standBlocks } from '@/lib/graph/playscape/terrain';
-import { readMatterSpec } from '@/lib/graph/rupa/index.js';
+import { readMatterSpec, readTool } from '@/lib/graph/rupa/index.js';
 import { manifestGarment } from '@/lib/graph/polygonizer/figure-outfit';
 import { resolveMotionMovers } from '@/lib/graph/worlds/motion-vocabulary';
 import { resolveSignage } from '@/lib/signage-chrome';
@@ -870,7 +870,11 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     // destructible physics (rupa/, `destruction: 'physical'`): the blocks carry their matter (breakablesOf), and the
     // level's `matter` says how hard the world's blows land ({ power?, swing?, shot?, blastZ? }); the page composes the
     // opt-in rupa builder. Any other degree ⇒ no key, byte-identical.
-    if (destruction === 'physical' && payload.breakables) payload.rupa = readMatterSpec(sketch.manifest.matter, 'matter');
+    if (destruction === 'physical' && payload.breakables) {
+      payload.rupa = readMatterSpec(sketch.manifest.matter, 'matter');
+      // what each striker strikes with (a tool word on its rule): checked here, read by the page as given
+      for (const e of payload.entities || []) if (e && e.rule && e.rule.strikeTool !== undefined) readTool(e.rule.strikeTool, `${e.id || 'entity'}.rule.strikeTool`);
+    }
     // tutorial (tutorial-mode.plan.md T1): the scripted teaching layer — ordered prompt+goal steps
     // the engine director advances by edge-detecting the sim; the director is the level terminal
     // (tutorial levels run no match). Opt-in; absent ⇒ byte-identical.

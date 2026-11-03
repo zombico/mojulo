@@ -20,6 +20,12 @@
  *              volume × fill joules: rupa's "hit points", derived, never authored
  *   fill       the solid share of a thing's box when nothing says otherwise (a crate is planks round air, a sheet-metal
  *              locker a shell): its mass and its capacity scale by it
+ *   yield      Pa: the stress where it starts to FLOW and keep the shape a blow leaves (plastic). One dial across the
+ *              whole table: a liquid's 0, mud's and lava's Bingham stress, dough, putty, lead, mild and armour steel.
+ *              A solid with a yield is PLASTIC (isPlastic): a blow dents it, squashes it or punches through it
+ *              (distortion, controllable/rupa.js) and its budget still decides whether it stands. Brittle stuff (glass,
+ *              masonry, timber) has none: it breaks before it flows. Hardness, what a dent pushes against, is 3 × yield
+ *              (Tabor's constraint)
  * Soils add the Mohr–Coulomb pair and what digging does to them:
  *   c          cohesion, Pa (sand 0: it slumps; clay holds a cut face)
  *   phi        friction angle, degrees (the angle of repose of a loose pile)
@@ -50,18 +56,24 @@
  *   MATTER_IDS, SOIL_IDS
  *   CLASS_MATTER           a class's matter when the thing names none (breakability.js classOf): { matter, fill }
  *   resolveMatter(spec, where?) → a matter record (an id, or { is?, ...overrides } over one), checked
- *   isBrittle(m), isSoil(m), isLiquid(m), isGas(m), isFluid(m), LIQUID_IDS
+ *   isBrittle(m), isSoil(m), isLiquid(m), isGas(m), isFluid(m), isPlastic(m), isCuttable(m), LIQUID_IDS, PLASTIC_IDS
  *   a block's `porosity` (0 solid, to under 1) is the open share of it a flow can pass through (a hedge, a slatted fence,
  *   a mesh): see the runtime's blocking law; `{ matter, porosity }` sets it
+ *   an edge CUTS what is plastic or fibrous (wood), not what shatters or crumbles: a cuttable block carries `kerfWork`,
+ *   J/m², the work a cut costs per square metre of its face (its fracture energy, plus its flow or tensile strength
+ *   over the KERF an edge opens), and `kerfHard`, Pa, what an edge must be harder than to bite (its hardness, 3 ×
+ *   yield; a wood's crushing strength)
  *   a block's `joint` is how it sits on what holds it: 'mortar' (masonry's default: its cohesion binds the joint) or
  *   'dry' (everything else: it rests by its weight alone, so wind can slide or tip it); `{ matter, joint }` says otherwise
  *   cutOfMatter(m)         → the cut a breaking of it plays (destruct/cuts.js presets): glass and ice shatter, brittle
  *                            masonry blasts apart, ductile stuff chips
  *   blockMatter(box, spec) → { matter, fill, mass, joules, compressive, cohesion, heatCap, soften, stiff, bounce, frac,
  *                            shape, spread, joint, melt?,
- *                            fuse?, ignite?, fuel?, burnRate? } for a block (`stiff` its E × fill, Pa: a shell gives): the numbers the runtime reads (`cohesion` its
+ *                            fuse?, ignite?, fuel?, burnRate?, yield?, wall?, kerfWork?, kerfHard? } for a block (`stiff` its E × fill, Pa: a shell gives): the numbers the runtime reads (`cohesion` its
  *                            matter's bond × fill, Pa: a block's `bond` word is how it is held; `heatCap` J/K; `fuse` the
- *                            joules to melt it once at `melt`; `fuel` the joules its burning gives, `burnRate` how fast, W)
+ *                            joules to melt it once at `melt`; `fuel` the joules its burning gives, `burnRate` how fast, W;
+ *                            a plastic block's `yield`, Pa, and `wall`, m, the thickness a blow must pass to go through
+ *                            a shell: fill × volume ÷ its surface; absent for a solid, whose thickness is its box's)
  *   meltJoules(m, mass, from?) → the joules that take `mass` kg of it from `from` °C (20) to liquid (null: it does not melt)
  *   isCombustible(m)
  */
@@ -80,6 +92,8 @@ function fromStrength(key, o) {
     strain: o.strain ?? s.elong / 100,
     toughness: o.toughness ?? ((s.strength + ult) / 2) * MPa * (s.elong / 100),
     fill: o.fill ?? 1,
+    // where the table's strength is a yield (a ductile metal), it is this matter's yield too: one truth for both
+    ...(s.basis === 'yield' ? { yield: s.strength * MPa } : {}),
   });
 }
 
@@ -99,6 +113,17 @@ const BASE = {
   // ── metals and woods, from the strength table ──
   steel: fromStrength('s235', { id: 'steel', label: 'Mild steel (solid)' }),
   'sheet-metal': fromStrength('s235', { id: 'sheet-metal', label: 'Sheet steel (a shell round air)', fill: 0.02 }),
+  brass: fromStrength('brass', { id: 'brass', label: 'Brass (half hard)' }),
+  // rolled homogeneous armour: about four times mild steel's yield for half its elongation; a weld holds under the plate
+  'armour-steel': M('armour-steel', { label: 'Armour steel (rolled homogeneous)', family: 'metal', density: 7850, E: 207 * GPa, compressive: 950 * MPa, tensile: 1100 * MPa, bond: 700 * MPa, strain: 0.14, toughness: 143e6, fill: 1, yield: 950 * MPa }),
+  // 6061-T6 plate; its weld is weaker than the plate (the heat-affected zone)
+  aluminium: M('aluminium', { label: 'Aluminium (6061-T6)', family: 'metal', density: 2700, E: 69 * GPa, compressive: 276 * MPa, tensile: 310 * MPa, bond: 200 * MPa, strain: 0.12, toughness: 35e6, fill: 1, yield: 276 * MPa }),
+  lead: M('lead', { label: 'Lead (cast)', family: 'metal', density: 11340, E: 16 * GPa, compressive: 5 * MPa, tensile: 17 * MPa, bond: 17 * MPa, strain: 0.5, toughness: 5.5e6, fill: 1, yield: 5 * MPa }),
+  // ── pastes: solids soft enough to flow under a blow and keep the shape it leaves, far more ductile than any metal
+  //    (they spread rather than tear): the cohesion dial's step between a Bingham liquid and a metal. Their yield is an
+  //    impact's, the stiff end of their range (a paste creeps under far less, given time) ──
+  putty: M('putty', { label: 'Modelling clay (plasticine)', family: 'paste', density: 1800, E: 1e6, compressive: 40e3, tensile: 60e3, bond: 40e3, strain: 1, toughness: 50e3, fill: 1, yield: 40e3 }),
+  dough: M('dough', { label: 'Bread dough', family: 'paste', density: 1150, E: 1e5, compressive: 5e3, tensile: 15e3, bond: 5e3, strain: 3, toughness: 30e3, fill: 1, yield: 5e3 }),
   // clear wood: compressive along the grain about half its bending strength; toughness the work to maximum load in
   // bending (USDA Wood Handbook order), not the metal formula
   timber: fromStrength('oak', { id: 'timber', label: 'Oak timber', compressive: 45, tensile: 99, bond: 5, strain: 0.01, toughness: 100e3 }),
@@ -133,7 +158,9 @@ const THERMAL = {
   concrete: T(1500, 500, 880, 4e5), 'reinforced-concrete': T(1500, 550, 880, 4e5), brick: T(1600, 900, 840, 4e5),
   stone: T(1250, 600, 790, 4e5), sandstone: T(1700, 600, 920, 4e5), adobe: T(1200, 700, 900, 4e5), ceramic: T(1600, 1000, 850, 4e5),
   glass: T(1400, 550, 840, 2e5), ice: T(0, -2, 2100, 334e3),
-  steel: T(1510, 550, 490, 270e3), 'sheet-metal': T(1510, 550, 490, 270e3),
+  steel: T(1510, 550, 490, 270e3), 'sheet-metal': T(1510, 550, 490, 270e3), 'armour-steel': T(1500, 550, 470, 270e3),
+  brass: T(930, 400, 380, 168e3), aluminium: T(660, 300, 900, 397e3), lead: T(327, 150, 130, 23e3),
+  putty: T(70, 35, 1500, 1e5), dough: T(null, 60, 2500, 0),
   timber: T(null, 200, 1700, 0, { ignite: 300, burn: 15e6 }), pine: T(null, 200, 1700, 0, { ignite: 280, burn: 17e6 }),
   drywall: T(1450, 600, 1090, 4e5), bone: T(1670, 300, 1300, 4e5),
   sand: T(1700, 1200, 830, 4e5), loam: T(1150, 900, 1000, 4e5), clay: T(1200, 900, 920, 4e5), gravel: T(1200, 900, 840, 4e5),
@@ -143,7 +170,7 @@ const THERMAL = {
 // masonry thuds, soils and snow take it dead
 const BOUNCE = {
   concrete: 0.2, 'reinforced-concrete': 0.2, brick: 0.2, stone: 0.3, sandstone: 0.2, adobe: 0.1, ceramic: 0.3, glass: 0.4, ice: 0.3,
-  steel: 0.5, 'sheet-metal': 0.3, timber: 0.4, pine: 0.4, drywall: 0.1, bone: 0.4, sand: 0.05, loam: 0.05, clay: 0.03, gravel: 0.1, snow: 0.02,
+  steel: 0.5, 'sheet-metal': 0.3, 'armour-steel': 0.5, brass: 0.45, aluminium: 0.4, lead: 0.05, putty: 0.02, dough: 0, timber: 0.4, pine: 0.4, drywall: 0.1, bone: 0.4, sand: 0.05, loam: 0.05, clay: 0.03, gravel: 0.1, snow: 0.02,
   water: 0, seawater: 0, oil: 0, honey: 0, mud: 0, lava: 0, air: 0,
 };
 // DEBRIS, what a breaking leaves (handbook orders): `frac` the fracture energy, J/m² (the joules one square metre of new
@@ -155,7 +182,8 @@ const BOUNCE = {
 const DEBRIS = {
   concrete: [100, 'chunk', 1.2], 'reinforced-concrete': [1000, 'chunk', 1.6], brick: [50, 'chunk', 1.2], stone: [150, 'chunk', 1.4],
   sandstone: [60, 'chunk', 1.2], adobe: [20, 'chunk', 1.0], ceramic: [20, 'shard', 1.3], glass: [8, 'shard', 1.6], ice: [1, 'shard', 1.4],
-  steel: [2e5, 'plate', 3], 'sheet-metal': [2e5, 'plate', 3], timber: [1e4, 'splinter', 2.5], pine: [6e3, 'splinter', 2.5],
+  steel: [2e5, 'plate', 3], 'sheet-metal': [2e5, 'plate', 3], 'armour-steel': [1e5, 'plate', 3], brass: [1e5, 'plate', 3],
+  aluminium: [2e4, 'plate', 3], lead: [5e4, 'plate', 2.5], putty: [20, 'clod', 1], dough: [5, 'clod', 1], timber: [1e4, 'splinter', 2.5], pine: [6e3, 'splinter', 2.5],
   drywall: [50, 'plate', 1.5], bone: [1e3, 'splinter', 2], sand: [0.1, 'clod', 1], loam: [2, 'clod', 1], clay: [10, 'clod', 1.2],
   gravel: [0.5, 'clod', 1], snow: [1, 'clod', 1],
 };
@@ -171,6 +199,7 @@ export const AMBIENT = 20;              // °C
 export const MATTER_IDS = Object.freeze(Object.keys(MATTER));
 export const SOIL_IDS = Object.freeze(MATTER_IDS.filter((k) => MATTER[k].family === 'soil'));
 export const LIQUID_IDS = Object.freeze(MATTER_IDS.filter((k) => MATTER[k].family === 'liquid'));
+export const PLASTIC_IDS = Object.freeze(MATTER_IDS.filter((k) => isPlastic(MATTER[k])));
 
 /** A thing's matter by its class (breakability.js classOf) when it names none; a class not here is `brick`. */
 export const CLASS_MATTER = Object.freeze({
@@ -189,8 +218,14 @@ export const isLiquid = (m) => m.family === 'liquid';
 export const isGas = (m) => m.family === 'gas';
 export const isFluid = (m) => isLiquid(m) || isGas(m);
 export const isCombustible = (m) => Number.isFinite(m.ignite) && m.burn > 0;
+/** A solid that flows before it breaks: it has a yield, and it is no fluid (a liquid's yield is its Bingham stress) and
+ * no soil (ground craters, ground.js). A blow dents it, squashes it or goes through it. */
+export function isPlastic(m) { return !(m.family === 'liquid' || m.family === 'gas' || m.family === 'soil') && m.yield > 0; }
+/** What an edge cuts rather than breaks: plastic stuff, and wood along or across its grain. */
+export const isCuttable = (m) => isPlastic(m) || m.family === 'wood';
+export const KERF = 0.002;   // m: the width an edge opens as it cuts
 
-const FIELDS = ['label', 'density', 'E', 'compressive', 'tensile', 'bond', 'strain', 'toughness', 'fill', 'c', 'phi', 'swell', 'dig', 'melt', 'soften', 'heat', 'fusion', 'ignite', 'burn', 'bounce', 'frac', 'shape', 'spread', 'mu', 'tension', 'grain', 'fines', 'particle'];
+const FIELDS = ['label', 'density', 'E', 'compressive', 'tensile', 'bond', 'strain', 'toughness', 'fill', 'c', 'phi', 'swell', 'dig', 'melt', 'soften', 'heat', 'fusion', 'ignite', 'burn', 'bounce', 'frac', 'shape', 'spread', 'mu', 'tension', 'grain', 'fines', 'particle', 'yield'];
 
 /** A matter by id, or `{ is?, ...fields }` over one (a custom stuff: every number given, or laid over `is`). */
 export function resolveMatter(spec, where = 'matter') {
@@ -206,6 +241,7 @@ export function resolveMatter(spec, where = 'matter') {
   delete out.is;
   for (const k of ['density', 'toughness', 'compressive', 'strain']) if (!(Number.isFinite(out[k]) && out[k] > 0)) throw new Error(`${where}.${k} is a number above 0${base ? '' : ' (or name a matter it is, `is`)'}`);
   for (const k of ['tensile', 'bond']) if (out[k] !== undefined && !(Number.isFinite(out[k]) && out[k] >= 0)) throw new Error(`${where}.${k} is a number, 0 or more`);
+  if (out.yield !== undefined && !(Number.isFinite(out.yield) && out.yield >= 0)) throw new Error(`${where}.yield is Pa, 0 or more: the stress where it starts to flow (none: it breaks first)`);
   out.tensile = out.tensile ?? 0; out.bond = out.bond ?? out.tensile; out.fill = out.fill ?? 1;
   // heat: a custom stuff with none said neither melts nor burns, and softens where concrete does
   out.melt = out.melt ?? null; out.soften = out.soften ?? 500; out.heat = out.heat ?? 900; out.fusion = out.fusion ?? 0;
@@ -251,6 +287,16 @@ export function blockMatter(box, spec, where = 'matter') {
     frac: m.frac, shape: m.shape, spread: m.spread, joint: s.joint ?? (m.family === 'masonry' ? 'mortar' : 'dry'),
     ...(s.porosity !== undefined ? { porosity: checkPorosity(s.porosity, where) } : {}) };
   if (m.melt !== null && m.melt !== undefined) Object.assign(out, { melt: m.melt, fuse: sig(mass * m.fusion) });
+  if (isPlastic(m)) {
+    // a shell's wall is what a blow must pass to go through it: the solid share of its box spread over its surface
+    const [x, y, z] = [0, 1, 2].map((k) => Math.max(0, box.max[k] - box.min[k])), area = 2 * (x * y + y * z + x * z);
+    Object.assign(out, { yield: sig(m.yield), ...(fill < 1 && area > 0 ? { wall: sig((fill * vol) / area) } : {}) });
+  }
+  if (isCuttable(m)) {
+    const plastic = isPlastic(m), [x, y, z] = [0, 1, 2].map((k) => Math.max(0, box.max[k] - box.min[k])), area = 2 * (x * y + y * z + x * z);
+    Object.assign(out, { kerfWork: sig(m.frac + (plastic ? m.yield : m.tensile) * KERF), kerfHard: sig(plastic ? 3 * m.yield : m.compressive), tensile: sig(m.tensile * fill),
+      ...(fill < 1 && area > 0 && out.wall === undefined ? { wall: sig((fill * vol) / area) } : {}) });
+  }
   if (isCombustible(m)) {
     // its exposed faces char inward at CHAR_RATE: the fuel it gives each second is that volume's mass × its heat of combustion
     const [x, y, z] = [0, 1, 2].map((k) => Math.max(0, box.max[k] - box.min[k])), area = 2 * (x * y + y * z + x * z);

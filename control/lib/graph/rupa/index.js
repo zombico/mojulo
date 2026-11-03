@@ -15,7 +15,10 @@
  *                           at max; the wind: { speed at 10 m, dir, terrain?, gust?, seed? })
  *   impactJoules(m, v)    ½mv² (a cannonball, a car, a falling slab)
  *   breaches(matter, box, joules, fill?) → { joules, capacity, breaks, left } does that blow break that block
- *   rupaPhysics           blastKg, blastJoules, faceArea, burstShare, blowJoules, loadPass (the page's own functions)
+ *   rupaPhysics           blastKg, blastJoules, faceArea, burstShare, blowJoules, loadPass, dentOf, dishOf, TOOLS, toolOf
+ *                         (the page's own functions)
+ *   TOOL_IDS, readTool(v, where) → a strike's `strikeTool` checked: a tool's name, or { is?, edge, stroke?, strength,
+ *                           force?, contact? } (what a blow is struck with: controllable/rupa.js TOOL)
  */
 import { buildRupa } from '../worlds/controllable/rupa.js';
 import { blockMatter, resolveMatter, isLiquid } from './matter.js';
@@ -73,6 +76,23 @@ export function readMatterSpec(v, where = 'matter') {
 }
 
 export const impactJoules = (mass, speed) => 0.5 * mass * speed * speed;
+
+export const TOOL_IDS = Object.freeze(Object.keys(rupaPhysics.TOOLS));
+const EDGES = ['blunt', 'edge', 'point'], STROKES = ['level', 'chop'];
+/** A strike's tool: a preset's name, or its own numbers laid over one (`is`). Checked at mint; the page reads it as given. */
+export function readTool(v, where = 'strikeTool') {
+  const say = `${where} is a tool (${TOOL_IDS.join(', ')}) or { is?, edge (${EDGES.join(', ')}), stroke? (${STROKES.join(', ')}), strength (Pa), force? (N), contact? (m) }`;
+  if (typeof v === 'string') { if (!rupaPhysics.TOOLS[v]) throw new Error(say); return v; }
+  if (!isObj(v)) throw new Error(say);
+  for (const k of Object.keys(v)) if (!['is', 'edge', 'stroke', 'strength', 'force', 'contact'].includes(k)) throw new Error(`${where}.${k} is not part of a tool (is, edge, stroke, strength, force, contact)`);
+  if (v.is !== undefined && !rupaPhysics.TOOLS[v.is]) throw new Error(`${where}.is: ${say}`);
+  const t = rupaPhysics.toolOf(v);
+  if (!t || !EDGES.includes(t.edge)) throw new Error(`${where}.edge is ${EDGES.join(', ')} (or name a tool it is, \`is\`)`);
+  if (t.stroke !== undefined && !STROKES.includes(t.stroke)) throw new Error(`${where}.stroke is ${STROKES.join(', ')}`);
+  if (!pos(t.strength)) throw new Error(`${where}.strength is Pa above 0: the most pressure its face takes`);
+  for (const k of ['force', 'contact']) if (t[k] !== undefined && t[k] !== null && !pos(t[k])) throw new Error(`${where}.${k} is a number above 0`);
+  return { ...v };
+}
 
 /** Does a blow of `joules` break a block of `matter` (an id, a custom record, or { matter, fill }) the size of `box`? */
 export function breaches(matter, box, joules) {
