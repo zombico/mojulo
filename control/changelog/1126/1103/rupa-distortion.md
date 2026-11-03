@@ -21,6 +21,9 @@ Under destructible physics, matter that flows before it breaks now keeps the sha
   sheet a few centimetres and leaves a centimetre plate whole, and a heroic swing dents that too.
 - **Edges cut**: an edge harder than what it strikes cuts a groove on the plane of its stroke where it lands; cut through,
   the block parts into two blocks that keep their matter, and what no longer holds falls. Timber cuts as metal does.
+- **Trees fell**: a level groove leaves the stack above it on its hinge, and once the hinge is too thin to hold what
+  leans past it, the trunk and its crown turn about it and land lying, clear of the stump. The notch decides the fall,
+  and a block sawn level with its weight over its seat stands.
 - **On the page**: a dented block is drawn displaced by its dents, dishes and grooves, holes dark through; a cut block's
-  halves wear its skin, and a stripped plate falls.
+  halves wear its skin, a felled tree turns as it falls, and a stripped plate falls.
   A page whose blocks have no yield keeps its bytes.

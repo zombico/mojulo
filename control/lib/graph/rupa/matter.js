@@ -290,7 +290,7 @@ export function blockMatter(box, spec, where = 'matter') {
   }
   if (isCuttable(m)) {
     const plastic = isPlastic(m), [x, y, z] = [0, 1, 2].map((k) => Math.max(0, box.max[k] - box.min[k])), area = 2 * (x * y + y * z + x * z);
-    Object.assign(out, { kerfWork: sig(m.frac + (plastic ? m.yield : m.tensile) * KERF), kerfHard: sig(plastic ? 3 * m.yield : m.compressive),
+    Object.assign(out, { kerfWork: sig(m.frac + (plastic ? m.yield : m.tensile) * KERF), kerfHard: sig(plastic ? 3 * m.yield : m.compressive), tensile: sig(m.tensile * fill),
       ...(fill < 1 && area > 0 && out.wall === undefined ? { wall: sig((fill * vol) / area) } : {}) });
   }
   if (isCombustible(m)) {

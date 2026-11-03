@@ -189,7 +189,7 @@ export function buildRupa(E) {
   // × the world's power; none: the blow's energy alone decides) and its `contact` (m: a blunt face's radius, a round's)
   const TOOLS = {
     sword: { edge: 'edge', stroke: 'level', strength: 1.5e9, force: 5e3, contact: 0.002 },
-    axe: { edge: 'edge', stroke: 'chop', strength: 1.2e9, force: 1.2e4, contact: 0.003 },
+    axe: { edge: 'edge', stroke: 'level', strength: 1.2e9, force: 1.2e4, contact: 0.003 },   // it fells: level into a side
     knife: { edge: 'edge', stroke: 'level', strength: 1.5e9, force: 1e3, contact: 0.001 },
     bat: { edge: 'blunt', strength: 50e6, force: 1.5e4, contact: 0.03 },          // ash: its crushing strength
     'metal-bat': { edge: 'blunt', strength: 830e6, force: 1.5e4, contact: 0.03 }, // aluminium: 3 × its yield
@@ -455,12 +455,12 @@ export function buildRupa(E) {
         ignite: Number.isFinite(s.ignite) ? s.ignite : null, fuel: s.fuel || 0, fuelLeft: s.fuel || 0, burnRate: s.burnRate || 0, burning: false,
         stiff: s.stiff || 1e10, bounce: s.bounce ?? 0.2, fill: s.fill ?? 1, frac: s.frac ?? 100, shape: s.shape || 'chunk', spread: s.spread ?? 1.2, joint: s.joint || 'mortar' };
       // plastic matter keeps what a blow does to it: its dents, and a count the page redraws it by
-      if (s.yield > 0 || s.kerfWork > 0) Object.assign(b.rupa, { yield: s.yield || 0, wall: s.wall > 0 ? s.wall : null, kerfWork: s.kerfWork || 0, kerfHard: s.kerfHard || 0, dents: [], cuts: [], form: 0, squash: 0 });
+      if (s.yield > 0 || s.kerfWork > 0) Object.assign(b.rupa, { yield: s.yield || 0, wall: s.wall > 0 ? s.wall : null, kerfWork: s.kerfWork || 0, kerfHard: s.kerfHard || 0, tensile: s.tensile || 0, dents: [], cuts: [], form: 0, squash: 0 });
       b.hp = Infinity;   // the count never breaks it: the energy does
     });
     if (!any) return;
     state.rupa = { swing: R.swing ?? 300, shot: R.shot ?? 2000, blastZ: R.blastZ ?? 4, power: R.power ?? 1, g: R.g ?? G, heatShare: R.heatShare ?? 0.3, fireTime: R.fireTime ?? 60, cool: R.cool ?? 120, seq: -1, hits: [], hotAt: -1, bodies: [], bodySeq: 0, pools: Array.isArray(R.pools) ? R.pools : [], sprays: [], drops: [], dropSeq: 0, wet: { volume: 0, landed: [] }, splashes: [], splashSeq: 0,
-      air: { ...AIR, density: R.airDensity ?? AIR.density }, wind: windOf(R.wind), windAt: -1, toppled: [], dents: [], dentSeq: 0 };
+      air: { ...AIR, density: R.airDensity ?? AIR.density }, wind: windOf(R.wind), windAt: -1, toppled: [], dents: [], dentSeq: 0, fells: [], fellSeq: 0 };
   });
   // src: { joules (what the breaking took: its joules, and any blow past them), from?, dir? } for the debris
   function breakIt(state, b, how, by, src = {}) {
@@ -571,6 +571,7 @@ export function buildRupa(E) {
       const dd = cutDepth(W, r.kerfWork, width);
       c.depth += dd;
       record(state, b, { how: 'cut', ax: c.ax, side: c.side, n, at: r6(c.at), depth: r6(c.depth) });
+      if (n === 2 && c.ax !== 2) state.rupa.seq = -1;   // a level groove narrows the hinge what stands above it rests on
       return { spent: kerf(dd * width), through: 0 };
     }
     const dA = (t - c.depth) * width;
@@ -919,6 +920,107 @@ export function buildRupa(E) {
   }, 34);
   // after the basic pass has dropped and landed: a landing is an impact (on the block below, or the floor), then the load
   // is worked out again
+  // ── FELLING: what a level groove leaves standing. Above a groove the block and all it carries rest on the uncut wood,
+  // the HINGE ([lo, hi] across the groove's axis, the block's width along the other). A stack whose centre of mass hangs
+  // past the hinge's edge is held only by the hinge's tension, σt·b·h²/2 against W·(overhang); past that it tips. A
+  // cut through leaves no tension: the top half tips if its centre of mass is off the stump. What tips FELLS: the block
+  // above the cut and all it carries turn as one body about the hinge's edge under gravity (θ'' = M·g·rc·sin(θ + φ0) / I),
+  // and lying, a quarter turn on, they land as boxes again (a quarter turn keeps a box a box), the fall's energy spent on
+  // them as a landing. `state.rupa.fells: [{ ids, pivot, dir, theta, done }]` is what the page turns them by.
+  const turn = (p, P, d, th) => {
+    const v = [p[0] - P[0], p[1] - P[1], p[2] - P[2]], s0 = v[0] * d[0] + v[1] * d[1], l = [v[0] - s0 * d[0], v[1] - s0 * d[1]];
+    const c = Math.cos(th), sn = Math.sin(th), s1 = s0 * c + v[2] * sn, z1 = -s0 * sn + v[2] * c;
+    return [P[0] + l[0] + d[0] * s1, P[1] + l[1] + d[1] * s1, P[2] + z1];
+  };
+  const turnBox = (b, P, d) => {
+    const pts = [];
+    for (const x of [b.min[0], b.max[0]]) for (const y of [b.min[1], b.max[1]]) for (const z of [b.min[2], b.max[2]]) pts.push(turn([x, y, z], P, d, Math.PI / 2));
+    return { min: [0, 1, 2].map((k) => r6(Math.min(...pts.map((q) => q[k])))), max: [0, 1, 2].map((k) => r6(Math.max(...pts.map((q) => q[k])))) };
+  };
+  // the stack a block carries: it and every block resting on what is in it
+  const carriedBy = (b, live) => { const out = [b], q = [b]; while (q.length) { const a = q.pop(); for (const s2 of live) if (!out.includes(s2) && restsOn(s2, a, TOUCH)) { out.push(s2); q.push(s2); } } return out; };
+  // does a level groove (or a through cut's seat) on b let what is above it go? → { ax, sign, at, edge } or null
+  function hingeOf(state, b, live) {
+    const r = b.rupa, G = state.rupa.g;
+    const grooves = (r.cuts || []).filter((c) => c.n === 2 && c.ax !== 2 && !c.through);
+    const seat = b.parent && !grooves.length ? live.find((s2) => s2 !== b && s2.parent === b.parent && restsOn(b, s2, TOUCH)) : null;
+    if (!grooves.length && !seat) return null;
+    const at = grooves.length ? grooves.reduce((m, c) => (c.depth > m.depth ? c : m)).at : b.min[2];
+    const top = carriedBy(b, live).filter((q) => q !== b);
+    const share = grooves.length ? (b.max[2] - at) / (b.max[2] - b.min[2]) : 1, parts = [{ m: r.mass * share, c: [(b.min[0] + b.max[0]) / 2, (b.min[1] + b.max[1]) / 2, (at + b.max[2]) / 2] }, ...top.map((q) => ({ m: q.rupa.mass, c: centre(q) }))];
+    const M = parts.reduce((a, p) => a + p.m, 0), com = [0, 1, 2].map((k) => parts.reduce((a, p) => a + p.m * p.c[k], 0) / (M || 1)), W = M * G;
+    for (const ax of [0, 1]) {
+      let lo = b.min[ax], hi = b.max[ax];
+      for (const c of grooves) if (c.ax === ax && Math.abs(c.at - at) < 0.02) { if (c.side < 0) lo = Math.max(lo, b.min[ax] + c.depth); else hi = Math.min(hi, b.max[ax] - c.depth); }
+      if (seat) { lo = Math.max(lo, seat.min[ax]); hi = Math.min(hi, seat.max[ax]); }
+      const m = 1 - ax, width = b.max[m] - b.min[m], h = Math.max(0, hi - lo), tension = seat ? 0 : r.tensile * width * h * h / 2;
+      if (com[ax] > hi && W * (com[ax] - hi) > tension) return { ax, sign: 1, at, edge: hi, top, com, M };
+      if (com[ax] < lo && W * (lo - com[ax]) > tension) return { ax, sign: -1, at, edge: lo, top, com, M };
+    }
+    return null;
+  }
+  function fell(state, b, H) {
+    const R = state.rupa, live = () => state.breakables.filter((q) => !q.broken && q.rupa);
+    // a groove: part the block on its plane first, so what turns is the block above it
+    let upper = b;
+    if (H.at > b.min[2] + 1e-6) {
+      const left = Math.max(b.rupa.joules, 0.05 * b.rupa.cap);
+      if (!cleaveBlock(state, b, 2, H.at, left, null)) return;
+      upper = state.breakables.find((q) => q.id === `${b.id}/b`);
+    }
+    const ids = [upper.id, ...H.top.map((q) => q.id)], group = ids.map((id) => state.breakables.find((q) => q.id === id));
+    const d = H.ax === 0 ? [H.sign, 0] : [0, H.sign], P = H.ax === 0 ? [H.edge, (upper.min[1] + upper.max[1]) / 2, H.at] : [(upper.min[0] + upper.max[0]) / 2, H.edge, H.at];
+    let I = 0, M = 0, cs = 0, cz = 0;
+    for (const q of group) {
+      const c = centre(q), m = q.rupa.mass, s0 = (c[0] - P[0]) * d[0] + (c[1] - P[1]) * d[1], z0 = c[2] - P[2];
+      const ds = Math.abs(d[0]) * (q.max[0] - q.min[0]) + Math.abs(d[1]) * (q.max[1] - q.min[1]), dz = q.max[2] - q.min[2];
+      I += m * (s0 * s0 + z0 * z0 + (ds * ds + dz * dz) / 12); M += m; cs += m * s0; cz += m * z0;
+    }
+    cs /= M || 1; cz /= M || 1;
+    for (const q of group) { q.fell = R.fellSeq; const k = state.colliders.indexOf(q.collider); if (k >= 0) state.colliders.splice(k, 1); }
+    R.fells.push({ seq: R.fellSeq++, t: state.time, ids, pivot: P.map(r6), dir: [d[0], d[1], 0], theta: 0, omega: 0, I, M, rc: Math.hypot(cs, cz), phi0: Math.atan2(cs, cz), z0: cz + P[2], done: false, slide: 0 });
+    state.settleDirty = true;   // a felling is no break: the blocks stay whole (the page reads it off fells)
+  }
+  // order 35: the felled turn, and land a quarter turn on
+  E.registerWorldPass('rupa-fell', (state, input, dt) => {
+    const R = state.rupa;
+    if (!R || !R.fells.some((f) => !f.done)) return;
+    for (const f of R.fells) {
+      if (f.done) continue;
+      f.omega += ((f.M * R.g * f.rc * Math.sin(f.theta + f.phi0)) / (f.I || 1)) * dt;
+      f.theta = Math.min(Math.PI / 2, f.theta + f.omega * dt);
+      if (f.theta < Math.PI / 2) continue;
+      f.done = true; f.landedAt = state.time;
+      const group = f.ids.map((id) => state.breakables.find((q) => q.id === id)).filter((q) => q && !q.broken);
+      const boxes = group.map((q) => turnBox(q, f.pivot, f.dir)), ax = f.dir[0] ? 0 : 1, sg = f.dir[ax];
+      // it comes down clear of what it turned over (the stump it hinged on): slid on along its fall by what it lies in
+      let slide = 0;
+      for (const B of boxes) for (const s2 of state.breakables) {
+        if (s2.broken || s2.fell != null || !s2.rupa || [0, 1, 2].some((k) => B.max[k] <= s2.min[k] + 1e-6 || B.min[k] >= s2.max[k] - 1e-6)) continue;
+        slide = Math.max(slide, sg > 0 ? s2.max[ax] - B.min[ax] : B.max[ax] - s2.min[ax]);
+      }
+      let zAfter = 0, M = 0;
+      for (let i = 0; i < group.length; i++) {
+        const q = group[i], B = boxes[i], lift = Math.max(0, state.breakFloor - B.min[2]);
+        B.min[2] += lift; B.max[2] += lift; B.min[ax] = r6(B.min[ax] + sg * slide); B.max[ax] = r6(B.max[ax] + sg * slide);
+        const r = q.rupa;
+        // its marks turn with it
+        for (const dn of r.dents || []) { const nrm = [0, 0, 0]; nrm[dn.ax] = dn.side; const o = turn([0, 0, 0], [0, 0, 0], f.dir, Math.PI / 2), t1 = turn(nrm, [0, 0, 0], f.dir, Math.PI / 2).map((x, i) => x - o[i]); dn.ax = [0, 1, 2].reduce((a, k) => (Math.abs(t1[k]) > Math.abs(t1[a]) ? k : a), 0); dn.side = t1[dn.ax] > 0 ? 1 : -1; dn.at = turn(dn.at, f.pivot, f.dir, Math.PI / 2); dn.at[2] += lift; dn.at[ax] += sg * slide; }
+        r.cuts = [];
+        for (let k = 0; k < 3; k++) { q.min[k] = B.min[k]; q.max[k] = B.max[k]; }
+        if (!r.dents) Object.assign(r, { dents: [], cuts: [], squash: 0, form: 0, yield: r.yield || 0, kerfWork: r.kerfWork || 0, kerfHard: r.kerfHard || 0, wall: r.wall ?? null });
+        r.form = (r.form || 0) + 1;
+        delete q.fell; q.falling = null; q.landed = null;
+        if (!state.colliders.includes(q.collider)) state.colliders.push(q.collider);
+        zAfter += r.mass * centre(q)[2]; M += r.mass;
+      }
+      // the fall's energy, the drop of its centre of mass, spent on what fell as a landing, each by its share of the mass
+      const E0 = f.M * R.g * Math.max(0, f.z0 - zAfter / (M || 1));
+      for (const q of group) spend(state, q, (E0 * q.rupa.mass) / (M || 1), 'fall', null, { ax: 2, side: -1, at: [(q.min[0] + q.max[0]) / 2, (q.min[1] + q.max[1]) / 2, q.min[2]], tool: null });
+      f.slide = r6(slide);
+      state.settleDirty = true; R.seq = -1;
+    }
+  }, 35);
   E.registerWorldPass('rupa-load', (state) => {
     if (!state.rupa) return;
     const R = state.rupa;
@@ -933,13 +1035,19 @@ export function buildRupa(E) {
       if (under && under.rupa) spend(state, under, r.toB, 'crush', b.id, { ax: 2, side: 1, at: foot });
     }
     if (!changed) return;
-    const live = state.breakables.filter((b) => !b.broken && !b.falling && b.rupa);
+    const live = state.breakables.filter((b) => !b.broken && !b.falling && b.rupa && b.fell == null);
     const afloat = (b) => R.pools.reduce((m, pool) => (inPool(b, pool) ? m - pool.density * submerged(b, pool.max[2]) : m), b.rupa.mass);
     const boxes = live.map((b) => ({ min: b.min, max: b.max, mass: Math.max(0, afloat(b)), compressive: b.rupa.compressive, lateral: b.bond === 'lateral', bond: b.rupa.cohesion, left: (b.rupa.cap > 0 ? Math.max(0, b.rupa.joules) / b.rupa.cap : 1) * heatFactor(b.rupa.ignite != null ? Math.min(b.rupa.T, b.rupa.ignite) : b.rupa.T, b.rupa.soften, b.rupa.melt, b.rupa.T0), ref: b }));
     const fixed = state.colliders.filter((c) => c.blk == null);
     const L = loadPass(boxes, { fixed, floor: state.breakFloor, g: R.g, touch: TOUCH });
     for (const x of L.crush) breakIt(state, x.ref, 'crush', null);
     for (const grp of L.span) for (const x of grp) if (!x.ref.broken) { x.ref.bond = null; state.settleDirty = true; }
+    // felling: a level groove's hinge, or a through cut's seat, that no longer holds what is above it
+    for (const b of live) {
+      if (b.broken || b.fell != null || !b.rupa.cuts) continue;
+      const H = hingeOf(state, b, live.filter((q) => !q.broken && q.fell == null));
+      if (H) fell(state, b, H);
+    }
     R.seq = state.breakSeq;
   }, 36);
   // ── WIND LOAD (order 37, a few times a second while the wind blows): the wind's pressure on each exposed face,

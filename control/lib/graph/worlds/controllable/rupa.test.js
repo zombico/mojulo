@@ -440,3 +440,52 @@ describe('rupa tools and cuts: what a blow is struck with', () => {
     expect(get(w, 'door').rupa.cuts).toHaveLength(0);
   });
 });
+
+describe('rupa felling: what a level groove leaves standing', () => {
+  const at = (x, y, z) => [x, y, z];
+  // a rooted oak trunk with a pine crown; `lean` the crown's offset toward +y
+  const tree = (lean) => [
+    block('trunk', [-0.15, -0.15, 0], [0.15, 0.15, 3.5], { matter: 'timber', joint: 'mortar' }),
+    block('crown', [-1, -1 + lean, 3.5], [1, 1 + lean, 5.5], { matter: 'pine', fill: 0.05 }),
+  ];
+  const chop = (w, from, dir, max = 400) => { let n = 0; while (!w.rupa.fells.length && !get(w, 'trunk').broken && n < max) { CW.strikeBlock(w, 'trunk', 300, 'swing', { dir, from, tool: 'axe' }); step(w); n++; } return n; };
+  const land = (w) => { for (let i = 0; i < 600 && w.rupa.fells.some((f) => !f.done); i++) step(w); return step(w, 30); };
+
+  it('an axe into the lean side fells the tree toward its lean; it lands lying and its stump stands', () => {
+    const w = step(world(tree(0.25)), 2);
+    const n = chop(w, at(0, 1.2, 0.5), [0, -1, 0]);
+    expect(n).toBeGreaterThan(10);
+    const f = w.rupa.fells[0];
+    expect(f).toBeDefined();
+    expect(f.dir).toEqual([0, 1, 0]);                                   // toward the lean
+    expect(f.ids).toEqual(['trunk/b', 'crown']);                         // what was above the groove, and what it carried
+    land(w);
+    const stump = get(w, 'trunk/a'), log = get(w, 'trunk/b'), crown = get(w, 'crown');
+    expect(stump.max[2]).toBeCloseTo(0.5, 6);
+    expect(log.max[1] - log.min[1]).toBeCloseTo(3, 6);                   // the trunk lies along its fall
+    expect(log.max[2] - log.min[2]).toBeCloseTo(0.3, 6);
+    expect(log.min[2]).toBeCloseTo(0, 6);
+    expect(log.min[1]).toBeGreaterThanOrEqual(stump.max[1] - 1e-6);      // clear of the stump it hinged on
+    expect(crown.min[1]).toBeGreaterThan(3);
+    expect(f.done).toBe(true);
+    expect(w.breaks.some((x) => x.how === 'fell')).toBe(false);          // a felling breaks nothing: no debris
+  });
+
+  it('the notch decides the fall: a tree with no lean goes into the groove, and only once its hinge is thin', () => {
+    const w = step(world(tree(0)), 2);
+    chop(w, at(0, 1.2, 0.5), [0, -1, 0]);
+    expect(w.rupa.fells[0].dir).toEqual([0, 1, 0]);                     // toward the side the axe cut away
+    expect(get(w, 'trunk').rupa.cuts[0].depth).toBeGreaterThan(0.28);  // its 30 cm held to a hinge of a centimetre or two
+    // a block cut clean through with its weight still over its seat stands on it (the post's top, sawn level)
+    const post = world([block('post', [0, 0, 0], [0.1, 0.1, 2], 'timber')]);
+    for (let i = 0; i < 20 && !get(post, 'post').broken; i++) CW.strikeBlock(post, 'post', 2e3, 'swing', { dir: [1, 0, 0], from: at(-1, 0.05, 1.2), tool: 'sword' });
+    step(post, 30);
+    expect(post.rupa.fells).toHaveLength(0);
+    expect(get(post, 'post/b').min[2]).toBeCloseTo(1.2, 6);
+  });
+
+  it('deterministic: the same strokes fell the same way', () => {
+    const run = () => { const w = step(world(tree(0.25)), 2); chop(w, at(0, 1.2, 0.5), [0, -1, 0]); land(w); return JSON.stringify(w.breakables.map((b) => [b.id, b.min, b.max])); };
+    expect(run()).toBe(run());
+  });
+});

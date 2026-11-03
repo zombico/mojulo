@@ -155,7 +155,7 @@ window.__mojSeatRings = () => Object.keys(__seatRing).map((n) => ({ n: +n, color
  * (a deep narrow channel pushes its volume aside along its length, not up at its mouth); a hole is dark through to the
  * far face, which petals out; a dish moves both faces, cos² across, no rim; a cut is a dark groove along its plane, a
  * slit through when it is through. The halves of a cut block wear its skin; a stripped plate rides its body down,
- * tipping away from the wall. Rebuilt only when a block's `form` count moves, from state the runtime owns, so a
+ * tipping away from the wall; a felling turns what it fells about its hinge (`state.rupa.fells`) until it lies. Rebuilt only when a block's `form` count moves, from state the runtime owns, so a
  * capture stays byte-identical.
  */
 export function distortViewScript() {
@@ -237,7 +237,7 @@ function __updateDents() {
       D = __dentDraw[id] = { ...__dentMesh(b), form: b.rupa.form };
       scene.add(D.mesh);
     }
-    if (!b.broken) { if (D) D.mesh.position.set((b.min[0] + b.max[0]) / 2, (b.min[1] + b.max[1]) / 2, (b.min[2] + b.max[2]) / 2); continue; }   // it rides its box: a falling half, a settling block
+    if (!b.broken) { if (D && b.fell == null) D.mesh.position.set((b.min[0] + b.max[0]) / 2, (b.min[1] + b.max[1]) / 2, (b.min[2] + b.max[2]) / 2); continue; }   // it rides its box: a falling half, a settling block
     // stripped: the plate rides its body, tipping away from the wall as it goes
     if (!D) { D = __dentDraw[id] = { ...__dentMesh(b), form: b.rupa.form }; scene.add(D.mesh); }
     if (!D.strip) { const br = (__world.breaks || []).find((x) => x.id === id && x.how === 'strip'); D.strip = { body: br && br.body, away: (br && br.away) || [0, 0, 0], t0: b.broken.t }; }
@@ -248,6 +248,17 @@ function __updateDents() {
     const floor = __world.breakFloor || 0, bottom = Math.max(floor, body.pos[2] - hz);
     D.mesh.position.set(body.pos[0], body.pos[1], bottom + hz * Math.cos(th) + ht * Math.sin(th));
     if (th > 0) D.mesh.quaternion.setFromAxisAngle(new THREE.Vector3(-a[1], a[0], 0).normalize(), th);
+  }
+  // a felling: what is above the cut turns about its hinge as one body (its drawing, or the thing's own mesh)
+  for (const f of ((__world.rupa && __world.rupa.fells) || [])) {
+    if (f.done) continue;
+    const q = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(-f.dir[1], f.dir[0], 0), f.theta), P = new THREE.Vector3(f.pivot[0], f.pivot[1], f.pivot[2]);
+    for (const id of f.ids) {
+      const D = __dentDraw[id];
+      if (D) { D.mesh.position.set(D.c[0], D.c[1], D.c[2]).sub(P).applyQuaternion(q).add(P); D.mesh.quaternion.copy(q); continue; }
+      const b = (__world.breakables || []).find((x) => x.id === id), own = meshes['break:' + ((b && b.skin) || id)];
+      for (const m of own ? [own, ...(own.userData.tex || [])] : []) { m.position.copy(P).sub(P.clone().applyQuaternion(q)); m.quaternion.copy(q); }
+    }
   }
 }
 `;

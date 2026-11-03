@@ -116,6 +116,24 @@ carry no tool, and their energy alone decides.
   budget by volume. The held graph and the load pass decide what stands: the top of a post cut through rests on its
   foot, and the end of a beam chopped off past its post falls. Through a shell, it's a slit.
 
+### Felling
+
+A level groove (a cut on a horizontal plane into a side) leaves what is above it resting on the uncut wood, the hinge.
+A stack whose centre of mass hangs past the hinge's edge is held only by the hinge's tension, σt·b·h²/2 against the
+weight's overhang; once the groove has thinned the hinge past that, it tips. A cut clean through leaves no tension: the
+top tips only if its centre of mass is off its stump, so a block sawn level with its weight over its seat stands.
+
+What tips fells: the block above the groove and everything it carries turn as one body about the hinge's edge under
+gravity (θ'' = M·g·rc·sin(θ + φ0) / I, the stack's own inertia about the hinge), and a quarter turn on they land lying,
+as boxes again, since a quarter turn keeps a box a box. They come down clear of the stump they hinged on, and the
+fall's energy, the drop of their centre of mass, is spent on them as a landing. A felling breaks nothing, so it leaves
+no debris. `state.rupa.fells: [{ ids, pivot, dir, theta, done }]` is what the page turns them by.
+
+The notch decides the fall. A rooted oak 30 cm across with its crown leaning a quarter metre goes toward the side the
+axe cuts away, at about sixty 300 J strokes, with a hinge of a centimetre or two; with no lean it still goes into the
+groove, once the groove passes the trunk's middle. The axe is a level stroke, so it fells from the side and splits
+across from above.
+
 Each block keeps its dents (`b.rupa.dents`, merged where they overlap, at most 24) and a `form` count, and
 its cuts (`b.rupa.cuts`); `state.rupa.dents` records each one. The page draws a marked block as its box subdivided
 where its marks are: each bowl with its rim, a hole dark through to the far face where it petals out, a dish moving
@@ -269,6 +287,9 @@ you give a thing a matter, read its skin; when you change a skin, check its matt
   disagree.
 - Distortion's wobble (jelly's elastic jiggle), dents on minted solids, holes the walk and the shot can pass through
   (the collider stays the block's box), work hardening and how fast a blow lands (strain rate).
+- A felled stack at rest at an angle (it lands lying flat, a quarter turn on, clear of its stump), a hinge that tears
+  as it turns, tipping of stacks that were never cut (only a groove's hinge and a cut's seat are checked), and trees
+  from the vegetation library as rupa blocks (a tree here is a trunk and a crown built as blocks).
 - Cuts on any plane (they snap to the block's axes, so the halves stay boxes), a groove weakening the load pass before
   it goes through, a round's own tool word (rounds are steel-cored), and a cut half's own pre-cut pieces when it later
   breaks (it vanishes in its flash).
