@@ -2,13 +2,15 @@
 process.env.SQLITE_PATH = ':memory:';
 process.env.MOJULO_SEMANTIC_INDEX_DISABLED = '1';
 
-import { describe, it, expect, beforeEach, beforeAll } from 'vitest';
+import { describe, it, expect, beforeEach, beforeAll, vi } from 'vitest';
 import { closeDb } from '@/lib/db/index';
 import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { SketchRevisionRepository } from '@/lib/db/repositories/sketch-revisions';
 import { updateSketchHandler } from './sketches.js';
 import { designGameHandler } from './design-game.js';
+import { LAWS_VERSION } from '@/lib/graph/equipment/expand';
 import { MEADOWMARK, MEADOWMARK_HERO, HALDEN_REACH, gameworldOf } from '@/lib/graph/gameworld/index';
+import { GENRES } from '@/lib/graph/gameworld/intent';
 import { createCharacterHandler, updateCharacterHandler } from './create-character.js';
 import { resolveWorldScene } from '@/lib/graph/worlds/world-scene';
 import { simLevel } from '@/lib/graph/game/level-sim.js';
@@ -56,15 +58,32 @@ describe('design_game', () => {
     expect(ground.made).toBeUndefined();
   });
 
-  it('a target is advice: the readout names what the engine does not carry as a next step, and writes the world as given', async () => {
-    const out = await designGameHandler({ world: { ...MEADOWMARK, intent: { from: 'kart-racer', target: 'roblox' } }, ref: 'gw-aimed' });
-    expect(out.intent.target).toMatchObject({ engine: 'roblox', carries: false });
-    expect(step(out, 'target')).toEqual({ step: 'target', engine: 'roblox', lost: out.intent.target.lost, card: 'gameworld-intent' });
-    expect(gameworldOf(stored('gw-aimed')).intent).toEqual({ from: 'kart-racer', target: 'roblox' });
-    // the same world with no target: no advice, no step
-    const plain = await designGameHandler({ world: { ...MEADOWMARK, intent: { from: 'kart-racer' } }, ref: 'gw-plain' });
-    expect(plain.intent.target).toBeUndefined();
-    expect(step(plain, 'target')).toBeUndefined();
+  it('a run cut off partway leaves what it made recorded: each step is written into the world as it is made', async () => {
+    // (a run whose process ends before its last write, a host's time limit: the rows it made were read as edited by
+    // hand by every later run, 'taken', until a forced run remade them all)
+    const spy = vi.spyOn(SketchRepository, 'update');
+    try {
+      await designGameHandler({ world: GATED, ref: 'gw-cut', run: true });
+      const writes = spy.mock.calls.map(([a]) => a).filter((a) => a.ref === 'gw-cut' && a.manifest?.made?.hero);
+      // the hero's record was written as it was made, before the run's own write at its end
+      expect(writes.length).toBeGreaterThan(1);
+      // cut off there: the stored world is the checkpoint, and the next run keeps the hero as its own
+      SketchRepository.update({ ref: 'gw-cut', manifest: writes[0].manifest });
+    } finally { spy.mockRestore(); }
+    const again = await designGameHandler({ ref: 'gw-cut', run: true });
+    expect(action(again, 'hero')).toBe('keep');
+  }, 120_000);
+
+  it('a stored retired target (Godot, Roblox) is written as given and read as none: no advice, no step', async () => {
+    const from = Object.keys(GENRES)[0];
+    const plain = await designGameHandler({ world: { ...MEADOWMARK, intent: { from } }, ref: 'gw-plain' });
+    for (const target of ['godot', 'roblox']) {
+      const ref = `gw-retired-${target}`;
+      const retired = await designGameHandler({ world: { ...MEADOWMARK, intent: { from, target } }, ref });
+      expect(gameworldOf(stored(ref)).intent).toEqual({ from, target });
+      expect(retired.intent).toEqual(plain.intent);
+      expect(step(retired, 'target')).toBeUndefined();
+    }
   });
 
   it('gated: a run makes the hero and pins its base; the rest waits for the creator; a second run makes nothing', async () => {
@@ -108,7 +127,8 @@ describe('design_game', () => {
     expect(action(sys, 'gear-staff')).toBe('waiting');
     const gear = await designGameHandler({ ref: 'gw', approve: 'mechanics:stats', run: true });
     expect(gear.ran.filter((r) => r.key.startsWith('gear-')).map((r) => r.action)).toEqual(Array(6).fill('make'));
-    expect(stored('gw-gear-staff').build).toMatchObject({ type: 'equipment', item: 'staff', laws: 1 });
+    // (stamped with the laws current at mint: laws 2 since the hilt and the end, equipment/compose.js)
+    expect(stored('gw-gear-staff').build).toMatchObject({ type: 'equipment', item: 'staff', laws: LAWS_VERSION });
     expect(Object.keys(gear.made)).toHaveLength(15);
     expect(stored('gw-hero-equipped').hero.gear.right).toMatchObject({ item: 'staff' });
     expect(stored('gw-hero').hero.gear).toBeUndefined();
@@ -257,7 +277,10 @@ describe('design_game: party battles on the book path (battles)', () => {
 
   it('a run lays packs on the trails, the store carries the party, and a pack walked up to is fought and falls', async () => {
     const out = await designGameHandler({ world: { ...AUTO, battles: { per: 1, rules: { defeat: 'retry' } } }, ref: 'gb', run: true });
-    expect(action(out, 'foe')).toBe('make');
+    // (a world writing no foe look of its own stands each foe kind its packs field as its own figure, `foe-<kind>`)
+    const kinds = out.ran.filter((r) => /^foe-[^-]+$/.test(r.key) || (/^foe-/.test(r.key) && !r.key.endsWith('-sheet')));
+    expect(kinds.length).toBeGreaterThan(0);
+    for (const r of kinds) expect(r.action, r.key).toBe('make');
     expect(stored('gb-game').store.slices).toContainEqual(expect.objectContaining({ name: 'party', kind: 'party' }));
     const L = stored('gb-level-meadow-ascent-0');
     expect(L.play.rpg.party.map((p) => p.id)).toEqual(['hero']);
@@ -276,7 +299,8 @@ describe('design_game: party battles on the book path (battles)', () => {
     for (let r = 0; r < 30 && R.b.phase === 'command'; r++) rpgRound(cfg, R, { hero: { act: 'attack', target: rpgTargets(cfg, R, { act: 'attack' })[0]?.id } }, v);
     expect(R.b.phase).toBe('won');
     sim.run(0.5, { 0: rpgClose(cfg, R, v) });
-    expect(W.byId[enc.who].downed).toBe(true);
+    // (a pack of several stands each foe as its own body, battles.js: `who` lists them; every one is downed)
+    for (const w of [].concat(enc.who)) expect(W.byId[w].downed, w).toBe(true);
     expect(v[`rpg-done-${enc.id}`]).toBe(1);
   }, 600_000);
 

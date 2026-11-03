@@ -114,7 +114,7 @@ Mint ONE sequential-art page per action beat-set: panels `beat-a`,
 `beat-b`, … with the SAME `camera` kind, the SAME bounds aspect, and the
 pose changed — stick `pose` vocabulary for blocking, or `rig`
 (`motion` + `phase`) for exact articulated silhouettes sampled from the
-same motions `create_figure` animates. Recurring characters bind sheets
+same motions a figure (`mint_solid` kind `figure`) animates. Recurring characters bind sheets
 (`bind_character_sheet`) so identity holds across variants when painted.
 Then in the motion comic: `base` places `beat-a`, each click `swap`s the
 next beat. Zone says always read the ACTIVE variant's bubbleZones.

@@ -1,0 +1,215 @@
+// THE SUBWAY UNDER A GEOCITY (`geocity.subway`, geocity/subway.js): a line under one of an evocation's arterials (by
+// default the flatter spine over its span, turned to that street's axis), its stations under the carriageway at their
+// own depth under the street over them, its tunnels graded between them, each station's way out a stair up to the
+// sidewalk through a well cut in the walk; walked along each platform, from one platform to the next, and from a
+// platform up to the sidewalk, and back. And an EL (`subway.elevation`): its stations over the street on their piers, its
+// flights down to each sidewalk, nothing of the street's standing under it; a line that dives from the el to a deep
+// station through a cut in the road.
+import { describe, it, expect } from 'vitest';
+import { assembleGeocityScene } from './scene.js';
+import { designGeocity } from './design.js';
+import { subwayStreet } from './subway.js';
+import { walker } from '../network/walk-gate.js';
+import { withBuildingLevel } from '../structure/level.js';
+
+const geocity = { metro: { from: 'lakeshore', rings: { core: 350, frame: 700 } }, extent: [1800, 1500], water: { sides: ['s'], depth: 200 }, core: [0.5, 0.2] };
+const M = { kind: 'geocube', cube: 'valley-morning', show: 'geocity', seed: 2, hour: 'noon' };
+
+describe('a subway under an evocation\'s street', () => {
+  const N = assembleGeocityScene({ ...M, geocity: { ...geocity, evoke: 'neighbourhood', subway: true } }), U = N.geocity.subway;
+  const of = (k) => N.anchors.filter((a) => a.kind === k);
+
+  it('runs under the flatter spine, its stations under its carriageway at their depth, its tunnels within a rail\'s grade', () => {
+    const d = designGeocity({ ...geocity, evoke: 'neighbourhood', subway: true }, { seed: 2 }), l = d.lines.find((x) => x.id === U.along);
+    expect(l.rank).toBe('spine');
+    expect(U.stations).toHaveLength(2);
+    expect(of('rail-tunnel')).toHaveLength(1);
+    for (const t of U.runs) { expect(t.grade).toBeLessThanOrEqual(1 / 30 + 1e-6); expect(t.findings).toBeUndefined(); }
+    // (every platform lies under the street's carriageway, each its depth under it)
+    const across = l.axis === 'ns' ? 0 : 1;
+    for (const s of of('station')) for (const p of s.platforms.flat()) expect(Math.abs(p[across] - l.at)).toBeLessThan(l.road / 2);
+    expect(U.z0.every((z, i) => z < U.z0[0] + 10 && Number.isFinite(z) && (i === 0 || Math.abs(z - U.z0[i - 1]) <= U.gap / 30))).toBe(true);
+    for (const g of ['subway:tunnel-rail', 'station:platform', 'station:train', 'subway:entrance-stair', 'subway:entrance-railing']) expect(N.faces.some((f) => f.group === g), g).toBe(true);
+  });
+
+  it('opens a stairwell in the sidewalk for each way out, nothing of the street\'s standing in it', () => {
+    const d = designGeocity({ ...geocity, evoke: 'neighbourhood', subway: true }, { seed: 2 }), l = d.lines.find((x) => x.id === U.along), across = l.axis === 'ns' ? 0 : 1;
+    for (const e of of('entrance')) {
+      // (its head on the walk: between the kerb and the street's edge)
+      const off = Math.abs(e.door[across] - l.at);
+      expect(off).toBeGreaterThan(l.road / 2);
+      expect(off).toBeLessThan(l.half);
+    }
+    const wells = of('entrance').map((e) => e.walk.at(-2));
+    for (const r of N.repeats ?? []) for (const t of r.transforms) for (const w of wells) expect(Math.hypot(t.pos[0] - w[0], t.pos[1] - w[1]) < 0.3).toBe(false);
+  });
+
+  it('stands the metro\'s streetcar at its stop on each track of the streetcar line crossing over it, under the wire', () => {
+    const d = designGeocity({ ...geocity, evoke: 'neighbourhood', subway: true }, { seed: 2 }), l = d.lines.find((x) => x.id === U.along);
+    const across = d.lines.filter((x) => x.axis !== l.axis && x.tracks.length);
+    expect(across.length).toBeGreaterThan(0);
+    expect(U.streetcars.length).toBeGreaterThan(0);
+    for (const c of U.streetcars) { const x = d.lines.find((q) => q.id === c.line); expect(x.axis).not.toBe(l.axis); expect(Math.abs(c.at[x.axis === 'ns' ? 0 : 1] - x.at)).toBeLessThan(x.road / 2); }
+    // (as tall as the metro's car stands, under the contact wire, 5.6 m over its street)
+    for (const c of U.streetcars) {
+      const near = N.faces.filter((f) => f.group === 'geocity:streetcar' && f.corners.every((p) => Math.hypot(p[0] - c.at[0], p[1] - c.at[1]) < 20)).flatMap((f) => f.corners.map((p) => p[2]));
+      expect(Math.max(...near) - c.at[2]).toBeGreaterThan(4.5);
+      // (over its lowest corner: the street falls along its 30 m)
+      expect(Math.max(...near) - c.at[2]).toBeLessThan(7.2);
+    }
+    expect(N.colliders.some((c) => c.of.startsWith('streetcar:'))).toBe(true);
+    expect(N.faces.some((f) => f.group === 'subway:entrance-kerb')).toBe(true);
+  });
+
+  it('is walked along its platforms, from one platform to the next, and up to the sidewalk, and back', () => {
+    const walk = walker(N);
+    // (each way out to the street walked on up its entrance: the entrance named for its station and way out)
+    const entranceOf = (s, x) => of('entrance').find((e) => e.id === `entrance-${s.id.slice('station-'.length)}-${x}`);
+    const routes = [...of('station').flatMap((s) => s.platforms), ...of('rail-tunnel').map((t) => t.walk), ...of('station').flatMap((s) => s.up.map((u, i) => [s, s.exits[i], u]).filter(([, x]) => x.startsWith('street-')).map(([st, x, u]) => [...u, ...entranceOf(st, x).walk.slice(1)]))];
+    for (const r of routes) for (const pts of [r, r.slice().reverse()]) {
+      const w = walk(pts);
+      expect({ steepest: w.steepest <= 0.36, crossed: w.crossed, gaps: w.gaps, boxes: w.boxes }).toEqual({ steepest: true, crossed: [], gaps: [], boxes: [] });
+    }
+  });
+
+  it('meets the PATH under the city: a passage from a concourse down to a platform, walked from the platform to the podium\'s plaza and back', () => {
+    const P = assembleGeocityScene({ ...M, geocity: { ...geocity, evoke: 'neighbourhood', under: true, subway: true } });
+    const byId = new Map(P.anchors.map((a) => [a.id, a])), links = P.anchors.filter((a) => a.kind === 'tunnel' && [a.from, a.to].some((x) => x.startsWith('station-')) && [a.from, a.to].some((x) => x.startsWith('podium-')));
+    expect(links.length).toBeGreaterThan(0);
+    // (every concourse and station reached: the stations from each other by their running tunnels)
+    expect(P.geocity.laws.find((l) => l.law === 'under-reached').ok).toBe(true);
+    const walk = walker(P);
+    for (const t of links) {
+      const sid = [t.from, t.to].find((x) => x.startsWith('station-')), pid = [t.from, t.to].find((x) => x.startsWith('podium-')), St = byId.get(sid), Pd = byId.get(pid), id = t.id.slice('tunnel-'.length);
+      const up = St.up[St.exits.indexOf(`path-${id}`)], line = t.from === sid ? t.line : t.line.slice().reverse(), port = Pd.ports.find((p) => p.id === id);
+      const way = [...up, ...line.slice(1), ...port.reach.slice().reverse().slice(1), ...Pd.down.slice().reverse().slice(1)];
+      for (const pts of [way, way.slice().reverse()]) {
+        const w = walk(pts);
+        expect({ id, steepest: w.steepest <= 0.36, crossed: w.crossed, gaps: w.gaps, boxes: w.boxes }).toEqual({ id, steepest: true, crossed: [], gaps: [], boxes: [] });
+      }
+      // (from the platform's level up to the plaza's)
+      expect(way.at(-1)[2] - way[0][2]).toBeGreaterThan(4);
+    }
+  });
+
+  it('as a teleport, is played as a level: its warps stand the walker on each next platform, its route walked a piece at a time to the street', () => {
+    const T = { ...M, geocity: { ...geocity, evoke: 'neighbourhood', subway: { tunnels: 'teleport', stations: 3 } }, level: {} };
+    const P = assembleGeocityScene(T), L = withBuildingLevel(T, 'ref');
+    expect(P.geocity.subway.tunnels).toBe('teleport');
+    expect(P.geocity.subway.runs).toEqual([]);
+    const anchors = P.anchors.filter((a) => a.kind === 'warp'), ws = L.game.mechanics.filter((m) => m.kind === 'warp'), exit = L.game.mechanics.find((m) => m.kind === 'reach-exit');
+    expect(anchors).toHaveLength(4);
+    expect(ws).toHaveLength(anchors.length);
+    for (const m of ws) expect(anchors.some((a) => Math.abs(a.at[0] - m.at[0]) < 1e-3 && Math.abs(a.at[1] - m.at[1]) < 1e-3)).toBe(true);
+    expect(L.entities[0].rule.probe).toBeGreaterThan(0);
+    expect(L.play.scenes.length).toBe(new Set(ws.map((m) => m.then)).size);
+    const walk = walker(P), pieces = [];
+    let piece = [exit.via[0]];
+    for (let i = 1; i < exit.via.length; i++) { if (ws.some((m) => Math.abs(m.at[0] - exit.via[i - 1][0]) < 1e-3 && Math.abs(m.at[1] - exit.via[i - 1][1]) < 1e-3)) { pieces.push(piece); piece = [exit.via[i]]; } else piece.push(exit.via[i]); }
+    pieces.push(piece);
+    expect(pieces).toHaveLength(3);
+    for (const c of pieces) { const r = walk(c); expect({ steepest: r.steepest <= 0.36, crossed: r.crossed, gaps: r.gaps, boxes: r.boxes }).toEqual({ steepest: true, crossed: [], gaps: [], boxes: [] }); }
+    // (won on the street: over the platforms by the street's height)
+    expect(exit.via.at(-1)[2] - exit.via[0][2]).toBeGreaterThan(5);
+  });
+
+  it('is absent unless asked, and refuses a street it cannot run under, by name', () => {
+    const plain = assembleGeocityScene({ ...M, geocity: { ...geocity, evoke: 'neighbourhood' } });
+    expect(plain.geocity.subway).toBeUndefined();
+    expect(plain.faces.some((f) => String(f.group).startsWith('subway:'))).toBe(false);
+    const d = designGeocity({ ...geocity, evoke: 'neighbourhood' }, { seed: 2 });
+    expect(() => subwayStreet(d, 'ns-99')).toThrow(/is not one of its arterials/);
+    expect(() => assembleGeocityScene({ ...M, geocity: { ...geocity, evoke: 'neighbourhood', subway: { lines: 2 } } })).toThrow(/subway.lines is not a setting/);
+    expect(() => assembleGeocityScene({ ...M, geocity: { ...geocity, evoke: 'neighbourhood', subway: { tunnels: 'warp' } } })).toThrow(/subway.tunnels is 'real'/);
+    // (a geocube with no subway asked to be a level passes through: nothing lowered)
+    const G = { ...M, geocity: { ...geocity, evoke: 'neighbourhood' }, level: {} };
+    expect(withBuildingLevel(G, 'ref')).toBe(G);
+    expect(() => assembleGeocityScene({ ...M, geocity: { ...geocity, evoke: 'metro', subway: true } })).toThrow(/subway is an evocation's/);
+  });
+});
+
+describe('an el over an evocation\'s street', () => {
+  const N = assembleGeocityScene({ ...M, geocity: { ...geocity, evoke: 'neighbourhood', subway: { elevation: 'elevated' } } }), U = N.geocity.subway;
+  const d = designGeocity({ ...geocity, evoke: 'neighbourhood', subway: { elevation: 'elevated' } }, { seed: 2 }), l = d.lines.find((x) => x.id === U.along), across = l.axis === 'ns' ? 0 : 1;
+  const of = (k) => N.anchors.filter((a) => a.kind === k), S = d.land.S;
+
+  it('stands its stations over the street on their piers, its line an el between them, no entrance and no well', () => {
+    expect(U.stations.every((s) => s.elevation === 'elevated')).toBe(true);
+    for (const r of U.runs) { expect(r.spans.viaduct).toBeCloseTo(r.length, 5); expect(r.grade).toBeLessThanOrEqual(1 / 30 + 1e-6); }
+    expect(of('entrance')).toEqual([]);
+    expect(N.faces.some((f) => f.group === 'subway:entrance-stair')).toBe(false);
+    // (its platforms over the carriageway; its piers held on the road under them)
+    for (const s of of('station')) for (const p of s.platforms.flat()) { expect(Math.abs(p[across] - l.at)).toBeLessThan(l.road / 2); expect(p[2] - S(p[0], p[1])).toBeGreaterThan(8); }
+    const piers = N.colliders.filter((c) => /^subway:.*:pier-/.test(c.of));
+    expect(piers.length).toBeGreaterThan(0);
+    for (const c of piers) expect(c.min[2]).toBeCloseTo(S((c.min[0] + c.max[0]) / 2, (c.min[1] + c.max[1]) / 2), 0);
+  });
+
+  it('takes each way out down a flight onto a sidewalk, and keeps the street\'s lamps, poles, wires and trees out from under it', () => {
+    for (const s of of('station')) for (const u of s.up) {
+      const foot = u.at(-1), off = Math.abs(foot[across] - l.at);
+      expect(off).toBeGreaterThan(l.road / 2);
+      expect(off).toBeLessThan(l.half);
+    }
+    // (the el's plan over the street: its stations' boxes and its viaducts; nothing of the street's standing in it)
+    const lo = Math.min(...of('station').flatMap((s) => s.platforms.flat().map((p) => p[1 - across]))) - 10, hi = Math.max(...of('station').flatMap((s) => s.platforms.flat().map((p) => p[1 - across]))) + 10;
+    for (const r of N.repeats ?? []) for (const t of r.transforms) {
+      const a = t.pos[1 - across], c = Math.abs(t.pos[across] - l.at);
+      expect(a > lo && a < hi && c < 8 && t.pos[2] > S(t.pos[0], t.pos[1]) + 3, `${r.group} at ${t.pos}`).toBe(false);
+    }
+  });
+
+  it('runs its track on past its first and last stations along the avenue, an el out of what is shown', () => {
+    expect(U.runOn.length).toBe(2);
+    for (const t of U.runOn) { expect(t.length).toBeGreaterThan(20); expect(t.spans.viaduct).toBeCloseTo(t.length, 5); }
+    expect(N.faces.some((f) => f.group === 'station:buffer')).toBe(false);
+  });
+
+  it('is walked along its platforms, along each run\'s walkway, and down to each sidewalk, and back', () => {
+    const walk = walker(N);
+    for (const r of [...of('station').flatMap((s) => [...s.platforms, ...s.up]), ...of('rail-tunnel').map((t) => t.walk)]) for (const pts of [r, r.slice().reverse()]) {
+      const w = walk(pts);
+      expect({ steepest: w.steepest <= 0.36, crossed: w.crossed, gaps: w.gaps, boxes: w.boxes }).toEqual({ steepest: true, crossed: [], gaps: [], boxes: [] });
+    }
+  });
+
+  it('as a teleport from its deep station up to the el, is played as a level: its warp standing the walker on the el\'s platform', () => {
+    const T = { ...M, geocity: { ...geocity, evoke: 'neighbourhood', subway: { tunnels: 'teleport', elevation: ['deep', 'elevated'] } }, level: {} };
+    const P = assembleGeocityScene(T), V = P.geocity.subway, L = withBuildingLevel(T, 'ref');
+    expect(V.gaps).toBeUndefined();
+    const ws = L.game.mechanics.filter((m) => m.kind === 'warp'), exit = L.game.mechanics.find((m) => m.kind === 'reach-exit'), walk = walker(P);
+    expect(ws).toHaveLength(2);
+    // (the warp up: from the deep stub to the el's platform, its eye over it, high over the street)
+    const up = ws.find((m) => m.to[2] > m.at[2]);
+    expect(up.to[2] - 1.7 - S(up.to[0], up.to[1])).toBeGreaterThan(8);
+    const pieces = [];
+    let piece = [exit.via[0]];
+    for (let i = 1; i < exit.via.length; i++) { if (ws.some((m) => Math.abs(m.at[0] - exit.via[i - 1][0]) < 1e-3 && Math.abs(m.at[1] - exit.via[i - 1][1]) < 1e-3)) { pieces.push(piece); piece = [exit.via[i]]; } else piece.push(exit.via[i]); }
+    pieces.push(piece);
+    expect(pieces).toHaveLength(2);
+    for (const c of pieces) { const r = walk(c); expect({ steepest: r.steepest <= 0.36, crossed: r.crossed, gaps: r.gaps, boxes: r.boxes }).toEqual({ steepest: true, crossed: [], gaps: [], boxes: [] }); }
+    // (won on a sidewalk under the el, down the flight from its platform)
+    const foot = exit.via.at(-1), off = Math.abs(foot[across] - l.at);
+    expect(off).toBeGreaterThan(l.road / 2);
+    expect(off).toBeLessThan(l.half);
+  });
+
+  it('dives from the el to a deep station through a cut in the road, its gap lengthened for the fall, played as a level', () => {
+    const sub = { stations: 3, elevation: ['elevated', 'elevated', 'deep'] }, T = { ...M, geocity: { ...geocity, evoke: 'neighbourhood', subway: sub }, level: {} };
+    const P = assembleGeocityScene(T), V = P.geocity.subway, dive = V.runs.at(-1);
+    expect(V.gaps.at(-1)).toBeGreaterThan(V.gap);
+    expect(dive.spans.viaduct).toBeGreaterThan(0);
+    expect(dive.spans.cut).toBeGreaterThan(0);
+    expect(dive.spans.tunnel).toBeGreaterThan(0);
+    // (the deep station's way out up its sidewalk entrance; the road open over the cut: no road over its track there)
+    expect(P.anchors.filter((a) => a.kind === 'entrance').every((e) => e.station === P.anchors.filter((a) => a.kind === 'station').at(-1).id)).toBe(true);
+    const t = P.anchors.filter((a) => a.kind === 'rail-tunnel').at(-1), inCut = t.walk.filter((p) => p[2] < S(p[0], p[1]) - 1 && p[2] > S(p[0], p[1]) - 5);
+    expect(inCut.length).toBeGreaterThan(0);
+    const roadOver = (p) => P.faces.some((f) => /geocity:(road|asphalt|lane)/.test(f.group) && f.corners.every((c) => c[2] > p[2] + 2) && [0, 1].every((k) => p[k] > Math.min(...f.corners.map((c) => c[k])) + 1e-6 && p[k] < Math.max(...f.corners.map((c) => c[k])) - 1e-6));
+    for (const p of inCut.filter((_, i) => i % 10 === 0)) expect(roadOver(p)).toBe(false);
+    const L = withBuildingLevel(T, 'ref'), exit = L.game.mechanics.find((m) => m.kind === 'reach-exit'), w = walker(P)(exit.via);
+    expect({ steepest: w.steepest <= 0.36, crossed: w.crossed, gaps: w.gaps, boxes: w.boxes }).toEqual({ steepest: true, crossed: [], gaps: [], boxes: [] });
+    expect(() => assembleGeocityScene({ ...M, geocity: { ...geocity, evoke: 'neighbourhood', subway: { elevation: 'cut' } } })).toThrow(/a station in a cut is a stage's, not a city's/);
+    expect(() => assembleGeocityScene({ ...M, geocity: { ...geocity, evoke: 'neighbourhood', subway: { elevation: ['elevated'] } } })).toThrow(/or one a station \(2\)/);
+  });
+});

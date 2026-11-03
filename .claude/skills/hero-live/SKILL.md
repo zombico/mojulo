@@ -46,6 +46,15 @@ Sound toggle; a browser plays sound only once the page is touched). To read a li
 phonemes' middles (`perform(P).events.lines[0].phonemes`, each `t` and `dur`): the lips shut on m, b and p, the lower lip
 under the teeth on f and v, rounded on oo and w.
 
+An anime hero's takes (`head: 'anime'`, the same `perform`) are read as anime draws them (`face-acting/anime-read.js`): a
+drawing per layer every frame (brows, lids, gaze, mouth; `polygonizer/anime-drawings.js`), held on twos but a spoken
+closure, the mouth in kuchipaku (a, i, u, e, o, shut), keyed STEP so a drawing snaps rather than melts. At `acting: 'full'`,
+or a take on a target of T3 or higher, the rig draws 7G: each drawing its own target, a brow or lid per side, with the
+correctives that keep a lid's shape over a turned gaze and a brow over a shut eye (`anime-face-rig.js` `sevenG`); otherwise
+the same take is lowered to the four channels. To read a drawing, shoot the take where a beat has settled, not on a hold's
+first frame.
+
+
 Its EMOTES (the door's `emote`: a name, a list of names, or `{ <clip>: a name | { emote, mirror?, intensity?, seconds?,
 seed? } }`, `control/lib/graph/face-acting/emotes.js`: held states such as `rest`, `vacant`, `daydream`, `absorbed`,
 `waiting`, `drowsy`, `listening`, `wary`; `face` an emotion over it; `alert` 0 … 1 its wariness, `face-acting/alert.js`) export as looping face-only clips (`emote:<clip>`) and play here the same way. The eyes look at
@@ -54,6 +63,12 @@ moves between their eyes and mouth), and are never crossed (`face-acting/gaze.js
 `face-acting/breath.js`: the breath its state of mind breathes, on the body), played here additively over the body's
 idle with its clip; the Bust and Side views show the chest and the shoulders. And its head (`head:<clip>`,
 `face-acting/head.js`: the neck's turn and tilt, the head following the larger looks), another additive layer with it.
+
+AN ACTOR'S BODY under its face (the GLB's own `act:<take>`, a persona's read played in a style, or `<id>.act.json` beside
+the GLB, written by the actor dailies,
+`control/scripts/spikes/actor/dailies.mjs --hero <out>`, from `control/lib/graph/actor/body.js`): each take's joints
+keyed as the GLB keys its own clips, played under the face take of the same name in place of the body's idle, on the
+take's clock. A take with none plays over the idle as before.
 
 TUNE THE FACE WITHOUT A MINT: an emote or a performance changes the face's weights alone, so `face.mjs` recomputes its
 clips over a hero `live.mjs` already minted, in seconds, beside its GLB (`<id>.face.json`, played over the GLB's own clip
@@ -79,7 +94,7 @@ of `face-acting/parts.js`, whose timing, couplings and upper-face gestures a bea
 `face-acting/emotes.js` `FACE_EMOTES` and re-read; the eyes gate stays the operator's.
 
 The page: variants (switching keeps the take and the moment), takes, play and pause, a scrubber, the speed, the Face,
-Bust, Full body, Side and Mouth views (Mouth: from the front ¾ and a little below, into an open mouth), the ambient blink layered as an engine would, wireframe, bones, every morph target as a meter
+Bust, Full body, Side and Mouth views (Mouth: from the front ¾ and a little below, into an open mouth), the ambient blink layered as an engine would, wireframe, clay (the form alone in one grey under the same light, a shot's `clay: true`: how a head cast is read before it is painted), bones, every morph target as a meter
 (or a slider under **Hold by hand**), and the mint's read per variant. `window.heroLive` drives it from a script;
 `heroLive.probe(times, joints?, { under?, breath? })` reads the playback itself (the take, the idle under it and its
 breath set to each moment: the joints' world positions and the morph weights), so a jitter is found by the numbers and

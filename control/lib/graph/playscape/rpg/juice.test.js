@@ -78,3 +78,15 @@ describe('battle juice: steps, composed, bound to the fight\'s happenings', () =
     expect(momentKinds(none)).toEqual([]);
   });
 });
+
+describe('the bodies act a blow out', () => {
+  it('a blow makes its striker swing and its target recoil, a KO a fall; an act is a step any juice can take', () => {
+    expect(JUICE_PRESETS.hit).toEqual(expect.arrayContaining([{ act: 'strike', at: 'actor' }, { act: 'hurt' }]));
+    expect(JUICE_PRESETS.crit).toEqual(expect.arrayContaining([{ act: 'strike', at: 'actor' }, { act: 'hurt' }]));
+    expect(JUICE_PRESETS.ko).toContainEqual({ act: 'fall' });
+    const J = readJuice({ on: { 'skill:fire': [{ act: 'cast', at: 'actor', for: 0.8 }, 'hit'] } });
+    expect(J.on['skill:fire'][0]).toEqual({ act: 'cast', at: 'actor', for: 0.8 });
+    expect(() => readJuice({ on: { hit: [{ act: 'dance' }] } })).toThrow(/act is strike, cast, hurt, fall/);
+    expect(() => readJuice({ on: { hit: [{ act: 'strike', k: 2 }] } })).toThrow(/k is not part of a act/);
+  });
+});

@@ -2,7 +2,7 @@
 {
   "id": "design-vehicle-family",
   "name": "Populate a vehicle fleet library",
-  "summary": "Add a new ENTRY to the procedural vehicle libraries the world-populators sample — a new aircraft livery scheme, a car paint, or a tuned frame preset within an existing family (fixed-wing-aircraft / ground-car / ground-box) — or a THEME for the race machines (racer / supercar), a card the user writes with no source edit. Introspect the family via the vehicle family layer, author the candidate params, eyeball it with preview_vehicle_instance, then commit it to the registry so it flows into create_transportation_hub automatically. The THIRD sensibility above the workbench: author a FAMILY entry (a generator input), not a single artifact.",
+  "summary": "Add to the vehicle libraries the world-populators sample. A new vehicle is a ROW in the vehicle registry first (vehicle-registry/roster.js: its words, realm, role, eras, uses and its keys into the tables that build it), then its build; a new aircraft livery scheme, a car paint, a tuned frame preset within an existing family (fixed-wing-aircraft / ground-car / ground-box), or a THEME for the race machines (racer / supercar, a card the user writes with no source edit) decorates a row that exists. Find the row, author the candidate, eyeball it with mint_solid { kind: 'vehicle', spec: { vehicle } }, then commit it so it flows into compose_world's `transport-hub` base automatically. The THIRD sensibility above the workbench: author a FAMILY entry (a generator input), not a single artifact.",
   "valueHook": "Design a new airline livery or a regional-jet preset once and the airport starts spawning it — the fleet derives from the registry, so a new entry needs no populator edit.",
   "version": 1,
   "category": "world-building",
@@ -12,7 +12,7 @@
     { "name": "intent", "prompt": "What are you adding to the fleet libraries? (e.g. 'a teal-and-gold widebody livery', 'a forest-green taxi paint', 'a stubby regional-jet preset')" },
     { "name": "family", "prompt": "Which family? fixed-wing-aircraft | ground-car | ground-box (or 'auto' to infer from the intent)", "default": "auto" }
   ],
-  "mcpTools": { "mojulo": ["preview_vehicle_instance", "mint_solid", "create_game", "create_transportation_hub", "semantic_search"] },
+  "mcpTools": { "mojulo": ["mint_solid", "create_game", "compose_world", "semantic_search"] },
   "outputContract": { "summary": "A new registry entry (livery scheme / paint / frame preset) committed to the vehicle source, previewed in /world, and confirmed in a populated hub.", "fields": ["family", "entry", "previewRef"] }
 }
 ---
@@ -21,10 +21,22 @@
 
 The workbench authors ONE artifact (an object, a world asset). This authors a **family entry** — an
 input to a *generator*. The fixed-wing-aircraft, ground-car, and ground-box families are procedural:
-the airport (`create_transportation_hub`) samples them to spawn its fleet. Growing the fleet means
+the airport (`compose_world` base `transport-hub`) samples them to spawn its fleet. Growing the fleet means
 **adding a registry row**, not modelling a vehicle. The vehicle family layer
 (`control/lib/graph/meta-fabricator.js`; unrelated to `fabricate_solid`, which picks hardware) is what you read and the registry is the single
 source of truth — add an entry and the populators pick it up.
+
+## 0. Find the vehicle in the registry (the one front door)
+
+Every vehicle a game, a world or a preview names comes through the vehicle registry
+(`control/lib/graph/vehicle-registry/roster.js`): one row a vehicle under the words people say, claiming its keys in
+the tables below. Those tables are frozen behind it: `roster.test.js` fails on a key no row claims. So:
+
+- `findVehicles({ words, realm?, role?, era?, use? })` first. A row that exists is decorated or tuned, never re-added.
+- A vehicle the registry lacks is a NEW ROW before anything else (its `handles` name only the tables that build it;
+  `tech` the concept it falls back to). It is searchable and drawn as a concept the moment it lands.
+- `buildsOf(id)` and `upscaleOf(id)` (`vehicle-registry/builds.js`) say what the row is drawn as at each tier (toy,
+  stylised, realistic) and what it needs to be drawn realistic.
 
 ## 1. Introspect the family (what already exists)
 
@@ -47,7 +59,7 @@ API: `describeFamily(id)` → `{ types, decoration, tunables }`, `listDecoration
    - car → add a `{ name, body }` object to `CAR_PAINT_SCHEMES`.
 2. **New frame preset (tune the existing net).** A new point in the family's parameter space — new
    `proportions` + `profile` + `appendages` (aircraft) or `geo` + `wid`/`zBot`/`zTop` (ground). Add
-   the net entry, its cards if needed, AND a `VEHICLES` row in `vehicles-css3d.js`
+   the net entry, its cards if needed, a `VEHICLES` row in `vehicles-css3d.js`, AND the registry row that claims it
    (`{ net, family, class, size, weight, contexts }`). The `family` + `contexts` are what wire it in:
    an aircraft row with `contexts:['airfield']` appears in the airport fleet automatically (the hub
    derives `AIRPORT_FLEET` from the family — no hub edit).
@@ -60,13 +72,13 @@ API: `describeFamily(id)` → `{ types, decoration, tunables }`, `listDecoration
 For a decoration on an EXISTING preset, preview immediately — no source edit needed yet:
 
 ```
-preview_vehicle_instance({ type: 'widebody', decoration: { scheme: 'teal' } })   // → /world (orbit)
-preview_vehicle_instance({ type: 'sedan', decoration: { paint: '#1f4a35', hull: 'lowered' } })
+mint_solid({ kind: 'vehicle', spec: { vehicle: 'widebody', decoration: { scheme: 'teal' } } })   // → /world (orbit)
+mint_solid({ kind: 'vehicle', spec: { vehicle: 'sedan', decoration: { paint: '#1f4a35', hull: 'lowered' } } })
 ```
 
 Open the `worldUrl`, orbit, and check the silhouette + decoration read on the measured studio grid.
 For a new livery/paint, iterate the palette values and re-preview until it reads. (A brand-new preset
-isn't previewable by `type` until its `VEHICLES` row exists — add the row, then preview by its type.)
+isn't previewable until its registry row and its `VEHICLES` row exist — add both, then preview it by its word.)
 
 ## 4. Commit the entry
 
@@ -97,7 +109,7 @@ Only a NEW PART or a new FINISH is a source edit (the parts library, `FINISHES`)
 
 ## 5. Confirm in a populated world
 
-Mint a hub and look: `create_transportation_hub({ mode:'airport', seed: 7, density: 0.9 })`. The new
+Mint a hub and look: `compose_world({ base:'transport-hub', seed: 7, overrides:{ mode:'airport', density: 0.9 } })`. The new
 livery/preset should appear in the apron fleet (re-roll the seed a few times — sampling is weighted).
 
 ## Pitfalls
@@ -109,6 +121,7 @@ livery/preset should appear in the apron fleet (re-roll the seed a few times —
 - **`size` multiplier** — leave `size:1` unless the net's own proportions aren't already real-world
   (the streetcar bakes its 2.5× length into the net, not `size`).
 - **No new families here** — this catalyst adds ENTRIES within the existing families (and themes on the race
-  machines). A new family (watercraft, rail) needs a new net builder or grammar + a `VEHICLE_FAMILIES` entry first.
+  machines). A new family (watercraft, rail) needs a new net builder or grammar + a `VEHICLE_FAMILIES` entry; its
+  vehicles are registry rows already (drawn as concepts until it lands).
 - **A civilization's technology is not this** — vehicles, tech-structures and weapons a world bible crafts from
   words are grown in the technology solver: `design-tech-family`.

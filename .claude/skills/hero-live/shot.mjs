@@ -10,7 +10,7 @@
 //            hold?: { morph: w }, relief?: the normal map's strength (1 as shipped; 0 off, more to read it); parallax?: the
 //            depth map's (the same), look?: { bone, from?: [x, y, z], dist?, fov?, off?: [x, y, z] } (a closeup on a bone's
 //            head as posed, `off` metres from it in the world: foreArmR the elbow) | { az, el, dist, at, fov } (a free camera:
-//            az degrees round from the front, el up), wire?: bool, bones?: bool }; default, per variant, the first take at
+//            az degrees round from the front, el up), wire?: bool, bones?: bool, clay?: bool (the form alone, one grey) }; default, per variant, the first take at
 //            mid-phase, face and full body
 //   --cols   frames per row of the sheet (default 4)
 //
@@ -60,11 +60,11 @@ try {
     const label = await page.evaluate(async (S) => {
       const H = window.heroLive;
       if (S.variant) await H.variant(S.variant);
-      H.set({ wire: !!S.wire, bones: !!S.bones }); H.relief(S.relief ?? 1); H.parallax(S.parallax ?? 1);
+      H.set({ wire: !!S.wire, bones: !!S.bones, clay: !!S.clay }); H.relief(S.relief ?? 1); H.parallax(S.parallax ?? 1);
       if (S.take) H.take(S.take);
       if (S.look && !S.look.bone) H.look(S.look); else H.view(S.view ?? 'vFace');
       H.seek(S.phase ?? 0.5);
-      if (S.hold) H.hold(S.hold);
+      if (S.hold) H.hold(S.hold); else H.release();
       // (a bone's closeup once the pose is set: it frames the bone as posed)
       if (S.look?.bone) H.look(S.look);
       const s = H.state(); return `${S.label ? `${S.label} · ` : ''}${s.variant} · ${s.take} · ${s.view.startsWith('v') ? s.view.slice(1) : s.view} · ${s.phase.toFixed(2)}${S.hold ? ' · held' : ''}`;

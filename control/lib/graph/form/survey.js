@@ -1,0 +1,200 @@
+/**
+ * THE SURVEYOR: what an eye sees of a form land, solved from the recipe's own data, not from a render. A world is
+ * deterministic, so the line of sight from a point is a property of the point: each sample of the image is a ray from
+ * the eye cast over the land's triangles (form/land-read.js formPayload `pos`, its classes by `ranges`) and read against
+ * the grass's ground map (`grass`). For the far field (scene/channels/far-field.js) it says, sample by sample, where the
+ * ground is met, how far, whether the grass map covers it and grass grows there, and where the land's CONTOUR is (the
+ * ground's edge against the sky or against ground farther than `edge` × its own distance).
+ *
+ *   surveyView(land, { eye, target, vfov, aspect, cols, rows, reach, edge? }) → { cols, rows, samples, counts }
+ *     samples[row][col]: null (sky) or { d, at: [x, y, z], cls, map: 'in' | 'out', cover (0..1), contour }
+ *     counts: { sky, near, far, farGrass, farOutside, farBare, contour }; byClass: { <land class>: { far, grass } }
+ *   surveyChart(survey, reach) → the image as text, a character a sample, the top row first:
+ *     ' ' sky, '.' inside the reach, and past it: '^' a contour of grass, 'G' grass the map covers on `ground`, 'g' on
+ *     another class (the class is the page's: its shader may treat it apart), 'o' outside the grass map, 'n' no grass
+ *
+ * Pure and deterministic; triangles are binned on a grid of `BIN` m so a ray walks only the bins under it.
+ */
+import { GRASS_TIERS, BLADE_RISE } from '../scene/channels/form-grass.js';
+
+const BIN = 4;
+
+function landOf(land) {
+  const raw = Buffer.from(land.pos, 'base64'), pos = new Float32Array(raw.buffer.slice(raw.byteOffset, raw.byteOffset + raw.byteLength));
+  const cls = new Array(pos.length / 9);
+  for (const R of land.ranges) for (let v = R.start; v < R.start + R.count; v += 3) cls[v / 3] = R.key;
+  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+  for (let i = 0; i < pos.length; i += 3) { x0 = Math.min(x0, pos[i]); x1 = Math.max(x1, pos[i]); y0 = Math.min(y0, pos[i + 1]); y1 = Math.max(y1, pos[i + 1]); }
+  const nx = Math.max(1, Math.ceil((x1 - x0) / BIN)), ny = Math.max(1, Math.ceil((y1 - y0) / BIN)), bins = Array.from({ length: nx * ny }, () => []);
+  for (let t = 0; t < pos.length / 9; t++) {
+    const o = t * 9, xs = [pos[o], pos[o + 3], pos[o + 6]], ys = [pos[o + 1], pos[o + 4], pos[o + 7]];
+    const i0 = Math.floor((Math.min(...xs) - x0) / BIN), i1 = Math.floor((Math.max(...xs) - x0) / BIN), j0 = Math.floor((Math.min(...ys) - y0) / BIN), j1 = Math.floor((Math.max(...ys) - y0) / BIN);
+    for (let j = Math.max(0, j0); j <= Math.min(ny - 1, j1); j++) for (let i = Math.max(0, i0); i <= Math.min(nx - 1, i1); i++) bins[j * nx + i].push(t);
+  }
+  return { pos, cls, x0, y0, nx, ny, bins };
+}
+
+// (a ray against one triangle, Möller–Trumbore: its distance, or Infinity)
+function hitTri(p, o, d) {
+  const ax = p[o], ay = p[o + 1], az = p[o + 2], e1 = [p[o + 3] - ax, p[o + 4] - ay, p[o + 5] - az], e2 = [p[o + 6] - ax, p[o + 7] - ay, p[o + 8] - az];
+  const h = [d[1] * e2[2] - d[2] * e2[1], d[2] * e2[0] - d[0] * e2[2], d[0] * e2[1] - d[1] * e2[0]], a = e1[0] * h[0] + e1[1] * h[1] + e1[2] * h[2];
+  if (Math.abs(a) < 1e-9) return Infinity;
+  const f = 1 / a, s = [d.o[0] - ax, d.o[1] - ay, d.o[2] - az], u = f * (s[0] * h[0] + s[1] * h[1] + s[2] * h[2]);
+  if (u < 0 || u > 1) return Infinity;
+  const q = [s[1] * e1[2] - s[2] * e1[1], s[2] * e1[0] - s[0] * e1[2], s[0] * e1[1] - s[1] * e1[0]], v = f * (d[0] * q[0] + d[1] * q[1] + d[2] * q[2]);
+  if (v < 0 || u + v > 1) return Infinity;
+  const t = f * (e2[0] * q[0] + e2[1] * q[1] + e2[2] * q[2]);
+  return t > 1e-4 ? t : Infinity;
+}
+
+// (the nearest land along a ray: walk the bins under it in order, the first bin with a hit inside it wins)
+function castRay(L, o, d, far) {
+  const dx = d[0], dy = d[1], gx = (o[0] - L.x0) / BIN, gy = (o[1] - L.y0) / BIN;
+  let i = Math.floor(gx), j = Math.floor(gy);
+  const sx = Math.sign(dx), sy = Math.sign(dy), hx = Math.hypot(dx, dy) || 1e-9;
+  const tdx = dx ? BIN / Math.abs(dx) : Infinity, tdy = dy ? BIN / Math.abs(dy) : Infinity;
+  let tx = dx ? ((sx > 0 ? i + 1 - gx : gx - i) * BIN) / Math.abs(dx) : Infinity, ty = dy ? ((sy > 0 ? j + 1 - gy : gy - j) * BIN) / Math.abs(dy) : Infinity, t0 = 0;
+  const ray = Object.assign([dx, dy, d[2]], { o });
+  for (let n = 0; n < 4096 && t0 < far; n++) {
+    if (i >= 0 && j >= 0 && i < L.nx && j < L.ny) {
+      let best = Infinity, bt = -1; const tEnd = Math.min(tx, ty);
+      for (const t of L.bins[j * L.nx + i]) { const h = hitTri(L.pos, t * 9, ray); if (h < best) { best = h; bt = t; } }
+      if (bt >= 0 && best <= tEnd + 1e-6) return { t: best, tri: bt };
+    } else if ((i < 0 && sx <= 0) || (i >= L.nx && sx >= 0) || (j < 0 && sy <= 0) || (j >= L.ny && sy >= 0)) break;
+    if (hx < 1e-6) break;
+    if (tx < ty) { t0 = tx; tx += tdx; i += sx; } else { t0 = ty; ty += tdy; j += sy; }
+  }
+  return null;
+}
+
+const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
+const norm = (a) => { const l = Math.hypot(...a) || 1; return a.map((v) => v / l); };
+const cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
+
+/** The grass map's reading at a world point: whether the map holds it, the cover there (0..1) and its sward's length
+ *  (0 tall, a half medium, 1 short). */
+function grassAt(G, px, x, y) {
+  if (!G) return { map: 'out', cover: 0 };
+  const i = Math.round((x - G.origin[0]) / G.cell), j = Math.round((y - G.origin[1]) / G.cell);
+  if (i < 0 || j < 0 || i >= G.size[0] || j >= G.size[1]) return { map: 'out', cover: 0 };
+  const q = (j * G.size[0] + i) * 4;
+  return { map: 'in', cover: px[q + 2] / 255, sward: px[q + 3] / 255 };
+}
+/** How tall the grass stands where its sward is a length: its tier's tallest blade at its mean rise (m), as the page
+ *  grows it (scene/channels/form-grass.js). */
+const grassTip = (sw) => { const q = GRASS_TIERS.find((t) => t.sward === (sw < 0.25 ? 'tall' : sw < 0.75 ? 'medium' : 'short')); return q.scale * q.clump.height[1] * (BLADE_RISE[q.sward][0] + BLADE_RISE[q.sward][1] * 0.5); };
+/** What a sample is made of: grass where the map covers it, else its land class. */
+const substanceOf = (s) => (s.map === 'in' && s.cover > 0 ? 'grass' : s.cls === 'ground' ? 'bare' : s.cls);
+
+export function surveyView(land, { eye, target, vfov = 50, aspect = 16 / 9, cols = 96, rows = 40, reach = 25, edge = 1.2, far = 4000 } = {}) {
+  const L = landOf(land), G = land.grass, gpx = G ? Buffer.from(G.px, 'base64') : null;
+  const f = norm(sub(target, eye)), r = norm(cross(f, [0, 0, 1])), u = cross(r, f), th = Math.tan((vfov * Math.PI) / 360), tw = th * aspect;
+  const samples = [];
+  for (let row = 0; row < rows; row++) {
+    const line = [], sv = (1 - ((row + 0.5) / rows) * 2) * th;
+    for (let col = 0; col < cols; col++) {
+      const su = (((col + 0.5) / cols) * 2 - 1) * tw, d = norm([f[0] + r[0] * su + u[0] * sv, f[1] + r[1] * su + u[1] * sv, f[2] + r[2] * su + u[2] * sv]);
+      const h = castRay(L, eye, d, far);
+      if (!h) { line.push(null); continue; }
+      const at = [eye[0] + d[0] * h.t, eye[1] + d[1] * h.t, eye[2] + d[2] * h.t], g = grassAt(G, gpx, at[0], at[1]);
+      line.push({ d: Math.hypot(at[0] - eye[0], at[1] - eye[1]), at: at.map((v) => Math.round(v * 100) / 100), cls: L.cls[h.tri], ...g, contour: false });
+    }
+    samples.push(line);
+  }
+  // (the contour: a sample of far grass whose sample above is the sky or ground farther than `edge` × its own)
+  for (let row = 1; row < rows; row++) for (let col = 0; col < cols; col++) {
+    const s = samples[row][col], up = samples[row - 1][col];
+    if (s && s.d >= reach && s.cover > 0 && (!up || up.d > s.d * edge)) s.contour = true;
+  }
+  const counts = { sky: 0, near: 0, far: 0, farGrass: 0, farOutside: 0, farBare: 0, contour: 0 }, byClass = {};
+  for (const line of samples) for (const s of line) {
+    if (!s) { counts.sky++; continue; }
+    if (s.d < reach) { counts.near++; continue; }
+    counts.far++;
+    if (s.contour) counts.contour++;
+    const B = (byClass[s.cls] ||= { far: 0, grass: 0 }); B.far++;
+    if (s.map === 'out') counts.farOutside++;
+    else if (s.cover > 0) { counts.farGrass++; B.grass++; } else counts.farBare++;
+  }
+  return { cols, rows, samples, counts, byClass };
+}
+
+export function surveyChart({ samples }, reach) {
+  return samples.map((line) => line.map((s) => {
+    if (!s) return ' ';
+    if (s.d < reach) return '.';
+    if (s.contour) return '^';
+    return s.map === 'out' ? 'o' : s.cover > 0 ? (s.cls === 'ground' ? 'G' : 'g') : 'n';
+  }).join('')).join('\n');
+}
+
+/** WHAT THE ART IS HANDED: the far field (past `reach`) as REGIONS of one substance, each with its bounds on the image.
+ *  A column's far samples of one substance in a vertical run are a segment; segments of one substance that overlap in
+ *  neighbouring columns are a region. Rows count from the image's top, as fractions of its height (0 top, 1 bottom);
+ *  columns as fractions of its width.
+ *    substance  'grass' (where the grass map covers it), 'bare', or the land's class (cliff, crown, rock, trail, unread)
+ *    colour     its main colour, linear: the grass's (land.grass.base); another class's none here (the page's own)
+ *    x          [left, right]: its horizontal boundaries
+ *    columns    for each column it holds: { x, top, bottom, standsPx, d }: `top` the land's top in it from the eye (the
+ *               upper boundary is `top` less what stands on it: `standsPx` the grass's height there, at its distance, in
+ *               pixels of an image `height` tall); `bottom` its lower boundary, where the far field begins (the reach
+ *               crossed, or another substance under it); `d` the distance (m) at its top
+ *  surveyRegions(survey, { reach, height, vfov }) → [region] */
+export function surveyRegions({ cols, rows, samples }, { reach, height = 720, vfov = 50 } = {}) {
+  const pxm = (2 * Math.tan((vfov * Math.PI) / 360)) / height, regions = [], open = [];
+  for (let c = 0; c < cols; c++) {
+    const segs = [];
+    for (let r = rows - 1; r >= 0; r--) {
+      const s = samples[r][c];
+      if (!s || s.d < reach) continue;
+      const sub = substanceOf(s), last = segs[segs.length - 1];
+      if (last && last.sub === sub && last.top === r + 1) { last.top = r; last.d = s.d; last.sw = s.sward; }
+      else segs.push({ sub, bottom: r, top: r, d: s.d, sw: s.sward });
+    }
+    const next = [];
+    for (const g of segs) {
+      const col = { x: (c + 0.5) / cols, top: g.top / rows, bottom: (g.bottom + 1) / rows, d: Math.round(g.d * 10) / 10,
+        standsPx: g.sub === 'grass' ? Math.round((grassTip(g.sw ?? 0) / (pxm * g.d)) * 10) / 10 : 0 };
+      const R = open.find((o) => o.sub === g.sub && o.top <= g.bottom + 1 && o.bottom + 1 >= g.top);
+      const reg = R ? R.reg : (regions.push({ substance: g.sub, x: [c / cols, (c + 1) / cols], columns: [] }), regions[regions.length - 1]);
+      reg.x[1] = (c + 1) / cols; reg.columns.push(col);
+      next.push({ sub: g.sub, top: g.top, bottom: g.bottom, reg });
+    }
+    open.length = 0; open.push(...next);
+  }
+  return regions;
+}
+
+/** THE CONTOUR SCAN, the page's surveyor (scene/channels/far-field.js embeds it whole, so it reaches nothing outside
+ *  itself): from an eye, every `bearings`-th of a turn walked out over a ground map cell by cell, the ground's elevation
+ *  from the eye tracked; where it peaks and what lies behind is hidden until ground at least `edge` × as far rises past
+ *  it (or the map ends), that peak is the land's CONTOUR on that bearing. Each contour point past `reach` where something
+ *  stands is handed to the art as `strands` strokes spread across its bearing's width:
+ *    F: { n: [nx, ny], cell, centre: [x, y] (cell 0's), zs (the ground's height a cell), hs (what stands there, m; 0
+ *       none), slots (its colour slot), tones (its dice, 0..255) }
+ *  contourScan(F, eye, { reach, bearings, edge, strands }) → Float32Array, a stroke every 6: x, y, z, height, slot, tone */
+export function contourScan(F, eye, { reach = 25, bearings = 1440, edge = 1.2, strands = 3 } = {}) {
+  const nx = F.n[0], ny = F.n[1], c = F.cell, ox = F.centre[0], oy = F.centre[1], out = [];
+  const maxD = Math.hypot(nx * c, ny * c) + Math.hypot(eye[0] - ox, eye[1] - oy);
+  const at = (x, y) => { const i = Math.round((x - ox) / c), j = Math.round((y - oy) / c); return i < 0 || j < 0 || i >= nx || j >= ny ? -1 : j * nx + i; };
+  const hash = (a, b) => { const s = Math.sin(a * 127.1 + b * 311.7) * 43758.5453; return s - Math.floor(s); };
+  const emit = (P, a) => {
+    if (P.d < reach || !(F.hs[P.k] > 0)) return;
+    const half = (Math.PI / bearings) * P.d, px = -Math.sin(a), py = Math.cos(a);
+    for (let s = 0; s < strands; s++) { const u = (hash(P.k, s) - 0.5) * 2 * half; out.push(P.x + px * u, P.y + py * u, P.z, F.hs[P.k] * (0.5 + 0.5 * hash(s, P.k)), F.slots[P.k], F.tones[P.k] / 255); }
+  };
+  for (let b = 0; b < bearings; b++) {
+    const a = (b / bearings) * 2 * Math.PI, dx = Math.cos(a), dy = Math.sin(a);
+    let maxE = -Infinity, rising = false, cand = null, pend = null, seen = false;
+    for (let d = c; d <= maxD; d += c) {
+      const x = eye[0] + dx * d, y = eye[1] + dy * d, k = at(x, y);
+      if (k < 0) { if (seen) break; continue; }
+      seen = true;
+      const z = F.zs[k], e = (z - eye[2]) / d;
+      if (e > maxE) { if (pend && d > pend.d * edge) emit(pend, a); pend = null; maxE = e; cand = { k, d, x, y, z }; rising = true; }
+      else if (rising) { pend = cand; rising = false; }
+    }
+    if (pend) emit(pend, a);
+  }
+  return Float32Array.from(out);
+}

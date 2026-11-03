@@ -2,7 +2,7 @@
 // crew's colours, the same seed the same soldier), the pack's baked light left off, the realistic body on its word. One
 // faction and one kind, chosen in code from the pack.
 import { describe, it, expect } from 'vitest';
-import { readDress, dressOrders, lookOfDress, DRESS_BODIES } from './dress.js';
+import { readDress, dressOrders, lookOfDress, henchmanOn, DRESS_BODIES } from './dress.js';
 import { GRUNT_STYLES } from '../cosmos/packs/comic-hero/grunts.js';
 import { resolveFoe } from './resolve.js';
 import { FOE_CLASSES } from './index.js';
@@ -38,4 +38,23 @@ describe('a dress', () => {
     const cls = Object.values(FOE_CLASSES).find((c) => fitOfPeople(c.id, { people: 'human' }).ok);
     expect(resolveFoe({ class: cls.id, skin }).skin).toMatchObject({ people: 'human', dress: { faction } });
   });
+
+  it('puts the body its game puts in its henchmen on the grunt: the codename on the anime frame, the realistic body western, the crew\'s own builds in ink', () => {
+    expect(readDress({ faction, rail: 'comic', muscle: true })).toEqual({ faction, rail: 'comic', muscle: true });
+    expect(() => readDress({ faction, rail: 'hulk' })).toThrow(/rail is/);
+    expect(() => readDress({ faction, muscle: true })).toThrow(/rides a rail/);
+    // (an anime grunt: its pole's hulking codename, the shirt only when asked)
+    const anime = dressOrders({ ...skin, dress: { ...skin.dress, rail: 'comic' } }, { seed: 9, tradition: 'anime' }).mint.spec;
+    const pole = typeof anime.cast === 'string' ? anime.cast : anime.cast.pole;
+    expect(anime.animeBody).toBe(pole === 'female' ? 'kale' : 'armstrong');
+    expect(anime.muscleShirt).toBeUndefined();
+    expect(dressOrders({ ...skin, dress: { ...skin.dress, rail: 'comic', muscle: true } }, { seed: 9, tradition: 'anime' }).mint.spec.muscleShirt).toEqual({ definition: 0.5 });
+    // (a western fighting game's henchman on the realistic body, jacked and heavy)
+    const west = dressOrders({ ...skin, dress: { ...skin.dress, rail: 'muscular' } }, { seed: 9, tradition: 'western' }).mint.spec;
+    expect(west).toMatchObject({ form: 'realistic', physique: { from: 'jacked', bulk: 1 } });
+    // (drawn in ink: the crew's own builds stand, the grunt as it was)
+    const plain = dressOrders(skin, { seed: 9, tradition: 'western' }).mint.spec;
+    expect(henchmanOn(plain, { rail: 'comic' }, 'western')).toEqual(plain);
+  }, 60000);
 });
+

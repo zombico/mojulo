@@ -268,6 +268,9 @@ import { emitThreeWorld } from './scene-three.js';
 // broadcast's cues and plates name its calls and the stats count its conversion, and the minds (the carry mind, its role
 // lines) the court, turns and pitch inline; the pitch block's sim and client too (the carry mode, the field's lines, the
 // posts, the line markers, the oval). Every other page is byte-identical.
+// Added 2026-10-31 (broadcasting personas): the `broadcasts` fixture pins a persona's read on a screen in the world (the
+// screens block, `stepBroadcasts`); every other fixture is as it was (the row is appended, zero bytes when absent).
+//
 // Re-pinned 2026-10-26 (arcade rules: the innings games): the `meet`, `court`, `turns` and `pitch` fixtures re-pin because
 // the kernel every contest block inlines reads an innings game (strikes, outs, the bases or the runs, the overs, the side
 // retired), the broadcast's cues and plates name its calls and the stats fold counts them; the new `innings` fixture pins
@@ -349,7 +352,37 @@ const sha = (s) => createHash('sha256').update(s).digest('hex');
 // only. The prepass draws a material that moves its vertices (a plant's wind, a spray's growth) by the vertex shader it
 // names (`userData.prepass`), so its occlusion and ink fall where the frame draws it, not beside it where it would
 // stand still. A page without such a material draws every mesh as before.
+// Re-pinned 2026-11-01 (game breakers): `court`, `turns`, `pitch`, `meet`, `innings`, `versus` and `holo` only. Each
+// arena's client posts its outcome with the wire's `contractVersion`, which the play shell requires to apply it (it
+// refused every match's outcome before); the contest kernel the court, turns, pitch, meet and innings inline takes a
+// ladder's `tiebreak` (tennis's set at six all). No other page inlines an arena client or the kernel.
+// Re-pinned 2026-11-02 (the book tells the truth): every fixture that embeds the controllable runtime, and every capture
+// page. The follow camera's pull-in (follow-pull-in.js, inlined by its source) stands the eye half a metre off a wall
+// instead of the 3 m stand-off, never farther out than the open line (with nothing in the way it frames as before); a
+// capture page's view() hands out the level's background colour and its controllable bodies (the first-frame gate reads
+// both). A live page with no follow camera is unchanged.
+// Re-pinned 2026-11-02 (the manual manipulator's controllers: poses are input): `xr` and `walk-xr` only. The headset's
+// driver (controls/xr-driver.js, inlined by its source on a page with `xr`) reads the poses OpenXR names beside the
+// sticks (`xrPoses`, `poseToWorld`, `turn`): additions only. No other page carries the driver; neither fixture has a
+// pilot, so neither carries the game-in-the-headset branch (channels/xr.js `ctrl`).
+// Re-pinned 2026-11-02 (the manual manipulator's controllers: a shot from the hand): every fixture that embeds the
+// controllable runtime (the 16: controllable, its lock, shadows, smoke, figure and hangar, cast-shadows, the two
+// live-shadows with actors, fx, shoot-live, the two toon-ink, capture-controllable and both kitchen sinks), for the
+// ranged weapon's opt-in `input.aim` (combat-ranged.js stepWeapon: a headset's held muzzle or controller ray, the round
+// leaving from it along it): additions only, and an input without `aim` fires as before.
+// Re-pinned 2026-11-02 (the world clock): `shoot-live` only. A live plan's camera gizmos take no raycast (shoot.js
+// `__shOver`): the controllable's ground probe raycast the whole scene and threw on the frustum's lines before its camera
+// was posed, stopping a live world with a shoot plan on its first frame. A plan that is not live emits as it did.
+// Re-pinned 2026-11-03 (the controllers merged over the world clock): `shoot-live` only, for the two above together (it
+// embeds the controllable runtime, so it carries the ranged weapon's opt-in aim and the gizmos' raycast skip at once).
 
+// Re-pinned 2026-11-02 (book powers): every fixture that embeds the controllable runtime, and those only. The cast's
+// beam (worlds/controllable/cast.js) takes `to: { nearest: { range?, cone? } }` (the nearest standing foe in front of
+// its caster) and `hurt` (the hp it takes as it lands, in castFacts beside the struck fact), so a power's attack lands;
+// a beam with neither plays as before.
+// Re-pinned 2026-11-02 again (book powers), the same fixtures: a beam's `hurt` may be `{ by: 'power', per, base }`, its
+// caster's power stat as it fires (the stats bound to its body) × per, or base where it has none, so an attack follows
+// the power stat as the levels raise it; a number plays as before.
 describe('emitThreeWorld characterization (byte-level pin over the fixture matrix)', () => {
   it.each(EMIT_FIXTURES.map(([name]) => name))('%s emits byte-identically', (name) => {
     const [, opts] = EMIT_FIXTURES.find(([n]) => n === name);

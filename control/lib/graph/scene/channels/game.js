@@ -164,7 +164,9 @@ ${game.chapters ? `  // CHAPTERS carried in (playscape/ui/chapters.js): a chapte
     const prevP = __BUS.processEvents;
     __BUS.processEvents = function (state, events) {
       const n0 = state.log.length, out = prevP(state, events);
-      for (let i = n0; i < state.log.length; i++) { const ev = state.log[i]; if (ev && typeof ev.type === 'string' && ev.type.indexOf('pickup:') === 0) __grant(ev.type.slice(7)); }
+      for (let i = n0; i < state.log.length; i++) { const ev = state.log[i]; if (ev && typeof ev.type === 'string' && ev.type.indexOf('pickup:') === 0) __grant(ev.type.slice(7)); }${game.powers.bought ? `
+      // (a power gained by the stats, its node bought or carried in at a rank: its move the moment the bus holds it)
+      for (const id in __GAME.powers.grants) if (!__pw.on[id] && ((state.vars && state.vars[__GAME.powers.bought + '.' + id]) || 0) >= 1) __grant(id);` : ''}
       return out;
     };
   }
@@ -245,7 +247,9 @@ ${game.chapters ? `  // CHAPTERS carried in (playscape/ui/chapters.js): a chapte
       start(d.params, d.seed);
     });
     try { window.parent.postMessage({ moj: '${GAME_MSG_READY}', contractVersion: __CV, levelRef: __GAME.levelRef }, '*'); } catch (e) { /* opaque parent */ }
-    setTimeout(() => { if (!st.started) fallback(); }, 1500);
+    // (the grace is 1.5 s of waiting, not of a busy page: a timer that fires late, the page having been building its
+    // world, gives the shell's answer, already queued, another grace before the presets run in its place)
+    (function grace(due) { setTimeout(() => { if (st.started) return; if (performance.now() - due > 250) grace(performance.now() + 1500); else fallback(); }, Math.max(0, due - performance.now())); })(performance.now() + 1500);
   } else {
     fallback();
   }

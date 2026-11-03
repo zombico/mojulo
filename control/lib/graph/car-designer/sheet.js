@@ -19,14 +19,18 @@ import { mulberry32 } from '../vegetation/grow.js';
 import { CHANNEL_IDS, readDerive, dialKey } from './channels.js';
 import { POLES, CLASS_TRAITS, CLASS_IDS, HEAVY, SILHOUETTES, STANCES, COCKPITS, ENGINES, ERAS, MOTIF_READS, DRIVES, WEARS, LIVERIES } from './facets.js';
 import { readBrief } from './lexicon.js';
+import { VEHICLES as PHYSICS, wheelLayout, siteClass } from '../roads/vehicles.js';
 
 export const MAX_ATTEMPTS = 8;
 export const SPEC_KEYS = Object.freeze(['pole', 'class', 'silhouette', 'stance', 'cockpit', 'engine', 'era', 'motif', 'drive', 'wear', 'livery', 'exaggeration']);
 const TABLES = { pole: POLES, class: CLASS_TRAITS, silhouette: SILHOUETTES, stance: STANCES, cockpit: COCKPITS, engine: ENGINES, era: ERAS, motif: MOTIF_READS, drive: DRIVES, wear: WEARS, livery: LIVERIES };
 /** What a realistic sheet takes from its class unless asked. */
 const FROM_CLASS = Object.freeze(['silhouette', 'stance', 'cockpit', 'engine', 'motif', 'drive']);
-/** Two-wheelers are not built yet: a bike's rider sits astride, another pose family. */
-export const UNBUILT = Object.freeze({ dirtBike: 'a two-wheeler: its rider sits astride, a pose family not built yet' });
+/** Classes the sheet does not build yet, and why (none now: a machine ridden astride is the cycle shelf's, refused below
+ *  with where it is built, its rider astride there: cycle-shelf/cycle-rider.js). */
+export const UNBUILT = Object.freeze({});
+/** A class whose wheels are not two to an axle: a machine ridden astride (two in line, or a three-wheeler). */
+const astride = (cls) => Boolean(PHYSICS[cls]) && wheelLayout(PHYSICS[cls]) !== 'axles';
 
 /** The seed's priors per pole: weights per value (absent weighs 0); exaggeration is uniform in the pole's band. */
 export const PRIORS = Object.freeze({
@@ -66,6 +70,8 @@ export function readVehicleSheet(spec = {}) {
   for (const [k, val] of Object.entries(spec)) {
     if (!SPEC_KEYS.includes(k)) throw new Error(`car-designer: unknown facet '${k}' (known: ${SPEC_KEYS.join(', ')})`);
     if (k === 'exaggeration') { if (typeof val !== 'number' || !(val >= 0 && val <= 1)) throw new Error(`car-designer: exaggeration is a number 0 … 1 (got ${JSON.stringify(val)})`); continue; }
+    if (k === 'class' && astride(val)) throw new Error(`car-designer: class '${val}' is a machine ridden astride: the cycle shelf builds it (cycle-shelf/), its rider astride on it`);
+    if (k === 'class' && siteClass(PHYSICS[val])) throw new Error(`car-designer: class '${val}' is a site's machine: the construction shelf builds it (construction-shelf/), its carrier, its upper, its front and its tool`);
     if (k === 'class' && UNBUILT[val]) throw new Error(`car-designer: class '${val}' is not built yet (${UNBUILT[val]})`);
     if (!(val in TABLES[k])) throw new Error(`car-designer: unknown ${k} '${val}' (known: ${Object.keys(TABLES[k]).join(', ')})`);
   }

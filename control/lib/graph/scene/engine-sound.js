@@ -2,9 +2,8 @@
  * engine-sound — a level's sound for the engine packs, from the world audio channel world-scene resolved onto the
  * payload (beats-world.js resolveWorldAudio). Pure. Every one-shot (a bus cue, a footstep, a shot, a swing) becomes a
  * sound id named for what it is and what it plays (`<name>-<hash>`: two levels with the same cue share one file, two
- * keys of one game never collide); the pack renders each to `audio/sfx/<id>_<n>.wav`, n under `variants` (n = 0 is
- * the plain cue, the others the kernel's seeded variations, the web page's `vary`). A fight score (`audio.combat`)
- * ships as `<level ref>-combat` beside the soundtrack bed, with both pieces' bar lengths and the tension that brings it
+ * keys of one game never collide), with `variants` takes of each (n = 0 the plain cue, the others seeded variations,
+ * the web page's `vary`). A fight score (`audio.combat`) is named `<level ref>-combat` beside the soundtrack bed, with both pieces' bar lengths and the tension that brings it
  * in (adaptive-music.js), so an engine changes on the same bar lines the page does.
  *
  *   score.audio: { sounds?, variants?, on?, footsteps?, weapon?, strike?, dodge?, combat?, bar?, tension? }
@@ -13,7 +12,7 @@
  */
 import { buildAdaptive } from '../beats/adaptive-music.js';
 
-/** How many takes of each sound a pack renders when the level's sounds vary (the engine picks among them, no repeats). */
+/** How many takes of each sound a level's score names when its sounds vary (an engine picks among them, no repeats). */
 export const SFX_VARIANTS = 3;
 /** The hero's own moves that sound, by the world audio key that holds them (the page reads the same sim edges). */
 export const MOVE_SOUNDS = { footsteps: ['step', 'jump', 'land'], weapon: ['shot', 'hit', 'reload'], strike: ['swing', 'hit'] };
@@ -28,7 +27,7 @@ function fnv(s) {
 
 /**
  * levelSound(resolvedAudio, ref) → { score, sounds: [{ id, gestures }], combat: { id, recipe } | null } | null.
- * `score` is what score.json carries as `audio`; `sounds` and `combat` are what the pack renders.
+ * `score` is what score.json carries as `audio`; `sounds` and `combat` are what a pack would render.
  */
 export function levelSound(audio, ref) {
   if (!audio || typeof audio !== 'object') return null;
@@ -65,14 +64,4 @@ export function levelSound(audio, ref) {
   }
   if (!Object.keys(out).length) return null;
   return { score: out, sounds: [...sounds].map(([k, gestures]) => ({ id: k, gestures })), combat };
-}
-
-/** The files a level's sound ships (beside its soundtrack bed): every take of every sound, and the fight score. */
-export function soundFiles(score) {
-  const a = score?.audio;
-  if (!a) return [];
-  const files = [];
-  for (const s of a.sounds || []) for (let n = 0; n < (a.variants || 1); n++) files.push(`audio/sfx/${s}_${n}.wav`);
-  if (a.combat) files.push(`audio/${a.combat}.wav`);
-  return files;
 }

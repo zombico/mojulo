@@ -95,6 +95,7 @@
  *   expandGeocube(cube, ask, hint) domain expansion: the domain picked and lowered → { manifest, pick }
  *   geocubeStructures(manifest)    a stage's or a specimen's domain's structures, painted and placed → { list, light } | null
  *   geocubeTown(cube, domain)      a domain's settlement as a stage's `town` (its street on a trail) | null
+ *   cubeStreetLook(cube)           the look the cube gives a street laid on it from elsewhere: { anchor?, paint, street, dress? }
  *   cubeContrast(cube, side)       the cube's `contrast` resolved against its light and colour, as a payload carries it
  *   geocubeContrastOf(manifest)    the resolved contrast of the cube a world manifest is painted by, or null
  *   geocubeRegisterOf(manifest)    the crease pass's terms (creases, outline) that cube's register asks for, or null
@@ -138,6 +139,7 @@ import { makeLight } from '../polygonizer/vexar.js';
 import { planLocalMeru } from '../local-meru/plan.js';
 import { readTownPlan } from './out-town.js';
 import { LIVE_SHADOW_KEYS } from '../scene/live-light.js';
+import { readCone } from '../scene/channels/view-cone.js';
 
 const TWO_BASES = [{ form: 'mound', height: 6, foot: 11, summit: 6.5 }, { form: 'mound', height: 5, foot: 4.8, summit: 2.2, up: { turns: 1 } }];
 const ISLE = { geology: true, walk: 'base' };
@@ -801,6 +803,14 @@ export function geocubeTown(cube, D, over) {
     // (its street laid through it in its language, era/stage-street.js)
     street: true, ...(dress ? { dress } : {}) };
 }
+/** The look a cube gives a street laid on it from elsewhere (a gameworld level's town, gameworld/world.js): the cube's
+ *  street paint (its roof, timber and trim from its ramps), its builders' dress (their style's material words and
+ *  colours over its grit), the road laid through it, and its builders' language for a street that names none. */
+export function cubeStreetLook(cube) {
+  const { style, anchor } = settlementStyle(cube, undefined);
+  const dress = style ? styleTownDress(style, cube, townDressOf(cube)) : townDressOf(cube);
+  return { ...(anchor !== undefined ? { anchor } : {}), paint: { ...CUBE_STREET_PAINT }, street: true, ...(dress ? { dress } : {}) };
+}
 /**
  * The levels the cube makes, by name: its `domains`, else one per terrain (outside, its own first) and one per interior
  * (inside). → [{ name, side, terrain? | interior?, hour?, reads }].
@@ -944,8 +954,17 @@ function outsideAt(cube, hour, clouds, { base, card, sw, land0, fit, shadow, own
 
 // the cube's own made ramps, under names of their own so the kit's are untouched: what a street of houses in the cube's
 // look is painted from (CUBE_STREET_PAINT)
+// (each of a street's cube swatches and the cube colour it is made from: CUBE_STREET_RAMPS)
+export const CUBE_STREET_RAMPS = Object.freeze({ 'cube-stone': 'stone', 'cube-trim': 'trim', 'cube-roof': 'floor', 'cube-accent': 'accent' });
 const cubeMade = (cube) => { const shadow = shadeHue(cube), r = (hex) => rampFrom(rgbOf(hex), 5, { shadow });
-  return { 'cube-stone': r(cube.colour.stone), 'cube-trim': r(cube.colour.trim), 'cube-roof': r(cube.colour.floor), 'cube-accent': r(cube.colour.accent) }; };
+  return Object.fromEntries(Object.entries(CUBE_STREET_RAMPS).map(([sw, colour]) => [sw, r(cube.colour[colour])])); };
+/** What each of the cube's colours paints on a street of houses in its look (CUBE_STREET_PAINT): { <colour>: [surface
+ *  group, …] } ('tile', 'timber'…); the walls of plaster and stone are its land's soil and rock. */
+export const cubeStreetParts = () => {
+  const out = {};
+  for (const [g, sw] of Object.entries(CUBE_STREET_PAINT)) (out[CUBE_STREET_RAMPS[sw]] ??= []).push(g.replace(/^str:/, ''));
+  return out;
+};
 /** A street of houses painted by the cube (a stage town's `paint`, era/stage-buildings.js): its frames and boards the
  * trim, its roofs the floor (terracotta, slate, flags), its shells the stone, its painted things the accent. The walls
  * of plaster and stone are the land's soil and rock, already the cube's. */
@@ -1269,7 +1288,7 @@ function withTownCameras(payload, site) {
     cam('trail', [te[0], te[1], gz(te) + 1.7], [tk[0], tk[1], gz(tk) + 0.4], 75), ...payload.cameras];
 }
 export function assembleGeocubeScene(manifest, ctx, assemble) {
-  for (const k of Object.keys(manifest)) if (!['kind', 'cube', 'show', 'title', 'walk', 'hour', 'clouds', 'weather', 'seed', 'domain', 'style', 'biocube', 'path', 'trail', 'camera', 'words', 'brief', 'shadows', 'occlusion', 'light', 'solid', 'hall'].includes(k)) no(`'${k}' is not a setting of the geocube kind (cube, show, hour, clouds, weather, seed, domain, style, biocube, path, trail, camera, words, hall; the page's live light: shadows, occlusion, light; solid); build a level on a cube with a stage recipe's geocube`);
+  for (const k of Object.keys(manifest)) if (!['kind', 'cube', 'show', 'title', 'walk', 'hour', 'clouds', 'weather', 'seed', 'domain', 'style', 'biocube', 'path', 'trail', 'camera', 'cone', 'air', 'words', 'brief', 'shadows', 'occlusion', 'light', 'solid', 'hall'].includes(k)) no(`'${k}' is not a setting of the geocube kind (cube, show, hour, clouds, weather, seed, domain, style, biocube, path, trail, camera, cone, air, words, hall; the page's live light: shadows, occlusion, light; solid); build a level on a cube with a stage recipe's geocube`);
   // (`camera`: the still it is first seen from, STILLS: a camera glyph's, gameworld/glyph-words.js)
   if (manifest.camera !== undefined && !STILLS.includes(manifest.camera)) no(`camera is the still it is first seen from: ${STILLS.join(', ')}`);
   // (`words`, and its `brief`: the words a scene was asked in and what each decided, written at authoring time into the
@@ -1290,6 +1309,8 @@ export function assembleGeocubeScene(manifest, ctx, assemble) {
   // (inside: the cube's room, or a hall walked through its interior: in-hall.js)
   const inside = show === 'room' || show === 'hall';
   if (manifest.camera !== undefined && inside) no('camera is a still of the outside: show \'land\', \'trail\', \'path\' or \'town\'');
+  // (`cone`: gameplay's view cone, its reach in metres, read by the outside's form render; scene/channels/view-cone.js)
+  if (manifest.cone !== undefined) { if (inside) no('cone is the view cone over the outside\'s grass: show \'land\', \'trail\', \'path\' or \'town\''); readCone(manifest.cone); }
   if (manifest.hall !== undefined && show !== 'hall') no('hall is the walk through the cube\'s interior (era/in-hall.js): show \'hall\'');
   for (const k of ['hour', 'clouds']) if (manifest[k] !== undefined && inside) no(`${k} ${k === 'hour' ? 'is' : 'are'} the outside's: show 'land', 'trail', 'path' or 'town' to see the cube under ${k === 'hour' ? 'it' : 'them'}`);
   if (manifest.seed !== undefined && show !== 'trail' && show !== 'path' && show !== 'town' && show !== 'hall') no('seed is the trail\'s, the path\'s, the town\'s and the hall\'s: show \'trail\' to lay the island from a seed, \'path\' the way through the land, \'town\' its street, or \'hall\' a walk through its interior');

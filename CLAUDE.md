@@ -10,14 +10,19 @@ comments, docs, or the changelog: plans are working documents that move to
 A local MCP server with a dashboard that turns the operator's agent into a game studio. The person directs; the
 agent works through six departments: worlds and levels (art direction, light, set pieces, cities planned for play),
 characters, props and vehicles (`create_character`, `mint_solid`), play modes, animation and sound (`create_game`, feel,
-juice, `create_beats`), foes and bosses, cameras and cutscenes (`forge_motion`, the scenes card), and game design and
+juice, `create_beats`), foes and bosses, cinematics (the actor: a persona's `style` and `role`, scenes and their coverage,
+`forge_motion`, the scenes card; craft in [docs/cinematics.md](docs/cinematics.md)), and game design and
 production (`design_game`, the bibles, plans and sweeps), which ties the rest into a game. The audit and the engine legs
-are how everything holds up, not departments. Every department writes into one tiny
-deterministic recipe (a `sketches` row) that regenerates on every read and exports to Godot, Unity, Unreal, Blender,
-GLB, STL, 3MF, USD, which is why a game's bible, its levels and its export agree. Play, Print, Read, Hear and Observe
-are what the departments' combinations make; rooms, prints and science views are the same studio's other outcomes.
+are how everything holds up, not departments. Every department writes into one tiny deterministic recipe (a `sketches`
+row) that regenerates on every read and exports to the web, a team's engine (Godot, Unity, Unreal, Blender), GLB, STL,
+3MF, USD, which is why a game's bible, its levels and its export agree. Play, Print, Read, Hear and Observe are what
+the departments' combinations make; rooms, prints and science views are the same studio's other outcomes.
 Underneath, it is a 3D compiler for agents: that is how it works and what the agent is told, not what the person is
 sold. Mojulo is the agent-driven upstream that feeds those tools, never a fidelity rival and never "just an exporter."
+It makes single-player and couch-multiplayer games (online is out of scope) for two audiences: a solo creator gets the
+whole game end to end on the web (`export_game`); developers and teams get a handoff of assets, animation and levels to
+their engine, with the recipe and its bible as the team's design source and the web build as the prototype that
+validated the loop (the `engine-handoff` theme).
 
 Two audiences, one truth. The README, the plugin and the manifests speak to the person (the studio); the drawers and
 the `initialize` preamble speak to the agent (the compiler). The canonical self-description is the `get_substrate`
@@ -81,7 +86,7 @@ The chatbot factory and its bot runtime left in 3.0.0 for their own project; the
   layers over what the operator's LLM provider already enforces. Posture: [TERMS.md](TERMS.md).
 - Never read or echo `.env` secrets from generated app directories.
 - UI strings go through `next-intl`; add to `control/messages/en.json`, then `/sync-locales`. CI checks parity.
-- Optional workers (Blender, ComfyUI, Kokoro, slicer, OpenSCAD, Godot, Unity, Unreal, Rojo, Lune) are never dependencies.
+- Optional workers (Blender, ComfyUI, Kokoro, slicer, OpenSCAD, Godot, Unity, Unreal) are never dependencies.
   Absence degrades a loop, never breaks one. Search orders live in `control/lib/workers/find.js` (`version({ workers: true })`).
 - Do not commit unless asked. Never touch `control/.next/`, `control/data/`, `.claude/worktrees/`.
 
@@ -127,7 +132,8 @@ at any depth, its deep sweeps, and the critical tier for a config change (`scrip
 `--list` shows the pick). Add `test:critical` for a change to the MCP surface, a pin or a guard, and `test:e2e` only
 for a gameworld, city, game or structure kernel change. Do not run whole folders or the whole suite locally. The
 whole suite, `test:deep` and `test:e2e` run in CI, sharded, on every PR, on pushes to `main` and the
-release-candidate branches (`*-consolidated`), and on demand for any branch (the workflow's manual run). Before merging
+release-candidate branches (`*-consolidated`), and on demand for any branch (the workflow's manual run): the whole suite on
+Node 22, the critical tier and its byte pins on the other runtimes (22.14.0, 24, macOS). Before merging
 a branch into a release candidate, merge the candidate into it, push it and open a pull request from it into the
 candidate: the workflow runs on every pull request (the whole suite, the deep sweeps and the e2e tier, sharded); land it
 on green by fast-forwarding the candidate (work on the next branch meanwhile). A prose-only branch needs no run. CI then runs everything again on the candidate's push, and a red there is the next fix. A module that reads files beside it is declared in
@@ -191,19 +197,31 @@ Pointers only; each target carries its own design notes.
   [world-kinds.js](control/lib/graph/worlds/world-kinds.js) (the registry).
 - Emitters: [control/lib/graph/scene/](control/lib/graph/scene/); native frame is z-up, 1 unit = 1 m
   ([engine-score.js](control/lib/graph/scene/engine-score.js)); each emitter owns its conversion.
-  Engine legs: `godot-project.js`, `unity-project.js`, `blender-project.js`, `roblox-project.js`; Unreal takes assets,
-  not games or levels (`unreal-project.js`: `export_model { format: 'unreal' }`, a character or solid as GLB + importer);
-  one registry and marks per engine in `scene/engines/`; CLIs in `control/scripts/export-*.mjs`; gates are advisory and
-  need `MOJULO_GODOT` / `MOJULO_UNITY` / `MOJULO_UNREAL` / `MOJULO_ROJO` + `MOJULO_LUNE`. A runtime kernel (Godot's
-  GDScript, Roblox's Luau) is held equal to the web by `scripts/conformance.mjs --engine <e> --corpus <c>`.
+  The engine handoff (`export_model { engine }`): `handoff.js` and an adapter per engine, Godot's in `handoff-godot.js`
+  (a project of a world's or a game's levels), Blender's in `handoff-blender.js` (the same, built into a .blend; the art
+  pack, `format: 'blender'`, stays `blender-pack.js`); Unreal's in `handoff-unreal.js` (the same, a UE5 project its
+  Python importer builds; one thing by its ref stays the asset pack, `unreal-pack.js`); Unity's in `handoff-unity.js`
+  (the same, a Unity 6 URP project its C# importer builds in batchmode); the registry in
+  `scene/engines/`. The visual gate (`scene/visual-gate.js`, `scripts/visual-gate.mjs`) renders a level's cameras on the
+  page and in each engine installed and scores each shot. Gates are advisory and need `MOJULO_GODOT` / `MOJULO_BLENDER` /
+  `MOJULO_UNREAL` / `MOJULO_UNITY`; CI's `godot` job runs Godot's legs (the handoff, a humanoid's import, the visual
+  gate's) on a pinned Godot; the others run locally. No engine runs a game: the game runtimes (Godot's, Roblox's,
+  Unity's) are retired, and the web build is the game.
 - The realistic hero body (`form: 'realistic'`, the form field's slice): [docs/realistic-body.md](docs/realistic-body.md).
   Its garments: the construction in [body-relational-tailor.js](control/lib/graph/polygonizer/body-relational-tailor.js), the
   principles a silhouette is read by in [docs/garment-principles.md](docs/garment-principles.md); skill: `/garment-design`.
   Played as an engine gets it (the skinned GLB, its clips and face morphs, variants bare and armoured): `/hero-live`.
+- The anime face's principles (the brow never covers the eye, no line where the form carries it, drawings snap):
+  [docs/anime-face-principles.md](docs/anime-face-principles.md); its head casts (Shonen High the default; siblings by figure and theme, never by game type): `anime-styles.js`; its
+  bodies (codenames, each a simplified form and a muscular form over the same base): `anime-bodies.js`, the muscles in
+  `musculature/`; the socket each brow drawing carries: `anime-sockets.js`.
 - What it wears: the wearable libraries [footwear/](control/lib/graph/footwear/), [handwear/](control/lib/graph/handwear/) and
   [plating/](control/lib/graph/plating/) (card → passes → laws → adapter; a new look is a card): [docs/plating.md](docs/plating.md).
   On the head, [headgear/](control/lib/graph/headgear/): the cards (masks, cowls, eyegear, helmets) worn by the hero door's
   `headgear` word, and the helmets by tradition an outfit's `language.head` wears; a new look is a card.
+- Arms: [equipment/arms/](control/lib/graph/equipment/arms/) (modern and future guns and knives for the gen-7 look: a
+  model row and its builder → tunable parts → a finish card, held to the laws in `laws.js`; a new look is a finish card,
+  a new archetype a model row). Manual: the `equipment` solid-vocab card; review: `scripts/render-arms.mjs`.
 - Solids: [polygonizer/](control/lib/graph/polygonizer/) (`field-terms.js`, `code-realm.js`,
   `field-exact.js` for `exact: true` through Manifold), [worlds/workbench.js](control/lib/graph/worlds/workbench.js);
   manuals are the `solid-vocab/` cards. OpenSCAD both ways: [scad/scad-render.js](control/lib/graph/scad/scad-render.js)
@@ -214,8 +232,34 @@ Pointers only; each target carries its own design notes.
   encyclopedia entry); adding or deepening one: [docs/historic/README.md](docs/historic/README.md), `/historic-culture`.
 - Room furniture: [furnishings/roster.js](control/lib/graph/furnishings/roster.js) names every piece (one row, the
   words people say, its handles into the floorplan, preset, net and room-asset tables); a new piece is a row first.
-- Flight parts: [craft-shelf/](control/lib/graph/craft-shelf/) (the ODM inventory of aircraft and spacecraft parts → whole
+- Vehicles: [vehicle-registry/roster.js](control/lib/graph/vehicle-registry/roster.js) names every vehicle (one row, the
+  words people say, its handles into the tables that build it); the old tables (nets, physics, fleet, rides, race
+  machines, craft shelf) are frozen behind it, every door reads a vehicle word through it, and a new vehicle is a row
+  first. Its builds by tier (toy | stylised | realistic) and what each needs to be drawn realistic: `builds.js`. The
+  field's vehicles (a military class's realistic body) are the hull kit's: `car-designer/road-military.js` over `mil-hull.js`, a
+  tracked class's running gear `mil-track.js`; the airfield's ground crew (catering, belt loader, stairs) too, `road-airside.js`.
+- Cars: [car-shelf/](control/lib/graph/car-shelf/) (the personal and family cars: a body style, a design language, a trim and
+  its parts and a paint over a class's true numbers; named configurations are cards in `car-library.js`, a registry row's
+  `car` handle; a loft's `{ car }`; a new car is a card, a new look a language or a part word): [docs/car-shelf.md](docs/car-shelf.md).
+- Flight parts: [craft-shelf/](control/lib/graph/craft-shelf/) (the ODM inventory of aircraft, rotorcraft and spacecraft parts → whole
   craft by archetype; a new part is a row first); the flight-game map is [docs/flight-games.md](docs/flight-games.md).
+  Boats are on the same shelf (`boat-odm.js`, `boat-parts.js`, `boat-archetypes.js`): a hull drawn from its lines and
+  floated by its weight, its drive, its fittings; a warship's parts (superstructure, mast, turret, launch cells) in
+  `boat-ship.js`, a carrier's flight deck in `boat-carrier.js`, a submarine's round hull in `boat-sub.js`; a boat
+  underway, its wake from its hull and speed, in `boat-wake.js`, run round a course on the World page's live water by
+  `worlds/seaway-scene.js` and the `seaway` channel (its Kelvin field `kelvin.js`); review: `scripts/render-boats.mjs`.
+- Rail: [rail-shelf/](control/lib/graph/rail-shelf/) (primitives for locomotive transit on the vehicle ODM's pattern: a cab
+  car's grammar solves a brief into a frame, its section and its front as a field over it, held to laws; its surface
+  compiler names each quad; design cards by preset; the bogies under it the same way, `bogie-odm.js` and
+  `bogie-surface.js`, its pantographs `panto-odm.js` and `panto-surface.js`, the overhead line they reach
+  `catenary.js`; the cars behind it `car-odm.js` and `car-surface.js` over the shell they share, `body-shell.js`; their
+  insides `interior-odm.js` and `interior-surface.js`, the lining cut by the body's own openings; a train coupled from
+  them `consist.js`); review: `scripts/render-rail.mjs`.
+- Airports: [airport/](control/lib/graph/airport/) (the transport hub's grammar laid at an airport's real figures, `plan.js`:
+  piers, nose-in stands sized to the craft shelf's liners and their jet bridges, the taxiway and runway at their
+  separations, the tower and hangar, each concourse a wing; drawn whole as a miniature on a plinth, `miniature.js`, or one
+  wing at full scale, `wing.js`: its piers, its apron's marks, its stands' aircraft, crews and jet bridges, `jet-bridge.js`;
+  the `/world` kind `airport`, minted by the transport hub's `mode: 'airport', show: 'miniature' | 'wing'`).
 - Books: [book/](control/lib/graph/book/) (the press: a style library of looks, formats and faces from the font shelf,
   one self-contained page a book, printed to PDF by headless Chromium): [docs/books.md](docs/books.md).
 - Table RPG: [table-rpg/](control/lib/graph/table-rpg/) (a pen-and-paper module played in text: rules as procedures, a
@@ -241,6 +285,12 @@ Pointers only; each target carries its own design notes.
 - Walled-core dungeons: [docs/walled-core-dungeon.md](docs/walled-core-dungeon.md) (layers on a critical path toward a
   core, a `design_game` world's `wcd`; its principles as laws; a space builds its level; a military base's buildings,
   stocked by `era/stocking.js`).
+- Networks of passages: [network/](control/lib/graph/network/) (buildings or rooms joined by passages: `sections.js`, what
+  a passage is, a new kind a row; `edges.js`, which nodes join and by what path, straight or a dog-leg; `passage.js`, one
+  built to its section along its path, at its cover, level through its turns; `laws.js`; `walk-gate.js`, a payload walked
+  as the page walks it). Its clients: the geocity's `under` (podiums and their concourses: `geocity/podium.js`) and a
+  stage's `complex` (buildings with basements on one yard, `complex.js`; a WCD level's spaces; a campus by its name,
+  `campuses.js`, a new campus a row).
 - Quest open worlds: [docs/quest-open-world.md](docs/quest-open-world.md) (the WCD's opposite pole: a geocity's regions
   joined sideways, never gated on the way on; a `design_game` world's `qow`; its principles as laws). The metro it is
   laid on: [geocity/](control/lib/graph/geocity/) (the geocube's `show: 'geocity'`: major streets first, rings, roads,

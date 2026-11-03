@@ -38,6 +38,7 @@ import { playerWorld, traversalStates } from '../../playscape/player.js';
 import { readCityLook, readPaint } from './look.js';
 import { resolveLookSpec } from '../../era/look.js';
 import { reachOf } from '../../game/reach.js';
+import { HERO_CHASE } from '../../playscape/hero-chase.js';
 // a tree's trunk as a walker meets it (m, half its side)
 const TRUNK = 0.35;
 
@@ -49,7 +50,7 @@ export const CITY_LEVEL = Object.freeze({ eye: 1.7, speed: 5, wall: 8, arrive: 7
  *  does by default), its capsule, the chase camera, and the sky its edges rise to over the tallest mass in reach. */
 export const CITY_HERO = Object.freeze({
   rule: { speed: 6, jumpSpeed: 6.5, gravity: 20, maxFall: 26, step: 0.35, snap: 0.15, collideRadius: 0.35, collideHeight: 1.7, wall: true, gear: 'swinger' },
-  camera: { dist: 5.5, height: 2.4, lookH: 1.1, lead: 1.5 },
+  camera: HERO_CHASE,
   standIn: { size: [0.5, 0.5, 1.7], color: '#d8b04a' },
   sky: 60,
   // the cloud deck over a hero's district (world-scene.js composeCloudDeck, its band defaults already in the city's units:

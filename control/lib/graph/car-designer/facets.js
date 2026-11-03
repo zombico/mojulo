@@ -35,10 +35,40 @@ export const CLASS_TRAITS = Object.freeze({
   bus:           { silhouette: 'brick', stance: 'level', cockpit: 'closed', engine: 'hidden', motif: 'smooth', drive: 'rear', derives: { frame: ['bodyplan = bus'] } },
   tractorTrailer: { silhouette: 'brick', stance: 'raised', cockpit: 'closed', engine: 'hidden', motif: 'riveted', drive: 'rear', derives: { frame: ['bodyplan = truck'] } },
   tractorTrailerLoaded: { silhouette: 'brick', stance: 'raised', cockpit: 'closed', engine: 'hidden', motif: 'riveted', drive: 'rear', derives: { frame: ['bodyplan = truck'] } },
+  // (the car shelf's classes, car-shelf/: their realistic build is a card of its library; a sheet's loft of them is the
+  // nearest body family's)
+  cityCar:       { silhouette: 'bubble', stance: 'level', cockpit: 'closed', engine: 'hidden', motif: 'smooth', drive: 'front', derives: { frame: ['chassis = unibodyPan', 'body = wagonTwo'] } },
+  keiCar:        { silhouette: 'brick', stance: 'level', cockpit: 'closed', engine: 'hidden', motif: 'smooth', drive: 'front', derives: { frame: ['chassis = unibodyPan', 'body = vanOne'] } },
+  microcar:      { silhouette: 'bubble', stance: 'level', cockpit: 'closed', engine: 'hidden', motif: 'smooth', drive: 'rear', derives: { frame: ['chassis = unibodyPan', 'body = wagonTwo'] } },
+  subcompact:    { silhouette: 'bubble', stance: 'level', cockpit: 'closed', engine: 'hidden', motif: 'smooth', drive: 'front', derives: { frame: ['chassis = unibodyPan', 'body = wagonTwo'] } },
+  fullsize:      { silhouette: 'wedge', stance: 'level', cockpit: 'closed', engine: 'hidden', motif: 'smooth', drive: 'rear', derives: { frame: ['chassis = unibodyPan', 'body = sedanThree'] } },
+  coupe:         { silhouette: 'wedge', stance: 'low', cockpit: 'closed', engine: 'hidden', motif: 'smooth', drive: 'front', derives: { frame: ['chassis = sportPan', 'body = coupeThree'] } },
+  roadster:      { silhouette: 'wedge', stance: 'low', cockpit: 'open', engine: 'hidden', motif: 'smooth', drive: 'rear', derives: { frame: ['chassis = sportPan', 'body = coupeThree'] } },
+  muscle:        { silhouette: 'wedge', stance: 'low', cockpit: 'closed', engine: 'hidden', motif: 'smooth', drive: 'rear', derives: { frame: ['chassis = sportPan', 'body = coupeThree'] } },
+  minivan:       { silhouette: 'brick', stance: 'level', cockpit: 'closed', engine: 'hidden', motif: 'smooth', drive: 'front', derives: { frame: ['chassis = unibodyPan', 'body = vanOne'] } },
+  midSuv:        { silhouette: 'barrel', stance: 'raised', cockpit: 'closed', engine: 'hidden', motif: 'smooth', drive: 'all', derives: { frame: ['chassis = unibodyPan', 'body = crossoverTwo'] } },
+  largeSuv:      { silhouette: 'brick', stance: 'raised', cockpit: 'closed', engine: 'hidden', motif: 'faceted', drive: 'all', derives: { frame: ['chassis = ladderFrame', 'body = crossoverTwo'] } },
+  offroader:     { silhouette: 'brick', stance: 'raised', cockpit: 'closed', engine: 'hidden', motif: 'faceted', drive: 'all', derives: { frame: ['chassis = ladderFrame', 'body = crossoverTwo'] } },
+  // (the field's: their bodies are the military hull kit's, car-designer/road-military.js, not a loft)
+  utility4x4:    { silhouette: 'brick', stance: 'raised', cockpit: 'open', engine: 'hidden', motif: 'riveted', drive: 'all', derives: { frame: ['chassis = ladderFrame'] } },
+  heavy4x4:      { silhouette: 'brick', stance: 'raised', cockpit: 'closed', engine: 'hidden', motif: 'riveted', drive: 'all', derives: { frame: ['chassis = ladderFrame', 'bodyplan = truck'] } },
+  cargo6x6:      { silhouette: 'brick', stance: 'raised', cockpit: 'closed', engine: 'hidden', motif: 'riveted', drive: 'all', derives: { frame: ['chassis = ladderFrame', 'bodyplan = truck'] } },
+  apc8x8:        { silhouette: 'brick', stance: 'raised', cockpit: 'closed', engine: 'hidden', motif: 'faceted', drive: 'all', derives: { frame: ['bodyplan = apc'] } },
+  launcher8x8:   { silhouette: 'brick', stance: 'raised', cockpit: 'closed', engine: 'hidden', motif: 'riveted', drive: 'all', derives: { frame: ['chassis = ladderFrame', 'bodyplan = truck'] } },
+  // (the airfield's ground crew: the hull kit's too, road-airside.js)
+  cateringTruck: { silhouette: 'brick', stance: 'raised', cockpit: 'closed', engine: 'hidden', motif: 'riveted', drive: 'rear', derives: { frame: ['chassis = ladderFrame', 'bodyplan = truck'] } },
+  beltLoader:    { silhouette: 'tub', stance: 'low', cockpit: 'open', engine: 'hidden', motif: 'riveted', drive: 'rear', derives: { frame: ['chassis = ladderFrame'] } },
+  stairTruck:    { silhouette: 'brick', stance: 'raised', cockpit: 'closed', engine: 'hidden', motif: 'riveted', drive: 'rear', derives: { frame: ['chassis = ladderFrame', 'bodyplan = truck'] } },
+  baggageTug:    { silhouette: 'tub', stance: 'low', cockpit: 'open', engine: 'hidden', motif: 'riveted', drive: 'rear', derives: { frame: ['chassis = ladderFrame'] } },
+  baggageCart:   { silhouette: 'brick', stance: 'low', cockpit: 'open', engine: 'hidden', motif: 'riveted', drive: 'rear', derives: { frame: ['chassis = ladderFrame'] } },
+  pushbackTug:   { silhouette: 'tub', stance: 'low', cockpit: 'closed', engine: 'hidden', motif: 'riveted', drive: 'all', derives: { frame: ['chassis = ladderFrame', 'bodyplan = truck'] } },
+  fuelTruck:     { silhouette: 'brick', stance: 'raised', cockpit: 'closed', engine: 'hidden', motif: 'riveted', drive: 'rear', derives: { frame: ['chassis = ladderFrame', 'bodyplan = truck'] } },
+  lightTank:     { silhouette: 'brick', stance: 'raised', cockpit: 'closed', engine: 'hidden', motif: 'faceted', drive: 'all', derives: { frame: ['bodyplan = apc'] } },
+  trackedCarrier: { silhouette: 'brick', stance: 'raised', cockpit: 'closed', engine: 'hidden', motif: 'faceted', drive: 'all', derives: { frame: ['bodyplan = apc'] } },
 });
 export const CLASS_IDS = Object.freeze(Object.keys(CLASS_TRAITS));
 /** The heavy classes: a cab, never an open seat. */
-export const HEAVY = Object.freeze(['straightTruck', 'bus', 'tractorTrailer', 'tractorTrailerLoaded']);
+export const HEAVY = Object.freeze(['straightTruck', 'bus', 'tractorTrailer', 'tractorTrailerLoaded', 'heavy4x4', 'cargo6x6', 'apc8x8', 'lightTank', 'trackedCarrier', 'launcher8x8', 'cateringTruck', 'stairTruck', 'pushbackTug', 'fuelTruck']);
 
 export const SILHOUETTES = Object.freeze({
   wedge:  v('a wedge: low at the nose, rising to the tail', { silhouette: 'the nose at the road, the line climbing back' }, { silhouette: ['proportion.height -', 'proportion.bonnet +'], handling: ['physics.CdA -'], frame: ['body = coupeThree'] }),

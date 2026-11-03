@@ -93,6 +93,7 @@ const FIXTURES = {
   'transportation-hub': { kind: 'transportation-hub' },
   'subway-station': { kind: 'subway-station' },
   'subway-building': { kind: 'subway-building' },
+  airport: { kind: 'airport', seed: 1, stands: 6 },
   floorplan: { kind: 'floorplan' },
   restaurant: { kind: 'restaurant' },
   store: { kind: 'store', card: 'bookstore' },

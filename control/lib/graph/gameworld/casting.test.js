@@ -54,11 +54,12 @@ describe('the casting page: the people rolled for the game, as many as it asks f
 
   it('a journey cast waits on its page: the members are made once characters:cast is approved', () => {
     const world = { ...W({ scale: 'journey', n: 1 }), mode: 'gated' };
-    const wait = runSteps(world, { ref: 'gw' }).filter((s) => s.order?.egocube);
+    // (the cast's members: a battle's people foes are made from their own sheets, waiting on nothing)
+    const wait = runSteps(world, { ref: 'gw' }).filter((s) => s.order?.egocube && s.key.startsWith('cast-'));
     expect(wait.length).toBeGreaterThan(4);
     expect(wait.every((s) => !s.ready && s.waiting.some((x) => x.id === CAST_PART))).toBe(true);
     const approved = { ...world, review: approveCharacter(world, CAST_PART) };
-    expect(runSteps(approved, { ref: 'gw' }).filter((s) => s.order?.egocube).every((s) => s.ready)).toBe(true);
+    expect(runSteps(approved, { ref: 'gw' }).filter((s) => s.order?.egocube && s.key.startsWith('cast-')).every((s) => s.ready)).toBe(true);
   });
 
   it('the page is a review part only where a book has one; it shows each member\'s reading and class', () => {
@@ -82,6 +83,13 @@ describe('the casting page: the people rolled for the game, as many as it asks f
     expect(castingOf(L).members).toEqual(castingOf(G).members);
     expect(battleParty(L).map((p) => p.id)).toEqual(['hero']);   // a rival is not first party
     expect(castingIds({ scale: 'party', n: 2 })).toEqual([{ id: 'party-1', key: 'party', bond: 'party' }, { id: 'party-2', key: 'party', bond: 'party' }]);
+  });
+
+  it('the book names a rolled member without moving the roll: a name alone is the box\'s, the member the scale\'s', () => {
+    const plain = castingOf(readGameworld(W({ scale: 'party', n: 2 }))), named = castingOf(readGameworld(W({ scale: 'party', n: 2, cast: { 'party-2': { name: 'Wren' } } })));
+    expect(JSON.stringify(named.sheet)).toBe(JSON.stringify(plain.sheet));
+    expect(named.members.map((m) => m.name)).toEqual([plain.members[0].name, 'Wren']);
+    expect(battleParty(readGameworld(W({ scale: 'party', n: 2, cast: { 'party-2': { name: 'Wren' } } }))).map((m) => m.name)).toContain('Wren');
   });
 
   it('refuses what it cannot read, by name', () => {

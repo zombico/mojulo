@@ -13,6 +13,7 @@ import { closeDb, getDb } from '@/lib/db/index';
 import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { MEADOWMARK, MEADOWMARK_HERO, characterBibleHtml, gameworldBibleHtml } from '@/lib/graph/gameworld/index';
 import { structureBookHtml } from '@/lib/graph/structure/book-html';
+import { gameworldAtlasHtml } from '@/lib/graph/gameworld/atlas-html';
 import { GET } from './route.js';
 
 beforeEach(() => {
@@ -37,6 +38,9 @@ describe('GET /bible', () => {
     expect(await (await bible('gw_ground')).text()).toBe(gameworldBibleHtml(MEADOWMARK));
     expect((await bible('gw_ground', '?book=characters')).status).toBe(422);
     expect((await bible('gw_hero', '?book=elsewhere')).status).toBe(400);
+    // the atlas: the world's levels drawn as a map, in a look; a look it does not have refused
+    expect(await (await bible('gw_hero', '?book=atlas&look=ink')).text()).toBe(gameworldAtlasHtml(MEADOWMARK_HERO, { look: 'ink' }));
+    expect((await bible('gw_hero', '?book=atlas&look=sepia')).status).toBe(400);
     expect((await bible('gw_hero', '?download=1')).headers.get('content-disposition')).toMatch(/attachment; filename="Meadowmark\.html"/);
     expect((await bible('gw_hero', '?book=characters&download=1')).headers.get('content-disposition')).toMatch(/attachment; filename="Meadowmark-characters\.html"/);
   }, 120_000);

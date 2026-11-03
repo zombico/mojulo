@@ -288,7 +288,7 @@ function tick() {
     if (own('up') || own('down')) pauseIx = 1 - pauseIx;
     if (own('ok')) {
       if (pauseIx === 0) phase = 'fight';
-      else if (hosted) { post({ moj: AV.wire.outcome, envelope: { result: 'abort', events: [] } }); phase = 'done'; }
+      else if (hosted) { post({ moj: AV.wire.outcome, envelope: { contractVersion: AV.wire.version, result: 'abort', events: [] } }); phase = 'done'; }
       else begin(lastParams);
     }
     return;
@@ -304,7 +304,7 @@ function tick() {
   if (match.end === 150) {
     const s = match.s;
     if (hosted) {
-      post({ moj: AV.wire.outcome, envelope: { result: s.winner === 0 ? 'success' : 'fail', events: [], stats: { versus: { winner: s.winner, wins: s.wins } } } });
+      post({ moj: AV.wire.outcome, envelope: { contractVersion: AV.wire.version, result: s.winner === 0 ? 'success' : 'fail', events: [], stats: { versus: { winner: s.winner, wins: s.wins } } } });
       phase = 'done';
     } else phase = 'over';
   }

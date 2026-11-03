@@ -49,6 +49,16 @@ describe('traffic: the streets as lanes and signalled junctions', () => {
     expect(assembleCityScene(recipe({ fidelity: 'massing' })).carLanes).toBeUndefined();
     expect(() => readCityPlan({ cars: 'busy' })).toThrow(/cars is true .*, false .*, or \{ turn\?/);
   });
+  it('puts the road\'s site machines among the cars when asked, each folded to drive at the bank\'s scale; absent, none', async () => {
+    const plain = (await resolveWorldScene({ ref: 'traffic-plain', manifest: recipe() })).payload;
+    const { payload } = await resolveWorldScene({ ref: 'traffic-machines', manifest: recipe({ cars: { machines: true } }) });
+    const site = Object.keys(payload.carMeshes).filter((k) => k.startsWith('site'));
+    expect(site.length).toBeGreaterThan(0);
+    // (a machine longer than any car: the traffic's footprint is its own, measured)
+    expect(Math.max(...site.map((k) => payload.carFootprints[k].len))).toBeGreaterThan(Math.max(...Object.keys(plain.carFootprints).map((k) => plain.carFootprints[k].len)));
+    expect(Object.keys(plain.carMeshes).some((k) => k.startsWith('site'))).toBe(false);
+    expect(() => readCityPlan({ cars: { machines: 'yes' } })).toThrow(/machines\?: true \| false/);
+  }, 120000);
   it('a segment\'s level drives only the streets of its crop', () => {
     const r = recipe({ board: { cols: 14, rows: 10 }, segments: true }), ds = designCity(r), seg = ds.segments[0];
     const s = assembleCityScene({ ...r, level: { segment: seg.id } });

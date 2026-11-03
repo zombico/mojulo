@@ -4,7 +4,7 @@ import { starter } from './entries.js';
 import { levelAddress } from '../scene/scene-gltf-level.js';
 import { extractEngineScore } from '../scene/engine-score.js';
 import { facesToGlb } from '../scene/scene-gltf.js';
-import { glbJson } from '../scene/materials-gate.js';
+import { parseGlb } from '../scene/scene-gltf-read.js';
 import { emitThreeWorld } from '../scene/scene-three.js';
 import { collectFaceTextures } from '../landscape/surface-textures.js';
 
@@ -74,7 +74,7 @@ describe('a stage is addressable', () => {
     expect(score.anchors.length).toBe(p.anchors.length);
     expect(score.colliders.length).toBe(p.colliders.length);
     expect(score.ledger.address_carried.count).toBe(p.anchors.length);
-    const j = glbJson(Buffer.from(facesToGlb({ ...p, textures: collectFaceTextures(p.faces) }).bytes));
+    const j = parseGlb(Buffer.from(facesToGlb({ ...p, textures: collectFaceTextures(p.faces) }).bytes)).json;
     const names = new Set(j.nodes.map((n) => n.name));
     for (const id of ['set-piece', 'set-piece-lid', 'west', 'torch-1', 'barrel-1']) expect([...names].some((n) => n === id || n.startsWith(`${id}:`))).toBe(true);
     expect(j.scenes[0].extras['moj:anchors'].length).toBe(p.anchors.length);

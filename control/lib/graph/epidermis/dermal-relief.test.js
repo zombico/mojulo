@@ -63,8 +63,9 @@ describe('the realistic head\'s relief', () => {
     const mean = (a) => a.reduce((s, x) => s + x, 0) / a.length;
     expect(acc.fold.length).toBeGreaterThan(40); expect(acc.cheek.length).toBeGreaterThan(5);
     expect(mean(acc.fold)).toBeGreaterThan(4 * mean(acc.cheek));
-    // (flat on the cheek: well under a degree; the even face's cheek, realistic laws 14, is rounder where it is read)
-    expect(mean(acc.cheek)).toBeLessThan(0.8);
+    // (flat on the cheek: well under a degree; the even face's cheek, realistic laws 14, is rounder where it is read, and
+    // the lateral periorbital fill's foot, laws 16, rounds its top a little more: 0.85 where it was under 0.8)
+    expect(mean(acc.cheek)).toBeLessThan(0.9);
   });
 
   it('is the same bytes on a rebuild; the atlas off the head flat; a hero minted before laws 5 bakes none', () => {

@@ -17,7 +17,7 @@
  *   REGISTER_WORDS      per register (anime | western): the sheet's title and each rank's tier
  *
  * A card: { id, name, class, reads, rank, skill, tier, skin: { kind, says, species?, oozes?, stylism?, dress? }, element?,
- *   stats, attack, mind, modes, states, death, relations, levels, fielded, status, marks, advisories, figure, variantOf?,
+ *   stats, attack, mind, modes, states, death, relations, levels, fielded, status, advisories, figure, variantOf?,
  *   beat, costs }: `beat` how to beat it (COUNSEL), `costs` what it takes and what it costs, in the flavor's words;
  *   a beast grown by oozes is a VARIANT of one of the same class on the same species grown by none (a relation each way).
  *   An ooze grows the body's shape, never its stature: that is its class's presence and its rank's. `figure` the step a run makes its figure at
@@ -225,7 +225,7 @@ export function foeCastOf(world) {
       relations: relationsOf(B, id, e), levels: levelsOf(id), fielded: fielded.includes(id),
       beat: counselOf(B, id, e, f, c, W),
       costs: costsOf(f, W),
-      status: f.status, marks: f.marks, advisories: f.advisories,
+      status: f.status, advisories: f.advisories,
       figure: isModel(e) ? e.skin.meshRef : made[`foes-${id}`]?.ref ?? null,
     };
   });

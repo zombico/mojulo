@@ -324,7 +324,7 @@ function assembleIn(d, G, W, D, { paint, spec, lit, own, ox, oy, crop, eyePlan =
   const traffic = T && T.carLanes.length ? {
     ...(C.turn > 0 || C.heads ? { trafficTurns: { share: C.turn, heads: C.heads } } : {}),
     carLanes: T.carLanes, junctions: T.junctions, trafficSeed: d.plan.seed, trafficRegion: { x: 0, y: 0, w: r3(d.frame.W / U), d: r3(d.frame.D / U) },
-    signals: buildSignals(T.junctions, d.plan.seed, { w: d.frame.W, d: d.frame.D }), cityCues: { figure: METRO.figure, car: METRO.car, pedHeight: METRO.pedHeight },
+    signals: buildSignals(T.junctions, d.plan.seed, { w: d.frame.W, d: d.frame.D }), cityCues: { figure: METRO.figure, car: METRO.car, pedHeight: METRO.pedHeight, ...(C.machines ? { machines: true } : {}) },
   } : {};
   // the people (pedestrians.js): round their blocks, some across a street at its signals; their rigs baked by the world
   const people = d.plan.fidelity !== 'massing' ? readPeople(d.plan.people, !!C) : 0;
@@ -335,7 +335,7 @@ function assembleIn(d, G, W, D, { paint, spec, lit, own, ox, oy, crop, eyePlan =
     ...scene,
     ...(dressed ? { faces: dressed.faces, ...(scene.textures || Object.keys(dressed.textures).length ? { textures: { ...(scene.textures || {}), ...dressed.textures } } : {}) } : {}),
     ...traffic,
-    ...(walkers.length ? { walkerLoops: walkers, cityCues: { figure: METRO.figure, car: METRO.car, pedHeight: METRO.pedHeight } } : {}),
+    ...(walkers.length ? { walkerLoops: walkers, cityCues: { figure: METRO.figure, car: METRO.car, pedHeight: METRO.pedHeight, ...(C?.machines && traffic.cityCues ? { machines: true } : {}) } } : {}),
     // a walk round one block for a stand-in to take (ctx.route: a geocube's micro-city, era/geocube-city.js): the sidewalk
     // of the block nearest the city's core, in the world's units
     ...(ctx.route ? { route: blockRoute(d) } : {}),

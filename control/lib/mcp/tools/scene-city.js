@@ -157,7 +157,7 @@ export function mintFractalCity({ title, seed, anchor, depth, density, baseScale
 
 export async function createFractalCityHandler(input) {
   if (!input || typeof input !== 'object') {
-    throw new Error('create_fractal_city requires a recipe object');
+    throw new Error('compose_world({ base: "city" }) requires a recipe object');
   }
   const { title, seed, anchor, depth, density, baseScale, region, viewBox, time, elements, locale, landmark, civicAreas, climate, walkers, traffic, fog, clouds, audio, blocks, fidelity, anchorSeat, profile, flavor, canals, ref, folder_ref: folderRef } = input;
   return mintFractalCity({ title, seed, anchor, depth, density, baseScale, region, viewBox, time, elements, locale, landmark, civicAreas, climate, walkers, traffic, fog, clouds, audio, blocks, fidelity, anchorSeat, profile, flavor, canals, ref, folderRef });

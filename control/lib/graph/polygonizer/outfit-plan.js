@@ -70,7 +70,11 @@ export function bodyMap(plan) {
   // sized off its base and top: the hair rises above the top joint and stands out to its width and depth
   const hb = J.headBase, ht = plan.rig?.joints?.headTop?.at ?? J.headTop, hh = hb ? (ht ? ht[2] - hb[2] : 0.13 * ((z('neckTop') ?? 1.6) / 1.6)) : 0;
   const head = hb ? { at: [hb[0], hb[1], hb[2] + 0.85 * hh].map(r3), r: [1.1 * hh, 1.1 * hh, 0.88 * hh].map(r3) } : null;
-  return { names: new Set((plan.segments || []).map((s) => s.name.replace(/[RL]$/, ''))), head, J, torso, pelvis, ringAt, uTop, shoulder, neck: z('neckBase') ?? z('neckTop'), neckTop: z('neckTop'), waist: waist.z, hip: z('hip'), knee: z('knee'), ankle, k: (z('neckTop') ?? 1.6) / 1.6,
+  const names = new Set((plan.segments || []).map((s) => s.name.replace(/[RL]$/, '')));
+  // the tail's carrier: a chain's second link (`tail1`), a beast-kin's one tail part (`tail`), a mascot's second shape,
+  // else its only one (a brush or a thick tail drawn as one shape)
+  const tailSeg = seg('tail'), tailPart = tailSeg ? (tailSeg.kind === 'chain' ? 'tail1' : 'tail') : names.has('tail0') && !names.has('tail1') ? 'tail0' : 'tail1';
+  return { names, tailPart, head, J, torso, pelvis, ringAt, uTop, shoulder, neck: z('neckBase') ?? z('neckTop'), neckTop: z('neckTop'), waist: waist.z, hip: z('hip'), knee: z('knee'), ankle, k: (z('neckTop') ?? 1.6) / 1.6,
     thigh, arm, neckSeg, hasMeta: !!seg('metaR'), chestW, torsoW, armX, hipW, tail: z('tail0') ?? null, top: torso.stations[torso.stations.length - 1], front: (h, top) => plumb(h, top, 1), back: (h, top) => plumb(h, top, -1) };
 }
 
@@ -168,7 +172,7 @@ export const OUTFIT_KINDS = Object.freeze({
   anklets: { layer: 7, cls: 'rigid', colour: 'trim', compile: (p, B, G) => { const meta = B.hasMeta;
     return { adorn: ['R', 'L'].map((S) => ({ id: `${p.id ?? 'anklet'}${S}`, mode: 'band', part: meta ? `meta${S}` : `shin${S}`, share: true, s: meta ? [0.3, 0.48] : [0.8, 0.94], t: 'wrap', nt: 10, ns: 2, mugen: r3(0.004 * B.k), thick: r3(0.01 * B.k), rad: r3(0.03 * B.k), group: G(p), rigid: true, edge: 'roll', crown: r3(0.003 * B.k), interior: G({ colour: 'shade' }),
     signature: { kind: 'studs', r: r3(0.006 * B.k), h: r3(0.004 * B.k), count: 2, m: 6, group: G({ colour: 'trim' }) } })) }; } },
-  tailRing: { layer: 7, cls: 'rigid', colour: 'trim', compile: (p, B, G) => ({ adorn: [{ id: p.id ?? 'tailRing', mode: 'band', part: p.part ?? 'tail1', share: true, s: [0.3, 0.6], t: 'wrap', nt: 10, ns: 2, mugen: r3(0.004 * B.k), thick: r3(0.012 * B.k), rad: r3(0.03 * B.k), group: G(p), rigid: true, edge: 'roll', crown: r3(0.003 * B.k), interior: G({ colour: 'shade' }),
+  tailRing: { layer: 7, cls: 'rigid', colour: 'trim', compile: (p, B, G) => ({ adorn: [{ id: p.id ?? 'tailRing', mode: 'band', part: p.part ?? B.tailPart, share: true, s: [0.3, 0.6], t: 'wrap', nt: 10, ns: 2, mugen: r3(0.004 * B.k), thick: r3(0.012 * B.k), rad: r3(0.03 * B.k), group: G(p), rigid: true, edge: 'roll', crown: r3(0.003 * B.k), interior: G({ colour: 'shade' }),
     signature: { kind: 'studs', r: r3(0.007 * B.k), h: r3(0.005 * B.k), count: 3, m: 6, group: G({ colour: 'trim' }) } }] }) },
   // ADORNMENT THAT IS NOT GEAR (egocube/concept.js: the concept's families), each built of the kernel's own signatures.
   // FOUND: CHARMS on a cord at one hip, a bell and a bone (`charm: 'bell' | 'bone' | 'both'`); FEATHERS tied to a cord on
@@ -183,7 +187,7 @@ export const OUTFIT_KINDS = Object.freeze({
       signature: { kind: 'plume', k: 2, j: 2, spread: [-1, 0, 1], spine: [[0, 0, -0.006], [0.02, -0.02, -0.05], [0.035, -0.045, -0.12], [0.045, -0.075, -0.19], [0.048, -0.1, -0.25]].map((q) => q.map((v) => r3(v * B.k))), r: [0.012, 0.026, 0.024, 0.012].map((v) => r3(v * B.k)), m: 6, squash: [1, 0.3], group: G(p) } })) }; } },
   // TEXTILE: STREAMERS, two ribbons falling from a cord on the upper arm (the free side), or from the tail's ring
   streamers: { layer: 7, cls: 'loose', colour: 'secondary', compile: (p, B, G, I) => { const tail = p.on === 'tail', sides = tail ? [''] : p.pair ? ['R', 'L'] : [p.side ?? I.side ?? 'R'];
-    return { adorn: sides.map((S) => ({ id: `${p.id ?? 'streamers'}${S}`, mode: 'band', part: tail ? 'tail1' : `upperArm${S}`, share: true, s: tail ? [0.2, 0.3] : [0.7, 0.78], t: 'wrap', nt: 10, ns: 2, mugen: r3(0.004 * B.k), thick: r3(0.005 * B.k), group: G({ colour: 'trim' }),
+    return { adorn: sides.map((S) => ({ id: `${p.id ?? 'streamers'}${S}`, mode: 'band', part: tail ? B.tailPart : `upperArm${S}`, share: true, s: tail ? [0.2, 0.3] : [0.7, 0.78], t: 'wrap', nt: 10, ns: 2, mugen: r3(0.004 * B.k), thick: r3(0.005 * B.k), group: G({ colour: 'trim' }),
       signature: { kind: 'ribbon', k: tail ? 5 : 2, j: 2, spread: [-1, 1], spine: [[0, 0, 0], [0.012, -0.025, -0.09], [0.018, -0.045, -0.2], [0.014, -0.06, -0.32]].map((q) => q.map((v) => r3(v * B.k))), width: r3(0.034 * B.k), thick: r3(0.002 * B.k), tip: 'swallow', group: G(p) } })) }; } },
   // RITUAL: WARPAINT, painted bands on the forearms (and a stroke on the upper arm), the body's own faces, no geometry;
   // a PRAYER BAND, a cord band on the forearm carved with its runes
@@ -431,10 +435,13 @@ function hoodOf(p, B, G, id, around, ease) {
  * `fit: 'cape'`, one hull round the trunk, the arms and the legs, so it is round over the shoulders and the arms where a
  * board was flat, draping on the arms. It flows as a curtain (`rigidity`, soft by default). `hood: true` (or
  * `{ open }`, the face's opening in degrees each side of the front) raises a `fit: 'hood'` over the head. */
+/** the ease a loose layer takes over a rounded body, a round (of the body's scale): the bulge between rings that the
+ * close cloth under it gains */
+const ROUND_EASE = 0.006;
 function cloakOf(p, B, G) {
   const to = p.tailClear && B.tail ? hemAt(B, null, B.tail + 0.05 * B.k) : hemAt(B, p.hem ?? 'calf');
   const arc = 360 * Math.max(0.2, Math.min(0.95, p.wrap ?? 0.6)), part = ['torso', 'upperArm', ...legsTo(B, to)].filter((n) => B.names.has(n)), id = p.id ?? 'cloak';
-  const around = [r3(180 - arc / 2), r3(180 + arc / 2)], ease = r3((p.ease ?? 0.02) * B.k), thick = r3(0.006 * B.k);
+  const around = [r3(180 - arc / 2), r3(180 + arc / 2)], ease = r3(((p.ease ?? 0.02) + (B.round ?? 0)) * B.k), thick = r3(0.006 * B.k);
   return { garments: [{ id, fit: 'cape', part, from: { part: 'torso', run: 1 }, to, around, ease, flare: [0, r3(p.flare ?? 0.12)], thick, group: G(p), rigidity: p.rigidity ?? 'soft' },
     ...hoodOf(p, B, G, id, around, r3(ease * 1.2))], ...trimOf(p, B, G, { hem: `${id}_cape` }) };
 }
@@ -492,9 +499,11 @@ function armourMotif(p, B, G) {
     : { kind: 'motif', name, mode: 'emblem', size: r3(0.06 * B.k), w: r3(0.0025 * B.k), lift: r3(0.0004 * B.k), group: G({ colour: 'shade' }) };
 }
 
-export function compileOutfit(plan) {
+export function compileOutfit(plan, { rounds = 0 } = {}) {
   const O = plan.outfit; if (!O) return plan;
-  const B = bodyMap(plan), I = { symmetry: 'symmetric', side: 'R', ...(O.intent || {}) }, pal = I.palette || {};
+  // (`rounds`: the body rounded after it is built, body-smooth.js; its skin and the close cloth over it bulge out between
+  // their rings, so the loose layers over them take ROUND_EASE more ease a round)
+  const B = { ...bodyMap(plan), round: rounds ? r3(ROUND_EASE * rounds) : 0 }, I = { symmetry: 'symmetric', side: 'R', ...(O.intent || {}) }, pal = I.palette || {};
   const G = (p) => { const role = p.colour ?? OUTFIT_KINDS[p.kind]?.colour ?? 'base'; return /^#/.test(role) ? role : COLOUR_GROUPS[role] ?? COLOUR_GROUPS.base; };
   const pieces = [...O.pieces].map((p, i) => ({ p, i, layer: OUTFIT_KINDS[p.kind]?.layer ?? 9 })).sort((a, b) => a.layer - b.layer || a.i - b.i);
   const garments = [...(plan.garments || [])], adorn = [...(plan.adorn || [])], segments = [...plan.segments], piecePaint = [];

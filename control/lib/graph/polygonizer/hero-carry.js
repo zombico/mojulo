@@ -34,8 +34,11 @@ import { rigNodesAt, boneFrames, HAND_POSES } from './station-loft-rig.js';
 import { elbowsDown } from './hero-elbow.js';
 import { heroStance, comOf, hull, margin } from './hero-stance.js';
 import { holdArm, humeralTurn, armClear, wristFor, anatomicalForearm, WRIST_EASE, WRIST_RANGE, HUMERAL_RANGE, landmark, mountOf, stationsOf, liteOf } from './hero-grip.js';
-import { gearMounts, CANON_HEIGHT } from './hero-gear.js';
+import { gearMounts, gearBuild, CANON_HEIGHT } from './hero-gear.js';
+import { expandEquipment } from '../equipment/expand.js';
 import { FIREARM_SHAPES, METAL, CARD, LEATHER, CANVAS, BRASS, GLASS, HANDLE } from '../equipment/firearm-shapes.js';
+import { armHandling, armBoxes } from '../equipment/arms/handling.js';
+import { handBox, closeOn, reachDigit, DIGITS } from './hero-digits.js';
 
 // ─── vectors, frames ──────────────────────────────────────────────────────────────────────────────────────────────────
 const add = (a, b) => [a[0] + b[0], a[1] + b[1], a[2] + b[2]], sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
@@ -103,6 +106,11 @@ const STANCE_WORDS = Object.freeze({
  *   cost                 a style penalty (CR10 points) relax adds when it chooses (a hold slower to bring up)
  */
 const MARK = { at: 'eyes', far: 10 };
+/** the arms kernel's holds: a word, the model it holds, the stance it aims from */
+export const ARM_HOLDS = Object.freeze([
+  ['rifle', { item: 'rifle', model: 'assault' }, 'rifle'], ['sniper', { item: 'rifle', model: 'sniper' }, 'rifle'],
+  ['smg', { item: 'smg', model: 'compact' }, 'rifle'], ['handgun', { item: 'pistol', model: 'service' }, 'isosceles'],
+]);
 export const HOLDS = Object.freeze({
   pistolSide: { item: 'pistol', mode: 'relax', hands: 1, stance: 'stand', hang: true, aim: { fwd: 0.25, up: -1 }, up: { up: 1 }, cost: 0 },
   pistolLowReady: { item: 'pistol', mode: 'relax', hands: 2, stance: 'isosceles', extend: { dir: { fwd: 0.72, up: -0.69 }, reach: 0.93, side: 0.02 }, aim: { fwd: 0.72, up: -0.69 }, up: { up: 1 }, cost: 0.3 },
@@ -114,6 +122,16 @@ export const HOLDS = Object.freeze({
       : [[`${g}LowReady`, { item: g, mode: 'relax', hands: 2, stance: 'rifle', anchor: 'butt', at: { at: 'pocket' }, aim: { fwd: 0.82, up: -0.57 }, up: { up: 1 }, cost: 0 }]]),
     ...(g === 'lmg' ? [] : [[`${g}Trail`, { item: g, mode: 'relax', hands: 1, stance: 'stand', hang: true, grip: 'balance', aim: { fwd: 1 }, up: { up: 1 }, cost: 0.8 }]]),
     [`${g}Aim`, { item: g, mode: 'aim', hands: 2, stance: 'rifle', sight: 'shoulder', mark: MARK }],
+  ])),
+  // THE ARMS KERNEL'S GUNS (equipment/arms: the models a game carries), each hold on its model's own stations
+  // (arms/handling.js): the fists closed round its grip and its handguard as drawn, the index on its trigger at the aim
+  // and straight along its frame at the ready; a scope's eye relief kept. `heroHold(name, R, { arm })` puts another
+  // model of the same class in the hold
+  ...Object.fromEntries(ARM_HOLDS.flatMap(([w, arm, aimStance]) => [
+    [`${w}Aim`, { item: arm.item, arm, mode: 'aim', hands: 2, stance: aimStance, ...(arm.item === 'pistol' ? { sight: 'reach', reach: 0.97 } : { sight: 'shoulder' }), mark: MARK, trigger: true }],
+    [`${w}LowReady`, arm.item === 'pistol'
+      ? { item: arm.item, arm, mode: 'relax', hands: 2, stance: 'isosceles', extend: { dir: { fwd: 0.72, up: -0.69 }, reach: 0.93, side: 0.02 }, aim: { fwd: 0.72, up: -0.69 }, up: { up: 1 }, cost: 0.3 }
+      : { item: arm.item, arm, mode: 'relax', hands: 2, stance: 'rifle', anchor: 'butt', at: { at: 'pocket' }, aim: { fwd: 0.82, up: -0.57 }, up: { up: 1 }, cost: 0 }],
   ])),
   boxFront: { item: 'box', mode: 'relax', hands: 2, stance: 'stand', anchor: 'centre', at: { at: 'belly', fwd: 0.4, up: 0.02, side: 0 }, ease: { min: 'touch' }, aim: { fwd: 1 }, up: { up: 1 }, touch: true, cost: 0 },
   suitcaseSide: { item: 'suitcase', mode: 'relax', hands: 1, stance: 'stand', hang: true, aim: { fwd: 1 }, up: { up: 1 }, cost: 0 },
@@ -252,13 +270,24 @@ const markOf = (n, p) => { const lm = landmark(n, p.at); return [0, n.pelvisHub[
 
 // ─── the thing's model on a rig ───────────────────────────────────────────────────────────────────────────────────────
 /** the thing as the solver reads it: k, its stations (a blade's from gear), its centre of mass and its mass */
-function modelOf(R, name, kg, bladeGrip = 'hammer') {
+function modelOf(R, name, kg, bladeGrip = 'hammer', arm = null) {
+  if (arm) return armModelOf(R, arm, kg);
   const C = CARRIED[name]; if (!C) throw new Error(`hero-carry: nothing called '${name}' (have ${CARRIED_NAMES.join(', ')})`);
   const k = 0.01 * scaleOf(R);
   if (C.class !== 'blade') return { name, C, k, kg: kg ?? C.kg, com: C.com, stations: C.stations };
   // a blade: gear's mount on the right hand, its stations along +z (grip's), its centre at the balance
   const G = mountOf(R, C.gear, 'R', bladeGrip), st = stationsOf(G, R, 1);
   return { name, C, k: G.k, kg: kg ?? C.kg * (G.trace.dials?.mass ?? 1), com: [0, 0, st.balance], G, st, stations: { strong: { M: G.M, t: G.t, at: [0, 0, st.upper] } } };
+}
+/** an arm of the arms kernel as a carried thing: its parts' boxes, its stations and its sight line as the model draws them
+ * (arms/handling.js), its mass the class's, its centre a third of the way from the grip to the muzzle */
+function armModelOf(R, arm, kg) {
+  const A = armHandling(arm), st = A.stations, k = 0.01 * scaleOf(R);
+  const zc = st.strong.at[2] + 0.3 * (st.muzzle.at[2] - st.strong.at[2]);
+  const C = { class: 'firearm', kg: A.handling.kg, com: [0, -1, zc], arm, handling: A.handling, boxes: armBoxes(arm), muzzle: st.muzzle.at,
+    sight: { y: st.sight.y, rear: st.sight.rear, front: st.sight.front, ...(st.sight.relief ? { relief: st.sight.relief } : {}) },
+    stations: { strong: st.strong, ...(st.support ? { support: st.support } : {}), ...(st.butt ? { butt: st.butt } : {}), ...(st.trigger ? { trigger: st.trigger } : {}), ...(st.index ? { index: st.index } : {}) } };
+  return { name: arm.item, C, k, kg: kg ?? C.kg, com: C.com, stations: C.stations, arm };
 }
 const stationQ = (Mo, s) => (Array.isArray(s) ? s : typeof s === 'number' ? [0, 0, Mo.st.guard + s * (Mo.st.tip[2] - Mo.st.guard)] : s === 'tip' && Mo.st ? Mo.st.tip : Mo.stations[s]?.at ?? (s === 'centre' ? [0, 0, 0] : null));
 
@@ -342,6 +371,8 @@ const thighGap = (R, n, p) => { const a = n.hipR, b = n.kneeR, ab = sub(b, a), t
  * down and over onto the stock until the eye sits on the sight line behind the rear sight: the neck's pitch, the head's
  * pitch, tilt and turn and the butt's place in the pocket solved together (Levenberg–Marquardt), each kept small.
  */
+/** how much an arm of the arms kernel resists its butt climbing the pocket (per metre, against the neck's 30° a unit) */
+const BUTT_RISE = 20;
 function weld(H, R, Mo, body) {
   const s = scaleOf(R), sightRear = [0, Mo.C.sight.y, Mo.C.sight.rear], butt = Mo.stations.butt.at;
   const head0 = body.head || {}, neck0 = body.neck || {};
@@ -353,11 +384,14 @@ function weld(H, R, Mo, body) {
     return { n, E, d, F, B };
   };
   // the support hand must reach its station's nearest end (the gun sits where both hands can hold it)
-  const sup = Mo.stations.support, J = R.joints, armL = 0.97 * (dist(J.shoulderL, J.elbowL) + dist(J.elbowL, J.wristL) + dist(J.wristL, handsAtRest(R).L.h));
+  const sup = Mo.stations.support, J = R.joints, armL = (Mo.arm ? 0.9 : 0.97) * (dist(J.shoulderL, J.elbowL) + dist(J.elbowL, J.wristL) + dist(J.wristL, handsAtRest(R).L.h));
   const resid = (x) => { const { E, d, F, n } = at(x); const S = worldOf(F, sightRear), v = sub(E, S), along = dot(v, d), perp = sub(v, mul(d, along));
-    const relief = Math.max(0, along + 0.05 * s, -0.16 * s - along);
+    // (a scope's eye sits at its relief, a centimetre and a half either way; an open sight's anywhere a cheek puts it)
+    const rl = Mo.C.sight.relief, relief = rl ? Math.max(0, Math.abs(along + rl * Mo.k) - 0.015 * s) : Math.max(0, along + 0.05 * s, -0.16 * s - along);
     const reach = sup ? Math.max(0, dist(worldOf(F, [sup.at[0], sup.at[1], sup.slide ? sup.slide[0] : sup.at[2]]), n.shoulderL) - armL) : 0;
-    return [...mul(perp, 1000), relief * 300, reach * 1000, x[0] / 30, x[1] / 30, x[2] / 30, x[3] / 30, x[4] * 5, x[5] * 40]; };
+    // (an arm of the arms kernel sits low in the pocket, as a shooter sets it: the head comes down to it before the butt
+    // climbs; the samples keep the weights they were minted with)
+    return [...mul(perp, 1000), relief * 300, reach * 1000, x[0] / 30, x[1] / 30, x[2] / 30, x[3] / 30, x[4] * (Mo.arm ? BUTT_RISE : 5), x[5] * 40]; };
   const lo = [-50, -45, -10, -30, -0.03 * s, 0], hi = [12, 20, 35, 30, 0.14 * s, 0.04 * s];
   // several starts (the head down and over, or the butt up the pocket first: a shooter raises the gun to the eye before
   // craning the neck): the closest weld kept
@@ -409,7 +443,7 @@ const leftStation = (st) => (st.M ? st : { at: [-st.at[0], st.at[1], st.at[2]], 
 const fingersOf = (Mo, st) => (Mo.C.class === 'object' && !st.c?.every((v, i) => v === [0, 0, 1][i]) ? PALM : HAND_POSES.grip);
 /** the arms on a placed hold: the pose and each hand's solve */
 function armsOn(H, R, Mo, body, placed, skilled) {
-  const arms = {}, holds = {}, want = {};
+  const arms = {}, holds = {}, want = {}, fingers = {};
   for (const h of handsOf(H, placed.things)) {
     let st = h.thing.Mo.stations[h.station]; if (h.side === 'L' && H.hands === 'dual') st = leftStation(st);
     // a hand that may slide along its station (a long gun's handguard) closes where its arm holds it best: the fist on
@@ -426,9 +460,50 @@ function armsOn(H, R, Mo, body, placed, skilled) {
     // a hand that cannot close there takes the station's fallback (a short arm's grip on the magazine)
     if (st.alt && best.a.err > 0.004) { const A = st.alt; let b2 = tryAll(spins(A.roll).map((d) => ({ ...A, a: turnAbout(A.a, A.c, d) }))); b2 = tryAll([-20, -10, 0, 10, 20].map((d) => ({ ...b2.st, a: turnAbout(b2.st.a, A.c, d) }))); if (b2.score < best.score) best = b2; }
     st = best.st; const w = best.w, a = best.a; want[h.side] = w; holds[h.side] = a; h.thing.at = { ...(h.thing.at || {}), [h.side]: st.at };
-    Object.assign(arms, { [`sh${h.side}`]: a.sh, [`elbow${h.side}`]: a.elbow, [`wrist${h.side}`]: a.wrist, [`fingers${h.side}`]: { ...fingersOf(Mo, st) } });
+    // an arm's fists close on the arm as drawn (its grip, its handguard), the index on its trigger or along its frame
+    const solved = Mo.arm && R.hands?.[h.side] ? armFingers(R, h.side, w, h.thing.F, Mo, h.station, st, H) : null;
+    if (solved) fingers[h.side] = solved.report;
+    Object.assign(arms, { [`sh${h.side}`]: a.sh, [`elbow${h.side}`]: a.elbow, [`wrist${h.side}`]: a.wrist, [`fingers${h.side}`]: solved ? solved.fingers : { ...fingersOf(Mo, st) } });
   }
-  return { arms, holds, want };
+  return { arms, holds, want, fingers };
+}
+
+/**
+ * THE FISTS ON AN ARM (hero-digits: each digit closed until it touches, the hand's servos held): the hand's rest frame
+ * is the frame its station wants (`w`: m and the wrist), so the arm's parts are brought into it and the digits closed on
+ * them there. The strong hand's middle, ring and little and its thumb round the grip (a round haft of the grip's girth
+ * along its line), the index's pad on the trigger's face (`H.trigger`) or straight along the frame above the guard; the
+ * support hand round the handguard or the pump (along the bore), a vertical foregrip (up it), or over the strong fist
+ * (a handgun's wrap: round the grip and the strong fingers on it). → { fingers (the rig's value), report: { kind, gap (m,
+ * the widest gap a closed digit leaves), trigger? (m, the index's pad off the trigger) } }.
+ */
+function armFingers(R, side, w, F, Mo, station, st, H) {
+  const box = handBox(R, side, { female: !!R.joints.bustRootR }), wr0 = R.joints[`wrist${side}`], m = w.m;
+  const toHand = (p) => add(wr0, mv(T(m), sub(p, w.wrist)));
+  const dirHand = (d) => unit(mv(T(m), mv(F.W, d)));
+  const at = (q) => toHand(worldOf(F, q));
+  const cyl = (q, d, rcm) => ({ kind: 'cylinder', c: at(q), a: dirHand(d), r: rcm * F.k });
+  const S = Mo.stations, out = {}, report = {};
+  const thumbStart = { cmc: [-20, 25], mcp: 0, ip: 0 };
+  let prim, kind;
+  if (station === 'strong') {
+    kind = 'grip'; prim = cyl(S.strong.at, S.strong.c, S.strong.r ?? 1.7);
+    for (const d of ['middle', 'ring', 'little']) out[d] = closeOn(R, box, d, prim);
+    out.thumb = closeOn(R, box, 'thumb', prim, { start: thumbStart });
+    // (the frame's side the index lies along is the one it reaches: the item's x is the arm's, not the hand's)
+    const goals = H.trigger && S.trigger ? [S.trigger.at] : S.index ? [S.index.at, [-S.index.at[0], S.index.at[1], S.index.at[2]]] : [];
+    if (goals.length) { const r = goals.map((g) => reachDigit(R, box, 'index', { at: at(g), contact: 'pad' })).reduce((a, b) => (b.err < a.err ? b : a)); out.index = r; report[H.trigger ? 'trigger' : 'index'] = r4(r.err); }
+    else out.index = closeOn(R, box, 'index', prim);
+  } else {
+    const sp = { ...S.support, at: st.at };
+    kind = sp.kind;
+    prim = sp.kind === 'wrap' ? cyl(S.strong.at, S.strong.c, (S.strong.r ?? 1.7) + 1.6) : cyl(sp.at, sp.c, sp.r ?? 2.4);
+    for (const d of ['index', 'middle', 'ring', 'little']) out[d] = closeOn(R, box, d, prim);
+    out.thumb = closeOn(R, box, 'thumb', prim, { start: thumbStart });
+  }
+  const gaps = Object.entries(out).filter(([d]) => !(d === 'index' && station === 'strong')).map(([, r]) => Math.min(...(r.gaps ?? [0])));
+  report.kind = kind; report.gap = r4(Math.max(0, ...gaps));
+  return { fingers: Object.fromEntries(DIGITS.map((d) => [d, out[d].value])), report };
 }
 
 /** the loads a placed hold puts on the body: each thing's weight at its centre, held by its hands and its rest */
@@ -456,9 +531,15 @@ function comWith(R, n, loads) {
  * → { name, item, mode, hands, regime, kg, pose (the held rig pose), things: [{ F (W, O, k), item, side? }], effort,
  * answer ({ ease, lean, sideLean, sink, freeArm }), checks }.
  */
-export function heroHold(name, R, { kg, regime = 'skilled', cast } = {}) {
-  const H = typeof name === 'object' ? name : HOLDS[name]; if (!H) throw new Error(`hero-carry: no hold '${name}' (have ${HOLD_NAMES.join(', ')})`);
-  const Mo = modelOf(R, H.item, kg, H.bladeGrip), skilled = regime !== 'weightless';
+export function heroHold(name, R, { kg, regime = 'skilled', cast, arm } = {}) {
+  let H = typeof name === 'object' ? name : HOLDS[name]; if (!H) throw new Error(`hero-carry: no hold '${name}' (have ${HOLD_NAMES.join(', ')})`);
+  if (arm) {
+    if (!H.arm) throw new Error(`hero-carry: '${name}' holds a ${H.item} of its own; an arm goes in an arms hold (${HOLD_NAMES.filter((n) => HOLDS[n].arm).join(', ')})`);
+    const cls = (a) => (a.item === 'pistol' ? 'handgun' : 'long');
+    if (cls(arm) !== cls(H.arm)) throw new Error(`hero-carry: a ${arm.item} is not held in '${name}' (a ${cls(H.arm)} hold)`);
+    H = { ...H, item: arm.item, arm };
+  }
+  const Mo = modelOf(R, H.item, kg, H.bladeGrip, H.arm), skilled = regime !== 'weightless';
   const SW = STANCE_WORDS[H.stance]; const stance = heroStance(SW, R, { left: !!SW.left });
   const share = Mo.kg / bodyKg(R);
   const legLen = R.joints.hipR[2] - R.joints[R.legs.R.toeBase][2];
@@ -514,11 +595,11 @@ export function heroHold(name, R, { kg, regime = 'skilled', cast } = {}) {
   const n = rigNodesAt(R, S.pose).nodes, frames = boneFrames(R, R.joints, n);
   const loads = loadsOf(H, R, n, S.placed, Mo, 1);
   const effort = effortOf(R, n, loads, { cast });
-  const things = S.placed.things.map((t) => ({ item: H.item, F: t.F, ...(t.side ? { side: t.side } : {}), ride: rideOf(R, frames, t, H) }));
-  return { name: typeof name === 'string' ? name : 'own', item: H.item, mode: H.mode, hands: H.hands, regime, kg: r2(Mo.kg), pose: S.pose, things, effort,
+  const things = S.placed.things.map((t) => ({ item: H.item, ...(H.arm ? { arm: H.arm } : {}), F: t.F, ...(t.side ? { side: t.side } : {}), ride: rideOf(R, frames, t, H) }));
+  return { name: typeof name === 'string' ? name : 'own', item: H.item, ...(H.arm ? { arm: H.arm, handling: Mo.C.handling, fingers: S.fingers } : {}), mode: H.mode, hands: H.hands, regime, kg: r2(Mo.kg), pose: S.pose, things, effort,
     perceived: skilled ? effort.cr10 : 0,
     answer: { ...(S.placed.weld ? { weld: { neckPitch: r1(S.placed.weld[0]), headPitch: r1(S.placed.weld[1]), headTilt: r1(S.placed.weld[2]), headTurn: r1(S.placed.weld[3]), buttUp: r3(S.placed.weld[4]), buttIn: r3(S.placed.weld[5]) } } : {}), ease: H.ease ? { from: pref, to: easeTo ?? pref } : null, lean: r3(lean), sideLean: r3(sideLean), sway: [r4(-shift[0]), r4(-shift[1])], sink: r4(sink), freeArm: oneSided ? r1(freeYaw) : null },
-    checks: holdChecks(R, S, H, Mo, { n, frames, loads, rel0, skilled }) };
+    checks: holdChecks(R, S, H, Mo, { n, frames, loads, rel0, skilled, fingers: S.fingers }) };
 }
 /** how far the trunk answers a load (shares of the spine's range): back and forward, either side */
 const SAG = [-0.25, 0.15], LAT = [-0.25, 0.25];
@@ -563,7 +644,7 @@ function surface(Mo) {
  * sight line), mark (degrees the sight line misses the mark), butt (m, off the pocket)); balance (m, the centre of mass
  * with the load inside the footprint); held (m, how far the body and load's centre stands off the stance's own); laws.
  */
-function holdChecks(R, S, H, Mo, { n, frames, loads, rel0, skilled }) {
+function holdChecks(R, S, H, Mo, { n, frames, loads, rel0, skilled, fingers = {} }) {
   const hands = {};
   for (const [side, w] of Object.entries(S.want)) {
     const f = frames[R.boneIndex[`hand${side}`]], hr = handsAtRest(R)[side];
@@ -609,8 +690,11 @@ function holdChecks(R, S, H, Mo, { n, frames, loads, rel0, skilled }) {
     apart: H2.every((h) => h.armClear > -0.003), clear: clearance > 0.003, ...(touching < Infinity ? { touch: touching > -0.02 } : {}),
     balance: balance > 0.003, ...(skilled ? { held: held < 0.01 } : {}),
     ...(aim ? { aim: aim.things.every((a) => a.mark < 1 && (a.eye === undefined || a.eye < 0.005) && (a.butt === undefined || a.butt < 0.09)) } : {}),
+    // an arm's fists: every closed digit on the part it holds (a gap under 4 mm), the index's pad on the trigger
+    ...(Object.keys(fingers).length ? { grasp: Object.values(fingers).every((f) => f.gap < 0.004) } : {}),
+    ...(fingers.R?.trigger !== undefined ? { trigger: fingers.R.trigger < 0.004 } : {}),
   };
-  return { hands, clearance: r4(clearance), ...(touching < Infinity ? { touching: r4(touching) } : {}), aim, balance, held, laws };
+  return { hands, ...(Object.keys(fingers).length ? { fingers } : {}), clearance: r4(clearance), ...(touching < Infinity ? { touching: r4(touching) } : {}), aim, balance, held, laws };
 }
 
 // ─── the modes ────────────────────────────────────────────────────────────────────────────────────────────────────────
@@ -621,7 +705,7 @@ function holdChecks(R, S, H, Mo, { n, frames, loads, rel0, skilled }) {
  * (hero-grip). → heroHold's result, with `candidates` for relax.
  */
 export function heroCarry(item, mode, R, { hands, kg, regime = 'skilled', cast } = {}) {
-  if (!CARRIED[item]) throw new Error(`hero-carry: nothing called '${item}' (have ${CARRIED_NAMES.join(', ')})`);
+  if (!CARRIED[item] && !HOLD_NAMES.some((h) => HOLDS[h].arm?.item === item)) throw new Error(`hero-carry: nothing called '${item}' (have ${CARRIED_NAMES.join(', ')}, and the arms holds' ${[...new Set(ARM_HOLDS.map(([, a]) => a.item))].join(', ')})`);
   const names = HOLD_NAMES.filter((h) => HOLDS[h].item === item && HOLDS[h].mode === mode && (hands === undefined || HOLDS[h].hands === hands));
   if (!names.length) throw new Error(`hero-carry: no ${mode} hold for '${item}'${hands !== undefined ? ` with hands ${hands}` : ''}`);
   if (mode !== 'relax') return heroHold(names[0], R, { kg, regime, cast });
@@ -636,6 +720,7 @@ export function heroCarry(item, mode, R, { hands, kg, regime = 'skilled', cast }
 export function carryTriangles(hold, R, frames = null) {
   const out = [];
   for (const t of hold.things) {
+    if (t.arm) continue;   // an arm draws as gear (carryMounts)
     const Mo = modelOf(R, t.item, hold.kg, HOLDS[hold.name]?.bladeGrip); if (Mo.G) continue;   // a blade draws as gear (gearFaces)
     let F = t.F;
     if (frames) { const f = frames[t.ride.boneIndex]; F = { W: mm(f.m, t.ride.W), k: t.ride.k, O: add(f.head, mv(f.m, sub(t.ride.O, f.restHead))) }; }
@@ -648,5 +733,14 @@ export function carryTriangles(hold, R, frames = null) {
 }
 /** a blade hold's gear mount (hero-gear's shape: for gearFaces), its item at the fist's station */
 export function carryMounts(hold, R) {
-  return hold.things.filter((t) => CARRIED[t.item].class === 'blade').map((t) => { const Mo = modelOf(R, t.item, hold.kg, HOLDS[hold.name]?.bladeGrip); return { ...Mo.G, o: [0, 0, Mo.st.upper] }; });
+  return hold.things.filter((t) => t.arm || CARRIED[t.item].class === 'blade').map((t) => {
+    // an arm: drawn by the arms kernel as gear is, riding its hand's bone as the hold placed it (its point q at rest is
+    // the ride's O + W·k·q: gear's t + M·k·(q − o) with o at its origin)
+    if (t.arm) { const b = gearBuild(t.arm), e = expandEquipment(b); return { slot: t.side === 'L' ? 'left' : 'right', item: t.item, hold: 'firearm', build: b, sockets: e.sockets, trace: e.trace, bone: t.ride.bone, boneIndex: t.ride.boneIndex, M: t.ride.W, o: [0, 0, 0], t: t.ride.O, k: t.ride.k, length: Math.round(e.trace.length * t.ride.k * 1e5) / 1e5 }; }
+    const Mo = modelOf(R, t.item, hold.kg, HOLDS[hold.name]?.bladeGrip); return { ...Mo.G, o: [0, 0, Mo.st.upper] };
+  });
 }
+
+/** the hold's kit, for the solvers that place a thing first the same way (hero-bow.js): the hand at rest, a station's
+ * wanted hand frame on a placed thing, a thing's point in the world, the dominant eye, a mark, the figure's scale */
+export const carryKit = Object.freeze({ handsAtRest, stationWant, worldOf, eyeOf, markOf, scaleOf, turnAbout, spins, armScore, RANGE_WEIGHT, CLEAR_WEIGHT });

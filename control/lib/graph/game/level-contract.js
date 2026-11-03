@@ -130,15 +130,17 @@ export function validateLevelContract(game, schema) {
 
   // POWERS: what a power key gives its holder in a map game. { slice, target, grants: { <power>: { <rule knob>: value } } }
   // (a number: airJumps, glideFall, jumpSpeed; true: the wall; a word: the gear's preset):
-  // the held ones apply at start, one picked up applies when the bus hears pickup:<power>.
+  // the held ones apply at start, one picked up applies when the bus hears pickup:<power>; with `bought: <holder>`, one
+  // gained on the stats applies when the bus holds its node (<holder>.<power> at 1), and the slice may be absent.
   if (game.powers !== undefined) {
     const knob = (v) => (typeof v === 'number' && Number.isFinite(v)) || v === true || (typeof v === 'string' && v.length > 0);
     const p = game.powers, num = (o) => o && typeof o === 'object' && !Array.isArray(o) && Object.keys(o).length && Object.values(o).every(knob);
-    if (!p || typeof p !== 'object' || typeof p.slice !== 'string' || !p.slice || typeof p.target !== 'string' || !p.target || !p.grants || typeof p.grants !== 'object' || Array.isArray(p.grants)) {
-      errors.push('game.powers is { slice, target, grants: { <power>: { <rule knob>: number | true | word } } }: the slice the powers are held in, the entity they move, and what each changes');
+    const word = (v) => typeof v === 'string' && v.length > 0;
+    if (!p || typeof p !== 'object' || !(word(p.slice) || (p.slice === undefined && word(p.bought))) || (p.bought !== undefined && !word(p.bought)) || !word(p.target) || !p.grants || typeof p.grants !== 'object' || Array.isArray(p.grants)) {
+      errors.push('game.powers is { slice, target, grants: { <power>: { <rule knob>: number | true | word } }, bought? }: the slice the powers are held in (absent only beside bought, the holder whose stats gain them), the entity they move, and what each changes');
     } else {
       for (const [id, g] of Object.entries(p.grants)) if (!num(g)) errors.push(`game.powers.grants.${id} is { <rule knob>: number | true | word } (airJumps, glideFall, jumpSpeed…; wall: true; gear: 'swinger')`);
-      if (!(game.consumes || []).some((c) => c && c.slice === p.slice)) errors.push(`game.powers.slice '${p.slice}' is not consumed: add { slice: '${p.slice}' } to game.consumes, or the level never hears what is held`);
+      if (p.slice !== undefined && !(game.consumes || []).some((c) => c && c.slice === p.slice)) errors.push(`game.powers.slice '${p.slice}' is not consumed: add { slice: '${p.slice}' } to game.consumes, or the level never hears what is held`);
     }
   }
 

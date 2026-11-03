@@ -50,7 +50,9 @@ describe('the painted face', () => {
 
   it('the features sit where the slab face puts them: the eyes, the mouth\'s width and the head the same (the nose dials move only the depth and the jaw)', () => {
     const fm = (x) => x.m.plan.include.find((i) => i.name === 'head').faceMeasures, a = fm(female), b = fm(slab);
-    for (const k of ['crown_z', 'face_m', 'pupils_m', 'eye_m', 'eyeWidth_m']) expect(a[k], k).toBe(b[k]);
+    // (to the millimetre, as the readout rounds them: under hero laws 19 the female's shorter chin moves her rows, so the
+    // painted face's thinned lattice may round a width a millimetre off the slab face's, 0.215 m to 0.216 m)
+    for (const k of ['crown_z', 'face_m', 'pupils_m', 'eye_m', 'eyeWidth_m']) expect(Math.abs(a[k] - b[k]), k).toBeLessThanOrEqual(0.001 + 1e-9);
     // (the head is registered as before the jaw lifts its underside, so the crown stands where it stood; the head's height
     // is now to the chin itself, the studio's flat keel no longer hanging below it)
     expect(a.head_m).toBeLessThan(b.head_m); expect(a.head_m).toBeGreaterThan(b.head_m - 0.015);
@@ -146,7 +148,9 @@ describe('the nose dials (painterly.nose)', () => {
     // the mouth's height (about a third of the way up from the chin to the eyes) and the tip's (the slab's most forward point below the eyes)
     expect(cat(bot + 0.03)).toBeLessThan(zel(bot + 0.03) - 0.008);
     let tipZ = bot, tipY = -Infinity; for (let z = bot + 0.04; z < bot + 0.12; z += 0.001) { const y = slabSide(z); if (y > tipY) { tipY = y; tipZ = z; } }
-    expect(Math.abs(cat(tipZ) - tipY)).toBeLessThan(0.004); expect(Math.abs(zel(tipZ) - tipY)).toBeLessThan(0.004);
+    // (to 6 mm: under hero laws 19 the slab wears the pyramid nose, its tip standing out past the painted face's own
+    // dials by about a millimetre more than before, 5.2 mm measured)
+    expect(Math.abs(cat(tipZ) - tipY)).toBeLessThan(0.006); expect(Math.abs(zel(tipZ) - tipY)).toBeLessThan(0.006);
     expect(zs.length).toBeGreaterThan(0);
   }, 240000);
   it('width: the underside painted darker as it widens; its faces carry the texture', () => {

@@ -5,6 +5,7 @@ import { describe, expect, it } from 'vitest';
 import { planStage, buildStageGeometry, STAGE_KITS, assembleStageScene, resolveStageLights } from './stage.js';
 import { bayRoom } from './bay.js';
 import { BAY_REGISTERS } from './style/bay-kits.js';
+import { CONSTRUCTIONS } from './style/bay-axes.js';
 import { readFormLight } from '../form/room-form.js';
 
 const SUITE = { kind: 'stage', kit: 'bay-military', rooms: [{ id: 'low', x: 0, y: 0, w: 6, d: 12, h: 3.5 }, { id: 'tall', x: -6, y: 12, w: 18, d: 30, h: 12 }], links: [{ from: 'low', to: 'tall' }] };
@@ -124,7 +125,8 @@ describe('glass', () => {
     expect(inGroup('stage:sky').length).toBe(tall.glass.windows + low.glass.windows);
   });
   it('a tall room\'s booth: its panes clear glass, those a walker reaches banded, over a dado or not by register', () => {
-    for (const reg of BAY_REGISTERS) {
+    // (every register that keeps a booth: the vernacular's tall room, a town's hall, has none)
+    for (const reg of BAY_REGISTERS.filter((r) => !CONSTRUCTIONS[r]?.booth?.none)) {
       const b = buildStageGeometry(planStage({ ...SUITE, kit: `bay-${reg}` })).bayRooms[1].glass.booth;
       expect(b, reg).toBeTruthy();
       expect(b.unmarked, reg).toBe(0);

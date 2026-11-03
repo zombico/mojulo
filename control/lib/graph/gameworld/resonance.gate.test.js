@@ -39,13 +39,16 @@ describe('the compiler lays what a composition opens', () => {
     expect(statusOf(c.world(), c.row), KNOWN_GAPS[c.id] ? `known gap: ${KNOWN_GAPS[c.id]} (filled? delete its KNOWN_GAPS line)` : 'a new compiler gap').toBe(KNOWN_GAPS[c.id] ?? 'ok');
   }, 600_000);
 
-  // THE FORM, before the run: what the words open, the composer fills (the camera, levels it runs); what is the creator's
-  // (the hero) is asked, never chosen. A form the composer leaves empty is the compiler's gap, like an unlaid row
-  it('the form of what the words open: the composer fills its fields, the creator\'s are asked', () => {
+  // THE FORM, before the run: what the words open, the composer fills (the camera, levels it runs, and a hero by default,
+  // genre-forms.js heroFrameOf, the creator's to change); without the hero the creator's field is asked. A form the
+  // composer leaves empty is the compiler's gap, like an unlaid row
+  it('the form of what the words open: the composer fills its fields, a hero by default; without one it is asked', () => {
     const w = COOP();
     expect(w.camera).toBe('side');
     expect(Object.values(w.levels).every((L) => Object.values(L.walk.nodes).every((n) => n.trail))).toBe(true);
-    expect(formGaps(w, cubeOfWorld(w).cube).map((f) => [f.row, f.field, f.by])).toEqual([['co-op-screen', 'hero', 'creator']]);
+    expect(formGaps(w, cubeOfWorld(w).cube)).toEqual([]);
+    const { characters: _c, ...bare } = w;
+    expect(formGaps(bare, cubeOfWorld(bare).cube).map((f) => [f.row, f.field, f.by])).toEqual([['co-op-screen', 'hero', 'creator']]);
     const booked = { ...w, characters: MEADOWMARK_HERO.characters };
     expect(formGaps(booked, cubeOfWorld(booked).cube)).toEqual([]);
   });

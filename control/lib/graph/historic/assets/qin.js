@@ -9,6 +9,7 @@
 import { scaleHex } from '../../polygonizer/vexar.js';
 import { battered, slopedFlight, beam } from './kit.js';
 import { QIN_STYLE } from '../style/qin.js';
+import { AWNING_CLEAR } from '../../era/headroom.js';
 
 const KIT = QIN_STYLE.kit, DEG = Math.PI / 180;
 const box = (kind, x, y, w, d, z0, z1, tint, o = {}) => ({ kind, x, y, w, d, z0, z1, tint, ...o });
@@ -274,8 +275,9 @@ export const market = {
       if (x + len > plaza.x && x < plaza.x + plaza.w && y + 4 > plaza.y && y < plaza.y + plaza.d) continue;
       if (Math.abs(x + len / 2 - W / 2) < g && (y < B + 8 || y > D - B - 12)) continue;   // keep the gate ways clear
       if (rng() < 0.3) {
-        for (const [px, py] of [[0, 0], [len, 0], [0, 4], [len, 4]]) out.push(box('post', x + px - 0.1, y + py - 0.1, 0.2, 0.2, 0, 2.1, P.timber));
-        out.push(box('awning', x - 0.2, y - 0.2, len + 0.4, 4.4, 2.1, 2.2, P.linen));
+        // (the cloth clears the base model by half a body, era/headroom.js)
+        for (const [px, py] of [[0, 0], [len, 0], [0, 4], [len, 4]]) out.push(box('post', x + px - 0.1, y + py - 0.1, 0.2, 0.2, 0, AWNING_CLEAR, P.timber));
+        out.push(box('awning', x - 0.2, y - 0.2, len + 0.4, 4.4, AWNING_CLEAR, AWNING_CLEAR + 0.1, P.linen));
       } else {
         for (let k = 0; k <= 3; k++) for (const py of [0.3, 3.7]) out.push(box('post', x + (len * k) / 3 - 0.12, y + py - 0.12, 0.24, 0.24, 0, 2.4, P.timber));
         out.push(box('stall-wall', x, y + 3.6, len, 0.3, 0, 2.4, P.plaster));

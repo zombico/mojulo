@@ -1,5 +1,6 @@
 /**
- * equipment characterization net: one hash per seeded style × item, seed 3, the laws at LAWS_VERSION.
+ * equipment characterization net: one hash per seeded style × item, seed 3, under laws 1 (stamped: the rows minted
+ * under them keep these bytes; laws 2's own pins are compose.char.test.js).
  *
  * A stored equipment build regenerates on every read, so its expansion is a compatibility promise over minted rows.
  * The pins hash the expanded MONOMERS (the lowerers under them have their own pins). They were computed by the
@@ -62,12 +63,26 @@ const PINS = {
   'druid/staff': 'a96ca7b90a69e2af',
   'druid/bow': 'e21ecd9f4aaa449f',
   'druid/shield': 'c4d13ac48ea7210f',
+  // the grave's card (the armory's look: equipment/armory.js), a sample like the others
+  'grave/dagger': '8f4ce7b86780d369',
+  'grave/sword': '143ec31e0f12aab9',
+  'grave/greatsword': '76af018824c46576',
+  'grave/staff': '323b5b9083513398',
+  'grave/bow': '5486466d21203f5e',
+  'grave/shield': '319565d4f1b5ae41',
   'celestial/dagger': 'f3e6dee96ea892ba',
   'celestial/sword': '59222f4704034ffa',
   'celestial/greatsword': '3dc3f0219c00ec14',
   'celestial/staff': 'c48a08a3d27f8568',
   'celestial/bow': '0a5355b7ccd08c32',
   'celestial/shield': '22d5fcfe6a75f3a4',
+  // the saber card (added 2026-11-02, the saber rhythm game's light blade): its own pins, every other card's unchanged
+  'saber/dagger': '8a58e0bb87602c16',
+  'saber/sword': '0ac927fc6040c118',
+  'saber/greatsword': '224b0643f9610f8d',
+  'saber/staff': '70666039f67417f5',
+  'saber/bow': '66c1a1488c2d6c65',
+  'saber/shield': 'fbe5b6baad9c71d4',
 };
 const hash = (o) => createHash('sha256').update(JSON.stringify(o)).digest('hex').slice(0, 16);
 
@@ -75,7 +90,8 @@ describe('equipment characterization (byte pins per seeded style × item)', () =
   for (const [key, pin] of Object.entries(PINS)) {
     it(key, () => {
       const [style, item] = key.split('/');
-      expect(hash(expandEquipment({ type: 'equipment', item, style, seed: 3 }).monomers)).toBe(pin);
+      // laws 1, stamped: a row minted under them keeps these bytes whatever laws are current (laws 2: compose.js)
+      expect(hash(expandEquipment({ type: 'equipment', item, style, seed: 3, laws: 1 }).monomers)).toBe(pin);
     });
   }
   it('pins every seeded style × item', () => {

@@ -46,6 +46,7 @@ import { structureStyle, hasStructureRails } from '../era/out-structures.js';
 import { structurePaint, paintStop } from '../era/out-structures-paint.js';
 import { madeRamp } from '../era/style/swatches.js';
 import { townDressOf, dressTownFace } from '../era/town-dress.js';
+import { layLeaf, leafPage } from '../era/shutter-leaves.js';
 import { styleTownDress, styleReadout } from '../era/arch-style.js';
 import { plantPool, plantRepeats } from '../vegetation/pool.js';
 import { treeSizes } from '../form/flora-read.js';
@@ -55,12 +56,12 @@ import { buildingKits } from './houses.js';
 import { frontOf, FRONT, box } from './fronts.js';
 import { yardOf, fenceOf, serviceOf, garageOf, balconyOf, stairOf, backDoorOf, carOf, CAR_PAINTS, ZONES, FENCES } from './yards.js';
 import { gatesOf } from './gates.js';
-import { pitchOf, trackOf, diamondOf, courtsOf, hoopsOf, lotOf, fieldhouseOf, bleachersOf, lightsOf, flagOf, playgroundOf, pavilionOf, benchOf } from './sites.js';
+import { pitchOf, trackOf, diamondOf, courtsOf, hoopsOf, lotOf, fieldhouseOf, bleachersOf, lightsOf, flagOf, playgroundOf, pavilionOf, benchOf, cafeOf, fountainOf } from './sites.js';
 import { backTouch } from './laws.js';
 import { materialContext, wordTile } from '../era/arch-style.js';
 import { WALK } from '../era/out-ikebana.js';
 
-export const GEOTOWN_KEYS = Object.freeze(['kind', 'cube', 'show', 'title', 'seed', 'hour', 'clouds', 'style', 'geotown', 'walk', 'shadows', 'occlusion', 'light']);
+export const GEOTOWN_KEYS = Object.freeze(['kind', 'cube', 'show', 'title', 'seed', 'hour', 'clouds', 'style', 'geotown', 'walk', 'shadows', 'occlusion', 'light', 'air', 'cone']);
 // the faces a geotown draws at most (its trees are repeats, budgeted apart): a law, advice. The town to scale's is one
 // budget; an evocation spends its own on each segment's buildings, so its budget is a segment's times its segments,
 // or a building's times its buildings where a dense streetscape stands more
@@ -167,7 +168,7 @@ function coloursOf(cube) {
     court: '#3f6f5a', track: '#a5503a', infield: '#b08560', dirt: '#b08560', base: '#f4f2ec', play: '#8a6a4a', chips: '#8a6a4a', netting: '#3a3f44', fence: '#2f4a3a',
     goal: '#f2f0e8', net: '#2a2c2e', board: '#e8e6e0', lamp: '#d8d4c8', flag: '#c8322f', seat: '#7b8a96', block: mix('#c2b49a', C.stone, 0.25),
     // a main street's paving by its kerb, its trees' grates; a shop's yard and a walk-up's lot, its lines, its bins
-    furnish: mix('#b39f88', C.floor, 0.25), pit: '#3b3a38', service: mix('#55585c', C.floor, 0.15), line: '#e8e4d8', bin: '#3f5a46', cabin: '#2b3036',
+    furnish: mix('#b39f88', C.floor, 0.25), piazza: mix('#bdb2a0', C.stone, 0.35), pit: '#3b3a38', service: mix('#55585c', C.floor, 0.15), line: '#e8e4d8', bin: '#3f5a46', cabin: '#2b3036',
   };
 }
 
@@ -221,7 +222,7 @@ const lineOf = (d, B, side) => (side === 'w' ? { id: `ns-${B.i}`, S: d.sections.
 
 /** The geocube kind's geotown: the town's map stood on the cube's land at its hour. */
 export function assembleGeotownScene(m, ctx = {}) {
-  for (const k of Object.keys(m)) if (!GEOTOWN_KEYS.includes(k)) no(`'${k}' is not a setting of the geocube kind's geotown (cube, seed, hour, clouds, style, geotown)`);
+  for (const k of Object.keys(m)) if (!GEOTOWN_KEYS.includes(k)) no(`'${k}' is not a setting of the geocube kind's geotown (cube, seed, hour, clouds, style, geotown, air, cone)`);
   if (m.seed !== undefined && !Number.isInteger(m.seed)) no('seed is an integer');
   if (m.cube === undefined || m.cube === null) no('cube is a preset id or a document');
   // (a geotown composed into a geocity's neighbourhood stands on the metro's land: ctx.field, its natural ground in the
@@ -455,7 +456,9 @@ export function assembleGeotownScene(m, ctx = {}) {
         const cs = (house.mirror ? f.corners.slice().reverse() : f.corners).map(toW), nl = f.normal ?? [0, 0, 1], nn = unit([pl.ex[0] * (house.mirror ? -nl[0] : nl[0]) + pl.ey[0] * nl[1], pl.ex[1] * (house.mirror ? -nl[0] : nl[0]) + pl.ey[1] * nl[1], nl[2]]);
         for (const c of cs) { top = Math.max(top, c[2] - pad); lo = [Math.min(lo[0], c[0]), Math.min(lo[1], c[1])]; hi = [Math.max(hi[0], c[0]), Math.max(hi[1], c[1])]; }
         const fill = Pt(f.group, Math.min(1, (f.value ?? 0.6) * litV(nn))), F0 = { corners: cs.map(P3), group: `town:${f.part}`, fill, cornerFills: cs.map(() => fill), normal: P3(nn), outNormal: P3(nn) };
-        faces.push(Dr ? dressTownFace(F0, f.group, Dr) : F0);
+        // (a shutter's leaf wears its form's relief over its paint's colour, era/shutter-leaves.js)
+        const F1 = Dr ? dressTownFace(F0, f.group, Dr) : F0;
+        faces.push(f.leaf && !F1.texture ? layLeaf(F1, f.leaf, house.mirror) : F1);
       }
       // its front: the bay's walls in their storey's own wall, its lights, its trim and its top; the porch's deck, posts
       // and roof; a shopfront's glazing, sign and awning; a canopy
@@ -568,7 +571,8 @@ export function assembleGeotownScene(m, ctx = {}) {
   // street's double yellow and its dashed white lane lines, the travel lanes' edges, a bike lane's green, its line and
   // its marks; laid in lengths of a cell, on the street's ground ──
   for (const p of d.pieces) {
-    if (p.cls !== 'road' || !p.street) continue;
+    // (a pattern that paints none on its lanes, the old town's setts: none)
+    if (p.cls !== 'road' || !p.street || P.furniture?.paint === 'none') continue;
     const ns = p.street.startsWith('ns'), k = Number(p.street.slice(3)), Sc = (ns ? d.sections.x : d.sections.y)[k], c = (ns ? d.X : d.Y)[k], [x0, y0, x1, y1] = p.rect, [a0, a1] = ns ? [y0, y1] : [x0, x1];
     const at = (s, o) => (ns ? [c + o, s] : [s, c + o]), tw = (Sc.lanes * Sc.lane) / 2;
     // (a strip from s0 to s1 along it, o0 to o1 across, in lengths of a cell)
@@ -600,6 +604,15 @@ export function assembleGeotownScene(m, ctx = {}) {
   const hydro = new Map();
   for (const Lt of d.traffic?.lights ?? []) {
     const [x, y] = Lt.at, z = wk(x, y), [tx, ty] = Lt.toward, ax = x + tx * 1.9, ay = y + ty * 1.9, hl = tx ? [0.4, 0.17] : [0.17, 0.4], wood = Lt.kind === 'hydro';
+    // (a LANTERN: a cast-iron post on its plinth, a collar, the lantern's glass in its frame and its cap; no arm, no wire)
+    if (Lt.kind === 'lantern') {
+      fx(box(x - 0.16, y - 0.16, x + 0.16, y + 0.16, z, z + 0.45, 'pole'));
+      fx(box(x - 0.06, y - 0.06, x + 0.06, y + 0.06, z + 0.45, z + Lt.h - 0.7, 'pole'));
+      fx(box(x - 0.14, y - 0.14, x + 0.14, y + 0.14, z + Lt.h - 0.72, z + Lt.h - 0.62, 'pole'));
+      fx(box(x - 0.2, y - 0.2, x + 0.2, y + 0.2, z + Lt.h - 0.62, z + Lt.h - 0.1, 'lamp'));
+      fx(box(x - 0.26, y - 0.26, x + 0.26, y + 0.26, z + Lt.h - 0.1, z + Lt.h, 'pole'));
+      continue;
+    }
     const top = wood ? HYDRO.h : Lt.h;
     fx(box(x - (wood ? 0.13 : 0.08), y - (wood ? 0.13 : 0.08), x + (wood ? 0.13 : 0.08), y + (wood ? 0.13 : 0.08), z, z + top, wood ? 'hydro' : 'pole'));
     fx(box(Math.min(x, ax) - 0.05, Math.min(y, ay) - 0.05, Math.max(x, ax) + 0.05, Math.max(y, ay) + 0.05, z + Lt.h - 0.12, z + Lt.h, 'pole'));
@@ -785,6 +798,9 @@ export function assembleGeotownScene(m, ctx = {}) {
       const [x0, y0, x1, y1] = s.rect;
       put([[x0, y0, B.z], [x1, y0, B.z], [x1, y1, B.z], [x0, y1, B.z]], `geotown:${s.cls}`, col[s.cls] ?? col.lawn);
     }
+    // (a square's: its fountain, its cafe tables under their parasols, each its own canvas)
+    if (w.fountain) building([w.fountain[0] - 3, w.fountain[1] - 3, w.fountain[0] + 3, w.fountain[1] + 3], fountainOf(w.fountain[0], w.fountain[1], P.sites.square.fountain.r), 'fountain');
+    for (const [u, v] of w.tables ?? []) thing(cafeOf(u, v, P.shopfronts.awningColours[Math.floor(Rs() * P.shopfronts.awningColours.length)]));
     if (w.pitch) thing(pitchOf(w.pitch, Rs));
     if (w.track) thing(trackOf(w.track, P.sites.school.track.band));
     if (w.diamond) thing(diamondOf(w.diamond, Rs));
@@ -1008,8 +1024,10 @@ export function assembleGeotownScene(m, ctx = {}) {
   // (read by the seventh generation: its soft ground the form's own, `isekai:ground`, its land read draws it and grows its
   // grass there (form/land-read.js, worlds/world-scene.js); its trees the form's, `plants`)
   if (form) for (const f of faces) if (FORM_GROUND.includes(f.group)) f.group = 'isekai:ground';
+  // (the shutters' leaves, marched near the eye: channels/leaf-relief.js; a town with none carries no key)
+  const leaves = leafPage(new Set(faces.map((f) => f.texture)));
   return {
-    faces, repeats, ...(Object.keys(textures).length ? { textures } : {}), ...(plants ? { plants } : {}), colliders, anchors, cameras,
+    faces, repeats, ...(Object.keys(textures).length ? { textures } : {}), ...(leaves ? { leaves } : {}), ...(plants ? { plants } : {}), colliders, anchors, cameras,
     viewBox: { width: 1280, height: 720 }, title: ctx.title || `${cube.title} · geotown`,
     bg, haze: { color: air.fog.color, density: r5(air.fog.density * TOWN_HAZE) },
     sky: { zenith: air.dome.zenith, horizon: air.dome.horizon, day: night ? 0 : 1, stars: 0, seed: 1, ...(night ? {} : { sun: { dir: P3(sun), size: 1.4, glow: 1.3 } }), ...(spec.air ? hourSky(spec.air) : {}) },

@@ -22,8 +22,7 @@
  *
  * Coupling: imports research-mode's bind handler (same ring, same gate the agent would
  * hit), the mechanics mint, and the graph-side sampler/derive. Nothing here is imported
- * by plan mode or the views — the one-way discipline holds. See research-science.plan.md
- * (Phase 5).
+ * by plan mode or the views — the one-way discipline holds.
  */
 
 import { registerTool } from '@/lib/mcp/server';
@@ -31,7 +30,7 @@ import { ResearchRepository } from '@/lib/db/repositories/research';
 import { bindResearchItemHandler } from '@/lib/mcp/tools/research-mode';
 // mintMechanicsView + the physics sampler are loaded lazily in the handler (see
 // loadMechanics below) so this office/research tool carries no static dependency
-// on the creative render engine — install-capabilities.plan.md P3b.
+// on the creative render engine.
 import { mintSketch } from '@/lib/mcp/tools/sketches';
 import { experimentsToChartManifest } from '@/lib/sketch-derive';
 import { SketchRepository } from '@/lib/db/repositories/sketches';

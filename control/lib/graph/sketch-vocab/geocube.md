@@ -94,7 +94,7 @@ it, in the cube's style. A different style is a different cube (`{ from: <preset
   quoins: null } }`: a whole element with its `kind` replaces, null drops). Openings are built where the language
   writes them: a light's `frame` (0–0.2 m), `glazing` (lattice, sash, casement, plate; arabesque a star screen,
   ornamental leading, stained glass) and `trim`; a door's `leaf` (boards, panels, glazed), `surround` (frame,
-  pilasters, hood), `fanlight` (rect, arch) and `steps` (0–3); shutters' `form` (boards, louvred). `materials` a
+  pilasters, hood), `fanlight` (rect, arch) and `steps` (0–3); shutters' `form` (boards, louvred; persiana, panelled, ledged: a leaf's relief, marched near the eye). `materials` a
   word per surface (plaster, stone, timber, plinth, roof; a city's punched, pier, banded, grid, road, walk), e.g.
   limewash, rubble, hand-brick, adobe, clay-tile, thatch, wire-brick, precast, concrete, glass; `palette` a colour per
   surface; `city` its grain (`paris`, `tokyo`…) and a grammar's changes. The specimen writes its
@@ -133,7 +133,8 @@ A cube that names no domains offers one per terrain and one per interior.
   `camera` the still it is first seen from (`low`, `overhead`, `wide`, `close`); `brief` says what each word
   decided; a new scene (`show: 'path'` or `'trail'`, no seed yet) is drawn in gen-7, its cube's `era` stamped `gen-7`
   at mint (the land, its stones and grass, its trees, bamboo and bushes as form, lit by the cube's light; a blossom
-  card's trees keep their painted look), `cube.era: 'gen-6'` for the painted render, a minted row keeping its own; `hour` and `clouds` set an outside's sky (the city's too: past dusk its windows lit). A gritty
+  card's trees keep their painted look; gameplay's camera draws full detail in its VIEW CONE, its frustum to a reach, the
+  grass as strands past it: `cone` (metres) fixes the reach, absent the screen's, `[` `]` and `\` adjust it live; `cone: { reach?, soften? }` softens the impressions past the reach, `soften` true for a pixel and a half or 0.5 to 4 css pixels, with or without `air`; the geotown and the micro-city take `cone` too), `cube.era: 'gen-6'` for the painted render, a minted row keeping its own; `hour` and `clouds` set an outside's sky (the city's too: past dusk its windows lit); `air` the fog a gen-7 page is seen through, on any show (outside, the city, a hall, a cavern): `haze`, `mist` (lying low at the walker's feet, the hill tops over it), `fog` (each at a trail's, a metro's or a room's measures), or `{ kind, visibility (m, where the far fades into the air), clear (m), height (m, its scale height; false lies even), glow, blur (css px, false for none), colour (#rrggbb: its own colour, a neon night's glow; else the page's) }`; inside (a room, a cavern) it lies even, a night outside lying low as a day's; the sky is veiled to it and the far softened past the view cone. A gritty
   cube's street and city are painted from relief as its rock is: stone walls ashlar, plaster a lime render broken to the
   stone, roofs in courses, timber in boards; a city's walls between its windows and its sidewalks the same. `style`
   on the micro-town or micro-city builds it in that style, over the settlement's own; `path` dresses the trail its
@@ -209,7 +210,7 @@ A cube that names no domains offers one per terrain and one per interior.
   default the core's nearest the seat), `corridor` (`along` an arterial, by default the spine from the shore) or
   `segment` (`at` one block, by default a tower block by the seat): the evoked blocks wear facades (curtainwall,
   punched stone, brick, a tower's shape, lit windows at night), the neighbourhoods round them massing, the rest the
-  skyline; `play` `game` (an evocation's default: what a walker covers compressed, never a storey) or `real`. The
+  skyline; `play` `game` (an evocation's default: what a walker covers compressed, never a storey) or `real`. On the live page `cone` (true, or the reach in metres) draws its street on the view cone: its trees whole inside the reach and at their light level past it, its kit while it covers a few pixels, what the `air` has fully taken not at all. The
   answer's `geocity` carries the counts, the ledger, the neighbourhoods (ring, storeys, park, the beyond where a
   geotown joins later), the region graph and the laws (an evocation's `evokes`: the metro to scale's measures);
 - a `stage`: `{ geocube, domain }` alone is the whole level: an island, a street on a trail (a domain with a town), or

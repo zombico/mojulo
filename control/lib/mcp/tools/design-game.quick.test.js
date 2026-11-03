@@ -15,6 +15,7 @@ import { composeLive } from '@/lib/graph/worlds/controllable/compose.js';
 import { stageEnds } from '@/lib/graph/gameworld/levels.js';
 import { HALDEN_REACH } from '@/lib/graph/gameworld/examples.js';
 import { groundOf } from '@/lib/graph/playscape/terrain.js';
+import { camoForSetting } from '@/lib/graph/car-designer/livery-cut';
 
 // The quick path: a simple LOOP (one level, one goal), never a simple picture: any hero the door draws, or none (first
 // person); the goal placed on the stage's own anchors; the game made in one call, walkable and not proved beatable.
@@ -367,6 +368,63 @@ describe('design_game quick', () => {
     expect(payload.events.sources.find((z) => z.zone === 'cp_0_0').watch).toBe('car');
   }, 240_000);
 
+  it('a realistic ride: the car\'s realistic loft, compiled in place on its class\'s physics, its rivals in it too', async () => {
+    // the game reads realistic (its juice drawn in the form render): the tier is stamped at mint, and the sedan is its loft
+    // (the car shelf's family sedan, car-shelf/: the sedan row's card, at the midsize class's numbers)
+    const out = await designGameHandler({ quick: { goal: 'race', ride: 'car', rivals: 1, world: { id: 'real', style: { kit: 'trail-valley' }, juice: { fidelity: 'form' } } }, ref: 'rr' });
+    expect(out.ran.map((r) => r.key)).toEqual(['level-run-0', 'game']);
+    expect(stored('rr').quick).toMatchObject({ ride: 'car', tier: 'realistic' });
+    const L = stored('rr-level-run-0');
+    expect(L.figures.ride).toEqual({ loft: { class: 'midsize', car: 'familySedan', seed: 1, light: 'form' } });
+    expect(L.figures['rival-1']).toEqual(L.figures.ride);
+    expect(L.entities[0]).toMatchObject({ id: 'car', rule: { type: 'drive', vehicle: 'midsize' } });
+    expect(L.camera.dist).toBeGreaterThan(7);
+    const { payload } = await resolveWorldScene(SketchRepository.getByRef('rr-level-run-0'));
+    // its rig: the hull and a bone a wheel, at the class's true height
+    expect(payload.figures.ride.bones.map((b) => b.id)).toEqual(expect.arrayContaining(['root', 'wheelFL', 'wheelRR']));
+    expect(payload.figures.ride.figH).toBeGreaterThan(1.3);
+    // drawn in the form render: its materials lit by the page (car-designer/road-form.js)
+    expect(payload.figures.ride.form.materials).toHaveProperty('paint');
+    // a vehicle named by the registry: a pickup has no assembled ride, so it is its loft in any game
+    await designGameHandler({ quick: { goal: 'reach', ride: 'a pickup truck', world: { id: 'truck', style: { kit: 'trail-valley' } } }, ref: 'pk' });
+    expect(stored('pk').quick.ride).toBe('pickup');
+    expect(stored('pk-level-run-0').figures.ride).toEqual({ loft: { class: 'pickup', seed: 1, light: 'form' } });
+    // a field vehicle by the word people say: its body the military hull kit's, in the field's materials, painted in its
+    // setting's camo (stamped at mint: car-designer/livery-cut.js camoForSetting)
+    await designGameHandler({ quick: { goal: 'reach', ride: 'a jeep', world: { id: 'field', style: { kit: 'trail-valley' } } }, ref: 'jp' });
+    const camo = camoForSetting({ kit: 'trail-valley' });
+    expect(stored('jp').quick).toMatchObject({ ride: 'utility-4x4', livery: camo });
+    expect(stored('jp-level-run-0').figures.ride).toEqual({ loft: { class: 'utility4x4', seed: 1, light: 'form', livery: camo } });
+    const jeep = (await resolveWorldScene(SketchRepository.getByRef('jp-level-run-0'))).payload.figures.ride;
+    expect(jeep.form.materials).toHaveProperty('milPaint');
+    expect(jeep.bones.map((b) => b.id)).toEqual(expect.arrayContaining(['root', 'wheelFL', 'wheelRR']));
+    // lit as its world is: a night kit's jeep under its own dim sky, the day valley's under its full one
+    await designGameHandler({ quick: { goal: 'reach', ride: 'a jeep', world: { id: 'field-night', style: { kit: 'alien-night' } } }, ref: 'jn' });
+    const night = (await resolveWorldScene(SketchRepository.getByRef('jn-level-run-0'))).payload;
+    expect(night.figures.ride.form.keyIntensity).toBeLessThan(jeep.form.keyIntensity);
+    expect(night.figures.ride.form.sky.zenith).toEqual(night.sky.zenith);
+  }, 240_000);
+
+  it('a ride astride: the cycle shelf\'s machine, its rider seated on it, its rivals on theirs, leaning on the page', async () => {
+    // a motorcycle by the word people say: a dirt bike, ridden at any tier (it has only its realistic build)
+    const out = await designGameHandler({ quick: { goal: 'race', ride: 'a dirt bike', rivals: 1, world: { id: 'moto', style: { kit: 'trail-valley' } } }, ref: 'mx' });
+    expect(out.ran.map((r) => r.key)).toEqual(['level-run-0', 'game']);
+    expect(stored('mx').quick.ride).toBe('dirt-bike');
+    const L = stored('mx-level-run-0');
+    expect(L.figures.ride).toEqual({ cycle: { archetype: 'dirtBike', ride: true, rider: true } });
+    expect(L.figures['rival-1']).toEqual(L.figures.ride);
+    expect(L.entities[0]).toMatchObject({ id: 'car', rule: { type: 'drive', vehicle: 'dirtBike', wheels: 2 } });
+    // chased over the rider's head
+    expect(L.camera.height).toBeGreaterThan(3);
+    const { payload } = await resolveWorldScene(SketchRepository.getByRef('mx-level-run-0'));
+    const bike = payload.figures.ride;
+    expect(bike.bones.map((b) => b.id)).toEqual(expect.arrayContaining(['root', 'front', 'wheelF', 'wheelR']));
+    expect(bike.live).toMatchObject({ ridden: true, lean: 'rule' });
+    // its rider astride: seated, the hands on the grips, the machine and the rider over a seated head's height
+    expect(bike.cycle.rider.posture).toBe('mx');
+    expect(bike.figH).toBeGreaterThan(1.5);
+  }, 240_000);
+
   it('kart race: rivals in the same car round a loop on the trail\'s land, the place on the HUD, a podium to win', async () => {
     const out = await designGameHandler({ quick: { goal: 'race', ride: 'coupe', rivals: 3, world: { id: 'karts', style: { kit: 'trail-valley' } } }, ref: 'k' });
     expect(out.ran.map((r) => r.key)).toEqual(['ride', 'level-run-0', 'game']);
@@ -643,6 +701,31 @@ describe('design_game quick', () => {
     P.transform.pos = [drop.at[0], drop.at[1], P.transform.pos[2]];
     sim.run(0.3);
     expect(P.weapon.reserve).toBe(before + 24);
+  }, 240_000);
+
+  it('shoot with a carried kit: the arms in the walker\'s loadout, the page carrying their hands, aimed, scoped, switched and drawn', async () => {
+    await designGameHandler({ quick: { goal: 'shoot', foes: 1, arms: ['rifle', 'sniper', 'bow'], world: { id: 'kit', style: { kit: 'trail-valley' } } }, ref: 'gk' });
+    const L = stored('gk-level-run-0'), P0 = L.entities[0];
+    expect(P0.rule).toMatchObject({ gunplay: true });
+    expect(P0.rule.loadout.map((s) => s.name)).toEqual(['rifle', 'sniper', 'bow']);
+    expect(P0.weapon).toEqual(P0.rule.loadout[0].weapon);
+    const { payload } = await resolveWorldScene(SketchRepository.getByRef('gk-level-run-0'));
+    const html = emitThreeWorld({ ...payload, inline: true });
+    expect(html).toContain('function buildGunplay(E)');
+    expect(html).toContain('// ── GUNPLAY ──');
+    expect(html).toContain('right click  aim');
+    // played headless: the sights up, the sniper scoped and steadied, the bow drawn and loosed
+    const land = stageEnds(L).ground, ground = (q) => land(q[0], q[1]) ?? 0;
+    const sim = simLevel({ entities: payload.entities, events: payload.events, colliders: payload.colliders }, { ground }), W = sim.world, P = W.byId[W.pilotId];
+    Object.assign(sim.input, { aim: 1 }); sim.run(0.5);
+    expect(P.gp.aim).toBe(1);
+    Object.assign(sim.input, { aim: 0, slot: 2 }); sim.frame(1 / 30); Object.assign(sim.input, { slot: 0, aim: 1 }); sim.run(2.5);
+    expect(P.loadoutIdx).toBe(1); expect(P.gp.aim).toBe(1);
+    Object.assign(sim.input, { breath: 1 }); sim.run(0.5);
+    expect(P.gp.steady).toBe(true);
+    Object.assign(sim.input, { aim: 0, breath: 0, slot: 3 }); sim.frame(1 / 30); Object.assign(sim.input, { slot: 0 }); sim.run(1.2);
+    Object.assign(sim.input, { fire: 1 }); sim.run(1); Object.assign(sim.input, { fire: 0 }); sim.run(0.1);
+    expect(W.projectiles.some((r) => r.owner === P.id) || P.weapon.shots > 0).toBe(true);
   }, 240_000);
 
   it('deathmatch: an arena laid on the trail\'s land whose laws hold, bots that fight each other, frags to a limit', async () => {

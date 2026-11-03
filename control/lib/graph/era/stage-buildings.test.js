@@ -101,6 +101,35 @@ describe("a town's street", () => {
     expect(() => assembleStageScene({ ...TRAIL, town: { houses: 5, lanes: 2 } })).toThrow(/not a setting/);
     expect(() => assembleStageScene({ kind: 'stage', kit: 'trail-valley', trail: true, town: {} })).toThrow(/indexed for the outdoor kits/);
   });
+  it('walk: the uses named are walked into as part of the world; a shop entered without it changes the scene at its door', () => {
+    const doors = assembleStageScene({ ...TRAIL, town: { houses: 3, enter: 2 } }), walked = assembleStageScene({ ...TRAIL, town: { houses: 3, enter: 2, walk: ['shop'] } });
+    const shopOf = (P) => P.anchors.find((a) => (a.kind === 'building' || a.kind === 'house') && a.use === 'shop' && a.enter);
+    expect(shopOf(doors)).toMatchObject({ enter: 'door' });
+    expect(shopOf(walked)).toMatchObject({ enter: 'walk', entry: expect.any(String) });
+    expect(() => assembleStageScene({ ...TRAIL, town: { houses: 3, walk: 'shop' } })).toThrow(/town.walk/);
+  });
+  it('enter by use: the first of each named use from the whole town stands on the street, entered, a household at its door', () => {
+    const P = assembleStageScene({ ...TRAIL, town: { houses: 3, enter: ['dwelling'] } });
+    const D = P.anchors.find((a) => (a.kind === 'building' || a.kind === 'house') && a.use === 'dwelling' && a.enter);
+    expect(D).toMatchObject({ enter: 'door' });
+    expect(() => assembleStageScene({ ...TRAIL, town: { houses: 3, enter: ['observatory'] } })).toThrow(/no observatory left/);
+  });
+  it('walls: the street closed by its fortification, a gatehouse over the trail at each end, its gates open', () => {
+    const W = assembleStageScene({ ...TRAIL, town: { houses: 4, enter: 1, street: true, walls: true } });
+    const C = W.colliders.filter((c) => String(c.of).startsWith('town:walls'));
+    expect(W.anchors.find((a) => a.kind === 'walls')).toMatchObject({ gates: 2 });
+    expect(W.faces.some((f) => f.group === 'town:wall')).toBe(true);
+    // (each house inside the walls' sides; the trail through each gate clear of every wall collider)
+    const sides = C.filter((c) => c.of === 'town:walls'), xs = sides.flatMap((c) => [c.min[0], c.max[0]]);
+    for (const h of W.anchors.filter((a) => a.kind === 'house' || a.kind === 'building')) expect(h.at[0] > Math.min(...xs) && h.at[0] < Math.max(...xs)).toBe(true);
+    const ends = W.anchors.filter((a) => a.kind === 'house' || a.kind === 'building').map((a) => a.at[1]), trail = (y) => W.anchors.filter((a) => a.kind === 'beat').sort((a, b) => Math.abs(a.at[1] - y) - Math.abs(b.at[1] - y))[0].at[0];
+    for (const y of [Math.min(...ends) - 6, Math.max(...ends) + 6]) {
+      const x = trail(y);
+      expect(C.some((c) => x > c.min[0] && x < c.max[0] && y > c.min[1] - 0.5 && y < c.max[1] + 0.5)).toBe(false);
+    }
+    // absent, the street as it was; walls without a street refused
+    expect(() => assembleStageScene({ ...TRAIL, town: { houses: 3, walls: true } })).toThrow(/town.walls closes the street/);
+  });
   it('goal: the first house walked into holds the level\'s end', () => {
     const g = assembleStageScene({ ...TRAIL, town: { houses: 3, enter: 1, goal: true } });
     expect(g.anchors.find((a) => a.kind === 'building')).toMatchObject({ isGoal: true, goal: 'dais' });

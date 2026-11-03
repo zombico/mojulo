@@ -55,7 +55,7 @@ export function reviewParts(world) {
     if (D) parts.push({ id: `tech:${cid}`, name: `${G.civilizations[cid].name}: its technology`, content: { direction: D } });
   }
   parts.push({ id: 'key', name: 'Color key', content: kits });
-  for (const R of levels) parts.push({ id: `level:${R.id}`, name: R.name, content: { style: R.style, built: R.built, level: R.level, town: R.town, ...(R.building ? { building: R.building } : {}) } });
+  for (const R of levels) parts.push({ id: `level:${R.id}`, name: R.name, content: { style: R.style, built: R.built, level: R.level, town: R.town, ...(R.building ? { building: R.building } : {}), ...(R.geotown ? { geotown: R.geotown } : {}) } });
   // the cast and the story (story.js), reviewed as the world's other pages; a world without them has neither part
   if (G.characters?.cast) parts.push({ id: 'cast', name: 'The cast', content: G.characters.cast });
   if (G.story) parts.push({ id: 'story', name: 'The story', content: G.story });

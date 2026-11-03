@@ -145,6 +145,87 @@ The machine gate on the shelf:
 
 All of this is in `craft-shelf.deep.test.js`. No eyes gate has been run on the shelf.
 
+### Helicopters
+
+Rotorcraft are the shelf's own rows (`heli-odm.js`, `heli-parts.js`, `heli-archetypes.js`), assembled like any craft.
+The kinds:
+
+- **`heli-rotor`.** A main rotor: its mast, swashplate, pitch links, hub, and drooped, handed blades. `pose.rotor`
+  spins it and the craft's `fold` swings its blades aft.
+- **`heli-tail`.** A tail rotor or a ducted fan, whose thrust is held against its main rotor's torque.
+- **`heli-cowl`.** A roof cowling with its intakes and exhausts, or a tandem's rotor pylon with its engines.
+- **`heli-kit`.** Kit hung on a station. Weapons are modelled, never fired.
+- **`craft-cockpit`.** Seats, panel and controls, side by side or tandem. It stands in a fuselage's `open` tub under
+  the glass. A faceted hull opens too, its panels kept flat.
+
+The airframes are a light civilian helicopter, a medium utility machine, an armoured tandem attack helicopter and a
+heavy tandem-rotor transport. The tandem's aft rotor is its forward one mirrored, so they turn against each other
+with their blades meshed. Each stands level on its skids or wheels with its rotors clear.
+
+- **Looks** (`heli-looks.js`, `look` on `assembleCraft` and `craftForm`). One airframe is civilian or military by its
+  card: civil, medevac, police or military. A card sets a palette, slots and lights, hangs its kit at the hull's
+  stations (`kitAt`) and strips the weapons when civilian. A look is read in its craft's family: a helicopter's cards,
+  or a drone's (`drone-looks.js`).
+- **The field's language** (`heli-made.js`, with `made`):
+  - armour plates and bolt rows on an armoured hull, left off under a civilian look;
+  - steps and grab handles at the doors;
+  - the rotor head's bolt ring and blade cuffs;
+  - the cowling's hinges and latches.
+
+  Sliding doors run on their rails by `pose.door`. A civilian look carries a generic registration and a stripe of its
+  trim. Worn, the exhausts soot the boom.
+- **In a level.** A manifest's `parked` takes a helicopter by its word:
+  - its look, the air's livery and wear, `fold`, and `pad` (a helipad under it);
+  - its collider is its body's box, not its rotor's disc, so a walker passes under the blades;
+  - a base's `building.parked` folds its helicopters into the hangar, in the air's nearest camo.
+
+  A world's figures map takes `craft: { archetype, … }` for a craft standing still.
+- **For the engines.** Each GLB is valid by the Khronos validator, with the rotors' `spin` clip.
+
+Not yet: flying them (a hover model, the rotor's thrust) and a cabin seen through an open side door.
+
+### Airliners
+
+The civil fixed wing (the bizjet, the regional turboprop, the single-aisle and the twin-aisle) are what the CSS
+transport hub's apron draws. In the realistic tier they come off the shelf in the fighter's and the helicopters'
+treatment.
+- **Made** (`liner-made.js`, with `made`):
+  - the flight deck's frame, the pitot probes and vanes, the beacons, the APU's exhaust;
+  - each door's viewport and handle;
+  - the cargo holds' doors (a hull's `holds`), which the turnaround's belt loaders meet;
+  - a turbofan's intake open to a fan face behind its blades, and its fan nozzle and core cowl.
+- **Looks** (`liner-looks.js`, `look` on `assembleCraft`, `craftForm` and a parked craft): generic airline schemes,
+  never a real operator's: plain white, a coloured tail, a classic cheatline over a polished belly, a coloured belly,
+  a bold body, a freighter with its windows plugged.
+  - Each card sets the tail's and engines' colours, a belly or a cheatline cut by height, and a generic emblem on the
+    fin.
+  - The winglets carry the tail's colour.
+  - A fixed wing's civil registration is aft, under the tail.
+- **The jumbo** (`jumbo`, the registry's `jumbo jet`): a four-engined twin-aisle with an upper deck over its forward
+  third, a class and not a replica.
+  - Its hull's stations raise a hump, and its windows run in a row per deck (`windows` may be a list).
+  - Its inner and outer engines hang on their own pylons.
+  - It stands on wing and body bogies.
+  - Its turnaround calls the whole crew, and the fuel truck waits clear of all four engines.
+
+### The turnaround
+
+The airfield's ground crew (`car-designer/road-airside.js`, `road-airside-haul.js`) are built at their true numbers in
+the field vehicles' language. A parked aircraft's `crew` sets them to work round it (`vehicle-registry/turnaround.js`).
+Each is placed and posed to the aircraft's own geometry, read off its form rather than typed per type:
+- the stair truck at its first door on the left, its platform at that door's sill;
+- the catering hi-loader at the first door on the right, its galley raised to the sill and its platform out past the
+  cab;
+- a belt loader at each hold, low in the belly ahead of the wing and behind it;
+- the baggage tug and its carts beyond the forward belt's tail;
+- the refueller clear ahead of the wing and its engine;
+- the pushback tug ahead of the nose gear, its open U toward it.
+
+What a door is out of reach of is left off: a regional's sill is under a stair truck's lowest platform. An airliner
+calls its whole crew; any other aircraft calls its fuel and its pushback. A camo'd aircraft's crew wears the field's
+nearest camo, and otherwise the airside's white. A parked airside vehicle takes `reach` on its own (metres: its galley,
+belt, platform or cradle).
+
 ## The airspace in a palette
 
 A flight level is drawn by the color theorist (`control/lib/graph/color-theorist/`) when its world has a palette.

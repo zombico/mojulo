@@ -5,7 +5,7 @@
 export { readGameworld, resolveLevel, resolveWorld, landAdvice, levelSeed, WORLD_STYLE, CIVILIZATION, CRAFTED, LINK_KINDS, RESERVED, OPEN_SLOTS, NATIVE } from './world.js';
 export { craftTech, craftKindOf, craftDomain, CRAFT_KINDS, CRAFT_KIND_IDS, CRAFT_TRAITS } from './tech-crafter.js';
 export { readCharacters, resolveDirection, TRADITIONS, BRIDGE, FROM, LOOKS_ELEMENTS, CHARACTER_PART_IDS, CAST_PART } from './characters.js';
-export { resolveBook, characterParts, characterState, approveCharacter, characterReady } from './character-review.js';
+export { resolveBook, characterParts, characterState, approveCharacter, characterReady, keepApproval } from './character-review.js';
 export { readActions, resolveActions, IDIOMS, SYSTEM_KINDS, STAGES } from './actions.js';
 export { heroLooks, composeHero, heroOrders, underlayerFor, UNDERLAYERS, ELEMENT_TINT } from './hero-looks.js';
 export { readAdornment, resolveAdornment, readGearBuild, applyDiff, buildAt } from './adornment.js';
@@ -24,7 +24,7 @@ export { gameworldGraph, graphOutline, graphMermaid } from './graph.js';
 export { styleGuide, airOfKit, kitCard, languageCard, fortCard, groundCard, civilizationCard } from './style-guide.js';
 export { natureCard, colorKey, landOfKit, landFor, landToLevel, RAMP_KEY } from './nature.js';
 export { gameworldBibleHtml } from './bible-html.js';
-export { MEADOWMARK, MEADOWMARK_HERO, HALDEN_REACH } from './examples.js';
+export { MEADOWMARK, MEADOWMARK_HERO, HALDEN_REACH, HOLLIN_VALE } from './examples.js';
 export { characterBibleHtml } from './character-bible-html.js';
 export { foeCastHtml } from './foe-cast-html.js';
 export { foeCastOf, foeState, foeParts, approveFoe, castable } from './foe-cast.js';

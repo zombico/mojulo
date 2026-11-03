@@ -125,11 +125,12 @@ describe('the form a row asks of the world', () => {
     expect(compilerGaps(cube, [])).toEqual([{ id: 'co-op-screen', laid: false }]);
   });
 
-  it('a composed co-op world before its hero is walked first person, its side camera kept for the run that has one', () => {
+  it('a composed co-op world comes with its hero: played side-on, a seat for each player', () => {
     const w = composeGameworld({ prompt: 'a couch co-op platformer to play with my brother', seed: 1, levels: 1 });
     expect(w.camera).toBe('side');
+    expect(w.characters?.hero).toBeTruthy();
     const lv = orders(w).map((o) => o?.manifest).filter((m) => m?.game);
     expect(lv.length).toBeGreaterThan(0);
-    expect(lv.every((m) => m.camera?.rule !== 'side' && !m.seats)).toBe(true);
+    expect(lv.every((m) => m.camera?.rule === 'side' && m.seats)).toBe(true);
   }, 300_000);
 });

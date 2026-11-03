@@ -250,7 +250,7 @@ function tick() {
   if (S.over) {
     const mine = ['a', 'b'].filter((side, i) => i < ctx.players);
     const won = ctx.players === 0 || S.winner === null || mine.includes(S.winner);
-    if (hosted) { post({ moj: PA.wire.outcome, envelope: { result: won ? 'success' : 'fail', events: [], stats: { pitch: { winner: S.winner, score: S.K.score }, contest: statCompact(statsNow()) } } }); phase = 'done'; }
+    if (hosted) { post({ moj: PA.wire.outcome, envelope: { contractVersion: PA.wire.version, result: won ? 'success' : 'fail', events: [], stats: { pitch: { winner: S.winner, score: S.K.score }, contest: statCompact(statsNow()) } } }); phase = 'done'; }
     else phase = 'over';
   }
 }

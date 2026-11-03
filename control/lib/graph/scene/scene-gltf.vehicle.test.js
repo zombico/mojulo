@@ -8,6 +8,11 @@ import { facesToGlb } from './scene-gltf.js';
 import { racerOf, racerSpec } from '../car-designer/roster.js';
 import { supercarFigure } from '../car-designer/supercar-figure.js';
 import { ARCHETYPES } from '../egocube/facets.js';
+import { loftFigure } from '../car-designer/race-families.js';
+import { FLEET } from '../roads/fleet.js';
+import { MILITARY_CLASSES } from '../car-designer/road-military.js';
+import { UNBUILT } from '../car-designer/sheet.js';
+import { validateBytes } from 'gltf-validator';
 
 function gltfJson(buf) {
   const jsonLen = buf.readUInt32LE(12);
@@ -38,4 +43,49 @@ describe('a race machine in the form render exports to GLB', () => {
     expect(out.animatedFigures).toContain('car');
     expect(out.triangleCount).toBeGreaterThan(0);
   });
+
+  it('a realistic loft carries its material slots: a primitive a slot, its normals, the paint clearcoated, the lamps lit', () => {
+    // (one class a body plan, found in code: a car's loft and a heavy class's own body)
+    for (const cls of [Object.keys(FLEET).find((c) => FLEET[c].kind === 'car'), Object.keys(FLEET).find((c) => FLEET[c].kind === 'bus')]) {
+      const fig = loftFigure({ class: cls, light: 'form' });
+      const { out, json } = exported(fig);
+      expect(out.triangleCount).toBeGreaterThan(0);
+      const named = (n) => json.materials.findIndex((m) => m.name === `form:${n}`);
+      for (const slot of ['paint', 'glass', 'rubber', 'alloy']) expect(named(slot), slot).toBeGreaterThanOrEqual(0);
+      const paint = json.materials[named('paint')];
+      expect(paint.extensions.KHR_materials_clearcoat.clearcoatFactor).toBeGreaterThan(0);
+      expect(json.extensionsUsed).toContain('KHR_materials_clearcoat');
+      expect(json.materials.some((m) => m.name?.startsWith('form:') && m.emissiveFactor)).toBe(true);
+      const body = json.meshes.find((m) => m.name === 'car:root');
+      expect(body.primitives.length).toBeGreaterThan(3);
+      for (const p of body.primitives) { expect(p.attributes.NORMAL).toBeDefined(); expect(json.materials[p.material].name).toMatch(/^form:/); }
+    }
+  });
+  it('a figure out of the form render keeps its one surface material', () => {
+    const { json } = exported(loftFigure({ class: Object.keys(FLEET).find((c) => FLEET[c].kind === 'car'), light: 'paint' }));
+    expect(json.materials.some((m) => m.name?.startsWith('form:'))).toBe(false);
+    expect(json.meshes.find((m) => m.name === 'car:root').primitives).toHaveLength(1);
+  });
+});
+
+// a field vehicle (road-military.js: each body the hull kit builds, in camo and worn) as the engines get it: the
+// Khronos validator finds no error and no warning, its camo and grime in its vertex colours, its slots its own
+describe('a field vehicle exports to a valid GLB', () => {
+  // (each body the sheet builds: one still waiting for its parts is not yet a figure)
+  for (const cls of Object.keys(MILITARY_CLASSES).filter((k) => !UNBUILT[k])) {
+    it(`the ${MILITARY_CLASSES[cls]} body`, async () => {
+      // (worn: an airside vehicle is kept clean unless asked)
+      const fig = loftFigure({ class: cls, seed: 3, light: 'form', livery: 'woodland', wear: 'used' });
+      const { out, json } = exported(fig);
+      const report = await validateBytes(new Uint8Array(out.bytes), { maxIssues: 50 });
+      expect(report.issues.numErrors, JSON.stringify(report.issues.messages.filter((m) => m.severity === 0))).toBe(0);
+      expect(report.issues.numWarnings).toBe(0);
+      const body = json.meshes.find((m) => m.name === 'car:root');
+      expect(body.primitives.every((p) => p.attributes.COLOR_0 !== undefined)).toBe(true);
+      for (const slot of ['milPaint', 'mud', 'worn', 'rubber']) expect(json.materials.some((m) => m.name === `form:${slot}`), slot).toBe(true);
+      // (a part that turns on its own, a tank's turret, is its own node, so an engine can traverse it)
+      const own = fig.bones.filter((b) => b.id === 'turret');
+      for (const b of own) expect(json.nodes.some((n) => n.name?.includes(b.id)), b.id).toBe(true);
+    }, 60000);
+  }
 });

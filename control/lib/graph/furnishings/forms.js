@@ -188,6 +188,40 @@ export const FURNITURE_STYLES = {
   'painted-dresser': {
     label: 'painted chest of drawers', kind: 'casework', forms: { front: 'drawers' }, finish: { board: 'mfc', paint: '#5d7a73' }, size: [915, 460, 860],
   },
+
+  // ── a town's furniture before the machine age (the fantasy skins: a town's interiors, era/stocking.js TOWN_STOCK) ──
+  // the same kinds and forms, in dark oak and walnut, heavy members, waxed and oiled; casework stained (its paint) the
+  // dark of old oak
+  'trestle-table': {
+    label: 'trestle table', kind: 'table', forms: { legs: 'block' }, finish: { timber: 'oak', wood: 'oil', tint: '#5b3d24' }, size: [2200, 850, 760],
+    over: { top: 55, leg: 95, apron: 130, overhang: 140 },
+    note: 'a long thick-planked top on heavy square legs under a deep apron: a hall\'s board',
+  },
+  'tavern-table': {
+    label: 'tavern table', kind: 'table', forms: { legs: 'turned' }, finish: { timber: 'oak', wood: 'wax', tint: '#6a4528' }, size: [1500, 900, 760],
+    over: { top: 45, leg: 80, apron: 110, overhang: 70 },
+    note: 'a square-ish board on stout turned legs, waxed dark by use',
+  },
+  settle: {
+    label: 'settle', kind: 'chair', forms: { legs: 'block' }, finish: { timber: 'oak', wood: 'oil', tint: '#5a3a22' }, size: [1700, 520, 1150],
+    note: 'a long seat with a tall panelled back, for two or three by a hearth',
+  },
+  'high-seat': {
+    label: 'high seat', kind: 'chair', forms: { legs: 'turned' }, finish: { timber: 'walnut', wood: 'wax', tint: '#3e2614' }, size: [720, 640, 1500],
+    note: 'a lord\'s or an elder\'s chair: a tall back on turned legs, dark walnut',
+  },
+  'shop-shelves': {
+    label: 'shop shelves', kind: 'casework', forms: { front: 'open' }, finish: { board: 'plywood', paint: '#6b4a2e' }, size: [1800, 420, 2000],
+    note: 'open shelves of stained boards for a shop\'s goods',
+  },
+  counter: {
+    label: 'shop counter', kind: 'casework', forms: { front: 'doors-over-drawer' }, finish: { board: 'plywood', paint: '#5a3c24' }, size: [2400, 700, 1000],
+    note: 'a long counter, drawers for the takings over cupboards, stained dark',
+  },
+  'iron-bound-chest': {
+    label: 'iron-bound chest', kind: 'casework', forms: { front: 'doors' }, finish: { board: 'plywood', paint: '#4a3220' }, size: [1000, 560, 620],
+    note: 'a low chest of dark boards, its lid and doors banded',
+  },
 };
 
 // ── resolving and locking ───────────────────────────────────────────────────────────────────────────────────────

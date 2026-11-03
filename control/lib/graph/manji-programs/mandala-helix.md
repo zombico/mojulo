@@ -56,7 +56,7 @@ independent per-pass modulations (one along an axis, one around it)
 are what give it volumetric character — same design rule as
 `tight-vortex`, but with one axis being translation instead of plane
 precession. See
-[waveform-physics-design.md](../polygonizer/waveform-physics-design.md)
+`waveform-physics-design.md`
 §5 ("rotation-axis count determines volumetric character").
 
 ## Use when
@@ -149,7 +149,7 @@ A double-helix DNA-like form (two strands, opposite spin):
 ## Provenance and influences
 
 The two-modulation design rule comes from
-[waveform-physics-design.md](../polygonizer/waveform-physics-design.md)
+`waveform-physics-design.md`
 §5: forms read as volumetric when two independent per-pass modulations
 combine. `tight-vortex` does this with two rotation axes; the helix
 does it with one rotation axis (phase) plus one translation axis
