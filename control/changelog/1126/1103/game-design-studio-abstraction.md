@@ -47,3 +47,12 @@ become chapters each department works alone, so the compile is one loop that mak
   KB with its pages, where the whole readout is 7.2 KB without any. A write outside the chapter is written and said
   (`outside`), never refused. Every part of the book is in exactly one chapter's view (tested), and every next move the
   `gameworld-next` card documents belongs to a chapter. The tools/list payload holds under its pin.
+- **A chapter's run** (`design_game({ ref, chapter, run: true })`, `chapters.js` `chapterSteps`). A department checks its
+  chapter without making the whole book. The run makes the chapter's own steps and every step their orders name: a
+  level's pilot, the foes and folk standing in it, a cast member's casting row, the hero the systems name. A step that
+  waits on approvals is made ahead of them and says so (`ahead`: the parts it did not wait for). It is made at its own ref
+  from its own order, so the build keeps it when its approvals come and the book has not moved, and remakes it when the
+  book has (tested: a gated book's levels made ahead, then approved and built, are kept, not remade). A level can be
+  checked, and its first frame read, before the characters are approved. The build is never a need (no game, no walks),
+  and the build chapter's run is the whole run. A chapter's run does not report the compiler's resonance gaps, which
+  belong to the whole run.

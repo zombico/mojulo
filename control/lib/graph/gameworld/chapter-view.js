@@ -52,6 +52,8 @@ const ADVICE = { authorship: 'intent', sameness: 'intent', questions: 'intent', 
 // where a chapter's parts are drawn: its bible (the character book's chapters in the character bible, the foes in the cast sheet)
 const BOOK = { direction: 'characterBible', hero: 'characterBible', motion: 'characterBible', actions: 'characterBible', adornment: 'characterBible', systems: 'characterBible', equipment: 'characterBible', feel: 'feelBook', foes: 'foeBook' };
 
+const also = (ran, c) => ran.filter((r) => (r.action === 'make' || r.action === 'remake') && chapterOfStep(r.key) !== c).map((r) => r.key);
+
 export function chapterView(full, world, id, { ran, pending, patched = [] } = {}) {
   const c = chapterById(id);
   if (!c) throw new Error(`design_game: chapter is one of ${CHAPTERS.map((x) => x.id).join(', ')}`);
@@ -88,7 +90,8 @@ export function chapterView(full, world, id, { ran, pending, patched = [] } = {}
     ...(Object.keys(advice).length ? { advice } : {}),
     ...sections,
     ...(Object.keys(made).length ? { made } : {}),
-    ...(ran ? { ran: mineRan, run: { steps: ran.length, made: ran.filter((r) => r.action === 'make' || r.action === 'remake').length, ...(pending?.length ? { pending: pending.length } : {}) } } : {}),
+    // (and what the run made for it in other chapters: the steps its orders name, a level's pilot, its foes)
+    ...(ran ? { ran: mineRan, run: { steps: ran.length, made: ran.filter((r) => r.action === 'make' || r.action === 'remake').length, ...(also(ran, c).length ? { also: also(ran, c) } : {}), ...(pending?.length ? { pending: pending.length } : {}) } } : {}),
     ...(outside.length ? { outside } : {}),
     ...(read ? { read: `${read}${anchor}` } : {}),
     // the whole book, one word a chapter: where the others stand

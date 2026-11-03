@@ -127,3 +127,33 @@ export function chapterBook(world, { stamps = [] } = {}) {
   }
   return out;
 }
+
+/**
+ * A chapter's run (design_game { ref, chapter, run: true }): the run's steps cut to the chapter's own and everything
+ * their orders name (a level's pilot, the foes and folk that stand in it, a cast member's casting row: a step whose ref
+ * an order carries), so a department proofs its chapter without making the whole book. A step that waits on approvals
+ * is made AHEAD of them: ready, with `ahead` the parts it did not wait for, at its own ref from its own order, so the
+ * build keeps it when its approvals come and the book has not moved, and remakes it when the book has. The build (the
+ * game, its walks) is never a need: the build chapter's run is the whole run.
+ */
+export function chapterSteps(steps, id) {
+  const c = chapterById(id);
+  if (!c) throw new Error(`chapter is one of ${CHAPTERS.map((x) => x.id).join(', ')}`);
+  if (id === 'build') return steps;
+  const build = chapterById('build');
+  const want = new Set(steps.filter((s) => chapterOfStep(s.key) === c).map((s) => s.key));
+  const text = new Map(steps.map((s) => [s.key, JSON.stringify(s.order ?? {})]));
+  for (let grew = true; grew;) {
+    grew = false;
+    for (const s of steps) {
+      if (want.has(s.key) || chapterOfStep(s.key) === build) continue;
+      const quoted = JSON.stringify(s.ref);
+      if ([...want].some((k) => text.get(k).includes(quoted))) { want.add(s.key); grew = true; }
+    }
+  }
+  return steps.filter((s) => want.has(s.key)).map((s) => {
+    if (s.ready) return s;
+    const { waiting = [], ...rest } = s;
+    return { ...rest, ready: true, ahead: waiting.map((w) => `${w.id} (${w.status})`) };
+  });
+}

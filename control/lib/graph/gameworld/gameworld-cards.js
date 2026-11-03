@@ -765,6 +765,7 @@ function nextCard() {
     '  wait       step `on` waits on those parts (their stamps in brackets).',
     '  chapters   (not a step) each chapter: department, state, `open` parts, what it `waits` on. Work one at a time,',
     '             upstream first: { ref, chapter } is its view (a department, or a subagent given only that and its card).',
+    '             With run: true it makes that chapter and what it names, ahead of approvals (`ahead`: tell the creator).',
     '  form       what the game it is asks and the world lacks (`asks`: for, field, by, says): a field `by: creator` is',
     '             theirs (the hero: ask who it is, never pick one), a `by: composer` field compose fills; run lays it after.',
     '  feel       no feel written: `suggest` is the template its brief, shooter pole or genre points at (`why`, `from`):',

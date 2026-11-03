@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { CHAPTERS, DEPARTMENTS, chapterById, chaptersOfPath, chapterOfPart, chapterOfStep, chapterOfCard, chapterBook } from './chapters.js';
+import { CHAPTERS, DEPARTMENTS, chapterById, chaptersOfPath, chapterOfPart, chapterOfStep, chapterOfCard, chapterBook, chapterSteps } from './chapters.js';
 import { runSteps, readMade, reviewParts, reviewState, characterState, foeParts, foeState, castable, MEADOWMARK, MEADOWMARK_HERO, CHARACTER_PART_IDS, CAST_PART, FOE_CAST_PART } from './index.js';
 import { GAMEWORLD_KEYS } from './world.js';
 import { CHARACTER_BOOK_KEYS, CHARACTER_HERO_KEYS } from './characters.js';
@@ -127,5 +127,43 @@ describe('the chapter book', () => {
   it('pure: the same world, the same book', () => {
     const s = stampsOf(MEADOWMARK_HERO);
     expect(chapterBook(MEADOWMARK_HERO, { stamps: s })).toEqual(chapterBook(structuredClone(MEADOWMARK_HERO), { stamps: structuredClone(s) }));
+  });
+});
+
+describe('a chapter\'s run', () => {
+  const S = steps.hero;   // the gated book, nothing reviewed: every step after the hero waits
+  const keys = (xs) => xs.map((x) => x.key);
+
+  it('is its own steps and every step their orders name, made ahead of the approvals they wait on', () => {
+    // the hero's page: the hero alone (it waits on nothing)
+    expect(keys(chapterSteps(S, 'hero'))).toEqual(['hero']);
+    for (const id of ['levels', 'systems', 'equipment']) {
+      const X = chapterSteps(S, id);
+      // its own steps, all of them
+      expect(keys(X.filter((x) => chapterOfStep(x.key).id === id)), id).toEqual(keys(S.filter((x) => chapterOfStep(x.key).id === id)));
+      // and every step whose ref one of its orders names (a level's pilot, the systems' hero), none other
+      const named = (x) => X.some((y) => y.key !== x.key && JSON.stringify(y.order).includes(JSON.stringify(x.ref)));
+      for (const x of X.filter((y) => chapterOfStep(y.key).id !== id)) expect(named(x), `${id}: ${x.key}`).toBe(true);
+      for (const x of S.filter((y) => !X.some((z) => z.key === y.key) && chapterOfStep(y.key).id !== 'build')) expect(named(x), `${id} leaves ${x.key}`).toBe(false);
+      // never the build's (the game, its walks), every step ready, a waiting one saying what it did not wait for
+      expect(X.some((x) => chapterOfStep(x.key).id === 'build'), id).toBe(false);
+      for (const x of X) {
+        expect(x.ready, x.key).toBe(true);
+        expect(x.waiting, x.key).toBeUndefined();
+        const was = S.find((y) => y.key === x.key);
+        if (!was.ready) expect(x.ahead, x.key).toEqual(was.waiting.map((w) => `${w.id} (${w.status})`));
+        // its own order and print: the build keeps it when its approvals come and the book has not moved
+        expect(x.print, x.key).toBe(was.print);
+      }
+    }
+    // the levels are piloted by the equipped hero: it is made with them
+    expect(keys(chapterSteps(S, 'levels'))).toContain('hero-equipped');
+  });
+
+  it('the build\'s run is the whole run; a chapter the book does not have is refused', () => {
+    expect(chapterSteps(S, 'build')).toBe(S);
+    expect(() => chapterSteps(S, 'lighting')).toThrow(/chapter is one of/);
+    // a chapter with no steps in this book runs nothing
+    expect(chapterSteps(S, 'story')).toEqual([]);
   });
 });

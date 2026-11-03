@@ -36,7 +36,7 @@ import { sameness, grounding, authorship, compareWorlds, REFERENCES } from '@/li
 import { intentReport, cubeOfWorld } from '@/lib/graph/gameworld/intent.js';
 import { compilerGaps, formGaps } from '@/lib/graph/gameworld/resonance.js';
 import { AUDIT_STEP } from '@/lib/graph/gameworld/runner.js';
-import { chapterBook, chapterById, CHAPTERS } from '@/lib/graph/gameworld/chapters.js';
+import { chapterBook, chapterById, chapterSteps, CHAPTERS } from '@/lib/graph/gameworld/chapters.js';
 import { chapterView } from '@/lib/graph/gameworld/chapter-view.js';
 import { feelReport } from '@/lib/graph/gameworld/feel/lower.js';
 import { feelSuggestion } from '@/lib/graph/gameworld/feel/suggest.js';
@@ -234,7 +234,7 @@ async function auditedPrint(step, browser) {
 
 /** Run the world stored at `ref`: every ready step made, remade or kept, until the budget is spent;
  * → { world, ran, pending? } (world with its new record; pending the keys of the steps it left for the next run). */
-async function runWorld(ref, world, { force = false, budgetMs = runBudgetMs(), clock = Date.now } = {}) {
+async function runWorld(ref, world, { force = false, budgetMs = runBudgetMs(), clock = Date.now, chapter = null } = {}) {
   let W = world;
   const made = { ...(W.made ?? {}) }, ran = [], pending = [];
   const t0 = clock();
@@ -270,7 +270,8 @@ async function runWorld(ref, world, { force = false, budgetMs = runBudgetMs(), c
     const advises = (step.laws ?? []).filter((l) => !l.holds).map((l) => `${l.concern}: ${l.says}`);
     // a sport's machine gate when it holds (who plays, the arena, the one style): the agent's to tell the player
     const checked = (step.laws ?? []).filter((l) => l.holds && SPORT_CHECKS.includes(l.law)).map((l) => `${l.concern}: ${l.says}`);
-    ran.push({ key: step.key, ref: step.ref, action, ...(step.waiting ? { waiting: step.waiting.map((w) => `${w.id} (${w.status})`) } : {}), ...(advises.length ? { advises } : {}), ...(checked.length ? { checked } : {}) });
+    // (a chapter's run makes a step ahead of the approvals it waits on: chapters.js chapterSteps; said with what it skipped)
+    ran.push({ key: step.key, ref: step.ref, action, ...(step.waiting ? { waiting: step.waiting.map((w) => `${w.id} (${w.status})`) } : {}), ...(step.ahead?.length && (action === 'make' || action === 'remake') ? { ahead: step.ahead } : {}), ...(advises.length ? { advises } : {}), ...(checked.length ? { checked } : {}) });
     if (action !== 'make' && action !== 'remake') return;
     moved = true;
     if (step.audit) {
@@ -284,15 +285,18 @@ async function runWorld(ref, world, { force = false, budgetMs = runBudgetMs(), c
     made[step.key] = { ref: step.ref, order: step.print, stored: storedPrint(step.ref) };
     if (pin && W.characters) W = withPin(W, pin);   // a quick game's hero has no book to pin it in
   };
+  // a chapter's run: its own steps and what they name, made ahead of their approvals (chapters.js chapterSteps); the
+  // build's is the whole run
+  const scoped = (steps) => (chapter ? chapterSteps(steps, chapter) : steps);
   // the hero first: the systems and the gear wait on its pinned base
   const heroRef = heroRefOf(W, ref);
-  const first = runSteps(W, { ref, lookup: heroLookup(heroRef) });
+  const first = scoped(runSteps(W, { ref, lookup: heroLookup(heroRef) }));
   if (!first.length) return { world: W, ran };
   let rest;
   try {
     await act(first[0]);
     // the rest read the record as this run left the hero (a hero just made or remade is not an edit by hand)
-    rest = runSteps({ ...W, made }, { ref, lookup: heroLookup(heroRef) }).slice(1);
+    rest = scoped(runSteps({ ...W, made }, { ref, lookup: heroLookup(heroRef) })).filter((s) => s.key !== first[0].key);
     for (const step of rest) await act(step);
   } catch (err) {
     // a step that throws partway: the steps made before it are rows now, so their record is kept with the world
@@ -304,8 +308,9 @@ async function runWorld(ref, world, { force = false, budgetMs = runBudgetMs(), c
     throw err;
   }
   // the compiler's own check (gameworld/resonance.js): what the cube's combined values open that these steps did not
-  // lay, or laid and does not hold; reported with the run, never refused (the audits lay nothing: left out)
-  const gaps = compilerGaps(cubeOfWorld(W).cube, [first[0], ...rest].filter((s) => !s.audit).map((s) => s.order), W);
+  // lay, or laid and does not hold; reported with the run, never refused (the audits lay nothing: left out). A chapter's
+  // run lays part of the book, so it is the whole run's to say
+  const gaps = chapter && chapter !== 'build' ? [] : compilerGaps(cubeOfWorld(W).cube, [first[0], ...rest].filter((s) => !s.audit).map((s) => s.order), W);
   return { world: Object.keys(made).length ? { ...W, made } : W, ran, ...(pending.length ? { pending } : {}), ...(gaps.length ? { resonance: gaps } : {}) };
 }
 
@@ -536,7 +541,7 @@ async function afterWrite(ref, { approve, revise, note, run, force, compare, bef
   let ran, resonance, pending;
   if (run) {
     readGameworld(W);
-    const out = await runWorld(ref, W, { force: !!force });
+    const out = await runWorld(ref, W, { force: !!force, chapter: chapter ?? null });
     ran = out.ran;
     resonance = out.resonance;
     pending = out.pending;
