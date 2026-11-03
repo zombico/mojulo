@@ -21,7 +21,7 @@ import { CRAFT_BUILDERS } from './craft-parts.js';
 import { lookCard, lookSwap } from './drone-looks.js';
 import { CRAFT_KINDS, CRAFT_ODM, CRAFT_REALMS } from './craft-odm.js';
 import { CRAFT_ARCHETYPES, CRAFT_ROLES } from './craft-archetypes.js';
-import { hullFloat } from './boat-parts.js';
+import { hullFloat, hullEnvelope } from './boat-parts.js';
 
 export { CRAFT_ARCHETYPES, CRAFT_COLOR_ROLES, CRAFT_KINDS, CRAFT_ODM, CRAFT_PALETTES, CRAFT_REALMS, CRAFT_ROLES };
 
@@ -264,7 +264,7 @@ function toManifest(row, order, { pitch, lift, title }) {
  * its wings up). Returns `{ manifest, readout }`: the readout measures the craft as built. A boat's readout says where it
  * floats (`afloat`): the waterline its weight sets, its parts' mass and its payload displaced by its hull
  * (boat-parts.js hullFloat) in `water` 'fresh' (default) or 'salt'; `waterline` is that line's height in the manifest's
- * frame, where a level lays its water.
+ * frame, where a level lays its water; a submarine's (a round hull) also its `ballast`, the water it floods to dive.
  */
 export function assembleCraft(archetype, { palette, colors = {}, swap: swapIn = {}, attitude = 'ground', fold, pose = {}, finish = true, title, made = false, look, water = 'fresh' } = {}) {
   const row = archetypeRow(archetype);
@@ -308,7 +308,10 @@ export function assembleCraft(archetype, { palette, colors = {}, swap: swapIn = 
     if (!WATER[water]) throw new Error(`craft water must be ${Object.keys(WATER).join(' or ')}; received ${JSON.stringify(water)}`);
     const kg = order.reduce((s, p) => s + p.recipe.garage.mass, 0) + (row.payload || 0);
     const f = hullFloat(CRAFT_ODM[hull.recipe.garage.sku], kg, { rho: WATER[water] });
-    afloat = { water, displacement: Math.round(kg), draft: f.draft, waterline: round3(rotX(pitch, hull.at)[2] + lift + f.draft), freeboard: f.freeboard, volume: f.volume, ...(f.swamped ? { swamped: true } : {}) };
+    // (a round hull dives: `ballast` the water it floods to weigh what its whole envelope displaces)
+    const HR = CRAFT_ODM[hull.recipe.garage.sku], B = HR.build.family === 'round' ? HR.build.body : null;
+    const ballast = B ? Math.round(hullEnvelope(HR) * WATER[water] - kg) : null;
+    afloat = { water, displacement: Math.round(kg), draft: f.draft, waterline: round3(rotX(pitch, hull.at)[2] + lift + f.draft), freeboard: f.freeboard, volume: f.volume, ...(f.swamped ? { swamped: true } : {}), ...(B ? { ballast } : {}) };
   }
   // where each wheel or pad meets the ground, in the craft's world frame (a fly rule's taxi points)
   const gear = order

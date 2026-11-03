@@ -29,6 +29,7 @@ import { DEG, lathe, loftWorld, sweep, extrudeWorld, section, planeUV, round3, t
 import { HELM_BUILDERS } from './boat-helm.js';
 import { MIL_BUILDERS } from './boat-mil.js';
 import { CARRIER_BUILDERS } from './boat-carrier.js';
+import { buildRoundHull, bodyRadius } from './boat-sub.js';
 
 const r3v = (v) => v.map(round3);
 const clamp = (v, a, b) => Math.max(a, Math.min(b, Number.isFinite(v) ? v : 0));
@@ -156,6 +157,11 @@ function bottomAt(P, x) {
 
 /** The outer skin's section at s, clipped by the transom's face: [x, z] pairs, starboard sheer → keel → port sheer. */
 export function hullSection(row, s) {
+  // (a round hull's: the circle of its radius there about its axis, 24 points)
+  if (row.build.family === 'round') {
+    const r = bodyRadius(row, s, curveAt), A = row.build.body.axis;
+    return Array.from({ length: 24 }, (_, k) => { const q = Math.PI / 2 - (2 * Math.PI * k) / 24; return [r * Math.cos(q), A + r * Math.sin(q)]; });
+  }
   const H = hullLines(row), st = H.at(s);
   return clipUp(outerLine(st, row.build.flare), H.plane(0)(st.y));
 }
@@ -195,12 +201,21 @@ export function hullVolume(row, z, { samples = 160 } = {}) {
   return V;
 }
 
+/** A round hull's whole envelope, m³: what it displaces dived (its sections up to the top of its body). */
+export function hullEnvelope(row) {
+  const B = row.build.body;
+  let r = 0;
+  for (let k = 0; k <= 400; k += 1) r = Math.max(r, bodyRadius(row, k / 400, curveAt));
+  return hullVolume(row, B.axis + r + 0.01);
+}
+
 /** The waterline a hull floats at carrying kg in all (its own mass included): bisected on its displaced volume. `rho`
  *  the water's density (1000 fresh, 1025 the sea). Freeboard is the least height of the sheer over the waterline. */
 export function hullFloat(row, kg, { rho = 1000 } = {}) {
-  const H = hullLines(row), need = kg / rho;
-  // (a motor well's notch is the lowest the water can come in)
-  const sheerMin = Math.min(...Array.from({ length: 41 }, (_, k) => H.at(k / 40).sheer), row.build.well?.notch ?? Infinity);
+  const need = kg / rho;
+  // (a motor well's notch is the lowest the water can come in; a round hull's, its casing's deck)
+  const sheerMin = row.build.family === 'round' ? row.build.body.axis + row.build.casing.top
+    : (() => { const H = hullLines(row); return Math.min(...Array.from({ length: 41 }, (_, k) => H.at(k / 40).sheer), row.build.well?.notch ?? Infinity); })();
   if (hullVolume(row, sheerMin) < need) return { draft: round3(sheerMin), volume: round3(hullVolume(row, sheerMin)), freeboard: 0, swamped: true };
   let lo = 0, hi = sheerMin;
   for (let k = 0; k < 40; k += 1) { const m = (lo + hi) / 2; if (hullVolume(row, m) < need) lo = m; else hi = m; }
@@ -212,6 +227,7 @@ export function hullFloat(row, kg, { rho = 1000 } = {}) {
 
 function buildHull(row, C, opts = {}) {
   const b = row.build;
+  if (b.family === 'round') return buildRoundHull(row, C, opts, curveAt);
   if (b.family !== 'vee') throw new Error(`Unknown boat-hull family '${b.family}'`);
   // (a moulded gunwale cap, `cap` wide: the liner's top pulled inboard, level with the sheer, never past half the breadth)
   const capped = (I, st) => {

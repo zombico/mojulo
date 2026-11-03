@@ -24,6 +24,7 @@ export const BOAT_ROLES = {
   patrol: { label: 'patrol boat', mission: 'keep a river, a coast or a harbour: armoured, armed, on station for hours', realms: ['water'] },
   escort: { label: 'escort', mission: 'screen a fleet at sea: its guns and launch cells against air and surface, its helicopter against what is under it', realms: ['water'] },
   flattop: { label: 'aircraft carrier', mission: 'take an air wing to sea: launch it, bring it back aboard, strike it below to its hangar', realms: ['water'] },
+  submarine: { label: 'submarine', mission: 'go unseen under the sea: hunt what sails and what dives, watch a coast, slip in a team', realms: ['water'] },
   landing: { label: 'landing craft', mission: 'put vehicles and troops ashore over a beach: a ramp at its bow, a well deck, a shallow draft', realms: ['water'] },
 };
 
@@ -217,6 +218,17 @@ export const BOAT_ARCHETYPES = {
       { id: 'ciwsBow', sku: 'mount-ciws', at: 'deck.sponson_3' },
       { id: 'launcherPort', sku: 'vls-cells-8', at: 'deck.sponson_1' },
       { id: 'launcherStbd', sku: 'vls-cells-8', at: 'deck.sponson_4' },
+    ],
+  },
+  attackSub: {
+    // (black, no marks: a submarine shows nothing)
+    realm: 'water', role: 'submarine', palette: 'subBlack', class: 'attack submarine', label: '110 m attack submarine', classOf: '110 m nuclear attack submarine class (single screw, its torpedoes modelled, never fired)',
+    // (its crew, its stores and its weapons)
+    payload: 700000,
+    reference: { span: 10.5, length: 111.4, height: 17.25, mtow: 6.6e6, draft: 8.42 },
+    bom: { 'boat-hull': 1 },
+    layout: [
+      { id: 'hull', sku: 'hull-sub-attack-110' },
     ],
   },
 };

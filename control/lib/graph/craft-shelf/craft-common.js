@@ -43,6 +43,8 @@ export const CRAFT_PALETTES = {
   rhibMilitary: { paint: '#545b61', trim: '#2a2d30', glass: '#1c2329', rubber: '#17181a', chrome: '#80878d', light: '#e94b3c' },
   // a naval boat's haze grey, its fabric and trim a darker grey, smoked glass (the naval look's: boat-looks.js)
   navalHaze: { paint: '#8f969c', trim: '#5b6268', glass: '#28313a', rubber: '#1c1d1f', chrome: '#8a9197', light: '#ff8a3c' },
+  // a submarine's black (its anechoic coating), its fittings a shade off it, its masts' glass dark
+  subBlack: { paint: '#24272a', trim: '#1a1c1e', glass: '#202a30', rubber: '#141516', chrome: '#4a4f53', light: '#ff8a3c' },
   // a riverine patrol boat's olive drab, its stripe and fittings a darker olive, dull aluminium
   riverineOlive: { paint: '#56604a', trim: '#363c2f', glass: '#26302c', rubber: '#18191a', chrome: '#80867a', light: '#ff8a3c' },
   // a landing craft's haze grey steel, its dark fittings, its deck's non-slip a shade darker

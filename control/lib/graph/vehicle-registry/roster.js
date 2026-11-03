@@ -244,6 +244,8 @@ export const VEHICLES = {
   // ('carrier' alone is the field's carrier-borne fighters' role, never this ship's word)
   'aircraft-carrier': row('aircraft carrier', ['supercarrier', 'flattop', 'fleet carrier', 'carrier ship', 'attack carrier', 'navy carrier'], 'water', 'armour', M, FIGHT.concat('parked'),
     { craft: 'aircraftCarrier', tech: 'ship' }),
+  submarine: row('submarine', ['attack submarine', 'nuclear submarine', 'hunter-killer submarine', 'hunter killer', 'sub', 'fleet submarine'], 'water', 'armour', M, FIGHT.concat('parked'),
+    { craft: 'attackSub', tech: 'ship' }),
   ship: row('ship', ['steamship', 'ferry', 'freighter', 'warship', 'galley', 'longship'], 'water', 'transport', ['myth', 'modern'], ['driven', 'watched', 'crewed'],
     { tech: 'ship' }),
   'sailing-ship': row('sailing ship', ['galleon', 'frigate', 'schooner', 'clipper', 'sloop', 'tall ship', 'junk', 'dhow'], 'water', 'transport', ['rustic', 'myth'], ['driven', 'watched', 'crewed'],

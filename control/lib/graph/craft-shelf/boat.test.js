@@ -14,7 +14,8 @@
 // naval gun, its sea boat and davit, its stock livery. A destroyer: its stepped upperworks and mast, its main gun, close-in
 // weapons and launch cells, its flight deck and hangar, its screws grown to a ship's, its sea boats. An aircraft carrier:
 // its flight deck over its hull (its angled deck, catapults and deflectors, wires, lifts, sponsons), its island, its four
-// screws, the field's carrier aircraft its deck carries. In the military surface: a look card any boat wears,
+// screws, the field's carrier aircraft its deck carries. A submarine: its round hull floated by its circles and its
+// ballast, its sail, masts and planes, its stern's flaps a cross or an X, its screw, its tubes. In the military surface: a look card any boat wears,
 // its number or registration on its bows, its wear. The cases are chosen from the shelf in code.
 import { describe, it, expect } from 'vitest';
 import { assembleCraft, resolveCraftPart, CRAFT_ODM, CRAFT_ARCHETYPES, CRAFT_ROLES, craftRoleAnalogues } from './index.js';
@@ -23,7 +24,7 @@ import { BOAT_ROLES } from './boat-archetypes.js';
 import { craftForm } from './craft-form.js';
 import { lookCard } from './drone-looks.js';
 import { CRAFT_PALETTES } from './craft-common.js';
-import { hullLines, hullSection, hullVolume, hullFloat, curveAt } from './boat-parts.js';
+import { hullLines, hullSection, hullVolume, hullFloat, hullEnvelope, curveAt, BOAT_BUILDERS } from './boat-parts.js';
 import { lowerObjectFaces } from '../worlds/workbench.js';
 import { resolveAssemblerPlacements } from '../worlds/workbench-assembler.js';
 import { resolveVehicle, handlesOf, VEHICLES } from '../vehicle-registry/roster.js';
@@ -711,6 +712,88 @@ describe('an aircraft carrier', () => {
     expect(readout.afloat.displacement).toBe(readout.partsMass + A[CV].payload);
     expect(handlesOf(resolveVehicle('flattop').id).craft).toEqual([CV]);
     expect(VEHICLES[resolveVehicle('aircraft carrier').id].role).toBe('armour');
+  });
+});
+
+describe('a submarine', () => {
+  // (a boat whose hull is a body of revolution)
+  const SS = Object.keys(A).find((k) => A[k].realm === 'water' && CRAFT_ODM[A[k].layout[0].sku].build.family === 'round');
+  const { manifest, readout } = assembleCraft(SS), hull = manifest.items[0], HR = CRAFT_ODM[hull.source.garage.sku], B = HR.build, L = HR.dims.length;
+  const part = (src, re) => bounds(lowerObjectFaces({ ...src, lofts: (src.lofts || []).filter((l) => re.test(l.id)), extrudes: (src.extrudes || []).filter((l) => re.test(l.id)), lathes: (src.lathes || []).filter((l) => re.test(l.id)), sweeps: [] }));
+  const build = (row, pose) => BOAT_BUILDERS['boat-hull'](row, CRAFT_PALETTES[A[SS].palette], { pose });
+  const R = Math.max(...B.body.radius.map(([, r]) => r));
+  it('its hull a body of revolution: its sections circles about its axis, its envelope its length and diameter', () => {
+    const h = part(hull.source, /^hull$/);
+    expect(h.hi[1] - h.lo[1]).toBeCloseTo(L, 1);
+    expect(h.hi[0] - h.lo[0]).toBeCloseTo(2 * R, 0);
+    expect(h.lo[2]).toBeCloseTo(B.body.axis - R, 0);
+    for (const s of [0.2, 0.5, 0.9]) {
+      const sec = hullSection(HR, s), r = Math.hypot(sec[0][0], sec[0][1] - B.body.axis);
+      for (const [x, z] of sec) expect(Math.hypot(x, z - B.body.axis)).toBeCloseTo(r, 6);
+      expect(r).toBeCloseTo(curveAt(B.body.radius, s), 6);
+    }
+    // (its displacement full: a cylinder's at its middle, less where it narrows to its ends)
+    const V = hullEnvelope(HR);
+    expect(V).toBeLessThan(Math.PI * R * R * L);
+    expect(V).toBeGreaterThan(0.7 * Math.PI * R * R * L);
+  });
+  it('it floats surfaced, its casing above the water, and floods its ballast to dive; a surface boat has no ballast', () => {
+    const f = readout.afloat;
+    expect(f.freeboard).toBeGreaterThan(0);
+    expect(f.draft).toBeLessThan(B.body.axis + B.casing.top);
+    expect(f.ballast).toBe(Math.round(hullEnvelope(HR) * 1000 - f.displacement));
+    expect(hullVolume(HR, B.body.axis + R + 1) - hullEnvelope(HR)).toBeLessThan(1e-6);
+    expect(f.ballast / (f.ballast + f.displacement)).toBeGreaterThan(0.05);
+    expect(f.ballast / (f.ballast + f.displacement)).toBeLessThan(0.25);
+    expect(assembleCraft(BOAT).readout.afloat).not.toHaveProperty('ballast');
+  });
+  it('its sail on the casing, its masts housed in it and raised by the pose; its planes turn about their span', () => {
+    const s = part(hull.source, /^sail$/), top = B.body.axis + B.casing.top;
+    expect(s.hi[2]).toBeCloseTo(top + B.sail.height, 1);
+    expect(s.hi[1] - s.lo[1]).toBeCloseTo(B.sail.chord, 0);
+    const up = build(HR, { masts: 1 });
+    for (const [k, M] of B.sail.masts.entries()) {
+      const a = part(hull.source, new RegExp(`^mast_${k}$`)), b = part(up, new RegExp(`^mast_${k}$`));
+      expect(a.hi[2] - s.hi[2]).toBeLessThan(0.4);
+      expect(b.hi[2] - a.hi[2]).toBeCloseTo(M.height, 2);
+      expect(a.lo[1]).toBeGreaterThan(s.lo[1]);
+      expect(a.hi[1]).toBeLessThan(s.hi[1]);
+    }
+    const p0 = part(hull.source, /^sail_plane_r$/), p1 = part(build(HR, { planes: 1 }), /^sail_plane_r$/);
+    expect(p1.hi[2] - p1.lo[2]).toBeGreaterThan(p0.hi[2] - p0.lo[2] + 0.3);
+    expect(up.joints.map((j) => j.control).sort()).toEqual(['masts', 'planes', 'yaw']);
+  });
+  it('its stern\'s four fins, their flaps all moving their trailing edges one way: a cross\'s rudders and planes, an X\'s each', () => {
+    for (const form of ['+', 'x']) {
+      const row = { ...HR, build: { ...B, stern: { ...B.stern, form } } }, rest = build(row, {}), yawed = build(row, { yaw: 1 }), risen = build(row, { planes: 1 });
+      const tail = (src, k) => { const b = part(src, new RegExp(`^stern_flap_${k}$`)); return [(b.lo[0] + b.hi[0]) / 2, (b.lo[2] + b.hi[2]) / 2]; };
+      const dx = [0, 1, 2, 3].map((k) => tail(yawed, k)[0] - tail(rest, k)[0]), dz = [0, 1, 2, 3].map((k) => tail(risen, k)[1] - tail(rest, k)[1]);
+      const moved = (d) => d.filter((v) => Math.abs(v) > 0.05);
+      expect(moved(dx).length, form).toBe(form === 'x' ? 4 : 2);
+      expect(new Set(moved(dx).map(Math.sign)).size, form).toBe(1);
+      expect(moved(dz).length, form).toBe(form === 'x' ? 4 : 2);
+      expect(new Set(moved(dz).map(Math.sign)).size, form).toBe(1);
+    }
+  });
+  it('its screw behind its stern, its blades inside its diameter, turning with the pose; its tubes\' doors on its bow, shut', () => {
+    const blades = hull.source.lofts.filter((l) => /^screw_blade_/.test(l.id));
+    expect(blades.length).toBe(B.screw.blades);
+    const sc = part(hull.source, /^screw_blade_/);
+    expect(sc.hi[1]).toBeLessThan(-L / 2 + 0.5);
+    // (skewed, its tips set in: nothing past its diameter but the smoothing between its sections)
+    expect(Math.max(sc.hi[0], -sc.lo[0], sc.hi[2] - B.body.axis, B.body.axis - sc.lo[2])).toBeLessThanOrEqual(B.screw.diameter / 2 + 0.1);
+    expect(Math.max(sc.hi[0], -sc.lo[0])).toBeGreaterThan(B.screw.diameter / 2 * 0.85);
+    const a = part(hull.source, /^screw_blade_0$/), b = part(build(HR, { prop: 30 }), /^screw_blade_0$/);
+    expect(Math.abs(a.hi[2] - b.hi[2])).toBeGreaterThan(0.3);
+    const doors = hull.source.extrudes.filter((e) => /^tube_door_/.test(e.id));
+    expect(doors.length).toBe(2 * B.tubes.count);
+    const d = part(hull.source, /^tube_door_/);
+    expect(d.lo[1]).toBeGreaterThan(L * 0.4);
+    expect(d.hi[2]).toBeLessThan(B.body.axis);
+  });
+  it('on the roster in the field\'s armour role by the words people say', () => {
+    expect(handlesOf(resolveVehicle('submarine').id).craft).toEqual([SS]);
+    expect(VEHICLES[resolveVehicle('attack submarine').id].role).toBe('armour');
   });
 });
 

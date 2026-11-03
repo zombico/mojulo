@@ -60,7 +60,8 @@
  *                  places beside the console, their tops' and lean), its hardtop (`height` over the sole, `over` its front
  *                  and back, `thickness`), its front `brace`, `rods` rod holders. Points: `mount`
  *
- * Hull families: 'vee' (a chine between the bottom and the side: a V-bottom by its deadrise, a flat bottom when the
+ * Hull families: 'round' (a submarine's body of revolution, its casing, sail, stern planes and screw: boat-sub.js's head says
+ * what it carries) and 'vee' (a chine between the bottom and the side: a V-bottom by its deadrise, a flat bottom when the
  * chine is at the keel's height). Its bow: 'stem' (it comes to a stem) or 'square' (a jon boat's: the bottom's rocker
  * meets a small transom at the bow, its rail across it). A hull may also carry a `sole` (a floor laid flat across the
  * bottom at its height, the liner clipped to it), a `collar` (a RIB's tube round the sheer: its radius, how far it sits
@@ -457,6 +458,29 @@ export const BOAT_ODM = {
       shafts: { spacing: 22, at: 0.2, inner: { spacing: 9, at: 0.24 } },
       points: { flightDeck: [0.5, 0, 'deck'] },
       fittings: {},
+    },
+  },
+  // ===== a submarine's hull ===================================================================
+  'hull-sub-attack-110': {
+    kind: 'boat-hull', realm: 'water', label: '110 m attack submarine hull', classOf: '110 m nuclear attack submarine class (single screw)',
+    aliases: ['submarine hull', 'pressure hull'],
+    // (its diameter its beam and its depth)
+    dims: { length: 110, beam: 10.4, depth: 10.4 }, mass: 5900000, mount: 'keel',
+    perf: { persons: 135, maxPower: 30000 },
+    build: {
+      family: 'round',
+      // (its radius from the stern's cone through its parallel middle to its rounded bow; its axis above its keel)
+      body: { axis: 5.2, radius: [[0, 0.55], [0.03, 1.15], [0.1, 2.7], [0.2, 4.4], [0.3, 5.1], [0.36, 5.2], [0.84, 5.2], [0.92, 4.85], [0.97, 3.5], [0.995, 1.6], [1, 0]] },
+      casing: { from: 0.22, to: 0.93, width: 3.4, top: 5.5, hatches: [0.3, 0.55, 0.88] },
+      tubes: { at: 0.955, count: 2 },
+      sail: {
+        at: 0.72, chord: 10, thickness: 2.4, height: 6.2, taper: 0.9,
+        planes: { at: 0.3, height: 0.62, span: 3.6, chord: 2.6, throw: 20 },
+        // (its periscopes forward, its radar and its communications masts aft of them)
+        masts: [{ at: 0.2, height: 4.5, radius: 0.2, head: 0.26 }, { at: 0.35, height: 4.0, radius: 0.18, head: 0.24 }, { at: 0.55, x: 0.4, height: 3.2, radius: 0.3 }, { at: 0.7, x: -0.4, height: 3.6, radius: 0.22 }],
+      },
+      stern: { form: '+', at: 0.11, span: 3.4, chord: 5.0, flap: 0.4, throw: 25 },
+      screw: { blades: 7, diameter: 6.4, skew: 0.5, pitch: 1.0 },
     },
   },
   // ===== a 20 hp tiller outboard, short shaft ==================================================

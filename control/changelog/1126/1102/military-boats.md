@@ -159,3 +159,23 @@ Every weapon is modelled, never fired.
     weapons on sponsons outboard of the hull; four screws in two mirrored pairs; the field's carrier aircraft on its
     spots, a ship with no flight deck carrying none; its weight its waterline; its row in the registry. The flight deck's
     builder path is pinned, and no existing pin moved. The wear's salt and chips are laid on a flight deck too.
+- **The submarine** (`attackSub`): a generic 110 m nuclear attack submarine in black, single screw, the registry's
+  `submarine` row (attack submarine, nuclear submarine, hunter killer …) in the field's `armour` role and a new craft
+  role, `submarine`. Its hull is a new family:
+  - **`boat-hull`'s `round`** (`craft-shelf/boat-sub.js`): a body of revolution about its axis from its radius along its
+    length (its stern's cone, its parallel middle, its rounded bow); its casing along its top with its hatches; the
+    torpedo tubes' doors on its bow below the axis, shut; a row of missile hatches for a hull that carries them; its sail
+    on the casing with its fairwater planes (`pose.planes`) and its masts housed in it (`pose.masts` raises them); its
+    stern's four fins as a cross or an X, each a fixed fin and a moving flap, every flap turned by its share of the
+    rudder (`pose.yaw`) and the rise (`pose.planes`) so all their trailing edges move one way; its skewed seven-bladed
+    screw (`pose.prop`), its tips set in so no part of a blade passes its diameter. Modelled, never fired.
+  - **Its hydrostatics:** a round hull's section is the circle of its radius at each station, so it floats by the same
+    sections every hull floats by; its freeboard is its casing's deck over the water, and its readout's `afloat.ballast`
+    is the water it floods to dive (its whole envelope less its weight: boat-parts.js `hullEnvelope`). A surface boat's
+    readout carries no ballast and is unchanged.
+  - It floats 6,600 t surfaced at an 8.4 m draft with 2.3 m of casing above the water, and floods 884 t to dive.
+  - Held: its sections circles about its axis, its envelope its length and diameter; surfaced with its casing dry, its
+    ballast its envelope less its weight, a surface boat with none; the sail on the casing, its masts housed and raised
+    by their heights, its planes turning; a cross's and an X's flaps each moving their trailing edges one way for the
+    rudder and the rise; the screw behind the stern inside its diameter and turning; the tubes' doors on the bow; its
+    row in the registry. The round hull's builder path is pinned, and no existing pin moved.

@@ -19,7 +19,7 @@
  *   - The boat parts joined the shelf (boat-odm.js): their builder paths pinned; no existing pin moved. The centre
  *     console's (the remote outboard, the console, the seat) pinned when they joined, and the T-top's and the bucket seat's; the military boats' (the jockey seat, the pintle gun, the radar arch; the waterjet, the
  *     pilothouse, the gun tub; the bow ramp, the shaft drive; the bridge, the naval gun, the davit; the destroyer's
- *     superstructure, funnel, hangar, pyramid mast, turret, close-in weapon and launch cells; the carrier's flight deck)
+ *     superstructure, funnel, hangar, pyramid mast, turret, close-in weapon and launch cells; the carrier's flight deck; the submarine's round hull)
  *     when they joined; no existing pin moved.
  */
 import { createHash } from 'node:crypto';
@@ -125,6 +125,7 @@ const PINS = {
   'mount-ciws': '5f1bf3dd69bcfa2b',
   'vls-cells-32': '892a7a8d1921f05b',
   'deck-carrier-320': '8725f0cb7b7f13bb',
+  'hull-sub-attack-110': 'fdb7a6041b691b6d',
   'craft:lightSingle': 'cbbad5fe3c255c1d',
 };
 
