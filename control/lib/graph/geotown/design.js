@@ -548,6 +548,9 @@ export function designGeotown(spec = {}, { seed = 1, field = null } = {}) {
     for (let s = a0 + stride / 2; s < a1 - 2; s += stride) {
       if (cut.some(([c0, c1]) => s > c0 - 2 && s < c1 + 2)) continue;
       // (a local street's lamp hangs on a wooden hydro pole, its wires on to the next; a busy street's on a steel standard)
+      // (a pattern whose furniture lights its streets by LANTERNS, the old town's: a lantern on a cast-iron post on every
+      // street, no wires; none of the suburb's poles)
+      if (P.furniture?.lamps === 'lantern') { lights.push({ at: ns ? [r3(lat), r3(s)] : [r3(s), r3(lat)], toward: ns ? [-sg, 0] : [0, -sg], h: 4.2, street: p.street, kind: 'lantern', run: `${p.street}:${p.seg}:${p.side}`, s: r3(s) }); continue; }
       lights.push({ at: ns ? [r3(lat), r3(s)] : [r3(s), r3(lat)], toward: ns ? [-sg, 0] : [0, -sg], h: busy(S) ? 9 : 7.5, street: p.street, kind: busy(S) ? 'standard' : 'hydro', run: `${p.street}:${p.seg}:${p.side}`, s: r3(s) });
     }
   }

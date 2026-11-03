@@ -173,6 +173,25 @@ export const STYLE_STARTERS = Object.freeze({
     palette: { paint: '#f1eee6' },
     city: { grain: 'london' },
   },
+  // (a geotown's old town: geotown/pattern.js old-town; each house a type over it, its render's colour its own)
+  'old-town': {
+    read: 'a European old-town house: lime render in warm ochre over an ashlar ground storey, tall shuttered casements in stone surrounds, a shallow clay-tiled hip behind a deep cornice, a setts lane and flagged walks',
+    class: 'ancient',
+    language: { from: 'timber-hall', read: 'a narrow rendered town house of three to five storeys, built to its walk, under a shallow tiled hip', elements: {
+      wall: { storeys: [st('str:stone', 0.6, 'ashlar'), st('str:plaster', 0.84)] },
+      roof: { form: 'hip', pitch: 30, eave: 0.55, group: 'str:tile', value: 0.42 },
+      lights: { w: 1, h: 2, bay: 2.6, sill: 0.6, frame: 0.08, glazing: 'casement', trim: 'str:plaster', trimValue: 0.92 },
+      door: { w: 1.3, h: 2.5, leaf: 'panels', surround: 'frame', fanlight: 'arch', steps: 1 },
+      socle: { h: 0.45, group: 'str:stone', value: 0.52 }, sills: { group: 'str:stone', value: 0.8 }, lintels: { group: 'str:stone', value: 0.8 },
+      cornice: { kind: 'cornice', h: 0.35, proud: 0.3, group: 'str:plaster', value: 0.9 },
+      shutters: { share: 0.85, form: 'boards' },
+      quoins: null, frame: null, pickets: null,
+      road: { paving: 'setts' },
+    }, compose: { mass: { w: 8, d: 12 }, annex: null } },
+    materials: { stone: 'ashlar', plaster: 'lime-render', roof: 'clay-tile', plinth: 'ashlar', road: 'setts', walk: 'flags', punched: 'ashlar', pier: 'ashlar', banded: 'lime-render' },
+    palette: { plaster: '#dcb87e', paint: '#3e5a48' },
+    city: { grain: 'paris' },
+  },
   'adobe-pueblo': {
     read: 'an adobe pueblo: earth-plastered mud brick stepped back storey by storey under flat roofs, small deep lights under timber lintels, an earth lane',
     class: 'ancient',

@@ -65,8 +65,7 @@ export const SEGMENT_IDS = Object.freeze(Object.keys(SEGMENTS));
 // a neighbourhood's layout words: a letter a segment
 export const SEGMENT_LETTERS = Object.freeze({ H: 'houses', M: 'main-street', A: 'apartments', P: 'park', S: 'school', F: 'sports', E: 'edge', L: 'lowrise' });
 
-export const PATTERNS = Object.freeze({
-  'bay-and-gable': {
+const BAY_AND_GABLE = {
     read: 'a Victorian and Edwardian streetcar suburb (a Toronto Annex): long blocks of brick semis and detached houses, two and a half storeys with their gables to the street, each behind a front yard and a boulevard of maples, a deep back yard behind',
     // the houses' architectural style (era/arch-style.js): their language and material words, unless the recipe names one
     style: 'bay-and-gable',
@@ -261,8 +260,70 @@ export const PATTERNS = Object.freeze({
       edges: { read: 'quiet streets of houses between two major streets, two-storey shops and offices facing each across their lanes, a park among the houses', layout: ['EEE', 'HPH', 'EEE'], main: [], major: ['ew-0', 'ew-3'] },
       'school-and-field': { read: 'a school on the main street, its field behind it, houses and a park between it and a sports field to the north', layout: ['FFH', 'HPH', 'SSM'], main: ['ew-0'] },
     },
+};
+
+const BG = BAY_AND_GABLE;
+// THE OLD TOWN: a European old town's core, its own where it differs from the suburb and the suburb's where it does not
+// (its fences, its sites, its furniture, its houseplants)
+const OLD_TOWN = {
+  ...BG,
+  read: 'a European old town: narrow setts lanes between terraces of rendered town houses three to five storeys high, built to the walk party wall to party wall, shops on the ground floor of its main street, gardens and courts in the blocks behind',
+  style: 'old-town',
+  // one lane each way at most, no parking lane, no boulevard: the walk from the kerb to the house fronts
+  street: { lanes: 1, lane: 3.4, park: 0, kerb: 0.12, edge: 'verge', verge: 0, walk: 1.6 },
+  main: { lanes: 1, lane: 3.6, park: 0, kerb: 0.1, edge: 'furnish', verge: 1.1, walk: 3.4 },
+  major: { lanes: 2, lane: 3.2, park: 0, kerb: 0.12, edge: 'furnish', verge: 1, walk: 2.6, trees: { stride: 18, share: 0.4 } },
+  bikes: { w: 1.4, street: 0, main: 0, major: 0 },
+  lane: { ...BG.lane, garages: 0 },
+  alley: { w: 3 },
+  access: { ...BG.access, lane: 0, mutual: 0, drives: 0, garages: 0 },
+  finishes: { ...BG.finishes, road: 'setts', walk: 'flags', furnish: 'flags', path: 'flags', side: 'flags', service: 'setts', step: 'flags', drive: 'setts', lane: 'setts' },
+  block: { long: [90, 130], depth: [26, 32] },
+  plot: { semi: [6, 8], detached: [7, 9.5], mansion: [12, 14], corner: 0 },
+  mix: { semi: 1, detached: 0 },
+  duplex: { share: 0, read: BG.duplex.read },
+  setback: [0, 0],
+  house: { depth: [11, 14], storeys: [3, 5], side: [0, 0] },
+  back: 5,
+  path: 1,
+  coverage: [0.3, 0.7],
+  grade: 0.1,
+  pad: { least: 0.15, most: 1.2, riser: 0.15, step: 0.9 },
+  green: 0.1,
+  grow: { stride: 16, back: [0, 1], front: 0, park: 40, street: ['beech'], trees: ['cherry', 'oak'], shade: 'beech', parkTrees: ['oak', 'beech'] },
+  // each house its own render over the town's stone: its colour, its shutters' paint, its height, wrought balconies on some
+  types: {
+    ochre: { read: 'ochre render over an ashlar ground storey, green shutters', weight: 3, storeys: [3, 4], style: { palette: { plaster: '#d8b27a', paint: '#3e5a48' } }, front: {} },
+    cream: { read: 'cream render, grey-blue shutters, wrought balconies across its upper storeys', weight: 3, storeys: [4, 5], style: { palette: { plaster: '#ece2cb', paint: '#5a6e7a' } }, front: { balconies: true } },
+    terracotta: { read: 'terracotta render, dark green shutters', weight: 2, storeys: [3, 4], style: { palette: { plaster: '#c47e57', paint: '#2f4a3a' } }, front: {} },
+    rose: { read: 'faded rose render, cream shutters', weight: 2, storeys: [3, 4], style: { palette: { plaster: '#d6a294', paint: '#efe7d6' } }, front: {} },
+    stone: { read: 'a stone house: ashlar in every storey, plain casements, balconies', weight: 1, storeys: [4, 5],
+      style: { language: { elements: { wall: { storeys: [{ group: 'str:stone', value: 0.58, bond: 'ashlar' }, { group: 'str:stone', value: 0.62, bond: 'ashlar' }] } } } }, front: { balconies: true } },
+    slate: { read: 'grey-blue render under a slate hip, white shutters', weight: 1, storeys: [4, 4], style: { language: { elements: { roof: { group: 'str:slate', value: 0.34 } } }, palette: { plaster: '#a9b6bd', paint: '#f1eee6' } }, front: {} },
   },
-});
+  yards: { near: { patio: 3, lawn: 1 }, mid: { garden: 2, lawn: 1 }, back: { tree: 1, beds: 2, shed: 1 }, balcony: 0.6 },
+  fences: { brick: 3, stone: 3, iron: 1 },
+  rows: {
+    ...BG.rows,
+    shops: { ...BG.rows.shops, read: 'shops on the ground floor of town houses, party wall to party wall, built to the walk, flats over them, a narrow lane behind', frontage: [6, 9], depth: [16, 20], building: [12, 15], storeys: [3, 4], style: 'old-town',
+      palettes: ['#d8b27a', '#ece2cb', '#c47e57', '#d6a294', '#b9a48a', '#a9b6bd'] },
+  },
+  evoke: { ...BG.evoke, houses: [5, 7], shops: [7, 10], mansions: [0, 0] },
+  // its furniture: lanterns on cast-iron posts lighting every street (no wooden poles, no wires), no paint on its setts
+  furniture: { ...BG.furniture, lamps: 'lantern', paint: 'none' },
+  shopfronts: { ...BG.shopfronts, signs: { board: 3, blade: 3, window: 2, band: 1, none: 1 }, awnings: { slope: 4, none: 2, flat: 1, round: 1 } },
+  streetscapes: {
+    'old-centre': { read: 'the old centre: setts from wall to wall, flagged walks, no parking on the street, a lantern on its standard at every few houses, no signals',
+      trees: { stride: 18, share: 0.25 }, parking: { sides: 'none', lane: 2, share: 0, pads: 0, least: 0 }, gates: { share: 0, kinds: { iron: 1 } },
+      traffic: { lights: 20, signals: 0, stops: 0 } },
+  },
+  neighbourhoods: {
+    'old-centre': { read: 'terraced lanes of town houses round a main street of shops', layout: ['HHH', 'MMM', 'HHH'], main: ['ew-1'] },
+    'market-street': { read: 'a market street of shops both sides, terraces behind', layout: ['MM', 'HH'], main: ['ew-1'] },
+  },
+};
+
+export const PATTERNS = Object.freeze({ 'bay-and-gable': BAY_AND_GABLE, 'old-town': OLD_TOWN });
 export const PATTERN_IDS = Object.freeze(Object.keys(PATTERNS));
 export const STREETSCAPE_SETTINGS = Object.freeze(['setback', 'gates', 'parking', 'trees', 'lights', 'signals', 'stops']);
 export const GATE_SHARES = Object.freeze({ none: 0, some: 0.35, most: 0.7, all: 1 });

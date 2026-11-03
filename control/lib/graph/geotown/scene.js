@@ -568,7 +568,8 @@ export function assembleGeotownScene(m, ctx = {}) {
   // street's double yellow and its dashed white lane lines, the travel lanes' edges, a bike lane's green, its line and
   // its marks; laid in lengths of a cell, on the street's ground ──
   for (const p of d.pieces) {
-    if (p.cls !== 'road' || !p.street) continue;
+    // (a pattern that paints none on its lanes, the old town's setts: none)
+    if (p.cls !== 'road' || !p.street || P.furniture?.paint === 'none') continue;
     const ns = p.street.startsWith('ns'), k = Number(p.street.slice(3)), Sc = (ns ? d.sections.x : d.sections.y)[k], c = (ns ? d.X : d.Y)[k], [x0, y0, x1, y1] = p.rect, [a0, a1] = ns ? [y0, y1] : [x0, x1];
     const at = (s, o) => (ns ? [c + o, s] : [s, c + o]), tw = (Sc.lanes * Sc.lane) / 2;
     // (a strip from s0 to s1 along it, o0 to o1 across, in lengths of a cell)
@@ -600,6 +601,15 @@ export function assembleGeotownScene(m, ctx = {}) {
   const hydro = new Map();
   for (const Lt of d.traffic?.lights ?? []) {
     const [x, y] = Lt.at, z = wk(x, y), [tx, ty] = Lt.toward, ax = x + tx * 1.9, ay = y + ty * 1.9, hl = tx ? [0.4, 0.17] : [0.17, 0.4], wood = Lt.kind === 'hydro';
+    // (a LANTERN: a cast-iron post on its plinth, a collar, the lantern's glass in its frame and its cap; no arm, no wire)
+    if (Lt.kind === 'lantern') {
+      fx(box(x - 0.16, y - 0.16, x + 0.16, y + 0.16, z, z + 0.45, 'pole'));
+      fx(box(x - 0.06, y - 0.06, x + 0.06, y + 0.06, z + 0.45, z + Lt.h - 0.7, 'pole'));
+      fx(box(x - 0.14, y - 0.14, x + 0.14, y + 0.14, z + Lt.h - 0.72, z + Lt.h - 0.62, 'pole'));
+      fx(box(x - 0.2, y - 0.2, x + 0.2, y + 0.2, z + Lt.h - 0.62, z + Lt.h - 0.1, 'lamp'));
+      fx(box(x - 0.26, y - 0.26, x + 0.26, y + 0.26, z + Lt.h - 0.1, z + Lt.h, 'pole'));
+      continue;
+    }
     const top = wood ? HYDRO.h : Lt.h;
     fx(box(x - (wood ? 0.13 : 0.08), y - (wood ? 0.13 : 0.08), x + (wood ? 0.13 : 0.08), y + (wood ? 0.13 : 0.08), z, z + top, wood ? 'hydro' : 'pole'));
     fx(box(Math.min(x, ax) - 0.05, Math.min(y, ay) - 0.05, Math.max(x, ax) + 0.05, Math.max(y, ay) + 0.05, z + Lt.h - 0.12, z + Lt.h, 'pole'));
