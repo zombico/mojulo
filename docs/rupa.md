@@ -91,7 +91,10 @@ feels drag (½ρ·Cd·A·v² and Stokes' 3πηDv), and a block standing in one w
 
 **Spray:** a nozzle (`spray(state, { at, dir, speed, flow, seconds })`, the jet's speed and flow from `jetOf` or a
 hydrant-pump-hose network) throws water in parcels under gravity and air drag. A parcel pushes on what it hits and cools
-it: 4.19 kJ/kg a degree up to 100 °C, then 2.26 MJ/kg to boil off. A burning block drenched below its ignition goes out.
+it: 4.19 kJ/kg a degree up to 100 °C, then 2.26 MJ/kg to boil off. A burning block drenched below its ignition goes out. A jet harms
+what it strikes only when its stagnation pressure, ½ρv², passes the matter's strength: a hose at 10 bar (about 0.8
+MPa at the face) never wears a log away; a cutting jet at thousands of bar would. A body crossing a pool's surface also
+loses its heave to the waves it makes, so a dropped block settles at its draft in seconds.
 
 ## What holds it up
 

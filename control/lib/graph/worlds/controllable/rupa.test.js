@@ -121,6 +121,14 @@ describe('rupa water: pools and the hose', () => {
     expect(left.broken).toMatchObject({ how: 'burn' });
   });
 
+  it('a hose does not wear a log away: its stagnation pressure is under the wood\'s strength', () => {
+    const w = world([block('log', [5, -0.25, 0], [5.5, 0.25, 0.25], 'pine')]);
+    CW.spray(w, { at: [0, 0, 0.12], dir: [1, 0, 0.06], speed: 40, flow: 0.02, seconds: 5 });
+    step(w, 60 * 5);
+    expect(get(w, 'log').rupa.joules).toBe(get(w, 'log').rupa.cap);
+    expect(w.rupa.drops.length + w.rupa.wet.landed.length).toBeGreaterThan(0);
+  });
+
   it('the spray lands where a jet would, short of the drag-free arc', () => {
     const w = world([anchor()]);
     CW.spray(w, { at: [0, 0, 1], dir: [1, 0, 1], speed: 30, flow: 0.01, seconds: 0.5, spread: 0 });

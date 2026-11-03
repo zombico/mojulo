@@ -45,7 +45,8 @@
  *
  *   SPRAY    a nozzle (`E.spray(state, { at, dir, speed, flow, seconds })`: a hose off a hydrant and a pump, the speed and
  *            flow from rupa/fluid.js jetOf or stepVessels) throws water in parcels that fly under gravity and the air's
- *            drag. A parcel that strikes a block pushes on it (an impact: water gives way, bounce 0) and cools it: each
+ *            drag. A parcel that strikes a block stresses it by its stagnation pressure ½ρv², which harms it only past
+ *            its strength (an impact then: water gives way, bounce 0), and cools it: each
  *            kilogram takes 4.19 kJ a degree up to 100 °C, then 2.26 MJ to boil away, so a burning block drenched below
  *            its ignition goes out (`how: 'douse'` on the hits). Where parcels land is counted (`state.rupa.wet`).
  *
@@ -119,6 +120,7 @@ export function buildRupa(E) {
   // weight of the liquid it puts aside (Archimedes, the pressure ρ·g·depth on its faces summed: the bottom's beats the
   // top's by ρ·g·V under); moving through it, the drag of pushing liquid aside (½ρ·Cd·A·v², a cube's Cd 1.05) and of its
   // viscosity (Stokes, 3πηDv), as a rate the step applies implicitly
+  const WAVE = 1.5;   // 1/s: the surface's wave-making damping on a body crossing it
   function submerged(b, surface) {
     const hz = b.max[2] - b.min[2], under = Math.max(0, Math.min(hz, surface - b.min[2]));
     return hz > 0 ? vol(b) * (under / hz) : 0;
@@ -134,7 +136,9 @@ export function buildRupa(E) {
     const sx = b.max[0] - b.min[0], sy = b.max[1] - b.min[1], sz = b.max[2] - b.min[2], speed = Math.hypot(...v);
     const A = speed > 1e-9 ? (Math.abs(v[0]) * sy * sz + Math.abs(v[1]) * sx * sz + Math.abs(v[2]) * sx * sy) / speed : sx * sy;
     const frac = V / vol(b), rho = pool.density, eta = pool.viscosity ?? 1e-3;
-    return { V, lift: rho * G * V, k: (frac * (0.5 * rho * 1.05 * A * speed + 3 * Math.PI * eta * Math.cbrt(vol(b)))) / mass };
+    // crossing the surface it also makes waves, which carry its heave away (a rate that settles a bobbing block in seconds)
+    const waves = frac < 1 ? WAVE : 0;
+    return { V, lift: rho * G * V, k: (frac * (0.5 * rho * 1.05 * A * speed + 3 * Math.PI * eta * Math.cbrt(vol(b)))) / mass + waves };
   }
   const touches = (a, s, touch) => restsOn(a, s, touch) || restsOn(s, a, touch) || !!sideFace(a, s, touch);
 
@@ -356,8 +360,10 @@ export function buildRupa(E) {
       for (const b of state.breakables) if (!b.broken && next.every((x, i) => x >= b.min[i] && x <= b.max[i])) { hit = b; break; }
       if (hit) {
         if (hit.rupa) {
-          const r = impact({ mass: p.kg, stiff: WATER.stiff, bounce: 0 }, targetOf(hit), sp);
-          spend(state, hit, r.toB, 'shot', 'spray');
+          // a jet stresses what it strikes by its stagnation pressure, ½ρv²; below the matter's strength the blow is
+          // elastic and leaves it whole (a hose does not wear a log away; a cutting jet at thousands of bar would)
+          const left = hit.rupa.cap > 0 ? Math.max(0, hit.rupa.joules) / hit.rupa.cap : 1;
+          if (0.5 * WATER.density * sp * sp > hit.rupa.compressive * left) spend(state, hit, impact({ mass: p.kg, stiff: WATER.stiff, bounce: 0 }, targetOf(hit), sp).toB, 'shot', 'spray');
           douse(state, hit, p.kg, 'spray');
         }
         continue;
