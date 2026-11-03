@@ -55,10 +55,24 @@ Every hero naming none of the new words is the hero it was. The eyes gate is the
   to compare); the read says what each punch lands on, the range, the height, the speed, the reaction and how far the
   bodies would have passed into each other. A second fighter's spec:
   `test-opponent.json`.
+- **A character's own strikes in the fight** (`versus/versus-hero.js`, the versus roster's `moves`): a fighter who is a
+  character (`{ hero: { ref }, moves: 'hero' }`, or `{ <slot>: a strike }`) throws the punches it was made with in the
+  fight sim's slots (the boxer's: `stand.L` the jab, `stand.M` the cross, `stand.H` the hook, `crouch.M` the body hook,
+  `crouch.H` the uppercut) and stands in its own guard. Each strike is solved on the character's rig where it is
+  measured, its skeleton seen from the side in the fight plane and read back as the sim's own pose angles (a segment
+  seen end-on, the hook's forearm crossing the body, filled from where it is seen), and carried as a track; the
+  compiler (`compileHeroNormal`) RETIMES it to the slot's frame data, as a fighting game's animation is authored to its
+  frames, and lays its boxes on the fighter's body (the hurtboxes, the fist's hit box on the active frames). In the sim
+  its jab hits a standing opponent and is blocked by one holding back, at the advantage it records. A fighter's walk is
+  its guard's, the legs striding. Without `moves`, every fighter is compiled as before. The frame-data sheet:
+  `control/scripts/spikes/fighter/frames.mjs` (each move's key frames, its boxes and its frame data, the tradition's
+  keyed move beside the character's own).
 - **The fighter's body rail**: `lowerBody` keeps the `muscular` rail's anime codename under a hero spec that names the
   realistic head (that pair was refused before), and leaves it off the landmark head as before.
 - **Seen, not fixed**: the realistic head's neck on the codename's frame is an ordinary man's (386 mm on Toji; the anime
   head's neck form gives Toji 449 mm); the `guard` stand's lead forearm sinks about 2 cm into Toji's chest (the mint's
   advisory names it); `jab` and `cross` (stored clips, a laws bump away) aim at the attacker's shoulder height and dig
   the guarding arm up to 6 cm deeper into the trunk than the guard holds it; the pushbox and the knockback live in the
-  bout page and the module, not yet in a game's runtime (the versus arena keeps its own).
+  bout page and the module, not yet in a game's runtime (the versus arena keeps its own); in the fight, a character's
+  own strikes pay no reach tax yet (the tradition's keyed jab is a frame slower), its crouch slots' strikes are thrown
+  standing, and its body is still drawn from the plane's pose, not played from its own clips.

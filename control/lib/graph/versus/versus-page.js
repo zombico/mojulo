@@ -65,7 +65,9 @@ const PALETTE = ['#e0503a', '#3a9be0', '#9a4ae0', '#e0a23a', '#3ae08a', '#e03a9a
 export function rosterEntry(entry, k = 0) {
   // a character (versus-character.js) is measured where the game is served, before it reaches here
   if (entry.hero !== undefined) throw new Error(`versus: roster[${k}] is a character (hero.ref '${entry.hero?.ref}'): it is measured from the store where the game is served`);
-  const recipe = entry.recipe ?? solveFighter(entry).recipe;
+  const solved = entry.recipe ?? solveFighter(entry).recipe;
+  // (a character's own strikes in their slots and its own guard, versus-hero.js: laid over what the solver chose)
+  const recipe = entry.heroNormals ? { ...solved, normals: { ...solved.normals, ...entry.heroNormals }, guard: entry.guard } : solved;
   return {
     id: recipe.id, name: recipe.name, archetype: recipe.archetype ?? entry.archetype ?? null,
     color: entry.color ?? PALETTE[k % PALETTE.length], recipe,

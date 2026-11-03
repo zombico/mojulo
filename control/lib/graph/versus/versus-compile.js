@@ -561,7 +561,8 @@ function readStrings(list, moves, id) {
 }
 
 /** A normal slot (`stand.M`) with its family, strength and tune → a compiled move. */
-export function compileNormal(body, slot, { family, strength, tune } = {}, weapon = null, rests = REST_POSES) {
+export function compileNormal(body, slot, { family, strength, tune, hero } = {}, weapon = null, rests = REST_POSES) {
+  if (hero !== undefined) return compileHeroNormal(body, slot, { hero, strength, tune }, rests);
   if (!FAMILIES[family]) throw new Error(`versus: ${slot} family '${family}' is not one of ${Object.keys(FAMILIES).join(', ')}`);
   const fam = strikeBody(FAMILIES[family], rests);
   const [stance, letter] = slot.split('.');
@@ -611,6 +612,47 @@ export function compileNormal(body, slot, { family, strength, tune } = {}, weapo
   }
   m.frames = layFrames(body, m, fam, weapon, rests);
   m.reach = reachOf(m.frames);
+  return m;
+}
+
+/**
+ * A normal that is a CHARACTER'S OWN STRIKE (versus-hero.js: its clip solved on its rig and laid into the plane, a track
+ * of poses over the clip's phase): the slot's strength row's frame data, the track RETIMED to it as a fighting game's
+ * animation is authored to its frames: from the guard to its contact over the startup (slow out of the guard, fastest
+ * into the hit), the contact held through the active frames, the rest of the clip over the recovery. Its boxes are
+ * laid on the fighter's own body as every move's are (the trunk and the legs, the striking arm while it is out; on the
+ * active frames the hit, the forearm and the fist). A tune moves its frame data as any normal's.
+ */
+export function compileHeroNormal(body, slot, { hero, strength, tune } = {}, rests = REST_POSES) {
+  const T = readTune(tune, slot);
+  refuse(T, [...SHAPE_KEYS, ...STRENGTH_ROWS, 'hits'], slot, "a character's own strike");
+  const [stance, letter] = slot.split('.');
+  if (stance === 'air') throw new Error(`versus: ${slot} is an air normal; a character's own strikes are thrown from the ground`);
+  if (!hero || !Array.isArray(hero.poses) || hero.poses.length < 3 || !(hero.contact > 0 && hero.contact < 1) || !['F', 'B'].includes(hero.hand)) throw new Error(`versus: ${slot} hero is a track { word, hand: 'F' | 'B', contact (0 … 1), poses: [the fight's poses over the clip] } (versus-hero.js heroTrack)`);
+  const st = STRENGTHS[strength ?? letter], limb = hero.hand === 'F' ? 'fistF' : 'fistB';
+  const m = baseMove(slot, 'normal', stance, limb);
+  m.id = hero.word ?? 'strike'; m.strength = strength ?? letter; m.hero = true;
+  m.startup = st.startup; m.active = st.active; m.recovery = st.recovery;
+  m.damage = st.damage; m.hitstop = st.hitstop; m.push = st.push; m.meter = st.meter; m.guard = 'mid'; m.knock = 'none';
+  const adv = applyTune(m, T, st.adv);
+  primitives(m, T, slot);
+  m.total = m.startup + m.active - 1 + m.recovery;
+  m.hitstun = stunFor(m, adv.hit); m.blockstun = stunFor(m, adv.block);
+  m.cancel = ['special', 'super'];
+  if (m.strength === 'L') m.chain = ['stand.L', 'crouch.L'];
+  // the clip at a share of its phase, between its samples
+  const P = hero.poses, N = P.length - 1, at = (u) => { const f = Math.max(0, Math.min(1, u)) * N, i = Math.min(N - 1, Math.floor(f)); return lerpPose(P[i], P[i + 1], f - i); };
+  const c = hero.contact, hold = Math.min(0.04, (1 - c) / 4), lastActive = m.startup + m.active - 1, n = m.total;
+  const shareOf = (f) => (f < m.startup ? c * accel(f / m.startup) : f <= lastActive ? c + hold * ((f - m.startup) / Math.max(1, m.active - 1)) : c + hold + (1 - c - hold) * ease((f - lastActive) / Math.max(1, n - lastActive)));
+  const frames = [null], loadAt = Math.max(1, Math.round((m.startup - 1) * 0.6)), limbOut = lastActive + Math.ceil(m.recovery / 3);
+  for (let f = 1; f <= n; f++) {
+    const pose = at(shareOf(f)), J = rigJoints(body, pose);
+    const fr = { pose, hurt: hurtOf(body, J, f >= loadAt && f <= limbOut ? limb : null) };
+    if (f >= m.startup && f <= lastActive) { const [a, b] = STRIKE_SEGMENTS[limb]; fr.hit = roundBox(segmentBox(J[a], J[b], body.limbR * 1.5)); }
+    frames.push(fr);
+  }
+  m.frames = frames;
+  m.reach = reachOf(frames);
   return m;
 }
 
@@ -866,7 +908,11 @@ export function compileFighter(recipe) {
   const body = versusBody(recipe.cast ?? 'heroic', recipe.body ?? {});
   const weapon = readWeapon(recipe.weapon, body);
   // a tradition's guard is where every move starts and comes home (none: the genre's own)
-  const own = traditionRests(recipe.tradition);
+  const trad = traditionRests(recipe.tradition);
+  // (a character's own guard, versus-hero.js: where its moves start and come home, its idle's stand)
+  // (its walk the guard's, its legs striding as the walk's: the arms held up as it stands)
+  const heroGuard = recipe.guard ? readPose(recipe.guard, `${recipe.id ?? 'fighter'} guard`) : null;
+  const own = heroGuard ? { ...(trad ?? { crouch: POSES.crouch, air: POSES.jump }), stand: heroGuard, walkA: { ...heroGuard, legF: POSES.walkA.legF, legB: POSES.walkA.legB }, walkB: { ...heroGuard, legF: POSES.walkB.legF, legB: POSES.walkB.legB } } : trad;
   const rests = own ?? REST_POSES;
   const { specials, supers } = libraryOf(recipe);
   const moves = {};
@@ -917,7 +963,7 @@ export function compileFighter(recipe) {
     idle,
     stance,
     ...(strings ? { strings } : {}),
-    ...(own ? { tradition: recipe.tradition, poses: { guard: own.stand, crouch: own.crouch, walkA: own.walkA, walkB: own.walkB }, rhythm: TRADITIONS[recipe.tradition].rhythm } : {}),
+    ...(own ? { ...(recipe.tradition ? { tradition: recipe.tradition } : {}), poses: { guard: own.stand, crouch: own.crouch, walkA: own.walkA, walkB: own.walkB }, ...(recipe.tradition ? { rhythm: TRADITIONS[recipe.tradition].rhythm } : {}) } : {}),
     ...(weapon ? { weapon } : {}),
     moves,
   };

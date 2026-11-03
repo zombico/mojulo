@@ -71,6 +71,14 @@ export function bodyDials(m, girth, ref) {
   return { body, held };
 }
 
+/** A character's own strikes and guard in the plane (versus-hero.js heroFight), solved on its rig */
+async function heroFightOf(manifest, moves) {
+  const { expandLayeredManifest } = await layered();
+  const { validateRig } = await import('../polygonizer/station-loft-rig.js');
+  const { heroFight, readHeroMoves } = await import('./versus-hero.js');
+  readHeroMoves(moves);
+  return heroFight(validateRig(expandLayeredManifest(manifest).recipe.rig), moves);
+}
 /** A stored row's manifest → the character's body dials and colour; throws when the row is not a character. */
 export async function measureCharacter(manifest, where = 'fighter', ref = '?') {
   if (!manifest || manifest.kind !== 'layered' || !isObj(manifest.hero)) {
@@ -101,6 +109,11 @@ export async function resolveCharacters(roster, lookup, sheetOf = () => null) {
     try { spec = fighterSpec(e, i); } catch (err) { throw new Error(`versus: ${where}: ${err.message.replace(/^versus: /, '')}`); }
     const ref = spec.hero.ref, manifest = lookup(ref);
     const { body, color } = await measureCharacter(manifest, where, ref);
+    // (its own strikes, solved on its own rig: versus-hero.js; the guard it stands in with them)
+    let fight = null;
+    if (spec.moves !== undefined) {
+      try { fight = await heroFightOf(manifest, spec.moves); } catch (err) { throw new Error(`versus: ${where}.${err.message.replace(/^versus(-hero)?: /, '')}`); }
+    }
     const sheet = manifest.egocube ? sheetOf(manifest.egocube) : null;
     const read = sheet ? fighterFromSheet(sheet) : { intent: { archetype: 'all-rounder' }, reads: [] };
     const { style, ...over } = spec.over;
@@ -110,6 +123,7 @@ export async function resolveCharacters(roster, lookup, sheetOf = () => null) {
       ...(over.stance && read.intent.stance ? { stance: { ...read.intent.stance, ...over.stance } } : {}),
       body, ...(spec.color ?? color ? { color: spec.color ?? color } : {}), character: ref,
       ...(sheet ? { sheet: manifest.egocube.ref, reads: read.reads } : {}),
+      ...(fight ? { heroNormals: fight.normals, guard: fight.guard } : {}),
     });
   }
   return out;

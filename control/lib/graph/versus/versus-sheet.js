@@ -137,8 +137,10 @@ export function fighterSpec(entry, k = 0, seed = 1) {
   if (!isObj(entry)) throw fail(ENTRY);
   for (const key of Object.keys(entry)) {
     if (key === 'hero' || OWN_KEYS.includes(key) || SHEET_KEYS.includes(key) || FIGHT_KEYS.includes(key)) continue;
+    // (a character's own strikes, versus-hero.js: read where the character is measured, its rig at hand)
+    if (key === 'moves') { if (entry.hero === undefined) throw fail("moves: a character's own strikes ('hero', or { <slot>: a strike }); give the fighter its hero ({ hero: { ref } })"); continue; }
     if (key === 'cast' || key === 'body') throw fail(`${key}: a fighter's body is its character's (say it on the sheet: build, age, or the brief)`);
-    throw fail(`'${key}' is not a fighter's word (${[...OWN_KEYS, ...SHEET_KEYS, ...FIGHT_KEYS, 'hero'].join(', ')})`);
+    throw fail(`'${key}' is not a fighter's word (${[...OWN_KEYS, ...SHEET_KEYS, ...FIGHT_KEYS, 'hero', 'moves'].join(', ')})`);
   }
   if (entry.id !== undefined && !(typeof entry.id === 'string' && /^[a-z0-9-]{1,32}$/.test(entry.id))) throw fail('a fighter\'s id is a short lower-case name');
   if (entry.name !== undefined && !(typeof entry.name === 'string' && entry.name.trim() && entry.name.length <= 24)) throw fail('a fighter\'s name is a few words (at most 24 letters)');
@@ -153,7 +155,7 @@ export function fighterSpec(entry, k = 0, seed = 1) {
     const sheet = SHEET_KEYS.filter((x) => entry[x] !== undefined);
     if (sheet.length) throw fail(`${sheet.join(', ')}: a character already made has its sheet (drop ${sheet.length > 1 ? 'them' : 'it'}, or the hero)`);
     if (!isObj(entry.hero) || Object.keys(entry.hero).join() !== 'ref' || typeof entry.hero.ref !== 'string' || !/^[A-Za-z0-9_-]{1,64}$/.test(entry.hero.ref)) throw fail('hero is { ref } (a character made with create_character)');
-    return { ...own, hero: { ref: entry.hero.ref }, over };
+    return { ...own, hero: { ref: entry.hero.ref }, over, ...(entry.moves !== undefined ? { moves: entry.moves } : {}) };
   }
   if (entry.archetype !== undefined && !ARCHETYPES[entry.archetype]) {
     throw fail(STYLES[entry.archetype] ? `archetype '${entry.archetype}' is a fight style: give it as style, and the archetype as who they are (${Object.keys(ARCHETYPES).join(', ')})` : `archetype is one of ${Object.keys(ARCHETYPES).join(', ')}`);
