@@ -25,7 +25,9 @@ const zs = (c, re) => c.form.root.filter((f) => re.test(f.part)).flatMap((f) => 
 // (their tubes' radius under them), the ladder's tip bar (its radius over it), the bucket's floor
 // (and the refuse fleet's: a front loader's forks, a side loader's gripper, a roll-off container's nose, a skip's bottom)
 const REACHED = { refuse: [/^tailgate$/, 0, 'min'], plough: [/^blade\.edge$/, 0, 'min'], sweeper: [/^broom\.bristle$/, -0.008, 'min'], ladder: [/^ladder\.tip$/, 0.03, 'max'], bucket: [/^bucket$/, 0, 'min'],
-  frontLoader: [/^fork$/, 0, 'min'], sideLoader: [/^gripper$/, 0, 'min'], rollOff: [/^container\.nose$/, 0, 'min'], skipLoader: [/^skip$/, 0, 'min'] };
+  frontLoader: [/^fork$/, 0, 'min'], sideLoader: [/^gripper$/, 0, 'min'], rollOff: [/^container\.nose$/, 0, 'min'], skipLoader: [/^skip$/, 0, 'min'],
+  // (the delivery fleet's: a step van's rear door's foot, a tail lift's platform)
+  stepVan: [/^door\.rear$/, 0, 'min'], lightTruck: [/^taillift$/, 0, 'min'] };
 const reached = (c, kind) => { const [re, off, how] = REACHED[kind], z = zs(c, re); return (how === 'min' ? Math.min(...z) : Math.max(...z)) - off; };
 const xsOf = (c, re) => c.form.root.filter((f) => re.test(f.part)).flatMap((f) => f.corners.map((p) => p[0]));
 
@@ -132,6 +134,40 @@ describe('the garbage truck\'s models, each read by its silhouette', () => {
     expect(box(hi, /^skip$/, 1)[1]).toBeLessThan(yT);
     expect(box(hi, /^skip$/, 2)[0]).toBeCloseTo(0, 2);
     expect(box(hi, /^stabiliser\.pad$/, 2)[0]).toBeCloseTo(0, 2);
+  });
+});
+
+describe('the delivery fleet, each read by its silhouette', () => {
+  const box = (c, re, i) => { const v = c.form.root.filter((f) => re.test(f.part)).flatMap((f) => f.corners.map((p) => p[i])); return [Math.min(...v), Math.max(...v)]; };
+  it('a mail truck and a courier van slide a kerbside door back delivering, its doorway dark', () => {
+    for (const kind of ['mailTruck', 'courierVan']) {
+      const cls = of(kind), shut = compiled(cls), open = compiled(cls, {}, 'delivering');
+      expect(shut.form.root.some((f) => f.part === 'doorway'), kind).toBe(false);
+      expect(open.form.root.filter((f) => f.part === 'doorway').every((f) => f.corners.every((p) => p[0] > 0)), kind).toBe(true);
+      expect(box(open, /^door\.slid$/, 0)[1], kind).toBeGreaterThan(PHYSICS[cls].W / 2);
+    }
+  });
+  it('a step van is one box from its drooped nose to its tail, its screen raked under its roof, its rear door rolling up', () => {
+    const cls = of('stepVan'), c = compiled(cls), up = compiled(cls, {}, 'delivering');
+    expect(box(c, /^box$/, 2)[1]).toBeCloseTo(PHYSICS[cls].H, 1);
+    expect(box(c, /^nose$/, 2)[1]).toBeLessThan(1.5);
+    expect(c.form.root.some((f) => f.part === 'glass' && f.outNormal[1] > 0.9)).toBe(true);
+    expect(up.form.root.filter((f) => f.part === 'doorway').length).toBeGreaterThan(2);
+  });
+  it('a light box truck folds its tail lift against its doors on the road, lays it out at a height and lowers it; a fridge unit when refrigerated', () => {
+    const cls = of('lightTruck'), lo = compiled(cls), mid = compiled(cls, { pose: { reach: 0.6 } });
+    expect(box(lo, /^taillift$/, 2)[1] - box(lo, /^taillift$/, 2)[0]).toBeGreaterThan(1);
+    expect(box(mid, /^taillift$/, 2)[1] - box(mid, /^taillift$/, 2)[0]).toBeLessThan(0.1);
+    expect(box(mid, /^taillift$/, 1)[0]).toBeLessThan(-PHYSICS[cls].L / 2 - 1);
+    expect(lo.form.root.some((f) => f.part === 'reefer')).toBe(false);
+    expect(compiled(cls, {}, 'refrigerated').form.root.some((f) => f.part === 'reefer')).toBe(true);
+  });
+  it('a kei truck carries its box, or a bed with drop sides behind a guard', () => {
+    const cls = of('keiTruck'), c = compiled(cls), bed = compiled(cls, {}, 'flatbed');
+    expect(c.form.root.some((f) => f.part === 'box')).toBe(true);
+    expect(bed.form.root.some((f) => f.part === 'box')).toBe(false);
+    expect(bed.form.root.some((f) => f.part === 'dropside')).toBe(true);
+    expect(box(bed, /^dropside$/, 2)[1]).toBeLessThan(box(c, /^box$/, 2)[1]);
   });
 });
 

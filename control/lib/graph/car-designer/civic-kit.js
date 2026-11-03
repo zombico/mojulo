@@ -49,6 +49,9 @@ const REACH = {
   sideLoader: { stowed: 0.72, deployed: 3.0, range: [0.72, 3.4] },
   rollOff: { stowed: 1.25, deployed: 4.2, range: [1.25, 4.7] },
   skipLoader: { stowed: 1.15, deployed: 0, range: [0, 1.15] },
+  // (the delivery fleet's: a step van's rear door's foot, a box truck's tail lift (folded at the floor's height))
+  stepVan: { stowed: 0.75, deployed: 2.3, range: [0.75, 2.4] },
+  lightTruck: { stowed: 1.05, deployed: 0, range: [0, 1.05] },
 };
 export const CIVIC_REACH = Object.freeze(Object.fromEntries(Object.entries(REACH).map(([k, v]) => [k, Object.freeze({ ...v, range: Object.freeze(v.range) })])));
 // (a brief's words the car sheet reads as its own, `lowered` a stance, never reach a body: none of them deploys one)
@@ -62,6 +65,11 @@ export const CIVIC_WORDS = Object.freeze({
   sideLoader: Object.freeze(['lifting', 'collecting', 'emptying', 'tipping', 'working', 'picking']),
   rollOff: Object.freeze(['tipping', 'dumping', 'unloading', 'tilted', 'raised']),
   skipLoader: Object.freeze(['unloading', 'dropping', 'down', 'deployed', 'set down', 'delivering']),
+  // (and the delivery fleet's: a door slid back, a step van's doorways and rear door open, a tail lift down)
+  mailTruck: Object.freeze(['delivering', 'open', 'opened', 'dropping off']),
+  courierVan: Object.freeze(['delivering', 'open', 'opened', 'dropping off']),
+  stepVan: Object.freeze(['delivering', 'unloading', 'open', 'opened']),
+  lightTruck: Object.freeze(['unloading', 'delivering', 'kerbside', 'deployed']),
 });
 
 /** A civic body's words: whether its brief deploys it (each kind its own words, CIVIC_WORDS). */
@@ -92,6 +100,7 @@ export const CIVIC_LIVERY = Object.freeze({
   refuse: mono(CC.municipal), plough: mono(CC.orange), sweeper: mono(CC.municipal), fireEngine: mono(CC.fire), ladder: mono(CC.fire),
   ambulance: mono(CC.white), paramedic: mono(CC.white), bucket: mono(CC.white),
   frontLoader: mono(CC.municipal), sideLoader: mono(CC.green), rollOff: mono('#2f5f9e'), skipLoader: mono(CC.municipal),
+  mailTruck: mono(CC.white), courierVan: mono('#41464d'), stepVan: mono(CC.white), lightTruck: mono(CC.white), keiTruck: mono(CC.white),
 });
 
 export const without = (faces, parts) => faces.filter((f) => !f || !parts.includes(f.part));

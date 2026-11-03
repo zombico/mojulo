@@ -188,8 +188,19 @@ export const VEHICLES = {
     { scenery: 'boxVan', physics: 'van', fleet: 'van', tech: 'truck' }),
   'box-truck': row('box truck', ['straight truck', 'lorry', 'removal truck', 'moving truck'], 'road', 'hauler', M, ROAD,
     { scenery: 'boxTruck', physics: 'straightTruck', fleet: 'straightTruck', tech: 'truck' }),
-  'delivery-truck': row('delivery truck', ['step van', 'parcel truck'], 'road', 'hauler', M, ['traffic', 'parked'],
-    { net: 'delivery-truck', tech: 'truck' }),
+  // (the city's delivery fleet, classes and not replicas, in no carrier's livery: the walk-in step van the delivery truck
+  // is, a postal delivery van, a courier's high-roofed van, a light box truck with a tail lift, a kei truck; their
+  // realistic bodies the hull kit's, road-civic.js)
+  'delivery-truck': row('delivery truck', ['step van', 'parcel truck', 'walk-in van', 'walk in van', 'package truck', 'parcel delivery truck', 'multi-stop truck', 'bread van'], 'road', 'hauler', M, ROAD,
+    { net: 'delivery-truck', physics: 'stepVan', tech: 'truck' }),
+  'mail-truck': row('mail truck', ['mail van', 'postal truck', 'postal van', 'post van', 'mail delivery truck', 'postal vehicle', 'mail carrier truck', 'mailman truck', 'postie van', 'post office van'], 'road', 'hauler', M, ROAD,
+    { physics: 'mailTruck', tech: 'truck' }),
+  'courier-van': row('courier van', ['courier', 'courier truck', 'parcel van', 'package van', 'high roof van', 'express van', 'delivery driver van', 'last mile van', 'sprinter van'], 'road', 'hauler', M, ROAD,
+    { physics: 'courierVan', tech: 'truck' }),
+  'light-truck': row('light box truck', ['small box truck', 'small delivery truck', 'light truck', 'tail lift truck', 'luton van', 'refrigerated truck', 'reefer truck', 'cab-over box truck', 'small lorry', 'delivery lorry', 'box lorry'], 'road', 'hauler', M, ROAD,
+    { physics: 'lightTruck', tech: 'truck' }),
+  'kei-truck': row('kei truck', ['mini truck', 'micro truck', 'kei van', 'japanese mini truck', 'tiny truck', 'mini delivery truck', 'microtruck'], 'road', 'hauler', M, ROAD,
+    { physics: 'keiTruck', tech: 'truck' }),
   'semi-truck': row('semi truck', ['semi', 'tractor trailer', 'tractor-trailer', 'eighteen wheeler', 'articulated lorry', 'big rig'], 'road', 'hauler', M, ROAD,
     { physics: ['tractorTrailer', 'tractorTrailerLoaded'], fleet: 'tractorTrailer', tech: 'truck' }),
   flatbed: row('flatbed truck', ['flatbed', 'flat deck'], 'road', 'hauler', M, ROAD,

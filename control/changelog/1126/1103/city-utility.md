@@ -101,4 +101,33 @@ crew are, and named in the vehicle registry. Each is a class, not a replica.
     a bin in it only when working;
   - the roll-off's container and tower tipped together, clear of the ground;
   - the skip carried on the bed and set down on the ground behind the tail, its legs down.
+- **The delivery fleet** (`car-designer/road-civic-delivery.js`, in no carrier's livery), five classes at their true
+  numbers ([E]), each read by its silhouette:
+  - `mailTruck`, the mail truck (mail van, postal truck, post van): short and tall, a short bonnet under an upright
+    screen, driven from the right; one roof over the cab and the cargo box, a kerbside sliding door, an up-and-over
+    rear door, a blue band and a red pinstripe;
+  - `courierVan`, the courier van (courier, parcel van, high roof van): a high-roofed panel van, blind behind its cab,
+    a sliding door each side, its rear doors, amber bands;
+  - `stepVan`, the walk-in step van, now the delivery truck row's realistic build (step van, parcel truck, walk-in
+    van): one tall box from its drooped nose to its tail, rounded, its two-pane screen, a doorway over a step at the
+    front of each side, a roll-up rear door;
+  - `lightTruck`, the light box truck (small box truck, tail lift truck, luton van, refrigerated truck): a narrow
+    cab-over cab, the box wider and taller behind it, corner posts and a red band, a tail lift; `refrigerated`
+    (reefer, chilled) carries a fridge unit on the box's front over the cab;
+  - `keiTruck`, the kei truck (mini truck, micro truck): a micro cab-over cab, an aluminium box; `flatbed` (drop
+    side, pickup) gives it a bed with drop sides behind a mesh guard instead.
+- **How they deploy:**
+  - the mail truck and the courier van slide their kerbside door back when `delivering` (open);
+  - the step van opens its doorways and rolls its rear door up (`delivering`, unloading; the reach: the rear door's
+    foot);
+  - the box truck lays its tail lift out at its floor and lowers it to the kerb (`unloading`; the reach: the platform,
+    folded up against the doors at the floor's height on the road).
+
+  Their plain liveries: white, the courier's charcoal.
+- **Held** (`road-civic.test.js`):
+  - each at its numbers and deployed to its reach;
+  - a kerbside door slid back with its doorway dark on the right;
+  - the step van's box to its roof over a low nose, its screen, its doorways open;
+  - the tail lift folded on the road, laid flat at a height behind the truck, and a fridge unit only when refrigerated;
+  - the kei truck's box, or its drop sides lower than the box would stand.
 
