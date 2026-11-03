@@ -1,7 +1,7 @@
 ### Military boats: watercraft for the military register
 
-In progress. Military boats from the boat kit on the craft shelf, in the field's military roles and its surface, so a
-game's military side has boats beside its jeeps, trucks, armour and drones:
+Military boats from the boat kit on the craft shelf, in the field's military roles and its surface, so a game's military
+side has boats beside its jeeps, trucks, armour and drones:
 - a combat RHIB with twin outboards, a coxswain console, jockey seats, a radar arch and pintle-mounted guns;
 - boats in the military surface: hull numbers, emblems, wear, a look card;
 - a riverine patrol boat on waterjets;
@@ -60,3 +60,24 @@ Every weapon is modelled, never fired.
   - Held: the jets paired, under the waterline and steering together, their buckets dropping; the pilothouse on the
     sole inside the hull and a gun on its ring; the tubs open aft. The new builder paths (the waterjet, the pilothouse,
     the tub) are pinned, and no existing pin moved.
+- **The landing craft** (`landingCraft`): a 22 m flat-bottomed steel craft in grey, a bow ramp, a well deck, a raised
+  aft deck with its pilothouse and two gun tubs, twin screws, in a new `landing` boat role; the registry's
+  `landing-craft` row (lcm, mechanised landing craft, ramp boat …) in the field's `transport` role.
+  - **Its hull's words:** a `ramp` bow (a square bow left open above its sole), an `aftDeck` (the liner raised to a deck
+    over the engine room, a point `[s, x, 'aft']` on it), its well deck's `cargo` (its area on the sole and its middle's
+    point), `shafts` (a `shaftPair` point under the bottom), thick buoyant wing walls (its liner's depth), its stern
+    lifted over its propellers and its forefoot lifted to beach.
+  - **`boat-ramp`** (`boat-mil.js`): the bow ramp hinged across its foot, its stiffeners, edge beams and treads; it
+    lowers (`pose.ramp`) to a beach ahead of the bow.
+  - **`boat-shaft`:** the shaft out of the bottom, its strut, a four-bladed propeller, the rudder on its stock; a pair
+    mirrored, counter-rotating, its rudders steering together. Its mass its diesel's too.
+  - **What it carries** (`vehicle-registry/carry.js` `wellDeck`): the registry's vehicles that stand parked, each by its
+    class's own length, width and mass, that fit its well deck nose to the ramp with room round them, and how many by
+    the deck's area and load: the light tank, the armoured and tracked carriers, the cargo truck, the jeep among them.
+    Its `at` is the deck's middle in the craft's frame, where a level parks the vehicle (`parked.js`).
+  - It floats 68.7 t (its crew and a field vehicle's load) at a 62 cm draft, its well deck above the waterline.
+  - Held: the bow open above the deck and the ramp inside the opening; the ramp lowering ahead of the bow; the aft deck
+    at its height; the shafts paired, under water, counter-rotating, steering together; the well deck holding the
+    field's scout, transport and armour vehicles within its length, width and load, a boat without one holding none;
+    the row in the field's `transport` role. The new builder paths (the ramp, the shaft) are pinned, and no existing pin
+    moved.

@@ -234,7 +234,9 @@ function buildHull(row, C, opts = {}) {
     const M = offsetLine(O, T1, 0.004), I = capped(offsetLine(O, T2, 0.002), st);
     // (a sole: the floor laid flat across the bottom at its height, the liner clipped to it the length of the boat; a
     // motor well's splash floor aft of its bulkhead, higher)
-    const Ic = clipUp(I, P2(st.y), notch), Is = Number.isFinite(b.sole) ? clipUp(Ic, b.sole) : Ic, Iw = W && st.s < sW ? clipUp(Is, W.floor) : Is;
+    const Ic = clipUp(I, P2(st.y), notch), Is = Number.isFinite(b.sole) ? clipUp(Ic, b.sole) : Ic, Iw0 = W && st.s < sW ? clipUp(Is, W.floor) : Is;
+    // (an aft deck raised over an engine room: the liner clipped to its height aft of its forward end)
+    const Iw = b.aftDeck && st.s < b.aftDeck.to ? clipUp(Iw0, b.aftDeck.z) : Iw0;
     return { st, O: clipUp(O, P0(st.y), notchO), M: clipUp(M, P1(st.y), notchM), I: clipUp(Iw, deckZ(st)), Iopen: I };
   };
   const ring = (A, B) => [...A, ...B.slice().reverse()].map(([x, z]) => [x, 0, z]);
@@ -285,9 +287,10 @@ function buildHull(row, C, opts = {}) {
   }
   // the gunwale rails along the sheer, the transom's cap across its top, the motor pad on it
   // (a collared hull, a RIB's, has its tube where the rails would be: no rails)
-  const g = b.gunwale || 0, s0 = startOf(0) + 0.002, rail = [], square = b.bow === 'square';
+  // (a ramp bow is a square bow left open above its sole: a ramp closes it)
+  const g = b.gunwale || 0, s0 = startOf(0) + 0.002, rail = [], ramp = b.bow === 'ramp', square = b.bow === 'square';
   for (let s = s0; s < 0.985; s += 0.03) rail.push(s);
-  rail.push(0.985, square ? 1 : 0.997);
+  rail.push(0.985, square || ramp ? 1 : 0.997);
   const railAt = (sx, s) => { const st = H.at(s); return [sx * Math.max(st.sheerHalf - g * 0.35, 0.004), st.y, st.sheer + g * 0.25]; };
   if (g) for (const sx of [1, -1]) sweeps.push(sweep(`gunwale_${sx > 0 ? 'r' : 'l'}`, rail.map((s) => railAt(sx, s)), g, C.chrome, { sides: 8 }));
   // (a square bow, a jon boat's: its rail across the bow's top)
@@ -316,7 +319,7 @@ function buildHull(row, C, opts = {}) {
   for (let s = (H.zT * H.tanR) / L + 0.004; s < 0.995; s += 0.03) { const st = H.at(s); keel.push([0, st.y, st.keel - kr * 0.4]); }
   const stem = H.at(1);
   // (a stem's strip runs up it; a square bow's ends at its foot)
-  if (square) keel.push([0, L / 2 - 0.004, stem.keel - kr * 0.4]);
+  if (square || ramp) keel.push([0, L / 2 - 0.004, stem.keel - kr * 0.4]);
   else for (const f of [0, 0.4, 0.8]) keel.push([0, L / 2 + kr * 0.4, lerp(stem.keel, stem.sheer - 0.05, f)]);
   // (a moulded hull has none)
   if (kr) sweeps.push(sweep('keel_strip', keel, kr, C.chrome, { sides: 6 }));
@@ -410,12 +413,17 @@ function buildHull(row, C, opts = {}) {
   for (const [name, at] of Object.entries(b.points || {})) {
     // (`[s, x, 'deck']`: on the deck, a bow gun's)
     const [s, x, on] = Array.isArray(at) ? at : [at, 0], I = lines(s).I, mid = (I.length - 1) / 2;
-    hardpoints[name] = r3v([x, H.at(s).y, on === 'deck' ? H.at(s).sheer - (b.deck?.thickness ?? 0) : Number.isFinite(b.sole) ? b.sole : I[mid][1]]);
+    hardpoints[name] = r3v([x, H.at(s).y, on === 'deck' ? H.at(s).sheer - (b.deck?.thickness ?? 0) : on === 'aft' ? b.aftDeck.z : Number.isFinite(b.sole) ? b.sole : I[mid][1]]);
   }
   // (twin motors: the starboard one's point `spacing` apart from its mirror, for a layout entry paired across the boat)
   if (b.motors) hardpoints.motorPair = r3v([b.motors.spacing / 2, hardpoints.motor[1], hardpoints.motor[2]]);
   // (twin waterjets: the starboard one's nozzle centre on the transom's face at its height `z`, a pair across the boat)
   if (b.jets) hardpoints.jetPair = r3v([b.jets.spacing / 2, -L / 2 + (H.zT - b.jets.z) * H.tanR, b.jets.z]);
+  // (twin shafts: the starboard one's exit through the bottom at `at`, `spacing` apart from its mirror)
+  if (b.shafts) { const st = H.at(b.shafts.at); hardpoints.shaftPair = r3v([b.shafts.spacing / 2, st.y, bottomAt(outerLine(st, b.flare), b.shafts.spacing / 2)]); }
+  // (a ramp bow: the ramp's hinge across its foot, on the sole at the bow; a well deck's cargo: its middle on the sole)
+  if (ramp) hardpoints.ramp = r3v([0, L / 2 - (b.transom.thickness ?? 0.05) * 0.5, Number.isFinite(b.sole) ? b.sole : 0]);
+  if (b.cargo) hardpoints.cargo = r3v([0, H.at((b.cargo.from + b.cargo.to) / 2).y, b.sole]);
   // (a deck's top at s: the sheer less the deck's thickness)
   const deckAt = (s) => H.at(s).sheer - (b.deck?.thickness ?? 0);
   // a cuddy's cabin top on the foredeck: lofted bow-ward, its sides `inset` from the sheer and leaning in, its top

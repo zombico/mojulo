@@ -9,7 +9,8 @@
 // cabin: its cabin top, a windscreen that fits the hull with its walk-through, the cabin's door, a split dash and bucket
 // seats off the centreline. A military boat: twin outboards mirrored and counter-rotating, its guns on their points and
 // trained, never fired, its radar arch, its row in the field's roles. A riverine patrol boat: its waterjets paired, its
-// pilothouse and its roof's gun, its tubs open aft. In the military surface: a look card any boat wears,
+// pilothouse and its roof's gun, its tubs open aft. A landing craft: its open bow and its ramp, its aft deck and its
+// shafts, the field's vehicles its well deck carries. In the military surface: a look card any boat wears,
 // its number or registration on its bows, its wear. The cases are chosen from the shelf in code.
 import { describe, it, expect } from 'vitest';
 import { assembleCraft, resolveCraftPart, CRAFT_ODM, CRAFT_ARCHETYPES, CRAFT_ROLES, craftRoleAnalogues } from './index.js';
@@ -25,6 +26,7 @@ const VEHICLES_ROWS = () => VEHICLES;
 import { buildOf } from '../vehicle-registry/builds.js';
 import { quickVehicleWords } from '../vehicle-registry/doors.js';
 import { quickWorld } from '../gameworld/quick.js';
+import { wellDeck, CLEAR } from '../vehicle-registry/carry.js';
 
 const A = CRAFT_ARCHETYPES;
 const of = (kind) => Object.keys(BOAT_ODM).find((s) => BOAT_ODM[s].kind === kind);
@@ -433,6 +435,53 @@ describe('a riverine patrol boat', () => {
     // (nothing of the ring straight aft of the post, where the gunner stands)
     expect(mids.filter((c) => c[1] < -T.radius * 0.8 && Math.abs(c[0]) < T.radius * 0.25)).toEqual([]);
     expect(Math.max(...mids.map((c) => Math.hypot(c[0], c[1])))).toBeLessThan(T.radius + 0.05);
+  });
+});
+
+describe('a landing craft', () => {
+  const LB = Object.keys(A).find((k) => A[k].realm === 'water' && A[k].layout.some((e) => CRAFT_ODM[e.sku]?.kind === 'boat-ramp'));
+  const { manifest, readout } = assembleCraft(LB), item = (id) => manifest.items.find((i) => i.id === id), hull = manifest.items[0], HR = CRAFT_ODM[hull.source.garage.sku], H = hullLines(HR);
+  const rampE = A[LB].layout.find((e) => CRAFT_ODM[e.sku].kind === 'boat-ramp'), RR = CRAFT_ODM[rampE.sku];
+  it('its bow open above its well deck, its ramp closing it, the ramp inside the opening', () => {
+    const near = lowerObjectFaces(hull.source).flatMap((f) => f.corners).filter((c) => c[1] > H.L / 2 - 0.3 && Math.abs(c[0]) < RR.dims.width / 2 - 0.3 && c[2] > HR.build.sole + 0.3);
+    expect(near).toEqual([]);
+    const inner = H.at(1).sheerHalf - HR.build.skin - HR.build.liner;
+    expect(RR.dims.width / 2).toBeLessThan(inner);
+    expect(item(rampE.id).at[2] - hull.at[2]).toBeCloseTo(HR.build.sole, 2);
+    expect(item(rampE.id).at[2] + item(rampE.id).source.garage.hardpoints.toe[2]).toBeGreaterThan(hull.at[2] + H.at(1).sheer - 0.8);
+  });
+  it('its ramp lowers about its hinge to a beach ahead of the bow', () => {
+    const down = resolveCraftPart(rampE.sku, { seat: 'mount', pose: { ramp: 1 } }), toe = down.garage.hardpoints.toe;
+    expect(toe[1]).toBeGreaterThan(RR.dims.height * 0.9);
+    expect(toe[2]).toBeLessThan(0);
+    expect(down.garage.joints.find((j) => j.name === 'ramp').angle).toBe(RR.build.drop);
+  });
+  it('its raised aft deck over the engine room; its shafts a mirrored pair, props under water, rudders steering together', () => {
+    const liner = hull.source.lofts.find((l) => l.id === 'liner'), st = liner.stations.reduce((a, x) => (Math.abs(x.t - HR.build.aftDeck.to / 2) < Math.abs(a.t - HR.build.aftDeck.to / 2) ? x : a));
+    expect(Math.min(...st.profile.slice(st.profile.length / 2).map(([, v]) => v))).toBeCloseTo(HR.build.aftDeck.z, 2);
+    const sh = A[LB].layout.find((e) => CRAFT_ODM[e.sku].kind === 'boat-shaft'), r = item(`${sh.id}-r`), l = item(`${sh.id}-l`);
+    expect(r.at[0]).toBeCloseTo(-l.at[0], 3);
+    for (const it of [r, l]) expect(it.at[2] + it.source.garage.hardpoints.prop[2]).toBeLessThan(readout.afloat.waterline);
+    const turn = (it) => { const d = it.source.garage.joints.find((j) => j.name === 'prop').dir; return (it.flip || '').includes('x') ? -d[1] : d[1]; };
+    expect(turn(r)).toBe(-turn(l));
+    const yawed = assembleCraft(LB, { pose: { yaw: 1 } }).manifest, ang = (m, id) => { const i = m.items.find((x) => x.id === id), a = i.source.garage.joints.find((j) => j.name === 'rudder').angle; return (i.flip || '').includes('x') ? -a : a; };
+    expect(ang(yawed, `${sh.id}-r`)).toBe(ang(yawed, `${sh.id}-l`));
+  });
+  it('its well deck carries the field\'s vehicles, by the registry\'s own dimensions and the deck\'s load', () => {
+    const w = wellDeck(LB), ids = w.holds.map((h) => h.id);
+    expect(w.at[2]).toBeCloseTo(hull.at[2] + HR.build.sole, 2);
+    for (const h of w.holds) {
+      expect(h.L + CLEAR.length, h.id).toBeLessThanOrEqual(w.length);
+      expect(h.W + CLEAR.width, h.id).toBeLessThanOrEqual(w.width);
+      expect(h.mass * h.count, h.id).toBeLessThanOrEqual(w.load);
+      expect(h.count, h.id).toBeGreaterThan(0);
+    }
+    // (the field's vehicles among them: a military row in each of the field's roles that stands parked)
+    const field = Object.keys(VEHICLES).filter((id) => ['scout', 'transport', 'armour'].includes(VEHICLES[id].role) && VEHICLES[id].realm === 'offroad' && ids.includes(id));
+    expect(new Set(field.map((id) => VEHICLES[id].role))).toEqual(new Set(['scout', 'transport', 'armour']));
+    expect(wellDeck(BOAT)).toBeNull();
+    const hit = Object.entries(VEHICLES).find(([, r]) => r.handles.craft?.includes(LB));
+    expect(hit[1].role).toBe('transport');
   });
 });
 

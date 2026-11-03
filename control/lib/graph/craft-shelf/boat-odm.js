@@ -40,6 +40,11 @@
  *   boat-cabin     a cabin on the sole (boat-mil.js): an armoured `pilothouse`, faceted, its front raked to its windows
  *                  (`shoulder`, `lean`, `rake`, `front`), its gun `ring` and `mast` on its roof. Points: `mount`,
  *                  `roofGun` (where a mount stands on its ring)
+ *   boat-ramp      a bow ramp (boat-mil.js) on a ramp bow's `ramp` point, hinged across its foot: it lowers (`pose.ramp`).
+ *                  Points: `mount`, `toe`
+ *   boat-shaft     an inboard drive's running gear (boat-mil.js) on a hull's `shaftPair` point (`shafts: { spacing, at }`):
+ *                  its shaft, strut, propeller (`pose.prop`) and rudder (`pose.yaw`), a pair mirrored. Its mass its
+ *                  engine's too. Points: `mount`, `prop`
  *   boat-arch      a radar arch on the sole across the cockpit (boat-mil.js): A-framed legs, the crossbar, the radar's
  *                  dome, an all-round light, a light bar, whip antennas. Points: `mount`, `top`
  *   boat-top       a top over the helm standing on the console's point (boat-helm.js): its legs (`legs`: their feet's
@@ -61,7 +66,10 @@
  * gunwales to `to`, a `walk`-through in its middle); a point may be `[s, x]`, x to starboard; a bench may carry a
  * `cushion`; a point may be `[s, x, 'deck']`, on the deck; `motors: { spacing }` gives twin outboards a `motorPair`
  * point, a layout entry paired across the boat on it (the port motor its mirror, steering with it, its propeller
- * counter-rotating). Outboard families: 'tiller' (steered by its own tiller) and 'remote' (steered and shifted from a helm: its
+ * counter-rotating); a `ramp` bow (a square bow left open above its sole, for a `boat-ramp`), an `aftDeck` (`{ to, z }`:
+ * the liner raised to a deck over an engine room aft of `to`; a point `[s, x, 'aft']` on it), a well deck's `cargo`
+ * (`{ from, to, width }`: its area on the sole, a `cargo` point at its middle: vehicle-registry/carry.js says what fits)
+ * and `shafts`. Outboard families: 'tiller' (steered by its own tiller) and 'remote' (steered and shifted from a helm: its
  * rigging into the boat, a steering ram along its tilt tube, bolted through the transom), its brackets, leg and gearcase
  * drawn at `leg` of the 20 hp class's size, its pan `cowl.lift` over the clamp, its cowl's colour role `tint.cowl`. Sized to a public class, every name generic: a class, never a product.
  */
@@ -77,6 +85,8 @@ export const BOAT_KINDS = Object.freeze({
   'boat-arch': 'a radar arch over a boat\'s cockpit: its legs, crossbar, radar dome, lights and antennas',
   'boat-jet': 'a waterjet drive through a boat\'s transom: its pump, its steering nozzle, its reverse bucket',
   'boat-cabin': 'a cabin on a boat\'s deck: an armoured pilothouse, its windows, doors, mast and gun ring',
+  'boat-ramp': 'a landing craft\'s bow ramp, hinged across its foot: it lowers onto a beach',
+  'boat-shaft': 'an inboard drive\'s running gear under a boat: its shaft, strut, propeller and rudder',
 });
 
 export const BOAT_ODM = {
@@ -311,6 +321,35 @@ export const BOAT_ODM = {
       fittings: { bowEye: 0.85, cleats: 0.05, transomEyes: 1.05, navLights: { pole: false } },
     },
   },
+  // ===== a 22 m landing craft: a flat bottom, a ramp at its bow, a well deck, an engine room aft ==
+  'hull-landing-22': {
+    kind: 'boat-hull', realm: 'water', label: '22 m landing craft hull', classOf: '22 m mechanised landing craft class (twin diesels)',
+    aliases: ['landing craft hull', 'lcm hull', 'ramp bow hull'],
+    // (its depth amidships, keel to its wing walls' top)
+    dims: { length: 22.0, beam: 6.4, depth: 2.6 }, mass: 38000, mount: 'keel',
+    perf: { persons: 6, load: 54000, maxPower: 1100 },
+    build: {
+      // (flat-bottomed: its chine at its keel; its stern lifted over its propellers, its forefoot lifted to beach)
+      family: 'vee', bow: 'ramp',
+      lines: {
+        keel: [[0, 0.75], [0.08, 0.55], [0.2, 0.05], [0.3, 0], [0.85, 0], [0.95, 0.25], [1, 0.55]],
+        sheer: [[0, 2.6], [0.5, 2.6], [1, 2.9]],
+        sheerHalf: [[0, 3.15], [0.5, 3.2], [0.9, 3.15], [1, 2.95]],
+        chine: [[0, 0.77], [0.08, 0.57], [0.2, 0.07], [0.3, 0.02], [0.85, 0.02], [0.95, 0.27], [1, 0.57]],
+        chineHalf: [[0, 3.0], [0.5, 3.1], [0.9, 3.0], [1, 2.75]],
+      },
+      // (welded steel; its wing walls thick, buoyant; the well deck the sole, the engine room under the aft deck)
+      tint: { liner: 'paint' },
+      skin: 0.04, liner: 0.5, flare: 0.02, stations: { mid: 0.012, bow: 0.006 },
+      transom: { rake: 0, thickness: 0.15 },
+      sole: 0.85, aftDeck: { to: 0.22, z: 1.85 },
+      gunwale: 0.09, keelStrip: 0,
+      cargo: { from: 0.25, to: 0.97, width: 4.8 },
+      shafts: { spacing: 2.6, at: 0.07 },
+      points: { pilothouse: [0.09, 0, 'aft'], gunAftR: [0.19, 1.9, 'aft'], gunAftL: [0.19, -1.9, 'aft'] },
+      fittings: { cleats: 0.03, transomEyes: 2.2, navLights: { pole: false } },
+    },
+  },
   // ===== a 20 hp tiller outboard, short shaft ==================================================
   'outboard-20-tiller': {
     kind: 'boat-outboard', realm: 'water', label: '20 hp tiller outboard, short shaft', classOf: '20 hp four-stroke tiller outboard class',
@@ -498,6 +537,31 @@ export const BOAT_ODM = {
     aliases: ['ring gun', 'roof gun', 'shielded gun'],
     dims: { width: 0.6, length: 1.16, height: 0.85 }, mass: 90, mount: 'ring',
     build: { family: 'pintle', post: 0.4, elevation: 30, shield: { width: 0.6, height: 0.4 } },
+  },
+  // ===== a landing craft's bow ramp ===========================================================
+  'ramp-landing-22': {
+    kind: 'boat-ramp', realm: 'water', label: 'bow ramp', classOf: '22 m mechanised landing craft class',
+    aliases: ['bow ramp', 'landing ramp', 'bow door'],
+    dims: { width: 4.7, height: 2.25, length: 0.4 }, mass: 4500, mount: 'bow-foot',
+    build: { family: 'ramp', thickness: 0.22, stiffeners: 4, treads: 9, drop: 104 },
+  },
+  // ===== an inboard drive's running gear ======================================================
+  'shaft-diesel-450': {
+    kind: 'boat-shaft', realm: 'water', label: 'shaft drive, 450 kW', classOf: 'twin-screw shaft drive class (its diesel inboard)',
+    aliases: ['shaft drive', 'inboard drive', 'propeller shaft', 'screw'],
+    dims: { length: 2.4, width: 0.95, height: 1.2 }, mass: 3200, mount: 'bottom',
+    perf: { power: 450 },
+    build: { family: 'shaft', rake: 9, length: 1.5, rudder: 0.85, steer: 35, prop: { blades: 4, diameter: 0.95, pitch: 1.0, hand: 'rh' } },
+  },
+  // ===== a landing craft's pilothouse =========================================================
+  'pilothouse-landing': {
+    kind: 'boat-cabin', realm: 'water', label: 'landing craft pilothouse', classOf: '22 m mechanised landing craft class',
+    aliases: ['landing craft pilothouse', 'conning house'],
+    dims: { width: 2.6, length: 2.8, height: 2.6 }, mass: 3200, mount: 'deck',
+    build: {
+      family: 'pilothouse', height: 2.3, shoulder: 0.45, lean: 0.26, rake: 0.6, front: 0.72, mast: 1.6,
+      ring: { at: 0.28, radius: 0.45, height: 0.12 },
+    },
   },
   // ===== a cooler seat ========================================================================
   'seat-cooler-120': {

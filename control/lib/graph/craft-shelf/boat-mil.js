@@ -16,6 +16,10 @@
  *   boat-cabin   pilothouse  an armoured pilothouse: its walls faceted, its front raked to its windows, the seams along
  *                         its facets, its doors, a searchlight, a mast with its radar, light and whips, a gun ring aft on
  *                         its roof. Points: `mount`, `roofGun`
+ *   boat-ramp    ramp     a landing craft's bow ramp hinged across its foot: its plate, stiffeners, edge beams, treads,
+ *                         hinge and lip; it lowers (`pose.ramp`). Points: `mount`, `toe`
+ *   boat-shaft   shaft    an inboard drive's running gear: the shaft out of the bottom, its strut, a four-bladed
+ *                         propeller (`pose.prop`), the rudder on its stock (`pose.yaw`). Points: `mount`, `prop`
  *   boat-arch    radar    a radar arch: on each side an A-frame of two legs from feet on the sole up to the crossbar, the
  *                         crossbar across, a platform on it with the radar's dome, an all-round light, a light bar facing
  *                         forward, two whip antennas at its ends. Points: `mount`, `top`
@@ -236,7 +240,83 @@ function buildPilothouse(row, C, opts = {}) {
   return { lofts, extrudes, lathes, sweeps, hardpoints: { mount: [0, 0, 0], roofGun: r3v([0, gy, H + G.height - 0.02]) } };
 }
 
+// a landing craft's bow ramp, hinged across its foot: its plate (its outer face forward when it is up), the stiffeners
+// across its outer face, the edge beams, the treads across its inner face (what a vehicle drives down when it is
+// lowered), its hinge's barrels and its lip. It lowers about its hinge (`pose.ramp`, 0 up … 1 down, `drop` degrees).
+// Points: `mount` (the hinge's middle), `toe` (its lip: where a vehicle leaves it)
+function buildRamp(row, C, opts = {}) {
+  const b = row.build, pose = opts.pose || {};
+  if (b.family !== 'ramp') throw new Error(`Unknown boat-ramp family '${b.family}'`);
+  const { width: W, height: Hr } = row.dims, t = b.thickness, a = clamp(pose.ramp, 0, 1) * b.drop * DEG;
+  const P = (p) => [p[0], p[1] * Math.cos(a) + p[2] * Math.sin(a), -p[1] * Math.sin(a) + p[2] * Math.cos(a)];
+  const extrudes = [], lathes = [];
+  const across = (id, y0, y1, z0, z1, w, tint) => {
+    const ring = [[0, y0, z0], [0, y1, z0], [0, y1, z1], [0, y0, z1]].map(P), A = P([-w / 2, 0, 0]), Z = P([w / 2, 0, 0]);
+    extrudes.push(extrudeWorld(id, A, Z, ccw(A, Z, ring.map((q, i) => [q[0] - A[0], q[1] - A[1], q[2] - A[2]])), tint));
+  };
+  across('plate', 0, t, 0, Hr, W, C.paint);
+  for (let k = 1; k <= b.stiffeners; k += 1) across(`stiffener_${k}`, t - 0.01, t + 0.09, (Hr * k) / (b.stiffeners + 1) - 0.06, (Hr * k) / (b.stiffeners + 1) + 0.06, W - 0.1, tone(C.paint, -0.08));
+  for (const sx of [1, -1]) {
+    const A = P([sx * (W / 2 - 0.12), 0, 0]), Z = P([sx * (W / 2 - 0.01), 0, 0]);
+    extrudes.push(extrudeWorld(`edge_beam_${sx > 0 ? 'r' : 'l'}`, A, Z, ccw(A, Z, [[0, t - 0.01, 0], [0, t + 0.12, 0], [0, t + 0.12, Hr], [0, t - 0.01, Hr]].map(P).map((q) => [0, q[1] - A[1], q[2] - A[2]])), tone(C.paint, -0.08)));
+  }
+  for (let k = 0; k < b.treads; k += 1) { const z = 0.25 + ((Hr - 0.4) * k) / Math.max(1, b.treads - 1); across(`tread_${k}`, -0.035, 0.005, z - 0.025, z + 0.025, W - 0.3, tone(C.paint, -0.25)); }
+  for (const x of [-W * 0.35, 0, W * 0.35]) lathes.push(lathe(`hinge_${Math.round(x * 10)}`, P([x - 0.25, t / 2, 0]), P([x + 0.25, t / 2, 0]), [[0, 0.12], [1, 0.12]], C.chrome, { samples: 12, crossSections: 2 }));
+  lathes.push(lathe('lip', P([-W / 2 + 0.05, t / 2, Hr]), P([W / 2 - 0.05, t / 2, Hr]), [[0, t * 0.55], [1, t * 0.55]], tone(C.paint, -0.12), { samples: 10, crossSections: 2 }));
+  const joints = [{ name: 'ramp', control: 'ramp', kind: 'hinge', at: [0, 0, 0], dir: [1, 0, 0], range: [0, b.drop], angle: round3(a / DEG) || 0 }];
+  return { extrudes, lathes, hardpoints: { mount: [0, 0, 0], toe: r3v(P([0, t / 2, Hr])) }, joints };
+}
+
+// an inboard drive's running gear under the hull: the shaft out of the bottom raked aft and down, its strut, a
+// four-bladed propeller on its end (each blade pitched to its helix, handed; `pose.prop` turns it), the rudder aft of it
+// on its stock (it steers: `pose.yaw`); a pair's port shaft the starboard one mirrored, its rudder steering with it and
+// its propeller counter-rotating. Points: `mount` (where the shaft leaves the bottom), `prop`
+function buildShaft(row, C, opts = {}) {
+  const b = row.build, pose = opts.pose || {};
+  if (b.family !== 'shaft') throw new Error(`Unknown boat-shaft family '${b.family}'`);
+  const th = b.rake * DEG, Ls = b.length, R = b.prop.diameter / 2, hand = b.prop.hand === 'lh' ? -1 : 1;
+  const steer = clamp(pose.yaw, -1, 1) * b.steer * DEG * (opts.side === 'l' ? -1 : 1), spin = ((Number(pose.prop) || 0) % 360) * DEG * hand;
+  const aft = [0, -Math.cos(th), -Math.sin(th)], fwd = aft.map((v) => -v), at = (d) => [0, aft[1] * d, aft[2] * d];
+  const P1 = at(Ls), lathes = [], extrudes = [], lofts = [];
+  lathes.push(lathe('shaft', [0, 0.3 * Math.cos(th), 0.3 * Math.sin(th) + 0.04], P1, [[0, 0.055], [1, 0.05]], C.chrome, { samples: 12, crossSections: 2 }));
+  lathes.push(lathe('stern_tube', [0, 0.05, 0.08], at(0.25), [[0, 0.11], [1, 0.08]], tone(C.paint, -0.15), { samples: 12, crossSections: 2 }));
+  // the strut: a blade from the bottom down to its bearing on the shaft, ahead of the propeller
+  const sp = at(Ls - 0.35), sb = [0, sp[1], 0.06];
+  extrudes.push(extrudeWorld('strut', [-0.025, 0, 0], [0.025, 0, 0], ccw([-0.025, 0, 0], [0.025, 0, 0], [[0, sb[1] + 0.14, sb[2]], [0, sb[1] - 0.12, sb[2]], [0, sp[1] - 0.1, sp[2]], [0, sp[1] + 0.1, sp[2]]]), tone(C.paint, -0.15)));
+  lathes.push(lathe('strut_bearing', at(Ls - 0.47), at(Ls - 0.23), [[0, 0.09], [1, 0.09]], tone(C.paint, -0.15), { samples: 12, crossSections: 2 }));
+  // the propeller: its hub, its blades about the shaft's axis
+  lathes.push(lathe('prop_hub', at(Ls - 0.12), at(Ls + 0.16), [[0, 0.12], [0.6, 0.11], [1, 0.06]], C.chrome, { samples: 16, crossSections: 3 }));
+  const e1 = [1, 0, 0], e2 = [0, fwd[2] * e1[0] - fwd[0] * e1[2], fwd[0] * e1[1] - fwd[1] * e1[0]].map((v) => v), hub = at(Ls);
+  const e2n = (() => { const c = [aft[1] * e1[2] - aft[2] * e1[1], aft[2] * e1[0] - aft[0] * e1[2], aft[0] * e1[1] - aft[1] * e1[0]], l = Math.hypot(...c) || 1; return c.map((v) => v / l); })();
+  void e2;
+  const r0 = 0.1, chordAt = (f) => R * (f < 0.5 ? 0.42 + 0.3 * f : 0.57 - 0.5 * (f - 0.5) ** 1.5);
+  for (let k = 0; k < b.prop.blades; k += 1) {
+    const phi = (2 * Math.PI * k) / b.prop.blades + spin, rhat = e1.map((v, i) => Math.cos(phi) * v + Math.sin(phi) * e2n[i]);
+    const tan = [fwd[1] * rhat[2] - fwd[2] * rhat[1], fwd[2] * rhat[0] - fwd[0] * rhat[2], fwd[0] * rhat[1] - fwd[1] * rhat[0]].map((v) => v * hand);
+    const station = (f) => {
+      const r = r0 + f * (R - r0), beta = Math.atan(b.prop.pitch / (2 * Math.PI * r)), c = chordAt(f), tk = c * (0.1 - 0.06 * f);
+      const cd = add(tan.map((v) => v * Math.cos(beta)), fwd.map((v) => v * Math.sin(beta))), nd = add(tan.map((v) => -v * Math.sin(beta)), fwd.map((v) => v * Math.cos(beta)));
+      return Array.from({ length: 10 }, (_, i) => { const q = (2 * Math.PI * i) / 10; return add(cd.map((v) => v * (c / 2) * Math.cos(q)), nd.map((v) => v * (tk / 2) * Math.sin(q))); });
+    };
+    lofts.push(loftWorld(`blade_${k}`, add(hub, rhat.map((v) => v * r0)), add(hub, rhat.map((v) => v * R)), [0, 0.4, 0.8, 1].map((f) => ({ t: f, points: station(f) })), C.chrome, { interp: 'smooth', segments: 3 }));
+  }
+  // the rudder aft of it on its stock, steering about the stock's vertical
+  const ry = P1[1] - R * 0.5 - 0.12, rz0 = 0.06, rz1 = P1[2] - R * 0.95, ch = b.rudder;
+  const rot = (p) => { const q = [p[0], p[1] - ry, p[2]]; return [q[0] * Math.cos(steer) - q[1] * Math.sin(steer), q[0] * Math.sin(steer) + q[1] * Math.cos(steer) + ry, q[2]]; };
+  const rotD = (v) => [v[0] * Math.cos(steer) - v[1] * Math.sin(steer), v[0] * Math.sin(steer) + v[1] * Math.cos(steer), v[2]];
+  const A = rot([-0.03, ry, 0]), Z = rot([0.03, ry, 0]);
+  extrudes.push(extrudeWorld('rudder', A, Z, ccw(A, Z, [[0, ch * 0.2, rz0], [0, -ch * 0.8, rz0], [0, -ch * 0.75, rz1], [0, ch * 0.15, rz1]].map((q) => rotD([0, q[1], q[2]])).map((q) => [q[0], q[1], q[2]])), tone(C.paint, -0.15)));
+  lathes.push(lathe('rudder_stock', [0, ry, rz1 + 0.05], [0, ry, 0.45], [[0, 0.06], [1, 0.06]], C.chrome, { samples: 10, crossSections: 2 }));
+  const joints = [
+    { name: 'prop', control: 'prop', kind: 'spin', at: r3v(hub), dir: r3v(fwd.map((v) => v * hand)), range: [0, 360], angle: round3((Number(pose.prop) || 0) % 360) || 0 },
+    { name: 'rudder', control: 'yaw', kind: 'hinge', at: [0, round3(ry), 0], dir: [0, 0, 1], range: [-b.steer, b.steer], angle: round3(steer / DEG) || 0 },
+  ];
+  return { lathes, extrudes, lofts, hardpoints: { mount: [0, 0, 0], prop: r3v(hub) }, joints };
+}
+
 export const MIL_BUILDERS = {
+  'boat-ramp': buildRamp,
+  'boat-shaft': buildShaft,
   'boat-mount': buildMount,
   'boat-arch': buildArch,
   'boat-jet': buildJet,

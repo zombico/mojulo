@@ -21,6 +21,7 @@ export const BOAT_ROLES = {
   runabout: { label: 'runabout', mission: 'a day on the water for a family or a fishing party: quick onto the plane, dry enough offshore', realms: ['water'] },
   raider: { label: 'raiding craft', mission: 'a small team in and out fast, armed and low on the water: a military RHIB', realms: ['water'] },
   patrol: { label: 'patrol boat', mission: 'keep a river, a coast or a harbour: armoured, armed, on station for hours', realms: ['water'] },
+  landing: { label: 'landing craft', mission: 'put vehicles and troops ashore over a beach: a ramp at its bow, a well deck, a shallow draft', realms: ['water'] },
 };
 
 export const BOAT_ARCHETYPES = {
@@ -128,6 +129,22 @@ export const BOAT_ARCHETYPES = {
       { id: 'gunRoof', sku: 'mount-mg-ring', at: 'pilothouse.roofGun', yaw: 180 },
       { id: 'gunBow', sku: 'mount-mg-tub', at: 'hull.gunBow' },
       { id: 'gunAft', sku: 'mount-mg-tub', at: 'hull.gunAft', yaw: 180 },
+    ],
+  },
+  landingCraft: {
+    realm: 'water', role: 'landing', palette: 'landingGrey', class: 'landing craft', label: '22 m landing craft', classOf: '22 m mechanised landing craft class (twin screws, its guns modelled, never fired)',
+    // (its crew and, in its well, a field vehicle's worth of load)
+    payload: 16000,
+    reference: { span: 6.6, length: 23.6, height: 7.2, mtow: 70000, draft: 0.75 },
+    bom: { 'boat-hull': 1, 'boat-ramp': 1, 'boat-shaft': 2, 'boat-cabin': 1, 'boat-mount': 3 },
+    layout: [
+      { id: 'hull', sku: 'hull-landing-22' },
+      { id: 'ramp', sku: 'ramp-landing-22', at: 'hull.ramp' },
+      { id: 'shaft', sku: 'shaft-diesel-450', at: 'hull.shaftPair', pair: true },
+      { id: 'pilothouse', sku: 'pilothouse-landing', at: 'hull.pilothouse' },
+      { id: 'gunRoof', sku: 'mount-mg-ring', at: 'pilothouse.roofGun' },
+      { id: 'gunAftR', sku: 'mount-mg-tub', at: 'hull.gunAftR' },
+      { id: 'gunAftL', sku: 'mount-mg-tub', at: 'hull.gunAftL' },
     ],
   },
 };

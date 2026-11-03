@@ -45,6 +45,8 @@ export const CRAFT_PALETTES = {
   navalHaze: { paint: '#8f969c', trim: '#5b6268', glass: '#28313a', rubber: '#1c1d1f', chrome: '#8a9197', light: '#ff8a3c' },
   // a riverine patrol boat's olive drab, its stripe and fittings a darker olive, dull aluminium
   riverineOlive: { paint: '#56604a', trim: '#363c2f', glass: '#26302c', rubber: '#18191a', chrome: '#80867a', light: '#ff8a3c' },
+  // a landing craft's haze grey steel, its dark fittings, its deck's non-slip a shade darker
+  landingGrey: { paint: '#7d848a', trim: '#4d5358', glass: '#262e35', rubber: '#1a1b1d', chrome: '#8a9096', light: '#ff8a3c' },
   // a racer's bare carbon, aluminium standoffs, bright props (its 'rubber': the shelf's role for the props)
   fpvCarbon: { paint: '#2a2c2f', trim: '#1b1c1e', glass: '#22303a', rubber: '#e8642a', chrome: '#a8adb2', light: '#7dff6a' },
   // an enterprise drone's dark grey, rugged
