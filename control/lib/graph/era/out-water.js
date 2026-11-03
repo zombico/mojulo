@@ -18,7 +18,8 @@
  *
  *   readWater(w, at)                → the forms as written, checked (false: no water, a cube's refused) | null
  *   layWater(W, ctx)                → the bodies laid on the site's grid (it is cut in place): { forms, wet, sand,
- *                                     clear, faces, cameras, anchors, hazards, sea, coast }
+ *                                     clear, faces, cameras, anchors, hazards, sea, coast, rivers? (each river's course:
+ *                                     { y0, dy, hw, xr, wl }, its line and its water's level down it) }
  *   waterCameras(site)              → the stills each body is seen from (a lake, the shore, the river, the falls)
  *
  * Pure: integer-hash dice and value noise, the same recipe the same water.
@@ -93,6 +94,7 @@ export function layWater(Wr, ctx) {
   // (the far side's foot: the cliff's past its talus, or the site's back edge on an open trail)
   const farFoot = (y) => (open ? x0 + 2 : cliffX(y) + talus + 1);
   const bodies = [], wetFns = [], sandFns = [], clearFns = [], faces = [], cameras = [], anchors = [], hazards = [];
+  const rivers = [];   // (each river's course, for destructible physics' moving water: rupa/ground-grid.js)
   const fill = waterFill(st);
   const sheet = (corners, alpha, f = fill) => faces.push({ corners: corners.map((p) => p.map(r5)), normal: [0, 0, 1], outNormal: [0, 0, 1], fill: f, water: true, cornerAlpha: alpha.map(r5), group: 'isekai:water' });
   const lower = (q, t) => { if (t < g.z[q]) { g.z[q] = t; g.apron[q] = 0; g.hard[q] = 0; } };
@@ -243,6 +245,7 @@ export function layWater(Wr, ctx) {
     clearFns.push((x, y) => dist(x, y) < hw + 1.8);
     const mid = Math.floor(n / 2);
     bodies.push({ form: 'river', side: side > 0 ? 'open' : 'far', width: Rv.width, falls: r5(wl[down ? 0 : n - 1] - wl[down ? n - 1 : 0]) });
+    rivers.push({ y0: r5(ys[0]), dy, hw: r5(hw), xr: xr.map(r5), wl: Array.from(wl, r5) });
     anchors.push({ id: 'river-1', kind: 'water', water: 'river', at: [r5(xr[mid]), r5(ys[mid]), r5(wl[mid])], width: Rv.width });
     let xa = Infinity, xb = -Infinity; for (const x of xr) { xa = Math.min(xa, x); xb = Math.max(xb, x); }
     hazard('hazard-river-1', 'river-1', [[xa - hw, 0, Math.min(...wl) - Rv.depth], [xb + hw, D, Math.max(...wl)]], ys[mid]);
@@ -254,6 +257,7 @@ export function layWater(Wr, ctx) {
   const wet = (x, y) => wetFns.some((f) => f(x, y));
   return {
     forms: bodies, faces, cameras, anchors, hazards, ...(sea !== null ? { sea, coast: coastLine } : {}),
+    ...(rivers.length ? { rivers } : {}),
     wet,
     // where the ground is sand (a shore, a beach, a river's shingle): + inside, − outside, at a point on the ground
     sand: (x, y, z = gridSample(g, x, y)) => sandFns.reduce((m, f) => Math.max(m, f(x, y, z)), -1),

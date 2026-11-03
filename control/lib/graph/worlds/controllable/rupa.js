@@ -114,7 +114,8 @@
  *            its ground's soil): a burst near it digs its crater, the bank thrown to a rim, the faces slumping by their
  *            soil; a footing whose land went drops to it (state.rupa.ground, its `version` and `dirty` cells for the page)
  *
- *   WATER    the stage's lakes and sea on the ground grid (`rupa.ground.water`: boxes and levels): a depth at each point,
+ *   WATER    the stage's lakes and sea on the ground grid (`rupa.ground.water`: boxes and levels), and its rivers
+ *            (`rupa.ground.rivers`: each its course, its ends held at their levels so it runs): a depth at each point,
  *            still until moved (a crater at its edge, a levee broken, rain at the page's weather's rate × `rainTime`), then
  *            flowing by rupa/fluid.js's virtual pipes till still; a block on the land holds it, its push breaches one
  *            that cannot (state.rupa.ground.w, its `wVersion` for the page)
@@ -765,7 +766,53 @@ export function buildRupa(E) {
     Gd.version++;
     const d = Gd.dirty;
     Gd.dirty = d ? [Math.min(d[0], i0 - pad), Math.max(d[1], i1 + pad), Math.min(d[2], j0 - pad), Math.max(d[3], j1 + pad)] : [i0 - pad, i1 + pad, j0 - pad, j1 + pad];
-    return { radius: R, depth: Dp, removed: taken, ejected };
+    return { radius: R, depth: Dp, removed: taken, ejected, soil: sl };
+  }
+
+  // ── THE SHOVEL: a scoop (a bank volume: a hand shovel's 10 L, a bucket's 0.8 m³, an excavator's 2 m³) taken out of the
+  // ground as a bowl down to bedrock, never narrower than the grid's cell (a smaller scoop is spread over one, the same
+  // volume, so dig after dig it deepens), and its loose volume (× the soil's swell) piled where it is thrown as a cone at
+  // the soil's angle of repose, then slumped; nothing lost (rupa/ground.js dig, deposit, shovel) ──
+  const SCOOPS = { hand: 0.01, bucket: 0.8, excavator: 2 };
+  function groundDig(Gd, at, bank) {
+    const { nx, ny, dx, x0, y0, z, rock } = Gd, ic = Math.round((at[0] - x0) / dx), jc = Math.round((at[1] - y0) / dx), sl = soilAt(Gd, ic, jc);
+    if (!sl || !(bank > 0) || sl.depth <= 0) return null;
+    const r = Math.max(0.75 * dx, Math.cbrt((2 * bank) / Math.PI)), D = (2 * bank) / (Math.PI * r * r), A = dx * dx;
+    const i0 = Math.max(0, Math.floor((at[0] - r - x0) / dx)), i1 = Math.min(nx - 1, Math.ceil((at[0] + r - x0) / dx));
+    const j0 = Math.max(0, Math.floor((at[1] - r - y0) / dx)), j1 = Math.min(ny - 1, Math.ceil((at[1] + r - y0) / dx));
+    // the bowl's shape over the grid's points, scaled so it takes the scoop's volume exactly (where bedrock allows)
+    const pts = [];
+    let shape = 0;
+    for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) { const d = Math.hypot(x0 + i * dx - at[0], y0 + j * dx - at[1]); if (d < r) { const w = 1 - (d / r) ** 2; pts.push([j * nx + i, w]); shape += w * A; } }
+    if (!(shape > 0)) return null;
+    let taken = 0;
+    for (const [k, w] of pts) { const to = Math.max(rock[k], z[k] - (bank / shape) * w); taken += (z[k] - to) * A; z[k] = to; }
+    Gd.version++;
+    return { bank: taken, loose: taken * sl.swell, soil: sl, radius: r, depth: D, box: [i0, i1, j0, j1] };
+  }
+  function groundPile(Gd, at, loose, sl) {
+    const { nx, ny, dx, x0, y0, z } = Gd, A = dx * dx, tan = Math.tan(((sl ? sl.phi : 30) * Math.PI) / 180);
+    const r = Math.max(dx, Math.cbrt((3 * loose) / (Math.PI * Math.max(tan, 0.05))));
+    const i0 = Math.max(0, Math.floor((at[0] - r - x0) / dx)), i1 = Math.min(nx - 1, Math.ceil((at[0] + r - x0) / dx));
+    const j0 = Math.max(0, Math.floor((at[1] - r - y0) / dx)), j1 = Math.min(ny - 1, Math.ceil((at[1] + r - y0) / dx));
+    const pts = [];
+    let wsum = 0;
+    for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) { const d = Math.hypot(x0 + i * dx - at[0], y0 + j * dx - at[1]); if (d < r) { pts.push([j * nx + i, r - d]); wsum += r - d; } }
+    if (!(wsum > 0)) { const k = Math.min(ny - 1, Math.max(0, Math.round((at[1] - y0) / dx))) * nx + Math.min(nx - 1, Math.max(0, Math.round((at[0] - x0) / dx))); z[k] += loose / A; }
+    else for (const [k, w] of pts) z[k] += (loose / A) * (w / wsum);
+    slumpRegion(Gd, Math.max(0, i0 - 2), Math.min(nx - 1, i1 + 2), Math.max(0, j0 - 2), Math.min(ny - 1, j1 + 2));
+    Gd.version++;
+    return { radius: r };
+  }
+  function groundShovel(Gd, from, to, scoop = 'hand') {
+    const bank = typeof scoop === 'string' ? SCOOPS[scoop] : scoop, D = groundDig(Gd, from, bank);
+    if (!D) return null;
+    const [i0, i1, j0, j1] = D.box;
+    slumpRegion(Gd, Math.max(0, i0 - 2), Math.min(Gd.nx - 1, i1 + 2), Math.max(0, j0 - 2), Math.min(Gd.ny - 1, j1 + 2));
+    groundPile(Gd, to, D.loose, D.soil);
+    const d = Gd.dirty, box = [Math.min(i0, Math.floor((to[0] - Gd.x0) / Gd.dx) - 4), Math.max(i1, Math.ceil((to[0] - Gd.x0) / Gd.dx) + 4), Math.min(j0, Math.floor((to[1] - Gd.y0) / Gd.dx) - 4), Math.max(j1, Math.ceil((to[1] - Gd.y0) / Gd.dx) + 4)];
+    Gd.dirty = d ? [Math.min(d[0], box[0]), Math.max(d[1], box[1]), Math.min(d[2], box[2]), Math.max(d[3], box[3])] : box;
+    return { bank: D.bank, loose: D.loose };
   }
 
   // ── WATER ON THE GROUND (the stage's lakes and sea, rupa/ground-grid.js `water`: each a box and its level): a depth at
@@ -775,7 +822,7 @@ export function buildRupa(E) {
   // top (water pools behind it and pours over it when it rises past); the water's push on it, ½ρg(d₁² − d₂²) a metre,
   // against its weight's friction (it stands on the land unmortared), breaches it ──
   const WATER_RHO = 1000, WATER_BED = 0.4;
-  function waterInit(Gd, bodies) {
+  function waterInit(Gd, bodies, rivers) {
     const n = Gd.nx * Gd.ny, w = new Float32Array(n);
     for (const B of bodies || []) for (let j = 0; j < Gd.ny; j++) for (let i = 0; i < Gd.nx; i++) {
       const x = Gd.x0 + i * Gd.dx, y = Gd.y0 + j * Gd.dx, k = j * Gd.nx + i;
@@ -783,7 +830,21 @@ export function buildRupa(E) {
       const d = B.level - Gd.z[k];
       if (d > w[k]) w[k] = d;
     }
-    Object.assign(Gd, { w, w0: Float32Array.from(w), q: new Float32Array(n * 4), bar: new Float32Array(n), flowing: false, calm: 0, wVersion: 0, wGround: -1, barSeq: -1 });
+    // a river (its course: its line xr and level wl down it, every dy from y0, its half-width hw): laid at its level, its
+    // two ends HELD there (fed in upstream, let out downstream), so it runs and never settles
+    const held = [], heldAt = [];
+    for (const Rv of rivers || []) {
+      const m = Rv.xr.length, at = (a, y) => { const u = Math.max(0, Math.min(m - 1.001, (y - Rv.y0) / Rv.dy)), i = Math.floor(u); return a[i] + (a[i + 1] - a[i]) * (u - i); };
+      for (let j = 0; j < Gd.ny; j++) for (let i = 0; i < Gd.nx; i++) {
+        const x = Gd.x0 + i * Gd.dx, y = Gd.y0 + j * Gd.dx, k = j * Gd.nx + i;
+        if (Math.abs(x - at(Rv.xr, y)) >= Rv.hw) continue;
+        const L = at(Rv.wl, y), d = L - Gd.z[k];
+        if (d <= 0) continue;
+        if (d > w[k]) w[k] = d;
+        if (j === 0 || j === Gd.ny - 1) { held.push(k); heldAt.push(L); }
+      }
+    }
+    Object.assign(Gd, { w, w0: Float32Array.from(w), q: new Float32Array(n * 4), bar: new Float32Array(n), flowing: held.length > 0, calm: 0, wVersion: 0, wGround: -1, barSeq: -1, held, heldAt, running: held.length > 0 });
   }
   // the blocks on the land as raised ground: each standing block's top over the points under it
   function waterBars(state, Gd) {
@@ -803,12 +864,14 @@ export function buildRupa(E) {
     const { nx, ny, dx, z, w, q, bar } = Gd, n = nx * ny, A = dx * dx;
     let t = 0, moved = 0;
     while (t < seconds - 1e-9) {
-      let dmax = 0;
-      for (let k = 0; k < n; k++) if (w[k] > dmax) dmax = w[k];
+      // (only the wet part of the grid and a margin: a river costs its own points)
+      let dmax = 0, i0 = nx, i1 = -1, j0 = ny, j1 = -1;
+      for (let k = 0; k < n; k++) if (w[k] > 0) { if (w[k] > dmax) dmax = w[k]; const i = k % nx, j = (k - i) / nx; if (i < i0) i0 = i; if (i > i1) i1 = i; if (j < j0) j0 = j; if (j > j1) j1 = j; }
       if (dmax <= 1e-6) break;
+      i0 = Math.max(0, i0 - 2); i1 = Math.min(nx - 1, i1 + 2); j0 = Math.max(0, j0 - 2); j1 = Math.min(ny - 1, j1 + 2);
       const dt = Math.min(seconds - t, (0.35 * dx) / Math.sqrt(G * dmax));
       const s = (k) => z[k] + Math.max(bar[k], 0) + w[k];
-      for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++) {
+      for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) {
         const k = j * nx + i;
         let out = 0;
         for (let r = 0; r < 4; r++) {
@@ -821,7 +884,7 @@ export function buildRupa(E) {
         }
         if (out * dt > w[k] * A && out > 0) { const K = (w[k] * A) / (out * dt); for (let r = 0; r < 4; r++) q[k * 4 + r] *= K; }
       }
-      for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++) {
+      for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) {
         const k = j * nx + i;
         let net = -(q[k * 4] + q[k * 4 + 1] + q[k * 4 + 2] + q[k * 4 + 3]);
         if (i > 0) net += q[(k - 1) * 4]; if (i < nx - 1) net += q[(k + 1) * 4 + 1];
@@ -829,12 +892,14 @@ export function buildRupa(E) {
         const d = Math.max(0, w[k] + (dt * net) / A);
         moved = Math.max(moved, Math.abs(d - w[k])); w[k] = d;
       }
+      // a river's ends held at their levels: what ran out downstream is let go, what it needs upstream fed in
+      if (Gd.held) for (let h = 0; h < Gd.held.length; h++) { const k = Gd.held[h]; w[k] = Math.max(0, Gd.heldAt[h] - z[k]); }
       t += dt;
     }
     return moved;
   }
 
-  const physics = { waterInit, waterStep, groundOf, groundZ, groundCrater, unb64, craterSize, settleSpeed, dirt, scarOf, flameOf, footD, CHI_R, settleOf, buoyancyOf, riseOf, puffAt, lifeOf, smokeOf, plumePuffs, SOOT_K, SOOT_YIELD, resistance, bleed, blockDrag, wakeFactor, dragArea, blastKg, blastJoules, faceArea, burstShare, blowJoules, heatFactor, impact, dentOf, SHARP, SHOT_R, TOOLS, toolOf, dishOf, cutDepth, pressure, flowOf, submerged, inPool, immerse, stepIn, wet, windOf, windAt, AIR, loadPass, fragments, splash, seedOf, vol, G, TNT };
+  const physics = { SCOOPS, groundDig, groundPile, groundShovel, waterInit, waterStep, groundOf, groundZ, groundCrater, unb64, craterSize, settleSpeed, dirt, scarOf, flameOf, footD, CHI_R, settleOf, buoyancyOf, riseOf, puffAt, lifeOf, smokeOf, plumePuffs, SOOT_K, SOOT_YIELD, resistance, bleed, blockDrag, wakeFactor, dragArea, blastKg, blastJoules, faceArea, burstShare, blowJoules, heatFactor, impact, dentOf, SHARP, SHOT_R, TOOLS, toolOf, dishOf, cutDepth, pressure, flowOf, submerged, inPool, immerse, stepIn, wet, windOf, windAt, AIR, loadPass, fragments, splash, seedOf, vol, G, TNT };
   E.rupaPhysics = physics;
   if (!E.registerWorldPass) return;   // Node's physics-only build
 
@@ -872,7 +937,7 @@ export function buildRupa(E) {
       trees: Array.isArray(R.trees) ? R.trees.map((t) => ({ id: t.id, blocks: t.blocks.slice(), foot: t.foot, crown: t.crown.slice(), breakSpeed: t.breakSpeed, snapped: null })) : [], treesAt: -1,
       treeOf: Array.isArray(R.trees) ? Object.fromEntries(R.trees.flatMap((t) => t.blocks.map((id) => [id, t.id]))) : {},
       scars: R.scars ? { ground: R.scars.ground, wall: R.scars.wall, marks: [], seq: 0 } : null };
-    if (state.rupa.ground && R.ground && Array.isArray(R.ground.water) && R.ground.water.length) waterInit(state.rupa.ground, R.ground.water);
+    if (state.rupa.ground && R.ground && ((Array.isArray(R.ground.water) && R.ground.water.length) || (Array.isArray(R.ground.rivers) && R.ground.rivers.length))) waterInit(state.rupa.ground, R.ground.water, R.ground.rivers);
   });
   // src: { joules (what the breaking took: its joules, and any blow past them), from?, dir? } for the debris
   // SMOKE SOURCES (`state.rupa.smoke`, seq-keyed, the last 128): what the page's dust and smoke are solved from
@@ -1678,8 +1743,13 @@ export function buildRupa(E) {
       if (u.t !== state.time) continue;
       const r = u.radius || 0, gz = groundZ(Gd, u.pos[0], u.pos[1]), h = u.pos[2] - gz;
       if (!(h < r)) continue;
-      const c = groundCrater(Gd, [u.pos[0], u.pos[1]], blowJoules('burst', R, { radius: r }) * (1 - Math.max(0, h) / r));
-      if (c && !c.small && c.removed > 0) { R.craters.push({ seq: R.craterSeq++, t: state.time, at: [u.pos[0], u.pos[1], gz], radius: c.radius, depth: c.depth }); if (R.craters.length > 64) R.craters.shift(); }
+      const J = blowJoules('burst', R, { radius: r }) * (1 - Math.max(0, h) / r), c = groundCrater(Gd, [u.pos[0], u.pos[1]], J);
+      // (and the dirt it throws, by the dirt law: clumps, spray and dust from its own soil, seeded by the crater)
+      if (c && !c.small && c.removed > 0) {
+        const at = [u.pos[0], u.pos[1], gz], debris = c.soil.grain ? dirt({ radius: c.radius, ejected: c.ejected }, { at, joules: J, soil: c.soil, z: gz + 0.05, seed: seedOf('ground', R.craterSeq), packets: 24 }) : null;
+        R.craters.push({ seq: R.craterSeq++, t: state.time, at, radius: c.radius, depth: c.depth, ...(debris ? { debris } : {}) });
+        if (R.craters.length > 64) R.craters.shift();
+      }
     }
     if (Gd.version === Gd.seen) return;
     Gd.seen = Gd.version;
@@ -1723,6 +1793,6 @@ export function buildRupa(E) {
     const moved = waterStep(Gd, dt);
     Gd.wVersion++;
     Gd.calm = moved < 1e-4 ? Gd.calm + dt : 0;
-    if (Gd.calm > 2) Gd.flowing = false;
+    if (Gd.calm > 2 && !Gd.running) Gd.flowing = false;
   }, 34.7);
 }

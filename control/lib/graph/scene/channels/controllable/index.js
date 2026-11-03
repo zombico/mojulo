@@ -273,6 +273,7 @@ function __updateGround() {
   // rain on the land: the weather's state now (its rate, mm/h, the physics' table), blended as the sky blends
   if (Gd.w && window.__mojWeather) { const a = window.__mojWeather.at(__world.time), RN = __CW.rupaRain || {}; __world.rupa.rain = (RN[a.is] || 0) * (1 - (a.mix || 0)) + (RN[a.next] || 0) * (a.mix || 0); }
   if (Gd.w) __updateWater(Gd);
+  __updateDirt(Gd);
   if (Gd.version === __gndSeen) return;
   __gndSeen = Gd.version;
   // what grows on the land rides it: the live grass, its flowers and a carpet of petals (instanced: each blade by its root;
@@ -282,9 +283,44 @@ function __updateGround() {
   for (let k = 0; k < Gd.z.length; k++) { const u = Math.max(0, Math.min(65535, Math.round(((Gd.z[k] - Gd.z0[k] + 8) / 16) * 65535))); D[k * 4] = u >> 8; D[k * 4 + 1] = u & 255; }
   __gndTex.needsUpdate = true;
 }
+// the DIRT a crater throws (the runtime's dirt law on its own soil: clumps, spray and dust), flown on the world's clock
+// and landing on the dug ground; the dust hangs, swells and thins
+const __dirtBits = [], __dirtTex = (() => { const c = document.createElement('canvas'); c.width = c.height = 64; const g = c.getContext('2d'), r = g.createRadialGradient(32, 32, 0, 32, 32, 32); r.addColorStop(0, 'rgba(255,255,255,0.9)'); r.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = r; g.fillRect(0, 0, 64, 64); return new THREE.CanvasTexture(c); })();
+let __dirtSeen = -1, __dirtT = null;
+function __dirtBit(at, vel, size, color, dust, drag) {
+  const m = dust ? new THREE.Sprite(new THREE.SpriteMaterial({ map: __dirtTex, color, transparent: true, opacity: 0.45, depthWrite: false }))
+    : new THREE.Mesh(new THREE.BoxGeometry(size, size, size * 0.75), new THREE.MeshLambertMaterial({ color }));
+  if (dust) m.scale.setScalar(size);
+  m.position.set(at[0], at[1], at[2]); m.raycast = function () {}; scene.add(m);
+  __dirtBits.push({ m, v: vel.slice(), born: __world.time, dust, size, drag: drag || 0, half: dust ? 0 : size / 2, landed: false });
+}
+function __updateDirt(Gd) {
+  const P = __CW.rupaPhysics, R = __world.rupa;
+  for (const c of R.craters || []) {
+    if (c.seq <= __dirtSeen) continue;
+    __dirtSeen = c.seq;
+    const d = c.debris; if (!d) continue;
+    for (const k of d.clumps.slice(0, 40)) __dirtBit(k.at, k.vel, Math.max(0.05, Math.min(0.5, k.size)), 0x5a4330, false, 0);
+    for (const q of d.spray.parcels.slice(0, 48)) __dirtBit(q.at, q.vel, 0.06, 0x7a6248, false, d.spray.drag);
+    if (d.cloud) for (let i = 0; i < 6; i++) __dirtBit([d.cloud.at[0] + (i - 2.5) * 0.4, d.cloud.at[1] + ((i * 7) % 5 - 2) * 0.4, d.cloud.at[2]], [((i * 3) % 5 - 2) * 0.2, ((i * 5) % 5 - 2) * 0.2, 0.3], Math.min(4, d.cloud.radius), 0xb3a58e, true, 1.5);
+  }
+  const t = __world.time, dt = __dirtT === null ? 0 : Math.max(0, Math.min(0.1, t - __dirtT));
+  __dirtT = t;
+  for (let i = __dirtBits.length - 1; i >= 0; i--) {
+    const q = __dirtBits[i], age = t - q.born;
+    if (age > 6) { scene.remove(q.m); q.m.geometry && q.m.geometry.dispose(); q.m.material.dispose(); __dirtBits.splice(i, 1); continue; }
+    if (q.dust) { const k = 1 / (1 + q.drag * dt); q.v[0] *= k; q.v[1] *= k; q.v[2] *= k; q.m.position.x += q.v[0] * dt; q.m.position.y += q.v[1] * dt; q.m.position.z += q.v[2] * dt; q.m.scale.setScalar(q.size * (1 + age * 0.3)); q.m.material.opacity = Math.max(0, 0.45 * (1 - age / 6)); continue; }
+    if (q.landed) { if (age > 4.5) q.m.material.transparent = true, q.m.material.opacity = Math.max(0, 1 - (age - 4.5) / 1.5); continue; }
+    const k = 1 / (1 + q.drag * dt);
+    q.v[0] *= k; q.v[1] *= k; q.v[2] = (q.v[2] - 9.81 * dt) * (q.drag ? k : 1);
+    q.m.position.x += q.v[0] * dt; q.m.position.y += q.v[1] * dt; q.m.position.z += q.v[2] * dt;
+    const g = P.groundZ(Gd, q.m.position.x, q.m.position.y);
+    if (q.m.position.z < g + q.half) { q.m.position.z = g + q.half; q.landed = true; }
+  }
+}
 // the WATER the physics moves (its lake and sea, rain, a flood through a broken levee): one mesh over the grid, its
 // points lifted by the ground's dug depth and the water's own (the texture's last two bytes, 0 to 16 m), drawn only where
-// the water is not as the stage drew it (new water, or the lake's own where it changed)
+// the water is not as the stage drew it (new water, or the lake's or a running river's own where it moved 5 cm or more)
 let __wMesh = null, __wSeen = -1;
 function __updateWater(Gd) {
   if (!__wMesh) {
@@ -304,7 +340,7 @@ function __updateWater(Gd) {
   if (Gd.wVersion === __wSeen) return;
   __wSeen = Gd.wVersion;
   const D = __gndTex.image.data;
-  for (let k = 0; k < Gd.w.length; k++) { const w = Gd.w[k], w0 = Gd.w0[k], show = Math.abs(w - w0) > 0.01 || (w0 <= 0 && w > 0.01) ? w : 0, u = Math.max(0, Math.min(65535, Math.round((show / 16) * 65535))); D[k * 4 + 2] = u >> 8; D[k * 4 + 3] = u & 255; }
+  for (let k = 0; k < Gd.w.length; k++) { const w = Gd.w[k], w0 = Gd.w0[k], show = Math.abs(w - w0) > 0.05 || (w0 <= 0 && w > 0.02) ? w : 0, u = Math.max(0, Math.min(65535, Math.round((show / 16) * 65535))); D[k * 4 + 2] = u >> 8; D[k * 4 + 3] = u & 255; }
   __gndTex.needsUpdate = true;
 }
 // the probe: where it lands on the land as drawn (the grid's first heights), the depth dug there

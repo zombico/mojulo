@@ -92,3 +92,46 @@ describe('in a world', () => {
     expect(plain.rupa).toBeUndefined();
   }, 180000);
 });
+
+describe('a river', () => {
+  // a channel 4 m wide down the middle of a 20 m slope falling a metre (y up the grid is downstream)
+  const n = 41, m = 81, dx = 0.5, slope = (j) => 1 - (j * dx) / 40;
+  const course = { y0: 0, dy: 0.5, hw: 2, xr: Array.from({ length: m }, () => 10), wl: Array.from({ length: m }, (_, j) => slope(j) - 0.1) };
+  const valley = () => grid(n, m, dx, (i, j) => slope(j) + (Math.abs(i * dx - 10) < 2 ? -0.8 * (1 - ((i * dx - 10) / 2) ** 2) : 0.3));
+  const river = (extra = {}) => CW.createWorld({ entities: [], rupa: { ground: { ...valley(), rivers: [course] } }, ...extra });
+
+  it('is laid at its levels down its course and runs, never settling', () => {
+    const w = step(river(), 240), Gd = w.rupa.ground;
+    expect(Gd.running).toBe(true);
+    expect(Gd.flowing).toBe(true);
+    const mid = 40 * n + 20;
+    expect(Gd.w[mid]).toBeGreaterThan(0.3);                         // the channel holds water all down it
+    expect(Gd.w[40 * n + 2]).toBe(0);                               // its banks stay dry
+    expect(Math.abs(Gd.w[mid] - Gd.w0[mid])).toBeLessThan(0.25);    // near the level it was drawn at
+  });
+
+  it('a dam across it ponds the water behind it', () => {
+    const dam = { id: 'dam', min: [7.5, 19.5, -1], max: [12.5, 20.5, 1.8], hp: 6, ...blockMatter({ min: [7.5, 19.5, -1], max: [12.5, 20.5, 1.8] }, 'concrete') };
+    const w = step(CW.createWorld({ entities: [], breakables: [dam], rupa: { ground: { ...valley(), rivers: [course] } }, breakFloor: -1 }), 600), Gd = w.rupa.ground;
+    const above = 36 * n + 20;   // just upstream of the dam
+    expect(Gd.z[above] + Gd.w[above]).toBeGreaterThan(Gd.z0[above] + Gd.w0[above] + 0.1);
+  });
+
+  it('the same river runs the same way', () => {
+    const run = () => Array.from(step(river(), 120).rupa.ground.w).map((v) => v.toFixed(5)).join(',');
+    expect(run()).toBe(run());
+  });
+});
+
+describe('a stage\'s river in a world', () => {
+  it('a physical stage hands over its river\'s course; any other carries none', async () => {
+    const { resolveWorldScene } = await import('../worlds/world-scene.js');
+    const hero = { id: 'hero', pilotable: true, rule: { type: 'platform', speed: 5 }, transform: { pos: [0, 0, 0] }, body: { type: 'mesh', shape: 'box', size: [0.6, 0.6, 1.7] } };
+    const level = (extra) => ({ manifest: { kind: 'stage', kit: 'isekai-meadow', trail: { ground: { water: { river: {} } } }, entities: [hero], ...extra }, title: 'river' });
+    const P = (await resolveWorldScene(level({ destruction: 'physical' }))).payload;
+    const [Rv] = P.rupa.ground.rivers;
+    expect(Rv.xr.length).toBe(Rv.wl.length);
+    expect(Rv.hw).toBeGreaterThan(0);
+    expect((await resolveWorldScene(level({}))).payload.rupa).toBeUndefined();
+  }, 180000);
+});

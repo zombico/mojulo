@@ -552,6 +552,15 @@ gravel 1 m, bare rock none (`DEPTH`).
   same depth where it lands on the land, so a walker stands in the crater. A page whose world has no ground carries none
   of it.
 
+- **Dirt:** a crater on the land throws its dirt by the dirt law above, from its own soil: clumps from loam and clay,
+  none from dry sand, spray and a hanging dust cloud, its mass the bank it dug, seeded by the crater. The page flies it on
+  the world's clock and lands it on the dug ground.
+- **The shovel:** a cue's `dig: who | { who? | at, to?, scoop? }` takes a scoop (`hand` 10 L, `bucket` 0.8 m³,
+  `excavator` 2 m³, or cubic metres) out of the ground 1.2 m in front of a character (or at a place), down to bedrock,
+  and piles its loose soil 1.4 m to their right (or at `to`) as a cone at the soil's angle of repose, slumped. A scoop
+  smaller than the grid's cell is spread over one at the same volume, so dig after dig the hole deepens. A level binds it
+  to a key the way it binds anything (`events.inputs` and a cue on the key's event). Water finds the hole.
+
 ### The stage's water, on the ground
 
 A physical stage's still water (its lake, its sea: the water hazards `era/out-water.js` marks, each a box whose top is
@@ -570,8 +579,13 @@ water and waits.
 - **Rain** falls on the land at the weather's rate (drizzle 0.5 mm/h, rain 5, downpour 25, thunderstorm 50: `E.rupaRain`,
   read from the page's weather as its sky blends), times the level's `matter.rainTime` (1 is real time, so real rain
   fills a crater by a few millimetres an hour; 3600 an hour a second).
-- **The page** draws the water where it is not as the stage drew it (new water, or the lake's own where it moved), one
-  surface over the grid riding the dug ground. A lake that drains keeps its drawn surface.
+- **Rivers** are moving water. The stage hands over each river's course (its line, its half-width and its level down
+  it); the river is laid at its levels and its two ends are held there, fed in upstream and let out downstream, so it
+  runs and never settles. A dam across it ponds the water behind it; a crater in it fills from it. Only the wet part of
+  the grid flows, so a river costs its own points.
+- **The page** draws the water where it is not as the stage drew it (new water, or a lake's or a running river's own
+  where it moved 5 cm or more), one surface over the grid riding the dug ground. A lake that drains keeps its drawn
+  surface.
 
 ## Skin and matter
 
@@ -672,9 +686,9 @@ the cube's water as the fluid layer, then the geocity's physical ring near the p
 - Dust and smoke held by walls and ceilings (a puff passes through them; smoke doesn't yet pool under a vault or fill
   a room), shelter for puffs behind a barrier (the leaves have it), a fuel's own smoke yield and colour (every fire is a
   wood fire, flaming), smouldering, and a GPU path for puffs (the page places at most 480 sprites on the CPU).
-- Rivers as moving water on the ground, a drained lake's drawn surface going with it, snow as a source, water
+- A drained lake's drawn surface going with it, a river's drawn surface where it runs dry, snow as a source, water
   soaking into soil, and boats.
-- The shovel as an action on the page's ground, the dirt a ground crater throws (scars throw theirs), ground and water in the
+- Ground and water in the
   geocity and terrain worlds (stages only), the geocity's evoked detail blocks (their facades are not yet shells), the live grass channel riding the ground on a world that has one only
   when its blades are instanced, and a crater's bowl drawn finer than the stage's land grid.
 - Scars on what is not a box (a minted solid, a tree), and marks that fade or are cleared.

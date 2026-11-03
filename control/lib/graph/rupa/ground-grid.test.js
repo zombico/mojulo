@@ -62,6 +62,19 @@ describe('the land as a soil grid', () => {
   });
 });
 
+describe('the dirt a crater throws', () => {
+  it('its own soil\'s: clumps from loam, none from dry sand; what flies weighs what it dug', () => {
+    const throwIn = (g) => { const w = world(grid(41, 0.5, g)); w.rupa.power = 10; blast(w, [10, 10, 0.2], 2); step(w); return w.rupa.craters[0]; };
+    const loam = throwIn('soil'), sand = throwIn('sand');
+    expect(loam.debris.clumps.length).toBeGreaterThan(0);
+    expect(sand.debris.clumps.length).toBe(0);
+    expect(sand.debris.spray.parcels.length).toBeGreaterThan(0);
+    // the dirt's mass is the bank dug (the loose ejecta over the swell, times the density)
+    expect(loam.debris.stats.kg).toBeCloseTo(loam.debris.stats.bank, 3);
+    expect(JSON.stringify(throwIn('soil').debris)).toBe(JSON.stringify(loam.debris));
+  });
+});
+
 describe('what stood on the land that went', () => {
   it('a footing whose ground is dug drops to it, and what it carried comes down', () => {
     const post = { id: 'post', min: [9.8, 9.8, 0], max: [10.2, 10.2, 2], hp: 6, ...blockMatter({ min: [9.8, 9.8, 0], max: [10.2, 10.2, 2] }, 'steel') };   // (a steel post: the charge digs under it, not through it)
@@ -106,4 +119,30 @@ describe('on the page and in the world', () => {
     expect(plain.physicalGround).toBeUndefined();
     expect(plain.rupa).toBeUndefined();
   }, 180000);
+});
+
+describe('the shovel', () => {
+  const digger = () => CW.createWorld({ entities: [{ id: 'hero', rule: { type: 'walk', speed: 0, eye: 0, collideRadius: 0.3, collideHeight: 1.7 }, transform: { pos: [10, 10, 0], heading: 0, pitch: 0 } }], rupa: { ground: grid(41, 0.5, 'soil') } });
+  it('a scoop out in front of the digger, its loose soil piled beside them; the soil kept, bulked by its swell', () => {
+    const w = step(digger()), Gd = w.rupa.ground, loam = Gd.soils[SUBSTRATE_IDS.indexOf('soil')];
+    CW.castOps(w, [{ op: 'dig', who: 'hero', scoop: 'bucket' }]);
+    expect(rupaPhysics.groundZ(Gd, 11.2, 10)).toBeLessThan(-0.1);    // 1.2 m ahead (heading 0: +x)
+    expect(rupaPhysics.groundZ(Gd, 11.2, 8.6)).toBeGreaterThan(0.05); // 1.4 m to its right
+    expect(net(Gd)).toBeCloseTo((loam.swell - 1) * 0.8, 2);
+  });
+  it('a hand shovel\'s scoops deepen the hole dig after dig, down to bedrock and no further', () => {
+    const w = step(digger()), Gd = w.rupa.ground, depth = () => -rupaPhysics.groundZ(Gd, 11.2, 10);
+    CW.castOps(w, [{ op: 'dig', who: 'hero' }]);
+    const one = depth();
+    for (let i = 0; i < 9; i++) CW.castOps(w, [{ op: 'dig', who: 'hero' }]);
+    expect(depth()).toBeGreaterThan(5 * one);
+    for (let i = 0; i < 400; i++) CW.castOps(w, [{ op: 'dig', who: 'hero' }]);
+    expect(Math.min(...Gd.z)).toBeGreaterThanOrEqual(-DEPTH.soil - 1e-5);
+  });
+  it('a cue digs: by a key, a zone or a lever (it reads and lowers as the other world effects do)', async () => {
+    const { lowerPlay } = await import('../playscape/ui/direction.js');
+    const ev = lowerPlay({ kind: 'controllable', play: { cues: [{ id: 'dig', when: { on: 'dig-key' }, then: { dig: { who: 'hero', scoop: 'hand' } } }] } });
+    expect(ev.reactions).toContainEqual(expect.objectContaining({ do: 'ctrl', op: 'dig', who: 'hero', scoop: 'hand' }));
+    expect(() => lowerPlay({ kind: 'controllable', play: { cues: [{ id: 'x', when: { start: true }, then: { dig: { who: 'hero', scoop: 'spoon' } } }] } })).toThrow(/scoop is hand, bucket, excavator/);
+  });
 });

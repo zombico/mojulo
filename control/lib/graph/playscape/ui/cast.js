@@ -11,6 +11,7 @@
  *       | { rearm: '<who>' | { who, by? } }            rounds for its weapon (by: into its reserve; no by: a full magazine)
  *       | { walk: { who, to, speed?, then?, face?, pose? } }   a dumb path through places: straight lines, no pathfinding
  *       | { blast: { at, radius?, hurt? } } | { collapse: group | { group, how?, storey?, stagger? } } | { break: id }
+ *       | { dig: who | { who? | at, to?, scoop? } }   the shovel, in a physical level's ground
  *                                                    the world's breaks, set off (worlds/controllable/trigger.js)
  *   when: { breached | fell: '<group>' }              a building's first block breaks · half of it is down
  *
@@ -73,9 +74,10 @@ export const CAST_THEN = Object.freeze({
   blast: '{ blast: { at: place, radius?, hurt? } } a charge goes off at a place: it breaks what the world lets break in its radius (2.5 m), as a grenade would; hurt takes that much hp from each body in it',
   collapse: "{ collapse: group | { group, how?: 'base' | 'whole', storey?, stagger? } } a building comes down: base breaks what stands within storey metres (3) of its foot and the rest falls on it; whole breaks every block; stagger seconds between blocks, bottom up",
   break: '{ break: id } one block breaks (or each block of a group)',
+  dig: "{ dig: who | { who? | at: place, to?: place, scoop?: 'hand' | 'bucket' | 'excavator' | m³ } } the shovel: a scoop out of a physical level's ground in front of who (or at a place), its soil piled beside them (or at to)",
 });
 // the effects that break the world (worlds/controllable/trigger.js): no one is named, a place or a group is
-const BREAK_OPS = ['blast', 'collapse', 'break'];
+const BREAK_OPS = ['blast', 'collapse', 'break', 'dig'];
 // how a character comes or goes (the page plays it on the body, or on a ghost of it as it goes)
 export const TRANSITS = Object.freeze(['smoke', 'hologram', 'scan', 'transporter', 'galvatron']);
 export const SPOT_POSES = Object.freeze(['stand', 'sit', 'use', 'talk', 'lean']);
@@ -189,6 +191,15 @@ export function readCastEffect(k, t, where, ctx = {}) {
     if (!isStr(v)) throw new Error(`${w} is a block's id (or a building's: each of its blocks)`);
     return { kind: 'cast', op: 'break', who: null, id: v, page: true };
   }
+  if (k === 'dig') {
+    const o = isStr(v) ? { who: v } : v;
+    if (!isObj(o) || (o.who === undefined && o.at === undefined)) throw new Error(`${w} is a character's id, or { who | at: place, to?, scoop? }`);
+    const out = { kind: 'cast', op: 'dig', who: isStr(o.who) ? o.who : null, page: true };
+    if (o.at !== undefined) out.at = readPlace(o.at, `${w}.at`);
+    if (o.to !== undefined) out.to = readPlace(o.to, `${w}.to`);
+    if (o.scoop !== undefined) { if (!(['hand', 'bucket', 'excavator'].includes(o.scoop) || (Number.isFinite(o.scoop) && o.scoop > 0 && o.scoop <= 20))) throw new Error(`${w}.scoop is hand, bucket, excavator, or cubic metres (to 20)`); out.scoop = o.scoop; }
+    return out;
+  }
   // a shake is the camera's: no one, no place
   if (k === 'shake') {
     const o = Number.isFinite(v) ? { k: v } : v;
@@ -265,9 +276,10 @@ export function lowerCastEffect(t, on, frag, places = []) {
   for (const k of ['is', 'for', 'color', 'with', 'into', 'shake', 'k', 'spec', 'scale']) if (t[k] !== undefined) r[k] = t[k];
   if (t.op === 'shake') delete r.who;
   if (BREAK_OPS.includes(t.op)) {
-    delete r.who;
-    for (const k of ['radius', 'hurt', 'group', 'how', 'storey', 'stagger', 'id']) if (t[k] !== undefined) r[k] = t[k];
+    if (!(t.op === 'dig' && t.who)) delete r.who;
+    for (const k of ['radius', 'hurt', 'group', 'how', 'storey', 'stagger', 'id', 'scoop']) if (t[k] !== undefined) r[k] = t[k];
     if (t.op === 'blast') { const p = placeAt(t.at, places); if (!p) return frag; r.at = p.at.slice(); }
+    if (t.op === 'dig') for (const k of ['at', 'to']) if (t[k] !== undefined) { const p = placeAt(t[k], places); if (!p) return frag; r[k] = p.at.slice(0, 2); }
   }
   if (t.op === 'beam') {
     // at a place when one is called so, else at the character of that name
@@ -305,7 +317,8 @@ export function castRefs(effects, whens) {
     if (t.op === 'spawn') { spawns.add(t.who); if (isStr(t.at)) places.add(t.at); }
     if (t.op === 'vanish' || t.op === 'kill' || t.op === 'transfigure') vanished.add(t.who);
     if (t.op === 'transfigure') { who.add(t.into); spawns.add(t.into); }
-    if ((t.op === 'puff' || t.op === 'blast') && isStr(t.at)) places.add(t.at);
+    if ((t.op === 'puff' || t.op === 'blast' || t.op === 'dig') && isStr(t.at)) places.add(t.at);
+    if (t.op === 'dig' && isStr(t.to)) places.add(t.to);
     if (t.op === 'walk') for (const p of t.to) if (isStr(p)) places.add(p);
   }
   // a cast happening's character, and the one a zone watches in place of the player

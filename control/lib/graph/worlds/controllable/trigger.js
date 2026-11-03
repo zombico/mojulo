@@ -16,13 +16,16 @@
  *                                        once). A group is a block's id, or its building's: the id before its last `:`
  *                                        (a structure `structure:<id>` or its own id, a house's id or `house-<id>`)
  *     break { id }                       one block, or each block of a group
+ *     dig { who? | at, to?, scoop? }     the shovel: a scoop (hand, bucket, excavator, or m³) out of the ground in front of
+ *                                        who (1.2 m along its heading) or at a place, its loose soil thrown beside them
+ *                                        (or at `to`), piled at its soil's repose; needs a physical level's ground
  *   castFacts (wrapped): breached { entity: group } when a group's first block breaks; fell { entity: group } when half of
  *     its blocks are broken, have fallen or were felled (a group of two or more: a lone block says broke:<id>; a block
  *     restored at the start counts for nothing; the first read seeds: nothing a world was minted with fires)
  *
  * BUILDER CONTRACT (compose.js): import-free inside the function; after cast.js and rules-basic.js in the list.
  */
-export const TRIGGER_OPS = Object.freeze(['blast', 'collapse', 'break']);
+export const TRIGGER_OPS = Object.freeze(['blast', 'collapse', 'break', 'dig']);
 export const TRIGGER_WHEN = Object.freeze(['breached', 'fell']);
 // does a world's lowered play use triggered breaks (its reactions or its sequences' steps)
 export const triggersIn = (events) => {
@@ -32,7 +35,7 @@ export const triggersIn = (events) => {
 };
 
 export function buildTrigger(E) {
-  const OPS = ['blast', 'collapse', 'break'];   // (TRIGGER_OPS, here again: the page runs this function's own source)
+  const OPS = ['blast', 'collapse', 'break', 'dig'];   // (TRIGGER_OPS, here again: the page runs this function's own source)
   const groupOf = (id) => { const s = String(id), k = s.lastIndexOf(':'); return k > 0 ? s.slice(0, k) : s; };
   const inGroup = (b, name) => {
     const g = groupOf(b.id);
@@ -49,6 +52,20 @@ export function buildTrigger(E) {
   E.castOps = function castOps(state, ops) {
     const rest = [];
     for (const o of ops || []) {
+      // THE SHOVEL (dig): a scoop out of the ground in front of who (or at a place), its loose soil thrown beside them (or
+      // where `to` says); a world without ground (no destructible physics' land) digs nothing
+      if (o && o.op === 'dig') {
+        const P = E.rupaPhysics, Gd = state.rupa && state.rupa.ground;
+        if (!P || !Gd || !P.groundShovel) continue;
+        const e = o.who ? state.byId[o.who] : null;
+        if (o.who && (!e || e.gone)) continue;
+        const h = e ? e.transform.heading || 0 : 0, f = [Math.cos(h), Math.sin(h)], side = [Math.sin(h), -Math.cos(h)];
+        const at = Array.isArray(o.at) ? o.at : e ? [e.transform.pos[0] + 1.2 * f[0], e.transform.pos[1] + 1.2 * f[1]] : null;
+        if (!at) continue;
+        const to = Array.isArray(o.to) ? o.to : e ? [at[0] + 1.4 * side[0], at[1] + 1.4 * side[1]] : [at[0] + 1.5, at[1]];
+        P.groundShovel(Gd, at, to, o.scoop ?? 'hand');
+        continue;
+      }
       if (!o || o.who || !OPS.includes(o.op)) { rest.push(o); continue; }
       if (o.op === 'blast' && Array.isArray(o.at) && o.radius > 0) {
         const at = [o.at[0], o.at[1], o.at[2] ?? 0.5];
