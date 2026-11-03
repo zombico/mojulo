@@ -150,6 +150,27 @@ neither.
 - **Wind moves what's lying on the ground** once its drag beats the friction holding it (half its weight). Leaves
   skitter along; a brick lying there stays. On the ground, things slide against friction rather than stopping dead.
 
+### Drawing wind cheaply: the wind script
+
+Simulating every leaf as a body is accurate but costs work every frame. For things light enough that the wind carries
+them (leaves, litter, petals, ash), [`wind-script.js`](../control/lib/graph/rupa/wind-script.js) gives the same
+motion as a formula of time, so a GPU can draw thousands of them for the cost of one number (the time) per frame.
+
+It's exact enough because a leaf catches up with the air in about a quarter of a second, against seconds of falling.
+So a leaf moves at the wind's speed while it sinks at its falling speed, and its path has a closed form:
+
+- **height** drops at the falling speed, which comes from the same drag law the physics uses (about 2 m/s for a leaf);
+- **drift** is the wind's speed summed over the fall, and the power-law rise with height sums exactly;
+- **gusts** add their own exact sums;
+- **behind a wall** the calm air's slowdown sums exactly too (it comes out as an exponential), so leaves still settle in
+  the lee;
+- **on the ground** a thing skitters once the wind beats its friction, which works out to √μ times its falling speed
+  (about 1.4 m/s for a leaf), and after a rest it starts again from its release point, so the script loops on its own.
+
+`scriptOf(wind, { kind, source, wakes, field })` turns a level's wind into the script's numbers; `leafAt(script, i, t)`
+is the JavaScript reference; `GLSL` is the same formula for the GPU. Its tests hold it to the simulation: the same
+falling speed, a landing point within 12% of a simulated leaf's in a steady wind, and less drift behind a wall.
+
 ### Describing a wind
 
 A level sets it in its `matter` settings:

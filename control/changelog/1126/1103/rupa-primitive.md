@@ -46,6 +46,11 @@ Walls hold and objects break stays the default; a game that asks for destructibl
   falls as loose pieces: a 70 m/s gale tips a dry pine pile while a mortared brick wall stands. A wall casts a wind
   shadow; thin things tumble and catch a quarter of their surface (a leaf falls at about 2 m/s); and the wind moves what
   lies on the ground once its drag beats friction, so leaves skitter while a brick stays.
+- **The wind script** (`lib/graph/rupa/wind-script.js`): leaves, litter and ash drawn without simulating them. A
+  leaf catches up with the air in a quarter of a second, so it moves at the wind while sinking at its falling speed,
+  and its whole path (the wind's rise with height, the gusts, a wall's calm lee, skittering on the ground once the wind
+  beats friction) has an exact formula of time. A GPU runs the same formula (`GLSL`), so thousands of leaves cost one
+  number a frame; its tests hold it to the full simulation.
 - **Water and air share one set of fluid functions**: pressure (from a fluid's weight and from its flow), turning a
   pressure back into a speed, and the lift and drag on a body in any fluid. The tanks, pipes, nozzles, pools, spray,
   grain settling and wind all call them.
