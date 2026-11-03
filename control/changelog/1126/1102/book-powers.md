@@ -408,3 +408,13 @@ its resource, put on a look and showed a toast. This theme makes them act.
   before its record was written. Each page is now kept deflated and read from its item only when the browser loads
   it, so one page is held as text at a time. Measured over Hollin's seven levels at the default heap, the old check
   runs out before the browser reads any page; the new one peaks at 1.5 GB.
+- **A `design_game` run compiles; checking is asked for.** A run makes the game: its heroes, its levels, its game.
+  It used to also walk every level to its exit in headless Chrome (create_game's audit), photograph each level's
+  opening frame twice (once in the audit, once in the run's own readout, re-emitting every page to hash it), and fire
+  a background gallery bake for every row it made (a still and a 16-frame turntable). On a big town that ran a run
+  past the server's ten-minute budget before anything was made, and left its browsers behind.
+  - **The default:** a run now only compiles. The rows it makes are baked for the gallery on first view, not as they
+    land (`scene-png-warm.js` `withoutWarm`).
+  - **`check: true`:** walks and photographs each level as before. The game order still carries its audit, so no
+    print moves and no game made before is remade.
+  - **The cost:** the tool list grows by the `check` key, under its payload pin.
