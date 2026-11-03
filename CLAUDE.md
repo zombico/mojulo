@@ -237,7 +237,7 @@ Pointers only; each target carries its own design notes.
   first. Its builds by tier (toy | stylised | realistic) and what each needs to be drawn realistic: `builds.js`. The
   field's vehicles (a military class's realistic body) are the hull kit's: `car-designer/road-military.js` over `mil-hull.js`, a
   tracked class's running gear `mil-track.js`; the airfield's ground crew (catering, belt loader, stairs) too, `road-airside.js`;
-  the city's utility vehicles (works, emergency, aerial lifts) too, `road-civic.js` over `civic-kit.js`; review:
+  the city's utility vehicles (works, the refuse fleet, emergency, aerial lifts) too, `road-civic.js` over `civic-kit.js`; review:
   `scripts/render-civic.mjs`.
 - Flight parts: [craft-shelf/](control/lib/graph/craft-shelf/) (the ODM inventory of aircraft, rotorcraft and spacecraft parts → whole
   craft by archetype; a new part is a row first); the flight-game map is [docs/flight-games.md](docs/flight-games.md).

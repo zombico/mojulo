@@ -23,7 +23,9 @@ const faces = (c) => Object.values(c.form).flat();
 const zs = (c, re) => c.form.root.filter((f) => re.test(f.part)).flatMap((f) => f.corners.map((p) => p[2]));
 // what each kind's deployment is measured on: a tailgate's lower edge, a blade's cutting edge, the brooms' bristle tips
 // (their tubes' radius under them), the ladder's tip bar (its radius over it), the bucket's floor
-const REACHED = { refuse: [/^tailgate$/, 0, 'min'], plough: [/^blade\.edge$/, 0, 'min'], sweeper: [/^broom\.bristle$/, -0.008, 'min'], ladder: [/^ladder\.tip$/, 0.03, 'max'], bucket: [/^bucket$/, 0, 'min'] };
+// (and the refuse fleet's: a front loader's forks, a side loader's gripper, a roll-off container's nose, a skip's bottom)
+const REACHED = { refuse: [/^tailgate$/, 0, 'min'], plough: [/^blade\.edge$/, 0, 'min'], sweeper: [/^broom\.bristle$/, -0.008, 'min'], ladder: [/^ladder\.tip$/, 0.03, 'max'], bucket: [/^bucket$/, 0, 'min'],
+  frontLoader: [/^fork$/, 0, 'min'], sideLoader: [/^gripper$/, 0, 'min'], rollOff: [/^container\.nose$/, 0, 'min'], skipLoader: [/^skip$/, 0, 'min'] };
 const reached = (c, kind) => { const [re, off, how] = REACHED[kind], z = zs(c, re); return (how === 'min' ? Math.min(...z) : Math.max(...z)) - off; };
 const xsOf = (c, re) => c.form.root.filter((f) => re.test(f.part)).flatMap((f) => f.corners.map((p) => p[0]));
 
@@ -96,6 +98,40 @@ describe('what deploying does', () => {
     expect(floor.length).toBeGreaterThan(0);
     for (const f of floor) for (const p of f.corners) expect([9, 9 + 1.05].some((z) => Math.abs(p[2] - z) < 0.07)).toBe(true);
     expect(Math.min(...zs(c, /^outrigger\.pad$/))).toBeCloseTo(0, 2);
+  });
+});
+
+describe('the garbage truck\'s models, each read by its silhouette', () => {
+  const box = (c, re, i) => { const v = c.form.root.filter((f) => re.test(f.part)).flatMap((f) => f.corners.map((p) => p[i])); return [Math.min(...v), Math.max(...v)]; };
+  it('a front loader\'s arms arch over its cab to forks ahead of its bumper, and swing up and back over it lifting', () => {
+    const cls = of('frontLoader'), lo = compiled(cls), hi = compiled(cls, {}, 'lifting');
+    expect(box(lo, /^arm$/, 2)[1]).toBeGreaterThan(box(lo, /^cab$/, 2)[1]);
+    expect(box(lo, /^fork$/, 1)[1]).toBeGreaterThan(box(lo, /^bumper$/, 1)[1]);
+    // (lifted: the forks up over the cab's roof and drawn back toward the body)
+    expect(box(hi, /^fork$/, 2)[0]).toBeGreaterThan(box(lo, /^cab$/, 2)[1]);
+    expect(box(hi, /^fork$/, 1)[1]).toBeLessThan(box(lo, /^fork$/, 1)[1] - 0.8);
+  });
+  it('a side loader\'s hopper stands low between its cab and its body, its gripper out at the kerb low and in over the hopper high, a bin in it', () => {
+    const cls = of('sideLoader'), lo = compiled(cls), hw = PHYSICS[cls].W / 2;
+    expect(box(lo, /^hopper$/, 2)[1]).toBeLessThan(box(lo, /^body$/, 2)[1] - 0.7);
+    expect(lo.form.root.some((f) => f.part === 'bin')).toBe(false);
+    const kerb = compiled(cls, { pose: { reach: 1.0 } }), top = compiled(cls, {}, 'lifting');
+    expect(box(kerb, /^gripper$/, 0)[1]).toBeGreaterThan(hw + 0.5);
+    expect(box(top, /^gripper$/, 0)[1]).toBeLessThan(hw + 0.2);
+    expect(top.form.root.some((f) => f.part === 'bin')).toBe(true);
+  });
+  it('a roll-off truck tips its container and its hook arm together about the frame\'s tail', () => {
+    const cls = of('rollOff'), lo = compiled(cls), hi = compiled(cls, {}, 'tipping');
+    expect(box(hi, /^container$/, 2)[1]).toBeGreaterThan(box(lo, /^container$/, 2)[1] + 2);
+    expect(box(hi, /^hookarm\.tower$/, 2)[1]).toBeGreaterThan(box(lo, /^hookarm\.tower$/, 2)[1] + 2);
+    expect(box(hi, /^container$/, 2)[0]).toBeGreaterThan(0);
+  });
+  it('a skip loader carries its skip on its bed and sets it down behind its tail, its legs down', () => {
+    const cls = of('skipLoader'), lo = compiled(cls), hi = compiled(cls, {}, 'unloading'), yT = -PHYSICS[cls].L / 2;
+    expect(box(lo, /^skip$/, 1)[0]).toBeGreaterThan(yT);
+    expect(box(hi, /^skip$/, 1)[1]).toBeLessThan(yT);
+    expect(box(hi, /^skip$/, 2)[0]).toBeCloseTo(0, 2);
+    expect(box(hi, /^stabiliser\.pad$/, 2)[0]).toBeCloseTo(0, 2);
   });
 });
 

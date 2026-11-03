@@ -10,7 +10,7 @@
  *   plough    the plough truck and gritter: a bonneted cab on two axles, its amber light bar, its plough lamps raised
  *             on stalks over the blade; the blade ahead, a curved mouldboard angled to throw right, its cutting edge, its
  *             ribs, its markers, on its push frame and lift ram; the V-box spreader behind the cab, its stiffeners and
- *             grate, its chute and spinner. Ploughing (`plowing`, lowered, down) sets the blade on the road (the reach:
+ *             grate, its chute and spinner. Ploughing (`plowing`, ploughing, down) sets the blade on the road (the reach:
  *             its cutting edge's height)
  *   sweeper   the street sweeper: a cab-over cab on two axles; the hopper body and its rear door, its fan's grille;
  *             the pickup head under it between the axles and its duct; two gutter brooms ahead of it, each a core and

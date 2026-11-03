@@ -43,14 +43,25 @@ const REACH = {
   sweeper: { stowed: 0.16, deployed: 0, range: [0, 0.2] },
   ladder: { stowed: 2.98, deployed: 20, range: [2.98, 28] },
   bucket: { stowed: 1.64, deployed: 10, range: [1.64, 12.5] },
+  // (the refuse fleet's other models: a front loader's forks, a side loader's gripper, a roll-off container's nose, a
+  // skip's bottom)
+  frontLoader: { stowed: 1.52, deployed: 5.6, range: [1.52, 5.8] },
+  sideLoader: { stowed: 0.72, deployed: 3.0, range: [0.72, 3.4] },
+  rollOff: { stowed: 1.25, deployed: 4.2, range: [1.25, 4.7] },
+  skipLoader: { stowed: 1.15, deployed: 0, range: [0, 1.15] },
 };
 export const CIVIC_REACH = Object.freeze(Object.fromEntries(Object.entries(REACH).map(([k, v]) => [k, Object.freeze({ ...v, range: Object.freeze(v.range) })])));
+// (a brief's words the car sheet reads as its own, `lowered` a stance, never reach a body: none of them deploys one)
 export const CIVIC_WORDS = Object.freeze({
   refuse: Object.freeze(['tipping', 'tipped', 'dumping', 'emptying', 'unloading', 'open', 'opened']),
-  plough: Object.freeze(['plowing', 'ploughing', 'lowered', 'down', 'clearing', 'working', 'deployed']),
-  sweeper: Object.freeze(['sweeping', 'working', 'lowered', 'down', 'deployed']),
+  plough: Object.freeze(['plowing', 'ploughing', 'down', 'clearing', 'working', 'deployed']),
+  sweeper: Object.freeze(['sweeping', 'working', 'down', 'deployed']),
   ladder: Object.freeze(['raised', 'extended', 'up', 'deployed', 'rescuing', 'working', 'elevated']),
   bucket: Object.freeze(['raised', 'extended', 'up', 'deployed', 'working', 'elevated', 'lifted']),
+  frontLoader: Object.freeze(['lifting', 'tipping', 'emptying', 'dumping', 'raised', 'up']),
+  sideLoader: Object.freeze(['lifting', 'collecting', 'emptying', 'tipping', 'working', 'picking']),
+  rollOff: Object.freeze(['tipping', 'dumping', 'unloading', 'tilted', 'raised']),
+  skipLoader: Object.freeze(['unloading', 'dropping', 'down', 'deployed', 'set down', 'delivering']),
 });
 
 /** A civic body's words: whether its brief deploys it (each kind its own words, CIVIC_WORDS). */
@@ -80,6 +91,7 @@ const mono = (c) => Object.freeze({ pattern: 'mono', colours: Object.freeze([c])
 export const CIVIC_LIVERY = Object.freeze({
   refuse: mono(CC.municipal), plough: mono(CC.orange), sweeper: mono(CC.municipal), fireEngine: mono(CC.fire), ladder: mono(CC.fire),
   ambulance: mono(CC.white), paramedic: mono(CC.white), bucket: mono(CC.white),
+  frontLoader: mono(CC.municipal), sideLoader: mono(CC.green), rollOff: mono('#2f5f9e'), skipLoader: mono(CC.municipal),
 });
 
 export const without = (faces, parts) => faces.filter((f) => !f || !parts.includes(f.part));

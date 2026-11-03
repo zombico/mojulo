@@ -74,4 +74,31 @@ crew are, and named in the vehicle registry. Each is a class, not a replica.
   vehicle out.
 - **Seen** (machine gate; the eyes gate is open): `scripts/render-civic.mjs` renders each from the front quarter, the
   side, the rear quarter, and deployed.
+- **The garbage truck's other models** (`car-designer/road-civic-refuse.js`), each read by its silhouette, beside the
+  rear loader. Four new classes at their true numbers ([E]), their rows, their deployments and their liveries:
+  - `frontLoader`, the front loader (front loader, dumpster truck, commercial garbage truck): a cab well ahead of its
+    set-back axle, narrower than the two arms that arch over it from the body's front corners to the forks ahead of its
+    bumper; the hopper open in the body's roof. `lifting` swings the arms up and back over the cab (the reach: the
+    forks' lowest point);
+  - `sideLoader`, the automated side loader (side loader, automated garbage truck): a low-entry cab, a low hopper
+    behind it open on the right, the body stepping up tall behind that; the arm under the hopper, its boom and its
+    gripper on its track. `lifting` runs it out to the kerb and climbs it in over the hopper, a wheelie bin in its
+    paddles tipped at the top (the reach: the gripper's foot);
+  - `rollOff`, the roll-off truck (hook lift truck, container truck): a bonneted cab, the hook arm along its frame
+    and its tower, the open-topped container on its rails, ribbed, its rollers. `tipping` turns the container and the
+    arm together about the frame's tail (the reach: the container's nose);
+  - `skipLoader`, the skip loader (skip lorry, skip truck): a cab-over cab, its bed and headboard, the portal arms
+    pivoted at its tail, their beam and chains, the tapered skip, the stabiliser legs. `unloading` swings the arms
+    back over the tail and sets the skip down behind it, the legs down (the reach: the skip's bottom).
+
+  Their plain liveries: a municipal white, a green, a blue under an orange container, a white under a yellow skip.
+- **Also:** `lowered` is the car sheet's own word (a stance), so it never reaches a body; it is no longer among the
+  plough's, the sweeper's or the skip's deploying words.
+- **Held** (`road-civic.test.js`):
+  - each model at its numbers and deployed to its reach;
+  - the front loader's arms over its cab, its forks ahead of the bumper, and up over the roof when lifting;
+  - the side loader's hopper low between cab and body, its gripper out at the kerb low and in over the hopper high,
+    a bin in it only when working;
+  - the roll-off's container and tower tipped together, clear of the ground;
+  - the skip carried on the bed and set down on the ground behind the tail, its legs down.
 

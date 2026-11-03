@@ -202,6 +202,16 @@ export const VEHICLES = {
   // their realistic bodies the hull kit's, road-civic.js)
   'refuse-truck': row('garbage truck', ['refuse truck', 'trash truck', 'bin lorry', 'dustcart', 'refuse lorry', 'rubbish truck', 'dustbin lorry', 'waste truck', 'bin truck', 'refuse collection vehicle', 'garbage lorry', 'rear loader'], 'road', 'service', M, ROAD,
     { physics: 'refuseTruck', tech: 'truck' }),
+  // (the garbage truck's other models, each its own silhouette: forks on arms over the cab, a gripper arm on the right
+  // side, a hook lift and its container, portal arms and a skip)
+  'front-loader': row('front loader garbage truck', ['front loader', 'front-loading garbage truck', 'front load truck', 'commercial garbage truck', 'dumpster truck', 'front loader refuse truck'], 'road', 'service', M, ROAD,
+    { physics: 'frontLoader', tech: 'truck' }),
+  'side-loader': row('side loader garbage truck', ['side loader', 'automated side loader', 'automated garbage truck', 'side-loading garbage truck', 'side load truck', 'side loader refuse truck', 'robot arm garbage truck'], 'road', 'service', M, ROAD,
+    { physics: 'sideLoader', tech: 'truck' }),
+  'roll-off-truck': row('roll-off truck', ['roll off truck', 'rolloff truck', 'hook lift truck', 'hooklift truck', 'hook loader', 'container truck', 'dumpster hauler', 'roll-off container truck', 'hook truck'], 'road', 'service', M, ROAD,
+    { physics: 'rollOff', tech: 'truck' }),
+  'skip-loader': row('skip loader', ['skip lorry', 'skip truck', 'skip wagon', 'skip hauler', 'portal skip loader', 'skip loader truck'], 'road', 'service', M, ROAD,
+    { physics: 'skipLoader', tech: 'truck' }),
   snowplow: row('snowplow', ['snowplough', 'snow plow', 'snow plough', 'plow truck', 'plough truck', 'gritter', 'gritting lorry', 'salt truck', 'salt spreader', 'snow removal truck', 'winter service vehicle', 'snow truck'], 'road', 'service', M, ROAD,
     { physics: 'snowPlow', tech: 'truck' }),
   'street-sweeper': row('street sweeper', ['road sweeper', 'sweeper truck', 'street cleaner', 'road cleaner', 'street sweeping truck', 'mechanical sweeper', 'sweeper'], 'road', 'service', M, ROAD,
