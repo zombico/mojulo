@@ -42,12 +42,9 @@ export function splashOf({ liquid = 'water', at, speed, mass, size, seed } = {})
   return rupaPhysics.splash(m, { at, speed, mass, size, seed: seed ?? rupaPhysics.seedOf(m.id, Math.round(speed * 1000 + mass)) });
 }
 
-// a grain's settling speed in air: Stokes for the fine, Newton's drag (Cd 0.44) for the coarse, whichever is slower
-const AIR = MATTER.air;   // the same air the runtime's wind moves
-export function settleSpeed(d, particle = 2650) {
-  const stokes = (particle * G * d * d) / (18 * AIR.viscosity), newton = Math.sqrt((4 * particle * G * d) / (3 * 0.44 * AIR.density));
-  return Math.min(stokes, newton);
-}
+// a grain's settling speed in air: Stokes for the fine, Newton's drag (Cd 0.44) for the coarse, whichever is slower;
+// the runtime's own law (rupaPhysics.settleOf), so the dust a page draws settles as the debris here does
+export function settleSpeed(d, particle = 2650) { return rupaPhysics.settleOf(d, particle); }
 const AIRBORNE = 0.03;   // the share of the fines that hangs as a cloud; the rest falls with the spray
 const cloudRadius = (kg) => Math.cbrt((3 * (kg / 0.01)) / (4 * Math.PI));
 

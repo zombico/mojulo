@@ -525,3 +525,33 @@ describe('rupa felling: what a level groove leaves standing', () => {
     expect(run()).toBe(run());
   });
 });
+
+describe('rupa dust and smoke: their sources on the runtime', () => {
+  it('a break leaves its dust as a source, with its grains; what hangs drifts downwind', () => {
+    const w = world([block('wall', [0, 0, 0], [0.4, 1, 1], 'brick')], { wind: { speed: 5, dir: 0 } });
+    CW.strikeBlock(w, 'wall', 5e6, 'burst', { from: [-0.5, 0.5, 0.5] });
+    const src = w.rupa.smoke.find((s) => s.kind === 'dust');
+    expect(src).toMatchObject({ id: 'wall', t0: w.time });
+    expect(src.grain.x0).toBeGreaterThan(0);
+    expect(src.radius).toBeCloseTo(0.6, 6);                                  // as big as what broke
+    const S = CW.rupaPhysics.smokeOf(src, w.rupa.wind);
+    expect(S.puffs.length).toBeGreaterThan(0);
+    const q = CW.rupaPhysics.puffAt(S.puffs[0], w.rupa.wind, w.time + 6);
+    expect(q.pos[0]).toBeGreaterThan(S.puffs[0].at[0] + 5);                  // carried toward +x
+  });
+
+  it('a burning block gives off a plume while it burns; water on it boils off as steam and its plume ends', () => {
+    const w = world([block('log', [0, 0, 0], [1, 0.4, 0.4], 'pine')]);
+    const log = get(w, 'log');
+    CW.heatBlock(w, 'log', log.rupa.heatCap * 400);
+    const plume = w.rupa.smoke.find((s) => s.kind === 'fire');
+    expect(plume).toMatchObject({ id: 'log', t1: null });
+    expect(plume.Q).toBeCloseTo(log.rupa.burnRate, 6);                       // its real heat release
+    expect(plume.at[2]).toBeCloseTo(0.4, 6);
+    CW.spray(w, { at: [-2, 0.2, 0.6], dir: [1, 0, -0.15], speed: 12, flow: 0.004, seconds: 4 });
+    step(w, 240);
+    expect(w.rupa.smoke.some((s) => s.kind === 'steam' && s.kg > 0)).toBe(true);
+    expect(log.rupa.burning).toBe(false);
+    expect(plume.t1).toBeGreaterThan(plume.t0);
+  });
+});

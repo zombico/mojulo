@@ -269,6 +269,41 @@ blade of grass and a simulated crate feel the same air. Elements of one kind bec
 blades is one GPU draw with one set of numbers. `solveWind(elements, wind)` returns the batches, the lists to still and
 to simulate, and every reason. Each kind is a row in `KINDS`: a new kind is a row.
 
+### Dust and smoke: puffs on the wind
+
+Dust and smoke are drawn the way leaves are: each puff's path is a formula of time, worked out from the same wind and
+the same air (`puffAt` in the runtime's physics, so a World page draws exactly what the tests check).
+
+- **Drift.** A puff moves at the wind of its height (slower near the ground, as the wind is), plus the gusts' exact sums.
+- **Smoke rises on its heat** by Briggs' plume rise: Δh = 1.6·F^⅓·t^⅔·u^(−⅓), with F = g·Q / (π·cp·ρ·T) the buoyancy
+  of a fire giving Q watts, until it levels off at its final rise. A 600 kW fire's smoke rises about 15 m in a 5 m/s
+  wind; a stronger wind holds it lower, and a bigger fire's goes higher. Calm air is taken at 1 m/s, since a plume stirs
+  its own.
+- **Dust settles** at its grains' speed (Stokes for the fine, Newton's drag for the coarse, the slower; the same law the
+  debris uses): 10 µm grains sink at millimetres a second and hang for a minute, a millimetre grain at metres a second.
+- **It spreads as the air mixes it**, σ = σ0 + i·u·t, the turbulence's intensity i rising with the ground's roughness
+  (sea, open, city), and a rising plume is at least half as wide as it has risen.
+- **It fades as it thins.** A puff shows by its optical depth, 1 − e^(−K·m/πσ²): the same mass spread wider is fainter,
+  so smoke is as thick as the fire is big. Dust's mass deposits as it settles; steam's droplets evaporate within a couple
+  of seconds. K is the stuff's mass extinction: soot about 8,700 m²/kg, a grain 3/(ρ·d).
+
+**The smoke solver** ([`smoke-solver.js`](../control/lib/graph/rupa/smoke-solver.js), the wind solver's sibling) decides
+each source by its physics, with the reason in numbers:
+
+| Decision | When |
+|---|---|
+| **plume** | a fire: continuous and buoyant, a puff every half second while it burns, each the soot of that time (1.5% of the fuel burnt, a wood fire in open air), rising on its heat release |
+| **puff** | a break's dust, a burst of steam: let go once; dust as a billow of five puffs in each size that hangs |
+| **hang** | a size of dust settling slower than the air stirs it (i·u, u at least 1 m/s) |
+| **fall out** | a size settling faster: it falls with the debris's spray at once, and isn't smoke |
+| **skip** | nothing of it in sight: it starts too thin to see |
+
+On the runtime the sources go on `state.rupa.smoke`: a break's dust (its grains below 2 mm in four sizes shared by the
+break's Rosin–Rammler, its cloud starting as big as what broke), a burning block's plume from its top (its real heat
+release: `fireTime` hastens how long a fire burns, not how big it is; the plume ends when the fire does), and the steam
+a hose boils off a hot block. The page draws them as soft sprites from one pool: dust in the colour of what broke as the
+scene lights it, wood smoke grey and paler as it thins (black smoke is an oil's or a tyre's), steam paler still.
+
 ### Describing a wind
 
 A level sets it in its `matter` settings:
@@ -416,6 +451,9 @@ you give a thing a matter, read its skin; when you change a skin, check its matt
 - Cuts on any plane (they snap to the block's axes, so the halves stay boxes), a groove weakening the load pass before
   it goes through, a round's own tool word (rounds are steel-cored), and a cut half's own pre-cut pieces when it later
   breaks (it vanishes in its flash).
+- Dust and smoke held by walls and ceilings (a puff passes through them; smoke doesn't yet pool under a vault or fill
+  a room), shelter for puffs behind a barrier (the leaves have it), a fuel's own smoke yield and colour (every fire is a
+  wood fire, flaming), smouldering, and a GPU path for puffs (the page places at most 480 sprites on the CPU).
 - Ground on the page (a deformable floor, craters from bursts, the shovel as an action).
 - City and structure buildings emitting courses, slabs and columns, so whole buildings take part.
 - Per-entity power (a hero's tier apart from the world's), and heat from beams and fire sources by element.
