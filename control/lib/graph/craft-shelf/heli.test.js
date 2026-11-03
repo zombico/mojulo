@@ -227,3 +227,45 @@ describe('the kit (modelled, never fired)', () => {
     }
   });
 });
+
+describe('every helicopter, finished and turning', () => {
+  const kindOf = (k, id) => CRAFT_ODM[A[k].layout.find((e) => e.id === id.replace(/-[rl]$/, ''))?.sku]?.kind;
+  const pieces = (src) => ['extrudes', 'sweeps', 'lathes', 'lofts'].flatMap((x) => (src[x] ?? []).map((m) => m.id));
+  it('made, one cockpit, never two: the hull fits no fighter\'s cockpit where the layout seats its own; a fighter keeps its', () => {
+    for (const k of HELIS) expect(pieces(assembleCraft(k, { made: true }).manifest.items[0].source).filter((i) => /^cockpit/.test(i)), k).toEqual([]);
+    const jet = Object.keys(A).find((k) => A[k].realm === 'earth' && A[k].layout.some((e) => CRAFT_ODM[e.sku]?.kind === 'craft-canopy') && !A[k].layout.some((e) => CRAFT_ODM[e.sku]?.kind === 'craft-cockpit'));
+    expect(pieces(assembleCraft(jet, { made: true }).manifest.items[0].source).some((i) => /^cockpit/.test(i))).toBe(true);
+  });
+  it.each(HELIS)('%s: every rotor a bone at its hub in its figure, a tandem\'s two main rotors turning against each other', (k) => {
+    const C = craftForm(k), F = craftFormFigure(k, { spin: true });
+    expect(C.spins.length).toBe(A[k].layout.filter((e) => ['heli-rotor', 'heli-tail'].includes(CRAFT_ODM[e.sku]?.kind)).length);
+    for (const sp of C.spins) expect(F.bones.find((b) => b.id === sp.id).head).toEqual(sp.hub);
+    const mains = C.spins.filter((sp) => kindOf(k, sp.id) === 'heli-rotor');
+    if (mains.length === 2) expect(mains[0].turn + mains[1].turn).toBe(0);
+  });
+  it.each(HELIS)('%s: made, in camo and battered, within its budget (×1.6)', (k) => {
+    const C = craftForm(k, { made: true, livery: 'wraparound', wear: 'battered' });
+    expect(C.items.flatMap((i) => i.faces).reduce((t, f) => t + f.corners.length - 2, 0)).toBeLessThan((k === LIGHT ? 50000 : 80000) * 1.6);
+  });
+  it.each(HELIS)('%s: its main rotor\'s blades pass well clear over its tail as they turn', (k) => {
+    const C = craftForm(k), box = {};
+    for (const it of C.items) { const lo = [Infinity, Infinity, Infinity], hi = [-Infinity, -Infinity, -Infinity]; for (const f of it.faces) for (const c of f.corners) for (let i = 0; i < 3; i++) { lo[i] = Math.min(lo[i], c[i]); hi[i] = Math.max(hi[i], c[i]); } box[it.id] = [lo, hi]; }
+    // (the form stands the craft centred: its offset from craft space, read off the hull's nose and keel)
+    const hull0 = assembleCraft(k).manifest.items.find((i) => i.id === 'hull'), off = [0, box.hull[1][1] - hull0.at[1], box.hull[0][2] - hull0.at[2]];
+    const rotors = A[k].layout.filter((e) => CRAFT_ODM[e.sku].kind === 'heli-rotor'), n = CRAFT_ODM[rotors[0].sku].build.blades;
+    let gap = Infinity;
+    for (let a = 0; a < 360 / n; a += 10) {
+      const { manifest } = assembleCraft(k, { pose: { rotor: a } });
+      for (const r of rotors) {
+        const it = manifest.items.find((i) => i.id === r.id), fl = it.flip || '', parent = r.at.split('.')[0];
+        const below = Object.keys(box).filter((id) => id !== parent && ['craft-fin', 'heli-tail', 'craft-stabilizer', 'heli-cowl'].includes(kindOf(k, id)));
+        for (const l of it.source.lofts.filter((q) => /^blade_\d+(_tip)?$/.test(q.id))) for (const p of [l.axisFrom, l.axisTo]) {
+          const q = [it.at[0] + (fl.includes('x') ? -p.x : p.x) + off[0], it.at[1] + p.y + off[1], it.at[2] + p.z + off[2]];
+          for (const id of below) { const [lo, hi] = box[id]; if (q[0] > lo[0] - 0.3 && q[0] < hi[0] + 0.3 && q[1] > lo[1] - 0.3 && q[1] < hi[1] + 0.3) gap = Math.min(gap, q[2] - hi[2]); }
+        }
+      }
+    }
+    expect(gap).toBeGreaterThan(0.6);
+  });
+});
+

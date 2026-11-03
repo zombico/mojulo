@@ -93,7 +93,7 @@ export const HELI_ODM = {
   },
   'fin-heli-light': {
     kind: 'craft-fin', realm: 'earth', label: 'light helicopter fin', classOf: 'light single-engine helicopter class (1.4 t)',
-    aliases: ['helicopter fin', 'helicopter tail fin'], dims: { span: 1.05 }, mass: 5, mount: 'tail-root',
+    aliases: ['helicopter fin', 'helicopter tail fin'], dims: { span: 0.8 }, mass: 5, mount: 'tail-root',
     build: { vertical: true, rootChord: 0.9, tipChord: 0.45, sweep: 38, thickness: 0.12, camber: 0.04 },
   },
   'fin-heli-ventral': {

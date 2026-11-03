@@ -144,4 +144,14 @@ In progress. Helicopters on the craft shelf:
     blades at rest, inside the disc they sweep).
   - **Seen** (machine gate only; the eyes gate is open): each from three quarters, the side and the front, each cockpit
     close up through its glass, the tandem from behind and above.
+- **Finished and turning:**
+  - **One cockpit, never two:** made, a hull no longer fits a fighter's cockpit under its canopy where its layout seats a
+    cockpit of its own. Every helicopter had grown the fighter's beside its own; a fighter keeps its.
+  - **The light helicopter's fin shortened** (1.05 m to 0.8 m): its rotor's drooped blades passed 0.43 m over it, now
+    0.68 m.
+  - **Held** (`heli.test.js`):
+    - made, each helicopter's hull with no second cockpit;
+    - every rotor a bone at its hub in its figure, the tandem's two turning against each other;
+    - made, in camo and battered, within its budget ×1.6;
+    - each main rotor's blades more than 0.6 m over its tail's parts as it turns.
 
