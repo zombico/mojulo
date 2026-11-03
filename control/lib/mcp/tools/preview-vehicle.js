@@ -129,7 +129,7 @@ export async function previewVehicleInstanceHandler(input) {
     read.instance.cycle = { ...read.instance.cycle, look: input.look };
   }
   // a rider astride (true: the realistic hero, or its spec) and the posture it sits in, beside the word (cycle-rider.js)
-  for (const key of ['rider', 'posture']) {
+  for (const key of ['rider', 'posture', 'addons']) {
     if (input[key] === undefined) continue;
     if (!read.instance.cycle) throw new Error(`mint_solid vehicle: a ${key} is a machine ridden astride's (a motorcycle: { vehicle: 'motorcycle', rider: true }); this build has none`);
     read.instance.cycle = { ...read.instance.cycle, [key]: input[key] };

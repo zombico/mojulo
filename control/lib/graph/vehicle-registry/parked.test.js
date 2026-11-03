@@ -5,7 +5,7 @@
 import { describe, it, expect } from 'vitest';
 import { readParked, parkIn, withParked, paintOfDress, readBuildingParked, parkable, BASE_PARKED, PARKED_MAX } from './parked.js';
 import { VEHICLES, rowOfHandle } from './roster.js';
-import { VEHICLES as PHYSICS } from '../roads/vehicles.js';
+import { VEHICLES as PHYSICS, wheelLayout } from '../roads/vehicles.js';
 import { MILITARY_CLASSES } from '../car-designer/road-military.js';
 import { UNBUILT } from '../car-designer/sheet.js';
 import { CAMO } from '../car-designer/livery-cut.js';
@@ -26,9 +26,12 @@ const room = { x: 10, y: 0, w: 24, d: 30, z: 0 };
 
 describe('a machine ridden astride, parked', () => {
   // (rows chosen in code: one that stands on a stand, one whose machine has none or cannot stand parked)
-  const ids = Object.keys(VEHICLES), stands = (id) => CYCLE_ARCHETYPES[VEHICLES[id].handles.cycle].layout.some((e) => CYCLE_ODM[e.sku].kind === 'cycle-stand');
-  const standing = ids.find((id) => VEHICLES[id].handles.cycle && VEHICLES[id].uses.includes('parked') && stands(id));
+  // (two in line stand on a stand, three wheels or four on their own)
+  const ids = Object.keys(VEHICLES), inline = (id) => wheelLayout(PHYSICS[VEHICLES[id].handles.physics]) === 'inline';
+  const stands = (id) => !inline(id) || CYCLE_ARCHETYPES[VEHICLES[id].handles.cycle].layout.some((e) => CYCLE_ODM[e.sku].kind === 'cycle-stand');
+  const standing = ids.find((id) => VEHICLES[id].handles.cycle && inline(id) && VEHICLES[id].uses.includes('parked') && stands(id));
   const held = ids.find((id) => VEHICLES[id].handles.cycle && !(VEHICLES[id].uses.includes('parked') && stands(id)));
+  const wheeled = ids.find((id) => VEHICLES[id].handles.cycle && !inline(id) && VEHICLES[id].uses.includes('parked'));
   const look = LOOK_IDS.find((k) => k !== 'stock');
   it('stands on its stand as its cycle shelf machine, a look dressing it', () => {
     const p = readParked([{ vehicle: standing, at: [1, 2, 0], look }])[0];
@@ -36,6 +39,9 @@ describe('a machine ridden astride, parked', () => {
     const { manifest, colliders } = withParked({ parked: [{ vehicle: standing, at: [1, 2, 0], look }] });
     expect(manifest.figures['parked-0']).toEqual({ cycle: { archetype: VEHICLES[standing].handles.cycle, look } });
     expect(colliders[0].max[2]).toBeCloseTo(PHYSICS[VEHICLES[standing].handles.physics].H, 6);
+  });
+  it('three wheels or four stand on their own, with no stand', () => {
+    expect(parkable(wheeled)).toMatchObject({ vehicle: wheeled, cycle: VEHICLES[wheeled].handles.cycle });
   });
   it('refuses a machine that cannot stand parked, and a look on a car', () => {
     expect(() => parkable(held)).toThrow(/stand/);

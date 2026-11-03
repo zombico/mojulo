@@ -27,7 +27,7 @@
  * Pure: no clock, no dice.
  */
 import { DEG, add, bend, cross, extrudeWorld, lerp, loftWorld, mul, rect, ring, roundRect, sideSign, sub, tone, unit } from './cycle-common.js';
-import { at, axleOf, beltLoop, box, curve, need, panel, pod, spin, strip, tube } from './cycle-kit.js';
+import { at, axleOf, beltLoop, bySlot, box, curve, need, panel, pod, spin, strip, tube } from './cycle-kit.js';
 
 const X = [1, 0, 0];
 const NEON = 'neon';
@@ -178,7 +178,7 @@ function rimRings(a, rim, half, C, tint = C.chrome) {
 function wheelCast(row, C, { G, slot }) {
   const { radius: R, section: sec, rim } = row.dims, b = row.build, a = axleOf(G, slot), half = b.rimHalf;
   const sweeps = [...roadTyre(a, R, sec, C), ...rimRings(a, rim, half, C, C[b.rimTint || 'trim'])], extrudes = [], lathes = [];
-  const [h0, h1] = need(G, 'hubs')[slot];
+  const [h0, h1] = bySlot(need(G, 'hubs'), slot);
   lathes.push(spin('hub', add(a, [h0, 0, 0]), add(a, [h1, 0, 0]), [[0, b.hub * 0.8], [0.15, b.hub], [0.85, b.hub], [1, b.hub * 0.8]], C[b.rimTint || 'trim']));
   // (the spokes: flat bars from the hub to the rim, a Y at the rim when the card says so)
   for (let i = 0; i < b.spokes; i++) {
@@ -189,20 +189,20 @@ function wheelCast(row, C, { G, slot }) {
       extrudes.push(box(`spoke_${i}_${k}`, foot, tip, 0.014, Math.min(0.03, half * 0.8), C[b.rimTint || 'trim'], X));
     });
   }
-  return { sweeps, extrudes, lathes, hardpoints: { mount: [0, 0, 0], axle: a, contact: [0, a[1], 0] }, joints: [{ name: `roll_${slot}`, control: 'roll', kind: 'spin', at: a, dir: X, range: [0, 360], angle: 0 }] };
+  return { sweeps, extrudes, lathes, hardpoints: { mount: [0, 0, 0], axle: a, contact: [a[0], a[1], 0] }, joints: [{ name: `roll_${slot}`, control: 'roll', kind: 'spin', at: a, dir: X, range: [0, 360], angle: 0 }] };
 }
 function wheelWire(row, C, { G, slot }) {
   const { radius: R, section: sec, rim } = row.dims, b = row.build, a = axleOf(G, slot), sweeps = [], lathes = [];
   sweeps.push(tube('tyre', ring(a, X, R - sec / 2, 48), sec / 2, C.rubber, 10));
   sweeps.push(tube('rim', ring(a, X, rim, 48), b.rimR ?? 0.009, C[b.rimTint || 'chrome'], 6));
-  const [h0, h1] = need(G, 'hubs')[slot], hr = b.hub;
+  const [h0, h1] = bySlot(need(G, 'hubs'), slot), hr = b.hub;
   lathes.push(spin('hub', add(a, [h0, 0, 0]), add(a, [h1, 0, 0]), [[0, hr], [0.15, hr * 0.6], [0.85, hr * 0.6], [1, hr]], tone(C.chrome, -0.1), 14));
   for (let i = 0; i < b.spokes; i++) {
     const t = (2 * Math.PI * i) / b.spokes, left = i % 2, lean = (i % 4 < 2 ? 1 : -1) * 0.35;
     const hub = add(a, [left ? h0 + 0.004 : h1 - 0.004, hr * 0.9 * Math.cos(t + lean), hr * 0.9 * Math.sin(t + lean)]);
     sweeps.push(tube(`spoke_${i}`, [hub, add(a, [0, (rim - 0.006) * Math.cos(t), (rim - 0.006) * Math.sin(t)])], 0.0012, C.chrome, 3));
   }
-  return { sweeps, lathes, hardpoints: { mount: [0, 0, 0], axle: a, contact: [0, a[1], 0] }, joints: [{ name: `roll_${slot}`, control: 'roll', kind: 'spin', at: a, dir: X, range: [0, 360], angle: 0 }] };
+  return { sweeps, lathes, hardpoints: { mount: [0, 0, 0], axle: a, contact: [a[0], a[1], 0] }, joints: [{ name: `roll_${slot}`, control: 'roll', kind: 'spin', at: a, dir: X, range: [0, 360], angle: 0 }] };
 }
 
 function discAt(id, a, x, R, b, C, caliperAngle, bracketTo) {
@@ -216,7 +216,7 @@ function discAt(id, a, x, R, b, C, caliperAngle, bracketTo) {
   return { lathes, extrudes, sweeps };
 }
 function brakeTwin(row, C, { G, slot }) {
-  const R = row.dims.radius, b = row.build, a = axleOf(G, slot), A = need(G, 'brakes')[slot], out = { lathes: [], extrudes: [], sweeps: [] };
+  const R = row.dims.radius, b = row.build, a = axleOf(G, slot), A = bySlot(need(G, 'brakes'), slot), out = { lathes: [], extrudes: [], sweeps: [] };
   for (const [side, s] of [['r', 1], ['l', -1]]) {
     const part = discAt(`disc_${side}`, a, s * A.x, R, b, C, A.caliper, slot === 'front' ? G.fork.leg(0.06, side) : null);
     for (const k of Object.keys(out)) out[k].push(...part[k]);
@@ -225,12 +225,12 @@ function brakeTwin(row, C, { G, slot }) {
 }
 /** A bicycle's disc: its caliper bracketed to the fork's leg, or to the frame's stay at the rear. */
 function brakeMini(row, C, { G, slot }) {
-  const R = row.dims.radius, b = row.build, a = axleOf(G, slot), A = need(G, 'brakes')[slot];
+  const R = row.dims.radius, b = row.build, a = axleOf(G, slot), A = bySlot(need(G, 'brakes'), slot);
   const to = slot === 'front' ? G.fork.leg(0.07, A.x < 0 ? 'l' : 'r') : add(a, [A.x, 0.07, 0.05]);
   return { ...discAt('disc', a, A.x, R, b, C, A.caliper, to), hardpoints: { mount: [0, 0, 0] } };
 }
 function brakeDrum(row, C, { G, slot }) {
-  const R = row.dims.radius, a = axleOf(G, slot), A = need(G, 'brakes')[slot];
+  const R = row.dims.radius, a = axleOf(G, slot), A = bySlot(need(G, 'brakes'), slot);
   const lathes = [spin('drum', add(a, [A.x - 0.022, 0, 0]), add(a, [A.x + 0.022, 0, 0]), [[0, R * 0.9], [0.2, R], [0.8, R], [1, R * 0.82]], tone(C.chrome, -0.1), 24)];
   const lever = add(a, [A.x + Math.sign(A.x || 1) * 0.026, -R * 0.5, R * 0.55]);
   const sweeps = [tube('arm', [add(a, [lever[0] - a[0], 0, 0]), lever, add(lever, [0, 0.18, 0.02])], 0.006, tone(C.trim, 0.2), 6)];
@@ -475,9 +475,132 @@ function batteryDowntube(row, C, { G }) {
   return { lofts, hardpoints: { mount: [0, 0, 0] } };
 }
 
+// ── the add-ons ─────────────────────────────────────────────────────────────
+/** A sidecar: its tub between the machine and its wheel, open to sit in (a hull to its floor, a nose deck, a back wall,
+ *  side walls up to a rim round the cockpit, a cushion and a backrest inside), the chassis under it (two rails, the struts to the
+ *  machine's frame at its pivot and ahead of it), the wheel's arm and stub axle, a mudguard over its wheel. The wheel is
+ *  its own part (slot `chair`), placed by the solve: the class's track off the centreline, its lead ahead of the rear
+ *  axle. On the right unless the card says left. */
+function sidecarChair(row, C, { G }) {
+  const ch = need(G, 'chair'), s = ch.side === 'l' ? -1 : 1, W = axleOf(G, 'chair'), b = row.build, lofts = [], sweeps = [], lathes = [], extrudes = [];
+  const xc = s * b.tubX, z0 = b.rail;
+  // the tub, open: its hull up to the floor, its tail (the back wall) and its nose deck closed, its sides walls up to a
+  // rim round the cockpit, a cushion on the floor and a backrest inside (the outline the row's stations draw)
+  const at = (y) => { const T = b.tub, i = Math.max(0, T.findIndex((q, k) => k + 1 < T.length && y <= T[k + 1].y)), a = T[i], c = T[i + 1], t = (y - a.y) / (c.y - a.y);
+    return { y, z: a.z + (c.z - a.z) * t, w: a.w + (c.w - a.w) * t, h: a.h + (c.h - a.h) * t }; };
+  const [y0, y1] = b.cockpit, floor = b.floor, wall = 0.025;
+  const span = (lo, hi) => [at(lo), ...b.tub.filter((q) => q.y > lo && q.y < hi), at(hi)];
+  lofts.push(pod('hull', b.tub.map((q) => { const bot = q.z - q.h / 2; return { y: q.y, z: (bot + floor) / 2, w: q.w, h: floor - bot }; }), C.paint, { x: xc }));
+  lofts.push(pod('tail', span(b.tub[0].y, y0), C.paint, { x: xc }));
+  lofts.push(pod('nose', span(y1, b.tub.at(-1).y), C.paint, { x: xc }));
+  const ys = Array.from({ length: 6 }, (_, k) => y0 + ((y1 - y0) * k) / 5), ax = [0, 1, 0];
+  for (const side of [1, -1]) {
+    lofts.push(loftWorld(`wall_${side > 0 ? 'out' : 'in'}`, [xc, y0, floor], [xc, y1, floor], ys.map((y) => {
+      const q = at(y), top = q.z + q.h / 2, h = top - floor + 0.02;
+      return { t: (y - y0) / (y1 - y0), points: roundRect(ax, wall, h, 0.008, 2).map((p) => add(p, [side * (q.w / 2 - wall / 2), 0, h / 2 - 0.02])) };
+    }), C.paint));
+  }
+  const rim = [...ys.map((y) => { const q = at(y); return [xc + (q.w / 2 - wall / 2), y, q.z + q.h / 2]; }), ...ys.slice().reverse().map((y) => { const q = at(y); return [xc - (q.w / 2 - wall / 2), y, q.z + q.h / 2]; })];
+  sweeps.push(tube('rim', [...rim, rim[0]], 0.014, tone(C.trim, 0.2), 6));
+  const mid = at((y0 + y1) / 2);
+  lofts.push(pod('cushion', [{ y: y0 + 0.05, z: floor + 0.05, w: mid.w - 2 * wall - 0.04, h: 0.1, r: 0.04 }, { y: y1 - 0.25, z: floor + 0.05, w: mid.w - 2 * wall - 0.04, h: 0.1, r: 0.04 }], C.rubber, { x: xc }));
+  lofts.push(pod('back', [{ y: y0 + 0.03, z: b.back[1], w: mid.w - 2 * wall - 0.08, h: 0.32, r: 0.08 }, { y: y0 + 0.1, z: b.back[1] + 0.02, w: mid.w - 2 * wall - 0.06, h: 0.34, r: 0.08 }], C.rubber, { x: xc }));
+  const metal = tone(C.trim, 0.2);
+  for (const [k, x] of [['in', b.inner], ['out', b.outer]]) sweeps.push(tube(`rail_${k}`, [[s * x, -0.25, z0], [s * x, 1.0, z0]], 0.016, metal, 8));
+  for (const y of [-0.15, 0.9]) sweeps.push(tube(`cross_${y > 0 ? 'f' : 'r'}`, [[s * b.inner, y, z0], [s * b.outer, y, z0]], 0.014, metal, 8));
+  // (its struts to the machine: at the pivot (or the cranks, or ahead of the rear axle), and ahead of it on the frame)
+  const back = G.pivot ?? G.bb ?? [0, 0.45, 0.4], front = add(lerp(G.head.lo, back, 0.45), [0, 0, -0.12]);
+  for (const [k, m] of [['rear', back], ['front', front]]) sweeps.push(tube(`strut_${k}`, [[s * 0.1, m[1], m[2]], [s * b.inner, m[1], z0]], 0.015, metal, 8));
+  sweeps.push(tube('arm', [[s * b.outer, W[1] + 0.35, z0], [W[0] - s * 0.08, W[1], W[2]]], 0.018, metal, 8));
+  lathes.push(spin('stub', [W[0] - s * 0.08, W[1], W[2]], [W[0], W[1], W[2]], [[0, 0.014], [1, 0.014]], tone(C.chrome, -0.2), 12));
+  extrudes.push(...strip('guard', curve([W[0], W[1] - 0.26, W[2] + 0.16], [W[0], W[1] + 0.02, W[2] + 0.48], [W[0], W[1] + 0.3, W[2] + 0.14], 7), 0.14, 0.005, C.paint, { skirt: 0.03 }));
+  return { lofts, sweeps, lathes, extrudes, hardpoints: { mount: [0, 0, 0], chair: [xc, (y0 + y1) / 2 - 0.1, floor + 0.1] } };
+}
+
+/** A rear axle across a pair of wheels (`rear.l`, `rear.r`): a live axle (its differential, its tubes, a drum at each
+ *  hub, its arms forward to the frame), a light one (a bare tube in its bearings: a pedicab's), or a solid one on a
+ *  swingarm (a quad's). */
+function axleAcross(row, C, { G }) {
+  const b = row.build, L = axleOf(G, 'rear.l'), Rt = axleOf(G, 'rear.r'), z = L[2], metal = tone(C.trim, 0.15), lathes = [], sweeps = [];
+  const inner = (P, s) => [P[0] - s * b.hubIn, 0, z];
+  if (b.family === 'live') {
+    lathes.push(spin('diff', [-b.diff / 2, 0, z], [b.diff / 2, 0, z], [[0, 0.05], [0.25, b.r], [0.75, b.r], [1, 0.05]], metal, 20));
+    for (const [k, P, s] of [['l', L, -1], ['r', Rt, 1]]) {
+      lathes.push(spin(`tube_${k}`, [s * b.diff / 2, 0, z], inner(P, s), [[0, 0.032], [1, 0.03]], metal, 12));
+      lathes.push(spin(`drum_${k}`, inner(P, s), [P[0] - s * (b.hubIn - 0.05), 0, z], [[0, 0.1], [1, 0.1]], tone(C.chrome, -0.1), 20));
+    }
+    for (const s of [1, -1]) sweeps.push(tube(`arm_${s > 0 ? 'r' : 'l'}`, [[s * b.diff * 0.6, 0, z], [s * b.mount[0], b.mount[1], b.mount[2]]], 0.02, metal, 8));
+  } else if (b.family === 'light') {
+    lathes.push(spin('axle', inner(L, -1), inner(Rt, 1), [[0, 0.018], [1, 0.018]], tone(C.chrome, -0.1), 12));
+    for (const s of [1, -1]) lathes.push(spin(`bearing_${s > 0 ? 'r' : 'l'}`, [s * (b.mount[0] - 0.03), 0, z], [s * (b.mount[0] + 0.03), 0, z], [[0, 0.035], [1, 0.035]], metal, 14));
+  } else {
+    lathes.push(spin('axle', inner(L, -1), inner(Rt, 1), [[0, 0.026], [1, 0.026]], metal, 12));
+    lathes.push(spin('carrier', [-0.09, 0, z], [0.09, 0, z], [[0, 0.06], [0.5, 0.075], [1, 0.06]], metal, 16));
+  }
+  return { lathes, sweeps, hardpoints: { mount: [0, 0, 0] } };
+}
+
+/** A cab over a three-wheeler: its roof on its pillars, its windscreen, the passengers' bench and its back, a back panel
+ *  and the body under the bench (a tuk-tuk's). From its card (`cab`). */
+function cabCanopy(row, C, { G }) {
+  const K = need(G, 'cab'), lofts = [pod('roof', K.roof, C.paint), pod('bench', K.bench, C.rubber), pod('back', K.back, C.rubber), pod('body', K.body, C.paint)], sweeps = [], extrudes = [];
+  for (const [k, p] of K.pillars.entries()) for (const s of [1, -1]) sweeps.push(tube(`pillar_${k}_${s > 0 ? 'r' : 'l'}`, [[s * p[0], p[1], p[2]], [s * p[0], p[3], p[4]]], 0.022, C.trim, 8));
+  const W = K.screen;
+  extrudes.push(made(extrudeWorld('screen', [0, W.at[1] - 0.004, W.at[2]], [0, W.at[1] + 0.004, W.at[2]], rect([0, 1, 0], W.w, W.h), C.glass), 'glass'));
+  extrudes.push(panel('panel', -K.panel.x, K.panel.x, K.panel.outline, C.paint));
+  return { lofts, sweeps, extrudes, hardpoints: { mount: [0, 0, 0], passenger: K.passenger } };
+}
+
+/** A pedicab's carriage: its bench and its back over the axle, a footboard, and its folding hood: ribs arched over the
+ *  bench and the canvas drawn over them. From its card (`carriage`). */
+function carriageHood(row, C, { G }) {
+  const K = need(G, 'carriage'), lofts = [pod('bench', K.bench, C.rubber), pod('back', K.back, C.paint)], sweeps = [], extrudes = [];
+  extrudes.push(panel('footboard', -K.foot.x, K.foot.x, K.foot.outline, C.trim));
+  const arch = (y, k = 8) => Array.from({ length: k + 1 }, (_, i) => { const a = Math.PI * (0.04 + (0.92 * i) / k); return [K.hood.w * Math.cos(a), y, K.hood.z0 + K.hood.h * Math.sin(a)]; });
+  K.hood.ribs.forEach((y, i) => sweeps.push(tube(`rib_${i}`, arch(y), 0.01, C.trim, 6)));
+  extrudes.push(...strip('canvas', arch((K.hood.ribs[0] + K.hood.ribs.at(-1)) / 2, 10), Math.abs(K.hood.ribs.at(-1) - K.hood.ribs[0]), 0.006, tone(C.paint, -0.25), { taper: 1 }));
+  return { lofts, sweeps, extrudes, hardpoints: { mount: [0, 0, 0], passenger: K.passenger } };
+}
+
+/** A box trike's box between its front wheels: floor, walls, the axle under it, its kingpin up to the head. The box, its
+ *  wheels and its bar turn together about the kingpin (rake 0, the steering axis through the front axle). */
+function boxFront(row, C, { G, pose }) {
+  const K = need(G, 'box'), [y0, y1] = K.y, [z0, z1] = K.z, w = K.w, t = 0.012, extrudes = [], lathes = [];
+  const wall = (id, x0, x1, outline) => extrudes.push(panel(id, x0, x1, outline, C[row.build.tint || 'paint']));
+  wall('floor', -w / 2, w / 2, [[y0, z0], [y1, z0], [y1, z0 + t], [y0, z0 + t]]);
+  for (const s of [1, -1]) wall(`side_${s > 0 ? 'r' : 'l'}`, s * (w / 2 - t), s * w / 2, [[y0, z0], [y1, z0], [y1, z1], [y0, z1]]);
+  wall('front', -w / 2, w / 2, [[y1 - t, z0], [y1, z0], [y1, z1], [y1 - t, z1]]);
+  wall('back', -w / 2, w / 2, [[y0, z0], [y0 + t, z0], [y0 + t, z1], [y0, z1]]);
+  const L = axleOf(G, 'front.l'), Rt = axleOf(G, 'front.r');
+  lathes.push(spin('axle', [L[0] + 0.03, L[1], L[2]], [Rt[0] - 0.03, Rt[1], Rt[2]], [[0, 0.016], [1, 0.016]], tone(C.chrome, -0.1), 12));
+  lathes.push(spin('kingpin', [0, G.frontAxle[1], z0], G.head.lo, [[0, 0.02], [1, 0.02]], tone(C.chrome, -0.1), 12));
+  return { extrudes, lathes, hardpoints: { mount: [0, 0, 0] }, joints: frontJoints(G, pose, 0) };
+}
+
+/** A quad's front: on each side its lower and upper arms from the frame to its knuckle, the knuckle, a coil-over from the
+ *  lower arm to the frame, a tie rod from the column. */
+function armsA(row, C, { G, side }) {
+  const A = need(G, 'arms'), s = sideSign(side), W = axleOf(G, side === 'l' ? 'front.l' : 'front.r'), metal = tone(C.trim, 0.25), sweeps = [], lathes = [];
+  const kx = W[0] - s * A.knuckle, y = W[1];
+  for (const [k, z, zf] of [['lo', W[2] - 0.08, A.lower], ['up', W[2] + 0.09, A.upper]]) {
+    sweeps.push(tube(`arm_${k}`, [[s * A.inner, y - 0.12, zf], [kx, y, z], [s * A.inner, y + 0.12, zf]], 0.014, metal, 8));
+  }
+  lathes.push(spin('knuckle', [kx, y, W[2] - 0.1], [kx, y, W[2] + 0.11], [[0, 0.022], [1, 0.022]], metal, 12));
+  const { lathes: cl, sweeps: cs } = coilOver('shock', [kx - s * 0.05, y - 0.02, W[2] - 0.06], [s * A.inner, y - 0.06, A.shockTop], { body: 0.016, coil: 0.028, wire: 0.005, turns: 6 }, C);
+  lathes.push(...cl); sweeps.push(...cs);
+  sweeps.push(tube('tie_rod', [[0, G.head.lo[1] + 0.02, A.lower + 0.08], [kx, y - 0.1, W[2]]], 0.009, metal, 6));
+  return { sweeps, lathes, hardpoints: { mount: [0, 0, 0] } };
+}
+
+/** A quad's steering column: its stem through the head, nothing else turning with it. */
+function forkColumn(row, C, { G, pose }) {
+  const lathes = [spin('column', G.axis.at(G.fork.sLo - 0.12), G.axis.at(G.fork.sHi + 0.03), [[0, 0.016], [1, 0.016]], tone(C.chrome, -0.1), 12)];
+  return { lathes, hardpoints: { mount: [0, 0, 0] }, joints: frontJoints(G, pose, 0) };
+}
+
 export const FAMILIES = Object.freeze({
   'cycle-frame': { tubes: frameTubes, trellis: frameTubes },
-  'cycle-fork': { telescopic: forkTelescopic, rigid: forkRigid },
+  'cycle-fork': { telescopic: forkTelescopic, rigid: forkRigid, column: forkColumn },
   'cycle-swingarm': { roadArm },
   'cycle-shock': { twin: shockTwin },
   'cycle-wheel': { cast: wheelCast, wire: wheelWire },
@@ -493,4 +616,10 @@ export const FAMILIES = Object.freeze({
   'cycle-lamp': { head: lampHead, tail: lampTail },
   'cycle-peg': { road: pegRoad, floor: pegFloor },
   'cycle-battery': { downtube: batteryDowntube },
+  'cycle-sidecar': { chair: sidecarChair },
+  'cycle-axle': { live: axleAcross, light: axleAcross, solid: axleAcross },
+  'cycle-cab': { canopy: cabCanopy },
+  'cycle-carriage': { hood: carriageHood },
+  'cycle-box': { front: boxFront },
+  'cycle-arms': { aArms: armsA },
 });

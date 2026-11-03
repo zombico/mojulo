@@ -31,6 +31,7 @@ import { GRUNT_STYLES } from '../cosmos/packs/comic-hero/grunts.js';
 import { CYCLE_ARCHETYPES } from '../cycle-shelf/cycle-archetypes.js';
 import { CYCLE_ODM } from '../cycle-shelf/cycle-odm.js';
 import { lookCard } from '../cycle-shelf/cycle-looks.js';
+import { wheelLayout } from '../roads/vehicles.js';
 
 export const PARKED_MAX = 6;
 export const BASE_PARKED = Object.freeze(['cargo-truck', 'apc']);
@@ -47,7 +48,9 @@ export function parkable(word, at = 'parked') {
   // (a machine ridden astride: its cycle shelf machine, standing on its stand; one with none is held up by hand)
   const cycle = (h.cycle ?? [])[0];
   if (cycle && hit.row.uses.includes('parked')) {
-    if (!CYCLE_ARCHETYPES[cycle].layout.some((e) => CYCLE_ODM[e.sku].kind === 'cycle-stand')) throw new Error(`${at}: the ${hit.row.label} has no stand to stand on`);
+    // (two in line stand on a stand; three wheels or four stand on their own)
+    const inline = wheelLayout(PHYSICS[h.physics[0]]) === 'inline';
+    if (inline && !CYCLE_ARCHETYPES[cycle].layout.some((e) => CYCLE_ODM[e.sku].kind === 'cycle-stand')) throw new Error(`${at}: the ${hit.row.label} has no stand to stand on`);
     return { vehicle: hit.id, class: h.physics[0], cycle };
   }
   throw new Error(`${at}: the ${hit.row.label} has no realistic body that stands parked`);

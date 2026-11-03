@@ -18,16 +18,16 @@
  */
 import { resolveAssemblerPlacements } from '../worlds/workbench-assembler.js';
 import { planAssemblyBom } from '../vehicle-designer/assembly-bom.js';
-import { VEHICLES as PHYSICS } from '../roads/vehicles.js';
+import { VEHICLES as PHYSICS, wheelLayout } from '../roads/vehicles.js';
 import { CYCLE_COLOR_ROLES, CYCLE_PALETTES, DEG, clone, resolveCyclePalette, round3, sub, unit } from './cycle-common.js';
 import { CYCLE_BUILDERS } from './cycle-parts.js';
 import { CYCLE_KINDS, CYCLE_ODM } from './cycle-odm.js';
-import { CYCLE_ARCHETYPES } from './cycle-archetypes.js';
+import { CYCLE_ADDONS, CYCLE_ARCHETYPES } from './cycle-archetypes.js';
 import { solveChassis } from './cycle-chassis.js';
 import { cycleLaws } from './cycle-laws.js';
 import { CYCLE_LOOKS, lookCard, lookMaterial } from './cycle-looks.js';
 
-export { CYCLE_ARCHETYPES, CYCLE_COLOR_ROLES, CYCLE_KINDS, CYCLE_LOOKS, CYCLE_ODM, CYCLE_PALETTES };
+export { CYCLE_ADDONS, CYCLE_ARCHETYPES, CYCLE_COLOR_ROLES, CYCLE_KINDS, CYCLE_LOOKS, CYCLE_ODM, CYCLE_PALETTES };
 
 const MONOMERS = ['lathes', 'extrudes', 'sweeps', 'lofts'];
 
@@ -61,8 +61,10 @@ function partRow(sku) {
   if (!row) throw new Error(`Unknown cycle part '${sku}'; the inventory lists ${Object.keys(CYCLE_ODM).join(', ')} (or findCyclePart('<words>'))`);
   return row;
 }
+// (a machine the door composed with its add-ons, under its own key: 'streetBike+sidecar')
+const COMPOSED = new Map();
 function archetypeRow(id) {
-  const row = CYCLE_ARCHETYPES[id];
+  const row = CYCLE_ARCHETYPES[id] ?? COMPOSED.get(id);
   if (!row) throw new Error(`Unknown cycle archetype '${id}'; expected one of: ${Object.keys(CYCLE_ARCHETYPES).join(', ')}`);
   return row;
 }
@@ -73,12 +75,13 @@ export function chassisOf(id) {
   if (CHASSIS.has(id)) return CHASSIS.get(id);
   const row = archetypeRow(id), physics = PHYSICS[row.physics];
   if (!physics) throw new Error(`cycle archetype '${id}': physics class '${row.physics}' is not in roads/vehicles.js`);
-  const wheelOf = (slot) => {
-    const e = row.layout.find((x) => x.slot === slot && partRow(x.sku).kind === 'cycle-wheel');
-    if (!e) throw new Error(`cycle archetype '${id}' has no ${slot} wheel`);
+  // (an end's wheel: its own, or one of a pair at that end: `rear.l` is a rear wheel)
+  const wheelOf = (slot, optional = false) => {
+    const e = row.layout.find((x) => (x.slot === slot || x.slot?.startsWith(`${slot}.`)) && partRow(x.sku).kind === 'cycle-wheel');
+    if (!e) { if (optional) return undefined; throw new Error(`cycle archetype '${id}' has no ${slot} wheel`); }
     return { radius: partRow(e.sku).dims.radius };
   };
-  const G = solveChassis(row.chassis, physics, { front: wheelOf('front'), rear: wheelOf('rear') });
+  const G = solveChassis(row.chassis, physics, { front: wheelOf('front'), rear: wheelOf('rear'), chair: wheelOf('chair', true) });
   CHASSIS.set(id, G);
   return G;
 }
@@ -105,7 +108,7 @@ export function resolveCyclePart(sku, { archetype, slot, side, pose = {}, palett
   const at = { slot: slot ?? entry?.slot ?? null, side: side ?? (entry?.pair ? 'r' : null) };
   // (a look other than stock brings its palette, under the operator's own, and its finish)
   const card = look && look !== 'stock' ? lookCard(look) : (lookCard(look), null);
-  const { id: paletteId, colors: C } = resolveCyclePalette(palette ?? card?.palette, colors, CYCLE_ARCHETYPES[machine].palette);
+  const { id: paletteId, colors: C } = resolveCyclePalette(palette ?? card?.palette, colors, archetypeRow(machine).palette);
   const geom = CYCLE_BUILDERS[row.kind](row, C, { G, slot: at.slot, side: at.side, pose });
   const monomers = Object.fromEntries(MONOMERS.filter((k) => geom[k] && geom[k].length).map((k) => [k, geom[k]]));
   return {
@@ -181,8 +184,37 @@ export function measureCycle(manifest) {
  * built, says its geometry and its laws (read upright, its stand up; the stand's lean from the stand down), the points
  * a rider meets, every joint, the BOM.
  */
-export function assembleCycle(archetype, { palette, colors = {}, pose = {}, finish = true, title, look } = {}) {
-  const row = archetypeRow(archetype), G = chassisOf(archetype), physics = PHYSICS[row.physics];
+/**
+ * A machine with the door's add-ons (CYCLE_ADDONS): its layout less the kinds an add-on takes away, plus its parts; its
+ * card with the add-on's; registered under its own key ('streetBike+sidecar'), which every lookup by archetype reads.
+ * An add-on goes on the layout it names (a sidecar on a machine two in line); one it does not is refused.
+ */
+export function composeMachine(archetype, addons = []) {
+  if (!addons.length) return archetype;
+  const base = archetypeRow(archetype), key = [archetype, ...addons].join('+');
+  if (COMPOSED.has(key)) return key;
+  let layout = [...base.layout], chassis = { ...base.chassis }, makes = null;
+  for (const a of addons) {
+    const A = CYCLE_ADDONS[a];
+    if (!A) throw new Error(`Unknown cycle add-on '${a}'; expected one of: ${Object.keys(CYCLE_ADDONS).join(', ')}`);
+    const on = wheelLayout(PHYSICS[base.physics]);
+    if (A.on !== on || makes) throw new Error(`cycle add-on '${a}' goes on a machine ${A.on === 'inline' ? 'two wheels in line' : A.on}; the ${base.label} is ${makes ?? on}`);
+    layout = [...layout.filter((e) => !A.drops.includes(partRow(e.sku).kind)), ...A.layout];
+    chassis = { ...chassis, ...A.card, hubs: { ...chassis.hubs, chair: chassis.hubs?.chair ?? [-0.05, 0.05] } };
+    makes = A.makes;
+  }
+  const bom = {};
+  for (const e of layout) bom[partRow(e.sku).kind] = (bom[partRow(e.sku).kind] ?? 0) + (e.pair ? 2 : 1);
+  COMPOSED.set(key, Object.freeze({ ...base, label: `${base.label} with ${addons.join(' and ')}`, layout: Object.freeze(layout), chassis: Object.freeze(chassis), bom, addons: [...addons], makes }));
+  return key;
+}
+
+export function assembleCycle(archetypeIn, { palette, colors = {}, pose = {}, finish = true, title, look, addons = [] } = {}) {
+  if (!Array.isArray(addons)) throw new Error('cycle addons is a list of add-ons (' + Object.keys(CYCLE_ADDONS).join(', ') + ')');
+  const archetype = composeMachine(archetypeIn, addons);
+  const row = archetypeRow(archetype), G = chassisOf(archetype);
+  // (a composed machine is measured against its base's class, its side wheels the add-on's track apart)
+  const physics = row.makes ? { ...PHYSICS[row.physics], track: row.chassis.track } : PHYSICS[row.physics];
   if (pose.stand !== undefined && !['up', 'down'].includes(pose.stand)) throw new Error(`cycle pose.stand is 'up' or 'down'; received ${JSON.stringify(pose.stand)}`);
   const steer = Number.isFinite(pose.steer) ? Math.max(-40, Math.min(40, pose.steer)) : 0;
   const parts = buildLayout(archetype, { palette, colors, pose: { ...pose, steer }, finish, look });
@@ -193,9 +225,11 @@ export function assembleCycle(archetype, { palette, colors = {}, pose = {}, fini
   // (a positive turn about the axis up the head is anticlockwise from above, to the left: a steer to the right is its negative)
   const Rl = lean ? rotY(lean) : I3, Rs = steer ? about(G.axis.d, -steer * DEG) : I3, P = G.head.lo;
   const items = parts.map((p) => {
-    const R = p.entry.steers && steer ? mul3(Rl, Rs) : Rl;
-    // (a steered part turns about the axis through the head: x' = R·x + (P − R·P), then the whole machine leans)
-    const t = p.entry.steers && steer ? vec3(Rl, sub(P, vec3(Rs, P))) : [0, 0, 0];
+    // (a steered part turns about the axis through the head; a wheel on its own kingpin, a quad's, about the upright
+    // through its axle: x' = R·x + (P − R·P), then the whole machine leans)
+    const kp = p.entry.steers === 'kingpin' && steer, Rk = kp ? about([0, 0, 1], -steer * DEG) : null, Pk = kp ? p.recipe.garage.hardpoints.axle : null;
+    const R = kp ? mul3(Rl, Rk) : p.entry.steers && steer ? mul3(Rl, Rs) : Rl;
+    const t = kp ? vec3(Rl, sub(Pk, vec3(Rk, Pk))) : p.entry.steers && steer ? vec3(Rl, sub(P, vec3(Rs, P))) : [0, 0, 0];
     const rot = eulerXYZ(R).map((d) => round3(d) || 0);
     return { id: p.id, source: p.recipe, at: t.map((v) => round3(v) + 0), ...(rot.some(Boolean) ? { rotate: rot } : {}) };
   });
@@ -204,7 +238,7 @@ export function assembleCycle(archetype, { palette, colors = {}, pose = {}, fini
   const upright = !steer && pose.stand !== 'down' ? parts : buildLayout(archetype, { palette, colors, pose: {}, finish: false });
   const uprightManifest = { kind: 'assembler', units: 'm', items: upright.map((p) => ({ id: p.id, source: p.recipe, at: [0, 0, 0] })) };
   const measures = measureCycle(uprightManifest);
-  const laws = cycleLaws({ row, G, physics, parts: upright, measures, standFoot: standDown });
+  const laws = cycleLaws({ row, G, physics, parts: upright, measures, standFoot: standDown, expect: row.makes ?? null });
   const hp = (name) => { for (const p of upright) { const v = p.recipe.garage.hardpoints[name]; if (v) return v; } return null; };
   const contacts = parts.filter((p) => p.recipe.garage.hardpoints.contact).map((p) => ({ id: p.id, at: roundPt(vec3(Rl, p.recipe.garage.hardpoints.contact)) }));
   if (lean && standDown) contacts.push({ id: 'stand', at: roundPt(vec3(Rl, standDown)) });
@@ -213,11 +247,12 @@ export function assembleCycle(archetype, { palette, colors = {}, pose = {}, fini
   return {
     manifest,
     readout: {
-      archetype,
+      archetype: archetypeIn,
+      ...(addons.length ? { addons: [...addons] } : {}),
       label: row.label,
       classOf: row.classOf,
       physics: row.physics,
-      layout: wheelLayoutOf(upright),
+      layout: laws.layout,
       geometry: laws.G,
       measures,
       contacts,
@@ -232,13 +267,6 @@ export function assembleCycle(archetype, { palette, colors = {}, pose = {}, fini
       audit: { ok: bom.ok && !bom.surplus.length, bom },
     },
   };
-}
-
-/** How the machine stands on its wheels, read from its wheels as built: two in line (inline), or more. */
-function wheelLayoutOf(parts) {
-  const wheels = parts.filter((p) => p.recipe.garage.kind === 'cycle-wheel').map((p) => p.recipe.garage.hardpoints.contact);
-  if (wheels.length === 2 && wheels.every((c) => Math.abs(c[0]) < 1e-3)) return 'inline';
-  return `${wheels.length} wheels`;
 }
 
 // ── words ───────────────────────────────────────────────────────────────────

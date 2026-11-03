@@ -241,3 +241,58 @@ astride and steers by a bar.
       - the grid's instance carrying its rider.
   - **Seen** (machine gate only; the eyes gate is open): the motocross, sport, race, cruiser, scooter, bicycle and
     e-bike ridden; the motocross bike ridden standing.
+- **Three wheels and four: the sidecar, the trikes, the tuk-tuk, the pedicab, the box trike, the quad.**
+  - **Wheels beyond one each end:**
+    - a wheel's slot can be `rear.l` and `rear.r` (a delta), `front.l` and `front.r` (a tadpole), all four (a quad),
+      or `chair` (a sidecar's);
+    - the chassis solve places them its class's track apart, the chair its track off the centreline and its lead ahead
+      of the rear axle (`card.axle`, `card.chair`);
+    - a wheel's contact is its own x;
+    - a card's hubs and brakes are read by the wheel's end when they name no slot of their own.
+  - **The laws by layout:**
+    - `layout`: how it stands on its wheels, read from where they meet the ground (inline, sidecar, delta, tadpole,
+      quad), its class's;
+    - `centreline` for its single wheels;
+    - `track` for its wheels side by side or its chair;
+    - lean clearance only two in line;
+    - on three or four wheels its `stability`: the static stability factor, from its centre of mass's ground point
+      (the class's share and height, an empty chair a fifth of the track toward it) to the nearest edge of its
+      contacts.
+    - A quad's column says no trail: its kingpins steer it.
+  - **The sidecar** (`cycle-sidecar`, its wheel a part of its own):
+    - its tub between the machine and its wheel, open to sit in: a hull up to its floor, a closed nose deck and back
+      wall, side walls up to a rim round the cockpit, a cushion on the floor and a backrest inside, its passenger's
+      point (`chair`) on the cushion;
+    - its chassis: two rails, struts to the machine's pivot and ahead of it;
+    - the wheel's arm, a mudguard.
+
+    On the right. **The sidecar outfit** is the standard with it, its class on the standard's wheelbase (its
+    numbers corrected from the outfit class's own). **The door's add-on:** `addons: ['sidecar']` on any machine two
+    in line (`assembleCycle`, the studio grid's spec and `cycle.addons`) makes it a sidecar, its laws read as one. On
+    a machine that is not two in line, or an add-on the shelf does not have, it is refused.
+  - **The rear axle** (`cycle-axle`): live (its differential, its tubes, a drum at each hub, its arms), light (a bare
+    tube in its bearings), or solid on a swingarm.
+  - **The cab** (`cycle-cab`): roof on pillars, windscreen, bench and back, back panel, body.
+  - **The carriage** (`cycle-carriage`): bench, back, footboard, and a hood of ribs and canvas.
+  - **The box** (`cycle-box`): turned with its wheels and its bar about a kingpin over the front axle.
+  - **A quad's A-arms** (`cycle-arms`) and its steering column (a fork family, `column`).
+  - **The machines,** each at its class's numbers with every law held:
+    - a V-twin motor trike on a live axle;
+    - an auto rickshaw with its cab, its fascia and its floor;
+    - a pedicab: a bicycle's front, a light axle, its carriage under its hood;
+    - a box trike;
+    - a sport quad: A-arms, its front wheels each turning on its kingpin, a solid rear axle on a swingarm, racks.
+
+    The registry's `sidecar-outfit`, `motor-trike`, `tuk-tuk`, `cycle-rickshaw`, `tricycle` and `atv` claim them.
+    The ATV moved here from the car side's open frames, whose car sheet entry is unchanged.
+  - **Parked:** three wheels and four stand on their own, with no stand.
+  - **Held:**
+    - `cycle-shelf.test.js`, one machine per layout chosen in code:
+      - its layout its class's, its track held, its stability read, no lean law, every contact on the ground;
+      - the door's sidecar on a machine two in line, refused on a delta, an unknown add-on named;
+      - a wheel on its own kingpin turning in place.
+    - The char test pins every new builder path, and no existing pin moved. A lone part is previewed on the first
+      machine that carries it, so the new machines are listed after the old.
+    - The deep sweeps assemble, pose and ride them all.
+  - **Seen** (machine gate only; the eyes gate is open): every new machine from three quarters, the outfit and the
+    door's sidecar on the motocross bike.

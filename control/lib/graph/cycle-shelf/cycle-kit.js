@@ -32,7 +32,16 @@ export function strip(id, pts, w, thick, tint, { taper = 0.7, skirt = 0 } = {}) 
   }
   return out;
 }
-export const axleOf = (G, slot) => (slot === 'front' ? G.frontAxle : G.rearAxle);
+/** A wheel's axle by its slot: `front`, `rear`, or a wheel beside another (`front.l`, `rear.r`) or a sidecar's (`chair`). */
+export const axleOf = (G, slot) => {
+  if (slot === 'front') return G.frontAxle;
+  if (slot === 'rear') return G.rearAxle;
+  const a = G.axles?.[slot];
+  if (!a) throw new Error(`cycle part: the machine has no wheel '${slot}'`);
+  return a;
+};
+/** A card's table by a wheel's slot: its own entry, else its end's (`rear.l` reads `rear`). */
+export const bySlot = (table, slot) => table[slot] ?? table[String(slot).split('.')[0]];
 export const need = (G, key) => { if (!G[key]) throw new Error(`cycle part: the chassis card has no '${key}'`); return G[key]; };
 
 /** A belt round two pulleys in the plane square to x: the closed loop (its first point repeated last). */

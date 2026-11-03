@@ -10,6 +10,9 @@
  *   solveChassis(card, physicsRow, { front, rear })   → G
  *     G.wb, G.rake (rad), G.offset, G.trail, G.rF, G.rR
  *     G.frontAxle, G.rearAxle, G.contacts { front, rear }
+ *     G.axles { 'rear.l', 'rear.r' } (card.axle: 'rear', a delta), { 'front.l', 'front.r' } ('front', a tadpole), all four
+ *       ('both', a quad), each its class's track apart; { chair } a sidecar's wheel (card.chair: { side, lead }), its
+ *       class's track off the centreline, `lead` ahead of the rear axle
  *     G.axis { d (up the steering axis), n (square to it, forward), at(s) a point on it }, G.head { lo, hi }
  *     G.fork { half, length, sLo, sHi, leg(s, side) }, G.bars, G.pivot, G.swingarm { length }
  *     the card's own points (seat, tank, engine, pegs, stand, sprockets, …) passed through as placed
@@ -42,6 +45,12 @@ export function solveChassis(card, physics, wheels) {
   const sw = card.swingarm ?? null;
   const pivot = sw ? [0, Math.sqrt(sw.length ** 2 - (sw.height - rR) ** 2), sw.height] : null;
   const head = { lo: at(fork.sLo), hi: at(fork.sHi) };
+  // (wheels beside each other: a delta's rear pair, a tadpole's front pair, a quad's both, a sidecar's chair; the track the
+  // class's, or the card's own)
+  const T = card.track ?? physics.track, axles = {};
+  if (['rear', 'both'].includes(card.axle)) { axles['rear.l'] = [-T / 2, 0, rR]; axles['rear.r'] = [T / 2, 0, rR]; }
+  if (['front', 'both'].includes(card.axle)) { axles['front.l'] = [-T / 2, wb, rF]; axles['front.r'] = [T / 2, wb, rF]; }
+  if (card.chair) { const s = card.chair.side === 'l' ? -1 : 1; axles.chair = [s * T, card.chair.lead, wheels.chair?.radius ?? rR]; }
   // the bars' clamp: atop the upper triple clamp, a riser up the axis, set forward of it
   const bars = add(add(at(fork.sHi + 0.02), mul(d, card.bars?.rise ?? 0.04)), mul(n, card.bars?.forward ?? 0.02));
   return {
@@ -53,6 +62,7 @@ export function solveChassis(card, physics, wheels) {
     fork: { ...fork, leg },
     barsAt: bars,
     pivot, swingarm: sw ? { ...sw } : null,
+    track: T, axles,
     steerAxis: unit(d),
   };
 }

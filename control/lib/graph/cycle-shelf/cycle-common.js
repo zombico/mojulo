@@ -42,6 +42,10 @@ export const CYCLE_PALETTES = {
   bikeGreen: { paint: '#2f6b4a', trim: '#232527', glass: '#2a3640', rubber: '#1c1d1f', chrome: '#b6bbc0', light: '#f4f0e4' },
   // a pedelec's graphite frame and its black battery
   ebikeGrey: { paint: '#5a6068', trim: '#2a2d31', glass: '#2a3640', rubber: '#1c1d1f', chrome: '#b6bbc0', light: '#f4f0e4' },
+  // an auto rickshaw's green body and yellow roof are its paint (one colour a machine: the roof its trim's dark)
+  tuktukGreen: { paint: '#2f8a45', trim: '#1f2224', glass: '#2a3640', rubber: '#18191b', chrome: '#b8bdc2', light: '#f4f0e4' },
+  // a pedicab's blue frame and its hood
+  rickshawBlue: { paint: '#2b5aa0', trim: '#232527', glass: '#2a3640', rubber: '#1c1d1f', chrome: '#b6bbc0', light: '#f4f0e4' },
   // the looks' palettes (cycle-looks.js)
   policeWhite: { paint: '#f1f2f3', trim: '#1d3f86', glass: '#2a3640', rubber: '#17181a', chrome: '#b2b7bc', light: '#f4f0e4' },
   fieldOlive: { paint: '#4f5538', trim: '#2b2e24', glass: '#2a3028', rubber: '#1a1b18', chrome: '#6c7066', light: '#d8d2b8' },

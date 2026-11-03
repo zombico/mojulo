@@ -14,7 +14,7 @@
  * Pure: no clock, no dice. A part's emission for its row and its machine is a compatibility promise (cycle-shelf.char.test.js).
  */
 import { DEG, add, bend, cross, extrudeWorld, lerp, loftWorld, mul, rect, ring, roundRect, sided, sideSign, sub, tone, unit } from './cycle-common.js';
-import { axleOf, beltLoop, box, curve, need, panel, spin, strip, tube } from './cycle-kit.js';
+import { axleOf, beltLoop, bySlot, box, curve, need, panel, spin, strip, tube } from './cycle-kit.js';
 import { FAMILIES } from './cycle-families.js';
 
 const X = [1, 0, 0];
@@ -133,7 +133,7 @@ function wheel(row, C, { G, slot }) {
   for (const [k, x] of [['r', half], ['l', -half]]) sweeps.push(tube(`rim_${k}`, ring(add(a, [x, 0, 0]), X, rim + 0.002, 40), 0.006, C.chrome, 6));
   sweeps.push(tube('rim_bed', ring(a, X, rim - 0.006, 40), 0.009, tone(C.chrome, -0.1), 6));
   // the hub and its spokes, laced tangentially from each flange to the rim
-  const [h0, h1] = need(G, 'hubs')[slot], hr = b.hub;
+  const [h0, h1] = bySlot(need(G, 'hubs'), slot), hr = b.hub;
   lathes.push(spin('hub', add(a, [h0, 0, 0]), add(a, [h1, 0, 0]), [[0, hr * 0.7], [0.08, hr], [0.2, hr], [0.28, hr * 0.62], [0.72, hr * 0.62], [0.8, hr], [0.92, hr], [1, hr * 0.7]], tone(C.chrome, -0.15)));
   const n = b.spokes;
   for (let i = 0; i < n; i++) {
@@ -144,13 +144,13 @@ function wheel(row, C, { G, slot }) {
   }
   return {
     sweeps, extrudes, lathes,
-    hardpoints: { mount: [0, 0, 0], axle: a, contact: [0, a[1], 0] },
+    hardpoints: { mount: [0, 0, 0], axle: a, contact: [a[0], a[1], 0] },
     joints: [{ name: `roll_${slot}`, control: 'roll', kind: 'spin', at: a, dir: X, range: [0, 360], angle: 0 }],
   };
 }
 
 function brake(row, C, { G, slot }) {
-  const R = row.dims.radius, b = row.build, a = axleOf(G, slot), at = need(G, 'brakes')[slot], x = at.x;
+  const R = row.dims.radius, b = row.build, a = axleOf(G, slot), at = bySlot(need(G, 'brakes'), slot), x = at.x;
   const lathes = [spin('disc', add(a, [x - b.thick / 2, 0, 0]), add(a, [x + b.thick / 2, 0, 0]), [[0, R], [1, R]], tone(C.chrome, 0.1), 32)];
   lathes.push(spin('carrier', add(a, [x - 0.006, 0, 0]), add(a, [x + 0.006, 0, 0]), [[0, R * 0.42], [1, R * 0.42]], tone(C.chrome, -0.25), 20));
   // the caliper straddling the disc's edge at its angle round the axle
@@ -262,7 +262,9 @@ function bars(row, C, { G }) {
 function body(row, C, { G, side }) {
   const b = row.build, P = need(G, b.place), extrudes = [];
   if (b.family === 'fender') {
-    extrudes.push(...strip('fender', curve(P.mount, P.crown, P.tip, 10), row.dims.width, b.thick, C.paint, { skirt: b.skirt ?? 0 }));
+    // (a pair's left fender the mirror of its right's: the card places the right)
+    const m = (q) => (side === 'l' ? [-q[0], q[1], q[2]] : q);
+    extrudes.push(...strip('fender', curve(m(P.mount), m(P.crown), m(P.tip), 10), row.dims.width, b.thick, C.paint, { skirt: b.skirt ?? 0 }));
   } else if (b.family === 'plate') {
     const n = G.axis.n, d = G.axis.d, c = add(G.axis.at(P.s), mul(n, P.ahead + G.offset));
     extrudes.push(extrudeWorld('plate', sub(c, mul(n, b.thick / 2)), add(c, mul(n, b.thick / 2)), roundRect(n, row.dims.width, row.dims.height, 0.035, 3, d), C.paint));

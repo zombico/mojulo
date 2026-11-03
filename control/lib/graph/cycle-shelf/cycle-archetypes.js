@@ -290,10 +290,186 @@ const EBIKE_CHASSIS = Object.freeze({
   hubs: { front: [-0.05, 0.05], rear: [-0.07, 0.07] },
 });
 
+// ── three wheels and four ───────────────────────────────────────────────
+const TRIKE_CHASSIS = Object.freeze({
+  rake: 30,
+  offset: 0.05,
+  axle: 'rear',
+  fork: { half: 0.11, length: 0.86, sLo: 0.66, sHi: 0.82 },
+  bars: { rise: 0.09, forward: 0.02 },
+  frame: {
+    tint: 'trim',
+    tubes: [
+      { id: 'backbone', pts: ['head.hi', [0, 1.25, 0.95], [0, 0.75, 0.8], [0, 0.35, 0.72]], r: 0.026, bend: 0.1 },
+      { id: 'down', pts: ['head.lo', [0.09, 1.55, 0.45], [0.1, 1.4, 0.22], [0.12, 0.45, 0.24], [0.12, 0.3, 0.42], [0.1, 0.35, 0.72], [0, 0.4, 0.74]], r: 0.018, pair: true, bend: 0.07 },
+    ],
+    cross: [{ at: [0, 0.42, 0.26], half: 0.12 }],
+  },
+  engine: { at: [0, 1.15, 0.38], half: [0.11, 0.2, 0.13] },
+  drive: { x: -0.16, front: [0.98, 0.3] },
+  exhaust: { pipes: [
+    { pts: [[0.05, 1.27, 0.7], [0.14, 1.32, 0.55], [0.2, 1.18, 0.3], [0.24, 0.9, 0.3]], can: [[0.24, 0.9, 0.3], [0.27, 0.15, 0.33]], canR: 0.045 },
+    { pts: [[0.05, 1.02, 0.7], [0.15, 0.96, 0.55], [0.2, 0.85, 0.36], [0.22, 0.75, 0.36]], can: [[0.22, 0.75, 0.36], [0.25, 0.15, 0.36]], canR: 0.042 },
+  ] },
+  tank: { stations: [{ y: 1.05, z: 0.97, w: 0.22, h: 0.06 }, { y: 1.15, z: 1.0, w: 0.34, h: 0.14 }, { y: 1.32, z: 1.02, w: 0.36, h: 0.17 }, { y: 1.45, z: 1.02, w: 0.24, h: 0.12 }, { y: 1.5, z: 1.01, w: 0.12, h: 0.06 }], cap: [0, 1.3, 1.105] },
+  seat: { stations: [{ y: 0.4, z: 0.8, w: 0.3, h: 0.1 }, { y: 0.55, z: 0.74, w: 0.38, h: 0.08 }, { y: 0.85, z: 0.74, w: 0.36, h: 0.07 }, { y: 0.98, z: 0.78, w: 0.2, h: 0.05 }], ride: 0.72, z: 0.78 },
+  deck: { stations: [{ y: -0.5, z: 0.6, w: 0.7, h: 0.3 }, { y: -0.3, z: 0.62, w: 0.95, h: 0.4 }, { y: 0.25, z: 0.62, w: 0.95, h: 0.4 }, { y: 0.42, z: 0.66, w: 0.6, h: 0.3 }] },
+  fenderRear: { mount: [0.65, -0.3, 0.55], crown: [0.65, 0.0, 0.8], tip: [0.65, 0.32, 0.55] },
+  fenderFront: { mount: [0, 1.75, 0.64], crown: [0, 2.08, 0.78], tip: [0, 2.33, 0.48] },
+  headLamp: { at: [0, 1.74, 0.95], dir: [0, 1, -0.05] },
+  tailLamp: { at: [0, -0.51, 0.64] },
+  peg: { at: [0.15, 1.32, 0.34], out: 0.1 },
+  brakes: { front: { x: -0.07, caliper: 140 } },
+  hubs: { front: [-0.06, 0.06], rear: [-0.1, 0.1] },
+});
+
+const TUKTUK_CHASSIS = Object.freeze({
+  rake: 24,
+  offset: 0.04,
+  axle: 'rear',
+  fork: { half: 0.075, length: 0.72, sLo: 0.52, sHi: 0.7 },
+  bars: { rise: 0.03, forward: 0.02 },
+  frame: {
+    tint: 'trim',
+    tubes: [
+      { id: 'spine', pts: ['head.lo', [0, 1.55, 0.3], [0, 0.5, 0.28], [0, -0.35, 0.34]], r: 0.03, bend: 0.1 },
+      { id: 'rail', pts: [[0.47, 1.6, 0.3], [0.47, -0.38, 0.32]], r: 0.02, pair: true, bend: 0 },
+    ],
+    cross: [{ at: [0, 1.5, 0.3], half: 0.47 }, { at: [0, 0.4, 0.29], half: 0.47 }, { at: [0, -0.36, 0.33], half: 0.47 }],
+  },
+  cowl: { stations: [{ y: 1.58, z: 0.9, w: 0.24, h: 0.1 }, { y: 1.68, z: 0.92, w: 0.3, h: 0.13 }, { y: 1.78, z: 0.9, w: 0.18, h: 0.1 }] },
+  shield: { x: [-0.55, 0.55], outline: [[1.74, 0.33], [1.84, 0.36], [1.84, 1.18], [1.76, 1.2], [1.7, 1.15], [1.7, 0.36]] },
+  cab: {
+    roof: [{ y: -0.38, z: 1.62, w: 1.15, h: 0.08 }, { y: 0.0, z: 1.65, w: 1.28, h: 0.1 }, { y: 1.2, z: 1.66, w: 1.28, h: 0.1 }, { y: 1.85, z: 1.6, w: 1.2, h: 0.08 }],
+    pillars: [[0.6, 1.8, 0.4, 1.8, 1.6], [0.62, 0.85, 0.5, 0.85, 1.62], [0.6, -0.36, 0.5, -0.36, 1.6]],
+    screen: { at: [0, 1.82, 1.4], w: 1.05, h: 0.38 },
+    bench: [{ y: -0.3, z: 0.74, w: 1.05, h: 0.12 }, { y: 0.1, z: 0.74, w: 1.1, h: 0.14 }],
+    back: [{ y: -0.36, z: 0.98, w: 1.05, h: 0.4 }, { y: -0.3, z: 1.0, w: 1.05, h: 0.42 }],
+    body: [{ y: -0.4, z: 0.5, w: 0.9, h: 0.3 }, { y: 0.1, z: 0.5, w: 0.95, h: 0.34 }, { y: 0.5, z: 0.46, w: 0.6, h: 0.24 }],
+    panel: { x: 0.58, outline: [[-0.4, 0.35], [-0.34, 0.35], [-0.34, 1.25], [-0.4, 1.28]] },
+    passenger: [0, -0.1, 0.81],
+  },
+  seat: { stations: [{ y: 0.95, z: 0.8, w: 0.32, h: 0.1 }, { y: 1.22, z: 0.8, w: 0.34, h: 0.1 }, { y: 1.38, z: 0.78, w: 0.24, h: 0.08 }], ride: 1.12, z: 0.85 },
+  floor: { width: 0.6, outline: [[1.35, 0.3], [1.68, 0.3], [1.68, 0.34], [1.35, 0.34]], feet: 1.55 },
+  engine: { at: [0, 0.35, 0.38], half: [0.1, 0.14, 0.1] },
+  drive: { x: -0.16, front: [0.42, 0.34] },
+  fenderFront: { mount: [0, 1.85, 0.38], crown: [0, 2.03, 0.62], tip: [0, 2.24, 0.26] },
+  headLamp: { at: [0, 1.86, 1.02], dir: [0, 1, 0] },
+  tailLamp: { at: [0, -0.41, 0.7] },
+  brakes: { front: { x: -0.05, caliper: 140 } },
+  hubs: { front: [-0.045, 0.045], rear: [-0.06, 0.06] },
+});
+
+const RICKSHAW_CHASSIS = Object.freeze({
+  rake: 18,
+  offset: 0.051,
+  axle: 'rear',
+  fork: { half: 0.05, length: 0.4, sLo: 0.43, sHi: 0.58 },
+  bb: [0, 1.044, 0.28],
+  frame: {
+    tint: 'paint',
+    head: 0.019,
+    tubes: [
+      { id: 'top', pts: ['head.hi', [0, 0.88, 0.815]], r: 0.016, bend: 0 },
+      { id: 'down', pts: ['head.lo', 'bb'], r: 0.019, bend: 0 },
+      { id: 'seat', pts: ['bb', [0, 0.87, 0.85]], r: 0.015, bend: 0 },
+      { id: 'boom', pts: [[0.02, 0.9, 0.78], [0.15, 0.45, 0.6], [0.42, 0.05, 0.42]], r: 0.016, pair: true, bend: 0.05 },
+      { id: 'lower', pts: [[0.02, 1.0, 0.3], [0.2, 0.5, 0.33], [0.42, 0.05, 0.35]], r: 0.014, pair: true, bend: 0.05 },
+    ],
+  },
+  carriage: {
+    bench: [{ y: -0.38, z: 0.78, w: 0.95, h: 0.12 }, { y: 0.18, z: 0.78, w: 0.95, h: 0.12 }],
+    back: [{ y: -0.42, z: 1.02, w: 0.95, h: 0.42 }, { y: -0.36, z: 1.04, w: 0.95, h: 0.44 }],
+    foot: { x: 0.45, outline: [[0.25, 0.5], [0.62, 0.5], [0.62, 0.53], [0.25, 0.53]] },
+    hood: { w: 0.56, z0: 0.95, h: 0.9, ribs: [-0.42, -0.2, 0.02] },
+    passenger: [0, -0.1, 0.84],
+  },
+  seat: { post: [[0, 0.875, 0.83], [0, 0.835, 0.96]], stations: [{ y: 0.71, z: 0.985, w: 0.15, h: 0.04 }, { y: 0.79, z: 0.985, w: 0.13, h: 0.045 }, { y: 0.89, z: 0.98, w: 0.06, h: 0.035 }, { y: 0.98, z: 0.975, w: 0.035, h: 0.03 }], ride: 0.79, z: 1.005 },
+  drive: { x: 0.045, crank: 0 },
+  fenderRear: { mount: [0.5, -0.3, 0.5], crown: [0.5, 0, 0.82], tip: [0.5, 0.3, 0.5] },
+  brakes: { front: { x: -0.058, caliper: 135 } },
+  hubs: { front: [-0.05, 0.05], rear: [-0.06, 0.06] },
+});
+
+// (a box trike steers its box: the steering axis upright through its front axle, the bar on a rod back from the kingpin)
+const BOXTRIKE_CHASSIS = Object.freeze({
+  rake: 0,
+  offset: 0,
+  axle: 'front',
+  fork: { half: 0.425, length: 0.65, sLo: 0.42, sHi: 0.65 },
+  bb: [0, 0.8, 0.28],
+  frame: {
+    tint: 'paint',
+    head: 0.024,
+    tubes: [
+      { id: 'boom', pts: ['head.lo', [0, 1.3, 0.62], [0, 0.95, 0.4], 'bb'], r: 0.024, bend: 0.08 },
+      { id: 'top', pts: ['head.hi', [0, 1.35, 0.8], [0, 0.66, 0.8]], r: 0.018, bend: 0.06 },
+      { id: 'seat', pts: ['bb', [0, 0.62, 0.84]], r: 0.016, bend: 0 },
+      { id: 'seatstay', pts: [[0.02, 0.64, 0.8], [0.065, 0, 0.35]], r: 0.009, pair: true, bend: 0 },
+      { id: 'chainstay', pts: [[0.03, 0.8, 0.28], [0.065, 0, 0.35]], r: 0.01, pair: true, bend: 0 },
+    ],
+  },
+  box: { y: [1.4, 2.08], z: [0.3, 0.62], w: 0.74 },
+  seat: { post: [[0, 0.62, 0.84], [0, 0.58, 0.96]], stations: [{ y: 0.46, z: 0.98, w: 0.22, h: 0.06 }, { y: 0.54, z: 0.98, w: 0.2, h: 0.065 }, { y: 0.64, z: 0.975, w: 0.1, h: 0.05 }, { y: 0.72, z: 0.97, w: 0.05, h: 0.035 }], ride: 0.54, z: 1.01 },
+  drive: { x: 0.045, crank: 0 },
+  brakes: { rear: { x: -0.058, caliper: 70 } },
+  hubs: { front: [-0.04, 0.04], rear: [-0.065, 0.065] },
+});
+
+// (a quad: its front wheels on A-arms, each turning on its kingpin, steered from a column; its rear on a solid axle on a
+// swingarm; its rider astride, the feet on its footrests)
+const ATV_CHASSIS = Object.freeze({
+  rake: 15,
+  offset: 0.25,
+  axle: 'both',
+  fork: { half: 0.1, length: 0.8, sLo: 0.45, sHi: 0.72 },
+  bars: { rise: 0.04, forward: 0.02 },
+  swingarm: { length: 0.5, height: 0.36, half: 0.12 },
+  frame: {
+    tint: 'trim',
+    tubes: [
+      { id: 'upper', pts: [[0.14, 1.42, 0.5], [0.15, 0.95, 0.62], [0.15, 0.4, 0.68], [0.14, -0.25, 0.7]], r: 0.016, pair: true, bend: 0.06 },
+      { id: 'lower', pts: [[0.13, 1.45, 0.24], [0.13, 0.62, 0.22], [0.12, 0.49, 0.36]], r: 0.016, pair: true, bend: 0.05 },
+      { id: 'front', pts: [[0.13, 1.45, 0.24], [0.14, 1.42, 0.5]], r: 0.016, pair: true, bend: 0 },
+      { id: 'post', pts: [[0.15, 0.95, 0.62], 'head.lo'], r: 0.014, pair: true, bend: 0 },
+      { id: 'rackR', pts: [[0.35, -0.3, 0.84], [0.35, 0.18, 0.84]], r: 0.012, pair: true, bend: 0 },
+      { id: 'rackF', pts: [[0.32, 1.12, 0.78], [0.32, 1.5, 0.78]], r: 0.012, pair: true, bend: 0 },
+      { id: 'rackStay', pts: [[0.35, -0.2, 0.84], [0.15, -0.15, 0.7]], r: 0.01, pair: true, bend: 0 },
+    ],
+    cross: [{ at: [0, -0.3, 0.84], half: 0.35 }, { at: [0, 0.18, 0.84], half: 0.35 }, { at: [0, 1.5, 0.78], half: 0.32 }, { at: [0, 1.12, 0.78], half: 0.32 }],
+  },
+  arms: { inner: 0.15, knuckle: 0.08, lower: 0.22, upper: 0.42, shockTop: 0.62 },
+  shock: { top: [0, 0.55, 0.66], bottom: [0, 0.32, 0.3] },
+  engine: { at: [0, 0.75, 0.42], half: [0.1, 0.17, 0.13] },
+  exhaust: { port: [0, 0.95, 0.75], pipes: [{ pts: [[0, 0.95, 0.75], [0.05, 1.0, 0.65], [0.16, 0.9, 0.5], [0.2, 0.5, 0.52], [0.22, 0.12, 0.55]], can: [[0.22, 0.12, 0.55], [0.24, -0.3, 0.58]], canR: 0.05 }] },
+  drive: { x: -0.2, front: [0.62, 0.36] },
+  seat: { stations: [{ y: 0.1, z: 0.84, w: 0.3, h: 0.1 }, { y: 0.4, z: 0.84, w: 0.34, h: 0.1 }, { y: 0.72, z: 0.82, w: 0.26, h: 0.08 }], ride: 0.42, z: 0.89 },
+  podFront: { stations: [{ y: 0.95, z: 0.6, w: 0.9, h: 0.08 }, { y: 1.12, z: 0.66, w: 1.18, h: 0.1 }, { y: 1.38, z: 0.64, w: 1.18, h: 0.1 }, { y: 1.55, z: 0.52, w: 0.9, h: 0.08 }] },
+  podRear: { stations: [{ y: -0.33, z: 0.64, w: 0.95, h: 0.08 }, { y: -0.15, z: 0.7, w: 1.18, h: 0.1 }, { y: 0.15, z: 0.7, w: 1.18, h: 0.1 }, { y: 0.35, z: 0.62, w: 0.95, h: 0.08 }] },
+  headLamp: { at: [0, 1.56, 0.56], dir: [0, 1, 0] },
+  peg: { at: [0.16, 0.6, 0.3], out: 0.2 },
+  hubs: { front: [-0.07, 0.07], rear: [-0.09, 0.09] },
+});
+
+// ── the add-ons: what a machine takes to become another ──────────────────
+/** A sidecar's card: its chair on the right, its wheel the outfit class's track off the centreline and its lead ahead of
+ *  the rear axle (cycle-chassis.js). */
+const SIDECAR_CARD = Object.freeze({ track: 1.1, chair: Object.freeze({ side: 'r', lead: 0.25 }) });
+const SIDECAR_LAYOUT = Object.freeze([{ id: 'chair', sku: 'sidecar-touring' }, { id: 'wheelC', sku: 'wheel-chair-17', slot: 'chair' }]);
+
 /** The bill of materials counted from a layout: a kind for each part, a pair two. */
 const bomOf = (layout) => Object.freeze(layout.reduce((b, e) => { const k = CYCLE_ODM[e.sku].kind; b[k] = (b[k] ?? 0) + (e.pair ? 2 : 1); return b; }, {}));
 const L = (id, sku, more = {}) => ({ id, sku, ...more });
 const F = { steers: true, slot: 'front' };
+
+/**
+ * The add-ons the door takes on a machine (`addons` on assembleCycle and on the studio grid): each the parts it brings,
+ * its card, the kinds it takes away (an outfit stands on its three wheels, not a stand), the layout it makes and the
+ * layout it goes on.
+ */
+export const CYCLE_ADDONS = Object.freeze({
+  sidecar: Object.freeze({ label: 'a sidecar on the right', on: 'inline', makes: 'sidecar', layout: SIDECAR_LAYOUT, card: SIDECAR_CARD, drops: Object.freeze(['cycle-stand']) }),
+});
 
 export const CYCLE_ARCHETYPES = Object.freeze({
   dirtBike: Object.freeze({
@@ -402,6 +578,57 @@ export const CYCLE_ARCHETYPES = Object.freeze({
       L('battery', 'battery-downtube-500'), L('seat', 'saddle-comfort'), L('bars', 'bars-riser-ebike', { steers: true }),
       L('fenderF', 'fender-ebike-front', F), L('fenderR', 'fender-ebike-rear', { slot: 'rear' }), L('headLamp', 'lamp-head-bicycle', { steers: true }), L('tailLamp', 'lamp-tail-bicycle'),
       L('stand', 'stand-kick-bicycle'),
+    ], 'upright'),
+  sidecarOutfit: archetype('sidecar outfit', 'road twin and sidecar', 'sidecarOutfit', 'classicCream', { ...STREET_CHASSIS, ...SIDECAR_CARD, hubs: { ...STREET_CHASSIS.hubs, chair: [-0.05, 0.05] } },
+    { trail: [0.09, 0.11], seat: [0.78, 0.84], clearance: 0.13, stability: 0.25 }, [
+      ...[
+        L('frame', 'frame-trellis-street'), L('fork', 'fork-usd-41', { steers: true }), L('wheelF', 'wheel-cast-120-17', F), L('brakeF', 'brake-twin-310', F),
+        L('swingarm', 'swingarm-road'), L('wheelR', 'wheel-cast-180-17', { slot: 'rear' }), L('brakeR', 'brake-disc-245', { slot: 'rear' }), L('shock', 'shock-road'),
+        L('engine', 'engine-twin-700'), L('radiator', 'radiator-front-road'), L('drive', 'drive-chain-525'), L('exhaust', 'exhaust-street-2into1'),
+        L('tank', 'tank-street'), L('seat', 'seat-street'), L('tail', 'tail-street'), L('bars', 'bars-street', { steers: true }),
+        L('fenderF', 'fender-street-front', F), L('fenderR', 'fender-street-rear', { slot: 'rear' }), L('headLamp', 'lamp-head-round', { steers: true }), L('tailLamp', 'lamp-tail-led'),
+        L('peg', 'peg-road', { pair: true }),
+      ],
+      ...SIDECAR_LAYOUT,
+    ], 'upright'),
+  motorTrike: archetype('motor trike', 'V-twin trike', 'motorTrike', 'cruiserBlack', TRIKE_CHASSIS,
+    { trail: [0.1, 0.16], seat: [0.72, 0.84], clearance: 0.12, stability: 0.5 }, [
+      L('frame', 'frame-trike'), L('fork', 'fork-tele-41', { steers: true }), L('wheelF', 'wheel-wire-19', F), L('brakeF', 'brake-disc-300', F),
+      L('wheelRL', 'wheel-wire-16', { slot: 'rear.l' }), L('wheelRR', 'wheel-wire-16', { slot: 'rear.r' }), L('axle', 'axle-live-trike'),
+      L('engine', 'engine-vee-1800'), L('drive', 'drive-chain-525'), L('exhaust', 'exhaust-trike'),
+      L('tank', 'tank-teardrop-cruiser'), L('seat', 'seat-trike'), L('deck', 'deck-trike'), L('bars', 'bars-pullback', { steers: true }),
+      L('fenderF', 'fender-cruiser-front', F), L('fenderR', 'fender-trike-rear', { pair: true }), L('headLamp', 'lamp-head-chrome', { steers: true }), L('tailLamp', 'lamp-tail-led'),
+      L('peg', 'peg-road', { pair: true }),
+    ], 'cruiser'),
+  tukTuk: archetype('tuk-tuk', 'auto rickshaw', 'tukTuk', 'tuktukGreen', TUKTUK_CHASSIS,
+    { trail: [0.03, 0.08], seat: [0.8, 0.9], clearance: 0.15, stability: 0.4 }, [
+      L('frame', 'frame-tuktuk'), L('fork', 'fork-tele-scooter', { steers: true }), L('wheelF', 'wheel-cast-10', F), L('brakeF', 'brake-disc-220', F),
+      L('wheelRL', 'wheel-cast-10', { slot: 'rear.l' }), L('wheelRR', 'wheel-cast-10', { slot: 'rear.r' }), L('axle', 'axle-live-tuktuk'),
+      L('engine', 'engine-flat-110'), L('drive', 'drive-chain-428'), L('cab', 'cab-tuktuk'), L('fascia', 'fascia-tuktuk'),
+      L('seat', 'seat-tuktuk'), L('floor', 'floor-scooter'), L('bars', 'bars-scooter', { steers: true }),
+      L('fenderF', 'fender-scooter-front', F), L('headLamp', 'lamp-head-round'), L('tailLamp', 'lamp-tail-led'),
+    ], 'scooter'),
+  cycleRickshaw: archetype('cycle rickshaw', 'pedicab', 'cycleRickshaw', 'rickshawBlue', RICKSHAW_CHASSIS,
+    { trail: [0.05, 0.08], seat: [0.95, 1.08], clearance: 0.2, stability: 0.3 }, [
+      L('frame', 'frame-rickshaw'), L('fork', 'fork-rigid-700', { steers: true }), L('wheelF', 'wheel-wire-700', F), L('brakeF', 'brake-disc-160', F),
+      L('wheelRL', 'wheel-wire-700', { slot: 'rear.l' }), L('wheelRR', 'wheel-wire-700', { slot: 'rear.r' }), L('axle', 'axle-light-rickshaw'),
+      L('drive', 'drive-pedal-road'), L('carriage', 'carriage-rickshaw'), L('seat', 'saddle-road'), L('bars', 'bars-flat-bicycle', { steers: true }),
+      L('fenderR', 'fender-ebike-rear', { pair: true }),
+    ], 'cyclist'),
+  cargoTrike: archetype('box trike', 'box trike', 'cargoTrike', 'bikeGreen', BOXTRIKE_CHASSIS,
+    { trail: [-0.01, 0.03], seat: [0.95, 1.08], clearance: 0.2, stability: 0.2 }, [
+      L('frame', 'frame-boxtrike'), L('box', 'box-cargo', { steers: true }), L('wheelFL', 'wheel-wire-20', { slot: 'front.l', steers: true }), L('wheelFR', 'wheel-wire-20', { slot: 'front.r', steers: true }),
+      L('wheelR', 'wheel-wire-700', { slot: 'rear' }), L('brakeR', 'brake-disc-160', { slot: 'rear' }),
+      L('drive', 'drive-pedal-road'), L('seat', 'saddle-comfort'), L('bars', 'bars-boxtrike', { steers: true }),
+    ], 'cyclist'),
+  atv: archetype('quad bike', 'sport quad', 'atv', 'mxRed', ATV_CHASSIS,
+    { seat: [0.84, 0.92], clearance: 0.18, stability: 0.5 }, [
+      L('frame', 'frame-atv'), L('column', 'column-atv', { steers: true }), L('arms', 'arms-atv', { pair: true }),
+      L('wheelFL', 'wheel-atv-front', { slot: 'front.l', steers: 'kingpin' }), L('wheelFR', 'wheel-atv-front', { slot: 'front.r', steers: 'kingpin' }),
+      L('swingarm', 'swingarm-road'), L('shock', 'shock-road'), L('wheelRL', 'wheel-atv-rear', { slot: 'rear.l' }), L('wheelRR', 'wheel-atv-rear', { slot: 'rear.r' }), L('axle', 'axle-solid-atv'),
+      L('engine', 'engine-single-450'), L('drive', 'drive-chain-520'), L('exhaust', 'exhaust-atv'),
+      L('seat', 'seat-atv'), L('bars', 'bars-atv', { steers: true }), L('fenderF', 'fender-atv-front'), L('fenderR', 'fender-atv-rear'),
+      L('headLamp', 'lamp-head-fairing'), L('peg', 'peg-road', { pair: true }),
     ], 'upright'),
 });
 

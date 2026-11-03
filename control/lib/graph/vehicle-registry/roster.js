@@ -140,7 +140,7 @@ export const VEHICLES = {
   buggy: row('dune buggy', ['beach buggy', 'sand rail', 'desert buggy'], 'offroad', 'trail', M, ['driven', 'parked'],
     { physics: 'buggy', tech: 'car' }),
   atv: row('quad bike', ['atv', 'quad', 'four-wheeler', 'all-terrain vehicle'], 'offroad', 'trail', M, ['driven', 'parked'],
-    { physics: 'atv', tech: 'car' }),
+    { physics: 'atv', cycle: 'atv', tech: 'car' }),
   // ── ridden astride: two wheels in line, and the three-wheelers made of them (the cycle shelf builds them) ────
   // (a road bike is a bicycle's word, so the motorcycle is the standard road machine by its own words; 'chopper' is the
   // helicopter's and 'cruiser' the police car's, so the cruiser is said in full; 'rickshaw' alone is the cart's, pulled
@@ -164,15 +164,15 @@ export const VEHICLES = {
   bicycle: row('bicycle', ['bike', 'cyclist', 'pushbike', 'push bike'], 'road', 'commuter', ['rustic', 'modern'], ['driven', 'traffic', 'parked'],
     { scenery: 'cyclist', physics: 'bicycle', cycle: 'bicycle', tech: 'bicycle' }),
   'sidecar-outfit': row('sidecar outfit', ['sidecar', 'motorcycle and sidecar', 'motorcycle with sidecar', 'sidecar rig'], 'road', 'commuter', M, ROAD,
-    { physics: 'sidecarOutfit', tech: 'motorcycle' }),
+    { physics: 'sidecarOutfit', cycle: 'sidecarOutfit', tech: 'motorcycle' }),
   'motor-trike': row('motor trike', ['trike', 'motor tricycle', 'motorcycle trike', 'three-wheeled motorcycle'], 'road', 'commuter', M, ROAD,
-    { physics: 'motorTrike', tech: 'motorcycle' }),
+    { physics: 'motorTrike', cycle: 'motorTrike', tech: 'motorcycle' }),
   'tuk-tuk': row('tuk-tuk', ['tuktuk', 'auto rickshaw', 'autorickshaw', 'three-wheeler taxi'], 'road', 'hire', M, ROAD,
-    { physics: 'tukTuk', tech: 'motorcycle' }),
+    { physics: 'tukTuk', cycle: 'tukTuk', tech: 'motorcycle' }),
   'cycle-rickshaw': row('cycle rickshaw', ['pedicab', 'trishaw', 'bike taxi', 'pedal rickshaw'], 'road', 'hire', ['rustic', 'modern'], ROAD,
-    { physics: 'cycleRickshaw', tech: 'bicycle' }),
+    { physics: 'cycleRickshaw', cycle: 'cycleRickshaw', tech: 'bicycle' }),
   tricycle: row('tricycle', ['cargo trike', 'box trike', 'cargo tricycle', 'adult tricycle', 'pedal trike'], 'road', 'hauler', ['rustic', 'modern'], ROAD,
-    { physics: 'cargoTrike', tech: 'bicycle' }),
+    { physics: 'cargoTrike', cycle: 'cargoTrike', tech: 'bicycle' }),
   // ── haulers ─────────────────────────────────────────────────────────────────
   pickup: row('pickup truck', ['pickup', 'pick-up', 'ute', 'full-size pickup'], 'road', 'hauler', M, ROAD,
     { physics: 'pickup', fleet: 'pickup', tech: 'truck' }),

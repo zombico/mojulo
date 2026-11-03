@@ -15,11 +15,11 @@
  */
 import { lowerAssemblerBuild, lowerAssemblerFaces } from '../worlds/workbench-assembler.js';
 import { packVehicleFigure } from '../vehicle-designer/vehicle-rig.js';
-import { CYCLE_ARCHETYPES, assembleCycle } from './index.js';
+import { CYCLE_ARCHETYPES, assembleCycle, composeMachine } from './index.js';
 import { lookCard } from './cycle-looks.js';
 import { postureCard, readRiderHero, riderOn } from './cycle-rider.js';
 
-const KEYS = Object.freeze(['archetype', 'look', 'pose', 'rider', 'posture']);
+const KEYS = Object.freeze(['archetype', 'look', 'pose', 'rider', 'posture', 'addons']);
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const r3 = (n) => Math.round(n * 1000) / 1000 + 0;
 
@@ -28,6 +28,7 @@ export function readCycleSpec(spec, at = 'cycle') {
   for (const k of Object.keys(spec)) if (!KEYS.includes(k)) throw new Error(`${at}.${k} is not a cycle's word (${KEYS.join(', ')})`);
   if (!CYCLE_ARCHETYPES[spec.archetype]) throw new Error(`${at}.archetype is one of ${Object.keys(CYCLE_ARCHETYPES).join(', ')}`);
   if (spec.look !== undefined) lookCard(spec.look);
+  if (spec.addons !== undefined) composeMachine(spec.archetype, Array.isArray(spec.addons) ? spec.addons : [spec.addons]);
   if (spec.pose !== undefined) {
     if (!isObj(spec.pose)) throw new Error(`${at}.pose is { stand?: 'up' | 'down', steer?: degrees }`);
     for (const k of Object.keys(spec.pose)) if (!['stand', 'steer'].includes(k)) throw new Error(`${at}.pose.${k} is not a cycle's pose (stand, steer)`);
@@ -44,7 +45,8 @@ export function readCycleSpec(spec, at = 'cycle') {
   return spec;
 }
 
-const assembled = (spec) => assembleCycle(spec.archetype, { ...(spec.look ? { look: spec.look } : {}), pose: spec.pose ?? {} });
+const addonsOf = (spec) => (spec.addons === undefined ? [] : Array.isArray(spec.addons) ? spec.addons : [spec.addons]);
+const assembled = (spec) => assembleCycle(spec.archetype, { ...(spec.look ? { look: spec.look } : {}), ...(spec.addons ? { addons: addonsOf(spec) } : {}), pose: spec.pose ?? {} });
 
 export async function cycleInstanceFaces(spec) {
   readCycleSpec(spec);
@@ -56,7 +58,7 @@ export async function cycleInstanceFaces(spec) {
   return {
     faces,
     spec,
-    stats: { archetype: spec.archetype, label: readout.label, layout: readout.layout, measures: readout.measures, laws: readout.laws.ok, ...(readout.lean ? { lean: readout.lean } : {}), ...(rider ? { rider: rider.report } : {}), faces: faces.length },
+    stats: { archetype: spec.archetype, ...(readout.addons ? { addons: readout.addons } : {}), label: readout.label, layout: readout.layout, measures: readout.measures, laws: readout.laws.ok, ...(readout.lean ? { lean: readout.lean } : {}), ...(rider ? { rider: rider.report } : {}), faces: faces.length },
   };
 }
 
@@ -64,7 +66,7 @@ export function cycleFigure(spec) {
   readCycleSpec(spec);
   if (spec.rider) throw new Error('cycle: a parked machine stands with no rider');
   // (a parked machine stands on its stand: its pose's own word wins)
-  const pose = { stand: CYCLE_ARCHETYPES[spec.archetype].layout.some((e) => e.id === 'stand') ? 'down' : 'up', ...(spec.pose ?? {}) };
+  const pose = { stand: CYCLE_ARCHETYPES[spec.archetype].layout.some((e) => e.id === 'stand') && !addonsOf(spec).length ? 'down' : 'up', ...(spec.pose ?? {}) };
   const { manifest, readout } = assembled({ ...spec, pose });
   const { faces, placements } = lowerAssemblerBuild(manifest);
   let lo = Infinity, hi = -Infinity;

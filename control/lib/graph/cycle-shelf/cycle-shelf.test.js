@@ -6,7 +6,8 @@ import { describe, it, expect } from 'vitest';
 import { lowerObjectFaces } from '../worlds/workbench.js';
 import { resolveAssemblerPlacements } from '../worlds/workbench-assembler.js';
 import { VEHICLES as PHYSICS } from '../roads/vehicles.js';
-import { CYCLE_ARCHETYPES, CYCLE_KINDS, CYCLE_LOOKS, CYCLE_ODM, assembleCycle, chassisOf, cycleNameIndex, findCyclePart, resolveCyclePart } from './index.js';
+import { CYCLE_ADDONS, CYCLE_ARCHETYPES, CYCLE_KINDS, CYCLE_LOOKS, CYCLE_ODM, assembleCycle, chassisOf, cycleNameIndex, findCyclePart, resolveCyclePart } from './index.js';
+import { wheelLayout } from '../roads/vehicles.js';
 import { CYCLE_BUILDERS, beltLoop } from './cycle-parts.js';
 import { solveChassis } from './cycle-chassis.js';
 import { DEG } from './cycle-common.js';
@@ -159,6 +160,35 @@ describe('one machine per procedure, chosen in code', () => {
       for (const e of row.layout) count[CYCLE_ODM[e.sku].kind] = (count[CYCLE_ODM[e.sku].kind] ?? 0) + (e.pair ? 2 : 1);
       expect(row.bom).toEqual(count);
     }
+  });
+});
+
+describe('three wheels and four: one machine per layout, chosen in code', () => {
+  const IDS = Object.keys(CYCLE_ARCHETYPES), layoutOf = (id) => { const l = wheelLayout(PHYSICS[CYCLE_ARCHETYPES[id].physics]); return l === 'axles' ? 'quad' : l; };
+  const one = (layout) => IDS.find((id) => layoutOf(id) === layout);
+  it.each(['sidecar', 'delta', 'tadpole', 'quad'])('a %s stands on its wheels as its class says, its track its class\'s, its stability read', (layout) => {
+    const id = one(layout), { readout } = assembleCycle(id), law = (k) => readout.laws.laws.find((l) => l.id === k);
+    expect(readout.layout).toBe(layout);
+    expect(law('layout').ok).toBe(true);
+    expect(law('track')).toMatchObject({ ok: true });
+    expect(law('stability').value).toBeGreaterThan(0);
+    expect(law('lean')).toBeUndefined();
+    for (const c of readout.contacts) expect(c.at[2]).toBe(0);
+  });
+  it('a sidecar the door adds goes on a machine two in line, and makes it a sidecar outfit', () => {
+    const id = IDS.find((k) => layoutOf(k) === 'inline'), add = Object.keys(CYCLE_ADDONS)[0];
+    const { readout } = assembleCycle(id, { addons: [add] });
+    expect(readout).toMatchObject({ archetype: id, addons: [add], layout: CYCLE_ADDONS[add].makes });
+    expect(readout.laws.laws.filter((l) => !l.ok)).toEqual([]);
+    expect(() => assembleCycle(one('delta'), { addons: [add] })).toThrow(/goes on a machine two wheels in line/);
+    expect(() => assembleCycle(id, { addons: ['jetpack'] })).toThrow(/expected one of/);
+  });
+  it('a wheel on its own kingpin turns in place, about the upright through its axle', () => {
+    const id = IDS.find((k) => CYCLE_ARCHETYPES[k].layout.some((e) => e.steers === 'kingpin')), wheel = CYCLE_ARCHETYPES[id].layout.find((e) => e.steers === 'kingpin').id;
+    const at = (pose) => { const { manifest } = assembleCycle(id, { pose }); const i = manifest.items.findIndex((x) => x.id === wheel), b = resolveAssemblerPlacements(manifest)[i].bounds; return { c: [0, 1, 2].map((k) => (b.min[k] + b.max[k]) / 2), w: b.max[0] - b.min[0] }; };
+    const straight = at({}), turned = at({ steer: 30 });
+    for (const k of [0, 1, 2]) expect(turned.c[k]).toBeCloseTo(straight.c[k], 1);
+    expect(turned.w).toBeGreaterThan(straight.w);
   });
 });
 
