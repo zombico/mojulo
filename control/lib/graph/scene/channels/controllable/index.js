@@ -148,7 +148,7 @@ window.__mojSeatRings = () => Object.keys(__seatRing).map((n) => ({ n: +n, color
 `;
 }
 
-export function controllableChannelScript(entities, camera, figures, { exposeBodies = false, pilot = null, spectate = null, ai = null, colliders = null, breakables = null, breakPieces = null, hangar = null, match = null, shadows = null, smoke = null, wreckExplodes = null, tutorial = null, aiDifficulty = null, lock = null, commander = null, key = null, toonInk = null, driveSurface = null, touch = false, runner = null, gearGranted = false, seats = null, formSun = null, xr = false } = {}) {
+export function controllableChannelScript(entities, camera, figures, { exposeBodies = false, pilot = null, spectate = null, ai = null, colliders = null, breakables = null, breakPieces = null, hangar = null, match = null, shadows = null, smoke = null, wreckExplodes = null, tutorial = null, aiDifficulty = null, lock = null, commander = null, key = null, toonInk = null, driveSurface = null, touch = false, runner = null, gearGranted = false, seats = null, formSun = null, tempo = null, xr = false } = {}) {
   // per-vertex specular (material-response): inject the aSpec wiring into the rig-figure
   // builder ONLY when some packed figure carries a spec buffer (a material-finished suit).
   // Absent → the emitted controllable channel is byte-identical (the char-net pin holds),
@@ -553,9 +553,11 @@ window.__mojCommanderPorts = __mojCmd;   // headless verification: ports + curre
   requestAnimationFrame(tick);
 })();
 ` : '';
+  // (a tempo whose moments carry a look: the page lays it over the grade)
+  const tempoLook = !!(tempo && Array.isArray(tempo.moments) && tempo.moments.some((m) => m && m.look));
   return `
-const __CW = ${emissionSource({ ...(runner ? { runner: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.hitstop) ? { hitstop: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.foe) ? { foe: true } : {}), ...(entities.some((e) => e && e.body && e.body.vanish) ? { vanish: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.summon) ? { summon: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.pair) ? { pair: true } : {}), ...(xr ? { sweep: true } : {}) })};
-const __world = __CW.createWorld({ entities: ${safeJson(entities)}, camera: ${safeJson(camera)}, pilot: ${safeJson(pilot)}${spectate ? ', spectate: true' : ''}${seats ? `, seats: ${safeJson(seats)}` : ''}, ai: ${safeJson(ai)}, colliders: ${safeJson(colliders)}${breakables ? `, breakables: ${safeJson(breakables)}` : ''}, match: ${safeJson(match)}${wreckExplodes ? `, wreckExplodes: ${safeJson(wreckExplodes)}` : ''}${tutorial ? `, tutorial: ${safeJson(tutorial)}` : ''}${aiDifficulty ? `, aiDifficulty: ${safeJson(aiDifficulty)}` : ''}${lock ? `, lock: ${safeJson(lock)}` : ''}${runner ? `, runner: ${safeJson(runner)}` : ''} });
+const __CW = ${emissionSource({ ...(runner ? { runner: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.hitstop) ? { hitstop: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.foe) ? { foe: true } : {}), ...(entities.some((e) => e && e.body && e.body.vanish) ? { vanish: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.summon) ? { summon: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.pair) ? { pair: true } : {}), ...(xr ? { sweep: true } : {}), ...(tempo ? { clock: true } : {}) })};
+const __world = __CW.createWorld({ entities: ${safeJson(entities)}, camera: ${safeJson(camera)}, pilot: ${safeJson(pilot)}${spectate ? ', spectate: true' : ''}${seats ? `, seats: ${safeJson(seats)}` : ''}, ai: ${safeJson(ai)}, colliders: ${safeJson(colliders)}${breakables ? `, breakables: ${safeJson(breakables)}` : ''}, match: ${safeJson(match)}${wreckExplodes ? `, wreckExplodes: ${safeJson(wreckExplodes)}` : ''}${tutorial ? `, tutorial: ${safeJson(tutorial)}` : ''}${aiDifficulty ? `, aiDifficulty: ${safeJson(aiDifficulty)}` : ''}${lock ? `, lock: ${safeJson(lock)}` : ''}${runner ? `, runner: ${safeJson(runner)}` : ''}${tempo ? `, tempo: ${safeJson(tempo)}` : ''} });
 ${xr ? `// the headset (channels/xr.js): set while a session plays the game, { pad, input, hides }; null, the page's own devices
 let __xrCtl = null;
 ` : ''}${commanderBlock}${flyHudBlock}${(() => {
@@ -3568,8 +3570,11 @@ function __updateBreaks(dt) {
 ` : ''}${runner ? runnerViewScript(runner) : ''}${focusHook}stepControllable = (dt, inputOverride) => {
 ${hangarHook}  __msHookParams();
   if (dt > 0 && !window.__mojFreeze) {   // a menu up freezes the world (interact-channel)
-    ${commanderStep}__CW.stepWorld(__world, inputOverride || ${seats ? '__withSeats(__readInput())' : '__readInput()'}, dt, { ground: __ground${driveSurface ? ', surface: __surface' : ''} });
-    for (const e of __world.entities) __syncEntity(e, dt);${seats ? `
+    ${commanderStep}__CW.stepWorld(__world, inputOverride || ${seats ? '__withSeats(__readInput())' : '__readInput()'}, dt, { ground: __ground${driveSurface ? ', surface: __surface' : ''} });${tempo ? `
+    const wdt = dt * __CW.tempoScale(__world);   // the world clock: the bodies and their effects on the world's step, the camera on the real one
+    // a moment that fires cues the live shoot plan's shot waiting on it (on: 'tempo:<what fired it>'): the impact cam
+    if (__world.tempo && __world.tempo.playing !== __tmLast) { __tmLast = __world.tempo.playing; if (__tmLast && window.__mojShoot && window.__mojShoot.cue) window.__mojShoot.cue('tempo:' + __tmLast.on); }` : ''}
+    for (const e of __world.entities) __syncEntity(e, ${tempo ? 'wdt' : 'dt'});${seats ? `
     __seatRings();
     __seatStrip();
     __seatsOver();` : ''}
@@ -3577,12 +3582,23 @@ ${hangarHook}  __msHookParams();
     __updateChargeRings();
     __updateProjectiles();
     __updateClashes();
-    __updateThrusters(dt);${figHasJuice ? `
-    __updateRacerJuice(dt);` : ''}${shadowHook}${smokeHook}${gearHook}${breakables ? `
-    __updateBreaks(dt);` : ''}${runner ? `
-    __updateRunner(dt);` : ''}
+    __updateThrusters(${tempo ? 'wdt' : 'dt'});${figHasJuice ? `
+    __updateRacerJuice(${tempo ? 'wdt' : 'dt'});` : ''}${shadowHook}${smokeHook}${gearHook}${breakables ? `
+    __updateBreaks(${tempo ? 'wdt' : 'dt'});` : ''}${runner ? `
+    __updateRunner(${tempo ? 'wdt' : 'dt'});` : ''}
   }
-  if (__ctrlOwnsCamera${xr ? ' && !__xrCtl' : ''}) __driveCamera(dt);${xr ? '   // (in the headset the head is the camera)' : ''}
+  if (__ctrlOwnsCamera${xr ? ' && !__xrCtl' : ''}) __driveCamera(dt);${xr ? '   // (in the headset the head is the camera)' : ''}${tempoLook ? `
+  // a moment's look over the world's grade (channels/grade.js), by the moment's weight; its impact frame hard for its
+  // frames as it fires; its zoom aimed at whom it is about, on the screen as the camera now stands
+  if (window.__mojGrade) {
+    const P = __world.tempo && __world.tempo.playing, L = P && P.m.look;
+    if (L) {
+      const hit = L.impact && P.t < L.impact / 60, who = P.who && (__world.byId[P.who.b] || __world.byId[P.who.a]);
+      let at = null;
+      if (who) { camera.updateMatrixWorld(); __tmAt.set(who.transform.pos[0], who.transform.pos[1], who.transform.pos[2] + 1).project(camera); at = [(__tmAt.x + 1) / 2, (__tmAt.y + 1) / 2]; }
+      window.__mojGrade.moment(hit ? { ...L, invert: 1 } : L, hit ? 1 : __CW.tempoWeight(__world), at);
+    } else if (window.__mojGrade.look) window.__mojGrade.moment(null);
+  }` : ''}
   __updateWepHud();   // after the camera is positioned, so the reticle projects onto the current frame
   __updateBoostHud();
   __updateRadar();${lock ? '\n  __updateLock();' : ''}
@@ -3591,5 +3607,7 @@ ${hangarHook}  __msHookParams();
   __updateMatchHud();
   __updateTutorialHud();
 };
-window.__mojCtrl = { world: __world,${exposeBodies ? ' bodies: __bodies,' : ''}${breakables ? ' restore: (id) => __CW.restoreBlock(__world, id),' : ''} step: (dt, input) => stepControllable(dt, input), cast: (ops) => __CW.castOps(__world, ops), facts: (prev) => __CW.castFacts(__world, prev), interacts: () => __interactN, label: (id) => { const f = __padOn && __padSeen && __usePad ? 'gamepad' : 'keyboard', c = (__BIND.bind[f][id] || [])[0]; return c ? __CTL.label(__DEV, f, c, __padLayout) : ''; } };`;
+${tempo ? `let __tmLast = null;${tempoLook ? ' const __tmAt = new THREE.Vector3();' : ''}
+window.__mojTempo = { now: () => __world.tempo && { scale: __world.tempo.scale, playing: __world.tempo.playing && __world.tempo.playing.on }, fire: (on, who) => __CW.tempoMoment(__world, on, who) };
+` : ''}window.__mojCtrl = { world: __world,${exposeBodies ? ' bodies: __bodies,' : ''}${breakables ? ' restore: (id) => __CW.restoreBlock(__world, id),' : ''} step: (dt, input) => stepControllable(dt, input), cast: (ops) => __CW.castOps(__world, ops), facts: (prev) => __CW.castFacts(__world, prev), interacts: () => __interactN, label: (id) => { const f = __padOn && __padSeen && __usePad ? 'gamepad' : 'keyboard', c = (__BIND.bind[f][id] || [])[0]; return c ? __CTL.label(__DEV, f, c, __padLayout) : ''; } };`;
 }

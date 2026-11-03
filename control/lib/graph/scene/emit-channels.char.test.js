@@ -370,6 +370,11 @@ const sha = (s) => createHash('sha256').update(s).digest('hex');
 // live-shadows with actors, fx, shoot-live, the two toon-ink, capture-controllable and both kitchen sinks), for the
 // ranged weapon's opt-in `input.aim` (combat-ranged.js stepWeapon: a headset's held muzzle or controller ray, the round
 // leaving from it along it): additions only, and an input without `aim` fires as before.
+// Re-pinned 2026-11-02 (the world clock): `shoot-live` only. A live plan's camera gizmos take no raycast (shoot.js
+// `__shOver`): the controllable's ground probe raycast the whole scene and threw on the frustum's lines before its camera
+// was posed, stopping a live world with a shoot plan on its first frame. A plan that is not live emits as it did.
+// Re-pinned 2026-11-03 (the controllers merged over the world clock): `shoot-live` only, for the two above together (it
+// embeds the controllable runtime, so it carries the ranged weapon's opt-in aim and the gizmos' raycast skip at once).
 
 describe('emitThreeWorld characterization (byte-level pin over the fixture matrix)', () => {
   it.each(EMIT_FIXTURES.map(([name]) => name))('%s emits byte-identically', (name) => {

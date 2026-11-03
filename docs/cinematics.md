@@ -99,6 +99,74 @@ good.
 - **no-close**: a scene of many lines with no close-up. Save one for the turn.
 - **extra-speaks**: a speaking part played as an extra, its eyes off whoever speaks. Give it a style that regards its
   partner, unless it is meant to be background.
+- **slowed-line**: a line spoken under slow motion or a freeze. Slow the move, the look or the silence round it; play
+  the words in real time.
+
+## Time
+
+A shot shows the scene's time on the screen's time, and one map between the two (`shoot/time.js`, a shot's `time`,
+`clock` and `grain`) is read by everything that plays: the camera, the actors' takes and faces, their places, the
+captions. Presentation, not simulation: the map changes what the screen shows, never how the scene plays.
+
+- **Slow the action, not the words.** Slow motion stretches the picture, not the voice. In the screenplay, `Slow
+  motion.` (or `Slow motion 0.1.`) until `Real time.` slows a stretch of the scene; it takes no time of the scene's.
+- **Hold the moment.** `Freeze.` (or `Freeze 2 seconds.`) holds the scene at an instant: the beat after a blow, the look
+  that answers a line.
+- **Ramp, don't jump.** A speed ramp (a stretch's `ramp`) eases into slow motion and out of it, so the change reads as
+  the moment's weight rather than a jump in the film.
+- **The camera keeps its own time.** In bullet time the camera moves at its own pace while the world holds or crawls
+  (a shot's `clock: 'screen'`).
+- **Twos for the anime register.** The world shown on twos or threes, the camera on ones, as limited animation is
+  keyed (`grain`; `export-scene-blender.mjs --grain twos`).
+
+The coverage carries the screenplay's slow motion and freezes onto the shots they fall in, and the film pack plays the
+scene on the screen's clock: each take through an NLA strip whose time is keyed to it.
+
+## The moment in play
+
+In a game the world cannot be rendered ahead, so its big beats are MOMENTS on the world clock
+(`worlds/controllable/world-clock.js`, a world's `tempo`). A moment fires on what happens in play:
+- a blow landing;
+- a foe going down;
+- the last foe going down;
+- a dodge.
+
+It takes three things at once, on one envelope: the clock, the camera and the look.
+
+- **Slow the world, not the camera.** The world steps slower or holds; the camera keeps real time, so it can move
+  through the held beat. The HUD and the input keep real time too.
+- **Frame the two it is about.** A moment knows whom it is about: the striker and the struck, the one who downed a foe
+  and the downed. Its `cam` takes the camera with the scenes' own directing shot on those two (`two`, `close`,
+  `profile`, `low`, a `push` or an `orbit`), easing in, and hands it back as the moment ends. It never takes the camera
+  from a scene or the tackle cinematic.
+- **Cap the beat, and cool it down.** A hold is short; a `cooldown` keeps a run of kills from ping-ponging the clock.
+  A slower moment takes over a faster one.
+- **Let the look carry the weight.** A moment's `look` lays the grade over the world's own, by the moment's weight:
+  - the finisher drains the colour and draws the bars;
+  - a blow lands on an inverted impact frame, a zoom toward the struck and a shake;
+  - bullet time bleeds the colour and splits its channels.
+- **Cut to the impact cam on the event.** A live shoot plan's shot waiting on `tempo:<what fired>` cuts in as the
+  moment fires.
+
+## Compositing
+
+The World page's grade (`scene/channels/grade.js`) is its compositing stage, the last thing laid over the frame, on the
+same full-frame pass that softens the far. A world sets its own `grade`: a word (`film`, `noir`, `bleach`, `vivid`,
+`pastel`, `cold`, `warm`) or dials. A moment overlays its look on it.
+
+- **Grade the world once, the moment on top.** The base grade is the world's register: film's gentle contrast, warmth
+  and grain, noir's grey. A moment pushes from there and returns to it.
+- **The dials**:
+  - exposure, contrast, saturation;
+  - warmth: a split tone, highlights to amber and shadows to blue, or the other way;
+  - the vignette, film grain, chromatic aberration;
+  - a zoom blur toward a point;
+  - the letterbox bars, a flash, the impact frame, a shake.
+- **Bars for the cinematic beat, not for play.** The letterbox says "watch": draw it while a moment plays, not while the
+  player aims.
+- **One frame is enough.** An impact frame is one or two frames; more reads as a glitch.
+- **Free while unused.** The pass draws only while the grade is off its rest, and a page that asks for no grade carries
+  none of it.
 
 ## The look
 
@@ -118,6 +186,6 @@ shades it.
 - **The dailies** (`control/scripts/spikes/actor/dailies.mjs`): every take on one clock, its timeline and its readings
   law by law; scenes drawn from above.
 - **The scene film** (`control/scripts/spikes/actor/scene-film.mjs`): both actors at once on a minted hero, cut by the
-  coverage, with captions.
+  coverage, with captions, on the coverage's time map (`--script` for a screenplay of your own, `--grain 2`).
 - **The hero-live viewer** (`/hero-live`): a take's face and body on the hero, as an engine plays the GLB.
 - **Blender**: the film pack, built as its `SCENE.md` says.
