@@ -41,7 +41,7 @@ export function mintFieldView({ title, scenario, scale, viewBox, scene, ref, fol
 
 export async function createFieldViewHandler(input) {
   if (!input || typeof input !== 'object') {
-    throw new Error('create_field_view requires a recipe object');
+    throw new Error('create_view({ kind: "field" }) requires a recipe object');
   }
   const { title, scenario, scale, viewBox, scene, ref, folder_ref: folderRef } = input;
   return mintFieldView({ title, scenario, scale, viewBox, scene, ref, folderRef });

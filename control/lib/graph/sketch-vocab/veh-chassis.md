@@ -74,7 +74,7 @@ resolveVehChassisRecipe({
 const chassis = resolveVehChassisRecipe({ family: 'unibodyPan', seed: 'v2' });
 const wheel = resolveVehWheelRecipe({ family: 'steelie', seed: 'v2' });
 const { placements } = planComponentFit(wheel, chassis);
-// → create_assembler items: chassis at [0,0,0] (superposed at ride height),
+// → mint_solid({ kind: 'assembler' }) items: chassis at [0,0,0] (superposed at ride height),
 //   one wheel per placement ({ at, flip }), each grounded at z=0
 ```
 

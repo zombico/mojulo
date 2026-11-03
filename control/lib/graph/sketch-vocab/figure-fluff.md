@@ -1,8 +1,8 @@
 ---
-{ "id": "figure-fluff", "name": "figure fluff — the stylized (chunky/mecha/action-figure) body register", "summary": "build a stylized figure body from a CLOSED set of named simple volumes (cone/football/bead/bell/slab) bound to armature segments and composed by superposition — girth contrast by default (huge distal masses on thin connectors: mega-boy, mecha, Mega-Man, chibi-hero). The create_figure `fluffs` input; REPLACES `proto` (anatomical) when present.", "when": "a STYLIZED / cartoon / chunky / mecha / robot / action-figure / super-deformed character body — Mega Man, a Gundam-lite hero, a zdog-style mascot, anything with deliberate girth contrast — as opposed to an anatomically-proportioned human (that is create_figure `proto`). Route here from 'make a robot/mecha/action-figure/chibi character body', 'chunky stylized figure', 'mega man / mega boy'.", "tier": "render-primitive", "marks": [], "phase": "p1" }
+{ "id": "figure-fluff", "name": "figure fluff — the stylized (chunky/mecha/action-figure) body register", "summary": "build a stylized figure body from a CLOSED set of named simple volumes (cone/football/bead/bell/slab) bound to armature segments and composed by superposition — girth contrast by default (huge distal masses on thin connectors: mega-boy, mecha, Mega-Man, chibi-hero). The figure's `fluffs` input (mint_solid kind figure); REPLACES `proto` (anatomical) when present.", "when": "a STYLIZED / cartoon / chunky / mecha / robot / action-figure / super-deformed character body — Mega Man, a Gundam-lite hero, a zdog-style mascot, anything with deliberate girth contrast — as opposed to an anatomically-proportioned human (that is the figure's `proto`). Route here from 'make a robot/mecha/action-figure/chibi character body', 'chunky stylized figure', 'mega man / mega boy'.", "tier": "render-primitive", "marks": [], "phase": "p1" }
 ---
 
-Fluff is the **stylized body register** of `create_figure` — the sibling of
+Fluff is the **stylized body register** of the figure (`mint_solid` kind `figure`) — the sibling of
 the anatomical `proto` body. Pass a `fluffs: [...]` array (it REPLACES `proto`
 when present) and the figure is built from chunky named solids instead of
 sculpted anatomy. Garments, poses, motion, and views all still apply — fluffs
@@ -45,7 +45,7 @@ Girth defaults are ~0.02–0.03 (STAND units); distal masses read at ~0.05–0.0
 ## Worked example — Mega Man (the girth-contrast flagship)
 
 ```js
-create_figure({ title: 'Mega Man', view: 'frontal', setup: 'white-cyc', fluffs: [
+mint_solid({ kind: 'figure', spec: { title: 'Mega Man', view: 'frontal', setup: 'white-cyc', fluffs: [
   { shape:'bead', node:'headTop', r:0.075, squash:1.05 },                       // dome helmet
   { shape:'slab', segment:['neckHub','navel'], girth:0.095, depth:0.06, n:3, taper:0.9 }, // chest plate
   { shape:'cone', segment:['navel','pelvisHub'], girth:0.055, taper:0.85 },     // waist pinch
@@ -62,14 +62,14 @@ create_figure({ title: 'Mega Man', view: 'frontal', setup: 'white-cyc', fluffs: 
   { shape:'cone', segment:['kneeR','ankleR'], girth:0.042, taper:1.5 },
   { shape:'bead', node:'ankleL', r:0.052, squash:0.8 },                         // rounded feet
   { shape:'bead', node:'ankleR', r:0.052, squash:0.8 },
-] })
+] } })
 ```
 
 ## Composes with
 
-- `create_figure` `pose` / `motion` — fluffs pose and animate for free (they
+- the figure's `pose` / `motion` — fluffs pose and animate for free (they
   bind articulated landmarks).
-- `create_figure` `garment` — cloth tracks fluff masses with zero garment math
+- the figure's `garment` — cloth tracks fluff masses with zero garment math
   (piece ids reuse the proto vocabulary).
 - The dream loop (`reconstruct-from-dream` catalyst) — a dreamed stylized
   character in a simple register decomposes DIRECTLY into this vocabulary; this

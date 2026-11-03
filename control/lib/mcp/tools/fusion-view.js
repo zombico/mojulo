@@ -39,7 +39,7 @@ export function mintFusionView({ title, density, viewBox, scene, ref, folderRef 
 
 export async function createFusionViewHandler(input) {
   if (!input || typeof input !== 'object') {
-    throw new Error('create_fusion_view requires a recipe object');
+    throw new Error('create_view({ kind: "fusion" }) requires a recipe object');
   }
   const { title, density, viewBox, scene, ref, folder_ref: folderRef } = input;
   return mintFusionView({ title, density, viewBox, scene, ref, folderRef });

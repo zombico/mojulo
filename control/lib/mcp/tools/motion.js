@@ -108,7 +108,7 @@ function resolveCarvedSpec(x, label) {
     if (!sketch) throw new Error(`${label} carved sketch '${x}' not found`);
     const m = sketch.manifest;
     if (!m || m.kind !== 'carved-solid') {
-      throw new Error(`${label} sketch '${x}' is kind '${m?.kind}'; materialize/transfigure animate carved-solid subjects — mint one with create_carved_solid.`);
+      throw new Error(`${label} sketch '${x}' is kind '${m?.kind}'; materialize/transfigure animate carved-solid subjects — mint one with mint_solid({ kind: 'carved-solid' }).`);
     }
     return { spec: { shape: m.shape, style: m.style, material: m.material ?? m.metal }, ref: x };
   }

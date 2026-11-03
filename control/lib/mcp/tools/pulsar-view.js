@@ -45,7 +45,7 @@ export function mintPulsarView({ title, scenario, inclination, exposure, viewBox
 
 export async function createPulsarViewHandler(input) {
   if (!input || typeof input !== 'object') {
-    throw new Error('create_pulsar_view requires a recipe object');
+    throw new Error('create_view({ kind: "pulsar" }) requires a recipe object');
   }
   const { title, scenario, inclination, exposure, viewBox, scene, ref, folder_ref: folderRef } = input;
   return mintPulsarView({ title, scenario, inclination, exposure, viewBox, scene, ref, folderRef });

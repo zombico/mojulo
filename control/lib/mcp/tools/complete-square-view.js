@@ -42,7 +42,7 @@ export function mintCompleteSquareView({ title, scenario, x, b, animate, scale, 
 }
 
 export async function createCompleteSquareViewHandler(input) {
-  if (!input || typeof input !== 'object') throw new Error('create_complete_square_view requires a recipe object');
+  if (!input || typeof input !== 'object') throw new Error('create_view({ kind: "complete-square" }) requires a recipe object');
   const { title, scenario, x, b, animate, scale, viewBox, scene, ref, folder_ref: folderRef } = input;
   return mintCompleteSquareView({ title, scenario, x, b, animate, scale, viewBox, scene, ref, folderRef });
 }

@@ -75,7 +75,7 @@ export async function resolveClipForge(clipRef, km = null) {
   if (missing.length) {
     throw new Error(
       `clip '${clipRef}' has ${missing.length} unaccepted cel target(s) (${missing.slice(0, 3).join(', ')}${missing.length > 3 ? ', …' : ''}) `
-      + '— drive them through the render handoff first: request_image_render → pull_image_render → submit_image_render → accept_image_render.',
+      + '— drive them through the render handoff first: render_handoff({ medium: "image" }) ops request → pull → submit → accept.',
     );
   }
   const paths = Object.fromEntries(
@@ -122,7 +122,7 @@ export async function resolveSceneForge(scene, sceneRef) {
   const plateBufs = new Map();
   for (const target of renderTargets(scene)) {
     if (!sceneAccepted.has(target)) {
-      throw new Error(`scene '${sceneRef}' target '${target}' is not accepted — request_image_render, submit the painted plate, and accept it first.`);
+      throw new Error(`scene '${sceneRef}' target '${target}' is not accepted — render_handoff({ medium: 'image' }): request, submit the painted plate, and accept it first.`);
     }
     const bound = latestBoundRender(sceneRef, target);
     if (!bound) throw new Error(`scene '${sceneRef}' target '${target}' accepted but no render on disk`);
