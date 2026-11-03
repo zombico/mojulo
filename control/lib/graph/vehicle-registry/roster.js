@@ -242,11 +242,11 @@ export const VEHICLES = {
   'haul-truck': row('haul truck', ['mining truck', 'off highway truck', 'rigid dump truck', 'quarry truck'], 'offroad', 'construction', M, ['driven', 'parked', 'watched'],
     { physics: 'haulTruck', construction: 'haulTruck', tech: 'truck' }),
   'mobile-crane': row('mobile crane', ['all terrain crane', 'truck crane', 'crane truck', 'rough terrain crane', 'telescopic crane'], 'road', 'construction', M, ROAD.concat('watched'),
-    { physics: 'mobileCrane', tech: 'truck' }),
-  // (a tower crane never drives: its words and its uses are a site's centrepiece, its size its own once built; its
-  // concept, a truck, is the crafter's nearest until the shelf draws it)
+    { physics: 'mobileCrane', construction: 'mobileCrane', tech: 'truck' }),
+  // (a tower crane never drives: its words and its uses are a site's centrepiece, its size the shelf's as built, to
+  // the height under its hook it is built to; its concept, a truck, is the crafter's nearest)
   'tower-crane': row('tower crane', ['crane', 'building crane', 'construction crane', 'hammerhead crane', 'luffing crane', 'site crane'], 'road', 'construction', M, ['parked', 'watched'],
-    { tech: 'truck' }),
+    { construction: 'towerCrane', tech: 'truck' }),
   'road-roller': row('road roller', ['roller', 'steamroller', 'compactor', 'tandem roller', 'asphalt roller', 'drum roller'], 'road', 'construction', M, ['driven', 'parked', 'watched'],
     { physics: 'roadRoller', tech: 'truck' }),
   'motor-grader': row('motor grader', ['grader', 'road grader', 'blade grader'], 'road', 'construction', M, ['driven', 'parked', 'watched'],

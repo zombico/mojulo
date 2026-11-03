@@ -27,11 +27,24 @@ const SCALED = Object.keys(CON_ARCHETYPES).find((k) => CON_ARCHETYPES[k].layout.
 const TELESCOPED = Object.keys(CON_ARCHETYPES).find((k) => CON_ARCHETYPES[k].layout.some((e) => (CON_ODM[e.sku].dims.stages ?? 2) > 2));
 const SPUN = Object.keys(CON_ARCHETYPES).find((k) => Object.values(CON_ARCHETYPES[k].joints).some((j) => j.kind === 'hinge' && !j.ram && !j.linkage));
 const LADEN = Object.keys(CON_ARCHETYPES).find((k) => CON_ARCHETYPES[k].laws.payload);
-const MACHINES = [...new Set([ID, SWEPT, ROCKER, SWAPPED, SLID, LEVEL, GROUNDS, SCALED, TELESCOPED, SPUN, LADEN])];
+// (a hook hung plumb on its rope and a body set turned round, a crane's; a machine built to a height in sections, a
+// tower crane's; a crane held to its load chart)
+const PLUMB = Object.keys(CON_ARCHETYPES).find((k) => CON_ARCHETYPES[k].layout.some((e) => e.plumb));
+const TURNED = Object.keys(CON_ARCHETYPES).find((k) => CON_ARCHETYPES[k].layout.some((e) => e.turn));
+const SECTIONS = Object.keys(CON_ARCHETYPES).find((k) => CON_ARCHETYPES[k].sections);
+const CHARTED = Object.keys(CON_ARCHETYPES).find((k) => CON_ARCHETYPES[k].laws.chart);
+const MACHINES = [...new Set([ID, SWEPT, ROCKER, SWAPPED, SLID, LEVEL, GROUNDS, SCALED, TELESCOPED, SPUN, LADEN, PLUMB, TURNED, SECTIONS, CHARTED])];
 const ctx = machineCtx(ID), arch = ctx.arch;
 const near = (a, b, tol = 1e-6) => a.every((v, k) => Math.abs(v - b[k]) < tol);
 // (a point is 'body.hardpoint', the hardpoint's own name may hold a dot: 'rear.wheel.r')
 const split = (ref) => { const i = ref.indexOf('.'); return [ref.slice(0, i), ref.slice(i + 1)]; };
+const turnZ = (v, deg) => { const c = Math.cos((deg * Math.PI) / 180), s = Math.sin((deg * Math.PI) / 180); return [c * v[0] - s * v[1], s * v[0] + c * v[1], v[2]]; };
+/** The direction a slide moves a body along, in the machine's frame: its joint's axis in its parent's frame turned its
+ *  `turn`, or the machine's own axis for a body hung plumb. */
+const slideAxis = (arch, e, F) => {
+  const J = arch.joints[e.joint], ax = J.axis ?? (e.plumb ? [0, 0, -1] : [0, 1, 0]);
+  return e.plumb ? ax : apply({ R: F[split(e.on)[0]].R, t: [0, 0, 0] }, turnZ(ax, e.turn ?? 0));
+};
 
 describe.each(MACHINES)('%s: the chain holds together at every named pose', (machine) => {
   const ctx = machineCtx(machine), arch = ctx.arch, ID = machine;
@@ -43,9 +56,20 @@ describe.each(MACHINES)('%s: the chain holds together at every named pose', (mac
       for (const e of arch.layout.filter((x) => x.on)) {
         const [p, hp] = split(e.on), q = apply(C.frames[e.id], [0, 0, 0]), o = apply(C.frames[p], ctx.hp(p, hp));
         if (e.joint && arch.joints[e.joint].kind === 'slide') {
-          const ax = apply({ R: C.frames[p].R, t: [0, 0, 0] }, arch.joints[e.joint].axis ?? [0, 1, 0]), d = q.map((v, k) => v - o[k]), t = d[0] * ax[0] + d[1] * ax[1] + d[2] * ax[2];
+          const ax = slideAxis(arch, e, C.frames), d = q.map((v, k) => v - o[k]), t = d[0] * ax[0] + d[1] * ax[1] + d[2] * ax[2];
           expect(near(d, ax.map((v) => v * t), 1e-9), e.id).toBe(true);
+          expect(t, e.id).toBeCloseTo(j[e.joint] * (e.scale ?? 1), 6);
         } else expect(near(q, o, 1e-9), e.id).toBe(true);
+        // (a body hung plumb stands upright whatever its parent turns)
+        if (e.plumb) expect(C.frames[e.id].R[2][2], e.id).toBeCloseTo(1, 9);
+      }
+      // each rope's lengths from its first point to its second, a short one drawn smaller
+      for (const e of arch.layout.filter((x) => x.rope)) {
+        const runs = C.struts.filter((x) => x.id === e.id), seg = ctx.row(e.sku).dims.length, a = apply(C.frames[split(e.rope[0])[0]], ctx.hp(...split(e.rope[0]))), b = apply(C.frames[split(e.rope[1])[0]], ctx.hp(...split(e.rope[1])));
+        expect(runs).toHaveLength(e.count);
+        expect(near(runs[0].frame.t, a, 1e-9), e.id).toBe(true);
+        const last = runs.at(-1), s0 = last.scale ?? 1;
+        expect(near(apply(last.frame, [0, seg * s0, 0]), b, 1e-6), e.id).toBe(true);
       }
       // each ram's barrel from its base toward its eye, its rod from the eye back, its length within its stroke
       for (const s of C.struts) {
@@ -118,7 +142,8 @@ describe.each(MACHINES)('%s as built', (machine) => {
   it('holds every law it is held to, and its bill of materials', () => {
     const { readout } = assembleMachine(machine);
     expect(readout.laws.laws.filter((l) => !l.ok)).toEqual([]);
-    expect(readout.laws.laws.map((l) => l.id)).toEqual(expect.arrayContaining(['transport', 'mass', ...(CON_ARCHETYPES[machine].laws.groundPressure ? ['groundPressure'] : []), ...(CON_ARCHETYPES[machine].laws.payload ? ['volume', 'payload'] : []), ...Object.keys(CON_ARCHETYPES[machine].laws.measure ?? {})]));
+    const L = CON_ARCHETYPES[machine].laws;
+    expect(readout.laws.laws.map((l) => l.id)).toEqual(expect.arrayContaining(['mass', ...(L.transport ? ['transport'] : []), ...(L.groundPressure ? ['groundPressure'] : []), ...(L.payload ? ['volume', 'payload'] : []), ...(L.chart ? ['chart', 'spread'] : []), ...(L.tower ? ['freestanding', 'radius', 'balance', 'stability'] : []), ...Object.keys(L.measure ?? {})]));
     expect(readout.audit.ok).toBe(true);
   });
 });
@@ -264,5 +289,37 @@ describe('a hauler', () => {
     const { readout } = assembleMachine(LADEN), L = Object.fromEntries(readout.laws.laws.map((l) => [l.id, l]));
     expect(CON_ARCHETYPES[LADEN].laws.massShift).toBe(-CON_ARCHETYPES[LADEN].laws.payload.kg);
     expect(L.payload.ok && L.volume.ok).toBe(true);
+  });
+});
+
+describe('a crane', () => {
+  it('turns a body set at a joint round with its joint: its left outriggers out as far to the left as its right to the right', () => {
+    const ctx = machineCtx(TURNED), arch = ctx.arch, e = arch.layout.find((x) => x.turn), r = rangeOf(arch, e.joint, ctx);
+    const F = solveChain(arch, { ...posedJoints(TURNED, 'rest'), [e.joint]: r[1] }, ctx).frames;
+    const twin = arch.layout.find((x) => x !== e && x.joint === e.joint && !x.turn && split(x.on)[1].replace(/\.r$/, '') === split(e.on)[1].replace(/\.l$/, ''));
+    expect(apply(F[e.id], [0, 0, 0])[0]).toBeCloseTo(-apply(F[twin.id], [0, 0, 0])[0], 6);
+  });
+  it('hangs its hook plumb under its sheave whatever its boom does, as far as its hoist lets it down', () => {
+    const ctx = machineCtx(PLUMB), arch = ctx.arch, hook = arch.layout.find((e) => e.plumb), [p, hp] = split(hook.on);
+    for (const pose of Object.keys(arch.poses)) {
+      const j = posedJoints(PLUMB, pose), F = solveChain(arch, j, ctx).frames, top = apply(F[p], ctx.hp(p, hp)), at = apply(F[hook.id], [0, 0, 0]);
+      expect(near(at, [top[0], top[1], top[2] - j[hook.joint]], 1e-9), pose).toBe(true);
+    }
+    expect(rangeOf(arch, hook.joint, ctx)[0]).toBeGreaterThan(0);
+  });
+  it('rates less the farther it reaches over its outriggers', () => {
+    const chart = assembleMachine(CHARTED).readout.laws.laws.find((l) => l.id === 'chart').value, radii = Object.keys(chart).map(Number).sort((a, b) => a - b);
+    for (let k = 1; k < radii.length; k++) expect(chart[radii[k]]).toBeLessThan(chart[radii[k - 1]]);
+  });
+  it('is built to the height under its hook it is asked for, a section at a time, within its mast\'s sections', () => {
+    const M = CON_ARCHETYPES[SECTIONS].sections, per = CON_ODM[M.sku].dims.length, h0 = assembleMachine(SECTIONS).readout.height;
+    const up = assembleMachine(SECTIONS, { height: h0 + 2 * per + 0.4 }).readout;
+    expect(up.sections).toBe(M.n + 2);
+    expect(up.height).toBeCloseTo(h0 + 2 * per, 6);
+    expect(up.composed).toBe(`${SECTIONS}@${M.n + 2}`);
+    expect(assembleMachine(SECTIONS, { height: h0 }).readout.composed).toBeUndefined();
+    expect(assembleMachine(SECTIONS, { height: 1000 }).readout.sections).toBe(M.max);
+    expect(up.laws.ok).toBe(true);
+    expect(() => composeMachine(ID, { height: 30 })).toThrow(/its height is its own/);
   });
 });

@@ -295,3 +295,59 @@ push, load, haul and lift on a site.
       truck's frame, the telescopic hoist and a stage of it, and the four machines. No existing pin moved.
   - **Seen** (machine gate only, the eyes gate is open): the tipper tipped, the mixer's drum turning, the dumper
     tipped and steered, the haul truck tipped.
+- **The lifters** (`con-lifters.js`):
+  - **The 60 t all-terrain crane:**
+    - Its carrier rides on ten tyres on five axles. Its cab is at the front left. Four outrigger beams slide out of
+      their boxes, the left two set turned round, and their jacks set their floats on the ground, 6.66 m apart.
+    - Its superstructure turns on its slewing ring, with its operator's cab and its 8 t of counterweight slabs.
+    - Its boom has five sections. One ram luffs it through 79.7°, and its four telescopes each slide a quarter of its
+      33.6 m. Its head reaches 48.5 m up.
+    - Its hook block hangs plumb from the head's sheaves on four falls, lowered to the ground or up to 1.2 m under
+      the sheaves.
+    - It carries its 60 t class's mass and folds to 2.92 m wide and 3.84 m high for the road.
+  - **The tower crane, a 58 m hammerhead:**
+    - A cross base and its 45 t of ballast blocks. Its mast is 1.8 m lattice sections 4 m long, built to the height
+      under its hook the operator names (`assembleMachine('towerCrane', { height })`, a section at a time, 2 to 14
+      sections). The default is ten, 40.4 m under its hook.
+    - Its slewing unit carries its cab, its tower head and the pendants that hang its jib and its counter-jib.
+    - The jib is a triangle of lattice panels: two bottom chords as the trolley's rails, and a top chord.
+    - The counter-jib carries its winch, its cabinet, its walkway and its 20 t of ballast slabs.
+    - The trolley runs 53.5 m along the jib, to a 57.4 m radius, its hook block plumb under it on two falls.
+  - **The chain:**
+    - An entry may be set turned about its parent's up (`turn`), its joint's axis turned with it: a left outrigger.
+    - A body may hang plumb (`plumb`): its frame upright and facing its parent's heading, its slide along the
+      machine's own down, whatever its parent turns.
+    - A rope (`rope`) is drawn in lengths spread from its sheave to its hook block. A rope shorter than one length
+      is drawn smaller. It counts once in the bill of materials.
+    - A slide may say its travel and where it starts (`travel`, `from`): a hoist's, derived from the parts it is
+      built of.
+  - **The laws:**
+    - **The load chart:** the crane's rated load over the side at 8, 12 and 20 m (34.1, 16.2 and 6.6 t), on the
+      shortest boom that reaches each radius. It is 75% of the load that tips the crane over its floats, from every
+      part's mass where it is posed. It is tipping only: a real chart's short radii are limited by the boom's
+      strength, which is not modelled.
+    - **The outriggers' spread.**
+    - **The tower crane:**
+      - its height under its hook within its mast's freestanding heights;
+      - its radius;
+      - its counter-jib's moment against its jib's own and half its rated 1.8 t at its tip (0.93);
+      - its base's stability against that load, its upper's unbalance and a 20 m/s wind on its lattices (2.06).
+    - A machine with no class to drive (the tower crane) states its class's mass.
+  - **The registry:** the mobile-crane and tower-crane rows claim their machines, asleep. A machine with no class is
+    parked and watched, never driven.
+  - **Fixed:** the truck cab's bumper was a box of no length, its corners not numbers. It is now drawn across the cab,
+    which re-pins the cab, the tipper and the mixer.
+  - **Held:**
+    - The law tests pick, in code, a crane with a plumb hook, one with a turned body, one built in sections and one
+      held to a load chart.
+      - The chain test reads each slide's axis turned or plumb, and each rope's lengths from its first point to its
+        second.
+      - The left outriggers reach as far as the right.
+      - The hook hangs under its sheave by its hoist at every pose.
+      - The rated load falls with the radius.
+      - A height is built to the nearest section, held at the mast's most, and refused by a machine without sections.
+    - The deep sweep walks both cranes, and the tower crane at its fewest and its most sections.
+    - The char test pins the new builder paths and both cranes.
+    - The review renderer takes `--height`.
+  - **Seen** (machine gate only, the eyes gate is open): the all-terrain crane stowed and lifting on its outriggers;
+    the tower crane at rest, lifting and with its hook on the ground; the tipper's bumper.

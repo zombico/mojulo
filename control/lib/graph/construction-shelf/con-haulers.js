@@ -81,7 +81,7 @@ export function truckCab(row, C) {
   extrudes.push(box('screen', [0, l - 0.1, h * k + 0.45], [0, l - 0.08, h * k + 0.45], w - 0.2, 0.8, glass, [0, 0, 1]));
   extrudes.push(plan('roof', h - 0.1, h, rect(-w / 2 + 0.05, w / 2 - 0.05, 0.05, l - 0.15), tone(body, -0.06)));
   extrudes.push(box('grille', [0, l + 0.005, h * 0.3], [0, l + 0.02, h * 0.3], w * 0.55, h * 0.3, dark));
-  extrudes.push(box('bumper', [0, l + 0.08, 0.05], [0, l + 0.08, 0.05], w, 0.3, dark, [0, 0, 1]));
+  extrudes.push(box('bumper', [-w / 2, l + 0.08, 0.2], [w / 2, l + 0.08, 0.2], 0.16, 0.3, dark));
   for (const s of [1, -1]) {
     extrudes.push(box(`lamp_${side(s)}`, [s * (w / 2 - 0.3), l + 0.02, 0.32], [s * (w / 2 - 0.3), l + 0.05, 0.32], 0.35, 0.14, C.light));
     sweeps.push(tube(`mirror_arm_${side(s)}`, [[s * w / 2, l - 0.25, h * 0.75], [s * (w / 2 + 0.18), l - 0.2, h * 0.75]], 0.02, dark, 6));

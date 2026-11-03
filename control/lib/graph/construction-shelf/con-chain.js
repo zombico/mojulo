@@ -11,8 +11,13 @@
  *   { id, sku, link: ['a.hp', 'b.hp'], pair? }     a rigid link between two points: from a toward b
  *   { id, sku, on: 'parent.hp', rocker: 'name' }   a rocker (a loader's bellcrank) on a pin of its parent, its angle
  *                                                  solved by the joint `name`'s rocker linkage, never posed
+ *   { id, sku, rope: ['a.hp', 'b.hp'], count }     a rope run between two points, drawn as `count` lengths of its row's
+ *                                                  `dims.length`, spread from a to b (they overlap where it runs short)
  * A jointed entry may say `scale`: it moves that share of its joint's value (a telescopic boom's inner section, a mast's
- * stage, each a share of the extension).
+ * stage, each a share of the extension). An entry may say `turn`: it is set at its hardpoint turned that many degrees
+ * about its parent's +z, its joint's axis turned with it (an outrigger's beam on the left, the right's turned round).
+ * An entry may say `plumb`: it hangs from its hardpoint straight down whatever its parent's angle, facing its parent's
+ * heading, its joint's axis the machine's (a hook block on its rope: a slide along -z).
  * A point is 'body.hp' (a body's hardpoint, `hp.r` / `hp.l` on a pair's side when it has one), or '@joint' (the point a
  * joint's linkage solves: an excavator's H-link pin).
  *
@@ -20,7 +25,9 @@
  *   slew    about the parent's +z at the hardpoint, + anticlockwise from above (to the left): an upper, a hitch
  *   hinge   about the parent's +x at the hardpoint, + lifting (+y toward +z)
  *   slide   along the parent's +y (or the joint's `axis`) from the hardpoint, in metres: a telescope, a mast; without a
- *           ram its range runs as far as the first of its stages runs out (each its row's `dims.travel` over its scale)
+ *           ram its range runs as far as the first of its stages runs out (each its row's `dims.travel` over its scale),
+ *           or from its `from` as far as its `travel` says (a hoist's: its block never drawn into its sheave, its hook
+ *           lowered to the ground as built)
  *   ram     the ram entry that drives it: the joint's RANGE is where the ram's length lies between its closed length
  *           and its closed length plus its stroke (derived, never stated); a joint with no ram turns freely (a slew)
  *   near    the angle the joint works about (degrees): of the runs its ram reaches, the one there (a ram reaches again
@@ -35,7 +42,8 @@
  *   rangeOf(arch, name, ctx)  → [lo, hi] degrees, cached by the archetype's key
  *   framesOf(arch, joints, ctx) → { id: { R, t } }: the bodies alone at joint values (what the envelope samples)
  *   solveChain(arch, pose, ctx) → { frames: { id: { R, t } }, joints: { name: degrees }, points: { '@name': [x,y,z] },
- *                                   struts: [{ id, item, kind: 'barrel' | 'rod' | 'link', frame, length }], clamped }
+ *                                   struts: [{ id, item, kind: 'barrel' | 'stage' | 'rod' | 'link' | 'rope', frame,
+ *                                   length }], clamped }
  * `ctx` reads the built parts: { hp(body, name, side?) → [x,y,z] in the body's frame, row(sku) → its ODM row }.
  *
  * Pure and deterministic.
@@ -55,6 +63,9 @@ export const ramParts = (d) => ((d.stages ?? 2) > 2
 /** How far a telescopic ram's stages and rod overlap the tube outside them at full stroke, the same for each. */
 export const overlap = (d) => { const L = ramParts(d), n = d.stages ?? 2; return (L.barrel + (n - 2) * L.stage + L.rod - d.closed - d.stroke) / (n - 1); };
 
+/** A strut, aimed between two points at the pose (a ram, a link, a rope), not a body on the chain. */
+export const isStrut = (e) => Boolean(e.ram || e.link || e.rope);
+
 const split = (ref) => { const i = ref.indexOf('.'); return i < 0 ? [ref, null] : [ref.slice(0, i), ref.slice(i + 1)]; };
 
 /** A joint's own frame at its value (degrees; a slide's metres), set at the hardpoint `at` of its parent: a slew about
@@ -66,6 +77,19 @@ function jointFrame(J, at, value) {
   const R = kind === 'slew' ? about([0, 0, 1], (value + (J.zero ?? 0)) * DEG) : kind === 'hinge' ? about(J.axis ?? [1, 0, 0], value * DEG) : null;
   if (!R) throw new Error(`construction chain: a joint is a slew, a hinge or a slide (got '${kind}')`);
   return { R, t: [...at] };
+}
+/** An entry's frame in its parent's: at the hardpoint `at`, turned its `turn` about +z, its joint at `value`. */
+function seat(e, J, at, value) {
+  if (!e.turn) return J ? jointFrame(J, at, value) : { R: IDENTITY.R, t: [...at] };
+  const T = { R: about([0, 0, 1], e.turn * DEG), t: [...at] };
+  return J ? compose(T, jointFrame(J, [0, 0, 0], value)) : T;
+}
+/** A plumb entry's frame in the machine's: hung from the point `p`, facing its parent's heading, its joint along the
+ *  machine's axis (a hook block's hoist: -z). */
+function plumbFrame(J, p, parent, value) {
+  const y = [parent.R[0][1], parent.R[1][1]], x = [parent.R[0][0], parent.R[1][0]];
+  const th = Math.hypot(...y) > 1e-6 ? Math.atan2(-y[0], y[1]) : Math.atan2(x[1], x[0]), axis = J?.axis ?? [0, 0, -1], v = J ? value : 0;
+  return { R: about([0, 0, 1], th), t: [p[0] + axis[0] * v, p[1] + axis[1] * v, p[2] + axis[2] * v] };
 }
 /** A point in the machine's frame → a frame's own. */
 const unapply = (T, p) => { const d = [p[0] - T.t[0], p[1] - T.t[1], p[2] - T.t[2]]; return [0, 1, 2].map((k) => T.R[0][k] * d[0] + T.R[1][k] * d[1] + T.R[2][k] * d[2]); };
@@ -104,7 +128,7 @@ const RIGID = new Map();
 function rigidWith(arch, body, ctx) {
   const k = `${arch.key}|${body}`;
   if (RIGID.has(k)) return RIGID.get(k);
-  const fixed = (e) => e.on && !e.joint && !e.rocker && !e.ram && !e.link;
+  const fixed = (e) => e.on && !e.joint && !e.rocker && !e.plumb && !isStrut(e);
   const group = new Set([body]);
   for (let grew = true; grew;) {
     grew = false;
@@ -133,7 +157,7 @@ function local(arch, name, value, ctx) {
   const [parent, hp] = split(child.on), J = arch.joints[name];
   const frames = { ...rigidWith(arch, parent, ctx) };
   // (every body on the joint: a pair of stabiliser legs turns on one)
-  for (const c of arch.layout.filter((e) => e.joint === name && split(e.on)[0] === parent)) frames[c.id] = jointFrame(J, ctx.hp(parent, split(c.on)[1]), value * (c.scale ?? 1));
+  for (const c of arch.layout.filter((e) => e.joint === name && split(e.on)[0] === parent)) frames[c.id] = seat(c, J, ctx.hp(parent, split(c.on)[1]), value * (c.scale ?? 1));
   // (a rocker the joint turns: solved on its pin from the child's coupler)
   for (const r of arch.layout.filter((x) => x.rocker === name)) {
     const f = rockerFrame(arch, r, frames, ctx);
@@ -175,9 +199,11 @@ export function rangeOf(arch, name, ctx, key = arch.key) {
   const J = arch.joints[name];
   // (a slide with no ram travels as far as its body does; a slew with none turns freely)
   if (!J.ram) {
+    // (a slide that says its travel: a hoist's, as far as its hook can lower to the ground as built)
+    if (J.travel) { const out = [J.from ?? 0, J.travel]; RANGES.set(k, out); return out; }
     // (a slide's stages each travel their own; the joint as far as the first of them runs out)
     const stages = J.kind === 'slide' ? arch.layout.filter((e) => e.joint === name) : [];
-    const out = stages.length ? [0, Math.round(Math.min(...stages.map((e) => ctx.row(e.sku).dims.travel / (e.scale ?? 1))) * 100) / 100] : null;
+    const out = stages.length ? [0, Math.round(Math.min(...stages.map((e) => ctx.row(e.sku).dims.travel / Math.abs(e.scale ?? 1))) * 100) / 100] : null;
     RANGES.set(k, out);
     return out;
   }
@@ -208,7 +234,7 @@ export function rangeOf(arch, name, ctx, key = arch.key) {
 export function framesOf(arch, joints, ctx) {
   const frames = {};
   for (const e of arch.layout) {
-    if (e.ram || e.link) continue;
+    if (isStrut(e)) continue;
     if (!e.on) { frames[e.id] = IDENTITY; continue; }
     const [parent, hp] = split(e.on);
     if (!frames[parent]) throw new Error(`construction chain: '${e.id}' sits on '${parent}', which comes after it in the layout`);
@@ -218,8 +244,8 @@ export function framesOf(arch, joints, ctx) {
       frames[e.id] = f;
       continue;
     }
-    const at = ctx.hp(parent, hp), J = e.joint ? arch.joints[e.joint] : null;
-    frames[e.id] = compose(frames[parent], J ? jointFrame(J, at, (joints[e.joint] ?? 0) * (e.scale ?? 1)) : { R: IDENTITY.R, t: at });
+    const at = ctx.hp(parent, hp), J = e.joint ? arch.joints[e.joint] : null, v = (joints[e.joint] ?? 0) * (e.scale ?? 1);
+    frames[e.id] = e.plumb ? plumbFrame(J, apply(frames[parent], at), frames[parent], v) : compose(frames[parent], seat(e, J, at, v));
   }
   return frames;
 }
@@ -253,7 +279,19 @@ export function solveChain(arch, pose, ctx) {
   // the struts: a ram's barrel and rod, a link, each a rigid body aimed between its two points
   const struts = [];
   for (const e of arch.layout) {
-    if (!e.ram && !e.link) continue;
+    if (!isStrut(e)) continue;
+    if (e.rope) {
+      // (a rope: its lengths spread from its first point to its second, the first at the top, overlapping where it is short)
+      // (a rope shorter than one length is that length drawn smaller; a rope of no length hangs straight down)
+      const a = P(e.rope[0]), b0 = P(e.rope[1]), far = Math.hypot(b0[0] - a[0], b0[1] - a[1], b0[2] - a[2]) > 1e-6, b = far ? b0 : [a[0], a[1], a[2] - 1];
+      const f = aimFrame(a, b, apply({ R: frames[split(e.rope[0])[0]].R, t: [0, 0, 0] }, [1, 0, 0])), L = far ? f.length : 0;
+      const seg = ctx.row(e.sku).dims.length, n = e.count ?? 1, ax = [f.R[0][1], f.R[1][1], f.R[2][1]], scale = L < seg ? Math.round((L / seg) * 1000) / 1000 : 1;
+      for (let k = 0; k < n; k++) {
+        const off = n > 1 ? (Math.max(0, L - seg) * k) / (n - 1) : 0;
+        struts.push({ id: e.id, item: k ? `${e.id}.f${k}` : e.id, kind: 'rope', frame: { R: f.R, t: f.t.map((v, i) => v + ax[i] * off) }, length: L, ...(scale < 1 ? { scale } : {}) });
+      }
+      continue;
+    }
     const [ra, rb] = e.ram ?? e.link;
     for (const side of e.pair ? ['r', 'l'] : [null]) {
       const item = side ? `${e.id}-${side}` : e.id;

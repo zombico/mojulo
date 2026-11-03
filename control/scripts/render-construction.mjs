@@ -4,7 +4,7 @@
  * envelope and its laws. The machine gate's eyes are the operator's: this draws, it does not judge. No database writes.
  *
  * From control/:
- *   node scripts/render-construction.mjs <output-directory> [archetype,…|all] [--poses rest,dig,dump] [--views side,quarter,front,top,rear] [--joints '{"boom":20}'] [--tool breaker] [--carrier wheels]
+ *   node scripts/render-construction.mjs <output-directory> [archetype,…|all] [--poses rest,dig,dump] [--views side,quarter,front,top,rear] [--joints '{"boom":20}'] [--tool breaker] [--carrier wheels] [--height 55]
  * Writes <archetype>-<pose>-<view>.png, the pages and index.html.
  */
 import { mkdirSync, writeFileSync } from 'node:fs';
@@ -26,7 +26,7 @@ if (!output) { console.error('Usage: node scripts/render-construction.mjs <outpu
 const flag = (k) => { const i = args.indexOf(k); return i >= 0 ? args[i + 1] : null; };
 const views = (flag('--views') || 'side,quarter').split(',');
 const joints = flag('--joints') ? JSON.parse(flag('--joints')) : null;
-const tool = flag('--tool') ?? undefined, carrier = flag('--carrier') ?? undefined;
+const tool = flag('--tool') ?? undefined, carrier = flag('--carrier') ?? undefined, mast = flag('--height') ? Number(flag('--height')) : undefined;
 const pick = args[1] && !args[1].startsWith('--') && args[1] !== 'all' ? args[1].split(',') : Object.keys(CON_ARCHETYPES);
 const outDir = path.resolve(output); mkdirSync(outDir, { recursive: true });
 const width = 960, height = 600;
@@ -34,7 +34,7 @@ let gallery = '';
 for (const id of pick) {
   const poses = joints ? ['joints'] : (flag('--poses') || Object.keys(CON_ARCHETYPES[id].poses).join(',')).split(',');
   for (const pose of poses) {
-    const { manifest, readout } = assembleMachine(id, { pose: joints ?? pose, tool, carrier });
+    const { manifest, readout } = assembleMachine(id, { pose: joints ?? pose, tool, carrier, height: mast });
     const { payload } = await resolveWorldScene({ ref: `${id}-${pose}`, kind: 'assembler', manifest });
     const name = `${id}${carrier ? `-${carrier}` : ''}${tool ? `-${tool}` : ''}-${pose}`;
     const faces = payload.faces.filter((f) => !f.studio);

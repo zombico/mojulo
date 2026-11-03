@@ -24,8 +24,8 @@ import { VEHICLES as PHYSICS } from '../roads/vehicles.js';
 import { CON_COLOR_ROLES, CON_PALETTES, apply, clone, eulerXYZ, resolveConPalette, round3 } from './con-common.js';
 import { CON_BUILDERS } from './con-parts.js';
 import { CON_KINDS, CON_ODM, scaleDims } from './con-odm.js';
-import { CON_ARCHETYPES, CON_CARRIERS, CON_MOUNTS, toolSku } from './con-archetypes.js';
-import { framesOf, rangeOf, solveChain } from './con-chain.js';
+import { CON_ARCHETYPES, CON_CARRIERS, CON_MOUNTS, toolSku, towerCraneAt } from './con-archetypes.js';
+import { framesOf, isStrut, rangeOf, solveChain } from './con-chain.js';
 import { conLaws } from './con-laws.js';
 
 export { CON_ARCHETYPES, CON_CARRIERS, CON_COLOR_ROLES, CON_KINDS, CON_MOUNTS, CON_ODM, CON_PALETTES };
@@ -67,6 +67,11 @@ function archetypeRow(id) {
 }
 // (what a bucket's envelope is measured as: a tool other than the machine's bucket reads it, never held to it)
 const BUCKET_BANDS = Object.freeze(['reach', 'depth', 'dumpHeight', 'cutHeight']);
+/** A machine's height under its hook, its hook hoisted all the way up (its tip at the hoist's zero). */
+function hookHeight(row) {
+  const ctx = machineCtx(row.key), [b, h] = row.tip.split('.');
+  return apply(framesOf(row, { hoist: 0 }, ctx)[b], ctx.hp(b, h))[2];
+}
 /**
  * A machine with the door's swaps → its key: its carrier (one the machine lists: the machine it makes, a skid steer on
  * tracks the compact track loader) and its tool (one its mount takes, in its bucket's place on its tool joint). The laws
@@ -74,8 +79,20 @@ const BUCKET_BANDS = Object.freeze(['reach', 'depth', 'dumpHeight', 'cutHeight']
  * machine's bucket's, so another tool's envelope is read, not held to them. A swap the machine does not take is refused,
  * naming what it takes.
  */
-export function composeMachine(archetype, { tool, carrier } = {}) {
+export function composeMachine(archetype, { tool, carrier, height } = {}) {
   let key = archetype;
+  if (height !== undefined) {
+    // (a tower crane built to the height under its hook the operator names: the nearest number of its mast's sections)
+    const base = archetypeRow(key), M = base.sections;
+    if (!M) throw new Error(`construction ${base.label}: its height is its own (only a machine built in sections takes a height)`);
+    if (!Number.isFinite(height)) throw new Error(`construction ${base.label}: a height is metres under its hook`);
+    const per = partRow(M.sku).dims.length, now = hookHeight(base), k = Math.max(M.min, Math.min(M.max, M.n + Math.round((height - now) / per)));
+    if (k !== M.n) {
+      const composed = `${key}@${k}`;
+      if (!COMPOSED.has(composed)) COMPOSED.set(composed, Object.freeze({ ...towerCraneAt(k), label: `${base.label}, ${k} mast sections` }));
+      key = composed;
+    }
+  }
   if (carrier) {
     const base = archetypeRow(key), C = CON_CARRIERS[carrier];
     if (!C) throw new Error(`Unknown construction carrier '${carrier}'; expected one of: ${Object.keys(CON_CARRIERS).join(', ')}`);
@@ -237,7 +254,7 @@ function hingesAbove(arch, name, joints) {
  *  the ground at joint values. */
 function lowBelow(arch, ctx, joints, name) {
   const under = (e) => { for (let x = e; x; x = x.on ? arch.layout.find((y) => y.id === x.on.split('.')[0]) : null) if (x.joint === name) return true; return false; };
-  const bodies = arch.layout.filter((e) => !e.ram && !e.link && under(e) && ctx.outline(e.id));
+  const bodies = arch.layout.filter((e) => !isStrut(e) && under(e) && ctx.outline(e.id));
   const F = framesOf(arch, joints, ctx);
   return Math.min(...bodies.flatMap((e) => ctx.outline(e.id).map((p) => apply(F[e.id], p)[2])));
 }
@@ -258,22 +275,22 @@ function groundJoint(arch, ctx, joints, name, settle = (j) => j) {
  * struts aimed between their pins. The readout says the pose's joints and every joint's range, the laws (read at the
  * machine's own reference poses: con-laws.js), the measures as it stands, the BOM.
  */
-export function assembleMachine(archetypeIn, { pose = 'rest', palette, colors = {}, finish = true, title, tool, carrier } = {}) {
-  const archetype = composeMachine(archetypeIn, { tool, carrier });
+export function assembleMachine(archetypeIn, { pose = 'rest', palette, colors = {}, finish = true, title, tool, carrier, height } = {}) {
+  const archetype = composeMachine(archetypeIn, { tool, carrier, height });
   const ctx = machineCtx(archetype), arch = ctx.arch, joints = posedJoints(archetype, pose);
   const chain = solveChain(arch, joints, ctx);
   const src = (sku, part) => resolveConPart(sku, { archetype, part, palette, colors, finish });
-  const place = (id, source, T) => {
+  const place = (id, source, T, scale) => {
     const rot = eulerXYZ(T.R).map((d) => round3(d) || 0);
-    return { id, source, at: T.t.map((v) => round3(v) + 0), ...(rot.some(Boolean) ? { rotate: rot } : {}) };
+    return { id, source, at: T.t.map((v) => round3(v) + 0), ...(rot.some(Boolean) ? { rotate: rot } : {}), ...(scale ? { scale } : {}) };
   };
   const items = [];
-  for (const e of arch.layout) if (!e.ram && !e.link) items.push(place(e.id, src(e.sku), chain.frames[e.id]));
-  for (const s of chain.struts) items.push(place(s.item, src(ctx.entry(s.id).sku, s.kind === 'link' ? undefined : s.part ?? s.kind), s.frame));
+  for (const e of arch.layout) if (!isStrut(e)) items.push(place(e.id, src(e.sku), chain.frames[e.id]));
+  for (const s of chain.struts) items.push(place(s.item, src(ctx.entry(s.id).sku, s.kind === 'link' || s.kind === 'rope' ? undefined : s.part ?? s.kind), s.frame, s.scale));
   const manifest = { kind: 'assembler', title: title || `${arch.label} (${arch.classOf})`, units: 'm', items };
   const laws = conLaws(arch, ctx, { corners: (sku, part) => partCorners(archetype, sku, part), physics: PHYSICS[arch.physics], posed: (name) => posedJoints(archetype, name) });
-  // (a ram counts once: its rod and its stages are the barrel's)
-  const bom = planAssemblyBom(items.map((it) => ({ garage: { kind: it.source.garage.kind } })).filter((x, i) => !/\.(rod|s\d+)$/.test(items[i].id)), arch.bom);
+  // (a ram counts once: its rod and its stages are the barrel's; a rope once, its lengths its first's)
+  const bom = planAssemblyBom(items.map((it) => ({ garage: { kind: it.source.garage.kind } })).filter((x, i) => !/\.(rod|s\d+|f\d+)$/.test(items[i].id)), arch.bom);
   return {
     manifest,
     readout: {
@@ -281,6 +298,7 @@ export function assembleMachine(archetypeIn, { pose = 'rest', palette, colors = 
       ...(archetype !== archetypeIn ? { composed: archetype } : {}),
       ...(tool ? { tool } : {}),
       ...(carrier ? { carrier } : {}),
+      ...(arch.sections ? { height: Math.round(hookHeight(arch) * 100) / 100, sections: arch.layout.filter((e) => e.sku === arch.sections.sku).length } : {}),
       label: arch.label,
       classOf: arch.classOf,
       physics: arch.physics,

@@ -81,8 +81,8 @@ export function buildsOf(id) {
   for (const k of h.craft ?? []) out.push(B('realistic', 'craft', k, 'live', ['transformer'], 'the craft shelf\'s assembly at its class\'s true figures'));
   for (const k of h.cycle ?? []) out.push(B('realistic', 'cycle', k, 'live', ['quick ride', 'mint_solid vehicle preview', 'a level\'s parked vehicles'], 'the cycle shelf\'s machine, its parts on its solved chassis at its class\'s numbers (cycle-shelf/): ridden, its rider astride, or parked on its stand'));
   // (a site machine is the construction shelf's: built, posed and held to its laws, asleep until a door draws it; a
-  // crawler's is parked and watched, never driven, until skid steer is built)
-  for (const k of h.construction ?? []) out.push(B('realistic', 'construction', k, 'asleep', [], 'the construction shelf\'s machine, its carrier, its upper, its front on its chain and its tool at its class\'s numbers (construction-shelf/): built and posed, not yet wired into a door', (h.physics ?? []).some(tracked) ? UNDRIVEN : SERVES.construction));
+  // crawler's is parked and watched, never driven, until skid steer is built; a tower crane, which has no class to drive)
+  for (const k of h.construction ?? []) out.push(B('realistic', 'construction', k, 'asleep', [], 'the construction shelf\'s machine, its carrier, its upper, its front on its chain and its tool at its class\'s numbers (construction-shelf/): built and posed, not yet wired into a door', !(h.physics ?? []).length || h.physics.some(tracked) ? UNDRIVEN : SERVES.construction));
   for (const k of h.fleet ?? []) out.push(B('realistic', 'fleet', k, 'live', ['roadway traffic'], 'the highway fleet\'s loft at true dimensions, at traffic distance'));
   for (const k of (h.physics ?? []).filter(loftable).slice(0, 1)) {
     if (tracked(k)) { out.push(B('realistic', 'loft', k, 'live', ['mint_solid vehicle preview', 'a level\'s parked vehicles'], 'the military hull kit\'s body of its class on its running gear (road-military.js, mil-track.js), drawn and parked: not driven until skid steer is built', UNDRIVEN)); continue; }

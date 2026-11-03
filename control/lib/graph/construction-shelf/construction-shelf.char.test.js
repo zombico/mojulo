@@ -24,6 +24,11 @@
  *     the mixer's drum, the articulated dumper's front and rear frames and its rock body, the haul truck's frame and
  *     body pinned, and the four machines; a ram's lengths moving to the chain, and a telescopic ram's own lengths,
  *     moved no existing pin.
+ *   - The lifters (unreleased): the crane carrier, its superstructure, the counterweight's slabs, the outrigger's beam
+ *     and its jack, the hook block, the rope, and the tower crane's base, mast section, slewing unit, head, jib,
+ *     counter-jib and trolley pinned, and the two cranes. The truck cab's bumper was a box of no length (its corners
+ *     not numbers); drawn across the cab, it re-pins the cab and the tipper and the mixer that carry it. A crane
+ *     boom's sheaves, an entry's turn, a plumb body and a rope moved no other pin.
  */
 import { createHash } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
@@ -76,7 +81,7 @@ const PINS = {
   'leg-bh-r': '2590b3b373250198',
   'ram-boom-ex20.rod': 'ee3b8d6daeffb743',
   'chassis-tp84': '5ef327e645d4fcf4',
-  'cab-truck': '0998a2e44a5caca6',
+  'cab-truck': '70b8d695a80c9eb5',
   'body-tp84': '562109146c9d1405',
   'ram-tip-tp84': '224f1f5db0c9817e',
   'ram-tip-tp84.stage1': '6c5b68fe3747c1d6',
@@ -86,6 +91,20 @@ const PINS = {
   'body-adt30': '242e0cecaabe2cbe',
   'frame-haul100': 'd5165e9d72a554a3',
   'body-haul100': '8d27a33af6919a4f',
+  'chassis-at60': 'b5bd1515a7a15cce',
+  'house-at60': 'fcde7c9603fc3a06',
+  'cw-at60': 'f4e64e45ec2b921e',
+  'outrigger-at60': '07e05b66e7ab0ad2',
+  'jack-at60': '7818278a906d219f',
+  'hook-at60': '2b720ad960117574',
+  'rope-at60': '26016b9ee20809a1',
+  'base-tc': '350d1f38689db7e5',
+  'mast-tc': 'a8f967e755b47923',
+  'slew-tc': '1a9928d1238a5a6b',
+  'head-tc': 'b5f19e37a0a7eb45',
+  'jib-tc60': '691ff33937263397',
+  'cjib-tc': '95802ec6e55e6e02',
+  'trolley-tc': '3122a4fd64fa9265',
   'con:crawlerExcavator': '0eefeb9e723f41ef',
   'con:bulldozer': '94272ebad7ce55a9',
   'con:wheelLoader': '8850036d94e7ed84',
@@ -96,10 +115,12 @@ const PINS = {
   'con:backhoeLoader': '3de6f9e6f20e0f31',
   'con:compactTrackLoader': 'c2f22ee973a96c2e',
   'con:wheeledExcavator': '8c317d51e544b82d',
-  'con:tipperTruck': 'bcf10a041ec4fa87',
-  'con:mixerTruck': 'd06c7887a2da4ba7',
+  'con:tipperTruck': '42224024f1b525ce',
+  'con:mixerTruck': 'ecdf9946381d54c0',
   'con:articulatedDumpTruck': '52a235b814da1955',
   'con:haulTruck': '70f1b6a62a583ed4',
+  'con:mobileCrane': 'e6701022b17ca8f5',
+  'con:towerCrane': '09060cd6a3c5622b',
   'con:crawlerExcavator+breaker': '153954592e6736b8',
 };
 

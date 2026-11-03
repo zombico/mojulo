@@ -583,4 +583,122 @@ const HAULERS = Object.freeze({
   }),
 });
 
-export const CON_ARCHETYPES = Object.freeze({ ...ARCHETYPES, wheeledExcavator: WHEELED, ...HAULERS });
+// ── the lifters ─────────────────────────────────────────────────────────────────────────────────────────────
+const outrigger = (box, s) => ({ id: `beam${box}${s.toUpperCase()}`, sku: 'outrigger-at60', on: `chassis.out${box}.${s}`, joint: 'outrigger', ...(s === 'l' ? { turn: 180 } : {}) });
+const jack = (box, s) => ({ id: `jack${box}${s.toUpperCase()}`, sku: 'jack-at60', on: `beam${box}${s.toUpperCase()}.tip`, joint: 'jack' });
+/** A rope run's lengths: as many as its hoist's travel needs, and one. */
+const ropeCount = (travel, seg) => Math.ceil(travel / seg) + 1;
+
+// a five-axle all-terrain crane, 60 t: its carrier on ten tyres, its outriggers' beams sliding out of their boxes and
+// their jacks set down, its superstructure on its slewing ring, its counterweight's slabs, its boom in five sections
+// luffed by one ram and telescoped a share each, its hook block hung plumb from the boom's head on four falls
+const MOBILE = Object.freeze({
+  label: 'all-terrain crane',
+  classOf: 'all-terrain crane 60 t',
+  physics: 'mobileCrane',
+  palette: 'siteYellow',
+  joints: Object.freeze({
+    slew: Object.freeze({ kind: 'slew' }),
+    luff: Object.freeze({ kind: 'hinge', ram: 'luffRam', near: 40 }),
+    extend: Object.freeze({ kind: 'slide' }),
+    hoist: Object.freeze({ kind: 'slide', axis: [0, 0, -1], from: 1.2, travel: 48 }),
+    outrigger: Object.freeze({ kind: 'slide', axis: [1, 0, 0] }),
+    jack: Object.freeze({ kind: 'slide', axis: [0, 0, -1] }),
+  }),
+  layout: Object.freeze([
+    { id: 'chassis', sku: 'chassis-at60' },
+    { id: 'cab', sku: 'cab-at60c', on: 'chassis.cab' },
+    ...[0, 1, 2, 3, 4].flatMap((i) => singleWheels('chassis', i, 'wheel-at60')),
+    outrigger('F', 'r'), outrigger('F', 'l'), outrigger('R', 'r'), outrigger('R', 'l'),
+    jack('F', 'r'), jack('F', 'l'), jack('R', 'r'), jack('R', 'l'),
+    { id: 'ring', sku: 'slew-at60', on: 'chassis.slew' },
+    { id: 'house', sku: 'house-at60', on: 'ring.top', joint: 'slew' },
+    { id: 'ucab', sku: 'cab-at60u', on: 'house.cab' },
+    { id: 'cw', sku: 'cw-at60', on: 'house.cw' },
+    { id: 'base', sku: 'boom-at60-1', on: 'house.foot', joint: 'luff' },
+    { id: 'tele1', sku: 'boom-at60-2', on: 'base.seat', joint: 'extend', scale: 0.25 },
+    { id: 'tele2', sku: 'boom-at60-3', on: 'tele1.seat', joint: 'extend', scale: 0.25 },
+    { id: 'tele3', sku: 'boom-at60-4', on: 'tele2.seat', joint: 'extend', scale: 0.25 },
+    { id: 'tele4', sku: 'boom-at60-5', on: 'tele3.seat', joint: 'extend', scale: 0.25 },
+    { id: 'hook', sku: 'hook-at60', on: 'tele4.sheave', joint: 'hoist', plumb: true },
+    { id: 'rope', sku: 'rope-at60', rope: ['tele4.sheave', 'hook.top'], count: ropeCount(48, 4) },
+    { id: 'luffRam', sku: 'ram-luff-at60', ram: ['house.ramBase', 'base.ramEye'] },
+  ].map(Object.freeze)),
+  tip: 'hook.hook',
+  poses: Object.freeze({
+    rest: Object.freeze({ outrigger: 0, jack: 0, luff: 0, extend: 0, hoist: 0 }),
+    travel: Object.freeze({ outrigger: 0, jack: 0, luff: 0, extend: 0, hoist: 0 }),
+    transport: Object.freeze({ outrigger: 0, jack: 0, luff: 0, extend: 0, hoist: 0 }),
+    rigged: Object.freeze({ outrigger: 1, jack: 'ground', luff: 0.45, extend: 0.2, hoist: 'ground' }),
+    lift: Object.freeze({ outrigger: 1, jack: 'ground', luff: 0.7, extend: 0.4, hoist: 0.25 }),
+    high: Object.freeze({ outrigger: 1, jack: 'ground', luff: 1, extend: 1, hoist: 0.05 }),
+  }),
+  laws: Object.freeze({
+    arcs: { luff: [78, 86], extend: [33, 34] },
+    measure: {
+      tipHeight: { point: 'tele4.sheave', over: ['luff', 'extend'], take: 'max', band: [46, 51], says: 'its boom\'s head all out and luffed up' },
+    },
+    chart: { pose: 'lift', radii: { 8: [20, 36], 12: [10, 20], 20: [4.5, 10] } },
+    spread: [6.4, 7.0],
+    mass: 0.1, transport: { W: 3.0, H: 4.0 },
+  }),
+  bom: Object.freeze({ 'con-chassis': 1, 'con-cab': 2, 'con-wheel': 10, 'con-outrigger': 8, 'con-slew': 1, 'con-house': 1, 'con-counterweight': 1, 'con-section': 5, 'con-hook': 1, 'con-rope': 1, 'con-ram': 1 }),
+});
+
+// a tower crane, a 58 m hammerhead: its cross base and its ballast, its mast of 4 m lattice sections to the height it
+// is built to, its slewing unit, its cab, its tower head and the pendants that hang its jib and its counter-jib, the
+// counter-jib's ballast, the trolley on the jib's rails, the hook block plumb under it on two falls
+const MAST = Object.freeze({ sku: 'mast-tc', min: 2, max: 14, n: 10 });
+const towerRow = (k) => {
+  const base = CON_ODM['base-tc'].dims.top, mast = CON_ODM['mast-tc'].dims.length, slew = CON_ODM['slew-tc'].dims, T = CON_ODM['trolley-tc'].dims, H = CON_ODM['hook-tc'].dims;
+  // (the sheave's height over the ground; the hook lowers from under it to the ground, its block and its hook above)
+  const sheave = base + k * mast + slew.jib[2] - T.h - 0.25, travel = Math.floor((sheave - H.h - H.hook * 1.3 - 0.05) * 100) / 100;
+  return Object.freeze({
+    label: 'tower crane',
+    classOf: 'tower crane 60 m',
+    physics: null,
+    palette: 'siteYellow',
+    sections: MAST,
+    joints: Object.freeze({
+      slew: Object.freeze({ kind: 'slew' }),
+      trolley: Object.freeze({ kind: 'slide' }),
+      hoist: Object.freeze({ kind: 'slide', axis: [0, 0, -1], from: 1.2, travel }),
+    }),
+    layout: Object.freeze([
+      { id: 'base', sku: 'base-tc' },
+      ...Array.from({ length: k }, (_, i) => ({ id: `mast${i + 1}`, sku: MAST.sku, on: i ? `mast${i}.top` : 'base.top' })),
+      { id: 'turntable', sku: 'slew-tc', on: `mast${k}.top`, joint: 'slew' },
+      { id: 'cab', sku: 'cab-tc', on: 'turntable.cab' },
+      { id: 'head', sku: 'head-tc', on: 'turntable.apex' },
+      { id: 'jib', sku: 'jib-tc60', on: 'turntable.jib' },
+      { id: 'counterJib', sku: 'cjib-tc', on: 'turntable.counter' },
+      { id: 'ballast', sku: 'ballast-tc', on: 'counterJib.ballast' },
+      { id: 'trolley', sku: 'trolley-tc', on: 'jib.root', joint: 'trolley' },
+      { id: 'hook', sku: 'hook-tc', on: 'trolley.sheave', joint: 'hoist', plumb: true },
+      { id: 'rope', sku: 'rope-tc', rope: ['trolley.sheave', 'hook.top'], count: ropeCount(travel, CON_ODM['rope-tc'].dims.length) },
+    ].map(Object.freeze)),
+    tip: 'hook.hook',
+    poses: Object.freeze({
+      rest: Object.freeze({ trolley: 0.1, hoist: 0 }),
+      transport: Object.freeze({ trolley: 0, hoist: 0 }),
+      lift: Object.freeze({ slew: 30, trolley: 0.45, hoist: 0.5 }),
+      reach: Object.freeze({ slew: 60, trolley: 1, hoist: 0.2 }),
+      ground: Object.freeze({ slew: -40, trolley: 0.3, hoist: 'ground' }),
+    }),
+    laws: Object.freeze({
+      tower: { tipLoad: 1800, maxLoad: 8000, wind: 20, freestanding: [10, 62], radius: [55, 60], balance: [0.9, 1.15], stability: [1.5, 5] },
+      // (its class: its upper (its slewing unit, its head, its jibs, its trolley, its hook and its rope) 26 t, its
+      // counter-jib's ballast 20 t, its base's 45 t, its mast's 1.5 t a section)
+      classMass: 91000 + 1500 * k,
+      mass: 0.1,
+    }),
+    bom: Object.freeze({ 'con-tower': k + 2, 'con-house': 1, 'con-cab': 1, 'con-jib': 2, 'con-counterweight': 1, 'con-trolley': 1, 'con-hook': 1, 'con-rope': 1 }),
+  });
+};
+/** A tower crane built to `k` mast sections (its sections' min to max). */
+export function towerCraneAt(k) {
+  if (!Number.isInteger(k) || k < MAST.min || k > MAST.max) throw new Error(`construction tower crane: its mast is ${MAST.min} to ${MAST.max} sections (not ${k})`);
+  return towerRow(k);
+}
+
+export const CON_ARCHETYPES = Object.freeze({ ...ARCHETYPES, wheeledExcavator: WHEELED, ...HAULERS, mobileCrane: MOBILE, towerCrane: towerRow(MAST.n) });

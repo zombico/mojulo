@@ -117,6 +117,13 @@ export function boomSection(row, C) {
   if (d.ramEye) { lathes.push(boss('ram_eye', d.ramEye, -0.12, 0.12, 0.06, tone(C.trim, 0.2))); hp.ramEye = d.ramEye; }
   if (d.tiltRam) { lathes.push(boss('tilt_pin', d.tiltRam, -0.1, 0.1, 0.05, tone(C.trim, 0.2))); hp.tiltRam = d.tiltRam; }
   if (d.headPin) { lathes.push(boss('head_pin', [0, d.length, 0], -d.w / 2 - 0.02, d.w / 2 + 0.02, 0.07, tone(C.trim, 0.2))); }
+  // (a crane's head: its sheaves on their pin past the section's end, its cheek plates; the rope hangs from under them)
+  if (d.sheaves) {
+    const y = d.length + 0.3, r = d.h * 0.42;
+    for (const k of [1, -1]) extrudes.push(panel(`cheek_${side(k)}`, k * (d.w / 2 - 0.03), k * (d.w / 2 + 0.01), [[d.length - 0.2, -d.h / 2], [d.length - 0.2, d.h / 2], [y + 0.1, d.h / 2 - 0.05], [y + r + 0.05, 0], [y + 0.1, -r - 0.05]], body));
+    for (let k = 0; k < d.sheaves; k++) { const x = -d.w / 2 + 0.08 + ((d.w - 0.16) * (k + 0.5)) / d.sheaves; lathes.push(spin(`sheave_${k}`, [x - 0.025, y, 0], [x + 0.025, y, 0], [[0, r], [1, r]], tone(C.trim, 0.25), 20)); }
+    hp.sheave = [0, y, -r];
+  }
   // (a section's wear pads at its mouth, where the next slides out of it)
   if (d.pads) for (const s of [1, -1]) extrudes.push(box(`pad_${side(s)}`, [s * (d.w / 2 - 0.02), d.length - 0.12, 0], [s * (d.w / 2 - 0.02), d.length - 0.02, 0], 0.03, d.h * 0.8, tone(C.trim, 0.3)));
   return { lofts, lathes, extrudes, hardpoints: hp };
