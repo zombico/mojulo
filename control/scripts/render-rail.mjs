@@ -8,7 +8,8 @@
  * A preset may be a bogie's archetype (bogie-odm.js), drawn alone on its track: views quarter, side, top, end, spun
  * (its wheels turned a quarter and swung 6° on its pivot); or a pantograph's (panto-odm.js), on a roof plate under its
  * wire: views folded, half, raised (to the wire), quarter. A cab car with pantographs runs under a catenary at
- * `RAIL_WIRE` metres (5.6), its pantographs raised to it.
+ * `RAIL_WIRE` metres (5.6), its pantographs raised to it. A preset may also be a car's archetype (car-odm.js), drawn
+ * alone (quarter, side, end), or `train:<family>` (consist.js), the whole train coupled (side, quarter, coupling, tail).
  * Writes <preset>-<view>.png, the pages, report.json and index.html.
  */
 import { mkdirSync, writeFileSync } from 'node:fs';
@@ -19,7 +20,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 const control = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 process.chdir(control);
 register(pathToFileURL(path.join(control, 'scripts/mcp-stdio-loader.mjs')).href);
-const { composeCab, CAB_LIBRARY, finishRailFaces, compileBogieSurface, BOGIE_KINDS, RAIL_MATERIALS, compilePantoSurface, PANTO_KINDS, compileCatenary } = await import('../lib/graph/rail-shelf/index.js');
+const { composeCab, CAB_LIBRARY, finishRailFaces, compileBogieSurface, BOGIE_KINDS, RAIL_MATERIALS, compilePantoSurface, PANTO_KINDS, compileCatenary, compileCarSurface, CAR_KINDS, composeTrain, TRAIN_PLANS } = await import('../lib/graph/rail-shelf/index.js');
 const { emitVehicleReview } = await import('../lib/graph/car-designer/vehicle-review.js');
 const { renderWorldToPng } = await import('../lib/graph/scene/scene-png.js');
 
@@ -59,6 +60,45 @@ for (const preset of presets) {
       if (v === vs[0]) report.push({ preset, design: dd, census: b.census, hardpoints: b.hardpoints });
     }
     gallery += '</section>';
+    continue;
+  }
+  if (CAR_KINDS.includes(preset)) {
+    const c = compileCarSurface({ seed: 11, archetype: preset }, { quality }), dd = c.design, L = dd.frame.length;
+    const compiled = { ...c, faces: { ...c.faces, track: track(L) } };
+    const vs = viewArg ? views.filter((v) => ['quarter', 'side', 'end'].includes(v)) : ['quarter', 'side', 'end'];
+    gallery += `<h2>${preset}</h2><p>${c.census.triangles.toLocaleString('en-US')} triangles · ${L} m · laws ${dd.valid ? 'held' : 'failed'}</p><section>`;
+    for (const v of vs) {
+      const cam = { quarter: [[L * 0.45 + 4, L * 0.55 + 4, 4], [0, 0, 1.8], 40], side: [[L * 0.95 + 6, 0, 2.2], [0, 0, 1.9], 40], end: [[3.2, L / 2 + 6, 3], [0, L / 2, 1.7], 42] }[v];
+      const html = emitVehicleReview(compiled, { title: preset, cameraPosition: cam[0], lookAt: cam[1], horizontalFov: cam[2] });
+      writeFileSync(path.join(outDir, `${preset}-${v}.png`), await renderWorldToPng(html, { width, height, deviceScaleFactor: 1 }));
+      writeFileSync(path.join(outDir, `${preset}-${v}.html`), html);
+      gallery += `<figure><a href="${preset}-${v}.html"><img alt="${preset}, ${v}" src="${preset}-${v}.png"></a><figcaption>${v}</figcaption></figure>`;
+      console.log(`Rendered ${preset}-${v}`);
+    }
+    gallery += '</section>';
+    report.push({ preset, design: c.design, census: c.census });
+    continue;
+  }
+  if (preset.startsWith('train:') && TRAIN_PLANS[preset.slice(6)]) {
+    const fam = preset.slice(6), WIRE = Number(process.env.RAIL_WIRE) || 5.6, probe = composeCab({ preset: Object.keys(CAB_LIBRARY).find((k) => CAB_LIBRARY[k].brief.archetype === TRAIN_PLANS[fam].cab), surface: { quality: 'game' } });
+    const hasP = (probe.design.pantographs || []).length > 0;
+    const T = composeTrain({ family: fam, seed: 11, quality: 'game', ...(hasP ? { pose: { wire: WIRE } } : {}) }), L = T.length, mid = -L / 2 + T.vehicles[0].length / 2;
+    const tr = track(L * 2).map((f) => ({ ...f, corners: f.corners.map(([x, y, z]) => [x, y + mid, z]) }));
+    const compiled = { faces: { ...T.faces, track: tr, ...(hasP ? compileCatenary({ length: L + 40, height: WIRE, quality: 'game', y0: -L - 20 }).faces : {}) }, materials: T.materials, census: T.census };
+    const c1 = T.vehicles[0].y - T.vehicles[0].length / 2 - T.couplings[0].gap / 2, tip = probe.design.anchors.tip;
+    const vs = viewArg ? views.filter((v) => ['side', 'quarter', 'coupling', 'tail'].includes(v)) : ['side', 'quarter', 'coupling', 'tail'];
+    gallery += `<h2>${fam} train</h2><p>${T.vehicles.length} vehicles · ${L} m · ${T.census.triangles.toLocaleString('en-US')} triangles · laws ${T.valid ? 'held' : 'failed'}</p><section>`;
+    for (const v of vs) {
+      const cam = { side: [[L * 0.62, mid, 3], [0, mid, 1.9], 52], quarter: [[14, tip + 18, 6.5], [0, tip - 30, 1.8], 44], coupling: [[3.6, c1 + 3.2, 2.4], [0, c1, 1.4], 44],
+        tail: [[6, -L + tip - 10, 4.2], [0, -L + tip + 10, 1.8], 44] }[v];
+      const html = emitVehicleReview(compiled, { title: `${fam} train`, cameraPosition: cam[0], lookAt: cam[1], horizontalFov: cam[2] });
+      writeFileSync(path.join(outDir, `train-${fam}-${v}.png`), await renderWorldToPng(html, { width, height, deviceScaleFactor: 1 }));
+      writeFileSync(path.join(outDir, `train-${fam}-${v}.html`), html);
+      gallery += `<figure><a href="train-${fam}-${v}.html"><img alt="${fam}, ${v}" src="train-${fam}-${v}.png"></a><figcaption>${v}</figcaption></figure>`;
+      console.log(`Rendered train-${fam}-${v}`);
+    }
+    gallery += '</section>';
+    report.push({ preset, plan: T.plan, vehicles: T.vehicles, couplings: T.couplings, laws: T.laws, census: T.census });
     continue;
   }
   if (PANTO_KINDS.includes(preset)) {

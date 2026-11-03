@@ -27,6 +27,7 @@ import { solveCabDesign, halfWidthAt, frontAt, frontNormal } from './cab-odm.js'
 import { RAIL_MATERIALS, r4, sub, add, mul, cross, unit, face, box, cylinder, disc, finishRailFaces } from './rail-geom.js';
 import { compileBogieSurface } from './bogie-surface.js';
 import { compilePantoSurface } from './panto-surface.js';
+import { samples, sectionRows, windowLights, sideParts, extrudeSides, endWall, articulationRing } from './body-shell.js';
 
 export { RAIL_MATERIALS, finishRailFaces, railMaterial } from './rail-geom.js';
 
@@ -43,8 +44,6 @@ export const CAB_LIVERIES = Object.freeze({
   green: Object.freeze({ body: '#2f6b45', band: '#e6c34a', roof: '#6e7377', skirt: '#2a2c2e', mask: '#121416', door: '#2f6b45', beam: '#b3261e' }),
 });
 const DARK = '#1c1e20', GLASS = '#22313c', STEEL = '#7d8287', LAMP = '#f4f1e2', TAIL = '#b8242c', SIGN = '#ffb23e', RUBBER = '#1a1b1c';
-// sorted, deduped samples: the base spacing and every boundary a part needs
-const samples = (base, snaps, lo, hi, gap) => [...base, ...snaps].filter((v) => v >= lo - 1e-9 && v <= hi + 1e-9).map((v) => Math.min(hi, Math.max(lo, v))).sort((a, b) => a - b).filter((v, i, a) => i === 0 || v - a[i - 1] > gap);
 
 export function compileCabSurface(brief = {}, { quality = 'studio', livery, pose = {} } = {}) {
   const LOD = CAB_LODS[quality];
@@ -58,14 +57,8 @@ export function compileCabSurface(brief = {}, { quality = 'studio', livery, pose
   const band = [r4(S.zw - 0.05), r4(S.zw + 0.12)], win = [r4(floor + 0.85), r4(floor + 1.92)], doorTop = floor + d.doors.height;
   const signZ = SC.sign ? [r4(SC.z1 + 0.08), r4(SC.z1 + 0.08 + SC.sign)] : null, maskZ = [r4(SC.z0 - 0.25), r4((signZ ? signZ[1] : SC.z1) + 0.1)];
   // the rows: up the side to the cant rail, round it by angle, over the roof by angle; snapped to every band
-  const R = LOD.rows, n1 = Math.round(R * 0.55), n2 = Math.round(R * 0.2), n3 = R - n1 - n2;
-  const base = [
-    ...Array.from({ length: n1 + 1 }, (_, k) => S.z0 + ((S.zc - S.z0) * k) / n1),
-    ...Array.from({ length: n2 }, (_, k) => S.zc + S.radius * Math.sin(((k + 1) / n2) * (Math.PI / 2))),
-    ...Array.from({ length: n3 }, (_, k) => zr + (H - zr) * Math.sin(((k + 1) / n3) * (Math.PI / 2))),
-  ];
   const zSnap = [floor, S.zw, ...band, ...win, doorTop, SC.z0, SC.z1, SC.z0 - 0.05, SC.z1 + 0.05, ...maskZ, ...(signZ || []), floor - 0.05, zr];
-  const Z = samples(base, zSnap, S.z0, H, 0.012);
+  const Z = sectionRows(d, LOD, zSnap);
   // the front's columns across (u, −1 … 1 of the half-width at each row), snapped to the screen's, the frame's, the mask's
   const U0 = Array.from({ length: LOD.cols + 1 }, (_, j) => -1 + (2 * j) / LOD.cols);
   const uSnap = [SC.half, SC.half + 0.05, SC.half + 0.14, 0.45, ...(SC.mullion ? [0.025] : []), 0];
@@ -73,29 +66,14 @@ export function compileCabSurface(brief = {}, { quality = 'studio', livery, pose
   // the sides' stations: back from the nose's root, snapped to the doors, the windows, the cab window
   const gapD = 0.02, cabW = d.cabWindow ? [r4(root - 0.6 - d.cabWindow), r4(root - 0.6)] : null;
   const doors = d.doors.at.map((y) => [r4(y - d.doors.width / 2), r4(y + d.doors.width / 2)]);
-  const lights = [];
-  if (d.windows !== 'louvres') {
-    const runs = [], edges = [yTail + 1.0, ...doors.flat(), (cabW ? cabW[0] : root) - 0.5].sort((a, b) => a - b);
-    for (let i = 0; i + 1 < edges.length; i += 2) runs.push([edges[i] + 0.35, edges[i + 1] - 0.35]);
-    for (const [a, b] of runs) {
-      if (b - a < 0.8) continue;
-      const bay = d.windows === 'bays' ? 1.5 : 1.7, n = Math.max(1, Math.round((b - a) / bay)), step = (b - a) / n;
-      for (let k = 0; k < n; k += 1) lights.push([r4(a + k * step + (k ? 0.06 : 0)), r4(a + (k + 1) * step - (k < n - 1 ? 0.06 : 0))]);
-    }
-  } else for (let k = 0; k < 5; k += 1) { const y = root - 3.2 - k * 2.4; if (y > yTail + 1.5) lights.push([r4(y - 0.9), r4(y)]); }
+  const lights = windowLights(d, { ends: [yTail + 1.0, (cabW ? cabW[0] : root) - 0.5], doors,
+    louvres: d.windows === 'louvres' ? Array.from({ length: 5 }, (_, k) => root - 3.2 - k * 2.4).filter((y) => y > yTail + 1.5).map((y) => [y - 0.9, y]) : null });
   const ySnap = [...doors.flatMap(([a, b]) => [a, a + gapD, b - gapD, b]), ...lights.flat(), ...(cabW || [])];
   const Ybase = Array.from({ length: Math.ceil((root - yTail) / LOD.step) + 1 }, (_, i) => Math.min(root, yTail + i * LOD.step));
   const Y = samples(Ybase, ySnap, yTail, root, 0.008);
-  const inAny = (v, R2) => R2.some(([a, b]) => v > a && v < b);
 
   // what a quad is, read off its middle
-  const common = (z) => (z > band[0] && z < band[1] ? 'livery.band' : z > zr - 0.02 ? 'body.roof' : z < floor - 0.05 ? 'body.skirt' : 'body.paint');
-  const sidePart = (y, z) => {
-    for (const [a, b] of doors) if (y > a && y < b && z > floor + 0.02 && z < doorTop) return y < a + gapD || y > b - gapD ? 'seam' : z > win[0] && z < win[1] - 0.1 ? 'glass.door' : 'door';
-    if (cabW && y > cabW[0] && y < cabW[1] && z > SC.z0 && z < SC.z1 - 0.12) return 'glass.cab';
-    if (z > win[0] && z < win[1] && inAny(y, lights)) return d.windows === 'louvres' ? 'grille' : 'glass.side';
-    return common(z);
-  };
+  const { common, part: sidePart } = sideParts({ floor, doorTop, win, band, zr, doors, lights, gap: gapD, cabW, screen: SC, louvres: d.windows === 'louvres' });
   const frontPart = (u, z) => {
     const au = Math.abs(u);
     if (au < SC.half && z > SC.z0 && z < SC.z1) return SC.mullion && au < 0.025 ? 'pillar' : 'glass.screen';
@@ -112,14 +90,10 @@ export function compileCabSurface(brief = {}, { quality = 'studio', livery, pose
   const push = (out, f) => { if (f) out.push({ ...f, fill: f.fill ?? colour(f.part) }); };
   const body = [], front = [], fittings = [];
 
-  // the sides: the section extruded, both sides, each quad its part
-  for (const sx of [1, -1]) for (let i = 0; i + 1 < Y.length; i += 1) for (let k = 0; k + 1 < Z.length; k += 1) {
-    const [y0, y1, z0, z1] = [Y[i], Y[i + 1], Z[k], Z[k + 1]], q = [[sx * hw(z0), y0, z0], [sx * hw(z0), y1, z0], [sx * hw(z1), y1, z1], [sx * hw(z1), y0, z1]];
-    push(body, face(q, sidePart((y0 + y1) / 2, (z0 + z1) / 2), inside([0, (y0 + y1) / 2, 0])));
-  }
-  // its underside, its end at the gangway (strips across between the rows' pairs)
+  // the sides: the section extruded, both sides, each quad its part; its underside; its end at the gangway
+  extrudeSides((f) => push(body, f), d, Y, Z, sidePart, inside);
   push(body, face([[hw(S.z0), yTail, S.z0], [hw(S.z0), root, S.z0], [-hw(S.z0), root, S.z0], [-hw(S.z0), yTail, S.z0]], 'underframe', [0, 0, S.z0 + 1]));
-  for (let k = 0; k + 1 < Z.length; k += 1) push(body, face([[-hw(Z[k]), yTail, Z[k]], [hw(Z[k]), yTail, Z[k]], [hw(Z[k + 1]), yTail, Z[k + 1]], [-hw(Z[k + 1]), yTail, Z[k + 1]]], common((Z[k] + Z[k + 1]) / 2), [0, yTail + 1, (S.z0 + H) / 2]));
+  endWall((f) => push(body, f), d, Z, yTail, common, [0, yTail + 1, (S.z0 + H) / 2]);
   // the front: the field gridded on the same rows, its columns across each row's half-width
   const G = Z.map((z) => U.map((u) => { const x = u * hw(z); return [x, frontAt(d, x, z), z]; }));
   for (let k = 0; k + 1 < Z.length; k += 1) for (let j = 0; j + 1 < U.length; j += 1) {
@@ -171,8 +145,21 @@ export function compileCabSurface(brief = {}, { quality = 'studio', livery, pose
   // the roof's units: a long box on the crown (the cooling units of a car that carries people), clear of its pantographs
   const clear = (d.pantographs || []).map((p) => p.y), unitEnd = Math.min(root - 2.6, ...clear.map((y) => y - 2.6));
   if (d.archetype !== 'boxCab' && d.archetype !== 'highSpeed' && unitEnd - (yTail + 2.4) > 2) box(fittings, [-0.7, 0.7], [yTail + 2.4, unitEnd], [H - 0.04, H + 0.26], 'roof.unit');
-  // the gangway's bellows at the far end
-  box(fittings, [-0.55, 0.55], [yTail - 0.28, yTail], [floor, floor + 2.05], 'gangway');
+  // the far end: a unit's gangway bellows (and the coupling bar under it), or a locomotive's buffer beam and buffers
+  // (a streetcar's front module articulated to the next)
+  const rearKind = CP.kind === 'buffers' ? 'buffers' : d.archetype === 'tram' ? 'articulated' : 'gangway', rearDepth = rearKind === 'buffers' ? 0.62 : rearKind === 'articulated' ? 0.15 : 0.28;
+  if (rearKind === 'articulated') articulationRing((f) => push(fittings, f), d, yTail, -1, rearDepth);
+  else if (rearKind === 'gangway') {
+    box(fittings, [-0.55, 0.55], [yTail - 0.28, yTail], [floor, floor + 2.05], 'gangway');
+    box(fittings, [-0.08, 0.08], [yTail - 0.28, yTail], [floor - 0.42, floor - 0.26], 'coupler');
+  } else {
+    box(fittings, [-W / 2 + 0.05, W / 2 - 0.05], [yTail - 0.12, yTail + 0.06], [CP.z - 0.3, CP.z + 0.24], 'buffer.beam');
+    for (const sx of [1, -1]) {
+      cylinder(fittings, [sx * 0.875, yTail - 0.12, CP.z], [sx * 0.875, yTail - 0.56, CP.z], 0.12, 10, 'buffer');
+      cylinder(fittings, [sx * 0.875, yTail - 0.56, CP.z], [sx * 0.875, yTail - 0.62, CP.z], 0.22, 14, 'buffer');
+    }
+    box(fittings, [-0.05, 0.05], [yTail - 0.42, yTail - 0.12], [CP.z - 0.06, CP.z + 0.06], 'coupler');
+  }
 
   // the bogies: the bogie shelf's, solved on the design's seed, under their pivots; the leading one its lifeguards, the
   // trailing one turned end for end; the wheels turned by the pose's `spin`
@@ -197,5 +184,5 @@ export function compileCabSurface(brief = {}, { quality = 'studio', livery, pose
     materialGroups: new Set(all.map((f) => f.material)).size, parts };
   const { P: _p, ...frontNumbers } = d.front;
   void _p;
-  return { design: { ...d, front: frontNumbers }, quality, livery: C, faces, materials: RAIL_MATERIALS, census, ...(pantos.length ? { pantographs: pantos } : {}) };
+  return { design: { ...d, front: frontNumbers }, quality, livery: C, faces, materials: RAIL_MATERIALS, census, ends: { rear: { kind: rearKind, depth: rearDepth } }, ...(pantos.length ? { pantographs: pantos } : {}) };
 }

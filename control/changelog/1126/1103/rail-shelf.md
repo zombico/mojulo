@@ -89,3 +89,30 @@
     contact, the insulators under the frame, the facing turning it end for end; folded and raised differing in the arms
     alone; the same pose the same bytes; a catenary's wire at its height, staggered mast to mast, a tramway's without a
     messenger; a cab car's pantographs folded inside the zone and raised to the wire, a car without them carrying none.
+- **The cars behind the cab, and the train they make** (`solveCarDesign`, `compileCarSurface`, `composeTrain`): the
+  rail shelf's cars on the cab car's pattern, a brief solved into one frame held to laws.
+  - **The cars** (`car-odm.js`): a metro car, a streetcar's short module hung between its neighbours and its centre
+    module on its own bogie, a regional car, a high-speed coach, a locomotive-hauled coach, and the freight wagons (a
+    box wagon, a covered hopper, a tank wagon, a flat wagon with a container). A passenger car takes its body's section
+    from its family's cab car of the same seed, so a train is one section from end to end; a coach and a wagon carry
+    their own. Its doors spread along it, at its ends, near one end or in its middle; its bogies two at its overhangs,
+    one under its middle, or none; its laws: the gauge, the doors on the body, the bogies under it and under its floor.
+  - **The shell** (`body-shell.js`): the section's rows, the window lights between the ends and the doors, what a side's
+    quad is (a door, its glass and its seams, a window, the band, the roof, the skirt), the sides extruded, a flat end,
+    a streetcar's articulation ring; the cab car's body and the cars' are drawn by it alike.
+  - **The surface** (`compileCarSurface`): a passenger car's sides, doors, windows, underframe, end walls and roof unit;
+    a wagon's by its body (a box wagon's ribs and its sliding doors on their rails, a hopper's sides falling in to its
+    gates, a tank's barrel on its cradles with its dished ends, dome and walkway, a flat wagon's deck, stanchions and a
+    container in a seeded colour); its ends' gear (a gangway's bellows and its bar coupler, buffers and a screw coupler
+    on their beam, an articulation's bellows ring) as deep as their kind (`END_DEPTH`); its bogies from the bogie shelf.
+    The cab car now carries the same gear at its rear, by its kind.
+  - **The train** (`composeTrain`, `TRAIN_PLANS`): a family's composition, its cab at the front, its cars, and a unit's
+    cab turned end for end at its tail; laid out nose to tail with the gap its ends' gear needs; its laws: ends couple
+    only kind to kind, every car valid, a unit's cars its own family's (a locomotive hauls anything its buffers meet).
+    `scripts/render-rail.mjs` takes a car's kind as a preset and `train:<family>` for a whole train (its side, a
+    quarter, a coupling, its tail; under a catenary when it carries pantographs).
+  - Held (`car.test.js`): each bogie arrangement and each wagon body within its laws; a passenger car's section its
+    cab car's; the bogies two, one or none where they belong, the wheels on the rail; the doors and windows between the
+    ends; a wagon's end gear as far out as its kind's depth; a train's cars nose to tail with the gap their ends need,
+    its rear cab turned with its nose at the tail; unlike ends refused, a unit's foreign car refused; the same brief and
+    the same plan the same bytes.
