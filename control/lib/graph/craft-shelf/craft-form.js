@@ -21,7 +21,9 @@
  *                                                   the paint and its marks; wear: soot, streaks, chips, fade, patches
  *                                                   (air-surface.js); look: a drone's card (drone-looks.js) or a
  *                                                   helicopter's (heli-looks.js, its kit hung too), its palette,
- *                                                   slots, lights, payloads and livery. Each absent adds nothing.
+ *                                                   slots, lights, payloads and livery; absent, an archetype's own stock
+ *                                                   `livery` when it carries one (a navy boat's number). Each absent adds
+ *                                                   nothing.
  *     → { items: [{ id, head, faces }], length, span, height, readout }   the craft centred on x and y, its lowest
  *                                                   point on z = 0 (craft-rig.js craftPieces' frame)
  *   craftFormFigure(archetype, { …craftForm's, setting?, keys? }) → the rig figure, one bone per item, in the form
@@ -136,7 +138,8 @@ export function craftForm(archetype, { palette, colors, pose = { gear: 1 }, atti
   if (!row) throw new Error(`craft-form: no archetype '${archetype}' on the shelf`);
   // (a drone's look: its stock card's slots, or the card asked for, with its palette and, unless one is named, its livery)
   const card = look ? lookCard(look, lookFamily(row, CRAFT_ODM)) : row.look ? lookCard(row.look) : null;
-  const L = readAirLivery(livery ?? (look ? card.livery : undefined)), W = wear === undefined || wear === null ? null : readWear(wear);
+  // (a livery asked for, else a look's asked for, else the archetype's own stock livery: a navy boat's number)
+  const L = readAirLivery(livery ?? (look ? card.livery : row.livery)), W = wear === undefined || wear === null ? null : readWear(wear);
   const { manifest, readout } = assembleCraft(archetype, { palette, colors, pose, attitude, finish: true, ...(made ? { made } : {}), ...(look ? { look } : {}), ...(fold !== undefined ? { fold } : {}) });
   const P = resolveCraftPalette(palette ?? (look ? card.palette : row.palette), colors).colors;
   const { faces, placements } = lowerAssemblerBuild(manifest, { light: FLAT_LIGHT });

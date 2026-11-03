@@ -72,7 +72,11 @@ export function buildsOf(id) {
   for (const k of (h.assembly ?? []).filter(() => !h.ride)) out.push(B('stylised', 'assembly', k, 'asleep', [], 'the vehicle designer\'s assembled build: no door names it yet'));
   for (const k of h.net ?? []) out.push(B('stylised', 'net', k, 'asleep', [], 'a swept net no scenery entry builds'));
   for (const k of h.supercar ?? []) out.push(B('realistic', 'supercar', k, 'live', ['quick race (supercars)', 'mint_solid vehicle preview', 'transformer'], 'the supercar\'s surface compiler, streamlined in the form render'));
-  for (const k of h.craft ?? []) out.push(B('realistic', 'craft', k, 'live', ['transformer'], 'the craft shelf\'s assembly at its class\'s true figures'));
+  for (const k of h.craft ?? []) {
+    // (a boat on the shelf is built and floated, and no door draws one yet: the transformer's craft fly)
+    if (CRAFT_ARCHETYPES[k]?.realm === 'water') { out.push(B('realistic', 'craft', k, 'asleep', [], 'the craft shelf\'s boat at its class\'s true figures, floated on the waterline its weight sets: no door draws a boat yet')); continue; }
+    out.push(B('realistic', 'craft', k, 'live', ['transformer'], 'the craft shelf\'s assembly at its class\'s true figures'));
+  }
   for (const k of h.fleet ?? []) out.push(B('realistic', 'fleet', k, 'live', ['roadway traffic'], 'the highway fleet\'s loft at true dimensions, at traffic distance'));
   for (const k of (h.physics ?? []).filter(loftable).slice(0, 1)) {
     if (tracked(k)) { out.push(B('realistic', 'loft', k, 'live', ['mint_solid vehicle preview', 'a level\'s parked vehicles'], 'the military hull kit\'s body of its class on its running gear (road-military.js, mil-track.js), drawn and parked: not driven until skid steer is built', UNDRIVEN)); continue; }

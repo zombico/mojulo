@@ -250,7 +250,7 @@ export const HELI_ODM = {
   // ===== the looks' kit (heli-looks.js hangs it at a hull's stations) ============================
   'gun-heli-door': {
     kind: 'heli-kit', realm: 'earth', label: 'helicopter door gun on its pintle', classOf: '7.62 mm door gun class',
-    aliases: ['door gun', 'pintle gun', 'door gunner gun'], dims: { length: 1.2, diameter: 0.1, reach: 0.42 }, mass: 30, mount: 'door',
+    aliases: ['door gun', 'helicopter pintle gun', 'door gunner gun'], dims: { length: 1.2, diameter: 0.1, reach: 0.42 }, mass: 30, mount: 'door',
     build: { family: 'doorGun' },
   },
   'cutter-heli': {

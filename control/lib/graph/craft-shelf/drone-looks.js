@@ -10,8 +10,8 @@
  *             high-visibility arm tips; a military drone's low-visibility number
  *
  *   DRONE_LOOKS, DRONE_LOOK_IDS
- *   lookCard(look, family?)                 → the card in the craft's family ('drone' | 'heli': heli-looks.js), or
- *                                             throws naming that family's looks
+ *   lookCard(look, family?)                 → the card in the craft's family ('heli': heli-looks.js; else a drone's
+ *                                             or a boat's, boat-looks.js), or throws naming that family's looks
  *   lookSwap(archetypeRow, card, odm)       → the layout's swaps the card makes ({ <layout id>: sku })
  *
  * An archetype names its stock look (`look`); a craft asked for another look takes that card's palette, payloads and
@@ -19,6 +19,7 @@
  */
 
 import { HELI_LOOKS, HELI_LOOK_IDS } from './heli-looks.js';
+import { BOAT_LOOKS, BOAT_LOOK_IDS } from './boat-looks.js';
 
 export const DRONE_LOOKS = Object.freeze({
   consumer: Object.freeze({
@@ -44,11 +45,16 @@ export const DRONE_LOOKS = Object.freeze({
 });
 export const DRONE_LOOK_IDS = Object.freeze(Object.keys(DRONE_LOOKS));
 
-/** The card a look names in its craft's family ('drone' | 'heli', heli-looks.js), or throws naming that family's looks. */
+/** The card a look names in its craft's family, or throws naming that family's looks: a helicopter's ('heli',
+ *  heli-looks.js), else a drone's or a boat's (boat-looks.js), as a drone's and a boat's cards never share a word. */
 export function lookCard(look, family = 'drone') {
-  const [cards, ids, what] = family === 'heli' ? [HELI_LOOKS, HELI_LOOK_IDS, 'helicopter'] : [DRONE_LOOKS, DRONE_LOOK_IDS, 'drone'];
-  const card = cards[look];
-  if (!card) throw new Error(`${what} look: '${look}' is no look (a look is one of ${ids.join(' | ')})`);
+  if (family === 'heli') {
+    const card = HELI_LOOKS[look];
+    if (!card) throw new Error(`helicopter look: '${look}' is no look (a look is one of ${HELI_LOOK_IDS.join(' | ')})`);
+    return card;
+  }
+  const card = DRONE_LOOKS[look] ?? BOAT_LOOKS[look];
+  if (!card) throw new Error(`drone look: '${look}' is no look (a look is one of ${DRONE_LOOK_IDS.join(' | ')}; a boat's ${BOAT_LOOK_IDS.join(' | ')})`);
   return card;
 }
 

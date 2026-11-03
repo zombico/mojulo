@@ -29,6 +29,26 @@ export const CRAFT_PALETTES = {
   warbirdOlive: { paint: '#5a5f3c', trim: '#b9b39a', glass: '#8fb0c4', rubber: '#1b1c1e', chrome: '#9aa0a6', light: '#ffb347' },
   // a consumer drone's light grey moulding, its dark plastics
   droneConsumer: { paint: '#c8cbcd', trim: '#34373a', glass: '#1b2026', rubber: '#1d1f21', chrome: '#7d8287', light: '#ff5a3c' },
+  // water: a skiff's marine green over bare aluminium, its outboard's graphite
+  skiffGreen: { paint: '#4c6047', trim: '#3b3f43', glass: '#26323c', rubber: '#1a1b1d', chrome: '#b9c0c6', light: '#e94b3c' },
+  // a jon boat's marsh tan over bare aluminium, its outboard black; a RIB's white moulding, its collar's grey fabric (the
+  // outboard wears the trim: grey)
+  jonTan: { paint: '#7d7352', trim: '#2c2f32', glass: '#26323c', rubber: '#1a1b1d', chrome: '#b5bcc2', light: '#e94b3c' },
+  ribGrey: { paint: '#eceeee', trim: '#6f777e', glass: '#26323c', rubber: '#202224', chrome: '#c9ced3', light: '#e94b3c' },
+  // a centre console's white moulding, its navy stripe and cushions, smoked glass, stainless
+  ccWhite: { paint: '#f1f2f0', trim: '#22364f', glass: '#2f3a44', rubber: '#1b1c1e', chrome: '#d3d7db', light: '#e94b3c' },
+  // a cuddy's white moulding, its sea-blue stripe and upholstery, smoked glass, stainless, a black outboard
+  cuddyBlue: { paint: '#f2f2ef', trim: '#2f6f9a', glass: '#2c3640', rubber: '#1a1b1d', chrome: '#d3d7db', light: '#e94b3c' },
+  // a military RHIB's dark naval grey moulding, its collar's near-black fabric, dull metal, black fittings
+  rhibMilitary: { paint: '#545b61', trim: '#2a2d30', glass: '#1c2329', rubber: '#17181a', chrome: '#80878d', light: '#e94b3c' },
+  // a naval boat's haze grey, its fabric and trim a darker grey, smoked glass (the naval look's: boat-looks.js)
+  navalHaze: { paint: '#8f969c', trim: '#5b6268', glass: '#28313a', rubber: '#1c1d1f', chrome: '#8a9197', light: '#ff8a3c' },
+  // a submarine's black (its anechoic coating), its fittings a shade off it, its masts' glass dark
+  subBlack: { paint: '#24272a', trim: '#1a1c1e', glass: '#202a30', rubber: '#141516', chrome: '#4a4f53', light: '#ff8a3c' },
+  // a riverine patrol boat's olive drab, its stripe and fittings a darker olive, dull aluminium
+  riverineOlive: { paint: '#56604a', trim: '#363c2f', glass: '#26302c', rubber: '#18191a', chrome: '#80867a', light: '#ff8a3c' },
+  // a landing craft's haze grey steel, its dark fittings, its deck's non-slip a shade darker
+  landingGrey: { paint: '#7d848a', trim: '#4d5358', glass: '#262e35', rubber: '#1a1b1d', chrome: '#8a9096', light: '#ff8a3c' },
   // a racer's bare carbon, aluminium standoffs, bright props (its 'rubber': the shelf's role for the props)
   fpvCarbon: { paint: '#2a2c2f', trim: '#1b1c1e', glass: '#22303a', rubber: '#e8642a', chrome: '#a8adb2', light: '#7dff6a' },
   // an enterprise drone's dark grey, rugged

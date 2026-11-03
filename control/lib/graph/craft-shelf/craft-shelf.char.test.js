@@ -28,6 +28,11 @@
  *   - The field's language on a helicopter: the attack and tandem helicopters re-pinned for their hulls' antennas and the
  *     tandem's sliding doors on their rails (the armour, steps, handles and bolts are made, outside the pins); no other
  *     pin moved.
+ *   - The boat parts joined the shelf (boat-odm.js): their builder paths pinned; no existing pin moved. The centre
+ *     console's (the remote outboard, the console, the seat) pinned when they joined, and the T-top's and the bucket seat's; the military boats' (the jockey seat, the pintle gun, the radar arch; the waterjet, the
+ *     pilothouse, the gun tub; the bow ramp, the shaft drive; the bridge, the naval gun, the davit; the destroyer's
+ *     superstructure, funnel, hangar, pyramid mast, turret, close-in weapon and launch cells; the carrier's flight deck; the submarine's round hull)
+ *     when they joined; no existing pin moved.
  */
 import { createHash } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
@@ -117,6 +122,42 @@ const PINS = {
   'searchlight-heli': '18ff6fbca67706f6',
   'hoist-heli': 'f241c3372dbf43dc',
   'floats-heli-light': '42fc874354ac452c',
+  // the boat parts (boat-parts.js): their builder paths pinned when they joined the shelf
+  'hull-skiff-v14': '204500e874a8e297',
+  'outboard-20-tiller': '7102b33c3fef79a4',
+  'tank-portable-45l': '9567ccfb41323421',
+  // the centre console's new builder paths: the remote outboard, the console, the cooler seat
+  'outboard-90-remote': 'be1036d23afe511c',
+  'console-cc-17': 'd153014a55fb989b',
+  'seat-cooler-120': 'eb87cc30eb527062',
+  // the T-top's builder path, pinned when it joined
+  'top-t-cc-17': '7a337c0beca48ba5',
+  // the bucket seat's builder path, pinned when it joined (the cuddy cabin's)
+  'seat-bucket-pedestal': '201ef7ea2fff33f8',
+  // the military boats' builder paths, pinned when they joined: the jockey seat, the pintle gun, the radar arch
+  'seat-jockey': 'c0d209e0ab72804d',
+  'mount-mg-deck': '0e14f6397969f40e',
+  'arch-radar-rhib': '4f790a71278a39f6',
+  // the riverine patrol boat's: the waterjet, the pilothouse, the gun tub
+  'jet-waterjet-350': '8c602648f4b96350',
+  'pilothouse-riverine': 'ecbbed6f63ebb714',
+  'mount-mg-tub': '2854cf038ce8f6ef',
+  // the landing craft's: the bow ramp, the shaft drive
+  'ramp-landing-22': '70082edeb358c316',
+  'shaft-diesel-450': '12f96a36627fbd1c',
+  // the navy patrol boat's: the bridge, the naval gun, the davit
+  'bridge-patrol-25': 'a7fab46289510326',
+  'mount-cannon-30': '14f456da3a12d27f',
+  'davit-sea-boat': '161303e108d517e1',
+  'superstructure-destroyer': 'e1e9fd7399698b65',
+  'funnel-destroyer': '291861a97f05c017',
+  'hangar-destroyer': '2a441996af8596f0',
+  'mast-pyramid-destroyer': '1aafbdbedddce104',
+  'turret-gun-127': '27a72d1531bf963e',
+  'mount-ciws': '5f1bf3dd69bcfa2b',
+  'vls-cells-32': '892a7a8d1921f05b',
+  'deck-carrier-320': '8725f0cb7b7f13bb',
+  'hull-sub-attack-110': 'fdb7a6041b691b6d',
   'craft:lightSingle': 'cbbad5fe3c255c1d',
   'craft:attackHeli': '8df85083c0bfc386',
   'craft:tandemHeli': 'c60d052a6cc7f82c',

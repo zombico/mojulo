@@ -30,6 +30,7 @@
 
 import { DRONE_KINDS, DRONE_ODM } from './drone-odm.js';
 import { HELI_KINDS, HELI_ODM } from './heli-odm.js';
+import { BOAT_KINDS, BOAT_ODM } from './boat-odm.js';
 
 export const CRAFT_KINDS = {
   'craft-fuselage': 'the fuselage or hull: the airframe every other part hangs from',
@@ -47,7 +48,7 @@ export const CRAFT_KINDS = {
   'craft-cockpit': 'a cockpit\'s interior seen through its glass: seats (side by side or tandem), the panel, the controls, a bench',
 };
 
-export const CRAFT_REALMS = ['earth', 'space'];
+export const CRAFT_REALMS = ['earth', 'space', 'water'];
 
 // Flat-paneled hull sections (craft-common facetSection), CCW from +x. Spacecraft hulls are built from
 // plates, not turned: a chamfered box (the snubfighter's), a chined diamond (the colonial dart's), a
@@ -1208,3 +1209,7 @@ Object.assign(CRAFT_ODM, DRONE_ODM);
 // the helicopter parts (heli-odm.js)
 Object.assign(CRAFT_KINDS, HELI_KINDS);
 Object.assign(CRAFT_ODM, HELI_ODM);
+
+// the boat parts (boat-odm.js): their kinds and rows on the one shelf
+Object.assign(CRAFT_KINDS, BOAT_KINDS);
+Object.assign(CRAFT_ODM, BOAT_ODM);
