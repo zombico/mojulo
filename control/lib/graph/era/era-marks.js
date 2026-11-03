@@ -28,7 +28,7 @@ const markRow = (era) => (mark, how) => Object.freeze({ [era]: mark, ...(how ? {
 export const SURFACE_INPUTS = Object.freeze([
   'faces', 'repeats', 'textures', 'resample', 'surfaces', 'terrain', 'figures', 'walkers', 'carMeshes', 'splats', 'liveGrass',
   'fabric', 'tone', 'toon', 'vertexContrast', 'strokeOverlay', 'ao', 'light', 'glow', 'soft', 'wetSand', 'wetRoad',
-  'shallows', 'softGround', 'snowPrints', 'shadows', 'occlusion', 'creases', 'lightTier',
+  'shallows', 'seaway', 'softGround', 'snowPrints', 'shadows', 'occlusion', 'creases', 'lightTier',
 ]);
 // the live light itself (scene/live-light.js): a form render's light, darkening paint until there is material to light
 const LIVE = new Set(['shadows', 'occlusion', 'creases', 'lightTier']);
