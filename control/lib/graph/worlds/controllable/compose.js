@@ -45,6 +45,7 @@ import { buildVanish } from './vanish.js';
 import { buildSummon } from './summon.js';
 import { buildPair } from './pair.js';
 import { buildMount } from './mount.js';
+import { buildSweep } from './sweep.js';
 import { buildGunplay } from './gunplay.js';
 import { buildWorldClock } from './world-clock.js';
 
@@ -63,11 +64,11 @@ export function composeControllable(builders) {
 export const EMISSION_ENGINE = [buildCore, buildGait, buildRulesBasic, buildRulesPlatform, buildWall, buildSwing, buildRulesDrive, buildRulesFly, buildCombatHit, buildCombatMatch, buildCombatRanged, buildCombatMelee, buildLock, buildTutorial, buildCast, buildManeuvers, buildForms, buildNav, buildMind, buildGroup];
 export const EMISSION = [...EMISSION_ENGINE];
 // OPT-IN builders: composed into a page only when its world asks for them (the endless runner, a melee hitstop, a foe's
-// own moves and its touch: foe.js; a downed body's disposal: vanish.js; a summoner's summons: summon.js; a pair's shared fate: pair.js; a
-// shooter's hands on its carried arms: gunplay.js; a horse to get on and ride: mount.js), so a page
+// own moves and its touch: foe.js; a downed body's disposal: vanish.js; a summoner's summons: summon.js; a pair's shared fate: pair.js;
+// a hit from a swing in a headset: sweep.js; a shooter's hands on its carried arms: gunplay.js; a horse to get on and ride: mount.js), so a page
 // without one keeps every byte; the live Node instance carries them all (each is a no-op on a world without its spec).
 // The world clock (a world's `tempo`: world-clock.js) comes last, so it wraps every other step, a hitstop's among them.
-export const EMISSION_OPT_IN = Object.freeze({ runner: buildRunner, hitstop: buildHitstop, foe: buildFoe, vanish: buildVanish, summon: buildSummon, pair: buildPair, gunplay: buildGunplay, mount: buildMount, clock: buildWorldClock });
+export const EMISSION_OPT_IN = Object.freeze({ runner: buildRunner, hitstop: buildHitstop, foe: buildFoe, vanish: buildVanish, summon: buildSummon, pair: buildPair, sweep: buildSweep, gunplay: buildGunplay, mount: buildMount, clock: buildWorldClock });
 
 // The live Node instance factory (the façade composes one; tests may compose their own).
 export function composeLive() {

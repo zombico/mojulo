@@ -60,7 +60,7 @@ const perp = (v, a) => unit(sub(v, mul(a, dot(v, a))));
 const circumcentre = (a, b, c) => { const ab = sub(b, a), ac = sub(c, a), n = cross(ab, ac), n2 = dot(n, n); return add(a, mul(add(mul(cross(ac, n), dot(ab, ab)), mul(cross(n, ab), dot(ac, ac))), 1 / (2 * n2))); };
 /** where a hand with digits (the rig's `hands`) holds a grip: the centre its middle finger curls round in the `grip` hand
  * word (its knuckle, middle and last joints on a circle), at rest; null for a mitten */
-function gripCentre(R, S) {
+export function gripCentre(R, S) {
   if (!R.hands?.[S] || !R.joints[`middleMcp${S}`]) return null;
   const n = rigNodesAt(R, { [`fingers${S}`]: 'grip' }).nodes;
   return circumcentre(n[`middleMcp${S}`], n[`middlePip${S}`], n[`middleDip${S}`]);

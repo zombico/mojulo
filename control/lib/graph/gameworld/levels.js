@@ -428,7 +428,9 @@ export function stageLevelOrder(G, stage, opts = {}) {
   const laid = stage.unlit === undefined ? laid0 : { ...laid0, laws: [...(laid0.laws ?? []), { concern: 'hour', law: 'lit', holds: false, says: `style.hour '${stage.unlit}' lights a stage the level's geocube paints; this ${stage.section} stage is not on one, so it is lit as before` }] };
   const L = opts.moves ? withOwnMoves(laid, opts.moves) : laid;
   // the screen the game is made for (game/screen.js): each level holds its frame. Absent: no key, every print as it was
-  return G.screen ? screenLevel(G.screen, L) : L;
+  const S = G.screen ? screenLevel(G.screen, L) : L;
+  // a game played in a headset (scene/channels/xr.js): each level's page opens a session that plays it. Absent: no key
+  return G.xr ? { ...S, args: { ...S.args, manifest: { ...S.args.manifest, xr: G.xr } } } : S;
 }
 function withOwnMoves(L, byRef) {
   const m = L.args?.manifest;

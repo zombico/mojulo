@@ -329,7 +329,9 @@ export async function GET(request, { params }) {
       if (sketch.manifest.walk) payload.walk = sketch.manifest.walk;
       if (sketch.manifest.xr) payload.xr = sketch.manifest.xr;
     } else {
-      ({ payload, kind } = await resolveWorldScene(sketch, { view, render, livery, live: true, ...(era ? { era } : {}) }));
+      // (a headset asked for, the manifest's own `xr` or `?xr=`: the heroes' hands come with their figures, hero-xr-hands.js)
+      const xrAsked = !!xrFromParam(request.nextUrl.searchParams.get('xr'), sketch.manifest.xr || null);
+      ({ payload, kind } = await resolveWorldScene(sketch, { view, render, livery, live: true, ...(era ? { era } : {}), ...(xrAsked ? { xr: true } : {}) }));
     }
 
     if (!payload) {

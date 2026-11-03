@@ -76,6 +76,13 @@ const PINS = {
   'celestial/staff': 'c48a08a3d27f8568',
   'celestial/bow': '0a5355b7ccd08c32',
   'celestial/shield': '22d5fcfe6a75f3a4',
+  // the saber card (added 2026-11-02, the saber rhythm game's light blade): its own pins, every other card's unchanged
+  'saber/dagger': '8a58e0bb87602c16',
+  'saber/sword': '0ac927fc6040c118',
+  'saber/greatsword': '224b0643f9610f8d',
+  'saber/staff': '70666039f67417f5',
+  'saber/bow': '66c1a1488c2d6c65',
+  'saber/shield': 'fbe5b6baad9c71d4',
 };
 const hash = (o) => createHash('sha256').update(JSON.stringify(o)).digest('hex').slice(0, 16);
 
