@@ -255,7 +255,8 @@ export const HOLLIN_VALE = Object.freeze({
     civilization: 'hollin-folk', trail: { heartbeat: 0.7, bumpiness: 0.55 },
     land: { landscape: { variant: 'downs', many: 0.75 }, rock: { variant: 'boulders', many: 0.25 }, landmark: { variant: 'monolith', many: 0 } },
     geocube: { from: 'upland-morning', biocube: { from: 'alpine' } },
-    palette: { intent: 'whitewash, red tile and dark pine under a cool morning sky', key: 'high', heat: 0.1, weight: 0, activity: 0.2, scheme: 'complementary', hues: { sky: 214, rock: 40, soil: 30, ground: 100, foliage: 140 }, lock: { accent: '#a8402a' } },
+    // (the stone and the earth locked: left to the wheel, a sky at 214 put the world's stone opposite it in mauve)
+    palette: { intent: 'whitewash, red tile and dark pine under a cool morning sky', key: 'high', heat: 0.1, weight: 0, activity: 0.2, scheme: 'complementary', hues: { sky: 214, ground: 105, foliage: 140 }, lock: { accent: '#a8402a', rock: '#c9c2b4', soil: '#8a6a4a' } },
   },
   civilizations: {
     'hollin-folk': { name: 'The folk of Hollin', anchor: HOLLIN_HOUSE, town: { levels: 1, heartbeat: 'market' } },
