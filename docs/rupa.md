@@ -140,6 +140,16 @@ If the wind's push beats what holds a stack, the stack leaves the structure and 
 70 m/s gale tips a dry pile of pine blocks, while a mortared brick wall the same height stands. A 15 m/s breeze moves
 neither.
 
+### Shelter, leaves and the ground
+
+- **A wall casts a wind shadow.** Behind a block, below its top and within its width, the air is calmer for about six
+  of the block's heights downwind, and recovers with distance. A leaf falling behind a wall drifts much less than one in
+  the open.
+- **Thin things tumble.** A leaf or a sheet flutters as it moves, and a tumbling body shows the air on average a
+  quarter of its surface (Cauchy's rule), whichever way it's going. That's why a leaf falls at about 2 m/s.
+- **Wind moves what's lying on the ground** once its drag beats the friction holding it (half its weight). Leaves
+  skitter along; a brick lying there stays. On the ground, things slide against friction rather than stopping dead.
+
 ### Describing a wind
 
 A level sets it in its `matter` settings:

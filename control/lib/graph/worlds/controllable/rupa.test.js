@@ -187,6 +187,33 @@ describe('rupa wind: the air moving, by the same law as water', () => {
     expect(b.pos[2] - b.half[2]).toBeGreaterThan(1);   // still afloat
   });
 
+  // a leaf: a 6 × 4 cm plate, a third of a millimetre thick, about half a gram
+  const leaf = (w, at, id) => CW.throwMatter(w, { id, size: [0.06, 0.04, 0.002], at, vel: [0, 0, 0], mass: 0.06 * 0.04 * 0.0003 * 600, joules: 1, stiff: 1e8, bounce: 0.1 });
+
+  it('a leaf falls through still air at about two metres a second', () => {
+    const w = world([anchor()]), id = leaf(w, [0, 0, 20], 'l');
+    step(w, 60 * 3);
+    const b = w.rupa.bodies.find((q) => q.id === id);
+    expect(-b.vel[2]).toBeGreaterThan(1); expect(-b.vel[2]).toBeLessThan(3);
+  });
+
+  it('the wind skitters a leaf along the ground; a brick lying there stays', () => {
+    const w = world([anchor()], { wind: { speed: 12, dir: 0 } });
+    const l = leaf(w, [0, 0, 0.01], 'l'), brick = CW.throwMatter(w, { size: [0.2, 0.1, 0.06], at: [0, 2, 0.04], vel: [0, 0, 0], matter: 'brick', ...blockMatter({ min: [0, 0, 0], max: [0.2, 0.1, 0.06] }, 'brick') });
+    step(w, 60 * 4);
+    const x = (id) => w.rupa.bodies.find((q) => q.id === id).pos[0];
+    expect(x(l)).toBeGreaterThan(3);
+    expect(Math.abs(x(brick))).toBeLessThan(0.05);
+  });
+
+  it('a wall casts a wind shadow: a leaf falling behind it drifts less than one in the open', () => {
+    const w = world([block('wall', [0, -3, 0], [0.4, 3, 3], 'brick'), anchor()], { wind: { speed: 10, dir: 0 } });
+    const lee = leaf(w, [2, 0, 2.5], 'lee'), open = leaf(w, [2, 10, 2.5], 'open');
+    step(w, 60);
+    const dx = (id) => w.rupa.bodies.find((q) => q.id === id).pos[0] - 2;
+    expect(dx(lee)).toBeLessThan(dx(open) * 0.6);
+  });
+
   it('a crosswind bends the hose\'s spray', () => {
     const w = world([anchor()], { wind: { speed: 15, dir: 90 } });
     CW.spray(w, { at: [0, 0, 1], dir: [1, 0, 0.5], speed: 25, flow: 0.01, seconds: 0.5, spread: 0 });

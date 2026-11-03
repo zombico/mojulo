@@ -43,7 +43,9 @@ Walls hold and objects break stays the default; a game that asks for destructibl
   slows what moves through it. Wind is air moving (a level's `matter.wind`: its speed at 10 m, its direction, the
   terrain that slows it near the ground, seeded gusts): it carries light things, bends the hose's spray, and pushes on
   walls with ½ × air density × speed². A stack its weight and mortar can't hold against that push tips or slides and
-  falls as loose pieces: a 70 m/s gale tips a dry pine pile while a mortared brick wall stands.
+  falls as loose pieces: a 70 m/s gale tips a dry pine pile while a mortared brick wall stands. A wall casts a wind
+  shadow; thin things tumble and catch a quarter of their surface (a leaf falls at about 2 m/s); and the wind moves what
+  lies on the ground once its drag beats friction, so leaves skitter while a brick stays.
 - **Water and air share one set of fluid functions**: pressure (from a fluid's weight and from its flow), turning a
   pressure back into a speed, and the lift and drag on a body in any fluid. The tanks, pipes, nozzles, pools, spray,
   grain settling and wind all call them.

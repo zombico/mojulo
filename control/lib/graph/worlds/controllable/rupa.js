@@ -60,7 +60,9 @@
  *            medium everywhere, the WIND its motion (`rupa.wind: { speed, dir, terrain?, gust?, seed? }`: faster with
  *            height, gusts seeded). Bodies and spray are lifted by the fluid they put aside and dragged toward its flow,
  *            so the wind carries light things and bends a jet; its pressure Cp·½ρu² on exposed faces tips or slides a
- *            stack whose weight and mortar cannot hold it, and the stack falls as bodies (`how: 'topple'`).
+ *            stack whose weight and mortar cannot hold it, and the stack falls as bodies (`how: 'topple'`). A block casts
+ *            a wind shadow, calmer air for about six of its heights behind it; the wind moves a body lying on the ground
+ *            again once its drag beats what the body's weight holds (leaves skitter; a brick stays).
  *
  *   rupaPhysics (E.rupaPhysics, also run in Node by lib/graph/rupa/index.js):
  *     blastKg(radius, blastZ?) · blastJoules(radius, blastZ?) · faceArea(box, from) · burstShare(box, at, joules, r0?)
@@ -155,13 +157,19 @@ export function buildRupa(E) {
   // pressure on its faces summed, the bottom's beating the top's by ρ·g·V); the drag of moving THROUGH it, relative to
   // its flow (½ρ·Cd·A·|v − u|², a cube's Cd 1.05, and Stokes' 3πηD|v − u|), as a rate the step relaxes the body toward
   // the medium's own motion by: still water slows it, the wind carries it
+  // the area a box shows its motion: its faces as they face it; a thin plate (a leaf, a sheet) tumbles and flutters, and
+  // a tumbling body shows on average a quarter of its surface (Cauchy), whichever way it moves
+  function dragArea(b, rel) {
+    const sx = b.max[0] - b.min[0], sy = b.max[1] - b.min[1], sz = b.max[2] - b.min[2], speed = Math.hypot(...rel);
+    if (Math.min(sx, sy, sz) < 0.2 * Math.max(sx, sy, sz)) return (sx * sy + sy * sz + sx * sz) / 2;
+    return speed > 1e-9 ? (Math.abs(rel[0]) * sy * sz + Math.abs(rel[1]) * sx * sz + Math.abs(rel[2]) * sx * sy) / speed : sx * sy;
+  }
   function immerse(b, mass, v, m, flow = null) {
     if (m.max && !inPool(b, m)) return null;
     const V = m.max ? submerged(b, m.max[2]) : vol(b);
     if (!(V > 0)) return null;
     const u = flow || [0, 0, 0], rel = [v[0] - u[0], v[1] - u[1], v[2] - u[2]];
-    const sx = b.max[0] - b.min[0], sy = b.max[1] - b.min[1], sz = b.max[2] - b.min[2], speed = Math.hypot(...rel);
-    const A = speed > 1e-9 ? (Math.abs(rel[0]) * sy * sz + Math.abs(rel[1]) * sx * sz + Math.abs(rel[2]) * sx * sy) / speed : sx * sy;
+    const speed = Math.hypot(...rel), A = dragArea(b, rel);
     const frac = V / vol(b), eta = m.viscosity ?? 1e-3;
     const waves = m.max && frac < 1 ? WAVE : 0;   // crossing a surface it makes waves, which carry its heave away
     return { V, lift: m.density * G * V, k: (frac * (0.5 * m.density * 1.05 * A * speed + 3 * Math.PI * eta * Math.cbrt(vol(b)))) / mass + waves, flow: u };
@@ -347,7 +355,7 @@ export function buildRupa(E) {
     return { droplets, cavity: Rc, plop: false, stats: { E, Re, We, K, kg: Ms, kinetic: Es } };
   }
 
-  const physics = { blastKg, blastJoules, faceArea, burstShare, blowJoules, heatFactor, impact, pressure, flowOf, submerged, inPool, immerse, stepIn, wet, windOf, windAt, AIR, loadPass, fragments, splash, seedOf, vol, G, TNT };
+  const physics = { dragArea, blastKg, blastJoules, faceArea, burstShare, blowJoules, heatFactor, impact, pressure, flowOf, submerged, inPool, immerse, stepIn, wet, windOf, windAt, AIR, loadPass, fragments, splash, seedOf, vol, G, TNT };
   E.rupaPhysics = physics;
   if (!E.registerWorldPass) return;   // Node's physics-only build
 
@@ -490,7 +498,7 @@ export function buildRupa(E) {
       // feels, relative to the wind, so a crosswind bends the spray
       const sp = Math.hypot(...p.vel), d = p.drop, cube = { min: [0, 0, 0], max: [d, d, d] }, dm = WATER.density * d * d * d;
       p.vel[2] -= R.g * dt;
-      p.vel = stepIn(p.vel, immerse(cube, dm, p.vel, R.air, windAt(R.wind, p.pos, state.time)), dm, dt);
+      p.vel = stepIn(p.vel, immerse(cube, dm, p.vel, R.air, windHere(state, p.pos)), dm, dt);
       const next = p.pos.map((x, i) => x + p.vel[i] * dt);
       let hit = null;
       for (const b of state.breakables) if (!b.broken && next.every((x, i) => x >= b.min[i] && x <= b.max[i])) { hit = b; break; }
@@ -514,6 +522,34 @@ export function buildRupa(E) {
     }
     R.drops = live.length > 1200 ? live.slice(live.length - 1200) : live;
   }, 31);
+  // the wind at a point as the structure leaves it: behind a block, below its top and within its width, the air is
+  // calmer for about six of its heights downwind (its wake), recovering with distance from its lee face
+  const WAKE = 6;
+  function windHere(state, pos) {
+    const R = state.rupa, u = windAt(R.wind, pos, state.time);
+    if (!R.wind) return u;
+    const d = R.wind.dir, across = [-d[1], d[0]];
+    let f = 1;
+    for (const b of state.breakables) {
+      if (b.broken || b.max[2] <= pos[2]) continue;
+      const h = b.max[2] - state.breakFloor, corners = [[b.min[0], b.min[1]], [b.max[0], b.min[1]], [b.min[0], b.max[1]], [b.max[0], b.max[1]]];
+      const along = corners.map((c) => c[0] * d[0] + c[1] * d[1]), side = corners.map((c) => c[0] * across[0] + c[1] * across[1]);
+      const pa = pos[0] * d[0] + pos[1] * d[1], ps = pos[0] * across[0] + pos[1] * across[1];
+      if (ps < Math.min(...side) || ps > Math.max(...side)) continue;
+      const behind = pa - Math.max(...along);
+      if (behind <= 0 || behind > WAKE * h) continue;
+      f = Math.min(f, 0.15 + (0.85 * behind) / (WAKE * h));
+    }
+    return f < 1 ? u.map((x) => x * f) : u;
+  }
+  // what the wind's drag on a body at rest comes to (N), against what its weight holds on the ground
+  const REST_MU = 0.5;
+  function windWakes(state, p) {
+    const R = state.rupa;
+    if (!R.wind) return false;
+    const u3 = windHere(state, p.pos), u = Math.hypot(...u3), area = dragArea({ min: p.half.map((x) => -x), max: p.half }, u3);
+    return 0.5 * R.air.density * 1.05 * area * u * u > REST_MU * p.mass * R.g;
+  }
   function bodyHit(state, p, r, onId) {
     p.joules -= r.toA;
     if (p.joules <= 0 && !p.broken) p.broken = { t: state.time, how: 'impact', at: [...p.pos], on: onId };
@@ -523,13 +559,14 @@ export function buildRupa(E) {
     const R = state.rupa;
     if (!R || !R.bodies.length) return;
     for (const p of R.bodies) {
-      if (p.broken || p.rest) continue;
+      if (p.broken) continue;
+      if (p.rest) { if (state.time - (p.restAt ?? -1) < 0.25 || !windWakes(state, p)) continue; p.rest = false; }   // the wind lifts what it can
       const fine = 0.8 * Math.min(...p.half), n = Math.min(256, Math.max(1, Math.ceil((Math.hypot(...p.vel) * dt) / fine))), h = dt / n;
       for (let k = 0; k < n && !p.broken && !p.rest; k++) {
         p.vel[2] -= R.g * h;
         const box0 = { min: p.pos.map((x, i) => x - p.half[i]), max: p.pos.map((x, i) => x + p.half[i]) };
         // the air it stands in (lift and drag toward the wind), then any pool: one immersion law for both
-        p.vel = stepIn(p.vel, immerse(box0, p.mass, p.vel, R.air, windAt(R.wind, p.pos, state.time)), p.mass, h);
+        p.vel = stepIn(p.vel, immerse(box0, p.mass, p.vel, R.air, windHere(state, p.pos)), p.mass, h);
         if (R.pools.length) {
           for (const pool of R.pools) {
             const w = immerse(box0, p.mass, p.vel, pool);
@@ -588,9 +625,13 @@ export function buildRupa(E) {
           if (vn > 0) {
             const r = impact(p, FLOOR, vn);
             bodyHit(state, p, r, null);
-            p.vel[2] = vn * r.e; p.vel[0] *= 0.7; p.vel[1] *= 0.7;
+            p.vel[2] = vn * r.e;
+            if (vn > 0.5) { p.vel[0] *= 0.7; p.vel[1] *= 0.7; }   // a real landing scuffs
           }
-          if (Math.hypot(...p.vel) < 0.4) { p.rest = true; p.vel = [0, 0, 0]; }
+          // on the ground it slides against friction (μ·g), not glue
+          const hs = Math.hypot(p.vel[0], p.vel[1]);
+          if (hs > 0) { const dv = Math.min(hs, REST_MU * R.g * h); p.vel[0] -= (p.vel[0] / hs) * dv; p.vel[1] -= (p.vel[1] / hs) * dv; }
+          if (Math.hypot(...p.vel) < 0.4 && !windWakes(state, p)) { p.rest = true; p.restAt = state.time; p.vel = [0, 0, 0]; }
         }
       }
     }
