@@ -8,8 +8,17 @@
  *
  *   stroke({ points, r })        a lock laid on the skin: a chain of round cones through its points (snapped onto the skin)
  *                                with a radius at each (a rounded root, a pointed tip: the last radius small)
- *   band({ c, axis, w, R, teeth, depth })   a ring about an axis (a tail's): |(p − c)·axis| within w, inside a ball of R;
- *                                its edges notched in `teeth` points `depth` deep, round the axis
+ *   band({ c, axis, w, R, teeth, depth, arc })   a ring about an axis (a tail's): |(p − c)·axis| within w, inside a ball
+ *                                of R; its edges notched in `teeth` points `depth` deep, round the axis. With an `arc`
+ *                                ({ back, end, taper }) it is a STRIPE as a body wears one: widest at `back` (the spine),
+ *                                holding its width down the flank and pinching to a point `end` degrees from it
+ *                                (its width × 1 − (angle / end)^taper: the larger the taper, the later the pinch), each
+ *                                side alike (at 180 the
+ *                                two sides' points meet under the body: a chevron). With a `bone` (a tail's ring) the
+ *                                band RIDES the tail's bones (coatLayers: the skin's weights among them alone, its own
+ *                                bone where the skin names none): it never stretches across the blend into the body
+ *   cells({ seeds, line, top })  a NETWORK of patches (a giraffe's): each point the patch of its nearest seed, the patches
+ *                                parted by lines `line` wide, below `top`
  *   cutSkin({ V, F }, marks, { field, shapes })   → { V, F, groups }: a ZONE (a mark of territories alone: the muzzle, the
  *                                belly, the paws) cut into the skin itself along its exact edge, its faces in its group: no
  *                                face added under a big zone, its edge a clean line, never the skin's facets
@@ -43,7 +52,13 @@ const lerp = (a, b, t) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a
 const P3 = (p) => ({ x: p[0], y: p[1], z: p[2] });
 
 export const stroke = ({ points, r }) => Object.freeze({ kind: 'stroke', points, r });
-export const band = ({ c, axis, w, R, teeth = 0, depth = 0 }) => Object.freeze({ kind: 'band', c, axis: unit(axis), w, R, teeth, depth });
+export const band = ({ c, axis, w, R, teeth = 0, depth = 0, arc, bone }) => {
+  const A = unit(axis);
+  // (the arc's spine direction square to the axis)
+  const back = arc ? unit(sub(arc.back, mul(A, dot(arc.back, A)))) : null;
+  return Object.freeze({ kind: 'band', c, axis: A, w, R, teeth, depth, ...(arc ? { arc: Object.freeze({ back, end: arc.end, taper: arc.taper ?? 1 }) } : {}), ...(bone ? { bone } : {}) });
+};
+export const cells = ({ seeds, line, top }) => Object.freeze({ kind: 'cells', seeds, line, top });
 
 /** a point carried onto the skin: Newton steps along the field's gradient */
 function onSkin(field, p, e = 1e-4) {
@@ -58,7 +73,7 @@ function onSkin(field, p, e = 1e-4) {
 }
 
 /** a marking's field on the skin (negative inside): the union of its strokes, bands and territory */
-function markField(mark, field, shapes) {
+export function markField(mark, field, shapes) {
   const parts = [];
   for (const s of mark.strokes ?? []) {
     const pts = s.points.map((p) => P3(onSkin(field, p)));
@@ -70,9 +85,22 @@ function markField(mark, field, shapes) {
     parts.push((q) => {
       const p = [q.x, q.y, q.z], d = sub(p, B.c), a = dot(d, B.axis), th = Math.atan2(dot(d, side2), dot(d, ref));
       const tooth = B.teeth ? B.depth * (1 - 2 * Math.abs(((th / (2 * Math.PI)) * B.teeth + 1000) % 1 - 0.5)) : 0;
-      return Math.max(Math.abs(a) - (B.w + tooth), Math.hypot(...d) - B.R);
+      let w = B.w + tooth;
+      if (B.arc) {
+        // (a stripe: its width falling from the spine round to its point, and past the point less than none, so the
+        // field runs on smoothly across the end)
+        const perp = sub(d, mul(B.axis, a)), l = Math.hypot(...perp) || 1, phi = (Math.acos(Math.max(-1, Math.min(1, dot(perp, B.arc.back) / l))) * 180) / Math.PI;
+        w = phi <= B.arc.end ? w * (1 - Math.pow(phi / B.arc.end, B.arc.taper)) : (-B.w * (phi - B.arc.end)) / B.arc.end;
+      }
+      return Math.max(Math.abs(a) - w, Math.hypot(...d) - B.R);
     });
   }
+  for (const C of mark.cells ?? []) parts.push((q) => {
+    // (inside a patch where the nearest two seeds' bisector is more than half a line away)
+    let d1 = Infinity, d2 = Infinity;
+    for (const s of C.seeds) { const d = Math.hypot(q.x - s[0], q.y - s[1], q.z - s[2]); if (d < d1) { d2 = d1; d1 = d; } else if (d < d2) d2 = d; }
+    return Math.max(C.line / 2 - (d2 - d1) / 2, q.z - C.top);
+  });
   for (const E of mark.regions ?? []) parts.push((q) => eggDistance(E, [q.x, q.y, q.z]));
   if (mark.eggs?.length) {
     const own = shapes.filter((E) => mark.eggs.includes(E.name)), rest = shapes.filter((E) => !mark.eggs.includes(E.name));
@@ -82,7 +110,7 @@ function markField(mark, field, shapes) {
 }
 
 /** the strokes and bands of a set of marks: what the budget counts */
-export const strokesOf = (marks) => marks.reduce((n, m) => n + (m.strokes?.length ?? 0) + (m.bands?.length ?? 0), 0);
+export const strokesOf = (marks) => marks.reduce((n, m) => n + (m.strokes?.length ?? 0) + (m.bands?.length ?? 0) + (m.cells?.length ?? 0), 0);
 
 export function cutSkin({ V, F }, marks, { field, shapes }) {
   let P = V.map((p) => [...p]), T = F.map((t) => [...t]), G = T.map(() => null);
@@ -142,7 +170,15 @@ export function coatLayers({ V, F, field, shapes, weights }, marks, { lift = FEA
     // 4. lifted off the skin, the later over the earlier; its edge walled down to the skin
     const h = lift + order * step, points = {}, normals = {}, faces = {}, blend = {};
     const N = S.V.map((p) => grad(p));
-    S.V.forEach((p, i) => { points[`v${i}`] = add(p, mul(N[i], h)).map(r6); normals[`v${i}`] = N[i].map(r4); blend[`st0.v${i}`] = weights(p); });
+    // (a point of a band that names its bone rides that bone alone, the nearest band's: a tail's ring moves as one
+    // piece, never stretched across the blend at the tail's root; every other point takes the skin's weights there)
+    const ridden = (mark.bands ?? []).filter((B) => B.bone), boneAt = (p) => { if (!ridden.length) return null;
+      let best = null, bd = Infinity; for (const B of ridden) { const d = Math.abs(dot(sub(p, B.c), B.axis)); if (d < bd) { bd = d; best = B; } } return best.bone; };
+    // (a ridden band follows the skin's own weights among the bones the band rides (a tail's two), the rest (the rump's,
+    // the pelvis's) dropped: it bends with the tail as the skin under it does, never pulled back across the root)
+    const ridingBones = new Set(ridden.map((B) => B.bone)), riding = (p, b) => { const w = Object.entries(weights(p)).filter(([k]) => ridingBones.has(k)), t = w.reduce((a, [, x]) => a + x, 0);
+      if (!t) return { [b]: 1 }; const W = w.map(([k, x]) => [k, r4(x / t)]); W[0][1] = r4(W[0][1] + 1 - W.reduce((a, [, x]) => a + x, 0)); return Object.fromEntries(W); };
+    S.V.forEach((p, i) => { points[`v${i}`] = add(p, mul(N[i], h)).map(r6); normals[`v${i}`] = N[i].map(r4); const b = boneAt(p); blend[`st0.v${i}`] = b ? riding(p, b) : weights(p); });
     S.F.forEach((t, i) => { faces[`f${i}`] = t.map((v) => `v${v}`); });
     const E2 = new Map(); for (const t of S.F) for (let k = 0; k < 3; k++) { const a = t[k], b = t[(k + 1) % 3]; E2.set(`${a}|${b}`, true); }
     const boundary = []; let w = 0;

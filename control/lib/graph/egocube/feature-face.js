@@ -128,12 +128,17 @@ const mx = (p) => [-p[0] + 0, p[1], p[2]];
 
 /**
  * The face for a skin (its field, to seat the globes on it), the head H (its centre, for the eyes' directions), the eye
- * (its azimuth and elevation on the head, degrees; its globe's radius, metres), the rest expression, the groups (lid,
- * brow) and the mouth (its points on the muzzle, metres: the nose's foot, the line's middle and right corner, the pivot it
- * opens about).
+ * (its azimuth and elevation on the head, degrees; its globe's radius, metres; and its plan's own `rest`, the resting
+ * face's offsets: `lid` degrees more open, the brow's `at` (degrees above the gaze's level), `lift` and `tilt`), the rest
+ * expression, the groups (lid, brow) and the mouth (its points on the muzzle, metres: the nose's foot, the line's middle
+ * and right corner, the pivot it opens about). The plan's offsets move the rest face and every expression with it: the
+ * channels are differences from the rest, so a clip plays the same.
  */
 export function featureFace({ field, H, eye, rest = 'happy', groups, mouth }) {
-  const C = FEATURE_EYE, E = FEATURE_FACE, restE = E[rest] ?? E.happy, rg = eye.r;
+  const E = FEATURE_FACE, restE = E[rest] ?? E.happy, rg = eye.r, O = eye.rest ?? null;
+  // (a plan's resting face, its eye's `rest`: the upper lid's open edge (its shut edge kept, so a blink still meets the
+  // lower lid) and the brow's place moved for every expression alike)
+  const C = O ? { ...FEATURE_EYE, upper: [FEATURE_EYE.upper[0] - (O.lid ?? 0), FEATURE_EYE.upper[1]], brow: { ...FEATURE_EYE.brow, at: O.at ?? FEATURE_EYE.brow.at } } : FEATURE_EYE;
   // the globe's centre: along the eye's direction from the head's centre to the skin, then in by its proud share
   const dir = unit([Math.cos(rad(eye.el)) * Math.sin(rad(eye.az)), Math.cos(rad(eye.el)) * Math.cos(rad(eye.az)), Math.sin(rad(eye.el))]);
   let lo = 0, hi = 2 * Math.max(H.rx, H.ry, H.rz);
@@ -160,7 +165,7 @@ export function featureFace({ field, H, eye, rest = 'happy', groups, mouth }) {
   const reach = (d) => { let a = 0, b = 4 * rg; for (let i = 0; i < 40; i++) { const m = (a + b) / 2, p = add(G, mul(d, m)); (field({ x: p[0], y: p[1], z: p[2] }) < 0 ? (a = m) : (b = m)); } return a; };
   const browAt = (lift, tilt) => { const d = browDir(lift), c0 = add(G, mul(d, reach(d) + rg * B.r[1] * (1 - 2 * B.sink))), al = unit(add(mul(X, Math.cos(rad(tilt))), mul(U, -Math.sin(rad(tilt)))));   // (+ tilt: the inner end (−x) drops)
     return ballMesh(c0, al, d, B.r.map((x) => x * rg), [25, 60, 90, 120, 155], 12); };
-  const bLift = R0.brow.lift ?? 0, bTilt = R0.brow.tilt ?? 0, brow = browAt(bLift, bTilt);
+  const oLift = O?.lift ?? 0, oTilt = O?.tilt ?? 0, bLift = R0.brow.lift ?? 0, bTilt = R0.brow.tilt ?? 0, brow = browAt(bLift + oLift, bTilt + oTilt);
   for (const S of ['R', 'L']) {
     const m = S === 'R' ? (p) => p : mx, mm = S === 'R' ? (M) => M : mirrorMesh, R = restOf(S);
     J(`eyeC${S}`, m(G)); J(`eyeTip${S}`, m(add(G, mul(g, rg)))); J(`lidTip${S}`, m(add(G, mul(U, rg * 1.3)))); J(`lidLowTip${S}`, m(add(G, mul(U, -rg * 1.3)))); J(`browTip${S}`, m(add(G, mul(U, rg * 1.6))));
@@ -176,7 +181,7 @@ export function featureFace({ field, H, eye, rest = 'happy', groups, mouth }) {
     );
     if (groups.brow) {
       const b = R.brow ?? {}, sameB = (b.lift ?? 0) === bLift && (b.tilt ?? 0) === bTilt;
-      const mine = sameB ? brow : browAt(b.lift ?? 0, b.tilt ?? 0);
+      const mine = sameB ? brow : browAt((b.lift ?? 0) + oLift, (b.tilt ?? 0) + oTilt);
       segments.push({ name: `brow${S}`, kind: 'mesh', group: groups.brow, mesh: mm(mine), bind: `brow${S}` });
     }
     // the chains, each about the globe's centre: the lids close (down, up) and tilt; the brow lifts and tilts; the eye looks

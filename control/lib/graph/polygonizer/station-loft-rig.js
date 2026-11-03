@@ -655,7 +655,10 @@ export function layeredClip(keyposes, R, { loop = true } = {}) {
   const core = Object.fromEntries(VAJRA_CORE.map((k) => [k, { x: R.joints[k][0], y: R.joints[k][1], z: R.joints[k][2] }]));
   const keys = keyposes.map((k) => { const own = {}; const vajra = {}; for (const [n, v] of Object.entries(k)) if (handChannel(R, n)) own[n] = handValue(R, n, v); else if (RIG_CHANNELS.includes(n) || n in R.chains) own[n] = v; else vajra[n] = v; return { ...withMath(dmath, () => resolvePose(vajra, core)), ...own }; });
   const seq = loop ? [...keys, keys[0]] : keys; const N = seq.length - 1;
-  const blend = (a, b, t) => { const o = {}; for (const k of new Set([...Object.keys(a), ...Object.keys(b)])) { const x = a[k], y = b[k]; if (typeof x === 'string' || typeof y === 'string') o[k] = t < 0.5 ? (x ?? y) : (y ?? x); else if ((x && typeof x === 'object') || (y && typeof y === 'object')) o[k] = blend(x || {}, y || {}, t); else o[k] = (x || 0) * (1 - t) + (y || 0) * t; } return o; };
+  // (an ARRAY (a `feet` target, a point) blends as an array, element by element, and one key's array against a key
+  // without it is held: blended as an object it had become { 0, 1, 2 }, which the rig reads as no target at all, so a
+  // keyed gait's feet never stepped once played)
+  const blend = (a, b, t) => { const o = {}; for (const k of new Set([...Object.keys(a), ...Object.keys(b)])) { const x = a[k], y = b[k]; if (typeof x === 'string' || typeof y === 'string') o[k] = t < 0.5 ? (x ?? y) : (y ?? x); else if (Array.isArray(x) || Array.isArray(y)) o[k] = Array.isArray(x) && Array.isArray(y) && x.length === y.length ? x.map((v, i) => (typeof v === 'number' && typeof y[i] === 'number' ? v * (1 - t) + y[i] * t : t < 0.5 ? v : y[i])) : Array.isArray(x) && (t < 0.5 || !Array.isArray(y)) ? x : y; else if ((x && typeof x === 'object') || (y && typeof y === 'object')) o[k] = blend(x || {}, y || {}, t); else o[k] = (x || 0) * (1 - t) + (y || 0) * t; } return o; };
   return (phase) => { if (N === 0) return { ...seq[0] }; const p = Math.max(0, Math.min(0.999999, phase)) * N; const i = Math.floor(p); let t = p - i; t = t * t * (3 - 2 * t); return blend(seq[i], seq[i + 1], t); };
 }
 
