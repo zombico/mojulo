@@ -26,6 +26,10 @@
  *   swell      loose volume ÷ bank volume once dug (bulking)
  *   dig        J/m³: the energy a crater spends per cubic metre it throws out, calibrated so a kilogram of TNT on loam
  *              leaves a crater about a metre in radius (the cratering charts' order), the coupling folded in
+ * COLLISION adds one number:
+ *   bounce     coefficient of restitution against a rigid wall (0 dead, 1 elastic). Two bodies meeting take the lower:
+ *              the share of the closing energy that is NOT dissipated is bounce²
+ *
  * HEAT is its own set of numbers, not derived from the rest (it is cohesion again, the bonds given way to heat, but
  * strength says nothing of it: steel is far stronger than concrete and loses half that strength by about 550 °C):
  *   melt       °C where it melts (null: it burns or crumbles first)
@@ -44,8 +48,8 @@
  *   isBrittle(m), isSoil(m)
  *   cutOfMatter(m)         → the cut a breaking of it plays (destruct/cuts.js presets): glass and ice shatter, brittle
  *                            masonry blasts apart, ductile stuff chips
- *   blockMatter(box, spec) → { matter, fill, mass, joules, compressive, cohesion, heatCap, soften, melt?, fuse?,
- *                            ignite?, fuel?, burnRate? } for a block: the numbers the runtime reads (`cohesion` its
+ *   blockMatter(box, spec) → { matter, fill, mass, joules, compressive, cohesion, heatCap, soften, stiff, bounce, melt?,
+ *                            fuse?, ignite?, fuel?, burnRate? } for a block (`stiff` its E × fill, Pa: a shell gives): the numbers the runtime reads (`cohesion` its
  *                            matter's bond × fill, Pa: a block's `bond` word is how it is held; `heatCap` J/K; `fuse` the
  *                            joules to melt it once at `melt`; `fuel` the joules its burning gives, `burnRate` how fast, W)
  *   meltJoules(m, mass, from?) → the joules that take `mass` kg of it from `from` °C (20) to liquid (null: it does not melt)
@@ -113,7 +117,13 @@ const THERMAL = {
   sand: T(1700, 1200, 830, 4e5), loam: T(1150, 900, 1000, 4e5), clay: T(1200, 900, 920, 4e5), gravel: T(1200, 900, 840, 4e5),
   snow: T(0, -2, 2100, 334e3),
 };
-export const MATTER = Object.freeze(Object.fromEntries(Object.entries(BASE).map(([k, m]) => [k, Object.freeze({ ...m, ...THERMAL[k] })])));
+// BOUNCE, the coefficient of restitution against a rigid wall (handbook and drop-test orders): metals and glass ring,
+// masonry thuds, soils and snow take it dead
+const BOUNCE = {
+  concrete: 0.2, 'reinforced-concrete': 0.2, brick: 0.2, stone: 0.3, sandstone: 0.2, adobe: 0.1, ceramic: 0.3, glass: 0.4, ice: 0.3,
+  steel: 0.5, 'sheet-metal': 0.3, timber: 0.4, pine: 0.4, drywall: 0.1, bone: 0.4, sand: 0.05, loam: 0.05, clay: 0.03, gravel: 0.1, snow: 0.02,
+};
+export const MATTER = Object.freeze(Object.fromEntries(Object.entries(BASE).map(([k, m]) => [k, Object.freeze({ ...m, ...THERMAL[k], bounce: BOUNCE[k] })])));
 export const CHAR_RATE = 0.65e-3 / 60;   // m/s, the char front's speed into a face of burning wood (Eurocode 5, softwood)
 export const AMBIENT = 20;              // °C
 export const MATTER_IDS = Object.freeze(Object.keys(MATTER));
@@ -134,7 +144,7 @@ export const isBrittle = (m) => m.strain < 0.05;
 export const isSoil = (m) => m.family === 'soil';
 export const isCombustible = (m) => Number.isFinite(m.ignite) && m.burn > 0;
 
-const FIELDS = ['label', 'density', 'E', 'compressive', 'tensile', 'bond', 'strain', 'toughness', 'fill', 'c', 'phi', 'swell', 'dig', 'melt', 'soften', 'heat', 'fusion', 'ignite', 'burn'];
+const FIELDS = ['label', 'density', 'E', 'compressive', 'tensile', 'bond', 'strain', 'toughness', 'fill', 'c', 'phi', 'swell', 'dig', 'melt', 'soften', 'heat', 'fusion', 'ignite', 'burn', 'bounce'];
 
 /** A matter by id, or `{ is?, ...fields }` over one (a custom stuff: every number given, or laid over `is`). */
 export function resolveMatter(spec, where = 'matter') {
@@ -153,6 +163,9 @@ export function resolveMatter(spec, where = 'matter') {
   out.tensile = out.tensile ?? 0; out.bond = out.bond ?? out.tensile; out.fill = out.fill ?? 1;
   // heat: a custom stuff with none said neither melts nor burns, and softens where concrete does
   out.melt = out.melt ?? null; out.soften = out.soften ?? 500; out.heat = out.heat ?? 900; out.fusion = out.fusion ?? 0;
+  out.E = out.E ?? 10e9; out.bounce = out.bounce ?? 0.2;
+  if (!(out.E > 0)) throw new Error(`${where}.E is Pa above 0`);
+  if (!(out.bounce >= 0 && out.bounce <= 1)) throw new Error(`${where}.bounce is 0 (dead) to 1 (elastic)`);
   for (const k of ['soften', 'heat']) if (!Number.isFinite(out[k])) throw new Error(`${where}.${k} is a number`);
   if (out.melt !== null && !(Number.isFinite(out.melt) && out.melt > out.soften)) throw new Error(`${where}.melt is °C above its soften (${out.soften}), or null`);
   if ((out.ignite !== undefined) !== (out.burn !== undefined)) throw new Error(`${where}: a stuff that burns says both ignite (°C) and burn (J/kg)`);
@@ -183,7 +196,7 @@ export function blockMatter(box, spec, where = 'matter') {
   if (!(fill > 0 && fill <= 1)) throw new Error(`${where}.fill is the solid share of the box, above 0 and at most 1`);
   const vol = [0, 1, 2].reduce((a, k) => a * Math.max(0, box.max[k] - box.min[k]), 1);
   const mass = m.density * vol * fill;
-  const out = { matter: m.id, fill, mass: r3(mass), joules: sig(m.toughness * vol * fill), compressive: sig(m.compressive * fill), cohesion: sig(m.bond * fill), heatCap: sig(mass * m.heat), soften: m.soften };
+  const out = { matter: m.id, fill, mass: r3(mass), joules: sig(m.toughness * vol * fill), compressive: sig(m.compressive * fill), cohesion: sig(m.bond * fill), heatCap: sig(mass * m.heat), soften: m.soften, stiff: sig(m.E * fill), bounce: m.bounce };
   if (m.melt !== null && m.melt !== undefined) Object.assign(out, { melt: m.melt, fuse: sig(mass * m.fusion) });
   if (isCombustible(m)) {
     // its exposed faces char inward at CHAR_RATE: the fuel it gives each second is that volume's mass × its heat of combustion

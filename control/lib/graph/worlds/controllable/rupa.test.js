@@ -52,6 +52,46 @@ describe('rupa on the runtime: opt-in, energy instead of a count', () => {
   });
 });
 
+describe('rupa bodies: matter thrown into matter', () => {
+  // a wall two blocks thick, four courses high, across the line of fire at x = 0
+  const wall = (matter) => { const out = []; for (let r = 0; r < 4; r++) for (const [x0, x1] of [[0, 0.3], [0.3, 0.6]]) out.push(block(`${matter}:${r}:${x0}`, [x0, -0.6, r * 0.5], [x1, 0.6, (r + 1) * 0.5], matter)); return out; };
+  const throwAt = (w, matter, size, speed) => CW.throwMatter(w, { size, at: [-3, 0, 0.75], vel: [speed, 0, 0], matter, ...blockMatter({ min: [0, 0, 0], max: [size, size, size] }, matter) });
+  const body = (w, id) => w.rupa.bodies.find((b) => b.id === id);
+
+  it('a steel ball punches through a brick wall and carries on, slower; the same pine ball breaks on it and the wall holds', () => {
+    const a = world(wall('brick')), sid = throwAt(a, 'steel', 0.2, 30);
+    step(a, 90);
+    const s = body(a, sid);
+    expect(a.breakables.filter((b) => b.broken && b.broken.how === 'shot').length).toBeGreaterThanOrEqual(2);
+    expect(s.broken).toBeNull();
+    expect(s.pos[0]).toBeGreaterThan(0.6);                        // through
+    expect(s.hits.every((h) => h.broke)).toBe(true);
+    const b = world(wall('brick')), pid = throwAt(b, 'pine', 0.2, 30);
+    step(b, 90);
+    expect(body(b, pid).broken).toMatchObject({ how: 'impact' });
+    expect(b.breakables.some((x) => x.broken)).toBe(false);
+  });
+
+  it('a wall the ball cannot break sends it back: steel off a steel wall', () => {
+    const w = world(wall('steel')), id = throwAt(w, 'steel', 0.2, 30);
+    step(w, 30);
+    expect(body(w, id).vel[0]).toBeLessThan(0);
+    expect(w.breakables.some((x) => x.broken)).toBe(false);
+  });
+
+  it('a falling block lands as an impact: on glass it breaks the glass', () => {
+    const pane = block('pane', [0, 0, 0], [1, 1, 0.05], 'glass'), w = world([pane]);
+    CW.throwMatter(w, { size: 0.5, at: [0.5, 0.5, 3], vel: [0, 0, 0], matter: 'stone', ...blockMatter({ min: [0, 0, 0], max: [0.5, 0.5, 0.5] }, 'stone') });
+    step(w, 60);
+    expect(get(w, 'pane').broken).toMatchObject({ how: 'shot' });
+  });
+
+  it('deterministic: the same throw breaks the same blocks', () => {
+    const run = () => { const w = world(wall('concrete')); throwAt(w, 'steel', 0.15, 200); step(w, 60); return JSON.stringify([w.breakables.map((b) => b.broken), w.rupa.bodies]); };
+    expect(run()).toBe(run());
+  });
+});
+
 describe('rupa heat: melt, burn, weaken', () => {
   it('heat factor: whole where it started, half at its soften, nothing at its melt', () => {
     const { heatFactor } = rupaPhysics, s = MATTER.steel;

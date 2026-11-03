@@ -24,6 +24,12 @@ Walls hold and objects break stays the default; a game that asks for destructibl
   fuel goes, heating what it touches so the fire spreads, and ending as ash. Heat weakens: a block keeps half its
   strength at its softening point, so a steel frame in a fire comes down by the load. A burst's fireball heats what it
   reaches; `heatBlock` heats from a fire, a beam or a script.
+- **Matter meets matter**: a collision dissipates the closing energy of the reduced mass, less what the lower of the two
+  bounces (a new number per matter) keeps, and each side takes it inversely to its stiffness, so the softer takes more.
+  Density is the mass behind the speed: at the same size and speed a steel ball punches through a brick wall and carries
+  on slower, paying only what each block cost, while a pine ball breaks on it. Landings use the same rule instead of
+  charging the full ½mv² to both blocks, and `throwMatter` puts bodies of matter into the world (a cannonball, a
+  hurled boulder), stepped finely enough not to pass through a block.
 - **Ground** (`lib/graph/rupa/ground.js`): a soil heightfield over bedrock: craters from energy, ejecta thrown into a rim
   with the volume kept, slopes that slump to their angle of repose while a cohesive soil holds a cut face up to its
   critical height, and dig, deposit and shovel. The kernel and its laws land here; the page's deformable floor is next.

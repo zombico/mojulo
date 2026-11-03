@@ -27,6 +27,7 @@ strength have one source.
 | Brittleness | `strain` (< 0.05 brittle) | the cut: glass shatters, masonry blasts apart, metal and wood chip |
 | Resistance | `toughness` (J/m³) | a block holds toughness × volume × fill joules: hit points, derived |
 | Heat | `melt`, `soften`, `heat`, `fusion`, `ignite`, `burn` | melting, fire, and strength lost to heat |
+| Bounce | `bounce` (restitution) | how much of a collision's closing energy is kept rather than dissipated |
 | Soil | `c`, `phi`, `swell`, `dig` | slumping, cut faces, bulking, cratering |
 
 Heat has its own numbers rather than being derived. Melting is cohesion again (heat breaking the bonds), but strength
@@ -43,6 +44,23 @@ tells nothing about it: steel is far stronger than concrete and loses half that 
 
 The order of magnitude, checked by a test: a 12-pound ball at 440 m/s (about 0.5 MJ) breaches a foot of concrete and
 dents a foot of steel.
+
+## Matter meets matter
+
+A collision dissipates ½μv²(1 − e²) of the closing energy: μ is the reduced mass (the mover's own mass against
+anything held in the structure or the ground), and e is the lower of the two bounces. Each side takes the energy
+inversely to its stiffness, because both feel one contact force and store F²/2k. The softer side takes more: a steel
+ball into brick puts 93% into the brick.
+
+Density is the mass behind the speed. At the same size and speed, steel carries about 22 times what pine carries.
+A target that breaks takes only the joules it had left, the mover pays only what that cost, and it carries on slower,
+so a steel ball punches through course after course. A target that holds sends the mover back at e of its closing
+speed. A pine ball thrown at a brick wall at 30 m/s breaks and the wall holds. A steel ball the same size goes through.
+
+Landings use the same rule (a falling block on the block below, or on the floor, which takes a hit as concrete does).
+So do bodies: matter thrown into the world with `throwMatter(state, { size, at, vel, ...blockMatter })`, such as a
+cannonball, a hurled boulder or a falling girder. They are stepped finely enough not to pass through a block, and break
+when their own joules run out.
 
 ## What holds it up
 

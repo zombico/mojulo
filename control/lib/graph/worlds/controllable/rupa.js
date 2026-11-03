@@ -29,9 +29,20 @@
  *            its strength (half at `soften`), so a steel frame in a fire comes down by the load pass. A block not burning
  *            cools back toward where it started (`cool` seconds).
  *
+ *   IMPACT   matter meets matter (impact): the closing energy of the reduced mass, ½μv²(1 − e²) with e the lower bounce,
+ *            is dissipated, and each side takes it inversely to its stiffness (one contact force, energy F²/2k: the
+ *            softer takes more). A target that breaks takes only its joules left, the energy that cost is all the
+ *            mover loses, and it carries on, slower; one that holds sends the mover back at e of its closing speed.
+ *            Density is the mass behind the speed. Landings use it (a block on another, or on the floor), and so do
+ *            BODIES: matter thrown into the world (`E.throwMatter(state, { size, at, vel, ...blockMatter })`, a
+ *            cannonball, a hurled boulder, a falling girder), stepped finely enough not to pass through a block, each
+ *            contact spent on both, broken when its own joules run out (`state.rupa.bodies`, `how: 'impact'`).
+ *
  *   rupaPhysics (E.rupaPhysics, also run in Node by lib/graph/rupa/index.js):
  *     blastKg(radius, blastZ?) · blastJoules(radius, blastZ?) · faceArea(box, from) · burstShare(box, at, joules, r0?)
  *     blowJoules(how, { swing, shot, blastZ, power }, extra) · heatFactor(T, soften, melt, T0?) · loadPass(blocks, { fixed, floor, g, touch })
+ *     impact(mover { mass, stiff, bounce, joules? }, target { stiff, bounce, joules?, mass?, fixed? }, closing speed)
+ *       → { e, dissipated, toA, toB, breaksB }
  *       → { weight: Map, stress: Map, crush: [block], span: [[block]], groups } (pure over plain boxes)
  *
  * BUILDER CONTRACT (compose.js): import-free inside the function. The physics is defined first and needs nothing from
@@ -80,6 +91,17 @@ export function buildRupa(E) {
     if (melt != null && T >= melt) return 0;
     if (!(T > T0) || !(soften > T0)) return T > T0 && !(soften > T0) ? 0.5 : 1;
     return 1 / (1 + Math.pow((T - T0) / (soften - T0), 6));
+  }
+  // matter meets matter: the dissipated closing energy, split inversely to stiffness; a target that breaks takes only
+  // the joules it had left, and the mover pays only what that cost
+  function impact(a, b, vn) {
+    const e = Math.min(a.bounce ?? 0.2, b.bounce ?? 0.2);
+    const mu = b.fixed || !(b.mass > 0) ? a.mass : (a.mass * b.mass) / (a.mass + b.mass);
+    const dE = 0.5 * mu * vn * vn * (1 - e * e);
+    const ca = 1 / (a.stiff || 1e10), cb = 1 / (b.stiff || 1e10), sa = ca / (ca + cb), sb = 1 - sa;
+    const capB = b.joules ?? Infinity;
+    if (dE * sb >= capB) { const used = capB / sb; return { e, dissipated: used, toA: used * sa, toB: capB, breaksB: true }; }
+    return { e, dissipated: dE, toA: dE * sa, toB: dE * sb, breaksB: false };
   }
   const touches = (a, s, touch) => restsOn(a, s, touch) || restsOn(s, a, touch) || !!sideFace(a, s, touch);
 
@@ -160,7 +182,7 @@ export function buildRupa(E) {
     return { weight, stress, crush, span, groups };
   }
 
-  const physics = { blastKg, blastJoules, faceArea, burstShare, blowJoules, heatFactor, loadPass, vol, G, TNT };
+  const physics = { blastKg, blastJoules, faceArea, burstShare, blowJoules, heatFactor, impact, loadPass, vol, G, TNT };
   E.rupaPhysics = physics;
   if (!E.registerWorldPass) return;   // Node's physics-only build
 
@@ -179,11 +201,12 @@ export function buildRupa(E) {
       const T0 = Number.isFinite(s.melt) ? Math.min(20, s.melt - 5) : 20;
       b.rupa = { cap: s.joules, joules: s.joules, mass: s.mass || 0, compressive: s.compressive || 0, cohesion: s.cohesion || 0,
         T: T0, T0, heatCap: s.heatCap || 0, soften: s.soften ?? 500, melt: Number.isFinite(s.melt) ? s.melt : null, fuse: s.fuse || 0, latent: 0,
-        ignite: Number.isFinite(s.ignite) ? s.ignite : null, fuel: s.fuel || 0, fuelLeft: s.fuel || 0, burnRate: s.burnRate || 0, burning: false };
+        ignite: Number.isFinite(s.ignite) ? s.ignite : null, fuel: s.fuel || 0, fuelLeft: s.fuel || 0, burnRate: s.burnRate || 0, burning: false,
+        stiff: s.stiff || 1e10, bounce: s.bounce ?? 0.2 };
       b.hp = Infinity;   // the count never breaks it: the energy does
     });
     if (!any) return;
-    state.rupa = { swing: R.swing ?? 300, shot: R.shot ?? 2000, blastZ: R.blastZ ?? 4, power: R.power ?? 1, g: R.g ?? G, heatShare: R.heatShare ?? 0.3, fireTime: R.fireTime ?? 60, cool: R.cool ?? 120, seq: -1, hits: [], hotAt: -1 };
+    state.rupa = { swing: R.swing ?? 300, shot: R.shot ?? 2000, blastZ: R.blastZ ?? 4, power: R.power ?? 1, g: R.g ?? G, heatShare: R.heatShare ?? 0.3, fireTime: R.fireTime ?? 60, cool: R.cool ?? 120, seq: -1, hits: [], hotAt: -1, bodies: [], bodySeq: 0 };
   });
   function breakIt(state, b, how, by) {
     if (b.broken) return;
@@ -248,6 +271,73 @@ export function buildRupa(E) {
     // a hot structure has its load worked out again, a few times a second
     if (hot && state.time - R.hotAt >= 0.25) { R.hotAt = state.time; R.seq = -1; }
   }, 33);
+  // ── bodies: matter thrown into the world ──
+  const FLOOR = { stiff: 30e9, bounce: 0.2, fixed: true };   // the ground takes a hit as concrete does, and never breaks
+  const targetOf = (b) => ({ stiff: b.rupa.stiff, bounce: b.rupa.bounce, joules: Math.max(0, b.rupa.joules), fixed: true });
+  const overlaps = (a, b) => [0, 1, 2].every((k) => a.max[k] > b.min[k] && a.min[k] < b.max[k]);
+  E.throwMatter = (state, spec) => {
+    const R = state.rupa;
+    if (!R || !spec) return null;
+    const size = Array.isArray(spec.size) ? spec.size : [spec.size, spec.size, spec.size];
+    const id = spec.id || `body${R.bodySeq++}`;
+    R.bodies.push({ id, half: size.map((x) => x / 2), pos: [...spec.at], vel: [...spec.vel], mass: spec.mass, cap: spec.joules, joules: spec.joules,
+      stiff: spec.stiff || 1e10, bounce: spec.bounce ?? 0.2, matter: spec.matter || null, broken: null, rest: false, born: state.time, hits: [] });
+    return id;
+  };
+  function bodyHit(state, p, r, onId) {
+    p.joules -= r.toA;
+    if (p.joules <= 0 && !p.broken) p.broken = { t: state.time, how: 'impact', at: [...p.pos], on: onId };
+  }
+  // order 32: before the heat, the blows and the count, so a block a body broke this tick is gone for them all
+  E.registerWorldPass('rupa-bodies', (state, input, dt) => {
+    const R = state.rupa;
+    if (!R || !R.bodies.length) return;
+    for (const p of R.bodies) {
+      if (p.broken || p.rest) continue;
+      const fine = 0.8 * Math.min(...p.half), n = Math.min(256, Math.max(1, Math.ceil((Math.hypot(...p.vel) * dt) / fine))), h = dt / n;
+      for (let k = 0; k < n && !p.broken && !p.rest; k++) {
+        p.vel[2] -= R.g * h;
+        for (let i = 0; i < 3; i++) p.pos[i] += p.vel[i] * h;
+        const box = { min: p.pos.map((x, i) => x - p.half[i]), max: p.pos.map((x, i) => x + p.half[i]) };
+        for (const b of state.breakables) {
+          if (b.broken || !overlaps(box, b)) continue;
+          // the face it came through: the axis it is least far into, and which side of the block it is on
+          let ax = 0, best = Infinity, side = 0;
+          for (let i = 0; i < 3; i++) {
+            const lo = box.max[i] - b.min[i], hi = b.max[i] - box.min[i];
+            if (Math.min(lo, hi) < best) { best = Math.min(lo, hi); ax = i; side = lo < hi ? -1 : 1; }
+          }
+          const vn = -side * p.vel[ax];
+          if (vn <= 0) continue;
+          const ke = 0.5 * p.mass * (p.vel[0] ** 2 + p.vel[1] ** 2 + p.vel[2] ** 2);
+          const r = impact(p, b.rupa ? targetOf(b) : FLOOR, vn);
+          bodyHit(state, p, r, b.id);
+          p.hits.push({ t: state.time, id: b.id, joules: Math.round(r.toB), broke: r.breaksB });
+          if (p.hits.length > 32) p.hits.shift();
+          if (b.rupa) spend(state, b, r.toB, 'shot', p.id);
+          if (r.breaksB) { const keep = Math.sqrt(Math.max(0, 1 - r.dissipated / ke)); p.vel = p.vel.map((x) => x * keep); }
+          else {
+            p.vel[ax] = side * vn * r.e;
+            for (let i = 0; i < 3; i++) if (i !== ax) p.vel[i] *= 0.8;
+            p.pos[ax] = side < 0 ? b.min[ax] - p.half[ax] : b.max[ax] + p.half[ax];
+          }
+          break;   // one contact a step
+        }
+        // the floor, after the blocks (a thin block on the floor is met first)
+        if (p.broken) break;
+        if (p.pos[2] - p.half[2] < state.breakFloor) {
+          p.pos[2] = state.breakFloor + p.half[2];
+          const vn = -p.vel[2];
+          if (vn > 0) {
+            const r = impact(p, FLOOR, vn);
+            bodyHit(state, p, r, null);
+            p.vel[2] = vn * r.e; p.vel[0] *= 0.7; p.vel[1] *= 0.7;
+          }
+          if (Math.hypot(...p.vel) < 0.4) { p.rest = true; p.vel = [0, 0, 0]; }
+        }
+      }
+    }
+  }, 32);
   // the blows: read off this tick's records as the basic pass reads them, spent as joules (order 34: before its count)
   E.registerWorldPass('rupa-blows', (state) => {
     if (!state.rupa) return;
@@ -278,7 +368,8 @@ export function buildRupa(E) {
       }
     }
   }, 34);
-  // after the basic pass has dropped and landed: landings spend ½mv², then the load is worked out again
+  // after the basic pass has dropped and landed: a landing is an impact (on the block below, or the floor), then the load
+  // is worked out again
   E.registerWorldPass('rupa-load', (state) => {
     if (!state.rupa) return;
     const R = state.rupa;
@@ -286,10 +377,10 @@ export function buildRupa(E) {
     for (const b of state.breakables) {
       if (b.broken || !b.rupa || !b.landed || b.landed.t !== state.time || b.landed.speed <= 0) continue;
       changed = true;
-      const J = 0.5 * b.rupa.mass * b.landed.speed * b.landed.speed;
       const under = b.landed.on != null ? state.breakables.find((q) => q.id === b.landed.on && !q.broken) : null;
-      spend(state, b, J, 'fall', null);
-      if (under && under.rupa) spend(state, under, J, 'crush', b.id);
+      const r = impact({ mass: b.rupa.mass, stiff: b.rupa.stiff, bounce: b.rupa.bounce }, under && under.rupa ? targetOf(under) : FLOOR, b.landed.speed);
+      spend(state, b, r.toA, 'fall', null);
+      if (under && under.rupa) spend(state, under, r.toB, 'crush', b.id);
     }
     if (!changed) return;
     const live = state.breakables.filter((b) => !b.broken && !b.falling && b.rupa);

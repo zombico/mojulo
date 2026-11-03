@@ -91,6 +91,34 @@ describe('impact: a blow is joules, a block holds joules', () => {
   });
 });
 
+describe('impact: matter meets matter', () => {
+  const { impact } = rupaPhysics;
+  const ball = (matter, size = 0.2) => { const m = blockMatter({ min: [0, 0, 0], max: [size, size, size] }, matter); return { mass: m.mass, stiff: m.stiff, bounce: m.bounce, joules: m.joules }; };
+  const wall = (matter) => { const m = blockMatter({ min: [0, 0, 0], max: [0.3, 0.6, 0.5] }, matter); return { stiff: m.stiff, bounce: m.bounce, joules: m.joules, fixed: true }; };
+
+  it('the softer side takes the larger share of one contact: steel into glass, steel into timber', () => {
+    const intoGlass = impact(ball('steel'), { ...wall('glass'), joules: Infinity }, 10), intoWood = impact(ball('steel'), { ...wall('timber'), joules: Infinity }, 10);
+    expect(intoGlass.toB / intoGlass.dissipated).toBeCloseTo(MATTER.steel.E / (MATTER.steel.E + MATTER.glass.E), 9);
+    expect(intoWood.toB / intoWood.dissipated).toBeGreaterThan(intoGlass.toB / intoGlass.dissipated);
+    expect(intoGlass.toA + intoGlass.toB).toBeCloseTo(intoGlass.dissipated, 6);
+  });
+
+  it('density is the mass behind the speed: same size, same speed, steel goes through brick and pine shatters on it', () => {
+    const steel = impact(ball('steel'), wall('brick'), 30), pine = impact(ball('pine'), wall('brick'), 30);
+    expect(steel.breaksB).toBe(true);
+    expect(steel.toA).toBeLessThan(ball('steel').joules);                 // the ball is unhurt, and pays only what the block cost
+    expect(steel.dissipated).toBeLessThan(0.5 * ball('steel').mass * 30 * 30);
+    expect(pine.breaksB).toBe(false);
+    expect(pine.toA).toBeGreaterThan(ball('pine').joules);                // the pine ball is the one that breaks
+  });
+
+  it('a free target shares the blow by reduced mass: a light one is knocked away more than it is hurt', () => {
+    const fixed = impact(ball('steel'), { ...wall('pine'), joules: Infinity }, 20);
+    const free = impact(ball('steel'), { ...wall('pine'), joules: Infinity, fixed: false, mass: 1 }, 20);
+    expect(free.dissipated).toBeLessThan(fixed.dissipated);
+  });
+});
+
 describe('load: what holds it up', () => {
   const { loadPass } = rupaPhysics;
   const blk = (min, max, matter = 'concrete', lateral = true) => { const m = blockMatter({ min, max }, matter); return { min, max, mass: m.mass, compressive: m.compressive, bond: m.cohesion, lateral }; };
