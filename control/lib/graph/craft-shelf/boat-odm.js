@@ -47,6 +47,10 @@
  *                  engine's too. Points: `mount`, `prop`
  *   boat-arch      a radar arch on the sole across the cockpit (boat-mil.js): A-framed legs, the crossbar, the radar's
  *                  dome, an all-round light, a light bar, whip antennas. Points: `mount`, `top`
+ *   (a warship's parts are boat-ship.js's, on the kinds above: `boat-cabin`'s `superstructure` (stepped tiers, the
+ *                  bridge on the top one; points on a tier's roof), `funnel` and `hangar`; `boat-arch`'s `pyramid` mast;
+ *                  `boat-mount`'s `turret`, `ciws` and `vls`, modelled, never fired; a `boat-shaft`'s `scale`, its running
+ *                  gear grown to a ship's)
  *   boat-top       a top over the helm standing on the console's point (boat-helm.js): its legs (`legs`: their feet's
  *                  places beside the console, their tops' and lean), its hardtop (`height` over the sole, `over` its front
  *                  and back, `thickness`), its front `brace`, `rods` rod holders. Points: `mount`
@@ -65,7 +69,7 @@
  * door in the deck's aft bulkhead) and a `windscreen` that fits the hull (across the boat at `at`, its wings along the
  * gunwales to `to`, a `walk`-through in its middle); a point may be `[s, x]`, x to starboard; a bench may carry a
  * `cushion`; fittings `rails` (guard rails along a weather deck: stanchions every `step`, two lifelines) and `rafts`
- * (life-raft canisters on their cradles, `[s, x]` each); a point may be `[s, x, 'deck']`, on the deck; `motors: { spacing }` gives twin outboards a `motorPair`
+ * (life-raft canisters on their cradles, `[s, x]` each), `helipad` (a flight deck's markings: from, to, `circle`); a point may be `[s, x, 'deck']`, on the deck; `motors: { spacing }` gives twin outboards a `motorPair`
  * point, a layout entry paired across the boat on it (the port motor its mirror, steering with it, its propeller
  * counter-rotating); a `ramp` bow (a square bow left open above its sole, for a `boat-ramp`), an `aftDeck` (`{ to, z }`:
  * the liner raised to a deck over an engine room aft of `to`; a point `[s, x, 'aft']` on it), a well deck's `cargo`
@@ -82,10 +86,10 @@ export const BOAT_KINDS = Object.freeze({
   'boat-console': 'a boat\'s console: its windscreen, grab rail, helm, dash and throttle',
   'boat-seat': 'a seat on a boat\'s sole: a cooler seat, a leaning post',
   'boat-top': 'a top over a boat\'s helm: a T-top, its legs, hardtop, rod holders and lights',
-  'boat-mount': 'a weapon on its mount on a boat\'s deck or sole: a pintle-mounted machine gun (modelled, never fired)',
-  'boat-arch': 'a radar arch over a boat\'s cockpit: its legs, crossbar, radar dome, lights and antennas',
+  'boat-mount': 'a weapon on its mount on a boat\'s deck or sole: a machine gun, a naval gun, launch cells (modelled, never fired)',
+  'boat-arch': 'a radar arch over a boat\'s cockpit, a davit, a ship\'s pyramid mast with its radar arrays',
   'boat-jet': 'a waterjet drive through a boat\'s transom: its pump, its steering nozzle, its reverse bucket',
-  'boat-cabin': 'a cabin on a boat\'s deck: an armoured pilothouse, its windows, doors, mast and gun ring',
+  'boat-cabin': 'a cabin on a boat\'s deck: an armoured pilothouse, a bridge, a ship\'s superstructure, funnel and hangar',
   'boat-ramp': 'a landing craft\'s bow ramp, hinged across its foot: it lowers onto a beach',
   'boat-shaft': 'an inboard drive\'s running gear under a boat: its shaft, strut, propeller and rudder',
 });
@@ -384,6 +388,43 @@ export const BOAT_ODM = {
       },
     },
   },
+  // ===== a destroyer's hull ===================================================================
+  'hull-destroyer-150': {
+    kind: 'boat-hull', realm: 'water', label: '150 m destroyer hull', classOf: '150 m guided-missile destroyer class (twin screws)',
+    aliases: ['destroyer hull', 'warship hull'],
+    // (its depth amidships, keel to sheer)
+    dims: { length: 150, beam: 20.4, depth: 12.0 }, mass: 5800000, mount: 'keel',
+    perf: { persons: 320, load: 1600000, maxPower: 75000 },
+    build: {
+      family: 'vee', bow: 'stem',
+      lines: {
+        keel: [[0, 3.6], [0.2, 1.4], [0.34, 0], [0.84, 0], [0.94, 1.4], [1, 6.0]],
+        sheer: [[0, 10.8], [0.5, 12.0], [0.8, 13.4], [1, 15.6]],
+        sheerHalf: [[0, 8.4], [0.28, 10.1], [0.5, 10.2], [0.72, 9.2], [0.9, 5.2], [1, 0]],
+        chine: [[0, 4.4], [0.2, 3.0], [0.4, 2.4], [0.72, 2.6], [0.9, 4.2], [1, 6.8]],
+        chineHalf: [[0, 8.0], [0.28, 9.3], [0.5, 9.4], [0.72, 7.9], [0.9, 3.4], [1, 0]],
+      },
+      // (welded, haze grey inside and out; a flush weather deck the whole length, its stern closed by the aft deck)
+      tint: { liner: 'paint' },
+      skin: 0.05, liner: 0.05, flare: 0.3, stations: { mid: 0.008, bow: 0.005 },
+      transom: { rake: 0, thickness: 0.3 },
+      deck: { from: 0.02, thickness: 0.3 }, aftDeck: { to: 0.02, z: 10.4 },
+      gunwale: 0.12, keelStrip: 0,
+      strakes: { at: [0.5], from: 0.3, to: 0.7, radius: 0.12 },
+      shafts: { spacing: 9.0, at: 0.26 },
+      // (where its upperworks, its weapons and its boats stand on the weather deck: x to starboard)
+      points: {
+        super: [0.5, 0, 'deck'], hangar: [0.215, 0, 'deck'], vlsAft: [0.305, 0, 'deck'], vlsFwd: [0.745, 0, 'deck'], gun: [0.83, 0, 'deck'],
+        seaBoat: [0.38, 6.8, 'deck'], davit: [0.38, 8.8, 'deck'],
+      },
+      fittings: {
+        cleats: 0.04, helipad: { from: 0.025, to: 0.16, circle: 12 },
+        rails: { from: 0.02, to: 0.88, step: 0.012, height: 1.1 },
+        bowRail: { from: 0.89, to: 0.98, posts: 4, height: 1.1 },
+        rafts: [[0.6, 9.0], [0.6, -9.0], [0.615, 9.0], [0.615, -9.0], [0.63, 9.0], [0.63, -9.0]],
+      },
+    },
+  },
   // ===== a 20 hp tiller outboard, short shaft ==================================================
   'outboard-20-tiller': {
     kind: 'boat-outboard', realm: 'water', label: '20 hp tiller outboard, short shaft', classOf: '20 hp four-stroke tiller outboard class',
@@ -630,6 +671,74 @@ export const BOAT_ODM = {
     aliases: ['davit', 'boat crane', 'deck crane'],
     dims: { width: 2.1, length: 0.6, height: 2.8 }, mass: 600, mount: 'deck',
     build: { family: 'davit', height: 2.4, reach: 1.95, drop: 1.0 },
+  },
+  // ===== a destroyer's running gear: the shaft drive grown to a ship's ======================
+  'shaft-turbine-ship': {
+    kind: 'boat-shaft', realm: 'water', label: 'ship\'s shaft and screw', classOf: 'twin-screw warship drive class (its gas turbines)',
+    aliases: ['ship screw', 'ship propeller', 'warship screw'],
+    dims: { length: 12.0, width: 4.75, height: 6.0 }, mass: 160000, mount: 'bottom',
+    perf: { power: 37500 },
+    build: { family: 'shaft', scale: 5.0, rake: 6, length: 1.5, rudder: 0.85, steer: 35, prop: { blades: 5, diameter: 0.95, pitch: 1.0, hand: 'rh' } },
+  },
+  // ===== a destroyer's upperworks ============================================================
+  'superstructure-destroyer': {
+    kind: 'boat-cabin', realm: 'water', label: 'destroyer superstructure', classOf: '150 m guided-missile destroyer class',
+    aliases: ['ship superstructure', 'warship superstructure', 'upperworks'],
+    dims: { width: 16.6, length: 38, height: 9.9 }, mass: 900000, mount: 'deck',
+    build: {
+      family: 'superstructure',
+      // (tiers bow to stern from its middle, their sides leaning in; the top tier the bridge, raked to its windows)
+      tiers: [
+        { y: [-12, 26], width: 16.6, height: 3.6, lean: 0.9, front: { rake: 3.0, k: 0.8 } },
+        { y: [-2, 24], width: 14.4, height: 3.2, lean: 0.8, front: { rake: 2.4, k: 0.75 } },
+        { y: [10, 22.5], width: 12.8, height: 3.1, lean: 0.8, front: { rake: 2.2, k: 0.62 }, bridge: { panes: 7, side: 3 } },
+      ],
+      doors: [-8, 4, 14],
+      mastAt: 14,
+      points: { funnel: [0, -7, 0], ciws: [1, 4, 0] },
+    },
+  },
+  'funnel-destroyer': {
+    kind: 'boat-cabin', realm: 'water', label: 'destroyer funnel', classOf: '150 m guided-missile destroyer class',
+    aliases: ['funnel', 'smokestack', 'stack'],
+    dims: { width: 5.2, length: 7.0, height: 6.5 }, mass: 60000, mount: 'deck',
+    build: { family: 'funnel', height: 6.0, taper: 0.8, rake: 1.2 },
+  },
+  'hangar-destroyer': {
+    kind: 'boat-cabin', realm: 'water', label: 'helicopter hangar', classOf: '150 m guided-missile destroyer class',
+    aliases: ['helicopter hangar', 'hangar'],
+    dims: { width: 14.4, length: 15.0, height: 6.6 }, mass: 300000, mount: 'deck',
+    build: { family: 'hangar', height: 6.6, lean: 0.8, door: { width: 9.6, height: 5.2 } },
+  },
+  'mast-pyramid-destroyer': {
+    kind: 'boat-arch', realm: 'water', label: 'pyramid mast', classOf: '150 m guided-missile destroyer class',
+    aliases: ['pyramid mast', 'enclosed mast', 'tower mast'],
+    dims: { width: 7.0, length: 7.0, height: 20 }, mass: 120000, mount: 'deck',
+    build: { family: 'pyramid', height: 11, widths: [7.0, 2.8], arrays: { at: 0.42, size: 3.4 }, topmast: { height: 8.5, yard: 4.4 } },
+  },
+  'davit-ship': {
+    kind: 'boat-arch', realm: 'water', label: 'ship\'s boat davit', classOf: 'boat davit class',
+    aliases: ['ship davit', 'boat davit'],
+    dims: { width: 2.4, length: 0.8, height: 4.6 }, mass: 4000, mount: 'deck',
+    build: { family: 'davit', height: 4.2, reach: 2.0, drop: 1.4 },
+  },
+  'turret-gun-127': {
+    kind: 'boat-mount', realm: 'water', label: '127 mm naval gun', classOf: 'generic 127 mm naval gun class (modelled, never fired)',
+    aliases: ['main gun', 'gun turret', 'naval turret'],
+    dims: { width: 4.4, length: 11.5, height: 3.0 }, mass: 45000, mount: 'deck',
+    build: { family: 'turret', shell: { length: 7.0, width: 4.4, height: 2.6 }, barrel: 7.6, elevation: 65 },
+  },
+  'mount-ciws': {
+    kind: 'boat-mount', realm: 'water', label: 'close-in weapon', classOf: 'generic close-in weapon class (modelled, never fired)',
+    aliases: ['close-in weapon', 'ciws', 'point defence gun'],
+    dims: { width: 1.8, length: 3.0, height: 4.6 }, mass: 6200, mount: 'deck',
+    build: { family: 'ciws', drum: 1.0, radome: { radius: 0.62, height: 1.9 }, barrel: 1.6, elevation: 80 },
+  },
+  'vls-cells-32': {
+    kind: 'boat-mount', realm: 'water', label: 'vertical launch cells', classOf: 'generic vertical launch system class (modelled, never fired)',
+    aliases: ['vertical launch system', 'vls', 'missile cells', 'launch cells'],
+    dims: { width: 6.8, length: 3.6, height: 0.5 }, mass: 120000, mount: 'deck',
+    build: { family: 'vls', cells: [4, 8], pitch: 0.8, height: 0.5 },
   },
   // ===== a cooler seat ========================================================================
   'seat-cooler-120': {

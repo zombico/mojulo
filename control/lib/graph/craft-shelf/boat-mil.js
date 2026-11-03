@@ -26,6 +26,8 @@
  *                         out to the beam (`wingR`, `wingL`) with their rails and sidelights, the tripod mast on its
  *                         roof with the radar's array and dome, the masthead light and the whips
  *   boat-arch    davit    a davit: its post, head, jib, fall and hook (a layout's `yaw` swings it)
+ *   (a warship's parts, the superstructure, funnel, hangar, pyramid mast, turret, close-in weapon and launch cells, are
+ *   boat-ship.js's, dispatched here by family; a shaft's `scale` grows its running gear to a ship's)
  *   boat-arch    radar    a radar arch: on each side an A-frame of two legs from feet on the sole up to the crossbar, the
  *                         crossbar across, a platform on it with the radar's dome, an all-round light, a light bar facing
  *                         forward, two whip antennas at its ends. Points: `mount`, `top`
@@ -33,6 +35,7 @@
  * Craft space: +y forward, +z up, +x starboard, metres.
  */
 import { DEG, lathe, sweep, extrudeWorld, loftWorld, planeUV, round3, tone } from './craft-common.js';
+import { scaled, buildSuperstructure, buildFunnel, buildHangar, buildPyramid, buildTurret, buildCiws, buildVls } from './boat-ship.js';
 
 const r3v = (v) => v.map(round3);
 const add = (a, b) => [a[0] + b[0], a[1] + b[1], a[2] + b[2]];
@@ -47,6 +50,9 @@ const GUNMETAL = '#2e3032', CAN = '#4b5132';
 function buildMount(row, C, opts = {}) {
   const b = row.build, pose = opts.pose || {};
   if (b.family === 'cannon') return buildCannon(row, C, opts);
+  if (b.family === 'turret') return buildTurret(row, C, opts);
+  if (b.family === 'ciws') return buildCiws(row, C, opts);
+  if (b.family === 'vls') return buildVls(row, C, opts);
   if (b.family !== 'pintle' && b.family !== 'tub') throw new Error(`Unknown boat-mount family '${b.family}'`);
   const P = b.post, zG = P + 0.12;
   // its train about the post (its bearing and the pose's half-turn either way) and its elevation about the cradle's pin
@@ -115,6 +121,7 @@ function buildMount(row, C, opts = {}) {
 function buildArch(row, C, opts = {}) {
   const b = row.build;
   if (b.family === 'davit') return buildDavit(row, C);
+  if (b.family === 'pyramid') return buildPyramid(row, C, opts);
   if (b.family !== 'radar') throw new Error(`Unknown boat-arch family '${b.family}'`);
   const { width: W } = row.dims, H = b.height, x = W / 2, f = b.foot, r = b.radius;
   const lathes = [], sweeps = [], extrudes = [];
@@ -201,6 +208,9 @@ function buildJet(row, C, opts = {}) {
 function buildPilothouse(row, C, opts = {}) {
   const b = row.build;
   if (b.family === 'bridge') return buildBridge(row, C, opts);
+  if (b.family === 'superstructure') return buildSuperstructure(row, C, opts);
+  if (b.family === 'funnel') return buildFunnel(row, C, opts);
+  if (b.family === 'hangar') return buildHangar(row, C, opts);
   if (b.family !== 'pilothouse') throw new Error(`Unknown boat-cabin family '${b.family}'`);
   const { width: W, length: D } = row.dims, H = b.height, sh = b.shoulder * H, lean = b.lean, rake = b.rake;
   const sec = (k) => { const h = H * k, w = W / 2, s2 = Math.min(sh, h * 0.9), top = w - lean * Math.min(1, (h - s2) / Math.max(0.01, H - sh)); return [[w, 0, 0], [w, 0, s2], [top, 0, h], [-top, 0, h], [-w, 0, s2], [-w, 0, 0]]; };
@@ -283,6 +293,7 @@ function buildRamp(row, C, opts = {}) {
 // its propeller counter-rotating. Points: `mount` (where the shaft leaves the bottom), `prop`
 function buildShaft(row, C, opts = {}) {
   const b = row.build, pose = opts.pose || {};
+  if (b.scale && b.scale !== 1) return scaled(buildShaft({ ...row, build: { ...b, scale: undefined } }, C, opts), b.scale);
   if (b.family !== 'shaft') throw new Error(`Unknown boat-shaft family '${b.family}'`);
   const th = b.rake * DEG, Ls = b.length, R = b.prop.diameter / 2, hand = b.prop.hand === 'lh' ? -1 : 1;
   const steer = clamp(pose.yaw, -1, 1) * b.steer * DEG * (opts.side === 'l' ? -1 : 1), spin = ((Number(pose.prop) || 0) % 360) * DEG * hand;

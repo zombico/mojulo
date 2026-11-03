@@ -238,6 +238,9 @@ export const VEHICLES = {
     { craft: 'landingCraft', tech: 'ship' }),
   'naval-patrol-boat': row('navy patrol boat', ['naval patrol boat', 'fast patrol boat', 'coastal patrol boat', 'patrol craft', 'coastal patrol vessel', 'patrol vessel', 'navy boat'], 'water', 'patrol', M, FIGHT.concat('parked'),
     { craft: 'navalPatrol', tech: 'ship' }),
+  // (a surface combatant: 'warship' stays the ship's word, 'frigate' the sailing ship's)
+  destroyer: row('destroyer', ['guided missile destroyer', 'missile destroyer', 'navy destroyer', 'naval destroyer', 'surface combatant', 'destroyer escort', 'fleet escort'], 'water', 'armour', M, FIGHT.concat('parked'),
+    { craft: 'destroyer', tech: 'ship' }),
   ship: row('ship', ['steamship', 'ferry', 'freighter', 'warship', 'galley', 'longship'], 'water', 'transport', ['myth', 'modern'], ['driven', 'watched', 'crewed'],
     { tech: 'ship' }),
   'sailing-ship': row('sailing ship', ['galleon', 'frigate', 'schooner', 'clipper', 'sloop', 'tall ship', 'junk', 'dhow'], 'water', 'transport', ['rustic', 'myth'], ['driven', 'watched', 'crewed'],

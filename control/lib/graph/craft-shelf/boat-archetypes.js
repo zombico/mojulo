@@ -22,6 +22,7 @@ export const BOAT_ROLES = {
   runabout: { label: 'runabout', mission: 'a day on the water for a family or a fishing party: quick onto the plane, dry enough offshore', realms: ['water'] },
   raider: { label: 'raiding craft', mission: 'a small team in and out fast, armed and low on the water: a military RHIB', realms: ['water'] },
   patrol: { label: 'patrol boat', mission: 'keep a river, a coast or a harbour: armoured, armed, on station for hours', realms: ['water'] },
+  escort: { label: 'escort', mission: 'screen a fleet at sea: its guns and launch cells against air and surface, its helicopter against what is under it', realms: ['water'] },
   landing: { label: 'landing craft', mission: 'put vehicles and troops ashore over a beach: a ramp at its bow, a well deck, a shallow draft', realms: ['water'] },
 };
 
@@ -168,6 +169,31 @@ export const BOAT_ARCHETYPES = {
       { id: 'seaBoat', sku: 'hull-rib-31', at: 'hull.seaBoat' },
       { id: 'seaBoatMotor', sku: 'outboard-20-tiller', at: 'seaBoat.motor' },
       { id: 'davit', sku: 'davit-sea-boat', at: 'hull.davit', yaw: 180 },
+    ],
+  },
+  destroyer: {
+    // (its stock look the naval card's slots; its stock livery its hull number on its bows)
+    realm: 'water', role: 'escort', palette: 'navalHaze', look: 'naval', livery: { pattern: 'mono', marks: { style: 'military', emblem: 'bar', number: '119' } }, class: 'destroyer', label: '150 m destroyer', classOf: '150 m guided-missile destroyer class (twin screws, its weapons modelled, never fired)',
+    // (its crew, its stores, its fuel and its helicopter's)
+    payload: 1500000,
+    reference: { span: 20.8, length: 150, height: 44.9, mtow: 9.31e6, draft: 5.69 },
+    bom: { 'boat-hull': 3, 'boat-shaft': 2, 'boat-cabin': 3, 'boat-arch': 3, 'boat-mount': 5, 'boat-outboard': 2 },
+    layout: [
+      { id: 'hull', sku: 'hull-destroyer-150' },
+      { id: 'shaft', sku: 'shaft-turbine-ship', at: 'hull.shaftPair', pair: true },
+      { id: 'super', sku: 'superstructure-destroyer', at: 'hull.super' },
+      { id: 'mast', sku: 'mast-pyramid-destroyer', at: 'super.top' },
+      { id: 'funnel', sku: 'funnel-destroyer', at: 'super.funnel' },
+      { id: 'hangar', sku: 'hangar-destroyer', at: 'hull.hangar' },
+      { id: 'gun', sku: 'turret-gun-127', at: 'hull.gun' },
+      { id: 'vlsFwd', sku: 'vls-cells-32', at: 'hull.vlsFwd' },
+      { id: 'vlsAft', sku: 'vls-cells-32', at: 'hull.vlsAft' },
+      { id: 'ciwsFwd', sku: 'mount-ciws', at: 'super.ciws' },
+      { id: 'ciwsAft', sku: 'mount-ciws', at: 'hangar.roof', yaw: 180 },
+      // (its sea boats: a RHIB each side on chocks amidships, its outboard, its davit outboard of it swung over it)
+      { id: 'seaBoat', sku: 'hull-rhib-mil-75', at: 'hull.seaBoat', pair: true },
+      { id: 'seaBoatMotor', sku: 'outboard-150-remote-25', at: 'seaBoat.motor', pair: true },
+      { id: 'davit', sku: 'davit-ship', at: 'hull.davit', pair: true, yaw: 180 },
     ],
   },
 };

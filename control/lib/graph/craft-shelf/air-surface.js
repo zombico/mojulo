@@ -385,9 +385,15 @@ function markBoat(stage, hull, M, { number, seed, mark }) {
     const S = fs.filter((f) => f.outNormal[0] * sx > 0.6 && Math.abs(f.outNormal[2]) < 0.55 && (() => { const c = centre(f.corners); return c[1] > ya && c[1] < yb; })());
     if (!S.length) return;
     // (laid on every face turned out within its depth: the topsides, and a collar's tube over them, the outermost seen)
-    const xm = Math.max(...S.flatMap((f) => f.corners.map((c) => c[0] * sx))), outer = S.filter((f) => centre(f.corners)[0] * sx > xm - 0.14);
-    const [z0, z1] = extentOf(outer, 2), h = Math.min(0.5, (z1 - z0) * 0.42);
-    hull.fs.push(...decal(S, { at: [sx * xm, (ya + yb) / 2, (z0 + z1) / 2], out: [sx, 0, 0], up: [0, 0, 1] }, shapesOf(h), look, { depth: 0.6 }));
+    // (its plane where the mark's middle is: a ship's bow narrows along a mark's length)
+    const yc = (ya + yb) / 2, near = S.filter((f) => Math.abs(centre(f.corners)[1] - yc) < (yb - ya) / 6), Sm = near.length ? near : S;
+    let xm = -Infinity;
+    for (const f of Sm) for (const c of f.corners) xm = Math.max(xm, c[0] * sx);
+    // (a face's outermost corner: a long face at a narrowing bow leans in along its length)
+    const outer = Sm.filter((f) => Math.max(...f.corners.map((c) => c[0] * sx)) > xm - 0.14);
+    // (half a metre tall at most on a boat; a ship's a fiftieth of its length, its hull number read from the next ship)
+    const [z0, z1] = extentOf(outer, 2), h = Math.min(Math.max(0.5, Lb * 0.02), (z1 - z0) * 0.42);
+    hull.fs.push(...decal(S, { at: [sx * xm, yc, (z0 + z1) / 2], out: [sx, 0, 0], up: [0, 0, 1] }, shapesOf(h), look, { depth: Math.max(0.6, h * 0.4) }));
   };
   const bow = [y1 - 0.3 * Lb, y1 - 0.12 * Lb];
   if (M.style === 'civil') {

@@ -60,7 +60,9 @@ for (const id of pick) {
   }
   const tris = faces.reduce((n, f) => n + f.corners.length - 2, 0);
   const pts = faces.flatMap((f) => f.corners);
-  const lo = [0, 1, 2].map((i) => Math.min(...pts.map((p) => p[i]))), hi = [0, 1, 2].map((i) => Math.max(...pts.map((p) => p[i])));
+  // (bounds by a loop: a ship's corners are too many to spread into Math.min)
+  const lo = [Infinity, Infinity, Infinity], hi = [-Infinity, -Infinity, -Infinity];
+  for (const p of pts) for (let i = 0; i < 3; i += 1) { if (p[i] < lo[i]) lo[i] = p[i]; if (p[i] > hi[i]) hi[i] = p[i]; }
   const mid = lo.map((v, i) => (v + hi[i]) / 2), L = Math.max(hi[0] - lo[0], hi[1] - lo[1], hi[2] - lo[2]);
   const wl = readout.afloat && !dry ? readout.afloat.waterline : lo[2];
   const sheet = (z, fill, extra = {}) => ({ corners: [[mid[0] - L * 3, mid[1] - L * 3, z], [mid[0] + L * 3, mid[1] - L * 3, z], [mid[0] + L * 3, mid[1] + L * 3, z], [mid[0] - L * 3, mid[1] + L * 3, z]], fill, ...extra });

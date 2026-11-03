@@ -416,6 +416,17 @@ function buildHull(row, C, opts = {}) {
     lathes.push(lathe(`raft_${k}`, [x, st.y + 0.62, z + 0.42], [x, st.y - 0.62, z + 0.42], [[0, 0.2], [0.06, 0.3], [0.94, 0.3], [1, 0.2]], '#ecebe6', { samples: 18, crossSections: 5 }));
     for (const f of [-0.3, 0.3]) lathes.push(lathe(`raft_band_${k}_${f > 0 ? 'f' : 'a'}`, [x, st.y + f - 0.02, z + 0.42], [x, st.y + f + 0.02, z + 0.42], [[0, 0.305], [1, 0.305]], C.rubber, { samples: 18, crossSections: 2 }));
   }
+  // a flight deck's markings on the deck aft: its centreline, its edge lines and its touchdown circle (`helipad`: from, to
+  // along the hull, `circle` its diameter at its middle), painted white just proud of the deck
+  if (F.helipad) {
+    const K = F.helipad, S = [], n = 8;
+    for (let k = 0; k <= n; k += 1) S.push(K.from + ((K.to - K.from) * k) / n);
+    const z = (st) => deckTopAt(st) + 0.03, edge = (st) => Math.max(st.sheerHalf - (g || 0.03) - 0.6, 0.3);
+    sweeps.push(sweep('helipad_centreline', S.map((s) => { const st = H.at(s); return [0, st.y, z(st)]; }), 0.08, '#e7e7e2', { sides: 4 }));
+    for (const sx of [1, -1]) sweeps.push(sweep(`helipad_edge_${sx > 0 ? 'r' : 'l'}`, S.map((s) => { const st = H.at(s); return [sx * edge(st), st.y, z(st)]; }), 0.08, '#e7e7e2', { sides: 4 }));
+    const sm = H.at((K.from + K.to) / 2), R = K.circle / 2, ring = Array.from({ length: 33 }, (_, k) => { const a = (2 * Math.PI * k) / 32; return [R * Math.cos(a), sm.y + R * Math.sin(a), z(sm)]; });
+    sweeps.push(sweep('helipad_circle', ring, 0.09, '#e7e7e2', { sides: 4 }));
+  }
   // rod holders flush in the gunwale's top, raked aft and outboard
   for (const [k, s] of (F.rodHolders || []).entries()) for (const sx of [1, -1]) {
     const st = H.at(s), x = sx * (st.sheerHalf - (b.cap ? Math.min(b.cap, st.sheerHalf * 0.45) / 2 : g)), z = top(st);

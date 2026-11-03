@@ -11,7 +11,8 @@
 // trained, never fired, its radar arch, its row in the field's roles. A riverine patrol boat: its waterjets paired, its
 // pilothouse and its roof's gun, its tubs open aft. A landing craft: its open bow and its ramp, its aft deck and its
 // shafts, the field's vehicles its well deck carries. A navy patrol boat: its flush deck, its bridge and wing guns, its
-// naval gun, its sea boat and davit, its stock livery. In the military surface: a look card any boat wears,
+// naval gun, its sea boat and davit, its stock livery. A destroyer: its stepped upperworks and mast, its main gun, close-in
+// weapons and launch cells, its flight deck and hangar, its screws grown to a ship's, its sea boats. In the military surface: a look card any boat wears,
 // its number or registration on its bows, its wear. The cases are chosen from the shelf in code.
 import { describe, it, expect } from 'vitest';
 import { assembleCraft, resolveCraftPart, CRAFT_ODM, CRAFT_ARCHETYPES, CRAFT_ROLES, craftRoleAnalogues } from './index.js';
@@ -541,6 +542,85 @@ describe('a navy patrol boat', () => {
     expect(m.length).toBeGreaterThan(0);
     const hit = Object.entries(VEHICLES).find(([, r]) => r.handles.craft?.includes(NB));
     expect(hit[1].role).toBe('patrol');
+  });
+});
+
+describe('a destroyer', () => {
+  // (a ship: a boat whose upperworks are a stepped superstructure)
+  const DD = Object.keys(A).find((k) => A[k].realm === 'water' && A[k].layout.some((e) => CRAFT_ODM[e.sku]?.build?.family === 'superstructure'));
+  const { manifest, readout } = assembleCraft(DD), item = (id) => manifest.items.find((i) => i.id === id), hull = manifest.items[0], HR = CRAFT_ODM[hull.source.garage.sku], H = hullLines(HR);
+  const lay = (fam) => A[DD].layout.filter((e) => CRAFT_ODM[e.sku].build?.family === fam);
+  const sOf = (it) => (it.at[1] - hull.at[1] + H.L / 2) / H.L, deckAt = (s) => hull.at[2] + H.at(s).sheer - HR.build.deck.thickness;
+  const part = (src, re) => bounds(lowerObjectFaces({ ...src, lofts: (src.lofts || []).filter((l) => re.test(l.id)), extrudes: (src.extrudes || []).filter((l) => re.test(l.id)), lathes: (src.lathes || []).filter((l) => re.test(l.id)), sweeps: (src.sweeps || []).filter((l) => re.test(l.id)) }));
+  it('its upperworks stepped on the deck: each tier narrower and set on the one under it, the bridge\'s windows on the top one, its mast on it', () => {
+    const su = item(lay('superstructure')[0].id), T = CRAFT_ODM[su.source.garage.sku].build.tiers;
+    expect(su.at[2]).toBeCloseTo(deckAt(sOf(su)), 1);
+    const tiers = T.map((_, i) => part(su.source, new RegExp(`^tier_${i}$`)));
+    for (let i = 1; i < T.length; i += 1) {
+      expect(tiers[i].hi[0] - tiers[i].lo[0]).toBeLessThan(tiers[i - 1].hi[0] - tiers[i - 1].lo[0]);
+      expect(tiers[i].lo[2]).toBeCloseTo(tiers[i - 1].hi[2], 0);
+    }
+    expect(tiers[0].hi[0] - tiers[0].lo[0]).toBeLessThan(2 * H.at(sOf(su)).sheerHalf);
+    const panes = su.source.extrudes.filter((e) => /^window_front_/.test(e.id));
+    expect(panes.length).toBe(T.at(-1).bridge.panes);
+    const w = part(su.source, /^window_front_/);
+    expect(w.lo[2]).toBeGreaterThan(tiers.at(-1).lo[2]);
+    const mast = item(lay('pyramid')[0].id);
+    expect(mast.at[2] - su.at[2]).toBeCloseTo(tiers.at(-1).hi[2], 1);
+  });
+  it('its main gun on the foredeck trained ahead; its close-in weapons and its launch cells on deck; each trains and elevates, never fired', () => {
+    const g = item(lay('turret')[0].id), G = CRAFT_ODM[g.source.garage.sku];
+    expect(sOf(g)).toBeGreaterThan(0.75);
+    expect(g.source.garage.hardpoints.muzzle[1]).toBeGreaterThan(G.build.barrel);
+    for (const fam of ['turret', 'ciws']) {
+      const e = lay(fam)[0];
+      expect(resolveCraftPart(e.sku, { seat: 'mount' }).garage.joints.map((j) => j.control), fam).toEqual(['train', 'elevate']);
+      const half = resolveCraftPart(e.sku, { seat: 'mount', pose: { train: 0.5 } }).garage.hardpoints.muzzle, up = resolveCraftPart(e.sku, { seat: 'mount', pose: { elevate: 1 } }).garage.hardpoints.muzzle;
+      expect(half[0], fam).toBeLessThan(0);
+      expect(up[2], fam).toBeGreaterThan(resolveCraftPart(e.sku, { seat: 'mount' }).garage.hardpoints.muzzle[2]);
+    }
+    for (const e of lay('vls')) {
+      const v = item(e.id), [n, m] = CRAFT_ODM[e.sku].build.cells;
+      expect(v.source.extrudes.filter((x) => /^cell_/.test(x.id)).length).toBe(n * m);
+      expect(v.at[2]).toBeCloseTo(deckAt(sOf(v)), 1);
+    }
+    expect(lay('vls').map((e) => sOf(item(e.id))).some((s) => s > 0.5) && lay('vls').map((e) => sOf(item(e.id))).some((s) => s < 0.5)).toBe(true);
+  });
+  it('its flight deck aft: the hangar\'s door facing it, the markings on the deck between the hangar and the stern', () => {
+    const hg = item(lay('hangar')[0].id), K = HR.build.fittings.helipad;
+    const door = part(hg.source, /^door_frame$/), box = part(hg.source, /^hangar$/);
+    expect(door.lo[1]).toBeLessThan(box.lo[1] + 0.01);
+    const c = part(hull.source, /^helipad_/);
+    expect(c.hi[1] + hull.at[1]).toBeLessThan(hg.at[1] + box.lo[1]);
+    expect(c.lo[1] + hull.at[1]).toBeGreaterThan(hull.at[1] - H.L / 2);
+    expect(c.hi[0] - c.lo[0]).toBeGreaterThan(K.circle);
+    // (painted on: its top just proud of the deck)
+    expect(c.hi[2]).toBeGreaterThan(H.at(K.from).sheer - HR.build.deck.thickness);
+    expect(c.hi[2]).toBeLessThan(H.at(K.to).sheer - HR.build.deck.thickness + 0.2);
+  });
+  it('its twin screws the shaft drive grown to a ship\'s, a mirrored pair under water', () => {
+    const e = A[DD].layout.find((x) => CRAFT_ODM[x.sku].kind === 'boat-shaft'), R = CRAFT_ODM[e.sku], k = R.build.scale;
+    const big = resolveCraftPart(e.sku, { seat: 'mount' }).garage;
+    const r = item(`${e.id}-r`), l = item(`${e.id}-l`);
+    expect(l.at[0]).toBeCloseTo(-r.at[0], 3);
+    const prop = part(r.source, /^prop_hub$/);
+    expect(prop.hi[2] + r.at[2]).toBeLessThan(readout.afloat.waterline - R.build.prop.diameter * k / 2);
+    const blades = part(r.source, /^blade_/);
+    expect(blades.hi[2] - blades.lo[2]).toBeGreaterThan(R.build.prop.diameter * k * 0.7);
+    expect(big.hardpoints.prop.every((v, i) => Math.abs(v) >= Math.abs(big.hardpoints.mount[i]))).toBe(true);
+  });
+  it('its sea boats a pair on the deck, each under its davit\'s hook; it floats at the waterline its weight sets; on the roster it fights', () => {
+    const sb = A[DD].layout.find((x) => x !== A[DD].layout[0] && CRAFT_ODM[x.sku].kind === 'boat-hull');
+    const br = item(`${sb.id}-r`), bl = item(`${sb.id}-l`);
+    expect(bl.at[0]).toBeCloseTo(-br.at[0], 3);
+    expect(br.at[2]).toBeCloseTo(deckAt(sOf(br)), 1);
+    const dv = item(`${lay('davit')[0].id}-r`), hook = dv.source.garage.hardpoints.hook, hx = dv.at[0] - hook[0];
+    expect(Math.abs(hx - br.at[0])).toBeLessThan(CRAFT_ODM[sb.sku].dims.beam / 2);
+    expect(readout.afloat.displacement).toBe(readout.partsMass + A[DD].payload);
+    expect(readout.afloat.draft).toBeGreaterThan(A[DD].reference.draft * 0.8);
+    const hit = resolveVehicle('destroyer');
+    expect(handlesOf(hit.id).craft).toEqual([DD]);
+    expect(hit.role ?? VEHICLES[hit.id].role).toBe('armour');
   });
 });
 

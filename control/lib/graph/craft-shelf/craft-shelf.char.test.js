@@ -116,6 +116,13 @@ const PINS = {
   'bridge-patrol-25': 'a7fab46289510326',
   'mount-cannon-30': '14f456da3a12d27f',
   'davit-sea-boat': '161303e108d517e1',
+  'superstructure-destroyer': 'e1e9fd7399698b65',
+  'funnel-destroyer': '291861a97f05c017',
+  'hangar-destroyer': '2a441996af8596f0',
+  'mast-pyramid-destroyer': '1aafbdbedddce104',
+  'turret-gun-127': '27a72d1531bf963e',
+  'mount-ciws': '5f1bf3dd69bcfa2b',
+  'vls-cells-32': '892a7a8d1921f05b',
   'craft:lightSingle': 'cbbad5fe3c255c1d',
 };
 

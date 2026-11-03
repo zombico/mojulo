@@ -105,3 +105,31 @@ Every weapon is modelled, never fired.
     under the davit's hook, its weight in the ship's; its number in the form render with nothing asked; its row in
     the field's `patrol` role. The new builder paths (the bridge, the naval gun, the davit) are pinned, and no existing
     pin moved.
+- **The destroyer** (`destroyer`): a generic 150 m guided-missile destroyer in haze grey, twin screws, the registry's
+  `destroyer` row (guided missile destroyer, surface combatant, fleet escort …) in the field's `armour` role and a new
+  craft role, `escort`. Its parts are a ship's, in `craft-shelf/boat-ship.js`, reached through the kinds the shelf has:
+  - **Its hull:** a long displacement hull from its lines (a raked stem, flare, a flush weather deck, its stern
+    immersed), rails, a bow rail, six life-raft canisters, and a flight deck's markings aft (the hull's `helipad`: its
+    centreline, edge lines and touchdown circle).
+  - **`boat-cabin`'s `superstructure`, `funnel` and `hangar`:** stepped tiers bow to stern, each narrower and set on the
+    one under it, their sides leaning in, the top tier raked to the bridge's band of seven panes, doors along the lowest
+    tier, named points on a tier's roof; a faceted funnel raked aft with its grille and exhausts; a hangar with its
+    sides leaning in and its roller door aft, facing the flight deck.
+  - **`boat-arch`'s `pyramid`:** a faceted mast tapering to its platform, a flat radar array on each of its four faces on
+    the face's own slope, a topmast with its yards, domes, whips, navigation radar and masthead light (covert under the
+    naval look).
+  - **`boat-mount`'s `turret`, `ciws` and `vls`:** a 127 mm gun in a faceted shell (it trains; its barrel elevates), two
+    close-in weapons (a radome over a rotary gun, on the superstructure and the hangar's roof), and two blocks of
+    vertical launch cells fore and aft; each modelled, never fired.
+  - **A shaft drive's `scale`:** the shaft drive's running gear grown to a ship's (its shaft, strut, five-bladed screw and
+    rudder about its mount), so the inboard drive's one builder serves a landing craft and a destroyer.
+  - **Its sea boats:** a combat RHIB each side amidships with its outboard, a ship's davit outboard of each swung over it.
+  - **A ship's marks:** a hull number is as tall as a fiftieth of the hull's length (half a metre at most on a boat, as
+    before) and laid on the hull's side where the mark's middle is, so it reads on a ship's narrowing bow.
+  - It floats 9,300 t (its crew, stores and fuel) at a 5.7 m draft, 45 m from its keel to its masthead.
+  - Held: the tiers stepped and inside the deck's breadth, the bridge's panes on the top tier, the mast on it; the main
+    gun forward, each weapon training and elevating; the launch cells on the deck fore and aft, every cell there; the
+    hangar's door facing the flight deck, its markings between the hangar and the stern; the screws mirrored and under
+    water; the sea boats a pair under their davits' hooks; its weight its waterline; its row in the field's `armour`
+    role. The new builder paths (the superstructure, funnel, hangar, pyramid, turret, close-in weapon, launch cells)
+    are pinned, and no existing pin moved. A part's size ceiling on the shelf is 100 m, a ship's hull's 400 m.
