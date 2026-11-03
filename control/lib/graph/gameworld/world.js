@@ -134,7 +134,8 @@ import { readMade } from './made.js';
 import { readQuick, LEVEL_GOAL_PARTS } from './quick.js';
 import { readEscapeGoal } from './escape.js';
 import { readErrands } from './errand.js';
-import { readBestiary, readLevelFoes } from './foes.js';
+import { readGauntletGoal } from './gauntlet.js';
+import { readBestiary, readLevelFoes, bestiaryOf } from './foes.js';
 import { readIntent, cubeOfWorld } from './intent.js';
 import { concernIds } from './concerns.js';
 import { LAID, groundLays, fieldSite, boardSite, loopSite, arenaSite } from './lay-concerns.js';
@@ -515,7 +516,7 @@ export function readGameworld(W) {
     // the level's own goal (quick.js levelGoalMechanics): quick's goals laid together on a walk's stages or a building's
     // rooms; a quick game's goal is its own (quick.goal), and a building by ref is played as it was made
     if (L.goal !== undefined) {
-      const Gl = L.goal, shape = `${at}.goal is { collect?: true | '<pickup word>', boss?: true, health?: true, guards?: true, escape?: true | 1…4 }, at least one`;
+      const Gl = L.goal, shape = `${at}.goal is { collect?: true | '<pickup word>', boss?: true, health?: true, guards?: true, escape?: true | 1…4, gauntlet?: { arenas } }, at least one`;
       if (W.quick !== undefined && W.quick !== null) throw new Error(`gameworld: ${at}.goal: a quick game's goal is quick.goal`);
       if (L.walk === undefined && (L.building === undefined || L.building?.ref !== undefined)) throw new Error(`gameworld: ${at}.goal is laid on a walk's stages or a building's rooms`);
       if (!isObj(Gl) || !Object.keys(Gl).length) throw new Error(`gameworld: ${shape}`);
@@ -526,6 +527,13 @@ export function readGameworld(W) {
       if (Gl.escape !== undefined) {
         try { readEscapeGoal(Gl.escape, id); } catch (e) { throw new Error(`gameworld: ${at}.${e.message}`); }
         if (Gl.boss) throw new Error(`gameworld: ${at}.goal: an escape room's way out ends the level, and so does a boss's fall: one or the other`);
+        if (Gl.gauntlet !== undefined) throw new Error(`gameworld: ${at}.goal: an escape room's way out ends the level, and so does a gauntlet's last wave: one or the other`);
+      }
+      // a wave gauntlet (gauntlet.js): its foes the bestiary's; it owns the hero's hp and ends the level itself
+      if (Gl.gauntlet !== undefined) {
+        try { readGauntletGoal(Gl.gauntlet, id, Object.keys(bestiaryOf({ foes }))); } catch (e) { throw new Error(`gameworld: ${at}.${e.message}`); }
+        if (Gl.boss || Gl.health) throw new Error(`gameworld: ${at}.goal: a gauntlet owns the hero's hp and ends the level when its last wave is down: no boss or health beside it`);
+        if (L.walk === undefined) throw new Error(`gameworld: ${at}.goal.gauntlet stands on a walk's last stage (a building's arena is to come)`);
       }
     }
     // the level's foes (foes.js): which of the bestiary stand on its trails, or in a building's rooms
@@ -660,8 +668,8 @@ export function readGameworld(W) {
       try { readScenes({ scenes: bare }); } catch (e) { throw new Error(`gameworld: ${at}.${e.message.replace(/^play\./, '')}`); }
       sceneSets[id] = sc.map((s) => ({ ...s }));
     }
-    // (an escape goal read to its locks and its room, the level's id: what its keys and locks are named by)
-    levels[id] = { ...lv, ...(lv.goal?.escape !== undefined ? { goal: { ...lv.goal, escape: readEscapeGoal(lv.goal.escape, id) } } : {}), style: st };
+    // (an escape goal read to its locks and its room, a gauntlet to its arenas and its room: the level's id names their things)
+    levels[id] = { ...lv, ...(lv.goal?.escape !== undefined || lv.goal?.gauntlet !== undefined ? { goal: { ...lv.goal, ...(lv.goal.escape !== undefined ? { escape: readEscapeGoal(lv.goal.escape, id) } : {}), ...(lv.goal.gauntlet !== undefined ? { gauntlet: readGauntletGoal(lv.goal.gauntlet, id, Object.keys(bestiaryOf({ foes }))) } : {}) } } : {}), style: st };
   }
   const links = (W.links ?? []).map((e, i) => {
     if (!isObj(e)) throw new Error(`gameworld: links[${i}] is { from, to, kind? }`);
