@@ -89,6 +89,8 @@ export default defineConfig({
     // under full-suite load and cascades into "Unknown tool" failures.
     hookTimeout: 30000,
     setupFiles: ['./vitest.setup.js'],
+    // The realistic body's keeps shared across test files (lib/util/kept.js): a folder per hash of the sources.
+    globalSetup: ['./vitest.global-setup.js'],
     include: ['{lib,app,components,middleware,scripts}/**/*.test.js', 'middleware.test.js'],
     exclude: [...EXCLUDE, ...E2E],
   },
