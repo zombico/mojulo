@@ -53,7 +53,8 @@
  *   isBrittle(m), isSoil(m), isLiquid(m), LIQUID_IDS
  *   cutOfMatter(m)         → the cut a breaking of it plays (destruct/cuts.js presets): glass and ice shatter, brittle
  *                            masonry blasts apart, ductile stuff chips
- *   blockMatter(box, spec) → { matter, fill, mass, joules, compressive, cohesion, heatCap, soften, stiff, bounce, melt?,
+ *   blockMatter(box, spec) → { matter, fill, mass, joules, compressive, cohesion, heatCap, soften, stiff, bounce, frac,
+ *                            shape, spread, melt?,
  *                            fuse?, ignite?, fuel?, burnRate? } for a block (`stiff` its E × fill, Pa: a shell gives): the numbers the runtime reads (`cohesion` its
  *                            matter's bond × fill, Pa: a block's `bond` word is how it is held; `heatCap` J/K; `fuse` the
  *                            joules to melt it once at `melt`; `fuel` the joules its burning gives, `burnRate` how fast, W)
@@ -138,7 +139,23 @@ const BOUNCE = {
   steel: 0.5, 'sheet-metal': 0.3, timber: 0.4, pine: 0.4, drywall: 0.1, bone: 0.4, sand: 0.05, loam: 0.05, clay: 0.03, gravel: 0.1, snow: 0.02,
   water: 0, seawater: 0, oil: 0, honey: 0, mud: 0, lava: 0,
 };
-export const MATTER = Object.freeze(Object.fromEntries(Object.entries(BASE).map(([k, m]) => [k, Object.freeze({ ...m, ...THERMAL[k], bounce: BOUNCE[k] })])));
+// DEBRIS, what a breaking leaves (handbook orders): `frac` the fracture energy, J/m² (the joules one square metre of new
+// crack costs: glass a few, concrete ~100, wood ~10⁴, a ductile steel ~10⁵, so the same joules shatter glass and only
+// split timber); `shape` how its pieces come (glass shards, masonry chunks, wood splinters, metal torn plates, soil clods);
+// `spread` the Rosin–Rammler uniformity of their sizes (low: from dust to lumps; high: pieces alike). Soils add `mu`, the
+// cratering exponent of their ejecta's speeds (Housen–Holsapple: dry sand 0.41, a cohesive soil 0.55). Liquids add
+// `tension`, N/m: with viscosity it says whether a hit splashes or plops
+const DEBRIS = {
+  concrete: [100, 'chunk', 1.2], 'reinforced-concrete': [1000, 'chunk', 1.6], brick: [50, 'chunk', 1.2], stone: [150, 'chunk', 1.4],
+  sandstone: [60, 'chunk', 1.2], adobe: [20, 'chunk', 1.0], ceramic: [20, 'shard', 1.3], glass: [8, 'shard', 1.6], ice: [1, 'shard', 1.4],
+  steel: [2e5, 'plate', 3], 'sheet-metal': [2e5, 'plate', 3], timber: [1e4, 'splinter', 2.5], pine: [6e3, 'splinter', 2.5],
+  drywall: [50, 'plate', 1.5], bone: [1e3, 'splinter', 2], sand: [0.1, 'clod', 1], loam: [2, 'clod', 1], clay: [10, 'clod', 1.2],
+  gravel: [0.5, 'clod', 1], snow: [1, 'clod', 1],
+};
+const EJECTA_MU = { sand: 0.41, loam: 0.45, clay: 0.55, gravel: 0.41, snow: 0.4 };
+const TENSION = { water: 0.072, seawater: 0.073, oil: 0.032, honey: 0.05, mud: 0.06, lava: 0.35 };
+const debrisOf = (k) => (DEBRIS[k] ? { frac: DEBRIS[k][0], shape: DEBRIS[k][1], spread: DEBRIS[k][2] } : {});
+export const MATTER = Object.freeze(Object.fromEntries(Object.entries(BASE).map(([k, m]) => [k, Object.freeze({ ...m, ...THERMAL[k], bounce: BOUNCE[k], ...debrisOf(k), ...(EJECTA_MU[k] ? { mu: EJECTA_MU[k] } : {}), ...(TENSION[k] ? { tension: TENSION[k] } : {}) })])));
 export const CHAR_RATE = 0.65e-3 / 60;   // m/s, the char front's speed into a face of burning wood (Eurocode 5, softwood)
 export const AMBIENT = 20;              // °C
 export const MATTER_IDS = Object.freeze(Object.keys(MATTER));
@@ -161,7 +178,7 @@ export const isSoil = (m) => m.family === 'soil';
 export const isLiquid = (m) => m.family === 'liquid';
 export const isCombustible = (m) => Number.isFinite(m.ignite) && m.burn > 0;
 
-const FIELDS = ['label', 'density', 'E', 'compressive', 'tensile', 'bond', 'strain', 'toughness', 'fill', 'c', 'phi', 'swell', 'dig', 'melt', 'soften', 'heat', 'fusion', 'ignite', 'burn', 'bounce'];
+const FIELDS = ['label', 'density', 'E', 'compressive', 'tensile', 'bond', 'strain', 'toughness', 'fill', 'c', 'phi', 'swell', 'dig', 'melt', 'soften', 'heat', 'fusion', 'ignite', 'burn', 'bounce', 'frac', 'shape', 'spread', 'mu', 'tension'];
 
 /** A matter by id, or `{ is?, ...fields }` over one (a custom stuff: every number given, or laid over `is`). */
 export function resolveMatter(spec, where = 'matter') {
@@ -181,6 +198,8 @@ export function resolveMatter(spec, where = 'matter') {
   // heat: a custom stuff with none said neither melts nor burns, and softens where concrete does
   out.melt = out.melt ?? null; out.soften = out.soften ?? 500; out.heat = out.heat ?? 900; out.fusion = out.fusion ?? 0;
   out.E = out.E ?? 10e9; out.bounce = out.bounce ?? 0.2;
+  out.frac = out.frac ?? 100; out.shape = out.shape ?? 'chunk'; out.spread = out.spread ?? 1.2;
+  if (!['chunk', 'shard', 'splinter', 'plate', 'clod'].includes(out.shape)) throw new Error(`${where}.shape is chunk, shard, splinter, plate or clod`);
   if (!(out.E > 0)) throw new Error(`${where}.E is Pa above 0`);
   if (!(out.bounce >= 0 && out.bounce <= 1)) throw new Error(`${where}.bounce is 0 (dead) to 1 (elastic)`);
   for (const k of ['soften', 'heat']) if (!Number.isFinite(out[k])) throw new Error(`${where}.${k} is a number`);
@@ -214,7 +233,8 @@ export function blockMatter(box, spec, where = 'matter') {
   if (!(fill > 0 && fill <= 1)) throw new Error(`${where}.fill is the solid share of the box, above 0 and at most 1`);
   const vol = [0, 1, 2].reduce((a, k) => a * Math.max(0, box.max[k] - box.min[k]), 1);
   const mass = m.density * vol * fill;
-  const out = { matter: m.id, fill, mass: r3(mass), joules: sig(m.toughness * vol * fill), compressive: sig(m.compressive * fill), cohesion: sig(m.bond * fill), heatCap: sig(mass * m.heat), soften: m.soften, stiff: sig(m.E * fill), bounce: m.bounce };
+  const out = { matter: m.id, fill, mass: r3(mass), joules: sig(m.toughness * vol * fill), compressive: sig(m.compressive * fill), cohesion: sig(m.bond * fill), heatCap: sig(mass * m.heat), soften: m.soften, stiff: sig(m.E * fill), bounce: m.bounce,
+    frac: m.frac, shape: m.shape, spread: m.spread };
   if (m.melt !== null && m.melt !== undefined) Object.assign(out, { melt: m.melt, fuse: sig(mass * m.fusion) });
   if (isCombustible(m)) {
     // its exposed faces char inward at CHAR_RATE: the fuel it gives each second is that volume's mass × its heat of combustion

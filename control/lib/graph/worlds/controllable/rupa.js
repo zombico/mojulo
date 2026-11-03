@@ -50,12 +50,19 @@
  *            kilogram takes 4.19 kJ a degree up to 100 °C, then 2.26 MJ to boil away, so a burning block drenched below
  *            its ignition goes out (`how: 'douse'` on the hits). Where parcels land is counted (`state.rupa.wet`).
  *
+ *   DEBRIS   each break carries what it leaves (`state.breaks[].debris`, from `fragments`): pieces sized by the new surface
+ *            the joules opened against the matter's fracture energy, shaped by the matter, flying away from the blow with
+ *            its share of the joules, the fines a dust cloud; a burn leaves ash, a melt its liquid. A body entering a pool
+ *            splashes (`state.rupa.splashes`, from `splash`). Seeded by the block and the break: the same blow, the same debris.
+ *
  *   rupaPhysics (E.rupaPhysics, also run in Node by lib/graph/rupa/index.js):
  *     blastKg(radius, blastZ?) · blastJoules(radius, blastZ?) · faceArea(box, from) · burstShare(box, at, joules, r0?)
  *     blowJoules(how, { swing, shot, blastZ, power }, extra) · heatFactor(T, soften, melt, T0?) · loadPass(blocks, { fixed, floor, g, touch })
  *     impact(mover { mass, stiff, bounce, joules? }, target { stiff, bounce, joules?, mass?, fixed? }, closing speed)
  *       → { e, dissipated, toA, toB, breaksB }
  *     submerged(box, surface) · inPool(box, pool) · wet(box, mass, vel, pool) → { V, lift, k } | null
+ *     fragments(box, { density, fill, frac, shape, spread, joules, how, from?, dir?, seed }) → { pieces, dust, liquid?, stats }
+ *     splash(liquid { density, viscosity, tension }, { at, speed, mass, size, seed }) → { droplets, cavity, plop, stats }
  *       → { weight: Map, stress: Map, crush: [block], span: [[block]], groups } (pure over plain boxes)
  *
  * BUILDER CONTRACT (compose.js): import-free inside the function. The physics is defined first and needs nothing from
@@ -219,7 +226,83 @@ export function buildRupa(E) {
     return { weight, stress, crush, span, groups };
   }
 
-  const physics = { blastKg, blastJoules, faceArea, burstShare, blowJoules, heatFactor, impact, submerged, inPool, wet, loadPass, vol, G, TNT };
+  // ── DEBRIS: what a breaking leaves, deterministic in the blow (the same blow on the same block, the same pieces) ──
+  const rng = (seed) => { let a = seed >>> 0; return () => { a |= 0; a = (a + 0x6d2b79f5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; };
+  const seedOf = (str, n) => { let h = (2166136261 ^ (n >>> 0)) >>> 0; for (let i = 0; i < str.length; i++) h = Math.imul(h ^ str.charCodeAt(i), 16777619); return h >>> 0; };
+  const LANCZOS = [0.99999999999980993, 676.5203681218851, -1259.1392167224028, 771.32342877765313, -176.61502916214059, 12.507343278686905, -0.13857109526572012, 9.9843695780195716e-6, 1.5056327351493116e-7];
+  function gamma(x) {
+    if (x < 0.5) return Math.PI / (Math.sin(Math.PI * x) * gamma(1 - x));
+    x -= 1; let a = LANCZOS[0]; const t = x + 7.5;
+    for (let i = 1; i < 9; i++) a += LANCZOS[i] / (x + i);
+    return Math.sqrt(2 * Math.PI) * Math.pow(t, x + 0.5) * Math.exp(-t) * a;
+  }
+  const ETA_SURF = 0.01;   // the share of a breaking's joules that opens new crack surface (comminution runs about 1 %)
+  const DUST = 0.002;      // m: pieces finer than this are dust
+  const KINETIC = { burst: 0.3, shot: 0.15, swing: 0.1, crush: 0.05, fall: 0.05, call: 0.02 };   // the share that flies
+  const SHAPES = { chunk: [1, 1], shard: [1.8, 1.2], splinter: [3, 0.577], plate: [1.6, 1.6], clod: [1, 1] };
+  const unitRand = (r) => { const z = r() * 2 - 1, a = r() * 2 * Math.PI, q = Math.sqrt(1 - z * z); return [q * Math.cos(a), q * Math.sin(a), z]; };
+  const unit = (v) => { const L = Math.hypot(...v) || 1; return v.map((x) => x / L); };
+  const cloud = (kg) => Math.cbrt((3 * (kg / 0.01)) / (4 * Math.PI));   // a dust cloud at about 10 g a cubic metre
+  // a block's pieces: new surface = ETA_SURF × joules ÷ frac (fracture energy), so the mean piece is 6V ÷ (all its
+  // surface); sizes by Rosin–Rammler (spread n), the share under DUST a cloud; each piece shaped by its matter (a
+  // splinter along the block's longest axis), placed inside the block; KINETIC[how] of the joules flies, away from
+  // where the blow came from (`from` a point, `dir` a direction), smaller pieces faster (∝ size^-⅓), summed exactly
+  function fragments(b, { density, fill = 1, frac = 100, shape = 'chunk', spread = 1.2, joules, how = 'call', from = null, dir = null, seed = 1, max = 40 }) {
+    const V = vol(b) * fill, M = V * density, c = centre(b), dims = [0, 1, 2].map((k) => b.max[k] - b.min[k]);
+    if (how === 'melt') return { pieces: [], dust: null, liquid: { kg: M }, stats: { count: 0, kinetic: 0 } };
+    if (how === 'burn') { const kg = M * 0.01; return { pieces: [], dust: { kg, at: c, radius: cloud(kg), life: 6 }, stats: { count: 0, kinetic: 0, ash: kg } }; }
+    const A0 = 2 * (dims[0] * dims[1] + dims[1] * dims[2] + dims[0] * dims[2]), Anew = (ETA_SURF * joules) / frac;
+    const s = Math.min(Math.cbrt(V), (6 * V) / (Anew + A0)), x0 = s / gamma(1 + 1 / spread);
+    const fd = 1 - Math.exp(-Math.pow(DUST / x0, spread)), Vp = V * (1 - fd), r = rng(seed), xs = [];
+    let used = 0;
+    while (used < Vp - 1e-12 && xs.length < max) {
+      let x = Math.max(DUST, Math.min(Math.cbrt(Vp), x0 * Math.pow(-Math.log(1 - r() * 0.999999), 1 / spread)));
+      if (used + x ** 3 > Vp) x = Math.cbrt(Vp - used);
+      xs.push(x); used += x ** 3;
+    }
+    if (used > 0 && used < Vp) { const k = Math.cbrt(Vp / used); for (let i = 0; i < xs.length; i++) xs[i] *= k; }   // the cap reached: the pieces carry the rest
+    const Ek = (KINETIC[how] ?? 0.05) * joules, sh = SHAPES[shape] || SHAPES.chunk, order = [0, 1, 2].sort((p, q) => dims[q] - dims[p]), ws = [], ds = [];
+    const pieces = xs.map((x) => {
+      const jit = shape === 'chunk' || shape === 'clod' ? [0.8 + 0.4 * r(), 0.8 + 0.4 * r()] : [1, 1];
+      const e = [sh[0] * jit[0], sh[1] * jit[1]]; e.push(1 / (e[0] * e[1]));
+      const size = [0, 0, 0]; order.forEach((ax, j) => { size[ax] = x * e[j]; });
+      const at = [0, 1, 2].map((k) => b.min[k] + Math.min(size[k], dims[k]) / 2 + r() * Math.max(0, dims[k] - size[k]));
+      let d;
+      if (from && how === 'burst') { const v = [at[0] - from[0], at[1] - from[1], at[2] - from[2]]; d = unit([v[0], v[1], v[2] + 0.3 * Math.hypot(v[0], v[1])]); }
+      else if (dir) { const u = unitRand(r), n0 = unit(dir), cone = how === 'swing' ? 0.6 : 0.35; d = unit([n0[0] + u[0] * cone, n0[1] + u[1] * cone, n0[2] + u[2] * cone + 0.15]); }
+      else if (how === 'crush' || how === 'fall') { const hz = unit([at[0] - c[0] + (r() - 0.5) * 0.2, at[1] - c[1] + (r() - 0.5) * 0.2, 0]); d = unit([hz[0], hz[1], 0.2]); }
+      else { const u = unitRand(r); d = unit([u[0], u[1], Math.abs(u[2])]); }
+      ws.push(Math.pow(x / s, -1 / 3) * (0.7 + 0.6 * r())); ds.push(d);
+      return { at, size, kg: x ** 3 * density, vel: null, spin: unitRand(r).map((v) => v * 6 * Math.sqrt(s / x)) };
+    });
+    const sum = pieces.reduce((a, p, i) => a + p.kg * ws[i] * ws[i], 0), k = sum > 0 ? Math.sqrt((2 * Ek) / sum) : 0;
+    pieces.forEach((p, i) => { p.vel = ds[i].map((v) => v * ws[i] * k); });
+    const dustKg = fd * M;
+    return { pieces, dust: dustKg > 1e-6 ? { kg: dustKg, at: c, radius: cloud(dustKg), life: 4 + 2 * cloud(dustKg) } : null, stats: { count: pieces.length, mean: s, surface: Anew, kinetic: Ek, dustShare: fd } };
+  }
+  // a body meeting a liquid: the cavity it opens (E = ρ·g·V·R, a hemisphere: R = (3E / 2πρg)^¼); it splashes when Mundo's
+  // √We·Re^¼ passes 57.7 (inertia over surface tension and viscosity); a twentieth of the cavity flies as a crown of
+  // droplets, with a tenth of the energy scaled by how much inertia beats viscosity (Re ÷ (Re + 1000)): water splashes,
+  // honey gloops, lava plops
+  const CROWN = 57.7;
+  function splash(liquid, { at, speed, mass, size, seed = 1, max = 40 }) {
+    const rho = liquid.density, eta = liquid.viscosity ?? 1e-3, sigma = liquid.tension ?? 0.072;
+    const E = 0.5 * mass * speed * speed, Re = (rho * speed * size) / eta, We = (rho * speed * speed * size) / sigma, K = Math.sqrt(We) * Math.pow(Re, 0.25);
+    const Rc = E > 0 ? Math.pow((3 * E) / (2 * Math.PI * rho * G), 0.25) : 0;
+    if (!(E > 0) || !(K > CROWN)) return { droplets: [], cavity: Rc, plop: true, stats: { E, Re, We, K, kg: 0, kinetic: 0 } };
+    const Ms = 0.05 * (2 / 3) * Math.PI * Rc ** 3 * rho, Es = 0.1 * E * (Re / (Re + 1000));
+    const n = Math.max(6, Math.min(max, Math.round(Ms / 0.05))), r = rng(seed), kg = Ms / n, ws = [], ds = [];
+    const droplets = Array.from({ length: n }, (_, i) => {
+      const az = ((i + r()) / n) * 2 * Math.PI, el = ((15 + 30 * r()) * Math.PI) / 180;
+      ds.push([Math.sin(el) * Math.cos(az), Math.sin(el) * Math.sin(az), Math.cos(el)]); ws.push(0.7 + 0.6 * r());
+      return { at: [at[0] + Math.cos(az) * Rc * 0.6, at[1] + Math.sin(az) * Rc * 0.6, at[2]], kg, vel: null };
+    });
+    const sum = ws.reduce((a, w) => a + kg * w * w, 0), k = Math.sqrt((2 * Es) / sum);
+    droplets.forEach((d, i) => { d.vel = ds[i].map((v) => v * ws[i] * k); });
+    return { droplets, cavity: Rc, plop: false, stats: { E, Re, We, K, kg: Ms, kinetic: Es } };
+  }
+
+  const physics = { blastKg, blastJoules, faceArea, burstShare, blowJoules, heatFactor, impact, submerged, inPool, wet, loadPass, fragments, splash, seedOf, vol, G, TNT };
   E.rupaPhysics = physics;
   if (!E.registerWorldPass) return;   // Node's physics-only build
 
@@ -239,27 +322,32 @@ export function buildRupa(E) {
       b.rupa = { cap: s.joules, joules: s.joules, mass: s.mass || 0, compressive: s.compressive || 0, cohesion: s.cohesion || 0,
         T: T0, T0, heatCap: s.heatCap || 0, soften: s.soften ?? 500, melt: Number.isFinite(s.melt) ? s.melt : null, fuse: s.fuse || 0, latent: 0,
         ignite: Number.isFinite(s.ignite) ? s.ignite : null, fuel: s.fuel || 0, fuelLeft: s.fuel || 0, burnRate: s.burnRate || 0, burning: false,
-        stiff: s.stiff || 1e10, bounce: s.bounce ?? 0.2 };
+        stiff: s.stiff || 1e10, bounce: s.bounce ?? 0.2, fill: s.fill ?? 1, frac: s.frac ?? 100, shape: s.shape || 'chunk', spread: s.spread ?? 1.2 };
       b.hp = Infinity;   // the count never breaks it: the energy does
     });
     if (!any) return;
-    state.rupa = { swing: R.swing ?? 300, shot: R.shot ?? 2000, blastZ: R.blastZ ?? 4, power: R.power ?? 1, g: R.g ?? G, heatShare: R.heatShare ?? 0.3, fireTime: R.fireTime ?? 60, cool: R.cool ?? 120, seq: -1, hits: [], hotAt: -1, bodies: [], bodySeq: 0, pools: Array.isArray(R.pools) ? R.pools : [], sprays: [], drops: [], dropSeq: 0, wet: { volume: 0, landed: [] } };
+    state.rupa = { swing: R.swing ?? 300, shot: R.shot ?? 2000, blastZ: R.blastZ ?? 4, power: R.power ?? 1, g: R.g ?? G, heatShare: R.heatShare ?? 0.3, fireTime: R.fireTime ?? 60, cool: R.cool ?? 120, seq: -1, hits: [], hotAt: -1, bodies: [], bodySeq: 0, pools: Array.isArray(R.pools) ? R.pools : [], sprays: [], drops: [], dropSeq: 0, wet: { volume: 0, landed: [] }, splashes: [], splashSeq: 0 };
   });
-  function breakIt(state, b, how, by) {
+  // src: { joules (what the breaking took: its joules, and any blow past them), from?, dir? } for the debris
+  function breakIt(state, b, how, by, src = {}) {
     if (b.broken) return;
-    b.rupa.joules = 0; b.hp = 0;
+    const r = b.rupa, seq = state.breakSeq;
+    const debris = fragments(b, { density: r.mass / Math.max(1e-9, vol(b) * r.fill), fill: r.fill, frac: r.frac, shape: r.shape, spread: r.spread,
+      joules: src.joules ?? r.cap, how, from: src.from || null, dir: src.dir || null, seed: seedOf(b.id, seq) });
+    r.joules = 0; b.hp = 0;
     b.broken = { t: state.time, by: by ?? null, how };
     const k = state.colliders.indexOf(b.collider);
     if (k >= 0) state.colliders.splice(k, 1);
-    state.breaks.push({ seq: state.breakSeq++, id: b.id, t: state.time, at: [0, 1, 2].map((i) => (b.min[i] + b.max[i]) / 2), by: by ?? null, how });
+    state.breaks.push({ seq: state.breakSeq++, id: b.id, t: state.time, at: [0, 1, 2].map((i) => (b.min[i] + b.max[i]) / 2), by: by ?? null, how, debris });
     state.settleDirty = true;
   }
-  function spend(state, b, joules, how, by) {
+  function spend(state, b, joules, how, by, src = {}) {
     if (b.broken || !b.rupa || !(joules > 0)) return;
+    const before = Math.max(0, b.rupa.joules);
     b.rupa.joules -= joules;
     state.rupa.hits.push({ t: state.time, id: b.id, how, joules: Math.round(joules), left: Math.max(0, Math.round(b.rupa.joules)) });
     if (state.rupa.hits.length > 64) state.rupa.hits.shift();
-    if (b.rupa.joules <= 0) breakIt(state, b, how, by);
+    if (b.rupa.joules <= 0) breakIt(state, b, how, by, { ...src, joules: b.rupa.cap + Math.max(0, joules - before) });
   }
   // heat into a block: up to its melt by its heat capacity, then into its latent heat; past `ignite` it catches
   function warm(state, b, Q, by) {
@@ -363,7 +451,7 @@ export function buildRupa(E) {
           // a jet stresses what it strikes by its stagnation pressure, ½ρv²; below the matter's strength the blow is
           // elastic and leaves it whole (a hose does not wear a log away; a cutting jet at thousands of bar would)
           const left = hit.rupa.cap > 0 ? Math.max(0, hit.rupa.joules) / hit.rupa.cap : 1;
-          if (0.5 * WATER.density * sp * sp > hit.rupa.compressive * left) spend(state, hit, impact({ mass: p.kg, stiff: WATER.stiff, bounce: 0 }, targetOf(hit), sp).toB, 'shot', 'spray');
+          if (0.5 * WATER.density * sp * sp > hit.rupa.compressive * left) spend(state, hit, impact({ mass: p.kg, stiff: WATER.stiff, bounce: 0 }, targetOf(hit), sp).toB, 'shot', 'spray', { dir: p.vel });
           douse(state, hit, p.kg, 'spray');
         }
         continue;
@@ -396,6 +484,11 @@ export function buildRupa(E) {
           for (const pool of R.pools) {
             const w = wet(box0, p.mass, p.vel, pool);
             if (!w) continue;
+            if (!p.wet) {
+              const sp0 = Math.hypot(...p.vel), at = [p.pos[0], p.pos[1], pool.max[2]];
+              R.splashes.push({ seq: R.splashSeq++, t: state.time, by: p.id, at, ...splash(pool, { at, speed: sp0, mass: p.mass, size: 2 * Math.max(...p.half), seed: seedOf(p.id, R.splashSeq) }) });
+              if (R.splashes.length > 32) R.splashes.shift();
+            }
             p.vel[2] += (w.lift / p.mass) * h;
             const keep = 1 / (1 + h * w.k);
             p.vel = p.vel.map((x) => x * keep);
@@ -419,7 +512,7 @@ export function buildRupa(E) {
           bodyHit(state, p, r, b.id);
           p.hits.push({ t: state.time, id: b.id, joules: Math.round(r.toB), broke: r.breaksB });
           if (p.hits.length > 32) p.hits.shift();
-          if (b.rupa) spend(state, b, r.toB, 'shot', p.id);
+          if (b.rupa) spend(state, b, r.toB, 'shot', p.id, { dir: [...p.vel] });
           if (r.breaksB) { const keep = Math.sqrt(Math.max(0, 1 - r.dissipated / ke)); p.vel = p.vel.map((x) => x * keep); }
           else {
             p.vel[ax] = side * vn * r.e;
@@ -452,12 +545,12 @@ export function buildRupa(E) {
       const s = e.lastShot;
       if (!s || s.t !== state.time || s.mode !== 'miss') continue;
       const b = live.find((q) => !q.broken && boxDist(q, s.to) <= EPS);
-      if (b) spend(state, b, blowJoules('shot', R), 'shot', e.id);
+      if (b) spend(state, b, blowJoules('shot', R), 'shot', e.id, { dir: [s.to[0] - e.transform.pos[0], s.to[1] - e.transform.pos[1], s.to[2] - e.transform.pos[2]] });
     }
     for (const u of state.bursts || []) {
       if (u.t !== state.time) continue;
       const J = blowJoules('burst', R, { radius: u.radius || 0 });
-      for (const b of live) if (boxDist(b, u.pos) <= (u.radius || 0) + EPS) { const q = burstShare(b, u.pos, J); spend(state, b, q, 'burst', null); warm(state, b, q * R.heatShare, null); }
+      for (const b of live) if (boxDist(b, u.pos) <= (u.radius || 0) + EPS) { const q = burstShare(b, u.pos, J); spend(state, b, q, 'burst', null, { from: u.pos }); warm(state, b, q * R.heatShare, null); }
     }
     for (const e of state.entities) {
       const P = e.strikeParams;
@@ -469,7 +562,7 @@ export function buildRupa(E) {
         const q = boxNear(b, o), v = [q[0] - o[0], q[1] - o[1]], flat = Math.hypot(v[0], v[1]);
         if (flat > 1e-3 && (v[0] * aim[0] + v[1] * aim[1]) / flat < P.cosCone) continue;
         struck['rupa:' + b.id] = true;
-        spend(state, b, blowJoules('swing', R), 'swing', e.id);
+        spend(state, b, blowJoules('swing', R), 'swing', e.id, { dir: [q[0] - o[0], q[1] - o[1], q[2] - o[2]] });
       }
     }
   }, 34);

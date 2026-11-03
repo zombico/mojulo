@@ -96,6 +96,26 @@ what it strikes only when its stagnation pressure, ½ρv², passes the matter's 
 MPa at the face) never wears a log away; a cutting jet at thousands of bar would. A body crossing a pool's surface also
 loses its heave to the waves it makes, so a dropped block settles at its draft in seconds.
 
+## Debris
+
+What a breaking leaves is deterministic in the force: the same blow on the same thing leaves the same debris, and a
+harder blow leaves more, finer and faster pieces ([`debris.js`](../control/lib/graph/rupa/debris.js); the runtime runs
+the same `fragments` on every break and puts it on the break record as `debris`).
+
+- **Solids:** the breaking opens new crack surface, 1% of its joules over the matter's fracture energy (`frac`, J/m²:
+  glass 8, concrete 100, timber 10⁴, steel 2×10⁵). The mean piece is 6V over all its surface, so the same joules
+  shatter glass and only split timber, and ten megajoules into glass leave powder. Sizes follow Rosin–Rammler with the
+  matter's `spread`; pieces under 2 mm are a dust cloud. Each piece takes the matter's `shape` (shards, chunks, splinters
+  along the longest axis, torn plates, clods). A share of the joules flies (burst 0.3, round 0.15, swing 0.1, crush
+  0.05), away from where the blow came from, smaller pieces faster, and their kinetic energy sums to that share exactly.
+  A burn leaves ash; a melt its liquid.
+- **Dirt:** a crater's ejecta thrown as clods (`dirtOf`). Each clod's speed comes from where it leaves the bowl, by the
+  Housen–Holsapple ejecta law v = 0.6·√(gR)·(r/R)^(−1/μ), with μ the soil's (`mu`: dry sand 0.41, clay 0.55). The bowl's
+  middle flies far, the edge falls near the rim, and the whole stays under a quarter of the charge's energy.
+- **Splash:** a body meeting a liquid opens a cavity and splashes when Mundo's √We·Re^¼ passes 57.7 (surface tension
+  `tension` and viscosity against inertia). How much flies scales with inertia over viscosity, so water splashes, honey
+  gloops and lava plops. A body entering a pool on the runtime records its splash (`state.rupa.splashes`).
+
 ## What holds it up
 
 The basic break pass ([`rules-basic.js`](../control/lib/graph/worlds/controllable/rules-basic.js)) still decides what

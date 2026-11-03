@@ -140,6 +140,31 @@ describe('rupa water: pools and the hose', () => {
   });
 });
 
+describe('rupa debris on the runtime', () => {
+  const wall = () => [block('w0', [1, -0.5, 0], [1.4, 0.5, 0.5], 'brick'), block('w1', [1, -0.5, 0.5], [1.4, 0.5, 1], 'brick')];
+  const blast = (w, r) => { (w.bursts || (w.bursts = [])).push({ seq: 0, pos: [0, 0, 0.3], t: w.time, radius: r }); step(w); };
+
+  it('every break carries its debris, thrown away from the blast; the same blast, the same debris', () => {
+    const run = (r) => { const w = world(wall()); blast(w, r); return w.breaks; };
+    const a = run(3), b = run(3);
+    expect(a.length).toBe(2);
+    expect(a.every((br) => br.debris && br.debris.pieces.length > 0)).toBe(true);
+    expect(a.every((br) => br.debris.pieces.every((p) => p.vel[0] > 0))).toBe(true);
+    expect(JSON.stringify(a)).toBe(JSON.stringify(b));
+    const big = run(4);
+    expect(big[0].debris.stats.kinetic).toBeGreaterThan(a[0].debris.stats.kinetic);   // a bigger charge throws harder
+  });
+
+  it('a block dropped in a pool splashes', () => {
+    const w = world([block('far', [30, 30, 0], [30.5, 30.5, 0.5], 'stone')], { pools: [{ min: [-5, -5, 0], max: [5, 5, 2], density: 1000, viscosity: 1e-3, tension: 0.072 }] });
+    CW.throwMatter(w, { size: 0.5, at: [0, 0, 5], vel: [0, 0, 0], matter: 'stone', ...blockMatter({ min: [0, 0, 0], max: [0.5, 0.5, 0.5] }, 'stone') });
+    step(w, 120);
+    expect(w.rupa.splashes.length).toBe(1);
+    expect(w.rupa.splashes[0].droplets.length).toBeGreaterThan(0);
+    expect(w.rupa.splashes[0].at[2]).toBe(2);
+  });
+});
+
 describe('rupa heat: melt, burn, weaken', () => {
   it('heat factor: whole where it started, half at its soften, nothing at its melt', () => {
     const { heatFactor } = rupaPhysics, s = MATTER.steel;

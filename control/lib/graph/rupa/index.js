@@ -6,6 +6,7 @@
  *   matter.js       the table (density, stiffness, strength, the bond between blocks, brittleness, toughness; soils)
  *   ground.js       a soil heightfield: crater, ejecta, slump, dig, deposit, shovel
  *   fluid.js        liquid on the ground grid (pour, flow, drain) and inside: tanks, tubs, pipes, pumps, nozzles
+ *   debris.js       what a breaking leaves: pieces and dust for solids, dirt for a crater, a splash for a liquid
  *   the runtime     worlds/controllable/rupa.js (an opt-in builder); its physics is re-exported here, the same source
  *
  *   POWER                 the tiers a world's blows are scaled by: each an order of magnitude or more over the last
@@ -56,7 +57,7 @@ export function readMatterSpec(v, where = 'matter') {
       if (!p || !Array.isArray(p.min) || !Array.isArray(p.max) || p.min.length !== 3 || p.max.length !== 3) throw new Error(`${w} needs min and max [x, y, z]`);
       const m = resolveMatter(p.liquid ?? 'water', `${w}.liquid`);
       if (!isLiquid(m)) throw new Error(`${w}.liquid: ${m.id} is not a liquid`);
-      return { min: [...p.min], max: [...p.max], liquid: m.id, density: m.density, viscosity: m.viscosity };
+      return { min: [...p.min], max: [...p.max], liquid: m.id, density: m.density, viscosity: m.viscosity, tension: m.tension };
     });
   }
   if (v.heatShare !== undefined) { if (!(Number.isFinite(v.heatShare) && v.heatShare >= 0 && v.heatShare <= 1)) throw new Error(`${where}.heatShare is the share of a burst's energy that is heat, 0 to 1`); out.heatShare = v.heatShare; }

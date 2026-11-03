@@ -39,6 +39,12 @@ Walls hold and objects break stays the default; a game that asks for destructibl
   on a body's faces: in a level's pools pine floats a third under, ice nine tenths, a hollow steel hull a sixth, and
   solid steel sinks. A spray (`spray`) throws water that pushes on what it hits and cools it by its heat and its boiling,
   so a hose puts out a burning block.
+- **Debris, deterministic in the force** (`lib/graph/rupa/debris.js`; every break on the runtime carries it): a breaking
+  opens new crack surface against the matter's fracture energy, so a harder blow leaves more, finer and faster pieces
+  and more dust, the same joules shatter glass and split timber, and the pieces take the matter's shape (shards,
+  chunks, splinters, torn plates, clods) and fly away from the blow with an exact share of its energy. A crater throws
+  its ejecta as clods by the cratering ejecta law; a body meeting a liquid splashes by inertia against surface tension
+  and viscosity, so water splashes and lava plops. A burn leaves ash, a melt its liquid.
 - **Ground** (`lib/graph/rupa/ground.js`): a soil heightfield over bedrock: craters from energy, ejecta thrown into a rim
   with the volume kept, slopes that slump to their angle of repose while a cohesive soil holds a cut face up to its
   critical height, and dig, deposit and shovel. The kernel and its laws land here; the page's deformable floor is next.
