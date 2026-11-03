@@ -16,6 +16,11 @@
  *   clearance       the tool never enters the cab over its joints' ranges
  *   transport       its width and its height folded for shipping (its `transport` pose), against a road's limits
  *                   (advisory)
+ *   measure.*       a point swept over the joints it names, the rest at the machine's rest pose: its highest
+ *                   (`take: 'max'`) or how far below the ground it goes (`take: 'depth'`): a blade's lift and its drop,
+ *                   a ripper's depth, a loader's hinge pin
+ * The excavator's envelope (reach, depth, the heights) and its lift are read where a machine has a boom, a stick and a
+ * tool; every other law where its band is given.
  *
  * Each law: { id, value, band, ok, says }. Read once a process per machine. Pure.
  */
@@ -35,16 +40,27 @@ export function conLaws(arch, ctx, { corners, physics, posed }) {
   const R = Object.fromEntries(Object.keys(arch.joints).map((k) => [k, rangeOf(arch, k, ctx)]));
   const [tipBody, tipHp] = arch.tip.split('.'), tipLocal = ctx.hp(tipBody, tipHp);
   const tipAt = (j) => apply(framesOf(arch, { slew: 0, ...j }, ctx)[tipBody], tipLocal);
+  const digs = Boolean(R.boom && R.stick && R.tool);
 
-  // ── the arcs ──
+  // ── the arcs (a slide's, its travel in metres) ──
   for (const [k, r] of Object.entries(R)) if (r && band.arcs?.[k]) {
-    const a = r1(r[1] - r[0]), b = band.arcs[k];
-    law(`arc.${k}`, a, b, a >= b[0] && a <= b[1], `the ${k}'s working arc, its ${arch.joints[k].ram}'s stroke`);
+    const slide = arch.joints[k].kind === 'slide', a = slide ? r2(r[1] - r[0]) : r1(r[1] - r[0]), b = band.arcs[k];
+    law(`arc.${k}`, a, b, a >= b[0] && a <= b[1], `the ${k}'s working ${slide ? 'travel' : 'arc'}, ${arch.joints[k].ram ? `its ${arch.joints[k].ram}'s stroke` : 'its own'}`);
+  }
+
+  // ── the measures: a point over the joints it names ──
+  for (const [id, m] of Object.entries(band.measure ?? {})) {
+    const [b, h] = m.point.split('.'), p0 = ctx.hp(b, h), base = posed('rest');
+    let combos = [{}];
+    for (const j of m.over) combos = combos.flatMap((c) => span(R[j], m.over.length > 1 ? 24 : 60).map((v) => ({ ...c, [j]: v })));
+    const zs = combos.map((c) => apply(framesOf(arch, { ...base, ...c }, ctx)[b], p0)[2]);
+    const v = r2(m.take === 'depth' ? -Math.min(...zs) : Math.max(...zs));
+    law(id, v, m.band, v >= m.band[0] && v <= m.band[1], m.says);
   }
 
   // ── the envelope: the tip over the boom, the stick and the tool ──
   let reach = 0, low = Infinity, high = -Infinity, dump = -Infinity;
-  for (const b of span(R.boom, 60)) for (const t of span(R.tool, 8)) {
+  if (digs) for (const b of span(R.boom, 60)) for (const t of span(R.tool, 8)) {
     let prev = null;
     for (const s of span(R.stick, 60)) {
       const p = tipAt({ boom: b, stick: s, tool: t });
@@ -55,18 +71,18 @@ export function conLaws(arch, ctx, { corners, physics, posed }) {
     }
   }
   // (dumping: the bucket opened until its teeth hang plumb under its pin, wherever its tool's range lets them)
-  const toolPin = ctx.hp(tipBody, 'pin'), hang = Math.hypot(tipLocal[1] - toolPin[1], tipLocal[2] - toolPin[2]);
-  for (const b of span(R.boom, 60)) for (const s of span(R.stick, 60)) {
+  const toolPin = digs ? ctx.hp(tipBody, 'pin') : null, hang = digs ? Math.hypot(tipLocal[1] - toolPin[1], tipLocal[2] - toolPin[2]) : 0;
+  if (digs) for (const b of span(R.boom, 60)) for (const s of span(R.stick, 60)) {
     const lean = Math.atan2(tipLocal[2] - toolPin[2], tipLocal[1] - toolPin[1]) * 180 / Math.PI, t = -90 - (b + s) - lean;
     if (t < R.tool[0] || t > R.tool[1]) continue;
     const p = tipAt({ boom: b, stick: s, tool: t });
     if (p[2] > dump) dump = p[2];
   }
   void hang;
-  const envelope = { reach: r2(reach), depth: r2(-low), cutHeight: r2(high), dumpHeight: r2(dump) };
+  const envelope = digs ? { reach: r2(reach), depth: r2(-low), cutHeight: r2(high), dumpHeight: r2(dump) } : null;
   for (const [id, says] of [['reach', 'its tip\'s farthest along the ground'], ['depth', 'its tip\'s lowest below the ground'], ['dumpHeight', 'its tip\'s highest with the bucket opened to dump, its teeth plumb under its pin'], ['cutHeight', 'its tip\'s highest']]) {
-    const v = envelope[id], b = band[id];
-    if (b) law(id, v, b, v >= b[0] && v <= b[1], says);
+    const b = band[id];
+    if (b && envelope) { const v = envelope[id]; law(id, v, b, v >= b[0] && v <= b[1], says); }
   }
 
   // ── the tail: the counterweight's swing, as built ──
@@ -90,7 +106,7 @@ export function conLaws(arch, ctx, { corners, physics, posed }) {
   law('mass', Math.round(mass), [Math.round(physics.mass * (1 - band.mass)), Math.round(physics.mass * (1 + band.mass))], off <= band.mass, 'its parts\' mass against its class\'s');
 
   // ── the rated lift over the side ──
-  if (band.lift) {
+  if (band.lift && digs) {
     const pin = ctx.hp('stick', 'tip'), at = (j) => apply(framesOf(arch, { slew: 0, ...j }, ctx).stick, pin);
     const tool = (R.tool[0] + R.tool[1]) / 2, want = [6, 1.5];
     let best = null;

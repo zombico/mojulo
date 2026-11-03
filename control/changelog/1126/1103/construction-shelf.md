@@ -126,3 +126,28 @@ push, load, haul and lift on a site.
     - The deep sweep walks every joint's range finely, and every named pose.
   - **Seen** (`scripts/render-construction.mjs`; machine gate only, the eyes gate is open): the excavator at rest, in
     travel, digging, dumping, at reach and slewed.
+- **The chain grows, and the bulldozer:**
+  - **The chain** (`con-chain.js`):
+    - A pair of rams must both lie within their stroke: a range is where every side's does.
+    - A `slide` joint moves a body along its parent's +y in metres; without a ram its range is its body's own travel.
+    - A jointed entry may move a `scale` of its joint's value: a telescope's section, a mast's stage.
+    - A `rocker` (a loader's bellcrank) is solved on its parent's pin from the coupler it drives.
+    - A ram may be based on any body fixed to its joint's parent: the dozer's lift rams on its hull, its blade on the
+      tracks' trunnions.
+  - **The laws** read the excavator's envelope only on a machine with a boom, a stick and a tool. Any other front is
+    held to its `measure`s: a named point swept over the joints it names, its highest or how far below the ground it
+    goes.
+  - **The 20 t bulldozer:**
+    - the crawler, its sprocket larger and its grousers taller, its push arms' trunnions on its frames and no slew seat;
+    - its hull (the mainframe, the hood narrowing to its grille, the lift rams' towers, the tank, the ripper's mount);
+    - its cab;
+    - a semi-U blade on its push arms (the curved moldboard, its end bits, its cutting edge);
+    - a radial ripper (its beam, its shank and tooth);
+    - two lift rams and the ripper's.
+
+    At rest, travelling, dozing, ripping and at the top of its lift.
+  - **Its laws:** its blade's lift (1.15 m) and its drop below the grade (0.52 m), its ripper's depth (0.67 m) and its
+    clearance (0.54 m), its arcs, 61.9 kPa on its tracks, its mass, its transport size (its blade 3.4 m across).
+  - The class's length takes the ripper (6.6 m). The bulldozer row claims it, asleep and undriven as the excavator is.
+  - **Held:** the law tests walk one machine per procedure (a tool on a linkage, a front held to its measures). The
+    char test pins the hull, the blade, the ripper and the machine; the deep sweep walks it.

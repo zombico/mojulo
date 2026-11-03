@@ -23,6 +23,8 @@ export const CON_KINDS = Object.freeze({
   'con-bucket': 'a digging bucket, its teeth, its ears and pins',
   'con-link': 'a linkage\'s link: a dogbone, an H-link',
   'con-ram': 'a hydraulic ram: its barrel and its rod, each a body aimed at the other\'s pin',
+  'con-blade': 'a dozer\'s blade on its push arms: the moldboard, its end bits and cutting edge, about the trunnions',
+  'con-ripper': 'a ripper at the tail: its beam on its pin, its shank and its tooth',
 });
 
 const R = (kind, label, classOf, dims, mass, build, aliases = []) => Object.freeze({ kind, label, classOf, aliases, dims: Object.freeze(dims), mass, build: Object.freeze(build) });
@@ -52,4 +54,20 @@ export const CON_ODM = Object.freeze({
   'ram-boom-ex20': R('con-ram', 'boom ram, 20 t', 'excavator 20 t', { bore: 0.12, rod: 0.085, closed: 1.95, stroke: 1.22 }, 240, { family: 'double' }, ['boom ram', 'boom cylinder', 'lift cylinder']),
   'ram-stick-ex20': R('con-ram', 'stick ram, 20 t', 'excavator 20 t', { bore: 0.135, rod: 0.095, closed: 2.1, stroke: 1.55 }, 300, { family: 'double' }, ['stick ram', 'arm cylinder', 'dipper cylinder', 'crowd ram']),
   'ram-bucket-ex20': R('con-ram', 'bucket ram, 20 t', 'excavator 20 t', { bore: 0.115, rod: 0.08, closed: 1.6, stroke: 1.1 }, 200, { family: 'double' }, ['bucket ram', 'bucket cylinder', 'curl ram']),
+  // ── the 20 t crawler dozer ──────────────────────────────────────────────────
+  'crawler-dz20': R('con-undercarriage', 'crawler undercarriage, dozer 20 t', 'dozer 20 t',
+    { shoe: 0.56, pitch: 0.2, rail: 0.09, plate: 0.02, grouser: 0.06, frameW: 0.3, idler: { r: 0.33, z: 0.5 }, sprocket: { r: 0.4, z: 0.62 }, roller: { r: 0.11, n: 6 }, carrier: { r: 0.08, n: 1 }, body: { w: 1.2, l: 1.8, z0: 0.55, z1: 0.95 }, slewZ: 1.05, trunnion: [-0.15, 0.5] },
+    8100, { family: 'crawler', teeth: 23, seat: false }, ['dozer tracks', 'dozer undercarriage']),
+  'hull-dz20': R('con-house', 'dozer hull, 20 t', 'dozer 20 t',
+    { deck: 1.05, nose: 1.95, tail: -1.85, hood: { from: 0.05, to: 1.95, w: 1.15, h: 1.0 }, cab: [0, -0.85, 1.05], liftRam: [0.62, 0.5, 2.25], ripper: [0, -2.0, 0.85], ripRam: [0, -1.55, 2.1] },
+    6400, { family: 'dozer' }, ['dozer hull', 'mainframe', 'tractor']),
+  'cab-dz': R('con-cab', 'dozer cab', 'dozer', { w: 1.5, l: 1.45, h: 1.85 }, 700, { family: 'excavator' }, ['dozer cab', 'rops cab']),
+  'blade-su-dz20': R('con-blade', 'semi-U blade, 20 t', 'dozer 20 t',
+    { width: 3.4, arm: 0.36, armZ: -0.12, back: 2.72, profile: [[3.25, -0.5], [3.08, -0.28], [2.98, 0.02], [2.97, 0.32], [3.03, 0.58], [3.16, 0.8]], ramEye: [0.62, 2.35, 0.75] },
+    2900, { family: 'su' }, ['dozer blade', 'semi u blade', 'su blade', 'blade']),
+  'ripper-dz20': R('con-ripper', 'single-shank ripper, 20 t', 'dozer 20 t',
+    { beam: -0.75, beamZ: 0.05, beamW: 0.5, tip: [0, -0.95, -1.15], ramEye: [0, -0.55, 0.1] },
+    1700, { family: 'radial' }, ['ripper', 'ripper shank', 'single shank ripper']),
+  'ram-lift-dz20': R('con-ram', 'blade lift ram, 20 t', 'dozer 20 t', { bore: 0.11, rod: 0.075, closed: 1.32, stroke: 0.95 }, 150, { family: 'double' }, ['lift ram', 'blade lift cylinder']),
+  'ram-rip-dz20': R('con-ram', 'ripper ram, 20 t', 'dozer 20 t', { bore: 0.16, rod: 0.1, closed: 1.1, stroke: 0.7 }, 200, { family: 'double' }, ['ripper ram', 'ripper cylinder']),
 });

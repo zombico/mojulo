@@ -68,4 +68,50 @@ export const CON_ARCHETYPES = Object.freeze({
     }),
     bom: Object.freeze({ 'con-undercarriage': 1, 'con-slew': 1, 'con-house': 1, 'con-cab': 1, 'con-counterweight': 1, 'con-boom': 1, 'con-stick': 1, 'con-bucket': 1, 'con-link': 3, 'con-ram': 4 }),
   }),
+  // a 20 t crawler dozer: its hull fixed on its tracks, the semi-U blade on its push arms about the trunnions, raised by
+  // its two lift rams from the towers by the hood, the ripper at its tail
+  bulldozer: Object.freeze({
+    label: 'bulldozer',
+    classOf: 'dozer 20 t',
+    physics: 'crawlerDozer',
+    palette: 'siteYellow',
+    joints: Object.freeze({
+      blade: Object.freeze({ kind: 'hinge', ram: 'liftRam', near: 0 }),
+      ripper: Object.freeze({ kind: 'hinge', ram: 'ripRam', near: 0 }),
+    }),
+    layout: Object.freeze([
+      { id: 'under', sku: 'crawler-dz20' },
+      { id: 'hull', sku: 'hull-dz20', on: 'under.ground' },
+      { id: 'cab', sku: 'cab-dz', on: 'hull.cab' },
+      { id: 'blade', sku: 'blade-su-dz20', on: 'under.trunnion', joint: 'blade' },
+      { id: 'ripper', sku: 'ripper-dz20', on: 'hull.ripper', joint: 'ripper' },
+      { id: 'liftRam', sku: 'ram-lift-dz20', ram: ['hull.liftRam', 'blade.ramEye'], pair: true },
+      { id: 'ripRam', sku: 'ram-rip-dz20', ram: ['hull.ripRam', 'ripper.ramEye'] },
+    ].map(Object.freeze)),
+    tip: 'blade.edge',
+    poses: Object.freeze({
+      // parked: the blade set down on the ground, the ripper up
+      rest: Object.freeze({ blade: 'ground', ripper: 0 }),
+      // travelling: the blade carried a hand's height up, the ripper up
+      travel: Object.freeze({ blade: 0.55, ripper: 0 }),
+      transport: Object.freeze({ blade: 'ground', ripper: 0 }),
+      // dozing: the blade cutting below the grade
+      doze: Object.freeze({ blade: 0.15, ripper: 0 }),
+      // ripping: the blade up, the shank in the ground
+      rip: Object.freeze({ blade: 0.7, ripper: 1 }),
+      // the blade at the top of its lift
+      lift: Object.freeze({ blade: 1, ripper: 0 }),
+    }),
+    laws: Object.freeze({
+      arcs: { blade: [20, 40], ripper: [45, 100] },
+      measure: {
+        bladeLift: { point: 'blade.edge', over: ['blade'], take: 'max', band: [1.0, 1.35], says: 'its blade\'s cutting edge at the top of its lift' },
+        bladeDrop: { point: 'blade.edge', over: ['blade'], take: 'depth', band: [0.35, 0.65], says: 'its blade\'s cutting edge below the grade at the bottom of its stroke' },
+        ripDepth: { point: 'ripper.tip', over: ['ripper'], take: 'depth', band: [0.45, 0.9], says: 'its ripper\'s tooth below the ground' },
+        ripClear: { point: 'ripper.tip', over: ['ripper'], take: 'max', band: [0.35, 0.9], says: 'its ripper\'s tooth raised clear of the ground' },
+      },
+      groundPressure: [50, 80], mass: 0.1, transport: { W: 3.5, H: 3.3 },
+    }),
+    bom: Object.freeze({ 'con-undercarriage': 1, 'con-house': 1, 'con-cab': 1, 'con-blade': 1, 'con-ripper': 1, 'con-ram': 3 }),
+  }),
 });

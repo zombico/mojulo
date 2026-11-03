@@ -74,8 +74,11 @@ function undercarriage(row, C, { physics }) {
   const B = d.body;
   extrudes.push(box('carbody', [0, -B.l / 2, (B.z0 + B.z1) / 2], [0, B.l / 2, (B.z0 + B.z1) / 2], B.w, B.z1 - B.z0, C.trim));
   for (const s of [1, -1]) extrudes.push(box(`leg_${s > 0 ? 'r' : 'l'}`, [s * B.w / 2 - s * 0.05, 0, 0.62], [s * (gauge / 2 - d.frameW / 2), 0, 0.62], 0.9, 0.26, C.trim, [0, 0, 1]));
-  lathes.push(spin('seat', [0, 0, B.z1 - 0.02], [0, 0, d.slewZ - 0.1], [[0, 0.7], [1, 0.66]], tone(C.trim, 0.1), 28));
-  return { lathes, extrudes, sweeps, hardpoints: { slew: [0, 0, d.slewZ - 0.1], ground: [0, 0, 0] } };
+  // (an upper that slews sits on its ring's seat; a dozer's hull is fixed, its blade's push arms on the frames' trunnions)
+  if (row.build.seat !== false) lathes.push(spin('seat', [0, 0, B.z1 - 0.02], [0, 0, d.slewZ - 0.1], [[0, 0.7], [1, 0.66]], tone(C.trim, 0.1), 28));
+  const T = d.trunnion;
+  if (T) for (const s of [1, -1]) lathes.push(boss(`trunnion_${s > 0 ? 'r' : 'l'}`, [0, T[0], T[1]], s * (gauge / 2 + d.frameW / 2 - 0.02), s * (gauge / 2 + d.frameW / 2 + 0.12), 0.11, tone(C.trim, 0.2)));
+  return { lathes, extrudes, sweeps, hardpoints: { slew: [0, 0, d.slewZ - 0.1], ground: [0, 0, 0], ...(T ? { trunnion: [0, T[0], T[1]] } : {}) } };
 }
 
 // ── the slewing ring ────────────────────────────────────────────────────────
@@ -85,7 +88,11 @@ function slew(row, C) {
 }
 
 // ── the upper: its deck, its engine's hood, its tank and tool box, the boom's foot ─────────────────────────────
-function house(row, C) {
+function house(row, C, ctx) {
+  if (row.build.family === 'dozer') return hullDozer(row, C, ctx);
+  return houseExcavator(row, C);
+}
+function houseExcavator(row, C) {
   const d = row.dims, w = d.w, lathes = [], extrudes = [], sweeps = [];
   const body = C.paint, dark = C.trim;
   // the revolving frame (its deck), the engine's hood behind the cab, the tank and the valve bay ahead of it
@@ -106,6 +113,79 @@ function house(row, C) {
     extrudes.push(panel(`ram_lug_${s > 0 ? 'r' : 'l'}`, s * (B[0] - 0.08), s * (B[0] + 0.08), [[B[1] - 0.2, d.deck], [B[1] + 0.2, d.deck], [B[1] + 0.08, B[2] + 0.1], [B[1] - 0.08, B[2] + 0.1]], dark));
   }
   return { lathes, extrudes, sweeps, hardpoints: { boomFoot: F, 'boomRam.r': B, 'boomRam.l': [-B[0], B[1], B[2]], cab: [-0.72, 0.45, d.deck], counterweight: [0, d.back, d.deck] } };
+}
+
+// ── a dozer's hull, fixed on its tracks: the mainframe, the engine's hood forward and its grille, the tank aft, the
+// lift rams' towers either side of the hood, the ripper's mount at the tail ──────────────────────────────────────
+function hullDozer(row, C, { physics }) {
+  const d = row.dims, extrudes = [], lathes = [], sweeps = [], lofts = [], body = C.paint, dark = C.trim;
+  const half = physics.track / 2, z0 = d.deck;
+  // the mainframe between the tracks and over them, the fenders
+  extrudes.push(plan('frame', 0.62, z0, [[-half + 0.18, d.tail], [half - 0.18, d.tail], [half - 0.18, d.nose], [-half + 0.18, d.nose]], dark));
+  extrudes.push(plan('fenders', z0, z0 + 0.06, [[-half - 0.3, d.tail + 0.1], [half + 0.3, d.tail + 0.1], [half + 0.3, d.nose - 0.25], [-half - 0.3, d.nose - 0.25]], body));
+  // the engine's hood, narrowing to its grille, and its top
+  const H = d.hood;
+  lofts.push(loftWorld('hood', [0, H.from, z0], [0, H.to, z0], [{ t: 0, points: roundRect([0, 1, 0], H.w, 2 * (H.h), 0.06, 2).map((p) => add(p, [0, 0, 0])) }, { t: 1, points: roundRect([0, 1, 0], H.w * 0.86, 2 * (H.h - 0.12), 0.06, 2) }], body));
+  extrudes.push(box('grille', [0, H.to - 0.02, z0 + H.h / 2 - 0.08], [0, H.to + 0.03, z0 + H.h / 2 - 0.08], H.w * 0.72, H.h - 0.3, dark));
+  lathes.push(spin('stack', [0.3, H.from + 0.5, z0 + H.h], [0.3, H.from + 0.5, z0 + H.h + 0.55], [[0, 0.07], [0.9, 0.065], [1, 0.075]], tone(dark, 0.2), 14));
+  // the lift rams' towers either side of the hood, their pins
+  const L = d.liftRam;
+  for (const s of [1, -1]) {
+    extrudes.push(panel(`tower_${s > 0 ? 'r' : 'l'}`, s * (L[0] - 0.08), s * (L[0] + 0.08), [[L[1] - 0.45, z0], [L[1] + 0.35, z0], [L[1] + 0.12, L[2] + 0.12], [L[1] - 0.12, L[2] + 0.12]], body));
+    lathes.push(boss(`tower_pin_${s > 0 ? 'r' : 'l'}`, L, s * (L[0] - 0.1), s * (L[0] + 0.1), 0.07, tone(dark, 0.2)));
+  }
+  // the tank aft of the cab, the ripper's mount and its ram's bracket at the tail
+  extrudes.push(plan('tank', z0, z0 + 0.75, [[-half + 0.1, d.tail], [half - 0.1, d.tail], [half - 0.1, d.tail + 0.45], [-half + 0.1, d.tail + 0.45]], body));
+  const Rp = d.ripper, Rr = d.ripRam;
+  extrudes.push(panel('ripper_mount', -0.45, 0.45, [[d.tail + 0.05, 0.5], [d.tail + 0.05, z0 + 0.1], [Rp[1] - 0.1, Rp[2] + 0.2], [Rp[1] - 0.12, Rp[2] - 0.2]], dark));
+  extrudes.push(panel('rip_ram_lug', -0.08, 0.08, [[d.tail + 0.05, z0 + 0.6], [d.tail + 0.05, z0 + 0.75], [Rr[1] - 0.08, Rr[2] + 0.1], [Rr[1] - 0.1, Rr[2] - 0.1]], dark));
+  lathes.push(boss('rip_ram_pin', Rr, -0.1, 0.1, 0.07, tone(dark, 0.2)));
+  // the grab rails up to the cab
+  for (const s of [1, -1]) sweeps.push(tube(`rail_${s > 0 ? 'r' : 'l'}`, [[s * (half + 0.2), d.tail + 0.7, z0 + 0.06], [s * (half + 0.2), d.tail + 0.7, z0 + 0.9], [s * (half + 0.2), d.cab[1] + 0.2, z0 + 0.9]], 0.018, C.light, 8));
+  return { lathes, extrudes, sweeps, lofts, hardpoints: { cab: d.cab, 'liftRam.r': L, 'liftRam.l': [-L[0], L[1], L[2]], ripper: Rp, ripRam: Rr } };
+}
+
+// ── a dozer's blade on its push arms (one body: the C-frame and the moldboard), about the trunnions ──────────────
+function blade(row, C, { physics }) {
+  const d = row.dims, P = d.profile, w = d.width, extrudes = [], lathes = [], lofts = [], body = C.paint, steel = tone(C.trim, 0.2);
+  const ax = physics.track / 2 + d.arm;   // (the push arms outside the tracks)
+  // the moldboard: its curved face across the blade, each span a strip, its end bits, its cutting edge
+  for (let i = 0; i + 1 < P.length; i++) {
+    const A = [0, P[i][0], P[i][1]], B = [0, P[i + 1][0], P[i + 1][1]], t = unit(sub(B, A)), n = [0, t[2], -t[1]];
+    extrudes.push(box(`face_${i}`, add(sub(A, mul(t, 0.01)), mul(n, 0.02)), add(add(B, mul(t, 0.01)), mul(n, 0.02)), w - 0.04, 0.04, body, n));
+  }
+  const back = d.back;
+  for (const s of [1, -1]) extrudes.push(panel(`end_${s > 0 ? 'r' : 'l'}`, s * (w / 2 - 0.04), s * (w / 2), [...P, [back, P[P.length - 1][1] - 0.1], [back, P[0][1] + 0.15]], body));
+  extrudes.push(box('back', [0, back + 0.04, P[0][1] + 0.2], [0, back + 0.04, P[P.length - 1][1] - 0.15], w - 0.2, 0.08, body, [0, 1, 0]));
+  extrudes.push(box('edge', [-w / 2 + 0.03, P[0][0], P[0][1] + 0.04], [w / 2 - 0.03, P[0][0], P[0][1] + 0.04], 0.07, 0.09, steel, [0, 0, 1]));
+  // the push arms from the trunnions to the blade's back, their braces
+  for (const s of [1, -1]) {
+    lofts.push(beam(`arm_${s > 0 ? 'r' : 'l'}`, [s * ax, 0, 0], [s * ax, back - 0.05, d.armZ], 0.16, 0.26, 0.16, 0.3, body, 0.03));
+    lathes.push(boss(`arm_pin_${s > 0 ? 'r' : 'l'}`, [0, 0, 0], s * (ax - 0.1), s * (ax + 0.1), 0.13, tone(body, -0.15)));
+  }
+  const brace = [[ax, back - 0.6, d.armZ + 0.05], [-ax * 0.2, back - 0.05, P[P.length - 1][1] - 0.25]];
+  lofts.push(beam('brace', brace[0], brace[1], 0.1, 0.1, 0.1, 0.1, steel, 0.02));
+  // the lift rams' eyes on the blade's back, their lugs
+  const E = d.ramEye;
+  for (const s of [1, -1]) {
+    extrudes.push(panel(`eye_lug_${s > 0 ? 'r' : 'l'}`, s * (E[0] - 0.07), s * (E[0] + 0.07), [[back, E[2] - 0.15], [back, E[2] + 0.15], [E[1] - 0.06, E[2] + 0.08], [E[1] - 0.06, E[2] - 0.08]], body));
+    lathes.push(boss(`eye_${s > 0 ? 'r' : 'l'}`, [s * E[0], E[1], E[2]], s * (E[0] - 0.09), s * (E[0] + 0.09), 0.065, tone(C.trim, 0.2)));
+  }
+  return { extrudes, lathes, lofts, hardpoints: { pivot: [0, 0, 0], edge: [0, P[0][0], P[0][1]], 'ramEye.r': E, 'ramEye.l': [-E[0], E[1], E[2]] }, outline: [...P.flatMap(([y, z]) => [[-w / 2, y, z], [w / 2, y, z]])] };
+}
+
+// ── a radial ripper: its beam on its pin at the tail, its shank and its tooth ───────────────────────────────────
+function ripper(row, C) {
+  const d = row.dims, T = d.tip, extrudes = [], lathes = [], lofts = [], steel = tone(C.trim, 0.15), body = C.paint;
+  lofts.push(beam('beam', [0, 0, 0], [0, d.beam, d.beamZ], d.beamW, 0.32, d.beamW, 0.28, body, 0.03));
+  lathes.push(boss('pin', [0, 0, 0], -d.beamW / 2 - 0.05, d.beamW / 2 + 0.05, 0.1, tone(body, -0.15)));
+  const S = [0, d.beam + 0.05, d.beamZ];
+  lofts.push(beam('shank', S, T, 0.1, 0.36, 0.1, 0.22, steel, 0.02));
+  lofts.push(loftWorld('tooth', T, add(T, [0, 0.12, -0.12]), [{ t: 0, points: roundRect([0, 0.12, -0.12], 0.1, 0.14, 0.01, 1) }, { t: 1, points: roundRect([0, 0.12, -0.12], 0.05, 0.03, 0.005, 1) }], tone(C.trim, 0.3)));
+  const E = d.ramEye;
+  extrudes.push(panel('eye_lug', -0.07, 0.07, [[E[1] - 0.15, d.beamZ * (E[1] / d.beam) + 0.1], [E[1] + 0.15, d.beamZ * ((E[1] + 0.15) / d.beam) + 0.1], [E[1] + 0.05, E[2] + 0.08], [E[1] - 0.05, E[2] + 0.08]], body));
+  lathes.push(boss('eye', E, -0.08, 0.08, 0.06, tone(C.trim, 0.2)));
+  return { extrudes, lathes, lofts, hardpoints: { pin: [0, 0, 0], tip: add(T, [0, 0.12, -0.12]), ramEye: E } };
 }
 
 // ── the cab: its frame, its glass, the door, the roof's guard, its lamps ──────────────────────────────────────
@@ -262,5 +342,7 @@ export const CON_BUILDERS = Object.freeze({
   'con-bucket': bucket,
   'con-link': link,
   'con-ram': ram,
+  'con-blade': blade,
+  'con-ripper': ripper,
 });
 export { X };

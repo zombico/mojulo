@@ -2,7 +2,8 @@
 // parent's joint, each ram's ends on their pins and its length within its stroke, each link at its own length), each
 // joint's range is its ram's (derived, never stated), a named pose stands in its ranges and its ground pose touches the
 // ground, the machine is held to its envelope and its stability, and the words it takes and refuses. One machine per
-// distinct procedure, chosen in code from the archetypes; here, the crawler excavator.
+// distinct procedure, chosen in code from the archetypes: a tool on a linkage (the excavator's bucket), and a front
+// whose laws are points it sweeps (the dozer's blade and ripper, a ram based on a body fixed to its joint's parent).
 import { describe, it, expect } from 'vitest';
 import { CON_ARCHETYPES, CON_ODM, assembleMachine, findConPart, machineCtx, posedJoints, resolveConPart, toolLow } from './index.js';
 import { apply } from './con-common.js';
@@ -11,11 +12,14 @@ import { ramParts } from './con-parts.js';
 
 // (a machine whose tool closes a linkage on a ram: the excavator's bucket)
 const ID = Object.keys(CON_ARCHETYPES).find((k) => Object.values(CON_ARCHETYPES[k].joints).some((j) => j.linkage));
+const SWEPT = Object.keys(CON_ARCHETYPES).find((k) => CON_ARCHETYPES[k].laws.measure);
+const MACHINES = [...new Set([ID, SWEPT])];
 const ctx = machineCtx(ID), arch = ctx.arch;
 const near = (a, b, tol = 1e-6) => a.every((v, k) => Math.abs(v - b[k]) < tol);
 const split = (ref) => ref.split('.');
 
-describe('the chain holds together at every named pose', () => {
+describe.each(MACHINES)('%s: the chain holds together at every named pose', (machine) => {
+  const ctx = machineCtx(machine), arch = ctx.arch, ID = machine;
   for (const pose of Object.keys(arch.poses)) {
     it(pose, () => {
       const j = posedJoints(ID, pose), C = solveChain(arch, j, ctx);
@@ -82,12 +86,19 @@ describe('the poses', () => {
   });
 });
 
+describe.each(MACHINES)('%s as built', (machine) => {
+  it('holds every law it is held to, and its bill of materials', () => {
+    const { readout } = assembleMachine(machine);
+    expect(readout.laws.laws.filter((l) => !l.ok)).toEqual([]);
+    expect(readout.laws.laws.map((l) => l.id)).toEqual(expect.arrayContaining(['groundPressure', 'transport', 'mass', ...Object.keys(CON_ARCHETYPES[machine].laws.measure ?? {})]));
+    expect(readout.audit.ok).toBe(true);
+  });
+});
+
 describe('the machine as built', () => {
   const { manifest, readout } = assembleMachine(ID);
-  it('holds every law: its envelope, its arcs, its tail, its ground pressure, its rated lift, its clearance, its size', () => {
-    expect(readout.laws.laws.filter((l) => !l.ok)).toEqual([]);
-    expect(readout.laws.laws.map((l) => l.id)).toEqual(expect.arrayContaining(['reach', 'depth', 'dumpHeight', 'tail', 'groundPressure', 'lift', 'clearance', 'transport', 'mass']));
-    expect(readout.audit.ok).toBe(true);
+  it('is held to its envelope, its tail, its rated lift and its clearance', () => {
+    expect(readout.laws.laws.map((l) => l.id)).toEqual(expect.arrayContaining(['reach', 'depth', 'dumpHeight', 'tail', 'lift', 'clearance']));
   });
   it('reaches farther along the ground than it digs down, and dumps lower than it cuts', () => {
     const E = readout.envelope;

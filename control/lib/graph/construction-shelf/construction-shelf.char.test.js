@@ -7,6 +7,8 @@
  *
  * Log:
  *   - The shelf's first machine, the crawler excavator (unreleased): every builder path pinned.
+ *   - The bulldozer (unreleased): its hull, its blade and its ripper pinned; the crawler's optional seat and trunnions
+ *     moved no existing pin.
  */
 import { createHash } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
@@ -27,8 +29,12 @@ const PINS = {
   'link-dogbone-ex20': 'a766f837c2a4f264',
   'link-h-ex20': 'bac5ddc1526f19cc',
   'ram-boom-ex20': '9282f70628a24f5c',
+  'hull-dz20': '32b46be169e5ed75',
+  'blade-su-dz20': 'dbdf3d5863c186c2',
+  'ripper-dz20': '74a4c3efe94db994',
   'ram-boom-ex20.rod': 'ee3b8d6daeffb743',
   'con:crawlerExcavator': '0eefeb9e723f41ef',
+  'con:bulldozer': '94272ebad7ce55a9',
 };
 
 const PROCEDURES = (() => {
@@ -51,7 +57,7 @@ describe('construction shelf emission pins', () => {
   it('a ram\'s rod', () => {
     expect(hash(resolveConPart(RAM, { part: 'rod' }))).toBe(PINS[`${RAM}.rod`]);
   });
-  it('con:crawlerExcavator', () => {
-    expect(hash(assembleMachine('crawlerExcavator').manifest)).toBe(PINS['con:crawlerExcavator']);
+  it.each(Object.keys(PINS).filter((k) => k.startsWith('con:')))('%s', (k) => {
+    expect(hash(assembleMachine(k.slice(4)).manifest)).toBe(PINS[k]);
   });
 });
