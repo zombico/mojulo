@@ -18,6 +18,7 @@
 import { heldVar, itemKey } from '../playscape/ui/items.js';
 import { lowerEscapeRoom } from './escape-room.js';
 import { lowerTrade, lowerCargo, lowerBounty, lowerDeliver } from './errand-mechanics.js';
+import { lowerWaveGauntlet } from './wave-gauntlet.js';
 
 const ARRAY_CHANNELS = ['entities', 'timers', 'reactions', 'watches', 'inputs', 'hud', 'sources', 'sequences', 'initial'];
 
@@ -628,6 +629,10 @@ const MECHANICS = {
       return { world, on: { 'waves:cleared': { end: 'success' }, ...(hunt ? {} : { 'base:fallen': { end: 'fail' } }) } };
     },
   },
+
+  // THE WAVE GAUNTLET (a terminal): sealed in until nothing is left alive, arenas × waves, each wave after the last is
+  // down, death beginning the arena (or its checkpoint) again (game/wave-gauntlet.js; "gauntlet" alone is the glove)
+  'wave-gauntlet': { role: 'terminal', ends: ['success', 'fail'], requires: [], lower: lowerWaveGauntlet },
 
   // PUSH (a terminal): a grid of cells (`cols` × `rows`, `cell` metres, from `origin` its corner) with boulders on some
   // and plates on others. Walking into a boulder's cell from a side pushes it one cell on, if that cell is free (in

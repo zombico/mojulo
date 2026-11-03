@@ -19,6 +19,7 @@
  *
  * Pure: the same prompt and seed compose the same world.
  */
+import { DEFAULT_GAUNTLET, DEFAULT_HOLDOUT } from './gauntlet.js';
 import { mulberry32 } from '../vegetation/grow.js';
 import { LAND_FORMS } from '../era/out-land.js';
 import { readGameworld, resolveLevel } from './world.js';
@@ -109,6 +110,10 @@ export const LEXICON = Object.freeze({
   relic: { 'goal.collect': 'relic' }, treasure: { 'goal.collect': 'treasure' }, coin: { 'goal.collect': 'coin' }, gem: { 'goal.collect': 'gem' }, jewel: { 'goal.collect': 'jewel' }, collect: { 'goal.collect': true },
   boss: { 'goal.boss': true }, bosses: { 'goal.boss': true },
   escape: { 'goal.escape': true }, locked: { 'goal.escape': true },
+  // (a wave gauntlet's: never `gauntlet` or `waves`, which say a glove and a tower defence)
+  horde: { 'goal.gauntlet': true }, hordes: { 'goal.gauntlet': true }, onslaught: { 'goal.gauntlet': true },
+  // (and one to endure: its waves on a clock, a time to outlast)
+  holdout: { 'goal.gauntlet': 'holdout' }, holdouts: { 'goal.gauntlet': 'holdout' },
   health: { 'goal.health': true }, lives: { 'goal.health': true }, heart: { 'goal.health': true }, hp: { 'goal.health': true },
   guard: { 'goal.guards': true }, sentry: { 'goal.guards': true }, sentries: { 'goal.guards': true }, stealth: { 'goal.guards': true }, stealthy: { 'goal.guards': true }, sneak: { 'goal.guards': true }, sneaking: { 'goal.guards': true }, unseen: { 'goal.guards': true },
   // indoors: the levels are buildings (a crypt by default), laid room by room in a room kit
@@ -372,10 +377,12 @@ export function composeGameworld({ prompt, name, id, levels, seed = 1 } = {}) {
   const goals = Object.keys(goal).length ? goal : null;
   const decided = [];
   for (let i = 0; i < n; i++) {
-    const lid = `${wid}-${i + 1}`.slice(0, 48), last = i === n - 1, climb = i % 2 === 0 && fills.climb !== false && camera !== 'side';
-    // the level's goal: what is collected and the health on every level, the boss at the end of the last; held in an
-    // escape room on every level the boss's does not end
-    const lg = goals ? (({ boss, escape, ...g }) => ({ ...g, ...(boss && last ? { boss } : escape ? { escape } : {}) }))(goals) : null;
+    const lid = `${wid}-${i + 1}`.slice(0, 48), last = i === n - 1, climb = i % 2 === 0 && fills.climb !== false && camera !== 'side' && !(goal.gauntlet && last && !goal.boss);
+    // the level's goal: what is collected and the health on every level, the boss at the end of the last; a horde's
+    // gauntlet at the end of the last level a boss does not end (it owns the hero's hp there, so no health); held in an
+    // escape room on every level neither ends
+    const held = goals?.gauntlet && last && !goals.boss && !(indoors && i >= indoors.from && camera !== 'side');
+    const lg = goals ? (({ boss, escape, gauntlet, health, ...g }) => ({ ...g, ...(health && !held ? { health } : {}), ...(boss && last ? { boss } : held ? { gauntlet: gauntlet === 'holdout' ? { ...DEFAULT_HOLDOUT, arenas: DEFAULT_HOLDOUT.arenas.map((A) => ({ waves: A.waves.map((W) => ({ ...W })) })) } : { arenas: DEFAULT_GAUNTLET.arenas.map((A) => ({ waves: A.waves.map((W) => ({ ...W })) })) } } : escape ? { escape } : {}) }))(goals) : null;
     const lgoal = lg && Object.keys(lg).length ? { goal: lg } : {};
     // (a side camera runs a trail's lane: a side-scroller's levels stay out of doors)
     const inside = indoors && i >= indoors.from && camera !== 'side';
