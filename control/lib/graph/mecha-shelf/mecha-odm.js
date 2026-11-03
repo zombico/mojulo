@@ -165,10 +165,12 @@ const HEAVY = {
   'station-hw': R('mecha-seat', 'heavy operator station', HW,
     { plate: { x: 0.3, y0: -0.34, y1: 0.42, z: 0.06 }, sit: [0, -0.04, 0.52], back: 0.6, grip: [0.27, 0.2, 0.74], peg: [0.13, 0.36, 0.07], side: 'l', step: [0.5, 0.1, -0.86], rungs: [-0.86, -0.6, -0.34, -0.08], harness: true, estop: true },
     52, { family: 'seated' }, ['heavy operator seat', 'harness seat', 'emergency stop']),
-  // (the cab round the operator: a falling-object roof on four pillars, glass all round behind guard bars ahead, a door
-  // on the left, the shoulders carried out from its sides)
+  // (the cab round the operator: an angled shell, its windshield raked back under a visor, its sides drawn in to the
+  // roof, framed glass all round, guard bars along the windshield's rake, a falling-object roof, a door on the left, the
+  // shoulders carried out from its sides)
   'cab-hw': R('mecha-cage', 'heavy walker cab', HW,
-    { x: 0.44, y0: -0.46, y1: 0.58, z0: 0.02, belt: 0.62, roof: 1.64, post: 0.075, door: [-0.12, 0.42], shoulder: [0.73, 0.02, 1.14], mount: 1.44, pack: { y: -0.6, z: [0.62, 1.12] } },
+    { base: { x: 0.46, y0: -0.47, y1: 0.58 }, belt: { z: 0.62, x: 0.46, y0: -0.47, y1: 0.66 }, roof: { z: 1.62, x: 0.4, y0: -0.4, y1: 0.41 }, z0: 0.02, visor: 0.12,
+      post: 0.06, door: [-0.14, 0.4], lowerWindow: [0.4, 0.86], shoulder: [0.73, 0.02, 1.14], mount: 1.44, pack: { y: -0.6, z: [0.62, 1.12] } },
     360, { family: 'cab' }, ['cab', 'operator cab', 'protective cab', 'closed cab', 'falling object guard', 'front guard']),
 };
 export const MECHA_ODM = Object.freeze({ ...ROWS, ...HEAVY });

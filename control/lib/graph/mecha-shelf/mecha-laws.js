@@ -251,13 +251,18 @@ export function mechaLaws(key, kit) {
     law('tipover', v, band.tipover, within(v, band.tipover), v >= 0 ? `on its side it lands on its frame, the rider ${v} m inside it` : `on its side the rider stands ${-v} m outside its frame`);
   }
   if (band.cab && arch.envelope) {
-    // (a closed cab holds its operator's space inside its glass and under its roof, a margin all round: what the cab's
-    // frame protects in a rollover or under a falling load)
-    const cabRow = ctx.row(ctx.entry('cage').sku), D = cabRow.dims, o = ctx.hp('pelvis', 'cage'), t = D.post / 2;
-    const inner = { x: D.x - t, y0: D.y0 + t + o[1], y1: D.y1 - t + o[1], top: D.roof + o[2] };
+    // (a closed cab holds its operator's space inside its walls and under its roof, a margin all round: what its frame
+    // protects in a rollover or under a falling load; its walls lean, so each is read at the height it is met)
+    const D = ctx.row(ctx.entry('cage').sku).dims, o = ctx.hp('pelvis', 'cage'), t = D.post / 2;
+    const wall = (z) => {
+      const [a, b, f] = z >= D.belt.z ? [D.belt, D.roof, (z - D.belt.z) / (D.roof.z - D.belt.z)] : [{ ...D.base, z: D.z0 }, D.belt, (z - D.z0) / (D.belt.z - D.z0)];
+      const L = (k) => a[k] + (b[k] - a[k]) * Math.max(0, Math.min(1, f));
+      return { x: L('x') - t, y0: L('y0') + t, y1: L('y1') - t };
+    };
     let v = Infinity, why = '';
-    for (const E of arch.envelope) {
-      for (const [m, w] of [[inner.x - E.x, 'its sides'], [E.y[0] - inner.y0, 'its back'], [inner.y1 - E.y[1], 'its front'], [inner.top - E.z[1], 'its roof']]) if (m < v) { v = m; why = w; }
+    for (const E of arch.envelope) for (const x of [E.x]) for (const y of E.y) for (const z of E.z) {
+      const q = [x, y - o[1], z - o[2]], W = wall(q[2]);
+      for (const [m, w] of [[W.x - q[0], 'its sides'], [q[1] - W.y0, 'its back'], [W.y1 - q[1], 'its windshield'], [D.roof.z - q[2], 'its roof']]) if (m < v) { v = m; why = w; }
     }
     v = r3(v);
     law('cab', v, band.cab, within(v, band.cab), `its cab holds the operator's space ${v} m inside ${why}, the nearest`);

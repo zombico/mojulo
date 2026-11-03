@@ -15,6 +15,8 @@
  *     the torso re-pinned; the walker's pins did not move.
  *   - The heavy walker (unreleased): its closed cab pinned. Its scaled parts are their designs' builder paths, drawn
  *     larger; no other pin moved.
+ *   - The heavy walker's cab angled (its windshield raked under a visor, its sides drawn in, framed glass, a low
+ *     window, its plates on whole-millimetre axes): the cab re-pinned; no other pin moved.
  */
 import { createHash } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
@@ -46,7 +48,7 @@ const PINS = {
   'claw-uw': 'c3ab1299a2f96d73',
   'ram-roll-atw': 'e73d554306c2f29f',
   'platform-uw': 'fb8cab49220662f2',
-  'cab-hw': 'c427bdb45dbc0655',
+  'cab-hw': '394d456754ef5919',
 };
 const LEFT = 'c9882af91b6cf973';
 const ROD = 'bcfdb3e1621e0b1a';

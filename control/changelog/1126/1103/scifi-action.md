@@ -52,8 +52,11 @@ on it: the utility walker, and the heavy walker drawn larger from it.
       shelf's are: its pins at k times, its mass at k³, a drive's rated torque at k⁴.
     - Its rams scale with their pins, so every joint keeps its design's arc.
   - **Its operator stays a person's size, in a closed cab:**
-    - a falling-object roof with guard bars, on four pillars;
-    - glass all round, with guard bars ahead of the windshield against what flies off the work;
+    - an angled shell: the windshield raked back under the roof's visor, the upper sides drawn in to the roof;
+    - a falling-object roof with guard bars, on its pillars;
+    - framed glass all round, the side windows' top rear corners cut on the slant, and a low window in the front
+      panel to see where the feet go;
+    - guard bars along the windshield's rake, against what flies off the work;
     - a door on the left, reached by a four-rung side ladder;
     - mirrors, work lamps and a beacon;
     - a harnessed work seat, the arms' sticks on its consoles, an emergency stop at the right hand, and the pedals.
