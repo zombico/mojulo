@@ -21,3 +21,17 @@
   field to the spacing law. The old town's third neighbourhood, `square`, sets the church and its piazza among the
   terraces. The new `piazza` surface enters a town's ledger only where one lies, so a town without a square keeps its
   ledger's bytes.
+- **A game level can be a town.** `levels.<id>.geotown` takes the geocube kind's geotown: its pattern, streetscape, a
+  segment or a neighbourhood. The town is the level's only ground, so it takes no walk, building, city, roadway,
+  airspace, runner, places, ground or arena. It is drawn on the level's cube (a morning valley unless the style names
+  one) and read in the seventh generation unless the cube names its era.
+  - **Its stage:** one stage (`levels.js` `gameStages`). Its ends (`stageEnds`, through `geotownEnds`) set the hero
+    down at the start of the walk round its first block, facing along it, with the exit at that walk's far side and
+    beats along the way. Its ground is the town's ground faces, never a roof, and its colliders are its buildings'.
+  - **On the page:** the geotown takes only its own settings, and the level's pilot and game are layered over it with
+    no stand-in walker (`world-kinds.js`).
+  - **In the books:** the world graph, the bible (the town's sheet), the atlas, the battles page and the review print
+    each read it.
+- **A quick game can walk a town.** `quick.geotown` is reached, collected along or survived. It refuses a building,
+  climb, ride, run, roadway, runner or race beside it. With `hero: { form: 'realistic' }` its pilot is the realistic
+  body.

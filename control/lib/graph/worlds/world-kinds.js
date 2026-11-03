@@ -27,7 +27,7 @@ import { assembleDungeonScene } from '@/lib/graph/architecture/dungeon-designer'
 import { assembleStageScene } from '@/lib/graph/era/stage';
 import { assembleGeocubeScene, geocubeReadout } from '@/lib/graph/era/geocube';
 import { geocubeCity, withSidewalkCamera } from '@/lib/graph/era/geocube-city';
-import { assembleGeotownScene } from '@/lib/graph/geotown/scene';
+import { assembleGeotownScene, GEOTOWN_KEYS } from '@/lib/graph/geotown/scene';
 import { assembleGeocityScene } from '@/lib/graph/geocity/scene';
 import { styleReadout } from '@/lib/graph/era/arch-style';
 import { attachDummy } from '@/lib/graph/local-meru/dummy';
@@ -544,7 +544,13 @@ export const WORLD_KINDS = {
       }
       // a neighbourhood on the cube's own land (geotown/scene.js): its map first, levelled on the land's hills, in metres
       // (a page read by the seventh generation: the town's lawns and trees handed to the form render)
-      if (m.show === 'geotown') return attachDummy(assembleGeotownScene(m, { title: ctx.title, ...(ctx.formLit ? { form: true } : {}) }));
+      // (a game's level stands on one: the town takes its own settings, the level's pilot and its game layered over it by
+      // the page, and no stand-in walks it)
+      if (m.show === 'geotown') {
+        const played = m.entities !== undefined || m.game !== undefined, own = played ? Object.fromEntries(Object.entries(m).filter(([k]) => GEOTOWN_KEYS.includes(k))) : m;
+        const p = assembleGeotownScene(own, { title: ctx.title, ...(ctx.formLit ? { form: true } : {}) });
+        return played ? p : attachDummy(p);
+      }
       // a metro on the cube's own land (geocity/scene.js): its major streets first, its blocks as massing, in metres
       if (m.show === 'geocity') return attachDummy(assembleGeocityScene(m, { title: ctx.title, ...(ctx.liveSun ? { liveSun: true } : {}) }));
       const p = assembleGeocubeScene(m, { title: ctx.title, unshaded: ctx.unshaded, ...(ctx.liveSun ? { liveSun: true } : {}), ...(ctx.solid ? { solid: true } : {}), ...(ctx.form ? { form: true } : {}), ...(ctx.formLit ? { formLit: true } : {}) }, assembleStageScene);

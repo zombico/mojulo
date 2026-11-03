@@ -20,7 +20,7 @@ function bookStages(G) {
   const order = [G.start, ...G.ids.filter((id) => id !== G.start)], out = [];
   for (const level of order) {
     const R = resolveLevel(G, level);
-    const one = R.building ? 'building' : R.city ? 'city' : R.roadway ? 'roadway' : R.runner ? 'runner' : R.airspace ? 'airspace' : null;
+    const one = R.building ? 'building' : R.geotown ? 'geotown' : R.city ? 'city' : R.roadway ? 'roadway' : R.runner ? 'runner' : R.airspace ? 'airspace' : null;
     if (one) { out.push({ level, node: one, section: one }); continue; }
     for (const s of layLevel(R.level).stages) out.push({ level, node: s.node, section: s.section });
   }
