@@ -19,6 +19,7 @@
  *
  * Pure: the same prompt and seed compose the same world.
  */
+import { DEFAULT_GAUNTLET, DEFAULT_HOLDOUT } from './gauntlet.js';
 import { mulberry32 } from '../vegetation/grow.js';
 import { LAND_FORMS } from '../era/out-land.js';
 import { readGameworld, resolveLevel } from './world.js';
@@ -109,6 +110,11 @@ export const LEXICON = Object.freeze({
   // at the end, health to lose, guards who see to get past unseen
   relic: { 'goal.collect': 'relic' }, treasure: { 'goal.collect': 'treasure' }, coin: { 'goal.collect': 'coin' }, gem: { 'goal.collect': 'gem' }, jewel: { 'goal.collect': 'jewel' }, collect: { 'goal.collect': true },
   boss: { 'goal.boss': true }, bosses: { 'goal.boss': true },
+  escape: { 'goal.escape': true }, locked: { 'goal.escape': true },
+  // (a wave gauntlet's: never `gauntlet` or `waves`, which say a glove and a tower defence)
+  horde: { 'goal.gauntlet': true }, hordes: { 'goal.gauntlet': true }, onslaught: { 'goal.gauntlet': true },
+  // (and one to endure: its waves on a clock, a time to outlast)
+  holdout: { 'goal.gauntlet': 'holdout' }, holdouts: { 'goal.gauntlet': 'holdout' },
   health: { 'goal.health': true }, lives: { 'goal.health': true }, heart: { 'goal.health': true }, hp: { 'goal.health': true },
   guard: { 'goal.guards': true }, sentry: { 'goal.guards': true }, sentries: { 'goal.guards': true }, stealth: { 'goal.guards': true }, stealthy: { 'goal.guards': true }, sneak: { 'goal.guards': true }, sneaking: { 'goal.guards': true }, unseen: { 'goal.guards': true },
   // indoors: the levels are buildings (a crypt by default), laid room by room in a room kit
@@ -206,24 +212,40 @@ export function readPrompt(prompt, { scene = false } = {}) {
  * and what the crafted things share (a motif, the elements named) its direction. → { technology?, tunnels }, technology
  * absent when the words name nothing it makes.
  */
+// a clause names a thing when it is a noun phrase: the thing's word among its first few ("tracked haulers", "a great
+// lighthouse", "iron truss bridges"), never a sentence that mentions one ("a cursed knight guards the gate")
+const NOUN_LEAD = 3;
+// → the noun phrase ("great lighthouse"), or null when the clause is not one
+const named = (clause, word) => {
+  const ws = clause.replace(/^(an?|the)\s+/i, '').split(/[^A-Za-z0-9-]+/).filter(Boolean), w = String(word).toLowerCase();
+  const at = ws.findIndex((x) => x.toLowerCase() === w || x.toLowerCase().startsWith(w));
+  if (at < 0 || at > NOUN_LEAD) return null;
+  // a short clause is the phrase whole ("zeppelin airships", "solar arrays"); a long one is cut after the thing's word
+  return ws.length <= NOUN_LEAD + 3 ? clause.replace(/^(an?|the)\s+/i, '') : ws.slice(0, at + 1).join(' ');
+};
+
 export function technologyOfWords(prompt) {
   const things = {}, crafted = {}, tunnels = {};
   for (const clause of String(prompt).split(/[,;:]|\band\b/i).map((c) => c.trim()).filter(Boolean)) {
     // (a clause about buildings is the building tunnel's; its fittings, a mast or wings, do not make it one)
     if (readIntent(buildingDomain(), clause).traits.some((t) => !['solar', 'mast'].includes(t.id))) continue;
     const fn = readIntent(techDomain(), clause).traits.filter((t) => TECH_TRAITS[t.id].fn);
+    const thing = fn.length ? named(clause, fn.at(-1).word) : null;
+    if (fn.length && !thing) continue;
     if (fn.length) {
       const id = slug(fn.at(-1).word.replace(/s$/, ''));
-      if (!things[id]) things[id] = clause.replace(/^(an?|the)\s+/i, '');
+      if (!things[id]) things[id] = thing;
       continue;
     }
     // no machine: a clause that names a vehicle, a tech-structure or a weapon ("war galleys", "a stargate") is the crafter's
     const kind = craftKindOf(clause);
     if (!kind) continue;
     const list = Object.keys(CRAFTED).find((k) => CRAFTED[k] === kind), form = readIntent(craftDomain(kind), clause).traits.filter((t) => CRAFT_TRAITS[kind][t.id].form);
+    const phrase = form.length ? named(clause, form.at(-1).word) : null;
+    if (!phrase) continue;
     const id = slug(form.at(-1).word.replace(/s$/, ''));
     crafted[list] ??= {};
-    if (!crafted[list][id]) crafted[list][id] = clause.replace(/^(an?|the)\s+/i, '');
+    if (!crafted[list][id]) crafted[list][id] = phrase;
   }
   let technology = null;
   if (Object.keys(things).length) { technology = { things }; tunnels.things = Object.keys(things); }
@@ -379,9 +401,12 @@ export function composeGameworld({ prompt, name, id, levels, seed = 1 } = {}) {
   const hubbed = !!genre && !form && !indoors && n >= 2 && cubeOfWorld({ intent: { from: genre.id } }).cube.space?.topology === 'hub';
   const hubId = `${wid}-1`.slice(0, 48);
   for (let i = 0; i < n; i++) {
-    const lid = `${wid}-${i + 1}`.slice(0, 48), last = i === n - 1, climb = !hubbed && i % 2 === 0 && fills.climb !== false && camera !== 'side';
-    // the level's goal: what is collected and the health on every level, the boss at the end of the last
-    const lg = goals ? (({ boss, ...g }) => ({ ...g, ...(boss && last ? { boss } : {}) }))(goals) : null;
+    const lid = `${wid}-${i + 1}`.slice(0, 48), last = i === n - 1, climb = !hubbed && i % 2 === 0 && fills.climb !== false && camera !== 'side' && !(goal.gauntlet && last && !goal.boss);
+    // the level's goal: what is collected and the health on every level, the boss at the end of the last; a horde's
+    // gauntlet at the end of the last level a boss does not end (it owns the hero's hp there, so no health); held in an
+    // escape room on every level neither ends
+    const held = goals?.gauntlet && last && !goals.boss && !(indoors && i >= indoors.from && camera !== 'side');
+    const lg = goals ? (({ boss, escape, gauntlet, health, ...g }) => ({ ...g, ...(health && !held ? { health } : {}), ...(boss && last ? { boss } : held ? { gauntlet: gauntlet === 'holdout' ? { ...DEFAULT_HOLDOUT, arenas: DEFAULT_HOLDOUT.arenas.map((A) => ({ waves: A.waves.map((W) => ({ ...W })) })) } : { arenas: DEFAULT_GAUNTLET.arenas.map((A) => ({ waves: A.waves.map((W) => ({ ...W })) })) } } : escape ? { escape } : {}) }))(goals) : null;
     const lgoal = lg && Object.keys(lg).length ? { goal: lg } : {};
     // (a side camera runs a trail's lane: a side-scroller's levels stay out of doors)
     const inside = indoors && i >= indoors.from && camera !== 'side';

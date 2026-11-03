@@ -25,7 +25,6 @@ import { trackCourse } from '../roads/track.js';
 import { designCity } from '../city/plan/design.js';
 import { cityPlanSvg } from '../city/plan/book-html.js';
 import { cubeOfWorld, intentReport, GENRES } from './intent.js';
-import { engineOf } from '../scene/engines/registry.js';
 import { concernsOf } from './concerns.js';
 import { readGameworld, resolveLevel, OPEN_SLOTS, civLibrary } from './world.js';
 import { rtsRoster } from '../board/board-rts-tech.js';
@@ -44,6 +43,9 @@ import { wcdPage, WCD_CSS } from './wcd-page.js';
 import { battlesPage } from './battles-page.js';
 import { designGeotown } from '../geotown/design.js';
 import { geotownSheet } from '../geotown/sheet.js';
+import { escapePage } from './escape-page.js';
+import { errandPage, ERRAND_CSS } from './errand-page.js';
+import { gauntletPage } from './gauntlet-page.js';
 import { layLevel } from '../level/index.js';
 import { outTrailPlanSvg } from '../era/out-trail-board.js';
 import { localMeruPlanSvg } from '../local-meru/premap.js';
@@ -235,8 +237,7 @@ function worldMapSvg(g, order) {
 export const briefText = (b) => (typeof b === 'string' ? b : b?.prompt ?? b?.text ?? '');
 
 // what game it is (intent.js): the genre it starts from, the values it said, and what each concern asks of the world,
-// laid or said only; a world that wrote no intent shows the cube it is read as, and its brief's suggestions; a world
-// with a target says what that engine does not carry (advice only)
+// laid or said only; a world that wrote no intent shows the cube it is read as, and its brief's suggestions
 function intentHtml(world) {
   const C = cubeOfWorld(world), R = intentReport(world), cs = concernsOf(C.cube);
   if (!R.written && !cs.length && !R.suggest) return '';
@@ -246,7 +247,7 @@ function intentHtml(world) {
 ${vals.length ? `<p class="muted">${vals.map((v) => esc(v)).join(' · ')}</p>` : ''}
 ${cs.length ? `<ul class="decided">${cs.map((c) => `<li><b>${esc(c.name)}</b> ${esc(c.asks)} <span class="muted">(${c.laid ? 'laid by the world' : 'asked, not yet laid'}; raised by ${esc(c.by.join(', '))})</span></li>`).join('')}</ul>` : ''}
 ${R.suggest ? `<p class="muted">The brief's words point at: ${R.suggest.map((g) => `${esc(GENRES[g.id].name)} (${esc(g.matched.join(', '))})`).join('; ')}.</p>` : ''}
-${R.target ? `<p class="muted">Meant for <b>${esc(engineOf(R.target.engine).name)}</b> (advice only): ${esc(R.target.says)}</p>` : ''}</details>`;
+</details>`;
 }
 
 // how the hero moves (feel/): the template, its viewer and the feel book to play it (its sibling page, `?book=feel`), what
@@ -387,11 +388,16 @@ ${briefText(world.brief) ? `<details class="brief" open><summary>${Array.isArray
     return `<li>${esc(st.log ?? `step ${j + 1}`)} · done on ${esc(st.done)}${st.moments?.length ? ` · ${esc(st.moments.join(', '))}` : ''}${loose ? ' · nothing in the story sets it' : ''}</li>`;
   }).join('')}</ol></article>`).join('');
   const storyPart = cast || told ? `<section class="part" id="story"><div class="part-h"><span class="eyebrow">The cast ${cast ? stamp('cast') : ''} · The story ${G.story ? stamp('story') : ''}${G.quests ? ` · The quests ${stamp('quests')}` : ''}</span><h2>Who else, and what happens where</h2></div><div class="cards">${castHtml}${momentHtml}${questHtml}</div></section>\n` : '';
-  const open = OPEN_SLOTS.filter((k) => !G[k]).map((k) => `<article class="card open"><div class="card-h"><span class="eyebrow">Open</span><h3>${esc(k[0].toUpperCase() + k.slice(1))}</h3></div><p class="muted">Not on the ground. The world leaves room for them${k === 'characters' ? ', and for the people of its civilizations' : ''}.</p></article>`).join('');
+  // a slot the recipe leaves out, said as the run left it: a hero (or a foe, a guard) the run made without a character
+  // book is on the ground, its book not written; only what nothing made is open
+  const madeBodies = Object.entries(world.made ?? {}).filter(([k, v]) => v?.ref && /^(hero|foe|guard|keeper|foes-.+)$/.test(k) && !k.endsWith('-sheet')).map(([, v]) => v.ref);
+  const open = OPEN_SLOTS.filter((k) => !G[k]).map((k) => (k === 'characters' && madeBodies.length
+    ? `<article class="card"><div class="card-h"><span class="eyebrow">Made · no character book</span><h3>Characters</h3></div><p class="muted">The run made ${madeBodies.map((r) => `<a href="/sketches/${esc(r)}">${esc(r)}</a>`).join(', ')}; the world writes no character book for them (characters: { direction, hero? } reviews them here).</p></article>`
+    : `<article class="card open"><div class="card-h"><span class="eyebrow">Open</span><h3>${esc(k[0].toUpperCase() + k.slice(1))}</h3></div><p class="muted">Not on the ground. The world leaves room for them${k === 'characters' ? ', and for the people of its civilizations' : ''}.</p></article>`)).join('');
 
   return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(G.name)} · Gameworld bible</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@600;800&family=IBM+Plex+Mono:wght@400;500&family=Public+Sans:wght@400;500;600&display=swap">${skin.link}
-<style>${CSS}${G.wcd ? `\n${WCD_CSS}` : ''}${fin.length ? `\n${finishesCss(fin)}` : ''}${FX ? FX.css : ''}${BX ? BX.css : ''}${skin.css ? `\n${skin.css}` : ''}</style></head><body><div class="wrap">
+<style>${CSS}${G.wcd || G.errands || G.ids.some((id) => G.levels[id].goal?.escape || G.levels[id].goal?.gauntlet) ? `\n${WCD_CSS}` : ''}${G.errands ? `\n${ERRAND_CSS}` : ''}${fin.length ? `\n${finishesCss(fin)}` : ''}${FX ? FX.css : ''}${BX ? BX.css : ''}${skin.css ? `\n${skin.css}` : ''}</style></head><body><div class="wrap">
 <div class="mast"><div class="t">Gameworld bible</div><div class="eyebrow">${esc(G.id)} · seed ${G.seed}</div></div>
 <nav class="tabs" aria-label="Sections"><a href="?book=atlas">Atlas</a><a href="#cover">World</a><a href="#gate">Gate</a><a href="#map">World map</a>${G.wcd ? '<a href="#wcd">To the core</a>' : ''}<a href="#nature">Natural world</a><a href="#civilizations">Civilizations</a><a href="#key">Color key</a>${order.map((id) => `<a href="#level-${esc(id)}">${esc(built[id].R.name)}</a>`).join('')}${BX ? BX.tab : ''}${FX ? '<a href="#foes">Foes</a>' : ''}${storyPart ? '<a href="#story">Story</a>' : ''}<a href="#open">Open</a></nav>
 <section class="part" id="cover"><div class="cover"><div><h1>${esc(G.name)}</h1><p class="lede">${order.length} level${order.length === 1 ? '' : 's'} · ${esc(G.style.kit)} · ${G.civIds.length} civilization${G.civIds.length === 1 ? '' : 's'}</p></div><figure class="hero">${cover}</figure></div>
@@ -400,7 +406,7 @@ ${gateHtml}<div class="eyebrow">The levels, in the order they are played</div><d
 <details><summary>The graph as an outline</summary><pre>${esc(graphOutline(graph))}</pre></details>
 <details><summary>The graph as a flowchart (Mermaid)</summary><pre>${esc(graphMermaid(graph))}</pre></details>
 <script type="application/json" id="gameworld-graph">${JSON.stringify(graph).replace(/</g, '\\u003c')}</script></section>
-${wcdPage(G, esc, Object.fromEntries(order.filter((id) => built[id].finishes).map((id) => [id, built[id].finishes])), new Set(Object.keys(world.made ?? {}).filter((k) => k.startsWith('level-')).map((k) => k.replace(/^level-|-\d+$/g, ''))))}<section class="part" id="nature"><div class="part-h"><span class="eyebrow">Natural world ${stamp('nature')}</span><h2>The land, before anyone builds on it</h2></div>${natureHtml}<div class="cards">${groundHtml}${G.style.weather ? weatherCardHtml(G.style.weather, G.seed, airOfKit(G.style.kit, G.style.weather.air)) : ''}</div></section>
+${wcdPage(G, esc, Object.fromEntries(order.filter((id) => built[id].finishes).map((id) => [id, built[id].finishes])), new Set(Object.keys(world.made ?? {}).filter((k) => k.startsWith('level-')).map((k) => k.replace(/^level-|-\d+$/g, ''))))}${escapePage(G, esc)}${errandPage(G, esc)}${gauntletPage(G, esc)}<section class="part" id="nature"><div class="part-h"><span class="eyebrow">Natural world ${stamp('nature')}</span><h2>The land, before anyone builds on it</h2></div>${natureHtml}<div class="cards">${groundHtml}${G.style.weather ? weatherCardHtml(G.style.weather, G.seed, airOfKit(G.style.kit, G.style.weather.air)) : ''}</div></section>
 <section class="part" id="civilizations"><div class="part-h"><span class="eyebrow">Civilizations ${stamp('civilizations')}</span><h2>Who builds on it</h2></div>${civCards}</section>
 <section class="part" id="key"><div class="part-h"><span class="eyebrow">Style and color key ${stamp('key')}</span><h2>Every ramp, and what it paints</h2></div><div class="cards">${keyHtml}</div></section>
 ${levels}

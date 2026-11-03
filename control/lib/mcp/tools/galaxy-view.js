@@ -42,7 +42,7 @@ export function mintGalaxyView({ title, scenario, inclination, exposure, viewBox
 
 export async function createGalaxyViewHandler(input) {
   if (!input || typeof input !== 'object') {
-    throw new Error('create_galaxy_view requires a recipe object');
+    throw new Error('create_view({ kind: "galaxy" }) requires a recipe object');
   }
   const { title, scenario, inclination, exposure, viewBox, scene, ref, folder_ref: folderRef } = input;
   return mintGalaxyView({ title, scenario, inclination, exposure, viewBox, scene, ref, folderRef });

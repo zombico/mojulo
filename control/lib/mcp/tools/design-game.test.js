@@ -8,7 +8,9 @@ import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { SketchRevisionRepository } from '@/lib/db/repositories/sketch-revisions';
 import { updateSketchHandler } from './sketches.js';
 import { designGameHandler } from './design-game.js';
+import { LAWS_VERSION } from '@/lib/graph/equipment/expand';
 import { MEADOWMARK, MEADOWMARK_HERO, HALDEN_REACH, gameworldOf } from '@/lib/graph/gameworld/index';
+import { GENRES } from '@/lib/graph/gameworld/intent';
 import { createCharacterHandler, updateCharacterHandler } from './create-character.js';
 import { resolveWorldScene } from '@/lib/graph/worlds/world-scene';
 import { simLevel } from '@/lib/graph/game/level-sim.js';
@@ -72,15 +74,16 @@ describe('design_game', () => {
     expect(action(again, 'hero')).toBe('keep');
   }, 120_000);
 
-  it('a target is advice: the readout names what the engine does not carry as a next step, and writes the world as given', async () => {
-    const out = await designGameHandler({ world: { ...MEADOWMARK, intent: { from: 'kart-racer', target: 'roblox' } }, ref: 'gw-aimed' });
-    expect(out.intent.target).toMatchObject({ engine: 'roblox', carries: false });
-    expect(step(out, 'target')).toEqual({ step: 'target', engine: 'roblox', lost: out.intent.target.lost, card: 'gameworld-intent' });
-    expect(gameworldOf(stored('gw-aimed')).intent).toEqual({ from: 'kart-racer', target: 'roblox' });
-    // the same world with no target: no advice, no step
-    const plain = await designGameHandler({ world: { ...MEADOWMARK, intent: { from: 'kart-racer' } }, ref: 'gw-plain' });
-    expect(plain.intent.target).toBeUndefined();
-    expect(step(plain, 'target')).toBeUndefined();
+  it('a stored retired target (Godot, Roblox) is written as given and read as none: no advice, no step', async () => {
+    const from = Object.keys(GENRES)[0];
+    const plain = await designGameHandler({ world: { ...MEADOWMARK, intent: { from } }, ref: 'gw-plain' });
+    for (const target of ['godot', 'roblox']) {
+      const ref = `gw-retired-${target}`;
+      const retired = await designGameHandler({ world: { ...MEADOWMARK, intent: { from, target } }, ref });
+      expect(gameworldOf(stored(ref)).intent).toEqual({ from, target });
+      expect(retired.intent).toEqual(plain.intent);
+      expect(step(retired, 'target')).toBeUndefined();
+    }
   });
 
   it('gated: a run makes the hero and pins its base; the rest waits for the creator; a second run makes nothing', async () => {
@@ -124,7 +127,8 @@ describe('design_game', () => {
     expect(action(sys, 'gear-staff')).toBe('waiting');
     const gear = await designGameHandler({ ref: 'gw', approve: 'mechanics:stats', run: true });
     expect(gear.ran.filter((r) => r.key.startsWith('gear-')).map((r) => r.action)).toEqual(Array(6).fill('make'));
-    expect(stored('gw-gear-staff').build).toMatchObject({ type: 'equipment', item: 'staff', laws: 1 });
+    // (stamped with the laws current at mint: laws 2 since the hilt and the end, equipment/compose.js)
+    expect(stored('gw-gear-staff').build).toMatchObject({ type: 'equipment', item: 'staff', laws: LAWS_VERSION });
     expect(Object.keys(gear.made)).toHaveLength(15);
     expect(stored('gw-hero-equipped').hero.gear.right).toMatchObject({ item: 'staff' });
     expect(stored('gw-hero').hero.gear).toBeUndefined();

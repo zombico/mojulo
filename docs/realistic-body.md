@@ -88,7 +88,7 @@ the head (`headSkin`, `earR`, `earL`) is baked: every other texel is flat, so th
 wears shade by their vertex normals as before. A hero minted under laws 4 or earlier, an unlit export and the World
 page carry none (the page's fills are unlit). Godot, Unity's glTFast and Blender read the map as they import the GLB;
 the Unreal importer binds it to its lit master (`M_MojuloLitCloth`; an import before it made `M_MojuloLitRelief`, left
-as it was); a Unity world pack ships figures as rigid parts, so the map stays behind there and its ledger says so.
+as it was).
 
 ## The clothes' relief (realistic laws 13)
 
@@ -109,10 +109,9 @@ imports the GLB; the Unreal master takes it as its `OrmTex`.
 
 The clothes have depth too: a PARALLAX depth map (white the surface, black `CLOTH_DEPTH` under it, every texel no
 cloth's white, so the skin never shifts) rides the GLB as a texture its figure material's extras name (`mojulo.relief`:
-its index, its depth, the UVs a metre spans across and along the atlas, which is not square), and each engine marches
-the figure's map UVs into it along the view: Godot's kernel (`level.gd` `_fix_parallax`, `figure_parallax.gdshader` in
-place of the imported material; the map written beside the GLB as `figure_depth.png`, named in `score.figure_parallax`),
-Unreal's master (`HeightTex`, `ParallaxDepth`, `ParallaxPerM`, a custom `ParallaxUV` node), and `/hero-live`'s viewer. A
+its index, its depth, the UVs a metre spans across and along the atlas, which is not square), and a reader that knows it
+marches the figure's map UVs into it along the view: Unreal's master (`HeightTex`, `ParallaxDepth`, `ParallaxPerM`, a
+custom `ParallaxUV` node) and `/hero-live`'s viewer. A
 reader that knows none of it draws the normal map alone.
 
 A layer names what it is made of and worked in (the outfit language's `cloth` and `pattern`, on the top, the bottom, the

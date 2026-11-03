@@ -2,12 +2,14 @@
  * WHAT A RUN MADE — the gameworld's record of the sketches its runner made (design_game's `run`), kept in the recipe so
  * a later run knows what is there and whether the creator changed it since:
  *
- *   made?: { <key>: { ref, order, stored } }
+ *   made?: { <key>: { ref, order, stored, frame? } }
  *     key     'hero', 'hero-equipped', 'guard' (a quick sneak's), 'ride' (a quick game's vehicle), 'foe' and 'tower' (a quick defence's figures), 'farmhand' (a quick farm's), 'keeper' (the minigames' stall keeper), 'athlete' (a quick sport's), each of those a pool ('guard-2' …), 'systems', 'gear-<class>', 'stock-<id>' (a starter item the world's gear populates), 'level-<level>-<n>' (a stage), 'map-<n>' (a tactics book's epoch maps), 'foes-<id>' (a bestiary entry's beast: foes.js), or 'game'
  *     ref     the sketch it made
  *     order   the print of the order it made it from (a later run remakes it when the book's order moves)
  *     stored  the print of the manifest it left there (a manifest that no longer prints so was edited by hand, and a
  *             run leaves it as it is unless forced)
+ *     frame   a level's opening frame as a run judged it (game/first-frame-check.js): { stored, status, says? }, the
+ *             print of the row it judged beside the verdict; a later run gates the level again once the row moves
  *
  * Pure: the shape only. The runner (runner.js) writes it; nothing here reads the database.
  */
@@ -22,7 +24,9 @@ export function readMade(made) {
   for (const [k, v] of Object.entries(made)) {
     if (!MADE_KEY.test(k)) throw fail(`.${k} is not something a run makes (hero, hero-equipped, guard, ride, foe, tower, farmhand, keeper, athlete, cast-<id>, casting, systems, gear-<class>, stock-<id>, level-<level>-<n>, map-<n>, game, fighter-<id>[-sheet], foes-<id>, foe-<kind>, folk-<town>-<body>; a figure's pool: guard-2 …)`);
     if (!isObj(v) || typeof v.ref !== 'string' || !v.ref || !PRINT.test(v.order ?? '') || !PRINT.test(v.stored ?? '')) throw fail(`.${k} is { ref, order, stored }`);
-    for (const x of Object.keys(v)) if (!['ref', 'order', 'stored'].includes(x)) throw fail(`.${k}.${x} is not part of the record (ref, order, stored)`);
+    for (const x of Object.keys(v)) if (!['ref', 'order', 'stored', 'frame'].includes(x)) throw fail(`.${k}.${x} is not part of the record (ref, order, stored, frame)`);
+    const F = v.frame;
+    if (F !== undefined && (!isObj(F) || !PRINT.test(F.stored ?? '') || !['pass', 'warn', 'failed'].includes(F.status) || (F.says !== undefined && !(Array.isArray(F.says) && F.says.every((x) => typeof x === 'string'))))) throw fail(`.${k}.frame is { stored, status: pass | warn | failed, says? } (the opening frame a run judged)`);
   }
   return made;
 }

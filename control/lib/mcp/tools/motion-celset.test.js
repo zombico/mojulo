@@ -66,7 +66,7 @@ describe('forge_motion { cel_set } — the clip stitch', () => {
   it('refuses to stitch before every cel is accepted, pointing at the handoff', async () => {
     const ref = await mintClip();
     await expect(forgeMotionHandler({ title: 'too early', subject: { cel_set: { ref } }, shot: {} }))
-      .rejects.toThrow(/unaccepted cel target.*request_image_render/s);
+      .rejects.toThrow(/unaccepted cel target.*render_handoff/s);
   });
 
   it('refuses non-re-time overrides (pose is baked into the paint)', async () => {

@@ -1,7 +1,7 @@
 // Isolate to in-memory SQLite and a temporary storage root — before any import that reads them.
 import os from 'node:os';
 import path from 'node:path';
-import { mkdtempSync, rmSync } from 'node:fs';
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 const STORE = mkdtempSync(path.join(os.tmpdir(), 'moj-cover-'));
 process.env.SQLITE_PATH = ':memory:';
@@ -40,7 +40,7 @@ describe('a cover with no image worker', () => {
     const m = SketchRepository.getByRef(r.ref).manifest;
     expect(m.slots.illustration.realizer).toBe('placeholder');
     expect(coverRenderTargets(m)).toEqual([]);
-    expect(r.next).toMatch(/upload the picture into a stash/);
+    expect(r.next).toMatch(/art: \{ path: /);
     expect(r.next).toMatch(/realizer: 'upload'/);
   });
 
@@ -62,6 +62,32 @@ describe('a cover with no image worker', () => {
     expect(rr).toBeGreaterThan(200); expect(g).toBeLessThan(60); expect(b).toBeLessThan(60);
   });
 
+  it('a picture passed as a file is filed into a stash as an image item and composited as it is', async () => {
+    const png = await sharp({ create: { width: 120, height: 80, channels: 3, background: { r: 20, g: 40, b: 230 } } }).png().toBuffer();
+    const file = path.join(STORE, 'key art.png');
+    writeFileSync(file, png);
+    const r = withProfile(() => createCoverHandler({ title: 'Blue Keep', for_kind: 'game', art: { path: file } }));
+    expect(r.art).toEqual({ stash: expect.stringMatching(/./), item: expect.any(Number) });
+    const item = StashRepository.getItemById(r.art.item);
+    expect(item).toMatchObject({ type: 'image', metadata: expect.objectContaining({ mime: 'image/png', width: 120, height: 80 }) });
+    const sketch = SketchRepository.getByRef(r.ref);
+    expect(sketch.manifest.slots.illustration).toMatchObject({ realizer: 'upload', from: r.art });
+    const { data, info } = await sharp(await compositeCoverForSketch(sketch)).raw().toBuffer({ resolveWithObject: true });
+    const at = (x, y) => data.slice((y * info.width + x) * info.channels, (y * info.width + x) * info.channels + 3);
+    const [rr, g, b] = at(Math.round(info.width * 0.95), Math.round(info.height * 0.05));
+    expect(b).toBeGreaterThan(200); expect(rr).toBeLessThan(60); expect(g).toBeLessThan(80);
+  });
+
+  it('a file that is not a picture, or not there, is refused before anything is filed', () => {
+    const text = path.join(STORE, 'notes.txt');
+    writeFileSync(text, 'not a picture');
+    const stashes = StashRepository.list().length;
+    expect(() => createCoverHandler({ title: 'x', art: { path: text } })).toThrow(/not a PNG, JPEG or WebP/);
+    expect(() => createCoverHandler({ title: 'x', art: { path: path.join(STORE, 'missing.png') } })).toThrow(/cannot read/);
+    expect(() => createCoverHandler({ title: 'x', art: { path: 'relative.png' } })).toThrow(/absolute path/);
+    expect(StashRepository.list().length).toBe(stashes);
+  });
+
   it('a patch maps an upload onto a cover made before it', async () => {
     const art = await upload();
     const r = withProfile(() => createCoverHandler({ title: 'Later Art', for_kind: 'game', format: 'capsule' }));
@@ -73,7 +99,7 @@ describe('a cover with no image worker', () => {
 
   it('a wrong mapping teaches', async () => {
     const art = await upload();
-    expect(() => createCoverHandler({ title: 'x', art: { stash: art.stash } })).toThrow(/get_stash for its item id/);
+    expect(() => createCoverHandler({ title: 'x', art: { stash: art.stash } })).toThrow(/art: \{ path \}|get_stash for its id/);
     expect(() => createCoverHandler({ title: 'x', art: { stash: 'nope', item: 1 } })).toThrow(/no stash 'nope'/);
     expect(() => createCoverHandler({ title: 'x', art: { stash: art.stash, item: art.item + 999 } })).toThrow(/has no item/);
     expect(() => createCoverHandler({ title: 'x', for_kind: 'novel', format: 'box' })).toThrow(/game cover/);

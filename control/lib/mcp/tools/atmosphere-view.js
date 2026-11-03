@@ -42,7 +42,7 @@ export function mintAtmosphereView({ title, scenario, brightness, viewBox, scene
 
 export async function createAtmosphereViewHandler(input) {
   if (!input || typeof input !== 'object') {
-    throw new Error('create_atmosphere_view requires a recipe object');
+    throw new Error('create_view({ kind: "atmosphere" }) requires a recipe object');
   }
   const { title, scenario, brightness, viewBox, scene, ref, folder_ref: folderRef } = input;
   return mintAtmosphereView({ title, scenario, brightness, viewBox, scene, ref, folderRef });

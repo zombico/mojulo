@@ -6,6 +6,7 @@ import { gameworldBibleHtml } from './bible-html.js';
 import { buildBlock, blockLaws, readBlock, FUNCTION_IDS, TIERS } from '../era/blocks.js';
 import { STARTER_BLOCKS } from '../era/tech-blocks.js';
 import { TECH_TRAITS } from './tunnel-tech.js';
+import * as TECH from './compose.js';
 
 const INTENTS = {
   vehicle: ['an armoured personnel truck', 'a battle tank', 'a walker mech', 'a steam train', 'a hovercraft', 'an attack helicopter gunship', 'a biplane', 'a zeppelin airship', 'a war galley', 'a sailing frigate', 'a merchant cargo wagon', 'a colossal land-train'],
@@ -133,6 +134,13 @@ describe('a civilization\'s technology, crafted', () => {
     expect(T).toEqual({ things: { hauler: 'tracked haulers' }, vehicles: { train: 'steam trains', zeppelin: 'zeppelin airships' }, structures: { lighthouse: 'great lighthouse', bridge: 'iron truss bridges' }, weapons: { rifle: 'rifles', cannon: 'field cannon' }, direction: { motif: 'riveted', elements: { primary: 'iron' } } });
     expect(W.brief.tunnels).toMatchObject({ vehicles: ['train', 'zeppelin'], structures: ['lighthouse', 'bridge'], weapons: ['rifle', 'cannon'] });
   }, 60000);
+
+  it('a sentence that mentions a crafted form is not an order for one; a long clause names the thing, never itself (2026-11-02)', () => {
+    const { technologyOfWords } = TECH;
+    // (a prompt clause became a structure's name: "rampart = dark fantasy platformer where a cursed knight…: a wall")
+    expect(technologyOfWords('a cursed knight guards the gate').technology).toBeUndefined();
+    expect(technologyOfWords('rampart = dark fantasy platformer where a cursed knight defends it').technology.structures).toEqual({ rampart: 'rampart' });
+  });
 });
 
 describe('blocks: the crafter\'s vocabulary', () => {

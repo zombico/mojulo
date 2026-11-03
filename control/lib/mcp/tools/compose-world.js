@@ -29,13 +29,13 @@ import { readWeather } from '@/lib/graph/weather/weather';
 import { readCreases } from '@/lib/graph/scene/channels/creases';
 import { resolveWorldScene } from '@/lib/graph/worlds/world-scene';
 import { SketchRepository } from '@/lib/db/repositories/sketches';
-import { mintFractalCity, createFractalCityHandler } from '@/lib/mcp/tools/scene-city';
+import { mintFractalCity } from '@/lib/mcp/tools/scene-city';
 import { cityThemeAdapter } from '@/lib/graph/city/fractal-city';
-import { mintTransportationHub, createTransportationHubHandler } from '@/lib/mcp/tools/scene-transport-hub';
-import { mintControllableWorld, createControllableWorldHandler } from '@/lib/mcp/tools/scene-controllable';
-import { mintActionWorld, createActionWorldHandler } from '@/lib/mcp/tools/scene-action-world';
-import { mintPlanetary, createPlanetaryHandler } from '@/lib/mcp/tools/scene-planetary';
-import { mintPaintedLandscape, createPaintedLandscapeHandler } from '@/lib/mcp/tools/painted-landscape';
+import { mintTransportationHub } from '@/lib/mcp/tools/scene-transport-hub';
+import { mintControllableWorld } from '@/lib/mcp/tools/scene-controllable';
+import { mintActionWorld } from '@/lib/mcp/tools/scene-action-world';
+import { mintPlanetary } from '@/lib/mcp/tools/scene-planetary';
+import { mintPaintedLandscape } from '@/lib/mcp/tools/painted-landscape';
 import { mintMathStructure } from '@/lib/mcp/tools/scene-math-structure';
 import { mintSchoolComplex } from '@/lib/mcp/tools/scene-school';
 import { mintDungeon } from '@/lib/mcp/tools/scene-dungeon';
@@ -70,20 +70,6 @@ const BASES = {
 // A city with a `plan` is the city on rails (city/plan/, kind 'city'): the plan is its whole recipe, so the theme's slots
 // do not lower onto it (a grammar is the plan's own word for how a city is built). The legacy knobs stay the base's.
 const CITY_PLAN_BASE = { mint: ({ plan, seed, title, ref, folderRef }) => mintCityPlan({ plan, seed, title, ref, folderRef }), adapt: identityAdapter };
-
-// Retired per-type creators → { base, handler }. Each old name still resolves
-// in tools/call (listed:false) via its ORIGINAL handler — same input contract,
-// zero behavior change — but no longer costs tools/list context. Compiled
-// plans / skills that persisted these names keep executing. Drop after one
-// release; see tool-list-drawerization.plan.md.
-const RETIRED_WORLD_TOOLS = {
-  create_fractal_city: { base: 'city', handler: createFractalCityHandler },
-  create_transportation_hub: { base: 'transport-hub', handler: createTransportationHubHandler },
-  create_controllable_world: { base: 'controllable', handler: createControllableWorldHandler },
-  create_action_world: { base: 'action', handler: createActionWorldHandler },
-  create_planetary: { base: 'planetary', handler: createPlanetaryHandler },
-  create_painted_landscape: { base: 'painted-landscape', handler: createPaintedLandscapeHandler },
-};
 
 // Deep-merge plain objects (overrides win); arrays and scalars REPLACE. Used to layer
 // per-call overrides on top of a theme pack's slots.
@@ -371,19 +357,6 @@ export function registerComposeWorldTools() {
     },
     handler: composeWorldHandler,
   });
-
-  // Deprecated per-type world creators — resolve in tools/call, hidden from
-  // tools/list. Same handlers, same input contracts.
-  for (const [name, { base, handler }] of Object.entries(RETIRED_WORLD_TOOLS)) {
-    registerTool({
-      name,
-      listed: false,
-      aliasOf: 'compose_world',
-      description: `Deprecated alias — use compose_world with base '${base}' (parameter manual: get_view_vocab({ id: '${base}' })).`,
-      inputSchema: { type: 'object', properties: {}, required: [] },
-      handler,
-    });
-  }
 
   registerTool({
     name: 'list_world_themes',

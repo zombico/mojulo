@@ -29,6 +29,12 @@ import { CONTROL, importGraph, testsReaching, isTest } from './test-graph.mjs';
 
 /** Sources read as text, and the modules (or tests) that read them: a change to one is a change to its readers. */
 export const TEXT_READERS = Object.freeze([
+  { reads: /^lib\/graph\/scene\/handoff-godot\//, by: ['lib/graph/scene/handoff-godot.js'], why: 'the handoff\'s Godot adapter copies its GDScript into the pack' },
+  { reads: /^lib\/graph\/scene\/handoff-blender\//, by: ['lib/graph/scene/handoff-blender.js'], why: 'the handoff\'s Blender adapter copies its Python into the pack' },
+  { reads: /^lib\/graph\/scene\/handoff-unreal\//, by: ['lib/graph/scene/handoff-unreal.js'], why: 'the handoff\'s Unreal adapter copies its Python and HLSL into the pack' },
+  { reads: /^lib\/graph\/scene\/handoff-unity\//, by: ['lib/graph/scene/handoff-unity.js'], why: 'the handoff\'s Unity adapter copies its C# and shaders into the pack' },
+  { reads: /^lib\/graph\/scene\/handoff-hlsl\//, by: ['lib/graph/scene/handoff-common.js'], why: 'the handoff\'s common pack includes the shader fragments Unreal\'s and Unity\'s ports share' },
+  { reads: /^scripts\/godot-humanoid-probe\.gd$/, by: ['lib/mcp/tools/export-model.godot-humanoid.test.js'], why: 'the humanoid gate runs the probe in a real Godot' },
   { reads: /^lib\/graph\/versus\/[^/]+\.js$/, by: ['lib/graph/versus/versus-page.js'], why: 'the versus page inlines its modules and clients' },
   { reads: /^lib\/graph\/broadcast\/broadcast\.client\.js$/, by: ['lib/graph/contest/meet-arena.js', 'lib/graph/contest/match-arena.js', 'lib/graph/contest/turn-arena.js', 'lib/graph/contest/team-arena.js', 'lib/graph/contest/innings-arena.js'], why: 'every contest channel inlines the broadcast graphics before its arena client' },
   { reads: /^lib\/graph\/contest\/contest-stats\.js$/, by: ['lib/graph/contest/meet-arena.js', 'lib/graph/contest/match-arena.js', 'lib/graph/contest/turn-arena.js', 'lib/graph/contest/team-arena.js', 'lib/graph/contest/innings-arena.js'], why: 'every contest channel inlines the stats fold its broadcast shows' },
@@ -42,10 +48,9 @@ export const TEXT_READERS = Object.freeze([
   { reads: /^lib\/graph\/(versus\/versus-rig|versus\/versus-figure|contest\/athlete-pose|contest\/athlete\.client)\.js$/, by: ['lib/graph/scene/channels/contest.js'], why: 'a sport\'s channel inlines the figure that poses its athletes when its arena carries their bodies' },
   { reads: /^lib\/graph\/gameworld\/feel\/(cards|kernel|page\.client)\.js$/, by: ['lib/graph/gameworld/feel/page.js'], why: 'the action lab page inlines its kernel' },
   { reads: /^lib\/graph\/pixelizer\/[^/]+\.js$/, by: ['lib/graph/pixelizer/brickster-shell.js', 'lib/graph/pixelizer/philosophers-stone-shell.js'], why: 'the pixelizer shells inline their siblings' },
-  { reads: /^lib\/graph\/(worlds\/controllable\/[^/]+|scene\/scene-three|scene\/engine-score|scene\/channels\/events)\.js$/, by: ['lib/graph/scene/engines/mark-sources.js', 'lib/graph/scene/godot-marks.test.js'], why: 'the engine marks scan the runtime\'s source for its keys' },
-  { reads: /^lib\/graph\/scene\/(godot-kernel|godot-arcade-kernel)\//, by: ['lib/graph/scene/engines/runners.js', 'lib/graph/scene/godot-harness.js'], why: 'the Godot kernels are copied into the project' },
-  { reads: /^lib\/graph\/scene\/roblox-kernel\//, by: ['lib/graph/scene/roblox-gate.js', 'lib/graph/scene/engines/runners.js'], why: 'the Roblox kernel is copied into the place' },
+  { reads: /^lib\/graph\/scene\/scene-three\.js$/, by: ['lib/graph/era/era-marks.test.js'], why: 'the era marks read the World page\'s inputs from its source' },
   { reads: /^lib\/mcp\/apps\/preview-ui\.js$/, by: ['lib/mcp/apps/preview.js'], why: 'the app preview inlines its UI script' },
+  { reads: /^lib\/mcp\/(catalysts|routing-cards)\/[^/]+\.md$|^lib\/graph\/(.+\/)?[a-z-]+-vocab\/.+\.md$|^lib\/mcp\/tools\/[^/]+\.js$|^scripts\/orient-mcp\.mjs$/, by: ['lib/mcp/no-dead-pointers.test.js'], why: 'the dead-pointer guard reads the shelves, the cards and the tools\' prose for names an agent cannot call' },
 ]);
 /** Modules that read files beside them that are DATA (cards, tables, stores, fonts, versions), not code: their own
  * data files are covered by the folder rule. */
@@ -67,7 +72,7 @@ export const DATA_READERS = Object.freeze([
 const PROSE = /(^|\/)(CHANGELOG[^/]*|README[^/]*|NOTICE|LICENSE[^/]*)$|^changelog\/|^\.\.\/docs\/|^\.\.\/[^/]+\.md$/;
 const CONFIG = /^(package(-lock)?\.json|vitest[^/]*\.js|next\.config\.mjs|jsconfig\.json)$/;
 const PIN = /\.(char|trace)\.test\.js$/;
-const NEVER = /\.(gen|spike|godot)\.test\.js$|\.spike\.gen\.test\.js$/;
+const NEVER = /\.(gen|spike)\.test\.js$|\.spike\.gen\.test\.js$/;
 
 const git = (args) => execFileSync('git', args, { cwd: CONTROL, encoding: 'utf8' });
 /** The changed files, relative to control/ (a file outside it keeps its ../ path). */

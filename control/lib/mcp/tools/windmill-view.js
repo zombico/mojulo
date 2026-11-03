@@ -40,7 +40,7 @@ export function mintWindmillView({ title, scenario, wind, scale, viewBox, scene,
 
 export async function createWindmillViewHandler(input) {
   if (!input || typeof input !== 'object') {
-    throw new Error('create_windmill_view requires a recipe object');
+    throw new Error('create_view({ kind: "windmill" }) requires a recipe object');
   }
   const { title, scenario, wind, scale, viewBox, scene, ref, folder_ref: folderRef } = input;
   return mintWindmillView({ title, scenario, wind, scale, viewBox, scene, ref, folderRef });

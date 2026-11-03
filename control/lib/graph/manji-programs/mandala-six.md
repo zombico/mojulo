@@ -93,7 +93,7 @@ lobes. Six is the default because hexagonal symmetry is the
 densest-packing rotational symmetry in 2D and reads as "natural" across
 the widest range of contexts (snowflakes, honeycombs, rose windows,
 many mandala traditions). See
-[waveform-physics-design.md](../polygonizer/waveform-physics-design.md)
+`waveform-physics-design.md`
 §5 (the "mandala" archetype).
 
 ## Stays bespoke when

@@ -99,7 +99,12 @@ describe('composed goals: what a level is played for, read from the prompt', () 
     // refusal said (f11ad354 -> bef8c054); its attack's hurt follows the power stat as it rises, the stats binding the
     // power stat to the hero's body (bef8c054 -> 88aa4298); every level that plays takes the book's one UI direction,
     // its seed the world's, in place of a fresh one each (88aa4298 -> 8db45f48); the levels' cues, stats and ui moved)
-    expect(fingerprint(unaudited(runSteps(MEADOWMARK_HERO, { ref: 'gw' }).map((s) => s.order)))).toBe('8db45f48');
+    // (re-pinned 2026-11-02, 1102-book-gates: a hero's chase is laid long by the follow camera's stand-off
+    // (playscape/hero-chase.js), so the hero world's level orders carry its camera at 8.45 / 2.948, and nothing else
+    // moved, 0b5f8e90 -> 4246de56; the hero-less worlds above are unchanged)
+    // (re-pinned 2026-11-03 at the merge of 1026-consolidated into 1102-book-powers: both of the above at once, the
+    // powers' orders with the chase's camera, 8db45f48 | 4246de56 -> 2c76a7f0)
+    expect(fingerprint(unaudited(runSteps(MEADOWMARK_HERO, { ref: 'gw' }).map((s) => s.order)))).toBe('2c76a7f0');
   }, 300000);
 
   it('a dungeon is indoors: building levels in a room kit, the goals laid in their rooms, made by the run', () => {
@@ -116,8 +121,8 @@ describe('composed goals: what a level is played for, read from the prompt', () 
       expect(w.levels[id].goal).toEqual({ collect: 'relic', ...(id === ids.at(-1) ? { boss: true } : {}) });
     }
     const S = runSteps(w, { ref: 'gw' }), L = levelSteps(S);
-    // (a crawler's sentence comes with its hero, genre-forms.js heroFrameOf: made first, the levels' pilot; armed with
-    // its genre's sword, the hero equipped and the sword's gear made beside it)
+    // (a crawler's sentence comes with its hero, genre-forms.js heroFrameOf: made first, the levels' pilot; armed by its
+    // genre, a sword in melee: the hero equipped and the sword it carries made before the levels)
     expect(S.map((s) => s.key)).toEqual(['hero', 'hero-equipped', 'foe', 'gear-sword', ...ids.map((id) => `level-${id}-0`), 'game']);
     for (const s of L) {
       expect(s.order.manifest).toMatchObject({ kind: 'stage', kit: 'gothic-stone', program: { use: 'crypt' } });
@@ -146,7 +151,7 @@ describe('composed goals: what a level is played for, read from the prompt', () 
     const lv = (goal, extra = {}) => ({ ...MEADOWMARK, levels: { ...MEADOWMARK.levels, 'meadow-ascent': { ...MEADOWMARK.levels['meadow-ascent'], goal } }, ...extra });
     expect(readGameworld(lv({ collect: 'coin', boss: true, health: true })).levels['meadow-ascent'].goal).toEqual({ collect: 'coin', boss: true, health: true });
     expect(() => readGameworld(lv({}))).toThrow(/at least one/);
-    expect(() => readGameworld(lv({ treasure: true }))).toThrow(/not a level goal \(collect, boss, health, guards\)/);
+    expect(() => readGameworld(lv({ treasure: true }))).toThrow(/not a level goal \(collect, boss, health, guards, escape, gauntlet\)/);
     expect(() => readGameworld(lv({ collect: 'Big Gems' }))).toThrow(/one lower-case word/);
     expect(() => readGameworld(lv({ boss: 2 }))).toThrow(/boss is true/);
     // a book's world: its hero fights the boss, the goal's play beside the systems' own

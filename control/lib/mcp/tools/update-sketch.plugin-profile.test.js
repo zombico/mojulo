@@ -85,7 +85,7 @@ describe('update_sketch under the Claude plugin profile', () => {
     const diff = await diffSketchesHandler({ left_ref: 'pp-voice', right_ref: 'pp-diag' }).catch((e) => e);
     expect(diff.message).toMatch(/get_voice/);
     const preload = await createSketchHandler({ title: 'x', manifest: DIAGRAM, preload: 'pp-missing' }).catch((e) => e);
-    expect(preload.message).toMatch(/create_sketch \/ create_polygonized_sketch first/);
+    expect(preload.message).toMatch(/create_sketch \/ mint_solid\(\{ kind: 'manji-tree', via: 'prompt' \}\) first/);
     const r = await updateSketchHandler({ ref: 'pp-painted', title: 'renamed' });
     expect(r.ok).toBe(true);
   });

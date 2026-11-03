@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { characterParts, characterState, approveCharacter, characterReady, reviewState, CHARACTER_PART_IDS, pinBase } from './index.js';
+import { characterParts, characterState, approveCharacter, characterReady, keepApproval, reviewState, CHARACTER_PART_IDS, pinBase } from './index.js';
 import { LOOKS } from '../playscape/elements/elements.js';
 
 const look = Object.keys(LOOKS)[0];
@@ -32,6 +32,20 @@ describe('the character book\'s review', () => {
     // another page changing does not move it; its own change does
     expect(stamp(characterState({ ...world({ looks: { body: { cast: 'female' }, hair: { length: 1 } } }), review }), 'hero:body').status).toBe('approved');
     expect(stamp(characterState({ ...world({ looks: { body: { cast: 'male' } } }), review }), 'hero:body').status).toBe('changed');
+  });
+
+  it('an approval of the base given before the first mint holds on the base the run pins; a stale one stays stale (2026-11-02)', () => {
+    const w0 = world({ looks: { body: { cast: 'female' } } });
+    const before = { ...w0, review: approveCharacter(w0, 'hero:base') };
+    const pinned = (w) => ({ ...w, characters: { ...w.characters, hero: { ...w.characters.hero, looks: { ...w.characters.hero.looks, base: pin } } } });
+    // the pin alone moves the print: without keeping it the run would wait on its own write
+    expect(stamp(characterState(pinned(before)), 'hero:base').status).toBe('changed');
+    expect(stamp(characterState(keepApproval(before, pinned(before), 'hero:base')), 'hero:base').status).toBe('approved');
+    // an approval already stale on the book (its body changed since) is not revived by a pin
+    const stale = { ...world({ looks: { body: { cast: 'male' } } }), review: before.review };
+    expect(stamp(characterState(keepApproval(stale, pinned(stale), 'hero:base')), 'hero:base').status).toBe('changed');
+    // no approval: nothing is written
+    expect(keepApproval(w0, pinned(w0), 'hero:base').review).toBeUndefined();
   });
 
   it('says what is wrong with a verdict, and with a part that is not one', () => {

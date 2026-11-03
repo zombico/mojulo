@@ -89,7 +89,10 @@ ${L.unread.length ? `<p class="muted">Not placed: ${L.unread.map((u) => `<b>${es
   const views = [['front', 'Front'], ['three', 'Three-quarter'], ['back', 'Back']];
   const U = C.underlayer;
   // the live view: the page the dashboard's World serves for the minted hero, baked to a string (character-renders.mjs)
-  const live = renders.world ? `<figure class="live"><iframe sandbox="allow-scripts" title="${esc(G.name)} hero, live" srcdoc="${esc(renders.world)}"></iframe><figcaption>Live view · drag to orbit · the page's controls play the hero's clips (idle, walk, and the feel set on the motion page)</figcaption></figure>` : '';
+  // the base the run made and pinned (hero-base.js): said as made, never as not drawn; served live where the dashboard
+  // hands its World in (`renders.worldSrc`, the route's own; a download carries none)
+  const pinnedBase = hero.looks?.base?.ref ? hero.looks.base : null;
+  const live = !renders.world && renders.worldSrc ? `<figure class="live"><iframe title="${esc(G.name)} hero, live" src="${esc(renders.worldSrc)}" loading="lazy"></iframe><figcaption>Live view · the hero the run made (${esc(pinnedBase?.ref ?? '')}) · drag to orbit</figcaption></figure>` : renders.world ? `<figure class="live"><iframe sandbox="allow-scripts" title="${esc(G.name)} hero, live" srcdoc="${esc(renders.world)}"></iframe><figcaption>Live view · drag to orbit · the page's controls play the hero's clips (idle, walk, and the feel set on the motion page)</figcaption></figure>` : '';
   // the turnaround: in colour (the World page's own render, photographed) when the renders carry it, and as wire views
   const colour = views.some(([k]) => renders.color?.[k]) ? `<div class="turn colour">${views.map(([k, name]) => `<figure>${renders.color?.[k] ? `<img alt="${esc(G.name)} hero, ${esc(name)}" src="${esc(renders.color[k])}">` : '<div class="norender">not drawn</div>'}<figcaption>${esc(name)} · colour</figcaption></figure>`).join('')}</div>` : '';
   const wire = `<div class="turn">${views.map(([k, name]) => `<figure>${renders[k] ? plate(`hero-${k}`, renders[k]) : '<div class="norender">not drawn</div>'}<figcaption>${esc(name)}</figcaption></figure>`).join('')}</div>`;
@@ -98,7 +101,7 @@ ${L.unread.length ? `<p class="muted">Not placed: ${L.unread.map((u) => `<b>${es
   const base =`<section class="part" id="hero-base"><div class="part-h"><span class="eyebrow">The hero · base ${stamp('hero:base')}</span><h2>Composed, and bare</h2><p class="muted">The elements merged top down: no adornment, paint or gear. It wears only what its world's setting would.</p></div><div class="card">${note('hero:base')}
 ${live}
 ${blockout}
-${colour}${views.some(([k]) => renders[k]) ? (colour ? `<details class="wire"><summary>The wire views: its construction</summary>${wire}</details>` : wire) : colour ? '' : `<div class="norender"><span class="eyebrow">Not drawn yet</span><p class="muted">The hero door draws it: run the orders below, then draw the front, three-quarter and back views (export-wire-svg.mjs --ref &lt;ref&gt; --views 180,150,0), or render the sheet with --render.</p></div>`}
+${colour}${views.some(([k]) => renders[k]) ? (colour ? `<details class="wire"><summary>The wire views: its construction</summary>${wire}</details>` : wire) : colour || live ? '' : pinnedBase ? `<div class="norender"><span class="eyebrow">Made · not photographed here</span><p class="muted">The run made it and pinned it: <b>${esc(pinnedBase.ref)}</b>, revision ${esc(pinnedBase.rev)}. Open it at <a href="/sketches/${esc(pinnedBase.ref)}">/sketches/${esc(pinnedBase.ref)}</a>, or draw its views into this book (export-wire-svg.mjs --ref ${esc(pinnedBase.ref)} --views 180,150,0, or the sheet with --render).</p></div>` : `<div class="norender"><span class="eyebrow">Not minted yet</span><p class="muted">The hero door draws it: run the orders below (design_game run), then draw the front, three-quarter and back views (export-wire-svg.mjs --ref &lt;ref&gt; --views 180,150,0), or render the sheet with --render.</p></div>`}
 <h4>The underlayer</h4><p class="read">${esc(U.read)}</p>${U.tones && Object.keys(U.tones).length ? `${swatches(U.tones)}<p class="muted">${Object.entries(U.toneFrom ?? {}).map(([g, f]) => `${esc(g)}: ${esc(f)}`).join(' · ')}</p>` : ''}
 ${dl([['outfit', json(U.build)], ['pinned base', hero.looks?.base ? json(hero.looks.base) : 'not pinned: mint the orders, settle a revision, and pin it (hero-base.js)']])}
 ${machine('hero:base')}
@@ -184,11 +187,19 @@ ${MC?.play.parts?.length ? `<table class="powers"><tr><th>part</th><th>shows</th
 ${MC.play.cues?.some((c) => c.then?.as === 'banner') ? `<p class="muted">Banners: ${MC.play.cues.filter((c) => c.then?.as === 'banner').map((c) => esc(c.then.say)).join(' · ')}.</p>` : ''}${MC.play.menus?.length ? `<p class="muted">A status page (${esc(MC.inputs.find((x) => x.emit.type === 'status')?.key.toUpperCase() ?? '—')}): ${list(MC.play.menus[0].rows.map((r) => r.label))}.</p>` : ''}<p class="muted">The legend: ${esc(MC.legend)}</p>` : '<p class="muted">Nothing on the HUD.</p>'}
 ${machine('mechanics:hud')}</div></section>`;
 
-  const step = (name, what, r) => `<article class="card open"><div class="card-h"><span class="eyebrow">Next · ${r.ready ? 'may start' : 'waiting'}</span><h3>${esc(name)}</h3></div><p class="muted">${esc(what)}</p><div class="ready"><b class="${r.ready ? 'yes' : 'no'}">${r.ready ? 'ready' : 'waiting on'}</b>${r.waiting.map((w) => `<span>${stampOf(w.id) ? `<a href="${anchor(w.id)}">${esc(w.id)}</a>` : esc(w.id)} · ${esc(w.status)}</span>`).join('')}</div></article>`;
+  // each later step as the run left it (the world's `made`): made, laid out on its page and waiting on a run, ready to
+  // start, or waiting on the parts it needs; never "may start" once it is made
+  const made = world.made ?? {}, madeOf = (keys) => Object.entries(made).filter(([k]) => keys(k)).map(([, v]) => v.ref).filter(Boolean);
+  const step = (name, what, r, refs, laid) => {
+    const said = refs.length ? 'made' : laid && r.ready ? 'laid out · the next run makes it' : r.ready ? 'may start' : 'waiting';
+    const body = refs.length ? `<div class="ready"><b class="yes">made</b>${refs.map((x) => `<span><a href="/sketches/${esc(x)}">${esc(x)}</a></span>`).join('')}</div>`
+      : `<div class="ready"><b class="${r.ready ? 'yes' : 'no'}">${r.ready ? 'ready' : 'waiting on'}</b>${r.waiting.map((w) => `<span>${stampOf(w.id) ? `<a href="${anchor(w.id)}">${esc(w.id)}</a>` : esc(w.id)} · ${esc(w.status)}</span>`).join('')}</div>`;
+    return `<article class="card${refs.length ? '' : ' open'}"><div class="card-h"><span class="eyebrow">${refs.length ? 'Made' : 'Next'} · ${esc(said)}</span><h3>${esc(name)}</h3></div><p class="muted">${esc(what)}</p>${body}</article>`;
+  };
   const open = `<section class="part" id="open"><div class="part-h"><span class="eyebrow">Open</span><h2>Beyond the hero</h2></div><div class="cards">
-${step('Adornment', 'Equipment shaped to the main loop\'s final design, scaled up and down, with alternate uses.', ready.adornment)}
-${step('Systems', 'The game\'s systems: the numbers and the UI, over the actions\' mechanics seed.', ready.systems)}
-${step('Equipment', G.mechanics ? 'The gear classes made, once the stats exist to give them a reason to be equipped.' : 'The gear classes made, once the hero is settled: with no systems, what it carries is its reason.', ready.equipment)}
+${step('Adornment', 'Equipment shaped to the main loop\'s final design, scaled up and down, with alternate uses.', ready.adornment, madeOf((k) => k === 'hero-equipped'), !!B.adornment)}
+${step('Systems', 'The game\'s systems: the numbers and the UI, over the actions\' mechanics seed.', ready.systems, madeOf((k) => k === 'systems'), !!B.mechanics)}
+${step('Equipment', G.mechanics ? 'The gear classes made, once the stats exist to give them a reason to be equipped.' : 'The gear classes made, once the hero is settled: with no systems, what it carries is its reason.', ready.equipment, madeOf((k) => k.startsWith('gear-') || k.startsWith('stock-')), B.equipment.rows.some((x) => x.status !== 'empty'))}
 ${G.characters.cast ? `<article class="card"><div class="card-h"><span class="eyebrow">Cast</span><h3>${Object.keys(G.characters.cast).length} other${Object.keys(G.characters.cast).length === 1 ? '' : 's'}</h3></div><p class="muted">${esc(Object.entries(G.characters.cast).map(([id, m]) => m.name ?? id).join(', '))}: drawn in this direction, placed by the story (the world bible's story page).</p></article>` : '<article class="card open"><div class="card-h"><span class="eyebrow">Open</span><h3>Cast</h3></div><p class="muted">The other characters and the people of its civilizations are left open for now.</p></article>'}</div></section>`;
 
   return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(G.name)} · Character bible</title>

@@ -61,6 +61,9 @@ export const RELIEF_DEFAULT = 'ledged';
 /** A trail's dress when none is written: rubble half, a little dust, some clay, the three patch kinds. */
 export const DRESS_DEFAULT = Object.freeze({ surface: 'earth', rubble: 0.5, dust: 0.3, clay: 0.45, patches: Object.freeze(['worn', 'damp', 'gravel']) });
 
+/** The layer atlas's cells in order (`LAYERS` in landRead): the four the corners weigh (`spl`: rock, scree, soil, sand), the
+ *  trail's two dirts and the undergrowth; an engine's terrain shader reads the atlas by them. */
+export const ATLAS_LAYERS = Object.freeze(['rock', 'scree', 'soil', 'sand', 'path', 'clay', 'undergrowth']);
 const ATLAS_TEX = 512, ATLAS_W = ATLAS_TEX * 3, ATLAS_H = ATLAS_TEX * 3, atlasMemo = new Map();
 const atlasPng = (b) => `data:image/png;base64,${encodePng(b, ATLAS_W, ATLAS_H).toString('base64')}`;
 // the layers' textures in one atlas each (base, normal, orm with the height in blue), each layer's linear mean beside,
@@ -340,7 +343,8 @@ export function formPayload(R) {
     hides: [...new Set(P.faces.filter((f, i) => L.faces[i].cls).map((f) => f.group))].sort(),
     // (the stage's far ring, its ridges past the level, which the form draws as its far land: channels/form-land.js FAR_LAND)
     far: [...new Set(P.faces.filter((f, i) => !L.faces[i].cls && FAR_GROUPS.has(f.group)).map((f) => f.group))].sort(),
-    sun, sky: { zenith: P.sky.zenith, horizon: P.sky.horizon }, box, waterZ: L.waterZ, deep: L.deep,
+    // (an underground page, a cavern, has no sky: null, and the page draws none)
+    sun, sky: P.sky && Array.isArray(P.sky.zenith) && Array.isArray(P.sky.horizon) ? { zenith: P.sky.zenith, horizon: P.sky.horizon } : null, box, waterZ: L.waterZ, deep: L.deep,
     seabed: hasSea ? { x: [seaX.reduce((a, v) => Math.min(a, v), Infinity), seaX.reduce((a, v) => Math.max(a, v), -Infinity)], y: [seaY.reduce((a, v) => Math.min(a, v), Infinity), seaY.reduce((a, v) => Math.max(a, v), -Infinity)], z: L.waterZ - DEEP_FADE - 1 } : null,
     classes: Object.fromEntries(Object.entries(LAND_CLASSES).map(([k, K]) => [k, K.rough])),
     ranges, pos: b64(Float32Array.from(pos)), c7: b64(Uint8Array.from(c7)), spl: b64(Uint8Array.from(spl)), nrm: b64(Int8Array.from(nrm)),

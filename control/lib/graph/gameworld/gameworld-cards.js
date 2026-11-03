@@ -13,6 +13,7 @@
  *
  * Pure.
  */
+import { ERRAND_LAWS } from './errand.js';
 import { GAME_BODIES, GAME_BODY_NAMES } from './game-bodies.js';
 import { TRADITIONS, BRIDGE, FROM, LOOKS_ELEMENTS, CHARACTER_PART_IDS } from './characters.js';
 import { ELEMENT_WORDS } from './element-words.js';
@@ -23,6 +24,9 @@ import { feelCard as feelCardOf, lowerFeel } from './feel/lower.js';
 import { GENRE_FEEL, FEEL_WORDS } from './feel/suggest.js';
 import { IDIOMS, SYSTEM_KINDS, STAGES, TRAVERSAL_MOVES, HERO_MOVES } from './actions.js';
 import { RAILS } from './adornment-kit.js';
+import { ARMS_KIT_WORDS, ARMS_MAX } from './arms-kit.js';
+// the carried arms a shooter's player holds (arms-kit.js): aimed with the right mouse, switched on the wheel
+const ARMS_LINE = `  arms: [${ARMS_KIT_WORDS.join(' | ')} | { item, model }] (1..${ARMS_MAX})   the player's own kit: right click aims down the sights (a scope zooms, Shift steadies it), R reloads, wheel or 1-5 switches, a bow draws while held`;
 import { TRADITIONS as FIGHT_TRADITIONS } from '../versus/versus-traditions.js';
 import { CLASS_SLOTS } from './equipment.js';
 import { SCALE, EPOCH_LEVEL, GAINED, GEAR_STAT, GEAR_BY } from './mechanics.js';
@@ -30,7 +34,6 @@ import { WORLD_STYLE, CIVILIZATION, LINK_KINDS, TOPOLOGIES } from './world.js';
 import { MODES, STAMPS } from './review.js';
 import { SAMPLE_PAGES, SAMPLE_MAX, DERIVE } from './samples.js';
 import { LOOKS } from '../playscape/elements/elements.js';
-import { MARKED_ENGINES } from '../scene/engines/registry.js';
 import { BEAM_NAMES } from '../playscape/elements/beams.js';
 import { PROGRAM_IDS, PROGRAMS, BASE_USES } from '../era/programs.js';
 import { STAGE_KITS, resolveKitId, GROUND_KITS } from '../era/stage.js';
@@ -142,7 +145,7 @@ function worldCard() {
     '  (each list { <id>: \'<words>\' }); anchor, fort, town, castle default from the kit, best left out (see the bible).',
     `levels: { <id>: { name?, style?, walk: { nodes: { <id>: { ${LEVEL_SECTIONS.join(': {} } | { ')}: {} } }, edges?: [{ from, to }] }, ground?, places?, scenes?, goal? } }:`,
     '  a walk is one line of sections (a trail, then a climb), joined by edges in order; a level overrides its world where it says.',
-    '  goal?: { collect?: true | \'<pickup>\', boss?: true, health?: true, guards?: true }: what the level is played for, else its exit.',
+    '  goal?: { collect?: true | \'<pickup>\', boss?: true, health?: true, guards?: true, escape?: 1…4 }: what the level is played for, else its exit.',
     '  scenes: the level\'s directed moments (get_play_vocab({ id: \'ui-scenes\' })), each with stage?: \'<node>\' (its first stage by default);',
     '    the hero is \'hero\', the stage\'s places are spots (start, exit, pocket, pocket-2…, landmark…); scenes that read or set flags',
     '    (if, sets) ride a \'story\' flags slice from level to level.',
@@ -258,6 +261,9 @@ function juiceCard() {
     'The characters near an effect take its rim light (the look\'s kind: a soft glow, a cel band, a thin line; the game',
     'type\'s strength), and a status\'s coat the look\'s rim; rim: 0 turns it off.',
     'A composed world writes \'auto\'; design_game\'s readout suggests one (a `juice` step) for a world that writes none.',
+    'TEMPO, the world clock: \'auto\' | false | finisher | kill-cam | impact | bullet | { moments: [{ on, scale, hold }] }:',
+    'slows the world on strike, down:foe, last-down, dodge; a moment\'s cam and look take the camera and the grade.',
+    'GRADE, the look over every frame: \'auto\' (anime vivid, western film) | false | film | noir | bleach | vivid | pastel.',
     '',
     'registers and their looks (look: a register\'s first is its own; an anime fighter or brawler is drawn cel):',
     ...Object.entries(JUICE_REGISTERS).flatMap(([r, R]) => R.looks.map((l) => `  ${r} · ${l}  ${JUICE_LOOKS[l].says}`)),
@@ -400,14 +406,14 @@ const QUICK_LEVERS = {
   avoid: () => [],
   race: () => [
     `  track: trail | loop   end to end, or round a loop laid on the trail's land; laps: n (1..9, ${RACE.laps} round a loop)`,
-    `  ride: ${Object.keys(RIDES).join(' | ')}   you drive it (W / S / A / D), followed from behind; no hero, climb or building`,
+    `  ride: ${Object.keys(RIDES).join(' | ')} | a registry vehicle ('a jeep')   you drive it (WASD), followed from behind; no hero, climb or building`,
     `    vehicle: ${Object.keys(VEHICLES).join(' | ')}; tuning: ${TUNINGS.join(' | ')}; conditions: ${Object.keys(CONDITIONS).join(' | ')}`,
-    '  rivals: n (1..7, with a ride)   a place to finish in, on the podium',
+    '  rivals: n (1..7, with a ride)   finish on the podium',
     '  racers: n (2..8) or a list (an archetype, a brief in words, or { archetype?, build?, age?, brief?, facets?, seed?, parts?, shade?, light? }):',
-    '    the whole field, yours first (no ride, hero or rivals beside it); shade: gloss (default: bevelled, round tyres) | smooth | cel (flat); light: form (default: lit by the page) | paint',
-    `  supercars: n (2..8) or a list ({ preset?: ${Object.keys(SUPERCAR_LIBRARY).join(' | ')}, paint?, livery? }): a field of streamlined supercars lit by the page, yours first, liveries solved to stand out`,
+    '    the whole field, yours first (no ride, hero or rivals beside it); shade: gloss (default) | smooth | cel (flat); light: form (default: lit by the page) | paint',
+    `  supercars: n (2..8) or a list ({ preset?: ${Object.keys(SUPERCAR_LIBRARY).join(' | ')}, paint?, livery? }): streamlined supercars lit by the page, yours first, liveries solved to stand out`,
     `  mood: ${RACE_MOOD_IDS.join(' | ')} (with a roadway)   the light it is raced in: lamps after dark, rain and a wet road`,
-    `  roadway: ${Object.keys(COURSE_PRESETS).join(' | ')} | a course spec | { intent: '<words>' }   the race's whole ground, in place of track (no track, climb, building or run beside it)`,
+    `  roadway: ${Object.keys(COURSE_PRESETS).join(' | ')} | a course spec | { intent: '<words>' }   the race's whole ground, in place of track (no climb, building or run beside it)`,
   ],
   sneak: () => [`  guards: n (1..8, 3), guard: ${HERO_WORDS}, alarms: n (1..9, 1)   sightings that end the run`],
   rhythm: () => [`  music: ${RHYTHM_MOODS.join(' | ')}   a field score with a steady beat; misses: n (1..99) presses off the beat that end it`],
@@ -434,12 +440,14 @@ const QUICK_LEVERS = {
   shoot: () => [
     `  foes: n (4), foe: ${HERO_WORDS}   first person by default (or third-person); walls to take cover behind`,
     `  craft: ${Object.keys(CRAFT).join(' | ')}   a dogfight instead: waves: n of fighters, assist, airspace (as fly's); followed from behind`,
+    ARMS_LINE,
   ],
   deathmatch: () => [
     `  bots: n (1..7, 3), frags: n (1..50, 10), seconds: n (10..600) a time limit, foe: ${HERO_WORDS}`,
     '  arena: \'<words>\' ("a tight three-lane arena with long sightlines"), pole: realistic..stylized (0..1),',
     '    weapons: true (the pole\'s guns on the arena\'s floor; needs a pole)',
     `  mode: ${DEATHMATCH_MODES.join(' | ')}   two sides: team deathmatch, or a point held for time`,
+    `${ARMS_LINE} (or weapons, not both)`,
     '  camera first-person or third-person (over the shoulder); no building, ride, climb or run',
   ],
   conquer: () => [
@@ -558,11 +566,13 @@ function wcdCard() {
     '                tone: the stage\'s colour (its ramps), kept on the dungeon; built: false, on the path and not made yet',
     'DOORS (the intermediaries)',
     ...Object.entries(WCD_VIAS).map(([k, v]) => `  ${k.padEnd(13)} ${v}`),
-    "  gate          what opens it: { clearance: 1…9 } (a keycard's level) or { power: '<id>' } (a power found in the world)",
-    '  oneWay        it opens only from `from`: a shortcut back out, or a drop',
+    "  gate          { clearance: 1…9 } (a keycard), { power: '<id>' }, { keys: true } (an escape room's)",
+    '  oneWay        opens only from `from`: a shortcut back out, a drop',
     '',
     'A BASE\'S BUILDINGS (a space\'s use; each on the bay kit of what it is, so the layers look unlike each other):',
     ...BASE_USES.map((u) => `  ${u.padEnd(13)} ${PROGRAMS[u].reads} (${PROGRAMS[u].kit})`),
+    '  parked: its level\'s building.parked: true (a truck and an APC) | [vehicles] | { vehicles?, livery?, wear? }: parked',
+    '                in its hangar (else its largest room), solid, painted as its foes\' faction, else its setting\'s camo',
     '',
     'PRINCIPLES (laws on the recipe: they advise in design_game\'s readout, `advice.wcd`, and never refuse)',
     ...Object.entries(WCD_PRINCIPLES).map(([k, v]) => `  ${k.padEnd(13)} ${v}`),
@@ -590,6 +600,11 @@ function qowCard() {
     '',
     'PRINCIPLES (laws on the recipe: they advise in design_game\'s readout, `advice.qow`, and never refuse)',
     ...Object.entries(QOW_PRINCIPLES).map(([k, v]) => `  ${k.padEnd(11)} ${v}`),
+    '',
+    'ERRANDS (its element, as the escape room is the WCD\'s), on a map world (topology: interconnected): sent out, home with the goods.',
+    "errands [{ id, giver: '<level>', reward?: [{ item, n? }], list: [{ item, at: '<level>', count?, min?, needs?: ['<item>'],",
+    "        from?: { foe }, cargo?: { fragile?: true, perishable?: <s> } }] }]: needs spent where it is had; from, a bounty;",
+    '        the giver asks for the roots. Laws (advice.errands): ' + Object.keys(ERRAND_LAWS).join(', ') + '.',
   );
 }
 function foesCard() {
@@ -631,6 +646,7 @@ function foesCard() {
     '        cleaves, a round knocks some off, a burst tears it apart): the undead\'s default, layer 0 under every foe.',
     'CAST    /bible?book=foes, the cast sheet: parts foes:cast, foes:<id>. None kept: design_game\'s `foes` step proposes one.',
     'A world or level without foes is laid as it was.',
+    'GAUNTLET a level\'s goal: { gauntlet: { arenas: [{ waves: [{ <id>: <n> }] }], checkpoint? } }: sealed in waves (card wave-gauntlet).',
   );
 }
 
@@ -771,8 +787,6 @@ function nextCard() {
     '  intent     the world has not said what game it is: write intent (gameworld-intent); `suggest` names the genres',
     '             its brief\'s words point at. Until then its cube is read from what it says, and its concerns follow.',
     '             With `drift`: a quick goal now reads as another genre than the written one; keep it or change it.',
-    '  target     the intent names an engine (intent.target) and `lost` are values it does not carry: advice, not a',
-    '             refusal (gameworld-intent). Change one or keep it; the export says the same.',
     '  wait       step `on` waits on those parts (their stamps in brackets).',
     '  form       what the game it is asks and the world lacks (`asks`: for, field, by, says): a field `by: creator` is',
     '             theirs (the hero: ask who it is, never pick one), a `by: composer` field compose fills; run lays it after.',
@@ -788,7 +802,7 @@ function nextCard() {
 
 function intentCard() {
   return lines(
-    'WHAT GAME IT IS — intent: { from?, cube?, why?, target? }. Say it before the world: the levels are laid for it.',
+    'WHAT GAME IT IS — intent: { from?, cube?, why? }. Say it before the world: the levels are laid for it.',
     'A genre (from) is a preset cube, never a lock: cube overrides any value ({ space: { camera: \'top-down\' } }; facets',
     'reality, space, power, soul, mind, time; an unknown value is refused, naming the known ones). A world may mix two genres.',
     'design_game suggests from the brief (intent.suggest); a world that writes none is read from what it says (camera,',
@@ -806,11 +820,6 @@ function intentCard() {
     '',
     'PLAYING TOGETHER — cube.soul.seats \'two\' | \'four\': every stage the hero walks lays a hero per extra seat, on one',
     'screen; a player sits down with any press on their own pad (the keyboard is one). An empty seat\'s hero follows the hero.',
-    '',
-    `TARGET — intent.target: ${MARKED_ENGINES.map((e) => `'${e}'`).join(' | ')} (alone, or beside from and cube): the engine the game`,
-    'is meant for. ADVICE ONLY: the readout\'s intent.target lists the cube\'s values that engine does not carry (lost)',
-    'and carries in part (partly), as its marks say; nothing is refused or rewritten, and dropping the target drops the',
-    'advice. export_game { target } writes the game whatever it holds, and its portability report names the same losses.',
   );
 }
 
@@ -844,7 +853,7 @@ const CARDS = [
   ['gameworld-intent', 'What game it is', 'the cube the world is laid for: a genre to start from, and what each value asks of the world', 'a shooter, a farming game, a racing game, what kind of game, genre, game type', intentCard],
   ['gameworld-world', 'The world', 'the ground, its levels, kits, civilizations and links', 'the levels of my game, where it happens', worldCard],
   ['gameworld-wcd', 'The walled-core dungeon', 'layers on a critical path toward a core: inners, outers and the doors between, each gated', 'a dungeon of layers to the core, a base to infiltrate, keycards to the next area, walls within walls', wcdCard],
-  ['gameworld-qow', 'The quest open world', 'regions joined sideways, loaded as they are passed, never gated on the way on: the WCD\'s opposite pole', 'an open world, a city to roam, an island to explore, side quests anywhere, no forced path', qowCard],
+  ['gameworld-qow', 'The quest open world', 'regions joined sideways, loaded as they are passed, never gated on the way on: the WCD\'s opposite pole', 'an open world, a city to roam, an island to explore, side quests anywhere, no forced path, an errand, a fetch quest, a delivery run, a bounty board', qowCard],
   ['gameworld-direction', 'The direction', 'how characters are drawn: tradition, elements, motif', 'anime or western, the colours of my hero', directionCard],
   ['gameworld-looks', 'The looks', 'the hero bare: body, head, hair, colour and the underlayer', 'what my hero looks like', looksCard],
   ['gameworld-motion', 'The motion', 'how the hero feels to move: vibe words on four axes', 'make my hero feel heavy, bouncy, bold', motionCard],
@@ -858,7 +867,7 @@ const CARDS = [
   ['gameworld-foes', 'The foes', 'hostile classes on the trails: how each moves, hurts and decides, at any rank, on any body that fits', 'enemies in my level, goombas, monsters to fight, a wolf pack, a boss beast, dire wolves, foot soldiers, a turret, things that chase me, a swarm of rats', foesCard],
   ['gameworld-story', 'The cast and the story', 'other people, and the moments they are in, bound to the world as it is built', 'a mayor who greets you, a story written first, characters in my levels, what happens where, dialogue choices, quests, a journal, a companion, a party member who joins, a cast rolled for my game, a party, a rival, a villain and his lieutenant, a familiar or summon, beastfolk or a mascot in the party', storyCard],
   ['gameworld-folk', 'The town\'s people', 'NPCs grown from a town\'s houses: their houses and faces, their talk, their sidequests, their day', 'villagers to talk to, a shopkeeper, townsfolk, NPCs with errands, side quests, the same nurse in every town', folkCard],
-  ['gameworld-next', 'The next moves', "design_game's readout steps: review, play, share, run, rerun, intent, target, feel, foes, wait, advice", 'what do I do next, approve the parts, is it playable', nextCard],
+  ['gameworld-next', 'The next moves', "design_game's readout steps: review, play, share, run, rerun, intent, feel, foes, wait, advice", 'what do I do next, approve the parts, is it playable', nextCard],
 ];
 export const GAMEWORLD_CARD_IDS = Object.freeze(CARDS.map(([id]) => id));
 export { SAMPLE_PAGES };

@@ -1,6 +1,6 @@
 /**
- * game mechanics — reusable level verbs that lower into world + contract at once
- * (game-mechanics.plan.md, M0). A mechanic is a pure function of (params, ctx) → fragments:
+ * game mechanics — reusable level verbs that lower into world + contract at once.
+ * A mechanic is a pure function of (params, ctx) → fragments:
  *   world    — an events-manifest fragment (idiom-shaped: sources/reactions/watches/timers/
  *              entities/hud/vars), reusing the zone fact source (deriveZoneEvents) and the
  *              existing bus verbs. This is the world side a level used to hand-author.
@@ -16,6 +16,9 @@
  * or it doesn't ship (no runtime mechanic code, ever).
  */
 import { heldVar, itemKey } from '../playscape/ui/items.js';
+import { lowerEscapeRoom } from './escape-room.js';
+import { lowerTrade, lowerCargo, lowerBounty, lowerDeliver } from './errand-mechanics.js';
+import { lowerWaveGauntlet } from './wave-gauntlet.js';
 
 const ARRAY_CHANNELS = ['entities', 'timers', 'reactions', 'watches', 'inputs', 'hud', 'sources', 'sequences', 'initial'];
 
@@ -635,6 +638,10 @@ const MECHANICS = {
     },
   },
 
+  // THE WAVE GAUNTLET (a terminal): sealed in until nothing is left alive, arenas × waves, each wave after the last is
+  // down, death beginning the arena (or its checkpoint) again (game/wave-gauntlet.js; "gauntlet" alone is the glove)
+  'wave-gauntlet': { role: 'terminal', ends: ['success', 'fail'], requires: [], lower: lowerWaveGauntlet },
+
   // PUSH (a terminal): a grid of cells (`cols` × `rows`, `cell` metres, from `origin` its corner) with boulders on some
   // and plates on others. Walking into a boulder's cell from a side pushes it one cell on, if that cell is free (in
   // the grid, no wall, no boulder); else the walker is put back. Every plate under a boulder: success. All on the bus:
@@ -836,6 +843,13 @@ const MECHANICS = {
       };
     },
   },
+
+  // THE ERRAND'S verbs (game/errand-mechanics.js): a place an item is had (its price spent), a carried item's condition
+  // (fragile, perishable), a foe's fall dropping its proof, the giver's hand-in and its reward; each on the bag's guarded transfer, so what is carried rides the store
+  trade: { role: 'emitter', requires: ['inventory'], lower: lowerTrade },
+  cargo: { role: 'emitter', requires: ['inventory'], lower: lowerCargo },
+  bounty: { role: 'emitter', requires: ['inventory'], lower: lowerBounty },
+  deliver: { role: 'terminal', ends: ['success'], requires: ['inventory'], lower: lowerDeliver },
 
   // the PARTY carried (an emitter): the battle party of play.rpg (playscape/rpg) goes from level to level in a party
   // slice: each member's level, xp, hp, mp, class, class ranks and points, and the skills learned (the kernel's save:
@@ -1075,8 +1089,7 @@ const MECHANICS = {
   // CONTROL (a terminal): a point two sides fight over (`teams`, as frags' sides). Every second the side alone on it (a
   // ring `radius` round `at`, its standing bodies: a fallen one holds nothing) scores one; contested (both there) or
   // empty, nobody does. The first side to `hold` seconds wins it (the player's: `control:won`; the other's:
-  // `control:lost`). Lowers to a zone per contender, counts and flags, a timer and watches (the web's: a Godot export
-  // does not keep it yet). Kept: the player's side's seconds on the point.
+  // `control:lost`). Lowers to a zone per contender, counts and flags, a timer and watches. Kept: the player's side's seconds on the point.
   control: {
     role: 'terminal', ends: ['success', 'fail'], requires: [],
     lower(p, ctx) {
@@ -1188,6 +1201,10 @@ const MECHANICS = {
       return { world };
     },
   },
+
+  // THE ESCAPE ROOM (a terminal): held in until its locks open, each by a key found inside or a step on the bus; its way
+  // out sealed until then (game/escape-room.js, its names recipe-derived for the handoff)
+  'escape-room': { role: 'terminal', ends: ['success'], requires: [], lower: lowerEscapeRoom },
 };
 
 // (a mechanic whose hp is the player's body's own, `of: 'body'`: the only value it takes)

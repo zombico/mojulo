@@ -38,7 +38,7 @@ export function mintStarSurfaceView({ title, scenario, scale, viewBox, scene, re
 }
 
 export async function createStarSurfaceViewHandler(input) {
-  if (!input || typeof input !== 'object') throw new Error('create_star_surface_view requires a recipe object');
+  if (!input || typeof input !== 'object') throw new Error('create_view({ kind: "star-surface" }) requires a recipe object');
   const { title, scenario, scale, viewBox, scene, ref, folder_ref: folderRef } = input;
   return mintStarSurfaceView({ title, scenario, scale, viewBox, scene, ref, folderRef });
 }

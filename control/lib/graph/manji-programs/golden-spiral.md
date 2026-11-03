@@ -102,7 +102,7 @@ around a still center as the principle that lets a finite form
 1/φ)` ≈ 137.5°) is the printable analog: within finite passes no two
 land in the same angular position relative to any prior, so the form
 is alive at every sample because no sample is a repeat. See
-[waveform-physics-design.md](../polygonizer/waveform-physics-design.md)
+`waveform-physics-design.md`
 §4 ("The fourth quality: golden") and §5 (Tusk archetype).
 
 ## Stays bespoke when

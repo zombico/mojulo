@@ -80,7 +80,7 @@ export async function createSpriteSheetHandler(input) {
     targets: renderTargets(manifest),
     ...(project ? { project } : {}),
     next:
-      `Paint the sprites: call request_image_render { ref: '${sketch.ref}' } to park a durable render `
+      `Paint the sprites: call render_handoff { medium: 'image', op: 'request', ref: '${sketch.ref}' } to park a durable render `
       + 'request per frame, then run the pull/submit/accept loop (image worker). Once every frame is '
       + `accepted, call bake_sprite_sheet { ref: '${sketch.ref}' } to quantize them into pixelizer sprites.`,
   };
@@ -106,7 +106,7 @@ export async function bakeSpriteSheetHandler(input) {
   if (missing.length) {
     throw new Error(
       `Cannot bake — ${missing.length} frame(s) are not yet accepted with a bound render: ${missing.join(', ')}. `
-      + 'Finish the request_image_render → pull → submit → accept loop for each frame first '
+      + 'Finish the render_handoff request → pull → submit → accept loop for each frame first '
       + `(get_image_render_packet { ref: '${ref}' } restates the loop).`,
     );
   }
@@ -182,7 +182,7 @@ export function registerSpriteSheetTools() {
       'Mint a 2D game SPRITE SHEET as a director recipe, painted by your image worker. Declares `frames` '
       + "(one per pose/direction — e.g. idle, walk-1, walk-2, jump; one is the `base`) laid out on a grid; "
       + 'each frame becomes a per-frame render target on the shared image-render handoff loop. Then run '
-      + 'request_image_render → pull → submit → accept per frame, and bake_sprite_sheet quantizes the '
+      + 'render_handoff request → pull → submit → accept per frame, and bake_sprite_sheet quantizes the '
       + 'accepted cells into pixelizer {size,palette,cells} sprites. Reach for "make a sprite sheet for my '
       + '2D game", "sprite atlas for a walking character".',
     inputSchema: {

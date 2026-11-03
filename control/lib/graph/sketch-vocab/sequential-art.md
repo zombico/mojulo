@@ -63,12 +63,12 @@ Rules that make it work:
   `run`, `walk`, `sit`, `kneel`, `fall`, `brace`, `embrace`.
 - **Extremely detailed posing: add `rig`.** A figure may carry
   `rig: { motion?, phase?, pose?, proto?, garment?, view?, setup?, note? }`
-  — the protoform figure rig behind create_figure, rendered as an exact
+  — the protoform figure rig behind mint_solid kind figure, rendered as an exact
   articulated silhouette into the panel at the same `{x, y, scale}`
   anchor. PREFER the authored motion vocabulary over hand-guessed joint
   angles: `motion: 'walk' | 'wave' | 'stretch'` (or a gait/keyframe spec)
   sampled at `phase` ∈ [0,1) gives a choreographed pose — mid-stride,
-  mid-wave — from the same motions create_figure animates. Raw per-joint
+  mid-wave — from the same motions a figure animates. Raw per-joint
   `pose` DOF (+ spine dials) composes ON TOP: explicit keys override the
   sample (tilt just the head on a walking body). Joint limits clamp every
   value, so a rig can't break the form. Use rigs for hero/action key

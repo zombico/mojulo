@@ -1,6 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { characterBibleHtml, gameworldBibleHtml, MEADOWMARK, MEADOWMARK_HERO, HALDEN_REACH, approveCharacter } from './index.js';
 
+const rec = (ref) => ({ ref, order: '0000aaaa', stored: '0000bbbb' });
+
 describe('the character bible', () => {
   const html = characterBibleHtml(MEADOWMARK_HERO);
 
@@ -114,22 +116,49 @@ describe('the character bible', () => {
   });
 
   it('shows the orders to run when the hero is not drawn, and the views when they are, fenced as plates', () => {
-    expect(html).toMatch(/Not drawn yet/);
+    expect(html).toMatch(/Not minted yet/);
     expect(html).toContain('&quot;tool&quot;: &quot;mint_solid&quot;');
     const drawn = characterBibleHtml(MEADOWMARK_HERO, { renders: { front: '<svg id="f"/>', three: '<svg id="t"/>', back: '<svg id="b"/>' } });
     expect(drawn).toContain('<!--plate:hero-front--><svg id="f"/><!--/plate-->');
-    expect(drawn).not.toMatch(/Not drawn yet/);
+    expect(drawn).not.toMatch(/Not minted yet/);
     // in colour, the photographed plates lead and the wire views fold beneath them; colour alone needs no wire
     const coloured = characterBibleHtml(MEADOWMARK_HERO, { renders: { front: '<svg id="f"/>', color: { front: 'data:image/png;base64,AAAA' } } });
     expect(coloured).toContain('<img alt="Meadowmark hero, Front" src="data:image/png;base64,AAAA">');
     expect(coloured).toMatch(/<details class="wire"><summary>The wire views: its construction<\/summary><div class="turn"><figure><!--plate:hero-front-->/);
-    expect(characterBibleHtml(MEADOWMARK_HERO, { renders: { color: { front: 'data:image/png;base64,AAAA' } } })).not.toMatch(/Not drawn yet/);
+    expect(characterBibleHtml(MEADOWMARK_HERO, { renders: { color: { front: 'data:image/png;base64,AAAA' } } })).not.toMatch(/Not minted yet/);
     // the live view rides in an iframe, its page escaped into srcdoc so the bible stays one file
     const live = characterBibleHtml(MEADOWMARK_HERO, { renders: { world: '<html a="b">&</html>' } });
     expect(live).toContain('<iframe sandbox="allow-scripts"');
     expect(live).toContain('srcdoc="&lt;html a=&quot;b&quot;&gt;&amp;&lt;/html&gt;"');
     expect(html).not.toContain('<iframe');
   });
+
+  it('reads what the run made (2026-11-02): a pinned base is made, never "not drawn"; a later step made is made, never "may start"', () => {
+    const hero = MEADOWMARK_HERO.characters.hero ?? {};
+    const pinned = { ...MEADOWMARK_HERO, characters: { ...MEADOWMARK_HERO.characters, hero: { ...hero, looks: { ...(hero.looks ?? {}), base: { ref: 'mm-hero', rev: 2, print: 'abcd1234' } } } } };
+    const page = characterBibleHtml(pinned);
+    expect(page).toMatch(/Made · not photographed here/);
+    expect(page).toContain('mm-hero');
+    expect(page).not.toMatch(/Not minted yet/);
+    // the dashboard hands the made hero's World in: served live
+    expect(characterBibleHtml(pinned, { renders: { worldSrc: '/api/sketches/mm-hero/world' } })).toContain('src="/api/sketches/mm-hero/world"');
+    // the run made the systems and a gear class: said as made, with their rows
+    const ran = { ...pinned, made: { systems: rec('mm-systems'), 'gear-sword': rec('mm-gear-sword') } };
+    const after = characterBibleHtml(ran);
+    expect(after).toMatch(/Made · made<\/span><h3>Systems/);
+    expect(after).toMatch(/Made · made<\/span><h3>Equipment/);
+    expect(after).toContain('mm-gear-sword');
+  });
+
+  it('the world bible says a body the run made without a character book is made, not open', () => {
+    const open = gameworldBibleHtml(MEADOWMARK);
+    expect(open).toMatch(/<h3>Characters<\/h3><\/div><p class="muted">Not on the ground/);
+    const made = gameworldBibleHtml({ ...MEADOWMARK, made: { hero: rec('q-hero'), 'foes-boss': rec('q-boss'), 'foes-boss-sheet': rec('q-boss-sheet') } });
+    expect(made).toMatch(/Made · no character book/);
+    expect(made).toContain('q-hero');
+    expect(made).toContain('q-boss');
+    expect(made).not.toContain('q-boss-sheet');
+  }, 120000);
 
   it('an approval shows as approved, and readiness follows the creator\'s verdicts', () => {
     const w = { ...MEADOWMARK_HERO, review: approveCharacter(MEADOWMARK_HERO, 'hero:actions') };

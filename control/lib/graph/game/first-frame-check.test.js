@@ -33,7 +33,7 @@ describe('first-frame check', () => {
     expect((await levelBrowser({ env: { MOJULO_GAME_BROWSER: 'off' }, resolve: async () => '/chrome' })).path).toBeNull();
   });
 
-  it('one frame per level: a one-colour frame fails, a frame that reads passes, a level with no world is skipped', async () => {
+  it('one frame per level: a one-colour frame fails, a frame that reads passes, a level with no world is skipped, a frame that does not render fails', async () => {
     let calls = 0;
     const capture = async (items, o) => {
       calls++;
@@ -43,7 +43,8 @@ describe('first-frame check', () => {
     const out = await firstFrameCheck(['lv-good', 'lv-bad', 'no-world', 'lv-err', 'lv-good'], { findBrowser: found, page, capture });
     expect(calls).toBe(1);   // one browser for every level
     expect(out.status).toBe('failed');
-    expect(out.levels.map((l) => [l.ref, l.status])).toEqual([['lv-good', 'pass'], ['lv-bad', 'failed'], ['no-world', 'skipped'], ['lv-err', 'skipped']]);
+    // (2026-11-02: a page that times out or crashes fails; it was skipped, and a black flight page went through ungated)
+    expect(out.levels.map((l) => [l.ref, l.status])).toEqual([['lv-good', 'pass'], ['lv-bad', 'failed'], ['no-world', 'skipped'], ['lv-err', 'failed']]);
     expect(out.levels[1].says[0]).toMatch(/one colour/);
     expect(out.levels[3].says).toEqual(['the frame did not render: page crashed']);
     // the same pages again: kept verdicts, nothing rendered
@@ -72,15 +73,32 @@ describe('first-frame check', () => {
     expect(out.levels.map((l) => l.status)).toEqual(['pass', 'pass']);
   });
 
-  it('design_game\'s readout: nothing without a run, skipped when the run kept everything, else the game\'s levels', async () => {
+  it('design_game\'s readout: nothing without a run; the levels no run has gated as they stand, whatever this run did', async () => {
     SketchRepository.create({ ref: 'g-game', title: 'g', manifest: { kind: 'game', title: 'g', store: { slices: [] }, levels: [{ ref: 'g-level-a-0' }, { ref: 'g-level-a-1' }] } });
-    const world = { made: { game: { ref: 'g-game' }, 'level-a-0': { ref: 'g-level-a-0' } } };
+    const world = { made: { game: { ref: 'g-game' }, 'level-a-0': { ref: 'g-level-a-0', stored: 's0' }, 'level-a-1': { ref: 'g-level-a-1', stored: 's1' } } };
     expect(await firstFrameReadout(world, undefined)).toEqual({});
-    expect((await firstFrameReadout(world, [{ key: 'game', action: 'keep' }])).first_frame).toMatchObject({ status: 'skipped', skipped: expect.stringMatching(/nothing made or remade/) });
     let seen = null;
-    const out = await firstFrameReadout(world, [{ key: 'game', action: 'make' }], { findBrowser: found, page, capture: async (items) => { seen = items.map((x) => x.ref); return items.map(() => ({ rgba: halves(), scene: {} })); } });
+    const capture = async (items) => { seen = items.map((x) => x.ref); return items.map(() => ({ rgba: halves(), scene: {} })); };
+    const out = await firstFrameReadout(world, [{ key: 'game', action: 'make' }], { findBrowser: found, page, capture });
     expect(seen).toEqual(['g-level-a-0', 'g-level-a-1']);
     expect(out.first_frame).toMatchObject({ gate: 'machine', status: 'pass' });
+    // what the run keeps: each level's verdict beside the print of the row it judged
+    expect(out.record).toEqual({ 'level-a-0': { stored: 's0', status: 'pass' }, 'level-a-1': { stored: 's1', status: 'pass' } });
+    // (2026-11-02) a run resumed after the tool's budget kept everything: it gates what no run gated (it was skipped)
+    _resetFirstFrameMemo(); seen = null;
+    const resumed = await firstFrameReadout(world, [{ key: 'game', action: 'keep' }], { findBrowser: found, page, capture });
+    expect(seen).toEqual(['g-level-a-0', 'g-level-a-1']);
+    expect(resumed.first_frame.status).toBe('pass');
+    // gated as they stand: nothing renders, the kept verdicts are said; a level remade since is gated again
+    const recorded = { made: { ...world.made, 'level-a-0': { ...world.made['level-a-0'], frame: out.record['level-a-0'] }, 'level-a-1': { ...world.made['level-a-1'], stored: 's1b', frame: out.record['level-a-1'] } } };
+    _resetFirstFrameMemo(); seen = null;
+    const later = await firstFrameReadout(recorded, [{ key: 'game', action: 'keep' }], { findBrowser: found, page, capture });
+    expect(seen).toEqual(['g-level-a-1']);
+    expect(later.first_frame.levels.map((l) => [l.ref, l.status, !!l.kept])).toEqual([['g-level-a-0', 'pass', true], ['g-level-a-1', 'pass', false]]);
+    // a frame that did not render is not kept: the next run tries it again
+    const broke = await firstFrameReadout(world, [{ key: 'game', action: 'make' }], { findBrowser: found, page: async (r) => ({ html: `<x>${r}</x>` }), capture: async (items) => items.map(() => ({ error: 'Waiting failed: 60000ms exceeded' })) });
+    expect(broke.first_frame.status).toBe('failed');
+    expect(broke.record).toBeUndefined();
     // under test the environment keeps the browser off (vitest.setup.js): the real finder says so
     expect((await firstFrameReadout(world, [{ key: 'game', action: 'make' }])).first_frame).toMatchObject({ status: 'skipped', skipped: 'skipped: no browser (MOJULO_GAME_BROWSER=off)' });
   });

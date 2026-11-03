@@ -6,8 +6,9 @@
  * powder and clay, its patches, its dust; the undergrowth on a green land; the wet line by height), the land shaded
  * smooth, the sea one surface faded over the depth under it, the scree's stones instanced, the cube's sun and sky light.
  *
- *   formLandScript(form, flora?) → the channel's page source (one block, after the page's own; absent `form`, the page has
- *     none); `flora`, a form read's plants (channels/form-flora.js), grown inside it under its light
+ *   formLandScript(form, flora?, { capture? }) → the channel's page source (one block, after the page's own; absent `form`,
+ *     the page has none); `flora`, a form read's plants (channels/form-flora.js), grown inside it under its light;
+ *     `capture`, a capture page's: the sky's and the plants' clocks the capture's when its frame() pins one
  *     `form.cone`, a world's fixed view-cone reach (channels/view-cone.js readCone): the cone is the form's, read by its grass
  *
  * It hides the painted groups it draws in their place (`form.hides`) and the painted water sheet under its sea; every
@@ -40,7 +41,7 @@ export const STONE_LADDER = Object.freeze({ px: 1, step: 0.5 });
  *  of the sky's air (its nearest layer to its farthest); `rough` its roughness. */
 export const FAR_LAND = Object.freeze({ rise: Object.freeze([0.35, 0.85]), tone: 0.06, air: Object.freeze([0.25, 0.7]), rough: 0.95 });
 
-export function formLandScript(form, flora = null) {
+export function formLandScript(form, flora = null, { capture = false } = {}) {
   return `
 // --- the form render (gen-7): the land as material, lit by the cube's light (channels/form-land.js) ---
 (async function () {
@@ -55,8 +56,10 @@ export function formLandScript(form, flora = null) {
   const rgb = (a) => new THREE.Color().setRGB(a[0] / 255, a[1] / 255, a[2] / 255, THREE.SRGBColorSpace);
 
   // the sky: a dome from the horizon's colour to the zenith's, behind both halves and the gen-7 side's light and reflections
+  // (underground, a cavern, no sky: the rock's dark in the reflections)
   function skyDome() {
-    const g = new THREE.SphereGeometry(4000, 48, 24), p = g.attributes.position, col = new Float32Array(p.count * 3), z = rgb(D.sky.zenith), h = rgb(D.sky.horizon);
+    const SK = D.sky || { zenith: [10, 11, 13], horizon: [10, 11, 13] };
+    const g = new THREE.SphereGeometry(4000, 48, 24), p = g.attributes.position, col = new Float32Array(p.count * 3), z = rgb(SK.zenith), h = rgb(SK.horizon);
     for (let i = 0; i < p.count; i++) { const t = Math.pow(Math.max(0, p.getZ(i) / 4000), 0.6), c = h.clone().lerp(z, t); col.set([c.r, c.g, c.b], i * 3); }
     g.setAttribute('color', new THREE.BufferAttribute(col, 3)); g.rotateX(0);
     return new THREE.Mesh(g, new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.BackSide, fog: false, depthWrite: false, toneMapped: false }));
@@ -494,7 +497,9 @@ ${form.dunes ? `      sh.fragmentShader = DUNE_HEAD + sh.fragmentShader.replace(
       at = { pov, reach: CO.reach, eye: CO.eye.clone() }; ladder(pov, CO.eye, CO.reach, CO.px);
     };
   }
-${formSkyScript()}${viewConeScript(form.cone || null)}${formGrassScript()}${flora ? formFloraScript(flora, { snow: !!form.snow }) : ''}${farFieldScript()}
+
+  // (the gen-7 sky over a land that has one: a cavern has none)
+  if (D.sky) {${formSkyScript({ capture })}}${viewConeScript(form.cone || null)}${formGrassScript()}${flora ? formFloraScript(flora, { snow: !!form.snow, capture }) : ''}${farFieldScript()}
   // open sea: deep water's colour under it, where the recipe lays no floor (the shallows' floor fades into the same colour)
   if (D.seabed) { const B = D.seabed, g = new THREE.PlaneGeometry(B.x[1] - B.x[0], B.y[1] - B.y[0]); g.translate((B.x[0] + B.x[1]) / 2, (B.y[0] + B.y[1]) / 2, B.z);
     scene.add(new THREE.Mesh(g, new THREE.MeshStandardMaterial({ color: rgb(D.deep), roughness: 1, metalness: 0 }))); }

@@ -55,6 +55,7 @@ import { foeFigure, fieldFigure, modelFigure, libraryFigure, facing } from './st
 import { dressOrders } from '../foes/dress.js';
 import { isModelSkin } from '../foes/model.js';
 import { LEVEL_GOAL, PERSON } from './quick.js';
+import { gauntletIds } from './gauntlet.js';
 import { HERO } from '../foes/vocab.js';
 import { FEELS, FPS } from './feel/cards.js';
 import { feelCard } from './feel/lower.js';
@@ -179,6 +180,8 @@ export function readLevelFoes(LF, bestiary, at) {
 export function fieldedIds(G) {
   const used = new Set();
   for (const id of G.ids) { const LF = G.levels[id].foes; if (LF !== undefined) for (const f of readLevelFoes(LF, G.foes, `levels.${id}`).from) used.add(f); }
+  // (and what a level's wave gauntlet wakes: gauntlet.js)
+  for (const f of gauntletIds(G)) used.add(f);
   // (and what a summoner it fields calls, and who a pair stands with)
   for (const id of [...used]) { const E = bestiaryOf(G)[id]; if (E?.summons) used.add(E.summons.foe); if (E?.pair) used.add(E.pair.foe); }
   // (and the modes each of them becomes)

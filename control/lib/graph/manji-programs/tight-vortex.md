@@ -47,7 +47,7 @@ This is the canonical *two-rotation-axis* archetype — the dimensionality
 of the readable form is determined by how many independent rotation
 axes the script exercises, and two axes is what makes the tusk read
 volumetric rather than flat. See
-[waveform-physics-design.md](../polygonizer/waveform-physics-design.md)
+`waveform-physics-design.md`
 §5 ("rotation-axis count determines volumetric character").
 
 ## Use when
@@ -98,7 +98,7 @@ combining rotations on different axes is what makes the Spin transcend
 its baseline form. The volumetric archetypes that already exist
 (rasengan-sphere, smoke-ring, celtic torus knot, tusk) all share this
 two-axis structure. See
-[waveform-physics-design.md](../polygonizer/waveform-physics-design.md)
+`waveform-physics-design.md`
 §§4–5.
 
 ## Stays bespoke when

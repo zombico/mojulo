@@ -14,7 +14,7 @@
  */
 
 import { face, faceOut } from './road-faces.js';
-import { loftLanguage, BODY_LANGUAGES } from './bodywork.js';
+import { loftLanguage, BODY_LANGUAGES, PICKUP_AXLE_SHIFT } from './bodywork.js';
 
 // L × W × H, wheelbase, track, wheel radius (m) — the plan's reference sheet. Profile stations are
 // fractions of L from the front: nose, windscreen base (hood end), roof start, roof end, deck start.
@@ -37,6 +37,8 @@ export const PAINTS = [
 export const TRAILER_PAINTS = [[0.95, 0.95, 0.94], [0.95, 0.95, 0.94], [0.95, 0.95, 0.94], [0.95, 0.95, 0.94], [0.95, 0.95, 0.94], [0.84, 0.84, 0.83], [0.84, 0.84, 0.83], [0.66, 0.67, 0.68], [0.62, 0.12, 0.10], [0.20, 0.30, 0.52]];
 
 const T = { paint: '#e9e9e9', glass: '#1e2630', tyre: '#1b1c1e', hub: '#8e9296', lamp: '#e9edf0', tail: '#9a1a17', plastic: '#2a2c2f', chrome: '#b9bcbf', box: '#eeeeec', frame: '#26282a' };
+/** The trim's colours, by what each draws (read by the realistic compile's form render to name a face's part). */
+export const FLEET_TRIM = Object.freeze({ ...T });
 
 // ── primitives in the template frame (+x forward, +y left, z up), rotated for the heading ──────────
 function makeFrame(yaw) {
@@ -180,7 +182,7 @@ export function buildVehicle(cls, yaw = 0, opts = {}) {
     for (const sy of [-1, 1]) box(paint, R, xb1, xb0, sy > 0 ? W / 2 - 0.08 : -W / 2, sy > 0 ? W / 2 : -W / 2 + 0.08, zf, zw, T.paint);
     box(paint, R, xb1, xb1 + 0.08, -W / 2, W / 2, zf, zw, T.paint);
     box(trim, R, xb1 + 0.08, xb0, -W / 2 + 0.08, W / 2 - 0.08, zf - 0.02, zf, T.plastic);
-    wheelsFor(trim, R, spec, [wb / 2 + 0.25, -wb / 2 + 0.25], sink);
+    wheelsFor(trim, R, spec, [wb / 2 + PICKUP_AXLE_SHIFT, -wb / 2 + PICKUP_AXLE_SHIFT], sink);
   } else if (spec.kind === 'straight') {
     const xc0 = L / 2, xc1 = L / 2 - spec.cab;
     prism(paint, R, [[xc1, 0.55], [xc0, 0.55], [xc0, 1.55], [xc0 - 0.45, spec.cabH], [xc1, spec.cabH]], -W / 2 + 0.05, W / 2 - 0.05, T.paint);

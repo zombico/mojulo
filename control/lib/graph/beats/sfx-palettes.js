@@ -146,15 +146,21 @@ export const MECHANIC_SFX = {
   laps: { checkpoint: 'checkpoint', lap: 'chime', 'race:won': 'goal', 'race:lost': 'lose', 'laps:done': 'goal' },
   'on-beat': { 'beat:hit': 'beat-hit', 'beat:miss': 'beat-miss', offbeat: 'lose' },
   waves: { wave: 'wave', leak: 'hit', 'base:fallen': 'lose', 'waves:cleared': 'goal' },
+  'wave-gauntlet': { wave: 'wave', 'gauntlet:arena': 'chime', 'gauntlet:again': 'lose', 'gauntlet:sealed:*': 'thud', 'gauntlet:clear:*': 'chime', 'gauntlet:out:*': 'goal' },
   push: { pushed: 'thud', 'plates:held': 'goal' },
   clock: { dawn: 'chime', dusk: 'chime' },
   crops: { planted: 'thud', harvested: 'pickup', 'crops:late': 'lose' },
   aftermath: { 'broke:*': 'thud' },
+  trade: { 'pickup:*': 'pickup', 'trade:*:short': 'thud' },
+  cargo: { 'cargo:lost:*': 'hit' },
+  bounty: { 'bounty:*': 'pickup' },
+  deliver: { 'errand:done:*': 'goal', 'errand:short:*': 'thud' },
   frags: { kill: 'down', 'frags:won': 'goal', 'frags:lost': 'lose' },
   control: { 'control:won': 'goal', 'control:lost': 'lose' },
   board: { 'board-won': 'goal', 'board-lost': 'lose', 'board-draw': 'lose' },
   map: { 'map-go:*': 'door' },
   runner: { 'run-won': 'goal', 'runner:crash': 'death' },
+  'escape-room': { 'key:*': 'pickup', 'lock:locked': 'thud', 'lock:opened': 'checkpoint', 'escape:open:*': 'chime', 'escape:sealed:*': 'thud', 'escape:out:*': 'goal' },
 };
 
 // shift every pitched gesture by `k` semitones (note names only; Hz, materials sized in metres and noise stay put)

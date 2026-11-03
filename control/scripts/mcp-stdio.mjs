@@ -113,8 +113,8 @@ process.chdir(CONTROL_DIR);
 console.log = console.error;
 console.info = console.error;
 
-// `npx mojulo orient|tools|packs|help <name>|call|pack_* …` — the CLI front door (P1+P2 of
-// [mojulo-cli.plan.md]). Branches AFTER the loader/paths/chdir/console pin
+// `npx mojulo orient|tools|packs|help <name>|call|pack_* …` — the CLI front door.
+// Branches AFTER the loader/paths/chdir/console pin
 // (the CLI reuses the same `@/` resolution and data layout, and wants stray
 // tool logs on stderr — its own output writes to process.stdout directly)
 // but BEFORE the embedder preload: a spot-check command must not kick off a
@@ -125,9 +125,9 @@ console.info = console.error;
 // `mojulo script <name> [args…]` — run one of the shipped worker scripts from the package
 // root, so the floor-plan card's `node scripts/bake-world-gi.mjs …` has a door on an install
 // where scripts/ sits inside the npx cache (house-compose-language). Allowlisted to the
-// three that ship in `files`; the child inherits stdio and the paths env resolved above.
+// ones that ship in `files`; the child inherits stdio and the paths env resolved above.
 // `script` is one more reserved word on the bin.
-const SCRIPT_COMMANDS = ['bake-world-gi', 'blender-bake', 'export-blender'];
+const SCRIPT_COMMANDS = ['bake-world-gi', 'blender-bake', 'export-blender', 'visual-gate'];
 if (process.argv[2] === 'script') {
   const name = process.argv[3];
   if (!SCRIPT_COMMANDS.includes(name)) {

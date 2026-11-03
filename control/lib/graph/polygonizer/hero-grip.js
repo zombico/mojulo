@@ -20,14 +20,10 @@ import { keyedClip, mirrored } from './hero-jump.js';
 import { elbowsDown } from './hero-elbow.js';
 import { heroStance, reachArm, comOf, hull, margin } from './hero-stance.js';
 
-/** the wrist's anatomical range, degrees [toward −, toward +] in the rig's signs (flex + the back of the hand up:
- * flexion 80, extension 70; deviation + toward the thumb: ulnar 35, radial 20; twist + palm down: supination and
- * pronation 85 from the thumb-up neutral): the hard body never passes it */
-export const WRIST_RANGE = Object.freeze({ flex: [-80, 70], deviation: [-35, 20], twist: [-85, 85] });
-/** the wrist's FUNCTIONAL range, where the hand works at ease: the ranges daily tasks use (Ryu et al. 1991: flexion 54,
- * extension 60, radial 17, ulnar 40 — here capped at the anatomical 35; the forearm's turn, Morrey et al. 1981: 50 each
- * way). A skilled held guard keeps inside it */
-export const WRIST_EASE = Object.freeze({ flex: [-54, 60], deviation: [-35, 17], twist: [-50, 50] });
+// (the wrist's ranges live in a leaf module, so a solver reached while this one is still loading reads them: hero-servo
+// builds its tables from them at load, and the gear's import chain comes back round through the carry holds to it)
+export { WRIST_RANGE, WRIST_EASE } from './hero-wrist.js';
+import { WRIST_RANGE, WRIST_EASE } from './hero-wrist.js';
 /** a strapped shield's hand (enarmes: the forearm through a strap, the fist on a grip): the straps lock the wrist's bend,
  * the forearm still turns */
 export const STRAPPED = Object.freeze({ flex: [-8, 8], deviation: [-8, 8], twist: [-50, 50] });
@@ -210,7 +206,7 @@ export function wristFor(R, side, F, m) {
   return { flex: deg(Math.atan2(L[2][1], L[2][2])), deviation: deg(dev), twist: deg(Math.atan2(L[1][0], L[0][0])) };
 }
 /** a frame turning rest vectors (a0, b0) onto posed (a1, b1): a exactly, b as near as square to a allows */
-const alignFrame = (a0, b0, a1, b1) => {
+export const alignFrame = (a0, b0, a1, b1) => {
   const basis = (a, b) => { const x = unit(a), z = unit(cross(x, b)); return fromColumns(x, cross(z, x), z); };
   return mm(basis(a1, b1), T(basis(a0, b0)));
 };
@@ -270,7 +266,7 @@ export function armClear(R, n, side) {
 const strayOf = (w, band) => Math.hypot(...Object.entries(band).map(([k, [lo, hi]]) => Math.max(0, lo - w[k], w[k] - hi)));
 
 /** Levenberg–Marquardt on a residual f(x) (an array) from x0, inside [lo, hi]: → { x, c (the squared residual) } */
-function lm(f, x0, lo, hi, iters = 40) {
+export function lm(f, x0, lo, hi, iters = 40) {
   const clampX = (x) => x.map((v, i) => Math.max(lo[i], Math.min(hi[i], v)));
   let x = clampX(x0), r = f(x), c = r.reduce((a, v) => a + v * v, 0), lam = 1e-3; const N = x.length;
   for (let it = 0; it < iters; it++) {
@@ -297,9 +293,11 @@ function lm(f, x0, lo, hi, iters = 40) {
  * way. → { sh, elbow, lift (m, the elbow off its elbows-down place), wrist (the channel), anatomy (the wrist the laws read), err (m),
  * stray (degrees past the functional range) }. `pole` bends the elbow another way first (a shield arm's, out); `range`
  * weighs a degree past the wrist's anatomical range against the fist's millimetres (a guard's √½: as one), `clear` a
- * metre of the arm pressed into the trunk (a guard's 100: a centimetre as a millimetre).
+ * metre of the arm pressed into the trunk (a guard's 100: a centimetre as a millimetre). `elbowAt` puts the elbow's place
+ * (the rig's frame) in elbows-down's stead and `elbowWeight` weighs a metre off it (√½ by default: a style; an actor's
+ * gesture near the trunk says where the elbow goes, as an animator places a pole, and weighs it as a law).
  */
-export function holdArm(R, body, side, goal, m, { pole = null, skilled = true, band = WRIST_EASE, range = Math.SQRT1_2, clear = 100 } = {}) {
+export function holdArm(R, body, side, goal, m, { pole = null, skilled = true, band = WRIST_EASE, range = Math.SQRT1_2, clear = 100, elbowAt = null, elbowWeight = Math.SQRT1_2, seed = null, near = 0.003 } = {}) {
   const lite = liteOf(R), fa = { bones: [R.bones[R.boneIndex[`foreArm${side}`]]] };
   const l1 = dist(R.joints[`shoulder${side}`], R.joints[`elbow${side}`]), l2 = dist(R.joints[`elbow${side}`], R.joints[`wrist${side}`]);
   const nodesOf = (x) => rigNodesAt(lite, elbowsDown(R, { ...body, [`sh${side}`]: { pitch: x[0], yaw: x[1], roll: x[3] }, [`elbow${side}`]: x[2] })).nodes;
@@ -316,14 +314,17 @@ export function holdArm(R, body, side, goal, m, { pole = null, skilled = true, b
   const reachTo = (P, x0) => lm((x) => { const n = nodesOf(x); const w = sub(n[`wrist${side}`], goal), e = mul(sub(n[`elbow${side}`], elbowFor(n, P)), 0.3); return [...w, ...e]; }, x0, LO, HI);
   const a0 = reachArm(R, body, side, goal, null, { pole: down });
   const x0 = reachTo(down, [a0.sh.pitch, a0.sh.yaw ?? 0, a0.elbow, a0.sh.roll ?? 0]).x;
-  const E0 = nodesOf(x0)[`elbow${side}`];
+  const E0 = elbowAt ?? nodesOf(x0)[`elbow${side}`];
   // the whole score as residuals (its square is the score), so a final Levenberg–Marquardt can trade every term at once;
   // the fist lands before all (a millimetre off weighs as a degree past the wrist's anatomical range); the humerus turns
   // no further than a shoulder can (the elbow never folds backward), weighed as the wrist's range; the arm keeps clear of
   // the trunk (a centimetre in weighs as a degree past the wrist's range: the elbow lifts and swings out first)
   const ease = skilled ? 5e-3 : 5e-5;
   const over = (w, band, k) => Object.entries(band).map(([a, [lo, hi]]) => k * Math.max(0, lo - w[a], w[a] - hi));
-  const resid = (x) => { const n = nodesOf(x); const { w } = read(n); return [...mul(sub(n[`wrist${side}`], goal), 1000), ...mul(sub(n[`elbow${side}`], E0), Math.SQRT1_2), ...over(w, band, Math.sqrt(ease)), ...over(w, WRIST_RANGE, range), Math.SQRT1_2 * Math.max(0, HUMERAL_RANGE[0] - humeralTurn(n, side), humeralTurn(n, side) - HUMERAL_RANGE[1]), clear * Math.max(0, -armClear(R, n, side))]; };
+  // (a SEED, the arm a moment before (a clip's last key): its angles a residual too, `near` a degree, so a key solved next
+  // to another keeps its arm's way of reaching rather than leaping to another; absent, nothing is added)
+  const sx = seed ? [seed.sh.pitch, seed.sh.yaw ?? 0, seed.elbow, seed.sh.roll ?? 0] : null;
+  const resid = (x) => { const n = nodesOf(x); const { w } = read(n); return [...mul(sub(n[`wrist${side}`], goal), 1000), ...mul(sub(n[`elbow${side}`], E0), elbowWeight), ...over(w, band, Math.sqrt(ease)), ...over(w, WRIST_RANGE, range), Math.SQRT1_2 * Math.max(0, HUMERAL_RANGE[0] - humeralTurn(n, side), humeralTurn(n, side) - HUMERAL_RANGE[1]), clear * Math.max(0, -armClear(R, n, side)), ...(sx ? x.map((v, k) => near * (v - sx[k])) : [])]; };
   const score = (x) => resid(x).reduce((a, v) => a + v * v, 0);
   // the arm reaches a wrist in several separate ways (the roll's range and the elbow's one-way hinge split them), so the
   // seeds are elbows-down's and the best distinct ways a coarse grid finds to reach the wrist, each settled on the whole
@@ -331,8 +332,8 @@ export function holdArm(R, body, side, goal, m, { pole = null, skilled = true, b
   const grid = [];
   for (let p = -30; p <= 170; p += 20) for (let y = -90; y <= 90; y += 30) for (let e = 0; e <= 150; e += 30) for (let r = -150; r <= 150; r += 50) grid.push({ x: [p, y, e, r], d: dist(nodesOf([p, y, e, r])[`wrist${side}`], goal) });
   grid.sort((a, b) => a.d - b.d);
-  const seeds = [x0];
-  for (const g of grid) { if (seeds.length >= 9) break; if (seeds.every((q) => Math.abs(q[2] - g.x[2]) > 25 || Math.abs(q[3] - g.x[3]) > 40 || Math.abs(q[1] - g.x[1]) > 25)) seeds.push(g.x); }
+  const seeds = sx ? [sx, x0] : [x0];
+  for (const g of grid) { if (seeds.length >= (sx ? 10 : 9)) break; if (seeds.every((q) => Math.abs(q[2] - g.x[2]) > 25 || Math.abs(q[3] - g.x[3]) > 40 || Math.abs(q[1] - g.x[1]) > 25)) seeds.push(g.x); }
   let best = null;
   for (const sd of seeds) { const r = lm(resid, sd, LO, HI, 60); if (!best || r.c < best.c) best = { x: r.x, phi: sd === x0 ? 0 : null, c: r.c }; }
   const x = best.x.map(r1); const n = nodesOf(x); const { ch, w } = read(n);
