@@ -22,7 +22,7 @@
  * city bus, a Class 8 tractor with a 53 ft trailer empty and at 80,000 lb; the cycles: a 700 cc standard, a litre sport
  * bike, a grand prix prototype, a big V-twin cruiser, a 150 cc scooter, a 110 cc underbone, a pedelec, a commuter on an
  * upright bicycle, a flat-twin outfit, a delta trike, an LPG auto rickshaw, a pedicab, a box trike; the site's machines: a
- * 20 t crawler excavator, a 2.7 t mini excavator, a 16 t wheeled excavator, a 20 t crawler dozer, a 15 t wheel loader, an
+ * 20 t crawler excavator, a 2.7 t mini excavator, a 19 t wheeled excavator, a 20 t crawler dozer, a 15 t wheel loader, an
  * 8.5 t backhoe loader, a 3.3 t skid steer, a 4.3 t compact track loader, a 4 t, 14 m telehandler, a 2.5 t counterbalance
  * forklift, an 8x4 tipper and an 8x4 mixer loaded, a 30 t articulated dump truck and a 100 t rigid haul truck loaded, a
  * five-axle all-terrain crane, a 10 t tandem roller, a 17 t motor grader), each with its rider or operator, rounded: [E], estimates for a class, not a model's data sheet. The spike's reference sheet sets the bands they are held to (vehicles.test.js).
@@ -93,7 +93,7 @@ export const VEHICLES = Object.freeze({
   // shelf's, never the car sheet's)
   crawlerExcavator: Object.freeze({ words: 'a 20 t crawler excavator', mass: 21000, power: 110, drive: 'all', share: 1, wheelbase: 3.65, track: 2.2, wheelRadius: 0.12, CdA: 8.0, Crr: 0.05, cgH: 1.1, L: 9.5, W: 2.8, H: 3.0, eye: 2.4, grip: 0.75, brakeEff: 0.8, turn: 2.5, band: 0.7, governor: kmh(5.5), running: 'track', site: true }),
   miniExcavator: Object.freeze({ words: 'a 2.7 t mini excavator, its tail inside its tracks', mass: 2700, power: 15, drive: 'all', share: 1, wheelbase: 1.6, track: 1.25, wheelRadius: 0.08, CdA: 3.0, Crr: 0.05, cgH: 0.6, L: 4.4, W: 1.55, H: 2.45, eye: 1.9, grip: 0.75, brakeEff: 0.8, turn: 1.2, band: 0.7, governor: kmh(4.4), running: 'track', site: true }),
-  wheeledExcavator: Object.freeze({ words: 'a 16 t wheeled excavator', mass: 16000, power: 105, drive: 'all', share: 1, wheelbase: 2.6, track: 1.95, wheelRadius: 0.5, CdA: 7.5, Crr: 0.02, cgH: 1.3, L: 8.4, W: 2.55, H: 3.1, eye: 2.4, grip: 0.75, brakeEff: 0.8, turn: 6.8, band: 0.75, governor: kmh(37), site: true }),
+  wheeledExcavator: Object.freeze({ words: 'a 19 t wheeled excavator, the 20 t front', mass: 19000, power: 105, drive: 'all', share: 1, wheelbase: 2.6, track: 1.95, wheelRadius: 0.5, CdA: 7.5, Crr: 0.02, cgH: 1.3, L: 8.4, W: 2.55, H: 3.1, eye: 2.4, grip: 0.75, brakeEff: 0.8, turn: 6.8, band: 0.75, governor: kmh(37), site: true }),
   crawlerDozer: Object.freeze({ words: 'a 20 t crawler dozer, its blade and its ripper', mass: 20500, power: 160, drive: 'all', share: 1, wheelbase: 2.9, track: 1.98, wheelRadius: 0.13, CdA: 9.0, Crr: 0.05, cgH: 1.1, L: 6.6, W: 3.4, H: 3.2, eye: 2.6, grip: 0.8, brakeEff: 0.8, turn: 2.0, band: 0.7, governor: kmh(11), running: 'track', site: true }),
   wheelLoader:   Object.freeze({ words: 'a 15 t wheel loader, its frame articulated', mass: 15000, power: 140, drive: 'all', share: 1, wheelbase: 3.3, track: 2.2, wheelRadius: 0.8, CdA: 8.5, Crr: 0.025, cgH: 1.4, L: 8.2, W: 2.9, H: 3.4, eye: 2.6, grip: 0.75, brakeEff: 0.8, turn: 6.2, band: 0.75, governor: kmh(38), steer: 'articulated', site: true }),
   backhoeLoader: Object.freeze({ words: 'an 8.5 t backhoe loader', mass: 8500, power: 70, drive: 'all', share: 1, wheelbase: 2.2, track: 1.9, wheelRadius: 0.65, CdA: 6.5, Crr: 0.025, cgH: 1.2, L: 5.9, W: 2.35, H: 3.85, eye: 2.3, grip: 0.75, brakeEff: 0.8, turn: 4.2, band: 0.75, governor: kmh(40), site: true }),

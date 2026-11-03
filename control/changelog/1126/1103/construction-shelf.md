@@ -231,3 +231,37 @@ push, load, haul and lift on a site.
     - The char test pins every new builder path and each machine.
   - **Seen** (machine gate only, the eyes gate is open): the forklift raised, the telehandler travelling and reaching,
     the mini digging and swung on its post, the backhoe digging, travelling and swung.
+- **The door's swaps: a tool in the bucket's place, another carrier under the machine** (`con-tools.js`,
+  `composeMachine`, `CON_MOUNTS`, `CON_CARRIERS`):
+  - **The mounts:**
+    - an excavator's pins (its bucket's and its link's) take a bucket, a ditching bucket, a breaker, a grapple and an
+      auger;
+    - a skid steer's plate takes a bucket, pallet forks, an auger and a sweeper.
+
+    A tool's part number is its stem and the machine's size, so the excavator's tools come at the mini's and the
+    backhoe's sizes too, drawn as the 20 t's at 0.44 and 0.62. Every tool of a mount hangs on its mount's pins, so it
+    closes the machine's linkage and takes its rams.
+  - **`assembleMachine(archetype, { tool, carrier })`**, or `composeMachine`, puts the tool on the machine's tool joint,
+    or the carrier under it, under its own key (`crawlerExcavator+breaker`).
+    - A carrier makes the machine it names: a skid steer on tracks the compact track loader, an excavator on wheels the
+      wheeled excavator.
+    - A tool the mount does not take, a carrier the machine does not list, or a machine whose tool is its own is
+      refused, naming what it takes.
+  - **The laws re-read the machine as built:**
+    - its mass is the class's with the tool in its bucket's place;
+    - its rated lift is read against tipping alone (it lifts something or nothing, and does not tip);
+    - its tool's outline is swept against its cab;
+    - a bucket's envelope bands are the bucket's, so another tool's envelope is read and not held to them.
+
+    The 1.8 m ditching bucket can touch the 20 t's cab in one corner of its range: the clearance law says so.
+  - **The 19 t wheeled excavator** is the 20 t excavator's upper and front on a wheeled chassis on twin tyres (the
+    carrier swap, `withCarrier`; a carrier's parts set where the first part it drops stood). It reaches 9.49 m, digs
+    6.06 m and lifts a rated 1.7 t over the side. Its class is 19 t. The wheeled-excavator row claims it, asleep.
+  - **Held:**
+    - The law tests: a tool its mount takes put in the bucket's place and nothing else changed; its laws re-read; a
+      foreign tool, an unlisted carrier and a fixed tool refused; a carrier making its machine.
+    - The deep sweep walks every machine and every tool on every machine whose mount takes it, over every joint's range.
+    - The char test pins the tools, the wheeled chassis, the wheeled excavator and the excavator with its breaker.
+    - The review renderer takes `--tool` and `--carrier`.
+  - **Seen** (machine gate only, the eyes gate is open): the excavator with its breaker, its grapple and its auger;
+    the skid steer with its forks and its sweeper; the wheeled excavator travelling.

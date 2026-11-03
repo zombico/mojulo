@@ -5,7 +5,7 @@
 // distinct procedure, chosen in code from the archetypes: a tool on a linkage (the excavator's bucket), and a front
 // whose laws are points it sweeps (the dozer's blade and ripper, a ram based on a body fixed to its joint's parent).
 import { describe, it, expect } from 'vitest';
-import { CON_ARCHETYPES, CON_ODM, assembleMachine, findConPart, machineCtx, posedJoints, resolveConPart, toolLow } from './index.js';
+import { CON_ARCHETYPES, CON_MOUNTS, CON_ODM, assembleMachine, composeMachine, findConPart, machineCtx, posedJoints, resolveConPart, toolLow } from './index.js';
 import { CON_CARRIERS, withCarrier } from './con-archetypes.js';
 import { scaleDims } from './con-odm.js';
 import { apply } from './con-common.js';
@@ -197,5 +197,42 @@ describe('the chain\'s other procedures', () => {
     const k = row.dims.scale;
     const a = resolveConPart(sku).garage.hardpoints, b = resolveConPart(base).garage.hardpoints;
     for (const [n, p] of Object.entries(b)) if (a[n] && !Array.isArray(p[0])) expect(near(a[n], p.map((v) => v * k), 0.002), n).toBe(true);
+  });
+});
+
+describe('the door\'s swaps', () => {
+  // (a machine with a mount, and a tool its mount takes that is not its own bucket; one carrier a machine lists)
+  const M = Object.keys(CON_ARCHETYPES).find((k) => CON_ARCHETYPES[k].mount), mount = CON_MOUNTS[CON_ARCHETYPES[M].mount.family];
+  const tool = Object.keys(mount.tools).find((t) => t !== 'bucket');
+  it('puts a tool its mount takes in its bucket\'s place, the rest of the machine as it was', () => {
+    const key = composeMachine(M, { tool }), a = machineCtx(M).arch.layout, b = machineCtx(key).arch.layout;
+    expect(key).toBe(`${M}+${tool}`);
+    const changed = b.filter((e, i) => e.sku !== a[i].sku);
+    expect(changed.map((e) => e.joint)).toEqual(['tool']);
+    expect(composeMachine(M, { tool: 'bucket' })).toBe(M);
+    const { readout } = assembleMachine(M, { tool });
+    expect(readout).toMatchObject({ archetype: M, composed: key, tool });
+  });
+  it('re-reads the laws as built: its mass with its tool, its lift against tipping alone, a bucket\'s envelope read and not held', () => {
+    const { readout } = assembleMachine(M, { tool }), ids = readout.laws.laws.map((l) => l.id);
+    expect(ids).not.toEqual(expect.arrayContaining(['reach']));
+    const mass = readout.laws.laws.find((l) => l.id === 'mass');
+    expect(mass.ok).toBe(true);
+    const lift = readout.laws.laws.find((l) => l.id === 'lift');
+    if (lift) expect(lift.band[0]).toBe(0);
+    if (readout.envelope) expect(readout.envelope.reach).toBeGreaterThan(0);
+  });
+  it('refuses a tool its mount does not take, and a carrier it does not list, naming what it takes', () => {
+    const other = Object.keys(CON_MOUNTS).find((f) => f !== CON_ARCHETYPES[M].mount.family), foreign = Object.keys(CON_MOUNTS[other].tools).find((t) => !mount.tools[t]);
+    expect(() => composeMachine(M, { tool: foreign })).toThrow(new RegExp(`takes ${Object.keys(mount.tools).join(', ')}`));
+    const fixed = Object.keys(CON_ARCHETYPES).find((k) => !CON_ARCHETYPES[k].mount);
+    expect(() => composeMachine(fixed, { tool })).toThrow(/its tool is its own/);
+    expect(() => composeMachine(M, { carrier: 'hovercraft' })).toThrow(/Unknown construction carrier/);
+  });
+  it('makes the machine a carrier names: a machine and its carrier the same as its archetype', () => {
+    const base = Object.keys(CON_ARCHETYPES).find((k) => CON_ARCHETYPES[k].carriers?.length), carrier = CON_ARCHETYPES[base].carriers[0];
+    const made = composeMachine(base, { carrier });
+    expect(CON_ARCHETYPES[made].carrier).toBe(carrier);
+    expect(assembleMachine(base, { carrier }).manifest).toEqual(assembleMachine(made).manifest);
   });
 });

@@ -108,8 +108,9 @@ export function conLaws(arch, ctx, { corners, physics, posed }) {
   // ── the mass: every part's ──
   const count = (e) => (e.pair ? 2 : 1);
   const mass = arch.layout.reduce((s, e) => s + ctx.row(e.sku).mass * count(e), 0);
-  const off = Math.abs(mass - physics.mass) / physics.mass;
-  law('mass', Math.round(mass), [Math.round(physics.mass * (1 - band.mass)), Math.round(physics.mass * (1 + band.mass))], off <= band.mass, 'its parts\' mass against its class\'s');
+  // (a machine with another tool is its class's with that tool in its bucket's place)
+  const expected = physics.mass + (band.massShift ?? 0), off = Math.abs(mass - expected) / expected;
+  law('mass', Math.round(mass), [Math.round(expected * (1 - band.mass)), Math.round(expected * (1 + band.mass))], off <= band.mass, `its parts' mass against its class's${band.massShift ? ', its tool in its bucket\'s place' : ''}`);
 
   // ── the rated lift over the side ──
   if (band.lift && digs) {

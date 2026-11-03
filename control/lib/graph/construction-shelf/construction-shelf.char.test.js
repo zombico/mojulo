@@ -17,6 +17,9 @@
  *     pinned. A part drawn at another size (the mini's and the backhoe's fronts) is its design's builder path, scaled,
  *     and is pinned through its machine. The crawler's inner trunnions and blade rams' bases, and a ram's allowances
  *     shrinking on a short one, moved no existing pin.
+ *   - The tool swap and the wheeled excavator (unreleased): the breaker, the grapple, the auger, the forks, the sweeper
+ *     and the wheeled chassis pinned, the wheeled excavator and one composed machine (the excavator with its breaker);
+ *     a carrier's parts set where the first part it drops stood moved no existing pin.
  */
 import { createHash } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
@@ -55,6 +58,12 @@ const PINS = {
   'carriage-fl25': '1668398384b10b3d',
   'chassis-th': 'a41735185dcf7f39',
   'boom-th-outer': '13478109b9922785',
+  'breaker-ex20': 'fd42e709379cb029',
+  'grapple-ex20': '150647a24884fbd6',
+  'auger-ex20': 'e0f0448243d92f8d',
+  'forks-ss18': 'd940f2fd1d034716',
+  'sweeper-ss18': '1e29f298dc376497',
+  'chassis-wex19': 'b9a7f80e27e6695b',
   'house-mini27': '8d1fd561a038cfd3',
   'canopy-mini': '6c60d8e59455e746',
   'post-mini27': '7d2d2fde3ce79eae',
@@ -66,11 +75,13 @@ const PINS = {
   'con:bulldozer': '94272ebad7ce55a9',
   'con:wheelLoader': '8850036d94e7ed84',
   'con:skidSteer': 'c501524697326176',
-  'con:compactTrackLoader': 'c2f22ee973a96c2e',
   'con:forklift': '57af123b17a85088',
   'con:telehandler': 'f928511393be0dff',
   'con:miniExcavator': 'f8d36541e6c4434b',
   'con:backhoeLoader': '3de6f9e6f20e0f31',
+  'con:compactTrackLoader': 'c2f22ee973a96c2e',
+  'con:wheeledExcavator': '8c317d51e544b82d',
+  'con:crawlerExcavator+breaker': '153954592e6736b8',
 };
 
 const PROCEDURES = (() => {
@@ -94,6 +105,8 @@ describe('construction shelf emission pins', () => {
     expect(hash(resolveConPart(RAM, { part: 'rod' }))).toBe(PINS[`${RAM}.rod`]);
   });
   it.each(Object.keys(PINS).filter((k) => k.startsWith('con:')))('%s', (k) => {
-    expect(hash(assembleMachine(k.slice(4)).manifest)).toBe(PINS[k]);
+    // (a machine composed by the door: its archetype and its tool, 'crawlerExcavator+breaker')
+    const [a, tool] = k.slice(4).split('+');
+    expect(hash(assembleMachine(a, tool ? { tool } : {}).manifest)).toBe(PINS[k]);
   });
 });

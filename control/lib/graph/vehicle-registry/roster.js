@@ -220,7 +220,7 @@ export const VEHICLES = {
   'mini-excavator': row('mini excavator', ['mini digger', 'compact excavator', 'micro excavator'], 'offroad', 'construction', M, ['driven', 'parked', 'watched'],
     { physics: 'miniExcavator', construction: 'miniExcavator', tech: 'tracked' }),
   'wheeled-excavator': row('wheeled excavator', ['wheel excavator', 'rubber tyred excavator', 'mobile excavator'], 'road', 'construction', M, ['driven', 'parked', 'watched'],
-    { physics: 'wheeledExcavator', tech: 'truck' }),
+    { physics: 'wheeledExcavator', construction: 'wheeledExcavator', tech: 'truck' }),
   bulldozer: row('bulldozer', ['dozer', 'crawler dozer', 'crawler tractor', 'track dozer'], 'offroad', 'construction', M, ['driven', 'parked', 'watched'],
     { physics: 'crawlerDozer', construction: 'bulldozer', tech: 'tracked' }),
   'wheel-loader': row('wheel loader', ['front loader', 'front end loader', 'bucket loader', 'payloader', 'shovel loader'], 'offroad', 'construction', M, ['driven', 'parked', 'watched'],

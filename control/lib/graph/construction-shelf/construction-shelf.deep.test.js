@@ -2,13 +2,16 @@
 // stroke, every linkage closed, every link at its length, every body on its parent's joint), and every machine at every
 // named pose assembled with every law read. The law tests pick one machine per procedure; this walks them all.
 import { describe, it, expect } from 'vitest';
-import { CON_ARCHETYPES, assembleMachine, machineCtx, posedJoints } from './index.js';
+import { CON_ARCHETYPES, CON_MOUNTS, assembleMachine, composeMachine, machineCtx, posedJoints } from './index.js';
 import { apply } from './con-common.js';
 import { rangeOf, solveChain } from './con-chain.js';
 
 const span = (r, n) => Array.from({ length: n + 1 }, (_, i) => r[0] + ((r[1] - r[0]) * i) / n);
 
-describe.each(Object.keys(CON_ARCHETYPES))('%s', (id) => {
+// (every machine, and every tool on every machine whose mount takes it)
+const MACHINES = Object.keys(CON_ARCHETYPES).flatMap((k) => [k, ...(CON_ARCHETYPES[k].mount ? Object.keys(CON_MOUNTS[CON_ARCHETYPES[k].mount.family].tools).map((t) => composeMachine(k, { tool: t })).filter((c) => c !== k) : [])]);
+
+describe.each(MACHINES)('%s', (id) => {
   const ctx = machineCtx(id), arch = ctx.arch;
   it('holds together over every joint\'s range', () => {
     const rest = posedJoints(id, 'rest');

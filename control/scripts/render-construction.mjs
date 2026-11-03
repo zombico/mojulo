@@ -4,7 +4,7 @@
  * envelope and its laws. The machine gate's eyes are the operator's: this draws, it does not judge. No database writes.
  *
  * From control/:
- *   node scripts/render-construction.mjs <output-directory> [archetype,…|all] [--poses rest,dig,dump] [--views side,quarter,front,top,rear] [--joints '{"boom":20}']
+ *   node scripts/render-construction.mjs <output-directory> [archetype,…|all] [--poses rest,dig,dump] [--views side,quarter,front,top,rear] [--joints '{"boom":20}'] [--tool breaker] [--carrier wheels]
  * Writes <archetype>-<pose>-<view>.png, the pages and index.html.
  */
 import { mkdirSync, writeFileSync } from 'node:fs';
@@ -26,6 +26,7 @@ if (!output) { console.error('Usage: node scripts/render-construction.mjs <outpu
 const flag = (k) => { const i = args.indexOf(k); return i >= 0 ? args[i + 1] : null; };
 const views = (flag('--views') || 'side,quarter').split(',');
 const joints = flag('--joints') ? JSON.parse(flag('--joints')) : null;
+const tool = flag('--tool') ?? undefined, carrier = flag('--carrier') ?? undefined;
 const pick = args[1] && !args[1].startsWith('--') && args[1] !== 'all' ? args[1].split(',') : Object.keys(CON_ARCHETYPES);
 const outDir = path.resolve(output); mkdirSync(outDir, { recursive: true });
 const width = 960, height = 600;
@@ -33,8 +34,9 @@ let gallery = '';
 for (const id of pick) {
   const poses = joints ? ['joints'] : (flag('--poses') || Object.keys(CON_ARCHETYPES[id].poses).join(',')).split(',');
   for (const pose of poses) {
-    const { manifest, readout } = assembleMachine(id, { pose: joints ?? pose });
+    const { manifest, readout } = assembleMachine(id, { pose: joints ?? pose, tool, carrier });
     const { payload } = await resolveWorldScene({ ref: `${id}-${pose}`, kind: 'assembler', manifest });
+    const name = `${id}${carrier ? `-${carrier}` : ''}${tool ? `-${tool}` : ''}-${pose}`;
     const faces = payload.faces.filter((f) => !f.studio);
     const tris = faces.reduce((n, f) => n + f.corners.length - 2, 0);
     const lo = [Infinity, Infinity, Infinity], hi = [-Infinity, -Infinity, -Infinity];
@@ -53,10 +55,10 @@ for (const id of pick) {
     for (const view of views) {
       const html = emitThreeWorld({ faces, textures: payload.textures ?? {}, inline: true, hud: false, title: `${id} ${pose}`, bg: '#cfd5da', metersPerUnit: 1, cameras: [{ name: view, worldFraming: { cameraPosition: cams[view], lookAt: mid, horizontalFov: 36, pictureCenter: [width / 2, height / 2] } }], viewBox: { width, height } });
       const png = await renderWorldToPng(html, { width, height, deviceScaleFactor: 1 });
-      writeFileSync(path.join(outDir, `${id}-${pose}-${view}.png`), png);
-      writeFileSync(path.join(outDir, `${id}-${pose}-${view}.html`), html);
-      gallery += `<figure><a href="${id}-${pose}-${view}.html"><img alt="${id} ${pose}, ${view}" src="${id}-${pose}-${view}.png"></a><figcaption>${pose} · ${view}</figcaption></figure>`;
-      console.log(`Rendered ${id}-${pose}-${view} (${tris} tris)`);
+      writeFileSync(path.join(outDir, `${name}-${view}.png`), png);
+      writeFileSync(path.join(outDir, `${name}-${view}.html`), html);
+      gallery += `<figure><a href="${name}-${view}.html"><img alt="${name}, ${view}" src="${name}-${view}.png"></a><figcaption>${pose} · ${view}</figcaption></figure>`;
+      console.log(`Rendered ${name}-${view} (${tris} tris)`);
     }
     gallery += '</section>';
   }

@@ -24,18 +24,44 @@ import { CON_ODM } from './con-odm.js';
  * lists (`carriers`) is offered.
  */
 export const CON_CARRIERS = Object.freeze({
-  tracks: Object.freeze({ label: 'on rubber tracks', drops: Object.freeze(['con-wheel']), adds: Object.freeze([Object.freeze({ id: 'tracks', sku: 'crawler-ctl', on: 'chassis.tracks' })]) }),
+  tracks: Object.freeze({ label: 'on rubber tracks', drops: Object.freeze(['con-wheel']), adds: Object.freeze([Object.freeze({ id: 'tracks', sku: 'crawler-ctl', on: 'chassis.tracks' })]), makes: Object.freeze({ skidSteer: 'compactTrackLoader' }) }),
+  // (the crawler taken from under an excavator's upper, a wheeled chassis on twin tyres in its place)
+  wheels: Object.freeze({
+    label: 'on wheels', drops: Object.freeze(['con-undercarriage']),
+    adds: Object.freeze([{ id: 'under', sku: 'chassis-wex19' }, ...['F', 'R'].flatMap((e) => ['ro', 'ri', 'lo', 'li'].map((w) => ({ id: `wheel${e}${w.toUpperCase()}`, sku: 'wheel-wex', on: `under.wheel${e}.${w}` })))].map(Object.freeze)),
+    makes: Object.freeze({ crawlerExcavator: 'wheeledExcavator' }),
+  }),
 });
-/** A machine with another carrier under it: its layout less the dropped kinds, plus the carrier's parts. */
+/** A machine with another carrier under it: its layout less the dropped kinds, the carrier's parts where the first of
+ *  them stood (its bodies before what sits on them). */
 export function withCarrier(base, carrier, over = {}) {
   const C = CON_CARRIERS[carrier];
   if (!C) throw new Error(`Unknown construction carrier '${carrier}'; expected one of: ${Object.keys(CON_CARRIERS).join(', ')}`);
-  const layout = base.layout.filter((e) => !C.drops.includes(CON_ODM[e.sku]?.kind));
-  const at = layout.findIndex((e) => e.ram || e.link || e.joint);
+  const dropped = (e) => C.drops.includes(CON_ODM[e.sku]?.kind);
+  const first = base.layout.findIndex(dropped);
+  const layout = base.layout.filter((e) => !dropped(e));
+  const at = base.layout.slice(0, first).filter((e) => !dropped(e)).length;
   const bom = { ...base.bom };
   for (const k of C.drops) delete bom[k];
   for (const e of C.adds) bom[CON_ODM[e.sku].kind] = (bom[CON_ODM[e.sku].kind] ?? 0) + 1;
   return Object.freeze({ ...base, ...over, layout: Object.freeze([...layout.slice(0, at), ...C.adds, ...layout.slice(at)]), bom: Object.freeze(bom), carrier });
+}
+
+/**
+ * The mounts a machine's tool hangs on, and the tools each takes (the tool swap): a tool's part number is its stem and
+ * the machine's size (`bucket-dig-ex20`, `breaker-mini`). A machine says its mount (`mount: { family, size }`).
+ */
+export const CON_MOUNTS = Object.freeze({
+  excavator: Object.freeze({ label: 'an excavator\'s pins (its bucket\'s and its link\'s)', tools: Object.freeze({ bucket: 'bucket-dig', ditch: 'ditch', breaker: 'breaker', grapple: 'grapple', auger: 'auger' }) }),
+  skid: Object.freeze({ label: 'a skid steer\'s plate', tools: Object.freeze({ bucket: 'bucket-gp', forks: 'forks', auger: 'auger-plate', sweeper: 'sweeper' }) }),
+});
+/** The part number of a tool on a machine's mount, or throws naming what the mount takes. */
+export function toolSku(arch, tool) {
+  const M = arch.mount && CON_MOUNTS[arch.mount.family];
+  if (!M) throw new Error(`construction ${arch.label}: its tool is its own (it takes no other)`);
+  const stem = M.tools[tool];
+  if (!stem) throw new Error(`construction ${arch.label}: its mount is ${M.label}, which takes ${Object.keys(M.tools).join(', ')} (not '${tool}')`);
+  return `${stem}-${arch.mount.size}`;
 }
 
 // (the skid steer, the compact track loader's base: written once, read twice)
@@ -62,6 +88,7 @@ const SKID_STEER = Object.freeze({
   ].map(Object.freeze)),
   tip: 'bucket.edge',
   carriers: Object.freeze(['tracks']),
+  mount: Object.freeze({ family: 'skid', size: 'ss18' }),
   poses: Object.freeze({
     rest: Object.freeze({ tool: 0.55, lift: 'ground' }),
     carry: Object.freeze({ lift: 0.12, tool: 0.95 }),
@@ -80,7 +107,7 @@ const SKID_STEER = Object.freeze({
   bom: Object.freeze({ 'con-chassis': 1, 'con-cab': 1, 'con-wheel': 4, 'con-arms': 1, 'con-bucket': 1, 'con-ram': 4 }),
 });
 
-export const CON_ARCHETYPES = Object.freeze({
+const ARCHETYPES = Object.freeze({
   // a 20 t crawler excavator: the crawler, the upper on its ring, the mono boom, the stick, the bucket on its linkage
   crawlerExcavator: Object.freeze({
     label: 'crawler excavator',
@@ -109,6 +136,8 @@ export const CON_ARCHETYPES = Object.freeze({
       { id: 'toolRam', sku: 'ram-bucket-ex20', ram: ['stick.toolRam', '@tool'] },
     ].map(Object.freeze)),
     tip: 'bucket.tip',
+    mount: Object.freeze({ family: 'excavator', size: 'ex20' }),
+    carriers: Object.freeze(['wheels']),
     poses: Object.freeze({
       // parked: the stick plumb, the bucket curled back and set down on the ground before the tracks
       rest: Object.freeze({ slew: 0, stick: 0.55, tool: 0.1, boom: 'ground' }),
@@ -350,6 +379,7 @@ export const CON_ARCHETYPES = Object.freeze({
       { id: 'bladeRam', sku: 'ram-blade-mini', ram: ['under.bladeRam', 'blade.ramEye'], pair: true },
     ].map(Object.freeze)),
     tip: 'bucket.tip',
+    mount: Object.freeze({ family: 'excavator', size: 'mini' }),
     poses: Object.freeze({
       rest: Object.freeze({ slew: 0, swing: 0.4, stick: 0.55, tool: 0.1, blade: 0.47, boom: 'ground' }),
       travel: Object.freeze({ slew: 0, swing: 0.4, boom: 0.6, stick: 0.04, tool: 0.03, blade: 0.9 }),
@@ -412,6 +442,7 @@ export const CON_ARCHETYPES = Object.freeze({
       { id: 'stabRamL', sku: 'ram-stab-bh', ram: ['chassis.stabRam.l', 'stabL.ramEye'] },
     ].map(Object.freeze)),
     tip: 'bucket.tip',
+    mount: Object.freeze({ family: 'excavator', size: 'bh' }),
     poses: Object.freeze({
       // parked: the loader's bucket set down, the backhoe folded and its bucket on the ground, the legs up
       rest: Object.freeze({ tilt: 0.55, lift: 'ground', swing: 0.5, stick: 0.05, tool: 0.03, boom: 'ground', stab: 0 }),
@@ -442,3 +473,10 @@ export const CON_ARCHETYPES = Object.freeze({
     laws: Object.freeze({ ...SKID_STEER.laws, groundPressure: [25, 45], transport: { W: 2.0, H: 2.2 } }),
   }),
 });
+
+// a 19 t wheeled excavator: the 20 t excavator's upper and front on a wheeled chassis (the carrier swap), its own class
+const WHEELED = withCarrier(ARCHETYPES.crawlerExcavator, 'wheels', {
+  label: 'wheeled excavator', classOf: 'wheeled excavator 19 t', physics: 'wheeledExcavator', carriers: Object.freeze([]),
+  laws: Object.freeze({ ...ARCHETYPES.crawlerExcavator.laws, groundPressure: undefined, depth: [5.6, 7.0], dumpHeight: [6.2, 7.9], cutHeight: [9.0, 10.9], lift: [1.5, 5], transport: { W: 2.6, H: 3.6 } }),
+});
+export const CON_ARCHETYPES = Object.freeze({ ...ARCHETYPES, wheeledExcavator: WHEELED });

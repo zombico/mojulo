@@ -24,11 +24,11 @@ import { VEHICLES as PHYSICS } from '../roads/vehicles.js';
 import { CON_COLOR_ROLES, CON_PALETTES, apply, clone, eulerXYZ, resolveConPalette, round3 } from './con-common.js';
 import { CON_BUILDERS } from './con-parts.js';
 import { CON_KINDS, CON_ODM, scaleDims } from './con-odm.js';
-import { CON_ARCHETYPES } from './con-archetypes.js';
+import { CON_ARCHETYPES, CON_CARRIERS, CON_MOUNTS, toolSku } from './con-archetypes.js';
 import { framesOf, rangeOf, solveChain } from './con-chain.js';
 import { conLaws } from './con-laws.js';
 
-export { CON_ARCHETYPES, CON_COLOR_ROLES, CON_KINDS, CON_ODM, CON_PALETTES };
+export { CON_ARCHETYPES, CON_CARRIERS, CON_COLOR_ROLES, CON_KINDS, CON_MOUNTS, CON_ODM, CON_PALETTES };
 
 const MONOMERS = ['lathes', 'extrudes', 'sweeps', 'lofts'];
 
@@ -58,14 +58,57 @@ function partRow(sku) {
   if (!row) throw new Error(`Unknown construction part '${sku}'; the inventory lists ${Object.keys(CON_ODM).join(', ')} (or findConPart('<words>'))`);
   return row;
 }
+// (a machine the door composed, its tool or its carrier swapped, under its own key: 'crawlerExcavator+breaker')
+const COMPOSED = new Map();
 function archetypeRow(id) {
-  const row = CON_ARCHETYPES[id];
+  const row = CON_ARCHETYPES[id] ?? COMPOSED.get(id);
   if (!row) throw new Error(`Unknown construction archetype '${id}'; expected one of: ${Object.keys(CON_ARCHETYPES).join(', ')}`);
   return { ...row, key: id };
 }
-/** The machine a lone part is previewed on: the first whose layout carries it. */
+// (what a bucket's envelope is measured as: a tool other than the machine's bucket reads it, never held to it)
+const BUCKET_BANDS = Object.freeze(['reach', 'depth', 'dumpHeight', 'cutHeight']);
+/**
+ * A machine with the door's swaps → its key: its carrier (one the machine lists: the machine it makes, a skid steer on
+ * tracks the compact track loader) and its tool (one its mount takes, in its bucket's place on its tool joint). The laws
+ * re-read it as built: a tool's mass in its lift, its outline against its cab; a bucket's envelope bands are the
+ * machine's bucket's, so another tool's envelope is read, not held to them. A swap the machine does not take is refused,
+ * naming what it takes.
+ */
+export function composeMachine(archetype, { tool, carrier } = {}) {
+  let key = archetype;
+  if (carrier) {
+    const base = archetypeRow(key), C = CON_CARRIERS[carrier];
+    if (!C) throw new Error(`Unknown construction carrier '${carrier}'; expected one of: ${Object.keys(CON_CARRIERS).join(', ')}`);
+    if (!(base.carriers ?? []).includes(carrier) || !C.makes?.[key]) throw new Error(`construction ${base.label}: its carrier is its own${(base.carriers ?? []).length ? `, or ${base.carriers.join(', ')}` : ''} (not '${carrier}')`);
+    key = C.makes[key];
+  }
+  if (tool) {
+    const base = archetypeRow(key), sku = toolSku(base, tool), e = base.layout.find((x) => x.joint === 'tool');
+    if (!e) throw new Error(`construction ${base.label}: it has no tool joint to swap`);
+    partRow(sku);
+    if (sku === e.sku) return key;
+    const composed = `${key}+${tool}`;
+    if (!COMPOSED.has(composed)) {
+      const from = partRow(e.sku).kind, to = partRow(sku).kind, bom = { ...base.bom };
+      bom[from] -= 1; if (!bom[from]) delete bom[from];
+      bom[to] = (bom[to] ?? 0) + 1;
+      const measure = Object.fromEntries(Object.entries(base.laws.measure ?? {}).filter(([, m]) => m.point.split('.')[0] !== e.id));
+      // (its mass the class's with this tool in its bucket's place; its rated lift with the tool hung on read against
+      // tipping alone: it lifts something, or nothing, and does not tip)
+      const L = base.laws.lift, lift = L ? (Array.isArray(L) ? { band: [0, L[1]], radius: 6, height: 1.5 } : { ...L, band: [0, L.band[1]] }) : undefined;
+      const laws = Object.freeze({ ...Object.fromEntries(Object.entries(base.laws).filter(([k]) => !BUCKET_BANDS.includes(k))), measure, ...(lift ? { lift } : {}), massShift: (base.laws.massShift ?? 0) + partRow(sku).mass - partRow(e.sku).mass });
+      COMPOSED.set(composed, Object.freeze({ ...base, label: `${base.label} with a ${partRow(sku).label}`, layout: Object.freeze(base.layout.map((x) => (x === e ? Object.freeze({ ...x, sku }) : x))), bom: Object.freeze(bom), laws, tool }));
+    }
+    key = composed;
+  }
+  return key;
+}
+
+/** The machine a lone part is previewed on: the first whose layout carries it, or whose mount takes it. */
 function homeOf(sku) {
   for (const [id, row] of Object.entries(CON_ARCHETYPES)) if (row.layout.some((x) => x.sku === sku)) return id;
+  // (a tool in no machine's layout: the first machine whose mount takes it)
+  for (const [id, row] of Object.entries(CON_ARCHETYPES)) if (row.mount && Object.values(CON_MOUNTS[row.mount.family].tools).some((stem) => `${stem}-${row.mount.size}` === sku)) return id;
   return null;
 }
 
@@ -215,7 +258,8 @@ function groundJoint(arch, ctx, joints, name, settle = (j) => j) {
  * struts aimed between their pins. The readout says the pose's joints and every joint's range, the laws (read at the
  * machine's own reference poses: con-laws.js), the measures as it stands, the BOM.
  */
-export function assembleMachine(archetype, { pose = 'rest', palette, colors = {}, finish = true, title } = {}) {
+export function assembleMachine(archetypeIn, { pose = 'rest', palette, colors = {}, finish = true, title, tool, carrier } = {}) {
+  const archetype = composeMachine(archetypeIn, { tool, carrier });
   const ctx = machineCtx(archetype), arch = ctx.arch, joints = posedJoints(archetype, pose);
   const chain = solveChain(arch, joints, ctx);
   const src = (sku, part) => resolveConPart(sku, { archetype, part, palette, colors, finish });
@@ -232,7 +276,10 @@ export function assembleMachine(archetype, { pose = 'rest', palette, colors = {}
   return {
     manifest,
     readout: {
-      archetype,
+      archetype: archetypeIn,
+      ...(archetype !== archetypeIn ? { composed: archetype } : {}),
+      ...(tool ? { tool } : {}),
+      ...(carrier ? { carrier } : {}),
       label: arch.label,
       classOf: arch.classOf,
       physics: arch.physics,

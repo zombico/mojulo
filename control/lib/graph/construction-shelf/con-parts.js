@@ -14,7 +14,8 @@
 import { pinsAlong, trackPath } from '../car-designer/mil-track.js';
 import { add, box, extrudeWorld, loftWorld, mul, panel as rawPanel, roundRect, spin, sub, tone, tube, unit } from './con-common.js';
 import { bellcrank, liftArms, loaderBucket, loaderFront, loaderRear, skidChassis, wheel } from './con-wheeled.js';
-import { backhoeChassis, boomSection, canopyCab, carriage, forkChassis, houseMini, mastChannel, stabLeg, swingFrame, swingPost, teleChassis } from './con-handlers.js';
+import { backhoeChassis, boomSection, canopyCab, carriage, forkChassis, houseMini, mastChannel, stabLeg, swingFrame, swingPost, teleChassis, wheeledExChassis } from './con-handlers.js';
+import { auger, breaker, forks, grapple, sweeper } from './con-tools.js';
 
 const X = [1, 0, 0];
 /** A pin's boss across x at a point, `r` round, from x0 to x1 (a bushing, an eye). */
@@ -359,7 +360,8 @@ export const CON_BUILDERS = Object.freeze({
   'con-blade': blade,
   'con-ripper': ripper,
   'con-wheel': wheel,
-  'con-chassis': (row, C, ctx) => ({ loaderRear, loaderFront, skid: skidChassis, forklift: forkChassis, telehandler: teleChassis, backhoe: backhoeChassis })[row.build.family](row, C, ctx),
+  'con-chassis': (row, C, ctx) => ({ loaderRear, loaderFront, skid: skidChassis, forklift: forkChassis, telehandler: teleChassis, backhoe: backhoeChassis, wheeledEx: wheeledExChassis })[row.build.family](row, C, ctx),
+  'con-tool': (row, C, ctx) => ({ breaker, grapple, auger, forks, sweeper })[row.build.family](row, C, ctx),
   'con-mast': mastChannel,
   'con-carriage': carriage,
   'con-section': boomSection,

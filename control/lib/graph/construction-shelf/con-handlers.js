@@ -215,4 +215,22 @@ export function houseMini(row, C) {
   return { extrudes, lathes, hardpoints: { post: P, swingRam: S, cab: d.cab, counterweight: d.counterweight } };
 }
 
+// ── a wheeled excavator's chassis: its frame, its two axles on twin tyres, the slewing ring's seat ─────────────
+export function wheeledExChassis(row, C, { physics }) {
+  const d = row.dims, extrudes = [], lathes = [], dark = C.trim, body = C.paint;
+  const hb = physics.wheelbase / 2, tw = physics.track / 2, z = physics.wheelRadius, gap = d.twin / 2;
+  extrudes.push(plan('frame', z - 0.15, d.slewZ - 0.25, [[-0.55, -hb - 0.55], [0.55, -hb - 0.55], [0.55, hb + 0.5], [-0.55, hb + 0.5]], dark));
+  extrudes.push(plan('deck', d.slewZ - 0.25, d.slewZ - 0.15, [[-1.0, -0.9], [1.0, -0.9], [1.0, 0.9], [-1.0, 0.9]], dark));
+  for (const y of [-hb, hb]) lathes.push(spin(`axle_${y > 0 ? 'f' : 'r'}`, [-tw + 0.15, y, z], [tw - 0.15, y, z], [[0, 0.12], [0.35, 0.18], [0.65, 0.18], [1, 0.12]], tone(dark, 0.1), 16));
+  for (const s of [1, -1]) {
+    extrudes.push(box(`step_${side(s)}`, [s * 1.0, -0.6, d.slewZ - 0.5], [s * 1.0, 0.6, d.slewZ - 0.5], 0.08, 0.06, body));
+    for (const y of [-hb, hb]) extrudes.push(box(`fender_${side(s)}${y > 0 ? 'f' : 'r'}`, [s * tw, y - z - 0.05, 2 * z + 0.06], [s * tw, y + z + 0.05, 2 * z + 0.06], d.twin + 0.3, 0.04, body));
+  }
+  lathes.push(spin('seat', [0, 0, d.slewZ - 0.15], [0, 0, d.slewZ - 0.1], [[0, 0.7], [1, 0.66]], tone(dark, 0.1), 28));
+  const W = (y, s, io) => [s * (tw + (io === 'o' ? gap : -gap)), y, z];
+  const hp = { slew: [0, 0, d.slewZ - 0.1], ground: [0, 0, 0] };
+  for (const [e, y] of [['F', hb], ['R', -hb]]) for (const [sd, s] of [['r', 1], ['l', -1]]) for (const io of ['o', 'i']) hp[`wheel${e}.${sd}${io}`] = W(y, s, io);
+  return { extrudes, lathes, hardpoints: hp };
+}
+
 export { tube, mul };

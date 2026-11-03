@@ -34,6 +34,7 @@ export const CON_KINDS = Object.freeze({
   'con-section': 'a telescopic boom\'s section: a box beam the next slides out of',
   'con-post': 'a front\'s swing post: a mini excavator\'s kingpin bracket, a backhoe\'s swing frame',
   'con-leg': 'a stabiliser leg: its arm, its pad on the ground',
+  'con-tool': 'a tool in place of a bucket: a breaker, a grapple, an auger, pallet forks, a sweeper',
 });
 
 const R = (kind, label, classOf, dims, mass, build, aliases = []) => Object.freeze({ kind, label, classOf, aliases, dims: Object.freeze(dims), mass, build: Object.freeze(build) });
@@ -146,6 +147,19 @@ const ROWS = {
   'carriage-th': R('con-carriage', 'telehandler fork carriage', 'telehandler 4 t', { w: 1.2, y: 0.18, rest: 0.9, spread: 0.95, fork: 1.2, pin: true, z0: -0.45, tiltEye: [0, -0.1, 0.3] }, 320, { family: 'pallet' }, ['telehandler carriage', 'telehandler forks']),
   'ram-lift-th': R('con-ram', 'telehandler lift ram', 'telehandler 4 t', { bore: 0.12, rod: 0.08, closed: 1.8, stroke: 1.4 }, 160, { family: 'double' }, ['telehandler lift ram']),
   'ram-tilt-th': R('con-ram', 'carriage tilt ram', 'telehandler 4 t', { bore: 0.09, rod: 0.05, closed: 0.8, stroke: 0.55 }, 50, { family: 'double' }, ['carriage tilt ram', 'compensation ram']),
+  // ── the tools in a bucket's place: the excavator's (on the digging bucket's pins), the skid steer's (on its plate) ─
+  'ditch-ex20': R('con-bucket', 'ditching bucket, 1.8 m', 'excavator 20 t',
+    { width: 1.8, capacity: 0.8, link: [0, -0.12, 0.42], teeth: 0, profile: [[-0.22, 0.32], [-0.16, -0.42], [1.3, -0.3], [1.2, 0.0], [0.9, 0.3], [0.42, 0.45], [0.02, 0.45]] },
+    850, { family: 'dig' }, ['ditching bucket', 'grading bucket', 'cleaning bucket']),
+  'breaker-ex20': R('con-tool', 'hydraulic breaker, 20 t', 'excavator 20 t', { length: 2.1, w: 0.45, h: 0.5, chisel: 0.07, point: 0.55, link: [0, -0.12, 0.42] }, 1600, { family: 'breaker' }, ['breaker', 'hydraulic hammer', 'rock breaker', 'pecker']),
+  'grapple-ex20': R('con-tool', 'demolition grapple, 20 t', 'excavator 20 t', { length: 2.0, w: 0.9, link: [0, -0.12, 0.42] }, 1100, { family: 'grapple' }, ['grapple', 'demolition grapple', 'sorting grab']),
+  'auger-ex20': R('con-tool', 'auger drive, 20 t', 'excavator 20 t', { length: 2.2, r: 0.3, turns: 5, link: [0, -0.12, 0.42] }, 700, { family: 'auger' }, ['auger', 'earth auger', 'post hole auger']),
+  'forks-ss18': R('con-tool', 'pallet forks, skid steer', 'skid steer 3.3 t', { spread: 0.8, fork: 1.07, ears: 0.8, link: [0, 0.05, 0.35], linkW: 0.45 }, 160, { family: 'forks' }, ['skid steer forks', 'pallet fork attachment']),
+  'auger-plate-ss18': R('con-tool', 'auger, skid steer', 'skid steer 3.3 t', { skid: true, length: 1.2, r: 0.2, turns: 4, drop: 0.5, width: 1.2, ears: 0.8, link: [0, 0.05, 0.35], linkW: 0.45 }, 180, { family: 'auger' }, ['skid steer auger']),
+  'sweeper-ss18': R('con-tool', 'pickup sweeper, skid steer', 'skid steer 3.3 t', { width: 1.8, ears: 0.8, link: [0, 0.05, 0.35], linkW: 0.45 }, 300, { family: 'sweeper' }, ['sweeper', 'pickup broom', 'skid steer broom']),
+  // ── the 19 t wheeled excavator's carrier ──────────────────────────────────────
+  'chassis-wex19': R('con-chassis', 'wheeled excavator chassis', 'wheeled excavator 19 t', { slewZ: 1.35, twin: 0.34 }, 2900, { family: 'wheeledEx' }, ['wheeled carrier', 'wheeled chassis']),
+  'wheel-wex': R('con-wheel', 'twin tyre, wheeled excavator', 'wheeled excavator 19 t', { r: 0.5, width: 0.3, rim: 0.26, lugs: 18 }, 100, { family: 'otr' }, ['wheeled excavator tyre']),
 };
 BASE = ROWS;
 Object.assign(ROWS, {
@@ -196,4 +210,8 @@ Object.assign(ROWS, {
   'ram-stick-bh': S('ram-stick-ex20', 0.62, 'backhoe dipper ram', 'backhoe loader 8.5 t', ['backhoe dipper ram']),
   'ram-bucket-bh': S('ram-bucket-ex20', 0.62, 'backhoe bucket ram', 'backhoe loader 8.5 t', ['backhoe bucket ram']),
 });
+// (the excavator's tools at the mini's and the backhoe's sizes: each the 20 t tool's design scaled)
+for (const [stem, label] of [['ditch', 'ditching bucket'], ['breaker', 'breaker'], ['grapple', 'grapple'], ['auger', 'auger']]) {
+  for (const [size, k, who, word] of [['mini', 0.44, 'mini excavator 2.7 t', 'mini'], ['bh', 0.62, 'backhoe loader 8.5 t', 'backhoe']]) ROWS[`${stem}-${size}`] = S(`${stem}-ex20`, k, `${label}, ${word}`, who, [`${word} ${label}`]);
+}
 export const CON_ODM = Object.freeze(ROWS);
