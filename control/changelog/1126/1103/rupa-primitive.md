@@ -42,8 +42,10 @@ Walls hold and objects break stays the default; a game that asks for destructibl
 - **Debris, deterministic in the force** (`lib/graph/rupa/debris.js`; every break on the runtime carries it): a breaking
   opens new crack surface against the matter's fracture energy, so a harder blow leaves more, finer and faster pieces
   and more dust, the same joules shatter glass and split timber, and the pieces take the matter's shape (shards,
-  chunks, splinters, torn plates, clods) and fly away from the blow with an exact share of its energy. A crater throws
-  its ejecta as clods by the cratering ejecta law; a body meeting a liquid splashes by inertia against surface tension
+  chunks, splinters, torn plates, clods) and fly away from the blow with an exact share of its energy. A crater's ejecta
+  flies by the cratering ejecta law as clumps where the soil's cohesion beats the stress of being thrown (none from dry
+  sand; lumps from the rim; a clump landing too fast crumbles), spray of grains whose size sets their drag, and a dust
+  cloud of its fines; a body meeting a liquid splashes by inertia against surface tension
   and viscosity, so water splashes and lava plops. A burn leaves ash, a melt its liquid.
 - **Ground** (`lib/graph/rupa/ground.js`): a soil heightfield over bedrock: craters from energy, ejecta thrown into a rim
   with the volume kept, slopes that slump to their angle of repose while a cohesive soil holds a cut face up to its

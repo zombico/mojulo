@@ -153,9 +153,12 @@ const DEBRIS = {
   gravel: [0.5, 'clod', 1], snow: [1, 'clod', 1],
 };
 const EJECTA_MU = { sand: 0.41, loam: 0.45, clay: 0.55, gravel: 0.41, snow: 0.4 };
+// a soil's loose grain (m), the share of it that is fines (silt and clay, under 63 µm) and its particles' density: thrown,
+// its torn-apart soil flies as grains whose size sets their drag, and the fines hang as dust
+const SOIL_GRAIN = { sand: [0.0004, 0.02, 2650], loam: [0.0002, 0.4, 2650], clay: [0.0001, 0.6, 2650], gravel: [0.005, 0.05, 2650], snow: [0.001, 0, 917] };
 const TENSION = { water: 0.072, seawater: 0.073, oil: 0.032, honey: 0.05, mud: 0.06, lava: 0.35 };
 const debrisOf = (k) => (DEBRIS[k] ? { frac: DEBRIS[k][0], shape: DEBRIS[k][1], spread: DEBRIS[k][2] } : {});
-export const MATTER = Object.freeze(Object.fromEntries(Object.entries(BASE).map(([k, m]) => [k, Object.freeze({ ...m, ...THERMAL[k], bounce: BOUNCE[k], ...debrisOf(k), ...(EJECTA_MU[k] ? { mu: EJECTA_MU[k] } : {}), ...(TENSION[k] ? { tension: TENSION[k] } : {}) })])));
+export const MATTER = Object.freeze(Object.fromEntries(Object.entries(BASE).map(([k, m]) => [k, Object.freeze({ ...m, ...THERMAL[k], bounce: BOUNCE[k], ...debrisOf(k), ...(EJECTA_MU[k] ? { mu: EJECTA_MU[k] } : {}), ...(SOIL_GRAIN[k] ? { grain: SOIL_GRAIN[k][0], fines: SOIL_GRAIN[k][1], particle: SOIL_GRAIN[k][2] } : {}), ...(TENSION[k] ? { tension: TENSION[k] } : {}) })])));
 export const CHAR_RATE = 0.65e-3 / 60;   // m/s, the char front's speed into a face of burning wood (Eurocode 5, softwood)
 export const AMBIENT = 20;              // °C
 export const MATTER_IDS = Object.freeze(Object.keys(MATTER));
@@ -178,7 +181,7 @@ export const isSoil = (m) => m.family === 'soil';
 export const isLiquid = (m) => m.family === 'liquid';
 export const isCombustible = (m) => Number.isFinite(m.ignite) && m.burn > 0;
 
-const FIELDS = ['label', 'density', 'E', 'compressive', 'tensile', 'bond', 'strain', 'toughness', 'fill', 'c', 'phi', 'swell', 'dig', 'melt', 'soften', 'heat', 'fusion', 'ignite', 'burn', 'bounce', 'frac', 'shape', 'spread', 'mu', 'tension'];
+const FIELDS = ['label', 'density', 'E', 'compressive', 'tensile', 'bond', 'strain', 'toughness', 'fill', 'c', 'phi', 'swell', 'dig', 'melt', 'soften', 'heat', 'fusion', 'ignite', 'burn', 'bounce', 'frac', 'shape', 'spread', 'mu', 'tension', 'grain', 'fines', 'particle'];
 
 /** A matter by id, or `{ is?, ...fields }` over one (a custom stuff: every number given, or laid over `is`). */
 export function resolveMatter(spec, where = 'matter') {

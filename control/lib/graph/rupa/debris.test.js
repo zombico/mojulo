@@ -46,15 +46,31 @@ describe('debris of solids: deterministic in the force', () => {
 });
 
 describe('dirt and splash', () => {
-  it('a crater throws its ejecta as clods: the volume kept, the energy under the charge\'s, the bowl\'s middle flying farthest', () => {
-    const f = groundField({ origin: [-8, -8], size: [16, 16], cell: 0.25, soil: 'loam', soilDepth: 3 });
-    const C = crater(f, { at: [0, 0], joules: 4e6 }), D = dirtOf(C, { at: [0, 0], joules: 4e6, soil: 'loam' });
-    expect(D.clods.reduce((a, c) => a + c.size ** 3, 0)).toBeCloseTo(C.ejected, 6);
+  const crate = (soil, joules = 4e6) => { const f = groundField({ origin: [-8, -8], size: [16, 16], cell: 0.25, soil, soilDepth: 3 }), C = crater(f, { at: [0, 0], joules }); return { C, D: dirtOf(C, { at: [0, 0], joules, soil }) }; };
+
+  it('a crater\'s ejecta flies as clumps, spray and dust, weighing what it threw, its energy under the charge\'s', () => {
+    const { C, D } = crate('loam');
+    expect(D.stats.kg).toBeCloseTo((C.ejected * MATTER.loam.density) / MATTER.loam.swell, 6);
+    expect(D.clumps.length).toBeGreaterThan(0);
+    expect(D.spray.parcels.length).toBeGreaterThan(0);
+    expect(D.cloud.kg).toBeGreaterThan(0);
     expect(D.stats.kinetic).toBeLessThanOrEqual(0.25 * 4e6 + 1e-6);
-    const reach = (c) => Math.hypot(c.vel[0], c.vel[1]), from = (c) => Math.hypot(c.at[0], c.at[1]);
-    const inner = D.clods.reduce((a, c) => (from(c) < from(a) ? c : a)), outer = D.clods.reduce((a, c) => (from(c) > from(a) ? c : a));
-    expect(reach(inner)).toBeGreaterThan(reach(outer));
-    expect(JSON.stringify(dirtOf(C, { at: [0, 0], joules: 4e6, soil: 'loam' }))).toBe(JSON.stringify(D));
+    expect(JSON.stringify(crate('loam').D)).toBe(JSON.stringify(D));
+  });
+
+  it('cohesion decides what holds: dry sand flies all as spray, clay more in clumps than loam; the rim\'s slow soil lumps, the middle\'s tears', () => {
+    expect(crate('sand').D.clumps.length).toBe(0);
+    const share = (soil) => { const { D } = crate(soil); return D.stats.clumpKg / D.stats.kg; };
+    expect(share('clay')).toBeGreaterThan(share('loam'));
+    const { D } = crate('loam'), from = (p) => Math.hypot(p.at[0], p.at[1]);
+    const inner = D.clumps.reduce((x, p) => (from(p) < from(x) ? p : x)), outer = D.clumps.reduce((x, p) => (from(p) > from(x) ? p : x));
+    expect(outer.size).toBeGreaterThan(inner.size);
+  });
+
+  it('a harder charge throws faster and tears more of it; grain size is drag: silt slows sooner than sand', () => {
+    const share = (j) => { const { D } = crate('loam', j); return D.stats.clumpKg / D.stats.kg; };
+    expect(share(4e7)).toBeLessThan(share(4e5));
+    expect(crate('clay').D.spray.drag).toBeGreaterThan(crate('sand').D.spray.drag);
   });
 
   it('water splashes, lava plops or barely lifts; a harder hit splashes more', () => {

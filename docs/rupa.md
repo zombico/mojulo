@@ -109,9 +109,14 @@ the same `fragments` on every break and puts it on the break record as `debris`)
   along the longest axis, torn plates, clods). A share of the joules flies (burst 0.3, round 0.15, swing 0.1, crush
   0.05), away from where the blow came from, smaller pieces faster, and their kinetic energy sums to that share exactly.
   A burn leaves ash; a melt its liquid.
-- **Dirt:** a crater's ejecta thrown as clods (`dirtOf`). Each clod's speed comes from where it leaves the bowl, by the
-  Housen–Holsapple ejecta law v = 0.6·√(gR)·(r/R)^(−1/μ), with μ the soil's (`mu`: dry sand 0.41, clay 0.55). The bowl's
-  middle flies far, the edge falls near the rim, and the whole stays under a quarter of the charge's energy.
+- **Dirt:** a crater's ejecta as it flies (`dirtOf`): clumps, spray and dust. Each packet's speed comes from where it
+  leaves the bowl, by the Housen–Holsapple ejecta law v = 0.6·√(gR)·(r/R)^(−1/μ), with μ the soil's (`mu`). Cohesion
+  against the stress of being thrown decides how it flies. The share c ÷ (c + ½ρv²) holds as clumps: lumps from the
+  rim, none from dry sand, more from clay than loam. A clump landing faster than √(2c/ρ) crumbles. The rest is spray,
+  grains (`grain`) whose drag is g over their settling speed (Stokes or Newton, the slower), so sand and gravel fly far
+  and silt slows at once. A share of the soil's `fines` hangs as a dust cloud and the rest falls with the spray. A harder
+  charge throws faster and tears more of it. Clumps, spray and cloud weigh what the ejecta does, and their energy stays
+  under a quarter of the charge's.
 - **Splash:** a body meeting a liquid opens a cavity and splashes when Mundo's √We·Re^¼ passes 57.7 (surface tension
   `tension` and viscosity against inertia). How much flies scales with inertia over viscosity, so water splashes, honey
   gloops and lava plops. A body entering a pool on the runtime records its splash (`state.rupa.splashes`).
