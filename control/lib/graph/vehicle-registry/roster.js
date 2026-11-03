@@ -96,6 +96,7 @@ const M = ['modern'], F = ['future'];
 const ROAD = ['driven', 'traffic', 'parked'];
 const AIR = ['driven', 'parked', 'watched'];
 const FIGHT = ['driven', 'crewed', 'watched'];
+const HELI = ['driven', 'crewed', 'parked', 'watched'];
 
 export const VEHICLES = {
   // ── cars ────────────────────────────────────────────────────────────────────
@@ -278,14 +279,13 @@ export const VEHICLES = {
     { craft: 'loiterMunition', tech: 'winged' }),
   'light-helicopter': row('light helicopter', ['news helicopter', 'police helicopter', 'private helicopter', 'light chopper'], 'air', 'courier', M, AIR,
     { craft: 'lightHeli', tech: 'rotor' }),
-  'utility-helicopter': row('utility helicopter', ['medevac helicopter', 'assault helicopter', 'troop helicopter', 'utility chopper'], 'air', 'transport', M, FIGHT,
+  // (the helicopter people mean when they say only the word: the medium utility machine, medevac or assault by its look)
+  helicopter: row('helicopter', ['chopper', 'rotorcraft', 'copter', 'gyrocopter', 'utility helicopter', 'medevac helicopter', 'assault helicopter', 'troop helicopter', 'utility chopper'], 'air', 'transport', M, HELI,
     { craft: 'utilityHeli', tech: 'rotor' }),
-  'attack-helicopter': row('attack helicopter', ['helicopter gunship', 'attack chopper', 'tandem attack helicopter'], 'air', 'strike', M, FIGHT,
+  'attack-helicopter': row('attack helicopter', ['gunship', 'helicopter gunship', 'attack chopper', 'tandem attack helicopter'], 'air', 'strike', M, HELI,
     { craft: 'attackHeli', tech: 'rotor' }),
-  'tandem-helicopter': row('tandem-rotor helicopter', ['heavy lift helicopter', 'twin rotor helicopter', 'cargo helicopter', 'tandem rotor helicopter'], 'air', 'transport', M, FIGHT,
+  'tandem-helicopter': row('tandem-rotor helicopter', ['heavy lift helicopter', 'twin rotor helicopter', 'cargo helicopter', 'tandem rotor helicopter'], 'air', 'transport', M, HELI,
     { craft: 'tandemHeli', tech: 'rotor' }),
-  helicopter: row('helicopter', ['chopper', 'gunship', 'rotorcraft', 'copter', 'gyrocopter'], 'air', 'transport', M, FIGHT,
-    { tech: 'rotor' }),
   airship: row('airship', ['zeppelin', 'dirigible', 'blimp', 'balloon'], 'air', 'liner', ['myth', 'modern'], ['driven', 'watched'],
     { tech: 'airship' }),
   // ── in the void ─────────────────────────────────────────────────────────────

@@ -1,7 +1,9 @@
 // Parked vehicles: registry words read and refused with what they need; laid side by side in a room, noses to its +x,
 // as many as it holds; lowered by the world into static loft figures and boxes over their footprints added to the
 // level's colliders; a base building's `parked` laid in its hangar, painted as its foes' faction dresses or its
-// setting's camo; absent, nothing. One case per procedure, the vehicles chosen in code from the registry.
+// setting's camo; absent, nothing. A craft parked: a helicopter on its gear, a helipad under it when asked, its box its
+// body's and not its rotor's disc, folded in a hangar. One case per procedure, the vehicles chosen in code from the
+// registry.
 import { describe, it, expect } from 'vitest';
 import { readParked, parkIn, withParked, paintOfDress, readBuildingParked, parkable, BASE_PARKED, PARKED_MAX } from './parked.js';
 import { VEHICLES, rowOfHandle } from './roster.js';
@@ -15,6 +17,8 @@ import { gameStages, stageLevelOrder } from '../gameworld/levels.js';
 import { resolveWorldScene } from '../worlds/world-scene.js';
 import { FOE_CLASSES } from '../foes/index.js';
 import { MOVES } from '../foes/vocab.js';
+import { CRAFT_ARCHETYPES, CRAFT_ODM, craftFootprint } from '../craft-shelf/index.js';
+import { HELI_LOOKS } from '../craft-shelf/heli-looks.js';
 
 // (the field's bodies the sheet builds: one still waiting for its parts cannot park)
 const FIELD = Object.keys(MILITARY_CLASSES).filter((k) => !UNBUILT[k]).map((k) => rowOfHandle('physics', k));
@@ -25,7 +29,7 @@ describe('a parked vehicle read', () => {
   it('takes a registry word with a realistic body that stands parked, and refuses one without', () => {
     expect(readParked([{ vehicle: VEHICLES[FIELD[0]].aliases[0], at: [0, 0, 0] }])[0]).toMatchObject({ vehicle: FIELD[0], heading: 0, seed: 1 });
     expect(() => readParked([{ vehicle: 'a flying carpet of words', at: [0, 0, 0] }])).toThrow(/no vehicle/);
-    const concept = Object.keys(VEHICLES).find((id) => VEHICLES[id].uses.includes('parked') && !VEHICLES[id].handles.physics);
+    const concept = Object.keys(VEHICLES).find((id) => VEHICLES[id].uses.includes('parked') && !VEHICLES[id].handles.physics && !VEHICLES[id].handles.craft);
     expect(() => parkable(concept)).toThrow(/no realistic body/);
     expect(() => readParked([])).toThrow(new RegExp(`1 to ${PARKED_MAX}`));
     expect(() => readParked([{ vehicle: FIELD[0], at: [0, 0] }])).toThrow(/\[x, y, z\]/);
@@ -121,6 +125,51 @@ describe('a base parks its vehicles', () => {
     expect(M.parked.map((p) => p.vehicle)).toEqual([...tracked, FIELD[0]]);
     const lowered = withParked({ parked: M.parked });
     expect(Object.values(lowered.manifest.figures).map((f) => f.loft.class)).toEqual(expect.arrayContaining(tracked.map((id) => readParked([{ vehicle: id, at: [0, 0, 0] }])[0].class)));
+  });
+});
+
+describe('a craft parked: a helicopter on its gear', () => {
+  // (the registry's helicopters: rows whose craft carries a main rotor and stands parked)
+  const HELI = Object.keys(VEHICLES).filter((id) => VEHICLES[id].uses.includes('parked') && [].concat(VEHICLES[id].handles.craft ?? []).some((k) => CRAFT_ARCHETYPES[k]?.layout.some((e) => CRAFT_ODM[e.sku]?.kind === 'heli-rotor')));
+  const ONE = HELI.find((id) => VEHICLES[id].label === 'helicopter') ?? HELI[0];
+  const at = [3, 4, 0];
+  it('the word helicopter is a live craft that stands parked; a helicopter takes its look, the air\'s livery, a fold and a pad', () => {
+    expect(HELI.length).toBeGreaterThan(1);
+    const [p] = readParked([{ vehicle: 'helicopter', at, look: Object.keys(HELI_LOOKS)[0], livery: 'wraparound', wear: 'used', fold: 1, pad: true }]);
+    expect(p).toMatchObject({ vehicle: ONE, craft: [].concat(VEHICLES[ONE].handles.craft)[0], fold: 1, pad: true });
+    expect(() => readParked([{ vehicle: ONE, at, look: 'consumer' }])).toThrow(/helicopter look/);
+    expect(() => readParked([{ vehicle: ONE, at, fold: 2 }])).toThrow(/fold/);
+    expect(() => readParked([{ vehicle: ONE, at, pad: { size: 99 } }])).toThrow(/pad/);
+    expect(() => readParked([{ vehicle: FIELD[0], at, pad: true }])).toThrow(/no craft/);
+  });
+  it('its figure a craft\'s; its box its body\'s, under its rotor\'s disc, turned with its heading', () => {
+    const along = withParked({ parked: [{ vehicle: ONE, at }] }), across = withParked({ parked: [{ vehicle: ONE, at, heading: Math.PI / 2 }] });
+    const k = [].concat(VEHICLES[ONE].handles.craft)[0], body = craftFootprint(k, { rotors: false }), all = craftFootprint(k);
+    expect(along.manifest.figures['parked-0'].craft).toMatchObject({ archetype: k });
+    const span = (c, i) => c.max[i] - c.min[i];
+    // (nose along +x: its length along x, its width along y)
+    expect(span(along.colliders[0], 0)).toBeCloseTo(body.max[1] - body.min[1], 2);
+    expect(span(along.colliders[0], 1)).toBeCloseTo(body.max[0] - body.min[0], 2);
+    expect(span(across.colliders[0], 1)).toBeCloseTo(body.max[1] - body.min[1], 2);
+    expect(body.max[0] - body.min[0]).toBeLessThan((all.max[0] - all.min[0]) * 0.5);
+  });
+  it('in a world: its figure compiled with its helipad, its box beside the level\'s colliders', async () => {
+    const floor = { corners: [[-30, -30, 0], [30, -30, 0], [30, 30, 0], [-30, 30, 0]], fill: '#777777' };
+    const base = { kind: 'controllable', faces: [floor], entities: [{ id: 'cam', rule: { type: 'glide' }, body: { type: 'none' } }], colliders: [] };
+    const { payload } = await resolveWorldScene({ ref: 'parked-heli', title: 'h', manifest: { ...base, parked: [{ vehicle: ONE, at, pad: true }] } });
+    const F = payload.figures['parked-0'];
+    expect(F.bones.map((b) => b.id)).toEqual(expect.arrayContaining(['hull', 'pad']));
+    expect(F.pad).toBe(true);
+    expect(payload.colliders).toHaveLength(1);
+  }, 120000);
+  it('a base parks helicopters in its hangar, their blades folded, in the air\'s nearest camo; as many as it holds', () => {
+    const big = { x: 0, y: 0, w: 30, d: 30, z: 0 };
+    const out = parkIn(big, [ONE, FIELD[0]], { livery: 'woodland', wear: 'used' });
+    expect(out[0]).toMatchObject({ vehicle: ONE, fold: 1, heading: 0, wear: 'used' });
+    expect(out[0].livery).not.toBe('woodland');
+    expect(out[1].livery).toBe('woodland');
+    const F = craftFootprint([].concat(VEHICLES[ONE].handles.craft)[0], { fold: 1 });
+    expect(parkIn({ x: 0, y: 0, w: F.max[1] - F.min[1], d: 30, z: 0 }, [ONE])).toEqual([]);
   });
 });
 

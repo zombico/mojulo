@@ -145,6 +145,45 @@ The machine gate on the shelf:
 
 All of this is in `craft-shelf.deep.test.js`. No eyes gate has been run on the shelf.
 
+### Helicopters
+
+Rotorcraft are the shelf's own rows (`heli-odm.js`, `heli-parts.js`, `heli-archetypes.js`), assembled like any craft.
+The kinds:
+
+- **`heli-rotor`.** A main rotor: its mast, swashplate, pitch links, hub, and drooped, handed blades. `pose.rotor`
+  spins it and the craft's `fold` swings its blades aft.
+- **`heli-tail`.** A tail rotor or a ducted fan, whose thrust is held against its main rotor's torque.
+- **`heli-cowl`.** A roof cowling with its intakes and exhausts, or a tandem's rotor pylon with its engines.
+- **`heli-kit`.** Kit hung on a station. Weapons are modelled, never fired.
+- **`craft-cockpit`.** Seats, panel and controls, side by side or tandem. It stands in a fuselage's `open` tub under
+  the glass. A faceted hull opens too, its panels kept flat.
+
+The airframes are a light civilian helicopter, a medium utility machine, an armoured tandem attack helicopter and a
+heavy tandem-rotor transport. The tandem's aft rotor is its forward one mirrored, so they turn against each other
+with their blades meshed. Each stands level on its skids or wheels with its rotors clear.
+
+- **Looks** (`heli-looks.js`, `look` on `assembleCraft` and `craftForm`). One airframe is civilian or military by its
+  card: civil, medevac, police or military. A card sets a palette, slots and lights, hangs its kit at the hull's
+  stations (`kitAt`) and strips the weapons when civilian. A look is read in its craft's family: a helicopter's cards,
+  or a drone's (`drone-looks.js`).
+- **The field's language** (`heli-made.js`, with `made`):
+  - armour plates and bolt rows on an armoured hull, left off under a civilian look;
+  - steps and grab handles at the doors;
+  - the rotor head's bolt ring and blade cuffs;
+  - the cowling's hinges and latches.
+
+  Sliding doors run on their rails by `pose.door`. A civilian look carries a generic registration and a stripe of its
+  trim. Worn, the exhausts soot the boom.
+- **In a level.** A manifest's `parked` takes a helicopter by its word:
+  - its look, the air's livery and wear, `fold`, and `pad` (a helipad under it);
+  - its collider is its body's box, not its rotor's disc, so a walker passes under the blades;
+  - a base's `building.parked` folds its helicopters into the hangar, in the air's nearest camo.
+
+  A world's figures map takes `craft: { archetype, … }` for a craft standing still.
+- **For the engines.** Each GLB is valid by the Khronos validator, with the rotors' `spin` clip.
+
+Not yet: flying them (a hover model, the rotor's thrust) and a cabin seen through an open side door.
+
 ## The airspace in a palette
 
 A flight level is drawn by the color theorist (`control/lib/graph/color-theorist/`) when its world has a palette.

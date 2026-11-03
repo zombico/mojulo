@@ -1,6 +1,6 @@
 ### Helicopters: rotorcraft on the craft shelf, military and civilian
 
-In progress. Helicopters on the craft shelf:
+Helicopters on the craft shelf:
 - **Their rotor systems:**
   - a main rotor's head, swashplate, pitch links and drooped, handed blades, folding aft;
   - a tail rotor or a ducted fan.
@@ -228,4 +228,43 @@ In progress. Helicopters on the craft shelf:
     helicopter with their registrations and stripes.
   - **Not done:** the cabin's benches. An open door shows a dark opening, not a seen cabin: the hull is one skin round
     its cabin, and opening its side is a hull of another kind.
+- **Composed:**
+  - **The registry:**
+    - `helicopter` is live: the word alone means the medium utility machine (a medevac or an assault transport by its
+      look), its utility, medevac, assault and troop words with it;
+    - `gunship` is the attack helicopter's;
+    - `light helicopter`, `attack helicopter` and `tandem-rotor helicopter` are their own rows;
+    - every helicopter stands parked.
+
+    A medevac is the utility machine in its card, not a row of its own (a row names one craft, and a look is no craft).
+  - **Parked, in a level** (`vehicle-registry/parked.js`):
+    - **The words:** a manifest's `parked` takes a craft by its word (a helicopter, and any shelf craft whose row stands
+      parked): its family's `look`, the air's livery and wear, `fold` (blades or wings, 0 spread … 1 folded), and `pad`
+      (a helipad under it: true, or `{ size }`).
+    - **Its collider** is its body's box, its rotor's disc left out (`craftFootprint` in `craft-shelf/index.js`), so a
+      walker passes under the blades. It is turned with its heading as a car's is.
+    - **A base** (`building.parked`) takes helicopters by name beside its trucks and carriers. It folds their blades into
+      its hangar, takes each one's folded extent, and paints them in the air's nearest camo to the base's (woodland a
+      wraparound, winter an arctic). A road car and a field vehicle take no craft word.
+  - **The world** (`world-scene.js`): a figures map takes `craft: { archetype, look?, livery?, wear?, fold?, pad?,
+    made? }`, a craft standing on its gear in the form render, made unless `made: false`, lit by the world's sky, its
+    rotors still. Absent, byte-identical.
+  - **The helipad** (`craftFormFigure`'s `pad`): a concrete square sized to the craft, its edge band, its ring and a
+    generic H, its own bone, its top the ground the craft stands on.
+  - **The engines:** a helicopter's GLB (military, made, in camo and battered, on its helipad, its rotors' spin clip)
+    passes the Khronos glTF validator with no error and no warning.
+  - **The docs:** `docs/flight-games.md` has the helicopters: their kinds, airframes, looks, the field's language, a
+    level and the engines.
+  - **Held:**
+    - `parked.test.js`:
+      - the word helicopter a live craft that stands parked;
+      - a craft's words read and refused (another family's look, a fold out of range, a pad too big, a craft word on a
+        car);
+      - its figure a craft's, its box its body's, turned with its heading, narrower than its rotor's disc;
+      - in a world, its figure compiled with its helipad and its box beside the level's colliders;
+      - a base folding helicopters into its hangar in the air's nearest camo, refusing one that does not fit.
+    - `heli.test.js`: the GLB.
+  - **Seen** (machine gate only; the eyes gate is open): a world with four parked: the medevac and the police
+    helicopter each on a helipad, the attack helicopter in desert camo, the tandem with its blades folded.
+  - **Not done:** flying them (a hover model, the rotor's thrust), and a cabin seen through an open side door.
 

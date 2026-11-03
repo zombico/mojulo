@@ -7,10 +7,14 @@
  *
  *   PARKED_MAX                    the most a level stands
  *   BASE_PARKED                   what a base parks when it says only `true`: a truck and a carrier
- *   readParked(list, at?)         → [{ vehicle, class, at, heading, livery?, wear?, seed }], each word read through the
- *                                   registry (a row with a realistic loft that can stand parked), or throws naming why
+ *   readParked(list, at?)         → [{ vehicle, class | craft, at, heading, livery?, wear?, look?, fold?, pad?, seed }],
+ *                                   each word read through the registry (a row with a realistic loft, or a craft off the
+ *                                   shelf, that can stand parked), or throws naming why. A craft (a helicopter, an
+ *                                   aircraft, a drone) takes its family's `look`, the air's livery and wear, `fold`
+ *                                   (its blades or wings, 0 spread … 1 folded) and `pad` (a helipad under it: true or
+ *                                   { size }); its collider is its body's box, not its rotor's disc
  *   parkIn(room, words, { seed?, livery?, wear? }) → `parked` entries side by side across a room, noses to its +x
- *                                   (a hangar's doors), as many as it holds
+ *                                   (a hangar's doors), as many as it holds; a craft folded, in the air's nearest camo
  *   parkable(word, at?)          → { vehicle, class }, or throws naming why the word cannot stand parked
  *   readBuildingParked(word, at?) → a base building's `parked` read: true (BASE_PARKED), [words], or
  *                                   { vehicles?, livery?, wear? }, as { vehicles, livery?, wear? }
@@ -27,17 +31,30 @@ import { MILITARY_CLASSES } from '../car-designer/road-military.js';
 import { CAMO, readLivery } from '../car-designer/livery-cut.js';
 import { readWear } from '../car-designer/mil-wear.js';
 import { GRUNT_STYLES } from '../cosmos/packs/comic-hero/grunts.js';
+import { CRAFT_ARCHETYPES, CRAFT_ODM, craftFootprint } from '../craft-shelf/index.js';
+import { readAirLivery } from '../craft-shelf/air-surface.js';
+import { lookCard } from '../craft-shelf/drone-looks.js';
+import { lookFamily } from '../craft-shelf/heli-looks.js';
 
 export const PARKED_MAX = 6;
 export const BASE_PARKED = Object.freeze(['cargo-truck', 'apc']);
-const KEYS = ['vehicle', 'at', 'heading', 'livery', 'wear', 'seed'];
+const KEYS = ['vehicle', 'at', 'heading', 'livery', 'wear', 'seed', 'look', 'fold', 'pad'];
+// (a craft's own words: a road car and a field vehicle take none of them)
+const CRAFT_KEYS = ['look', 'fold', 'pad'];
+// a field camo's nearest in the air's patterns (air-surface.js): a base's colours on its helicopters
+const AIR_OF_CAMO = Object.freeze({ woodland: 'wraparound', desert: 'desert', tiger: 'splinter', winter: 'arctic', urban: 'counterShaded', digital: 'splinter' });
+/** A livery as a craft wears it: an air livery as it is, a field camo's nearest air pattern, else none. */
+const airLivery = (livery) => { const L = typeof livery === 'string' && AIR_OF_CAMO[livery] ? AIR_OF_CAMO[livery] : livery; try { readAirLivery(L); return L; } catch { return undefined; } };
 const r3 = (n) => Math.round(n * 1e3) / 1e3 + 0;
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 
-/** The row and class a parked word names, or throws. */
+/** The row and class (a road or field vehicle's realistic loft) or craft (the craft shelf's archetype: a helicopter, an
+ *  aircraft, a drone) a parked word names, or throws. */
 export function parkable(word, at = 'parked') {
   const hit = typeof word === 'string' ? resolveVehicle(word) : null;
   if (!hit) throw new Error(`${at}: '${word}' is no vehicle; ${suggestVehicles(String(word ?? ''))}`);
+  const craft = (handlesOf(hit.id).craft ?? []).find((k) => CRAFT_ARCHETYPES[k]?.realm === 'earth');
+  if (craft && hit.row.uses.includes('parked')) return { vehicle: hit.id, craft };
   const cls = (handlesOf(hit.id).physics ?? []).find(loftable);
   if (!cls || !hit.row.uses.includes('parked')) throw new Error(`${at}: the ${hit.row.label} has no realistic body that stands parked`);
   return { vehicle: hit.id, class: cls };
@@ -49,10 +66,20 @@ export function readParked(list, at = 'parked') {
     const w = `${at}[${k}]`;
     if (!isObj(p)) throw new Error(`${w} is { vehicle, at: [x, y, z], heading?, livery?, wear?, seed? }`);
     for (const key of Object.keys(p)) if (!KEYS.includes(key)) throw new Error(`${w}.${key} is not a parked vehicle's setting (${KEYS.join(', ')})`);
-    const { vehicle, class: cls } = parkable(p.vehicle, `${w}.vehicle`);
+    const { vehicle, class: cls, craft } = parkable(p.vehicle, `${w}.vehicle`);
     if (!Array.isArray(p.at) || p.at.length !== 3 || !p.at.every(Number.isFinite)) throw new Error(`${w}.at is [x, y, z], metres`);
     if (p.heading !== undefined && !Number.isFinite(p.heading)) throw new Error(`${w}.heading is radians (0: its nose along +x)`);
     if (p.seed !== undefined && !Number.isInteger(p.seed)) throw new Error(`${w}.seed is an integer`);
+    if (craft) {
+      // (a craft: its look (a card of its family), its livery and wear the air's, its blades folded, a helipad under it)
+      if (p.look !== undefined) lookCard(p.look, lookFamily(CRAFT_ARCHETYPES[craft], CRAFT_ODM));
+      if (p.livery !== undefined) readAirLivery(p.livery);
+      if (p.wear !== undefined) readWear(p.wear);
+      if (p.fold !== undefined && !(Number.isFinite(p.fold) && p.fold >= 0 && p.fold <= 1)) throw new Error(`${w}.fold is 0 (spread) to 1 (folded)`);
+      if (p.pad !== undefined && p.pad !== true && p.pad !== false && !(isObj(p.pad) && Object.keys(p.pad).every((k) => k === 'size') && Number.isFinite(p.pad.size) && p.pad.size >= 4 && p.pad.size <= 40)) throw new Error(`${w}.pad is true (a helipad under it) or { size: 4 to 40 metres }`);
+      return { vehicle, craft, at: p.at.map(r3), heading: r3(p.heading ?? 0), ...Object.fromEntries(['look', 'livery', 'wear', 'fold'].filter((k) => p[k] !== undefined).map((k) => [k, p[k]])), ...(p.pad ? { pad: p.pad } : {}), seed: p.seed ?? k + 1 };
+    }
+    for (const key of CRAFT_KEYS) if (p[key] !== undefined) throw new Error(`${w}.${key}: the ${vehicle} is no craft; a look, a fold and a helipad are a craft's`);
     // (a livery and a wear are a field vehicle's: a road car is painted and weathered by its own build)
     const field = !!MILITARY_CLASSES[cls];
     for (const key of ['livery', 'wear']) if (p[key] !== undefined && !field) throw new Error(`${w}.${key}: the ${vehicle} is ${key === 'livery' ? 'painted' : 'weathered'} by its own build; only a field vehicle takes one`);
@@ -89,6 +116,16 @@ export function parkIn(room, words, { seed = 1, livery, wear } = {}) {
   const gap = 1.6, out = [];
   let y = room.y + gap;
   rows.forEach((r, k) => {
+    if (r.craft) {
+      // (a craft under a roof: its blades and wings folded, its whole folded extent the room it takes; its livery the
+      // base's own where the air has it)
+      const F = craftFootprint(r.craft, { fold: 1 }), L = F.max[1] - F.min[1], W = F.max[0] - F.min[0];
+      if (L + 2 * gap > room.w || y + W + gap > room.y + room.d) return;
+      const air = livery !== undefined && livery !== null ? airLivery(livery) : undefined;
+      out.push({ vehicle: r.vehicle, at: [r3(room.x + room.w / 2), r3(y + W / 2), r3(room.z ?? 0)], heading: 0, fold: 1, ...(air !== undefined ? { livery: air } : {}), ...(wear !== undefined ? { wear } : {}), seed: seed + k });
+      y += W + gap;
+      return;
+    }
     const v = PHYSICS[r.class];
     if (v.L + 2 * gap > room.w || y + v.W + gap > room.y + room.d) return;
     const field = !!MILITARY_CLASSES[r.class];
@@ -103,6 +140,19 @@ export function withParked(manifest) {
   const P = readParked(manifest.parked);
   const figures = { ...(manifest.figures ?? {}) }, entities = [...(manifest.entities ?? [])], colliders = [];
   P.forEach((p, k) => {
+    if (p.craft) {
+      // (a craft: its form figure standing on its gear (a helipad under it when asked), still; a box over its body, not
+      // its rotor's disc, so a walker passes under the blades)
+      const id = `parked-${k}`, c = Math.cos(p.heading), s = Math.sin(p.heading);
+      figures[id] = { craft: { archetype: p.craft, seed: p.seed, ...Object.fromEntries(['look', 'livery', 'wear', 'fold', 'pad'].filter((q) => p[q] !== undefined).map((q) => [q, p[q]])) } };
+      entities.push({ id, rule: { type: 'static' }, body: { type: 'figure-rig', figure: id }, transform: { pos: p.at, heading: p.heading } });
+      // (its body's box in its own frame (+y its nose), turned to the heading (0: nose along +x))
+      const F = craftFootprint(p.craft, { rotors: false, ...(p.fold !== undefined ? { fold: p.fold } : {}), ...(p.look ? { look: p.look } : {}) });
+      const xs = [], ys = [];
+      for (const x of [F.min[0], F.max[0]]) for (const y of [F.min[1], F.max[1]]) { xs.push(x * s + y * c); ys.push(-x * c + y * s); }
+      colliders.push({ min: [r3(p.at[0] + Math.min(...xs)), r3(p.at[1] + Math.min(...ys)), p.at[2]], max: [r3(p.at[0] + Math.max(...xs)), r3(p.at[1] + Math.max(...ys)), r3(p.at[2] + F.max[2])] });
+      return;
+    }
     const id = `parked-${k}`, v = PHYSICS[p.class], c = Math.cos(p.heading), s = Math.sin(p.heading);
     figures[id] = { loft: { class: p.class, seed: p.seed, light: 'form', ...(p.livery !== undefined ? { livery: p.livery } : {}), ...(p.wear !== undefined ? { wear: p.wear } : {}) } };
     entities.push({ id, rule: { type: 'static' }, body: { type: 'figure-rig', figure: id }, transform: { pos: p.at, heading: p.heading } });

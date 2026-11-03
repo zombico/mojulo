@@ -16,7 +16,7 @@
  *   AIR_MATERIALS                                   the slots an aircraft is drawn in: a semi-gloss paint and its
  *                                                   trim, bare and hot metal, a canopy's tinted glass, the rubber, the
  *                                                   nav lights and the exhaust's glow
- *   craftForm(archetype, { palette?, colors?, pose?, attitude?, made?, livery?, wear?, look? })   made: its skin's panel lines,
+ *   craftForm(archetype, { palette?, colors?, pose?, attitude?, made?, livery?, wear?, look?, fold? })   made: its skin's panel lines,
  *                                                   access panels and fasteners (air-kit.js); livery: its camo cut into
  *                                                   the paint and its marks; wear: soot, streaks, chips, fade, patches
  *                                                   (air-surface.js); look: a drone's card (drone-looks.js) or a
@@ -107,14 +107,37 @@ function accessOf(F) {
   ];
 }
 
+// A helipad's faces: a slab whose top is the ground the craft stands on (z 0), its edge band, a ring and a generic H in
+// paint on it. Sized to the craft's own body (a side `size` metres, else its length and a margin), centred under it.
+const PAD = { slab: '#8e8c86', band: '#d9b23a', paint: '#ecebe4' };
+function helipadItem({ size } = {}, C) {
+  const S = size ?? Math.max(8, Math.min(30, (C.readout?.measures?.length ?? C.length) * 0.9)), h = S / 2, d = 0.12, lift = 0.004, faces = [];
+  const quad = (corners, n, albedo, material = 'primer') => faces.push({ corners, part: 'pad', material, albedo, outNormal: n, cornerNormals: corners.map(() => n) });
+  // (the slab: its top and its four sides, its bottom never seen)
+  quad([[-h, -h, 0], [h, -h, 0], [h, h, 0], [-h, h, 0]], [0, 0, 1], PAD.slab);
+  for (const [n, c] of [[[1, 0, 0], [[h, -h, -d], [h, h, -d], [h, h, 0], [h, -h, 0]]], [[-1, 0, 0], [[-h, h, -d], [-h, -h, -d], [-h, -h, 0], [-h, h, 0]]], [[0, 1, 0], [[h, h, -d], [-h, h, -d], [-h, h, 0], [h, h, 0]]], [[0, -1, 0], [[-h, -h, -d], [h, -h, -d], [h, -h, 0], [-h, -h, 0]]]]) quad(c, n, PAD.slab);
+  const up = [0, 0, 1], rect = (x0, y0, x1, y1, albedo) => quad([[x0, y0, lift], [x1, y0, lift], [x1, y1, lift], [x0, y1, lift]], up, albedo, 'plate');
+  // (its edge band, its ring of 24 segments, its H standing along the craft's length)
+  const b = S * 0.03;
+  rect(-h, -h, h, -h + b, PAD.band); rect(-h, h - b, h, h, PAD.band); rect(-h, -h + b, -h + b, h - b, PAD.band); rect(h - b, -h + b, h, h - b, PAD.band);
+  const R = S * 0.36, w = S * 0.025;
+  for (let k = 0; k < 24; k++) {
+    const a0 = (2 * Math.PI * k) / 24, a1 = (2 * Math.PI * (k + 1)) / 24, p = (r, a) => [r * Math.cos(a), r * Math.sin(a), lift];
+    quad([p(R - w, a0), p(R, a0), p(R, a1), p(R - w, a1)], up, PAD.paint, 'plate');
+  }
+  const hh = S * 0.2, hw = S * 0.13, t = S * 0.035;
+  rect(-hw, -hh, -hw + t, hh, PAD.paint); rect(hw - t, -hh, hw, hh, PAD.paint); rect(-hw + t, -t / 2, hw - t, t / 2, PAD.paint);
+  return { id: 'pad', head: [0, 0, 0], faces };
+}
+
 /** The craft's faces in the form render, by item (see the head of this file). */
-export function craftForm(archetype, { palette, colors, pose = { gear: 1 }, attitude = 'level', made = false, livery, wear, look } = {}) {
+export function craftForm(archetype, { palette, colors, pose = { gear: 1 }, attitude = 'level', made = false, livery, wear, look, fold } = {}) {
   const row = CRAFT_ARCHETYPES[archetype];
   if (!row) throw new Error(`craft-form: no archetype '${archetype}' on the shelf`);
   // (a drone's look: its stock card's slots, or the card asked for, with its palette and, unless one is named, its livery)
   const card = look ? lookCard(look, lookFamily(row, CRAFT_ODM)) : row.look ? lookCard(row.look) : null;
   const L = readAirLivery(livery ?? (look ? card.livery : undefined)), W = wear === undefined || wear === null ? null : readWear(wear);
-  const { manifest, readout } = assembleCraft(archetype, { palette, colors, pose, attitude, finish: true, ...(made ? { made } : {}), ...(look ? { look } : {}) });
+  const { manifest, readout } = assembleCraft(archetype, { palette, colors, pose, attitude, finish: true, ...(made ? { made } : {}), ...(look ? { look } : {}), ...(fold !== undefined ? { fold } : {}) });
   const P = resolveCraftPalette(palette ?? (look ? card.palette : row.palette), colors).colors;
   const { faces, placements } = lowerAssemblerBuild(manifest, { light: FLAT_LIGHT });
   let mn = [Infinity, Infinity, Infinity], mx = [-Infinity, -Infinity, -Infinity];
@@ -203,9 +226,11 @@ function spinOf(bones, spins) {
 
 /** The craft as a rig figure in the form render: one bone per item, still (a craft's parts turn by their own clips
  *  when a game moves them), lit by its world's sky when it stands in one, else noon. */
-export function craftFormFigure(archetype, { setting = null, keys = 2, spin = false, ...opts } = {}) {
+export function craftFormFigure(archetype, { setting = null, keys = 2, spin = false, pad = null, ...opts } = {}) {
   // (a craft is big: its own shadow's steps on its curved skin want a deeper bias than a car's)
-  const { items, length, span, height, spins = [] } = craftForm(archetype, opts);
+  const C = craftForm(archetype, opts), { length, span, height, spins = [] } = C;
+  // (`pad`: a helipad under it, its own bone: a square of concrete a little wider than the craft's body, its ring and H)
+  const items = pad ? [...C.items, helipadItem(pad === true ? {} : pad, C)] : C.items;
   // (a drone's rotor or propeller turns about its hub: its bone's head there)
   const hubOf = new Map(spins.map((s) => [s.id, s.hub]));
   const bones = items.map((it) => ({ id: it.id, head: hubOf.get(it.id) ?? it.head }));
@@ -218,6 +243,7 @@ export function craftFormFigure(archetype, { setting = null, keys = 2, spin = fa
   return {
     ...fig,
     clips: { idle: spin && spinClip ? spinClip : fig.clips.roll, ...(spinClip ? { spin: spinClip } : {}) },
+    ...(pad ? { pad: true } : {}),
     form: { ...formLight(skyMood(setting?.sky), AIR_MATERIALS, {}), normalBias: 0.14 },
     figH: r4(height), length, span, height,
   };

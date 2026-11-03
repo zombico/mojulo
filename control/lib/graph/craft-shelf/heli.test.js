@@ -10,6 +10,8 @@
 import { describe, it, expect } from 'vitest';
 import { assembleCraft, resolveCraftPart, CRAFT_ODM, CRAFT_ARCHETYPES } from './index.js';
 import { CRAFT_PALETTES } from './craft-common.js';
+import { validateBytes } from 'gltf-validator';
+import { facesToGlb } from '../scene/scene-gltf.js';
 import { craftForm, craftFormFigure } from './craft-form.js';
 import { HELI_ODM, HELI_KINDS } from './heli-odm.js';
 import { buildCockpit } from './cockpit-parts.js';
@@ -424,5 +426,19 @@ describe('the field\'s language on a helicopter: plates, bolts, doors on their r
     expect(mean(aft)).toBeLessThan(mean(fore) * 0.8);
     expect(craftForm(LIGHT, { wear: 'pristine', livery: 'mono' }).items.find((i) => i.id === 'hull').faces.some((f) => f.cornerAlbedo)).toBe(false);
   });
+});
+
+describe('a helicopter for the engines', () => {
+  it('its GLB (military, made, in camo and battered, on its helipad, its rotors\' spin clip) valid by the Khronos validator, no warning', async () => {
+    const k = HELIS.find((q) => CRAFT_ODM[A[q].layout[0].sku].build.armour && CRAFT_ODM[A[q].layout[0].sku].build.slide);
+    const fig = craftFormFigure(k, { look: 'military', made: true, livery: 'wraparound', wear: 'battered', spin: true, pad: true });
+    const out = facesToGlb({ faces: [], figures: { craft: fig } }, { clips: '_all' });
+    const report = await validateBytes(new Uint8Array(out.bytes), { maxIssues: 50 });
+    expect(report.issues.numErrors, JSON.stringify(report.issues.messages.filter((m) => m.severity === 0))).toBe(0);
+    expect(report.issues.numWarnings, JSON.stringify(report.issues.messages.filter((m) => m.severity === 1))).toBe(0);
+    const len = out.bytes.readUInt32LE(12), json = JSON.parse(out.bytes.slice(20, 20 + len).toString('utf8'));
+    expect(json.animations.map((a) => a.name)).toEqual(expect.arrayContaining(['craft:spin']));
+    expect(json.nodes.some((n) => n.name === 'pad' || /pad/.test(n.name ?? ''))).toBe(true);
+  }, 120000);
 });
 

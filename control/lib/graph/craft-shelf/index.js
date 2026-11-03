@@ -7,6 +7,8 @@
  *   resolveCraftPart(sku)        one inventory row → a workbench recipe (metres, its hardpoints)
  *   assembleCraft(archetype)     an archetype's layout → an assembler recipe and its readout
  *   planCraftBuild(archetype)    the advisory audit: BOM, realm, swapped kinds
+ *   craftFootprint(archetype, { rotors?, fold?, look? })   its extent as its form figure stands it; without its rotors,
+ *                                its body's (what a walker bumps into)
  *   findCraftPart(words)         the words people say → a part number
  *
  * Everything is a pure function of its arguments: no seed, no clock. An archetype row and an
@@ -317,6 +319,29 @@ export function assembleCraft(archetype, { palette, colors = {}, swap: swapIn = 
     item: it.id, name: j.name, control: j.control, kind: j.kind, range: j.range, ...(j.kind === 'slide' ? { travel: j.travel } : { angle: j.angle }),
   })));
   return { manifest, readout: { ...readout, fold: foldNow, pose: clone(pose), gear, joints, ...(look ? { look } : {}) } };
+}
+
+// what turns over a craft's head, not its body: a walker passes under it
+const DISCS = Object.freeze(['heli-rotor', 'drone-rotor', 'craft-propeller']);
+const footMemo = new Map();
+
+/**
+ * A craft's extent as its form figure stands it (pose { gear: 0 }, on the ground; craftForm.js): `{ min, max }` in the
+ * figure's own frame (centred on x and y over all of it, its lowest point z 0). `rotors: false` leaves out what turns
+ * over its head (a main rotor's blades, a propeller's disc), so a box over the rest is its body's: what a walker
+ * bumps into. `fold` and `look` as assembleCraft takes them. Pure; memoised by its words.
+ */
+export function craftFootprint(archetype, { rotors = true, fold, look } = {}) {
+  const key = JSON.stringify([archetype, rotors, fold ?? null, look ?? null]);
+  if (footMemo.has(key)) return footMemo.get(key);
+  const { manifest } = assembleCraft(archetype, { pose: { gear: 0 }, attitude: 'ground', ...(fold !== undefined ? { fold } : {}), ...(look ? { look } : {}) });
+  const P = resolveAssemblerPlacements(manifest);
+  const box = (keep) => { const lo = [Infinity, Infinity, Infinity], hi = [-Infinity, -Infinity, -Infinity]; P.forEach((p, i) => { if (!keep(manifest.items[i])) return; for (let k = 0; k < 3; k += 1) { lo[k] = Math.min(lo[k], p.bounds.min[k]); hi[k] = Math.max(hi[k], p.bounds.max[k]); } }); return { lo, hi }; };
+  const all = box(() => true), part = rotors ? all : box((it) => !DISCS.includes(it.source.garage.kind));
+  const c = [(all.lo[0] + all.hi[0]) / 2, (all.lo[1] + all.hi[1]) / 2, all.lo[2]], r = (v, k) => Math.round((v - c[k]) * 1000) / 1000;
+  const out = Object.freeze({ min: part.lo.map(r), max: part.hi.map(r) });
+  footMemo.set(key, out);
+  return out;
 }
 
 /** What the assembled craft measures, weighs and pushes, beside its reference figure. */
