@@ -1073,6 +1073,15 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
           payload.figures[name] = await atRigFidelity(craftFormFigure(K.archetype, { setting: { sky: payload.sky ?? null }, pose: { gear: 0 }, attitude: 'ground', made: K.made !== false, ...opts }));
           continue;
         }
+        // CYCLE bodies (cycle-shelf/: the vehicle registry's realistic build of a machine ridden astride): a figures-map
+        // entry may be a cycle shelf machine (`cycle`: { archetype, look?, pose? }, what a parked cycle writes), at its
+        // class's true numbers in metres, parked on its stand, delivered as its rig (the machine the root, each wheel a
+        // bone). Absent ⇒ none is resolved, byte-identical.
+        if (rawSpec.cycle && typeof rawSpec.cycle === 'object') {
+          const { cycleFigure } = await import('@/lib/graph/cycle-shelf/cycle-figure.js');
+          payload.figures[name] = cycleFigure(rawSpec.cycle);
+          continue;
+        }
         // TRANSFORMER bodies (transformation/: more-than-meets): a figures-map entry may be a body in two forms
         // (`transformer`: { robot?, vehicle?, scheme?, fold?, legs?, height? }): the robot a VARIABLE SUIT (`robot.variable`:
         // { palette?, build? }, a suit drawn to fold into its own waverider), an ALIEN BODY (`robot.alien`, pointed shells

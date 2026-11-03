@@ -14,6 +14,7 @@ import { RIDES } from '../gameworld/ride.js';
 import { SUPERCAR_LIBRARY } from '../car-designer/vehicle-library.js';
 import { CRAFT_ARCHETYPES } from '../craft-shelf/craft-archetypes.js';
 import { CRAFT } from '../skyscape/eye.js';
+import { CYCLE_ARCHETYPES } from '../cycle-shelf/cycle-archetypes.js';
 import { CRAFT_TRAITS } from '../gameworld/tech-crafter.js';
 
 const IDS = Object.keys(VEHICLES);
@@ -31,6 +32,7 @@ const TABLES = {
   supercar: Object.keys(SUPERCAR_LIBRARY),
   craft: Object.keys(CRAFT_ARCHETYPES),
   sky: Object.keys(CRAFT),
+  cycle: Object.keys(CYCLE_ARCHETYPES),
 };
 const NETS = [...Object.keys(CAR_NETS), ...Object.keys(SMOOTH_BOX_NETS), ...Object.keys(AIRCRAFT_FUSELAGE_NETS)];
 
@@ -138,7 +140,7 @@ describe('builds by tier', () => {
   for (const id of IDS) for (const b of buildsOf(id)) if (!byVia.has(b.via)) byVia.set(b.via, id);
 
   it('every builder has a row, and every build a tier, a status and the uses it serves', () => {
-    expect([...byVia.keys()].sort()).toEqual(['assembly', 'craft', 'fleet', 'loft', 'net', 'racer', 'ride', 'scenery', 'supercar', 'tech']);
+    expect([...byVia.keys()].sort()).toEqual(['assembly', 'craft', 'cycle', 'fleet', 'loft', 'net', 'racer', 'ride', 'scenery', 'supercar', 'tech']);
     for (const id of byVia.values()) {
       for (const b of buildsOf(id)) {
         expect(b.tier === null || TIER_IDS.includes(b.tier)).toBe(true);

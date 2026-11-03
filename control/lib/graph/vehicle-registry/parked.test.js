@@ -7,7 +7,7 @@
 import { describe, it, expect } from 'vitest';
 import { readParked, parkIn, withParked, paintOfDress, readBuildingParked, parkable, BASE_PARKED, PARKED_MAX } from './parked.js';
 import { VEHICLES, rowOfHandle } from './roster.js';
-import { VEHICLES as PHYSICS } from '../roads/vehicles.js';
+import { VEHICLES as PHYSICS, wheelLayout } from '../roads/vehicles.js';
 import { MILITARY_CLASSES } from '../car-designer/road-military.js';
 import { UNBUILT } from '../car-designer/sheet.js';
 import { CAMO } from '../car-designer/livery-cut.js';
@@ -19,11 +19,48 @@ import { FOE_CLASSES } from '../foes/index.js';
 import { MOVES } from '../foes/vocab.js';
 import { CRAFT_ARCHETYPES, CRAFT_ODM, craftFootprint } from '../craft-shelf/index.js';
 import { HELI_LOOKS } from '../craft-shelf/heli-looks.js';
+import { CYCLE_ARCHETYPES } from '../cycle-shelf/cycle-archetypes.js';
+import { CYCLE_ODM } from '../cycle-shelf/cycle-odm.js';
+import { LOOK_IDS } from '../cycle-shelf/cycle-looks.js';
 
 // (the field's bodies the sheet builds: one still waiting for its parts cannot park)
 const FIELD = Object.keys(MILITARY_CLASSES).filter((k) => !UNBUILT[k]).map((k) => rowOfHandle('physics', k));
 const ROAD = rowOfHandle('physics', 'pickup');
 const room = { x: 10, y: 0, w: 24, d: 30, z: 0 };
+
+describe('a machine ridden astride, parked', () => {
+  // (rows chosen in code: one that stands on a stand, one whose machine has none or cannot stand parked)
+  // (two in line stand on a stand, three wheels or four on their own)
+  const ids = Object.keys(VEHICLES), inline = (id) => wheelLayout(PHYSICS[VEHICLES[id].handles.physics]) === 'inline';
+  const stands = (id) => !inline(id) || CYCLE_ARCHETYPES[VEHICLES[id].handles.cycle].layout.some((e) => CYCLE_ODM[e.sku].kind === 'cycle-stand');
+  const standing = ids.find((id) => VEHICLES[id].handles.cycle && inline(id) && VEHICLES[id].uses.includes('parked') && stands(id));
+  const held = ids.find((id) => VEHICLES[id].handles.cycle && !(VEHICLES[id].uses.includes('parked') && stands(id)));
+  const wheeled = ids.find((id) => VEHICLES[id].handles.cycle && !inline(id) && VEHICLES[id].uses.includes('parked'));
+  const look = LOOK_IDS.find((k) => k !== 'stock');
+  it('stands on its stand as its cycle shelf machine, a look dressing it', () => {
+    const p = readParked([{ vehicle: standing, at: [1, 2, 0], look }])[0];
+    expect(p).toMatchObject({ vehicle: standing, cycle: VEHICLES[standing].handles.cycle, look });
+    const { manifest, colliders } = withParked({ parked: [{ vehicle: standing, at: [1, 2, 0], look }] });
+    expect(manifest.figures['parked-0']).toEqual({ cycle: { archetype: VEHICLES[standing].handles.cycle, look } });
+    expect(colliders[0].max[2]).toBeCloseTo(PHYSICS[VEHICLES[standing].handles.physics].H, 6);
+  });
+  it('three wheels or four stand on their own, with no stand', () => {
+    expect(parkable(wheeled)).toMatchObject({ vehicle: wheeled, cycle: VEHICLES[wheeled].handles.cycle });
+  });
+  it('refuses a machine that cannot stand parked, and a look on a car', () => {
+    expect(() => parkable(held)).toThrow(/stand/);
+    expect(() => readParked([{ vehicle: ROAD, at: [0, 0, 0], look }])).toThrow(/dressed by its own build/);
+  });
+  it('in a world: its figure compiled on its stand, a bone at each wheel', async () => {
+    const floor = { corners: [[-20, -20, 0], [20, -20, 0], [20, 20, 0], [-20, 20, 0]], fill: '#777777' };
+    const base = { kind: 'controllable', faces: [floor], entities: [{ id: 'cam', rule: { type: 'glide' }, body: { type: 'none' } }] };
+    const { payload } = await resolveWorldScene({ ref: 'parked-cycle', title: 'p', manifest: { ...base, parked: [{ vehicle: standing, at: [0, 0, 0] }] } });
+    const fig = payload.figures['parked-0'];
+    expect(fig.bones.map((b) => b.id).sort()).toEqual(['root', 'wheelF', 'wheelR']);
+    expect(fig.cycle.lean).toBeLessThan(0);
+    expect(payload.colliders).toHaveLength(1);
+  }, 60000);
+});
 
 describe('a parked vehicle read', () => {
   it('takes a registry word with a realistic body that stands parked, and refuses one without', () => {

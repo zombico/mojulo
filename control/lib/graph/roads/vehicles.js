@@ -11,12 +11,15 @@
  * one is real, `band` (the share of peak power a gearbox holds on average: 0.75 a car's, 0.85 a many-geared diesel's),
  * `grip` (its tyres' μ on dry asphalt), `brakeEff` (the share of grip its brakes use: ABS 0.95, air brakes 0.65),
  * `turn` (m, kerb-to-kerb turning radius). A tracked class says `running: 'track'` (its wheelbase the track's length
- * on the ground, its wheel a road wheel): it is drawn and parked, not yet driven (skid steer is not built).
+ * on the ground, its wheel a road wheel): it is drawn and parked, not yet driven (skid steer is not built). A
+ * three-wheeler says its `layout` (sidecar | delta | tadpole: wheelLayout); its track is its two side-by-side wheels'.
  *
  * Sources: published specifications for a representative of each class (rental kart, Corolla, Camry, RAV4, F-150,
  * Transit, 911 Carrera, a Rally2 car, a Dakar SSV, a trophy truck, a 450 motocross bike, a sport ATV, a box truck, a
- * city bus, a Class 8 tractor with a 53 ft trailer empty and at 80,000 lb), rounded: [E], estimates for a class, not a
- * model's data sheet. The spike's reference sheet sets the bands they are held to (vehicles.test.js).
+ * city bus, a Class 8 tractor with a 53 ft trailer empty and at 80,000 lb; the cycles: a 700 cc standard, a litre sport
+ * bike, a grand prix prototype, a big V-twin cruiser, a 150 cc scooter, a 110 cc underbone, a pedelec, a commuter on an
+ * upright bicycle, a flat-twin outfit, a delta trike, an LPG auto rickshaw, a pedicab, a box trike), each with its rider,
+ * rounded: [E], estimates for a class, not a model's data sheet. The spike's reference sheet sets the bands they are held to (vehicles.test.js).
  *
  * Launch is weight-transferred (launchShare): accelerating loads the rear axle, so a rear-driven class pushes with more
  * than its static share and a front-driven one with less; a rear-driven two-wheeler lifts its front wheel first.
@@ -61,7 +64,30 @@ export const VEHICLES = Object.freeze({
   // their length the hull's, a tank's gun reaching past it. Drawn and parked; driven when skid steer is built)
   lightTank:     Object.freeze({ words: 'a tracked light tank', mass: 25000, power: 440, drive: 'all', share: 1, wheelbase: 3.9, track: 2.3, wheelRadius: 0.32, CdA: 7.0, Crr: 0.045, cgH: 1.1, L: 6.4, W: 2.9, H: 2.5, eye: 2.3, grip: 0.75, brakeEff: 0.8, turn: 5, band: 0.8, governor: kmh(70), running: 'track' }),
   trackedCarrier: Object.freeze({ words: 'a tracked armoured personnel carrier', mass: 15000, power: 300, drive: 'all', share: 1, wheelbase: 3.6, track: 2.2, wheelRadius: 0.3, CdA: 6.5, Crr: 0.045, cgH: 1.1, L: 6.0, W: 2.8, H: 2.3, eye: 2.1, grip: 0.75, brakeEff: 0.8, turn: 5, band: 0.8, governor: kmh(65), running: 'track' }),
+  // (the cycles: a rider astride, steering by a bar; built by the cycle shelf, cycle-shelf/. Two in line (track 0): a
+  // standard road bike, a sport bike, a grand prix prototype on slicks, a V-twin cruiser, a 150 cc scooter, a 110 cc
+  // underbone, a pedelec cut off at 25 km/h, an upright bicycle. A pedalled class's power is its rider's, held as a rider
+  // holds it (band 1). Three wheels say their `layout`: a heavy flat twin with its chair empty, a delta motor trike, an
+  // LPG auto rickshaw, a pedicab, a box trike)
+  streetBike:    Object.freeze({ words: 'a standard road motorcycle', mass: 265, power: 55, drive: 'rear', share: 0.55, wheelbase: 1.4, track: 0, wheelRadius: 0.315, CdA: 0.45, Crr: 0.015, cgH: 0.75, L: 2.09, W: 0.75, H: 1.1, eye: 1.45, grip: 1.0, brakeEff: 0.9, turn: 2.9, band: 0.85 }),
+  sportBike:     Object.freeze({ words: 'a litre sport bike', mass: 275, power: 140, drive: 'rear', share: 0.52, wheelbase: 1.41, track: 0, wheelRadius: 0.315, CdA: 0.33, Crr: 0.015, cgH: 0.72, L: 2.07, W: 0.72, H: 1.15, eye: 1.3, grip: 1.05, brakeEff: 0.92, turn: 3.3, band: 0.85, governor: kmh(299) }),
+  raceBike:      Object.freeze({ words: 'a grand prix prototype on slicks', mass: 232, power: 200, drive: 'rear', share: 0.52, wheelbase: 1.45, track: 0, wheelRadius: 0.3, CdA: 0.28, Crr: 0.015, cgH: 0.68, L: 2.05, W: 0.7, H: 1.12, eye: 1.25, grip: 1.35, brakeEff: 0.95, turn: 3.5, band: 0.85 }),
+  cruiserBike:   Object.freeze({ words: 'a V-twin cruiser', mass: 380, power: 65, drive: 'rear', share: 0.6, wheelbase: 1.65, track: 0, wheelRadius: 0.33, CdA: 0.7, Crr: 0.016, cgH: 0.65, L: 2.45, W: 0.95, H: 1.15, eye: 1.4, grip: 0.95, brakeEff: 0.85, turn: 3.3, band: 0.85 }),
+  scooter:       Object.freeze({ words: 'a 150 cc scooter', mass: 205, power: 11, drive: 'rear', share: 0.6, wheelbase: 1.35, track: 0, wheelRadius: 0.27, CdA: 0.6, Crr: 0.016, cgH: 0.7, L: 1.95, W: 0.73, H: 1.15, eye: 1.4, grip: 0.9, brakeEff: 0.85, turn: 2.0, band: 0.9 }),
+  moped:         Object.freeze({ words: 'a 110 cc underbone', mass: 175, power: 6, drive: 'rear', share: 0.6, wheelbase: 1.23, track: 0, wheelRadius: 0.29, CdA: 0.55, Crr: 0.015, cgH: 0.7, L: 1.92, W: 0.7, H: 1.08, eye: 1.35, grip: 0.9, brakeEff: 0.75, turn: 1.9 }),
+  eBike:         Object.freeze({ words: 'a pedelec, its assist cut at 25 km/h', mass: 100, power: 0.4, drive: 'rear', share: 0.6, wheelbase: 1.12, track: 0, wheelRadius: 0.35, CdA: 0.5, Crr: 0.006, cgH: 1.0, L: 1.85, W: 0.65, H: 1.1, eye: 1.6, grip: 0.9, brakeEff: 0.85, turn: 2.5, band: 1, governor: kmh(25) }),
+  bicycle:       Object.freeze({ words: 'an upright bicycle, pedalled', mass: 90, power: 0.2, drive: 'rear', share: 0.6, wheelbase: 1.08, track: 0, wheelRadius: 0.35, CdA: 0.55, Crr: 0.006, cgH: 1.0, L: 1.8, W: 0.6, H: 1.1, eye: 1.6, grip: 0.9, brakeEff: 0.8, turn: 2.5, band: 1 }),
+  sidecarOutfit: Object.freeze({ words: 'a road twin with its sidecar, the chair empty', mass: 415, power: 30, drive: 'rear', share: 0.45, wheelbase: 1.4, track: 1.1, wheelRadius: 0.33, CdA: 1.0, Crr: 0.018, cgH: 0.65, L: 2.1, W: 1.55, H: 1.1, eye: 1.4, grip: 0.85, brakeEff: 0.75, turn: 5.0, layout: 'sidecar' }),
+  motorTrike:    Object.freeze({ words: 'a motor trike, one wheel ahead of two', mass: 530, power: 60, drive: 'rear', share: 0.7, wheelbase: 2.0, track: 1.3, wheelRadius: 0.33, CdA: 0.9, Crr: 0.015, cgH: 0.6, L: 3.0, W: 1.45, H: 1.3, eye: 1.4, grip: 0.9, brakeEff: 0.85, turn: 5.5, layout: 'delta' }),
+  tukTuk:        Object.freeze({ words: 'an auto rickshaw', mass: 420, power: 7, drive: 'rear', share: 0.7, wheelbase: 2.0, track: 1.15, wheelRadius: 0.2, CdA: 1.6, Crr: 0.018, cgH: 0.75, L: 2.65, W: 1.3, H: 1.7, eye: 1.45, grip: 0.85, brakeEff: 0.7, turn: 4.3, layout: 'delta' }),
+  cycleRickshaw: Object.freeze({ words: 'a pedicab, its seat empty', mass: 150, power: 0.2, drive: 'rear', share: 0.75, wheelbase: 1.7, track: 1.0, wheelRadius: 0.33, CdA: 1.2, Crr: 0.012, cgH: 0.85, L: 2.6, W: 1.15, H: 1.9, eye: 1.65, grip: 0.85, brakeEff: 0.6, turn: 4.0, band: 1, layout: 'delta' }),
+  cargoTrike:    Object.freeze({ words: 'a box trike, two wheels ahead of one', mass: 120, power: 0.18, drive: 'rear', share: 0.45, wheelbase: 1.75, track: 0.85, wheelRadius: 0.25, CdA: 0.7, Crr: 0.01, cgH: 0.75, L: 2.3, W: 0.9, H: 1.15, eye: 1.6, grip: 0.85, brakeEff: 0.7, turn: 3.5, band: 1, layout: 'tadpole' }),
 });
+
+/** How a class stands on its wheels: two in line (track 0), a three-wheeler's `layout` (sidecar | delta | tadpole), or
+ *  axles (two wheels or a track each side of every axle: a car, a truck, a tank). */
+export const WHEEL_LAYOUTS = Object.freeze(['inline', 'sidecar', 'delta', 'tadpole', 'axles']);
+export const wheelLayout = (v) => (v.layout ?? (v.track ? 'axles' : 'inline'));
 
 export const CONDITIONS = Object.freeze({ dry: 1, wet: 0.62, snow: 0.28, ice: 0.1 });
 export const TUNINGS = Object.freeze(['sim', 'arcade']);
